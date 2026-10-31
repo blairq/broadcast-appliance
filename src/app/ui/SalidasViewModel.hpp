@@ -18,6 +18,14 @@
 //   - Lo que está al aire de cada una, para el multiview (el tally, los medios que
 //     suenan) y para las superficies de control (el bus: aire/…, y los de cada salida).
 //
+// EL MOTOR ES DEL PLANO DE CONTROL (F3-03, docs/arquitectura/05-motor-del-plano.md): todo
+// lo que se muestra sale de la foto del motor (emision/FotoMotor: cada salida con su aire,
+// su armada, lo que sale, su negro y su placa, sus medios), y se rehace cuando la
+// ventanilla avisa que cambió; lo que se hace (crear, cambiar, borrar, grabar, el negro, la
+// placa) se le pide al dueño por la ventanilla y el error vuelve como `notify`. Los
+// conmutadores de escenas y el negro y la placa son modelos del dueño: este área los crea y
+// los muda allá (los usan también el MCP del control, la línea de tiempo y la asamblea).
+//
 // En QML: Studio.salidas (lista, activa, activaDatos, varias, aire, placa, tope, nueva
 // y los comandos).
 // ============================================================================
@@ -34,6 +42,7 @@
 #include <chrono>
 #include <functional>
 #include <map>
+#include <vector>
 #include <memory>
 #include <string>
 
@@ -42,7 +51,7 @@ class AppRuntime;
 class JsonListModel;
 class MixerModel;
 class RecursosViewModel;
-struct EngineStatus;
+class VentanillaMotor;
 } // namespace ba::app
 namespace ba::app::config {
 class InterfazConfig;
@@ -97,6 +106,7 @@ class SalidasViewModel : public QObject {
    public:
     struct Partes {
         AppRuntime& rt;
+        VentanillaMotor& ventanilla;      ///< pedir y leer la foto del motor
         RecursosViewModel& recursos;      ///< si la máquina da para otra salida
         config::InterfazConfig& interfaz; ///< dónde se recuerda la activa
         /// Lo que sale de la por omisión (las pastillas de la raíz): {transmitiendo,
@@ -106,13 +116,11 @@ class SalidasViewModel : public QObject {
     explicit SalidasViewModel(Partes p, QObject* parent = nullptr);
     ~SalidasViewModel() override;
 
-    /// Rehace la lista (y avisa: listaCambio). La primera vez la llama quien la armó,
-    /// ya conectado.
+    /// Rehace la lista de la foto y avisa siempre listaCambio (al gateway, al monitor): la
+    /// primera vez la llama quien la armó, ya conectado (y cuando hay con quién hablar).
     void publicar();
     /// Vuelve a la activa que tenía esta interfaz al cerrarse (si sigue estando).
     void retomarActiva();
-    /// En el reloj de la interfaz: qué sale de cada una de las demás salidas.
-    void alTic(const EngineStatus& st);
     /// En cada vuelta del reloj: lo que está al aire de cada salida, al bus (la escena, la
     /// armada, el tally, los medios, la T-bar; las capas DSK y la mezcla de cada una) y al
     /// multiview (tally, mediosAlAire). Lo que sale de la por omisión lo dicen las pastillas.
@@ -149,7 +157,9 @@ class SalidasViewModel : public QObject {
     /// El FTB y la placa de seguridad (modelo): la GUI y el MCP los ponen por ahí.
     emision::SeguridadAire& seguridadAire() { return *seguridadAire_; }
 
-    /// Crear, cambiar y sacar salidas en caliente (AppRuntime): "" o por qué no.
+    // Lo que sigue se PIDE al dueño: devuelve "" si se pudo pedir (o por qué no, si se sabe
+    // de antemano); lo que falle después lo dice `notify`.
+    /// Crear, cambiar y sacar salidas en caliente (AppRuntime).
     Q_INVOKABLE QString crearSalida(const QString& id, const QString& nombre, const QString& color = {});
     Q_INVOKABLE QString editar(const QString& id, const QString& nombre, const QString& color);
     /// El codificador de video de la salida ("" = el de la configuración): rige desde lo
@@ -190,9 +200,17 @@ class SalidasViewModel : public QObject {
     /// El de la por omisión (las pantallas de tally de la sala, el monitor «armada»).
     void alAirePorOmisionCambio();
     void armadaPorOmisionCambio(const QString& escena);
+    /// Para el operador (ya traducido).
+    void notify(const QString& texto, const QString& nivel);
 
    private:
-    void seguir(escenas::Conmutador* c);
+    /// Lo que cambió en la foto del motor: la lista, lo que sale de cada una (y desde
+    /// cuándo), la escena al aire y la armada, el AFV, el negro y la placa.
+    void alCambiar(unsigned partes);
+    /// Las filas de la foto; true si cambiaron (o el tope).
+    bool rehacerFilas(QJsonArray* alGateway);
+    /// Pide algo que devuelve "" o el error (que vuelve como `notify`).
+    void pedir(const char* que, std::function<std::string(AppRuntime&)> orden, std::function<void()> alVolver = {});
     void revisarNueva();
 
     Partes p_;
@@ -212,6 +230,11 @@ class SalidasViewModel : public QObject {
     std::map<std::string, AireDeSalida> aireSalidas_;
     QVariantMap tally_;
     QVariantList mediosAlAire_;
+    QJsonArray alGatewayAntes_;      ///< lo último que se le dijo al gateway
+    /// De la activa y de la por omisión, lo último avisado (para avisar solo lo que cambió).
+    std::string alAireActivaAntes_, armadaActivaAntes_, alAirePorOmisionAntes_, armadaPorOmisionAntes_;
+    std::vector<std::string> afvActivaAntes_;
+    nlohmann::json placaAntes_;
 };
 
 } // namespace ba::app

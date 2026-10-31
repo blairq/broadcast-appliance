@@ -6,6 +6,7 @@
 #include "audio/ObjetivoLoudness.hpp"
 #include "control/BusEventos.hpp"
 #include "emision/RetornosInvitados.hpp"
+#include "emision/VentanillaMotor.hpp"
 #include "ui/ConferenceClient.hpp"
 #include "ui/ConferenceViewModel.hpp"
 
@@ -30,144 +31,239 @@ QVariantMap mapaDe(const nlohmann::json& j) {
         .toVariantMap();
 }
 
+QVariantList listaDe(const nlohmann::json& j) {
+    return QJsonDocument::fromJson(QByteArray::fromStdString(nlohmann::json{{"v", j}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace)))
+        .object()
+        .value("v")
+        .toArray()
+        .toVariantList();
+}
+
+/// Cómo salió pedir grabar: si hay que confirmar por el disco, con cuántas horas.
+struct Grabar {
+    bool confirmar = false, ok = false;
+    double horas = -1;
+    std::string carpeta, error;
+};
+
+/// Cómo salió salir al aire (BroadcastEngine::ultimoInicio).
+struct Transmitir {
+    bool ok = false;
+    BroadcastEngine::Inicio inicio{};
+    std::string activo, error;
+};
+
 } // namespace
 
 EmisionViewModel::EmisionViewModel(Partes p, QObject* parent) : QObject(parent), p_(std::move(p)) {
-    // Los retornos y el objetivo de loudness son del modelo: acá se muestran.
+    // Los retornos y el objetivo de loudness son del modelo (los usa el dueño, por la
+    // ventanilla y desde el MCP): acá se muestran de la foto.
     retornos_ = std::make_unique<emision::RetornosInvitados>(p_.rt);
     objetivoLoudness_ = std::make_unique<audio::ObjetivoLoudness>(p_.rt.objetivoLoudness());
+    connect(&p_.ventanilla, &VentanillaMotor::cambio, this, &EmisionViewModel::alCambiar);
 }
 
 EmisionViewModel::~EmisionViewModel() = default;
 
+void EmisionViewModel::alCambiar(unsigned partes) {
+    if ((partes & FotoMotor::Emision) == 0) return;
+    emit emisionCambio();
+    // La LISTA de destinos (no su estado de cada vuelta): la fila de cada salida la muestra.
+    std::uint64_t firma = 0;
+    for (const auto& d : p_.ventanilla.foto().destinos)
+        firma = firma * 31 + std::hash<std::string>{}(d.value("id", std::string()) + d.value("nombre", std::string()) +
+                                                       d.value("salida", std::string()) + (d.value("respaldo", false) ? "r" : ""));
+    if (firma != destinosAntes_) {
+        destinosAntes_ = firma;
+        emit destinosChanged();
+    }
+}
+
+void EmisionViewModel::pedir(const char* que, std::function<std::string(AppRuntime&)> orden, std::function<void()> alVolver,
+                             const QString& nivel) {
+    p_.ventanilla.pedir(
+        this, que, [&rt = p_.rt, orden = std::move(orden)]() { return orden(rt); },
+        [this, nivel, alVolver = std::move(alVolver)](const std::string& e) {
+            if (!e.empty()) emit notify(qs(e), nivel);
+            else if (alVolver) alVolver();
+            emit refrescar();
+        });
+}
+
 void EmisionViewModel::toggleRecording() {
     const bool grabando = p_.grabando && p_.grabando();
-    if (!grabando) {
-        // Antes de grabar: cuánto alcanza el disco a este bitrate.
-        const nlohmann::json d = p_.rt.discoGrabacion();
-        const double horas = d.value("horas", -1.0);
-        if (horas >= 0 && horas < AppRuntime::kDiscoMinimoH) {
-            emit pedirConfirmarGrabacion(horas);
-            return;
-        }
-        if (horas >= 0 && horas < 2) emit notify(tr("Ojo: el disco alcanza para ~%1 h de grabación").arg(horas, 0, 'f', 1), "warn");
-    }
     if (grabando) {
-        p_.rt.stopRecording();
-    } else if (p_.rt.startRecording()) {
-        emit notify(tr("Grabando en %1").arg(qs(p_.rt.carpetaGrabacion())), "ok");
-    } else {
-        emit notify(tr("No se pudo grabar: %1").arg(qs(p_.rt.lastError())), "error");
+        pedir("grabar_parar", [](AppRuntime& rt) {
+            rt.stopRecording();
+            return std::string();
+        });
+        return;
     }
-    emit refrescar();
+    // Antes de grabar: cuánto alcanza el disco a este bitrate (se mira en el dueño, que lee
+    // el disco; con poco, vuelve a pedir que el operador confirme).
+    p_.ventanilla.pedir(
+        this, "grabar",
+        [&rt = p_.rt]() {
+            Grabar g;
+            g.horas = rt.discoGrabacion().value("horas", -1.0);
+            if (g.horas >= 0 && g.horas < AppRuntime::kDiscoMinimoH) {
+                g.confirmar = true;
+                return g;
+            }
+            g.ok = rt.startRecording();
+            g.carpeta = rt.carpetaGrabacion();
+            if (!g.ok) g.error = rt.lastError();
+            return g;
+        },
+        [this](const Grabar& g) {
+            if (g.confirmar) return emit pedirConfirmarGrabacion(g.horas);
+            if (!g.ok) {
+                emit notify(tr("No se pudo grabar: %1").arg(qs(g.error)), "error");
+            } else {
+                if (g.horas >= 0 && g.horas < 2) emit notify(tr("Ojo: el disco alcanza para ~%1 h de grabación").arg(g.horas, 0, 'f', 1), "warn");
+                emit notify(tr("Grabando en %1").arg(qs(g.carpeta)), "ok");
+            }
+            emit refrescar();
+        });
 }
 
 void EmisionViewModel::grabarIgual() {
     if (p_.grabando && p_.grabando()) return;
-    if (p_.rt.startRecording())
-        emit notify(tr("Grabando (con poco disco)"), "warn");
-    else
-        emit notify(tr("No se pudo grabar: %1").arg(qs(p_.rt.lastError())), "error");
-    emit refrescar();
+    p_.ventanilla.pedir(
+        this, "grabar_igual",
+        [&rt = p_.rt]() { return rt.startRecording() ? std::string() : rt.lastError().empty() ? std::string("?") : rt.lastError(); },
+        [this](const std::string& e) {
+            if (e.empty())
+                emit notify(tr("Grabando (con poco disco)"), "warn");
+            else
+                emit notify(tr("No se pudo grabar: %1").arg(qs(e)), "error");
+            emit refrescar();
+        });
 }
 
 void EmisionViewModel::startStreaming(const QString& server, const QString& key) {
-    BroadcastEngine& motor = p_.rt.engine();
-    if (p_.rt.salirAlAireManual(server.toStdString(), key.toStdString())) {
-        // Nunca un "Al aire" verde si no cambió nada.
-        if (motor.ultimoInicio() == BroadcastEngine::Inicio::YaIgual)
-            emit notify(tr("Ya estabas transmitiendo a ese destino: no cambió nada"), "info");
-        else
-            emit notify(tr("Al aire"), "ok");
-    } else if (motor.ultimoInicio() == BroadcastEngine::Inicio::YaOtroDestino) {
-        emit pedirCambioDestino(qs(motor.destinoActivo()), server, key);
-    } else {
-        emit notify(tr("No se pudo transmitir: %1").arg(qs(p_.rt.lastError())), "error");
-    }
-    emit refrescar();
+    p_.ventanilla.pedir(
+        this, "transmitir",
+        [&rt = p_.rt, s = server.toStdString(), k = key.toStdString()]() {
+            Transmitir t;
+            t.ok = rt.salirAlAireManual(s, k);
+            t.inicio = rt.engine().ultimoInicio();
+            t.activo = rt.engine().destinoActivo();
+            t.error = rt.lastError();
+            return t;
+        },
+        [this, server, key](const Transmitir& t) {
+            if (t.ok) {
+                // Nunca un "Al aire" verde si no cambió nada.
+                if (t.inicio == BroadcastEngine::Inicio::YaIgual)
+                    emit notify(tr("Ya estabas transmitiendo a ese destino: no cambió nada"), "info");
+                else
+                    emit notify(tr("Al aire"), "ok");
+            } else if (t.inicio == BroadcastEngine::Inicio::YaOtroDestino) {
+                emit pedirCambioDestino(qs(t.activo), server, key);
+            } else {
+                emit notify(tr("No se pudo transmitir: %1").arg(qs(t.error)), "error");
+            }
+            emit refrescar();
+        });
 }
 
 void EmisionViewModel::cambiarDestinoStream(const QString& server, const QString& key) {
-    if (p_.rt.salirAlAireManual(server.toStdString(), key.toStdString(), true))
-        emit notify(tr("Transmitiendo al destino nuevo"), "ok");
-    else
-        emit notify(tr("No se pudo cambiar de destino: %1").arg(qs(p_.rt.lastError())), "error");
-    emit refrescar();
+    p_.ventanilla.pedir(
+        this, "transmitir_cambiar",
+        [&rt = p_.rt, s = server.toStdString(), k = key.toStdString()]() {
+            return rt.salirAlAireManual(s, k, true) ? std::string() : rt.lastError().empty() ? std::string("?") : rt.lastError();
+        },
+        [this](const std::string& e) {
+            if (e.empty())
+                emit notify(tr("Transmitiendo al destino nuevo"), "ok");
+            else
+                emit notify(tr("No se pudo cambiar de destino: %1").arg(qs(e)), "error");
+            emit refrescar();
+        });
 }
 
 void EmisionViewModel::stopStreaming() {
-    p_.rt.stopStreaming();
-    emit refrescar();
+    pedir("transmitir_parar", [](AppRuntime& rt) {
+        rt.stopStreaming();
+        return std::string();
+    });
 }
 
-QVariantList EmisionViewModel::destinosUi() const {
-    return QJsonDocument::fromJson(QByteArray::fromStdString(p_.rt.destinos().dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))).array().toVariantList();
-}
+QVariantList EmisionViewModel::destinosUi() const { return listaDe(p_.ventanilla.foto().destinos); }
 
 QString EmisionViewModel::guardarDestinoUi(const QVariantMap& d) {
     const auto j = nlohmann::json::parse(QJsonDocument(QJsonObject::fromVariantMap(d)).toJson().toStdString(), nullptr, false);
-    const std::string e = p_.rt.guardarDestino(j);
-    if (e.empty()) emit destinosChanged();
-    return qs(e);
+    p_.ventanilla.pedir(
+        this, "destino_guardar", [&rt = p_.rt, j]() { return rt.guardarDestino(j); },
+        [this](const std::string& e) { emit destinoGuardado(qs(e)); });
+    return {};
 }
 
 QString EmisionViewModel::borrarDestinoUi(const QString& id) {
-    const std::string e = p_.rt.borrarDestino(id.toStdString());
-    if (e.empty()) emit destinosChanged();
-    return qs(e);
+    pedir("destino_borrar", [i = id.toStdString()](AppRuntime& rt) { return rt.borrarDestino(i); });
+    return {};
 }
 
 QString EmisionViewModel::iniciarDestinoUi(const QString& id) {
-    const std::string e = p_.rt.iniciarDestino(id.toStdString());
-    emit destinosChanged();
-    return qs(e);
+    pedir("destino_iniciar", [i = id.toStdString()](AppRuntime& rt) { return rt.iniciarDestino(i); });
+    return {};
 }
 
 void EmisionViewModel::detenerDestinoUi(const QString& id) {
-    p_.rt.detenerDestino(id.toStdString());
-    emit destinosChanged();
+    pedir("destino_detener", [i = id.toStdString()](AppRuntime& rt) {
+        rt.detenerDestino(i);
+        return std::string();
+    });
 }
 
-QVariantMap EmisionViewModel::discoUi() const { return mapaDe(p_.rt.discoGrabacion()); }
+QVariantMap EmisionViewModel::discoUi() const { return mapaDe(disco_); }
 
-QVariantMap EmisionViewModel::remuxUi() const { return mapaDe(p_.rt.engine().remuxEstado()); }
-
-QVariantMap EmisionViewModel::apurosDiscoUi() const { return mapaDe(p_.rt.engine().discoEstado()); }
-
-void EmisionViewModel::priorizarProgramaUi(bool si) { p_.rt.engine().priorizarPrograma(si); }
-
-QString EmisionViewModel::modoDiscoUi(const QString& modo) { return qs(p_.rt.engine().setModoDisco(modo.toStdString())); }
-
-QVariantList EmisionViewModel::isosUi() const {
-    QVariantList out;
-    // El tamaño, de lo que contó el motor: preguntarle al disco desde la
-    // interfaz (cada segundo) la trababa con el disco trabado.
-    for (const auto& g : p_.rt.engine().sourceRecordings())
-        out.append(QVariantMap{{"fuente", qs(g.source)},
-                               {"archivo", qs(g.path)},
-                               {"mb", static_cast<double>(g.bytes) / 1e6},
-                               {"audioPropio", g.audioPropio},
-                               {"activa", g.activa},
-                               {"pausada", g.pausada}});
-    return out;
+void EmisionViewModel::pedirDisco() {
+    p_.ventanilla.pedir(
+        this, "disco", [&rt = p_.rt]() { return rt.discoGrabacion(); },
+        [this](const nlohmann::json& d) {
+            if (d == disco_) return;
+            disco_ = d;
+            emit discoCambio();
+        });
 }
+
+QVariantMap EmisionViewModel::remuxUi() const { return mapaDe(p_.ventanilla.foto().remux); }
+
+QVariantMap EmisionViewModel::apurosDiscoUi() const { return mapaDe(p_.ventanilla.foto().apurosDisco); }
+
+void EmisionViewModel::priorizarProgramaUi(bool si) {
+    p_.ventanilla.pedir("disco_priorizar", [&rt = p_.rt, si]() { rt.engine().priorizarPrograma(si); });
+}
+
+QString EmisionViewModel::modoDiscoUi(const QString& modo) {
+    pedir("disco_modo", [m = modo.toStdString()](AppRuntime& rt) { return rt.engine().setModoDisco(m); });
+    return {};
+}
+
+QVariantList EmisionViewModel::isosUi() const { return listaDe(p_.ventanilla.foto().isos); }
 
 void EmisionViewModel::isoInvitadoUi(const QString& id) {
     const QString f = fuenteDeInvitado(id);
     if (f.isEmpty()) return emit notify(tr("Ese invitado no tiene una fuente en el programa todavía."), "warn");
-    const QString e = isoUi(f, true);
-    emit notify(e.isEmpty() ? tr("Grabando «%1» aparte").arg(f) : e, e.isEmpty() ? "ok" : "error");
+    pedir("iso_invitado", [n = f.toStdString()](AppRuntime& rt) { return rt.grabarAparte(n); }, // las reglas son del modelo
+          [this, f]() {
+              emit notify(tr("Grabando «%1» aparte").arg(f), "ok");
+              emit estadoCambio();
+          });
 }
 
 QString EmisionViewModel::isoUi(const QString& fuente, bool grabar) {
     if (!grabar) {
-        p_.rt.stopSourceRecording(fuente.toStdString());
-        emit estadoCambio();
+        pedir("iso_parar", [n = fuente.toStdString()](AppRuntime& rt) {
+            rt.stopSourceRecording(n);
+            return std::string();
+        }, [this]() { emit estadoCambio(); });
         return {};
     }
-    const std::string e = p_.rt.grabarAparte(fuente.toStdString()); // las reglas son del modelo
-    if (!e.empty()) return qs(e);
-    emit estadoCambio();
+    pedir("iso", [n = fuente.toStdString()](AppRuntime& rt) { return rt.grabarAparte(n); }, // las reglas son del modelo
+          [this]() { emit estadoCambio(); });
     return {};
 }
 
@@ -179,66 +275,82 @@ QString EmisionViewModel::fuenteDeInvitado(const QString& participante) const {
         const int slot = pa.value("slot").toInt();
         if (slot <= 0) return {};
         const QString f = "Invitado " + QString::number(slot);
-        for (const std::string& n : p_.rt.engine().sourceNames())
-            if (qs(n) == f) return f;
-        return {};
+        return p_.ventanilla.foto().tipoDe(f.toStdString()).empty() ? QString() : f;
     }
     return {};
 }
 
 QString EmisionViewModel::isoTodasUi(bool grabar) {
     if (!grabar) {
-        p_.rt.stopAllSourceRecordings();
-        emit estadoCambio();
+        pedir("iso_parar_todas", [](AppRuntime& rt) {
+            rt.stopAllSourceRecordings();
+            return std::string();
+        }, [this]() { emit estadoCambio(); });
         return {};
     }
-    QStringList errores;
-    BroadcastEngine& motor = p_.rt.engine();
-    for (const std::string& f : motor.sceneSources(motor.currentScene())) {
-        bool ya = false;
-        for (const auto& g : motor.sourceRecordings()) ya = ya || g.source == f;
-        if (ya) continue;
-        const QString e = isoUi(qs(f), true);
-        if (!e.isEmpty()) errores << qs(f) + ": " + e;
-    }
-    return errores.join("; ");
+    // Las de la escena al aire que todavía no se graban: se decide en el dueño (lo que se
+    // graba ahora es suyo); los errores, juntos.
+    pedir(
+        "iso_todas",
+        [](AppRuntime& rt) {
+            BroadcastEngine& motor = rt.engine();
+            std::string errores;
+            for (const std::string& f : motor.sceneSources(motor.currentScene())) {
+                bool ya = false;
+                for (const auto& g : motor.sourceRecordings()) ya = ya || g.source == f;
+                if (ya) continue;
+                if (const std::string e = rt.grabarAparte(f); !e.empty()) errores += (errores.empty() ? "" : "; ") + f + ": " + e;
+            }
+            return errores;
+        },
+        [this]() { emit estadoCambio(); }, "warn");
+    return {};
 }
 
-QVariantMap EmisionViewModel::limpiaUi() const { return mapaDe(p_.rt.engine().cleanFeedEstado()); }
+QVariantMap EmisionViewModel::limpiaUi() const { return mapaDe(p_.ventanilla.foto().limpia); }
 
 QString EmisionViewModel::limpiaActivarUi(bool activar, const QString& destino) {
-    if (!activar) {
-        p_.rt.detenerSenalLimpia();
-        return {};
-    }
-    return qs(p_.rt.iniciarSenalLimpia(destino.toStdString()));
+    pedir("limpia", [activar, d = destino.toStdString()](AppRuntime& rt) {
+        if (!activar) {
+            rt.detenerSenalLimpia();
+            return std::string();
+        }
+        return rt.iniciarSenalLimpia(d);
+    });
+    return {};
 }
 
-QVariantMap EmisionViewModel::grabacionUi() const {
-    nlohmann::json j = p_.rt.engine().grabacionEstado();
-    j["replay"] = p_.rt.engine().replayEstado();
-    return mapaDe(j);
-}
+QVariantMap EmisionViewModel::grabacionUi() const { return mapaDe(p_.ventanilla.foto().grabacion); }
 
 QVariantMap EmisionViewModel::loudnessUi(const QString& salida) const {
-    return mapaDe(p_.rt.engine().loudness(salida.toStdString()).json());
+    const FotoMotor& f = p_.ventanilla.foto();
+    const std::string id = salida.isEmpty() ? std::string(BroadcastEngine::kSalidaPorOmision) : salida.toStdString();
+    return mapaDe(f.loudness.value(id, nlohmann::json::object()));
 }
 
-void EmisionViewModel::resetLoudnessUi(const QString& salida) { p_.rt.engine().loudness(salida.toStdString()).reiniciar(); }
+void EmisionViewModel::resetLoudnessUi(const QString& salida) {
+    p_.ventanilla.pedir("loudness_reiniciar", [&rt = p_.rt, s = salida.toStdString()]() { rt.engine().loudness(s).reiniciar(); });
+}
 
 QString EmisionViewModel::objetivoLoudnessUi(const QVariantMap& o, const QString& salida) {
     const auto j = nlohmann::json::parse(QJsonDocument(QJsonObject::fromVariantMap(o)).toJson().toStdString(), nullptr, false);
-    return qs(objetivoLoudness_->poner(j, salida.toStdString()));
+    pedir("loudness_objetivo", [&ob = *objetivoLoudness_, j, s = salida.toStdString()](AppRuntime&) { return ob.poner(j, s); });
+    return {};
 }
 
-QString EmisionViewModel::retornoInvitadoUi(int slot) const { return qs(retornos_->modo(slot)); }
+QVariantMap EmisionViewModel::retornos() const { return mapaDe(p_.ventanilla.foto().retornos); }
+
+QString EmisionViewModel::retornoInvitadoUi(int slot) const {
+    return qs(p_.ventanilla.foto().retornos.value(std::to_string(slot), std::string("mix_minus")));
+}
 
 QString EmisionViewModel::setRetornoInvitadoUi(int slot, const QString& modo) {
-    return qs(retornos_->poner(slot, modo.toStdString()));
+    pedir("retorno_invitado", [&r = *retornos_, slot, m = modo.toStdString()](AppRuntime&) { return r.poner(slot, m); });
+    return {};
 }
 
 void EmisionViewModel::muestrearSalud(control::BusEventos& bus) {
-    const nlohmann::json h = p_.rt.engine().saludSalidas();
+    const nlohmann::json& h = p_.ventanilla.foto().salud;
     const qint64 ahora = QDateTime::currentMSecsSinceEpoch();
     const std::uint64_t saltados = h.value("saltados_encoder", 0ULL);
     const int saltadosNuevos = static_cast<int>(saltados >= saltadosAntes_ ? saltados - saltadosAntes_ : 0);
@@ -290,13 +402,7 @@ void EmisionViewModel::muestrearSalud(control::BusEventos& bus) {
     bus.publicar("salida/salud", saludActual_);
 }
 
-QVariantList EmisionViewModel::saludSalidas() const {
-    return QJsonDocument::fromJson(QByteArray::fromStdString(nlohmann::json{{"v", saludActual_}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace)))
-        .object()
-        .value("v")
-        .toArray()
-        .toVariantList();
-}
+QVariantList EmisionViewModel::saludSalidas() const { return listaDe(saludActual_); }
 
 nlohmann::json EmisionViewModel::saludSerie(const std::string& destino, int minutos) const {
     auto it = salud_.find(destino);

@@ -6,7 +6,8 @@
 // principal hace de interfaz y se TRABA a propósito (un bucle ocupado, como un QML
 // pesado) mientras un cliente HTTP en otro hilo pide cosas:
 //
-//   1. El reloj del control sigue (y el del motor, que es de la interfaz, no).
+//   1. Los relojes del control y del motor (su dueño es el control) siguen; el de la
+//      interfaz (su latido) no.
 //   2. /healthz y una herramienta de la foto contestan en el acto.
 //   3. Una herramienta de la interfaz contesta «ocupada» al vencer el tope, con la
 //      foto de emergencia, y NO se hace cuando la interfaz vuelve.
@@ -29,17 +30,28 @@
 //      el acto; nada corre en la interfaz (contador) y los avisos a las vistas le llegan
 //      encolados cuando vuelve. Con la interfaz trabada ADENTRO del motor (con el turno)
 //      más que el tope, contestan «motor ocupado» y no se hacen después; menos, esperan.
+//   9. LA VENTANILLA (emision/VentanillaMotor.hpp: el motor es del plano de control), con
+//      un motor sintético cuyo dueño es el control: lo que la interfaz pide (cortar, TAKE,
+//      agregar y mover una fuente, grabar) corre en el control, con el turno y sin esperar
+//      a la interfaz trabada; la foto que publica el dueño NO cambia en la interfaz
+//      mientras está trabada y le llega entera al volver, con las partes que cambiaron, y
+//      cada respuesta llega DESPUÉS de la foto con su cambio. La red de seguridad: la
+//      interfaz que entra directo (por vuelta) tiene el turno hasta que termina su evento;
+//      mientras tanto la agenda reintenta sin trabar el control (sus relojes siguen), lo
+//      pedido se hace al soltarlo y la entrada directa queda contada con su lugar.
 // ============================================================================
 #include "agent/AlertEngine.hpp"
 #include "arranque/PlanoControl.hpp"
 #include "emision/DocumentoAire.hpp"
 #include "emision/TurnoMotor.hpp"
+#include "emision/VentanillaMotor.hpp"
 #include "mcp/McpCore.hpp"
 #include "mcp/McpFoto.hpp"
 #include "mcp/McpHttp.hpp"
 #include "mcp/McpMando.hpp"
 #include "persist/ColaEscritura.hpp"
 
+#include <QAbstractEventDispatcher>
 #include <QCoreApplication>
 #include <QElapsedTimer>
 #include <QEventLoop>
@@ -138,8 +150,18 @@ int main(int argc, char** argv) {
     const QThread* interfaz = QThread::currentThread();
 
     // --- El plano, con relojes que solo cuentan --------------------------------------
-    std::atomic<int> control{0}, motor{0};
-    PlanoControl plano({[&]() { ++control; }, [&]() { ++motor; }});
+    std::atomic<int> control{0}, motor{0}, latido{0};
+    std::atomic<const QThread*> dondeMotor{nullptr};
+    PlanoControl plano({.control = [&]() { ++control; },
+                        .motor =
+                            [&]() {
+                                ++motor;
+                                dondeMotor = QThread::currentThread();
+                            },
+                        .interfaz = [&]() { ++latido; }});
+    // El turno del motor (la agenda lo toma): como en la app, uno solo.
+    ba::app::TurnoMotor turno;
+    plano.setTurno({[&turno](int ms) { return turno.tomarHasta(ms); }, [&turno]() { turno.soltar(); }});
     plano.arrancar(20, 20);
 
     // --- El MCP: una herramienta de la interfaz y una de la foto ---------------------
@@ -171,11 +193,11 @@ int main(int argc, char** argv) {
     }
     QThreadPool pool;
     McpCore::Ejecutores e;
-    e.interfaz = [&plano](McpCore::Tarea t) { plano.encolarEnDueno(std::move(t)); };
+    e.interfaz = [&plano](McpCore::Tarea t) { plano.encolarEnInterfaz(std::move(t)); };
     e.control = [&plano](McpCore::Tarea t) { plano.encolar(std::move(t)); };
     e.foto = [&pool](McpCore::Tarea t) { pool.start(std::move(t)); };
     e.despues = [&plano](int ms, McpCore::Tarea t) { plano.despues(ms, std::move(t)); };
-    e.enInterfaz = [&plano]() { return plano.enDueno(); };
+    e.enInterfaz = [&plano]() { return plano.enInterfaz(); };
     e.enControl = [&plano]() { return plano.enControl(); };
     e.topeInterfazMs = 800;
     core.setEjecutores(std::move(e));
@@ -217,7 +239,7 @@ int main(int argc, char** argv) {
     // --- La interfaz trabada ----------------------------------------------------------
     std::string rHealth, rFoto, rUi;
     double msHealth = -1, msFoto = -1, msUi = -1;
-    const int controlAntes = control.load(), motorAntes = motor.load();
+    const int controlAntes = control.load(), motorAntes = motor.load(), latidoAntes = latido.load();
     std::thread cliente([&]() {
         auto t = std::chrono::steady_clock::now();
         rHealth = pedir(http.port(), "GET", "/healthz", token);
@@ -230,13 +252,16 @@ int main(int argc, char** argv) {
         msUi = msDesde(t);
     });
     trabarInterfaz(3000);
-    const int controlTrabada = control.load() - controlAntes, motorTrabada = motor.load() - motorAntes;
+    const int controlTrabada = control.load() - controlAntes, motorTrabada = motor.load() - motorAntes,
+              latidoTrabada = latido.load() - latidoAntes;
     const int disparosTrabada = disparos.load();
     cliente.join();
-    std::printf("  medido: healthz %.1f ms, foto %.1f ms, interfaz ocupada %.1f ms; vueltas del control %d y del motor %d en 3 s de traba\n",
-                msHealth, msFoto, msUi, controlTrabada, motorTrabada);
+    std::printf("  medido: healthz %.1f ms, foto %.1f ms, interfaz ocupada %.1f ms; vueltas del control %d, del motor %d y del "
+                "latido de la interfaz %d en 3 s de traba\n",
+                msHealth, msFoto, msUi, controlTrabada, motorTrabada, latidoTrabada);
     CHECK(controlTrabada >= 100, "1: el reloj del control siguió con la interfaz trabada");
-    CHECK(motorTrabada == 0, "1: el del motor (de la interfaz) no");
+    CHECK(motorTrabada >= 100 && dondeMotor.load() == plano.hilo(), "1: el del motor también (es del control, su dueño)");
+    CHECK(latidoTrabada == 0, "1: el latido de la interfaz no (es de ella: así el supervisor sabe que se trabó)");
     CHECK(rHealth == "ok\n" && msHealth < 500, "2: /healthz contesta");
     const json jf = json::parse(rFoto, nullptr, false);
     CHECK(jf.is_object() && !jf["result"].value("isError", true) && msFoto < 500, "2: la herramienta de la foto contesta en el acto");
@@ -251,7 +276,7 @@ int main(int argc, char** argv) {
 
     atender(500); // la interfaz vuelve: lo vencido NO se hace
     CHECK(!hizoLaDeInterfaz.load() && core.vencidas() == 1, "3: lo que venció no se hizo después");
-    CHECK(motor.load() > motorAntes, "1: el reloj del motor vuelve con la interfaz");
+    CHECK(latido.load() > latidoAntes, "1: el latido vuelve con la interfaz");
 
     // --- La interfaz libre ------------------------------------------------------------
     std::string rLibre;
@@ -450,7 +475,6 @@ int main(int argc, char** argv) {
     // Como en la app: participan del turno la interfaz (el dueño del motor) y el control.
     ba::app::TurnoMotor::participar("interfaz");
     plano.encolar([]() { ba::app::TurnoMotor::participar("control"); });
-    ba::app::TurnoMotor turno;
     core.setTurno({[&turno](int ms) { return turno.tomarHasta(ms); }, [&turno]() { turno.soltar(); },
                    [&turno]() { return turno.estado(); }});
     const fs::path datos8 = fs::temp_directory_path() / "ba-test-plano-control-aire";
@@ -480,7 +504,7 @@ int main(int argc, char** argv) {
         a.placa.ftb = aire.ftb;
         doc8.ponerSalidas(sal, false);
         doc8.volcar();
-        plano.encolarEnDueno([&]() {
+        plano.encolarEnInterfaz([&]() {
             ++avisosVista;
             if (QThread::currentThread() != interfaz) ++avisosFuera;
         });
@@ -645,6 +669,175 @@ int main(int argc, char** argv) {
     atender(200);
     CHECK(ba::persist::cola().vaciar(), "8: el documento de aire quedó escrito");
     fs::remove_all(datos8);
+
+    // --- 9. La ventanilla: la interfaz pide y lee la foto; el motor es del control ------
+    {
+        using ba::app::FotoMotor;
+        using ba::app::TurnoMotor;
+        using ba::app::VentanillaMotor;
+        // Un motor sintético cuyo dueño es el control: lo tocan las órdenes (en la agenda,
+        // con el turno) y lo lee quien arma la foto (también ahí).
+        struct Motor {
+            std::vector<std::string> escenas{"Plano general", "Entrevista", "Cierre"};
+            std::map<std::string, std::vector<std::string>> fuentes{{"Plano general", {"Cámara 1"}},
+                                                                    {"Entrevista", {"Cámara 2", "Zócalo"}},
+                                                                    {"Cierre", {}}};
+            std::string alAire = "Plano general", armada;
+            bool graba = false;
+        } m;
+        std::atomic<int> ordenes{0}, ordenesEnLaInterfaz{0}, ordenesSinTurno{0}, fotosSinTurno{0};
+        std::shared_ptr<const FotoMotor> ultima;
+        VentanillaMotor* ventanilla = nullptr;
+        // Lo que hace AppRuntime::publicarFoto: arma, compara por partes y publica.
+        const auto publicar = [&]() {
+            if (!turno.loTengo()) ++fotosSinTurno;
+            auto f = std::make_shared<FotoMotor>();
+            for (const std::string& e : m.escenas) {
+                FotoMotor::Escena x;
+                x.nombre = e;
+                for (const std::string& fu : m.fuentes[e]) {
+                    FotoMotor::Fuente y;
+                    y.nombre = fu;
+                    y.tipo = "ba_color";
+                    x.fuentes.push_back(std::move(y));
+                }
+                f->escenas.push_back(std::move(x));
+            }
+            FotoMotor::Salida s;
+            s.id = "principal";
+            s.porOmision = true;
+            s.alAire = m.alAire;
+            s.armada = m.armada;
+            s.grabando = m.graba;
+            f->salidas.push_back(s);
+            f->estado.graba = m.graba;
+            unsigned partes = FotoMotor::Todas;
+            if (ultima) {
+                partes = 0;
+                if (f->escenas != ultima->escenas) partes |= FotoMotor::Escenas;
+                if (f->salidas != ultima->salidas) partes |= FotoMotor::Salidas;
+                if (f->estado != ultima->estado) partes |= FotoMotor::Estado;
+            }
+            if (partes == 0) return;
+            ultima = f;
+            ventanilla->publicar(f, partes);
+        };
+        VentanillaMotor v({.encolar = [&plano](std::function<void()> fn) { plano.encolarConTurno(std::move(fn)); },
+                           .alTerminarOrden = publicar,
+                           .adoptar = [&plano](QObject* o) { plano.adoptar(o); }});
+        ventanilla = &v;
+        // La primera foto, como al arrancar (el dueño todavía era este hilo).
+        turno.tomar();
+        publicar();
+        turno.soltar();
+        v.recibirAhora();
+        CHECK(v.foto().salida({}) != nullptr && v.foto().salida({})->alAire == "Plano general" && v.foto().escenas.size() == 3,
+              "9: la primera foto está antes de armar las vistas");
+        // Lo que ve la interfaz: el orden de lo que le llega (las fotos y las respuestas).
+        std::vector<std::string> llegadas;
+        unsigned partesRecibidas = 0;
+        QObject::connect(&v, &VentanillaMotor::cambio, &v, [&](unsigned p) {
+            llegadas.push_back("foto");
+            partesRecibidas |= p;
+        });
+        QObject quien; // la vista que pide (si se fuera, la respuesta no le llega)
+        const auto operar = [&](const std::function<void()>& cambio) {
+            ++ordenes;
+            if (QThread::currentThread() == interfaz) ++ordenesEnLaInterfaz;
+            if (!turno.loTengo()) ++ordenesSinTurno;
+            cambio();
+        };
+        std::vector<double> latencias; // de pedirla a hecha (en el control)
+        std::mutex latMu;
+        const auto pedirOrden = [&](const char* que, std::function<void()> cambio) {
+            const auto desde = std::chrono::steady_clock::now();
+            v.pedir(
+                &quien, que,
+                [&, que, desde, cambio]() {
+                    operar(cambio);
+                    const std::lock_guard<std::mutex> l(latMu);
+                    latencias.push_back(msDesde(desde));
+                    return std::string(que);
+                },
+                [&](const std::string& r) { llegadas.push_back("respuesta " + r); });
+        };
+        // Lo que pide la interfaz (cortar, armar, TAKE, agregar y mover una fuente, grabar)
+        // y enseguida se traba.
+        const int controlAntes9 = control.load();
+        pedirOrden("cortar", [&]() { m.alAire = "Entrevista"; });
+        pedirOrden("armar", [&]() { m.armada = "Cierre"; });
+        pedirOrden("take", [&]() { std::swap(m.alAire, m.armada); });
+        pedirOrden("fuente_agregar", [&]() { m.fuentes["Cierre"].push_back("Placa final"); });
+        pedirOrden("fuente_mover", [&]() { std::reverse(m.fuentes["Entrevista"].begin(), m.fuentes["Entrevista"].end()); });
+        pedirOrden("grabar", [&]() { m.graba = true; });
+        trabarInterfaz(1500);
+        // Todavía trabada (sin atender eventos): lo pedido ya se hizo en el control, y la foto
+        // de la interfaz es la de antes (no cambia debajo de sus pies).
+        const int hechasEnLaTraba = ordenes.load();
+        const bool fotoQuieta = v.foto().salida({})->alAire == "Plano general" && !v.foto().estado.graba;
+        double peorOrden = 0;
+        {
+            const std::lock_guard<std::mutex> l(latMu);
+            for (double x : latencias) peorOrden = std::max(peorOrden, x);
+        }
+        std::printf("  medido: %d órdenes hechas con la interfaz trabada, la peor a los %.1f ms de pedirla; %d vueltas del control\n",
+                    hechasEnLaTraba, peorOrden, control.load() - controlAntes9);
+        CHECK(hechasEnLaTraba == 6 && peorOrden < 200, "9: con la interfaz trabada, lo pedido se hace en el acto");
+        CHECK(ordenesEnLaInterfaz.load() == 0 && ordenesSinTurno.load() == 0 && fotosSinTurno.load() == 0,
+              "9: en el control y con el turno (la foto también)");
+        CHECK(fotoQuieta && llegadas.empty(), "9: la foto de la interfaz no cambió durante la traba");
+        atender(200); // la interfaz vuelve
+        const FotoMotor& f = v.foto();
+        const FotoMotor::Salida* s = f.salida({});
+        CHECK(s != nullptr && s->alAire == "Cierre" && s->armada == "Entrevista" && s->grabando && f.estado.graba &&
+                  f.fuentesDe("Cierre") == std::vector<std::string>{"Placa final"} &&
+                  f.fuentesDe("Entrevista") == (std::vector<std::string>{"Zócalo", "Cámara 2"}),
+              "9: al volver, la foto tiene todo lo hecho");
+        CHECK((partesRecibidas & (FotoMotor::Escenas | FotoMotor::Salidas | FotoMotor::Estado)) ==
+                  (FotoMotor::Escenas | FotoMotor::Salidas | FotoMotor::Estado),
+              "9: con las partes que cambiaron (escenas, salidas, estado)");
+        const auto respuestas =
+            std::count_if(llegadas.begin(), llegadas.end(), [](const std::string& x) { return x.rfind("respuesta", 0) == 0; });
+        CHECK(!llegadas.empty() && llegadas.front() == "foto" && respuestas == 6, "9: las respuestas llegan, y después de la foto");
+
+        // La red de seguridad: la interfaz entra directo (por vuelta) y se traba adentro.
+        TurnoMotor::participarPorVuelta("interfaz");
+        QObject::connect(QAbstractEventDispatcher::instance(), &QAbstractEventDispatcher::aboutToBlock, &v,
+                         []() { TurnoMotor::soltarVuelta(); });
+        const std::uint64_t directasAntes = turno.totalDirectas();
+        const std::uint64_t reintentosAntes = plano.estado()["agenda"].value("reintentos", std::uint64_t{0});
+        std::atomic<double> esperada{-1};
+        std::atomic<int> controlEnElEvento{0};
+        QTimer::singleShot(0, &v, [&]() {
+            // Un área sin migrar que toca el motor (AppRuntime::config/engine): el turno es de
+            // la interfaz hasta que termina este evento.
+            turno.entrarDirecto(std::source_location::current());
+            const auto desde = std::chrono::steady_clock::now();
+            const int c0 = control.load();
+            v.pedir(
+                &quien, "esperando",
+                [&, desde]() {
+                    operar([]() {});
+                    esperada = msDesde(desde);
+                    return std::string("esperando");
+                },
+                [](const std::string&) {});
+            trabarInterfaz(600);
+            controlEnElEvento = control.load() - c0;
+        });
+        atender(1000);
+        const std::uint64_t reintentos = plano.estado()["agenda"].value("reintentos", std::uint64_t{0}) - reintentosAntes;
+        std::printf("  medido: con el turno en la interfaz 600 ms, la orden se hizo a los %.1f ms; %d vueltas del control "
+                    "mientras; %llu reintentos de la agenda; directas %s\n",
+                    esperada.load(), controlEnElEvento.load(), static_cast<unsigned long long>(reintentos),
+                    turno.directas().dump().c_str());
+        CHECK(esperada.load() >= 550 && esperada.load() < 900, "9: la orden esperó a que la interfaz soltara el turno, y se hizo");
+        CHECK(controlEnElEvento.load() >= 15 && reintentos > 0, "9: mientras tanto el control siguió (la agenda reintenta, no espera)");
+        CHECK(turno.totalDirectas() == directasAntes + 1 && turno.directas()["lugares"].contains("main"),
+              "9: la entrada directa quedó contada, con su lugar");
+        CHECK(!turno.loTengo(), "9: al terminar el evento la interfaz soltó el turno");
+        TurnoMotor::participar("interfaz");
+    }
 
     plano.detener();
     CHECK(http.thread() == interfaz && vigia.thread() == interfaz, "6: lo adoptado vuelve a su hilo");

@@ -12,6 +12,14 @@
 //     el audio que sigue al video (AFV);
 //   - la repetición: guardar los últimos segundos y armarlos en la escena «Repetición».
 //
+// EL MOTOR ES DEL PLANO DE CONTROL (F3-03, docs/arquitectura/05-motor-del-plano.md): lo
+// que se hace se le PIDE por la ventanilla (emision/VentanillaMotor: la orden corre en el
+// dueño, con el turno, y el error vuelve como `notify`) y lo que se muestra se LEE de la
+// foto del motor (las escenas, sus carpetas y protecciones, la armada y el AFV de la
+// activa, las transiciones de entrada), con avisos cuando cambia (listaCambio,
+// escenaCambio, afvCambio, transicionesCambio). Con la interfaz trabada no se pierde nada:
+// lo pedido corre igual y la foto llega cuando vuelve.
+//
 // La escena al aire y la armada (currentScene, escenaArmada) siguen en la raíz: las mira
 // toda la interfaz. En QML: Studio.escenas.
 // ============================================================================
@@ -30,12 +38,13 @@
 namespace ba::app {
 class AppRuntime;
 class SalidasViewModel;
-class ScenesModel;
 class SourcesModel;
+class VentanillaMotor;
 } // namespace ba::app
 namespace ba::app::escenas {
 class AjustesEscenas;
-}
+class Conmutador;
+} // namespace ba::app::escenas
 
 namespace ba::app {
 
@@ -47,12 +56,16 @@ class EscenasViewModel : public QObject {
     /// llamada: no se reevalúa y el botón no se enteraba de un cambio hecho en otra vista o
     /// por MCP).
     Q_PROPERTY(QStringList afvFuentes READ afvFuentes NOTIFY afvCambio)
+    /// Las escenas protegidas (para enlazar: «¿está protegida la que edito?»).
+    Q_PROPERTY(QStringList protegidas READ protegidas NOTIFY listaCambio)
+    /// {escena: {tipo, ms}}: con qué transición entra cada una (vacía = la global).
+    Q_PROPERTY(QVariantMap transicionesEntrada READ transicionesEntrada NOTIFY transicionesCambio)
    public:
     struct Partes {
         AppRuntime& rt;
-        SalidasViewModel& salidas; ///< el conmutador de la activa (y el de cada salida)
-        ScenesModel& lista;        ///< la lista de escenas de la interfaz
-        SourcesModel& fuentes;     ///< el editor de fuentes (sigue a la escena que se toca)
+        VentanillaMotor& ventanilla; ///< pedir y leer la foto del motor
+        SalidasViewModel& salidas;   ///< la activa (y los conmutadores, para las órdenes)
+        SourcesModel& fuentes;       ///< el editor de fuentes (sigue a la escena que se toca)
     };
     explicit EscenasViewModel(Partes p, QObject* parent = nullptr);
     ~EscenasViewModel() override;
@@ -60,6 +73,8 @@ class EscenasViewModel : public QObject {
     bool corteDirectoEditor() const;
     void setCorteDirectoEditor(bool si);
     QStringList afvFuentes() const;
+    QStringList protegidas() const;
+    QVariantMap transicionesEntrada() const;
 
     /// Las escenas AGRUPADAS POR CARPETA, en el orden que puso el operador:
     /// `[{carpeta: "", escenas: ["a", "b"]}, {carpeta: "Bloque 1", ...}]`.
@@ -74,8 +89,8 @@ class EscenasViewModel : public QObject {
     Q_INVOKABLE void removeScene(const QString& name);
     Q_INVOKABLE void renameScene(const QString& from, const QString& to);
     /// Copia una escena entera con sus fuentes. Devuelve el nombre que le
-    /// quedo (le agrega un numero si el que se pidio ya existia), o vacio si
-    /// no se pudo.
+    /// va a quedar (le agrega un numero si el que se pidio ya existia), o vacio si
+    /// no se puede pedir; si después falla, lo dice `notify`.
     Q_INVOKABLE QString copyScene(const QString& from, const QString& to = {});
     Q_INVOKABLE void setSceneProtected(const QString& name, bool protegida);
     Q_INVOKABLE bool sceneProtected(const QString& name) const;
@@ -112,26 +127,29 @@ class EscenasViewModel : public QObject {
     Q_INVOKABLE void tbar(double t, bool soltar);
     /// La transición con la que ENTRA una escena (vacío = la global). {tipo, ms}.
     Q_INVOKABLE QVariantMap transicionEntrada(const QString& escena) const;
+    /// La pide; "" (si después falla, lo dice `notify`).
     Q_INVOKABLE QString setTransicionEntrada(const QString& escena, const QString& tipo, int ms);
     /// Audio que sigue al video (AFV): la fuente sube cuando su escena entra al aire y baja cuando sale.
     Q_INVOKABLE bool afv(const QString& fuente) const;
     Q_INVOKABLE void setAfv(const QString& fuente, bool sigue);
 
     /// «Repetir»: guarda los últimos segundos y, cuando el clip está escrito, lo arma
-    /// en la escena «Repetición» (lista para el take). "" o el error.
+    /// en la escena «Repetición» (lista para el take). "" (lo que pase después lo dice
+    /// `notify`).
     Q_INVOKABLE QString repetirUi();
-    /// Pone `archivo` en la escena «Repetición» (la crea si falta) y la deja armada
-    /// en la `salida` ("" = la por omisión).
-    QString armarRepeticion(const QString& archivo, const std::string& salida = {});
+    /// Pone `archivo` en la escena «Repetición» (la crea si falta) y la deja armada en la
+    /// `salida` ("" = la por omisión); `listo` con "" o el error, en este hilo.
+    void armarRepeticion(const QString& archivo, const std::string& salida, std::function<void(const QString&)> listo);
     /// Espera (hasta `ms`) a que haya un clip nuevo de la `salida` distinto de `antes`
-    /// y llama a `listo` con él ("" si no llegó).
+    /// y llama a `listo` con él ("" si no llegó). Pregunta por la ventanilla.
     void esperarReplay(const std::string& antes, int ms, std::function<void(const QString&)> listo,
                        const std::string& salida = {});
 
    signals:
     void ajustesCambio();
     void afvCambio();
-    /// La LISTA de escenas cambió (se agregó, borró, renombró o cambió de carpeta).
+    void transicionesCambio();
+    /// La LISTA de escenas cambió (se agregó, borró, renombró o cambió de carpeta o protección).
     void listaCambio();
     /// Cambió algo de lo que muestra la escena (sus fuentes, su carpeta, su orden).
     void escenaCambio();
@@ -140,9 +158,23 @@ class EscenasViewModel : public QObject {
 
    private:
     QString escenaAlAire() const;
+    /// Nombre, carpeta y protección de cada escena, para ver si la lista cambió.
+    QStringList firmaLista() const;
+    /// Lo que cambió en la foto del motor (ver arriba).
+    void alCambiar(unsigned partes);
+    /// Pide algo que devuelve "" o el error (y `alVolver`, si salió bien).
+    void pedir(const char* que, std::function<std::string(AppRuntime&)> orden, const QString& nivelError = "error",
+               std::function<void()> alVolver = {});
+    /// Pide al conmutador de la activa (el de la por omisión si se fue) algo que devuelve ""
+    /// o el error.
+    void pedirAlConmutador(const char* que, std::function<std::string(escenas::Conmutador&)> orden,
+                           const QString& nivelError = "error");
 
     Partes p_;
     std::unique_ptr<escenas::AjustesEscenas> ajustes_; ///< Config/escenas.json (modelo)
+    /// Lo que se avisó la última vez (para avisar solo cuando cambia).
+    QStringList listaAntes_, afvAntes_;
+    QVariantMap transicionesAntes_;
 };
 
 } // namespace ba::app

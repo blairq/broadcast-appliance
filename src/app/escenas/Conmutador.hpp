@@ -25,12 +25,16 @@
 // Avisan con señales (alAire, armadaCambio, afvCambio): los view models se
 // actualizan con ellas; el conmutador no sabe nada de la interfaz.
 //
-// HILOS (F3-03): los usan la interfaz y el plano de control (el MCP corta, arma y hace
-// TAKE con la interfaz trabada). Cada operación toma el turno del motor por todo lo que
-// dura (emision/TurnoMotor.hpp: nadie ve un corte a medias, ni la armada de una salida
-// que se está sacando) y las señales salen SIEMPRE en el hilo dueño (encoladas si la
-// operación vino del control, AppRuntime::enDueno): los view models son de él. El
-// fundido del AFV corre en el hilo que cortó.
+// HILOS (F3-03): son modelos del aire, DEL DUEÑO DEL MOTOR (el plano de control: la
+// interfaz los muda allá con la ventanilla, VentanillaMotor::adoptar). La interfaz migrada
+// les pide por la ventanilla y lee lo suyo de la foto del motor (la armada, el AFV y la
+// T-bar de cada salida, las transiciones de entrada: lo suman con
+// AppRuntime::aportarALaFoto); lo que todavía los usa directo desde la interfaz (la línea
+// de tiempo, la asamblea) entra con el turno. Cada operación toma el turno del motor por
+// todo lo que dura (emision/TurnoMotor.hpp: nadie ve un corte a medias, ni la armada de una
+// salida que se está sacando) y las señales salen en el hilo del conmutador (el dueño): a
+// quien escucha desde otro hilo le llegan encoladas. El fundido del AFV va por la agenda
+// del dueño (no espera a la interfaz).
 // ============================================================================
 #pragma once
 
@@ -100,12 +104,14 @@ class Conmutador : public QObject {
     void afvCambio();
 
    private:
+    friend class Conmutadores; // lo suyo en la foto del motor (con el turno)
     /// La parte común de poner/take: transición de entrada, AFV, guardar y avisar.
     std::string cortar(const std::string& escena, const std::string& tipo, int ms, const char* via);
     void aplicarAfv(const std::string& destino, int ms);
     void setArmadaYAvisar(const std::string& escena);
-    /// `emitir` (una señal de este conmutador) en el hilo dueño, si sigue vivo.
-    void avisarEnDueno(std::function<void(Conmutador&)> emitir);
+    /// `emitir` (una señal de este conmutador) en su hilo, si sigue vivo; y la foto del
+    /// motor se rearma (lo que muestra la interfaz).
+    void avisar(std::function<void(Conmutador&)> emitir, unsigned partesFoto);
 
     AppRuntime& rt_;
     Conmutadores& registro_;
@@ -115,8 +121,9 @@ class Conmutador : public QObject {
     Afv afv_;
 };
 
-/// Los conmutadores, uno por salida del motor (ver arriba). Lo tiene el modelo del
-/// estudio (StudioViewModel); se rehace solo cuando cambian las salidas.
+/// Los conmutadores, uno por salida del motor (ver arriba), hijos suyos (se mudan con él al
+/// hilo del dueño). Lo crea el área de las salidas (SalidasViewModel) y lo muda al dueño; se
+/// rehace solo cuando cambian las salidas.
 class Conmutadores : public QObject {
     Q_OBJECT
    public:
@@ -140,8 +147,10 @@ class Conmutadores : public QObject {
     void guardar() const;
 
    signals:
-    /// Se creó uno (salida nueva): para conectarse a sus señales.
-    void creado(Conmutador* c);
+    /// Se creó uno (salida nueva), por su id: para conectarse a sus señales (de()). Por el id
+    /// y no el puntero: a quien escucha desde otro hilo le llega encolado, y para entonces
+    /// la salida puede haberse ido.
+    void creado(const QString& salida);
     /// Cambió qué salidas hay (después de creado/sacar).
     void cambio();
 
@@ -150,6 +159,7 @@ class Conmutadores : public QObject {
 
     AppRuntime& rt_;
     int observador_ = -1;
+    int aporte_ = -1; ///< lo suyo en la foto del motor
     nlohmann::json transicionesEntrada_ = nlohmann::json::object();
     /// El AFV guardado de cada salida (también de las que todavía no existen: vuelve al crearlas).
     std::map<std::string, Afv> afvGuardado_;

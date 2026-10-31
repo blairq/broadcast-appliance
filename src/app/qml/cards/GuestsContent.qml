@@ -195,8 +195,8 @@ Item {
                         font.pixelSize: 10
                         model: [ { t: qsTr("Oye: programa sin su voz"), v: "mix_minus" }, { t: qsTr("Oye: programa entero"), v: "programa" } ]
                         textRole: "t"
-                        currentIndex: Studio.emision.retornoInvitadoUi(index + 1) === "programa" ? 1 : 0
-                        onActivated: (i) => { const e = Studio.emision.setRetornoInvitadoUi(index + 1, model[i].v); if (e !== "") Studio.notify(e, "error") }
+                        currentIndex: Studio.emision.retornos[String(index + 1)] === "programa" ? 1 : 0
+                        onActivated: (i) => Studio.emision.setRetornoInvitadoUi(index + 1, model[i].v)
                         ToolTip.visible: hovered; ToolTip.delay: 400
                         ToolTip.text: qsTr("Sin su voz (mix-minus): no se escucha con retardo a sí mismo ni hace eco. Entero: solo si usa auriculares y lo pide.")
                     }

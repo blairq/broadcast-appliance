@@ -521,7 +521,10 @@ bool BroadcastEngine::startup(const EnginePaths& paths, const VideoConfig& video
     c.relojPuerto = relojPuerto_;
     c.relojDominio = relojDominio_;
     c.emisores = salidasConEmisor(); // su audio también al anillo del emisor (F3-01)
-    motor_ = std::make_unique<motor::Motor>(c);
+    {
+        const std::lock_guard<std::mutex> l(vistasMu_); // las vistas se leen desde la interfaz
+        motor_ = std::make_unique<motor::Motor>(c);
+    }
     // Un lienzo que parpadea con la red eléctrica del país (F2-17): se avisa, no se cambia.
     for (const std::string& aviso : motor::avisosDeLaRed(c.lienzo, motor::redElectricaDelSistema()))
         ba::diag::registro().linea(ba::diag::Nivel::Aviso, "motor", 0, aviso);
@@ -539,6 +542,7 @@ bool BroadcastEngine::startup(const EnginePaths& paths, const VideoConfig& video
     const std::string e = motor_->iniciar();
     if (!e.empty()) {
         setError(e);
+        const std::lock_guard<std::mutex> l(vistasMu_);
         motor_.reset();
         return false;
     }
@@ -634,15 +638,22 @@ void BroadcastEngine::shutdown() {
     stopReturnFeeds();
     disablePreview();
     for (const auto& [canal, v] : scenePreviews_) motor_->verSoltar(v.clave);
-    scenePreviews_.clear();
+    {
+        const std::lock_guard<std::mutex> l(vistasMu_);
+        scenePreviews_.clear();
+    }
     for (const auto& s : lasSalidas()) dejarDeMedir(*s);
     fuentes::ponerMotorApp(nullptr);
     fuentes::ponerSalida(nullptr);
     fuentes::ponerCambiar(nullptr);
     fuentes::ponerConsultas({});
     fuentes::bajaTodas();
-    motor_->detener();
-    motor_.reset();
+    {
+        // Las vistas se leen desde la interfaz (latestPreview…): el motor se va con el candado.
+        const std::lock_guard<std::mutex> l(vistasMu_);
+        motor_->detener();
+        motor_.reset();
+    }
     scenes_.clear();
     sources_.clear();
     ordenFuentes_.clear();
@@ -1035,6 +1046,7 @@ bool BroadcastEngine::enablePreview(int width, int height) {
         setError(e);
         return false;
     }
+    const std::lock_guard<std::mutex> l(vistasMu_);
     previewActive_ = true;
     return true;
 }
@@ -1043,11 +1055,13 @@ void BroadcastEngine::disablePreview() {
     const TurnoMotor::Guarda turno(turno_);
     if (!previewActive_ || !motor_) return;
     motor_->verSoltar("programa@ui");
+    const std::lock_guard<std::mutex> l(vistasMu_);
     previewActive_ = false;
 }
 
 bool BroadcastEngine::latestPreview(motor::Cuadro& out, std::uint64_t& serial) const {
-    const TurnoMotor::Guarda turno(turno_);
+    // DESDE CUALQUIER HILO (la interfaz, F3-03): con el candado de las vistas, sin el turno.
+    const std::lock_guard<std::mutex> l(vistasMu_);
     return previewActive_ && motor_ && motor_->verUltimo("programa@ui", out, serial);
 }
 
@@ -1103,6 +1117,7 @@ bool BroadcastEngine::enableScenePreview(const std::string& canal, const std::st
         }
         auto ya = scenePreviews_.find(canal);
         if (ya != scenePreviews_.end()) {
+            const std::lock_guard<std::mutex> l(vistasMu_);
             ya->second.name = name;
             return true;
         }
@@ -1116,7 +1131,10 @@ bool BroadcastEngine::enableScenePreview(const std::string& canal, const std::st
             setError(ba::i18n::llenar(ba::i18n::traducir("emision", "vista previa: %1"), {ev}));
             return false;
         }
-        scenePreviews_[canal] = v;
+        {
+            const std::lock_guard<std::mutex> l(vistasMu_);
+            scenePreviews_[canal] = v;
+        }
         medirVista(v.clave);
         return true;
     }
@@ -1152,7 +1170,10 @@ bool BroadcastEngine::enableScenePreview(const std::string& canal, const std::st
         setError(ba::i18n::llenar(ba::i18n::traducir("emision", "vista previa: %1"), {e}));
         return false;
     }
-    scenePreviews_[canal] = v;
+    {
+        const std::lock_guard<std::mutex> l(vistasMu_);
+        scenePreviews_[canal] = v;
+    }
     medirVista(v.clave);
     return true;
 }
@@ -1182,6 +1203,7 @@ bool BroadcastEngine::enableSalidaPreview(const std::string& canal, const std::s
         setError(ba::i18n::llenar(ba::i18n::traducir("emision", "vista previa: %1"), {e}));
         return false;
     }
+    const std::lock_guard<std::mutex> l(vistasMu_);
     scenePreviews_[canal] = v;
     return true;
 }
@@ -1214,17 +1236,18 @@ void BroadcastEngine::disableScenePreview(const std::string& canal) {
     auto it = scenePreviews_.find(canal);
     if (it == scenePreviews_.end()) return;
     if (motor_) motor_->verSoltar(it->second.clave);
+    const std::lock_guard<std::mutex> l(vistasMu_);
     scenePreviews_.erase(it);
 }
 
 std::string BroadcastEngine::scenePreviewName(const std::string& canal) const {
-    const TurnoMotor::Guarda turno(turno_);
+    const std::lock_guard<std::mutex> l(vistasMu_); // DESDE CUALQUIER HILO
     auto it = scenePreviews_.find(canal);
     return it == scenePreviews_.end() ? std::string() : it->second.name;
 }
 
 bool BroadcastEngine::renderScenePreview(const std::string& canal, motor::Cuadro& out, std::uint64_t& serial) {
-    const TurnoMotor::Guarda turno(turno_);
+    const std::lock_guard<std::mutex> l(vistasMu_); // DESDE CUALQUIER HILO
     auto it = scenePreviews_.find(canal);
     if (it == scenePreviews_.end() || !motor_) return false;
     // Solo si hay uno nuevo: antes daba siempre el último y la interfaz lo

@@ -4,8 +4,10 @@
 
 #include "arranque/AppRuntime.hpp"
 #include "emision/InputSpecs.hpp"
+#include "emision/VentanillaMotor.hpp"
 #include "escenas/AjustesEscenas.hpp"
 #include "escenas/Conmutador.hpp"
+#include "i18n/I18n.hpp"
 #include "ui/ListModels.hpp"
 #include "ui/SalidasViewModel.hpp"
 
@@ -20,18 +22,106 @@ namespace {
 
 QString qs(const std::string& s) { return QString::fromStdString(s); }
 
+/// El conmutador de `salida` ("" = la por omisión; si se fue, la por omisión). En el dueño.
+escenas::Conmutador& conmutadorDe(escenas::Conmutadores& cs, const std::string& salida) {
+    escenas::Conmutador* c = salida.empty() ? nullptr : cs.de(salida);
+    return c != nullptr ? *c : cs.porOmision();
+}
+
+/// La repetición en la escena «Repetición» (la crea si falta) y armada en `salida`. En el
+/// dueño, con el turno: "" o el error.
+std::string armarRepeticionEn(AppRuntime& rt, escenas::Conmutadores& cs, const std::string& archivo,
+                              const std::string& salida) {
+    static const std::string kEscena = "Repetición", kFuente = "Repetición (clip)";
+    BroadcastEngine& e = rt.engine();
+    const auto escenas = e.sceneNames();
+    if (std::find(escenas.begin(), escenas.end(), kEscena) == escenas.end() && !rt.addScene(kEscena)) return rt.lastError();
+    const std::string ajustes =
+        nlohmann::json{{"local_file", archivo}, {"looping", false}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
+    const auto fuentes = e.sceneSources(kEscena);
+    if (std::find(fuentes.begin(), fuentes.end(), kFuente) == fuentes.end()) {
+        SourceSpec spec;
+        spec.id = inputs::kMedioType;
+        spec.name = kFuente;
+        spec.settingsJson = ajustes;
+        if (!rt.addSource(kEscena, spec)) return rt.lastError();
+    } else if (!rt.updateSourceSettings(kFuente, ajustes)) {
+        return rt.lastError();
+    }
+    rt.save();
+    escenas::Conmutador* c = salida.empty() ? &cs.porOmision() : cs.de(salida);
+    if (c == nullptr)
+        return ba::i18n::llenar(ba::i18n::traducir("emision", "no hay una salida «%1»"), {salida});
+    return c->armar(kEscena);
+}
+
 } // namespace
 
 EscenasViewModel::EscenasViewModel(Partes p, QObject* parent)
     : QObject(parent), p_(std::move(p)), ajustes_(std::make_unique<escenas::AjustesEscenas>(p_.rt.dataRoot())) {
-    // El AFV es de la salida activa: cambia con su conmutador y cuando se elige otra.
-    connect(&p_.salidas, &SalidasViewModel::afvActivaCambio, this, &EscenasViewModel::afvCambio);
+    // Lo que se muestra sale de la foto del motor: se avisa cuando cambia. El AFV es de la
+    // salida activa: cambia también cuando se elige otra.
+    connect(&p_.ventanilla, &VentanillaMotor::cambio, this, &EscenasViewModel::alCambiar);
     connect(&p_.salidas, &SalidasViewModel::activaElegida, this, &EscenasViewModel::afvCambio);
+    listaAntes_ = firmaLista();
+    afvAntes_ = afvFuentes();
+    transicionesAntes_ = transicionesEntrada();
 }
 
 EscenasViewModel::~EscenasViewModel() = default;
 
-QString EscenasViewModel::escenaAlAire() const { return qs(p_.rt.engine().currentScene(p_.salidas.activaId())); }
+void EscenasViewModel::alCambiar(unsigned partes) {
+    if ((partes & FotoMotor::Escenas) != 0) {
+        // La lista (nombres, carpetas, protecciones) y lo que muestra cada escena.
+        if (const QStringList firma = firmaLista(); firma != listaAntes_) {
+            listaAntes_ = firma;
+            emit listaCambio();
+        }
+        emit escenaCambio();
+        if (const QVariantMap t = transicionesEntrada(); t != transicionesAntes_) {
+            transicionesAntes_ = t;
+            emit transicionesCambio();
+        }
+    }
+    if ((partes & FotoMotor::Salidas) != 0)
+        if (const QStringList a = afvFuentes(); a != afvAntes_) {
+            afvAntes_ = a;
+            emit afvCambio();
+        }
+}
+
+QStringList EscenasViewModel::firmaLista() const {
+    QStringList firma;
+    for (const auto& e : p_.ventanilla.foto().escenas)
+        firma << qs(e.nombre) + QChar(0x1f) + qs(e.carpeta) + (e.protegida ? QStringLiteral("\x1f1") : QString());
+    return firma;
+}
+
+void EscenasViewModel::pedir(const char* que, std::function<std::string(AppRuntime&)> orden, const QString& nivelError,
+                             std::function<void()> alVolver) {
+    p_.ventanilla.pedir(
+        this, que, [&rt = p_.rt, orden = std::move(orden)]() { return orden(rt); },
+        [this, nivelError, alVolver = std::move(alVolver)](const std::string& e) {
+            if (!e.empty()) return emit notify(qs(e), nivelError);
+            if (alVolver) alVolver();
+        });
+}
+
+void EscenasViewModel::pedirAlConmutador(const char* que, std::function<std::string(escenas::Conmutador&)> orden,
+                                         const QString& nivelError) {
+    // El de la activa, resuelto en el dueño por su id (la activa puede irse en el medio).
+    pedir(
+        que,
+        [&cs = p_.salidas.conmutadores(), salida = p_.salidas.activaId(), orden = std::move(orden)](AppRuntime&) {
+            return orden(conmutadorDe(cs, salida));
+        },
+        nivelError);
+}
+
+QString EscenasViewModel::escenaAlAire() const {
+    const FotoMotor::Salida* s = p_.ventanilla.foto().salida(p_.salidas.activaId());
+    return s != nullptr ? qs(s->alAire) : QString();
+}
 
 bool EscenasViewModel::corteDirectoEditor() const { return ajustes_->corteDirectoEditor(); }
 
@@ -51,10 +141,10 @@ QVariantList EscenasViewModel::escenasPorCarpeta() const {
     QVariantList sueltas;
     QVariantList carpetas;    // [{carpeta, escenas}]
     QMap<QString, int> donde; // carpeta -> posicion en `carpetas`
-    for (const std::string& n : p_.rt.orderedSceneNames()) {
-        const QString carpeta = qs(p_.rt.sceneFolder(n));
+    for (const FotoMotor::Escena& e : p_.ventanilla.foto().escenas) {
+        const QString carpeta = qs(e.carpeta);
         if (carpeta.isEmpty()) {
-            sueltas.append(qs(n));
+            sueltas.append(qs(e.nombre));
             continue;
         }
         if (!donde.contains(carpeta)) {
@@ -62,9 +152,9 @@ QVariantList EscenasViewModel::escenasPorCarpeta() const {
             carpetas.append(QVariantMap{{"carpeta", carpeta}, {"escenas", QVariantList{}}});
         }
         QVariantMap g = carpetas[donde[carpeta]].toMap();
-        QVariantList e = g.value("escenas").toList();
-        e.append(qs(n));
-        g["escenas"] = e;
+        QVariantList l = g.value("escenas").toList();
+        l.append(qs(e.nombre));
+        g["escenas"] = l;
         carpetas[donde[carpeta]] = g;
     }
     QVariantList out;
@@ -74,13 +164,11 @@ QVariantList EscenasViewModel::escenasPorCarpeta() const {
 }
 
 void EscenasViewModel::addScene(const QString& name) {
-    if (!p_.rt.addScene(name.trimmed().toStdString())) {
-        emit notify(qs(p_.rt.lastError()), "error");
-        return;
-    }
-    p_.lista.reload();
-    emit listaCambio();
-    p_.rt.save();
+    pedir("escena_crear", [n = name.trimmed().toStdString()](AppRuntime& rt) {
+        if (!rt.addScene(n)) return rt.lastError();
+        rt.save();
+        return std::string();
+    });
 }
 
 QString EscenasViewModel::copyScene(const QString& from, const QString& to) {
@@ -88,189 +176,212 @@ QString EscenasViewModel::copyScene(const QString& from, const QString& to) {
     // dialogo. Se renombra despues, que es cuando uno ya sabe como llamarla.
     QString destino = to;
     if (destino.isEmpty()) {
-        const auto existe = [this](const QString& n) {
-            for (const std::string& s : p_.rt.orderedSceneNames())
-                if (qs(s) == n) return true;
-            return false;
-        };
+        const auto existe = [this](const QString& n) { return p_.ventanilla.foto().escena(n.toStdString()) != nullptr; };
         destino = tr("%1 (copia)").arg(from);
         for (int i = 2; existe(destino); ++i) destino = tr("%1 (copia %2)").arg(from).arg(i);
     }
-    if (!p_.rt.copyScene(from.toStdString(), destino.toStdString())) {
-        emit notify(qs(p_.rt.lastError()), "error");
-        return {};
-    }
-    p_.lista.reload();
-    emit listaCambio();
-    emit escenaCambio();
-    p_.rt.save();
-    const std::string aviso = p_.rt.lastError();
-    emit notify(aviso.empty() ? tr("Escena copiada: %1").arg(destino) : tr("Escena copiada, pero %1").arg(qs(aviso)),
-                aviso.empty() ? "ok" : "warn");
+    // El aviso de la copia (con lo que no se pudo recrear) vuelve con la respuesta.
+    p_.ventanilla.pedir(
+        this, "escena_copiar",
+        [&rt = p_.rt, f = from.toStdString(), d = destino.toStdString()]() -> std::pair<bool, std::string> {
+            if (!rt.copyScene(f, d)) return {false, rt.lastError()};
+            const std::string aviso = rt.lastError(); // con la copia hecha: alguna fuente no se recreó
+            rt.save();
+            return {true, aviso};
+        },
+        [this, destino](const std::pair<bool, std::string>& r) {
+            if (!r.first) return emit notify(qs(r.second), "error");
+            emit notify(r.second.empty() ? tr("Escena copiada: %1").arg(destino) : tr("Escena copiada, pero %1").arg(qs(r.second)),
+                        r.second.empty() ? "ok" : "warn");
+        });
     return destino;
 }
 
 void EscenasViewModel::setSceneProtected(const QString& name, bool protegida) {
-    if (!p_.rt.setSceneProtected(name.toStdString(), protegida)) {
-        emit notify(qs(p_.rt.lastError()), "error");
-        return;
-    }
-    p_.lista.reload();
-    emit listaCambio();
-    p_.rt.save();
-    emit notify(protegida ? tr("«%1» protegida: no se puede borrar ni renombrar").arg(name) : tr("«%1» ya no está protegida").arg(name),
-                "ok");
+    pedir(
+        "escena_proteger",
+        [n = name.toStdString(), protegida](AppRuntime& rt) {
+            if (!rt.setSceneProtected(n, protegida)) return rt.lastError();
+            rt.save();
+            return std::string();
+        },
+        "error",
+        [this, name, protegida]() {
+            emit notify(protegida ? tr("«%1» protegida: no se puede borrar ni renombrar").arg(name)
+                                  : tr("«%1» ya no está protegida").arg(name),
+                        "ok");
+        });
 }
 
-bool EscenasViewModel::sceneProtected(const QString& name) const { return p_.rt.sceneProtected(name.toStdString()); }
+bool EscenasViewModel::sceneProtected(const QString& name) const {
+    const FotoMotor::Escena* e = p_.ventanilla.foto().escena(name.toStdString());
+    return e != nullptr && e->protegida;
+}
+
+QStringList EscenasViewModel::protegidas() const {
+    QStringList out;
+    for (const FotoMotor::Escena& e : p_.ventanilla.foto().escenas)
+        if (e.protegida) out << qs(e.nombre);
+    return out;
+}
 
 void EscenasViewModel::removeScene(const QString& name) {
-    if (!p_.rt.removeScene(name.toStdString())) {
-        emit notify(qs(p_.rt.lastError()), "error");
-        return;
-    }
-    p_.lista.reload();
-    emit listaCambio();
-    if (p_.fuentes.scene() == name) p_.fuentes.setScene(escenaAlAire());
-    emit escenaCambio();
-    p_.rt.save();
+    pedir(
+        "escena_borrar",
+        [n = name.toStdString()](AppRuntime& rt) {
+            if (!rt.removeScene(n)) return rt.lastError();
+            rt.save();
+            return std::string();
+        },
+        "error",
+        [this, name]() {
+            // El editor estaba en la que se borró: sigue a la del aire.
+            if (p_.fuentes.scene() == name) p_.fuentes.setScene(escenaAlAire());
+        });
 }
 
 void EscenasViewModel::setSceneFolder(const QString& name, const QString& folder) {
-    if (!p_.rt.setSceneFolder(name.toStdString(), folder.trimmed().toStdString())) {
-        emit notify(qs(p_.rt.lastError()), "error");
-        return;
-    }
-    p_.lista.reload();
-    emit listaCambio();
-    emit escenaCambio();
-    p_.rt.save();
+    pedir("escena_carpeta", [n = name.toStdString(), f = folder.trimmed().toStdString()](AppRuntime& rt) {
+        if (!rt.setSceneFolder(n, f)) return rt.lastError();
+        rt.save();
+        return std::string();
+    });
 }
 
 QStringList EscenasViewModel::sceneFolders() const {
     QStringList out;
-    for (const auto& f : p_.rt.sceneFolders()) out << qs(f);
+    for (const FotoMotor::Escena& e : p_.ventanilla.foto().escenas)
+        if (!e.carpeta.empty() && !out.contains(qs(e.carpeta))) out << qs(e.carpeta);
     return out;
 }
 
 void EscenasViewModel::moveScene(const QString& name, const QString& before) {
-    if (!p_.rt.moveScene(name.toStdString(), before.toStdString())) {
-        emit notify(qs(p_.rt.lastError()), "error");
-        return;
-    }
-    p_.lista.reload();
-    emit listaCambio();
-    emit escenaCambio();
-    p_.rt.save();
+    pedir("escena_mover", [n = name.toStdString(), b = before.toStdString()](AppRuntime& rt) {
+        if (!rt.moveScene(n, b)) return rt.lastError();
+        rt.save();
+        return std::string();
+    });
 }
 
 void EscenasViewModel::renameScene(const QString& from, const QString& to) {
-    if (!p_.rt.renameScene(from.toStdString(), to.trimmed().toStdString())) {
-        emit notify(qs(p_.rt.lastError()), "error");
-        return;
-    }
-    p_.lista.reload();
-    emit listaCambio();
-    if (p_.fuentes.scene() == from) p_.fuentes.setScene(to.trimmed());
-    emit escenaCambio();
-    p_.rt.save();
+    const QString nuevo = to.trimmed();
+    pedir(
+        "escena_renombrar",
+        [f = from.toStdString(), t = nuevo.toStdString()](AppRuntime& rt) {
+            if (!rt.renameScene(f, t)) return rt.lastError();
+            rt.save();
+            return std::string();
+        },
+        "error",
+        [this, from, nuevo]() {
+            if (p_.fuentes.scene() == from) p_.fuentes.setScene(nuevo);
+        });
 }
 
 void EscenasViewModel::setScenePreview(const QString& name) {
     // 960 px de ancho alcanza para el lienzo del editor y no castiga la GPU.
-    p_.rt.engine().enableScenePreview(name.toStdString(), 960);
+    p_.ventanilla.pedir("escena_vista_editor", [&rt = p_.rt, n = name.toStdString()]() { rt.engine().enableScenePreview(n, 960); });
 }
 
 void EscenasViewModel::takeScene(const QString& name) {
-    if (const std::string e = p_.salidas.conmutadorActivo().poner(name.toStdString()); !e.empty()) emit notify(qs(e), "error");
+    pedirAlConmutador("escena_al_aire", [n = name.toStdString()](escenas::Conmutador& c) { return c.poner(n); });
 }
 
 void EscenasViewModel::armarEscena(const QString& name) {
-    if (const std::string e = p_.salidas.conmutadorActivo().armar(name.toStdString()); !e.empty()) emit notify(qs(e), "aviso");
+    pedirAlConmutador("escena_armar", [n = name.toStdString()](escenas::Conmutador& c) { return c.armar(n); }, "aviso");
 }
 
 void EscenasViewModel::take() { takeCon(QString(), -1); }
 
 void EscenasViewModel::takeCon(const QString& tipo, int ms) {
-    escenas::Conmutador& c = p_.salidas.conmutadorActivo();
-    const bool habiaArmada = !c.armada().empty();
-    if (const std::string e = c.take(tipo.toStdString(), ms); !e.empty()) emit notify(qs(e), habiaArmada ? "error" : "aviso");
+    // Sin nada armado es un aviso; con algo armado que no salió, un error.
+    const FotoMotor::Salida* s = p_.ventanilla.foto().salida(p_.salidas.activaId());
+    const bool habiaArmada = s != nullptr && !s->armada.empty();
+    pedirAlConmutador("take", [t = tipo.toStdString(), ms](escenas::Conmutador& c) { return c.take(t, ms); },
+                      habiaArmada ? "error" : "aviso");
 }
 
 void EscenasViewModel::tbar(double t, bool soltar) {
-    escenas::Conmutador& c = p_.salidas.conmutadorActivo();
-    if (const std::string e = c.tbar(t, soltar); !e.empty()) emit notify(qs(e), c.armada().empty() ? "aviso" : "error");
+    const FotoMotor::Salida* s = p_.ventanilla.foto().salida(p_.salidas.activaId());
+    pedirAlConmutador("tbar", [t, soltar](escenas::Conmutador& c) { return c.tbar(t, soltar); },
+                      s == nullptr || s->armada.empty() ? "aviso" : "error");
+}
+
+QVariantMap EscenasViewModel::transicionesEntrada() const {
+    QVariantMap out;
+    for (const auto& [escena, e] : p_.ventanilla.foto().transicionesEntrada.items())
+        out[qs(escena)] = QVariantMap{{"tipo", qs(e.value("tipo", std::string()))}, {"ms", e.value("ms", -1)}};
+    return out;
 }
 
 QVariantMap EscenasViewModel::transicionEntrada(const QString& escena) const {
-    const nlohmann::json e = p_.salidas.conmutador().transicionEntrada(escena.toStdString());
-    if (e.empty()) return {};
-    return {{"tipo", QString::fromStdString(e.value("tipo", std::string()))}, {"ms", e.value("ms", -1)}};
+    return transicionesEntrada().value(escena).toMap();
 }
 
 QString EscenasViewModel::setTransicionEntrada(const QString& escena, const QString& tipo, int ms) {
-    return qs(p_.salidas.conmutador().setTransicionEntrada(escena.toStdString(), tipo.toStdString(), ms));
+    pedirAlConmutador("escena_transicion", [e = escena.toStdString(), t = tipo.toStdString(), ms](escenas::Conmutador& c) {
+        return c.setTransicionEntrada(e, t, ms);
+    });
+    return {};
 }
 
-bool EscenasViewModel::afv(const QString& fuente) const { return p_.salidas.conmutadorActivo().afv(fuente.toStdString()); }
+bool EscenasViewModel::afv(const QString& fuente) const { return afvFuentes().contains(fuente); }
 
-void EscenasViewModel::setAfv(const QString& fuente, bool sigue) { p_.salidas.conmutadorActivo().setAfv(fuente.toStdString(), sigue); }
+void EscenasViewModel::setAfv(const QString& fuente, bool sigue) {
+    pedirAlConmutador("audio_afv", [f = fuente.toStdString(), sigue](escenas::Conmutador& c) {
+        c.setAfv(f, sigue);
+        return std::string();
+    });
+}
 
 QStringList EscenasViewModel::afvFuentes() const {
     QStringList out;
-    for (const std::string& f : p_.salidas.conmutadorActivo().afvFuentes()) out << qs(f);
+    if (const FotoMotor::Salida* s = p_.ventanilla.foto().salida(p_.salidas.activaId()))
+        for (const std::string& f : s->afv) out << qs(f);
     return out;
 }
 
 void EscenasViewModel::esperarReplay(const std::string& antes, int ms, std::function<void(const QString&)> listo,
                                      const std::string& salida) {
-    const std::string ahora = p_.rt.engine().ultimoReplay(salida);
-    if (!ahora.empty() && ahora != antes) return listo(qs(ahora));
-    if (ms <= 0) return listo(QString());
-    QTimer::singleShot(200, this, [this, antes, ms, listo = std::move(listo), salida]() mutable {
-        esperarReplay(antes, ms - 200, std::move(listo), salida);
-    });
+    p_.ventanilla.pedir(
+        this, "replay_ultimo", [&rt = p_.rt, salida]() { return rt.engine().ultimoReplay(salida); },
+        [this, antes, ms, listo = std::move(listo), salida](const std::string& ahora) mutable {
+            if (!ahora.empty() && ahora != antes) return listo(qs(ahora));
+            if (ms <= 0) return listo(QString());
+            QTimer::singleShot(200, this, [this, antes, ms, listo = std::move(listo), salida]() mutable {
+                esperarReplay(antes, ms - 200, std::move(listo), salida);
+            });
+        });
 }
 
 QString EscenasViewModel::repetirUi() {
-    const std::string antes = p_.rt.engine().ultimoReplay();
-    if (!p_.rt.engine().guardarReplay()) return qs(p_.rt.engine().lastError());
-    esperarReplay(antes, 8000, [this](const QString& f) {
-        if (f.isEmpty()) return emit notify(tr("La repetición no llegó a escribirse."), "error");
-        const QString e = armarRepeticion(f);
-        emit notify(e.isEmpty() ? tr("Repetición armada: dale TAKE.") : e, e.isEmpty() ? "ok" : "error");
-    });
+    p_.ventanilla.pedir(
+        this, "replay_guardar",
+        [&rt = p_.rt]() -> std::pair<std::string, std::string> {
+            const std::string antes = rt.engine().ultimoReplay();
+            if (!rt.engine().guardarReplay()) return {antes, rt.engine().lastError()};
+            return {antes, {}};
+        },
+        [this](const std::pair<std::string, std::string>& r) {
+            if (!r.second.empty()) return emit notify(qs(r.second), "error");
+            esperarReplay(r.first, 8000, [this](const QString& f) {
+                if (f.isEmpty()) return emit notify(tr("La repetición no llegó a escribirse."), "error");
+                armarRepeticion(f, {}, [this](const QString& e) {
+                    emit notify(e.isEmpty() ? tr("Repetición armada: dale TAKE.") : e, e.isEmpty() ? "ok" : "error");
+                });
+            });
+        });
     return {};
 }
 
-QString EscenasViewModel::armarRepeticion(const QString& archivo, const std::string& salida) {
-    static const std::string kEscena = "Repetición", kFuente = "Repetición (clip)";
-    AppRuntime& rt = p_.rt;
-    BroadcastEngine& e = rt.engine();
-    const auto escenas = e.sceneNames();
-    if (std::find(escenas.begin(), escenas.end(), kEscena) == escenas.end() && !rt.addScene(kEscena)) return qs(rt.lastError());
-    const std::string ajustes =
-        nlohmann::json{{"local_file", archivo.toStdString()}, {"looping", false}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
-    const auto fuentes = e.sceneSources(kEscena);
-    if (std::find(fuentes.begin(), fuentes.end(), kFuente) == fuentes.end()) {
-        SourceSpec spec;
-        spec.id = inputs::kMedioType;
-        spec.name = kFuente;
-        spec.settingsJson = ajustes;
-        if (!rt.addSource(kEscena, spec)) return qs(rt.lastError());
-    } else if (!rt.updateSourceSettings(kFuente, ajustes)) {
-        return qs(rt.lastError());
-    }
-    p_.lista.reload();
-    emit listaCambio();
-    rt.save();
-    if (salida.empty()) {
-        armarEscena(qs(kEscena));
-        return {};
-    }
-    escenas::Conmutador* c = p_.salidas.conmutadores().de(salida);
-    if (c == nullptr) return tr("No hay una salida «%1».").arg(qs(salida));
-    return qs(c->armar(kEscena));
+void EscenasViewModel::armarRepeticion(const QString& archivo, const std::string& salida,
+                                       std::function<void(const QString&)> listo) {
+    p_.ventanilla.pedir(
+        this, "replay_armar",
+        [&rt = p_.rt, &cs = p_.salidas.conmutadores(), a = archivo.toStdString(), salida]() {
+            return armarRepeticionEn(rt, cs, a, salida);
+        },
+        [listo = std::move(listo)](const std::string& e) { listo(qs(e)); });
 }
 
 } // namespace ba::app

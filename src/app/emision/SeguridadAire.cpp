@@ -12,9 +12,8 @@ SeguridadAire::SeguridadAire(AppRuntime& rt) : rt_(rt) {}
 void SeguridadAire::guardar() {
     // Es estado de aire: la sección de las salidas del documento de aire (F3-04). El
     // runtime la vuelve a poner con lo que dice el motor; la escribe el dueño del documento.
+    // Y la foto del motor (lo que muestra la interfaz) se rearma.
     rt_.aireCambio();
-    // Quien lo muestra es del dueño: desde el plano de control, encolado (F3-03).
-    if (cambio_) rt_.enDueno(cambio_);
 }
 
 std::string SeguridadAire::ftb(bool activar, int ms, const std::string& audio, const std::string& salida) {

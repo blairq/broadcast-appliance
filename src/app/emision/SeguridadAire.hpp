@@ -5,18 +5,17 @@
 // documento de aire (F3-04: Runtime/al-aire.json, la `placa` de cada salida; antes
 // era Runtime/placa.json aparte): si la app se cae con la placa o el negro al aire,
 // al volver AppRuntime::restaurarAire lo pone igual. Lo piden la GUI
-// (BotonesSeguridad) y el MCP (aire_ftb, aire_placa), los dos por acá; quien
-// muestre el estado se entera con alCambiar.
+// (BotonesSeguridad, por la ventanilla del motor) y el MCP (aire_ftb, aire_placa), los
+// dos por acá; quien muestre el estado lo lee de la foto del motor (la placa de cada
+// salida, FotoMotor::Salida::placa), que se rearma cuando cambia (AppRuntime::aireCambio).
 //
 // Cada salida tiene su negro y su placa (PLAN-SALIDAS): `salida` "" = la por
 // omisión; cada una vuelve igual (si la salida existe al restaurar).
 //
-// Desde la interfaz o el plano de control (F3-03: aire_ftb y aire_placa con la interfaz
-// trabada): toma el turno del motor y alCambiar llega siempre en el hilo dueño.
+// En el dueño del motor (el plano de control, F3-03): toma el turno del motor.
 // ============================================================================
 #pragma once
 
-#include <functional>
 #include <string>
 
 #include <nlohmann/json.hpp>
@@ -31,9 +30,6 @@ class SeguridadAire {
    public:
     explicit SeguridadAire(AppRuntime& rt);
 
-    /// Cuando cambió el FTB o la placa (para mostrarlo): en el hilo dueño.
-    void alCambiar(std::function<void()> f) { cambio_ = std::move(f); }
-
     /// `audio`: "bajar" (el audio baja con el negro) o "mantener". "" o el error.
     std::string ftb(bool activar, int ms, const std::string& audio, const std::string& salida = {});
     /// La placa con `texto` (y una imagen opcional). "" o el error.
@@ -45,7 +41,6 @@ class SeguridadAire {
    private:
     void guardar();
     AppRuntime& rt_;
-    std::function<void()> cambio_;
 };
 
 } // namespace ba::app::emision

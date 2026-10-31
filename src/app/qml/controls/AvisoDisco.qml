@@ -1,4 +1,4 @@
-// El disco en apuros (Studio.emision.apurosDiscoUi): cuando lo grabado espera para entrar al
+// El disco en apuros (Studio.emision.apurosDisco, de la foto del motor): cuando lo grabado espera para entrar al
 // disco o el registro no puede escribir. Ofrece darle el disco a la grabación
 // del programa: se pausan las ISO, la repetición, la copia (si va al mismo
 // disco) y la señal limpia a disco, y el registro se junta en memoria. Cuando
@@ -10,7 +10,7 @@ import BA
 
 Rectangle {
     id: a
-    property var d: ({})
+    readonly property var d: Studio.emision.apurosDisco
     readonly property bool apuros: !!d.apuros
     readonly property bool prioridad: !!d.prioridad
     visible: apuros || prioridad
@@ -20,11 +20,6 @@ Rectangle {
     border.color: Theme.live
     border.width: 1
 
-    Timer {
-        // Mostrándose, cada segundo; si no, alcanza con enterarse a los pocos segundos.
-        interval: a.visible ? 1000 : 4000; running: true; repeat: true; triggeredOnStart: true
-        onTriggered: a.d = Studio.emision.apurosDiscoUi()
-    }
 
     ColumnLayout {
         id: col
@@ -72,19 +67,19 @@ Rectangle {
                 active: true
                 activeColor: Theme.live
                 text: qsTr("Darle el disco al programa")
-                onClicked: { Studio.emision.priorizarProgramaUi(true); a.d = Studio.emision.apurosDiscoUi() }
+                onClicked: Studio.emision.priorizarProgramaUi(true)
             }
             GlassButton {
                 visible: a.prioridad
                 compact: true
                 text: qsTr("Seguir con todo ya")
-                onClicked: { Studio.emision.priorizarProgramaUi(false); a.d = Studio.emision.apurosDiscoUi() }
+                onClicked: Studio.emision.priorizarProgramaUi(false)
             }
             Item { Layout.fillWidth: true }
             CheckBox {
                 text: qsTr("Hacerlo solo")
                 checked: a.d.modo === "auto"
-                onToggled: { Studio.emision.modoDiscoUi(checked ? "auto" : "preguntar"); a.d = Studio.emision.apurosDiscoUi() }
+                onToggled: Studio.emision.modoDiscoUi(checked ? "auto" : "preguntar")
                 ToolTip.visible: hovered; ToolTip.delay: 400
                 ToolTip.text: qsTr("La próxima vez que el disco no dé abasto grabando el programa, pausar lo demás sin preguntar")
             }

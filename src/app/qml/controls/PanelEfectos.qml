@@ -24,7 +24,8 @@ ColumnLayout {
     Component.onCompleted: leer()
     Connections {
         target: Studio.sources
-        function onModelReset() { p.leer() }   // otra escena, o lo cambió el MCP
+        function onModelReset() { p.leer() }   // otra escena
+        function onEfectosCambio() { p.leer() } // lo cambió el MCP, otra vista o lo que se acaba de pedir
     }
 
     // Una fila «título · barra · valor» que aplica mientras se arrastra.

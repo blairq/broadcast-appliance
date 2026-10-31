@@ -1,11 +1,11 @@
 // ============================================================================
 // src/app/ui/ListModels.hpp — Modelos de lista para la vista (capa ViewModel)
 //
-// QAbstractListModel sobre AppRuntime. La vista (QML) solo los muestra y llama
+// QAbstractListModel sobre el motor. La vista (QML) solo los muestra y llama
 // sus comandos; aca no hay nada de presentacion ni de QML.
 //
-//   ScenesModel       escenas (nombre, al aire)
-//   SourcesModel      fuentes de UNA escena (la que se edita)
+//   ScenesModel       escenas (nombre, al aire): de la foto del motor (F3-03)
+//   SourcesModel      fuentes de UNA escena (la que se edita): la foto y la ventanilla
 //   MixerModel        fuentes con audio: nivel, volumen, silencio
 //   SourceTypesModel  tipos de fuente disponibles para "Agregar"
 // ============================================================================
@@ -18,8 +18,13 @@
 
 #include <nlohmann/json.hpp>
 
+#include "emision/FotoMotor.hpp"
+
+#include <functional>
 #include <map>
+#include <memory>
 #include <mutex>
+#include <optional>
 #include <set>
 #include <string>
 #include <vector>
@@ -27,7 +32,12 @@
 namespace ba::app {
 
 class AppRuntime;
+class VentanillaMotor;
+struct SourceSpec;
 
+/// Las escenas (de la foto del motor, F3-03): se actualiza solo con lo que avisa la
+/// ventanilla (la lista cambió: se rehace; una carpeta, una protección, la escena al aire o
+/// la armada de su salida: dataChanged de esos roles).
 class ScenesModel : public QAbstractListModel {
     Q_OBJECT
    public:
@@ -36,28 +46,32 @@ class ScenesModel : public QAbstractListModel {
     /// son dos roles: una mesa de switcher las muestra en dos filas y el
     /// operador mira las dos.
     enum Roles { NameRole = Qt::UserRole + 1, LiveRole, FolderRole, ProtegidaRole, ArmadaRole };
-    explicit ScenesModel(AppRuntime& rt, QObject* parent = nullptr);
+    explicit ScenesModel(VentanillaMotor& ventanilla, QObject* parent = nullptr);
     int rowCount(const QModelIndex& = {}) const override;
     QVariant data(const QModelIndex& index, int role) const override;
     QHash<int, QByteArray> roleNames() const override;
-    /// Relee del modelo (tras agregar/quitar/renombrar escenas).
-    void reload();
-    /// Avisa que cambio la escena al aire.
-    void liveChanged();
-    /// La escena ARMADA (bus de preview): la que sale con el proximo TAKE.
+    /// La escena ARMADA (bus de preview) de su salida: la que sale con el proximo TAKE.
     /// Vacia = no hay ninguna armada.
-    QString armada() const { return armada_; }
-    void setArmada(const QString& n);
-    /// De qué salida es `live` (PLAN-SALIDAS: la salida activa de la interfaz; "" = la por omisión).
+    QString armada() const;
+    /// De qué salida son `live` y `armada` (PLAN-SALIDAS: la activa de la interfaz; "" = la
+    /// por omisión).
     void setSalida(const std::string& salida);
 
    private:
-    AppRuntime& rt_;
+    /// Lo que cambió en la foto (ver arriba).
+    void alCambiar(unsigned partes);
+    const FotoMotor::Escena* escenaDe(int fila) const;
+
+    VentanillaMotor& v_;
+    std::shared_ptr<const FotoMotor> foto_; ///< la que muestra (la de la última vuelta)
     std::vector<std::string> names_;
-    QString armada_;
     std::string salida_;
 };
 
+/// Las fuentes de UNA escena (la que se edita), de arriba hacia abajo, de la foto del motor;
+/// lo que se cambia se le pide al dueño (la ventanilla). Lo pedido se ve ya (el lugar, si se
+/// ve, los efectos) y queda así hasta que llega la respuesta, que ya trae la foto con el
+/// cambio: soltar una capa no la hace saltar a donde estaba.
 class SourcesModel : public QAbstractListModel {
     Q_OBJECT
     Q_PROPERTY(QString scene READ scene WRITE setScene NOTIFY sceneChanged)
@@ -74,14 +88,13 @@ class SourcesModel : public QAbstractListModel {
         RectWRole,
         RectHRole
     };
-    explicit SourcesModel(AppRuntime& rt, QObject* parent = nullptr);
+    SourcesModel(AppRuntime& rt, VentanillaMotor& ventanilla, QObject* parent = nullptr);
     int rowCount(const QModelIndex& = {}) const override;
     QVariant data(const QModelIndex& index, int role) const override;
     QHash<int, QByteArray> roleNames() const override;
 
     QString scene() const { return scene_; }
     void setScene(const QString& s);
-    void reload();
 
     Q_INVOKABLE bool setVisible(const QString& name, bool visible);
     /// Una capa por posicion: {nombre, visible}. Vacio si no existe. Igual que
@@ -95,7 +108,8 @@ class SourcesModel : public QAbstractListModel {
     /// Cambia solo lo que traiga `cambios` (las mismas claves; la sombra, anidada).
     Q_INVOKABLE bool setEfectos(const QString& name, const QVariantMap& cambios);
     /// Agrega una fuente nueva de tipo `typeId` con nombre unico derivado de
-    /// `baseName`. :returns: el nombre final ("" si fallo).
+    /// `baseName`. :returns: el nombre final ("" si no se pudo pedir; si falla después,
+    /// avisa `error`).
     Q_INVOKABLE QString add(const QString& typeId, const QString& baseName);
     /// Lo mismo, con sus ajustes ya puestos (un «Código QR» con el QR elegido, …).
     Q_INVOKABLE QString addConAjustes(const QString& typeId, const QString& baseName, const QVariantMap& ajustes);
@@ -108,26 +122,46 @@ class SourcesModel : public QAbstractListModel {
     /// varias escenas siendo la misma fuente.
     Q_INVOKABLE QVariantList otherSources() const;
     /// Agrega a esta escena una fuente que YA existe (la misma, compartida).
-    /// :returns: su nombre ("" si fallo).
+    /// :returns: su nombre ("" si no existe).
     Q_INVOKABLE QString addExisting(const QString& name);
-    Q_PROPERTY(int guestSlots READ guestSlots CONSTANT)
+    Q_PROPERTY(int guestSlots READ guestSlots NOTIFY guestSlotsChanged)
     int guestSlots() const;
 
    signals:
     void sceneChanged();
+    void guestSlotsChanged();
+    /// Cambiaron los efectos de alguna capa (la foto, o lo que se acaba de pedir).
+    void efectosCambio();
     void error(const QString& message);
 
    private:
-    AppRuntime& rt_;
-    QString scene_;
-    std::vector<std::string> names_; // de abajo hacia arriba
-    struct TypeInfo {
-        QString name;
-        bool video = false;
-        bool audio = false;
-    };
-    std::map<std::string, TypeInfo> types_; // cache de inputTypes()
+    /// Lo que cambió en la foto: la lista (se rehace solo si quedó distinta, para no cortar
+    /// una selección ni un arrastre) o cómo está cada capa (dataChanged).
+    void alCambiar(unsigned partes);
+    void releer();
+    const FotoMotor::Fuente* fuenteDe(const std::string& name) const;
+    /// Un nombre que no use ninguna fuente: «Cámara», «Cámara 2»… (de la foto).
+    std::string nombreLibre(const std::string& base) const;
+    /// Pide agregar `spec` a la escena (con el error de vuelta en `error`); con
+    /// `elegirCamara`, una cámara nueva con la primera conectada.
+    void pedirAgregar(SourceSpec spec, bool elegirCamara = false);
+    /// Pide algo que devuelve "" o el error; lo pendiente de `name` se suelta al volver.
+    void pedir(const char* que, const std::string& name, std::function<std::string(AppRuntime&)> orden);
     int rowOf(const std::string& name) const;
+
+    AppRuntime& rt_;
+    VentanillaMotor& v_;
+    QString scene_;
+    std::shared_ptr<const FotoMotor> foto_;
+    std::vector<std::string> names_; // de abajo hacia arriba
+    /// Lo pedido que todavía no volvió, por fuente: se muestra esto y no lo de la foto.
+    struct Pendiente {
+        int pedidos = 0;
+        std::optional<bool> visible;
+        std::optional<FotoMotor::Lugar> lugar;
+        std::optional<nlohmann::json> efectos;
+    };
+    std::map<std::string, Pendiente> pendientes_;
 };
 
 class MixerModel : public QAbstractListModel {

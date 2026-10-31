@@ -58,10 +58,8 @@ Item {
             id: destinos
             Layout.fillWidth: true
             spacing: 3
-            property var lista: Studio.emision.destinosUi()
-            function refrescar() { lista = Studio.emision.destinosUi() }
-            Connections { target: Studio.emision; function onDestinosChanged() { destinos.refrescar() } }
-            Timer { interval: 2000; running: destinos.lista.some(d => d.activo); repeat: true; onTriggered: destinos.refrescar() }
+            // De la foto del motor: se actualiza sola (Studio.emision avisa cuando cambia).
+            property var lista: Studio.emision.destinos
             Repeater {
                 model: destinos.lista
                 delegate: RowLayout {
@@ -77,21 +75,21 @@ Item {
                         compact: true; text: modelData.activo ? qsTr("Cortar") : qsTr("Iniciar")
                         active: modelData.activo; activeColor: Theme.live
                         onClicked: {
-                            if (!modelData.activo) { const e = Studio.emision.iniciarDestinoUi(modelData.id); if (e !== "") Studio.notify(e, "error"); return }
+                            if (!modelData.activo) { Studio.emision.iniciarDestinoUi(modelData.id); return }
                             const id = modelData.id, n = modelData.nombre
                             ApplicationWindow.window.confirm({ title: qsTr("¿Cortar «%1»?").arg(n), text: qsTr("Los demás destinos siguen."),
                                                                accept: qsTr("Cortar"), reject: qsTr("Cancelar"), action: function() { Studio.emision.detenerDestinoUi(id) } })
                         }
                     }
                     GlassButton { compact: true; text: "✕"; visible: !modelData.activo
-                                  onClicked: { const e = Studio.emision.borrarDestinoUi(modelData.id); if (e !== "") Studio.notify(e, "error") } }
+                                  onClicked: Studio.emision.borrarDestinoUi(modelData.id) }
                 }
             }
             RowLayout {
                 spacing: 6
                 GlassButton { compact: true; text: qsTr("+ Destino…"); onClicked: nuevoDestino.open() }
                 GlassButton { compact: true; visible: destinos.lista.length > 1; text: qsTr("Iniciar todos")
-                              onClicked: { const e = Studio.emision.iniciarDestinoUi("todos"); if (e !== "") Studio.notify(e, "error") } }
+                              onClicked: Studio.emision.iniciarDestinoUi("todos") }
             }
         }
         // El destino nuevo sale con el programa de la por omisión (los de las demás
@@ -145,8 +143,7 @@ Item {
         RowLayout {
             id: isos
             Layout.fillWidth: true
-            property var lista: Studio.emision.isosUi()
-            Timer { interval: 3000; running: isos.visible; repeat: true; triggeredOnStart: true; onTriggered: isos.lista = Studio.emision.isosUi() }
+            property var lista: Studio.emision.isos
             Text {
                 Layout.fillWidth: true; elide: Text.ElideRight
                 text: isos.lista.length === 0 ? qsTr("ISO: ninguna entrada se graba aparte")
@@ -156,15 +153,14 @@ Item {
                 color: isos.lista.length > 0 ? Theme.live : Theme.textFaint
                 font.pixelSize: 10
             }
-            GlassButton { compact: true; text: qsTr("Todas"); onClicked: { const e = Studio.emision.isoTodasUi(true); if (e !== "") Studio.notify(e, "warn"); isos.lista = Studio.emision.isosUi() } }
-            GlassButton { compact: true; text: qsTr("Ninguna"); enabled: isos.lista.length > 0; onClicked: { Studio.emision.isoTodasUi(false); isos.lista = Studio.emision.isosUi() } }
+            GlassButton { compact: true; text: qsTr("Todas"); onClicked: Studio.emision.isoTodasUi(true) }
+            GlassButton { compact: true; text: qsTr("Ninguna"); enabled: isos.lista.length > 0; onClicked: Studio.emision.isoTodasUi(false) }
         }
         // Señal limpia: el programa sin DSK ni placa, a un destino guardado o a disco.
         RowLayout {
             id: limpia
             Layout.fillWidth: true
-            property var e: Studio.emision.limpiaUi()
-            Timer { interval: 2000; running: limpia.visible; repeat: true; triggeredOnStart: true; onTriggered: limpia.e = Studio.emision.limpiaUi() }
+            property var e: Studio.emision.limpia
             Text {
                 Layout.fillWidth: true; elide: Text.ElideRight
                 text: {
@@ -186,19 +182,14 @@ Item {
             }
             GlassButton {
                 compact: true; text: limpia.e.activa ? qsTr("Cortar") : qsTr("Arrancar")
-                onClicked: {
-                    const x = Studio.emision.limpiaActivarUi(!limpia.e.activa, limpia.e.activa ? "" : limpiaA.model[limpiaA.currentIndex].id)
-                    if (x !== "") Studio.notify(x, "error")
-                    limpia.e = Studio.emision.limpiaUi()
-                }
+                onClicked: Studio.emision.limpiaActivarUi(!limpia.e.activa, limpia.e.activa ? "" : limpiaA.model[limpiaA.currentIndex].id)
             }
         }
         // La grabación (T29): calidad, pistas, copia en otro disco, encoder de respaldo y «Repetir».
         RowLayout {
             id: grab
             Layout.fillWidth: true
-            property var g: Studio.emision.grabacionUi()
-            Timer { interval: 2000; running: grab.visible; repeat: true; triggeredOnStart: true; onTriggered: grab.g = Studio.emision.grabacionUi() }
+            property var g: Studio.emision.grabacion
             Text {
                 Layout.fillWidth: true; elide: Text.ElideRight
                 text: {
@@ -222,9 +213,10 @@ Item {
         // El disco a este bitrate y el pase a MP4 al terminar.
         Text {
             id: disco
-            property var d: Studio.emision.discoUi()
-            property var r: Studio.emision.remuxUi()
-            Timer { interval: 5000; running: disco.visible; repeat: true; triggeredOnStart: true; onTriggered: { disco.d = Studio.emision.discoUi(); disco.r = Studio.emision.remuxUi() } }
+            property var d: Studio.emision.disco
+            property var r: Studio.emision.remux
+            // El disco que queda lo lee el dueño del motor (lee el disco): se le pide cada tanto.
+            Timer { interval: 5000; running: disco.visible; repeat: true; triggeredOnStart: true; onTriggered: Studio.emision.pedirDisco() }
             Layout.fillWidth: true; elide: Text.ElideRight
             text: {
                 // Las horas son de todo lo que se graba (copia e ISO incluidas), en el disco que antes se llena.

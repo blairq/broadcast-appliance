@@ -1,39 +1,43 @@
 // ============================================================================
-// src/app/emision/TurnoMotor.hpp — el turno del motor: la interfaz y el plano de control, de a uno (F3-03)
+// src/app/emision/TurnoMotor.hpp — quién está adentro del motor ahora (F3-03)
 //
-// docs/arquitectura/04-plan-unificado.md, F3-03. BroadcastEngine no es seguro entre hilos,
-// y tampoco lo que lleva el aire de afuera (lo que sale en AppRuntime, los conmutadores de
-// escenas, el negro y la placa): era todo del hilo de la interfaz. Con el plano de control
-// (arranque/PlanoControl), las acciones de aire del MCP (TAKE, grabar, transmitir, FTB,
-// placa) corren en SU hilo: con la interfaz trabada (un QML pesado, un diálogo, un disco
-// lento) igual se hacen. El turno es lo que deja entrar a los dos sin pisarse.
+// docs/arquitectura/04-plan-unificado.md, F3-03; el patrón, en
+// docs/arquitectura/05-motor-del-plano.md. EL MOTOR ES DEL PLANO DE CONTROL: AppRuntime,
+// BroadcastEngine y la configuración (cfg_) los usa su hilo («control», el dueño), que corre
+// el reloj del motor y las órdenes que le encargan. La interfaz le PIDE (órdenes encoladas,
+// emision/VentanillaMotor.hpp) y LEE LA FOTO que el dueño publica (emision/FotoMotor.hpp).
 //
-// QUÉ ES: quién está adentro del motor ahora. Un candado recursivo que toma cada método de
-// la API de BroadcastEngine al entrar (Guarda) y cada operación compuesta de afuera
-// (AppRuntime: grabar, transmitir, cortar; escenas::Conmutador: poner, take, T-bar) por todo
-// lo que dura, así nadie ve una a medias. La interfaz lo tiene solo mientras está ADENTRO
-// del motor: trabada en otra cosa, no lo tiene, y el control entra.
+// El turno es lo que queda para lo que la interfaz todavía toca directo (las áreas que no
+// pasaron a la ventanilla: la mezcla, la imagen, la asamblea, la sala…): un candado
+// recursivo que toman los hilos que PARTICIPAN, así nadie ve el motor ni la configuración a
+// medio cambiar.
 //
-// QUIÉN LO TOMA: los hilos que PARTICIPAN (participar(): el dueño del motor —la interfaz o
-// el bucle de la consola— y el del plano de control). Los demás no: el hilo de salidas del
-// motor, el de los cuadros, los de GStreamer, el pool de la foto del MCP. Lo que ellos
-// tocan tiene su candado o se publica como foto (fotoSalidas, programaVideo, los picos), y
-// quien tiene el turno a veces los ESPERA (apagar espera al hilo de salidas; soltar una
-// vista espera a que termine su aviso en curso): si lo tomaran, sería un abrazo mortal.
+//   - EL DUEÑO (el control) lo toma por cada cosa que hace: cada vuelta del reloj del motor,
+//     cada orden de la agenda (PlanoControl::encolarConTurno), cada herramienta MCP del
+//     control. Siempre CON TOPE (tomarHasta): si la interfaz lo tiene, la orden espera en la
+//     agenda y la vuelta se saltea; el control nunca se queda esperando a la interfaz.
+//   - LA INTERFAZ (participarPorVuelta) lo toma la primera vez que entra al motor o a la
+//     configuración en un evento (un clic, un temporizador, un dibujo de QML) y lo tiene
+//     hasta que ese evento termina (soltarVuelta, lo llama el bucle de la interfaz: al
+//     volver de cada evento y antes de dormir). Así lo que lee de cfg_ por referencia no
+//     cambia debajo de sus pies. Cada vez que entra es una LLAMADA DIRECTA: se cuenta por
+//     lugar (directas(), `ba_motor_directas_total{lugar}`, una línea en el registro la
+//     primera vez de cada lugar) para que las próximas etapas sepan qué falta migrar.
+//   - La consola (sin interfaz) es el dueño y lo toma por cada llamada (participar).
 //
-// EL CONTROL NUNCA ESPERA A LA INTERFAZ: lo toma con tope (tomarHasta) y, si no se lo dan
-// (la interfaz trabada ADENTRO del motor, un rearme de varios segundos), contesta «el motor
-// está ocupado» y no hace nada después. La interfaz sí espera al control (lo que el
-// control hace adentro es corto: encolar una salida, cortar una escena).
-//
-// Lo que falta (F3-03): que el motor sea DEL plano de control —la interfaz le pide y lee
-// fotos— en vez de turnarse con ella; ahí el turno sobra.
+// QUIÉN NO: el hilo de salidas del motor, el de los cuadros, los de GStreamer, el pool de la
+// foto del MCP. Lo que ellos tocan tiene su candado o se publica como foto (fotoSalidas,
+// programaVideo, los picos, las vistas), y quien tiene el turno a veces los ESPERA (apagar
+// espera al hilo de salidas): si lo tomaran, sería un abrazo mortal.
 // ============================================================================
 #pragma once
 
 #include <atomic>
 #include <cstdint>
+#include <map>
 #include <mutex>
+#include <source_location>
+#include <string>
 #include <thread>
 
 #include <nlohmann/json.hpp>
@@ -42,17 +46,21 @@ namespace ba::app {
 
 class TurnoMotor {
    public:
-    /// Este hilo participa del turno (para siempre): el dueño del motor y el plano de
-    /// control. `nombre` («interfaz», «control») es lo que dice estado() de quién lo tiene.
+    /// Este hilo participa del turno por llamada: el dueño del motor (el control, la consola).
+    /// `nombre` («control», «dueño») es lo que dice estado() de quién lo tiene. Si el hilo
+    /// participaba por vuelta, suelta lo que tenía y deja de hacerlo.
     static void participar(const char* nombre);
+    /// Este hilo (la interfaz) participa POR VUELTA: ver arriba.
+    static void participarPorVuelta(const char* nombre);
     static bool participa();
+    /// Suelta el turno de la vuelta, si este hilo lo tiene (fin de un evento de la interfaz).
+    static void soltarVuelta();
 
-    /// Lo toma al construirse y lo suelta al irse, si el hilo participa (si no, nada).
+    /// Lo toma al construirse y lo suelta al irse, si el hilo participa por llamada; en el
+    /// hilo por vuelta, lo toma para el resto de la vuelta (y cuenta la directa en `donde`).
     class Guarda {
        public:
-        explicit Guarda(const TurnoMotor& t) : t_(participa() ? &t : nullptr) {
-            if (t_ != nullptr) t_->tomar();
-        }
+        explicit Guarda(const TurnoMotor& t, std::source_location donde = std::source_location::current());
         ~Guarda() {
             if (t_ != nullptr) t_->soltar();
         }
@@ -60,11 +68,16 @@ class TurnoMotor {
         Guarda& operator=(const Guarda&) = delete;
 
        private:
-        const TurnoMotor* t_;
+        const TurnoMotor* t_ = nullptr;
     };
 
+    /// La interfaz entra directo (AppRuntime::config()/engine() desde una vista): en el hilo
+    /// por vuelta lo toma para el resto de la vuelta y cuenta la directa en `donde` (el que
+    /// llamó). En los demás hilos no hace nada.
+    void entrarDirecto(std::source_location donde) const;
+
     /// Lo toma (esperando lo que haga falta). Recursivo: el que lo tiene vuelve a entrar.
-    void tomar() const;
+    void tomar(std::source_location donde = std::source_location::current()) const;
     /// Lo toma si se lo dan antes de `ms`; false si no (y no lo tiene).
     bool tomarHasta(int ms) const;
     void soltar() const;
@@ -72,11 +85,20 @@ class TurnoMotor {
     bool loTengo() const { return dueno_.load() == std::this_thread::get_id(); }
 
     /// {quien (el nombre del hilo que lo tiene, "" si nadie), esperas (las veces que alguien
-    /// esperó), espera_max_ms}: para el diagnóstico y el test.
+    /// esperó), espera_max_ms, directas: {total, lugares: {lugar: veces}}}: para el
+    /// diagnóstico, el MCP (status) y el test.
     nlohmann::json estado() const;
+    /// Las llamadas directas de la interfaz: {total, lugares: {lugar: veces}} (ver arriba).
+    nlohmann::json directas() const;
+    std::uint64_t totalDirectas() const { return directasTotal_.load(); }
+
+    /// El lugar como se cuenta: «Clase::metodo» (sin el espacio de nombres ni los argumentos).
+    static std::string lugar(const std::source_location& l);
 
    private:
     void anotarEntrada() const;
+    void entrarPorVuelta(const std::source_location& donde) const;
+    void anotarDirecta(const std::source_location& donde) const;
 
     mutable std::recursive_timed_mutex mu_;
     mutable std::atomic<std::thread::id> dueno_{};
@@ -84,6 +106,9 @@ class TurnoMotor {
     mutable int profundidad_ = 0; ///< solo la toca el que lo tiene
     mutable std::atomic<std::uint64_t> esperas_{0};
     mutable std::atomic<std::int64_t> esperaMaxUs_{0};
+    mutable std::atomic<std::uint64_t> directasTotal_{0};
+    mutable std::mutex directasMu_;
+    mutable std::map<std::string, std::uint64_t> directas_;
 };
 
 } // namespace ba::app

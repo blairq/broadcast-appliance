@@ -14,6 +14,7 @@
 #include "platform/Hilo.hpp"
 #include "platform/Paths.hpp"
 
+#include <QAbstractEventDispatcher>
 #include <QDesktopServices>
 #include <QDir>
 #include <QMouseEvent>
@@ -44,6 +45,7 @@
 #include "arranque/AppRuntime.hpp"
 #include "agent/AlertEngine.hpp"
 #include "arranque/PlanoControl.hpp"
+#include "emision/VentanillaMotor.hpp"
 #include "arranque/TraductorQt.hpp"
 #include "mcp/McpService.hpp"
 #include "control/Botonera.hpp"
@@ -73,6 +75,25 @@ namespace ba::app {
 namespace {
 
 extern "C" void onGuiStopSignal(int) { AppRuntime::requestStop(); }
+
+/// La aplicación de la interfaz. El motor es del plano de control (F3-03): lo que la
+/// interfaz todavía toca directo (las áreas sin migrar a la ventanilla) lo toca con el
+/// turno del motor, que toma la primera vez y SUELTA AL TERMINAR CADA EVENTO (acá, al
+/// volver el más externo) o antes de dormir (aboutToBlock: también en los bucles
+/// anidados de un diálogo). Así el turno nunca queda tomado por una interfaz que se trabó
+/// en otra cosa (emision/TurnoMotor.hpp). Los demás hilos también pasan por notify: lo
+/// suyo es por hilo y no hace nada si no participan por vuelta.
+class AplicacionInterfaz : public QGuiApplication {
+   public:
+    using QGuiApplication::QGuiApplication;
+    bool notify(QObject* destino, QEvent* e) override {
+        thread_local int profundidad = 0;
+        ++profundidad;
+        const bool r = QGuiApplication::notify(destino, e);
+        if (--profundidad == 0) TurnoMotor::soltarVuelta();
+        return r;
+    }
+};
 
 constexpr int kPreviewWidth = 1280; // vista previa/fondo: 720p alcanza y es barata
 
@@ -256,7 +277,7 @@ int runGui(int argc, char** argv) {
     std::signal(SIGPIPE, SIG_IGN);
 #endif
 
-    QGuiApplication app(argc, argv);
+    AplicacionInterfaz app(argc, argv);
     // Este hilo nunca tiene que esperar al motor: desde acá, el motor avisa en el
     // registro cada vez que lo hace esperar (ver motor/Candado.hpp).
     ba::motor::marcarHiloInterfaz();
@@ -308,32 +329,61 @@ int runGui(int argc, char** argv) {
                         .c_str());
         return rc;
     }
-    // Las entradas de audio que el sistema tardó en abrir (BroadcastEngine::
-    // addGlobalAudio) se enganchan cuando llegan.
-    QTimer audioPendiente;
-    QObject::connect(&audioPendiente, &QTimer::timeout, [&rt]() { rt.engine().adoptPendingAudio(); });
-    audioPendiente.start(1000);
+    // (Las entradas de audio que el sistema tardó en abrir se enganchan en el reloj del motor.)
     const VideoConfig& v = rt.config().video;
     rt.engine().enablePreview(kPreviewWidth,
                               (kPreviewWidth * v.outputHeight / std::max(1, v.outputWidth)) & ~1);
     // EL PLANO DE CONTROL (F3-03): su hilo con el canal del launcher, el documento de aire,
-    // el MCP y las alarmas; y el reloj del motor, que es del runtime y no de una vista.
-    PlanoControl plano({[&rt]() { rt.ticControl(); }, [&rt]() { rt.ticMotor(); }});
+    // el MCP, las alarmas y EL MOTOR (es su dueño: el reloj del motor, las órdenes de la
+    // interfaz, la foto); y el latido de la interfaz, que sale de su reloj.
+    PlanoControl plano({.control = [&rt]() { rt.ticControl(); },
+                        .motor = [&rt]() { rt.ticMotor(); },
+                        .interfaz = [&rt]() { rt.latirInterfaz(); }});
+    {
+        const TurnoMotor& turno = rt.engine().turno();
+        plano.setTurno({[&turno](int ms) { return turno.tomarHasta(ms); }, [&turno]() { turno.soltar(); }});
+    }
     plano.setCierre([]() { return AppRuntime::stopRequested(); });
     // El documento de aire lo vuelca su dueño, en su hilo (y en cada vuelta del control).
     rt.setDuenoDelAire([&plano, &rt]() { plano.encolar([&rt]() { rt.documentoAire().volcar(); }); });
-    // Lo de aire que se hace en el plano de control (el MCP con la interfaz trabada) le
-    // avisa a la interfaz por su bucle; y el control se turna el motor con ella (F3-03).
-    rt.setEncolarEnDueno([&plano](std::function<void()> fn) { plano.encolarEnDueno(std::move(fn)); });
+    // LA VENTANILLA (emision/VentanillaMotor): la interfaz le pide al motor (la agenda del
+    // plano, con el turno) y lee la foto que publica el dueño.
+    VentanillaMotor ventanilla({.encolar = [&plano](std::function<void()> fn) { plano.encolarConTurno(std::move(fn)); },
+                                .alTerminarOrden = [&rt]() { rt.publicarFoto(); },
+                                .adoptar = [&plano](QObject* o) { plano.adoptar(o); }});
+    rt.setFoto([&ventanilla](std::shared_ptr<const FotoMotor> f, unsigned partes) { ventanilla.publicar(std::move(f), partes); });
+    // La primera foto, en este hilo (todavía es el dueño): las vistas arrancan con ella.
+    rt.publicarFoto();
+    ventanilla.recibirAhora();
     plano.arrancar();
-    plano.encolar([]() { TurnoMotor::participar("control"); });
+    // El motor pasa a ser del plano de control (una sola vez, esperando: el control no
+    // espera a nadie). Desde ahí, lo que se le encarga desde otro hilo va a su agenda; la
+    // interfaz que todavía entra directo lo hace con el turno de cada evento (y se cuenta).
+    plano.enControlYEsperar([&rt, &plano]() {
+        TurnoMotor::participar("control");
+        rt.setEncolarEnDueno([&plano](std::function<void()> fn) { plano.encolarConTurno(std::move(fn)); });
+        rt.cederDueno();
+    });
+    TurnoMotor::participarPorVuelta("interfaz");
+    QObject::connect(QAbstractEventDispatcher::instance(), &QAbstractEventDispatcher::aboutToBlock, []() { TurnoMotor::soltarVuelta(); });
+    // Al cerrar (o si la interfaz no carga), el motor vuelve a este hilo: el plano se para
+    // (lo adoptado vuelve), este hilo es el dueño de nuevo y el cierre ordenado es suyo.
+    const auto devolverElMotor = [&rt, &plano]() {
+        TurnoMotor::soltarVuelta();
+        plano.detener();
+        TurnoMotor::participar("dueño");
+        rt.cederDueno();
+        rt.setDuenoDelAire({});
+        rt.setEncolarEnDueno({});
+        rt.setFoto({});
+    };
 
     int result = 0;
     {
         QElapsedTimer relojGui;
         relojGui.start();
         arranque::avisar(ba::i18n::traducir("arranque", "Cargando la configuración del estudio…"));
-        StudioViewModel vm(rt);
+        StudioViewModel vm(rt, ventanilla);
         ba::diag::registro().info(ba::i18n::llenar(ba::i18n::traducir("arranque", "arranque: el modelo de la app, %1 ms"),
                                                    {std::to_string(relojGui.restart())}));
         // El vigía de las alarmas, al plano de control: con la interfaz trabada siguen
@@ -372,9 +422,7 @@ int runGui(int argc, char** argv) {
                                                    {std::to_string(relojGui.restart())}));
         if (engine.rootObjects().isEmpty()) {
             std::printf("ba-app: %s\n", ba::i18n::traducir("arranque", "no se pudo cargar la interfaz QML").c_str());
-            plano.detener();
-            rt.setDuenoDelAire({});
-            rt.setEncolarEnDueno({});
+            devolverElMotor();
             rt.stop();
             return 3;
         }
@@ -579,15 +627,12 @@ int runGui(int argc, char** argv) {
             }
         }
         result = app.exec();
-        // Lo que el plano adoptó (el MCP, las alarmas) vuelve a este hilo antes de que lo
-        // borren sus dueños; el documento de aire lo vuelca rt.stop en el acto.
-        plano.detener();
-        rt.setDuenoDelAire({});
-        rt.setEncolarEnDueno({});
+        // Lo que el plano adoptó (el MCP, las alarmas, los conmutadores) vuelve a este hilo
+        // antes de que lo borren sus dueños, y el motor con él; el documento de aire lo
+        // vuelca rt.stop en el acto.
+        devolverElMotor();
     }
-    plano.detener();
-    rt.setDuenoDelAire({});
-    rt.setEncolarEnDueno({});
+    devolverElMotor();
     rt.stop();
     return result;
 }

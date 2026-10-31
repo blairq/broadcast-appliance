@@ -40,12 +40,16 @@ double Conmutador::tbarPosicion() const {
     return tbarPos_;
 }
 
-void Conmutador::avisarEnDueno(std::function<void(Conmutador&)> emitir) {
-    // Los view models son del dueño: lo que hizo el plano de control les llega encolado.
-    // Si mientras tanto la salida se borró (el conmutador se fue), no hay a quién avisar.
-    rt_.enDueno([yo = QPointer<Conmutador>(this), emitir = std::move(emitir)]() {
-        if (yo) emitir(*yo);
-    });
+void Conmutador::avisar(std::function<void(Conmutador&)> emitir, unsigned partesFoto) {
+    rt_.fotoSucia(partesFoto);
+    // La señal sale en el hilo del conmutador (el dueño): en el acto si la operación corre
+    // ahí; si no (la interfaz que todavía corta directo), encolada. Si mientras tanto la
+    // salida se borró (el conmutador se fue), no hay a quién avisar.
+    QMetaObject::invokeMethod(
+        this, [yo = QPointer<Conmutador>(this), emitir = std::move(emitir)]() {
+            if (yo) emitir(*yo);
+        },
+        Qt::AutoConnection);
 }
 
 std::string Conmutador::cortar(const std::string& escena, const std::string& tipoPedido, int msPedido, const char* via) {
@@ -76,7 +80,7 @@ std::string Conmutador::cortar(const std::string& escena, const std::string& tip
                                                                {escena, antes, que, tipo}));
     aplicarAfv(escena, tipo == "cut" ? 0 : (ms < 0 ? rt_.ajustesAire().transicionMs : ms));
     rt_.save(); // la escena al aire vuelve igual tras un corte de luz
-    avisarEnDueno([e = QString::fromStdString(escena)](Conmutador& c) { emit c.alAireCambio(e); });
+    avisar([e = QString::fromStdString(escena)](Conmutador& c) { emit c.alAireCambio(e); }, FotoMotor::Salidas);
     return {};
 }
 
@@ -116,11 +120,12 @@ std::string Conmutador::tbar(double t, bool soltar) {
     bool llego = false;
     if (!rt_.engine().transicionManual(entra, static_cast<float>(t), soltar, &llego, salida_)) return rt_.engine().lastError();
     tbarPos_ = soltar || llego ? 0.0 : std::clamp(t, 0.0, 1.0);
+    rt_.fotoSucia(FotoMotor::Salidas); // por dónde va la T-bar
     if (llego) {
         rt_.anotarEscenaAlAire(entra, salida_);
         aplicarAfv(entra, 0);
         rt_.save();
-        avisarEnDueno([e = QString::fromStdString(entra)](Conmutador& c) { emit c.alAireCambio(e); });
+        avisar([e = QString::fromStdString(entra)](Conmutador& c) { emit c.alAireCambio(e); }, FotoMotor::Salidas);
         setArmadaYAvisar(sale);
     }
     return {};
@@ -132,7 +137,7 @@ void Conmutador::setArmadaYAvisar(const std::string& escena) {
     // El bus de preview de la salida en el motor (las vistas solo lo miran).
     if (!rt_.engine().armar(escena, salida_))
         ba::diag::registro().linea(ba::diag::Nivel::Aviso, "aire", 0, rt_.engine().lastError());
-    avisarEnDueno([e = QString::fromStdString(escena)](Conmutador& c) { emit c.armadaCambio(e); });
+    avisar([e = QString::fromStdString(escena)](Conmutador& c) { emit c.armadaCambio(e); }, FotoMotor::Salidas);
 }
 
 void Conmutador::aplicarAfv(const std::string& destino, int ms) {
@@ -141,14 +146,17 @@ void Conmutador::aplicarAfv(const std::string& destino, int ms) {
     // El fader de cada fuente EN ESTA salida (la mezcla de su bus).
     const auto fundidos = afv_.alCortar(rt_.engine().sceneSources(destino),
                                         [this](const std::string& f) { return rt_.engine().sourceVolume(f, salida_); }, &recordo);
-    // Fundido en pasos de 30 ms, con la duración de la transición, en el hilo que cortó (el
-    // plano de control no espera a que la interfaz se destrabe). Si la salida se borra en
-    // el medio, el motor dice que no existe y listo.
+    // Fundido en pasos de 30 ms, con la duración de la transición: el reloj es el del
+    // conmutador (el dueño) y cada paso va a la agenda del dueño, con el turno (no espera a
+    // que la interfaz se destrabe). Si la salida se borra en el medio, el motor dice que no
+    // existe y listo.
     const int pasos = std::max(1, ms / 30);
     for (const auto& f : fundidos)
         for (int i = 1; i <= pasos; ++i) {
             const float v = f.desde + (f.hasta - f.desde) * static_cast<float>(i) / static_cast<float>(pasos);
-            QTimer::singleShot(i * 30, [&rt = rt_, salida = salida_, n = f.fuente, v]() { rt.engine().setSourceVolume(n, v, salida); });
+            QTimer::singleShot(i * 30, this, [&rt = rt_, salida = salida_, n = f.fuente, v]() {
+                rt.despuesEnDueno([&rt, salida, n, v]() { rt.engine().setSourceVolume(n, v, salida); });
+            });
         }
     if (recordo) registro_.guardar();
 }
@@ -166,7 +174,7 @@ void Conmutador::setAfv(const std::string& fuente, bool sigue) {
     else
         afv_.fuentes.erase(fuente);
     registro_.guardar();
-    avisarEnDueno([](Conmutador& c) { emit c.afvCambio(); });
+    avisar([](Conmutador& c) { emit c.afvCambio(); }, FotoMotor::Salidas);
 }
 
 bool Conmutador::afv(const std::string& fuente) const {
@@ -199,22 +207,40 @@ Conmutadores::Conmutadores(AppRuntime& rt, QObject* parent) : QObject(parent), r
     }
     porOmision_ = crear(kPorOmision);
     sincronizar();
-    // Las salidas se crean y se borran en el runtime: acá se sigue lo que haya.
+    // Las salidas se crean y se borran en el runtime: acá se sigue lo que haya (el aviso
+    // llega en el dueño, que es donde vive este registro).
     observador_ = rt_.observar([this](AppRuntime::Cambio c) {
         if (c == AppRuntime::Cambio::Salidas) sincronizar();
+    });
+    // Lo suyo en la foto del motor: la armada, el AFV y la T-bar de cada salida y las
+    // transiciones de entrada (en el dueño, con el turno: el mapa lo cambia sincronizar,
+    // también con él).
+    aporte_ = rt_.aportarALaFoto([this](FotoMotor& f, unsigned partes) {
+        if ((partes & FotoMotor::Salidas) != 0)
+            for (FotoMotor::Salida& s : f.salidas)
+                if (const auto it = conmutadores_.find(s.id); it != conmutadores_.end()) {
+                    const Conmutador& c = *it->second;
+                    s.armada = c.armada_;
+                    s.afv.assign(c.afv_.fuentes.begin(), c.afv_.fuentes.end());
+                    s.tbar = c.tbarPos_;
+                }
+        if ((partes & FotoMotor::Escenas) != 0) f.transicionesEntrada = transicionesEntrada_;
     });
 }
 
 Conmutadores::~Conmutadores() {
+    if (aporte_ >= 0) rt_.dejarDeAportar(aporte_);
     if (observador_ >= 0) rt_.dejarDeObservar(observador_);
 }
 
 Conmutador* Conmutadores::crear(const std::string& salida) {
     const auto g = afvGuardado_.find(salida);
-    auto c = std::make_unique<Conmutador>(rt_, *this, salida, g != afvGuardado_.end() ? g->second : Afv{});
+    // Hijo del registro: se muda con él al hilo del dueño.
+    auto c = std::make_unique<Conmutador>(rt_, *this, salida, g != afvGuardado_.end() ? g->second : Afv{}, this);
     Conmutador* p = c.get();
     conmutadores_[salida] = std::move(c);
-    emit creado(p);
+    rt_.fotoSucia(FotoMotor::Salidas);
+    emit creado(QString::fromStdString(salida));
     return p;
 }
 
@@ -273,6 +299,7 @@ std::string Conmutadores::setTransicionEntrada(const std::string& escena, const 
     else
         transicionesEntrada_[escena] = {{"tipo", tipo}, {"ms", ms}};
     guardar();
+    rt_.fotoSucia(FotoMotor::Escenas);
     return {};
 }
 

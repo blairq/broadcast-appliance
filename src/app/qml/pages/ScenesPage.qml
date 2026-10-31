@@ -277,18 +277,18 @@ Rectangle {
                     }
                     GlassButton {
                         text: qsTr("Renombrar"); compact: true
-                        enabled: !Studio.escenas.sceneProtected(page.editScene)
+                        enabled: !(Studio.escenas.protegidas.indexOf(page.editScene) >= 0)
                         onClicked: { renameDlg.from = page.editScene; renameDlg.open() }
                         ToolTip.visible: hovered && !enabled
                         ToolTip.text: qsTr("«%1» está protegida").arg(page.editScene)
                     }
                     GlassButton {
-                        text: Studio.escenas.sceneProtected(page.editScene) ? qsTr("Protegida") : qsTr("Proteger")
-                        icon: Studio.escenas.sceneProtected(page.editScene) ? "🔒" : "🔓"
+                        text: (Studio.escenas.protegidas.indexOf(page.editScene) >= 0) ? qsTr("Protegida") : qsTr("Proteger")
+                        icon: (Studio.escenas.protegidas.indexOf(page.editScene) >= 0) ? "🔒" : "🔓"
                         compact: true
-                        active: Studio.escenas.sceneProtected(page.editScene)
+                        active: (Studio.escenas.protegidas.indexOf(page.editScene) >= 0)
                         onClicked: Studio.escenas.setSceneProtected(page.editScene,
-                                                            !Studio.escenas.sceneProtected(page.editScene))
+                                                            !(Studio.escenas.protegidas.indexOf(page.editScene) >= 0))
                         ToolTip.visible: hovered; ToolTip.delay: 400
                         ToolTip.text: qsTr("Una escena protegida no se borra ni se renombra. Copiarla sí.\n" +
                                       "Para la escena base de la que salen las demás.")
@@ -301,7 +301,7 @@ Rectangle {
                     }
                     GlassButton {
                         text: qsTr("Borrar"); compact: true
-                        enabled: !Studio.escenas.sceneProtected(page.editScene)
+                        enabled: !(Studio.escenas.protegidas.indexOf(page.editScene) >= 0)
                         ToolTip.visible: hovered && !enabled
                         ToolTip.text: qsTr("«%1» está protegida: sacale el candado primero").arg(page.editScene)
                         onClicked: {
