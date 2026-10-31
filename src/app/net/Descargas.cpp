@@ -7,6 +7,7 @@
 #include "net/HttpsClient.hpp"
 
 #include "i18n/I18n.hpp"
+#include "platform/Hilo.hpp"
 
 #include <QDateTime>
 #include <QMetaObject>
@@ -65,7 +66,7 @@ void Descargas::iniciar(const fs::path& raizDatos) {
 
 Descargas::Descargas(fs::path raiz) : raiz_(std::move(raiz)) {
     leerHistorial();
-    for (int i = 0; i < kObreros(); ++i) obreros_.emplace_back([this] { correr(); });
+    for (int i = 0; i < kObreros(); ++i) obreros_.emplace_back([this] { ba::platform::nombrarHilo("descargas"); correr(); });
 }
 
 Descargas::~Descargas() {
@@ -424,6 +425,7 @@ void Descargas::buscarActualizaciones() {
         bs = buscadores_;
     }
     buscador_ = std::thread([this, bs]() {
+        ba::platform::nombrarHilo("descargas-buscar");
         std::vector<Actualizacion> todas;
         for (const auto& [tipo, b] : bs) {
             try {
@@ -481,7 +483,7 @@ QVariantList Descargas::actualizaciones() const {
 void Descargas::guardarEnElFondo() {
     // Desde la interfaz: el archivo se escribe en otro hilo (un disco trabado no
     // la cuelga).
-    std::thread([this]() { guardarHistorial(); }).detach();
+    std::thread([this]() { ba::platform::nombrarHilo("descargas-guardar"); guardarHistorial(); }).detach();
 }
 
 void Descargas::guardarHistorial() {

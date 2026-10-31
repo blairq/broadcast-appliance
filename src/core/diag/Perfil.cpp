@@ -4,6 +4,7 @@
 #include "diag/Perfil.hpp"
 
 #include "diag/Registro.hpp"
+#include "platform/Hilo.hpp"
 #include "i18n/I18n.hpp"
 
 #include <algorithm>
@@ -404,6 +405,7 @@ std::thread gHilo;
 std::atomic<bool> gArrancado{false};
 
 void medir(std::string proceso, std::filesystem::path logs) {
+    ba::platform::nombrarHilo("perfil");
     std::error_code ec;
     std::filesystem::create_directories(logs, ec);
     const std::filesystem::path archivo = logs / ("perfil-" + proceso + ".jsonl");
@@ -505,16 +507,7 @@ void Perfil::arrancar(const std::string& proceso, const std::filesystem::path& l
                                   {"Logs/perfil-" + proceso + ".jsonl"}));
     // El hilo que llama (el principal del proceso: arrancar se llama desde main) con
     // nombre: Qt no se lo pone y salía «(sin nombre)», que es justo el que importa.
-#if defined(_WIN32)
-    using Poner = HRESULT(WINAPI*)(HANDLE, PCWSTR);
-    if (const auto poner = reinterpret_cast<Poner>(reinterpret_cast<void*>(
-            GetProcAddress(GetModuleHandleW(L"kernel32.dll"), "SetThreadDescription"))))
-        poner(GetCurrentThread(), L"principal");
-#elif defined(__APPLE__)
-    pthread_setname_np("principal");
-#elif defined(__linux__)
-    pthread_setname_np(pthread_self(), "principal");
-#endif
+    ba::platform::nombrarHilo("principal");
     gHilo = std::thread(medir, proceso, logsDir);
     // Mide hasta que el proceso termina: un std::thread estático unido al salir haría abortar.
     gHilo.detach();

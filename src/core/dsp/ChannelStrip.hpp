@@ -1,9 +1,10 @@
 // ChannelStrip.hpp
 //
 // Proposito:
-//   Channel strip nativo de audio (spec 7.2): la cadena de procesamiento por
-//   entrada de microfono que corre dentro de `ba-sources.dll` como un filtro
-//   libobs RT-safe. Cadena fija:
+//   Channel strip nativo de audio (spec 7.2): una cadena de procesamiento por
+//   entrada de microfono, RT-safe. Hoy solo la usan OperatorEngine (el autotest
+//   --headless-selftest) y su test: los micrófonos del programa se procesan en
+//   los racks (audio/AudioRack, barack). Cadena fija:
 //
 //     HPF (12/18/24 dB/oct, cascada de high-pass)
 //       -> EQ parametrico de 4 bandas (biquads RBJ)
@@ -20,7 +21,7 @@
 //
 // Modelo de threading:
 //   Un `ChannelStrip` pertenece a UN canal de audio y lo procesa un solo
-//   thread (el de audio de libobs). `process()` muta estado interno y NO es
+//   thread (el de audio). `process()` muta estado interno y NO es
 //   thread-safe. `setParams()` se llama desde el thread de control; el
 //   contrato es que no se solape con `process()` del mismo strip. El
 //   suavizado de ganancia (no locks) es lo que evita clicks al cambiar de

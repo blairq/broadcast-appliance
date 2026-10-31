@@ -3,15 +3,20 @@
 //
 // Un pipeline propio por bus:
 //
-//   intersrc <id>:video ! queue ! videocrop ─► compositor (pad: x, y, ancho, alto, alfa, orden)
-//   intersrc <id>:video ! queue ! videocrop ─►     │
-//   …                                              ▼
+//   intersrc <id>:video ! <recorte> ─► <mezclador> (pad: x, y, ancho, alto, alfa, orden)
+//   intersrc <id>:video ! <recorte> ─►     │
+//   …                                      ▼
 //                         caps del lienzo ! intersink video:<nombre>
 //
+//   <recorte>: videocrop (CPU), gltransformation (GL) o d3d12convert (D3D12);
+//   <mezclador>: compositor, glvideomixer o d3d12compositor. Sin queue por capa:
+//   la cola es la del intersrc (tira lo viejo).
+//
 // - Reloj y base_time del estudio; en vivo aunque no haya capas (force-live),
-//   arranca con la primera que llega (start-time-selection=first) y espera la
-//   latencia del estudio + margen (min-upstream-latency): una entrada lenta que
-//   se enchufa andando no llega tarde.
+//   con la grilla de cuadros fija sobre la hora del estudio
+//   (start-time-selection=set: la misma para el mezclador de la escena y el del
+//   DSK) y espera la latencia del estudio + margen (min-upstream-latency): una
+//   entrada lenta que se enchufa andando no llega tarde.
 // - ESCENA = un conjunto de capas (qué entrada, dónde, de qué tamaño, recorte,
 //   alfa, orden). `mostrar` pone una escena con una TRANSICIÓN:
 //     corte   la nueva aparece entera; la vieja se saca recién cuando la nueva

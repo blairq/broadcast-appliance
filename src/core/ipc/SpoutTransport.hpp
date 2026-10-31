@@ -1,50 +1,39 @@
 // SpoutTransport.hpp
 //
 // Proposito:
-//   Abstraccion del transporte de video SPOUT (spec §4.2) sobre la primitiva
-//   SharedMemoryRegion. El backend real es la clase `spoutDX` del SDK de Spout2
-//   (API DX11: abre con el device propio y envia/recibe texturas Direct3D 11;
-//   NO la API `SpoutSender`/`CreateSender`, que es OpenGL) y es solo-Windows.
-//   En Linux (y en la ruta de pruebas por defecto) se usa un backend NULL/CPU:
-//   un frame es un buffer opaco de bytes y el contrato (metadatos por frame,
-//   "un sender existe siempre", no-new-frame) queda testeable sin GPU.
-//   No depende de Qt ni de libobs.
+//   El canal de video entre procesos (spec §4.2): A (la app) y B (el gateway)
+//   se pasan cuadros por memoria compartida con nombre (`BA.Guest.<n>`,
+//   `BA.Program`, los canales de cada salida). Es el MISMO transporte en las
+//   tres plataformas: memoria compartida por CPU (SharedMemoryRegion: en
+//   Windows CreateFileMappingW en `Local\`, en macOS/Linux shm_open + mmap
+//   MAP_SHARED) con triple buffer. No hay texturas compartidas ni Spout2/spoutDX
+//   (el nombre «Spout» quedó de la spec original): cada cuadro se copia a la
+//   region y el lector lo copia afuera. No depende de Qt.
 //
-// Backend real (solo _WIN32, documentado; el codigo D3D/Spout2 va detras de
-// #ifdef _WIN32):
-//   - `spoutDX` del SDK de Spout2, enlazado estatico (no hace falta Spout2.dll).
-//   - Misma GPU obligatoria: A elige el adaptador en el preflight (por LUID) y
-//     lo publica; B crea su device D3D11 sobre ese mismo LUID.
-//   - Ambos ejecutables exportan `NvOptimusEnablement` y
-//     `AmdPowerXpressRequestHighPerformance` para laptops hibridas.
-//   - Si el sharing de texturas falla, se pasa a modo copia por CPU con una
-//     advertencia visible (spec §4.2).
-//   - La textura NO transporta timestamps: por eso cada sender lleva un bloque
-//     de memoria compartida paralelo (SpoutMetaBlock) con contador de frame y
-//     timestamp QPC. A mantiene una cola de 2 a 4 texturas para retrasar el
-//     video y alinearlo con el audio.
+// Layout del slot (ver SpoutTransport.cpp):
+//   [ VideoSlotHeader | buffer 0 | buffer 1 | buffer 2 ], buffers alineados a
+//   4096 B. Cada buffer lleva su secuencia (seqlock), su frameIndex y su sello
+//   QPC: los sellos viajan con el cuadro. `instanceId` cambia si el productor
+//   se reinicia y vuelve a publicar el nombre (stale()).
 //
 // Modelo de threading:
 //   - Un sender es un solo ESCRITOR: publish() se llama una vez (config fija
-//     por slot, NUNCA redimensionada en caliente) y send() avanza el bloque de
-//     metadatos. Un receiver es un solo LECTOR: subscribe() una vez y
-//     receive()/hasData() desde su hilo de video.
-//   - El camino de datos no toma locks bloqueantes: la sincronizacion es
-//     acquire/release sobre los campos del SpoutMetaBlock (atomic_ref<uint64_t>,
-//     lock-free). El buffer de pixeles se escribe ANTES de publicar el meta
-//     (release) y se lee DESPUES de ver el meta nuevo (acquire), de modo que el
-//     reader nunca ve un frame incompleto.
-//   - En el backend NULL el "slot" vive en un registro de proceso
-//     name -> {buffer, meta, secuencia}; sender y receiver comparten el mismo
-//     objeto, por lo que el flujo A<->B se prueba dentro del proceso.
+//     por slot, NUNCA redimensionada en caliente) y send() escribe en el buffer
+//     que no es el ultimo publicado y lo anuncia. Un receiver es un solo LECTOR:
+//     subscribe() una vez y receive()/hasData() desde su hilo de video; puede
+//     haber varios receivers del mismo slot.
+//   - El camino de datos no toma locks: acquire/release con atomic_ref sobre la
+//     cabecera. El escritor nunca espera; el lector reintenta si el escritor dio
+//     la vuelta a los tres buffers mientras copiaba, y nunca ve un cuadro a medio
+//     escribir. Nadie despierta a nadie: el lector sondea (hasData/receive).
 //   - Los objetos son move-only y no son thread-safe por si mismos: son vistas
 //     de un slot. La seguridad entre threads la aporta el layout (atomic_ref),
 //     no esta clase.
 //
 // Estrategia de errores:
 //   - publish()/subscribe() devuelven bool: true en exito, false en fallo
-//     (name nulo, config invalido, slot ya publicado, o el nombre no existe en
-//     el backend NULL). No lanzan.
+//     (name nulo, config invalido, slot ya publicado, o el nombre no existe).
+//     No lanzan.
 //   - send()/receive() devuelven bool y son no-fallibles sobre un objeto valido:
 //     si el objeto no esta publicado/suscrito, no tocan memoria y devuelven
 //     false. receive() devuelve false si no hay frame nuevo desde el ultimo
@@ -53,13 +42,9 @@
 //     suscrito.
 //   - El destructor/assign no lanzan.
 //
-// Nota de diseño (supuesto, spec regla 4):
-//   La spec nombra a la clase real `SpoutSender` (API DX11). Aqui `SpoutSender`
-//   y `SpoutReceiver` son la ABSTRACCION de ba_core que en Windows se respalda
-//   con `spoutDX` y en Linux con el backend NULL. El nombre del sender Spout
-//   (p. ej. `BA.Guest.1`, `BA.Program`) lo decide el caller; esta lib solo
-//   transporta. "Un sender existe siempre" (si no hay invitado, B publica una
-//   placa) es responsabilidad del caller: esta lib no inventa frames.
+// El nombre del slot lo decide el caller; esta lib solo transporta. "Un sender
+// existe siempre" (si no hay invitado, B publica una placa) es responsabilidad
+// del caller: esta lib no inventa frames.
 
 #pragma once
 
@@ -80,12 +65,12 @@ inline constexpr std::size_t kSpoutCacheLine = 64;
 
 /// Metadatos por frame (spec §4.2 "Metadatos por frame").
 ///
-/// La textura Spout no transporta timestamps, asi que cada sender publica estos
-/// dos valores en un bloque de memoria compartida paralelo (SpoutMetaBlock).
+/// Viajan en la cabecera de cada buffer del slot, junto con el cuadro.
 /// `frameIndex` es el contador monotono de frames del sender (el receiver lo
-/// usa para detectar "frame nuevo"); `qpc` es el timestamp QPC del frame (el
-/// mismo reloj que libobs via os_gettime_ns, spec §4.3, para alinear video con
-/// audio sin deriva). POD plano, trivialmente copiable.
+/// usa para detectar "frame nuevo"); `qpc` es el sello del frame en el reloj
+/// de los sellos entre procesos (nowQpc: QueryPerformanceCounter en Windows,
+/// steady_clock en ns en macOS/Linux; el mismo del anillo de audio, spec §4.3,
+/// para alinear video con audio sin deriva). POD plano, trivialmente copiable.
 struct FrameMeta {
     std::uint64_t frameIndex = 0;
     std::uint64_t qpc = 0;
@@ -114,8 +99,10 @@ static_assert(alignof(SpoutMetaLayout) == kSpoutCacheLine,
 static_assert(offsetof(SpoutMetaLayout, qpc) >= kSpoutCacheLine,
               "qpc debe estar en otra linea de cache que frameIndex");
 
-/// Bloque de memoria compartida con los metadatos por frame de un sender
-/// (spec §4.2). Respaldado por SharedMemoryRegion.
+/// Bloque de memoria compartida con un par de metadatos (spec §4.2), respaldado
+/// por SharedMemoryRegion. SpoutSender/SpoutReceiver NO lo usan (los metadatos
+/// van en la cabecera de cada buffer del slot); queda como primitiva suelta y
+/// solo lo ejercita test_spout_transport.
 ///
 /// Move-only: transferir la vista del buffer es barato; copiarla esta prohibida.
 /// El destructor (o una asignacion move) desmapa el buffer.
@@ -199,13 +186,9 @@ struct SlotConfig {
 /// Layout del slot en memoria compartida (backend CPU, definido en el .cpp).
 struct VideoSlotHeader;
 
-/// Abstraccion de un SENDER Spout (spec §4.2).
-///
-/// En Windows se respalda con `spoutDX` (DX11, misma GPU por LUID, export de
-/// NvOptimusEnablement/AmdPowerXpressRequestHighPerformance, fallback a copia
-/// por CPU si el sharing de texturas falla). En Linux / ruta de pruebas usa el
-/// backend NULL: un frame es un buffer opaco de bytes y el slot vive en un
-/// registro de proceso.
+/// El ESCRITOR de un slot de video (spec §4.2): memoria compartida con triple
+/// buffer en las tres plataformas (ver arriba). Un frame es un buffer opaco de
+/// bytes (en la practica BGRA del tamano del slot).
 ///
 /// Move-only. "Un sender existe siempre": el caller publica una placa si no hay
 /// invitado en el slot; esta clase no inventa frames por su cuenta.
@@ -222,8 +205,8 @@ class SpoutSender {
 
     /// Publica el slot con el `name` y la `cfg` (lado ESCRITOR, una vez).
     ///
-    /// Crea el bloque de metadatos paralelo y (en el backend NULL) reserva el
-    /// buffer de pixeles del tamano de `cfg`. La resolucion queda FIJA a partir
+    /// Crea la region compartida (cabecera + tres buffers del tamano de `cfg`)
+    /// con un `instanceId` nuevo. La resolucion queda FIJA a partir
     /// de aqui (no se redimensiona en caliente).
     ///
     /// :param name: nombre logico del sender (p. ej. L"BA.Guest.1", L"BA.Program").
@@ -232,16 +215,16 @@ class SpoutSender {
     ///           estaba publicado.
     bool publish(const wchar_t* name, const SlotConfig& cfg);
 
-    /// Envia un frame: copia `pixels` al buffer del slot y publica `meta` en el
-    /// bloque de metadatos (lado ESCRITOR).
+    /// Envia un frame: copia `pixels` y `meta` al buffer siguiente del slot
+    /// (seqlock) y recien despues lo anuncia (lado ESCRITOR).
     ///
-    /// El orden es: copiar los pixeles ANTES de publicar el meta (release), de
-    /// modo que un reader que vea el meta nuevo (acquire) vea los pixeles
+    /// El orden es: copiar los pixeles ANTES de anunciar el cuadro (release), de
+    /// modo que un reader que vea el anuncio (acquire) vea los pixeles
     /// completos. `meta.frameIndex` debe ser monotono creciente respecto al
     /// frame anterior (el receiver lo usa para detectar "frame nuevo").
     ///
-    /// :param pixels: buffer de pixeles (opaco en el backend NULL; en el real es
-    ///                el contenido de la textura). Debe ser distinto de nulo.
+    /// :param pixels: buffer de pixeles (opaco para esta lib). Debe ser distinto
+    ///                de nulo.
     /// :param bytes: tamano en bytes de `pixels`. Debe ser <= al tamano del
     ///               buffer del slot.
     /// :param meta: metadatos a publicar (frameIndex + qpc).
@@ -259,11 +242,8 @@ class SpoutSender {
     bool published_ = false;
 };
 
-/// Abstraccion de un RECEPTOR Spout (spec §4.2).
-///
-/// En Windows se respalda con `spoutDX` (recibe texturas DX11 del sender sobre
-/// la misma GPU). En Linux / ruta de pruebas usa el backend NULL: recibe bytes
-/// del buffer del slot del registro de proceso.
+/// El LECTOR de un slot de video (spec §4.2): abre la region compartida del
+/// sender y copia afuera el ultimo cuadro completo (ver arriba).
 ///
 /// Move-only. Un solo lector por receiver.
 class SpoutReceiver {
@@ -279,8 +259,8 @@ class SpoutReceiver {
 
     /// Se suscribe a un sender ya publicado con `name` (lado LECTOR, una vez).
     ///
-    /// Abre el bloque de metadatos del sender y (en el backend NULL) toma
-    /// referencia al slot. `lastSeenIndex` se inicializa al frameIndex actual
+    /// Abre la region compartida del sender y lee su cabecera (tamano,
+    /// `instanceId`). `lastSeenIndex` se inicializa al frameIndex actual
     /// para que el primer receive() solo entregue frames NUEVOS.
     ///
     /// :param name: nombre logico publicado por SpoutSender::publish.

@@ -23,6 +23,7 @@ extern "C" {
 
 #include "net/WgCrypto.hpp"
 #include "net/WgDevice.hpp"
+#include "platform/Hilo.hpp"
 
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
@@ -621,7 +622,7 @@ bool IpStack::start() {
         if (wasEmpty) d.wake(); // un despertar por lote, no por paquete
     });
     d.stop = false;
-    d.thread = std::thread([&d] { d.loop(); });
+    d.thread = std::thread([&d] { ba::platform::nombrarHilo("ipstack"); d.loop(); });
     if (d.log) {
         d.log(ba::i18n::llenar(ba::i18n::traducir("gateway", "pila IP: %1/%2 sobre WireGuard (%3 reenvios TCP, UDP %4-%5)"),
                                {ipToString(d.cfg.tunnelIp), std::to_string(d.cfg.prefix), std::to_string(d.tcpFwds.size()),

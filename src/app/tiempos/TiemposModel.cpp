@@ -3,6 +3,7 @@
 // ============================================================================
 #include "tiempos/TiemposModel.hpp"
 #include "i18n/I18n.hpp"
+#include "platform/Hilo.hpp"
 
 #include <QDateTime>
 #include <QJsonDocument>
@@ -51,7 +52,10 @@ TiemposModel::~TiemposModel() {
 
 void TiemposModel::enHilo(std::function<void()> f) {
     if (hilo_.joinable()) hilo_.join(); // uno por vez (empezar y terminar no se pisan)
-    hilo_ = std::thread(std::move(f));
+    hilo_ = std::thread([f = std::move(f)] {
+        ba::platform::nombrarHilo("tiempos");
+        f();
+    });
 }
 
 bool TiemposModel::existeEntrada(const std::string& entrada) const {

@@ -11,6 +11,7 @@
 #include <algorithm>
 #include <cmath>
 #include "ajustes/Ajustes.hpp"
+#include "platform/Hilo.hpp"
 
 namespace ba::motor {
 
@@ -45,6 +46,7 @@ void Escucha::encargar(std::function<void()> f) {
     std::lock_guard<std::mutex> l(trabajoM_);
     std::shared_future<void> antes = trabajo_;
     trabajo_ = std::async(std::launch::async, [this, antes, f = std::move(f)]() {
+                   ba::platform::nombrarHilo("escucha-trabajo");
                    if (antes.valid()) antes.wait(); // en orden
                    std::lock_guard<std::mutex> lm(mu_);
                    f();

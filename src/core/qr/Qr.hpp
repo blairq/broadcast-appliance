@@ -8,7 +8,7 @@
 // la vista previa y otro para lo que se entrega— el QR que se diseña no es el
 // que sale, y eso se descubre tarde y en papel.
 //
-// Por eso esto vive en el núcleo (sin Qt, sin libobs): lo usan la app y el
+// Por eso esto vive en el núcleo (sin Qt): lo usan la app y el
 // gateway, y lo prueban los tests sin levantar nada.
 //
 // SVG Y NO PNG. Un QR son cuadraditos: en SVG escala a un televisor de 55

@@ -88,6 +88,7 @@
 #include "Capturas.hpp" // del motor: hayCapturaDeVentana
 #include "ui/SettingsModel.hpp"
 #include "ui/StudioViewModel.hpp"
+#include "platform/Hilo.hpp"
 
 namespace ba::app::mcp {
 
@@ -3528,6 +3529,7 @@ void McpService::registerTools() {
             done(ToolResult().data(json{{"cayendo", tipo}}));
             // En otro hilo y un momento después: que la respuesta llegue.
             std::thread([tipo]() {
+                ba::platform::nombrarHilo("caida-prueba");
                 std::this_thread::sleep_for(std::chrono::milliseconds(500));
                 if (tipo == "acceso") {
                     volatile int* p = nullptr;

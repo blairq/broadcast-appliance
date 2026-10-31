@@ -3,6 +3,7 @@
 // ============================================================================
 
 #include "audio/GstRack.hpp"
+#include "platform/Hilo.hpp"
 
 #include <algorithm>
 #include <atomic>
@@ -249,6 +250,7 @@ bool registrarElemento() {
 
 void registrarEnSegundoPlano() {
     std::thread([]() {
+        ba::platform::nombrarHilo("rack-registrar");
         if (video::iniciarGStreamer()) {
             registrarElemento();
             gstvoz::registrarElemento(); // las voces (bavoz), de paso

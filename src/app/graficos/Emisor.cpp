@@ -21,6 +21,7 @@
 
 #include "graficos/GraficoSource.hpp"
 #include "graficos/VideoEnGrafico.hpp"
+#include "platform/Hilo.hpp"
 
 namespace ba::app::graficos {
 namespace {
@@ -55,7 +56,7 @@ class DibujoAire {
     using Tanda = std::function<void(const Pedido&, std::vector<QImage>, bool fin, QString error)>;
 
     DibujoAire(QString binario, Tanda tanda) : binario_(std::move(binario)), tanda_(std::move(tanda)) {
-        hilo_ = std::thread([this]() { trabajar(); });
+        hilo_ = std::thread([this]() { ba::platform::nombrarHilo("dibujo-aire"); trabajar(); });
     }
     ~DibujoAire() {
         {

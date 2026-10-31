@@ -11,8 +11,8 @@
 // toda la app —el editor también lo usa— así que hay UN `ba-grafico` y no
 // cuatro.
 //
-// No guarda estado de lo que está al aire: eso lo sabe la fuente de libobs
-// (`instancias()`), que es la única verdad. Lo que sí recuerda es con qué
+// No guarda estado de lo que está al aire: eso lo sabe la fuente gráfica
+// (GraficoSource: `instancias()`), que es la única verdad. Lo que sí recuerda es con qué
 // valores se disparó cada fuente por última vez, porque el rotulador necesita
 // mostrar lo que se está viendo para poder cambiarlo.
 // ============================================================================

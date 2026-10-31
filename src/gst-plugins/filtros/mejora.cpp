@@ -24,6 +24,7 @@
 // ============================================================================
 
 #include "comun.hpp"
+#include "platform/Hilo.hpp"
 
 #include <chrono>
 #include <cstring>
@@ -67,7 +68,9 @@ template <typename F>
 void enFranjas(int h, F fn) {
     const int hilos = h >= 360 ? static_cast<int>(std::clamp(std::thread::hardware_concurrency(), 1u, 8u)) : 1;
     std::vector<std::thread> v;
-    for (int k = 1; k < hilos; ++k) v.emplace_back(fn, h * k / hilos, h * (k + 1) / hilos);
+    for (int k = 1; k < hilos; ++k)
+        v.emplace_back([&fn](int a, int b) { ba::platform::nombrarHilo("bamejora-franja"); fn(a, b); }, h * k / hilos,
+                       h * (k + 1) / hilos);
     fn(0, h / hilos);
     for (auto& t : v) t.join();
 }

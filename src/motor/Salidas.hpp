@@ -3,19 +3,27 @@
 //
 // Cada salida es un pipeline propio que lee los buses del motor:
 //
-//   intersrc video:programa ! queue ! <codificador de la placa> ! h264parse ─┐
-//   intersrc bus:programa  ! queue ! audioconvert ! avenc_aac ! aacparse ────┼─► splitmuxsink (MKV en tramos)
-//   intersrc bus:pista2… (las pistas pedidas) ! … avenc_aac ! aacparse ───────┘
+//   intersrc video:programa ! valve ! queue (cruda) ! <codificador> ! h264parse ! queue (colchón) ─┐
+//   intersrc bus:programa  ! valve ! queue ! audioconvert ! avenc_aac ! aacparse ! queue (colchón) ┼─► splitmuxsink
+//   intersrc bus:pista2… (las pistas pedidas) ! … avenc_aac ! aacparse ! queue (colchón) ──────────┘  (matroskamux)
 //
-//   (transmisión: … ─► flvmux ! rtmp2sink   ó   … ─► mpegtsmux ! srtsink)
+//   (transmisión: intersrc ! queue ! <codificador> ! h264parse ! queue ─► flvmux ! rtmp2sink
+//                 ó … ─► mpegtsmux ! srtsink; el audio, solo la primera pista)
 //
-// - El codificador: el primero que haya de la lista de la placa (vtenc_h264_hw,
-//   nvh264enc, qsvh264enc, d3d12h264enc, vtenc_h264) y x264enc de respaldo; las
-//   propiedades se ponen solo si el elemento las tiene.
+// - El codificador: el primero que haya de la lista de la placa, que es por sistema
+//   (codificadoresDeLaPlaca en Salidas.cpp: VideoToolbox en la Mac; NVENC, QSV,
+//   D3D12, AMF y Media Foundation en Windows; NVENC, QSV y VA en Linux; con el video
+//   en D3D12, primero los que reciben D3D12Memory) y x264enc de respaldo; las
+//   propiedades se ponen solo si el elemento las tiene. Una transmisión que se cae
+//   se rearma con espera creciente eligiendo de la MISMA lista: un codificador que
+//   falla se vuelve a elegir (no hay lista de los que fallaron).
 // - Reloj y base_time del estudio, y la latencia de lo que lee (lo que tardan
 //   los buses en salir) más un margen: nada llega tarde.
-// - Grabación en TRAMOS (splitmuxsink): un corte de luz pierde a lo sumo el
-//   último. Al parar se manda EOS y se espera que el archivo quede cerrado.
+// - Grabación: de fábrica un solo MKV por grabación (`record.tramoMin` = 0). Matroska
+//   se puede abrir aunque se corte la luz, pero se pierde lo que no llegó al disco
+//   (las colas y lo que el sistema no bajó todavía). Con `record.tramoMin` > 0,
+//   tramos de esos minutos. Al parar se manda EOS y se espera que el archivo quede
+//   cerrado. Una grabación que da error queda parada (no se rearma sola).
 // ============================================================================
 #pragma once
 

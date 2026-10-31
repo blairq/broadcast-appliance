@@ -1,29 +1,13 @@
 // SpoutTransport.cpp
 //
-// Implementacion de la abstraccion de transporte de video SPOUT (spec §4.2)
-// sobre SharedMemoryRegion. Dos backends:
+// Implementacion del canal de video entre procesos (spec §4.2) sobre
+// SharedMemoryRegion: el mismo en Windows, macOS y Linux. Una region con nombre
+// por slot con cabecera + triple buffer (layout abajo); send() copia los pixeles
+// al buffer que no es el ultimo publicado y lo anuncia; receive() copia afuera
+// el ultimo completo si es nuevo desde el ultimo receive (lastSeenIndex). No hay
+// texturas compartidas ni Spout2: todo pasa por la CPU (ver SpoutTransport.hpp).
 //
-//   - _WIN32: la clase `spoutDX` del SDK de Spout2 (API DX11: abre con el
-//     device propio y envia/recibe texturas Direct3D 11; NO la API
-//     `SpoutSender`/`CreateSender`, que es OpenGL). Enlazar el SDK estatico;
-//     no hace falta Spout2.dll. Misma GPU obligatoria: A elige el adaptador en
-//     el preflight (por LUID) y lo publica; B crea su device D3D11 sobre ese
-//     mismo LUID. Ambos ejecutables exportan `NvOptimusEnablement` y
-//     `AmdPowerXpressRequestHighPerformance` para laptops hibridas. Si el
-//     sharing de texturas falla, se pasa a modo copia por CPU con una
-//     advertencia visible. (El codigo D3D/Spout2 va detras de #ifdef _WIN32.)
-//
-//   - resto (Linux/macOS, y la ruta de pruebas por defecto): backend NULL/CPU.
-//     Un frame es un buffer opaco de bytes y el slot vive en un registro de
-//     proceso name -> {buffer, meta}. send() copia los pixeles al buffer del
-//     slot y publica el meta; receive() copia fuera si llego un frame nuevo
-//     desde el ultimo receive (lastSeenIndex). Asi los flujos A<->B se prueban
-//     sin GPU.
-//
-// La textura NO transporta timestamps: cada sender lleva un bloque de memoria
-// compartida paralelo (SpoutMetaBlock) con contador de frame y timestamp QPC.
-// A mantiene una cola de 2 a 4 texturas para retrasar el video y alinearlo con
-// el audio.
+// Los sellos (frameIndex y QPC) van en la cabecera de cada buffer, con el cuadro.
 //
 // Ninguna funcion publica lanza: publish()/subscribe() y send()/receive()
 // devuelven bool; los fallos de create/open del meta se expresan con Status.
@@ -42,11 +26,6 @@
 #if defined(_WIN32)
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
-// Backend real: la clase `spoutDX` del SDK de Spout2 (DX11). Header real:
-// extern/Spout2/SPOUTSDK/SpoutDirectX/SpoutDX/SpoutDX.h (no existe
-// extern/Spout2/include). Firmas verificadas en ese header: no hay `init`;
-// es `OpenDirectX11(ID3D11Device*)`, y `SendTexture(ID3D11Texture2D*)` /
-// `ReceiveTexture(ID3D11Texture2D**)` (PascalCase, spec §14).
 #endif
 
 namespace ba::ipc {
@@ -103,7 +82,7 @@ std::size_t alignedFrame(std::size_t bytes) {
     return (bytes + kBufferAlign - 1) / kBufferAlign * kBufferAlign;
 }
 
-// BGRA 8888 (4 bytes/pixel), igual que el frame crudo que entrega libobs.
+// BGRA 8888 (4 bytes/pixel), lo que A y B se pasan por el canal.
 std::size_t slotBytes(const SlotConfig& cfg) {
     return static_cast<std::size_t>(cfg.width) * static_cast<std::size_t>(cfg.height) * 4u;
 }

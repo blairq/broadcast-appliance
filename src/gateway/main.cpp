@@ -104,6 +104,7 @@
 #include "TokenAuth.hpp"
 #include "Webrtc.hpp"
 #include "platform/Energia.hpp"
+#include "platform/Hilo.hpp"
 
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
@@ -423,6 +424,7 @@ nlohmann::json processUsage(const WebrtcHub* hub) {
 } // namespace
 
 int main(int argc, char** argv) {
+    ba::platform::nombrarHilo("principal"); // en sample y en los volcados (platform/Hilo.hpp)
     // Que escribir a Logs/gateway.log nunca trabe un hilo (diag/SalidaAsincrona.hpp).
     ba::diag::desacoplarSalidaEstandar();
     std::atexit([] { ba::diag::vaciarSalidaEstandar(500); });

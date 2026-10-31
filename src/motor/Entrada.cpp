@@ -14,6 +14,7 @@
 #include <algorithm>
 
 #include "ajustes/Ajustes.hpp"
+#include "platform/Hilo.hpp"
 #include <cmath>
 #include <cstring>
 #include <deque>
@@ -242,6 +243,7 @@ void Entrada::trabajar(std::function<void()> f, std::function<void()> sinCandado
     ++ocupadas_;
     std::shared_future<void> antes = trabajo_;
     trabajo_ = std::async(std::launch::async, [this, antes, f = std::move(f), sinCandado = std::move(sinCandado)]() {
+                   ba::platform::nombrarHilo("entrada-trabajo");
                    if (antes.valid()) antes.wait(); // en orden: de a uno por entrada
                    if (sinCandado) sinCandado();
                    {

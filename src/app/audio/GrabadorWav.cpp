@@ -1,6 +1,7 @@
 // src/app/audio/GrabadorWav.cpp — ver GrabadorWav.hpp
 
 #include "audio/GrabadorWav.hpp"
+#include "platform/Hilo.hpp"
 
 #include <algorithm>
 #include <chrono>
@@ -83,7 +84,7 @@ std::string GrabadorWav::empezar() {
     if (!abrir(1)) return "no se pudo crear " + (base_.string() + ".wav");
     salir_ = false;
     grabando_ = true;
-    hilo_ = std::thread([this]() { bucle(); });
+    hilo_ = std::thread([this]() { ba::platform::nombrarHilo("grabador-wav"); bucle(); });
     return {};
 }
 

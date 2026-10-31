@@ -130,7 +130,7 @@ std::filesystem::path credentialsDir();
 /// del usuario: XDG_CACHE_HOME (Qt, fontconfig, Mesa), QML_DISK_CACHE_PATH,
 /// caches de shaders (MESA_SHADER_CACHE_DIR, __GL_SHADER_DISK_CACHE_PATH) y
 /// BA_CACHE_DIR (copia sombra). Llamar al arrancar cada proceso, ANTES de
-/// crear la aplicacion Qt o cargar libobs. Se heredan a los hijos.
+/// crear la aplicacion Qt o iniciar GStreamer. Se heredan a los hijos.
 void redirectUserDirs();
 
 /// Directorio de runtime para sockets locales y lockfiles.

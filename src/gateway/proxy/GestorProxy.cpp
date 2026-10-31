@@ -9,6 +9,7 @@
 #include "proxy/ProxyNombres.hpp"
 #include "i18n/I18n.hpp"
 #include "security/CredentialStore.hpp"
+#include "platform/Hilo.hpp"
 
 #include <chrono>
 #include <ctime>
@@ -103,7 +104,7 @@ bool GestorProxy::start() {
     }
     if (cfg_.contains("acme") && cfg_["acme"].value("activo", false)) {
         fin_ = false;
-        hilo_ = std::thread([this]() { hiloAcme(); });
+        hilo_ = std::thread([this]() { ba::platform::nombrarHilo("acme"); hiloAcme(); });
     }
     return true;
 }

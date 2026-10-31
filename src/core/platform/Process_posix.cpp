@@ -13,6 +13,7 @@
 // ============================================================================
 
 #include "platform/Process.hpp"
+#include "platform/Hilo.hpp"
 
 #include <fcntl.h>
 #include <pthread.h>
@@ -462,6 +463,7 @@ void exitWhenParentDies() {
     }
     // Hilo dedicado que duerme en el kqueue hasta que el padre salga.
     std::thread([kq]() {
+        ba::platform::nombrarHilo("vigia-padre");
         struct kevent out;
         int n;
         do {

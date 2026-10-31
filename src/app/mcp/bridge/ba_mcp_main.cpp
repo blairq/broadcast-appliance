@@ -52,6 +52,7 @@ using socket_t = int;
 #include "i18n/I18n.hpp"
 #include "platform/Paths.hpp"
 #include "security/CredentialStore.hpp"
+#include "platform/Hilo.hpp"
 
 namespace {
 
@@ -272,6 +273,7 @@ int main(int argc, char** argv) {
         }
         // Un thread por pedido: una captura lenta no frena a los demas.
         std::thread([line, &session, &sessionLock, &pending, &pendingLock, &pendingCv, &rol]() {
+            ba::platform::nombrarHilo("mcp-pedido");
             const json doc = json::parse(line, nullptr, false);
             const json id = doc.is_object() && doc.contains("id") ? doc["id"] : json();
             Target t;

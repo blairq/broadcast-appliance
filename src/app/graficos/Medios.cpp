@@ -4,6 +4,7 @@
 #include "graficos/Medios.hpp"
 
 #include "graficos/Catalogo.hpp"
+#include "platform/Hilo.hpp"
 
 #include <gst/app/gstappsink.h>
 #include <gst/gst.h>
@@ -179,6 +180,7 @@ void Medios::importar(const QString& grafico, const QString& archivoPedido, cons
     emit importandoChanged();
     QPointer<Medios> yo(this);
     std::thread([yo, archivo, destino, base, ancho, maxSeg, grafico, listo = std::move(listo)]() mutable {
+        ba::platform::nombrarHilo("medios-importar");
         QString e;
         QJsonObject r = videoACuadros(archivo, destino, ancho, maxSeg, &e);
         if (e.isEmpty()) r["archivo"] = "medios/" + base;

@@ -53,6 +53,7 @@
 #include <nlohmann/json.hpp>
 
 #include "ipc/LugaresSala.hpp"
+#include "platform/Hilo.hpp"
 
 #if defined(_WIN32)
 #define WIN32_LEAN_AND_MEAN
@@ -554,6 +555,7 @@ int AppRuntime::start() {
     } latidoArranque;
     if (health_.valid())
         latidoArranque.hilo = std::thread([this, &latidoArranque]() {
+            ba::platform::nombrarHilo("latido-arranque");
             for (int i = 0; i < 240 && latidoArranque.seguir.load(); ++i) {
                 {
                     std::lock_guard<std::mutex> l(healthMu_);
@@ -777,7 +779,9 @@ void AppRuntime::tick() {
     if (started_) {
         const EngineStatus st = engine_.status();
         latido_.uiTick(st.streaming || st.recording);
-        // Un codificador que se cayó en el aire se reemplaza y se rearranca lo que corría.
+        // Hoy no hace nada (las salidas se atienden en su propio hilo, ticSalidas): una
+        // transmisión caída se rearma con la misma lista de codificadores y una grabación
+        // con error queda parada. Ver F1-05 y F1-06 en docs/arquitectura/04-plan-unificado.md.
         engine_.atenderEncoderCaido(!streamStopWanted_, !recordStopWanted_);
         // La escena al aire de cada salida, para volver a ella tras un corte (P0.10).
         if (firmaDelAire() != escenaEscrita_) writeOnAirState();
@@ -1894,6 +1898,7 @@ void AppRuntime::reiniciarSalaEnElFondo(std::function<void(const std::string& er
     }
     if (reinicioSala_.joinable()) reinicioSala_.join(); // el anterior ya terminó
     reinicioSala_ = std::thread([this, listo = std::move(listo)]() {
+        ba::platform::nombrarHilo("sala-reinicio");
         std::string e;
         pedirReinicioGateway(e);
         reiniciandoSala_ = false;

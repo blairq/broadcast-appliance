@@ -41,11 +41,12 @@ enum class ClaseHilo {
 void prioridadDelProceso();
 /// El hilo que llama (si `procesador.prioridad`).
 void prioridadDelHilo(ClaseHilo c);
-/// Que los hilos de streaming de `pipeline` tomen su clase al arrancar: GStreamer avisa
-/// STREAM_STATUS ENTER desde el propio hilo nuevo (manejador síncrono del bus); el de un
-/// aggregator es Critico, el resto Medios. Lo llama Reloj::adoptar, por donde pasan todos
-/// los pipelines del motor. Subir TODOS empeoraba (compiten entre ellos: ver Prioridad.cpp);
-/// la guía de GStreamer y la de Intel dicen lo mismo: solo los que hacen falta.
+/// Que los hilos de streaming de `pipeline` tomen su nombre («<pipeline>/<elemento>»,
+/// platform/Hilo.hpp) y su clase al arrancar: GStreamer avisa STREAM_STATUS ENTER desde el
+/// propio hilo nuevo (manejador síncrono del bus); el de un aggregator es Critico, el resto
+/// Medios. Lo llama Reloj::adoptar, por donde pasan todos los pipelines del motor. Subir
+/// TODOS empeoraba (compiten entre ellos: ver Prioridad.cpp); la guía de GStreamer y la de
+/// Intel dicen lo mismo: solo los que hacen falta.
 void prioridadEnPipeline(GstElement* pipeline);
 /// El procesador: núcleos por clase, grupos de L3, lo aplicado. Para el diagnóstico.
 nlohmann::json topologiaCpu();

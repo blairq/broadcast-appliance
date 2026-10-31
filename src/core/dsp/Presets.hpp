@@ -18,7 +18,7 @@
 //
 // Estrategia de errores:
 //   Ninguna: no hay I/O ni asignacion fallible. Cada preset fija `fs=48000`
-//   (el reloj de libobs, spec 7.4) y deja los campos no mencionados en su
+//   (la frecuencia del audio del estudio, spec 7.4) y deja los campos no mencionados en su
 //   valor por defecto de `StripParams`.
 #pragma once
 

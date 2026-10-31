@@ -117,6 +117,7 @@
 #include "arranque/AppRuntime.hpp"
 #include "diag/DiarioDeArranque.hpp"
 #include "diag/Registro.hpp"
+#include "diag/VigiaBucle.hpp"
 #include "graficos/GraficoSource.hpp"
 #include "evento/Bitacora.hpp"
 #include "evento/CierreEvento.hpp"
@@ -179,6 +180,7 @@
 #include "video/Camaras.hpp"
 #include "video/CatalogoGst.hpp"
 #include "Motor.hpp"
+#include "platform/Hilo.hpp"
 #include <QCoreApplication>
 
 namespace ba::app {
@@ -881,7 +883,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
                 cache->second.clear();
                 for (const QString& e : video_->entradas()) {
                     const nlohmann::json st = video_->estadoEntrada(e.toStdString());
-                    if (!st.contains("gstreamer")) continue; // las de libobs: sin dato de cuadros
+                    if (!st.contains("gstreamer")) continue; // sin el dato de GStreamer: sin cuadros que mirar
                     const nlohmann::json g = st.value("gstreamer", nlohmann::json::object());
                     if (!g.is_object()) continue;
                     // Las de los invitados y el remoto: sin nadie conectado no hay cuadros, y
@@ -2496,6 +2498,7 @@ void StudioViewModel::cerrarEnHistorico(const std::string& carpeta) {
     }
     auto listo = std::make_shared<std::atomic<bool>>(false);
     selladores_.push_back({std::thread([this, dir, ahora, listo]() {
+        ba::platform::nombrarHilo("sellador");
         const nlohmann::json s = evento::CierreEvento::sellar(dir, ahora, &cancelarSellos_);
         listo->store(true);
         if (!s.is_null())
@@ -3877,7 +3880,10 @@ void StudioViewModel::setScenePreview(const QString& name) {
 }
 
 QVariantMap StudioViewModel::latidoUi() const {
-    return QJsonDocument::fromJson(QByteArray::fromStdString(rt_.latido().estado().dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))).object().toVariantMap();
+    // Las trabas largas (LatidoAire, desde otro hilo) y las demoras del bucle (VigiaBucle).
+    nlohmann::json j = rt_.latido().estado();
+    j["bucle_ui"] = ba::diag::VigiaBucle::interfaz().informe();
+    return QJsonDocument::fromJson(QByteArray::fromStdString(j.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))).object().toVariantMap();
 }
 
 QString StudioViewModel::latidoPoliticaUi(const QVariantMap& cambios) {

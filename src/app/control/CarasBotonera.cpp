@@ -4,6 +4,7 @@
 
 #include "arranque/AppRuntime.hpp"
 #include "emision/BroadcastEngine.hpp"
+#include "platform/Hilo.hpp"
 
 #include <gst/app/gstappsink.h>
 #include <gst/gst.h>
@@ -168,6 +169,7 @@ QVariantMap CarasBotonera::importar(const QString& archivo) {
     empezar(QCoreApplication::translate("caras", "Leyendo %1…").arg(QFileInfo(ruta).fileName()));
     QPointer<CarasBotonera> yo(this);
     std::thread([yo, ruta, id]() {
+        ba::platform::nombrarHilo("caras-botonera");
         QVector<QImage> cuadros;
         QImage grande;
         QString error;

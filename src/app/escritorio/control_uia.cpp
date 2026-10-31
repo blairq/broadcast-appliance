@@ -19,6 +19,7 @@
 //   system_ui_esperar   hasta que aparezca un elemento con ese nombre
 // ============================================================================
 #include "escritorio/control.hpp"
+#include "platform/Hilo.hpp"
 
 #include <algorithm>
 #include <chrono>
@@ -702,6 +703,7 @@ bool conTiempo(std::function<void()> f, int ms) {
     auto hecho = std::make_shared<std::promise<void>>();
     std::future<void> fu = hecho->get_future();
     std::thread([f = std::move(f), hecho]() {
+        ba::platform::nombrarHilo("control-uia");
         CoInitializeEx(nullptr, COINIT_MULTITHREADED);
         f();
         hecho->set_value();

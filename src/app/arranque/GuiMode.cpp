@@ -11,6 +11,7 @@
 #include "arranque/GuiMode.hpp"
 #include "ajustes/Ajustes.hpp"
 #include "arranque/ArranqueAviso.hpp"
+#include "platform/Hilo.hpp"
 #include "platform/Paths.hpp"
 
 #include <QDesktopServices>
@@ -47,6 +48,7 @@
 #include "Candado.hpp"
 #include "plugins/Plugins.hpp"
 #include "term/TerminalView.hpp"
+#include "ui/VigiaInterfaz.hpp"
 #include "ui/Vumetro.hpp"
 #include "ui/ImagenViva.hpp"
 #include "ui/FrameService.hpp"
@@ -255,6 +257,9 @@ int runGui(int argc, char** argv) {
     // Este hilo nunca tiene que esperar al motor: desde acá, el motor avisa en el
     // registro cada vez que lo hace esperar (ver motor/Candado.hpp).
     ba::motor::marcarHiloInterfaz();
+    ba::platform::nombrarHilo("interfaz");
+    // Y cuánto se demora su bucle de eventos (y quién lo demora): ui/VigiaInterfaz.
+    new ba::app::VigiaInterfaz(&app);
     // Con --test, cada vez que la interfaz tome el candado del motor (no tiene que
     // tomarlo nunca) queda como ERROR en el registro, aunque sea de un instante.
     for (int i = 1; i < argc; ++i)

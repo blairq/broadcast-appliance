@@ -218,6 +218,11 @@ SourceSpec networkSpec(const std::string& url, const std::string& name, const js
     // TLS: se verifica el certificado del servidor con las raices del bundle.
     if ((sch == "https" || sch == "rtmps" || sch == "rtsps") && !caFile.empty())
         ff += "ca_file=" + caFile + " tls_verify=1 ";
+    // OJO: esto se guarda con el formato viejo (ffmpeg_source) y al motor llegan solo
+    // `input`, el nombre y una latencia de 200 ms (BroadcastEngineScenes.cpp, la
+    // traducción de ffmpeg_source): `ffmpeg_options` (transporte RTSP, nobuffer, TLS),
+    // `hw_decode`, `reconnect_delay_sec` y el modo de baja latencia no tienen efecto.
+    // Ver F3-12 en docs/arquitectura/04-plan-unificado.md.
     json s{{"is_local_file", false},
            {"input", url},
            {"input_format", ""},

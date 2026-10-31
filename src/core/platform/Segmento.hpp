@@ -7,10 +7,12 @@
 //   Uno lo CREA con un nombre corto y lo llena; el otro lo ABRE por ese nombre
 //   (solo lectura) y copia lo que necesita.
 //
-//   No es `ipc::SharedMemoryRegion`: en Linux/macOS ese vive en un registro
-//   del propio proceso (para las pruebas) y no cruza a otro. Tampoco
-//   QSharedMemory: en Qt 6.6 con POSIX en macOS no crea ni con un nombre de
-//   seis letras («bad name»), y System V en macOS se queda en 4 MB.
+//   Hace lo mismo que `ipc::SharedMemoryRegion` (que también usa shm_open +
+//   mmap MAP_SHARED en Linux/macOS y cruza procesos): son dos primitivas para
+//   lo mismo, quedaron así por historia. Lo propio de este: el nombre lo da
+//   el que crea, tal cual, y el que abre lo borra apenas lo mapea (abajo).
+//   No es QSharedMemory: en Qt 6.6 con POSIX en macOS no crea ni con un
+//   nombre de seis letras («bad name»), y System V en macOS se queda en 4 MB.
 //
 // Implementaciones:
 //   - Linux/macOS: shm_open + mmap. En macOS el nombre no pasa de 31 letras:

@@ -44,6 +44,7 @@
 #include "ui/StudioViewModel.hpp"
 #include "video/Scopes.hpp"
 #include "video/VideoGrafos.hpp"
+#include "platform/Hilo.hpp"
 #include <QBuffer>
 #include <thread>
 
@@ -618,6 +619,7 @@ void McpService::registerImageTools() {
             // esto corre en el hilo de la interfaz). Ver `mirarConElModeloPropio`.
             const auto conElPropio = [&rt, copia, que, donde, archivo, done](const std::string& antes) {
                 std::thread([&rt, copia, que, donde, archivo, done, antes]() {
+                    ba::platform::nombrarHilo("imagen-modelo");
                     std::string error;
                     const std::string texto = mirarConElModeloPropio(rt, copia, que, error);
                     ToolResult r;

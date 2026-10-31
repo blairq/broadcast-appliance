@@ -7,6 +7,7 @@
 
 #include "Piezas.hpp"
 #include "Reloj.hpp"
+#include "platform/Hilo.hpp"
 
 #include <algorithm>
 #include <atomic>
@@ -73,6 +74,7 @@ void desarmar(Origen& o) {
     auto listo = std::make_shared<std::atomic<bool>>(false);
     o.desarmando = listo;
     std::thread([p, listo]() {
+        ba::platform::nombrarHilo("red-desarmar");
         gst_element_set_state(p, GST_STATE_NULL);
         gst_object_unref(p);
         listo->store(true);

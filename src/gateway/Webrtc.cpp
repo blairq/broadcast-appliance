@@ -37,6 +37,7 @@
 
 #include "Webrtc.hpp"
 #include "ajustes/Ajustes.hpp"
+#include "platform/Hilo.hpp"
 
 #include <algorithm>
 #include <atomic>
@@ -199,7 +200,7 @@ class PullAdm : public webrtc::webrtc_impl::AudioDeviceModuleDefault<webrtc::Aud
     }
     int32_t StartPlayout() override {
         if (playing_.exchange(true)) return 0;
-        thread_ = std::thread([this]() { loop(); });
+        thread_ = std::thread([this]() { ba::platform::nombrarHilo("webrtc-playout"); loop(); });
         return 0;
     }
     int32_t StopPlayout() override {

@@ -32,6 +32,7 @@
 #include <algorithm>
 
 #include "ajustes/Ajustes.hpp"
+#include "platform/Hilo.hpp"
 #include <cmath>
 #include <cstdio>
 #include <functional>
@@ -198,6 +199,7 @@ VideoGrafos::VideoGrafos(AppRuntime& rt, std::filesystem::path dataRoot, QObject
     if (f.open(QIODevice::ReadOnly)) docs = json::parse(f.readAll().toStdString(), nullptr, false);
     QPointer<VideoGrafos> yo = this;
     std::thread([yo, docs]() {
+        ba::platform::nombrarHilo("grafos-catalogo");
         auto c = std::make_shared<CatalogoGst>(docs);
         (void)c->modulos(); // se arma acá, no en el primer pedido
         QMetaObject::invokeMethod(

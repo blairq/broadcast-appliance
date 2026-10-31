@@ -4,7 +4,7 @@
 //   SHA-256 (FIPS 180-4) para el nucleo ba_core, ahora RESPALDADO POR mbedTLS
 //   (mbedtls_sha256_context). La consumen los modulos de seguridad
 //   (HMAC-SHA256, TokenService, spec 8.3) y cualquier componente que necesite
-//   un hash de integridad. No depende de Qt ni de libobs.
+//   un hash de integridad. No depende de Qt.
 //
 //   Se elige mbedTLS (libreria open-source, ya enlazada por ba_core) en lugar
 //   de una implementacion propia: elimina el riesgo de bugs de baja capa (la

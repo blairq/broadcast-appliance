@@ -31,7 +31,8 @@
 // Hilos: la edicion (agregar, quitar, conectar, parametros) es del hilo
 // principal y arma un PLAN nuevo que se intercambia con el del audio sin
 // bloquearlo (si justo esta procesando, ese bloque sale sin procesar). El
-// audio (OBS) llama process() con los canales de la fuente.
+// audio (barack, el elemento de GStreamer de GstRack, desde su hilo de streaming)
+// llama process() con los canales de la fuente.
 //
 // Medicion: cada modulo mide su entrada y su salida (RMS, pico) => la
 // reduccion en dB (compuerta, compresor, de-esser). `measure()` clona la

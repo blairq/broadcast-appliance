@@ -25,6 +25,7 @@
 
 #include "net/Credentials.hpp"
 #include "net/HttpsClient.hpp"
+#include "platform/Hilo.hpp"
 
 namespace ba::app {
 
@@ -175,6 +176,7 @@ void YouTubeClient::run(std::shared_ptr<Req> req, std::function<void(int, QByteA
         };
     }
     std::thread([self, req, cb]() {
+        ba::platform::nombrarHilo("youtube");
         const net::HttpResponse r = net::HttpsClient::request(req->http);
         const QByteArray body = QByteArray::fromStdString(r.body);
         const QString location = QString::fromStdString(r.header("Location"));

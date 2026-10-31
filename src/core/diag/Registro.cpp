@@ -53,7 +53,7 @@ std::string selloDeTiempo(std::int64_t ms) {
 /// El contexto va en UNA línea: un salto adentro rompería el formato y el
 /// visor leería media línea como si fuera otra entrada. Se marcan con «⏎» en
 /// vez de perderlos, que es lo que interesa de un mensaje de varias líneas de
-/// Qt o de libobs.
+/// Qt o de GStreamer.
 std::string enUnaLinea(const std::string& s) {
     std::string out;
     out.reserve(s.size());

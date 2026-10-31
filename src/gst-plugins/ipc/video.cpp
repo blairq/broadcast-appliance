@@ -11,8 +11,9 @@
 //     otro, se renegocian las caps.
 //   - Si el canal todavía no existe o el gateway se reinició, se resuscribe
 //     solo; mientras tanto no sale nada.
-//   - Se mira muy seguido (cada 2 ms; ver ba_guest_video): sondear al ritmo del
-//     que publica hace batir las cadencias y perder cuadros.
+//   - Se mira seguido (cada 4 ms; 15 ms si no llegó nada en el último segundo:
+//     ver pausa()): sondear al ritmo del que publica hace batir las cadencias y
+//     perder cuadros. Nadie avisa que hay cuadro nuevo: es sondeo.
 //   - La hora de cada cuadro: la que le puso el gateway al publicarlo, pasada
 //     al reloj del pipeline (hora.hpp); así el audio del invitado (baanillo,
 //     otra cadena) queda alineado por la misma hora. Cuadros por segundo

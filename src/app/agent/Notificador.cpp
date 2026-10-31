@@ -4,6 +4,7 @@
 #include "platform/Paths.hpp"
 
 #include "security/CredentialStore.hpp"
+#include "platform/Hilo.hpp"
 
 #include <QDateTime>
 #include <QJsonDocument>
@@ -149,6 +150,7 @@ void Notificador::enviarSmtp(const json& n, const std::string& clave, const std:
     // SMTP es conversado y bloqueante: va en un hilo aparte con su propio socket.
     QPointer<Notificador> yo(this);
     std::thread([n, clave, titulo, texto, listo, yo]() {
+        ba::platform::nombrarHilo("smtp");
         std::string error;
         {
             QSslSocket s;

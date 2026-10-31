@@ -6,7 +6,7 @@
 //   supera maxBytes, lo rota a ba.log.1, ba.log.2, ... manteniendo a lo sumo
 //   keepFiles archivos rotados (el mas antiguo se borra). Es la pieza de
 //   diagnostico que deja en Logs/ un historial acotado del proceso sin que
-//   crezca sin limite. No depende de Qt ni de libobs: solo std (filesystem +
+//   crezca sin limite. No depende de Qt: solo std (filesystem +
 //   fstream) y std::chrono para el timestamp.
 //
 // Modelo de threading:

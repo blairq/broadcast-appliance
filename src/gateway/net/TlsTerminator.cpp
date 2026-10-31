@@ -10,6 +10,7 @@
 
 #include "i18n/I18n.hpp"
 #include "security/CredentialStore.hpp"
+#include "platform/Hilo.hpp"
 
 #include <array>
 #include <cerrno>
@@ -396,7 +397,7 @@ bool TlsTerminator::start() {
     boundPort_ = ntohs(a.sin_port);
     listenFd_ = static_cast<long long>(s);
     stop_ = false;
-    accept_ = std::thread(&TlsTerminator::acceptLoop, this);
+    accept_ = std::thread([this] { ba::platform::nombrarHilo("tls-aceptar"); acceptLoop(); });
     if (log_) {
         log_(llenar(traducir("gateway", "https: escuchando en %1:%2 -> 127.0.0.1:%3 (huella %4...)"),
                     {cfg_.bindAddress, std::to_string(boundPort_), std::to_string(cfg_.backendPort),
@@ -446,6 +447,7 @@ void TlsTerminator::acceptLoop() {
         }
         active_++;
         std::thread([this, c, peer]() {
+            ba::platform::nombrarHilo("tls-conexion");
             serve(static_cast<long long>(c), peer.sin_addr.s_addr, ntohs(peer.sin_port));
             active_--;
         }).detach();

@@ -30,6 +30,7 @@
 
 #include "emision/FuentesApp.hpp"
 #include "diag/Registro.hpp"
+#include "platform/Hilo.hpp"
 
 #if defined(BA_HAVE_GST)
 #include <gst/gst.h>
@@ -1611,6 +1612,7 @@ void Plugins::dispositivos(std::function<void(json)> listo0) {
     // 1) Cámaras y micrófonos (GStreamer, en otro hilo); 2) USB, HID y serie (Python).
     QPointer<Plugins> yo(this);
     std::thread([yo, listo]() {
+        ba::platform::nombrarHilo("plugins-equipos");
         json gst = camarasGstImpl();
         QMetaObject::invokeMethod(
             qApp,

@@ -32,6 +32,7 @@ struct Reconocedor::Impl {
 Reconocedor::Reconocedor(QObject* parent) : QObject(parent), d_(std::make_unique<Impl>()) {
     d_->alla = new QObject;
     d_->alla->moveToThread(&d_->hilo);
+    d_->hilo.setObjectName(QStringLiteral("rostros")); // Qt se lo pone al hilo del sistema
     d_->hilo.start();
 }
 

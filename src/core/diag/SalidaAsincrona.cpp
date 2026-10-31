@@ -1,6 +1,7 @@
 // src/core/diag/SalidaAsincrona.cpp — ver SalidaAsincrona.hpp
 #include "diag/SalidaAsincrona.hpp"
 #include "i18n/I18n.hpp"
+#include "platform/Hilo.hpp"
 
 #include <chrono>
 #include <condition_variable>
@@ -177,11 +178,13 @@ void desacoplarSalidaEstandar(std::size_t maxBytes) {
     c.activa = true;
     g_original = reinterpret_cast<std::intptr_t>(destino);
     std::thread([leer]() {
+        ba::platform::nombrarHilo("salida-leer");
         char buf[16384];
         DWORD n = 0;
         while (ReadFile(leer, buf, sizeof(buf), &n, nullptr) && n > 0) encolar(buf, n);
     }).detach();
     std::thread([destino]() {
+        ba::platform::nombrarHilo("salida-escribir");
         escritor([destino](const char* d, std::size_t n) {
             DWORD w = 0;
             WriteFile(destino, d, static_cast<DWORD>(n), &w, nullptr);
@@ -221,6 +224,7 @@ void desacoplarSalidaEstandar(std::size_t maxBytes) {
     g_original = destino;
     const int leer = p[0];
     std::thread([leer]() {
+        ba::platform::nombrarHilo("salida-leer");
         char buf[16384];
         for (;;) {
             const ssize_t n = read(leer, buf, sizeof(buf));
@@ -229,6 +233,7 @@ void desacoplarSalidaEstandar(std::size_t maxBytes) {
         }
     }).detach();
     std::thread([destino]() {
+        ba::platform::nombrarHilo("salida-escribir");
         escritor([destino](const char* d, std::size_t n) {
             while (n > 0) {
                 const ssize_t w = write(destino, d, n);

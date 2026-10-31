@@ -2925,7 +2925,7 @@ void EventoViewModel::ejecutarCue(const evento::Cue& cue, const std::string& pas
                 anotar(tr("No se pudo cargar %1: %2").arg(rel, QString::fromStdString(rt_.lastError())), "error");
                 return;
             }
-            // Y se rebobina: si el archivo es el mismo que ya estaba, libobs no
+            // Y se rebobina: si el archivo es el mismo que ya estaba, el motor no
             // tiene motivo para volver a empezar y el cue no mostraria nada.
             rt_.engine().restartMedia(kVideo);
             // Al aire recién DESPUÉS de que el archivo esté cargado: al revés

@@ -6,10 +6,10 @@
 // La vista (VideoItem) solo pide "la ultima imagen de <clave>".
 //
 // Claves:
-//   "program"   programa al aire (vista previa del motor: libobs ya la escala
+//   "program"   programa al aire (vista previa del motor: el motor ya la escala
 //               en la GPU)
 //   "guest:N"   video del invitado N tal como lo publica B (BA.Guest.N);
-//               se lee directo del transporte entre procesos, sin libobs
+//               se lee directo del transporte entre procesos, sin el motor
 //   "entrada:X" la entrada de video X tal como sale de sus filtros (con el
 //               recorte del PTZ digital), mientras alguien la pida con
 //               mirarEntrada (la tarjeta PTZ suelta)

@@ -4,6 +4,7 @@
 
 #include "net/WgDevice.hpp"
 #include "i18n/I18n.hpp"
+#include "platform/Hilo.hpp"
 
 #include <chrono>
 #include <cstring>
@@ -199,7 +200,7 @@ bool WgDevice::start() {
                               {cfg_.endpointHost}));
     }
     stop_ = false;
-    thread_ = std::thread(&WgDevice::loop, this);
+    thread_ = std::thread([this] { ba::platform::nombrarHilo("wireguard"); loop(); });
     if (log_)
         log_(ba::i18n::llenar(ba::i18n::traducir("gateway", "wireguard: escuchando UDP %1"), {std::to_string(localPort_)}));
     return true;

@@ -10,6 +10,7 @@
 #include <set>
 #include <thread>
 #include "Reloj.hpp"
+#include "platform/Hilo.hpp"
 
 #include <gst/pbutils/pbutils.h>
 #include <gst/audio/audio.h>
@@ -564,7 +565,7 @@ void Vigia::anotar(GstDevice* dev, bool esta) {
 
 void Vigia::revisar() {
     std::call_once(hilo_, [this]() {
-        hiloVigia_ = std::thread([this]() { vigilar(); });
+        hiloVigia_ = std::thread([this]() { ba::platform::nombrarHilo("motor-vigia"); vigilar(); });
         // Al salir, que pare y se lo espere: suelto, seguía usando GStreamer y lo estático
         // mientras el proceso se desarmaba.
         std::atexit([]() { Vigia::el().parar(); });
@@ -813,6 +814,7 @@ void recalcularLatenciaAparte(GstElement* pipeline, std::function<void()> antes)
     // La referencia mientras está en el mapa: el puntero no se puede reusar.
     gst_object_ref(pipeline);
     std::thread([pipeline, antes = std::move(antes)]() mutable {
+        ba::platform::nombrarHilo("latencia-recalc");
         for (;;) {
             if (antes) antes();
             gst_bin_recalculate_latency(GST_BIN(pipeline));
@@ -866,6 +868,7 @@ std::int64_t LatenciaAparte::consultar(GstElement* pipeline) {
     if (pipeline != nullptr && !e_->enCurso.exchange(true)) {
         auto* p = GST_ELEMENT(gst_object_ref(pipeline));
         std::thread([p, e = e_]() {
+            ba::platform::nombrarHilo("latencia-consulta");
             GstQuery* q = gst_query_new_latency();
             if (gst_element_query(p, q)) {
                 gboolean vivo = FALSE;

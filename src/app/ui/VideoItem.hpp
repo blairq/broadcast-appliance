@@ -4,7 +4,7 @@
 // `VideoItem { source: "program"; fillMode: VideoItem.Cover }`
 //
 // Solo presentacion: pide al FrameService la ultima imagen de su clave y la
-// sube como textura del scene graph (GPU). No sabe de libobs ni de IPC.
+// sube como textura del scene graph (GPU). No sabe del motor ni de IPC.
 // ============================================================================
 
 #pragma once

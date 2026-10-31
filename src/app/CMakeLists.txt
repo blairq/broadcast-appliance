@@ -193,8 +193,8 @@ endif()
 
 # --- Plugins de audio CLAP (LSP) ---------------------------------------------
 # Headers de CLAP (MIT, `make deps-clap`). Los plugins LSP se cargan en tiempo
-# de ejecucion desde el bundle (plugins/lsp/). Sin los headers o sin libobs, el
-# rack de audio no se compila.
+# de ejecucion desde el bundle (plugins/lsp/). Sin los headers o sin el motor
+# (BA_HAVE_MOTOR), el rack de audio no se compila.
 set(BA_CLAP_INC "${CMAKE_SOURCE_DIR}/extern/clap/include")
 set(BA_HAVE_CLAP OFF)
 if(BA_HAVE_MOTOR AND EXISTS "${BA_CLAP_INC}/clap/clap.h")

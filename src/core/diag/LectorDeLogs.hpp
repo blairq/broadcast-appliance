@@ -7,7 +7,7 @@
 // esto es lo que los lee.
 //
 // TOLERA LO QUE NO ESTÁ ESTRUCTURADO, y no es un detalle: en Logs/app.log
-// conviven las líneas del Registro con lo que escupen libobs, Qt y cualquier
+// conviven las líneas del Registro con lo que escupen GStreamer, Qt y cualquier
 // printf suelto. Una línea que no se puede partir NO se tira —muchas veces es
 // justo la que explica el problema— sino que entra como `info` del componente
 // que diga el archivo. El visor la muestra igual; lo único que pierde es el

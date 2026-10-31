@@ -17,6 +17,7 @@
 #include "dispositivos/SondaReal.hpp"
 #include "hw/Antibucle.hpp"
 #include "platform/Maquina.hpp"
+#include "platform/Hilo.hpp"
 #include "platform/Paths.hpp"
 #include "dispositivos/Onvif.hpp"
 #include "plugins/Plugins.hpp"
@@ -266,6 +267,7 @@ void registrarTodo(Dispositivos& d, const Dependencias& dep) {
                 const int vuelta = ++est->vuelta;
                 est->antibucle.empieza(ahoraMs(), firmaDelSistema());
                 std::thread([rt, est, vuelta]() {
+                    ba::platform::nombrarHilo("equipos-buscar");
                     QVariantList eq = camarasYMicrofonos(*rt);
                     QMetaObject::invokeMethod(
                         qApp,
@@ -357,6 +359,7 @@ void registrarTodo(Dispositivos& d, const Dependencias& dep) {
     d.registrar(Detector{"ndi", QCoreApplication::translate("dispositivos", "NDI® en la red"), QCoreApplication::translate("dispositivos", "Los emisores NDI que se anuncian en la red (unos 4 s)."),
                          [](Listo listo) {
                              std::thread([listo]() {
+                                 ba::platform::nombrarHilo("ndi-buscar");
                                  const auto found = ndi::discover(4000);
                                  QVariantList eq;
                                  for (const auto& f : found)

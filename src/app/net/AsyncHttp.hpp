@@ -13,6 +13,7 @@
 #include <thread>
 
 #include "net/HttpsClient.hpp"
+#include "platform/Hilo.hpp"
 
 namespace ba::app::net {
 
@@ -32,6 +33,7 @@ inline void asyncRequest(QObject* ctx, HttpRequest req, std::function<void(const
         };
     }
     std::thread([guard, req = std::move(req), done = std::move(done)]() {
+        ba::platform::nombrarHilo("http");
         auto res = std::make_shared<HttpResponse>(HttpsClient::request(req));
         if (!guard) return;
         QMetaObject::invokeMethod(

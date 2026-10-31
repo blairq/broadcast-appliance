@@ -12,6 +12,7 @@
 #include "ajustes/Ajustes.hpp"
 #include "i18n/I18n.hpp"
 #include "net/HttpsClient.hpp"
+#include "platform/Hilo.hpp"
 
 namespace ba::app::agent {
 
@@ -127,6 +128,7 @@ void ChatEnVivo::arrancar(const std::shared_ptr<Trabajo>& t) {
     // Un hilo por pedido, como Mirada: el cliente HTTP bloquea mientras lee, y los pedidos que
     // van juntos son pocos (paralelo).
     std::thread([this, t]() {
+        ba::platform::nombrarHilo("chat-modelo");
         ba::registro::LectorSse lector;
         std::string url = t->fuente.url;
         while (!url.empty() && url.back() == '/') url.pop_back();

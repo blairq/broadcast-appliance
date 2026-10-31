@@ -26,6 +26,7 @@
 #include <thread>
 
 #include "i18n/I18n.hpp"
+#include "diag/VigiaBucle.hpp"
 #include "arranque/AppRuntime.hpp"
 #include "emision/InputSpecs.hpp"
 #include "arranque/InicioConElSistema.hpp"
@@ -301,7 +302,9 @@ void McpService::registerSystemTools() {
             "`limita`. Sirve para decidir si la máquina aguanta otra salida (otra composición con sus codificadores): "
             "medí antes y después de sumarla y compará el margen. Con `historial_s` (hasta 600), la historia "
             "(columnas + filas, agrupada de a `paso_s` segundos con el máximo de cada grupo). La alarma `recursos` "
-            "(alert_create) avisa sola cuando la máquina se acerca al límite.");
+            "(alert_create) avisa sola cuando la máquina se acerca al límite. `bucle_ui`: cuánto se demora el bucle "
+            "de eventos de la interfaz (un turno cada 50 ms: histograma desde el arranque, p50/p99/máximo del último "
+            "minuto, y los peores `culpables`: el evento o la herramienta MCP que corría cuando el turno llegó tarde).");
         t.inputSchema = {
             {"type", "object"},
             {"properties",
@@ -324,6 +327,7 @@ void McpService::registerSystemTools() {
             json out = rec->muestreador().informe(hist, paso);
             if (out.value("muestras", 0) == 0)
                 out["nota"] = ba::i18n::traducir("mcp", "Todavía no hay mediciones (se mide una vez por segundo desde el arranque).");
+            out["bucle_ui"] = ba::diag::VigiaBucle::interfaz().informe();
             done(ToolResult().data(out));
         };
         core_.addTool(std::move(t));

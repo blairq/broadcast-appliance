@@ -3,6 +3,7 @@
 // ============================================================================
 
 #include "term/Pty.hpp"
+#include "platform/Hilo.hpp"
 
 #include <QCoreApplication>
 #include <QDir>
@@ -132,6 +133,7 @@ bool Pty::start(const Options& opt, QString* error) {
     d_->alive = true;
     HANDLE outRead = d_->outRead;
     d_->reader = std::thread([this, outRead]() {
+        ba::platform::nombrarHilo("pty-leer");
         char buf[65536];
         DWORD n = 0;
         while (ReadFile(outRead, buf, sizeof(buf), &n, nullptr) && n > 0) {
@@ -141,6 +143,7 @@ bool Pty::start(const Options& opt, QString* error) {
     });
     HANDLE proc = d_->pi.hProcess;
     d_->waiter = std::thread([this, proc]() {
+        ba::platform::nombrarHilo("pty-esperar");
         WaitForSingleObject(proc, INFINITE);
         DWORD code = 0;
         GetExitCodeProcess(proc, &code);

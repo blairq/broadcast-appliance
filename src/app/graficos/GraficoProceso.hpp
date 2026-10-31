@@ -15,10 +15,10 @@
 //     Sin esto, un `while(true)` en un QML congelaría la interfaz, que es
 //     justo lo que el proceso aparte venía a evitar.
 //
-// Es SÍNCRONO: quien pide espera. Alcanza para las vistas previas (el IDE y el
-// asistente), que es lo que hay hoy. Componer en vivo dentro de una escena a
-// 30 cuadros por segundo va a necesitar otro camino para los cuadros (memoria
-// compartida, como ya hacen A y B): por ahí no pueden viajar en base64.
+// Es SÍNCRONO: quien pide espera. Los pedidos sueltos (las vistas previas del
+// IDE y del asistente) traen la imagen en el JSON; una tira de cuadros
+// (`tira`, la animación que sale al aire) los trae crudos por memoria compartida
+// (platform/Segmento: el pedido lleva "shm": true), no en base64.
 // ============================================================================
 #pragma once
 

@@ -4,6 +4,7 @@
 
 #include "emision/NdiSource.hpp"
 #include "i18n/I18n.hpp"
+#include "platform/Hilo.hpp"
 
 #include <cstdint> // los encabezados de libNoIDea usan uint16_t sin incluirlo
 
@@ -213,7 +214,7 @@ Receptor* abrir(const std::string& name, const std::string& host, int port, std:
         std::lock_guard<std::mutex> lk(g_liveLock);
         g_live.push_back(r);
     }
-    r->worker = std::thread(receiveLoop, r);
+    r->worker = std::thread([r] { ba::platform::nombrarHilo("ndi"); receiveLoop(r); });
     return r;
 }
 

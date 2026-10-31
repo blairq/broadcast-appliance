@@ -42,10 +42,13 @@
 // (cada salto lo cambia) y el pad que entrega lleva la diferencia (offset).
 //
 // LA PLACA (M5.1): el video en vivo pasa por un pipeline aparte que nunca se
-// rearma: `intersrc <id>:crudo:video ! fallbackswitch ! intersink <id>:video`,
-// con la placa «<nombre> — sin señal» de respaldo. Si la cadena se cae, se
-// rearma o deja de mandar 3 s, sale la placa; cuando vuelve, vuelve sola (sin
-// cuadro congelado ni negro). Los archivos no la llevan (parados no se ven).
+// rearma: `intersrc <id>:crudo:video ! input-selector ! intersink <id>:video`,
+// con la placa «<nombre> — sin señal» en la otra entrada del selector. El
+// selector no espera (deja pasar cada cuadro apenas llega); el vigilante de tic
+// pasa a la placa si no llega nada por `entradas.sinSenal` (3 s de fábrica) y
+// la sonda de la entrada vuelve a la señal con el primer cuadro (sin cuadro
+// congelado ni negro). Antes era un fallbackswitch: retenía cada cuadro. Los
+// archivos no la llevan (parados no se ven).
 //
 // Se rearma sola: el dispositivo que no está se espera (vigía de dispositivos),
 // un error se reintenta con espera creciente (0,2 / 0,5 / 1 / 2 s), y una
@@ -251,9 +254,9 @@ class Entrada {
     // Lo armado
     GstElement* pipeline_ = nullptr;
     std::unique_ptr<Sondas> sondas_;   ///< el análisis en curso (nullptr = ninguno)
-    std::unique_ptr<Sondas> sondasSalida_; ///< y el de su salida (la de la placa: fallbackswitch)
+    std::unique_ptr<Sondas> sondasSalida_; ///< y el de su salida (la de la placa: input-selector)
     nlohmann::json analisisCortado_;   ///< lo medido si se rearmó durante el análisis
-    GstElement* salidaV_ = nullptr; ///< el pipeline fijo con la placa (fallbackswitch)
+    GstElement* salidaV_ = nullptr; ///< el pipeline fijo con la placa (input-selector)
     bool conPlaca_ = false;          ///< lleva placa (aunque esté desarmada por falta de uso)
     std::int64_t sinUsoDesdeUs_ = 0; ///< desde cuándo nadie la usa (0: la usan)
     int revisarTareas_ = 0;          ///< vueltas en que todavía se buscan fuentes terminadas (soltarTareasTerminadas)

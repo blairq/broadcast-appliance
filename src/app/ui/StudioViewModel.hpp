@@ -883,7 +883,7 @@ class StudioViewModel : public QObject {
     QObject* inputs() const;
     QObject* audio() const;
 #if defined(BA_HAVE_CLAP)
-    /// Racks de audio (modulos LSP) de las fuentes. nullptr si no hay libobs/CLAP.
+    /// Racks de audio (modulos LSP) de las fuentes. nullptr si no hay CLAP.
     audio::RackManager* racks() const { return racks_.get(); }
 #endif
     agent::AlertEngine& alerts() { return *alerts_; }

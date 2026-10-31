@@ -4,8 +4,8 @@
 // Un solo despacho para todas las plataformas (solo el ENTRY POINT difiere:
 // wWinMain en Windows, main en el resto):
 //
-//   --headless-selftest  autotest de OperatorEngine (sin libobs)
-//   --engine-selftest    autotest del motor de emision (libobs)
+//   --headless-selftest  autotest de OperatorEngine (sin el motor)
+//   --engine-selftest    autotest del motor de emision (GStreamer)
 //   --no-ui              modo consola aunque haya pantalla
 //   --sonda-drivers      prueba drivers en un proceso aparte (lo lanza la app)
 //   (default)            interfaz grafica si hay Qt y pantalla; si no, consola
@@ -197,7 +197,7 @@ int dispatch(int argc, char** argv) {
     ba::diag::desacoplarSalidaEstandar();
     std::atexit([] { ba::diag::vaciarSalidaEstandar(500); });
     instalarFinPorExcepcion();
-    // Portable: caches de Qt/fontconfig/shaders al bundle (antes de Qt y libobs).
+    // Portable: caches de Qt/fontconfig/shaders al bundle (antes de Qt y GStreamer).
     ba::platform::redirectUserDirs();
     // ffmpeg, ffprobe, yt-dlp, deno y gst-launch del bundle, primeros en el
     // PATH: los heredan los plugins, la terminal y el asistente (nadie baja

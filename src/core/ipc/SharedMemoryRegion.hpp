@@ -4,7 +4,7 @@
 //   RAII wrapper sobre un buffer contiguo de bytes respaldado por memoria
 //   compartida. Es la primitiva de transporte comun que usan los contratos de
 //   IPC de ba_core (rings de audio 4.3 y el bloque de salud 4.4). No depende
-//   de Qt ni de libobs.
+//   de Qt.
 //
 // Modelo de threading:
 //   El objeto en si NO es thread-safe: cada instancia representa un mapa
@@ -24,10 +24,9 @@
 //   - _WIN32: CreateFileMappingW/MapViewOfFile sobre el namespace Local\, con
 //     una DACL explicita restringida al usuario actual (spec 4: "Global\ exige
 //     un privilegio que un usuario estandar no tiene").
-//   - resto (Linux/macOS): asignacion anonima (mmap MAP_ANONYMOUS) + un
-//     registro de proceso name -> buffer, para que create/open tengan la misma
-//     semantica de "buscar por nombre" dentro del proceso y las pruebas corran
-//     en cualquier lugar sin dependencias.
+//   - resto (Linux/macOS): objeto de memoria compartida POSIX (shm_open +
+//     ftruncate + mmap MAP_SHARED, 0600, nombre con hash del UID y acotado a
+//     los 31 caracteres de macOS): cruza procesos igual que el de Windows.
 
 #pragma once
 
@@ -95,8 +94,8 @@ class SharedMemoryRegion {
 
     /// Reencuentra un buffer ya publicado con `name` y lo mapea.
     ///
-    /// En Windows abre el file mapping existente (sin crearlo). En otras
-    /// plataformas busca el nombre en el registro de proceso.
+    /// En Windows abre el file mapping existente (sin crearlo); en Linux/macOS,
+    /// el objeto shm_open existente.
     ///
     /// :param name: nombre logico publicado previamente por `create`.
     /// :param out: recibe el objeto valido en exito; se deja vacio en fallo.

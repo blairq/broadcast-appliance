@@ -16,6 +16,7 @@
 #include "net/Credentials.hpp"
 #include "net/HttpsClient.hpp"
 #include "platform/Paths.hpp"
+#include "platform/Hilo.hpp"
 
 namespace ba::app::agent {
 
@@ -105,6 +106,7 @@ void mirarAparte(FuenteMirada f, const QImage& img, PedidoMirada p, QObject* con
     // Un hilo suelto, como `imagen_preguntar`: el cliente HTTP bloquea y el tope
     // de espera (esperaMs) acota cuánto vive.
     std::thread([f = std::move(f), img, p = std::move(p), ctx, luego = std::move(luego)]() mutable {
+        ba::platform::nombrarHilo("mirada");
         std::string error;
         std::string texto = mirarCon(f, img, p, error);
         QMetaObject::invokeMethod(

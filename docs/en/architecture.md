@@ -161,7 +161,7 @@ on Linux and Windows; "platform-gated (Windows)" = only fetched/used under
 | LSP Plugins | `1.2.35` | LGPL-3.0 | Audio rack modules (`plugins/lsp/`; Windows: built from source) |
 | GStreamer | `1.28.7` (Linux from source; macOS official framework) / `1.26.11` (Windows, official MSVC) | LGPL-2.1 (with GPL plugins) | Broadcast engine |
 | Qt 6 | `6.6.3` | LGPL-3.0 (dual) | UI (vendored; Windows and Linux) |
-| Spout2 (SDK) | `2.0.0.0` | — | Platform-gated (Windows) |
+| Spout2 (SDK) | `2.0.0.0` | — | Downloaded (Windows) but unused by the code: video between processes goes through shared memory (`ipc/SpoutTransport`) |
 | libwebrtc | `M123` (`123.0.6312.5`) | BSD-3-Clause | Gateway (Shiguredo prebuilt; Windows and Linux) |
 | cloudflared | `2024.11.0` | — | Tunnel (per-platform binary) |
 

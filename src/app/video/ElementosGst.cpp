@@ -8,6 +8,7 @@
 #include "diag/Registro.hpp"
 #include "i18n/I18n.hpp"
 #include "video/CatalogoGst.hpp"
+#include "platform/Hilo.hpp"
 
 #include <QtGlobal>
 
@@ -74,6 +75,7 @@ nlohmann::json revisarElementosGst() {
 
 void revisarElementosGstAlArrancar() {
     std::thread([]() {
+        ba::platform::nombrarHilo("gst-elementos");
         if (!iniciarGStreamer()) return;
         // Los de la app se registran en otros hilos al arrancar: un rato de gracia.
         std::this_thread::sleep_for(std::chrono::seconds(ba::ajustes::entero("arranque.revisarElementosS", 8)));

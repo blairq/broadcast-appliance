@@ -230,7 +230,7 @@ bool SourcesModel::setEfectos(const QString& name, const QVariantMap& cambios) {
 }
 
 QString SourcesModel::add(const QString& typeId, const QString& baseName) {
-    // Nombre unico en todo libobs: "Camara", "Camara 2", ...
+    // Nombre unico entre todas las fuentes: "Camara", "Camara 2", ...
     std::string name = baseName.trimmed().isEmpty() ? typeId.toStdString() : baseName.trimmed().toStdString();
     const std::string base = name;
     for (int i = 2; !rt_.engine().sourceTypeId(name).empty(); ++i) {
@@ -308,7 +308,7 @@ QString SourcesModel::addExisting(const QString& name) {
 QString SourcesModel::addGuest(int slot, bool share) {
     if (slot < 1 || slot > guestSlots()) return {};
     // Mismos nombres que crea el arranque: si la fuente ya existe se agrega
-    // la MISMA a esta escena (libobs comparte la fuente entre escenas).
+    // la MISMA a esta escena (una fuente puede estar en varias escenas).
     SourceSpec spec;
     spec.id = "ba_guest_video";
     spec.name = "Invitado " + std::to_string(slot) + (share ? " — pantalla" : "");

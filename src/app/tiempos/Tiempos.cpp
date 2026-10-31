@@ -679,7 +679,8 @@ json diagnosticar(const json& pipeline, const std::map<std::string, TarjetaEnPip
     for (const auto& el : elems) {
         if (!el.contains("agrega_ms")) continue;
         const std::string n = el.value("nombre", std::string());
-        // La cadena de la placa «sin señal»: el traspaso y el fallbackswitch, juntos (el colchón).
+        // La cadena de la placa «sin señal»: el traspaso y el conmutador (input-selector; en
+        // versiones viejas, fallbackswitch), juntos (el colchón).
         if (el.value("traspaso", false) ||
             (n.rfind("salida/", 0) == 0 && (fabricaDe(el) == "fallbackswitch" || fabricaDe(el) == "input-selector"))) {
             colchonPlaca += el.value("agrega_ms", 0.0);

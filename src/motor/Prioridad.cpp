@@ -7,6 +7,7 @@
 #include "i18n/I18n.hpp"
 #include "ajustes/Ajustes.hpp"
 #include "platform/Energia.hpp"
+#include "platform/Hilo.hpp"
 
 #include <gst/base/gstaggregator.h>
 
@@ -252,15 +253,31 @@ std::string resumen(const json& topo) {
     return s.empty() ? traducir("motor", "sin datos de la topología") : s;
 }
 
-GstBusSyncReply alMensaje(GstBus*, GstMessage* m, gpointer) {
+/// El nombre de un objeto de GStreamer, o "?". Los pipelines de gst_parse_launch se
+/// llaman «pipeline<N>»: queda «p<N>», que en Linux (15 bytes) deja lugar al elemento.
+std::string nombreGst(GstObject* o, bool esPipeline) {
+    if (o == nullptr) return "?";
+    gchar* n = gst_object_get_name(o);
+    std::string s = n != nullptr ? n : "?";
+    g_free(n);
+    if (esPipeline && s.rfind("pipeline", 0) == 0 && s.size() > 8) s = "p" + s.substr(8);
+    return s;
+}
+
+GstBusSyncReply alMensaje(GstBus*, GstMessage* m, gpointer pipeline) {
     if (GST_MESSAGE_TYPE(m) == GST_MESSAGE_STREAM_STATUS) {
         GstStreamStatusType t;
         GstElement* dueno = nullptr;
         gst_message_parse_stream_status(m, &t, &dueno);
-        // Corre en el hilo nuevo. El de un aggregator (glvideomixer, d3d12compositor,
-        // audiomixer) es el que junta las capas o las entradas a su hora: el que marca el ritmo.
-        if (t == GST_STREAM_STATUS_TYPE_ENTER)
+        // Corre en el hilo nuevo (GStreamer reusa los hilos de su pool: cada ENTER lo
+        // vuelve a nombrar). «<pipeline>/<elemento>»: en `sample`, en los volcados y en el
+        // perfil por hilo se sabe de quién es la CPU. El de un aggregator (glvideomixer,
+        // d3d12compositor, audiomixer) es el que junta las capas o las entradas a su hora:
+        // el que marca el ritmo.
+        if (t == GST_STREAM_STATUS_TYPE_ENTER) {
+            ba::platform::nombrarHilo(nombreGst(GST_OBJECT(pipeline), true) + "/" + nombreGst(GST_OBJECT(dueno), false));
             prioridadDelHilo(dueno != nullptr && GST_IS_AGGREGATOR(dueno) ? ClaseHilo::Critico : ClaseHilo::Medios);
+        }
     }
     return GST_BUS_PASS;
 }
@@ -309,10 +326,13 @@ void prioridadDelHilo(ClaseHilo c) {
 }
 
 void prioridadEnPipeline(GstElement* pipeline) {
-    if ((!g_activa.load() && !g_grupoMedios.load()) || pipeline == nullptr || !GST_IS_PIPELINE(pipeline)) return;
+    // Siempre, aunque no haya prioridad ni grupo de medios: el nombre de los hilos también
+    // sale de acá (prioridadDelHilo no hace nada si los dos están apagados).
+    if (pipeline == nullptr || !GST_IS_PIPELINE(pipeline)) return;
     GstBus* bus = gst_element_get_bus(pipeline);
     if (bus == nullptr) return;
-    gst_bus_set_sync_handler(bus, alMensaje, nullptr, nullptr);
+    // El pipeline sin referencia: el bus es suyo y el manejador muere con él.
+    gst_bus_set_sync_handler(bus, alMensaje, pipeline, nullptr);
     gst_object_unref(bus);
 }
 

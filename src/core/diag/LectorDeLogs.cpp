@@ -175,7 +175,7 @@ std::vector<Registrado> leerLogs(const fs::path& dir, const Filtro& f, std::size
         for (const std::string& l : ultimasLineas(p, porArchivoKiB)) {
             Registrado r;
             partirLinea(l, comp, r);
-            // Una línea sin hora propia (la salida cruda de libobs, por
+            // Una línea sin hora propia (la salida cruda de GStreamer, por
             // ejemplo) hereda la de la anterior: así no se va al principio de
             // los tiempos al ordenar y queda donde de verdad pasó.
             if (r.ms == 0)

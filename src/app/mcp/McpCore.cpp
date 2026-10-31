@@ -12,6 +12,7 @@
 #include <chrono>
 
 #include "diag/Registro.hpp"
+#include "diag/VigiaBucle.hpp"
 
 #include <chrono>
 
@@ -866,6 +867,8 @@ void McpCore::callTool(const json& params, std::function<void(json)> done, const
         // dejaba pasar ninguna, ni siquiera al rol que mira. Un campo que solo
         // se limpia es un campo que no existe.
         enCurso_ = ctx;
+        // Para el vigía del bucle de la interfaz: si esta herramienta lo demora, se sabe cuál.
+        ba::diag::VigiaBucle::interfaz().anotar("mcp " + name);
         auto called = std::make_shared<bool>(false);
         // TODO lo que entra por MCP queda escrito. Es el plano de control del
         // aparato —por acá cambian escenas, salidas y pantallas, y a veces lo

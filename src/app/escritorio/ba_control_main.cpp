@@ -37,6 +37,7 @@
 
 #include "escritorio/control.hpp"
 #include "platform/Paths.hpp"
+#include "platform/Hilo.hpp"
 
 #include <nlohmann/json.hpp>
 
@@ -814,6 +815,7 @@ json correrComando(const json& id, const std::string& cmd, const std::string& sh
     constexpr size_t kMax = 200 * 1024;
     bool cortada = false;
     std::thread lector([&]() {
+        ba::platform::nombrarHilo("control-lector");
         char buf[4096];
         DWORD n = 0;
         while (ReadFile(leer, buf, sizeof(buf), &n, nullptr) && n > 0) {

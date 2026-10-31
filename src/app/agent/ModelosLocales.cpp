@@ -31,6 +31,7 @@
 
 #include "net/Descargas.hpp"
 #include "net/HttpsClient.hpp"
+#include "platform/Hilo.hpp"
 
 #include <chrono>
 #include <set>
@@ -556,6 +557,7 @@ void ModelosLocales::revisarHerramientas(const QString& repo, bool forzar) {
     const bool estaBajado = instalado(repo);
     QPointer<ModelosLocales> yo(this);
     hilosFicha_.emplace_back([yo, repo, r, revision, archivo, bajado, guardado, estaBajado, forzar]() {
+        ba::platform::nombrarHilo("modelos-ficha");
         json mj, f = json::object();
         std::string nota, de;
         const auto leer = [](const fs::path& p) {
@@ -1047,6 +1049,7 @@ void ModelosLocales::revisarDisco() {
     const QString activo = activo_;
     QPointer<ModelosLocales> yo(this);
     hiloDisco_ = std::thread([this, yo, bajando, activo]() {
+        ba::platform::nombrarHilo("modelos-disco");
         auto [lista, restos] = calcularDisco(bajando, activo);
         QMetaObject::invokeMethod(this, [yo, lista, restos]() {
             if (!yo) return;

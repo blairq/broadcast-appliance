@@ -13,6 +13,7 @@
 // desde la carpeta del usuario.
 // ============================================================================
 #include "escritorio/control.hpp"
+#include "platform/Hilo.hpp"
 
 #include <algorithm>
 #include <chrono>
@@ -485,6 +486,7 @@ json aviso(const json& id, const json& a, const Permisos& p) {
     const bool ok = Shell_NotifyIconW(NIM_ADD, &n) != FALSE;
     // Se deja unos segundos y se saca el ícono (el aviso ya quedó en el centro de notificaciones).
     std::thread([n]() mutable {
+        ba::platform::nombrarHilo("control-aviso");
         Sleep(8000);
         Shell_NotifyIconW(NIM_DELETE, &n);
     }).detach();

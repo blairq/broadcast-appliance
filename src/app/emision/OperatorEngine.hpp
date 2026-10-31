@@ -78,8 +78,8 @@ inline constexpr int kNumChannels = 3;
 
 /// Nombre lógico del ring de audio de invitados que A lee (spec §4.3).
 ///
-/// En Windows se publica como `Local\BA.Audio.Guest.0`; en el backend anónimo
-/// (Linux / cross) es la clave del registro de proceso.
+/// En Windows se publica como `Local\BA.Audio.Guest.0`; en Linux/macOS, como
+/// objeto shm_open (ver SharedMemoryRegion).
 inline constexpr const wchar_t* kGuestAudioRingName = L"BA.Audio.Guest.0";
 
 /// Slot del HealthBlock que ocupa el Proceso A (spec §4.4). El launcher

@@ -27,6 +27,7 @@
 #include "Log.hpp"
 #include "ajustes/Ajustes.hpp"
 #include "i18n/I18n.hpp"
+#include "platform/Hilo.hpp"
 
 namespace ba::gateway {
 
@@ -268,7 +269,7 @@ bool PinggySupervisor::start() {
     stop_.store(false);
     started_.store(true);
     if (!spawn()) log_.warn(traducir("gateway", "pinggy: no se pudo lanzar (se reintentará con backoff)"), -1);
-    thread_ = std::thread(&PinggySupervisor::runLoop, this);
+    thread_ = std::thread([this] { ba::platform::nombrarHilo("pinggy"); runLoop(); });
     log_.info(cfg_.turn ? llenar(traducir("gateway", "pinggy: supervisor arrancado (http -> 127.0.0.1:%1, TURN -> "
                                                      "127.0.0.1:%2)"),
                                  {std::to_string(cfg_.puertoTunel), std::to_string(cfg_.turnLocal)})

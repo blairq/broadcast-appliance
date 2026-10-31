@@ -8,6 +8,7 @@
 
 #include "Log.hpp"
 #include "i18n/I18n.hpp"
+#include "platform/Hilo.hpp"
 
 #ifdef _WIN32
 #ifndef WIN32_LEAN_AND_MEAN
@@ -127,7 +128,7 @@ bool WebSupervisor::start() {
     stop_.store(false);
     if (!spawn()) return false;
     started_.store(true);
-    thread_ = std::thread(&WebSupervisor::runLoop, this);
+    thread_ = std::thread([this] { ba::platform::nombrarHilo("ba-web"); runLoop(); });
     log_.info(traducir("gateway", "ba-web: lanzado") +
               (cfg_.tunel ? " " + llenar(traducir("gateway", "(túnel 127.0.0.1:%1 -> %2)"),
                                          {std::to_string(cfg_.puerto), std::to_string(cfg_.upstream)})

@@ -27,9 +27,10 @@ Claude Desktop (u otro cliente con stdio):
 ```
 Se activa y desactiva en Configuración → **Asistente (MCP)**.
 
-## Qué puede hacer (697 herramientas)
+## Qué puede hacer
 
-El inventario completo, con lo que dice cada una, sus etiquetas de búsqueda y
+Unas 750 herramientas (el número cambia con cada versión: no se escribe acá
+para que no quede viejo). El inventario completo, con lo que dice cada una, sus etiquetas de búsqueda y
 en qué archivo vive: [`docs/mcp.json`](../mcp.json) (se regenera con
 `tools/docs/mcp-inventario.py --desde-codigo`, sin la app andando). Lo de abajo
 es un resumen por categoría.

@@ -14,6 +14,7 @@
 #include <set>
 #include "ajustes/Ajustes.hpp"
 #include "i18n/I18n.hpp"
+#include "platform/Hilo.hpp"
 
 namespace ba::app::audio {
 
@@ -1005,6 +1006,7 @@ void AudioRack::registrar(AudioRack* r, bool alta) {
     // adentro de un process() hace más de 200 ms.
     if (alta && !g_vigiaAndando.exchange(true))
         std::thread([] {
+            ba::platform::nombrarHilo("rack-vigia");
             for (;;) {
                 std::this_thread::sleep_for(std::chrono::milliseconds(50));
                 std::lock_guard<std::mutex> l2(racksMu());

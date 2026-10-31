@@ -5,7 +5,7 @@
 //   "Hay un unico modelo de estado, que es la fuente de verdad y tiene
 //   schemaVersion. El snapshot es su serializacion."). StateDoc ES la fuente de
 //   verdad; SnapshotStore (persist/SnapshotStore) solo lo serializa y lo
-//   persiste. No depende de Qt ni de libobs. El encode/decode JSON usa
+//   persiste. No depende de Qt. El encode/decode JSON usa
 //   nlohmann/json (header-only) porque el esquema es fijo: un objeto con tres
 //   campos escalares y un mapa de secciones (nombre -> blob JSON opaco).
 //

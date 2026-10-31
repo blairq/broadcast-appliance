@@ -39,7 +39,10 @@ if(APPLE)
                                                "-framework Foundation")
 endif()
 
-add_library(gstbafiltros MODULE filtros/plugin.cpp filtros/color.cpp filtros/croma.cpp filtros/recorte.cpp filtros/legal.cpp filtros/ptz.cpp filtros/mejora.cpp filtros/gl.cpp filtros/salida.cpp filtros/vista360.cpp filtros/sombra.cpp)
+# platform/Hilo.cpp: el nombre de los hilos de las franjas (sin enlazar todo ba_core).
+add_library(gstbafiltros MODULE filtros/plugin.cpp filtros/color.cpp filtros/croma.cpp filtros/recorte.cpp filtros/legal.cpp filtros/ptz.cpp filtros/mejora.cpp filtros/gl.cpp filtros/salida.cpp filtros/vista360.cpp filtros/sombra.cpp
+    "${CMAKE_SOURCE_DIR}/src/core/platform/Hilo.cpp")
+target_include_directories(gstbafiltros PRIVATE "${CMAKE_SOURCE_DIR}/src/core")
 ba_plugin_gst(gstbafiltros)
 if(WIN32)
     # ba360d3d12: la biblioteca D3D12 de GStreamer (de plugins-bad: API «inestable»).
@@ -94,8 +97,10 @@ ba_plugin_gst(gstbaplugins)
 # El ONNX Runtime de esta plataforma (cmake/BaOnnxRuntime.cmake).
 set(_ba_ort "${BA_ORT_LIB}")
 
-# diag/Utf8.cpp: los mensajes de ONNX Runtime en Windows vienen en cp1252.
-set(_srs superres/plugin.cpp superres/fsr.cpp superres/onnxsr.cpp superres/glsl.cpp "${CMAKE_SOURCE_DIR}/src/core/diag/Utf8.cpp")
+# diag/Utf8.cpp: los mensajes de ONNX Runtime en Windows vienen en cp1252; platform/Hilo.cpp:
+# el nombre de los hilos de la red y de las franjas.
+set(_srs superres/plugin.cpp superres/fsr.cpp superres/onnxsr.cpp superres/glsl.cpp "${CMAKE_SOURCE_DIR}/src/core/diag/Utf8.cpp"
+    "${CMAKE_SOURCE_DIR}/src/core/platform/Hilo.cpp")
 if(APPLE)
     list(APPEND _srs superres/vtsuperres_mac.mm superres/coremlsr_mac.mm superres/cvmemoria_mac.mm)
     set_source_files_properties(superres/vtsuperres_mac.mm superres/coremlsr_mac.mm superres/cvmemoria_mac.mm PROPERTIES COMPILE_FLAGS "-fobjc-arc")

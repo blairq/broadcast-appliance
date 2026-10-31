@@ -50,6 +50,7 @@
 // ============================================================================
 
 #include "comun.hpp"
+#include "platform/Hilo.hpp"
 
 #include <cstring>
 #include <string>
@@ -365,7 +366,10 @@ GstFlowReturn transformar(GstVideoFilter* vf, GstVideoFrame* in, GstVideoFrame* 
     const int hilos = H >= 480 ? static_cast<int>(std::clamp(std::thread::hardware_concurrency() / 2, 1u, 4u)) : 1;
     std::vector<std::thread> v;
     for (int k = 1; k < hilos; ++k)
-        v.emplace_back(escalar, src, ss, dst, ds, W, H, x0, y0, w, h, H * k / hilos, H * (k + 1) / hilos);
+        v.emplace_back([=] {
+            ba::platform::nombrarHilo("baptz-franja");
+            escalar(src, ss, dst, ds, W, H, x0, y0, w, h, H * k / hilos, H * (k + 1) / hilos);
+        });
     escalar(src, ss, dst, ds, W, H, x0, y0, w, h, 0, H / hilos);
     for (auto& t : v)
         t.join();

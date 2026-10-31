@@ -35,6 +35,7 @@
 #include "sala/PantallasSala.hpp"
 #include "ui/ConferenceClient.hpp"
 #include "ui/ConferenceViewModel.hpp"
+#include "platform/Hilo.hpp"
 
 namespace ba::app {
 namespace {
@@ -612,6 +613,7 @@ void PantallasViewModel::buscar() {
     emit cambio();
     d_->pedirDirecciones({});
     std::thread([this, puerta = d_->puerta]() {
+        ba::platform::nombrarHilo("tv-buscar");
         std::string err;
         auto encontrados = pt::buscar(kBusquedaSeg(), &err);
         alHiloPrincipal(puerta, [this, encontrados, err]() {
@@ -1051,6 +1053,7 @@ void PantallasViewModel::refrescar(const QString& id) {
     // una es como le hablamos nosotros, la otra es como nos encuentra el.
     const QString desde;
     std::thread([this, puerta = d_->puerta, id, host, puerto, desde]() {
+        ba::platform::nombrarHilo("tv-consultar");
         const pt::Estado r = pt::consultar(host.toStdString(), puerto, kTimeoutMs(), desde.toStdString());
         alHiloPrincipal(puerta, [this, id, r]() {
             Destino* d = d_->porId(id);
@@ -1262,6 +1265,7 @@ void PantallasViewModel::mandarUrl(const QString& id, const QString& url, const 
     // una es como le hablamos nosotros, la otra es como nos encuentra el.
     const QString desde;
     std::thread([this, puerta = d_->puerta, id, host, puerto, desde, url, tipo, que]() {
+        ba::platform::nombrarHilo("tv-mostrar");
         // `reload` en 0: la página no se recarga sola. Un QR o un mensaje no
         // cambian, y una recarga en medio de un evento se ve.
         const pt::Estado r =
@@ -1308,6 +1312,7 @@ void PantallasViewModel::parar(const QString& id) {
     // una es como le hablamos nosotros, la otra es como nos encuentra el.
     const QString desde;
     std::thread([this, puerta = d_->puerta, id, host, puerto, desde]() {
+        ba::platform::nombrarHilo("tv-parar");
         const pt::Estado r = pt::parar(host.toStdString(), puerto, kTimeoutMs(), desde.toStdString());
         alHiloPrincipal(puerta, [this, id, r]() {
             Destino* d = d_->porId(id);
@@ -1343,6 +1348,7 @@ void PantallasViewModel::setVolumen(const QString& id, double nivel) {
     // una es como le hablamos nosotros, la otra es como nos encuentra el.
     const QString desde;
     std::thread([this, puerta = d_->puerta, id, host, puerto, desde, nivel]() {
+        ba::platform::nombrarHilo("tv-volumen");
         const pt::Estado r =
             pt::volumen(host.toStdString(), puerto, nivel, -1, kTimeoutMs(), desde.toStdString());
         alHiloPrincipal(puerta, [this, id, r]() {
@@ -1372,6 +1378,7 @@ void PantallasViewModel::silenciar(const QString& id, bool si) {
     // una es como le hablamos nosotros, la otra es como nos encuentra el.
     const QString desde;
     std::thread([this, puerta = d_->puerta, id, host, puerto, desde, si]() {
+        ba::platform::nombrarHilo("tv-orden");
         const pt::Estado r =
             pt::volumen(host.toStdString(), puerto, -1, si ? 1 : 0, kTimeoutMs(), desde.toStdString());
         alHiloPrincipal(puerta, [this, id, r]() {

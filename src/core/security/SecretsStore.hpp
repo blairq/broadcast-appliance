@@ -8,7 +8,7 @@
 //   con Argon2id (implementación de referencia P-H-C/phc-winner-argon2).
 //   El plaintext es un objeto JSON {clave: valor} (nlohmann ordered_json), de
 //   modo que el orden de inserción se conserva y el formato es legible para
-//   herramientas. No depende de Qt ni de libobs.
+//   herramientas. No depende de Qt.
 //
 //   Formato en disco (nlohmann ordered_json, un único objeto):
 //     {

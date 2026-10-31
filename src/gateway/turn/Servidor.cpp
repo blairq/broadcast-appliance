@@ -19,6 +19,7 @@
 #include "net/WgCrypto.hpp" // randomBytes
 #include "turn/Ice.hpp"     // claveDeUsuario
 #include "turn/Stun.hpp"
+#include "platform/Hilo.hpp"
 
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
@@ -923,7 +924,7 @@ bool Servidor::start(std::string* err) {
         puertoUdpReal_ = 0;
     }
     corriendo_ = true;
-    hilo_ = std::thread([this] { bucle(); });
+    hilo_ = std::thread([this] { ba::platform::nombrarHilo("turn"); bucle(); });
     return true;
 }
 

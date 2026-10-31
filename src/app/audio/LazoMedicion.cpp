@@ -184,6 +184,7 @@ class LazoSim : public QObject, public LazoMedicion {
             });
         });
         QObject::connect(h, &QThread::finished, h, &QObject::deleteLater);
+        h->setObjectName(QStringLiteral("lazo-simulado"));
         h->start();
         return {};
     }

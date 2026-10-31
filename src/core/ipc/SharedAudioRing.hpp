@@ -4,19 +4,21 @@
 //   Ring buffer SPSC (un escritor, un lector) de audio en memoria compartida,
 //   el contrato IPC de audio de la spec 4.3. Transporta Float32 intercalado en
 //   bloques de 480 frames (10 ms a 48 kHz), cada uno con su timestamp QPC.
-//   No depende de Qt ni de libobs; corre sobre SharedMemoryRegion.
+//   No depende de Qt; corre sobre SharedMemoryRegion.
 //
 // Modelo de threading:
-//   - Un thread ESCRITOR llama a init()/push() (p. ej. el thread de audio de
-//     libobs en A, o el de conversacion en B).
+//   - Un thread ESCRITOR llama a init()/push() (p. ej. el hilo de streaming de
+//     baanillosink en A, o el de conversacion en B).
 //   - Un thread LECTOR llama a pop() (p. ej. el thread de audio del otro
 //     proceso).
 //   - El camino de datos NO toma locks bloqueantes: la sincronizacion es
 //     acquire/release sobre writeIndex/readIndex (std::atomic_ref<uint64_t>).
 //     Los contadores de underrun/overrun y lastWriteQpc se tocan con
 //     memory_order_relaxed porque son diagnosticos, no de control de flujo.
-//   - El objetivo de latencia del ring es 20 a 40 ms (spec 4.3): el caller
-//     dimensiona capacityBlocks para que el nivel de buffer caiga en ese rango.
+//   - La capacidad la elige el caller: hoy todos usan kDefaultCapacityBlocks
+//     (16 bloques = 160 ms; baanillosink en A, MediaPump en B). El nivel real
+//     del anillo (cuánto espera un bloque) lo fija la cadencia del lector, no
+//     esta clase: la spec 4.3 pedía 20 a 40 ms y no hay nada que lo sostenga.
 //
 // Estrategia de errores:
 //   - init() devuelve Status; en fallo deja el objeto vacio.

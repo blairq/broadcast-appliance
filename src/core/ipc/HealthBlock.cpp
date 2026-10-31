@@ -9,7 +9,7 @@
 //      snapshot consistente sin locks (thread-safe reads, lock-free).
 //
 //   2) Reloj QPC cruzado de plataforma (nowQpc()): QueryPerformanceCounter en
-//      Windows (el mismo reloj que libobs via os_gettime_ns, spec §4.3) y
+//      Windows (spec §4.3) y
 //      steady_clock en nanosegundos en el resto, para que los tests corran en
 //      Linux sin dependencias.
 //

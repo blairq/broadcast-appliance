@@ -15,6 +15,7 @@
 #include <algorithm>
 #include <chrono>
 #include "ajustes/Ajustes.hpp"
+#include "platform/Hilo.hpp"
 
 namespace ba::motor {
 
@@ -117,8 +118,8 @@ std::string Motor::iniciar() {
     });
     vistas_->ponerDesarmador([this](std::function<void()> f) { desarmarAparte(std::move(f)); });
     seguir_ = true;
-    hilo_ = std::thread([this]() { bucle(); });
-    hiloCuadros_ = std::thread([this]() { cuadros(); });
+    hilo_ = std::thread([this]() { ba::platform::nombrarHilo("motor"); bucle(); });
+    hiloCuadros_ = std::thread([this]() { ba::platform::nombrarHilo("motor-cuadros"); cuadros(); });
     return {};
 }
 
@@ -1132,7 +1133,11 @@ std::shared_future<void> Motor::desarmarAparte(std::function<void()> f) {
                                        return f.wait_for(std::chrono::seconds(0)) == std::future_status::ready;
                                    }),
                     desarmes_.end());
-    std::shared_future<void> sf = std::async(std::launch::async, std::move(f)).share();
+    auto conNombre = [f = std::move(f)] {
+        ba::platform::nombrarHilo("motor-desarmar");
+        f();
+    };
+    std::shared_future<void> sf = std::async(std::launch::async, std::move(conNombre)).share();
     desarmes_.push_back(sf);
     return sf;
 }

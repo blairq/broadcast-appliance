@@ -3,10 +3,11 @@
 //
 // Un pipeline propio por bus (PROGRAMA, una pista, un retorno…):
 //
-//   intersrc <id>:audio ! queue ! volume (fader, mute) ! level ─┐
-//   intersrc <id>:audio ! queue ! volume ! level ───────────────┼─► audiomixer ! [balimitador] ! [ebur128level]
-//   …                                                            ┘     ! level ! intersink bus:<nombre>
-//                                                     (pad: ganancia de escena con fundido)
+//   intersrc <id>:audio ! volume (fader, mute) ! level ─┐
+//   intersrc <id>:audio ! volume ! level ───────────────┼─► audiomixer ! [balimitador] ! [ebur128level]
+//   …                                                    ┘     ! level ! intersink bus:<nombre>
+//                                             (pad: ganancia de escena con fundido)
+//   (sin queue por rama: la cola es la del intersrc, que tira lo viejo)
 //
 // El PROGRAMA lleva el limitador del máster (balimitador, −1 dBTP de fábrica) y
 // el medidor de loudness (ebur128level: momentáneo, corto, integrado, LRA y true

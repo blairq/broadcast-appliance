@@ -5,6 +5,7 @@
 #include "platform/Paths.hpp"
 
 #include "diag/Registro.hpp"
+#include "platform/Hilo.hpp"
 
 #include <algorithm>
 #include <chrono>
@@ -39,7 +40,7 @@ void LatidoAire::iniciar(const fs::path& datos, std::function<void()> latir, std
     }
     ultimoUiNs_ = 0; // hasta el primer tick de la interfaz (carga del QML): sin "traba"
     corriendo_ = true;
-    hilo_ = std::thread([this] { bucle(); });
+    hilo_ = std::thread([this] { ba::platform::nombrarHilo("latido-aire"); bucle(); });
 }
 
 void LatidoAire::detener() {
@@ -113,6 +114,7 @@ void LatidoAire::escribirEstadoUi(bool trabada, std::uint64_t ms) const {
         e->activo = true;
     }
     std::thread([e] {
+        ba::platform::nombrarHilo("estado-ui");
         const fs::path dir = ba::platform::dataRoot() / "Runtime";
         for (;;) {
             std::string t;

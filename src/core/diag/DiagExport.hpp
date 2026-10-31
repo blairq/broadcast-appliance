@@ -9,7 +9,7 @@
 //   de todos los logs rotados. Es la pieza de control que el launcher invoca
 //   cuando el ingeniero pide el bundle; no toca secretos (los logs no los
 //   contienen y la configuracion se agrega mas adelante fuera de este alcance).
-//   No depende de Qt ni de libobs: solo std (filesystem + fstream) +
+//   No depende de Qt: solo std (filesystem + fstream) +
 //   nlohmann/json (header-only, ya enlazado en ba_core).
 //
 // Modelo de threading:

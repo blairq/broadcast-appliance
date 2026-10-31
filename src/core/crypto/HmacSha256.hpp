@@ -5,7 +5,7 @@
 //   mbedTLS (API generica mbedtls_md con MBEDTLS_MD_SHA256 e is_hmac=1). Es la
 //   primitiva de mensaje autenticado (MAC) que firma los tokens de senalizacion
 //   (spec 8.3) y que podra usar cualquier modulo que necesite integridad +
-//   autenticacion. No depende de Qt ni de libobs.
+//   autenticacion. No depende de Qt.
 //
 //   Se elige mbedTLS (libreria open-source, ya enlazada por ba_core) en lugar
 //   de reimplementar el HMAC a mano: elimina el riesgo de bugs de baja capa y

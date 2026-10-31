@@ -154,7 +154,8 @@ QVariantList opcionesUrlHost(const std::string& actual) {
 
 SettingsModel::SettingsModel(AppRuntime& rt, QObject* parent)
     : QAbstractListModel(parent), rt_(rt), idiomaAlArrancar_(rt.launcher().idioma) {
-    // Codificadores: los que esta libobs tiene de verdad + los alias.
+    // Codificadores: los alias que se ofrecen (cuál hay de verdad en esta máquina lo
+    // decide el motor al armar cada salida: motor/Salidas.cpp, elegirCodificador).
     QVariantList encoders = choices({{"auto", traducir("ajustes", "Automatico (hardware si hay)")},
                                      {"vaapi", "VAAPI (AMD / Intel, Linux)"},
                                      {"nvenc", "NVENC (NVIDIA)"},

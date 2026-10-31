@@ -60,6 +60,7 @@
 
 #include "comun.hpp"
 #include "diag/Utf8.hpp"
+#include "platform/Hilo.hpp"
 
 #if defined(BA_HAVE_ORT)
 #define ORT_API_MANUAL_INIT
@@ -385,7 +386,7 @@ struct Red {
 /// Un hilo que corre trabajos en orden (la red).
 class Obrero {
    public:
-    Obrero() : hilo_([this] { correr(); }) {}
+    Obrero() : hilo_([this] { ba::platform::nombrarHilo("baonnxsr"); correr(); }) {}
     ~Obrero() {
         {
             std::lock_guard<std::mutex> l(mu_);
@@ -1014,7 +1015,8 @@ static void enFranjas(int n, F f) {
     const int hilos = n >= 256 ? static_cast<int>(std::clamp(std::thread::hardware_concurrency() / 2, 1u, 8u)) : 1;
     std::vector<std::thread> v;
     for (int k = 1; k < hilos; ++k)
-        v.emplace_back(f, n * k / hilos, n * (k + 1) / hilos);
+        v.emplace_back([&f](int a, int b) { ba::platform::nombrarHilo("baonnxsr-franja"); f(a, b); }, n * k / hilos,
+                       n * (k + 1) / hilos);
     f(0, n / hilos);
     for (auto& t : v)
         t.join();

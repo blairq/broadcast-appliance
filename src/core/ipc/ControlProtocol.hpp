@@ -6,7 +6,7 @@
 //   control (hello, estado del tunel, lista de invitados, admitir/rechazar/
 //   expulsar/mutear, cambiar sala/PIN, estado de flujos, apagado ordenado) y
 //   resuelven peticiones con request/response. Es una libreria autocontenida y
-//   testeable por unidad: no depende de Qt, ni de libobs, ni de Win32. Solo
+//   testeable por unidad: no depende de Qt ni de Win32. Solo
 //   estandar.
 //
 //   El formato de cable es "mensaje con prefijo de longitud + JSON" (spec 4.1):

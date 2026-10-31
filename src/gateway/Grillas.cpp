@@ -15,6 +15,7 @@
 #include "i18n/I18n.hpp"
 #include "ipc/HealthBlock.hpp"
 #include "ipc/SpoutTransport.hpp"
+#include "platform/Hilo.hpp"
 
 #if BA_GATEWAY_HAVE_WEBRTC
 #include "third_party/libyuv/include/libyuv/convert.h"
@@ -147,7 +148,7 @@ void Grillas::start(int cps) {
     if (hilo_.joinable()) return;
     cps_ = std::clamp(cps, 5, 60);
     parar_ = false;
-    hilo_ = std::thread([this]() { bucle(); });
+    hilo_ = std::thread([this]() { ba::platform::nombrarHilo("grillas"); bucle(); });
 }
 
 void Grillas::stop() {

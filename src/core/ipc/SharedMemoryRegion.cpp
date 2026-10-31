@@ -4,8 +4,7 @@
 // Dos backends:
 //   - _WIN32: CreateFileMappingW/MapViewOfFile, namespace Local\, DACL
 //     restringida al usuario actual.
-//   - resto:  asignacion anonima (mmap) + registro de proceso name -> buffer,
-//     para que create/open compartan semantica y las pruebas corran en Linux.
+//   - resto (Linux/macOS): shm_open + ftruncate + mmap(MAP_SHARED) (ver abajo).
 //
 // Ninguna de las funciones publicas lanza: los fallos se expresan con Status.
 

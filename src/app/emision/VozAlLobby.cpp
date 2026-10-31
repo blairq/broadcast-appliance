@@ -9,6 +9,7 @@
 
 #include "dsp/Resampler.hpp"
 #include "ipc/HealthBlock.hpp"
+#include "platform/Hilo.hpp"
 
 #ifdef _WIN32
 #ifndef NOMINMAX
@@ -49,7 +50,7 @@ void VozAlLobby::abrir() {
              .ok)
         return;
     salir_ = false;
-    hilo_ = std::thread([this]() { bucle(); });
+    hilo_ = std::thread([this]() { ba::platform::nombrarHilo("voz-lobby"); bucle(); });
 }
 
 void VozAlLobby::cerrar() {

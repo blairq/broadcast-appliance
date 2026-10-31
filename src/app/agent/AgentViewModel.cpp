@@ -56,6 +56,7 @@
 #include "net/Credentials.hpp"
 #include "net/Descargas.hpp"
 #include "net/HttpsClient.hpp"
+#include "platform/Hilo.hpp"
 
 #include <QPointer>
 #include <chrono>
@@ -454,6 +455,7 @@ void AgentViewModel::probarModeloPropio() {
     emit notify(tr("Probando %1…").arg(QString::fromStdString(url)), "info");
     // En un hilo suelto: ver el comentario del header.
     std::thread([this, url, modelo, autorizacion]() {
+        ba::platform::nombrarHilo("agente-probar");
         net::HttpRequest req;
         req.method = "GET";
         req.url = url;
@@ -639,6 +641,7 @@ void AgentViewModel::checkUpdate() {
     emit latestChanged();
     if (checkThread_.joinable()) checkThread_.join();
     checkThread_ = std::thread([this, runtime, base]() {
+        ba::platform::nombrarHilo("agente-version");
         QString err;
         json nueva = fetchLatest(runtime, base, &err);
         QMetaObject::invokeMethod(this, [this, runtime, nueva, err]() {
@@ -704,6 +707,7 @@ void AgentViewModel::installNewest() {
     emit installChanged();
     if (checkThread_.joinable()) checkThread_.join();
     checkThread_ = std::thread([this, runtime, base, nombre]() {
+        ba::platform::nombrarHilo("agente-instalar");
         QString err;
         json nueva = fetchLatest(runtime, base, &err);
         QMetaObject::invokeMethod(this, [this, runtime, nueva, err, nombre]() {

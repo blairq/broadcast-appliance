@@ -5,6 +5,7 @@
 #include "i18n/I18n.hpp"
 
 #include "emision/FuentesApp.hpp"
+#include "platform/Hilo.hpp"
 
 #include <glib.h>
 
@@ -154,6 +155,7 @@ bool reproducir(std::uint64_t id, std::vector<QImage> cuadros, int fps, bool rep
 
     inst->vivo.store(true);
     inst->hilo = std::thread([inst, alEmpezar = std::move(alEmpezar)]() {
+        ba::platform::nombrarHilo("grafico");
         const auto paso = std::chrono::microseconds(1000000 / std::max(1, inst->fps));
         auto siguiente = std::chrono::steady_clock::now();
         std::size_t i = 0;

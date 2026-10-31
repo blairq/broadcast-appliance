@@ -73,12 +73,13 @@ entre procesos (launcher ↔ A ↔ B). Todas sin Qt/libobs.
   - `DuplexStream` (stream abstracto write/read) y `ControlEndpoint`
     (request/response + reconexión: `sendRequest`, `poll`, `connected`,
     `onDisconnect`; roles `kLauncher`/`kGateway`).
-- `SpoutTransport` — Abstracción del transporte de video SPOUT (spec §4.2)
-  sobre `SharedMemoryRegion`. Backend real `spoutDX` (DX11, solo Windows);
-  backend NULL/CPU en Linux para testear el contrato sin GPU.
-  - `FrameMeta` (frameIndex, qpc), `SpoutMetaLayout`, `SpoutMetaBlock`
-    (metadatos por frame en memoria compartida: `create`/`open`/`publish`/
-    `read`), `SlotConfig` (resolución fija por slot, 720p/1080p).
+- `SpoutTransport` — El canal de video entre procesos (spec §4.2) sobre
+  `SharedMemoryRegion`: el mismo en las tres plataformas, memoria compartida por
+  CPU con triple buffer y seqlock por buffer (sin texturas compartidas ni Spout2:
+  el nombre quedó de la spec original).
+  - `FrameMeta` (frameIndex, qpc: viajan en la cabecera de cada buffer),
+    `SlotConfig` (resolución fija por slot). `SpoutMetaBlock`/`SpoutMetaLayout`
+    son una primitiva suelta que el sender y el receiver no usan.
   - `SpoutSender` (`publish`, `send`, `published`) y `SpoutReceiver`
     (`subscribe`, `receive`, `hasData`). Move-only.
 

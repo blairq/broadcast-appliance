@@ -20,6 +20,7 @@
 
 #include "net/AsyncHttp.hpp"
 #include "net/Credentials.hpp"
+#include "platform/Hilo.hpp"
 
 namespace ba::app {
 
@@ -481,6 +482,7 @@ void TwitchClient::startChat() {
         self->chatStop_ = false;
         const QString login = self->user_.value("login").toString();
         self->chatThread_ = std::thread([self, token, login]() {
+            ba::platform::nombrarHilo("twitch-chat");
             if (self) self->chatLoop(token, login);
         });
     });

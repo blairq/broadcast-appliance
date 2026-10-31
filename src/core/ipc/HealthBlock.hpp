@@ -5,7 +5,7 @@
 //   por proceso, su PID, estado, el QPC del ultimo latido y su version. Es la
 //   primitiva que el launcher (Proceso 0) y los demas procesos leen para el
 //   watchdog: un heartbeat sin actualizar por mas de 5 s cuenta como cuelgue
-//   (spec §3.1.7). No depende de Qt ni de libobs.
+//   (spec §3.1.7). No depende de Qt.
 //
 // Layout (binario, estable entre procesos y entre versiones):
 //   [ HealthHeader ] [ HealthEntry x slotCount ]
@@ -28,8 +28,8 @@
 //   - El objeto HealthBlock es move-only y no es thread-safe por si mismo: es
 //     una vista (map) del buffer. La seguridad entre threads/procesos la aporta
 //     el layout (seqlock + atomic_ref), no esta clase.
-//   - Los tiempos son QPC (ver nowQpc()): el mismo reloj que libobs usa via
-//     os_gettime_ns, para que no haya deriva entre A y B (spec §4.3 "Reloj").
+//   - Los tiempos son QPC (ver nowQpc()): el reloj monotónico del sistema que
+//     leen A y B por igual, para que no haya deriva entre ellos (spec §4.3 "Reloj").
 //
 // Estrategia de errores:
 //   - create()/open() devuelven un Status {ok, code} y NUNCA lanzan. code == 0
@@ -226,8 +226,8 @@ class HealthBlock {
 
     /// Reloj QPC cruzado de plataforma, normalizado a NANOSEGUNDOS.
     ///
-    /// En Windows usa QueryPerformanceCounter (el mismo reloj que libobs via
-    /// os_gettime_ns, spec §4.3) y convierte los ticks a nanosegundos
+    /// En Windows usa QueryPerformanceCounter (spec §4.3; GStreamer lo traduce a
+    /// su reloj en gst-plugins/ipc/hora.hpp) y convierte los ticks a nanosegundos
     /// (dividiendo por QueryPerformanceFrequency). En otras plataformas
     /// (Linux/macOS, y las pruebas) usa steady_clock, que ya nace en
     /// nanosegundos. La unidad unica (ns) es la que exige isStale(): resta

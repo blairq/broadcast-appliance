@@ -6,7 +6,7 @@
 //   intentos de PIN con bloqueo (rate-limit / lockout). Es testeable por
 //   unidad: el reloj ("now") es inyectable y la validacion del PIN se inyecta
 //   como callback, de modo que el PIN no se guarda en claro y los tests son
-//   deterministas. No depende de Qt ni de libobs.
+//   deterministas. No depende de Qt.
 //
 //   Formato del token:  base64url(payload) + "." + base64url(mac)
 //     - payload = JSON compacto {"room":..., "exp":<unix-sec>, "nonce":...}

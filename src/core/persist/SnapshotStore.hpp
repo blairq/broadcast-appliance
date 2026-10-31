@@ -6,7 +6,7 @@
 //   StateDoc (la fuente de verdad, spec §11.1) en el disco de forma ATOMICA y
 //   con DEBOUNCE, de modo que mover un fader no genere cientos de escrituras
 //   (maximo una escritura fisica cada 500 ms; los eventos criticos se escriben
-//   de inmediato). No depende de Qt ni de libobs: solo std + llamadas de
+//   de inmediato). No depende de Qt: solo std + llamadas de
 //   sistema de archivo (temp + fsync + rename en Linux; temp +
 //   FlushFileBuffers + MoveFileExW en Windows).
 //

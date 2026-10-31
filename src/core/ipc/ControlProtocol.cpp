@@ -5,7 +5,7 @@
 // tipado (JSON con protocolVersion) y endpoint con request/response +
 // reconexion sobre un DuplexStream abstracto.
 //
-// No depende de Qt ni de libobs. Ninguna funcion publica lanza: los fallos se
+// No depende de Qt. Ninguna funcion publica lanza: los fallos se
 // expresan con bool (o un vector) y las salidas quedan en un estado coherente.
 // El JSON se serializa/deserializa con nlohmann/json (header-only), que se
 // encarga del escape de comillas/backslash y del UTF-8. `payload` se conserva

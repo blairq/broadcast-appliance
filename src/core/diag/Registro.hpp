@@ -4,7 +4,7 @@
 // EL PROBLEMA QUE VIENE A RESOLVER. Hasta acá cada proceso dejaba rastro a su
 // manera: el launcher escribía líneas estructuradas, el gateway también, y el
 // Proceso A volcaba lo que saliera por stdout y stderr —printf, avisos de Qt y
-// de QML, libobs— sin nivel, sin componente y sin hora. Cuando algo falla en
+// de QML, GStreamer— sin nivel, sin componente y sin hora. Cuando algo falla en
 // vivo, eso es un archivo de texto que hay que leer a ojo, y lo único que se
 // puede hacer con él es buscar una palabra.
 //
@@ -57,7 +57,7 @@ enum class Nivel : int {
 
 const char* nombreDeNivel(Nivel n);
 /// Entiende "traza", "info", "aviso"... y también "warn"/"warning"/"error" en
-/// inglés, que es lo que escupen Qt y libobs.
+/// inglés, que es lo que escupen Qt y GStreamer.
 bool nivelDeNombre(const std::string& s, Nivel& out);
 
 /// Una línea del registro, ya partida.

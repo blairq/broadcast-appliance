@@ -21,6 +21,7 @@
 
 #include "BancoSr.hpp"
 #include "video/SuperRes.hpp"
+#include "platform/Hilo.hpp"
 
 namespace ba::app::video {
 
@@ -205,6 +206,7 @@ std::string BancoSuperRes::correr(const json& op) {
     cancelar_ = false;
     if (hilo_.joinable()) hilo_.join();
     hilo_ = std::thread([this, cands, tamanos, segundos, fpsN = fpsN, fpsD = fpsD]() {
+        ba::platform::nombrarHilo("banco-superres");
         // Nada del banco puede tirar abajo la app: una excepción termina la medición y se dice.
         try {
             trabajar(cands, tamanos, segundos, fpsN, fpsD);

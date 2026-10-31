@@ -1,7 +1,7 @@
 // test_spout_transport.cpp
 //
-// Pruebas unitarias de la abstraccion de transporte de video SPOUT (spec 4.2)
-// sobre el backend NULL/CPU (ruta de pruebas, sin GPU). Sin framework externo:
+// Pruebas unitarias del canal de video entre procesos (spec 4.2): memoria
+// compartida con triple buffer, el mismo transporte que en produccion. Sin framework externo:
 // un macro minimo de CHECK y un main() que devuelve 0 si todo pasa y 1 si algo
 // falla (lo registra CTest).
 //
@@ -80,7 +80,7 @@ void testMetaRoundTrip() {
     CHECK(again.qpc == 123);
 }
 
-// Caso 2: round-trip sender/receiver sobre el backend NULL.
+// Caso 2: round-trip sender/receiver.
 void testSenderReceiverRoundTrip() {
     const wchar_t* name = L"BA.Test.Slot.1";
     const SlotConfig cfg{1280, 720};

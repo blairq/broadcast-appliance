@@ -19,6 +19,7 @@
 #include <CoreAudio/CoreAudio.h>
 #endif
 #include "comun/HoraMonotonica.hpp"
+#include "platform/Hilo.hpp"
 
 #include <algorithm>
 #include <cstdio>
@@ -106,6 +107,7 @@ int canalesDe(const QAudioDevice& d, bool entrada, EquipoAudio* equipo = nullptr
             c.pidiendo.insert(clave);
             QPointer<EquipoAudio> avisar(equipo);
             std::thread([uid, clave, entrada, avisar]() {
+                ba::platform::nombrarHilo("coreaudio-canales");
                 const int n = canalesCoreAudio(uid, entrada);
                 {
                     CacheCanales& cc = cacheCanales();

@@ -1,7 +1,7 @@
 // src/app/video/Sincronia.hpp — cuánto atrasa una entrada de video respecto de otra
 //
 // Con las HUELLAS de dos entradas (la tarjeta `sincro` del grafo: por cada
-// cuadro, la hora de libobs y una grilla de luma de 16x9) se busca el
+// cuadro, su hora y una grilla de luma de 16x9) se busca el
 // corrimiento, en cuadros, que mejor las alinea. Dos señales:
 //
 //   - ESPACIAL: el cambio de la grilla de un cuadro al siguiente. Si las dos
@@ -34,7 +34,7 @@ struct Medicion {
     std::string motivo;  ///< por qué no se pudo (si !ok)
 };
 
-/// :param ta, ga: horas (ns de libobs) y grillas (144 bytes por cuadro) de A.
+/// :param ta, ga: horas (ns) y grillas (144 bytes por cuadro) de A.
 /// :param maxMs: hasta cuánto desfase se busca, para un lado y para el otro.
 Medicion medirDesfase(const std::vector<std::uint64_t>& ta, const std::vector<std::uint8_t>& ga,
                       const std::vector<std::uint64_t>& tb, const std::vector<std::uint8_t>& gb,

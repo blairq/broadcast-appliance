@@ -7,6 +7,7 @@
 #include "i18n/I18n.hpp"
 
 #include "proxy/Certificados.hpp"
+#include "platform/Hilo.hpp"
 
 #include <algorithm>
 #include <cctype>
@@ -356,7 +357,7 @@ bool ProxyNombres::start(const std::string& autofirmadoPem, const std::string& c
                         {e}));
     }
     stop_ = false;
-    hilo_ = std::thread([this]() { bucle(); });
+    hilo_ = std::thread([this]() { ba::platform::nombrarHilo("proxy-nombres"); bucle(); });
     if (log_)
         log_(d.http >= 0
                  ? llenar(traducir("gateway", "proxy: atendiendo %1 y %2 para *.%3 (%4 servicios)"),

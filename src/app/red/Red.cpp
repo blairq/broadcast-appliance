@@ -15,6 +15,7 @@
 
 #include "emision/BroadcastEngine.hpp"
 #include "emision/FuentesApp.hpp"
+#include "platform/Hilo.hpp"
 
 #include <QCoreApplication>
 #include <QDateTime>
@@ -666,6 +667,7 @@ void Red::probarUrls(const std::string& ip, Listo listo) {
 void Red::analizar(const QString& uri, Listo listo) {
     QPointer<Red> yo = this;
     std::thread([yo, uri, listo]() {
+        ba::platform::nombrarHilo("red-analizar");
         json r;
 #if defined(BA_HAVE_GST)
         std::string err;

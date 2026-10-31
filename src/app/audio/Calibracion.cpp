@@ -7,6 +7,7 @@
 #include "audio/LspDsp.hpp"
 #include "audio/Modules.hpp"
 #include "audio/RackManager.hpp"
+#include "platform/Hilo.hpp"
 #include <QCoreApplication>
 
 #include <QDateTime>
@@ -458,6 +459,7 @@ QString Calibracion::medir(const QString& parlante, const QString& punto, const 
         if (hilo_.joinable()) hilo_.join();
         ba_medicion* m = med_;
         hilo_ = std::thread([this, yo, gen, base, m, cap = std::move(cap)]() mutable {
+            ba::platform::nombrarHilo("calibracion");
             std::vector<float> ir;
             json r = procesarCaptura(lspdsp::api(), m, kFrecuencia, cap, &ir);
             QMetaObject::invokeMethod(

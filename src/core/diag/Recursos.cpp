@@ -2,6 +2,7 @@
 // src/core/diag/Recursos.cpp — ver Recursos.hpp
 // ============================================================================
 #include "diag/Recursos.hpp"
+#include "platform/Hilo.hpp"
 
 #include <algorithm>
 #include <array>
@@ -651,19 +652,6 @@ class Sistema {
 
 #endif
 
-void nombrarHilo() {
-#if defined(_WIN32)
-    using Poner = HRESULT(WINAPI*)(HANDLE, PCWSTR);
-    if (const auto poner = reinterpret_cast<Poner>(
-            reinterpret_cast<void*>(GetProcAddress(GetModuleHandleW(L"kernel32.dll"), "SetThreadDescription"))))
-        poner(GetCurrentThread(), L"recursos");
-#elif defined(__APPLE__)
-    pthread_setname_np("recursos");
-#elif defined(__linux__)
-    pthread_setname_np(pthread_self(), "recursos");
-#endif
-}
-
 // --- El historial ----------------------------------------------------------------
 
 /// Las series que se guardan (en este orden en cada punto).
@@ -787,7 +775,7 @@ void Recursos::arrancar(std::function<void()> alMedir, int periodoMs) {
         d_->parar = false;
     }
     d_->hilo = std::thread([this, alMedir = std::move(alMedir), periodoMs]() {
-        nombrarHilo();
+        ba::platform::nombrarHilo("recursos");
         medir(); // la primera vuelta solo anota los contadores
         for (;;) {
             {

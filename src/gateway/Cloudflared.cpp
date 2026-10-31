@@ -33,6 +33,7 @@
 
 #include "Log.hpp"
 #include "i18n/I18n.hpp"
+#include "platform/Hilo.hpp"
 
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
@@ -76,7 +77,7 @@ bool CloudflaredSupervisor::start() {
     if (!spawn()) {
         log_.warn(traducir("gateway", "cloudflared: no se pudo lanzar (se reintentara con backoff)"), -1);
     }
-    thread_ = std::thread(&CloudflaredSupervisor::runLoop, this);
+    thread_ = std::thread([this] { ba::platform::nombrarHilo("cloudflared"); runLoop(); });
     started_ = true;
     log_.info(llenar(traducir("gateway", "cloudflared: supervisor arrancado (metrics=127.0.0.1:%1)"),
                      {std::to_string(metricsPort_)}));

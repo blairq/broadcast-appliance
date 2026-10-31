@@ -9,6 +9,7 @@
 #include "Prioridad.hpp"
 
 #include "platform/GstEntorno.hpp"
+#include "platform/Hilo.hpp"
 
 #include <gst/base/gstbasetransform.h>
 #include <gst/net/net.h>
@@ -235,6 +236,7 @@ bool iniciarGStreamer(std::string* error, const std::function<void()>& esperando
     };
     auto estado = std::make_shared<Estado>();
     std::thread hilo([estado]() {
+        ba::platform::nombrarHilo("gst-iniciar");
         iniciarGStreamer(nullptr);
         std::lock_guard<std::mutex> l(estado->mu);
         estado->listo = true;
@@ -380,7 +382,7 @@ GstClockTime Reloj::ahora() const {
 void Reloj::adoptar(GstElement* pipeline) const {
     registrarPipeline(pipeline); // para el mapa (Mapa.hpp)
     darContextoGpu(pipeline);    // el GL del motor, el mismo para todos
-    prioridadEnPipeline(pipeline); // sus hilos de streaming, en los núcleos rápidos
+    prioridadEnPipeline(pipeline); // sus hilos de streaming: nombre y núcleos rápidos
     gst_pipeline_use_clock(GST_PIPELINE(pipeline), clock_);
     gst_element_set_start_time(pipeline, GST_CLOCK_TIME_NONE); // el base_time no lo cambia solo
     gst_element_set_base_time(pipeline, base_);

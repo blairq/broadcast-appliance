@@ -28,6 +28,7 @@
 #include <fstream>
 #include <set>
 #include "ajustes/Ajustes.hpp"
+#include "platform/Hilo.hpp"
 
 namespace fs = std::filesystem;
 
@@ -168,7 +169,7 @@ Matriz::Matriz(fs::path dataRoot, QObject* parent) : QObject(parent), root_(std:
         }
     });
     lento_.start(std::max(500, ajustes::entero("audio.rescanEquiposMs", 3000)));
-    hilo_ = std::thread([this]() { bucleMezcla(); });
+    hilo_ = std::thread([this]() { ba::platform::nombrarHilo("matriz"); bucleMezcla(); });
 }
 
 Matriz::~Matriz() {
