@@ -9,7 +9,9 @@
 //
 // Los sellos (frameIndex y QPC) van en la cabecera de cada buffer, con el cuadro.
 // La cabecera del slot lleva además cuándo publicó el productor el último y cada cuánto
-// publica: con eso el lector duerme hasta el próximo (ipc/Mirada.hpp, F2-14).
+// publica: con eso el lector duerme hasta el próximo (ipc/Mirada.hpp, F2-14). Y el
+// timbre (ipc/Timbre.hpp, F3-13): el escritor toca después de anunciar cada cuadro y el
+// lector duerme hasta el toque.
 //
 // Ninguna funcion publica lanza: publish()/subscribe() y send()/receive()
 // devuelven bool; los fallos de create/open del meta se expresan con Status.
@@ -69,6 +71,8 @@ struct alignas(kSpoutCacheLine) VideoBufferHeader {
 
 // Versión 2: el período y la hora del último envío (en el hueco antes de pubCount: el
 // tamaño de la cabecera no cambia) y, por buffer, la hora del contenido y el tamaño real.
+// El timbre ocupa los 16 bytes que quedaban del hueco (sin cambiar la versión: uno viejo
+// lo deja en cero, que es «no toca»).
 struct VideoSlotHeader {
     std::uint32_t magic = 0;
     std::uint32_t version = 2;
@@ -78,10 +82,11 @@ struct VideoSlotHeader {
     std::uint64_t instanceId = 0;
     std::uint64_t periodoNs = 0; // cada cuánto publica el productor (atomic_ref; 0 = no se sabe)
     std::uint64_t envioNs = 0;   // cuándo publicó el último (steady_clock en ns; atomic_ref)
+    TimbreCompartido timbre;     // F3-13
     alignas(kSpoutCacheLine) std::uint64_t pubCount = 0; // frames publicados (atomic_ref)
     VideoBufferHeader buffers[kVideoBuffers];
 };
-static_assert(offsetof(VideoSlotHeader, pubCount) == kSpoutCacheLine, "el período y el envío caben antes de pubCount");
+static_assert(offsetof(VideoSlotHeader, pubCount) == kSpoutCacheLine, "el período, el envío y el timbre caben antes de pubCount");
 static_assert(sizeof(VideoBufferHeader) == kSpoutCacheLine, "la cabecera de un buffer es una línea de caché");
 
 namespace {
@@ -232,10 +237,11 @@ bool SpoutMetaBlock::valid() const { return region_.valid() && layout_ != nullpt
 
 // --- SpoutSender ------------------------------------------------------------
 
-SpoutSender::~SpoutSender() = default;
+// El timbre vive en la región: se suelta antes de desmapearla (al destruir y al reemplazar).
+SpoutSender::~SpoutSender() { timbre_.soltar(); }
 
 SpoutSender::SpoutSender(SpoutSender&& other) noexcept
-    : region_(std::move(other.region_)), header_(other.header_), published_(other.published_),
+    : region_(std::move(other.region_)), timbre_(std::move(other.timbre_)), header_(other.header_), published_(other.published_),
       periodoDicho_(other.periodoDicho_), anteriorNs_(other.anteriorNs_) {
     other.header_ = nullptr;
     other.published_ = false;
@@ -243,6 +249,7 @@ SpoutSender::SpoutSender(SpoutSender&& other) noexcept
 
 SpoutSender& SpoutSender::operator=(SpoutSender&& other) noexcept {
     if (this != &other) {
+        timbre_ = std::move(other.timbre_);
         region_ = std::move(other.region_);
         header_ = other.header_;
         published_ = other.published_;
@@ -279,6 +286,7 @@ bool SpoutSender::publish(const wchar_t* name, const SlotConfig& cfg) {
     h->instanceId = newInstanceId();
     h->periodoNs = cfg.periodoNs;
     h->envioNs = 0;
+    h->timbre = TimbreCompartido{};
     h->pubCount = 0;
     for (auto& b : h->buffers) {
         b = VideoBufferHeader{};
@@ -287,6 +295,7 @@ bool SpoutSender::publish(const wchar_t* name, const SlotConfig& cfg) {
 
     region_ = std::move(region);
     header_ = h;
+    timbre_.enganchar(&h->timbre, name, true);
     published_ = true;
     periodoDicho_ = cfg.periodoNs != 0;
     anteriorNs_ = 0;
@@ -332,6 +341,7 @@ bool SpoutSender::send(const void* pixels, std::size_t bytes, const FrameMeta& m
                    std::memory_order_relaxed);
     anteriorNs_ = ahora;
     AtomicRef<std::uint64_t>(header_->envioNs).store(ahora, std::memory_order_relaxed);
+    timbre_.tocar(); // el que duerme en esperarNuevo se despierta ya
     return true;
 }
 
@@ -339,10 +349,10 @@ bool SpoutSender::published() const { return published_; }
 
 // --- SpoutReceiver ----------------------------------------------------------
 
-SpoutReceiver::~SpoutReceiver() = default;
+SpoutReceiver::~SpoutReceiver() { timbre_.soltar(); }
 
 SpoutReceiver::SpoutReceiver(SpoutReceiver&& other) noexcept
-    : region_(std::move(other.region_)), header_(other.header_), name_(std::move(other.name_)),
+    : region_(std::move(other.region_)), timbre_(std::move(other.timbre_)), header_(other.header_), name_(std::move(other.name_)),
       instanceId_(other.instanceId_), lastSeenPub_(other.lastSeenPub_), lastFrameNs_(other.lastFrameNs_),
       lastCheckNs_(other.lastCheckNs_), subscribed_(other.subscribed_), temblor_(other.temblor_) {
     other.header_ = nullptr;
@@ -351,6 +361,7 @@ SpoutReceiver::SpoutReceiver(SpoutReceiver&& other) noexcept
 
 SpoutReceiver& SpoutReceiver::operator=(SpoutReceiver&& other) noexcept {
     if (this != &other) {
+        timbre_ = std::move(other.timbre_);
         region_ = std::move(other.region_);
         header_ = other.header_;
         name_ = std::move(other.name_);
@@ -380,6 +391,7 @@ bool SpoutReceiver::subscribe(const wchar_t* name) {
     }
     region_ = std::move(region);
     header_ = h;
+    timbre_.enganchar(&h->timbre, name, false);
     name_ = name;
     instanceId_ = h->instanceId;
     // El primer receive() solo entrega frames NUEVOS.
@@ -460,6 +472,14 @@ std::chrono::steady_clock::time_point SpoutReceiver::proximaMirada(std::chrono::
     const std::uint64_t periodo = periodoNs();
     return mirada::proxima(ahora, AtomicRef<std::uint64_t>(header_->envioNs).load(std::memory_order_relaxed), periodo,
                            pasoQuieto, temblor_.adelanto(periodo));
+}
+
+bool SpoutReceiver::esperarNuevo(std::uint32_t visto, std::chrono::steady_clock::duration pasoQuieto,
+                                 std::chrono::steady_clock::time_point aMasTardar) {
+    // Con timbre, hasta el toque (el plazo es por si el productor se murió sin tocar); sin,
+    // hasta el próximo esperado.
+    const auto plazo = timbre_.vivo() ? std::chrono::steady_clock::now() + mirada::kVigia : proximaMirada(pasoQuieto);
+    return timbre_.esperar(visto, std::min(plazo, aMasTardar));
 }
 
 bool SpoutReceiver::stale() {

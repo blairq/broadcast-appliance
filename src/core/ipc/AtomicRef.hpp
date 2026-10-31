@@ -46,6 +46,9 @@ template <typename T> class AtomicRef {
     T fetch_add(T v, std::memory_order o = std::memory_order_seq_cst) const noexcept {
         return __atomic_fetch_add(p_, v, order(o));
     }
+    T fetch_sub(T v, std::memory_order o = std::memory_order_seq_cst) const noexcept {
+        return __atomic_fetch_sub(p_, v, order(o));
+    }
 
    private:
     static constexpr int order(std::memory_order o) noexcept {

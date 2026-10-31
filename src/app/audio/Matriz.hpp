@@ -16,19 +16,27 @@
 //   * ENTRADAS VIRTUALES: un bus nuestro cuya mezcla vuelve a la app como una
 //     fuente (una submezcla: «todos los micrófonos», con un compresor encima).
 //
-// Los buses virtuales los mezcla un hilo propio a partir del audio de cada
-// fuente después de su cadena (una toma del motor: escucharEntrada); una
-// entrada virtual vuelve al motor por la cola de su `bavoz`. Eso agrega un
-// colchón de ~20-30 ms, y SOLO a lo que pasa por un bus virtual: lo que va a
-// las pistas nativas no se entera. Nivel, pan y mute existen en los cruces de
-// los buses virtuales, y se muestran solo si se activan en ese cruce.
+// Los buses virtuales están EN EL MOTOR (F3-08, Motor::matrizBus): un bus de oído
+// de GStreamer con lo que le manda cada entrada (después de su cadena), con el reloj
+// del estudio. Una salida virtual sale por su placa como la escucha (su id estable,
+// el Vigía; si la placa se va, muda hasta que vuelva: nunca a los parlantes del
+// sistema); una entrada virtual es una entrada del motor que lee el bus (intersrc).
+// Agrega la latencia de oído (~20 ms) y SOLO a lo que pasa por un bus virtual: lo que
+// va a las pistas nativas no se entera. Nivel, pan y mute existen en los cruces de los
+// buses virtuales, y se muestran solo si se activan en ese cruce.
+//
+// LO QUE FALTA PASAR AL MOTOR (docs/arquitectura/04-plan-unificado.md, F3-08): las
+// salidas FÍSICAS del equipo (EquipoAudio: un par de canales de una placa de varios)
+// las sigue mezclando un hilo de acá con tomas de cada entrada (escucharEntrada) y las
+// saca Qt Multimedia; las entradas físicas también entran por Qt (a la cola de un
+// `bavoz`). Entre medio, anillos sin candado (RingEstereo).
 //
 // Sin lazos: una entrada virtual no puede mandarse al bus del que sale (ni
 // armar un círculo de buses).
 //
 // Se guarda en Config/audio-matriz.json. Hilos: todo lo de la interfaz en el
-// principal; el audio de las fuentes llega en el de GStreamer (solo se copia)
-// y la mezcla en el suyo.
+// principal; lo del motor, en su cola; para las salidas físicas, el audio de las
+// fuentes llega en el de GStreamer (solo se copia) y la mezcla en el suyo.
 // ============================================================================
 #pragma once
 
@@ -39,6 +47,7 @@
 #include <QVariantMap>
 
 #include <atomic>
+#include <cstdint>
 #include <filesystem>
 #include <functional>
 #include <map>
@@ -167,10 +176,9 @@ class Matriz : public QObject {
     void guardar() const;
     void cargar();
     void armarPlan();
-    /// Abre el sink de una salida virtual en su placa, o lo suelta si la placa no está. "" o por qué no.
-    QString abrirSalida(Bus& b);
-    /// Las salidas virtuales cuya placa volvió (se reabren) o se fue (se sueltan): ReaperturaSalidas.
-    void reabrirSalidas();
+    /// Las placas guardadas con el id de Qt (antes de F3-08) pasan al del motor, por el
+    /// nombre, cuando el Vigía las ve. true si cambió alguna.
+    bool migrarPlacas();
     void sincronizarTomas();
     void bucleMezcla();
     void leerMedidores();
@@ -179,8 +187,9 @@ class Matriz : public QObject {
     void usarEquipo();
     std::function<std::set<std::string>()> usadasPorOtros_;
     std::set<std::string> ultimosOtros_; ///< lo último que se miró (para no reabrir en cada vuelta)
-    /// La entrada del motor de una entrada virtual (lee la cola de su `bavoz`).
-    bool crearEntradaVirtual(const std::string& nombre);
+    /// La entrada del motor de una entrada virtual (lee su bus del motor).
+    bool crearEntradaVirtual(const std::string& nombre, const std::string& busId);
+    std::uint64_t genPlacas_ = 0;      ///< la generación del Vigía que ya se mostró (dispositivos)
 
     std::filesystem::path root_;
     std::string pistas_[kPistas];

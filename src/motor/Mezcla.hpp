@@ -24,6 +24,9 @@
 // La ganancia de ESCENA (el audio de una fuente de escena suena solo si su
 // escena está al aire) es aparte del fader del operador: va en el pad del
 // mezclador y cambia con un fundido.
+//
+// Con `panorama` (los buses de la Matriz, F3-08) cada rama lleva además un
+// `audiopanorama` (balance): con el volumen, una ganancia por canal (ponerCanales).
 // ============================================================================
 #pragma once
 
@@ -60,6 +63,8 @@ class Mezcla {
         /// > 0: la anticipación del limitador (ms; de fábrica la suya, 5). Un bus de oído usa
         /// la mínima: cada ms de anticipación es un ms más de demora en el oído.
         double anticipoLimitadorMs = -1;
+        /// Una ganancia por canal en cada rama (ponerCanales): los buses de la Matriz.
+        bool panorama = false;
     };
     Mezcla(Reloj& reloj, std::string nombre, Opciones op);
     Mezcla(Reloj& reloj, std::string nombre) : Mezcla(reloj, std::move(nombre), Opciones{}) {}
@@ -82,6 +87,9 @@ class Mezcla {
     void ponerMute(const std::string& id, bool mute);
     /// La ganancia de escena (0…1) con un fundido de `ms`.
     void ponerEscena(const std::string& id, double ganancia, int ms);
+    /// Con `panorama`: la ganancia de cada canal (lineal, 0…8; la Matriz: nivel y pan). Es el
+    /// fader (el mayor de los dos) y el balance (baja el otro): exacto para cualquier par.
+    void ponerCanales(const std::string& id, double izq, double der);
 
     /// El volumen de todo el bus (lineal, 0…1) con un fundido de `ms` (el FTB baja el audio).
     void ponerMaster(double lineal, int ms);
@@ -109,6 +117,7 @@ class Mezcla {
     struct Rama {
         GstElement* src = nullptr;
         GstElement* vol = nullptr;
+        GstElement* pan = nullptr; ///< audiopanorama (con `panorama`)
         GstElement* nivel = nullptr;
         GstPad* pad = nullptr; ///< el del mezclador
         double fader = 1.0;
@@ -132,6 +141,7 @@ class Mezcla {
     nlohmann::json loudness_ = nlohmann::json::object();
     mutable std::mutex mu_;
     unsigned serieRamas_ = 0; ///< sufijo de los nombres de elementos (únicos aunque dos ids se limpien igual)
+    bool panorama_ = false;
     std::map<std::string, Rama> ramas_;
     std::int64_t latenciaNs_ = -1;
     std::int64_t salidaNs_ = 0;

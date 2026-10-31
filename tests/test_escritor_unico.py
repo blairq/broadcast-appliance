@@ -24,6 +24,8 @@ ESCRITOR = re.compile(r"\bstd::ofstream\b|\bofstream\s*[a-zA-Z_(]|\bQSaveFile\s+
 
 # Lo de antes del escritor único, por archivo (relativo a src/). SOLO PUEDE BAJAR.
 DEUDA = {
+    # No es estado: la sonda de «¿se puede escribir en esta carpeta?» antes de grabar (se borra al toque).
+    "motor/Salidas.cpp": 1,
     "app/agent/AgentViewModel.cpp": 1,
     "app/agent/AlarmaSonora.cpp": 2,
     "app/agent/AlertEngine.cpp": 1,
@@ -102,7 +104,6 @@ DEUDA = {
     "launcher/Integrity.cpp": 1,
     "launcher/ShadowCopy.cpp": 1,
     "launcher/Supervisor.cpp": 2,
-    "launcher/Volcados.cpp": 1,
     "modelo-llama/main.cpp": 1,
 }
 

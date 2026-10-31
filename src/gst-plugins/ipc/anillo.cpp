@@ -16,6 +16,8 @@
 //     invitado, que va por otra cadena), contada por muestras mientras siga al
 //     día (sin el temblor de la escritura); si se corre más de 40 ms, se vuelve
 //     a tomar de la hora del gateway.
+//   - Sin bloque nuevo, duerme hasta que el gateway toca el timbre del anillo
+//     (ipc/Timbre.hpp, F3-13); con uno que no toca, hasta su próximo bloque (Mirada).
 //   - Declara 10 ms de latencia (un bloque).
 // ============================================================================
 
@@ -43,10 +45,10 @@ G_END_DECLS
 
 struct _BaAnillo {
     GstPushSrc parent;
-    std::mutex* mu;           ///< `canal`
+    std::mutex* mu;           ///< `canal`, y reemplazar `ring` (despertarlo es de otro hilo: desbloquear)
     std::string* canal;
     std::atomic<bool> parar;  ///< unlock: salir de la espera
-    // Solo el hilo de streaming:
+    // Solo el hilo de streaming (reemplazar `ring`, con mu):
     ba::ipc::SharedAudioRing* ring;
     bool abierto;
     std::string* abiertoCanal;
@@ -62,8 +64,9 @@ enum { PROP_0, PROP_CANAL };
 
 static GstStaticPadTemplate srcTpl = GST_STATIC_PAD_TEMPLATE("src", GST_PAD_SRC, GST_PAD_ALWAYS, GST_STATIC_CAPS(CAPS));
 
-/// Sin bloque: hasta justo después del próximo que el gateway debería escribir (su último
-/// más 10 ms, de la cabecera del anillo: ipc/Mirada.hpp, F2-14). A 4 ms fijos eran 250
+/// Sin bloque: hasta que el gateway toque el timbre (F3-13) o, si no toca, hasta justo
+/// después del próximo que debería escribir (su último más 10 ms, de la cabecera del
+/// anillo: ipc/Mirada.hpp, F2-14). A 4 ms fijos eran 250
 /// despertadas por segundo por canal; quieto hace más de 1 s (un lugar vacío, un invitado
 /// callado), de a un bloque: al volver, el primero llega hasta 10 ms tarde y los que siguen
 /// ya están en el anillo.
@@ -80,14 +83,20 @@ static GstFlowReturn crear(GstPushSrc* ps, GstBuffer** out) {
         }
         // Otro canal (cambiaron la propiedad) o el gateway rehízo el anillo: reabrir.
         if (a->abierto && (canal != *a->abiertoCanal || a->ring->stale())) {
+            std::lock_guard<std::mutex> l(*a->mu);
             *a->ring = ba::ipc::SharedAudioRing{};
             a->abierto = false;
         }
         if (!a->abierto) {
             const std::wstring w(canal.begin(), canal.end());
-            if (canal.empty() || !ba::ipc::SharedAudioRing::openReader(w.c_str(), *a->ring).ok ||
-                a->ring->header()->channels != ar::kDefaultChannels) {
-                *a->ring = ba::ipc::SharedAudioRing{};
+            bool ok = false;
+            {
+                std::lock_guard<std::mutex> l(*a->mu);
+                ok = !canal.empty() && ba::ipc::SharedAudioRing::openReader(w.c_str(), *a->ring).ok &&
+                     a->ring->header()->channels == ar::kDefaultChannels;
+                if (!ok) *a->ring = ba::ipc::SharedAudioRing{};
+            }
+            if (!ok) {
                 if (!ba::ipc_gst::esperar(a->parar, 100)) return GST_FLOW_FLUSHING;
                 continue;
             }
@@ -97,13 +106,10 @@ static GstFlowReturn crear(GstPushSrc* ps, GstBuffer** out) {
             a->proxima = GST_CLOCK_TIME_NONE;
         }
         ba::ipc::PoppedBlock meta;
-        // Sin bloque: hasta el próximo que se espera (kPasoQuieto).
-        if (!a->ring->pop(a->bloque->data(), meta)) {
-            if (!ba::ipc_gst::esperarHasta(a->parar, a->ring->proximaMirada(kPasoQuieto))) return GST_FLOW_FLUSHING;
-            continue;
-        }
-        if (meta.isSilence) { // underrun (pop da silencio y true): no habla o no está
-            if (!ba::ipc_gst::esperarHasta(a->parar, a->ring->proximaMirada(kPasoQuieto))) return GST_FLOW_FLUSHING;
+        // Sin bloque: hasta que el gateway toque (o el próximo que se espera, kPasoQuieto).
+        const std::uint32_t visto = a->ring->timbre();
+        if (!a->ring->pop(a->bloque->data(), meta) || meta.isSilence) { // underrun (pop da silencio y true): no habla o no está
+            if (!ba::ipc_gst::esperarNuevo(a->parar, *a->ring, visto, kPasoQuieto)) return GST_FLOW_FLUSHING;
             continue;
         }
         // La hora: la del gateway (al escribir el bloque, que empezó un bloque
@@ -128,7 +134,10 @@ static GstFlowReturn crear(GstPushSrc* ps, GstBuffer** out) {
 }
 
 static gboolean desbloquear(GstBaseSrc* bs) {
-    BA_ANILLO(bs)->parar = true;
+    auto* a = BA_ANILLO(bs);
+    a->parar = true;
+    std::lock_guard<std::mutex> l(*a->mu);
+    a->ring->despertar(); // si duerme en el timbre
     return TRUE;
 }
 
@@ -139,6 +148,7 @@ static gboolean desbloquearFin(GstBaseSrc* bs) {
 
 static gboolean alParar(GstBaseSrc* bs) {
     auto* a = BA_ANILLO(bs);
+    std::lock_guard<std::mutex> l(*a->mu);
     *a->ring = ba::ipc::SharedAudioRing{};
     a->abierto = false;
     return TRUE;
@@ -162,6 +172,7 @@ static void ponerPropiedad(GObject* o, guint id, const GValue* v, GParamSpec* ps
     const gchar* x = g_value_get_string(v);
     std::lock_guard<std::mutex> l(*a->mu);
     *a->canal = x != nullptr ? x : "";
+    a->ring->despertar(); // que se cambie ya, aunque el anillo de antes esté callado
 }
 
 static void leerPropiedad(GObject* o, guint id, GValue* v, GParamSpec* ps) {

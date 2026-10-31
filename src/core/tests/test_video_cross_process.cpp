@@ -24,12 +24,19 @@
 //   3. Rendimiento del fallback CPU a 1080p: tiempo de send + receive por
 //      frame (informativo, con un tope holgado para detectar regresiones
 //      groseras).
+//   5. El timbre entre procesos (F3-13): un productor a 30 cps en otro proceso y el
+//      lector durmiendo con Mirada (F2-14) o con el timbre (esperarNuevo): vueltas
+//      del lector por segundo y la demora del salto (de que el otro proceso publica a
+//      que este lo lee).
 
+#include "ipc/Mirada.hpp"
 #include "ipc/SharedAudioRing.hpp"
 #include "ipc/SpoutTransport.hpp"
+#include "platform/Ritmo.hpp"
 #include "platform/Paths.hpp"
 #include "platform/Process.hpp"
 
+#include <algorithm>
 #include <atomic>
 #include <chrono>
 #include <csignal>
@@ -135,6 +142,23 @@ int produce(const std::string& name, int frames, int base) {
     while (!g_stopChild.load()) {
         std::this_thread::sleep_for(20ms);
     }
+    return 0;
+}
+
+/// --child latido <nombre> <frames>: publica 64x36 a 30 cps (plazo absoluto) con la hora
+/// de envío en el sello (mirada::ahoraNs, el mismo reloj en los dos procesos).
+int latido(const std::string& name, int frames) {
+    SpoutSender snd;
+    if (!snd.publish(widen(name).c_str(), SlotConfig{64, 36, 33'333'333})) return 2;
+    std::vector<std::uint8_t> px(64u * 36u * 4u, 0x40);
+    std::this_thread::sleep_for(200ms); // que el lector se suscriba
+    auto proximo = std::chrono::steady_clock::now();
+    for (int i = 1; i <= frames && !g_stopChild.load(); ++i) {
+        proximo += std::chrono::microseconds(33'333);
+        ba::platform::dormirHasta(proximo);
+        snd.send(px.data(), px.size(), FrameMeta{static_cast<std::uint64_t>(i), ba::ipc::mirada::ahoraNs()});
+    }
+    while (!g_stopChild.load()) std::this_thread::sleep_for(20ms);
     return 0;
 }
 
@@ -359,7 +383,60 @@ void testRingProducerRestart() {
 
 } // namespace
 
+// ---------------------------------------------------------------------------
+// 5) El timbre entre procesos (F3-13)
+// ---------------------------------------------------------------------------
+
+void testTimbreEntreProcesos() {
+    constexpr int kCuadros = 90; // 3 s
+    for (const bool conTimbre : {false, true}) {
+        const std::string name = "BA.Test.Video." + std::to_string(currentPid()) + (conTimbre ? ".timbre" : ".mirada");
+        ba::platform::Process producer;
+        CHECK(ba::platform::Process::spawn(childOpts({"latido", name, std::to_string(kCuadros)}), producer));
+        SpoutReceiver rcv;
+        CHECK(subscribeWithRetry(rcv, widen(name), 5000));
+        std::vector<std::uint8_t> px(rcv.frameBytes());
+        std::uint64_t ultimo = 0, vueltas = 0, leidos = 0, demora = 0, demoraMax = 0;
+        std::chrono::steady_clock::time_point desde{};
+        const auto limite = std::chrono::steady_clock::now() + 10s;
+        while (ultimo < static_cast<std::uint64_t>(kCuadros) && std::chrono::steady_clock::now() < limite) {
+            const std::uint32_t visto = rcv.timbre();
+            FrameMeta m{};
+            if (rcv.receive(px.data(), px.size(), m)) {
+                const std::uint64_t d = ba::ipc::mirada::ahoraNs() - m.qpc;
+                if (leidos == 0) desde = std::chrono::steady_clock::now();
+                ++leidos;
+                demora += d;
+                demoraMax = std::max(demoraMax, d);
+                ultimo = m.frameIndex;
+                continue;
+            }
+            if (leidos > 0) ++vueltas; // las veces que se duerme, desde el primer cuadro
+            if (conTimbre)
+                rcv.esperarNuevo(visto, 15ms);
+            else
+                ba::platform::dormirHasta(rcv.proximaMirada(15ms));
+        }
+        const double seg = std::chrono::duration<double>(std::chrono::steady_clock::now() - desde).count();
+        const double mediaMs = static_cast<double>(demora) / static_cast<double>(std::max<std::uint64_t>(1, leidos)) / 1e6;
+        std::printf("  %s: %llu de %d cuadros, %.1f esperas/s, demora del salto media %.3f ms, máx %.3f ms\n",
+                    conTimbre ? "timbre (F3-13)" : "Mirada (F2-14)", static_cast<unsigned long long>(leidos), kCuadros,
+                    static_cast<double>(vueltas) / seg, mediaMs, static_cast<double>(demoraMax) / 1e6);
+        CHECK(leidos + 1 >= static_cast<std::uint64_t>(kCuadros));
+        if (conTimbre && rcv.tocaTimbre()) {
+            CHECK(mediaMs < 0.3);                              // decenas de µs, no el margen de Mirada
+            CHECK(static_cast<double>(vueltas) / seg < 40.0); // una vuelta por cuadro (y alguna de más)
+        }
+        producer.terminate();
+        producer.wait(5000);
+    }
+}
+
 int main(int argc, char** argv) {
+    if (argc >= 5 && std::strcmp(argv[1], "--child") == 0 && std::strcmp(argv[2], "latido") == 0) {
+        std::signal(SIGTERM, onTerm);
+        return latido(argv[3], std::atoi(argv[4]));
+    }
     if (argc >= 4 && std::strcmp(argv[1], "--child") == 0 && std::strcmp(argv[2], "ring") == 0) {
         std::signal(SIGTERM, onTerm);
         return produceRing(argv[3]);
@@ -373,6 +450,7 @@ int main(int argc, char** argv) {
     testProducerRestart();
     testRingProducerRestart();
     testThroughput1080p();
+    testTimbreEntreProcesos();
     if (g_failures == 0) {
         std::printf("test_video_cross_process: OK\n");
         return 0;

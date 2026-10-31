@@ -69,7 +69,7 @@ std::string nombreSeguro(const std::string& id) {
 } // namespace
 
 Mezcla::Mezcla(Reloj& reloj, std::string nombre, Opciones op)
-    : reloj_(reloj), nombre_(std::move(nombre)), medidores_(op.medidores), latenciaFijaNs_(op.latenciaFijaNs) {
+    : reloj_(reloj), nombre_(std::move(nombre)), medidores_(op.medidores), latenciaFijaNs_(op.latenciaFijaNs), panorama_(op.panorama) {
     std::string salida;
     if (op.limitador) {
         if (hayFabrica("balimitador"))
@@ -160,10 +160,12 @@ void Mezcla::agregar(const std::string& id) {
     r.src = gst_element_factory_make("intersrc", ("src_" + n).c_str());
     r.vol = gst_element_factory_make("volume", ("vol_" + n).c_str());
     r.nivel = gst_element_factory_make(medidores_ ? "level" : "identity", ("nivel_" + n).c_str());
-    if (r.src == nullptr || r.vol == nullptr || r.nivel == nullptr) {
-        for (GstElement* e : {r.src, r.vol, r.nivel})
+    // El balance: «simple» baja un canal y deja el otro (con el volumen, cualquier par).
+    r.pan = panorama_ ? gst_element_factory_make("audiopanorama", ("pan_" + n).c_str()) : nullptr;
+    if (r.src == nullptr || r.vol == nullptr || r.nivel == nullptr || (panorama_ && r.pan == nullptr)) {
+        for (GstElement* e : {r.src, r.vol, r.pan, r.nivel})
             if (e != nullptr) gst_object_unref(e);
-        error_ = traducir("motor", "falta intersrc, queue, volume o level");
+        error_ = traducir("motor", "falta intersrc, queue, volume, audiopanorama o level");
         registrar(Nivel::Error, llenar(traducir("motor", "mezcla %1: %2"), {nombre_, error_}));
         return;
     }
@@ -175,8 +177,14 @@ void Mezcla::agregar(const std::string& id) {
     if (medidores_)
         g_object_set(r.nivel, "interval", static_cast<guint64>(ajustes::msANs("audio.medidorMs", 50)), "post-messages", TRUE, "peak-ttl",
                      static_cast<guint64>(ajustes::msANs("audio.picoMs", 300)), nullptr);
-    gst_bin_add_many(GST_BIN(pipeline_), r.src, r.vol, r.nivel, nullptr);
-    enlazarSinConsultar({r.src, r.vol, r.nivel}); // sin consultar caps al productor que se está armando
+    if (r.pan != nullptr) {
+        gst_util_set_object_arg(G_OBJECT(r.pan), "method", "simple");
+        gst_bin_add_many(GST_BIN(pipeline_), r.src, r.vol, r.pan, r.nivel, nullptr);
+        enlazarSinConsultar({r.src, r.vol, r.pan, r.nivel});
+    } else {
+        gst_bin_add_many(GST_BIN(pipeline_), r.src, r.vol, r.nivel, nullptr);
+        enlazarSinConsultar({r.src, r.vol, r.nivel}); // sin consultar caps al productor que se está armando
+    }
     r.pad = gst_element_request_pad_simple(mezclador_, "sink_%u");
     GstPad* sale = gst_element_get_static_pad(r.nivel, "src");
     gst_pad_link_full(sale, r.pad, GST_PAD_LINK_CHECK_NOTHING);
@@ -201,19 +209,22 @@ void Mezcla::agregar(const std::string& id) {
                           },
                           nullptr, nullptr);
     gst_object_unref(sale);
-    for (GstElement* e : {r.nivel, r.vol, r.src}) gst_element_sync_state_with_parent(e);
+    for (GstElement* e : {r.nivel, r.pan, r.vol, r.src})
+        if (e != nullptr) gst_element_sync_state_with_parent(e);
     ramas_[id] = r;
 }
 
 void Mezcla::soltar(Rama& r) {
     // Se para la rama de atrás para adelante y se suelta el pad del mezclador.
-    for (GstElement* e : {r.src, r.vol, r.nivel}) gst_element_set_state(e, GST_STATE_NULL);
+    for (GstElement* e : {r.src, r.vol, r.pan, r.nivel})
+        if (e != nullptr) gst_element_set_state(e, GST_STATE_NULL);
     if (r.pad != nullptr) {
         gst_element_release_request_pad(mezclador_, r.pad);
         gst_object_unref(r.pad);
         r.pad = nullptr;
     }
-    gst_bin_remove_many(GST_BIN(pipeline_), r.src, r.vol, r.nivel, nullptr);
+    for (GstElement* e : {r.src, r.vol, r.pan, r.nivel})
+        if (e != nullptr) gst_bin_remove(GST_BIN(pipeline_), e);
 }
 
 void Mezcla::quitar(const std::string& id) {
@@ -235,6 +246,20 @@ void Mezcla::ponerNivel(const std::string& id, double lineal) {
     if (it == ramas_.end()) return;
     it->second.fader = std::clamp(lineal, 0.0, 4.0);
     g_object_set(it->second.vol, "volume", it->second.fader, nullptr);
+}
+
+void Mezcla::ponerCanales(const std::string& id, double izq, double der) {
+    std::lock_guard<std::mutex> l(mu_);
+    auto it = ramas_.find(id);
+    if (it == ramas_.end() || it->second.pan == nullptr) return;
+    izq = std::clamp(izq, 0.0, 8.0);
+    der = std::clamp(der, 0.0, 8.0);
+    const double mayor = std::max(izq, der);
+    // «simple»: con el balance a la derecha (p > 0) la izquierda sale por (1 − p), y al revés.
+    const double p = mayor <= 0.0 ? 0.0 : izq >= der ? -(1.0 - der / mayor) : 1.0 - izq / mayor;
+    it->second.fader = mayor;
+    g_object_set(it->second.vol, "volume", mayor, nullptr);
+    g_object_set(it->second.pan, "panorama", static_cast<gfloat>(p), nullptr);
 }
 
 void Mezcla::ponerMute(const std::string& id, bool mute) {

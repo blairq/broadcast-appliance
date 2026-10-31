@@ -53,6 +53,7 @@
 #include "HealthBlock.hpp"
 #include "MedidaTransporte.hpp"
 #include "Mirada.hpp"
+#include "Timbre.hpp"
 #include "SharedMemoryRegion.hpp"
 
 namespace ba::ipc {
@@ -83,6 +84,9 @@ struct alignas(audio_ring::kCacheLine) RingHeader {
     uint32_t sampleRate = audio_ring::kSampleRate;
     uint32_t channels = audio_ring::kDefaultChannels;
     uint64_t capacityFrames = 0; // = capacityBlocks * kBlockFrames
+    /// El timbre (ipc/Timbre.hpp, F3-13): el escritor toca con cada bloque. En el hueco de
+    /// la primera línea: ni el tamaño ni la versión cambian (uno viejo lo deja en cero).
+    TimbreCompartido timbre;
 
     // Lineas de caché propias: el escritor toca writeIndex, el lector readIndex.
     alignas(audio_ring::kCacheLine) uint64_t writeIndex = 0; // en BLOQUES
@@ -118,7 +122,8 @@ struct PoppedBlock {
 class SharedAudioRing {
    public:
     SharedAudioRing() = default;
-    ~SharedAudioRing() = default;
+    /// El timbre vive en la región: se suelta antes de desmapearla.
+    ~SharedAudioRing() { timbre_.soltar(); }
 
     SharedAudioRing(SharedAudioRing&&) noexcept = default;
     SharedAudioRing& operator=(SharedAudioRing&&) noexcept = default;
@@ -190,6 +195,15 @@ class SharedAudioRing {
     /// próximo bloque que el escritor debería escribir (el último más 10 ms, ipc/Mirada.hpp);
     /// `pasoQuieto` si no escribe hace más de 1 s.
     std::chrono::steady_clock::time_point proximaMirada(std::chrono::steady_clock::duration pasoQuieto) const;
+    /// Lado LECTOR, el timbre (F3-13): anotar timbre() ANTES de mirar si hay bloques y, si no
+    /// hay, esperarNuevo(visto, pasoQuieto): duerme hasta que el escritor toque o, si no toca
+    /// (uno viejo, o un sistema sin la primitiva), hasta proximaMirada. true si tocaron.
+    uint32_t timbre() const { return timbre_.visto(); }
+    bool esperarNuevo(uint32_t visto, std::chrono::steady_clock::duration pasoQuieto,
+                      std::chrono::steady_clock::time_point aMasTardar = std::chrono::steady_clock::time_point::max());
+    bool tocaTimbre() const { return timbre_.vivo(); }
+    /// Despierta al que duerme en esperarNuevo (otro hilo del mismo proceso: parar).
+    void despertar() { timbre_.despertar(); }
     /// Cuánto después de su sello escribió el escritor el último bloque (ns; -1 si todavía
     /// no escribió). Con un escritor que sella con la hora del medio (baanillosink: el
     /// programa) es lo que tarda su audio en llegar: la latencia de la mezcla. El gateway
@@ -227,6 +241,9 @@ class SharedAudioRing {
     // (No const en el retorno: el area es compartida; el caller castea a const.)
     float* blockAt(uint64_t blockIndex) const;
 
+    // El timbre ANTES que la región: al mover, se suelta el viejo mientras su región
+    // todavía está mapeada (al destruir lo suelta el destructor).
+    Timbre timbre_;
     SharedMemoryRegion region_;
     bool isWriter_ = false;
     // Estado cacheado del lector para detectar cambio de generacion.

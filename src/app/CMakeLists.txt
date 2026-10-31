@@ -1142,6 +1142,10 @@ endif()
         endif()
         add_test(NAME test_matrix_mixer COMMAND test_matrix_mixer)
         set_tests_properties(test_matrix_mixer PROPERTIES SKIP_RETURN_CODE 77)
+        # El anillo estéreo sin candado de la Matriz y los racks (F3-08): dos hilos y deriva sintética.
+        add_executable(test_ring_estereo tests/test_ring_estereo.cpp)
+        target_include_directories(test_ring_estereo PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+        add_test(NAME test_ring_estereo COMMAND test_ring_estereo)
         add_executable(test_audio_rack tests/test_audio_rack.cpp audio/AudioRack.cpp audio/Analyzer.cpp
                                        audio/ClapHost.cpp audio/ClapEditor.cpp)
         target_include_directories(test_audio_rack PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}" "${BA_CLAP_INC}")

@@ -70,12 +70,21 @@
 // bus:programa:<id>; vistas «programa:<id>», «preview:<id>», «limpio:<id>».
 // El audio de cada salida va al gateway: la por omisión a BA.Audio.ContentForReturn
 // (como siempre), las demás a BA.Audio.Salida.<id> (etapa 2).
+// LA MATRIZ (F3-08): los buses virtuales de la Matriz de la app son buses de OÍDO del
+// motor (bus:matriz-<id>), cada envío con su ganancia por canal (nivel y pan). Uno con
+// placa (una salida virtual) sale por ella como la escucha (su id estable, el Vigía, se
+// rearma si la placa va y vuelve, BuffersAudio); el productor de uno sin placa (una
+// entrada virtual) lo lee una entrada (`intersrc producer-name=bus:matriz-<id>`). Antes
+// los mezclaba un hilo de la app con las tomas de cada entrada (escucharEntrada) y los
+// sacaba con Qt Multimedia: un colchón y un dominio de reloj más.
+//
 // POR AHORA siguen a la salida por omisión: las pistas 2-6 y el multiview (su
 // PROGRAMA y su PREVIEW son los de la por omisión; el tally rojo es «al aire en
 // ALGUNA salida»). Los retornos son de cada salida; la escucha, de la que se elige.
 // ============================================================================
 #pragma once
 
+#include "Candado.hpp"
 #include "Sondas.hpp"
 
 #include "Composicion.hpp"
@@ -219,6 +228,20 @@ class Motor {
     void escuchaDispositivo(const std::string& id);
     void escuchaNivel(double lineal);
 
+    // --- La Matriz (F3-08: ver arriba) ---
+    /// Lo que manda una entrada a un bus de la Matriz: la ganancia de cada canal (lineal).
+    struct EnvioMatriz {
+        std::string entrada;
+        double izq = 1.0, der = 1.0;
+    };
+    /// Arma (o acomoda: solo lo que cambió) el bus `id` con esos envíos. `dispositivo` no
+    /// vacío: sale por esa placa (su id estable; "default" = la del sistema); si no está,
+    /// muda hasta que vuelva (sin ir a la del sistema).
+    std::string matrizBus(const std::string& id, const std::vector<EnvioMatriz>& envios, const std::string& dispositivo);
+    std::string quitarMatrizBus(const std::string& id);
+    /// Lo que entrega un bus de la Matriz (para la entrada de una entrada virtual).
+    static std::string productorMatriz(const std::string& id) { return "bus:matriz-" + id; }
+
     // --- El máster ---
     /// El volumen de todo el programa de la salida (0…1) con fundido (el FTB baja el audio).
     void masterVolumen(double lineal, int ms, const std::string& salida = "");
@@ -291,9 +314,9 @@ class Motor {
     /// Las órdenes que se encolaron y fallaron (ver orden): `que` es la función.
     /// Se llama desde el hilo del motor.
     void alFallar(std::function<void(const std::string& que, const std::string& error)> fn);
-    /// Espera a que el hilo del motor corra todo lo que se encoló hasta ahora.
-    /// Para los tests y para hilos que no son la interfaz: la interfaz NUNCA
-    /// espera (si lo hace, queda en el registro).
+    /// Espera a que el hilo del motor corra todo lo que se encoló hasta ahora (y avise
+    /// lo que falló: alFallar ya se llamó). Para los tests y para hilos que no son la
+    /// interfaz: la interfaz NUNCA espera (si lo hace, queda en el registro).
     void esperarCola();
     /// Que la próxima vuelta del bucle (20 ms) publique la foto, sin esperar las
     /// 10 vueltas de siempre: lo pide quien acaba de cambiar algo.
@@ -378,8 +401,12 @@ class Motor {
     std::shared_future<void> desarmarSalida(Salida& s, bool aparte);
     /// El programa de la salida al anillo BA.Audio.<canal> (con la latencia de los puentes). nullptr si no.
     GstElement* armarPuente(Salida& s, const std::string& canal);
+    // LOS «...Ya»: corren con el candado tomado (las órdenes de la cola, el bucle); no lo
+    // piden, lo exigen (BA_CON_CANDADO, Candado.hpp). Las públicas los encolan.
     std::string crearSalidaYa(const std::string& id, const std::string& nombre);
     std::string borrarSalidaYa(const std::string& id);
+    std::string productorDeVideoYa(const std::string& bus, std::int64_t* latenciaNs, const std::string& salida);
+    nlohmann::json estadoYa() const;
     Mezcla* pista(int n, bool crear);
     /// El retorno del invitado n en la salida `sid` (lo arma de nuevo con lo que pide
     /// retornos_[n]; si está apagado, lo saca). false si no arrancó.
@@ -398,7 +425,7 @@ class Motor {
     Config cfg_;
     std::unique_ptr<Reloj> reloj_;
     GstObject* relojPublicado_ = nullptr; ///< GstNetTimeProvider
-    mutable std::recursive_mutex mu_;
+    mutable MutexMotor mu_; ///< el candado del motor (Candado.hpp): común, sin reentradas
     std::mutex sondasM_;
     std::atomic<bool> permitirBajar_{false};
     std::map<std::string, std::unique_ptr<Sondas>> sondasAparte_; ///< las del programa y la mezcla
@@ -471,7 +498,17 @@ class Motor {
     std::string orden(const char* que, std::function<std::string()> f);
     /// A la cola siempre, sin correrla nunca directo (desde los trabajadores).
     void encolar(const char* que, std::function<std::string()> f);
-    void correrOrdenes();
+    /// Lo que deja una vuelta de órdenes para después de soltar el candado: las que
+    /// fallaron (a alFallar) y los que esperan la cola (esperarCola), en ese orden.
+    struct DespuesDeLasOrdenes {
+        std::vector<std::pair<const char*, std::string>> fallas;
+        std::vector<std::shared_ptr<std::promise<void>>> esperan;
+    };
+    /// Corre lo encolado (con el candado).
+    DespuesDeLasOrdenes correrOrdenes();
+    /// Avisa las fallas y suelta a los que esperan (sin el candado).
+    void despuesDeLasOrdenes(DespuesDeLasOrdenes& d);
+    std::vector<std::shared_ptr<std::promise<void>>> esperanCola_; ///< bajo mu_ (las órdenes de esperarCola)
     // Lo que hacen de verdad las funciones públicas que se encolan.
     std::string agregarEntradaYa(const std::string& id, const nlohmann::json& ajustes, const nlohmann::json& opciones);
     std::string actualizarEntradaYa(const std::string& id, const nlohmann::json& ajustes);
@@ -501,6 +538,16 @@ class Motor {
     std::string ponerEscuchaYa(const std::string& id, bool on);
     void escuchaDispositivoYa(const std::string& id);
     void escuchaNivelYa(double lineal);
+    std::string matrizBusYa(const std::string& id, const std::vector<EnvioMatriz>& envios, const std::string& dispositivo);
+    std::string quitarMatrizBusYa(const std::string& id);
+    /// Un bus de la Matriz: su mezcla y, si sale por una placa, su salida (una Escucha).
+    struct BusMatriz {
+        std::unique_ptr<Mezcla> mezcla;
+        std::unique_ptr<Escucha> salida;
+        std::string dispositivo;
+        std::map<std::string, std::pair<double, double>> envios; ///< entrada → (izq, der)
+    };
+    std::map<std::string, BusMatriz> matriz_; ///< bajo mu_
     void masterVolumenYa(double lineal, int ms, const std::string& salida);
     bool ponerLimitadorYa(bool activo, double techoDb, const std::string& salida);
     std::string ponerLoudnessYa(bool agc, double objetivoLufs, double techoDb, const std::string& salida);
