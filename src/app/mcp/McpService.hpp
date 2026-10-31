@@ -27,6 +27,7 @@
 #include <memory>
 
 #include "mcp/McpCore.hpp"
+#include "mcp/McpFoto.hpp"
 
 class QQuickWindow;
 class QThreadPool;
@@ -115,6 +116,8 @@ class McpService : public QObject {
     /// Marcas de la salvaguarda (contenido no confiable, herramientas mediadas)
     /// y la aprobacion en la barra del operador.
     void applySecurity();
+    /// Lo que leen las herramientas de la foto (McpFoto.hpp): cada una, segura entre hilos.
+    FuentesDeFoto fuentesDeFoto();
     void applyApprovalPolicy();
     bool roomHasUntrusted();
 

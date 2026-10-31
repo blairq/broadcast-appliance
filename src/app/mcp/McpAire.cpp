@@ -100,8 +100,9 @@ bool McpAire::esDeAire(const std::string& h, const json& args) const {
 json McpAire::lista() const {
     json out = json::array();
     std::set<std::string> declaradas;
-    for (const Tool& t : registro_.tools()) {
-        if (t.clase != Clase::Aire) continue;
+    // Con el candado del registro: mcp_aire_lista corre en el pool (F3-03).
+    registro_.recorrer([&](const Tool& t) {
+        if (t.clase != Clase::Aire) return;
         declaradas.insert(t.name);
         json e{{"herramienta", t.name},
                {"clase", t.aireSi == AireSi::Siempre ? "aire" : "aire_si"},
@@ -109,7 +110,7 @@ json McpAire::lista() const {
                {"por_que", t.porQueAire != nullptr ? ba::i18n::traducir("mcp", t.porQueAire) : std::string()}};
         if (t.aireSi != AireSi::Siempre) e["cuando"] = nombre(t.aireSi);
         out.push_back(std::move(e));
-    }
+    });
     std::lock_guard<std::mutex> l(mu_);
     for (const auto& h : agregadas_)
         if (!declaradas.count(h)) out.push_back({{"herramienta", h}, {"clase", "aire"}, {"fija", false}});

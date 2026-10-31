@@ -94,6 +94,9 @@
 #include "ui/ListModels.hpp"
 #include "ui/OperatorMessages.hpp"
 #include "ui/PropertiesModel.hpp"
+#include "ui/RecursosViewModel.hpp"
+#include "control/BusEventos.hpp"
+#include "video/ElementosGst.hpp"
 #include "video/FuentesCaptura.hpp"
 #include "Capturas.hpp" // del motor: hayCapturaDeVentana
 #include "ui/SettingsModel.hpp"
@@ -654,6 +657,9 @@ McpService::McpService(AppRuntime& rt, StudioViewModel& vm, QObject* parent)
     // McpCore en cada initialize, porque depende del rol del cliente) y
     // cuesta unos 400 tokens.
     applySecurity();
+    // N4: el límite de frecuencia por sesión de lo que cambia algo (ver McpCore::LimiteFrecuencia).
+    core_.setLimiteFrecuencia({ba::ajustes::numero("mcp.limitePorSegundo", 10.0), ba::ajustes::entero("mcp.limiteRafaga", 30),
+                               ba::ajustes::numero("mcp.limiteAirePorSegundo", 2.0), ba::ajustes::entero("mcp.limiteAireRafaga", 8)});
     // Con todas las herramientas ya registradas (ver verificarJuegos). Los nombres
     // viejos de las renombradas en bloque van a su Tool::antes, y para eso tienen
     // que existir (ver McpRenombres.cpp).
@@ -891,6 +897,91 @@ QString McpService::url() const { return QString("http://127.0.0.1:%1/mcp").arg(
 QString McpService::token() const { return http_ ? http_->token() : QString(); }
 
 // ============================================================================
+// Lo que leen las herramientas de la foto (McpFoto.hpp), con por qué es seguro
+// ============================================================================
+
+FuentesDeFoto McpService::fuentesDeFoto() {
+    AppRuntime& rt = rt_;
+    StudioViewModel& vm = vm_;
+    FuentesDeFoto f;
+    // El documento de aire y el latido: «desde cualquier hilo» (AppRuntime.hpp; ya los lee
+    // la foto de emergencia desde el control). La foto de las salidas la publica el hilo
+    // de salidas bajo su candado; la lista de salidas, el reloj del motor.
+    f.aire = [&rt]() { return salidas::aJson(rt.documentoAire().foto()); };
+    f.hayAire = [&rt]() { return rt.engine().haySalida(); };
+    f.latido = [&rt]() { return rt.latido().estado(); };
+    f.salidasMotor = [&rt]() { return rt.engine().fotoSalidas(); };
+    f.salidasPublicadas = [&rt]() { return rt.salidasPublicadas(); };
+    // Lo pone el launcher por argumentos al arrancar y no cambia más.
+    f.modoSeguro = []() {
+        const ba::fault::ModoSeguro& ms = ba::fault::delProceso();
+        json apagadas = json::array();
+        for (ba::fault::Pieza p : ms.apagadas()) apagadas.push_back(ba::fault::clave(p));
+        return json{{"activo", ms.activo()}, {"nivel", ms.nivel}, {"apagadas", apagadas}, {"escenas", !ms.escenasVacias()}};
+    };
+    // El muestreador mide en su hilo y guarda bajo su candado; RecursosViewModel vive lo
+    // que la app (el puntero se toma acá, en la interfaz).
+    if (RecursosViewModel* rec = vm.recursos(); rec != nullptr) {
+        f.recursos = [rec](int hist, int paso) { return rec->muestreador().informe(hist, paso); };
+        f.servicio = [rec]() { return rec->fotoServicio(); };
+    }
+    f.derivaPlacas = []() { return ba::motor::derivaDePlacas(); };
+    f.elementosGst = []() { return video::revisarElementosGst(); };
+    control::BusEventos& bus = vm.bus();
+    f.temas = [&bus](const std::string& patron) { return bus.temas(patron); };
+    f.ultimoTema = [&bus](const std::string& tema) { return bus.ultimo(tema); };
+    f.logs = ba::platform::dataRoot() / "Logs";
+    // Lo que solo sabe la interfaz: corre en ella (CopiaDeLaInterfaz).
+    f.statusInterfaz = [&rt, &vm]() {
+        const EngineStatus st = rt.engine().status();
+        json room = json::object();
+        auto* conf = static_cast<ConferenceViewModel*>(vm.conference());
+        room["online"] = conf->online();
+        room["name"] = conf->room().toStdString();
+        room["waiting"] = static_cast<JsonListModel*>(conf->waiting())->count();
+        room["inside"] = static_cast<JsonListModel*>(conf->inside())->count();
+        room["speakerMode"] = conf->speakerMode();
+        json onAir = json::array();
+        for (const QVariant& v : conf->onAir())
+            onAir.push_back(qvToJson(v));
+        room["speakersOnAir"] = onAir;
+        return json{{"currentScene", rt.engine().currentScene()},
+                    {"transition", {{"type", rt.config().transition.type}, {"ms", rt.config().transition.durationMs}}},
+                    {"streaming", st.streaming},
+                    {"streamTime", vm.streamTime().toStdString()},
+                    {"streamKbps", vm.streamKbps()},
+                    {"streamServer", vm.streamServer().toStdString()},
+                    {"streamKeyAvailable", vm.streamKeyAvailable()},
+                    {"recording", st.recording},
+                    {"recordTime", vm.recordTime().toStdString()},
+                    // EN VIVO = sale algo de verdad (transmisión, señal limpia o la grabación si
+                    // el modo en vivo la cuenta): lo mismo que usan la app y los bloqueos. El
+                    // guion del evento corriendo sin transmitir NO es estar en vivo.
+                    {"en_vivo", vm.modoVivo()},
+                    {"fps", st.fps},
+                    {"droppedFrames", st.droppedFrames},
+                    {"totalFrames", st.totalFrames},
+                    {"videoEncoder", st.videoEncoder},
+                    {"encoder_respaldo_activo", rt.engine().encoderRespaldoActivo()},
+                    {"cpuPercent", vm.cpuPercent()},
+                    {"programPeakDb", {vm.programPeakL(), vm.programPeakR()}},
+                    {"canvas", vm.canvasLabel().toStdString()},
+                    {"gatewayAlive", vm.gatewayAlive()},
+                    {"lastError", st.lastError},
+                    {"salidas", resumenSalidas(rt, vm)},
+                    {"disco", rt.discoGrabacion()},
+                    // El corte de luz (F1-11): batería/UPS, lo que queda y qué hizo la política.
+                    {"energia", vm.energia() != nullptr ? vm.energia()->estado() : json()},
+                    {"room", room}};
+    };
+    f.salidasInterfaz = [&rt, &vm]() {
+        return json{{"tope", rt.salidas().value("tope", 0)}, {"salidas", resumenSalidas(rt, vm)}};
+    };
+    f.esperaInterfazMs = ba::ajustes::entero("mcp.esperaCopiaMs", 250);
+    return f;
+}
+
+// ============================================================================
 // Herramientas del motor
 // ============================================================================
 
@@ -986,78 +1077,9 @@ void McpService::registerTools() {
     }
 
     // --- Estado --------------------------------------------------------------------
-    {
-        Tool t;
-        t.name = "status";
-        t.title = ba::i18n::traducir("mcp", "Estado general");
-        t.category = "estado";
-        t.clase = Clase::Lectura;
-        t.idempotent = true;
-        t.description =
-            ba::i18n::traducir("mcp", "Estado del appliance: escena al aire, transmision y grabacion (con tiempos), fps, cuadros "
-            "perdidos, codificador, CPU, niveles del programa, gateway, conferencia y oradores al aire. "
-            "`en_vivo`: si sale algo de verdad (transmisión o grabación): es LO que dice si estás en vivo; "
-            "el guion del evento corriendo sin transmitir no lo es. `salidas`: cada salida del aparato con su escena, "
-            "su armada, si transmite o graba y su negro/placa (los campos de arriba son los de la por omisión). "
-            "`disco`: para cuántas horas alcanza el disco al bitrate de todo lo que se graba (grabación, copia e ISO de "
-            "todas las salidas, por disco) y si alguna copia va al mismo disco que su grabación. "
-            "`modo_seguro`: si el launcher la arrancó en modo seguro tras varias caídas (nivel 1-3, qué piezas están "
-            "apagadas y si las escenas se restauraron). `energia`: si se cortó la luz (batería o UPS, % y minutos que "
-            "quedan) y si ya se cerraron las grabaciones por eso. "
-            "Buen primer llamado.");
-        t.run = [&rt, &vm](const json&, Done done) {
-            const EngineStatus st = rt.engine().status();
-            json room = json::object();
-            auto* conf = static_cast<ConferenceViewModel*>(vm.conference());
-            room["online"] = conf->online();
-            room["name"] = conf->room().toStdString();
-            room["waiting"] = static_cast<JsonListModel*>(conf->waiting())->count();
-            room["inside"] = static_cast<JsonListModel*>(conf->inside())->count();
-            room["speakerMode"] = conf->speakerMode();
-            json onAir = json::array();
-            for (const QVariant& v : conf->onAir())
-                onAir.push_back(qvToJson(v));
-            room["speakersOnAir"] = onAir;
-            // El modo seguro escalonado (F1-10): nivel, qué se apagó y si las escenas volvieron.
-            const ba::fault::ModoSeguro& ms = ba::fault::delProceso();
-            json apagadas = json::array();
-            for (ba::fault::Pieza p : ms.apagadas()) apagadas.push_back(ba::fault::clave(p));
-            done(ToolResult().data(
-                json{{"currentScene", rt.engine().currentScene()},
-                     {"modo_seguro",
-                      {{"activo", ms.activo()}, {"nivel", ms.nivel}, {"apagadas", apagadas}, {"escenas", !ms.escenasVacias()}}},
-                     {"transition",
-                      {{"type", rt.config().transition.type}, {"ms", rt.config().transition.durationMs}}},
-                     {"streaming", st.streaming},
-                     {"streamTime", vm.streamTime().toStdString()},
-                     {"streamKbps", vm.streamKbps()},
-                     {"streamServer", vm.streamServer().toStdString()},
-                     {"streamKeyAvailable", vm.streamKeyAvailable()},
-                     {"recording", st.recording},
-                     {"recordTime", vm.recordTime().toStdString()},
-                     // EN VIVO = sale algo de verdad (transmisión, señal limpia o la grabación si
-                     // el modo en vivo la cuenta): lo mismo que usan la app y los bloqueos. El
-                     // guion del evento corriendo sin transmitir NO es estar en vivo.
-                     {"en_vivo", vm.modoVivo()},
-                     {"fps", st.fps},
-                     {"droppedFrames", st.droppedFrames},
-                     {"totalFrames", st.totalFrames},
-                     {"videoEncoder", st.videoEncoder},
-                     {"encoder_respaldo_activo", rt.engine().encoderRespaldoActivo()},
-                     {"cpuPercent", vm.cpuPercent()},
-                     {"programPeakDb", {vm.programPeakL(), vm.programPeakR()}},
-                     {"canvas", vm.canvasLabel().toStdString()},
-                     {"gatewayAlive", vm.gatewayAlive()},
-                     {"lastError", st.lastError},
-                     {"latido", rt.latido().estado()},
-                     {"salidas", resumenSalidas(rt, vm)},
-                     {"disco", rt.discoGrabacion()},
-                     // El corte de luz (F1-11): batería/UPS, lo que queda y qué hizo la política.
-                     {"energia", vm.energia() != nullptr ? vm.energia()->estado() : json()},
-                     {"room", room}}));
-        };
-        core_.addTool(std::move(t));
-    }
+    // status, salidas_listar, sistema_recursos, los registros, el bus y la lista de aire
+    // contestan con la interfaz trabada (McpFoto.cpp): leen lo de abajo, desde el pool.
+    registrarHerramientasDeFoto(core_, fuentesDeFoto());
     {
         Tool t;
         t.name = "aire_ftb";
@@ -1146,25 +1168,6 @@ void McpService::registerTools() {
         t.run = [&vm](const json& a, Done done) {
             if (a.contains("corte_directo_editor")) vm.escenas().setCorteDirectoEditor(a.value("corte_directo_editor", false));
             done(ToolResult().data(json{{"corte_directo_editor", vm.escenas().corteDirectoEditor()}}));
-        };
-        core_.addTool(std::move(t));
-    }
-    {
-        Tool t;
-        t.name = "mcp_aire_lista";
-        t.title = ba::i18n::traducir("mcp", "Herramientas de aire");
-        t.category = "estado";
-        t.clase = Clase::Lectura;
-        t.idempotent = true;
-        t.description =
-            ba::i18n::traducir("mcp", "Las herramientas que cambian el aire (cortar, cambiar de escena, sacar a alguien, parar la "
-            "transmisión…). Con la transmisión o la grabación andando, si las pide algo automático (asistente, "
-            "plugin, receta, disparador, voz) esperan SIEMPRE que una persona confirme. `clase`: aire (siempre) "
-            "o aire_si (según los argumentos: settings de gateway/video/encoder, mute del máster, sacar un "
-            "orador, PTZ de la cámara al aire). `hay_aire`: si ahora cuentan. En vivo, la voz y los disparadores "
-            "solo leen o hacen lo reversible sin preguntar.");
-        t.run = [this](const json&, Done done) {
-            done(ToolResult().data(json{{"hay_aire", core_.hayAire()}, {"herramientas", core_.aire().lista()}}));
         };
         core_.addTool(std::move(t));
     }

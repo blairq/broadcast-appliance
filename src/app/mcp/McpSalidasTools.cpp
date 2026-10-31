@@ -4,10 +4,13 @@
 // docs/planes/PLAN-SALIDAS.md, etapa 3. Cada salida es un operador completo (su
 // aire y su armada, su mezcla, sus destinos, su grabación…). Acá están:
 //
-//   - salidas_listar / salida_crear / salida_editar / salida_borrar, por el
-//     mismo modelo que la GUI (AppRuntime::crearSalida…): lo que hace el
-//     asistente lo ve el operador en el acto;
-//   - el resumen por salida que usan `status` y `salidas_listar` (uno solo);
+//   - salida_crear / salida_editar / salida_borrar, por el mismo modelo que la
+//     GUI (AppRuntime::crearSalida…): lo que hace el asistente lo ve el operador
+//     en el acto (salidas_listar está en McpFoto.cpp: contesta con la interfaz
+//     trabada);
+//   - ui_salida_activa: cuál maneja la interfaz del operador;
+//   - el resumen por salida que usan `status` y `salidas_listar` (uno solo; lo
+//     copia la interfaz para ellas, ver McpService::fuentesDeFoto);
 //   - lo que el núcleo necesita para las herramientas de salida (Tool::porSalida):
 //     qué salidas hay y si una sale (McpCore::setSalidas);
 //   - conmutadorDe: el conmutador de la salida de la llamada en curso, para las
@@ -21,6 +24,7 @@
 #include "mcp/McpService.hpp"
 #include "mcp/McpToolsCommon.hpp"
 #include "ui/RecursosViewModel.hpp"
+#include "ui/SalidasViewModel.hpp"
 #include "ui/StudioViewModel.hpp"
 
 namespace ba::app::mcp {
@@ -70,25 +74,6 @@ void McpService::registerSalidasTools() {
 
     const json idProp = {{"type", "string"},
                          {"description", ba::i18n::traducir("mcp", "Id de la salida (letras, números, - y _).")}};
-    {
-        Tool t;
-        t.name = "salidas_listar";
-        t.title = ba::i18n::traducir("mcp", "Las salidas del aparato");
-        t.category = "salidas";
-        t.clase = Clase::Lectura;
-        t.idempotent = true;
-        t.description = ba::i18n::traducir(
-            "mcp",
-            "Las salidas (cada una un operador completo: su escena al aire y su armada, su mezcla, sus destinos, su "
-            "grabación, su repetición, su negro y su placa), la por omisión primera, con lo que hace cada una ahora; y "
-            "el `tope` de salidas. Las herramientas que tocan el programa aceptan `salida` (id o nombre); sin ella, la "
-            "por omisión.");
-        t.run = [&rt, &vm](const json&, Done done) {
-            done(ToolResult().data(
-                json{{"tope", rt.salidas().value("tope", 0)}, {"salidas", resumenSalidas(rt, vm)}}));
-        };
-        core_.addTool(std::move(t));
-    }
     {
         Tool t;
         t.name = "salida_crear";
@@ -199,6 +184,41 @@ void McpService::registerSalidasTools() {
                 !e.empty())
                 return done(ToolResult::error(e));
             done(ToolResult().data(json{{"salidas", resumenSalidas(rt, vm)}}));
+        };
+        core_.addTool(std::move(t));
+    }
+    // La activa de ESTA interfaz (SalidasViewModel): la que manejan Dirección, Escenas y
+    // el Mezclador del operador. No cambia nada de lo que sale ni la salida por omisión
+    // de las herramientas (esas siguen con `salida`); se recuerda en Config/interfaz.json.
+    {
+        Tool t;
+        t.name = "ui_salida_activa";
+        t.title = ba::i18n::traducir("mcp", "La salida que maneja la interfaz");
+        t.category = "interfaz";
+        t.clase = Clase::Ui;
+        t.idempotent = true;
+        t.description = ba::i18n::traducir(
+            "mcp",
+            "Cambia la salida ACTIVA de la interfaz del operador (la que muestran y manejan Dirección, Escenas y el "
+            "Mezclador), con `salida` (id o nombre, como en salidas_listar). Sin `salida`, dice cuál es. No toca lo que "
+            "sale ni lo que hacen las demás herramientas: esas usan su `salida` (o la por omisión).");
+        t.inputSchema = {{"type", "object"},
+                         {"properties",
+                          {{"salida",
+                            {{"type", "string"},
+                             {"description", ba::i18n::traducir("mcp", "Id o nombre de la salida (salidas_listar).")}}}}}};
+        t.run = [this, &vm](const json& a, Done done) {
+            SalidasViewModel& s = vm.salidas();
+            if (const std::string pedida = a.value("salida", std::string()); !pedida.empty()) {
+                std::string err;
+                const std::string id = core_.resolverSalida(pedida, err); // "" = la por omisión
+                if (!err.empty()) return done(ToolResult::error(err));
+                s.setActiva(QString::fromStdString(id.empty() ? std::string(BroadcastEngine::kSalidaPorOmision) : id));
+            }
+            const QVariantMap datos = s.activaDatos();
+            done(ToolResult().data(json{{"activa", s.activa().toStdString()},
+                                        {"nombre", datos.value("nombre").toString().toStdString()},
+                                        {"varias", s.varias()}}));
         };
         core_.addTool(std::move(t));
     }

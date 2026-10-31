@@ -162,6 +162,10 @@ void RecursosViewModel::publicar() {
     procesos_ = procs;
     medirServicio(m, inf);
     atenderTermica(m);
+    // Lo de esta vuelta que el MCP lee desde el pool (fotoServicio).
+    nlohmann::json termica = politica_.informe(m.t);
+    termica["sin_gancho"] = sinGancho_;
+    fotoServicio_.poner({{"transporte", transporteVuelta_}, {"termica", std::move(termica)}});
     estado_ =QString::fromStdString(inf.value("estado", std::string("desconocido")));
     margen_ = mg.value("pct", nlohmann::json()).is_number() ? mg["pct"].get<double>() : -1.0;
     limita_ = mg.value("limita", nlohmann::json()).is_string() ? titulo(QString::fromStdString(mg["limita"].get<std::string>())) : QString();
@@ -239,12 +243,12 @@ void RecursosViewModel::medirServicio(const diag::Recursos::Muestra& m, const nl
     };
     // El transporte A→B: la peor edad p99 y lo que se perdió en la ventana (lo mide el gateway).
     double edad = -1, perdidosVentana = -1;
-    if (transporte_)
-        for (const auto& f : transporte_()) {
-            if (!f.is_object()) continue;
-            edad = std::max(edad, f.value("edad_p99_ms", -1.0));
-            perdidosVentana = std::max(0.0, perdidosVentana) + f.value("descartados", 0.0) + f.value("faltantes", 0.0);
-        }
+    transporteVuelta_ = transporte_ ? transporte_() : nlohmann::json::array();
+    for (const auto& f : transporteVuelta_) {
+        if (!f.is_object()) continue;
+        edad = std::max(edad, f.value("edad_p99_ms", -1.0));
+        perdidosVentana = std::max(0.0, perdidosVentana) + f.value("descartados", 0.0) + f.value("faltantes", 0.0);
+    }
     sli("edad_ab", tr("Edad A→B (p99)"), edad, tr("%1 ms").arg(numero(edad)), 50, 150);
     sli("anillos", tr("Anillos A→B: perdidos en 10 s"), perdidosVentana, numero(perdidosVentana), 1, 10);
     sli("cuadros", tr("Cuadros perdidos"), m.perdidosPct, tr("%1 %").arg(numero(m.perdidosPct, 1)), 1, 5);
@@ -318,12 +322,6 @@ void RecursosViewModel::atenderTermica(const diag::Recursos::Muestra& m) {
                                                                                         : QStringLiteral("desconocido");
     termica_ = QVariantMap{{"nivel", QString::fromStdString(m.termica)}, {"texto", texto}, {"estado", estado}, {"apagados", nombres}};
     slis_.push_back(QVariantMap{{"clave", "termica"}, {"titulo", tr("Térmica")}, {"texto", texto}, {"estado", estado}});
-}
-
-nlohmann::json RecursosViewModel::informeTermico() const {
-    nlohmann::json j = politica_.informe(recursos_->ultima().t);
-    j["sin_gancho"] = sinGancho_;
-    return j;
 }
 
 } // namespace ba::app

@@ -32,6 +32,7 @@
 #include <cstdint>
 #include <memory>
 
+#include "comun/FotoEntreHilos.hpp"
 #include "diag/PoliticaTermica.hpp"
 #include "diag/Recursos.hpp"
 
@@ -84,8 +85,10 @@ class RecursosViewModel : public QObject {
     /// tienen quien los atienda quedan en el informe como «sin_gancho».
     using Degradar = std::function<bool(const std::string& paso, bool apagar)>;
     void alDegradar(Degradar f) { degradar_ = std::move(f); }
-    /// {politica, sin_gancho} para `sistema_recursos`.
-    nlohmann::json informeTermico() const;
+    /// DESDE CUALQUIER HILO (la herramienta `sistema_recursos` corre en el pool, F3-03): lo
+    /// que copió la última vuelta, {transporte: [...] (el de la foto de la sala),
+    /// termica: {politica, sin_gancho}}. Con la interfaz trabada se queda quieto.
+    nlohmann::json fotoServicio() const { return fotoServicio_.leer(); }
 
     diag::Recursos& muestreador() { return *recursos_; }
 
@@ -124,6 +127,8 @@ class RecursosViewModel : public QObject {
     int apagadosAplicados_ = 0;
     std::vector<std::string> sinGancho_;
     std::map<std::string, bool> conectadaAntes_; ///< por salida: para contar las reconexiones
+    nlohmann::json transporteVuelta_ = nlohmann::json::array(); ///< el de esta vuelta (medirServicio)
+    FotoEntreHilos<nlohmann::json> fotoServicio_;
 };
 
 } // namespace ba::app

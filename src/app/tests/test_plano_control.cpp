@@ -15,11 +15,21 @@
 //   5. Con la interfaz libre, la misma herramienta corre en la interfaz; una
 //      herramienta que se llama DESDE la interfaz contesta en la interfaz.
 //   6. detener() devuelve lo adoptado a su hilo.
+//   7. Las herramientas de la foto DE VERDAD (mcp/McpFoto.hpp: status, salidas_listar,
+//      sistema_recursos, los registros, el bus, la lista de aire, GStreamer), con un
+//      estado sintético (un documento de aire real en una carpeta de datos temporal):
+//      con la interfaz trabada contestan en el acto, desde el pool, con lo que sale al
+//      aire al día; ninguna fuente se lee en la interfaz ni en el control; la copia de la
+//      interfaz se pide una sola vez y llega cuando ella vuelve; y no cambia nada (los
+//      archivos de Config/, Runtime/ y Logs/, el documento de aire y sus escrituras).
 // ============================================================================
 #include "agent/AlertEngine.hpp"
 #include "arranque/PlanoControl.hpp"
+#include "emision/DocumentoAire.hpp"
 #include "mcp/McpCore.hpp"
+#include "mcp/McpFoto.hpp"
 #include "mcp/McpHttp.hpp"
+#include "persist/ColaEscritura.hpp"
 
 #include <QCoreApplication>
 #include <QElapsedTimer>
@@ -32,8 +42,13 @@
 #include <atomic>
 #include <chrono>
 #include <cstdio>
+#include <filesystem>
+#include <fstream>
+#include <map>
+#include <sstream>
 #include <string>
 #include <thread>
+#include <vector>
 
 using ba::app::PlanoControl;
 using namespace ba::app::mcp;
@@ -68,9 +83,26 @@ std::string pedir(quint16 puerto, const std::string& metodo, const std::string& 
     return fin < 0 ? std::string() : todo.mid(fin + 4).toStdString();
 }
 
-std::string llamar(quint16 puerto, const std::string& token, const std::string& herramienta, int id) {
-    const json m{{"jsonrpc", "2.0"}, {"id", id}, {"method", "tools/call"}, {"params", {{"name", herramienta}, {"arguments", json::object()}}}};
+std::string llamar(quint16 puerto, const std::string& token, const std::string& herramienta, int id,
+                   const json& args = json::object()) {
+    const json m{{"jsonrpc", "2.0"}, {"id", id}, {"method", "tools/call"}, {"params", {{"name", herramienta}, {"arguments", args}}}};
     return pedir(puerto, "POST", "/mcp", token, m.dump());
+}
+
+namespace fs = std::filesystem;
+
+/// Cada archivo de la carpeta de datos con su contenido (para ver que nada cambió).
+std::map<std::string, std::string> fotoDeArchivos(const fs::path& raiz) {
+    std::map<std::string, std::string> out;
+    std::error_code ec;
+    for (auto it = fs::recursive_directory_iterator(raiz, ec); it != fs::recursive_directory_iterator(); it.increment(ec)) {
+        if (ec || !it->is_regular_file()) continue;
+        std::ifstream f(it->path(), std::ios::binary);
+        std::stringstream c;
+        c << f.rdbuf();
+        out[fs::relative(it->path(), raiz).generic_string()] = c.str();
+    }
+    return out;
 }
 
 double msDesde(std::chrono::steady_clock::time_point t) {
@@ -229,6 +261,181 @@ int main(int argc, char** argv) {
     }, CallContext{});
     for (int i = 0; i < 100 && !listo; ++i) atender(10);
     CHECK(listo && dondeVolvio.load() == interfaz, "5: la respuesta vuelve al hilo del que llamó");
+
+    // --- 7. Las herramientas de la foto, con un estado sintético ------------------------
+    const fs::path datos = fs::temp_directory_path() / "ba-test-plano-control";
+    fs::remove_all(datos);
+    for (const char* d : {"Config", "Runtime", "Logs"}) fs::create_directories(datos / d);
+    std::ofstream(datos / "Config" / "salidas.json") << R"({"salidas":[{"id":"principal","nombre":"Principal"}]})";
+    std::ofstream(datos / "Logs" / "app.log") << "linea uno\nlinea dos\n";
+    ba::app::salidas::DocumentoAire doc(datos / "Runtime");
+    {
+        std::map<std::string, ba::app::salidas::Aire> s;
+        s["principal"].escena = "Plano general";
+        s["principal"].transmitiendo = true;
+        s["principal"].placa.placa = true;
+        s["principal"].placa.texto = "Cuarto intermedio";
+        doc.ponerSalidas(s, false);
+        doc.volcar();
+    }
+    CHECK(ba::persist::cola().vaciar(), "7: el documento de aire está escrito");
+    // Una fuente leída en la interfaz o en el control sería una carrera: se anota dónde corre cada una.
+    std::atomic<int> fuentesMalLeidas{0}, fuentesLeidas{0};
+    const auto leida = [&]() {
+        ++fuentesLeidas;
+        if (QThread::currentThread() == interfaz || QThread::currentThread() == plano.hilo()) ++fuentesMalLeidas;
+    };
+    std::atomic<int> copiasStatus{0}, copiasSalidas{0};
+    std::atomic<bool> copiaFueraDeLaInterfaz{false};
+    ba::app::mcp::FuentesDeFoto f;
+    f.aire = [&]() {
+        leida();
+        return ba::app::salidas::aJson(doc.foto());
+    };
+    f.hayAire = [&]() {
+        leida();
+        return doc.hayAire();
+    };
+    f.latido = [&]() {
+        leida();
+        return json{{"vivo", true}};
+    };
+    f.modoSeguro = [&]() {
+        leida();
+        return json{{"activo", false}};
+    };
+    f.salidasMotor = [&]() {
+        leida();
+        const json p{{"andando", true}, {"perdidos", 3}, {"cuadros", 9000}, {"reconectando", false}};
+        return json{{"principal", p},
+                    {"grabacion", {{"activa", false}}},
+                    {"salidas", {{"principal", {{"principal", p}, {"grabacion", {{"activa", false}}}}}}}};
+    };
+    f.salidasPublicadas = [&]() {
+        leida();
+        return json::array({{{"id", "principal"}, {"nombre", "Principal"}, {"por_omision", true}}});
+    };
+    f.recursos = [&](int, int) {
+        leida();
+        return json{{"muestras", 5}, {"cpu", {{"valor", 12.5}}}, {"termica", {{"nivel", "normal"}}}};
+    };
+    f.servicio = [&]() {
+        leida();
+        return json{{"transporte", json::array({{{"canal", "programa"}}})}, {"termica", {{"pasos", 0}}}};
+    };
+    f.derivaPlacas = [&]() {
+        leida();
+        return json::array();
+    };
+    f.elementosGst = [&]() {
+        leida();
+        return json::array({{{"elemento", "compositor"}, {"esta", true}}});
+    };
+    f.temas = [&](const std::string&) {
+        leida();
+        return json::array({{{"tema", "aire/escena"}, {"valor", "Plano general"}}});
+    };
+    f.ultimoTema = [&](const std::string& t) {
+        leida();
+        return t == "aire/escena" ? json{{"tema", t}, {"valor", "Plano general"}} : json();
+    };
+    f.logs = datos / "Logs";
+    // Lo de la interfaz (como en la app: lo que solo ella sabe; la armada de cada salida).
+    f.statusInterfaz = [&]() {
+        ++copiasStatus;
+        if (QThread::currentThread() != interfaz) copiaFueraDeLaInterfaz = true;
+        return json{{"currentScene", "Plano general"},
+                    {"streaming", true},
+                    {"room", {{"online", true}}},
+                    {"salidas", json::array({{{"id", "principal"}, {"armada", "Entrevista"}}})}};
+    };
+    f.salidasInterfaz = [&]() {
+        ++copiasSalidas;
+        if (QThread::currentThread() != interfaz) copiaFueraDeLaInterfaz = true;
+        return json{{"tope", 4}, {"salidas", json::array({{{"id", "principal"}, {"armada", "Entrevista"}}})}};
+    };
+    f.esperaInterfazMs = 100;
+    core.setHayAire([&]() { return doc.hayAire(); });
+    const std::size_t antes = core.tools().size();
+    ba::app::mcp::registrarHerramientasDeFoto(core, f);
+    bool todasDeLaFoto = core.tools().size() > antes;
+    for (std::size_t i = antes; i < core.tools().size(); ++i)
+        todasDeLaFoto = todasDeLaFoto && core.tools()[i].clase == Clase::Lectura && core.tools()[i].hilo == Hilo::Foto;
+    CHECK(todasDeLaFoto, "7: todas son de lectura y de la foto");
+
+    const auto archivosAntes = fotoDeArchivos(datos);
+    const std::string aireAntes = ba::app::salidas::aJson(doc.foto()).dump();
+    const std::uint64_t escriturasAntes = doc.escrituras();
+    struct Pedido {
+        std::string herramienta;
+        json args;
+        std::string resultado;
+        double ms = -1;
+    };
+    std::vector<Pedido> pedidos;
+    for (std::size_t i = antes; i < core.tools().size(); ++i) {
+        Pedido p{core.tools()[i].name, json::object(), {}, -1};
+        if (p.herramienta == "eventos_ultimo") p.args = {{"tema", "aire/escena"}};
+        if (p.herramienta == "sistema_recursos") p.args = {{"historial_s", 30}};
+        if (p.herramienta == "log_leer") p.args = {{"minimo", "traza"}};
+        pedidos.push_back(std::move(p));
+    }
+    pedidos.push_back({"status", json::object(), {}, -1}); // otra vez: la copia se pide una sola
+    std::thread clienteFoto([&]() {
+        for (std::size_t i = 0; i < pedidos.size(); ++i) {
+            const auto t = std::chrono::steady_clock::now();
+            pedidos[i].resultado = llamar(http.port(), token, pedidos[i].herramienta, 100 + static_cast<int>(i), pedidos[i].args);
+            pedidos[i].ms = msDesde(t);
+        }
+    });
+    trabarInterfaz(static_cast<int>(pedidos.size()) * 150 + 1500);
+    clienteFoto.join();
+    const int copiasEnLaTraba = copiasStatus.load() + copiasSalidas.load();
+    bool todasContestaron = true;
+    double peor = 0;
+    for (const auto& p : pedidos) {
+        const json r = json::parse(p.resultado, nullptr, false);
+        const bool bien = r.is_object() && r.contains("result") && !r["result"].value("isError", true);
+        if (!bien) std::printf("  %s: %s\n", p.herramienta.c_str(), p.resultado.substr(0, 300).c_str());
+        todasContestaron = todasContestaron && bien && p.ms < 600;
+        peor = std::max(peor, p.ms);
+    }
+    std::printf("  medido: %zu pedidos de la foto con la interfaz trabada, el peor %.1f ms; %d fuentes leídas\n",
+                pedidos.size(), peor, fuentesLeidas.load());
+    CHECK(todasContestaron, "7: con la interfaz trabada, todas contestan en el acto y sin error");
+    CHECK(fuentesLeidas.load() > 0 && fuentesMalLeidas.load() == 0, "7: ninguna fuente se leyó en la interfaz ni en el control");
+    CHECK(copiasEnLaTraba == 0, "7: la copia de la interfaz no se hizo durante la traba");
+    {
+        const json r = json::parse(pedidos.back().resultado, nullptr, false);
+        const json st = r.is_object() ? r["result"].value("structuredContent", json::object()) : json::object();
+        CHECK(!st.value("interfaz", json::object()).value("al_dia", true) && st.value("streaming", false) &&
+                  st.value("currentScene", std::string()) == "Plano general" && st.value("droppedFrames", 0) == 3 &&
+                  st.value("latido", json::object()).value("vivo", false),
+              "7: status trabado: lo que sale, al día (documento y foto de salidas); dice que lo demás es viejo");
+        const json sal = st.value("salidas", json::array());
+        CHECK(!sal.empty() && sal[0].value("placa", json::object()).value("placa", false) && sal[0].value("streaming", false),
+              "7: status trabado: cada salida con su placa y lo que sale");
+    }
+    atender(300); // la interfaz vuelve: la copia pedida se hace (una por herramienta)
+    CHECK(copiasStatus.load() == 1 && copiasSalidas.load() == 1 && !copiaFueraDeLaInterfaz.load(),
+          "7: la copia se pidió una sola vez y se hizo en la interfaz al volver");
+    {
+        std::string r;
+        std::thread otraVez([&]() { r = llamar(http.port(), token, "salidas_listar", 300); });
+        while (r.empty()) atender(10);
+        otraVez.join();
+        const json j = json::parse(r, nullptr, false);
+        const json st = j.is_object() ? j["result"].value("structuredContent", json::object()) : json::object();
+        const json sal = st.value("salidas", json::array());
+        CHECK(st.value("interfaz", json::object()).value("al_dia", false) && st.value("tope", 0) == 4 && !sal.empty() &&
+                  sal[0].value("armada", std::string()) == "Entrevista",
+              "7: con la interfaz libre, la copia está al día");
+    }
+    CHECK(ba::persist::cola().vaciar(), "7: nada pendiente de escribir");
+    CHECK(fotoDeArchivos(datos) == archivosAntes, "7: no cambió ningún archivo de Config/, Runtime/ ni Logs/");
+    CHECK(ba::app::salidas::aJson(doc.foto()).dump() == aireAntes && doc.escrituras() == escriturasAntes,
+          "7: el documento de aire quedó igual (ni se puso ni se escribió nada)");
+    fs::remove_all(datos);
 
     plano.detener();
     CHECK(http.thread() == interfaz && vigia.thread() == interfaz, "6: lo adoptado vuelve a su hilo");
