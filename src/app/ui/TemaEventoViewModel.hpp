@@ -97,6 +97,9 @@ class TemaEventoViewModel : public QObject {
    private:
     void seguirEvento();
     void recargar();
+    /// El tema como valor por omisión de lo que no es una página: el acento de los gráficos
+    /// (graficos::Catalogo) y los colores y el logo de los QR (QrViewModel).
+    void ponerPorOmision();
     void publicar();
     QString guardar(evento::TemaEvento t);
     QString urlDe(const std::string& archivo) const;

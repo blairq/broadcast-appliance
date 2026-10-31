@@ -8,6 +8,8 @@
 #include <clocale>
 #include <cmath>
 #include <cstdio>
+#include <filesystem>
+#include <fstream>
 #include <string>
 
 namespace {
@@ -107,6 +109,26 @@ int main() {
         check(oscuro["colores"]["sombra"] == "rgba(0, 0, 0, 0.45)" && claro["colores"]["sombra"] == "rgba(0, 0, 0, 0.14)",
               "la sombra, según el modo");
         check(claro["colores"]["campo"] != oscuro["colores"]["campo"], "el campo hundido, según el modo");
+    }
+    {
+        // Los colores de un QR con la cara del evento: siempre oscuro sobre claro y legible.
+        check(coloresQr(json::object()) == json({{"primario", "#000000"}, {"fondo", "#ffffff"}}), "sin tema: negro sobre blanco");
+        const json azul = coloresQr(resolver({{"colores", {{"acento", "#1a237e"}}}}));
+        check(azul["primario"] == "#1a237e" && azul["fondo"] == "#ffffff", "un acento oscuro: los módulos del acento, fondo blanco (el evento es oscuro)");
+        const json amarillo = coloresQr(resolver({{"colores", {{"acento", "#ffe600"}, {"fondo", "#fafafa"}}}}));
+        check(amarillo["fondo"] == "#fafafa" && amarillo["primario"] != "#ffe600", "un acento claro no sirve: el texto (oscuro)");
+    }
+    {
+        // El logo como data URL (el centro de un QR).
+        const auto dir = std::filesystem::temp_directory_path() / "ba-test-tema-dataurl";
+        std::filesystem::create_directories(dir);
+        std::ofstream(dir / "logo-abc.svg") << "<svg xmlns=\"http://www.w3.org/2000/svg\"/>";
+        std::ofstream(dir / "logo-abc.gif") << "GIF89a";
+        const std::string u = imagenComoDataUrl(dir / "logo-abc.svg");
+        check(u == "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciLz4=", "un SVG, en base64");
+        check(imagenComoDataUrl(dir / "logo-abc.gif").empty() && imagenComoDataUrl(dir / "no-esta.png").empty(),
+              "lo que no es imagen de marca o no está: nada");
+        std::filesystem::remove_all(dir);
     }
     {
         const json r = resolver({{"alcance", {{"publico", "nada"}, {"control", "todo"}}}});

@@ -454,6 +454,7 @@ std::string aConsulta(const Estilo& e) {
     }
     poner("icono", e.logoIcono);
     poner("iconoColor", e.logoColor);
+    if (e.logoDelEvento) poner("logoEvento", "1");
     return q;
 }
 
@@ -484,6 +485,7 @@ Estilo desdeConsulta(const std::string& query) {
         if (e.logo > 0.30) e.logo = 0.30;
     }
     e.logoIcono = v("icono");
+    e.logoDelEvento = v("logoEvento") == "1";
     e.logoColor = v("iconoColor");
     // Un icono sin hueco no se veria: si pidieron uno, se abre lugar.
     if (!e.logoIcono.empty() && e.logo <= 0) e.logo = 0.22;

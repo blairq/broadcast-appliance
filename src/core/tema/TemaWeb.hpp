@@ -25,6 +25,7 @@
 // ============================================================================
 #pragma once
 
+#include <filesystem>
 #include <optional>
 #include <string>
 
@@ -82,6 +83,16 @@ nlohmann::json resolver(const nlohmann::json& crudo);
 /// archivos de Tema/ (p. ej. "/comun/tema/"); `version`: va en sus URL (?v=) para que un
 /// cambio de fuente no quede en la caché. Sin tema (`resuelto` vacío): una hoja sin reglas.
 std::string hojaCss(const nlohmann::json& resuelto, const std::string& recursos, const std::string& version);
+
+/// Los colores de un QR con la cara del evento (qr::Estilo por omisión, ya resuelto el
+/// tema): {primario, fondo}. Un QR se lee con módulos oscuros sobre fondo claro y buen
+/// contraste: el acento si es bien más oscuro que el fondo (4.5), si no el texto, si no
+/// negro; el fondo del evento si es claro, si no blanco. Sin tema: negro sobre blanco.
+nlohmann::json coloresQr(const nlohmann::json& resuelto);
+
+/// Una imagen de marca de Tema/ (svg, png o webp, hasta 2 MB) como «data:…;base64,…», para
+/// incrustarla (el logo del evento al centro de un QR). "" si no es eso o no se puede leer.
+std::string imagenComoDataUrl(const std::filesystem::path& archivo);
 
 /// Una huella corta y estable de un texto (FNV-1a de 64 bits, 12 hex): la versión de la hoja.
 std::string huella(const std::string& texto);

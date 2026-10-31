@@ -7,6 +7,7 @@
 #include "platform/Paths.hpp"
 
 #include <algorithm>
+#include <mutex>
 #include <vector>
 
 #include <QDir>
@@ -110,12 +111,36 @@ QJsonObject Catalogo::ficha(const QString& nombre) const {
     return leerJson(QDir(c).filePath("grafico.json"));
 }
 
+namespace {
+std::mutex g_eventoMu;
+QJsonObject g_evento; ///< bajo g_eventoMu: los valores del evento abierto (el acento del tema)
+} // namespace
+
+void Catalogo::ponerValoresDelEvento(const QJsonObject& valores) {
+    std::lock_guard<std::mutex> l(g_eventoMu);
+    g_evento = valores;
+}
+
+QJsonObject Catalogo::valoresDelEvento() {
+    std::lock_guard<std::mutex> l(g_eventoMu);
+    return g_evento;
+}
+
 QJsonObject Catalogo::valoresPorDefecto(const QJsonObject& ficha) {
+    const QJsonObject evento = valoresDelEvento();
     QJsonObject out;
     for (const QJsonValue& v : ficha.value("parametros").toArray()) {
         const QJsonObject p = v.toObject();
         const QString clave = p.value("clave").toString();
-        if (!clave.isEmpty() && p.contains("porDefecto")) out[clave] = p.value("porDefecto");
+        if (clave.isEmpty() || !p.contains("porDefecto")) continue;
+        // Un color del evento (el acento de su tema) le gana al de fábrica del gráfico: el
+        // zócalo sale con el color del evento sin que nadie lo elija. Lo que se pase a mano
+        // (o guarde la escena) le gana a los dos.
+        const QString delEvento = p.value("tema").toString(clave);
+        if (p.value("tipo").toString() == "color" && evento.value(delEvento).isString())
+            out[clave] = evento.value(delEvento);
+        else
+            out[clave] = p.value("porDefecto");
     }
     return out;
 }

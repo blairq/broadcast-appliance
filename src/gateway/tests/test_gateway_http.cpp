@@ -779,6 +779,12 @@ int main() {
         CHECK(statusLine(httpReq(port, "GET", "/comun/tema/logo-grande.png", "")).find("404") != std::string::npos,
               "un archivo de más de 4 MB no sale");
         CHECK(statusLine(httpReq(port, "GET", "/comun/tema/logo-abc.gif", "")).find("404") != std::string::npos, "un GIF no sale");
+        // Un QR que pide el logo del evento (logoEvento=1): el gateway pone el del tema.
+        CHECK(bodyOf(httpReq(port, "GET", "/pantalla/qr.svg?texto=hola&logoEvento=1", "")).find("data:image/svg+xml;base64,") !=
+                  std::string::npos,
+              "el QR con el logo del evento lo lleva al centro");
+        CHECK(bodyOf(httpReq(port, "GET", "/pantalla/qr.svg?texto=hola", "")).find("data:image") == std::string::npos,
+              "sin pedirlo, no");
         CHECK(statusLine(httpReq(port, "GET", "/comun/tema/Logo-Abc.svg", "")).find("404") != std::string::npos,
               "un nombre que no es de Tema/ (mayúsculas) no sale");
         CHECK(statusLine(httpReq(srv.controlPort(), "GET", "/comun/tema.css", "")).find("200") != std::string::npos,

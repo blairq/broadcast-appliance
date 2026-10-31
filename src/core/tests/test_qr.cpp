@@ -230,6 +230,14 @@ int main() {
         // Un icono pedido sin hueco se veria tapado por el codigo.
         CHECK(desdeConsulta("icono=wifi").logo > 0, "un icono abre su hueco solo");
         CHECK(desdeConsulta("zona=-3").zonaSilenciosa == 4, "una zona absurda no pasa");
+        // El logo del evento: viaja el pedido, no la imagen (la pone quien dibuja).
+        Estilo ev;
+        ev.logoDelEvento = true;
+        ev.logoSrc = "data:image/png;base64,AAAA";
+        const std::string q = aConsulta(ev);
+        CHECK(q.find("logoEvento=1") != std::string::npos && q.find("base64") == std::string::npos,
+              "logoEvento va en la dirección, la imagen no");
+        CHECK(desdeConsulta(q).logoDelEvento && !desdeConsulta("").logoDelEvento, "y vuelve");
     }
     {
         // El numero del logo NO puede llevar punto decimal: el separador

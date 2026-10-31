@@ -56,7 +56,13 @@ class Catalogo {
     QString seVaDe(const QString& nombre) const;
     /// Los valores por defecto que declara una ficha (solo los que tienen
     /// `porDefecto`: un null en un parámetro de un QML escrito a mano falla).
+    /// Un parámetro de color que se llama como un valor del evento (`acento`), o que lo
+    /// nombra con `"tema": "<clave>"`, toma el del evento abierto en vez de su porDefecto.
     static QJsonObject valoresPorDefecto(const QJsonObject& ficha);
+    /// Los valores del evento abierto para eso ({"acento": "#00a86b"}; vacío = ninguno).
+    /// Los pone el tema del evento al abrirlo o cambiarlo (TemaEventoViewModel). Cualquier hilo.
+    static void ponerValoresDelEvento(const QJsonObject& valores);
+    static QJsonObject valoresDelEvento();
     /// Lo que se edita de un gráfico: la descripción (JSON) si es declarativo,
     /// o el texto de su grafico.qml. Vacío si no tiene ninguno.
     QString texto(const QString& nombre) const;
