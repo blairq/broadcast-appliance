@@ -34,11 +34,14 @@ bool igual(const platform::EstadoEnergia& a, const platform::EstadoEnergia& b) {
 
 } // namespace
 
-EnergiaAire::EnergiaAire(Acciones acciones, QObject* parent) : QObject(parent), acciones_(std::move(acciones)) {}
+EnergiaAire::EnergiaAire(Acciones acciones, QObject* parent) : QObject(parent), acciones_(std::move(acciones)) {
+    // Una sola vez, acá: con una lambda Qt no acepta UniqueConnection (la conexión fallaba
+    // y la energía nunca se miraba), y vigilar() se puede llamar de nuevo sin duplicarla.
+    connect(&timer_, &QTimer::timeout, this, [this]() { evaluar(platform::leerEnergia()); });
+}
 
 void EnergiaAire::vigilar(int cadaMs) {
     timer_.setInterval(cadaMs);
-    connect(&timer_, &QTimer::timeout, this, [this]() { evaluar(platform::leerEnergia()); }, Qt::UniqueConnection);
     timer_.start();
     evaluar(platform::leerEnergia());
 }
