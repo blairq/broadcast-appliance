@@ -623,6 +623,14 @@ endif()
                                                 BA_MCP_INVENTARIO="${CMAKE_SOURCE_DIR}/docs/mcp.json")
     set_target_properties(test_mcp PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_dependencies(test_mcp ba-mcp)
+    # El plano de control con la interfaz trabada (F3-03): MCP, alarmas y relojes, sin QML.
+    add_executable(test_plano_control tests/test_plano_control.cpp arranque/PlanoControl.cpp arranque/PlanoControl.hpp
+                   agent/AlertEngine.cpp agent/AlertEngine.hpp mcp/McpCore.cpp mcp/McpAire.cpp mcp/McpHttp.cpp
+                   mcp/McpIndice.cpp mcp/McpEtiquetas.cpp mcp/McpTraza.cpp)
+    target_include_directories(test_plano_control PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    target_link_libraries(test_plano_control PRIVATE ba_core Qt6::Core Qt6::Network)
+    set_target_properties(test_plano_control PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
+    add_test(NAME test_plano_control COMMAND test_plano_control)
     add_test(NAME test_mcp COMMAND test_mcp)
 
     # El registro de herramientas (F3-02): docs/mcp.json y la tabla de MCP.md son lo que

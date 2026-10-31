@@ -3,9 +3,13 @@
 //
 // El asistente de IA no tiene que "mirar cada tanto" con temporizadores: le
 // pide al servidor que vigile algo (alert_create) y el servidor le AVISA
-// cuando pasa. Se evalua en el thread de la UI cada 250 ms contra el estado
-// real (niveles de audio, medios, sala, chats, salidas, disco) y cada disparo
-// es un evento que:
+// cuando pasa. Se evalua cada 250 ms contra el estado real (niveles de audio,
+// medios, sala, chats, salidas, disco) EN EL HILO DEL PLANO DE CONTROL (F3-03,
+// arranque/PlanoControl): con la interfaz trabada, las alarmas siguen. Lo que
+// es de la interfaz llega como foto (lo copia ella); lo del motor que sale al
+// aire (silencio y saturación del programa, negro, congelado, transmisión y
+// grabación caídas, loudness, persistencia, recursos), directo. Seguro entre
+// hilos: todo lo público toma su candado. Cada disparo es un evento que:
 //   - se escribe en el chat del agente de la pestaña Asistente (lo despierta),
 //   - opcionalmente muestra un aviso en la interfaz,
 //   - opcionalmente ejecuta acciones (herramientas MCP) en el acto,
@@ -49,6 +53,7 @@
 #include "comun/JsonSignals.hpp"
 
 #include <deque>
+#include <mutex>
 #include <functional>
 #include <map>
 #include <string>
@@ -136,7 +141,7 @@ class AlertEngine : public QObject {
     json list() const;
     /// Eventos con id > sinceId (los ultimos `limit`).
     json events(std::uint64_t sinceId, int limit) const;
-    std::uint64_t lastEventId() const { return seq_; }
+    std::uint64_t lastEventId() const;
     /// Llama `cb` con los eventos nuevos apenas haya (o vacio al vencer).
     void wait(std::uint64_t sinceId, int timeoutMs, std::function<void(json)> cb);
 
@@ -181,6 +186,9 @@ class AlertEngine : public QObject {
     void load();
     std::string newId();
 
+    /// Recursivo: un disparo emite y despierta a quien espera, y eso puede volver acá
+    /// (anotarResultado, events) en el mismo hilo.
+    mutable std::recursive_mutex mu_;
     AlertInputs in_;
     std::string storePath_;
     std::vector<json> rules_;

@@ -15,7 +15,9 @@
 //   - se lo pasa al gateway (B), que lo empuja a TODOS los aparatos del control
 //     web conectados (POST /api/v1/control/enviar {todas, msg: {type: "alarma"}}).
 //
-// avisar() se puede llamar desde cualquier hilo y vuelve en el acto (encola).
+// avisar() se puede llamar desde cualquier hilo y vuelve en el acto (encola). Lo usan
+// también los disparadores (AlertEngine, que corre en el plano de control) para sus
+// notificadores: así una alarma sale aunque la interfaz no ande (F3-03).
 #pragma once
 
 #include "emision/LatidoAire.hpp"
@@ -26,6 +28,7 @@
 #include <QThread>
 
 #include <filesystem>
+#include <functional>
 #include <string>
 #include <vector>
 
@@ -43,6 +46,11 @@ class AvisoFueraDeUi {
         /// A qué notificadores: todos o los de `notificar`.
         bool notificarTodos = true;
         std::vector<std::string> notificar;
+        /// También a los aparatos del control web (por el gateway). Los disparadores no: a
+        /// esos les llega por el bus de eventos.
+        bool controlWeb = true;
+        /// Cómo le fue a cada notificador (en el hilo de los avisos: encolar y volver).
+        std::function<void(const std::string& id, bool ok, const std::string& detalle)> resultado;
     };
 
     /// `datos`: donde está Config/notificadores.json.

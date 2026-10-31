@@ -132,6 +132,8 @@ void McpService::registerAlertTools() {
         t.title = ba::i18n::traducir("mcp", "Que se puede vigilar");
         t.category = "alertas";
         t.clase = Clase::Lectura;
+        // Documentación fija: en el pool (F3-03), aunque la interfaz no ande.
+        t.hilo = Hilo::Foto;
         t.description = ba::i18n::traducir("mcp", "Referencia tecnica: que parametros admite cada tipo y con que valores vienen. "
                         "Es documentacion, no hace nada.");
         t.details = ba::i18n::traducir("mcp", "No crea ningun disparador: para eso es `alert_create`.");
@@ -325,6 +327,8 @@ void McpService::registerAlertTools() {
         t.title = ba::i18n::traducir("mcp", "Avisos recientes");
         t.category = "alertas";
         t.clase = Clase::Lectura;
+        // El vigía es seguro entre hilos y corre en el plano de control: en el pool (F3-03).
+        t.hilo = Hilo::Foto;
         t.description =
             ba::i18n::traducir("mcp", "Los avisos disparados (los mas nuevos al final). `sinceId` para leer solo los nuevos.");
         t.inputSchema = {
@@ -348,6 +352,8 @@ void McpService::registerAlertTools() {
         t.title = ba::i18n::traducir("mcp", "Esperar el proximo aviso");
         t.category = "alertas";
         t.clase = Clase::Lectura;
+        // Espera en el vigía (plano de control), no en la interfaz: en el pool (F3-03).
+        t.hilo = Hilo::Foto;
         t.description =
             ba::i18n::traducir("mcp", "Vuelve apenas salta un disparador (o al vencer `timeoutSec`, max. 300) con los avisos "
             "nuevos "

@@ -218,7 +218,7 @@ json AlertEngine::types() {
 }
 
 AlertEngine::AlertEngine(AlertInputs inputs, std::string storePath, QObject* parent)
-    : QObject(parent), in_(std::move(inputs)), storePath_(std::move(storePath)) {
+    : QObject(parent), in_(std::move(inputs)), storePath_(std::move(storePath)), timer_(this) {
     if (!in_.nowMs) in_.nowMs = []() { return QDateTime::currentMSecsSinceEpoch(); };
     load();
     connect(&timer_, &QTimer::timeout, this, &AlertEngine::tick);
@@ -229,6 +229,7 @@ void AlertEngine::start(int intervalMs) { timer_.start(intervalMs); }
 std::string AlertEngine::newId() { return "a" + std::to_string(++ruleSeq_); }
 
 json AlertEngine::create(const json& spec) {
+    const std::lock_guard<std::recursive_mutex> candado(mu_);
     if (!spec.is_object() || !spec.contains("type")) return {{"error", ba::i18n::traducir("alertas", "falta `type` (ver alert_types)")}};
     const std::string type = spec.value("type", "");
     json typeInfo;
@@ -285,6 +286,7 @@ json AlertEngine::create(const json& spec) {
 }
 
 json AlertEngine::update(const std::string& id, const json& changes) {
+    const std::lock_guard<std::recursive_mutex> candado(mu_);
     for (auto& r : rules_) {
         if (r["id"] != id) continue;
         for (const char* k : {"name", "message", "notify", "actions", "once", "cooldownSec", "enabled", "sonido",
@@ -309,6 +311,7 @@ json AlertEngine::update(const std::string& id, const json& changes) {
 }
 
 bool AlertEngine::remove(const std::string& id) {
+    const std::lock_guard<std::recursive_mutex> candado(mu_);
     const auto before = rules_.size();
     rules_.erase(std::remove_if(rules_.begin(), rules_.end(), [&](const json& r) { return r["id"] == id; }),
                  rules_.end());
@@ -319,15 +322,25 @@ bool AlertEngine::remove(const std::string& id) {
 }
 
 void AlertEngine::clear() {
+    const std::lock_guard<std::recursive_mutex> candado(mu_);
     rules_.clear();
     state_.clear();
     save();
     emit reglasCambio();
 }
 
-json AlertEngine::list() const { return rules_; }
+json AlertEngine::list() const {
+    const std::lock_guard<std::recursive_mutex> candado(mu_);
+    return rules_;
+}
+
+std::uint64_t AlertEngine::lastEventId() const {
+    const std::lock_guard<std::recursive_mutex> candado(mu_);
+    return seq_;
+}
 
 json AlertEngine::events(std::uint64_t sinceId, int limit) const {
+    const std::lock_guard<std::recursive_mutex> candado(mu_);
     json out = json::array();
     for (const auto& e : events_)
         if (e.value("id", std::uint64_t{0}) > sinceId) out.push_back(e);
@@ -336,6 +349,7 @@ json AlertEngine::events(std::uint64_t sinceId, int limit) const {
 }
 
 void AlertEngine::wait(std::uint64_t sinceId, int timeoutMs, std::function<void(json)> cb) {
+    const std::lock_guard<std::recursive_mutex> candado(mu_);
     const json now = events(sinceId, 50);
     if (!now.empty() || timeoutMs <= 0) {
         cb(now);
@@ -345,6 +359,7 @@ void AlertEngine::wait(std::uint64_t sinceId, int timeoutMs, std::function<void(
 }
 
 void AlertEngine::tick() {
+    const std::lock_guard<std::recursive_mutex> candado(mu_);
     const std::int64_t now = in_.nowMs();
     for (auto& r : rules_) {
         if (!r.value("enabled", true)) continue;
@@ -1107,9 +1122,13 @@ void AlertEngine::save() const {
     std::filesystem::rename(tmp, storePath_, ec);
 }
 
-json AlertEngine::activas() const { return json(activas_); }
+json AlertEngine::activas() const {
+    const std::lock_guard<std::recursive_mutex> candado(mu_);
+    return json(activas_);
+}
 
 int AlertEngine::reconocer(std::uint64_t id) {
+    const std::lock_guard<std::recursive_mutex> candado(mu_);
     const auto antes = activas_.size();
     activas_.erase(std::remove_if(activas_.begin(), activas_.end(),
                                   [id](const json& e) { return id == 0 || e.value("id", std::uint64_t{0}) == id; }),
@@ -1121,6 +1140,7 @@ int AlertEngine::reconocer(std::uint64_t id) {
 
 void AlertEngine::anotarResultado(std::uint64_t id, const std::string& herramienta, bool ok, const std::string& texto,
                                   bool bloqueada) {
+    const std::lock_guard<std::recursive_mutex> candado(mu_);
     for (auto& e : events_)
         if (e.value("id", std::uint64_t{0}) == id) {
             e["resultados"].push_back({{"tool", herramienta},
@@ -1178,6 +1198,7 @@ void AlertEngine::sembrar(bool faltantes) {
 }
 
 json AlertEngine::fabrica(bool restablecer) {
+    const std::lock_guard<std::recursive_mutex> candado(mu_);
     if (restablecer) {
         rules_.erase(std::remove_if(rules_.begin(), rules_.end(), [](const json& r) { return r.value("fabrica", false); }),
                      rules_.end());

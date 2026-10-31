@@ -41,6 +41,7 @@
 #include "agent/AgentViewModel.hpp"
 #include "agent/ModelosLocales.hpp"
 #include "arranque/AppRuntime.hpp"
+#include "agent/AlertEngine.hpp"
 #include "arranque/PlanoControl.hpp"
 #include "arranque/TraductorQt.hpp"
 #include "mcp/McpService.hpp"
@@ -328,6 +329,9 @@ int runGui(int argc, char** argv) {
         StudioViewModel vm(rt);
         ba::diag::registro().info(ba::i18n::llenar(ba::i18n::traducir("arranque", "arranque: el modelo de la app, %1 ms"),
                                                    {std::to_string(relojGui.restart())}));
+        // El vigía de las alarmas, al plano de control: con la interfaz trabada siguen
+        // saliendo (lo que lee de la interfaz le llega como foto, ver agent/EntradasAlarmas).
+        plano.adoptar(&vm.alerts());
         auto* frames = static_cast<FrameService*>(vm.frames());
         VideoItem::setService(frames);
         qmlRegisterSingletonInstance("BA", 1, 0, "Studio", &vm);

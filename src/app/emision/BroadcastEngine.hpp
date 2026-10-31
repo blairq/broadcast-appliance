@@ -400,6 +400,15 @@ class BroadcastEngine {
     bool textoGlobal(const std::string& nombre, const std::string& texto);
     /// {ftb, ftb_audio, placa, placa_texto, placa_imagen}.
     nlohmann::json estadoPlaca(const std::string& salida = "") const;
+    /// DESDE CUALQUIER HILO (el vigía de las alarmas en el plano de control, F3-03): el
+    /// pico del programa de la por omisión (dBFS, los dos canales) desde la última vez
+    /// que se pidió, sin tocar el del vúmetro (programPeaksDb).
+    float picoProgramaVigiaDb();
+    /// DESDE CUALQUIER HILO: la foto de lo que sale que publica el hilo de salidas
+    /// ({principal, grabacion, salidas: {id: {principal, grabacion, …}}}; ver status()).
+    nlohmann::json fotoSalidas() const;
+    /// DESDE CUALQUIER HILO: el loudness del programa de la por omisión (tiene su candado).
+    const audio::LoudnessPrograma& loudnessPrograma() const { return medidasPrograma_->loudness; }
 
     /// Subtítulos CEA-608 en la transmisión (todavía no: M7). Devuelve a cuántas salidas se mandó.
     int enviarCaption(const std::string& texto, double segundos);
@@ -928,7 +937,6 @@ class BroadcastEngine {
     void detenerSalidas();
     void ticSalidas();
     void publicarFotoSalidas();
-    nlohmann::json fotoSalidas() const;
     std::atomic<bool> alAire_{false}; ///< transmitiendo o grabando (lo anota el hilo de salidas)
     mutable std::mutex fotoSalidasM_;
     nlohmann::json fotoSalidas_ = nlohmann::json::object();
@@ -962,7 +970,13 @@ class BroadcastEngine {
     struct Medidas {
         audio::LoudnessPrograma loudness{48000};
         std::atomic<float> picoL{0.0f}, picoR{0.0f};
+        /// El mismo pico para el vigía de las alarmas (picoProgramaVigiaDb): cada lector
+        /// pone el suyo en cero, así ninguno le roba el pico al otro.
+        std::atomic<float> picoVigia{0.0f};
     };
+    /// Las medidas de la por omisión: existe desde el constructor y no se borra nunca, así
+    /// que se pueden leer desde cualquier hilo sin buscar en salidas_.
+    std::shared_ptr<Medidas> medidasPrograma_;
     /// Una salida (ver LAS SALIDAS arriba). Cada campo es de un solo hilo: el de la
     /// interfaz (lo del aire), el de salidas (lo que sale) o, bajo pedidosM_, los dos.
     struct Salida {

@@ -27,6 +27,7 @@
 #include "agent/RotuloTraduccionConfig.hpp"
 #include "emision/RetornosInvitados.hpp"
 #include "emision/SeguridadAire.hpp"
+#include "agent/EntradasAlarmas.hpp"
 #include "audio/ObjetivoLoudness.hpp"
 #include "ajustes/Ajustes.hpp"
 #include "i18n/I18n.hpp"
@@ -849,7 +850,10 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
                                                                    [&rt]() { return rt.emergenciaEnergia(); }});
     energia_->vigilar();
     connect(energia_.get(), &EnergiaAire::aviso, this, &StudioViewModel::notify);
-    // Disparadores (alertas) contra el estado real de la app, y la pestaña Asistente.
+    // Disparadores (alertas) contra el estado real de la app, y la pestaña Asistente. El
+    // vigía corre en el plano de control (F3-03): `in` es lo que se lee en ESTE hilo y se
+    // le pasa como foto (agent/EntradasAlarmas); `directas`, lo seguro entre hilos, que
+    // sigue con la interfaz trabada (todo lo que sale al aire).
     {
         agent::AlertInputs in;
         in.energia = [this]() { return energia_->estado(); };
@@ -857,9 +861,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
             std::vector<agent::AlertInputs::Audio> out;
             for (const std::string& n : rt_.engine().audioSources())
                 out.push_back({n, rt_.engine().sourcePeakDb(n), rt_.engine().sourceMuted(n)});
-            // La mezcla del programa (lo que sale): para el silencio y la saturación de fábrica.
-            out.push_back({"Programa", std::max(peakL_, peakR_), false});
-            return out;
+            return out; // la mezcla del programa va directa (abajo)
         };
         in.media = [this]() {
             std::vector<agent::AlertInputs::Media> out;
@@ -900,19 +902,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
                     .toStdString(),
                 nullptr, false);
         };
-        in.status = [this]() {
-            const EngineStatus s = rt_.engine().status();
-            agent::AlertInputs::Status a{s.streaming, s.recording, s.droppedFrames, s.totalFrames, s.reconnecting, !rt_.recordStopWanted(), {}};
-            for (const auto& x : s.salidas)
-                if (x.recordingDown) a.grabacionesCaidas.push_back(x.id);
-            return a;
-        };
-        in.recursos = [this]() { return recursos_ ? recursos_->muestreador().niveles() : nlohmann::json::object(); };
-        in.persistencia = [this]() { return rt_.avisosPersistencia(); };
-        in.programaVideo = [this]() {
-            const auto v = rt_.engine().programaVideo();
-            return nlohmann::json{{"valido", v.valido}, {"luma", v.luma}, {"quieto_s", v.quietoSeg}};
-        };
+
         // El disco de todo lo que se graba (por volumen; la copia en el mismo disco). Mira
         // el espacio libre de cada carpeta: una vez cada 5 s alcanza.
         in.disco = [this, cache = std::make_shared<std::pair<qint64, nlohmann::json>>()]() {
@@ -971,9 +961,40 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
             }
             return cache->second;
         };
-        in.loudness = [this]() { return rt_.engine().loudness().json(); };
         in.superres = [this]() { return video_ ? video_->programador().value("entradas", nlohmann::json::object()) : nlohmann::json::object(); };
-        alerts_ = std::make_unique<agent::AlertEngine>(std::move(in),
+        // DIRECTAS: el motor, la foto de las salidas, la persistencia y los recursos.
+        agent::AlertInputs directas;
+        BroadcastEngine& motor = rt_.engine();
+        // La mezcla del programa (lo que sale): para el silencio y la saturación de fábrica.
+        directas.audio = [&motor]() {
+            return std::vector<agent::AlertInputs::Audio>{{"Programa", motor.picoProgramaVigiaDb(), false}};
+        };
+        // De la foto de las salidas que publica el hilo de salidas del motor (no de status(),
+        // que recorre las salidas de la interfaz).
+        directas.status = [&rt]() {
+            const nlohmann::json f = rt.engine().fotoSalidas();
+            const nlohmann::json t = f.value("principal", nlohmann::json::object());
+            agent::AlertInputs::Status a;
+            a.streaming = t.value("andando", false);
+            a.droppedFrames = t.value("perdidos", 0);
+            a.totalFrames = t.value("cuadros", 0);
+            a.reconnecting = t.value("reconectando", false);
+            a.recording = f.value("grabacion", nlohmann::json::object()).value("activa", false);
+            a.grabacionPedida = !rt.recordStopWanted();
+            for (const auto& [id, x] : f.value("salidas", nlohmann::json::object()).items())
+                if (x.value("grabacion", nlohmann::json::object()).value("caida", false)) a.grabacionesCaidas.push_back(id);
+            return a;
+        };
+        directas.recursos = [this]() { return recursos_ ? recursos_->muestreador().niveles() : nlohmann::json::object(); };
+        directas.persistencia = [&rt]() { return rt.avisosPersistencia(); };
+        directas.programaVideo = [&motor]() {
+            const auto v = motor.programaVideo();
+            return nlohmann::json{{"valido", v.valido}, {"luma", v.luma}, {"quieto_s", v.quietoSeg}};
+        };
+        directas.loudness = [&motor]() { return motor.loudnessPrograma().json(); };
+        entradasAlarmas_ = std::make_unique<agent::EntradasAlarmas>(std::move(in), std::move(directas));
+        entradasAlarmas_->refrescar();
+        alerts_ = std::make_unique<agent::AlertEngine>(entradasAlarmas_->paraElVigia(),
                                                        (rt.dataRoot() / "Config" / "alertas.json").string());
         marca("alerts");
         alarma_ = std::make_unique<agent::AlarmaSonora>(rt.dataRoot());
@@ -1060,19 +1081,36 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
                                 .arg(QString::fromStdString(configRecuperada())),
                             "warn");
             });
+        // Avisos fuera del programa (Telegram, mail, webhook) para los que miran desde lejos:
+        // EN EL HILO DEL VIGÍA (conexión directa) y por AvisoFueraDeUi, que tiene el suyo. Con
+        // la interfaz trabada la alarma igual sale; lo que no salió se cuenta en la interfaz.
+        connect(
+            alerts_.get(), &agent::AlertEngine::fired, alerts_.get(),
+            [this](const nlohmann::json& ev) {
+                if (!avisoFueraDeUi_) return;
+                const nlohmann::json& rid = ev["ruleId"];
+                AvisoFueraDeUi::Alarma a;
+                a.id = "alarma/" + (rid.is_string() ? rid.get<std::string>() : rid.dump());
+                a.titulo = "⚠ " + ev.value("ruleName", ba::i18n::traducir("alertas", "Disparador"));
+                a.texto = ev.value("llmText", std::string());
+                a.controlWeb = false; // el control web la recibe por el bus (abajo)
+                a.notificarTodos = false;
+                for (const auto& n : ev.value("notificar", nlohmann::json::array()))
+                    if (n.is_string()) a.notificar.push_back(n.get<std::string>());
+                if (a.notificar.empty()) return;
+                QPointer<StudioViewModel> vista(this);
+                a.resultado = [vista](const std::string& id, bool ok, const std::string& d) {
+                    if (ok || !vista) return;
+                    QMetaObject::invokeMethod(vista, [vista, id, d]() {
+                        if (vista)
+                            emit vista->notify(tr("El aviso por «%1» no salió: %2").arg(QString::fromStdString(id), QString::fromStdString(d)),
+                                               "warn");
+                    });
+                };
+                avisoFueraDeUi_->avisar(std::move(a));
+            },
+            Qt::DirectConnection);
         connect(alerts_.get(), &agent::AlertEngine::fired, this, [this](const nlohmann::json& ev) {
-            // Avisos fuera del programa (Telegram, mail, webhook) para los que miran desde lejos.
-            for (const auto& n : ev.value("notificar", nlohmann::json::array()))
-                if (n.is_string())
-                    notificador_->enviar(n.get<std::string>(),
-                                         "⚠ " + ev.value("ruleName", ba::i18n::traducir("alertas", "Disparador")),
-                                         ev.value("llmText", std::string()), [this, n](bool ok, const std::string& d) {
-                                             if (!ok)
-                                                 emit notify(tr("El aviso por «%1» no salió: %2")
-                                                                 .arg(QString::fromStdString(n.get<std::string>()),
-                                                                      QString::fromStdString(d)),
-                                                             "warn");
-                                         });
             {
                 const nlohmann::json& rid = ev["ruleId"];
                 bus_->publicar("alarma/" + (rid.is_string() ? rid.get<std::string>() : rid.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace)),
@@ -2857,6 +2895,9 @@ void StudioViewModel::onTick() {
             rt_.engine().retornoEnUso(ahora - salidaVistaMs_.value(q, ahora - 10000) < 10000, id);
         }
     }
+    // Lo de la interfaz que mira el vigía de las alarmas (en el plano de control), como
+    // foto: cada 200 ms (él evalúa cada 250).
+    if (entradasAlarmas_ && vigiaTicks_ % 2 == 0) entradasAlarmas_->refrescar();
     // Señal de las entradas (multiview, escena de respaldo): una vez por segundo.
     if (vigiaTicks_ % 10 == 5) revisarSenales();
     // El vigía de los módulos de audio: lo que saltó por lento o colgado.

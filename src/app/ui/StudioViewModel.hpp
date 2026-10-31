@@ -36,6 +36,7 @@
 
 namespace ba::app::agent {
 class AlertEngine;
+class EntradasAlarmas;
 class AlarmaSonora;
 class SubtitulosCC;
 class Vocabulario;
@@ -1204,6 +1205,7 @@ class StudioViewModel : public QObject {
     std::unique_ptr<Configuraciones> configuraciones_;
     QVariantMap reinicio_;     ///< ver la propiedad reinicio
     bool eventoNuevo_ = false; ///< el reinicio que viene abre un evento recién creado
+    std::unique_ptr<agent::EntradasAlarmas> entradasAlarmas_; ///< lo que el vigía lee de la interfaz, como foto
     std::unique_ptr<agent::AlertEngine> alerts_;
     std::unique_ptr<agent::AlarmaSonora> alarma_;
     std::unique_ptr<asamblea::CuerpoViewModel> cuerpo_;

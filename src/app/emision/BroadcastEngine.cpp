@@ -183,6 +183,7 @@ BroadcastEngine::BroadcastEngine() {
     p->emisor = salidasConEmisor().count(p->id) > 0; // la codifica un ba-emisor (F3-01)
     salidas_[p->id] = p;
     ordenSalidas_.push_back(p->id);
+    medidasPrograma_ = p->medidas;
 }
 
 BroadcastEngine::~BroadcastEngine() { shutdown(); }
@@ -326,7 +327,7 @@ void BroadcastEngine::medirSalida(Salida& s) {
             }
             const float* planos[2] = {l.data(), r.data()};
             m->loudness.alimentar(planos, 2, static_cast<std::uint32_t>(n));
-            for (auto [a, v] : {std::pair{&m->picoL, pl}, std::pair{&m->picoR, pr}}) {
+            for (auto [a, v] : {std::pair{&m->picoL, pl}, std::pair{&m->picoR, pr}, std::pair{&m->picoVigia, std::max(pl, pr)}}) {
                 float cur = a->load(std::memory_order_relaxed);
                 while (v > cur && !a->compare_exchange_weak(cur, v, std::memory_order_relaxed)) {
                 }
@@ -961,6 +962,11 @@ void BroadcastEngine::programPeaksDb(float& left, float& right, const std::strin
     Medidas& m = *(s != nullptr ? *s : porOmision()).medidas;
     left = aDb(m.picoL.exchange(0.0f));
     right = aDb(m.picoR.exchange(0.0f));
+}
+
+float BroadcastEngine::picoProgramaVigiaDb() {
+    const float lin = medidasPrograma_->picoVigia.exchange(0.0f);
+    return lin <= 0.00001f ? -100.0f : 20.0f * std::log10(lin);
 }
 
 bool BroadcastEngine::armar(const std::string& name, const std::string& salida) {

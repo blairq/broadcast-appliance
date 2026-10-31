@@ -78,7 +78,7 @@ void AvisoFueraDeUi::enHilo(const Alarma& a) {
     // 1) Los aparatos del control web, por el gateway (B: otro proceso, no depende de la interfaz).
     int puerto = 0;
     QString token;
-    if (ConferenceClient::leerAdmin(puerto, token)) {
+    if (a.controlWeb && ConferenceClient::leerAdmin(puerto, token)) {
         QNetworkRequest req(QUrl(QString("http://127.0.0.1:%1/api/v1/control/enviar").arg(puerto)));
         req.setRawHeader("Authorization", "Bearer " + token.toUtf8());
         req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
@@ -106,10 +106,11 @@ void AvisoFueraDeUi::enHilo(const Alarma& a) {
     }
     auto faltan = std::make_shared<std::size_t>(ids.size());
     for (const auto& id : ids)
-        n->enviar(id, a.titulo, a.texto, [n, faltan, id](bool ok, const std::string& detalle) {
+        n->enviar(id, a.titulo, a.texto, [n, faltan, id, resultado = a.resultado](bool ok, const std::string& detalle) {
             if (!ok)
                 ba::diag::registro().linea(ba::diag::Nivel::Aviso, "supervisor", 0,
                                            ba::i18n::llenar(ba::i18n::traducir("supervisor", "la alarma no salió por «%1»: %2"), {id, detalle}));
+            if (resultado) resultado(id, ok, detalle);
             if (--*faltan == 0) n->deleteLater();
         });
 }

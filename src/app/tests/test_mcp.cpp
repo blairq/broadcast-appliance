@@ -758,16 +758,19 @@ int main(int argc, char** argv) {
         CHECK(aire.ajustar("linea_hold", "aire").empty() && aire.esDeAire("linea_hold", json::object()) &&
                   aire.ajustar("linea_hold", "normal").empty() && !aire.esDeAire("linea_hold", json::object()),
               "las agregadas (Config/mcp-aire.json) suben y bajan");
-        // La clase manda sobre readOnly, y el hilo sale de ella si no se declara.
+        // La clase manda sobre readOnly; el hilo sin declarar es la interfaz (F3-03: la
+        // clase no dice qué objetos toca la herramienta), y el declarado se respeta.
         Tool x;
         x.name = "dice_que_lee";
         x.readOnly = true;
         x.clase = Clase::Escritura;
         reg.addTool(std::move(x));
         CHECK(!reg.findTool("dice_que_lee")->readOnly, "clase escritura: readOnly lo pone addTool (false)");
-        CHECK(reg.findTool("linea_ver")->readOnly && reg.findTool("linea_ver")->hilo == Hilo::Foto,
-              "lectura: readOnly y el hilo de la foto");
-        CHECK(reg.findTool("settings_set")->hilo == Hilo::Control, "aire: el hilo del control");
+        CHECK(reg.findTool("linea_ver")->readOnly && reg.findTool("linea_ver")->hilo == Hilo::Interfaz,
+              "lectura sin hilo declarado: readOnly y la interfaz");
+        CHECK(reg.findTool("settings_set")->hilo == Hilo::Interfaz, "aire sin hilo declarado: la interfaz");
+        CHECK(reg.findTool("help")->hilo == Hilo::Foto && reg.findTool("help_search")->hilo == Hilo::Foto,
+              "la ayuda declara la foto (solo lee el registro)");
         Tool sinClase;
         sinClase.name = "armada_en_ejecucion";
         sinClase.readOnly = true;
