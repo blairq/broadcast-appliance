@@ -37,6 +37,7 @@
 
 #include <cstdint>
 #include <map>
+#include <memory>
 #include <set>
 #include <string>
 
@@ -49,6 +50,7 @@ namespace ba::app {
 class BroadcastEngine;
 class EventoViewModel;
 class FrameService;
+class LineaProductor;
 namespace control {
 class Acciones;
 class BusEventos;
@@ -88,6 +90,8 @@ class LineaViewModel : public QObject {
     /// Las fotos de las escenas sin vista viva (escena → imagen) y cuántos segundos tienen.
     Q_PROPERTY(QVariantMap fotos READ fotos NOTIFY fotosChanged)
     Q_PROPERTY(QVariantMap edadFotos READ edadFotos NOTIFY vistaChanged)
+    /// El productor (ui/LineaProductor, L9): las propuestas para llegar a horario.
+    Q_PROPERTY(QObject* productor READ productorQml CONSTANT)
 
    public:
     LineaViewModel(EventoViewModel& evento, BroadcastEngine& engine, FrameService* frames, control::Acciones* acciones,
@@ -114,6 +118,7 @@ class LineaViewModel : public QObject {
     QVariantList pendientes() const { return pendientesUi_; }
     QVariantMap fotos() const { return fotos_; }
     QVariantMap edadFotos() const { return edadFotos_; }
+    QObject* productorQml() const;
 
     // --- Vivo (por la salida que se mira): "" o por qué no ------------------------------
     Q_INVOKABLE QString go();
@@ -184,6 +189,7 @@ class LineaViewModel : public QObject {
     FrameService* frames_ = nullptr;
     control::Acciones* acciones_ = nullptr;
     control::BusEventos* bus_ = nullptr;
+    std::unique_ptr<LineaProductor> productor_;
 
     bool mirando_ = false;
     bool mirandoLinea_ = false;
