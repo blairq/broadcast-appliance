@@ -215,7 +215,10 @@ RecursoCopiado copiarRecurso(const fs::path& carpetaEvento, const fs::path& orig
 }
 
 int limpiarRecursos(const fs::path& carpetaEvento, const TemaEvento& t) {
-    const std::vector<std::string> usados = t.archivos();
+    std::vector<std::string> usados = t.archivos();
+    // El PNG de un logo SVG (pngDeLogo) se va con su logo, no antes.
+    for (const std::string* a : {&t.marca.logo, &t.marca.logoClaro, &t.marca.favicon})
+        if (std::string png = ba::tema::pngDeLogo(*a); !png.empty()) usados.push_back(std::move(png));
     std::error_code ec;
     int n = 0;
     for (const auto& e : fs::directory_iterator(carpetaTema(carpetaEvento), ec)) {

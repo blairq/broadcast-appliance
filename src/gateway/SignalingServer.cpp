@@ -1481,8 +1481,8 @@ void SignalingServer::handleGuestHttp(long long fd, const std::string& method, c
             http::sendResponse(fd, 200, "image/svg+xml", qrSvg(texto, query, [this]() {
                                    std::lock_guard<std::mutex> l(temaLock_);
                                    if (temaEventoCarpeta_.empty() || temaEventoLogo_.empty()) return std::string();
-                                   return ba::tema::imagenComoDataUrl(
-                                       std::filesystem::path(std::u8string(temaEventoCarpeta_.begin(), temaEventoCarpeta_.end())) /
+                                   return ba::tema::logoParaQr(
+                                       std::filesystem::path(std::u8string(temaEventoCarpeta_.begin(), temaEventoCarpeta_.end())),
                                        temaEventoLogo_);
                                }));
             return;

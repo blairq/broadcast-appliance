@@ -420,6 +420,18 @@ std::string imagenComoDataUrl(const std::filesystem::path& archivo) {
     return std::string("data:") + tipo + ";base64," + b64;
 }
 
+std::string pngDeLogo(const std::string& logo) {
+    if (!terminaEn(logo, ".svg") || !esImagenDeMarca(logo)) return {};
+    return logo.substr(0, logo.size() - 4) + ".png";
+}
+
+std::string logoParaQr(const std::filesystem::path& carpetaTema, const std::string& logo) {
+    if (logo.empty()) return {};
+    if (const std::string png = pngDeLogo(logo); !png.empty())
+        if (std::string u = imagenComoDataUrl(carpetaTema / png); !u.empty()) return u;
+    return imagenComoDataUrl(carpetaTema / logo);
+}
+
 std::string huella(const std::string& t) {
     std::uint64_t h = 1469598103934665603ULL;
     for (const char ch : t) {
