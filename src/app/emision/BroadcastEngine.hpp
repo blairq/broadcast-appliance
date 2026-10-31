@@ -223,6 +223,9 @@ struct EngineStatus {
     bool audioActive = false;
     bool streaming = false;
     bool recording = false;
+    /// La grabación de la por omisión está pedida pero cortada: el motor la rearma sola
+    /// en otra parte (F1-05). Mientras tanto `recording` es false y NO hay que pararla.
+    bool recordingDown = false;
     int droppedFrames = 0;
     int totalFrames = 0;
     double fps = 0.0;

@@ -2550,8 +2550,13 @@ void StudioViewModel::onTick() {
     if (recording_ && !st.recording) {
         if (rt_.recordStopWanted()) {
             emit notify(tr("Grabación detenida"), "info");
+        } else if (st.recordingDown) {
+            // Se cortó y el motor la rearma sola en otra parte (F1-05): NO se para, que eso
+            // la mataría. Queda la alarma record_down hasta que vuelva.
+            dropped(tr("Se cortó la grabación"),
+                    tr("La grabación se cortó y vuelve sola en otra parte del archivo. Si no vuelve, revisá el disco."));
         } else {
-            rt_.stopRecording(); // ya no hay nada que retomar tras una caida
+            rt_.stopRecording(); // nadie la está rearmando: no queda nada que retomar
             dropped(tr("Se cortó la grabación"),
                     tr("La grabación se detuvo sola. Revisá el espacio libre en el disco y volvé a grabar."));
         }

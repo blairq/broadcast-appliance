@@ -1857,6 +1857,9 @@ std::string BroadcastEngine::startRecordingYa(Salida& s, const RecordConfig& rec
 void BroadcastEngine::stopRecording(const std::string& salida) {
     std::shared_ptr<Salida> s = laSalidaCompartida(salida);
     if (!s) return;
+    // Con la orden que la pidió (diag/Correlacion): quién paró una grabación se sabe.
+    ba::diag::registro().linea(ba::diag::Nivel::Info, "salidas", 0,
+                               ba::i18n::llenar(ba::i18n::traducir("salidas", "grabación de la salida «%1»: se para (pedido)"), {s->id}));
     {
         std::lock_guard<std::mutex> l(pedidosM_);
         s->grabacionPedida = false;
@@ -2605,6 +2608,7 @@ EngineStatus BroadcastEngine::status() const {
     }
     const json g = f.value("grabacion", json::object());
     st.recording = g.value("activa", false);
+    st.recordingDown = g.value("caida", false);
     if (st.videoEncoder.empty()) st.videoEncoder = g.value("estado", json::object()).value("codificador", std::string());
     // El resumen de cada salida (la por omisión, igual que los campos de arriba).
     const json todas = f.value("salidas", json::object());

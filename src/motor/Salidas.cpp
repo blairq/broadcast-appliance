@@ -1225,6 +1225,10 @@ void Grabacion::tic() {
         error_ = armar();
         if (!error_.empty()) {
             reintentoNs_ = ahora + esperaRearmeNs(++intentos_);
+            // Que se sepa por qué no vuelve (el primero y después de a diez: sin inundar).
+            if (intentos_ == 1 || intentos_ % 10 == 0)
+                registrar(Nivel::Error, llenar(traducir("motor", "grabación %1: la parte %2 no arrancó (%3); se reintenta"),
+                                               {cfg_.nombre, std::to_string(parte_), error_}));
             return;
         }
         intentos_ = 0;
