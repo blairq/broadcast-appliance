@@ -387,6 +387,10 @@ class SignalingServer {
                          const std::string& query, const std::string& headers, const std::string& body,
                          std::uint32_t clientIp);
     bool serveStatic(long long fd, const std::string& root, const std::string& relPath);
+    /// Una página de la sala en su carpeta (/<prefijo>/…): la redirección sin la barra, el
+    /// index y el 404. true si `path` era suyo (ya contestado).
+    bool servirCarpeta(long long fd, const std::string& method, const std::string& path, const std::string& prefijo,
+                       const std::string& webroot);
     void apiJoin(long long fd, const std::string& body, std::uint32_t clientIp);
     void apiVerify(long long fd, const std::string& query);
     void apiUpload(long long fd, const std::string& headers, const std::string& query);

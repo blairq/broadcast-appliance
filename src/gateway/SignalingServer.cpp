@@ -1105,16 +1105,7 @@ void SignalingServer::handleGuestHttp(long long fd, const std::string& method, c
         else serveStatic(fd, cfg_.webroot, "index.html");
         return;
     }
-    if (method == "GET" && (path == "/invitados" || path.rfind("/invitados/", 0) == 0)) {
-        if (path == "/invitados") {
-            http::sendResponse(fd, 301, "text/plain", "", "Location: /invitados/\r\n");
-            return;
-        }
-        std::string rel = path.substr(11);
-        if (rel.empty()) rel = "index.html";
-        serveStatic(fd, cfg_.webroot, rel);
-        return;
-    }
+    if (servirCarpeta(fd, method, path, "/invitados", cfg_.webroot)) return;
     if (method == "GET" && path.rfind("/evento/docs/", 0) == 0) {
         // La documentación pública del evento abierto: /evento/docs/<id>.pdf (el documento)
         // y <id>.jpg (su carátula, ya hecha). Solo lo que el evento publicó.
@@ -1342,17 +1333,7 @@ void SignalingServer::handleGuestHttp(long long fd, const std::string& method, c
     // La página del corrector (/correccion/#k=<clave>) pide cada medio segundo
     // las frases que esperan y manda las correcciones. Con clave (del evento):
     // corregir lo que sale al aire es poder escribir en pantalla.
-    if (method == "GET" && (path == "/correccion" || path.rfind("/correccion/", 0) == 0)) {
-        if (path == "/correccion") {
-            http::sendResponse(fd, 301, "text/plain", "", "Location: /correccion/\r\n");
-            return;
-        }
-        std::string rel = path.substr(std::string("/correccion/").size());
-        if (rel.empty()) rel = "index.html";
-        if (!cfg_.correccionWebroot.empty() && serveStatic(fd, cfg_.correccionWebroot, rel)) return;
-        http::sendResponse(fd, 404, "text/plain", traducir("gateway", "no encontrado") + "\n");
-        return;
-    }
+    if (servirCarpeta(fd, method, path, "/correccion", cfg_.correccionWebroot)) return;
     if (path == "/api/correccion") {
         const auto q = http::parseQuery(query);
         const json req = method == "POST" ? json::parse(body, nullptr, false) : json::object();
@@ -1452,17 +1433,7 @@ void SignalingServer::handleGuestHttp(long long fd, const std::string& method, c
     // Es la pagina del invitado sin las partes de invitado: entra por /ws con
     // un token, no publica nada y muestra lo que le baja. Estatica y sin
     // clave: el token va en la URL que le pasa la app.
-    if (method == "GET" && (path == "/cast" || path.rfind("/cast/", 0) == 0)) {
-        if (path == "/cast") {
-            http::sendResponse(fd, 301, "text/plain", "", "Location: /cast/\r\n");
-            return;
-        }
-        std::string rel = path.size() > 6 ? path.substr(6) : std::string("index.html");
-        if (rel.empty()) rel = "index.html";
-        if (!cfg_.castWebroot.empty() && serveStatic(fd, cfg_.castWebroot, rel)) return;
-        http::sendResponse(fd, 404, "text/plain", traducir("gateway", "no encontrado") + "\n");
-        return;
-    }
+    if (servirCarpeta(fd, method, path, "/cast", cfg_.castWebroot)) return;
 
     // --- Lo que se manda a un televisor -------------------------------------
     // Publico y de solo lectura: es una pagina que MUESTRA lo que dice la URL.
@@ -1526,17 +1497,7 @@ void SignalingServer::handleGuestHttp(long long fd, const std::string& method, c
     // --- Rotulos desde el celular -------------------------------------------
     // La pagina es estatica y no lleva datos: se sirve sin clave. Los datos
     // (que es /api/rotulos) SI la piden, para mirar y para cambiar.
-    if (method == "GET" && (path == "/rotulos" || path.rfind("/rotulos/", 0) == 0)) {
-        if (path == "/rotulos") { // ver el comentario de /prompter
-            http::sendResponse(fd, 301, "text/plain", "", "Location: /rotulos/\r\n");
-            return;
-        }
-        std::string rel = path.size() > 9 ? path.substr(9) : std::string("index.html");
-        if (rel.empty()) rel = "index.html";
-        if (!cfg_.rotulosWebroot.empty() && serveStatic(fd, cfg_.rotulosWebroot, rel)) return;
-        http::sendResponse(fd, 404, "text/plain", traducir("gateway", "no encontrado") + "\n");
-        return;
-    }
+    if (servirCarpeta(fd, method, path, "/rotulos", cfg_.rotulosWebroot)) return;
     if (path == "/api/rotulos") {
         // La clave hace falta para las dos cosas. Sin clave configurada, la
         // superficie no existe: es preferible que no ande a que ande abierta.
@@ -1579,17 +1540,7 @@ void SignalingServer::handleGuestHttp(long long fd, const std::string& method, c
     //
     // La pagina es estatica y se sirve sin clave; los datos (/api/preguntas) SI
     // la piden.
-    if (method == "GET" && (path == "/publico" || path.rfind("/publico/", 0) == 0)) {
-        if (path == "/publico") { // ver el comentario de /prompter
-            http::sendResponse(fd, 301, "text/plain", "", "Location: /publico/\r\n");
-            return;
-        }
-        std::string rel = path.size() > 9 ? path.substr(9) : std::string("index.html");
-        if (rel.empty()) rel = "index.html";
-        if (!cfg_.publicoWebroot.empty() && serveStatic(fd, cfg_.publicoWebroot, rel)) return;
-        http::sendResponse(fd, 404, "text/plain", traducir("gateway", "no encontrado") + "\n");
-        return;
-    }
+    if (servirCarpeta(fd, method, path, "/publico", cfg_.publicoWebroot)) return;
     // El fondo del evento. Va aparte del JSON a proposito: son doscientos
     // telefonos pidiendo cada tres segundos, y una imagen repetida en cada
     // respuesta es el mismo fondo mandado mil veces. Asi va una vez y el
@@ -1765,21 +1716,28 @@ void SignalingServer::handleGuestHttp(long long fd, const std::string& method, c
         }
     }
 
-    if (method == "GET" && (path == "/board" || path.rfind("/board/", 0) == 0)) {
-        if (path == "/board") { // ver el comentario de /prompter
-            http::sendResponse(fd, 301, "text/plain", "", "Location: /board/\r\n");
-            return;
-        }
-        std::string rel = path.size() > 7 ? path.substr(7) : std::string("index.html");
-        if (rel.empty()) rel = "index.html";
-        if (!cfg_.boardWebroot.empty() && serveStatic(fd, cfg_.boardWebroot, rel)) return;
-        http::sendResponse(fd, 404, "text/plain", traducir("gateway", "no encontrado") + "\n");
-        return;
-    }
+    if (servirCarpeta(fd, method, path, "/board", cfg_.boardWebroot)) return;
     if (!path.empty() && path[0] == '/' && method == "GET") {
         if (serveStatic(fd, cfg_.webroot, path.substr(1))) return;
     }
     http::sendResponse(fd, 404, "text/plain", traducir("gateway", "no encontrado") + "\n");
+}
+
+bool SignalingServer::servirCarpeta(long long fd, const std::string& method, const std::string& path,
+                                    const std::string& prefijo, const std::string& webroot) {
+    if (method != "GET" || (path != prefijo && path.rfind(prefijo + "/", 0) != 0)) return false;
+    // Sin la barra final, el navegador resuelve "app.js" y "style.css" contra la RAIZ, y
+    // ahi vive la app del invitado: la pagina sale con el codigo equivocado y sin decir
+    // nada. Se redirige, como hace cualquier servidor con un directorio.
+    if (path == prefijo) {
+        http::sendResponse(fd, 301, "text/plain", "", "Location: " + prefijo + "/\r\n");
+        return true;
+    }
+    std::string rel = path.substr(prefijo.size() + 1);
+    if (rel.empty()) rel = "index.html";
+    if (!webroot.empty() && serveStatic(fd, webroot, rel)) return true;
+    http::sendResponse(fd, 404, "text/plain", traducir("gateway", "no encontrado") + "\n");
+    return true;
 }
 
 bool SignalingServer::serveStatic(long long fd, const std::string& root, const std::string& relPath) {
