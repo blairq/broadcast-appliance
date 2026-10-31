@@ -9,6 +9,10 @@
 //
 // Cada cambio vuelve a mandar la lista entera; lo nuevo entra y lo que se va
 // sale con el fundido pedido (lo que no cambió queda como estaba).
+//
+// Cada salida tiene las suyas (PLAN-SALIDAS): su DSK, su placa y su negro van al
+// PROGRAMA de esa salida. El fondo de la placa y el negro son la misma entrada
+// interna para todas; el texto y la imagen de la placa, una por salida.
 // ============================================================================
 
 #include "emision/BroadcastEngine.hpp"
@@ -27,14 +31,20 @@ constexpr const char* kFtb = "__ftb__";
 constexpr const char* kPlacaFondo = "__placa_fondo__";
 constexpr const char* kPlacaTexto = "__placa_texto__";
 constexpr const char* kPlacaImagen = "__placa_imagen__";
+/// La entrada interna de una salida: la de siempre para la por omisión, con su id para
+/// las demás (los ids de entrada no llevan «:», ver motor::Motor).
+std::string internaDe(const char* base, const std::string& salida) {
+    return salida == BroadcastEngine::kSalidaPorOmision ? std::string(base) : base + salida + "__";
+}
 } // namespace
 
-void BroadcastEngine::publicarCapas(int ms) {
+void BroadcastEngine::publicarCapas(Salida& s, int ms) {
     if (!motor_) return;
     const int W = video_.baseWidth, H = video_.baseHeight;
+    const std::string placaTexto = internaDe(kPlacaTexto, s.id), placaImagen = internaDe(kPlacaImagen, s.id);
     json capas = json::array();
     for (int i = 0; i < 4; ++i) {
-        const Dsk& d = dsk_[i];
+        const Dsk& d = s.dsk[i];
         if (!d.visible) continue;
         for (std::size_t k = 0; k < d.contenido.size(); ++k) {
             const std::string& n = d.contenido[k];
@@ -54,122 +64,140 @@ void BroadcastEngine::publicarCapas(int ms) {
             capas.push_back(c);
         }
     }
-    if (placa_) {
+    if (s.placa) {
         capas.push_back({{"entrada", kPlacaFondo}, {"orden", 800}});
-        if (!placaImagen_.empty())
-            capas.push_back({{"entrada", kPlacaImagen}, {"x", W / 4}, {"y", H / 8}, {"ancho", W / 2}, {"alto", H / 2},
+        if (!s.placaImagen.empty())
+            capas.push_back({{"entrada", placaImagen}, {"x", W / 4}, {"y", H / 8}, {"ancho", W / 2}, {"alto", H / 2},
                              {"orden", 801}, {"contener", true}});
-        capas.push_back({{"entrada", kPlacaTexto}, {"x", 0}, {"y", placaImagen_.empty() ? 0 : H * 2 / 3}, {"ancho", W},
-                         {"alto", placaImagen_.empty() ? H : H / 3}, {"orden", 802}});
+        capas.push_back({{"entrada", placaTexto}, {"x", 0}, {"y", s.placaImagen.empty() ? 0 : H * 2 / 3}, {"ancho", W},
+                         {"alto", s.placaImagen.empty() ? H : H / 3}, {"orden", 802}});
     }
-    if (ftb_) capas.push_back({{"entrada", kFtb}, {"orden", 899}});
-    const std::string e = motor_->dsk(capas, ms);
+    if (s.ftb) capas.push_back({{"entrada", kFtb}, {"orden", 899}});
+    const std::string e = motor_->dsk(capas, ms, s.id);
     if (!e.empty()) setError(ba::i18n::llenar(ba::i18n::traducir("emision", "capas: %1"), {e}));
 }
 
-bool BroadcastEngine::ftb(bool activar, int ms, bool bajarAudio) {
+bool BroadcastEngine::ftb(bool activar, int ms, bool bajarAudio, const std::string& salida) {
     if (!started_) {
         setError(ba::i18n::traducir("emision", "el motor no está andando"));
         return false;
     }
+    Salida* s = laSalida(salida);
+    if (s == nullptr) return false;
     // Las internas se recuerdan acá: el motor las arma en su cola (ver
     // Motor::orden), así que preguntarle si ya está no sirve recién pedida.
     if (activar && internasPedidas_.insert(kFtb).second)
         motor_->agregarEntrada(kFtb, json{{"tipo", "color"}, {"color", "#FF000000"}, {"ancho", 64}, {"alto", 36}},
                                json{{"interna", true}, {"audio", false}});
-    ftb_ = activar;
+    s->ftb = activar;
     // El audio baja con el negro (y vuelve con él) si se pidió.
-    if (activar) ftbAudio_ = bajarAudio;
-    if (ftbAudio_) motor_->masterVolumen(activar ? 0.0 : 1.0, std::max(0, ms));
-    if (!activar) ftbAudio_ = false;
-    publicarCapas(std::max(0, ms));
+    if (activar) s->ftbAudio = bajarAudio;
+    if (s->ftbAudio) motor_->masterVolumen(activar ? 0.0 : 1.0, std::max(0, ms), s->id);
+    if (!activar) s->ftbAudio = false;
+    publicarCapas(*s, std::max(0, ms));
     return true;
 }
 
-bool BroadcastEngine::placa(bool activar, const std::string& texto, const std::string& imagen, int ms) {
+bool BroadcastEngine::placa(bool activar, const std::string& texto, const std::string& imagen, int ms,
+                            const std::string& salida) {
     if (!started_) {
         setError(ba::i18n::traducir("emision", "el motor no está andando"));
         return false;
     }
+    Salida* s = laSalida(salida);
+    if (s == nullptr) return false;
     if (activar) {
         // Sale al aire: el texto por defecto va en el idioma del evento, y se arma al
         // activarla (una placa ya al aire no cambia si cambia el idioma: la próxima sí).
-        placaTexto_ = texto.empty() ? ba::i18n::traducirEvento("emision", "Volvemos enseguida") : texto;
-        placaImagen_ = imagen;
+        s->placaTexto = texto.empty() ? ba::i18n::traducirEvento("emision", "Volvemos enseguida") : texto;
+        s->placaImagen = imagen;
         const int H = video_.baseHeight, W = video_.baseWidth;
         if (internasPedidas_.insert(kPlacaFondo).second)
             motor_->agregarEntrada(kPlacaFondo, json{{"tipo", "color"}, {"color", "#FF1C1C22"}, {"ancho", 64}, {"alto", 36}},
                                    json{{"interna", true}, {"audio", false}});
-        const json t{{"tipo", "texto"}, {"texto", placaTexto_}, {"tamano", std::max(12, H / 22)}, {"color", "#FFFFFFFF"},
+        const json t{{"tipo", "texto"}, {"texto", s->placaTexto}, {"tamano", std::max(12, H / 22)}, {"color", "#FFFFFFFF"},
                      {"ancho", W}, {"alto", imagen.empty() ? H : H / 3}};
-        if (!internasPedidas_.insert(kPlacaTexto).second)
-            motor_->actualizarEntrada(kPlacaTexto, t);
+        const std::string placaTexto = internaDe(kPlacaTexto, s->id), placaImagen = internaDe(kPlacaImagen, s->id);
+        if (!internasPedidas_.insert(placaTexto).second)
+            motor_->actualizarEntrada(placaTexto, t);
         else
-            motor_->agregarEntrada(kPlacaTexto, t, json{{"interna", true}, {"audio", false}});
+            motor_->agregarEntrada(placaTexto, t, json{{"interna", true}, {"audio", false}});
         if (!imagen.empty()) {
             const json im{{"tipo", "imagen"}, {"archivo", imagen}};
-            if (!internasPedidas_.insert(kPlacaImagen).second)
-                motor_->actualizarEntrada(kPlacaImagen, im);
+            if (!internasPedidas_.insert(placaImagen).second)
+                motor_->actualizarEntrada(placaImagen, im);
             else
-                motor_->agregarEntrada(kPlacaImagen, im, json{{"interna", true}, {"audio", false}});
+                motor_->agregarEntrada(placaImagen, im, json{{"interna", true}, {"audio", false}});
         }
     }
-    placa_ = activar;
-    publicarCapas(std::max(0, ms));
+    s->placa = activar;
+    publicarCapas(*s, std::max(0, ms));
     return true;
 }
 
-nlohmann::json BroadcastEngine::estadoPlaca() const {
-    return {{"ftb", ftb_}, {"ftb_audio", ftbAudio_}, {"placa", placa_}, {"placa_texto", placaTexto_}, {"placa_imagen", placaImagen_}};
+nlohmann::json BroadcastEngine::estadoPlaca(const std::string& salida) const {
+    const Salida* s = laSalida(salida);
+    if (s == nullptr) return json::object();
+    return {{"ftb", s->ftb}, {"ftb_audio", s->ftbAudio}, {"placa", s->placa}, {"placa_texto", s->placaTexto},
+            {"placa_imagen", s->placaImagen}};
 }
 
-bool BroadcastEngine::dskArmar(int capa, const std::vector<std::string>& contenido, const nlohmann::json& recuadro) {
+bool BroadcastEngine::dskArmar(int capa, const std::vector<std::string>& contenido, const nlohmann::json& recuadro,
+                               const std::string& salida) {
     if (capa < 1 || capa > 4) {
         setError(ba::i18n::traducir("emision", "la capa va de 1 a 4"));
         return false;
     }
+    Salida* s = laSalida(salida);
+    if (s == nullptr) return false;
     for (const auto& n : contenido)
         if (escena(n) == nullptr && sources_.count(n) == 0) {
             setError(ba::i18n::llenar(ba::i18n::traducir("emision", "no existe la escena o fuente «%1»"), {n}));
             return false;
         }
-    Dsk& d = dsk_[capa - 1];
+    Dsk& d = s->dsk[capa - 1];
     const std::vector<std::string> antes = d.contenido;
     d.contenido = contenido;
     d.recuadro = recuadro.is_object() ? recuadro : json::object();
-    if (d.visible) publicarCapas(0);
+    if (d.visible) publicarCapas(*s, 0);
     for (const auto& n : antes)
         if (std::find(contenido.begin(), contenido.end(), n) == contenido.end()) soltarSiHuerfana(n);
     return true;
 }
 
-bool BroadcastEngine::dskMostrar(int capa, bool visible, int ms) {
+bool BroadcastEngine::dskMostrar(int capa, bool visible, int ms, const std::string& salida) {
     if (capa < 1 || capa > 4) {
         setError(ba::i18n::traducir("emision", "la capa va de 1 a 4"));
         return false;
     }
-    if (visible && dsk_[capa - 1].contenido.empty()) {
+    Salida* s = laSalida(salida);
+    if (s == nullptr) return false;
+    if (visible && s->dsk[capa - 1].contenido.empty()) {
         setError(ba::i18n::llenar(ba::i18n::traducir("emision", "la capa %1 está vacía (dsk_armar primero)"), {std::to_string(capa)}));
         return false;
     }
-    dsk_[capa - 1].visible = visible;
-    publicarCapas(std::max(0, ms));
+    s->dsk[capa - 1].visible = visible;
+    publicarCapas(*s, std::max(0, ms));
     return true;
 }
 
-nlohmann::json BroadcastEngine::dskEstado() const {
+nlohmann::json BroadcastEngine::dskEstado(const std::string& salida) const {
     nlohmann::json out = nlohmann::json::array();
+    const Salida* s = laSalida(salida);
+    if (s == nullptr) return out;
     for (int i = 0; i < 4; ++i)
         out.push_back({{"capa", i + 1},
-                       {"visible", dsk_[i].visible},
-                       {"opacidad", dsk_[i].visible ? 1.0 : 0.0},
-                       {"contenido", dsk_[i].contenido}});
+                       {"visible", s->dsk[i].visible},
+                       {"opacidad", s->dsk[i].visible ? 1.0 : 0.0},
+                       {"contenido", s->dsk[i].contenido}});
     return out;
 }
 
-std::vector<std::string> BroadcastEngine::fuentesDsk() const {
+std::vector<std::string> BroadcastEngine::fuentesDsk(const std::string& salida) const {
     std::vector<std::string> out;
-    for (const auto& d : dsk_) {
+    const Salida* s = laSalida(salida);
+    if (s == nullptr) return out;
+    for (const auto& d : s->dsk) {
         if (!d.visible) continue;
         for (const std::string& n : d.contenido) {
             // Una escena cuenta con todo lo que tiene adentro.

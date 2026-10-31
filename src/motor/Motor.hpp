@@ -45,10 +45,12 @@
 // bus:programa; vistas «programa», «preview», «limpio». Las demás llevan su id:
 // video:programa:<id>, video:programa:<id>:limpio, video:preview:<id>,
 // bus:programa:<id>; vistas «programa:<id>», «preview:<id>», «limpio:<id>».
+// El audio de cada salida va al gateway: la por omisión a BA.Audio.ContentForReturn
+// (como siempre), las demás a BA.Audio.Salida.<id> (etapa 2).
 // POR AHORA siguen a la salida por omisión: las pistas 2-6, los retornos
-// (mix-minus), el bus «directo», la escucha «selección», el puente a
-// BA.Audio.ContentForReturn y el multiview (su PROGRAMA y su PREVIEW son los de
-// la por omisión; el tally rojo es «al aire en ALGUNA salida»).
+// (mix-minus), el bus «directo», la escucha «selección» y el multiview (su
+// PROGRAMA y su PREVIEW son los de la por omisión; el tally rojo es «al aire en
+// ALGUNA salida»).
 // ============================================================================
 #pragma once
 
@@ -304,7 +306,7 @@ class Motor {
         std::set<std::string> dskEscenas;                 ///< las escenas que pidió su DSK
         std::map<std::string, Mando> mandos;              ///< por entrada
         std::shared_ptr<TomaPrograma> toma;
-        GstElement* puente = nullptr; ///< bus → BA.Audio.ContentForReturn (por ahora, solo la por omisión)
+        GstElement* puente = nullptr; ///< bus → BA.Audio.ContentForReturn (la por omisión) o BA.Audio.Salida.<id>
         std::int64_t puenteLatNs = -1;
     };
     struct Retorno {
@@ -331,7 +333,7 @@ class Motor {
     /// Lo desarma: aparte (en caliente: devuelve cuándo termina) o ya (al apagar, con
     /// los desarmes ya esperados).
     std::shared_future<void> desarmarSalida(Salida& s, bool aparte);
-    void armarPuente(Salida& s);
+    void armarPuente(Salida& s, const std::string& canal);
     std::string crearSalidaYa(const std::string& id, const std::string& nombre);
     std::string borrarSalidaYa(const std::string& id);
     Mezcla* pista(int n, bool crear);

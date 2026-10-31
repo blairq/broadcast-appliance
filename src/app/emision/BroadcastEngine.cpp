@@ -11,6 +11,8 @@
 #include "emision/BroadcastEngine.hpp"
 #include "ajustes/Ajustes.hpp"
 #include "emision/FuentesApp.hpp"
+#include "emision/SalidasConfig.hpp"
+#include "ipc/CanalesSalida.hpp"
 #include "emision/NdiSource.hpp"
 #include "audio/GstRack.hpp"
 #include "audio/GstVoz.hpp"
@@ -33,6 +35,7 @@
 #include <filesystem>
 #include <fstream>
 #include <string>
+#include <string_view>
 #include <thread>
 #include <vector>
 
@@ -43,6 +46,10 @@
 namespace ba::app {
 
 using json = nlohmann::json;
+
+// La por omisión se llama igual en el motor, acá y en lo que se guarda (salidas.json).
+static_assert(std::string_view(BroadcastEngine::kSalidaPorOmision) == motor::Motor::kSalidaPorOmision &&
+              std::string_view(salidas::kPorOmision) == motor::Motor::kSalidaPorOmision);
 
 bool fpsDeTexto(const std::string& t, int& num, int& den) {
     if (t.empty()) return false;
@@ -169,9 +176,186 @@ struct BroadcastEngine::MedicionSincro {
 // Ciclo de vida
 // ============================================================================
 
-BroadcastEngine::BroadcastEngine() = default;
+BroadcastEngine::BroadcastEngine() {
+    // La por omisión existe siempre: lo que no dice salida va a ella.
+    auto p = std::make_shared<Salida>();
+    p->id = p->nombre = kSalidaPorOmision;
+    p->retornoEnUso = true; // BA.Program, como siempre: hasta que se sepa que nadie lo mira
+    salidas_[p->id] = p;
+    ordenSalidas_.push_back(p->id);
+}
 
 BroadcastEngine::~BroadcastEngine() { shutdown(); }
+
+// ============================================================================
+// Las salidas (docs/planes/PLAN-SALIDAS.md, etapa 2)
+// ============================================================================
+
+std::string BroadcastEngine::Salida::claveRetorno() const {
+    return porOmision() ? std::string("programa@gateway") : "programa:" + id + "@gateway";
+}
+
+std::wstring BroadcastEngine::Salida::canalRetorno() const {
+    return porOmision() ? std::wstring(kProgramVideoName) : ba::ipc::nombreCanalSalida(id);
+}
+
+BroadcastEngine::Salida* BroadcastEngine::laSalida(const std::string& id) {
+    const auto it = salidas_.find(id.empty() ? std::string(kSalidaPorOmision) : id);
+    if (it != salidas_.end()) return it->second.get();
+    setError(ba::i18n::llenar(ba::i18n::traducir("emision", "no hay una salida «%1»"), {id}));
+    return nullptr;
+}
+
+const BroadcastEngine::Salida* BroadcastEngine::laSalida(const std::string& id) const {
+    const auto it = salidas_.find(id.empty() ? std::string(kSalidaPorOmision) : id);
+    return it == salidas_.end() ? nullptr : it->second.get();
+}
+
+std::shared_ptr<BroadcastEngine::Salida> BroadcastEngine::laSalidaCompartida(const std::string& id) {
+    const auto it = salidas_.find(id.empty() ? std::string(kSalidaPorOmision) : id);
+    if (it != salidas_.end()) return it->second;
+    setError(ba::i18n::llenar(ba::i18n::traducir("emision", "no hay una salida «%1»"), {id}));
+    return nullptr;
+}
+
+std::vector<std::shared_ptr<BroadcastEngine::Salida>> BroadcastEngine::lasSalidas() const {
+    std::lock_guard<std::mutex> l(salidasM_);
+    std::vector<std::shared_ptr<Salida>> out;
+    for (const auto& id : ordenSalidas_) out.push_back(salidas_.at(id));
+    return out;
+}
+
+std::vector<std::string> BroadcastEngine::salidaIds() const { return ordenSalidas_; }
+
+bool BroadcastEngine::existeSalida(const std::string& id) const { return laSalida(id) != nullptr; }
+
+std::string BroadcastEngine::idDeSalida(const std::string& salida) const {
+    const Salida* s = laSalida(salida);
+    return s != nullptr ? s->id : std::string();
+}
+
+bool BroadcastEngine::crearSalida(const std::string& id, const std::string& nombre) {
+    if (!started_ || !motor_) {
+        setError(ba::i18n::traducir("emision", "el motor no está andando"));
+        return false;
+    }
+    if (std::string e = salidas::validarId(id); !e.empty()) {
+        setError(e);
+        return false;
+    }
+    if (salidas_.count(id) > 0) {
+        setError(ba::i18n::llenar(ba::i18n::traducir("emision", "ya hay una salida «%1»"), {id}));
+        return false;
+    }
+    // En el motor: su programa, su preview y su mezcla (va en su cola: un error
+    // que llegue después vuelve por alFallarMotor).
+    if (std::string e = motor_->crearSalida(id, nombre); !e.empty()) {
+        setError(e);
+        return false;
+    }
+    auto s = std::make_shared<Salida>();
+    s->id = id;
+    s->nombre = nombre.empty() ? id : nombre;
+    // Su mezcla arranca como la de la por omisión (lo mismo hace el motor con sus mandos).
+    for (const auto& [n, f] : sources_) {
+        s->volumen[n] = f.spec.volume;
+        s->mute[n] = f.spec.muted;
+    }
+    {
+        std::lock_guard<std::mutex> l(salidasM_);
+        salidas_[id] = s;
+        ordenSalidas_.push_back(id);
+    }
+    medirSalida(*s);
+    if (returnFeedsActive_) publicarRetorno(s);
+    return true;
+}
+
+bool BroadcastEngine::borrarSalida(const std::string& id) {
+    if (id.empty() || id == kSalidaPorOmision) {
+        setError(ba::i18n::traducir("emision", "la salida por omisión no se puede borrar"));
+        return false;
+    }
+    std::shared_ptr<Salida> s = laSalidaCompartida(id);
+    if (!s) return false;
+    // Lo que sale de ella se para en el hilo de salidas, después de lo que ya estaba encolado.
+    {
+        std::lock_guard<std::mutex> l(pedidosM_);
+        s->streamPedido = s->grabacionPedida = s->limpioPedido = false;
+        s->extrasPedidos.clear();
+    }
+    if (hiloSalidas_.joinable())
+        enSalidas("borrarSalida", [this, s]() {
+            pararTodoYa(*s);
+            return std::string();
+        });
+    soltarRetorno(*s);
+    dejarDeMedir(*s);
+    {
+        std::lock_guard<std::mutex> l(salidasM_);
+        salidas_.erase(id);
+        ordenSalidas_.erase(std::remove(ordenSalidas_.begin(), ordenSalidas_.end(), id), ordenSalidas_.end());
+    }
+    // El motor la desarma aparte (y una nueva con el mismo id espera ese desarme).
+    if (motor_)
+        if (std::string e = motor_->borrarSalida(id); !e.empty()) {
+            setError(e);
+            return false;
+        }
+    return true;
+}
+
+void BroadcastEngine::medirSalida(Salida& s) {
+    if (!motor_ || s.oyenteAudio != 0) return;
+    // La sincronía labios/voz se mide en el programa de la por omisión (es una cámara contra su micrófono).
+    const bool sincro = s.porOmision();
+    s.oyenteAudio = motor_->escucharPrograma(
+        [this, m = s.medidas, sincro](const float* d, std::size_t n) {
+            static thread_local std::vector<float> l, r;
+            l.resize(n);
+            r.resize(n);
+            float pl = 0, pr = 0;
+            for (std::size_t i = 0; i < n; ++i) {
+                l[i] = d[2 * i];
+                r[i] = d[2 * i + 1];
+                pl = std::max(pl, std::fabs(l[i]));
+                pr = std::max(pr, std::fabs(r[i]));
+            }
+            const float* planos[2] = {l.data(), r.data()};
+            m->loudness.alimentar(planos, 2, static_cast<std::uint32_t>(n));
+            for (auto [a, v] : {std::pair{&m->picoL, pl}, std::pair{&m->picoR, pr}}) {
+                float cur = a->load(std::memory_order_relaxed);
+                while (v > cur && !a->compare_exchange_weak(cur, v, std::memory_order_relaxed)) {
+                }
+            }
+            if (!sincro) return;
+            if (auto ms = medSincro_) {
+                // Picos cada 5 ms con la hora en que sonó (ahora es cuando sale).
+                const std::int64_t fin = ahoraMs();
+                for (std::size_t i = 0; i < n; i += 240) {
+                    float p = 0;
+                    for (std::size_t k = i; k < std::min(n, i + 240); ++k) p = std::max(p, std::max(std::fabs(l[k]), std::fabs(r[k])));
+                    const double db = p > 1e-6f ? 20.0 * std::log10(p) : -120.0;
+                    const std::int64_t t = fin - static_cast<std::int64_t>((n - i) * 1000 / 48000);
+                    std::lock_guard<std::mutex> lk(ms->mu);
+                    ms->audio.push_back({t, db});
+                }
+            }
+        },
+        s.id);
+}
+
+void BroadcastEngine::dejarDeMedir(Salida& s) {
+    if (s.oyenteAudio != 0 && motor_) motor_->dejarDeEscuchar(s.oyenteAudio);
+    s.oyenteAudio = 0;
+}
+
+audio::LoudnessPrograma& BroadcastEngine::loudness(const std::string& salida) {
+    const Salida* s = laSalida(salida);
+    return (s != nullptr ? *s : porOmision()).medidas->loudness;
+}
+
+int BroadcastEngine::pistasGrabacionMask() const { return porOmision().pistasGrabacionMask; }
 
 void BroadcastEngine::setError(std::string msg) { lastError_ = std::move(msg); }
 
@@ -271,38 +455,9 @@ bool BroadcastEngine::startup(const EnginePaths& paths, const VideoConfig& video
     g_lienzoAncho = video.baseWidth;
     g_lienzoAlto = video.baseHeight;
     g_fps = video.fpsDen > 0 ? static_cast<double>(video.fpsNum) / video.fpsDen : 30.0;
-    // Lo que se mide del programa: loudness y picos (audio), brillo y quietud (video).
-    oyenteAudio_ = motor_->escucharPrograma([this](const float* d, std::size_t n) {
-        static thread_local std::vector<float> l, r;
-        l.resize(n);
-        r.resize(n);
-        float pl = 0, pr = 0;
-        for (std::size_t i = 0; i < n; ++i) {
-            l[i] = d[2 * i];
-            r[i] = d[2 * i + 1];
-            pl = std::max(pl, std::fabs(l[i]));
-            pr = std::max(pr, std::fabs(r[i]));
-        }
-        const float* planos[2] = {l.data(), r.data()};
-        loudness_->alimentar(planos, 2, static_cast<std::uint32_t>(n));
-        for (auto [a, v] : {std::pair{&peakL_, pl}, std::pair{&peakR_, pr}}) {
-            float cur = a->load(std::memory_order_relaxed);
-            while (v > cur && !a->compare_exchange_weak(cur, v, std::memory_order_relaxed)) {
-            }
-        }
-        if (auto m = medSincro_) {
-            // Picos cada 5 ms con la hora en que sonó (ahora es cuando sale).
-            const std::int64_t fin = ahoraMs();
-            for (std::size_t i = 0; i < n; i += 240) {
-                float p = 0;
-                for (std::size_t k = i; k < std::min(n, i + 240); ++k) p = std::max(p, std::max(std::fabs(l[k]), std::fabs(r[k])));
-                const double db = p > 1e-6f ? 20.0 * std::log10(p) : -120.0;
-                const std::int64_t ms = fin - static_cast<std::int64_t>((n - i) * 1000 / 48000);
-                std::lock_guard<std::mutex> lk(m->mu);
-                m->audio.push_back({ms, db});
-            }
-        }
-    });
+    // Lo que se mide del programa: loudness y picos (audio, de cada salida), brillo y
+    // quietud (video, el de la por omisión).
+    medirSalida(porOmision());
     motor_->verPedir("programa@alarmas", 160, 90);
     motor_->verAvisar("programa@alarmas", [this](const motor::Cuadro& c) {
         ++progCuadros_;
@@ -362,10 +517,12 @@ void BroadcastEngine::shutdown() {
     for (int i = 0; i < 80 && capturasEnCurso_.load() > 0; ++i) std::this_thread::sleep_for(std::chrono::milliseconds(50));
     started_ = false;
     stopAllSourceRecordings();
-    stopCleanFeed();
     stopExtras();
-    stopStreaming();
-    stopRecording();
+    for (const auto& id : salidaIds()) {
+        stopCleanFeed(id);
+        stopStreaming(id);
+        stopRecording(id);
+    }
     detenerSalidas(); // corre lo encolado (las paradas) y se apaga
     stopReturnFeeds();
     disablePreview();
@@ -373,8 +530,7 @@ void BroadcastEngine::shutdown() {
     scenePreviews_.clear();
     motor_->verAvisar("programa@alarmas", nullptr);
     motor_->verSoltar("programa@alarmas");
-    if (oyenteAudio_ != 0) motor_->dejarDeEscuchar(oyenteAudio_);
-    oyenteAudio_ = 0;
+    for (const auto& s : lasSalidas()) dejarDeMedir(*s);
     fuentes::ponerMotorApp(nullptr);
     fuentes::ponerSalida(nullptr);
     fuentes::ponerCambiar(nullptr);
@@ -386,9 +542,20 @@ void BroadcastEngine::shutdown() {
     sources_.clear();
     ordenFuentes_.clear();
     micInputs_.clear();
-    currentScene_.clear();
-    for (auto& d : dsk_) d = Dsk{};
-    ftb_ = placa_ = ftbAudio_ = false;
+    // Las salidas que no son la por omisión se van con el motor (resetVideo las vuelve
+    // a crear); la por omisión queda, sin nada al aire (su loudness sigue: hay quien
+    // tiene su referencia).
+    {
+        std::lock_guard<std::mutex> l(salidasM_);
+        for (auto it = salidas_.begin(); it != salidas_.end();)
+            it = it->first == kSalidaPorOmision ? std::next(it) : salidas_.erase(it);
+        ordenSalidas_ = {kSalidaPorOmision};
+    }
+    Salida& p = porOmision();
+    p.alAire.clear();
+    p.armada.clear();
+    for (auto& d : p.dsk) d = Dsk{};
+    p.ftb = p.placa = p.ftbAudio = false;
 }
 
 BroadcastEngine::ProgramaVideo BroadcastEngine::programaVideo() const {
@@ -475,58 +642,92 @@ bool BroadcastEngine::publishReturnFeeds() {
         return false;
     }
     if (returnFeedsActive_) return true;
-    // El audio (BA.Audio.ContentForReturn) lo escribe el motor desde que arranca.
-    ba::ipc::SlotConfig vcfg{video_.outputWidth, video_.outputHeight};
-    // Un canal publicado no cambia de tamaño (ver SpoutSender::publish): con otro
-    // lienzo (resetVideo) se rehace, y el gateway se vuelve a suscribir solo al ver
-    // otra instancia, como con los canales de escena. Antes se intentaba publicar
-    // otra vez el mismo y fallaba: la salida al gateway quedaba colgada.
-    if (programVideo_.published() && (programAncho_ != vcfg.width || programAlto_ != vcfg.height))
-        programVideo_ = ba::ipc::SpoutSender();
-    if (!programVideo_.published()) {
-        if (!programVideo_.publish(kProgramVideoName, vcfg)) {
-            setError(ba::i18n::traducir("emision", "no se pudo publicar el canal de video de programa"));
-            return false;
-        }
-        programAncho_ = vcfg.width;
-        programAlto_ = vcfg.height;
-    }
-    const std::string e = motor_->verPedir("programa@gateway", video_.outputWidth, video_.outputHeight);
-    if (!e.empty()) {
-        setError(e);
-        return false;
-    }
-    motor_->verAvisar("programa@gateway", [this](const motor::Cuadro& c) { enviarRetorno(c); });
+    // El audio de cada salida (BA.Audio.ContentForReturn, BA.Audio.Salida.<id>) lo
+    // escribe el motor desde que la arma.
+    bool ok = true;
+    for (const auto& s : lasSalidas()) ok = publicarRetorno(s) && ok;
+    if (!ok) return false;
     returnFeedsActive_ = true;
     return true;
 }
 
-void BroadcastEngine::enviarRetorno(const motor::Cuadro& c) {
-    if (!programVideo_.published() || c.ancho != video_.outputWidth || c.alto != video_.outputHeight) return;
+bool BroadcastEngine::publicarRetorno(const std::shared_ptr<Salida>& s) {
+    ba::ipc::SlotConfig vcfg{video_.outputWidth, video_.outputHeight};
+    {
+        std::lock_guard<std::mutex> l(s->retornoM);
+        // Un canal publicado no cambia de tamaño (ver SpoutSender::publish): con otro
+        // lienzo (resetVideo) se rehace, y el gateway se vuelve a suscribir solo al ver
+        // otra instancia, como con los canales de escena. Antes se intentaba publicar
+        // otra vez el mismo y fallaba: la salida al gateway quedaba colgada.
+        if (s->retorno.published() && (s->retornoAncho != vcfg.width || s->retornoAlto != vcfg.height))
+            s->retorno = ba::ipc::SpoutSender();
+        if (!s->retorno.published()) {
+            if (!s->retorno.publish(s->canalRetorno().c_str(), vcfg)) {
+                setError(s->porOmision() ? ba::i18n::traducir("emision", "no se pudo publicar el canal de video de programa")
+                                         : ba::i18n::llenar(ba::i18n::traducir("emision", "no se pudo publicar el canal de video de la salida «%1»"),
+                                                            {s->id}));
+                return false;
+            }
+            s->retornoAncho = vcfg.width;
+            s->retornoAlto = vcfg.height;
+        }
+    }
+    return !s->retornoEnUso || pedirVistaRetorno(s);
+}
+
+bool BroadcastEngine::pedirVistaRetorno(const std::shared_ptr<Salida>& s) {
+    if (!motor_ || s->retornoPedido) return true;
+    const std::string e = motor_->verPedir(s->claveRetorno(), video_.outputWidth, video_.outputHeight);
+    if (!e.empty()) {
+        setError(e);
+        return false;
+    }
+    // La salida va en el aviso: vive mientras el motor pueda llamarlo (verAvisar con
+    // nullptr lo suelta antes de volver).
+    motor_->verAvisar(s->claveRetorno(), [this, s](const motor::Cuadro& c) { enviarRetorno(*s, c); });
+    s->retornoPedido = true;
+    return true;
+}
+
+void BroadcastEngine::soltarVistaRetorno(Salida& s) {
+    if (!s.retornoPedido || !motor_) return;
+    motor_->verAvisar(s.claveRetorno(), nullptr);
+    motor_->verSoltar(s.claveRetorno());
+    s.retornoPedido = false;
+}
+
+void BroadcastEngine::soltarRetorno(Salida& s) {
+    soltarVistaRetorno(s);
+    std::lock_guard<std::mutex> l(s.retornoM);
+    s.retorno = ba::ipc::SpoutSender();
+}
+
+void BroadcastEngine::enviarRetorno(Salida& s, const motor::Cuadro& c) {
+    std::lock_guard<std::mutex> l(s.retornoM);
+    if (!s.retorno.published() || c.ancho != s.retornoAncho || c.alto != s.retornoAlto) return;
     const std::size_t fila = static_cast<std::size_t>(c.ancho) * 4;
     const std::uint8_t* px = c.bgra.data();
     if (static_cast<std::size_t>(c.stride) != fila) {
-        programPacked_.resize(fila * static_cast<std::size_t>(c.alto));
+        s.retornoFilas.resize(fila * static_cast<std::size_t>(c.alto));
         for (int y = 0; y < c.alto; ++y)
-            std::memcpy(programPacked_.data() + fila * y, c.bgra.data() + static_cast<std::size_t>(c.stride) * y, fila);
-        px = programPacked_.data();
+            std::memcpy(s.retornoFilas.data() + fila * y, c.bgra.data() + static_cast<std::size_t>(c.stride) * y, fila);
+        px = s.retornoFilas.data();
     }
     ba::ipc::FrameMeta meta;
-    meta.frameIndex = ++programFrameIndex_;
+    meta.frameIndex = ++s.retornoCuadros;
     meta.qpc = ba::ipc::HealthBlock::nowQpc();
-    programVideo_.send(px, fila * static_cast<std::size_t>(c.alto), meta);
+    s.retorno.send(px, fila * static_cast<std::size_t>(c.alto), meta);
 }
 
-void BroadcastEngine::retornoEnUso(bool si) {
-    if (!returnFeedsActive_ || !motor_ || si == !retornoPausado_) return;
-    if (si) {
-        if (motor_->verPedir("programa@gateway", video_.outputWidth, video_.outputHeight).empty())
-            motor_->verAvisar("programa@gateway", [this](const motor::Cuadro& c) { enviarRetorno(c); });
-    } else {
-        motor_->verAvisar("programa@gateway", nullptr);
-        motor_->verSoltar("programa@gateway");
-    }
-    retornoPausado_ = !si;
+void BroadcastEngine::retornoEnUso(bool si, const std::string& salida) {
+    std::shared_ptr<Salida> s = laSalidaCompartida(salida);
+    if (!s || s->retornoEnUso == si) return;
+    s->retornoEnUso = si;
+    if (!returnFeedsActive_ || !motor_) return;
+    if (si)
+        pedirVistaRetorno(s);
+    else
+        soltarVistaRetorno(*s);
 }
 
 void BroadcastEngine::alFallarMotor(std::function<void(const std::string&)> fn) {
@@ -648,11 +849,8 @@ void BroadcastEngine::enviarEscena(int k, const motor::Cuadro& q) {
 void BroadcastEngine::stopReturnFeeds() {
     for (int k = 0; k < ba::ipc::kCanalesEscena; ++k) escenaACanal(k, "");
     if (!returnFeedsActive_ || !motor_) return;
-    if (!retornoPausado_) {
-        motor_->verAvisar("programa@gateway", nullptr);
-        motor_->verSoltar("programa@gateway");
-    }
-    retornoPausado_ = false;
+    for (const auto& s : lasSalidas()) soltarVistaRetorno(*s);
+    porOmision().retornoEnUso = true; // como al arrancar
     returnFeedsActive_ = false;
 }
 
@@ -693,25 +891,44 @@ bool BroadcastEngine::latestPreview(std::vector<std::uint8_t>& dst, int& width, 
     return true;
 }
 
-void BroadcastEngine::programPeaksDb(float& left, float& right) {
+void BroadcastEngine::programPeaksDb(float& left, float& right, const std::string& salida) {
     const auto aDb = [](float lin) { return lin <= 0.00001f ? -100.0f : 20.0f * std::log10(lin); };
-    left = aDb(peakL_.exchange(0.0f));
-    right = aDb(peakR_.exchange(0.0f));
+    const Salida* s = laSalida(salida);
+    Medidas& m = *(s != nullptr ? *s : porOmision()).medidas;
+    left = aDb(m.picoL.exchange(0.0f));
+    right = aDb(m.picoR.exchange(0.0f));
+}
+
+bool BroadcastEngine::armar(const std::string& name, const std::string& salida) {
+    Salida* s = laSalida(salida);
+    if (s == nullptr) return false;
+    if (!name.empty() && escena(name) == nullptr) {
+        setError(ba::i18n::llenar(ba::i18n::traducir("emision", "no existe la escena '%1'"), {name}));
+        return false;
+    }
+    if (!started_ || !motor_) {
+        s->armada = name; // el próximo motor la arma (resetVideo)
+        return true;
+    }
+    // LO ARMADO ES EL BUS DE PREVIEW DEL MOTOR: una composición que vive
+    // siempre y a la que armar le cambia la escena con un corte (las capas
+    // nuevas reemplazan a las viejas cuando ya tienen cuadro). Antes cada
+    // escena armada tenía su propia vista y su propia composición: en cada
+    // TAKE se soltaba una y se armaba otra de cero (ramas, shaders) y el
+    // preview parpadeaba en negro o sin capas, y además iba a 10-15 cuadros/s.
+    const std::string e = motor_->armar(name, s->id);
+    if (!e.empty()) {
+        setError(ba::i18n::llenar(ba::i18n::traducir("emision", "armar: %1"), {e}));
+        return false;
+    }
+    s->armada = name;
+    return true;
 }
 
 bool BroadcastEngine::enableScenePreview(const std::string& canal, const std::string& name, int maxWidth) {
     if (canal == "armada" && started_ && motor_) {
-        // LO ARMADO ES EL BUS DE PREVIEW DEL MOTOR: una composición que vive
-        // siempre y a la que armar le cambia la escena con un corte (las capas
-        // nuevas reemplazan a las viejas cuando ya tienen cuadro). Antes cada
-        // escena armada tenía su propia vista y su propia composición: en cada
-        // TAKE se soltaba una y se armaba otra de cero (ramas, shaders) y el
-        // preview parpadeaba en negro o sin capas, y además iba a 10-15 cuadros/s.
-        const std::string e = motor_->armar(name);
-        if (!e.empty()) {
-            setError(ba::i18n::llenar(ba::i18n::traducir("emision", "armar: %1"), {e}));
-            return false;
-        }
+        // La vista del bus de preview de la por omisión (lo armado lo pone el
+        // conmutador con armar: acá solo se mira).
         if (name.empty()) {
             disableScenePreview(canal);
             return true;
@@ -932,15 +1149,22 @@ std::string BroadcastEngine::capturarVista(const std::string& clave, int w, int 
 // Transmisión y destinos
 // ============================================================================
 
-std::string BroadcastEngine::destinoActivo() const { return enmascarar(activeServer_, activeKey_); }
+std::string BroadcastEngine::destinoActivo(const std::string& salida) const {
+    const Salida* s = laSalida(salida);
+    if (s == nullptr) return {};
+    std::lock_guard<std::mutex> l(pedidosM_);
+    return enmascarar(s->activeServer, s->activeKey);
+}
 
 namespace {
-/// Lo que leen las salidas del programa: su video y su audio (pista 1 y las pedidas).
-motor::Fuentes fuentesDelPrograma(motor::Motor& m, const std::vector<int>& pistasExtra, bool limpio = false) {
+/// Lo que leen las salidas del programa de una salida: su video y su audio (pista 1
+/// y las pedidas; las pistas 2-6 por ahora siguen a la por omisión, ver Motor).
+motor::Fuentes fuentesDelPrograma(motor::Motor& m, const std::string& salida, const std::vector<int>& pistasExtra,
+                                  bool limpio = false) {
     motor::Fuentes f;
-    f.video = m.productorDeVideo(limpio ? "limpio" : "programa", &f.latVideoNs);
+    f.video = m.productorDeVideo(limpio ? "limpio" : "programa", &f.latVideoNs, salida);
     std::int64_t lat = 0;
-    f.audios.push_back(m.productorDeBus("programa", &lat));
+    f.audios.push_back(m.productorDeBus("programa", &lat, salida));
     f.latAudioNs = lat;
     for (int p : pistasExtra) {
         std::int64_t l = 0;
@@ -961,6 +1185,10 @@ struct BroadcastEngine::Repeticion {
     std::string ultimo;
     std::atomic<bool> guardando{false};
 };
+
+// Acá Repeticion ya está completa (la Salida la tiene en un unique_ptr).
+BroadcastEngine::Salida::Salida() = default;
+BroadcastEngine::Salida::~Salida() = default;
 
 // ============================================================================
 // El hilo de salidas (docs/planes/PLAN-MOTOR-SIN-ESPERAS.md, S4)
@@ -1020,18 +1248,7 @@ void BroadcastEngine::detenerSalidas() {
         for (auto& [n, r] : sourceRecs_)
             if (r.grab) r.grab->parar();
         sourceRecs_.clear();
-        if (clean_) {
-            if (clean_->tx) clean_->tx->parar();
-            if (clean_->grab) clean_->grab->parar();
-            clean_.reset();
-        }
-        for (auto& [id, x] : extras_)
-            if (x.tx) x.tx->parar();
-        extras_.clear();
-        if (stream_) stream_->parar();
-        stream_.reset();
-        stopRecordingYa();
-        replay_.reset();
+        for (const auto& s : lasSalidas()) pararTodoYa(*s);
         return std::string();
     });
     {
@@ -1041,9 +1258,26 @@ void BroadcastEngine::detenerSalidas() {
     salidasCv_.notify_one();
     hiloSalidas_.join();
     std::lock_guard<std::mutex> l(pedidosM_);
-    streamPedido_ = grabacionPedida_ = limpioPedido_ = false;
-    extrasPedidos_.clear();
+    for (const auto& s : lasSalidas()) {
+        s->streamPedido = s->grabacionPedida = s->limpioPedido = false;
+        s->extrasPedidos.clear();
+    }
     individualesPedidas_.clear();
+}
+
+void BroadcastEngine::pararTodoYa(Salida& s) {
+    if (s.clean) {
+        if (s.clean->tx) s.clean->tx->parar();
+        if (s.clean->grab) s.clean->grab->parar();
+        s.clean.reset();
+    }
+    for (auto& [id, x] : s.extras)
+        if (x.tx) x.tx->parar();
+    s.extras.clear();
+    if (s.stream) s.stream->parar();
+    s.stream.reset();
+    stopRecordingYa(s);
+    s.replay.reset();
 }
 
 nlohmann::json BroadcastEngine::fotoSalidas() const {
@@ -1051,54 +1285,82 @@ nlohmann::json BroadcastEngine::fotoSalidas() const {
     return fotoSalidas_;
 }
 
-void BroadcastEngine::publicarFotoSalidas() {
-    // Con algo al aire, la latencia del estudio no baja sola (bajarla mueve la línea de tiempo
-    // de todas las salidas): solo sube si hace falta; sin nada al aire, se acomoda sola.
-    {
-        bool aire = (stream_ && stream_->estado().value("andando", false)) || (rec_ && rec_->grabando());
-        for (const auto& [id, x] : extras_) aire = aire || (x.tx && x.tx->estado().value("andando", false));
-        alAire_ = aire;
-        if (motor_) motor_->permitirBajarLatencia(!aire);
-    }
+json BroadcastEngine::fotoDe(const Salida& s) const {
     json f = json::object();
-    f["principal"] = stream_ ? stream_->estado() : json::object();
+    f["principal"] = s.stream ? s.stream->estado() : json::object();
     json ex = json::object();
-    for (const auto& [id, x] : extras_) {
+    for (const auto& [id, x] : s.extras) {
         json st = x.tx ? x.tx->estado() : json::object();
         st["destino"] = enmascarar(x.server, x.key);
+        st["salida"] = s.id;
         ex[id] = std::move(st);
     }
     f["extras"] = std::move(ex);
-    f["grabacion"] = {{"activa", rec_ && rec_->grabando()},
-                      {"estado", rec_ ? rec_->estado() : json::object()},
-                      {"archivo", recordPath_},
-                      {"copia", recordCopyPath_},
-                      {"copia_activa", recCopia_ && recCopia_->grabando()}};
+    f["grabacion"] = {{"activa", s.rec && s.rec->grabando()},
+                      {"estado", s.rec ? s.rec->estado() : json::object()},
+                      {"archivo", s.recordPath},
+                      {"copia", s.recordCopyPath},
+                      {"copia_activa", s.recCopia && s.recCopia->grabando()}};
     std::string ultimo;
-    if (replay_) {
-        std::lock_guard<std::mutex> l(replay_->mu);
-        ultimo = replay_->ultimo;
+    if (s.replay) {
+        std::lock_guard<std::mutex> l(s.replay->mu);
+        ultimo = s.replay->ultimo;
     }
-    f["replay"] = {{"activa", replay_ && replay_->rep->andando()},
-                   {"segundos", replay_ ? replay_->rep->segundos() : 0},
+    f["replay"] = {{"activa", s.replay && s.replay->rep->andando()},
+                   {"segundos", s.replay ? s.replay->rep->segundos() : 0},
                    {"ultimo", ultimo}};
+    if (s.clean) {
+        const json st = s.clean->tx ? s.clean->tx->estado() : json::object();
+        f["limpio"] = {{"activa", s.clean->tx ? st.value("andando", false) : (s.clean->grab && s.clean->grab->grabando())},
+                       {"reconectando", st.value("reconectando", false)},
+                       {"destino", s.clean->destino},
+                       {"archivo", s.clean->path},
+                       {"cuadros", st.value("cuadros", 0)},
+                       {"perdidos", st.value("perdidos", 0)}};
+    } else {
+        f["limpio"] = {{"activa", false}};
+    }
+    return f;
+}
+
+json BroadcastEngine::fotoDeSalida(const std::string& salida) const {
+    const Salida* s = laSalida(salida);
+    if (s == nullptr) return json::object();
+    return fotoSalidas().value("salidas", json::object()).value(s->id, json::object());
+}
+
+void BroadcastEngine::publicarFotoSalidas() {
+    const auto todas = lasSalidas();
+    // Con algo al aire, la latencia del estudio no baja sola (bajarla mueve la línea de tiempo
+    // de todas las salidas): solo sube si hace falta; sin nada al aire, se acomoda sola.
+    {
+        bool aire = false;
+        for (const auto& s : todas) {
+            aire = aire || (s->stream && s->stream->estado().value("andando", false)) || (s->rec && s->rec->grabando());
+            for (const auto& [id, x] : s->extras) aire = aire || (x.tx && x.tx->estado().value("andando", false));
+        }
+        alAire_ = aire;
+        if (motor_) motor_->permitirBajarLatencia(!aire);
+    }
+    // Cada salida en `salidas`; afuera, lo de siempre: el de la por omisión (y los
+    // destinos extra de todas, que tienen ids únicos y dicen de qué salida son).
+    json porSalida = json::object(), extras = json::object();
+    bool grabaAlguna = false;
+    for (const auto& s : todas) {
+        json fs = fotoDe(*s);
+        for (const auto& [id, x] : fs["extras"].items()) extras[id] = x;
+        grabaAlguna = grabaAlguna || fs["grabacion"].value("activa", false);
+        porSalida[s->id] = std::move(fs);
+    }
+    json f = porSalida.value(std::string(kSalidaPorOmision), json::object());
+    f["extras"] = std::move(extras);
+    f["salidas"] = std::move(porSalida);
     json ind = json::array();
     for (const auto& [n, r] : sourceRecs_)
         ind.push_back({{"nombre", n}, {"path", r.path}, {"audio_propio", r.audioPropio}, {"grabando", r.grab && r.grab->grabando()},
                        {"bytes", r.grab ? r.grab->estado().value("bytes", std::uint64_t{0}) : std::uint64_t{0}},
                        {"pausada", r.grab && r.grab->pausada()}});
     f["individuales"] = std::move(ind);
-    if (clean_) {
-        const json st = clean_->tx ? clean_->tx->estado() : json::object();
-        f["limpio"] = {{"activa", clean_->tx ? st.value("andando", false) : (clean_->grab && clean_->grab->grabando())},
-                       {"reconectando", st.value("reconectando", false)},
-                       {"destino", clean_->destino},
-                       {"archivo", clean_->path},
-                       {"cuadros", st.value("cuadros", 0)},
-                       {"perdidos", st.value("perdidos", 0)}};
-    } else {
-        f["limpio"] = {{"activa", false}};
-    }
     f["disco"] = {{"apuros", discoApuros_},
                   {"atraso_s", atrasoDisco_},
                   {"registro_trabado_ms", registroTrabadoMs_},
@@ -1106,24 +1368,30 @@ void BroadcastEngine::publicarFotoSalidas() {
                   {"automatica", prioridadAuto_},
                   {"modo", modoDisco()},
                   {"pausadas", pausadas_},
-                  {"graba_programa", rec_ && rec_->grabando()},
+                  {"graba_programa", grabaAlguna},
                   {"desde_s", discoApuros_ ? (ahoraMs() - apurosDesdeMs_) / 1000 : 0}};
     std::lock_guard<std::mutex> l(fotoSalidasM_);
     fotoSalidas_ = std::move(f);
 }
 
-bool BroadcastEngine::startStreaming(const StreamConfig& stream, const EncoderConfig& enc, bool cambiarEnCaliente) {
+bool BroadcastEngine::startStreaming(const StreamConfig& stream, const EncoderConfig& enc, bool cambiarEnCaliente,
+                                     const std::string& salida) {
     if (!started_) {
         setError(ba::i18n::traducir("emision", "startStreaming sin startup"));
+        ultimoInicio_ = Inicio::Error;
+        return false;
+    }
+    std::shared_ptr<Salida> s = laSalidaCompartida(salida);
+    if (!s) {
         ultimoInicio_ = Inicio::Error;
         return false;
     }
     bool estaba = false;
     {
         std::lock_guard<std::mutex> l(pedidosM_);
-        estaba = streamPedido_;
+        estaba = s->streamPedido;
         if (estaba) {
-            const bool mismo = (stream.server.empty() || stream.server == activeServer_) && (stream.key.empty() || stream.key == activeKey_);
+            const bool mismo = (stream.server.empty() || stream.server == s->activeServer) && (stream.key.empty() || stream.key == s->activeKey);
             if (mismo) {
                 ultimoInicio_ = Inicio::YaIgual;
                 return true;
@@ -1133,10 +1401,10 @@ bool BroadcastEngine::startStreaming(const StreamConfig& stream, const EncoderCo
     if (estaba) {
         if (!cambiarEnCaliente) {
             ultimoInicio_ = Inicio::YaOtroDestino;
-            setError(ba::i18n::llenar(ba::i18n::traducir("emision", "ya está transmitiendo a %1; para cambiar a %2 hay que pedirlo explícitamente (cambiar en caliente)"), {destinoActivo(), enmascarar(stream.server, stream.key)}));
+            setError(ba::i18n::llenar(ba::i18n::traducir("emision", "ya está transmitiendo a %1; para cambiar a %2 hay que pedirlo explícitamente (cambiar en caliente)"), {destinoActivo(s->id), enmascarar(stream.server, stream.key)}));
             return false;
         }
-        stopStreaming();
+        stopStreaming(s->id);
     }
     ultimoInicio_ = Inicio::Error;
     if (stream.server.empty()) {
@@ -1145,16 +1413,16 @@ bool BroadcastEngine::startStreaming(const StreamConfig& stream, const EncoderCo
     }
     {
         std::lock_guard<std::mutex> l(pedidosM_);
-        streamPedido_ = true;
-        activeServer_ = stream.server;
-        activeKey_ = stream.key;
+        s->streamPedido = true;
+        s->activeServer = stream.server;
+        s->activeKey = stream.key;
     }
     ultimoInicio_ = Inicio::Iniciado;
-    enSalidas("startStreaming", [this, stream, enc]() { return startStreamingYa(stream, enc); });
+    enSalidas("startStreaming", [this, s, stream, enc]() { return startStreamingYa(*s, stream, enc); });
     return true;
 }
 
-std::string BroadcastEngine::startStreamingYa(const StreamConfig& stream, const EncoderConfig& enc) {
+std::string BroadcastEngine::startStreamingYa(Salida& s, const StreamConfig& stream, const EncoderConfig& enc) {
     motor::Transmision::Config c;
     c.url = urlConClave(stream.server, stream.key);
     c.kbps = enc.videoBitrateKbps;
@@ -1163,29 +1431,32 @@ std::string BroadcastEngine::startStreamingYa(const StreamConfig& stream, const 
     c.fps = std::max(1, video_.fpsNum / std::max(1, video_.fpsDen));
     c.codificadores = videoEncoderCandidates(enc);
     auto tx = std::make_unique<motor::Transmision>(motor_->reloj(), c);
-    const std::string e = tx->iniciar(fuentesDelPrograma(*motor_, {}));
+    const std::string e = tx->iniciar(fuentesDelPrograma(*motor_, s.id, {}));
     if (!e.empty()) {
         std::lock_guard<std::mutex> l(pedidosM_);
-        streamPedido_ = false;
+        s.streamPedido = false;
         return ba::i18n::llenar(ba::i18n::traducir("emision", "no se pudo iniciar la transmisión: %1"), {e});
     }
-    stream_ = std::move(tx);
+    s.stream = std::move(tx);
     return {};
 }
 
-void BroadcastEngine::stopStreaming() {
+void BroadcastEngine::stopStreaming(const std::string& salida) {
+    std::shared_ptr<Salida> s = laSalidaCompartida(salida);
+    if (!s) return;
     {
         std::lock_guard<std::mutex> l(pedidosM_);
-        streamPedido_ = false;
+        s->streamPedido = false;
     }
-    enSalidas("stopStreaming", [this]() {
-        if (stream_) stream_->parar();
-        stream_.reset();
+    enSalidas("stopStreaming", [s]() {
+        if (s->stream) s->stream->parar();
+        s->stream.reset();
         return std::string();
     });
 }
 
-bool BroadcastEngine::startExtra(const std::string& id, const std::string& server, const std::string& key, const EncoderConfig& enc) {
+bool BroadcastEngine::startExtra(const std::string& id, const std::string& server, const std::string& key, const EncoderConfig& enc,
+                                 const std::string& salida) {
     if (!started_) {
         setError(ba::i18n::traducir("emision", "el motor no está andando"));
         return false;
@@ -1194,21 +1465,26 @@ bool BroadcastEngine::startExtra(const std::string& id, const std::string& serve
         setError(ba::i18n::traducir("emision", "el destino no tiene servidor"));
         return false;
     }
+    std::shared_ptr<Salida> s = laSalidaCompartida(salida);
+    if (!s) return false;
     {
+        // El id de un destino es único entre todas las salidas: si ya sale (por la que sea), está.
         std::lock_guard<std::mutex> l(pedidosM_);
-        if (!extrasPedidos_.insert(id).second) return true;
+        for (const auto& [sid, o] : salidas_)
+            if (o->extrasPedidos.count(id) > 0) return true;
+        s->extrasPedidos.insert(id);
     }
-    enSalidas("startExtra", [this, id, server, key, enc]() { return startExtraYa(id, server, key, enc); });
+    enSalidas("startExtra", [this, s, id, server, key, enc]() { return startExtraYa(*s, id, server, key, enc); });
     return true;
 }
 
-std::string BroadcastEngine::startExtraYa(const std::string& id, const std::string& server, const std::string& key,
+std::string BroadcastEngine::startExtraYa(Salida& s, const std::string& id, const std::string& server, const std::string& key,
                                           const EncoderConfig& enc) {
-    auto it = extras_.find(id);
-    if (it != extras_.end() && it->second.tx && it->second.tx->andando()) return {};
-    if (it != extras_.end()) {
+    auto it = s.extras.find(id);
+    if (it != s.extras.end() && it->second.tx && it->second.tx->andando()) return {};
+    if (it != s.extras.end()) {
         if (it->second.tx) it->second.tx->parar();
-        extras_.erase(it);
+        s.extras.erase(it);
     }
     motor::Transmision::Config c;
     c.url = urlConClave(server, key);
@@ -1221,26 +1497,28 @@ std::string BroadcastEngine::startExtraYa(const std::string& id, const std::stri
     x.server = server;
     x.key = key;
     x.tx = std::make_unique<motor::Transmision>(motor_->reloj(), c);
-    const std::string e = x.tx->iniciar(fuentesDelPrograma(*motor_, {}));
+    const std::string e = x.tx->iniciar(fuentesDelPrograma(*motor_, s.id, {}));
     if (!e.empty()) {
         std::lock_guard<std::mutex> l(pedidosM_);
-        extrasPedidos_.erase(id);
+        s.extrasPedidos.erase(id);
         return ba::i18n::llenar(ba::i18n::traducir("emision", "el destino «%1» no arrancó: %2"), {id, e});
     }
-    extras_[id] = std::move(x);
+    s.extras[id] = std::move(x);
     return {};
 }
 
 void BroadcastEngine::stopExtra(const std::string& id) {
     {
         std::lock_guard<std::mutex> l(pedidosM_);
-        extrasPedidos_.erase(id);
+        for (const auto& [sid, s] : salidas_) s->extrasPedidos.erase(id);
     }
     enSalidas("stopExtra", [this, id]() {
-        auto it = extras_.find(id);
-        if (it == extras_.end()) return std::string();
-        if (it->second.tx) it->second.tx->parar();
-        extras_.erase(it);
+        for (const auto& s : lasSalidas()) {
+            auto it = s->extras.find(id);
+            if (it == s->extras.end()) continue;
+            if (it->second.tx) it->second.tx->parar();
+            s->extras.erase(it);
+        }
         return std::string();
     });
 }
@@ -1249,7 +1527,7 @@ void BroadcastEngine::stopExtras() {
     std::set<std::string> ids;
     {
         std::lock_guard<std::mutex> l(pedidosM_);
-        ids = extrasPedidos_;
+        for (const auto& [sid, s] : salidas_) ids.insert(s->extrasPedidos.begin(), s->extrasPedidos.end());
     }
     for (const auto& id : ids) stopExtra(id);
 }
@@ -1264,7 +1542,8 @@ nlohmann::json BroadcastEngine::extrasEstado() const {
                    {"cuadros", st.value("cuadros", 0)},
                    {"bytes", st.value("bytes", std::uint64_t{0})},
                    {"kbps", st.value("kbps", 0.0)},
-                   {"destino", st.value("destino", std::string())}};
+                   {"destino", st.value("destino", std::string())},
+                   {"salida", st.value("salida", std::string(kSalidaPorOmision))}};
     return out;
 }
 
@@ -1295,42 +1574,45 @@ struct BroadcastEngine::EstadoRemux {
     std::atomic<bool> andando{false}, ok{false};
 };
 
-bool BroadcastEngine::startRecording(const RecordConfig& rec, const EncoderConfig& enc) {
+bool BroadcastEngine::startRecording(const RecordConfig& rec, const EncoderConfig& enc, const std::string& salida) {
     if (!started_) {
         setError(ba::i18n::traducir("emision", "startRecording sin startup"));
         return false;
     }
+    std::shared_ptr<Salida> s = laSalidaCompartida(salida);
+    if (!s) return false;
     {
         std::lock_guard<std::mutex> l(pedidosM_);
-        if (grabacionPedida_) return true;
-        grabacionPedida_ = true;
+        if (s->grabacionPedida) return true;
+        s->grabacionPedida = true;
     }
-    lastRec_ = rec;
-    lastRecValido_ = true;
+    s->lastRec = rec;
+    s->lastRecValido = true;
     const std::string pedido = rec.container.empty() ? std::string("mkv") : rec.container;
     // MP4/MOV no sobreviven a un corte: se graba en MKV y se pasa al terminar.
-    remuxA_ = pedido == "mp4" || pedido == "mov" ? pedido : std::string();
-    remuxAlTerminar_ = rec.remuxAlTerminar;
+    const std::string remuxA = pedido == "mp4" || pedido == "mov" ? pedido : std::string();
+    // Las pistas 2-6 (la Matriz) siguen a la mezcla de la por omisión: solo ella las graba.
     std::vector<int> pistas;
-    pistasGrabacionMask_ = 0;
+    s->pistasGrabacionMask = 0;
     for (int p : rec.pistas)
-        if (p >= 2 && p <= 6 && std::find(pistas.begin(), pistas.end(), p) == pistas.end()) {
+        if (s->porOmision() && p >= 2 && p <= 6 && std::find(pistas.begin(), pistas.end(), p) == pistas.end()) {
             pistas.push_back(p);
-            pistasGrabacionMask_ |= 1 << (p - 1);
+            s->pistasGrabacionMask |= 1 << (p - 1);
         }
     std::sort(pistas.begin(), pistas.end());
-    const std::string nombre = "ba-" + marcaDeTiempo();
-    enSalidas("startRecording", [this, rec, enc, pistas, nombre, remuxA = remuxA_, alTerminar = remuxAlTerminar_]() {
-        remuxSal_ = remuxA; // lo que mira stopRecordingYa, en este hilo
-        remuxAlTerminarSal_ = alTerminar;
-        return startRecordingYa(rec, enc, pistas, nombre);
+    // Las de las demás salidas llevan su id: dos salidas grabando a la vez no se pisan.
+    const std::string nombre = s->porOmision() ? "ba-" + marcaDeTiempo() : "ba-" + s->id + "-" + marcaDeTiempo();
+    enSalidas("startRecording", [this, s, rec, enc, pistas, nombre, remuxA, alTerminar = rec.remuxAlTerminar]() {
+        s->remuxSal = remuxA; // lo que mira stopRecordingYa, en este hilo
+        s->remuxAlTerminarSal = alTerminar;
+        return startRecordingYa(*s, rec, enc, pistas, nombre);
     });
     return true;
 }
 
-std::string BroadcastEngine::startRecordingYa(const RecordConfig& rec, const EncoderConfig& enc, const std::vector<int>& pistas,
-                                              const std::string& nombre) {
-    if (rec_ && rec_->grabando()) return {};
+std::string BroadcastEngine::startRecordingYa(Salida& s, const RecordConfig& rec, const EncoderConfig& enc,
+                                              const std::vector<int>& pistas, const std::string& nombre) {
+    if (s.rec && s.rec->grabando()) return {};
     motor::Grabacion::Config c;
     c.carpeta = rec.directory;
     c.nombre = nombre;
@@ -1342,24 +1624,24 @@ std::string BroadcastEngine::startRecordingYa(const RecordConfig& rec, const Enc
     c.codificadores = videoEncoderCandidates(enc);
     c.colchonSeg = std::max(5, rec.colchonSeg); // lo que más importa: el disco trabado sin perder nada (Configuración → Grabación)
     auto g = std::make_unique<motor::Grabacion>(motor_->reloj(), c);
-    const motor::Fuentes f = fuentesDelPrograma(*motor_, pistas);
+    const motor::Fuentes f = fuentesDelPrograma(*motor_, s.id, pistas);
     const std::string e = g->iniciar(f);
     if (!e.empty()) {
         std::lock_guard<std::mutex> l(pedidosM_);
-        grabacionPedida_ = false;
+        s.grabacionPedida = false;
         return ba::i18n::llenar(ba::i18n::traducir("emision", "no se pudo iniciar la grabación: %1"), {e});
     }
-    rec_ = std::move(g);
-    recordPath_ = (std::filesystem::path(rec.directory) / (c.nombre + "-00000.mkv")).string();
+    s.rec = std::move(g);
+    s.recordPath = (std::filesystem::path(rec.directory) / (c.nombre + "-00000.mkv")).string();
     // La copia en otro disco: otro encode igual (si no arranca, la principal sigue).
-    recordCopyPath_.clear();
+    s.recordCopyPath.clear();
     if (!rec.copiaDir.empty()) {
         motor::Grabacion::Config cc = c;
         cc.carpeta = rec.copiaDir;
         auto copia = std::make_unique<motor::Grabacion>(motor_->reloj(), cc);
         if (copia->iniciar(f).empty()) {
-            recCopia_ = std::move(copia);
-            recordCopyPath_ = (std::filesystem::path(rec.copiaDir) / (cc.nombre + "-00000.mkv")).string();
+            s.recCopia = std::move(copia);
+            s.recordCopyPath = (std::filesystem::path(rec.copiaDir) / (cc.nombre + "-00000.mkv")).string();
         } else {
             ba::diag::registro().linea(ba::diag::Nivel::Aviso, "grabacion", 0, ba::i18n::llenar(ba::i18n::traducir("grabacion", "la copia en %1 no arrancó"), {rec.copiaDir}));
         }
@@ -1367,51 +1649,55 @@ std::string BroadcastEngine::startRecordingYa(const RecordConfig& rec, const Enc
     return {};
 }
 
-void BroadcastEngine::stopRecording() {
+void BroadcastEngine::stopRecording(const std::string& salida) {
+    std::shared_ptr<Salida> s = laSalidaCompartida(salida);
+    if (!s) return;
     {
         std::lock_guard<std::mutex> l(pedidosM_);
-        grabacionPedida_ = false;
+        s->grabacionPedida = false;
     }
-    enSalidas("stopRecording", [this]() {
-        stopRecordingYa();
+    enSalidas("stopRecording", [this, s]() {
+        stopRecordingYa(*s);
         return std::string();
     });
 }
 
-void BroadcastEngine::stopRecordingYa() {
-    if (recCopia_) {
-        recCopia_->parar();
-        recCopia_.reset();
+void BroadcastEngine::stopRecordingYa(Salida& s) {
+    if (s.recCopia) {
+        s.recCopia->parar();
+        s.recCopia.reset();
     }
-    if (!rec_) return;
-    const bool estaba = rec_->grabando();
-    rec_->parar(); // espera el cierre del archivo: por eso en este hilo
-    const auto archivos = rec_->archivos();
-    if (!archivos.empty()) recordPath_ = archivos.back();
-    rec_.reset();
+    if (!s.rec) return;
+    const bool estaba = s.rec->grabando();
+    s.rec->parar(); // espera el cierre del archivo: por eso en este hilo
+    const auto archivos = s.rec->archivos();
+    if (!archivos.empty()) s.recordPath = archivos.back();
+    s.rec.reset();
     // Con la grabación partida en tramos (Configuración → avanzado), se pasan todos.
-    if (estaba && !remuxSal_.empty() && remuxAlTerminarSal_ && !archivos.empty()) remuxVarios(archivos, remuxSal_, true);
+    if (estaba && !s.remuxSal.empty() && s.remuxAlTerminarSal && !archivos.empty()) remuxVarios(archivos, s.remuxSal, true);
 }
 
-std::string BroadcastEngine::archivoGrabacion() const {
-    return fotoSalidas().value("grabacion", json::object()).value("archivo", std::string());
+std::string BroadcastEngine::archivoGrabacion(const std::string& salida) const {
+    return fotoDeSalida(salida).value("grabacion", json::object()).value("archivo", std::string());
 }
 
-std::string BroadcastEngine::archivoCopiaGrabacion() const {
-    return fotoSalidas().value("grabacion", json::object()).value("copia", std::string());
+std::string BroadcastEngine::archivoCopiaGrabacion(const std::string& salida) const {
+    return fotoDeSalida(salida).value("grabacion", json::object()).value("copia", std::string());
 }
 
-nlohmann::json BroadcastEngine::grabacionEstado() const {
+nlohmann::json BroadcastEngine::grabacionEstado(const std::string& salida) const {
+    const Salida* s = laSalida(salida);
+    if (s == nullptr) return json::object();
     json pistas = json::array({1});
     for (int i = 1; i < 6; ++i)
-        if (pistasGrabacionMask_ & (1 << i)) pistas.push_back(i + 1);
-    const json g = fotoSalidas().value("grabacion", json::object());
+        if (s->pistasGrabacionMask & (1 << i)) pistas.push_back(i + 1);
+    const json g = fotoDeSalida(s->id).value("grabacion", json::object());
     const json st = g.value("estado", json::object());
     return {{"activa", g.value("activa", false)},
             {"archivo", g.value("archivo", std::string())},
             {"copia", g.value("copia", std::string())},
             {"copia_activa", g.value("copia_activa", false)},
-            {"calidad", lastRecValido_ ? lastRec_.calidad : std::string("como_stream")},
+            {"calidad", s->lastRecValido ? s->lastRec.calidad : std::string("como_stream")},
             {"encoder", st.value("codificador", std::string())},
             {"pistas", pistas},
             {"encoder_respaldo_activo", false}};
@@ -1483,17 +1769,19 @@ nlohmann::json BroadcastEngine::remuxEstado() const {
 
 // --- Repetición -----------------------------------------------------------------
 
-bool BroadcastEngine::setReplay(int segundos, const std::string& dir, const EncoderConfig& enc) {
+bool BroadcastEngine::setReplay(int segundos, const std::string& dir, const EncoderConfig& enc, const std::string& salida) {
     if (!started_) {
         setError(ba::i18n::traducir("emision", "el motor no está andando"));
         return false;
     }
-    enSalidas("setReplay", [this, segundos, dir, enc]() { return setReplayYa(segundos, dir, enc); });
+    std::shared_ptr<Salida> s = laSalidaCompartida(salida);
+    if (!s) return false;
+    enSalidas("setReplay", [this, s, segundos, dir, enc]() { return setReplayYa(*s, segundos, dir, enc); });
     return true;
 }
 
-std::string BroadcastEngine::setReplayYa(int segundos, const std::string& dir, const EncoderConfig& enc) {
-    replay_.reset();
+std::string BroadcastEngine::setReplayYa(Salida& s, int segundos, const std::string& dir, const EncoderConfig& enc) {
+    s.replay.reset();
     if (segundos <= 0) return {};
     std::error_code ec;
     std::filesystem::create_directories(dir, ec);
@@ -1501,23 +1789,26 @@ std::string BroadcastEngine::setReplayYa(int segundos, const std::string& dir, c
     r->dir = dir;
     r->rep = std::make_unique<motor::Repeticion>(motor_->reloj(), (std::filesystem::path(dir) / ".tramos").string(), segundos,
                                                  enc.videoBitrateKbps);
-    const std::string e = r->rep->iniciar(fuentesDelPrograma(*motor_, {}));
+    const std::string e = r->rep->iniciar(fuentesDelPrograma(*motor_, s.id, {}));
     if (!e.empty()) return ba::i18n::llenar(ba::i18n::traducir("emision", "no arrancó la repetición: %1"), {e});
     if (prioridad_) r->rep->pausar(true);
-    replay_ = std::move(r);
+    s.replay = std::move(r);
     return {};
 }
 
-bool BroadcastEngine::guardarReplay() {
-    if (!fotoSalidas().value("replay", json::object()).value("activa", false)) {
+bool BroadcastEngine::guardarReplay(const std::string& salida) {
+    std::shared_ptr<Salida> s = laSalidaCompartida(salida);
+    if (!s) return false;
+    if (!fotoDeSalida(s->id).value("replay", json::object()).value("activa", false)) {
         setError(ba::i18n::traducir("emision", "la repetición está apagada (replay_ajustes con segundos)"));
         return false;
     }
-    enSalidas("guardarReplay", [this]() {
-        if (!replay_ || !replay_->rep->andando() || replay_->guardando) return std::string();
-        Repeticion* r = replay_.get();
+    enSalidas("guardarReplay", [s]() {
+        if (!s->replay || !s->replay->rep->andando() || s->replay->guardando) return std::string();
+        Repeticion* r = s->replay.get();
         r->guardando = true;
-        const std::string destino = (std::filesystem::path(r->dir) / ("repeticion-" + marcaDeTiempo() + ".mkv")).string();
+        const std::string pre = s->porOmision() ? std::string("repeticion-") : "repeticion-" + s->id + "-";
+        const std::string destino = (std::filesystem::path(r->dir) / (pre + marcaDeTiempo() + ".mkv")).string();
         std::thread([r, destino]() {
             const std::string e = r->rep->guardar(destino);
             {
@@ -1532,12 +1823,12 @@ bool BroadcastEngine::guardarReplay() {
     return true;
 }
 
-std::string BroadcastEngine::ultimoReplay() const {
-    return fotoSalidas().value("replay", json::object()).value("ultimo", std::string());
+std::string BroadcastEngine::ultimoReplay(const std::string& salida) const {
+    return fotoDeSalida(salida).value("replay", json::object()).value("ultimo", std::string());
 }
 
-nlohmann::json BroadcastEngine::replayEstado() const {
-    const json r = fotoSalidas().value("replay", json::object());
+nlohmann::json BroadcastEngine::replayEstado(const std::string& salida) const {
+    const json r = fotoDeSalida(salida).value("replay", json::object());
     return {{"activa", r.value("activa", false)}, {"segundos", r.value("segundos", 0)}, {"ultimo", r.value("ultimo", std::string())}};
 }
 
@@ -1546,19 +1837,21 @@ void BroadcastEngine::atenderEncoderCaido(bool, bool) {
 }
 
 void BroadcastEngine::ticSalidas() {
-    if (stream_) stream_->tic();
-    for (auto& [id, x] : extras_)
-        if (x.tx) x.tx->tic();
-    if (rec_) rec_->tic();
-    if (recCopia_) recCopia_->tic();
-    if (replay_) replay_->rep->tic();
+    for (const auto& s : lasSalidas()) {
+        if (s->stream) s->stream->tic();
+        for (auto& [id, x] : s->extras)
+            if (x.tx) x.tx->tic();
+        if (s->rec) s->rec->tic();
+        if (s->recCopia) s->recCopia->tic();
+        if (s->replay) s->replay->rep->tic();
+        if (s->clean) {
+            if (s->clean->grab) s->clean->grab->tic();
+            if (s->clean->tx) s->clean->tx->tic();
+        }
+    }
     for (auto& [n, r] : sourceRecs_) {
         if (r.grab) r.grab->tic();
         if (r.tx) r.tx->tic();
-    }
-    if (clean_) {
-        if (clean_->grab) clean_->grab->tic();
-        if (clean_->tx) clean_->tx->tic();
     }
     vigilarDisco();
 }
@@ -1631,7 +1924,7 @@ void BroadcastEngine::priorizarPrograma(bool si) {
 
 void BroadcastEngine::simularDiscoTrabado(int ms) {
     enSalidas("simularDiscoTrabado", [this, ms]() {
-        if (rec_) rec_->simularDiscoTrabado(ms);
+        if (porOmision().rec) porOmision().rec->simularDiscoTrabado(ms);
         return std::string();
     });
 }
@@ -1645,21 +1938,25 @@ void BroadcastEngine::aplicarPrioridad(bool si, bool automatica) {
     prioridad_ = si;
     prioridadAuto_ = si && automatica;
     pausadas_.clear();
-    const std::string dirProg = recordPath_.empty() ? std::string() : std::filesystem::path(recordPath_).parent_path().string();
     auto pausar = [&](motor::Grabacion* g, const std::string& nombre) {
         if (g == nullptr || !g->grabando()) return;
         g->pausar(si);
         if (si) pausadas_.push_back(nombre);
     };
     for (auto& [n, r] : sourceRecs_) pausar(r.grab.get(), ba::i18n::llenar(ba::i18n::traducir("emision", "ISO %1"), {n}));
-    if (replay_ && replay_->rep) {
-        replay_->rep->pausar(si);
-        if (si && replay_->rep->andando()) pausadas_.push_back(ba::i18n::traducir("emision", "repetición"));
+    // La grabación del programa de cada salida sigue; lo demás de cada una, en pausa.
+    for (const auto& s : lasSalidas()) {
+        const std::string de = s->porOmision() ? std::string() : " (" + s->id + ")";
+        if (s->replay && s->replay->rep) {
+            s->replay->rep->pausar(si);
+            if (si && s->replay->rep->andando()) pausadas_.push_back(ba::i18n::traducir("emision", "repetición") + de);
+        }
+        // La copia, solo si va al mismo disco (en otro no molesta, y es el respaldo).
+        const std::string dirProg = s->recordPath.empty() ? std::string() : std::filesystem::path(s->recordPath).parent_path().string();
+        if (s->recCopia && (!si || dirProg.empty() || mismoDisco(dirProg, std::filesystem::path(s->recordCopyPath).parent_path().string())))
+            pausar(s->recCopia.get(), ba::i18n::traducir("emision", "copia de la grabación") + de);
+        if (s->clean && s->clean->grab) pausar(s->clean->grab.get(), ba::i18n::traducir("emision", "señal limpia a disco") + de);
     }
-    // La copia, solo si va al mismo disco (en otro no molesta, y es el respaldo).
-    if (recCopia_ && (!si || dirProg.empty() || mismoDisco(dirProg, std::filesystem::path(recordCopyPath_).parent_path().string())))
-        pausar(recCopia_.get(), ba::i18n::traducir("emision", "copia de la grabación"));
-    if (clean_ && clean_->grab) pausar(clean_->grab.get(), ba::i18n::traducir("emision", "señal limpia a disco"));
     ba::diag::retenerSalidaEstandar(si);
     if (si) pausadas_.push_back(ba::i18n::traducir("emision", "registro (en memoria)"));
     std::string lista;
@@ -1688,11 +1985,15 @@ void BroadcastEngine::vigilarDisco() {
     auto mirar = [&](const motor::Grabacion* g) {
         if (g != nullptr && g->grabando() && !g->pausada()) atraso = std::max(atraso, g->atrasoS());
     };
-    mirar(rec_.get());
-    mirar(recCopia_.get());
+    bool grabaPrograma = false;
+    for (const auto& s : lasSalidas()) {
+        mirar(s->rec.get());
+        mirar(s->recCopia.get());
+        if (s->clean) mirar(s->clean->grab.get());
+        if (s->replay && s->replay->rep) atraso = std::max(atraso, s->replay->rep->atrasoS());
+        grabaPrograma = grabaPrograma || (s->rec && s->rec->grabando());
+    }
     for (auto& [n, r] : sourceRecs_) mirar(r.grab.get());
-    if (clean_) mirar(clean_->grab.get());
-    if (replay_ && replay_->rep) atraso = std::max(atraso, replay_->rep->atrasoS());
     const ba::diag::EstadoSalida reg = ba::diag::estadoSalidaEstandar();
     atrasoDisco_ = atraso;
     registroTrabadoMs_ = reg.escribiendoMs;
@@ -1706,7 +2007,6 @@ void BroadcastEngine::vigilarDisco() {
         std::snprintf(t, sizeof t, "%.0f s", atraso);
         const std::string causa = atraso > kAtrasoApurosS ? ba::i18n::llenar(ba::i18n::traducir("emision", "lo grabado espera %1 para entrar al disco"), {t})
                                                           : ba::i18n::traducir("emision", "el registro no puede escribir");
-        const bool grabaPrograma = rec_ && rec_->grabando();
         if (modoDisco_.load() == 1 && grabaPrograma) {
             aplicarPrioridad(true, true);
             avisarFallo(ba::i18n::llenar(ba::i18n::traducir("emision", "El disco no da abasto (%1): se le dio el disco a la grabación del programa. "
@@ -1879,30 +2179,32 @@ std::vector<BroadcastEngine::GrabacionIndividual> BroadcastEngine::sourceRecordi
 }
 
 bool BroadcastEngine::startCleanFeed(const std::string& destino, const std::string& clave, const std::string& dir,
-                                     const EncoderConfig& enc) {
+                                     const EncoderConfig& enc, const std::string& salida) {
     if (!started_) {
         setError(ba::i18n::traducir("emision", "el motor no está andando"));
         return false;
     }
+    std::shared_ptr<Salida> s = laSalidaCompartida(salida);
+    if (!s) return false;
     {
         std::lock_guard<std::mutex> l(pedidosM_);
-        if (limpioPedido_) return true;
-        limpioPedido_ = true;
+        if (s->limpioPedido) return true;
+        s->limpioPedido = true;
     }
-    enSalidas("startCleanFeed", [this, destino, clave, dir, enc]() { return startCleanFeedYa(destino, clave, dir, enc); });
+    enSalidas("startCleanFeed", [this, s, destino, clave, dir, enc]() { return startCleanFeedYa(*s, destino, clave, dir, enc); });
     return true;
 }
 
-std::string BroadcastEngine::startCleanFeedYa(const std::string& destino, const std::string& clave, const std::string& dir,
-                                              const EncoderConfig& enc) {
-    if (clean_) return {};
-    const auto fallo = [this](const std::string& e) {
+std::string BroadcastEngine::startCleanFeedYa(Salida& s, const std::string& destino, const std::string& clave,
+                                              const std::string& dir, const EncoderConfig& enc) {
+    if (s.clean) return {};
+    const auto fallo = [this, &s](const std::string& e) {
         std::lock_guard<std::mutex> l(pedidosM_);
-        limpioPedido_ = false;
+        s.limpioPedido = false;
         return ba::i18n::llenar(ba::i18n::traducir("emision", "no arrancó la señal limpia: %1"), {e});
     };
     auto r = std::make_unique<SourceRec>();
-    const motor::Fuentes f = fuentesDelPrograma(*motor_, {}, true); // el programa SIN capas
+    const motor::Fuentes f = fuentesDelPrograma(*motor_, s.id, {}, true); // el programa SIN capas
     const int fps = std::max(1, video_.fpsNum / std::max(1, video_.fpsDen));
     if (!destino.empty()) {
         motor::Transmision::Config c;
@@ -1919,7 +2221,7 @@ std::string BroadcastEngine::startCleanFeedYa(const std::string& destino, const 
     } else {
         motor::Grabacion::Config c;
         c.carpeta = dir;
-        c.nombre = "senal-limpia-" + marcaDeTiempo();
+        c.nombre = (s.porOmision() ? std::string("senal-limpia-") : "senal-limpia-" + s.id + "-") + marcaDeTiempo();
         c.tramoSeg = ajustes::entero("record.tramoMin", 0) * 60;
         c.kbps = enc.videoBitrateKbps;
         c.fps = fps;
@@ -1930,34 +2232,37 @@ std::string BroadcastEngine::startCleanFeedYa(const std::string& destino, const 
         r->path = (std::filesystem::path(dir) / (c.nombre + "-00000.mkv")).string();
         r->destino = r->path;
     }
-    clean_ = std::move(r);
+    s.clean = std::move(r);
     return {};
 }
 
-void BroadcastEngine::stopCleanFeed() {
+void BroadcastEngine::stopCleanFeed(const std::string& salida) {
+    std::shared_ptr<Salida> s = laSalidaCompartida(salida);
+    if (!s) return;
     {
         std::lock_guard<std::mutex> l(pedidosM_);
-        limpioPedido_ = false;
+        s->limpioPedido = false;
     }
-    enSalidas("stopCleanFeed", [this]() {
-        if (!clean_) return std::string();
-        if (clean_->tx) clean_->tx->parar();
-        if (clean_->grab) clean_->grab->parar();
-        clean_.reset();
+    enSalidas("stopCleanFeed", [s]() {
+        if (!s->clean) return std::string();
+        if (s->clean->tx) s->clean->tx->parar();
+        if (s->clean->grab) s->clean->grab->parar();
+        s->clean.reset();
         return std::string();
     });
 }
 
-nlohmann::json BroadcastEngine::cleanFeedEstado() const {
-    return fotoSalidas().value("limpio", json{{"activa", false}});
+nlohmann::json BroadcastEngine::cleanFeedEstado(const std::string& salida) const {
+    return fotoDeSalida(salida).value("limpio", json{{"activa", false}});
 }
 
 // ============================================================================
 // Estado
 // ============================================================================
 
-bool BroadcastEngine::haySalida(bool contarGrabacion) const {
-    const json f = fotoSalidas();
+namespace {
+/// Sale algo de la foto de una salida (ver BroadcastEngine::fotoDe).
+bool saleAlgo(const json& f, bool contarGrabacion) {
     if (f.value("principal", json::object()).value("andando", false)) return true;
     const json extras = f.value("extras", json::object()); // con nombre: .items() de un temporal lo usa destruido
     for (const auto& [id, x] : extras.items())
@@ -1968,10 +2273,32 @@ bool BroadcastEngine::haySalida(bool contarGrabacion) const {
         return true;
     return contarGrabacion && f.value("grabacion", json::object()).value("activa", false);
 }
+} // namespace
+
+bool BroadcastEngine::haySalida(bool contarGrabacion) const {
+    const json todas = fotoSalidas().value("salidas", json::object());
+    for (const auto& [id, f] : todas.items())
+        if (saleAlgo(f, contarGrabacion)) return true;
+    return false;
+}
+
+bool BroadcastEngine::haySalidaEn(const std::string& salida, bool contarGrabacion) const {
+    return saleAlgo(fotoDeSalida(salida), contarGrabacion);
+}
 
 std::vector<std::string> BroadcastEngine::fuentesEnPrograma() const {
     std::vector<std::string> out;
-    if (const EscenaApp* e = escena(currentScene_))
+    for (const auto& id : ordenSalidas_)
+        for (const std::string& f : fuentesEnPrograma(id))
+            if (std::find(out.begin(), out.end(), f) == out.end()) out.push_back(f);
+    return out;
+}
+
+std::vector<std::string> BroadcastEngine::fuentesEnPrograma(const std::string& salida) const {
+    std::vector<std::string> out;
+    const Salida* s = laSalida(salida);
+    if (s == nullptr) return out;
+    if (const EscenaApp* e = escena(s->alAire))
         for (const auto& i : e->items) {
             if (!i.visible) continue;
             // «Banca con la palabra»: lo que se ve es su cámara. Recortada de la toma
@@ -1986,14 +2313,19 @@ std::vector<std::string> BroadcastEngine::fuentesEnPrograma() const {
             }
             out.push_back(i.fuente);
         }
-    for (const std::string& f : fuentesDsk()) out.push_back(f);
+    for (const std::string& f : fuentesDsk(s->id)) out.push_back(f);
     return out;
 }
 
 bool BroadcastEngine::fuenteAlAire(const std::string& fuente) const {
-    if (fuente.empty() || !haySalida()) return false;
-    const auto ss = fuentesEnPrograma();
-    return std::find(ss.begin(), ss.end(), fuente) != ss.end();
+    if (fuente.empty()) return false;
+    // En alguna salida que esté saliendo.
+    for (const auto& id : ordenSalidas_) {
+        if (!haySalidaEn(id)) continue;
+        const auto ss = fuentesEnPrograma(id);
+        if (std::find(ss.begin(), ss.end(), fuente) != ss.end()) return true;
+    }
+    return false;
 }
 
 EngineStatus BroadcastEngine::status() const {
@@ -2022,6 +2354,26 @@ EngineStatus BroadcastEngine::status() const {
     const json g = f.value("grabacion", json::object());
     st.recording = g.value("activa", false);
     if (st.videoEncoder.empty()) st.videoEncoder = g.value("estado", json::object()).value("codificador", std::string());
+    // El resumen de cada salida (la por omisión, igual que los campos de arriba).
+    const json todas = f.value("salidas", json::object());
+    for (const auto& id : ordenSalidas_) {
+        const Salida& s = *salidas_.at(id);
+        const json fs = todas.value(id, json::object());
+        EngineStatus::Salida r;
+        r.id = id;
+        r.nombre = s.nombre;
+        r.porOmision = s.porOmision();
+        r.escena = s.alAire;
+        const json p = fs.value("principal", json::object());
+        r.streaming = p.value("andando", false);
+        r.reconnecting = p.value("reconectando", false);
+        r.recording = fs.value("grabacion", json::object()).value("activa", false);
+        const json ex = fs.value("extras", json::object());
+        for (const auto& [eid, x] : ex.items()) r.destinos += x.value("andando", false) ? 1 : 0;
+        r.limpia = fs.value("limpio", json::object()).value("activa", false);
+        r.repeticion = fs.value("replay", json::object()).value("activa", false);
+        st.salidas.push_back(std::move(r));
+    }
     return st;
 }
 

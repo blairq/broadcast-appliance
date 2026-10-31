@@ -302,25 +302,39 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     seguridadAire_->alCambiar([this]() { emit placaChanged(); });
     retornos_ = std::make_unique<emision::RetornosInvitados>(rt);
     objetivoLoudness_ = std::make_unique<audio::ObjetivoLoudness>(rt.dataRoot(), rt.engine().loudness());
-    // El conmutador de escenas es del modelo; acá solo se refleja lo que cambia.
-    conmutador_ = std::make_unique<escenas::Conmutador>(rt, this);
-    connect(conmutador_.get(), &escenas::Conmutador::alAireCambio, this, [this](const QString& escena) {
+    // El conmutador de escenas es del modelo (uno por salida); acá solo se refleja lo
+    // que cambia. Lo de siempre (la escena al aire, la armada, el tally) es el de la
+    // por omisión; el de cada salida llega a la lista de salidas.
+    conmutadores_ = std::make_unique<escenas::Conmutadores>(rt, this);
+    conmutador_ = &conmutadores_->porOmision();
+    salidasModelo_ = std::make_unique<JsonListModel>(
+        QStringList{"id", "nombre", "color", "porOmision", "alAire", "armada", "transmitiendo", "grabando"}, this);
+    const auto seguirSalida = [this](escenas::Conmutador* c) {
+        connect(c, &escenas::Conmutador::alAireCambio, this, &StudioViewModel::publicarSalidas);
+        connect(c, &escenas::Conmutador::armadaCambio, this, &StudioViewModel::publicarSalidas);
+    };
+    for (escenas::Conmutador* c : conmutadores_->todos()) seguirSalida(c);
+    connect(conmutadores_.get(), &escenas::Conmutadores::creado, this, seguirSalida);
+    connect(conmutadores_.get(), &escenas::Conmutadores::cambio, this, &StudioViewModel::publicarSalidas);
+    connect(conmutador_, &escenas::Conmutador::alAireCambio, this, [this](const QString& escena) {
         scenes_->liveChanged();
         sources_->setScene(escena); // el editor de fuentes sigue a la escena al aire
         emit sceneChanged();
         publicarTally();
     });
-    connect(conmutador_.get(), &escenas::Conmutador::armadaCambio, this, [this](const QString& escena) {
+    connect(conmutador_, &escenas::Conmutador::armadaCambio, this, [this](const QString& escena) {
         scenes_->setArmada(escena);
         frames_->setArmada(escena); // el monitor de armada mira esta
         emit sceneChanged();
         publicarTally();
     });
-    connect(conmutador_.get(), &escenas::Conmutador::afvCambio, this, &StudioViewModel::statusChanged);
-    connect(conmutador_.get(), &escenas::Conmutador::afvCambio, this, &StudioViewModel::afvChanged);
+    connect(conmutador_, &escenas::Conmutador::afvCambio, this, &StudioViewModel::statusChanged);
+    connect(conmutador_, &escenas::Conmutador::afvCambio, this, &StudioViewModel::afvChanged);
+    publicarSalidas();
     props_ = std::make_unique<PropertiesModel>(rt);
     marca("props");
     conference_ = std::make_unique<ConferenceViewModel>(rt);
+    publicarSalidas(); // el gateway se entera de las salidas apenas hay con quién hablar
     marca("conference");
     direcciones_ = std::make_unique<sala::Direcciones>(conference_->client());
     // El cupo es del modelo; acá solo se muestra lo que pasó.
@@ -478,7 +492,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     rotulador_->setVinculos(vinculos_.get());
     evento_->setVinculos(vinculos_.get());
     evento_->setCarruseles(carruseles_.get());
-    evento_->setConmutador(conmutador_.get());
+    evento_->setConmutador(conmutador_);
 
     {
         // Mirar la carpeta es leer disco y parsear JSON ajeno: si eso se
@@ -2711,6 +2725,15 @@ void StudioViewModel::onTick() {
         const qint64 ahora = QDateTime::currentMSecsSinceEpoch();
         if (alguien) retornoVistoMs_ = ahora;
         rt_.engine().retornoEnUso(alguien || ahora - retornoVistoMs_ < 10000);
+        // Las demás salidas: su retorno (BA.Salida.<id>) solo mientras el gateway dice
+        // que alguien lo mira, con los mismos 10 s de gracia.
+        const QJsonObject miranSalidas = conf != nullptr ? conf->client().miranSalidas() : QJsonObject();
+        for (const std::string& id : rt_.engine().salidaIds()) {
+            if (id == BroadcastEngine::kSalidaPorOmision) continue;
+            const QString q = qs(id);
+            if (miranSalidas.value(q).toInt() > 0) salidaVistaMs_[q] = ahora;
+            rt_.engine().retornoEnUso(ahora - salidaVistaMs_.value(q, ahora - 10000) < 10000, id);
+        }
     }
     if (AppRuntime::stopRequested()) {
         emit quitRequested();
@@ -3625,7 +3648,51 @@ void StudioViewModel::refrescarAvisos() {
         emit statusChanged();
         emit destinosChanged();
     }
+    if (hubo(C::Salidas) || hubo(C::Aire)) publicarSalidas();
 }
+
+QObject* StudioViewModel::salidas() const { return salidasModelo_.get(); }
+
+void StudioViewModel::publicarSalidas() {
+    const nlohmann::json lista = rt_.salidas().value("salidas", nlohmann::json::array());
+    const EngineStatus st = rt_.engine().status();
+    QJsonArray filas, alGateway;
+    for (const auto& s : lista) {
+        const std::string id = s.value("id", std::string());
+        if (!rt_.engine().existeSalida(id)) continue;
+        const escenas::Conmutador* c = conmutadores_->de(id);
+        QJsonObject f{{"id", qs(id)},
+                      {"nombre", qs(s.value("nombre", id))},
+                      {"color", qs(s.value("color", std::string()))},
+                      {"porOmision", s.value("por_omision", false)},
+                      {"alAire", qs(rt_.engine().currentScene(id))},
+                      {"armada", c != nullptr ? qs(c->armada()) : QString()}};
+        for (const auto& e : st.salidas)
+            if (e.id == id) {
+                f["transmitiendo"] = e.streaming || e.destinos > 0;
+                f["grabando"] = e.recording;
+            }
+        alGateway.append(QJsonObject{{"id", f["id"]}, {"nombre", f["nombre"]}, {"color", f["color"]}, {"porOmision", f["porOmision"]}});
+        filas.append(f);
+    }
+    if (filas != salidasModelo_->items()) salidasModelo_->setItems(filas);
+    // El gateway sabe qué salidas hay para que la sesión remota y el cast elijan (se la
+    // vuelve a mandar sola si el gateway se reinicia).
+    if (conference_) conference_->client().ponerSalidas(alGateway);
+}
+
+QString StudioViewModel::crearSalida(const QString& id, const QString& nombre, const QString& color) {
+    return qs(rt_.crearSalida(id.toStdString(), nombre.toStdString(), color.toStdString()));
+}
+
+QString StudioViewModel::editarSalida(const QString& id, const QString& nombre, const QString& color) {
+    nlohmann::json cambios = nlohmann::json::object();
+    if (!nombre.isEmpty()) cambios["nombre"] = nombre.toStdString();
+    if (!color.isEmpty()) cambios["color"] = color.toStdString();
+    return qs(rt_.editarSalida(id.toStdString(), cambios));
+}
+
+QString StudioViewModel::borrarSalida(const QString& id) { return qs(rt_.borrarSalida(id.toStdString())); }
 
 void StudioViewModel::setScenePreview(const QString& name) {
     // 960 px de ancho alcanza para el lienzo del editor y no castiga la GPU.

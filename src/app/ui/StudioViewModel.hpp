@@ -85,6 +85,7 @@ class SeguridadSala;
 }
 namespace ba::app::escenas {
 class Conmutador;
+class Conmutadores;
 class RespaldoEntradas;
 class AjustesEscenas;
 class ControlGrillas;
@@ -144,6 +145,7 @@ class Quorum;
 class AppRuntime;
 class AccesoRemoto;
 class ConferenceViewModel;
+class JsonListModel;
 class EventoViewModel;
 class AtencionViewModel;
 class TotemsViewModel;
@@ -306,6 +308,10 @@ class StudioViewModel : public QObject {
     Q_PROPERTY(QString pfl READ pfl NOTIFY pflChanged)
     // --- Submodelos -------------------------------------------------------------
     Q_PROPERTY(QObject* scenes READ scenes CONSTANT)
+    /// Las salidas (PLAN-SALIDAS), la por omisión primera: filas con id, nombre, color,
+    /// porOmision, alAire, armada, transmitiendo, grabando. Se rehace sola cuando cambia
+    /// algo de eso (el modelo avisa); la elige la etapa 5 (selector de salida).
+    Q_PROPERTY(QObject* salidas READ salidas CONSTANT)
     Q_PROPERTY(QObject* sources READ sources CONSTANT)
     Q_PROPERTY(QObject* mixer READ mixer CONSTANT)
     Q_PROPERTY(QObject* sourceTypes READ sourceTypes CONSTANT)
@@ -909,8 +915,16 @@ class StudioViewModel : public QObject {
     Q_PROPERTY(QStringList afvFuentes READ afvFuentes NOTIFY afvChanged)
     QStringList afvFuentes() const;
     QString escenaArmada() const;
-    /// El conmutador de escenas (modelo): la GUI y el MCP cambian de escena por ahí.
+    /// El conmutador de escenas de la salida por omisión (modelo): la GUI y el MCP
+    /// cambian de escena por ahí.
     escenas::Conmutador& conmutador() { return *conmutador_; }
+    /// Los de todas las salidas (uno por salida; el de la por omisión es conmutador()).
+    escenas::Conmutadores& conmutadores() { return *conmutadores_; }
+    QObject* salidas() const;
+    /// Crear, cambiar y sacar salidas en caliente (AppRuntime): "" o por qué no.
+    Q_INVOKABLE QString crearSalida(const QString& id, const QString& nombre, const QString& color = {});
+    Q_INVOKABLE QString editarSalida(const QString& id, const QString& nombre, const QString& color);
+    Q_INVOKABLE QString borrarSalida(const QString& id);
     /// La grilla de personas (fuentes ba_grilla): quién va en cada una. nullptr antes de armarse.
     escenas::ControlGrillas* grillasPersonas() { return grillasPersonas_.get(); }
     /// El FTB y la placa de seguridad (modelo): la GUI y el MCP los ponen por ahí.
@@ -1197,7 +1211,13 @@ class StudioViewModel : public QObject {
     nlohmann::json saludActual_ = nlohmann::json::array();
     std::uint64_t saltadosAntes_ = 0;
     void muestrearSalud();
-    std::unique_ptr<escenas::Conmutador> conmutador_; ///< el aire y la armada (modelo)
+    std::unique_ptr<escenas::Conmutadores> conmutadores_; ///< el aire y la armada de cada salida (modelo)
+    escenas::Conmutador* conmutador_ = nullptr;           ///< el de la por omisión (de conmutadores_)
+    std::unique_ptr<JsonListModel> salidasModelo_;        ///< ver la propiedad salidas
+    /// Rehace salidasModelo_ y le pasa la lista al gateway (ConferenceClient::ponerSalidas).
+    void publicarSalidas();
+    /// Desde cuándo nadie mira el retorno de cada salida que no es la por omisión (ver onTick).
+    QHash<QString, qint64> salidaVistaMs_;
     std::unique_ptr<emision::SeguridadAire> seguridadAire_;     ///< FTB y placa (modelo)
     std::unique_ptr<emision::RetornosInvitados> retornos_;      ///< (modelo)
     std::unique_ptr<audio::ObjetivoLoudness> objetivoLoudness_; ///< (modelo)

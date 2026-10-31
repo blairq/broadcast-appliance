@@ -1217,6 +1217,16 @@ endif()
     target_link_libraries(test_config_persistida PRIVATE nlohmann_json::nlohmann_json Qt6::Core)
     set_target_properties(test_config_persistida PROPERTIES BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_config_persistida COMMAND test_config_persistida)
+    # Las salidas guardadas (PLAN-SALIDAS, etapa 2): salidas.json, destinos con salida y al-aire.json por salida.
+    add_executable(test_salidas_config tests/test_salidas_config.cpp emision/SalidasConfig.cpp)
+    target_include_directories(test_salidas_config PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    target_link_libraries(test_salidas_config PRIVATE ba_core nlohmann_json::nlohmann_json)
+    add_test(NAME test_salidas_config COMMAND test_salidas_config)
+    # El AFV de cada salida (escenas::Afv): dos salidas con escenas distintas y la misma.
+    add_executable(test_afv tests/test_afv.cpp escenas/Afv.cpp)
+    target_include_directories(test_afv PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    target_link_libraries(test_afv PRIVATE nlohmann_json::nlohmann_json)
+    add_test(NAME test_afv COMMAND test_afv)
     add_executable(test_loudness tests/test_loudness.cpp audio/LoudnessPrograma.cpp audio/ObjetivoLoudness.cpp
                    arranque/ArchivoConfig.cpp)
     target_include_directories(test_loudness PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
