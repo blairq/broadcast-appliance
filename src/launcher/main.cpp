@@ -185,6 +185,20 @@ int runLauncher(const std::vector<std::string>& args) {
             cfg.gatewayArgs.push_back(a.substr(9));
         }
     }
+    // El emisor aparte (F3-01, apagado de fábrica en esta etapa): la salida principal la
+    // codifica, graba y transmite `ba-emisor`, que no se cae con la app. Configuración
+    // → avanzados («emisor.aparte» en launcher.json) o --emisor-aparte; rige al abrir.
+    if (ba::ajustes::siNo("emisor.aparte", false) ||
+        std::find(args.begin(), args.end(), std::string("--emisor-aparte")) != args.end()) {
+        cfg.emisorExe = bin / (std::string("ba-emisor") + kExeSuffix);
+        std::error_code ec;
+        if (std::filesystem::exists(cfg.emisorExe, ec))
+            cfg.emisores = {"principal"};
+        else
+            BA_LOG_ERROR("launcher", 0,
+                         ba::i18n::llenar(ba::i18n::traducir("launcher", "emisor aparte pedido pero no está %1: la app codifica"),
+                                          {cfg.emisorExe.string()}));
+    }
     BA_LOG_INFO("launcher", 0, ba::i18n::llenar(ba::i18n::traducir("launcher", "raiz del bundle: %1"), {root.string()}));
 
     // Mientras el programa esté abierto, la máquina no se duerme (ni la pantalla del

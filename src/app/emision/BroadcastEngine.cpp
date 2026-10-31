@@ -12,6 +12,7 @@
 #include "ajustes/Ajustes.hpp"
 #include "emision/FuentesApp.hpp"
 #include "emision/SalidasConfig.hpp"
+#include "Pedido.hpp"
 #include "ipc/CanalesSalida.hpp"
 #include "emision/NdiSource.hpp"
 #include "audio/GstRack.hpp"
@@ -179,6 +180,7 @@ BroadcastEngine::BroadcastEngine() {
     auto p = std::make_shared<Salida>();
     p->id = p->nombre = kSalidaPorOmision;
     p->retornoEnUso = true; // BA.Program, como siempre: hasta que se sepa que nadie lo mira
+    p->emisor = salidasConEmisor().count(p->id) > 0; // la codifica un ba-emisor (F3-01)
     salidas_[p->id] = p;
     ordenSalidas_.push_back(p->id);
 }
@@ -254,6 +256,8 @@ bool BroadcastEngine::crearSalida(const std::string& id, const std::string& nomb
     auto s = std::make_shared<Salida>();
     s->id = id;
     s->nombre = nombre.empty() ? id : nombre;
+    s->emisor = salidasConEmisor().count(id) > 0;
+    if (s->emisor) s->retornoEnUso = true; // su emisor lo lee siempre
     // Su mezcla arranca como la de la por omisión (lo mismo hace el motor con sus mandos).
     for (const auto& [n, f] : sources_) {
         s->volumen[n] = f.spec.volume;
@@ -408,6 +412,7 @@ bool BroadcastEngine::startup(const EnginePaths& paths, const VideoConfig& video
     c.relojServidor = relojServidor_;
     c.relojPuerto = relojPuerto_;
     c.relojDominio = relojDominio_;
+    c.emisores = salidasConEmisor(); // su audio también al anillo del emisor (F3-01)
     motor_ = std::make_unique<motor::Motor>(c);
     // Un lienzo que parpadea con la red eléctrica del país (F2-17): se avisa, no se cambia.
     for (const std::string& aviso : motor::avisosDeLaRed(c.lienzo, motor::redElectricaDelSistema()))
@@ -441,6 +446,13 @@ bool BroadcastEngine::startup(const EnginePaths& paths, const VideoConfig& video
         modoDisco_ = m == "auto" ? 1 : m == "nunca" ? 2 : 0;
     }
     hiloSalidas_ = std::thread([this]() { bucleSalidas(); });
+    // Lo que lee el emisor aparte: su canal de video publicado y su vista pedida desde
+    // ya (aunque el gateway no lo mire y aunque no se publique el retorno).
+    for (const auto& s : lasSalidas())
+        if (s->emisor) {
+            s->retornoEnUso = true;
+            publicarRetorno(s);
+        }
     if (relojPublicar_ > 0) motor_->publicarReloj(relojPublicar_);
     fuentes::ponerMotorApp(this);
     // Lo que pinta la app (chat, gráficos, subtítulos) va a su entrada «app».
@@ -780,6 +792,8 @@ void BroadcastEngine::enviarRetorno(Salida& s, const motor::Cuadro& c) {
 void BroadcastEngine::retornoEnUso(bool si, const std::string& salida) {
     std::shared_ptr<Salida> s = laSalidaCompartida(salida);
     if (!s || s->retornoEnUso == si) return;
+    // Con emisor aparte no se suelta por reposo: es lo que él codifica (F3-01).
+    if (!si && s->emisor) return;
     s->retornoEnUso = si;
     if (!returnFeedsActive_ || !motor_) return;
     if (si)
@@ -1377,7 +1391,9 @@ void BroadcastEngine::pararTodoYa(Salida& s) {
     s.extras.clear();
     if (s.stream) s.stream->parar();
     s.stream.reset();
-    stopRecordingYa(s);
+    // Lo que sale por el emisor aparte no se para acá: apagar o rearmar el motor no
+    // corta el aire (lo para el operador, o el cierre ordenado del launcher).
+    if (!s.emisor) stopRecordingYa(s);
     s.replay.reset();
 }
 
@@ -1431,6 +1447,7 @@ json BroadcastEngine::fotoDe(const Salida& s) const {
     } else {
         f["limpio"] = {{"activa", false}};
     }
+    if (s.emisor) fotoDelEmisor(s, f); // su transmisión y su grabación, en el otro proceso
     return f;
 }
 
@@ -1449,6 +1466,7 @@ void BroadcastEngine::publicarFotoSalidas() {
         for (const auto& s : todas) {
             // La grabación cortada que se está rearmando también es «al aire».
             aire = aire || (s->stream && s->stream->estado().value("andando", false)) || (s->rec && (s->rec->grabando() || s->rec->caida()));
+            aire = aire || (s->emisor && aireEnEmisor(*s));
             for (const auto& [id, x] : s->extras) aire = aire || (x.tx && x.tx->estado().value("andando", false));
         }
         alAire_ = aire;
@@ -1540,6 +1558,22 @@ bool BroadcastEngine::startStreaming(const StreamConfig& stream, const EncoderCo
 
 std::string BroadcastEngine::startStreamingYa(Salida& s, const StreamConfig& stream, const EncoderConfig& enc) {
     anotarAac(s, enc.audioBitrateKbps);
+    if (s.emisor) {
+        // Al emisor aparte: la misma configuración. Si ya transmite a ese destino (la app
+        // vuelve tras caerse), sigue esa: la conexión no se toca.
+        const motor::Transmision::Config c =
+            configTransmision(urlConClave(stream.server, stream.key), enc, video_, videoEncoderCandidates(enc));
+        leerEmisor(s);
+        const bool adopta = emisorLaTiene(s, "transmision");
+        const std::string e = pedirAlEmisor(s, [&](emisor::Pedido& p) {
+            if (!(adopta && p.transmision && p.transmision->url == c.url)) p.transmision = c;
+        });
+        if (!e.empty()) {
+            std::lock_guard<std::mutex> l(pedidosM_);
+            s.streamPedido = false;
+        }
+        return e;
+    }
     auto tx = std::make_unique<motor::Transmision>(motor_->reloj(), configTransmision(urlConClave(stream.server, stream.key), enc, video_,
                                                                                       videoEncoderCandidates(enc)));
     const motor::Fuentes f = fuentesDelPrograma(*motor_, s.id, {});
@@ -1561,9 +1595,10 @@ void BroadcastEngine::stopStreaming(const std::string& salida) {
         std::lock_guard<std::mutex> l(pedidosM_);
         s->streamPedido = false;
     }
-    enSalidas("stopStreaming", [s]() {
+    enSalidas("stopStreaming", [this, s]() {
         if (s->stream) s->stream->parar();
         s->stream.reset();
+        if (s->emisor) return pedirAlEmisor(*s, [](emisor::Pedido& p) { p.transmision.reset(); });
         return std::string();
     });
 }
@@ -1765,6 +1800,41 @@ std::string BroadcastEngine::startRecordingYa(Salida& s, const RecordConfig& rec
         if (c.control == motor::ControlTasa::Calidad) c.control = motor::ControlTasa::VBR;
     }
     c.carpetaRespaldo = rec.copiaDir; // si el disco de la grabación falla, la parte que sigue va a la de la copia
+    // La copia en otro disco: lo mismo ya codificado, en otra carpeta (con
+    // «record.copiaCodificadorPropio», un encode aparte).
+    motor::Grabacion::Config cc = c;
+    cc.carpeta = rec.copiaDir;
+    cc.carpetaRespaldo.clear();
+    cc.codificadorPropio = ajustes::siNo("record.copiaCodificadorPropio", false);
+    if (s.emisor) {
+        // Al emisor aparte. Si ya graba (la app vuelve tras caerse), sigue en ese archivo.
+        // Las pistas 2-6 todavía no van por el emisor: solo la del programa.
+        leerEmisor(s);
+        const bool adopta = emisorLaTiene(s, "grabacion");
+        const std::string e = pedirAlEmisor(s, [&](emisor::Pedido& p) {
+            if (adopta && p.grabacion) return;
+            p.grabacion = c;
+            if (rec.copiaDir.empty())
+                p.copia.reset();
+            else
+                p.copia = cc;
+        });
+        if (!e.empty()) {
+            std::lock_guard<std::mutex> l(pedidosM_);
+            s.grabacionPedida = false;
+            return ba::i18n::llenar(ba::i18n::traducir("emision", "no se pudo iniciar la grabación: %1"), {e});
+        }
+        if (!pistas.empty())
+            ba::diag::registro().linea(ba::diag::Nivel::Aviso, "grabacion", 0,
+                                       ba::i18n::traducir("grabacion", "con el emisor aparte se graba solo la pista del programa (las pistas 2-6 todavía no)"));
+        s.kbpsRec = kbpsGrabacion(rec, enc, false);
+        const auto& g = *s.pedidoEmisor->grabacion;
+        s.recordPath = (std::filesystem::path(g.carpeta) / (g.nombre + "-00000.mkv")).string();
+        s.recordCopyPath = s.pedidoEmisor->copia
+                               ? (std::filesystem::path(s.pedidoEmisor->copia->carpeta) / (s.pedidoEmisor->copia->nombre + "-00000.mkv")).string()
+                               : std::string();
+        return {};
+    }
     auto g = std::make_unique<motor::Grabacion>(motor_->reloj(), c);
     const motor::Fuentes f = fuentesDelPrograma(*motor_, s.id, pistas);
     s.fuenteVideo = f.video;
@@ -1781,10 +1851,6 @@ std::string BroadcastEngine::startRecordingYa(Salida& s, const RecordConfig& rec
     // «record.copiaCodificadorPropio», un encode aparte (cubre también un codificador que se traba).
     s.recordCopyPath.clear();
     if (!rec.copiaDir.empty()) {
-        motor::Grabacion::Config cc = c;
-        cc.carpeta = rec.copiaDir;
-        cc.carpetaRespaldo.clear();
-        cc.codificadorPropio = ajustes::siNo("record.copiaCodificadorPropio", false);
         auto copia = std::make_unique<motor::Grabacion>(motor_->reloj(), cc);
         if (copia->iniciar(f).empty()) {
             s.recCopia = std::move(copia);
@@ -1810,6 +1876,34 @@ void BroadcastEngine::stopRecording(const std::string& salida) {
 }
 
 void BroadcastEngine::stopRecordingYa(Salida& s) {
+    if (s.emisor) {
+        leerEmisor(s);
+        if (!s.pedidoEmisor->grabacion && !s.pedidoEmisor->copia && !emisorLaTiene(s, "grabacion")) return;
+        if (const std::string e = pedirAlEmisor(s, [](emisor::Pedido& p) {
+                p.grabacion.reset();
+                p.copia.reset();
+            });
+            !e.empty()) {
+            avisarFallo(e);
+            return;
+        }
+        // Como parar() acá: se espera que el emisor cierre el archivo (su estado sin
+        // grabación con este pedido aplicado), para pasarlo a MP4/MOV si se pidió.
+        const std::uint64_t seq = s.pedidoEmisor->seq;
+        std::vector<std::string> archivos;
+        for (int i = 0; i < 100; ++i) {
+            s.estadoEmisorMs = 0;
+            leerEmisor(s);
+            const json g = s.estadoEmisor.value("grabacion", json());
+            if (g.is_object() && g.contains("archivos") && g["archivos"].is_array() && !g["archivos"].empty())
+                archivos = g["archivos"].get<std::vector<std::string>>();
+            if (s.estadoEmisor.value("seq", std::uint64_t{0}) >= seq && !g.is_object()) break;
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        }
+        if (!archivos.empty()) s.recordPath = archivos.back();
+        if (!s.remuxSal.empty() && s.remuxAlTerminarSal && !archivos.empty()) remuxVarios(archivos, s.remuxSal, true);
+        return;
+    }
     if (s.recCopia) {
         s.recCopia->parar();
         s.recCopia.reset();
@@ -1994,6 +2088,7 @@ bool BroadcastEngine::encoderRespaldoActivo() const {
 // parte, el codificador que falló pasa a la lista negra y se sigue con otro.
 void BroadcastEngine::ticSalidas() {
     for (const auto& s : lasSalidas()) {
+        if (s->emisor) leerEmisor(*s); // lo que hace su emisor (cada medio segundo)
         if (s->stream) s->stream->tic();
         for (auto& [id, x] : s->extras)
             if (x.tx) x.tx->tic();

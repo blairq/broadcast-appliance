@@ -37,7 +37,7 @@ list(FILTER BA_APP_SOURCES EXCLUDE REGEX ".*/src/app/tools/.*") # herramientas c
 list(FILTER BA_APP_SOURCES EXCLUDE REGEX ".*/BroadcastEnginePlaca\\.cpp$")
 list(FILTER BA_APP_SOURCES EXCLUDE REGEX ".*/WindowingPlatform\\.cpp$")
 if(NOT BA_HAVE_MOTOR)
-    list(FILTER BA_APP_SOURCES EXCLUDE REGEX ".*/BroadcastEngine(Scenes|Dsk)?\\.cpp$")
+    list(FILTER BA_APP_SOURCES EXCLUDE REGEX ".*/BroadcastEngine(Scenes|Dsk|Emisor)?\\.cpp$")
     list(FILTER BA_APP_SOURCES EXCLUDE REGEX ".*/AppSettings\\.cpp$")
     list(FILTER BA_APP_SOURCES EXCLUDE REGEX ".*/EngineSelfTest\\.cpp$")
     list(FILTER BA_APP_SOURCES EXCLUDE REGEX ".*/OperateMode\\.cpp$")
@@ -382,7 +382,7 @@ endif()
 
 # --- Motor de emision: GStreamer (src/motor) --------------------------------
 if(BA_HAVE_MOTOR)
-    target_link_libraries(ba-app PRIVATE ba_motor)
+    target_link_libraries(ba-app PRIVATE ba_motor ba_emisor_pedido) # el pedido al emisor aparte (F3-01)
     if(BA_HAVE_NDI)
         # Solo libNoIDea: el SpeedHQ lo decodifica GStreamer (avdec_speedhq).
         target_link_libraries(ba-app PRIVATE ba_noidea)

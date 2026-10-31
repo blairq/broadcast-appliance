@@ -118,6 +118,9 @@ class Motor {
         std::string sinkEscucha;
         bool video = true;    ///< las composiciones (PROGRAMA y PREVIEW)
         bool videoGpu = false; ///< glvideomixer en vez de compositor
+        /// Las salidas que codifica un `ba-emisor` aparte (F3-01): su programa va también
+        /// al anillo BA.Audio.Emisor.<id> (el del gateway es de un solo lector).
+        std::set<std::string> emisores;
     };
 
     explicit Motor(Config c);
@@ -334,7 +337,8 @@ class Motor {
         std::map<std::string, Mando> mandos;              ///< por entrada
         std::shared_ptr<TomaPrograma> toma;
         GstElement* puente = nullptr; ///< bus → BA.Audio.ContentForReturn (la por omisión) o BA.Audio.Salida.<id>
-        std::int64_t puenteLatNs = -1;
+        GstElement* puenteEmisor = nullptr; ///< bus → BA.Audio.Emisor.<id> (con emisor aparte, F3-01)
+        std::int64_t puenteLatNs = -1;      ///< la de los dos puentes
         /// El mix-minus de cada invitado en esta salida (buses de oído): retorno<n>[:<id>]
         /// → BA.Audio.Return[.<id>].<n>. Uno por cada retorno de `retornos_` que no está apagado.
         std::map<int, std::unique_ptr<Mezcla>> retornos;
@@ -372,7 +376,8 @@ class Motor {
     /// Lo desarma: aparte (en caliente: devuelve cuándo termina) o ya (al apagar, con
     /// los desarmes ya esperados).
     std::shared_future<void> desarmarSalida(Salida& s, bool aparte);
-    void armarPuente(Salida& s, const std::string& canal);
+    /// El programa de la salida al anillo BA.Audio.<canal> (con la latencia de los puentes). nullptr si no.
+    GstElement* armarPuente(Salida& s, const std::string& canal);
     std::string crearSalidaYa(const std::string& id, const std::string& nombre);
     std::string borrarSalidaYa(const std::string& id);
     Mezcla* pista(int n, bool crear);
