@@ -1,4 +1,4 @@
-// test_salidas.cpp — muchas salidas del lado del gateway (docs/planes/PLAN-SALIDAS.md, etapa 6)
+// test_gateway_salidas.cpp — muchas salidas del lado del gateway (docs/planes/PLAN-SALIDAS.md, etapa 6)
 //
 // Lo que baja cada ruta según su salida (MediaRoute::miraSalida / oyeSalida), qué
 // salida baja de verdad según la lista de la app (SalidasConocidas, Salidas.hpp), y
@@ -141,6 +141,6 @@ int main() {
     testRutas();
     testConocidas();
     testBajadasBajoDemanda();
-    std::printf(g_fallas == 0 ? "== test_salidas: OK ==\n" : "== test_salidas: %d fallas ==\n", g_fallas);
+    std::printf(g_fallas == 0 ? "== test_gateway_salidas: OK ==\n" : "== test_gateway_salidas: %d fallas ==\n", g_fallas);
     return g_fallas == 0 ? 0 : 1;
 }

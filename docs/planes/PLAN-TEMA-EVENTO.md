@@ -1,6 +1,12 @@
 # Plan: tema propio del evento en todas las páginas web (relevamiento 2026-10-31)
 
 Pedido: que a cada página web del sistema se le pueda aplicar un tema propio del evento.
+**Todas** (aclaración del usuario, 2026-10-31): también las que ve la gente de afuera para
+conectarse, votar en la asamblea (`/sesion/`) o hacer consultas anónimas (`/publico/`), el tótem
+(`/registro/`) y los invitados (`/invitados/`). Esas llevan el tema **completo** por omisión (fondo,
+acento, tipografía, logo, nombre): son la cara del evento. Las consolas de operador también lo
+toman; ahí el alcance se puede elegir (por omisión acento y logo, para no romper el neumorfismo).
+Solo quedan fuera los colores con significado: tally, aire/armado, vúmetros, sí/no de la votación.
 
 ## Lo que hay hoy
 
