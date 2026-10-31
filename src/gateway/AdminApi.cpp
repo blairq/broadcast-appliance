@@ -964,6 +964,13 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
         sendJson(fd, 200, json{{"ok", true}, {"tema", temaWeb()}});
         return;
     }
+    // El tema del evento abierto (lo manda la app; ver setTemaEvento).
+    if (path == "/api/v1/tema-evento" && method == "POST") {
+        json r = setTemaEvento(req);
+        r["ok"] = true;
+        sendJson(fd, 200, r);
+        return;
+    }
     if (path == "/api/v1/network" && method == "GET") {
         sendJson(fd, 200, networkStatus_ ? networkStatus_() : json::object());
         return;

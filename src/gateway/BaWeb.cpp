@@ -91,6 +91,10 @@ std::string WebSupervisor::armarConf(const Cfg& c, const std::string& aliasFile,
     s += "location = /api/v1/evento { proxy_pass; proxy_cache_valid " + cache +
          "; proxy_cache_key $uri; ba_vistos v; }\n";
     s += "location = /api/v1/evento/vivos { proxy_pass; proxy_cache_valid " + cache + "; proxy_cache_key $uri; }\n";
+    // El tema del evento: lo piden TODAS las páginas al abrir y cada 15 s; es igual para todos.
+    // La hoja, por URL entera: la versionada (?v=) se guarda un día y la otra no.
+    s += "location = /comun/tema.css { proxy_pass; proxy_cache_valid " + cache + "; proxy_cache_key $request_uri; }\n";
+    s += "location = /comun/tema.json { proxy_pass; proxy_cache_valid " + cache + "; proxy_cache_key $uri; }\n";
     // Todo lo demás, al gateway (con gzip si conviene; WebSocket y POST como túnel).
     s += "location / { proxy_pass; }\n";
     return s;

@@ -18,9 +18,10 @@
      <ba-chip estado="ok|aviso|aire|armado|apagado">
      <ba-tally estado="aire|armado|nada" etiqueta>
    BA.tema: actual(), poner(id). El tema lo elige la APP (Configuración o Servicios →
-   Templates) para todas las páginas: el gateway lo publica en /comun/tema.json y acá
-   se lo lee al abrir, al volver a la pestaña y cada 15 s (cambia sin recargar). Se
-   guarda una copia en el aparato para no pintar el de fábrica un instante al abrir.
+   Templates) para todas las páginas: el gateway lo publica en /comun/tema.json y
+   /comun/tema.js (que la página carga antes que esto) lo lee al abrir, al volver a la
+   pestaña y cada 15 s (cambia sin recargar). Se guarda una copia en el aparato para no
+   pintar el de fábrica un instante al abrir.
    ?tema=<id> en la URL lo fuerza (para diseñar: muestra.html).
    ============================================================================ */
 (() => {
@@ -50,11 +51,12 @@
     if (!valido(id)) { try { id = localStorage.getItem(CLAVE_TEMA); } catch (_) {} }
     document.documentElement.dataset.tema = valido(id) ? id : "neuro-oscuro";
     if (valido(forzado)) return;
-    const leer = () => fetch("/comun/tema.json", { cache: "no-store" })
-      .then((r) => (r.ok ? r.json() : null)).then((d) => d && BA.tema.poner(d.tema)).catch(() => {});
-    leer();
-    setInterval(leer, 15000);
-    document.addEventListener("visibilitychange", () => { if (!document.hidden) leer(); });
+    // Quien lee /comun/tema.json es /comun/tema.js (el mismo pedido trae el tema del
+    // evento): acá se escucha lo que trae. Si ya lo trajo antes de que cargara esto, está
+    // en BA.temaDatos.
+    const tomar = (d) => d && BA.tema.poner(d.tema);
+    document.addEventListener("ba-tema-datos", (e) => tomar(e.detail));
+    tomar(BA.temaDatos);
   })();
 
   // --- Utilidades ------------------------------------------------------------------------

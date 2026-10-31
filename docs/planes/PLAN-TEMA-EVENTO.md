@@ -72,3 +72,55 @@ CSP (nada en línea, fuentes solo propias: sin internet), contraste, caché (`?v
 olvida el tema al reiniciar, fuentes que tienen que ceder ante la del perfil de idioma (CJK, RTL),
 SVG con scripts, rutas dentro de `Tema/`, cuatro servidores estáticos parecidos (que `/comun/tema*`
 quede solo en `SignalingServer`).
+
+## Estado (2026-10-31): hecho
+
+- **Modelo** `ba::evento::TemaEvento` (`src/app/evento/TemaEvento.*`, test `test_tema_evento`):
+  `Eventos/<x>/tema.json` (lo desconocido se conserva, también adentro), recursos en `Tema/`
+  copiados con huella en el nombre (`logo-<hash>.svg`), firma y tope de peso (logo 2 MB, fuente
+  4 MB; SVG con `<script>`/`<foreignObject>` no entra), `limpiarRecursos`, `migrarSitio`. Sin
+  tema.json pero con sitio hay tema: `paraPublicar` pone el acento y el fondo de `sitio.json` donde
+  el tema no dice nada (un solo color que manda, sin copiarlo).
+- **Cuentas** en el núcleo, `ba::tema` (`src/core/tema/TemaWeb.*`, test `test_tema_web`): colores,
+  contraste WCAG, lo que falta mezclado, `acentoTexto` por contraste, avisos con código, nombres
+  de fuente y de archivo saneados, la hoja. La usan el gateway (la hoja) y la app (los avisos del
+  panel).
+- **Gateway**: `POST /api/v1/tema-evento` {tema, carpeta}; `GET /comun/tema.css` (siempre 200; con
+  `?v=<versión>` se guarda un día), `GET /comun/tema.json` → `{tema, evento: {v, css, nombre, modo,
+  acento, acentoTexto, fondo, texto, logo, logoClaro, favicon, alcance} | null}`,
+  `GET /comun/tema/<archivo>` (solo nombres planos de imagen o fuente, tope 4 MB, SVG con
+  `CSP: sandbox`). `.woff2/.woff/.ttf/.otf` en `contentTypeFor`. ba-web: microcaché de
+  tema.css (por URL entera) y tema.json. Test en `test_gateway_http` (12d).
+- **La hoja**: cada página se anota en `<html data-ev="publico|control|acento">`; los tokens
+  `--ev-*` y los puentes a cada dialecto van bajo `html[data-ev~="…"]` (0,1,1: le gana a `:root` y
+  a `[data-tema=…]` de neuro sin depender del orden) y solo en las familias con alcance distinto
+  de «nada». Nivel «acento»: `--acento --acento-texto --foco --accent --accent-2 --accent-ink
+  --color`; «todo»: además fondo, superficies, texto, bordes, radio, letra (y `body`/`h1-h3` con la
+  fuente del evento). `--hundido` no se puentea (sombra en neuro, color en la sala).
+- **`/comun/tema.js`**: `<link>` versionado, `data-tema-evento`, `img[data-tema-logo]`,
+  `[data-tema-nombre]`, favicon, `theme-color` (con «todo»), copia en localStorage, cada 15 s y al
+  volver a la pestaña; evento `ba-tema-datos`. `neuro.js` ya no pide tema.json: escucha ese evento.
+- **App**: `TemaEventoViewModel` (Studio.temaEvento) publica al abrir/cambiar de evento, al
+  cambiar el tema o el sitio y cada vez que la sala vuelve; panel `PanelTemaEvento.qml` en
+  Servicios → Aspecto de las páginas web; en Guion → Página web el acento es el del tema. MCP
+  `evento_tema` (ver | cambiar | logo | fuente | quitar | restablecer | migrar_sitio) en
+  `McpTemaTools.cpp`. Ayuda en `assets/idiomas/es/ayuda/evento.md`.
+- **Páginas**: publico (tema completo): `/invitados/` y ayuda, `/sesion/` (con `--acento` nuevo en
+  vez de `#ff6a2b`), `/publico/`, `/registro/` (logo grande), `/pantalla/`, `/pantalla/votacion/`,
+  `/cast/` (el cartel de espera; el video no), el marco y las plantillas del sitio (tema.css entre
+  sitio.css y estilo.css; estilo.css ya no fija color/fondo y su bloque `:root, html[data-ev]` le
+  gana al tema). control (acento y logo): `/control/`, `/botonera/`, `/presidencia/`, `/rotulos/`,
+  `/correccion/`, `/registro-atiende/`, `/board/`. acento siempre: `/prompter/`. Nada: tally,
+  carrusel (sus marcos ya lo traen).
+
+## Falta
+
+- Probar en un navegador con la app en `--test` (y en un Chromecast/TV viejo): `curl
+  http://127.0.0.1:<puerto>/comun/tema.css`, cambiar el acento con `evento_tema` y ver que las
+  páginas cambien solas en ≤ 15 s; un tema claro sobre las páginas de la sala (quedan colores
+  fijos pensados para fondo oscuro: sombras, `rgba(255,255,255,…)` de algunos bordes).
+- Los sitios ya generados no cambian solos: `evento_tema migrar_sitio` (o el botón «Pasar el
+  sitio al tema»).
+- Opcional: los gráficos QML (`acento`) y `qr::Estilo` con el tema como valor por omisión.
+- `docs/mcp.json` se regenera con `tools/docs/mcp-inventario.py --desde-codigo`; las ayudas y el
+  prompt del asistente en los otros idiomas (solo se escribió el castellano).

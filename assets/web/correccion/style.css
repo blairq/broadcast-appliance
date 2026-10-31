@@ -25,3 +25,6 @@ button.si { color: var(--ok); }
 button.no { color: var(--aire); }
 .vacio { color: var(--texto-tenue); text-align: center; margin-top: 40px; }
 .oculto { display: none; }
+
+/* El logo del evento (/comun/tema.js; las consolas lo muestran con el alcance «acento»). */
+.logo { height: 28px; width: auto; max-width: 120px; object-fit: contain; flex: none; }

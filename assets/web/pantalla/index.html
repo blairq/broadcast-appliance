@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="es">
+<html lang="es" data-ev="publico">
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
@@ -21,8 +21,11 @@
   letras blancas y grandes, sin animaciones. Nadie interactúa con esto.
 -->
 <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="/comun/tema.css" />
+  <script src="/comun/tema.js" defer></script>
 </head>
 <body>
+  <img class="logo" data-tema-logo alt="" hidden />
   <main id="caja">
     <div id="qr" class="qr oculto"><img id="qr-img" alt="" /></div>
     <div id="texto" class="texto"></div>

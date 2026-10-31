@@ -55,9 +55,11 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 .cabeza-seccion .bajada { margin: 0; }
 
 /* --- Navegación ----------------------------------------------------------- */
-.nav { position: sticky; top: 0; z-index: 40; background: rgba(11, 11, 12, 0.72); backdrop-filter: blur(14px);
+.nav { position: sticky; top: 0; z-index: 40; background: var(--ev-fondo-velo, rgba(11, 11, 12, 0.72)); backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px); border-bottom: 1px solid var(--border); }
 .nav .contenedor { display: flex; align-items: center; gap: 24px; height: 64px; }
+/* El logo del evento (/comun/tema.js), al lado del nombre. */
+.marca-logo { height: 30px; width: auto; max-width: 140px; object-fit: contain; flex: none; }
 .marca { font-weight: 700; letter-spacing: -0.02em; text-decoration: none; white-space: nowrap; overflow: hidden;
   text-overflow: ellipsis; max-width: 40vw; }
 .nav-links { display: none; gap: 24px; margin-left: auto; }

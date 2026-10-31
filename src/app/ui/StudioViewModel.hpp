@@ -147,6 +147,7 @@ class AccesoRemoto;
 class ConferenceViewModel;
 class JsonListModel;
 class EventoViewModel;
+class TemaEventoViewModel;
 class AtencionViewModel;
 class TotemsViewModel;
 class HistoricoViewModel;
@@ -369,6 +370,8 @@ class StudioViewModel : public QObject {
     Q_PROPERTY(QVariantList monitores READ monitores NOTIFY monitoresChanged)
     /// La biblioteca de códigos QR y su estudio de diseño.
     Q_PROPERTY(QObject* qr READ qr CONSTANT)
+    /// El tema del evento abierto en todas las páginas web (TemaEventoViewModel).
+    Q_PROPERTY(QObject* temaEvento READ temaEvento CONSTANT)
     /// Todos los enlaces del aparato, con su estado y su botón de activar (página Enlaces).
     Q_PROPERTY(QObject* enlaces READ enlacesQml CONSTANT)
     /// La libreta de personas (rostros). Existe siempre: sin los modelos
@@ -781,6 +784,7 @@ class StudioViewModel : public QObject {
     QObject* ventanasQml() const;
     VentanasModel* ventanasModelo() const { return ventanas_.get(); }
     QObject* qr() const;
+    QObject* temaEvento() const;
     QObject* enlacesQml() const;
     EnlacesViewModel* enlacesVm() const { return enlaces_.get(); }
     QObject* personas() const;
@@ -1144,6 +1148,7 @@ class StudioViewModel : public QObject {
     mutable QImage scopeCuadro_;
     std::unique_ptr<PantallasViewModel> pantallas_;
     std::unique_ptr<QrViewModel> qr_;
+    std::unique_ptr<TemaEventoViewModel> temaEvento_; ///< usa evento_ y conference_: va después
     std::unique_ptr<PersonasViewModel> personas_;
     std::unique_ptr<PublicoViewModel> publico_;
     bool publicoPorWeb_ = false; ///< la cola del público se consulta porque el evento tiene página

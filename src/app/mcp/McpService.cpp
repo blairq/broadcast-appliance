@@ -65,6 +65,7 @@
 #include "mcp/McpBotoneraTools.hpp"
 #include "mcp/McpControlWebTools.hpp"
 #include "mcp/McpEventoTools.hpp"
+#include "mcp/McpTemaTools.hpp"
 #include "mcp/McpHttp.hpp"
 #include "mcp/McpPreguntaTools.hpp"
 #include "mcp/McpToolsCommon.hpp"
@@ -72,6 +73,7 @@
 #include "ui/AtencionViewModel.hpp"
 #include "ui/ConferenceViewModel.hpp"
 #include "ui/EventoViewModel.hpp"
+#include "ui/TemaEventoViewModel.hpp"
 #include "agent/SubtitulosCC.hpp"
 #include "agent/Vocabulario.hpp"
 #include "asamblea/Bancas.hpp"
@@ -858,6 +860,8 @@ void McpService::registerTools() {
             return std::pair{false, std::string()};
         });
     }
+    // El tema del evento en todas las páginas web (ver McpTemaTools.cpp).
+    if (auto* te = static_cast<TemaEventoViewModel*>(vm_.temaEvento())) registerTemaTools(core_, *te);
 
     // Las preguntas del publico: viven en B, y esto es el lado de A que las
     // modera (ver McpPreguntaTools.cpp).

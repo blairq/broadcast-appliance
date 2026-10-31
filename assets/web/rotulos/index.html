@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="es">
+<html lang="es" data-ev="control">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
@@ -10,7 +10,9 @@
   <link rel="stylesheet" href="/comun/neuro/temas.css" />
   <link rel="stylesheet" href="/comun/neuro/neuro.css" />
   <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="/comun/tema.css" />
   <script src="/comun/i18n.js"></script>
+  <script src="/comun/tema.js"></script>
   <script src="/comun/neuro/neuro.js"></script>
 </head>
 <body>
@@ -27,6 +29,7 @@
     «al aire»: lo que sale al aire lo decide la app.
   -->
   <header class="barra">
+    <img class="logo" data-tema-logo alt="" hidden />
     <span id="escena" class="escena">…</span>
     <span id="estado" class="estado"></span>
   </header>

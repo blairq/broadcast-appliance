@@ -52,3 +52,6 @@ button.primario { color: var(--acento); }
 .pin h1 { font-size: 20px; margin: 0 0 8px; }
 .pin p { color: var(--texto-suave); font-size: 14px; }
 .pin button { width: 100%; margin-top: 14px; color: var(--acento); }
+
+/* El logo del evento (/comun/tema.js; las consolas lo muestran con el alcance «acento»). */
+.logo { height: 28px; width: auto; max-width: 120px; object-fit: contain; flex: none; }

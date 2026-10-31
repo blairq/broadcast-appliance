@@ -35,6 +35,7 @@
 #include "qr/Qr.hpp"
 #include "Room.hpp"
 #include "Salidas.hpp"
+#include "tema/TemaWeb.hpp"
 #include "security/SecretsStore.hpp" // randomSecretHex (ids de participante)
 #include "security/TokenService.hpp" // nowUnix() para el rate-limit por IP
 #include "ShareStore.hpp"
@@ -109,6 +110,11 @@ const char* contentTypeFor(const std::string& relOriginal) {
     if (ends(".png")) return "image/png";
     if (ends(".ico")) return "image/x-icon";
     if (ends(".json")) return "application/json";
+    // Las fuentes del tema del evento (Eventos/<x>/Tema/).
+    if (ends(".woff2")) return "font/woff2";
+    if (ends(".woff")) return "font/woff";
+    if (ends(".ttf")) return "font/ttf";
+    if (ends(".otf")) return "font/otf";
     return "application/octet-stream";
 }
 
@@ -578,9 +584,97 @@ std::string SignalingServer::temaWeb() const {
     return temaWeb_;
 }
 
-bool SignalingServer::servirTema(long long fd, const std::string& method, const std::string& path) {
-    if (method != "GET" || path != "/comun/tema.json") return false;
-    http::sendResponse(fd, 200, "application/json", json{{"tema", temaWeb()}}.dump(), "Cache-Control: no-store\r\n");
+json SignalingServer::setTemaEvento(const json& cuerpo) {
+    const json crudo = cuerpo.is_object() ? cuerpo.value("tema", json()) : json();
+    std::lock_guard<std::mutex> l(temaLock_);
+    if (!crudo.is_object() || crudo.empty()) {
+        temaEventoPublico_ = nullptr;
+        temaEventoCss_.clear();
+        temaEventoVersion_.clear();
+        temaEventoCarpeta_.clear();
+        return json{{"v", ""}, {"avisos", json::array()}};
+    }
+    // Todo se calcula una vez acá (contraste, lo que falta): cada página pide una hoja hecha.
+    const json r = ba::tema::resolver(crudo);
+    const std::string v = ba::tema::huella(r.dump());
+    temaEventoCarpeta_ = cuerpo.value("carpeta", std::string());
+    temaEventoVersion_ = v;
+    temaEventoCss_ = ba::tema::hojaCss(r, "/comun/tema/", v);
+    const json& m = r["marca"];
+    const auto url = [&v](const std::string& a) { return a.empty() ? std::string() : "/comun/tema/" + a + "?v=" + v; };
+    const json& col = r["colores"];
+    temaEventoPublico_ = {{"v", v},
+                          {"css", "/comun/tema.css?v=" + v},
+                          {"nombre", m.value("nombre", std::string())},
+                          {"modo", r.value("modo", std::string())},
+                          {"acento", col.value("acento", std::string())},
+                          {"acentoTexto", col.value("acentoTexto", std::string())},
+                          {"fondo", col.value("fondo", std::string())},
+                          {"texto", col.value("texto", std::string())},
+                          {"logo", url(m.value("logo", std::string()))},
+                          {"logoClaro", url(m.value("logoClaro", std::string()))},
+                          {"favicon", url(m.value("favicon", std::string()))},
+                          {"alcance", r["alcance"]}};
+    return json{{"v", v}, {"avisos", r["avisos"]}, {"contraste", r["contraste"]}};
+}
+
+bool SignalingServer::servirTema(long long fd, const std::string& method, const std::string& path, const std::string& query) {
+    if (method != "GET" || path.rfind("/comun/tema", 0) != 0) return false;
+    // Lo que dice qué tema va: el de las consolas (neuro) y el del evento (null sin evento).
+    // Lo leen /comun/tema.js y neuro.js al abrir, cada 15 s y al volver a la pestaña.
+    if (path == "/comun/tema.json") {
+        json out;
+        {
+            std::lock_guard<std::mutex> l(temaLock_);
+            out = {{"tema", temaWeb_}, {"evento", temaEventoPublico_}};
+        }
+        http::sendResponse(fd, 200, "application/json", out.dump(), "Cache-Control: no-store\r\n");
+        return true;
+    }
+    // La hoja: siempre responde (sin tema, una hoja sin reglas), así ninguna página ve un 404.
+    // Con la versión en la URL (la pone tema.js) se puede guardar: otra versión es otra URL.
+    if (path == "/comun/tema.css") {
+        std::string css, v;
+        {
+            std::lock_guard<std::mutex> l(temaLock_);
+            css = temaEventoCss_.empty() ? ba::tema::hojaCss(json::object(), "", "") : temaEventoCss_;
+            v = temaEventoVersion_;
+        }
+        const bool versionada = !v.empty() && query == "v=" + v;
+        http::sendResponse(fd, 200, "text/css; charset=utf-8", css,
+                           versionada ? "Cache-Control: public, max-age=86400\r\n" : "Cache-Control: no-cache\r\n");
+        return true;
+    }
+    // El logo y las fuentes, de la carpeta Tema/ del evento. Solo nombres planos con la
+    // extensión de lo que puede ser (nada de rutas), con tope de peso; el SVG con
+    // «CSP: sandbox» por si alguien lo abre suelto (en un <img> no corre nada igual).
+    if (path.rfind("/comun/tema/", 0) != 0) return false;
+    const std::string rel = path.substr(12);
+    std::string carpeta;
+    {
+        std::lock_guard<std::mutex> l(temaLock_);
+        carpeta = temaEventoCarpeta_;
+    }
+    if (carpeta.empty() || !(ba::tema::esImagenDeMarca(rel) || ba::tema::esFuente(rel))) {
+        http::sendResponse(fd, 404, "text/plain", traducir("gateway", "no encontrado") + "\n");
+        return true;
+    }
+    // La carpeta viene en UTF-8 (la manda la app): en Windows, path(std::string) la leería en ANSI.
+    const std::filesystem::path archivo = std::filesystem::path(std::u8string(carpeta.begin(), carpeta.end())) / rel;
+    std::error_code ec;
+    const std::uintmax_t peso = std::filesystem::file_size(archivo, ec);
+    std::ifstream f(archivo, std::ios::binary);
+    if (ec || !f || peso > 4u * 1024 * 1024) {
+        http::sendResponse(fd, 404, "text/plain", traducir("gateway", "no encontrado") + "\n");
+        return true;
+    }
+    std::ostringstream ss;
+    ss << f.rdbuf();
+    const bool svg = rel.size() > 4 && rel.compare(rel.size() - 4, 4, ".svg") == 0;
+    // El nombre cambia con el contenido (logo-<huella>.svg): se puede guardar un día.
+    http::sendResponse(fd, 200, contentTypeFor(rel), ss.str(),
+                       std::string("Cache-Control: public, max-age=86400\r\nX-Content-Type-Options: nosniff\r\n") +
+                           (svg ? "Content-Security-Policy: sandbox\r\n" : ""));
     return true;
 }
 
@@ -799,7 +893,7 @@ void SignalingServer::handleConnection(long long fd, std::uint32_t clientIp, boo
         handleAdmin(fd, method, path, query, headers, body);
         return;
     }
-    if (servirTema(fd, method, path)) return;
+    if (servirTema(fd, method, path, query)) return;
     // La puerta de la sala (1c): todo menos ENTRAR A LA SALA COMO INVITADO (eso sigue
     // lo que diga «Acceso»). La raíz lleva al control web.
     if (soloControl) {

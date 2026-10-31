@@ -13,7 +13,8 @@
 // Todo sale de Studio.enlaces (EnlacesViewModel): la misma lista que el MCP
 // (enlaces_listar / enlace_activar).
 //
-// Pestaña Templates: el tema de todas las interfaces web de control (PanelTemplates).
+// Pestaña Templates: el tema de todas las interfaces web de control (PanelTemplates) y el
+// del evento abierto en todas las páginas (PanelTemaEvento).
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
@@ -50,7 +51,7 @@ Rectangle {
             GlassButton {
                 compact: true; text: qsTr("Aspecto de las páginas web"); active: page.pestana === "templates"; onClicked: page.pestana = "templates"
                 ToolTip.visible: hovered; ToolTip.delay: 400
-                ToolTip.text: qsTr("El tema (template) de todas las páginas web de control: dashboard, botonera, presidencia, rótulos, corrección")
+                ToolTip.text: qsTr("El tema (template) de las páginas web de control y el tema del evento en todas las páginas")
             }
             StatusPill {
                 visible: page.pestana === "servicios"
@@ -80,7 +81,14 @@ Rectangle {
             Layout.fillHeight: true
             clip: true
             contentWidth: availableWidth
-            PanelTemplates { width: scrollTemplates.availableWidth }
+            ColumnLayout {
+                width: scrollTemplates.availableWidth
+                spacing: 24
+                PanelTemplates { Layout.fillWidth: true }
+                // El tema del evento abierto: su cara en todas las páginas (PanelTemaEvento).
+                Text { text: qsTr("Tema del evento"); color: Theme.text; font { pixelSize: 17; weight: Font.DemiBold } }
+                PanelTemaEvento { Layout.fillWidth: true }
+            }
         }
 
         ScrollView {

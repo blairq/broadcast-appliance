@@ -726,6 +726,42 @@ int main() {
               "también por la puerta de los aparatos");
     }
 
+    // --- 12d) El tema del evento: la app lo manda, el gateway arma la hoja ------
+    {
+        const std::string vacia = httpReq(port, "GET", "/comun/tema.css", "");
+        CHECK(statusLine(vacia).find("200") != std::string::npos && bodyOf(vacia).find("html[") == std::string::npos,
+              "sin tema: una hoja sin reglas (nunca un 404)");
+        CHECK(jsonBody(httpReq(port, "GET", "/comun/tema.json", "")).at("evento").is_null(), "sin tema: evento null");
+        const auto dir = std::filesystem::temp_directory_path() / "ba-test-http-tema";
+        std::filesystem::create_directories(dir);
+        {
+            std::FILE* f = std::fopen((dir / "logo-abc.svg").string().c_str(), "wb");
+            if (f) {
+                std::fputs("<svg xmlns=\"http://www.w3.org/2000/svg\"/>", f);
+                std::fclose(f);
+            }
+        }
+        const json cuerpo = {{"tema", {{"colores", {{"acento", "#00a86b"}}}, {"marca", {{"logo", "logo-abc.svg"}}}}},
+                             {"carpeta", dir.string()}};
+        const json r = jsonBody(httpReq(aport, "POST", "/api/v1/tema-evento", bearer, cuerpo.dump()));
+        CHECK(r.value("ok", false) && !r.value("v", std::string()).empty(), "la app manda el tema del evento");
+        const json t = jsonBody(httpReq(port, "GET", "/comun/tema.json", ""));
+        CHECK(t["evento"].value("acento", "") == "#00a86b" && t["evento"].value("logo", "").rfind("/comun/tema/logo-abc.svg?v=", 0) == 0,
+              "tema.json dice el acento y dónde está el logo");
+        CHECK(bodyOf(httpReq(port, "GET", "/comun/tema.css", "")).find("--ev-acento: #00a86b;") != std::string::npos,
+              "la hoja trae el acento");
+        const std::string logo = httpReq(port, "GET", "/comun/tema/logo-abc.svg", "");
+        CHECK(statusLine(logo).find("200") != std::string::npos && logo.find("Content-Security-Policy: sandbox") != std::string::npos,
+              "el logo SVG sale con CSP sandbox");
+        CHECK(statusLine(httpReq(port, "GET", "/comun/tema/..%2Fsecreto.svg", "")).find("404") != std::string::npos,
+              "nada fuera de Tema/");
+        CHECK(statusLine(httpReq(srv.controlPort(), "GET", "/comun/tema.css", "")).find("200") != std::string::npos,
+              "la hoja también por la puerta de los aparatos");
+        httpReq(aport, "POST", "/api/v1/tema-evento", bearer, "{}");
+        CHECK(jsonBody(httpReq(port, "GET", "/comun/tema.json", "")).at("evento").is_null(), "sin evento: se va el tema");
+        std::filesystem::remove_all(dir);
+    }
+
     // --- 13) QR de ingreso --------------------------------------------------
     {
         // Las direcciones (Direcciones.hpp): la sala abierta a la red, sin túnel.

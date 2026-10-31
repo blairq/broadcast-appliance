@@ -889,6 +889,13 @@ endif()
     target_link_libraries(test_evento_web PRIVATE nlohmann_json::nlohmann_json)
     target_compile_definitions(test_evento_web PRIVATE BA_PLANTILLAS_EVENTO="${CMAKE_SOURCE_DIR}/assets/web/evento/plantilla")
     add_test(NAME test_evento_web COMMAND test_evento_web)
+    # El tema del evento (tema.json, Tema/ y la migración del sitio). La cuenta de colores
+    # es del núcleo (tema/TemaWeb.cpp), que se compila acá suelta para no arrastrar ba_core.
+    add_executable(test_tema_evento tests/test_tema_evento.cpp evento/TemaEvento.cpp
+                                    "${CMAKE_SOURCE_DIR}/src/core/tema/TemaWeb.cpp")
+    target_include_directories(test_tema_evento PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_SOURCE_DIR}/src/core")
+    target_link_libraries(test_tema_evento PRIVATE nlohmann_json::nlohmann_json)
+    add_test(NAME test_tema_evento COMMAND test_tema_evento)
     # Cada evento a su carpeta: la migración de las carpetas con varios eventos.
     add_executable(test_eventos_separar tests/test_eventos_separar.cpp arranque/Configuraciones.cpp
                                         evento/EventoStore.cpp evento/Evento.cpp evento/FotosConfig.cpp)
