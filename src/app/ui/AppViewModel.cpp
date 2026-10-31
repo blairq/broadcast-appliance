@@ -273,6 +273,9 @@ QString AppViewModel::reiniciarPrograma(const QString& aviso) {
     QStringList args{"--reiniciar"};
     for (const QString& a : QCoreApplication::arguments())
         if (a == "--test" || a == "--debug") args << a;
+    // El emisor aparte sigue después del reinicio: si este launcher lo lanzó (A recibe
+    // BA_EMISOR), el nuevo también (aunque haya venido de --emisor-aparte y no del ajuste).
+    if (!qEnvironmentVariableIsEmpty("BA_EMISOR")) args << "--emisor-aparte";
     // La conversación del asistente sigue después del reinicio (la retoma al abrir y le
     // avisa en qué evento quedó, para que siga con lo que estaba haciendo).
     if (agent::AgentViewModel* agente = p_.asistente ? p_.asistente() : nullptr)

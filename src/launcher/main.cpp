@@ -72,6 +72,17 @@ int runLauncher(const std::vector<std::string>& args) {
 #endif
     }
     ba::platform::redirectUserDirs();
+    // Lo que el launcher les pone a sus hijos no se hereda de un launcher anterior: un
+    // reinicio pedido por la app (--reiniciar) arranca con el entorno de esa A, que trae
+    // BA_EMISOR; sin borrarlo, la A nueva le delegaba la salida a un emisor que este
+    // launcher no lanzó (no hay --emisor-aparte en el reinicio) y no salía nada al aire.
+#ifdef _WIN32
+    _putenv_s("BA_EMISOR", "");
+    _putenv_s("BA_SLOT_SALUD", "");
+#else
+    unsetenv("BA_EMISOR");
+    unsetenv("BA_SLOT_SALUD");
+#endif
     // El idioma del operador (de la máquina): el diálogo de recuperación, la
     // actualización y el registro. Antes del registro, para que todo salga en él.
     ba::i18n::usar(ba::i18n::idiomaDeLaMaquina(datos));
