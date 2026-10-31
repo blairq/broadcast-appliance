@@ -131,6 +131,7 @@ class Playlist;
 }
 class PuestoCorreccion;
 class AvisoFueraDeUi;
+class AlarmasViewModel;
 class EnergiaAire;
 namespace asamblea {
 class CuerpoViewModel;
@@ -232,6 +233,8 @@ class StudioViewModel : public QObject {
     Q_PROPERTY(QObject* cc READ ccQml CONSTANT)
     /// El bus de eventos de la app (control/BusEventos): superficies, plugins, MCP.
     Q_PROPERTY(QObject* bus READ busQml CONSTANT)
+    /// Las alarmas de los disparadores (ui/AlarmasViewModel): activas, critica, sonido.
+    Q_PROPERTY(QObject* alarmas READ alarmasQml CONSTANT)
     /// La botonera (superficie de control de tablets y hardware): control/Botonera.
     Q_PROPERTY(QObject* botonera READ botoneraQml CONSTANT)
     /// Lo que usa la máquina (CPU, GPU, RAM, red) con su historia y su estado: ui/RecursosViewModel.
@@ -492,8 +495,6 @@ class StudioViewModel : public QObject {
     Q_INVOKABLE void uiGuardar(const QString& clave, const QVariant& valor);
     /// Cambia la política del supervisor ({espera_ui_s, matar_si_ui_trabada_sin_aire}). "" o el error.
     Q_INVOKABLE QString latidoPoliticaUi(const QVariantMap& cambios);
-    /// Las alarmas de los disparadores que esperan que alguien las reconozca.
-    Q_INVOKABLE QVariantList alarmasActivasUi() const;
     /// El foco del teclado está en un campo de texto (las teclas T/Enter no son TAKE).
     Q_INVOKABLE bool focoEnTexto() const;
     // --- FTB y placa de seguridad (encima de todo lo que sale) ---------------
@@ -729,14 +730,6 @@ class StudioViewModel : public QObject {
     Q_INVOKABLE void aprobarTabletUi(const QString& solicitud, bool aprobar, const QString& perfil = QString());
     QObject* busQml() const;
     void setCorteDirectoEditor(bool si);
-    /// Reconoce una (id del evento) o todas (0).
-    Q_INVOKABLE int reconocerAlarmaUi(qint64 id);
-    /// Le saca (o le devuelve) el sonido a un disparador: sus alarmas siguen apareciendo, sin sonar.
-    Q_INVOKABLE bool silenciarAlarmaUi(const QString& disparador, bool silenciar);
-    /// Hay una alarma crítica sin reconocer (la franja roja de arriba).
-    Q_INVOKABLE bool alarmaCritica() const;
-    /// El sonido de las alarmas (volumen, dispositivo, probar).
-    Q_INVOKABLE QObject* alarmaSonora() const;
     bool streaming() const { return streaming_; }
     bool reconnecting() const { return reconnecting_; }
     QString outputProblem() const { return outputProblem_; }
@@ -892,7 +885,9 @@ class StudioViewModel : public QObject {
     /// Racks de audio (modulos LSP) de las fuentes. nullptr si no hay CLAP.
     audio::RackManager* racks() const { return racks_.get(); }
 #endif
-    agent::AlertEngine& alerts() { return *alerts_; }
+    agent::AlertEngine& alerts();
+    /// El área de las alarmas (ui/AlarmasViewModel): Studio.alarmas en QML.
+    QObject* alarmasQml() const;
     agent::Despachador& despachador() { return *despachador_; }
     QObject* despachadorQml() const;
 
@@ -1111,7 +1106,6 @@ class StudioViewModel : public QObject {
     /// El launcher (o una señal) pidio cerrar.
     void quitRequested();
     void reinicioChanged();
-    void alarmasCambio();
     void escenasAjustesChanged();
     void placaChanged();
     void senalChanged();
@@ -1205,9 +1199,7 @@ class StudioViewModel : public QObject {
     std::unique_ptr<Configuraciones> configuraciones_;
     QVariantMap reinicio_;     ///< ver la propiedad reinicio
     bool eventoNuevo_ = false; ///< el reinicio que viene abre un evento recién creado
-    std::unique_ptr<agent::EntradasAlarmas> entradasAlarmas_; ///< lo que el vigía lee de la interfaz, como foto
-    std::unique_ptr<agent::AlertEngine> alerts_;
-    std::unique_ptr<agent::AlarmaSonora> alarma_;
+    std::unique_ptr<AlarmasViewModel> alarmas_; ///< el área de las alarmas (y su vigía)
     std::unique_ptr<asamblea::CuerpoViewModel> cuerpo_;
     std::unique_ptr<agent::Vocabulario> vocabulario_;
     std::unique_ptr<control::BusEventos> bus_;

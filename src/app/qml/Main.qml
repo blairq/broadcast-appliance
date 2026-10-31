@@ -567,19 +567,17 @@ ApplicationWindow {
     // --- Alarma crítica: franja roja que titila arriba hasta que se reconoce --------
     Rectangle {
         id: franjaAlarma
-        property var activas: []
-        property bool critica: false
+        // Enlazada a la propiedad del área de las alarmas: se entera por el modelo.
+        readonly property var activas: Studio.alarmas.activas
         // Las críticas sin reconocer, suenen o no (silenciar corta el sonido, no la franja).
         readonly property var criticas: activas.filter(a => a.sonido === "critico")
+        readonly property bool critica: criticas.length > 0
         readonly property bool todasSilenciadas: criticas.length > 0 && criticas.every(a => !!a.silenciada)
-        function refrescar() { activas = Studio.alarmasActivasUi(); critica = criticas.length > 0 }
         function silenciar(si) {
             const vistos = {}
             for (const a of criticas)
-                if (!vistos[a.ruleId]) { vistos[a.ruleId] = true; Studio.silenciarAlarmaUi(a.ruleId, si) }
+                if (!vistos[a.ruleId]) { vistos[a.ruleId] = true; Studio.alarmas.silenciar(a.ruleId, si) }
         }
-        Connections { target: Studio; function onAlarmasCambio() { franjaAlarma.refrescar() } }
-        Component.onCompleted: refrescar()
         visible: critica
         z: 70
         anchors { left: parent.left; right: parent.right; top: parent.top
@@ -610,13 +608,13 @@ ApplicationWindow {
                 text: franjaAlarma.todasSilenciadas ? qsTr("🔇 Silenciada") : qsTr("Silenciar")
                 onClicked: franjaAlarma.silenciar(!franjaAlarma.todasSilenciadas)
             }
-            GlassButton { compact: true; text: qsTr("Reconocer (R)"); onClicked: Studio.reconocerAlarmaUi(0) }
+            GlassButton { compact: true; text: qsTr("Reconocer (R)"); onClicked: Studio.alarmas.reconocer(0) }
         }
     }
     Shortcut {
         sequence: "R"
         enabled: franjaAlarma.critica
-        onActivated: Studio.reconocerAlarmaUi(0)
+        onActivated: Studio.alarmas.reconocer(0)
     }
     // Los atajos que configuró el operador (página Botonera → Atajos). Los
     // globales los atiende el sistema (funcionan sin foco): acá van los locales.

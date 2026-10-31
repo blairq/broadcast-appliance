@@ -27,7 +27,7 @@
 #include "agent/RotuloTraduccionConfig.hpp"
 #include "emision/RetornosInvitados.hpp"
 #include "emision/SeguridadAire.hpp"
-#include "agent/EntradasAlarmas.hpp"
+#include "ui/AlarmasViewModel.hpp"
 #include "audio/ObjetivoLoudness.hpp"
 #include "ajustes/Ajustes.hpp"
 #include "i18n/I18n.hpp"
@@ -992,15 +992,15 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
             return nlohmann::json{{"valido", v.valido}, {"luma", v.luma}, {"quieto_s", v.quietoSeg}};
         };
         directas.loudness = [&motor]() { return motor.loudnessPrograma().json(); };
-        entradasAlarmas_ = std::make_unique<agent::EntradasAlarmas>(std::move(in), std::move(directas));
-        entradasAlarmas_->refrescar();
-        alerts_ = std::make_unique<agent::AlertEngine>(entradasAlarmas_->paraElVigia(),
-                                                       (rt.dataRoot() / "Config" / "alertas.json").string());
+        // El área de las alarmas (su ViewModel, ligado al vigía): ui/AlarmasViewModel.
+        alarmas_ = std::make_unique<AlarmasViewModel>(std::move(in), std::move(directas), rt.dataRoot());
+        connect(alarmas_.get(), &AlarmasViewModel::notify, this, &StudioViewModel::notify);
         marca("alerts");
-        alarma_ = std::make_unique<agent::AlarmaSonora>(rt.dataRoot());
         cuerpo_ = std::make_unique<asamblea::CuerpoViewModel>(rt.dataRoot());
         vocabulario_ = std::make_unique<agent::Vocabulario>(rt.dataRoot() / "Config" / "vocabulario.json");
         bus_ = std::make_unique<control::BusEventos>();
+        // Cada disparo, al bus (lo ve el control web).
+        alarmas_->setPublicar([this](const std::string& tema, const nlohmann::json& d) { bus_->publicar(tema, d, true); });
         bus_->setMediciones(control::BusEventos::medicionesDeFabrica());
         armarBitacora();
         // Con un evento en curso, lo que se graba va a su carpeta (H4).
@@ -1050,6 +1050,8 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
         // AvisoFueraDeUi en el suyo (esta vista, la que se traba, no interviene).
         avisoFueraDeUi_ = std::make_unique<AvisoFueraDeUi>(rt.dataRoot());
         avisoFueraDeUi_->escuchar(rt.latido());
+        // Y los notificadores de los disparadores, desde el hilo del vigía.
+        alarmas_->setAvisoFueraDeUi(avisoFueraDeUi_.get());
         settings_->setEnVivo([this]() { return modoVivo(); });
         settings_->setCupoEnCaliente([this](int n) { return cupoSala_->cambiar(n); });
         settings_->setConfigSala(configSala_.get());
@@ -1081,60 +1083,9 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
                                 .arg(QString::fromStdString(configRecuperada())),
                             "warn");
             });
-        // Avisos fuera del programa (Telegram, mail, webhook) para los que miran desde lejos:
-        // EN EL HILO DEL VIGÍA (conexión directa) y por AvisoFueraDeUi, que tiene el suyo. Con
-        // la interfaz trabada la alarma igual sale; lo que no salió se cuenta en la interfaz.
-        connect(
-            alerts_.get(), &agent::AlertEngine::fired, alerts_.get(),
-            [this](const nlohmann::json& ev) {
-                if (!avisoFueraDeUi_) return;
-                const nlohmann::json& rid = ev["ruleId"];
-                AvisoFueraDeUi::Alarma a;
-                a.id = "alarma/" + (rid.is_string() ? rid.get<std::string>() : rid.dump());
-                a.titulo = "⚠ " + ev.value("ruleName", ba::i18n::traducir("alertas", "Disparador"));
-                a.texto = ev.value("llmText", std::string());
-                a.controlWeb = false; // el control web la recibe por el bus (abajo)
-                a.notificarTodos = false;
-                for (const auto& n : ev.value("notificar", nlohmann::json::array()))
-                    if (n.is_string()) a.notificar.push_back(n.get<std::string>());
-                if (a.notificar.empty()) return;
-                QPointer<StudioViewModel> vista(this);
-                a.resultado = [vista](const std::string& id, bool ok, const std::string& d) {
-                    if (ok || !vista) return;
-                    QMetaObject::invokeMethod(vista, [vista, id, d]() {
-                        if (vista)
-                            emit vista->notify(tr("El aviso por «%1» no salió: %2").arg(QString::fromStdString(id), QString::fromStdString(d)),
-                                               "warn");
-                    });
-                };
-                avisoFueraDeUi_->avisar(std::move(a));
-            },
-            Qt::DirectConnection);
-        connect(alerts_.get(), &agent::AlertEngine::fired, this, [this](const nlohmann::json& ev) {
-            {
-                const nlohmann::json& rid = ev["ruleId"];
-                bus_->publicar("alarma/" + (rid.is_string() ? rid.get<std::string>() : rid.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace)),
-                               {{"nombre", ev.value("ruleName", std::string())},
-                                {"tipo", ev.value("type", std::string())},
-                                {"texto", ev.value("llmText", std::string())},
-                                {"reconocer", ev.value("reconocer", false)},
-                                {"id", ev.value("id", 0ULL)}},
-                               true);
-            }
-            for (const auto& n : ev.value("notify", nlohmann::json::array()))
-                if (n == "ui") emit notify("⚠ " + QString::fromStdString(ev.value("text", "")), "warn");
-            // Una alarma silenciada sigue en la lista (con su color), pero no suena.
-            if (!ev.value("silenciada", false))
-                alarma_->sonar(QString::fromStdString(ev.value("sonido", std::string("ninguno"))));
-        });
-        connect(alerts_.get(), &agent::AlertEngine::alarmasCambio, this, [this]() {
-            alarma_->criticaActiva(alarmaCritica());
-            emit alarmasCambio();
-        });
-        alerts_->start(250);
-        agent_ = std::make_unique<agent::AgentViewModel>(rt, *alerts_, "evento");
+        agent_ = std::make_unique<agent::AgentViewModel>(rt, alarmas_->motor(), "evento");
         // El de automatización: el que recibe las alertas (siempre levantado).
-        agenteAuto_ = std::make_unique<agent::AgentViewModel>(rt, *alerts_, "automatizacion");
+        agenteAuto_ = std::make_unique<agent::AgentViewModel>(rt, alarmas_->motor(), "automatizacion");
         marca("agent");
         connect(agent_.get(), &agent::AgentViewModel::notify, this, &StudioViewModel::notify);
         connect(agenteAuto_.get(), &agent::AgentViewModel::notify, this, &StudioViewModel::notify);
@@ -1157,8 +1108,8 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
             }
         // Las reglas las cambia el motor (interfaz, MCP, plugins): la lista del
         // asistente se entera por él, sin que cada llamador se acuerde de avisar.
-        connect(alerts_.get(), &agent::AlertEngine::reglasCambio, agent_.get(), &agent::AgentViewModel::alertsChanged);
-        connect(alerts_.get(), &agent::AlertEngine::reglasCambio, agenteAuto_.get(), &agent::AgentViewModel::alertsChanged);
+        connect(&alarmas_->motor(), &agent::AlertEngine::reglasCambio, agent_.get(), &agent::AgentViewModel::alertsChanged);
+        connect(&alarmas_->motor(), &agent::AlertEngine::reglasCambio, agenteAuto_.get(), &agent::AgentViewModel::alertsChanged);
         // Los roles automaticos: un disparo que un rol activo reclama va a un
         // agente de un tiro y NO al chat del asistente interactivo.
         roles_ = std::make_unique<agent::Roles>(rt.dataRoot() / "Config" / "roles.json");
@@ -2897,7 +2848,7 @@ void StudioViewModel::onTick() {
     }
     // Lo de la interfaz que mira el vigía de las alarmas (en el plano de control), como
     // foto: cada 200 ms (él evalúa cada 250).
-    if (entradasAlarmas_ && vigiaTicks_ % 2 == 0) entradasAlarmas_->refrescar();
+    if (alarmas_ && vigiaTicks_ % 2 == 0) alarmas_->refrescarFoto();
     // Señal de las entradas (multiview, escena de respaldo): una vez por segundo.
     if (vigiaTicks_ % 10 == 5) revisarSenales();
     // El vigía de los módulos de audio: lo que saltó por lento o colgado.
@@ -4011,30 +3962,12 @@ QString StudioViewModel::latidoPoliticaUi(const QVariantMap& cambios) {
     return QString::fromStdString(rt_.latido().ponerPolitica(j));
 }
 
-QVariantList StudioViewModel::alarmasActivasUi() const {
-    return QJsonDocument::fromJson(QByteArray::fromStdString(alerts_->activas().dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))).array().toVariantList();
+QObject* StudioViewModel::alarmasQml() const {
+    QQmlEngine::setObjectOwnership(alarmas_.get(), QQmlEngine::CppOwnership);
+    return alarmas_.get();
 }
 
-int StudioViewModel::reconocerAlarmaUi(qint64 id) { return alerts_->reconocer(static_cast<std::uint64_t>(id)); }
-
-bool StudioViewModel::alarmaCritica() const {
-    for (const auto& e : alerts_->activas())
-        if (e.value("sonido", std::string()) == "critico" && !e.value("silenciada", false)) return true;
-    return false;
-}
-
-bool StudioViewModel::silenciarAlarmaUi(const QString& disparador, bool silenciar) {
-    const auto r = alerts_->update(disparador.toStdString(), nlohmann::json{{"silenciada", silenciar}});
-    return !r.contains("error");
-}
-
-QObject* StudioViewModel::alarmaSonora() const {
-    // Devuelto por un Q_INVOKABLE y sin padre, QML se lo queda (JavaScriptOwnership) y su
-    // recolector lo borraba: al cerrar la app se borraba dos veces (cierre con SIGSEGV, y el
-    // launcher lo tomaba por una caída). Es de acá.
-    if (alarma_) QQmlEngine::setObjectOwnership(alarma_.get(), QQmlEngine::CppOwnership);
-    return alarma_.get();
-}
+agent::AlertEngine& StudioViewModel::alerts() { return alarmas_->motor(); }
 
 bool StudioViewModel::focoEnTexto() const {
     QObject* f = QGuiApplication::focusObject();

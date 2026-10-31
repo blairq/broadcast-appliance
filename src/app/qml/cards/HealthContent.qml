@@ -172,8 +172,7 @@ Item {
                     id: alarmas
                     Layout.fillWidth: true
                     spacing: 4
-                    property var lista: Studio.alarmasActivasUi()
-                    Connections { target: Studio; function onAlarmasCambio() { alarmas.lista = Studio.alarmasActivasUi() } }
+                    readonly property var lista: Studio.alarmas.activas
                     Text { visible: alarmas.lista.length === 0; text: qsTr("ninguna"); color: Theme.ok; font.pixelSize: 12 }
                     Repeater {
                         model: alarmas.lista
@@ -188,14 +187,14 @@ Item {
                                 compact: true
                                 visible: modelData.sonido !== "ninguno"
                                 text: modelData.silenciada ? qsTr("🔇 Silenciada") : qsTr("Silenciar")
-                                onClicked: Studio.silenciarAlarmaUi(modelData.ruleId, !modelData.silenciada)
+                                onClicked: Studio.alarmas.silenciar(modelData.ruleId, !modelData.silenciada)
                             }
-                            GlassButton { compact: true; text: qsTr("Reconocer"); onClicked: Studio.reconocerAlarmaUi(modelData.id) }
+                            GlassButton { compact: true; text: qsTr("Reconocer"); onClicked: Studio.alarmas.reconocer(modelData.id) }
                         }
                     }
                     RowLayout {
                         spacing: 6
-                        readonly property var al: Studio.alarmaSonora()
+                        readonly property var al: Studio.alarmas.sonido
                         Text { text: qsTr("Volumen"); color: Theme.textFaint; font.pixelSize: 11 }
                         Slider {
                             Layout.preferredWidth: 110
