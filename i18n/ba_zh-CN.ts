@@ -29751,31 +29751,6 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
         <translation>自动字幕条未能播出：%1</translation>
     </message>
     <message>
-        <location line="+221" />
-        <source>Evento «%1» creado: reiniciando para abrirlo</source>
-        <translation>活动「%1」已创建：正在重启以打开它</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>Abriendo el evento «%1»: la app se reinicia</source>
-        <translation>正在打开活动「%1」：应用将重启</translation>
-    </message>
-    <message>
-        <location line="+8" />
-        <source>No se pudo crear «%1»: %2</source>
-        <translation>无法创建「%1」：%2</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>Evento «%1» listo: abrilo con «Abrir otro…»</source>
-        <translation>活动「%1」已就绪：请用「打开其他…」打开</translation>
-    </message>
-    <message>
-        <location line="+220" />
-        <source>La configuración «%1» estaba dañada: se cargó la versión anterior (la dañada quedó como .corrupto).</source>
-        <translation>配置「%1」已损坏：已载入上一版本（损坏的文件保存为 .corrupto）。</translation>
-    </message>
-    <message>
         <location line="+2" />
         <source>La aplicación se cerró varias veces seguidas y arrancó en modo seguro: tus escenas no se cargaron (no se borraron). Cerrá y volvé a abrir para intentar el arranque normal.</source>
         <translation>应用连续多次关闭，已以安全模式启动：您的场景未载入（并未删除）。请关闭后重新打开，尝试正常启动。</translation>
@@ -29916,115 +29891,116 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
         <source>Repetición armada: dale TAKE.</source>
         <translation>回放已载入：请按 TAKE。</translation>
     </message>
+</context>
+<context>
+    <name>AppViewModel</name>
     <message>
-        <location line="+129" />
+        <source>Evento «%1» creado: reiniciando para abrirlo</source>
+        <translation>活动「%1」已创建：正在重启以打开它</translation>
+    </message>
+    <message>
+        <source>Abriendo el evento «%1»: la app se reinicia</source>
+        <translation>正在打开活动「%1」：应用将重启</translation>
+    </message>
+    <message>
+        <source>No se pudo crear «%1»: %2</source>
+        <translation>无法创建「%1」：%2</translation>
+    </message>
+    <message>
+        <source>Evento «%1» listo: abrilo con «Abrir otro…»</source>
+        <translation>活动「%1」已就绪：请用「打开其他…」打开</translation>
+    </message>
+    <message>
+        <source>La configuración «%1» estaba dañada: se cargó la versión anterior (la dañada quedó como .corrupto).</source>
+        <translation>配置「%1」已损坏：已载入上一版本（损坏的文件保存为 .corrupto）。</translation>
+    </message>
+    <message>
         <source>no se cambia en vivo</source>
         <translation>直播中不可更改</translation>
     </message>
     <message>
-        <location line="+35" />
         <source>Estás AL AIRE y grabando</source>
         <translation>正在播出并录制</translation>
     </message>
     <message>
-        <location line="+1" />
-        <location line="+15" />
         <source>Estás AL AIRE</source>
         <translation>正在播出</translation>
     </message>
     <message>
-        <location line="-14" />
         <source>Estás grabando</source>
         <translation>正在录制</translation>
     </message>
     <message numerus="yes">
-        <location line="+3" />
         <source>Hay %n persona conectada</source>
         <translation>
             <numerusform>有 %n 人已连接</numerusform>
         </translation>
     </message>
     <message numerus="yes">
-        <location line="+1" />
         <source>%1, y hay %n persona conectada</source>
         <translation>
             <numerusform>%1，且有 %n 人已连接</numerusform>
         </translation>
     </message>
     <message numerus="yes">
-        <location line="+1" />
         <source>%1 y hay %n persona conectada</source>
         <translation>
             <numerusform>%1，且有 %n 人已连接</numerusform>
         </translation>
     </message>
     <message>
-        <location line="+1" />
         <source>se corta la emisión</source>
         <translation>播出将中断</translation>
     </message>
     <message>
-        <location line="+1" />
         <source>se detiene la grabación</source>
         <translation>录制将停止</translation>
     </message>
     <message>
-        <location line="+1" />
         <source>esa persona queda afuera</source>
         <translation>该人将被断开</translation>
     </message>
     <message>
-        <location line="+0" />
         <source>esas personas quedan afuera</source>
         <translation>这些人将被断开</translation>
     </message>
     <message>
-        <location line="+1" />
         <source>%1. Si cerrás, %2.</source>
         <translation>%1。如果关闭，%2。</translation>
     </message>
     <message>
-        <location line="+5" />
         <source>Estás GRABANDO</source>
         <translation>正在录制</translation>
     </message>
     <message>
-        <location line="+0" />
         <source>Hay gente conectada</source>
         <translation>有人已连接</translation>
     </message>
     <message>
-        <location line="+1" />
         <source>corta la emisión</source>
         <translation>中断播出</translation>
     </message>
     <message>
-        <location line="+1" />
         <source>corta la grabación</source>
         <translation>中断录制</translation>
     </message>
     <message>
-        <location line="+1" />
         <source>la desconecta</source>
         <translation>断开该人的连接</translation>
     </message>
     <message>
-        <location line="+0" />
         <source>desconecta a quienes están conectados</source>
         <translation>断开所有已连接的人</translation>
     </message>
     <message>
-        <location line="+1" />
         <source>%1: actualizar cierra la aplicación y %2.</source>
         <translation>%1：更新会关闭应用，并%2。</translation>
     </message>
     <message>
-        <location line="+2" />
         <source>%1: volver a la versión anterior cierra la aplicación y %2.</source>
         <translation>%1：回退到上一版本会关闭应用，并%2。</translation>
     </message>
     <message>
-        <location line="+1" />
         <source>%1: %2 cierra la aplicación y %3.</source>
         <translation>%1：%2 会关闭应用，并%3。</translation>
     </message>

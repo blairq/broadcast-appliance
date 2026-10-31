@@ -1115,8 +1115,10 @@ No se borran del disco: si alguno estaba en una escena, se lo saca de ahí y lis
 </context>
 <context>
     <name>StudioViewModel</name>
+</context>
+<context>
+    <name>AppViewModel</name>
     <message numerus="yes">
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="+4488"/>
         <source>Hay %n persona conectada</source>
         <translation>
             <numerusform>Hay %n persona conectada</numerusform>
@@ -1124,7 +1126,6 @@ No se borran del disco: si alguno estaba en una escena, se lo saca de ahí y lis
         </translation>
     </message>
     <message numerus="yes">
-        <location line="+1"/>
         <source>%1, y hay %n persona conectada</source>
         <translation>
             <numerusform>%1, y hay %n persona conectada</numerusform>
@@ -1132,7 +1133,6 @@ No se borran del disco: si alguno estaba en una escena, se lo saca de ahí y lis
         </translation>
     </message>
     <message numerus="yes">
-        <location line="+1"/>
         <source>%1 y hay %n persona conectada</source>
         <translation>
             <numerusform>%1 y hay %n persona conectada</numerusform>

@@ -2638,7 +2638,7 @@ void McpService::registerTools() {
             const json j = seg.estado();
             done(ToolResult().data({{"rotar_token_mcp", j.value("rotar_token_mcp", true)},
                                     {"pin_por_sesion", j.value("pin_por_sesion", true)},
-                                    {"modo_vivo", vm_.modoVivoEstado()},
+                                    {"modo_vivo", vm_.app().modoVivoEstado()},
                                     {"passphrase", ba::i18n::traducir("mcp", "todavia no (ver docs/planes/DECISIONES-PENDIENTES.md)")}}));
         };
         core_.addTool(std::move(t));

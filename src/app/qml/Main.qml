@@ -74,7 +74,7 @@ ApplicationWindow {
     property int paginaPermitida: 0
     onPageChanged: {
         const id = Studio.riel.idDePagina(page)
-        if (Studio.paginaBloqueada(id)) {
+        if (Studio.app.paginaBloqueada(id)) {
             desbloqueo.pagina = page
             desbloqueo.idPagina = id
             page = paginaPermitida
@@ -111,7 +111,7 @@ ApplicationWindow {
                     compact: true; text: qsTr("Entrar"); active: true
                     enabled: confirmarF.text.trim().toUpperCase() === desbloqueo.palabra.toUpperCase() && motivoF.text.trim().length >= 3
                     onClicked: {
-                        Studio.desbloquearPagina(desbloqueo.idPagina, motivoF.text.trim())
+                        Studio.app.desbloquearPagina(desbloqueo.idPagina, motivoF.text.trim())
                         desbloqueo.close()
                         win.page = desbloqueo.pagina
                     }
@@ -139,7 +139,7 @@ ApplicationWindow {
         if (quitting) return
         confirm({
             title: qsTr("¿Cerrar Broadcast Appliance?"),
-            text: Studio.impactoDeCerrar.hay ? Studio.avisoDeCerrar("")
+            text: Studio.app.impactoDeCerrar.hay ? Studio.app.avisoDeCerrar("")
                   : qsTr("Se cierran la conferencia, las salidas y los asistentes."),
             accept: qsTr("Cerrar"),
             reject: qsTr("Cancelar"),
@@ -637,7 +637,7 @@ ApplicationWindow {
     // --- Volvimos de una caída: la causa y cuánto tardó el aire en volver -----------
     Rectangle {
         id: cartelCaida
-        readonly property var c: Studio.caidaReciente
+        readonly property var c: Studio.app.caidaReciente
         visible: !!(c && c.causa)
         anchors { horizontalCenter: parent.horizontalCenter; top: parent.top; topMargin: 70 }
         width: Math.min(parent.width - 80, 720)
@@ -666,7 +666,7 @@ ApplicationWindow {
             }
             RowLayout {
                 Text { Layout.fillWidth: true; text: qsTr("El detalle queda en la página Registro."); color: Theme.textFaint; font.pixelSize: 11 }
-                GlassButton { compact: true; text: qsTr("Entendido"); onClicked: Studio.cerrarCartelCaida() }
+                GlassButton { compact: true; text: qsTr("Entendido"); onClicked: Studio.app.cerrarCartelCaida() }
             }
         }
     }
@@ -743,26 +743,26 @@ ApplicationWindow {
     }
     ConfirmDialog { id: confirmDlg }
     // La app está por cerrarse para que el launcher la reabra (otro evento, actualización):
-    // el aviso con la cuenta regresiva, encima de todo y sin poder cerrarlo (Studio.reinicio).
+    // el aviso con la cuenta regresiva, encima de todo y sin poder cerrarlo (Studio.app.reinicio).
     Popup {
         id: reinicioDlg
         anchors.centerIn: parent
         width: Math.min(460, win.width - 32)
         modal: true
         closePolicy: Popup.NoAutoClose
-        visible: !!Studio.reinicio.aviso
+        visible: !!Studio.app.reinicio.aviso
         padding: 24
         background: Rectangle { color: Theme.panel; radius: 12; border.color: Theme.glassBorder }
         contentItem: Column {
             spacing: 12
             Text {
                 width: parent.width; wrapMode: Text.WordWrap; horizontalAlignment: Text.AlignHCenter
-                text: Studio.reinicio.aviso || ""
+                text: Studio.app.reinicio.aviso || ""
                 color: Theme.text; font.pixelSize: 16
             }
             Text {
                 width: parent.width; horizontalAlignment: Text.AlignHCenter
-                text: Studio.reinicio.segundos > 0 ? Studio.reinicio.segundos : "…"
+                text: Studio.app.reinicio.segundos > 0 ? Studio.app.reinicio.segundos : "…"
                 color: Theme.accent; font.pixelSize: 48; font.bold: true
             }
             Text {

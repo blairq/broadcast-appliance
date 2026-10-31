@@ -29989,31 +29989,6 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
         <translation>Автоматический титр не вышел: %1</translation>
     </message>
     <message>
-        <location line="+221" />
-        <source>Evento «%1» creado: reiniciando para abrirlo</source>
-        <translation>Мероприятие «%1» создано: перезапуск, чтобы открыть его</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>Abriendo el evento «%1»: la app se reinicia</source>
-        <translation>Открытие мероприятия «%1»: приложение перезапускается</translation>
-    </message>
-    <message>
-        <location line="+8" />
-        <source>No se pudo crear «%1»: %2</source>
-        <translation>Не удалось создать «%1»: %2</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>Evento «%1» listo: abrilo con «Abrir otro…»</source>
-        <translation>Мероприятие «%1» готово: откройте его через «Открыть другое…»</translation>
-    </message>
-    <message>
-        <location line="+220" />
-        <source>La configuración «%1» estaba dañada: se cargó la versión anterior (la dañada quedó como .corrupto).</source>
-        <translation>Конфигурация «%1» была повреждена: загружена предыдущая версия (повреждённая сохранена как .corrupto).</translation>
-    </message>
-    <message>
         <location line="+2" />
         <source>La aplicación se cerró varias veces seguidas y arrancó en modo seguro: tus escenas no se cargaron (no se borraron). Cerrá y volvé a abrir para intentar el arranque normal.</source>
         <translation>Приложение несколько раз подряд закрылось и запустилось в безопасном режиме: ваши сцены не загружены (но и не удалены). Закройте и откройте снова, чтобы попробовать обычный запуск.</translation>
@@ -30154,29 +30129,46 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
         <source>Repetición armada: dale TAKE.</source>
         <translation>Повтор загружен: нажмите TAKE.</translation>
     </message>
+</context>
+<context>
+    <name>AppViewModel</name>
     <message>
-        <location line="+129" />
+        <source>Evento «%1» creado: reiniciando para abrirlo</source>
+        <translation>Мероприятие «%1» создано: перезапуск, чтобы открыть его</translation>
+    </message>
+    <message>
+        <source>Abriendo el evento «%1»: la app se reinicia</source>
+        <translation>Открытие мероприятия «%1»: приложение перезапускается</translation>
+    </message>
+    <message>
+        <source>No se pudo crear «%1»: %2</source>
+        <translation>Не удалось создать «%1»: %2</translation>
+    </message>
+    <message>
+        <source>Evento «%1» listo: abrilo con «Abrir otro…»</source>
+        <translation>Мероприятие «%1» готово: откройте его через «Открыть другое…»</translation>
+    </message>
+    <message>
+        <source>La configuración «%1» estaba dañada: se cargó la versión anterior (la dañada quedó como .corrupto).</source>
+        <translation>Конфигурация «%1» была повреждена: загружена предыдущая версия (повреждённая сохранена как .corrupto).</translation>
+    </message>
+    <message>
         <source>no se cambia en vivo</source>
         <translation>нельзя менять в эфире</translation>
     </message>
     <message>
-        <location line="+35" />
         <source>Estás AL AIRE y grabando</source>
         <translation>Вы В ЭФИРЕ, и идёт запись</translation>
     </message>
     <message>
-        <location line="+1" />
-        <location line="+15" />
         <source>Estás AL AIRE</source>
         <translation>Вы В ЭФИРЕ</translation>
     </message>
     <message>
-        <location line="-14" />
         <source>Estás grabando</source>
         <translation>Идёт запись</translation>
     </message>
     <message numerus="yes">
-        <location line="+3" />
         <source>Hay %n persona conectada</source>
         <translation>
             <numerusform>Подключён %n человек</numerusform>
@@ -30185,7 +30177,6 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
         </translation>
     </message>
     <message numerus="yes">
-        <location line="+1" />
         <source>%1, y hay %n persona conectada</source>
         <translation>
             <numerusform>%1, и подключён %n человек</numerusform>
@@ -30194,7 +30185,6 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
         </translation>
     </message>
     <message numerus="yes">
-        <location line="+1" />
         <source>%1 y hay %n persona conectada</source>
         <translation>
             <numerusform>%1, и подключён %n человек</numerusform>
@@ -30203,72 +30193,58 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
         </translation>
     </message>
     <message>
-        <location line="+1" />
         <source>se corta la emisión</source>
         <translation>эфир прервётся</translation>
     </message>
     <message>
-        <location line="+1" />
         <source>se detiene la grabación</source>
         <translation>запись остановится</translation>
     </message>
     <message>
-        <location line="+1" />
         <source>esa persona queda afuera</source>
         <translation>этот человек будет отключён</translation>
     </message>
     <message>
-        <location line="+0" />
         <source>esas personas quedan afuera</source>
         <translation>эти люди будут отключены</translation>
     </message>
     <message>
-        <location line="+1" />
         <source>%1. Si cerrás, %2.</source>
         <translation>%1. Если закрыть, %2.</translation>
     </message>
     <message>
-        <location line="+5" />
         <source>Estás GRABANDO</source>
         <translation>Идёт ЗАПИСЬ</translation>
     </message>
     <message>
-        <location line="+0" />
         <source>Hay gente conectada</source>
         <translation>Есть подключённые люди</translation>
     </message>
     <message>
-        <location line="+1" />
         <source>corta la emisión</source>
         <translation>прерывает эфир</translation>
     </message>
     <message>
-        <location line="+1" />
         <source>corta la grabación</source>
         <translation>останавливает запись</translation>
     </message>
     <message>
-        <location line="+1" />
         <source>la desconecta</source>
         <translation>отключает его</translation>
     </message>
     <message>
-        <location line="+0" />
         <source>desconecta a quienes están conectados</source>
         <translation>отключает всех подключённых</translation>
     </message>
     <message>
-        <location line="+1" />
         <source>%1: actualizar cierra la aplicación y %2.</source>
         <translation>%1: обновление закрывает приложение и %2.</translation>
     </message>
     <message>
-        <location line="+2" />
         <source>%1: volver a la versión anterior cierra la aplicación y %2.</source>
         <translation>%1: возврат к предыдущей версии закрывает приложение и %2.</translation>
     </message>
     <message>
-        <location line="+1" />
         <source>%1: %2 cierra la aplicación y %3.</source>
         <translation>%1: %2 закрывает приложение и %3.</translation>
     </message>

@@ -29870,31 +29870,6 @@ puis elle se rouvre toute seule. Les paramètres, identifiants, enregistrements 
         <translation>Un synthé automatique n'est pas passé : %1</translation>
     </message>
     <message>
-        <location line="+221" />
-        <source>Evento «%1» creado: reiniciando para abrirlo</source>
-        <translation>Événement « %1 » créé : redémarrage pour l'ouvrir</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>Abriendo el evento «%1»: la app se reinicia</source>
-        <translation>Ouverture de l'événement « %1 » : l'application redémarre</translation>
-    </message>
-    <message>
-        <location line="+8" />
-        <source>No se pudo crear «%1»: %2</source>
-        <translation>Impossible de créer « %1 » : %2</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>Evento «%1» listo: abrilo con «Abrir otro…»</source>
-        <translation>Événement « %1 » prêt : ouvrez-le avec « Ouvrir un autre… »</translation>
-    </message>
-    <message>
-        <location line="+220" />
-        <source>La configuración «%1» estaba dañada: se cargó la versión anterior (la dañada quedó como .corrupto).</source>
-        <translation>La configuration « %1 » était endommagée : la version précédente a été chargée (celle endommagée a été gardée en .corrupto).</translation>
-    </message>
-    <message>
         <location line="+2" />
         <source>La aplicación se cerró varias veces seguidas y arrancó en modo seguro: tus escenas no se cargaron (no se borraron). Cerrá y volvé a abrir para intentar el arranque normal.</source>
         <translation>L'application s'est fermée plusieurs fois de suite et a démarré en mode sans échec : vos scènes n'ont pas été chargées (elles n'ont pas été supprimées). Fermez et rouvrez pour tenter un démarrage normal.</translation>
@@ -30035,29 +30010,46 @@ puis elle se rouvre toute seule. Les paramètres, identifiants, enregistrements 
         <source>Repetición armada: dale TAKE.</source>
         <translation>Ralenti prêt : faites TAKE.</translation>
     </message>
+</context>
+<context>
+    <name>AppViewModel</name>
     <message>
-        <location line="+129" />
+        <source>Evento «%1» creado: reiniciando para abrirlo</source>
+        <translation>Événement « %1 » créé : redémarrage pour l'ouvrir</translation>
+    </message>
+    <message>
+        <source>Abriendo el evento «%1»: la app se reinicia</source>
+        <translation>Ouverture de l'événement « %1 » : l'application redémarre</translation>
+    </message>
+    <message>
+        <source>No se pudo crear «%1»: %2</source>
+        <translation>Impossible de créer « %1 » : %2</translation>
+    </message>
+    <message>
+        <source>Evento «%1» listo: abrilo con «Abrir otro…»</source>
+        <translation>Événement « %1 » prêt : ouvrez-le avec « Ouvrir un autre… »</translation>
+    </message>
+    <message>
+        <source>La configuración «%1» estaba dañada: se cargó la versión anterior (la dañada quedó como .corrupto).</source>
+        <translation>La configuration « %1 » était endommagée : la version précédente a été chargée (celle endommagée a été gardée en .corrupto).</translation>
+    </message>
+    <message>
         <source>no se cambia en vivo</source>
         <translation>ne se change pas en direct</translation>
     </message>
     <message>
-        <location line="+35" />
         <source>Estás AL AIRE y grabando</source>
         <translation>Vous êtes À L'ANTENNE et en enregistrement</translation>
     </message>
     <message>
-        <location line="+1" />
-        <location line="+15" />
         <source>Estás AL AIRE</source>
         <translation>Vous êtes À L'ANTENNE</translation>
     </message>
     <message>
-        <location line="-14" />
         <source>Estás grabando</source>
         <translation>Vous enregistrez</translation>
     </message>
     <message numerus="yes">
-        <location line="+3" />
         <source>Hay %n persona conectada</source>
         <translation>
             <numerusform>%n personne est connectée</numerusform>
@@ -30065,7 +30057,6 @@ puis elle se rouvre toute seule. Les paramètres, identifiants, enregistrements 
         </translation>
     </message>
     <message numerus="yes">
-        <location line="+1" />
         <source>%1, y hay %n persona conectada</source>
         <translation>
             <numerusform>%1, et %n personne est connectée</numerusform>
@@ -30073,7 +30064,6 @@ puis elle se rouvre toute seule. Les paramètres, identifiants, enregistrements 
         </translation>
     </message>
     <message numerus="yes">
-        <location line="+1" />
         <source>%1 y hay %n persona conectada</source>
         <translation>
             <numerusform>%1 et %n personne est connectée</numerusform>
@@ -30081,72 +30071,58 @@ puis elle se rouvre toute seule. Les paramètres, identifiants, enregistrements 
         </translation>
     </message>
     <message>
-        <location line="+1" />
         <source>se corta la emisión</source>
         <translation>la diffusion s'arrête</translation>
     </message>
     <message>
-        <location line="+1" />
         <source>se detiene la grabación</source>
         <translation>l'enregistrement s'arrête</translation>
     </message>
     <message>
-        <location line="+1" />
         <source>esa persona queda afuera</source>
         <translation>cette personne est déconnectée</translation>
     </message>
     <message>
-        <location line="+0" />
         <source>esas personas quedan afuera</source>
         <translation>ces personnes sont déconnectées</translation>
     </message>
     <message>
-        <location line="+1" />
         <source>%1. Si cerrás, %2.</source>
         <translation>%1. Si vous fermez, %2.</translation>
     </message>
     <message>
-        <location line="+5" />
         <source>Estás GRABANDO</source>
         <translation>Vous ENREGISTREZ</translation>
     </message>
     <message>
-        <location line="+0" />
         <source>Hay gente conectada</source>
         <translation>Des personnes sont connectées</translation>
     </message>
     <message>
-        <location line="+1" />
         <source>corta la emisión</source>
         <translation>arrête la diffusion</translation>
     </message>
     <message>
-        <location line="+1" />
         <source>corta la grabación</source>
         <translation>arrête l'enregistrement</translation>
     </message>
     <message>
-        <location line="+1" />
         <source>la desconecta</source>
         <translation>la déconnecte</translation>
     </message>
     <message>
-        <location line="+0" />
         <source>desconecta a quienes están conectados</source>
         <translation>déconnecte les personnes connectées</translation>
     </message>
     <message>
-        <location line="+1" />
         <source>%1: actualizar cierra la aplicación y %2.</source>
         <translation>%1 : la mise à jour ferme l'application et %2.</translation>
     </message>
     <message>
-        <location line="+2" />
         <source>%1: volver a la versión anterior cierra la aplicación y %2.</source>
         <translation>%1 : revenir à la version précédente ferme l'application et %2.</translation>
     </message>
     <message>
-        <location line="+1" />
         <source>%1: %2 cierra la aplicación y %3.</source>
         <translation>%1 : %2 ferme l'application et %3.</translation>
     </message>

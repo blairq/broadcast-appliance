@@ -28,6 +28,7 @@
 #include <cstdint>
 #include <functional>
 #include "comun/UsoCpu.hpp"
+#include "ui/AppViewModel.hpp"
 #include "ui/AsambleaViewModel.hpp"
 #include "ui/AsistenteViewModel.hpp"
 #include "ui/ControlViewModel.hpp"
@@ -218,11 +219,9 @@ class StudioViewModel : public QObject {
     /// transmisión: lo mismo que mira la PTZ, las alertas y los candados.
     Q_PROPERTY(bool alAire READ alAire NOTIFY statusChanged)
     Q_PROPERTY(bool transmitiendo READ transmitiendo NOTIFY statusChanged)
-    /// Lo que se corta si se cierra (o se actualiza) la app: {transmitiendo, grabando, personas, hay}.
-    Q_PROPERTY(QVariantMap impactoDeCerrar READ impactoDeCerrar NOTIFY statusChanged)
-    /// La app está por cerrarse para que el launcher la reabra (otro evento, actualización):
-    /// {aviso, segundos} con la cuenta regresiva; vacío si no.
-    Q_PROPERTY(QVariantMap reinicio READ reinicio NOTIFY reinicioChanged)
+    /// La app misma (ui/AppViewModel): el modo en vivo, la caída de la que se vuelve, lo que
+    /// se corta al cerrar y la cuenta regresiva del reinicio.
+    Q_PROPERTY(QObject* app READ appQml CONSTANT)
     /// Las entradas de video que se quedaron sin señal (el multiview las marca).
     Q_PROPERTY(QStringList sinSenal READ sinSenal NOTIFY senalChanged)
     /// El área de la asamblea (ui/AsambleaViewModel): presidenciaHabla y los mandos del operador.
@@ -280,10 +279,6 @@ class StudioViewModel : public QObject {
     Q_PROPERTY(QObject* notificador READ notificadorQml CONSTANT)
     /// El túnel de pinggy: estado, token (solo guardado/falta) y DNS (net/AccesoRemoto).
     Q_PROPERTY(QObject* accesoRemoto READ accesoRemotoQml CONSTANT)
-    /// Modo en vivo (T48): transmitiendo o con el evento en vivo; protege páginas y ajustes que cortan.
-    Q_PROPERTY(bool modoVivo READ modoVivo NOTIFY statusChanged)
-    /// La caída de la que se acaba de volver (T24): {causa, componente, hace_s, aire_vuelta_s?} o vacío.
-    Q_PROPERTY(QVariantMap caidaReciente READ caidaReciente NOTIFY caidaChanged)
     /// El tally para el multiview: {aire: [fuentes en el programa (con las capas DSK)], armada: [las del preview]}.
     Q_PROPERTY(QVariantMap tally READ tally NOTIFY tallyChanged)
     /// Los medios que suenan/se ven al aire: [{fuente, restante_s, duracion_s}] (T46).
@@ -500,13 +495,6 @@ class StudioViewModel : public QObject {
     bool alAire() const;
     /// Se transmite algo (la principal, una extra o la señal limpia).
     bool transmitiendo() const;
-    /// {transmitiendo, grabando, personas, hay}. `personas`: los de la sala (lobby,
-    /// programa, fila de oradores) y los integrantes de la sesión remota.
-    QVariantMap impactoDeCerrar() const;
-    QVariantMap reinicio() const { return reinicio_; }
-    /// El aviso para confirmar: `accion` vacía = cerrar la ventana; si no, lo que
-    /// cierra la app (p. ej. "actualizar"). "" si no se corta nada.
-    Q_INVOKABLE QString avisoDeCerrar(const QString& accion = {}) const;
     bool corteDirectoEditor() const;
     QObject* cuerpoQml() const;
     QStringList sinSenal() const;
@@ -518,7 +506,10 @@ class StudioViewModel : public QObject {
     QObject* bancasQml() const;
     QObject* debateQml() const;
     QObject* configuracionesQml() const;
-    Configuraciones* configuraciones() { return configuraciones_.get(); }
+    Configuraciones* configuraciones() { return &app_->configuraciones(); }
+    /// La app misma (el modo en vivo, la caída, cerrar y reiniciar, los eventos).
+    AppViewModel& app() { return *app_; }
+    QObject* appQml() const;
     asamblea::Debate* debate() { return asamblea_->debate(); }
     QObject* dcnQml() const;
     QObject* sesionRemotaQml() const;
@@ -576,8 +567,8 @@ class StudioViewModel : public QObject {
     agent::Notificador& notificador() { return *notificador_; }
     QObject* accesoRemotoQml() const;
     AccesoRemoto* accesoRemoto() { return &sala_->accesoRemoto(); }
-    bool modoVivo() const;
-    QVariantMap caidaReciente() const { return caida_; }
+    /// Modo en vivo (T48): protege páginas y ajustes que cortan (ver AppViewModel).
+    bool modoVivo() const { return app_ && app_->modoVivo(); }
     QVariantMap tally() const { return tally_; }
     QVariantList mediosAlAire() const { return mediosAlAire_; }
     /// El área de la emisión (los mandos de grabar y transmitir, la salud de los destinos).
@@ -585,16 +576,7 @@ class StudioViewModel : public QObject {
     QObject* emisionQml() const;
     /// El pico de audio de una fuente (para el vúmetro de cada celda del multiview).
     Q_INVOKABLE double picoDe(const QString& fuente) const;
-    Q_INVOKABLE void cerrarCartelCaida() { caida_.clear(); emit caidaChanged(); }
-    /// Las últimas `n` caídas que anotó el supervisor (Runtime/caidas.jsonl).
-    nlohmann::json caidas(int n) const;
     std::filesystem::path datosRaiz() const;
-    /// ¿Hay que desbloquear la página `id` (del riel) para entrar? (en vivo y en la lista)
-    Q_INVOKABLE bool paginaBloqueada(const QString& id) const;
-    /// La desbloquea hasta que termine el vivo; el motivo queda en el registro.
-    Q_INVOKABLE void desbloquearPagina(const QString& id, const QString& motivo);
-    nlohmann::json modoVivoEstado() const;
-    std::string setModoVivoAjustes(const nlohmann::json& a);
     /// Capítulos de la grabación en curso por punto del orden del día (texto para YouTube).
     Q_INVOKABLE QString capitulosPuntosUi() const;
     control::Dsk& dsk() { return control_->dsk(); }
@@ -894,7 +876,6 @@ class StudioViewModel : public QObject {
    signals:
     void tallyChanged();
     void mediosChanged();
-    void caidaChanged();
     void statusChanged();
     /// Los picos del programa (el vúmetro): a 10 Hz. Separados de statusChanged, que
     /// solo sale cuando cambia algo (antes salía cada 100 ms y re-evaluaba cada binding
@@ -924,7 +905,6 @@ class StudioViewModel : public QObject {
     void notify(const QString& message, const QString& level);
     /// El launcher (o una señal) pidio cerrar.
     void quitRequested();
-    void reinicioChanged();
     void escenasAjustesChanged();
     void senalChanged();
 
@@ -984,10 +964,7 @@ class StudioViewModel : public QObject {
     std::unique_ptr<PdfEscena> pdfEscena_;
 #endif
     std::unique_ptr<CuentasViewModel> cuentas_; ///< YouTube, Twitch y Facebook (ui/CuentasViewModel)
-    std::unique_ptr<SystemViewModel> system_;
-    std::unique_ptr<Configuraciones> configuraciones_;
-    QVariantMap reinicio_;     ///< ver la propiedad reinicio
-    bool eventoNuevo_ = false; ///< el reinicio que viene abre un evento recién creado
+    std::unique_ptr<AppViewModel> app_; ///< el modo en vivo, la versión, los eventos, la caída (ui/AppViewModel)
     std::unique_ptr<AlarmasViewModel> alarmas_; ///< el área de las alarmas (y su vigía)
     std::unique_ptr<control::BusEventos> bus_;
     /// La asamblea y sus modelos (ui/AsambleaViewModel). Después del bus (se desuscriben
@@ -1006,13 +983,9 @@ class StudioViewModel : public QObject {
     std::unique_ptr<agent::Notificador> notificador_;
     /// Las alarmas que salen sin la interfaz (la interfaz trabada con aire, F1-13).
     std::unique_ptr<AvisoFueraDeUi> avisoFueraDeUi_;
-    std::unique_ptr<config::ModoVivoConfig> modoVivoCfg_; ///< Config/modo-vivo.json (modelo)
-    QSet<QString> desbloqueadas_;
-    bool estabaEnVivo_ = false;
     /// Los conectados que se cortan al cerrar: sala + sesión remota.
     int personasConectadas() const;
     bool eventoEnVivo_ = false;
-    QVariantMap caida_;
     QVariantMap tally_;
     QVariantList mediosAlAire_;
     /// Las salidas: el conmutador de escenas de cada una, el FTB y la placa, la activa
@@ -1026,7 +999,6 @@ class StudioViewModel : public QObject {
     /// Desde cuándo nadie mira el retorno de cada salida que no es la por omisión (ver onTick).
     QHash<QString, qint64> salidaVistaMs_;
     std::unique_ptr<EmisionViewModel> emision_; ///< grabar, transmitir y lo que los rodea (ui/EmisionViewModel)
-    qint64 caidaMs_ = 0;
     /// Publica en el bus lo que cambió (cada vuelta del reloj, 10 Hz).
     void publicarEventos();
     int busTicks_ = 0;

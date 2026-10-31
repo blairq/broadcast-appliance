@@ -87,8 +87,8 @@ Rectangle {
     // Actualizar o volver atras cierra la app: emitiendo, grabando o con gente en
     // la conferencia o en la sesion remota eso corta todo, asi que se advierte y se pide una
     // confirmacion explicita. Lo que se corta lo dice Studio (Main.qml usa lo mismo).
-    readonly property bool onAir: Studio.impactoDeCerrar.hay
-    function onAirWarning(what) { return Studio.avisoDeCerrar(what) }
+    readonly property bool onAir: Studio.app.impactoDeCerrar.hay
+    function onAirWarning(what) { return Studio.app.avisoDeCerrar(what) }
     function confirmUpdate(folder) {
         ApplicationWindow.window.confirm({
             title: qsTr("¿Actualizar ahora?"),
@@ -2170,7 +2170,7 @@ Rectangle {
             GlassButton { text: qsTr("Más tarde"); onClicked: avisoIdioma.masTarde = true }
             GlassButton {
                 text: qsTr("Reiniciar ahora"); active: true
-                onClicked: avisoIdioma.error = Studio.reiniciarPrograma(qsTr("Cambiando el idioma: la app se reinicia"))
+                onClicked: avisoIdioma.error = Studio.app.reiniciarPrograma(qsTr("Cambiando el idioma: la app se reinicia"))
             }
         }
     }

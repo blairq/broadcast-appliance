@@ -346,7 +346,7 @@ Item {
                                             Behavior on color { ColorAnimation { duration: 150 } }
                                             // Candado: en vivo, esta página pide confirmar para entrar.
                                             Text {
-                                                visible: Studio.modoVivo && Studio.paginaBloqueada(Studio.riel.idDePagina(celda.modelData.page))
+                                                visible: Studio.app.modoVivo && Studio.app.paginaBloqueada(Studio.riel.idDePagina(celda.modelData.page))
                                                 anchors { right: parent.right; top: parent.top; rightMargin: -2; topMargin: -2 }
                                                 text: "🔒"
                                                 font.pixelSize: Math.max(9, parent.width * 0.3)

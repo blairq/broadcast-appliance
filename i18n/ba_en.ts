@@ -29870,31 +29870,6 @@ and it reopens on its own. Settings, credentials, recordings and files are NOT t
         <translation>An automatic lower third didn't go out: %1</translation>
     </message>
     <message>
-        <location line="+221" />
-        <source>Evento «%1» creado: reiniciando para abrirlo</source>
-        <translation>Event “%1” created: restarting to open it</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>Abriendo el evento «%1»: la app se reinicia</source>
-        <translation>Opening the event “%1”: the app restarts</translation>
-    </message>
-    <message>
-        <location line="+8" />
-        <source>No se pudo crear «%1»: %2</source>
-        <translation>Couldn't create “%1”: %2</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>Evento «%1» listo: abrilo con «Abrir otro…»</source>
-        <translation>Event “%1” ready: open it with “Open another…”</translation>
-    </message>
-    <message>
-        <location line="+220" />
-        <source>La configuración «%1» estaba dañada: se cargó la versión anterior (la dañada quedó como .corrupto).</source>
-        <translation>The configuration “%1” was damaged: the previous version was loaded (the damaged one was kept as .corrupto).</translation>
-    </message>
-    <message>
         <location line="+2" />
         <source>La aplicación se cerró varias veces seguidas y arrancó en modo seguro: tus escenas no se cargaron (no se borraron). Cerrá y volvé a abrir para intentar el arranque normal.</source>
         <translation>The application closed several times in a row and started in safe mode: your scenes weren't loaded (they weren't deleted). Close and reopen to try a normal startup.</translation>
@@ -30035,29 +30010,46 @@ and it reopens on its own. Settings, credentials, recordings and files are NOT t
         <source>Repetición armada: dale TAKE.</source>
         <translation>Replay loaded: hit TAKE.</translation>
     </message>
+</context>
+<context>
+    <name>AppViewModel</name>
     <message>
-        <location line="+129" />
+        <source>Evento «%1» creado: reiniciando para abrirlo</source>
+        <translation>Event “%1” created: restarting to open it</translation>
+    </message>
+    <message>
+        <source>Abriendo el evento «%1»: la app se reinicia</source>
+        <translation>Opening the event “%1”: the app restarts</translation>
+    </message>
+    <message>
+        <source>No se pudo crear «%1»: %2</source>
+        <translation>Couldn't create “%1”: %2</translation>
+    </message>
+    <message>
+        <source>Evento «%1» listo: abrilo con «Abrir otro…»</source>
+        <translation>Event “%1” ready: open it with “Open another…”</translation>
+    </message>
+    <message>
+        <source>La configuración «%1» estaba dañada: se cargó la versión anterior (la dañada quedó como .corrupto).</source>
+        <translation>The configuration “%1” was damaged: the previous version was loaded (the damaged one was kept as .corrupto).</translation>
+    </message>
+    <message>
         <source>no se cambia en vivo</source>
         <translation>can't be changed live</translation>
     </message>
     <message>
-        <location line="+35" />
         <source>Estás AL AIRE y grabando</source>
         <translation>You're ON AIR and recording</translation>
     </message>
     <message>
-        <location line="+1" />
-        <location line="+15" />
         <source>Estás AL AIRE</source>
         <translation>You're ON AIR</translation>
     </message>
     <message>
-        <location line="-14" />
         <source>Estás grabando</source>
         <translation>You're recording</translation>
     </message>
     <message numerus="yes">
-        <location line="+3" />
         <source>Hay %n persona conectada</source>
         <translation>
             <numerusform>There is %n person connected</numerusform>
@@ -30065,7 +30057,6 @@ and it reopens on its own. Settings, credentials, recordings and files are NOT t
         </translation>
     </message>
     <message numerus="yes">
-        <location line="+1" />
         <source>%1, y hay %n persona conectada</source>
         <translation>
             <numerusform>%1, and there is %n person connected</numerusform>
@@ -30073,7 +30064,6 @@ and it reopens on its own. Settings, credentials, recordings and files are NOT t
         </translation>
     </message>
     <message numerus="yes">
-        <location line="+1" />
         <source>%1 y hay %n persona conectada</source>
         <translation>
             <numerusform>%1 and there is %n person connected</numerusform>
@@ -30081,72 +30071,58 @@ and it reopens on its own. Settings, credentials, recordings and files are NOT t
         </translation>
     </message>
     <message>
-        <location line="+1" />
         <source>se corta la emisión</source>
         <translation>the broadcast stops</translation>
     </message>
     <message>
-        <location line="+1" />
         <source>se detiene la grabación</source>
         <translation>the recording stops</translation>
     </message>
     <message>
-        <location line="+1" />
         <source>esa persona queda afuera</source>
         <translation>that person is dropped</translation>
     </message>
     <message>
-        <location line="+0" />
         <source>esas personas quedan afuera</source>
         <translation>those people are dropped</translation>
     </message>
     <message>
-        <location line="+1" />
         <source>%1. Si cerrás, %2.</source>
         <translation>%1. If you close, %2.</translation>
     </message>
     <message>
-        <location line="+5" />
         <source>Estás GRABANDO</source>
         <translation>You're RECORDING</translation>
     </message>
     <message>
-        <location line="+0" />
         <source>Hay gente conectada</source>
         <translation>People are connected</translation>
     </message>
     <message>
-        <location line="+1" />
         <source>corta la emisión</source>
         <translation>stops the broadcast</translation>
     </message>
     <message>
-        <location line="+1" />
         <source>corta la grabación</source>
         <translation>stops the recording</translation>
     </message>
     <message>
-        <location line="+1" />
         <source>la desconecta</source>
         <translation>disconnects them</translation>
     </message>
     <message>
-        <location line="+0" />
         <source>desconecta a quienes están conectados</source>
         <translation>disconnects everyone connected</translation>
     </message>
     <message>
-        <location line="+1" />
         <source>%1: actualizar cierra la aplicación y %2.</source>
         <translation>%1: updating closes the application and %2.</translation>
     </message>
     <message>
-        <location line="+2" />
         <source>%1: volver a la versión anterior cierra la aplicación y %2.</source>
         <translation>%1: rolling back to the previous version closes the application and %2.</translation>
     </message>
     <message>
-        <location line="+1" />
         <source>%1: %2 cierra la aplicación y %3.</source>
         <translation>%1: %2 closes the application and %3.</translation>
     </message>
