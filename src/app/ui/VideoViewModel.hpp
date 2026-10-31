@@ -62,8 +62,9 @@ class VideoViewModel : public QObject {
     Q_PROPERTY(QVariantList entradasInfo READ entradasInfo NOTIFY cambio)
     /// La que se está editando.
     Q_PROPERTY(QString entrada READ entrada WRITE seleccionar NOTIFY cambio)
-    /// Su sub-grafo: {nodos:[{id,tipo,titulo,etiqueta,grupo,x,y,params,externo,
-    /// entradas:[{id,tipo,pedido}],salidas:[…]}], cables:[{desde,salida,hacia,entrada}], trivial}
+    /// Su sub-grafo: {nodos:[{id,tipo,titulo,etiqueta,grupo,x,y,params,externo,resumen,
+    /// entradas:[{id,tipo,pedido}],salidas:[…]}], cables:[{desde,salida,hacia,entrada}], trivial}.
+    /// `resumen`: lo que se lee en la tarjeta del nodo (qué hace, con sus ajustes principales).
     Q_PROPERTY(QVariantMap grafo READ grafo NOTIFY cambio)
     /// Todo el estudio (mismo formato).
     Q_PROPERTY(QVariantMap estudio READ estudio NOTIFY cambio)

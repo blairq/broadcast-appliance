@@ -84,46 +84,6 @@ Rectangle {
     }
     function f2(v) { return Number(v).toFixed(2) }
     function hex(n) { return "#" + ("000000" + Number(n).toString(16)).slice(-6).toUpperCase() }
-    function resumen(n) {
-        const p = n.params || {}
-        if (n.error) return "⚠ " + n.error
-        const enEscena = n.publicada ? qsTr(" · en escena") : ""
-        if (n.tipo === "entrada") return qsTr("La cámara (ya encuadrada por el PTZ)")
-        if (n.tipo === "escena") return qsTr("Lo que ve la escena")
-        if (n.tipo === "obs") return qsTr("Filtro de OBS · %1").arg(p.filtro || "")
-        if (n.tipo === "control") return qsTr("Controlador · %1").arg(p.tarjeta === "gst" ? (p.params || {}).elemento : p.tarjeta === "obs" ? (p.params || {}).filtro : p.tarjeta)
-        if (n.controlador) return Object.keys(p.local || {}).length ? qsTr("↳ del controlador · con ajuste propio") : qsTr("↳ del controlador")
-        if (n.tipo === "gst") {
-            const pr = p.propiedades || {}
-            const ks = Object.keys(pr)
-            return "GStreamer · " + (p.elemento || "") + (ks.length ? " · " + ks.slice(0, 2).map(k => k + "=" + (typeof pr[k] === "number" ? Number(pr[k]).toFixed(2).replace(/\.?0+$/, "") : pr[k])).join(" ") : "")
-        }
-        if (n.tipo === "compositor") return qsTr("%n entrada · %1", "", (n.entradas || []).length - 1).arg(p.ancho > 0 ? p.ancho + "×" + p.alto : qsTr("lienzo del estudio")) + enEscena
-        if (n.tipo === "mezcla") return qsTr("GStreamer · %1 · %n conectada", "", ((page.vista === "estudio" ? page.est.cables : page.g.cables) || []).filter(c => c.hacia === n.id).length).arg(p.elemento || "") + enEscena
-        if (n.tipo === "color") return qsTr("brillo %1 · contraste %2 · saturación %3").arg(f2(p.brillo)).arg(f2(p.contraste)).arg(f2(p.saturacion))
-        if (n.tipo === "croma") return qsTr("fondo %1 · similitud %2").arg(hex(p.clave)).arg(f2(p.similitud))
-        if (n.tipo === "recorte") {
-            const partes = []
-            if (p.izquierda > 0 || p.arriba > 0 || p.derecha > 0 || p.abajo > 0) partes.push(qsTr("bordes recortados"))
-            if (p.espejoH) partes.push(qsTr("espejo ↔"))
-            if (p.espejoV) partes.push(qsTr("espejo ↕"))
-            return partes.length ? partes.join(" · ") : qsTr("sin cambios")
-        }
-        if (n.tipo === "vista360" || n.tipo === "panoramica") {
-            if (p.ver === "entrada") return qsTr("calibrando: la entrada con los círculos")
-            if (p.ver === "tira") return (p.ancho > 0 ? qsTr("la tira %1×%2").arg(p.ancho).arg(p.alto) : qsTr("la tira (la suma de las cámaras)")) + enEscena
-            if (p.ver === "panorama") return p.guia && p.guia !== "ninguna" ? qsTr("el panorama 360 · guía %1").arg(p.guia) : qsTr("el panorama 360")
-            const mira = qsTr("mira %1° · %2° · abre %3°").arg(Math.round(p.yaw || 0)).arg(Math.round(p.pitch || 0)).arg(Math.round(p.fov || 90))
-            return (n.tipo === "panoramica" ? qsTr("%n cámara · %1", "", (n.entradas || []).filter(e => !e.pedido).length).arg(mira) : mira) + enEscena
-        }
-        if (n.tipo === "salida") return qsTr("«%1»").arg(p.nombre || "") + enEscena
-        if (n.tipo === "retardo") return qsTr("%n cuadro de atraso", "", p.cuadros || 0)
-        if (n.tipo === "ptz") return p.activo === false ? qsTr("Apagado") : qsTr("Pan, tilt y zoom digital (Cámaras PTZ)")
-        if (n.tipo === "seguir") return p.activo === false ? qsTr("Apagado") : (p.objetivo ? qsTr("Sigue: %1").arg(p.objetivo) : qsTr("Sin nadie elegido"))
-        if (n.tipo === "rostros") return (({ mirar: qsTr("Personas mira"), autoalta: qsTr("Personas anota sola"), puerta: qsTr("Puerta: acredita"), seguir: qsTr("Sigue a una cara") })[p.uso] || qsTr("Caras")) +
-                                          (p.marcar ? " · " + (p.estilo || "recuadro") : "") + (p.texto ? " · «" + p.texto + "»" : "")
-        return ""
-    }
     // Los nodos de afuera (otra entrada, el estudio) en una columna a la
     // derecha: su posición es la de su propia vista.
     // EN «RACKS», LAS TARJETAS DE LA ENTRADA EMPIEZAN ARRIBA A LA IZQUIERDA. Las
@@ -172,7 +132,7 @@ Rectangle {
         let yExt = 20
         for (let i = 0; i < l.length; ++i) {
             const ev = page.eventosTexto(l[i].id)
-            const n = Object.assign({}, l[i], { resumen: page.resumen(l[i]) + (ev ? "\n" + ev : "") })
+            const n = Object.assign({}, l[i], { resumen: (l[i].resumen || "") + (ev ? "\n" + ev : "") })
             if (n.externo) { n.x = maxX + 260; n.y = yExt; yExt += 140 }
             else { n.x = n.x - dx; n.y = n.y - dy }
             out.push(n)
@@ -184,7 +144,7 @@ Rectangle {
         const l = page.est.nodos || []
         const out = []
         // Un margen arriba: el nombre de la primera franja tiene que entrar.
-        for (let i = 0; i < l.length; ++i) out.push(Object.assign({}, l[i], { resumen: page.resumen(l[i]), externo: false, y: l[i].y + 30 }))
+        for (let i = 0; i < l.length; ++i) out.push(Object.assign({}, l[i], { externo: false, y: l[i].y + 30 }))
         return out
     }
     readonly property var franjasEstudio: {
@@ -212,9 +172,7 @@ Rectangle {
     }
     // El árbol de entradas, agrupado como el de las fuentes del audio.
     property var plegados: ({})
-    property int plegTick: 0
     readonly property var arbol: {
-        plegTick
         const info = page.vg ? page.vg.entradasInfo : []
         // Los grupos vienen de C++ (VideoGrafos) en español: son la clave; se muestran con qsTr.
         const orden = [QT_TR_NOOP("Cámaras"), QT_TR_NOOP("Conferencia"), QT_TR_NOOP("Asamblea"), QT_TR_NOOP("Red"),
@@ -253,7 +211,7 @@ Rectangle {
         aplicarFiltro.restart()
     }
     function ajustar(id, clave, valor) {
-        const p = page.pendiente && page.pendiente.id === id ? page.pendiente.p : {}
+        const p = Object.assign({}, page.pendiente && page.pendiente.id === id ? page.pendiente.p : {})
         p[clave] = valor
         page.pendiente = { id: id, p: p }
         aplicar.restart()
@@ -304,7 +262,7 @@ Rectangle {
                         visible: modelData.fila === "grupo"
                         anchors.fill: parent
                         cursorShape: Qt.PointingHandCursor
-                        onClicked: { page.plegados[modelData.grupo] = !page.plegados[modelData.grupo]; page.plegTick++ }
+                        onClicked: { const p = Object.assign({}, page.plegados); p[modelData.grupo] = !p[modelData.grupo]; page.plegados = p }
                     }
                     // Una entrada.
                     Rectangle {
