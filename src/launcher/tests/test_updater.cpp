@@ -9,6 +9,11 @@
 //   4. Se rechaza: una carpeta que no es una version, una carpeta DENTRO del
 //      sistema, y un manifest que no coincide (sin tocar nada).
 //   5. Con la app abierta (lock tomado) espera y termina con error claro.
+//   6. Datos al lado del programa (macOS): el respaldo va ahi.
+//   7. Con salidas al aire (A vivo y latiendo, al-aire.json con algo prendido)
+//      se pospone sin tocar nada; sin aire, se instala.
+//   8. La copia preparada se verifica ENTERA contra su manifest.json antes de
+//      instalar, y el cache de integridad queda hecho en los datos.
 
 #include "Updater.hpp"
 
@@ -18,8 +23,11 @@
 #include <iterator>
 #include <string>
 
+#include "Integrity.hpp"
+#include "ipc/HealthBlock.hpp"
 #include "Log.hpp"
 #include "platform/SingleInstance.hpp"
+#include "Sha256.hpp"
 
 namespace fs = std::filesystem;
 using ba::launcher::runUpdate;
@@ -71,6 +79,7 @@ UpdateOptions opts(const fs::path& root, const fs::path& src) {
     o.source = src;
     o.waitLockMs = 500;
     o.lockName = "test-updater-" + std::to_string(reinterpret_cast<std::uintptr_t>(&g_failures) & 0xffff);
+    o.salud = L"BA.Health.test-updater"; // nunca el de una app abierta en la maquina
     return o;
 }
 
@@ -154,6 +163,53 @@ int main() {
         CHECK(r.backup.parent_path().parent_path() == datos2); // el respaldo va en la carpeta de datos
         CHECK(slurp(r.backup / "Config" / "app.json") == "LA CONFIG DE VERDAD");
         CHECK(slurp(r.backup / "Credenciales" / "x.cred") == "EL TOKEN DE VERDAD");
+    }
+
+    // --- 7) con aire: pospuesta ------------------------------------------------------------
+    {
+        const fs::path root3 = base / "sistema3";
+        makeVersion(root3, "1");
+        UpdateOptions o = opts(root3, v2);
+        ba::ipc::HealthBlock salud;
+        CHECK(ba::ipc::HealthBlock::create(o.salud.c_str(), ba::ipc::kSlotsSalud, salud).ok);
+        salud.setIdentity(ba::ipc::kSlotSaludApp, 4242, ba::ipc::kVersionProceso);
+        salud.beat(ba::ipc::kSlotSaludApp);
+        spit(root3 / "Runtime" / "al-aire.json", R"({"streaming":false,"recording":true,"cerrado":false})");
+        r = runUpdate(o);
+        CHECK(!r.ok && r.pospuesta && r.message.find("al aire") != std::string::npos);
+        CHECK(slurp(root3 / kApp) == "app 1");                 // no se toco nada
+        CHECK(!fs::exists(root3 / ".actualizacion-nueva"));
+        CHECK(!fs::exists(root3 / "Respaldos"));
+        // Sin nada prendido (o con A que ya no late), se instala.
+        spit(root3 / "Runtime" / "al-aire.json", R"({"streaming":false,"recording":false,"cerrado":false})");
+        r = runUpdate(o);
+        CHECK(r.ok && !r.pospuesta && slurp(root3 / kApp) == "app 2");
+    }
+
+    // --- 8) integridad completa de la copia y cache hecho -----------------------------------
+    {
+        const fs::path root4 = base / "sistema4";
+        const fs::path datos4 = base / "sistema4 Datos";
+        const fs::path v4 = base / "v4";
+        makeVersion(root4, "1");
+        makeVersion(v4, "4");
+        const std::string sha = ba::launcher::Sha256::hashFile((v4 / kApp).wstring());
+        CHECK(sha.size() == 64);
+        spit(v4 / "manifest.json", std::string(R"({"files":[{"path":")") + kApp + R"(","sha256":")" + sha + R"("}]})");
+        spit(datos4 / "Cache" / "qml-viejo.qmlc", "QML DE LA VERSION VIEJA");
+        UpdateOptions o = opts(root4, v4);
+        o.datos = datos4;
+        r = runUpdate(o);
+        CHECK(r.ok && slurp(root4 / kApp) == "app 4");
+        CHECK(!fs::exists(datos4 / "Cache" / "qml-viejo.qmlc")); // el Cache/ de los DATOS
+        const std::string cache = slurp(ba::launcher::Integrity::cacheEn(datos4));
+        CHECK(cache.find(sha) != std::string::npos);              // el primer arranque no relee
+        // La verificación es sobre la copia, no sobre el origen.
+        spit(v4 / kApp, "app 4 adulterada");
+        r = runUpdate(o);
+        CHECK(!r.ok && r.message.find("manifest") != std::string::npos);
+        CHECK(slurp(root4 / kApp) == "app 4");
+        CHECK(!fs::exists(root4 / ".actualizacion-nueva"));
     }
 
     ba::launcher::Log::close();

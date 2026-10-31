@@ -128,11 +128,10 @@ using namespace ba::ipc;
 using ba::i18n::llenar;
 using ba::i18n::traducir;
 
-/// Version del proceso B (se publica en BA.Health).
-constexpr uint32_t kProcessVersion = 2;
+/// Version del proceso B (se publica en BA.Health): la de ba_core, la que el launcher espera.
+constexpr uint32_t kProcessVersion = kVersionProceso;
 /// Slot de salud de B (B ocupa el slot 0, como el fake-gateway).
-constexpr std::size_t kHealthSlot = 0;
-constexpr std::size_t kHealthSlotCount = 4;
+constexpr std::size_t kHealthSlot = kSlotSaludGateway;
 
 /// Convierte un string UTF-8 a std::wstring (para los nombres de flujos IPC).
 std::wstring toWide(const std::string& s) {
@@ -468,7 +467,7 @@ int main(int argc, char** argv) {
     {
         Status s = HealthBlock::open(HealthBlock::kName, health);
         if (!s.ok) {
-            s = HealthBlock::create(HealthBlock::kName, kHealthSlotCount, health);
+            s = HealthBlock::create(HealthBlock::kName, kSlotsSalud, health);
             if (!s.ok) {
                 log.error(traducir("gateway", "no se pudo crear BA.Health"), s.code);
                 return 1;

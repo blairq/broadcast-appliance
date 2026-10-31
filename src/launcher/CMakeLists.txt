@@ -70,10 +70,17 @@ add_test(NAME test_shadow_copy COMMAND test_shadow_copy)
 set_tests_properties(test_shadow_copy PROPERTIES SKIP_RETURN_CODE 77)
 
 # El actualizador: reemplaza el programa sin tocar los datos.
-add_executable(test_updater tests/test_updater.cpp Updater.cpp Integrity.cpp Log.cpp)
+add_executable(test_updater tests/test_updater.cpp Updater.cpp Politica.cpp Integrity.cpp Log.cpp)
 target_include_directories(test_updater PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
 target_link_libraries(test_updater PRIVATE ba_core)
 add_test(NAME test_updater COMMAND test_updater)
+
+# Lo que decide el supervisor sin procesos: backoff agendado que se olvida,
+# readopción con versión y si hay aire (Politica.hpp).
+add_executable(test_politica tests/test_politica.cpp Politica.cpp)
+target_include_directories(test_politica PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+target_link_libraries(test_politica PRIVATE ba_core)
+add_test(NAME test_politica COMMAND test_politica)
 
 # La salida capturada de A y B (Logs/app.log): rotacion y encabezado por corrida.
 # La carpeta de datos al lado de la .app (macOS) y la mudanza.

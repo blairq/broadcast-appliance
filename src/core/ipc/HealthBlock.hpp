@@ -55,6 +55,28 @@ namespace ba::ipc {
 /// el namespace `Local\`); en el backend anonimo es la clave del registro.
 inline constexpr const wchar_t* kHealthBlockName = L"BA.Health";
 
+/// Cantidad de slots de BA.Health, en UN solo lugar. Lo crea el primero que
+/// llega (el launcher, o B/A sueltos sin launcher) y los demás lo abren: antes
+/// cada uno ponía su número (el launcher 2, B 4, A 2) y el tamaño dependía de
+/// quién arrancaba primero. Sobran slots para hijos que vengan (el emisor por
+/// salida): un slot sin dueño queda en Unknown y nadie lo vigila.
+inline constexpr std::size_t kSlotsSalud = 4;
+/// Slot de B (la sala) y de A (la app) en BA.Health (spec §4.4).
+inline constexpr std::uint32_t kSlotSaludGateway = 0;
+inline constexpr std::uint32_t kSlotSaludApp = 1;
+
+/// Versión que A y B publican en su slot (HealthEntry::version) y la que el
+/// launcher espera al readoptar: un launcher nuevo NO adopta un A o B de otra
+/// versión (quedó corriendo de antes de actualizar); lo relanza, o lo deja hasta
+/// que no haya aire. El build puede fijarla (BA_VERSION_PROCESO, p. ej. del
+/// commit) para que cambie con cada versión publicada; si no, es la de protocolo
+/// y hay que subirla cuando cambie lo que se dicen el launcher, A y B.
+#ifdef BA_VERSION_PROCESO
+inline constexpr std::uint32_t kVersionProceso = BA_VERSION_PROCESO;
+#else
+inline constexpr std::uint32_t kVersionProceso = 2;
+#endif
+
 /// Estado de un proceso tal como lo publica en su slot de salud.
 ///
 /// El launcher lo usa para decidir que hacer: `Running` con heartbeat fresco
