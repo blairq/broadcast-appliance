@@ -494,6 +494,9 @@ class SignalingServer {
     void broadcastToHosts(const std::string& event, const nlohmann::json& data);
     /// Lo que una superficie recién conectada tiene que mostrar, según su tipo.
     void saludarSuperficie(const std::string& pid);
+    /// ¿La clave del pedido es `esperada`? La da la cabecera X-BA-Clave o, si no está, como
+    /// se daba antes en esa superficie (`comoAntes`: ?k=, el cuerpo, X-BA-Board).
+    static bool claveValida(const std::string& headers, const std::string& comoAntes, const std::string& esperada);
     /// La clave que tiene que decir una superficie de ese tipo ("" = ninguna).
     std::string claveDeSuperficie(const std::string& tipo) const;
     /// Lo que se les manda a las superficies de `que` (rotulos, correccion, votacion).

@@ -1317,7 +1317,7 @@ void SignalingServer::handleGuestHttp(long long fd, const std::string& method, c
             // Sin clave no se comanda: frenarle el texto a alguien en medio de
             // un discurso, desde cualquier telefono de la LAN, seria un chiste
             // caro. La clave viaja en el enlace que le pasa el operador.
-            if (!ba::security::igualesEnTiempoConstante(req.value("clave", std::string()), claves().prompter)) {
+            if (!claveValida(headers, req.value("clave", std::string()), claves().prompter)) {
                 http::sendResponse(fd, 403, "application/json", R"({"ok":false,"error":"clave"})");
                 return;
             }
@@ -1343,7 +1343,7 @@ void SignalingServer::handleGuestHttp(long long fd, const std::string& method, c
         const json req = method == "POST" ? json::parse(body, nullptr, false) : json::object();
         const std::string clave = method == "POST" ? (req.is_object() ? req.value("k", std::string()) : std::string())
                                                    : (q.count("k") ? http::urlDecode(q.at("k")) : std::string());
-        if (!ba::security::igualesEnTiempoConstante(clave, claves().correccion)) {
+        if (!claveValida(headers, clave, claves().correccion)) {
             ipRecordFailure(clientIp);
             http::sendResponse(fd, 403, "application/json", R"({"ok":false,"error":"clave"})");
             return;
@@ -1513,7 +1513,7 @@ void SignalingServer::handleGuestHttp(long long fd, const std::string& method, c
         } else if (req.is_object()) {
             clave = req.value("clave", std::string());
         }
-        if (!ba::security::igualesEnTiempoConstante(clave, claves().rotulos)) {
+        if (!claveValida(headers, clave, claves().rotulos)) {
             http::sendResponse(fd, 403, "application/json", R"({"ok":false,"error":"clave"})");
             return;
         }
@@ -1567,7 +1567,7 @@ void SignalingServer::handleGuestHttp(long long fd, const std::string& method, c
     if (method == "GET" && path == "/api/publico-info") {
         const auto q = http::parseQuery(query);
         const std::string clave = q.count("k") ? http::urlDecode(q.at("k")) : std::string();
-        if (!ba::security::igualesEnTiempoConstante(clave, claves().publico)) {
+        if (!claveValida(headers, clave, claves().publico)) {
             http::sendResponse(fd, 403, "application/json", R"({"ok":false,"error":"clave"})");
             return;
         }
@@ -1601,7 +1601,7 @@ void SignalingServer::handleGuestHttp(long long fd, const std::string& method, c
             quien = req.value("yo", std::string());
             codigo = req.value("codigo", std::string());
         }
-        if (!ba::security::igualesEnTiempoConstante(clave, claves().publico)) {
+        if (!claveValida(headers, clave, claves().publico)) {
             http::sendResponse(fd, 403, "application/json", R"({"ok":false,"error":"clave"})");
             return;
         }
@@ -1638,7 +1638,7 @@ void SignalingServer::handleGuestHttp(long long fd, const std::string& method, c
     if (method == "POST" && path == "/api/acreditar") {
         const json req = json::parse(body, nullptr, false);
         const std::string clave = req.is_object() ? req.value("clave", std::string()) : "";
-        if (!ba::security::igualesEnTiempoConstante(clave, claves().publico)) {
+        if (!claveValida(headers, clave, claves().publico)) {
             http::sendResponse(fd, 403, "application/json", R"({"ok":false,"error":"clave"})");
             return;
         }
@@ -1680,7 +1680,7 @@ void SignalingServer::handleGuestHttp(long long fd, const std::string& method, c
             clave = req.value("clave", std::string());
             quien = req.value("yo", std::string());
         }
-        if (!ba::security::igualesEnTiempoConstante(clave, claves().publico)) {
+        if (!claveValida(headers, clave, claves().publico)) {
             http::sendResponse(fd, 403, "application/json", R"({"ok":false,"error":"clave"})");
             return;
         }
@@ -1952,7 +1952,7 @@ void SignalingServer::apiBoard(long long fd, const std::string& method, const st
     const auto q = http::parseQuery(query);
     std::string key = http::getHeader(headers, "X-BA-Board");
     if (key.empty() && q.count("k")) key = http::urlDecode(q.at("k"));
-    if (!ba::security::igualesEnTiempoConstante(key, claves().tablero)) {
+    if (!claveValida(headers, key, claves().tablero)) {
         http::sendResponse(fd, 401, "application/json", R"({"ok":false,"error":"auth"})");
         return;
     }
@@ -3028,6 +3028,13 @@ void SignalingServer::wsLoop(long long fd, const std::string& pid, uint64_t gen)
         }
         if (msg.value("type", json()) == "bye") break;
     }
+}
+
+bool SignalingServer::claveValida(const std::string& headers, const std::string& comoAntes, const std::string& esperada) {
+    // Una sola forma para todas las superficies: la cabecera X-BA-Clave. Lo de antes (?k=,
+    // la clave en el cuerpo, X-BA-Board) sigue valiendo: páginas viejas abiertas.
+    const std::string h = http::getHeader(headers, "X-BA-Clave");
+    return ba::security::igualesEnTiempoConstante(h.empty() ? comoAntes : h, esperada);
 }
 
 SignalingServer::Claves SignalingServer::claves() const {
