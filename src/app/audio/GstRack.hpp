@@ -15,6 +15,13 @@
 //     pasa el audio en bloques planares de hasta 1024 muestras. Sin anfitrión
 //     (la app todavía no restauró el rack), el audio pasa tal cual.
 //   - 48 kHz estéreo F32 (lo que arma ba_gst_fuente delante).
+//   - LATENCIA: un módulo con lookahead (limitador, compresor, EQ de fase
+//     lineal) atrasa el audio. `barack` la suma a la consulta LATENCY (así el
+//     mezclador espera lo justo), adelanta el sello de lo que sale en esa
+//     latencia (el contenido queda con su hora real de captura y no se corre
+//     contra su video ni contra los otros micrófonos) y, cuando cambia (otro
+//     plan del rack, el anfitrión que llega o se va), lo avisa con un mensaje
+//     de latencia para que la tubería la vuelva a calcular.
 // ============================================================================
 #pragma once
 
@@ -29,6 +36,9 @@ struct Anfitrion {
     virtual ~Anfitrion() = default;
     /// Hilo de audio de GStreamer. `planos`: 2 canales de `frames` (≤ 1024) muestras.
     virtual void procesar(float* const* planos, int canales, std::uint32_t frames) = 0;
+    /// Lo que atrasa el audio, en muestras a 48 kHz (la latencia del rack). Se
+    /// lee desde el hilo de audio en cada bloque: tiene que ser una lectura atómica.
+    virtual std::uint32_t latenciaMuestras() const { return 0; }
 };
 
 /// Registra `barack` en GStreamer (una vez; GStreamer tiene que estar iniciado).
