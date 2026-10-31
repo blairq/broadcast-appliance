@@ -41,6 +41,7 @@
 // #ifdef _WIN32. No depende de Qt ni de libobs.
 // ============================================================================
 
+#include "persist/Escritor.hpp"
 #include "i18n/I18n.hpp"
 #include <algorithm>
 #include "ajustes/Ajustes.hpp"
@@ -171,30 +172,6 @@ constexpr const char* kEnvPinggyToken = "BA_PINGGY_TOKEN";
 
 /// Token de la API de control del operador (si el launcher lo inyecta).
 constexpr const char* kEnvAdminToken = "BA_ADMIN_TOKEN";
-
-/// Publica como encontrar la API de control: <bundle>/Runtime/gateway-admin.json con
-/// puerto y token, legible SOLO por el usuario (0600 en POSIX; en Windows el
-/// directorio de runtime cuelga del perfil del usuario). La app Qt lo lee.
-bool writeAdminFile(const std::filesystem::path& file, const std::string& content) {
-    const std::filesystem::path tmp = file.string() + ".tmp";
-#ifdef _WIN32
-    {
-        std::ofstream f(tmp, std::ios::binary | std::ios::trunc);
-        if (!f) return false;
-        f << content;
-        if (!f) return false;
-    }
-#else
-    const int fd = ::open(tmp.c_str(), O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC, 0600);
-    if (fd < 0) return false;
-    const bool ok = ::write(fd, content.data(), content.size()) == static_cast<ssize_t>(content.size());
-    ::close(fd);
-    if (!ok) return false;
-#endif
-    std::error_code ec;
-    std::filesystem::rename(tmp, file, ec);
-    return !ec;
-}
 
 /// Clave privada WireGuard de ESTE equipo: BA_WG_PRIVATE_KEY (base64) o la
 /// credencial "wireguard-key" (cifrada en Credenciales/; se genera la primera
@@ -1285,7 +1262,10 @@ int main(int argc, char** argv) {
                                       {"token", adminToken},
                                       {"pid", static_cast<long long>(pid)},
                                       {"guestPort", cfg.port}};
-            if (!writeAdminFile(adminFile, info.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))) {
+            // Cómo encontrar la API de control: puerto y token, legible SOLO por el
+            // usuario (0600 en POSIX; en Windows rige la ACL del perfil). La app Qt lo lee.
+            if (!ba::persist::escribir(adminFile, info.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace),
+                                       ba::persist::Durabilidad::Normal, ba::persist::Permisos::Privados)) {
                 log.warn(llenar(traducir("gateway", "control: no se pudo publicar %1"), {adminFile.string()}), -1);
                 adminFile.clear();
             }

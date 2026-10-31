@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 #include "emision/LatidoAire.hpp"
+#include "arranque/ArchivoConfig.hpp"
+#include "persist/ColaEscritura.hpp"
 #include "ajustes/Ajustes.hpp"
 #include "i18n/I18n.hpp"
 #include "platform/Paths.hpp"
@@ -8,7 +10,6 @@
 
 #include <algorithm>
 #include <chrono>
-#include <fstream>
 
 namespace ba::app {
 
@@ -29,9 +30,8 @@ void LatidoAire::iniciar(const fs::path& datos, std::function<void()> latir, std
     latir_ = std::move(latir);
     cuadros_ = std::move(cuadros);
     {
-        std::ifstream f(datos_ / "Config" / "supervisor.json");
-        const json j = json::parse(f, nullptr, false);
-        if (j.is_object()) {
+        const json j = config::leerObjeto(datos_ / "Config" / "supervisor.json");
+        if (!j.empty()) {
             std::lock_guard<std::mutex> l(mu_);
             pol_.esperaUiS = std::clamp(j.value("espera_ui_s", pol_.esperaUiS), 10, 3600);
             pol_.matarSiUiTrabadaSinAire = j.value("matar_si_ui_trabada_sin_aire", pol_.matarSiUiTrabadaSinAire);
@@ -104,33 +104,11 @@ void LatidoAire::bucle() {
 }
 
 void LatidoAire::escribirEstadoUi(bool trabada, std::uint64_t ms) const {
-    std::string s = json{{"ui_trabada", trabada}, {"ms", ms}, {"motor_vivo", motorVivo_.load()}, {"aire", hayAire_.load()}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
-    const std::shared_ptr<EscritorEstado> e = escritor_;
-    {
-        std::lock_guard<std::mutex> l(e->m);
-        e->pendiente = std::move(s);
-        if (e->activo) return; // el anterior sigue escribiendo (disco trabado): escribe este al terminar
-        e->activo = true;
-    }
-    std::thread([e] {
-        const fs::path dir = ba::platform::dataRoot() / "Runtime";
-        for (;;) {
-            std::string t;
-            {
-                std::lock_guard<std::mutex> l(e->m);
-                if (e->pendiente.empty()) {
-                    e->activo = false;
-                    return;
-                }
-                t = std::move(e->pendiente);
-                e->pendiente.clear();
-            }
-            std::error_code ec;
-            fs::create_directories(dir, ec);
-            std::ofstream o(dir / "estado-ui.json");
-            o << t;
-        }
-    }).detach();
+    // Al escritor de la persistencia: con el disco trabado, el latido no se queda
+    // esperando la escritura (eso era lo que mataba la app) y al disco va lo último.
+    ba::persist::cola().escribir(ba::platform::dataRoot() / "Runtime" / "estado-ui.json",
+                                 json{{"ui_trabada", trabada}, {"ms", ms}, {"motor_vivo", motorVivo_.load()}, {"aire", hayAire_.load()}}
+                                     .dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
 }
 
 LatidoAire::Politica LatidoAire::politica() const {
@@ -154,10 +132,8 @@ std::string LatidoAire::ponerPolitica(const json& c) {
 
 void LatidoAire::guardar() const {
     const Politica p = politica();
-    std::error_code ec;
-    fs::create_directories(datos_ / "Config", ec);
-    std::ofstream o(datos_ / "Config" / "supervisor.json");
-    o << json{{"espera_ui_s", p.esperaUiS}, {"matar_si_ui_trabada_sin_aire", p.matarSiUiTrabadaSinAire}}.dump(1, ' ', false, nlohmann::json::error_handler_t::replace);
+    config::guardar(datos_ / "Config" / "supervisor.json",
+                    json{{"espera_ui_s", p.esperaUiS}, {"matar_si_ui_trabada_sin_aire", p.matarSiUiTrabadaSinAire}});
 }
 
 json LatidoAire::estado() const {

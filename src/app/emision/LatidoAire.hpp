@@ -73,15 +73,6 @@ class LatidoAire {
     std::atomic<bool> motorVivo_{false};
     std::atomic<std::uint64_t> trabaTerminadaMs_{0};
     std::atomic<std::uint64_t> ultimaTrabaMs_{0};
-    /// estado-ui.json se escribe en su propio hilo: con el disco trabado, el
-    /// latido no puede quedarse esperando la escritura (eso era lo que mataba
-    /// la app). Se guarda solo el último pedido.
-    struct EscritorEstado {
-        std::mutex m;
-        std::string pendiente;
-        bool activo = false;
-    };
-    std::shared_ptr<EscritorEstado> escritor_ = std::make_shared<EscritorEstado>();
     mutable std::mutex mu_; // la política
     Politica pol_;
 };

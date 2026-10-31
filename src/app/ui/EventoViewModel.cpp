@@ -32,7 +32,6 @@
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
-#include <QSaveFile>
 #include <QTimeZone>
 
 #include "arranque/AppRuntime.hpp"
@@ -49,6 +48,7 @@
 #include "sala/OradoresSala.hpp"
 #include "sala/Teleprompter.hpp"
 #include "evento/EventoWeb.hpp"
+#include "persist/ColaEscritura.hpp"
 #include "platform/Paths.hpp"
 
 namespace ba::app {
@@ -2069,24 +2069,37 @@ void EventoViewModel::escribirVivo() {
     if (!corriendo() || ensayo_) return;
     json j = corrida_->aJsonVivo(ahoraMs());
     j["evento"] = abierto_.toStdString();
-    std::error_code ec;
-    std::filesystem::create_directories(archivoVivo().parent_path(), ec);
-    QSaveFile f(QString::fromStdU16String(archivoVivo().u16string()));
-    if (!f.open(QIODevice::WriteOnly)) return;
-    f.write(QByteArray::fromStdString(j.dump(-1, ' ', false, json::error_handler_t::replace)));
-    f.commit();
+    // Al hilo escritor (este es el de la UI: no toca el disco), con prioridad de aire y
+    // en dos generaciones: un corte en cualquier momento deja una entera.
+    ba::persist::cola().escribirGeneracion(archivoVivo(), j.dump(-1, ' ', false, json::error_handler_t::replace));
 }
 
-void EventoViewModel::borrarVivo() {
-    std::error_code ec;
-    std::filesystem::remove(archivoVivo(), ec);
-}
+void EventoViewModel::borrarVivo() { ba::persist::cola().borrar(archivoVivo(), ba::persist::Prioridad::Aire); }
 
 void EventoViewModel::retomarLinea() {
-    std::ifstream f(archivoVivo());
-    if (!f) return;
-    const json j = json::parse(f, nullptr, false);
-    const std::string est = j.is_object() ? j.value("estado", std::string()) : std::string();
+    const ba::persist::Lectura l = ba::persist::cola().leerGeneraciones(archivoVivo());
+    if (l.estado == ba::persist::Lectura::Estado::Nada) return;
+    const json j = json::parse(l.cuerpo, nullptr, false);
+    if (!j.is_object()) {
+        // Las dos generaciones rotas: no se sabe en qué iba la línea. Nunca seguir
+        // callados: la del evento abierto vuelve en HOLD en todas las salidas, con la
+        // pregunta de siempre, sin nada repuesto (lo que estaba al aire lo dice quien
+        // opera), y suena la alarma.
+        rt_.avisarPersistencia(tr("El estado de la línea de tiempo (linea-aire.json) volvió dañado tras el corte: la "
+                                  "línea quedó en HOLD sin saber en qué paso iba. Contá qué está pasando y reenganchala "
+                                  "a mano.")
+                                   .toStdString());
+        if (abierto_.isEmpty()) return;
+        const int64_t ahora = ahoraMs();
+        retomarDesde(json{{"estado", "corriendo"}, {"evento", abierto_.toStdString()}, {"escritoMs", ahora}, {"arranqueMs", ahora}});
+        return;
+    }
+    if (l.descartadas > 0)
+        ba::diag::registro().linea(ba::diag::Nivel::Aviso, "linea", 0,
+                                   tr("linea-aire.json: la última generación estaba rota (corte a mitad); se retoma la "
+                                      "anterior")
+                                       .toStdString());
+    const std::string est = j.value("estado", std::string());
     if (est != "corriendo" && est != "pausada") {
         borrarVivo();
         return;

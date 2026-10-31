@@ -5,6 +5,7 @@
 //  Interfaz y sistema: McpUiTools.cpp · Ayuda: McpHelp.cpp)
 // ============================================================================
 
+#include "persist/ColaEscritura.hpp"
 #include "McpRenombres.hpp"
 #include "i18n/I18n.hpp"
 #include "diag/Perfil.hpp"
@@ -819,8 +820,10 @@ bool McpService::start(quint16 port) {
         const QJsonObject o{{"port", http_->port()},
                             {"url", url()},
                             {"pid", static_cast<qint64>(QCoreApplication::applicationPid())}};
-        writePrivateJson(QString::fromStdString((runtime / "mcp.json").string()),
-                         QJsonDocument(o).toJson(QJsonDocument::Compact));
+        // Solo-dueño, por el escritor durable (persist/ColaEscritura.hpp).
+        ba::persist::cola().escribir(runtime / "mcp.json", QJsonDocument(o).toJson(QJsonDocument::Compact).toStdString(),
+                                     {ba::persist::Durabilidad::Normal, ba::persist::Prioridad::Normal,
+                                      ba::persist::Permisos::Privados, {}});
     }
     return true;
 }

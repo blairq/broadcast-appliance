@@ -145,6 +145,9 @@ AlAire leerAlAire(const json& j) {
         s.escena = x.value("escena", s.escena);
         s.transmitiendo = x.value("streaming", s.transmitiendo);
         s.grabando = x.value("recording", s.grabando);
+        if (const json d = x.value("destinos", json::array()); d.is_array())
+            for (const json& id : d)
+                if (id.is_string()) s.destinos.push_back(id.get<std::string>());
     }
     return a;
 }
@@ -153,7 +156,7 @@ json aJson(const AlAire& a) {
     const Aire& p = a.de(kPorOmision);
     json todas = json::object();
     for (const auto& [id, s] : a.salidas)
-        todas[id] = {{"escena", s.escena}, {"streaming", s.transmitiendo}, {"recording", s.grabando}};
+        todas[id] = {{"escena", s.escena}, {"streaming", s.transmitiendo}, {"recording", s.grabando}, {"destinos", s.destinos}};
     return {{"streaming", p.transmitiendo}, {"recording", p.grabando}, {"escena", p.escena}, {"cerrado", a.cerrado},
             {"salidas", todas}};
 }

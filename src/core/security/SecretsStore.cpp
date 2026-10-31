@@ -19,6 +19,7 @@
 // llaman en el thread de audio/RT.
 
 #include "security/SecretsStore.hpp"
+#include "persist/Escritor.hpp"
 
 #include <argon2.h>
 
@@ -40,15 +41,6 @@
 #include <system_error>
 #include <utility>
 #include <vector>
-
-#if defined(_WIN32)
-#define WIN32_LEAN_AND_MEAN
-#include <windows.h>
-#else
-#include <fcntl.h>
-#include <sys/stat.h>
-#include <unistd.h>
-#endif
 
 namespace ba::security {
 
@@ -246,73 +238,6 @@ void zeroize(void* p, std::size_t n) {
     }
 }
 
-/// Escribe `content` en `path` de forma ATOMICA y con permisos restrictivos.
-///
-/// El patron es el mismo que ya usa ba::persist::SnapshotStore: se escribe un
-/// temporal en el MISMO directorio y se renombra encima del destino. Escribir
-/// directamente sobre `path` con truncado (lo que se hacia antes) significa
-/// que un corte durante la escritura deja la boveda vacia: se pierden todos
-/// los secretos. Ademas el archivo se crea con permisos de solo-dueño (0600 en
-/// POSIX); antes heredaba el umask y podia quedar legible por todo el sistema.
-///
-/// :returns: true si el archivo quedo escrito y renombrado.
-bool writeFileAtomicPrivate(const std::string& path, const std::string& content) {
-    const std::string tmp = path + ".tmp";
-#if defined(_WIN32)
-    {
-        std::ofstream ofs(tmp, std::ios::binary | std::ios::trunc);
-        if (!ofs) {
-            return false;
-        }
-        ofs << content;
-        ofs.close();
-        if (!ofs.good()) {
-            return false;
-        }
-    }
-    // MoveFileExA con REPLACE_EXISTING es el rename atomico de Win32. La ACL
-    // por defecto de un archivo en el perfil del usuario ya es restrictiva.
-    if (MoveFileExA(tmp.c_str(), path.c_str(), MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH) == 0) {
-        std::remove(tmp.c_str());
-        return false;
-    }
-    return true;
-#else
-    // O_CREAT|O_EXCL + 0600: el archivo nace privado, sin ventana en la que
-    // otro usuario pueda abrirlo.
-    std::remove(tmp.c_str());
-    const int fd = ::open(tmp.c_str(), O_WRONLY | O_CREAT | O_EXCL, S_IRUSR | S_IWUSR);
-    if (fd < 0) {
-        return false;
-    }
-    std::size_t off = 0;
-    bool ok = true;
-    while (off < content.size()) {
-        const ssize_t n = ::write(fd, content.data() + off, content.size() - off);
-        if (n <= 0) {
-            ok = false;
-            break;
-        }
-        off += static_cast<std::size_t>(n);
-    }
-    if (ok) {
-        ok = (::fsync(fd) == 0);
-    }
-    ::close(fd);
-    if (!ok) {
-        std::remove(tmp.c_str());
-        return false;
-    }
-    std::error_code ec;
-    std::filesystem::rename(tmp, path, ec);
-    if (ec) {
-        std::remove(tmp.c_str());
-        return false;
-    }
-    return true;
-#endif
-}
-
 } // namespace
 
 // --- randomSecretHex --------------------------------------------------------
@@ -405,7 +330,10 @@ bool SecretsStore::save(const std::string& path, const std::string& masterPassph
     doc["ciphertext"] = blobB64;
 
     // 7) Escribir a disco de forma atomica y privada (temp + rename, 0600).
-    const bool written = writeFileAtomicPrivate(path, doc.dump(2, ' ', false, nlohmann::json::error_handler_t::replace));
+    // Atómica, durable y solo-dueño (persist/Escritor.hpp): un corte durante la
+    // escritura no deja la bóveda vacía (se perderían todos los secretos).
+    const bool written = ba::persist::escribir(path, doc.dump(2, ' ', false, nlohmann::json::error_handler_t::replace),
+                                               ba::persist::Durabilidad::Normal, ba::persist::Permisos::Privados);
 
     // 8) Borrar el material sensible de la memoria: la clave derivada y el
     //    plaintext serializado. Ambos viven en este marco y su contenido no

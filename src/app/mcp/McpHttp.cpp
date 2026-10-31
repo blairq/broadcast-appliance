@@ -12,7 +12,6 @@
 #include <QHostAddress>
 #include <QPointer>
 #include <QRandomGenerator>
-#include <QSaveFile>
 #include <QTcpServer>
 #include <QTcpSocket>
 #include <QUrl>
@@ -80,14 +79,6 @@ QString rotarToken(const QString& credentialsDir) {
     const QString t = randomHex(32);
     if (!cred::write(credentialsDir, "mcp-token", t.toUtf8())) return {};
     return t;
-}
-
-bool writePrivateJson(const QString& path, const QByteArray& data) {
-    QSaveFile f(path);
-    if (!f.open(QIODevice::WriteOnly)) return false;
-    f.setPermissions(QFileDevice::ReadOwner | QFileDevice::WriteOwner);
-    f.write(data);
-    return f.commit();
 }
 
 McpHttp::McpHttp(McpCore& core, QString token, QObject* parent)

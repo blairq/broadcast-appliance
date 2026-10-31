@@ -5,6 +5,7 @@
 #include "arranque/AppRuntime.hpp"
 #include "arranque/ArchivoConfig.hpp"
 #include "i18n/I18n.hpp"
+#include "persist/ColaEscritura.hpp"
 #include "platform/Paths.hpp"
 
 namespace ba::app::emision {
@@ -27,7 +28,9 @@ void SeguridadAire::guardar() {
         if (s.value("ftb", false) || s.value("placa", false)) otras[id] = s;
     }
     if (!otras.empty()) j["salidas"] = otras;
-    config::guardar(archivoPlaca(), j);
+    // Es estado de aire: al escritor con prioridad y bajado del todo al disco.
+    ba::persist::cola().escribir(archivoPlaca(), j.dump(1, ' ', false, nlohmann::json::error_handler_t::replace),
+                                 {ba::persist::Durabilidad::Critica, ba::persist::Prioridad::Aire, ba::persist::Permisos::Comunes, {}});
     if (cambio_) cambio_();
 }
 

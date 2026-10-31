@@ -10,8 +10,11 @@
 //   Config/destinos.json  cada destino con `salida` (sin campo = la por omisión).
 //   Runtime/al-aire.json  lo de siempre (streaming, recording, escena, cerrado) es
 //                         de la por omisión, y `salidas` trae cada una:
-//                         {"salidas": {"<id>": {escena, streaming, recording}}}.
-//                         Un archivo viejo (sin `salidas`) se lee igual: es la por omisión.
+//                         {"salidas": {"<id>": {escena, streaming, recording, destinos}}}
+//                         (`destinos`: los ids de destinos.json que transmitían). Un
+//                         archivo viejo (sin `salidas`) se lee igual: es la por omisión.
+//                         En el disco va en dos generaciones (al-aire.A.json y
+//                         al-aire.B.json, core/persist/Generaciones.hpp).
 // ============================================================================
 #pragma once
 
@@ -64,8 +67,9 @@ std::string salidaDeDestino(const nlohmann::json& destino);
 /// Lo que tenía al aire cada salida, para volver tras un corte (Runtime/al-aire.json).
 struct Aire {
     std::string escena;
-    bool transmitiendo = false;
+    bool transmitiendo = false;           ///< su transmisión principal
     bool grabando = false;
+    std::vector<std::string> destinos;    ///< los destinos (destinos.json) que transmitían su programa
 };
 struct AlAire {
     bool cerrado = true; ///< la corrida que lo escribió se cerró en orden

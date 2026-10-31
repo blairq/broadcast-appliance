@@ -24,6 +24,7 @@
 #include "audio/ObjetivoLoudness.hpp"
 #include "ajustes/Ajustes.hpp"
 #include "i18n/I18n.hpp"
+#include "persist/ColaEscritura.hpp"
 #include "platform/Paths.hpp"
 #include <fstream>
 #include <map>
@@ -855,6 +856,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
                                               !rt_.recordStopWanted()};
         };
         in.recursos = [this]() { return recursos_ ? recursos_->muestreador().niveles() : nlohmann::json::object(); };
+        in.persistencia = [this]() { return rt_.avisosPersistencia(); };
         in.programaVideo = [this]() {
             const auto v = rt_.engine().programaVideo();
             return nlohmann::json{{"valido", v.valido}, {"luma", v.luma}, {"quieto_s", v.quietoSeg}};
@@ -979,14 +981,14 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
                 caida_ = QVariantMap{{"causa", QString::fromStdString(j.value("causa", std::string()))},
                                      {"componente", QString::fromStdString(j.value("componente", std::string()))},
                                      {"hace_s", static_cast<int>((ahora - caidaMs_) / 1000)}};
-                // ¿Había algo al aire? Si no, no hay nada que esperar.
-                std::ifstream aa(ba::platform::stateDir() / "al-aire.json");
-                const nlohmann::json alAire = nlohmann::json::parse(aa, nullptr, false);
-                caida_["habia_aire"] = alAire.is_object() && (alAire.value("streaming", false) || alAire.value("recording", false));
+                // ¿Había algo al aire (en alguna salida)? Si no, no hay nada que esperar.
+                bool habia = false;
+                for (const auto& [id, a] : rt_.aireAnterior().salidas)
+                    habia = habia || a.transmitiendo || a.grabando || !a.destinos.empty();
+                caida_["habia_aire"] = habia;
                 j["vista"] = true; // el cartel sale una sola vez
                 f.close();
-                std::ofstream o(archivo);
-                o << j.dump(1, ' ', false, nlohmann::json::error_handler_t::replace);
+                ba::persist::cola().escribir(archivo, j.dump(1, ' ', false, nlohmann::json::error_handler_t::replace));
             }
         }
         if (!configRecuperada().empty())

@@ -6,6 +6,7 @@
 #include "arranque/InterfazConfig.hpp"
 #include "arranque/ModoVivoConfig.hpp"
 #include "escenas/AjustesEscenas.hpp"
+#include "persist/ColaEscritura.hpp"
 
 #include <cstdio>
 #include <filesystem>
@@ -62,6 +63,9 @@ int main() {
         const config::InterfazConfig otra(dir);
         CHECK(otra.valor("ancho") == 320 && otra.valor("pestana") == "audio", "guardar una clave no borra las demás");
     }
+    // Lo encolado, al disco antes de borrar la carpeta (si no, el escritor la recrea).
+    CHECK(ba::persist::cola().vaciar(), "el escritor vacía su cola");
+    CHECK(fs::exists(dir / "Config" / "interfaz.json"), "lo guardado llegó al disco");
     fs::remove_all(dir);
     std::printf(fallas ? "\n%d fallas\n" : "\ntodo ok\n", fallas);
     return fallas ? 1 : 0;

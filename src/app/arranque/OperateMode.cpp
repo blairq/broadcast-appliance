@@ -48,6 +48,8 @@
 #include "platform/LocalSocket.hpp"
 #include "platform/Paths.hpp"
 #include "platform/Process.hpp"
+#include "persist/ColaEscritura.hpp"
+#include "persist/Escritor.hpp"
 #include "security/CredentialStore.hpp"
 
 #include <nlohmann/json.hpp>
@@ -716,8 +718,8 @@ int AppRuntime::start() {
     // Con --test (pruebas: el MCP sin aprobaciones) NUNCA se arranca al aire.
     {
         // ¿Se cortó la anterior? Un archivo de antes de «cerrado» cuenta como cierre ordenado.
-        const salidas::AlAire aire = salidas::leerAlAire(config::leerObjeto(ba::platform::stateDir() / "al-aire.json"));
-        corteAnterior_ = !aire.cerrado;
+        leerAireAnterior();
+        const salidas::AlAire& aire = aireAnterior_;
         // La escena que estaba al aire (app.json puede tener una vieja: no se
         // guarda en cada corte). También con --test: no sale nada al aire.
         const std::string escena = aire.de(salidas::kPorOmision).escena;
@@ -804,8 +806,11 @@ void AppRuntime::stop() {
         return;
     }
     started_ = false;
-    // Cierre ordenado: nada que retomar en el proximo arranque.
+    // Cierre ordenado: nada que retomar en el proximo arranque (en ninguna salida).
     streamStopWanted_ = recordStopWanted_ = true;
+    grabandoOtras_.clear();
+    transmitiendoOtras_.clear();
+    destinosAlAire_.clear();
     cerrando_ = true;
     writeOnAirState();
     // Las grabaciones por entrada, ANTES que el resto: cada una tiene su vista
@@ -821,6 +826,11 @@ void AppRuntime::stop() {
     if (health_.valid()) {
         health_.setState(kHealthSlot, ba::ipc::ProcessState::Terminated);
     }
+    // Lo encolado para el disco (el estado de aire de recién, los ajustes), escrito
+    // antes de irse.
+    if (!ba::persist::cola().vaciar())
+        ba::diag::registro().linea(ba::diag::Nivel::Error, "persistencia", 0,
+                                   ba::i18n::traducir("persistencia", "al cerrar quedó algo sin guardar (el disco no responde)"));
     std::printf("ba-app: %s\n", ba::i18n::traducir("arranque", "cierre ordenado").c_str());
 }
 
@@ -926,9 +936,15 @@ namespace {
 // tipear la clave cada vez y permite retomar la emision tras una caida.
 constexpr const char* kStreamCredential = "stream-last";
 
-bool readLastStream(std::string& server, std::string& key) {
+/// La credencial de la transmisión principal de una salida: la de la por omisión es
+/// la de siempre; las demás, aparte (las de destinos.json son «stream-<destino>»).
+std::string credencialDeSalida(const std::string& salida) {
+    return salida.empty() || salida == salidas::kPorOmision ? std::string(kStreamCredential) : "salida-" + salida + "-stream";
+}
+
+bool readLastStream(std::string& server, std::string& key, const std::string& salida = {}) {
     std::string raw;
-    if (!ba::security::CredentialStore::bundle().read(kStreamCredential, raw)) {
+    if (!ba::security::CredentialStore::bundle().read(credencialDeSalida(salida), raw)) {
         return false;
     }
     const nlohmann::json j = nlohmann::json::parse(raw, nullptr, false);
@@ -956,55 +972,107 @@ std::string AppRuntime::firmaDelAire() const {
     return f;
 }
 
+fs::path AppRuntime::archivoAlAire() { return ba::platform::stateDir() / "al-aire.json"; }
+
 void AppRuntime::writeOnAirState() const {
     escenaEscrita_ = firmaDelAire();
-    // Cada salida con su escena y lo que sale; la por omisión además en los campos de
-    // siempre (salidas::aJson), que es lo que lee un arranque de antes de las salidas.
+    // Cada salida con su escena, lo que transmite (la principal y sus destinos) y si
+    // graba; la por omisión además en los campos de siempre (salidas::aJson), que es
+    // lo que lee un arranque de antes de las salidas.
     salidas::AlAire a;
     a.cerrado = cerrando_;
     for (const std::string& id : engine_.salidaIds()) {
         const bool po = id == salidas::kPorOmision;
-        a.salidas[id] = {engine_.currentScene(id), po && !streamStopWanted_,
-                         po ? !recordStopWanted_ : grabandoOtras_.count(id) > 0};
+        salidas::Aire& x = a.salidas[id];
+        x.escena = engine_.currentScene(id);
+        x.transmitiendo = po ? !streamStopWanted_ : transmitiendoOtras_.count(id) > 0;
+        x.grabando = po ? !recordStopWanted_ : grabandoOtras_.count(id) > 0;
+        for (const auto& [destino, salida] : destinosAlAire_)
+            if (salida == id) x.destinos.push_back(destino);
     }
-    const nlohmann::json j = salidas::aJson(a);
-    // Temporal + rename: un corte a mitad no deja el archivo vacío.
-    const std::filesystem::path dest = ba::platform::stateDir() / "al-aire.json";
-    const std::filesystem::path tmp = dest.string() + ".tmp";
-    {
-        std::ofstream out(tmp, std::ios::trunc);
-        if (!out) return;
-        out << j.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
+    // Al hilo escritor (este hilo no toca el disco), primero que los ajustes y en dos
+    // generaciones con F_FULLFSYNC: un corte en cualquier momento deja una entera.
+    ba::persist::cola().escribirGeneracion(archivoAlAire(),
+                                           salidas::aJson(a).dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
+}
+
+void AppRuntime::leerAireAnterior() {
+    const ba::persist::Lectura l = ba::persist::cola().leerGeneraciones(archivoAlAire());
+    const nlohmann::json j = nlohmann::json::parse(l.cuerpo, nullptr, false);
+    const bool sirve = j.is_object();
+    if (l.estado == ba::persist::Lectura::Estado::Nada) {
+        aireAnterior_ = {}; // primer arranque: nada que retomar
+    } else if (sirve) {
+        aireAnterior_ = salidas::leerAlAire(j);
+        if (l.descartadas > 0)
+            ba::diag::registro().linea(ba::diag::Nivel::Aviso, "arranque", 0,
+                                       ba::i18n::traducir("arranque", "al-aire.json: la última generación estaba rota (corte a "
+                                                                      "mitad); se retoma la anterior"));
+    } else {
+        // Las dos generaciones rotas (o el archivo viejo roto): no se sabe qué había al
+        // aire. Lo peor es arrancar callado con «nada al aire»: se trata como un corte
+        // (la línea de tiempo vuelve en HOLD y pregunta qué está pasando) y se avisa.
+        aireAnterior_ = {};
+        aireAnterior_.cerrado = false;
+        avisarPersistencia(ba::i18n::traducir("arranque", "El estado de aire guardado (al-aire.json) volvió dañado: no se "
+                                                          "sabe qué había al aire. Revisá cada salida (escena, transmisión, "
+                                                          "grabación) y ponela como corresponde."));
     }
-    std::error_code ec;
-    std::filesystem::rename(tmp, dest, ec);
+    corteAnterior_ = !aireAnterior_.cerrado;
+    // Un sistema de archivos sin diario (FAT, exFAT, típico de un disco USB) puede
+    // romper la carpeta entera en un corte, aunque cada archivo se escriba bien.
+    if (ba::persist::sinDiario(root_))
+        avisarPersistencia(ba::i18n::llenar(ba::i18n::traducir("arranque", "La carpeta de datos está en un disco %1 (sin "
+                                                                            "diario): un corte de luz puede dañarla. Pasala "
+                                                                            "a un disco APFS, NTFS o ext4."),
+                                            {ba::persist::sistemaDeArchivos(root_)}));
+}
+
+std::vector<std::string> AppRuntime::avisosPersistencia() const {
+    std::lock_guard<std::mutex> l(avisosMu_);
+    return avisosPersistencia_;
+}
+
+void AppRuntime::avisarPersistencia(const std::string& texto) {
+    ba::diag::registro().linea(ba::diag::Nivel::Error, "persistencia", 0, texto);
+    std::lock_guard<std::mutex> l(avisosMu_);
+    if (std::find(avisosPersistencia_.begin(), avisosPersistencia_.end(), texto) == avisosPersistencia_.end())
+        avisosPersistencia_.push_back(texto);
 }
 
 void AppRuntime::restoreOutputs() {
-    const nlohmann::json j = config::leerObjeto(ba::platform::stateDir() / "al-aire.json");
-    if (j.empty()) {
-        return;
-    }
+    const salidas::AlAire& aire = aireAnterior_;
+    if (aire.cerrado || aire.salidas.empty()) return; // se cerró en orden: nada al aire
     if (cfg_.modoPrueba) return; // la escena sí; las salidas, nunca con --test
-    // Las grabaciones de las demás salidas (sus transmisiones son destinos: no se retoman, como siempre).
-    const salidas::AlAire aire = salidas::leerAlAire(j);
+    // TODAS las salidas, cada una con lo suyo: grabación, transmisión principal y destinos.
     for (const auto& [id, s] : aire.salidas) {
-        if (id == salidas::kPorOmision || !s.grabando || !engine_.existeSalida(id)) continue;
-        ba::diag::registro().linea(ba::diag::Nivel::Aviso, "arranque", 0,
-                                   ba::i18n::llenar(ba::i18n::traducir("arranque", "la corrida anterior no se cerró: se retoma la grabación de la salida «%1»"), {id}));
-        startRecording(id);
-    }
-    if (j.value("recording", false) && !engine_.status().recording) {
-        ba::diag::registro().linea(ba::diag::Nivel::Aviso, "arranque", 0,
-                                   ba::i18n::traducir("arranque", "la corrida anterior no se cerró (corte de luz o cuelgue): se retoma la grabación"));
-        startRecording();
-    }
-    if (j.value("streaming", false) && !engine_.status().streaming) {
-        ba::diag::registro().linea(ba::diag::Nivel::Aviso, "arranque", 0,
-                                   ba::i18n::traducir("arranque", "la corrida anterior no se cerró (corte de luz o cuelgue): se retoma la transmisión"));
-        if (!startStreaming())
-            ba::diag::registro().linea(ba::diag::Nivel::Error, "arranque", 0,
-                                       ba::i18n::llenar(ba::i18n::traducir("arranque", "la transmisión no se pudo retomar: %1"), {lastError_}));
+        if (!engine_.existeSalida(id)) continue;
+        const bool po = id == salidas::kPorOmision;
+        if (s.grabando && (po ? !engine_.status().recording : grabandoOtras_.count(id) == 0)) {
+            ba::diag::registro().linea(ba::diag::Nivel::Aviso, "arranque", 0,
+                                       ba::i18n::llenar(ba::i18n::traducir("arranque", "la corrida anterior no se cerró (corte de luz o cuelgue): se retoma la grabación de la salida «%1»"), {id}));
+            if (!startRecording(id))
+                ba::diag::registro().linea(ba::diag::Nivel::Error, "arranque", 0,
+                                           ba::i18n::llenar(ba::i18n::traducir("arranque", "la grabación de la salida «%1» no se pudo retomar: %2"), {id, lastError_}));
+        }
+        if (s.transmitiendo && !engine_.haySalidaEn(id, /*contarGrabacion=*/false)) {
+            ba::diag::registro().linea(ba::diag::Nivel::Aviso, "arranque", 0,
+                                       ba::i18n::llenar(ba::i18n::traducir("arranque", "la corrida anterior no se cerró (corte de luz o cuelgue): se retoma la transmisión de la salida «%1»"), {id}));
+            // La principal, con su clave de siempre; las demás, con la que usaron (cifrada).
+            std::string server, key;
+            const bool ok = po ? startStreaming() : (readLastStream(server, key, id) && startStreaming(server, key, false, id));
+            if (!ok)
+                ba::diag::registro().linea(ba::diag::Nivel::Error, "arranque", 0,
+                                           ba::i18n::llenar(ba::i18n::traducir("arranque", "la transmisión de la salida «%1» no se pudo retomar: %2"),
+                                                            {id, key.empty() && !po ? ba::i18n::traducir("arranque", "no quedó guardada su clave") : lastError_}));
+        }
+        for (const std::string& destino : s.destinos) {
+            ba::diag::registro().linea(ba::diag::Nivel::Aviso, "arranque", 0,
+                                       ba::i18n::llenar(ba::i18n::traducir("arranque", "la corrida anterior no se cerró: se retoma el destino «%1» de la salida «%2»"), {destino, id}));
+            if (const std::string e = iniciarDestino(destino); !e.empty())
+                ba::diag::registro().linea(ba::diag::Nivel::Error, "arranque", 0,
+                                           ba::i18n::llenar(ba::i18n::traducir("arranque", "el destino «%1» no se pudo retomar: %2"), {destino, e}));
+        }
     }
 }
 
@@ -1039,7 +1107,8 @@ bool AppRuntime::startStreaming(const std::string& server, const std::string& ke
     }
     // Otra salida: su transmisión principal va a lo que se pida (la clave de la
     // por omisión y la última guardada son de la por omisión: no se reusan, que
-    // la misma clave dos veces pisa la transmisión). No se guarda la clave.
+    // la misma clave dos veces pisa la transmisión). La clave se guarda cifrada
+    // aparte, solo para retomarla tras un corte.
     if (id != salidas::kPorOmision) {
         if (server.empty() || key.empty()) {
             lastError_ = ba::i18n::traducir("salidas", "para otra salida, pasá el servidor y la clave (o usá un destino "
@@ -1055,6 +1124,10 @@ bool AppRuntime::startStreaming(const std::string& server, const std::string& ke
             return false;
         }
         if (!salia) engine_.loudness(id).reiniciar();
+        // Para volver tras un corte: que transmitía y adónde (la clave, cifrada).
+        transmitiendoOtras_.insert(id);
+        ba::security::CredentialStore::bundle().write(
+            credencialDeSalida(id), nlohmann::json{{"server", server}, {"key", key}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
         writeOnAirState();
         avisar(Cambio::Salidas);
         return true;
@@ -1103,7 +1176,10 @@ bool AppRuntime::startStreaming(const std::string& server, const std::string& ke
 void AppRuntime::stopStreaming(const std::string& salida) {
     const std::string id = engine_.idDeSalida(salida);
     if (id.empty()) return;
-    if (id == salidas::kPorOmision) streamStopWanted_ = true;
+    if (id == salidas::kPorOmision)
+        streamStopWanted_ = true;
+    else
+        transmitiendoOtras_.erase(id);
     writeOnAirState();
     engine_.stopStreaming(id);
     avisar(Cambio::Salidas);
@@ -1111,15 +1187,13 @@ void AppRuntime::stopStreaming(const std::string& salida) {
 
 namespace {
 nlohmann::json leerDestinos(const std::filesystem::path& root) {
-    std::ifstream f(root / "Config" / "destinos.json");
-    const nlohmann::json j = nlohmann::json::parse(f, nullptr, false);
+    std::string bytes;
+    ba::persist::cola().leer(root / "Config" / "destinos.json", bytes);
+    const nlohmann::json j = nlohmann::json::parse(bytes, nullptr, false);
     return j.is_array() ? j : nlohmann::json::array();
 }
 void escribirDestinos(const std::filesystem::path& root, const nlohmann::json& d) {
-    std::error_code ec;
-    std::filesystem::create_directories(root / "Config", ec);
-    std::ofstream o(root / "Config" / "destinos.json");
-    o << d.dump(1, ' ', false, nlohmann::json::error_handler_t::replace);
+    config::guardar(root / "Config" / "destinos.json", d);
 }
 } // namespace
 
@@ -1271,6 +1345,7 @@ std::string AppRuntime::borrarDestino(const std::string& id) {
         if (x.value("id", std::string()) != id) nueva.push_back(x);
     if (nueva.size() == lista.size()) return ba::i18n::llenar(ba::i18n::traducir("salidas", "no hay un destino «%1»"), {id});
     engine_.stopExtra(id);
+    if (destinosAlAire_.erase(id) > 0) writeOnAirState();
     ba::security::CredentialStore::bundle().remove("stream-" + id);
     escribirDestinos(root_, nueva);
     avisar(Cambio::Salidas);
@@ -1286,10 +1361,13 @@ std::string AppRuntime::iniciarDestino(const std::string& id) {
         alguno = true;
         std::string clave;
         ba::security::CredentialStore::bundle().read("stream-" + did, clave);
-        if (!engine_.startExtra(did, d.value("url", std::string()), clave, cfg_.encoder, salidas::salidaDeDestino(d)))
+        if (engine_.startExtra(did, d.value("url", std::string()), clave, cfg_.encoder, salidas::salidaDeDestino(d)))
+            destinosAlAire_[did] = salidas::salidaDeDestino(d); // vuelve tras un corte
+        else
             errores += (errores.empty() ? "" : "; ") + did + ": " + engine_.lastError();
     }
     if (!alguno) return ba::i18n::llenar(ba::i18n::traducir("salidas", "no hay un destino «%1» (stream_destinos los lista)"), {id});
+    writeOnAirState();
     // Aunque alguno haya fallado, otros pudieron arrancar: la lista cambia igual.
     avisar(Cambio::Salidas);
     return errores;
@@ -1306,6 +1384,11 @@ nlohmann::json AppRuntime::discoGrabacion() const {
 }
 
 void AppRuntime::detenerDestino(const std::string& id) {
+    if (id == "todos")
+        destinosAlAire_.clear();
+    else
+        destinosAlAire_.erase(id);
+    writeOnAirState();
     if (id == "todos")
         engine_.stopExtras();
     else
@@ -1847,6 +1930,8 @@ namespace {
 /// El pedido de reinicio a B (bloquea hasta ~4 s). Sin tocar el estado de
 /// AppRuntime: lo usan restartGateway y el hilo de reiniciarSalaEnElFondo.
 bool pedirReinicioGateway(std::string& error) {
+    // B relee gateway.json al volver: lo guardado tiene que estar en el disco.
+    ba::persist::cola().vaciar();
     // Cierre ordenado de B por su canal de control: el launcher lo relanza y
     // B relee gateway.json. Sin launcher, B simplemente se cierra.
     ba::platform::LocalStream s;

@@ -64,7 +64,5 @@ class McpHttp : public QObject {
 QString loadOrCreateToken(const QString& credentialsDir);
 /// Un token nuevo (lo guarda cifrado). Vacío si no se pudo guardar.
 QString rotarToken(const QString& credentialsDir);
-/// Escribe un archivo JSON solo-dueño (temp + rename).
-bool writePrivateJson(const QString& path, const QByteArray& json);
 
 } // namespace ba::app::mcp
