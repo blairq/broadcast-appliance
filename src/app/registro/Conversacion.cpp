@@ -410,47 +410,61 @@ bool esCancelar(const Lengua& L, const std::string& f) { return coincide(L.cance
 bool esRepetir(const Lengua& L, const std::string& f) { return coincide(L.repetir, f); }
 bool esSaltear(const Lengua& L, const std::string& f) { return coincide(L.saltear, f); }
 
-/// Pasa a minúscula o mayúscula la primera letra de una palabra en UTF-8 (las
-/// acentuadas del latín-1 son dos bytes, 0xC3 + algo).
-std::string capital(const std::string& w) {
+// Mayúsculas y minúsculas en UTF-8, letra por letra: el ASCII, el latín-1 (castellano,
+// francés, portugués) y el cirílico. Lo demás (un ideograma, una letra de otro alfabeto,
+// bytes rotos) queda igual. Nada de std::toupper byte a byte: con el locale de macOS
+// cambiaba bytes de una letra de varios y rompía el nombre.
+namespace {
+char32_t aMayuscula(char32_t c) {
+    if (c >= U'a' && c <= U'z') return c - 0x20;
+    if (c >= 0xE0 && c <= 0xFE && c != 0xF7) return c - 0x20;
+    if (c >= 0x430 && c <= 0x44F) return c - 0x20;
+    if (c >= 0x450 && c <= 0x45F) return c - 0x50;
+    return c;
+}
+char32_t aMinuscula(char32_t c) {
+    if (c >= U'A' && c <= U'Z') return c + 0x20;
+    if (c >= 0xC0 && c <= 0xDE && c != 0xD7) return c + 0x20;
+    if (c >= 0x410 && c <= 0x42F) return c + 0x20;
+    if (c >= 0x400 && c <= 0x40F) return c + 0x50;
+    return c;
+}
+// Las letras de dos bytes alcanzan (U+0080..U+07FF): las de más bytes no se tocan.
+std::string mapear(const std::string& w, bool soloPrimera, char32_t (*f)(char32_t)) {
     std::string s;
-    // Todo a minúscula primero.
-    for (std::size_t i = 0; i < w.size(); ++i) {
+    s.reserve(w.size());
+    bool primera = true;
+    for (std::size_t i = 0; i < w.size();) {
         const auto c = static_cast<unsigned char>(w[i]);
-        if (c == 0xC3 && i + 1 < w.size()) {
-            auto d = static_cast<unsigned char>(w[i + 1]);
-            if (d >= 0x80 && d <= 0x9E && d != 0x97) d = static_cast<unsigned char>(d + 0x20);
-            s.push_back(static_cast<char>(c));
-            s.push_back(static_cast<char>(d));
+        const bool toca = !soloPrimera || primera;
+        primera = false;
+        if (c < 0x80) {
+            s.push_back(toca ? static_cast<char>(f(c)) : static_cast<char>(c));
             ++i;
+        } else if ((c & 0xE0) == 0xC0 && i + 1 < w.size() && (static_cast<unsigned char>(w[i + 1]) & 0xC0) == 0x80) {
+            char32_t u = (static_cast<char32_t>(c & 0x1F) << 6) | (static_cast<unsigned char>(w[i + 1]) & 0x3F);
+            if (toca) u = f(u);
+            s.push_back(static_cast<char>(0xC0 | (u >> 6)));
+            s.push_back(static_cast<char>(0x80 | (u & 0x3F)));
+            i += 2;
         } else {
-            s.push_back(static_cast<char>(std::tolower(c)));
+            // Una letra de más bytes (o un byte suelto): entera, sin tocar.
+            std::size_t n = 1;
+            while (i + n < w.size() && (static_cast<unsigned char>(w[i + n]) & 0xC0) == 0x80) ++n;
+            s.append(w, i, n);
+            i += n;
         }
-    }
-    if (s.empty()) return s;
-    const auto c0 = static_cast<unsigned char>(s[0]);
-    if (c0 == 0xC3 && s.size() > 1) {
-        auto d = static_cast<unsigned char>(s[1]);
-        if (d >= 0xA0 && d <= 0xBE && d != 0xB7) s[1] = static_cast<char>(d - 0x20);
-    } else {
-        s[0] = static_cast<char>(std::toupper(c0));
     }
     return s;
 }
+} // namespace
+
+/// La palabra en minúscula con la primera letra en mayúscula («maría» → «María»).
+std::string capital(const std::string& w) { return mapear(mapear(w, false, aMinuscula), true, aMayuscula); }
 
 /// Solo la primera letra en mayúscula; el resto queda como vino (una sigla
 /// sigue siendo sigla).
-std::string mayusculaInicial(std::string s) {
-    if (s.empty()) return s;
-    const auto c0 = static_cast<unsigned char>(s[0]);
-    if (c0 == 0xC3 && s.size() > 1) {
-        const auto d = static_cast<unsigned char>(s[1]);
-        if (d >= 0xA0 && d <= 0xBE && d != 0xB7) s[1] = static_cast<char>(d - 0x20);
-    } else {
-        s[0] = static_cast<char>(std::toupper(c0));
-    }
-    return s;
-}
+std::string mayusculaInicial(std::string s) { return mapear(s, true, aMayuscula); }
 
 /// Si lo dicho es, entero, una de las respuestas de sí o de no.
 bool esRespuestaSuelta(const Lengua& L, const std::string& f) { return esUna(L.si, f) || esUna(L.no, f); }

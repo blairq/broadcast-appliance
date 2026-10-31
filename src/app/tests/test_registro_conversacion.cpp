@@ -150,6 +150,7 @@ void nombresYOpciones() {
     CHECK(nombre("Hola, soy Ana María de la Fuente.") == "Ana María de la Fuente", "hola soy, partículas");
     CHECK(nombre("mi nombre es JOSÉ MARTÍNEZ") == "José Martínez", "mayúsculas con acento");
     CHECK(nombre("ángela del valle") == "Ángela del Valle", "acento en la inicial");
+    CHECK(nombre("me llamo ÑANDÚ ÇÉLINE") == "Ñandú Çéline", "ñ y ç en la inicial, el resto a minúscula");
     CHECK(nombre("Pedro") == "Pedro", "solo el nombre");
     CHECK(nombre("bueno, me llamo Lucía Gómez gracias") == "Lucía Gómez", "bueno ... gracias");
     CHECK(nombre("Ana Bueno") == "Ana Bueno", "un apellido que es palabra común");
