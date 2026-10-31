@@ -49,6 +49,11 @@ Tool herramienta(const std::string& nombre, const std::string& categoria, bool s
     t.title = nombre;
     t.category = categoria;
     t.readOnly = soloLectura;
+    // Como la real (McpSceneTools): la clase la declara la herramienta, no una lista de nombres.
+    if (nombre == "preview_al_aire") {
+        t.clase = Clase::Aire;
+        t.porQueAire = "corta a lo armado";
+    }
     t.run = std::move(run);
     return t;
 }
