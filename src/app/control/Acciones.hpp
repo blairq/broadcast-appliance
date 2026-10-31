@@ -15,6 +15,11 @@
 // sin importar cuál manejan. «salida:siguiente», «salida:anterior» y «salida:<id>»
 // cambian la que manejan (no se guarda: al arrancar, la por omisión).
 //
+// La línea de tiempo (PLAN-LINEA-DE-TIEMPO 3.5 D): GO, HOLD, mover el próximo,
+// saltar y un adlib por ítem del estante, cada una también por salida
+// («linea_go@sala»: la salida va en los argumentos de la herramienta). El feedback
+// lo publica LineaViewModel en el bus (`linea/<salida>/estado`).
+//
 // Atajos (Config/atajos.json): [{tecla: "Ctrl+Shift+T", accion, global}]. Los
 // locales funcionan con la ventana del programa al frente (un Shortcut de QML
 // por atajo); los GLOBALES, aunque la ventana no tenga el foco (macOS:
@@ -56,6 +61,8 @@ class Acciones : public QObject {
         std::function<std::vector<std::string>()> fuentesAudio;
         std::function<bool(const std::string& fuente, const std::string& salida)> mudo;
         std::function<bool(int capa)> dskArriba;
+        /// El estante de la línea de tiempo: [{id, texto, esPaso}] (lo pone LineaViewModel).
+        std::function<json()> estante;
     };
     Acciones(const std::filesystem::path& datos, QObject* parent = nullptr);
     ~Acciones() override;

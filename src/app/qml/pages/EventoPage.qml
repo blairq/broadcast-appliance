@@ -18,6 +18,14 @@ Rectangle {
     // Cue seleccionado para editar (bloque, cue). -1 = ninguno.
     property var informe: ({})
     property int selB: -1
+    /// Cómo se ve el guion: 0 = los cues (para armarlo), 1 = la escaleta, 2 = el
+    /// Storyboard, 3 = la Línea multipista (PLAN-LINEA-DE-TIEMPO 3.5).
+    property int vistaGuion: 1
+    /// El guion y la conducción se ven: la línea recalcula cada segundo y pide
+    /// miniaturas solo entonces (y los atajos de la línea valen solo entonces).
+    readonly property bool guionALaVista: page.visible && page.ev.abierto !== "" && !page.armando && pestanas.currentIndex === 0
+    Binding { target: Studio.linea; property: "mirando"; value: page.guionALaVista; when: !!Studio.linea }
+    Binding { target: Studio.linea; property: "mirandoLinea"; value: page.guionALaVista && page.vistaGuion === 3; when: !!Studio.linea }
     property int selC: -1
     readonly property var selCue: {
         const bs = ev.guion.bloques || []
@@ -89,20 +97,7 @@ Rectangle {
         return f + " · " + h
     }
 
-    function colorDeTipo(tipo) {
-        switch (tipo) {
-        case "escena": return Theme.accent
-        case "orador": return "#5aa9e6"
-        case "grafico": return "#c792ea"
-        case "musica": return "#b98cf0"
-        case "video": return "#b98cf0"
-        case "teleprompter": return "#4fc3a1"
-        case "pantalla": return "#4fc3a1"
-        case "audio": return Theme.amber
-        case "espera": return Theme.live
-        default: return Theme.textFaint
-        }
-    }
+    function colorDeTipo(tipo) { return Theme.colorDeTipo(tipo) }
 
     ColumnLayout {
         anchors { fill: parent; leftMargin: page.leftInset; margins: 20 }
@@ -629,7 +624,7 @@ Rectangle {
                 // Sin minimo, el ancho implicito de la columna de la derecha
                 // (que tiene textos largos) se comia todo el guion.
                 Layout.minimumWidth: 420
-                title: qsTr("Guion")
+                title: [qsTr("Guion"), qsTr("Escaleta"), qsTr("Storyboard"), qsTr("Línea")][page.vistaGuion]
 
                 ColumnLayout {
                     anchors.fill: parent
@@ -638,7 +633,21 @@ Rectangle {
                     RowLayout {
                         Layout.fillWidth: true
                         spacing: 8
-                        GlassButton { text: qsTr("+ Bloque"); compact: true; onClicked: page.ev.agregarBloque("") }
+                        // Las vistas del guion: los cues para armarlo; la escaleta, el Storyboard y
+                        // la Línea para correrlo (todas leen la misma línea).
+                        Repeater {
+                            model: [qsTr("Cues"), qsTr("Escaleta"), qsTr("Storyboard"), qsTr("Línea")]
+                            delegate: GlassButton {
+                                required property string modelData
+                                required property int index
+                                compact: true
+                                text: modelData
+                                active: page.vistaGuion === index
+                                onClicked: page.vistaGuion = index
+                            }
+                        }
+                        Rectangle { width: 1; Layout.fillHeight: true; Layout.margins: 4; color: Qt.rgba(1, 1, 1, 0.1) }
+                        GlassButton { visible: page.vistaGuion === 0; text: qsTr("+ Bloque"); compact: true; onClicked: page.ev.agregarBloque("") }
                         Item { Layout.fillWidth: true }
                         GlassButton {
                             text: qsTr("Revisar"); compact: true
@@ -655,8 +664,26 @@ Rectangle {
                         }
                     }
 
+                    LineaEscaleta {
+                        visible: page.vistaGuion === 1 || page.vistaGuion === 2
+                        storyboard: page.vistaGuion === 2
+                        Layout.fillWidth: true
+                        Layout.fillHeight: true
+                    }
+                    LineaBarra {
+                        visible: page.vistaGuion === 1 || page.vistaGuion === 2
+                        Layout.fillWidth: true
+                    }
+                    LineaMultipista {
+                        visible: page.vistaGuion === 3
+                        activa: page.guionALaVista && page.vistaGuion === 3
+                        Layout.fillWidth: true
+                        Layout.fillHeight: true
+                    }
+
                     ScrollView {
                         id: rundownScroll
+                        visible: page.vistaGuion === 0
                         Layout.fillWidth: true
                         Layout.fillHeight: true
                         clip: true
@@ -907,188 +934,25 @@ Rectangle {
                     }
                 }
 
+                // La conducción de la línea (PLAN-LINEA-DE-TIEMPO 3.5 C): el paso al aire en
+                // grande, el próximo con su PVW, GO/HOLD/Saltar/Insertar y el estante. Los
+                // atajos (Espacio/F12, H, F9/F10, Mayús+F9, Ctrl+1…4, F1–F8) valen con el
+                // guion a la vista.
                 Panel {
                     Layout.fillWidth: true
-                    Layout.preferredHeight: 296
+                    Layout.preferredHeight: Math.min(conduccion.implicitHeight + 56, 560)
                     title: page.ev.ensayo ? qsTr("Conducción (ensayo)") : qsTr("Conducción")
-
-                    // HOLD con la H: frena (o suelta) el avance automático del cue actual.
-                    // Con el foco en un campo de texto la H se escribe: el campo se la queda.
-                    Shortcut {
-                        sequence: "H"
-                        enabled: page.visible && (page.ev.estado === "corriendo" || page.ev.estado === "pausado")
-                        onActivated: page.ev.alternarHold()
-                    }
-
-                    ColumnLayout {
+                    AtajosLinea { activos: page.guionALaVista }
+                    ScrollView {
+                        id: conduccionScroll
                         anchors.fill: parent
-                        spacing: 8
-
-                        // El desvio, que es lo unico que hay que poder leer de lejos.
-                        Text {
-                            Layout.fillWidth: true
-                            horizontalAlignment: Text.AlignHCenter
-                            visible: page.ev.estado !== "parado"
-                            text: {
-                                const d = page.ev.reloj.desvioSeg
-                                if (Math.abs(d) < 5) return qsTr("en hora")
-                                return (d > 0 ? qsTr("%1 tarde") : qsTr("%1 adelantados")).arg(page.mmss(Math.abs(d)))
-                            }
-                            color: {
-                                const d = Math.abs(page.ev.reloj.desvioSeg)
-                                return d < 5 ? Theme.ok : (d < 60 ? Theme.amber : Theme.live)
-                            }
-                            font { family: Theme.font; pixelSize: 30; weight: Font.DemiBold }
-                        }
-
-                        Text {
-                            Layout.fillWidth: true
-                            horizontalAlignment: Text.AlignHCenter
-                            visible: page.ev.estado === "parado"
-                            text: qsTr("El guion no está corriendo")
-                            color: Theme.textFaint
-                            font.pixelSize: 13
-                        }
-
-                        // Cue actual
-                        Rectangle {
-                            Layout.fillWidth: true
-                            Layout.preferredHeight: 62
-                            radius: 6
-                            visible: page.ev.estado !== "parado"
-                            color: Qt.rgba(1, 0.42, 0.17, 0.16)
-                            border.color: Theme.accent
-                            ColumnLayout {
-                                anchors { fill: parent; margins: 9 }
-                                spacing: 1
-                                Text {
-                                    text: (page.ev.actual.bloqueNombre || "") + " · " + (page.ev.actual.tipo || "")
-                                    color: Theme.textDim
-                                    font.pixelSize: 11
-                                }
-                                Text {
-                                    Layout.fillWidth: true
-                                    elide: Text.ElideRight
-                                    text: page.ev.actual.texto || page.ev.actual.datos && page.ev.actual.datos.escena || "—"
-                                    color: Theme.text
-                                    font { family: Theme.font; pixelSize: 15; weight: Font.DemiBold }
-                                }
-                                Text {
-                                    text: (page.ev.actual.duracionSeg > 0
-                                           ? qsTr("va %1 de %2 · cue %3 de %4").arg(page.mmss(page.ev.reloj.enCueSeg))
-                                                 .arg(page.mmss(page.ev.actual.duracionSeg))
-                                                 .arg(page.ev.reloj.cueNro).arg(page.ev.reloj.cuesTotal)
-                                           : qsTr("va %1 · cue %2 de %3").arg(page.mmss(page.ev.reloj.enCueSeg))
-                                                 .arg(page.ev.reloj.cueNro).arg(page.ev.reloj.cuesTotal))
-                                    color: Theme.textDim
-                                    font { family: Theme.mono; pixelSize: 11 }
-                                }
-                            }
-                        }
-
-                        // El que sigue
-                        Rectangle {
-                            Layout.fillWidth: true
-                            Layout.preferredHeight: 44
-                            radius: 6
-                            visible: page.ev.estado !== "parado"
-                            color: Qt.rgba(1, 1, 1, 0.05)
-                            ColumnLayout {
-                                anchors { fill: parent; margins: 8 }
-                                spacing: 0
-                                Text { text: qsTr("sigue"); color: Theme.textFaint; font.pixelSize: 10 }
-                                Text {
-                                    Layout.fillWidth: true
-                                    elide: Text.ElideRight
-                                    text: page.ev.siguiente.texto
-                                          || (page.ev.siguiente.tipo ? page.ev.siguiente.tipo : qsTr("nada: es el último"))
-                                    color: Theme.textDim
-                                    font.pixelSize: 12
-                                }
-                            }
-                        }
-
-                        Item { Layout.fillHeight: true }
-
-                        // El avance automático: el aviso de los últimos 5 s o, frenado, el HOLD.
-                        // Los dos salen del view model (entraSoloEnSeg, hold).
-                        Text {
-                            Layout.fillWidth: true
-                            horizontalAlignment: Text.AlignHCenter
-                            visible: page.ev.hold || page.ev.entraSoloEnSeg > 0
-                            text: page.ev.hold ? qsTr("HOLD: este paso no se va solo")
-                                               : qsTr("entra solo en %1").arg(page.mmss(page.ev.entraSoloEnSeg))
-                            color: page.ev.hold ? Theme.live : Theme.amber
-                            font { family: Theme.font; pixelSize: 15; weight: Font.DemiBold }
-                        }
-
-                        RowLayout {
-                            Layout.fillWidth: true
-                            spacing: 6
-                            GlassButton {
-                                text: page.ev.estado === "parado" ? qsTr("Arrancar") : qsTr("Siguiente")
-                                active: page.ev.estado !== "parado"
-                                Layout.fillWidth: true
-                                onClicked: {
-                                    if (page.ev.estado !== "parado") { page.ev.avanzar(); return }
-                                    // La revisión previa la hace el view model; si hay algo grave, se pregunta.
-                                    const graves = page.ev.arrancarRevisando(false)
-                                    if (graves === 0) return
-                                    ApplicationWindow.window.confirm({
-                                        title: qsTr("¿Correr el guion igual?"),
-                                        text: qsTr("La revisión encontró %n problema grave. Mirá «Revisión» antes de salir.", "", graves),
-                                        accept: qsTr("Correr igual"), reject: qsTr("Revisar"),
-                                        action: function() { page.ev.arrancarRevisando(true) }
-                                    })
-                                }
-                            }
-                            GlassButton {
-                                icon: "◀"; compact: true
-                                visible: page.ev.estado !== "parado"
-                                onClicked: page.ev.retroceder()
-                            }
-                            GlassButton {
-                                icon: page.ev.estado === "pausado" ? "▶" : "❚❚"; compact: true
-                                visible: page.ev.estado !== "parado"
-                                onClicked: page.ev.estado === "pausado" ? page.ev.reanudar() : page.ev.pausar()
-                            }
-                            GlassButton {
-                                text: "HOLD"; compact: true
-                                visible: page.ev.estado === "corriendo" || page.ev.estado === "pausado"
-                                active: page.ev.hold
-                                onClicked: page.ev.alternarHold()
-                                ToolTip.visible: hovered; ToolTip.delay: 400
-                                ToolTip.text: qsTr("Que este paso no pase solo al siguiente (H). Otra vez lo suelta.")
-                            }
-                            GlassButton {
-                                icon: "■"; compact: true
-                                visible: page.ev.estado !== "parado"
-                                onClicked: page.ev.parar()
-                            }
-                            GlassButton {
-                                icon: "▤"; compact: true
-                                visible: page.ev.estado !== "parado"
-                                onClicked: { page.informe = page.ev.informe(); informeDlg.open() }
-                                ToolTip.visible: hovered
-                                ToolTip.text: qsTr("Ver cuánto duró de verdad cada bloque")
-                            }
-                        }
-                        RowLayout {
-                            Layout.fillWidth: true
-                            spacing: 8
-                            Toggle {
-                                checked: page.ev.ensayo
-                                enabled: page.ev.estado === "parado"
-                                onToggled: (w) => page.ev.ensayo = w
-                            }
-                            Text {
-                                Layout.fillWidth: true
-                                wrapMode: Text.WordWrap
-                                text: page.ev.ensayo ? qsTr("Ensayo: recorre el guion sin tocar lo que sale al aire")
-                                                     : qsTr("Ensayo apagado: los cues salen al aire de verdad")
-                                color: page.ev.ensayo ? Theme.amber : Theme.textDim
-                                font.pixelSize: 11
-                            }
+                        clip: true
+                        contentWidth: availableWidth
+                        ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
+                        LineaConduccion {
+                            id: conduccion
+                            width: conduccionScroll.availableWidth
+                            onPedirInforme: { page.informe = page.ev.informe(); informeDlg.open() }
                         }
                     }
                 }
