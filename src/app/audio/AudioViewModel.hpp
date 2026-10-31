@@ -15,6 +15,8 @@
 #include <QVariantList>
 #include <QVariantMap>
 
+#include "comun/UsoPorVistas.hpp"
+
 namespace ba::app::audio {
 
 class RackManager;
@@ -53,7 +55,9 @@ class AudioViewModel : public QObject {
     QVariantList outputDevices() const;
     double gridStep() const;
 
-    Q_INVOKABLE void setActive(bool on);
+    /// Una vista (la página Audio) empieza o deja de mostrarlo: los medidores corren
+    /// mientras haya alguna (cuenta por vista).
+    Q_INVOKABLE void usar(QObject* vista, bool si) { vistas_.usar(vista, si); }
     Q_INVOKABLE void refresh();
     /// Cambiaron las fuentes o las entradas de audio (lo avisa el runtime, lo
     /// haya pedido quien sea): la lista se rehace si quedó distinta.
@@ -146,7 +150,8 @@ class AudioViewModel : public QObject {
 
     RackManager& mgr_;
     QTimer tick_;
-    bool active_ = false;
+    UsoPorVistas vistas_{this, [this](const QString&) { alCambiarVistas(); }};
+    void alCambiarVistas();
     QString error_;
     QVariantList sources_;
     QString source_;

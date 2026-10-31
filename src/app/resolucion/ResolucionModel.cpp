@@ -38,12 +38,11 @@ ResolucionModel::ResolucionModel(Fuentes f, QObject* parent) : QObject(parent), 
     connect(&reloj_, &QTimer::timeout, this, [this]() { recalcular(); });
 }
 
-void ResolucionModel::mirar(bool si) {
-    mirando_ = std::max(0, mirando_ + (si ? 1 : -1));
-    if (mirando_ > 0 && !reloj_.isActive()) {
+void ResolucionModel::alCambiarMirada() {
+    if (mirando_.alguien() && !reloj_.isActive()) {
         recalcular(); // que la vista no arranque sin colores
         reloj_.start();
-    } else if (mirando_ == 0) {
+    } else if (!mirando_.alguien()) {
         reloj_.stop();
     }
 }

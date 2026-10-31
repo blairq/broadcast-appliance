@@ -25,10 +25,8 @@ Rectangle {
     /// miniaturas solo entonces (y los atajos de la línea valen solo entonces).
     readonly property bool guionALaVista: page.visible && page.ev.abierto !== "" && !page.armando && pestanas.currentIndex === 0
     // La línea la pueden mirar varias vistas a la vez (esta, la tarjeta, su ventana).
-    readonly property var miradaLinea: [page.guionALaVista, page.guionALaVista && page.vistaGuion === 3]
-    onMiradaLineaChanged: if (Studio.linea) Studio.linea.mirar("evento", miradaLinea[0], miradaLinea[1])
-    Component.onCompleted: miradaLineaChanged()
-    Component.onDestruction: if (Studio.linea) Studio.linea.mirar("evento", false, false)
+    Suscripcion { objetivo: Studio.linea; activa: page.guionALaVista }
+    Suscripcion { objetivo: Studio.linea; que: "multipista"; activa: page.guionALaVista && page.vistaGuion === 3 }
     property int selC: -1
     readonly property var selCue: {
         const bs = ev.guion.bloques || []

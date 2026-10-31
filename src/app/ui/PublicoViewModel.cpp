@@ -84,17 +84,13 @@ nlohmann::json PublicoViewModel::votacionParaLaWeb() const {
     }
     return vo;
 }
-bool PublicoViewModel::activo() const { return mirando_ > 0; }
-
-void PublicoViewModel::setActivo(bool a) {
-    const int antes = mirando_;
-    mirando_ = std::max(0, mirando_ + (a ? 1 : -1));
-    if (mirando_ > 0 && antes == 0) {
+void PublicoViewModel::alCambiarMirada() {
+    if (activo()) {
         // Se consulta YA y no en dos segundos: abrir la pestaña y ver un
         // recuadro vacio dos segundos parece que esta roto.
         consultar();
         reloj_.start();
-    } else if (mirando_ == 0) {
+    } else {
         reloj_.stop();
     }
     emit cambio();

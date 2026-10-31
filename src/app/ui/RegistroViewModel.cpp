@@ -42,7 +42,6 @@ struct RegistroViewModel::Impl {
     QStringList modulos;
     ba::diag::Filtro filtro;
     bool siguiendo = true;
-    int mirando = 0; ///< vistas del Registro a la vista
     bool enMemoria = false;
     QTimer reloj;
 
@@ -108,16 +107,15 @@ void RegistroViewModel::setSiguiendo(bool s) {
     // Se deja de leer del todo al dejar de seguir: mirar una línea de hace
     // media hora no tiene por qué costar una lectura de disco cada dos
     // segundos, y además la lista se movería sola mientras se lee.
-    if (s && d_->mirando > 0)
+    if (s && vistas_.alguien())
         d_->reloj.start();
     else
         d_->reloj.stop();
     emit filtroCambio();
 }
 
-void RegistroViewModel::mirar(bool visible) {
-    d_->mirando = std::max(0, d_->mirando + (visible ? 1 : -1));
-    if (d_->mirando > 0 && d_->siguiendo) {
+void RegistroViewModel::alCambiarVistas() {
+    if (vistas_.alguien() && d_->siguiendo) {
         if (!d_->reloj.isActive()) {
             d_->reloj.start();
             refrescar();

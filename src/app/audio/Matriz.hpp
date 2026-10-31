@@ -71,6 +71,8 @@
 
 #include <nlohmann/json.hpp>
 
+#include "comun/UsoPorVistas.hpp"
+
 namespace ba::app {
 class AppRuntime;
 class VentanillaMotor;
@@ -132,8 +134,6 @@ class Matriz : public QObject {
     /// Mostrar u ocultar un dispositivo del equipo (lo oculto no se abre).
     Q_INVOKABLE void setVisibleDispositivo(const QString& id, bool visible);
 
-    /// La matriz está a la vista: medidores y relectura de fuentes.
-    Q_INVOKABLE void setActiva(bool on);
     /// Una vista empieza o deja de mostrar los medidores (los mide mientras haya
     /// alguna: la matriz de la página Audio escondida no le apaga los medidores a la
     /// del Mezclador). Si la vista se destruye sin avisar, se la saca sola.
@@ -218,6 +218,8 @@ class Matriz : public QObject {
     /// Llegó una foto: las fuentes que nacieron reciben lo guardado, lo que cambió se anota.
     void alCambiarFoto(unsigned partes);
     /// Abre lo del equipo que se usa y cierra lo que no.
+    /// La matriz está a la vista (alguien la usa): medidores y relectura de fuentes.
+    void setActiva(bool on);
     void usarEquipo();
     std::function<std::set<std::string>()> usadasPorOtros_;
     std::set<std::string> ultimosOtros_; ///< lo último que se miró (para no reabrir en cada vuelta)
@@ -232,7 +234,7 @@ class Matriz : public QObject {
     std::unique_ptr<EquipoAudio> equipo_;
     bool pistasPlegadas_ = true;
     std::map<std::string, std::shared_ptr<std::atomic<float>>> picosEquipo_; ///< columna física -> pico
-    QSet<QObject*> vistas_; ///< las que están mostrando los medidores (usar)
+    UsoPorVistas vistas_{this, [this](const QString&) { setActiva(vistas_.alguien()); }}; ///< las que muestran los medidores (usar)
     std::map<std::pair<std::string, std::string>, Envio> envios_;            ///< (fuente, bus)
     std::vector<std::string> filas_;                                         ///< fuentes conocidas
 

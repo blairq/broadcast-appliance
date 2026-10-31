@@ -39,18 +39,7 @@ Popup {
     }
 
     // La imagen en vivo se pide solo mientras se ve (renderizarla cuesta).
-    property string mirando: ""
-    function mirar() {
-        const quiero = dlg.opened && dlg.modo === "camara" ? dlg.entrada : ""
-        if (quiero === dlg.mirando) return
-        if (dlg.mirando !== "") Studio.frames.mirarEntrada(dlg.mirando, false)
-        if (quiero !== "") Studio.frames.mirarEntrada(quiero, true)
-        dlg.mirando = quiero
-    }
-    onOpenedChanged: mirar()
-    onModoChanged: mirar()
-    onEntradaChanged: mirar()
-    Component.onDestruction: if (mirando !== "") Studio.frames.mirarEntrada(mirando, false)
+    Suscripcion { objetivo: Studio.frames; que: "entrada:" + dlg.entrada; activa: dlg.opened && dlg.modo === "camara" && dlg.entrada !== "" }
 
     Timer {
         interval: 150; repeat: true; running: dlg.opened && dlg.digital

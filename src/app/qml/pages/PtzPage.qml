@@ -50,12 +50,9 @@ Rectangle {
     // La grilla del recinto en lugar del control de una cámara.
     property bool verRecinto: false
 
-    onVisibleChanged: { inp.setActive(visible); mirar() }
-    Component.onCompleted: {
-        if (visible) inp.setActive(true) // creada oculta no apaga a Entradas, que comparte `inp`
-        if (cc && cc.camaras.length > 0) sel = cc.camaras[0].entrada
-        mirar()
-    }
+    // Las miniaturas vivas (por vista: no apaga a Entradas, que comparte `inp`).
+    Suscripcion { objetivo: page.inp; activa: page.visible }
+    Component.onCompleted: if (cc && cc.camaras.length > 0) sel = cc.camaras[0].entrada
     Connections {
         target: page.cc
         function onCambio() {
@@ -81,18 +78,9 @@ Rectangle {
             page.verRecinto = false
         }
     }
-    onSelChanged: { page.ptzMsg = ""; page.redTick++; mirar() }
+    onSelChanged: { page.ptzMsg = ""; page.redTick++ }
     // La imagen en vivo de la elegida, solo mientras se ve la página (renderizarla cuesta).
-    property string mirando: ""
-    function mirar() {
-        const quiero = page.visible && !page.verRecinto ? page.sel : ""
-        if (quiero === page.mirando) return
-        if (page.mirando !== "") Studio.frames.mirarEntrada(page.mirando, false)
-        if (quiero !== "") Studio.frames.mirarEntrada(quiero, true)
-        page.mirando = quiero
-    }
-    onVerRecintoChanged: mirar()
-    Component.onDestruction: if (page.mirando !== "") Studio.frames.mirarEntrada(page.mirando, false)
+    Suscripcion { objetivo: Studio.frames; que: "entrada:" + page.sel; activa: page.visible && !page.verRecinto && page.sel !== "" }
     Connections {
         target: Studio.red
         function onPtzListo(entrada, ok, texto) {

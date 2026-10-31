@@ -338,8 +338,8 @@ int PrompterViewModel::faltaSeg() const {
     return static_cast<int>(total * (1.0 - avance()) * 60.0 / ppm);
 }
 
-void PrompterViewModel::mirar(bool si) {
-    if (si) {
+void PrompterViewModel::alCambiarVistas() {
+    if (vistas_.alguien()) {
         if (!d_->reloj.isActive()) d_->reloj.start();
         consultar(); // que la página no arranque en blanco medio segundo
     } else {

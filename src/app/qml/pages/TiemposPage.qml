@@ -21,17 +21,10 @@ Rectangle {
     readonly property var mapa: tm ? tm.mapa : ({})
 
     // Mide solo mientras se la mira.
-    Binding { target: page.tm; property: "activo"; value: page.visible; when: page.tm !== null }
+    Suscripcion { objetivo: page.tm; activa: page.visible }
     // El plan de resolución también (los colores de alarma de las tarjetas).
-    property bool mirandoRes: false
-    function mirarRes() {
-        if (!Studio.resolucion || page.visible === page.mirandoRes) return
-        Studio.resolucion.mirar(page.visible)
-        page.mirandoRes = page.visible
-    }
-    onVisibleChanged: mirarRes()
-    Component.onCompleted: { mirarRes(); sincronizarMapa() }
-    Component.onDestruction: if (page.mirandoRes && Studio.resolucion) Studio.resolucion.mirar(false)
+    Suscripcion { objetivo: Studio.resolucion; activa: page.visible }
+    Component.onCompleted: sincronizarMapa()
     readonly property var nivelesRes: Studio.resolucion ? Studio.resolucion.niveles : ({})
     /// La clave del nodo en los niveles del plan: la tarjeta por el id de su nodo del grafo; la
     /// entrada (su video) por la fuente.

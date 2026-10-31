@@ -21,12 +21,10 @@ Item {
     readonly property bool hayEvento: !!ev && ev.abierto !== ""
 
     // La línea recalcula cada segundo y pide miniaturas solo si alguien la mira: esta
-    // tarjeta es una de las que miran (con su propio nombre, puede haber varias).
-    readonly property string quien: "tarjeta:" + Math.random().toString(36).slice(2)
+    // tarjeta es una de las que miran (por vista: puede haber varias).
     readonly property var mirada: [tarjeta.visible && tarjeta.hayEvento, tarjeta.visible && tarjeta.hayEvento && tarjeta.vista === 2]
-    onMiradaChanged: if (Studio.linea) Studio.linea.mirar(quien, mirada[0], mirada[1])
-    Component.onCompleted: miradaChanged()
-    Component.onDestruction: if (Studio.linea) Studio.linea.mirar(quien, false, false)
+    Suscripcion { objetivo: Studio.linea; activa: tarjeta.mirada[0] }
+    Suscripcion { objetivo: Studio.linea; que: "multipista"; activa: tarjeta.mirada[1] }
 
     AtajosLinea { activos: tarjeta.enVentana && tarjeta.mirada[0] }
 

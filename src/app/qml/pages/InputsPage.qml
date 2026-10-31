@@ -30,10 +30,9 @@ Rectangle {
             else if (que === "ndi") page.netError = error
         }
     }
-    // Miniaturas vivas solo mientras la pagina esta a la vista.
-    onVisibleChanged: inp.setActive(visible)
-    // Solo prende: si se crea oculta (en segundo plano) no apaga a la otra que comparte `inp` (Cámaras PTZ).
-    Component.onCompleted: if (visible) inp.setActive(true)
+    // Miniaturas vivas solo mientras la pagina esta a la vista (por vista: no apaga a
+    // Cámaras PTZ, que comparte `inp`).
+    Suscripcion { objetivo: page.inp; activa: page.visible }
 
     RowLayout {
         anchors { fill: parent; leftMargin: page.leftInset; margins: 20 }

@@ -440,7 +440,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, VentanillaMotor& ventanilla, QO
         const bool hay = evento_->web().value("hay").toBool();
         if (hay == publicoPorWeb_) return;
         publicoPorWeb_ = hay;
-        publico_->setActivo(hay);
+        publico_->usar(evento_.get(), hay);
     });
     connect(cuentas_.get(), &CuentasViewModel::webCambio, evento_.get(), &EventoViewModel::publicarWeb);
     // La app misma: el modo en vivo, la versión y el reinicio, los eventos, la caída de la

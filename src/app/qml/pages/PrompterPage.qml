@@ -28,9 +28,8 @@ Rectangle {
     readonly property var est: p.estado
 
     // Solo se consulta mientras esta página se ve.
-    onVisibleChanged: p.mirar(visible)
-    Component.onCompleted: { if (visible) p.mirar(true); p.refrescar() }
-    Component.onDestruction: p.mirar(false)
+    Suscripcion { objetivo: page.p; activa: page.visible }
+    Component.onCompleted: p.refrescar()
 
     function mmss(s) {
         const t = Math.max(0, Math.round(s))

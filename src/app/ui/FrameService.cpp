@@ -272,17 +272,13 @@ int anchoDe(const QString& clave) {
 }
 } // namespace
 
-void FrameService::mirarEntrada(const QString& entrada, bool mirar, bool entera) {
-    if (entrada.isEmpty()) return;
-    // 960 de ancho, como la armada: para apuntar alcanza y sobra.
-    mirarClave((entera ? "entrada-entera:" : "entrada:") + entrada, mirar);
-}
-
-void FrameService::mirarEscena(const QString& escena, bool mirar) {
-    if (escena.isEmpty()) return;
-    // Clave propia (una escena y una entrada pueden llamarse igual) y 1280 de
-    // ancho: va a un monitor entero, no a una tarjeta.
-    mirarClave("escena:" + escena, mirar);
+void FrameService::usar(QObject* vista, bool si, const QString& que) {
+    // Solo lo que una vista puede pedir (las miniaturas son de la línea, con su presupuesto).
+    // La entrada a 960 de ancho (para apuntar alcanza y sobra); la escena, con clave propia (una
+    // escena y una entrada pueden llamarse igual) y a 1280: va a un monitor entero.
+    if (!(que.startsWith("entrada:") || que.startsWith("entrada-entera:") || que.startsWith("escena:"))) return;
+    if (que.section(':', 1).isEmpty()) return;
+    vistas_.usar(vista, si, que);
 }
 
 void FrameService::mirarMiniatura(const QString& escena, bool mirar) {

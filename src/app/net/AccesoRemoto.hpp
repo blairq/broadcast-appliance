@@ -4,7 +4,7 @@
 // Capa de SERVICIO para Configuración → Acceso remoto (y la herramienta MCP
 // acceso_remoto_estado). Ver docs/planes/PINGGY.md.
 //   - Estado: GET /api/remoto de la API de control de la sala (B), cada 5 s
-//     mientras alguien mira (`siguiendo`), o a pedido. Un gateway viejo sin esa
+//     mientras alguna vista lo usa (`usar`, cuenta por vista), o a pedido. Un gateway viejo sin esa
 //     ruta (404) se muestra como «la sala no informa», sin avisos de error.
 //   - Token de túnel: SOLO en Credenciales/ cifrado («pinggy-token»). Se guarda
 //     o se borra; nunca se devuelve, ni se escribe en JSON ni en el registro.
@@ -25,6 +25,8 @@
 #include <QVariantMap>
 
 #include <nlohmann/json.hpp>
+
+#include "comun/UsoPorVistas.hpp"
 
 #include <functional>
 
@@ -49,8 +51,8 @@ class AccesoRemoto : public QObject {
     Q_PROPERTY(bool clavesIguales READ clavesIguales NOTIFY credencialesChanged)
     /// El token del túnel de Cloudflare (Configuración → Cloudflare), cifrado en Credenciales/.
     Q_PROPERTY(bool tokenCloudflareGuardado READ tokenCloudflareGuardado NOTIFY credencialesChanged)
-    /// Mientras sea true, consulta el estado cada 5 s (la vista lo prende al mostrarse).
-    Q_PROPERTY(bool siguiendo READ siguiendo WRITE setSiguiendo NOTIFY siguiendoChanged)
+    /// Mientras sea true, consulta el estado cada 5 s: alguna vista lo usa (usar).
+    Q_PROPERTY(bool siguiendo READ siguiendo NOTIFY siguiendoChanged)
     /// {estado: ""|"verificando"|"ok"|"mal"|"error", texto}
     Q_PROPERTY(QVariantMap dns READ dns NOTIFY dnsChanged)
     /// {estado: ""|"consultando"|"ok"|"error", texto}
@@ -76,8 +78,10 @@ class AccesoRemoto : public QObject {
     bool apiKeyGuardada() const;
     bool clavesIguales() const;
     bool tokenCloudflareGuardado() const;
-    bool siguiendo() const { return siguiendo_; }
-    void setSiguiendo(bool on);
+    bool siguiendo() const { return vistas_.alguien(); }
+    /// Una vista (la tarjeta de invitados, Configuración) empieza o deja de mirar el
+    /// estado: se consulta mientras haya alguna (cerrar una no le apaga a la otra).
+    Q_INVOKABLE void usar(QObject* vista, bool si) { vistas_.usar(vista, si); }
     QVariantMap dns() const { return dns_; }
     QVariantMap panel() const { return panel_; }
     QVariantMap prueba() const { return prueba_; }
@@ -152,7 +156,8 @@ class AccesoRemoto : public QObject {
     VentanillaMotor& ventanilla_;
     ConferenceClient& cli_;
     QTimer poll_;
-    bool siguiendo_ = false;
+    UsoPorVistas vistas_{this, [this](const QString&) { alCambiarSiguiendo(); }};
+    void alCambiarSiguiendo();
     QString ruta_ = "/api/remoto"; ///< la que contestó (o la primera a probar)
     QVariantMap estado_;
     QVariantList enlaces_;

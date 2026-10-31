@@ -70,9 +70,8 @@ QVariantList AudioViewModel::catalog() const {
     return out;
 }
 
-void AudioViewModel::setActive(bool on) {
-    active_ = on;
-    if (on) {
+void AudioViewModel::alCambiarVistas() {
+    if (vistas_.alguien()) {
         refresh();
         tick_.start();
     } else {

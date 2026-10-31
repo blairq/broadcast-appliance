@@ -27,6 +27,8 @@
 
 #include <nlohmann/json.hpp>
 
+#include "comun/UsoPorVistas.hpp"
+
 #include <functional>
 #include <memory>
 #include <string>
@@ -77,7 +79,7 @@ class Mezclador : public QObject {
     QVariantList nivelesEntradas() const { return nivelesE_; }
     QVariantList nivelesSalidas() const { return nivelesS_; }
     QVariantMap loudness() const { return loudness_; }
-    bool activo() const { return !usuarios_.isEmpty(); }
+    bool activo() const { return usos_.alguien(); }
 
     /// Una vista (la ventana, la tarjeta) empieza o deja de usarlo. Mientras haya
     /// alguna, mide a 30 Hz; si se destruye sin avisar, se la saca sola.
@@ -131,7 +133,7 @@ class Mezclador : public QObject {
     QString pestana_ = "consola";
     bool matrizAbierta_ = false;
     QTimer timer_;
-    QSet<QObject*> usuarios_;
+    UsoPorVistas usos_;
     QStringList entradas_;
     QVariantList salidas_;
     std::vector<std::string> idSalidas_; ///< el id de cada salida (orden de salidas_)

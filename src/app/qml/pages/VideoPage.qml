@@ -42,28 +42,10 @@ Rectangle {
     }
 
     // La imagen en vivo de la entrada elegida (con su grafo), solo mientras se ve.
-    property string mirando: ""
-    function mirar() {
-        const quiero = page.visible && page.vg ? page.vg.entrada : ""
-        if (quiero === page.mirando) return
-        if (page.mirando !== "") Studio.frames.mirarEntrada(page.mirando, false)
-        if (quiero !== "") Studio.frames.mirarEntrada(quiero, true)
-        page.mirando = quiero
-    }
+    readonly property string entradaVista: page.vg ? page.vg.entrada : ""
+    Suscripcion { objetivo: Studio.frames; que: "entrada:" + page.entradaVista; activa: page.visible && page.entradaVista !== "" }
     // El plan de resolución (los colores de alarma) se recalcula mientras alguna vista lo mira.
-    property bool mirandoRes: false
-    function mirarRes() {
-        if (!Studio.resolucion || page.visible === page.mirandoRes) return
-        Studio.resolucion.mirar(page.visible)
-        page.mirandoRes = page.visible
-    }
-    onVisibleChanged: { mirar(); mirarRes() }
-    Connections { target: page.vg; function onCambio() { page.mirar() } }
-    Component.onCompleted: { mirar(); mirarRes() }
-    Component.onDestruction: {
-        if (page.mirando !== "") Studio.frames.mirarEntrada(page.mirando, false)
-        if (page.mirandoRes && Studio.resolucion) Studio.resolucion.mirar(false)
-    }
+    Suscripcion { objetivo: Studio.resolucion; activa: page.visible }
 
     function colorDe(tipo) {
         if (tipo === "entrada" || tipo === "escena") return "#64748b"

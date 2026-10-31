@@ -101,10 +101,12 @@ Item {
             required property int index
             readonly property rect r: wall.rectFor(index)
             x: r.x; y: r.y; width: r.width; height: r.height
-            // Una entrada manda cuadros solo si alguien la mira (FrameService::mirarEntrada).
-            readonly property string entrada: modelData.startsWith("entrada:") ? modelData.slice(8) : ""
-            Component.onCompleted: if (entrada !== "") Studio.frames.mirarEntrada(entrada, true)
-            Component.onDestruction: if (entrada !== "") Studio.frames.mirarEntrada(entrada, false)
+            // Una entrada o una escena que no está al aire manda cuadros solo si alguien la
+            // mira (FrameService::usar): este cuadro la pide mientras existe.
+            Suscripcion {
+                objetivo: Studio.frames; que: modelData
+                activa: modelData.startsWith("entrada:") || modelData.startsWith("escena:")
+            }
             z: (wall.layout === "pip" && index > 0) ? 1 : 0
             // Transicion suave al cambiar la distribucion.
             Behavior on x { NumberAnimation { duration: 260; easing.type: Easing.OutCubic } }
