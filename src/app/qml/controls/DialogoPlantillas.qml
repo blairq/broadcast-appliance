@@ -137,7 +137,7 @@ Dialog {
             ComboBox {
                 id: nuevaEsc
                 Layout.preferredWidth: 220
-                model: [{ titulo: qsTr("Sin tipo"), id: "" }].concat(Studio.evento ? Studio.evento.escenarios() : [])
+                model: [{ titulo: qsTr("Sin tipo"), id: "" }].concat(Studio.evento ? Studio.evento.escenarios : [])
                 textRole: "titulo"
                 valueRole: "id"
                 ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: qsTr("El tipo de evento (su guía, para el asistente)")

@@ -52,7 +52,6 @@ DEUDA = {
     "app/plugins/Plugins.cpp": 1,
     "app/registro/Totems.cpp": 1,
     "app/sala/ListaPrompters.cpp": 1,
-    "app/ui/EventoViewModel.cpp": 2,
     "app/video/SuperRes.cpp": 5,
     "core/diag/DiagExport.cpp": 1,
     "core/fault/FaultInjector.cpp": 1,
