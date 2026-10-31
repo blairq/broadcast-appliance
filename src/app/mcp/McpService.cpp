@@ -939,6 +939,8 @@ void McpService::registerTools() {
             "`en_vivo`: si sale algo de verdad (transmisión o grabación): es LO que dice si estás en vivo; "
             "el guion del evento corriendo sin transmitir no lo es. `salidas`: cada salida del aparato con su escena, "
             "su armada, si transmite o graba y su negro/placa (los campos de arriba son los de la por omisión). "
+            "`disco`: para cuántas horas alcanza el disco al bitrate de todo lo que se graba (grabación, copia e ISO de "
+            "todas las salidas, por disco) y si alguna copia va al mismo disco que su grabación. "
             "Buen primer llamado.");
         t.run = [&rt, &vm](const json&, Done done) {
             const EngineStatus st = rt.engine().status();
@@ -980,6 +982,7 @@ void McpService::registerTools() {
                      {"lastError", st.lastError},
                      {"latido", rt.latido().estado()},
                      {"salidas", resumenSalidas(rt, vm)},
+                     {"disco", rt.discoGrabacion()},
                      {"room", room}}));
         };
         core_.addTool(std::move(t));
@@ -3467,8 +3470,10 @@ void McpService::registerTools() {
         t.title = ba::i18n::traducir("mcp", "Disco de la grabacion");
         t.category = "salidas";
         t.readOnly = true;
-        t.description = ba::i18n::traducir("mcp", "Cuanto disco queda en la carpeta de grabacion y para cuantas horas alcanza al bitrate "
-                        "configurado; y el estado del ultimo pase a MP4 (remux).");
+        t.description = ba::i18n::traducir("mcp", "Cuanto disco queda y para cuantas horas alcanza al bitrate de todo lo que se graba "
+                        "(grabación, copia, señal limpia e ISO de todas las salidas, repartido por disco: manda el que antes "
+                        "se llena; sin grabar, lo que sumaría arrancar la grabación); si alguna copia va al mismo disco que su "
+                        "grabación (`copia_mismo_volumen`, `mismo_volumen`); y el estado del ultimo pase a MP4 (remux).");
         t.run = [&rt](const json&, Done done) {
             done(ToolResult().data(json{{"disco", rt.discoGrabacion()}, {"remux", rt.engine().remuxEstado()},
                                         {"apuros", rt.engine().discoEstado()}}));

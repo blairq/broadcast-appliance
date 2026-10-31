@@ -24,6 +24,7 @@
 #include "diag/SalidaAsincrona.hpp"
 #include "i18n/I18n.hpp"
 #include "platform/Paths.hpp"
+#include "platform/Volumen.hpp"
 #include "ipc/HealthBlock.hpp" // nowQpc() para los timestamps del IPC
 
 #include <algorithm>
@@ -37,11 +38,8 @@
 #include <string>
 #include <string_view>
 #include <thread>
+#include <tuple>
 #include <vector>
-
-#if !defined(_WIN32)
-#include <sys/stat.h>
-#endif
 
 namespace ba::app {
 
@@ -1389,7 +1387,10 @@ void BroadcastEngine::publicarFotoSalidas() {
                        {"bytes", r.grab ? r.grab->estado().value("bytes", std::uint64_t{0}) : std::uint64_t{0}},
                        {"pausada", r.grab && r.grab->pausada()}});
     f["individuales"] = std::move(ind);
+    medirDiscoRestante();
     f["disco"] = {{"apuros", discoApuros_},
+                  {"restante", discoRestante_},
+                  {"mismo_volumen", mismoVolumen_},
                   {"atraso_s", atrasoDisco_},
                   {"registro_trabado_ms", registroTrabadoMs_},
                   {"prioridad", prioridad_},
@@ -1638,6 +1639,23 @@ bool BroadcastEngine::startRecording(const RecordConfig& rec, const EncoderConfi
     return true;
 }
 
+namespace {
+/// Los bitrates de la grabación del programa: «archivo» graba al triple que la transmisión.
+std::pair<int, int> kbpsVideoAudio(const RecordConfig& rec, const EncoderConfig& enc) {
+    const bool archivo = rec.calidad == "archivo";
+    return {archivo ? enc.videoBitrateKbps * 3 : enc.videoBitrateKbps, std::max(enc.audioBitrateKbps, archivo ? 256 : 160)};
+}
+} // namespace
+
+int BroadcastEngine::kbpsGrabacion(const RecordConfig& rec, const EncoderConfig& enc, bool porOmision) {
+    const auto [video, audio] = kbpsVideoAudio(rec, enc);
+    // Las pistas 2-6 (solo la por omisión las graba) suman su audio.
+    std::set<int> pistas;
+    for (int p : rec.pistas)
+        if (porOmision && p >= 2 && p <= 6) pistas.insert(p);
+    return video + audio * static_cast<int>(1 + pistas.size());
+}
+
 std::string BroadcastEngine::startRecordingYa(Salida& s, const RecordConfig& rec, const EncoderConfig& enc,
                                               const std::vector<int>& pistas, const std::string& nombre) {
     if (s.rec && s.rec->grabando()) return {};
@@ -1645,8 +1663,7 @@ std::string BroadcastEngine::startRecordingYa(Salida& s, const RecordConfig& rec
     c.carpeta = rec.directory;
     c.nombre = nombre;
     c.tramoSeg = ajustes::entero("record.tramoMin", 0) * 60; // 0: un archivo por grabación; el MKV ya aguanta un corte
-    c.kbps = rec.calidad == "archivo" ? enc.videoBitrateKbps * 3 : enc.videoBitrateKbps;
-    c.kbpsAudio = std::max(enc.audioBitrateKbps, rec.calidad == "archivo" ? 256 : 160);
+    std::tie(c.kbps, c.kbpsAudio) = kbpsVideoAudio(rec, enc);
     c.gopSeg = std::max(1, enc.keyintSec);
     c.fps = std::max(1, video_.fpsNum / std::max(1, video_.fpsDen));
     c.codificadores = videoEncoderCandidates(enc);
@@ -1660,6 +1677,7 @@ std::string BroadcastEngine::startRecordingYa(Salida& s, const RecordConfig& rec
         return ba::i18n::llenar(ba::i18n::traducir("emision", "no se pudo iniciar la grabación: %1"), {e});
     }
     s.rec = std::move(g);
+    s.kbpsRec = kbpsGrabacion(rec, enc, s.porOmision());
     s.recordPath = (std::filesystem::path(rec.directory) / (c.nombre + "-00000.mkv")).string();
     // La copia en otro disco: otro encode igual (si no arranca, la principal sigue).
     s.recordCopyPath.clear();
@@ -1887,28 +1905,6 @@ void BroadcastEngine::ticSalidas() {
 // --- El disco en apuros ---------------------------------------------------------------------
 
 namespace {
-/// ¿Las dos carpetas están en el mismo disco? (Si no se sabe: sí, para no dejar de cuidarlo.)
-bool mismoDisco(const std::string& a, const std::string& b) {
-    namespace fs = std::filesystem;
-#if defined(_WIN32)
-    auto raiz = [](const std::string& p) {
-        std::string r = fs::path(p).root_name().string();
-        for (char& c : r) c = static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
-        return r;
-    };
-    return raiz(a) == raiz(b);
-#else
-    auto disp = [](fs::path p) -> long long {
-        std::error_code ec;
-        while (!p.empty() && !fs::exists(p, ec)) p = p.parent_path();
-        struct stat st {};
-        return ::stat(p.string().c_str(), &st) == 0 ? static_cast<long long>(st.st_dev) : -1;
-    };
-    const long long da = disp(a), db = disp(b);
-    return da < 0 || db < 0 || da == db;
-#endif
-}
-
 // Umbrales: entra en apuros con 3 s esperando al disco (o el registro trabado
 // 3 s escribiendo); sale con todo al día durante 30 s. Los dos primeros se
 // ajustan en Configuración → Grabación (ponerUmbralesDisco).
@@ -1916,6 +1912,35 @@ std::atomic<double> kAtrasoApurosS{3.0};
 std::atomic<std::int64_t> kRegistroTrabadoMs{3000}, kBienDuranteMs{30000};
 constexpr double kAtrasoBienS = 0.5;
 } // namespace
+
+void BroadcastEngine::medirDiscoRestante() {
+    const std::int64_t ahora = ahoraMs();
+    if (discoRestanteMs_ != 0 && ahora - discoRestanteMs_ < 5000) return;
+    discoRestanteMs_ = ahora;
+    namespace fs = std::filesystem;
+    using ba::i18n::traducir;
+    // Todo lo que escribe ahora, de todas las salidas: cada disco reparte su espacio
+    // libre entre lo que va a él (la copia en el mismo disco lo gasta el doble de rápido).
+    std::vector<ba::platform::EscrituraDisco> e;
+    json mismo = json::array();
+    for (const auto& s : lasSalidas()) {
+        const std::string de = s->porOmision() ? std::string() : " (" + s->id + ")";
+        const bool graba = s->rec && s->rec->grabando(), copia = s->recCopia && s->recCopia->grabando();
+        const fs::path dirRec = fs::path(s->recordPath).parent_path(), dirCopia = fs::path(s->recordCopyPath).parent_path();
+        if (graba) e.push_back({traducir("emision", "grabación") + de, dirRec, static_cast<double>(s->kbpsRec)});
+        if (copia) e.push_back({traducir("emision", "copia de la grabación") + de, dirCopia, static_cast<double>(s->kbpsRec)});
+        // Las dos en el mismo disco: si el disco falla o se llena, se pierden las dos.
+        if (graba && copia && ba::platform::mismoVolumen(dirRec, dirCopia))
+            mismo.push_back({{"salida", s->id}, {"grabacion", dirRec.string()}, {"copia", dirCopia.string()}});
+        if (s->clean && s->clean->grab && s->clean->grab->grabando())
+            e.push_back({traducir("emision", "señal limpia a disco") + de, fs::path(s->clean->path).parent_path(), static_cast<double>(s->clean->kbps)});
+    }
+    for (const auto& [n, r] : sourceRecs_)
+        if (r.grab && r.grab->grabando())
+            e.push_back({ba::i18n::llenar(traducir("emision", "ISO %1"), {n}), fs::path(r.path).parent_path(), static_cast<double>(r.kbps)});
+    discoRestante_ = ba::platform::aJson(ba::platform::discoRestante(e));
+    mismoVolumen_ = std::move(mismo);
+}
 
 void BroadcastEngine::ponerUmbralesDisco(double apurosS, int recuperadoS) {
     kAtrasoApurosS = std::clamp(apurosS, 0.5, 60.0);
@@ -1981,7 +2006,7 @@ void BroadcastEngine::aplicarPrioridad(bool si, bool automatica) {
         }
         // La copia, solo si va al mismo disco (en otro no molesta, y es el respaldo).
         const std::string dirProg = s->recordPath.empty() ? std::string() : std::filesystem::path(s->recordPath).parent_path().string();
-        if (s->recCopia && (!si || dirProg.empty() || mismoDisco(dirProg, std::filesystem::path(s->recordCopyPath).parent_path().string())))
+        if (s->recCopia && (!si || dirProg.empty() || ba::platform::mismoVolumen(dirProg, std::filesystem::path(s->recordCopyPath).parent_path())))
             pausar(s->recCopia.get(), ba::i18n::traducir("emision", "copia de la grabación") + de);
         if (s->clean && s->clean->grab) pausar(s->clean->grab.get(), ba::i18n::traducir("emision", "señal limpia a disco") + de);
     }
@@ -2165,6 +2190,7 @@ std::string BroadcastEngine::startSourceRecordingYa(const std::string& source, c
         return ba::i18n::llenar(ba::i18n::traducir("emision", "no arrancó la grabación de \"%1\": %2"), {source, err});
     }
     r.path = (std::filesystem::path(dir) / (c.nombre + "-00000.mkv")).string();
+    r.kbps = c.kbps + c.kbpsAudio;
     if (prioridad_) r.grab->pausar(true); // el disco es del programa: arranca en pausa
     sourceRecs_[source] = std::move(r);
     return {};
@@ -2259,6 +2285,7 @@ std::string BroadcastEngine::startCleanFeedYa(Salida& s, const std::string& dest
         if (!e.empty()) return fallo(e);
         r->path = (std::filesystem::path(dir) / (c.nombre + "-00000.mkv")).string();
         r->destino = r->path;
+        r->kbps = c.kbps + c.kbpsAudio;
     }
     s.clean = std::move(r);
     return {};

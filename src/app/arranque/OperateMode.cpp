@@ -48,6 +48,7 @@
 #include "platform/LocalSocket.hpp"
 #include "platform/Paths.hpp"
 #include "platform/Process.hpp"
+#include "platform/Volumen.hpp"
 #include "security/CredentialStore.hpp"
 
 #include <nlohmann/json.hpp>
@@ -68,8 +69,9 @@ namespace {
 
 namespace fs = std::filesystem;
 
-constexpr std::size_t kHealthSlot = 1; // A (spec §4.4; B es 0)
-constexpr std::uint32_t kProcessVersion = 2;
+// El slot y la versión, los de ba_core: el launcher readopta solo a una A de su misma versión.
+constexpr std::size_t kHealthSlot = ba::ipc::kSlotSaludApp;
+constexpr std::uint32_t kProcessVersion = ba::ipc::kVersionProceso;
 constexpr int kTickMs = 100;
 
 std::atomic<bool> g_stop{false};
@@ -484,7 +486,7 @@ int AppRuntime::start() {
     // --- Salud: A late en su slot para el watchdog del launcher. Sin launcher
     // (desarrollo) se crea el bloque para poder correr solo.
     if (!ba::ipc::HealthBlock::open(ba::ipc::HealthBlock::kName, health_).ok) {
-        ba::ipc::HealthBlock::create(ba::ipc::HealthBlock::kName, kHealthSlot + 1, health_);
+        ba::ipc::HealthBlock::create(ba::ipc::HealthBlock::kName, ba::ipc::kSlotsSalud, health_);
     }
     if (health_.valid()) {
         health_.setIdentity(kHealthSlot, currentPid(), kProcessVersion);
@@ -1302,11 +1304,34 @@ std::string AppRuntime::iniciarDestino(const std::string& id) {
 nlohmann::json AppRuntime::discoGrabacion() const {
     std::error_code ec;
     fs::create_directories(cfg_.rec.directory, ec);
-    const auto info = fs::space(cfg_.rec.directory, ec);
-    const double gb = ec ? -1.0 : static_cast<double>(info.available) / 1e9;
-    const int kbps = cfg_.encoder.videoBitrateKbps + cfg_.encoder.audioBitrateKbps;
-    const double horas = gb >= 0 && kbps > 0 ? gb / (kbps * 1.05 * 3600.0 / 8.0 / 1e6) : -1.0;
-    return {{"libre_gb", gb}, {"horas", horas}, {"kbps", kbps}, {"carpeta", cfg_.rec.directory}};
+    // Lo que ya escribe el motor (todas las salidas: grabación, copia, señal limpia, ISO)
+    // y, si la de la por omisión no graba, lo que sumaría al arrancarla (con su copia):
+    // el disco se reparte entre todo lo que va a él.
+    const nlohmann::json estado = engine_.discoEstado();
+    std::vector<ba::platform::EscrituraDisco> e;
+    for (const nlohmann::json& v : estado.value("restante", nlohmann::json::object()).value("volumenes", nlohmann::json::array())) {
+        std::string que;
+        for (const nlohmann::json& q : v.value("que", nlohmann::json::array())) que += (que.empty() ? "" : ", ") + q.get<std::string>();
+        e.push_back({que, v.value("carpeta", std::string()), v.value("kbps", 0.0)});
+    }
+    const int kbps = BroadcastEngine::kbpsGrabacion(cfg_.rec, cfg_.encoder);
+    const bool graba = engine_.grabacionEstado().value("activa", false);
+    if (!graba) {
+        e.push_back({ba::i18n::traducir("emision", "grabación"), cfg_.rec.directory, static_cast<double>(kbps)});
+        if (!cfg_.rec.copiaDir.empty())
+            e.push_back({ba::i18n::traducir("emision", "copia de la grabación"), cfg_.rec.copiaDir, static_cast<double>(kbps)});
+    }
+    nlohmann::json d = ba::platform::aJson(ba::platform::discoRestante(e));
+    d["carpeta"] = cfg_.rec.directory;
+    d["kbps_grabacion"] = kbps;
+    // La copia en el mismo disco que la grabación no es una copia: lo que graba ahora
+    // (el motor lo mide) o, sin grabar, lo que está configurado.
+    nlohmann::json mismo = estado.value("mismo_volumen", nlohmann::json::array());
+    if (!graba && !cfg_.rec.copiaDir.empty() && ba::platform::mismoVolumen(cfg_.rec.directory, cfg_.rec.copiaDir))
+        mismo.push_back({{"salida", std::string(BroadcastEngine::kSalidaPorOmision)}, {"grabacion", cfg_.rec.directory}, {"copia", cfg_.rec.copiaDir}});
+    d["copia_mismo_volumen"] = !mismo.empty();
+    d["mismo_volumen"] = std::move(mismo);
+    return d;
 }
 
 void AppRuntime::detenerDestino(const std::string& id) {

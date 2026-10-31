@@ -277,7 +277,7 @@ de la configuración (ver Apéndice A).
 |---|---|---|
 | principal | latido 250 ms, `room.tick`, `reapViewers`, uso de CPU | `src/gateway/main.cpp:1310-1347` |
 | `acceptThread_` + `adminAcceptThread_` + control LAN + puerta HTTP + túnel | `accept()` por escucha | `src/gateway/SignalingServer.cpp:272`, `333`, `349`, `362`, `378` |
-| uno por conexión HTTP/WS | desprendido; incluye el SSE de la app | `SignalingServer.cpp:801-806`; tope `ajustes:room.maxConexiones`=64 (`SignalingServer.hpp:604`) |
+| uno por conexión HTTP/WS | desprendido; incluye el SSE de la app | `SignalingServer.cpp` (`acceptLoop`); cupo por escucha `ajustes:room.maxConexiones`=256, por IP `room.maxConexionesPorIp`=32, API de control `room.maxConexionesAdmin`=32 + la app siempre (F0-07) |
 | `statsThread_` | cada 2 s: estadísticas WebRTC, direcciones, quién mira el programa | `SignalingServer.cpp:274-296` |
 | libwebrtc: `network`, `worker`, `signaling` | hilos de libwebrtc | `src/gateway/Webrtc.cpp:1106-1108` |
 | `PullAdm` | cada 10 ms tira del audio recibido (NetEq) | `Webrtc.cpp:171-236` |
@@ -619,7 +619,7 @@ Propiedades que se ponen si existen: `bitrate` (kbps), intervalo de clave
 
 | Salida | Cadena | Colas | Latencia del pipeline | Dónde |
 |---|---|---|---|---|
-| Grabación | `intersrc video ! valve ! queue leaky=downstream max-size-time=3 s ! a NV12 ! codificador ! h264parse ! queue colchón ! splitmuxsink (matroskamux)`; cada pista: `intersrc bus ! valve ! queue leaky 3 s ! audioconvert ! avenc_aac ! aacparse ! queue colchón` | cola cruda 3 s (`ajustes:record.colaEncoderS`); colchón comprimido `colchonSeg` (app: 60 s, mín. 5; motor: 30 s) y 512 MB (`ajustes:record.colchonMB`) | máx(lat. video, lat. audio) + 300 ms (`ajustes:salidas.margenMs`) | `Salidas.cpp:330-456`; `BroadcastEngine.cpp:1641-1703` |
+| Grabación | `intersrc video ! valve ! queue leaky=downstream max-size-time=1 s ! a NV12 ! codificador ! h264parse ! queue colchón ! splitmuxsink (matroskamux)`; cada pista: `intersrc bus ! valve ! queue leaky 1 s ! audioconvert ! avenc_aac ! aacparse ! queue colchón` | cola cruda 1 s (`ajustes:record.colaEncoderS`; antes 3 s, F0-10); colchón comprimido `colchonSeg` (app: 60 s, mín. 5; motor: 30 s) y 512 MB (`ajustes:record.colchonMB`) | máx(lat. video, lat. audio) + 300 ms (`ajustes:salidas.margenMs`) | `Salidas.cpp:330-456`; `BroadcastEngine.cpp:1641-1703` |
 | Copia de la grabación | **segundo codificador** con las mismas fuentes, en otra carpeta | ídem | ídem | `BroadcastEngine.cpp:1664-1676` |
 | Transmisión RTMP | `flvmux streamable=true ! rtmp2sink async-connect=true` | video: `queue leaky=downstream max-size-time=1000 ms` (`ajustes:stream.colaMs`); audio: `queue max-size-time=1000 ms` (sin leaky) | ídem | `Salidas.cpp:596-675` |
 | Transmisión SRT | `mpegtsmux alignment=7 ! srtsink wait-for-connection=false` | ídem | ídem | `Salidas.cpp:607-612` |
@@ -1226,7 +1226,7 @@ de tiempos, colas y reintentos:
 | `stream.colaMs` | 1000 ms | `Salidas.cpp:617`, `621` |
 | `stream.cierreMs` | 2000 ms | `Salidas.cpp:727` |
 | `stream.sinDatosS` | 2 s | `Salidas.cpp:741` |
-| `record.colaEncoderS` | 3 s | `Salidas.cpp:351` |
+| `record.colaEncoderS` | 1 s (antes 3, F0-10) | `Salidas.cpp:351` |
 | `record.colchonMB` | 512 MB | `Salidas.cpp:348` |
 | `record.tramoMin` | 0 (un archivo) | `BroadcastEngine.cpp:1647` |
 | `record.replayTramoS` / `record.replayJuntarS` | 2 s / 120 s | `Salidas.cpp:285`, `230` |
@@ -1234,7 +1234,8 @@ de tiempos, colas y reintentos:
 | `supervisor.sinAvanceMs` / `supervisor.uiTrabadaMs` | 1000 / 2000 ms | `LatidoAire.cpp:83`, `87` |
 | `launcher.*` | ver 1.3 | `Supervisor.cpp:52-77` |
 | `procesador.prioridad` / `procesador.mediosJuntos` | sí / sí | `Prioridad.cpp:321`, `333` |
-| `room.maxConexiones` / `room.handshakeMs` | 64 / 15000 ms | `src/gateway/SignalingServer.hpp:604-605` |
+| `room.maxConexiones` (por escucha) / `room.maxConexionesPorIp` / `room.maxConexionesAdmin` | 256 / 32 / 32 | `src/gateway/SignalingServer.hpp` (`cupoDe`, F0-07) |
+| `room.handshakeMs` / `room.cabeceraMs` | 15000 / 5000 ms | `src/gateway/SignalingServer.hpp` |
 | `room.maxVisores` | 48 | `src/gateway/Webrtc.hpp:253` |
 | `room.visorCaidoS` / `room.visorNoConectaS` | 10 / 20 s | `Webrtc.cpp:1350-1351` |
 | `room.reconexionMaxS` / `room.salaMuertaS` | 15 / 40 s | `src/app/ui/ConferenceClient.cpp:21-22` |

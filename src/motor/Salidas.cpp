@@ -346,14 +346,17 @@ std::string Grabacion::iniciar(const Fuentes& f) {
     // comprimido (lo que aguanta un disco trabado) ! mux.
     const std::string colchon = " max-size-time=" + std::to_string(static_cast<guint64>(std::max(1, cfg_.colchonSeg)) * GST_SECOND) +
                                 " max-size-buffers=0 max-size-bytes=" + std::to_string(static_cast<guint64>(ajustes::entero("record.colchonMB", 512)) << 20) + " ";
+    // La cola cruda (antes del codificador) es corta: 1 s de cuadros sin comprimir ya
+    // cubre un tropiezo del codificador, y cada segundo más son ~100 MB de RAM/VRAM por
+    // grabación. Lo que aguanta un disco trabado es el colchón comprimido de después.
+    const std::string colaCruda = " max-size-time=" + std::to_string(ajustes::sANs("record.colaEncoderS", 1)) + " max-size-buffers=0 max-size-bytes=0 ! ";
     if (!f.video.empty())
         d += "intersrc producer-name=" + entreComillas(f.video) +
-             " ! valve name=pausa_v ! queue name=cv leaky=downstream max-size-time=" + std::to_string(ajustes::sANs("record.colaEncoderS", 3)) + " max-size-buffers=0 max-size-bytes=0 ! " +
+             " ! valve name=pausa_v ! queue name=cv leaky=downstream" + colaCruda +
              aCodificador(elegirCodificador(cfg_.codificadores)) + " ! identity name=antes_cod ";
     for (std::size_t i = 0; i < f.audios.size(); ++i)
         d += "intersrc producer-name=" + entreComillas(f.audios[i]) + " ! valve name=pausa_a" + std::to_string(i) +
-             " ! queue leaky=downstream max-size-time=" + std::to_string(ajustes::sANs("record.colaEncoderS", 3)) + " max-size-buffers=0 max-size-bytes=0 ! audioconvert ! "
-             "avenc_aac bitrate=" + std::to_string(std::max(64, cfg_.kbpsAudio) * 1000) + " ! aacparse ! queue name=colchon_a" +
+             " ! queue leaky=downstream" + colaCruda + "audioconvert ! avenc_aac bitrate=" + std::to_string(std::max(64, cfg_.kbpsAudio) * 1000) + " ! aacparse ! queue name=colchon_a" +
              std::to_string(i) + colchon + "! mux.audio_" + std::to_string(i) + " ";
     GError* e = nullptr;
     GstElement* p = gst_parse_launch(d.c_str(), &e);

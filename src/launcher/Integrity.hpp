@@ -77,6 +77,12 @@ class Integrity {
     /// Escribe el caché de la última verificación correcta (al cierre ordenado).
     static void guardarCache(const std::filesystem::path& cachePath);
 
+    /// Dónde vive el caché en la carpeta de DATOS (nunca adentro de la .app): lo
+    /// usan el supervisor y el actualizador, que lo deja hecho tras instalar.
+    static std::filesystem::path cacheEn(const std::filesystem::path& datos) {
+        return datos / "Cache" / "integridad.txt";
+    }
+
     /// Verifica un solo archivo contra un hash esperado (hex, 64 chars).
     ///
     /// :param path: ruta del archivo.

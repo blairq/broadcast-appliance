@@ -328,9 +328,14 @@ class SignalingServer {
 
    private:
     // --- Conexiones ---------------------------------------------------------
-    /// `externo`: la escucha del tunel (ver el header): toda conexion es de afuera.
-    void acceptLoop(long long listenFd, bool admin, bool externo = false, bool soloControl = false);
-    void handleConnection(long long fd, std::uint32_t clientIp, bool admin, bool externo, bool soloControl);
+    /// Por qué puerta entró una conexión (ver 1, 1b, 1c y 2 en el header). Cada una
+    /// tiene su cupo: una inundación por el túnel llena el del túnel y nada más.
+    enum class Escucha : int { Invitados = 0, Admin, Tunel, Puerta, PuertaHttp, Cantidad };
+    void acceptLoop(long long listenFd, Escucha escucha);
+    /// `ipCupo`: la IP que ya ocupa un lugar en `porIp_` (0: ninguna todavía).
+    /// `sobrecupo`: entró a la API de control con su cupo lleno (ver acceptLoop).
+    void handleConnection(long long fd, std::uint32_t clientIp, Escucha escucha, std::uint32_t ipCupo,
+                          bool sobrecupo);
     void trackFd(long long fd);
     void untrackFd(long long fd);
     void closeActiveConns();
@@ -600,9 +605,39 @@ class SignalingServer {
     std::thread adminAcceptThread_;
     std::thread tunnelAcceptThread_;
 
-    std::atomic<int> activeConns_{0};
-    static int kMaxConcurrentConns() { return ba::ajustes::entero("room.maxConexiones", 64); }
+    // Cupos (docs/arquitectura/04-plan-unificado.md, F0-07). Un hilo por conexión
+    // hace que cada conexión abierta cueste; antes un solo tope para las cinco
+    // escuchas dejaba que mil conexiones lentas por el túnel dejaran sin lugar a la
+    // app y a la red local («sala muerta»). Ahora:
+    //   - cada escucha externa tiene el suyo (`room.maxConexiones`, cada una);
+    //   - cada IP de afuera, el suyo (`room.maxConexionesPorIp`), sumando todas las
+    //     escuchas: la real, la de PROXY v1 o X-Forwarded-For si llega por un proceso
+    //     local. Lo que llega por loopback sin decir de quién es (cloudflared, el
+    //     propio aparato) no tiene IP que limitar: lo acota el cupo de su escucha;
+    //   - la API de control tiene lugares propios (`room.maxConexionesAdmin`) que
+    //     nada de afuera puede usar, y con esos llenos igual entra quien trae el
+    //     token: la conexión de la app nunca se rechaza;
+    //   - la cabecera de lo que no es la API de control tiene un plazo TOTAL corto
+    //     (`room.cabeceraMs`), no por recv: un byte cada tanto ya no la retiene.
+    std::atomic<int> activeConns_{0}; ///< todas (stop() espera a que lleguen a 0)
+    std::atomic<int> porEscucha_[static_cast<int>(Escucha::Cantidad)] = {};
+    std::map<std::uint32_t, int> porIp_;
+    std::mutex porIpLock_;
+    /// Ocupa un lugar de esa IP. false si ya tiene todos los suyos.
+    bool tomarIp(std::uint32_t ip);
+    void soltarIp(std::uint32_t ip);
+    /// Un rechazo por cupo al registro, a lo sumo uno cada 10 s por escucha (con la
+    /// cuenta de los callados): una inundación no tiene que inundar también el log.
+    void avisarRechazo(Escucha escucha, bool porIp);
+    std::atomic<std::int64_t> ultimoAviso_[static_cast<int>(Escucha::Cantidad)] = {};
+    std::atomic<int> rechazosCallados_[static_cast<int>(Escucha::Cantidad)] = {};
+    static int cupoDe(Escucha e) {
+        return e == Escucha::Admin ? ba::ajustes::entero("room.maxConexionesAdmin", 32)
+                                   : ba::ajustes::entero("room.maxConexiones", 256);
+    }
+    static int kMaxPorIp() { return ba::ajustes::entero("room.maxConexionesPorIp", 32); }
     static int kHandshakeTimeoutMs() { return ba::ajustes::entero("room.handshakeMs", 15000); }
+    static int kCabeceraMs() { return ba::ajustes::entero("room.cabeceraMs", 5000); }
     std::set<long long> activeFds_;
     std::mutex activeFdsLock_;
 

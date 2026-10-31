@@ -26,7 +26,9 @@
 //                 que coincide: flujo ("*" o el nombre), contains | palabras |
 //                 regex (sin distinguir mayúsculas ni tildes)
 //   stream_health droppedPct (2), windowSec (30); y corte de la transmision
-//   disk          minGb (5) (solo grabando)
+//   disk          minGb (5) | minMinutos (las horas que quedan al bitrate de TODO lo que
+//                 se graba, por disco), siempre; y que la copia de una grabación va al
+//                 mismo disco que ella (mismoVolumen, true)
 //   program_black forSec (3), umbral (16 de 255), onlyWhenLive (true)
 //   program_frozen forSec (30), onlyWhenLive (true)
 //   record_down   forSec (5): la grabación se cortó sin que nadie la parara
@@ -75,7 +77,6 @@ struct AlertInputs {
         /// por su cuenta; lo que no hace es avisar cuando lleva un rato sin
         /// lograrlo, que es justo el momento en el que hay que hacer algo.
         bool reconnecting = false;
-        int kbps = 0; ///< bitrate de video configurado (para los minutos de disco)
         bool grabacionPedida = false; ///< alguien la puso a grabar (y no la paró): si no graba, se cortó sola
     };
     std::function<std::vector<Audio>()> audio;
@@ -85,7 +86,8 @@ struct AlertInputs {
     std::function<json()> roomChat;            ///< chat de la sala: [{uid, fromId, fromName, to, text, mine}]
     std::function<std::vector<json>()> textos; ///< salidas de texto: {key, flujo, texto, origen}
     std::function<Status()> status;
-    std::function<double()> diskFreeGb;  ///< -1 = desconocido
+    /// El disco (AppRuntime::discoGrabacion): {libre_gb, horas (-1 = no se sabe), mismo_volumen[{salida, grabacion, copia}]}.
+    std::function<json()> disco;
     /// Las entradas de video y si tienen señal ({nombre, con_senal}).
     std::function<std::vector<std::pair<std::string, bool>>()> senales;
     /// El loudness de lo que sale ({i, tp_reciente, objetivo{lufs, tp}}).

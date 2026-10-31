@@ -12,7 +12,9 @@
 
 #include "Integrity.hpp"
 #include "i18n/I18n.hpp"
+#include "ipc/HealthBlock.hpp"
 #include "Log.hpp"
+#include "Politica.hpp"
 #include "platform/SingleInstance.hpp"
 
 namespace ba::launcher {
@@ -160,6 +162,22 @@ UpdateResult runUpdate(const UpdateOptions& opt) {
         }
         std::this_thread::sleep_for(std::chrono::milliseconds(250));
     }
+    const fs::path datos = opt.datos.empty() ? root : opt.datos;
+
+    // 1b) Sin aire. El launcher cerrado no alcanza: si se cayó, A y B siguen vivos
+    //     (los readopta el próximo) y pueden estar transmitiendo o grabando. Cambiar
+    //     los binarios ahí deja la emisión en manos de una versión que el launcher
+    //     nuevo va a querer reemplazar: se pospone hasta que terminen.
+    {
+        ba::ipc::HealthBlock salud;
+        ba::ipc::HealthBlock::open(opt.salud.c_str(), salud); // si no existe, no hay nadie vivo
+        if (hayAire(salud, datos / "Runtime")) {
+            r.message = traducir("actualizacion", "Hay salidas al aire (transmitiendo o grabando): no se reemplaza el "
+                                                  "programa. Se puede actualizar cuando terminen.");
+            r.pospuesta = true;
+            return r;
+        }
+    }
 
     const fs::path previous = root / kPrevious;
     fs::path incoming;
@@ -186,15 +204,6 @@ UpdateResult runUpdate(const UpdateOptions& opt) {
             r.message = traducir("actualizacion", "La version nueva tiene que estar FUERA de la carpeta del sistema.");
             return r;
         }
-        if (fs::exists(src / "manifest.json")) {
-            const IntegrityReport rep = Integrity::verify(src.wstring());
-            if (!rep.ok) {
-                r.message = llenar(traducir("actualizacion", "La version nueva esta danada (%1 archivos faltan, %2 no "
-                                                             "coinciden con manifest.json). No se instalo nada."),
-                                   {std::to_string(rep.missing), std::to_string(rep.mismatch)});
-                return r;
-            }
-        }
         for (const auto& e : fs::directory_iterator(src, ec)) {
             const std::string n = e.path().filename().string();
             if (!isDataEntry(n)) names.push_back(n);
@@ -215,10 +224,24 @@ UpdateResult runUpdate(const UpdateOptions& opt) {
         }
     }
 
+    // Integridad COMPLETA de lo que se va a instalar (la copia preparada, o la
+    // versión anterior al volver atrás), contra su manifest.json, antes de tocar
+    // nada: es exactamente lo que va a correr (después solo se renombra). Se
+    // verifica la copia y no el origen: una copia a un disco USB que falla a mitad
+    // también se ve.
+    const IntegrityReport integridad = Integrity::verify(incoming.wstring());
+    if (!integridad.ok) {
+        if (!opt.rollback) fs::remove_all(incoming, ec);
+        r.message = llenar(traducir("actualizacion", "La version nueva esta danada (%1 archivos faltan, %2 no "
+                                                     "coinciden con manifest.json). No se instalo nada."),
+                           {std::to_string(integridad.missing), std::to_string(integridad.mismatch)});
+        return r;
+    }
+
     // 3) Respaldo de los datos.
     std::string err;
     // De la carpeta de DATOS (en macOS no es la del programa: antes se respaldaba nada).
-    if (!backupData(opt.datos.empty() ? root : opt.datos, r.backup, err)) {
+    if (!backupData(datos, r.backup, err)) {
         if (!opt.rollback) fs::remove_all(incoming, ec);
         r.message = llenar(traducir("actualizacion", "No se pudo respaldar Credenciales/ y Config/ (%1). No se instalo nada."),
                            {err});
@@ -241,9 +264,13 @@ UpdateResult runUpdate(const UpdateOptions& opt) {
         fs::remove_all(incoming, ec);
     }
 
-    // 6) Caches de la version vieja.
-    fs::remove_all(root / "Cache", ec);
-    fs::create_directories(root / "Cache", ec);
+    // 6) Caches de la version vieja: en la carpeta de DATOS (en macOS no es la del
+    //    programa: antes se vaciaba una Cache/ adentro de la .app que no existe).
+    //    Y el caché de integridad, ya hecho: lo instalado se verificó entero recién
+    //    (renombrar no cambia tamaño ni fecha), así el primer arranque no lo relee.
+    fs::remove_all(datos / "Cache", ec);
+    fs::create_directories(datos / "Cache", ec);
+    if (integridad.checked > 0) Integrity::guardarCache(Integrity::cacheEn(datos));
 
     r.ok = true;
     r.replaced = names;

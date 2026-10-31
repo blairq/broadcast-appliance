@@ -41,7 +41,8 @@ struct World {
     std::vector<json> chat;
     std::vector<json> textos;
     AlertInputs::Status status;
-    double disk = 100;
+    double disk = 100, horas = -1;
+    json mismoVolumen = json::array();
     json prog{{"valido", true}, {"luma", 120.0}, {"quieto_s", 0.0}};
     json recursos = json::object();
 
@@ -53,7 +54,7 @@ struct World {
         in.chat = [this]() { return chat; };
         in.textos = [this]() { return textos; };
         in.status = [this]() { return status; };
-        in.diskFreeGb = [this]() { return disk; };
+        in.disco = [this]() { return json{{"libre_gb", disk}, {"horas", horas}, {"mismo_volumen", mismoVolumen}}; };
         in.programaVideo = [this]() { return prog; };
         in.recursos = [this]() { return recursos; };
         in.nowMs = [this]() { return now; };
@@ -222,6 +223,28 @@ int main(int argc, char** argv) {
     step(250);
     CHECK(fired.size() == 3 && fired[2]["text"].get<std::string>().find("detuvo") != std::string::npos,
           "se corto");
+    eng.clear();
+    fired.clear();
+
+    // --- disk: horas de todo lo que se graba y la copia en el mismo disco ---------------------------
+    w.disk = 100;
+    w.horas = 0.4; // 24 min al bitrate de todo (grabación + copia + ISO)
+    w.status = {false, true, 0, 0};
+    eng.create(json{{"type", "disk"}, {"params", {{"minMinutos", 30}}}});
+    step(250);
+    CHECK(fired.size() == 1 && fired[0]["data"]["minutos"].get<double>() < 30, "pocas horas aunque haya GB");
+    w.mismoVolumen = json::array({{{"salida", "principal"}, {"grabacion", "/a"}, {"copia", "/a/copia"}}});
+    step(250);
+    CHECK(fired.size() == 2 && fired[1]["data"].contains("mismoVolumen"), "la copia en el mismo disco avisa");
+    step(250);
+    CHECK(fired.size() == 2, "y una sola vez");
+    w.mismoVolumen = json::array();
+    step(250);
+    w.mismoVolumen = json::array({{{"salida", "principal"}, {"grabacion", "/a"}, {"copia", "/a/copia"}}});
+    step(250);
+    CHECK(fired.size() == 3, "si se arregla y vuelve, avisa de nuevo");
+    w.horas = -1;
+    w.mismoVolumen = json::array();
     eng.clear();
     fired.clear();
 
