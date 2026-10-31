@@ -851,17 +851,19 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
         in.status = [this]() {
             const EngineStatus s = rt_.engine().status();
             return agent::AlertInputs::Status{s.streaming, s.recording, s.droppedFrames, s.totalFrames,
-                                              s.reconnecting, rt_.config().encoder.videoBitrateKbps,
-                                              !rt_.recordStopWanted()};
+                                              s.reconnecting, !rt_.recordStopWanted()};
         };
         in.recursos = [this]() { return recursos_ ? recursos_->muestreador().niveles() : nlohmann::json::object(); };
         in.programaVideo = [this]() {
             const auto v = rt_.engine().programaVideo();
             return nlohmann::json{{"valido", v.valido}, {"luma", v.luma}, {"quieto_s", v.quietoSeg}};
         };
-        in.diskFreeGb = [this]() {
-            const QStorageInfo si(QString::fromStdWString((rt_.dataRoot() / "Recordings").wstring()));
-            return si.isValid() ? static_cast<double>(si.bytesAvailable()) / 1e9 : -1.0;
+        // El disco de todo lo que se graba (por volumen; la copia en el mismo disco). Mira
+        // el espacio libre de cada carpeta: una vez cada 5 s alcanza.
+        in.disco = [this, cache = std::make_shared<std::pair<qint64, nlohmann::json>>()]() {
+            const qint64 ahora = QDateTime::currentMSecsSinceEpoch();
+            if (cache->first == 0 || ahora - cache->first >= 5000) *cache = {ahora, rt_.discoGrabacion()};
+            return cache->second;
         };
         // Señal de cada entrada de video (las de GStreamer: cuadros que llegan). Se
         // consulta como mucho una vez por segundo.

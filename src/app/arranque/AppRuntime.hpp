@@ -158,8 +158,10 @@ class AppRuntime {
     std::string borrarDestino(const std::string& id);
     /// Arranca un destino ("todos": todos los guardados). "" o el error.
     std::string iniciarDestino(const std::string& id);
-    /// El disco de la carpeta de grabación: {libre_gb, horas, kbps} (horas al
-    /// bitrate de video configurado + audio; -1 si no se sabe).
+    /// Para cuánto alcanza el disco: {horas, libre_gb, kbps, volumenes[], carpeta,
+    /// kbps_grabacion, copia_mismo_volumen, mismo_volumen[]}. Suma lo que ya se graba en
+    /// todas las salidas (y las ISO) y, si la por omisión no graba, lo que sumaría al
+    /// arrancarla con su copia; manda el disco que antes se llena (-1 si no se sabe).
     nlohmann::json discoGrabacion() const;
     void detenerDestino(const std::string& id); ///< "todos": todos
 

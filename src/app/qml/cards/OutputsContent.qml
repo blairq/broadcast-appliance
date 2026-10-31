@@ -227,14 +227,16 @@ Item {
             Timer { interval: 5000; running: disco.visible; repeat: true; triggeredOnStart: true; onTriggered: { disco.d = Studio.discoUi(); disco.r = Studio.remuxUi() } }
             Layout.fillWidth: true; elide: Text.ElideRight
             text: {
+                // Las horas son de todo lo que se graba (copia e ISO incluidas), en el disco que antes se llena.
                 const partes = [d.horas >= 0 ? qsTr("Disco: %1 h %2 min a este bitrate").arg(Math.floor(d.horas)).arg(Math.round((d.horas % 1) * 60))
                                              : qsTr("Disco: ?")]
+                if (d.copia_mismo_volumen) partes.push(qsTr("¡la copia va al mismo disco!"))
                 if (r.andando) partes.push(qsTr("pasando a %1 %2%").arg(String(r.destino).split(".").pop().toUpperCase()).arg(Math.round(r.pct)))
                 else if (r.destino && r.ok) partes.push(qsTr("último pase a MP4 listo"))
                 else if (r.destino && r.error) partes.push(qsTr("el pase a MP4 falló: %1").arg(r.error))
                 return partes.join(" · ")
             }
-            color: d.horas >= 0 && d.horas < 0.25 ? Theme.live : d.horas >= 0 && d.horas < 2 ? Theme.amber : Theme.textFaint
+            color: d.horas >= 0 && d.horas < 0.25 ? Theme.live : (d.horas >= 0 && d.horas < 2) || d.copia_mismo_volumen ? Theme.amber : Theme.textFaint
             font.pixelSize: 10
         }
         OutputRow {
