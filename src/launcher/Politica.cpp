@@ -4,6 +4,7 @@
 
 #include "ajustes/Ajustes.hpp"
 #include "ipc/HealthBlock.hpp"
+#include "persist/Generaciones.hpp"
 
 #include <nlohmann/json.hpp>
 
@@ -56,10 +57,14 @@ Readopcion decidirReadopcion(bool vivoYLate, std::uint32_t versionPublicada, std
 }
 
 bool salidasActivas(const std::filesystem::path& alAire) {
-    std::error_code ec;
-    if (!std::filesystem::exists(alAire, ec)) return false;
-    std::ifstream in(alAire, std::ios::binary);
-    const nlohmann::json j = nlohmann::json::parse(in, nullptr, false);
+    // La app lo escribe en dos generaciones (al-aire.A.json y al-aire.B.json; la primera
+    // escritura borra el archivo de una sola): se lee como lo lee ella, la más nueva que
+    // sirve. Mirar solo al-aire.json daba «sin aire» siempre desde F1-03, y el
+    // actualizador reemplazaba una app que estaba transmitiendo.
+    const ba::persist::Lectura l = ba::persist::DosGeneraciones(alAire).leer();
+    if (l.estado == ba::persist::Lectura::Estado::Nada) return false;
+    if (l.estado == ba::persist::Lectura::Estado::Danada) return true; // ante la duda, hay aire
+    const nlohmann::json j = nlohmann::json::parse(l.cuerpo, nullptr, false);
     if (!j.is_object()) return true; // ilegible con la app viva: ante la duda, hay aire
     // Un campo de otro tipo no tira: cuenta como apagado.
     const auto si = [](const nlohmann::json& x, const char* k) {

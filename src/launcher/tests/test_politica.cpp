@@ -10,6 +10,7 @@
 //      vive y late en BA.Health; una corrida cerrada en orden no es aire.
 
 #include "Politica.hpp"
+#include "persist/Generaciones.hpp"
 
 #include "ipc/HealthBlock.hpp"
 
@@ -133,6 +134,21 @@ int main() {
         CHECK(!salidasActivas(alAire), "campos de otro tipo: apagado, sin tirar");
         escribir(alAire, "{\"streaming\":tr");
         CHECK(salidasActivas(alAire), "ilegible: ante la duda, aire");
+
+        // Como lo escribe la app desde F1-03: en dos generaciones (y el de una sola, borrado).
+        fs::remove(alAire);
+        {
+            ba::persist::DosGeneraciones gen(alAire);
+            CHECK(gen.escribir(R"({"streaming":false,"cerrado":false,"salidas":{"b":{"recording":true}}})"),
+                  "escribir en generaciones");
+            CHECK(!fs::exists(alAire) && salidasActivas(alAire), "en generaciones: otra salida grabando");
+            CHECK(gen.escribir(R"({"streaming":true,"cerrado":true})") && !salidasActivas(alAire),
+                  "en generaciones: cerrada en orden");
+            // Las dos rotas: ante la duda, aire.
+            for (const fs::path& r : {gen.rutaA(), gen.rutaB()}) std::ofstream(r, std::ios::binary | std::ios::app) << "x";
+            CHECK(salidasActivas(alAire), "en generaciones, las dos rotas: ante la duda, aire");
+            CHECK(gen.borrar(), "borrar las generaciones");
+        }
 
         // Con A vivo y latiendo en BA.Health, sí; sin A, no.
         escribir(alAire, R"({"streaming":true,"cerrado":false})");

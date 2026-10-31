@@ -1290,6 +1290,11 @@ endif()
     target_include_directories(test_salidas_config PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
     target_link_libraries(test_salidas_config PRIVATE ba_core nlohmann_json::nlohmann_json)
     add_test(NAME test_salidas_config COMMAND test_salidas_config)
+    # El documento único de aire (F3-04): corte en cada transición, daño y la versión 1.
+    add_executable(test_documento_aire tests/test_documento_aire.cpp emision/DocumentoAire.cpp emision/SalidasConfig.cpp)
+    target_include_directories(test_documento_aire PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    target_link_libraries(test_documento_aire PRIVATE ba_core nlohmann_json::nlohmann_json)
+    add_test(NAME test_documento_aire COMMAND test_documento_aire)
     # El AFV de cada salida (escenas::Afv): dos salidas con escenas distintas y la misma.
     add_executable(test_afv tests/test_afv.cpp escenas/Afv.cpp)
     target_include_directories(test_afv PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")

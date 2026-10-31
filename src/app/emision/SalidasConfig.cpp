@@ -129,11 +129,37 @@ const Aire& AlAire::de(const std::string& id) const {
     return it == salidas.end() ? kNada : it->second;
 }
 
+Placa placaDeJson(const json& j) {
+    Placa p;
+    if (!j.is_object()) return p;
+    // Un campo de otro tipo no tira: cuenta como apagado (es un archivo que vuelve de un corte).
+    const auto si = [&j](const char* k) {
+        const auto c = j.find(k);
+        return c != j.end() && c->is_boolean() && c->get<bool>();
+    };
+    const auto texto = [&j](const char* k) {
+        const auto c = j.find(k);
+        return c != j.end() && c->is_string() ? c->get<std::string>() : std::string();
+    };
+    p.ftb = si("ftb");
+    p.ftbAudio = si("ftb_audio");
+    p.placa = si("placa");
+    p.texto = texto("placa_texto");
+    p.imagen = texto("placa_imagen");
+    return p;
+}
+
+json aJson(const Placa& p) {
+    return {{"ftb", p.ftb}, {"ftb_audio", p.ftbAudio}, {"placa", p.placa}, {"placa_texto", p.texto}, {"placa_imagen", p.imagen}};
+}
+
 AlAire leerAlAire(const json& j) {
     AlAire a;
     if (!j.is_object()) return a;
+    a.version = j.value("version", 1);
     // Un archivo de antes de «cerrado» cuenta como cierre ordenado.
     a.cerrado = j.value("cerrado", true);
+    if (const auto l = j.find("linea"); l != j.end() && l->is_object()) a.linea = *l;
     Aire& p = a.salidas[kPorOmision];
     p.escena = j.value("escena", std::string());
     p.transmitiendo = j.value("streaming", false);
@@ -148,6 +174,7 @@ AlAire leerAlAire(const json& j) {
         if (const json d = x.value("destinos", json::array()); d.is_array())
             for (const json& id : d)
                 if (id.is_string()) s.destinos.push_back(id.get<std::string>());
+        if (const auto pl = x.find("placa"); pl != x.end()) s.placa = placaDeJson(*pl);
     }
     return a;
 }
@@ -156,9 +183,24 @@ json aJson(const AlAire& a) {
     const Aire& p = a.de(kPorOmision);
     json todas = json::object();
     for (const auto& [id, s] : a.salidas)
-        todas[id] = {{"escena", s.escena}, {"streaming", s.transmitiendo}, {"recording", s.grabando}, {"destinos", s.destinos}};
-    return {{"streaming", p.transmitiendo}, {"recording", p.grabando}, {"escena", p.escena}, {"cerrado", a.cerrado},
-            {"salidas", todas}};
+        todas[id] = {{"escena", s.escena}, {"streaming", s.transmitiendo}, {"recording", s.grabando}, {"destinos", s.destinos},
+                     {"placa", aJson(s.placa)}};
+    json j{{"version", kVersionAire}, {"streaming", p.transmitiendo}, {"recording", p.grabando}, {"escena", p.escena},
+           {"cerrado", a.cerrado}, {"salidas", todas}};
+    if (a.linea.is_object()) j["linea"] = a.linea;
+    return j;
+}
+
+void sumarSeccionesViejas(AlAire& a, const json& placa, const json& linea) {
+    if (placa.is_object()) {
+        // La por omisión en los campos sueltos; las demás, en `salidas` (si son ids válidos).
+        a.salidas[kPorOmision].placa = placaDeJson(placa);
+        const json otras = placa.value("salidas", json::object());
+        if (otras.is_object())
+            for (const auto& [id, x] : otras.items())
+                if (validarId(id).empty()) a.salidas[id].placa = placaDeJson(x);
+    }
+    if (linea.is_object() && !a.linea.is_object()) a.linea = linea;
 }
 
 } // namespace ba::app::salidas

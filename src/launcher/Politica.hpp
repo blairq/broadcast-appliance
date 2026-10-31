@@ -72,7 +72,8 @@ enum class Readopcion {
 Readopcion decidirReadopcion(bool vivoYLate, std::uint32_t versionPublicada, std::uint32_t versionEsperada,
                              bool hayAire);
 
-/// ¿Runtime/al-aire.json dice que alguna salida transmite o graba? El formato
+/// ¿Runtime/al-aire.json (el documento de aire de la app, en dos generaciones:
+/// persist/Generaciones.hpp) dice que alguna salida transmite o graba? El formato
 /// es el de la app (salidas::aJson: los campos sueltos de la salida por omisión
 /// y `salidas` con todas); acá solo se mira si hay algo prendido. Sin archivo,
 /// o de una corrida cerrada en orden, no hay aire; ilegible, sí (ante la duda).
