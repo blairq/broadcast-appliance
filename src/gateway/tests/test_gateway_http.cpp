@@ -755,6 +755,32 @@ int main() {
               "el logo SVG sale con CSP sandbox");
         CHECK(statusLine(httpReq(port, "GET", "/comun/tema/..%2Fsecreto.svg", "")).find("404") != std::string::npos,
               "nada fuera de Tema/");
+        // Los logos PNG y WebP (lo que deja copiarRecurso en Tema/): con su tipo, sin sandbox;
+        // uno de más de 4 MB, un GIF o un nombre que no es de Tema/ no salen.
+        const auto poner = [&dir](const char* nombre, const std::string& datos) {
+            std::FILE* f = std::fopen((dir / nombre).string().c_str(), "wb");
+            if (f) {
+                std::fwrite(datos.data(), 1, datos.size(), f);
+                std::fclose(f);
+            }
+        };
+        poner("logo-abc.png", std::string("\x89PNG\r\n\x1a\n", 8) + std::string(64, '\0'));
+        poner("logo-abc.webp", std::string("RIFF") + std::string(4, '\x10') + "WEBPVP8 " + std::string(32, '\0'));
+        poner("logo-grande.png", std::string("\x89PNG\r\n\x1a\n", 8) + std::string(4u * 1024 * 1024, '\0'));
+        poner("logo-abc.gif", "GIF89a");
+        poner("Logo-Abc.svg", "<svg xmlns=\"http://www.w3.org/2000/svg\"/>");
+        const std::string png = httpReq(port, "GET", "/comun/tema/logo-abc.png", "");
+        CHECK(statusLine(png).find("200") != std::string::npos && png.find("Content-Type: image/png") != std::string::npos &&
+                  png.find("Content-Security-Policy: sandbox") == std::string::npos && png.find("nosniff") != std::string::npos,
+              "el logo PNG sale como image/png (nosniff, sin sandbox)");
+        const std::string webp = httpReq(port, "GET", "/comun/tema/logo-abc.webp", "");
+        CHECK(statusLine(webp).find("200") != std::string::npos && webp.find("Content-Type: image/webp") != std::string::npos,
+              "el logo WebP sale como image/webp");
+        CHECK(statusLine(httpReq(port, "GET", "/comun/tema/logo-grande.png", "")).find("404") != std::string::npos,
+              "un archivo de más de 4 MB no sale");
+        CHECK(statusLine(httpReq(port, "GET", "/comun/tema/logo-abc.gif", "")).find("404") != std::string::npos, "un GIF no sale");
+        CHECK(statusLine(httpReq(port, "GET", "/comun/tema/Logo-Abc.svg", "")).find("404") != std::string::npos,
+              "un nombre que no es de Tema/ (mayúsculas) no sale");
         CHECK(statusLine(httpReq(srv.controlPort(), "GET", "/comun/tema.css", "")).find("200") != std::string::npos,
               "la hoja también por la puerta de los aparatos");
         httpReq(aport, "POST", "/api/v1/tema-evento", bearer, "{}");

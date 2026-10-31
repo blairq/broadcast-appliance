@@ -200,8 +200,22 @@ RecursoCopiado copiarRecurso(const fs::path& carpetaEvento, const fs::path& orig
         // Un SVG es código: con <script> o un <foreignObject> no entra. (El gateway igual
         // lo sirve con «CSP: sandbox», por si alguien lo abre suelto.)
         const std::string m = minusculas(datos);
+        // Ni atributos de evento (onload=, onclick=…): también son código.
+        const auto conEventos = [&m]() {
+            for (std::size_t i = m.find("on"); i != std::string::npos; i = m.find("on", i + 2)) {
+                if (i == 0 || !(m[i - 1] == ' ' || m[i - 1] == '\t' || m[i - 1] == '\n' || m[i - 1] == '\r' || m[i - 1] == '/' ||
+                                m[i - 1] == '"' || m[i - 1] == '\''))
+                    continue;
+                std::size_t j = i + 2;
+                while (j < m.size() && m[j] >= 'a' && m[j] <= 'z') ++j;
+                if (j == i + 2) continue;
+                while (j < m.size() && (m[j] == ' ' || m[j] == '\t' || m[j] == '\n' || m[j] == '\r')) ++j;
+                if (j < m.size() && m[j] == '=') return true;
+            }
+            return false;
+        };
         firma = m.find("<svg") != std::string::npos && m.find("<script") == std::string::npos &&
-                m.find("<foreignobject") == std::string::npos && m.find("javascript:") == std::string::npos;
+                m.find("<foreignobject") == std::string::npos && m.find("javascript:") == std::string::npos && !conEventos();
         if (!firma) return fallo(QT_TRANSLATE_NOOP("evento", "El SVG no es una imagen limpia (tiene scripts o no es un SVG)."));
     }
     if (!firma) return fallo(QT_TRANSLATE_NOOP("evento", "El archivo no es lo que dice su extensión."));

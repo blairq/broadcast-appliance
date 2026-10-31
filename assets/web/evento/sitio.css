@@ -11,6 +11,7 @@
   --surface-2: #161618;
   --border: rgba(255, 255, 255, 0.08);
   --border-hover: rgba(255, 255, 255, 0.18);
+  --tinte: rgba(255, 255, 255, 0.05);
   --text: #f4f4f5;
   --text-muted: #a1a1aa;
   --accent: #ff4d2e;
@@ -276,7 +277,7 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 .recinto-caja { margin: 0 0 32px; }
 .recinto { border: 1px solid var(--border); border-radius: 16px; background: var(--surface); padding: 16px; }
 .recinto svg { display: block; width: 100%; height: auto; max-height: 70vh; }
-.recinto .presidencia { fill: rgba(255, 255, 255, 0.05); }
+.recinto .presidencia { fill: var(--tinte); }
 .recinto .presidencia-texto { fill: var(--text-muted); font: 600 0.32px var(--mono); letter-spacing: 0.06px; }
 .recinto .banca circle { stroke-width: 0.06; }
 .recinto .banca:not(.presente) { opacity: 0.6; }

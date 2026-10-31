@@ -93,6 +93,20 @@ int main() {
         check(tiene(css, "--ev-radio: 32px;"), "el radio, acotado");
         check(!tiene(css, "color-mix"), "nada de color-mix (televisores viejos)");
         check(tiene(css, "html[data-ev~=\"publico\"] body { font-family: var(--ev-fuente); }"), "la letra pisa la de la página");
+        check(tiene(css, "--tinte: var(--ev-tinte);") && tiene(css, "--campo: var(--ev-campo);") &&
+                  tiene(css, "--sombra: var(--ev-sombra);") && tiene(css, "--borde-fuerte: var(--ev-borde-fuerte);"),
+              "los resaltes, campos y sombras que las páginas tenían fijos, puenteados");
+        check(!tiene(bloqueControl, "--tinte:"), "las consolas (solo acento) no los reciben");
+    }
+    {
+        // Con un tema claro, lo que estaba fijo para fondo oscuro se da vuelta: el resalte es
+        // del color del texto (oscuro) y la sombra, más suave.
+        const json oscuro = resolver(json::object()), claro = resolver({{"colores", {{"fondo", "#ffffff"}}}});
+        check(claro["colores"]["tinte"] == rgba(*leerColor(claro["colores"]["texto"].get<std::string>()), 0.06),
+              "claro: el resalte, del color del texto");
+        check(oscuro["colores"]["sombra"] == "rgba(0, 0, 0, 0.45)" && claro["colores"]["sombra"] == "rgba(0, 0, 0, 0.14)",
+              "la sombra, según el modo");
+        check(claro["colores"]["campo"] != oscuro["colores"]["campo"], "el campo hundido, según el modo");
     }
     {
         const json r = resolver({{"alcance", {{"publico", "nada"}, {"control", "todo"}}}});

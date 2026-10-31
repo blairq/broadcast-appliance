@@ -5,6 +5,7 @@
   --bg: #0d1014;
   --panel: #161a21;
   --borde: rgba(255, 255, 255, 0.09);
+  --borde-fuerte: rgba(255, 255, 255, 0.2);
   --texto: #e8ecf2;
   --tenue: #9aa4b2;
   --acento: #ff6a2b;
@@ -58,7 +59,7 @@ body {
 .titulo strong { font-size: 17px; }
 .cuando { color: var(--tenue); font-size: 12px; }
 /* El idioma: chico y al costado, que no le gane a nada. */
-.idioma { margin-left: 8px; background: transparent; color: inherit; opacity: 0.75; border: 1px solid rgba(255, 255, 255, 0.2);
+.idioma { margin-left: 8px; background: transparent; color: inherit; opacity: 0.75; border: 1px solid var(--borde-fuerte);
   border-radius: 8px; padding: 2px 6px; font: inherit; font-size: 12px; }
 
 .estado { color: var(--tenue); font-size: 12px; white-space: nowrap; }

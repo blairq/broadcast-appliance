@@ -194,7 +194,15 @@ json resolver(const json& crudo) {
                     {"acentoMedio", rgba(acento, 0.3)},
                     {"acentoFuerte", rgba(acento, 0.5)},
                     {"acentoNada", rgba(acento, 0)},
-                    {"fondoVelo", rgba(fondo, 0.72)}};
+                    {"fondoVelo", rgba(fondo, 0.72)},
+                    // Lo que las páginas tenían fijo pensado para fondo oscuro (blanco con poca
+                    // opacidad para resaltar, negro para hundir y para las sombras): con un
+                    // fondo claro, el texto con poca opacidad resalta y el negro casi no se ve.
+                    {"tinte", rgba(texto_, 0.06)},
+                    {"tinteFuerte", rgba(texto_, 0.12)},
+                    {"campo", rgba(kNegro, claro ? 0.04 : 0.35)},
+                    {"velo", rgba(kNegro, claro ? 0.06 : 0.55)},
+                    {"sombra", rgba(kNegro, claro ? 0.14 : 0.45)}};
 
     // Lo que conviene avisar: con código y números, el texto lo pone quien lo muestra.
     const double cTexto = contraste(texto_, fondo), cAcento = contraste(acentoTexto, acento),
@@ -285,7 +293,11 @@ std::string puentesTodo(const json& r) {
     s += "  --texto-suave: var(--ev-texto-suave); --tenue: var(--ev-texto-suave); --muted: var(--ev-texto-suave);"
          " --text-muted: var(--ev-texto-suave); --texto-tenue: var(--ev-texto-tenue);\n";
     s += "  --borde: var(--ev-borde); --line: var(--ev-borde); --border: var(--ev-borde);"
-         " --linea: var(--ev-borde); --border-hover: var(--ev-borde-fuerte);\n";
+         " --linea: var(--ev-borde); --border-hover: var(--ev-borde-fuerte); --borde-fuerte: var(--ev-borde-fuerte);\n";
+    // Los resaltes, los campos hundidos, los velos y las sombras (con un tema claro, lo
+    // que estaba fijo para fondo oscuro no se veía o quedaba sucio).
+    s += "  --tinte: var(--ev-tinte); --tinte-fuerte: var(--ev-tinte-fuerte); --campo: var(--ev-campo);"
+         " --velo: var(--ev-velo); --sombra: var(--ev-sombra);\n";
     if (r.value("forma", json::object()).contains("radio")) s += "  --radius: var(--ev-radio); --radio: var(--ev-radio);\n";
     if (!r.value("tipografia", json::object()).value("texto", std::string()).empty())
         s += "  --sans: var(--ev-fuente); --fuente: var(--ev-fuente);\n";
@@ -340,6 +352,8 @@ std::string hojaCss(const json& r, const std::string& recursos, const std::strin
     s += "  --ev-texto: " + c("texto") + "; --ev-texto-suave: " + c("textoSuave") + "; --ev-texto-tenue: " +
          c("textoTenue") + ";\n";
     s += "  --ev-borde: " + c("borde") + "; --ev-borde-fuerte: " + c("bordeFuerte") + ";\n";
+    s += "  --ev-tinte: " + c("tinte") + "; --ev-tinte-fuerte: " + c("tinteFuerte") + "; --ev-campo: " + c("campo") +
+         "; --ev-velo: " + c("velo") + "; --ev-sombra: " + c("sombra") + ";\n";
     if (forma.contains("radio")) s += "  --ev-radio: " + std::to_string(forma.value("radio", 0)) + "px;\n";
     const std::string famT = tip.value("texto", std::string());
     const std::string famH = tip.value("titulos", std::string());

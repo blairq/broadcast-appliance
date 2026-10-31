@@ -69,7 +69,8 @@ bool esFuente(const std::string& nombre);        ///< .woff2 .woff .ttf .otf
 /// TODO calculado y saneado, listo para la hoja:
 ///   {nombre, modo, colores{acento, acentoTexto, fondo, superficie, texto, textoSuave,
 ///    superficie2, hundido, textoTenue, acento2, borde, bordeFuerte, foco, acentoSuave,
-///    acentoMedio, acentoFuerte, acentoNada, fondoVelo}, tipografia{texto, titulos, archivos[{familia, archivo,
+///    acentoMedio, acentoFuerte, acentoNada, fondoVelo, tinte, tinteFuerte, campo, velo, sombra},
+///    tipografia{texto, titulos, archivos[{familia, archivo,
 ///    peso, estilo}]}, forma{radio}, marca{nombre, logo, logoClaro, favicon},
 ///    alcance{publico, control}, contraste{acento, texto, acentoSobreFondo},
 ///    avisos[{codigo: texto|acentoTexto|acentoFondo, contraste, minimo}]}
