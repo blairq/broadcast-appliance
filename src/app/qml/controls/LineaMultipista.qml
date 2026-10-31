@@ -437,23 +437,23 @@ Item {
             id: bloquePieza
             Rectangle {
                 id: bp
-                readonly property var z: parent && parent.dato ? parent.dato : ({})
-                readonly property real x0: z.x0 * area.width
-                readonly property bool arrastrable: z.editable && !z.emitida
+                readonly property var pz: parent && parent.dato ? parent.dato : ({})
+                readonly property real x0: pz.x0 * area.width
+                readonly property bool arrastrable: pz.editable && !pz.emitida
                 x: x0 + (mueve.active ? mueve.activeTranslation.x : 0)
                 y: 3
-                width: Math.max(3, (z.x1 - z.x0) * area.width)
+                width: Math.max(3, (pz.x1 - pz.x0) * area.width)
                 height: area.height - 6
                 radius: 3
-                readonly property color tinta: Theme.colorDeTipo(z.tipo)
-                color: Qt.rgba(tinta.r, tinta.g, tinta.b, z.emitida ? 0.55 : 0.30)
-                border.width: z.conflicto || z.cruza || z.pendiente ? 1.5 : 0
-                border.color: z.conflicto ? Theme.live : z.pendiente ? Theme.accentSoft : Theme.text
-                opacity: z.estimado ? 0.7 : 1
+                readonly property color tinta: Theme.colorDeTipo(pz.tipo)
+                color: Qt.rgba(tinta.r, tinta.g, tinta.b, pz.emitida ? 0.55 : 0.30)
+                border.width: pz.conflicto || pz.cruza || pz.pendiente ? 1.5 : 0
+                border.color: pz.conflicto ? Theme.live : pz.pendiente ? Theme.accentSoft : Theme.text
+                opacity: pz.estimado ? 0.7 : 1
                 Text {
                     anchors { fill: parent; leftMargin: 4; rightMargin: 4 }
                     verticalAlignment: Text.AlignVCenter
-                    text: bp.z.texto + (bp.z.abierta ? " ▸" : "")
+                    text: bp.pz.texto + (bp.pz.abierta ? " ▸" : "")
                     elide: Text.ElideRight
                     color: Theme.text
                     font.pixelSize: 9
@@ -463,14 +463,14 @@ Item {
                     enabled: bp.arrastrable
                     target: null
                     yAxis.enabled: false
-                    onActiveChanged: if (!active) c.raiz.hacer(c.raiz.lv.moverPieza(bp.z.id, activeTranslation.x / area.width))
+                    onActiveChanged: if (!active) c.raiz.hacer(c.raiz.lv.moverPieza(bp.pz.id, activeTranslation.x / area.width))
                 }
                 HoverHandler { id: bpHover }
                 ToolTip.visible: bpHover.hovered && !mueve.active
                 ToolTip.delay: 500
-                ToolTip.text: bp.z.texto + " · " + bp.z.tipo + " · " + qsTr("vida: %1").arg(bp.z.vida)
-                              + (bp.z.porque ? "\n" + bp.z.porque : "")
-                              + (bp.z.conflicto ? "\n" + qsTr("Conflicto con otra salida") : "")
+                ToolTip.text: bp.pz.texto + " · " + bp.pz.tipo + " · " + qsTr("vida: %1").arg(bp.pz.vida)
+                              + (bp.pz.porque ? "\n" + bp.pz.porque : "")
+                              + (bp.pz.conflicto ? "\n" + qsTr("Conflicto con otra salida") : "")
             }
         }
     }
