@@ -50,10 +50,16 @@ std::string PaginaPublico::cambiar(const std::optional<std::string>& titulo, con
     if (titulo) pedido["titulo"] = *titulo;
     if (cuando) pedido["cuando"] = *cuando;
     if (fondo) pedido["fondo"] = *fondo;
+    // La sala reemplaza la info entera: va con lo que ya estaba (lo que no vino, como
+    // estaba); el fondo, solo si vino (es la imagen: no se manda de nuevo de gusto).
+    nlohmann::json total = guardado_;
+    total.update(pedido);
+    nlohmann::json aMandar = total;
+    if (!pedido.contains("fondo")) aMandar.erase("fondo");
     nlohmann::json cuerpo;
-    if (std::string e = armar(pedido, cuerpo); !e.empty()) return e;
-    // Del evento: queda guardado (lo que no vino, como estaba).
-    guardado_.update(pedido);
+    if (std::string e = armar(aMandar, cuerpo); !e.empty()) return e;
+    // Del evento: queda guardado.
+    guardado_ = total;
     if (!deEste_.empty())
         ba::persist::cola().escribir(deEste_ / "publico.json",
                                      guardado_.dump(1, ' ', false, nlohmann::json::error_handler_t::replace));
