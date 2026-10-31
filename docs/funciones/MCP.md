@@ -39,7 +39,7 @@ etiquetas de búsqueda, en qué archivo vive), y esta tabla. `test_mcp_registro`
 
 <!-- registro: lo genera tools/docs/mcp-inventario.py --desde-codigo; no se edita a mano -->
 
-**806 herramientas** en 55 categorías: 267 de lectura, 477 de escritura, 47 de aire y 15 de interfaz (la clase la declara cada una al registrarse; ver «Clases» más abajo).
+**808 herramientas** en 55 categorías: 268 de lectura, 478 de escritura, 47 de aire y 15 de interfaz (la clase la declara cada una al registrarse; ver «Clases» más abajo).
 
 | Categoría | Herramientas | Lectura | Escritura | Aire | Interfaz |
 |---|---:|---:|---:|---:|---:|
@@ -74,7 +74,7 @@ etiquetas de búsqueda, en qué archivo vive), y esta tabla. `test_mcp_registro`
 | Imágenes y video (visión) (`imagenes`) | 11 | 10 | 1 | 0 | 0 |
 | Interfaz de la app (`interfaz`) | 13 | 3 | 2 | 0 | 8 |
 | Carruseles de láminas (`laminas`) | 10 | 4 | 6 | 0 | 0 |
-| Línea de tiempo del evento (`linea`) | 18 | 5 | 7 | 6 | 0 |
+| Línea de tiempo del evento (`linea`) | 20 | 6 | 8 | 6 | 0 |
 | Medios (imágenes, videos, música) (`medios`) | 8 | 4 | 4 | 0 | 0 |
 | Hablar con el operador (`operador`) | 5 | 2 | 3 | 0 | 0 |
 | Modo oradores (`oradores`) | 29 | 6 | 21 | 2 | 0 |

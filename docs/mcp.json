@@ -8,10 +8,10 @@
     "«hay acople» llegue a audio_set sin que nadie nombre la herramienta."
   ],
   "fuente": "codigo",
-  "cuantas": 806,
+  "cuantas": 808,
   "por_clase": {
-    "lectura": 267,
-    "escritura": 477,
+    "lectura": 268,
+    "escritura": 478,
     "aire": 47,
     "ui": 15
   },
@@ -654,6 +654,8 @@
         "linea_adlib",
         "linea_ajustar",
         "linea_anterior",
+        "linea_camaras",
+        "linea_desde_plantilla",
         "linea_deshacer",
         "linea_editar",
         "linea_estado",
@@ -14800,7 +14802,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpEventoTools.cpp",
-        "linea": 1530
+        "linea": 1533
       },
       "roles": [
         "asistente",
@@ -14866,7 +14868,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpEventoTools.cpp",
-        "linea": 370
+        "linea": 373
       },
       "roles": [
         "asistente",
@@ -14893,7 +14895,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpEventoTools.cpp",
-        "linea": 1699
+        "linea": 1702
       },
       "roles": [
         "asistente",
@@ -14938,7 +14940,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpEventoTools.cpp",
-        "linea": 1272
+        "linea": 1275
       },
       "roles": [
         "asistente",
@@ -14965,7 +14967,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpEventoTools.cpp",
-        "linea": 1298
+        "linea": 1301
       },
       "roles": [
         "asistente",
@@ -15012,7 +15014,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpEventoTools.cpp",
-        "linea": 429
+        "linea": 432
       },
       "roles": [
         "asistente",
@@ -15076,7 +15078,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpEventoTools.cpp",
-        "linea": 1383
+        "linea": 1386
       },
       "roles": [
         "asistente",
@@ -15103,7 +15105,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpEventoTools.cpp",
-        "linea": 341
+        "linea": 344
       },
       "roles": [
         "asistente",
@@ -15130,7 +15132,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpEventoTools.cpp",
-        "linea": 1319
+        "linea": 1322
       },
       "roles": [
         "asistente",
@@ -15161,7 +15163,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpEventoTools.cpp",
-        "linea": 1504
+        "linea": 1507
       },
       "roles": [
         "asistente",
@@ -15188,7 +15190,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpEventoTools.cpp",
-        "linea": 1487
+        "linea": 1490
       },
       "roles": [
         "asistente",
@@ -15232,7 +15234,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpEventoTools.cpp",
-        "linea": 895
+        "linea": 898
       },
       "roles": [
         "asistente",
@@ -15264,7 +15266,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpEventoTools.cpp",
-        "linea": 500
+        "linea": 503
       },
       "roles": [
         "asistente",
@@ -15295,7 +15297,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpEventoTools.cpp",
-        "linea": 1350
+        "linea": 1353
       },
       "roles": [
         "asistente",
@@ -15330,7 +15332,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpEventoTools.cpp",
-        "linea": 807
+        "linea": 810
       },
       "roles": [
         "asistente",
@@ -15413,7 +15415,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpEventoTools.cpp",
-        "linea": 1222
+        "linea": 1225
       },
       "roles": [
         "asistente",
@@ -15448,7 +15450,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpEventoTools.cpp",
-        "linea": 570
+        "linea": 573
       },
       "roles": [
         "asistente",
@@ -15647,7 +15649,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpEventoTools.cpp",
-        "linea": 828
+        "linea": 831
       },
       "roles": [
         "asistente",
@@ -15783,7 +15785,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpEventoTools.cpp",
-        "linea": 149
+        "linea": 152
       },
       "roles": [
         "asistente",
@@ -15823,7 +15825,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpEventoTools.cpp",
-        "linea": 293
+        "linea": 296
       },
       "roles": [
         "asistente",
@@ -15870,7 +15872,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpEventoTools.cpp",
-        "linea": 944
+        "linea": 947
       },
       "roles": [
         "asistente",
@@ -15913,7 +15915,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpEventoTools.cpp",
-        "linea": 862
+        "linea": 865
       },
       "roles": [
         "asistente",
@@ -15999,7 +16001,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpEventoTools.cpp",
-        "linea": 980
+        "linea": 983
       },
       "roles": [
         "asistente",
@@ -16061,7 +16063,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpEventoTools.cpp",
-        "linea": 1153
+        "linea": 1156
       },
       "roles": [
         "asistente",
@@ -16096,7 +16098,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpEventoTools.cpp",
-        "linea": 96
+        "linea": 99
       },
       "roles": [
         "asistente",
@@ -16126,7 +16128,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpEventoTools.cpp",
-        "linea": 265
+        "linea": 268
       },
       "roles": [
         "asistente",
@@ -18483,7 +18485,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpEventoTools.cpp",
-        "linea": 778
+        "linea": 781
       },
       "roles": [
         "asistente"
@@ -18522,7 +18524,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpEventoTools.cpp",
-        "linea": 608
+        "linea": 611
       },
       "roles": [
         "asistente"
@@ -18563,7 +18565,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpEventoTools.cpp",
-        "linea": 744
+        "linea": 747
       },
       "roles": [
         "asistente"
@@ -18610,7 +18612,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpEventoTools.cpp",
-        "linea": 641
+        "linea": 644
       },
       "roles": [
         "asistente"
@@ -18640,7 +18642,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpEventoTools.cpp",
-        "linea": 720
+        "linea": 723
       },
       "roles": [
         "asistente"
@@ -18682,7 +18684,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpEventoTools.cpp",
-        "linea": 690
+        "linea": 693
       },
       "roles": [
         "asistente"
@@ -20625,7 +20627,7 @@
           },
           "salida": {
             "type": "string",
-            "description": "la salida (principal, sala, web-en…); sin esto, la por omisión"
+            "description": "Salida (id o nombre; `salidas_listar`). Sin ella, la por omisión (o la de quien llama)."
           }
         },
         "required": [
@@ -20643,31 +20645,29 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpLineaTools.cpp",
-        "linea": 317
+        "linea": 448
       },
       "roles": [],
       "aire": {
         "cuando": "siempre",
         "por_que": "dispara una pieza de la línea (escena, gráfico, música)"
-      }
+      },
+      "porSalida": true
     },
     {
       "nombre": "linea_ajustar",
       "titulo": "Llegar a horario",
       "categoria": "linea",
-      "descripcion": "Para terminar a una hora: propone recortar los pasos que vienen con la etiqueta «recortable» y, si no alcanza, saltear los «opcional». Nunca aplica.",
+      "descripcion": "El solucionador del back-timing: para terminar a una hora (o al fin planeado) y llegar a cada hard start, propone opciones (recortar por prioridad, que un paso absorba, saltear lo opcional, mover una hora, relleno) ya probadas. Nunca aplica.",
       "esquema": {
         "type": "object",
-        "required": [
-          "hasta"
-        ],
         "properties": {
           "hasta": {
-            "description": "la hora a la que hay que terminar: \"HH:MM\" o ms"
+            "description": "la hora a la que hay que terminar: \"HH:MM\" o ms (sin esto, el fin planeado)"
           },
           "salida": {
             "type": "string",
-            "description": "la salida (principal, sala, web-en…); sin esto, la por omisión"
+            "description": "Salida (id o nombre; `salidas_listar`). Sin ella, la por omisión (o la de quien llama)."
           }
         }
       },
@@ -20682,9 +20682,10 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpLineaTools.cpp",
-        "linea": 222
+        "linea": 221
       },
-      "roles": []
+      "roles": [],
+      "porSalida": true
     },
     {
       "nombre": "linea_anterior",
@@ -20700,7 +20701,7 @@
           },
           "salida": {
             "type": "string",
-            "description": "la salida (principal, sala, web-en…); sin esto, la por omisión"
+            "description": "Salida (id o nombre; `salidas_listar`). Sin ella, la por omisión (o la de quien llama)."
           }
         }
       },
@@ -20715,9 +20716,102 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpLineaTools.cpp",
-        "linea": 291
+        "linea": 422
+      },
+      "roles": [],
+      "porSalida": true
+    },
+    {
+      "nombre": "linea_camaras",
+      "titulo": "Los próximos planos de cada cámara",
+      "categoria": "linea",
+      "descripcion": "Para cada cámara (cada fuente que se ve en las escenas de la línea), los planos que la usan: el que está al aire y los que vienen, con cuánto falta, en todas las salidas. Es la pantalla del camarógrafo y del que maneja el PTZ.",
+      "esquema": {
+        "type": "object",
+        "properties": {
+          "camara": {
+            "type": "string"
+          }
+        }
+      },
+      "clase": "lectura",
+      "hilo": "foto",
+      "soloLectura": true,
+      "destructiva": false,
+      "idempotente": false,
+      "etiquetas": {
+        "propias": "",
+        "porPrefijo": "linea de tiempo timeline escaleta rundown pasos piezas pronostico hora del evento conduccion guion del evento"
+      },
+      "donde": {
+        "archivo": "src/app/mcp/McpLineaTools.cpp",
+        "linea": 354
       },
       "roles": []
+    },
+    {
+      "nombre": "linea_desde_plantilla",
+      "titulo": "Armar pasos desde una plantilla o una guía",
+      "categoria": "linea",
+      "descripcion": "Arma pasos de la línea desde una plantilla (orador, punto, votación o las del evento) repetida con datos (una lista de oradores, el orden del día), o la línea entera desde la guía de un escenario. Por defecto SOLO prueba.",
+      "esquema": {
+        "type": "object",
+        "properties": {
+          "plantilla": {
+            "type": "string"
+          },
+          "datos": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "origen": {
+            "type": "string",
+            "enum": [
+              "orden-del-dia"
+            ]
+          },
+          "escenario": {
+            "type": "string"
+          },
+          "bloque": {
+            "type": "string"
+          },
+          "nombreBloque": {
+            "type": "string"
+          },
+          "despuesDe": {
+            "type": "string"
+          },
+          "prefijo": {
+            "type": "string"
+          },
+          "probar": {
+            "type": "boolean",
+            "description": "mostrar el resultado sin aplicar (por defecto)"
+          },
+          "salida": {
+            "type": "string",
+            "description": "Salida (id o nombre; `salidas_listar`). Sin ella, la por omisión (o la de quien llama)."
+          }
+        }
+      },
+      "clase": "escritura",
+      "hilo": "control",
+      "soloLectura": false,
+      "destructiva": false,
+      "idempotente": false,
+      "etiquetas": {
+        "propias": "",
+        "porPrefijo": "linea de tiempo timeline escaleta rundown pasos piezas pronostico hora del evento conduccion guion del evento"
+      },
+      "donde": {
+        "archivo": "src/app/mcp/McpLineaTools.cpp",
+        "linea": 258
+      },
+      "roles": [],
+      "porSalida": true
     },
     {
       "nombre": "linea_deshacer",
@@ -20739,7 +20833,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpLineaTools.cpp",
-        "linea": 207
+        "linea": 206
       },
       "roles": []
     },
@@ -20777,7 +20871,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpLineaTools.cpp",
-        "linea": 159
+        "linea": 158
       },
       "roles": []
     },
@@ -20801,7 +20895,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpLineaTools.cpp",
-        "linea": 95
+        "linea": 94
       },
       "roles": []
     },
@@ -20815,7 +20909,7 @@
         "properties": {
           "salida": {
             "type": "string",
-            "description": "la salida (principal, sala, web-en…); sin esto, la por omisión"
+            "description": "Salida (id o nombre; `salidas_listar`). Sin ella, la por omisión (o la de quien llama)."
           }
         }
       },
@@ -20830,13 +20924,14 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpLineaTools.cpp",
-        "linea": 271
+        "linea": 402
       },
       "roles": [],
       "aire": {
         "cuando": "siempre",
         "por_que": "entra el próximo paso de la línea de tiempo"
-      }
+      },
+      "porSalida": true
     },
     {
       "nombre": "linea_hold",
@@ -20851,7 +20946,7 @@
           },
           "salida": {
             "type": "string",
-            "description": "la salida (principal, sala, web-en…); sin esto, la por omisión"
+            "description": "Salida (id o nombre; `salidas_listar`). Sin ella, la por omisión (o la de quien llama)."
           }
         }
       },
@@ -20866,9 +20961,10 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpLineaTools.cpp",
-        "linea": 277
+        "linea": 408
       },
-      "roles": []
+      "roles": [],
+      "porSalida": true
     },
     {
       "nombre": "linea_insertar",
@@ -20886,7 +20982,7 @@
           },
           "salida": {
             "type": "string",
-            "description": "la salida (principal, sala, web-en…); sin esto, la por omisión"
+            "description": "Salida (id o nombre; `salidas_listar`). Sin ella, la por omisión (o la de quien llama)."
           }
         },
         "required": [
@@ -20904,13 +21000,14 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpLineaTools.cpp",
-        "linea": 310
+        "linea": 441
       },
       "roles": [],
       "aire": {
         "cuando": "siempre",
         "por_que": "mete un paso del estante en la línea (al aire, si se pide)"
-      }
+      },
+      "porSalida": true
     },
     {
       "nombre": "linea_ir",
@@ -20925,7 +21022,7 @@
           },
           "salida": {
             "type": "string",
-            "description": "la salida (principal, sala, web-en…); sin esto, la por omisión"
+            "description": "Salida (id o nombre; `salidas_listar`). Sin ella, la por omisión (o la de quien llama)."
           }
         },
         "required": [
@@ -20943,13 +21040,14 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpLineaTools.cpp",
-        "linea": 299
+        "linea": 430
       },
       "roles": [],
       "aire": {
         "cuando": "siempre",
         "por_que": "entra otro paso de la línea de tiempo"
-      }
+      },
+      "porSalida": true
     },
     {
       "nombre": "linea_recorrido",
@@ -20976,7 +21074,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpLineaTools.cpp",
-        "linea": 119
+        "linea": 118
       },
       "roles": []
     },
@@ -20990,7 +21088,7 @@
         "properties": {
           "salida": {
             "type": "string",
-            "description": "la salida (principal, sala, web-en…); sin esto, la por omisión"
+            "description": "Salida (id o nombre; `salidas_listar`). Sin ella, la por omisión (o la de quien llama)."
           }
         }
       },
@@ -21005,13 +21103,14 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpLineaTools.cpp",
-        "linea": 306
+        "linea": 437
       },
       "roles": [],
       "aire": {
         "cuando": "siempre",
         "por_que": "vuelve a entrar el paso al aire"
-      }
+      },
+      "porSalida": true
     },
     {
       "nombre": "linea_retomar",
@@ -21041,7 +21140,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpLineaTools.cpp",
-        "linea": 327
+        "linea": 458
       },
       "roles": []
     },
@@ -21065,7 +21164,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpLineaTools.cpp",
-        "linea": 140
+        "linea": 139
       },
       "roles": []
     },
@@ -21079,7 +21178,7 @@
         "properties": {
           "salida": {
             "type": "string",
-            "description": "la salida (principal, sala, web-en…); sin esto, la por omisión"
+            "description": "Salida (id o nombre; `salidas_listar`). Sin ella, la por omisión (o la de quien llama)."
           }
         }
       },
@@ -21094,9 +21193,10 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpLineaTools.cpp",
-        "linea": 296
+        "linea": 427
       },
-      "roles": []
+      "roles": [],
+      "porSalida": true
     },
     {
       "nombre": "linea_siguiente",
@@ -21112,7 +21212,7 @@
           },
           "salida": {
             "type": "string",
-            "description": "la salida (principal, sala, web-en…); sin esto, la por omisión"
+            "description": "Salida (id o nombre; `salidas_listar`). Sin ella, la por omisión (o la de quien llama)."
           }
         }
       },
@@ -21127,9 +21227,10 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpLineaTools.cpp",
-        "linea": 286
+        "linea": 417
       },
-      "roles": []
+      "roles": [],
+      "porSalida": true
     },
     {
       "nombre": "linea_soltar",
@@ -21144,7 +21245,7 @@
           },
           "salida": {
             "type": "string",
-            "description": "la salida (principal, sala, web-en…); sin esto, la por omisión"
+            "description": "Salida (id o nombre; `salidas_listar`). Sin ella, la por omisión (o la de quien llama)."
           }
         }
       },
@@ -21159,13 +21260,14 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpLineaTools.cpp",
-        "linea": 353
+        "linea": 484
       },
       "roles": [],
       "aire": {
         "cuando": "siempre",
         "por_que": "suelta el HOLD tras un corte: lo que se pasó de hora entra solo"
-      }
+      },
+      "porSalida": true
     },
     {
       "nombre": "linea_ver",
@@ -21175,10 +21277,6 @@
       "esquema": {
         "type": "object",
         "properties": {
-          "salida": {
-            "type": "string",
-            "description": "la salida (principal, sala, web-en…); sin esto, la por omisión"
-          },
           "desde": {
             "description": "\"HH:MM\" o ms de época"
           },
@@ -21192,6 +21290,10 @@
               "pasos",
               "piezas"
             ]
+          },
+          "salida": {
+            "type": "string",
+            "description": "Salida (id o nombre; `salidas_listar`). Sin ella, la por omisión (o la de quien llama)."
           }
         }
       },
@@ -21206,9 +21308,10 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpLineaTools.cpp",
-        "linea": 59
+        "linea": 56
       },
-      "roles": []
+      "roles": [],
+      "porSalida": true
     },
     {
       "nombre": "media_carpetas",
@@ -23008,7 +23111,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpEventoTools.cpp",
-        "linea": 2032
+        "linea": 2043
       },
       "roles": [
         "asistente",
@@ -23060,7 +23163,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpEventoTools.cpp",
-        "linea": 1976
+        "linea": 1987
       },
       "roles": [
         "asistente",
@@ -23141,7 +23244,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpEventoTools.cpp",
-        "linea": 1882
+        "linea": 1893
       },
       "roles": [
         "asistente",
@@ -23222,7 +23325,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpEventoTools.cpp",
-        "linea": 1933
+        "linea": 1944
       },
       "roles": [
         "asistente",
@@ -23293,7 +23396,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpEventoTools.cpp",
-        "linea": 2098
+        "linea": 2109
       },
       "roles": [
         "asistente",
@@ -23353,7 +23456,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpEventoTools.cpp",
-        "linea": 1826
+        "linea": 1837
       },
       "roles": [
         "asistente",
