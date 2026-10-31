@@ -31,6 +31,7 @@
 
 #include "evento/Evento.hpp"
 #include "evento/Linea.hpp"
+#include "evento/LineaProductor.hpp"
 
 namespace ba::evento::linea {
 
@@ -102,13 +103,18 @@ using Hora = std::function<std::string(int64_t)>;
 nlohmann::json vista(const Linea& l, const Resolucion& r, const std::string& salida, int64_t desdeMs, int64_t hastaMs,
                      const std::string& nivel, int64_t ahoraMs, const Hora& hora = {});
 
-// --- Ajustar --------------------------------------------------------------------------
+/// La escena que pone un paso (la de su pieza de escena que no es manual), o "".
+std::string escenaDePaso(const Linea& l, const Paso& p);
 
-/// El solucionador del back-timing, versión simple (L9 lo completa): para terminar
-/// a `objetivoFinMs`, propone recortar los pasos FUTUROS con la etiqueta
-/// «recortable» (cada uno hasta la mitad, en proporción a lo que dura) y, si no
-/// alcanza, saltear los que tienen la etiqueta «opcional». Nunca aplica: devuelve
-/// {overSeg, recortaSeg, faltaSeg, ops (para editar), saltear:[…], texto}.
-nlohmann::json proponerAjuste(const Linea& l, const Resolucion& r, const std::string& salida, int64_t objetivoFinMs);
+/// La pantalla de cámara (la Camera screen de Sofie): para cada cámara, los planos
+/// que la usan, al aire y los que vienen, de TODAS las salidas (las cámaras se
+/// comparten). `vistas` es un arreglo con la vista (nivel pasos) de cada salida; una
+/// cámara sale por la escena del paso (`camarasDeEscena`) o por una pieza `ptz` del
+/// paso (datos.camara). {camara: [{salida, paso, nombre, estado, frente, enSeg?, escena?, ptz?}]},
+/// lo que está al aire primero y después por lo que falta.
+nlohmann::json proximosPorCamara(const Linea& l, const nlohmann::json& vistas,
+                                 const std::function<std::vector<std::string>(const std::string&)>& camarasDeEscena);
+
+// El solucionador del back-timing (proponerAjuste) está en LineaProductor.hpp.
 
 } // namespace ba::evento::linea

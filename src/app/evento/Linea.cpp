@@ -462,11 +462,11 @@ const char* pistaDeTipo(Tipo t) {
     return "notas";
 }
 
+} // namespace
+
 bool pistaPorSalida(const std::string& tipo) {
     return tipo == "escena" || tipo == "graficos" || tipo == "dsk" || tipo == "audio" || tipo == "medios";
 }
-
-} // namespace
 
 /// La vida que tenía cada cosa en el v1. La música seguía sonando hasta el tema
 /// siguiente («Música del evento»), el rack quedaba como se lo dejaba, el gráfico

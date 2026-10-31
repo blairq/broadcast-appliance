@@ -636,6 +636,68 @@ json diferencias(const Linea& antes, const Linea& despues) {
 
 // --- Ver ------------------------------------------------------------------------------
 
+std::string escenaDePaso(const Linea& l, const Paso& p) {
+    for (const Pieza& z : p.piezas) {
+        const Pista* pi = l.pista(z.pista);
+        const std::string tipo = z.tipo.empty() && pi ? pi->tipo : z.tipo;
+        if (tipo == "escena" && z.desde.modo != Ancla::Modo::Manual) return leerTexto(z.datos, "escena");
+    }
+    return {};
+}
+
+json proximosPorCamara(const Linea& l, const json& vistas, const std::function<std::vector<std::string>(const std::string&)>& camarasDeEscena) {
+    json out = json::object();
+    const auto sumar = [&](const std::string& camara, json x) {
+        if (camara.empty()) return;
+        if (!out.contains(camara)) out[camara] = json::array();
+        out[camara].push_back(std::move(x));
+    };
+    for (const json& v : vistas.is_array() ? vistas : json::array()) {
+        const std::string salida = leerTexto(v, "salida");
+        for (const json& b : v.value("bloques", json::array()))
+            for (const json& jp : b.value("pasos", json::array())) {
+                const std::string estado = leerTexto(jp, "estado");
+                if (estado != "alAire" && estado != "proximo" && estado != "futuro") continue;
+                const Paso* p = l.paso(leerTexto(jp, "id"));
+                if (!p) continue;
+                json base{{"salida", salida},          {"paso", p->id},           {"nombre", p->nombre},
+                          {"estado", estado},          {"frente", jp.value("frente", json())}};
+                if (jp.contains("enSeg")) base["enSeg"] = jp["enSeg"];
+                const std::string escena = leerTexto(jp, "escena");
+                std::set<std::string> yaEsta;
+                if (!escena.empty() && camarasDeEscena) {
+                    base["escena"] = escena;
+                    for (const std::string& c : camarasDeEscena(escena))
+                        if (yaEsta.insert(c).second) sumar(c, base);
+                }
+                // Las piezas PTZ del paso: la cámara se mueve aunque no salga en la escena.
+                for (const Pieza& z : p->piezas) {
+                    const Pista* pi = l.pista(z.pista);
+                    if ((z.tipo.empty() && pi ? pi->tipo : z.tipo) != "ptz") continue;
+                    const json c = z.datos.value("camara", json());
+                    const std::string cam = c.is_string() ? c.get<std::string>() : c.is_number() ? c.dump() : std::string();
+                    if (cam.empty()) continue;
+                    json x = base;
+                    x["ptz"] = {{"pieza", z.id}, {"texto", z.texto}, {"datos", z.datos}};
+                    if (yaEsta.insert(cam).second) sumar(cam, std::move(x));
+                    else
+                        for (json& y : out[cam])
+                            if (y["paso"] == p->id && y["salida"] == salida) y["ptz"] = x["ptz"];
+                }
+            }
+    }
+    // Por lo que falta: lo que está al aire primero, después lo que entra antes.
+    for (auto& [cam, lista] : out.items()) {
+        std::stable_sort(lista.begin(), lista.end(), [](const json& a, const json& b) {
+            const int64_t ea = a["estado"] == "alAire" ? -1 : a.value("enSeg", int64_t{1} << 40);
+            const int64_t eb = b["estado"] == "alAire" ? -1 : b.value("enSeg", int64_t{1} << 40);
+            return ea < eb;
+        });
+        (void)cam;
+    }
+    return out;
+}
+
 json vista(const Linea& l, const Resolucion& r, const std::string& salida, int64_t desdeMs, int64_t hastaMs, const std::string& nivel,
            int64_t ahoraMs, const Hora& hora) {
     const auto H = [&](int64_t ms) -> json {
@@ -684,6 +746,11 @@ json vista(const Linea& l, const Resolucion& r, const std::string& salida, int64
                 }
                 if (!p.salida.empty() && p.salida != salida) jp["salidaDelPaso"] = p.salida;
                 if (!p.notaOperador.empty()) jp["nota"] = p.notaOperador;
+                // Para las superficies (la escaleta, la cámara, el presentador): la escena
+                // que pone el paso y cuánto falta para que entre.
+                if (const std::string e = escenaDePaso(l, p); !e.empty()) jp["escena"] = e;
+                if ((pr->estado == EstadoPaso::Proximo || pr->estado == EstadoPaso::Futuro) && pr->frenteMs > ahoraMs)
+                    jp["enSeg"] = (pr->frenteMs - ahoraMs) / 1000;
                 if (!p.etiquetas.empty()) jp["etiquetas"] = p.etiquetas;
                 if (nivel == "piezas") {
                     json zs = json::array();
@@ -711,6 +778,16 @@ json vista(const Linea& l, const Resolucion& r, const std::string& salida, int64
         bloques.push_back(std::move(jb));
     }
     out["bloques"] = std::move(bloques);
+    // El estante (los adlibs), para quien dispara a mano: la escaleta web, la botonera.
+    if (nivel != "bloques") {
+        json es = json::array();
+        for (const ItemEstante& i : l.estante) {
+            json x{{"id", i.id}, {"boton", i.boton}, {"tecla", i.tecla}, {"color", i.color}, {"tipo", i.paso ? "paso" : "pieza"}};
+            x["nombre"] = i.paso ? i.paso->nombre : i.pieza ? (i.pieza->texto.empty() ? i.pieza->tipo : i.pieza->texto) : std::string();
+            es.push_back(std::move(x));
+        }
+        out["estante"] = std::move(es);
+    }
     json hs = json::array();
     for (const HardStart& h : sr->hardStarts)
         hs.push_back({{"paso", h.paso}, {"hora", H(h.horaMs)}, {"politica", nombreDe(h.politica)}, {"gapSeg", h.gapMs / 1000}});
@@ -728,66 +805,6 @@ json vista(const Linea& l, const Resolucion& r, const std::string& salida, int64
                       {"armada", c.armada}});
     }
     out["conflictos"] = std::move(cs);
-    return out;
-}
-
-// --- Ajustar --------------------------------------------------------------------------
-
-json proponerAjuste(const Linea& l, const Resolucion& r, const std::string& salida, int64_t objetivoFinMs) {
-    json out{{"ops", json::array()}, {"saltear", json::array()}, {"recortaSeg", 0}, {"faltaSeg", 0}};
-    const SalidaResuelta* sr = r.salida(salida);
-    if (sr == nullptr) {
-        out["texto"] = llenar(traducir("linea", "no hay una salida «%1»"), {salida});
-        return out;
-    }
-    const int64_t over = sr->finMs - objetivoFinMs;
-    out["overSeg"] = over / 1000;
-    if (over <= 0) {
-        out["texto"] = llenar(traducir("linea", "se llega con %1 s de sobra: no hace falta recortar"), {std::to_string(-over / 1000)});
-        return out;
-    }
-    const auto tiene = [](const Paso& p, const char* e) { return std::find(p.etiquetas.begin(), p.etiquetas.end(), e) != p.etiquetas.end(); };
-    const auto futuro = [](const PasoResuelto& pr) { return pr.estado == EstadoPaso::Proximo || pr.estado == EstadoPaso::Futuro; };
-    // Lo que se puede sacar: hasta la mitad de cada paso recortable que viene.
-    std::vector<const Paso*> recortables;
-    int64_t margen = 0;
-    for (const PasoResuelto& pr : sr->pasos) {
-        const Paso* p = l.paso(pr.paso);
-        if (!p || !futuro(pr) || !tiene(*p, "recortable") || p->fin.modo != ModoFin::Duracion || p->duracionPlanMs() < 2000) continue;
-        recortables.push_back(p);
-        margen += p->duracionPlanMs() / 2;
-    }
-    const int64_t recorte = std::min(over, margen);
-    int64_t hecho = 0;
-    for (const Paso* p : recortables) {
-        if (recorte <= 0) break;
-        const int64_t mitad = p->duracionPlanMs() / 2;
-        // En proporción a lo que dura cada uno, redondeado a segundos (para arriba: que alcance).
-        const int64_t corte = std::min(mitad, (mitad * recorte + margen - 1) / margen);
-        const int64_t seg = (corte + 999) / 1000;
-        if (seg <= 0) continue;
-        const int nuevo = static_cast<int>(p->duracionPlanMs() / 1000 - seg);
-        out["ops"].push_back({{"op", "cambiar"}, {"id", p->id}, {"campos", {{"fin", {{"duracion", nuevo}}}, {"duracionPrevistaSeg", nuevo}}}});
-        hecho += seg * 1000;
-    }
-    out["recortaSeg"] = hecho / 1000;
-    int64_t falta = std::max<int64_t>(0, over - hecho);
-    // Si no alcanza: lo opcional que viene, hasta cubrir lo que falta.
-    for (const PasoResuelto& pr : sr->pasos) {
-        if (falta <= 0) break;
-        const Paso* p = l.paso(pr.paso);
-        if (!p || !futuro(pr) || !tiene(*p, "opcional")) continue;
-        out["saltear"].push_back({{"paso", p->id}, {"nombre", p->nombre}, {"durSeg", p->duracionPlanMs() / 1000}});
-        falta -= p->duracionPlanMs();
-    }
-    out["faltaSeg"] = std::max<int64_t>(0, falta) / 1000;
-    if (out["ops"].empty() && out["saltear"].empty())
-        out["texto"] = llenar(traducir("linea", "vamos %1 s pasados y no hay pasos «recortable» ni «opcional» en lo que viene: "
-                                                "hay que decidir a mano qué acortar"),
-                              {std::to_string(over / 1000)});
-    else
-        out["texto"] = llenar(traducir("linea", "vamos %1 s pasados: recortando lo recortable se ganan %2 s; faltan %3 s"),
-                              {std::to_string(over / 1000), std::to_string(hecho / 1000), std::to_string(out["faltaSeg"].get<int64_t>())});
     return out;
 }
 

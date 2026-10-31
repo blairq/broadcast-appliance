@@ -307,6 +307,10 @@ Linea migrar(const Evento& v1);
 /// video) o frenan el guion (pausa, espera). Los demás van como piezas del paso.
 bool abrePaso(Tipo t);
 
+/// ¿Una pista de este tipo es de una salida (escena, graficos, dsk, audio, medios)
+/// o global? Las de una salida se llaman «<tipo>-<salida>»; las globales, «<tipo>».
+bool pistaPorSalida(const std::string& tipo);
+
 /// La vida (y, para un gráfico que «se va sola», la duración) que la migración le
 /// da a la pieza de un cue v1: la música sigue hasta la siguiente, el gráfico según
 /// su `seVa`. La usa también reconciliar() para saber si una vida fue tocada a mano.
