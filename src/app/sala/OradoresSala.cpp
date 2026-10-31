@@ -69,8 +69,11 @@ std::string OradoresSala::leerTiempo(const std::string& textoEntero, int actual,
 }
 
 nlohmann::json OradoresSala::fila(const nlohmann::json& foto) {
+    // (Los participantes se copian una vez: `value` devuelve una copia y sus punteros no
+    // vivirían más que el bucle.)
+    const nlohmann::json participantes = foto.value("participants", nlohmann::json::array());
     std::map<std::string, const nlohmann::json*> porId;
-    for (const auto& p : foto.value("participants", nlohmann::json::array()))
+    for (const auto& p : participantes)
         if (p.is_object()) porId[p.value("id", std::string())] = &p;
     nlohmann::json out = nlohmann::json::array();
     int lugar = 0;
