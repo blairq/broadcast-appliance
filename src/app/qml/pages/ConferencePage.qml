@@ -53,16 +53,10 @@ Rectangle {
     function since(ms) {
         return Theme.hace((page.now - ms) / 1000)
     }
-    function mb(bytes) { return (bytes / 1048576).toFixed(1) + " MB" }
     /// kbit/s a algo que se lea de un vistazo.
     function mbits(kbps) {
         const k = kbps || 0
         return k >= 1000 ? (k / 1000).toFixed(1) + " Mb/s" : Math.round(k) + " kb/s"
-    }
-    function fmt(ms) {
-        const neg = ms < 0
-        const t = Math.floor(Math.abs(ms) / 1000)
-        return (neg ? "+" : "") + Math.floor(t / 60) + ":" + String(t % 60).padStart(2, "0")
     }
     // Reloj de la sala para los tiempos de los oradores (4 veces por segundo).
     property double clock: Date.now() + conf.clockOffset
@@ -97,7 +91,7 @@ Rectangle {
                         TextField {
                             id: spkDefault
                             Layout.preferredWidth: 64
-                            text: page.fmt((conf.speakerCfg.defaultSec || 0) * 1000)
+                            text: Theme.cuentaOrador((conf.speakerCfg.defaultSec || 0) * 1000)
                             font.pixelSize: 12
                             ToolTip.visible: hovered; ToolTip.text: qsTr("Tiempo general para cada orador (m:ss o minutos)")
                             onEditingFinished: { const s = conf.parseDuration(text); if (s > 0) conf.setSpeakerConfig({ defaultSec: s }) }
@@ -1213,7 +1207,7 @@ Rectangle {
                                     Layout.fillWidth: true
                                     spacing: 2
                                     Text { text: name; color: Theme.text; font.pixelSize: 13; font.weight: Font.DemiBold; elide: Text.ElideMiddle; Layout.fillWidth: true }
-                                    Text { text: qsTr("%1 · %2 · hace %3").arg(participantName).arg(page.mb(bytes)).arg(page.since(atMs)); color: Theme.textFaint; font.pixelSize: 11; elide: Text.ElideRight; Layout.fillWidth: true }
+                                    Text { text: qsTr("%1 · %2 · hace %3").arg(participantName).arg(Theme.tamano(bytes)).arg(page.since(atMs)); color: Theme.textFaint; font.pixelSize: 11; elide: Text.ElideRight; Layout.fillWidth: true }
                                     RowLayout {
                                         spacing: 6
                                         GlassButton { text: qsTr("Tomar"); compact: true; active: true; onClicked: conf.takeShare(uid) }
@@ -1253,7 +1247,7 @@ Rectangle {
         function edit(id, name, info, contact, sec) {
             who = id; whoName = name; withTime = true
             profName.text = name; profInfo.text = info; profContact.text = contact
-            profTime.text = page.fmt(sec * 1000)
+            profTime.text = Theme.cuentaOrador(sec * 1000)
             open()
         }
         /// Desde el lobby o la sala: los mismos datos, sin el tiempo de orador.

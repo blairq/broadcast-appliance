@@ -21,7 +21,6 @@ Item {
     readonly property var doc: { for (const d of docs) if (d.id === elegido) return d; return null }
 
     function clave(b, i) { return b.id && b.id !== "" ? b.id : String(i + 1) }
-    function tamano(b) { return b > 1e6 ? (b / 1e6).toFixed(1) + " MB" : Math.round((b || 0) / 1e3) + " kB" }
     function relaciones(d) {
         const l = []
         for (const n of (d.puntos || [])) l.push(qsTr("Punto %1").arg(n))
@@ -131,7 +130,7 @@ Item {
                                 Text { Layout.fillWidth: true; text: modelData.titulo; color: Theme.text; font.pixelSize: 12; font.weight: Font.DemiBold
                                        elide: Text.ElideRight; maximumLineCount: 2; wrapMode: Text.WordWrap }
                                 Text { Layout.fillWidth: true; color: Theme.textFaint; font.pixelSize: 10; elide: Text.ElideRight
-                                       text: modelData.paginas ? qsTr("%1 pág. · %2").arg(modelData.paginas).arg(pd.tamano(modelData.bytes)) : pd.tamano(modelData.bytes) }
+                                       text: modelData.paginas ? qsTr("%1 pág. · %2").arg(modelData.paginas).arg(Theme.tamano(modelData.bytes)) : Theme.tamano(modelData.bytes) }
                                 Text { Layout.fillWidth: true; color: Theme.accent; font.pixelSize: 10; elide: Text.ElideRight
                                        text: pd.relaciones(modelData).join(" · ") }
                                 Item { Layout.fillHeight: true }

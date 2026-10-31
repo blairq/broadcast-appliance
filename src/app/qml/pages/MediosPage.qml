@@ -27,12 +27,6 @@ Rectangle {
     /// 0 = los archivos, 1 = armar carruseles.
     property int solapa: 0
 
-    function tamano(bytes) {
-        if (bytes < 1024) return bytes + " B"
-        if (bytes < 1024 * 1024) return Math.round(bytes / 1024) + " KB"
-        if (bytes < 1024 * 1024 * 1024) return (bytes / 1024 / 1024).toFixed(1) + " MB"
-        return (bytes / 1024 / 1024 / 1024).toFixed(1) + " GB"
-    }
 
     /// De lo elegido, el primero que se puede desarmar en láminas.
     function primerDocumento() {
@@ -138,7 +132,7 @@ Rectangle {
                 Layout.fillWidth: true
                 text: page.m.cuantosElegidos === 1
                       ? page.m.seleccion[0]
-                      : qsTr("%n archivo · %1", "", page.m.cuantosElegidos).arg(page.tamano(page.m.bytesElegidos))
+                      : qsTr("%n archivo · %1", "", page.m.cuantosElegidos).arg(Theme.tamano(page.m.bytesElegidos))
                 color: Theme.text
                 font.pixelSize: 13
                 elide: Text.ElideMiddle

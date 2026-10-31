@@ -229,6 +229,9 @@ struct TotemsViewModel::Conexion {
 TotemsViewModel::TotemsViewModel(AppRuntime& rt, StudioViewModel& vm, agent::Voz* voz, agent::ModelosLocales* modelos,
                                  QObject* parent)
     : QObject(parent), rt_(rt), vm_(vm), voz_(voz), modelos_(modelos) {
+    connect(this, &TotemsViewModel::cambio, this, [this] { filasTotems_.poner(totems()); });
+    connect(this, &TotemsViewModel::vivoCambio, this, [this] { filasConexiones_.poner(conexiones()); });
+    connect(this, &TotemsViewModel::registradosCambio, this, [this] { filasRegistrados_.poner(registrados()); });
     if (EventoViewModel* ev = eventoDe(vm_)) {
         connect(ev, &EventoViewModel::guionChanged, this, &TotemsViewModel::recargar);
         connect(ev, &EventoViewModel::padronChanged, this, &TotemsViewModel::registradosCambio);

@@ -30,7 +30,7 @@ Rectangle {
         page.mirandoRes = page.visible
     }
     onVisibleChanged: mirarRes()
-    Component.onCompleted: { mirarRes(); sincronizarMapa() }
+    Component.onCompleted: mirarRes()
     Component.onDestruction: if (page.mirandoRes && Studio.resolucion) Studio.resolucion.mirar(false)
     readonly property var nivelesRes: Studio.resolucion ? Studio.resolucion.niveles : ({})
     /// La clave del nodo en los niveles del plan: la tarjeta por el id de su nodo del grafo; la
@@ -185,25 +185,12 @@ Rectangle {
     }
     // LAS TARJETAS Y LAS LÍNEAS VIVEN ENTRE VUELTAS. Con el arreglo de `acomodo` como modelo, el
     // Repeater las destruía y creaba TODAS en cada vuelta del modelo: parpadeaban, perdían el
-    // hover y se volvían a animar. Ahora el modelo es un ListModel de claves que solo cambia
+    // hover y se volvían a animar. Ahora el modelo es una ListaConClave de claves que solo cambia
     // cuando aparece o se va una; cada una lee lo suyo de estos mapas.
     readonly property var nodoPorId: { const m = {}; for (const n of page.acomodo.nodos) m[n.id] = n; return m }
     readonly property var tramoPorId: { const m = {}; for (const t of page.acomodo.tramos) m[t.desde + ">" + t.hacia] = t; return m }
-    ListModel { id: modeloNodos }
-    ListModel { id: modeloTramos }
-    function sincronizar(modelo, claves) {
-        const quiero = {}
-        for (const c of claves) quiero[c] = true
-        for (let i = modelo.count - 1; i >= 0; --i) if (!quiero[modelo.get(i).clave]) modelo.remove(i)
-        const hay = {}
-        for (let i = 0; i < modelo.count; ++i) hay[modelo.get(i).clave] = true
-        for (const c of claves) if (!hay[c]) modelo.append({ clave: c })
-    }
-    function sincronizarMapa() {
-        sincronizar(modeloNodos, page.acomodo.nodos.map(n => n.id))
-        sincronizar(modeloTramos, page.acomodo.tramos.map(t => t.desde + ">" + t.hacia))
-    }
-    onAcomodoChanged: sincronizarMapa()
+    ListaConClave { id: modeloNodos; clave: "clave"; lista: page.acomodo.nodos.map(n => ({ clave: n.id })) }
+    ListaConClave { id: modeloTramos; clave: "clave"; lista: page.acomodo.tramos.map(t => ({ clave: t.desde + ">" + t.hacia })) }
     /// La tarjeta dada vuelta (el dorso con el detalle): «Detalle» en la barra de la elegida.
     property string volteada: ""
 
@@ -221,11 +208,6 @@ Rectangle {
     property int vuelta: 0
     Connections { target: page.tm; function onCambio() { page.vuelta++ } }
 
-    function ms(v) { return v === null || v === undefined ? "—" : (v >= 1000 ? (v / 1000).toFixed(2) + " s" : Math.round(v) + " ms") }
-    function hace(t) {
-        const s = Math.round((Date.now() - t) / 1000)
-        return s < 60 ? qsTr("hace %1 s").arg(s) : s < 3600 ? qsTr("hace %1 min").arg(Math.round(s / 60)) : new Date(t).toLocaleString(Qt.locale(), "d/M HH:mm")
-    }
 
     // --- Fondo: la profundidad -----------------------------------------------------------
     Rectangle {
@@ -253,7 +235,7 @@ Rectangle {
             }
             StatusPill {
                 readonly property var es: page.mapa.estudio || {}
-                text: qsTr("Estudio %1").arg(page.ms(es.latencia_ms)) + (es.tope_ms ? " · " + qsTr("tope %1").arg(page.ms(es.tope_ms)) : "")
+                text: qsTr("Estudio %1").arg(Theme.ms(es.latencia_ms)) + (es.tope_ms ? " · " + qsTr("tope %1").arg(Theme.ms(es.tope_ms)) : "")
                 dot: Theme.ok
                 TapHandler { onTapped: page.pestana = "sincronia" }
             }
@@ -629,7 +611,7 @@ Rectangle {
                                 anchors { left: parent.left; right: parent.right; top: parent.top; margins: 8 }
                                 spacing: 2
                                 Text { text: sal.modelData.titulo; color: Theme.text; font.pixelSize: 12; font.weight: Font.DemiBold }
-                                Text { text: page.ms(sal.modelData.total_ms); color: Theme.text; font.pixelSize: 24; font.weight: Font.Light }
+                                Text { text: Theme.ms(sal.modelData.total_ms); color: Theme.text; font.pixelSize: 24; font.weight: Font.Light }
                                 Text {
                                     width: parent.width; wrapMode: Text.WordWrap
                                     text: sal.modelData.fuente === "medido" ? qsTr("medido de punta a punta") : qsTr("declarado (lo que se le fijó al pipeline)")
@@ -790,7 +772,7 @@ Rectangle {
                                 }
                                 Text {
                                     anchors.verticalCenter: parent.verticalCenter
-                                    text: "#" + an.modelData.id + " · " + an.modelData.segundos + " s · " + page.hace(an.modelData.desde_ms)
+                                    text: "#" + an.modelData.id + " · " + an.modelData.segundos + " s · " + qsTr("hace %1").arg(Theme.hace((Date.now() - an.modelData.desde_ms) / 1000))
                                     color: Theme.textDim; font.pixelSize: 10
                                 }
                             }
@@ -808,7 +790,7 @@ Rectangle {
                                 model: an.modelData.salidas || []
                                 delegate: Text {
                                     required property var modelData
-                                    text: modelData.titulo + "  " + page.ms(modelData.total_ms) + "  (p95 " + page.ms(modelData.p95_ms) + ")"
+                                    text: modelData.titulo + "  " + Theme.ms(modelData.total_ms) + "  (p95 " + Theme.ms(modelData.p95_ms) + ")"
                                     color: Theme.text; font.pixelSize: 11
                                 }
                             }

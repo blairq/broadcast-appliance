@@ -30,14 +30,6 @@ Rectangle {
     property var configForm: ({})        // el "config" de plugin.json, para el formulario
     property bool configJson: false      // editarlo como JSON en vez de formulario
 
-    function colorDeEstado(e) {
-        switch (e) {
-        case "corriendo": return Theme.ok
-        case "arrancando": case "dependencias": case "reiniciando": return Theme.amber
-        case "caido": case "bloqueado": return Theme.live
-        default: return Theme.textFaint
-        }
-    }
     function nombreDeEstado(e) {
         switch (e) {
         case "corriendo": return qsTr("corriendo")
@@ -317,7 +309,7 @@ Rectangle {
                             }
                             StatusPill {
                                 text: page.nombreDeEstado(tarjeta.modelData.estado) + (tarjeta.modelData.reinicios ? " · " + qsTr("%n reinicio", "", tarjeta.modelData.reinicios) : "")
-                                dot: page.colorDeEstado(tarjeta.modelData.estado)
+                                dot: Theme.colorDeEstado(tarjeta.modelData.estado)
                                 pulse: tarjeta.modelData.estado === "arrancando" || tarjeta.modelData.estado === "dependencias"
                                 medidaDe: qsTr("bajando bibliotecas…")
                             }

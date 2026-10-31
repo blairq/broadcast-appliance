@@ -120,21 +120,7 @@ ColumnLayout {
         id: vistasFila
         Layout.fillWidth: true
         spacing: 8
-        property int tick: 0
-        Connections {
-            target: Studio.scenes
-            function onRowsInserted() { vistasFila.tick++ }
-            function onRowsRemoved() { vistasFila.tick++ }
-            function onModelReset() { vistasFila.tick++ }
-            function onDataChanged() { vistasFila.tick++ }
-        }
-        readonly property var escenas: {
-            vistasFila.tick
-            const m = Studio.scenes, l = []
-            if (!m) return l
-            for (let i = 0; i < m.rowCount(); ++i) l.push(m.data(m.index(i, 0), 257)) // NameRole
-            return l
-        }
+        readonly property var escenas: Studio.escenas.nombres
         readonly property var opciones: ["—", qsTr("Salida principal")].concat(vistasFila.escenas)
         function guardar() {
             const l = []

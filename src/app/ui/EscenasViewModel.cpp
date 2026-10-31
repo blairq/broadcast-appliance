@@ -8,6 +8,7 @@
 #include "escenas/AjustesEscenas.hpp"
 #include "escenas/Conmutador.hpp"
 #include "i18n/I18n.hpp"
+#include "ui/ListaConClave.hpp"
 #include "ui/ListModels.hpp"
 #include "ui/SalidasViewModel.hpp"
 
@@ -58,7 +59,12 @@ std::string armarRepeticionEn(AppRuntime& rt, escenas::Conmutadores& cs, const s
 } // namespace
 
 EscenasViewModel::EscenasViewModel(Partes p, QObject* parent)
-    : QObject(parent), p_(std::move(p)), ajustes_(std::make_unique<escenas::AjustesEscenas>(p_.rt.dataRoot())) {
+    : QObject(parent), p_(std::move(p)), ajustes_(std::make_unique<escenas::AjustesEscenas>(p_.rt.dataRoot())),
+      arbol_(std::make_unique<ListaConClave>(QStringLiteral("clave"),
+                                             QStringList{QStringLiteral("fila"), QStringLiteral("nombre"),
+                                                         QStringLiteral("carpeta"), QStringLiteral("cuantas"),
+                                                         QStringLiteral("abierta")})) {
+    connect(this, &EscenasViewModel::listaCambio, this, &EscenasViewModel::armarArbol);
     // Lo que se muestra sale de la foto del motor: se avisa cuando cambia. El AFV es de la
     // salida activa: cambia también cuando se elige otra.
     connect(&p_.ventanilla, &VentanillaMotor::cambio, this, &EscenasViewModel::alCambiar);
@@ -66,6 +72,51 @@ EscenasViewModel::EscenasViewModel(Partes p, QObject* parent)
     listaAntes_ = firmaLista();
     afvAntes_ = afvFuentes();
     transicionesAntes_ = transicionesEntrada();
+    armarArbol();
+}
+
+QStringList EscenasViewModel::nombres() const {
+    QStringList out;
+    for (const FotoMotor::Escena& e : p_.ventanilla.foto().escenas) out << qs(e.nombre);
+    return out;
+}
+
+QAbstractItemModel* EscenasViewModel::arbol() { return arbol_.get(); }
+
+void EscenasViewModel::alternarCarpeta(const QString& carpeta) {
+    if (!plegadas_.remove(carpeta)) plegadas_.insert(carpeta);
+    armarArbol();
+}
+
+void EscenasViewModel::armarArbol() {
+    // Sin carpetas, las escenas van sueltas y sin encabezado; con carpetas, también las
+    // sueltas llevan el suyo («Sin carpeta»), para que no parezcan de la de arriba.
+    const QVariantList grupos = escenasPorCarpeta();
+    const bool hayCarpetas = std::any_of(grupos.begin(), grupos.end(),
+                                         [](const QVariant& g) { return !g.toMap().value("carpeta").toString().isEmpty(); });
+    QVariantList filas;
+    for (const QVariant& gv : grupos) {
+        const QVariantMap g = gv.toMap();
+        const QString carpeta = g.value("carpeta").toString();
+        const QVariantList escenas = g.value("escenas").toList();
+        const bool abierta = !plegadas_.contains(carpeta);
+        if (hayCarpetas)
+            filas.append(QVariantMap{{"clave", "c:" + carpeta},
+                                     {"fila", QStringLiteral("carpeta")},
+                                     {"nombre", QString()},
+                                     {"carpeta", carpeta},
+                                     {"cuantas", static_cast<int>(escenas.size())},
+                                     {"abierta", abierta}});
+        if (hayCarpetas && !abierta) continue;
+        for (const QVariant& e : escenas)
+            filas.append(QVariantMap{{"clave", "e:" + e.toString()},
+                                     {"fila", QStringLiteral("escena")},
+                                     {"nombre", e.toString()},
+                                     {"carpeta", carpeta},
+                                     {"cuantas", 0},
+                                     {"abierta", true}});
+    }
+    arbol_->poner(filas);
 }
 
 EscenasViewModel::~EscenasViewModel() = default;

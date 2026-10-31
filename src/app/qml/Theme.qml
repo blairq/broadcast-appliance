@@ -75,6 +75,50 @@ QtObject {
         return (neg ? "-" : "") + (h > 0 ? h + ":" + String(m).padStart(2, "0") : m) + ":" + s
     }
 
+    /// El tiempo de un orador en cuenta regresiva desde milisegundos: «4:05» lo que le
+    /// queda, «+0:12» lo que se pasó (el reloj de las tarjetas y de la sala).
+    function cuentaOrador(ms) {
+        const t = Math.floor(Math.abs(ms || 0) / 1000)
+        return (ms < 0 ? "+" : "") + Math.floor(t / 60) + ":" + String(t % 60).padStart(2, "0")
+    }
+
+    /// Un tamaño de archivo legible (en base 1000, como lo muestra el sistema): «850 B»,
+    /// «12 kB», «3.4 MB», «1.2 GB»; vacío si no se sabe.
+    function tamano(b) {
+        if (b === undefined || b === null || isNaN(b)) return ""
+        if (b < 1e3) return Math.round(b) + " B"
+        if (b < 1e6) return Math.round(b / 1e3) + " kB"
+        if (b < 1e9) return (b / 1e6).toFixed(1) + " MB"
+        return (b / 1e9).toFixed(1) + " GB"
+    }
+
+    /// Una demora en milisegundos: «0.4 ms», «35 ms», «1.25 s»; «—» si no se midió.
+    function ms(v) {
+        if (v === null || v === undefined || isNaN(v)) return "—"
+        return v >= 1000 ? (v / 1000).toFixed(2) + " s" : Number(v).toFixed(v < 10 ? 1 : 0) + " ms"
+    }
+
+    /// El color de un estado, el mismo en todas las páginas (plugins, agentes, pantallas,
+    /// salud, descargas, la escaleta): bien, en camino, a mirar, mal o apagado.
+    function colorDeEstado(e) {
+        switch (e) {
+        case "ok": case "corriendo": case "listo": case "libre": case "normal": case "terminado":
+            return ok
+        case "bajando":
+            return accent
+        case "arrancando": case "dependencias": case "reiniciando": case "detenida": case "ocupada":
+        case "aviso": case "proximo":
+            return amber
+        case "error": case "caido": case "bloqueado": case "critico": case "mostrando": case "alAire":
+        case "en_curso":
+            return live
+        case "en_cola":
+            return textDim
+        default:
+            return textFaint
+        }
+    }
+
     /// El color de cada tipo de cue o pieza (la franja de la fila, el chip, el bloque de la línea).
     function colorDeTipo(tipo) {
         switch (tipo) {

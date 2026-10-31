@@ -14,7 +14,6 @@ Rectangle {
     property real leftInset: 92
     readonly property var yt: Studio.youtube
 
-    function mb(bytes) { return (bytes / 1048576).toFixed(bytes > 1073741824 ? 0 : 1) + " MB" }
     function day(iso) { return iso ? new Date(iso).toLocaleString(Qt.locale(), "dd/MM/yyyy HH:mm") : "" }
     readonly property var privacyNames: ({ "public": qsTr("Público"), "unlisted": qsTr("No listado"), "private": qsTr("Privado") })
     readonly property var statusNames: ({ "created": qsTr("Creado"), "ready": qsTr("Listo"), "testing": qsTr("En prueba"), "live": qsTr("EN VIVO"),
@@ -435,7 +434,7 @@ Rectangle {
                             RowLayout {
                                 anchors { fill: parent; margins: 10 }
                                 Text { text: name; color: Theme.text; font.pixelSize: 13; elide: Text.ElideMiddle; Layout.fillWidth: true }
-                                Text { text: page.mb(size) + "  ·  " + modified; color: Theme.textFaint; font.pixelSize: 12 }
+                                Text { text: Theme.tamano(size) + "  ·  " + modified; color: Theme.textFaint; font.pixelSize: 12 }
                                 GlassButton { compact: true; text: qsTr("Subir a YouTube"); enabled: yt.upload.path === undefined
                                               onClicked: uploadDlg.pick(path, name) }
                             }

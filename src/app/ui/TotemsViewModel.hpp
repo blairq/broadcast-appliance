@@ -59,6 +59,7 @@
 #include "ipc/CanalesRegistro.hpp"
 #include "registro/Totems.hpp"
 #include "ui/LectorDocumentos.hpp"
+#include "ui/ListaConClave.hpp"
 
 namespace ba::registro {
 class Conversacion;
@@ -96,6 +97,11 @@ class TotemsViewModel : public QObject {
     /// Los registrados por tótem en este evento: [{id, nombre, personaId, registro,
     /// totem, llegoMs, datos}].
     Q_PROPERTY(QVariantList registrados READ registrados NOTIFY registradosCambio)
+    /// Las mismas tres listas como modelos que se actualizan en su lugar (por `id`, `conn`
+    /// e `id`): la vista no rearma las filas en cada cambio (ui/ListaConClave).
+    Q_PROPERTY(QAbstractItemModel* filasTotems READ filasTotems CONSTANT)
+    Q_PROPERTY(QAbstractItemModel* filasConexiones READ filasConexiones CONSTANT)
+    Q_PROPERTY(QAbstractItemModel* filasRegistrados READ filasRegistrados CONSTANT)
     /// Los tipos de campo: [{id, etiqueta}].
     Q_PROPERTY(QVariantList tipos READ tipos CONSTANT)
     /// Qué falta para que el tótem hable y escuche ("" = nada): lo mismo que la atención hablada.
@@ -131,6 +137,9 @@ class TotemsViewModel : public QObject {
                     QObject* parent = nullptr);
     ~TotemsViewModel() override;
 
+    QAbstractItemModel* filasTotems() { return &filasTotems_; }
+    QAbstractItemModel* filasConexiones() { return &filasConexiones_; }
+    QAbstractItemModel* filasRegistrados() { return &filasRegistrados_; }
     bool hayEvento() const { return !carpeta_.empty(); }
     QString evento() const { return QString::fromStdString(eventoNombre_); }
     QVariantList totems() const;
@@ -300,6 +309,9 @@ class TotemsViewModel : public QObject {
 
     AppRuntime& rt_;
     StudioViewModel& vm_;
+    ListaConClave filasTotems_{QStringLiteral("id"), {}, this};
+    ListaConClave filasConexiones_{QStringLiteral("conn"), {}, this};
+    ListaConClave filasRegistrados_{QStringLiteral("id"), {}, this};
     agent::Voz* voz_;
     agent::ModelosLocales* modelos_;
 

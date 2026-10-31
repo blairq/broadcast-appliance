@@ -25,24 +25,9 @@ ColumnLayout {
         return integrantes.map(i => (pd.sr && pd.sr.presenteUi(i.id) ? qsTr("Banca %1 · %2  (remoto)") : qsTr("Banca %1 · %2")).arg(i.banca).arg(i.nombre))
     }
     function avisar(e) { if (e) Studio.notify(e, "error") }
-    function mmss(s) { const a = Math.abs(s); return (s < 0 ? "-" : "") + Math.floor(a / 60) + ":" + String(a % 60).padStart(2, "0") }
 
     // Las escenas para elegir.
-    property int tick: 0
-    Connections {
-        target: Studio.scenes
-        function onRowsInserted() { pd.tick++ }
-        function onRowsRemoved() { pd.tick++ }
-        function onModelReset() { pd.tick++ }
-        function onDataChanged() { pd.tick++ }
-    }
-    readonly property var escenas: {
-        pd.tick
-        const m = Studio.scenes, l = ["—"]
-        if (!m) return l
-        for (let i = 0; i < m.rowCount(); ++i) l.push(m.data(m.index(i, 0), 257)) // NameRole
-        return l
-    }
+    readonly property var escenas: ["—"].concat(Studio.escenas.nombres)
 
     // --- Elegir y empezar -------------------------------------------------------------
     EstadoVacio {
@@ -106,7 +91,7 @@ ColumnLayout {
         ColumnLayout {
             spacing: 2
             Text { Layout.alignment: Qt.AlignHCenter; color: Theme.text; font { pixelSize: 26; family: Theme.mono }
-                   text: (pd.e.turno === "a" || pd.e.turno === "b") && pd.e.turno_s > 0 ? pd.mmss(pd.e.restante_s || 0) : "—" }
+                   text: (pd.e.turno === "a" || pd.e.turno === "b") && pd.e.turno_s > 0 ? Theme.mmss(pd.e.restante_s || 0) : "—" }
             Text { Layout.alignment: Qt.AlignHCenter; color: Theme.textDim; font.pixelSize: 11
                    text: pd.e.turno === "nadie" ? qsTr("nadie tiene el turno") : pd.e.turno === "ambos" ? qsTr("hablan los dos") : qsTr("turno de %1").arg((pd.e.turno || "").toUpperCase()) }
         }

@@ -25,7 +25,9 @@
 // ============================================================================
 #pragma once
 
+#include <QAbstractItemModel>
 #include <QObject>
+#include <QSet>
 #include <QString>
 #include <QStringList>
 #include <QVariantList>
@@ -37,6 +39,7 @@
 
 namespace ba::app {
 class AppRuntime;
+class ListaConClave;
 class SalidasViewModel;
 class SourcesModel;
 class VentanillaMotor;
@@ -60,6 +63,23 @@ class EscenasViewModel : public QObject {
     Q_PROPERTY(QStringList protegidas READ protegidas NOTIFY listaCambio)
     /// {escena: {tipo, ms}}: con qué transición entra cada una (vacía = la global).
     Q_PROPERTY(QVariantMap transicionesEntrada READ transicionesEntrada NOTIFY transicionesCambio)
+    /// Los nombres de las escenas, en el orden del operador (para elegir una en un combo).
+    Q_PROPERTY(QStringList nombres READ nombres NOTIFY listaCambio)
+    /// Carpetas que ya existen (para ofrecerlas al mover una escena).
+    Q_PROPERTY(QStringList sceneFolders READ sceneFolders NOTIFY listaCambio)
+    /// Las escenas AGRUPADAS POR CARPETA, en el orden que puso el operador:
+    /// `[{carpeta: "", escenas: ["a", "b"]}, {carpeta: "Bloque 1", ...}]`. Primero las
+    /// sueltas, después las carpetas (el mismo orden que el árbol).
+    ///
+    /// Devuelve SOLO la agrupación, sin decir cuál está al aire ni cuál armada: esas dos
+    /// salen de `currentScene` y `escenaArmada`, que ya avisan cuando cambian. Metiéndolas
+    /// acá habría que reconstruir la lista entera en cada corte, y la lista no cambió.
+    Q_PROPERTY(QVariantList escenasPorCarpeta READ escenasPorCarpeta NOTIFY listaCambio)
+    /// El árbol de la pestaña Escenas, fila por fila: un encabezado por carpeta (si hay
+    /// carpetas) y debajo sus escenas, salvo que esté plegada. Roles: `fila` ("carpeta" o
+    /// "escena"), `nombre`, `carpeta`, `cuantas` (las de la carpeta), `abierta` y `datos`.
+    /// Se actualiza en su lugar (ui/ListaConClave): plegar una carpeta no rearma las demás.
+    Q_PROPERTY(QAbstractItemModel* arbol READ arbol CONSTANT)
    public:
     struct Partes {
         AppRuntime& rt;
@@ -75,16 +95,12 @@ class EscenasViewModel : public QObject {
     QStringList afvFuentes() const;
     QStringList protegidas() const;
     QVariantMap transicionesEntrada() const;
-
-    /// Las escenas AGRUPADAS POR CARPETA, en el orden que puso el operador:
-    /// `[{carpeta: "", escenas: ["a", "b"]}, {carpeta: "Bloque 1", ...}]`.
-    ///
-    /// Esto se arma acá y no en QML porque desde QML no se puede recorrer un
-    /// QAbstractListModel. Devuelve SOLO la agrupación, sin decir cuál está al
-    /// aire ni cuál armada: esas dos salen de `currentScene` y `escenaArmada`,
-    /// que ya avisan cuando cambian. Metiéndolas acá habría que reconstruir la
-    /// lista entera en cada corte, y la lista no cambió.
-    Q_INVOKABLE QVariantList escenasPorCarpeta() const;
+    QStringList nombres() const;
+    QVariantList escenasPorCarpeta() const;
+    QStringList sceneFolders() const;
+    QAbstractItemModel* arbol();
+    /// Pliega o despliega una carpeta del árbol ("" = las sueltas).
+    Q_INVOKABLE void alternarCarpeta(const QString& carpeta);
     Q_INVOKABLE void addScene(const QString& name);
     Q_INVOKABLE void removeScene(const QString& name);
     Q_INVOKABLE void renameScene(const QString& from, const QString& to);
@@ -96,8 +112,6 @@ class EscenasViewModel : public QObject {
     Q_INVOKABLE bool sceneProtected(const QString& name) const;
     /// Mueve la escena a una carpeta ("" la saca). Solo ordena la lista.
     Q_INVOKABLE void setSceneFolder(const QString& name, const QString& folder);
-    /// Carpetas que ya existen (para ofrecerlas al mover una escena).
-    Q_INVOKABLE QStringList sceneFolders() const;
     /// Reordena: deja `name` justo antes de `before` (vacio = al final), en la
     /// carpeta de `before`.
     Q_INVOKABLE void moveScene(const QString& name, const QString& before);
@@ -170,11 +184,16 @@ class EscenasViewModel : public QObject {
     void pedirAlConmutador(const char* que, std::function<std::string(escenas::Conmutador&)> orden,
                            const QString& nivelError = "error");
 
+    /// Rearma las filas del árbol (con las carpetas plegadas).
+    void armarArbol();
+
     Partes p_;
     std::unique_ptr<escenas::AjustesEscenas> ajustes_; ///< Config/escenas.json (modelo)
     /// Lo que se avisó la última vez (para avisar solo cuando cambia).
     QStringList listaAntes_, afvAntes_;
     QVariantMap transicionesAntes_;
+    std::unique_ptr<ListaConClave> arbol_;
+    QSet<QString> plegadas_; ///< las carpetas plegadas del árbol (estado de la vista)
 };
 
 } // namespace ba::app

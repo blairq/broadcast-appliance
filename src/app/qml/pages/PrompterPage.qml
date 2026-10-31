@@ -32,10 +32,6 @@ Rectangle {
     Component.onCompleted: { if (visible) p.mirar(true); p.refrescar() }
     Component.onDestruction: p.mirar(false)
 
-    function mmss(s) {
-        const t = Math.max(0, Math.round(s))
-        return Math.floor(t / 60) + ":" + String(t % 60).padStart(2, "0")
-    }
     function avisar(txt, tipo) { Studio.notify(txt, tipo || "error") }
     /// Los errores de los ViewModel vuelven como string: vacío es que salió bien.
     function chequear(err, bien) {
@@ -225,7 +221,7 @@ Rectangle {
                                         elide: Text.ElideRight
                                     }
                                     Text {
-                                        text: qsTr("%n palabra · %1", "", doc.modelData.palabras).arg(page.mmss(doc.modelData.duracionSeg)) +
+                                        text: qsTr("%n palabra · %1", "", doc.modelData.palabras).arg(Theme.mmss(doc.modelData.duracionSeg)) +
                                               " · " + doc.modelData.modificado
                                         color: Theme.textFaint; font.pixelSize: 10
                                     }
@@ -300,7 +296,7 @@ Rectangle {
                         }
                         Text {
                             visible: page.p.abierto !== ""
-                            text: qsTr("%n palabra · %1 leyendo", "", page.p.palabras).arg(page.mmss(page.p.duracionSeg))
+                            text: qsTr("%n palabra · %1 leyendo", "", page.p.palabras).arg(Theme.mmss(page.p.duracionSeg))
                             color: Theme.textDim; font.pixelSize: 11
                         }
                         GlassButton {
@@ -389,7 +385,7 @@ Rectangle {
                             }
                             Item { Layout.fillWidth: true }
                             Text {
-                                text: page.est.palabras > 0 ? qsTr("faltan %1").arg(page.mmss(page.p.faltaSeg)) : ""
+                                text: page.est.palabras > 0 ? qsTr("faltan %1").arg(Theme.mmss(page.p.faltaSeg)) : ""
                                 color: Theme.textDim; font.pixelSize: 11
                             }
                         }

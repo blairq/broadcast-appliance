@@ -77,14 +77,10 @@ Item {
         }
     }
 
-    // Se rearma solo cuando cambia la LISTA (se agregó, borró, renombró o
-    // cambió de carpeta una escena), no en cada corte: al aire y armada salen
-    // de dos propiedades que avisan por su cuenta.
-    property var grupos: Studio.escenas.escenasPorCarpeta()
-    Connections {
-        target: Studio
-        function onEscenasCambiaron() { tarjeta.grupos = Studio.escenas.escenasPorCarpeta() }
-    }
+    // Cambia solo cuando cambia la LISTA (se agregó, borró, renombró o cambió de
+    // carpeta una escena), no en cada corte: al aire y armada salen de dos
+    // propiedades que avisan por su cuenta.
+    readonly property var grupos: Studio.escenas.escenasPorCarpeta
 
     // El botón de una escena, uno solo para todo el árbol.
     Component {

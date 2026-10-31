@@ -23,25 +23,12 @@ ColumnLayout {
 
     // La lista cambia cada vez que alguien llega (se acredita): se actualiza
     // EN SU LUGAR, por id, para que no salte mientras se la mira.
-    ListModel { id: filas }
-    function sincronizar() {
-        const quiero = les.conFicha
-        for (let i = filas.count - 1; i >= 0; --i)
-            if (!quiero.some(a => a.id === filas.get(i).id)) filas.remove(i)
-        for (let j = 0; j < quiero.length; ++j) {
-            const a = quiero[j]
-            let k = -1
-            for (let i = 0; i < filas.count; ++i) if (filas.get(i).id === a.id) { k = i; break }
-            const fila = { id: a.id, nombre: a.nombre || "", personaId: a.personaId, solo: !!a.dejarPasarSolo }
-            if (k < 0) filas.insert(Math.min(j, filas.count), fila)
-            else {
-                filas.set(k, fila)
-                if (k !== j && j < filas.count) filas.move(k, j, 1)
-            }
-        }
+    ListaConClave {
+        id: filas
+        clave: "id"
+        roles: ["nombre", "personaId", "solo"]
+        lista: les.conFicha.map(a => ({ id: a.id, nombre: a.nombre || "", personaId: a.personaId, solo: !!a.dejarPasarSolo }))
     }
-    onConFichaChanged: sincronizar()
-    Component.onCompleted: sincronizar()
 
     Text {
         Layout.fillWidth: true
