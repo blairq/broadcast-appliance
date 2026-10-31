@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 #include "persist/Escritor.hpp"
 #include "BaWeb.hpp"
+#include "Sondeo.hpp"
 
 #include <algorithm>
 #include <chrono>
@@ -9,23 +10,18 @@
 #include "Log.hpp"
 #include "ajustes/Ajustes.hpp"
 #include "i18n/I18n.hpp"
+#include "diag/Metricas.hpp"
 #include "platform/Hilo.hpp"
 
 #ifdef _WIN32
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
 #endif
-#include <winsock2.h>
-#include <ws2tcpip.h>
 #include <windows.h>
 #else
-#include <arpa/inet.h>
-#include <fcntl.h>
-#include <netinet/in.h>
-#include <sys/select.h>
-#include <sys/socket.h>
 #include <unistd.h>
 #endif
+
 
 namespace ba::gateway {
 
@@ -49,82 +45,9 @@ std::string q(const std::string& ruta) {
 /// Lo que ba-web contesta él mismo (sin el gateway): el sondeo de vida del supervisor.
 constexpr const char* kVivo = "/_ba/vivo";
 
-#ifdef _WIN32
-using Sock = SOCKET;
-constexpr Sock kSinSock = INVALID_SOCKET;
-void cerrarSock(Sock s) { closesocket(s); }
-#else
-using Sock = int;
-constexpr Sock kSinSock = -1;
-void cerrarSock(Sock s) { ::close(s); }
-#endif
-
-/// ¿El socket está listo (para escribir o leer) antes de `ms`?
-bool listo(Sock s, bool escribir, int ms) {
-    fd_set fs;
-    FD_ZERO(&fs);
-    FD_SET(s, &fs);
-    timeval tv{ms / 1000, (ms % 1000) * 1000};
-    return ::select(static_cast<int>(s) + 1, escribir ? nullptr : &fs, escribir ? &fs : nullptr, nullptr, &tv) > 0;
-}
-
 } // namespace
 
-bool WebSupervisor::contesta(uint16_t puerto, int topeMs) {
-    // Una conexión TCP no alcanza: a un ba-web frenado (SIGSTOP, colgado) el sistema le
-    // sigue aceptando conexiones en la cola de su escucha. Tiene que CONTESTAR, a tiempo.
-#ifdef _WIN32
-    WSADATA wsa{};
-    if (WSAStartup(MAKEWORD(2, 2), &wsa) != 0) return true; // sin red no se puede saber: no se lo mata
-#endif
-    bool ok = false;
-    const Sock s = ::socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-    if (s != kSinSock) {
-#ifdef _WIN32
-        u_long nb = 1;
-        ioctlsocket(s, FIONBIO, &nb);
-#else
-        ::fcntl(s, F_SETFL, ::fcntl(s, F_GETFL, 0) | O_NONBLOCK);
-#ifdef SO_NOSIGPIPE
-        const int uno = 1; // un ba-web que cierra a mitad no tiene que voltear al gateway (SIGPIPE)
-        ::setsockopt(s, SOL_SOCKET, SO_NOSIGPIPE, &uno, sizeof uno);
-#endif
-#endif
-        sockaddr_in a{};
-        a.sin_family = AF_INET;
-        a.sin_port = htons(puerto);
-        inet_pton(AF_INET, "127.0.0.1", &a.sin_addr);
-        const auto hasta = std::chrono::steady_clock::now() + std::chrono::milliseconds(topeMs);
-        const auto queda = [&hasta]() {
-            return static_cast<int>(std::max<long long>(
-                0, std::chrono::duration_cast<std::chrono::milliseconds>(hasta - std::chrono::steady_clock::now()).count()));
-        };
-        ::connect(s, reinterpret_cast<sockaddr*>(&a), sizeof a);
-        if (listo(s, true, queda())) {
-            const std::string pedido = std::string("GET ") + kVivo + " HTTP/1.0\r\nHost: 127.0.0.1\r\n\r\n";
-#ifdef MSG_NOSIGNAL
-            constexpr int kSinSenal = MSG_NOSIGNAL;
-#else
-            constexpr int kSinSenal = 0;
-#endif
-            if (::send(s, pedido.data(), static_cast<int>(pedido.size()), kSinSenal) == static_cast<int>(pedido.size())) {
-                std::string r;
-                char buf[256];
-                while (r.size() < 12 && listo(s, false, queda())) {
-                    const int n = static_cast<int>(::recv(s, buf, sizeof buf, 0));
-                    if (n <= 0) break;
-                    r.append(buf, static_cast<size_t>(n));
-                }
-                ok = r.rfind("HTTP/1.", 0) == 0 && r.size() >= 12 && r.compare(9, 3, "200") == 0;
-            }
-        }
-        cerrarSock(s);
-    }
-#ifdef _WIN32
-    WSACleanup();
-#endif
-    return ok;
-}
+bool WebSupervisor::contesta(uint16_t puerto, int topeMs) { return contestaHttp(puerto, kVivo, topeMs); }
 
 std::string WebSupervisor::armarConf(const Cfg& c, const std::string& aliasFile, const std::string& logPath) {
     // Los workers, resueltos acá (como «auto» en ba-web: los núcleos, hasta 4): los topes
@@ -287,15 +210,41 @@ void WebSupervisor::kill() {
 }
 
 void WebSupervisor::runLoop() {
-    int backoffMs = 500;
+    // Cuándo relanzar (platform/Relanzador.hpp): duplicando de 0,5 a 8 s; las caídas se
+    // olvidan recién tras 10 s andando y contestando (antes, apenas vivía 250 ms: uno que
+    // moría a los 300 ms se relanzaba cada ~0,75 s para siempre); 8 seguidas sin eso abren
+    // el cortacircuito (un intento cada 5 min, y la app se entera).
+    ba::platform::Relanzador rel(ba::platform::PoliticaRelanzar{
+        .esperaMs = ba::platform::PoliticaRelanzar::duplicando(500, []() { return std::uint64_t{8000}; }),
+        .estableMs = 10000,
+        .cortarTras = 8});
+    const auto ahora = []() {
+        return static_cast<std::uint64_t>(
+            std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count());
+    };
+    rel.lanzado(ahora());
     // El sondeo de vida: cada `cadaMs`, que conteste; `fallas` seguidas (con el proceso vivo)
     // es un ba-web frenado o colgado, y se lo mata y relanza como si se hubiera cerrado. Lo
     // de recién lanzado tiene su gracia (abre las escuchas en unos cientos de ms).
     constexpr int cadaMs = 1000, topeMs = 1500, fallasMax = 3; // frenado ~7 s y se relanza
     auto proximoSondeo = std::chrono::steady_clock::now() + std::chrono::milliseconds(cadaMs * 2);
     int fallas = 0;
+    bool estabaCortado = false;
     while (!stop_.load()) {
         std::this_thread::sleep_for(std::chrono::milliseconds(250));
+        if (rel.agendado()) {
+            // Caído, esperando su turno para relanzarlo.
+            if (!rel.toca(ahora())) continue;
+            {
+                std::lock_guard<std::mutex> l(procLock_);
+                proc_ = ba::platform::Process();
+            }
+            if (spawn()) restarts_.fetch_add(1);
+            rel.lanzado(ahora());
+            proximoSondeo = std::chrono::steady_clock::now() + std::chrono::milliseconds(cadaMs * 2);
+            avisar(rel);
+            continue;
+        }
         bool vive;
         {
             std::lock_guard<std::mutex> l(procLock_);
@@ -308,7 +257,11 @@ void WebSupervisor::runLoop() {
             proximoSondeo = std::chrono::steady_clock::now() + std::chrono::milliseconds(cadaMs);
         }
         if (vive && !colgado) {
-            if (fallas == 0) backoffMs = 500;
+            if (rel.vigilar(ahora(), fallas == 0) && estabaCortado) {
+                estabaCortado = false;
+                log_.info(traducir("gateway", "ba-web: anda estable de nuevo"));
+                avisar(rel);
+            }
             continue;
         }
         alive_.store(false);
@@ -321,17 +274,42 @@ void WebSupervisor::runLoop() {
             proc_.kill(); // frenado no atiende SIGTERM: SIGKILL a él y a sus workers (su grupo)
             proc_.wait(3000);
         }
-        log_.warn(llenar(traducir("gateway", "ba-web: se cerró; se relanza en %1 ms"), {std::to_string(backoffMs)}), -1);
-        for (int w = 0; w < backoffMs && !stop_.load(); w += 100) std::this_thread::sleep_for(std::chrono::milliseconds(100));
-        if (stop_.load()) break;
-        {
-            std::lock_guard<std::mutex> l(procLock_);
-            proc_ = ba::platform::Process();
+        const std::uint64_t espera = rel.caida(ahora());
+        if (rel.cortado() && !estabaCortado) {
+            estabaCortado = true;
+            log_.error(llenar(traducir("gateway", "ba-web: se cae una y otra vez (%1 seguidas); se reintenta cada %2 s"),
+                              {std::to_string(rel.consecutivas()), std::to_string(espera / 1000)}),
+                       -1);
+        } else {
+            log_.warn(llenar(traducir("gateway", "ba-web: se cerró; se relanza en %1 ms"), {std::to_string(espera)}), -1);
         }
-        if (spawn()) restarts_.fetch_add(1);
-        if (backoffMs < 8000) backoffMs *= 2;
-        proximoSondeo = std::chrono::steady_clock::now() + std::chrono::milliseconds(cadaMs * 2);
+        avisar(rel);
     }
+}
+
+void WebSupervisor::avisar(const ba::platform::Relanzador& rel) {
+    // Las métricas (F4-01, G-47) y, para la app, el estado (evento «web» de la sala).
+    static ba::diag::Contador& reinicios = ba::diag::Metricas::proceso().contador(
+        "ba_web_reinicios_total", QT_TRANSLATE_NOOP("metricas", "Veces que se relanzó ba-web (se cerró o dejó de contestar)"));
+    static ba::diag::Medidor& vivo =
+        ba::diag::Metricas::proceso().medidor("ba_web_vivo", QT_TRANSLATE_NOOP("metricas", "ba-web andando (1) o no (0)"));
+    static int contados = 0;
+    const int r = restarts_.load();
+    if (r > contados) {
+        reinicios.sumar(static_cast<std::uint64_t>(r - contados));
+        contados = r;
+    }
+    vivo.poner(alive_.load() ? 1.0 : 0.0);
+    std::function<void(const nlohmann::json&)> fn;
+    {
+        std::lock_guard<std::mutex> l(avisoLock_);
+        fn = alCambiar_;
+    }
+    if (fn)
+        fn(nlohmann::json{{"vivo", alive_.load()},
+                          {"reinicios", r},
+                          {"cortado", rel.cortado()},
+                          {"seguidas", rel.consecutivas()}});
 }
 
 void WebSupervisor::setEventoDir(const std::string& dir) {

@@ -121,6 +121,8 @@ class ConferenceClient : public QObject {
     void estadoEvento(const QString& nombre, const QJsonObject& ev);
     /// Encargaron un rótulo desde un celular: hay que ir a buscarlo ({pendientes}).
     void rotulosEvento(const QJsonObject& ev);
+    /// Cómo anda ba-web, el servidor de la página pública ({vivo, reinicios, cortado, seguidas}).
+    void webEvento(const QJsonObject& ev);
     /// Una accion fallo; `error` es el codigo de la API ("full", "not_found"...).
     void failed(const QString& error);
 

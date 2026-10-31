@@ -20,7 +20,12 @@
 #include <string>
 #include <thread>
 
+#include <functional>
+
+#include <nlohmann/json.hpp>
+
 #include "platform/Process.hpp"
+#include "platform/Relanzador.hpp"
 
 namespace ba::gateway {
 
@@ -70,6 +75,12 @@ class WebSupervisor {
     uint16_t puerto() const { return cfg_.puerto; }
     bool atiendeTunel() const { return cfg_.tunel; }
     bool atiendeLan() const { return cfg_.lanPuerto != 0 && !cfg_.tlsPem.empty(); }
+    /// Cada vez que cambia cómo anda ({vivo, reinicios, cortado, seguidas}): la sala se lo
+    /// cuenta a la app (evento «web»). Desde el hilo del vigía.
+    void setAlCambiar(std::function<void(const nlohmann::json&)> fn) {
+        std::lock_guard<std::mutex> l(avisoLock_);
+        alCambiar_ = std::move(fn);
+    }
     /// La carpeta Web/ del evento en vivo ("" si no hay). Escribe el archivo solo si cambió.
     void setEventoDir(const std::string& dir);
     /// La configuración que se le escribe (para la prueba y para mirarla).
@@ -81,6 +92,7 @@ class WebSupervisor {
     bool spawn();
     void kill();
     void runLoop();
+    void avisar(const ba::platform::Relanzador& rel);
 
     Cfg cfg_;
     Log& log_;
@@ -90,6 +102,8 @@ class WebSupervisor {
     std::thread thread_;
     std::atomic<bool> stop_{false}, started_{false}, alive_{false};
     std::atomic<int> restarts_{0};
+    std::mutex avisoLock_;
+    std::function<void(const nlohmann::json&)> alCambiar_;
     std::mutex dirLock_;
     std::string dirActual_ = "\x01"; // distinto de todo, para que la primera vez se escriba
 };

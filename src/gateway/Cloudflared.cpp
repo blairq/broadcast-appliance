@@ -24,6 +24,7 @@
 // ============================================================================
 
 #include "Cloudflared.hpp"
+#include "Sondeo.hpp"
 #include "ajustes/Ajustes.hpp"
 
 #include <chrono>
@@ -151,33 +152,9 @@ bool CloudflaredSupervisor::processAlive() {
 }
 
 bool CloudflaredSupervisor::probeMetrics() const {
-    // TCP connect a 127.0.0.1:metricsPort: cloudflared 2024.11.0 sirve
-    // Prometheus en /metrics; que el puerto acepte basta para saber que el
-    // proceso esta sano (spec §8.8).
-#ifdef _WIN32
-    WSADATA wsa{};
-    const bool wsaInit = (WSAStartup(MAKEWORD(2, 2), &wsa) == 0);
-    SOCKET s = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-    if (s == INVALID_SOCKET) {
-        if (wsaInit) WSACleanup();
-        return false;
-    }
-#else
-    const int s = socket(AF_INET, SOCK_STREAM, 0);
-    if (s < 0) return false;
-#endif
-    sockaddr_in addr{};
-    addr.sin_family = AF_INET;
-    addr.sin_port = htons(metricsPort_);
-    inet_pton(AF_INET, "127.0.0.1", &addr.sin_addr);
-    const int r = connect(s, reinterpret_cast<sockaddr*>(&addr), sizeof(addr));
-#ifdef _WIN32
-    closesocket(s);
-    if (wsaInit) WSACleanup();
-#else
-    close(s);
-#endif
-    return r == 0;
+    // Que CONTESTE (cloudflared sirve Prometheus en /metrics): que el puerto acepte no
+    // alcanza, a uno frenado (SIGSTOP, colgado) el sistema le sigue aceptando conexiones.
+    return contestaHttp(metricsPort_, "/metrics", 1500);
 }
 
 std::string CloudflaredSupervisor::outputSinceSpawn() const {
@@ -194,12 +171,18 @@ std::string CloudflaredSupervisor::outputSinceSpawn() const {
     return out;
 }
 
-void CloudflaredSupervisor::sleepBackoff() {
+namespace {
+std::uint64_t ahoraMono() {
+    return static_cast<std::uint64_t>(
+        std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count());
+}
+} // namespace
+
+std::uint64_t CloudflaredSupervisor::esperarRelanzar() {
+    const std::uint64_t espera = rel_.caida(ahoraMono());
     // En tramos cortos para que stop() no espere un backoff entero.
-    for (int waited = 0; waited < backoffMs_ && !stop_.load(); waited += 100) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
-    }
-    if (backoffMs_ < ba::ajustes::sAMs("gateway.tunelReintentoMaxS", 30)) backoffMs_ *= 2; // 1s,2s,4s,... hasta el tope
+    while (!rel_.toca(ahoraMono()) && !stop_.load()) std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    return espera;
 }
 
 void CloudflaredSupervisor::runLoop() {
@@ -215,7 +198,7 @@ void CloudflaredSupervisor::runLoop() {
         if (alive && probeFailures < 5) {
             if (probeFailures == 0 && !loggedUp_) {
                 loggedUp_ = true;
-                backoffMs_ = 1000;
+                rel_.vigilar(ahoraMono(), true, 0); // arriba de verdad: las caídas se olvidan
                 log_.info(traducir("gateway", "cloudflared: tunel arriba (metrics ok)"));
             }
             continue;
@@ -236,13 +219,13 @@ void CloudflaredSupervisor::runLoop() {
         loggedUp_ = false;
         probeFailures = 0;
         kill();
-        sleepBackoff();
+        const std::uint64_t espera = esperarRelanzar();
         if (stop_.load(std::memory_order_relaxed)) break;
         if (spawn()) {
             ++restartCount_;
+            rel_.lanzado(ahoraMono());
         }
-        log_.info(llenar(traducir("gateway", "cloudflared: proximo reintento en hasta %1 s si vuelve a caer"),
-                         {std::to_string(backoffMs_ / 1000)}));
+        log_.info(llenar(traducir("gateway", "cloudflared: relanzado tras %1 s"), {std::to_string(espera / 1000)}));
     }
 }
 

@@ -536,6 +536,8 @@ class SignalingServer {
    public:
     /// El de este arranque (también en gateway-admin.json).
     const std::string& epoch() const { return epoch_; }
+    /// Un evento a la app de algo que no es de este servidor (los vigías de main: ba-web).
+    void avisarApp(const std::string& evento, const nlohmann::json& datos) { broadcastToHosts(evento, datos); }
     /// ¿Es un evento de estado (la foto al reconectar lo cubre) y no de un solo disparo?
     static bool eventoDeEstado(const std::string& event);
 

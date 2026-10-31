@@ -166,6 +166,16 @@ ConferenceViewModel::ConferenceViewModel(AppRuntime& rt, VentanillaMotor& ventan
         const std::string t = sala::explicarError(ss(e));
         emit notify(t == ss(e) ? tr("La conferencia respondio: %1").arg(e) : frase(t), "error");
     });
+    // ba-web (la página pública) se cae una y otra vez: el gateway dejó de insistir seguido.
+    connect(client_.get(), &ConferenceClient::webEvento, this, [this, cortado = false](const QJsonObject& e) mutable {
+        const bool ahora = e.value("cortado").toBool();
+        if (ahora == cortado) return;
+        cortado = ahora;
+        emit notify(ahora ? tr("La página pública se cae una y otra vez: se reintenta cada pocos minutos. Mirá el "
+                               "registro de la conferencia (ba-web).")
+                          : tr("La página pública volvió a andar."),
+                    ahora ? "error" : "ok");
+    });
     connect(client_.get(), &ConferenceClient::onlineChanged, this, [this](bool on) {
         if (!on) return;
         avisoSinSalaMs_ = 0; // volvió: la próxima caída se avisa enseguida

@@ -1003,6 +1003,8 @@ int main(int argc, char** argv) {
             baWeb = std::make_unique<WebSupervisor>(std::move(wc), log);
             WebSupervisor* bw = baWeb.get();
             server.setAlCambiarEventoDir([bw](const std::string& dir) { bw->setEventoDir(dir); });
+            // Cómo anda (se relanzó, se cae seguido): la app se entera (evento «web»).
+            bw->setAlCambiar([&server](const nlohmann::json& e) { server.avisarApp("web", e); });
             if (!baWeb->start()) {
                 server.setAlCambiarEventoDir(nullptr);
                 baWeb.reset();
