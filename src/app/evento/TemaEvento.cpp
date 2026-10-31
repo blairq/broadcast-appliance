@@ -1,6 +1,7 @@
 // ============================================================================
 // src/app/evento/TemaEvento.cpp — ver TemaEvento.hpp
 // ============================================================================
+#include "persist/Escritor.hpp"
 #include "evento/TemaEvento.hpp"
 
 #include "i18n/I18n.hpp" // QT_TRANSLATE_NOOP: los errores se traducen al mostrarlos
@@ -19,20 +20,6 @@ using json = nlohmann::json;
 namespace fs = std::filesystem;
 
 namespace {
-
-bool escribirAtomico(const fs::path& p, const std::string& texto) {
-    std::error_code ec;
-    fs::create_directories(p.parent_path(), ec);
-    const fs::path tmp = p.string() + ".tmp";
-    {
-        std::ofstream f(tmp, std::ios::binary);
-        if (!f) return false;
-        f << texto;
-        if (!f) return false;
-    }
-    fs::rename(tmp, p, ec);
-    return !ec;
-}
 
 std::string leerTodo(const fs::path& p) {
     std::ifstream f(p, std::ios::binary);
@@ -138,7 +125,8 @@ TemaEvento TemaEvento::leer(const fs::path& carpetaEvento) {
 }
 
 bool TemaEvento::guardar(const fs::path& carpetaEvento) const {
-    return escribirAtomico(carpetaEvento / "tema.json", aJson().dump(2, ' ', false, json::error_handler_t::replace) + "\n");
+    // El escritor único (temporal + fsync + reemplazo que también pisa en Windows).
+    return ba::persist::escribir(carpetaEvento / "tema.json", aJson().dump(2, ' ', false, json::error_handler_t::replace) + "\n");
 }
 
 json TemaEvento::paraPublicar(const fs::path& carpetaEvento) const {
@@ -207,7 +195,7 @@ RecursoCopiado copiarRecurso(const fs::path& carpetaEvento, const fs::path& orig
     if (!firma) return fallo(QT_TRANSLATE_NOOP("evento", "El archivo no es lo que dice su extensión."));
     const std::string nombre = std::string(logo ? "logo" : "fuente") + "-" + ba::tema::huella(datos) + "." + ext;
     const fs::path dir = carpetaTema(carpetaEvento);
-    if (!escribirAtomico(dir / nombre, datos)) return fallo(QT_TRANSLATE_NOOP("evento", "No se pudo copiar a la carpeta Tema/ del evento."));
+    if (!ba::persist::escribir(dir / nombre, datos)) return fallo(QT_TRANSLATE_NOOP("evento", "No se pudo copiar a la carpeta Tema/ del evento."));
     r.archivo = nombre;
     return r;
 }
@@ -257,7 +245,7 @@ std::vector<std::string> migrarSitio(const fs::path& carpetaWeb) {
             if (const std::size_t p = h.find("</head>"); p != std::string::npos)
                 h.insert(p, "  <script src=\"/comun/tema.js\" defer></script>\n");
         }
-        if (h != antes && escribirAtomico(e.path(), h)) cambiados.push_back(e.path().filename().string());
+        if (h != antes && ba::persist::escribir(e.path(), h)) cambiados.push_back(e.path().filename().string());
     }
     // estilo.css: la plantilla vieja escribía el acento y el fondo de sitio.json. Si siguen
     // siendo esos, se sacan (los pone el tema); si alguien los cambió, se respetan y el bloque
@@ -277,7 +265,7 @@ std::vector<std::string> migrarSitio(const fs::path& carpetaWeb) {
         sacar("--bg", texto(sitio, "fondo"));
         if (const std::size_t p = s.find(":root {"); p != std::string::npos && s.find("html[data-ev]") == std::string::npos)
             s.replace(p, 7, ":root, html[data-ev] {");
-        if (s != antes && escribirAtomico(css, s)) cambiados.push_back("estilo.css");
+        if (s != antes && ba::persist::escribir(css, s)) cambiados.push_back("estilo.css");
     }
     return cambiados;
 }

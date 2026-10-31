@@ -142,7 +142,8 @@ void Dsk::restaurar() {
         engine_.dskArmar(capa, cont, c.value("recuadro", json::object()));
         if (c.value("visible", false)) engine_.dskMostrar(capa, true, 0);
         // Las otras salidas: si todavía no existen (se crean después), no vuelve ahí.
-        for (const auto& [s, v] : c.value("visible_en", json::object()).items())
+        const json visibleEn = c.value("visible_en", json::object()); // con nombre: .items() de un temporal es UB
+        for (const auto& [s, v] : visibleEn.items())
             if (v == true && engine_.dskArmar(capa, cont, c.value("recuadro", json::object()), s)) engine_.dskMostrar(capa, true, 0, s);
     }
     if (alCambiar_) alCambiar_(capas_);

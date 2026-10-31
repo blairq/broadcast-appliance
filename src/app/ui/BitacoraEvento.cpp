@@ -1,5 +1,6 @@
 // src/app/ui/BitacoraEvento.cpp — ver el .hpp (salió de StudioViewModel, F3-03)
 
+#include "persist/Escritor.hpp"
 #include "ui/BitacoraEvento.hpp"
 
 #include "ajustes/Ajustes.hpp"
@@ -104,13 +105,8 @@ nlohmann::json leerLista(const std::filesystem::path& p) {
     return j.is_array() ? j : nlohmann::json::array();
 }
 void guardarLista(const std::filesystem::path& p, const nlohmann::json& j) {
-    const auto tmp = std::filesystem::path(p.string() + ".tmp");
-    {
-        std::ofstream o(tmp);
-        o << j.dump(1, '\t', false, nlohmann::json::error_handler_t::replace);
-    }
-    std::error_code ec;
-    std::filesystem::rename(tmp, p, ec);
+    // El escritor único: durable y que también pisa en Windows (un rename a mano no).
+    ba::persist::escribir(p, j.dump(1, '\t', false, nlohmann::json::error_handler_t::replace));
 }
 } // namespace
 

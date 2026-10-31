@@ -988,7 +988,8 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
             a.reconnecting = t.value("reconectando", false);
             a.recording = f.value("grabacion", nlohmann::json::object()).value("activa", false);
             a.grabacionPedida = !rt.recordStopWanted();
-            for (const auto& [id, x] : f.value("salidas", nlohmann::json::object()).items())
+            const nlohmann::json salidas = f.value("salidas", nlohmann::json::object()); // con nombre: UB si no
+            for (const auto& [id, x] : salidas.items())
                 if (x.value("grabacion", nlohmann::json::object()).value("caida", false)) a.grabacionesCaidas.push_back(id);
             return a;
         };
