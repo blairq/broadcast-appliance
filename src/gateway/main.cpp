@@ -86,6 +86,7 @@
 
 #include "diag/Caidas.hpp"
 #include "diag/Perfil.hpp"
+#include "diag/Registro.hpp"
 #include "diag/SalidaAsincrona.hpp"
 #include "Grillas.hpp"
 #include "MediaPump.hpp"
@@ -403,7 +404,10 @@ int main(int argc, char** argv) {
     ba::platform::nombrarHilo("principal"); // en sample y en los volcados (platform/Hilo.hpp)
     // Que escribir a Logs/gateway.log nunca trabe un hilo (diag/SalidaAsincrona.hpp).
     ba::diag::desacoplarSalidaEstandar();
-    std::atexit([] { ba::diag::vaciarSalidaEstandar(500); });
+    std::atexit([] {
+        ba::diag::registro().vaciar(500); // lo que quedó en la cola del registro
+        ba::diag::vaciarSalidaEstandar(500);
+    });
     ba::platform::redirectUserDirs(); // portable: nada al perfil del usuario
     ba::i18n::usar(ba::i18n::idiomaDeLaMaquina(ba::platform::dataRoot())); // el del operador
     ba::platform::sinAhorroDeEnergia(); // los medios en vivo, fuera del modo eficiencia (platform/Energia)

@@ -12,12 +12,22 @@
 //   6. El anillo en memoria no crece sin fin y devuelve lo ULTIMO.
 //   7. Varios archivos se entrelazan POR HORA, que es el punto de que la hora
 //      sea UTC.
+//   8. Con el escritor TRABADO (un oyente colgado, como un disco que no
+//      contesta), registrar desde otro hilo no espera: el peor caso queda
+//      por debajo de 50 µs, lo que no entra se descarta y se cuenta, y al
+//      destrabarse sale todo lo que sí entró.
 // ============================================================================
 
+#include <algorithm>
+#include <atomic>
+#include <chrono>
 #include <cstdio>
 #include <filesystem>
 #include <fstream>
+#include <future>
 #include <string>
+#include <thread>
+#include <vector>
 
 #include "diag/LectorDeLogs.hpp"
 #include "diag/Registro.hpp"
@@ -95,6 +105,7 @@ int main() {
         CHECK(reg.registra(Nivel::Error), "error esta por arriba");
         reg.info("esto no se registra");
         reg.error("esto si");
+        CHECK(reg.vaciar(), "el escritor la paso");
         CHECK(reg.cuenta() == 1, "solo se registro una");
         CHECK(reg.descartadas() == 1, "y la otra se conto como descartada");
 
@@ -102,9 +113,51 @@ int main() {
         reg.setNivel(Nivel::Traza);
         for (int i = 0; i < 20; ++i)
             reg.info("linea " + std::to_string(i));
+        reg.vaciar();
         const auto u = reg.ultimas(3);
         CHECK(u.size() == 3, "pide tres, da tres");
         CHECK(u.back().texto == "linea 19", "y la ultima es la ultima");
+    }
+
+    // 8. El escritor trabado no traba al que registra.
+    {
+        Registro reg;
+        reg.setEspejoEnStderr(false);
+        reg.setNivel(Nivel::Traza);
+        std::promise<void> soltar;
+        std::shared_future<void> suelto = soltar.get_future().share();
+        std::atomic<bool> trabado{false};
+        reg.setOyente([&](const Registrado&) {
+            trabado = true;
+            suelto.wait();
+        });
+        reg.info("la primera traba al escritor");
+        while (!trabado) std::this_thread::yield();
+
+        // Desde otro hilo, como el de un agregador: más líneas que casillas.
+        constexpr int kLineas = 10000;
+        std::vector<double> us;
+        us.reserve(kLineas);
+        std::thread([&] {
+            const std::string texto(120, 'x');
+            for (int i = 0; i < kLineas; ++i) {
+                const auto t0 = std::chrono::steady_clock::now();
+                reg.linea(Nivel::Aviso, "mezcla", 7, texto);
+                us.push_back(std::chrono::duration<double, std::micro>(std::chrono::steady_clock::now() - t0).count());
+            }
+        }).join();
+        std::sort(us.begin(), us.end());
+        const double p999 = us[static_cast<std::size_t>(us.size() * 0.999)];
+        std::printf("registrar con el escritor trabado: mediana %.2f us, p99.9 %.2f us, max %.2f us\n",
+                    us[us.size() / 2], p999, us.back());
+        CHECK(p999 < 50.0, "registrar no espera al escritor (p99.9 < 50 us)");
+        CHECK(us.back() < 50.0 * 20, "ni siquiera el peor caso (con margen por el planificador)");
+        CHECK(reg.perdidas() > 0, "lo que no entro se conto como perdido");
+        const auto perdidas = reg.perdidas();
+
+        soltar.set_value();
+        CHECK(reg.vaciar(5000), "al destrabarse, el escritor pasa todo");
+        CHECK(reg.cuenta() + perdidas == kLineas + 1, "cada linea se escribio o se conto como perdida");
     }
 
     // 5 y 7: los filtros y el entrelazado por hora.

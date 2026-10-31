@@ -195,7 +195,10 @@ int dispatch(int argc, char** argv) {
     // (un SSD por USB reseteándose) dejaba al motor, a la interfaz y al latido
     // esperando la escritura, y el supervisor mataba la app (SalidaAsincrona.hpp).
     ba::diag::desacoplarSalidaEstandar();
-    std::atexit([] { ba::diag::vaciarSalidaEstandar(500); });
+    std::atexit([] {
+        ba::diag::registro().vaciar(500); // lo que quedó en la cola del registro
+        ba::diag::vaciarSalidaEstandar(500);
+    });
     instalarFinPorExcepcion();
     // Portable: caches de Qt/fontconfig/shaders al bundle (antes de Qt y GStreamer).
     ba::platform::redirectUserDirs();

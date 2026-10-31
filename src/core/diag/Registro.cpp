@@ -13,7 +13,9 @@
 #include <ctime>
 #include <deque>
 #include <map>
+#include <condition_variable>
 #include <mutex>
+#include <thread>
 
 #if defined(_WIN32)
 #include <io.h>
@@ -22,6 +24,7 @@
 #endif
 
 #include "diag/LogRotator.hpp"
+#include "platform/Hilo.hpp"
 
 namespace ba::diag {
 namespace {
@@ -116,18 +119,182 @@ std::string Registrado::aLinea() const {
            std::to_string(codigo) + " | " + texto;
 }
 
+namespace {
+
+/// Lo que deja el que registra: los datos crudos. Pasarlo a UTF-8 válido, a una
+/// línea y a texto con hora es trabajo del escritor, no del hilo que llama.
+struct Pendiente {
+    std::int64_t ms = 0;
+    Nivel nivel = Nivel::Info;
+    int codigo = 0;
+    std::string componente;
+    std::string texto;
+};
+
+/// Cola acotada de muchos productores y un consumidor, sin candado para el que
+/// mete (la de Vyukov: cada casilla con su número de vuelta). Meter es un
+/// compare_exchange y mover dos strings; si está llena NO espera: dice que no,
+/// y el que registra cuenta la línea como perdida.
+class ColaDeLineas {
+   public:
+    static constexpr std::size_t kCasillas = 4096; // potencia de dos
+
+    ColaDeLineas() : casillas_(std::make_unique<Casilla[]>(kCasillas)) {
+        for (std::size_t i = 0; i < kCasillas; ++i) casillas_[i].vuelta.store(i, std::memory_order_relaxed);
+    }
+
+    bool meter(Pendiente&& p) {
+        std::size_t pos = cola_.load(std::memory_order_relaxed);
+        for (;;) {
+            Casilla& c = casillas_[pos & (kCasillas - 1)];
+            const std::size_t v = c.vuelta.load(std::memory_order_acquire);
+            const auto dif = static_cast<std::intptr_t>(v) - static_cast<std::intptr_t>(pos);
+            if (dif == 0) {
+                if (cola_.compare_exchange_weak(pos, pos + 1, std::memory_order_relaxed)) {
+                    c.dato = std::move(p);
+                    c.vuelta.store(pos + 1, std::memory_order_release);
+                    return true;
+                }
+            } else if (dif < 0) {
+                return false; // llena: el escritor está trabado
+            } else {
+                pos = cola_.load(std::memory_order_relaxed);
+            }
+        }
+    }
+
+    /// Solo el escritor (un consumidor).
+    bool sacar(Pendiente& out) {
+        Casilla& c = casillas_[cabeza_ & (kCasillas - 1)];
+        if (c.vuelta.load(std::memory_order_acquire) != cabeza_ + 1) return false;
+        out = std::move(c.dato);
+        c.vuelta.store(cabeza_ + kCasillas, std::memory_order_release);
+        ++cabeza_;
+        return true;
+    }
+
+    /// Solo el escritor: hay algo listo para sacar.
+    bool hayAlgo() const {
+        return casillas_[cabeza_ & (kCasillas - 1)].vuelta.load(std::memory_order_acquire) == cabeza_ + 1;
+    }
+
+   private:
+    struct Casilla {
+        std::atomic<std::size_t> vuelta{0};
+        Pendiente dato;
+    };
+    std::unique_ptr<Casilla[]> casillas_;
+    alignas(64) std::atomic<std::size_t> cola_{0};
+    alignas(64) std::size_t cabeza_ = 0;
+};
+
+} // namespace
+
+// CÓMO VIAJA UNA LÍNEA. El que registra (que puede ser el hilo de un mezclador
+// con plazo de 10 ms) solo mete los datos crudos en la cola sin candado y, si
+// el escritor duerme, lo despierta. El escritor —un hilo propio, «registro»—
+// arma la línea y hace todo lo que puede trabarse: stderr, el archivo
+// rotativo, el anillo y los oyentes. Antes todo eso pasaba bajo un candado
+// global en el hilo que llamaba, y con tiempo real en los hilos de audio
+// (Prioridad.cpp) eso es inversión de prioridad: el mezclador esperando el
+// fflush de un hilo cualquiera. Si el escritor se traba (un disco que no
+// contesta, un oyente colgado) la cola se llena y lo que sigue se descarta y
+// se cuenta (perdidas()): mejor perder una línea que un bloque de audio.
 struct Registro::Impl {
+    ColaDeLineas cola;
+
+    // Del escritor y de quien configura; el que registra nunca lo toma.
     mutable std::mutex m;
     std::unique_ptr<LogRotator> rotador;
     std::string componente = "app";
-    std::atomic<int> minimo{static_cast<int>(Nivel::Info)};
     bool espejo = true;
     std::deque<Registrado> anillo;
-    std::atomic<std::uint64_t> cuenta{0};
-    std::atomic<std::uint64_t> descartadas{0};
     std::function<void(const Registrado&)> oyente;
     std::map<int, std::function<void(const Registrado&)>> oyentes;
     int proximo = 1;
+
+    std::atomic<int> minimo{static_cast<int>(Nivel::Info)};
+    std::atomic<std::uint64_t> encoladas{0};
+    std::atomic<std::uint64_t> cuenta{0}; // las que ya pasó el escritor
+    std::atomic<std::uint64_t> descartadas{0};
+    std::atomic<std::uint64_t> perdidas{0};
+
+    // Para despertar al escritor. El que registra toma `mDormir` SOLO si el
+    // escritor está durmiendo (la primera línea después de un rato quieto) y
+    // lo suelta enseguida: bajo este candado nunca hay E/S.
+    std::mutex mDormir;
+    std::condition_variable cvDormir, cvHecho;
+    std::atomic<bool> durmiendo{false};
+    bool aviso = false;
+    bool parar = false;
+    std::thread hilo;
+
+    void despertar() {
+        if (!durmiendo.load()) return;
+        {
+            std::lock_guard<std::mutex> g(mDormir);
+            aviso = true;
+        }
+        cvDormir.notify_one();
+    }
+
+    void procesar(Pendiente& p) {
+        Registrado r;
+        r.ms = p.ms;
+        r.nivel = p.nivel;
+        r.codigo = p.codigo;
+        // En UTF-8 válido: lo leen el visor y el MCP como JSON, y un mensaje de un
+        // tercero en cp1252 (Windows) hacía tirar una excepción (ver diag/Utf8.hpp).
+        r.texto = enUnaLinea(utf8Valido(p.texto));
+        std::function<void(const Registrado&)> uno;
+        std::vector<std::function<void(const Registrado&)>> otros;
+        {
+            std::lock_guard<std::mutex> g(m);
+            r.componente = p.componente.empty() ? componente : std::move(p.componente);
+            const std::string linea = r.aLinea();
+            // A stderr y al archivo desde el mismo hilo y en el mismo orden:
+            // ninguna línea se entrelaza con otra.
+            if (espejo) {
+                std::fprintf(stderr, "%s\n", linea.c_str());
+                std::fflush(stderr);
+            }
+            if (rotador) rotador->write(linea);
+            anillo.push_back(r);
+            if (anillo.size() > kEnMemoria) anillo.pop_front();
+            uno = oyente;
+            for (const auto& [id, fn] : oyentes) otros.push_back(fn);
+        }
+        cuenta.fetch_add(1);
+        // Los oyentes, sin el candado: si la interfaz se cuelga dibujando, frena
+        // al escritor (y la cola se llena), nunca al que registra.
+        if (uno) uno(r);
+        for (const auto& fn : otros) fn(r);
+    }
+
+    void escritor() {
+        ba::platform::nombrarHilo("registro");
+        Pendiente p;
+        for (;;) {
+            bool alguna = false;
+            while (cola.sacar(p)) {
+                procesar(p);
+                alguna = true;
+            }
+            std::unique_lock<std::mutex> l(mDormir);
+            if (alguna) cvHecho.notify_all();
+            if (parar) return;
+            // Dormido ANTES de mirar la cola otra vez: o el que mete ve
+            // `durmiendo` y avisa, o acá se ve lo que metió.
+            durmiendo.store(true);
+            if (cola.hayAlgo()) {
+                durmiendo.store(false);
+                continue;
+            }
+            cvDormir.wait(l, [&] { return aviso || parar; });
+            aviso = false;
+            durmiendo.store(false);
+        }
+    }
 };
 
 Registro::Registro() : d_(std::make_unique<Impl>()) {
@@ -138,9 +305,20 @@ Registro::Registro() : d_(std::make_unique<Impl>()) {
         Nivel n{};
         if (nivelDeNombre(v, n)) d_->minimo.store(static_cast<int>(n));
     }
+    d_->hilo = std::thread([d = d_.get()] { d->escritor(); });
 }
 
-Registro::~Registro() = default;
+Registro::~Registro() {
+    {
+        std::lock_guard<std::mutex> g(d_->mDormir);
+        d_->parar = true;
+    }
+    d_->cvDormir.notify_one();
+    if (d_->hilo.joinable()) d_->hilo.join();
+    // Lo que se metió entre la última vuelta del escritor y el parar.
+    Pendiente p;
+    while (d_->cola.sacar(p)) d_->procesar(p);
+}
 
 void Registro::abrir(const std::filesystem::path& dir, const std::string& archivo, std::size_t maxBytes,
                      std::size_t archivos) {
@@ -192,38 +370,32 @@ void Registro::linea(Nivel n, const std::string& componente, int codigo, const s
         d_->descartadas.fetch_add(1);
         return;
     }
-    Registrado r;
-    r.ms = ahoraMs();
-    r.nivel = n;
-    r.codigo = codigo;
-    // En UTF-8 válido: lo leen el visor y el MCP como JSON, y un mensaje de un
-    // tercero en cp1252 (Windows) hacía tirar una excepción (ver diag/Utf8.hpp).
-    r.texto = enUnaLinea(utf8Valido(texto));
-
-    std::function<void(const Registrado&)> oyente;
-    std::vector<std::function<void(const Registrado&)>> otros;
-    {
-        std::lock_guard<std::mutex> g(d_->m);
-        r.componente = componente.empty() ? d_->componente : componente;
-        const std::string linea = r.aLinea();
-        // A stderr y al archivo bajo el mismo lock, para que las dos salidas
-        // queden en el mismo orden y ninguna línea se entrelace con otra.
-        if (d_->espejo) {
-            std::fprintf(stderr, "%s\n", linea.c_str());
-            std::fflush(stderr);
-        }
-        if (d_->rotador) d_->rotador->write(linea);
-
-        d_->anillo.push_back(r);
-        if (d_->anillo.size() > kEnMemoria) d_->anillo.pop_front();
-        oyente = d_->oyente;
-        for (const auto& [id, fn] : d_->oyentes) otros.push_back(fn);
+    Pendiente p;
+    p.ms = ahoraMs();
+    p.nivel = n;
+    p.codigo = codigo;
+    p.componente = componente;
+    p.texto = texto;
+    if (!d_->cola.meter(std::move(p))) {
+        d_->perdidas.fetch_add(1);
+        return;
     }
-    d_->cuenta.fetch_add(1);
-    // El oyente se llama SIN el lock: si la interfaz se cuelga dibujando, no
-    // puede frenar al que está registrando.
-    if (oyente) oyente(r);
-    for (const auto& fn : otros) fn(r);
+    d_->encoladas.fetch_add(1);
+    d_->despertar();
+    // Un fatal es lo último que dice el proceso: se espera a que llegue al
+    // archivo (ahí trabarse ya no le hace mal a nadie).
+    if (n == Nivel::Fatal) vaciar(1000);
+}
+
+bool Registro::vaciar(int ms) {
+    if (std::this_thread::get_id() == d_->hilo.get_id()) return false; // un oyente: se esperaría a sí mismo
+    const std::uint64_t objetivo = d_->encoladas.load();
+    std::unique_lock<std::mutex> l(d_->mDormir);
+    if (d_->durmiendo.load()) {
+        d_->aviso = true;
+        d_->cvDormir.notify_one();
+    }
+    return d_->cvHecho.wait_for(l, std::chrono::milliseconds(ms), [&] { return d_->cuenta.load() >= objetivo; });
 }
 
 std::vector<Registrado> Registro::ultimas(std::size_t cuantas) const {
@@ -234,10 +406,14 @@ std::vector<Registrado> Registro::ultimas(std::size_t cuantas) const {
 
 std::uint64_t Registro::cuenta() const { return d_->cuenta.load(); }
 std::uint64_t Registro::descartadas() const { return d_->descartadas.load(); }
+std::uint64_t Registro::perdidas() const { return d_->perdidas.load(); }
 
 Registro& registro() {
-    static Registro r;
-    return r;
+    // Nunca se destruye: su escritor sigue vivo hasta el final, y lo que se
+    // registra desde un destructor estático o un atexit no cae sobre un objeto
+    // muerto. Lo pendiente al salir lo baja `vaciar()` (en el atexit de main).
+    static Registro* r = new Registro();
+    return *r;
 }
 
 } // namespace ba::diag
