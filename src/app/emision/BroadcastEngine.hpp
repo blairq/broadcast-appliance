@@ -25,6 +25,17 @@
 // por su id); cada una de las demás, BA.Salida.<id> y BA.Audio.Salida.<id>.
 // Las grabaciones por entrada (ISO) son de las entradas, no de una salida.
 //
+// EL EMISOR APARTE (04-plan-unificado.md, F3-01; BroadcastEngineEmisor.cpp). Con el
+// launcher en `emisor.aparte`, una salida (la principal) la codifica, graba y
+// transmite `ba-emisor` en otro proceso: si A se cae, la transmisión y el archivo
+// siguen (con la placa). El launcher lo dice en BA_EMISOR. Para esa salida, su
+// transmisión principal, su grabación y su copia se PIDEN al emisor (Runtime/emisor/
+// <id>.json, emisor/Pedido.hpp) en vez de armarse acá, y lo que hacen se lee de su
+// estado (la foto de las salidas lo muestra como si fueran de acá); su canal al
+// gateway se publica siempre (es lo que lee el emisor) y no se suelta por reposo.
+// Lo demás de esa salida (destinos extra, pistas 2-6, repetición, señal limpia)
+// sigue acá en esta etapa.
+//
 // Modelo de threading: todo desde el hilo de control (la UI o el arranque
 // headless). El motor tiene sus hilos; lo que llega de ellos (cuadros, audio)
 // solo toca estructuras con su propio lock.
@@ -65,6 +76,10 @@ struct Cuadro;
 class Grabacion;
 class Transmision;
 } // namespace ba::motor
+
+namespace ba::emisor {
+struct Pedido;
+} // namespace ba::emisor
 
 namespace ba::app {
 
@@ -990,6 +1005,13 @@ class BroadcastEngine {
         std::vector<std::uint8_t> retornoFilas;
         bool retornoPedido = false; ///< del hilo de la interfaz: su vista «…@gateway» está pedida
         bool retornoEnUso = false;  ///< del hilo de la interfaz: alguien lo mira (ver retornoEnUso)
+        // --- El emisor aparte (F3-01; BroadcastEngineEmisor.cpp) ---
+        bool emisor = false; ///< la codifica un ba-emisor (BA_EMISOR): fijo desde que se crea
+        // Del hilo de salidas: lo pedido (copia de Runtime/emisor/<id>.json) y lo último
+        // que dijo su estado (con cuándo se leyó: se relee cada medio segundo).
+        std::unique_ptr<emisor::Pedido> pedidoEmisor;
+        nlohmann::json estadoEmisor;
+        std::int64_t estadoEmisorMs = 0;
 
         Salida();
         ~Salida(); // en el .cpp: Repeticion se completa ahí
@@ -1029,6 +1051,22 @@ class BroadcastEngine {
     void pararTodoYa(Salida& s);
     /// {principal, extras, grabacion, replay, limpio} de una salida (en el hilo de salidas).
     nlohmann::json fotoDe(const Salida& s) const;
+    // --- El emisor aparte (BroadcastEngineEmisor.cpp; del hilo de salidas salvo dicho) ---
+    /// Las salidas que codifica un emisor aparte (BA_EMISOR, lo pone el launcher).
+    static const std::set<std::string>& salidasConEmisor();
+    /// El pedido de la salida (lo carga del disco la primera vez), cambiado por `cambio`,
+    /// con el cuadro de salida y la placa de ahora y el `seq` siguiente, escrito. "" o el error.
+    std::string pedirAlEmisor(Salida& s, const std::function<void(emisor::Pedido&)>& cambio);
+    /// Lo que hace el emisor ahora con la transmisión ("transmision") o la grabación
+    /// ("grabacion"): si su estado (fresco o no) dice que la tiene andando, cayéndose o
+    /// reconectando. Para adoptarla al volver en vez de pedirla de nuevo.
+    bool emisorLaTiene(const Salida& s, const char* que) const;
+    /// Relee su estado (cada medio segundo) y carga el pedido si todavía no está.
+    void leerEmisor(Salida& s);
+    /// Pone en la foto de la salida lo que hace el emisor: `principal` y `grabacion`.
+    void fotoDelEmisor(const Salida& s, nlohmann::json& f) const;
+    /// Algo de esa salida transmite o graba en el emisor.
+    bool aireEnEmisor(const Salida& s) const;
     std::string startStreamingYa(Salida& s, const StreamConfig& stream, const EncoderConfig& enc);
     std::string startExtraYa(Salida& s, const std::string& id, const std::string& server, const std::string& key,
                              const EncoderConfig& enc, const std::string& serverRespaldo);

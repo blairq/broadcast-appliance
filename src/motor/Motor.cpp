@@ -233,42 +233,45 @@ std::string Motor::armarSalida(const std::string& id, Salida& s) {
     for (const auto& [cid, c] : canales_) aplicarEnSalida(s, cid, 0);
     // Su audio al gateway: la por omisión, el de siempre (lo que oyen los invitados en
     // modo «programa»); las demás, el suyo (el gateway lo manda con BA.Salida.<id>).
-    armarPuente(s, id == porOmision_ ? std::string("ContentForReturn") : "Salida." + id);
+    s.puente = armarPuente(s, id == porOmision_ ? std::string("ContentForReturn") : "Salida." + id);
+    // Con emisor aparte (F3-01), también al suyo: lo codifica otro proceso.
+    if (cfg_.emisores.count(id) > 0) s.puenteEmisor = armarPuente(s, ba::ipc::sufijoAudioEmisor(id));
     if (hayOyentes(id)) armarTomaAudio(id); // la pidieron antes de que existiera
     return {};
 }
 
-void Motor::armarPuente(Salida& s, const std::string& canal) {
-    // El programa de la salida para el gateway, en el anillo BA.Audio.<canal>.
-    if (cfg_.prefijoAnillos.empty() || !hayFabrica("baanillosink") || !s.mezcla) return;
+GstElement* Motor::armarPuente(Salida& s, const std::string& canal) {
+    // El programa de la salida para el gateway (o el emisor), en el anillo BA.Audio.<canal>.
+    if (cfg_.prefijoAnillos.empty() || !hayFabrica("baanillosink") || !s.mezcla) return nullptr;
     const std::string d = "intersrc producer-name=" + entreComillas(s.mezcla->productor()) +
                           " ! queue max-size-time=" + std::to_string(ajustes::sANs("audio.colaEscuchaS", 2)) + " max-size-buffers=0 max-size-bytes=0 ! baanillosink canal=" +
                           entreComillas(anillo(canal));
     GError* e = nullptr;
-    s.puente = gst_parse_launch(d.c_str(), &e);
+    GstElement* p = gst_parse_launch(d.c_str(), &e);
     if (e != nullptr) {
         registrar(Nivel::Aviso,
                   llenar(traducir("motor", "el programa para el gateway: %1"), {ba::diag::utf8Valido(e->message)}));
         g_error_free(e);
-        if (s.puente != nullptr) gst_object_unref(s.puente);
-        s.puente = nullptr;
-        return;
+        if (p != nullptr) gst_object_unref(p);
+        return nullptr;
     }
-    reloj_->adoptar(s.puente);
+    reloj_->adoptar(p);
     s.puenteLatNs = s.mezcla->latenciaSalidaNs() + margenMezclaNs();
-    gst_pipeline_set_latency(GST_PIPELINE(s.puente), static_cast<GstClockTime>(s.puenteLatNs));
-    gst_element_set_state(s.puente, GST_STATE_PLAYING);
+    gst_pipeline_set_latency(GST_PIPELINE(p), static_cast<GstClockTime>(s.puenteLatNs));
+    gst_element_set_state(p, GST_STATE_PLAYING);
+    return p;
 }
 
 std::shared_future<void> Motor::desarmarSalida(Salida& s, bool aparte) {
     // Todo junto y en orden: lo que la lee (la toma, el puente) antes que lo que la
     // hace. La toma va con su estructura: GStreamer la nombra hasta pasar a NULL.
     auto desarmar = [toma = std::move(s.toma), puente = std::exchange(s.puente, nullptr),
+                     puenteEmisor = std::exchange(s.puenteEmisor, nullptr),
                      programa = std::shared_ptr<Composicion>(std::move(s.programa)),
                      preview = std::shared_ptr<Composicion>(std::move(s.preview)),
                      mezcla = std::shared_ptr<Mezcla>(std::move(s.mezcla)),
                      retornos = std::make_shared<std::map<int, std::unique_ptr<Mezcla>>>(std::move(s.retornos))]() mutable {
-        for (GstElement* p : {toma ? toma->pipeline : nullptr, puente})
+        for (GstElement* p : {toma ? toma->pipeline : nullptr, puente, puenteEmisor})
             if (p != nullptr) {
                 gst_element_set_state(p, GST_STATE_NULL);
                 gst_object_unref(p);
@@ -411,18 +414,21 @@ void Motor::bucle() {
             }
             // Los que consumen el programa esperan lo que tarda en salir.
             for (auto& [sid, s] : salidas_) {
-                if (s.puente == nullptr || !s.mezcla) continue;
+                if ((s.puente == nullptr && s.puenteEmisor == nullptr) || !s.mezcla) continue;
                 const std::int64_t lat = s.mezcla->latenciaSalidaNs() + margenMezclaNs();
-                if (lat > s.puenteLatNs + static_cast<std::int64_t>(5 * GST_MSECOND) ||
-                    lat < s.puenteLatNs - static_cast<std::int64_t>(60 * GST_MSECOND)) {
-                    s.puenteLatNs = lat;
-                    recalcularLatenciaAparte(s.puente, [p = refCompartida(s.puente), lat]() {
-                        gst_pipeline_set_latency(GST_PIPELINE(p.get()), static_cast<GstClockTime>(lat));
-                    });
+                const bool cambia = lat > s.puenteLatNs + static_cast<std::int64_t>(5 * GST_MSECOND) ||
+                                    lat < s.puenteLatNs - static_cast<std::int64_t>(60 * GST_MSECOND);
+                if (cambia) s.puenteLatNs = lat;
+                for (GstElement* puente : {s.puente, s.puenteEmisor}) {
+                    if (puente == nullptr) continue;
+                    if (cambia)
+                        recalcularLatenciaAparte(puente, [p = refCompartida(puente), lat]() {
+                            gst_pipeline_set_latency(GST_PIPELINE(p.get()), static_cast<GstClockTime>(lat));
+                        });
+                    GstBus* bus = gst_element_get_bus(puente);
+                    while (GstMessage* m = gst_bus_pop(bus)) gst_message_unref(m);
+                    gst_object_unref(bus);
                 }
-                GstBus* bus = gst_element_get_bus(s.puente);
-                while (GstMessage* m = gst_bus_pop(bus)) gst_message_unref(m);
-                gst_object_unref(bus);
             }
             if (escucha_) {
                 std::int64_t lat = 0;

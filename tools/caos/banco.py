@@ -18,6 +18,12 @@ sobre un evento de prueba PROPIO (nunca el del operador):
        sumidero_tx           la conexión RTMP no puede escribir
        codificador_rec       el codificador de la grabación da error
        sumidero_rec          el disco de la grabación no puede escribir (a los --sumidero-s)
+       kill_a_con_emisor     kill -9 de A con el emisor aparte (F3-01, `emisor.aparte` o
+                             --emisor-aparte): la transmisión y la grabación son del emisor y
+                             NO se tienen que enterar: 0 conexiones RTMP nuevas, ningún
+                             archivo nuevo y la placa en el hueco (RTO = el hueco más largo)
+       kill_emisor, stop_emisor  kill -9 / SIGSTOP del emisor: el launcher lo relanza y
+                             retoma el pedido (otra conexión y otro archivo: «-sigue2»)
      y mide: cuándo contesta la app (MCP), cuándo vuelve el primer cuadro al servidor
      RTMP (RTO de la transmisión), cuándo vuelve a crecer el MKV, y la reapertura de los
      anillos A↔B (lo que dice Logs/gateway.log después de la falla).
@@ -34,6 +40,8 @@ o a --salida. RTO p50/p95 por escenario.
     python3 -I tools/caos/banco.py                       # todo, 3 veces cada uno
     python3 -I tools/caos/banco.py --escenarios kill_a,codificador_tx --repeticiones 5
     python3 -I tools/caos/banco.py --lanzar dist/BroadcastAppliance.app --nocturno
+    python3 -I tools/caos/banco.py --lanzar dist/BroadcastAppliance.app --emisor-aparte \
+        --escenarios kill_a_con_emisor,kill_emisor
 
 Sale con 0 si todo volvió dentro de --plazo-s, 1 si algo no volvió, 2 si cortó antes de
 tocar nada. Sin sonido: la cámara virtual no tiene audio y nada sale por los parlantes.
@@ -74,10 +82,12 @@ rtmp_local = _modulo("rtmp_local", os.path.join(AQUI, "rtmp_local.py"))
 CAM = "Cámara de caos"
 WINDOWS = platform.system() == "Windows"
 ESCENARIOS = ["kill_a", "stop_a", "kill_b", "stop_b", "kill_web", "stop_web", "kill_cf", "stop_cf", "al_aire_truncado",
-              "codificador_tx", "sumidero_tx", "codificador_rec", "sumidero_rec"]
+              "codificador_tx", "sumidero_tx", "codificador_rec", "sumidero_rec", "kill_a_con_emisor", "kill_emisor",
+              "stop_emisor"]
 # Los procesos, por el nombre del ejecutable (A y B pueden correr desde la copia sombra:
 # la ruta no es la del bundle).
-PROCESOS = {"a": "ba-app", "b": "ba-gateway", "web": "ba-web", "cf": "cloudflared", "launcher": "BroadcastAppliance"}
+PROCESOS = {"a": "ba-app", "b": "ba-gateway", "web": "ba-web", "cf": "cloudflared", "emisor": "ba-emisor",
+            "launcher": "BroadcastAppliance"}
 # Lo que escribe el gateway cuando vuelve a tomar un anillo de A (MediaPump).
 ANILLO = re.compile(r"suscrito|resuscribiendo|abiert[oa]\b|\blisto\b")
 
@@ -326,6 +336,12 @@ class Banco:
             self.carpeta_rec = os.path.dirname(max(mk, key=lambda x: os.path.getmtime(x) if os.path.exists(x) else 0))
         return self.carpeta_rec
 
+    def mkvs(self) -> set[str]:
+        """Los MKV de la carpeta de la grabación escritos desde que empezó el banco."""
+        if not self.carpeta_rec:
+            return set()
+        return {f for f in glob.glob(os.path.join(self.carpeta_rec, "*.mkv")) if os.path.getmtime(f) >= self.inicio}
+
     def tamano_mkv(self) -> int:
         if not self.carpeta_rec:
             return 0
@@ -391,7 +407,9 @@ class Banco:
 
     # --- Los escenarios ---------------------------------------------------------------------
     def correr(self, nombre: str) -> dict:
-        if nombre.startswith(("kill_", "stop_")):
+        if nombre == "kill_a_con_emisor":
+            r = self.kill_a_con_emisor()
+        elif nombre.startswith(("kill_", "stop_")):
             cual, q = nombre.split("_", 1)
             r = self.proceso(q, cual)
         elif nombre == "al_aire_truncado":
@@ -476,6 +494,11 @@ class Banco:
         if q == "a":
             r.update(self.medir(t0, base, mcp=True, video=nueva, grabacion=True))
             r["rto_s"] = r["video_s"]
+        elif q == "emisor":
+            # El emisor lleva la transmisión y la grabación: al volver retoma su pedido con
+            # otra conexión (y otro archivo). El RTO es el del video en el servidor RTMP.
+            r.update(self.medir(t0, base, video=nueva, grabacion=True, nuevo_de=(nombre, pids) if r.get("lo_relanzaron", True) else None))
+            r["rto_s"] = r["video_s"]
         elif q == "b":
             # La transmisión y la grabación son de A: no se tienen que enterar (hueco_tx_s).
             r.update(self.medir(t0, base, gateway=True, nuevo_de=(nombre, pids) if r.get("lo_relanzaron", True) else None))
@@ -486,6 +509,34 @@ class Banco:
                 r["rto_s"] = r["relanzado_s"]
             else:
                 r["rto_s"] = None  # frenado y nadie lo relanzó: no volvió solo
+        return r
+
+    def kill_a_con_emisor(self) -> dict:
+        """F3-01: con el emisor aparte, kill -9 de A no corta nada. Se mide que no haya
+        ninguna conexión RTMP nueva, ningún MKV nuevo (la grabación sigue en el mismo
+        archivo) y el hueco de video más largo en el servidor (la placa lo llena). El RTO
+        de este escenario es ese hueco; si hubo un corte, no volvió (rto_s None)."""
+        if not self.app.pids(PROCESOS["emisor"]):
+            return {"saltado": "ba-emisor no corre (prender emisor.aparte, o --emisor-aparte con --lanzar)"}
+        pids = self.app.pids(PROCESOS["a"])
+        if not pids:
+            return {"saltado": "ba-app no corre"}
+        sesiones0 = len(self.rtmp.sesiones())
+        archivos0 = self.mkvs()
+        base = self.tamano_mkv()
+        t0 = time.time()
+        for p in pids:
+            self.app.senal(p, "kill")
+        r: dict = {"pids": pids}
+        # Que vuelva A (MCP) y, mientras tanto, que el video siga llegando por la MISMA conexión.
+        r.update(self.medir(t0, base, mcp=True, video="cualquiera", grabacion=True))
+        r["desconexiones_rtmp"] = len(self.rtmp.sesiones()) - sesiones0
+        r["archivos_nuevos"] = sorted(os.path.basename(f) for f in self.mkvs() - archivos0)
+        st = self.estado() if self.m else {}
+        r["a_ve_transmision"] = bool(st.get("streaming"))
+        r["a_ve_grabacion"] = bool(st.get("recording"))
+        r["sin_corte"] = r["desconexiones_rtmp"] == 0 and not r["archivos_nuevos"] and r["hueco_tx_s"] < 1.0
+        r["rto_s"] = r["hueco_tx_s"] if r["sin_corte"] else None
         return r
 
     def al_aire_truncado(self) -> dict:
@@ -669,8 +720,9 @@ def informe(b: Banco, carpeta: str, mkv: dict, rtmp_ses: list, rtmp_huecos: list
     return j
 
 
-def lanzar(ruta: str) -> subprocess.Popen:
-    """Abre la app en modo prueba (el launcher, que supervisa a A y B)."""
+def lanzar(ruta: str, emisor_aparte: bool = False) -> subprocess.Popen:
+    """Abre la app en modo prueba (el launcher, que supervisa a A y B; con `emisor_aparte`,
+    también el emisor de la salida principal, F3-01)."""
     ruta = os.path.abspath(ruta)
     if ruta.endswith(".app"):
         exe = os.path.join(ruta, "Contents", "MacOS", os.path.basename(ruta)[:-4])
@@ -682,7 +734,8 @@ def lanzar(ruta: str) -> subprocess.Popen:
     # Con --test la app no retoma la grabación ni la transmisión tras una caída (una prueba no
     # sale al aire sola); el banco mide justo eso, así que la pide (BA_PRUEBA_RETOMA_SALIDAS).
     env = dict(os.environ, BA_PRUEBA_RETOMA_SALIDAS="1")
-    return subprocess.Popen([exe, "--test"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=not WINDOWS, env=env)
+    args = [exe, "--test"] + (["--emisor-aparte"] if emisor_aparte else [])
+    return subprocess.Popen(args, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=not WINDOWS, env=env)
 
 
 def ba_mcp_de(lanzado: str | None) -> str:
@@ -711,6 +764,8 @@ def main() -> int:
     ap.add_argument("--salida", help="carpeta del informe (de fábrica <datos>/Logs/caos/<fecha>)")
     ap.add_argument("--nocturno", action="store_true", help="5 repeticiones y plazo de 90 s")
     ap.add_argument("--no-matar", action="store_true", help="al final, app_quit pero sin matar lo que quede")
+    ap.add_argument("--emisor-aparte", action="store_true",
+                    help="con --lanzar: la salida principal la codifica ba-emisor (F3-01; para kill_a_con_emisor)")
     a = ap.parse_args()
     if a.nocturno:
         a.repeticiones, a.plazo_s = max(a.repeticiones, 5), max(a.plazo_s, 90.0)
@@ -727,7 +782,7 @@ def main() -> int:
     carpeta = a.salida or os.path.join(app.logs, "caos", time.strftime("%Y%m%d-%H%M%S"))
     rtmp = rtmp_local.ServidorRtmp(a.puerto_rtmp, os.path.join(carpeta, "rtmp")).iniciar()
     log(f"RTMP local en rtmp://127.0.0.1:{rtmp.puerto}/live; informe en {carpeta}")
-    lanzado = lanzar(a.lanzar) if a.lanzar else None
+    lanzado = lanzar(a.lanzar, a.emisor_aparte) if a.lanzar else None
     b = Banco(a, app, rtmp)
     corte = None
     mkv: dict = {}
