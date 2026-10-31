@@ -102,6 +102,10 @@ class Reconocedores {
     void setAcciones(Acciones a) { acciones_ = std::move(a); }
     void setMargenMs(std::int64_t ms) { margenMs_ = ms < 0 ? 0 : ms; }
     std::int64_t margenMs() const { return margenMs_; }
+    /// La máquina está caliente (F4-05, «priorizar programa»): sin margen, lo que nadie usa
+    /// se descarga en el próximo tic (lo que está en uso sigue).
+    void setPorCalor(bool on) { porCalor_ = on; }
+    bool porCalor() const { return porCalor_; }
     /// Abre un uso: cuenta para el motor de su consumidor (y lo carga si hace
     /// falta). Si la clave ya estaba abierta con otro consumidor o motor, la mueve.
     MotorOido usar(const std::string& clave, const std::string& consumidor, std::int64_t ahoraMs);
@@ -154,6 +158,7 @@ class Reconocedores {
     std::map<MotorOido, EstadoMotor> motores_;
     Acciones acciones_;
     std::int64_t margenMs_ = 120000;
+    bool porCalor_ = false;
 };
 
 } // namespace ba::app::agent

@@ -7,6 +7,8 @@
 #include "agent/Despachador.hpp"
 #include "agent/FlujosTexto.hpp"
 #include "agent/Notificador.hpp"
+#include "agent/ServidorModeloLocal.hpp"
+#include "agent/Voz.hpp"
 #include "arranque/AppRuntime.hpp"
 #include "arranque/Configuraciones.hpp"
 #include "arranque/EnergiaAire.hpp"
@@ -521,6 +523,19 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
             .cuerpo = [this]() { return asamblea_ ? &asamblea_->cuerpo().cuerpo() : nullptr; }});
         connect(asistente_.get(), &AsistenteViewModel::notify, this, &StudioViewModel::notify);
         marca("asistente");
+        // «Priorizar programa» por calor (F4-05; la superresolución la atiende Imagen y los
+        // invitados, la sala): los modelos locales que no atienden se sueltan (el
+        // llama-server se duerme; los reconocedores sin uso se descargan ya) y las vistas
+        // del motor que nadie mira se duermen.
+        recursos_->alDegradar("modelos", [this](bool apagar) {
+            agent::ServidorModeloLocal::el().porCalor(apagar);
+            if (asistente_) asistente_->voz().porCalor(apagar);
+            return true;
+        });
+        recursos_->alDegradar("vistas", [&rt](bool apagar) {
+            rt.engine().soltarVistasSinMirar(apagar);
+            return true;
+        });
     }
     // La documentación del evento (docs/): cada cambio republica la web del evento.
     documentos_ = std::make_unique<DocumentosViewModel>([&rt]() { return rt.dataRoot(); });

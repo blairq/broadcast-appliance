@@ -365,6 +365,30 @@ int main() {
         CHECK(fb.is_object() && fb.value("nombre", "") == "b", "sin nombre: su id");
         CHECK(igual(mirar(m, "programa", 160, 90), 0, 255, 0), "la principal, verde todavía");
     }
+    // Las vistas que nadie mira (la política térmica, F4-05): sin leerla, se duerme (sigue
+    // pedida, sin pipeline); al leerla se despierta sola y vuelve a dar imagen. Las que
+    // tienen aviso no se tocan.
+    {
+        CHECK(m.verPedir("programa:b@sinmirar", 160, 90).empty(), "una vista para dejar de mirar");
+        CHECK(igual(mirarHasta(m, "programa:b@sinmirar", 80, 45, [](const Px& p) { return igual(p, 255, 0, 0); }), 255, 0, 0),
+              "anda");
+        m.verAvisar("programa:b", [](const Cuadro&) {}); // con aviso: no se duerme
+        m.vistasSinMirar(true, 300);
+        const auto vista = [&m](const char* k) { return m.estado()["vistas"].value(k, json::object()); };
+        json v;
+        for (int i = 0; i < 40 && !(v = vista("programa:b@sinmirar")).value("dormida", false); ++i) esperar(50);
+        CHECK(v.value("dormida", false) && !v.value("anda", true), "sin mirarla, se duerme");
+        CHECK(!vista("programa:b").value("dormida", true), "la que tiene aviso sigue");
+        Cuadro c;
+        std::uint64_t s = 0;
+        m.verUltimo("programa:b@sinmirar", c, s); // alguien la mira
+        CHECK(igual(mirarHasta(m, "programa:b@sinmirar", 80, 45, [](const Px& p) { return igual(p, 255, 0, 0); }), 255, 0, 0),
+              "mirarla la despierta");
+        CHECK(!vista("programa:b@sinmirar").value("dormida", true), "despierta");
+        m.vistasSinMirar(false);
+        m.verAvisar("programa:b", nullptr);
+        m.verSoltar("programa:b@sinmirar");
+    }
     m.verSoltar("programa:b");
     m.verSoltar("programa");
     m.detener();

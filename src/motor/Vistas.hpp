@@ -29,6 +29,12 @@
 // gateway o medir algo. Cada cuadro trae además la hora de lo que muestra en el
 // reloj de los sellos entre procesos (contenidoQpc: el gateway alinea con eso el
 // video del programa con su audio, F2-11).
+//
+// LAS QUE NADIE MIRA (F4-05, la política térmica «priorizar programa»): con
+// `soltarSinMirar(true)`, una vista sin aviso que nadie leyó (`ultimo`) en un
+// rato (kSinMirarUs de fábrica) se desarma («dormida»: sigue pedida, sin pipeline) y se vuelve a armar
+// sola en el tic siguiente a que alguien la lea. Las que tienen aviso (el retorno, las
+// alarmas, el emisor) no se tocan.
 // ============================================================================
 #pragma once
 
@@ -87,10 +93,15 @@ class Vistas {
     /// `resolver(clave, latencia)` da el productor de la clave ("" si no existe) y su latencia (ns).
     using Resolver = std::function<std::string(const std::string&, std::int64_t*)>;
     Vistas(Reloj& reloj, Resolver resolver);
-    /// Las entradas que alguien está mirando («entrada:<id>@…»).
+    /// Las entradas que alguien está mirando («entrada:<id>@…»; las dormidas no).
     std::set<std::string> entradasEnUso() const;
-    /// Lo que leen las vistas (sus productores).
+    /// Lo que leen las vistas (sus productores; las dormidas no).
     std::set<std::string> productoresEnUso() const;
+    /// Sin leer este rato, una vista se duerme (con soltarSinMirar).
+    static constexpr std::int64_t kSinMirarUs = 10'000'000;
+    /// Dormir (o no) las vistas que nadie mira en `sinMirarUs` (ver arriba). Al apagarlo,
+    /// las dormidas vuelven en el tic siguiente.
+    void soltarSinMirar(bool on, std::int64_t sinMirarUs = kSinMirarUs);
     ~Vistas();
     Vistas(const Vistas&) = delete;
     Vistas& operator=(const Vistas&) = delete;
@@ -104,7 +115,8 @@ class Vistas {
     bool ultimo(const std::string& clave, Cuadro& out, std::uint64_t& serie) const;
     /// Cada cuadro de `clave` a `fn` (en el hilo de datos). fn vacía = sacar.
     void avisar(const std::string& clave, std::function<void(const Cuadro&)> fn);
-    void tic();
+    /// true si alguna se durmió o se despertó (cambia lo que se usa).
+    bool tic();
     nlohmann::json estado() const;
     /// Quién desarma los pipelines (Motor::desarmarAparte): pasarlos a NULL puede esperar
     /// al contexto de GL (en macOS, el hilo principal) y lo pedía el motor con su candado
@@ -120,6 +132,8 @@ class Vistas {
         std::string productor;
         Cuadro cuadro; ///< bajo mu_
         std::function<void(const Cuadro&)> aviso;
+        std::int64_t leidoUs = 0, armadaUs = 0; ///< la última lectura (ultimo) y cuándo se armó
+        bool dormida = false;                   ///< nadie la miraba: sin pipeline hasta que la lean
         // BA_MEDIR_VISTAS=1: cuadros por segundo y el hueco más largo, al registro cada 2 s.
         std::int64_t medirDesde = 0, ultimoUs = 0, huecoMaxUs = 0;
         int medidos = 0;
@@ -133,6 +147,8 @@ class Vistas {
     std::function<void(std::function<void()>)> desarmador_; ///< bajo mu_
     mutable std::mutex mu_;
     std::map<std::string, Una*> vistas_;
+    bool sinMirar_ = false; ///< bajo mu_
+    std::int64_t sinMirarUs_ = kSinMirarUs;
     std::uint64_t serie_ = 0;
 };
 

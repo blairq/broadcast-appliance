@@ -5,8 +5,10 @@
 #include "arranque/AppRuntime.hpp"
 #include "control/BusEventos.hpp"
 #include "net/AccesoRemoto.hpp"
+#include "sala/CalidadPorCalor.hpp"
 #include "sala/ConfigSala.hpp"
 #include "sala/CupoSala.hpp"
+#include "sala/ParticipantesSala.hpp"
 #include "sala/Direcciones.hpp"
 #include "sala/PreguntasSala.hpp"
 #include "sala/SeguridadSala.hpp"
@@ -58,6 +60,18 @@ SalaViewModel::SalaViewModel(Partes p, QObject* parent) : QObject(parent), p_(st
         return assistantIntake(id, name, yaAdentro);
     });
     accesoRemoto_ = std::make_unique<AccesoRemoto>(rt, cli);
+    // Con la máquina muy caliente (F4-05), los invitados mandan menos: a los de adentro y a
+    // los que entren mientras dure. Al aliviarse, la calidad completa a esos mismos.
+    calidadPorCalor_ = std::make_unique<sala::CalidadPorCalor>(
+        [this](const std::string& id, const std::string& que) { p_.conferencia.participantes().pedirle(id, que); },
+        [this]() {
+            std::vector<std::string> ids;
+            if (const auto* l = qobject_cast<const JsonListModel*>(p_.conferencia.inside()))
+                for (const QJsonValue& v : l->items()) ids.push_back(v.toObject().value("id").toString().toStdString());
+            return ids;
+        });
+    p_.recursos.alDegradar("invitados", [this](bool apagar) { return calidadPorCalor_->bajar(apagar); });
+    connect(&p_.conferencia, &ConferenceViewModel::roomChanged, this, [this]() { calidadPorCalor_->revisar(); });
     accesoRemoto_->setDirecciones(direcciones_.get());
     accesoRemoto_->setEnVivo(p_.enVivo);
     // «Configurar todo con la API key»: los cambios de Configuración → Pinggy van por un

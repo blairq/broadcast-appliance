@@ -246,8 +246,10 @@ class Motor {
     };
     /// Arma (o acomoda: solo lo que cambió) el bus `id` con esos envíos. `dispositivo` no
     /// vacío: sale por esa placa (su id estable; "default" = la del sistema); si no está,
-    /// muda hasta que vuelva (sin ir a la del sistema).
-    std::string matrizBus(const std::string& id, const std::vector<EnvioMatriz>& envios, const std::string& dispositivo);
+    /// muda hasta que vuelva (sin ir a la del sistema). `salida`: de qué salida sigue el
+    /// mute de cada entrada ("" o una que no existe = la por omisión).
+    std::string matrizBus(const std::string& id, const std::vector<EnvioMatriz>& envios, const std::string& dispositivo,
+                          const std::string& salida = "");
     std::string quitarMatrizBus(const std::string& id);
     /// Lo que entrega un bus de la Matriz (para la entrada de una entrada virtual).
     static std::string productorMatriz(const std::string& id) { return "bus:matriz-" + id; }
@@ -291,6 +293,9 @@ class Motor {
     bool verUltimo(const std::string& clave, Cuadro& out, std::uint64_t& serie) const;
     /// Cada cuadro de una vista ya pedida (en el hilo de datos). fn vacía = sacar.
     void verAvisar(const std::string& clave, std::function<void(const Cuadro&)> fn);
+    /// Dormir las vistas que nadie mira en `sinMirarMs` (Vistas::soltarSinMirar; la política
+    /// térmica, F4-05).
+    void vistasSinMirar(bool soltar, int sinMirarMs = static_cast<int>(Vistas::kSinMirarUs / 1000));
     /// Un cuadro para una entrada tipo=app.
     bool empujarCuadro(const std::string& id, const std::uint8_t* bgra, int ancho, int alto, int stride);
 
@@ -558,15 +563,22 @@ class Motor {
     std::string ponerEscuchaYa(const std::string& id, bool on);
     void escuchaDispositivoYa(const std::string& id);
     void escuchaNivelYa(double lineal);
-    std::string matrizBusYa(const std::string& id, const std::vector<EnvioMatriz>& envios, const std::string& dispositivo);
+    std::string matrizBusYa(const std::string& id, const std::vector<EnvioMatriz>& envios, const std::string& dispositivo,
+                            const std::string& salida);
     std::string quitarMatrizBusYa(const std::string& id);
     /// Un bus de la Matriz: su mezcla y, si sale por una placa, su salida (una Escucha).
     struct BusMatriz {
         std::unique_ptr<Mezcla> mezcla;
         std::unique_ptr<Escucha> salida;
         std::string dispositivo;
+        std::string deSalida; ///< la que da el mute de sus entradas ("" = la por omisión)
         std::map<std::string, std::pair<double, double>> envios; ///< entrada → (izq, der)
     };
+    /// El mando de una entrada en la salida `salida` (la por omisión si no existe).
+    const Mando& mandoEn(const std::string& salida, const std::string& id) const;
+    /// El mute de cada entrada de los buses de la Matriz que siguen a `salida` (todos si
+    /// está vacía): al cambiar de salida un bus o al borrarse la que seguía.
+    void remutarMatriz(const std::string& salida);
     std::map<std::string, BusMatriz> matriz_; ///< bajo mu_
     void masterVolumenYa(double lineal, int ms, const std::string& salida);
     bool ponerLimitadorYa(bool activo, double techoDb, const std::string& salida);

@@ -40,6 +40,7 @@
 #include <string_view>
 #include <thread>
 #include <tuple>
+#include <utility>
 #include <vector>
 
 namespace ba::app {
@@ -166,6 +167,7 @@ std::string marcaDeTiempo() {
 } // namespace
 
 struct BroadcastEngine::MedicionSincro {
+    std::string salida; ///< la que se mide (su id: una cámara contra su micrófono en SU programa)
     std::mutex mu;
     std::vector<camaras::Muestra> audio, video;
     std::vector<std::uint8_t> anterior;
@@ -263,6 +265,11 @@ bool BroadcastEngine::crearSalida(const std::string& id, const std::string& nomb
         s->volumen[n] = f.spec.volume;
         s->mute[n] = f.spec.muted;
     }
+    // Y el objetivo de loudness (el suyo, si lo guardó, lo pone después ObjetivoLoudness).
+    {
+        const auto ob = porOmision().medidas->loudness.objetivo();
+        s->medidas->loudness.ponerObjetivo({{"perfil", ob.perfil}, {"lufs", ob.lufs}, {"tp", ob.tp}, {"agc", ob.agc}});
+    }
     {
         std::lock_guard<std::mutex> l(salidasM_);
         salidas_[id] = s;
@@ -311,12 +318,16 @@ bool BroadcastEngine::borrarSalida(const std::string& id) {
     return true;
 }
 
+std::string BroadcastEngine::claveAlarmas(const Salida& s) {
+    return s.porOmision() ? std::string("programa@alarmas") : "programa:" + s.id + "@alarmas";
+}
+
 void BroadcastEngine::medirSalida(Salida& s) {
     if (!motor_ || s.oyenteAudio != 0) return;
-    // La sincronía labios/voz se mide en el programa de la por omisión (es una cámara contra su micrófono).
-    const bool sincro = s.porOmision();
+    // La sincronía labios/voz se mide en el programa de la salida que se eligió al empezar
+    // (es una cámara contra su micrófono).
     s.oyenteAudio = motor_->escucharPrograma(
-        [this, m = s.medidas, sincro](const float* d, std::size_t n) {
+        [this, m = s.medidas, id = s.id](const float* d, std::size_t n) {
             static thread_local std::vector<float> l, r;
             l.resize(n);
             r.resize(n);
@@ -334,8 +345,7 @@ void BroadcastEngine::medirSalida(Salida& s) {
                 while (v > cur && !a->compare_exchange_weak(cur, v, std::memory_order_relaxed)) {
                 }
             }
-            if (!sincro) return;
-            if (auto ms = medSincro_) {
+            if (auto ms = medSincro_; ms && ms->salida == id) {
                 // Picos cada 5 ms con la hora en que sonó (ahora es cuando sale).
                 const std::int64_t fin = ahoraMs();
                 for (std::size_t i = 0; i < n; i += 240) {
@@ -349,16 +359,72 @@ void BroadcastEngine::medirSalida(Salida& s) {
             }
         },
         s.id);
+    // El video de su programa, chiquito: brillo y quietud (las alarmas de negro y congelado)
+    // y, si se mide la sincronía en ella, dónde aplauden.
+    const std::string clave = claveAlarmas(s);
+    motor_->verPedir(clave, 160, 90);
+    motor_->verAvisar(clave, [this, m = s.medidas, id = s.id](const motor::Cuadro& c) {
+        ++m->cuadros;
+        std::uint64_t suma = 0, firma = 1469598103934665603ULL;
+        int n = 0;
+        std::vector<std::uint8_t> luma;
+        const auto med = medSincro_;
+        const bool sincro = med && med->salida == id;
+        if (sincro) luma.resize(static_cast<std::size_t>(c.ancho) * c.alto);
+        for (int y = 0; y < c.alto; ++y)
+            for (int x = 0; x < c.ancho; ++x) {
+                const std::uint8_t* px = c.bgra.data() + static_cast<std::size_t>(y) * c.stride + static_cast<std::size_t>(x) * 4;
+                const std::uint32_t lu = (px[2] * 54u + px[1] * 183u + px[0] * 19u) >> 8;
+                if (sincro) luma[static_cast<std::size_t>(y) * c.ancho + x] = static_cast<std::uint8_t>(lu);
+                if (y % 3 == 0 && x % 4 == 0) {
+                    suma += lu;
+                    ++n;
+                    firma = (firma ^ (lu >> 4)) * 1099511628211ULL;
+                }
+            }
+        m->luma = n > 0 ? static_cast<double>(suma) / n : 0;
+        if (firma != m->firma.load() || m->cambioMs.load() == 0) {
+            m->firma = firma;
+            m->cambioMs = ahoraMs();
+        }
+        if (!sincro) return;
+        std::lock_guard<std::mutex> lk(med->mu);
+        if (!med->anterior.empty() && med->anterior.size() == luma.size()) {
+            // El bloque (16×9) que más cambió: unas manos que aplauden son chicas en el cuadro.
+            double maximo = 0;
+            for (int by = 0; by + 9 <= c.alto; by += 9)
+                for (int bx = 0; bx + 16 <= c.ancho; bx += 16) {
+                    int suma16 = 0;
+                    for (int y = by; y < by + 9; ++y)
+                        for (int x = bx; x < bx + 16; ++x) {
+                            const std::size_t i = static_cast<std::size_t>(y) * c.ancho + x;
+                            suma16 += std::abs(static_cast<int>(luma[i]) - static_cast<int>(med->anterior[i]));
+                        }
+                    maximo = std::max(maximo, suma16 / (16.0 * 9.0));
+                }
+            med->video.push_back({ahoraMs(), maximo});
+        }
+        med->anterior.swap(luma);
+    });
 }
 
 void BroadcastEngine::dejarDeMedir(Salida& s) {
-    if (s.oyenteAudio != 0 && motor_) motor_->dejarDeEscuchar(s.oyenteAudio);
+    if (s.oyenteAudio != 0 && motor_) {
+        motor_->dejarDeEscuchar(s.oyenteAudio);
+        motor_->verAvisar(claveAlarmas(s), nullptr);
+        motor_->verSoltar(claveAlarmas(s));
+    }
     s.oyenteAudio = 0;
 }
 
 audio::LoudnessPrograma& BroadcastEngine::loudness(const std::string& salida) {
     const Salida* s = laSalida(salida);
     return (s != nullptr ? *s : porOmision()).medidas->loudness;
+}
+
+audio::LoudnessPrograma* BroadcastEngine::loudnessDe(const std::string& salida) {
+    const Salida* s = std::as_const(*this).laSalida(salida); // sin anotar un error: preguntar no falla
+    return s != nullptr ? &s->medidas->loudness : nullptr;
 }
 
 void BroadcastEngine::anotarAac(Salida& s, int kbps) {
@@ -370,8 +436,8 @@ void BroadcastEngine::anotarAac(Salida& s, int kbps) {
 
 void BroadcastEngine::aplicarLoudness() {
     if (!motor_) return;
-    const audio::LoudnessPrograma::Objetivo ob = porOmision().medidas->loudness.objetivo();
     for (const auto& s : lasSalidas()) {
+        const audio::LoudnessPrograma::Objetivo ob = s->medidas->loudness.objetivo();
         double techo = ob.tp;
         // AES TD1004: un códec con pérdida a poca tasa reconstruye picos por encima de
         // lo que entró; con AAC por debajo de 128 kbps, 1 dB más de margen.
@@ -491,53 +557,10 @@ bool BroadcastEngine::startup(const EnginePaths& paths, const VideoConfig& video
     g_lienzoAncho = video.baseWidth;
     g_lienzoAlto = video.baseHeight;
     g_fps = video.fpsDen > 0 ? static_cast<double>(video.fpsNum) / video.fpsDen : 30.0;
-    // Lo que se mide del programa: loudness y picos (audio, de cada salida), brillo y
-    // quietud (video, el de la por omisión).
+    // Lo que se mide del programa de cada salida (las demás, al crearlas): loudness y
+    // picos (audio), brillo y quietud (video).
     medirSalida(porOmision());
-    motor_->verPedir("programa@alarmas", 160, 90);
-    motor_->verAvisar("programa@alarmas", [this](const motor::Cuadro& c) {
-        ++progCuadros_;
-        std::uint64_t suma = 0, firma = 1469598103934665603ULL;
-        int n = 0;
-        std::vector<std::uint8_t> luma;
-        const bool sincro = medSincro_ != nullptr;
-        if (sincro) luma.resize(static_cast<std::size_t>(c.ancho) * c.alto);
-        for (int y = 0; y < c.alto; ++y)
-            for (int x = 0; x < c.ancho; ++x) {
-                const std::uint8_t* px = c.bgra.data() + static_cast<std::size_t>(y) * c.stride + static_cast<std::size_t>(x) * 4;
-                const std::uint32_t lu = (px[2] * 54u + px[1] * 183u + px[0] * 19u) >> 8;
-                if (sincro) luma[static_cast<std::size_t>(y) * c.ancho + x] = static_cast<std::uint8_t>(lu);
-                if (y % 3 == 0 && x % 4 == 0) {
-                    suma += lu;
-                    ++n;
-                    firma = (firma ^ (lu >> 4)) * 1099511628211ULL;
-                }
-            }
-        progLuma_ = n > 0 ? static_cast<double>(suma) / n : 0;
-        if (firma != progFirma_.load() || progCambioMs_.load() == 0) {
-            progFirma_ = firma;
-            progCambioMs_ = ahoraMs();
-        }
-        if (auto m = medSincro_) {
-            std::lock_guard<std::mutex> lk(m->mu);
-            if (!m->anterior.empty() && m->anterior.size() == luma.size()) {
-                // El bloque (16×9) que más cambió: unas manos que aplauden son chicas en el cuadro.
-                double maximo = 0;
-                for (int by = 0; by + 9 <= c.alto; by += 9)
-                    for (int bx = 0; bx + 16 <= c.ancho; bx += 16) {
-                        int s = 0;
-                        for (int y = by; y < by + 9; ++y)
-                            for (int x = bx; x < bx + 16; ++x) {
-                                const std::size_t i = static_cast<std::size_t>(y) * c.ancho + x;
-                                s += std::abs(static_cast<int>(luma[i]) - static_cast<int>(m->anterior[i]));
-                            }
-                        maximo = std::max(maximo, s / (16.0 * 9.0));
-                    }
-                m->video.push_back({ahoraMs(), maximo});
-            }
-            m->anterior.swap(luma);
-        }
-    });
+    if (vistasSinMirar_) motor_->vistasSinMirar(true); // un motor rearmado sigue con el calor
     return true;
 }
 
@@ -573,8 +596,6 @@ void BroadcastEngine::shutdown() {
     disablePreview();
     for (const auto& [canal, v] : scenePreviews_) motor_->verSoltar(v.clave);
     scenePreviews_.clear();
-    motor_->verAvisar("programa@alarmas", nullptr);
-    motor_->verSoltar("programa@alarmas");
     for (const auto& s : lasSalidas()) dejarDeMedir(*s);
     fuentes::ponerMotorApp(nullptr);
     fuentes::ponerSalida(nullptr);
@@ -603,12 +624,19 @@ void BroadcastEngine::shutdown() {
     p.ftb = p.placa = p.ftbAudio = false;
 }
 
-BroadcastEngine::ProgramaVideo BroadcastEngine::programaVideo() const {
+BroadcastEngine::ProgramaVideo BroadcastEngine::programaVideo(const std::string& salida) const {
     ProgramaVideo v;
-    const std::int64_t c = progCambioMs_.load();
+    std::shared_ptr<Medidas> m;
+    {
+        std::lock_guard<std::mutex> l(salidasM_); // desde cualquier hilo (el vigía de las alarmas)
+        const auto it = salidas_.find(salida.empty() ? std::string(kSalidaPorOmision) : salida);
+        if (it == salidas_.end()) return v;
+        m = it->second->medidas;
+    }
+    const std::int64_t c = m->cambioMs.load();
     if (c == 0) return v;
     v.valido = true;
-    v.luma = progLuma_.load();
+    v.luma = m->luma.load();
     v.quietoSeg = static_cast<double>(ahoraMs() - c) / 1000.0;
     return v;
 }
@@ -681,6 +709,11 @@ bool BroadcastEngine::bajarLatenciaEstudio() { return motor_ && motor_->bajarLat
 
 void BroadcastEngine::ponerTopeEstudio(long long ms) {
     if (motor_) motor_->ponerTopeEstudio(ms);
+}
+
+void BroadcastEngine::soltarVistasSinMirar(bool on) {
+    vistasSinMirar_ = on;
+    if (motor_) motor_->vistasSinMirar(on);
 }
 
 int BroadcastEngine::enviarCaption(const std::string&, double) { return 0; }
@@ -2316,12 +2349,18 @@ void BroadcastEngine::vigilarDisco() {
 
 
 
-bool BroadcastEngine::empezarMedicionSincro() {
+bool BroadcastEngine::empezarMedicionSincro(const std::string& salida) {
     if (!started_) {
         setError(ba::i18n::traducir("emision", "el motor no está andando"));
         return false;
     }
-    if (!medSincro_) medSincro_ = std::make_shared<MedicionSincro>();
+    const Salida* sal = laSalida(salida);
+    if (sal == nullptr) return false;
+    if (!medSincro_) {
+        auto m = std::make_shared<MedicionSincro>();
+        m->salida = sal->id;
+        medSincro_ = std::move(m);
+    }
     return true;
 }
 

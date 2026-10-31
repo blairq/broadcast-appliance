@@ -212,7 +212,7 @@ bool Reconocedores::tic(std::int64_t ahoraMs) {
     for (auto& [m, e] : motores_) {
         if (usos(m) > 0 || e.sinUsoDesde < 0) continue;
         if (!e.cargado && !e.cargando) continue;
-        if (ahoraMs - e.sinUsoDesde < margenMs_) continue;
+        if (ahoraMs - e.sinUsoDesde < (porCalor_ ? 0 : margenMs_)) continue;
         // Nadie lo usó en todo el margen: se suelta la memoria.
         e.cargado = false;
         e.cargando = false;
@@ -347,7 +347,8 @@ json Reconocedores::estado() const {
             // Elegidos distintos: si llegan a usarse a la vez, se cargan los dos.
             {"mezcla", elegidos.size() > 1},
             {"memoria_mb", memoria},
-            {"margen_s", margenMs_ / 1000}};
+            {"margen_s", margenMs_ / 1000},
+            {"por_calor", porCalor_}};
 }
 
 void Reconocedores::leer() {

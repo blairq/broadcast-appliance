@@ -83,11 +83,12 @@ class MezclaViewModel : public QObject {
     /// Retardo del audio de una fuente respecto de su video (ms, como audio_sincro).
     Q_INVOKABLE int retardoUi(const QString& fuente) const;
     Q_INVOKABLE QString setRetardoUi(const QString& fuente, int ms);
-    /// Medir con aplauso: mide `segundos` sobre el programa y llama a `listo` con el
-    /// resultado (ver BroadcastEngine::terminarMedicionSincro). "" o el error al empezar.
-    QString medirSincro(int segundos, std::function<void(const nlohmann::json&)> listo);
-    /// Lo mismo para la GUI: el resultado llega por medicionSincroLista(resultado).
-    Q_INVOKABLE QString medirSincroUi(int segundos);
+    /// Medir con aplauso: mide `segundos` sobre el programa de `salida` ("" = la por
+    /// omisión) y llama a `listo` con el resultado (ver BroadcastEngine::terminarMedicionSincro).
+    /// "" o el error al empezar.
+    QString medirSincro(int segundos, std::function<void(const nlohmann::json&)> listo, const std::string& salida = "");
+    /// Lo mismo para la GUI (la salida activa): el resultado llega por medicionSincroLista(resultado).
+    Q_INVOKABLE QString medirSincroUi(int segundos, const QString& salida = {});
 
    signals:
     void balisticaChanged();

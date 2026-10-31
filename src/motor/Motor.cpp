@@ -198,9 +198,12 @@ const Motor::Salida* Motor::laSalida(const std::string& id) const {
     return it == salidas_.end() ? nullptr : &it->second;
 }
 
-const Motor::Mando& Motor::mandoPorOmision(const std::string& id) const {
+const Motor::Mando& Motor::mandoPorOmision(const std::string& id) const { return mandoEn("", id); }
+
+const Motor::Mando& Motor::mandoEn(const std::string& salida, const std::string& id) const {
     static const Mando kNinguno;
-    const auto& m = salidas_.at(porOmision_).mandos;
+    const Salida* s = laSalida(salida);
+    const auto& m = (s != nullptr ? *s : salidas_.at(porOmision_)).mandos;
     auto it = m.find(id);
     return it == m.end() ? kNinguno : it->second;
 }
@@ -382,6 +385,7 @@ std::string Motor::borrarSalidaYa(const std::string& id) {
         desarmando_["salida:" + id] = std::move(f);
     }
     salidas_.erase(it);
+    remutarMatriz(id); // los buses de la Matriz que la seguían vuelven al mute de la por omisión
     actualizarMultiview(); // el tally de lo que tenía al aire
     actualizarUso();
     return {};
@@ -463,7 +467,7 @@ void Motor::bucle() {
             for (auto& [n, a] : mvAux_) a->tic();
             if (vistas_) {
                 Tramo t("tic de las vistas");
-                vistas_->tic();
+                if (vistas_->tic()) actualizarUso(); // se durmió o se despertó una que nadie miraba
             }
             if (vueltas % 2 == 0) {
                 Tramo t("niveles para los vúmetros");
@@ -729,11 +733,13 @@ std::string Motor::ponerMuteYa(const std::string& id, bool mute, const std::stri
     Salida* s = laSalida(salida);
     if (s == nullptr) return noHaySalida(salida);
     s->mandos[id].mute = mute;
-    if (s == &porOmision()) { // la matriz (sus tomas y sus buses) sigue a la por omisión
+    if (s == &porOmision()) // las tomas de la matriz de la app siguen a la por omisión
         for (auto& [n, t] : tomasEntrada_)
             if (t->id == id) t->mute = mute;
-        for (auto& [bid, b] : matriz_)
-            if (b.envios.count(id) > 0) b.mezcla->ponerMute(id, mute);
+    // Cada bus de la Matriz, al de la salida que sigue (uno que sigue a una borrada: la por omisión).
+    for (auto& [bid, b] : matriz_) {
+        const Salida* sigue = laSalida(b.deSalida);
+        if (b.envios.count(id) > 0 && (sigue != nullptr ? sigue : &porOmision()) == s) b.mezcla->ponerMute(id, mute);
     }
     aplicarEnSalida(*s, id, 0);
     return {};
@@ -1092,6 +1098,14 @@ void Motor::verSoltarYa(const std::string& clave) {
     const std::string b = clave.substr(0, clave.rfind('@')); // el nombre puede tener «@»; el canal, no
     if (b.rfind("escena:", 0) == 0) soltarEscena(b.substr(7));
     if (b.rfind("mini:", 0) == 0) soltarEscena(b.substr(5), true);
+}
+
+void Motor::vistasSinMirar(bool soltar, int sinMirarMs) {
+    orden("vistasSinMirar", [this, soltar, sinMirarMs]() {
+        BA_CON_CANDADO(mu_);
+        if (vistas_) vistas_->soltarSinMirar(soltar, std::int64_t{sinMirarMs} * 1000);
+        return std::string();
+    });
 }
 
 void Motor::verAvisar(const std::string& clave, std::function<void(const Cuadro&)> fn) {
@@ -2219,14 +2233,16 @@ void Motor::escuchaDispositivo(const std::string& id) {
         return std::string();
     });
 }
-std::string Motor::matrizBus(const std::string& id, const std::vector<EnvioMatriz>& envios, const std::string& dispositivo) {
-    return orden("matrizBus", [=, this]() { return matrizBusYa(id, envios, dispositivo); });
+std::string Motor::matrizBus(const std::string& id, const std::vector<EnvioMatriz>& envios, const std::string& dispositivo,
+                             const std::string& salida) {
+    return orden("matrizBus", [=, this]() { return matrizBusYa(id, envios, dispositivo, salida); });
 }
 std::string Motor::quitarMatrizBus(const std::string& id) {
     return orden("quitarMatrizBus", [=, this]() { return quitarMatrizBusYa(id); });
 }
 
-std::string Motor::matrizBusYa(const std::string& id, const std::vector<EnvioMatriz>& envios, const std::string& dispositivo) {
+std::string Motor::matrizBusYa(const std::string& id, const std::vector<EnvioMatriz>& envios, const std::string& dispositivo,
+                               const std::string& salida) {
     BA_CON_CANDADO(mu_);
     if (id.empty()) return traducir("motor", "un bus de la Matriz sin id");
     BusMatriz& b = matriz_[id];
@@ -2253,13 +2269,16 @@ std::string Motor::matrizBusYa(const std::string& id, const std::vector<EnvioMat
         const auto it = b.envios.find(ent);
         if (it == b.envios.end()) {
             b.mezcla->agregar(ent);
-            // El mute de la entrada (el de la salida por omisión) vale también acá, como valía
-            // en la toma que alimentaba la matriz de la app.
-            b.mezcla->ponerMute(ent, mandoPorOmision(ent).mute);
+            // El mute de la entrada (el de la salida que sigue el bus) vale también acá.
+            b.mezcla->ponerMute(ent, mandoEn(salida, ent).mute);
         }
         if (it == b.envios.end() || it->second != g) b.mezcla->ponerCanales(ent, g.first, g.second);
     }
     b.envios = std::move(nuevos);
+    if (b.deSalida != salida) {
+        b.deSalida = salida;
+        for (const auto& [ent, g] : b.envios) b.mezcla->ponerMute(ent, mandoEn(salida, ent).mute);
+    }
     if (dispositivo.empty()) {
         // Sin placa (una entrada virtual, o una salida sin dispositivo): solo el productor.
         if (b.salida) {
@@ -2282,6 +2301,12 @@ std::string Motor::matrizBusYa(const std::string& id, const std::vector<EnvioMat
     }
     b.dispositivo = dispositivo;
     return {};
+}
+
+void Motor::remutarMatriz(const std::string& salida) {
+    for (auto& [bid, b] : matriz_)
+        if (salida.empty() || b.deSalida == salida)
+            for (const auto& [ent, g] : b.envios) b.mezcla->ponerMute(ent, mandoEn(b.deSalida, ent).mute);
 }
 
 std::string Motor::quitarMatrizBusYa(const std::string& id) {

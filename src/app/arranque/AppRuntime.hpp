@@ -47,6 +47,7 @@
 #include "emision/OperatorFeed.hpp"
 #include "emision/SalidasConfig.hpp"
 #include "emision/DocumentoAire.hpp"
+#include "audio/ObjetivoLoudness.hpp"
 
 namespace ba::app {
 
@@ -234,9 +235,10 @@ class AppRuntime {
     bool setSourceCrop(const std::string& scene, const std::string& name, float izquierda, float arriba, float derecha,
                        float abajo);
     bool updateSourceSettings(const std::string& name, const std::string& settingsJson);
-    /// El volumen general de un grupo de audio (VCA; BroadcastEngine::setGananciaGrupo), y queda
-    /// guardado con la configuración.
-    bool setGananciaGrupo(const std::string& grupo, float mul);
+    /// El volumen general de un grupo de audio (VCA; BroadcastEngine::setGananciaGrupo) en la
+    /// mezcla de `salida`, y queda guardado: el de la por omisión con la configuración, el de
+    /// las demás en Config/salidas.json.
+    bool setGananciaGrupo(const std::string& grupo, float mul, const std::string& salida = "");
     /// El fader y el mute de la fuente en la mezcla de `salida` ("" = la por omisión, la
     /// que se guarda en la escena; las demás, en Config/salidas.json: vuelven al arrancar).
     bool setVolume(const std::string& name, float mul, const std::string& salida = "");
@@ -310,6 +312,9 @@ class AppRuntime {
     void retomarGrabacionesPorEnergia();
     bool emergenciaEnergia() const { return emergenciaEnergia_; }
     const std::filesystem::path& dataRoot() const { return root_; }
+    /// El objetivo de loudness de cada salida (Config/loudness.json), que se lleva al motor
+    /// al ponerlo. Liviano: cada quien arma el suyo (el archivo se lee y se escribe entero).
+    audio::ObjetivoLoudness objetivoLoudness();
     /// El feed del operador (lobby): de ahí sale el micrófono del push-to-talk.
     OperatorFeed& operatorFeed() { return operator_; }
     std::uint32_t pid() const;

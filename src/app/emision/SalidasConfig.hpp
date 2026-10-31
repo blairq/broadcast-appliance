@@ -5,11 +5,12 @@
 // puro (lo usan AppRuntime y BroadcastEngine; los tests lo prueban sin motor):
 //
 //   Config/salidas.json   {"tope": 4, "salidas": [{id, nombre, color, orden, codificador?,
-//                         mezcla?: {<fuente>: {volumen, mute}}}]}
+//                         mezcla?: {<fuente>: {volumen, mute}}, grupos?: {<grupo>: ganancia}}]}
 //                         La por omisión («principal») está siempre, aunque el
 //                         archivo no exista o no la nombre: es la de siempre. Su
-//                         mezcla y su codificador son los de siempre (la escena y
-//                         app.json); los de las demás van acá y vuelven al arrancar.
+//                         mezcla, sus grupos (VCA) y su codificador son los de siempre
+//                         (la escena y app.json); los de las demás van acá y vuelven al
+//                         arrancar.
 //   Config/destinos.json  cada destino con `salida` (sin campo = la por omisión).
 //   Runtime/al-aire.json  EL DOCUMENTO DE AIRE (F3-04): lo único que dice qué está al
 //                         aire. Lo de siempre (streaming, recording, escena, cerrado)
@@ -58,6 +59,8 @@ struct Salida {
     std::string codificador;
     /// Lo que se movió en su mezcla (las demás; la por omisión lo guarda en la escena).
     std::map<std::string, Mando> mezcla;
+    /// El volumen general (VCA, lineal) de los grupos de su mezcla que no están en 1.
+    std::map<std::string, double> grupos;
 };
 
 struct Lista {
@@ -82,6 +85,8 @@ std::string editar(Lista& l, const std::string& id, const nlohmann::json& cambio
 /// Anota el fader y el mute de `fuente` en la mezcla de la salida `id`. false si no está
 /// (o es la por omisión) o si ya estaba así (no hay nada que guardar).
 bool ponerMando(Lista& l, const std::string& id, const std::string& fuente, const Mando& m);
+/// Lo mismo con el VCA de `grupo` (1 lo saca). false si no está, es la por omisión o ya estaba.
+bool ponerGrupo(Lista& l, const std::string& id, const std::string& grupo, double ganancia);
 /// El color que le toca a la salida número `n` (0 = la por omisión) si no eligió uno.
 std::string colorDeFabrica(int n);
 

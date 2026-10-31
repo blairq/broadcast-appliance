@@ -108,11 +108,12 @@ class EmisionViewModel : public QObject {
     /// La grabación (T29): {activa, archivo, copia, copia_activa, calidad, encoder, pistas, encoder_respaldo_activo}
     /// y la repetición {replay: {activa, segundos, ultimo}}.
     Q_INVOKABLE QVariantMap grabacionUi() const;
-    /// El loudness de lo que sale: {m, s, i, tp, lra, segundos, gr_db, objetivo, fuera_de_objetivo}.
-    Q_INVOKABLE QVariantMap loudnessUi() const;
-    Q_INVOKABLE void resetLoudnessUi();
-    /// {perfil: r128|a85|plataforma16|plataforma14|custom, lufs?, tp?}. "" o el error.
-    Q_INVOKABLE QString objetivoLoudnessUi(const QVariantMap& o);
+    /// El loudness de lo que sale por `salida` ("" = la por omisión; el Mezclador pasa la
+    /// activa): {m, s, i, tp, lra, segundos, gr_db, objetivo, fuera_de_objetivo}.
+    Q_INVOKABLE QVariantMap loudnessUi(const QString& salida = {}) const;
+    Q_INVOKABLE void resetLoudnessUi(const QString& salida = {});
+    /// {perfil: r128|a85|plataforma16|plataforma14|custom, lufs?, tp?} de esa salida. "" o el error.
+    Q_INVOKABLE QString objetivoLoudnessUi(const QVariantMap& o, const QString& salida = {});
     /// Lo que oye el invitado del slot: "mix_minus" (el programa sin su voz) o "programa".
     Q_INVOKABLE QString retornoInvitadoUi(int slot) const;
     Q_INVOKABLE QString setRetornoInvitadoUi(int slot, const QString& modo);

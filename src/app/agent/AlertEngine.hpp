@@ -103,7 +103,9 @@ struct AlertInputs {
     std::function<json()> loudness;
     /// La superresolución de cada entrada: {entrada: {tarde, ms, bypass_s}} (programador).
     std::function<json()> superres;
-    /// El programa en imagen: {valido, luma (0–255), quieto_s} (alarmas de negro y congelado).
+    /// El programa en imagen: {valido, luma (0–255), quieto_s} (alarmas de negro y congelado),
+    /// el de la por omisión; con `salidas: [{id, nombre, por_omision, valido, luma, quieto_s,
+    /// sale}]`, el de cada una (cada una suena por su lado).
     std::function<json()> programaVideo;
     /// Los recursos de la máquina: {cpu: {estado, valor, sostenido_s}, …} (diag::Recursos::niveles).
     std::function<json()> recursos;

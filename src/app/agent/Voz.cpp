@@ -179,6 +179,15 @@ void Voz::revisarModelos() {
 
 // --- Los reconocedores (agent/Reconocedores) ---------------------------------------------
 
+void Voz::porCalor(bool on) {
+#if defined(BA_HAVE_VOZ)
+    reconocedores_->setPorCalor(on);
+    if (reconocedores_->tic(ahoraMs())) actualizarReconocedores();
+#else
+    Q_UNUSED(on);
+#endif
+}
+
 audio::Reconocedor* Voz::motorOido(MotorOido m) const {
 #if defined(BA_HAVE_VOZ)
     if (m == MotorOido::Nemotron) return streaming_.get();

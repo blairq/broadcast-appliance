@@ -220,6 +220,9 @@ class Voz : public QObject {
     /// texto a medias. Para saber si una frase cerrada en una pausa es el fin del turno.
     bool oyendoVoz(const QString& clave) const;
     QVariantMap reconocedores() const { return reconocedoresEstado_; }
+    /// La máquina está caliente (F4-05): los reconocedores que nadie usa se descargan ya
+    /// (sin el margen de siempre); los que están oyendo siguen.
+    void porCalor(bool on);
     /// El motor de un consumidor ("parakeet" o "nemotron"): lo cambia, lo guarda
     /// y pasa sus oídos abiertos al motor nuevo. "" o el error.
     Q_INVOKABLE QString elegirReconocedor(const QString& consumidor, const QString& motor);

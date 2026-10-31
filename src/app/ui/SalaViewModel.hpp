@@ -11,6 +11,8 @@
 //   PreguntasSala   la cola de preguntas (un mensaje del chat se suma desde acá)
 //   SeguridadSala   el PIN por día y el token del MCP (Config/seguridad.json)
 //   AccesoRemoto    el túnel (pinggy, Cloudflare, WireGuard) y su dirección pública
+//   CalidadPorCalor menos resolución a los invitados con la máquina caliente (el paso
+//                   «invitados» de la política térmica, F4-05)
 //
 // También lo que se hace con quien se conecta: aprobar lo que el invitado dijo de sí
 // mismo (el cargo de su zócalo), el chat que junta las plataformas (destacar, sumarlo a
@@ -49,6 +51,7 @@ namespace ba::app::control {
 class BusEventos;
 }
 namespace ba::app::sala {
+class CalidadPorCalor;
 class ConfigSala;
 class CupoSala;
 class Direcciones;
@@ -139,6 +142,7 @@ class SalaViewModel : public QObject {
     std::unique_ptr<sala::PreguntasSala> preguntas_;
     std::unique_ptr<sala::SeguridadSala> seguridad_;
     std::unique_ptr<AccesoRemoto> accesoRemoto_;
+    std::unique_ptr<sala::CalidadPorCalor> calidadPorCalor_;
     QHash<QString, QString> infoAprobada_; ///< participante -> cargo aprobado por el operador
     std::function<QString(const QString&, const QString&, bool)> intakeSink_;
 };

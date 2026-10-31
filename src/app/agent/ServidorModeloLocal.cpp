@@ -8,6 +8,9 @@
 #include <QDir>
 #include <QFileInfo>
 #include <QHostAddress>
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
 #include <QNetworkRequest>
@@ -71,7 +74,7 @@ void ServidorModeloLocal::pedir(QObject* quien, const Pedido& pedido, std::funct
         esperan_[quien] = {std::move(listo), std::move(estado)}; // ya está cargando ese modelo
         return;
     }
-    // Otro modelo (o ninguno): se arranca de nuevo, para todos los que lo usan.
+    // Otro modelo (o ninguno, o dormido por calor): se arranca de nuevo, para todos los que lo usan.
     esperan_[quien] = {std::move(listo), std::move(estado)};
     arrancar(p);
 }
@@ -79,7 +82,50 @@ void ServidorModeloLocal::pedir(QObject* quien, const Pedido& pedido, std::funct
 void ServidorModeloLocal::soltar(QObject* quien) {
     if (usan_.erase(quien) > 0) disconnect(quien, &QObject::destroyed, this, nullptr);
     esperan_.erase(quien);
-    if (usan_.empty()) parar();
+    if (usan_.empty()) {
+        parar();
+        dormido_ = false; // sin nadie, no hay a quién despertar
+    }
+}
+
+void ServidorModeloLocal::porCalor(bool on) {
+    calor_ = on;
+    if (on) {
+        // Mira cada pocos segundos: si justo está contestando, espera a que termine.
+        if (vigiaCalor_ == nullptr) {
+            vigiaCalor_ = new QTimer(this);
+            vigiaCalor_->setInterval(5000);
+            connect(vigiaCalor_, &QTimer::timeout, this, &ServidorModeloLocal::dormirSiOcioso);
+        }
+        vigiaCalor_->start();
+        dormirSiOcioso();
+        return;
+    }
+    if (vigiaCalor_ != nullptr) vigiaCalor_->stop();
+    // Se alivió: si alguien lo sigue usando, vuelve (en el mismo puerto: los chats no se enteran).
+    if (dormido_ && !usan_.empty()) arrancar(ultimo_);
+}
+
+void ServidorModeloLocal::dormirSiOcioso() {
+    if (!calor_ || proc_ == nullptr || !listo_) return; // cargando: se mira en la vuelta siguiente
+    auto* red = new QNetworkAccessManager(proc_);
+    QNetworkReply* r = red->get(QNetworkRequest(QUrl(QString("http://127.0.0.1:%1/slots").arg(puerto_))));
+    QProcess* esteProc = proc_;
+    connect(r, &QNetworkReply::finished, proc_, [this, r, red, esteProc]() {
+        r->deleteLater();
+        red->deleteLater();
+        if (proc_ != esteProc || !calor_) return;
+        // Sin /slots (no se sabe si atiende) no se lo toca: cortarle una respuesta a medias es peor.
+        if (r->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt() != 200) return;
+        const QJsonDocument d = QJsonDocument::fromJson(r->readAll());
+        if (!d.isArray()) return;
+        for (const QJsonValue& s : d.array())
+            if (s.toObject().value("is_processing").toBool()) return;
+        const quint16 puerto = puerto_;
+        parar();
+        puerto_ = puerto;
+        dormido_ = true;
+    });
 }
 
 void ServidorModeloLocal::avisarListo(quint16 puerto, const QString& error) {
@@ -97,12 +143,15 @@ void ServidorModeloLocal::arrancar(const Pedido& p) {
     }
     gguf_ = p.gguf;
     mmproj_ = p.mmproj;
+    ultimo_ = p;
     listo_ = false;
-    {
+    // Despierta del calor en el mismo puerto (el que tienen los chats); si no, uno libre.
+    if (!dormido_ || puerto_ == 0) {
         QTcpServer t; // un puerto libre de esta máquina (solo 127.0.0.1)
         t.listen(QHostAddress::LocalHost, 0);
         puerto_ = t.serverPort();
     }
+    dormido_ = false;
     proc_ = new QProcess(this);
     QDir().mkpath(p.logs);
     proc_->setProcessChannelMode(QProcess::MergedChannels);

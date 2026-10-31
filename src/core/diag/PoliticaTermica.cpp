@@ -69,4 +69,30 @@ nlohmann::json PoliticaTermica::informe(std::int64_t ahora) const {
             {"nivel_desde_s", nivelDesdeMs_ < 0 ? 0 : (ahora - nivelDesdeMs_) / 1000}};
 }
 
+void GanchosTermicos::poner(const std::string& paso, Gancho g) {
+    ganchos_[paso] = std::move(g);
+    // Llegó tarde y su paso ya estaba apagado (sin gancho): se lo apaga ahora.
+    const auto it = std::find(sinGancho_.begin(), sinGancho_.end(), paso);
+    if (it != sinGancho_.end() && ganchos_[paso] && ganchos_[paso](true)) sinGancho_.erase(it);
+}
+
+std::vector<std::pair<std::string, bool>> GanchosTermicos::aplicar(int apagados) {
+    std::vector<std::pair<std::string, bool>> cambios;
+    const auto& p = PoliticaTermica::pasos();
+    apagados = std::clamp(apagados, 0, static_cast<int>(p.size()));
+    while (aplicados_ != apagados) {
+        const bool apagar = apagados > aplicados_;
+        const std::string& paso = p[static_cast<std::size_t>(apagar ? aplicados_ : aplicados_ - 1)];
+        const auto g = ganchos_.find(paso);
+        const bool sinAtender = std::find(sinGancho_.begin(), sinGancho_.end(), paso) != sinGancho_.end();
+        sinGancho_.erase(std::remove(sinGancho_.begin(), sinGancho_.end(), paso), sinGancho_.end());
+        // Al devolver, solo a quien lo apagó (uno sin gancho no tiene qué devolver).
+        const bool atendido = g != ganchos_.end() && g->second && (apagar || !sinAtender) && g->second(apagar);
+        if (apagar && !atendido) sinGancho_.push_back(paso);
+        cambios.emplace_back(paso, apagar);
+        aplicados_ += apagar ? 1 : -1;
+    }
+    return cambios;
+}
+
 } // namespace ba::diag
