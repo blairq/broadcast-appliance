@@ -100,12 +100,6 @@ Rectangle {
         running: page.visible && page.pestana === "editor" && (page.render.celdas || []).some(c => c.cara && c.cara.cuadros > 1)
         onTriggered: ahora = Date.now()
     }
-    Timer {
-        id: reloj
-        property double ahora: Date.now()
-        interval: 500; repeat: true; running: page.visible
-        onTriggered: ahora = Date.now()
-    }
 
     ColumnLayout {
         anchors { fill: parent; leftMargin: page.leftInset; margins: 20 }
@@ -354,10 +348,10 @@ Rectangle {
                             height: modelData.alto * lienzo.lado - lienzo.gap
                             radius: 10
                             color: modelData.fondo || "#2b2f3a"
-                            readonly property bool bordeVisible: !!modelData.borde && (!modelData.borde_titilar || reloj.ahora % 1000 >= 500)
+                            readonly property bool bordeVisible: !!modelData.borde && (!modelData.borde_titilar || !page.visible || Reloj.ahoraFino % 1000 >= 500)
                             border.color: sel ? Theme.accent : bordeVisible ? modelData.borde : (modelData.activo ? "white" : Qt.rgba(1, 1, 1, 0.12))
                             border.width: sel || modelData.activo || bordeVisible ? 3 : 1
-                            opacity: modelData.atenuar ? 0.4 : (modelData.titilar && reloj.ahora % 1000 < 500 ? 0.45 : 1)
+                            opacity: modelData.atenuar ? 0.4 : (modelData.titilar && page.visible && Reloj.ahoraFino % 1000 < 500 ? 0.45 : 1)
                             clip: true
                             // La cara, apagada para que se lea el texto: la propia (foto o video
                             // corto, del disco, en el cuadro de este momento) o la data: URL de la celda.
@@ -637,7 +631,7 @@ Rectangle {
                                 Layout.fillWidth: true
                                 spacing: 6
                                 Text {
-                                    readonly property int resta: Math.max(0, Math.round((page.emparejoHasta - reloj.ahora) / 1000))
+                                    readonly property int resta: Math.max(0, Math.round((page.emparejoHasta - (page.visible ? Reloj.ahora : page.emparejoHasta)) / 1000))
                                     text: resta > 0 ? qsTr("Escaneala con la tablet: vence en %1 s").arg(resta) : qsTr("El código venció: generá otro")
                                     color: resta > 0 ? Theme.text : Theme.live; font.pixelSize: 14
                                 }

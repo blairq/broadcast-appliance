@@ -14,7 +14,8 @@ Dialog {
     readonly property var bot: Studio.botonera
     readonly property string kPerfil: "Control de escenas"
     property var r: ({})
-    property real ahora: Date.now()
+    // La hora para la cuenta regresiva del código (el Reloj corre solo mientras se ve).
+    readonly property real ahora: visible ? Reloj.ahora : 0
     property string error: ""
 
     function generar() {
@@ -49,7 +50,6 @@ Dialog {
             if (res.error && !res.url) dlg.error = res.error
         }
     }
-    Timer { interval: 1000; repeat: true; running: dlg.visible; onTriggered: dlg.ahora = Date.now() }
 
     ColumnLayout {
         anchors.fill: parent

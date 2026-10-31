@@ -26,6 +26,8 @@
 #include <QVariantList>
 #include <QVariantMap>
 
+#include <nlohmann/json.hpp>
+
 QT_FORWARD_DECLARE_CLASS(QJsonObject)
 
 namespace ba::app {
@@ -93,9 +95,15 @@ class RotuladorViewModel : public QObject {
                  const QString& clave);
     void notify(const QString& texto, const QString& tipo);
 
+   public:
+    /// Los encargos de los celulares (rotulos-encargo): los trae la vuelta de sincronizar o,
+    /// cuando la sala los avise con su evento (agente G), ese evento.
+    void aplicarEncargos(const nlohmann::json& encargos);
+
    private:
     /// Publica lo que hay en B y se lleva lo que encargaron desde los
-    /// celulares. Una vez por segundo, en un solo viaje.
+    /// celulares. Una vez por segundo, en un solo viaje (también es el latido que el
+    /// celular mira para saber que la app sigue viva).
     void sincronizar();
     /// Ejecuta un encargo que vino del celular.
     void atender(const QJsonObject& encargo);

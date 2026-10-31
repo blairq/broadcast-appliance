@@ -224,6 +224,13 @@ QString RotuladorViewModel::disparar(qulonglong fuente, bool repetir) {
 
 QString RotuladorViewModel::ocultar(qulonglong fuente) { return d_->em.ocultar(fuente); }
 
+void RotuladorViewModel::aplicarEncargos(const nlohmann::json& es) {
+    if (!es.is_array() || es.empty()) return;
+    for (const nlohmann::json& e : es)
+        atender(QJsonDocument::fromJson(QByteArray::fromStdString(e.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))).object());
+    emit cambio();
+}
+
 void RotuladorViewModel::sincronizar() {
     if (d_->sala == nullptr || !d_->sala->client().online()) return;
 
@@ -249,11 +256,7 @@ void RotuladorViewModel::sincronizar() {
         nlohmann::json::parse(QJsonDocument(estado).toJson(QJsonDocument::Compact).toStdString(), nullptr, false),
         [yo](const std::string& err, const nlohmann::json& r) {
             if (!yo || !err.empty()) return;
-            const nlohmann::json es = r.value("encargos", nlohmann::json::array());
-            if (!es.is_array() || es.empty()) return;
-            for (const nlohmann::json& e : es)
-                yo->atender(QJsonDocument::fromJson(QByteArray::fromStdString(e.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))).object());
-            emit yo->cambio();
+            yo->aplicarEncargos(r.value("encargos", nlohmann::json::array()));
         });
 }
 

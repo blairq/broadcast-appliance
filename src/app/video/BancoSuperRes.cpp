@@ -332,6 +332,8 @@ nlohmann::json BancoSuperRes::estado() const {
     if (e.value("corriendo", false) && e.value("hechas", 0) > 0) {
         const double paso = (QDateTime::currentMSecsSinceEpoch() - e.value("desde_ms", 0LL)) / 1000.0 / e.value("hechas", 1);
         e["eta_s"] = static_cast<int>(paso * (e.value("total", 0) - e.value("hechas", 0)));
+        // A qué hora termina, al ritmo de las que ya hizo (la vista cuenta con su reloj).
+        e["fin_ms"] = e.value("desde_ms", 0LL) + static_cast<long long>(paso * 1000.0 * e.value("total", 0));
     }
     return e;
 }

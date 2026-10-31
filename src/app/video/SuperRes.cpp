@@ -114,6 +114,11 @@ std::string bajarVerificado(net::Descargas::Contexto& ctx, const std::string& ur
 
 SuperRes::SuperRes(fs::path dataRoot, VideoViewModel* video, QObject* parent)
     : QObject(parent), root_(std::move(dataRoot)), video_(video) {
+    // Instalar, borrar o bajar algo avisa `cambio`: lo de los archivos se vuelve a leer.
+    connect(this, &SuperRes::cambio, this, [this]() {
+        archivos_.reset();
+        emit pluginsCambio();
+    });
     std::error_code ec;
     fs::create_directories(carpetaModelos(), ec);
     trabajo_ = {{"corriendo", false}};
@@ -743,7 +748,18 @@ json SuperRes::plugins() {
     return out;
 }
 
-QVariantList SuperRes::pluginsUi() const { return qv(plugins()).toList(); }
+const SuperRes::Archivos& SuperRes::archivos() const {
+    if (!archivos_) {
+        Archivos a;
+        a.plugins = qv(plugins()).toList();
+        a.runtimeGpu = qv(runtimeGpu()).toMap();
+        a.elemento = leerPluginsElemento();
+        archivos_ = std::move(a);
+    }
+    return *archivos_;
+}
+
+QVariantList SuperRes::pluginsUi() const { return archivos().plugins; }
 
 std::string SuperRes::instalarPlugin(const std::string& id) {
     json receta;
@@ -1034,7 +1050,7 @@ std::string SuperRes::tarjetaConPlugin(const std::string& entrada, const std::st
     return {};
 }
 
-QVariantMap SuperRes::runtimeGpuUi() const { return qv(runtimeGpu()).toMap(); }
+QVariantMap SuperRes::runtimeGpuUi() const { return archivos().runtimeGpu; }
 
 std::string SuperRes::guardarPluginElemento(const json& p) {
     std::string id = p.value("id", std::string());
@@ -1095,7 +1111,9 @@ QString SuperRes::guardarPluginElementoUi(const QVariantMap& p) {
     return q(guardarPluginElemento(j.is_object() ? j : json::object()));
 }
 
-QVariantList SuperRes::pluginsElementoUi() const {
+QVariantList SuperRes::pluginsElementoUi() const { return archivos().elemento; }
+
+QVariantList SuperRes::leerPluginsElemento() const {
     json out = json::array();
     std::error_code ec;
     for (const auto& e : fs::directory_iterator(carpetaModelos(), ec)) {

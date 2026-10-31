@@ -946,7 +946,7 @@ Rectangle {
                             readonly property var sr: Studio.superres
                             readonly property var motores: sr ? sr.motores : []
                             // (depende de `modelos` para refrescarse cuando se instala algo)
-                            readonly property var plugins: sr ? (sr.modelos, sr.pluginsUi()) : []
+                            readonly property var plugins: sr ? sr.plugins : []
                             readonly property var visibles: plugins.filter(p => p.aca || !p.instalado)
                             readonly property string elegido: page.paramsEf ? (page.paramsEf.plugin || "") : ""
                             readonly property var actual: visibles.find(p => p.id === elegido) || null

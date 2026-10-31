@@ -31,6 +31,7 @@
 #include "net/Descargas.hpp"
 
 #include <filesystem>
+#include <optional>
 #include <functional>
 #include <memory>
 #include <vector>
@@ -56,6 +57,12 @@ class SuperRes : public QObject {
     /// El trabajo en curso o el último: {que, entrada, corriendo, pct, texto, error, psnr_red, psnr_bicubico,
     /// modelo}
     Q_PROPERTY(QVariantMap trabajo READ trabajo NOTIFY trabajoCambio)
+    /// El catálogo de superresolución con lo instalado (plugins()), el runtime de GPU y los
+    /// plugins propios de tipo «elemento». Leen archivos: se leen una vez y de nuevo solo
+    /// con `cambio` (instalar, borrar, bajar un runtime).
+    Q_PROPERTY(QVariantList plugins READ pluginsUi NOTIFY pluginsCambio)
+    Q_PROPERTY(QVariantMap runtimeGpu READ runtimeGpuUi NOTIFY pluginsCambio)
+    Q_PROPERTY(QVariantList pluginsElemento READ pluginsElementoUi NOTIFY pluginsCambio)
 
    public:
     using json = nlohmann::json;
@@ -153,16 +160,16 @@ class SuperRes : public QObject {
         return q(aplicar(entrada.toStdString(), motor.toStdString(), modelo.toStdString()));
     }
     Q_INVOKABLE QString borrarModelo(const QString& archivo);
-    Q_INVOKABLE QVariantList pluginsUi() const;
+    QVariantList pluginsUi() const;
     Q_INVOKABLE QString instalarPluginUi(const QString& id) { return q(instalarPlugin(id.toStdString())); }
-    Q_INVOKABLE QVariantMap runtimeGpuUi() const;
+    QVariantMap runtimeGpuUi() const;
     Q_INVOKABLE QString instalarRuntimeGpuUi(const QString& tipo, bool tensorrt) {
         return q(instalarRuntimeGpu(tipo.toStdString(), tensorrt));
     }
     Q_INVOKABLE QString guardarPluginElementoUi(const QVariantMap& p);
     Q_INVOKABLE QString borrarPluginUi(const QString& id) { return q(borrarPlugin(id.toStdString())); }
     /// Los plugins instalados de tipo «elemento», con su plugin.json completo.
-    Q_INVOKABLE QVariantList pluginsElementoUi() const;
+    QVariantList pluginsElementoUi() const;
     Q_INVOKABLE QVariantList variantesUi(const QString& plugin) const;
     Q_INVOKABLE QString crearVarianteUi(const QString& plugin, int ancho, int alto, const QString& para,
                                         const QString& motores);
@@ -180,6 +187,7 @@ class SuperRes : public QObject {
 
    signals:
     void cambio();
+    void pluginsCambio();
     void trabajoCambio();
 
    private:
@@ -223,6 +231,14 @@ class SuperRes : public QObject {
     std::string idCola_;
     std::function<void(const std::string&)> listoCola_;
     std::vector<std::function<void(const std::string&)>> listosVivos_;
+    /// Lo de los archivos (ver `plugins`): leído una vez, de nuevo con `cambio`.
+    struct Archivos {
+        QVariantList plugins, elemento;
+        QVariantMap runtimeGpu;
+    };
+    mutable std::optional<Archivos> archivos_;
+    const Archivos& archivos() const;
+    QVariantList leerPluginsElemento() const;
 };
 
 } // namespace ba::app::video
