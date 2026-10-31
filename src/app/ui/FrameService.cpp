@@ -253,32 +253,46 @@ void FrameService::setArmada(const QString& escena) {
 
 namespace {
 /// "entrada:X" → lo que se le pide al motor: "X"; "entrada-entera:X" → "entera:X";
-/// "escena:X" → "X" (el motor compone una escena o una fuente por su nombre).
+/// "escena:X" y "mini:X" → "X" (el motor compone una escena o una fuente por su nombre).
 std::string vistaDeEntrada(const QString& clave) {
     if (clave.startsWith("escena:")) return clave.mid(7).toStdString();
+    if (clave.startsWith("mini:")) return clave.mid(5).toStdString();
     return clave.startsWith("entrada-entera:") ? "entera:" + clave.mid(15).toStdString() : clave.mid(8).toStdString();
+}
+/// El ancho de cada vista: el monitor entero (escena), la tarjeta de apuntar (entrada) o
+/// la caja de la línea de tiempo (mini). El mismo al pedirla y al volver a pedirla.
+int anchoDe(const QString& clave) {
+    if (clave.startsWith("mini:")) return 320;
+    if (clave.startsWith("escena:")) return 1280;
+    return 960;
 }
 } // namespace
 
 void FrameService::mirarEntrada(const QString& entrada, bool mirar, bool entera) {
     if (entrada.isEmpty()) return;
     // 960 de ancho, como la armada: para apuntar alcanza y sobra.
-    mirarClave((entera ? "entrada-entera:" : "entrada:") + entrada, mirar, 960);
+    mirarClave((entera ? "entrada-entera:" : "entrada:") + entrada, mirar);
 }
 
 void FrameService::mirarEscena(const QString& escena, bool mirar) {
     if (escena.isEmpty()) return;
     // Clave propia (una escena y una entrada pueden llamarse igual) y 1280 de
     // ancho: va a un monitor entero, no a una tarjeta.
-    mirarClave("escena:" + escena, mirar, 1280);
+    mirarClave("escena:" + escena, mirar);
 }
 
-void FrameService::mirarClave(const QString& clave, bool mirar, int ancho) {
+void FrameService::mirarMiniatura(const QString& escena, bool mirar) {
+    if (escena.isEmpty()) return;
+    // 320 de ancho: una caja de la escaleta o de la línea, no un monitor.
+    mirarClave("mini:" + escena, mirar);
+}
+
+void FrameService::mirarClave(const QString& clave, bool mirar) {
     // Cuenta pedidos: se renderiza mientras alguien la mire.
     int& n = entradas_[clave];
     const std::string canal = clave.toStdString();
     if (mirar) {
-        if (n++ == 0) engine_.enableScenePreview(canal, vistaDeEntrada(clave), ancho);
+        if (n++ == 0) engine_.enableScenePreview(canal, vistaDeEntrada(clave), anchoDe(clave));
         return;
     }
     if (n > 0 && --n == 0) {
@@ -387,8 +401,10 @@ void FrameService::poll() {
         const std::string canal = key.toStdString();
         if (engine_.scenePreviewName(canal).empty()) {
             if (vueltas_ % 30 != 0) continue; // una vez por segundo, no a 30 Hz
-            engine_.enableScenePreview(canal, vistaDeEntrada(key), 960);
+            engine_.enableScenePreview(canal, vistaDeEntrada(key), anchoDe(key));
         }
+        // Las miniaturas de la línea, a ~5 cuadros por segundo (una vuelta de cada seis).
+        if (key.startsWith("mini:") && vueltas_ % 6 != 0) continue;
         if (engine_.renderScenePreview(canal, c, slots_[key].serieMotor)) tomar(key);
     }
     // El programa y el preview de las demás salidas: mientras alguien los lea; a los

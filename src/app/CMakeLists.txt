@@ -868,6 +868,13 @@ endif()
     target_include_directories(test_linea PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
     target_link_libraries(test_linea PRIVATE nlohmann_json::nlohmann_json)
     add_test(NAME test_linea COMMAND test_linea)
+    # La línea lista para dibujar (escaleta, conducción, multipista, regla, estante y
+    # el presupuesto de miniaturas): lo que ordena LineaViewModel, sin Qt ni motor.
+    add_executable(test_linea_vista tests/test_linea_vista.cpp evento/LineaVista.cpp evento/Linea.cpp evento/LineaEdicion.cpp
+                   evento/Corrida.cpp evento/Evento.cpp)
+    target_include_directories(test_linea_vista PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    target_link_libraries(test_linea_vista PRIVATE nlohmann_json::nlohmann_json)
+    add_test(NAME test_linea_vista COMMAND test_linea_vista)
 
     # El puente con el renderizador de graficos: que un grafico colgado NO
     # cuelgue la app es la razon de ser del proceso aparte, asi que se prueba.

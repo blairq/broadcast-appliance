@@ -151,6 +151,7 @@ class ConferenceViewModel;
 class JsonListModel;
 class EventoViewModel;
 class TemaEventoViewModel;
+class LineaViewModel;
 class AtencionViewModel;
 class TotemsViewModel;
 class HistoricoViewModel;
@@ -375,6 +376,8 @@ class StudioViewModel : public QObject {
     Q_PROPERTY(QObject* qr READ qr CONSTANT)
     /// El tema del evento abierto en todas las páginas web (TemaEventoViewModel).
     Q_PROPERTY(QObject* temaEvento READ temaEvento CONSTANT)
+    /// La línea de tiempo del evento: escaleta, conducción y multipista (LineaViewModel).
+    Q_PROPERTY(QObject* linea READ lineaQml CONSTANT)
     /// Todos los enlaces del aparato, con su estado y su botón de activar (página Enlaces).
     Q_PROPERTY(QObject* enlaces READ enlacesQml CONSTANT)
     /// La libreta de personas (rostros). Existe siempre: sin los modelos
@@ -1250,6 +1253,8 @@ class StudioViewModel : public QObject {
     std::unique_ptr<control::SatelliteServidor> satellite_;
     std::unique_ptr<control::Dsk> dsk_;
     std::unique_ptr<control::Acciones> acciones_;
+    std::unique_ptr<LineaViewModel> linea_; ///< usa evento_, frames_, acciones_ y bus_: va después
+    QObject* lineaQml() const;
     std::unique_ptr<agent::Notificador> notificador_;
     /// Las alarmas que salen sin la interfaz (la interfaz trabada con aire, F1-13).
     std::unique_ptr<AvisoFueraDeUi> avisoFueraDeUi_;

@@ -19,6 +19,9 @@
 //               con `entera`
 //   "escena:X"  una escena cualquiera, esté o no al aire, mientras alguien la
 //               pida con mirarEscena (un monitor o una ventana que la muestra)
+//   "mini:X"    una escena chica (320 de ancho, ~5 cuadros por segundo): las
+//               cajas de la línea de tiempo que vienen (LineaViewModel, con su
+//               presupuesto), mientras alguien la pida con mirarMiniatura
 //   "program:<salida>" / "armada:<salida>"  el programa y el preview de una
 //               salida (docs/planes/PLAN-SALIDAS.md): los de la por omisión son
 //               "program" y "armada" de siempre (las dos claves valen lo mismo);
@@ -89,6 +92,8 @@ class FrameService : public QObject {
     /// Igual para una escena cualquiera (esté o no al aire), en la clave
     /// "escena:<nombre>": la usan los monitores y las ventanas del catálogo.
     Q_INVOKABLE void mirarEscena(const QString& escena, bool mirar);
+    /// Igual, chica y lenta, en "mini:<nombre>": las miniaturas vivas de la línea de tiempo.
+    void mirarMiniatura(const QString& escena, bool mirar);
     /// Cambia la cantidad de invitados.
     void setGuests(int guests);
     /// Nombres de los invitados por slot (indice slot-1) para las etiquetas.
@@ -113,7 +118,7 @@ class FrameService : public QObject {
 
    private:
     /// Lo común de mirarEntrada y mirarEscena: pedir o soltar un canal del motor.
-    void mirarClave(const QString& clave, bool mirar, int ancho);
+    void mirarClave(const QString& clave, bool mirar);
     struct Slot {
         QImage image;
         std::uint64_t serial = 0;
