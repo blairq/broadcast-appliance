@@ -70,6 +70,7 @@
 #include "emision/InputSpecs.hpp"
 #include "emision/RetornosInvitados.hpp"
 #include "emision/SeguridadAire.hpp"
+#include "emision/VentanillaMotor.hpp"
 #include "audio/Matriz.hpp"
 #include "audio/ObjetivoLoudness.hpp"
 #include "mcp/McpBotoneraTools.hpp"
@@ -83,6 +84,7 @@
 #include "agent/Notificador.hpp"
 #include "ui/AppViewModel.hpp"
 #include "ui/AtencionViewModel.hpp"
+#include "ui/EmisionViewModel.hpp"
 #include "ui/ConferenceClient.hpp"
 #include "ui/SystemViewModel.hpp"
 #include "ui/ConferenceViewModel.hpp"
@@ -387,7 +389,7 @@ json modelRows(const QAbstractItemModel& m) {
 
 McpService::McpService(AppRuntime& rt, StudioViewModel& vm, QObject* parent)
     : QObject(parent), rt_(rt), vm_(vm), props_(std::make_unique<PropertiesModel>(rt)),
-      settings_(std::make_unique<SettingsModel>(rt)) {
+      settings_(std::make_unique<SettingsModel>(rt, &vm.ventanilla())) {
     // El cupo en caliente, como en la GUI: sin esto, settings_set con el cupo
     // reiniciaba la sala (y cortaba a todos los invitados).
     settings_->setCupoEnCaliente([this](int n) { return vm_.cupoSala().cambiar(n); });
@@ -677,7 +679,8 @@ bool McpService::roomHasUntrusted() {
 }
 
 void McpService::applyApprovalPolicy() {
-    const std::string p = rt_.config().mcpApproval;
+    // De la configuración que publica el dueño (la foto): se llama en la interfaz.
+    const std::string p = vm_.ventanilla().foto().configuracion.app->mcpApproval;
     core_.setApprovalPolicy(p == "siempre" ? ApprovalPolicy::Always
                             : p == "nunca" ? ApprovalPolicy::Never
                                            : ApprovalPolicy::Untrusted);
@@ -749,7 +752,7 @@ void McpService::applySecurity() {
     core_.aire().cargar(rt_.dataRoot() / "Config" / "mcp-aire.json");
     // Hay aire = sale algo (transmisión, grabación, señal limpia); el guion del
     // evento corriendo sin salida no lo es.
-    const auto hayAire = [this]() { return rt_.engine().haySalida(); };
+    const auto hayAire = [this]() { return rt_.haySalida(); };
     core_.setHayAire(hayAire);
     core_.aire().setCondicion([this](const std::string&, const json& a) {
         const std::string e = a.value("entrada", std::string());
@@ -811,7 +814,8 @@ void McpService::applySecurity() {
                                            {"reason", reason},
                                            {"options", {aprobar, ba::i18n::traducir("mcp", "Rechazar")}},
                                            {"allowText", false}});
-            msgs->waitAnswer(id, std::max(1, rt_.config().mcpAprobacionMin) * 60 * 1000, [msgs, id, decide, aprobar](json item) { // Configuración → Asistente (MCP)
+            const int minutos = vm_.ventanilla().foto().configuracion.app->mcpAprobacionMin; // Configuración → Asistente (MCP)
+            msgs->waitAnswer(id, std::max(1, minutos) * 60 * 1000, [msgs, id, decide, aprobar](json item) {
                 if (item.is_null()) msgs->dismiss(id); // vencio: la tarjeta se va y queda rechazada
                 decide(!item.is_null() && item.value("answer", "") == aprobar);
             });
@@ -845,7 +849,7 @@ void McpService::setPlano(PlanoControl& plano) {
     // Las de control tocan el motor y su aire, que la interfaz también usa: corren con el
     // turno del motor (emision/TurnoMotor.hpp). La interfaz lo tiene solo mientras está
     // adentro del motor; si no lo suelta en el tope (trabada ADENTRO, un rearme), «ocupado».
-    const TurnoMotor& turno = rt_.engine().turno();
+    const TurnoMotor& turno = rt_.turno();
     core_.setTurno({[&turno](int ms) { return turno.tomarHasta(ms); }, [&turno]() { turno.soltar(); },
                     [&turno]() { return turno.estado(); }});
     // Lo que se sabe sin la interfaz, para contestar cuando está ocupada: el documento de
@@ -918,7 +922,7 @@ FuentesDeFoto McpService::fuentesDeFoto() {
     // la foto de emergencia desde el control). La foto de las salidas la publica el hilo
     // de salidas bajo su candado; la lista de salidas, el reloj del motor.
     f.aire = [&rt]() { return salidas::aJson(rt.documentoAire().foto()); };
-    f.hayAire = [&rt]() { return rt.engine().haySalida(); };
+    f.hayAire = [&rt]() { return rt.haySalida(); };
     f.latido = [&rt]() { return rt.latido().estado(); };
     f.salidasMotor = [&rt]() { return rt.engine().fotoSalidas(); };
     f.salidasPublicadas = [&rt]() { return rt.salidasPublicadas(); };
@@ -941,9 +945,14 @@ FuentesDeFoto McpService::fuentesDeFoto() {
     f.temas = [&bus](const std::string& patron) { return bus.temas(patron); };
     f.ultimoTema = [&bus](const std::string& tema) { return bus.ultimo(tema); };
     f.logs = ba::platform::dataRoot() / "Logs";
-    // Lo que solo sabe la interfaz: corre en ella (CopiaDeLaInterfaz).
-    f.statusInterfaz = [&rt, &vm]() {
-        const EngineStatus st = rt.engine().status();
+    // Lo que solo sabe la interfaz: corre en ella (CopiaDeLaInterfaz). Lo del motor, de su
+    // foto (la interfaz no entra al motor); el disco, lo último que se pidió (lee el disco:
+    // se pide de nuevo para la próxima).
+    f.statusInterfaz = [&vm]() {
+        const FotoMotor& fo = vm.ventanilla().foto();
+        const FotoMotor::EstadoAire& st = fo.estado;
+        const FotoMotor::Salida* po = fo.salida(std::string());
+        vm.emision().pedirDisco();
         json room = json::object();
         auto* conf = static_cast<ConferenceViewModel*>(vm.conference());
         room["online"] = conf->online();
@@ -955,37 +964,38 @@ FuentesDeFoto McpService::fuentesDeFoto() {
         for (const QVariant& v : conf->onAir())
             onAir.push_back(qvToJson(v));
         room["speakersOnAir"] = onAir;
-        return json{{"currentScene", rt.engine().currentScene()},
-                    {"transition", {{"type", rt.config().transition.type}, {"ms", rt.config().transition.durationMs}}},
-                    {"streaming", st.streaming},
+        return json{{"currentScene", po != nullptr ? po->alAire : std::string()},
+                    {"transition", {{"type", fo.ajustes.transicion}, {"ms", fo.ajustes.transicionMs}}},
+                    {"streaming", st.transmite},
                     {"streamTime", vm.streamTime().toStdString()},
                     {"streamKbps", vm.streamKbps()},
                     {"streamServer", vm.streamServer().toStdString()},
                     {"streamKeyAvailable", vm.streamKeyAvailable()},
-                    {"recording", st.recording},
+                    {"recording", st.graba},
                     {"recordTime", vm.recordTime().toStdString()},
                     // EN VIVO = sale algo de verdad (transmisión, señal limpia o la grabación si
                     // el modo en vivo la cuenta): lo mismo que usan la app y los bloqueos. El
                     // guion del evento corriendo sin transmitir NO es estar en vivo.
                     {"en_vivo", vm.modoVivo()},
                     {"fps", st.fps},
-                    {"droppedFrames", st.droppedFrames},
-                    {"totalFrames", st.totalFrames},
-                    {"videoEncoder", st.videoEncoder},
-                    {"encoder_respaldo_activo", rt.engine().encoderRespaldoActivo()},
+                    {"droppedFrames", st.descartados},
+                    {"totalFrames", st.cuadros},
+                    {"videoEncoder", st.codificador},
+                    {"encoder_respaldo_activo", fo.equipo.motor.value("respaldo_codificador", false)},
                     {"cpuPercent", vm.cpuPercent()},
                     {"programPeakDb", {vm.programPeakL(), vm.programPeakR()}},
                     {"canvas", vm.canvasLabel().toStdString()},
                     {"gatewayAlive", vm.gatewayAlive()},
-                    {"lastError", st.lastError},
-                    {"salidas", resumenSalidas(rt, vm)},
-                    {"disco", rt.discoGrabacion()},
+                    {"lastError", fo.equipo.motor.value("ultimo_error", std::string())},
+                    {"salidas", resumenSalidas(fo)},
+                    {"disco", qvToJson(vm.emision().discoUi())},
                     // El corte de luz (F1-11): batería/UPS, lo que queda y qué hizo la política.
                     {"energia", vm.energia() != nullptr ? vm.energia()->estado() : json()},
                     {"room", room}};
     };
-    f.salidasInterfaz = [&rt, &vm]() {
-        return json{{"tope", rt.salidas().value("tope", 0)}, {"salidas", resumenSalidas(rt, vm)}};
+    f.salidasInterfaz = [&vm]() {
+        const FotoMotor& fo = vm.ventanilla().foto();
+        return json{{"tope", fo.tope}, {"salidas", resumenSalidas(fo)}};
     };
     f.esperaInterfazMs = ba::ajustes::entero("mcp.esperaCopiaMs", 250);
     // La sala, preguntada a B sin la interfaz (un socket propio, bloqueante, con tope).
@@ -1102,6 +1112,8 @@ void McpService::registerTools() {
     registerPreguntaTools(core_, vm_, rt_);
 
     AppRuntime& rt = rt_;
+    // Si corre con --test: de la configuración que publica el dueño (la foto), sin entrar.
+    const bool modoPrueba = vm_.ventanilla().foto().configuracion.app->modoPrueba;
     StudioViewModel& vm = vm_;
     const auto persist = [&rt]() { rt.save(); };
     // La invariante, puesta una vez y para todas: lo que se toca por MCP queda
@@ -1146,6 +1158,8 @@ void McpService::registerTools() {
             "elemento: así se ve qué parte del video gasta) y, en Windows, la GPU del proceso por motor (3D, "
             "VideoDecode, VideoEncode, Copy). El historial está en Logs/perfil-app.jsonl y "
             "Logs/perfil-gateway.jsonl; cada 10 s un resumen en el registro (log_leer, componente perfil).");
+        // Un archivo del registro y la última medición (con su candado): en el pool.
+        t.hilo = Hilo::Foto;
         t.run = [](const json&, Done done) {
             json gw = json::object();
             std::ifstream f(ba::platform::dataRoot() / "Logs" / "perfil-gateway.jsonl", std::ios::binary);
@@ -3524,6 +3538,8 @@ void McpService::registerTools() {
                         "(grabación, copia, señal limpia e ISO de todas las salidas, repartido por disco: manda el que antes "
                         "se llena; sin grabar, lo que sumaría arrancar la grabación); si alguna copia va al mismo disco que su "
                         "grabación (`copia_mismo_volumen`, `mismo_volumen`); y el estado del ultimo pase a MP4 (remux).");
+        // Solo el motor y la configuración: en el dueño (F3-03).
+        t.hilo = Hilo::Control;
         t.run = [&rt](const json&, Done done) {
             done(ToolResult().data(json{{"disco", rt.discoGrabacion()}, {"remux", rt.engine().remuxEstado()},
                                         {"apuros", rt.engine().discoEstado()}}));
@@ -3546,9 +3562,11 @@ void McpService::registerTools() {
                          {"properties",
                           {{"priorizar", {{"type", "boolean"}}},
                            {"modo", {{"type", "string"}, {"enum", {"preguntar", "auto", "nunca"}}}}}}};
-        if (rt.config().modoPrueba)
+        if (modoPrueba)
             t.inputSchema["properties"]["probar_trabado_ms"] = {
                 {"type", "integer"}, {"description", QT_TRANSLATE_NOOP("mcp", "Solo con --test: la grabación del programa, como con el disco trabado tantos ms.")}};
+        // Solo el motor y la configuración: en el dueño (F3-03).
+        t.hilo = Hilo::Control;
         t.run = [&rt](const json& a, Done done) {
             if (a.contains("probar_trabado_ms") && rt.config().modoPrueba)
                 rt.engine().simularDiscoTrabado(std::clamp(a.value("probar_trabado_ms", 0), 0, 120000));
@@ -3567,7 +3585,7 @@ void McpService::registerTools() {
         };
         core_.addTool(std::move(t));
     }
-    if (rt.config().modoPrueba) {
+    if (modoPrueba) {
         // Solo con --test: para probar que una caída deja su volcado bien hecho
         // (diag/Caidas.cpp + launcher/Volcados.cpp). Tira la app abajo.
         Tool t;
@@ -3611,7 +3629,7 @@ void McpService::registerTools() {
         };
         core_.addTool(std::move(t));
     }
-    if (rt.config().modoPrueba) {
+    if (modoPrueba) {
         // Solo con --test: la interfaz trabada a propósito (un bucle ocupado en su
         // hilo), para probar lo que tiene que seguir andando sin ella: el latido, el
         // aire y la alarma al control web y a los notificadores (F1-13, banco de caos).
@@ -3637,7 +3655,7 @@ void McpService::registerTools() {
         };
         core_.addTool(std::move(t));
     }
-    if (rt.config().modoPrueba) {
+    if (modoPrueba) {
         // Solo con --test: el banco de caos (tools/caos/) rompe a propósito el codificador
         // o el sumidero de una salida a los N s (FallasProgramadas → motor/Fallas.hpp).
         Tool t;
@@ -3683,6 +3701,8 @@ void McpService::registerTools() {
                           {{"archivo", {{"type", "string"}}},
                            {"formato", {{"type", "string"}, {"enum", {"mp4", "mov"}}}},
                            {"borrar_mkv", {{"type", "boolean"}}}}}};
+        // Solo el motor y la configuración: en el dueño (F3-03).
+        t.hilo = Hilo::Control;
         t.run = [&rt](const json& a, Done done) {
             const std::string f = a.value("archivo", std::string());
             std::error_code ec;
@@ -3714,6 +3734,8 @@ void McpService::registerTools() {
                            {"crf", {{"type", "integer"}, {"minimum", 10}, {"maximum", 35}}},
                            {"pistas", {{"type", "array"}, {"items", {{"type", "integer"}, {"minimum", 2}, {"maximum", 6}}}}},
                            {"copia_dir", {{"type", "string"}}}}}};
+        // Solo el motor y la configuración: en el dueño (F3-03).
+        t.hilo = Hilo::Control;
         t.run = [&rt](const json& a, Done done) {
             RecordConfig& r = rt.config().rec;
             if (a.contains("contenedor")) r.container = a.value("contenedor", std::string("mkv"));
@@ -3749,6 +3771,8 @@ void McpService::registerTools() {
         t.description = QT_TRANSLATE_NOOP("mcp", "Los destinos adicionales (respaldo, otras plataformas), que comparten los codificadores del "
                         "principal: cada uno con su estado (activo, reconectando, cuadros perdidos) y si tiene clave "
                         "guardada. El principal es el de stream_start sin `destino`.");
+        // Solo el motor y la configuración: en el dueño (F3-03).
+        t.hilo = Hilo::Control;
         t.run = [&rt](const json&, Done done) {
             done(ToolResult().data(json{{"principal", rt.engine().status().streaming ? rt.engine().destinoActivo() : ""},
                                         {"destinos", rt.destinos()}}));
@@ -3846,6 +3870,8 @@ void McpService::registerTools() {
                         "suya (`salida`; la de las demás no queda guardada para el próximo arranque).");
         t.inputSchema = {{"type", "object"},
                          {"properties", {{"segundos", {{"type", "integer"}, {"minimum", 0}, {"maximum", 600}}}}}};
+        // Solo el motor y la configuración: en el dueño (F3-03).
+        t.hilo = Hilo::Control;
         t.run = [this, &rt](const json& a, Done done) {
             const std::string salida = core_.salidaDe(a);
             if (a.contains("segundos"))
@@ -3902,6 +3928,8 @@ void McpService::registerTools() {
                         "la corta. Es un encode más (x264, en la CPU): mirá `status.cpu`.");
         t.inputSchema = {{"type", "object"},
                          {"properties", {{"activar", {{"type", "boolean"}}}, {"destino", {{"type", "string"}}}}}};
+        // Solo el motor y la configuración: en el dueño (F3-03).
+        t.hilo = Hilo::Control;
         t.run = [this, &rt](const json& a, Done done) {
             const std::string salida = core_.salidaDe(a);
             if (a.contains("activar")) {
@@ -3923,6 +3951,8 @@ void McpService::registerTools() {
         t.category = "salidas";
         t.clase = Clase::Lectura;
         t.description = QT_TRANSLATE_NOOP("mcp", "Qué salidas de contribución trae este equipo y cuáles no, para no prometer lo que no hay.");
+        // Solo el motor y la configuración: en el dueño (F3-03).
+        t.hilo = Hilo::Control;
         t.run = [&rt](const json&, Done done) {
             const bool ts = motor::hayFabrica("mpegtsmux") && motor::hayFabrica("srtsink");
             done(ToolResult().data(json{
@@ -4113,21 +4143,23 @@ void McpService::registerTools() {
                     if (settings->alcance(QString::fromStdString(it.key())) == "motor" &&
                         settings->value(QString::fromStdString(it.key())) != settings->savedValue(QString::fromStdString(it.key())))
                         motor.push_back(it.key());
-            // La vista se recarga sola (AppRuntime avisa «Ajustes» al aplicar).
-            const QString summary = settings->apply();
-            if (settings->fallo()) return done(ToolResult::error(summary.toStdString()));
-            std::string texto = ba::i18n::llenar(ba::i18n::traducir("mcp", "Aplicado. %1"), {summary.toStdString()});
-            if (!motor.empty()) {
-                std::string ks;
-                for (const auto& k : motor) ks += (ks.empty() ? "" : ", ") + k;
-                texto = ba::i18n::llenar(ba::i18n::traducir("mcp", "⚠ El motor se reinició por %1: se cortó por unos segundos todo lo que "
-                                                                  "sale y las cámaras se volvieron a abrir. Avisale al operador."),
-                                         {ks}) + "\n" + texto;
-                vm.notify(QString::fromStdString(ba::i18n::llenar(
-                              ba::i18n::traducir("mcp", "El asistente cambió %1: el motor se reinició (se cortó lo que sale)."), {ks})),
-                          "warn");
-            }
-            done(ToolResult::ok(texto));
+            // La vista se recarga sola (la foto trae la configuración nueva). Se aplica en el
+            // dueño del motor: se contesta cuando termina.
+            settings->aplicar([&vm, motor, done](const QString& summary, bool fallo) {
+                if (fallo) return done(ToolResult::error(summary.toStdString()));
+                std::string texto = ba::i18n::llenar(ba::i18n::traducir("mcp", "Aplicado. %1"), {summary.toStdString()});
+                if (!motor.empty()) {
+                    std::string ks;
+                    for (const auto& k : motor) ks += (ks.empty() ? "" : ", ") + k;
+                    texto = ba::i18n::llenar(ba::i18n::traducir("mcp", "⚠ El motor se reinició por %1: se cortó por unos segundos todo lo que "
+                                                                      "sale y las cámaras se volvieron a abrir. Avisale al operador."),
+                                             {ks}) + "\n" + texto;
+                    vm.notify(QString::fromStdString(ba::i18n::llenar(
+                                  ba::i18n::traducir("mcp", "El asistente cambió %1: el motor se reinició (se cortó lo que sale)."), {ks})),
+                              "warn");
+                }
+                done(ToolResult::ok(texto));
+            });
         };
         core_.addTool(std::move(t));
     }

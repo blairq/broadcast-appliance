@@ -12,6 +12,7 @@
 
 #include "i18n/I18n.hpp"
 #include "arranque/AppRuntime.hpp"
+#include "emision/VentanillaMotor.hpp"
 #include "mcp/McpService.hpp"
 #include "mcp/McpToolsCommon.hpp"
 #include "ui/StudioViewModel.hpp"
@@ -39,7 +40,6 @@ void McpService::registerTwitchTools() {
         ba::i18n::traducir("mcp", "Canal de Twitch: título y categoría, transmitir desde la app, estado del vivo, VODs y chat. "
         "Primero twitch_status: si no está configurado o conectado, explica qué falta."));
     auto* tw = static_cast<TwitchViewModel*>(vm_.twitch());
-    AppRuntime& rt = rt_;
     const auto needLogin = [tw](Done& done) {
         if (!tw->configured()) {
             done(ToolResult::error(
@@ -66,7 +66,8 @@ void McpService::registerTwitchTools() {
         t.description =
             QT_TRANSLATE_NOOP("mcp", "Si la app de Twitch esta configurada, que cuenta esta conectada, si hay un login en curso (con "
             "su codigo), datos del canal, si esta en vivo y si la app transmite a Twitch.");
-        t.run = [tw, &rt](const json&, Done done) {
+        // Si la app transmite, de la foto del motor (la interfaz no entra al motor).
+        t.run = [tw, &vm = vm_](const json&, Done done) {
             done(ToolResult().data(json{{"configured", tw->configured()},
                                         {"loggedIn", tw->loggedIn()},
                                         {"loginPending", tw->loginPending()},
@@ -77,7 +78,7 @@ void McpService::registerTwitchTools() {
                                         {"channel", qvToJson(tw->channel())},
                                         {"stream", qvToJson(tw->stream())},
                                         {"streamingHere", tw->streamingHere()},
-                                        {"appStreaming", rt.engine().status().streaming},
+                                        {"appStreaming", vm.ventanilla().foto().estado.transmite},
                                         {"chatOn", tw->chatOn()}}));
         };
         core_.addTool(std::move(t));

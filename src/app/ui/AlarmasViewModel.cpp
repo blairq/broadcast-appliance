@@ -9,6 +9,7 @@
 #include "arranque/EnergiaAire.hpp"
 #include "emision/TurnoMotor.hpp"
 #include "emision/AvisoFueraDeUi.hpp"
+#include "emision/VentanillaMotor.hpp"
 #include "i18n/I18n.hpp"
 #include "ui/ChatOverlayRenderer.hpp"
 #include "ui/ConferenceClient.hpp"
@@ -237,9 +238,9 @@ agent::AlertInputs AlarmasViewModel::directas(const Fuentes& f) {
     // vigía lee {} («no se sabe»), nunca null (value() sobre null tira y tumbaba el control).
     directas.disco = [&rt, cache = std::make_shared<std::pair<qint64, json>>(0, json::object())]() {
         const qint64 ahora = QDateTime::currentMSecsSinceEpoch();
-        if ((cache->first == 0 || ahora - cache->first >= 5000) && rt.engine().turno().tomarHasta(50)) {
+        if ((cache->first == 0 || ahora - cache->first >= 5000) && rt.turno().tomarHasta(50)) {
             *cache = {ahora, rt.discoGrabacion()};
-            rt.engine().turno().soltar();
+            rt.turno().soltar();
         }
         return cache->second;
     };

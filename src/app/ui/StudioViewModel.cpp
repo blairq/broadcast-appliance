@@ -96,7 +96,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, VentanillaMotor& ventanilla, QO
                                    (nivel + ": " + texto).toStdString());
     });
     // Lo que usa la máquina: mide en su hilo desde el arranque (las alarmas y el MCP lo leen).
-    recursos_ = std::make_unique<RecursosViewModel>(rt);
+    recursos_ = std::make_unique<RecursosViewModel>(rt, ventanilla_);
     // La cola única de descargas (modelos, agentes, …): antes que quien baja algo.
     // Su historial es de la máquina (como Modelos/ y Agentes/), no de la configuración.
     net::Descargas::iniciar(ba::platform::dataRoot());
@@ -164,7 +164,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, VentanillaMotor& ventanilla, QO
     marca("mixer");
     types_ = std::make_unique<SourceTypesModel>(rt);
     marca("types");
-    settings_ = std::make_unique<SettingsModel>(rt);
+    settings_ = std::make_unique<SettingsModel>(rt, &ventanilla_);
     marca("settings");
     {
         // La disposicion del dashboard sale de un archivo que se edita solo y
@@ -400,6 +400,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, VentanillaMotor& ventanilla, QO
     connect(grafico_.get(), &GraficoViewModel::notify, this, &StudioViewModel::notify);
     // Las cuentas de las plataformas y el formulario de credenciales (ui/CuentasViewModel).
     cuentas_ = std::make_unique<CuentasViewModel>(CuentasViewModel::Partes{.rt = rt,
+                                                                           .ventanilla = ventanilla_,
                                                                            .bus = [this]() { return bus_.get(); },
                                                                            .red = [this]() { return imagen_ ? &imagen_->red() : nullptr; },
                                                                            .plugins = [this]() { return plugins_.get(); }});
@@ -433,6 +434,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, VentanillaMotor& ventanilla, QO
     // que se vuelve y lo que se corta al cerrar (ui/AppViewModel).
     app_ = std::make_unique<AppViewModel>(AppViewModel::Partes{
         .rt = rt,
+        .ventanilla = ventanilla_,
         .transmitiendo = [this]() { return streaming_; },
         .grabando = [this]() { return recording_; },
         .personas = [this]() { return personasConectadas(); },
@@ -457,6 +459,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, VentanillaMotor& ventanilla, QO
     {
         alarmas_ = std::make_unique<AlarmasViewModel>(AlarmasViewModel::Fuentes{
             .rt = rt,
+            .ventanilla = ventanilla_,
             .energia = *energia_,
             .sala = *conference_,
             .chat = *chatOverlay_,
@@ -520,6 +523,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, VentanillaMotor& ventanilla, QO
         // Los asistentes, la voz, las salidas de texto y la barra de mensajes (ui/AsistenteViewModel).
         asistente_ = std::make_unique<AsistenteViewModel>(AsistenteViewModel::Partes{
             .rt = rt,
+            .ventanilla = ventanilla_,
             .alarmas = *alarmas_,
             .sala = *conference_,
             .evento = evento_.get(),
@@ -572,6 +576,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, VentanillaMotor& ventanilla, QO
     // tablero y las pantallas de la red: el catálogo los lee a todos.
     escritorio_ = std::make_unique<EscritorioViewModel>(EscritorioViewModel::Partes{
         .rt = rt,
+        .ventanilla = ventanilla_,
         .cuadros = *frames_,
         .imagen = *imagen_,
         .tablero = dashboard_.get(),

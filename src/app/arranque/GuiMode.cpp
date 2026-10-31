@@ -580,8 +580,11 @@ int runGui(int argc, char** argv) {
                                        },
                                        ctx);
         };
-        if (rt.config().mcpEnabled) {
-            if (mcpService.start(static_cast<quint16>(rt.config().mcpPort))) {
+        // Si va y en qué puerto, de la configuración que publica el dueño (la foto).
+        const bool mcpPrendido = ventanilla.foto().configuracion.app->mcpEnabled;
+        const int mcpPuerto = ventanilla.foto().configuracion.app->mcpPort;
+        if (mcpPrendido) {
+            if (mcpService.start(static_cast<quint16>(mcpPuerto))) {
                 std::printf("ba-app: %s\n",
                             ba::i18n::llenar(ba::i18n::traducir("arranque", "servidor MCP en %1 (token: bin/64bit/ba-mcp --token; stdio: ba-mcp)"),
                                              {mcpService.url().toStdString()})
@@ -589,7 +592,7 @@ int runGui(int argc, char** argv) {
             } else {
                 std::printf("ba-app: %s\n",
                             ba::i18n::llenar(ba::i18n::traducir("arranque", "el servidor MCP no pudo abrir el puerto %1"),
-                                             {std::to_string(rt.config().mcpPort)})
+                                             {std::to_string(mcpPuerto)})
                                 .c_str());
             }
         }

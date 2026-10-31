@@ -11,6 +11,7 @@
 #include <QUrl>
 
 #include "arranque/AppRuntime.hpp"
+#include "ui/AireDeCuentas.hpp"
 #include "arranque/AppSettings.hpp"
 #include "net/AsyncHttp.hpp"
 #include "ui/ConferenceViewModel.hpp" // JsonListModel
@@ -29,8 +30,8 @@ QJsonArray withUid(const QJsonArray& in) {
 }
 } // namespace
 
-TwitchViewModel::TwitchViewModel(AppRuntime& rt, QObject* parent)
-    : QObject(parent), rt_(rt), client_(std::make_unique<TwitchClient>(
+TwitchViewModel::TwitchViewModel(AppRuntime& rt, VentanillaMotor& ventanilla, QObject* parent)
+    : QObject(parent), rt_(rt), ventanilla_(ventanilla), client_(std::make_unique<TwitchClient>(
                                     QString::fromStdString((ba::platform::credentialsDir()).string()))),
       videos_(std::make_unique<JsonListModel>(
           QStringList{"uid", "title", "url", "thumb", "views", "created_at", "duration", "type"})),
@@ -163,7 +164,7 @@ void TwitchViewModel::pollStream() {
         stream_ = d;
         emit channelChanged();
     });
-    if (streamingHere_ && !rt_.engine().status().streaming) { // la transmision se corto por otro lado
+    if (streamingHere_ && !cuentas::transmitiendo(ventanilla_)) { // la transmision se corto por otro lado
         streamingHere_ = false;
         emit stateChanged();
     }
@@ -197,7 +198,7 @@ void TwitchViewModel::goLive() {
 }
 
 void TwitchViewModel::goLive(TwitchClient::Done done) {
-    if (rt_.engine().status().streaming)
+    if (cuentas::transmitiendo(ventanilla_))
         return done(false, {},
                     streamingHere_ ? tr("Ya se esta transmitiendo a Twitch.")
                                    : tr("La app ya esta transmitiendo: corta esa transmision primero."));
@@ -207,11 +208,19 @@ void TwitchViewModel::goLive(TwitchClient::Done done) {
         if (!self) return;
         self->track(false);
         if (!ok) return done(false, {}, e);
-        // Servidor y clave SOLO en memoria.
-        if (!self->rt_.startStreaming(ing.value("url").toString().toStdString(),
-                                      ing.value("key").toString().toStdString()))
-            return done(false, {},
-                        tr("La app no pudo empezar a transmitir: %1").arg(QString::fromStdString(self->rt_.lastError())));
+        // Servidor y clave SOLO en memoria; sigue cuando el motor contesta.
+        cuentas::transmitir(self->ventanilla_, self->rt_, self, ing.value("url").toString().toStdString(),
+                            ing.value("key").toString().toStdString(), [self, ing, done](const std::string& error) {
+                                if (self) self->alSalir(ing, error, done);
+                            });
+    });
+}
+
+void TwitchViewModel::alSalir(const QJsonObject& ing, const std::string& error, const TwitchClient::Done& done) {
+    if (!error.empty())
+        return done(false, {}, tr("La app no pudo empezar a transmitir: %1").arg(QString::fromStdString(error)));
+    {
+        QPointer<TwitchViewModel> self(this);
         self->streamingHere_ = true;
         emit self->stateChanged();
         emit self->vivo(QVariantMap{{"plataforma", "twitch"},
@@ -224,7 +233,7 @@ void TwitchViewModel::goLive(TwitchClient::Done done) {
              QJsonObject{{"server", ing.value("url")},
                          {"url", "https://twitch.tv/" + self->client_->user().value("login").toString()}},
              {});
-    });
+    }
 }
 
 void TwitchViewModel::stopLive() {
@@ -234,7 +243,7 @@ void TwitchViewModel::stopLive() {
 }
 
 void TwitchViewModel::stopLive(TwitchClient::Done done) {
-    if (streamingHere_) rt_.stopStreaming();
+    if (streamingHere_) cuentas::cortar(ventanilla_, rt_);
     streamingHere_ = false;
     emit stateChanged();
     QTimer::singleShot(5000, this, &TwitchViewModel::pollStream);

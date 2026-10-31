@@ -20,6 +20,7 @@
 namespace ba::app {
 
 class AppRuntime;
+class VentanillaMotor;
 class JsonListModel;
 
 class TwitchViewModel : public QObject {
@@ -42,7 +43,8 @@ class TwitchViewModel : public QObject {
     Q_PROPERTY(QObject* categories READ categories CONSTANT)
     Q_PROPERTY(bool chatOn READ chatOn NOTIFY chatChanged)
    public:
-    TwitchViewModel(AppRuntime& rt, QObject* parent = nullptr);
+    /// `ventanilla`: transmitir y cortar se le piden al motor; si transmite, de su foto (F3-03).
+    TwitchViewModel(AppRuntime& rt, VentanillaMotor& ventanilla, QObject* parent = nullptr);
     ~TwitchViewModel() override;
 
     bool configured() const { return client_->hasClient(); }
@@ -96,11 +98,14 @@ class TwitchViewModel : public QObject {
     void vivo(const QVariantMap& datos);
 
    private:
+    /// El motor contestó si salió al aire (`error` vacío = sí): sigue goLive.
+    void alSalir(const QJsonObject& ing, const std::string& error, const TwitchClient::Done& done);
     void setError(const QString& e);
     void track(bool start);
     void pollStream();
 
     AppRuntime& rt_;
+    VentanillaMotor& ventanilla_;
     std::unique_ptr<TwitchClient> client_;
     std::unique_ptr<JsonListModel> videos_;
     std::unique_ptr<JsonListModel> chat_;

@@ -29,6 +29,15 @@
 //   Video    el área de la imagen: lo que muestra el grafo de video (lo arma video::VideoGrafos,
 //            que es del dueño: VideoGrafos::vista) y lo del motor que miran las cámaras y las
 //            entradas (cada fuente de video con su tamaño y sus ajustes, lo que está al aire).
+//   Configuracion  la configuración guardada entera (app.json, gateway.json, launcher.json),
+//            una copia que no cambia: la leen los formularios de Configuración, la voz, el
+//            asistente. Se rearma cuando se aplica (AppRuntime::Cambio::Ajustes) o alguien la
+//            ensucia (cambiar el micrófono del operador).
+//   Equipo   lo que vigilan los chequeos del equipo (F4-07), los recursos y las alarmas:
+//            el reloj del estudio, la foto de las salidas del motor (sesiones de
+//            codificador, el colchón del disco, cada salida), el pico de cada entrada de
+//            audio y lo del motor que lee el MCP (el último error, el codificador de
+//            respaldo, cada salida como la ve status()); dos veces por segundo.
 //   Sala     lo que leen la asamblea, la sala y la línea de tiempo: lo guardado de la sala
 //            (gateway.json: el puerto, el túnel, pinggy, el proxy, la atención automática),
 //            con qué aparece el operador ante el lobby, la carpeta de grabación, las
@@ -47,6 +56,7 @@
 
 #include <cstdint>
 #include <map>
+#include <memory>
 #include <string>
 #include <utility>
 #include <vector>
@@ -54,6 +64,10 @@
 #include <nlohmann/json.hpp>
 
 namespace ba::app {
+
+struct AppConfig;
+struct GatewaySettings;
+struct LauncherSettings;
 
 struct FotoMotor {
     /// Las partes (bits): lo que avisa la ventanilla.
@@ -67,8 +81,11 @@ struct FotoMotor {
         Video = 1u << 9, ///< (el 8 es AppRuntime::kFotoRelerArchivos)
         Mezcla = 1u << 10,
         Superficies = 1u << 11,
-        Sala = 1u << 12, // (los bits de cada área: I 9, M 10, C 11, S 12, R 13; el 8 es de AppRuntime)
-        Todas = Escenas | Salidas | Estado | Emision | Ajustes | Medidas | Video | Mezcla | Superficies | Sala,
+        Sala = 1u << 12, // (los bits de cada área: I 9, M 10, C 11, S 12, R 13 y 14; el 8 es de AppRuntime)
+        Configuracion = 1u << 13,
+        Equipo = 1u << 14,
+        Todas = Escenas | Salidas | Estado | Emision | Ajustes | Medidas | Video | Mezcla | Superficies | Sala |
+                Configuracion | Equipo,
     };
 
     // --- Escenas ---------------------------------------------------------------------
@@ -180,6 +197,28 @@ struct FotoMotor {
     /// Lo de la configuración que usa el área: {mejora: {activa, ruido, color, nitidez},
     /// legalizar, video_kbps, captura (hay tipos de cámara/micrófono)}.
     nlohmann::json configImagen = nlohmann::json::object();
+    // --- Configuracion -------------------------------------------------------------------
+    /// Copias que nadie cambia (el dueño arma otras cuando cambia la configuración): se
+    /// comparan por puntero. Nunca nulas después de la primera foto.
+    struct Guardada {
+        std::shared_ptr<const AppConfig> app;
+        std::shared_ptr<const GatewaySettings> gateway;
+        std::shared_ptr<const LauncherSettings> launcher;
+        bool operator==(const Guardada&) const = default;
+    };
+    Guardada configuracion;
+
+    // --- Equipo ----------------------------------------------------------------------
+    struct DelEquipo {
+        std::string relojTipo, relojError; ///< BroadcastEngine::relojEstado
+        nlohmann::json salidas = nlohmann::json::object(); ///< BroadcastEngine::fotoSalidas
+        nlohmann::json audio = nlohmann::json::array();    ///< [{fuente, pico_db, mudo}] (audioSources)
+        /// {ultimo_error, respaldo_codificador, salidas: [{id, nombre, por_omision, escena,
+        /// streaming, reconectando, recording, destinos, limpia, repeticion}]} (EngineStatus).
+        nlohmann::json motor = nlohmann::json::object();
+        bool operator==(const DelEquipo&) const = default;
+    };
+    DelEquipo equipo;
     // --- Sala (la asamblea, la sala y la línea) ---------------------------------------
     struct SalaYEvento {
         // Lo guardado de la sala (gateway.json), lo que se lee de este lado.

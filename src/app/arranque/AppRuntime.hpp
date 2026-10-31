@@ -365,6 +365,12 @@ class AppRuntime {
     NivelesMotor& niveles() { return engine_.nivelesCanal(); }
     /// DESDE CUALQUIER HILO: arrancó para pruebas (--test/--debug). No cambia después.
     bool modoPrueba() const { return cfg_.modoPrueba; }
+    /// ¿Sale algo de alguna salida? (BroadcastEngine::haySalida: lee la foto de las salidas
+    /// que publica su hilo, bajo su candado.) Desde cualquier hilo: no entra al motor.
+    bool haySalida(bool contarGrabacion = true) const { return engine_.haySalida(contarGrabacion); }
+    /// El turno del motor (emision/TurnoMotor.hpp), para quien lo toma con tope (el MCP del
+    /// control): tomarlo no es entrar al motor.
+    const TurnoMotor& turno() const { return engine_.turno(); }
     /// El último error DE ESTE HILO (ver «Estrategia de errores»).
     const std::string& lastError() const;
     /// true si el ultimo corte de la transmision / grabacion lo PIDIO alguien

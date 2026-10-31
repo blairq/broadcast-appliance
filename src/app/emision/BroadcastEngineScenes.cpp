@@ -1450,8 +1450,7 @@ std::vector<BroadcastEngine::MediaInfo> BroadcastEngine::mediaSources() const {
 // Capacidades
 // ============================================================================
 
-std::string BroadcastEngine::graphicsDeviceName() const {
-    const TurnoMotor::Guarda turno(turno_);
+std::string BroadcastEngine::graphicsDeviceName() {
 #if defined(__APPLE__)
     return "Apple (VideoToolbox, GStreamer)";
 #else
@@ -1459,8 +1458,7 @@ std::string BroadcastEngine::graphicsDeviceName() const {
 #endif
 }
 
-std::vector<BroadcastEngine::EncoderInfo> BroadcastEngine::videoEncoders() const {
-    const TurnoMotor::Guarda turno(turno_);
+std::vector<BroadcastEngine::EncoderInfo> BroadcastEngine::videoEncoders() {
     std::vector<EncoderInfo> out;
     for (const char* f : {"vtenc_h264_hw", "vtenc_h264", "nvh264enc", "qsvh264enc", "d3d12h264enc", "amfh264enc", "vah264enc",
                           "mfh264enc", "x264enc"}) {

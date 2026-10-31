@@ -44,6 +44,7 @@ class EventoViewModel;
 class ManualesViewModel;
 class OperatorMessages;
 class PuestoCorreccion;
+class VentanillaMotor;
 } // namespace ba::app
 namespace ba::app::agent {
 class AgentViewModel;
@@ -78,6 +79,8 @@ class AsistenteViewModel : public QObject {
    public:
     struct Partes {
         AppRuntime& rt;
+        /// El motor (F3-03): se le pide (los CC, el rótulo de la traducción) y se lee su foto.
+        VentanillaMotor& ventanilla;
         AlarmasViewModel& alarmas;  ///< el vigía que atienden los asistentes
         ConferenceViewModel& sala;  ///< el chat a los invitados, el micrófono del operador, el puesto de corrección
         EventoViewModel* evento = nullptr; ///< la carpeta del evento (las transcripciones)
@@ -149,6 +152,8 @@ class AsistenteViewModel : public QObject {
     void armarMensajes();
     void armarTextos();
     void rotularTraduccion(const QString& flujo, const QString& origen);
+    /// El rótulo `nombre` ya está en el motor: arma su capa (una vez) y la muestra.
+    void mostrarRotulo(control::Dsk& dsk, const std::string& nombre);
 
     Partes p_;
     // El orden es el de destrucción al revés: lo que usa a otro va después.

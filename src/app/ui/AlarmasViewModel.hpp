@@ -37,6 +37,7 @@
 namespace ba::app {
 class AppRuntime;
 class AvisoFueraDeUi;
+class VentanillaMotor;
 class ChatOverlayRenderer;
 class ConferenceViewModel;
 class EnergiaAire;
@@ -67,6 +68,7 @@ class AlarmasViewModel : public QObject {
     /// se piden cada vez.
     struct Fuentes {
         AppRuntime& rt;            ///< el motor, el disco, la persistencia; Config/alertas.json y el sonido
+        VentanillaMotor& ventanilla; ///< el audio y los medios, de la foto del motor (F3-03)
         EnergiaAire& energia;      ///< la alarma «en batería» (estadoAhora, desde el vigía)
         ConferenceViewModel& sala; ///< la foto de la sala y su chat
         ChatOverlayRenderer& chat; ///< el chat de las plataformas

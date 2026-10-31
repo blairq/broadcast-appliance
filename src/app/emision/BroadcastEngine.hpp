@@ -674,13 +674,15 @@ class BroadcastEngine {
     /// true si el tipo de fuente es uno que el motor sabe armar.
     bool sourceTypeExists(const std::string& typeId) const;
     /// Nombre de la placa de video (para el diagnóstico).
-    std::string graphicsDeviceName() const;
+    /// Con qué dibuja (no depende del estado del motor: desde cualquier hilo).
+    static std::string graphicsDeviceName();
     struct EncoderInfo {
         std::string id, name, codec;
         bool hardware = false;
     };
-    /// Codificadores de video disponibles (los de la placa marcados).
-    std::vector<EncoderInfo> videoEncoders() const;
+    /// Codificadores de video disponibles (los de la placa marcados). De las fábricas de
+    /// GStreamer, no del estado del motor: desde cualquier hilo.
+    static std::vector<EncoderInfo> videoEncoders();
 
     // --- Cambios en caliente -------------------------------------------------
     /// true si hay grabacion o transmision en curso (en alguna salida).

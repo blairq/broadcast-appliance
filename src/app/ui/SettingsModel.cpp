@@ -4,6 +4,7 @@
 
 #include "arranque/AjustesMotor.hpp"
 #include "emision/BroadcastEngine.hpp"
+#include "emision/VentanillaMotor.hpp"
 #include "ui/SettingsModel.hpp"
 #include <QCoreApplication>
 #include <QMetaObject>
@@ -16,6 +17,8 @@
 #include <QVariantMap>
 
 #include <algorithm>
+#include <memory>
+#include <optional>
 
 #include "arranque/AppRuntime.hpp"
 #include "ajustes/Ajustes.hpp"
@@ -153,8 +156,8 @@ QVariantList opcionesUrlHost(const std::string& actual) {
 
 } // namespace
 
-SettingsModel::SettingsModel(AppRuntime& rt, QObject* parent)
-    : QAbstractListModel(parent), rt_(rt), idiomaAlArrancar_(rt.launcher().idioma) {
+SettingsModel::SettingsModel(AppRuntime& rt, VentanillaMotor* ventanilla, QObject* parent)
+    : QAbstractListModel(parent), rt_(rt), v_(ventanilla), idiomaAlArrancar_(guardada().launcher.idioma) {
     // Codificadores: los alias que se ofrecen (cuál hay de verdad en esta máquina lo
     // decide el motor al armar cada salida: motor/Salidas.cpp, elegirCodificador).
     QVariantList encoders = choices({{"auto", traducir("ajustes", "Automatico (hardware si hay)")},
@@ -241,8 +244,8 @@ SettingsModel::SettingsModel(AppRuntime& rt, QObject* parent)
         {"room.maxUploadMB", "Conferencia", traducir("ajustes", "Tope por archivo compartido"), "int", {}, 1, 20480, "MB", "", "live", 2048},
         // --- Red de la conferencia -------------------------------------------------
         {"gateway.port", "Red de la conferencia", traducir("ajustes", "Puerto de la conferencia"), "int", {}, 1024, 65535, "", "", "gateway", 8787},
-        {"gateway.bind", "Red de la conferencia", traducir("ajustes", "Acceso (dónde escucha)"), "choice", opcionesBind(rt.gateway().bindAddress), 0, 0, "", traducir("ajustes", "Red local expone el gateway a la LAN; una IP sola, solo a esa interfaz (la página y la conexión de los invitados). El PIN y el límite de intentos siguen protegiendo. Al aplicar se reinicia solo la conferencia."), "gateway", "127.0.0.1"},
-        {"gateway.urlHost", "Red de la conferencia", traducir("ajustes", "Dirección para el QR y el enlace"), "combo", opcionesUrlHost(rt.gateway().urlHost), 0, 0, "", traducir("ajustes", "Lo que va en el QR de la conferencia y en el enlace para los invitados de la red local: elegila de la lista (las IP de esta máquina) o escribila (una IP o un nombre). Vacía, la elige sola (la de la interfaz de «Acceso», o la de la red). Si «Acceso» está en «Solo esta máquina», pasa a «Red local» para que se pueda entrar. Al aplicar se reinicia solo la conferencia."), "gateway", ""},
+        {"gateway.bind", "Red de la conferencia", traducir("ajustes", "Acceso (dónde escucha)"), "choice", opcionesBind(guardada().gateway.bindAddress), 0, 0, "", traducir("ajustes", "Red local expone el gateway a la LAN; una IP sola, solo a esa interfaz (la página y la conexión de los invitados). El PIN y el límite de intentos siguen protegiendo. Al aplicar se reinicia solo la conferencia."), "gateway", "127.0.0.1"},
+        {"gateway.urlHost", "Red de la conferencia", traducir("ajustes", "Dirección para el QR y el enlace"), "combo", opcionesUrlHost(guardada().gateway.urlHost), 0, 0, "", traducir("ajustes", "Lo que va en el QR de la conferencia y en el enlace para los invitados de la red local: elegila de la lista (las IP de esta máquina) o escribila (una IP o un nombre). Vacía, la elige sola (la de la interfaz de «Acceso», o la de la red). Si «Acceso» está en «Solo esta máquina», pasa a «Red local» para que se pueda entrar. Al aplicar se reinicia solo la conferencia."), "gateway", ""},
         {"direct.https", "Red de la conferencia", traducir("ajustes", "HTTPS propio"), "bool", {}, 0, 0, "", traducir("ajustes", "Los navegadores solo dan cámara y micrófono en paginas seguras: sin HTTPS, un invitado por la red local o por IP pública no puede usarlos."), "gateway", true},
         {"direct.httpsPort", "Red de la conferencia", traducir("ajustes", "Puerto HTTPS"), "int", {}, 1024, 65535, "", traducir("ajustes", "Un certificado propio evita el aviso del navegador: deja cert.pem + key.pem en Credenciales/ y al reiniciar se importan (cifrados)."), "gateway", 8789},
         {"direct.rtcMin", "Red de la conferencia", traducir("ajustes", "WebRTC: primer puerto UDP"), "int", {}, 1024, 65000, "", traducir("ajustes", "Rango fijo para el firewall y la redirección del servidor."), "gateway", 40000},
@@ -321,21 +324,40 @@ SettingsModel::SettingsModel(AppRuntime& rt, QObject* parent)
     }
     load();
     // Otro formulario (el del MCP, el de la GUI) aplicó la configuración: este,
-    // si no tiene cambios a medio hacer, muestra lo vigente.
+    // si no tiene cambios a medio hacer, muestra lo vigente. Con la ventanilla, cuando
+    // llega la foto con la configuración nueva (la propia vuelve con la respuesta).
+    if (v_ != nullptr) {
+        connect(v_, &VentanillaMotor::cambio, this, [this](unsigned partes) {
+            if ((partes & FotoMotor::Configuracion) == 0) return;
+            emit idiomaPendienteChanged();
+            if (!aplicandoEnDueno_) traerDeAfuera();
+        });
+        return;
+    }
     observador_ = rt_.observar([this](AppRuntime::Cambio c) {
         if (c != AppRuntime::Cambio::Ajustes || aplicando_) return;
         QMetaObject::invokeMethod(this, [this]() { traerDeAfuera(); }, Qt::QueuedConnection);
     });
 }
 
-SettingsModel::~SettingsModel() { rt_.dejarDeObservar(observador_); }
+SettingsModel::~SettingsModel() {
+    if (observador_ != 0) rt_.dejarDeObservar(observador_);
+}
+
+SettingsModel::Guardada SettingsModel::guardada() const {
+    if (v_ != nullptr) {
+        const FotoMotor& f = v_->foto();
+        return {*f.configuracion.app, *f.configuracion.gateway, *f.configuracion.launcher,
+                f.apurosDisco.value("modo", std::string())};
+    }
+    return {rt_.config(), rt_.gateway(), rt_.launcher(), rt_.engine().modoDisco()};
+}
 
 QVariantMap SettingsModel::current() const {
     QVariantMap m = currentBasicos();
     // Los avanzados: lo guardado en su archivo ("ajustes") o su valor de siempre.
-    const AppConfig& c = rt_.config();
-    const json* donde[3] = {&c.ajustes, &const_cast<AppRuntime&>(rt_).gateway().ajustes,
-                            &const_cast<AppRuntime&>(rt_).launcher().ajustes};
+    const Guardada gu = guardada();
+    const json* donde[3] = {&gu.app.ajustes, &gu.gateway.ajustes, &gu.launcher.ajustes};
     for (const Field& f : fields_) {
         if (!f.avanzado) continue;
         const json& j = *donde[std::clamp(f.destino, 0, 2)];
@@ -352,13 +374,14 @@ QVariantMap SettingsModel::current() const {
 
 bool SettingsModel::idiomaPendiente() const {
     // Cambió desde que arrancó (no «es otro que el que se usa»: BA_IDIOMA puede pisarlo).
-    return const_cast<AppRuntime&>(rt_).launcher().idioma != idiomaAlArrancar_;
+    return guardada().launcher.idioma != idiomaAlArrancar_;
 }
 
 QVariantMap SettingsModel::currentBasicos() const {
-    const AppConfig& c = rt_.config();
-    const GatewaySettings& g = const_cast<AppRuntime&>(rt_).gateway();
-    const LauncherSettings& l = const_cast<AppRuntime&>(rt_).launcher();
+    const Guardada gu = guardada();
+    const AppConfig& c = gu.app;
+    const GatewaySettings& g = gu.gateway;
+    const LauncherSettings& l = gu.launcher;
     return {
         {"video.width", c.video.baseWidth},
         {"video.height", c.video.baseHeight},
@@ -375,7 +398,7 @@ QVariantMap SettingsModel::currentBasicos() const {
         {"entradas.reintentoMax", c.reintentoEntradaMaxMs},
         {"stream.reintentoMax", c.reintentoTransmisionMaxS},
         {"record.colchon", c.rec.colchonSeg},
-        {"disco.prioridad", QString::fromStdString(const_cast<AppRuntime&>(rt_).engine().modoDisco())},
+        {"disco.prioridad", QString::fromStdString(gu.modoDisco)},
         {"disco.apuros", static_cast<int>(c.discoApurosS)},
         {"disco.recuperado", c.discoRecuperadoS},
         {"mcp.aprobacionMin", c.mcpAprobacionMin},
@@ -419,7 +442,7 @@ QVariantMap SettingsModel::currentBasicos() const {
         {"stream.keyEnv", qs(c.streamKeyEnv)},
         {"stream.onStart", c.stream},
         {"guests.count", c.guests},
-        {"guests.reserva", const_cast<AppRuntime&>(rt_).gateway().guestsReserva},
+        {"guests.reserva", g.guestsReserva},
         {"guests.video", c.guestVideo},
         {"guests.audio", c.guestAudio},
         {"guests.audioPreset", qs(c.guestAudioPreset)},
@@ -627,6 +650,14 @@ void SettingsModel::resetSection(const QString& section) {
 }
 
 QString SettingsModel::apply() {
+    // Sin ventanilla (o si en vivo no se aplicó) termina en el acto: el resumen ya está.
+    // (Compartido: con la ventanilla la respuesta llega después de que esto volvió.)
+    auto resumen = std::make_shared<std::optional<QString>>();
+    aplicar([resumen](const QString& r, bool) { *resumen = r; });
+    return resumen->value_or(QString());
+}
+
+void SettingsModel::aplicar(std::function<void(const QString& resumen, bool fallo)> listo) {
     // En vivo, lo que reinicia el gateway (corta a los invitados) o el programa no se aplica.
     if (enVivo_ && enVivo_()) {
         QStringList cortan;
@@ -635,20 +666,54 @@ QString SettingsModel::apply() {
                 cortan << f.label;
         if (!cortan.isEmpty()) {
             fallo_ = true;
-            return traducir("ajustes", "EN VIVO: no se aplica «%1»: reinicia el gateway, el motor o el programa y corta a los "
-                      "invitados o el aire. Volvé atrás esos cambios o esperá a terminar la transmisión.")
-                .arg(cortan.join("», «"));
+            const QString r = traducir("ajustes", "EN VIVO: no se aplica «%1»: reinicia el gateway, el motor o el programa y corta a los "
+                                                  "invitados o el aire. Volvé atrás esos cambios o esperá a terminar la transmisión.")
+                                  .arg(cortan.join("», «"));
+            if (listo) listo(r, true);
+            return;
         }
     }
     fallo_ = false;
+    // Lo que es de la interfaz, antes: el cupo SIEMPRE en caliente con la sala andando (el
+    // resultado llega como aviso) y a cuántos corta reiniciar la sala.
+    Pedido pe{.draft = draft_, .saved = saved_, .fields = fields_, .haySala = configSala_ != nullptr};
+    const int cupo = draft_.value("guests.count").toInt();
+    if (draft_.value("guests.count") != saved_.value("guests.count") && cupoEnCaliente_ && cupo >= 1 &&
+        cupo <= ba::ipc::kMaxInvitados) {
+        const std::string e = cupoEnCaliente_(cupo);
+        pe.cupoEnVivo = true;
+        if (!e.empty()) pe.notaCupo = traducir("ajustes", "Cupo: %1").arg(QString::fromStdString(e));
+    }
+    const int conectados = configSala_ != nullptr ? configSala_->conectados() : -1;
+    if (v_ == nullptr) {
+        aplicando_ = true;
+        Aplicado a = aplicarEn(rt_, pe, this);
+        aplicando_ = false;
+        alAplicar(std::move(a), conectados, listo);
+        return;
+    }
+    // Con la ventanilla: la orden corre en el dueño; la foto con la configuración nueva
+    // llega antes que la respuesta (y no recarga: aplicandoEnDueno_).
+    aplicandoEnDueno_ = true;
+    v_->pedir(
+        this, "ajustes_aplicar",
+        [&rt = rt_, pe = std::move(pe), yo = QPointer<SettingsModel>(this)]() { return aplicarEn(rt, pe, yo); },
+        [this, conectados, listo = std::move(listo)](Aplicado a) {
+            aplicandoEnDueno_ = false;
+            alAplicar(std::move(a), conectados, listo);
+        });
+}
+
+SettingsModel::Aplicado SettingsModel::aplicarEn(AppRuntime& rt, const Pedido& p, QPointer<SettingsModel> yo) {
+    Aplicado a;
     // Por prefijo, sin los avanzados (esos van por destino, más abajo: algunos de la
     // app empiezan con «room.» y no tienen por qué reiniciar la sala).
     QSet<QString> avanzados;
-    for (const Field& f : fields_)
+    for (const Field& f : p.fields)
         if (f.avanzado) avanzados.insert(f.key);
     const auto changed = [&](const QString& prefix) {
-        for (auto it = draft_.cbegin(); it != draft_.cend(); ++it) {
-            if (it.key().startsWith(prefix) && !avanzados.contains(it.key()) && it.value() != saved_.value(it.key())) {
+        for (auto it = p.draft.cbegin(); it != p.draft.cend(); ++it) {
+            if (it.key().startsWith(prefix) && !avanzados.contains(it.key()) && it.value() != p.saved.value(it.key())) {
                 return true;
             }
         }
@@ -657,27 +722,32 @@ QString SettingsModel::apply() {
     // Qué cambió de lo que reinicia la sala (para decirlo en el aviso).
     const auto cambiadas = [&](const QStringList& prefijos) {
         QStringList out;
-        for (auto it = draft_.cbegin(); it != draft_.cend(); ++it) {
-            if (avanzados.contains(it.key()) || it.value() == saved_.value(it.key())) continue;
-            for (const QString& p : prefijos)
-                if (it.key().startsWith(p)) {
+        for (auto it = p.draft.cbegin(); it != p.draft.cend(); ++it) {
+            if (avanzados.contains(it.key()) || it.value() == p.saved.value(it.key())) continue;
+            for (const QString& pr : prefijos)
+                if (it.key().startsWith(pr)) {
                     out << it.key();
                     break;
                 }
         }
         return out;
     };
-    const auto s = [&](const char* k) { return draft_.value(k).toString().toStdString(); };
-    const auto i = [&](const char* k) { return draft_.value(k).toInt(); };
-    const auto b = [&](const char* k) { return draft_.value(k).toBool(); };
+    const auto alcanceDe = [&](const QString& key) {
+        for (const Field& f : p.fields)
+            if (f.key == key) return f.scope;
+        return QString();
+    };
+    const auto s = [&](const char* k) { return p.draft.value(k).toString().toStdString(); };
+    const auto i = [&](const char* k) { return p.draft.value(k).toInt(); };
+    const auto b = [&](const char* k) { return p.draft.value(k).toBool(); };
     QStringList notes;
 
-    AppConfig& c = rt_.config();
+    AppConfig& c = rt.config();
     // Video y codificacion: en caliente si no hay salidas activas. Solo los de
     // alcance «motor» lo rearman (antes, por el prefijo «video.», también
     // «Legalizar para TV», que no lo necesita).
-    const bool cambioMotor = std::any_of(fields_.cbegin(), fields_.cend(), [&](const Field& f) {
-        return f.scope == "motor" && draft_.value(f.key) != saved_.value(f.key);
+    const bool cambioMotor = std::any_of(p.fields.cbegin(), p.fields.cend(), [&](const Field& f) {
+        return f.scope == "motor" && p.draft.value(f.key) != p.saved.value(f.key);
     });
     if (cambioMotor) {
         VideoConfig v = c.video;
@@ -689,11 +759,11 @@ QString SettingsModel::apply() {
         v.formato = s("video.formato");
         v.color = s("video.color");
         v.rango = s("video.rango");
-        if (rt_.applyVideo(v)) {
+        if (rt.applyVideo(v)) {
             notes << traducir("ajustes", "Video aplicado: el motor se reinició (por unos segundos se cortó lo que sale).");
         } else {
             c.video = v; // se guarda igual: rige al proximo arranque
-            notes << traducir("ajustes", "Video: %1 (se aplica al reiniciar).").arg(qs(rt_.lastError()));
+            notes << traducir("ajustes", "Video: %1 (se aplica al reiniciar).").arg(qs(rt.lastError()));
         }
     }
     if (changed("mejora.")) {
@@ -711,8 +781,8 @@ QString SettingsModel::apply() {
         e.rateControl = s("encoder.rateControl");
         e.keyintSec = i("encoder.keyint");
         e.preset = s("encoder.preset");
-        e.audioBitrateKbps = draft_.value("encoder.audioBitrate").toInt();
-        if (rt_.applyEncoder(e)) {
+        e.audioBitrateKbps = p.draft.value("encoder.audioBitrate").toInt();
+        if (rt.applyEncoder(e)) {
             notes << traducir("ajustes", "Codificación aplicada (rige en la próxima salida).");
         } else {
             c.encoder = e;
@@ -720,7 +790,7 @@ QString SettingsModel::apply() {
         }
     }
     const std::filesystem::path recDir = s("record.dir");
-    c.rec.directory = (recDir.is_absolute() ? recDir : rt_.dataRoot() / recDir).string();
+    c.rec.directory = (recDir.is_absolute() ? recDir : rt.dataRoot() / recDir).string();
     c.rec.container = s("record.container");
     c.rec.remuxAlTerminar = b("record.remux");
     c.record = b("record.onStart");
@@ -738,7 +808,7 @@ QString SettingsModel::apply() {
     c.modeloContexto = i("modelo.contexto");
     c.modeloCapasGpu = i("modelo.capasGpu");
     aplicarAjustesMotor(c);
-    if (draft_.value("disco.prioridad") != saved_.value("disco.prioridad")) rt_.engine().setModoDisco(s("disco.prioridad"));
+    if (p.draft.value("disco.prioridad") != p.saved.value("disco.prioridad")) rt.engine().setModoDisco(s("disco.prioridad"));
     c.rec.calidad = s("record.calidad");
     c.rec.calidadCrf = i("record.crf");
     c.rec.pistas.clear();
@@ -749,11 +819,11 @@ QString SettingsModel::apply() {
     }
     {
         const std::filesystem::path copia = s("record.copiaDir");
-        c.rec.copiaDir = copia.empty() || copia.is_absolute() ? copia.string() : (rt_.dataRoot() / copia).string();
+        c.rec.copiaDir = copia.empty() || copia.is_absolute() ? copia.string() : (rt.dataRoot() / copia).string();
     }
     if (i("record.replay") != c.replaySegundos) {
         c.replaySegundos = i("record.replay");
-        notes << QString::fromStdString(rt_.aplicarReplay());
+        notes << QString::fromStdString(rt.aplicarReplay());
     }
     c.streamCfg.server = s("stream.server");
     c.streamKeyEnv = s("stream.keyEnv");
@@ -768,20 +838,16 @@ QString SettingsModel::apply() {
     c.mcpPort = i("mcp.port");
     c.mcpApproval = s("mcp.approval");
     if (changed("transition.")) {
-        rt_.setTransition(s("transition.type"), i("transition.ms"));
+        rt.setTransition(s("transition.type"), i("transition.ms"));
     }
 
     bool restartB = false;
-    // El cupo SIEMPRE en caliente con la sala andando: el gateway crea los canales de
+    // (Lo decidió la interfaz, que tiene la sala: ver aplicar.) El cupo SIEMPRE en caliente con la sala andando: el gateway crea los canales de
     // los lugares nuevos (hasta 16) y, si al bajarlo hay gente en un lugar que se iría,
     // la sala lo rechaza (aviso) y no saca a nadie. Nunca reinicia la sala por el cupo:
     // eso cortaba a todos (pasó al bajar de 6 a 3 con 6 conectados).
-    bool cupoEnVivo = false;
-    if (changed("guests.count") && cupoEnCaliente_ && i("guests.count") >= 1 && i("guests.count") <= ba::ipc::kMaxInvitados) {
-        const std::string e = cupoEnCaliente_(i("guests.count")); // el resultado llega como aviso
-        cupoEnVivo = true;
-        if (!e.empty()) notes << traducir("ajustes", "Cupo: %1").arg(QString::fromStdString(e));
-    }
+    const bool cupoEnVivo = p.cupoEnVivo;
+    if (!p.notaCupo.isEmpty()) notes << p.notaCupo;
     // Los avanzados: cada uno a su archivo ("ajustes"), solo los que no están en su valor de siempre.
     // Los de la sala: los de alcance «live» rigen en caliente (se le mandan por su API,
     // sala::ConfigSala); el resto la reinicia (porQue).
@@ -789,10 +855,10 @@ QString SettingsModel::apply() {
     json ajSalaEnCaliente = json::object(); // los «live» de la sala: van al gateway andando
     bool ajustesSalaEnCaliente = false, cambiaLauncher = false;
     QStringList porQue;
-    for (const Field& f : fields_) {
+    for (const Field& f : p.fields) {
         if (!f.avanzado) continue;
-        const QVariant v = draft_.value(f.key);
-        if (v != saved_.value(f.key)) {
+        const QVariant v = p.draft.value(f.key);
+        if (v != p.saved.value(f.key)) {
             if (f.destino == 1 && f.scope == "live") ajustesSalaEnCaliente = true;
             else if (f.destino == 1) porQue << f.key;
             if (f.destino == 2) cambiaLauncher = true;
@@ -807,19 +873,19 @@ QString SettingsModel::apply() {
     }
     c.ajustes = ajApp;
     ba::ajustes::cargar(c.ajustes); // en caliente: el código los lee al usarlos
-    rt_.launcher().ajustes = ajLauncher;
+    rt.launcher().ajustes = ajLauncher;
     if (cambiaLauncher) notes << traducir("ajustes", "Los avanzados del arranque rigen al volver a abrir el programa.");
     bool salaEnCaliente = false;
     for (const QString& k : cambiadas({"gateway.", "guests.reserva", "room.", "direct.", "wg.", "pinggy."}) +
                                 (cupoEnVivo ? QStringList() : cambiadas({"guests.count"}))) {
-        if (alcance(k) == "live") salaEnCaliente = true;
+        if (alcanceDe(k) == "live") salaEnCaliente = true;
         else porQue << k;
     }
     // Sin la sala para mandárselo, lo que rige en caliente queda para cuando arranque.
-    if (configSala_ == nullptr && (salaEnCaliente || ajustesSalaEnCaliente) && porQue.isEmpty())
+    if (!p.haySala && (salaEnCaliente || ajustesSalaEnCaliente) && porQue.isEmpty())
         notes << traducir("ajustes", "La conferencia toma estos cambios cuando arranque.");
     if (!porQue.isEmpty() || salaEnCaliente || ajustesSalaEnCaliente) {
-        GatewaySettings& g = rt_.gateway();
+        GatewaySettings& g = rt.gateway();
         g.ajustes = ajSala;
         g.room = s("gateway.room");
         g.port = static_cast<std::uint16_t>(i("gateway.port"));
@@ -846,7 +912,7 @@ QString SettingsModel::apply() {
         g.programVideoH = i("gateway.programaH");
         // El retorno de cada salida (BA.Program, BA.Salida.<id>) se compone a ese tamaño en la
         // GPU (F2-13): cambiado acá, cada una rehace su canal ya (si es el mismo, no hace nada).
-        rt_.engine().ponerTopeRetorno(g.programVideoW, g.programVideoH);
+        rt.engine().ponerTopeRetorno(g.programVideoW, g.programVideoH);
         g.pinIntentos = i("room.pinIntentos");
         g.pinBloqueoS = i("room.pinBloqueo");
         g.adminPort = static_cast<std::uint16_t>(i("room.adminPort"));
@@ -887,11 +953,11 @@ QString SettingsModel::apply() {
             notes << traducir("ajustes", "Pinggy: falta el subdominio o dominio; mientras tanto se usa la dirección al azar.");
         // Por ajustarInvitados, como el cupo en caliente: crea el audio y las
         // entradas de video de los lugares nuevos (si no, «Invitado 5» no aparecía).
-        if (!cupoEnVivo && i("guests.count") != c.guests) rt_.ajustarInvitados(i("guests.count"));
+        if (!cupoEnVivo && i("guests.count") != c.guests) rt.ajustarInvitados(i("guests.count"));
         g.guestsReserva = std::max(i("guests.reserva"), c.guests);
         restartB = !porQue.isEmpty();
     }
-    LauncherSettings& l = rt_.launcher();
+    LauncherSettings& l = rt.launcher();
     l.shadowCopy = b("launcher.shadow");
     l.recoveryUi = b("launcher.recoveryUi");
     l.cuelgueS = i("launcher.cuelgue");
@@ -906,13 +972,39 @@ QString SettingsModel::apply() {
         notes << traducir("ajustes", "Algunos cambios rigen desde el proximo arranque.");
     }
 
-    if (!rt_.save()) {
-        fallo_ = true;
-        notes << traducir("ajustes", "ERROR al guardar: %1").arg(qs(rt_.lastError()));
+    if (!rt.save()) {
+        a.fallo = true;
+        notes << traducir("ajustes", "ERROR al guardar: %1").arg(qs(rt.lastError()));
     } else {
         notes << traducir("ajustes", "Configuracion guardada.");
     }
-    if (!restartB && configSala_ != nullptr) {
+    if (restartB) {
+        // Aparte: esperar que el gateway se cierre trababa a quien lo pedía unos segundos
+        // (al prender o apagar pinggy, por ejemplo). El resultado llega como señal.
+        rt.reiniciarSalaEnElFondo([yo](const std::string& e) {
+            if (!yo) return;
+            QMetaObject::invokeMethod(yo.data(), [yo, e]() {
+                if (yo) emit yo->salaReiniciada(QString::fromStdString(e));
+            }, Qt::QueuedConnection);
+        });
+    }
+    rt.ajustesAplicados(); // los otros formularios se recargan
+    const GatewaySettings& g = rt.gateway();
+    a.notas = notes;
+    a.reiniciaSala = restartB;
+    a.porQue = porQue;
+    a.salaEnCaliente = salaEnCaliente;
+    a.ajustesSalaEnCaliente = ajustesSalaEnCaliente;
+    a.ajSalaEnCaliente = ajSalaEnCaliente;
+    a.sala = {{"lobby", g.lobby}, {"pinIntentos", g.pinIntentos}, {"pinBloqueoS", g.pinBloqueoS}, {"maxUploadMB", g.maxUploadMB}};
+    a.idiomaCambio = idiomaCambio;
+    return a;
+}
+
+void SettingsModel::alAplicar(Aplicado a, int conectados, const std::function<void(const QString&, bool)>& listo) {
+    fallo_ = a.fallo;
+    QStringList& notes = a.notas;
+    if (!a.reiniciaSala && configSala_ != nullptr) {
         // En caliente: el gateway los aplica andando, sin cortar a nadie. Lo que no
         // pudo (la sala no contesta, un valor que rechazó) se avisa: queda guardado y
         // rige cuando la conferencia vuelva a arrancar.
@@ -923,43 +1015,22 @@ QString SettingsModel::apply() {
                                                        "vuelva a arrancar.")
                                        .arg(QString::fromStdString(e)));
         };
-        if (ajustesSalaEnCaliente) configSala_->aplicar("ajustes", json{{"valores", ajSalaEnCaliente}}, alVolver);
-        if (salaEnCaliente) {
-            const GatewaySettings& g = rt_.gateway();
-            configSala_->aplicar("sala",
-                                 json{{"lobby", g.lobby},
-                                      {"pinIntentos", g.pinIntentos},
-                                      {"pinBloqueoS", g.pinBloqueoS},
-                                      {"maxUploadMB", g.maxUploadMB}},
-                                 alVolver);
-        }
-        if (ajustesSalaEnCaliente || salaEnCaliente)
+        if (a.ajustesSalaEnCaliente) configSala_->aplicar("ajustes", json{{"valores", a.ajSalaEnCaliente}}, alVolver);
+        if (a.salaEnCaliente) configSala_->aplicar("sala", a.sala, alVolver);
+        if (a.ajustesSalaEnCaliente || a.salaEnCaliente)
             notes << traducir("ajustes", "La conferencia los toma en caliente, sin reiniciarse.");
     }
-    if (restartB) {
-        notes << traducir("ajustes", "Se reinicia la conferencia por: %1.").arg(porQue.join(", "));
+    if (a.reiniciaSala) {
+        notes << traducir("ajustes", "Se reinicia la conferencia por: %1.").arg(a.porQue.join(", "));
         // Reiniciarla corta a todos: que se sepa a cuántos.
-        if (const int n = configSala_ != nullptr ? configSala_->conectados() : -1; n > 0)
-            notes << traducir("ajustes", "Se cortan %1 conectados: vuelven a entrar solos en unos segundos.").arg(n);
-        // Aparte: esperar que el gateway se cierre trababa la interfaz unos segundos
-        // (al prender o apagar pinggy, por ejemplo). El resultado llega como señal.
+        if (conectados > 0)
+            notes << traducir("ajustes", "Se cortan %1 conectados: vuelven a entrar solos en unos segundos.").arg(conectados);
         notes << traducir("ajustes", "Reiniciando la conferencia con la configuración nueva…");
-        QPointer<SettingsModel> yo(this);
-        rt_.reiniciarSalaEnElFondo([yo](const std::string& e) {
-            if (!yo) return;
-            QMetaObject::invokeMethod(yo.data(), [yo, e]() {
-                if (yo) emit yo->salaReiniciada(QString::fromStdString(e));
-            }, Qt::QueuedConnection);
-        });
     }
     load();
-    aplicando_ = true;
-    rt_.ajustesAplicados(); // los otros formularios se recargan
-    aplicando_ = false;
-    if (idiomaCambio) emit idiomaPendienteChanged();
+    if (a.idiomaCambio) emit idiomaPendienteChanged();
     const QString summary = notes.join(" ");
     emit applied(summary);
-    return summary;
+    if (listo) listo(summary, fallo_);
 }
-
 } // namespace ba::app

@@ -11,6 +11,7 @@
 
 #include "ajustes/Ajustes.hpp"
 #include "arranque/AppRuntime.hpp"
+#include "emision/VentanillaMotor.hpp"
 #include "diag/Metricas.hpp"
 #include "diag/Registro.hpp"
 #include "diag/VigiaBucle.hpp"
@@ -36,8 +37,8 @@ QVariantList aLista(const std::vector<double>& v) {
 
 } // namespace
 
-RecursosViewModel::RecursosViewModel(AppRuntime& rt, QObject* parent)
-    : QObject(parent), rt_(rt), recursos_(std::make_unique<diag::Recursos>(600)) {
+RecursosViewModel::RecursosViewModel(AppRuntime& rt, VentanillaMotor& ventanilla, QObject* parent)
+    : QObject(parent), rt_(rt), ventanilla_(ventanilla), recursos_(std::make_unique<diag::Recursos>(600)) {
     // Mide en su hilo; lo que ve la interfaz se arma en el de la interfaz.
     recursos_->arrancar([this]() { QMetaObject::invokeMethod(this, [this]() { publicar(); }, Qt::QueuedConnection); });
 }
@@ -62,21 +63,21 @@ void RecursosViewModel::publicar() {
     u.sostenidoS = ba::ajustes::entero("recursos.sostenidoS", u.sostenidoS);
     recursos_->umbrales(u);
 
-    // Lo del motor: cuadros por segundo, perdidos y lo que sale (para la vuelta que viene).
-    const EngineStatus st = rt_.engine().status();
+    // Lo del motor (de su foto): cuadros por segundo, perdidos y lo que sale (para la vuelta que viene).
+    const FotoMotor::EstadoAire& st = ventanilla_.foto().estado;
     const auto ahora = std::chrono::steady_clock::now();
     diag::Recursos::Motor mo;
     mo.fps = st.fps > 0 ? st.fps : diag::Recursos::kDesconocido;
-    if (perdidosAntes_ >= 0 && st.totalFrames >= totalAntes_ && st.droppedFrames >= perdidosAntes_) {
-        const int cuadros = st.totalFrames - totalAntes_, perdidos = st.droppedFrames - perdidosAntes_;
-        mo.perdidosPct = cuadros > 0 ? std::min(100.0, perdidos * 100.0 / cuadros) : (st.streaming || st.recording ? 0.0 : -1.0);
+    if (perdidosAntes_ >= 0 && st.cuadros >= totalAntes_ && st.descartados >= perdidosAntes_) {
+        const int cuadros = st.cuadros - totalAntes_, perdidos = st.descartados - perdidosAntes_;
+        mo.perdidosPct = cuadros > 0 ? std::min(100.0, perdidos * 100.0 / cuadros) : (st.transmite || st.graba ? 0.0 : -1.0);
     }
     const double dt = std::chrono::duration<double>(ahora - tAntes_).count();
-    if (st.streaming && bytesAntes_ > 0 && st.bytesSent >= bytesAntes_ && dt > 0.2)
-        mo.salidaKbps = static_cast<double>(st.bytesSent - bytesAntes_) * 8.0 / 1000.0 / dt;
-    perdidosAntes_ = st.droppedFrames;
-    totalAntes_ = st.totalFrames;
-    bytesAntes_ = st.streaming ? st.bytesSent : 0;
+    if (st.transmite && bytesAntes_ > 0 && st.bytes >= bytesAntes_ && dt > 0.2)
+        mo.salidaKbps = static_cast<double>(st.bytes - bytesAntes_) * 8.0 / 1000.0 / dt;
+    perdidosAntes_ = st.descartados;
+    totalAntes_ = st.cuadros;
+    bytesAntes_ = st.transmite ? st.bytes : 0;
     tAntes_ = ahora;
     recursos_->motor(mo);
     // El gateway se relanza con otro pid: se sigue al que está.
@@ -204,7 +205,7 @@ void RecursosViewModel::medirServicio(const diag::Recursos::Muestra& m, const nl
     medir(bucleMax, hayBucle ? um.value("max_ms", -1.0) : -1.0);
     bucleTarde.igualar(bucle.value("tarde", std::uint64_t{0}));
     // Las salidas: el colchón de la grabación y las reconexiones de la transmisión.
-    const nlohmann::json sal = rt_.engine().salidasAhora();
+    const nlohmann::json& sal = ventanilla_.foto().equipo.salidas;
     const nlohmann::json disco = sal.value("disco", nlohmann::json::object());
     const double atraso = disco.value("atraso_s", -1.0);
     static auto& colchon = met.medidor("ba_grabacion_colchon_s", QT_TRANSLATE_NOOP("metricas", "Lo que espera al disco en el colchón de la grabación más atrasada, s"));

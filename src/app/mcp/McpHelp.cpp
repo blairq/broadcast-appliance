@@ -9,6 +9,7 @@
 
 #include "arranque/AppRuntime.hpp"
 #include "arranque/AppSettings.hpp"
+#include "emision/VentanillaMotor.hpp"
 #include "i18n/I18n.hpp"
 #include "mcp/McpService.hpp"
 #include "mcp/McpToolsCommon.hpp"
@@ -159,26 +160,28 @@ void McpService::registerHelp() {
         core_.addTopic(HelpTopic{t.id, ba::i18n::traducir("mcp", t.title), ba::i18n::traducir("mcp", t.summary),
                                  ba::i18n::leer(std::string("ayuda/") + t.id + ".md")});
 
-    AppRuntime& rt = rt_;
     StudioViewModel& vm = vm_;
     SettingsModel* settings = settings_.get();
+    // Se leen en la interfaz (McpCore, resources/read): lo del motor, de su foto (F3-03).
     core_.addResource(
-        Resource{"ba://estado", "estado", ba::i18n::traducir("mcp", "Estado general en vivo (JSON)."), "application/json", [&rt]() {
-                     const EngineStatus st = rt.engine().status();
-                     return json{{"currentScene", rt.engine().currentScene()},
-                                 {"streaming", st.streaming},
-                                 {"recording", st.recording},
-                                 {"fps", st.fps},
-                                 {"droppedFrames", st.droppedFrames},
-                                 {"videoEncoder", st.videoEncoder}}
+        Resource{"ba://estado", "estado", ba::i18n::traducir("mcp", "Estado general en vivo (JSON)."), "application/json", [&vm]() {
+                     const FotoMotor& f = vm.ventanilla().foto();
+                     const FotoMotor::Salida* po = f.salida(std::string());
+                     return json{{"currentScene", po != nullptr ? po->alAire : std::string()},
+                                 {"streaming", f.estado.transmite},
+                                 {"recording", f.estado.graba},
+                                 {"fps", f.estado.fps},
+                                 {"droppedFrames", f.estado.descartados},
+                                 {"videoEncoder", f.estado.codificador}}
                          .dump(2, ' ', false, nlohmann::json::error_handler_t::replace);
                  }});
     core_.addResource(
-        Resource{"ba://escenas", "escenas", ba::i18n::traducir("mcp", "Escenas y fuentes (JSON)."), "application/json", [&rt]() {
+        Resource{"ba://escenas", "escenas", ba::i18n::traducir("mcp", "Escenas y fuentes (JSON)."), "application/json", [&vm]() {
+                     const FotoMotor& f = vm.ventanilla().foto();
                      json out = json::array();
-                     for (const auto& n : rt.engine().sceneNames())
-                         out.push_back(json{{"name", n}, {"sources", rt.engine().sceneSources(n)}});
-                     return json{{"current", rt.engine().currentScene()}, {"scenes", out}}.dump(2, ' ', false, nlohmann::json::error_handler_t::replace);
+                     for (const FotoMotor::Escena& e : f.escenas) out.push_back(json{{"name", e.nombre}, {"sources", f.fuentesDe(e.nombre)}});
+                     const FotoMotor::Salida* po = f.salida(std::string());
+                     return json{{"current", po != nullptr ? po->alAire : std::string()}, {"scenes", out}}.dump(2, ' ', false, nlohmann::json::error_handler_t::replace);
                  }});
     core_.addResource(Resource{"ba://sala", "sala", ba::i18n::traducir("mcp", "Estado de la conferencia (JSON)."), "application/json",
                                [&vm]() { return roomSnapshot(vm).dump(2, ' ', false, nlohmann::json::error_handler_t::replace); }});

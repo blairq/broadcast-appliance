@@ -4,6 +4,7 @@
 
 #include "arranque/AppRuntime.hpp"
 #include "diag/DiarioDeArranque.hpp"
+#include "emision/VentanillaMotor.hpp"
 #include "pantallas/Catalogo.hpp"
 #include "pantallas/Monitores.hpp"
 #include "pantallas/Ventanas.hpp"
@@ -38,9 +39,10 @@ EscritorioViewModel::EscritorioViewModel(Partes p, QObject* parent) : QObject(pa
     // Las multivistas antes que el catálogo (las lista) y las ventanas (las migran).
     multivistas_ = std::make_unique<MultiviewViewModel>(rt.dataRoot() / "Config");
     CatalogoVisible::Fuentes f;
-    f.escenas = [&rt]() {
+    // Las escenas en el orden del operador, de la foto (Studio refresca al cambiar).
+    f.escenas = [&v = p_.ventanilla]() {
         QStringList out;
-        for (const std::string& n : rt.orderedSceneNames()) out << QString::fromStdString(n);
+        for (const FotoMotor::Escena& e : v.foto().escenas) out << QString::fromStdString(e.nombre);
         return out;
     };
     f.multiviews = [this]() { return multivistas_->lista(); };

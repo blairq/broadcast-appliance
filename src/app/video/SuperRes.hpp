@@ -67,7 +67,8 @@ class SuperRes : public QObject {
     QStringList motores() const;
     bool laboratorioListo() const;
     QVariantMap trabajo() const { return trabajo_; }
-    std::filesystem::path carpetaModelos() const;
+    /// Datos/Modelos/superres (no cambia: desde cualquier hilo).
+    static std::filesystem::path carpetaModelos();
 
     /// Pone en la cola de descargas las bibliotecas del laboratorio. "" o el error.
     std::string prepararLaboratorio();
@@ -97,7 +98,11 @@ class SuperRes : public QObject {
     /// Todos: los del catálogo (instalados o no) y los instalados que no están en
     /// él (la red propia entrenada acá). Cada uno: {id, nombre, tipo, descripcion,
     /// escala, plataformas, instalado, aca (sirve en esta máquina), ms_coreml?, licencia}.
-    json plugins() const;
+    /// Lee el catálogo y la carpeta de modelos: desde cualquier hilo (superres_plugins
+    /// contesta en el pool, con la interfaz trabada).
+    static json plugins();
+    /// Las recetas del catálogo (datos/superres-catalogo.json, recurso de Qt): se lee una vez.
+    static const json& catalogo();
     /// Instala un plugin del catálogo (laboratorio `instalar`). "" o el error.
     std::string instalarPlugin(const std::string& id);
     /// Lo de esta máquina para ese plugin: {motor, modelo, escala_red, proveedor?}
@@ -195,7 +200,6 @@ class SuperRes : public QObject {
     int capturados_ = 0, aCapturar_ = 0;
     bool pidiendoCuadro_ = false; ///< hay un cuadro pedido (capturarCuadroAparte) que no llegó
 
-    json catalogo_ = json::array(); ///< las recetas (del recurso)
     std::filesystem::path root_;
     VideoViewModel* video_;
     QVariantMap trabajo_;

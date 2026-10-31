@@ -74,6 +74,7 @@
 // ============================================================================
 #include "agent/AlertEngine.hpp"
 #include "agent/EntradasAlarmas.hpp"
+#include "arranque/AppSettings.hpp"
 #include "arranque/PlanoControl.hpp"
 #include "control/Dsk.hpp"
 #include "emision/DocumentoAire.hpp"
@@ -97,6 +98,7 @@
 #include <QThreadPool>
 #include <QTimer>
 
+#include <algorithm>
 #include <atomic>
 #include <chrono>
 #include <cstdio>
@@ -1713,6 +1715,125 @@ const auto tomadoM = canalM.tomarPrograma("");
         grafoI->publicar = nullptr; // la ventanilla de esta sección se va
         plano.detener();
         vigiaI->disconnect(); // lo que anota los disparos era de esta sección
+    }
+
+    // --- R. El resto: la configuración y el equipo, en la foto; aplicar, en el control ----
+    // Lo que hacen SettingsModel (aplicar), la voz (el micrófono del operador), el asistente
+    // (el modelo local) y los chequeos del equipo: leen las partes Configuracion y Equipo y
+    // le piden al dueño. La configuración la cambia SOLO el control; la interfaz tiene copias
+    // que no cambian (las de su foto), aunque el dueño cambie la suya mientras está trabada.
+    {
+        using ba::app::AppConfig;
+        using ba::app::FotoMotor;
+        using ba::app::GatewaySettings;
+        using ba::app::LauncherSettings;
+        using ba::app::VentanillaMotor;
+        struct Dueno {
+            AppConfig cfg;
+            GatewaySettings gw;
+            LauncherSettings la;
+            std::string reloj = "sistema";
+            unsigned sucia = FotoMotor::Todas;
+        } d;
+        d.cfg.mcpAprobacionMin = 2;
+        d.cfg.operatorAudio = "Mic 1";
+        d.gw.room = "Sala";
+        d.la.idioma = "es";
+        std::shared_ptr<const FotoMotor> ultima;
+        VentanillaMotor* ventanilla = nullptr;
+        std::atomic<int> fotosSinTurno{0}, ordenesEnLaInterfaz{0};
+        // Como AppRuntime::armarFoto: copias nuevas solo de lo sucio; se comparan por puntero.
+        const auto publicar = [&]() {
+            if (!turno.loTengo()) ++fotosSinTurno;
+            auto f = std::make_shared<FotoMotor>(ultima ? *ultima : FotoMotor{});
+            if ((d.sucia & FotoMotor::Configuracion) != 0) {
+                f->configuracion.app = std::make_shared<const AppConfig>(d.cfg);
+                f->configuracion.gateway = std::make_shared<const GatewaySettings>(d.gw);
+                f->configuracion.launcher = std::make_shared<const LauncherSettings>(d.la);
+            }
+            if ((d.sucia & FotoMotor::Equipo) != 0) f->equipo.relojTipo = d.reloj;
+            d.sucia = 0;
+            unsigned partes = FotoMotor::Todas;
+            if (ultima) {
+                partes = 0;
+                if (f->configuracion != ultima->configuracion) partes |= FotoMotor::Configuracion;
+                if (f->equipo != ultima->equipo) partes |= FotoMotor::Equipo;
+            }
+            if (partes == 0) return;
+            ultima = f;
+            ventanilla->publicar(f, partes);
+        };
+        VentanillaMotor v({.encolar = [&plano](std::function<void()> fn) { plano.encolarConTurno(std::move(fn)); },
+                           .alTerminarOrden = publicar,
+                           .adoptar = [&plano](QObject* o) { plano.adoptar(o); }});
+        ventanilla = &v;
+        turno.tomar();
+        publicar();
+        turno.soltar();
+        v.recibirAhora();
+        CHECK(v.foto().configuracion.app != nullptr && v.foto().configuracion.app->operatorAudio == "Mic 1" &&
+                  v.foto().configuracion.gateway->room == "Sala" && v.foto().configuracion.launcher->idioma == "es",
+              "R: la configuración está en la primera foto");
+        std::vector<std::string> llegadas;
+        unsigned partesRecibidas = 0;
+        QObject::connect(&v, &VentanillaMotor::cambio, &v, [&](unsigned p) {
+            llegadas.push_back("foto");
+            partesRecibidas |= p;
+        });
+        QObject formulario;
+        // Lo que tenía la interfaz antes de pedir (un formulario que lo guardó, la voz).
+        const auto antes = v.fotoCompartida();
+        // Aplicar (SettingsModel::aplicarEn), el micrófono (Voz::setMicrofono) y el reloj.
+        const auto desde = std::chrono::steady_clock::now();
+        std::atomic<double> aplicadaMs{-1};
+        v.pedir(
+            &formulario, "ajustes_aplicar",
+            [&]() {
+                if (QThread::currentThread() == interfaz) ++ordenesEnLaInterfaz;
+                d.cfg.mcpAprobacionMin = 7;
+                d.gw.room = "Sala R";
+                d.la.idioma = "pt";
+                d.sucia |= FotoMotor::Configuracion;
+                aplicadaMs = msDesde(desde);
+                return std::string("Configuracion guardada.");
+            },
+            [&](const std::string& r) { llegadas.push_back("respuesta " + r); });
+        v.pedir(
+            &formulario, "voz_microfono",
+            [&]() {
+                if (QThread::currentThread() == interfaz) ++ordenesEnLaInterfaz;
+                d.cfg.operatorAudio = "Mic 2";
+                d.sucia |= FotoMotor::Configuracion;
+                return true;
+            },
+            [&](bool) { llegadas.push_back("respuesta microfono"); });
+        v.pedir("reloj", [&]() {
+            d.reloj = "ptp";
+            d.sucia |= FotoMotor::Equipo;
+        });
+        trabarInterfaz(1000);
+        const bool quieta = v.foto().configuracion.app->mcpAprobacionMin == 2 && v.foto().configuracion.gateway->room == "Sala" &&
+                            v.foto().equipo.relojTipo == "sistema" && llegadas.empty();
+        std::printf("  medido: aplicar los ajustes con la interfaz trabada, hecho a los %.1f ms de pedirlo\n", aplicadaMs.load());
+        CHECK(aplicadaMs.load() >= 0 && aplicadaMs.load() < 200 && ordenesEnLaInterfaz.load() == 0 && fotosSinTurno.load() == 0,
+              "R: con la interfaz trabada, aplicar se hace en el control (con el turno)");
+        CHECK(quieta, "R: la foto de la interfaz no cambió durante la traba");
+        atender(200);
+        const FotoMotor& f = v.foto();
+        CHECK(f.configuracion.app->mcpAprobacionMin == 7 && f.configuracion.app->operatorAudio == "Mic 2" &&
+                  f.configuracion.gateway->room == "Sala R" && f.configuracion.launcher->idioma == "pt" &&
+                  f.equipo.relojTipo == "ptp",
+              "R: al volver, la foto trae la configuración aplicada y el reloj");
+        CHECK((partesRecibidas & (FotoMotor::Configuracion | FotoMotor::Equipo)) == (FotoMotor::Configuracion | FotoMotor::Equipo) &&
+                  (partesRecibidas & (FotoMotor::Escenas | FotoMotor::Salidas)) == 0,
+              "R: con sus partes (Configuracion, Equipo) y no otras");
+        CHECK(antes->configuracion.app->mcpAprobacionMin == 2 && antes->configuracion.app->operatorAudio == "Mic 1" &&
+                  antes->configuracion.gateway->room == "Sala",
+              "R: la copia que tenía la interfaz no cambió debajo de sus pies");
+        CHECK(!llegadas.empty() && llegadas.front() == "foto" &&
+                  std::count(llegadas.begin(), llegadas.end(), std::string("respuesta Configuracion guardada.")) == 1 &&
+                  std::count(llegadas.begin(), llegadas.end(), std::string("respuesta microfono")) == 1,
+              "R: el resumen vuelve después de la foto (el formulario recarga con lo nuevo)");
     }
 
     plano.detener();

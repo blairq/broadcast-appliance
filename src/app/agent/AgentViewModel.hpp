@@ -56,6 +56,7 @@ class QProcess;
 
 namespace ba::app {
 class AppRuntime;
+class VentanillaMotor;
 }
 
 namespace ba::app::agent {
@@ -110,7 +111,10 @@ class AgentViewModel : public QObject {
     /// su conversación y su configuración.
     Q_PROPERTY(QString instancia READ instancia CONSTANT)
    public:
-    AgentViewModel(AppRuntime& rt, AlertEngine& alerts, const QString& instancia = "evento", QObject* parent = nullptr);
+    /// `ventanilla`: lo de la configuración (el modelo local: contexto, capas en la GPU) se
+    /// lee de la foto del motor (F3-03).
+    AgentViewModel(AppRuntime& rt, VentanillaMotor& ventanilla, AlertEngine& alerts, const QString& instancia = "evento",
+                   QObject* parent = nullptr);
     QString instancia() const { return instancia_; }
     ~AgentViewModel() override;
 
@@ -363,6 +367,7 @@ class AgentViewModel : public QObject {
     static nlohmann::json fetchLatest(const QString& runtime, const nlohmann::json& base, QString* err);
 
     AppRuntime& rt_;
+    VentanillaMotor& ventanilla_;
     AlertEngine& alerts_;
     std::unique_ptr<term::TerminalSession> session_;
     Local local_;

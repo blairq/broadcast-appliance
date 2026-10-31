@@ -13,6 +13,7 @@
 #include "net/AccountGuides.hpp"
 #include "arranque/AppRuntime.hpp"
 #include "emision/ChatOverlaySource.hpp"
+#include "emision/VentanillaMotor.hpp"
 #include "mcp/McpService.hpp"
 #include "mcp/McpToolsCommon.hpp"
 #include "ui/StudioViewModel.hpp"
@@ -68,14 +69,15 @@ void McpService::registerYouTubeTools() {
         t.description =
             QT_TRANSLATE_NOOP("mcp", "Si la API esta configurada, que canal esta conectado, si hay un login en curso, a que evento "
             "se esta transmitiendo desde la app y de cual se lee el chat.");
-        t.run = [yt, &rt](const json&, Done done) {
+        // Si la app transmite, de la foto del motor (la interfaz no entra al motor).
+        t.run = [yt, &vm = vm_](const json&, Done done) {
             done(ToolResult().data(json{{"configured", yt->configured()},
                                         {"loggedIn", yt->loggedIn()},
                                         {"loginPending", yt->loginPending()},
                                         {"clientId", yt->clientId().toStdString()},
                                         {"channel", toJson(yt->client().account())},
                                         {"liveBroadcastId", yt->liveBroadcastId().toStdString()},
-                                        {"appStreaming", rt.engine().status().streaming},
+                                        {"appStreaming", vm.ventanilla().foto().estado.transmite},
                                         {"chatBroadcastId", yt->chatBroadcastId().toStdString()},
                                         {"upload", qvToJson(yt->upload())}}));
         };
@@ -561,9 +563,11 @@ void McpService::registerYouTubeTools() {
                 {"enum", {"destacado", "flujo"}},
                 {"description", QT_TRANSLATE_NOOP("mcp", "destacado (de fabrica): solo salen los mensajes que el operador destaca "
                                 "(chat_destacar); flujo: todos, en automatico (al aire pide confirmacion)")}}}}}};
-        t.run = [yt, &rt](const json& a, Done done) {
+        t.run = [yt, &rt, &vm = vm_](const json& a, Done done) {
             if (a.contains("broadcast")) yt->setChatBroadcast(QString::fromStdString(a["broadcast"]));
-            const std::string scene = a.value("scene", rt.engine().currentScene());
+            // La escena al aire, de la foto; la fuente se le pide al dueño del motor (F3-03).
+            const FotoMotor::Salida* po = vm.ventanilla().foto().salida(std::string());
+            const std::string scene = a.value("scene", po != nullptr ? po->alAire : std::string());
             SourceSpec spec;
             spec.id = chatoverlay::kSourceId;
             spec.name = a.value("name", std::string("Chat en vivo"));
@@ -577,14 +581,22 @@ void McpService::registerYouTubeTools() {
             if (a.contains("layout") &&
                 !parseLayout(a["layout"], spec.rect.x, spec.rect.y, spec.rect.w, spec.rect.h, err))
                 return done(ToolResult::error(err));
-            if (!rt.addSource(scene, spec)) return done(ToolResult::error(rt.lastError()));
-            rt.save();
-            done(ToolResult::ok(ba::i18n::llenar(
-                yt->chatBroadcastId().isEmpty()
-                    ? ba::i18n::traducir("mcp", "Chat en pantalla en '%1' (sin evento de YouTube elegido: por ahora solo la "
-                                                "conferencia; youtube_chat {\"broadcast\"}). Verifica con foto_fuente.")
-                    : ba::i18n::traducir("mcp", "Chat en pantalla en '%1'. Verifica con foto_fuente."),
-                {scene})));
+            vm.ventanilla().pedir(
+                &vm, "chat_overlay_add",
+                [&rt, scene, spec]() {
+                    if (!rt.addSource(scene, spec)) return rt.lastError().empty() ? std::string("?") : rt.lastError();
+                    rt.save();
+                    return std::string();
+                },
+                [yt, scene, done](const std::string& e) {
+                    if (!e.empty()) return done(ToolResult::error(e));
+                    done(ToolResult::ok(ba::i18n::llenar(
+                        yt->chatBroadcastId().isEmpty()
+                            ? ba::i18n::traducir("mcp", "Chat en pantalla en '%1' (sin evento de YouTube elegido: por ahora solo la "
+                                                        "conferencia; youtube_chat {\"broadcast\"}). Verifica con foto_fuente.")
+                            : ba::i18n::traducir("mcp", "Chat en pantalla en '%1'. Verifica con foto_fuente."),
+                        {scene})));
+                });
         };
         core_.addTool(std::move(t));
     }

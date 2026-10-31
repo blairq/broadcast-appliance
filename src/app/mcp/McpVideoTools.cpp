@@ -1519,10 +1519,9 @@ void McpService::registerVideoTools() {
                 "`aca` (si corre en esta máquina) y `ms_coreml` (lo que tarda medido). Se instalan con "
                 "superres_instalar y se ponen con superres_tarjeta {plugin}.");
             t.inputSchema = {{"type", "object"}, {"properties", json::object()}};
-            t.run = [srp](const json&, Done done) {
-                if (!srp) return done(ToolResult::error(ba::i18n::traducir("mcp", "no disponible")));
-                done(ToolResult().data({{"plugins", srp->plugins()}}));
-            };
+            // El catálogo y la carpeta de modelos (SuperRes::plugins, estática): en el pool.
+            t.hilo = Hilo::Foto;
+            t.run = [](const json&, Done done) { done(ToolResult().data({{"plugins", video::SuperRes::plugins()}})); };
             core_.addTool(std::move(t));
         }
         {

@@ -292,6 +292,8 @@ void McpService::registerMediaTools() {
              {{"path", {{"type", "string"}}},
               {"maxWidth", {{"type", "integer"}, {"minimum", 64}, {"maximum", 1920}, {"default", 640}}}}},
             {"required", {"path"}}};
+        // Solo lee el archivo de la carpeta de datos: en el pool.
+        t.hilo = Hilo::Foto;
         t.run = [root](const json& a, Done done) {
             const QString abs = resolveInside(root, QString::fromStdString(a["path"]));
             if (abs.isEmpty() || !QFileInfo::exists(abs))
@@ -342,6 +344,8 @@ void McpService::registerMediaTools() {
             {"required", {"path"}}};
         t.examples = {
             R"({"path": "Media/logos/sponsor.png", "scene": "Escena 4", "name": "Logo sponsor", "layout": "pip-tr"})"};
+        // El archivo y el motor (la escena, la fuente): en el dueño (F3-03).
+        t.hilo = Hilo::Control;
         t.run = [&rt, root](const json& a, Done done) {
             const QString abs = resolveInside(root, QString::fromStdString(a["path"]));
             if (abs.isEmpty() || !QFileInfo::exists(abs))

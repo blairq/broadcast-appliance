@@ -38,6 +38,7 @@ class MonitoresModel;
 class MultiviewViewModel;
 class PantallasViewModel;
 class VentanasModel;
+class VentanillaMotor;
 } // namespace ba::app
 
 namespace ba::app {
@@ -57,6 +58,7 @@ class EscritorioViewModel : public QObject {
    public:
     struct Partes {
         AppRuntime& rt;
+        VentanillaMotor& ventanilla;      ///< las escenas, de la foto del motor (F3-03)
         FrameService& cuadros;            ///< los videos sueltos (invitados, sus pantallas, los tótems)
         ImagenViewModel& imagen;          ///< las cámaras con PTZ y las entradas de video
         DashboardModel* tablero = nullptr; ///< el fondo del tablero (puede no haber)

@@ -12,6 +12,7 @@
 #include "control/BusEventos.hpp"
 #include "diag/ChequeosEquipo.hpp"
 #include "diag/Registro.hpp"
+#include "emision/VentanillaMotor.hpp"
 #include "i18n/I18n.hpp"
 #include "persist/ColaEscritura.hpp"
 #include "platform/GstEntorno.hpp"
@@ -54,12 +55,15 @@ AppViewModel::AppViewModel(Partes p, QObject* parent) : QObject(parent), p_(std:
     system_ = std::make_unique<SystemViewModel>();
     // Los chequeos del equipo en la tarjeta de preparación (F4-07): con lo que ya miden
     // las salidas (las sesiones de codificador), el motor (las placas) y el reloj.
-    system_->alEquipo([&rt]() {
+    // Lo del motor (las sesiones, el reloj), de su foto (parte Equipo).
+    system_->alEquipo([&v = p_.ventanilla]() {
+        const FotoMotor::DelEquipo& eq = v.foto().equipo;
         diag::DatosEquipo d;
-        d.codificaciones = rt.engine().salidasAhora().value("codificaciones", nlohmann::json::array());
+        d.codificaciones = eq.salidas.value("codificaciones", nlohmann::json::array());
         d.limiteSesiones = ba::ajustes::entero("equipo.limiteSesiones", 0);
         d.placas = ba::motor::derivaDePlacas();
-        std::tie(d.relojTipo, d.relojError) = rt.engine().relojEstado();
+        d.relojTipo = eq.relojTipo;
+        d.relojError = eq.relojError;
         const std::filesystem::path ayudante = ba::platform::gstRaiz() / "libexec" / "gstreamer-1.0" /
 #if defined(_WIN32)
                                                "gst-ptp-helper.exe";
@@ -202,8 +206,10 @@ void AppViewModel::vigilar(control::BusEventos& bus) {
 bool AppViewModel::modoVivo() const {
     // En vivo = sale algo de verdad (una transmisión; la grabación, si el ajuste
     // la cuenta). Correr el guion del evento sin transmitir no es estar al aire.
+    // De la foto del motor: haySalida cuenta la grabación, hayTransmision no.
     if (!modoVivoCfg_->activo()) return false;
-    return p_.rt.engine().haySalida(modoVivoCfg_->incluirGrabando());
+    const FotoMotor::EstadoAire& e = p_.ventanilla.foto().estado;
+    return modoVivoCfg_->incluirGrabando() ? e.haySalida : e.hayTransmision;
 }
 
 bool AppViewModel::paginaBloqueada(const QString& id) const {
@@ -237,7 +243,7 @@ nlohmann::json AppViewModel::modoVivoEstado() const {
     const nlohmann::json f = foto_.leer();
     const bool activo = f.value("activo", false);
     // Como modoVivo(), con lo de la foto: si sale algo lo dice el motor desde cualquier hilo.
-    const bool enVivo = activo && p_.rt.engine().haySalida(f.value("incluir_grabando", false));
+    const bool enVivo = activo && p_.rt.haySalida(f.value("incluir_grabando", false));
     return {{"en_vivo", enVivo}, {"activo", activo}, {"incluir_grabando", f.value("incluir_grabando", false)},
             {"paginas_protegidas", f.value("paginas_protegidas", nlohmann::json::array())},
             {"desbloqueadas", f.value("desbloqueadas", nlohmann::json::array())},

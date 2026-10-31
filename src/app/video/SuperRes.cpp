@@ -117,12 +117,6 @@ SuperRes::SuperRes(fs::path dataRoot, VideoViewModel* video, QObject* parent)
     std::error_code ec;
     fs::create_directories(carpetaModelos(), ec);
     trabajo_ = {{"corriendo", false}};
-    // El catálogo de recetas (datos/superres-catalogo.json, recurso de Qt).
-    QFile cat(QStringLiteral(":/video/superres-catalogo.json"));
-    if (cat.open(QIODevice::ReadOnly)) {
-        const json c = json::parse(cat.readAll().toStdString(), nullptr, false);
-        if (c.is_object() && c.contains("plugins") && c["plugins"].is_array()) catalogo_ = c["plugins"];
-    }
     // Un ONNX Runtime con GPU (NVIDIA: CUDA/TensorRT; AMD en Linux:
     // ROCm/MIGraphX) bajado a Datos/Herramientas/onnxruntime-gpu: baonnxsr lo
     // carga en vez del del programa (variable BA_ORT_GPU, antes de que
@@ -164,7 +158,18 @@ SuperRes::~SuperRes() {
     }
 }
 
-fs::path SuperRes::carpetaModelos() const { return ba::platform::dataRoot() / "Modelos" / "superres"; }
+const json& SuperRes::catalogo() {
+    // El catálogo de recetas (datos/superres-catalogo.json, recurso de Qt): no cambia.
+    static const json cat = []() {
+        QFile f(QStringLiteral(":/video/superres-catalogo.json"));
+        if (!f.open(QIODevice::ReadOnly)) return json::array();
+        const json c = json::parse(f.readAll().toStdString(), nullptr, false);
+        return c.is_object() && c.contains("plugins") && c["plugins"].is_array() ? c["plugins"] : json::array();
+    }();
+    return cat;
+}
+
+fs::path SuperRes::carpetaModelos() { return ba::platform::dataRoot() / "Modelos" / "superres"; }
 fs::path SuperRes::libs() const { return ba::platform::dataRoot() / "Herramientas" / "superres-libs"; }
 
 fs::path SuperRes::python() const {
@@ -571,7 +576,7 @@ std::string SuperRes::destilar(const std::string& entrada, const std::string& ma
                                bool aplicarAlFin, bool cpu) {
     if (video_ == nullptr) return tr("no hay video").toStdString();
     json receta;
-    for (const auto& r : catalogo_)
+    for (const auto& r : catalogo())
         if (r.value("id", "") == (maestro.empty() ? std::string("realesr-general-x4v3") : maestro)) receta = r;
     if (!receta.is_object() || receta.value("tipo", "") != "red")
         return tr("el maestro tiene que ser una red del catálogo (superres_plugins: realesr-general-x4v3, "
@@ -673,17 +678,17 @@ const char* kPlataforma =
 #endif
 } // namespace
 
-json SuperRes::plugins() const {
+json SuperRes::plugins() {
     json out = json::array();
     std::set<std::string> vistos;
-    const QStringList motores = this->motores();
-    auto leerPlugin = [this](const std::string& id) -> json {
+    const QStringList motores = VideoGrafos::motoresSuperres();
+    auto leerPlugin = [](const std::string& id) -> json {
         std::ifstream f(carpetaModelos() / id / "plugin.json");
         if (!f) return nullptr;
         const json j = json::parse(f, nullptr, false);
         return j.is_object() ? j : json(nullptr);
     };
-    for (json r : catalogo_) {
+    for (json r : catalogo()) {
         const std::string id = r.value("id", std::string());
         vistos.insert(id);
         const json inst = leerPlugin(id);
@@ -742,7 +747,7 @@ QVariantList SuperRes::pluginsUi() const { return qv(plugins()).toList(); }
 
 std::string SuperRes::instalarPlugin(const std::string& id) {
     json receta;
-    for (const auto& r : catalogo_)
+    for (const auto& r : catalogo())
         if (r.value("id", "") == id) receta = r;
     if (!receta.is_object())
         return tr("no hay un plugin «%1» en el catálogo (superres_plugins los lista)").arg(q(id)).toStdString();
@@ -1038,7 +1043,7 @@ std::string SuperRes::guardarPluginElemento(const json& p) {
     if (id.empty()) return tr("falta el id (letras, números y guiones)").toStdString();
     const std::string el = p.value("elemento", std::string());
     if (el.empty()) return tr("falta el elemento de GStreamer").toStdString();
-    for (const auto& r : catalogo_)
+    for (const auto& r : catalogo())
         if (r.value("id", "") == id) return tr("«%1» es un plugin del catálogo: elegí otro id").arg(q(id)).toStdString();
     const std::string mem = p.value("memoria", std::string());
     if (!mem.empty() && mem != "CUDAMemory" && mem != "GLMemory" && mem != "D3D11Memory" && mem != "D3D12Memory")
