@@ -5,7 +5,8 @@
 // compartida; Spout en Windows el día que se use) que escribe el gateway por
 // cada invitado (`BA.Guest.<n>`), su pantalla compartida (`BA.GuestShare.<n>`)
 // o el remoto con la palabra (`BA.Remoto.1`), y lo entrega como una fuente EN
-// VIVO de GStreamer en BGRA.
+// VIVO de GStreamer en el formato que declara el canal: BGRA, o NV12 el del emisor
+// aparte (BA.Emisor.<id>, F3-01: lo que toma el codificador, sin convertir).
 //
 //   - El tamaño: el real de cada cuadro si lo trae (el gateway ya no agranda al
 //     del canal a un invitado chico: F2-13, V3; lo escala la composición, en la
@@ -53,6 +54,7 @@ struct _BaVideoAnillo {
     bool suscripto;
     std::string* suscriptoCanal;
     int ancho, alto; ///< el de las caps negociadas (0 = sin negociar)
+    ba::ipc::FormatoCanal formato; ///< el de las caps negociadas
 };
 
 G_DEFINE_TYPE(BaVideoAnillo, ba_video_anillo, GST_TYPE_PUSH_SRC)
@@ -61,10 +63,11 @@ enum { PROP_0, PROP_CANAL };
 
 static GstStaticPadTemplate srcTpl = GST_STATIC_PAD_TEMPLATE(
     "src", GST_PAD_SRC, GST_PAD_ALWAYS,
-    GST_STATIC_CAPS("video/x-raw, format=(string)BGRA, width=(int)[1, MAX], height=(int)[1, MAX], framerate=(fraction)0/1"));
+    GST_STATIC_CAPS("video/x-raw, format=(string){ BGRA, NV12 }, width=(int)[1, MAX], height=(int)[1, MAX], framerate=(fraction)0/1"));
 
-static GstCaps* capsDe(int w, int h) {
-    return gst_caps_new_simple("video/x-raw", "format", G_TYPE_STRING, "BGRA", "width", G_TYPE_INT, w, "height",
+static GstCaps* capsDe(int w, int h, ba::ipc::FormatoCanal f) {
+    return gst_caps_new_simple("video/x-raw", "format", G_TYPE_STRING, f == ba::ipc::FormatoCanal::NV12 ? "NV12" : "BGRA", "width",
+                               G_TYPE_INT, w, "height",
                                G_TYPE_INT, h, "framerate", GST_TYPE_FRACTION, 0, 1,
                                // sin el píxel cuadrado, d3d12upload fija 1/2147483647 y no negocia
                                "pixel-aspect-ratio", GST_TYPE_FRACTION, 1, 1, nullptr);
@@ -78,7 +81,7 @@ static GstCaps* capsDe(int w, int h) {
 static gboolean negociar(GstBaseSrc* bs) {
     auto* v = BA_VIDEO_ANILLO(bs);
     if (v->ancho <= 0 || v->alto <= 0) return TRUE;
-    GstCaps* caps = capsDe(v->ancho, v->alto);
+    GstCaps* caps = capsDe(v->ancho, v->alto, v->formato);
     const gboolean ok = gst_base_src_set_caps(bs, caps);
     gst_caps_unref(caps);
     return ok;
@@ -129,7 +132,8 @@ static GstFlowReturn crear(GstPushSrc* ps, GstBuffer** out) {
             if (!ba::ipc_gst::esperar(v->parar, 4)) return GST_FLOW_FLUSHING;
             continue;
         }
-        const gsize bytes = static_cast<gsize>(w) * static_cast<gsize>(h) * 4;
+        const ba::ipc::FormatoCanal fmt = v->rx->formato();
+        const gsize bytes = ba::ipc::bytesDeCuadro(w, h, fmt);
         GstBuffer* b = gst_buffer_new_allocate(nullptr, bytes, nullptr);
         GstMapInfo map;
         gst_buffer_map(b, &map, GST_MAP_WRITE);
@@ -143,12 +147,12 @@ static GstFlowReturn crear(GstPushSrc* ps, GstBuffer** out) {
             if (!ba::ipc_gst::esperar(v->parar, 4)) return GST_FLOW_FLUSHING;
             continue;
         }
-        // Su tamaño real (más chico que el canal): solo esos bytes, con las filas juntas.
+        // Su tamaño real (más chico que el canal; solo en BGRA): solo esos bytes, con las filas juntas.
         const int cw = meta.ancho != 0 ? static_cast<int>(meta.ancho) : w;
         const int ch = meta.alto != 0 ? static_cast<int>(meta.alto) : h;
         if (cw != w || ch != h) gst_buffer_resize(b, 0, static_cast<gssize>(cw) * ch * 4);
-        if (cw != v->ancho || ch != v->alto) {
-            GstCaps* caps = capsDe(cw, ch);
+        if (cw != v->ancho || ch != v->alto || fmt != v->formato) {
+            GstCaps* caps = capsDe(cw, ch, fmt);
             const bool ok = gst_base_src_set_caps(GST_BASE_SRC(v), caps);
             gst_caps_unref(caps);
             if (!ok) {
@@ -157,6 +161,7 @@ static GstFlowReturn crear(GstPushSrc* ps, GstBuffer** out) {
             }
             v->ancho = cw;
             v->alto = ch;
+            v->formato = fmt;
         }
         // La hora: la que le puso el gateway, en el reloj del pipeline.
         GST_BUFFER_PTS(b) = ba::ipc_gst::horaDeQpc(GST_ELEMENT(v), meta.qpc);
@@ -185,6 +190,7 @@ static gboolean alParar(GstBaseSrc* bs) {
     *v->rx = ba::ipc::SpoutReceiver{};
     v->suscripto = false;
     v->ancho = v->alto = 0;
+    v->formato = ba::ipc::FormatoCanal::BGRA;
     return TRUE;
 }
 
@@ -258,6 +264,7 @@ static void ba_video_anillo_init(BaVideoAnillo* v) {
     v->suscripto = false;
     v->suscriptoCanal = new std::string();
     v->ancho = v->alto = 0;
+    v->formato = ba::ipc::FormatoCanal::BGRA;
     gst_base_src_set_live(GST_BASE_SRC(v), TRUE);
     gst_base_src_set_format(GST_BASE_SRC(v), GST_FORMAT_TIME);
 }

@@ -4,6 +4,7 @@
 #include "ui/TemaEventoViewModel.hpp"
 
 #include <QJsonDocument>
+#include <QJsonObject>
 #include <QPointer>
 #include <QUrl>
 
@@ -13,6 +14,8 @@
 #include "tema/TemaWeb.hpp"
 #include "ui/ConferenceViewModel.hpp"
 #include "ui/EventoViewModel.hpp"
+#include "ui/QrViewModel.hpp"
+#include "graficos/Catalogo.hpp"
 
 namespace ba::app {
 
@@ -66,8 +69,31 @@ void TemaEventoViewModel::seguirEvento() {
 void TemaEventoViewModel::recargar() {
     tema_ = hayEvento() ? evento::TemaEvento::leer(carpetaEvento_) : evento::TemaEvento{};
     resuelto_ = tema_.existe ? ba::tema::resolver(tema_.paraPublicar(carpetaEvento_)) : json::object();
+    ponerPorOmision();
     emit cambio();
     publicar();
+}
+
+void TemaEventoViewModel::ponerPorOmision() {
+    // Los gráficos: el acento del evento en vez del de fábrica de cada uno.
+    QJsonObject deGraficos;
+    QVariantMap qr;
+    if (tema_.existe) {
+        deGraficos["acento"] = QString::fromStdString(resuelto_["colores"].value("acento", std::string()));
+        // Los QR: oscuro sobre claro siempre (coloresQr), y el logo del evento al centro.
+        const json c = ba::tema::coloresQr(resuelto_);
+        qr["primario"] = QString::fromStdString(c.value("primario", std::string("#000000")));
+        qr["fondo"] = QString::fromStdString(c.value("fondo", std::string("#ffffff")));
+        const std::string logo = resuelto_["marca"].value("logo", std::string());
+        const std::string src = logo.empty() ? std::string() : ba::tema::imagenComoDataUrl(evento::carpetaTema(carpetaEvento_) / logo);
+        if (!src.empty()) {
+            qr["logoEvento"] = true;
+            qr["logoSrc"] = QString::fromStdString(src);
+            qr["logo"] = 0.22;
+        }
+    }
+    graficos::Catalogo::ponerValoresDelEvento(deGraficos);
+    QrViewModel::ponerEstiloDelEvento(qr);
 }
 
 void TemaEventoViewModel::publicar() {

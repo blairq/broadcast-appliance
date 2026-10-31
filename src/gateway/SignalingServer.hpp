@@ -574,6 +574,7 @@ class SignalingServer {
     /// la hoja, su versión y de dónde salen el logo y las fuentes.
     nlohmann::json temaEventoPublico_; // null = sin tema
     std::string temaEventoCss_, temaEventoVersion_, temaEventoCarpeta_;
+    std::string temaEventoLogo_; ///< el archivo del logo en Tema/ (el centro de un QR con logoEvento)
     /// GET /comun/tema.json, /comun/tema.css y /comun/tema/<archivo> (todas las superficies,
     /// por todas las puertas). true si lo atendió.
     bool servirTema(long long fd, const std::string& method, const std::string& path, const std::string& query);

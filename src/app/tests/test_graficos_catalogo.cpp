@@ -78,6 +78,23 @@ int main(int argc, char** argv) {
     CHECK(!vd.contains("x"), "valoresPorDefecto: sin porDefecto no va (ni null)");
     CHECK(Catalogo::valoresPorDefecto(cat.ficha("placa")).value("texto").toString() == "Hola",
           "valoresPorDefecto: el de la ficha");
+    // El acento del tema del evento abierto le gana al porDefecto de un parámetro de color
+    // que se llama así (o que lo nombra con «tema»); a uno de texto con el mismo nombre, no.
+    {
+        const QJsonObject ficha{{"parametros", QJsonArray{QJsonObject{{"clave", "acento"}, {"tipo", "color"}, {"porDefecto", "#ff6a2b"}},
+                                                         QJsonObject{{"clave", "barra"}, {"tipo", "color"}, {"tema", "acento"}, {"porDefecto", "#111111"}},
+                                                         QJsonObject{{"clave", "otro"}, {"tipo", "color"}, {"porDefecto", "#222222"}},
+                                                         QJsonObject{{"clave", "acento2"}, {"tipo", "texto"}, {"tema", "acento"}, {"porDefecto", "hola"}}}}};
+        CHECK(Catalogo::valoresPorDefecto(ficha).value("acento").toString() == "#ff6a2b", "sin evento: el de fábrica");
+        Catalogo::ponerValoresDelEvento(QJsonObject{{"acento", "#00a86b"}});
+        const QJsonObject v = Catalogo::valoresPorDefecto(ficha);
+        CHECK(v.value("acento").toString() == "#00a86b", "con evento: el acento del tema");
+        CHECK(v.value("barra").toString() == "#00a86b", "el que lo nombra con «tema» también");
+        CHECK(v.value("otro").toString() == "#222222", "otro color queda");
+        CHECK(v.value("acento2").toString() == "hola", "un texto no toma un color");
+        Catalogo::ponerValoresDelEvento({});
+        CHECK(Catalogo::valoresPorDefecto(ficha).value("acento").toString() == "#ff6a2b", "sin evento otra vez: el de fábrica");
+    }
 
     // Pedido de un QML: como texto, con el tamaño de la ficha y los valores encima.
     QJsonObject p = cat.pedido("placa", QJsonObject{{"otro", 1}}, &err);

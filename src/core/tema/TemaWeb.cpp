@@ -4,6 +4,8 @@
 #include "tema/TemaWeb.hpp"
 
 #include <charconv>
+#include <fstream>
+#include <iterator>
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
@@ -194,7 +196,15 @@ json resolver(const json& crudo) {
                     {"acentoMedio", rgba(acento, 0.3)},
                     {"acentoFuerte", rgba(acento, 0.5)},
                     {"acentoNada", rgba(acento, 0)},
-                    {"fondoVelo", rgba(fondo, 0.72)}};
+                    {"fondoVelo", rgba(fondo, 0.72)},
+                    // Lo que las páginas tenían fijo pensado para fondo oscuro (blanco con poca
+                    // opacidad para resaltar, negro para hundir y para las sombras): con un
+                    // fondo claro, el texto con poca opacidad resalta y el negro casi no se ve.
+                    {"tinte", rgba(texto_, 0.06)},
+                    {"tinteFuerte", rgba(texto_, 0.12)},
+                    {"campo", rgba(kNegro, claro ? 0.04 : 0.35)},
+                    {"velo", rgba(kNegro, claro ? 0.06 : 0.55)},
+                    {"sombra", rgba(kNegro, claro ? 0.14 : 0.45)}};
 
     // Lo que conviene avisar: con código y números, el texto lo pone quien lo muestra.
     const double cTexto = contraste(texto_, fondo), cAcento = contraste(acentoTexto, acento),
@@ -285,7 +295,11 @@ std::string puentesTodo(const json& r) {
     s += "  --texto-suave: var(--ev-texto-suave); --tenue: var(--ev-texto-suave); --muted: var(--ev-texto-suave);"
          " --text-muted: var(--ev-texto-suave); --texto-tenue: var(--ev-texto-tenue);\n";
     s += "  --borde: var(--ev-borde); --line: var(--ev-borde); --border: var(--ev-borde);"
-         " --linea: var(--ev-borde); --border-hover: var(--ev-borde-fuerte);\n";
+         " --linea: var(--ev-borde); --border-hover: var(--ev-borde-fuerte); --borde-fuerte: var(--ev-borde-fuerte);\n";
+    // Los resaltes, los campos hundidos, los velos y las sombras (con un tema claro, lo
+    // que estaba fijo para fondo oscuro no se veía o quedaba sucio).
+    s += "  --tinte: var(--ev-tinte); --tinte-fuerte: var(--ev-tinte-fuerte); --campo: var(--ev-campo);"
+         " --velo: var(--ev-velo); --sombra: var(--ev-sombra);\n";
     if (r.value("forma", json::object()).contains("radio")) s += "  --radius: var(--ev-radio); --radio: var(--ev-radio);\n";
     if (!r.value("tipografia", json::object()).value("texto", std::string()).empty())
         s += "  --sans: var(--ev-fuente); --fuente: var(--ev-fuente);\n";
@@ -340,6 +354,8 @@ std::string hojaCss(const json& r, const std::string& recursos, const std::strin
     s += "  --ev-texto: " + c("texto") + "; --ev-texto-suave: " + c("textoSuave") + "; --ev-texto-tenue: " +
          c("textoTenue") + ";\n";
     s += "  --ev-borde: " + c("borde") + "; --ev-borde-fuerte: " + c("bordeFuerte") + ";\n";
+    s += "  --ev-tinte: " + c("tinte") + "; --ev-tinte-fuerte: " + c("tinteFuerte") + "; --ev-campo: " + c("campo") +
+         "; --ev-velo: " + c("velo") + "; --ev-sombra: " + c("sombra") + ";\n";
     if (forma.contains("radio")) s += "  --ev-radio: " + std::to_string(forma.value("radio", 0)) + "px;\n";
     const std::string famT = tip.value("texto", std::string());
     const std::string famH = tip.value("titulos", std::string());
@@ -359,6 +375,49 @@ std::string hojaCss(const json& r, const std::string& recursos, const std::strin
             s += sel + " h1, " + sel + " h2, " + sel + " h3 { font-family: var(--ev-fuente-titulos); }\n";
     }
     return s;
+}
+
+json coloresQr(const json& r) {
+    const json col = r.is_object() ? r.value("colores", json::object()) : json::object();
+    const auto color = [&col](const char* k) { return leerColor(col.value(k, std::string())); };
+    const Rgb blanco{1, 1, 1}, negro{0, 0, 0};
+    // El fondo: el del evento si es claro (un QR claro sobre oscuro no lo lee cualquier teléfono).
+    Rgb fondo = blanco;
+    if (const auto f = color("fondo"); f && luminancia(*f) >= 0.6) fondo = *f;
+    // Los módulos: oscuros y con contraste de texto contra ese fondo.
+    const auto sirve = [&fondo](const std::optional<Rgb>& c) { return c && luminancia(*c) < luminancia(fondo) && contraste(*c, fondo) >= 4.5; };
+    Rgb primario = negro;
+    if (const auto a = color("acento"); sirve(a)) primario = *a;
+    else if (const auto t = color("texto"); sirve(t)) primario = *t;
+    return {{"primario", hex(primario)}, {"fondo", hex(fondo)}};
+}
+
+std::string imagenComoDataUrl(const std::filesystem::path& archivo) {
+    const std::u8string u = archivo.filename().u8string();
+    const std::string nombre(u.begin(), u.end());
+    if (!esImagenDeMarca(nombre)) return {};
+    std::error_code ec;
+    const auto peso = std::filesystem::file_size(archivo, ec);
+    if (ec || peso == 0 || peso > 2u * 1024 * 1024) return {};
+    std::ifstream f(archivo, std::ios::binary);
+    const std::string datos((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
+    if (datos.size() != peso) return {};
+    // Base64 a mano (lo usan también pruebas que no enlazan mbedTLS).
+    static const char* abc = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    std::string b64;
+    b64.reserve((datos.size() + 2) / 3 * 4);
+    for (std::size_t i = 0; i < datos.size(); i += 3) {
+        const std::uint32_t a = static_cast<unsigned char>(datos[i]);
+        const std::uint32_t b = i + 1 < datos.size() ? static_cast<unsigned char>(datos[i + 1]) : 0;
+        const std::uint32_t c = i + 2 < datos.size() ? static_cast<unsigned char>(datos[i + 2]) : 0;
+        const std::uint32_t t = (a << 16) | (b << 8) | c;
+        b64 += abc[(t >> 18) & 63];
+        b64 += abc[(t >> 12) & 63];
+        b64 += i + 1 < datos.size() ? abc[(t >> 6) & 63] : '=';
+        b64 += i + 2 < datos.size() ? abc[t & 63] : '=';
+    }
+    const char* tipo = nombre.ends_with(".svg") ? "image/svg+xml" : nombre.ends_with(".png") ? "image/png" : "image/webp";
+    return std::string("data:") + tipo + ";base64," + b64;
 }
 
 std::string huella(const std::string& t) {

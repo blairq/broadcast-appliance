@@ -5,6 +5,7 @@
 #include "i18n/I18n.hpp"
 
 #include <fstream>
+#include <mutex>
 
 #include <QCoreApplication>
 #include <QDateTime>
@@ -146,12 +147,19 @@ qr::Correccion correccionDe(const QString& s) {
     return qr::Correccion::Media;
 }
 
-/// El estilo de fábrica: negro sobre blanco, cuadrado. Aburrido y siempre se lee.
+std::mutex g_delEventoMu;
+QVariantMap g_delEvento; ///< bajo g_delEventoMu (ponerEstiloDelEvento)
+
+/// El estilo de fábrica: negro sobre blanco, cuadrado. Aburrido y siempre se lee. Con un
+/// evento abierto con tema, sus colores (siempre legibles: ba::tema::coloresQr) y su logo.
 QVariantMap estiloDeFabrica() {
-    return QVariantMap{{"primario", "#000000"}, {"secundario", ""},    {"fondo", "#FFFFFF"},
-                       {"puntos", "cuadrados"}, {"ojos", "cuadrados"}, {"marco", "ninguno"},
-                       {"correccion", "media"}, {"zona", 4},           {"logo", 0.0},
-                       {"icono", ""},           {"iconoColor", ""}};
+    QVariantMap e{{"primario", "#000000"}, {"secundario", ""},    {"fondo", "#FFFFFF"},
+                  {"puntos", "cuadrados"}, {"ojos", "cuadrados"}, {"marco", "ninguno"},
+                  {"correccion", "media"}, {"zona", 4},           {"logo", 0.0},
+                  {"icono", ""},           {"iconoColor", ""}};
+    std::lock_guard<std::mutex> l(g_delEventoMu);
+    for (auto it = g_delEvento.constBegin(); it != g_delEvento.constEnd(); ++it) e[it.key()] = it.value();
+    return e;
 }
 
 qr::Estilo aEstilo(const QVariantMap& m) {
@@ -167,6 +175,10 @@ qr::Estilo aEstilo(const QVariantMap& m) {
     e.logo = m.value("logo", 0.0).toDouble();
     e.logoIcono = m.value("icono").toString().toStdString();
     e.logoColor = m.value("iconoColor").toString().toStdString();
+    // El logo del evento (lo resuelve el tema: ponerEstiloDelEvento); en la dirección que va
+    // al gateway viaja solo el pedido, él pone el suyo.
+    e.logoDelEvento = m.value("logoEvento").toBool();
+    if (e.logoDelEvento) e.logoSrc = m.value("logoSrc").toString().toStdString();
     // Un ícono sin hueco no se vería: si eligieron uno, se abre lugar.
     if (!e.logoIcono.empty() && e.logo <= 0) e.logo = 0.22;
     return e;
@@ -522,6 +534,11 @@ void QrViewModel::setDato(const QString& clave, const QString& valor) {
     d_->datos[clave] = valor;
     d_->sucio = true;
     setTipo(d_->tipo);
+}
+
+void QrViewModel::ponerEstiloDelEvento(const QVariantMap& estilo) {
+    std::lock_guard<std::mutex> l(g_delEventoMu);
+    g_delEvento = estilo;
 }
 
 void QrViewModel::estiloSimple() {

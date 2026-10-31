@@ -73,6 +73,11 @@ class QrViewModel : public QObject {
                 QObject* parent = nullptr);
     ~QrViewModel() override;
 
+    /// Lo que el evento abierto le pone al estilo de fábrica de un código nuevo (su tema:
+    /// {primario, fondo, logoEvento, logoSrc}; vacío = negro sobre blanco). Lo pone
+    /// TemaEventoViewModel al abrir o cambiar el tema. Cualquier hilo.
+    static void ponerEstiloDelEvento(const QVariantMap& estilo);
+
     QVariantList codigos() const;
     QString ambito() const;
     void setAmbito(const QString& a);

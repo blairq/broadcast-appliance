@@ -155,6 +155,10 @@ class Motor {
     std::string borrarSalida(const std::string& id);
     /// {id: {nombre, por_omision, al_aire, armada, tbar_hacia, …}} de la foto (no espera).
     nlohmann::json salidas() const;
+    /// Las pistas 2-6 que graba el emisor aparte de `salida` (F3-01): cada una a su anillo
+    /// (BA.Audio.Emisor.<id>.pista<n>) mientras esté pedida; las que no, se sueltan. Solo
+    /// para una salida con emisor (Config::emisores). "" o el error.
+    std::string pistasAlEmisor(const std::string& salida, const std::set<int>& pistas);
     const std::string& salidaPorOmision() const { return porOmision_; }
 
     // --- Entradas ---
@@ -280,8 +284,9 @@ class Motor {
     std::string multiview(bool activo, int ancho = 1280, int alto = 720);
 
     // --- Imágenes para la interfaz ---
-    /// "programa", "preview" o "entrada:<id>" al tamaño pedido (cuenta pedidos).
-    std::string verPedir(const std::string& clave, int ancho, int alto);
+    /// "programa", "preview" o "entrada:<id>" al tamaño pedido (cuenta pedidos), en BGRA
+    /// o en NV12 (el canal del emisor aparte).
+    std::string verPedir(const std::string& clave, int ancho, int alto, const std::string& formato = "BGRA");
     void verSoltar(const std::string& clave);
     bool verUltimo(const std::string& clave, Cuadro& out, std::uint64_t& serie) const;
     /// Cada cuadro de una vista ya pedida (en el hilo de datos). fn vacía = sacar.
@@ -369,6 +374,9 @@ class Motor {
         GstElement* puente = nullptr; ///< bus → BA.Audio.ContentForReturn (la por omisión) o BA.Audio.Salida.<id>
         GstElement* puenteEmisor = nullptr; ///< bus → BA.Audio.Emisor.<id> (con emisor aparte, F3-01)
         std::int64_t puenteLatNs = -1;      ///< la de los dos puentes
+        /// pista<n> → BA.Audio.Emisor.<id>.pista<n>: las que graba su emisor (pistasAlEmisor),
+        /// con la latencia con que se armó cada una.
+        std::map<int, std::pair<GstElement*, std::int64_t>> puentesPistas;
         /// El mix-minus de cada invitado en esta salida (buses de oído): retorno<n>[:<id>]
         /// → BA.Audio.Return[.<id>].<n>. Uno por cada retorno de `retornos_` que no está apagado.
         std::map<int, std::unique_ptr<Mezcla>> retornos;
@@ -410,6 +418,9 @@ class Motor {
     std::shared_future<void> desarmarSalida(Salida& s, bool aparte);
     /// El programa de la salida al anillo BA.Audio.<canal> (con la latencia de los puentes). nullptr si no.
     GstElement* armarPuente(Salida& s, const std::string& canal);
+    /// Lo que sale de `m` al anillo BA.Audio.<canal>, con esa latencia. nullptr si no.
+    GstElement* puenteDe(Mezcla& m, const std::string& canal, std::int64_t latNs);
+    std::string pistasAlEmisorYa(const std::string& salida, const std::set<int>& pistas);
     // LOS «...Ya»: corren con el candado tomado (las órdenes de la cola, el bucle); no lo
     // piden, lo exigen (BA_CON_CANDADO, Candado.hpp). Las públicas los encolan.
     std::string crearSalidaYa(const std::string& id, const std::string& nombre);
@@ -561,7 +572,7 @@ class Motor {
     bool ponerLimitadorYa(bool activo, double techoDb, const std::string& salida);
     std::string ponerLoudnessYa(bool agc, double objetivoLufs, double techoDb, const std::string& salida);
     std::string multiviewYa(bool activo, int ancho, int alto);
-    std::string verPedirYa(const std::string& clave, int ancho, int alto);
+    std::string verPedirYa(const std::string& clave, int ancho, int alto, const std::string& formato);
     void verSoltarYa(const std::string& clave);
     struct TomaEntrada {
         GstElement* pipeline = nullptr;

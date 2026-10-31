@@ -7,6 +7,8 @@
 //   intersrc <productor> ! queue (tira lo viejo) ! videoconvert ! videoscale
 //                        ! BGRA del tamaño pedido ! appsink (el último cuadro)
 //
+// (o NV12, si se pide: el canal del emisor aparte, F3-01)
+//
 // con el reloj del estudio y la latencia de lo que mira (así se ve junto con
 // lo que suena). Se arma cuando alguien la pide (`pedir`) y se desarma cuando
 // la sueltan todos (`soltar`). `ultimo` da el último cuadro si es más nuevo
@@ -68,8 +70,13 @@ class Pixeles {
 };
 
 struct Cuadro {
-    Pixeles bgra; ///< BGRA, filas de `stride` bytes
+    Pixeles bgra; ///< BGRA, filas de `stride` bytes (en NV12: desde el plano Y hasta el final del UV)
     int ancho = 0, alto = 0, stride = 0;
+    /// Una vista pedida en NV12: el plano UV empieza `desdeUv` bytes después del Y, con
+    /// filas de `strideUv` bytes (alto/2 filas).
+    bool nv12 = false;
+    std::size_t desdeUv = 0;
+    int strideUv = 0;
     std::uint64_t serie = 0;
     /// La hora de lo que muestra, en el reloj de los sellos (HealthBlock::nowQpc); 0 = no se sabe.
     std::uint64_t contenidoQpc = 0;
@@ -88,8 +95,9 @@ class Vistas {
     Vistas(const Vistas&) = delete;
     Vistas& operator=(const Vistas&) = delete;
 
-    /// Alguien quiere ver `clave` a ese tamaño (cuenta pedidos). "" o el error.
-    std::string pedir(const std::string& clave, int ancho, int alto);
+    /// Alguien quiere ver `clave` a ese tamaño (cuenta pedidos) en `formato` («BGRA» o
+    /// «NV12»). "" o el error.
+    std::string pedir(const std::string& clave, int ancho, int alto, const std::string& formato = "BGRA");
     void soltar(const std::string& clave);
     /// El último cuadro de `clave` si su serie es mayor que `serie` (y la actualiza). Comparte
     /// los bytes con la vista (no los copia).
@@ -107,6 +115,7 @@ class Vistas {
     struct Una {
         GstElement* pipeline = nullptr;
         int pedidos = 0, ancho = 0, alto = 0;
+        std::string formato = "BGRA";
         std::int64_t latencia = 0;
         std::string productor;
         Cuadro cuadro; ///< bajo mu_

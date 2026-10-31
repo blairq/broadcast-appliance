@@ -8,6 +8,7 @@
   --texto: #e8ecf2;
   --tenue: #9aa4b2;
   --acento: #ff6a2b;
+  --tinte: rgba(255, 255, 255, 0.08); /* el riel vacío: con un tema claro, del color del texto */
 }
 * { box-sizing: border-box; }
 
@@ -51,7 +52,7 @@ h1 {
   margin-top: 0.8vh;
   height: 1.8vh;
   border-radius: 1vh;
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--tinte);
   overflow: hidden;
 }
 .op .lleno {

@@ -250,8 +250,15 @@ std::string Motor::armarSalida(const std::string& id, Salida& s) {
 
 GstElement* Motor::armarPuente(Salida& s, const std::string& canal) {
     // El programa de la salida para el gateway (o el emisor), en el anillo BA.Audio.<canal>.
-    if (cfg_.prefijoAnillos.empty() || !hayFabrica("baanillosink") || !s.mezcla) return nullptr;
-    const std::string d = "intersrc producer-name=" + entreComillas(s.mezcla->productor()) +
+    if (!s.mezcla) return nullptr;
+    GstElement* p = puenteDe(*s.mezcla, canal, s.mezcla->latenciaSalidaNs() + margenMezclaNs());
+    if (p != nullptr) s.puenteLatNs = s.mezcla->latenciaSalidaNs() + margenMezclaNs();
+    return p;
+}
+
+GstElement* Motor::puenteDe(Mezcla& m, const std::string& canal, std::int64_t latNs) {
+    if (cfg_.prefijoAnillos.empty() || !hayFabrica("baanillosink")) return nullptr;
+    const std::string d = "intersrc producer-name=" + entreComillas(m.productor()) +
                           " ! queue max-size-time=" + std::to_string(ajustes::sANs("audio.colaEscuchaS", 2)) + " max-size-buffers=0 max-size-bytes=0 ! baanillosink canal=" +
                           entreComillas(anillo(canal));
     GError* e = nullptr;
@@ -264,10 +271,42 @@ GstElement* Motor::armarPuente(Salida& s, const std::string& canal) {
         return nullptr;
     }
     reloj_->adoptar(p);
-    s.puenteLatNs = s.mezcla->latenciaSalidaNs() + margenMezclaNs();
-    gst_pipeline_set_latency(GST_PIPELINE(p), static_cast<GstClockTime>(s.puenteLatNs));
+    gst_pipeline_set_latency(GST_PIPELINE(p), static_cast<GstClockTime>(latNs));
     gst_element_set_state(p, GST_STATE_PLAYING);
     return p;
+}
+
+std::string Motor::pistasAlEmisorYa(const std::string& salida, const std::set<int>& pistas) {
+    BA_CON_CANDADO(mu_);
+    Salida* s = laSalida(salida);
+    if (s == nullptr) return noHaySalida(salida);
+    const std::string id = salida.empty() ? porOmision_ : salida;
+    if (cfg_.emisores.count(id) == 0 && !pistas.empty()) return llenar(traducir("motor", "la salida «%1» no tiene emisor aparte"), {id});
+    // Las que ya no se piden, afuera (aparte: pasar a NULL puede esperar).
+    for (auto it = s->puentesPistas.begin(); it != s->puentesPistas.end();) {
+        if (pistas.count(it->first) > 0) {
+            ++it;
+            continue;
+        }
+        desarmarAparte([p = it->second.first]() {
+            gst_element_set_state(p, GST_STATE_NULL);
+            gst_object_unref(p);
+        });
+        it = s->puentesPistas.erase(it);
+    }
+    std::string error;
+    for (int n : pistas) {
+        if (n < 2 || n > 6 || s->puentesPistas.count(n) > 0) continue;
+        // La pista de ESTA salida (cada una tiene las suyas): la que graba su emisor.
+        Mezcla* m = pista(*s, n, true);
+        const std::int64_t lat = m != nullptr ? m->latenciaSalidaNs() + margenMezclaNs() : 0;
+        GstElement* p = m != nullptr ? puenteDe(*m, ba::ipc::sufijoAudioPistaEmisor(id, n), lat) : nullptr;
+        if (p == nullptr)
+            error = llenar(traducir("motor", "la pista %1 no llega al emisor"), {std::to_string(n)});
+        else
+            s->puentesPistas[n] = {p, lat};
+    }
+    return error;
 }
 
 std::shared_future<void> Motor::desarmarSalida(Salida& s, bool aparte) {
@@ -275,6 +314,7 @@ std::shared_future<void> Motor::desarmarSalida(Salida& s, bool aparte) {
     // hace. La toma va con su estructura: GStreamer la nombra hasta pasar a NULL.
     auto desarmar = [toma = std::move(s.toma), puente = std::exchange(s.puente, nullptr),
                      puenteEmisor = std::exchange(s.puenteEmisor, nullptr),
+                     puentesPistas = std::exchange(s.puentesPistas, {}),
                      programa = std::shared_ptr<Composicion>(std::move(s.programa)),
                      preview = std::shared_ptr<Composicion>(std::move(s.preview)),
                      mezcla = std::shared_ptr<Mezcla>(std::move(s.mezcla)),
@@ -285,6 +325,10 @@ std::shared_future<void> Motor::desarmarSalida(Salida& s, bool aparte) {
                 gst_element_set_state(p, GST_STATE_NULL);
                 gst_object_unref(p);
             }
+        for (auto& [n, pl] : puentesPistas) {
+            gst_element_set_state(pl.first, GST_STATE_NULL);
+            gst_object_unref(pl.first);
+        }
         toma.reset();
         retornos.reset();
         pistas.reset();
@@ -431,6 +475,21 @@ void Motor::bucle() {
             }
             // Los que consumen el programa esperan lo que tarda en salir.
             for (auto& [sid, s] : salidas_) {
+                // Las pistas que graba su emisor: lo mismo con la latencia de cada pista.
+                for (auto& [n, pl] : s.puentesPistas) {
+                    const Mezcla* m = pista(s, n, false);
+                    const std::int64_t lat = m != nullptr ? m->latenciaSalidaNs() + margenMezclaNs() : pl.second;
+                    if (lat > pl.second + static_cast<std::int64_t>(5 * GST_MSECOND) ||
+                        lat < pl.second - static_cast<std::int64_t>(60 * GST_MSECOND)) {
+                        pl.second = lat;
+                        recalcularLatenciaAparte(pl.first, [p = refCompartida(pl.first), lat]() {
+                            gst_pipeline_set_latency(GST_PIPELINE(p.get()), static_cast<GstClockTime>(lat));
+                        });
+                    }
+                    GstBus* bus = gst_element_get_bus(pl.first);
+                    while (GstMessage* m2 = gst_bus_pop(bus)) gst_message_unref(m2);
+                    gst_object_unref(bus);
+                }
                 if ((s.puente == nullptr && s.puenteEmisor == nullptr) || !s.mezcla) continue;
                 const std::int64_t lat = s.mezcla->latenciaSalidaNs() + margenMezclaNs();
                 const bool cambia = lat > s.puenteLatNs + static_cast<std::int64_t>(5 * GST_MSECOND) ||
@@ -1012,7 +1071,7 @@ void Motor::actualizarMultiview() {
     vMulti_->mostrar(e);
 }
 
-std::string Motor::verPedirYa(const std::string& clave, int ancho, int alto) {
+std::string Motor::verPedirYa(const std::string& clave, int ancho, int alto, const std::string& formato) {
     // Siempre en este orden: el lock del motor y después el de las vistas (el hilo
     // del motor hace lo mismo en el tic; al revés se trababan).
     BA_CON_CANDADO(mu_);
@@ -1022,7 +1081,7 @@ std::string Motor::verPedirYa(const std::string& clave, int ancho, int alto) {
         return llenar(traducir("motor", "no hay una escena «%1»"), {b.substr(7)});
     if (b.rfind("mini:", 0) == 0 && usarEscena(b.substr(5), true).empty())
         return llenar(traducir("motor", "no hay una escena «%1»"), {b.substr(5)});
-    const std::string e = vistas_->pedir(clave, ancho, alto);
+    const std::string e = vistas_->pedir(clave, ancho, alto, formato);
     actualizarUso();
     return e;
 }
@@ -2062,6 +2121,9 @@ void Motor::despuesDeLasOrdenes(DespuesDeLasOrdenes& d) {
 std::string Motor::crearSalida(const std::string& id, const std::string& nombre) {
     return orden("crearSalida", [=, this]() { return crearSalidaYa(id, nombre); });
 }
+std::string Motor::pistasAlEmisor(const std::string& salida, const std::set<int>& pistas) {
+    return orden("pistasAlEmisor", [=, this]() { return pistasAlEmisorYa(salida, pistas); });
+}
 std::string Motor::borrarSalida(const std::string& id) {
     return orden("borrarSalida", [=, this]() { return borrarSalidaYa(id); });
 }
@@ -2257,8 +2319,8 @@ std::string Motor::ponerLoudness(bool agc, double objetivoLufs, double techoDb, 
 std::string Motor::multiview(bool activo, int ancho, int alto) {
     return orden("multiview", [=, this]() { return multiviewYa(activo, ancho, alto); });
 }
-std::string Motor::verPedir(const std::string& clave, int ancho, int alto) {
-    return orden("verPedir", [=, this]() { return verPedirYa(clave, ancho, alto); });
+std::string Motor::verPedir(const std::string& clave, int ancho, int alto, const std::string& formato) {
+    return orden("verPedir", [=, this]() { return verPedirYa(clave, ancho, alto, formato); });
 }
 void Motor::verSoltar(const std::string& clave) {
     orden("verSoltar", [=, this]() {

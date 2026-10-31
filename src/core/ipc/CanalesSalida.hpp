@@ -18,10 +18,13 @@
 //
 // EL EMISOR APARTE (04-plan-unificado.md, F3-01): `ba-emisor --salida=<id>` codifica,
 // graba y transmite una salida en otro proceso, así una caída de la app no corta el
-// aire. Lee el MISMO canal de video que el gateway (el de video admite varios
-// lectores) y su propio anillo de audio, BA.Audio.Emisor.<id>: el anillo es de un
-// solo lector y el del gateway ya tiene el suyo. Late en su slot de BA.Health y
-// atiende el cierre ordenado en control.emisor.<id>.
+// aire. Lee su PROPIO canal de video, BA.Emisor.<id>: en NV12 (1,5 B/píxel, lo que
+// toma el codificador: ninguna conversión más) y del tamaño de la salida (el del
+// gateway es BGRA y está topeado al del retorno). La señal limpia, si se la pide, por
+// BA.Emisor.<id>.limpio. El audio, por su anillo BA.Audio.Emisor.<id> (el anillo es de
+// un solo lector y el del gateway ya tiene el suyo) y, si graba las pistas 2-6, uno
+// por pista (BA.Audio.Emisor.<id>.pista<n>). Late en su slot de BA.Health y atiende el
+// cierre ordenado en control.emisor.<id>.
 // ============================================================================
 #pragma once
 
@@ -58,10 +61,17 @@ inline std::string canalVideoDeSalida(const std::string& id) {
     return id == kIdSalidaPorOmision ? std::string("BA.Program") : "BA.Salida." + id;
 }
 
+/// El video de la salida `id` para su emisor (NV12, del tamaño de la salida) y su señal limpia.
+inline std::string canalVideoEmisor(const std::string& id) { return "BA.Emisor." + id; }
+inline std::string canalVideoLimpioEmisor(const std::string& id) { return "BA.Emisor." + id + ".limpio"; }
+
 /// El anillo del audio de la salida `id` para su emisor, sin el «BA.Audio.» (el motor
 /// le pone su prefijo) y entero.
 inline std::string sufijoAudioEmisor(const std::string& id) { return "Emisor." + id; }
 inline std::string canalAudioEmisor(const std::string& id) { return "BA.Audio." + sufijoAudioEmisor(id); }
+/// El de la pista `n` (2-6) que graba el emisor de `id`, sin el prefijo y entero.
+inline std::string sufijoAudioPistaEmisor(const std::string& id, int n) { return sufijoAudioEmisor(id) + ".pista" + std::to_string(n); }
+inline std::string canalAudioPistaEmisor(const std::string& id, int n) { return "BA.Audio." + sufijoAudioPistaEmisor(id, n); }
 
 /// El canal de control del emisor de la salida `id` (el launcher pide el cierre por acá).
 inline std::string canalControlEmisor(const std::string& id) { return "control.emisor." + id; }

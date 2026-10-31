@@ -622,8 +622,9 @@ void Supervisor::watchdogLoop() {
         }
 
         if (std::any_of(vistos.begin(), vistos.end(), [](const Visto& v) { return v.caido || v.colgado; })) {
-            if (a.caido || a.colgado) MetricasLauncher::falla(true, a.colgado);
-            if (b.caido || b.colgado) MetricasLauncher::falla(false, b.colgado);
+            // Cada hijo con su componente: A, B y cada emisor (F3-01) cuentan aparte.
+            for (std::size_t i = 0; i < hijos_.size(); ++i)
+                if (vistos[i].caido || vistos[i].colgado) MetricasLauncher::falla(hijos_[i]->componente, vistos[i].colgado);
             const std::uint64_t failAt = nowMs();
             if (failAt - lastFailureMs_ > cfg_.ventanaCaidasMs) {
                 recentFailures_ = 0;
@@ -680,9 +681,20 @@ void Supervisor::stopChild(Hijo& h) {
         return;
     }
     // 1) Pedido por el canal de control. 2) SIGTERM (POSIX). 3) Matar.
-    if (control_.requestShutdown(h.canalControl) && c.waitExit(kGracefulMs())) {
-        BA_LOG_INFO("sup", 0, llenar(traducir("sup", "%1 cerro por el canal de control"), {h.nombre}));
-        return;
+    if (control_.requestShutdown(h.canalControl)) {
+        bool salio = c.waitExit(kGracefulMs());
+        // Un emisor que sigue latiendo está cerrando sus archivos o pasando la grabación
+        // a MP4/MOV (F3-01): se lo espera mientras lata, hasta `emisor.cierreMaxS`.
+        if (!salio && h.rol == Rol::Emisor) {
+            const std::uint64_t hasta = nowMs() + static_cast<std::uint64_t>(ba::ajustes::entero("emisor.cierreMaxS", 600)) * 1000;
+            while (!salio && nowMs() < hasta &&
+                   !health_.isStale(h.slot, ba::ipc::HealthBlock::nowQpc(), cfg_.cuelgueMs * 1000000ULL))
+                salio = c.waitExit(500);
+        }
+        if (salio) {
+            BA_LOG_INFO("sup", 0, llenar(traducir("sup", "%1 cerro por el canal de control"), {h.nombre}));
+            return;
+        }
     }
     if (c.terminate() && c.waitExit(kTerminateMs())) {
         BA_LOG_INFO("sup", 0, llenar(traducir("sup", "%1 cerro tras la señal de terminacion"), {h.nombre}));

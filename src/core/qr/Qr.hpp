@@ -65,6 +65,10 @@ struct Estilo {
     std::string logoIcono;
     /// El color del ícono. Vacío = el primario del código.
     std::string logoColor;
+    /// Al centro, el logo del evento abierto (su tema, PLAN-TEMA-EVENTO): lo pone en
+    /// `logoSrc` quien dibuja (la app con el archivo de Tema/, el gateway con el suyo),
+    /// porque la imagen no viaja en la dirección (aConsulta). Un ícono le gana.
+    bool logoDelEvento = false;
 };
 
 /// El QR como SVG, listo para incrustar o servir. Vacío y el motivo en

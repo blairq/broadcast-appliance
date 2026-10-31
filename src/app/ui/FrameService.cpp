@@ -115,8 +115,11 @@ class FrameService::Canales {
             if (ahora - lec.intentoUs < 500'000) return;
             lec.intentoUs = ahora;
             bool ok = false;
-            for (const std::wstring& n : channelsOf(key))
-                if ((ok = r.subscribe(n.c_str()))) break;
+            for (const std::wstring& n : channelsOf(key)) {
+                // Lo que muestra la interfaz es BGRA: un canal en otro formato no se lee.
+                if ((ok = r.subscribe(n.c_str()) && r.formato() == ba::ipc::FormatoCanal::BGRA)) break;
+                r = ba::ipc::SpoutReceiver{};
+            }
             if (!ok) return;
         }
         // Lo que nadie mira (una página que no se ve, un lugar vacío), una vez por segundo

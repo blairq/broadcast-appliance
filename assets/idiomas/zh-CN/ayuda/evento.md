@@ -32,3 +32,16 @@
 
 ## 提词器
 `teleprompter` 提示点从 `Discursos/` 加载一段文本，让它**就绪**但保持停止。其他一切（撰写讲稿、发送讲稿、在播时控制文本）属于它自己的类别：`help {"topic": "prompter"}`。
+## 活动在网页上的外观（主题）
+每个活动都有自己的**主题**：强调色、背景、字体、标志和名称，作用于系统的**所有**网页：活动页、嘉宾页、远程会议（成员在那里投票）、观众提问、签到终端和会场屏幕。操作员控制台（控制台、按钮面板、主席台、字幕、校对）按 `alcance` 的设置取用：默认只取强调色和标志。有含义的颜色永远不变：tally、在播与待播、电平表、投票的赞成与反对。
+
+- `evento_tema {"accion": "ver"}`：主题、实际会用的颜色（`resuelto`）以及对比度 `avisos`。如有警告，告诉操作员并建议换一种颜色。
+- `evento_tema {"accion": "cambiar", "colores": {"acento": "#00a86b"}, "marca": {"nombre": "论坛 2026"}}`：未设置的会自动计算（强调色上的文字颜色由对比度决定）。
+- `evento_tema {"accion": "logo", "archivo": "<路径>", "cual": "logo"}`（SVG、PNG 或 WebP，最大 2 MB；`logoClaro` 用于深色背景，`favicon` 用于浏览器标签）和 `{"accion": "fuente", "archivo": "<路径>", "familia": "…"}`（WOFF2、WOFF、TTF 或 OTF，最大 4 MB）。不依赖互联网：不用 Google Fonts，字体随活动一起携带。含脚本或事件处理属性的 SVG 会被拒绝。
+- `alcance`：`{"publico": "todo", "control": "acento"}`（每项取 nada、acento 或 todo）。
+- 主题出现之前生成的网站：`evento_tema {"accion": "migrar_sitio"}`（保留在 `estilo.css` 中手动修改的内容）。
+
+保存在活动文件夹中（`tema.json` 和 `Tema/`）。没有自己的主题时，强调色和背景取自网站的设置（`evento_web sitio {color, fondo}`）。在应用中：服务 → 网页外观 → 活动主题。
+
+网页之外它同样是默认值：带强调色的**图形**（下三分之一字幕、标题卡、滚动字幕）若未另行指定，就使用活动的颜色；新建的**二维码**采用其颜色（始终深色在浅色上，以便识别）并在中间放置其标志。使用浅色主题时，面向观众的页面会整体翻转（包括高亮、输入框和阴影）。
+

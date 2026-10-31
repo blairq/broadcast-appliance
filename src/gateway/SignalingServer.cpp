@@ -75,8 +75,14 @@ namespace {
 /// redondeadas se veia de una manera en la biblioteca y salia de otra en el
 /// televisor. El generador con estilo vive en el nucleo justamente para que
 /// eso no pase (ver qr/Qr.hpp), y este era el unico lugar que no lo usaba.
-std::string qrSvg(const std::string& texto, const std::string& query) {
-    return ba::qr::svg(texto, ba::qr::desdeConsulta(query));
+/// `logoEvento`: el logo del tema del evento ya como data URL, para el QR que lo pide.
+std::string qrSvg(const std::string& texto, const std::string& query, const std::function<std::string()>& logoEvento) {
+    ba::qr::Estilo e = ba::qr::desdeConsulta(query);
+    if (e.logoDelEvento && e.logoIcono.empty() && e.logoSrc.empty()) {
+        e.logoSrc = logoEvento();
+        if (!e.logoSrc.empty() && e.logo <= 0) e.logo = 0.22;
+    }
+    return ba::qr::svg(texto, e);
 }
 
 int64_t nowMs() {
@@ -595,6 +601,7 @@ json SignalingServer::setTemaEvento(const json& cuerpo) {
         temaEventoCss_.clear();
         temaEventoVersion_.clear();
         temaEventoCarpeta_.clear();
+        temaEventoLogo_.clear();
         return json{{"v", ""}, {"avisos", json::array()}};
     }
     // Todo se calcula una vez acá (contraste, lo que falta): cada página pide una hoja hecha.
@@ -604,6 +611,7 @@ json SignalingServer::setTemaEvento(const json& cuerpo) {
     temaEventoVersion_ = v;
     temaEventoCss_ = ba::tema::hojaCss(r, "/comun/tema/", v);
     const json& m = r["marca"];
+    temaEventoLogo_ = m.value("logo", std::string());
     const auto url = [&v](const std::string& a) { return a.empty() ? std::string() : "/comun/tema/" + a + "?v=" + v; };
     const json& col = r["colores"];
     temaEventoPublico_ = {{"v", v},
@@ -1470,7 +1478,13 @@ void SignalingServer::handleGuestHttp(long long fd, const std::string& method, c
                 http::sendResponse(fd, 400, "text/plain", traducir("gateway", "falta `texto` (o es demasiado largo)") + "\n");
                 return;
             }
-            http::sendResponse(fd, 200, "image/svg+xml", qrSvg(texto, query));
+            http::sendResponse(fd, 200, "image/svg+xml", qrSvg(texto, query, [this]() {
+                                   std::lock_guard<std::mutex> l(temaLock_);
+                                   if (temaEventoCarpeta_.empty() || temaEventoLogo_.empty()) return std::string();
+                                   return ba::tema::imagenComoDataUrl(
+                                       std::filesystem::path(std::u8string(temaEventoCarpeta_.begin(), temaEventoCarpeta_.end())) /
+                                       temaEventoLogo_);
+                               }));
             return;
         }
         if (!cfg_.pantallaWebroot.empty() && serveStatic(fd, cfg_.pantallaWebroot, rel)) return;

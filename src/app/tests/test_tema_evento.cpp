@@ -87,6 +87,29 @@ int main() {
               "un SVG limpio entra con huella en el nombre");
         escribir(raiz / "malo.svg", R"(<svg><script>alert(1)</script></svg>)");
         check(!copiarRecurso(ev, raiz / "malo.svg", "logo").error.empty(), "un SVG con script no entra");
+        escribir(raiz / "evento.svg", R"x(<svg xmlns="http://www.w3.org/2000/svg" onload="alert(1)"><circle r="4"/></svg>)x");
+        check(!copiarRecurso(ev, raiz / "evento.svg", "logo").error.empty(), "un SVG con onload= no entra");
+        escribir(raiz / "fo.svg", R"(<svg><foreignObject><div/></foreignObject></svg>)");
+        check(!copiarRecurso(ev, raiz / "fo.svg", "logo").error.empty(), "un SVG con foreignObject no entra");
+        escribir(raiz / "js.svg", R"x(<svg><a href="javascript:alert(1)"><circle r="4"/></a></svg>)x");
+        check(!copiarRecurso(ev, raiz / "js.svg", "logo").error.empty(), "un SVG con javascript: no entra");
+        escribir(raiz / "texto.svg", R"(<svg xmlns="http://www.w3.org/2000/svg"><text font-family="Montserrat">Congreso de la Nación</text></svg>)");
+        check(copiarRecurso(ev, raiz / "texto.svg", "logo").error.empty(), "un SVG con texto común (palabras con «on») entra");
+        // Un PNG y un WebP de verdad (la firma alcanza) entran con su extensión.
+        escribir(raiz / "logo.png", std::string("\x89PNG\r\n\x1a\n", 8) + std::string(64, '\0'));
+        const RecursoCopiado png = copiarRecurso(ev, raiz / "logo.png", "logo");
+        check(png.error.empty() && png.archivo.size() > 4 && png.archivo.substr(png.archivo.size() - 4) == ".png" &&
+                  fs::exists(carpetaTema(ev) / png.archivo),
+              "un PNG entra");
+        escribir(raiz / "logo.webp", std::string("RIFF") + std::string(4, '\x10') + "WEBPVP8 " + std::string(32, '\0'));
+        const RecursoCopiado webp = copiarRecurso(ev, raiz / "logo.webp", "logo");
+        check(webp.error.empty() && webp.archivo.size() > 5 && webp.archivo.substr(webp.archivo.size() - 5) == ".webp",
+              "un WebP entra");
+        escribir(raiz / "riff.webp", std::string("RIFF") + std::string(4, '\x10') + "AVI " + std::string(32, '\0'));
+        check(!copiarRecurso(ev, raiz / "riff.webp", "logo").error.empty(), "un RIFF que no es WebP no entra");
+        escribir(raiz / "grande.png", std::string("\x89PNG\r\n\x1a\n", 8) + std::string(kTopeLogo, '\0'));
+        check(!copiarRecurso(ev, raiz / "grande.png", "logo").error.empty(), "un logo de más de 2 MB no entra");
+        check(copiarRecurso(ev, raiz / "logo.png", "logo").archivo == png.archivo, "el mismo archivo, el mismo nombre (huella)");
         escribir(raiz / "trucho.png", "MZ esto es un exe");
         check(!copiarRecurso(ev, raiz / "trucho.png", "logo").error.empty(), "un .png que no es PNG no entra");
         escribir(raiz / "logo.gif", "GIF89a");
@@ -101,9 +124,9 @@ int main() {
         t.marca.logo = r.archivo;
         t.tipografia.archivos.clear();
         escribir(carpetaTema(ev) / "a-mano.png", "x");
-        check(limpiarRecursos(ev, t) == 1 && !fs::exists(carpetaTema(ev) / f.archivo) &&
+        check(limpiarRecursos(ev, t) == 4 && !fs::exists(carpetaTema(ev) / png.archivo) && !fs::exists(carpetaTema(ev) / f.archivo) &&
                   fs::exists(carpetaTema(ev) / r.archivo) && fs::exists(carpetaTema(ev) / "a-mano.png"),
-              "limpiar: se va la fuente que ya no se usa; el logo y lo puesto a mano quedan");
+              "limpiar: se van la fuente y los logos que ya no se usan; el logo y lo puesto a mano quedan");
     }
 
     // --- Migrar un sitio generado antes del tema ---

@@ -32,3 +32,16 @@ Dérouler le conducteur N'EST PAS être en direct : être en direct, c'est que 
 
 ## Prompteur
 Le top `teleprompter` charge un texte de `Discursos/` et le laisse PRÊT mais arrêté. Tout le reste (écrire les discours, les envoyer, piloter le texte à l'antenne) a sa propre catégorie : `help {"topic": "prompter"}`.
+## Le visage de l'événement sur le web (thème)
+Chaque événement a son **thème** : accent, fond, police, logo et nom, sur **toutes** les pages web du système : celle de l'événement, celle des invités, la session à distance (où votent les membres), les questions du public, la borne d'accueil et les écrans de la salle. Les consoles des opérateurs (régie, pupitre de boutons, présidence, titrages, correction) prennent ce que dit `alcance` : par défaut, seulement l'accent et le logo. Les couleurs qui ont un sens ne changent jamais : tally, à l'antenne et armé, vumètres, oui et non d'un vote.
+
+- `evento_tema {"accion": "ver"}` : le thème, les couleurs qui vont sortir (`resuelto`) et les `avisos` de contraste. S'il y a des avertissements, dites-le à l'opérateur et proposez une autre couleur.
+- `evento_tema {"accion": "cambiar", "colores": {"acento": "#00a86b"}, "marca": {"nombre": "Forum 2026"}}` : ce qui n'est pas indiqué est calculé (le texte sur l'accent découle du contraste).
+- `evento_tema {"accion": "logo", "archivo": "<chemin>", "cual": "logo"}` (SVG, PNG ou WebP, jusqu'à 2 Mo ; `logoClaro` pour les fonds sombres, `favicon` pour l'onglet) et `{"accion": "fuente", "archivo": "<chemin>", "familia": "…"}` (WOFF2, WOFF, TTF ou OTF, jusqu'à 4 Mo). Sans internet : pas de Google Fonts, la police voyage avec l'événement. Un SVG avec des scripts ou des gestionnaires d'événements est refusé.
+- `alcance` : `{"publico": "todo", "control": "acento"}` (chacun nada, acento ou todo).
+- Un site généré avant le thème : `evento_tema {"accion": "migrar_sitio"}` (il respecte ce qui a été modifié à la main dans `estilo.css`).
+
+Il est enregistré dans le dossier de l'événement (`tema.json` et `Tema/`). Sans thème propre, l'accent et le fond viennent de ceux du site (`evento_web sitio {color, fondo}`). Dans l'application : Services → Apparence des pages web → Thème de l'événement.
+
+Hors du web, c'est aussi la valeur par défaut : les **graphismes** avec une couleur d'accent (bandeaux, cartons, tickers) sortent avec celle de l'événement si on ne leur en donne pas une autre, et les nouveaux **QR codes** prennent ses couleurs (toujours sombre sur clair, pour qu'ils se lisent) et son logo au centre. Avec un thème clair, les pages du public s'inversent entièrement (surlignages, champs et ombres compris).
+

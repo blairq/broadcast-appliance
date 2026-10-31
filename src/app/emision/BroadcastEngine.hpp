@@ -28,13 +28,15 @@
 // EL EMISOR APARTE (04-plan-unificado.md, F3-01; BroadcastEngineEmisor.cpp). Con el
 // launcher en `emisor.aparte`, una salida (la principal) la codifica, graba y
 // transmite `ba-emisor` en otro proceso: si A se cae, la transmisión y el archivo
-// siguen (con la placa). El launcher lo dice en BA_EMISOR. Para esa salida, su
-// transmisión principal, su grabación y su copia se PIDEN al emisor (Runtime/emisor/
-// <id>.json, emisor/Pedido.hpp) en vez de armarse acá, y lo que hacen se lee de su
-// estado (la foto de las salidas lo muestra como si fueran de acá); su canal al
-// gateway se publica siempre (es lo que lee el emisor) y no se suelta por reposo.
-// Lo demás de esa salida (destinos extra, pistas 2-6, repetición, señal limpia)
-// sigue acá en esta etapa.
+// siguen (con la placa). El launcher lo dice en BA_EMISOR. Para esa salida, TODO lo
+// que sale (la transmisión principal y los destinos extra, la grabación con su copia
+// y sus pistas 2-6, la repetición, la señal limpia) se PIDE al emisor (Runtime/emisor/
+// <id>.json, emisor/Pedido.hpp; las claves, al CredentialStore) en vez de armarse acá,
+// y lo que hace se lee de su estado (la foto de las salidas lo muestra como si fuera
+// de acá). Su video le llega por un canal propio en NV12 del tamaño de la salida
+// (BA.Emisor.<id>, y .limpio mientras se pide la señal limpia), publicado siempre; el
+// del gateway sigue como el de cualquier salida. Apagar o rearmar el motor no le pide
+// parar nada: lo para el operador, o el cierre ordenado del launcher.
 //
 // Modelo de threading: todo desde el hilo de control (la UI o el arranque
 // headless). El motor tiene sus hilos; lo que llega de ellos (cuadros, audio)
@@ -79,6 +81,7 @@ class Transmision;
 
 namespace ba::emisor {
 struct Pedido;
+struct PedidoLimpio;
 } // namespace ba::emisor
 
 namespace ba::app {
@@ -981,6 +984,7 @@ class BroadcastEngine {
     /// Las medidas de la por omisión: existe desde el constructor y no se borra nunca, así
     /// que se pueden leer desde cualquier hilo sin buscar en salidas_.
     std::shared_ptr<Medidas> medidasPrograma_;
+    struct CanalEmisor; ///< el canal de video de una salida a su emisor (BroadcastEngineEmisor.cpp)
     /// Una salida (ver LAS SALIDAS arriba). Cada campo es de un solo hilo: el de la
     /// interfaz (lo del aire), el de salidas (lo que sale) o, bajo pedidosM_, los dos.
     struct Salida {
@@ -1033,6 +1037,12 @@ class BroadcastEngine {
         std::unique_ptr<emisor::Pedido> pedidoEmisor;
         nlohmann::json estadoEmisor;
         std::int64_t estadoEmisorMs = 0;
+        /// Lo que su pedido ya tenía (destinos, señal limpia, pistas) está enganchado acá en
+        /// esta corrida del motor (sus canales, sus puentes, lo pedido): ver leerEmisor.
+        bool emisorEnganchado = false;
+        /// Sus canales de video para el emisor (NV12): el programa y la señal limpia. Los
+        /// usa el hilo del motor (los cuadros) con su propio candado.
+        std::shared_ptr<CanalEmisor> canalEmisor, canalLimpioEmisor;
 
         Salida();
         ~Salida(); // en el .cpp: Repeticion se completa ahí
@@ -1075,6 +1085,21 @@ class BroadcastEngine {
     // --- El emisor aparte (BroadcastEngineEmisor.cpp; del hilo de salidas salvo dicho) ---
     /// Las salidas que codifica un emisor aparte (BA_EMISOR, lo pone el launcher).
     static const std::set<std::string>& salidasConEmisor();
+    /// Publica su canal de video para el emisor (o el de la señal limpia) en NV12 del
+    /// tamaño de la salida y pide su vista. false + lastError. (Cualquier hilo.)
+    bool publicarCanalEmisor(Salida& s, bool limpio);
+    /// Suelta la vista del canal (el motor se apaga: el emisor pasa a la placa); con
+    /// `cerrar`, también el canal.
+    void soltarCanalEmisor(Salida& s, bool limpio, bool cerrar);
+    /// Lo de cada salida con emisor, al apagar el motor (sus vistas sueltas, sin enganchar).
+    void desengancharEmisores();
+    /// El destino extra `id` como está en `desde` (nullptr: sacarlo) en el pedido. "" o el error.
+    std::string extraAlEmisor(Salida& s, const std::string& id, const emisor::Pedido* desde);
+    /// La repetición en el pedido (segundos 0: apagada) y guardar un clip (otro `guardarSeq`).
+    std::string replayAlEmisor(Salida& s, int segundos, const std::string& dir, int kbps);
+    std::string guardarReplayEnEmisor(Salida& s, const std::string& destino);
+    /// La señal limpia en el pedido (nullptr: apagarla), con su canal publicado.
+    std::string limpioAlEmisor(Salida& s, const emisor::PedidoLimpio* l);
     /// El pedido de la salida (lo carga del disco la primera vez), cambiado por `cambio`,
     /// con el cuadro de salida y la placa de ahora y el `seq` siguiente, escrito. "" o el error.
     std::string pedirAlEmisor(Salida& s, const std::function<void(emisor::Pedido&)>& cambio);

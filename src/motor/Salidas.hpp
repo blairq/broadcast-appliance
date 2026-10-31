@@ -110,6 +110,13 @@ class Codificacion; // en Salidas.cpp: un codificador compartido
 std::string remuxar(const std::string& origen, const std::string& destino,
                     const std::function<void(double)>& progreso = nullptr);
 
+/// Pasa `origen` (MKV) al `formato` («mp4», «mov») al lado, con el mismo nombre, y lo
+/// verifica (que el nuevo exista y no sea mucho más chico); con `borrarOrigen`, recién
+/// entonces borra el MKV. Lo que hacen al terminar una grabación la app y el emisor
+/// aparte (F3-01). Bloquea. "" o el error (el MKV queda si algo falló).
+std::string remuxarYVerificar(const std::string& origen, const std::string& formato, bool borrarOrigen,
+                              const std::function<void(double)>& progreso = nullptr);
+
 /// Junta tramos (MKV seguidos de una misma grabación) en un solo archivo, sin
 /// recodificar. Bloquea. "" o el error.
 std::string juntar(const std::vector<std::string>& tramos, const std::string& destino);

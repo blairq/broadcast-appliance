@@ -49,6 +49,8 @@ Cada evento tiene su **tema**: acento, fondo, letra, logo y nombre, en **todas**
 
 Se guarda en la carpeta del evento (`tema.json` y `Tema/`). Sin tema propio, el acento y el fondo salen de los del sitio (`evento_web sitio {color, fondo}`). En la app: Servicios → Aspecto de las páginas web → Tema del evento.
 
+Fuera de la web también es el valor por omisión: los **gráficos** con un color de acento (zócalos, placas, tickers) salen con el del evento si no se les pasa otro, y los **QR** nuevos toman sus colores (siempre oscuro sobre claro, para que se lean) y su logo al centro. Con un tema claro, las páginas del público se dan vuelta enteras (resaltes, campos y sombras incluidos).
+
 ## La línea de tiempo (`linea_*`)
 El plan del evento es su **línea de tiempo**; el guion de cues es una manera de leerla y editarla (lo que no tocás en los cues queda exacto en la línea). La línea sabe más que los cues: **pasos** que entran con GO o solos (`tras` otro, `con` otro, a una `hora` fija con política avisar/esperar/cortar, `ancla`dos a otra salida), **piezas** con su tiempo dentro del paso (`{ms}`, `{antesDelFin}`, `{manual:true}`) y su `vida` (paso, bloque, hasta que se saque, evento), un **estante** de adlibs y pasos para insertar, y el pronóstico con back time y over/under.
 

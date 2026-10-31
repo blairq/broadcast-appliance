@@ -152,7 +152,15 @@ std::string llevarA(const std::string& memoria, int ancho = 0, int alto = 0);
 std::string bajarDe(const std::string& memoria);
 /// Lo que va delante de un codificador para darle NV12: en la memoria del motor
 /// si el codificador la acepta (sin bajar: d3d12h264enc, qsvh264enc), si no en sistema.
+/// Con la subida a D3D12 pedida (ponerSubidaD3d12), un proceso sin video en la GPU
+/// sube el NV12 de sistema con `d3d12upload` al codificador que la acepte.
 std::string aCodificador(const std::string& codificador);
+/// El emisor aparte en Windows (F3-01): su video llega en NV12 de sistema y no tiene
+/// motor en la GPU; con esto, delante de un codificador de D3D12 va `d3d12upload` (y esos
+/// codificadores se prefieren, como con el motor en D3D12). Sin d3d12upload, nada cambia.
+void ponerSubidaD3d12(bool si);
+/// Se sube a D3D12 delante del codificador (ponerSubidaD3d12 y hay d3d12upload).
+bool subidaD3d12();
 /// Lo que un consumidor pone para recibir video en memoria de sistema en
 /// `formato` (sirve llegue GL o sistema): en GPU convierte y baja en GL; si no,
 /// videoconvert. Termina con las caps «video/x-raw,format=<formato>».

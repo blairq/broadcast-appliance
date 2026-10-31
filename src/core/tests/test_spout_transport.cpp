@@ -205,8 +205,42 @@ void testRepublicarConOtroTamano() {
     CHECK(otro.width() == 1280 && otro.height() == 720);
 }
 
+// Caso: el formato lo declara el productor y el lector lo ve (F3-01: el canal del emisor
+// en NV12, 1,5 B/píxel). Un cuadro NV12 va entero (sin tamaño real) y un BGRA no ve NV12.
+void testFormatoNv12() {
+    const wchar_t* name = L"BA.Test.Slot.Nv12";
+    SlotConfig cfg{64, 36};
+    cfg.formato = FormatoCanal::NV12;
+    CHECK(bytesDeCuadro(64, 36, FormatoCanal::NV12) == 64u * 36u * 3u / 2u);
+    SpoutSender impar;
+    CHECK(!impar.publish(L"BA.Test.Slot.Nv12.impar", SlotConfig{63, 36, 0, FormatoCanal::NV12})); // pares
+    SpoutSender snd;
+    CHECK(snd.publish(name, cfg));
+    SpoutReceiver rcv;
+    CHECK(rcv.subscribe(name));
+    CHECK(rcv.formato() == FormatoCanal::NV12);
+    CHECK(rcv.frameBytes() == bytesDeCuadro(64, 36, FormatoCanal::NV12));
+    std::vector<std::uint8_t> src(rcv.frameBytes());
+    for (std::size_t i = 0; i < src.size(); ++i) src[i] = static_cast<std::uint8_t>(i % 251);
+    FrameMeta parcial{1, 10};
+    parcial.ancho = 32;
+    parcial.alto = 18;
+    CHECK(!snd.send(src.data(), src.size(), parcial)); // en NV12 no hay cuadros más chicos
+    CHECK(snd.send(src.data(), src.size(), FrameMeta{2, 20}));
+    std::vector<std::uint8_t> dst(src.size(), 0);
+    FrameMeta out{};
+    CHECK(rcv.receive(dst.data(), dst.size(), out));
+    CHECK(out.frameIndex == 2 && dst == src);
+    // Uno BGRA de siempre dice BGRA.
+    SpoutSender bgra;
+    CHECK(bgra.publish(L"BA.Test.Slot.Bgra", SlotConfig{64, 36}));
+    SpoutReceiver rb;
+    CHECK(rb.subscribe(L"BA.Test.Slot.Bgra") && rb.formato() == FormatoCanal::BGRA);
+}
+
 int main() {
     testRegionOpenSize();
+    testFormatoNv12();
     testMetaRoundTrip();
     testSenderReceiverRoundTrip();
     testNoNewFrame();
