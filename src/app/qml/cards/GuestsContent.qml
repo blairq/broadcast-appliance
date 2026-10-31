@@ -183,7 +183,7 @@ Item {
                             MenuItem {
                                 text: qsTr("Aprobar su cargo para el zócalo: «%1»").arg((semaforo.p && semaforo.p.info) || "—")
                                 enabled: !!(semaforo.p && semaforo.p.info)
-                                onTriggered: { const e = Studio.aprobarInfoInvitado(semaforo.p.id, ""); Studio.notify(e !== "" ? e : qsTr("Cargo aprobado para el zócalo"), e !== "" ? "error" : "info") }
+                                onTriggered: { const e = Studio.sala.aprobarInfoInvitado(semaforo.p.id, ""); Studio.notify(e !== "" ? e : qsTr("Cargo aprobado para el zócalo"), e !== "" ? "error" : "info") }
                             }
                         }
                     }

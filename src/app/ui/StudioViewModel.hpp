@@ -34,6 +34,7 @@
 #include "ui/EmisionViewModel.hpp"
 #include "ui/ImagenViewModel.hpp"
 #include "ui/MezclaViewModel.hpp"
+#include "ui/SalaViewModel.hpp"
 #include "ui/SalidasViewModel.hpp"
 #include "ui/MultiviewViewModel.hpp"
 
@@ -320,6 +321,8 @@ class StudioViewModel : public QObject {
     Q_PROPERTY(QString room READ room NOTIFY statusChanged)
     /// Las direcciones de los servicios (sala/Direcciones): la única fuente de los enlaces.
     Q_PROPERTY(QObject* direcciones READ direccionesQml CONSTANT)
+    /// El área de la sala (ui/SalaViewModel): el cupo, el chat, aprobar a los invitados, el encargo al asistente.
+    Q_PROPERTY(QObject* sala READ salaQml CONSTANT)
     Q_PROPERTY(int guests READ guests NOTIFY statusChanged)
     Q_PROPERTY(QString theme READ theme NOTIFY themeChanged)
     /// Arrancó con --test: el MCP no pide aprobaciones (la interfaz lo avisa siempre).
@@ -528,15 +531,6 @@ class StudioViewModel : public QObject {
     asamblea::ConferenciaDcn& dcn() { return asamblea_->dcn(); }
     asamblea::SesionRemota* sesionRemota() { return asamblea_->sesionRemota(); }
     AppRuntime& runtime() { return rt_; }
-    /// Aprueba lo que el invitado escribió de sí mismo (o un `texto` corregido)
-    /// como el cargo de su zócalo. "" o el error.
-    Q_INVOKABLE QString aprobarInfoInvitado(const QString& participante, const QString& texto = {});
-    /// Chat: los recientes con {key, source, author, text, destacado}; destacar y sacar.
-    Q_INVOKABLE QVariantList chatRecientesUi() const;
-    Q_INVOKABLE bool destacarChatUi(const QString& key);
-    Q_INVOKABLE void quitarDestacadoChatUi(const QString& key);
-    /// Suma un mensaje del chat (por su key) a la cola de preguntas. "" o el error.
-    Q_INVOKABLE QString preguntaDesdeChatUi(const QString& key);
     asamblea::CuerpoViewModel& cuerpo() { return asamblea_->cuerpo(); }
     /// El área de la asamblea (sus modelos, la web del evento, los vínculos, el acta).
     AsambleaViewModel& asamblea() { return *asamblea_; }
@@ -581,7 +575,7 @@ class StudioViewModel : public QObject {
     QObject* notificadorQml() const;
     agent::Notificador& notificador() { return *notificador_; }
     QObject* accesoRemotoQml() const;
-    AccesoRemoto* accesoRemoto() { return accesoRemoto_.get(); }
+    AccesoRemoto* accesoRemoto() { return &sala_->accesoRemoto(); }
     bool modoVivo() const;
     QVariantMap caidaReciente() const { return caida_; }
     QVariantMap tally() const { return tally_; }
@@ -609,17 +603,18 @@ class StudioViewModel : public QObject {
     medios::Playlist& playlist() { return *playlist_; }
     /// El cupo de invitados (modelo: sala::CupoSala). La interfaz y el MCP lo piden
     /// por acá; el resultado se muestra como aviso.
-    sala::CupoSala& cupoSala() { return *cupoSala_; }
+    sala::CupoSala& cupoSala() { return sala_->cupo(); }
     /// La configuración de la sala en caliente (modelo: sala::ConfigSala).
-    sala::ConfigSala& configSala() { return *configSala_; }
+    sala::ConfigSala& configSala() { return sala_->config(); }
     /// La votación de la sala (modelo).
-    sala::VotacionSala& votacion() { return *votacion_; }
+    sala::VotacionSala& votacion() { return sala_->votacion(); }
     /// La cola de preguntas de la sala (modelo).
-    sala::PreguntasSala& preguntas() { return *preguntas_; }
+    sala::PreguntasSala& preguntas() { return sala_->preguntas(); }
     /// El PIN por sesión y el token del MCP (modelo: Config/seguridad.json).
-    sala::SeguridadSala& seguridad() { return *seguridad_; }
-    /// Desde la interfaz: "" o el error inmediato (el resultado llega como aviso).
-    Q_INVOKABLE QString cupoUi(int n);
+    sala::SeguridadSala& seguridad() { return sala_->seguridad(); }
+    /// El área de la sala (el cupo, el chat, aprobar a los invitados, el encargo al asistente).
+    SalaViewModel& sala() { return *sala_; }
+    QObject* salaQml() const;
     bool modoTest() const { return modoTest_; }
     void setModoTest(bool on) { modoTest_ = on; }
     /// El área del audio (los racks, la matriz, el Mezclador, el PFL, el retardo).
@@ -664,7 +659,7 @@ class StudioViewModel : public QObject {
     bool streamKeySaved() const;
     QString room() const;
     QObject* direccionesQml() const;
-    sala::Direcciones& direcciones() { return *direcciones_; }
+    sala::Direcciones& direcciones() { return sala_->direcciones(); }
     int guests() const;
     QString theme() const;
 
@@ -882,21 +877,12 @@ class StudioViewModel : public QObject {
     /// Reordena: deja `name` justo antes de `before` (vacio = al final), en la
     /// carpeta de `before`.
     Q_INVOKABLE void moveScene(const QString& name, const QString& before);
-    /// El operador le encarga al asistente atender a alguien del lobby: que le
-    /// pida sus datos por chat y despues le presente todo junto para admitirlo.
-    /// Devuelve el error o "".
-    Q_INVOKABLE QString assistantIntake(const QString& id, const QString& name, bool yaAdentro);
-
     /// Copia un texto al portapapeles y lo avisa.
     ///
     /// Vive acá y no en la sala: copiar un enlace no tiene nada que ver con una
     /// videoconferencia. Estaba en ConferenceViewModel y por eso el diálogo de
     /// QR —que lo usan el teleprompter y los rótulos— no podía copiar nada.
     Q_INVOKABLE void copiar(const QString& texto);
-    /// Lo engancha McpService (necesita el nucleo MCP, que vive afuera).
-    void setIntakeSink(std::function<QString(const QString&, const QString&, bool)> fn) {
-        intakeSink_ = std::move(fn);
-    }
     /// Escena que muestra el lienzo del editor ("" = ninguna). Se renderiza
     /// aunque no este al aire, asi una escena vacia se ve vacia.
     Q_INVOKABLE void setScenePreview(const QString& name);
@@ -947,7 +933,6 @@ class StudioViewModel : public QObject {
 
    private:
     AppRuntime& rt_;
-    std::function<QString(const QString&, const QString&, bool)> intakeSink_;
     std::unique_ptr<ScenesModel> scenes_;
     std::unique_ptr<SourcesModel> sources_;
     std::unique_ptr<MixerModel> mixer_;
@@ -957,13 +942,9 @@ class StudioViewModel : public QObject {
     std::unique_ptr<FrameService> frames_;
     std::unique_ptr<PropertiesModel> props_;
     std::unique_ptr<ConferenceViewModel> conference_;
-    std::unique_ptr<sala::CupoSala> cupoSala_; ///< usa el cliente de conference_: va después (se destruye antes)
-    std::unique_ptr<sala::ConfigSala> configSala_; ///< ídem
-    std::unique_ptr<sala::Direcciones> direcciones_; ///< idem: el catálogo de direcciones del gateway
-    std::unique_ptr<sala::VotacionSala> votacion_; ///< ídem
-    std::unique_ptr<sala::PreguntasSala> preguntas_; ///< ídem
-    std::unique_ptr<sala::SeguridadSala> seguridad_; ///< ídem
-    std::unique_ptr<AccesoRemoto> accesoRemoto_; ///< usa el cliente de conference_: va después (se destruye antes)
+    /// El cupo, la configuración, las direcciones, la votación, las preguntas, el PIN y el
+    /// túnel (ui/SalaViewModel): usa el cliente de conference_, va después (se destruye antes).
+    std::unique_ptr<SalaViewModel> sala_;
     std::unique_ptr<EventoViewModel> evento_;
     std::unique_ptr<graficos::Emisor> emisor_;
     std::unique_ptr<GraficoViewModel> grafico_;
@@ -1060,7 +1041,6 @@ class StudioViewModel : public QObject {
     void refrescarAvisos();
     std::unique_ptr<escenas::AjustesEscenas> ajustesEscenas_; ///< Config/escenas.json (modelo)
     std::unique_ptr<config::InterfazConfig> interfaz_;        ///< Config/interfaz.json (modelo)
-    QHash<QString, QString> infoAprobada_; ///< participante -> cargo aprobado por el operador
     unsigned vigiaTicks_ = 0;
     std::unique_ptr<escenas::RespaldoEntradas> respaldo_; ///< usa los grafos de video y el conmutador de la por omisión
     void revisarSenales();

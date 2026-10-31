@@ -175,6 +175,7 @@
 #include "ui/PrompterViewModel.hpp"
 #include "ui/PropertiesModel.hpp"
 #include "ui/PublicoViewModel.hpp"
+#include "ui/SalaViewModel.hpp"
 #include "ui/QrViewModel.hpp"
 #include "ui/RegistroViewModel.hpp"
 #include "ui/RielConfig.hpp"
@@ -354,12 +355,21 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     props_ = std::make_unique<PropertiesModel>(rt);
     marca("props");
     conference_ = std::make_unique<ConferenceViewModel>(rt);
-    // El transporte A→B lo mide el gateway y viaja en la foto de la sala (los SLI, F4-01).
-    recursos_->alTransporte([this]() {
-        const QJsonValue t = conference_->client().snapshot().value("uso").toObject().value("transporte");
-        const nlohmann::json j = nlohmann::json::parse(QJsonDocument(t.toArray()).toJson(QJsonDocument::Compact).toStdString(), nullptr, false);
-        return j.is_array() ? j : nlohmann::json::array();
-    });
+    // Lo que se maneja de la sala en caliente: el cupo, la configuración, las direcciones,
+    // la votación, las preguntas, el PIN y el túnel (ui/SalaViewModel).
+    sala_ = std::make_unique<SalaViewModel>(SalaViewModel::Partes{
+        .rt = rt,
+        .conferencia = *conference_,
+        .recursos = *recursos_,
+        .enVivo = [this]() { return modoVivo(); },
+        .conAire = [this]() { return streaming_ || recording_; },
+        .evento = [this]() { return evento_.get(); },
+        .chat = [this]() { return chatOverlay_.get(); },
+        .enElCuerpo = [this](const std::string& nombre) {
+            return asamblea_ ? asamblea_->cuerpo().cuerpo().buscar(nombre) : nlohmann::json::object();
+        }});
+    connect(sala_.get(), &SalaViewModel::notify, this, &StudioViewModel::notify);
+    connect(sala_.get(), &SalaViewModel::cupoCambio, this, [this](int n) { frames_->setGuests(n); });
     // Grabar, transmitir y lo que los rodea: destinos, señal limpia, ISO, disco, loudness,
     // retornos y la salud de cada destino (ui/EmisionViewModel).
     emision_ = std::make_unique<EmisionViewModel>(
@@ -371,36 +381,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     connect(emision_.get(), &EmisionViewModel::destinosChanged, salidas_.get(), &SalidasViewModel::publicar);
     salidas_->publicar(); // el gateway se entera de las salidas apenas hay con quién hablar
     marca("conference");
-    direcciones_ = std::make_unique<sala::Direcciones>(conference_->client());
-    // El cupo es del modelo; acá solo se muestra lo que pasó.
-    cupoSala_ = std::make_unique<sala::CupoSala>(rt, conference_->client());
-    cupoSala_->alAvisar([this](const std::string& texto, bool error) {
-        emit notify(QString::fromStdString(texto), error ? "error" : "ok");
-    });
-    cupoSala_->alCambiar([this](int n) { frames_->setGuests(n); });
-    configSala_ = std::make_unique<sala::ConfigSala>(conference_->client());
-    seguridad_ = std::make_unique<sala::SeguridadSala>(rt.dataRoot(), conference_->client(), [this]() { return modoVivo(); });
-    // El encargo al asistente vive aca (necesita el MCP): la sala solo avisa.
-    conference_->setIntakeSink([this](const QString& id, const QString& name, bool yaAdentro) {
-        return assistantIntake(id, name, yaAdentro);
-    });
     connect(conference_.get(), &ConferenceViewModel::notify, this, &StudioViewModel::notify);
-    accesoRemoto_ = std::make_unique<AccesoRemoto>(rt, conference_->client());
-    accesoRemoto_->setDirecciones(direcciones_.get());
-    accesoRemoto_->setEnVivo([this]() { return modoVivo(); });
-    // «Configurar todo con la API key»: los cambios de Configuración → Pinggy van por un
-    // modelo aparte (como el MCP), así no se pisa lo que el operador tenga a medio editar.
-    accesoRemoto_->setAplicarPinggy([this](const QVariantMap& cambios) -> QString {
-        SettingsModel m(rt_);
-        m.revert();
-        for (auto it = cambios.begin(); it != cambios.end(); ++it) {
-            if (!m.value(it.key()).isValid()) return tr("esta versión no tiene %1").arg(it.key());
-            m.setValue(it.key(), it.value());
-        }
-        const QString resumen = m.apply();
-        if (m.fallo()) return resumen;
-        return {}; // los formularios y las listas se enteran solos (avisos del runtime)
-    });
     // Un solo renderizador de gráficos para todos los que disparan uno: el
     // guion, el editor, el rotulador y el asistente.
     emisor_ = std::make_unique<graficos::Emisor>(rt.dataRoot());
@@ -422,20 +403,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     // Un evento con página web y dirección propia: al ponerlo en curso, la dirección
     // pública pasa a ser su subdominio (con la API key de pinggy). Reinicia la sala:
     // al aire no se toca (se avisa).
-    connect(evento_.get(), &EventoViewModel::pedirDireccion, this, [this](const QString& sub) {
-        if (!accesoRemoto_ || !accesoRemoto_->apiKeyGuardada()) return;
-        const QString actual = accesoRemoto_->estado().value("pinggy").toMap().value("urlPublica").toString();
-        if (actual.contains("//" + sub + ".")) return; // ya es esa
-        if (streaming_ || recording_) {
-            emit notify(tr("El evento tiene su dirección (%1.a.pinggy.link) pero se está transmitiendo o grabando: "
-                           "no se cambia ahora (reinicia la conferencia). Cambiala desde Guion → Página web cuando se pueda.")
-                            .arg(sub),
-                        "warning");
-            return;
-        }
-        emit notify(tr("Pasando la dirección pública a %1.a.pinggy.link (la conferencia se reinicia)…").arg(sub), "info");
-        accesoRemoto_->configurarConApiKey(sub);
-    });
+    connect(evento_.get(), &EventoViewModel::pedirDireccion, sala_.get(), &SalaViewModel::pedirDireccion);
     grafico_ = std::make_unique<GraficoViewModel>(rt, *emisor_);
     marca("grafico");
     // El rotulador mira la escena que está al aire, así que la sigue.
@@ -464,22 +432,9 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     // modera. No consulta nada hasta que una vista se muestra (ver `activo`).
     publico_ = std::make_unique<PublicoViewModel>(conference_.get(), this);
     marca("publico");
-    // La votación es del modelo (con el padrón del evento abierto); el público y el MCP la usan.
-    votacion_ = std::make_unique<sala::VotacionSala>(conference_->client(), [this]() {
-        return evento_ ? evento_->votantes() : std::nullopt;
-    });
-    publico_->setVotacion(votacion_.get());
-    // Las preguntas, ídem; un mensaje del chat se busca en el chat que junta las plataformas.
-    preguntas_ = std::make_unique<sala::PreguntasSala>(conference_->client(), [this](const std::string& clave)
-                                                           -> std::optional<sala::PreguntasSala::MensajeChat> {
-        if (!chatOverlay_) return std::nullopt;
-        for (const auto& m : chatOverlay_->collect())
-            if (m.key.toStdString() == clave)
-                return sala::PreguntasSala::MensajeChat{m.text.toStdString(), m.author.toStdString(),
-                                                        m.source == "room" ? std::string("sala") : m.source.toStdString()};
-        return std::nullopt;
-    });
-    publico_->setPreguntas(preguntas_.get());
+    // La votación y las preguntas son de la sala (modelo); el público y el MCP las usan.
+    publico_->setVotacion(&sala_->votacion());
+    publico_->setPreguntas(&sala_->preguntas());
     connect(publico_.get(), &PublicoViewModel::notify, this, &StudioViewModel::notify);
     medios_ = std::make_unique<MediosViewModel>(rt, this);
     playlist_ = std::make_unique<medios::Playlist>(rt, this);
@@ -736,8 +691,8 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
         // Y los notificadores de los disparadores, desde el hilo del vigía.
         alarmas_->setAvisoFueraDeUi(avisoFueraDeUi_.get());
         settings_->setEnVivo([this]() { return modoVivo(); });
-        settings_->setCupoEnCaliente([this](int n) { return cupoSala_->cambiar(n); });
-        settings_->setConfigSala(configSala_.get());
+        settings_->setCupoEnCaliente([this](int n) { return sala_->cupo().cambiar(n); });
+        settings_->setConfigSala(&sala_->config());
         // ¿Volvemos de una caída? El supervisor dejó escrita la causa.
         {
             const auto archivo = ba::platform::dataRoot() / "Runtime" / "ultima-caida.json";
@@ -906,7 +861,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
         .rt = rt,
         .bus = *bus_,
         .sala = *conference_,
-        .direcciones = *direcciones_,
+        .direcciones = sala_->direcciones(),
         .conmutador = salidas_->conmutador(),
         .camaras = imagen_->camaras(),
         .plugins = [this]() { return plugins_.get(); },
@@ -921,7 +876,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     control_ = std::make_unique<ControlViewModel>(ControlViewModel::Partes{.rt = rt,
                                                                            .bus = *bus_,
                                                                            .sala = *conference_,
-                                                                           .direcciones = *direcciones_,
+                                                                           .direcciones = sala_->direcciones(),
                                                                            .asamblea = *asamblea_,
                                                                            .camaras = &imagen_->camaras(),
                                                                            .plugins = plugins_.get(),
@@ -994,64 +949,18 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     // prender cada servicio, sin que el modelo conozca sus clases.
     {
         EnlacesViewModel::Fuentes f;
-        f.enlaces = [this]() { return &conference_->enlaces(); };
-        f.salaEnLinea = [this]() { return conference_->online(); };
-        f.salaCerrada = [this]() { return conference_->locked(); };
-        f.cerrarSala = [this](bool on) { conference_->setLocked(on); };
-        f.tunel = [this]() { return accesoRemoto_ ? accesoRemoto_->conexion() : QVariantMap(); };
-        f.activarTunel = [this](bool on) -> QString {
-            if (!accesoRemoto_) return tr("No disponible.");
-            if (!on) return accesoRemoto_->desconectar();
-            const QVariantList formas = accesoRemoto_->formasDeConectar();
-            if (formas.isEmpty())
-                return tr("No hay ninguna forma de conectar guardada: configurala en Configuración → Acceso remoto.");
-            return accesoRemoto_->conectar(formas.first().toMap().value("id").toString());
-        };
-        f.direcciones = [this]() -> const sala::Direcciones* { return direcciones_.get(); };
+        // La sala, el túnel, las direcciones y el lobby.
+        sala_->alimentarEnlaces(f);
         f.webEvento = [this]() -> QVariantMap {
             if (!evento_) return {};
             return {{"hay", evento_->web().value("hay").toBool()}, {"evento", evento_->abierto()}};
         };
         // La API remota, el Satellite, el control web y los pedidos de cada aparato.
         control_->alimentarEnlaces(f);
-        {
-            EnlacesViewModel::Aprobaciones a;
-            a.pendientes = [this]() {
-                QVariantList out;
-                const auto* l = qobject_cast<const JsonListModel*>(conference_->waiting());
-                if (l == nullptr) return out;
-                for (const QJsonValue& v : l->items()) {
-                    const QJsonObject p = v.toObject();
-                    out << QVariantMap{{"id", p.value("uid").toString()},
-                                       {"nombre", p.value("name").toString()},
-                                       {"ip", QString()},
-                                       {"ms", p.value("joinedMs").toDouble()},
-                                       {"detalle", p.value("info").toString().isEmpty()
-                                                       ? tr("espera en el lobby")
-                                                       : tr("espera en el lobby · %1").arg(p.value("info").toString())}};
-                }
-                return out;
-            };
-            a.resolver = [this](const QString& uid, bool aprobar, const QString&) -> QString {
-                if (aprobar)
-                    conference_->admit(uid);
-                else
-                    conference_->reject(uid);
-                return {};
-            };
-            a.textoAprobar = tr("Admitir");
-            a.unoEspera = tr("Una persona espera en el lobby: admitila acá abajo");
-            a.variosEsperan = tr("%1 personas esperan en el lobby: admitilas acá abajo");
-            f.aprobaciones["invitados"] = std::move(a);
-        }
         enlaces_ = std::make_unique<EnlacesViewModel>(std::move(f));
         auto* e = enlaces_.get();
         const auto avisar = [e]() { e->avisarCambio(); };
-        connect(conference_.get(), &ConferenceViewModel::onlineChanged, e, avisar);
-        // Cambiaron las direcciones (la red, el túnel, una puerta): los enlaces se vuelven a pedir.
-        connect(direcciones_.get(), &sala::Direcciones::cambio, e, &EnlacesViewModel::refrescar);
-        connect(conference_.get(), &ConferenceViewModel::roomChanged, e, avisar);
-        if (accesoRemoto_) connect(accesoRemoto_.get(), &AccesoRemoto::estadoChanged, e, avisar);
+        sala_->avisarA(*e);
         control_->avisarA(*e);
         if (evento_) {
             connect(evento_.get(), &EventoViewModel::webChanged, e, avisar);
@@ -1305,7 +1214,11 @@ bool StudioViewModel::streamKeyAvailable() const {
 }
 bool StudioViewModel::streamKeySaved() const { return rt_.streamKeySaved(); }
 QString StudioViewModel::room() const { return qs(const_cast<AppRuntime&>(rt_).gateway().room); }
-QObject* StudioViewModel::direccionesQml() const { return direcciones_.get(); }
+QObject* StudioViewModel::direccionesQml() const { return sala_->direccionesQml(); }
+QObject* StudioViewModel::salaQml() const {
+    QQmlEngine::setObjectOwnership(sala_.get(), QQmlEngine::CppOwnership);
+    return sala_.get();
+}
 int StudioViewModel::guests() const { return rt_.config().guests; }
 QString StudioViewModel::theme() const { return qs(rt_.config().theme); }
 
@@ -1437,56 +1350,8 @@ QJsonObject StudioViewModel::contextoDeVinculos() const {
     QJsonObject ctx;
     ctx["escena"] = currentScene();
 
-    // La sala: quién está al aire y quiénes esperan, en el orden en que los
-    // ve el operador. `invitado1`, `invitado2`... son ESE orden, que es lo que
-    // uno tiene delante cuando dice «el invitado 2».
-    const QJsonObject sala = conference_ != nullptr ? conference_->client().snapshot() : QJsonObject{};
-    QHash<QString, QJsonObject> porId;
-    for (const QJsonValue& v : sala.value("participants").toArray())
-        porId.insert(v.toObject().value("id").toString(), v.toObject());
-
-    // Lo que sale en un zócalo tiene que estar VALIDADO: si el invitado está en
-    // el Cuerpo (por nombre), salen el nombre y el cargo de ahí; si no, el
-    // `info` que él escribió al entrar solo sale si el operador lo aprobó
-    // (invitado_info_aprobar). Sin eso, el cargo va vacío.
-    const auto deParticipante = [this](const QJsonObject& p) {
-        const QString nombre = p.value("name").toString();
-        const nlohmann::json enCuerpo = asamblea_ ? asamblea_->cuerpo().cuerpo().buscar(nombre.toStdString()) : nlohmann::json::object();
-        QString cargo, bloque;
-        bool validado = false;
-        if (!enCuerpo.empty()) {
-            cargo = QString::fromStdString(enCuerpo.value("cargo_oficial", std::string()));
-            bloque = QString::fromStdString(enCuerpo.value("bloque", std::string()));
-            validado = enCuerpo.contains("validado_por");
-        } else if (const auto it = infoAprobada_.constFind(p.value("id").toString()); it != infoAprobada_.constEnd()) {
-            cargo = *it;
-            validado = true;
-        }
-        return QJsonObject{{"nombre", enCuerpo.empty() ? nombre : QString::fromStdString(enCuerpo.value("nombre", nombre.toStdString()))},
-                           {"cargo", cargo},
-                           {"bloque", bloque},
-                           {"validado", validado},
-                           {"sugerencia", p.value("info").toString()},
-                           {"contacto", p.value("contact").toString()}};
-    };
-
-    int n = 0;
-    bool hayOrador = false;
-    QJsonObject primeroEnCola;
-    for (const QJsonValue& v : sala.value("order").toArray()) {
-        const auto it = porId.constFind(v.toString());
-        if (it == porId.constEnd()) continue;
-        const QJsonObject p = *it;
-        ctx["invitado" + QString::number(++n)] = deParticipante(p);
-        const QString estado = p.value("speaker").toString();
-        if (estado == "onair" && !hayOrador) {
-            ctx["orador"] = deParticipante(p);
-            hayOrador = true;
-        } else if (estado == "queued" && primeroEnCola.isEmpty()) {
-            primeroEnCola = deParticipante(p);
-        }
-    }
-    if (!primeroEnCola.isEmpty()) ctx["siguiente"] = primeroEnCola;
+    // La sala: los invitados en el orden en que los ve el operador, quién habla y quién sigue.
+    sala_->completarVinculos(ctx);
     // El guion: qué bloque va y qué dice el cue. Si el cue que corre es de
     // orador, ese es el orador según el guion, que puede no ser el mismo que
     // el de la sala (alguien que habla desde el estudio, sin conectarse).
@@ -1692,11 +1557,6 @@ void StudioViewModel::copiar(const QString& texto) {
     }
 }
 
-QString StudioViewModel::assistantIntake(const QString& id, const QString& name, bool yaAdentro) {
-    if (!intakeSink_) return tr("El servidor MCP no está disponible.");
-    return intakeSink_(id, name, yaAdentro);
-}
-
 void StudioViewModel::moveScene(const QString& name, const QString& before) {
     if (!rt_.moveScene(name.toStdString(), before.toStdString())) {
         emit notify(qs(rt_.lastError()), "error");
@@ -1872,44 +1732,6 @@ void StudioViewModel::setCorteDirectoEditor(bool si) {
 
 QObject* StudioViewModel::cuerpoQml() const { return asamblea_->cuerpoQml(); }
 
-QString StudioViewModel::aprobarInfoInvitado(const QString& participante, const QString& texto) {
-    const QJsonObject sala = conference_ != nullptr ? conference_->client().snapshot() : QJsonObject{};
-    for (const QJsonValue& v : sala.value("participants").toArray()) {
-        const QJsonObject p = v.toObject();
-        if (p.value("id").toString() == participante || p.value("name").toString() == participante) {
-            infoAprobada_[p.value("id").toString()] = texto.isEmpty() ? p.value("info").toString() : texto;
-            return {};
-        }
-    }
-    return tr("no hay un invitado «%1» en la conferencia").arg(participante);
-}
-
-QVariantList StudioViewModel::chatRecientesUi() const {
-    QVariantList out;
-    if (!chatOverlay_) return out;
-    const QStringList dest = chatOverlay_->destacados();
-    for (const auto& m : chatOverlay_->collect())
-        out << QVariantMap{{"key", m.key}, {"source", m.source}, {"author", m.author}, {"text", m.text},
-                           {"destacado", dest.contains(m.key)}};
-    return out;
-}
-
-bool StudioViewModel::destacarChatUi(const QString& key) { return chatOverlay_ && chatOverlay_->destacar(key); }
-
-void StudioViewModel::quitarDestacadoChatUi(const QString& key) {
-    if (chatOverlay_) chatOverlay_->quitarDestacado(key);
-}
-
-QString StudioViewModel::preguntaDesdeChatUi(const QString& key) {
-    QPointer<StudioViewModel> yo(this);
-    return qs(preguntas_->sumarDesdeChat(key.toStdString(), [yo](const std::string& err, const nlohmann::json&) {
-        if (yo)
-            emit yo->notify(err.empty() ? tr("Sumada a la cola de preguntas")
-                                        : tr("No se pudo sumar la pregunta: %1").arg(QString::fromStdString(err)),
-                            err.empty() ? "ok" : "error");
-    }));
-}
-
 QObject* StudioViewModel::bancasQml() const { return asamblea_->bancasQml(); }
 QObject* StudioViewModel::debateQml() const { return asamblea_->debateQml(); }
 QObject* StudioViewModel::configuracionesQml() const { return configuraciones_.get(); }
@@ -1963,10 +1785,7 @@ void StudioViewModel::publicarEventos() {
     // si cambió el día (el PIN es uno por día: el mismo día, el mismo PIN).
     {
         const bool ev = evento_ != nullptr && evento_->property("enVivo").toBool();
-        if (ev && !eventoEnVivo_ && seguridad_)
-            seguridad_->rotarPinSiCambioElDia([this](const std::string& error, bool cambio, const std::string& pin) {
-                if (error.empty() && cambio) emit notify(tr("Día nuevo: la conferencia tiene PIN nuevo (%1)").arg(qs(pin)), "info");
-            });
+        if (ev && !eventoEnVivo_) sala_->alEmpezarElVivo();
         eventoEnVivo_ = ev;
     }
     // Al terminar el vivo, lo desbloqueado vuelve a quedar protegido para la próxima.
@@ -2125,20 +1944,7 @@ void StudioViewModel::publicarEventos() {
         for (const QString& e : sinSenal()) sin.push_back(e.toStdString());
         bus_->publicar("entrada/senal", {{"sin_senal", sin}});
         if (asamblea_) bus_->publicar("oradores/al_aire", asamblea_->bancas().oradorParaZocalo());
-        if (conference_) {
-            nlohmann::json gente = nlohmann::json::array();
-            const QJsonObject snap = static_cast<ConferenceViewModel*>(conference_.get())->client().snapshot();
-            for (const QJsonValue& v : snap.value("participants").toArray()) {
-                const QJsonObject o = v.toObject();
-                gente.push_back({{"id", o.value("id").toString().toStdString()},
-                                 {"nombre", o.value("name").toString().toStdString()},
-                                 {"estado", o.value("state").toString().toStdString()},
-                                 {"mic", o.value("mic").toBool()},
-                                 {"cam", o.value("cam").toBool()},
-                                 {"mano", o.value("hand").toBool()}});
-            }
-            bus_->publicar("sala/participantes", gente);
-        }
+        sala_->publicarParticipantes(*bus_);
     }
 }
 
@@ -2165,7 +1971,7 @@ QObject* StudioViewModel::grillasQml() const { return grillasPersonas_.get(); }
 QObject* StudioViewModel::accionesQml() const { return control_->accionesQml(); }
 double StudioViewModel::picoDe(const QString& fuente) const { return mixer_ ? mixer_->picoDe(fuente.toStdString()) : -100.0; }
 QObject* StudioViewModel::notificadorQml() const { return notificador_.get(); }
-QObject* StudioViewModel::accesoRemotoQml() const { return accesoRemoto_.get(); }
+QObject* StudioViewModel::accesoRemotoQml() const { return sala_->accesoRemotoQml(); }
 QObject* StudioViewModel::seguirMicrofonoQml() const { return asamblea_->seguirMicrofonoQml(); }
 QObject* StudioViewModel::ordenDelDiaQml() const { return asamblea_->ordenDelDiaQml(); }
 QObject* StudioViewModel::informesQml() const { return asamblea_->informesQml(); }
@@ -2179,8 +1985,6 @@ QString StudioViewModel::capitulosPuntosUi() const {
 
 namespace ba::app {
 
-
-QString StudioViewModel::cupoUi(int n) { return QString::fromStdString(cupoSala_->cambiar(n)); }
 
 QObject* StudioViewModel::playlistQml() const { return playlist_.get(); }
 QObject* StudioViewModel::puestoCorreccionQml() const { return asistente_->puestoCorreccionQml(); }

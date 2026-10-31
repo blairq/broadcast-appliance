@@ -534,7 +534,7 @@ McpService::McpService(AppRuntime& rt, StudioViewModel& vm, QObject* parent)
     }
     // El operador delega en el asistente la atencion de alguien del lobby: se
     // habilita la exencion para ESA persona y se le pasa la tarea al agente.
-    vm_.setIntakeSink([this](const QString& id, const QString& name, bool yaAdentro) -> QString {
+    vm_.sala().setIntakeSink([this](const QString& id, const QString& name, bool yaAdentro) -> QString {
         // QUIÉN ATIENDE es una sola regla (sala::quienAtiende, con test): la
         // recepción si está prendida; si no, el de automatización; nunca el del
         // evento. Y si se lo atiende HABLANDO lo decide la atención
@@ -2591,7 +2591,7 @@ void McpService::registerTools() {
                          {"required", {"participant"}},
                          {"properties", {{"participant", {{"type", "string"}}}, {"texto", {{"type", "string"}}}}}};
         t.run = [&vm](const json& a, Done done) {
-            const QString e = vm.aprobarInfoInvitado(QString::fromStdString(a.value("participant", std::string())),
+            const QString e = vm.sala().aprobarInfoInvitado(QString::fromStdString(a.value("participant", std::string())),
                                                       QString::fromStdString(a.value("texto", std::string())));
             if (!e.isEmpty()) return done(ToolResult::error(e.toStdString()));
             done(ToolResult::ok(ba::i18n::traducir("mcp", "Aprobado: el zocalo ya lo usa.")));

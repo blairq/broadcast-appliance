@@ -314,8 +314,8 @@ Rectangle {
                                 active: dest
                                 onClicked: {
                                     const k = "tw:" + tmsg.model.id
-                                    if (dest) { Studio.quitarDestacadoChatUi(k); dest = false }
-                                    else dest = Studio.destacarChatUi(k)
+                                    if (dest) { Studio.sala.quitarDestacadoChatUi(k); dest = false }
+                                    else dest = Studio.sala.destacarChatUi(k)
                                 }
                                 ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: qsTr("Destacar para el chat en pantalla")
                             }
@@ -324,7 +324,7 @@ Rectangle {
                                 anchors { right: parent.right; top: parent.top; rightMargin: 40 }
                                 compact: true
                                 text: "?"
-                                onClicked: { const e = Studio.preguntaDesdeChatUi("tw:" + tmsg.model.id); if (e !== "") Studio.notify(e, "error") }
+                                onClicked: { const e = Studio.sala.preguntaDesdeChatUi("tw:" + tmsg.model.id); if (e !== "") Studio.notify(e, "error") }
                                 ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: qsTr("Sumar a la cola de preguntas")
                             }
                         }

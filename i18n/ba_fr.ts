@@ -29860,21 +29860,6 @@ puis elle se rouvre toute seule. Les paramètres, identifiants, enregistrements 
         <translation>Chaque événement a maintenant son propre dossier avec tout son contenu. Ont été séparés : %1 (ouvrez-les avec « Ouvrir un autre… » dans la page de l'événement)</translation>
     </message>
     <message>
-        <location line="+112" />
-        <source>esta versión no tiene %1</source>
-        <translation>cette version n'a pas %1</translation>
-    </message>
-    <message>
-        <location line="+33" />
-        <source>El evento tiene su dirección (%1.a.pinggy.link) pero se está transmitiendo o grabando: no se cambia ahora (reinicia la conferencia). Cambiala desde Guion → Página web cuando se pueda.</source>
-        <translation>L'événement a sa propre adresse (%1.a.pinggy.link) mais une diffusion ou un enregistrement est en cours : elle ne change pas maintenant (cela redémarre la conférence). Changez-la depuis Conducteur → Page web dès que possible.</translation>
-    </message>
-    <message>
-        <location line="+6" />
-        <source>Pasando la dirección pública a %1.a.pinggy.link (la conferencia se reinicia)…</source>
-        <translation>Passage de l'adresse publique à %1.a.pinggy.link (la conférence redémarre)…</translation>
-    </message>
-    <message>
         <location line="+59" />
         <source>La playlist sigue donde estaba antes del corte</source>
         <translation>La playlist reprend là où elle était avant la coupure</translation>
@@ -29934,36 +29919,6 @@ puis elle se rouvre toute seule. Les paramètres, identifiants, enregistrements 
         <location line="+14" />
         <source>No disponible.</source>
         <translation>Non disponible.</translation>
-    </message>
-    <message>
-        <location line="-10" />
-        <source>No hay ninguna forma de conectar guardada: configurala en Configuración → Acceso remoto.</source>
-        <translation>Aucun moyen de connexion enregistré : configurez-en un dans Paramètres → Accès à distance.</translation>
-    </message>
-    <message>
-        <location line="+16" />
-        <source>espera en el lobby</source>
-        <translation>en salle d'attente</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>espera en el lobby · %1</source>
-        <translation>en salle d'attente · %1</translation>
-    </message>
-    <message>
-        <location line="+11" />
-        <source>Admitir</source>
-        <translation>Admettre</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>Una persona espera en el lobby: admitila acá abajo</source>
-        <translation>Une personne attend en salle d'attente : admettez-la ci-dessous</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>%1 personas esperan en el lobby: admitilas acá abajo</source>
-        <translation>%1 personnes attendent en salle d'attente : admettez-les ci-dessous</translation>
     </message>
     <message>
         <location line="+333" />
@@ -30056,11 +30011,6 @@ puis elle se rouvre toute seule. Les paramètres, identifiants, enregistrements 
         <translation>« %1 » n'est plus protégée</translation>
     </message>
     <message>
-        <location line="+48" />
-        <source>El servidor MCP no está disponible.</source>
-        <translation>Le serveur MCP n'est pas disponible.</translation>
-    </message>
-    <message>
         <location line="+31" />
         <source>Guardado</source>
         <translation>Enregistré</translation>
@@ -30074,26 +30024,6 @@ puis elle se rouvre toute seule. Les paramètres, identifiants, enregistrements 
         <location line="+8" />
         <source>Se restauró lo que estaba al aire antes del corte (placa o negro)</source>
         <translation>Ce qui était à l'antenne avant la coupure a été rétabli (carton ou noir)</translation>
-    </message>
-    <message>
-        <location line="+14" />
-        <source>no hay un invitado «%1» en la conferencia</source>
-        <translation>il n'y a pas d'invité « %1 » dans la conférence</translation>
-    </message>
-    <message>
-        <location line="+23" />
-        <source>Sumada a la cola de preguntas</source>
-        <translation>Ajoutée à la file des questions</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>No se pudo sumar la pregunta: %1</source>
-        <translation>Impossible d'ajouter la question : %1</translation>
-    </message>
-    <message>
-        <location line="+29" />
-        <source>Día nuevo: la conferencia tiene PIN nuevo (%1)</source>
-        <translation>Nouveau jour : la conférence a un nouveau PIN (%1)</translation>
     </message>
     <message>
         <location line="+20" />
@@ -30219,6 +30149,65 @@ puis elle se rouvre toute seule. Les paramètres, identifiants, enregistrements 
         <location line="+1" />
         <source>%1: %2 cierra la aplicación y %3.</source>
         <translation>%1 : %2 ferme l'application et %3.</translation>
+    </message>
+</context>
+<context>
+    <name>SalaViewModel</name>
+    <message>
+        <source>esta versión no tiene %1</source>
+        <translation>cette version n'a pas %1</translation>
+    </message>
+    <message>
+        <source>El evento tiene su dirección (%1.a.pinggy.link) pero se está transmitiendo o grabando: no se cambia ahora (reinicia la conferencia). Cambiala desde Guion → Página web cuando se pueda.</source>
+        <translation>L'événement a sa propre adresse (%1.a.pinggy.link) mais une diffusion ou un enregistrement est en cours : elle ne change pas maintenant (cela redémarre la conférence). Changez-la depuis Conducteur → Page web dès que possible.</translation>
+    </message>
+    <message>
+        <source>Pasando la dirección pública a %1.a.pinggy.link (la conferencia se reinicia)…</source>
+        <translation>Passage de l'adresse publique à %1.a.pinggy.link (la conférence redémarre)…</translation>
+    </message>
+    <message>
+        <source>No hay ninguna forma de conectar guardada: configurala en Configuración → Acceso remoto.</source>
+        <translation>Aucun moyen de connexion enregistré : configurez-en un dans Paramètres → Accès à distance.</translation>
+    </message>
+    <message>
+        <source>espera en el lobby</source>
+        <translation>en salle d'attente</translation>
+    </message>
+    <message>
+        <source>espera en el lobby · %1</source>
+        <translation>en salle d'attente · %1</translation>
+    </message>
+    <message>
+        <source>Admitir</source>
+        <translation>Admettre</translation>
+    </message>
+    <message>
+        <source>Una persona espera en el lobby: admitila acá abajo</source>
+        <translation>Une personne attend en salle d'attente : admettez-la ci-dessous</translation>
+    </message>
+    <message>
+        <source>%1 personas esperan en el lobby: admitilas acá abajo</source>
+        <translation>%1 personnes attendent en salle d'attente : admettez-les ci-dessous</translation>
+    </message>
+    <message>
+        <source>El servidor MCP no está disponible.</source>
+        <translation>Le serveur MCP n'est pas disponible.</translation>
+    </message>
+    <message>
+        <source>no hay un invitado «%1» en la conferencia</source>
+        <translation>il n'y a pas d'invité « %1 » dans la conférence</translation>
+    </message>
+    <message>
+        <source>Sumada a la cola de preguntas</source>
+        <translation>Ajoutée à la file des questions</translation>
+    </message>
+    <message>
+        <source>No se pudo sumar la pregunta: %1</source>
+        <translation>Impossible d'ajouter la question : %1</translation>
+    </message>
+    <message>
+        <source>Día nuevo: la conferencia tiene PIN nuevo (%1)</source>
+        <translation>Nouveau jour : la conférence a un nouveau PIN (%1)</translation>
     </message>
 </context>
 <context>

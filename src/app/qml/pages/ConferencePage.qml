@@ -378,7 +378,7 @@ Rectangle {
                                         text: qsTr("✦ Que lo atienda"); compact: true
                                         visible: Studio.agent.running
                                         onClicked: {
-                                            const e = Studio.assistantIntake(waitCard.uid, waitCard.name)
+                                            const e = Studio.sala.assistantIntake(waitCard.uid, waitCard.name)
                                             Studio.notify(
                                                 e !== "" ? e : qsTr("El asistente está hablando con %1").arg(waitCard.name),
                                                 e !== "" ? "error" : "ok")

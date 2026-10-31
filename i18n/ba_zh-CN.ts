@@ -29741,21 +29741,6 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
         <translation>现在每个活动都有包含其全部内容的独立文件夹。已拆分出：%1（可在活动页面用「打开其他…」打开）</translation>
     </message>
     <message>
-        <location line="+112" />
-        <source>esta versión no tiene %1</source>
-        <translation>此版本没有 %1</translation>
-    </message>
-    <message>
-        <location line="+33" />
-        <source>El evento tiene su dirección (%1.a.pinggy.link) pero se está transmitiendo o grabando: no se cambia ahora (reinicia la conferencia). Cambiala desde Guion → Página web cuando se pueda.</source>
-        <translation>活动有其专属地址（%1.a.pinggy.link），但正在推流或录制：现在不会更改（会重启会议）。请在方便时从 串联单 → 网页 中更改。</translation>
-    </message>
-    <message>
-        <location line="+6" />
-        <source>Pasando la dirección pública a %1.a.pinggy.link (la conferencia se reinicia)…</source>
-        <translation>正在将公网地址切换为 %1.a.pinggy.link（会议将重启）…</translation>
-    </message>
-    <message>
         <location line="+59" />
         <source>La playlist sigue donde estaba antes del corte</source>
         <translation>播放列表从中断前的位置继续</translation>
@@ -29815,36 +29800,6 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
         <location line="+14" />
         <source>No disponible.</source>
         <translation>不可用。</translation>
-    </message>
-    <message>
-        <location line="-10" />
-        <source>No hay ninguna forma de conectar guardada: configurala en Configuración → Acceso remoto.</source>
-        <translation>没有已保存的连接方式：请在 设置 → 远程访问 中设置。</translation>
-    </message>
-    <message>
-        <location line="+16" />
-        <source>espera en el lobby</source>
-        <translation>在等候室等候</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>espera en el lobby · %1</source>
-        <translation>在等候室等候 · %1</translation>
-    </message>
-    <message>
-        <location line="+11" />
-        <source>Admitir</source>
-        <translation>接纳</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>Una persona espera en el lobby: admitila acá abajo</source>
-        <translation>有一人在等候室等候：请在下方接纳</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>%1 personas esperan en el lobby: admitilas acá abajo</source>
-        <translation>%1 人在等候室等候：请在下方接纳</translation>
     </message>
     <message>
         <location line="+333" />
@@ -29937,11 +29892,6 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
         <translation>「%1」已取消保护</translation>
     </message>
     <message>
-        <location line="+48" />
-        <source>El servidor MCP no está disponible.</source>
-        <translation>MCP 服务器不可用。</translation>
-    </message>
-    <message>
         <location line="+31" />
         <source>Guardado</source>
         <translation>已保存</translation>
@@ -29955,26 +29905,6 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
         <location line="+8" />
         <source>Se restauró lo que estaba al aire antes del corte (placa o negro)</source>
         <translation>已恢复中断前的播出内容（垫片画面或黑场）</translation>
-    </message>
-    <message>
-        <location line="+14" />
-        <source>no hay un invitado «%1» en la conferencia</source>
-        <translation>会议中没有名为「%1」的嘉宾</translation>
-    </message>
-    <message>
-        <location line="+23" />
-        <source>Sumada a la cola de preguntas</source>
-        <translation>已加入提问队列</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>No se pudo sumar la pregunta: %1</source>
-        <translation>无法添加提问：%1</translation>
-    </message>
-    <message>
-        <location line="+29" />
-        <source>Día nuevo: la conferencia tiene PIN nuevo (%1)</source>
-        <translation>新的一天：会议已更换新 PIN（%1）</translation>
     </message>
     <message>
         <location line="+20" />
@@ -30097,6 +30027,65 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
         <location line="+1" />
         <source>%1: %2 cierra la aplicación y %3.</source>
         <translation>%1：%2 会关闭应用，并%3。</translation>
+    </message>
+</context>
+<context>
+    <name>SalaViewModel</name>
+    <message>
+        <source>esta versión no tiene %1</source>
+        <translation>此版本没有 %1</translation>
+    </message>
+    <message>
+        <source>El evento tiene su dirección (%1.a.pinggy.link) pero se está transmitiendo o grabando: no se cambia ahora (reinicia la conferencia). Cambiala desde Guion → Página web cuando se pueda.</source>
+        <translation>活动有其专属地址（%1.a.pinggy.link），但正在推流或录制：现在不会更改（会重启会议）。请在方便时从 串联单 → 网页 中更改。</translation>
+    </message>
+    <message>
+        <source>Pasando la dirección pública a %1.a.pinggy.link (la conferencia se reinicia)…</source>
+        <translation>正在将公网地址切换为 %1.a.pinggy.link（会议将重启）…</translation>
+    </message>
+    <message>
+        <source>No hay ninguna forma de conectar guardada: configurala en Configuración → Acceso remoto.</source>
+        <translation>没有已保存的连接方式：请在 设置 → 远程访问 中设置。</translation>
+    </message>
+    <message>
+        <source>espera en el lobby</source>
+        <translation>在等候室等候</translation>
+    </message>
+    <message>
+        <source>espera en el lobby · %1</source>
+        <translation>在等候室等候 · %1</translation>
+    </message>
+    <message>
+        <source>Admitir</source>
+        <translation>接纳</translation>
+    </message>
+    <message>
+        <source>Una persona espera en el lobby: admitila acá abajo</source>
+        <translation>有一人在等候室等候：请在下方接纳</translation>
+    </message>
+    <message>
+        <source>%1 personas esperan en el lobby: admitilas acá abajo</source>
+        <translation>%1 人在等候室等候：请在下方接纳</translation>
+    </message>
+    <message>
+        <source>El servidor MCP no está disponible.</source>
+        <translation>MCP 服务器不可用。</translation>
+    </message>
+    <message>
+        <source>no hay un invitado «%1» en la conferencia</source>
+        <translation>会议中没有名为「%1」的嘉宾</translation>
+    </message>
+    <message>
+        <source>Sumada a la cola de preguntas</source>
+        <translation>已加入提问队列</translation>
+    </message>
+    <message>
+        <source>No se pudo sumar la pregunta: %1</source>
+        <translation>无法添加提问：%1</translation>
+    </message>
+    <message>
+        <source>Día nuevo: la conferencia tiene PIN nuevo (%1)</source>
+        <translation>新的一天：会议已更换新 PIN（%1）</translation>
     </message>
 </context>
 <context>

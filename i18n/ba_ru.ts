@@ -29979,21 +29979,6 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
         <translation>Теперь у каждого мероприятия своя папка со всем содержимым. Выделены: %1 (откройте их через «Открыть другое…» на странице мероприятия)</translation>
     </message>
     <message>
-        <location line="+112" />
-        <source>esta versión no tiene %1</source>
-        <translation>в этой версии нет %1</translation>
-    </message>
-    <message>
-        <location line="+33" />
-        <source>El evento tiene su dirección (%1.a.pinggy.link) pero se está transmitiendo o grabando: no se cambia ahora (reinicia la conferencia). Cambiala desde Guion → Página web cuando se pueda.</source>
-        <translation>У мероприятия есть свой адрес (%1.a.pinggy.link), но идёт трансляция или запись: сейчас он не меняется (это перезапускает конференцию). Измените его в Сценарий → Веб-страница, когда будет можно.</translation>
-    </message>
-    <message>
-        <location line="+6" />
-        <source>Pasando la dirección pública a %1.a.pinggy.link (la conferencia se reinicia)…</source>
-        <translation>Переключение публичного адреса на %1.a.pinggy.link (конференция перезапускается)…</translation>
-    </message>
-    <message>
         <location line="+59" />
         <source>La playlist sigue donde estaba antes del corte</source>
         <translation>Плейлист продолжается с того места, где был до сбоя</translation>
@@ -30053,36 +30038,6 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
         <location line="+14" />
         <source>No disponible.</source>
         <translation>Недоступно.</translation>
-    </message>
-    <message>
-        <location line="-10" />
-        <source>No hay ninguna forma de conectar guardada: configurala en Configuración → Acceso remoto.</source>
-        <translation>Нет сохранённого способа подключения: настройте его в Настройки → Удалённый доступ.</translation>
-    </message>
-    <message>
-        <location line="+16" />
-        <source>espera en el lobby</source>
-        <translation>ждёт в зале ожидания</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>espera en el lobby · %1</source>
-        <translation>ждёт в зале ожидания · %1</translation>
-    </message>
-    <message>
-        <location line="+11" />
-        <source>Admitir</source>
-        <translation>Допустить</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>Una persona espera en el lobby: admitila acá abajo</source>
-        <translation>Один человек ждёт в зале ожидания: допустите его ниже</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>%1 personas esperan en el lobby: admitilas acá abajo</source>
-        <translation>В зале ожидания ждут %1 чел.: допустите их ниже</translation>
     </message>
     <message>
         <location line="+333" />
@@ -30175,11 +30130,6 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
         <translation>«%1» больше не защищена</translation>
     </message>
     <message>
-        <location line="+48" />
-        <source>El servidor MCP no está disponible.</source>
-        <translation>Сервер MCP недоступен.</translation>
-    </message>
-    <message>
         <location line="+31" />
         <source>Guardado</source>
         <translation>Сохранено</translation>
@@ -30193,26 +30143,6 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
         <location line="+8" />
         <source>Se restauró lo que estaba al aire antes del corte (placa o negro)</source>
         <translation>Восстановлено то, что было в эфире до сбоя (заставка или чёрный)</translation>
-    </message>
-    <message>
-        <location line="+14" />
-        <source>no hay un invitado «%1» en la conferencia</source>
-        <translation>в конференции нет гостя «%1»</translation>
-    </message>
-    <message>
-        <location line="+23" />
-        <source>Sumada a la cola de preguntas</source>
-        <translation>Добавлено в очередь вопросов</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>No se pudo sumar la pregunta: %1</source>
-        <translation>Не удалось добавить вопрос: %1</translation>
-    </message>
-    <message>
-        <location line="+29" />
-        <source>Día nuevo: la conferencia tiene PIN nuevo (%1)</source>
-        <translation>Новый день: у конференции новый PIN (%1)</translation>
     </message>
     <message>
         <location line="+20" />
@@ -30341,6 +30271,65 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
         <location line="+1" />
         <source>%1: %2 cierra la aplicación y %3.</source>
         <translation>%1: %2 закрывает приложение и %3.</translation>
+    </message>
+</context>
+<context>
+    <name>SalaViewModel</name>
+    <message>
+        <source>esta versión no tiene %1</source>
+        <translation>в этой версии нет %1</translation>
+    </message>
+    <message>
+        <source>El evento tiene su dirección (%1.a.pinggy.link) pero se está transmitiendo o grabando: no se cambia ahora (reinicia la conferencia). Cambiala desde Guion → Página web cuando se pueda.</source>
+        <translation>У мероприятия есть свой адрес (%1.a.pinggy.link), но идёт трансляция или запись: сейчас он не меняется (это перезапускает конференцию). Измените его в Сценарий → Веб-страница, когда будет можно.</translation>
+    </message>
+    <message>
+        <source>Pasando la dirección pública a %1.a.pinggy.link (la conferencia se reinicia)…</source>
+        <translation>Переключение публичного адреса на %1.a.pinggy.link (конференция перезапускается)…</translation>
+    </message>
+    <message>
+        <source>No hay ninguna forma de conectar guardada: configurala en Configuración → Acceso remoto.</source>
+        <translation>Нет сохранённого способа подключения: настройте его в Настройки → Удалённый доступ.</translation>
+    </message>
+    <message>
+        <source>espera en el lobby</source>
+        <translation>ждёт в зале ожидания</translation>
+    </message>
+    <message>
+        <source>espera en el lobby · %1</source>
+        <translation>ждёт в зале ожидания · %1</translation>
+    </message>
+    <message>
+        <source>Admitir</source>
+        <translation>Допустить</translation>
+    </message>
+    <message>
+        <source>Una persona espera en el lobby: admitila acá abajo</source>
+        <translation>Один человек ждёт в зале ожидания: допустите его ниже</translation>
+    </message>
+    <message>
+        <source>%1 personas esperan en el lobby: admitilas acá abajo</source>
+        <translation>В зале ожидания ждут %1 чел.: допустите их ниже</translation>
+    </message>
+    <message>
+        <source>El servidor MCP no está disponible.</source>
+        <translation>Сервер MCP недоступен.</translation>
+    </message>
+    <message>
+        <source>no hay un invitado «%1» en la conferencia</source>
+        <translation>в конференции нет гостя «%1»</translation>
+    </message>
+    <message>
+        <source>Sumada a la cola de preguntas</source>
+        <translation>Добавлено в очередь вопросов</translation>
+    </message>
+    <message>
+        <source>No se pudo sumar la pregunta: %1</source>
+        <translation>Не удалось добавить вопрос: %1</translation>
+    </message>
+    <message>
+        <source>Día nuevo: la conferencia tiene PIN nuevo (%1)</source>
+        <translation>Новый день: у конференции новый PIN (%1)</translation>
     </message>
 </context>
 <context>
