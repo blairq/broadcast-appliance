@@ -34,6 +34,7 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QTimeZone>
+#include <QUrl>
 
 #include "arranque/AppRuntime.hpp"
 #include "diag/Registro.hpp"
@@ -3900,15 +3901,25 @@ json EventoViewModel::lineaImportar(const std::string& formato, const std::strin
     return r;
 }
 
-QString EventoViewModel::exportarEscaleta(const QString& formato, const QString& ruta) {
+namespace {
+/// Una ruta o la URL que da el diálogo de archivos («file:///…»).
+QString rutaLocal(const QString& r) {
+    const QUrl u(r);
+    return u.isLocalFile() ? u.toLocalFile() : r;
+}
+} // namespace
+
+QString EventoViewModel::exportarEscaleta(const QString& formato, const QString& rutaOUrl) {
     if (abierto_.isEmpty()) return tr("No hay un evento abierto.");
+    const QString ruta = rutaLocal(rutaOUrl);
     QFile f(ruta);
     if (!f.open(QIODevice::WriteOnly | QIODevice::Truncate)) return tr("No se pudo escribir «%1».").arg(ruta);
     f.write(QByteArray::fromStdString(lineaExportar(formato.toStdString())));
     return {};
 }
 
-QVariantMap EventoViewModel::importarEscaleta(const QString& ruta, bool probar) {
+QVariantMap EventoViewModel::importarEscaleta(const QString& rutaOUrl, bool probar) {
+    const QString ruta = rutaLocal(rutaOUrl);
     QFile f(ruta);
     if (!f.open(QIODevice::ReadOnly)) return {{"ok", false}, {"error", tr("No se pudo leer «%1».").arg(ruta)}};
     const std::string formato = ruta.endsWith(".xml", Qt::CaseInsensitive) || ruta.endsWith(".mos", Qt::CaseInsensitive) ? "mos" : "csv";

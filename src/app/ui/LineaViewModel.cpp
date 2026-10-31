@@ -274,6 +274,9 @@ void LineaViewModel::recalcular() {
     cond["hora"] = ev_.horaDe(t);
     for (const char* k : {"transcurridoSeg", "pausadaSeg", "arranque"})
         if (estado.contains(k)) cond[k] = estado[k];
+    // Las PTZ que esperan que su cámara salga del aire (de la línea entera: las
+    // cámaras se comparten), para «mover igual» o «no mover» desde la conducción.
+    cond["ptzPendientes"] = estado.value("ptzPendientes", json::array());
     if (cond != conduccionJ_) {
         conduccionJ_ = cond;
         conduccion_ = aQv(cond).toMap();
