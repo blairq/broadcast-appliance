@@ -1255,8 +1255,20 @@ json Botonera::armarPlantilla(const std::string& id) const {
         // feedback del bus (linea/<salida>/estado, lo publica LineaViewModel). Con
         // «{{salida}}» cada aparato ve la salida que maneja.
         nombre = traducir("botonera", "Línea de tiempo");
+        // Abajo, el estante (cue cart): un botón por ítem, hasta dos filas. Una pieza se
+        // dispara (linea_adlib); un paso va de próximo (linea_insertar).
+        const json estante = g_.estanteLinea ? g_.estanteLinea() : json::array();
+        const int items = std::min<int>(static_cast<int>(estante.is_array() ? estante.size() : 0), 10);
         columnas = 5;
-        filas = 3;
+        filas = 3 + (items + 4) / 5;
+        for (int i = 0; i < items; ++i) {
+            const json& it = estante[static_cast<std::size_t>(i)];
+            const std::string itId = it.value("id", std::string());
+            const std::string color = it.value("color", std::string());
+            usar(boton(i % 5, 3 + i / 5, it.value("texto", itId),
+                       it.value("esPaso", false) ? herr("linea_insertar", {{"item", itId}}) : herr("linea_adlib", {{"pieza", itId}}),
+                       json::array(), color.empty() ? "#2d3340" : color));
+        }
         const std::string est = "linea/{{salida}}/estado";
         usar(json{{"x", 0}, {"y", 0}, {"ancho", 3}, {"tipo", "texto"},
                   {"estilo", {{"texto", traducir("botonera", "Nada al aire")}, {"fondo", "#3a1010"}, {"color", "#fff"}}},

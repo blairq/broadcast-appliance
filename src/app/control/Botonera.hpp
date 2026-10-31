@@ -94,6 +94,9 @@ class Botonera : public QObject {
         std::function<json()> recinto;
         /// (id, título) de los PDF de la documentación del evento, para la plantilla PDF.
         std::function<std::vector<std::pair<std::string, std::string>>()> pdfs;
+        /// El estante de la línea de tiempo ([{id, texto, color, esPaso}], linea::estante),
+        /// para la plantilla «Línea de tiempo»: un botón por ítem.
+        std::function<json()> estanteLinea;
         /// Una referencia de imagen («cuerpo:<banca>», «ptz:<cámara>/<posición>») como
         /// miniatura chica en data: URL ("" si no hay). Se llama al dibujar: con caché.
         std::function<std::string(const std::string& ref)> imagen;

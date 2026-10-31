@@ -1897,6 +1897,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
             return out;
         };
         g.recinto = [this]() { return cuerpo_->cuerpo().recinto(); };
+        g.estanteLinea = [this]() { return acciones_ && acciones_->ganchos().estante ? acciones_->ganchos().estante() : nlohmann::json::array(); };
         // La cara de un botón: la foto del integrante (subida o capturada con la
         // cámara de su banca) o la foto de una posición PTZ, en 96 px.
         g.imagen = [this](const std::string& ref) -> std::string {
