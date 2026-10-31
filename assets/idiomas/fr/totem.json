@@ -7,21 +7,21 @@
     "ô": "o", "ö": "o", "ó": "o", "ù": "u", "û": "u", "ü": "u", "ú": "u", "ÿ": "y", "ñ": "n", "œ": "oe", "æ": "ae",
     "À": "a", "Â": "a", "Ä": "a", "Á": "a", "Ç": "c", "É": "e", "È": "e", "Ê": "e", "Ë": "e", "Î": "i", "Ï": "i", "Í": "i",
     "Ô": "o", "Ö": "o", "Ó": "o", "Ù": "u", "Û": "u", "Ü": "u", "Ú": "u", "Ÿ": "y", "Ñ": "n", "Œ": "oe", "Æ": "ae",
-    "’": "'", "‘": "'", "“": " ", "”": " ", "«": " ", "»": " ", " ": " ", " ": " ", "—": " ", "–": " "
+    "’": "'", "‘": "'", "“": " ", "”": " ", "«": " ", "»": " ", "\u00a0": " ", "\u202f": " ", "—": " ", "–": " "
   },
 
   "numeros": {
-    "_comentario": "Numbers said in words. «regla» «en» (Conversacion.cpp, grupo()): as in French, the hundred MULTIPLIES the unit before it («deux cents»; a bare «cent» = 100), followed or not by 1..99 («cent vingt»); a ten («trente») followed or not by its unit («trente cinq»: the hyphen is a space, so no «conectores»); or a unit (0 to 16). «mille» multiplies what comes before (or 1) and adds; «million» multiplies everything before. «ninguno» counts as zero. LIMITS of this rule for French: 17-19 («dix sept») are two words and give 10 and 7; «vingt et un» (with «et») gives 20 and 1, and 70-99 («soixante dix», «quatre vingt douze») are not composed: they need a French rule in grupo(). «digitos»: how each digit 0..9 is said, to read back a phone or an email (not flattened).",
-    "regla": "en",
+    "_comentario": "Numbers said in words. «regla» «fr» (Conversacion.cpp, grupoFr()): the hundred MULTIPLIES the unit before it («deux cents»; a bare «cent» = 100), followed or not by 1..99 («cent vingt»); a ten («trente», or «quatre vingt» = 4 × 20) followed or not by «et» («conectores») and its rest: 1..9 («trente cinq», «vingt et un»; the hyphen is a space), or 1..19 after 60 and 80 («soixante dix» = 70, «soixante et onze» = 71, «quatre vingt dix neuf» = 99); or a unit (0 to 16, and «dix sept» to «dix neuf»). Belgian and Swiss tens (septante, huitante, octante, nonante) work too. «mille» multiplies what comes before (or 1) and adds; «million» multiplies everything before. «ninguno» counts as zero. «digitos»: how each digit 0..9 is said, to read back a phone or an email (not flattened).",
+    "regla": "fr",
     "unidades": {
       "zéro": 0, "un": 1, "une": 1, "deux": 2, "trois": 3, "quatre": 4, "cinq": 5, "six": 6, "sept": 7, "huit": 8,
       "neuf": 9, "dix": 10, "onze": 11, "douze": 12, "treize": 13, "quatorze": 14, "quinze": 15, "seize": 16
     },
     "decenas": {
-      "vingt": 20, "trente": 30, "quarante": 40, "cinquante": 50, "soixante": 60, "septante": 70, "huitante": 80,
+      "vingt": 20, "vingts": 20, "trente": 30, "quarante": 40, "cinquante": 50, "soixante": 60, "septante": 70, "huitante": 80,
       "octante": 80, "nonante": 90
     },
-    "conectores": [],
+    "conectores": ["et"],
     "centenas": {"cent": 100, "cents": 100},
     "centenasSolas": [],
     "conectoresCentena": [],
@@ -80,7 +80,7 @@
                ["arobase", "@"], ["arrobase", "@"], ["arobas", "@"], ["at", "@"], ["point", "."], ["underscore", "_"],
                ["tiret", "-"], ["moins", "-"]],
     "noSonDigitos": ["une"],
-    "antes": ["mon", "ma", "adresse", "mail", "email", "e-mail", "mel", "courriel", "électronique", "c est", "est",
+    "antes": ["mon", "ma", "adresse", "mail", "email", "e-mail", "mel", "courriel", "électronique", "c", "c'est", "est",
               "ce", "la", "le", "de", "du", "alors", "donc", "euh", "eh", "bon", "ben", "oui", "ok", "d accord",
               "voilà", "j ai", "ai", "ça", "serait"],
     "despues": ["merci", "voilà", "c", "est", "tout", "c est tout", "ça", "fini", "terminé", "s", "il", "vous", "plaît"],

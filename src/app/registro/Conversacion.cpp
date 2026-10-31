@@ -729,8 +729,10 @@ bool nombreCon(const Lengua& L, const std::string& dicho, std::string& out) {
     }
     // Los signos de más de un byte que el idioma aplana a un espacio («¿», «¡»).
     for (const auto& [letra, queda] : L.aplanar) {
-        if (queda != " ") continue;
-        for (std::size_t p = limpio.find(letra); p != std::string::npos; p = limpio.find(letra))
+        if (queda != " " || letra.empty()) continue;
+        // Sigue DESPUÉS de lo puesto: si el dato trae « » → « » (un espacio duro que se
+        // guardó como común) no vuelve a encontrar lo mismo para siempre.
+        for (std::size_t p = limpio.find(letra); p != std::string::npos; p = limpio.find(letra, p + 1))
             limpio.replace(p, letra.size(), " ");
     }
     std::vector<std::string> orig = palabras(limpio);
