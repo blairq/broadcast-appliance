@@ -215,6 +215,17 @@ bool ControlWebBorde::atender(long long fd, const std::string& method, const std
         if (method != "GET" && method != "HEAD") return http::sendResponse(fd, 405, "text/plain", "\n"), true;
         if (path == "/control") return http::sendResponse(fd, 301, "text/plain", "", "Location: /control/\r\n"), true;
         std::string rel = path.substr(std::string("/control/").size());
+        // Las superficies de una página (/control/escaleta, /control/presentador,
+        // /control/camara) son carpetas: sin la barra, a la carpeta (con la consulta,
+        // que dice la salida o la cámara), así sus rutas relativas andan.
+        // Solo un nombre simple (letras, números, guiones) y una consulta sin cortes de línea.
+        const auto simple = [](const std::string& s) {
+            return !s.empty() && s.find_first_not_of("abcdefghijklmnopqrstuvwxyz0123456789-") == std::string::npos;
+        };
+        if (simple(rel) && query.find_first_of("\r\n") == std::string::npos)
+            return http::sendResponse(fd, 301, "text/plain", "",
+                                      "Location: /control/" + rel + "/" + (query.empty() ? std::string() : "?" + query) + "\r\n"),
+                   true;
         if (rel.empty() || rel.back() == '/') rel += "index.html";
         return servir(fd, rel);
     }

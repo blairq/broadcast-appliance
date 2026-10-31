@@ -137,6 +137,11 @@ int main(int argc, char** argv) {
     CHECK(!ControlWeb::amplia(json::array({"audio", "escenas"}), json::array({"audio"})), "sacar no amplía");
     CHECK(!ControlWeb::amplia(json::array({"*"}), json::array({"audio"})), "de todo a algo no amplía");
     CHECK(!ControlWeb::permite(json::array({"*"}), "control_web"), "ni con todo se usa control_web");
+    // «Solo mirar» (L8): «linea:ver» deja las de lectura de la línea y nada más.
+    CHECK(ControlWeb::permite(json::array({"linea:ver"}), "linea", true), "solo mirar: la lectura sí");
+    CHECK(!ControlWeb::permite(json::array({"linea:ver"}), "linea", false), "solo mirar: el GO no");
+    CHECK(ControlWeb::permite(json::array({"linea"}), "linea", false), "con la categoría entera, todo");
+    CHECK(ControlWeb::amplia(json::array({"linea:ver"}), json::array({"linea"})), "de mirar a manejar amplía");
 
     // --- Emparejar ----------------------------------------------------------------------
     const json cod = cw.nuevoCodigo(json::array({"escenas"}), "iPad");
