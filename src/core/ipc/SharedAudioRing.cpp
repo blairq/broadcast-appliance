@@ -12,6 +12,7 @@
 
 #include "SharedAudioRing.hpp"
 #include "ipc/AtomicRef.hpp"
+#include "ipc/Mirada.hpp"
 
 #include <chrono>
 
@@ -70,6 +71,32 @@ uint64_t SharedAudioRing::pendientes() const {
 uint64_t SharedAudioRing::descartados() const {
     if (region_.data() == nullptr) return 0;
     return AtomicRef<uint64_t>(hdr()->overrunCount).load(std::memory_order_relaxed);
+}
+
+namespace {
+/// Lo que dura un bloque del anillo (ns): cada cuánto escribe el escritor.
+uint64_t periodoBloqueNs(const RingHeader* h) {
+    return uint64_t{audio_ring::kBlockFrames} * 1'000'000'000ULL / (h->sampleRate != 0 ? h->sampleRate : audio_ring::kSampleRate);
+}
+} // namespace
+
+std::chrono::steady_clock::time_point SharedAudioRing::proximaMirada(std::chrono::steady_clock::duration pasoQuieto) const {
+    const auto ahora = std::chrono::steady_clock::now();
+    if (region_.data() == nullptr) return ahora + pasoQuieto;
+    RingHeader* h = hdr();
+    const uint64_t bloqueNs = periodoBloqueNs(h);
+    return mirada::proxima(ahora, AtomicRef<uint64_t>(h->escritoNs).load(std::memory_order_relaxed), bloqueNs, pasoQuieto,
+                           temblor_.adelanto(bloqueNs));
+}
+
+int64_t SharedAudioRing::retrasoDelEscritorNs() const {
+    if (region_.data() == nullptr) return -1;
+    RingHeader* h = hdr();
+    // escritoNs va en steady_clock y el sello en nowQpc: el mismo reloj (ver ipc/Mirada.hpp).
+    const uint64_t escrito = AtomicRef<uint64_t>(h->escritoNs).load(std::memory_order_relaxed);
+    const uint64_t sello = AtomicRef<uint64_t>(h->lastWriteQpc).load(std::memory_order_relaxed);
+    if (escrito == 0 || sello == 0) return -1;
+    return static_cast<int64_t>(escrito) - static_cast<int64_t>(sello);
 }
 
 const RingHeader* SharedAudioRing::header() const { return hdr(); }
@@ -132,6 +159,7 @@ Status SharedAudioRing::init(const wchar_t* name, uint32_t channels, uint64_t ca
     h->lastWriteQpc = 0;
     h->underrunCount = 0;
     h->overrunCount = 0;
+    h->escritoNs = 0;
 
     // Cero el area de datos (silencio inicial).
     std::memset(static_cast<uint8_t*>(region.data()) + dataOffset(), 0, dataBytes);
@@ -230,6 +258,7 @@ bool SharedAudioRing::push(const float* samples, uint64_t qpc) {
 
     AtomicRef<uint64_t>(h->lastWriteQpc).store(qpc, std::memory_order_relaxed);
     AtomicRef<uint64_t>(h->writeIndex).store(write + 1, std::memory_order_release);
+    AtomicRef<uint64_t>(h->escritoNs).store(mirada::ahoraNs(), std::memory_order_relaxed);
     return true;
 }
 
@@ -285,6 +314,7 @@ bool SharedAudioRing::pop(float* out, PoppedBlock& meta) {
     std::memcpy(out, blockAt(read), floats * sizeof(float));
     AtomicRef<uint64_t>(h->readIndex).store(read + 1, std::memory_order_release);
     lastDataNs_ = monotonicNs(); // para stale(): el escritor esta vivo
+    temblor_.publicado(AtomicRef<uint64_t>(h->escritoNs).load(std::memory_order_relaxed), periodoBloqueNs(h));
 
     meta.samples = out;
     meta.qpc = qpc;

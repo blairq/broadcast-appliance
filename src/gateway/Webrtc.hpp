@@ -91,6 +91,31 @@ struct SessionCallbacks {
     std::function<void(bool connected)> onStateChange;
 };
 
+/// Un cuadro de video para mandar (F2-13): el BGRA que llega de A convertido UNA vez al
+/// formato de los codificadores (I420) y compartido, con su cuenta de referencias, por todas
+/// las sesiones que lo reciben (libwebrtc no modifica el buffer de un cuadro: lo pasa así
+/// entre sus hilos). Antes cada sesión convertía su copia del mismo cuadro: con 16 mirando,
+/// 16 conversiones. Copiar un CuadroSaliente es contar una referencia más.
+/// En el backend NULL no se convierte nada: solo lleva el tamaño (y cuenta igual).
+class CuadroSaliente {
+   public:
+    CuadroSaliente() = default;
+    /// BGRA de `ancho`×`alto` con filas de `stride` bytes (0 = ancho×4). Vacío si no se puede.
+    static CuadroSaliente desdeBgra(const uint8_t* bgra, int ancho, int alto, int stride = 0);
+    bool vacio() const { return !impl_; }
+    int ancho() const;
+    int alto() const;
+    /// Cuántas conversiones BGRA→I420 hizo este proceso y cuántos bytes salieron (para
+    /// medir: una por cuadro, no una por sesión).
+    static uint64_t conversiones();
+    static uint64_t bytesConvertidos();
+
+   private:
+    friend class WebrtcSession;
+    struct Impl;
+    std::shared_ptr<const Impl> impl_;
+};
+
 /// Una PeerConnection por invitado (B es el answerer del offer del invitado).
 ///
 /// Move-only. El backend (real o NULL) se elige en compile-time por
@@ -151,7 +176,10 @@ class WebrtcSession {
     /// :param pixels: BGRA.
     /// :param bytes: tamano en bytes.
     /// :param w/h: resolucion del frame.
+    /// Lo convierte para esta sesión sola: para el mismo cuadro a varias, la de abajo.
     void pushLocalVideo(const uint8_t* pixels, size_t bytes, int w, int h);
+    /// Inyecta un cuadro ya convertido (el mismo para todas las sesiones que lo reciben).
+    void pushLocalVideo(const CuadroSaliente& cuadro);
 
     /// Indica si la sesion esta conectada (offer procesado / PC establecida).
     bool connected() const;

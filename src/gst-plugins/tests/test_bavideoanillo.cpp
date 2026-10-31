@@ -5,6 +5,8 @@
 // tamaño del canal), también después de que abajo pidan renegociar: la
 // negociación de fábrica de basesrc fijaba el template en 1x1 y los elementos
 // D3D12 de Windows piden renegociar, así que el invitado quedaba negro (1x1).
+// Y un invitado chico viaja a su tamaño (F2-13, V3): un cuadro de 160x90 con su tamaño
+// real sale de 160x90 (las caps cambian), sin agrandarse al del canal.
 
 #include "ipc/SpoutTransport.hpp"
 
@@ -26,7 +28,7 @@ int fallos = 0;
         }                                                                            \
     } while (0)
 
-std::atomic<bool> g_fin{false};
+std::atomic<bool> g_fin{false}, g_chico{false};
 
 void gateway(const wchar_t* nombre) {
     ba::ipc::SpoutSender snd;
@@ -34,9 +36,12 @@ void gateway(const wchar_t* nombre) {
         std::printf("no se pudo publicar el canal\n");
         return;
     }
-    std::vector<std::uint8_t> px(320u * 180u * 4u, 0x80);
+    std::vector<std::uint8_t> px(320u * 180u * 4u, 0x80), chico(160u * 90u * 4u, 0x40);
     for (std::uint64_t i = 1; !g_fin; ++i) {
-        snd.send(px.data(), px.size(), ba::ipc::FrameMeta{i, 0});
+        if (g_chico)
+            snd.send(chico.data(), chico.size(), ba::ipc::FrameMeta{i, 0, 0, 160, 90});
+        else
+            snd.send(px.data(), px.size(), ba::ipc::FrameMeta{i, 0});
         std::this_thread::sleep_for(std::chrono::milliseconds(20));
     }
 }
@@ -54,14 +59,14 @@ void tamano(GstElement* sink, int& w, int& h) {
     gst_object_unref(pad);
 }
 
-/// Saca `n` cuadros del appsink; devuelve cuántos tenían el tamaño de 320x180 BGRA.
-int sacar(GstElement* sink, int n) {
+/// Saca `n` cuadros del appsink; devuelve cuántos tenían `bytes` (de fábrica, 320x180 BGRA).
+int sacar(GstElement* sink, int n, std::size_t bytes = 320u * 180u * 4u) {
     int buenos = 0;
     for (int i = 0; i < n; ++i) {
         GstSample* s = nullptr;
         g_signal_emit_by_name(sink, "try-pull-sample", static_cast<GstClockTime>(2 * GST_SECOND), &s);
         if (s == nullptr) break;
-        if (gst_buffer_get_size(gst_sample_get_buffer(s)) == 320u * 180u * 4u) ++buenos;
+        if (gst_buffer_get_size(gst_sample_get_buffer(s)) == bytes) ++buenos;
         gst_sample_unref(s);
     }
     return buenos;
@@ -107,6 +112,16 @@ int main() {
     }
     tamano(sink, w, h);
     CHECK(w == 320 && h == 180, "después de renegociar, el tamaño del canal (no 1x1)");
+
+    // Un invitado chico: a su tamaño.
+    g_chico = true;
+    sacar(sink, 4, 0); // los que ya estaban en camino
+    CHECK(sacar(sink, 5, 160u * 90u * 4u) == 5, "el chico sale con sus bytes (160x90)");
+    tamano(sink, w, h);
+    CHECK(w == 160 && h == 90, "y las caps con su tamaño, no el del canal");
+    g_chico = false;
+    sacar(sink, 4, 0);
+    CHECK(sacar(sink, 5) == 5, "vuelve al tamaño del canal");
 
     gst_element_set_state(p, GST_STATE_NULL);
     gst_object_unref(sink);

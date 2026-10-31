@@ -19,6 +19,7 @@
 
 #include "hora.hpp"
 
+#include "ipc/HoraQpc.hpp"
 #include "ipc/SharedAudioRing.hpp"
 
 #include <gst/audio/audio.h>
@@ -77,9 +78,7 @@ std::uint64_t qpcDe(GstElement* e, GstClockTime rt) {
     }
     const GstClockTime ahora = gst_clock_get_time(reloj);
     gst_object_unref(reloj);
-    const GstClockTime t = gst_element_get_base_time(e) + rt;
-    if (t <= ahora) return q - std::min<std::uint64_t>(q, ahora - t);
-    return q + (t - ahora);
+    return ba::ipc::qpcDeOtroReloj(gst_element_get_base_time(e) + rt, ahora, q);
 }
 } // namespace
 

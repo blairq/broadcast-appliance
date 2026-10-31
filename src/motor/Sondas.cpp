@@ -32,7 +32,16 @@ struct Elemento {
     std::shared_ptr<Pad> entrada, salida;
     /// Un mezclador tiene varias entradas: las demás (la que manda es la que llega última).
     std::vector<std::shared_ptr<Pad>> otras;
+    /// Un videorate: lo que llevaba repetido y tirado al empezar (F2-17: una cámara a 29,97
+    /// en un lienzo de 30 repite uno cada ~33 s; una de 60 tira uno de cada dos, a propósito).
+    bool videorate = false;
+    guint64 duplicados = 0, tirados = 0;
 };
+
+/// Lo que llevan repetido y tirado los videorate (sus contadores).
+void contadoresVideorate(GstElement* el, guint64& duplicados, guint64& tirados) {
+    g_object_get(el, "duplicate", &duplicados, "drop", &tirados, nullptr);
+}
 
 double mediana(std::vector<double> v) {
     if (v.empty()) return 0;
@@ -271,6 +280,10 @@ Sondas::Sondas(GstElement* pipeline) : st_(std::make_shared<Estado>()) {
         e.nombre = GST_OBJECT_NAME(el) != nullptr ? GST_OBJECT_NAME(el) : "";
         GstElementFactory* fab = gst_element_get_factory(el);
         e.fabrica = fab != nullptr ? GST_OBJECT_NAME(fab) : (GST_IS_BIN(el) ? "bin" : "");
+        if (e.fabrica == "videorate") {
+            e.videorate = true;
+            contadoresVideorate(el, e.duplicados, e.tirados);
+        }
         const std::vector<GstPad*> ents = entradasEnlazadas(el);
         if (ents.size() > 1) {
             e.entrada = sondearPad(ents[0]);
@@ -373,6 +386,19 @@ json Sondas::terminar() {
             const double hasta = latenciaMs(e.salida->pad, false);
             const double antes = e.entrada && e.entrada->pad != nullptr ? latenciaMs(e.entrada->pad, true) : 0.0;
             if (hasta >= 0 && antes >= 0) f["declara_ms"] = redondo(std::max(0.0, hasta - antes));
+        }
+        // Un videorate: lo que repitió y tiró mientras se medía (y por minuto, para ver el ritmo
+        // de un 29,97 contra 30: uno cada ~33 s son ~2 por minuto).
+        if (e.videorate && e.el != nullptr) {
+            guint64 dup = 0, tir = 0;
+            contadoresVideorate(e.el, dup, tir);
+            const double min = std::max(segundos, 1e-3) / 60.0;
+            f["videorate"] = {{"duplicados", dup - e.duplicados},
+                              {"tirados", tir - e.tirados},
+                              {"duplicados_por_minuto", redondo(static_cast<double>(dup - e.duplicados) / min)},
+                              {"tirados_por_minuto", redondo(static_cast<double>(tir - e.tirados) / min)},
+                              {"duplicados_total", dup},
+                              {"tirados_total", tir}};
         }
         // Las colas: cuánto tienen guardado ahora.
         if (e.el != nullptr && g_object_class_find_property(G_OBJECT_GET_CLASS(e.el), "current-level-time") != nullptr) {

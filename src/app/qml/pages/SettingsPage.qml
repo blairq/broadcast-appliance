@@ -2122,6 +2122,29 @@ Rectangle {
                     text: faltan.length === 0 ? qsTr("GStreamer: están todos los elementos que usa el aparato.")
                           : qsTr("GStreamer: faltan %1").arg(faltan.map(e => e.elemento + " (" + e.para + ")").join(", "))
                 }
+                // Los indicadores de servicio (F4-01): los arma RecursosViewModel cada segundo
+                // con las métricas del proceso y lo que mide el gateway (también en GET /metrics).
+                Text { text: qsTr("Salud del servicio"); color: Theme.text; font { pixelSize: 13; weight: Font.DemiBold } }
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: 4
+                    Repeater {
+                        model: Studio.recursos ? Studio.recursos.slis : []
+                        delegate: RowLayout {
+                            required property var modelData
+                            Layout.fillWidth: true
+                            spacing: 8
+                            Rectangle {
+                                width: 8; height: 8; radius: 4
+                                color: modelData.estado === "critico" ? Theme.live
+                                     : modelData.estado === "aviso" ? Theme.warn
+                                     : modelData.estado === "normal" ? Theme.ok : Theme.textDim
+                            }
+                            Text { text: modelData.titulo; color: Theme.textDim; font.pixelSize: 12; Layout.preferredWidth: 260; elide: Text.ElideRight }
+                            Text { text: modelData.texto; color: Theme.text; font.pixelSize: 12; Layout.fillWidth: true; wrapMode: Text.WordWrap }
+                        }
+                    }
+                }
             }
         }
     }

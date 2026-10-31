@@ -5,6 +5,7 @@
 // mediante una unica std::mutex; nunca lanza.
 
 #include "Log.hpp"
+#include "diag/Correlacion.hpp"
 
 #include <chrono>
 #include <ctime>
@@ -73,7 +74,8 @@ void Log::close() {
 
 void Log::write(Level level, const char* component, int code, const std::string& context) {
     const std::string line = timestamp() + " " + std::string(levelTag(level)) + " | " + component +
-                             " | code=" + std::to_string(code) + " | " + context;
+                             " | code=" + std::to_string(code) + " | " + context +
+                             ba::diag::correlacion::sufijo(context); // la orden que se atiende (F4-02)
     std::lock_guard<std::mutex> lock(g_mutex);
     if (g_file) {
         std::fputs(line.c_str(), g_file);

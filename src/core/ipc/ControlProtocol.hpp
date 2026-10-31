@@ -131,6 +131,11 @@ struct Message {
     /// Cuerpo libre: objeto JSON con los campos especificos de `type`.
     std::string payload;
 
+    /// La orden a la que pertenece (diag/Correlacion.hpp, F4-02): quien la atiende
+    /// la abre en su hilo y aparece en su registro. Opcional en el cable
+    /// (`correlacion`); vacío si no viene de una orden.
+    std::string correlacion;
+
     /// Serializa el mensaje a su forma de cable (JSON).
     ///
     /// :returns: el JSON completo, listo para `Frame::encodeFrame`.

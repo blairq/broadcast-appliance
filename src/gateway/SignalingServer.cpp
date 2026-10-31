@@ -10,6 +10,7 @@
 // La API de control del operador esta en AdminApi.cpp.
 // ============================================================================
 
+#include "diag/Metricas.hpp"
 #include "i18n/I18n.hpp"
 #include "SignalingServer.hpp"
 #include "ajustes/Ajustes.hpp"
@@ -2309,6 +2310,9 @@ std::string SignalingServer::wsOpen(long long fd, const std::string& headers, co
             return {};
         }
         log_.info(llenar(traducir("gateway", "ws: %1 reenganchado"), {pid}));
+        static ba::diag::Contador& reconexiones = ba::diag::Metricas::proceso().contador(
+            "ba_invitados_reconexiones_total", QT_TRANSLATE_NOOP("metricas", "Invitados que se cortaron y volvieron a su lugar")); // F4-01
+        reconexiones.sumar();
         return pid;
     }
 

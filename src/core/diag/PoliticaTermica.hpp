@@ -1,0 +1,70 @@
+// ============================================================================
+// src/core/diag/PoliticaTermica.hpp — «priorizar programa» cuando la máquina se calienta
+//
+// Si la máquina se calienta, el sistema baja la frecuencia y lo primero que se
+// nota son cuadros perdidos en el aire. Antes de llegar ahí se apaga lo que no
+// es el programa, EN ORDEN, de lo que menos se extraña a lo que más
+// (04-plan-unificado.md, F4-05):
+//
+//   1. superres     la superresolución de las entradas (pasa a modo barato);
+//   2. modelos      los modelos locales que no están atendiendo (se sueltan);
+//   3. vistas       las vistas previas que nadie está mirando;
+//   4. invitados    la resolución del video de los invitados (baja).
+//
+// NUNCA el programa ni la grabación: no están en la lista.
+//
+// Cuánto se apaga depende del nivel (platform/Termica.hpp) SOSTENIDO: templado
+// apaga el primer paso; serio, hasta el tercero; crítico, todo. Se sube de a
+// un paso cada `escalonS` (crítico: de a uno por vuelta) y se vuelve de a uno,
+// en orden inverso, recién cuando el nivel lleva `recuperacionS` por debajo:
+// sin ir y venir con cada medición. Sin Qt ni reloj propio: la app la llama
+// cada segundo con la hora y aplica lo que cambió (los tests, con estados falsos).
+// ============================================================================
+#pragma once
+
+#include "platform/Termica.hpp"
+
+#include <nlohmann/json.hpp>
+
+#include <cstdint>
+#include <string>
+#include <vector>
+
+namespace ba::diag {
+
+class PoliticaTermica {
+   public:
+    struct Config {
+        bool activa = true;      ///< ajustes «termica.priorizarPrograma»
+        int sostenidoS = 10;     ///< el nivel tiene que durar esto antes del primer paso
+        int escalonS = 20;       ///< entre un paso y el siguiente (salvo en crítico)
+        int recuperacionS = 60;  ///< por debajo esto antes de devolver un paso
+    };
+
+    /// Los pasos, en el orden en que se apagan (claves: no se traducen).
+    static const std::vector<std::string>& pasos();
+    /// Hasta qué paso se apaga en cada nivel (0: nada).
+    static int objetivo(platform::NivelTermico n);
+
+    PoliticaTermica() = default;
+    explicit PoliticaTermica(Config c) : cfg_(c) {}
+    void configurar(const Config& c) { cfg_ = c; }
+
+    /// Una medición. Devuelve cuántos pasos quedan apagados (0…pasos().size()).
+    int actualizar(platform::NivelTermico n, std::int64_t ahoraMs);
+    int apagados() const { return apagados_; }
+    /// ¿Está apagado ese paso?
+    bool apagado(const std::string& paso) const;
+
+    /// {activa, nivel, apagados: [..], siguiente, desde_s}
+    nlohmann::json informe(std::int64_t ahoraMs) const;
+
+   private:
+    Config cfg_;
+    platform::NivelTermico nivel_ = platform::NivelTermico::Desconocido;
+    std::int64_t nivelDesdeMs_ = -1;   ///< desde cuándo está en este nivel
+    std::int64_t ultimoCambioMs_ = -1; ///< el último paso que se apagó o se devolvió
+    int apagados_ = 0;
+};
+
+} // namespace ba::diag

@@ -299,6 +299,13 @@ foreach(test_source ${BA_GATEWAY_TESTS})
     # 77 = saltado (ver src/core/CMakeLists.txt).
     set_tests_properties(${test_name} PROPERTIES SKIP_RETURN_CODE 77)
 endforeach()
+# Los que miden tiempo real (ritmo, latencia, plazos): solos. Con ocho tests más
+# compitiendo por la CPU, el período medido se va y fallan sin que nada esté mal.
+foreach(t test_retorno_ritmo test_retorno_video test_cupos test_pinggy)
+    if(TEST ${t})
+        set_tests_properties(${t} PROPERTIES RUN_SERIAL TRUE)
+    endif()
+endforeach()
 
 # Windows: el test de medios reales (RTP/SRTP sobre UDP local) tambien.
 if(BA_GATEWAY_WEBRTC AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_webrtc_loopback.cpp")

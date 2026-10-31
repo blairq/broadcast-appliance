@@ -25,7 +25,8 @@
 //   - El camino de datos no toma locks: acquire/release con atomic_ref sobre la
 //     cabecera. El escritor nunca espera; el lector reintenta si el escritor dio
 //     la vuelta a los tres buffers mientras copiaba, y nunca ve un cuadro a medio
-//     escribir. Nadie despierta a nadie: el lector sondea (hasData/receive).
+//     escribir. Nadie despierta a nadie: el lector sondea (hasData/receive),
+//     y sin cuadro nuevo duerme hasta el próximo esperado (proximaMirada, F2-14).
 //   - Los objetos son move-only y no son thread-safe por si mismos: son vistas
 //     de un slot. La seguridad entre threads la aporta el layout (atomic_ref),
 //     no esta clase.
@@ -49,7 +50,9 @@
 #pragma once
 
 #include "ipc/AtomicRef.hpp"
+#include "ipc/Mirada.hpp"
 #include <atomic>
+#include <chrono>
 #include <cstddef>
 #include <cstdint>
 #include <cwchar>
@@ -71,9 +74,18 @@ inline constexpr std::size_t kSpoutCacheLine = 64;
 /// de los sellos entre procesos (nowQpc: QueryPerformanceCounter en Windows,
 /// steady_clock en ns en macOS/Linux; el mismo del anillo de audio, spec §4.3,
 /// para alinear video con audio sin deriva). POD plano, trivialmente copiable.
+///
+/// `contenidoQpc` (F2-11): la hora, en el mismo reloj, a la que corresponde lo que
+/// muestra el cuadro (la del programa en A, la misma con que se sella su audio); 0 = no
+/// se sabe. `qpc` sigue siendo cuándo se publicó (la edad del salto la mide con eso).
+/// `ancho`/`alto` (F2-13, V3): el tamaño real del cuadro, si es más chico que el canal
+/// (sus filas van juntas, ancho×4 bytes, desde el principio del buffer); 0 = el del canal.
 struct FrameMeta {
     std::uint64_t frameIndex = 0;
     std::uint64_t qpc = 0;
+    std::uint64_t contenidoQpc = 0;
+    std::uint32_t ancho = 0;
+    std::uint32_t alto = 0;
 };
 
 /// Layout binario del bloque de metadatos en memoria compartida.
@@ -181,6 +193,9 @@ class SpoutMetaBlock {
 struct SlotConfig {
     int width = 1280;
     int height = 720;
+    /// Cada cuánto publica el productor (ns), si lo sabe (el lienzo de A): el lector lo usa
+    /// para dormir hasta el próximo cuadro (ipc/Mirada.hpp). 0 = se mide de lo que publica.
+    std::uint64_t periodoNs = 0;
 };
 
 /// Layout del slot en memoria compartida (backend CPU, definido en el .cpp).
@@ -240,6 +255,8 @@ class SpoutSender {
     SharedMemoryRegion region_;
     VideoSlotHeader* header_ = nullptr;
     bool published_ = false;
+    bool periodoDicho_ = false;     // el productor dijo su período: no se mide
+    std::uint64_t anteriorNs_ = 0;  // cuándo se publicó el anterior (para medir el período)
 };
 
 /// El LECTOR de un slot de video (spec §4.2): abre la region compartida del
@@ -270,7 +287,9 @@ class SpoutReceiver {
     /// Recibe el siguiente frame nuevo (lado LECTOR).
     ///
     /// Si llego un frame con frameIndex mayor al ultimo visto, copia los
-    /// pixeles a `dst` (hasta `cap` bytes), escribe `metaOut` y avanza
+    /// pixeles a `dst` (hasta `cap` bytes; si el cuadro trae su tamaño real
+    /// —metaOut.ancho/alto— solo ancho×alto×4, con las filas juntas), escribe
+    /// `metaOut` y avanza
     /// lastSeenIndex; devuelve true. Si no hay frame nuevo, devuelve false sin
     /// tocar `dst`/`metaOut` (no bloquea, no reentrega el mismo frame).
     ///
@@ -301,6 +320,13 @@ class SpoutReceiver {
     /// Tamano en bytes de un frame del slot (0 si no esta suscrito).
     std::size_t frameBytes() const;
 
+    /// Sin cuadro nuevo, cuándo volver a mirar (F2-14): justo después del próximo que el
+    /// productor debería publicar, según su último envío y su período (ipc/Mirada.hpp);
+    /// `pasoQuieto` si no publica hace más de 1 s.
+    std::chrono::steady_clock::time_point proximaMirada(std::chrono::steady_clock::duration pasoQuieto) const;
+    /// Cada cuánto publica el productor (ns; 0 = todavía no se sabe).
+    std::uint64_t periodoNs() const;
+
     /// true si el sender al que estamos suscritos ya no existe o fue
     /// reemplazado por otro (el proceso productor se reinicio y publico el
     /// mismo nombre de nuevo). El receptor seguiria mirando la memoria vieja
@@ -321,6 +347,7 @@ class SpoutReceiver {
     std::uint64_t lastFrameNs_ = 0; // reloj monotono del ultimo frame (o de la suscripcion)
     std::uint64_t lastCheckNs_ = 0; // ultimo chequeo de stale()
     bool subscribed_ = false;
+    mirada::Temblor temblor_;       // cuánto tiembla el productor (proximaMirada)
 };
 
 } // namespace ba::ipc

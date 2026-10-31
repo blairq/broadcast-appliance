@@ -17,7 +17,8 @@
 //     "tira" de la reproduccion. B no tiene parlantes: PullAdm es un modulo de
 //     audio sin dispositivo que tira del mix cada 10 ms en su propio thread.
 //   - Envio: fuentes locales alimentadas por el MediaPump (BGRA -> I420 con
-//     libyuv; audio float32 -> int16).
+//     libyuv UNA vez por cuadro, compartido por las sesiones: CuadroSaliente;
+//     audio float32 -> int16).
 //   - Espectadores (relay): cada receptor de video de un invitado lleva un
 //     TapTransformer entre el depacketizador y el decodificador: copia los
 //     bytes CODIFICADOS del cuadro al Feed de esa sesion y deja pasar el
@@ -146,8 +147,8 @@ struct WebrtcSession::Impl {
     void pushLocalAudio(const float*, size_t n, int) {
         if (n > 0 && connected) localAudioBlocks.fetch_add(1, std::memory_order_relaxed);
     }
-    void pushLocalVideo(const uint8_t*, size_t bytes, int, int) {
-        if (bytes > 0 && connected) localVideoFrames.fetch_add(1, std::memory_order_relaxed);
+    void pushLocalVideo() {
+        if (connected) localVideoFrames.fetch_add(1, std::memory_order_relaxed);
     }
     void close() {
         if (closed) return;
@@ -168,6 +169,17 @@ namespace {
 constexpr int kAudioRate = 48000;
 constexpr int kAudioChannels = 2;
 constexpr size_t kFramesPer10Ms = kAudioRate / 100;
+
+/// DSCP por la prioridad de red de un sender (F4-06): libwebrtc pone EF al audio y AF41
+/// al video con prioridad alta (con `enable_dscp`; si el sistema no deja marcar el
+/// socket, se ignora). Una red sin QoS no lo mira; una con QoS los pasa primero.
+void marcarPrioridad(const rtc::scoped_refptr<webrtc::RtpSenderInterface>& sender) {
+    if (!sender || !ba::ajustes::siNo("red.dscp", true)) return;
+    webrtc::RtpParameters par = sender->GetParameters();
+    if (par.encodings.empty()) return;
+    for (auto& e : par.encodings) e.network_priority = webrtc::Priority::kHigh;
+    sender->SetParameters(par);
+}
 
 /// Modulo de audio SIN dispositivo que tira de la reproduccion cada 10 ms.
 ///
@@ -241,15 +253,12 @@ class PullAdm : public webrtc::webrtc_impl::AudioDeviceModuleDefault<webrtc::Aud
     std::thread thread_;
 };
 
-/// Fuente de video de retorno: BGRA -> I420 (libyuv) -> sinks.
+/// Fuente de video de retorno: un cuadro ya en I420 (CuadroSaliente, el mismo buffer para
+/// todas las sesiones) -> sinks.
 class LocalVideoSource : public rtc::AdaptedVideoTrackSource {
    public:
-    void AddFrame(const uint8_t* bgra, int w, int h) {
-        if (bgra == nullptr || w <= 0 || h <= 0) return;
-        rtc::scoped_refptr<webrtc::I420Buffer> i420 = webrtc::I420Buffer::Create(w, h);
-        // libyuv "ARGB" es B,G,R,A en memoria: justamente BGRA.
-        libyuv::ARGBToI420(bgra, w * 4, i420->MutableDataY(), i420->StrideY(), i420->MutableDataU(),
-                           i420->StrideU(), i420->MutableDataV(), i420->StrideV(), w, h);
+    void AddFrame(const rtc::scoped_refptr<webrtc::VideoFrameBuffer>& i420) {
+        if (!i420) return;
         OnFrame(webrtc::VideoFrame::Builder()
                     .set_video_frame_buffer(i420)
                     .set_timestamp_us(rtc::TimeMicros())
@@ -836,6 +845,7 @@ struct WebrtcSession::Impl : public webrtc::PeerConnectionObserver {
         config.sdp_semantics = webrtc::SdpSemantics::kUnifiedPlan;
         config.bundle_policy = webrtc::PeerConnectionInterface::kBundlePolicyMaxBundle;
         config.rtcp_mux_policy = webrtc::PeerConnectionInterface::kRtcpMuxPolicyRequire;
+        config.media_config.enable_dscp = ba::ajustes::siNo("red.dscp", true); // F4-06
         if (hub->minPort != 0) {
             config.port_allocator_config.min_port = hub->minPort;
             config.port_allocator_config.max_port = hub->maxPort;
@@ -887,6 +897,13 @@ struct WebrtcSession::Impl : public webrtc::PeerConnectionObserver {
         }
     }
 
+    /// La prioridad de red (F4-06): con `red.dscp`, libwebrtc marca los paquetes del audio
+    /// como EF (voz) y los del video como AF41 (video interactivo) a partir de
+    /// `network_priority` alta. Va DESPUÉS de negociar (antes no hay encodings).
+    static void prioridadDeRed(const rtc::scoped_refptr<webrtc::PeerConnectionInterface>& p) {
+        for (const auto& sender : p->GetSenders()) marcarPrioridad(sender);
+    }
+
     bool setRemoteOffer(const std::string& sdp) {
         rtc::scoped_refptr<webrtc::PeerConnectionInterface> p;
         {
@@ -909,6 +926,7 @@ struct WebrtcSession::Impl : public webrtc::PeerConnectionObserver {
             std::string answer;
             p->local_description()->ToString(&answer);
             seguirElReloj(p);
+            prioridadDeRed(p);
             if (self->cb.onLocalAnswer) self->cb.onLocalAnswer(answer);
         };
         auto onSrd = [self, p, onSld](webrtc::RTCError e) {
@@ -956,9 +974,9 @@ struct WebrtcSession::Impl : public webrtc::PeerConnectionObserver {
         localAudioBlocks.fetch_add(1, std::memory_order_relaxed);
     }
 
-    void pushLocalVideo(const uint8_t* px, size_t, int w, int h) {
+    void pushLocalVideo(const rtc::scoped_refptr<webrtc::VideoFrameBuffer>& i420) {
         if (!connected.load(std::memory_order_relaxed) || !videoSource) return;
-        videoSource->AddFrame(px, w, h);
+        videoSource->AddFrame(i420);
         localVideoFrames.fetch_add(1, std::memory_order_relaxed);
     }
 
@@ -1042,6 +1060,50 @@ struct WebrtcSession::Impl : public webrtc::PeerConnectionObserver {
 #endif // BA_GATEWAY_HAVE_WEBRTC
 
 // ============================================================================
+// CuadroSaliente (F2-13: una conversión por cuadro, no una por sesión)
+// ============================================================================
+
+namespace {
+std::atomic<uint64_t> g_conversiones{0};
+std::atomic<uint64_t> g_bytesConvertidos{0};
+} // namespace
+
+struct CuadroSaliente::Impl {
+    int ancho = 0, alto = 0;
+#if BA_GATEWAY_HAVE_WEBRTC
+    rtc::scoped_refptr<webrtc::I420Buffer> i420;
+#endif
+};
+
+CuadroSaliente CuadroSaliente::desdeBgra(const uint8_t* bgra, int ancho, int alto, int stride) {
+    CuadroSaliente c;
+    if (bgra == nullptr || ancho <= 0 || alto <= 0) return c;
+    auto impl = std::make_shared<Impl>();
+    impl->ancho = ancho;
+    impl->alto = alto;
+#if BA_GATEWAY_HAVE_WEBRTC
+    impl->i420 = webrtc::I420Buffer::Create(ancho, alto);
+    // libyuv "ARGB" es B,G,R,A en memoria: justamente BGRA.
+    libyuv::ARGBToI420(bgra, stride > 0 ? stride : ancho * 4, impl->i420->MutableDataY(), impl->i420->StrideY(),
+                       impl->i420->MutableDataU(), impl->i420->StrideU(), impl->i420->MutableDataV(),
+                       impl->i420->StrideV(), ancho, alto);
+#else
+    (void)stride;
+#endif
+    g_conversiones.fetch_add(1, std::memory_order_relaxed);
+    const uint64_t croma = static_cast<uint64_t>((ancho + 1) / 2) * static_cast<uint64_t>((alto + 1) / 2);
+    g_bytesConvertidos.fetch_add(static_cast<uint64_t>(ancho) * static_cast<uint64_t>(alto) + 2 * croma,
+                                 std::memory_order_relaxed);
+    c.impl_ = std::move(impl);
+    return c;
+}
+
+int CuadroSaliente::ancho() const { return impl_ ? impl_->ancho : 0; }
+int CuadroSaliente::alto() const { return impl_ ? impl_->alto : 0; }
+uint64_t CuadroSaliente::conversiones() { return g_conversiones.load(std::memory_order_relaxed); }
+uint64_t CuadroSaliente::bytesConvertidos() { return g_bytesConvertidos.load(std::memory_order_relaxed); }
+
+// ============================================================================
 // WebrtcSession (API comun)
 // ============================================================================
 
@@ -1082,7 +1144,17 @@ void WebrtcSession::pushLocalAudio(const float* s, size_t n, int rate) {
     if (impl_ != nullptr) impl_->pushLocalAudio(s, n, rate);
 }
 void WebrtcSession::pushLocalVideo(const uint8_t* p, size_t bytes, int w, int h) {
-    if (impl_ != nullptr) impl_->pushLocalVideo(p, bytes, w, h);
+    if (impl_ == nullptr || p == nullptr || w <= 0 || h <= 0 || bytes < static_cast<size_t>(w) * h * 4u) return;
+    if (!impl_->connected) return; // sin nadie del otro lado no se convierte nada
+    pushLocalVideo(CuadroSaliente::desdeBgra(p, w, h));
+}
+void WebrtcSession::pushLocalVideo(const CuadroSaliente& c) {
+    if (impl_ == nullptr || c.vacio()) return;
+#if BA_GATEWAY_HAVE_WEBRTC
+    impl_->pushLocalVideo(c.impl_->i420);
+#else
+    impl_->pushLocalVideo();
+#endif
 }
 bool WebrtcSession::connected() const { return impl_ != nullptr && impl_->connected; }
 void WebrtcSession::close() {
@@ -1241,6 +1313,7 @@ int WebrtcHub::openViewer(int session, bool screen, const std::string& offerSdp,
     config.sdp_semantics = webrtc::SdpSemantics::kUnifiedPlan;
     config.bundle_policy = webrtc::PeerConnectionInterface::kBundlePolicyMaxBundle;
     config.rtcp_mux_policy = webrtc::PeerConnectionInterface::kRtcpMuxPolicyRequire;
+    config.media_config.enable_dscp = ba::ajustes::siNo("red.dscp", true); // F4-06
     if (st->minPort != 0) {
         config.port_allocator_config.min_port = st->minPort;
         config.port_allocator_config.max_port = st->maxPort;
@@ -1271,6 +1344,7 @@ int WebrtcHub::openViewer(int session, bool screen, const std::string& offerSdp,
             return;
         }
         sender.value()->SetEncoderToPacketizerFrameTransformer(vp->tx);
+        marcarPrioridad(sender.value()); // AF41 (F4-06)
         p->SetLocalDescription(rtc::make_ref_counted<SldObserver<decltype(onSld)>>(onSld));
     };
     p->SetRemoteDescription(std::move(offer), rtc::make_ref_counted<SrdObserver<decltype(onSrd)>>(onSrd));

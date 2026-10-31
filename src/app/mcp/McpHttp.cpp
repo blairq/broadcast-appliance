@@ -16,6 +16,8 @@
 #include <QTcpSocket>
 #include <QUrl>
 
+#include "diag/Correlacion.hpp"
+#include "diag/Metricas.hpp"
 #include "i18n/I18n.hpp"
 #include "mcp/McpCore.hpp"
 
@@ -149,7 +151,7 @@ void McpHttp::onReadable(QTcpSocket* s) {
         respond(s, 200, "text/plain", "ok\n");
         return;
     }
-    if (path != "/mcp") {
+    if (path != "/mcp" && path != "/metrics") {
         respond(s, 404, "text/plain", QByteArray::fromStdString(ba::i18n::traducir("mcp", "no encontrado (el endpoint MCP es /mcp)") + "\n"));
         return;
     }
@@ -163,6 +165,16 @@ void McpHttp::onReadable(QTcpSocket* s) {
             s, 401, "application/json",
             R"x({"error":"token invalido: usa Authorization: Bearer <token> (bin/64bit/ba-mcp --token lo muestra)"})x",
             "WWW-Authenticate: Bearer\r\n");
+        return;
+    }
+    // Las métricas de la app en el formato de Prometheus (F4-01), con el mismo token.
+    if (path == "/metrics") {
+        if (method != "GET") {
+            respond(s, 405, "text/plain", {}, "Allow: GET\r\n");
+            return;
+        }
+        respond(s, 200, "text/plain; version=0.0.4; charset=utf-8",
+                QByteArray::fromStdString(ba::diag::Metricas::proceso().texto()));
         return;
     }
     if (method == "GET") {
@@ -196,6 +208,8 @@ void McpHttp::onReadable(QTcpSocket* s) {
     ctx.rol = headerValue(headers, "X-BA-Rol").trimmed().toStdString();
     ctx.origen = "asistente";
     ctx.asistente = headerValue(headers, "X-BA-Asistente").trimmed().toStdString();
+    // Un cliente puede traer su propio id de orden (F4-02); si no, lo pone McpCore.
+    ctx.correlacion = headerValue(headers, ba::diag::correlacion::kCabecera).trimmed().toStdString();
     const auto isInit = [](const json& m) { return m.is_object() && m.value("method", "") == "initialize"; };
     if (isInit(msg) || (msg.is_array() && std::any_of(msg.begin(), msg.end(), isInit))) {
         const QString sid = randomHex(16);

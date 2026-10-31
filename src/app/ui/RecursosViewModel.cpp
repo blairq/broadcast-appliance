@@ -11,6 +11,10 @@
 
 #include "ajustes/Ajustes.hpp"
 #include "arranque/AppRuntime.hpp"
+#include "diag/Metricas.hpp"
+#include "diag/Registro.hpp"
+#include "diag/VigiaBucle.hpp"
+#include "i18n/I18n.hpp"
 
 namespace ba::app {
 namespace {
@@ -156,10 +160,167 @@ void RecursosViewModel::publicar() {
     const nlohmann::json mg = inf.value("margen", nlohmann::json::object());
     filas_ = filas;
     procesos_ = procs;
-    estado_ = QString::fromStdString(inf.value("estado", std::string("desconocido")));
+    medirServicio(m, inf);
+    atenderTermica(m);
+    estado_ =QString::fromStdString(inf.value("estado", std::string("desconocido")));
     margen_ = mg.value("pct", nlohmann::json()).is_number() ? mg["pct"].get<double>() : -1.0;
     limita_ = mg.value("limita", nlohmann::json()).is_string() ? titulo(QString::fromStdString(mg["limita"].get<std::string>())) : QString();
     emit cambio();
+}
+
+// --- Métricas y SLI (F4-01) ------------------------------------------------------------
+
+void RecursosViewModel::medirServicio(const diag::Recursos::Muestra& m, const nlohmann::json& inf) {
+    auto& met = diag::Metricas::proceso();
+    const auto medir = [](diag::Medidor& g, double v) {
+        if (v < 0) g.desconocido();
+        else g.poner(v);
+    };
+    // El motor y la máquina (lo que ya midió el muestreador: acá solo se copia).
+    static auto& fps = met.medidor("ba_motor_fps", QT_TRANSLATE_NOOP("metricas", "Cuadros por segundo del programa"));
+    static auto& perdidos = met.medidor("ba_motor_cuadros_perdidos_pct", QT_TRANSLATE_NOOP("metricas", "Cuadros perdidos en el último segundo, %"));
+    static auto& perdidosTotal = met.contador("ba_motor_cuadros_perdidos_total", QT_TRANSLATE_NOOP("metricas", "Cuadros perdidos desde que arrancó el motor"));
+    medir(fps, m.fps);
+    medir(perdidos, m.perdidosPct);
+    if (perdidosAntes_ >= 0) perdidosTotal.igualar(static_cast<std::uint64_t>(perdidosAntes_));
+    for (const char* k : {"cpu", "gpu", "ram", "vram", "red"}) {
+        const nlohmann::json v = inf.value(k, nlohmann::json::object()).value("pct", nlohmann::json());
+        medir(met.medidor("ba_recurso_pct", QT_TRANSLATE_NOOP("metricas", "Uso de cada recurso de la máquina, %"), {{"recurso", k}}),
+              v.is_number() ? v.get<double>() : -1.0);
+    }
+    // El bucle de la interfaz (diag::VigiaBucle): el último minuto.
+    const nlohmann::json bucle = diag::VigiaBucle::interfaz().informe();
+    const nlohmann::json um = bucle.value("ultimo_minuto", nlohmann::json::object());
+    const bool hayBucle = um.value("muestras", 0) > 0;
+    static auto& bucleP99 = met.medidor("ba_ui_bucle_p99_ms", QT_TRANSLATE_NOOP("metricas", "Demora del bucle de la interfaz, p99 del último minuto, ms"));
+    static auto& bucleMax = met.medidor("ba_ui_bucle_max_ms", QT_TRANSLATE_NOOP("metricas", "Demora del bucle de la interfaz, máximo del último minuto, ms"));
+    static auto& bucleTarde = met.contador("ba_ui_bucle_tarde_total", QT_TRANSLATE_NOOP("metricas", "Turnos del bucle de la interfaz que llegaron tarde"));
+    const double p99 = hayBucle ? um.value("p99_ms", -1.0) : -1.0;
+    medir(bucleP99, p99);
+    medir(bucleMax, hayBucle ? um.value("max_ms", -1.0) : -1.0);
+    bucleTarde.igualar(bucle.value("tarde", std::uint64_t{0}));
+    // Las salidas: el colchón de la grabación y las reconexiones de la transmisión.
+    const nlohmann::json sal = rt_.engine().salidasAhora();
+    const nlohmann::json disco = sal.value("disco", nlohmann::json::object());
+    const double atraso = disco.value("atraso_s", -1.0);
+    static auto& colchon = met.medidor("ba_grabacion_colchon_s", QT_TRANSLATE_NOOP("metricas", "Lo que espera al disco en el colchón de la grabación más atrasada, s"));
+    medir(colchon, atraso);
+    static auto& reconexiones = met.contador("ba_transmision_reconexiones_total", QT_TRANSLATE_NOOP("metricas", "Veces que una transmisión conectada se cortó y empezó a reconectar"));
+    int reconectando = 0;
+    const auto mirar = [&](const std::string& id, const nlohmann::json& st) {
+        if (!st.is_object() || !st.value("andando", false)) {
+            conectadaAntes_.erase(id);
+            return;
+        }
+        const bool con = st.value("conectada", false);
+        if (st.value("reconectando", false)) ++reconectando;
+        if (!con && conectadaAntes_[id]) reconexiones.sumar();
+        conectadaAntes_[id] = con;
+    };
+    for (const auto& [id, fs] : sal.value("salidas", nlohmann::json::object()).items()) {
+        mirar(id, fs.value("principal", nlohmann::json::object()));
+        for (const auto& [eid, x] : fs.value("extras", nlohmann::json::object()).items()) mirar(eid, x);
+    }
+    static auto& reconectandoAhora = met.medidor("ba_transmision_reconectando", QT_TRANSLATE_NOOP("metricas", "Transmisiones reconectando ahora"));
+    reconectandoAhora.poner(reconectando);
+
+    // Los SLI de la página de diagnóstico: el número y si está bien, con umbrales fijos.
+    const auto estadoDe = [](double v, double aviso, double critico) -> QString {
+        if (v < 0) return QStringLiteral("desconocido");
+        return v >= critico ? QStringLiteral("critico") : v >= aviso ? QStringLiteral("aviso") : QStringLiteral("normal");
+    };
+    const QString nose = tr("sin datos");
+    QVariantList slis;
+    const auto sli = [&](const QString& clave, const QString& titulo, double v, const QString& texto, double aviso, double critico) {
+        slis.push_back(QVariantMap{{"clave", clave}, {"titulo", titulo}, {"texto", v < 0 ? nose : texto}, {"estado", estadoDe(v, aviso, critico)}});
+    };
+    // El transporte A→B: la peor edad p99 y lo que se perdió en la ventana (lo mide el gateway).
+    double edad = -1, perdidosVentana = -1;
+    if (transporte_)
+        for (const auto& f : transporte_()) {
+            if (!f.is_object()) continue;
+            edad = std::max(edad, f.value("edad_p99_ms", -1.0));
+            perdidosVentana = std::max(0.0, perdidosVentana) + f.value("descartados", 0.0) + f.value("faltantes", 0.0);
+        }
+    sli("edad_ab", tr("Edad A→B (p99)"), edad, tr("%1 ms").arg(numero(edad)), 50, 150);
+    sli("anillos", tr("Anillos A→B: perdidos en 10 s"), perdidosVentana, numero(perdidosVentana), 1, 10);
+    sli("cuadros", tr("Cuadros perdidos"), m.perdidosPct, tr("%1 %").arg(numero(m.perdidosPct, 1)), 1, 5);
+    sli("bucle_ui", tr("Bucle de la interfaz (p99)"), p99, tr("%1 ms").arg(numero(p99)), 50, 200);
+    double mcp = -1;
+    QString mcpCual;
+    for (const auto& [e, v] : met.valores("ba_mcp_herramienta_ms:p99"))
+        if (v > mcp) {
+            mcp = v;
+            mcpCual = e.empty() ? QString() : QString::fromStdString(e.front().second);
+        }
+    sli("mcp", tr("Herramienta MCP más lenta (p99)"), mcp, tr("%1 ms · %2").arg(numero(mcp), mcpCual), 1000, 5000);
+    const double candado = met.valor("ba_motor_candado_espera_ms:p99").value_or(-1.0);
+    sli("candado", tr("Espera del candado del motor (p99)"), candado, tr("%1 ms").arg(numero(candado, 1)), 20, 50);
+    sli("reconexiones", tr("Transmisiones reconectando"), reconectando, QString::number(reconectando), 1, 2);
+    sli("colchon", tr("Colchón de grabación"), atraso, tr("%1 s").arg(numero(atraso, 1)), 2, 5);
+    slis_ = slis;
+}
+
+// --- La térmica (F4-05) ------------------------------------------------------------------
+
+void RecursosViewModel::atenderTermica(const diag::Recursos::Muestra& m) {
+    platform::NivelTermico nivel = platform::NivelTermico::Desconocido;
+    platform::nivelDeNombre(m.termica, nivel);
+    diag::PoliticaTermica::Config c;
+    c.activa = ba::ajustes::siNo("termica.priorizarPrograma", true);
+    politica_.configurar(c);
+    const int ahora = politica_.actualizar(nivel, m.t);
+    // Lo que cambió, de a un paso (la política no salta más de uno por vuelta).
+    while (apagadosAplicados_ != ahora) {
+        const bool apagar = ahora > apagadosAplicados_;
+        const std::string paso =
+            diag::PoliticaTermica::pasos()[static_cast<std::size_t>(apagar ? apagadosAplicados_ : apagadosAplicados_ - 1)];
+        const bool atendido = degradar_ && degradar_(paso, apagar);
+        sinGancho_.erase(std::remove(sinGancho_.begin(), sinGancho_.end(), paso), sinGancho_.end());
+        if (apagar && !atendido) sinGancho_.push_back(paso);
+        ba::diag::registro().linea(
+            ba::diag::Nivel::Aviso, "termica", 0,
+            ba::i18n::llenar(apagar ? ba::i18n::traducir("termica", "la máquina está %1: se apaga «%2» para priorizar el programa")
+                                    : ba::i18n::traducir("termica", "la máquina se alivió (%1): vuelve «%2»"),
+                             {m.termica, paso}));
+        apagadosAplicados_ += apagar ? 1 : -1;
+    }
+    auto& met = diag::Metricas::proceso();
+    static auto& nivelMet = met.medidor("ba_termica_nivel", QT_TRANSLATE_NOOP("metricas", "Nivel térmico: 0 desconocido, 1 normal, 2 templado, 3 serio, 4 crítico"));
+    static auto& temp = met.medidor("ba_termica_temperatura_c", QT_TRANSLATE_NOOP("metricas", "La temperatura más alta que se pudo leer, °C"));
+    static auto& apagados = met.medidor("ba_termica_pasos_apagados", QT_TRANSLATE_NOOP("metricas", "Pasos de «priorizar programa» apagados por calor"));
+    nivelMet.poner(static_cast<int>(nivel));
+    if (m.temperaturaC < 0) temp.desconocido();
+    else temp.poner(m.temperaturaC);
+    apagados.poner(ahora);
+
+    QStringList nombres;
+    for (int i = 0; i < ahora; ++i) {
+        const std::string& p = diag::PoliticaTermica::pasos()[static_cast<std::size_t>(i)];
+        nombres << (p == "superres" ? tr("superresolución")
+                    : p == "modelos" ? tr("modelos locales")
+                    : p == "vistas"  ? tr("vistas sin mirar")
+                                     : tr("resolución de invitados"));
+    }
+    const QString nivelTexto = nivel == platform::NivelTermico::Normal     ? tr("normal")
+                               : nivel == platform::NivelTermico::Templado ? tr("templada")
+                               : nivel == platform::NivelTermico::Serio    ? tr("caliente: el sistema frena")
+                               : nivel == platform::NivelTermico::Critico  ? tr("muy caliente")
+                                                                           : tr("sin datos");
+    QString texto = m.temperaturaC >= 0 ? tr("%1 · %2 °C").arg(nivelTexto, numero(m.temperaturaC)) : nivelTexto;
+    if (!nombres.isEmpty()) texto += " · " + tr("apagado: %1").arg(nombres.join(", "));
+    const QString estado = nivel == platform::NivelTermico::Critico                       ? QStringLiteral("critico")
+                           : nivel == platform::NivelTermico::Serio || nivel == platform::NivelTermico::Templado ? QStringLiteral("aviso")
+                           : nivel == platform::NivelTermico::Normal                    ? QStringLiteral("normal")
+                                                                                        : QStringLiteral("desconocido");
+    termica_ = QVariantMap{{"nivel", QString::fromStdString(m.termica)}, {"texto", texto}, {"estado", estado}, {"apagados", nombres}};
+    slis_.push_back(QVariantMap{{"clave", "termica"}, {"titulo", tr("Térmica")}, {"texto", texto}, {"estado", estado}});
+}
+
+nlohmann::json RecursosViewModel::informeTermico() const {
+    nlohmann::json j = politica_.informe(recursos_->ultima().t);
+    j["sin_gancho"] = sinGancho_;
+    return j;
 }
 
 } // namespace ba::app
