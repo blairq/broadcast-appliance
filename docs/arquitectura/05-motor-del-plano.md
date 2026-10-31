@@ -2,7 +2,7 @@
 
 Cómo se migra un área de la interfaz para que no toque el motor. Hecho para escenas,
 fuentes del editor, salidas, emisión, las pastillas de la raíz y las vistas de video
-(`FrameService`); falta para Mezcla/audio, Imagen/video, Control/DSK, Asamblea, Sala,
+(`FrameService`); Control/DSK (con rótulos, carrusel y pantallas); falta para Mezcla/audio, Imagen/video, Asamblea, Sala,
 Asistente y Escritorio.
 
 ## Quién es dueño de qué
