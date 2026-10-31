@@ -377,6 +377,7 @@ void McpService::registerSystemTools() {
     {
         Tool t;
         t.name = "inicio_con_el_equipo";
+        t.hilo = Hilo::Foto; // solo el sistema (el arranque con el equipo): nada de la app
         t.title = ba::i18n::traducir("mcp", "Arrancar solo al encender el equipo");
         t.category = "equipo";
         t.clase = Clase::Escritura;
@@ -406,6 +407,9 @@ void McpService::registerSystemTools() {
             QT_TRANSLATE_NOOP("mcp", "Saca de la emision una entrada de audio del equipo (las que agrega audio_input_add; mixer_list "
             "las muestra). Deja de sonar en todas las escenas y no vuelve al arrancar.");
         t.inputSchema = {{"type", "object"}, {"properties", {{"name", {{"type", "string"}}}}}, {"required", {"name"}}};
+        // La configuración y el motor son del dueño: corre allá (desde la interfaz era una
+        // entrada directa).
+        t.hilo = Hilo::Control;
         t.run = [&rt](const json& a, Done done) {
             const std::string name = a.value("name", "");
             const auto& l = rt.config().audioInputs;

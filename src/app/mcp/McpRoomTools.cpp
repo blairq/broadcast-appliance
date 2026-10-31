@@ -474,6 +474,7 @@ void McpService::registerRoomTools() {
         {
             Tool t;
             t.name = "acceso_remoto_clave";
+            t.destructivaSi = "borrar"; // borrar=true borra
             t.title = ba::i18n::traducir("mcp", "Acceso remoto: guardar o borrar una clave (pinggy o Cloudflare)");
             t.category = "sala";
             t.clase = Clase::Escritura;
@@ -1012,25 +1013,28 @@ void McpService::registerRoomTools() {
             auto vistos = std::make_shared<std::set<std::string>>();
             for (const auto& m : leer())
                 if (m.is_object()) vistos->insert(m.value("uid", ""));
-            const std::int64_t vence = QDateTime::currentMSecsSinceEpoch() + a.value("timeoutSec", 60) * 1000;
-            auto* timer = new QTimer(conf);
-            timer->setInterval(400);
-            QObject::connect(timer, &QTimer::timeout, conf, [timer, leer, vistos, id, vence, done]() {
+            // El chat avisa cuando cambia (chatRevChanged): se mira ahí, no cada 400 ms
+            // serializando la lista entera.
+            const auto nuevosDe = [leer, vistos, id]() {
                 json nuevos = json::array();
                 for (const auto& m : leer()) {
                     if (!m.is_object() || vistos->count(m.value("uid", "")) != 0) continue;
                     if (m.value("fromId", "") == id && !m.value("mine", false)) nuevos.push_back(m);
                 }
-                const bool vencio = QDateTime::currentMSecsSinceEpoch() >= vence;
-                if (nuevos.empty() && !vencio) return;
-                timer->stop();
-                timer->deleteLater();
-                ToolResult r;
-                r.data(json{{"messages", nuevos}, {"timedOut", nuevos.empty()}});
-                if (!nuevos.empty()) r.untrusted = true; // escrito por un invitado
-                done(r);
-            });
-            timer->start();
+                return nuevos;
+            };
+            esperarHasta(
+                conf, &ConferenceViewModel::chatRevChanged,
+                [nuevosDe]() -> std::optional<ToolResult> {
+                    const json nuevos = nuevosDe();
+                    if (nuevos.empty()) return std::nullopt;
+                    ToolResult r;
+                    r.data(json{{"messages", nuevos}, {"timedOut", false}});
+                    r.untrusted = true; // escrito por un invitado
+                    return r;
+                },
+                a.value("timeoutSec", 60) * 1000,
+                []() { return ToolResult().data(json{{"messages", json::array()}, {"timedOut", true}}); }, done);
         };
         core_.addTool(std::move(t));
     }

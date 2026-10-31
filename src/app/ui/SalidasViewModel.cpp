@@ -496,6 +496,11 @@ QString SalidasViewModel::placaUi(bool activar, const QString& texto, const QStr
 }
 
 QStringList SalidasViewModel::textosPlaca() const {
+    const FotoMotor::Salida* s = p_.ventanilla.foto().salida({});
+    return textosDePlaca(s != nullptr ? QString::fromStdString(s->placa.value("placa_texto", std::string())) : QString());
+}
+
+QStringList SalidasViewModel::textosDePlaca(const QString& usado) {
     // Salen al aire: en el idioma del evento (se arman cada vez que se piden, así que un
     // cambio de idioma se ve en la lista siguiente; una placa ya al aire queda como salió).
     const auto ev = [](const std::string& s) { return QString::fromStdString(s); };
@@ -504,8 +509,6 @@ QStringList SalidasViewModel::textosPlaca() const {
                   ev(ba::i18n::traducirEvento("SalidasViewModel", "Minuto de silencio")),
                   ev(ba::i18n::traducirEvento("SalidasViewModel", "Sesión suspendida")),
                   ev(ba::i18n::traducirEvento("SalidasViewModel", "Dificultades técnicas"))};
-    const FotoMotor::Salida* s = p_.ventanilla.foto().salida({});
-    const QString usado = s != nullptr ? QString::fromStdString(s->placa.value("placa_texto", std::string())) : QString();
     if (!usado.isEmpty() && !l.contains(usado)) l.prepend(usado);
     return l;
 }

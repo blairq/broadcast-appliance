@@ -112,6 +112,13 @@ class Configuraciones : public QObject {
     std::string plantillaRestablecer(const std::string& id);
     /// Una plantilla nueva copiando el evento abierto (con todo lo suyo, sin historial).
     std::string plantillaDesdeActual(const std::string& nombre, const std::string& escenario);
+    /// crear() y plantillaDesdeActual() en otro hilo: copiar un evento con sus grabaciones son
+    /// GB y en el hilo que llama lo trababa. `listo(error)` vuelve en el hilo de este objeto,
+    /// después de avisar cambio() si salió bien.
+    void crearAparte(const std::string& nombre, const std::string& desde, const std::string& descripcion,
+                     bool conGrabaciones, std::function<void(std::string)> listo);
+    void plantillaDesdeActualAparte(const std::string& nombre, const std::string& escenario,
+                                    std::function<void(std::string)> listo);
     /// Una vez (marca en <datos>/migraciones.json): las carpetas que tenían VARIOS eventos
     /// adentro se separan, cada evento a su carpeta con una copia de los ajustes, escenas
     /// y medios de donde estaba (sin historial). Se queda el en curso (o el último tocado)
@@ -173,6 +180,9 @@ class Configuraciones : public QObject {
     void nuevoEventoListo(const QString& nombre, const QString& error, bool abriendo);
 
    private:
+    /// `trabajo` (de los de sin avisar) en el pool; al volver, cambio() si salió y `listo`.
+    void aparte(std::function<std::string()> trabajo, std::function<void(std::string)> listo);
+    std::string plantillaDesdeActualSinAvisar(const std::string& nombre, const std::string& escenario);
     // Cuánto ocupa cada carpeta: se mide en otro hilo (con grabaciones grandes,
     // recorrerla en cada lectura de la lista trababa la interfaz).
     struct Tamano {

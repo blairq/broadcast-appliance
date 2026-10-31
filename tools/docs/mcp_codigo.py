@@ -12,7 +12,17 @@ QUE LEE de cada bloque `t.name = …; … core_.addTool(…)`: lo que
 McpCore::toolListEntry pone en tools/list (title, description, inputSchema,
 readOnly, destructive, idempotent, openWorld) y lo que declara el registro
 (category, clase, hilo, porQueAire, aireSi, reversible, porSalida, antes,
-mediated, untrustedOutput).
+mediated, untrustedOutput, untrustedConGente, destructivaSi). Una herramienta que
+pasa por `copiarDeLaInterfaz(core, t, …)` corre en la foto (la función le pone
+`t.hilo = Hilo::Foto`): el lector lo sabe.
+
+LOS CUERPOS (`revisar_cuerpos`, M-46): lo que el `run` de cada una toca tiene que
+cuadrar con su `hilo`. En la foto o el control, nada de la interfaz (un view
+model, la copia de la sala, una pantalla): es una carrera. En la interfaz, el
+motor directo (`rt.engine()`), las esperas (`waitFor…`) y el disco pesado
+(`remove_all`, `directory_iterator`) son avisos. Y un `delete`/`clear` booleano en
+el esquema de una que no es destructiva, también. Los casos legítimos van en
+EXCEPCIONES_CUERPO, con su motivo.
 
 TRES MANERAS DE REGISTRAR, y las tres se leen:
   - un bloque con el nombre literal: `t.name = "scene_list";`
@@ -672,11 +682,13 @@ _CAMPOS = {"title": "titulo", "description": "descripcion", "inputSchema": "esqu
            "destructive": "destructiva", "idempotent": "idempotente", "openWorld": "mundoAbierto",
            "category": "categoria", "clase": "clase", "hilo": "hilo", "porQueAire": "porQueAire",
            "aireSi": "aireSi", "reversible": "reversible", "porSalida": "porSalida", "antes": "antes",
-           "mediated": "mediada", "untrustedOutput": "contenidoNoConfiable"}
+           "mediated": "mediada", "untrustedOutput": "contenidoNoConfiable",
+           "untrustedConGente": "contenidoNoConfiableConGente", "destructivaSi": "destructivaSi"}
 _DEFECTO = {"titulo": "", "categoria": None, "descripcion": "", "esquema": None, "soloLectura": False,
             "destructiva": False, "idempotente": False, "mundoAbierto": False, "clase": None, "hilo": None,
             "porQueAire": None, "aireSi": "siempre", "reversible": False, "porSalida": False, "antes": [],
-            "mediada": False, "contenidoNoConfiable": False}
+            "mediada": False, "contenidoNoConfiable": False, "contenidoNoConfiableConGente": False,
+            "destructivaSi": None}
 # Lo que McpCore::addTool le suma al esquema de una herramienta de salida.
 SALIDA = {"type": "string", "description": "Salida (id o nombre; `salidas_listar`). Sin ella, la por omisión "
                                            "(o la de quien llama)."}
@@ -765,6 +777,12 @@ def _bloque(txt, toks, resolver, var, ini, fin, ambito):
                 else:
                     ambito[t[1]] = _Falla("se modifica en el bloque")
             k = fin_st + 1
+            continue
+        # copiarDeLaInterfaz(core, t, …) le pone el hilo de la foto (McpFoto.cpp).
+        if t[0] == "id" and t[1] == "copiarDeLaInterfaz" and _op(toks[k + 1], "(") and \
+                any(toks[q][0] == "id" and toks[q][1] == var for q in range(k + 2, min(k + 6, fin))):
+            d["hilo"] = "foto"
+            k += 2
             continue
         if not (t[0] == "id" and t[1] == var and toks[k + 1][1] == "." and toks[k + 2][1] in _CAMPOS):
             k += 1
@@ -862,7 +880,8 @@ def herramientas():
                 if not isinstance(nombre, str) or not re.fullmatch(r"[a-z][a-z0-9_]*", nombre):
                     continue  # «x.name = "Invitado "» de otra estructura
                 d, errores = _bloque(txt, toks, resolver, var, i + 5, fin, ambito)
-                d.update({"archivo": rel, "linea": lin, "errores": errores})
+                d.update({"archivo": rel, "linea": lin, "errores": errores,
+                          "_cuerpo": txt[toks[i][2]:toks[fin][2]]})
                 _como_addtool(d)
                 if nombre in out:
                     d["repetida"] = f"{out[nombre]['archivo']}:{out[nombre]['linea']}"
@@ -876,6 +895,8 @@ def _como_addtool(d):
         d["errores"].setdefault("clase", "sin declarar (t.clase = Clase::…)")
         d["clase"] = "lectura" if d["soloLectura"] else "escritura"
     d["soloLectura"] = d["clase"] == "lectura"
+    if d.get("destructivaSi"):
+        d["destructiva"] = True  # McpCore::addTool: «puede borrar» (ver esDestructiva)
     # Lo de fábrica es la interfaz (F3-03, ver Hilo en McpCore.hpp): foto o control solo
     # lo que lo declara.
     if d["hilo"] is None or d["hilo"] == "segun_clase":
@@ -916,3 +937,76 @@ def verificar(inventario=RAIZ / "docs/mcp.json"):
             res["distintas"][n] = dif
     res["iguales"] = len(comunes) - len(res["sin_extraer"]) - len(res["distintas"])
     return res, cod, inv
+
+
+# --- Lo que toca cada cuerpo, contra su hilo (M-46) ----------------------------------
+# En la foto o el control: lo de la interfaz. `vm.` y `vm_.` son el StudioViewModel; los
+# demás, un view model, la copia de la sala o una pantalla.
+_DE_LA_INTERFAZ = [
+    (re.compile(r"\bvm_?\s*(\.|->)"), "usa el StudioViewModel (`vm`)"),
+    (re.compile(r"\bvmp\s*->"), "usa el StudioViewModel (`vmp`)"),
+    (re.compile(r"\b\w+ViewModel\b"), "usa un view model"),
+    (re.compile(r"\broomSnapshot\s*\("), "lee la copia de la sala de la interfaz (roomSnapshot)"),
+    (re.compile(r"\bQScreen\b|\bQGuiApplication::screens\b"), "lee las pantallas (QScreen)"),
+]
+# En la interfaz: avisos (lo que la traba o entra directo al motor).
+_AVISOS_INTERFAZ = [
+    (re.compile(r"\brt_?\s*(\.|->)\s*engine\s*\(\s*\)"), "entra directo al motor (rt.engine())"),
+    (re.compile(r"\bwaitFor\w+\s*\("), "espera bloqueando (waitFor…)"),
+    (re.compile(r"\bremove_all\s*\("), "borra carpetas enteras (remove_all)"),
+    (re.compile(r"\b(recursive_)?directory_iterator\b"), "recorre carpetas (directory_iterator)"),
+]
+# Los casos legítimos: (herramienta, regla) -> por qué. La regla es el texto de arriba.
+EXCEPCIONES_CUERPO = {
+    # Modelos del DUEÑO que se alcanzan por el StudioViewModel (se arman en la interfaz y se
+    # adoptan: VentanillaMotor::adoptar). El puntero no cambia; lo que se usa es del control.
+    ("video_legalizar", "usa el StudioViewModel (`vm`)"): "vm.videoGrafos() es del dueño (VideoGrafos adoptado)",
+    ("audio_loudness_objetivo", "usa el StudioViewModel (`vm`)"): "vm.objetivoLoudness() es un modelo del dueño",
+    ("escena_transicion", "usa el StudioViewModel (`vm`)"): "vm.conmutador() es del dueño (adoptado por la ventanilla)",
+    ("web_tema", "usa un view model"): "ControlViewModel::guardarTemaWeb es estática: no toca la vista",
+    ("aire_placas_listar", "usa un view model"): "SalidasViewModel::textosDePlaca es estática: no toca la vista",
+}
+
+
+def _cuerpo_run(texto):
+    """Lo que va desde `.run =` hasta el final del bloque (sin descripción ni esquema), sin la
+    lista de capturas de la lambda: esa se evalúa al registrar, en la interfaz (tomar ahí la
+    referencia a un modelo del dueño es lo que corresponde)."""
+    i = texto.find(".run =")
+    if i < 0:
+        return ""
+    cuerpo = texto[i:]
+    a = cuerpo.find("[")
+    if a < 0:
+        return cuerpo
+    prof = 0
+    for j in range(a, len(cuerpo)):
+        prof += {"[": 1, "]": -1}.get(cuerpo[j], 0)
+        if prof == 0:
+            return cuerpo[:a] + cuerpo[j + 1:]
+    return cuerpo
+
+
+def revisar_cuerpos(cod=None):
+    """-> (errores, avisos): listas de «nombre (archivo:línea): motivo»."""
+    cod = cod if cod is not None else herramientas()
+    errores, avisos = [], []
+    for n, c in sorted(cod.items()):
+        if n.startswith("?") or "_cuerpo" not in c:
+            continue
+        cuerpo = _cuerpo_run(c["_cuerpo"])
+        donde = f"{n} ({c['archivo']}:{c['linea']})"
+        if c["hilo"] in ("foto", "control"):
+            for pat, motivo in _DE_LA_INTERFAZ:
+                if pat.search(cuerpo) and (n, motivo) not in EXCEPCIONES_CUERPO:
+                    errores.append(f"{donde}: hilo {c['hilo']} y {motivo}")
+        else:
+            for pat, motivo in _AVISOS_INTERFAZ:
+                if pat.search(cuerpo) and (n, motivo) not in EXCEPCIONES_CUERPO:
+                    avisos.append(f"{donde}: en la interfaz y {motivo}")
+        props = c["esquema"].get("properties", {}) if isinstance(c["esquema"], dict) else {}
+        for clave in ("delete", "clear", "borrar"):
+            if isinstance(props, dict) and isinstance(props.get(clave), dict) and \
+                    props[clave].get("type") == "boolean" and not c["destructiva"]:
+                avisos.append(f"{donde}: `{clave}` booleano y no es destructiva (destructivaSi)")
+    return errores, avisos

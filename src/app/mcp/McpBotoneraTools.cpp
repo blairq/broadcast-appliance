@@ -854,14 +854,13 @@ void registerBotoneraTools(McpCore& core, StudioViewModel& vm) {
         t.clase = Clase::Lectura;
         t.description = QT_TRANSLATE_NOOP("mcp", "Los videos o audios que se estan reproduciendo al aire y cuantos segundos les quedan (tambien en "
                         "el bus: aire/medios). Para avisar antes de que termine y armar lo que sigue.");
-        t.run = [&vm](const json&, Done done) {
-            json out = json::array();
-            for (const QVariant& v : vm.salidas().mediosAlAire()) {
-                const QVariantMap m = v.toMap();
-                out.push_back({{"fuente", m.value("fuente").toString().toStdString()},
-                               {"restante_s", m.value("restante_s").toInt()},
-                               {"duracion_s", m.value("duracion_s").toInt()}});
-            }
+        // Lo mismo que publica la vista de las salidas en el bus (aire/medios: [{fuente,
+        // restante_s, duracion_s}]), que se lee bajo su candado: en el pool.
+        t.hilo = Hilo::Foto;
+        t.run = [&bus = vm.bus()](const json&, Done done) {
+            const json u = bus.ultimo("aire/medios");
+            json out = u.is_object() ? u.value("valor", json::array()) : json::array();
+            if (!out.is_array()) out = json::array();
             done(ToolResult().data({{"medios", out}}));
         };
         core.addTool(std::move(t));
@@ -938,7 +937,7 @@ void registerBotoneraTools(McpCore& core, StudioViewModel& vm) {
             "llama el módulo «Generic HTTP» de Bitfocus Companion sin escribir código. Cada acceso tiene su "
             "perfil y sus permisos, como una tablet. El TOKEN lo crea y lo ve una PERSONA en Botonera → "
             "Integraciones («Nuevo acceso HTTP…»): acá no se entrega. Sin argumentos informa y lista los "
-            "accesos (se revocan con botonera_dispositivo_revocar).");
+            "accesos (se revocan con botonera_revocar).");
         t.inputSchema = {{"type", "object"}, {"properties", {{"activo", {{"type", "boolean"}}}}}};
         t.run = [&vm](const json& a, Done done) {
             auto& b = vm.botonera();

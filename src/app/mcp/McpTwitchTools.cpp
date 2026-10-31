@@ -86,6 +86,7 @@ void McpService::registerTwitchTools() {
     {
         Tool t;
         t.name = "twitch_setup";
+        t.destructivaSi = "clear"; // clear=true borra
         t.title = ba::i18n::traducir("mcp", "Configurar la app de Twitch");
         t.category = "twitch";
         t.clase = Clase::Escritura;

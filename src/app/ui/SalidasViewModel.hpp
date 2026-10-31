@@ -181,6 +181,9 @@ class SalidasViewModel : public QObject {
     Q_INVOKABLE QString placaUi(bool activar, const QString& texto = {}, const QString& imagen = {}, int ms = 600);
     /// Los textos de placa de siempre (y los que se usaron).
     Q_INVOKABLE QStringList textosPlaca() const;
+    /// Los de siempre, con `usado` (la placa que está o estuvo puesta) primero si no es uno de
+    /// ellos. Sin la vista: lo usa el MCP desde el dueño del motor (aire_placas_listar).
+    static QStringList textosDePlaca(const QString& usado);
 
    signals:
     void cambio();

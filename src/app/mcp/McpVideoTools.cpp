@@ -24,6 +24,7 @@
 #include "video/SuperRes.hpp"
 #include "video/VideoGrafos.hpp"
 
+#include <QCoreApplication>
 #include <QDateTime>
 #include <QJsonDocument>
 #include <QTimer>
@@ -965,7 +966,7 @@ void McpService::registerVideoTools() {
         t.title = ba::i18n::traducir("mcp", "Dónde pasa el video (y el audio) de la GPU a la CPU, pipeline por pipeline");
         t.category = "video";
         t.clase = Clase::Lectura;
-        t.hilo = Hilo::Control; // VideoGrafos es del dueño del motor (F3-03)
+        t.hilo = Hilo::Foto; // motor::mapa lee los pipelines bajo su candado: contesta con todo trabado
         t.description =
             QT_TRANSLATE_NOOP("mcp", "El mapa vivo de TODOS los pipelines del motor (entradas, placas, composiciones, mezclas, vistas, "
             "salidas): cada enlace con la memoria negociada de verdad (GLMemory, D3D11Memory, VAMemory, "
@@ -1928,8 +1929,13 @@ void McpService::registerVideoTools() {
             t.run = [srp](const json& a, Done done) {
                 if (!srp) return done(ToolResult::error(ba::i18n::traducir("mcp", "no disponible")));
                 const std::string ac = a.value("accion", std::string("estado"));
+                // El estado recorre la carpeta del laboratorio (~800 MB): solo archivos, en otro hilo.
+                const auto estado = [srp, done]() {
+                    // (laboratorio() solo lee archivos; el objeto vive lo que la app)
+                    enPool(qApp, [s = srp.data()]() { return ToolResult().data(s->laboratorio()); }, done);
+                };
                 if (ac == "instalar") {
-                    if (srp->laboratorioListo()) return done(ToolResult().data(srp->laboratorio()));
+                    if (srp->laboratorioListo()) return estado();
                     const std::string e = srp->prepararLaboratorio();
                     if (!e.empty()) return done(ToolResult::error(e));
                     return done(ToolResult().text(ba::i18n::traducir("mcp", "El laboratorio, en la cola de descargas (descargas_estado y superres_trabajo muestran el avance).")));
@@ -1939,7 +1945,7 @@ void McpService::registerVideoTools() {
                     if (!e.empty()) return done(ToolResult::error(e));
                     return done(ToolResult().text(ba::i18n::traducir("mcp", "Laboratorio borrado.")));
                 }
-                done(ToolResult().data(srp->laboratorio()));
+                estado();
             };
             core_.addTool(std::move(t));
         }

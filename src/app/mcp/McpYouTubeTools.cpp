@@ -132,6 +132,7 @@ void McpService::registerYouTubeTools() {
     {
         Tool t;
         t.name = "youtube_setup";
+        t.destructivaSi = "clear"; // clear=true borra
         t.title = ba::i18n::traducir("mcp", "Configurar la credencial de Google");
         t.category = "youtube";
         t.clase = Clase::Escritura;

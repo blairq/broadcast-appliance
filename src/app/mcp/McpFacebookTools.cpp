@@ -89,6 +89,7 @@ void McpService::registerFacebookTools() {
     {
         Tool t;
         t.name = "facebook_setup";
+        t.destructivaSi = "clear"; // clear=true borra
         t.title = ba::i18n::traducir("mcp", "Configurar la app de Meta");
         t.category = "facebook";
         t.clase = Clase::Escritura;

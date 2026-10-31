@@ -1222,10 +1222,15 @@ void McpService::registerTools() {
         t.category = "escenas";
         t.clase = Clase::Lectura;
         t.description = QT_TRANSLATE_NOOP("mcp", "Los textos de placa de siempre y si ahora hay FTB o placa al aire.");
-        t.run = [this, &vm](const json& a, Done done) {
+        // SeguridadAire es del dueño del motor: en el control (los textos no necesitan la vista).
+        t.hilo = Hilo::Control;
+        t.run = [this, &seg = vm.seguridadAire()](const json& a, Done done) {
+            const json estado = seg.estado(core_.salidaDe(a));
             json textos = json::array();
-            for (const QString& s : vm.salidas().textosPlaca()) textos.push_back(s.toStdString());
-            done(ToolResult().data(json{{"textos", textos}, {"estado", vm.seguridadAire().estado(core_.salidaDe(a))}}));
+            for (const QString& s : SalidasViewModel::textosDePlaca(
+                     QString::fromStdString(seg.estado().value("placa_texto", std::string()))))
+                textos.push_back(s.toStdString());
+            done(ToolResult().data(json{{"textos", textos}, {"estado", estado}}));
         };
         core_.addTool(std::move(t));
     }
@@ -1268,6 +1273,7 @@ void McpService::registerTools() {
     {
         Tool t;
         t.name = "supervisor_politica";
+        t.hilo = Hilo::Control; // el latido tiene su candado; la política, del dueño (F3-03)
         t.title = ba::i18n::traducir("mcp", "Política del supervisor (interfaz trabada)");
         t.category = "estado";
         t.clase = Clase::Escritura;
@@ -2269,7 +2275,7 @@ void McpService::registerTools() {
                 {"description", QT_TRANSLATE_NOOP("mcp", "de qué salida son el fader y el mute de la escucha fija (vacío = la por omisión)")}}}}}};
         t.examples = {R"({"name": "Microfono del atril"})", R"({"name": "Microfono del atril", "modo": "afl", "salida": "b"})",
                       R"({"salida_escucha": "b"})", R"({})"};
-        t.run = [&rt, &vm](const json& a, Done done) {
+        t.run = [&vm](const json& a, Done done) {
             const std::string n = a.value("name", std::string());
             const bool on = a.value("escuchar", true) && !n.empty();
             auto* matriz = qobject_cast<audio::Matriz*>(vm.matriz());
@@ -2285,13 +2291,15 @@ void McpService::registerTools() {
             }
             // El PFL es uno solo y no toca la escucha fija: la regla es de la Matriz (la
             // misma del botón PFL de la interfaz); acá solo se arma la respuesta.
-            const std::string antes = rt.engine().pfl();
+            // Lo del motor, de la foto (la interfaz no entra al motor).
+            const FotoMotor& foto = vm.ventanilla().foto();
+            const std::string antes = foto.mezcla.pfl;
             if (!on) {
                 if (const QString e = matriz->ponerPfl({}); !e.isEmpty()) return done(ToolResult::error(e.toStdString()));
                 return done(ToolResult::ok(antes.empty() ? ba::i18n::traducir("mcp", "No había ninguna en PFL.")
                                                          : ba::i18n::llenar(ba::i18n::traducir("mcp", "Dejo de escucharse: %1."), {antes})));
             }
-            if (!rt.engine().sourceExists(n))
+            if (!foto.hayFuente(n))
                 return done(
                     ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "No existe la fuente de audio '%1' (audio_sources las lista)."), {n})));
             const std::string modo = a.value("modo", std::string("pfl"));
@@ -2476,6 +2484,8 @@ void McpService::registerTools() {
                            {"lufs", {{"type", "number"}}},
                            {"tp", {{"type", "number"}}},
                            {"agc", {{"type", "boolean"}}}}}};
+        // El objetivo es un modelo del dueño (toca el loudness de cada salida del motor): en el control.
+        t.hilo = Hilo::Control;
         t.run = [this, &vm, &rt](const json& a, Done done) {
             json o{{"perfil", a.value("perfil", std::string("r128"))}};
             if (a.contains("lufs")) o["lufs"] = a.value("lufs", -23.0);
@@ -2621,15 +2631,16 @@ void McpService::registerTools() {
     {
         Tool t;
         t.name = "voz_vocabulario";
+        t.hilo = Hilo::Foto; // el vocabulario es de cualquier hilo (su candado)
         t.title = ba::i18n::traducir("mcp", "Vocabulario de la voz a texto");
         t.category = "traduccion";
         t.clase = Clase::Lectura;
         t.description = QT_TRANSLATE_NOOP("mcp", "Los terminos que la transcripcion escribe bien aunque el modelo no los conozca (nombres del "
                         "cuerpo, localidades, terminos de asamblea, los del operador), por grupo (activo o no), y los "
                         "ultimos reemplazos hechos. La correccion es por sonido y solo con confianza alta.");
-        t.run = [&vm](const json&, Done done) {
-            json d = vm.vocabulario().todo();
-            d["reemplazos"] = vm.vocabulario().ultimosReemplazos();
+        t.run = [&voc = vm.vocabulario()](const json&, Done done) {
+            json d = voc.todo();
+            d["reemplazos"] = voc.ultimosReemplazos();
             done(ToolResult().data(d));
         };
         core_.addTool(std::move(t));
@@ -2688,15 +2699,16 @@ void McpService::registerTools() {
     {
         Tool t;
         t.name = "voz_vocabulario_probar";
+        t.hilo = Hilo::Foto; // el vocabulario es de cualquier hilo (su candado)
         t.title = ba::i18n::traducir("mcp", "Probar el vocabulario");
         t.category = "traduccion";
         t.clase = Clase::Lectura;
         t.description = QT_TRANSLATE_NOOP("mcp", "Pasa un `texto` (como lo escribiria el modelo) por la correccion y devuelve el resultado y los "
                         "reemplazos.");
         t.inputSchema = {{"type", "object"}, {"required", {"texto"}}, {"properties", {{"texto", {{"type", "string"}}}}}};
-        t.run = [&vm](const json& a, Done done) {
+        t.run = [&voc = vm.vocabulario()](const json& a, Done done) {
             json r = json::array();
-            const std::string t2 = vm.vocabulario().corregir(a.value("texto", std::string()), &r);
+            const std::string t2 = voc.corregir(a.value("texto", std::string()), &r);
             done(ToolResult().data({{"texto", t2}, {"reemplazos", r}}));
         };
         core_.addTool(std::move(t));
@@ -3818,10 +3830,14 @@ void McpService::registerTools() {
                            {"url_respaldo", {{"type", "string"}}},
                            {"modo", {{"type", "string"}, {"enum", {"caller", "listener", "rendezvous"}}}},
                            {"latencia_ms", {{"type", "integer"}, {"minimum", 20}, {"maximum", 8000}}}}}};
+        // Los destinos son del dueño del motor (la configuración y las salidas): corre allá.
+        t.hilo = Hilo::Control;
         t.run = [this, &rt](const json& a, Done done) {
-            // Sale con el programa de la salida pedida (o la de quien llama; "" = la por omisión).
+            // Uno nuevo sale con el programa de la salida pedida (o la de quien llama; "" = la
+            // por omisión). Uno que ya existe (`id`) se queda en la suya salvo que venga
+            // `salida`: «agregar» con su id no lo mudaba a propósito, lo mudaba siempre.
             json d = a;
-            d["salida"] = core_.salidaDe(a);
+            if (!a.contains("id") || a.contains("salida")) d["salida"] = core_.salidaDe(a);
             std::string id;
             const std::string e = rt.guardarDestino(d, &id);
             if (!e.empty()) return done(ToolResult::error(e));
@@ -3848,6 +3864,7 @@ void McpService::registerTools() {
                            {"clave", {{"type", "string"}}},
                            {"respaldo", {{"type", "boolean"}}},
                            {"url_respaldo", {{"type", "string"}}}}}};
+        t.hilo = Hilo::Control; // como stream_destino_agregar
         t.run = [this, &rt](const json& a, Done done) {
             json d = a;
             if (a.contains("salida")) d["salida"] = core_.salidaDe(a); // por nombre o id → id
@@ -3867,6 +3884,7 @@ void McpService::registerTools() {
         t.destructive = true;
         t.description = QT_TRANSLATE_NOOP("mcp", "Borra el destino `id` (si estaba transmitiendo, lo corta) y su clave guardada.");
         t.inputSchema = {{"type", "object"}, {"required", {"id"}}, {"properties", {{"id", {{"type", "string"}}}}}};
+        t.hilo = Hilo::Control; // como stream_destino_agregar
         t.run = [&rt](const json& a, Done done) {
             const std::string e = rt.borrarDestino(a.value("id", std::string()));
             if (!e.empty()) return done(ToolResult::error(e));
@@ -4186,6 +4204,7 @@ void McpService::registerTools() {
         t.category = "config";
         t.clase = Clase::Escritura;
         t.description = QT_TRANSLATE_NOOP("mcp", "Guarda escenas y ajustes en disco (las herramientas ya guardan solas; esto fuerza).");
+        t.hilo = Hilo::Control; // la configuración es del dueño
         t.run = [&rt](const json&, Done done) {
             done(rt.save() ? ToolResult::ok(ba::i18n::traducir("mcp", "Guardado.")) : ToolResult::error(rt.lastError()));
         };

@@ -187,8 +187,10 @@ void McpService::registerModeloTools() {
             const std::string repo = a.value("repo", std::string());
             if (!enCatalogo(ml, repo))
                 return done(ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "`%1` no esta en el catalogo de esta plataforma."), {repo})));
-            ml.borrar(QString::fromStdString(repo));
-            done(ToolResult::ok(ba::i18n::llenar(ba::i18n::traducir("mcp", "Borrado `%1`."), {repo})));
+            // Gigas: el borrado va en otro hilo; se contesta al terminar.
+            ml.borrar(QString::fromStdString(repo), [repo, done]() {
+                done(ToolResult::ok(ba::i18n::llenar(ba::i18n::traducir("mcp", "Borrado `%1`."), {repo})));
+            });
         };
         core_.addTool(std::move(t));
     }
@@ -222,24 +224,45 @@ void McpService::registerModeloTools() {
                 std::snprintf(t, sizeof(t), "%.2f GB", b / 1073741824.0);
                 return std::string(t);
             };
+            // Borrar gigas, en otro hilo (ModelosLocales); se contesta al terminar.
             if (que == "viejos" || que == "restos") {
-                const QVariantMap r = que == "viejos" ? ml.limpiarViejos() : ml.limpiarRestos();
-                return done(ToolResult::ok(ba::i18n::llenar(que == "viejos" ? ba::i18n::traducir("mcp", "Modelos viejos borrados: se liberaron %1.")
-                                                             : ba::i18n::traducir("mcp", "Descargas cortadas borradas: se liberaron %1."),
-                                             {gb(r.value("bytes").toDouble())})));
+                ml.limpiar(QString::fromStdString(que), [que, gb, done](const QVariantMap& r) {
+                    done(ToolResult::ok(ba::i18n::llenar(que == "viejos" ? ba::i18n::traducir("mcp", "Modelos viejos borrados: se liberaron %1.")
+                                                                         : ba::i18n::traducir("mcp", "Descargas cortadas borradas: se liberaron %1."),
+                                                         {gb(r.value("bytes").toDouble())})));
+                });
+                return;
             }
             if (que == "carpeta") {
                 const std::string c = a.value("carpeta", std::string());
-                if (!ml.borrarCarpeta(QString::fromStdString(c)))
-                    return done(ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "No se pudo borrar `%1` (no es una carpeta de un modelo)."), {c})));
-                return done(ToolResult::ok(ba::i18n::llenar(ba::i18n::traducir("mcp", "Borrada `%1`."), {c})));
+                ml.borrarCarpeta(QString::fromStdString(c), [c, done](bool ok) {
+                    if (!ok)
+                        return done(ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "No se pudo borrar `%1` (no es una carpeta de un modelo)."), {c})));
+                    done(ToolResult::ok(ba::i18n::llenar(ba::i18n::traducir("mcp", "Borrada `%1`."), {c})));
+                });
+                return;
             }
+            // La lista, la de la revisión que se pide ahora (se contestaba con la de antes): se
+            // espera su aviso (discoCambio), hasta 30 s.
+            const auto lista = [&ml, gb]() {
+                double total = 0;
+                for (const QVariant& v : ml.instalados()) total += v.toMap().value("bytes").toDouble();
+                return ToolResult().data(json{{"instalados", qvToJson(ml.instalados())},
+                                              {"restos", qvToJson(ml.restos())},
+                                              {"total", gb(total)}});
+            };
             ml.revisarDisco();
-            double total = 0;
-            for (const QVariant& v : ml.instalados()) total += v.toMap().value("bytes").toDouble();
-            done(ToolResult().data(json{{"instalados", qvToJson(ml.instalados())},
-                                        {"restos", qvToJson(ml.restos())},
-                                        {"total", gb(total)}}));
+            auto primera = std::make_shared<bool>(true);
+            esperarHasta(
+                &ml, &agent::ModelosLocales::discoCambio,
+                [primera, lista]() -> std::optional<ToolResult> {
+                    if (*primera) { // la llamada de entrada: todavía no revisó
+                        *primera = false;
+                        return std::nullopt;
+                    }
+                    return lista();
+                },
+                30 * 1000, lista, done);
         };
         core_.addTool(std::move(t));
     }
@@ -990,6 +1013,7 @@ void McpService::registerModeloTools() {
     {
         Tool t;
         t.name = "descargas_estado";
+        t.hilo = Hilo::Foto; // Descargas::estado lee bajo su candado
         t.title = ba::i18n::traducir("mcp", "Descargas: la cola, lo que baja y lo que terminó");
         t.category = "agentes";
         t.clase = Clase::Lectura;
@@ -1063,16 +1087,18 @@ void McpService::registerModeloTools() {
                         "elegido) y las devuelve. No baja nada: para eso, descarga_actualizar.");
         t.run = [dl](const json&, Done done) {
             dl->buscarActualizaciones();
-            auto* timer = new QTimer(dl);
-            auto elapsed = std::make_shared<int>(0);
-            QObject::connect(timer, &QTimer::timeout, dl, [dl, timer, elapsed, done]() {
-                *elapsed += 500;
-                if (dl->buscando() && *elapsed < 90 * 1000) return;
-                timer->deleteLater();
-                done(ToolResult().data({{"actualizaciones", dl->estado()["actualizaciones"]},
-                                        {"terminado", !dl->buscando()}}));
-            });
-            timer->start(500);
+            // Las descargas avisan cuando termina de buscar (actualizacionesCambio): hasta 90 s.
+            const auto resultado = [dl]() {
+                return ToolResult().data({{"actualizaciones", dl->estado()["actualizaciones"]},
+                                          {"terminado", !dl->buscando()}});
+            };
+            esperarHasta(
+                dl, &net::Descargas::actualizacionesCambio,
+                [dl, resultado]() -> std::optional<ToolResult> {
+                    if (dl->buscando()) return std::nullopt;
+                    return resultado();
+                },
+                90 * 1000, resultado, done);
         };
         core_.addTool(std::move(t));
     }

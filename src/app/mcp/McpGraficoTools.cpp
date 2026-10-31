@@ -296,6 +296,7 @@ void McpService::registerGraficoTools() {
     {
         Tool t;
         t.name = "grafico_en_escena";
+        t.hilo = Hilo::Foto; // graficos::instancias lee bajo su candado
         t.title = ba::i18n::traducir("mcp", "Fuentes de gráfico que hay");
         t.category = "graficos";
         t.clase = Clase::Lectura;

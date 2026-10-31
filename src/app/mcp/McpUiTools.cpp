@@ -69,6 +69,7 @@ void McpService::registerUiTools() {
     {
         Tool t;
         t.name = "multiview";
+        t.destructivaSi = "borrar"; // borrar=true borra
         t.title = ba::i18n::traducir("mcp", "Multiview: ver y armar las multivistas (y sacarlas a una ventana)");
         t.category = "interfaz";
         t.clase = Clase::Ui;
