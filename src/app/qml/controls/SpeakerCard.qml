@@ -19,7 +19,7 @@ Rectangle {
     required property double usedMs
     required property bool connected
     required property int slot
-    required property string avatar     // data: URL o vacio
+    required property string avatar     // su foto (image://personas/…) o vacío
     required property int backstageSlot // preview en vivo de la fila (0 = sin lugar)
     required property int index
     required property bool presenter

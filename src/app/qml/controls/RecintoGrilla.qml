@@ -48,22 +48,13 @@ ColumnLayout {
         for (const p of (rec.sr ? rec.sr.participantes : [])) m[p.id] = p
         return m
     }
-    property int fotosVersion: 0
+    // Las caras de los conectados (ui/FotosPersonas): se piden cada 3 s mientras se ve.
+    readonly property var fotos: Fotos.urls
+    Suscripcion { objetivo: rec.sr; que: "fotos"; activa: rec.visible && !!rec.sr && rec.sr.conectados > 0 }
     // Titileo de 1 Hz para «le toca» y los que esperan que los habiliten.
     property bool fase: false
     Timer { interval: 500; repeat: true; running: rec.visible && (rec.conCentral || rec.hayEsperando); onTriggered: rec.fase = !rec.fase }
     readonly property bool hayEsperando: (rec.sr ? rec.sr.participantes : []).some(p => p.estado === "esperando")
-    // Las caras de los conectados, cada 3 s mientras se ve.
-    Timer {
-        interval: 3000; repeat: true; triggeredOnStart: true
-        running: rec.visible && !!rec.sr && rec.sr.conectados > 0
-        onTriggered: { for (const p of rec.sr.participantes) if (p.conectado) rec.sr.pedirFoto(p.id) }
-    }
-    Connections {
-        target: rec.sr
-        enabled: !!rec.sr
-        function onFotoLista(id) { rec.fotosVersion++ }
-    }
 
     function unidadDe(banca) {
         const l = rec.d.unidades || []
@@ -134,9 +125,9 @@ ColumnLayout {
     function cara(i) {
         if (!i) return ""
         const p = rec.remotos[i.id]
-        if (p && p.conectado && rec.fotosVersion >= 0) {
-            const u = rec.sr.fotoUrl(i.id)
-            if (u !== "") return u
+        if (p && p.conectado) {
+            const u = rec.fotos["integrante:" + i.id]
+            if (u) return u
         }
         if (i.foto_url) return i.foto_url
         const pp = i.preset_ptz || {}

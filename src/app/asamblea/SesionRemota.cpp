@@ -1,5 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 #include "asamblea/SesionRemota.hpp"
+
+#include "comun/UsoPorVistas.hpp"
+#include "ui/FotosPersonas.hpp"
 #include "arranque/ArchivoConfig.hpp"
 #include "i18n/I18n.hpp"
 
@@ -62,7 +65,20 @@ SesionRemota::SesionRemota(const Cuerpo& cuerpo, std::filesystem::path datos, QO
     : QObject(parent), cuerpo_(cuerpo), archivo_(datos / "Config" / "sesion-remota.json"),
       archivoRegistro_(datos / "Logs" / "sesion-remota.jsonl") {
     cargar();
+    // Las caras de los conectados: cada 3 s, solo mientras alguna vista las muestra.
+    fotosPoll_.setInterval(3000);
+    connect(&fotosPoll_, &QTimer::timeout, this, &SesionRemota::pedirFotos);
+    usos_ = std::make_unique<UsoPorVistas>(this, [this](const QString& que) {
+        if (usos_->activo(que)) {
+            pedirFotos();
+            fotosPoll_.start();
+        } else {
+            fotosPoll_.stop();
+        }
+    });
 }
+
+SesionRemota::~SesionRemota() = default;
 
 void SesionRemota::cargar() {
     const json j = config::leerObjeto(archivo_);
@@ -950,16 +966,20 @@ QString SesionRemota::expulsarUi(const QString& id, const QString& motivo) {
     return QString::fromStdString(expulsar(id.toStdString(), "operador", motivo.toStdString()));
 }
 
-void SesionRemota::pedirFoto(const QString& id) { emit fotoPedida(id); }
-
-QString SesionRemota::fotoUrl(const QString& id) const {
-    auto it = fotos_.find(id);
-    return it == fotos_.end() ? QString() : "data:image/jpeg;base64," + QString::fromLatin1(it->second.toBase64());
+void SesionRemota::usar(QObject* vista, bool si, const QString& que) {
+    if (que == "fotos") usos_->usar(vista, si, que);
 }
+
+void SesionRemota::pedirFotos() {
+    for (const auto& [id, e] : estado_)
+        if (e.conectado) emit fotoPedida(QString::fromStdString(id));
+}
+
+QByteArray SesionRemota::fotoJpeg(const QString& id) const { return FotosPersonas::las().jpeg("integrante:" + id); }
 
 void SesionRemota::ponerFoto(const QString& id, const QByteArray& jpeg) {
     if (jpeg.size() < 4 || static_cast<unsigned char>(jpeg[0]) != 0xFF) return;
-    fotos_[id] = jpeg;
+    FotosPersonas::las().poner("integrante:" + id, jpeg);
     emit fotoLista(id);
 }
 

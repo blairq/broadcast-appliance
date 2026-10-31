@@ -17,13 +17,10 @@ ColumnLayout {
     readonly property bool activo: !!e.activo
     readonly property var cfg: e.config || ({})
     readonly property var integrantes: (Studio.cuerpo.integrantes || []).filter(i => (i.banca || "") !== "")
-    // Remoto = sesiona desde el navegador (la regla es de SesionRemota::presente);
-    // leer `participantes` hace que la lista se rearme cuando cambia la banca virtual.
+    // Remoto = sesiona desde el navegador (la regla es de SesionRemota::presente).
     readonly property var sr: Studio.sesionRemota
-    readonly property var etiquetas: {
-        if (pd.sr) pd.sr.participantes
-        return integrantes.map(i => (pd.sr && pd.sr.presenteUi(i.id) ? qsTr("Banca %1 · %2  (remoto)") : qsTr("Banca %1 · %2")).arg(i.banca).arg(i.nombre))
-    }
+    readonly property var remotos: sr ? sr.presentesLista : []
+    readonly property var etiquetas: integrantes.map(i => (pd.remotos.indexOf(i.id) >= 0 ? qsTr("Banca %1 · %2  (remoto)") : qsTr("Banca %1 · %2")).arg(i.banca).arg(i.nombre))
     function avisar(e) { if (e) Studio.notify(e, "error") }
     function mmss(s) { const a = Math.abs(s); return (s < 0 ? "-" : "") + Math.floor(a / 60) + ":" + String(a % 60).padStart(2, "0") }
 

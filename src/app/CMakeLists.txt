@@ -1304,7 +1304,7 @@ endif()
     set_target_properties(test_seguir_microfono PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_seguir_microfono COMMAND test_seguir_microfono)
     add_executable(test_sesion_remota tests/test_sesion_remota.cpp asamblea/SesionRemota.cpp asamblea/SesionRemota.hpp
-                   asamblea/Cuerpo.cpp "${CMAKE_SOURCE_DIR}/third_party/qrcodegen/qrcodegen.cpp")
+                   asamblea/Cuerpo.cpp ui/FotosPersonas.cpp ui/FotosPersonas.hpp "${CMAKE_SOURCE_DIR}/third_party/qrcodegen/qrcodegen.cpp")
     target_include_directories(test_sesion_remota PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_SOURCE_DIR}/third_party/qrcodegen")
     target_link_libraries(test_sesion_remota PRIVATE ba_core Qt6::Core)
     set_target_properties(test_sesion_remota PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
@@ -1456,7 +1456,8 @@ endif()
     add_test(NAME test_facebook COMMAND test_facebook)
     # La interfaz COMPILA: cada .qml con el motor de QML (agarra lo que qmllint no:
     # propiedades asignadas dos veces, tipos o ids que no existen).
-    add_executable(test_qml_carga tests/test_qml_carga.cpp ui/Vumetro.cpp ui/Reloj.cpp ui/Reloj.hpp)
+    add_executable(test_qml_carga tests/test_qml_carga.cpp ui/Vumetro.cpp ui/Reloj.cpp ui/Reloj.hpp
+                   ui/FotosPersonas.cpp ui/FotosPersonas.hpp)
     target_include_directories(test_qml_carga PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
     target_link_libraries(test_qml_carga PRIVATE Qt6::Core Qt6::Gui Qt6::Qml Qt6::Quick)
     target_compile_definitions(test_qml_carga PRIVATE BA_QML_DIR="${CMAKE_CURRENT_SOURCE_DIR}/qml")

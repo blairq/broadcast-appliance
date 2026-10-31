@@ -26,6 +26,8 @@
 #include <QVariantList>
 #include <QVariantMap>
 
+#include <nlohmann/json.hpp>
+
 #include <functional>
 #include <memory>
 
@@ -129,7 +131,7 @@ class ConferenceViewModel : public QObject {
     Q_PROPERTY(bool speakerMode READ speakerMode NOTIFY roomChanged)
     /// Fila de oradores en orden (tarjetas): uid, name, info, contact, speaker
     /// ("queued"|"onair"|"done"), position, allottedSec, onAirSinceMs, usedMs,
-    /// connected, slot, avatar (data: URL o vacio), backstageSlot (preview de
+    /// connected, slot, avatar (su foto: image://personas/…, o vacío), backstageSlot (preview de
     /// la fila en BA.Backstage.<k>, 0 = sin preview); y, del que está al aire, su reloj
     /// (sala::OradoresSala::reloj): restanteMs, estadoTiempo (ok | aviso | excedido),
     /// textoTiempo ("m:ss" o "+m:ss"); textoAsignado y textoUsado ("m:ss").
@@ -364,7 +366,6 @@ class ConferenceViewModel : public QObject {
     std::unique_ptr<JsonListModel> speakers_;
     QVariantList onAir_;
     double clockOffset_ = 0;
-    QHash<QString, QString> avatars_; // id -> data:image/jpeg;base64,...
     QHash<QString, QString> nombresDeAfuera_; // id -> nombre de quien se atiende sin estar en la sala
     QTimer avatarPoll_;
     std::unique_ptr<UsoPorVistas> usos_;
@@ -375,6 +376,14 @@ class ConferenceViewModel : public QObject {
     /// Pone el reloj (restante, estado, texto) a los que están al aire, en la fila y en onAir.
     void actualizarRelojes();
     void pollAvatars();
+
+   public:
+    /// Lo que la sala avisa (o el sondeo de respaldo trae): la red de cada uno y la foto de
+    /// un invitado. Listos para los eventos de la sala (agente G).
+    void aplicarRed(const nlohmann::json& r);
+    void aplicarAvatar(const QString& id, const QByteArray& jpeg);
+
+   private:
     void rebuildSpeakers();
     QStringList knownWaiting_;
     QVariantMap network_;

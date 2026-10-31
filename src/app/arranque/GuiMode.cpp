@@ -12,6 +12,8 @@
 #include "ajustes/Ajustes.hpp"
 #include "arranque/ArranqueAviso.hpp"
 #include "control/MonitorBus.hpp"
+#include "ui/FotosPersonas.hpp"
+#include "ui/ProveedorFotos.hpp"
 #include "ui/Reloj.hpp"
 #include "ui/ScopeVista.hpp"
 #include "platform/Hilo.hpp"
@@ -414,6 +416,7 @@ int runGui(int argc, char** argv) {
         // La hora de las vistas (corre solo mientras alguien la lee).
         Reloj reloj;
         qmlRegisterSingletonInstance("BA", 1, 0, "Reloj", &reloj);
+        qmlRegisterSingletonInstance("BA", 1, 0, "Fotos", &FotosPersonas::las());
         qmlRegisterType<VideoItem>("BA", 1, 0, "VideoItem");
         qmlRegisterType<term::TerminalView>("BA", 1, 0, "TerminalView");
         qmlRegisterType<Vumetro>("BA", 1, 0, "Vumetro");
@@ -436,6 +439,7 @@ int runGui(int argc, char** argv) {
         // La vista previa del generador de QR: rasteriza el MISMO SVG que se
         // exporta, asi lo que se ve es exactamente lo que sale.
         engine.addImageProvider("qr", new QrImageProvider(vm.qrVm()));
+        engine.addImageProvider("personas", new ProveedorFotos()); // la cara de cada conectado
         QObject::connect(&vm, &StudioViewModel::quitRequested, &app, &QGuiApplication::quit);
         // Un cierre pedido (el launcher, una señal) pasa por la vista: así no pregunta.
         QObject::connect(&plano, &PlanoControl::cierrePedido, &vm, &StudioViewModel::quitRequested);

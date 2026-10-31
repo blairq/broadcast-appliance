@@ -22,6 +22,7 @@
 
 #include <QByteArray>
 #include <QObject>
+#include <QTimer>
 #include <QStringList>
 #include <QString>
 #include <QVariantList>
@@ -33,9 +34,14 @@
 #include <filesystem>
 #include <functional>
 #include <map>
+#include <memory>
 #include <set>
 #include <string>
 #include <vector>
+
+namespace ba::app {
+class UsoPorVistas;
+}
 
 namespace ba::app::asamblea {
 
@@ -47,6 +53,8 @@ class SesionRemota : public QObject {
     Q_PROPERTY(QVariantList participantes READ participantesUi NOTIFY cambio)
     /// Habilitados y conectados: los que cuentan como presentes por acá.
     Q_PROPERTY(int presentes READ presentes NOTIFY cambio)
+    /// Quiénes sesionan desde el navegador ahora (los ids: la regla de presente()).
+    Q_PROPERTY(QStringList presentesLista READ presentesLista NOTIFY cambio)
     Q_PROPERTY(int conectados READ conectados NOTIFY cambio)
     /// El origen público para los links (lo da el gateway): "https://…".
     Q_PROPERTY(QString origen READ origenUi NOTIFY cambio)
@@ -63,6 +71,7 @@ class SesionRemota : public QObject {
    public:
     using json = nlohmann::json;
     SesionRemota(const Cuerpo& cuerpo, std::filesystem::path datos, QObject* parent = nullptr);
+    ~SesionRemota() override;
 
     // --- Credenciales -------------------------------------------------------------
     /// Genera (o regenera: el link anterior deja de andar) el link y el PIN de un
@@ -189,23 +198,25 @@ class SesionRemota : public QObject {
     Q_INVOKABLE QString setDatosUi(const QString& integrante, const QVariantMap& datos);
     Q_INVOKABLE QString habilitarUi(const QString& integrante, bool si);
     Q_INVOKABLE QString expulsarUi(const QString& integrante, const QString& motivo);
-    Q_INVOKABLE bool presenteUi(const QString& integrante) const { return presente(integrante.toStdString()); }
-    /// La foto de su cámara (la última que mandó): la pide la interfaz al gateway
-    /// y, cuando llega (`fotoLista`), la toma con `fotoUrl` (data:image/jpeg…).
-    Q_INVOKABLE void pedirFoto(const QString& integrante);
+    QStringList presentesLista() const {
+        QStringList out;
+        for (const auto& id : presentesIds()) out << QString::fromStdString(id);
+        return out;
+    }
+    /// La foto de su cámara (la última que mandó): se le pide al gateway (`fotoPedida`) cada
+    /// 3 s para los conectados, mientras alguna vista las usa (usar(vista, si, "fotos"));
+    /// llega con ponerFoto y queda en ui/FotosPersonas («integrante:<id>»: en QML,
+    /// Fotos.urls).
+    Q_INVOKABLE void usar(QObject* vista, bool si, const QString& que);
     QVariantMap votacionUi() const;
     /// Sin la central: abrir con un menú (si_no, si_no_abstencion…) o cerrar.
     Q_PROPERTY(QVariantList consolasUi READ consolasUi NOTIFY cambio)
     QVariantList consolasUi() const;
     Q_INVOKABLE QVariantMap generarConsolaUi(const QString& nombre);
     Q_INVOKABLE bool revocarConsolaUi(const QString& id) { return revocarConsola(id.toStdString()); }
-    Q_INVOKABLE QString fotoUrl(const QString& integrante) const;
     /// La misma foto, en bytes (JPEG; vacía si no llegó): para compararle la
     /// cara con su ficha (ui/AtencionViewModel).
-    QByteArray fotoJpeg(const QString& integrante) const {
-        const auto it = fotos_.find(integrante);
-        return it == fotos_.end() ? QByteArray() : it->second;
-    }
+    QByteArray fotoJpeg(const QString& integrante) const;
     /// Los canales que el remoto puede mirar en su celular (ver setVistas), con el nombre
     /// que escribió el operador ("" = el automático, que va en `nombreAuto`): si el panel
     /// mostrara el automático como texto, al guardar quedaría fijo y no seguiría a la escena.
@@ -267,7 +278,9 @@ class SesionRemota : public QObject {
     void ponerLinks(json& out, const std::string& frag) const;
     int graciaS_ = 120;
     int votoSegundos_ = 60;
-    std::map<QString, QByteArray> fotos_;
+    std::unique_ptr<UsoPorVistas> usos_;
+    QTimer fotosPoll_;
+    void pedirFotos();
     struct Palabra {
         std::string id;
         int segundos = 0;       ///< lo que se le dio (para reenviárselo si vuelve)

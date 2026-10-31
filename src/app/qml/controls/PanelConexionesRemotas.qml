@@ -18,9 +18,11 @@ ColumnLayout {
     /// Lo pide la página para ir al Recinto (a habilitar).
     signal irAlRecinto()
 
-    function estadoDe(id) {
-        for (const p of cr.parts) if (p.id === id) return p
-        return null
+    // Lo de cada integrante, por id (se rearma cuando cambian los participantes).
+    readonly property var porId: {
+        const m = {}
+        for (const p of cr.parts) m[p.id] = p
+        return m
     }
 
     // --- Arriba ---------------------------------------------------------------------
@@ -243,7 +245,7 @@ ColumnLayout {
         delegate: Rectangle {
           required property var modelData
           required property int index
-          readonly property var est: cr.parts.length >= 0 ? cr.estadoDe(modelData.id) : null
+          readonly property var est: cr.porId[modelData.id] || null
           width: ListView.view.width
           implicitHeight: filaI.implicitHeight + 8
           radius: 6

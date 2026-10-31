@@ -27,6 +27,7 @@
 #include "sala/EnlacesSala.hpp"
 #include "sala/OradoresSala.hpp"
 #include "comun/UsoPorVistas.hpp"
+#include "ui/FotosPersonas.hpp"
 #include "sala/PaginaPublico.hpp"
 #include "sala/ParticipantesSala.hpp"
 #include "sala/ReglasSala.hpp"
@@ -172,17 +173,13 @@ ConferenceViewModel::ConferenceViewModel(AppRuntime& rt, VentanillaMotor& ventan
         avisoSinSalaMs_ = 0; // volvió: la próxima caída se avisa enseguida
         authSeguidos_ = 0;
     });
-    // Estado de red: cada 5 s (cambia poco; no amerita un evento propio).
+    // Estado de red: cada 5 s. RESPALDO: cuando la sala lo avise con su evento (agente G,
+    // eventos de la sala), lo aplica aplicarRed y este sondeo se va.
     const auto pollNetwork = [this]() {
         if (!client_->online()) return;
         QPointer<ConferenceViewModel> yo(this);
         control_->verRed([yo](const std::string& err, const nlohmann::json& r) {
-            if (!yo || !err.empty()) return;
-            const QVariantMap m = aMapa(r);
-            if (m != yo->network_) {
-                yo->network_ = m;
-                emit yo->networkChanged();
-            }
+            if (yo && err.empty()) yo->aplicarRed(r);
         });
     };
     // Lo que la sala no avisa (el proxy, los bloqueos por PIN): se pregunta solo mientras
@@ -203,7 +200,8 @@ ConferenceViewModel::ConferenceViewModel(AppRuntime& rt, VentanillaMotor& ventan
     // El reloj de los que hablan (cuatro veces por segundo, solo con alguien al aire).
     relojOradores_.setInterval(250);
     connect(&relojOradores_, &QTimer::timeout, this, &ConferenceViewModel::actualizarRelojes);
-    // Fotos de las tarjetas de oradores (las renueva el invitado cada 5 s).
+    // Fotos de las tarjetas de oradores (las renueva el invitado cada 5 s). RESPALDO igual
+    // que la red: con el evento de la sala, aplicarAvatar.
     connect(&avatarPoll_, &QTimer::timeout, this, &ConferenceViewModel::pollAvatars);
     avatarPoll_.start(std::max(1000, ba::ajustes::entero("room.sondeoMs", 5000)));
     connect(&networkPoll_, &QTimer::timeout, this, pollNetwork);
@@ -251,7 +249,7 @@ void ConferenceViewModel::rebuildSpeakers() {
     for (const nlohmann::json& f : sala::OradoresSala::fila(foto.is_object() ? foto : nlohmann::json::object())) {
         QJsonObject p = QJsonDocument::fromJson(QByteArray::fromStdString(f.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))).object();
         p.insert("uid", p.value("id"));
-        p.insert("avatar", avatars_.value(p.value("id").toString()));
+        p.insert("avatar", FotosPersonas::las().url("sala:" + p.value("id").toString()));
         p.insert("textoAsignado", QString::fromStdString(sala::OradoresSala::textoTiempo(p.value("allottedSec").toInt() * 1000.0)));
         p.insert("textoUsado", QString::fromStdString(sala::OradoresSala::textoTiempo(p.value("usedMs").toDouble())));
         if (p.value("speaker").toString() == "onair") {
@@ -304,27 +302,36 @@ void ConferenceViewModel::actualizarRelojes() {
     if (cambio) emit onAirCambio();
 }
 
+void ConferenceViewModel::aplicarRed(const nlohmann::json& r) {
+    const QVariantMap m = aMapa(r);
+    if (m == network_) return;
+    network_ = m;
+    emit networkChanged();
+}
+
+void ConferenceViewModel::aplicarAvatar(const QString& id, const QByteArray& jpeg) {
+    // Una sola foto por persona (ui/FotosPersonas): su URL cambia solo si la foto cambió.
+    const QString clave = "sala:" + id;
+    const QString antes = FotosPersonas::las().url(clave);
+    FotosPersonas::las().poner(clave, jpeg);
+    if (FotosPersonas::las().url(clave) != antes) rebuildSpeakers();
+}
+
 void ConferenceViewModel::pollAvatars() {
     if (!client_->online()) return;
+    QSet<QString> vivas;
     for (const QJsonValue& v : client_->snapshot().value("participants").toArray()) {
         const QJsonObject p = v.toObject();
-        if (!p.value("hasAvatar").toBool()) continue;
         const QString id = p.value("id").toString();
-        participantes_->foto(id.toStdString(), [this, id](bool ok, const QByteArray& jpeg) {
-                            if (!ok || jpeg.isEmpty()) return;
-                            const QString url =
-                                "data:image/jpeg;base64," + QString::fromLatin1(jpeg.toBase64());
-                            if (avatars_.value(id) == url) return;
-                            avatars_.insert(id, url);
-                            rebuildSpeakers();
-                        });
+        vivas.insert("sala:" + id);
+        if (!p.value("hasAvatar").toBool()) continue;
+        QPointer<ConferenceViewModel> yo(this);
+        participantes_->foto(id.toStdString(), [yo, id](bool ok, const QByteArray& jpeg) {
+            if (yo && ok && !jpeg.isEmpty()) yo->aplicarAvatar(id, jpeg);
+        });
     }
-    // Las de quien ya no esta.
-    QSet<QString> alive;
-    for (const QJsonValue& v : client_->snapshot().value("participants").toArray())
-        alive.insert(v.toObject().value("id").toString());
-    for (auto it = avatars_.begin(); it != avatars_.end();)
-        it = alive.contains(it.key()) ? std::next(it) : avatars_.erase(it);
+    // Las de quien ya no está.
+    FotosPersonas::las().dejarSolo("sala:", vivas);
 }
 
 void ConferenceViewModel::setSpeakerConfig(const QVariantMap& cfg) {
@@ -365,11 +372,15 @@ QVariantMap ConferenceViewModel::usage() const {
 }
 
 QString ConferenceViewModel::photoOf(const QString& idOrName) const {
-    if (avatars_.contains(idOrName)) return avatars_.value(idOrName);
+    // Como data: URL (va dentro de un mensaje al operador, no a una vista).
+    const auto dataUrl = [](const QString& id) {
+        const QByteArray j = FotosPersonas::las().jpeg("sala:" + id);
+        return j.isEmpty() ? QString() : "data:image/jpeg;base64," + QString::fromLatin1(j.toBase64());
+    };
+    if (const QString d = dataUrl(idOrName); !d.isEmpty()) return d;
     for (const QJsonValue& v : client_->snapshot().value("participants").toArray()) {
         const QJsonObject p = v.toObject();
-        if (p.value("name").toString().compare(idOrName, Qt::CaseInsensitive) == 0)
-            return avatars_.value(p.value("id").toString());
+        if (p.value("name").toString().compare(idOrName, Qt::CaseInsensitive) == 0) return dataUrl(p.value("id").toString());
     }
     return {};
 }
