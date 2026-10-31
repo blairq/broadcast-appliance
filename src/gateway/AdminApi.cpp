@@ -137,6 +137,21 @@ int64_t nowMsA() {
         .count();
 }
 
+/// El QR de `url` en `out` («url», «size» y «modules»: filas de '0'/'1'): cada vista lo
+/// dibuja con la matriz, sin depender de ninguna biblioteca.
+void conQr(json& out, const std::string& url) {
+    const qrcodegen::QrCode qr = qrcodegen::QrCode::encodeText(url.c_str(), qrcodegen::QrCode::Ecc::MEDIUM);
+    json rows = json::array();
+    for (int y = 0; y < qr.getSize(); ++y) {
+        std::string row;
+        for (int x = 0; x < qr.getSize(); ++x) row.push_back(qr.getModule(x, y) ? '1' : '0');
+        rows.push_back(row);
+    }
+    out["url"] = url;
+    out["size"] = qr.getSize();
+    out["modules"] = rows;
+}
+
 void sendJson(long long fd, int code, const json& j) {
     http::sendResponse(fd, code, "application/json", j.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
 }
@@ -223,6 +238,20 @@ void SignalingServer::aplicarConfig(long long fd, const std::string& seccion, co
         return;
     }
     sendJson(fd, 404, json{{"ok", false}, {"error", llenar(traducir("gateway", "sección desconocida: %1"), {seccion})}});
+}
+
+json SignalingServer::enlaceConQr(const std::string& servicio, const std::string& target, const std::string& ruta) const {
+    json o = origenDe(servicio, target);
+    if (!o.contains("origen")) {
+        // 200 con ok=false: falta configuración, no es una falla de la API; la vista
+        // muestra `message` en el lugar del QR.
+        o["ok"] = false;
+        return o;
+    }
+    json out{{"ok", true}, {"target", target}};
+    if (o.contains("warning")) out["message"] = o["warning"];
+    conQr(out, o["origen"].get<std::string>() + ruta);
+    return out;
 }
 
 bool SignalingServer::adminAuthorized(const std::string& headers, const std::string& method) const {
@@ -451,19 +480,9 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
             out["url"] = url;
         }
         out["withPin"] = withPin;
-        const qrcodegen::QrCode qr =
-            qrcodegen::QrCode::encodeText(url.c_str(), qrcodegen::QrCode::Ecc::MEDIUM);
-        json rows = json::array();
-        for (int y = 0; y < qr.getSize(); ++y) {
-            std::string row;
-            for (int x = 0; x < qr.getSize(); ++x)
-                row.push_back(qr.getModule(x, y) ? '1' : '0');
-            rows.push_back(row);
-        }
+        conQr(out, url);
         out["ok"] = true;
         out["target"] = target;
-        out["size"] = qr.getSize();
-        out["modules"] = rows;
         sendJson(fd, 200, out);
         return;
     }
@@ -488,27 +507,9 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
         // Mismo origen que el ingreso de invitados (red local o dominio), con
         // la clave del tablero en el FRAGMENTO (no viaja en la URL pedida).
         const auto q = http::parseQuery(query);
-        const std::string target = q.count("target") ? http::urlDecode(q.at("target")) : "local";
-        json out = origenDe("tablero", target);
-        if (!out.contains("origen")) {
-            out["ok"] = false;
-            sendJson(fd, 200, out);
-            return;
-        }
-        std::string origin = out["origen"].get<std::string>();
-        const std::string url = origin + "/board/#k=" + claves().tablero;
-        const qrcodegen::QrCode qr =
-            qrcodegen::QrCode::encodeText(url.c_str(), qrcodegen::QrCode::Ecc::MEDIUM);
-        json rows = json::array();
-        for (int y = 0; y < qr.getSize(); ++y) {
-            std::string row;
-            for (int x = 0; x < qr.getSize(); ++x)
-                row.push_back(qr.getModule(x, y) ? '1' : '0');
-            rows.push_back(row);
-        }
-        sendJson(
-            fd, 200,
-            json{{"ok", true}, {"target", target}, {"url", url}, {"size", qr.getSize()}, {"modules", rows}});
+        sendJson(fd, 200,
+                 enlaceConQr("tablero", q.count("target") ? http::urlDecode(q.at("target")) : "local",
+                             "/board/#k=" + claves().tablero));
         return;
     }
     // --- Teleprompter -------------------------------------------------------
@@ -588,38 +589,20 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
     }
     if (path == "/api/v1/rotulos-link" && method == "GET") {
         const auto q = http::parseQuery(query);
-        const std::string target = q.count("target") ? http::urlDecode(q.at("target")) : "local";
-        json out = origenDe("rotulos", target);
-        if (!out.contains("origen")) {
-            out["ok"] = false;
-            sendJson(fd, 200, out);
-            return;
-        }
-        std::string origin = out["origen"].get<std::string>();
         // La clave va en el FRAGMENTO: no viaja en la peticion ni queda en los
         // registros de ningun servidor por el que pase el enlace. `conClave=0`
         // la deja afuera: el QR entra a la pagina y la clave se la dice el
         // operador aparte, que es lo que se quiere si el QR va a quedar pegado
         // en una pared.
         const bool conClave = !q.count("conClave") || http::urlDecode(q.at("conClave")) != "0";
-        const std::string url = origin + "/rotulos/" + (conClave ? "#k=" + claves().rotulos : std::string());
-        const qrcodegen::QrCode qr =
-            qrcodegen::QrCode::encodeText(url.c_str(), qrcodegen::QrCode::Ecc::MEDIUM);
-        json rows = json::array();
-        for (int y = 0; y < qr.getSize(); ++y) {
-            std::string row;
-            for (int x = 0; x < qr.getSize(); ++x)
-                row.push_back(qr.getModule(x, y) ? '1' : '0');
-            rows.push_back(row);
+        const std::string clave = claves().rotulos;
+        json out = enlaceConQr("rotulos", q.count("target") ? http::urlDecode(q.at("target")) : "local",
+                               "/rotulos/" + (conClave ? "#k=" + clave : std::string()));
+        if (out.value("ok", false)) {
+            out["conClave"] = conClave;
+            out["clave"] = clave;
         }
-        sendJson(fd, 200,
-                 json{{"ok", true},
-                      {"target", target},
-                      {"url", url},
-                      {"conClave", conClave},
-                      {"clave", claves().rotulos},
-                      {"size", qr.getSize()},
-                      {"modules", rows}});
+        sendJson(fd, 200, out);
         return;
     }
 
@@ -823,36 +806,18 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
 
     if (path == "/api/v1/publico-link" && method == "GET") {
         const auto q = http::parseQuery(query);
-        const std::string target = q.count("target") ? http::urlDecode(q.at("target")) : "local";
-        json out = origenDe("publico", target);
-        if (!out.contains("origen")) {
-            out["ok"] = false;
-            sendJson(fd, 200, out);
-            return;
-        }
-        std::string origin = out["origen"].get<std::string>();
         // Con la clave adentro casi siempre: este QR se proyecta en una
         // pantalla o se imprime en el programa, y pedirle a doscientas personas
         // que tipeen una clave es perder a la mitad.
         const bool conClave = !q.count("conClave") || http::urlDecode(q.at("conClave")) != "0";
-        const std::string url = origin + "/publico/" + (conClave ? "#k=" + claves().publico : std::string());
-        const qrcodegen::QrCode qr =
-            qrcodegen::QrCode::encodeText(url.c_str(), qrcodegen::QrCode::Ecc::MEDIUM);
-        json rows = json::array();
-        for (int y = 0; y < qr.getSize(); ++y) {
-            std::string row;
-            for (int x = 0; x < qr.getSize(); ++x)
-                row.push_back(qr.getModule(x, y) ? '1' : '0');
-            rows.push_back(row);
+        const std::string clave = claves().publico;
+        json out = enlaceConQr("publico", q.count("target") ? http::urlDecode(q.at("target")) : "local",
+                               "/publico/" + (conClave ? "#k=" + clave : std::string()));
+        if (out.value("ok", false)) {
+            out["conClave"] = conClave;
+            out["clave"] = clave;
         }
-        sendJson(fd, 200,
-                 json{{"ok", true},
-                      {"target", target},
-                      {"url", url},
-                      {"conClave", conClave},
-                      {"clave", claves().publico},
-                      {"size", qr.getSize()},
-                      {"modules", rows}});
+        sendJson(fd, 200, out);
         return;
     }
     // Lo que no es letra, numero o guion va porcentado: el nombre lo escribe
@@ -1001,33 +966,15 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
     }
     if (path == "/api/v1/correccion-link" && method == "GET") {
         const auto q = http::parseQuery(query);
-        const std::string target = q.count("target") ? http::urlDecode(q.at("target")) : "local";
-        json out = origenDe("correccion", target);
-        if (!out.contains("origen")) {
-            out["ok"] = false;
-            sendJson(fd, 200, out);
-            return;
-        }
-        const std::string aviso = out.value("warning", std::string());
-        const std::string origin = out["origen"].get<std::string>();
-        const std::string url = origin + "/correccion/#k=" + claves().correccion;
-        const qrcodegen::QrCode qr = qrcodegen::QrCode::encodeText(url.c_str(), qrcodegen::QrCode::Ecc::MEDIUM);
-        json rows = json::array();
-        for (int y = 0; y < qr.getSize(); ++y) {
-            std::string row;
-            for (int x = 0; x < qr.getSize(); ++x) row.push_back(qr.getModule(x, y) ? '1' : '0');
-            rows.push_back(row);
-        }
-        json resp{{"ok", true}, {"url", url}, {"size", qr.getSize()}, {"modules", rows}};
-        if (!aviso.empty()) resp["message"] = aviso;
-        sendJson(fd, 200, resp);
+        sendJson(fd, 200,
+                 enlaceConQr("correccion", q.count("target") ? http::urlDecode(q.at("target")) : "local",
+                             "/correccion/#k=" + claves().correccion));
         return;
     }
     if (path == "/api/v1/prompter-link" && method == "GET") {
         // El enlace del control, con la clave en el FRAGMENTO para que no
         // viaje en la URL pedida ni quede en los registros del servidor.
         const auto q = http::parseQuery(query);
-        const std::string target = q.count("target") ? http::urlDecode(q.at("target")) : "local";
         const bool control = !q.count("vista") || http::urlDecode(q.at("vista")) == "control";
         // La clave puede ir DENTRO del enlace (se entra sin tipear) o no: un QR
         // pegado en una pared no deberia llevarla.
@@ -1036,33 +983,16 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
         const std::string pid = Prompters::idValido(q.count("p") ? http::urlDecode(q.at("p")) : std::string());
         if (pid.empty()) return sendErr(fd, 400, "prompter");
         const std::string carpeta = pid == Prompters::kPrincipal ? std::string() : pid + "/";
-        json out = origenDe("prompter", target);
-        if (!out.contains("origen")) {
-            out["ok"] = false;
-            sendJson(fd, 200, out);
-            return;
-        }
-        std::string origin = out["origen"].get<std::string>();
+        const std::string clave = claves().prompter;
         // La tablet del orador no lleva clave nunca: solo lee.
-        const std::string url = origin + "/prompter/" + carpeta +
-                                (control ? (conClave ? "#control&k=" + claves().prompter : "#control") : "");
-        const qrcodegen::QrCode qr =
-            qrcodegen::QrCode::encodeText(url.c_str(), qrcodegen::QrCode::Ecc::MEDIUM);
-        json rows = json::array();
-        for (int y = 0; y < qr.getSize(); ++y) {
-            std::string row;
-            for (int x = 0; x < qr.getSize(); ++x)
-                row.push_back(qr.getModule(x, y) ? '1' : '0');
-            rows.push_back(row);
+        json out = enlaceConQr("prompter", q.count("target") ? http::urlDecode(q.at("target")) : "local",
+                               "/prompter/" + carpeta + (control ? (conClave ? "#control&k=" + clave : "#control") : ""));
+        if (out.value("ok", false)) {
+            out["vista"] = control ? "control" : "orador";
+            out["conClave"] = control && conClave;
+            out["clave"] = clave;
         }
-        sendJson(fd, 200,
-                 json{{"ok", true},
-                      {"vista", control ? "control" : "orador"},
-                      {"conClave", control && conClave},
-                      {"clave", claves().prompter},
-                      {"url", url},
-                      {"size", qr.getSize()},
-                      {"modules", rows}});
+        sendJson(fd, 200, out);
         return;
     }
 

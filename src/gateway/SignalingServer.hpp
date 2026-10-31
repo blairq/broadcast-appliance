@@ -317,6 +317,9 @@ class SignalingServer {
     nlohmann::json direcciones() const;
     /// El origen de un servicio, "local" o "remote": {origen, url} o {error, message}.
     nlohmann::json origenDe(const std::string& servicio, const std::string& donde) const;
+    /// El enlace de un servicio para el operador: su origen ("local" o "remote") + `ruta`,
+    /// con el QR: {ok, target, url, size, modules, message?}, o {ok: false, message} sin origen.
+    nlohmann::json enlaceConQr(const std::string& servicio, const std::string& target, const std::string& ruta) const;
     /// Genera la configuracion del servidor WireGuard (/api/v1/network/server-config).
     void setServerConfigGenerator(std::function<nlohmann::json(const nlohmann::json&)> fn) {
         serverConfig_ = std::move(fn);
