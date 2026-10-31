@@ -74,9 +74,16 @@ void Escucha::armar() {
     const std::string cola = "intersrc producer-name=" + entreComillas(productor_) +
                              " ! queue max-size-time=" + std::to_string(ajustes::sANs("audio.colaEscuchaS", 2)) + " max-size-buffers=0 max-size-bytes=0 ! audioconvert ! "
                              "audioresample ! volume name=vol ! level name=nivel interval=50000000 peak-ttl=300000000 ! ";
+    if (!dispositivo_.empty()) {
+        Vigia::el().revisar(); // que avise si la placa se va o vuelve (tic)
+        genVigia_ = Vigia::el().generacion();
+    }
+    enRespaldo_ = false;
     for (const std::string& disp : {dispositivo_, std::string()}) {
         GError* e = nullptr;
-        const std::string sink = sinkPrueba_.empty() ? sinkDe(disp) : sinkPrueba_ + " name=sale";
+        const std::string sink = !sinkPrueba_.empty()
+                                     ? sinkPrueba_ + (disp.empty() ? std::string() : " " + std::string(propiedadDeDispositivo()) + "=" + entreComillas(disp)) + " name=sale"
+                                     : sinkDe(disp);
         GstElement* p = gst_parse_launch((cola + sink).c_str(), &e);
         if (e != nullptr) {
             error_ = ba::diag::utf8Valido(e->message);
@@ -100,6 +107,7 @@ void Escucha::armar() {
         }
         if (!disp.empty() || dispositivo_.empty()) error_.clear();
         else error_ = ba::i18n::llenar(ba::i18n::traducir("motor", "no está «%1»: va por la salida del sistema"), {dispositivo_});
+        enRespaldo_ = disp.empty() && !dispositivo_.empty();
         pipeline_ = p;
         break;
     }
@@ -140,9 +148,33 @@ void Escucha::ponerNivel(double lineal) {
     });
 }
 
+void Escucha::rearmar(const std::string& porque) {
+    if (rearmando_.exchange(true)) return; // ya hay uno encargado
+    registrar(Nivel::Aviso, ba::i18n::llenar(ba::i18n::traducir("motor", "escucha: %1; se rearma"), {porque}));
+    encargar([this]() {
+        // Uno por segundo como mucho: un sink que falla apenas arranca no gira en el lugar.
+        const std::int64_t espera = ultimoRearmeNs_ + static_cast<std::int64_t>(GST_SECOND) - static_cast<std::int64_t>(g_get_monotonic_time()) * 1000;
+        if (espera > 0) g_usleep(static_cast<gulong>(espera / 1000));
+        ultimoRearmeNs_ = static_cast<std::int64_t>(g_get_monotonic_time()) * 1000;
+        rearmando_ = false;
+        armar();
+    });
+}
+
 void Escucha::tic(std::int64_t latenciaNs) {
     std::unique_lock<std::mutex> l(mu_, std::try_to_lock);
-    if (!l.owns_lock() || pipeline_ == nullptr) return;
+    if (!l.owns_lock() || productor_.empty()) return;
+    // La placa elegida se fue o volvió (lo avisa el Vigía): a la del sistema o de vuelta a ella.
+    if (!dispositivo_.empty() && Vigia::el().generacion() != genVigia_) {
+        genVigia_ = Vigia::el().generacion();
+        const bool esta = Vigia::el().haySalida(dispositivo_);
+        if (esta == enRespaldo_ || pipeline_ == nullptr) {
+            rearmar(esta ? ba::i18n::llenar(ba::i18n::traducir("motor", "volvió «%1»"), {dispositivo_})
+                         : ba::i18n::llenar(ba::i18n::traducir("motor", "se fue «%1»"), {dispositivo_}));
+            return;
+        }
+    }
+    if (pipeline_ == nullptr) return;
     // Lo escuchado tarda más (o bastante menos): se acomoda la espera.
     if (latenciaNs > latenciaNs_ + static_cast<std::int64_t>(5 * GST_MSECOND) ||
         latenciaNs < latenciaNs_ - static_cast<std::int64_t>(60 * GST_MSECOND)) {
@@ -151,6 +183,7 @@ void Escucha::tic(std::int64_t latenciaNs) {
         recalcularLatenciaAparte(pipeline_);
     }
     GstBus* bus = gst_element_get_bus(pipeline_);
+    bool caida = false;
     while (GstMessage* m = gst_bus_pop(bus)) {
         if (GST_MESSAGE_TYPE(m) == GST_MESSAGE_ELEMENT) {
             const GstStructure* s = gst_message_get_structure(m);
@@ -171,11 +204,15 @@ void Escucha::tic(std::int64_t latenciaNs) {
             gst_message_parse_error(m, &e, nullptr);
             error_ = e != nullptr ? ba::diag::utf8Valido(e->message) : "error";
             if (e != nullptr) g_error_free(e);
-            registrar(Nivel::Aviso, ba::i18n::llenar(ba::i18n::traducir("motor", "escucha: %1"), {error_}));
+            caida = true;
         }
         gst_message_unref(m);
     }
     gst_object_unref(bus);
+    // El sink dio error (la placa se desenchufó con la escucha andando): sin rearmar
+    // quedaba muda hasta que alguien tocara la escucha. Se rearma: a la elegida si
+    // sigue, si no a la del sistema (y vuelve cuando el Vigía la vea).
+    if (caida) rearmar(error_);
 }
 
 json Escucha::estado() const {
@@ -189,6 +226,7 @@ json Escucha::estadoYa() const {
     return {{"escucha", productor_},
             {"anda", pipeline_ != nullptr},
             {"dispositivo", dispositivo_},
+            {"en_respaldo", enRespaldo_},
             {"nivel", nivel_},
             {"pico_db", picoDb_},
             {"latencia_ms", static_cast<double>(latenciaNs_ + kMargenNs) / 1e6},

@@ -2,6 +2,9 @@
 // src/app/audio/Matriz.cpp — ver Matriz.hpp
 // ============================================================================
 #include "audio/Matriz.hpp"
+#include "audio/ReaperturaSalidas.hpp"
+#include "diag/Registro.hpp"
+#include "i18n/I18n.hpp"
 #include <QCoreApplication>
 #include "audio/AnilloAudio.hpp"
 #include "audio/EquipoAudio.hpp"
@@ -125,6 +128,7 @@ Matriz::Matriz(fs::path dataRoot, QObject* parent) : QObject(parent), root_(std:
     // Se enchufó o desenchufó algo (o se ocultó): columnas, filas y plan de nuevo.
     connect(equipo_.get(), &EquipoAudio::cambio, this, [this]() {
         refrescar();
+        reabrirSalidas(); // una salida virtual cuya placa se fue o volvió
         armarPlan();
         usarEquipo();
         emit cambio();
@@ -636,33 +640,59 @@ QString Matriz::renombrar(const QString& idQ, const QString& nombreQ) {
 QString Matriz::setDispositivo(const QString& idQ, const QString& dispositivo) {
     Bus* b = buscar(idQ.toStdString());
     if (b == nullptr || b->tipo != "salida") return tr("No es una salida virtual.");
-    if (b->sink) b->sink->stop();
-    b->sink.reset();
-    b->io.reset();
     b->dispositivo = dispositivo.toStdString();
+    const QString e = abrirSalida(*b);
+    armarPlan();
+    if (e.isEmpty()) guardar();
+    emit cambio();
+    return e;
+}
+
+QString Matriz::abrirSalida(Bus& b) {
+    if (b.sink) b.sink->stop();
+    b.sink.reset();
+    b.io.reset();
     QAudioDevice dev;
     for (const QAudioDevice& d : QMediaDevices::audioOutputs())
-        if (QString::fromLatin1(d.id()) == dispositivo) dev = d;
+        if (QString::fromLatin1(d.id()).toStdString() == b.dispositivo) dev = d;
     if (dev.isNull()) {
-        b->aDispositivo.reset();
-        armarPlan();
-        emit cambio();
-        return dispositivo.isEmpty() ? QString() : tr("Ese dispositivo ya no está.");
+        // Sin su placa: muda, con el dispositivo guardado (vuelve sola al reaparecer).
+        b.aDispositivo.reset();
+        return b.dispositivo.empty() ? QString() : tr("Ese dispositivo ya no está.");
     }
     QAudioFormat f;
     f.setSampleRate(48000);
     f.setChannelCount(2);
     f.setSampleFormat(QAudioFormat::Float);
-    if (!dev.isFormatSupported(f)) return tr("El dispositivo no acepta audio estéreo a 48 kHz.");
-    b->aDispositivo = std::make_shared<Ring>();
-    b->io = std::make_unique<AlDispositivo>(b->aDispositivo);
-    b->sink = std::make_unique<QAudioSink>(dev, f);
-    b->sink->setBufferSize(static_cast<qsizetype>(kColchon * 2 * sizeof(float) * 2));
-    b->sink->start(b->io.get());
-    armarPlan();
-    guardar();
-    emit cambio();
+    if (!dev.isFormatSupported(f)) {
+        b.aDispositivo.reset();
+        return tr("El dispositivo no acepta audio estéreo a 48 kHz.");
+    }
+    b.aDispositivo = std::make_shared<Ring>();
+    b.io = std::make_unique<AlDispositivo>(b.aDispositivo);
+    b.sink = std::make_unique<QAudioSink>(dev, f);
+    b.sink->setBufferSize(static_cast<qsizetype>(kColchon * 2 * sizeof(float) * 2));
+    b.sink->start(b.io.get());
     return {};
+}
+
+void Matriz::reabrirSalidas() {
+    std::vector<SalidaVirtual> salidas;
+    for (const auto& b : buses_)
+        if (b->tipo == "salida")
+            salidas.push_back({b->id, b->dispositivo,
+                               b->sink && b->sink->error() == QAudio::NoError && b->sink->state() != QAudio::StoppedState});
+    std::set<std::string> hay;
+    for (const QAudioDevice& d : QMediaDevices::audioOutputs()) hay.insert(QString::fromLatin1(d.id()).toStdString());
+    const PlanReapertura plan = reaperturaSalidas(salidas, hay);
+    for (const auto* lista : {&plan.abrir, &plan.soltar})
+        for (const auto& id : *lista)
+            if (Bus* b = buscar(id)) {
+                const QString e = abrirSalida(*b);
+                ba::diag::registro().info(ba::i18n::llenar(lista == &plan.abrir ? ba::i18n::traducir("audio", "matriz: «%1» vuelve a su placa %2")
+                                                                                  : ba::i18n::traducir("audio", "matriz: «%1» se quedó sin su placa (%2): espera que vuelva"),
+                                                           {b->nombre, e.isEmpty() ? b->dispositivo : e.toStdString()}));
+            }
 }
 
 // --- El audio ------------------------------------------------------------------------

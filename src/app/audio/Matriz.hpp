@@ -167,6 +167,10 @@ class Matriz : public QObject {
     void guardar() const;
     void cargar();
     void armarPlan();
+    /// Abre el sink de una salida virtual en su placa, o lo suelta si la placa no está. "" o por qué no.
+    QString abrirSalida(Bus& b);
+    /// Las salidas virtuales cuya placa volvió (se reabren) o se fue (se sueltan): ReaperturaSalidas.
+    void reabrirSalidas();
     void sincronizarTomas();
     void bucleMezcla();
     void leerMedidores();

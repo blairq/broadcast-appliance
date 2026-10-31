@@ -158,7 +158,10 @@ bool camaraUsable(GstElement* e);
 /// la misma cámara tiene una ruta por categoría (KS y Media Foundation); se
 /// compara la instancia. Así una guardada con la ruta de KS abre por MF.
 bool mismaCamara(const std::string& a, const std::string& b);
-/// El id estable de un micrófono (el que guarda `microfono`).
+/// La propiedad con el id estable de un dispositivo de audio en su elemento: `unique-id`
+/// en macOS, `device` en Windows y Linux (micrófonos y salidas).
+const char* propiedadDeDispositivo();
+/// El id estable de un micrófono (el que guarda `microfono`) o de una salida de audio.
 std::string idDeMicrofono(GstElement* e);
 /// La parte de origen de la cámara `id` como está enchufada AHORA ("" si no está).
 /// Sin `modo`: el de la cámara que mejor va con el lienzo.
@@ -166,8 +169,8 @@ std::string idDeMicrofono(GstElement* e);
 std::string origenDeCamara(const std::string& id, const std::string& modo, const Lienzo& lienzo,
                            nlohmann::json* elegido = nullptr);
 
-/// Un GstDeviceMonitor de todo el proceso: qué micrófonos y cámaras hay, y una
-/// generación que cambia cuando se conecta o se va uno.
+/// Un GstDeviceMonitor de todo el proceso: qué micrófonos, cámaras y salidas de audio
+/// hay, y una generación que cambia cuando se conecta o se va uno.
 /// Los proveedores de dispositivos que no avisan cuando se enchufa o se
 /// desenchufa algo (el de macOS, avfdeviceprovider, en 1.28) se quedan con la
 /// lista de cuando arrancaron mientras alguien los tenga prendidos (el Vigía, siempre):
@@ -188,6 +191,8 @@ class Vigia {
     /// poco (el trabajador de una entrada al armarse); sin, no (el bucle del motor: enumerar
     /// con Media Foundation tarda ~240 ms). Sin saberlo, sí.
     bool hay(bool esVideo, const std::string& id, bool esperar = true);
+    /// ¿Está la salida de audio `id` (la escucha)? Como hay(), sin esperar.
+    bool haySalida(const std::string& id);
     std::uint64_t generacion() const { return generacion_.load(); }
 
    private:
@@ -201,7 +206,7 @@ class Vigia {
     std::condition_variable arranco_;
     bool listo_ = false;
     bool sinMonitor_ = false; ///< no arrancó: hay() dice que sí a todo
-    std::set<std::string> audio_, video_;
+    std::set<std::string> audio_, video_, salidas_;
     std::atomic<std::uint64_t> generacion_{1};
 };
 

@@ -713,6 +713,16 @@ endif()
             BA_TEST_GST_DOCS="${CMAKE_SOURCE_DIR}/datos/gst-modulos.json")
         add_test(NAME test_catalogo_gst COMMAND test_catalogo_gst)
         set_tests_properties(test_catalogo_gst PROPERTIES SKIP_RETURN_CODE 77)
+        # F1-16: la placa de audio que se va y vuelve (entrada, escucha y Matriz), con un
+        # proveedor de dispositivos falso: nada abre una placa real ni suena.
+        add_executable(test_placa_que_se_va tests/test_placa_que_se_va.cpp agent/AlertEngine.cpp agent/AlertEngine.hpp)
+        target_include_directories(test_placa_que_se_va PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+        target_link_libraries(test_placa_que_se_va PRIVATE ba_motor ba_core Qt6::Core)
+        set_target_properties(test_placa_que_se_va PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
+        ba_gst_rpath(test_placa_que_se_va "")
+        target_compile_definitions(test_placa_que_se_va PRIVATE BA_TEST_GST_RAIZ="${BA_GST_FW}/Versions/1.0")
+        add_test(NAME test_placa_que_se_va COMMAND test_placa_que_se_va)
+        set_tests_properties(test_placa_que_se_va PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 120)
         # El rack como elemento de GStreamer (barack).
         add_executable(test_gst_rack tests/test_gst_rack.cpp audio/GstRack.cpp audio/GstVoz.cpp video/CatalogoGst.cpp ${CMAKE_SOURCE_DIR}/src/motor/Sondas.cpp)
         target_include_directories(test_gst_rack PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_SOURCE_DIR}/src/motor")
