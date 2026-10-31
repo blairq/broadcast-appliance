@@ -106,3 +106,57 @@ body { padding-bottom: env(safe-area-inset-bottom); }
 /* La salida que maneja el aparato (arriba y en la tarjeta «Salidas»): el color lo pone el JS. */
 .barra .salida { width: auto; max-width: 34vw; font-weight: 650; border-width: 2px; }
 .elegir-salida { flex-wrap: wrap; }
+
+/* --- La línea de tiempo (tarjeta «Línea» y las superficies de linea.js) --------------------- */
+.linea-conduccion { display: flex; flex-direction: column; gap: 14px; }
+.linea-aire, .linea-proximo { display: grid; grid-template-columns: auto 1fr auto; align-items: baseline; gap: 4px 14px;
+  padding: 14px 16px; border-radius: var(--radio-chico); background: var(--superficie-hundida); box-shadow: var(--hundido-suave); }
+.linea-aire { border-left: 5px solid var(--aire); }
+.linea-proximo { border-left: 5px solid var(--armado); }
+.linea-aire .suave, .linea-proximo .suave { grid-column: 2 / span 2; }
+.rotulo { font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--texto-tenue); }
+.linea-nombre { font-size: 18px; }
+.linea-cuenta { font-size: 30px; font-weight: 700; }
+.linea-cuenta.pasado { color: var(--aire); }
+.en-hold .linea-aire { border-left-color: var(--aviso); }
+.linea-botones ba-boton { min-width: 96px; }
+.linea-go { min-width: 140px; }
+.linea-escaleta { display: flex; flex-direction: column; gap: 4px; }
+.linea-paso { display: grid; grid-template-columns: 4.5em 1fr auto 4em 4em; gap: 10px; align-items: baseline; padding: 9px 12px;
+  border-radius: var(--radio-chico); border-left: 4px solid transparent; cursor: default; }
+.linea-paso[data-estado="pasado"], .linea-paso[data-estado="salteado"] { opacity: .45; }
+.linea-paso[data-estado="salteado"] .nombre { text-decoration: line-through; }
+.linea-paso[data-estado="alAire"] { border-left-color: var(--aire); background: color-mix(in srgb, var(--aire) 16%, transparent); }
+.linea-paso[data-estado="proximo"] { border-left-color: var(--aviso); background: color-mix(in srgb, var(--aviso) 14%, transparent); }
+.linea-paso[data-estado="futuro"], .linea-paso[data-estado="proximo"] { cursor: pointer; }
+.linea-paso.tarde .frente { color: var(--aire); }
+.linea-paso .dur, .linea-paso .en, .linea-paso .frente { text-align: right; }
+.linea-estante { display: flex; flex-wrap: wrap; gap: 10px; }
+.linea-miniaturas { align-items: flex-start; }
+.linea-mini { margin: 0; display: flex; flex-direction: column; gap: 6px; width: min(320px, 44vw); }
+.linea-mini img { width: 100%; aspect-ratio: 16 / 9; object-fit: cover; border-radius: var(--radio-chico); background: var(--superficie-hundida); }
+.linea-mini:first-child img { box-shadow: 0 0 0 3px var(--aire); }
+.linea-mini:last-child img { box-shadow: 0 0 0 3px var(--armado); }
+@media (max-width: 640px) { .linea-paso { grid-template-columns: 1fr auto; } .linea-paso .frente, .linea-paso .entra, .linea-paso .dur { display: none; } }
+
+/* Las superficies de una página (/control/escaleta, /presentador, /camara). */
+.superficie { display: flex; flex-direction: column; gap: 22px; padding: 22px clamp(16px, 3vw, 28px) 40px; }
+.superficie h2 { margin: 6px 0 0; font-size: 15px; color: var(--texto-tenue); }
+/* El presentador: lo justo, enorme, para leer de lejos. */
+.presentador { min-height: calc(100vh - 80px); justify-content: center; align-items: center; text-align: center; gap: 3vh; }
+.presentador .que { font-size: clamp(22px, 4vw, 44px); font-weight: 650; }
+.presentador .cuanto { font-family: var(--fuente-numeros); font-variant-numeric: tabular-nums; font-size: clamp(80px, 22vw, 260px);
+  font-weight: 800; line-height: 1; }
+.presentador .cuanto.ultimo { color: var(--aviso); }
+.presentador .cuanto.pasado { color: var(--aire); }
+.presentador .despues { font-size: clamp(18px, 3vw, 32px); color: var(--texto-suave); }
+/* La cámara: su tally grande y lo que viene. */
+.camara-tally { font-size: clamp(28px, 6vw, 64px); font-weight: 800; text-align: center; padding: 22px; border-radius: var(--radio);
+  background: var(--superficie-hundida); box-shadow: var(--hundido-suave); }
+.camara-tally.aire { color: #fff; background: var(--aire); box-shadow: 0 0 40px var(--aire); }
+.camara-tally.armado { color: #fff; background: var(--armado); }
+.camara-planos { display: flex; flex-direction: column; gap: 8px; }
+.camara-plano { display: grid; grid-template-columns: 5em 1fr auto; gap: 12px; align-items: baseline; padding: 12px 14px;
+  border-radius: var(--radio-chico); background: var(--superficie); box-shadow: var(--relieve); border: 1px solid var(--borde); }
+.camara-plano .en { font-size: 22px; font-weight: 700; }
+.camara-plano .ptz { grid-column: 2 / span 2; color: var(--armado); }

@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="es" data-ev="control">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#22252c" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <title data-i18n="Presentador">Presentador</title>
+  <link rel="apple-touch-icon" href="/comun/icono-180.png" />
+  <link rel="stylesheet" href="/comun/neuro/temas.css" />
+  <link rel="stylesheet" href="/comun/neuro/neuro.css" />
+  <link rel="stylesheet" href="/control/control.css" />
+  <link rel="stylesheet" href="/comun/tema.css" />
+  <script src="/comun/i18n.js"></script>
+  <script src="/comun/tema.js"></script>
+  <script src="/comun/neuro/neuro.js"></script>
+</head>
+<body>
+  <!--
+    La pantalla del presentador (la de Sofie, PLAN-LINEA-DE-TIEMPO.md 3.5 D):
+    /control/presentador/?salida=<id>. Cuánto le queda al paso al aire (en grande, de
+    lejos), qué es y qué viene después. No maneja nada: alcanza con el perfil «solo
+    mirar» (linea:ver).
+  -->
+  <header class="barra">
+    <span class="marca"><span class="punto-marca"></span><strong data-i18n="Presentador">Presentador</strong></span>
+    <span id="aparato" class="suave"></span>
+    <span id="salidaNombre" class="salida suave"></span>
+    <span class="espacio"></span>
+    <ba-chip id="conexion" estado="apagado" data-i18n="Desconectado">Desconectado</ba-chip>
+  </header>
+  <main class="superficie presentador">
+    <div id="que" class="que">—</div>
+    <div id="cuanto" class="cuanto">—</div>
+    <div id="despues" class="despues"></div>
+  </main>
+
+  <script src="/control/tarjetas/comun.js"></script>
+  <script src="/control/conexion.js"></script>
+  <script src="/control/linea.js"></script>
+  <script src="presentador.js"></script>
+</body>
+</html>
