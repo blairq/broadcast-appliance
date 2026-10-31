@@ -449,6 +449,8 @@ class EventoViewModel : public QObject {
     /// última; nullptr si no corrió) y el arranque previsto, la medianoche y el fin
     /// planeado (del día del evento o, con `hoy`, de hoy).
     const evento::linea::Corrida* corridaLinea() const { return corrida_.get(); }
+    /// El que dibuja los gráficos (nullptr sin renderizador): la miniatura «con gráficos».
+    graficos::Emisor* emisorGraficos() const { return graficos_; }
     evento::linea::Entrada entradaLinea(bool hoy) const { return entradaBase(hoy); }
     /// Un pulso para las condiciones de la línea («tecla:F5», «botonera:<id>»,
     /// «web:<botón>»): los atajos, la botonera y la web lo mandan. "" o por qué no.

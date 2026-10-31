@@ -618,6 +618,7 @@ ApplicationWindow {
     }
     // Los atajos que configuró el operador (página Botonera → Atajos). Los
     // globales los atiende el sistema (funcionan sin foco): acá van los locales.
+    // Cada tecla es además un pulso para la línea de tiempo («tecla:F5»).
     Instantiator {
         model: Studio.acciones ? Studio.acciones.atajos.filter(a => !a.global) : []
         delegate: Shortcut {
@@ -625,7 +626,7 @@ ApplicationWindow {
             sequence: modelData.tecla
             context: Qt.ApplicationShortcut
             onActivated: {
-                const e = Studio.acciones.ejecutarUi(modelData.accion)
+                const e = Studio.acciones.teclaUi(modelData.tecla)
                 if (e !== "") Studio.notify(e, "error")
             }
         }

@@ -57,9 +57,12 @@ json horaJ(const ContextoVista& ctx, int64_t ms) {
     return ctx.hora ? json(ctx.hora(ms)) : json(ms);
 }
 
-json miniJ(const ContextoVista& ctx, const std::string& escena, FuenteMini f) {
-    if (ctx.miniatura) return ctx.miniatura(escena, f);
-    return {{"fuente", nombreDe(f)}, {"escena", escena}};
+/// La miniatura de un paso: de dónde sale y, con el paso, para que la vista busque la
+/// «con gráficos» (la escena con los gráficos del paso, L10) si la hay.
+json miniJ(const ContextoVista& ctx, const std::string& escena, FuenteMini f, const std::string& paso) {
+    json j = ctx.miniatura ? ctx.miniatura(escena, f) : json{{"fuente", nombreDe(f)}, {"escena", escena}};
+    if (j.is_object()) j["paso"] = paso;
+    return j;
 }
 
 bool editableJ(const ContextoVista& ctx, const std::string& paso, json& j) {
@@ -164,7 +167,7 @@ json escaleta(const Linea& l, const Resolucion& r, const ContextoVista& ctx) {
                     {"estimado", pr->estimado},
                     {"hold", pr->enHold},
                     {"escena", escena},
-                    {"mini", miniJ(ctx, escena, fuenteDe(*pr, escena, presupuesto))},
+                    {"mini", miniJ(ctx, escena, fuenteDe(*pr, escena, presupuesto), p.id)},
                     {"chips", chipsDe(l, p, ctx.salida, ctx, alAire)},
                     {"guion", p.guion},
                     {"nota", p.notaOperador},
@@ -213,7 +216,7 @@ json conduccion(const Linea& l, const Resolucion& r, const ContextoVista& ctx, j
         if (const Paso* p = l.paso(pr->paso)) {
             const std::string escena = escenaDe(l, *p, ctx.salida);
             a["escena"] = escena;
-            a["mini"] = miniJ(ctx, escena, FuenteMini::Programa);
+            a["mini"] = miniJ(ctx, escena, FuenteMini::Programa, p->id);
             a["guion"] = p->guion;
             a["nota"] = p->notaOperador;
             a["pasado"] = leerNumero(a, "restanteSeg") < 0;
@@ -236,7 +239,7 @@ json conduccion(const Linea& l, const Resolucion& r, const ContextoVista& ctx, j
         if (const Paso* p = l.paso(pr->paso)) {
             const std::string escena = escenaDe(l, *p, ctx.salida);
             x["escena"] = escena;
-            x["mini"] = miniJ(ctx, escena, fuenteDe(*pr, escena, presupuesto));
+            x["mini"] = miniJ(ctx, escena, fuenteDe(*pr, escena, presupuesto), p->id);
             x["entra"] = entradaDe(*p, *pr);
             x["faltaSeg"] = std::max<int64_t>(0, pr->frenteMs - ctx.ahoraMs) / 1000;
             x["previstoSeg"] = p->duracionPlanMs() / 1000;
@@ -429,7 +432,7 @@ json multipista(const Linea& l, const Resolucion& r, const ContextoVista& ctx, c
                            {"tarde", pr.tarde},
                            {"estimado", pr.estimado},
                            {"escena", escena},
-                           {"mini", miniJ(ctx, escena, fuenteDe(pr, escena, presupuesto))},
+                           {"mini", miniJ(ctx, escena, fuenteDe(pr, escena, presupuesto), p->id)},
                            {"pendiente", ctx.pendientes.count(p->id) > 0}};
                     if (p->inicio.modo == ModoInicio::Hora) j["entraHora"] = p->inicio.hora;
                     if (emitido) {

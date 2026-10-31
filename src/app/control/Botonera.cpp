@@ -1845,6 +1845,13 @@ void Botonera::entrada(const std::string& dev, const json& msg) {
         return;
     }
     if (t == "presionar" && (tipo == "boton" || tipo == "perilla")) {
+        // El pulso para las condiciones de la línea de tiempo («botonera:<id>»): la celda
+        // por su lugar («<página>/<x>,<y>») y, si tiene, por su texto. Lo atiende la
+        // línea (EventoViewModel, tema «linea/pulso»); lo que hace la celda va igual.
+        bus_.publicar("linea/pulso", "botonera:" + pagId + "/" + celda, true);
+        if (const std::string txt = c->value("estilo", json::object()).value("texto", std::string());
+            !txt.empty() && txt.find("{{") == std::string::npos)
+            bus_.publicar("linea/pulso", "botonera:" + txt, true);
         if (c->contains("accion_mantener")) {
             presionadoMs_[kd] = ahoraMs();
             mantenidos_.erase(kd);

@@ -90,6 +90,9 @@ class LineaViewModel : public QObject {
     /// Las fotos de las escenas sin vista viva (escena → imagen) y cuántos segundos tienen.
     Q_PROPERTY(QVariantMap fotos READ fotos NOTIFY fotosChanged)
     Q_PROPERTY(QVariantMap edadFotos READ edadFotos NOTIFY vistaChanged)
+    /// Las miniaturas «con gráficos» (L10): paso → la escena con los gráficos del paso y
+    /// sus valores, dibujada aparte. Solo del próximo y los dos que siguen (presupuesto).
+    Q_PROPERTY(QVariantMap conGraficos READ conGraficos NOTIFY fotosChanged)
     /// El productor (ui/LineaProductor, L9): las propuestas para llegar a horario.
     Q_PROPERTY(QObject* productor READ productorQml CONSTANT)
 
@@ -118,6 +121,7 @@ class LineaViewModel : public QObject {
     QVariantList pendientes() const { return pendientesUi_; }
     QVariantMap fotos() const { return fotos_; }
     QVariantMap edadFotos() const { return edadFotos_; }
+    QVariantMap conGraficos() const { return conGraficos_; }
     QObject* productorQml() const;
 
     // --- Vivo (por la salida que se mira): "" o por qué no ------------------------------
@@ -152,6 +156,9 @@ class LineaViewModel : public QObject {
     Q_INVOKABLE QString mover(const QString& paso, double x);
     /// Corre una pieza dentro de su paso en `dx` (fracción del ancho).
     Q_INVOKABLE QString moverPieza(const QString& pieza, double dx);
+    /// La escaleta (arrastrar una fila): el paso va detrás de `detrasDe` en `bloque`
+    /// (`detrasDe` vacío: al principio del bloque). Solo el futuro; queda pendiente.
+    Q_INVOKABLE QString reordenar(const QString& paso, const QString& bloque, const QString& detrasDe);
     Q_INVOKABLE QString confirmar();
     Q_INVOKABLE void descartar();
 
@@ -177,6 +184,10 @@ class LineaViewModel : public QObject {
     /// Las vistas vivas y las fotos según el presupuesto.
     void miniaturas(const std::map<std::string, evento::linea::FuenteMini>& presupuesto, int64_t ahora);
     void tomarFoto(const std::string& escena);
+    /// Las miniaturas «con gráficos» del próximo y los que siguen (ver conGraficos).
+    void miniaturasConGraficos(const evento::linea::SalidaResuelta& sr, int64_t ahora);
+    /// Un pulso para las condiciones de la línea («tecla:F5»…), por el bus (linea/pulso).
+    void pulsar(const std::string& clave);
     void rehacerTeclas();
     /// Prueba `ops` más lo pendiente sobre el plan; si anda, lo suma a lo pendiente.
     QString sumarPendiente(const nlohmann::json& op);
@@ -218,6 +229,16 @@ class LineaViewModel : public QObject {
     std::map<std::string, int> fotosVisibles_;
     std::map<std::string, int64_t> fotoMs_;
     bool fotoEnCurso_ = false;
+    // «Con gráficos»: cada gráfico dibujado una vez por (gráfico, valores), la firma de
+    // cada compuesta (escena, foto y gráficos) y cuándo se dibujó el último.
+    std::map<std::string, QImage> capas_;
+    std::map<std::string, std::string> firmas_;
+    QVariantMap conGraficos_;
+    int64_t ultimoDibujoMs_ = 0;
+    static constexpr std::size_t kConGraficos = 3; ///< el próximo y los dos que siguen
+    static constexpr int64_t kDibujoCadaMs = 2'000; ///< un gráfico por vez: el renderizador hace esperar
+    /// Las teclas que espera la línea («tecla:F5» en una condición).
+    std::vector<std::string> pulsos_;
     static constexpr int64_t kSoltarVivaMs = 10'000;
     static constexpr int64_t kFotoCadaMs = 20'000;
 };
