@@ -773,10 +773,11 @@ void registerBotoneraTools(McpCore& core, StudioViewModel& vm) {
             if (r.value("salida_pedida", false)) ctx.salida = r.value("salida", std::string());
             core.callTool({{"name", r.value("herramienta", std::string())}, {"arguments", r.value("args", json::object())}},
                           [done](json res) {
+                              // La respuesta de la herramienta tal cual (con su estructurado: antes se perdía).
                               ToolResult tr;
                               tr.isError = res.value("isError", false);
-                              for (const auto& c : res.value("content", json::array()))
-                                  if (c.value("type", "") == "text") tr.text(c.value("text", std::string()));
+                              tr.content = res.value("content", json::array());
+                              if (res.contains("structuredContent")) tr.structured = res["structuredContent"];
                               done(tr);
                           },
                           ctx);

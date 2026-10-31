@@ -167,6 +167,13 @@ class SalidasViewModel : public QObject {
     Q_INVOKABLE QString setCodificador(const QString& id, const QString& codificador);
     /// `susDestinos`: "borrar" o el id de otra salida (con destinos guardados hay que decirlo).
     Q_INVOKABLE QString borrar(const QString& id, const QString& susDestinos = {});
+    /// Lo mismo, para quien necesita el resultado (el MCP): `listo(error)` en este hilo, con
+    /// la foto ya al día. `tope` >= 0 cambia también cuántas salidas puede haber (antes de
+    /// los cambios); `cambios` vacío no cambia la salida.
+    using Listo = std::function<void(const std::string& error)>;
+    void crearSalida(const std::string& id, const std::string& nombre, const std::string& color, Listo listo);
+    void editar(const std::string& id, const nlohmann::json& cambios, int tope, Listo listo);
+    void borrar(const std::string& id, const std::string& susDestinos, Listo listo);
     /// Una salida nueva con su nombre (el id sale del nombre, único) y su color ("" = el
     /// que le toque). Queda como la activa. "" o por qué no.
     Q_INVOKABLE QString crear(const QString& nombre, const QString& color);
@@ -214,6 +221,8 @@ class SalidasViewModel : public QObject {
     bool rehacerFilas(QJsonArray* alGateway);
     /// Pide algo que devuelve "" o el error (que vuelve como `notify`).
     void pedir(const char* que, std::function<std::string(AppRuntime&)> orden, std::function<void()> alVolver = {});
+    /// Con el error para quien llama (en vez de `notify`).
+    void pedir(const char* que, std::function<std::string(AppRuntime&)> orden, Listo listo);
     void revisarNueva();
 
     Partes p_;
