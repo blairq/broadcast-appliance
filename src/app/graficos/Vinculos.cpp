@@ -10,6 +10,8 @@
 #include <QHash>
 #include <QJsonDocument>
 #include <QRegularExpression>
+
+#include <algorithm>
 #include <QTimer>
 
 #include "graficos/Emisor.hpp"
@@ -46,6 +48,75 @@ QString aTexto(const QJsonValue& v) {
         return QString::fromStdString(v.toBool() ? ba::i18n::traducirEvento("graficos", "sí")
                                                  : ba::i18n::traducirEvento("graficos", "no"));
     return {};
+}
+
+/// Los orígenes que salen del TIEMPO (no del contexto de quien nos crea): la hora y el
+/// cronómetro del orador. Un vínculo «vivo» que los usa tiene su reloj en el hilo del
+/// dibujo (Emisor::seguirReloj).
+const QStringList kCamposDelTiempo{"hora", "hora_s", "orador.cronometro", "orador.restante"};
+
+/// Los campos del tiempo, a esta hora. Salen de acá y de ningún otro lado: los usa la
+/// interfaz al revisar y el reloj de los campos vivos, en otro hilo, con la foto.
+/// Quietos: lo mismo siempre, para saber si cambió algo que NO es el tiempo.
+void ponerTiempo(QJsonObject& ctx, bool quietos = false) {
+    const QDateTime ahora = QDateTime::currentDateTime();
+    // Campos vivos (T43): cambian cada segundo; en un vínculo «vivo» el gráfico se
+    // actualiza sin volver a entrar.
+    ctx["hora"] = quietos ? QString() : ahora.time().toString("HH:mm");
+    ctx["hora_s"] = quietos ? QString() : ahora.time().toString("HH:mm:ss");
+    // El cronómetro del orador que está al aire: desde cuándo habla y lo que tiene
+    // asignado (lo pone la asamblea). Lo que le queda; pasado, «+m:ss».
+    QJsonObject o = ctx.value("orador").toObject();
+    if (!o.contains("desde_ms")) return;
+    const auto mmss = [](qint64 s) { return QString("%1:%2").arg(s / 60).arg(s % 60, 2, 10, QChar('0')); };
+    const qint64 usado = std::max<qint64>(0, (ahora.toMSecsSinceEpoch() - static_cast<qint64>(o.value("desde_ms").toDouble())) / 1000);
+    const qint64 asignado = static_cast<qint64>(o.value("asignado_s").toDouble());
+    o["cronometro"] = quietos ? QString() : mmss(usado);
+    o["restante"] = quietos || asignado <= 0 ? QString()
+                    : usado > asignado        ? "+" + mmss(usado - asignado)
+                                              : mmss(asignado - usado);
+    ctx["orador"] = o;
+}
+
+/// Los valores del vínculo `v` contra `ctx`. Pura (sin nada de la interfaz): la usa
+/// también el reloj de los campos vivos, en el hilo del dibujo. En `faltan`, los
+/// orígenes que no existen.
+QJsonObject resolverCon(const QJsonObject& v, const QJsonObject& ctx, QStringList& faltan) {
+    // Una por hilo: se resuelve en la interfaz y en el del dibujo.
+    static thread_local const QRegularExpression re(R"(\{([A-Za-z_][A-Za-z0-9_.]*)\})");
+    QJsonObject out;
+    const QJsonObject valores = v.value("valores").toObject();
+    for (auto it = valores.begin(); it != valores.end(); ++it) {
+        const QString plantilla = it.value().toVariant().toString();
+        QString texto;
+        qsizetype desde = 0;
+        auto m = re.globalMatch(plantilla);
+        while (m.hasNext()) {
+            const auto c = m.next();
+            texto += plantilla.mid(desde, c.capturedStart() - desde);
+            const QJsonValue origen = porCamino(ctx, c.captured(1));
+            // Un origen que no existe NO se deja vacío: casi siempre es un
+            // nombre mal escrito, y un zócalo sin nombre al aire es peor que
+            // un zócalo que no sale.
+            if (origen.isUndefined() || origen.isNull())
+                faltan << c.captured(1);
+            else
+                texto += aTexto(origen);
+            desde = c.capturedEnd();
+        }
+        texto += plantilla.mid(desde);
+        out[it.key()] = texto;
+    }
+    return out;
+}
+
+/// El vínculo usa el tiempo en algún campo.
+bool usaTiempo(const QJsonObject& v) {
+    const QJsonObject valores = v.value("valores").toObject();
+    for (auto it = valores.begin(); it != valores.end(); ++it)
+        for (const QString& c : kCamposDelTiempo)
+            if (it.value().toString().contains("{" + c + "}")) return true;
+    return false;
 }
 
 /// Aplana un objeto anidado a `a.b: valor`, para poder listar los orígenes con
@@ -87,6 +158,13 @@ struct Vinculos::Impl {
         vs = config::leerQObjeto(archivo).value("vinculos").toArray();
     }
 
+    /// El contexto de quien nos crea, con el tiempo de ahora.
+    QJsonObject contextoAhora() const {
+        QJsonObject ctx = contexto ? contexto() : QJsonObject{};
+        ponerTiempo(ctx);
+        return ctx;
+    }
+
     int indiceDe(const QString& id) const {
         for (int i = 0; i < vs.size(); ++i)
             if (vs[i].toObject().value("id").toString() == id) return i;
@@ -108,38 +186,13 @@ void Vinculos::setContexto(std::function<QJsonObject()> fn) { d_->contexto = std
 
 QJsonObject Vinculos::origenes() const {
     QJsonObject out;
-    if (d_->contexto) aplanar(d_->contexto(), {}, out);
+    if (d_->contexto) aplanar(d_->contextoAhora(), {}, out);
     return out;
 }
 
 QJsonObject Vinculos::resolver(const QJsonObject& v, QString* error) const {
-    static const QRegularExpression re(R"(\{([A-Za-z_][A-Za-z0-9_.]*)\})");
-    const QJsonObject ctx = d_->contexto ? d_->contexto() : QJsonObject{};
     QStringList faltan;
-
-    QJsonObject out;
-    const QJsonObject valores = v.value("valores").toObject();
-    for (auto it = valores.begin(); it != valores.end(); ++it) {
-        const QString plantilla = it.value().toVariant().toString();
-        QString texto;
-        qsizetype desde = 0;
-        auto m = re.globalMatch(plantilla);
-        while (m.hasNext()) {
-            const auto c = m.next();
-            texto += plantilla.mid(desde, c.capturedStart() - desde);
-            const QJsonValue origen = porCamino(ctx, c.captured(1));
-            // Un origen que no existe NO se deja vacío: casi siempre es un
-            // nombre mal escrito, y un zócalo sin nombre al aire es peor que
-            // un zócalo que no sale.
-            if (origen.isUndefined() || origen.isNull())
-                faltan << c.captured(1);
-            else
-                texto += aTexto(origen);
-            desde = c.capturedEnd();
-        }
-        texto += plantilla.mid(desde);
-        out[it.key()] = texto;
-    }
+    const QJsonObject out = resolverCon(v, d_->contextoAhora(), faltan);
     if (error != nullptr)
         *error = faltan.isEmpty() ? QString()
                                   : tr("no sé de dónde sacar %1 (mirá los orígenes que hay, con rotulo_vinculos)")
@@ -223,16 +276,25 @@ void Vinculos::revisar() {
         if (!o.value("activo").toBool(true) || !o.value("dispara").toBool(true)) continue;
         const QString id = o.value("id").toString();
 
-        QString err;
-        const QJsonObject valores = resolver(o, &err);
+        const QJsonObject ctx = d_->contextoAhora();
+        QStringList faltan;
+        const QJsonObject valores = resolverCon(o, ctx, faltan);
         // Un vínculo que no resuelve NO dispara y NO grita cada segundo: se
         // queda quieto. El problema se ve en la lista.
-        if (!err.isEmpty()) continue;
+        if (!faltan.isEmpty()) continue;
 
-        const QString firma = QString::fromUtf8(QJsonDocument(valores).toJson(QJsonDocument::Compact));
-        if (d_->ultimo.value(id) == firma) continue;
+        // Un vínculo «vivo» con el tiempo (la hora, el cronómetro): eso lo sigue el reloj
+        // del hilo del dibujo (ver abajo). Acá cuenta solo si cambió lo demás (el orador,
+        // el bloque), o si
+        // ese reloj ya no anda (otro gráfico tomó la fuente, lo ocultaron).
+        const bool conReloj = o.value("vivo").toBool(false) && usaTiempo(o);
+        QJsonObject quieto = ctx;
+        if (conReloj) ponerTiempo(quieto, true);
+        const QString firma = QString::fromUtf8(
+            QJsonDocument(conReloj ? resolverCon(o, quieto, faltan) : valores).toJson(QJsonDocument::Compact));
 
         const quint64 fuente = d_->em.fuentePorNombre(o.value("fuente").toString());
+        if (d_->ultimo.value(id) == firma && (!conReloj || fuente == 0 || d_->em.siguiendoReloj(fuente))) continue;
         if (fuente == 0) continue; // esa fuente no está en ninguna escena ahora
 
         // Campos vivos (T43): un vínculo «vivo» con su gráfico ya al aire en esa fuente
@@ -242,6 +304,16 @@ void Vinculos::revisar() {
                           d_->em.ultimoGrafico(fuente) == grafico;
         const QString e = vivo ? d_->em.actualizar(grafico, valores, fuente)
                                : d_->em.mostrar(grafico, valores, fuente, 0, o.value("repetir").toBool(false));
+        // El tiempo, desde ahora, en el hilo del dibujo: con una FOTO del contexto (lo de la
+        // interfaz no se lee desde allá) y la hora de cada vuelta.
+        if (conReloj && e.isEmpty())
+            d_->em.seguirReloj(grafico, fuente, valores, [o, foto = ctx]() {
+                QJsonObject c = foto;
+                ponerTiempo(c);
+                QStringList f;
+                const QJsonObject v = resolverCon(o, c, f);
+                return f.isEmpty() ? v : QJsonObject{};
+            });
         // La firma se recuerda igual si falló: reintentar cada segundo una
         // cosa que no anda llena el registro y no arregla nada.
         d_->ultimo[id] = firma;

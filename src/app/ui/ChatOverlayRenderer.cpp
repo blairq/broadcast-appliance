@@ -14,6 +14,7 @@
 #include <algorithm>
 
 #include "emision/ChatOverlaySource.hpp"
+#include "emision/PintorAire.hpp"
 #include "ui/ConferenceClient.hpp"
 #include "ui/ConferenceViewModel.hpp"
 #include "ui/FacebookViewModel.hpp"
@@ -25,9 +26,12 @@ namespace ba::app {
 ChatOverlayRenderer::ChatOverlayRenderer(YouTubeViewModel& yt, ConferenceViewModel& conf, TwitchViewModel& tw,
                                          FacebookViewModel& fb, QObject* parent)
     : QObject(parent), yt_(yt), conf_(conf), tw_(tw), fb_(fb) {
-    connect(&timer_, &QTimer::timeout, this, &ChatOverlayRenderer::tick);
+    connect(&timer_, &QTimer::timeout, this, &ChatOverlayRenderer::recoger);
     timer_.start(400);
+    pintor_ = std::make_unique<fuentes::PintorAire>("chat-aire", std::chrono::milliseconds(400), [this]() { pintar(); });
 }
+
+ChatOverlayRenderer::~ChatOverlayRenderer() { pintor_.reset(); }
 
 std::vector<ChatOverlayRenderer::Message> ChatOverlayRenderer::collect() const {
     std::vector<Message> out;
@@ -165,10 +169,24 @@ void ChatOverlayRenderer::quitarDestacado(const QString& key) {
         destacados_.remove(key);
 }
 
-void ChatOverlayRenderer::tick() {
+void ChatOverlayRenderer::recoger() {
+    if (chatoverlay::instances().empty()) return;
+    std::vector<Message> todos = collect();
+    std::lock_guard<std::mutex> l(fotoM_);
+    foto_ = std::move(todos);
+    fotoDestacados_ = destacados_;
+}
+
+void ChatOverlayRenderer::pintar() {
     const std::vector<chatoverlay::Instance> list = chatoverlay::instances();
     if (list.empty()) return;
-    const std::vector<Message> all = collect();
+    std::vector<Message> all;
+    QSet<QString> destacados;
+    {
+        std::lock_guard<std::mutex> l(fotoM_);
+        all = foto_;
+        destacados = fotoDestacados_;
+    }
     const qint64 now = QDateTime::currentMSecsSinceEpoch();
     for (const chatoverlay::Instance& in : list) {
         std::vector<Message> msgs;
@@ -177,7 +195,7 @@ void ChatOverlayRenderer::tick() {
                 (m.source == "facebook" && !in.showFacebook) || (m.source == "room" && !in.showRoom))
                 continue;
             if (in.fadeSec > 0 && now - m.atMs > in.fadeSec * 1000LL) continue;
-            if (in.soloDestacados && !destacados_.contains(m.key)) continue;
+            if (in.soloDestacados && !destacados.contains(m.key)) continue;
             msgs.push_back(m);
         }
         if (static_cast<int>(msgs.size()) > in.maxMessages)

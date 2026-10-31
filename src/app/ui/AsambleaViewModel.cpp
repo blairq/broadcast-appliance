@@ -709,15 +709,14 @@ void AsambleaViewModel::completarVinculos(QJsonObject& ctx) const {
                 {"color", v.value("aprobado", false) ? "#2e7d32" : "#c62828"}};
         }
     }
-    // Campos vivos (T43): el cronómetro del orador cambia cada segundo; en un vínculo
-    // «vivo» el gráfico se actualiza sin volver a entrar.
+    // Campos vivos (T43): el cronómetro del orador. Acá van desde cuándo habla y lo que
+    // tiene asignado; {orador.cronometro} y {orador.restante} los calcula Vinculos con la
+    // hora de cada vuelta (también su reloj, fuera de la interfaz).
     const nlohmann::json b = bancas_->estadoJson();
     if (!b.value("al_aire", nlohmann::json()).is_null()) {
-        const long long usado = b.value("usado_s", 0LL), asignado = b.value("asignado_s", 0LL);
-        const auto mmss = [](long long s) { return QString("%1:%2").arg(s / 60).arg(s % 60, 2, 10, QChar('0')); };
         QJsonObject o = ctx.value("orador").toObject();
-        o["cronometro"] = mmss(usado);
-        o["restante"] = asignado > 0 ? (usado > asignado ? "+" + mmss(usado - asignado) : mmss(asignado - usado)) : QString();
+        o["desde_ms"] = static_cast<double>(b.value("desde_ms", 0LL));
+        o["asignado_s"] = static_cast<double>(b.value("asignado_s", 0LL));
         ctx["orador"] = o;
     }
 }

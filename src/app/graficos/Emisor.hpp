@@ -133,13 +133,26 @@ class Emisor : public QObject {
     /// reloj con segundos o un cronómetro que cambia cada segundo sin «volver a entrar».
     /// Si el gráfico sabe animar un cambio (Catalogo::sabeCambiar: tortas, barras)
     /// y lo que está al aire es ese mismo gráfico, en vez del cuadro quieto dibuja
-    /// la animación del cambio: de los valores de antes a los nuevos.
+    /// la animación del cambio: de los valores de antes a los nuevos. Las dos cosas se
+    /// dibujan en el hilo del dibujo (la interfaz no espera): lo que falle sale por `fallo`.
     QString actualizar(const QString& grafico, const QJsonObject& valores, std::uint64_t fuente);
     /// «Al aire» con un gráfico que ya está en pantalla en esa fuente y sabe
     /// cambiar: lo actualiza (sin volver a entrar). Si no, lo muestra de cero.
     /// Es lo que hacen Rótulos y grafico_actualizar con una votación en vivo.
     QString mostrarOCambiar(const QString& grafico, const QJsonObject& valores, std::uint64_t fuente,
                             bool repetir = false);
+
+    /// Campos vivos que cambian con la HORA (un rótulo con {hora_s}): con el gráfico ya al
+    /// aire en `fuente` con `actuales`, desde ahora el hilo del dibujo —no la interfaz—
+    /// llama a `ahora` una vez por segundo y, si los valores cambiaron, dibuja el cuadro
+    /// estable con ellos. Así el reloj al aire sigue andando con la interfaz trabada.
+    /// `ahora` corre en ese hilo: no puede leer nada de la interfaz (se arma con una foto).
+    /// Se apaga solo con cualquier otra cosa en esa fuente (mostrar, actualizar, sacar,
+    /// ocultar). "" o el error (un gráfico de plugin no puede: lo dibuja el plugin).
+    QString seguirReloj(const QString& grafico, std::uint64_t fuente, const QJsonObject& actuales,
+                        std::function<QJsonObject()> ahora);
+    /// Hay un reloj de campos vivos andando en esa fuente.
+    bool siguiendoReloj(std::uint64_t fuente) const;
 
     /// El cuadro estable de un gráfico (ms): pasada la entrada, antes de la salida.
     static int msEstable(const QJsonObject& ficha);
@@ -167,8 +180,14 @@ class Emisor : public QObject {
    private:
     /// Crea el dibujo para el aire (una vez).
     void prepararAire();
-    /// Una tanda del dibujo para el aire (en el hilo de la interfaz).
-    void recibirTanda(std::uint64_t fuente, int generacion, std::vector<QImage> cuadros, bool fin, const QString& error);
+    /// Al hilo del dibujo: dibujar `plan` de `pedido` y entregarlo a la fuente (desde ese
+    /// hilo). `avisar`: emitir cambio() cuando salga.
+    void encargar(std::uint64_t fuente, int generacion, QJsonObject pedido, std::vector<int> plan, bool repetir,
+                  bool avisar);
+    /// Los avisos del hilo del dibujo, ya en la interfaz: salió la primera tanda…
+    void salioAlAire(std::uint64_t fuente, int generacion);
+    /// …o no se pudo dibujar (o la fuente ya no estaba).
+    void fallaAlAire(std::uint64_t fuente, int generacion, const QString& error);
     /// Resuelve el pedido y llama a `usar`. Si se resolvió en el momento, devuelve
     /// lo que devolvió `usar` (o el error); si queda esperando a un plugin, ""
     /// y lo que falle después sale por `fallo`.

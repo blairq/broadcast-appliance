@@ -93,7 +93,8 @@ std::vector<Instancia> de(const std::string& tipo);
 /// A dónde van los cuadros (el motor): nombre, BGRA, ancho, alto, stride.
 using Salida = std::function<void(const std::string&, const std::uint8_t*, int, int, int)>;
 void ponerSalida(Salida s);
-/// Un cuadro BGRA (alfa recto) para la instancia `id` (si sigue viva).
+/// Un cuadro BGRA (alfa recto) para la instancia `id` (si sigue viva). Desde cualquier
+/// hilo: lo que sale al aire se pinta fuera del de la interfaz (PintorAire.hpp).
 void empujar(std::uint64_t id, const std::uint8_t* bgra, int ancho, int alto, int stride = 0);
 
 /// Cambiar ajustes de CUALQUIER fuente por nombre (se mezclan con los que
