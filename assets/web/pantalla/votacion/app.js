@@ -67,31 +67,28 @@
     $("como").classList.toggle("oculto", !entrada || !v.abierta);
   }
 
-  async function traer() {
-    try {
-      const r = await fetch("/api/votacion?k=" + encodeURIComponent(clave), { cache: "no-store" });
-      const j = await r.json();
-      const v = j.votacion;
-      // Se redibuja solo si cambió: en una pantalla proyectada, repintar dos
-      // veces por segundo hace parpadear las barras.
-      const firma = JSON.stringify(v);
-      if (firma === ultimo) return;
-      ultimo = firma;
-      pintar(v);
-    } catch (_) {
-      // Si la red se corta, lo que está en pantalla se queda: borrarlo sería
-      // dejar la sala sin saber qué se está votando.
-    }
+  // Se redibuja solo si cambió: en una pantalla proyectada, repintar hace parpadear las barras.
+  function aplicar(v) {
+    const firma = JSON.stringify(v);
+    if (firma === ultimo) return;
+    ultimo = firma;
+    pintar(v);
   }
 
-  traer();
-  setInterval(traer, 1500);
+  // Una vez al abrir; lo demás llega por el canal de control (la sala avisa cada voto).
+  // Si la red se corta, lo que está en pantalla se queda: borrarlo sería dejar la sala
+  // sin saber qué se está votando.
+  fetch("/api/votacion?k=" + encodeURIComponent(clave), { cache: "no-store" })
+    .then((r) => r.json())
+    .then((j) => aplicar(j.votacion))
+    .catch(() => {});
 
-  if (window.BACanal) {
-    window.BACanal.abrir({
-      tipo: "pantalla",
-      que: () => "votacion",
-      onMostrar: (url) => { location.href = url; },
-    });
-  }
+  window.BACanal.abrir({
+    tipo: "pantalla",
+    extra: { vista: "votacion" },
+    idClave: "pantalla-votacion",
+    que: () => "votacion",
+    onMostrar: (url) => { location.href = url; },
+    onAviso: (m) => { if (m.type === "votacion") aplicar(m.votacion); },
+  });
 })();

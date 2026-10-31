@@ -582,7 +582,10 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
             return;
         }
         if (method == "POST") {
-            if (req.contains("estado")) rotulador_.publicar(req["estado"]);
+            if (req.contains("estado")) {
+                rotulador_.publicar(req["estado"]);
+                empujarASuperficies("rotulos"); // los celulares no preguntan: se les avisa
+            }
             json out{{"ok", true}};
             // `tomar` en el mismo pedido: A publica y se lleva los encargos de
             // una, que es un viaje por segundo en vez de dos.
@@ -1000,6 +1003,7 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
             correccionMs_ = std::chrono::duration_cast<std::chrono::milliseconds>(
                                 std::chrono::system_clock::now().time_since_epoch()).count();
         }
+        empujarASuperficies("correccion"); // el puesto no pregunta: se le avisa
         sendJson(fd, 200, json{{"ok", true}});
         return;
     }
@@ -1312,6 +1316,7 @@ std::pair<std::string, std::uint64_t> idDeEvento(const std::string& v) {
 } // namespace
 
 void SignalingServer::avisarVotacion() {
+    empujarASuperficies("votacion"); // la pantalla de la votación
     std::string evento;
     {
         std::lock_guard<std::mutex> l(publicoM_);
@@ -1382,6 +1387,7 @@ void SignalingServer::adminEvents(long long fd, const std::string& headers) {
         conn->ultimo = sseSeq_;
         sse_.push_back(conn);
     }
+    empujarASuperficies("rotulos"); // la app volvió: los celulares de rótulos lo ven
 
     // Este hilo es el que le escribe a la app (ver SseConn): saca de la cola y escribe;
     // sin nada, un latido cada 15 s que además detecta conexiones muertas. El cliente no
@@ -1420,8 +1426,11 @@ void SignalingServer::adminEvents(long long fd, const std::string& headers) {
             if (http::recvSome(fd, sink, sizeof(sink)) <= 0) break;
         }
     }
-    std::lock_guard<std::mutex> lock(sseLock_);
-    sse_.erase(std::remove(sse_.begin(), sse_.end(), conn), sse_.end());
+    {
+        std::lock_guard<std::mutex> lock(sseLock_);
+        sse_.erase(std::remove(sse_.begin(), sse_.end(), conn), sse_.end());
+    }
+    empujarASuperficies("rotulos"); // y se fue: «la app no responde»
 }
 
 void SignalingServer::broadcastToHosts(const std::string& event, const json& data) {

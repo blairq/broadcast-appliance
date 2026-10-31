@@ -25,6 +25,9 @@
 //     onEstado: (conectado) => {...}, // el canal se abrió o se cayó (opcional)
 //     extra: { p: "atril" },        // más datos para la sala, en la dirección (opcional)
 //     idClave: "prompter-control",  // con qué se recuerda el id (opcional; si no, el tipo)
+//     clave: "…",                   // la de las superficies reservadas (rótulos, corrección):
+//                                   // va en el primer mensaje, nunca en la dirección
+//     onClaveMal: () => {...},      // la sala no la aceptó
 //   });
 //
 // EL CANAL ES LA PRESENCIA Y EL AVISO. Lo que la página muestra le llega por acá
@@ -98,6 +101,7 @@
           st.intentos = 0;
           st.oido = Date.now();
           estado(true);
+          if (opciones.clave) mandar({ type: "clave", k: opciones.clave });
           late();
           clearInterval(st.latido);
           st.latido = setInterval(late, LATIDO_MS);
@@ -115,6 +119,8 @@
           if (m.type === "mostrar" && m.url && opciones.onMostrar) {
             opciones.onMostrar(m.url);
             late(); // que el operador vea el cambio enseguida
+          } else if (m.type === "clave_mal") {
+            if (opciones.onClaveMal) opciones.onClaveMal();
           } else if (m.type === "recargar") {
             if (opciones.onRecargar) opciones.onRecargar();
             else location.reload();
