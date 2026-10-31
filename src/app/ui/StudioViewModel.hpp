@@ -132,6 +132,7 @@ class Playlist;
 class PuestoCorreccion;
 class AvisoFueraDeUi;
 class AlarmasViewModel;
+class BitacoraEvento;
 class EnergiaAire;
 namespace asamblea {
 class CuerpoViewModel;
@@ -771,7 +772,7 @@ class StudioViewModel : public QObject {
     QObject* conference() const;
     QObject* evento() const;
     QObject* historicoObj() const;
-    HistoricoViewModel* historico() const { return historico_.get(); }
+    HistoricoViewModel* historico() const;
     QObject* grafico() const;
     QObject* rotulador() const;
     QObject* prompter() const;
@@ -1203,32 +1204,9 @@ class StudioViewModel : public QObject {
     std::unique_ptr<asamblea::CuerpoViewModel> cuerpo_;
     std::unique_ptr<agent::Vocabulario> vocabulario_;
     std::unique_ptr<control::BusEventos> bus_;
-    /// bitacora.jsonl del evento en curso (docs/planes/PLAN-EVENTOS-HISTORICO.md, H2).
-    std::unique_ptr<evento::Bitacora> bitacora_;
-    std::unique_ptr<HistoricoViewModel> historico_;
-    /// Lo que no va del bus a la bitácora (cambia en vivo desde Ajustes del histórico).
-    std::shared_ptr<std::vector<std::string>> busExcluir_;
-    int bitacoraOyente_ = 0, bitacoraBus_ = 0;
-    void armarBitacora();
-    /// Las fotos de Config/ por evento (H3): la última vista y la revisión cada 10 s.
-    std::unique_ptr<evento::FotosConfig> fotos_;
-    nlohmann::json fotoUltima_;
-    /// Saca la foto de ahora y anota en la bitácora lo que cambió desde la
-    /// última. `momento`: "inicio" | "cierre" | "" (solo revisar), del evento
-    /// `carpeta` (vacío = el en curso).
-    void revisarConfig(const std::string& carpeta, const std::string& momento);
-    /// grabaciones.json y transmisiones.json del evento en curso (H4): cada
-    /// grabación con su archivo y desde/hasta; cada vivo con su URL y caídas.
-    void indexarSalida(const std::string& tema, const nlohmann::json& valor);
-    /// Lo que queda al cerrar un evento (H5): asamblea/, registro/ y, en otro
-    /// hilo, sellos.json. Los hilos se cancelan y esperan al cerrar la app.
-    void cerrarEnHistorico(const std::string& carpeta);
-    struct Sellador {
-        std::thread hilo;
-        std::shared_ptr<std::atomic<bool>> listo;
-    };
-    std::vector<Sellador> selladores_;
-    std::atomic<bool> cancelarSellos_{false};
+    /// La bitácora del evento en curso, sus fotos de Config/, el índice de lo que salió y
+    /// el cierre en el histórico (ui/BitacoraEvento; H2-H5 de PLAN-EVENTOS-HISTORICO).
+    std::unique_ptr<BitacoraEvento> bitacoraEvento_;
     std::unique_ptr<control::CarasBotonera> carasBotonera_;
     std::unique_ptr<control::Botonera> botonera_;
     std::unique_ptr<RecursosViewModel> recursos_;
