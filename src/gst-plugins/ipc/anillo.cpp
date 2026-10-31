@@ -19,6 +19,7 @@
 //   - Declara 10 ms de latencia (un bloque).
 // ============================================================================
 
+#include "espera.hpp"
 #include "hora.hpp"
 #include "ipc/SharedAudioRing.hpp"
 
@@ -31,7 +32,6 @@
 #include <mutex>
 #include <string>
 #include <algorithm>
-#include <thread>
 #include <vector>
 
 namespace ar = ba::ipc::audio_ring;
@@ -52,7 +52,6 @@ struct _BaAnillo {
     std::string* abiertoCanal;
     std::vector<float>* bloque;
     GstClockTime proxima;     ///< la hora del bloque siguiente si la lectura sigue al día
-    gint64 ultimoDatoUs;      ///< cuándo salió el último bloque (monotónico; 0 = nunca)
 };
 
 G_DEFINE_TYPE(BaAnillo, ba_anillo, GST_TYPE_PUSH_SRC)
@@ -63,23 +62,12 @@ enum { PROP_0, PROP_CANAL };
 
 static GstStaticPadTemplate srcTpl = GST_STATIC_PAD_TEMPLATE("src", GST_PAD_SRC, GST_PAD_ALWAYS, GST_STATIC_CAPS(CAPS));
 
-/// Espera `ms` en pasos cortos; false si mientras tanto pidieron parar.
-static bool esperar(BaAnillo* a, int ms) {
-    // En pasos de hasta 16 ms: una espera de un bloque es UNA despertada (parar puede
-    // tardar hasta 16 ms en notarse, al apagar o rearmar).
-    for (int i = 0; i < ms; i += 16) {
-        if (a->parar.load()) return false;
-        std::this_thread::sleep_for(std::chrono::milliseconds(std::min(16, ms - i)));
-    }
-    return !a->parar.load();
-}
-
-/// Cuánto esperar sin bloque: 4 ms mientras llega audio (menos de medio bloque de 10 ms);
-/// quieto hace más de 1 s (un lugar vacío, un invitado callado), un bloque. Eran 250
-/// despertadas por segundo por canal aunque no hubiera nadie (9 canales: invitados,
-/// remotos, lobby). Al volver, el primer bloque llega hasta 10 ms tarde y los que siguen
+/// Sin bloque: hasta justo después del próximo que el gateway debería escribir (su último
+/// más 10 ms, de la cabecera del anillo: ipc/Mirada.hpp, F2-14). A 4 ms fijos eran 250
+/// despertadas por segundo por canal; quieto hace más de 1 s (un lugar vacío, un invitado
+/// callado), de a un bloque: al volver, el primero llega hasta 10 ms tarde y los que siguen
 /// ya están en el anillo.
-static int pausa(const BaAnillo* a) { return g_get_monotonic_time() - a->ultimoDatoUs > 1'000'000 ? 10 : 4; }
+constexpr auto kPasoQuieto = std::chrono::milliseconds(10);
 
 static GstFlowReturn crear(GstPushSrc* ps, GstBuffer** out) {
     auto* a = BA_ANILLO(ps);
@@ -100,7 +88,7 @@ static GstFlowReturn crear(GstPushSrc* ps, GstBuffer** out) {
             if (canal.empty() || !ba::ipc::SharedAudioRing::openReader(w.c_str(), *a->ring).ok ||
                 a->ring->header()->channels != ar::kDefaultChannels) {
                 *a->ring = ba::ipc::SharedAudioRing{};
-                if (!esperar(a, 100)) return GST_FLOW_FLUSHING;
+                if (!ba::ipc_gst::esperar(a->parar, 100)) return GST_FLOW_FLUSHING;
                 continue;
             }
             a->abierto = true;
@@ -109,14 +97,13 @@ static GstFlowReturn crear(GstPushSrc* ps, GstBuffer** out) {
             a->proxima = GST_CLOCK_TIME_NONE;
         }
         ba::ipc::PoppedBlock meta;
-        // Sin bloque: se vuelve a mirar en 4 ms (menos de medio bloque de 10 ms). A 2 ms eran
-        // 500 despertadas por segundo por canal, con candado, aunque nadie hablara.
+        // Sin bloque: hasta el próximo que se espera (kPasoQuieto).
         if (!a->ring->pop(a->bloque->data(), meta)) {
-            if (!esperar(a, pausa(a))) return GST_FLOW_FLUSHING;
+            if (!ba::ipc_gst::esperarHasta(a->parar, a->ring->proximaMirada(kPasoQuieto))) return GST_FLOW_FLUSHING;
             continue;
         }
         if (meta.isSilence) { // underrun (pop da silencio y true): no habla o no está
-            if (!esperar(a, pausa(a))) return GST_FLOW_FLUSHING;
+            if (!ba::ipc_gst::esperarHasta(a->parar, a->ring->proximaMirada(kPasoQuieto))) return GST_FLOW_FLUSHING;
             continue;
         }
         // La hora: la del gateway (al escribir el bloque, que empezó un bloque
@@ -135,7 +122,6 @@ static GstFlowReturn crear(GstPushSrc* ps, GstBuffer** out) {
         GST_BUFFER_PTS(b) = pts;
         GST_BUFFER_DURATION(b) = dur;
         if (GST_CLOCK_TIME_IS_VALID(pts)) a->proxima = pts + dur;
-        a->ultimoDatoUs = g_get_monotonic_time();
         *out = b;
         return GST_FLOW_OK;
     }

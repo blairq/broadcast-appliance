@@ -141,6 +141,11 @@ struct MediaRoute {
     bool miraSalida(const std::string& id) const {
         return (kind == Kind::Program || kind == Kind::Backstage) && salida == id;
     }
+    /// Conversa con el estudio (el invitado del programa, con su mix-minus): lo que le baja
+    /// no se demora para alinear labios, gana la latencia (T4). Los demás que miran (la
+    /// fila, una pantalla, un espectador, la consola) reciben el video a la hora de su
+    /// audio (Labios.hpp, F2-11).
+    bool conversa() const { return kind == Kind::Program; }
     /// Le llega el audio de retorno de la salida `id`: los que la miran, y las pantallas
     /// de escena el de la por omisión (como siempre).
     bool oyeSalida(const std::string& id) const { return miraSalida(id) || (kind == Kind::Escena && id.empty()); }

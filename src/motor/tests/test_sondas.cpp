@@ -5,8 +5,11 @@
 // - un elemento que retiene cuadros (`queue` lleno a propósito con min-threshold-time
 //   de 300 ms) mide lo que RETIENE, aunque no procese nada;
 // - con GL: glupload «sube» y gldownload «baja» (los cruces de memoria);
-// - al terminar no quedan sondas: lo que pase después no se anota.
+// - al terminar no quedan sondas: lo que pase después no se anota;
+// - videorate: lo que repite y tira mientras se mide (F2-17), y los avisos de la red
+//   eléctrica y de una cámara a 29,97 en un lienzo de 30.
 
+#include "Piezas.hpp"
 #include "Reloj.hpp"
 #include "Sondas.hpp"
 
@@ -135,6 +138,50 @@ int main() {
             check(sube.value("puede_salida", json::array()).dump().find("cualquiera") != std::string::npos,
                   "glupload saca cualquier memoria (video/x-raw(ANY))");
         }
+    }
+    // 4) videorate (F2-17): lo que repite y tira mientras se mide. Una fuente a 25 en un lienzo de
+    // 30 repite 5 por segundo; una a 60, tira 30. (Una cámara a 29,97 en 30 repite uno cada ~33 s:
+    // en 3 s no se ve; el aviso lo da la cuenta de abajo.)
+    {
+        const json r = correr("videotestsrc is-live=true ! video/x-raw,width=160,height=90,framerate=25/1 ! "
+                              "videorate name=rate ! video/x-raw,framerate=30/1 ! fakesink sync=true",
+                              3000);
+        const json v = fila(r, "rate").value("videorate", json::object());
+        std::printf("videorate 25→30: %s\n", v.dump().c_str());
+        const double porMin = v.value("duplicados_por_minuto", 0.0);
+        check(porMin > 240 && porMin < 360, "25 en 30: repite ~300 por minuto (midió " + std::to_string(porMin) + ")");
+        check(v.value("tirados", 1) == 0, "y no tira ninguno");
+        const json r2 = correr("videotestsrc is-live=true ! video/x-raw,width=160,height=90,framerate=60/1 ! "
+                               "videorate name=rate ! video/x-raw,framerate=30/1 ! fakesink sync=true",
+                               2000);
+        const json v2 = fila(r2, "rate").value("videorate", json::object());
+        check(v2.value("tirados_por_minuto", 0.0) > 1500, "60 en 30: tira la mitad");
+    }
+    // 5) La red eléctrica y las cadencias (F2-17): avisa, no cambia nada.
+    {
+        Lienzo l;
+        l.fpsN = 30;
+        l.fpsD = 1;
+        check(redElectricaHz("AR") == 50 && redElectricaHz("ar") == 50 && redElectricaHz("US") == 60 &&
+                  redElectricaHz("BR") == 60 && redElectricaHz("JP") == 0 && redElectricaHz("") == 0,
+              "la red de cada país (Japón tiene las dos: no se sabe)");
+        check(!cadenciaSinParpadeo(30, 50) && cadenciaSinParpadeo(25, 50) && cadenciaSinParpadeo(50, 50),
+              "con 50 Hz: 30 parpadea, 25 y 50 no");
+        check(cadenciaSinParpadeo(30, 60) && cadenciaSinParpadeo(30000.0 / 1001, 60) && cadenciaSinParpadeo(24, 60) &&
+                  !cadenciaSinParpadeo(25, 60),
+              "con 60 Hz: 30, 29,97 y 24 no; 25 sí");
+        const auto avisos = avisosDeLaRed(l, 50);
+        std::printf("aviso de la red: %s\n", avisos.empty() ? "(ninguno)" : avisos.front().c_str());
+        check(avisos.size() == 1 && avisos.front().find("25, 50") != std::string::npos, "30 cps con 50 Hz: avisa y dice 25, 50");
+        check(avisosDeLaRed(l, 60).empty() && avisosDeLaRed(l, 0).empty(), "con 60 Hz o sin saber la red: nada");
+        check(cadenciasDeLaRed(50).size() == 2 && cadenciasDeLaRed(50)[0] == std::make_pair(25, 1), "las cadencias de 50 Hz: 25 y 50");
+        const std::string cam = avisoDeCadenciaDeCamara(30000.0 / 1001, l);
+        std::printf("aviso de la cámara: %s\n", cam.c_str());
+        check(cam.find("33 s") != std::string::npos, "cámara a 29,97 en 30: repite uno cada ~33 s");
+        check(avisoDeCadenciaDeCamara(30, l).empty() && avisoDeCadenciaDeCamara(60, l).empty() &&
+                  avisoDeCadenciaDeCamara(25, l).empty(),
+              "iguales o lejos (60 en 30, 25 en 30): no es esto");
+        std::printf("la red de este sistema: %d Hz\n", redElectricaDelSistema());
     }
     std::printf("test_sondas: %s\n", fallos == 0 ? "OK" : "FALLAS");
     return fallos == 0 ? 0 : 1;

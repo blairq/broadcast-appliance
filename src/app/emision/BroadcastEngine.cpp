@@ -409,6 +409,9 @@ bool BroadcastEngine::startup(const EnginePaths& paths, const VideoConfig& video
     c.relojPuerto = relojPuerto_;
     c.relojDominio = relojDominio_;
     motor_ = std::make_unique<motor::Motor>(c);
+    // Un lienzo que parpadea con la red eléctrica del país (F2-17): se avisa, no se cambia.
+    for (const std::string& aviso : motor::avisosDeLaRed(c.lienzo, motor::redElectricaDelSistema()))
+        ba::diag::registro().linea(ba::diag::Nivel::Aviso, "motor", 0, aviso);
     internasPedidas_.clear();
     // Lo que se le encargó y falló después (las órdenes van en cola: ver
     // Motor::orden). Llega desde el hilo del motor.
@@ -679,8 +682,32 @@ bool BroadcastEngine::publishReturnFeeds() {
     return true;
 }
 
+void BroadcastEngine::ponerTopeRetorno(int ancho, int alto) {
+    if (ancho <= 0 || alto <= 0 || (ancho == topeRetornoAncho_ && alto == topeRetornoAlto_)) return;
+    topeRetornoAncho_ = ancho;
+    topeRetornoAlto_ = alto;
+    if (!returnFeedsActive_) return;
+    // Andando: cada salida rehace su canal y su vista al tamaño nuevo.
+    for (const auto& s : lasSalidas()) {
+        soltarVistaRetorno(*s);
+        publicarRetorno(s);
+    }
+}
+
+ba::ipc::SlotConfig BroadcastEngine::canalRetorno() const {
+    // Encajada en el tope, con el aspecto de la salida y sin agrandarla (agrandar no
+    // agrega detalle, solo bytes). Par: lo piden los conversores a I420.
+    const int ow = std::max(2, video_.outputWidth), oh = std::max(2, video_.outputHeight);
+    double k = std::min({1.0, static_cast<double>(topeRetornoAncho_) / ow, static_cast<double>(topeRetornoAlto_) / oh});
+    ba::ipc::SlotConfig c{std::max(2, static_cast<int>(ow * k) & ~1), std::max(2, static_cast<int>(oh * k) & ~1)};
+    // El período del lienzo: el gateway duerme hasta el próximo cuadro (ipc/Mirada.hpp, F2-14).
+    if (video_.fpsNum > 0 && video_.fpsDen > 0)
+        c.periodoNs = static_cast<std::uint64_t>(video_.fpsDen) * 1'000'000'000ULL / static_cast<std::uint64_t>(video_.fpsNum);
+    return c;
+}
+
 bool BroadcastEngine::publicarRetorno(const std::shared_ptr<Salida>& s) {
-    ba::ipc::SlotConfig vcfg{video_.outputWidth, video_.outputHeight};
+    const ba::ipc::SlotConfig vcfg = canalRetorno();
     {
         std::lock_guard<std::mutex> l(s->retornoM);
         // Un canal publicado no cambia de tamaño (ver SpoutSender::publish): con otro
@@ -705,7 +732,8 @@ bool BroadcastEngine::publicarRetorno(const std::shared_ptr<Salida>& s) {
 
 bool BroadcastEngine::pedirVistaRetorno(const std::shared_ptr<Salida>& s) {
     if (!motor_ || s->retornoPedido) return true;
-    const std::string e = motor_->verPedir(s->claveRetorno(), video_.outputWidth, video_.outputHeight);
+    const ba::ipc::SlotConfig tam = canalRetorno();
+    const std::string e = motor_->verPedir(s->claveRetorno(), tam.width, tam.height);
     if (!e.empty()) {
         setError(e);
         return false;
@@ -731,6 +759,7 @@ void BroadcastEngine::soltarRetorno(Salida& s) {
 }
 
 void BroadcastEngine::enviarRetorno(Salida& s, const motor::Cuadro& c) {
+    // Los bytes son los del buffer de la vista (sin copiar): la única copia es al canal.
     std::lock_guard<std::mutex> l(s.retornoM);
     if (!s.retorno.published() || c.ancho != s.retornoAncho || c.alto != s.retornoAlto) return;
     const std::size_t fila = static_cast<std::size_t>(c.ancho) * 4;
@@ -744,6 +773,7 @@ void BroadcastEngine::enviarRetorno(Salida& s, const motor::Cuadro& c) {
     ba::ipc::FrameMeta meta;
     meta.frameIndex = ++s.retornoCuadros;
     meta.qpc = ba::ipc::HealthBlock::nowQpc();
+    meta.contenidoQpc = c.contenidoQpc; // para alinearlo con su audio en el gateway (F2-11)
     s.retorno.send(px, fila * static_cast<std::size_t>(c.alto), meta);
 }
 
@@ -912,7 +942,7 @@ bool BroadcastEngine::latestPreview(std::vector<std::uint8_t>& dst, int& width, 
     if (!previewActive_ || !motor_) return false;
     motor::Cuadro c;
     if (!motor_->verUltimo("programa@ui", c, serial)) return false;
-    dst = std::move(c.bgra);
+    dst.assign(c.bgra.data(), c.bgra.data() + c.bgra.size()); // la interfaz se queda con su copia
     width = c.ancho;
     height = c.alto;
     stride = c.stride;
@@ -1084,7 +1114,7 @@ bool BroadcastEngine::renderScenePreview(const std::string& canal, std::vector<s
     // mismo (la serie de las vistas es una sola y solo crece).
     motor::Cuadro c;
     if (!motor_->verUltimo(it->second.clave, c, serial)) return false;
-    dst = std::move(c.bgra);
+    dst.assign(c.bgra.data(), c.bgra.data() + c.bgra.size()); // la interfaz se queda con su copia
     width = c.ancho;
     height = c.alto;
     stride = c.stride;

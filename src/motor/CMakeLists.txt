@@ -128,7 +128,8 @@ if(BUILD_TESTING OR TRUE)
         BA_TEST_GST_PLUGINS="${CMAKE_BINARY_DIR}/src/gst-plugins")
     add_dependencies(test_motor_app gstbaaudio gstbaipc)
     add_test(NAME test_motor_app COMMAND test_motor_app)
-    set_tests_properties(test_motor_app PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 120)
+    # Mide cuadros en tiempo real (GPU): solo, que con la CPU repartida llegan tarde.
+    set_tests_properties(test_motor_app PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 120 RUN_SERIAL TRUE)
 
     # Muchas salidas (docs/planes/PLAN-SALIDAS.md, etapa 1): cada una con su aire y su mezcla.
     add_executable(test_motor_salidas tests/test_motor_salidas.cpp)

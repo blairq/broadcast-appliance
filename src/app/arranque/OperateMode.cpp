@@ -721,6 +721,8 @@ int AppRuntime::start() {
     // Las demás salidas (Config/salidas.json), con las fuentes ya puestas: cada una
     // arranca con los volúmenes de la por omisión (su escena vuelve abajo, con al-aire.json).
     crearSalidasGuardadas();
+    // El retorno, al tamaño con que el gateway lo manda (escalado en la GPU, F2-13).
+    engine_.ponerTopeRetorno(gateway_.programVideoW, gateway_.programVideoH);
     if (cfg_.returnFeeds && !engine_.publishReturnFeeds()) {
         std::printf("ba-app: %s\n",
                     ba::i18n::llenar(ba::i18n::traducir("arranque", "sin retorno hacia B: %1"), {engine_.lastError()}).c_str());
