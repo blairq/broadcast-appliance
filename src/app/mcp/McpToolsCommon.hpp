@@ -44,6 +44,8 @@ std::string avisoReiniciaMotor();
 /// El conmutador (aire, armada, take, T-bar, AFV) de la salida de la llamada en
 /// curso (McpCore::salidaDe): el de las herramientas de escenas con `salida`.
 escenas::Conmutador& conmutadorDe(const McpCore& core, StudioViewModel& vm, const json& args);
+/// El de una salida ya resuelta ("" = la por omisión).
+escenas::Conmutador& conmutadorDe(StudioViewModel& vm, const std::string& salida);
 /// [{id, nombre, color, por_omision, escena, armada, streaming, reconectando,
 /// recording, destinos, limpia, repeticion, placa}], la por omisión primera.
 json resumenSalidas(AppRuntime& rt, StudioViewModel& vm);

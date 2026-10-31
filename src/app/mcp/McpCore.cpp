@@ -1168,6 +1168,35 @@ void McpCore::procesar(const Tool* tool, const std::string& name, const json& ar
     const bool untrustedOut = tool->untrustedOutput;
     const bool modifica = mutating(*tool);
     const auto execute = [this, tool, args, finish, session, untrustedOut, name, modifica, ctx]() {
+        // Las de control, con el turno del motor (ver setTurno): sin él a tiempo, «ocupado»
+        // y nada después (una orden de aire de hace cinco segundos ya no es la de ahora).
+        const bool conTurno = tool->hilo == Hilo::Control && turno_.tomar && turno_.soltar;
+        if (conTurno && !turno_.tomar(ej_.topeInterfazMs)) {
+            ++motorOcupado_;
+            ba::diag::Metricas::proceso()
+                .contador("ba_mcp_motor_ocupado_total",
+                          QT_TRANSLATE_NOOP("metricas", "Pedidos MCP de control que no consiguieron el turno del motor a tiempo (no se hicieron)"))
+                .sumar();
+            Traza::la().anotar("<-- MOTOR OCUPADO " + name);
+            ToolResult r = ToolResult::error(ba::i18n::llenar(
+                ba::i18n::traducir("mcp", "El motor está ocupado (no se liberó en %1 ms): «%2» NO se hizo. Reintentá en un "
+                                          "rato; lo que sale va en `foto`."),
+                {std::to_string(ej_.topeInterfazMs), name}));
+            json o{{"motor_ocupado", true}, {"tope_ms", ej_.topeInterfazMs}, {"pedido", name}};
+            if (turno_.estado) o["turno"] = turno_.estado();
+            if (fotoEmergencia_) o["foto"] = fotoEmergencia_();
+            r.structured = std::move(o);
+            finish(r);
+            return;
+        }
+        // Se suelta al volver `run` (lo que sigue después, como el `mirar` de record_start,
+        // vuelve a entrar por cada operación).
+        struct Soltar {
+            const Turno* t;
+            ~Soltar() {
+                if (t != nullptr) t->soltar();
+            }
+        } soltar{conTurno ? &turno_ : nullptr};
         // QUIEN ESTA LLAMANDO, mientras dura la llamada. Se limpiaba al final
         // pero no se ponia nunca, asi que `contextoEnCurso()` siempre devolvia
         // vacio: el buscador no filtraba por rol y el cerrojo de imagenes no

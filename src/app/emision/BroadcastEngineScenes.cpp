@@ -176,6 +176,7 @@ const BroadcastEngine::EscenaApp* BroadcastEngine::escena(const std::string& nom
 }
 
 std::string BroadcastEngine::errorDeCompositor(const std::string& nombre) const {
+    const TurnoMotor::Guarda turno(turno_);
     const json e = estadoMotor().value("video", json::object()).value("errores_escenas", json::object());
     const auto it = e.find(kPrefijoCompositor + nombre);
     return it != e.end() && it->is_string() ? it->get<std::string>() : std::string();
@@ -317,6 +318,7 @@ int BroadcastEngine::ranuraDe(const Fuente& f) const {
 }
 
 void BroadcastEngine::setRanurasBanca(std::vector<RanuraBanca> ranuras, bool forzar) {
+    const TurnoMotor::Guarda turno(turno_);
     const auto igual = [](const RanuraBanca& a, const RanuraBanca& b) {
         return a.entrada == b.entrada && a.entera == b.entera && std::equal(std::begin(a.recorte), std::end(a.recorte), std::begin(b.recorte));
     };
@@ -335,10 +337,12 @@ void BroadcastEngine::setRanurasBanca(std::vector<RanuraBanca> ranuras, bool for
 }
 
 bool BroadcastEngine::hayFuenteBanca() const {
+    const TurnoMotor::Guarda turno(turno_);
     return !escenaDeRanura(0).empty();
 }
 
 std::string BroadcastEngine::escenaDeRanura(int ranura) const {
+    const TurnoMotor::Guarda turno(turno_);
     // 0: cualquier ranura.
     for (const EscenaApp& e : scenes_)
         for (const Item& i : e.items) {
@@ -349,6 +353,7 @@ std::string BroadcastEngine::escenaDeRanura(int ranura) const {
 }
 
 void BroadcastEngine::setTraer(const std::string& entrada, const std::string& compositor, const std::string& productor) {
+    const TurnoMotor::Guarda turno(turno_);
     const auto antes = traer_.find(entrada);
     if (compositor.empty() && productor.empty()) {
         if (antes == traer_.end()) return;
@@ -373,6 +378,7 @@ void BroadcastEngine::publicarEscena(const EscenaApp& e) {
 }
 
 bool BroadcastEngine::createScene(const std::string& name) {
+    const TurnoMotor::Guarda turno(turno_);
     if (!started_ || name.empty() || escena(name) != nullptr) {
         setError(ba::i18n::llenar(ba::i18n::traducir("emision", "createScene: sin motor, nombre vacio o repetido: '%1'"), {name}));
         return false;
@@ -387,6 +393,7 @@ bool BroadcastEngine::createScene(const std::string& name) {
 }
 
 bool BroadcastEngine::removeScene(const std::string& name) {
+    const TurnoMotor::Guarda turno(turno_);
     auto it = std::find_if(scenes_.begin(), scenes_.end(), [&](const EscenaApp& e) { return e.nombre == name; });
     if (it == scenes_.end() || scenes_.size() == 1) {
         setError(ba::i18n::traducir("emision", "removeScene: no existe o es la unica escena"));
@@ -404,6 +411,7 @@ bool BroadcastEngine::removeScene(const std::string& name) {
 }
 
 bool BroadcastEngine::renameScene(const std::string& from, const std::string& to) {
+    const TurnoMotor::Guarda turno(turno_);
     if (to.empty() || escena(to) != nullptr) {
         setError(ba::i18n::traducir("emision", "renameScene: nombre vacio o repetido"));
         return false;
@@ -428,6 +436,7 @@ bool BroadcastEngine::renameScene(const std::string& from, const std::string& to
 }
 
 std::vector<std::string> BroadcastEngine::sceneNames() const {
+    const TurnoMotor::Guarda turno(turno_);
     std::vector<std::string> out;
     for (const auto& e : scenes_) out.push_back(e.nombre);
     return out;
@@ -441,6 +450,7 @@ std::string BroadcastEngine::transicionMotor(const std::string& tipo) const {
 }
 
 bool BroadcastEngine::setTransition(const std::string& type, int durationMs) {
+    const TurnoMotor::Guarda turno(turno_);
     if (!started_) return false;
     transitionType_ = type.empty() ? std::string("fade") : type;
     transitionMs_ = std::max(0, durationMs);
@@ -448,6 +458,7 @@ bool BroadcastEngine::setTransition(const std::string& type, int durationMs) {
 }
 
 bool BroadcastEngine::setCurrentSceneCon(const std::string& name, const std::string& tipo, int ms, const std::string& salida) {
+    const TurnoMotor::Guarda turno(turno_);
     if (escena(name) == nullptr) {
         setError(ba::i18n::llenar(ba::i18n::traducir("emision", "no existe la escena '%1'"), {name}));
         return false;
@@ -466,16 +477,18 @@ bool BroadcastEngine::setCurrentSceneCon(const std::string& name, const std::str
 }
 
 bool BroadcastEngine::setCurrentScene(const std::string& name, const std::string& salida) {
+    const TurnoMotor::Guarda turno(turno_);
     return setCurrentSceneCon(name, transitionType_, -1, salida);
 }
 
-const std::string& BroadcastEngine::currentScene(const std::string& salida) const {
-    static const std::string kNinguna;
+std::string BroadcastEngine::currentScene(const std::string& salida) const {
+    const TurnoMotor::Guarda turno(turno_);
     const Salida* s = laSalida(salida);
-    return s != nullptr ? s->alAire : kNinguna;
+    return s != nullptr ? s->alAire : std::string();
 }
 
 bool BroadcastEngine::transicionManual(const std::string& name, float t, bool soltar, bool* alAire, const std::string& salida) {
+    const TurnoMotor::Guarda turno(turno_);
     if (alAire != nullptr) *alAire = false;
     if (escena(name) == nullptr) {
         setError(ba::i18n::llenar(ba::i18n::traducir("emision", "no existe la escena '%1'"), {name}));
@@ -501,11 +514,13 @@ bool BroadcastEngine::transicionManual(const std::string& name, float t, bool so
 }
 
 std::string BroadcastEngine::manualHacia(const std::string& salida) const {
+    const TurnoMotor::Guarda turno(turno_);
     const Salida* s = laSalida(salida);
     return motor_ && s != nullptr ? motor_->tbarHacia(s->id) : std::string();
 }
 
 bool BroadcastEngine::buildScene() {
+    const TurnoMotor::Guarda turno(turno_);
     if (escena("programa") == nullptr && !createScene("programa")) return false;
     return setCurrentScene("programa");
 }
@@ -671,6 +686,7 @@ void BroadcastEngine::soltarSiHuerfana(const std::string& nombre) {
 }
 
 bool BroadcastEngine::addSource(const std::string& sceneName, const SourceSpec& spec) {
+    const TurnoMotor::Guarda turno(turno_);
     EscenaApp* e = escena(sceneName);
     if (e == nullptr) {
         setError(ba::i18n::llenar(ba::i18n::traducir("emision", "addSource: no existe la escena '%1'"), {sceneName}));
@@ -696,11 +712,13 @@ bool BroadcastEngine::addSource(const std::string& sceneName, const SourceSpec& 
 }
 
 bool BroadcastEngine::addSource(const SourceSpec& spec) {
+    const TurnoMotor::Guarda turno(turno_);
     if (currentScene().empty() && !buildScene()) return false;
     return addSource(currentScene(), spec);
 }
 
 bool BroadcastEngine::removeSource(const std::string& sceneName, const std::string& name) {
+    const TurnoMotor::Guarda turno(turno_);
     EscenaApp* e = escena(sceneName);
     if (e == nullptr) return false;
     const auto it = std::find_if(e->items.begin(), e->items.end(), [&](const Item& i) { return i.fuente == name; });
@@ -712,6 +730,7 @@ bool BroadcastEngine::removeSource(const std::string& sceneName, const std::stri
 }
 
 bool BroadcastEngine::moveSource(const std::string& sceneName, const std::string& name, int delta) {
+    const TurnoMotor::Guarda turno(turno_);
     EscenaApp* e = escena(sceneName);
     if (e == nullptr || delta == 0) return false;
     auto it = std::find_if(e->items.begin(), e->items.end(), [&](const Item& i) { return i.fuente == name; });
@@ -725,6 +744,7 @@ bool BroadcastEngine::moveSource(const std::string& sceneName, const std::string
 }
 
 std::vector<std::string> BroadcastEngine::sceneSources(const std::string& sceneName) const {
+    const TurnoMotor::Guarda turno(turno_);
     std::vector<std::string> out;
     if (const EscenaApp* e = escena(sceneName))
         for (const auto& i : e->items) out.push_back(i.fuente);
@@ -732,6 +752,7 @@ std::vector<std::string> BroadcastEngine::sceneSources(const std::string& sceneN
 }
 
 bool BroadcastEngine::setSourceVisible(const std::string& sceneName, const std::string& name, bool visible) {
+    const TurnoMotor::Guarda turno(turno_);
     EscenaApp* e = escena(sceneName);
     if (e == nullptr) return false;
     for (auto& i : e->items)
@@ -744,6 +765,7 @@ bool BroadcastEngine::setSourceVisible(const std::string& sceneName, const std::
 }
 
 bool BroadcastEngine::sourceVisible(const std::string& sceneName, const std::string& name) const {
+    const TurnoMotor::Guarda turno(turno_);
     if (const EscenaApp* e = escena(sceneName))
         for (const auto& i : e->items)
             if (i.fuente == name) return i.visible;
@@ -751,6 +773,7 @@ bool BroadcastEngine::sourceVisible(const std::string& sceneName, const std::str
 }
 
 bool BroadcastEngine::setSourceRect(const std::string& sceneName, const std::string& name, const CanvasRect& rect) {
+    const TurnoMotor::Guarda turno(turno_);
     EscenaApp* e = escena(sceneName);
     if (e == nullptr) return false;
     for (auto& i : e->items)
@@ -764,6 +787,7 @@ bool BroadcastEngine::setSourceRect(const std::string& sceneName, const std::str
 
 bool BroadcastEngine::setSourceCrop(const std::string& sceneName, const std::string& name, float izquierda, float arriba,
                                     float derecha, float abajo) {
+    const TurnoMotor::Guarda turno(turno_);
     EscenaApp* e = escena(sceneName);
     if (e == nullptr) return false;
     if (izquierda + derecha >= 0.95f || arriba + abajo >= 0.95f) return false;
@@ -783,6 +807,7 @@ bool BroadcastEngine::setSourceCrop(const std::string& sceneName, const std::str
 }
 
 bool BroadcastEngine::setSourceEfectos(const std::string& sceneName, const std::string& name, const EfectosCapa& efectos) {
+    const TurnoMotor::Guarda turno(turno_);
     EscenaApp* e = escena(sceneName);
     if (e == nullptr) return false;
     for (auto& i : e->items)
@@ -795,6 +820,7 @@ bool BroadcastEngine::setSourceEfectos(const std::string& sceneName, const std::
 }
 
 EfectosCapa BroadcastEngine::sourceEfectos(const std::string& sceneName, const std::string& name) const {
+    const TurnoMotor::Guarda turno(turno_);
     if (const EscenaApp* e = escena(sceneName))
         for (const auto& i : e->items)
             if (i.fuente == name) return i.efectos;
@@ -802,6 +828,7 @@ EfectosCapa BroadcastEngine::sourceEfectos(const std::string& sceneName, const s
 }
 
 void BroadcastEngine::aplicarRecortesPendientes() {
+    const TurnoMotor::Guarda turno(turno_);
     if (recortesPendientes_.empty()) return;
     const auto pendientes = recortesPendientes_;
     recortesPendientes_.clear();
@@ -817,6 +844,7 @@ void BroadcastEngine::aplicarRecortesPendientes() {
 }
 
 bool BroadcastEngine::renameSource(const std::string& from, const std::string& to) {
+    const TurnoMotor::Guarda turno(turno_);
     if (to.empty() || sources_.count(to) > 0) {
         setError(ba::i18n::traducir("emision", "renameSource: nombre vacio o repetido"));
         return false;
@@ -873,12 +901,14 @@ bool BroadcastEngine::renameSource(const std::string& from, const std::string& t
 }
 
 json BroadcastEngine::estadoEntrada(const std::string& name) const {
+    const TurnoMotor::Guarda turno(turno_);
     if (sources_.count(name) == 0) return nullptr;
     const json& e = seccion(estadoMotor(), "entradas");
     return e.contains(name) ? e[name] : json::object();
 }
 
 std::vector<std::pair<std::string, CanvasRect>> BroadcastEngine::itemsVisibles(const std::string& scene) const {
+    const TurnoMotor::Guarda turno(turno_);
     std::vector<std::pair<std::string, CanvasRect>> v;
     if (const EscenaApp* e = escena(scene))
         for (const auto& i : e->items)
@@ -887,6 +917,7 @@ std::vector<std::pair<std::string, CanvasRect>> BroadcastEngine::itemsVisibles(c
 }
 
 bool BroadcastEngine::ponerReloj(const std::string& tipo, const std::string& servidor, int puerto, int dominio) {
+    const TurnoMotor::Guarda turno(turno_);
     if (tipo == relojTipo_ && servidor == relojServidor_ && puerto == relojPuerto_ && dominio == relojDominio_) return true;
     relojTipo_ = tipo;
     relojServidor_ = servidor;
@@ -897,20 +928,24 @@ bool BroadcastEngine::ponerReloj(const std::string& tipo, const std::string& ser
 }
 
 std::pair<std::string, std::string> BroadcastEngine::relojEstado() const {
+    const TurnoMotor::Guarda turno(turno_);
     return {relojTipo_.empty() ? std::string("sistema") : relojTipo_, motor_ ? motor_->reloj().error() : std::string()};
 }
 
 std::string BroadcastEngine::publicarReloj(int puerto) {
+    const TurnoMotor::Guarda turno(turno_);
     relojPublicar_ = std::max(0, puerto);
     return motor_ ? motor_->publicarReloj(relojPublicar_) : std::string();
 }
 
 std::string BroadcastEngine::controlEntrada(const std::string& name, const json& campos) {
+    const TurnoMotor::Guarda turno(turno_);
     if (sources_.count(name) == 0) return ba::i18n::llenar(ba::i18n::traducir("emision", "no existe «%1»"), {name});
     return motor_ ? motor_->controlEntrada(name, campos) : ba::i18n::traducir("emision", "no hay motor");
 }
 
 std::string BroadcastEngine::sourceTypeId(const std::string& name) const {
+    const TurnoMotor::Guarda turno(turno_);
     auto it = sources_.find(name);
     return it != sources_.end() ? it->second.spec.id : std::string();
 }
@@ -918,6 +953,7 @@ std::string BroadcastEngine::sourceTypeId(const std::string& name) const {
 void BroadcastEngine::holdShowing(const std::string&, bool) {}
 
 bool BroadcastEngine::sourceSize(const std::string& name, int& width, int& height) const {
+    const TurnoMotor::Guarda turno(turno_);
     width = height = 0;
     if (sources_.count(name) == 0) return false;
     const json& e = seccion(estadoMotor(), "entradas");
@@ -929,11 +965,13 @@ bool BroadcastEngine::sourceSize(const std::string& name, int& width, int& heigh
 }
 
 std::string BroadcastEngine::sourceSettingsJson(const std::string& name) const {
+    const TurnoMotor::Guarda turno(turno_);
     auto it = sources_.find(name);
     return it != sources_.end() ? it->second.spec.settingsJson : std::string("{}");
 }
 
 bool BroadcastEngine::updateSourceSettings(const std::string& name, const std::string& settingsJson) {
+    const TurnoMotor::Guarda turno(turno_);
     auto it = sources_.find(name);
     if (it == sources_.end()) return false;
     const json nuevos = json::parse(settingsJson, nullptr, false);
@@ -972,6 +1010,7 @@ bool BroadcastEngine::updateSourceSettings(const std::string& name, const std::s
 }
 
 std::vector<SourceType> BroadcastEngine::inputTypes() const {
+    const TurnoMotor::Guarda turno(turno_);
     return {{inputs::kVideoType, ba::i18n::traducir("emision", "Cámara o capturadora (USB, HDMI)"), true, true},
             {inputs::kMicType, ba::i18n::traducir("emision", "Entrada por GStreamer (pipeline propio)"), true, true},
             {inputs::kMedioType, ba::i18n::traducir("emision", "Archivo de video o audio"), true, true},
@@ -989,6 +1028,7 @@ std::vector<SourceType> BroadcastEngine::inputTypes() const {
 }
 
 bool BroadcastEngine::sourceTypeExists(const std::string& typeId) const {
+    const TurnoMotor::Guarda turno(turno_);
     if (typeId.empty()) return false;
     // Un tipo de antes vale si su versión del motor vale (lo pasa crearFuente).
     SourceSpec s;
@@ -1003,6 +1043,7 @@ bool BroadcastEngine::sourceTypeExists(const std::string& typeId) const {
 // ============================================================================
 
 bool BroadcastEngine::addGuestAudio(int slot) {
+    const TurnoMotor::Guarda turno(turno_);
     const std::string name = "Invitado " + std::to_string(slot) + " (audio)";
     if (sources_.count(name) == 0) {
         SourceSpec spec;
@@ -1018,6 +1059,7 @@ bool BroadcastEngine::addGuestAudio(int slot) {
 }
 
 bool BroadcastEngine::addGlobalAudio(const SourceSpec& spec) {
+    const TurnoMotor::Guarda turno(turno_);
     if (sources_.count(spec.name) == 0 && !crearFuente(spec, true)) return false;
     if (std::find(micInputs_.begin(), micInputs_.end(), spec.name) == micInputs_.end()) micInputs_.push_back(spec.name);
     return true;
@@ -1026,6 +1068,7 @@ bool BroadcastEngine::addGlobalAudio(const SourceSpec& spec) {
 int BroadcastEngine::adoptPendingAudio() { return 0; }
 
 bool BroadcastEngine::removeGlobalAudio(const std::string& name) {
+    const TurnoMotor::Guarda turno(turno_);
     const auto it = std::find(micInputs_.begin(), micInputs_.end(), name);
     if (it == micInputs_.end()) return false;
     micInputs_.erase(it);
@@ -1037,18 +1080,21 @@ bool BroadcastEngine::removeGlobalAudio(const std::string& name) {
 bool BroadcastEngine::addGuestVideo(int slot) { return addGuestVideo(slot, CanvasRect{0.5f, 0.5f, 0.5f, 0.5f}); }
 
 bool BroadcastEngine::addGuestVideo(int slot, const CanvasRect& rect) {
+    const TurnoMotor::Guarda turno(turno_);
     SourceSpec spec = inputs::videoInvitadoSpec(slot, "guest", "Invitado " + std::to_string(slot));
     spec.rect = rect;
     return addSource(spec);
 }
 
 void BroadcastEngine::setRetornoInvitado(int slot, const std::string& modo) {
+    const TurnoMotor::Guarda turno(turno_);
     retornos_[slot] = modo;
     const std::string name = "Invitado " + std::to_string(slot) + " (audio)";
     if (motor_ && sources_.count(name) > 0) motor_->retorno(slot, modo, name);
 }
 
 std::string BroadcastEngine::retornoInvitado(int slot) const {
+    const TurnoMotor::Guarda turno(turno_);
     const auto it = retornos_.find(slot);
     return it != retornos_.end() ? it->second : "mix_minus";
 }
@@ -1058,6 +1104,7 @@ std::string BroadcastEngine::retornoInvitado(int slot) const {
 // ============================================================================
 
 std::vector<std::string> BroadcastEngine::audioSources() const {
+    const TurnoMotor::Guarda turno(turno_);
     std::vector<std::string> out;
     const json& e = seccion(estadoMotor(), "entradas");
     for (const auto& n : ordenFuentes_)
@@ -1065,9 +1112,13 @@ std::vector<std::string> BroadcastEngine::audioSources() const {
     return out;
 }
 
-std::vector<std::string> BroadcastEngine::sourceNames() const { return ordenFuentes_; }
+std::vector<std::string> BroadcastEngine::sourceNames() const {
+    const TurnoMotor::Guarda turno(turno_);
+    return ordenFuentes_;
+}
 
 bool BroadcastEngine::setSourceVolume(const std::string& name, float mul, const std::string& salida) {
+    const TurnoMotor::Guarda turno(turno_);
     auto it = sources_.find(name);
     if (it == sources_.end()) return false;
     const float v = std::max(0.0f, mul);
@@ -1109,6 +1160,7 @@ float BroadcastEngine::nivelAplicado(const std::string& name, float volumen, con
 }
 
 void BroadcastEngine::setGananciaGrupo(const std::string& grupo, float mul, const std::string& salida) {
+    const TurnoMotor::Guarda turno(turno_);
     Salida* s = laSalida(salida);
     if (s == nullptr) return;
     const float g = std::max(0.0f, mul);
@@ -1125,6 +1177,7 @@ void BroadcastEngine::setGananciaGrupo(const std::string& grupo, float mul, cons
 }
 
 float BroadcastEngine::gananciaGrupo(const std::string& grupo, const std::string& salida) const {
+    const TurnoMotor::Guarda turno(turno_);
     const Salida* s = laSalida(salida);
     if (s == nullptr) return 1.0f;
     const auto it = s->gananciaGrupo.find(grupo);
@@ -1132,6 +1185,7 @@ float BroadcastEngine::gananciaGrupo(const std::string& grupo, const std::string
 }
 
 float BroadcastEngine::sourceVolume(const std::string& name, const std::string& salida) const {
+    const TurnoMotor::Guarda turno(turno_);
     auto it = sources_.find(name);
     if (it == sources_.end()) return 0.0f;
     const Salida* s = laSalida(salida);
@@ -1141,6 +1195,7 @@ float BroadcastEngine::sourceVolume(const std::string& name, const std::string& 
 }
 
 bool BroadcastEngine::setSourceMuted(const std::string& name, bool muted, const std::string& salida) {
+    const TurnoMotor::Guarda turno(turno_);
     auto it = sources_.find(name);
     if (it == sources_.end()) return false;
     Salida* s = laSalida(salida);
@@ -1160,6 +1215,7 @@ bool BroadcastEngine::setSourceMuted(const std::string& name, bool muted, const 
 }
 
 bool BroadcastEngine::sourceMuted(const std::string& name, const std::string& salida) const {
+    const TurnoMotor::Guarda turno(turno_);
     auto it = sources_.find(name);
     if (it == sources_.end()) return false;
     const Salida* s = laSalida(salida);
@@ -1169,6 +1225,7 @@ bool BroadcastEngine::sourceMuted(const std::string& name, const std::string& sa
 }
 
 float BroadcastEngine::sourcePeakDb(const std::string& name) const {
+    const TurnoMotor::Guarda turno(turno_);
     // Lo que entrega la entrada (después de su rack, vaya a donde vaya), como los
     // vúmetros del Mezclador. El del bus Programa marcaba -100 con audio si la
     // fuente no iba al Programa (un micrófono que sale solo por un parlante).
@@ -1182,12 +1239,14 @@ float BroadcastEngine::sourcePeakDb(const std::string& name) const {
 }
 
 float BroadcastEngine::sourceOutputPeakDb(const std::string& name) const {
+    const TurnoMotor::Guarda turno(turno_);
     const json& es = seccion(estadoMotor(), "entradas");
     if (!es.is_object() || !es.contains(name)) return -100.0f;
     return static_cast<float>(std::max(-100.0, es[name].value("pico_audio_db", -100.0)));
 }
 
 bool BroadcastEngine::setSourceMonitoring(const std::string& name, bool on) {
+    const TurnoMotor::Guarda turno(turno_);
     auto it = sources_.find(name);
     if (it == sources_.end()) return false;
     // La escucha fija: las marcadas suenan juntas (con un solo prendido, el motor solo la
@@ -1201,11 +1260,13 @@ bool BroadcastEngine::setSourceMonitoring(const std::string& name, bool on) {
 }
 
 bool BroadcastEngine::sourceMonitoring(const std::string& name) const {
+    const TurnoMotor::Guarda turno(turno_);
     auto it = sources_.find(name);
     return it != sources_.end() && (it->second.monitor || pfl_ == name);
 }
 
 bool BroadcastEngine::sourceEscuchaFija(const std::string& name) const {
+    const TurnoMotor::Guarda turno(turno_);
     auto it = sources_.find(name);
     return it != sources_.end() && it->second.monitor;
 }
@@ -1222,6 +1283,7 @@ std::string BroadcastEngine::aplicarEscucha() {
 }
 
 bool BroadcastEngine::setPfl(const std::string& name, const std::string& modo, const std::string& salida) {
+    const TurnoMotor::Guarda turno(turno_);
     if (modo != "pfl" && modo != "afl") {
         setError(ba::i18n::traducir("emision", "el solo de la escucha es «pfl» o «afl»"));
         return false;
@@ -1249,6 +1311,7 @@ bool BroadcastEngine::setPfl(const std::string& name, const std::string& modo, c
 }
 
 bool BroadcastEngine::setSalidaEscucha(const std::string& salida) {
+    const TurnoMotor::Guarda turno(turno_);
     const Salida* s = laSalida(salida);
     if (s == nullptr) return false;
     if (s->id == salidaEscucha_) return true;
@@ -1265,6 +1328,7 @@ bool BroadcastEngine::setSalidaEscucha(const std::string& salida) {
 }
 
 bool BroadcastEngine::setSourceSyncOffset(const std::string& name, int ms) {
+    const TurnoMotor::Guarda turno(turno_);
     auto it = sources_.find(name);
     if (it == sources_.end()) {
         setError(ba::i18n::llenar(ba::i18n::traducir("emision", "no existe la fuente '%1'"), {name}));
@@ -1282,11 +1346,13 @@ bool BroadcastEngine::setSourceSyncOffset(const std::string& name, int ms) {
 }
 
 int BroadcastEngine::sourceSyncOffset(const std::string& name) const {
+    const TurnoMotor::Guarda turno(turno_);
     auto it = sources_.find(name);
     return it != sources_.end() ? it->second.syncMs : 0;
 }
 
 bool BroadcastEngine::setSourcePistas(const std::string& name, const std::vector<int>& pistas) {
+    const TurnoMotor::Guarda turno(turno_);
     auto it = sources_.find(name);
     if (it == sources_.end()) return false;
     const std::string e = motor_->ponerPistas(name, pistas);
@@ -1301,6 +1367,7 @@ bool BroadcastEngine::setSourcePistas(const std::string& name, const std::vector
 }
 
 std::vector<int> BroadcastEngine::sourcePistas(const std::string& name) const {
+    const TurnoMotor::Guarda turno(turno_);
     auto it = sources_.find(name);
     return it != sources_.end() ? it->second.pistas : std::vector<int>{};
 }
@@ -1310,6 +1377,7 @@ std::vector<int> BroadcastEngine::sourcePistas(const std::string& name) const {
 // ============================================================================
 
 bool BroadcastEngine::playMedia(const std::string& name, const std::string& file, bool loop, float volume) {
+    const TurnoMotor::Guarda turno(turno_);
     if (file.empty()) {
         setError(ba::i18n::traducir("emision", "no se dijo que archivo reproducir"));
         return false;
@@ -1331,6 +1399,7 @@ bool BroadcastEngine::playMedia(const std::string& name, const std::string& file
 }
 
 bool BroadcastEngine::restartMedia(const std::string& name) {
+    const TurnoMotor::Guarda turno(turno_);
     if (sources_.count(name) == 0) {
         setError(ba::i18n::llenar(ba::i18n::traducir("emision", "no existe la fuente de medios \"%1\""), {name}));
         return false;
@@ -1341,27 +1410,32 @@ bool BroadcastEngine::restartMedia(const std::string& name) {
 }
 
 bool BroadcastEngine::seekMedia(const std::string& name, std::int64_t ms) {
+    const TurnoMotor::Guarda turno(turno_);
     if (sources_.count(name) == 0) return false;
     return motor_->controlMedio(name, "ir", std::max<std::int64_t>(0, ms)).empty();
 }
 
 bool BroadcastEngine::pararMedia(const std::string& name) {
+    const TurnoMotor::Guarda turno(turno_);
     if (sources_.count(name) == 0) return false;
     return motor_->controlMedio(name, "parar").empty();
 }
 
 bool BroadcastEngine::pausarMedia(const std::string& name, bool pausa) {
+    const TurnoMotor::Guarda turno(turno_);
     if (sources_.count(name) == 0) return false;
     return motor_->controlMedio(name, pausa ? "pausa" : "play").empty();
 }
 
 bool BroadcastEngine::stopMedia(const std::string& name) {
+    const TurnoMotor::Guarda turno(turno_);
     if (sources_.count(name) == 0) return false;
     motor_->controlMedio(name, "parar");
     return removeGlobalAudio(name);
 }
 
 std::vector<BroadcastEngine::MediaInfo> BroadcastEngine::mediaSources() const {
+    const TurnoMotor::Guarda turno(turno_);
     std::vector<MediaInfo> out;
     if (!motor_) return out;
     for (const auto& n : ordenFuentes_) {
@@ -1378,6 +1452,7 @@ std::vector<BroadcastEngine::MediaInfo> BroadcastEngine::mediaSources() const {
 // ============================================================================
 
 std::string BroadcastEngine::graphicsDeviceName() const {
+    const TurnoMotor::Guarda turno(turno_);
 #if defined(__APPLE__)
     return "Apple (VideoToolbox, GStreamer)";
 #else
@@ -1386,6 +1461,7 @@ std::string BroadcastEngine::graphicsDeviceName() const {
 }
 
 std::vector<BroadcastEngine::EncoderInfo> BroadcastEngine::videoEncoders() const {
+    const TurnoMotor::Guarda turno(turno_);
     std::vector<EncoderInfo> out;
     for (const char* f : {"vtenc_h264_hw", "vtenc_h264", "nvh264enc", "qsvh264enc", "d3d12h264enc", "amfh264enc", "vah264enc",
                           "mfh264enc", "x264enc"}) {
@@ -1397,6 +1473,7 @@ std::vector<BroadcastEngine::EncoderInfo> BroadcastEngine::videoEncoders() const
 }
 
 bool BroadcastEngine::outputsActive() const {
+    const TurnoMotor::Guarda turno(turno_);
     // Lo pedido (las salidas son del hilo de salidas: ver enSalidas), en todas las salidas.
     std::lock_guard<std::mutex> l(pedidosM_);
     for (const auto& [id, s] : salidas_)
@@ -1405,6 +1482,7 @@ bool BroadcastEngine::outputsActive() const {
 }
 
 bool BroadcastEngine::resetEncoders() {
+    const TurnoMotor::Guarda turno(turno_);
     if (outputsActive()) {
         setError(ba::i18n::traducir("emision", "no se puede cambiar la codificacion con salidas activas"));
         return false;
@@ -1413,6 +1491,7 @@ bool BroadcastEngine::resetEncoders() {
 }
 
 std::vector<std::string> BroadcastEngine::videoEncoderCandidates(const EncoderConfig& enc) const {
+    const TurnoMotor::Guarda turno(turno_);
     std::vector<std::string> pedidos;
     const std::string& v = enc.videoEncoder;
     if (v == "videotoolbox") pedidos = {"vtenc_h264_hw", "vtenc_h264"};
@@ -1431,6 +1510,7 @@ std::vector<std::string> BroadcastEngine::videoEncoderCandidates(const EncoderCo
 }
 
 bool BroadcastEngine::resetVideo(const VideoConfig& video, const std::function<VideoConfig()>& conElMotorApagado) {
+    const TurnoMotor::Guarda turno(turno_);
     if (!started_) return false;
     if (outputsActive() && !conElMotorApagado) {
         setError(ba::i18n::traducir("emision", "no se puede cambiar la resolucion con salidas activas"));
@@ -1524,6 +1604,7 @@ bool BroadcastEngine::resetVideo(const VideoConfig& video, const std::function<V
 // ============================================================================
 
 std::string BroadcastEngine::ponerVideoDeGrafico(const std::string& grafico, const json& capas) {
+    const TurnoMotor::Guarda turno(turno_);
     if (!capas.is_array() || capas.empty()) {
         quitarVideoDeGrafico(grafico);
         return {};
@@ -1546,6 +1627,7 @@ std::string BroadcastEngine::ponerVideoDeGrafico(const std::string& grafico, con
 }
 
 void BroadcastEngine::empezarVideoDeGrafico(const std::string& grafico, std::int64_t desdeNs) {
+    const TurnoMotor::Guarda turno(turno_);
     const auto it = videoDeGraficos_.find(grafico);
     if (it == videoDeGraficos_.end()) return;
     it->second["desde_ns"] = desdeNs;
@@ -1553,6 +1635,7 @@ void BroadcastEngine::empezarVideoDeGrafico(const std::string& grafico, std::int
 }
 
 void BroadcastEngine::quitarVideoDeGrafico(const std::string& grafico) {
+    const TurnoMotor::Guarda turno(turno_);
     if (videoDeGraficos_.erase(grafico) > 0) publicarEscenasCon(grafico);
 }
 

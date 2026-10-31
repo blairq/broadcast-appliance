@@ -838,6 +838,12 @@ void McpService::setPlano(PlanoControl& plano) {
     e.enControl = [&plano]() { return plano.enControl(); };
     e.topeInterfazMs = ba::ajustes::entero("mcp.topeInterfazMs", 5000);
     core_.setEjecutores(std::move(e));
+    // Las de control tocan el motor y su aire, que la interfaz también usa: corren con el
+    // turno del motor (emision/TurnoMotor.hpp). La interfaz lo tiene solo mientras está
+    // adentro del motor; si no lo suelta en el tope (trabada ADENTRO, un rearme), «ocupado».
+    const TurnoMotor& turno = rt_.engine().turno();
+    core_.setTurno({[&turno](int ms) { return turno.tomarHasta(ms); }, [&turno]() { turno.soltar(); },
+                    [&turno]() { return turno.estado(); }});
     // Lo que se sabe sin la interfaz, para contestar cuando está ocupada: el documento de
     // aire (qué sale de cada salida, el negro, la placa, la línea), el latido y el plano.
     core_.setFotoDeEmergencia([this]() {
@@ -982,6 +988,60 @@ FuentesDeFoto McpService::fuentesDeFoto() {
 }
 
 // ============================================================================
+// Lo que hacen las herramientas de aire del control (McpMando.hpp)
+// ============================================================================
+
+MandoDeAire McpService::mandoDeAire() {
+    // Todo esto corre en el plano de control con el turno del motor tomado (McpCore::
+    // setTurno): los conmutadores, la seguridad del aire y lo que sale del runtime lo toman
+    // también (son de a uno con la interfaz) y avisan a las vistas en su hilo (enDueno).
+    AppRuntime& rt = rt_;
+    StudioViewModel& vm = vm_;
+    MandoDeAire m;
+    const auto conm = [&vm](const std::string& salida) -> escenas::Conmutador& { return conmutadorDe(vm, salida); };
+    m.escenas = [&rt]() { return rt.engine().sceneNames(); };
+    m.alAire = [&rt](const std::string& salida) { return rt.engine().currentScene(salida); };
+    m.armada = [conm](const std::string& salida) { return conm(salida).armada(); };
+    m.poner = [conm](const std::string& salida, const std::string& escena) { return conm(salida).poner(escena); };
+    m.armar = [conm](const std::string& salida, const std::string& escena) { return conm(salida).armar(escena); };
+    m.take = [conm](const std::string& salida, const std::string& tipo, int ms) { return conm(salida).take(tipo, ms); };
+    m.tbar = [conm](const std::string& salida, double t, bool soltar) { return conm(salida).tbar(t, soltar); };
+    m.manualHacia = [&rt](const std::string& salida) { return rt.engine().manualHacia(salida); };
+    // La seguridad del aire no tiene estado propio (lo tiene el motor): se usa la de la vista.
+    emision::SeguridadAire& seg = vm.seguridadAire();
+    m.ftb = [&seg](const std::string& salida, bool activar, int ms, const std::string& audio) {
+        return seg.ftb(activar, ms, audio, salida);
+    };
+    m.placa = [&seg](const std::string& salida, bool activar, const std::string& texto, const std::string& imagen, int ms) {
+        return seg.placa(activar, texto, imagen, ms, salida);
+    };
+    m.estadoPlaca = [&seg](const std::string& salida) { return seg.estado(salida); };
+    m.transmitir = [&rt](const std::string& salida, const std::string& server, const std::string& key, bool caliente) {
+        MandoDeAire::Inicio r;
+        r.ok = rt.salirAlAireManual(server, key, caliente, salida);
+        // ultimoInicio y lastError son de este hilo (como errno): los de recién.
+        const BroadcastEngine::Inicio i = rt.engine().ultimoInicio();
+        r.yaIgual = r.ok && i == BroadcastEngine::Inicio::YaIgual;
+        if (!r.ok && i == BroadcastEngine::Inicio::YaOtroDestino) r.activoEn = rt.engine().destinoActivo(salida);
+        if (!r.ok) r.error = rt.lastError();
+        return r;
+    };
+    m.cortarTransmision = [&rt](const std::string& salida) { rt.stopStreaming(salida); };
+    m.iniciarDestino = [&rt](const std::string& destino) { return rt.iniciarDestino(destino); };
+    m.detenerDestino = [&rt](const std::string& destino) { rt.detenerDestino(destino); };
+    m.destinos = [&rt]() { return rt.destinos(); };
+    m.variableClave = [&rt]() { return rt.ajustesAire().claveEnv; };
+    m.grabacion = [&rt](const std::string& salida) { return rt.engine().grabacionEstado(salida); };
+    m.disco = [&rt]() { return rt.discoGrabacion(); };
+    m.grabar = [&rt](const std::string& salida) { return rt.startRecording(salida) ? std::string() : rt.lastError(); };
+    m.pararGrabacion = [&rt](const std::string& salida) { rt.stopRecording(salida); };
+    m.algoSale = [&rt]() { return rt.engine().outputsActive(); };
+    m.contenedor = [&rt]() { return rt.ajustesAire().rec.container; };
+    m.discoMinimoH = AppRuntime::kDiscoMinimoH;
+    return m;
+}
+
+// ============================================================================
 // Herramientas del motor
 // ============================================================================
 
@@ -1080,67 +1140,10 @@ void McpService::registerTools() {
     // status, salidas_listar, sistema_recursos, los registros, el bus y la lista de aire
     // contestan con la interfaz trabada (McpFoto.cpp): leen lo de abajo, desde el pool.
     registrarHerramientasDeFoto(core_, fuentesDeFoto());
-    {
-        Tool t;
-        t.name = "aire_ftb";
-        t.porSalida = true;
-        t.title = ba::i18n::traducir("mcp", "Fundido a negro (FTB)");
-        t.category = "escenas";
-        t.clase = Clase::Aire;
-        t.porQueAire = QT_TRANSLATE_NOOP("mcp", "manda la salida a negro");
-        t.aireSi = AireSi::AlActivar;
-        t.description = ba::i18n::traducir("mcp", "Fundido a negro de TODO lo que sale (encima del programa, sin tocar las escenas). `activar` "
-                        "true/false, `ms` de fundido (de fábrica 800), `audio`: bajar (de fábrica: el audio baja con "
-                        "el negro) o mantener. Activarlo al aire es una acción de aire (pide confirmación si lo pide "
-                        "algo automático); sacarlo, no. Cada salida tiene su negro (`salida`).");
-        t.inputSchema = {{"type", "object"},
-                         {"required", {"activar"}},
-                         {"properties",
-                          {{"activar", {{"type", "boolean"}}},
-                           {"ms", {{"type", "integer"}, {"minimum", 0}, {"maximum", 10000}}},
-                           {"audio", {{"type", "string"}, {"enum", {"bajar", "mantener"}}}}}}};
-        t.run = [this, &vm](const json& a, Done done) {
-            auto& s = vm.seguridadAire();
-            const std::string salida = core_.salidaDe(a);
-            if (const std::string e =
-                    s.ftb(a.value("activar", false), a.value("ms", 800), a.value("audio", std::string("bajar")), salida);
-                !e.empty())
-                return done(ToolResult::error(e));
-            done(ToolResult().data(s.estado(salida)));
-        };
-        core_.addTool(std::move(t));
-    }
-    {
-        Tool t;
-        t.name = "aire_placa";
-        t.porSalida = true;
-        t.title = ba::i18n::traducir("mcp", "Placa de seguridad");
-        t.category = "escenas";
-        t.clase = Clase::Aire;
-        t.porQueAire = QT_TRANSLATE_NOOP("mcp", "tapa la salida con una placa");
-        t.aireSi = AireSi::AlActivar;
-        t.description = ba::i18n::traducir("mcp", "Una placa encima de todo lo que sale (\"Cuarto intermedio\", \"Volvemos enseguida\", \"Minuto "
-                        "de silencio\"…), con `texto`, una `imagen` opcional (ruta) y `ms` de fundido (600). No depende "
-                        "de las escenas. Activarla al aire pide confirmación si la pide algo automático; sacarla, no. "
-                        "Sobrevive a una caída de la app. Cada salida tiene su placa (`salida`).");
-        t.inputSchema = {{"type", "object"},
-                         {"required", {"activar"}},
-                         {"properties",
-                          {{"activar", {{"type", "boolean"}}},
-                           {"texto", {{"type", "string"}}},
-                           {"imagen", {{"type", "string"}}},
-                           {"ms", {{"type", "integer"}, {"minimum", 0}, {"maximum", 10000}}}}}};
-        t.run = [this, &vm](const json& a, Done done) {
-            auto& s = vm.seguridadAire();
-            const std::string salida = core_.salidaDe(a);
-            if (const std::string e = s.placa(a.value("activar", false), a.value("texto", std::string()),
-                                              a.value("imagen", std::string()), a.value("ms", 600), salida);
-                !e.empty())
-                return done(ToolResult::error(e));
-            done(ToolResult().data(s.estado(salida)));
-        };
-        core_.addTool(std::move(t));
-    }
+    // Lo que sale (escenas, TAKE, T-bar, el negro y la placa, transmitir y grabar), en el
+    // plano de control con el turno del motor: con la interfaz trabada se hace igual
+    // (McpMando.cpp; F3-03).
+    registrarHerramientasDeAire(core_, mandoDeAire());
     {
         Tool t;
         t.name = "aire_placas_listar";
@@ -1305,108 +1308,7 @@ void McpService::registerTools() {
         };
         core_.addTool(std::move(t));
     }
-    {
-        Tool t;
-        t.name = "scene_switch";
-        t.porSalida = true;
-        t.title = ba::i18n::traducir("mcp", "Poner una escena al aire (corte directo)");
-        t.category = "escenas";
-        t.clase = Clase::Aire;
-        t.porQueAire = QT_TRANSLATE_NOOP("mcp", "cambia la escena al aire");
-        t.description = ba::i18n::traducir("mcp", "Pone una escena al aire YA, sin pasar por el preview: es «corta a la camara 2», "
-                        "«pone la apertura». Cambia la escena del programa (con la transicion configurada). "
-                        "Lo que se ve y oye en la "
-                        "transmision cambia EN EL ACTO, sin pasar por el bus de preview.");
-        t.details =
-            ba::i18n::traducir("mcp", "Es el corte de urgencia: sale ya. Para lo demas, la forma de trabajar de una mesa es "
-            "`scene_preview` (armar el proximo plano) -> mirarlo con `foto_fuente` -> `preview_al_aire`. "
-            "Dos pasos parece mas lento y es al reves: lo que esta roto se ve ANTES de salir al aire, "
-            "no despues.");
-        t.inputSchema = {
-            {"type", "object"},
-            {"properties", {{"name", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "Nombre de la escena.")}}}}},
-            {"required", {"name"}}};
-        t.examples = {R"({"name": "Entrevista"})"};
-        t.run = [this, &vm, sceneExists, noScene](const json& a, Done done) {
-            const std::string name = a["name"];
-            if (!sceneExists(name)) return done(noScene(name));
-            if (const std::string e = conmutadorDe(core_, vm, a).poner(name); !e.empty())
-                return done(ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "No se pudo: %1"), {e})));
-            done(ToolResult::ok(ba::i18n::llenar(ba::i18n::traducir("mcp", "Al aire: %1"), {name})));
-        };
-        core_.addTool(std::move(t));
-    }
     // --- El bus de preview: armar, mirar, TAKE --------------------------------
-    {
-        Tool t;
-        t.name = "scene_preview";
-        t.porSalida = true;
-        t.title = ba::i18n::traducir("mcp", "Armar la proxima escena (sin sacarla al aire)");
-        t.category = "escenas";
-        t.clase = Clase::Escritura;
-        t.description =
-            ba::i18n::traducir("mcp", "Pone una escena en el bus de PREVIEW: queda armada para el proximo `preview_al_aire`. NO cambia "
-            "lo que se ve en la transmision.");
-        t.details =
-            ba::i18n::traducir("mcp", "Asi se opera una mesa de switcher: se arma el proximo plano, se MIRA (`foto_fuente` con "
-            "el mismo nombre da la foto de como va a salir), y recien ahi `preview_al_aire`.\n\n"
-            "Armar la escena que YA esta al aire no tiene sentido (el take cortaria a lo mismo) y se "
-            "rechaza.\n\n"
-            "`scene_list` dice cual esta armada y cual al aire.");
-        t.inputSchema = {
-            {"type", "object"}, {"properties", {{"name", {{"type", "string"}}}}}, {"required", {"name"}}};
-        t.examples = {R"({"name": "06 Debate invitados"})"};
-        t.run = [this, &vm, sceneExists, noScene](const json& a, Done done) {
-            const std::string name = a["name"];
-            if (!sceneExists(name)) return done(noScene(name));
-            if (const std::string e = conmutadorDe(core_, vm, a).armar(name); !e.empty())
-                return done(ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "No se armo: %1"), {e})));
-            done(ToolResult::ok(ba::i18n::llenar(ba::i18n::traducir("mcp", "Armada: %1. Mirala con foto_fuente y sacala con preview_al_aire."), {name})));
-        };
-        core_.addTool(std::move(t));
-    }
-    {
-        Tool t;
-        t.name = "scene_cut";
-        t.porSalida = true;
-        t.title = ba::i18n::traducir("mcp", "CUT: corte seco a la armada");
-        t.category = "escenas";
-        t.clase = Clase::Aire;
-        t.porQueAire = QT_TRANSLATE_NOOP("mcp", "corta la armada al aire");
-        t.description = ba::i18n::traducir("mcp", "Pone al aire la escena armada con un CORTE (sin transicion), aunque la global sea un fundido. "
-                        "Deja armada la que salia.");
-        t.run = [this, &vm](const json& a, Done done) {
-            escenas::Conmutador& c = conmutadorDe(core_, vm, a);
-            const std::string armada = c.armada();
-            if (armada.empty()) return done(ToolResult::error(ba::i18n::traducir("mcp", "No hay nada armado (scene_preview).")));
-            if (const std::string e = c.take("cut", 0); !e.empty())
-                return done(ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "No se pudo: %1"), {e})));
-            done(ToolResult::ok(ba::i18n::llenar(ba::i18n::traducir("mcp", "AL AIRE (corte): %1"), {armada})));
-        };
-        core_.addTool(std::move(t));
-    }
-    {
-        Tool t;
-        t.name = "transicion_manual";
-        t.porSalida = true;
-        t.title = ba::i18n::traducir("mcp", "T-bar: transicion a mano");
-        t.category = "escenas";
-        t.clase = Clase::Aire;
-        t.porQueAire = QT_TRANSLATE_NOOP("mcp", "lleva la transición a mano (T-bar)");
-        t.description = ba::i18n::traducir("mcp", "Lleva la transicion hacia la escena armada a mano: `t` de 0 a 1 (la palanca). Con `soltar`, "
-                        "termina: pasada la mitad queda al aire, si no vuelve. Para un fader de la botonera: "
-                        "{\"t\": \"{{valor}}\"} con el fader de 0 a 1.");
-        t.inputSchema = {{"type", "object"},
-                         {"required", {"t"}},
-                         {"properties", {{"t", {{"type", "number"}, {"minimum", 0}, {"maximum", 1}}}, {"soltar", {{"type", "boolean"}}}}}};
-        t.run = [this, &rt, &vm](const json& a, Done done) {
-            const std::string salida = core_.salidaDe(a);
-            if (const std::string e = conmutadorDe(core_, vm, a).tbar(a.value("t", 0.0), a.value("soltar", false)); !e.empty())
-                return done(ToolResult::error(e));
-            done(ToolResult().data({{"al_aire", rt.engine().currentScene(salida)}, {"hacia", rt.engine().manualHacia(salida)}}));
-        };
-        core_.addTool(std::move(t));
-    }
     {
         Tool t;
         t.name = "escena_transicion";
@@ -1448,36 +1350,6 @@ void McpService::registerTools() {
             json l = json::array();
             for (const std::string& f : c.afvFuentes()) l.push_back(f);
             done(ToolResult().data({{"sigue_video", l}}));
-        };
-        core_.addTool(std::move(t));
-    }
-    {
-        Tool t;
-        t.name = "preview_al_aire";
-        t.porSalida = true;
-        t.title = ba::i18n::traducir("mcp", "TAKE: sacar al aire la escena armada");
-        t.category = "escenas";
-        t.clase = Clase::Aire;
-        t.porQueAire = QT_TRANSLATE_NOOP("mcp", "pasa el preview al aire");
-        t.description = ba::i18n::traducir("mcp", "Pasa al aire la escena que estaba ARMADA en preview, con la transición configurada. Deja armada la "
-            "que salia, para poder volver de un golpe.");
-        t.details = ba::i18n::traducir("mcp", "Sin nada armado no hace nada y lo dice: armar primero con `scene_preview`.\n\n"
-                    "Que el plano que SALE del aire quede armado es como funciona cualquier mesa: "
-                    "despues de un take, volver a lo anterior es un solo take mas.");
-        t.inputSchema = {{"type", "object"},
-                         {"properties",
-                          {{"transicion", {{"type", "string"}, {"enum", {"cut", "fade", "swipe", "slide", "fade_to_color"}},
-                                           {"description", ba::i18n::traducir("mcp", "otra transicion solo para este take (si no, la de entrada de la escena o la global)")}}},
-                           {"ms", {{"type", "integer"}, {"minimum", 0}, {"maximum", 10000}}}}}};
-        t.run = [this, &vm](const json& a, Done done) {
-            escenas::Conmutador& c = conmutadorDe(core_, vm, a);
-            const std::string armada = c.armada();
-            if (armada.empty())
-                return done(ToolResult::error(
-                    ba::i18n::traducir("mcp", "No hay nada armado. Arma el proximo plano con scene_preview {\"name\": ...}.")));
-            if (const std::string e = c.take(a.value("transicion", std::string()), a.value("ms", -1)); !e.empty())
-                return done(ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "No se pudo: %1"), {e})));
-            done(ToolResult::ok(ba::i18n::llenar(ba::i18n::traducir("mcp", "AL AIRE: %1. Queda armada: %2."), {armada, c.armada()})));
         };
         core_.addTool(std::move(t));
     }
@@ -2472,82 +2344,6 @@ void McpService::registerTools() {
     }
 
     // --- Salidas -------------------------------------------------------------------
-    {
-        Tool t;
-        t.name = "stream_start";
-        t.porSalida = true;
-        t.title = ba::i18n::traducir("mcp", "Salir al aire (transmitir)");
-        t.category = "salidas";
-        t.clase = Clase::Aire;
-        t.porQueAire = QT_TRANSLATE_NOOP("mcp", "arranca o cambia la transmisión");
-        t.openWorld = true;
-        t.description =
-            ba::i18n::traducir("mcp", "Empieza a transmitir por RTMP. Sin argumentos usa el servidor configurado y la clave de la "
-            "variable de entorno. La clave NUNCA se guarda en disco.");
-        t.details = ba::i18n::traducir("mcp", "Si YA esta transmitiendo: al mismo destino no hace nada (lo dice); a OTRO destino da error "
-                    "con `activo_en` (no cambia nada), salvo `cambiar_en_caliente`: true, que corta y arranca al "
-                    "nuevo. `destino`: el id de un destino adicional (stream_destinos) o \"todos\": arranca esos, "
-                    "ademas del principal (cada destino sale con el programa de SU salida). Con `salida` (otra que la por "
-                    "omisión), su transmision principal: ahí `server` y `key` son obligatorios (la clave no se guarda).");
-        t.inputSchema = {
-            {"type", "object"},
-            {"properties",
-             {{"server", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "rtmp://... (opcional).")}}},
-              {"key", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "Clave de transmision (solo en memoria).")}}},
-              {"cambiar_en_caliente", {{"type", "boolean"}, {"description", ba::i18n::traducir("mcp", "estando al aire, pasar a este destino")}}},
-              {"destino", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "id de un destino adicional o \"todos\"")}}}}}};
-        t.run = [this, &rt](const json& a, Done done) {
-            const std::string salida = core_.salidaDe(a);
-            if (a.contains("destino")) {
-                const std::string e = rt.iniciarDestino(a.value("destino", std::string()));
-                if (!e.empty()) return done(ToolResult::error(e));
-                return done(ToolResult().text(ba::i18n::traducir("mcp", "Destino iniciado.")).data(json{{"destinos", rt.destinos()}}));
-            }
-            // La misma operación del modelo que el botón (el vivo queda en el bus y el histórico).
-            if (!rt.salirAlAireManual(a.value("server", std::string()), a.value("key", std::string()),
-                                      a.value("cambiar_en_caliente", false), salida)) {
-                if (rt.engine().ultimoInicio() == BroadcastEngine::Inicio::YaOtroDestino) {
-                    ToolResult r = ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "Ya esta transmitiendo a %1: NO se cambio nada. Para pasar a "
-                                                                                       "este destino: `cambiar_en_caliente`: true "
-                                                                                       "(corta un instante)."),
-                                                                    {rt.engine().destinoActivo(salida)}));
-                    r.structured = json{{"activo_en", rt.engine().destinoActivo(salida)}};
-                    return done(r);
-                }
-                return done(ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "No arranco: %1. Si falta la clave: pasala en `key` o en la "
-                                                                               "variable %2."),
-                                                           {rt.lastError(), rt.config().streamKeyEnv})));
-            }
-            if (rt.engine().ultimoInicio() == BroadcastEngine::Inicio::YaIgual)
-                return done(ToolResult::ok(ba::i18n::traducir("mcp", "Ya estaba transmitiendo a ese destino: no cambio nada.")));
-            done(ToolResult::ok(ba::i18n::traducir("mcp", "Transmitiendo.")));
-        };
-        core_.addTool(std::move(t));
-    }
-    {
-        Tool t;
-        t.name = "stream_stop";
-        t.porSalida = true;
-        t.title = ba::i18n::traducir("mcp", "Cortar la transmision");
-        t.category = "salidas";
-        t.clase = Clase::Aire;
-        t.porQueAire = QT_TRANSLATE_NOOP("mcp", "corta la transmisión");
-        t.destructive = true;
-        t.description =
-            ba::i18n::traducir("mcp", "BAJA del aire: corta la transmision que esta saliendo. Detiene la transmision en vivo. Con "
-            "`destino` (id o \"todos\"), corta solo ese destino adicional y el principal sigue. Con `salida`, la "
-            "transmision principal de esa salida (las demás siguen).");
-        t.inputSchema = {{"type", "object"}, {"properties", {{"destino", {{"type", "string"}}}}}};
-        t.run = [this, &rt](const json& a, Done done) {
-            if (a.contains("destino")) {
-                rt.detenerDestino(a.value("destino", std::string()));
-                return done(ToolResult::ok(ba::i18n::traducir("mcp", "Destino cortado; el resto sigue.")));
-            }
-            rt.stopStreaming(core_.salidaDe(a));
-            done(ToolResult::ok(ba::i18n::traducir("mcp", "Transmision detenida.")));
-        };
-        core_.addTool(std::move(t));
-    }
     {
         Tool t;
         t.name = "audio_loudness";
@@ -4157,70 +3953,6 @@ void McpService::registerTools() {
             done(ToolResult().data(json{{"grabando", grabando},
                                         {"noSePudo", fallaron},
                                         {"tope", BroadcastEngine::kMaxIndividuales}}));
-        };
-        core_.addTool(std::move(t));
-    }
-    {
-        Tool t;
-        t.name = "record_start";
-        t.porSalida = true;
-        t.title = ba::i18n::traducir("mcp", "Grabar");
-        t.category = "salidas";
-        t.clase = Clase::Escritura;
-        t.description = ba::i18n::traducir("mcp", "EMPEZAR a grabar el programa en disco, con la carpeta y el formato de la "
-                        "configuracion. Es para cuando todavia no se esta grabando.");
-        t.run = [this, &rt](const json& a, Done done) {
-            const std::string salida = core_.salidaDe(a);
-            if (rt.engine().grabacionEstado(salida).value("activa", false))
-                return done(ToolResult::ok(ba::i18n::traducir("mcp", "Ya esta grabando.")));
-            const json d = rt.discoGrabacion();
-            if (d.value("horas", -1.0) >= 0 && d.value("horas", -1.0) < AppRuntime::kDiscoMinimoH)
-                return done(ToolResult::error(ba::i18n::traducir("mcp", "Queda disco para menos de 15 minutos a este bitrate: no se arranca sola. "
-                                              "Liberá espacio o que el operador lo arranque desde Salidas.")));
-            if (!rt.startRecording(salida))
-                return done(ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "No arranco: %1"), {rt.lastError()})));
-            // La grabación arranca en el hilo de salidas (la interfaz no espera el
-            // codificador): se mira cada 200 ms, sin trabar nada, hasta que tiene archivo.
-            auto mirar = std::make_shared<std::function<void(int)>>();
-            *mirar = [&rt, d, done, mirar, salida](int n) {
-                const json g = rt.engine().grabacionEstado(salida);
-                const std::string archivo = g.value("archivo", std::string());
-                if (g.value("activa", false) && !archivo.empty()) {
-                    QTimer::singleShot(0, [mirar]() { *mirar = nullptr; });
-                    return done(ToolResult()
-                                    .text(ba::i18n::llenar(ba::i18n::traducir("mcp", "Grabando en %1."), {archivo}))
-                                    .data(json{{"archivo", archivo},
-                                               {"contenedor_real", std::filesystem::path(archivo).extension().string()},
-                                               {"contenedor_pedido", rt.config().rec.container},
-                                               {"horas_restantes", d.value("horas", -1.0)}}));
-                }
-                if (n >= 25 || !rt.engine().outputsActive()) {
-                    QTimer::singleShot(0, [mirar]() { *mirar = nullptr; });
-                    return done(rt.engine().outputsActive()
-                                    ? ToolResult::ok(ba::i18n::traducir("mcp", "Pedido: la grabación está arrancando (todavía sin archivo)."))
-                                    : ToolResult::error(ba::i18n::traducir("mcp", "La grabación no arrancó: mirá el aviso en la interfaz.")));
-                }
-                QTimer::singleShot(200, [mirar, n]() {
-                    if (*mirar) (*mirar)(n + 1);
-                });
-            };
-            (*mirar)(0);
-        };
-        core_.addTool(std::move(t));
-    }
-    {
-        Tool t;
-        t.name = "record_stop";
-        t.porSalida = true;
-        t.destructive = true;
-        t.title = ba::i18n::traducir("mcp", "Detener grabacion");
-        t.category = "salidas";
-        t.clase = Clase::Aire;
-        t.porQueAire = QT_TRANSLATE_NOOP("mcp", "corta la grabación");
-        t.description = ba::i18n::traducir("mcp", "PARA de grabar: cierra el archivo y deja de escribir en disco. Con `salida`, la grabación de esa salida.");
-        t.run = [this, &rt](const json& a, Done done) {
-            rt.stopRecording(core_.salidaDe(a));
-            done(ToolResult::ok(ba::i18n::traducir("mcp", "Grabacion detenida.")));
         };
         core_.addTool(std::move(t));
     }

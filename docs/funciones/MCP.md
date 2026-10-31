@@ -173,9 +173,9 @@ en el hilo que declara (`hilo` en `docs/mcp.json`):
 
 | Hilo | Dónde corre | Cuáles |
 |---|---|---|
-| `interfaz` | El hilo de la interfaz (dueño del motor). Pedida desde otro hilo, con **tope**: si la interfaz no la toma en `mcp.topeInterfazMs` (5 s de fábrica), se contesta `isError` con `structuredContent.interfaz_ocupada: true` y una `foto` (el documento de aire, el latido, el plano) y **no se hace después** | Lo de fábrica: casi todas leen o mueven objetos de la interfaz o del motor |
+| `interfaz` | El hilo de la interfaz. Pedida desde otro hilo, con **tope**: si la interfaz no la toma en `mcp.topeInterfazMs` (5 s de fábrica), se contesta `isError` con `structuredContent.interfaz_ocupada: true` y una `foto` (el documento de aire, el latido, el plano) y **no se hace después** | Lo de fábrica: casi todas leen o mueven objetos de la interfaz |
 | `foto` | Un hilo del pool; lee solo cosas seguras entre hilos | `help`, `help_search`, `security_status`, `alert_types`, `alert_events`, `alert_wait`; y las de diagnóstico y estado (`mcp/McpFoto.cpp`): `status`, `salidas_listar`, `sistema_recursos`, `log_leer`, `logs_tail`, `eventos_temas`, `eventos_ultimo`, `mcp_aire_lista`, `gst_elementos` |
-| `control` | La cola del plano de control, en orden | (ninguna todavía) |
+| `control` | La cola del plano de control, en orden, con el **turno del motor** tomado (ver abajo). Si no se lo dan en `mcp.topeInterfazMs` (la interfaz trabada ADENTRO del motor, un rearme), `isError` con `structuredContent.motor_ocupado: true`, quién lo tiene (`turno.quien`) y la `foto`, y **no se hace después** | Las de aire (`mcp/McpMando.cpp`): `scene_switch`, `scene_preview`, `scene_cut`, `preview_al_aire`, `transicion_manual`, `aire_ftb`, `aire_placa`, `stream_start`, `stream_stop`, `record_start`, `record_stop` |
 
 Una de la `foto` lee el documento de aire, la foto de las salidas que publica el motor,
 la lista de salidas, el latido, el muestreador de recursos, las métricas, el bus de
@@ -187,6 +187,16 @@ pastillas, la armada y el color de cada salida) se le pide a ella como copia y s
 sale al aire (escena, transmisión, grabación, cuadros perdidos, negro y placa de cada
 salida) sacado igual de lo seguro: eso nunca es viejo. La copia pedida se hace una sola
 vez cuando la interfaz vuelve (aunque pregunten diez).
+
+Una de `control` toca el motor, los conmutadores de escenas, el negro y la placa y lo
+que sale del runtime: lo mismo que usa la interfaz. Se turnan (`emision/TurnoMotor.hpp`):
+cada método del motor y cada operación compuesta (cortar una escena, grabar, transmitir)
+toma el turno por lo que dura, y la interfaz lo tiene solo mientras está ADENTRO del
+motor; trabada en otra cosa (un QML, un diálogo), el control entra. Lo que cambia queda
+en el documento de aire en el acto (`status` lo ve con la interfaz trabada) y a las
+vistas les llega encolado, en su hilo, cuando la interfaz vuelve (AppRuntime::enDueno);
+el guardado de `app.json` también. `ba_mcp_motor_ocupado_total` cuenta las que no
+consiguieron el turno a tiempo y `ba_motor_turno_espera_ms` lo que se esperó.
 
 La validación, las guardas de aire y la aprobación corren en el hilo de la
 herramienta; la tarjeta de aprobación y el guardado posterior, en la interfaz. La
