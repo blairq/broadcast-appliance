@@ -374,7 +374,7 @@ int PrompterViewModel::faltaSeg() const {
 }
 
 void PrompterViewModel::mirar(bool si) {
-    d_->mirando = std::max(0, d_->mirando + (si ? 1 : -1));
+    d_->mirando = si ? 1 : 0; // la página lo dice al mostrarse y al esconderse (no se cuenta)
     if (si) consultar(); // lo de ahora; lo que cambie después llega solo
     mirarReloj();
 }
