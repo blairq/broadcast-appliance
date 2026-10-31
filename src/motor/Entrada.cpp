@@ -2,6 +2,7 @@
 // src/motor/Entrada.cpp — ver Entrada.hpp
 // ============================================================================
 #include "Entrada.hpp"
+#include "BuffersAudio.hpp"
 #include "Candado.hpp" // Tramo
 #include "diag/Utf8.hpp"
 #include "i18n/I18n.hpp"
@@ -989,6 +990,13 @@ void Entrada::armar() {
         programarReintento();
         return;
     }
+    // El micrófono o la línea del sistema con su buffer explícito e informado (F2-04): la
+    // descripción guardada no lo trae, y el de fábrica es de 200 ms.
+    {
+        json disp = fijarBuffersDeAudio(p, descripcionAudio_);
+        std::lock_guard<std::mutex> l(medMu_);
+        dispositivoAudio_ = std::move(disp);
+    }
     if (GstElement* dec = gst_bin_get_by_name(GST_BIN(p), "ba_dec")) {
         // RTSP y SRT: la latencia de SU jitter buffer, y en RTSP la hora de captura del que manda.
         g_signal_connect(dec, "source-setup",
@@ -1885,6 +1893,11 @@ std::int64_t Entrada::duracionMs() const {
     return duracionAnteriorMs_.load();
 }
 
+double Entrada::edadAudioP95Ms() const {
+    std::lock_guard<std::mutex> l(medMu_);
+    return edadAP95_;
+}
+
 json Entrada::estado() const {
     // Lo arma el bucle del motor para la foto: ocupada, va lo último que se supo.
     std::unique_lock<std::timed_mutex> l(mu_, std::try_to_lock);
@@ -1947,6 +1960,7 @@ json Entrada::estadoYa() const {
         const auto edad = [](double p50, double p95) { return std::isnan(p50) ? json() : json{{"p50_ms", p50}, {"p95_ms", p95}}; };
         j["edad_video"] = edad(edadVP50_, edadVP95_);
         j["edad_audio"] = edad(edadAP50_, edadAP95_);
+        if (!dispositivoAudio_.empty()) j["dispositivo_audio"] = dispositivoAudio_;
         j["origen"] = origen_;
         j["sale"] = sale_;
         j["sin_datos_s"] = ultimoDatoNs_ == 0 ? -1.0 : static_cast<double>(ahoraNs() - ultimoDatoNs_) / 1e9;

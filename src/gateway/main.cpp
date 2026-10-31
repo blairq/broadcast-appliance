@@ -71,6 +71,7 @@
 
 // ba_core (frozen headers).
 #include "ipc/CanalesEscena.hpp"
+#include "ipc/CanalesSalida.hpp"
 #include "ipc/CanalesRegistro.hpp"
 #include "ipc/ControlService.hpp"
 #include "ipc/HealthBlock.hpp"
@@ -570,7 +571,7 @@ int main(int argc, char** argv) {
     // crean para el cupo al arrancar y los demás cuando el cupo sube (MediaPump::ampliar).
     for (int s = 1; s <= kMaxInvitados; ++s) {
         pumpCfg.guestAudioNames.push_back(toWide("BA.Audio.Guest." + std::to_string(s)));
-        pumpCfg.returnSlotNames.push_back(toWide("BA.Audio.Return." + std::to_string(s)));
+        pumpCfg.returnSlotNames.push_back(ba::ipc::nombreRetorno("", s));
         pumpCfg.guestVideoNames.push_back(toWide("BA.Guest." + std::to_string(s)));
         pumpCfg.shareVideoNames.push_back(toWide("BA.GuestShare." + std::to_string(s)));
     }

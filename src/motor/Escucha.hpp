@@ -8,10 +8,16 @@
 // espera la latencia de lo que escucha: así «programa» suena junto con el video
 // del programa, y nada llega tarde al sink.
 //
+// Sobre esa latencia, un margen: el del PROGRAMA es holgado (40 ms: lo que se oye va
+// con el video y un corte en los auriculares molesta más que unos ms); el de OÍDO
+// (directo, pfl, afl, selección: F2-03) es corto (audio.margenEscuchaOidoMs, 10 ms),
+// porque ahí lo que importa es oír ya.
+//
 // El dispositivo, por su id estable (el `unique-id` de macOS, el `device` de
 // Windows y Linux); vacío = el del sistema. Si no está, se usa el del sistema y,
 // cuando vuelve (lo avisa el Vigía), se vuelve a él. Si la placa se va con la
 // escucha andando (el sink da error o el Vigía avisa), se rearma sola.
+// Sus buffers, explícitos e informados (BuffersAudio.hpp); en Windows, `low-latency`.
 // ============================================================================
 #pragma once
 
@@ -32,6 +38,8 @@ class Reloj;
 
 class Escucha {
    public:
+    /// El margen sobre la latencia de lo escuchado (ver arriba).
+    enum class Margen { Programa, Oido };
     /// `sinkPrueba`: un sink en vez del de audio del sistema (las pruebas: «fakesink»). Con
     /// un dispositivo elegido, lleva su id en la propiedad de siempre (propiedadDeDispositivo):
     /// una prueba con un sink falso que tiene esa propiedad ve la placa que se va y vuelve.
@@ -44,7 +52,7 @@ class Escucha {
     /// ponerDispositivo y ponerNivel: NO ESPERA, lo hace su trabajador (abrir el dispositivo
     /// de audio puede tardar segundos y lo pide el bucle del motor, con su candado). Un
     /// error queda en el registro y en estado().
-    void escuchar(const std::string& productor, std::int64_t latenciaNs);
+    void escuchar(const std::string& productor, std::int64_t latenciaNs, Margen margen = Margen::Programa);
     void apagar();
     void ponerDispositivo(const std::string& id);
     void ponerNivel(double lineal);
@@ -75,6 +83,9 @@ class Escucha {
     std::int64_t ultimoRearmeNs_ = 0;    ///< del trabajador (con mu_)
     double nivel_ = 1.0, picoDb_ = -120;
     std::int64_t latenciaNs_ = 0;
+    Margen margen_ = Margen::Programa;
+    nlohmann::json dispositivoBuffers_ = nlohmann::json::array(); ///< lo que quedó fijado en el sink
+    std::int64_t margenNs() const;
     std::mutex trabajoM_;
     std::shared_future<void> trabajo_;
     mutable std::mutex guardadoM_;

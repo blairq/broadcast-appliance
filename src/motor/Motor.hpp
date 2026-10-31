@@ -9,8 +9,20 @@
 //   programa    pista 1: lo que sale. Limitador del máster (el loudness lo mide la app).
 //   pista2…6    la grabación multipista: cada entrada va a las pistas que diga
 //               su ruteo (la Matriz). Se arman cuando alguien las usa.
-//   retornoN    lo que oye el invitado N en mix_minus (todo menos su voz).
+//   retornoN    lo que oye el invitado N en mix_minus (todo menos su voz), uno
+//               por salida: retornoN de la por omisión, retornoN:<id> de las demás.
 //   directo     la sala sin demora, para la escucha «directo».
+//   seleccion   las entradas marcadas para la escucha (el PFL de la app).
+//   afl         una entrada sola con el fader de una salida (la escucha «afl»).
+//
+// DOS CLASES DE BUSES (docs/arquitectura/04-plan-unificado.md, T4 y F2-01):
+//   - de PROGRAMA (programa, pistas): esperan la latencia del estudio (más su margen),
+//     para ir junto con el video: lo que se graba, se transmite y se ve en las pantallas.
+//   - de OÍDO (retornos, directo, seleccion, afl): esperan una latencia FIJA y corta
+//     (latenciaOidoNs: 20 ms a sus entradas, ~30 ms desde la captura), porque quien conversa o se escucha necesita oír ya, no
+//     en sincronía con un video. Lo que llega más tarde que eso (una cámara IP con
+//     audio) NO ENTRA a ese bus; el motor lo informa por entrada («entra_al_oido» en el
+//     estado y «oido» con las que quedan afuera) y la interfaz lo muestra.
 //
 // QUÉ SUENA:
 //   - Una entrada «global» (micrófonos, invitados, remoto, voces) suena siempre,
@@ -19,7 +31,11 @@
 //     (`escenaAlAire`), con un fundido al cambiar. Vale para el programa, las
 //     pistas y los retornos.
 //
-// LOS RETORNOS (lo que oye cada invitado), uno por invitado, a BA.Audio.Return.<n>:
+// LOS RETORNOS (lo que oye cada invitado), uno por invitado Y POR SALIDA (F2-02):
+// el invitado n en la salida X oye la mezcla de X (sus faders, su escena al aire) en
+// BA.Audio.Return.<n> (la por omisión) o BA.Audio.Return.<X>.<n> (ipc/CanalesSalida.hpp).
+// El motor no sabe en qué salida está cada invitado (lo decide la sala): arma el de
+// todas, y el gateway lee el de la salida que le toca a cada uno.
 //   - mix_minus:  oye el programa SIN su propia voz (de fábrica).
 //   - programa:   oye el programa entero, con su voz (lo pidió y usa auriculares).
 //   - apagado:    no oye nada: sin anillo.
@@ -33,8 +49,11 @@
 // mismo fundido (`escenaAlAire`).
 //
 // LA ESCUCHA (auriculares del operador): programa (lo que sale, junto con su
-// video), directo (la sala sin demora: solo las globales), pfl (una entrada
-// sola) o apagado.
+// video: espera la latencia del estudio), y las de oído, que no esperan al video
+// (F2-03): directo (la sala sin demora: solo las globales), pfl (una entrada sola,
+// antes del fader y del bus), afl (una entrada con el fader de una salida),
+// seleccion (las marcadas) o apagado. Directo, afl y seleccion usan el mando (fader,
+// mute) de la salida que se elige al escuchar.
 //
 // LAS SALIDAS (docs/planes/PLAN-SALIDAS.md, etapa 1). El aparato tiene N salidas
 // y cada una es un operador completo: su PROGRAMA y su PREVIEW, lo que tiene al
@@ -51,10 +70,9 @@
 // bus:programa:<id>; vistas «programa:<id>», «preview:<id>», «limpio:<id>».
 // El audio de cada salida va al gateway: la por omisión a BA.Audio.ContentForReturn
 // (como siempre), las demás a BA.Audio.Salida.<id> (etapa 2).
-// POR AHORA siguen a la salida por omisión: las pistas 2-6, los retornos
-// (mix-minus), el bus «directo», la escucha «selección» y el multiview (su
+// POR AHORA siguen a la salida por omisión: las pistas 2-6 y el multiview (su
 // PROGRAMA y su PREVIEW son los de la por omisión; el tally rojo es «al aire en
-// ALGUNA salida»).
+// ALGUNA salida»). Los retornos son de cada salida; la escucha, de la que se elige.
 // ============================================================================
 #pragma once
 
@@ -187,10 +205,11 @@ class Motor {
     std::string retorno(int n, const std::string& modo, const std::string& propia);
 
     // --- La escucha ---
-    /// modo: programa | directo | pfl | seleccion | apagado; `id` = la entrada (pfl)
-    /// o la salida (programa; "" = la por omisión).
+    /// modo: programa | directo | pfl | afl | seleccion | apagado; `id` = la entrada (pfl,
+    /// afl) o la salida (programa; "" = la por omisión). `salida`: de qué salida son el
+    /// fader y el mute en directo, afl y seleccion ("" = la por omisión).
     /// «seleccion»: la suma de las entradas marcadas con ponerEscucha.
-    std::string escuchar(const std::string& modo, const std::string& id = "");
+    std::string escuchar(const std::string& modo, const std::string& id = "", const std::string& salida = "");
     /// Marca (o desmarca) una entrada para la escucha «selección». Con alguna
     /// marcada la escucha pasa a «seleccion»; sin ninguna, se apaga.
     std::string ponerEscucha(const std::string& id, bool on);
@@ -312,10 +331,13 @@ class Motor {
         std::shared_ptr<TomaPrograma> toma;
         GstElement* puente = nullptr; ///< bus → BA.Audio.ContentForReturn (la por omisión) o BA.Audio.Salida.<id>
         std::int64_t puenteLatNs = -1;
+        /// El mix-minus de cada invitado en esta salida (buses de oído): retorno<n>[:<id>]
+        /// → BA.Audio.Return[.<id>].<n>. Uno por cada retorno de `retornos_` que no está apagado.
+        std::map<int, std::unique_ptr<Mezcla>> retornos;
     };
+    /// Lo que pidió el invitado n (vale en todas las salidas: sus buses están en cada Salida).
     struct Retorno {
         std::string modo, propia;
-        std::unique_ptr<Mezcla> bus;
         /// Si la entrada `id` (que va al programa) suena en este retorno: todas, salvo su
         /// propia voz en mix_minus.
         bool oye(const std::string& id) const { return modo == "programa" || id != propia; }
@@ -326,9 +348,12 @@ class Motor {
     void enBus(Mezcla& m, const std::string& id, const Canal& c, const Mando& k, bool incluir, int fundidoMs);
     /// Lleva un canal a todos los buses donde corresponde (los de todas las salidas).
     void aplicar(const std::string& id, int fundidoMs);
-    /// Lo mismo, solo en lo que depende de una salida: su bus y, si es la por
-    /// omisión, lo que por ahora la sigue (pistas, retornos, directo, selección).
+    /// Lo mismo, solo en lo que depende de una salida: su bus, sus retornos, la escucha
+    /// si la sigue a ella y, si es la por omisión, lo que por ahora la sigue (las pistas).
     void aplicarEnSalida(Salida& s, const std::string& id, int fundidoMs);
+    /// La entrada en los buses de oído de la escucha (directo, selección, afl) con el
+    /// mando `k` de la salida que sigue la escucha. Sin fundidos: no tocan el aire.
+    void aplicarEscucha(const std::string& id, const Canal& c, const Mando& k);
     /// "" = la por omisión; nullptr si no hay una con ese id.
     Salida* laSalida(const std::string& id);
     const Salida* laSalida(const std::string& id) const;
@@ -344,7 +369,18 @@ class Motor {
     std::string crearSalidaYa(const std::string& id, const std::string& nombre);
     std::string borrarSalidaYa(const std::string& id);
     Mezcla* pista(int n, bool crear);
-    void armarRetorno(int n, Retorno& r);
+    /// El retorno del invitado n en la salida `sid` (lo arma de nuevo con lo que pide
+    /// retornos_[n]; si está apagado, lo saca). false si no arrancó.
+    bool armarRetorno(int n, const std::string& sid, Salida& s);
+    /// Un bus de oído (latencia fija corta: ver DOS CLASES DE BUSES) sin medidores.
+    std::unique_ptr<Mezcla> busDeOido(const std::string& nombre, std::string anillo = "");
+    /// La salida cuyo mando usa la escucha de oído (directo, afl, seleccion).
+    Salida* salidaDeEscucha() { return laSalida(escuchaSalida_); }
+    /// Cuánto espera la escucha PFL de una entrada: lo de oído, o lo que tarda su audio
+    /// si tarda más (una cámara IP: sin esto, en los auriculares no se oiría nada).
+    std::int64_t latenciaPfl(const Entrada& e) const;
+    /// Si el audio de la entrada llega a tiempo a los buses de oído (sin medir: sí).
+    static bool entraAlOido(const Entrada& e);
     std::string anillo(const std::string& nombre) const { return cfg_.prefijoAnillos + nombre; }
 
     Config cfg_;
@@ -359,6 +395,7 @@ class Motor {
     std::string porOmision_ = kSalidaPorOmision;
     std::unique_ptr<Mezcla> directo_;
     std::unique_ptr<Mezcla> seleccion_; ///< la escucha «selección»
+    std::unique_ptr<Mezcla> afl_;       ///< la escucha «afl»
     std::map<int, std::unique_ptr<Mezcla>> pistas_;
     std::map<int, Retorno> retornos_;
     std::unique_ptr<Escucha> escucha_;
@@ -447,7 +484,7 @@ class Motor {
     Lienzo lienzoDe(const Escena& e) const;
     void soltarEscenaYa(const std::string& nombre);
     std::string retornoYa(int n, const std::string& modo, const std::string& propia);
-    std::string escucharYa(const std::string& modo, const std::string& id);
+    std::string escucharYa(const std::string& modo, const std::string& id, const std::string& salida);
     std::string ponerEscuchaYa(const std::string& id, bool on);
     void escuchaDispositivoYa(const std::string& id);
     void escuchaNivelYa(double lineal);
@@ -486,7 +523,8 @@ class Motor {
     void actualizarUso();
     std::map<std::string, Escena> escenas_;
     std::string escuchaModo_ = "apagado";
-    std::string escuchaId_; ///< la entrada (pfl) o la salida (programa; "" = la por omisión)
+    std::string escuchaId_; ///< la entrada (pfl, afl) o la salida (programa; "" = la por omisión)
+    std::string escuchaSalida_; ///< de qué salida son el fader y el mute en directo, afl y seleccion ("" = la por omisión)
     std::thread hilo_;
     std::atomic<bool> seguir_{false};
 };

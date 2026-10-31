@@ -539,7 +539,10 @@ json armar(const Fotos& f) {
     return {{"nodos", a.nodos},
             {"tramos", a.tramos},
             {"salidas", salidas},
-            {"estudio", {{"latencia_ms", latEstudio}, {"tope_ms", num(estudio, "tope_ms", 0.0)}}}};
+            {"estudio", {{"latencia_ms", latEstudio},
+                         {"tope_ms", num(estudio, "tope_ms", 0.0)},
+                         {"la_marca", estudio.value("la_marca", std::string())}, // qué entrada la fija (F2-05)
+                         {"oido", m.value("oido", json::object())}}}};
 }
 
 namespace {

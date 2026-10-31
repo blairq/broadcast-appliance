@@ -7,6 +7,7 @@
 #include "i18n/I18n.hpp"
 #include "Candado.hpp"
 #include "OrigenRed.hpp"
+#include "ipc/CanalesSalida.hpp"
 
 #include <gst/net/net.h>
 
@@ -22,10 +23,6 @@ namespace ba::motor {
 using json = nlohmann::json;
 using ba::i18n::llenar;
 using ba::i18n::traducir;
-
-namespace {
-constexpr std::int64_t kDirectoNs = 40 * GST_MSECOND; ///< lo que espera el bus «directo»
-}
 
 Motor::Motor(Config c) : cfg_(std::move(c)) {
     fijarColorSalida(cfg_.lienzo);
@@ -176,6 +173,7 @@ void Motor::detener() {
     pistas_.clear();
     directo_.reset();
     seleccion_.reset();
+    afl_.reset();
 }
 
 // ============================================================================
@@ -228,6 +226,8 @@ std::string Motor::armarSalida(const std::string& id, Salida& s) {
         if (!s.programa->anda())
             registrar(Nivel::Error, llenar(traducir("motor", "el video del PROGRAMA no arrancó: %1"), {s.programa->error()}));
     }
+    // Sus mix-minus (los invitados de esta salida no se oyen a sí mismos: F2-02).
+    for (const auto& [n, r] : retornos_) armarRetorno(n, id, s);
     for (const auto& [cid, c] : canales_) aplicarEnSalida(s, cid, 0);
     // Su audio al gateway: la por omisión, el de siempre (lo que oyen los invitados en
     // modo «programa»); las demás, el suyo (el gateway lo manda con BA.Salida.<id>).
@@ -264,13 +264,15 @@ std::shared_future<void> Motor::desarmarSalida(Salida& s, bool aparte) {
     auto desarmar = [toma = std::move(s.toma), puente = std::exchange(s.puente, nullptr),
                      programa = std::shared_ptr<Composicion>(std::move(s.programa)),
                      preview = std::shared_ptr<Composicion>(std::move(s.preview)),
-                     mezcla = std::shared_ptr<Mezcla>(std::move(s.mezcla))]() mutable {
+                     mezcla = std::shared_ptr<Mezcla>(std::move(s.mezcla)),
+                     retornos = std::make_shared<std::map<int, std::unique_ptr<Mezcla>>>(std::move(s.retornos))]() mutable {
         for (GstElement* p : {toma ? toma->pipeline : nullptr, puente})
             if (p != nullptr) {
                 gst_element_set_state(p, GST_STATE_NULL);
                 gst_object_unref(p);
             }
         toma.reset();
+        retornos.reset();
         preview.reset();
         programa.reset();
         mezcla.reset();
@@ -313,7 +315,7 @@ std::string Motor::borrarSalidaYa(const std::string& id) {
     if (id.empty() || id == porOmision_) return traducir("motor", "la salida por omisión no se puede borrar");
     auto it = salidas_.find(id);
     if (it == salidas_.end()) return noHaySalida(id);
-    if (escuchaModo_ == "programa" && escuchaId_ == id) escuchar("apagado");
+    if ((escuchaModo_ == "programa" && escuchaId_ == id) || escuchaSalida_ == id) escuchar("apagado");
     std::shared_future<void> f = desarmarSalida(it->second, true);
     {
         std::lock_guard<std::mutex> l(desarmandoM_);
@@ -365,13 +367,15 @@ void Motor::bucle() {
             }
             {
                 Tramo t("tic de los buses de audio");
-                for (auto& [sid, s] : salidas_)
+                for (auto& [sid, s] : salidas_) {
                     if (s.mezcla) s.mezcla->tic();
+                    for (auto& [n, m] : s.retornos)
+                        if (m) m->tic();
+                }
                 if (directo_) directo_->tic();
                 if (seleccion_) seleccion_->tic();
+                if (afl_) afl_->tic();
                 for (auto& [n, p] : pistas_) p->tic();
-                for (auto& [n, r] : retornos_)
-                    if (r.bus) r.bus->tic();
             }
             {
                 Tramo t("tic de las composiciones");
@@ -425,8 +429,11 @@ void Motor::bucle() {
                     lat = oida->mezcla->latenciaSalidaNs();
                 else if (escuchaModo_ == "directo" && directo_)
                     lat = directo_->latenciaSalidaNs();
-                else if (escuchaModo_ == "pfl")
-                    lat = reloj_->latencia();
+                else if (escuchaModo_ == "pfl") {
+                    auto c = canales_.find(escuchaId_);
+                    lat = c != canales_.end() ? latenciaPfl(*c->second.entrada) : latenciaOidoNs();
+                } else if (escuchaModo_ == "afl" && afl_)
+                    lat = afl_->latenciaSalidaNs();
                 else if (escuchaModo_ == "seleccion" && seleccion_)
                     lat = seleccion_->latenciaSalidaNs();
                 escucha_->tic(lat);
@@ -476,17 +483,27 @@ void Motor::aplicarEnSalida(Salida& s, const std::string& id, int fundidoMs) {
     const Mando& k = s.mandos[id];
     const bool alPrograma = (c.pistas & 1u) != 0;
     if (s.mezcla) enBus(*s.mezcla, id, c, k, alPrograma, fundidoMs);
+    // Sus mix-minus: lo mismo que su bus, menos la voz de cada invitado.
+    for (auto& [n, m] : s.retornos) {
+        auto r = retornos_.find(n);
+        if (m && r != retornos_.end()) enBus(*m, id, c, k, alPrograma && r->second.oye(id), fundidoMs);
+    }
+    if (&s == salidaDeEscucha()) aplicarEscucha(id, c, k);
     if (&s != &porOmision()) return;
-    // Por ahora siguen a la salida por omisión (su mando): las pistas, los retornos,
-    // el directo y la selección.
+    // Por ahora siguen a la salida por omisión (su mando): las pistas.
     for (int n = 2; n <= 6; ++n) {
         const bool va = (c.pistas & (1u << (n - 1))) != 0;
         if (Mezcla* p = pista(n, va)) enBus(*p, id, c, k, va, fundidoMs);
     }
-    for (auto& [n, r] : retornos_)
-        if (r.bus) enBus(*r.bus, id, c, k, alPrograma && r.oye(id), fundidoMs);
+}
+
+void Motor::aplicarEscucha(const std::string& id, const Canal& c, const Mando& k) {
     if (directo_) enBus(*directo_, id, c, k, c.global, 0);
     if (seleccion_) enSeleccion(id, c);
+    if (afl_) {
+        enBus(*afl_, id, c, k, id == escuchaId_, 0);
+        if (id == escuchaId_) afl_->ponerEscena(id, 1.0, 0); // se oye aunque no esté al aire
+    }
 }
 
 std::string Motor::agregarEntradaYa(const std::string& id, const json& ajustes, const json& opcionesPedidas) {
@@ -586,14 +603,15 @@ std::string Motor::quitarEntradaYa(const std::string& id) {
     if (it == canales_.end()) return llenar(traducir("motor", "no hay una entrada «%1»"), {id});
     for (auto& [sid, s] : salidas_) {
         if (s.mezcla) s.mezcla->quitar(id);
+        for (auto& [n, m] : s.retornos)
+            if (m) m->quitar(id);
         s.mandos.erase(id);
     }
     if (directo_) directo_->quitar(id);
     if (seleccion_) seleccion_->quitar(id);
+    if (afl_) afl_->quitar(id);
     for (auto& [n, p] : pistas_) p->quitar(id);
-    for (auto& [n, r] : retornos_)
-        if (r.bus) r.bus->quitar(id);
-    if (escuchaModo_ == "pfl" && escuchaId_ == id) escuchar("apagado");
+    if ((escuchaModo_ == "pfl" || escuchaModo_ == "afl") && escuchaId_ == id) escuchar("apagado");
     indexarDeApp(id, nullptr);
     std::shared_ptr<Entrada> e = std::move(it->second.entrada);
     canales_.erase(it);
@@ -1432,15 +1450,47 @@ std::string Motor::controlMedioYa(const std::string& id, const std::string& acci
     return it->second.entrada->controlMedio(accion);
 }
 
-void Motor::armarRetorno(int n, Retorno& r) {
-    r.bus.reset();
-    if (r.modo == "apagado" || cfg_.prefijoAnillos.empty()) return;
+std::unique_ptr<Mezcla> Motor::busDeOido(const std::string& nombre, std::string anillo) {
     Mezcla::Opciones op;
-    op.limitador = true; // lo que oye el invitado tampoco satura
     op.medidores = false;
-    op.anillo = anillo("Return." + std::to_string(n));
-    r.bus = std::make_unique<Mezcla>(*reloj_, "retorno" + std::to_string(n), op);
-    for (const auto& [id, c] : canales_) enBus(*r.bus, id, c, mandoPorOmision(id), (c.pistas & 1u) != 0 && r.oye(id), 0);
+    op.latenciaFijaNs = latenciaOidoNs();
+    op.anillo = std::move(anillo);
+    return std::make_unique<Mezcla>(*reloj_, nombre, op);
+}
+
+bool Motor::entraAlOido(const Entrada& e) {
+    const double p95 = e.edadAudioP95Ms();
+    return std::isnan(p95) || p95 <= static_cast<double>(latenciaOidoNs()) / 1e6;
+}
+
+std::int64_t Motor::latenciaPfl(const Entrada& e) const {
+    // Lo que tarda su audio (p95) y un poco: una que llega a tiempo al oído, con lo de oído.
+    const double p95 = e.edadAudioP95Ms();
+    const std::int64_t propia = std::isnan(p95) ? 0 : static_cast<std::int64_t>((p95 + 5.0) * 1e6);
+    return std::max(latenciaOidoNs(), std::min(propia, reloj_->latencia() + margenMezclaNs()));
+}
+
+bool Motor::armarRetorno(int n, const std::string& sid, Salida& s) {
+    s.retornos.erase(n);
+    auto r = retornos_.find(n);
+    if (r == retornos_.end() || r->second.modo == "apagado" || cfg_.prefijoAnillos.empty() || !s.mezcla) return true;
+    // Un bus de oído (F2-01): el invitado que conversa oye ya, no junto con el video.
+    // Con limitador: lo que oye el invitado tampoco satura.
+    const bool po = sid == porOmision_;
+    Mezcla::Opciones op;
+    op.limitador = true;
+    op.anticipoLimitadorMs = 1.0;
+    op.medidores = false;
+    op.latenciaFijaNs = latenciaOidoNs();
+    op.anillo = anillo(ba::ipc::sufijoRetorno(po ? std::string() : sid, n));
+    auto m = std::make_unique<Mezcla>(*reloj_, "retorno" + std::to_string(n) + (po ? std::string() : ":" + sid), op);
+    const bool anda = m->anda();
+    for (const auto& [id, c] : canales_) {
+        auto k = s.mandos.find(id);
+        enBus(*m, id, c, k != s.mandos.end() ? k->second : Mando{}, (c.pistas & 1u) != 0 && r->second.oye(id), 0);
+    }
+    s.retornos[n] = std::move(m);
+    return anda;
 }
 
 std::string Motor::retornoYa(int n, const std::string& modo, const std::string& propia) {
@@ -1449,73 +1499,84 @@ std::string Motor::retornoYa(int n, const std::string& modo, const std::string& 
     if (modo != "programa" && modo != "mix_minus" && modo != "apagado") return traducir("motor", "modo: programa, mix_minus o apagado");
     if (modo == "apagado") {
         retornos_.erase(n);
+        for (auto& [sid, s] : salidas_) s.retornos.erase(n);
         return {};
     }
     Retorno& r = retornos_[n];
-    if (r.modo == modo && r.propia == propia && r.bus) return {};
+    if (r.modo == modo && r.propia == propia) {
+        bool todos = true; // ya está, en todas las salidas que andan
+        for (const auto& [sid, s] : salidas_) todos = todos && (!s.mezcla || s.retornos.count(n) > 0);
+        if (todos) return {};
+    }
     r.modo = modo;
     r.propia = propia;
-    armarRetorno(n, r);
-    return r.bus && r.bus->anda() ? std::string() : traducir("motor", "el retorno no arrancó");
+    bool anda = true;
+    for (auto& [sid, s] : salidas_) anda = armarRetorno(n, sid, s) && anda;
+    return anda ? std::string() : traducir("motor", "el retorno no arrancó");
 }
 
-std::string Motor::escucharYa(const std::string& modo, const std::string& id) {
+std::string Motor::escucharYa(const std::string& modo, const std::string& id, const std::string& salida) {
     BA_CANDADO(mu_);
     if (!escucha_) return traducir("motor", "el motor no está andando");
-    if (modo != "seleccion") seleccion_.reset();
+    // Los buses de oído de la escucha se arman de nuevo con lo que se pide (otra salida, otra
+    // entrada): el que no se usa no queda andando.
+    const auto soltarOido = [this](const std::string& salvo) {
+        if (salvo != "seleccion") seleccion_.reset();
+        if (salvo != "directo") directo_.reset();
+        if (salvo != "afl") afl_.reset();
+    };
     if (modo == "apagado") {
         escucha_->apagar();
         escuchaModo_ = modo;
         escuchaId_.clear();
-        directo_.reset();
+        escuchaSalida_.clear();
+        soltarOido("");
         return {};
     }
-    if (modo == "seleccion") {
-        if (!seleccion_) {
-            Mezcla::Opciones op;
-            op.medidores = false;
-            seleccion_ = std::make_unique<Mezcla>(*reloj_, "seleccion", op);
-            for (const auto& [cid, c] : canales_) enSeleccion(cid, c);
-        }
-        escuchaModo_ = modo;
-        escuchaId_.clear();
-        directo_.reset();
-        escucha_->escuchar(seleccion_->productor(), seleccion_->latenciaSalidaNs());
-        return {};
-    }
-    if (modo == "programa") { // `id`: la salida ("" = la por omisión)
+    if (modo == "programa") { // `id`: la salida ("" = la por omisión); espera al estudio (va con el video)
         const Salida* s = laSalida(id);
         if (s == nullptr || !s->mezcla) return noHaySalida(id);
         escuchaModo_ = modo;
         escuchaId_ = id == porOmision_ ? std::string() : id;
-        directo_.reset();
-        escucha_->escuchar(s->mezcla->productor(), s->mezcla->latenciaSalidaNs());
+        escuchaSalida_.clear();
+        soltarOido("");
+        escucha_->escuchar(s->mezcla->productor(), s->mezcla->latenciaSalidaNs(), Escucha::Margen::Programa);
         return {};
     }
-    if (modo == "directo") {
-        if (!directo_) {
-            Mezcla::Opciones op;
-            op.medidores = false;
-            op.latenciaFijaNs = kDirectoNs;
-            directo_ = std::make_unique<Mezcla>(*reloj_, "directo", op);
-            for (const auto& [cid, c] : canales_) enBus(*directo_, cid, c, mandoPorOmision(cid), c.global, 0);
-        }
-        escuchaModo_ = modo;
-        escuchaId_.clear();
-        escucha_->escuchar(directo_->productor(), kDirectoNs + 20 * static_cast<std::int64_t>(GST_MSECOND));
-        return {};
-    }
-    if (modo == "pfl") {
+    if (modo == "pfl") { // antes del fader y del bus: lo que entrega la entrada
         auto it = canales_.find(id);
         if (it == canales_.end()) return llenar(traducir("motor", "no hay una entrada «%1»"), {id});
         if (!it->second.entrada->daAudio()) return llenar(traducir("motor", "«%1» no tiene audio"), {id});
         escuchaModo_ = modo;
         escuchaId_ = id;
-        directo_.reset();
-        escucha_->escuchar(it->second.entrada->productorAudio(), reloj_->latencia());
+        escuchaSalida_.clear();
+        soltarOido("");
+        escucha_->escuchar(it->second.entrada->productorAudio(), latenciaPfl(*it->second.entrada), Escucha::Margen::Oido);
         return {};
     }
-    return traducir("motor", "modo: programa, directo, pfl, seleccion o apagado");
+    if (modo != "directo" && modo != "seleccion" && modo != "afl")
+        return traducir("motor", "modo: programa, directo, pfl, afl, seleccion o apagado");
+    // Los de oído con el mando de una salida.
+    Salida* s = laSalida(salida);
+    if (s == nullptr) return noHaySalida(salida);
+    const std::string sid = salida == porOmision_ ? std::string() : salida;
+    if (modo == "afl") {
+        auto it = canales_.find(id);
+        if (it == canales_.end()) return llenar(traducir("motor", "no hay una entrada «%1»"), {id});
+        if (!it->second.entrada->daAudio()) return llenar(traducir("motor", "«%1» no tiene audio"), {id});
+    }
+    const bool rehacer = escuchaModo_ != modo || escuchaSalida_ != sid || (modo == "afl" && escuchaId_ != id);
+    escuchaModo_ = modo;
+    escuchaId_ = modo == "afl" ? id : std::string();
+    escuchaSalida_ = sid;
+    soltarOido(modo);
+    std::unique_ptr<Mezcla>& bus = modo == "directo" ? directo_ : modo == "seleccion" ? seleccion_ : afl_;
+    if (rehacer || !bus) {
+        bus = busDeOido(modo);
+        for (const auto& [cid, c] : canales_) aplicarEscucha(cid, c, s->mandos[cid]);
+    }
+    escucha_->escuchar(bus->productor(), bus->latenciaSalidaNs(), Escucha::Margen::Oido);
+    return {};
 }
 
 void Motor::enSeleccion(const std::string& id, const Canal& c) {
@@ -1523,11 +1584,14 @@ void Motor::enSeleccion(const std::string& id, const Canal& c) {
         seleccion_->quitar(id);
         return;
     }
-    // En los auriculares aunque no esté al aire (sin el fundido de escena).
-    const Mando& k = mandoPorOmision(id);
+    // En los auriculares aunque no esté al aire (sin el fundido de escena), con el fader
+    // y el mute de la salida que sigue la escucha.
+    Mando m;
+    if (const Salida* s = salidaDeEscucha())
+        if (auto k = s->mandos.find(id); k != s->mandos.end()) m = k->second;
     seleccion_->agregar(id);
-    seleccion_->ponerNivel(id, k.nivel);
-    seleccion_->ponerMute(id, k.mute);
+    seleccion_->ponerNivel(id, m.nivel);
+    seleccion_->ponerMute(id, m.mute);
     seleccion_->ponerEscena(id, 1.0, 0);
 }
 
@@ -1582,7 +1646,7 @@ std::shared_ptr<const std::vector<Motor::NivelAudio>> Motor::niveles() const {
 
 void Motor::publicarNiveles() {
     auto v = std::make_shared<std::vector<NivelAudio>>();
-    v->reserve(canales_.size() + pistas_.size() + retornos_.size() + salidas_.size());
+    v->reserve(canales_.size() + pistas_.size() + (retornos_.size() + 1) * salidas_.size());
     for (const auto& [id, c] : canales_) {
         if (!c.entrada || !c.entrada->daAudio()) continue;
         NivelAudio n;
@@ -1605,7 +1669,8 @@ void Motor::publicarNiveles() {
     };
     for (const auto& [sid, s] : salidas_) deBus(sid == porOmision_ ? "programa" : "programa:" + sid, s.mezcla.get());
     for (const auto& [num, m] : pistas_) deBus("pista" + std::to_string(num), m.get());
-    for (const auto& [num, r] : retornos_) deBus("retorno" + std::to_string(num), r.bus.get());
+    for (const auto& [sid, s] : salidas_)
+        for (const auto& [num, m] : s.retornos) deBus(m ? m->nombre() : std::string(), m.get());
     std::shared_ptr<const std::vector<NivelAudio>> listo = std::move(v);
     std::lock_guard<std::mutex> l(nivelesM_);
     niveles_ = std::move(listo);
@@ -1681,6 +1746,7 @@ json Motor::estado() const {
         json e = c.entrada->estado();
         const Mando& k = mandoPorOmision(id); // los de cada salida, en «salidas»
         e["global"] = c.global;
+        e["entra_al_oido"] = entraAlOido(*c.entrada);
         e["en_escena"] = k.enEscena;
         e["nivel"] = k.nivel;
         e["mute"] = k.mute;
@@ -1690,9 +1756,26 @@ json Motor::estado() const {
         e["pistas"] = ps;
         entradas[id] = std::move(e);
     }
+    // Cada retorno con lo que pidió y cómo anda en cada salida («anda»: el de la por omisión).
     json ret = json::object();
-    for (const auto& [n, r] : retornos_)
-        ret[std::to_string(n)] = {{"modo", r.modo}, {"propia", r.propia}, {"anda", r.bus && r.bus->anda()}};
+    for (const auto& [n, r] : retornos_) {
+        json porSalida = json::object();
+        for (const auto& [sid, s] : salidas_) {
+            auto m = s.retornos.find(n);
+            const bool anda = m != s.retornos.end() && m->second && m->second->anda();
+            porSalida[sid] = {{"anda", anda},
+                              {"canal", ba::ipc::sufijoRetorno(sid == porOmision_ ? std::string() : sid, n)},
+                              {"latencia_ms", anda ? static_cast<double>(m->second->latenciaSalidaNs()) / 1e6 : 0.0}};
+        }
+        ret[std::to_string(n)] = {{"modo", r.modo}, {"propia", r.propia},
+                                  {"anda", porSalida[porOmision_].value("anda", false)}, {"salidas", porSalida}};
+    }
+    // Los buses de oído: cuánto esperan y qué entradas no llegan a tiempo (no se oyen en
+    // los retornos ni en la escucha de oído: F2-01).
+    json fuera = json::array();
+    for (const auto& [id, c] : canales_)
+        if (c.entrada->daAudio() && !entraAlOido(*c.entrada)) fuera.push_back(id);
+    const json oido = {{"latencia_ms", static_cast<double>(latenciaOidoNs()) / 1e6}, {"no_entran", fuera}};
     json pistas = json::object();
     for (const auto& [n, p] : pistas_) pistas[std::to_string(n)] = p->estado();
     json tarde = json::array();
@@ -1701,6 +1784,8 @@ json Motor::estado() const {
     json esc = escucha_ ? escucha_->estado() : json::object();
     esc["modo"] = escuchaModo_;
     if (!escuchaId_.empty()) esc[escuchaModo_ == "programa" ? "salida" : "entrada"] = escuchaId_;
+    if (!escuchaSalida_.empty()) esc["salida"] = escuchaSalida_;
+    esc["de_oido"] = escuchaModo_ != "programa" && escuchaModo_ != "apagado";
     json medios = json::object();
     for (const auto& [id, c] : canales_)
         if (c.entrada->esMedio()) medios[id] = medioYa(id);
@@ -1763,6 +1848,7 @@ json Motor::estado() const {
                }()}}},
             {"pistas", pistas},
             {"retornos", ret},
+            {"oido", oido},
             {"escucha", esc},
             {"vistas", vistas_ ? vistas_->estado() : json::object()},
             {"procesador", topologiaCpu()},
@@ -1933,8 +2019,8 @@ void Motor::soltarEscena(const std::string& nombre) {
 std::string Motor::retorno(int n, const std::string& modo, const std::string& propia) {
     return orden("retorno", [=, this]() { return retornoYa(n, modo, propia); });
 }
-std::string Motor::escuchar(const std::string& modo, const std::string& id) {
-    return orden("escuchar", [=, this]() { return escucharYa(modo, id); });
+std::string Motor::escuchar(const std::string& modo, const std::string& id, const std::string& salida) {
+    return orden("escuchar", [=, this]() { return escucharYa(modo, id, salida); });
 }
 std::string Motor::ponerEscucha(const std::string& id, bool on) {
     return orden("ponerEscucha", [=, this]() { return ponerEscuchaYa(id, on); });

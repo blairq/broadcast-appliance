@@ -1242,7 +1242,11 @@ void McpService::registerVideoTools() {
             "demás; audio y video juntos), `llega_tarde`.\n"
             "- `margen_ms` (lo que suma el compositor de video arriba: 5 ms de fábrica, video.margenComposicionMs; el "
             "temblor de cada entrada ya va en lo que pide) y `tope_ms` (más que esto no arrastra: va con su propia demora). "
-            "`tope_ms` lo cambia (-1 = automático, 250 ms); se guarda.\n"
+            "`tope_ms` lo cambia (-1 = automático, 250 ms); se guarda con el evento. `baja_latencia: true` es el modo baja "
+            "latencia del evento: el tope en `baja_latencia_ms` (110 de fábrica, estudio.bajaLatenciaMs); las que lo pasan "
+            "(una cámara IP) quedan con su propia demora, informada en `retraso_propio_ms`.\n"
+            "- `oido`: los buses de oído (retornos de los invitados, escucha en vivo) esperan `latencia_ms` fijos, no la del "
+            "estudio; `no_entran` son las entradas cuyo audio llega más tarde (no se oyen ahí). Cada entrada trae `entra_al_oido`.\n"
             "- `cuadros_tarde_60s`: los cuadros que llegaron al compositor después de su plazo en el último minuto (y por "
             "entrada). Tiene que ser 0: si aparecen, esa entrada tiembla más de lo que pide (se nota como un tironcito); "
             "la latencia sube sola si lo sostiene, o subí video.margenComposicionMs.\n"
@@ -1251,11 +1255,15 @@ void McpService::registerVideoTools() {
         t.inputSchema = {{"type", "object"},
                          {"properties",
                           {{"tope_ms", {{"type", "integer"}, {"minimum", -1}, {"maximum", 5000}}},
+                           {"baja_latencia", {{"type", "boolean"}, {"description", ba::i18n::traducir("mcp", "true: el modo baja latencia del evento (el tope en baja_latencia_ms); false: el tope automático")}}},
                            {"bajar", {{"type", "boolean"}, {"description", ba::i18n::traducir("mcp", "bajar la latencia ahora a lo que piden (si hay algo al aire, hay un salto)")}}}}}};
-        t.examples = {R"({})", R"({"bajar": true})", R"({"tope_ms": 200})"};
+        t.examples = {R"({})", R"({"bajar": true})", R"({"tope_ms": 200})", R"({"baja_latencia": true})"};
         t.run = [v](const json& a, Done done) {
             if (!v) return done(ToolResult::error(ba::i18n::traducir("mcp", "el video no está disponible")));
-            json r = v->estudioLatencia(a.contains("tope_ms") ? a.value("tope_ms", -1) : -2);
+            int tope = a.contains("tope_ms") ? a.value("tope_ms", -1) : -2;
+            if (a.contains("baja_latencia"))
+                tope = a.value("baja_latencia", false) ? v->estudioLatencia(-2).value("baja_latencia_ms", 110) : -1;
+            json r = v->estudioLatencia(tope);
             if (a.value("bajar", false)) {
                 const std::string e = v->bajarLatenciaUi().toStdString();
                 r = v->estudioLatencia(-2);

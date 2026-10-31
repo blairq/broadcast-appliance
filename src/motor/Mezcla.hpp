@@ -54,9 +54,12 @@ class Mezcla {
         /// Si no está vacío, el bus sale a ese anillo del gateway (baanillosink) en vez
         /// de a un intersink (p. ej. BA.Audio.Return.1).
         std::string anillo;
-        /// ≥ 0: espera esto fijo y no la latencia del estudio (la escucha «directo»:
-        /// la sala sin demora; lo que llega más tarde, no entra).
+        /// ≥ 0: espera esto fijo y no la latencia del estudio (los buses de oído: los
+        /// retornos, la escucha «directo»; lo que llega más tarde, no entra).
         std::int64_t latenciaFijaNs = -1;
+        /// > 0: la anticipación del limitador (ms; de fábrica la suya, 5). Un bus de oído usa
+        /// la mínima: cada ms de anticipación es un ms más de demora en el oído.
+        double anticipoLimitadorMs = -1;
     };
     Mezcla(Reloj& reloj, std::string nombre, Opciones op);
     Mezcla(Reloj& reloj, std::string nombre) : Mezcla(reloj, std::move(nombre), Opciones{}) {}
@@ -141,5 +144,12 @@ class Mezcla {
 /// El margen sobre la latencia del estudio que esperan los mezcladores
 /// (Configuración → avanzado: «audio.margenMezclaMs», 30 ms de siempre).
 inline std::int64_t margenMezclaNs() { return ajustes::msANs("audio.margenMezclaMs", 30); }
+
+/// Lo que espera un bus de OÍDO (retornos, escucha directo/afl/selección) a sus entradas:
+/// fijo y corto, no la latencia del estudio (Configuración → avanzado: «audio.oidoMs», 20
+/// ms). Es el mecanismo de `latenciaFijaNs`: lo que llega más tarde no entra a ese bus.
+/// Al oído le llega eso más el bloque de salida (10 ms), la anticipación del limitador (1)
+/// y el margen del sink (2): ~25-30 ms desde la captura (test_lazo_latencia).
+inline std::int64_t latenciaOidoNs() { return ajustes::msANs("audio.oidoMs", 20); }
 
 } // namespace ba::motor

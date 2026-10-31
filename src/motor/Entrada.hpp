@@ -161,6 +161,9 @@ class Entrada {
     /// Lo que pide de latencia (ns, 0 si no midió) y si pasa el tope del estudio.
     std::int64_t latenciaPropia() const { return pide_.load(); }
     bool llegaTarde() const { return llegaTarde_.load(); }
+    /// Lo que tarda su audio desde la captura hasta salir de la entrada, p95 de ~10 s (ms;
+    /// NaN sin medir): si llega a tiempo a los buses de oído (Motor, F2-01).
+    double edadAudioP95Ms() const;
 
     /// tipo=app: un cuadro nuevo (BGRA, `stride` bytes por fila). false si no es de ese tipo.
     bool empujar(const std::uint8_t* bgra, int ancho, int alto, int stride);
@@ -303,6 +306,7 @@ class Entrada {
     std::uint64_t picoCanalNs_[2] = {0, 0};
     double cuadradoCanal_[2] = {0, 0};
     nlohmann::json origen_ = nlohmann::json::object(); ///< cómo llega la señal (antes de normalizar)
+    nlohmann::json dispositivoAudio_ = nlohmann::json::array(); ///< los buffers del dispositivo de audio (BuffersAudio.hpp)
     nlohmann::json sale_ = nlohmann::json::object();   ///< cómo sale
     double declaradoMs_ = 0, edadP50_ = 0, edadP95_ = 0, edadP90_ = 0, edadP98_ = 0;
     /// La clase de sincronía: estudio_ = sincronizada con la sala (pide latencia al estudio);

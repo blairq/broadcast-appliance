@@ -14,7 +14,13 @@
 //      voz, ni con huecos ni con el lugar cerrado (retorno apagado: silencio); la fila, que
 //      oye el programa, sí (el control de que la prueba ve la voz).
 //   4. La sala publica «retorno apagado» en el participante y avisa solo si cambia.
+//   5. El IFB con «ducking» (F2-12, Ducking.hpp): con un programa y una voz sintéticos
+//      (sílabas de 120 ms con huecos de 60 ms), la envolvente de la ganancia del programa:
+//      baja a la profundidad con la constante de ataque (10 ms), no sube en los huecos
+//      entre sílabas (sin bombeo) y, 150 ms después de la voz, vuelve con la liberación
+//      (300 ms), sin saltos.
 
+#include "Ducking.hpp"
 #include "MediaRoute.hpp"
 #include "RetornoLugar.hpp"
 #include "Room.hpp"
@@ -309,6 +315,62 @@ void salaPublica() {
     CHECK(retornoDe() == "ok", "vuelve a ok");
 }
 
+// --- 5. El IFB con ducking ---------------------------------------------------------
+
+void ducking() {
+    ba::gateway::Ducking d(48000);
+    std::vector<float> g;
+    CHECK(!d.procesar(nullptr, kFloats, g), "sin voz y en reposo, el programa pasa tal cual");
+    // La voz: un seno de 300 Hz a −12 dBFS en sílabas de 120 ms con huecos de 60 ms, 1 s; después nada.
+    std::vector<double> env; // la ganancia del programa, un valor por milisegundo
+    std::vector<float> voz(kFloats);
+    double fase = 0;
+    int ms = 0;
+    for (int bloque = 0; bloque < 300; ++bloque) { // 3 s de a 10 ms
+        bool hay = false;
+        for (std::size_t i = 0; i < kFloats / 2; ++i) {
+            const int t = ms + static_cast<int>(i / 48);
+            const bool habla = t < 1000 && (t % 180) < 120;
+            const float x = habla ? 0.25f * static_cast<float>(std::sin(fase)) : 0.0f;
+            fase += 2.0 * 3.14159265358979 * 300.0 / 48000.0;
+            voz[2 * i] = voz[2 * i + 1] = x;
+            hay = hay || habla;
+        }
+        // Como el retorno: la cola de la voz trae bloques mientras el operador habla (con
+        // los huecos adentro); cuando deja de hablar, no llega nada.
+        const bool activo = d.procesar(ms < 1000 ? voz.data() : nullptr, kFloats, g);
+        for (int k = 0; k < 10; ++k) env.push_back(activo ? g[static_cast<std::size_t>(k * 48 + 47)] : 1.0);
+        ms += 10;
+        (void)hay;
+    }
+    const double prof = std::pow(10.0, -15.0 / 20.0); // la de fábrica
+    const auto db = [](double x) { return 20.0 * std::log10(std::max(x, 1e-6)); };
+    std::printf("ducking: 5 ms %.1f dB, 50 ms %.1f dB, hueco (120-180 ms) máx %.1f dB, fin+100 ms %.1f dB, fin+300 ms %.1f dB, "
+                "fin+2 s %.2f dB\n",
+                db(env[5]), db(env[50]), db(*std::max_element(env.begin() + 120, env.begin() + 180)), db(env[1000 + 100]),
+                db(env[1000 + 300]), db(env.back()));
+    CHECK(env[5] < 0.9 && env[5] > prof, "el ataque es una rampa (a los 5 ms va bajando, no saltó)");
+    CHECK(std::fabs(db(env[50]) - db(prof)) < 1.0, "a los 50 ms ya está en la profundidad (−15 dB)");
+    double maxHuecos = 0;
+    for (int t = 200; t < 1000; ++t) maxHuecos = std::max(maxHuecos, env[static_cast<std::size_t>(t)]);
+    CHECK(db(maxHuecos) - db(prof) < 1.0, "entre sílabas no sube (sin bombeo)");
+    CHECK(env[1000 + 100] < 0.2, "al terminar la voz no salta: a los 100 ms sigue abajo (la sostiene)");
+    CHECK(env[1000 + 300] > 0.35 && env[1000 + 300] < 0.8, "a los 300 ms va volviendo (la liberación)");
+    CHECK(env.back() > 0.99, "a los 2 s volvió entero");
+    double salto = 0;
+    for (std::size_t t = 1; t < env.size(); ++t) salto = std::max(salto, std::fabs(env[t] - env[t - 1]));
+    CHECK(salto < 0.15, "sin saltos de un milisegundo a otro");
+    bool reposo = false;
+    for (int b = 0; b < 300 && !reposo; ++b) reposo = !d.procesar(nullptr, kFloats, g);
+    CHECK(reposo, "de vuelta en reposo, el programa pasa tal cual");
+    // La profundidad es configurable.
+    ba::gateway::Ducking hondo(48000);
+    hondo.ponerProfundidadDb(-20.0);
+    std::fill(voz.begin(), voz.end(), 0.25f);
+    for (int b = 0; b < 20; ++b) hondo.procesar(voz.data(), kFloats, g);
+    CHECK(std::fabs(db(hondo.ganancia()) + 20.0) < 0.5, "con −20 dB baja a −20 dB");
+}
+
 } // namespace
 
 int main() {
@@ -319,6 +381,7 @@ int main() {
     sinSuVoz(true);
     sinSuVoz(false);
     salaPublica();
+    ducking();
     std::printf("== test_retorno_ritmo: %s ==\n", g_fallos == 0 ? "OK" : "FALLOS");
     return g_fallos == 0 ? 0 : 1;
 }

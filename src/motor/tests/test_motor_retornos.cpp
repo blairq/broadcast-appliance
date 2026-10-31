@@ -7,10 +7,16 @@
 //     anillo como lo lee el gateway (baanillo);
 //   - el programa para el gateway (ContentForReturn) lleva todo;
 //   - el mute de una entrada vale también en el retorno;
-//   - en «programa» el invitado sigue teniendo su anillo, con todo (también su voz).
+//   - en «programa» el invitado sigue teniendo su anillo, con todo (también su voz);
+//   - CON DOS SALIDAS (04-plan-unificado.md, F2-02): cada salida tiene el mix-minus de cada
+//     invitado (BA.Audio.Return.<n> y BA.Audio.Return.<salida>.<n>) con SUS faders; en
+//     ninguno de los cuatro está la voz de su invitado (Goertzel a su frecuencia: ~0) y sí
+//     la del otro.
 // Los anillos usan otro prefijo: no pisan los de una app andando.
 
+#include "LectorAnillo.hpp"
 #include "Motor.hpp"
+#include "ipc/CanalesSalida.hpp"
 
 #include <gst/gst.h>
 
@@ -219,6 +225,40 @@ int main() {
     CHECK(motor.quitarEntrada("cam").empty(), "sacar una entrada");
     motor.quitarEntrada("cam");
     CHECK(falla(), "sacarla dos veces avisa");
+
+    // --- Dos salidas: nadie se oye a sí mismo en ninguna (F2-02) ---
+    CHECK(motor.agregarEntrada("invitado2", tono(660), {{"global", true}}).empty(), "otro invitado");
+    CHECK(motor.crearSalida("b", "B").empty(), "la salida b");
+    CHECK(motor.retorno(1, "mix_minus", "invitado1").empty() && motor.retorno(2, "mix_minus", "invitado2").empty(),
+          "los dos en mix_minus");
+    motor.ponerMute("mic", true, "b"); // el mic, callado solo en la salida b
+    CHECK(!falla(), "las órdenes de las dos salidas");
+    esperar(1200);
+    struct Caso {
+        const char* salida;
+        int n;
+        double propia, otro; ///< la frecuencia de su voz y la del otro invitado
+        bool conMic;
+    };
+    for (const Caso& k : {Caso{"", 1, 440, 660, true}, Caso{"", 2, 660, 440, true}, Caso{"b", 1, 440, 660, false},
+                          Caso{"b", 2, 660, 440, false}}) {
+        const std::string canal = cfg.prefijoAnillos + ba::ipc::sufijoRetorno(k.salida, k.n);
+        const prueba::Lectura l = prueba::leer(canal, 800, 2.0f); // sin pulsos: solo se junta
+        const double suya = prueba::goertzel(l.muestras, k.propia), otro = prueba::goertzel(l.muestras, k.otro),
+                     mic = prueba::goertzel(l.muestras, 1000);
+        std::printf("%s: su voz %.4f, la del otro %.4f, el mic %.4f (%zu muestras)\n", canal.c_str(), suya, otro, mic,
+                    l.muestras.size() / 2);
+        CHECK(l.abierto && l.muestras.size() > 48000, "el anillo del mix-minus existe y escribe");
+        CHECK(suya < 0.002, "el invitado no se oye a sí mismo");
+        CHECK(otro > 0.15, "oye al otro invitado");
+        CHECK(k.conMic ? mic > 0.15 : mic < 0.002, "con el fader y el mute de SU salida");
+    }
+    const json rs = motor.estado()["retornos"];
+    CHECK(rs["1"]["salidas"]["b"].value("anda", false) && rs["2"]["salidas"]["principal"].value("anda", false),
+          "el estado los muestra por salida");
+    CHECK(motor.borrarSalida("b").empty(), "borrar la salida b (se lleva sus retornos)");
+    motor.esperarCola();
+    CHECK(!motor.estado()["retornos"]["1"]["salidas"].contains("b"), "sin la salida, sin su retorno");
 
     motor.detener();
     std::printf("== test_motor_retornos: %s ==\n", fallos == 0 ? "OK" : "FALLOS");
