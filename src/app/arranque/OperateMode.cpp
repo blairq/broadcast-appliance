@@ -24,6 +24,8 @@
 #include "arranque/AppRuntime.hpp"
 #include "audio/ObjetivoLoudness.hpp"
 #include "emision/RetornosInvitados.hpp"
+#include "emision/SalidasConfig.hpp"
+#include "arranque/ArchivoConfig.hpp"
 #include "arranque/ArranqueAviso.hpp"
 #include "emision/BroadcastEngine.hpp"
 #include "emision/ChatOverlaySource.hpp"
@@ -677,6 +679,9 @@ int AppRuntime::start() {
     }
     marca(ba::i18n::traducir("arranque", "las escenas"));
     engine_.setCurrentScene(cfg_.currentScene);
+    // Las demás salidas (Config/salidas.json), con las fuentes ya puestas: cada una
+    // arranca con los volúmenes de la por omisión (su escena vuelve abajo, con al-aire.json).
+    crearSalidasGuardadas();
     if (cfg_.returnFeeds && !engine_.publishReturnFeeds()) {
         std::printf("ba-app: %s\n",
                     ba::i18n::llenar(ba::i18n::traducir("arranque", "sin retorno hacia B: %1"), {engine_.lastError()}).c_str());
@@ -711,16 +716,23 @@ int AppRuntime::start() {
     // Con --test (pruebas: el MCP sin aprobaciones) NUNCA se arranca al aire.
     {
         // ¿Se cortó la anterior? Un archivo de antes de «cerrado» cuenta como cierre ordenado.
-        std::ifstream in(ba::platform::stateDir() / "al-aire.json");
-        const nlohmann::json j = nlohmann::json::parse(in, nullptr, false);
-        corteAnterior_ = j.is_object() && !j.value("cerrado", true);
+        const salidas::AlAire aire = salidas::leerAlAire(config::leerObjeto(ba::platform::stateDir() / "al-aire.json"));
+        corteAnterior_ = !aire.cerrado;
         // La escena que estaba al aire (app.json puede tener una vieja: no se
         // guarda en cada corte). También con --test: no sale nada al aire.
-        const std::string escena = j.is_object() ? j.value("escena", std::string()) : std::string();
+        const std::string escena = aire.de(salidas::kPorOmision).escena;
         if (corteAnterior_ && !escena.empty() && escena != engine_.currentScene() && setScene(escena))
             ba::diag::registro().linea(ba::diag::Nivel::Aviso, "arranque", 0,
                                        ba::i18n::llenar(ba::i18n::traducir("arranque", "la corrida anterior no se cerró: vuelve la escena «%1»"),
                                                         {escena}));
+        // Las demás salidas: su escena solo está ahí (no van en app.json), así que vuelve siempre.
+        for (const std::string& id : engine_.salidaIds()) {
+            const std::string e = aire.de(id).escena;
+            if (id != salidas::kPorOmision && !e.empty() && !setScene(e, id))
+                ba::diag::registro().linea(ba::diag::Nivel::Aviso, "arranque", 0,
+                                           ba::i18n::llenar(ba::i18n::traducir("arranque", "la salida «%1» no pudo volver a «%2»: %3"),
+                                                            {id, e, lastError_}));
+        }
     }
     marca(ba::i18n::traducir("arranque", "las salidas"));
     arranque::avisar(ba::i18n::traducir("arranque", "Volviendo a como estaba…"));
@@ -767,8 +779,8 @@ void AppRuntime::tick() {
         latido_.uiTick(st.streaming || st.recording);
         // Un codificador que se cayó en el aire se reemplaza y se rearranca lo que corría.
         engine_.atenderEncoderCaido(!streamStopWanted_, !recordStopWanted_);
-        // La escena al aire, para volver a ella tras un corte (P0.10).
-        if (engine_.currentScene() != escenaEscrita_) writeOnAirState();
+        // La escena al aire de cada salida, para volver a ella tras un corte (P0.10).
+        if (firmaDelAire() != escenaEscrita_) writeOnAirState();
     }
     engine_.aplicarRecortesPendientes(); // los de cámaras que recién tienen tamaño
 }
@@ -823,7 +835,13 @@ std::vector<std::string> AppRuntime::carpetasDeGrabaciones() const {
     return out;
 }
 
-bool AppRuntime::startRecording() {
+bool AppRuntime::startRecording(const std::string& salida) {
+    const std::string id = engine_.idDeSalida(salida);
+    if (id.empty()) {
+        lastError_ = ba::i18n::llenar(ba::i18n::traducir("salidas", "no hay una salida «%1»"), {salida});
+        return false;
+    }
+    const bool porOmision = id == salidas::kPorOmision;
     std::error_code ec;
     RecordConfig rec = cfg_.rec;
     rec.directory = carpetaGrabacion();
@@ -838,16 +856,21 @@ bool AppRuntime::startRecording() {
     }
     fs::create_directories(rec.directory, ec);
     const EngineStatus antes = engine_.status();
-    if (!engine_.startRecording(rec, cfg_.encoder)) {
+    if (!engine_.startRecording(rec, cfg_.encoder, id)) {
         lastError_ = engine_.lastError();
         std::printf("ba-app: %s\n",
                     ba::i18n::llenar(ba::i18n::traducir("grabacion", "la grabacion no arranco: %1"), {lastError_}).c_str());
         return false;
     }
     std::printf("ba-app: %s\n", ba::i18n::llenar(ba::i18n::traducir("grabacion", "grabando en %1"), {rec.directory}).c_str());
-    // El integrado del loudness arranca con la sesión (si no había nada saliendo).
-    if (!antes.streaming && !antes.recording) engine_.loudness().reiniciar();
-    recordStopWanted_ = false;
+    // El integrado del loudness arranca con la sesión (si no había nada saliendo de esa salida).
+    if (porOmision) {
+        if (!antes.streaming && !antes.recording) engine_.loudness().reiniciar();
+        recordStopWanted_ = false;
+    } else {
+        if (!engine_.haySalidaEn(id)) engine_.loudness(id).reiniciar();
+        grabandoOtras_.insert(id);
+    }
     writeOnAirState();
     avisar(Cambio::Salidas);
     return true;
@@ -886,10 +909,15 @@ void AppRuntime::stopAllSourceRecordings() {
     avisar(Cambio::Salidas);
 }
 
-void AppRuntime::stopRecording() {
-    recordStopWanted_ = true;
+void AppRuntime::stopRecording(const std::string& salida) {
+    const std::string id = engine_.idDeSalida(salida);
+    if (id.empty()) return;
+    if (id == salidas::kPorOmision)
+        recordStopWanted_ = true;
+    else
+        grabandoOtras_.erase(id);
     writeOnAirState();
-    engine_.stopRecording();
+    engine_.stopRecording(id);
     avisar(Cambio::Salidas);
 }
 
@@ -922,12 +950,24 @@ bool AppRuntime::streamKeySaved() const {
     return keySaved_ == 1;
 }
 
+std::string AppRuntime::firmaDelAire() const {
+    std::string f;
+    for (const std::string& id : engine_.salidaIds()) f += id + '\n' + engine_.currentScene(id) + '\n';
+    return f;
+}
+
 void AppRuntime::writeOnAirState() const {
-    escenaEscrita_ = engine_.currentScene();
-    const nlohmann::json j{{"streaming", !streamStopWanted_},
-                           {"recording", !recordStopWanted_},
-                           {"escena", escenaEscrita_},
-                           {"cerrado", cerrando_}};
+    escenaEscrita_ = firmaDelAire();
+    // Cada salida con su escena y lo que sale; la por omisión además en los campos de
+    // siempre (salidas::aJson), que es lo que lee un arranque de antes de las salidas.
+    salidas::AlAire a;
+    a.cerrado = cerrando_;
+    for (const std::string& id : engine_.salidaIds()) {
+        const bool po = id == salidas::kPorOmision;
+        a.salidas[id] = {engine_.currentScene(id), po && !streamStopWanted_,
+                         po ? !recordStopWanted_ : grabandoOtras_.count(id) > 0};
+    }
+    const nlohmann::json j = salidas::aJson(a);
     // Temporal + rename: un corte a mitad no deja el archivo vacío.
     const std::filesystem::path dest = ba::platform::stateDir() / "al-aire.json";
     const std::filesystem::path tmp = dest.string() + ".tmp";
@@ -941,12 +981,19 @@ void AppRuntime::writeOnAirState() const {
 }
 
 void AppRuntime::restoreOutputs() {
-    std::ifstream in(ba::platform::stateDir() / "al-aire.json");
-    const nlohmann::json j = nlohmann::json::parse(in, nullptr, false);
-    if (!j.is_object()) {
+    const nlohmann::json j = config::leerObjeto(ba::platform::stateDir() / "al-aire.json");
+    if (j.empty()) {
         return;
     }
     if (cfg_.modoPrueba) return; // la escena sí; las salidas, nunca con --test
+    // Las grabaciones de las demás salidas (sus transmisiones son destinos: no se retoman, como siempre).
+    const salidas::AlAire aire = salidas::leerAlAire(j);
+    for (const auto& [id, s] : aire.salidas) {
+        if (id == salidas::kPorOmision || !s.grabando || !engine_.existeSalida(id)) continue;
+        ba::diag::registro().linea(ba::diag::Nivel::Aviso, "arranque", 0,
+                                   ba::i18n::llenar(ba::i18n::traducir("arranque", "la corrida anterior no se cerró: se retoma la grabación de la salida «%1»"), {id}));
+        startRecording(id);
+    }
     if (j.value("recording", false) && !engine_.status().recording) {
         ba::diag::registro().linea(ba::diag::Nivel::Aviso, "arranque", 0,
                                    ba::i18n::traducir("arranque", "la corrida anterior no se cerró (corte de luz o cuelgue): se retoma la grabación"));
@@ -1050,6 +1097,7 @@ nlohmann::json AppRuntime::destinos() const {
     nlohmann::json out = nlohmann::json::array();
     for (nlohmann::json d : leerDestinos(root_)) {
         const std::string id = d.value("id", std::string());
+        d["salida"] = salidas::salidaDeDestino(d);
         d["tiene_clave"] = ba::security::CredentialStore::bundle().exists("stream-" + id);
         const nlohmann::json e = est.value(id, nlohmann::json::object());
         d["activo"] = e.value("activo", false);
@@ -1066,6 +1114,9 @@ std::string AppRuntime::guardarDestino(const nlohmann::json& d, std::string* idO
     const std::string url = d.value("url", std::string());
     nlohmann::json lista = leerDestinos(root_);
     std::string id = d.value("id", std::string());
+    // La salida de la que toma el programa (sin campo = la por omisión): tiene que existir.
+    if (d.contains("salida") && !d.value("salida", std::string()).empty() && !engine_.existeSalida(d.value("salida", std::string())))
+        return ba::i18n::llenar(ba::i18n::traducir("salidas", "no hay una salida «%1»"), {d.value("salida", std::string())});
     nlohmann::json* existente = nullptr;
     for (auto& x : lista)
         if (!id.empty() && x.value("id", std::string()) == id) existente = &x;
@@ -1085,8 +1136,9 @@ std::string AppRuntime::guardarDestino(const nlohmann::json& d, std::string* idO
         }
         lista.push_back({{"id", id}, {"nombre", d.value("nombre", id)}, {"url", url}, {"respaldo", d.value("respaldo", false)}});
         existente = &lista.back();
+        if (d.contains("salida")) (*existente)["salida"] = d["salida"];
     } else {
-        for (const char* k : {"nombre", "url", "respaldo"})
+        for (const char* k : {"nombre", "url", "respaldo", "salida"})
             if (d.contains(k)) (*existente)[k] = d[k];
     }
     // SRT: el modo (caller/listener/rendezvous) y la latencia van en la URL, que es
@@ -1140,12 +1192,12 @@ std::string AppRuntime::aplicarReplay() {
                  : ba::i18n::traducir("salidas", "Repetición apagada.");
 }
 
-void AppRuntime::detenerSenalLimpia() {
-    engine_.stopCleanFeed();
+void AppRuntime::detenerSenalLimpia(const std::string& salida) {
+    engine_.stopCleanFeed(salida);
     avisar(Cambio::Salidas);
 }
 
-std::string AppRuntime::iniciarSenalLimpia(const std::string& destino) {
+std::string AppRuntime::iniciarSenalLimpia(const std::string& destino, const std::string& salida) {
     std::string url, clave, dir;
     if (!destino.empty()) {
         for (const auto& d : leerDestinos(root_))
@@ -1158,7 +1210,7 @@ std::string AppRuntime::iniciarSenalLimpia(const std::string& destino) {
         dir = carpetaGrabacion() + "/limpia";
         fs::create_directories(dir, ec);
     }
-    if (!engine_.startCleanFeed(url, clave, dir, cfg_.encoder)) return engine_.lastError();
+    if (!engine_.startCleanFeed(url, clave, dir, cfg_.encoder, salida)) return engine_.lastError();
     ba::diag::registro().linea(ba::diag::Nivel::Info, "salidas", 0,
                                destino.empty() ? ba::i18n::llenar(ba::i18n::traducir("salidas", "señal limpia grabando en %1"), {dir})
                                                : ba::i18n::llenar(ba::i18n::traducir("salidas", "señal limpia a %1"), {destino}));
@@ -1187,7 +1239,7 @@ std::string AppRuntime::iniciarDestino(const std::string& id) {
         alguno = true;
         std::string clave;
         ba::security::CredentialStore::bundle().read("stream-" + did, clave);
-        if (!engine_.startExtra(did, d.value("url", std::string()), clave, cfg_.encoder))
+        if (!engine_.startExtra(did, d.value("url", std::string()), clave, cfg_.encoder, salidas::salidaDeDestino(d)))
             errores += (errores.empty() ? "" : "; ") + did + ": " + engine_.lastError();
     }
     if (!alguno) return ba::i18n::llenar(ba::i18n::traducir("salidas", "no hay un destino «%1» (stream_destinos los lista)"), {id});
@@ -1377,24 +1429,97 @@ bool AppRuntime::moveScene(const std::string& name, const std::string& before) {
     return true;
 }
 
-bool AppRuntime::setScene(const std::string& name) {
-    if (!engine_.setCurrentScene(name)) {
+bool AppRuntime::setScene(const std::string& name, const std::string& salida) {
+    return anotarAire(engine_.setCurrentScene(name, salida), name, salida);
+}
+
+bool AppRuntime::setSceneCon(const std::string& name, const std::string& tipo, int ms, const std::string& salida) {
+    return anotarAire(engine_.setCurrentSceneCon(name, tipo, ms, salida), name, salida);
+}
+
+bool AppRuntime::anotarAire(bool ok, const std::string& name, const std::string& salida) {
+    if (!ok) {
         lastError_ = engine_.lastError();
         return false;
     }
-    cfg_.currentScene = name;
+    // La de la por omisión va también en app.json (la de las demás, solo en al-aire.json).
+    if (engine_.idDeSalida(salida) == salidas::kPorOmision) cfg_.currentScene = name;
     avisar(Cambio::Aire);
     return true;
 }
 
-bool AppRuntime::setSceneCon(const std::string& name, const std::string& tipo, int ms) {
-    if (!engine_.setCurrentSceneCon(name, tipo, ms)) {
-        lastError_ = engine_.lastError();
-        return false;
-    }
-    cfg_.currentScene = name;
-    avisar(Cambio::Aire);
-    return true;
+// --- Las salidas del aparato ----------------------------------------------------
+
+void AppRuntime::crearSalidasGuardadas() {
+    for (const auto& s : salidas::leer(config::leerObjeto(archivoSalidas())).salidas)
+        if (!engine_.existeSalida(s.id) && !engine_.crearSalida(s.id, s.nombre))
+            ba::diag::registro().linea(ba::diag::Nivel::Error, "salidas", 0,
+                                       ba::i18n::llenar(ba::i18n::traducir("salidas", "la salida «%1» no arrancó: %2"),
+                                                        {s.id, engine_.lastError()}));
+}
+
+nlohmann::json AppRuntime::salidas() const {
+    const salidas::Lista l = salidas::leer(config::leerObjeto(archivoSalidas()));
+    nlohmann::json arr = nlohmann::json::array();
+    for (const auto& s : l.salidas)
+        arr.push_back({{"id", s.id},
+                       {"nombre", s.nombre},
+                       {"color", s.color},
+                       {"orden", s.orden},
+                       {"por_omision", s.id == salidas::kPorOmision},
+                       {"andando", engine_.existeSalida(s.id)},
+                       {"escena", engine_.currentScene(s.id)}});
+    return {{"tope", l.tope}, {"salidas", arr}};
+}
+
+std::string AppRuntime::crearSalida(const std::string& id, const std::string& nombre, const std::string& color) {
+    salidas::Lista l = salidas::leer(config::leerObjeto(archivoSalidas()));
+    if (std::string e = salidas::agregar(l, {id, nombre, color, 0}); !e.empty()) return e;
+    // Que la máquina dé abasto lo dice sistema_recursos: el tope es el límite que puso el operador.
+    if (!engine_.crearSalida(id, l.buscar(id)->nombre)) return engine_.lastError();
+    if (!config::guardar(archivoSalidas(), salidas::aJson(l)))
+        ba::diag::registro().linea(ba::diag::Nivel::Aviso, "salidas", 0,
+                                   ba::i18n::traducir("salidas", "no se pudo guardar Config/salidas.json"));
+    ba::diag::registro().linea(ba::diag::Nivel::Info, "salidas", 0,
+                               ba::i18n::llenar(ba::i18n::traducir("salidas", "salida nueva: «%1»"), {id}));
+    writeOnAirState();
+    avisar(Cambio::Salidas);
+    return {};
+}
+
+std::string AppRuntime::editarSalida(const std::string& id, const nlohmann::json& cambios) {
+    salidas::Lista l = salidas::leer(config::leerObjeto(archivoSalidas()));
+    if (std::string e = salidas::editar(l, id, cambios); !e.empty()) return e;
+    config::guardar(archivoSalidas(), salidas::aJson(l));
+    avisar(Cambio::Salidas);
+    return {};
+}
+
+std::string AppRuntime::borrarSalida(const std::string& id) {
+    salidas::Lista l = salidas::leer(config::leerObjeto(archivoSalidas()));
+    if (std::string e = salidas::quitar(l, id); !e.empty()) return e;
+    // Lo que sale de ella (transmisiones, grabación, repetición, limpia) se para con ella.
+    if (engine_.existeSalida(id) && !engine_.borrarSalida(id)) return engine_.lastError();
+    grabandoOtras_.erase(id);
+    config::guardar(archivoSalidas(), salidas::aJson(l));
+    ba::diag::registro().linea(ba::diag::Nivel::Info, "salidas", 0,
+                               ba::i18n::llenar(ba::i18n::traducir("salidas", "salida borrada: «%1»"), {id}));
+    writeOnAirState();
+    avisar(Cambio::Salidas);
+    return {};
+}
+
+std::string AppRuntime::setTopeSalidas(int tope) {
+    if (tope < 1 || tope > salidas::kTopeMaximo)
+        return ba::i18n::llenar(ba::i18n::traducir("salidas", "el tope va de 1 a %1"), {std::to_string(salidas::kTopeMaximo)});
+    salidas::Lista l = salidas::leer(config::leerObjeto(archivoSalidas()));
+    if (tope < static_cast<int>(l.salidas.size()))
+        return ba::i18n::llenar(ba::i18n::traducir("salidas", "ya hay %1 salidas: borrá alguna antes de bajar el tope"),
+                                {std::to_string(l.salidas.size())});
+    l.tope = tope;
+    config::guardar(archivoSalidas(), salidas::aJson(l));
+    avisar(Cambio::Salidas);
+    return {};
 }
 
 bool AppRuntime::setTransition(const std::string& type, int durationMs) {

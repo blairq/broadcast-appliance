@@ -29,6 +29,7 @@
 #include <filesystem>
 #include <functional>
 #include <mutex>
+#include <set>
 #include <string>
 #include <utility>
 #include <vector>
@@ -67,7 +68,7 @@ class AppRuntime {
     /// interfaz se entera igual si el pedido vino del operador, del MCP, de un
     /// plugin o del guion del evento, sin que cada llamador se acuerde de avisar.
     enum class Cambio {
-        Salidas, ///< transmisión, grabación (programa, por entrada, señal limpia) o destinos
+        Salidas, ///< transmisión, grabación (programa, por entrada, señal limpia), destinos, o qué salidas hay
         Escenas, ///< la lista de escenas: agregar, copiar, quitar, renombrar, mover, carpeta, protegida
         Aire,    ///< la escena al aire o la transición
         Fuentes, ///< qué fuentes hay en una escena y en qué orden (agregar, quitar, mover, renombrar)
@@ -85,7 +86,22 @@ class AppRuntime {
     /// formularios de Configuración que no tienen cambios a medio hacer se recargan.
     void ajustesAplicados() { avisar(Cambio::Ajustes); }
 
-    // --- Salidas --------------------------------------------------------------
+    // --- Las salidas del aparato (docs/planes/PLAN-SALIDAS.md) ------------------
+    // Cada una un operador completo (ver BroadcastEngine, LAS SALIDAS). Se guardan
+    // en Config/salidas.json (emision/SalidasConfig.hpp); la por omisión existe
+    // siempre. En todo lo que sigue, `salida` "" = la por omisión.
+    /// {tope, salidas: [{id, nombre, color, orden, por_omision, escena}]}.
+    nlohmann::json salidas() const;
+    /// Una salida nueva, andando (en caliente), hasta el tope. "" o por qué no.
+    std::string crearSalida(const std::string& id, const std::string& nombre, const std::string& color = {});
+    /// Cambia nombre y/o color ({nombre, color}). "" o por qué no.
+    std::string editarSalida(const std::string& id, const nlohmann::json& cambios);
+    /// Para todo lo que sale de ella y la saca (la por omisión no). "" o por qué no.
+    std::string borrarSalida(const std::string& id);
+    /// Cuántas salidas se pueden tener (1…16). "" o por qué no.
+    std::string setTopeSalidas(int tope);
+
+    // --- Lo que sale ------------------------------------------------------------
     /// La carpeta del evento en curso (docs/planes/PLAN-EVENTOS-HISTORICO.md, H4): con
     /// uno, lo que se graba va a <evento>/Grabaciones/. Vacía = Recordings/.
     void setCarpetaDelEvento(std::function<std::filesystem::path()> fn) { carpetaDelEvento_ = std::move(fn); }
@@ -93,8 +109,8 @@ class AppRuntime {
     std::string carpetaGrabacion() const;
     /// Dónde buscar grabaciones (para subir, listar): la del evento y Recordings/.
     std::vector<std::string> carpetasDeGrabaciones() const;
-    bool startRecording();
-    void stopRecording();
+    bool startRecording(const std::string& salida = "");
+    void stopRecording(const std::string& salida = "");
     /// Graba una entrada a su propio archivo, ademas del programa. Ver
     /// BroadcastEngine::startSourceRecording: cada una es un encode mas.
     bool startSourceRecording(const std::string& source);
@@ -110,9 +126,9 @@ class AppRuntime {
     void stopAllSourceRecordings();
     /// La señal limpia (sin DSK ni placa) a un destino guardado (`destino` = su id) o
     /// a Recordings/limpia/ si viene vacío. "" o el error.
-    std::string iniciarSenalLimpia(const std::string& destino);
+    std::string iniciarSenalLimpia(const std::string& destino, const std::string& salida = "");
     /// Corta la señal limpia (y avisa, como todas las salidas).
-    void detenerSenalLimpia();
+    void detenerSenalLimpia(const std::string& salida = "");
     /// Prende o apaga la repetición con cfg_.replaySegundos. Devuelve la nota para el operador.
     std::string aplicarReplay();
     /// Transmite a `server` con `key`; vacios = los de la configuracion/entorno.
@@ -127,9 +143,10 @@ class AppRuntime {
 
     // --- Destinos adicionales de la transmisión (Config/destinos.json; la
     // clave de cada uno en el almacén cifrado como "stream-<id>") -------------
-    /// [{id, nombre, url, respaldo, tiene_clave, activo, reconectando, perdidos, destino}].
+    // Cada destino sale con el programa de su `salida` (sin campo = la por omisión).
+    /// [{id, nombre, url, respaldo, salida, tiene_clave, activo, reconectando, perdidos, destino}].
     nlohmann::json destinos() const;
-    /// Agrega o cambia (`id` existente) un destino: {id?, nombre, url, clave?, respaldo?}. "" o el error.
+    /// Agrega o cambia (`id` existente) un destino: {id?, nombre, url, clave?, respaldo?, salida?}. "" o el error.
     std::string guardarDestino(const nlohmann::json& d, std::string* idOut = nullptr);
     std::string borrarDestino(const std::string& id);
     /// Arranca un destino ("todos": todos los guardados). "" o el error.
@@ -161,9 +178,11 @@ class AppRuntime {
     /// Mueve `name` para que quede JUSTO ANTES de `before` (vacio = al final) y
     /// le pone la carpeta de `before`. Devuelve false si no existe.
     bool moveScene(const std::string& name, const std::string& before);
-    bool setScene(const std::string& name);
+    /// Al aire en la salida (la de la por omisión queda en app.json; la de todas, en
+    /// Runtime/al-aire.json).
+    bool setScene(const std::string& name, const std::string& salida = "");
     /// Al aire con otra transición solo esta vez (ver BroadcastEngine::setCurrentSceneCon).
-    bool setSceneCon(const std::string& name, const std::string& tipo, int ms);
+    bool setSceneCon(const std::string& name, const std::string& tipo, int ms, const std::string& salida = "");
     bool setTransition(const std::string& type, int durationMs);
     bool addSource(const std::string& scene, const SourceSpec& spec);
     bool removeSource(const std::string& scene, const std::string& name);
@@ -260,6 +279,14 @@ class AppRuntime {
     /// También la escena al aire y si el cierre fue ordenado. Escritura atómica.
     void writeOnAirState() const;
     void restoreOutputs();
+    /// Lo que se escribió por última vez en al-aire.json de las escenas al aire (para
+    /// reescribirlo solo si cambió alguna).
+    std::string firmaDelAire() const;
+    /// Crea las salidas guardadas (Config/salidas.json) que el motor todavía no tiene.
+    void crearSalidasGuardadas();
+    /// Lo común de setScene y setSceneCon después de pedirlo al motor.
+    bool anotarAire(bool ok, const std::string& name, const std::string& salida);
+    std::filesystem::path archivoSalidas() const { return root_ / "Config" / "salidas.json"; }
 
     AppConfig cfg_;
     GatewaySettings gateway_;
@@ -278,9 +305,11 @@ class AppRuntime {
     std::atomic<bool> reiniciandoSala_{false};
     bool streamStopWanted_ = true;
     bool recordStopWanted_ = true;
+    /// Las salidas que no son la por omisión y que se graban a pedido (vuelven tras un corte).
+    std::set<std::string> grabandoOtras_;
     bool corteAnterior_ = false;
     bool cerrando_ = false;           ///< stop(): al-aire.json dice «cerrado»
-    mutable std::string escenaEscrita_; ///< la que dice al-aire.json
+    mutable std::string escenaEscrita_; ///< lo que dice al-aire.json de las escenas (firmaDelAire)
     mutable int keySaved_ = -1;   // cache de streamKeySaved (-1 = sin consultar)
     bool safeBackupDone_ = false; // app.json resguardado antes de guardar en modo seguro
     bool started_ = false;

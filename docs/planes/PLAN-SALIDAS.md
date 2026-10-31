@@ -90,6 +90,44 @@ Salida {
    loudness, retorno); `fuentesDelPrograma(salida)`; `Config/salidas.json` y `destinos.json`
    con `salida`; `Runtime/al-aire.json` por salida (corte de luz: vuelve cada una como
    estaba). El cue de escena del guion pasa por el `Conmutador` de su salida.
+   *Hecho (2026-10-31)*:
+   - `escenas::Conmutadores` (registro, uno por salida del motor; se rehace con el aviso
+     `Cambio::Salidas`) y `Conmutador` con su salida: poner/armar/take/T-bar sobre la suya;
+     armar va al bus de PREVIEW de su salida en el motor (`BroadcastEngine::armar`: la
+     vista «armada» ya no arma, solo mira). El AFV es por salida (`escenas::Afv`) y mueve el
+     fader de la fuente EN ESA salida (`setSourceVolume(n, v, salida)` → `ponerNivel` de su
+     bus). Las transiciones de entrada son de la escena (compartidas). `transiciones.json`:
+     lo de siempre es de la por omisión; las demás en `salidas: {id: {afv, afv_niveles}}`.
+     `StudioViewModel::conmutador()` sigue siendo el de la por omisión.
+   - `BroadcastEngine::Salida` con su escena al aire y armada, DSK/placa/FTB (texto e imagen
+     de la placa por salida), volumen y mute por fuente (las demás; la por omisión usa los de
+     la fuente), loudness y picos, transmisión principal + extras (ids únicos entre todas),
+     grabación (+copia; `ba-<id>-<ts>`), repetición, señal limpia y retorno al gateway
+     (`BA.Program` la por omisión; `BA.Salida.<id>` las demás, y el motor escribe su audio en
+     `BA.Audio.Salida.<id>`). `crearSalida/borrarSalida/salidaIds`, `fuentesDelPrograma(salida)`,
+     `haySalida()` = alguna, `haySalidaEn(id)`, `fuenteAlAire` = en alguna que sale,
+     `EngineStatus::salidas` (los campos de siempre son los de la por omisión), foto de
+     salidas con `salidas: {id: …}`. `retornoEnUso(si, salida)`: las demás solo mientras el
+     gateway dice que alguien las mira (`miranSalidas`). `resetVideo` vuelve a crear las
+     salidas con su aire, su armada y su mezcla.
+   - Persistencia (`emision/SalidasConfig`): `Config/salidas.json` (tope, de fábrica 4;
+     la por omisión siempre), `destinos.json` con `salida`, `Runtime/al-aire.json` con
+     `salidas: {id: {escena, streaming, recording}}` además de los campos de siempre (un
+     archivo viejo se lee igual; uno nuevo lo entiende un arranque viejo). La escena de las
+     demás vuelve siempre al arrancar (solo está ahí); su grabación, tras un corte.
+   - `AppRuntime::crearSalida/editarSalida/borrarSalida/setTopeSalidas/salidas()` (en
+     caliente; `StudioViewModel` los expone como Q_INVOKABLE) y la propiedad `salidas`
+     (lista con aire/armada/transmitiendo/grabando de cada una), que además se manda al
+     gateway con `ponerSalidas`.
+   - Tests: `test_salidas_config` (salidas.json, destinos, al-aire viejo y nuevo) y `test_afv`.
+   *Falta*: las pistas 2-6, los retornos mix-minus, el directo y la selección siguen a la
+   por omisión (motor); la grabación de otra salida no lleva pistas extra. La medición de
+   sincronía y las alarmas de video (luma/quietud) miran solo la por omisión. Las capas
+   (DSK/placa/FTB) siguen sin volver tras `resetVideo` (como antes). `SeguridadAire`,
+   `ObjetivoLoudness` y el tally del `BusEventos` siguen siendo de la por omisión (etapas 3-5).
+   `RespaldoEntradas` mira las fuentes al aire de todas pero corta en la por omisión. Un test
+   de la app con el motor (dos salidas andando con `BroadcastEngine`) no existe todavía:
+   lo de abajo del motor lo prueba `test_motor_salidas`.
 3. **MCP** — argumento opcional `salida` en las ~60 herramientas; `salidas_listar`,
    `salida_crear`, `salida_editar`, `salida_borrar`; `status` con todas; `McpAire` decide
    «de aire» según qué salida está saliendo; `ArgumentosLocales` con la salida del asistente.

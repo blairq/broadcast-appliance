@@ -404,10 +404,10 @@ bool BroadcastEngine::removeScene(const std::string& name) {
         setError(ba::i18n::traducir("emision", "removeScene: no existe o es la unica escena"));
         return false;
     }
-    if (currentScene_ == name) {
-        const std::string other = (it == scenes_.begin()) ? (it + 1)->nombre : scenes_.front().nombre;
-        setCurrentSceneCon(other, "cut", 0);
-    }
+    // Las salidas que la tienen al aire pasan a otra con un corte.
+    const std::string other = (it == scenes_.begin()) ? (it + 1)->nombre : scenes_.front().nombre;
+    for (const auto& id : ordenSalidas_)
+        if (salidas_.at(id)->alAire == name) setCurrentSceneCon(other, "cut", 0, id);
     const std::vector<Item> items = it->items;
     scenes_.erase(it);
     motor_->quitarEscena(name);
@@ -426,12 +426,14 @@ bool BroadcastEngine::renameScene(const std::string& from, const std::string& to
     }
     EscenaApp* e = escena(from);
     if (e == nullptr) return false;
-    const bool alAire = currentScene_ == from;
     e->nombre = to;
     publicarEscena(*e);
-    if (alAire) {
-        currentScene_ = to;
-        motor_->alAire(to, "corte", 0);
+    for (const auto& [id, s] : salidas_) {
+        if (s->alAire == from) {
+            s->alAire = to;
+            motor_->alAire(to, "corte", 0, id);
+        }
+        if (s->armada == from) armar(to, id);
     }
     motor_->quitarEscena(from);
     return true;
@@ -457,48 +459,63 @@ bool BroadcastEngine::setTransition(const std::string& type, int durationMs) {
     return true;
 }
 
-bool BroadcastEngine::setCurrentSceneCon(const std::string& name, const std::string& tipo, int ms) {
+bool BroadcastEngine::setCurrentSceneCon(const std::string& name, const std::string& tipo, int ms, const std::string& salida) {
     if (escena(name) == nullptr) {
         setError(ba::i18n::llenar(ba::i18n::traducir("emision", "no existe la escena '%1'"), {name}));
         return false;
     }
+    Salida* s = laSalida(salida);
+    if (s == nullptr) return false;
     const int dur = ms < 0 ? transitionMs_ : ms;
-    const std::string t = currentScene_.empty() || dur == 0 ? "corte" : transicionMotor(tipo.empty() ? transitionType_ : tipo);
-    const std::string e = motor_->alAire(name, t, dur);
+    const std::string t = s->alAire.empty() || dur == 0 ? "corte" : transicionMotor(tipo.empty() ? transitionType_ : tipo);
+    const std::string e = motor_->alAire(name, t, dur, s->id);
     if (!e.empty()) {
         setError(e);
         return false;
     }
-    currentScene_ = name;
+    s->alAire = name;
     return true;
 }
 
-bool BroadcastEngine::setCurrentScene(const std::string& name) { return setCurrentSceneCon(name, transitionType_, -1); }
+bool BroadcastEngine::setCurrentScene(const std::string& name, const std::string& salida) {
+    return setCurrentSceneCon(name, transitionType_, -1, salida);
+}
 
-bool BroadcastEngine::transicionManual(const std::string& name, float t, bool soltar, bool* alAire) {
+const std::string& BroadcastEngine::currentScene(const std::string& salida) const {
+    static const std::string kNinguna;
+    const Salida* s = laSalida(salida);
+    return s != nullptr ? s->alAire : kNinguna;
+}
+
+bool BroadcastEngine::transicionManual(const std::string& name, float t, bool soltar, bool* alAire, const std::string& salida) {
     if (alAire != nullptr) *alAire = false;
     if (escena(name) == nullptr) {
         setError(ba::i18n::llenar(ba::i18n::traducir("emision", "no existe la escena '%1'"), {name}));
         return false;
     }
-    if (name == currentScene_) {
+    Salida* s = laSalida(salida);
+    if (s == nullptr) return false;
+    if (name == s->alAire) {
         setError(ba::i18n::traducir("emision", "esa escena ya está al aire"));
         return false;
     }
     std::string e;
-    const bool quedo = motor_->tbar(name, t, soltar, &e);
+    const bool quedo = motor_->tbar(name, t, soltar, &e, s->id);
     if (!e.empty()) {
         setError(e);
         return false;
     }
     if (quedo) {
-        currentScene_ = name;
+        s->alAire = name;
         if (alAire != nullptr) *alAire = true;
     }
     return true;
 }
 
-std::string BroadcastEngine::manualHacia() const { return motor_ ? motor_->tbarHacia() : std::string(); }
+std::string BroadcastEngine::manualHacia(const std::string& salida) const {
+    const Salida* s = laSalida(salida);
+    return motor_ && s != nullptr ? motor_->tbarHacia(s->id) : std::string();
+}
 
 bool BroadcastEngine::buildScene() {
     if (escena("programa") == nullptr && !createScene("programa")) return false;
@@ -681,6 +698,12 @@ bool BroadcastEngine::crearFuente(const SourceSpec& pedida, bool global) {
     f.global = global;
     sources_[spec.name] = f;
     ordenFuentes_.push_back(spec.name);
+    // En la mezcla de cada salida entra con el mismo volumen y mute (las opciones valen para todas).
+    for (auto& [id, s] : salidas_)
+        if (!s->porOmision()) {
+            s->volumen[spec.name] = spec.volume;
+            s->mute[spec.name] = spec.muted;
+        }
     if (esDeApp(spec.id)) fuentes::alta(spec.name, spec.id, json::parse(spec.settingsJson, nullptr, false));
     // Una fuente nueva (o rehecha: una placa que cambió de canales): lo guardado de su
     // audio se le vuelve a poner (Matriz).
@@ -705,8 +728,9 @@ void BroadcastEngine::soltarSiHuerfana(const std::string& nombre) {
     for (const auto& e : scenes_)
         for (const auto& i : e.items)
             if (i.fuente == nombre) return;
-    for (const auto& d : dsk_)
-        if (std::find(d.contenido.begin(), d.contenido.end(), nombre) != d.contenido.end()) return;
+    for (const auto& [id, s] : salidas_)
+        for (const auto& d : s->dsk)
+            if (std::find(d.contenido.begin(), d.contenido.end(), nombre) != d.contenido.end()) return;
     if (!it->second.compProductor.empty()) {
         motor_->soltarEscena(kPrefijoCompositor + nombre);
         motor_->quitarEscena(kPrefijoCompositor + nombre);
@@ -744,8 +768,8 @@ bool BroadcastEngine::addSource(const std::string& sceneName, const SourceSpec& 
 }
 
 bool BroadcastEngine::addSource(const SourceSpec& spec) {
-    if (currentScene_.empty() && !buildScene()) return false;
-    return addSource(currentScene_, spec);
+    if (currentScene().empty() && !buildScene()) return false;
+    return addSource(currentScene(), spec);
 }
 
 bool BroadcastEngine::removeSource(const std::string& sceneName, const std::string& name) {
@@ -899,7 +923,22 @@ bool BroadcastEngine::renameSource(const std::string& from, const std::string& t
             }
         if (cambio) publicarEscena(sc);
     }
-    for (auto& d : dsk_) std::replace(d.contenido.begin(), d.contenido.end(), from, to);
+    // En cada salida: sus capas, y su volumen y su mute (la entrada nueva llega con los
+    // de la por omisión).
+    for (auto& [id, s] : salidas_) {
+        for (auto& d : s->dsk) std::replace(d.contenido.begin(), d.contenido.end(), from, to);
+        if (s->porOmision()) continue;
+        if (auto v = s->volumen.extract(from)) {
+            v.key() = to;
+            motor_->ponerNivel(to, nivelAplicado(to, v.mapped()), id);
+            s->volumen.insert(std::move(v));
+        }
+        if (auto m = s->mute.extract(from)) {
+            m.key() = to;
+            motor_->ponerMute(to, m.mapped(), id);
+            s->mute.insert(std::move(m));
+        }
+    }
     motor_->quitarEntrada(from);
     if (!f.pistas.empty()) motor_->ponerPistas(to, f.pistas);
     return true;
@@ -1106,10 +1145,17 @@ std::vector<std::string> BroadcastEngine::audioSources() const {
 
 std::vector<std::string> BroadcastEngine::sourceNames() const { return ordenFuentes_; }
 
-bool BroadcastEngine::setSourceVolume(const std::string& name, float mul) {
+bool BroadcastEngine::setSourceVolume(const std::string& name, float mul, const std::string& salida) {
     auto it = sources_.find(name);
     if (it == sources_.end()) return false;
     const float v = std::max(0.0f, mul);
+    Salida* s = laSalida(salida);
+    if (s == nullptr) return false;
+    if (!s->porOmision()) {
+        // La mezcla de otra salida: solo su fader en su bus (la fuente y su matriz son de la por omisión).
+        s->volumen[name] = v;
+        return motor_->ponerNivel(name, nivelAplicado(name, v), s->id).empty();
+    }
     const bool cambia = it->second.spec.volume != v;
     it->second.spec.volume = v;
     const bool ok = motor_->ponerNivel(name, nivelAplicado(name, v)).empty();
@@ -1144,6 +1190,9 @@ void BroadcastEngine::setGananciaGrupo(const std::string& grupo, float mul) {
     for (auto& [nombre, f] : sources_) {
         if (grupoDeAudio(nombre) != grupo) continue;
         if (motor_) motor_->ponerNivel(nombre, nivelAplicado(nombre, f.spec.volume)); // sin audio no tiene nivel: no importa
+        // El VCA es del grupo en todas las salidas (cada una con su fader).
+        for (const auto& [id, s] : salidas_)
+            if (motor_ && !s->porOmision()) motor_->ponerNivel(nombre, nivelAplicado(nombre, sourceVolume(nombre, id)), id);
         if (cambioAudio_) cambioAudio_(nombre, "volumen");
     }
 }
@@ -1153,14 +1202,24 @@ float BroadcastEngine::gananciaGrupo(const std::string& grupo) const {
     return it != gananciaGrupo_.end() ? it->second : 1.0f;
 }
 
-float BroadcastEngine::sourceVolume(const std::string& name) const {
+float BroadcastEngine::sourceVolume(const std::string& name, const std::string& salida) const {
     auto it = sources_.find(name);
-    return it != sources_.end() ? it->second.spec.volume : 0.0f;
+    if (it == sources_.end()) return 0.0f;
+    const Salida* s = laSalida(salida);
+    if (s == nullptr || s->porOmision()) return it->second.spec.volume;
+    const auto v = s->volumen.find(name);
+    return v != s->volumen.end() ? v->second : it->second.spec.volume;
 }
 
-bool BroadcastEngine::setSourceMuted(const std::string& name, bool muted) {
+bool BroadcastEngine::setSourceMuted(const std::string& name, bool muted, const std::string& salida) {
     auto it = sources_.find(name);
     if (it == sources_.end()) return false;
+    Salida* s = laSalida(salida);
+    if (s == nullptr) return false;
+    if (!s->porOmision()) {
+        s->mute[name] = muted;
+        return motor_->ponerMute(name, muted, s->id).empty();
+    }
     const bool cambia = it->second.spec.muted != muted;
     it->second.spec.muted = muted;
     const bool ok = motor_->ponerMute(name, muted).empty();
@@ -1168,9 +1227,13 @@ bool BroadcastEngine::setSourceMuted(const std::string& name, bool muted) {
     return ok;
 }
 
-bool BroadcastEngine::sourceMuted(const std::string& name) const {
+bool BroadcastEngine::sourceMuted(const std::string& name, const std::string& salida) const {
     auto it = sources_.find(name);
-    return it != sources_.end() && it->second.spec.muted;
+    if (it == sources_.end()) return false;
+    const Salida* s = laSalida(salida);
+    if (s == nullptr || s->porOmision()) return it->second.spec.muted;
+    const auto m = s->mute.find(name);
+    return m != s->mute.end() ? m->second : it->second.spec.muted;
 }
 
 float BroadcastEngine::sourcePeakDb(const std::string& name) const {
@@ -1372,9 +1435,11 @@ std::vector<BroadcastEngine::EncoderInfo> BroadcastEngine::videoEncoders() const
 }
 
 bool BroadcastEngine::outputsActive() const {
-    // Lo pedido (las salidas son del hilo de salidas: ver enSalidas).
+    // Lo pedido (las salidas son del hilo de salidas: ver enSalidas), en todas las salidas.
     std::lock_guard<std::mutex> l(pedidosM_);
-    return streamPedido_ || grabacionPedida_ || !extrasPedidos_.empty();
+    for (const auto& [id, s] : salidas_)
+        if (s->streamPedido || s->grabacionPedida || !s->extrasPedidos.empty()) return true;
+    return false;
 }
 
 bool BroadcastEngine::resetEncoders() {
@@ -1414,7 +1479,15 @@ bool BroadcastEngine::resetVideo(const VideoConfig& video) {
     const auto fuentes = sources_;
     const auto orden = ordenFuentes_;
     const auto mics = micInputs_;
-    const std::string alAire = currentScene_;
+    // Las salidas: lo que tenía al aire y armado cada una, y la mezcla de las que no
+    // son la por omisión (las capas, como siempre, vuelven vacías).
+    struct Antes {
+        std::string id, nombre, alAire, armada;
+        std::map<std::string, float> volumen;
+        std::map<std::string, bool> mute;
+    };
+    std::vector<Antes> salidas;
+    for (const auto& s : lasSalidas()) salidas.push_back({s->id, s->nombre, s->alAire, s->armada, s->volumen, s->mute});
     const bool feeds = returnFeedsActive_;
     const bool preview = previewActive_;
     stopReturnFeeds();
@@ -1433,8 +1506,16 @@ bool BroadcastEngine::resetVideo(const VideoConfig& video) {
     micInputs_ = mics;
     scenes_ = escenas;
     for (const auto& e : scenes_) publicarEscena(e);
-    if (!alAire.empty()) setCurrentSceneCon(alAire, "cut", 0);
-    publicarCapas(0);
+    for (const Antes& a : salidas) {
+        if (a.id != kSalidaPorOmision && !crearSalida(a.id, a.nombre)) continue;
+        if (a.id != kSalidaPorOmision) {
+            for (const auto& [n, v] : a.volumen) setSourceVolume(n, v, a.id);
+            for (const auto& [n, m] : a.mute) setSourceMuted(n, m, a.id);
+        }
+        if (!a.alAire.empty()) setCurrentSceneCon(a.alAire, "cut", 0, a.id);
+        if (!a.armada.empty()) armar(a.armada, a.id);
+        publicarCapas(*laSalida(a.id), 0);
+    }
     for (const auto& [slot, modo] : retornos_) setRetornoInvitado(slot, modo);
     if (feeds) publishReturnFeeds();
     if (preview) enablePreview(video.outputWidth / 2, video.outputHeight / 2);

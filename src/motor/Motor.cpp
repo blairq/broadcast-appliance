@@ -228,17 +228,19 @@ std::string Motor::armarSalida(const std::string& id, Salida& s) {
             registrar(Nivel::Error, llenar(traducir("motor", "el video del PROGRAMA no arrancó: %1"), {s.programa->error()}));
     }
     for (const auto& [cid, c] : canales_) aplicarEnSalida(s, cid, 0);
-    if (id == porOmision_) armarPuente(s);
+    // Su audio al gateway: la por omisión, el de siempre (lo que oyen los invitados en
+    // modo «programa»); las demás, el suyo (el gateway lo manda con BA.Salida.<id>).
+    armarPuente(s, id == porOmision_ ? std::string("ContentForReturn") : "Salida." + id);
     if (hayOyentes(id)) armarTomaAudio(id); // la pidieron antes de que existiera
     return {};
 }
 
-void Motor::armarPuente(Salida& s) {
-    // El programa para el gateway (lo que oyen los invitados en modo «programa»).
+void Motor::armarPuente(Salida& s, const std::string& canal) {
+    // El programa de la salida para el gateway, en el anillo BA.Audio.<canal>.
     if (cfg_.prefijoAnillos.empty() || !hayFabrica("baanillosink") || !s.mezcla) return;
     const std::string d = "intersrc producer-name=" + entreComillas(s.mezcla->productor()) +
                           " ! queue max-size-time=" + std::to_string(ajustes::sANs("audio.colaEscuchaS", 2)) + " max-size-buffers=0 max-size-bytes=0 ! baanillosink canal=" +
-                          entreComillas(anillo("ContentForReturn"));
+                          entreComillas(anillo(canal));
     GError* e = nullptr;
     s.puente = gst_parse_launch(d.c_str(), &e);
     if (e != nullptr) {

@@ -1,4 +1,4 @@
-// src/app/escenas/Conmutador.cpp — el conmutador de escenas (ver el .hpp)
+// src/app/escenas/Conmutador.cpp — el conmutador de escenas de cada salida (ver el .hpp)
 
 #include "escenas/Conmutador.hpp"
 
@@ -15,45 +15,44 @@
 
 namespace ba::app::escenas {
 
-Conmutador::Conmutador(AppRuntime& rt, QObject* parent) : QObject(parent), rt_(rt) {
-    std::ifstream f(rt_.dataRoot() / "Config" / "transiciones.json");
-    const nlohmann::json j = nlohmann::json::parse(f, nullptr, false);
-    if (j.is_object()) {
-        transicionesEntrada_ = j.value("entrada", nlohmann::json::object());
-        for (const auto& x : j.value("afv", nlohmann::json::array()))
-            if (x.is_string()) afv_.insert(QString::fromStdString(x.get<std::string>()));
-        // El nivel al que vuelve cada fuente AFV cuando entra (el del operador): sin
-        // esto, tras reiniciar el primer fundido subía a 0 dB.
-        const nlohmann::json niveles = j.value("afv_niveles", nlohmann::json::object()); // .items() de un temporal: UB
-        for (const auto& [f, v] : niveles.items())
-            if (v.is_number()) afvVolumen_[QString::fromStdString(f)] = v.get<float>();
-    }
+namespace {
+constexpr const char* kPorOmision = BroadcastEngine::kSalidaPorOmision;
 }
 
-std::string Conmutador::alAire() const { return rt_.engine().currentScene(); }
+// ============================================================================
+// Conmutador (uno por salida)
+// ============================================================================
+
+Conmutador::Conmutador(AppRuntime& rt, Conmutadores& registro, std::string salida, Afv afv, QObject* parent)
+    : QObject(parent), rt_(rt), registro_(registro), salida_(std::move(salida)), afv_(std::move(afv)) {}
+
+std::string Conmutador::alAire() const { return rt_.engine().currentScene(salida_); }
 
 std::string Conmutador::cortar(const std::string& escena, const std::string& tipoPedido, int msPedido, const char* via) {
     const std::string antes = alAire();
     std::string tipo = tipoPedido;
     int ms = msPedido;
     // Sin pedido explícito: la transición de entrada de la escena (si tiene).
-    if (tipo.empty() && transicionesEntrada_.contains(escena)) {
-        const auto& e = transicionesEntrada_[escena];
-        tipo = e.value("tipo", std::string());
-        ms = e.value("ms", -1);
+    if (tipo.empty()) {
+        const nlohmann::json e = registro_.transicionEntrada(escena);
+        if (!e.empty()) {
+            tipo = e.value("tipo", std::string());
+            ms = e.value("ms", -1);
+        }
     }
-    const bool ok = tipo.empty() ? rt_.setScene(escena) : rt_.setSceneCon(escena, tipo, ms);
+    const bool ok = tipo.empty() ? rt_.setScene(escena, salida_) : rt_.setSceneCon(escena, tipo, ms, salida_);
     if (!ok)
         return rt_.lastError().empty()
                    ? ba::i18n::llenar(ba::i18n::traducir("aire", "no se pudo poner «%1» al aire"), {escena})
                    : rt_.lastError();
     // Cada cambio del aire al registro, con por dónde vino: «la cambia y vuelve sola»
-    // se ve acá (quién la devolvió y cuándo).
+    // se ve acá (quién la devolvió y cuándo). Las salidas que no son la por omisión, con su id.
+    const std::string que = salida_ == kPorOmision ? via : std::string(via) + " · " + salida_;
     ba::diag::registro().linea(ba::diag::Nivel::Info, "aire", 0,
                                tipo.empty() ? ba::i18n::llenar(ba::i18n::traducir("aire", "al aire: «%1» (salió «%2», por %3)"),
-                                                               {escena, antes, via})
+                                                               {escena, antes, que})
                                             : ba::i18n::llenar(ba::i18n::traducir("aire", "al aire: «%1» (salió «%2», por %3, %4)"),
-                                                               {escena, antes, via, tipo}));
+                                                               {escena, antes, que, tipo}));
     aplicarAfv(escena, tipo == "cut" ? 0 : (ms < 0 ? rt_.config().transition.durationMs : ms));
     rt_.save(); // la escena al aire vuelve igual tras un corte de luz
     emit alAireCambio(QString::fromStdString(escena));
@@ -91,9 +90,9 @@ std::string Conmutador::tbar(double t, bool soltar) {
     const std::string entra = armada_;
     const std::string sale = alAire();
     bool llego = false;
-    if (!rt_.engine().transicionManual(entra, static_cast<float>(t), soltar, &llego)) return rt_.engine().lastError();
+    if (!rt_.engine().transicionManual(entra, static_cast<float>(t), soltar, &llego, salida_)) return rt_.engine().lastError();
     if (llego) {
-        rt_.config().currentScene = entra;
+        if (salida_ == kPorOmision) rt_.config().currentScene = entra;
         aplicarAfv(entra, 0);
         rt_.save();
         emit alAireCambio(QString::fromStdString(entra));
@@ -105,33 +104,120 @@ std::string Conmutador::tbar(double t, bool soltar) {
 void Conmutador::setArmadaYAvisar(const std::string& escena) {
     if (escena == armada_) return;
     armada_ = escena;
+    // El bus de preview de la salida en el motor (las vistas solo lo miran).
+    if (!rt_.engine().armar(escena, salida_))
+        ba::diag::registro().linea(ba::diag::Nivel::Aviso, "aire", 0, rt_.engine().lastError());
     emit armadaCambio(QString::fromStdString(escena));
 }
 
 void Conmutador::aplicarAfv(const std::string& destino, int ms) {
-    if (afv_.isEmpty()) return;
-    bool guardarNiveles = false;
-    const auto enDestino = rt_.engine().sceneSources(destino);
-    for (const QString& f : afv_) {
-        const std::string n = f.toStdString();
-        const bool entra = std::find(enDestino.begin(), enDestino.end(), n) != enDestino.end();
-        const float actual = rt_.engine().sourceVolume(n);
-        if (!entra && actual > 0.001f && afvVolumen_.value(f, -1.0f) != actual) {
-            afvVolumen_[f] = actual;
-            guardarNiveles = true;
-        }
-        const float objetivo = entra ? afvVolumen_.value(f, 1.0f) : 0.0f;
-        // Fundido en pasos de 30 ms, con la duración de la transición.
-        const int pasos = std::max(1, ms / 30);
+    if (afv_.fuentes.empty()) return;
+    bool recordo = false;
+    // El fader de cada fuente EN ESTA salida (la mezcla de su bus).
+    const auto fundidos = afv_.alCortar(rt_.engine().sceneSources(destino),
+                                        [this](const std::string& f) { return rt_.engine().sourceVolume(f, salida_); }, &recordo);
+    // Fundido en pasos de 30 ms, con la duración de la transición.
+    const int pasos = std::max(1, ms / 30);
+    for (const auto& f : fundidos)
         for (int i = 1; i <= pasos; ++i) {
-            const float v = actual + (objetivo - actual) * static_cast<float>(i) / static_cast<float>(pasos);
-            QTimer::singleShot(i * 30, this, [this, n, v]() { rt_.engine().setSourceVolume(n, v); });
+            const float v = f.desde + (f.hasta - f.desde) * static_cast<float>(i) / static_cast<float>(pasos);
+            QTimer::singleShot(i * 30, this, [this, n = f.fuente, v]() { rt_.engine().setSourceVolume(n, v, salida_); });
         }
-    }
-    if (guardarNiveles) guardar();
+    if (recordo) registro_.guardar();
 }
 
 std::string Conmutador::setTransicionEntrada(const std::string& escena, const std::string& tipo, int ms) {
+    return registro_.setTransicionEntrada(escena, tipo, ms);
+}
+
+nlohmann::json Conmutador::transicionEntrada(const std::string& escena) const { return registro_.transicionEntrada(escena); }
+
+void Conmutador::setAfv(const std::string& fuente, bool sigue) {
+    if (sigue)
+        afv_.fuentes.insert(fuente);
+    else
+        afv_.fuentes.erase(fuente);
+    registro_.guardar();
+    emit afvCambio();
+}
+
+std::vector<std::string> Conmutador::afvFuentes() const { return {afv_.fuentes.begin(), afv_.fuentes.end()}; }
+
+// ============================================================================
+// Conmutadores (el registro)
+// ============================================================================
+
+Conmutadores::Conmutadores(AppRuntime& rt, QObject* parent) : QObject(parent), rt_(rt) {
+    std::ifstream f(rt_.dataRoot() / "Config" / "transiciones.json");
+    const nlohmann::json j = nlohmann::json::parse(f, nullptr, false);
+    if (j.is_object()) {
+        transicionesEntrada_ = j.value("entrada", nlohmann::json::object());
+        afvGuardado_[kPorOmision] = Afv::deJson(j); // lo de siempre: el de la por omisión
+        const nlohmann::json otras = j.value("salidas", nlohmann::json::object()); // .items() de un temporal: UB
+        for (const auto& [id, x] : otras.items())
+            if (id != kPorOmision) afvGuardado_[id] = Afv::deJson(x);
+    }
+    porOmision_ = crear(kPorOmision);
+    sincronizar();
+    // Las salidas se crean y se borran en el runtime: acá se sigue lo que haya.
+    observador_ = rt_.observar([this](AppRuntime::Cambio c) {
+        if (c == AppRuntime::Cambio::Salidas) sincronizar();
+    });
+}
+
+Conmutadores::~Conmutadores() {
+    if (observador_ >= 0) rt_.dejarDeObservar(observador_);
+}
+
+Conmutador* Conmutadores::crear(const std::string& salida) {
+    const auto g = afvGuardado_.find(salida);
+    auto c = std::make_unique<Conmutador>(rt_, *this, salida, g != afvGuardado_.end() ? g->second : Afv{});
+    Conmutador* p = c.get();
+    conmutadores_[salida] = std::move(c);
+    emit creado(p);
+    return p;
+}
+
+Conmutador* Conmutadores::de(const std::string& salida) {
+    const auto it = conmutadores_.find(salida.empty() ? std::string(kPorOmision) : salida);
+    return it == conmutadores_.end() ? nullptr : it->second.get();
+}
+
+std::vector<Conmutador*> Conmutadores::todos() const {
+    std::vector<Conmutador*> out;
+    for (const std::string& id : rt_.engine().salidaIds())
+        if (const auto it = conmutadores_.find(id); it != conmutadores_.end()) out.push_back(it->second.get());
+    return out;
+}
+
+void Conmutadores::sincronizar() {
+    const std::vector<std::string> ids = rt_.engine().salidaIds();
+    bool cambio = false;
+    for (const std::string& id : ids)
+        if (conmutadores_.count(id) == 0) {
+            crear(id);
+            cambio = true;
+        }
+    for (auto it = conmutadores_.begin(); it != conmutadores_.end();) {
+        if (it->first == kPorOmision || std::find(ids.begin(), ids.end(), it->first) != ids.end()) {
+            ++it;
+            continue;
+        }
+        // Su AFV queda guardado: si la salida vuelve, vuelve como estaba.
+        afvGuardado_[it->first] = it->second->afvEstado();
+        it->second.release()->deleteLater(); // puede estar en medio de una de sus señales
+        it = conmutadores_.erase(it);
+        cambio = true;
+    }
+    if (cambio) emit this->cambio();
+}
+
+nlohmann::json Conmutadores::transicionEntrada(const std::string& escena) const {
+    if (!transicionesEntrada_.contains(escena)) return nlohmann::json::object();
+    return transicionesEntrada_[escena];
+}
+
+std::string Conmutadores::setTransicionEntrada(const std::string& escena, const std::string& tipo, int ms) {
     static const std::vector<std::string> tipos{"", "cut", "fade", "swipe", "slide", "fade_to_color"};
     if (std::find(tipos.begin(), tipos.end(), tipo) == tipos.end())
         return ba::i18n::traducir("aire", "tipo: cut, fade, swipe, slide o fade_to_color (vacío = la global)");
@@ -143,35 +229,16 @@ std::string Conmutador::setTransicionEntrada(const std::string& escena, const st
     return {};
 }
 
-nlohmann::json Conmutador::transicionEntrada(const std::string& escena) const {
-    if (!transicionesEntrada_.contains(escena)) return nlohmann::json::object();
-    return transicionesEntrada_[escena];
-}
-
-void Conmutador::setAfv(const std::string& fuente, bool sigue) {
-    const QString f = QString::fromStdString(fuente);
-    if (sigue)
-        afv_.insert(f);
-    else
-        afv_.remove(f);
-    guardar();
-    emit afvCambio();
-}
-
-std::vector<std::string> Conmutador::afvFuentes() const {
-    std::vector<std::string> out;
-    for (const QString& f : afv_) out.push_back(f.toStdString());
-    std::sort(out.begin(), out.end());
-    return out;
-}
-
-void Conmutador::guardar() const {
-    nlohmann::json afv = nlohmann::json::array();
-    for (const std::string& f : afvFuentes()) afv.push_back(f);
-    nlohmann::json niveles = nlohmann::json::object();
-    for (auto it = afvVolumen_.begin(); it != afvVolumen_.end(); ++it)
-        if (afv_.contains(it.key())) niveles[it.key().toStdString()] = it.value();
-    const nlohmann::json j{{"entrada", transicionesEntrada_}, {"afv", afv}, {"afv_niveles", niveles}};
+void Conmutadores::guardar() const {
+    // El AFV de cada salida: el de las que andan y el guardado de las que no están.
+    std::map<std::string, Afv> afv = afvGuardado_;
+    for (const auto& [id, c] : conmutadores_) afv[id] = c->afvEstado();
+    nlohmann::json j = afv[kPorOmision].aJson(); // lo de siempre: un arranque viejo lo sigue entendiendo
+    j["entrada"] = transicionesEntrada_;
+    nlohmann::json otras = nlohmann::json::object();
+    for (const auto& [id, a] : afv)
+        if (id != kPorOmision) otras[id] = a.aJson();
+    if (!otras.empty()) j["salidas"] = otras;
     // Aparte y reemplazar: un corte a mitad no deja el archivo trunco.
     QSaveFile o(QString::fromStdString((rt_.dataRoot() / "Config" / "transiciones.json").string()));
     if (!o.open(QIODevice::WriteOnly)) return;
