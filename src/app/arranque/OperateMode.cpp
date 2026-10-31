@@ -761,6 +761,11 @@ int AppRuntime::start() {
 }
 
 void AppRuntime::tick() {
+    ticControl();
+    ticMotor();
+}
+
+void AppRuntime::ticControl() {
     control_.poll([&](const ba::ipc::Message& m) {
         if (m.type == ba::ipc::Type::Shutdown) {
             // Con la orden del launcher abierta (F4-02): la línea lleva su id.
@@ -769,6 +774,13 @@ void AppRuntime::tick() {
             requestStop();
         }
     });
+    // El documento de aire lo escribe su dueño: este hilo (ver setDuenoDelAire).
+    documento_.volcar();
+}
+
+void AppRuntime::ticMotor() {
+    // El latido de la INTERFAZ: este reloj corre en su hilo, así que si la interfaz se
+    // traba el supervisor lo sabe (LatidoAire decide si hay que esperar o relanzar).
     if (health_.valid()) {
         std::lock_guard<std::mutex> l(healthMu_);
         health_.beat(kHealthSlot);
@@ -783,9 +795,22 @@ void AppRuntime::tick() {
         writeOnAirState();
         // La GPU del video se perdió (F3-09): el motor no se rearma solo, lo rearma la app.
         if (ba::motor::gpuPerdida()) rearmarPorGpu();
+        // Qué salidas hay, para quien las pida desde otro hilo (el MCP en el plano de
+        // control valida `salida` con esto, sin tocar el motor).
+        nlohmann::json l = nlohmann::json::array();
+        for (const auto& s : st.salidas) l.push_back({{"id", s.id}, {"nombre", s.nombre}, {"por_omision", s.porOmision}});
+        std::lock_guard<std::mutex> g(salidasMu_);
+        salidasPublicadas_ = std::move(l);
     }
     engine_.aplicarRecortesPendientes(); // los de cámaras que recién tienen tamaño
 }
+
+nlohmann::json AppRuntime::salidasPublicadas() const {
+    std::lock_guard<std::mutex> g(salidasMu_);
+    return salidasPublicadas_;
+}
+
+void AppRuntime::setDuenoDelAire(std::function<void()> despertar) { documento_.setDueno(std::move(despertar)); }
 
 bool AppRuntime::setOperatorFeed(const std::string& videoSource, const std::string& audioSource) {
     const bool ok = operator_.configure(engine_, videoSource, audioSource);

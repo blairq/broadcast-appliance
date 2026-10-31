@@ -2829,7 +2829,8 @@ void StudioViewModel::tiemposCentral() {
 
 void StudioViewModel::onTick() {
     tiemposCentral();
-    rt_.tick();
+    // (El reloj del runtime ya no es este: lo da el plano de control, arranque/PlanoControl.
+    // Acá solo lo que muestra la vista.)
     // El retorno a los invitados: sin nadie que lo mire hace 10 s, la vista que
     // baja el programa entero en cada cuadro descansa (ver retornoEnUso). Quién
     // mira lo dice el GATEWAY (cuántas sesiones reciben el programa: invitados,
@@ -2855,10 +2856,6 @@ void StudioViewModel::onTick() {
             if (miranSalidas.value(q).toInt() > 0) salidaVistaMs_[q] = ahora;
             rt_.engine().retornoEnUso(ahora - salidaVistaMs_.value(q, ahora - 10000) < 10000, id);
         }
-    }
-    if (AppRuntime::stopRequested()) {
-        emit quitRequested();
-        return;
     }
     // Señal de las entradas (multiview, escena de respaldo): una vez por segundo.
     if (vigiaTicks_ % 10 == 5) revisarSenales();

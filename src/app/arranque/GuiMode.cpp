@@ -41,6 +41,7 @@
 #include "agent/AgentViewModel.hpp"
 #include "agent/ModelosLocales.hpp"
 #include "arranque/AppRuntime.hpp"
+#include "arranque/PlanoControl.hpp"
 #include "arranque/TraductorQt.hpp"
 #include "mcp/McpService.hpp"
 #include "control/Botonera.hpp"
@@ -311,6 +312,13 @@ int runGui(int argc, char** argv) {
     const VideoConfig& v = rt.config().video;
     rt.engine().enablePreview(kPreviewWidth,
                               (kPreviewWidth * v.outputHeight / std::max(1, v.outputWidth)) & ~1);
+    // EL PLANO DE CONTROL (F3-03): su hilo con el canal del launcher, el documento de aire,
+    // el MCP y las alarmas; y el reloj del motor, que es del runtime y no de una vista.
+    PlanoControl plano({[&rt]() { rt.ticControl(); }, [&rt]() { rt.ticMotor(); }});
+    plano.setCierre([]() { return AppRuntime::stopRequested(); });
+    // El documento de aire lo vuelca su dueño, en su hilo (y en cada vuelta del control).
+    rt.setDuenoDelAire([&plano, &rt]() { plano.encolar([&rt]() { rt.documentoAire().volcar(); }); });
+    plano.arrancar();
 
     int result = 0;
     {
@@ -344,6 +352,8 @@ int runGui(int argc, char** argv) {
         // exporta, asi lo que se ve es exactamente lo que sale.
         engine.addImageProvider("qr", new QrImageProvider(vm.qrVm()));
         QObject::connect(&vm, &StudioViewModel::quitRequested, &app, &QGuiApplication::quit);
+        // Un cierre pedido (el launcher, una señal) pasa por la vista: así no pregunta.
+        QObject::connect(&plano, &PlanoControl::cierrePedido, &vm, &StudioViewModel::quitRequested);
         relojGui.restart();
         arranque::avisar(ba::i18n::traducir("arranque", "Abriendo la interfaz…"));
         engine.load(QUrl("qrc:/qml/Main.qml"));
@@ -351,6 +361,8 @@ int runGui(int argc, char** argv) {
                                                    {std::to_string(relojGui.restart())}));
         if (engine.rootObjects().isEmpty()) {
             std::printf("ba-app: %s\n", ba::i18n::traducir("arranque", "no se pudo cargar la interfaz QML").c_str());
+            plano.detener();
+            rt.setDuenoDelAire({});
             rt.stop();
             return 3;
         }
@@ -553,7 +565,13 @@ int runGui(int argc, char** argv) {
             }
         }
         result = app.exec();
+        // Lo que el plano adoptó (el MCP, las alarmas) vuelve a este hilo antes de que lo
+        // borren sus dueños; el documento de aire lo vuelca rt.stop en el acto.
+        plano.detener();
+        rt.setDuenoDelAire({});
     }
+    plano.detener();
+    rt.setDuenoDelAire({});
     rt.stop();
     return result;
 }

@@ -12,8 +12,10 @@
 //   reinicio sin que la interfaz toque JSON.
 //
 // Modelo de threading:
-//   Todo desde un unico thread (el de la interfaz o el bucle de la consola).
-//   `requestStop()` es async-signal-safe (solo escribe un atomic).
+//   Todo desde el hilo dueño del motor (el de la interfaz o el bucle de la consola),
+//   salvo lo que dice «desde cualquier hilo»: ticControl (lo corre el plano de control
+//   en su hilo, arranque/PlanoControl), el documento de aire, salidasPublicadas,
+//   avisosPersistencia y el latido. `requestStop()` es async-signal-safe (un atomic).
 //
 // Estrategia de errores:
 //   No lanza. `start` devuelve el codigo de salida si no se puede arrancar;
@@ -57,8 +59,21 @@ class AppRuntime {
     /// :returns: 0 si quedo en marcha; si no, el codigo de salida del proceso.
     int start();
 
-    /// Una vuelta de trabajo: canal de control y latido. Llamar cada ~100 ms.
+    /// Una vuelta de trabajo: ticControl y ticMotor. La consola la llama cada ~100 ms;
+    /// con interfaz, cada mitad la corre su reloj (arranque/PlanoControl).
     void tick();
+    /// Lo que no depende de la interfaz ni del motor: el canal de órdenes del launcher y
+    /// el documento de aire (este hilo es su dueño). En el hilo del plano de control.
+    void ticControl();
+    /// Lo del motor (que todavía es del hilo de la interfaz): el latido de la interfaz,
+    /// la sección de las salidas del documento, el rearme por la GPU, los recortes.
+    void ticMotor();
+    /// Quién vuelca el documento de aire: `despertar` le pide que lo haga en su hilo
+    /// (el plano de control encola ticControl). Vacío: el que lo cambia lo vuelca.
+    void setDuenoDelAire(std::function<void()> despertar);
+    /// [{id, nombre, por_omision}] de las salidas, como estaban en la última vuelta del
+    /// motor. Desde cualquier hilo (el MCP en el plano de control).
+    nlohmann::json salidasPublicadas() const;
 
     /// Detiene salidas y motor y marca la salud como terminada. Idempotente.
     void stop();
@@ -373,8 +388,11 @@ class AppRuntime {
     std::thread reinicioSala_;              ///< reiniciarSalaEnElFondo
     std::function<void(const std::string&)> alVivoManual_;
     std::atomic<bool> reiniciandoSala_{false};
-    bool streamStopWanted_ = true;
-    bool recordStopWanted_ = true;
+    // Atómicos: los lee el vigía de las alarmas en el plano de control.
+    std::atomic<bool> streamStopWanted_{true};
+    std::atomic<bool> recordStopWanted_{true};
+    mutable std::mutex salidasMu_;
+    nlohmann::json salidasPublicadas_ = nlohmann::json::array();
     /// Las salidas que no son la por omisión y que se graban a pedido (vuelven tras un corte).
     std::set<std::string> grabandoOtras_;
     /// Lo mismo con su transmisión principal (servidor y clave, cifrados en Credenciales/).
