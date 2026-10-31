@@ -6,7 +6,8 @@
 //   - el retorno del invitado en mix_minus lleva todo MENOS su voz, y se lee del
 //     anillo como lo lee el gateway (baanillo);
 //   - el programa para el gateway (ContentForReturn) lleva todo;
-//   - el mute de una entrada vale también en el retorno.
+//   - el mute de una entrada vale también en el retorno;
+//   - en «programa» el invitado sigue teniendo su anillo, con todo (también su voz).
 // Los anillos usan otro prefijo: no pisan los de una app andando.
 
 #include "Motor.hpp"
@@ -208,7 +209,13 @@ int main() {
     const json st = motor.estado();
     CHECK(st["retornos"].contains("1"), "el retorno en el estado");
     CHECK(st["entradas"]["mic"].value("global", false), "el estado sabe cuáles son globales");
-    CHECK(motor.retorno(1, "programa", "").empty(), "volver a programa");
+    CHECK(motor.retorno(1, "programa", "invitado1").empty(), "volver a programa");
+    esperar(800);
+    // En «programa» su anillo sigue (con su voz): el gateway nunca le manda el programa común.
+    const double retProg = leerAnillo(cfg.prefijoAnillos + "Return.1");
+    std::printf("retorno del invitado 1 en programa: %.2f dBFS\n", retProg);
+    CHECK(cerca(retProg, prog, 1.0), "en programa, su anillo lleva todo (también su voz)");
+    CHECK(motor.retorno(1, "apagado", "").empty(), "apagarle el retorno");
     CHECK(motor.quitarEntrada("cam").empty(), "sacar una entrada");
     motor.quitarEntrada("cam");
     CHECK(falla(), "sacarla dos veces avisa");

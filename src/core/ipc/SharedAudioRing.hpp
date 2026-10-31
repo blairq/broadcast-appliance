@@ -49,6 +49,8 @@
 #include <string>
 #include <vector>
 
+#include "HealthBlock.hpp"
+#include "MedidaTransporte.hpp"
 #include "SharedMemoryRegion.hpp"
 
 namespace ba::ipc {
@@ -237,6 +239,18 @@ void leerPendientes(SharedAudioRing& r, std::vector<float>& buf, F&& alBloque) {
         if (!r.pop(buf.data(), blk)) return;
         alBloque(blk, n);
     }
+}
+
+/// leerPendientes, midiendo el anillo (F0-02): la ocupación al mirar, los descartes del
+/// escritor y la edad y los huecos de cada bloque leído.
+template <typename F>
+void leerPendientes(SharedAudioRing& r, std::vector<float>& buf, MedidaTransporte& medida, F&& alBloque) {
+    medida.mirar(r.pendientes());
+    medida.descartesDelEscritor(r.descartados());
+    leerPendientes(r, buf, [&](const PoppedBlock& blk, size_t n) {
+        medida.bloque(blk.qpc, HealthBlock::nowQpc());
+        alBloque(blk, n);
+    });
 }
 
 } // namespace ba::ipc

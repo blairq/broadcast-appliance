@@ -251,6 +251,10 @@ class Room {
     /// Uso del sistema que informa el gateway (lo mide main.cpp y lo deja aca
     /// para que viaje en el snapshot: el operador lo ve en la pagina Sala).
     void setUsage(const nlohmann::json& u);
+    /// Los lugares cuyo invitado no recibe retorno (MediaPump::lugaresSinRetorno: su
+    /// mix-minus no está abierto). Viaja en su participante (`retorno`: "ok" | "apagado")
+    /// para que el operador lo vea. Publica solo si cambió.
+    void setSinRetorno(std::vector<int> lugares);
 
     /// Vista de solo lectura para la tablet: fila, fichas, tiempos (sin claves
     /// ni IPs ni chat).
@@ -336,6 +340,7 @@ class Room {
     uint64_t chatSeq_ = 0;
     SpeakerCfg spk_;
     nlohmann::json usage_ = nlohmann::json::object();
+    std::vector<int> sinRetorno_; // ordenados (setSinRetorno)
     int64_t usageSentMs_ = 0;        // ultimo snapshot mandado solo por el uso
     std::vector<std::string> order_; ///< ids en el orden de la fila de oradores
     int64_t lastNowMs_ = 0;          // ultimo "ahora" visto (para admisiones sin reloj propio)

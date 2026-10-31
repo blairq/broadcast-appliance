@@ -1346,8 +1346,13 @@ int main(int argc, char** argv) {
                       .count());
         // Uso del propio proceso: es lo que se satura cuando hay muchos
         // invitados (cada uno es un video que hay que decodificar). Va en el
-        // snapshot para que el operador lo vea en la pagina Sala.
-        room.setUsage(processUsage(&hub));
+        // snapshot para que el operador lo vea en la pagina Sala. Con los contadores de
+        // los anillos y canales que lee (F0-02: la app los muestra en sistema_recursos).
+        nlohmann::json uso = processUsage(&hub);
+        uso["transporte"] = pump.transporte();
+        room.setUsage(uso);
+        // Y qué invitado al aire se quedó sin retorno (su mix-minus no está abierto).
+        room.setSinRetorno(pump.lugaresSinRetorno());
     }
 
     log.info(traducir("gateway", "parando: deteniendo componentes..."));

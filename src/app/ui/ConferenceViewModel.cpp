@@ -366,14 +366,18 @@ void ConferenceViewModel::onSnapshot() {
     QJsonArray inside;
     QStringList nowWaiting;
     QStringList slotNames;
-    for (int i = 0; i < s.value("maxGuests").toInt(); ++i)
+    QVariantList sinRetorno;
+    for (int i = 0; i < s.value("maxGuests").toInt(); ++i) {
         slotNames << QString();
+        sinRetorno << false;
+    }
     for (const QJsonValue& v : s.value("participants").toArray()) {
         QJsonObject p = v.toObject();
         p.insert("uid", p.value("id")); // "id" no puede ser un rol en QML
         const int slot = p.value("slot").toInt();
         if (p.value("state").toString() == "admitted" && slot >= 1 && slot <= slotNames.size()) {
             slotNames[slot - 1] = p.value("name").toString();
+            sinRetorno[slot - 1] = p.value("retorno").toString() == "apagado";
         }
         if (p.value("state").toString() == "waiting") {
             waiting.append(p);
@@ -423,6 +427,7 @@ void ConferenceViewModel::onSnapshot() {
         it = nowWaiting.contains(*it) ? std::next(it) : intakeDone_.erase(it);
     knownWaiting_ = nowWaiting;
     slotNames_ = slotNames;
+    slotsSinRetorno_ = sinRetorno;
     // Adentro, ordenados por slot (coincide con "Invitado N" de las fuentes).
     QList<QJsonObject> sorted;
     for (const QJsonValue& v : inside)
@@ -622,6 +627,11 @@ QVariantMap ConferenceViewModel::participanteEnSlot(int slot) const {
 QStringList ConferenceViewModel::slotNames() const {
     if (!online()) return {};
     return slotNames_;
+}
+
+QVariantList ConferenceViewModel::slotsSinRetorno() const {
+    if (!online()) return {};
+    return slotsSinRetorno_;
 }
 
 QString ConferenceViewModel::operatorVideo() const {

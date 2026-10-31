@@ -140,6 +140,18 @@ Item {
                         color: Qt.rgba(0, 0, 0, 0.55)
                         Text { id: gl; anchors.centerIn: parent; text: Studio.conference.slotNames[index] || qsTr("Invitado %1").arg(index + 1); color: Theme.text; font.pixelSize: 10 }
                     }
+                    // Sin retorno: su mezcla sin su voz no llega al gateway, y el programa entero no
+                    // se le manda (se oiría a sí mismo con demora). Lo publica la sala.
+                    Rectangle {
+                        visible: !!Studio.conference.slotsSinRetorno[index]
+                        anchors { left: parent.left; top: parent.top; margins: 6 }
+                        radius: 8; height: 20; width: sinRet.implicitWidth + 14
+                        color: Theme.live
+                        Text { id: sinRet; anchors.centerIn: parent; text: qsTr("Retorno apagado"); color: "white"; font.pixelSize: 10 }
+                        HoverHandler { id: sinRetHov }
+                        ToolTip.visible: sinRetHov.hovered; ToolTip.delay: 400
+                        ToolTip.text: qsTr("Este invitado no escucha nada: su mezcla sin su voz (mix-minus) no llega a la conferencia. No se le manda el programa entero porque se oiría a sí mismo con demora.")
+                    }
                     // La red de este invitado: semáforo con las cifras y bajar su calidad.
                     Rectangle {
                         id: semaforo

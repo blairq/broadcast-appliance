@@ -19,9 +19,13 @@
 //     (`escenaAlAire`), con un fundido al cambiar. Vale para el programa, las
 //     pistas y los retornos.
 //
-// LOS RETORNOS (lo que oye cada invitado), uno por invitado:
-//   - programa:   oye el programa (el gateway usa BA.Audio.ContentForReturn).
-//   - mix_minus:  oye el programa SIN su propia voz → BA.Audio.Return.<n>.
+// LOS RETORNOS (lo que oye cada invitado), uno por invitado, a BA.Audio.Return.<n>:
+//   - mix_minus:  oye el programa SIN su propia voz (de fábrica).
+//   - programa:   oye el programa entero, con su voz (lo pidió y usa auriculares).
+//   - apagado:    no oye nada: sin anillo.
+// Los dos primeros arman su anillo: el gateway nunca le manda el programa común a un
+// invitado al aire (tiene su voz: eco); sin su anillo, le apaga el retorno
+// (gateway/RetornoLugar.hpp).
 //
 // EL VIDEO: dos composiciones, PROGRAMA (lo que sale) y PREVIEW (la escena
 // armada). `armar` pone una escena en el preview; `take` la pasa al programa
@@ -312,6 +316,9 @@ class Motor {
     struct Retorno {
         std::string modo, propia;
         std::unique_ptr<Mezcla> bus;
+        /// Si la entrada `id` (que va al programa) suena en este retorno: todas, salvo su
+        /// propia voz en mix_minus.
+        bool oye(const std::string& id) const { return modo == "programa" || id != propia; }
     };
     void bucle();
     void enSeleccion(const std::string& id, const Canal& c);

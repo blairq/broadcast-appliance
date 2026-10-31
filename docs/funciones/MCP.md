@@ -58,7 +58,7 @@ es un resumen por categoría.
 | Disparadores | `alert_types`, `alert_create`, `alert_list`, `alert_update`, `alert_delete`, `alert_events`, `alert_wait` |
 | Pestaña Asistente | `assistant_status`, `assistant_config`, `assistant_install`, `assistant_run`, `assistant_send` |
 | Sistema | `system_info` (carpeta, credenciales, respaldos), `system_update` (actualizar / volver atrás) |
-| El equipo | `system_hardware` (todo junto), `sistema_recursos` (cuánto se usa ahora: CPU, GPU, RAM, red, picos, margen), `monitors`, `audio_devices`, `video_devices` (formatos de cada cámara) |
+| El equipo | `system_hardware` (todo junto), `sistema_recursos` (cuánto se usa ahora: CPU, GPU, RAM, red, picos, margen; y el transporte app→gateway: ocupación, descartes, faltantes y edad de cada anillo y canal), `monitors`, `audio_devices`, `video_devices` (formatos de cada cámara) |
 | Entradas de video | `video_input_add` (cámara USB / capturadora), `network_input_add` (RTSP, RTMP, SRT, HLS/HTTPS, UDP), `ndi_sources` + `ndi_input_add` (NDI® abierto con libNoIDea), `input_status` |
 | Medios | `media_list`, `media_find` (sin importar tildes ni mayúsculas), `media_view` (ver la imagen), `medio_poner` (a una escena) |
 | Operador | `operator_message` (barra de abajo, color por prioridad), `operator_ask` (pregunta con botones/texto), `operator_messages`, `guest_chat_pending`, `guest_reply_suggest` (respuestas sugeridas, un click) |

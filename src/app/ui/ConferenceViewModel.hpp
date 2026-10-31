@@ -91,6 +91,9 @@ class ConferenceViewModel : public QObject {
     Q_PROPERTY(int peopleConnected READ peopleConnected NOTIFY roomChanged)
     /// Nombre del invitado de cada slot (indice slot-1; vacio = libre).
     Q_PROPERTY(QStringList slotNames READ slotNames NOTIFY roomChanged)
+    /// Por slot (indice slot-1): true si el invitado de ese lugar esta adentro y NO recibe
+    /// retorno (su mix-minus no esta abierto en el gateway: lo publica en su participante).
+    Q_PROPERTY(QVariantList slotsSinRetorno READ slotsSinRetorno NOTIFY roomChanged)
     /// Destinos del chat: [{label, value}] ("all" + cada participante).
     Q_PROPERTY(QVariantList chatTargets READ chatTargets NOTIFY roomChanged)
     /// Sube con cada mensaje. Es para que la vista sepa que tiene que volver a
@@ -144,6 +147,7 @@ class ConferenceViewModel : public QObject {
     int slotsFree() const;
     int peopleConnected() const;
     QStringList slotNames() const;
+    QVariantList slotsSinRetorno() const;
     QVariantList chatTargets() const;
     QString operatorVideo() const;
     QString operatorAudio() const;
@@ -338,6 +342,7 @@ class ConferenceViewModel : public QObject {
     QVariantMap network_;
     QTimer networkPoll_;
     QStringList slotNames_;
+    QVariantList slotsSinRetorno_;
     qint64 lastSeq_ = 0;
     bool firstSnapshot_ = true;
     qint64 avisoSinSalaMs_ = 0; ///< cuándo se avisó que la sala no responde (uno cada 30 s, no uno por pedido)

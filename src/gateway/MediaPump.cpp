@@ -26,6 +26,8 @@
 #endif
 #include "ColaVoz.hpp"
 #include "Log.hpp"
+#include "RetornoLugar.hpp"
+#include "platform/Ritmo.hpp"
 #include "i18n/I18n.hpp"
 
 #ifdef _WIN32
@@ -43,6 +45,14 @@ using ba::i18n::traducir;
 namespace {
 
 using namespace ba::ipc;
+
+/// El nombre de un canal (siempre ASCII: BA.Audio.…, BA.Program…) para el registro y las fotos.
+std::string angosto(const std::wstring& w) {
+    std::string s;
+    s.reserve(w.size());
+    for (const wchar_t c : w) s.push_back(c < 128 ? static_cast<char>(c) : '?');
+    return s;
+}
 
 /// Un número con un decimal, para los textos del registro («12.5 fps»).
 std::string unDecimal(double v) {
@@ -465,6 +475,9 @@ namespace {
 
 /// Cada cuanto se mira si A escribio audio: muy por debajo del bloque (10 ms).
 constexpr int kMiradaAudioMs = 2;
+/// Lo que dura un bloque de los anillos de audio (480 cuadros a 48 kHz): para contar faltantes
+/// en los que sella el motor con la hora del medio (MedidaTransporte).
+constexpr std::uint64_t kBloqueNs = std::uint64_t{audio_ring::kBlockFrames} * 1'000'000'000ULL / audio_ring::kSampleRate;
 
 } // namespace
 
@@ -480,8 +493,14 @@ void MediaPump::retornoAudioThread(std::wstring nombre, std::string salida, Cola
     std::vector<SharedAudioRing> slotReaders(nSlots);
     std::vector<bool> slotOpen(nSlots, false);
     std::vector<std::vector<float>> slotBlock(nSlots);
+    std::vector<std::unique_ptr<MedidaTransporte>> slotMedida(nSlots);
+    std::vector<std::chrono::steady_clock::time_point> slotVentana(nSlots);
     std::vector<float> silencio;
-    uint64_t descartadosVistos = 0;
+    std::vector<const float*> deSlot(nSlots, nullptr);
+    MedidaTransporte medida(salida.empty() ? "BA.Audio.ContentForReturn" : "BA.Audio.Salida." + salida, "audio",
+                            kBloqueNs);
+    auto ventana = std::chrono::steady_clock::now();
+    ba::platform::Ritmo ritmo{std::chrono::milliseconds(kMiradaAudioMs)};
     auto lastSlotRetry = std::chrono::steady_clock::now() - std::chrono::seconds(1);
     while (sigue(parar)) {
         {
@@ -492,10 +511,20 @@ void MediaPump::retornoAudioThread(std::wstring nombre, std::string salida, Cola
                     if (slotOpen[s] && slotReaders[s].stale()) {
                         slotReaders[s] = SharedAudioRing{};
                         slotOpen[s] = false;
+                        mixMinusAbierto_[s].store(false);
+                        log_.warn(llenar(traducir("gateway", "retorno mix-minus del slot %1 cerrado: ese invitado queda "
+                                                             "sin retorno hasta que vuelva"),
+                                         {std::to_string(s)}), -1);
                     }
                     if (!slotOpen[s] && !cfg_.returnSlotNames[s].empty() &&
                         SharedAudioRing::openReader(cfg_.returnSlotNames[s].c_str(), slotReaders[s]).ok) {
                         slotOpen[s] = true;
+                        mixMinusAbierto_[s].store(true);
+                        if (!slotMedida[s])
+                            slotMedida[s] = std::make_unique<MedidaTransporte>("BA.Audio.Return." + std::to_string(s),
+                                                                               "audio", kBloqueNs);
+                        slotMedida[s]->reabierto();
+                        slotVentana[s] = now;
                         log_.info(llenar(traducir("gateway", "retorno mix-minus del slot %1 abierto"), {std::to_string(s)}));
                     }
                 }
@@ -507,6 +536,7 @@ void MediaPump::retornoAudioThread(std::wstring nombre, std::string salida, Cola
                 lastRetry = now;
                 if (SharedAudioRing::openReader(nombre.c_str(), reader).ok) {
                     open = true;
+                    medida.reabierto();
                     // La por omisión dice lo mismo que siempre.
                     log_.info(salida.empty() ? traducir("gateway", "retorno audio: BA.Audio.ContentForReturn abierto")
                                              : llenar(traducir("gateway", "salida %1: retorno de audio abierto"), {salida}));
@@ -523,29 +553,14 @@ void MediaPump::retornoAudioThread(std::wstring nombre, std::string salida, Cola
                           : llenar(traducir("gateway", "salida %1: retorno de audio: A cambio o se cerro; reabriendo"), {salida}));
             continue;
         }
-        if (const uint64_t d = reader.descartados(); d != descartadosVistos) {
-            if (d > descartadosVistos)
-                log_.warn(llenar(traducir("gateway", "retorno de audio%1: se perdieron %2 bloques de 10 ms (el gateway no llegaba)"),
-                                 {salida.empty() ? std::string() : " " + salida, std::to_string(d - descartadosVistos)}), -1);
-            descartadosVistos = d;
-        }
-        leerPendientes(reader, block, [&](const PoppedBlock& blk, size_t n) {
-            // El bloque de cada slot con mix-minus: uno por bloque del programa.
+        leerPendientes(reader, block, medida, [&](const PoppedBlock& blk, size_t n) {
+            const std::uint64_t ahoraQpc = HealthBlock::nowQpc();
+            // El bloque de cada lugar con mix-minus: uno por bloque del programa (RetornoLugar.hpp).
             if (silencio.size() < n) silencio.assign(n, 0.0f);
-            std::vector<const float*> deSlot(nSlots, nullptr);
-            for (size_t s = 1; s < nSlots; ++s) {
-                if (!slotOpen[s]) continue;
-                SharedAudioRing& sr = slotReaders[s];
-                const size_t ns = sr.blockFloats();
-                if (ns != n) continue;
-                if (slotBlock[s].size() < ns) slotBlock[s].resize(ns);
-                PoppedBlock b2;
-                // Si el slot se atraso respecto del programa, se pone al dia (sin sumar demora).
-                while (sr.pendientes() > 2) sr.pop(slotBlock[s].data(), b2);
-                // Un hueco del mix-minus: silencio. Nunca el programa entero: el
-                // invitado se oiria a si mismo con demora (eco).
-                deSlot[s] = sr.pendientes() > 0 && sr.pop(slotBlock[s].data(), b2) ? b2.samples : silencio.data();
-            }
+            for (size_t s = 1; s < nSlots; ++s)
+                deSlot[s] = slotOpen[s] ? retorno::bloqueDelLugar(slotReaders[s], slotBlock[s], silencio.data(), n,
+                                                                   *slotMedida[s], ahoraQpc)
+                                        : nullptr;
             // IFB: la voz del operador de este bloque (silencio si no hay), una vez para todos.
             std::vector<float> voz;
             bool hayVoz = false;
@@ -563,10 +578,8 @@ void MediaPump::retornoAudioThread(std::wstring nombre, std::string salida, Cola
             std::vector<float> mezcla;
             for (int s : sessionsWhere([&salida](const MediaRoute& r) { return r.oyeSalida(salida); })) {
                 const MediaRoute r = route(s);
-                const float* fuente = blk.samples;
-                if (r.kind == MediaRoute::Kind::Program && r.index > 0 && static_cast<size_t>(r.index) < nSlots &&
-                    deSlot[static_cast<size_t>(r.index)] != nullptr)
-                    fuente = deSlot[static_cast<size_t>(r.index)];
+                // Con el retorno apagado (silencio) igual le llega la voz del operador si le habla.
+                const float* fuente = retorno::fuente(r, blk.samples, deSlot, silencio.data());
                 if ((r.talk && hayVoz) || s == prueba) {
                     mezcla.assign(fuente, fuente + n);
                     if (r.talk && hayVoz) // el programa baja (~-8 dB) para que la voz se entienda
@@ -593,8 +606,12 @@ void MediaPump::retornoAudioThread(std::wstring nombre, std::string salida, Cola
                 if (WebrtcSession* sess = hub_.session(s)) sess->pushLocalAudio(fuente, n, cfg_.audioRate);
             }
         });
-        std::this_thread::sleep_for(std::chrono::milliseconds(kMiradaAudioMs));
+        cerrarVentana(medida, ventana, true);
+        for (size_t s = 1; s < nSlots; ++s)
+            if (slotOpen[s]) cerrarVentana(*slotMedida[s], slotVentana[s], true);
+        ritmo.esperar();
     }
+    for (size_t s = 1; s < nSlots; ++s) mixMinusAbierto_[s].store(false);
 }
 
 /// Cada cuanto se mira si A publico un cuadro nuevo.
@@ -613,6 +630,101 @@ int MediaPump::miranPrograma() const {
     return static_cast<int>(sessionsWhere([](const MediaRoute& r) { return r.miraSalida(""); }).size());
 }
 
+// --- Transporte: contadores de lo que se lee (F0-02) ---------------------------
+
+namespace {
+
+/// Cada cuánto se cierra la ventana de los contadores (y a lo sumo una línea por canal).
+constexpr auto kVentanaTransporte = std::chrono::seconds(10);
+/// El nivel de operación del anillo de audio son 1-3 bloques: más es latencia que se junta.
+constexpr std::uint64_t kOcupacionTope = 3;
+/// La edad de un cuadro de video al leerlo es el sondeo más el IPC: pasar de esto es que B no
+/// llega. (La de un bloque de audio incluye la latencia de la mezcla de A, que es de diseño:
+/// en audio miran la ocupación, los descartes y los faltantes, no la edad.)
+constexpr double kEdadTopeVideoMs = 100.0;
+
+} // namespace
+
+namespace {
+
+nlohmann::json fotoJson(const FotoTransporte& f) {
+    nlohmann::json j{{"nombre", f.nombre},
+                     {"tipo", f.tipo},
+                     {"ventana_s", f.ventanaS},
+                     {"leidos", f.leidos},
+                     {"descartados", f.descartados},
+                     {"descartados_total", f.descartadosTotal},
+                     {"edad_p50_ms", f.edadP50Ms},
+                     {"edad_p99_ms", f.edadP99Ms}};
+    if (f.tipo == "audio") {
+        j["ocupacion_max"] = f.ocupacionMax;
+        j["faltantes"] = f.faltantes;
+        j["faltantes_total"] = f.faltantesTotal;
+    }
+    return j;
+}
+
+} // namespace
+
+bool MediaPump::cerrarVentana(MedidaTransporte& m, std::chrono::steady_clock::time_point& desde, bool registrar,
+                              FotoTransporte* fuera) {
+    const auto ahora = std::chrono::steady_clock::now();
+    if (ahora - desde < kVentanaTransporte) return false;
+    const FotoTransporte f = m.cerrar(std::chrono::duration<double>(ahora - desde).count());
+    desde = ahora;
+    const bool audio = f.tipo == "audio";
+    const bool anomala = audio ? f.anomalia(kOcupacionTope, 1e9) : f.anomalia(UINT64_MAX, kEdadTopeVideoMs);
+    bool antes = false;
+    {
+        std::lock_guard<std::mutex> l(transporteLock_);
+        FotoCanal& c = transporte_[f.nombre];
+        antes = c.anomala;
+        c.foto = f;
+        c.anomala = anomala;
+    }
+    // Al registro solo lo raro, y una línea cuando se normaliza: lo normal no inunda.
+    if (registrar && anomala) {
+        if (audio)
+            log_.warn(llenar(traducir("gateway", "transporte %1: en %2 s, %3 bloques descartados, %4 faltantes, hasta %5 "
+                                                 "sin leer, edad p50 %6 ms / p99 %7 ms"),
+                             {f.nombre, unDecimal(f.ventanaS), std::to_string(f.descartados), std::to_string(f.faltantes),
+                              std::to_string(f.ocupacionMax), unDecimal(f.edadP50Ms), unDecimal(f.edadP99Ms)}),
+                      -1);
+        else
+            log_.warn(llenar(traducir("gateway", "transporte %1: en %2 s, %3 cuadros salteados, edad p50 %4 ms / p99 %5 ms"),
+                             {f.nombre, unDecimal(f.ventanaS), std::to_string(f.descartados), unDecimal(f.edadP50Ms),
+                              unDecimal(f.edadP99Ms)}),
+                      -1);
+    } else if (registrar && antes) {
+        log_.info(llenar(traducir("gateway", "transporte %1: normal de nuevo"), {f.nombre}));
+    }
+    if (fuera != nullptr) *fuera = f;
+    return true;
+}
+
+nlohmann::json MediaPump::transporte() const {
+    nlohmann::json out = nlohmann::json::array();
+    std::lock_guard<std::mutex> l(transporteLock_);
+    for (const auto& [nombre, c] : transporte_) {
+        nlohmann::json j = fotoJson(c.foto);
+        j["anomalia"] = c.anomala;
+        out.push_back(std::move(j));
+    }
+    return out;
+}
+
+std::vector<int> MediaPump::lugaresSinRetorno() const {
+    std::vector<int> out;
+    if (cfg_.returnSlotNames.empty()) return out; // sin mix-minus: todos oyen el programa
+    std::lock_guard<std::mutex> l(routesLock_);
+    for (size_t s = 1; s < routes_.size(); ++s) {
+        const MediaRoute& r = routes_[s];
+        if (r.kind != MediaRoute::Kind::Program || r.index <= 0 || !r.salida.empty()) continue;
+        if (r.index > kMaxInvitados || !mixMinusAbierto_[static_cast<size_t>(r.index)].load()) out.push_back(r.index);
+    }
+    return out;
+}
+
 void MediaPump::videoBajadaThread(std::wstring nombre, std::string etiqueta,
                                   std::function<bool(const MediaRoute&)> para, const std::atomic<bool>* parar) {
     SpoutReceiver receiver;
@@ -627,9 +739,10 @@ void MediaPump::videoBajadaThread(std::wstring nombre, std::string etiqueta,
     int outH = 0;
     std::vector<uint8_t> scaled;
     std::int64_t trabajoUs = 0;
-    std::int64_t edadUs = 0;
     std::int64_t cuadros = 0;
     auto ultimoInforme = std::chrono::steady_clock::now();
+    MedidaTransporte medida(angosto(nombre), "video");
+    ba::platform::Ritmo ritmo{std::chrono::milliseconds(kMiradaMs)};
     while (sigue(parar)) {
         if (!sub) {
             const auto now = std::chrono::steady_clock::now();
@@ -648,6 +761,7 @@ void MediaPump::videoBajadaThread(std::wstring nombre, std::string etiqueta,
                         outH = srcH;
                     }
                     scaled.assign(static_cast<size_t>(outW) * outH * 4u, 0);
+                    medida.reabierto();
                     log_.info(llenar(traducir("gateway", "%1: suscrito (%2x%3) -> %4x%5"),
                                      {etiqueta, std::to_string(srcW), std::to_string(srcH), std::to_string(outW),
                                       std::to_string(outH)}));
@@ -667,6 +781,11 @@ void MediaPump::videoBajadaThread(std::wstring nombre, std::string etiqueta,
         if (receiver.hasData()) {
             FrameMeta meta{};
             if (receiver.receive(src.data(), src.size(), meta)) {
+                // Cuanto hace que A publico este cuadro. `meta.qpc` lo pone A al publicar y
+                // los dos procesos miden con el mismo reloj monotonico, asi que la resta es
+                // el SALTO A->B solo: el sondeo mas el IPC. Y los cuadros que A publico y no
+                // llegamos a leer (saltos del indice).
+                medida.cuadro(meta.frameIndex, meta.qpc, HealthBlock::nowQpc());
                 const auto targets = sessionsWhere(para);
                 if (!targets.empty() && outW > 0 && outH > 0) {
                     const auto t0 = std::chrono::steady_clock::now();
@@ -683,25 +802,16 @@ void MediaPump::videoBajadaThread(std::wstring nombre, std::string etiqueta,
                     trabajoUs += std::chrono::duration_cast<std::chrono::microseconds>(
                                      std::chrono::steady_clock::now() - t0)
                                      .count();
-                    // Cuanto hace que A publico este cuadro. `meta.qpc` lo pone
-                    // A al publicar y los dos procesos miden con el mismo reloj
-                    // monotonico, asi que la resta es el SALTO A->B solo: el
-                    // sondeo mas el IPC. Es el unico tramo del camino que no
-                    // tenia numero, y sin el no habia forma de saber si el
-                    // retardo estaba en libobs o en nosotros.
-                    const std::uint64_t ahoraQpc = HealthBlock::nowQpc();
-                    if (meta.qpc != 0 && ahoraQpc > meta.qpc) edadUs += (ahoraQpc - meta.qpc) / 1000;
                     ++cuadros;
                 }
             }
         }
-        const auto ahora = std::chrono::steady_clock::now();
-        if (ahora - ultimoInforme >= std::chrono::seconds(10)) {
+        if (FotoTransporte foto; cerrarVentana(medida, ultimoInforme, true, &foto)) {
             if (cuadros > 0) {
-                const double seg = std::chrono::duration<double>(ahora - ultimoInforme).count();
+                const double seg = foto.ventanaS;
                 const double medioMs = static_cast<double>(trabajoUs) / cuadros / 1000.0;
                 const double fps = cuadros / seg;
-                const double edadMs = static_cast<double>(edadUs) / cuadros / 1000.0;
+                const double edadMs = foto.edadP50Ms; // la mediana: un cuadro trabado no la mueve
                 if (medioMs > 25.0)
                     log_.warn(llenar(traducir("gateway", "%1: %2 fps, %3 ms por cuadro, %4 ms de A a B (no llega: la "
                                                          "pantalla se va a atrasar)"),
@@ -712,11 +822,9 @@ void MediaPump::videoBajadaThread(std::wstring nombre, std::string etiqueta,
                                      {etiqueta, unDecimal(fps), unDecimal(medioMs), unDecimal(edadMs)}));
             }
             trabajoUs = 0;
-            edadUs = 0;
             cuadros = 0;
-            ultimoInforme = ahora;
         }
-        std::this_thread::sleep_for(std::chrono::milliseconds(kMiradaMs));
+        ritmo.esperar();
     }
 }
 
@@ -727,6 +835,9 @@ void MediaPump::operatorAudioThread() {
     bool open = false;
     auto lastRetry = std::chrono::steady_clock::now() - std::chrono::seconds(1);
     std::vector<float> block;
+    MedidaTransporte medida(angosto(cfg_.operatorAudioName), "audio"); // sellado al escribir: sin faltantes por sello
+    auto ventana = std::chrono::steady_clock::now();
+    ba::platform::Ritmo ritmo{std::chrono::milliseconds(kMiradaAudioMs)};
     while (!stop_.load(std::memory_order_relaxed)) {
         if (!open) {
             const auto now = std::chrono::steady_clock::now();
@@ -734,6 +845,7 @@ void MediaPump::operatorAudioThread() {
                 lastRetry = now;
                 if (SharedAudioRing::openReader(cfg_.operatorAudioName.c_str(), reader).ok) {
                     open = true;
+                    medida.reabierto();
                     log_.info(traducir("gateway", "operador: microfono (BA.Audio.Operator) abierto"));
                 }
             }
@@ -745,7 +857,7 @@ void MediaPump::operatorAudioThread() {
             open = false;
             continue;
         }
-        leerPendientes(reader, block, [&](const PoppedBlock& blk, size_t n) {
+        leerPendientes(reader, block, medida, [&](const PoppedBlock& blk, size_t n) {
             // La voz del operador SOLO a quien le esta hablando: el resto del
             // lobby no escucha conversaciones ajenas.
             for (int s : sessionsWhere(
@@ -776,7 +888,8 @@ void MediaPump::operatorAudioThread() {
                 colavoz::encolar(it->second->ifb.voz, blk.samples, n, tope);
             }
         });
-        std::this_thread::sleep_for(std::chrono::milliseconds(kMiradaAudioMs));
+        cerrarVentana(medida, ventana, true);
+        ritmo.esperar();
     }
 }
 
@@ -791,6 +904,9 @@ void MediaPump::vozAudioThread(std::wstring nombre, std::string etiqueta, std::f
     bool open = false;
     auto lastRetry = std::chrono::steady_clock::now() - std::chrono::seconds(1);
     std::vector<float> block;
+    MedidaTransporte medida(angosto(nombre), "audio"); // sellado al escribir: sin faltantes por sello
+    auto ventana = std::chrono::steady_clock::now();
+    ba::platform::Ritmo ritmo{std::chrono::milliseconds(kMiradaAudioMs)};
     while (!stop_.load(std::memory_order_relaxed)) {
         if (!open) {
             const auto now = std::chrono::steady_clock::now();
@@ -798,6 +914,7 @@ void MediaPump::vozAudioThread(std::wstring nombre, std::string etiqueta, std::f
                 lastRetry = now;
                 if (SharedAudioRing::openReader(nombre.c_str(), reader).ok) {
                     open = true;
+                    medida.reabierto();
                     log_.info(llenar(traducir("gateway", "%1 abierta"), {etiqueta}));
                 }
             }
@@ -809,12 +926,13 @@ void MediaPump::vozAudioThread(std::wstring nombre, std::string etiqueta, std::f
             open = false;
             continue;
         }
-        leerPendientes(reader, block, [&](const PoppedBlock& blk, size_t n) {
+        leerPendientes(reader, block, medida, [&](const PoppedBlock& blk, size_t n) {
             for (int s : sessionsWhere(para)) {
                 if (WebrtcSession* sess = hub_.session(s)) sess->pushLocalAudio(blk.samples, n, cfg_.audioRate);
             }
         });
-        std::this_thread::sleep_for(std::chrono::milliseconds(kMiradaAudioMs));
+        cerrarVentana(medida, ventana, true);
+        ritmo.esperar();
     }
 }
 
@@ -829,6 +947,9 @@ void MediaPump::vozRegistroThread(std::wstring nombre, int canal) {
     std::vector<float> block, alTotem, alQueAtiende;
     const std::string etiqueta = llenar(traducir("gateway", "registro: voz del asistente del canal %1"), {std::to_string(canal)});
     MonitorRegistro& m = monitorRegistro_[static_cast<size_t>(canal)];
+    MedidaTransporte medida(angosto(nombre), "audio"); // sellado al escribir: sin faltantes por sello
+    auto ventana = std::chrono::steady_clock::now();
+    ba::platform::Ritmo ritmo{std::chrono::milliseconds(kMiradaAudioMs)};
     while (!stop_.load(std::memory_order_relaxed)) {
         if (!open) {
             const auto now = std::chrono::steady_clock::now();
@@ -836,6 +957,7 @@ void MediaPump::vozRegistroThread(std::wstring nombre, int canal) {
                 lastRetry = now;
                 if (SharedAudioRing::openReader(nombre.c_str(), reader).ok) {
                     open = true;
+                    medida.reabierto();
                     log_.info(llenar(traducir("gateway", "%1 abierta"), {etiqueta}));
                 }
             }
@@ -847,7 +969,7 @@ void MediaPump::vozRegistroThread(std::wstring nombre, int canal) {
             open = false;
             continue;
         }
-        leerPendientes(reader, block, [&](const PoppedBlock& blk, size_t n) {
+        leerPendientes(reader, block, medida, [&](const PoppedBlock& blk, size_t n) {
             const auto totem = sessionsWhere([canal](const MediaRoute& r) { return r.oyeVozRegistro(canal); });
             const auto miran = sessionsWhere([canal](const MediaRoute& r) { return r.miraRegistro(canal); });
             alTotem.assign(blk.samples, blk.samples + n);
@@ -863,7 +985,8 @@ void MediaPump::vozRegistroThread(std::wstring nombre, int canal) {
             for (int s : miran)
                 if (WebrtcSession* sess = hub_.session(s)) sess->pushLocalAudio(alQueAtiende.data(), n, cfg_.audioRate);
         });
-        std::this_thread::sleep_for(std::chrono::milliseconds(kMiradaAudioMs));
+        cerrarVentana(medida, ventana, true);
+        ritmo.esperar();
     }
 }
 
@@ -882,6 +1005,9 @@ void MediaPump::operatorVideoThread() {
     const auto lobbySessions = [this]() {
         return sessionsWhere([](const MediaRoute& r) { return r.kind == MediaRoute::Kind::Lobby; });
     };
+    MedidaTransporte medida(angosto(cfg_.operatorVideoName), "video");
+    auto ventana = std::chrono::steady_clock::now();
+    ba::platform::Ritmo ritmo{std::chrono::milliseconds(kMiradaMs)};
     while (!stop_.load(std::memory_order_relaxed)) {
         const auto now = std::chrono::steady_clock::now();
         if (!sub && !cfg_.operatorVideoName.empty() && now - lastRetry >= std::chrono::milliseconds(500)) {
@@ -891,6 +1017,7 @@ void MediaPump::operatorVideoThread() {
                 srcW = receiver.width();
                 srcH = receiver.height();
                 src.assign(receiver.frameBytes(), 0);
+                medida.reabierto();
                 log_.info(llenar(traducir("gateway", "operador: camara (BA.Operator) suscrita (%1x%2)"),
                                  {std::to_string(srcW), std::to_string(srcH)}));
             }
@@ -903,6 +1030,7 @@ void MediaPump::operatorVideoThread() {
             FrameMeta meta{};
             if (receiver.receive(src.data(), src.size(), meta)) {
                 lastFrame = now;
+                medida.cuadro(meta.frameIndex, meta.qpc, HealthBlock::nowQpc());
                 const auto targets = lobbySessions();
                 if (!targets.empty()) {
                     fitBgra(src.data(), srcW, srcH, scaled.data(), cfg_.guestVideoW, cfg_.guestVideoH);
@@ -925,7 +1053,8 @@ void MediaPump::operatorVideoThread() {
                 }
             }
         }
-        std::this_thread::sleep_for(std::chrono::milliseconds(kMiradaMs));
+        if (sub) cerrarVentana(medida, ventana, true);
+        ritmo.esperar();
     }
 }
 

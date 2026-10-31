@@ -484,7 +484,7 @@ void Motor::aplicarEnSalida(Salida& s, const std::string& id, int fundidoMs) {
         if (Mezcla* p = pista(n, va)) enBus(*p, id, c, k, va, fundidoMs);
     }
     for (auto& [n, r] : retornos_)
-        if (r.bus) enBus(*r.bus, id, c, k, alPrograma && r.propia != id, fundidoMs);
+        if (r.bus) enBus(*r.bus, id, c, k, alPrograma && r.oye(id), fundidoMs);
     if (directo_) enBus(*directo_, id, c, k, c.global, 0);
     if (seleccion_) enSeleccion(id, c);
 }
@@ -1434,20 +1434,20 @@ std::string Motor::controlMedioYa(const std::string& id, const std::string& acci
 
 void Motor::armarRetorno(int n, Retorno& r) {
     r.bus.reset();
-    if (r.modo != "mix_minus" || cfg_.prefijoAnillos.empty()) return;
+    if (r.modo == "apagado" || cfg_.prefijoAnillos.empty()) return;
     Mezcla::Opciones op;
     op.limitador = true; // lo que oye el invitado tampoco satura
     op.medidores = false;
     op.anillo = anillo("Return." + std::to_string(n));
     r.bus = std::make_unique<Mezcla>(*reloj_, "retorno" + std::to_string(n), op);
-    for (const auto& [id, c] : canales_) enBus(*r.bus, id, c, mandoPorOmision(id), (c.pistas & 1u) != 0 && id != r.propia, 0);
+    for (const auto& [id, c] : canales_) enBus(*r.bus, id, c, mandoPorOmision(id), (c.pistas & 1u) != 0 && r.oye(id), 0);
 }
 
 std::string Motor::retornoYa(int n, const std::string& modo, const std::string& propia) {
     BA_CANDADO(mu_);
     if (n < 1 || n > 64) return traducir("motor", "invitado fuera de rango (1…64)");
     if (modo != "programa" && modo != "mix_minus" && modo != "apagado") return traducir("motor", "modo: programa, mix_minus o apagado");
-    if (modo == "programa" || modo == "apagado") {
+    if (modo == "apagado") {
         retornos_.erase(n);
         return {};
     }

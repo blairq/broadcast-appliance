@@ -41,6 +41,7 @@
 #include "video/ElementosGst.hpp"
 #include "diag/Registro.hpp"
 #include "i18n/I18n.hpp"
+#include "Motor.hpp" // motor: el retorno del invitado sin audio
 #include "Reloj.hpp" // motor: iniciarGStreamer
 #include "ipc/ControlService.hpp"
 #include "ipc/HealthBlock.hpp"
@@ -75,6 +76,21 @@ constexpr std::uint32_t kProcessVersion = ba::ipc::kVersionProceso;
 constexpr int kTickMs = 100;
 
 std::atomic<bool> g_stop{false};
+
+/// El audio del invitado del lugar `slot`: su entrada, con su retorno (de fábrica, el programa
+/// sin su voz). Sin audio de invitados (guests.audio) su voz no está en el programa, pero igual
+/// necesita su anillo de retorno: el gateway nunca le manda el programa común a un invitado
+/// al aire, y sin anillo le apaga el retorno (gateway/RetornoLugar.hpp).
+void audioDeInvitado(BroadcastEngine& engine, bool conAudio, int slot) {
+    if (!conAudio) {
+        if (motor::Motor* m = engine.motor()) m->retorno(slot, "programa", "");
+        return;
+    }
+    if (!engine.addGuestAudio(slot))
+        std::printf("ba-app: %s\n", ba::i18n::llenar(ba::i18n::traducir("arranque", "invitado %1 (audio) omitido: %2"),
+                                                     {std::to_string(slot), engine.lastError()})
+                                        .c_str());
+}
 
 extern "C" void onStopSignal(int) { g_stop.store(true); }
 
@@ -307,12 +323,7 @@ void AppRuntime::ajustarInvitados(int n) {
     const int antes = cfg_.guests;
     cfg_.guests = n;
     gateway_.guests = n;
-    if (cfg_.guestAudio)
-        for (int slot = antes + 1; slot <= n; ++slot)
-            if (!engine_.addGuestAudio(slot))
-                std::printf("ba-app: %s\n", ba::i18n::llenar(ba::i18n::traducir("arranque", "invitado %1 (audio) omitido: %2"),
-                                                             {std::to_string(slot), engine_.lastError()})
-                                                .c_str());
+    for (int slot = antes + 1; slot <= n; ++slot) audioDeInvitado(engine_, cfg_.guestAudio, slot);
     // Y el video de los lugares nuevos (la cámara y la pantalla de cada uno): sin
     // esto, con el cupo en 4 se veían solo 2 invitados en Entradas. Ocultas en la
     // primera escena, como las del arranque: el operador las pone donde quiera.
@@ -360,13 +371,7 @@ void AppRuntime::ajustarInvitados(int n) {
 
 void AppRuntime::addGuests() {
     // Audio de invitados: global (canal propio), siempre en la mezcla.
-    for (int slot = 1; slot <= cfg_.guests; ++slot) {
-        if (cfg_.guestAudio && !engine_.addGuestAudio(slot)) {
-            std::printf("ba-app: %s\n", ba::i18n::llenar(ba::i18n::traducir("arranque", "invitado %1 (audio) omitido: %2"),
-                                                         {std::to_string(slot), engine_.lastError()})
-                                            .c_str());
-        }
-    }
+    for (int slot = 1; slot <= cfg_.guests; ++slot) audioDeInvitado(engine_, cfg_.guestAudio, slot);
     // Video: si ninguna escena tiene invitados (config nueva o vieja), se
     // agregan a la primera escena en fila; despues el operador los mueve.
     bool any = false;
