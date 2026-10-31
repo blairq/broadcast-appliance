@@ -7,6 +7,7 @@
 //
 // Mapeo de calidad (Resampler::Quality -> SRC_CONVERSION_QUALITY):
 //   Linear     -> SRC_LINEAR
+//   SincFastest -> SRC_SINC_FASTEST
 //   SincMedium -> SRC_SINC_MEDIUM_QUALITY
 //   SincBest   -> SRC_SINC_BEST_QUALITY
 //
@@ -29,6 +30,7 @@ constexpr int kDefaultRate = 48000;
 int toSrcQuality(Quality q) {
     switch (q) {
         case Quality::Linear: return SRC_LINEAR;
+        case Quality::SincFastest: return SRC_SINC_FASTEST;
         case Quality::SincMedium: return SRC_SINC_MEDIUM_QUALITY;
         case Quality::SincBest: return SRC_SINC_BEST_QUALITY;
     }
@@ -108,19 +110,22 @@ bool Resampler::resample(const float* in, size_t inFrames, float* out, size_t ma
 
     const int err = src_process(state_, &data);
     if (err != 0) {
-        // Error de libsamplerate (p. ej. buffer de salida insuficiente).
-        // `data.output_frames` queda con la cantidad de frames que HUBIERA
-        // escrito, de modo que el llamador sepa cuanto ampliar el buffer.
-        if (outFrames != nullptr) {
-            *outFrames = static_cast<size_t>(data.output_frames);
-        }
+        // Error de libsamplerate: no se escribió nada que sirva.
         return false;
     }
 
+    // Lo que se ESCRIBIÓ es `output_frames_gen`; `output_frames` es la capacidad
+    // que se le pasó y libsamplerate no lo toca. Antes se devolvía la capacidad:
+    // quien dejaba margen en el buffer (el gateway, +32 cuadros; las voces del
+    // rack, +1024) recibía ese margen sin escribir como si fuera audio.
     if (outFrames != nullptr) {
-        *outFrames = static_cast<size_t>(data.output_frames);
+        *outFrames = static_cast<size_t>(data.output_frames_gen);
     }
     return true;
+}
+
+void Resampler::reset() {
+    if (state_ != nullptr) src_reset(state_);
 }
 
 } // namespace ba::dsp

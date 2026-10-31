@@ -216,8 +216,13 @@ nlohmann::json describirCaps(GstCaps* c);
 void sinRelojPropio(GstElement* pipeline);
 /// Las fuentes de audio del pipeline (las de GstAudioBaseSrc: micrófonos, placas) salen
 /// con la hora de captura en el reloj del pipeline: sin su reloj propio no la ponen (ver
-/// Piezas.cpp). Antes de PLAYING. Cuántas encontró.
+/// Piezas.cpp). Antes de PLAYING. Cuántas encontró. Detrás de cada una pone `baderiva`
+/// (si está el plugin baaudio): sigue el reloj de la placa y remuestrea al del estudio,
+/// sin los saltos de 50 ms del reanclaje.
 int horaDeCapturaEnAudio(GstElement* pipeline);
+/// La deriva de cada placa abierta: ppm, reanclajes (los de la placa cruda y los que
+/// llegan al programa), si está corregida y enganchada. Para `sistema_recursos`.
+nlohmann::json derivaDePlacas();
 
 /// Las fuentes de prueba en vivo (videotestsrc, audiotestsrc) cuentan su tiempo
 /// desde 0: en un pipeline con el base_time del estudio (de hace rato) salen a
