@@ -619,7 +619,7 @@ Propiedades que se ponen si existen: `bitrate` (kbps), intervalo de clave
 
 | Salida | Cadena | Colas | Latencia del pipeline | Dónde |
 |---|---|---|---|---|
-| Grabación | `intersrc video ! valve ! queue leaky=downstream max-size-time=3 s ! a NV12 ! codificador ! h264parse ! queue colchón ! splitmuxsink (matroskamux)`; cada pista: `intersrc bus ! valve ! queue leaky 3 s ! audioconvert ! avenc_aac ! aacparse ! queue colchón` | cola cruda 3 s (`ajustes:record.colaEncoderS`); colchón comprimido `colchonSeg` (app: 60 s, mín. 5; motor: 30 s) y 512 MB (`ajustes:record.colchonMB`) | máx(lat. video, lat. audio) + 300 ms (`ajustes:salidas.margenMs`) | `Salidas.cpp:330-456`; `BroadcastEngine.cpp:1641-1703` |
+| Grabación | `intersrc video ! valve ! queue leaky=downstream max-size-time=1 s ! a NV12 ! codificador ! h264parse ! queue colchón ! splitmuxsink (matroskamux)`; cada pista: `intersrc bus ! valve ! queue leaky 1 s ! audioconvert ! avenc_aac ! aacparse ! queue colchón` | cola cruda 1 s (`ajustes:record.colaEncoderS`; antes 3 s, F0-10); colchón comprimido `colchonSeg` (app: 60 s, mín. 5; motor: 30 s) y 512 MB (`ajustes:record.colchonMB`) | máx(lat. video, lat. audio) + 300 ms (`ajustes:salidas.margenMs`) | `Salidas.cpp:330-456`; `BroadcastEngine.cpp:1641-1703` |
 | Copia de la grabación | **segundo codificador** con las mismas fuentes, en otra carpeta | ídem | ídem | `BroadcastEngine.cpp:1664-1676` |
 | Transmisión RTMP | `flvmux streamable=true ! rtmp2sink async-connect=true` | video: `queue leaky=downstream max-size-time=1000 ms` (`ajustes:stream.colaMs`); audio: `queue max-size-time=1000 ms` (sin leaky) | ídem | `Salidas.cpp:596-675` |
 | Transmisión SRT | `mpegtsmux alignment=7 ! srtsink wait-for-connection=false` | ídem | ídem | `Salidas.cpp:607-612` |
@@ -1226,7 +1226,7 @@ de tiempos, colas y reintentos:
 | `stream.colaMs` | 1000 ms | `Salidas.cpp:617`, `621` |
 | `stream.cierreMs` | 2000 ms | `Salidas.cpp:727` |
 | `stream.sinDatosS` | 2 s | `Salidas.cpp:741` |
-| `record.colaEncoderS` | 3 s | `Salidas.cpp:351` |
+| `record.colaEncoderS` | 1 s (antes 3, F0-10) | `Salidas.cpp:351` |
 | `record.colchonMB` | 512 MB | `Salidas.cpp:348` |
 | `record.tramoMin` | 0 (un archivo) | `BroadcastEngine.cpp:1647` |
 | `record.replayTramoS` / `record.replayJuntarS` | 2 s / 120 s | `Salidas.cpp:285`, `230` |

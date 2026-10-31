@@ -703,8 +703,14 @@ class BroadcastEngine {
     std::string setModoDisco(const std::string& modo); ///< "" o el error (se guarda en Config/disco.json)
     /// Darle (o devolverle) el disco al programa ahora.
     void priorizarPrograma(bool si);
-    /// {apuros, atraso_s, registro_trabado_ms, prioridad, automatica, modo, pausadas[], desde_s}
+    /// {apuros, atraso_s, registro_trabado_ms, prioridad, automatica, modo, pausadas[], desde_s,
+    ///  restante: {horas, libre_gb, kbps, volumenes[{volumen, libre_gb, kbps, horas, que[]}]} (lo que
+    ///  escribe AHORA en todas las salidas: grabación, copia, señal limpia e ISO, sumado por disco),
+    ///  mismo_volumen: [{salida, grabacion, copia}] (copias que van al mismo disco que su grabación)}
     nlohmann::json discoEstado() const;
+    /// Lo que escribe en disco la grabación de una salida (video + audio de cada pista):
+    /// lo usa al arrancarla y quien calcula de antemano para cuánto alcanza el disco.
+    static int kbpsGrabacion(const RecordConfig& rec, const EncoderConfig& enc, bool porOmision = true);
     /// Para probar (modo --test): la grabación del programa, como con el disco trabado `ms`.
     void simularDiscoTrabado(int ms);
 
@@ -915,6 +921,7 @@ class BroadcastEngine {
     mutable std::mutex remuxM_;
     struct SourceRec {
         std::string path;
+        int kbps = 0; ///< lo que escribe a disco (video + audio), para las horas restantes
         bool audioPropio = false;
         std::unique_ptr<motor::Grabacion> grab;
         std::unique_ptr<motor::Transmision> tx;
@@ -957,6 +964,7 @@ class BroadcastEngine {
         std::map<std::string, Extra> extras;
         std::unique_ptr<motor::Grabacion> rec, recCopia;
         std::string recordPath, recordCopyPath;
+        int kbpsRec = 0; ///< lo que escriben la grabación y (otro tanto) la copia (kbpsGrabacion)
         std::string remuxSal; ///< a qué pasar la grabación al pararla
         bool remuxAlTerminarSal = true;
         std::unique_ptr<SourceRec> clean;
@@ -1025,6 +1033,11 @@ class BroadcastEngine {
     double atrasoDisco_ = 0;
     std::int64_t registroTrabadoMs_ = 0;
     std::vector<std::string> pausadas_;
+    // Lo que queda de disco (discoEstado: restante, mismo_volumen): se recalcula cada
+    // pocos segundos (stat y espacio libre de cada carpeta), no a cada vuelta del hilo.
+    nlohmann::json discoRestante_ = nlohmann::json::object(), mismoVolumen_ = nlohmann::json::array();
+    std::int64_t discoRestanteMs_ = 0;
+    void medirDiscoRestante();
 
     // Lo que llega de los hilos del motor (el video del programa: el de la por omisión)
     std::atomic<double> progLuma_{0};

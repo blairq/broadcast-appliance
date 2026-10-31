@@ -14,6 +14,8 @@
 #include <cstdio>
 #include <filesystem>
 #include <fstream>
+#include <iterator>
+#include <set>
 
 namespace ba::app::agent {
 
@@ -131,8 +133,9 @@ json AlertEngine::types() {
          {"summary", QT_TRANSLATE_NOOP("alertas", "Queda poco disco (mientras se graba, o siempre con `siempre`).")},
          {"params",
           {{"minGb", QT_TRANSLATE_NOOP("alertas", "GB libres minimos (por defecto 5)")},
-           {"minMinutos", QT_TRANSLATE_NOOP("alertas", "o: minutos de grabacion que quedan al bitrate configurado (p. ej. 30)")},
-           {"siempre", QT_TRANSLATE_NOOP("alertas", "avisar aunque no se este grabando (por defecto false)")}}},
+           {"minMinutos", QT_TRANSLATE_NOOP("alertas", "o: minutos de grabacion que quedan al bitrate de todo lo que se graba (grabación, copia e ISO de todas las salidas; manda el disco que antes se llena) (p. ej. 30)")},
+           {"siempre", QT_TRANSLATE_NOOP("alertas", "avisar aunque no se este grabando (por defecto false)")},
+           {"mismoVolumen", QT_TRANSLATE_NOOP("alertas", "avisar si la copia de una grabación va al mismo disco que ella (por defecto true)")}}},
          {"cooldownSec", 600}},
         {{"type", "loudness"},
          {"summary", QT_TRANSLATE_NOOP("alertas", "El loudness del programa se va del objetivo (integrado) o el true peak pasa el techo.")},
@@ -734,13 +737,12 @@ void AlertEngine::evaluate(json& rule, State& st, std::int64_t now) {
             st.since.erase("r0");
             st.seen.erase("r0");
         }
-    } else if (type == "disk" && in_.diskFreeGb && in_.status) {
+    } else if (type == "disk" && in_.disco && in_.status) {
         const auto s = in_.status();
         if (!s.recording && !p.value("siempre", false)) return;
-        const double free = in_.diskFreeGb();
-        // GB por minuto al bitrate configurado (video + ~10 % de audio y contenedor).
-        const double gbMin = s.kbps > 0 ? s.kbps * 1.1 * 60.0 / 8.0 / 1e6 : 0.0;
-        const double minutos = gbMin > 0 && free >= 0 ? free / gbMin : -1;
+        const json d = in_.disco();
+        const double free = d.value("libre_gb", -1.0), horas = d.value("horas", -1.0);
+        const double minutos = horas >= 0 ? horas * 60.0 : -1.0;
         const bool pocoGb = p.contains("minGb") || !p.contains("minMinutos") ? free < p.value("minGb", 5.0) : false;
         const bool pocosMin = p.contains("minMinutos") && minutos >= 0 && minutos < p.value("minMinutos", 30.0);
         if (free >= 0 && (pocoGb || pocosMin) && cooled("disk")) {
@@ -753,6 +755,23 @@ void AlertEngine::evaluate(json& rule, State& st, std::int64_t now) {
                                                  : ba::i18n::traducir("alertas", "Queda poco disco: %1 GB libres.")),
                      {fmt1(free), std::to_string(static_cast<int>(minutos))}),
                  {{"freeGb", free}, {"minutos", minutos}}, now);
+        }
+        // La copia en el mismo disco que su grabación: una falla de ese disco se lleva las
+        // dos. Una vez por salida y por par de carpetas (vuelve a avisar si cambian).
+        if (p.value("mismoVolumen", true)) {
+            std::set<std::string> ahora;
+            for (const json& m : d.value("mismo_volumen", json::array())) {
+                const std::string k = "mv:" + m.value("salida", std::string()) + "|" + m.value("grabacion", std::string()) + "|" + m.value("copia", std::string());
+                ahora.insert(k);
+                if (st.seen[k] == "1") continue;
+                st.seen[k] = "1";
+                fire(rule, st,
+                     ba::i18n::llenar(ba::i18n::traducir("alertas", "La copia de la grabación va al mismo disco que la grabación (%1 y %2): si ese disco falla o se llena, se pierden las dos."),
+                                      {m.value("grabacion", std::string()), m.value("copia", std::string())}),
+                     {{"mismoVolumen", m}}, now);
+            }
+            for (auto it = st.seen.begin(); it != st.seen.end();)
+                it = it->first.rfind("mv:", 0) == 0 && !ahora.count(it->first) ? st.seen.erase(it) : std::next(it);
         }
     } else if (type == "loudness" && in_.loudness) {
         if (p.value("soloAlAire", true) && in_.status) {
@@ -1049,8 +1068,8 @@ void AlertEngine::sembrar(bool faltantes) {
          {"params", {{"droppedPct", 2}, {"windowSec", 30}}}, {"sonido", "aviso"}},
         {{"type", "stream_down"}, {"name", ba::i18n::traducir("alertas", "La transmisión se cayó")}, {"params", {{"forSec", 10}}},
          {"sonido", "critico"}, {"reconocer", true}},
-        {{"type", "disk"}, {"name", ba::i18n::traducir("alertas", "Poco disco (menos de 30 min)")},
-         {"params", {{"minMinutos", 30}, {"minGb", 5}, {"siempre", true}}}, {"sonido", "aviso"}},
+        {{"type", "disk"}, {"name", ba::i18n::traducir("alertas", "Poco disco (menos de 30 min) o la copia en el mismo disco")},
+         {"params", {{"minMinutos", 30}, {"minGb", 5}, {"siempre", true}, {"mismoVolumen", true}}}, {"sonido", "aviso"}},
         {{"type", "input_signal"}, {"name", ba::i18n::traducir("alertas", "Entrada sin señal")}, {"params", {{"entrada", "*"}, {"forSec", 3}}},
          {"sonido", "critico"}, {"reconocer", true}},
         {{"type", "guest_drop"}, {"name", ba::i18n::traducir("alertas", "Un invitado se cayó")}, {"params", json::object()}, {"sonido", "aviso"}},
