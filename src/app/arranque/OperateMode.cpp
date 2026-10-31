@@ -68,8 +68,9 @@ namespace {
 
 namespace fs = std::filesystem;
 
-constexpr std::size_t kHealthSlot = 1; // A (spec §4.4; B es 0)
-constexpr std::uint32_t kProcessVersion = 2;
+// El slot y la versión, los de ba_core: el launcher readopta solo a una A de su misma versión.
+constexpr std::size_t kHealthSlot = ba::ipc::kSlotSaludApp;
+constexpr std::uint32_t kProcessVersion = ba::ipc::kVersionProceso;
 constexpr int kTickMs = 100;
 
 std::atomic<bool> g_stop{false};
@@ -484,7 +485,7 @@ int AppRuntime::start() {
     // --- Salud: A late en su slot para el watchdog del launcher. Sin launcher
     // (desarrollo) se crea el bloque para poder correr solo.
     if (!ba::ipc::HealthBlock::open(ba::ipc::HealthBlock::kName, health_).ok) {
-        ba::ipc::HealthBlock::create(ba::ipc::HealthBlock::kName, kHealthSlot + 1, health_);
+        ba::ipc::HealthBlock::create(ba::ipc::HealthBlock::kName, ba::ipc::kSlotsSalud, health_);
     }
     if (health_.valid()) {
         health_.setIdentity(kHealthSlot, currentPid(), kProcessVersion);

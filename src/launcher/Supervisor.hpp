@@ -34,6 +34,7 @@
 #include "ChildProcess.hpp"
 #include "ControlChannel.hpp"
 #include "Integrity.hpp"
+#include "Politica.hpp"
 #include "ipc/HealthBlock.hpp"
 #include "platform/SingleInstance.hpp"
 #include "RecoveryUi.hpp"
@@ -67,8 +68,8 @@ class Supervisor {
         int maxCaidas = 5;                       // más caídas que esto en la ventana: modo seguro
         std::uint64_t ventanaCaidasMs = 120000;  // la ventana del cortacircuito
         int reiniciosSinPreguntar = 2;           // fallas seguidas que se reinician sin preguntar
-        std::uint32_t slotA = 1; // slot de A en BA.Health
-        std::uint32_t slotB = 0; // slot de B en BA.Health
+        std::uint32_t slotA = ba::ipc::kSlotSaludApp;     // slot de A en BA.Health
+        std::uint32_t slotB = ba::ipc::kSlotSaludGateway; // slot de B en BA.Health
     };
 
     explicit Supervisor(Config cfg);
@@ -98,7 +99,13 @@ class Supervisor {
     void launchChildren();
     void launchOne(bool isA);
     bool startChild(bool isA);
-    void restartChild(bool isA); // backoff + relanzamiento (comun a crash/hang)
+    void restartChild(bool isA); // agenda el relanzamiento con backoff (comun a crash/hang)
+    /// Lanza los hijos cuyo relanzamiento agendado ya toca (el bucle no duerme el backoff).
+    void relanzarAgendados();
+    /// Un hijo readoptado de OTRA versión: cierre ordenado y lanzamiento del de ahora.
+    void reemplazarOtraVersion(bool isA);
+    /// Runtime/ de los datos (al-aire.json, ultima-caida.json).
+    std::filesystem::path runtimeDir() const;
     void handleCrash(bool isA);
     /// Deja escrita la causa de la caída (Runtime/ultima-caida.json y caidas.jsonl).
     void anotarCaida(bool isA, const std::string& causa, std::optional<int> code, const std::filesystem::path& volcado = {});
@@ -120,6 +127,7 @@ class Supervisor {
     void stopChild(bool isA);
 
     ChildProcess& child(bool isA) { return isA ? app_ : gateway_; }
+    Relanzador& relanzador(bool isA) { return relanzador_[isA ? 1 : 0]; }
 
     // --- Estado -------------------------------------------------------------
     Config cfg_;
@@ -143,9 +151,11 @@ class Supervisor {
     std::uint64_t latidoAlLanzar_[2] = {0, 0}; ///< el latido que había al lanzarlo (para saber si ya latió)
     bool inStartupGrace(bool isA) const;
 
-    // Politica de reinicio (spec 3.1.8).
-    int appConsecutive_ = 0; // reinicios consecutivos de A (para backoff)
-    int bConsecutive_ = 0;
+    // Politica de reinicio (spec 3.1.8): el backoff de cada hijo, agendado (Politica.hpp).
+    Relanzador relanzador_[2]; // [0] = B, [1] = A
+    // Readoptado de otra versión con aire: se reemplaza cuando no haya salidas activas.
+    bool otraVersion_[2] = {false, false};
+    std::uint64_t ultimaMiradaAire_ = 0; // ms monotonicos: al-aire.json se mira cada tanto, no cada vuelta
     bool appNeedsRestore_ = false;             // A relanzado tras crash arranca con --restore
     bool safeMode_ = false;                    // circuit breaker: >5 crashes de A en 2 min
     std::vector<std::uint64_t> appCrashTimes_; // ms monotonicos, para el circuit breaker
