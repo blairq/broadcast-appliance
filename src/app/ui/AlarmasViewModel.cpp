@@ -291,14 +291,11 @@ QObject* AlarmasViewModel::sonido() const {
 
 void AlarmasViewModel::releer() {
     const json a = motor_->activas();
-    bool critica = false;
-    for (const auto& e : a)
-        if (e.value("sonido", std::string()) == "critico" && !e.value("silenciada", false)) critica = true;
     activas_ = QJsonDocument::fromJson(QByteArray::fromStdString(a.dump(-1, ' ', false, json::error_handler_t::replace)))
                    .array()
                    .toVariantList();
-    critica_ = critica;
-    sonido_->criticaActiva(critica_);
+    criticas_ = agent::AlertEngine::criticasDe(a);
+    sonido_->criticaActiva(criticas_.sonando);
     emit cambio();
 }
 
@@ -307,6 +304,8 @@ int AlarmasViewModel::reconocer(qint64 id) { return motor_->reconocer(static_cas
 bool AlarmasViewModel::silenciar(const QString& disparador, bool si) {
     return !motor_->update(disparador.toStdString(), json{{"silenciada", si}}).contains("error");
 }
+
+void AlarmasViewModel::silenciarCriticas(bool si) { motor_->silenciarCriticas(si); }
 
 void AlarmasViewModel::enHiloDelVigia(const json& ev) {
     AvisoFueraDeUi* aviso = aviso_.load();

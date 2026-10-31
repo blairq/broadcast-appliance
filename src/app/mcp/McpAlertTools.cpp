@@ -211,7 +211,10 @@ void McpService::registerAlertTools() {
                 const int n = eng.reconocer(a.value("todas", false) ? 0 : a.value("id", std::uint64_t{0}));
                 return done(ToolResult().data(json{{"reconocidas", n}, {"quedan", eng.activas()}}));
             }
-            done(ToolResult().data(json{{"activas", eng.activas()}}));
+            // Con la misma regla que la franja roja de la app (AlertEngine::criticas).
+            const agent::AlertEngine::Criticas c = eng.criticas();
+            done(ToolResult().data(json{{"activas", eng.activas()},
+                                        {"criticas", {{"hay", c.hay}, {"silenciadas", c.silenciadas}, {"sonando", c.sonando}}}}));
         };
         core_.addTool(std::move(t));
     }

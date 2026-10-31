@@ -22,6 +22,7 @@
 
 #include <memory>
 
+#include <QAbstractItemModel>
 #include <QImage>
 #include <QObject>
 #include <QString>

@@ -588,16 +588,9 @@ ApplicationWindow {
         id: franjaAlarma
         // Enlazada a la propiedad del área de las alarmas: se entera por el modelo.
         readonly property var activas: Studio.alarmas.activas
-        // Las críticas sin reconocer, suenen o no (silenciar corta el sonido, no la franja).
-        readonly property var criticas: activas.filter(a => a.sonido === "critico")
-        readonly property bool critica: criticas.length > 0
-        readonly property bool todasSilenciadas: criticas.length > 0 && criticas.every(a => !!a.silenciada)
-        function silenciar(si) {
-            const vistos = {}
-            for (const a of criticas)
-                if (!vistos[a.ruleId]) { vistos[a.ruleId] = true; Studio.alarmas.silenciar(a.ruleId, si) }
-        }
-        visible: critica
+        // Las críticas sin reconocer, suenen o no (silenciar corta el sonido, no la franja):
+        // la regla es del vigía, la misma que usan el control web y el MCP.
+        visible: Studio.alarmas.hayCritica
         z: 70
         anchors { left: parent.left; right: parent.right; top: parent.top
                   leftMargin: win.libreIzq; rightMargin: win.libreDer; topMargin: win.libreArr }
@@ -624,15 +617,15 @@ ApplicationWindow {
             // franja sigue hasta Reconocer). Apretado otra vez, les devuelve el sonido.
             GlassButton {
                 compact: true
-                text: franjaAlarma.todasSilenciadas ? qsTr("🔇 Silenciada") : qsTr("Silenciar")
-                onClicked: franjaAlarma.silenciar(!franjaAlarma.todasSilenciadas)
+                text: Studio.alarmas.criticasSilenciadas ? qsTr("🔇 Silenciada") : qsTr("Silenciar")
+                onClicked: Studio.alarmas.silenciarCriticas(!Studio.alarmas.criticasSilenciadas)
             }
             GlassButton { compact: true; text: qsTr("Reconocer (R)"); onClicked: Studio.alarmas.reconocer(0) }
         }
     }
     Shortcut {
         sequence: "R"
-        enabled: franjaAlarma.critica
+        enabled: Studio.alarmas.hayCritica
         onActivated: Studio.alarmas.reconocer(0)
     }
     // Los atajos que configuró el operador (página Botonera → Atajos). Los
