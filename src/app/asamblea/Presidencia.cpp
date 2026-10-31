@@ -25,6 +25,8 @@
 #include <QUrl>
 
 #include <algorithm>
+#include <set>
+#include <vector>
 
 namespace ba::app::asamblea {
 
@@ -366,22 +368,41 @@ void Presidencia::aplicarVistas(bool forzar) {
     const std::string firma = (alguien ? "1" : "0") + vistas.dump(-1, ' ', false, json::error_handler_t::replace);
     if (!forzar && firma == firmaVistas_) return;
     firmaVistas_ = firma;
-    p_.motor.soltarCanalesEscena("sesion-remota");
-    json out = json::array();
-    for (const auto& v : vistas) {
-        const std::string fuente = v.value("fuente", std::string());
-        int canal = -2;
-        if (fuente == "programa") {
-            canal = -1;
-        } else if (alguien) {
-            canal = p_.motor.tomarCanalEscena(fuente, "sesion-remota");
-            if (canal < 0)
+    // Primero las escenas que ya están en un canal (siguen igual, sin apagarse), después se
+    // sueltan los canales que ya no van y recién ahí se toman las nuevas. Soltar todo y
+    // volver a tomar apagaba y rehacía lo que seguía igual; tomar todo antes de soltar
+    // podía quedarse sin canal libre.
+    const auto yaEnCanal = [this](const std::string& escena) {
+        for (int k = 0; k < ba::ipc::kCanalesEscena; ++k)
+            if (p_.motor.escenaDeCanal(k) == escena) return true;
+        return false;
+    };
+    std::vector<int> canales(vistas.size(), -2);
+    std::set<int> tomados;
+    for (int pasada = 0; pasada < 2; ++pasada) {
+        if (pasada == 1) p_.motor.soltarCanalesEscena("sesion-remota", tomados);
+        for (size_t i = 0; i < vistas.size(); ++i) {
+            const std::string fuente = vistas[i].value("fuente", std::string());
+            if (fuente == "programa") {
+                canales[i] = -1;
+                continue;
+            }
+            if (!alguien || canales[i] >= 0 || (pasada == 0 && !yaEnCanal(fuente))) continue;
+            // Sin canal, -2 (sin imagen): -1 es el programa, y se veía eso en vez de la escena.
+            const int k = p_.motor.tomarCanalEscena(fuente, "sesion-remota");
+            canales[i] = k >= 0 ? k : -2;
+            if (k >= 0)
+                tomados.insert(k);
+            else if (pasada == 1)
                 emit aviso(tr("No hay canal libre para mandarles la escena «%1» a los remotos (las pantallas usan los 4)")
                                .arg(QString::fromStdString(fuente)),
                            "warning");
         }
-        out.push_back({{"id", v.value("id", std::string())}, {"nombre", v.value("nombre", std::string())}, {"canal", canal}});
     }
+    json out = json::array();
+    for (size_t i = 0; i < vistas.size(); ++i)
+        out.push_back({{"id", vistas[i].value("id", std::string())}, {"nombre", vistas[i].value("nombre", std::string())},
+                       {"canal", canales[i]}});
     sala::pedir(p_.sala, "POST", "/api/v1/sesion/vistas", {{"vistas", out}}, sinRespuesta);
 }
 

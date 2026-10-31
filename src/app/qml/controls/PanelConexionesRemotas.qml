@@ -152,7 +152,9 @@ ColumnLayout {
             property alias combo: fuenteV
             readonly property var v: cr.s && cr.s.vistasUi.length > indice ? cr.s.vistasUi[indice] : null
             spacing: 4
-            TextField { id: nombreV; Layout.preferredWidth: 130; color: Theme.text; placeholderText: qsTr("Nombre del canal")
+            // Vacío = el nombre automático (el de la escena), que se ve de ayuda y sigue a la escena.
+            TextField { id: nombreV; Layout.preferredWidth: 130; color: Theme.text
+                        placeholderText: parent.v && parent.v.nombreAuto ? parent.v.nombreAuto : qsTr("Nombre del canal")
                         text: parent.v ? parent.v.nombre : ""; onEditingFinished: vistasFila.guardar() }
             ComboBox {
                 id: fuenteV

@@ -617,7 +617,17 @@ std::string SesionRemota::setVistas(const json& vistas) {
     return {};
 }
 
-QVariantList SesionRemota::vistasUi() const { return aQv(vistas()).toList(); }
+QVariantList SesionRemota::vistasUi() const {
+    json out = vistas_.empty() ? json::array({{{"id", "a"}, {"nombre", ""}, {"fuente", "programa"}}}) : vistas_;
+    const json conNombre = vistas();
+    for (size_t i = 0; i < out.size() && i < conNombre.size(); ++i) {
+        out[i]["nombreAuto"] = conNombre[i].value("nombre", std::string());
+        // El nombre por omisión de antes (se guardaba) cuenta como automático.
+        if (out[i].value("fuente", std::string()) == "programa" && out[i].value("nombre", std::string()) == "Salida principal")
+            out[i]["nombre"] = "";
+    }
+    return aQv(out).toList();
+}
 
 QString SesionRemota::setVistasUi(const QVariantList& vistas) {
     const json j = json::parse(QJsonDocument::fromVariant(vistas).toJson(QJsonDocument::Compact).toStdString(), nullptr, false);

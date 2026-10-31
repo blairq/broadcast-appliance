@@ -615,8 +615,9 @@ int BroadcastEngine::tomarCanalEscena(const std::string& escena, const std::stri
     return canal;
 }
 
-void BroadcastEngine::soltarCanalesEscena(const std::string& dueno) {
+void BroadcastEngine::soltarCanalesEscena(const std::string& dueno, const std::set<int>& salvo) {
     for (int k = 0; k < ba::ipc::kCanalesEscena; ++k) {
+        if (salvo.count(k) > 0) continue;
         auto& d = duenosEscena_[static_cast<std::size_t>(k)];
         if (d.erase(dueno) > 0 && d.empty()) escenaACanal(k, ""); // Pantallas lo vuelve a pedir si lo usa
     }

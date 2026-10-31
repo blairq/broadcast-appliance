@@ -590,7 +590,9 @@ class BroadcastEngine {
     /// dueño: el que ya tiene esa escena o uno libre (-1 si no hay). Pantallas no
     /// suelta un canal con dueños; el último dueño que lo suelta, lo apaga.
     int tomarCanalEscena(const std::string& escena, const std::string& dueno);
-    void soltarCanalesEscena(const std::string& dueno);
+    /// Suelta los canales de `dueno` salvo los de `salvo` (los que acaba de volver a tomar:
+    /// así un reparto nuevo no apaga y prende lo que sigue igual).
+    void soltarCanalesEscena(const std::string& dueno, const std::set<int>& salvo = {});
     bool canalEscenaConDuenos(int k) const;
 
     /// Transmite. Si YA está transmitiendo: al mismo destino no hace nada

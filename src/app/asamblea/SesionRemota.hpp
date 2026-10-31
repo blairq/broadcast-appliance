@@ -206,7 +206,9 @@ class SesionRemota : public QObject {
         const auto it = fotos_.find(integrante);
         return it == fotos_.end() ? QByteArray() : it->second;
     }
-    /// Los canales que el remoto puede mirar en su celular (ver setVistas).
+    /// Los canales que el remoto puede mirar en su celular (ver setVistas), con el nombre
+    /// que escribió el operador ("" = el automático, que va en `nombreAuto`): si el panel
+    /// mostrara el automático como texto, al guardar quedaría fijo y no seguiría a la escena.
     Q_PROPERTY(QVariantList vistasUi READ vistasUi NOTIFY cambio)
     QVariantList vistasUi() const;
     Q_INVOKABLE QString setVistasUi(const QVariantList& vistas);
