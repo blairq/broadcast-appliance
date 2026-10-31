@@ -1209,10 +1209,18 @@ void SignalingServer::handleGuestHttp(long long fd, const std::string& method, c
         // los últimos 15 s). Anotarlo es barato; lo caro va en el caché de abajo.
         {
             const auto q = http::parseQuery(query);
-            if (q.count("v")) {
-                const std::string v = http::urlDecode(q.at("v")).substr(0, 40);
+            // El mismo nombre que le da ba-web cuando lo atiende su caché («h:» + FNV-1a de 32
+            // bits del valor tal cual viene en la dirección): un navegador que a veces llega
+            // directo y a veces por el caché es UNO (antes contaba dos).
+            if (q.count("v") && !q.at("v").empty() && q.at("v").size() <= 64) {
+                std::uint32_t h = 2166136261u;
+                for (const unsigned char c : q.at("v")) h = (h ^ c) * 16777619u;
+                if (h == 0) h = 1;
+                char hex[9];
+                std::snprintf(hex, sizeof hex, "%08x", h);
+                const std::string v = std::string("h:") + hex;
                 std::lock_guard<std::mutex> g(eventoWebM_);
-                if (!v.empty() && (mirando_.size() < 20000 || mirando_.count(v))) mirando_[v] = nowMs();
+                if (mirando_.size() < 20000 || mirando_.count(v)) mirando_[v] = nowMs();
             }
             // Los que atendió el caché de ba-web: los manda él, con su clave, como hashes de
             // 8 cifras hex («h:» adelante, para no mezclarse con los ids que llegan directo).
