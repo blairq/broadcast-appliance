@@ -86,6 +86,8 @@
 #include "BaWeb.hpp"
 
 #include "diag/Caidas.hpp"
+#include "diag/Correlacion.hpp"
+#include "diag/Metricas.hpp"
 #include "diag/Perfil.hpp"
 #include "diag/Registro.hpp"
 #include "diag/SalidaAsincrona.hpp"
@@ -1300,6 +1302,29 @@ int main(int argc, char** argv) {
 
     // --- Canal de control (spec §4.1): el launcher pide el cierre ordenado
     // por aca. Sin canal (nombre ocupado) se sigue: queda la señal del SO.
+    // Las métricas de B (F4-01, `GET /metrics` de la API de control): los contadores del
+    // transporte los mide el pump (F0-02); acá solo se copian a sus series al exportar.
+    const int colectorTransporte = ba::diag::Metricas::proceso().agregarColector([&pump](ba::diag::Metricas& m) {
+        for (const auto& f : pump.transporte()) {
+            const ba::diag::Etiquetas e{{"canal", f.value("nombre", std::string())}, {"tipo", f.value("tipo", std::string())}};
+            const auto poner = [&](const char* nombre, const char* ayuda, const char* clave) {
+                const double v = f.value(clave, -1.0);
+                auto& g = m.medidor(nombre, ayuda, e);
+                if (v < 0) g.desconocido();
+                else g.poner(v);
+            };
+            poner("ba_transporte_edad_p50_ms", QT_TRANSLATE_NOOP("metricas", "Edad de lo leído de A (p50 de la última ventana), ms"), "edad_p50_ms");
+            poner("ba_transporte_edad_p99_ms", QT_TRANSLATE_NOOP("metricas", "Edad de lo leído de A (p99 de la última ventana), ms"), "edad_p99_ms");
+            if (f.contains("ocupacion_max"))
+                poner("ba_transporte_ocupacion_bloques", QT_TRANSLATE_NOOP("metricas", "Bloques de 10 ms sin leer en el anillo (máximo de la ventana)"), "ocupacion_max");
+            m.contador("ba_transporte_descartados_total", QT_TRANSLATE_NOOP("metricas", "Bloques o cuadros que A escribió y B no llegó a leer"), e)
+                .igualar(f.value("descartados_total", std::uint64_t{0}));
+            if (f.contains("faltantes_total"))
+                m.contador("ba_transporte_faltantes_total", QT_TRANSLATE_NOOP("metricas", "Bloques de audio que no llegaron de A"), e)
+                    .igualar(f.value("faltantes_total", std::uint64_t{0}));
+        }
+    });
+
     ba::ipc::ControlService control;
     {
         std::string err;
@@ -1313,6 +1338,7 @@ int main(int argc, char** argv) {
     while (!g_stop.load(std::memory_order_relaxed)) {
         control.poll([&](const ba::ipc::Message& m) {
             if (m.type == ba::ipc::Type::Shutdown) {
+                const ba::diag::correlacion::Ambito orden(m.correlacion); // F4-02: la línea lleva su id
                 log.info(traducir("gateway", "control: shutdown pedido por el launcher"));
                 g_stop.store(true);
             }
@@ -1340,6 +1366,7 @@ int main(int argc, char** argv) {
         room.setSinRetorno(pump.lugaresSinRetorno());
     }
 
+    ba::diag::Metricas::proceso().quitarColector(colectorTransporte); // antes que se vaya el pump
     log.info(traducir("gateway", "parando: deteniendo componentes..."));
 
     // --- Shutdown ordenado: senalizacion → pump → cloudflared → Terminated.

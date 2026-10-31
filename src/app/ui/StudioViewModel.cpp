@@ -17,6 +17,9 @@
 #include "arranque/ModoVivoConfig.hpp"
 #include "ui/EnlacesViewModel.hpp"
 #include "ui/RecursosViewModel.hpp"
+#include "diag/ChequeosEquipo.hpp"
+#include "platform/GstEntorno.hpp"
+#include "Piezas.hpp" // motor::derivaDePlacas (los chequeos del equipo)
 #include "emision/SalidasConfig.hpp"
 #include "arranque/InterfazConfig.hpp"
 #include "agent/RotuloTraduccionConfig.hpp"
@@ -362,6 +365,12 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     props_ = std::make_unique<PropertiesModel>(rt);
     marca("props");
     conference_ = std::make_unique<ConferenceViewModel>(rt);
+    // El transporte A→B lo mide el gateway y viaja en la foto de la sala (los SLI, F4-01).
+    recursos_->alTransporte([this]() {
+        const QJsonValue t = conference_->client().snapshot().value("uso").toObject().value("transporte");
+        const nlohmann::json j = nlohmann::json::parse(QJsonDocument(t.toArray()).toJson(QJsonDocument::Compact).toStdString(), nullptr, false);
+        return j.is_array() ? j : nlohmann::json::array();
+    });
     publicarSalidas(); // el gateway se entera de las salidas apenas hay con quién hablar
     marca("conference");
     direcciones_ = std::make_unique<sala::Direcciones>(conference_->client());
@@ -764,6 +773,32 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     connect(twitch_.get(), &TwitchViewModel::channelChanged, evento_.get(), &EventoViewModel::publicarWeb);
     connect(facebook_.get(), &FacebookViewModel::stateChanged, evento_.get(), &EventoViewModel::publicarWeb);
     system_ = std::make_unique<SystemViewModel>();
+    // Los chequeos del equipo en la tarjeta de preparación (F4-07): con lo que ya miden
+    // las salidas (las sesiones de codificador), el motor (las placas) y el reloj.
+    system_->alEquipo([this]() {
+        diag::DatosEquipo d;
+        d.codificaciones = rt_.engine().salidasAhora().value("codificaciones", nlohmann::json::array());
+        d.limiteSesiones = ba::ajustes::entero("equipo.limiteSesiones", 0);
+        d.placas = ba::motor::derivaDePlacas();
+        std::tie(d.relojTipo, d.relojError) = rt_.engine().relojEstado();
+        const std::filesystem::path ayudante = ba::platform::gstRaiz() / "libexec" / "gstreamer-1.0" /
+#if defined(_WIN32)
+                                               "gst-ptp-helper.exe";
+#else
+                                               "gst-ptp-helper";
+#endif
+        std::error_code ec;
+        d.ptpAyudante = std::filesystem::exists(ayudante, ec);
+        d.ptpPermisos = diag::permisosDeAyudantePtp(ayudante);
+        QVariantList out;
+        for (const auto& it : diag::chequeosDeEquipo(d))
+            out.push_back(QVariantMap{{"id", QString::fromStdString(it.id)},
+                                      {"estado", QString::fromStdString(it.estado)},
+                                      {"titulo", QString::fromStdString(it.titulo)},
+                                      {"detalle", QString::fromStdString(it.detalle)},
+                                      {"como", QString::fromStdString(it.como)}});
+        return out;
+    });
     // Cambiar de configuración = anotarla y reiniciar por el launcher (como una actualización).
     configuraciones_ = std::make_unique<Configuraciones>([this]() {
         const QString evento = configuraciones_->activaUi();
@@ -1633,6 +1668,20 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     // El grafo de tarjetas de video de cada entrada (después del PTZ).
     video_ = std::make_unique<video::VideoGrafos>(rt, rt.dataRoot());
     video_->setLegalizar(rt.config().legalizar);
+    // «Priorizar programa» por calor (F4-05): el primer paso es la superresolución, que
+    // pasa a barato (sin turnos activos) y vuelve a lo que tenía al aliviarse. Los
+    // demás pasos (modelos, vistas sin mirar, resolución de invitados) todavía no
+    // tienen quien los atienda: quedan en `sistema_recursos` como «sin_gancho».
+    recursos_->alDegradar([this, antes = std::make_shared<nlohmann::json>()](const std::string& paso, bool apagar) {
+        if (paso != "superres" || !video_) return false;
+        if (apagar) {
+            *antes = video_->programador().value("max_activas", nlohmann::json(3));
+            video_->configurarProgramador({{"max_activas", 0}});
+        } else {
+            video_->configurarProgramador({{"max_activas", antes->is_number() ? *antes : nlohmann::json(3)}});
+        }
+        return true;
+    });
     // Las entradas de video también son cosas que se pueden mostrar (catálogo).
     connect(video_.get(), &video::VideoGrafos::cambio, catalogo_.get(), [this]() { catalogo_->refrescar(); });
     catalogo_->refrescar();

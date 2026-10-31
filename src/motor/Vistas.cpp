@@ -8,6 +8,8 @@
 #include "Piezas.hpp"
 #include "Reloj.hpp"
 #include "i18n/I18n.hpp"
+#include "ipc/HealthBlock.hpp"
+#include "ipc/HoraQpc.hpp"
 
 #include <gst/app/gstappsink.h>
 #include <gst/video/video.h>
@@ -39,6 +41,49 @@ Vistas::~Vistas() {
     vistas_.clear();
 }
 
+struct Pixeles::Mapa {
+    GstBuffer* buffer = nullptr;
+    GstMapInfo info{};
+    ~Mapa() {
+        if (buffer == nullptr) return;
+        gst_buffer_unmap(buffer, &info);
+        gst_buffer_unref(buffer);
+    }
+};
+
+Pixeles::Pixeles(GstBuffer* b, std::size_t desde, std::size_t bytes) {
+    if (b == nullptr) return;
+    auto m = std::make_shared<Mapa>();
+    m->buffer = gst_buffer_ref(b);
+    if (!gst_buffer_map(m->buffer, &m->info, GST_MAP_READ)) {
+        gst_buffer_unref(m->buffer);
+        m->buffer = nullptr;
+        return;
+    }
+    if (desde >= m->info.size) return;
+    datos_ = m->info.data + desde;
+    bytes_ = bytes == 0 ? m->info.size - desde : std::min(bytes, m->info.size - desde);
+    mapa_ = std::move(m);
+}
+
+namespace {
+/// La hora de lo que muestra el buffer `b` de `sink`, en el reloj de los sellos (F2-11):
+/// su hora de ejecución más la base del pipeline (el reloj del estudio, el mismo para
+/// todos: Reloj::adoptar), pasada a QPC. 0 si no se sabe.
+std::uint64_t contenidoQpc(GstElement* sink, GstSample* s, GstBuffer* b) {
+    const GstSegment* seg = gst_sample_get_segment(s);
+    if (seg == nullptr || !GST_BUFFER_PTS_IS_VALID(b)) return 0;
+    const GstClockTime rt = gst_segment_to_running_time(seg, GST_FORMAT_TIME, GST_BUFFER_PTS(b));
+    if (!GST_CLOCK_TIME_IS_VALID(rt)) return 0;
+    GstClock* reloj = gst_element_get_clock(sink);
+    if (reloj == nullptr) return 0;
+    const std::uint64_t q = ba::ipc::HealthBlock::nowQpc();
+    const GstClockTime ahora = gst_clock_get_time(reloj);
+    gst_object_unref(reloj);
+    return ba::ipc::qpcDeOtroReloj(gst_element_get_base_time(sink) + rt, ahora, q);
+}
+} // namespace
+
 GstFlowReturn Vistas::alCuadro(GstElement* sink, gpointer d) {
     auto* ll = static_cast<Llamada*>(d);
     auto* self = static_cast<Vistas*>(ll->vistas);
@@ -46,20 +91,27 @@ GstFlowReturn Vistas::alCuadro(GstElement* sink, gpointer d) {
     if (s == nullptr) return GST_FLOW_OK;
     GstVideoInfo info;
     GstBuffer* b = gst_sample_get_buffer(s);
-    GstMapInfo m;
-    if (gst_video_info_from_caps(&info, gst_sample_get_caps(s)) && b != nullptr && gst_buffer_map(b, &m, GST_MAP_READ)) {
+    if (b != nullptr && gst_video_info_from_caps(&info, gst_sample_get_caps(s))) {
+        // El cuadro: el buffer mismo (una referencia, sin copiar). Con la meta de video,
+        // su stride y su comienzo; si no, los de las caps.
+        Cuadro c;
+        c.ancho = GST_VIDEO_INFO_WIDTH(&info);
+        c.alto = GST_VIDEO_INFO_HEIGHT(&info);
+        std::size_t desde = GST_VIDEO_INFO_PLANE_OFFSET(&info, 0);
+        c.stride = GST_VIDEO_INFO_PLANE_STRIDE(&info, 0);
+        if (const GstVideoMeta* vm = gst_buffer_get_video_meta(b)) {
+            desde = vm->offset[0];
+            c.stride = vm->stride[0];
+        }
+        c.bgra = Pixeles(b, desde, static_cast<std::size_t>(c.stride) * c.alto);
+        c.contenidoQpc = contenidoQpc(sink, s, b);
         std::function<void(const Cuadro&)> aviso;
-        Cuadro copia;
-        {
+        if (!c.bgra.empty()) {
             std::lock_guard<std::mutex> l(self->mu_);
             auto it = self->vistas_.find(ll->clave);
             if (it != self->vistas_.end()) {
-                Cuadro& c = it->second->cuadro;
-                c.ancho = GST_VIDEO_INFO_WIDTH(&info);
-                c.alto = GST_VIDEO_INFO_HEIGHT(&info);
-                c.stride = GST_VIDEO_INFO_PLANE_STRIDE(&info, 0);
-                c.bgra.assign(m.data, m.data + std::min<std::size_t>(m.size, static_cast<std::size_t>(c.stride) * c.alto));
                 c.serie = ++self->serie_;
+                it->second->cuadro = c; // el anterior se suelta acá (o cuando lo suelte quien lo tenga)
                 aviso = it->second->aviso;
                 static const bool medir = [] {
                     const char* v = std::getenv("BA_MEDIR_VISTAS");
@@ -83,11 +135,9 @@ GstFlowReturn Vistas::alCuadro(GstElement* sink, gpointer d) {
                         u.huecoMaxUs = 0;
                     }
                 }
-                if (aviso) copia = c;
             }
         }
-        gst_buffer_unmap(b, &m);
-        if (aviso) aviso(copia); // fuera del lock
+        if (aviso) aviso(c); // fuera del candado, con los mismos bytes
     }
     gst_sample_unref(s);
     return GST_FLOW_OK;
@@ -184,14 +234,20 @@ void Vistas::desarmar(Una& u) {
     if (u.pipeline == nullptr) return;
     GstElement* p = u.pipeline;
     u.pipeline = nullptr;
+    // El último cuadro es un buffer de ese pipeline (en GL, memoria de la placa que se
+    // suelta en el hilo de GL): se va con él, no acá con el candado tomado. La serie queda
+    // (nadie lo vuelve a pedir como nuevo).
+    Pixeles ultimo = std::move(u.cuadro.bgra);
+    u.cuadro.bgra = Pixeles();
     if (desarmador_) {
         // Que no avise más (su Llamada busca la clave: ya puede ser otra vista).
         if (GstElement* s = gst_bin_get_by_name(GST_BIN(p), "s")) {
             g_object_set(s, "emit-signals", FALSE, nullptr);
             gst_object_unref(s);
         }
-        desarmador_([p]() {
+        desarmador_([p, ultimo = std::move(ultimo)]() mutable {
             gst_element_set_state(p, GST_STATE_NULL);
+            ultimo = Pixeles();
             gst_object_unref(p);
         });
         return;
@@ -199,6 +255,7 @@ void Vistas::desarmar(Una& u) {
     // Sin el lock: el callback del cuadro lo toma (set_state espera a que termine).
     mu_.unlock();
     gst_element_set_state(p, GST_STATE_NULL);
+    ultimo = Pixeles();
     mu_.lock();
     gst_object_unref(p);
 }

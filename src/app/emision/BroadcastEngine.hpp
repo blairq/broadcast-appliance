@@ -473,6 +473,9 @@ class BroadcastEngine {
     std::vector<std::pair<std::string, CanvasRect>> itemsVisibles(const std::string& scene) const;
     /// El reloj del estudio: sistema, ntp, ptp o red. Si cambia con el motor andando, se rearma.
     bool ponerReloj(const std::string& tipo, const std::string& servidor, int puerto, int dominio);
+    /// El reloj pedido y, si no arrancó (PTP sin permisos, NTP que no sincroniza), por qué
+    /// (la tarjeta de preparación, F4-07).
+    std::pair<std::string, std::string> relojEstado() const;
     /// Publica el reloj del estudio en la red (0 = no). "" o el error.
     std::string publicarReloj(int puerto);
     /// El canal de control «ba/control» de una entrada. "" o el error.
@@ -626,10 +629,17 @@ class BroadcastEngine {
     /// LAS SALIDAS arriba). Una salida que se crea después se publica sola.
     bool publishReturnFeeds();
     void stopReturnFeeds();
+    /// El tamaño más grande con que el gateway le manda el programa a una sesión
+    /// (Configuración → Sala, gateway.programaW/H: 1280×720 de fábrica). El retorno se
+    /// publica a ese tamaño (el de la salida si es más chica), escalado y en BGRA en la
+    /// GPU (F2-13): bajarlo a 1920×1080 para que el gateway lo achicara en la CPU era
+    /// copiar y recorrer 2,25 veces lo que se manda. Antes de publishReturnFeeds; si
+    /// cambia andando, el canal se rehace (el gateway se vuelve a suscribir solo).
+    void ponerTopeRetorno(int ancho, int alto);
     /// ¿Alguien mira el retorno de la salida (invitados en la sala, integrantes
     /// remotos, quien mire BA.Salida.<id> en el gateway)? Sin nadie, la vista que lo
-    /// baja a 1920×1080 en cada cuadro se suelta (el canal queda publicado); con
-    /// alguien, vuelve. La por omisión arranca en uso; las demás, sin nadie.
+    /// baja en cada cuadro se suelta (el canal queda publicado); con alguien, vuelve.
+    /// La por omisión arranca en uso; las demás, sin nadie.
     void retornoEnUso(bool si, const std::string& salida = "");
 
     /// Una escena que no es el programa, para las pantallas de la sala: la pone
@@ -1073,6 +1083,9 @@ class BroadcastEngine {
 
     // Al gateway (el programa de cada salida: ver Salida, «Al gateway»)
     bool returnFeedsActive_ = false;
+    int topeRetornoAncho_ = 1280, topeRetornoAlto_ = 720; ///< ponerTopeRetorno
+    /// El canal del retorno: la salida encajada en el tope, sin agrandar, con el período del lienzo.
+    ba::ipc::SlotConfig canalRetorno() const;
     void enviarRetorno(Salida& s, const motor::Cuadro& c);
     struct CanalEscena {
         std::unique_ptr<ba::ipc::SpoutSender> sender; ///< se rehace si cambia el tamaño

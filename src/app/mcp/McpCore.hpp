@@ -175,6 +175,9 @@ struct CallContext {
     /// de salida (Tool::porSalida) usa `salida` de los argumentos si vino; si no,
     /// esta; si no, la por omisión (ver McpCore::salidaDe). Nadie la mete en los args.
     std::string salida;
+    /// El id de la orden (diag/Correlacion.hpp, F4-02). Vacío: lo pone el núcleo al
+    /// atenderla (m-, b- de la botonera, w- del control web).
+    std::string correlacion;
 };
 
 /// Politica de aprobacion de acciones que modifican algo.

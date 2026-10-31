@@ -101,7 +101,11 @@ QVariantList SystemViewModel::elementosQueFaltan() const {
     return QJsonDocument::fromJson(QByteArray::fromStdString(faltan.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))).array().toVariantList();
 }
 
-QVariantList SystemViewModel::preparacion() const { return inicioEstado().value("preparacion").toList(); }
+QVariantList SystemViewModel::preparacion() const {
+    QVariantList out = inicioEstado().value("preparacion").toList();
+    if (equipo_) out += equipo_(); // lo del equipo, después de lo del arranque (F4-07)
+    return out;
+}
 
 QString SystemViewModel::inicioPoner(bool activo) {
     const QString err = QString::fromStdString(inicio::poner(activo));

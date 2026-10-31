@@ -62,9 +62,18 @@ set_target_properties(samplerate PROPERTIES POSITION_INDEPENDENT_CODE ON)
 target_link_libraries(gstbaaudio PRIVATE samplerate)
 ba_plugin_gst(gstbaaudio)
 
+# platform/Ritmo: las fuentes duermen hasta el próximo cuadro o bloque (F2-14) con el
+# temporizador fino de Windows; sin Energia (la pide el proceso que carga el plugin).
+if(WIN32)
+    set(BA_IPC_RITMO "${CMAKE_SOURCE_DIR}/src/core/platform/Ritmo_win.cpp")
+else()
+    set(BA_IPC_RITMO "${CMAKE_SOURCE_DIR}/src/core/platform/Ritmo_posix.cpp")
+endif()
 add_library(gstbaipc MODULE ipc/plugin.cpp ipc/anillo.cpp ipc/anillosink.cpp ipc/video.cpp "${CMAKE_SOURCE_DIR}/src/core/ipc/SharedAudioRing.cpp"
-    "${CMAKE_SOURCE_DIR}/src/core/ipc/SharedMemoryRegion.cpp" "${CMAKE_SOURCE_DIR}/src/core/ipc/SpoutTransport.cpp")
+    "${CMAKE_SOURCE_DIR}/src/core/ipc/SharedMemoryRegion.cpp" "${CMAKE_SOURCE_DIR}/src/core/ipc/SpoutTransport.cpp"
+    "${BA_IPC_RITMO}")
 target_include_directories(gstbaipc PRIVATE "${CMAKE_SOURCE_DIR}/src/core" "${CMAKE_SOURCE_DIR}/src/core/ipc")
+target_compile_definitions(gstbaipc PRIVATE BA_RITMO_SIN_ENERGIA)
 ba_plugin_gst(gstbaipc)
 if(TRUE) # el test de baanillo (como el gateway: escribe el anillo)
     add_executable(test_baanillo tests/test_baanillo.cpp "${CMAKE_SOURCE_DIR}/src/core/ipc/SharedAudioRing.cpp"

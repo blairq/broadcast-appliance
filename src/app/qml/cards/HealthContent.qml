@@ -128,6 +128,13 @@ Item {
                     text: tarjeta.rec ? tarjeta.rec.procesos.map(p => p.texto).join("  ·  ") : ""
                     color: Theme.textFaint; font.pixelSize: 10; elide: Text.ElideRight
                 }
+                // La térmica (F4-05): el nivel y lo que se apagó para priorizar el programa.
+                Text {
+                    Layout.fillWidth: true
+                    visible: !!tarjeta.rec && !!tarjeta.rec.termica.texto && tarjeta.rec.termica.nivel !== "desconocido"
+                    text: tarjeta.rec ? qsTr("Térmica: %1").arg(tarjeta.rec.termica.texto || "") : ""
+                    color: tarjeta.colorDe(tarjeta.rec ? tarjeta.rec.termica.estado : ""); font.pixelSize: 10; elide: Text.ElideRight
+                }
             }
 
             GridLayout {

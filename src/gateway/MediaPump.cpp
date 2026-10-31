@@ -27,6 +27,7 @@
 #include "third_party/libyuv/include/libyuv/scale_argb.h"
 #endif
 #include "ColaVoz.hpp"
+#include "Labios.hpp"
 #include "Log.hpp"
 #include "RetornoLugar.hpp"
 #include "platform/Ritmo.hpp"
@@ -143,6 +144,29 @@ void fitBgra(const uint8_t* src, int sw, int sh, uint8_t* dst, int dw, int dh) {
             std::memcpy(drow + static_cast<size_t>(x) * 4, srow + static_cast<size_t>(sx) * 4, 4);
         }
     }
+}
+
+/// Dónde va un cuadro de `w`×`h` que sube un participante, en un canal de `cw`×`ch` (F2-13,
+/// V3): la caja más chica con la forma del canal que lo contiene, sin agrandarlo. Si tiene
+/// la forma del canal, él mismo (640×360 en un canal de 1280×720 viaja a 640×360: antes se
+/// agrandaba acá, en la CPU, y A lo subía a la GPU cuatro veces más grande); si no, con
+/// barras alrededor pero a su escala (un celular parado); si es más grande que el canal, el
+/// canal entero (se achica, como siempre). La composición de A lo escala en la GPU: con la
+/// misma forma que el canal, el encuadre en la escena no cambia.
+void cajaDelCuadro(int w, int h, int cw, int ch, int& bw, int& bh) {
+    bw = cw;
+    bh = ch;
+    if (w <= 0 || h <= 0 || w > cw || h > ch) return;
+    const long long a = static_cast<long long>(w) * ch, b = static_cast<long long>(h) * cw;
+    if (a >= b) { // más ancho (o igual) que el canal: manda el ancho
+        bw = w;
+        bh = static_cast<int>((static_cast<long long>(w) * ch + cw - 1) / cw);
+    } else {
+        bh = h;
+        bw = static_cast<int>((static_cast<long long>(h) * cw + ch - 1) / ch);
+    }
+    bw = std::min(cw, std::max(w, bw + (bw & 1)));
+    bh = std::min(ch, std::max(h, bh + (bh & 1)));
 }
 
 /// Dibuja la placa de "esperando invitado" del slot: fondo oscuro, una franja
@@ -275,13 +299,13 @@ void MediaPump::start() {
     threads_.emplace_back(&MediaPump::retornoAudioThread, this, cfg_.returnAudioName, std::string(), &ifb_, &mixMinusAbierto_,
                           nullptr);
     threads_.emplace_back(&MediaPump::videoBajadaThread, this, cfg_.programVideoName, traducir("gateway", "retorno video"),
-                          [](const MediaRoute& r) { return r.miraSalida(""); }, nullptr);
+                          [](const MediaRoute& r) { return r.miraSalida(""); }, cfg_.returnAudioName, nullptr);
     for (size_t k = 0; k < cfg_.escenaVideoNames.size(); ++k) {
         const int canal = static_cast<int>(k);
         threads_.emplace_back(&MediaPump::videoBajadaThread, this, cfg_.escenaVideoNames[k],
                               llenar(traducir("gateway", "escena %1"), {std::to_string(canal)}), [canal](const MediaRoute& r) {
                                   return r.kind == MediaRoute::Kind::Escena && r.index == canal;
-                              }, nullptr);
+                              }, std::wstring(), nullptr); // una escena no es lo que suena: nada que alinear
     }
     threads_.emplace_back(&MediaPump::operatorAudioThread, this);
     if (!cfg_.atendedorAudioName.empty())
@@ -429,7 +453,7 @@ void MediaPump::ajustarBajadas() {
             const std::string etiqueta = llenar(traducir("gateway", "salida %1"), {id});
             b->video = std::thread(&MediaPump::videoBajadaThread, this, ba::ipc::nombreCanalSalida(id), etiqueta,
                                    std::function<bool(const MediaRoute&)>([id](const MediaRoute& r) { return r.miraSalida(id); }),
-                                   &b->parar);
+                                   ba::ipc::nombreAudioSalida(id), &b->parar);
             b->audio = std::thread(&MediaPump::retornoAudioThread, this, ba::ipc::nombreAudioSalida(id), id, &b->ifb,
                                    &b->mixMinusAbierto, &b->parar);
             log_.info(llenar(traducir("gateway", "salida %1: alguien la mira, se levanta su bajada"), {id}));
@@ -479,6 +503,9 @@ namespace {
 
 /// Cada cuanto se mira si A escribio audio: muy por debajo del bloque (10 ms).
 constexpr int kMiradaAudioMs = 2;
+/// Lo que tarda B en leer un bloque de audio después de que A lo escribe (la mitad de la
+/// mirada, de media): se suma a lo que tarda el audio para alinear el video (F2-11).
+constexpr std::int64_t kLecturaAudioNs = std::int64_t{kMiradaAudioMs} * 1'000'000 / 2;
 /// Lo que dura un bloque de los anillos de audio (480 cuadros a 48 kHz): para contar faltantes
 /// en los que sella el motor con la hora del medio (MedidaTransporte).
 constexpr std::uint64_t kBloqueNs = std::uint64_t{audio_ring::kBlockFrames} * 1'000'000'000ULL / audio_ring::kSampleRate;
@@ -633,17 +660,17 @@ void MediaPump::retornoAudioThread(std::wstring nombre, std::string salida, Cola
     for (size_t s = 1; s < nSlots; ++s) (*abiertos)[s].store(false);
 }
 
-/// Cada cuanto se mira si A publico un cuadro nuevo.
+/// Cuándo se mira si A publicó un cuadro nuevo: justo después del próximo que debería
+/// publicar (su último envío más su período, de la cabecera del canal: ipc/Mirada.hpp, F2-14).
 ///
-/// MUY por debajo del periodo de un cuadro, a proposito. Mirando cada 33 ms
-/// contra alguien que publica cada 33 ms, las dos cadencias baten entre si y
-/// se pierde casi la mitad de los cuadros: medido, 13,6 fps de 30. Y lo peor
-/// no es la mitad que falta, es que lo que llega llega parejo pero tarde y a
-/// destiempo, asi que el navegador del otro lado ensancha su colchon y la
-/// pantalla se va un segundo atras de la sala. Mirando cada 4 ms el cuadro
-/// sale apenas se publica. Cuesta poco: preparar uno son ~8 ms de un solo
-/// nucleo, y mirar y que no haya nada no cuesta nada.
-constexpr int kMiradaMs = 4;
+/// NO a un ritmo propio. Mirando cada 33 ms contra alguien que publica cada 33 ms, las dos
+/// cadencias baten entre si y se pierde casi la mitad de los cuadros: medido, 13,6 fps de
+/// 30. Y lo peor no es la mitad que falta, es que lo que llega llega parejo pero tarde y a
+/// destiempo, asi que el navegador del otro lado ensancha su colchon y la pantalla se va un
+/// segundo atras de la sala. Mirar cada 4 ms lo evitaba con 250 despertadas por segundo por
+/// canal; el plazo cuelga ahora de la hora del que publica (no bate) y son ~una por cuadro.
+/// Si A se atrasa, de a pasos cortos; quieto hace más de 1 s, de a kPasoQuieto.
+constexpr auto kPasoQuieto = std::chrono::milliseconds(15);
 
 int MediaPump::miranPrograma() const {
     return static_cast<int>(sessionsWhere([](const MediaRoute& r) { return r.miraSalida(""); }).size());
@@ -752,8 +779,27 @@ std::vector<int> MediaPump::lugaresSinRetorno() const {
     return out;
 }
 
+namespace {
+/// Hasta `qpc` (el reloj de los sellos) en el de los plazos: lo que falta, desde ahora.
+std::chrono::steady_clock::time_point plazoDeQpc(std::uint64_t qpc) {
+    const std::uint64_t ahora = HealthBlock::nowQpc();
+    return std::chrono::steady_clock::now() + std::chrono::nanoseconds(qpc > ahora ? qpc - ahora : 0);
+}
+} // namespace
+
+nlohmann::json MediaPump::copiasVideo() const {
+    return {{"cuadros", copias_.cuadros.load()},
+            {"leidos_bytes", copias_.leidos.load()},
+            {"escalados_bytes", copias_.escalados.load()},
+            {"empujes", copias_.empujes.load()},
+            {"demorados", copias_.demorados.load()},
+            {"conversiones", CuadroSaliente::conversiones()},
+            {"convertidos_bytes", CuadroSaliente::bytesConvertidos()}};
+}
+
 void MediaPump::videoBajadaThread(std::wstring nombre, std::string etiqueta,
-                                  std::function<bool(const MediaRoute&)> para, const std::atomic<bool>* parar) {
+                                  std::function<bool(const MediaRoute&)> para, std::wstring audio,
+                                  const std::atomic<bool>* parar) {
     SpoutReceiver receiver;
     bool sub = false;
     auto lastRetry = std::chrono::steady_clock::now() - std::chrono::seconds(1);
@@ -761,7 +807,8 @@ void MediaPump::videoBajadaThread(std::wstring nombre, std::string etiqueta,
     int srcH = 0;
     std::vector<uint8_t> src;
     // El tamaño del retorno se decide recien al saber cuanto mide el programa:
-    // agrandarlo no agrega detalle, solo gasta banda y CPU.
+    // agrandarlo no agrega detalle, solo gasta banda y CPU. A lo publica ya al tamaño de
+    // las sesiones (escalado en su GPU, F2-13): lo normal es que acá no se escale nada.
     int outW = 0;
     int outH = 0;
     std::vector<uint8_t> scaled;
@@ -769,7 +816,21 @@ void MediaPump::videoBajadaThread(std::wstring nombre, std::string etiqueta,
     std::int64_t cuadros = 0;
     auto ultimoInforme = std::chrono::steady_clock::now();
     MedidaTransporte medida(angosto(nombre), "video");
-    ba::platform::Ritmo ritmo{std::chrono::milliseconds(kMiradaMs)};
+    // Labios (F2-11): lo que mira (no conversa) sale a la hora de su audio. Lo que tarda el
+    // audio es cuánto después de su sello lo escribe A en su anillo (se mira la cabecera, sin
+    // leer: los bloques los lee el hilo del retorno), suavizado; más lo que tarda B en leerlo.
+    labios::Espera<CuadroSaliente> espera;
+    SharedAudioRing anilloAudio;
+    auto anilloMirado = std::chrono::steady_clock::now() - std::chrono::seconds(1);
+    labios::EdadAudio edadAudio;
+    const auto conversan = [&para](const MediaRoute& r) { return para(r) && r.conversa(); };
+    const auto miran = [&para](const MediaRoute& r) { return para(r) && !r.conversa(); };
+    const auto empujar = [this](const std::vector<int>& a, const CuadroSaliente& c) {
+        for (int s : a)
+            if (WebrtcSession* sess = hub_.session(s)) sess->pushLocalVideo(c);
+        copias_.empujes.fetch_add(a.size(), std::memory_order_relaxed);
+    };
+    const auto aLosQueMiran = [&](const CuadroSaliente& c) { empujar(sessionsWhere(miran), c); };
     while (sigue(parar)) {
         if (!sub) {
             const auto now = std::chrono::steady_clock::now();
@@ -787,7 +848,6 @@ void MediaPump::videoBajadaThread(std::wstring nombre, std::string etiqueta,
                         outW = srcW;
                         outH = srcH;
                     }
-                    scaled.assign(static_cast<size_t>(outW) * outH * 4u, 0);
                     medida.reabierto();
                     log_.info(llenar(traducir("gateway", "%1: suscrito (%2x%3) -> %4x%5"),
                                      {etiqueta, std::to_string(srcW), std::to_string(srcH), std::to_string(outW),
@@ -802,8 +862,21 @@ void MediaPump::videoBajadaThread(std::wstring nombre, std::string etiqueta,
             sub = false;
             outW = 0;
             outH = 0;
+            espera.vaciar();
             log_.info(llenar(traducir("gateway", "%1: A cambio o se cerro; resuscribiendo"), {etiqueta}));
             continue;
+        }
+        if (!audio.empty()) {
+            const auto ahora = std::chrono::steady_clock::now();
+            if (anilloAudio.header() != nullptr && anilloAudio.stale()) {
+                anilloAudio = SharedAudioRing{};
+                edadAudio = labios::EdadAudio{};
+            }
+            if (anilloAudio.header() == nullptr && ahora - anilloMirado >= std::chrono::milliseconds(500)) {
+                anilloMirado = ahora;
+                SharedAudioRing::openReader(audio.c_str(), anilloAudio);
+            }
+            if (anilloAudio.header() != nullptr) edadAudio.medir(anilloAudio.retrasoDelEscritorNs() + kLecturaAudioNs);
         }
         if (receiver.hasData()) {
             FrameMeta meta{};
@@ -812,14 +885,37 @@ void MediaPump::videoBajadaThread(std::wstring nombre, std::string etiqueta,
                 // los dos procesos miden con el mismo reloj monotonico, asi que la resta es
                 // el SALTO A->B solo: el sondeo mas el IPC. Y los cuadros que A publico y no
                 // llegamos a leer (saltos del indice).
-                medida.cuadro(meta.frameIndex, meta.qpc, HealthBlock::nowQpc());
-                const auto targets = sessionsWhere(para);
-                if (!targets.empty() && outW > 0 && outH > 0) {
+                const std::uint64_t ahoraQpc = HealthBlock::nowQpc();
+                medida.cuadro(meta.frameIndex, meta.qpc, ahoraQpc);
+                const int w = meta.ancho != 0 ? static_cast<int>(meta.ancho) : srcW;
+                const int h = meta.alto != 0 ? static_cast<int>(meta.alto) : srcH;
+                copias_.cuadros.fetch_add(1, std::memory_order_relaxed);
+                copias_.leidos.fetch_add(static_cast<std::uint64_t>(w) * static_cast<std::uint64_t>(h) * 4u,
+                                         std::memory_order_relaxed);
+                const auto ya = sessionsWhere(conversan);
+                const bool hayQueMiran = !sessionsWhere(miran).empty();
+                if ((!ya.empty() || hayQueMiran) && outW > 0 && outH > 0) {
                     const auto t0 = std::chrono::steady_clock::now();
-                    scaleBgra(src.data(), srcW, srcH, scaled.data(), outW, outH);
-                    for (int s : targets) {
-                        if (WebrtcSession* sess = hub_.session(s)) {
-                            sess->pushLocalVideo(scaled.data(), scaled.size(), outW, outH);
+                    // Una sola conversión para todas las sesiones (CuadroSaliente, F2-13).
+                    CuadroSaliente c;
+                    const int dw = std::min(outW, w), dh = std::min(outH, h);
+                    if (dw == w && dh == h) {
+                        c = CuadroSaliente::desdeBgra(src.data(), w, h);
+                    } else {
+                        scaled.resize(static_cast<size_t>(dw) * static_cast<size_t>(dh) * 4u);
+                        scaleBgra(src.data(), w, h, scaled.data(), dw, dh);
+                        copias_.escalados.fetch_add(scaled.size(), std::memory_order_relaxed);
+                        c = CuadroSaliente::desdeBgra(scaled.data(), dw, dh);
+                    }
+                    // Quien conversa, ya (T4); quien mira, a la hora de su audio (F2-11).
+                    empujar(ya, c);
+                    if (hayQueMiran) {
+                        const std::uint64_t cuando = labios::salida(meta.contenidoQpc, ahoraQpc, edadAudio.ns());
+                        if (cuando <= ahoraQpc && espera.size() == 0) {
+                            aLosQueMiran(c);
+                        } else {
+                            espera.guardar(cuando, std::move(c), aLosQueMiran);
+                            copias_.demorados.fetch_add(1, std::memory_order_relaxed);
                         }
                     }
                     // Cuanto cuesta preparar un cuadro. Importa para el RETARDO:
@@ -833,6 +929,7 @@ void MediaPump::videoBajadaThread(std::wstring nombre, std::string etiqueta,
                 }
             }
         }
+        espera.sacarListos(HealthBlock::nowQpc(), aLosQueMiran);
         if (FotoTransporte foto; cerrarVentana(medida, ultimoInforme, true, &foto)) {
             if (cuadros > 0) {
                 const double seg = foto.ventanaS;
@@ -851,7 +948,11 @@ void MediaPump::videoBajadaThread(std::wstring nombre, std::string etiqueta,
             trabajoUs = 0;
             cuadros = 0;
         }
-        ritmo.esperar();
+        // Hasta el próximo cuadro que A debería publicar (F2-14) o el próximo que espera su
+        // audio, lo que venga antes.
+        auto plazo = receiver.proximaMirada(kPasoQuieto);
+        if (espera.proximo() != 0) plazo = std::min(plazo, plazoDeQpc(espera.proximo()));
+        ba::platform::dormirHasta(plazo);
     }
 }
 
@@ -1029,12 +1130,12 @@ void MediaPump::operatorVideoThread() {
     std::vector<uint8_t> scaled(static_cast<size_t>(cfg_.guestVideoW) * cfg_.guestVideoH * 4u);
     std::vector<uint8_t> plate(scaled.size());
     drawWaitPlate(plate.data(), cfg_.guestVideoW, cfg_.guestVideoH);
+    const CuadroSaliente placa = CuadroSaliente::desdeBgra(plate.data(), cfg_.guestVideoW, cfg_.guestVideoH); // una vez
     const auto lobbySessions = [this]() {
         return sessionsWhere([](const MediaRoute& r) { return r.kind == MediaRoute::Kind::Lobby; });
     };
     MedidaTransporte medida(angosto(cfg_.operatorVideoName), "video");
     auto ventana = std::chrono::steady_clock::now();
-    ba::platform::Ritmo ritmo{std::chrono::milliseconds(kMiradaMs)};
     while (!stop_.load(std::memory_order_relaxed)) {
         const auto now = std::chrono::steady_clock::now();
         if (!sub && !cfg_.operatorVideoName.empty() && now - lastRetry >= std::chrono::milliseconds(500)) {
@@ -1061,11 +1162,10 @@ void MediaPump::operatorVideoThread() {
                 const auto targets = lobbySessions();
                 if (!targets.empty()) {
                     fitBgra(src.data(), srcW, srcH, scaled.data(), cfg_.guestVideoW, cfg_.guestVideoH);
+                    // Una conversión para todo el lobby (CuadroSaliente, F2-13).
+                    const CuadroSaliente c = CuadroSaliente::desdeBgra(scaled.data(), cfg_.guestVideoW, cfg_.guestVideoH);
                     for (int s : targets) {
-                        if (WebrtcSession* sess = hub_.session(s)) {
-                            sess->pushLocalVideo(scaled.data(), scaled.size(), cfg_.guestVideoW,
-                                                 cfg_.guestVideoH);
-                        }
+                        if (WebrtcSession* sess = hub_.session(s)) sess->pushLocalVideo(c);
                     }
                 }
             }
@@ -1075,13 +1175,12 @@ void MediaPump::operatorVideoThread() {
         if (now - lastFrame > std::chrono::seconds(1) && now - lastPlate >= std::chrono::milliseconds(200)) {
             lastPlate = now;
             for (int s : lobbySessions()) {
-                if (WebrtcSession* sess = hub_.session(s)) {
-                    sess->pushLocalVideo(plate.data(), plate.size(), cfg_.guestVideoW, cfg_.guestVideoH);
-                }
+                if (WebrtcSession* sess = hub_.session(s)) sess->pushLocalVideo(placa);
             }
         }
         if (sub) cerrarVentana(medida, ventana, true);
-        ritmo.esperar();
+        // Hasta el próximo cuadro del operador (F2-14); sin él, de a kPasoQuieto (la placa va a 5).
+        ba::platform::dormirHasta(receiver.proximaMirada(kPasoQuieto));
     }
 }
 
@@ -1255,9 +1354,9 @@ void MediaPump::forwardVideo(int session, const uint8_t* pixels, size_t bytes, i
         m.videoNs = ahora;
         m.video.resize(static_cast<size_t>(cfg_.guestVideoW) * cfg_.guestVideoH * 4u);
         fitBgra(pixels, w, h, m.video.data(), cfg_.guestVideoW, cfg_.guestVideoH);
+        const CuadroSaliente c = CuadroSaliente::desdeBgra(m.video.data(), cfg_.guestVideoW, cfg_.guestVideoH);
         for (int s : miran)
-            if (WebrtcSession* sess = hub_.session(s))
-                sess->pushLocalVideo(m.video.data(), m.video.size(), cfg_.guestVideoW, cfg_.guestVideoH);
+            if (WebrtcSession* sess = hub_.session(s)) sess->pushLocalVideo(c);
     }
 }
 
@@ -1314,13 +1413,20 @@ void MediaPump::publishVideo(VideoOut& out, const uint8_t* pixels, int w, int h,
     std::lock_guard<std::mutex> lock(out.lock);
     const uint8_t* frame = pixels;
     // El canal tiene tamaño fijo; el participante manda lo que su camara/red
-    // permita: se ajusta adentro con barras (letterbox/pillarbox).
-    if (w != out.w || h != out.h) {
-        fitBgra(pixels, w, h, out.scratch.data(), out.w, out.h);
+    // permita: viaja a su tamaño, en una caja con la forma del canal (cajaDelCuadro).
+    int bw = out.w, bh = out.h;
+    cajaDelCuadro(w, h, out.w, out.h, bw, bh);
+    if (w != bw || h != bh) {
+        fitBgra(pixels, w, h, out.scratch.data(), bw, bh);
         frame = out.scratch.data();
     }
     const uint64_t now = HealthBlock::nowQpc();
-    out.sender.send(frame, static_cast<size_t>(out.w) * out.h * 4u, FrameMeta{now, now});
+    FrameMeta meta{now, now};
+    if (bw != out.w || bh != out.h) { // el tamaño real (si es el del canal, no hace falta decirlo)
+        meta.ancho = static_cast<uint32_t>(bw);
+        meta.alto = static_cast<uint32_t>(bh);
+    }
+    out.sender.send(frame, static_cast<size_t>(bw) * bh * 4u, meta);
 
     // A que ritmo llega lo que sube este participante. Solo los canales sin
     // tope de fps: una miniatura de backstage va a 10 a proposito y decir que

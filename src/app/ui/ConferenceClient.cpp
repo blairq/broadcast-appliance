@@ -13,6 +13,8 @@
 #include <QNetworkReply>
 #include <QNetworkRequest>
 
+#include "diag/Correlacion.hpp"
+
 #include "platform/Paths.hpp"
 
 namespace ba::app {
@@ -188,6 +190,9 @@ void ConferenceClient::send(const QByteArray& verb, const QString& path, const Q
     QNetworkRequest req(QUrl(QString("http://127.0.0.1:%1%2").arg(port_).arg(path)));
     req.setRawHeader("Authorization", "Bearer " + token_.toUtf8());
     req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+    // La orden que lo pide (F4-02): la sala la escribe en su registro con el mismo id.
+    if (const std::string& orden = ba::diag::correlacion::actual(); !orden.empty())
+        req.setRawHeader(ba::diag::correlacion::kCabecera, QByteArray::fromStdString(orden));
     req.setTransferTimeout(timeoutMs);
     QNetworkReply* r = nam_.sendCustomRequest(req, verb, body);
     connect(r, &QNetworkReply::finished, this, [this, r, done]() {

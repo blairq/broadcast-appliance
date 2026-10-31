@@ -26,6 +26,7 @@
 #include <thread>
 
 #include "i18n/I18n.hpp"
+#include "diag/Metricas.hpp"
 #include "diag/VigiaBucle.hpp"
 #include "arranque/AppRuntime.hpp"
 #include "emision/InputSpecs.hpp"
@@ -318,7 +319,16 @@ void McpService::registerSystemTools() {
                 "(cuánto se aparta: positivo, va rápida; una placa sana, menos de 100), `reanclajes_sin_corregir` (los "
                 "saltos de 50 ms que habría sin corrección), `corregida` (la sigue un remuestreador variable), "
                 "`enganchada`, `desfase_ms` y `reanclajes` (los cortes que llegaron al programa: tiene que ser 0). Dos "
-                "placas con word clock o PTP del mismo dominio tienen que dar la misma ppm.");
+                "placas con word clock o PTP del mismo dominio tienen que dar la misma ppm.") +
+            " " +
+            ba::i18n::traducir(
+                "mcp",
+                "`termica`: el nivel térmico (normal, templado, serio, critico; desconocido si el sistema no lo dice), la "
+                "temperatura o el tope de frecuencia según el sistema, y `priorizar_programa`: los pasos que se apagaron "
+                "por calor, en orden (superres, modelos, vistas, invitados; nunca el programa ni la grabación) y los que "
+                "no tienen quien los atienda (`sin_gancho`). `metricas`: las métricas con nombre y tipo de la app "
+                "(contadores, medidores y histogramas con p50/p90/p99: latencia por herramienta MCP, espera del candado "
+                "del motor, bucle de la interfaz, colchón de grabación, reconexiones); las mismas que da GET /metrics.");
         t.inputSchema = {
             {"type", "object"},
             {"properties",
@@ -346,6 +356,9 @@ void McpService::registerSystemTools() {
                 out["nota"] = ba::i18n::traducir("mcp", "Todavía no hay mediciones (se mide una vez por segundo desde el arranque).");
             out["bucle_ui"] = ba::diag::VigiaBucle::interfaz().informe();
             out["deriva_placas"] = ba::motor::derivaDePlacas();
+            // La política «priorizar programa» por calor (F4-05) y las métricas del proceso (F4-01).
+            out["termica"]["priorizar_programa"] = rec->informeTermico();
+            out["metricas"] = ba::diag::Metricas::proceso().json();
             done(ToolResult().data(out));
         };
         core_.addTool(std::move(t));

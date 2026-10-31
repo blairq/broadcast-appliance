@@ -8,6 +8,7 @@
 #include <thread>
 
 #include "Reloj.hpp" // registrar
+#include "diag/Metricas.hpp"
 #include "i18n/I18n.hpp"
 
 // Marca para lupdate un texto que se traduce después (sin Qt en el motor).
@@ -84,6 +85,11 @@ Candado::~Candado() {
     m_.unlock();
     const std::int64_t esperaMs = (tomadoUs_ - pedidoUs_) / 1000;
     const std::int64_t adentroMs = (ahora - tomadoUs_) / 1000;
+    // La espera de todos, como métrica (F4-01): atómica, no traba a nadie.
+    static ba::diag::Histograma& espera = ba::diag::Metricas::proceso().histograma(
+        "ba_motor_candado_espera_ms", QT_TRANSLATE_NOOP("metricas", "Lo que se esperó el candado del motor, ms"), {},
+        {0.1, 0.5, 1, 2, 5, 10, 20, 50, 100, 200, 500, 1000});
+    espera.observar(static_cast<double>(tomadoUs_ - pedidoUs_) / 1000.0);
     if (interfaz_) {
         avisarDemora(donde_, esperaMs, 50, QT_TRANSLATE_NOOP("motor", "la interfaz esperó el candado del motor"));
         avisarDemora(donde_, adentroMs, 50, QT_TRANSLATE_NOOP("motor", "la interfaz tuvo el candado del motor"));

@@ -12,7 +12,8 @@
 //     se sabe la velocidad del enlace, qué parte de ella;
 //   - disco: lo que se escribe (MB/s, todos los discos físicos);
 //   - el motor (lo pasa la app): cuadros por segundo, cuadros perdidos y lo que
-//     sale por la transmisión.
+//     sale por la transmisión;
+//   - la térmica (platform/Termica.hpp): el nivel común a los tres sistemas.
 // Solo con lo que trae el sistema operativo (portable: nada nuevo en runtime; en
 // Windows pdh.dll, iphlpapi.dll y dxgi.dll se cargan al medir, no se importan).
 //
@@ -71,6 +72,12 @@ class Recursos {
         double fps = kDesconocido;
         double perdidosPct = kDesconocido; ///< cuadros perdidos en el último segundo, en %
         double salidaKbps = kDesconocido;  ///< lo que sale por la transmisión
+        /// Qué tan caliente está (platform/Termica.hpp, F4-05): nivel, temperatura y
+        /// tope de frecuencia (lo que se sepa en este sistema).
+        std::string termica = "desconocido";
+        double temperaturaC = kDesconocido;
+        double limiteFrecuenciaPct = kDesconocido;
+        std::string termicaFuente;
         std::vector<Proceso> procesos;
         std::vector<Interfaz> interfaces;
 

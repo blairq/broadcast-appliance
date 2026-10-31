@@ -103,7 +103,14 @@ add_test(NAME test_child_output COMMAND test_child_output)
 # SHA-256 de la verificacion de integridad, contra los vectores de FIPS 180-4.
 add_executable(test_sha256 tests/test_sha256.cpp Integrity.cpp Log.cpp)
 target_include_directories(test_sha256 PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+target_link_libraries(test_sha256 PRIVATE ba_core) # Log.cpp escribe la orden en curso (diag/Correlacion)
 add_test(NAME test_sha256 COMMAND test_sha256)
+
+# El watchdog de hardware (F4-08) con un dispositivo falso, y las métricas del launcher.
+add_executable(test_perro_guardian tests/test_perro_guardian.cpp PerroGuardian.cpp MetricasLauncher.cpp Log.cpp)
+target_include_directories(test_perro_guardian PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+target_link_libraries(test_perro_guardian PRIVATE ba_core)
+add_test(NAME test_perro_guardian COMMAND test_perro_guardian)
 
 # --- Instalación ------------------------------------------------------------
 # El launcher vive en la RAÍZ del disco (spec §5.1), no en bin/64bit/.

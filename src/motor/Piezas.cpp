@@ -6,6 +6,7 @@
 #include "Capturas.hpp" // indiceCamaraMac
 #include "diag/Utf8.hpp"
 #include "i18n/I18n.hpp"
+#include "platform/IdiomaSistema.hpp"
 
 #include <set>
 #include <thread>
@@ -39,6 +40,90 @@ std::string colorimetriaDelLienzo(const Lienzo& l) {
     std::string out = col != nullptr ? col : l.color;
     g_free(col);
     return out;
+}
+
+namespace {
+std::string cpsLegibles(double cps) {
+    char b[16];
+    if (std::fabs(cps - std::round(cps)) < 0.005) std::snprintf(b, sizeof b, "%d", static_cast<int>(std::lround(cps)));
+    else std::snprintf(b, sizeof b, "%.2f", cps);
+    std::string s = b;
+    for (char& c : s)
+        if (c == '.') c = ',';
+    return s;
+}
+} // namespace
+
+int redElectricaHz(const std::string& pais) {
+    if (pais.size() != 2) return 0;
+    std::string p = pais;
+    for (char& c : p) c = static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
+    // Los de 60 Hz (el resto del mundo es de 50). Japón tiene las dos (50 al este, 60 al oeste).
+    static const std::set<std::string> k60 = {"US", "CA", "MX", "GT", "BZ", "SV", "HN", "NI", "CR", "PA", "CO", "VE",
+                                              "EC", "PE", "BR", "SR", "GY", "CU", "DO", "HT", "PR", "BS", "BM", "KY",
+                                              "VI", "AG", "KN", "LC", "AW", "TW", "KR", "PH", "SA", "LR", "GU", "AS",
+                                              "MP", "FM", "MH", "PW"};
+    if (p == "JP") return 0;
+    return k60.count(p) != 0 ? 60 : 50;
+}
+
+int redElectricaDelSistema() {
+    static const int hz = [] {
+        for (const std::string& etiqueta : ba::platform::idiomasDelSistema()) {
+            // La región es la parte de dos letras después del idioma (y del alfabeto): es-AR, zh-Hans-CN.
+            std::size_t desde = etiqueta.find('-');
+            while (desde != std::string::npos) {
+                const std::size_t hasta = etiqueta.find('-', desde + 1);
+                const std::string parte = etiqueta.substr(desde + 1, hasta == std::string::npos ? std::string::npos : hasta - desde - 1);
+                if (parte.size() == 2 && std::isalpha(static_cast<unsigned char>(parte[0])) != 0 &&
+                    std::isalpha(static_cast<unsigned char>(parte[1])) != 0)
+                    return redElectricaHz(parte);
+                desde = hasta;
+            }
+        }
+        return 0;
+    }();
+    return hz;
+}
+
+bool cadenciaSinParpadeo(double cps, int redHz) {
+    if (cps <= 0 || redHz <= 0) return true;
+    const double ciclos = 2.0 * redHz / cps; // ciclos de luz por cuadro
+    return std::fabs(ciclos - std::round(ciclos)) <= 0.01 * ciclos;
+}
+
+std::vector<std::pair<int, int>> cadenciasDeLaRed(int redHz) {
+    if (redHz == 50) return {{25, 1}, {50, 1}};
+    if (redHz == 60) return {{30, 1}, {60, 1}, {30000, 1001}, {60000, 1001}, {24, 1}};
+    return {};
+}
+
+std::vector<std::string> avisosDeLaRed(const Lienzo& l, int redHz) {
+    const double cps = l.fpsD > 0 ? static_cast<double>(l.fpsN) / l.fpsD : 0;
+    if (redHz <= 0 || cadenciaSinParpadeo(cps, redHz)) return {};
+    std::string sugeridas;
+    for (const auto& [n, d] : cadenciasDeLaRed(redHz)) {
+        if (!sugeridas.empty()) sugeridas += ", ";
+        sugeridas += cpsLegibles(static_cast<double>(n) / d);
+    }
+    return {ba::i18n::llenar(traducir("motor", "lienzo de %1 cps con una red eléctrica de %2 Hz: las luces LED y fluorescentes "
+                                               "pueden parpadear o hacer franjas en cámara. Para esta red: %3 cps (Ajustes → "
+                                               "Video → Cuadros por segundo; no se cambia solo)"),
+                             {cpsLegibles(cps), std::to_string(redHz), sugeridas})};
+}
+
+std::string avisoDeCadenciaDeCamara(double cpsCamara, const Lienzo& l) {
+    const double cps = l.fpsD > 0 ? static_cast<double>(l.fpsN) / l.fpsD : 0;
+    if (cpsCamara <= 0 || cps <= 0) return {};
+    const double dif = std::fabs(cpsCamara - cps);
+    // Iguales (la del modo viene redondeada) o lejos (60 en 30: tira uno de cada dos, a propósito).
+    if (dif < 0.0005 * cps || dif > 0.02 * cps) return {};
+    const double cadaS = 1.0 / dif;
+    return ba::i18n::llenar(traducir("motor", "la cámara da %1 cps y el lienzo es de %2: %3 un cuadro cada %4 s (un salto en "
+                                              "los paneos). Un lienzo de %1 o un modo de la cámara de %2 lo evitan"),
+                            {cpsLegibles(cpsCamara), cpsLegibles(cps),
+                             cpsCamara < cps ? traducir("motor", "se repite") : traducir("motor", "se tira"),
+                             std::to_string(static_cast<int>(std::lround(cadaS)))});
 }
 
 std::string capsColorDelLienzo(const Lienzo& l) {
@@ -732,6 +817,7 @@ struct EstadoPlaca {
     std::atomic<double> ppm{0};         ///< de la placa cruda (lo que contó contra el reloj)
     std::atomic<guint64> reanclajes{0}; ///< los del sondeo: los saltos que habría sin corregir
     std::atomic<double> medidoS{0};     ///< sobre cuántos segundos se midió la ppm
+    std::atomic<int> hz{0};             ///< la frecuencia que da la placa (F4-07: ¿está a 48 kHz?)
     GWeakRef deriva;                    ///< el baderiva de esta placa (si hay)
     EstadoPlaca() { g_weak_ref_init(&deriva, nullptr); }
     ~EstadoPlaca() { g_weak_ref_clear(&deriva); }
@@ -796,6 +882,7 @@ GstPadProbeReturn ponerHoraAudio(GstPad* pad, GstPadProbeInfo* info, gpointer d)
         pts = real;
     }
     h->muestras += n;
+    if (h->placa) h->placa->hz.store(rate, std::memory_order_relaxed);
     // La ppm de la placa cruda: lo que contó contra lo que pasó en el reloj desde el
     // primer bloque (el temblor de la llegada pesa cada vez menos). Desde un minuto.
     if (!GST_CLOCK_TIME_IS_VALID(h->desde)) h->desde = real;
@@ -928,6 +1015,7 @@ json derivaDePlacas() {
                {"dispositivo", p->dispositivo},
                {"ppm", std::round(p->ppm.load() * 10) / 10},
                {"medido_s", std::round(p->medidoS.load())},
+               {"hz", p->hz.load()},
                {"reanclajes_sin_corregir", p->reanclajes.load()}};
         if (auto* d = static_cast<GstElement*>(g_weak_ref_get(&p->deriva))) {
             double ppm = 0, desfase = 0;
@@ -1322,12 +1410,14 @@ std::string aSistemaEscalado(const std::string& formato, int ancho, int alto) {
         // d3d12convert convierte y escala en una pasada; baja chico.
         return "d3d12upload ! d3d12convert ! video/x-raw(memory:D3D12Memory),format=" + formato + tam +
                ",pixel-aspect-ratio=1/1 ! d3d12download ! video/x-raw,format=" + formato + tam + ",pixel-aspect-ratio=1/1";
-    // En GL: achicar en la placa y bajar CHICO en RGBA; el formato final, en la
-    // CPU (a este tamaño es casi gratis): un paso de GL menos por cuadro. Sin colas
-    // entre etapas: cada cola es un hilo y no cambiaban nada medible.
+    // En GL: achicar en la placa (glcolorscale solo trabaja en RGBA), llevar al formato
+    // pedido también ahí (una pasada chica de glcolorconvert; con RGBA la deja pasar) y bajar
+    // CHICO y ya en su formato: una sola copia a la CPU y ninguna pasada en la CPU (F2-13;
+    // antes bajaba RGBA y lo daba vuelta un videoconvert, ~1 pasada de CPU por cuadro). Sin
+    // colas entre etapas: cada cola es un hilo y no cambiaban nada medible.
     return "glupload ! glcolorconvert ! video/x-raw(memory:GLMemory),format=RGBA ! glcolorscale ! video/x-raw(memory:GLMemory),format=RGBA" +
-           tam + " ! gldownload ! video/x-raw,format=RGBA" + tam + " ! videoconvert ! video/x-raw,format=" + formato + tam +
-           ",pixel-aspect-ratio=1/1";
+           tam + " ! glcolorconvert ! video/x-raw(memory:GLMemory),format=" + formato + tam + " ! gldownload ! video/x-raw,format=" +
+           formato + tam + ",pixel-aspect-ratio=1/1";
 }
 
 std::string memoriaDelMotor() {
