@@ -698,8 +698,8 @@ void Supervisor::orderedShutdown() {
         return;
     }
     shuttingDown_ = true;
-    // A primero (deja el pedido de su emisor «cerrado»: la emisión se corta ahí), los
-    // emisores después (cierran sus archivos) y B al final.
+    // A primero, los emisores después (cortan la emisión, cierran sus archivos y dejan
+    // su estado «cerrado»: al volver no retoman ese pedido) y B al final.
     BA_LOG_INFO("sup", 0, traducir("sup", "cierre ordenado: A primero (corta la emision), despues los emisores y B"));
     stopChild(app());
     for (auto it = hijos_.rbegin() + 1; it != hijos_.rend(); ++it) stopChild(**it);

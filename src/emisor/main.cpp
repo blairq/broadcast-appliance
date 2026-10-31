@@ -140,7 +140,11 @@ int correr(const std::vector<std::string>& args) {
     }
 
     std::string err;
-    if (!ba::motor::iniciarGStreamer(&err)) {
+    // Late mientras GStreamer arranca: la primera vez en una PC rehace su lista de
+    // plugins (puede tardar minutos) y el launcher lo daría por colgado.
+    if (!ba::motor::iniciarGStreamer(&err, [&]() {
+            if (conSalud) salud.beat(slot);
+        })) {
         std::fprintf(stderr, "ba-emisor: %s\n", err.c_str());
         return 3;
     }
@@ -173,14 +177,29 @@ int correr(const std::vector<std::string>& args) {
         if (e.is_object() && e.value("cerrado", false) && e.contains("seq_visto") && e["seq_visto"].is_number_unsigned())
             seqCerrado = e["seq_visto"].get<std::uint64_t>();
     }
+    // EL LATIDO va en su hilo: parar una grabación espera que se cierre el archivo
+    // (hasta 5 s, y la copia otros 5) y el launcher lo daría por colgado. Late mientras
+    // el bucle dé vueltas; si el bucle se traba más de `emisor.colgadoS` (15 s), deja de
+    // latir y el launcher hace lo de siempre (volcado y relanzamiento).
+    std::atomic<std::int64_t> ultimaVuelta{0};
+    const auto msAhora = []() {
+        return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
+    };
+    ultimaVuelta = msAhora();
+    std::atomic<bool> finLatido{false};
+    std::thread latido;
+    if (conSalud)
+        latido = std::thread([&]() {
+            const std::int64_t colgadoMs = static_cast<std::int64_t>(ba::ajustes::entero("emisor.colgadoS", 15)) * 1000;
+            while (!finLatido.load()) {
+                if (msAhora() - ultimaVuelta.load() < colgadoMs) salud.beat(slot);
+                std::this_thread::sleep_for(std::chrono::milliseconds(250));
+            }
+        });
     auto proximoEstado = std::chrono::steady_clock::now();
-    auto proximoLatido = std::chrono::steady_clock::now();
     while (!g_parar.load()) {
         const auto ahora = std::chrono::steady_clock::now();
-        if (conSalud && ahora >= proximoLatido) {
-            salud.beat(slot);
-            proximoLatido = ahora + std::chrono::milliseconds(250);
-        }
+        ultimaVuelta = msAhora();
         control.poll([](const ba::ipc::Message& m) {
             if (m.type == ba::ipc::Type::Shutdown) g_parar.store(true);
         });
@@ -218,8 +237,11 @@ int correr(const std::vector<std::string>& args) {
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
     ba::motor::registrar(ba::motor::Nivel::Info, traducir("emisor", "cierre ordenado: se cierran los archivos"));
-    if (conSalud) salud.setState(slot, ba::ipc::ProcessState::Terminated);
+    ultimaVuelta = msAhora();
     emisor.parar();
+    finLatido = true;
+    if (latido.joinable()) latido.join();
+    if (conSalud) salud.setState(slot, ba::ipc::ProcessState::Terminated);
     nlohmann::json e = emisor.estado();
     e["pid"] = pidPropio();
     e["seq_visto"] = seq;
