@@ -834,11 +834,11 @@ void McpService::setPlano(PlanoControl& plano) {
     pool_->setMaxThreadCount(4);
     pool_->setObjectName("mcp-foto");
     McpCore::Ejecutores e;
-    e.interfaz = [&plano](McpCore::Tarea t) { plano.encolarEnDueno(std::move(t)); };
+    e.interfaz = [&plano](McpCore::Tarea t) { plano.encolarEnInterfaz(std::move(t)); };
     e.control = [&plano](McpCore::Tarea t) { plano.encolar(std::move(t)); };
     e.foto = [p = pool_.get()](McpCore::Tarea t) { p->start(std::move(t)); };
     e.despues = [&plano](int ms, McpCore::Tarea t) { plano.despues(ms, std::move(t)); };
-    e.enInterfaz = [&plano]() { return plano.enDueno(); };
+    e.enInterfaz = [&plano]() { return plano.enInterfaz(); };
     e.enControl = [&plano]() { return plano.enControl(); };
     e.topeInterfazMs = ba::ajustes::entero("mcp.topeInterfazMs", 5000);
     core_.setEjecutores(std::move(e));
@@ -1247,9 +1247,14 @@ void McpService::registerTools() {
     }
 
     // --- Escenas -------------------------------------------------------------------
+    // Las escenas, las fuentes, la transición y el volumen son del motor y de cfg_, que son
+    // del plano de control (F3-03): esas herramientas corren en su hilo, con el turno, y no
+    // esperan a la interfaz (Hilo::Control). Las que leen objetos de la interfaz (las
+    // propiedades de una fuente, los niveles del mezclador) siguen en ella.
     {
         Tool t;
         t.name = "scene_list";
+        t.hilo = Hilo::Control;
         t.porSalida = true;
         t.title = ba::i18n::traducir("mcp", "Listar escenas");
         t.category = "escenas";
@@ -1286,6 +1291,7 @@ void McpService::registerTools() {
     {
         Tool t;
         t.name = "scene_folder";
+        t.hilo = Hilo::Control;
         t.title = ba::i18n::traducir("mcp", "Mover una escena a una carpeta");
         t.category = "escenas";
         t.clase = Clase::Escritura;
@@ -1311,6 +1317,7 @@ void McpService::registerTools() {
     {
         Tool t;
         t.name = "scene_move";
+        t.hilo = Hilo::Control;
         t.title = ba::i18n::traducir("mcp", "Reordenar una escena");
         t.category = "escenas";
         t.clase = Clase::Escritura;
@@ -1334,6 +1341,7 @@ void McpService::registerTools() {
     {
         Tool t;
         t.name = "escena_transicion";
+        t.hilo = Hilo::Control;
         t.title = ba::i18n::traducir("mcp", "Transicion de entrada de una escena");
         t.category = "escenas";
         t.clase = Clase::Escritura;
@@ -1356,6 +1364,7 @@ void McpService::registerTools() {
     {
         Tool t;
         t.name = "audio_afv";
+        t.hilo = Hilo::Control;
         t.porSalida = true;
         t.title = ba::i18n::traducir("mcp", "Audio que sigue al video");
         t.category = "audio";
@@ -1378,6 +1387,7 @@ void McpService::registerTools() {
     {
         Tool t;
         t.name = "scene_create";
+        t.hilo = Hilo::Control;
         t.title = ba::i18n::traducir("mcp", "Crear escena vacia");
         t.category = "escenas";
         t.clase = Clase::Escritura;
@@ -1394,6 +1404,7 @@ void McpService::registerTools() {
     {
         Tool t;
         t.name = "scene_copy";
+        t.hilo = Hilo::Control;
         t.title = ba::i18n::traducir("mcp", "Copiar una escena");
         t.category = "escenas";
         t.clase = Clase::Escritura;
@@ -1430,6 +1441,7 @@ void McpService::registerTools() {
     {
         Tool t;
         t.name = "scene_protect";
+        t.hilo = Hilo::Control;
         t.title = ba::i18n::traducir("mcp", "Proteger una escena");
         t.category = "escenas";
         t.clase = Clase::Escritura;
@@ -1457,6 +1469,7 @@ void McpService::registerTools() {
     {
         Tool t;
         t.name = "scene_delete";
+        t.hilo = Hilo::Control;
         t.title = ba::i18n::traducir("mcp", "Borrar escena");
         t.category = "escenas";
         t.clase = Clase::Aire;
@@ -1477,6 +1490,7 @@ void McpService::registerTools() {
     {
         Tool t;
         t.name = "scene_rename";
+        t.hilo = Hilo::Control;
         t.title = ba::i18n::traducir("mcp", "Renombrar escena");
         t.category = "escenas";
         t.clase = Clase::Escritura;
@@ -1495,6 +1509,7 @@ void McpService::registerTools() {
     {
         Tool t;
         t.name = "scene_export";
+        t.hilo = Hilo::Control;
         t.title = ba::i18n::traducir("mcp", "Exportar definicion de escenas");
         t.category = "escenas";
         t.clase = Clase::Lectura;
@@ -1534,6 +1549,7 @@ void McpService::registerTools() {
     {
         Tool t;
         t.name = "scene_define";
+        t.hilo = Hilo::Control;
         t.porSalida = true; // `switch`: al aire en esa salida
         t.title = ba::i18n::traducir("mcp", "Definir una escena completa");
         t.category = "escenas";
@@ -1684,6 +1700,7 @@ void McpService::registerTools() {
     {
         Tool t;
         t.name = "transition_set";
+        t.hilo = Hilo::Control;
         t.title = ba::i18n::traducir("mcp", "Transicion entre escenas");
         t.category = "escenas";
         t.clase = Clase::Aire;
@@ -1709,6 +1726,7 @@ void McpService::registerTools() {
     {
         Tool t;
         t.name = "source_types";
+        t.hilo = Hilo::Control;
         t.title = ba::i18n::traducir("mcp", "Tipos de fuente disponibles");
         t.category = "fuentes";
         t.clase = Clase::Lectura;
@@ -1728,6 +1746,7 @@ void McpService::registerTools() {
     {
         Tool t;
         t.name = "escena_fuentes_ver";
+        t.hilo = Hilo::Control;
         t.title = ba::i18n::traducir("mcp", "Fuentes de una escena");
         t.category = "fuentes";
         t.clase = Clase::Lectura;
@@ -1758,6 +1777,7 @@ void McpService::registerTools() {
     {
         Tool t;
         t.name = "crear_fuente";
+        t.hilo = Hilo::Control;
         t.title = ba::i18n::traducir("mcp", "Agregar fuente");
         t.category = "fuentes";
         t.clase = Clase::Escritura;
@@ -1837,6 +1857,7 @@ void McpService::registerTools() {
     {
         Tool t;
         t.name = "source_remove";
+        t.hilo = Hilo::Control;
         t.title = ba::i18n::traducir("mcp", "Quitar fuente de una escena");
         t.category = "fuentes";
         t.clase = Clase::Aire;
@@ -1856,6 +1877,7 @@ void McpService::registerTools() {
     {
         Tool t;
         t.name = "source_update";
+        t.hilo = Hilo::Control;
         t.title = ba::i18n::traducir("mcp", "Modificar una fuente en una escena");
         t.category = "fuentes";
         t.clase = Clase::Escritura;
@@ -2059,6 +2081,7 @@ void McpService::registerTools() {
     {
         Tool t;
         t.name = "guest_source_add";
+        t.hilo = Hilo::Control;
         t.title = ba::i18n::traducir("mcp", "Poner a un invitado en una escena");
         t.category = "fuentes";
         t.clase = Clase::Escritura;
@@ -2139,6 +2162,7 @@ void McpService::registerTools() {
     {
         Tool t;
         t.name = "audio_set";
+        t.hilo = Hilo::Control;
         t.porSalida = true;
         t.title = ba::i18n::traducir("mcp", "Volumen / silencio");
         t.category = "audio";
@@ -3852,12 +3876,12 @@ void McpService::registerTools() {
                     if (f.isEmpty())
                         return done(ToolResult::error(ba::i18n::traducir("mcp", "el clip no llegó a escribirse en 8 s")));
                     json r{{"archivo", f.toStdString()}};
-                    if (armar) {
-                        const QString e = vm.escenas().armarRepeticion(f, salida);
+                    if (!armar) return done(ToolResult().data(r));
+                    vm.escenas().armarRepeticion(f, salida, [done, r](const QString& e) mutable {
                         r["armada"] = e.isEmpty();
                         if (!e.isEmpty()) r["error_al_armar"] = e.toStdString();
-                    }
-                    done(ToolResult().data(r));
+                        done(ToolResult().data(r));
+                    });
                 },
                 salida);
         };

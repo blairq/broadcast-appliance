@@ -3,7 +3,7 @@
 // punto de ingest de respaldo de la plataforma (la misma clave: sale a los dos a la vez).
 // Lo usan la tarjeta «Salidas» (los de la por omisión) y la página Salidas (los de
 // cada salida: `salida`, su id; vacío = la por omisión). Guarda por
-// Studio.emision.guardarDestinoUi: el modelo valida y avisa.
+// Studio.emision.guardarDestinoUi: el modelo valida y el resultado vuelve con destinoGuardado.
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
@@ -13,13 +13,25 @@ Popup {
     id: dlg
     /// La salida de la que toma el programa ("" = la por omisión).
     property string salida: ""
+    /// Se pidió guardar y todavía no volvió (el botón espera).
+    property bool guardando: false
+    // Lo guarda el dueño del motor (Studio.emision): si salió bien se cierra; si no, se avisa
+    // y el diálogo queda para corregir.
+    Connections {
+        target: Studio.emision
+        enabled: dlg.guardando
+        function onDestinoGuardado(e) {
+            dlg.guardando = false
+            if (e !== "") Studio.notify(e, "error"); else dlg.close()
+        }
+    }
     parent: Overlay.overlay
     anchors.centerIn: parent
     modal: true
     padding: 16
     width: 460
     background: Rectangle { color: Theme.panel; radius: Theme.radiusSmall; border.color: Theme.glassBorder }
-    onOpened: { dNombre.text = ""; dUrl.text = ""; dUrlResp.text = ""; dClave.text = ""; dResp.checked = false; dModo.currentIndex = 0; dLat.value = 120 }
+    onOpened: { dlg.guardando = false; dNombre.text = ""; dUrl.text = ""; dUrlResp.text = ""; dClave.text = ""; dResp.checked = false; dModo.currentIndex = 0; dLat.value = 120 }
     ColumnLayout {
         anchors.fill: parent
         spacing: 8
@@ -45,14 +57,15 @@ Popup {
             Item { Layout.fillWidth: true }
             GlassButton { compact: true; text: qsTr("Cancelar"); onClicked: dlg.close() }
             GlassButton {
-                compact: true; active: true; text: qsTr("Guardar")
+                compact: true; active: true; text: qsTr("Guardar"); enabled: !dlg.guardando
                 onClicked: {
                     const d = { nombre: dNombre.text, url: dUrl.text, clave: dClave.text, respaldo: dResp.checked }
                     if (dUrlResp.visible && dUrlResp.text !== "") d.url_respaldo = dUrlResp.text
                     if (dUrl.text.startsWith("srt://")) { d.modo = dModo.currentText; d.latencia_ms = dLat.value }
                     if (dlg.salida !== "") d.salida = dlg.salida
-                    const e = Studio.emision.guardarDestinoUi(d)
-                    if (e !== "") Studio.notify(e, "error"); else dlg.close()
+                    // Lo guarda el dueño del motor: el resultado vuelve con destinoGuardado.
+                    dlg.guardando = true
+                    Studio.emision.guardarDestinoUi(d)
                 }
             }
         }

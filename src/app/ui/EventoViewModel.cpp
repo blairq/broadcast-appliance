@@ -3481,7 +3481,12 @@ void EventoViewModel::enchufar() {
         };
         for (escenas::Conmutador* c : s.conmutadores->todos())
             seguir(c);
-        connect(s.conmutadores, &escenas::Conmutadores::creado, this, seguir);
+        // Una salida nueva: el aviso llega encolado (los conmutadores son del dueño del
+        // motor) y por su id; si ya se fue, no hay a quién seguir.
+        connect(s.conmutadores, &escenas::Conmutadores::creado, this, [this, seguir](const QString& salida) {
+            if (escenas::Conmutador* c = sistema().conmutadores->de(salida.toStdString()); c != nullptr && c->salida() == salida.toStdString())
+                seguir(c);
+        });
     }
     // El orden del día: los bloques que salen de él se re-expanden al cambiar.
     if (primeraVez(s.ordenDelDia))

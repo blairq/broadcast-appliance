@@ -34,10 +34,15 @@
 // procesos (invitados, lobby, fila, tótems, el operador) lo copia otro hilo
 // (Canales), que despierta cuando el productor publica (SpoutReceiver::
 // proximaMirada); poll recoge lo que llegó. `latest` y las claves, en la UI.
+// EL MOTOR ES DEL PLANO DE CONTROL (F3-03): las vistas se LEEN desde acá sin el turno
+// (BroadcastEngine::latestPreview y renderScenePreview son de cualquier hilo); pedir y
+// soltar una vista se le ENCARGA al dueño (`encargar`: la ventanilla del motor).
 // `medidas()`: lo que tarda poll en la UI (p50/p99/máx del último minuto).
 // ============================================================================
 
 #pragma once
+
+#include <functional>
 
 #include <QImage>
 #include <QJsonArray>
@@ -68,7 +73,9 @@ class FrameService : public QObject {
     /// multiview con todas de un toque.
     Q_PROPERTY(QStringList programas READ programas NOTIFY keysChanged)
    public:
-    FrameService(BroadcastEngine& engine, int guests, QObject* parent = nullptr);
+    /// Lo que se le encarga al dueño del motor (pedir y soltar vistas), sin esperar.
+    using Encargar = std::function<void(std::function<void(BroadcastEngine&)>)>;
+    FrameService(BroadcastEngine& engine, Encargar encargar, int guests, QObject* parent = nullptr);
     ~FrameService() override;
 
     /// Claves de video disponibles ("program", "guest:1"...).
@@ -127,7 +134,8 @@ class FrameService : public QObject {
     };
     /// El hilo que lee los canales entre procesos (en el .cpp).
     class Canales;
-    BroadcastEngine& engine_;
+    BroadcastEngine& engine_; ///< solo lo que se lee desde cualquier hilo (las vistas)
+    Encargar encargar_;
     int guests_ = 0;
     /// Los canales de una clave, en orden de preferencia (el chico primero).
     static std::vector<std::wstring> channelsOf(const QString& key);

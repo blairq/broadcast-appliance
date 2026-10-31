@@ -50,9 +50,15 @@ MezclaViewModel::MezclaViewModel(Partes p, QObject* parent) : QObject(parent), p
     // El audio de cada fuente es del motor: cuando cambia, por el camino que sea, la
     // matriz lo anota y guarda (y se lo pone a una fuente que nace), y el mezclador
     // refresca esa tira. La matriz solo se redibuja si cambió el ruteo.
-    rt.engine().alCambiarAudioFuente([m = matriz_.get(), mx = &p_.tiras](const std::string& f, const char* que) {
-        m->avisarFuente(f, que);
-        if (std::strcmp(que, "alta") != 0) mx->avisarCambio(f);
+    // El aviso llega en el hilo que hizo el cambio (el dueño del motor, casi siempre: F3-03);
+    // la matriz y las tiras son de la interfaz: se les encarga a su bucle.
+    rt.engine().alCambiarAudioFuente([this, m = matriz_.get(), mx = &p_.tiras](const std::string& f, const char* que) {
+        QMetaObject::invokeMethod(
+            this, [m, mx, f, q = std::string(que)]() {
+                m->avisarFuente(f, q.c_str());
+                if (q != "alta") mx->avisarCambio(f);
+            },
+            Qt::AutoConnection);
     });
     connect(matriz_.get(), &audio::Matriz::cambio, this, &MezclaViewModel::pflChanged);
     // El Mezclador (la ventana propia): niveles de entradas y salidas, y su estado.

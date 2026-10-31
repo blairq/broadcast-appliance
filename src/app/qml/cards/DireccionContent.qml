@@ -169,15 +169,12 @@ Item {
             ComboBox {
                 id: entrada
                 implicitWidth: 120
-                readonly property var actual: Studio.escenaArmada !== "" ? Studio.escenas.transicionEntrada(Studio.escenaArmada) : ({})
+                readonly property var actual: Studio.escenas.transicionesEntrada[Studio.escenaArmada] || ({})
                 model: [ { t: qsTr("la global"), v: "" }, { t: qsTr("corte"), v: "cut" }, { t: qsTr("fundido"), v: "fade" },
                          { t: qsTr("barrido"), v: "swipe" }, { t: qsTr("deslizar"), v: "slide" }, { t: qsTr("a color"), v: "fade_to_color" } ]
                 textRole: "t"
                 currentIndex: Math.max(0, model.findIndex(o => o.v === (actual.tipo || "")))
-                onActivated: (i) => {
-                    const e = Studio.escenas.setTransicionEntrada(Studio.escenaArmada, model[i].v, model[i].v === "cut" ? 0 : -1)
-                    if (e !== "") Studio.notify(e, "error")
-                }
+                onActivated: (i) => Studio.escenas.setTransicionEntrada(Studio.escenaArmada, model[i].v, model[i].v === "cut" ? 0 : -1)
                 ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: qsTr("La transición con la que entra la escena armada")
             }
         }

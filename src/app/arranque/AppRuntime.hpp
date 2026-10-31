@@ -11,16 +11,21 @@
 //   `save()` la persiste. Asi lo que se arma en el dashboard sobrevive a un
 //   reinicio sin que la interfaz toque JSON.
 //
-// Modelo de threading:
-//   Del hilo dueño del motor (el de la interfaz o el bucle de la consola), salvo lo que
-//   dice «desde cualquier hilo»: ticControl (lo corre el plano de control en su hilo,
-//   arranque/PlanoControl), el documento de aire, salidasPublicadas, avisosPersistencia y
-//   el latido. `requestStop()` es async-signal-safe (un atomic).
-//   LO QUE SALE (F3-03), también desde el plano de control: grabar, transmitir, los
-//   destinos, poner una escena al aire (setScene…), el negro y la placa (aireCambio).
-//   Toman el turno del motor (emision/TurnoMotor.hpp) por todo lo que duran, leen la
-//   configuración de ajustesAire() (cfg_ es del dueño) y lo que avisan (observar, el vivo
-//   manual, guardar app.json) le llega al dueño encolado, en su hilo (enDueno).
+// Modelo de threading (F3-03; el patrón en docs/arquitectura/05-motor-del-plano.md):
+//   EL DUEÑO es el hilo del plano de control (arranque/PlanoControl; en la consola, su
+//   bucle): arranca en el hilo que llama a start y se muda con cederDueno. El motor y la
+//   configuración (cfg_) son suyos: corre el reloj del motor (ticMotor), las órdenes que le
+//   encarga la interfaz (emision/VentanillaMotor: la agenda, con el turno) y las
+//   herramientas MCP del control, y publica la FOTO que lee la interfaz (publicarFoto,
+//   emision/FotoMotor.hpp). Lo demás es «desde cualquier hilo»: ticControl, el documento
+//   de aire, salidasPublicadas, avisosPersistencia, latirInterfaz (el latido de la
+//   interfaz, en su reloj). `requestStop()` es async-signal-safe (un atomic).
+//   Todo lo que toca el motor o cfg_ lo hace CON EL TURNO (emision/TurnoMotor.hpp): el
+//   dueño lo toma por orden y por vuelta; la interfaz que todavía entra directo (las áreas
+//   sin migrar, por config()/engine() o los métodos de acá) lo toma por evento y se cuenta.
+//   Los avisos (observar) corren en el dueño: quien escucha y es de otro hilo se encola
+//   (los view models se lo encargan a su bucle). Desde otro hilo, lo que es solo del dueño
+//   (guardar app.json, avisar) se le encarga encolado (enDueno).
 //
 // Estrategia de errores:
 //   No lanza. `start` devuelve el codigo de salida si no se puede arrancar;
@@ -38,7 +43,9 @@
 #include <map>
 #include <functional>
 #include <mutex>
+#include <memory>
 #include <set>
+#include <source_location>
 #include <string>
 #include <utility>
 #include <vector>
@@ -53,6 +60,7 @@
 #include "emision/OperatorFeed.hpp"
 #include "emision/SalidasConfig.hpp"
 #include "emision/DocumentoAire.hpp"
+#include "emision/FotoMotor.hpp"
 #include "audio/ObjetivoLoudness.hpp"
 
 namespace ba::app {
@@ -66,15 +74,19 @@ class AppRuntime {
     /// :returns: 0 si quedo en marcha; si no, el codigo de salida del proceso.
     int start();
 
-    /// Una vuelta de trabajo: ticControl y ticMotor. La consola la llama cada ~100 ms;
-    /// con interfaz, cada mitad la corre su reloj (arranque/PlanoControl).
+    /// Una vuelta de trabajo: ticControl, ticMotor y el latido. La consola la llama cada
+    /// ~100 ms; con interfaz, cada parte la corre su reloj (arranque/PlanoControl).
     void tick();
     /// Lo que no depende de la interfaz ni del motor: el canal de órdenes del launcher y
     /// el documento de aire (este hilo es su dueño). En el hilo del plano de control.
     void ticControl();
-    /// Lo del motor (que todavía es del hilo de la interfaz): el latido de la interfaz,
-    /// la sección de las salidas del documento, el rearme por la GPU, los recortes.
+    /// Lo del motor, en el dueño y con el turno (si la interfaz lo tiene, esta vuelta se
+    /// saltea): la sección de las salidas del documento, el rearme por la GPU, los
+    /// recortes, el audio que llegó tarde y la foto.
     void ticMotor();
+    /// El latido de la interfaz (el supervisor sabe si vive) y si hay aire (LatidoAire): en
+    /// el reloj de la interfaz, separado del del motor. No toca el motor.
+    void latirInterfaz();
     /// Quién vuelca el documento de aire: `despertar` le pide que lo haga en su hilo
     /// (el plano de control encola ticControl). Vacío: el que lo cambia lo vuelca.
     void setDuenoDelAire(std::function<void()> despertar);
@@ -83,15 +95,38 @@ class AppRuntime {
     nlohmann::json salidasPublicadas() const;
 
     // --- El hilo dueño y los demás (F3-03) ---------------------------------------
-    /// Cómo se le encarga algo al hilo dueño desde otro (la interfaz: su bucle, ver
-    /// PlanoControl::encolarEnDueno). Vacío (la consola, al cerrar): en el acto.
+    /// Cómo se le encarga algo al hilo dueño desde otro: la agenda del plano de control
+    /// (PlanoControl::encolarConTurno: en orden, con el turno). Vacío (la consola, al
+    /// cerrar): en el acto.
     void setEncolarEnDueno(std::function<void(std::function<void()>)> encolar);
+    /// El que llama pasa a ser el dueño: el plano de control al arrancar (después de start,
+    /// en su hilo) y el hilo principal al cerrar (después de parar el plano).
+    void cederDueno();
     /// ¿El que llama es el dueño? (Antes de start, todos lo son.)
     bool esDueno() const;
     /// `fn` en el hilo dueño: en el acto si el que llama es él (o no hay a quién
-    /// encolar); si no, encolada y sin esperar. Lo que es solo suyo (cfg_, los avisos a
-    /// las vistas) se toca por acá cuando la operación vino del plano de control.
+    /// encolar); si no, encolada (con el turno) y sin esperar. Lo que es solo suyo (cfg_,
+    /// guardar, los avisos) se toca por acá cuando la operación vino de otro hilo.
     void enDueno(std::function<void()> fn) const;
+    /// `fn` en el hilo dueño SIEMPRE encolada, aunque el que llama sea él: corre después de
+    /// lo que está haciendo, con el turno (lo que no tiene que esperar a nadie: el fundido
+    /// del AFV, la foto). Sin agenda (la consola), en el acto.
+    void despuesEnDueno(std::function<void()> fn) const;
+
+    // --- La foto que lee la interfaz (F3-03, emision/FotoMotor.hpp) -----------------
+    /// A quién se le publica (la ventanilla: VentanillaMotor::publicar). Vacío: no se arma.
+    void setFoto(std::function<void(std::shared_ptr<const FotoMotor>, unsigned partes)> publicar);
+    /// Lo que suman a la foto otros modelos del aire que son del dueño (los conmutadores:
+    /// la armada, el AFV, la T-bar, las transiciones de entrada): `aporte` corre en el dueño
+    /// con el turno, con las partes que se están rearmando. Devuelve su id.
+    int aportarALaFoto(std::function<void(FotoMotor&, unsigned partes)> aporte);
+    void dejarDeAportar(int id);
+    /// Esas partes cambiaron (FotoMotor::Parte): se rearman en la próxima publicación, que
+    /// se le encarga al dueño. Desde cualquier hilo.
+    void fotoSucia(unsigned partes) const;
+    /// Rearma lo sucio y, si algo cambió, la publica. En el dueño (toma el turno): después
+    /// de cada orden de la ventanilla, en cada vuelta del motor y cuando algo la ensucia.
+    void publicarFoto();
     /// Lo de la configuración que usan las operaciones de aire (grabar, transmitir, cortar
     /// una escena), para poder hacerlas en el plano de control sin leer cfg_: el dueño la
     /// lee fresca (y deja la copia, también en cada vuelta del motor); los demás, la copia.
@@ -296,11 +331,29 @@ class AppRuntime {
     void reiniciarSalaEnElFondo(std::function<void(const std::string& error)> listo);
     ~AppRuntime();
 
-    AppConfig& config() { return cfg_; }
-    const AppConfig& config() const { return cfg_; }
-    GatewaySettings& gateway() { return gateway_; }
-    LauncherSettings& launcher() { return launcher_; }
-    BroadcastEngine& engine() { return engine_; }
+    // Lo que es del dueño, a mano: desde la interfaz cuenta como LLAMADA DIRECTA (toma el
+    // turno por el resto del evento y se anota dónde, emision/TurnoMotor.hpp). Las vistas
+    // migradas no las usan: piden por la ventanilla y leen la foto.
+    AppConfig& config(std::source_location donde = std::source_location::current()) {
+        engine_.turno().entrarDirecto(donde);
+        return cfg_;
+    }
+    const AppConfig& config(std::source_location donde = std::source_location::current()) const {
+        engine_.turno().entrarDirecto(donde);
+        return cfg_;
+    }
+    GatewaySettings& gateway(std::source_location donde = std::source_location::current()) {
+        engine_.turno().entrarDirecto(donde);
+        return gateway_;
+    }
+    LauncherSettings& launcher(std::source_location donde = std::source_location::current()) {
+        engine_.turno().entrarDirecto(donde);
+        return launcher_;
+    }
+    BroadcastEngine& engine(std::source_location donde = std::source_location::current()) {
+        engine_.turno().entrarDirecto(donde);
+        return engine_;
+    }
     /// El latido del supervisor que mira el motor (la UI trabada no corta el aire).
     LatidoAire& latido() { return latido_; }
     /// El último error DE ESTE HILO (ver «Estrategia de errores»).
@@ -390,10 +443,37 @@ class AppRuntime {
     /// Anota en Config/salidas.json el fader y el mute que tiene ahora `fuente` en la
     /// salida `salida` (otra que la por omisión): vuelven al arrancar.
     void guardarMando(const std::string& salida, const std::string& fuente);
+    /// Los destinos de destinos.json con su salida y si tienen clave (lee el disco: la
+    /// foto lo lee solo cuando cambian las salidas) y, con lo que dice el motor de cada uno
+    /// (activo, reconectando, perdidos…), lo que devuelve destinos().
+    nlohmann::json destinosGuardados() const;
+    nlohmann::json destinosConEstado(const nlohmann::json& guardados) const;
     /// La lista de salidas para otros hilos (salidasPublicadas).
     void publicarSalidas(const EngineStatus& st);
+    /// Qué partes de la foto toca cada aviso.
+    static unsigned partesDe(Cambio c);
+    /// Además de las partes: lo que la foto lee de archivos se vuelve a leer.
+    static constexpr unsigned kFotoRelerArchivos = 1u << 8;
+    /// Los avisos a los observadores (en el dueño; ver avisar).
+    void avisarObservadores(Cambio c) const;
+    /// Rearma en `f` las partes `partes` (en el dueño, con el turno): ver FotoMotor.
+    void armarFoto(FotoMotor& f, unsigned partes);
+    mutable std::mutex observadoresMu_; ///< se suman desde la interfaz; se avisa en el dueño
     std::vector<std::pair<int, std::function<void(Cambio)>>> observadores_;
     int proximoObservador_ = 0;
+    // La foto (F3-03): la publicación, lo que suman otros, lo sucio y la última publicada.
+    std::function<void(std::shared_ptr<const FotoMotor>, unsigned)> publicarFoto_;
+    mutable std::mutex aportesMu_;
+    std::vector<std::pair<int, std::function<void(FotoMotor&, unsigned)>>> aportes_;
+    int proximoAporte_ = 0;
+    mutable std::atomic<unsigned> fotoSucia_{FotoMotor::Todas | kFotoRelerArchivos};
+    mutable std::atomic<bool> fotoPedida_{false};
+    std::shared_ptr<const FotoMotor> foto_; ///< la última publicada (solo el dueño)
+    /// Lo que la foto lee de archivos (Config/salidas.json, destinos.json): solo cuando
+    /// cambian las salidas, no en cada vuelta.
+    nlohmann::json fotoListaSalidas_, fotoDestinos_;
+    unsigned ticsMotor_ = 0;
+    std::atomic<bool> hayAire_{false}; ///< para el latido de la interfaz (ticMotor lo pone)
     std::function<std::filesystem::path()> carpetaDelEvento_;
     bool grabacionesPorRetomar_ = false; ///< restoreOutputs: esperan la carpeta del evento
     void addAudioInputs();

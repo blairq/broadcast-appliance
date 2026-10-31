@@ -161,6 +161,7 @@ class Quorum;
 }
 
 class AppRuntime;
+class VentanillaMotor;
 class AccesoRemoto;
 class ConferenceViewModel;
 class JsonListModel;
@@ -470,7 +471,8 @@ class StudioViewModel : public QObject {
     /// Pestaña Audio (patchbay de modulos LSP por fuente); null sin CLAP.
     Q_PROPERTY(QObject* audio READ audio CONSTANT)
    public:
-    explicit StudioViewModel(AppRuntime& rt, QObject* parent = nullptr);
+    /// `ventanilla`: cómo se le pide al motor (que es del plano de control) y su foto (F3-03).
+    StudioViewModel(AppRuntime& rt, VentanillaMotor& ventanilla, QObject* parent = nullptr);
     ~StudioViewModel() override;
 
     bool recording() const { return recording_; }
@@ -759,7 +761,7 @@ class StudioViewModel : public QObject {
     /// El FTB y la placa de seguridad (modelo): la GUI y el MCP los ponen por ahí.
     emision::SeguridadAire& seguridadAire() { return salidas_->seguridadAire(); }
     /// Lo que oye cada invitado (modelo, Config/retornos.json).
-    emision::RetornosInvitados& retornos() { return emision_->retornos(); }
+    emision::RetornosInvitados& retornos() { return emision_->retornosInvitados(); }
     /// El objetivo de loudness guardado (modelo, Config/loudness.json).
     audio::ObjetivoLoudness& objetivoLoudness() { return emision_->objetivoLoudness(); }
 
@@ -814,6 +816,12 @@ class StudioViewModel : public QObject {
 
    private:
     AppRuntime& rt_;
+    VentanillaMotor& ventanilla_; ///< el motor es del plano de control: se le pide y se lee su foto
+    /// Lo que cambió en la foto del motor (lo de la raíz: las pastillas, el lienzo, el editor).
+    void alCambiarFoto(unsigned partes);
+    /// El retorno de cada salida que alguien mira ("" = la por omisión): se le pide al motor
+    /// solo cuando cambia.
+    std::map<std::string, bool> retornoEnUso_;
     std::unique_ptr<ScenesModel> scenes_;
     std::unique_ptr<SourcesModel> sources_;
     std::unique_ptr<MixerModel> mixer_;

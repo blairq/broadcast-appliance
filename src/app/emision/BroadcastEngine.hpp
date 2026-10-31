@@ -38,13 +38,15 @@
 // del gateway sigue como el de cualquier salida. Apagar o rearmar el motor no le pide
 // parar nada: lo para el operador, o el cierre ordenado del launcher.
 //
-// Modelo de threading (F3-03): EL TURNO (emision/TurnoMotor.hpp). Lo usan el dueño (la
-// interfaz o el arranque headless) y el plano de control (las acciones de aire del MCP con
-// la interfaz trabada), de a uno: cada método de la API toma el turno al entrar, salvo los
-// que dicen DESDE CUALQUIER HILO (fotos y medidas con su propio candado). El motor tiene sus
-// hilos (el de salidas, el de los cuadros, los de GStreamer): no toman el turno; lo que
-// llega de ellos solo toca estructuras con su propio candado. Una operación compuesta de
-// afuera (AppRuntime, escenas::Conmutador) toma el turno por todo lo que dura (turno()).
+// Modelo de threading (F3-03): EL TURNO (emision/TurnoMotor.hpp). El dueño es el plano de
+// control (en la consola, su bucle): corre el reloj del motor, las órdenes de la interfaz
+// (emision/VentanillaMotor) y las herramientas MCP del control. La interfaz que todavía
+// entra directo (las áreas sin migrar) lo toma por evento y queda contada. Cada método de
+// la API toma el turno al entrar, salvo los que dicen DESDE CUALQUIER HILO (fotos, medidas y
+// vistas con su propio candado). El motor tiene sus hilos (el de salidas, el de los
+// cuadros, los de GStreamer): no toman el turno; lo que llega de ellos solo toca
+// estructuras con su propio candado. Una operación compuesta de afuera (AppRuntime,
+// escenas::Conmutador) toma el turno por todo lo que dura (turno()).
 //
 // Estrategia de errores: no lanza. Cada operacion devuelve bool y deja el
 // motivo en `lastError()`, que es DEL HILO que llamó (como errno): lo que falló en el
@@ -858,11 +860,13 @@ class BroadcastEngine {
     void medirVista(const std::string& clave);
     void disableScenePreview() { disableScenePreview("editor"); }
     /// El último cuadro de ese canal (BGRA) si es más nuevo que `serial`: comparte los
-    /// bytes con la vista del motor (motor::Pixeles), no los copia (F3-11).
+    /// bytes con la vista del motor (motor::Pixeles), no los copia (F3-11). DESDE CUALQUIER
+    /// HILO (la interfaz los lee a 60 Hz sin el turno: F3-03); pedir y soltar una vista, no.
     bool renderScenePreview(const std::string& canal, motor::Cuadro& out, std::uint64_t& serial);
+    /// DESDE CUALQUIER HILO.
     std::string scenePreviewName(const std::string& canal) const;
     /// El ultimo frame de vista previa (BGRA) si es mas nuevo que `serial`, sin copiarlo
-    /// (como renderScenePreview).
+    /// (como renderScenePreview). DESDE CUALQUIER HILO.
     bool latestPreview(motor::Cuadro& out, std::uint64_t& serial) const;
     /// Picos del programa desde la ultima llamada, en dBFS (L, R). -100 = silencio.
     void programPeaksDb(float& left, float& right, const std::string& salida = "");
@@ -1212,6 +1216,9 @@ class BroadcastEngine {
     std::shared_ptr<MedicionSincro> medSincro_;
 
     // Vistas para la interfaz
+    /// Las vistas que lee la interfaz sin el turno (latestPreview, renderScenePreview,
+    /// scenePreviewName): quien las cambia (con el turno) y quien cambia motor_ las toma.
+    mutable std::mutex vistasMu_;
     bool previewActive_ = false;
     bool vistasSinMirar_ = false; ///< soltarVistasSinMirar
     std::uint64_t previewSerie_ = 0;

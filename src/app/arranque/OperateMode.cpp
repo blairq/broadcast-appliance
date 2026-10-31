@@ -238,25 +238,53 @@ void AppRuntime::requestStop() { g_stop.store(true); }
 bool AppRuntime::stopRequested() { return g_stop.load(); }
 
 int AppRuntime::observar(std::function<void(Cambio)> fn) {
+    const std::lock_guard<std::mutex> l(observadoresMu_);
     observadores_.emplace_back(++proximoObservador_, std::move(fn));
     return proximoObservador_;
 }
 
 void AppRuntime::dejarDeObservar(int id) {
+    const std::lock_guard<std::mutex> l(observadoresMu_);
     observadores_.erase(std::remove_if(observadores_.begin(), observadores_.end(),
                                        [id](const auto& o) { return o.first == id; }),
                         observadores_.end());
 }
 
+unsigned AppRuntime::partesDe(Cambio c) {
+    // Qué partes de la foto toca cada aviso (FotoMotor::Parte); las salidas y los ajustes,
+    // además, lo que la foto lee de archivos (salidas.json, destinos.json).
+    switch (c) {
+        case Cambio::Salidas: return FotoMotor::Salidas | FotoMotor::Estado | FotoMotor::Emision | kFotoRelerArchivos;
+        case Cambio::Escenas: return FotoMotor::Escenas | FotoMotor::Salidas;
+        case Cambio::Aire: return FotoMotor::Salidas | FotoMotor::Estado;
+        case Cambio::Fuentes:
+        case Cambio::Capa: return FotoMotor::Escenas;
+        case Cambio::Audio: return FotoMotor::Medidas;
+        case Cambio::Ajustes:
+            return FotoMotor::Ajustes | FotoMotor::Escenas | FotoMotor::Emision | FotoMotor::Salidas | kFotoRelerArchivos;
+    }
+    return FotoMotor::Todas | kFotoRelerArchivos;
+}
+
 void AppRuntime::avisar(Cambio c) const {
-    // Los que escuchan son del dueño (los view models): lo que cambió el plano de control
-    // les llega encolado, en su hilo (F3-03).
+    // La foto que lee la interfaz se rearma con esto (la publica el dueño enseguida).
+    fotoSucia(partesDe(c));
+    // Los que escuchan, en el dueño (los conmutadores son suyos; los view models se lo
+    // encargan a su bucle): lo que cambió otro hilo les llega encolado (F3-03).
     if (!esDueno() && encolarEnDueno_) {
-        enDueno([this, c]() { avisar(c); });
+        enDueno([this, c]() { avisarObservadores(c); });
         return;
     }
+    avisarObservadores(c);
+}
+
+void AppRuntime::avisarObservadores(Cambio c) const {
     // Sobre una copia: quien escucha puede darse de baja mientras se le avisa.
-    const auto lista = observadores_;
+    std::vector<std::pair<int, std::function<void(Cambio)>>> lista;
+    {
+        const std::lock_guard<std::mutex> l(observadoresMu_);
+        lista = observadores_;
+    }
     for (const auto& [id, fn] : lista)
         if (fn) fn(c);
 }
@@ -274,6 +302,8 @@ void AppRuntime::setEncolarEnDueno(std::function<void(std::function<void()>)> en
     encolarEnDueno_ = std::move(encolar);
 }
 
+void AppRuntime::cederDueno() { dueno_ = std::this_thread::get_id(); }
+
 bool AppRuntime::esDueno() const {
     const std::thread::id d = dueno_.load();
     return d == std::thread::id() || d == std::this_thread::get_id();
@@ -281,6 +311,11 @@ bool AppRuntime::esDueno() const {
 
 void AppRuntime::enDueno(std::function<void()> fn) const {
     if (esDueno() || !encolarEnDueno_) return fn();
+    encolarEnDueno_(std::move(fn));
+}
+
+void AppRuntime::despuesEnDueno(std::function<void()> fn) const {
+    if (!encolarEnDueno_) return fn();
     encolarEnDueno_(std::move(fn));
 }
 
@@ -810,6 +845,7 @@ int AppRuntime::start() {
 void AppRuntime::tick() {
     ticControl();
     ticMotor();
+    latirInterfaz();
 }
 
 void AppRuntime::ticControl() {
@@ -825,16 +861,32 @@ void AppRuntime::ticControl() {
     documento_.volcar();
 }
 
-void AppRuntime::ticMotor() {
+void AppRuntime::latirInterfaz() {
     // El latido de la INTERFAZ: este reloj corre en su hilo, así que si la interfaz se
-    // traba el supervisor lo sabe (LatidoAire decide si hay que esperar o relanzar).
+    // traba el supervisor lo sabe (LatidoAire decide si hay que esperar o relanzar). Si hay
+    // aire lo dice la última vuelta del motor: la interfaz no lo toca.
     if (health_.valid()) {
         std::lock_guard<std::mutex> l(healthMu_);
         health_.beat(kHealthSlot);
     }
+    if (started_) latido_.uiTick(hayAire_.load());
+}
+
+void AppRuntime::ticMotor() {
+    // El reloj del motor es del dueño (entre el arranque del plano y la mudanza, no hace nada).
+    if (!esDueno()) return;
+    // Con el turno: si la interfaz lo tiene (una vista que todavía entra directo, trabada
+    // adentro), esta vuelta se saltea. El dueño no espera a la interfaz.
+    const TurnoMotor& turno = engine_.turno();
+    if (!turno.tomarHasta(TurnoMotor::participa() ? 5 : 0)) return;
+    struct Soltar {
+        const TurnoMotor& t;
+        ~Soltar() { t.soltar(); }
+    } soltar{turno};
+    ++ticsMotor_;
     if (started_) {
         const EngineStatus st = engine_.status();
-        latido_.uiTick(st.streaming || st.recording);
+        hayAire_ = st.streaming || st.recording;
         ajustesAire(); // la copia de los ajustes de aire, para el plano de control
         // (Un codificador que se cae en el aire, una grabación o una transmisión que se
         // cortan: las atiende el hilo de salidas del motor, ver BroadcastEngine::ticSalidas.)
@@ -844,8 +896,16 @@ void AppRuntime::ticMotor() {
         // La GPU del video se perdió (F3-09): el motor no se rearma solo, lo rearma la app.
         if (ba::motor::gpuPerdida()) rearmarPorGpu();
         publicarSalidas(st);
+        // Las entradas de audio que el sistema tardó en abrir (addGlobalAudio) se
+        // enganchan cuando llegan: una vez por segundo.
+        if (ticsMotor_ % 10 == 0) engine_.adoptPendingAudio();
     }
     engine_.aplicarRecortesPendientes(); // los de cámaras que recién tienen tamaño
+    // La foto que lee la interfaz: lo que se mueve solo (lo que sale, las medidas) en cada
+    // vuelta; lo de la emisión (grabación, ISO, limpia, disco) dos veces por segundo.
+    fotoSucia_.fetch_or(FotoMotor::Salidas | FotoMotor::Estado | FotoMotor::Medidas |
+                        (ticsMotor_ % 5 == 0 ? static_cast<unsigned>(FotoMotor::Emision) : 0u));
+    publicarFoto();
 }
 
 void AppRuntime::publicarSalidas(const EngineStatus& st) {
@@ -1111,7 +1171,10 @@ void AppRuntime::writeOnAirState() {
     documento_.ponerSalidas(aireActual().salidas, cerrando_);
 }
 
-void AppRuntime::aireCambio() { writeOnAirState(); }
+void AppRuntime::aireCambio() {
+    writeOnAirState();
+    fotoSucia(FotoMotor::Salidas); // el negro y la placa de cada salida, en la foto
+}
 
 void AppRuntime::leerAireAnterior() {
     documento_.setCarpeta(ba::platform::stateDir());
@@ -1393,13 +1456,23 @@ void escribirDestinos(const std::filesystem::path& root, const nlohmann::json& d
 }
 } // namespace
 
-nlohmann::json AppRuntime::destinos() const {
-    const nlohmann::json est = engine_.extrasEstado();
+nlohmann::json AppRuntime::destinos() const { return destinosConEstado(destinosGuardados()); }
+
+nlohmann::json AppRuntime::destinosGuardados() const {
     nlohmann::json out = nlohmann::json::array();
     for (nlohmann::json d : leerDestinos(root_)) {
-        const std::string id = d.value("id", std::string());
         d["salida"] = salidas::salidaDeDestino(d);
-        d["tiene_clave"] = ba::security::CredentialStore::bundle().exists("stream-" + id);
+        d["tiene_clave"] = ba::security::CredentialStore::bundle().exists("stream-" + d.value("id", std::string()));
+        out.push_back(std::move(d));
+    }
+    return out;
+}
+
+nlohmann::json AppRuntime::destinosConEstado(const nlohmann::json& guardados) const {
+    const nlohmann::json est = engine_.extrasEstado();
+    nlohmann::json out = nlohmann::json::array();
+    for (nlohmann::json d : guardados) {
+        const std::string id = d.value("id", std::string());
         const nlohmann::json e = est.value(id, nlohmann::json::object());
         d["activo"] = e.value("activo", false);
         d["reconectando"] = e.value("reconectando", false);

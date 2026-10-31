@@ -27,6 +27,7 @@
 #include "dispositivos/Dispositivos.hpp"
 #include "dispositivos/Registro.hpp"
 #include "emision/AvisoFueraDeUi.hpp"
+#include "emision/VentanillaMotor.hpp"
 #include "escenas/Conmutador.hpp"
 #include "escenas/ControlGrillas.hpp"
 #include "escenas/RespaldoEntradas.hpp"
@@ -86,7 +87,8 @@ QString qs(const std::string& s) { return QString::fromStdString(s); }
 
 } // namespace
 
-StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(parent), rt_(rt) {
+StudioViewModel::StudioViewModel(AppRuntime& rt, VentanillaMotor& ventanilla, QObject* parent)
+    : QObject(parent), rt_(rt), ventanilla_(ventanilla) {
     // Cada aviso del operador (los de abajo a la derecha) queda en el registro: si no,
     // solo los ve quien está mirando y no hay cómo saber cuáles se apilaron.
     connect(this, &StudioViewModel::notify, this, [](const QString& texto, const QString& nivel) {
@@ -151,9 +153,11 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
         ba::diag::registro().linea(ba::diag::Nivel::Aviso, "arranque", 0,
                                    ba::i18n::traducir("arranque", "modo seguro: no se carga nada del disco en esta corrida"));
     }
-    scenes_ = std::make_unique<ScenesModel>(rt);
+    // Las escenas y las fuentes del editor: de la foto del motor (se actualizan solas con lo
+    // que avisa la ventanilla); lo que se cambia, se pide (F3-03).
+    scenes_ = std::make_unique<ScenesModel>(ventanilla_);
     marca("scenes");
-    sources_ = std::make_unique<SourcesModel>(rt);
+    sources_ = std::make_unique<SourcesModel>(rt, ventanilla_);
     marca("sources");
     sources_->setScene(currentScene());
     mixer_ = std::make_unique<MixerModel>(rt);
@@ -171,7 +175,13 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
                                                                   : rt.dataRoot() / "Config" / "ui.json");
         marca("dashboard");
     }
-    frames_ = std::make_unique<FrameService>(rt.engine(), rt.config().guests);
+    // Las vistas del motor se leen sin el turno; pedirlas y soltarlas se le encarga al dueño.
+    frames_ = std::make_unique<FrameService>(
+        rt.engine(),
+        [this](std::function<void(BroadcastEngine&)> fn) {
+            ventanilla_.pedir("vista", [&rt = rt_, fn = std::move(fn)]() { fn(rt.engine()); });
+        },
+        ventanilla_.foto().ajustes.invitados);
     marca("frames");
     frames_->setLobbySlots(rt.gateway().lobbySlots);
     // Las salidas (ui/SalidasViewModel): el conmutador de escenas de cada una, el FTB y la
@@ -179,6 +189,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     // mezcla); las pantallas de tally de la sala y el monitor «armada» siguen a la por omisión.
     salidas_ = std::make_unique<SalidasViewModel>(SalidasViewModel::Partes{
         .rt = rt,
+        .ventanilla = ventanilla_,
         .recursos = *recursos_,
         .interfaz = *interfaz_,
         .airePorOmision = [this]() {
@@ -195,15 +206,13 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
         if (conference_) conference_->client().ponerSalidas(alGateway);
         if (control_) control_->controlWeb().salidasCambiaron(); // sus aparatos ven la lista nueva
     });
+    // (La lista de escenas sabe sola qué está al aire y qué armado: lo lee de la foto.)
     connect(salidas_.get(), &SalidasViewModel::alAireActivaCambio, this, [this](const QString& escena) {
-        scenes_->liveChanged();
         sources_->setScene(escena); // el editor de fuentes sigue a la escena al aire
         emit sceneChanged();
     });
-    connect(salidas_.get(), &SalidasViewModel::armadaActivaCambio, this, [this](const QString& escena) {
-        scenes_->setArmada(escena);
-        emit sceneChanged();
-    });
+    connect(salidas_.get(), &SalidasViewModel::armadaActivaCambio, this, [this]() { emit sceneChanged(); });
+    connect(salidas_.get(), &SalidasViewModel::notify, this, &StudioViewModel::notify);
     connect(salidas_.get(), &SalidasViewModel::afvActivaCambio, this, &StudioViewModel::statusChanged);
     connect(salidas_.get(), &SalidasViewModel::alAirePorOmisionCambio, this, &StudioViewModel::publicarTally);
     connect(salidas_.get(), &SalidasViewModel::armadaPorOmisionCambio, this, [this](const QString& escena) {
@@ -219,7 +228,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     // Los mandos de las escenas: armarlas, ordenarlas, el preview y el TAKE de la activa, el
     // AFV, la repetición (ui/EscenasViewModel).
     escenas_ = std::make_unique<EscenasViewModel>(
-        EscenasViewModel::Partes{.rt = rt, .salidas = *salidas_, .lista = *scenes_, .fuentes = *sources_});
+        EscenasViewModel::Partes{.rt = rt, .ventanilla = ventanilla_, .salidas = *salidas_, .fuentes = *sources_});
     connect(escenas_.get(), &EscenasViewModel::notify, this, &StudioViewModel::notify);
     connect(escenas_.get(), &EscenasViewModel::listaCambio, this, &StudioViewModel::escenasCambiaron);
     connect(escenas_.get(), &EscenasViewModel::escenaCambio, this, &StudioViewModel::sceneChanged);
@@ -243,13 +252,12 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     connect(sala_.get(), &SalaViewModel::cupoCambio, this, [this](int n) { frames_->setGuests(n); });
     // Grabar, transmitir y lo que los rodea: destinos, señal limpia, ISO, disco, loudness,
     // retornos y la salud de cada destino (ui/EmisionViewModel).
-    emision_ = std::make_unique<EmisionViewModel>(
-        EmisionViewModel::Partes{.rt = rt, .sala = *conference_, .grabando = [this]() { return recording_; }});
+    emision_ = std::make_unique<EmisionViewModel>(EmisionViewModel::Partes{
+        .rt = rt, .ventanilla = ventanilla_, .sala = *conference_, .grabando = [this]() { return recording_; }});
     connect(emision_.get(), &EmisionViewModel::notify, this, &StudioViewModel::notify);
     connect(emision_.get(), &EmisionViewModel::refrescar, this, &StudioViewModel::onTick);
     connect(emision_.get(), &EmisionViewModel::estadoCambio, this, &StudioViewModel::statusChanged);
-    // Los destinos de cada salida van en su fila.
-    connect(emision_.get(), &EmisionViewModel::destinosChanged, salidas_.get(), &SalidasViewModel::publicar);
+    // (Los destinos de cada salida van en su fila: los trae la foto.)
     salidas_->publicar(); // el gateway se entera de las salidas apenas hay con quién hablar
     marca("conference");
     connect(conference_.get(), &ConferenceViewModel::notify, this, &StudioViewModel::notify);
@@ -309,11 +317,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     connect(publico_.get(), &PublicoViewModel::notify, this, &StudioViewModel::notify);
     medios_ = std::make_unique<MediosViewModel>(rt, this);
     playlist_ = std::make_unique<medios::Playlist>(rt, this);
-    playlist_->setArmar([this](const QString& escena) {
-        scenes_->reload();
-        emit escenasCambiaron();
-        return salidas_->conmutador().armar(escena.toStdString());
-    });
+    playlist_->setArmar([this](const QString& escena) { return salidas_->conmutador().armar(escena.toStdString()); });
     connect(playlist_.get(), &medios::Playlist::notify, this, &StudioViewModel::notify);
     // Tras un corte de luz, la playlist sigue donde estaba (P0.10). Un rato
     // después: que las fuentes ya estén armadas.
@@ -664,10 +668,8 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     // Las etiquetas de video ("Invitado 2") pasan a ser el nombre real.
     connect(conference_.get(), &ConferenceViewModel::roomChanged, this,
             [this]() { frames_->setGuestNames(conference_->slotNames()); });
-    connect(conference_.get(), &ConferenceViewModel::sourceAdded, this, [this]() {
-        sources_->reload();
-        mixer_->reload();
-    });
+    // (Las fuentes del editor llegan con la foto del motor.)
+    connect(conference_.get(), &ConferenceViewModel::sourceAdded, this, [this]() { mixer_->reload(); });
 
     connect(sources_.get(), &SourcesModel::error, this,
             [this](const QString& m) { emit notify(m, "error"); });
@@ -689,11 +691,15 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     // pida (la interfaz, el MCP, un plugin, el guion), se refleja acá solo. Los
     // avisos se juntan y se aplican en una pasada por vuelta del bucle: arrastrar
     // una capa o crear escenas en tanda no recarga las listas en cada paso.
+    // (Llegan en el dueño del motor: se juntan acá y se reflejan en el bucle de la interfaz.)
     observadorRt_ = rt_.observar([this](AppRuntime::Cambio c) {
         const unsigned bit = 1u << static_cast<unsigned>(c);
         if (avisosPendientes_.fetch_or(bit) == 0)
             QMetaObject::invokeMethod(this, &StudioViewModel::refrescarAvisos, Qt::QueuedConnection);
     });
+    // Lo que muestra la raíz (las pastillas, el lienzo, la escena del editor) sale de la foto
+    // del motor: se refleja cuando llega una nueva (F3-03).
+    connect(&ventanilla_, &VentanillaMotor::cambio, this, &StudioViewModel::alCambiarFoto);
     // Todos los enlaces del aparato (página Enlaces y MCP enlaces_*): cómo preguntar y
     // prender cada servicio, sin que el modelo conozca sus clases.
     {
@@ -817,15 +823,22 @@ void StudioViewModel::onTick() {
                              (pantallas_ != nullptr && pantallas_->muestraPrograma());
         const qint64 ahora = QDateTime::currentMSecsSinceEpoch();
         if (alguien) retornoVistoMs_ = ahora;
-        rt_.engine().retornoEnUso(alguien || ahora - retornoVistoMs_ < 10000);
+        // Al motor, solo cuando cambia (se le pide al dueño).
+        const auto enUso = [this](const std::string& salida, bool si) {
+            const auto it = retornoEnUso_.find(salida);
+            if (it != retornoEnUso_.end() && it->second == si) return;
+            retornoEnUso_[salida] = si;
+            ventanilla_.pedir("retorno_en_uso", [&rt = rt_, salida, si]() { rt.engine().retornoEnUso(si, salida); });
+        };
+        enUso({}, alguien || ahora - retornoVistoMs_ < 10000);
         // Las demás salidas: su retorno (BA.Salida.<id>) solo mientras el gateway dice
         // que alguien lo mira, con los mismos 10 s de gracia.
         const QJsonObject miranSalidas = conf != nullptr ? conf->client().miranSalidas() : QJsonObject();
-        for (const std::string& id : rt_.engine().salidaIds()) {
-            if (id == BroadcastEngine::kSalidaPorOmision) continue;
-            const QString q = qs(id);
+        for (const FotoMotor::Salida& s : ventanilla_.foto().salidas) {
+            if (s.porOmision) continue;
+            const QString q = qs(s.id);
             if (miranSalidas.value(q).toInt() > 0) salidaVistaMs_[q] = ahora;
-            rt_.engine().retornoEnUso(ahora - salidaVistaMs_.value(q, ahora - 10000) < 10000, id);
+            enUso(s.id, ahora - salidaVistaMs_.value(q, ahora - 10000) < 10000);
         }
     }
     // Lo de la interfaz que mira el vigía de las alarmas (en el plano de control), como
@@ -838,27 +851,27 @@ void StudioViewModel::onTick() {
     // La interfaz volvió de una traba: cuánto duró (el aire no se cortó).
     if (const std::uint64_t ms = rt_.latido().tomarTrabaTerminada(); ms > 0)
         emit notify(tr("La interfaz estuvo trabada %1 s; el aire siguió").arg(ms / 1000.0, 0, 'f', 1), "warn");
-    const EngineStatus st = rt_.engine().status();
-    if (st.recording && !recording_) {
+    // Lo que sale de la por omisión: de la foto del motor (la última vuelta de su reloj).
+    const FotoMotor::EstadoAire& st = ventanilla_.foto().estado;
+    if (st.graba && !recording_) {
         recSince_ = std::chrono::steady_clock::now();
         recSinceMs_ = QDateTime::currentMSecsSinceEpoch();
     }
-    if (st.streaming && !streaming_) {
+    if (st.transmite && !streaming_) {
         streamSince_ = std::chrono::steady_clock::now();
         lastBytes_ = 0;
         lastBytesAt_ = streamSince_;
     }
-    salidas_->alTic(st); // qué sale de cada una de las demás salidas y desde cuándo
     // Un corte pedido es un aviso corto; uno que nadie pidio (red, servidor,
     // disco lleno) queda fijo en la barra del operador hasta que lo cierre.
     const auto dropped = [this](const QString& title, const QString& text) {
         asistente_->mensajes().post(
             {{"kind", "message"}, {"priority", "critical"}, {"title", title.toStdString()}, {"text", text.toStdString()}});
     };
-    if (recording_ && !st.recording) {
-        if (rt_.recordStopWanted()) {
+    if (recording_ && !st.graba) {
+        if (st.corteGrabacionPedido) {
             emit notify(tr("Grabación detenida"), "info");
-        } else if (st.recordingDown) {
+        } else if (st.grabacionCaida) {
             // Se cortó y el motor la rearma sola en otra parte (F1-05). La interfaz NUNCA
             // la para por su cuenta: la grabación es del motor, que la vuelve a armar (y un
             // instante sin grabar también pasa al rearmar el motor, p. ej. tras perder la GPU:
@@ -870,33 +883,33 @@ void StudioViewModel::onTick() {
     // Una transmisión que se corta sin que nadie la pare la reconecta el motor solo (se
     // avisa abajo, con «reconectando…»). La interfaz no la para: un instante sin
     // transmitir también pasa al rearmar el motor (la GPU perdida), y pararla ahí la mataba.
-    if (streaming_ && !st.streaming && rt_.streamStopWanted()) emit notify(tr("Transmisión detenida"), "warn");
+    if (streaming_ && !st.transmite && st.corteTransmisionPedido) emit notify(tr("Transmisión detenida"), "warn");
     // Si cambio el aire o la grabacion, el tally lo tiene que saber: una
     // pantalla que dice «al aire» con la transmision cortada miente, y es la
     // clase de mentira por la que alguien se confia.
-    const bool cambioElAire = recording_ != st.recording || streaming_ != st.streaming;
-    recording_ = st.recording;
-    streaming_ = st.streaming;
+    const bool cambioElAire = recording_ != st.graba || streaming_ != st.transmite;
+    recording_ = st.graba;
+    streaming_ = st.transmite;
     if (cambioElAire) publicarTally();
     // Avisar UNA vez por problema, no en cada vuelta del reloj.
-    if (st.reconnecting && !reconnecting_)
-        emit notify(tr("Se cortó la transmisión: reconectando… (%1)").arg(qs(st.outputProblem)), "error");
-    else if (!st.reconnecting && reconnecting_ && st.streaming)
+    if (st.reconectando && !reconnecting_)
+        emit notify(tr("Se cortó la transmisión: reconectando… (%1)").arg(qs(st.problema)), "error");
+    else if (!st.reconectando && reconnecting_ && st.transmite)
         emit notify(tr("Transmisión recuperada"), "ok");
-    reconnecting_ = st.reconnecting;
-    outputProblem_ = qs(st.outputProblem);
+    reconnecting_ = st.reconectando;
+    outputProblem_ = qs(st.problema);
     fps_ = st.fps;
-    encoder_ = qs(st.videoEncoder);
-    dropped_ = st.droppedFrames;
-    total_ = st.totalFrames;
+    encoder_ = qs(st.codificador);
+    dropped_ = st.descartados;
+    total_ = st.cuadros;
     // Bitrate real de la transmision (promedio de ~1 s).
     const auto now = std::chrono::steady_clock::now();
     const double dt = std::chrono::duration<double>(now - lastBytesAt_).count();
-    if (st.streaming && dt >= 1.0) {
-        kbps_ = static_cast<int>((st.bytesSent - lastBytes_) * 8.0 / 1000.0 / dt);
-        lastBytes_ = st.bytesSent;
+    if (st.transmite && dt >= 1.0) {
+        kbps_ = static_cast<int>((st.bytes - lastBytes_) * 8.0 / 1000.0 / dt);
+        lastBytes_ = st.bytes;
         lastBytesAt_ = now;
-    } else if (!st.streaming) {
+    } else if (!st.transmite) {
         kbps_ = 0;
     }
     cpu_ = cpuUso_.medir();
@@ -935,32 +948,31 @@ void StudioViewModel::onTick() {
 
 QString StudioViewModel::recordTime() const { return recording_ ? hmsDesde(recSince_) : QString("00:00:00"); }
 QString StudioViewModel::streamTime() const { return streaming_ ? hmsDesde(streamSince_) : QString("00:00:00"); }
+// Lo que muestran las pastillas y el lienzo: de la foto del motor (F3-03).
 QString StudioViewModel::currentScene() const {
-    return qs(rt_.engine().currentScene(salidas_ ? salidas_->activaId() : std::string()));
+    const FotoMotor::Salida* s = ventanilla_.foto().salida(salidas_ ? salidas_->activaId() : std::string());
+    return s != nullptr ? qs(s->alAire) : QString();
 }
-QString StudioViewModel::transitionType() const { return qs(rt_.config().transition.type); }
+QString StudioViewModel::transitionType() const { return qs(ventanilla_.foto().ajustes.transicion); }
 double StudioViewModel::canvasAspect() const {
-    const VideoConfig& v = rt_.config().video;
-    return v.baseHeight > 0 ? double(v.baseWidth) / v.baseHeight : 16.0 / 9.0;
+    const FotoMotor::AjustesVideo& v = ventanilla_.foto().ajustes;
+    return v.baseAlto > 0 ? double(v.baseAncho) / v.baseAlto : 16.0 / 9.0;
 }
 QString StudioViewModel::canvasLabel() const {
-    const VideoConfig& v = rt_.config().video;
-    return QString("%1x%2 · %3 fps").arg(v.outputWidth).arg(v.outputHeight).arg(qs(fpsLegible(v.fpsNum, v.fpsDen)));
+    const FotoMotor::AjustesVideo& v = ventanilla_.foto().ajustes;
+    return QString("%1x%2 · %3 fps").arg(v.salidaAncho).arg(v.salidaAlto).arg(qs(fpsLegible(v.fpsNum, v.fpsDen)));
 }
-QString StudioViewModel::streamServer() const { return qs(rt_.config().streamCfg.server); }
-bool StudioViewModel::streamKeyAvailable() const {
-    const char* k = std::getenv(rt_.config().streamKeyEnv.c_str());
-    return k != nullptr && *k != '\0';
-}
-bool StudioViewModel::streamKeySaved() const { return rt_.streamKeySaved(); }
-QString StudioViewModel::room() const { return qs(const_cast<AppRuntime&>(rt_).gateway().room); }
+QString StudioViewModel::streamServer() const { return qs(ventanilla_.foto().ajustes.servidor); }
+bool StudioViewModel::streamKeyAvailable() const { return ventanilla_.foto().ajustes.claveEnEntorno; }
+bool StudioViewModel::streamKeySaved() const { return ventanilla_.foto().ajustes.claveGuardada; }
+QString StudioViewModel::room() const { return qs(ventanilla_.foto().ajustes.sala); }
 QObject* StudioViewModel::direccionesQml() const { return sala_->direccionesQml(); }
 QObject* StudioViewModel::salaQml() const {
     QQmlEngine::setObjectOwnership(sala_.get(), QQmlEngine::CppOwnership);
     return sala_.get();
 }
-int StudioViewModel::guests() const { return rt_.config().guests; }
-QString StudioViewModel::theme() const { return qs(rt_.config().theme); }
+int StudioViewModel::guests() const { return ventanilla_.foto().ajustes.invitados; }
+QString StudioViewModel::theme() const { return qs(ventanilla_.foto().ajustes.tema); }
 
 QObject* StudioViewModel::scenes() const { return scenes_.get(); }
 QObject* StudioViewModel::sources() const { return sources_.get(); }
@@ -1107,23 +1119,27 @@ QJsonObject StudioViewModel::contextoDeVinculos() const {
     return ctx;
 }
 
-QString StudioViewModel::escenaArmada() const { return qs(salidas_->conmutadorActivo().armada()); }
+QString StudioViewModel::escenaArmada() const {
+    const FotoMotor::Salida* s = ventanilla_.foto().salida(salidas_->activaId());
+    return s != nullptr ? qs(s->armada) : QString();
+}
 
 void StudioViewModel::publicarTally() {
     auto* p = qobject_cast<PantallasViewModel*>(pantallas());
     if (p == nullptr) return;
     // Las pantallas de tally de la sala: las de la por omisión (no la activa de esta interfaz).
-    const QString aire = qs(rt_.engine().currentScene());
-    const QString armada = qs(salidas_->conmutador().armada());
-    const auto fuentesDe = [this](const QString& escena) {
+    const FotoMotor& foto = ventanilla_.foto();
+    const FotoMotor::Salida* omision = foto.salida({});
+    if (omision == nullptr) return;
+    const QString aire = qs(omision->alAire);
+    const QString armada = qs(omision->armada);
+    const auto fuentesDe = [&foto](const QString& escena) {
         QStringList out;
-        if (escena.isEmpty()) return out;
-        for (const std::string& f : rt_.engine().sceneSources(escena.toStdString()))
-            out << qs(f);
+        for (const std::string& f : foto.fuentesDe(escena.toStdString())) out << qs(f);
         return out;
     };
     QStringList enAire = fuentesDe(aire);
-    for (const std::string& f : rt_.engine().fuentesDsk())
+    for (const std::string& f : omision->dsk)
         if (!enAire.contains(qs(f))) enAire << qs(f);
     p->publicarTally(aire, armada, enAire, fuentesDe(armada), streaming(), recording());
 }
@@ -1144,79 +1160,48 @@ void StudioViewModel::save() {
 }
 
 void StudioViewModel::refreshModels() {
-    scenes_->reload();
+    // Las escenas y las fuentes salen de la foto del motor y se actualizan solas: acá, que
+    // la vista las vuelva a leer (y el editor, si su escena ya no existe, a la del aire).
     emit escenasCambiaron();
-    scenes_->liveChanged();
-    // Si la escena que mostraba el editor ya no existe, sigue a la del aire.
-    const std::vector<std::string> names = rt_.engine().sceneNames();
-    if (std::find(names.begin(), names.end(), sources_->scene().toStdString()) == names.end()) {
-        sources_->setScene(currentScene());
-    }
-    sources_->reload();
+    if (ventanilla_.foto().escena(sources_->scene().toStdString()) == nullptr) sources_->setScene(currentScene());
     mixer_->reload();
     emit sceneChanged();
     emit statusChanged();
 }
 
-void StudioViewModel::refrescarAvisos() {
-    const unsigned b = avisosPendientes_.exchange(0);
-    const auto hubo = [b](AppRuntime::Cambio c) { return (b & (1u << static_cast<unsigned>(c))) != 0; };
-    using C = AppRuntime::Cambio;
-    if (hubo(C::Ajustes)) {
+void StudioViewModel::alCambiarFoto(unsigned partes) {
+    if ((partes & FotoMotor::Ajustes) != 0) {
         // Se aplicó la configuración (la GUI o settings_set del MCP): lo que rige ya.
         emit canvasChanged();
         emit themeChanged();
         emit sceneChanged();
-        frames_->setGuests(rt_.config().guests);
+        emit statusChanged();
+        frames_->setGuests(ventanilla_.foto().ajustes.invitados);
+    }
+    if ((partes & FotoMotor::Escenas) != 0) {
+        emit escenasCambiaron(); // el árbol por carpetas se rearma (barato)
+        // Si la escena que mostraba el editor ya no existe, sigue a la del aire.
+        if (ventanilla_.foto().escena(sources_->scene().toStdString()) == nullptr) sources_->setScene(currentScene());
+    }
+}
+
+void StudioViewModel::refrescarAvisos() {
+    // Lo que todavía se lee directo del runtime (las áreas sin migrar a la foto del motor:
+    // la mezcla, la imagen, el control). Las escenas, las fuentes, lo que sale y los
+    // ajustes que muestra la raíz llegan por la foto (alCambiarFoto y cada modelo).
+    const unsigned b = avisosPendientes_.exchange(0);
+    const auto hubo = [b](AppRuntime::Cambio c) { return (b & (1u << static_cast<unsigned>(c))) != 0; };
+    using C = AppRuntime::Cambio;
+    if (hubo(C::Ajustes)) {
         control_->ajustesAplicados(); // el tema de las páginas web, si cambió
         imagen_->ajustesAplicados(); // Mejorar imagen general y el legalizador rigen ya
     }
-    // Las listas se recargan SOLO si quedaron distintas: si el cambio lo hizo la
-    // vista, ya las recargó ella, y otra recarga le borraría la selección.
-    if (hubo(C::Escenas)) {
-        const std::vector<std::string> names = rt_.orderedSceneNames();
-        bool distinta = scenes_->rowCount() != static_cast<int>(names.size());
-        for (int i = 0; !distinta && i < scenes_->rowCount(); ++i)
-            distinta = scenes_->data(scenes_->index(i), ScenesModel::NameRole).toString() !=
-                       qs(names[static_cast<std::size_t>(i)]);
-        if (distinta)
-            scenes_->reload();
-        else if (scenes_->rowCount() > 0) // carpeta o protección: las filas las leen en vivo
-            emit scenes_->dataChanged(scenes_->index(0), scenes_->index(scenes_->rowCount() - 1),
-                                      {ScenesModel::FolderRole, ScenesModel::ProtegidaRole});
-        emit escenasCambiaron(); // el árbol por carpetas se rearma (barato)
-        // Si la escena que mostraba el editor ya no existe, sigue a la del aire.
-        if (std::find(names.begin(), names.end(), sources_->scene().toStdString()) == names.end())
-            sources_->setScene(currentScene());
-    }
-    if (hubo(C::Escenas) || hubo(C::Fuentes)) {
-        // El editor muestra de arriba hacia abajo: la última del motor es la fila 0.
-        const std::vector<std::string> fuentes = rt_.engine().sceneSources(sources_->scene().toStdString());
-        bool distinta = sources_->rowCount() != static_cast<int>(fuentes.size());
-        for (int i = 0; !distinta && i < sources_->rowCount(); ++i)
-            distinta = sources_->data(sources_->index(i), SourcesModel::NameRole).toString() !=
-                       qs(fuentes[fuentes.size() - 1 - static_cast<std::size_t>(i)]);
-        if (distinta) sources_->reload();
-    }
-    // Una capa o un volumen: las filas leen el estado en vivo, alcanza con decir
-    // que cambiaron (sin recargar: no se corta un arrastre a medias).
-    if (hubo(C::Capa) && sources_->rowCount() > 0)
-        emit sources_->dataChanged(sources_->index(0), sources_->index(sources_->rowCount() - 1));
     if (hubo(C::Audio) && mixer_->rowCount() > 0)
         emit mixer_->dataChanged(mixer_->index(0), mixer_->index(mixer_->rowCount() - 1),
                                  {MixerModel::VolumeDbRole, MixerModel::MutedRole});
     // Una entrada de audio nueva (audio_input_add del MCP, un plugin): la lista de
     // fuentes de la página Audio la muestra sin tener que volver a entrar.
     if (hubo(C::Audio) || hubo(C::Fuentes)) mezcla_->revisarFuentes();
-    if (hubo(C::Escenas) || hubo(C::Aire)) {
-        scenes_->liveChanged();
-        emit sceneChanged();
-    }
-    if (hubo(C::Salidas)) {
-        emit statusChanged();
-        emit emision_->destinosChanged();
-    }
-    if (hubo(C::Salidas) || hubo(C::Aire)) salidas_->publicar();
 }
 
 QObject* StudioViewModel::emisionQml() const {
@@ -1239,7 +1224,6 @@ void StudioViewModel::reflejarSalidaActiva() {
     const std::string& activa = salidas_->activaId();
     peakActivaL_ = peakActivaR_ = -100;
     scenes_->setSalida(activa);
-    scenes_->setArmada(escenaArmada());
     sources_->setScene(currentScene());
     mixer_->setSalida(activa);
     if (mezcla_) mezcla_->setSalida(activa);
@@ -1351,7 +1335,7 @@ void StudioViewModel::publicarEventos() {
                        mixer_->nivelEn(i, {}));
     if (segundo) {
         emision_->muestrearSalud(*bus_);
-        bus_->publicar("audio/loudness", rt_.engine().loudness().json());
+        bus_->publicar("audio/loudness", ventanilla_.foto().loudness.value(BroadcastEngine::kSalidaPorOmision, nlohmann::json::object()));
         nlohmann::json sin = nlohmann::json::array();
         for (const QString& e : sinSenal()) sin.push_back(e.toStdString());
         bus_->publicar("entrada/senal", {{"sin_senal", sin}});
@@ -1395,8 +1379,8 @@ QObject* StudioViewModel::puestoCorreccionQml() const { return asistente_->puest
 
 namespace ba::app {
 
-bool StudioViewModel::alAire() const { return rt_.engine().haySalida(); }
-bool StudioViewModel::transmitiendo() const { return rt_.engine().haySalida(false); }
+bool StudioViewModel::alAire() const { return ventanilla_.foto().estado.haySalida; }
+bool StudioViewModel::transmitiendo() const { return ventanilla_.foto().estado.hayTransmision; }
 
 int StudioViewModel::personasConectadas() const {
     // Los invitados de la sala (lobby, programa, fila de oradores) y los integrantes
