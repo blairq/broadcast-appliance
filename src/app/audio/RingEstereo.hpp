@@ -55,7 +55,7 @@ struct Ring {
         escribir(a, b, n);
         ahora_.store(true, std::memory_order_relaxed);
     }
-    /// Empuja un bloque que trae HORA (la de libobs, ba::app::ahoraNs): una
+    /// Empuja un bloque que trae HORA (la monotónica de la app, ba::app::ahoraNs): una
     /// fuente que entrega audio agendado a futuro (la voz del sistema dice una
     /// frase entera de una vez; el teleprompter la agenda segundos antes)
     /// suena a su hora y entera: si hay un hueco hasta esa hora se rellena con

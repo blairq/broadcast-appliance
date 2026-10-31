@@ -2,6 +2,7 @@
 // src/app/agent/ModeloPropio.cpp — ver ModeloPropio.hpp
 // ============================================================================
 #include "agent/ModeloPropio.hpp"
+#include "arranque/ArchivoConfig.hpp"
 
 #include <fstream>
 
@@ -11,15 +12,9 @@ using nlohmann::json;
 
 ModeloPropio ModeloPropio::leer(const std::filesystem::path& archivo) {
     ModeloPropio m;
-    std::ifstream f(archivo);
-    if (!f) return m; // no tener uno configurado no es un error
-    json j;
-    try {
-        f >> j;
-    } catch (const json::exception&) {
-        return m; // un archivo roto se lee como «no hay ninguno»
-    }
-    if (!j.is_object()) return m;
+    // No tener uno configurado no es un error; uno roto se lee como «no hay ninguno».
+    const json j = config::leerObjeto(archivo);
+    if (j.empty()) return m;
     m.url = j.value("url", std::string());
     m.modelo = j.value("modelo", std::string());
     if (j.contains("canales") && j["canales"].is_array()) {
@@ -41,27 +36,15 @@ ModeloPropio ModeloPropio::leer(const std::filesystem::path& archivo) {
 }
 
 bool ModeloPropio::guardar(const std::filesystem::path& archivo) const {
-    std::error_code ec;
-    std::filesystem::create_directories(archivo.parent_path(), ec);
-    // Por un archivo aparte y renombrando: si se corta la luz en el medio, lo
-    // que queda es la configuración vieja entera y no media nueva.
-    const std::filesystem::path parcial = archivo.string() + ".part";
-    {
-        std::ofstream f(parcial, std::ios::trunc);
-        if (!f) return false;
-        json cs = json::array();
-        for (const Canal& c : canales)
-            cs.push_back(json{{"id", c.id},
-                              {"nombre", c.nombre},
-                              {"extra", c.extra.is_object() ? c.extra : json::object()},
-                              {"limite", c.limite.is_object() ? c.limite : json::object()},
-                              {"instrucciones", c.instrucciones},
-                              {"piensa", c.piensa}});
-        f << json{{"url", url}, {"modelo", modelo}, {"canales", cs}}.dump(2, ' ', false, nlohmann::json::error_handler_t::replace);
-        if (!f) return false;
-    }
-    std::filesystem::rename(parcial, archivo, ec);
-    return !ec;
+    json cs = json::array();
+    for (const Canal& c : canales)
+        cs.push_back(json{{"id", c.id},
+                          {"nombre", c.nombre},
+                          {"extra", c.extra.is_object() ? c.extra : json::object()},
+                          {"limite", c.limite.is_object() ? c.limite : json::object()},
+                          {"instrucciones", c.instrucciones},
+                          {"piensa", c.piensa}});
+    return config::guardar(archivo, {{"url", url}, {"modelo", modelo}, {"canales", cs}});
 }
 
 std::vector<std::string> ModeloPropio::comoLosLlamaOpencode() const {

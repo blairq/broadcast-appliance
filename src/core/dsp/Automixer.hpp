@@ -26,7 +26,7 @@
 //   todo el estado vive en arrays de tamano fijo (capacidad fija en la
 //   construccion, sin crecimiento de heap despues). `setParams()` se llama
 //   desde el thread de control y suelta los cambios suavizados (one-pole) para
-//   evitar clicks, igual que `ChannelStrip::setParams()`.
+//   evitar clicks.
 //
 // Estrategia de errores:
 //   No lanza. `setLevel()`/`gainFor()` con `ch` fuera de [0, maxChannels) es un
@@ -56,8 +56,8 @@ struct AutomixerParams {
     double openThresholdDb = -40.0;
 
     // --- Suavizado de la energia (one-pole, ataque rapido / liberacion lenta)
-    // Mismo estilo de envolvente que ChannelStrip: ataque corto para seguir el
-    // habla, liberacion larga para no "parpadear" entre silabas.
+    // Envolvente de ataque corto para seguir el habla y liberacion larga para
+    // no "parpadear" entre silabas.
     double attackMs = 5.0;
     double releaseMs = 200.0;
 
@@ -93,8 +93,7 @@ class Automixer {
 
     /// Reporta el nivel lineal (0..1, se toma el valor absoluto) del canal `ch`
     /// desde el thread de AUDIO. Actualiza la energia suavizada de ese canal
-    /// con un one-pole de ataque rapido / liberacion lenta (mismo estilo de
-    /// envolvente que ChannelStrip). `ch` fuera de [0, maxChannels) es no-op.
+    /// con un one-pole de ataque rapido / liberacion lenta. `ch` fuera de [0, maxChannels) es no-op.
     /// No asigna, no bloquea, no hace I/O.
     ///
     /// :param ch: indice de canal en [0, maxChannels).

@@ -8,7 +8,7 @@
 // barra del asistente como si lo hubiera escrito.
 //
 // CON QUE. sherpa-onnx (extern/sherpa-onnx) sobre el ONNX Runtime del bundle,
-// en CPU: la GPU la usa libobs. Los modelos —un reconocedor y Silero VAD— NO
+// en CPU: la GPU la usa el motor. Los modelos —un reconocedor y Silero VAD— NO
 // viajan en el bundle: se bajan a pedido (Configuración -> Modelos locales).
 // Medido en una M1 Pro con Parakeet-TDT-0.6B-v3 int8: 5,3 s de habla en
 // 0,18 s, con puntuación y acentos.
@@ -16,7 +16,7 @@
 // LA FORMA, la del Reconocedor de rostros: un hilo propio es el único dueño de
 // los modelos; pedido y callback, y NADA pesado en el hilo de la interfaz (el
 // latido se estanca y el launcher da la app por colgada). `alimentar` corre en
-// el hilo de audio de libobs: solo copia muestras bajo un mutex.
+// el hilo de audio que la alimenta (uno de GStreamer): solo copia muestras bajo un mutex.
 //
 // ES UNO DE LOS DOS MOTORES (audio/Reconocedor.hpp): Parakeet, offline, frase
 // por frase. El otro es Nemotron en streaming (audio/EscuchaStreaming); cada
@@ -68,7 +68,7 @@ class Escucha : public Reconocedor {
 
     /// Tecla apretada: empieza una toma nueva (descarta lo anterior).
     void empezar();
-    /// Muestras mono en float, desde cualquier hilo (el de audio de libobs).
+    /// Muestras mono en float, desde cualquier hilo (el de audio que la alimenta).
     /// Fuera de una toma no hace nada.
     void alimentar(const float* muestras, std::size_t n, std::uint32_t frecuencia);
     /// Tecla suelta: transcribe lo grabado en su hilo y llama a `listo` (EN

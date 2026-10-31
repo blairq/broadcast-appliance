@@ -2,6 +2,7 @@
 // src/app/pantallas/Ventanas.cpp — ver Ventanas.hpp
 // ============================================================================
 #include "pantallas/Ventanas.hpp"
+#include "arranque/ArchivoConfigQt.hpp"
 
 #include "pantallas/Catalogo.hpp"
 #include "pantallas/Monitores.hpp"
@@ -103,11 +104,8 @@ std::vector<FilaVentana> VentanasModel::desdeUiViejo(const QJsonArray& windows, 
 
 bool VentanasModel::migrarDesde(const std::filesystem::path& uiJson, const QString& multiviewElegida) {
     // Ya hay ventanas.json: lo de ui.json es viejo (o ya se migró).
-    std::error_code ec;
-    if (archivo_.empty() || std::filesystem::exists(archivo_, ec)) return false;
-    QFile f(QString::fromStdString(uiJson.string()));
-    if (!f.open(QIODevice::ReadOnly)) return false;
-    const QJsonObject o = QJsonDocument::fromJson(f.readAll()).object();
+    if (archivo_.empty() || !config::leerObjeto(archivo_).empty()) return false;
+    const QJsonObject o = config::leerQObjeto(uiJson);
     if (!o.contains("windows")) return false;
     const std::vector<FilaVentana> viejas = desdeUiViejo(o.value("windows").toArray(), multiviewElegida);
     for (const FilaVentana& v : viejas) insertar(v);
@@ -309,9 +307,7 @@ void VentanasModel::tocada(int fila, const QList<int>& roles) {
 
 void VentanasModel::cargar() {
     if (archivo_.empty()) return;
-    QFile f(QString::fromStdString(archivo_.string()));
-    if (!f.open(QIODevice::ReadOnly)) return;
-    const QJsonObject o = QJsonDocument::fromJson(f.readAll()).object();
+    const QJsonObject o = config::leerQObjeto(archivo_);
     for (const QJsonValue& v : o.value("ventanas").toArray()) {
         const QJsonObject w = v.toObject();
         FilaVentana fila;
@@ -347,11 +343,7 @@ void VentanasModel::guardar() const {
         }
         vs.append(w);
     }
-    std::error_code ec;
-    std::filesystem::create_directories(archivo_.parent_path(), ec);
-    QFile f(QString::fromStdString(archivo_.string()));
-    if (f.open(QIODevice::WriteOnly | QIODevice::Truncate))
-        f.write(QJsonDocument(QJsonObject{{"ventanas", vs}}).toJson());
+    config::guardarQ(archivo_, QJsonObject{{"ventanas", vs}});
 }
 
 } // namespace ba::app

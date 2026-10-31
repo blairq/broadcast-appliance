@@ -67,7 +67,7 @@ class AudioRack {
     AudioRack(const AudioRack&) = delete;
     AudioRack& operator=(const AudioRack&) = delete;
 
-    // --- Vigía de los módulos CLAP (corren en el hilo de audio de libobs) -------
+    // --- Vigía de los módulos CLAP (corren en el hilo de audio de GStreamer) ----
     // Cada process() se mide. Si un módulo tarda más del `umbralPct` % de lo que
     // dura el bloque durante `bloques` bloques seguidos, queda en BYPASS
     // AUTOMÁTICO (no se lo llama más; sale la entrada tal cual) hasta que alguien

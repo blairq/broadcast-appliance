@@ -46,7 +46,7 @@ std::filesystem::path bundleRootFor(const std::filesystem::path& exeDir);
 
 /// Raiz del bundle portable del proceso actual (`bundleRootFor(executableDir())`).
 ///
-/// Es de donde salen los BINARIOS (bin/, obs-plugins/, data/). Con copia
+/// Es de donde salen los BINARIOS (bin/, data/). Con copia
 /// sombra (spec 3.1.5) apunta a la copia, no al disco.
 std::filesystem::path bundleRoot();
 

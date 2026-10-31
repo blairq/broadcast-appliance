@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 #include "control/Acciones.hpp"
+#include "arranque/ArchivoConfig.hpp"
 
 #include "i18n/I18n.hpp"
 
@@ -46,8 +47,7 @@ std::string canonica(const std::string& tecla) {
 
 Acciones::Acciones(const fs::path& datos, QObject* parent)
     : QObject(parent), archivo_(datos / "Config" / "atajos.json"), globales_(AtajosGlobales::crear()) {
-    std::ifstream f(archivo_);
-    const json j = json::parse(f, nullptr, false);
+    const json j = config::leerObjeto(archivo_).value("atajos", json::array());
     if (j.is_array()) atajos_ = j;
     registrarGlobales();
 }
@@ -250,10 +250,7 @@ std::string Acciones::tecla(const std::string& t) {
 }
 
 void Acciones::guardar() const {
-    std::error_code ec;
-    fs::create_directories(archivo_.parent_path(), ec);
-    std::ofstream o(archivo_);
-    o << atajos_.dump(1, ' ', false, nlohmann::json::error_handler_t::replace);
+    config::guardar(archivo_, {{"atajos", atajos_}});
 }
 
 void Acciones::registrarGlobales() {

@@ -19,7 +19,7 @@ unidades se prueban por separado (CTest). Enlaza como dependencias de terceros
 `CMakeLists.txt` raíz.
 
 Los includes públicos apuntan a `src/core/`, por lo que los headers se consumen
-como `ipc/SharedAudioRing.hpp`, `dsp/ChannelStrip.hpp`, etc.
+como `ipc/SharedAudioRing.hpp`, `dsp/Automixer.hpp`, etc.
 
 El núcleo se divide en los siguientes namespaces.
 
@@ -93,17 +93,6 @@ spec 7.2/7.4). RT-safe: sin asignación, locks ni I/O en el camino de audio.
 
    namespace ba::dsp { ... }
 
-- `Biquad` — Filtro IIR de 2º orden (forma directa II transpuesta) con las
-  fórmulas del *Audio EQ Cookbook* de RBJ, normalizado por A0.
-  - `BiquadType` (LowPass, HighPass, BandPass, Peaking, LowShelf, HighShelf).
-  - `setParams(type, fs, freq, gainDb, q)`, `process(x)`, `reset()`.
-- `ChannelStrip` — Channel strip nativo (spec 7.2): cadena fija
-  HPF → EQ 4 bandas → de-esser → gate → compresor → limitador (lookahead).
-  Estado en memoria fija; `setParams()` suelta cambios de ganancia suavizados
-  (one-pole) para evitar clicks.
-  - `StripParams` (HPF, 4 bandas de EQ, de-esser, gate, comp, lim, fs).
-  - `setParams(p, smoothMs)`, `process(interleaved, n)`, `reset()`,
-    `lastGainDb()`.
 - `Automixer` — Automixer de mesa redonda (spec 7.3, estilo Dugan). Objeto
   COMPARTIDO: recibe el nivel de cada micro y devuelve la ganancia dinámica de
   cada canal (normalización Dugan + hold + atenuación por cantidad de micros

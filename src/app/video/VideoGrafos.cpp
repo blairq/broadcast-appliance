@@ -1,6 +1,7 @@
 // src/app/video/VideoGrafos.cpp — ver VideoGrafos.hpp
 
 #include "video/VideoGrafos.hpp"
+#include "arranque/ArchivoConfig.hpp"
 #include "platform/Paths.hpp"
 
 #include "video/Diagnostico.hpp"
@@ -1003,7 +1004,8 @@ QString VideoGrafos::ajustarFiltro(const QString& id, const QString& clave, cons
     if (esGst) {
         v = paraGst(v);
     } else if (v.is_string() && v.get<std::string>().size() == 7 && v.get<std::string>()[0] == '#') {
-        // Los colores llegan como "#RRGGBB" y libobs los quiere 0xAABBGGRR.
+        // Los colores llegan como "#RRGGBB"; una tarjeta «obs» (de antes del motor: ya no
+        // corre, pero se conserva) los guarda como 0xAABBGGRR, el formato de su archivo.
         const long long rgb = std::stoll(v.get<std::string>().substr(1), nullptr, 16);
         v = 0xFF000000LL | ((rgb & 0xFF) << 16) | (rgb & 0xFF00) | ((rgb >> 16) & 0xFF);
     }
@@ -1690,11 +1692,7 @@ std::string VideoGrafos::configurarReloj(const json& cambios) {
         if (!e.empty()) return tr("no se pudo publicar el reloj: %1").arg(q(e)).toStdString();
     }
     reloj_ = r;
-    QSaveFile f(QString::fromStdString((archivo_.parent_path() / "video-reloj.json").string()));
-    if (f.open(QIODevice::WriteOnly)) {
-        f.write(QByteArray::fromStdString(reloj_.dump(2, ' ', false, nlohmann::json::error_handler_t::replace)));
-        f.commit();
-    }
+    config::guardar(archivo_.parent_path() / "video-reloj.json", reloj_);
     // Todo el estudio corre con UN reloj (el del motor): cambiarlo rearma el motor.
     if (!rt_.engine().ponerReloj(tipo, r.value("servidor", std::string()), r.value("puerto", 0), r.value("dominio", 0)))
         return tr("no se pudo cambiar el reloj: %1").arg(q(rt_.engine().lastError())).toStdString();
@@ -2269,11 +2267,7 @@ std::string VideoGrafos::configurarProgramador(const json& cambios) {
     if (cambios.contains("bypass_auto")) tarde_.clear(); // con el interruptor recién tocado, de cero
     if (programador_.value("capacidad", std::string("auto")) != "fija") programador_["capacidad"] = "auto";
     if (programador_.value("sin_turno", std::string("barato")) != "reposo") programador_["sin_turno"] = "barato";
-    QSaveFile f(QString::fromStdString((archivo_.parent_path() / "superres-programador.json").string()));
-    if (f.open(QIODevice::WriteOnly)) {
-        f.write(QByteArray::fromStdString(programador_.dump(1, ' ', false, nlohmann::json::error_handler_t::replace)));
-        f.commit();
-    }
+    config::guardar(archivo_.parent_path() / "superres-programador.json", programador_);
     modoSr_.clear(); // que vuelva a mandar todo con lo nuevo
     evaluarSuperres();
     return {};
@@ -3023,36 +3017,22 @@ std::string VideoGrafos::armarMosaico(const std::string& escena, const std::vect
 }
 
 void VideoGrafos::guardar() const {
-    std::error_code ec;
-    std::filesystem::create_directories(archivo_.parent_path(), ec);
-    QSaveFile f(QString::fromStdString(archivo_.string()));
-    if (!f.open(QIODevice::WriteOnly)) return;
-    f.write(QByteArray::fromStdString(grafo_.aJson().dump(2, ' ', false, nlohmann::json::error_handler_t::replace)));
-    f.commit();
+    config::guardar(archivo_, grafo_.aJson());
 }
 
 void VideoGrafos::cargar() {
     {
-        QFile r(QString::fromStdString((archivo_.parent_path() / "video-reloj.json").string()));
-        if (r.open(QIODevice::ReadOnly)) {
-            const json j = json::parse(r.readAll().toStdString(), nullptr, false);
-            if (j.is_object()) reloj_ = j;
-        }
+        const json j = config::leerObjeto(archivo_.parent_path() / "video-reloj.json");
+        if (!j.empty()) reloj_ = j;
     }
     {
-        QFile r(QString::fromStdString((archivo_.parent_path() / "superres-programador.json").string()));
-        if (r.open(QIODevice::ReadOnly)) {
-            const json j = json::parse(r.readAll().toStdString(), nullptr, false);
-            if (j.is_object())
-                for (const auto& [k, v] : j.items()) programador_[k] = v;
-        }
+        const json j = config::leerObjeto(archivo_.parent_path() / "superres-programador.json");
+        for (const auto& [k, v] : j.items()) programador_[k] = v;
     }
     // El de ahora; si no está, el de antes (un grafo por entrada), migrado.
     for (const auto& ruta : {archivo_, archivoViejo_}) {
-        QFile f(QString::fromStdString(ruta.string()));
-        if (!f.open(QIODevice::ReadOnly)) continue;
-        const json j = json::parse(f.readAll().toStdString(), nullptr, false);
-        if (!j.is_object()) continue;
+        const json j = config::leerObjeto(ruta);
+        if (j.empty()) continue;
         grafo_ = GrafoVideo::desde(j);
         if (ruta == archivoViejo_) guardar();
         return;

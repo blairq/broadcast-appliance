@@ -28511,8 +28511,8 @@ DOWN</translation>
     </message>
     <message>
         <location line="+2" />
-        <source>traspaso a la cadena de la placa «sin señal» (espera si el fallbackswitch frena)</source>
-        <translation>handoff to the “no signal” slate chain (waits if the fallbackswitch holds)</translation>
+        <source>traspaso a la cadena de la placa «sin señal» (el selector deja pasar cada cuadro apenas llega)</source>
+        <translation>handoff to the “no signal” slate chain (the selector passes each frame as soon as it arrives)</translation>
     </message>
     <message>
         <location line="+9" />
@@ -47695,8 +47695,8 @@ Data (from %2): %3</translation>
     </message>
     <message>
         <location line="+3" />
-        <source>manda %1 cuadros por segundo y el estudio va a %2: libobs repite o salta cuadros (con movimiento se nota un tironeo)</source>
-        <translation>sends %1 frames per second and the studio runs at %2: libobs repeats or skips frames (motion visibly stutters)</translation>
+        <source>manda %1 cuadros por segundo y el estudio va a %2: la composición repite o salta cuadros (con movimiento se nota un tironeo)</source>
+        <translation>sends %1 frames per second and the studio runs at %2: compositing repeats or skips frames (motion visibly stutters)</translation>
     </message>
     <message>
         <location line="+4" />
@@ -54582,8 +54582,8 @@ Empty values leave no dangling separators: “{nombre} — {cargo}” with no ti
     <message>
         <location line="+1" />
         <location line="+1" />
-        <source>motor sin libobs: unir pipelines</source>
-        <translation>engine without libobs: join pipelines</translation>
+        <source>motor: unir sus pipelines</source>
+        <translation>engine: join its pipelines</translation>
     </message>
     <message>
         <location line="+1" />
@@ -54597,18 +54597,18 @@ Empty values leave no dangling separators: “{nombre} — {cargo}” with no ti
     </message>
     <message>
         <location line="+1" />
-        <source>motor sin libobs: mezcla de audio</source>
-        <translation>engine without libobs: audio mixing</translation>
+        <source>motor: mezcla de audio</source>
+        <translation>engine: audio mixing</translation>
     </message>
     <message>
         <location line="+1" />
-        <source>motor sin libobs: composición (CPU)</source>
-        <translation>engine without libobs: compositing (CPU)</translation>
+        <source>motor: composición (CPU)</source>
+        <translation>engine: compositing (CPU)</translation>
     </message>
     <message>
         <location line="+1" />
-        <source>motor sin libobs: composición (placa)</source>
-        <translation>engine without libobs: compositing (GPU)</translation>
+        <source>motor: composición (placa)</source>
+        <translation>engine: compositing (GPU)</translation>
     </message>
     <message>
         <location line="+1" />
@@ -54627,18 +54627,18 @@ Empty values leave no dangling separators: “{nombre} — {cargo}” with no ti
     </message>
     <message>
         <location line="+1" />
-        <source>transmitir (motor sin libobs)</source>
-        <translation>streaming (engine without libobs)</translation>
+        <source>transmitir (RTMP)</source>
+        <translation>streaming (RTMP)</translation>
     </message>
     <message>
         <location line="+1" />
-        <source>SRT (motor sin libobs)</source>
-        <translation>SRT (engine without libobs)</translation>
+        <source>transmitir por SRT</source>
+        <translation>streaming over SRT</translation>
     </message>
     <message>
         <location line="+1" />
-        <source>grabación en tramos (motor sin libobs)</source>
-        <translation>segmented recording (engine without libobs)</translation>
+        <source>grabación en tramos</source>
+        <translation>segmented recording</translation>
     </message>
     <message>
         <location line="+26" />
@@ -88121,8 +88121,8 @@ PROPOSE, DON'T APPLY: show the person what changes and apply only if they confir
     </message>
     <message>
         <location line="+2" />
-        <source>El color (%1, rango %2) lo convierte libobs en la GPU: no hace falta tarjeta</source>
-        <translation>The color (%1, range %2) is converted by libobs on the GPU: no card needed</translation>
+        <source>El color (%1, rango %2) lo convierte el motor (en la GPU si puede): no hace falta tarjeta</source>
+        <translation>The color (%1, range %2) is converted by the engine (on the GPU when it can): no card needed</translation>
     </message>
     <message>
         <location line="+2" />

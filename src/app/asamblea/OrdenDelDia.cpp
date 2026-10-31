@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 #include "asamblea/OrdenDelDia.hpp"
+#include "arranque/ArchivoConfig.hpp"
 #include "i18n/I18n.hpp"
 
 #include "control/BusEventos.hpp"
@@ -48,9 +49,8 @@ const std::set<std::string> kEstados{"pendiente", "en_tratamiento", "votado", "c
 
 OrdenDelDia::OrdenDelDia(const fs::path& datos, control::BusEventos& bus, QObject* parent)
     : QObject(parent), archivo_(datos / "Config" / "orden-del-dia.json"), bus_(bus) {
-    std::ifstream f(archivo_);
-    const json j = json::parse(f, nullptr, false);
-    if (j.is_object()) {
+    const json j = config::leerObjeto(archivo_);
+    if (!j.empty()) {
         puntos_ = j.value("puntos", json::array());
         tramos_ = j.value("tramos", json::array());
     }
@@ -80,10 +80,7 @@ void OrdenDelDia::cerrarTramo(std::int64_t ahora) {
 }
 
 void OrdenDelDia::guardar() const {
-    std::error_code ec;
-    fs::create_directories(archivo_.parent_path(), ec);
-    std::ofstream o(archivo_);
-    o << json{{"puntos", puntos_}, {"tramos", tramos_}}.dump(1, ' ', false, nlohmann::json::error_handler_t::replace);
+    config::guardar(archivo_, {{"puntos", puntos_}, {"tramos", tramos_}});
 }
 
 void OrdenDelDia::publicar() {

@@ -2,6 +2,7 @@
 // src/app/agent/Roles.cpp — ver Roles.hpp
 // ============================================================================
 #include "agent/Roles.hpp"
+#include "arranque/ArchivoConfig.hpp"
 
 #include <algorithm>
 #include <fstream>
@@ -331,10 +332,7 @@ json Roles::aJson() const {
 // sistema: si un archivo viejo los trae, se ignoran (el operador tiene el suyo, promptPropio).
 void Roles::leer() {
     if (archivo_.empty()) return;
-    std::ifstream in(archivo_, std::ios::binary);
-    if (!in) return;
-    const json o = json::parse(in, nullptr, false);
-    if (!o.is_object()) return;
+    const json o = config::leerObjeto(archivo_); // por id de rol (los del sistema: no chocan con `esquema`)
     for (Rol& r : roles_) {
         const json e = o.value(r.id, json::object());
         if (!e.is_object()) continue;
@@ -348,14 +346,12 @@ void Roles::leer() {
 
 void Roles::guardar() const {
     if (archivo_.empty()) return;
-    QDir().mkpath(QString::fromStdString(archivo_.parent_path().string()));
     json o = json::object();
     for (const Rol& r : roles_)
         o[r.id] = json{
             {"activo", r.activo}, {"consola", r.consola}, {"proveedor", r.proveedor}, {"modelo", r.modelo},
             {"promptPropio", r.promptPropio}};
-    std::ofstream out(archivo_, std::ios::binary | std::ios::trunc);
-    out << o.dump(2, ' ', false, nlohmann::json::error_handler_t::replace) << "\n";
+    config::guardar(archivo_, o);
 }
 
 } // namespace ba::app::agent

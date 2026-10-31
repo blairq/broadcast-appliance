@@ -208,7 +208,7 @@ void VocesRack::decirCon(const nlohmann::json& tarjeta, const QString& texto) {
     c->habla->decir(
         texto.toStdString(), hablante, velocidad,
         [this, ring, clave](const float* m, std::size_t n, std::uint32_t f) {
-            // A 48 kHz estéreo (el rack y libobs van a 48 kHz).
+            // A 48 kHz estéreo (el rack y el motor van a 48 kHz).
             constexpr int kSalida = 48000;
             std::vector<float> out(static_cast<std::size_t>(static_cast<double>(n) * kSalida / f) + 1024);
             std::size_t hechos = 0;

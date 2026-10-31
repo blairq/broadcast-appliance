@@ -2,6 +2,7 @@
 // src/app/pantallas/Monitores.cpp — ver Monitores.hpp
 // ============================================================================
 #include "pantallas/Monitores.hpp"
+#include "arranque/ArchivoConfigQt.hpp"
 
 #include "pantallas/Catalogo.hpp"
 
@@ -361,9 +362,7 @@ QVariantList MonitoresModel::conectadosEnOrden() const {
 
 void MonitoresModel::cargar() {
     if (archivo_.empty()) return;
-    QFile f(QString::fromStdString(archivo_.string()));
-    if (!f.open(QIODevice::ReadOnly)) return;
-    const QJsonObject o = QJsonDocument::fromJson(f.readAll()).object();
+    const QJsonObject o = config::leerQObjeto(archivo_);
     for (const QJsonValue& v : o.value("monitores").toArray()) {
         const QJsonObject m = v.toObject();
         Fila fila;
@@ -386,11 +385,7 @@ void MonitoresModel::guardar() const {
                               {"cosas", QJsonArray::fromStringList(f.cosas)},
                               {"pantallaCompleta", f.pantallaCompleta}});
     }
-    std::error_code ec;
-    std::filesystem::create_directories(archivo_.parent_path(), ec);
-    QFile f(QString::fromStdString(archivo_.string()));
-    if (f.open(QIODevice::WriteOnly | QIODevice::Truncate))
-        f.write(QJsonDocument(QJsonObject{{"monitores", ms}}).toJson());
+    config::guardarQ(archivo_, QJsonObject{{"monitores", ms}});
 }
 
 } // namespace ba::app

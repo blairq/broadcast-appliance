@@ -3,6 +3,7 @@
 // ============================================================================
 
 #include "ui/DashboardModel.hpp"
+#include "arranque/ArchivoConfigQt.hpp"
 #include "pantallas/Tarjetas.hpp"
 #include <QCoreApplication>
 #include <QSizeF>
@@ -337,12 +338,7 @@ void DashboardModel::resetLayout() {
 }
 
 void DashboardModel::load() {
-    QFile f(QString::fromStdString(file_.string()));
-    if (!f.open(QIODevice::ReadOnly)) {
-        defaults();
-        return;
-    }
-    const QJsonObject o = QJsonDocument::fromJson(f.readAll()).object();
+    const QJsonObject o = config::leerQObjeto(file_);
     const QJsonArray cards = o.value("cards").toArray();
     if (cards.isEmpty()) {
         defaults();
@@ -394,12 +390,7 @@ void DashboardModel::save() const {
                         {"ocultas", ocultas},
                         {"background", QJsonArray::fromStringList(background_)},
                         {"backgroundDim", dim_}};
-    std::error_code ec;
-    std::filesystem::create_directories(file_.parent_path(), ec);
-    QFile f(QString::fromStdString(file_.string()));
-    if (f.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
-        f.write(QJsonDocument(o).toJson());
-    }
+    config::guardarQ(file_, o);
 }
 
 } // namespace ba::app

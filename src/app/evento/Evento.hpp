@@ -8,7 +8,7 @@
 // (poner una escena, arrancar un tema, dar la palabra).
 //
 // Este archivo es C++ puro: dice QUÉ hay que hacer y CUÁNDO, no lo hace. Quien
-// ejecuta (libobs, el rack de audio, la sala) vive arriba. Esa costura es a
+// ejecuta (el motor, el rack de audio, la sala) vive arriba. Esa costura es a
 // propósito: el guion se puede probar entero sin prender una cámara, que es
 // justo lo que un ensayo necesita.
 //

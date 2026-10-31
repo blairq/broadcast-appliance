@@ -3,7 +3,7 @@
 //
 // POR QUÉ NO QProcess. QProcess (Qt 6.6, macOS) hace fork() y después, en el
 // hijo, todavía corre código antes del exec. En un programa con decenas de
-// hilos (libobs, GStreamer, audio, red) el hijo hereda candados tomados por
+// hilos (GStreamer, audio, red, Qt) el hijo hereda candados tomados por
 // otros hilos y se puede quedar trabado para siempre ANTES de ser el programa
 // que se pidió: pasó de verdad, varias veces por sesión —un plugin que «no
 // arrancaba en 20 s», pip o la lista de dispositivos colgados, y una docena de

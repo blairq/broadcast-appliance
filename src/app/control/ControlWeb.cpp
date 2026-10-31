@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // src/app/control/ControlWeb.cpp — ver el .hpp
 #include "control/ControlWeb.hpp"
+#include "arranque/ArchivoConfig.hpp"
 
 #include "ajustes/Ajustes.hpp"
 #include "diag/Registro.hpp"
@@ -156,9 +157,7 @@ const std::vector<ControlWeb::Tema>& ControlWeb::temas() {
 // ============================================================================
 
 void ControlWeb::cargar() {
-    std::ifstream f(archivo_);
-    const json j = json::parse(f, nullptr, false);
-    datos_ = j.is_object() ? j : json::object();
+    datos_ = config::leerObjeto(archivo_);
     if (!datos_.contains("aparatos") || !datos_["aparatos"].is_array()) datos_["aparatos"] = json::array();
     if (!datos_.contains("tunel") || !datos_["tunel"].is_object()) datos_["tunel"] = {{"habilitado", false}};
     // Un perfil roto no se adivina: queda vacío (no puede nada) hasta que una persona lo arregle.
@@ -169,15 +168,9 @@ void ControlWeb::cargar() {
 }
 
 void ControlWeb::guardar() const {
-    std::error_code ec;
-    fs::create_directories(archivo_.parent_path(), ec);
-    const fs::path tmp = archivo_.string() + ".tmp";
-    {
-        std::ofstream o(tmp);
-        o << datos_.dump(1, ' ', false, json::error_handler_t::replace);
-    }
-    fs::permissions(tmp, fs::perms::owner_read | fs::perms::owner_write, fs::perm_options::replace, ec);
-    fs::rename(tmp, archivo_, ec);
+    // Lleva los tokens de los aparatos: solo lo lee el dueño.
+    config::guardar(archivo_, datos_,
+                    {ba::persist::Durabilidad::Normal, ba::persist::Prioridad::Normal, ba::persist::Permisos::Privados, {}});
 }
 
 json* ControlWeb::buscarAparato(const std::string& id) {

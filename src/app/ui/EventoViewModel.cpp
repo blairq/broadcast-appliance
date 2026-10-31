@@ -2,6 +2,7 @@
 // src/app/ui/EventoViewModel.cpp — ver EventoViewModel.hpp
 // ============================================================================
 #include "i18n/I18n.hpp"
+#include "arranque/ArchivoConfig.hpp"
 
 #include <QCoreApplication>
 #include "ui/CarruselViewModel.hpp"
@@ -181,11 +182,7 @@ EventoViewModel::EventoViewModel(AppRuntime& rt, ConferenceViewModel* sala, graf
     // EL EVENTO EN CURSO: el que quedó anotado sigue (un corte de luz no lo
     // corta); si no hay ninguno y está prendido el automático, el del día. Cada
     // minuto se mira de nuevo: a la medianoche el automático pasa al de hoy.
-    {
-        std::ifstream f(rt.dataRoot() / "Config" / "historico.json");
-        const json j = f ? json::parse(f, nullptr, false) : json();
-        if (j.is_object()) automatico_ = j.value("evento_automatico", true);
-    }
+    automatico_ = config::leerObjeto(rt.dataRoot() / "Config" / "historico.json").value("evento_automatico", true);
     asegurarEnCurso();
     // Tras un corte de luz, la línea que estaba corriendo vuelve en HOLD y pregunta qué
     // está pasando (docs/planes/PLAN-LINEA-DE-TIEMPO.md 3.8). Un rato después, como la
@@ -457,9 +454,7 @@ std::filesystem::path EventoViewModel::carpetaEvento(const std::string& carpeta)
 std::filesystem::path EventoViewModel::carpetaConfig() const { return rt_.dataRoot() / "Config"; }
 
 nlohmann::json EventoViewModel::ajustesHistorico() const {
-    std::ifstream f(rt_.dataRoot() / "Config" / "historico.json");
-    const json j = f ? json::parse(f, nullptr, false) : json();
-    return j.is_object() ? j : json::object();
+    return config::leerObjeto(rt_.dataRoot() / "Config" / "historico.json");
 }
 
 QStringList EventoViewModel::carpetas() const {
@@ -472,16 +467,9 @@ void EventoViewModel::setEventoAutomatico(bool si) {
     if (si == automatico_) return;
     automatico_ = si;
     const auto ruta = rt_.dataRoot() / "Config" / "historico.json";
-    json j;
-    {
-        std::ifstream f(ruta);
-        if (f) j = json::parse(f, nullptr, false);
-    }
-    if (!j.is_object()) j = json::object();
+    json j = config::leerObjeto(ruta); // lo demás que haya, se conserva
     j["evento_automatico"] = si;
-    std::error_code ec;
-    std::filesystem::create_directories(ruta.parent_path(), ec);
-    std::ofstream(ruta) << j.dump(2, ' ', false, nlohmann::json::error_handler_t::replace) << "\n";
+    config::guardar(ruta, j);
     asegurarEnCurso();
     emit enCursoChanged();
 }

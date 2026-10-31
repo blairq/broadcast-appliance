@@ -544,7 +544,7 @@ endif()
     # Test de la logica de disposicion del dashboard (ViewModel sin interfaz).
     add_executable(test_dashboard_model tests/test_dashboard_model.cpp ui/DashboardModel.cpp)
     target_include_directories(test_dashboard_model PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
-    target_link_libraries(test_dashboard_model PRIVATE Qt6::Core Qt6::Gui)
+    target_link_libraries(test_dashboard_model PRIVATE ba_core Qt6::Core Qt6::Gui)
     set_target_properties(test_dashboard_model PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_dashboard_model COMMAND test_dashboard_model)
     # El registro de dispositivos de la máquina: nombres del operador, ausentes, persistencia.
@@ -566,7 +566,7 @@ endif()
     add_executable(test_pantallas_catalogo tests/test_pantallas_catalogo.cpp pantallas/Catalogo.cpp
                    pantallas/Monitores.cpp pantallas/Ventanas.cpp)
     target_include_directories(test_pantallas_catalogo PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
-    target_link_libraries(test_pantallas_catalogo PRIVATE Qt6::Core Qt6::Gui)
+    target_link_libraries(test_pantallas_catalogo PRIVATE ba_core Qt6::Core Qt6::Gui)
     set_target_properties(test_pantallas_catalogo PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_pantallas_catalogo COMMAND test_pantallas_catalogo)
     # Los instrumentos de video (forma de onda, vectorscopio, legalidad), sin GPU.
@@ -1227,7 +1227,7 @@ endif()
     # Disparadores (alertas) con entradas y reloj falsos.
     add_executable(test_cuerpo tests/test_cuerpo.cpp asamblea/Cuerpo.cpp)
     target_include_directories(test_cuerpo PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
-    target_link_libraries(test_cuerpo PRIVATE nlohmann_json::nlohmann_json)
+    target_link_libraries(test_cuerpo PRIVATE ba_core)
     add_test(NAME test_cuerpo COMMAND test_cuerpo)
     # Bus de eventos y botonera (superficie de control) con ganchos falsos.
     add_executable(test_botonera tests/test_botonera.cpp control/Botonera.cpp control/Botonera.hpp
@@ -1291,8 +1291,7 @@ endif()
     add_test(NAME test_notificador COMMAND test_notificador)
     # F1-13: la alarma «interfaz trabada con aire» sale del hilo del latido, sin la interfaz.
     add_executable(test_latido_aire tests/test_latido_aire.cpp emision/LatidoAire.cpp emision/AvisoFueraDeUi.cpp
-                   agent/Notificador.cpp agent/Notificador.hpp ui/ConferenceClient.cpp ui/ConferenceClient.hpp
-                   arranque/ArchivoConfig.cpp)
+                   agent/Notificador.cpp agent/Notificador.hpp ui/ConferenceClient.cpp ui/ConferenceClient.hpp)
     target_include_directories(test_latido_aire PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
     target_link_libraries(test_latido_aire PRIVATE ba_core Qt6::Core Qt6::Network)
     set_target_properties(test_latido_aire PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
@@ -1300,14 +1299,14 @@ endif()
     set_tests_properties(test_latido_aire PROPERTIES TIMEOUT 60)
     add_executable(test_vocabulario tests/test_vocabulario.cpp agent/Vocabulario.cpp asamblea/Cuerpo.cpp)
     target_include_directories(test_vocabulario PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
-    target_link_libraries(test_vocabulario PRIVATE nlohmann_json::nlohmann_json)
+    target_link_libraries(test_vocabulario PRIVATE ba_core)
     add_test(NAME test_vocabulario COMMAND test_vocabulario)
     # La configuración chica que se guarda en Config/ (modo en vivo, escenas, rótulo, interfaz).
-    add_executable(test_config_persistida tests/test_config_persistida.cpp arranque/ArchivoConfig.cpp
+    add_executable(test_config_persistida tests/test_config_persistida.cpp
                    arranque/ModoVivoConfig.cpp arranque/InterfazConfig.cpp escenas/AjustesEscenas.cpp
                    agent/RotuloTraduccionConfig.cpp)
     target_include_directories(test_config_persistida PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
-    target_link_libraries(test_config_persistida PRIVATE nlohmann_json::nlohmann_json Qt6::Core)
+    target_link_libraries(test_config_persistida PRIVATE ba_core Qt6::Core)
     set_target_properties(test_config_persistida PROPERTIES BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_config_persistida COMMAND test_config_persistida)
     # Las salidas guardadas (PLAN-SALIDAS, etapa 2): salidas.json, destinos con salida y al-aire.json por salida.
@@ -1325,8 +1324,7 @@ endif()
     target_include_directories(test_afv PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
     target_link_libraries(test_afv PRIVATE nlohmann_json::nlohmann_json)
     add_test(NAME test_afv COMMAND test_afv)
-    add_executable(test_loudness tests/test_loudness.cpp audio/LoudnessPrograma.cpp audio/ObjetivoLoudness.cpp
-                   arranque/ArchivoConfig.cpp)
+    add_executable(test_loudness tests/test_loudness.cpp audio/LoudnessPrograma.cpp audio/ObjetivoLoudness.cpp)
     target_include_directories(test_loudness PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
     target_link_libraries(test_loudness PRIVATE ba_core nlohmann_json::nlohmann_json)
     add_test(NAME test_loudness COMMAND test_loudness)

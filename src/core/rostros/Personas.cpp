@@ -3,6 +3,7 @@
 // ============================================================================
 #include "rostros/Personas.hpp"
 #include "i18n/I18n.hpp"
+#include "persist/ArchivoConfig.hpp"
 
 #include <algorithm>
 #include <filesystem>
@@ -132,9 +133,10 @@ void Personas::vistaAhora(const std::string& id, std::int64_t ahoraMs) {
 bool Personas::leer(const std::string& archivo) {
     personas_.clear();
     error_.clear();
-    if (!std::filesystem::exists(archivo)) return true; // todavía no hay libreta
-    std::ifstream f(archivo, std::ios::binary);
-    const json j = json::parse(f, nullptr, false);
+    // La lista a secas de antes la trae el esquema 2 (persist/ArchivoConfig.cpp).
+    bool habia = false;
+    const json j = ba::persist::leerConfig(archivo, &habia).value("personas", json());
+    if (!habia) return true; // todavía no hay libreta
     if (!j.is_array()) {
         error_ = ba::i18n::traducir("rostros", "el archivo de personas no es una lista");
         return false;
@@ -167,28 +169,11 @@ bool Personas::guardar(const std::string& archivo) const {
                          {"foto", p.foto},
                          {"vistaMs", p.vistaMs},
                          {"caras", p.caras}});
-    std::error_code ec;
-    std::filesystem::create_directories(std::filesystem::path(archivo).parent_path(), ec);
-    // SE ESCRIBE AL LADO Y SE RENOMBRA: si se corta la luz en la mitad, queda
-    // la libreta anterior entera y no media libreta. Volver a dar de alta a
-    // todos no es algo que se le pueda pedir a nadie.
-    const std::string tmp = archivo + ".part";
-    {
-        std::ofstream f(tmp, std::ios::binary | std::ios::trunc);
-        if (!f) {
-            error_ = ba::i18n::llenar(ba::i18n::traducir("rostros", "no se pudo escribir %1"), {tmp});
-            return false;
-        }
-        f << j.dump(1, '\t', false, nlohmann::json::error_handler_t::replace);
-        if (!f) {
-            error_ = ba::i18n::llenar(ba::i18n::traducir("rostros", "error al escribir %1"), {tmp});
-            return false;
-        }
-    }
-    std::filesystem::rename(tmp, archivo, ec);
-    if (ec) {
-        error_ = ba::i18n::llenar(ba::i18n::traducir("rostros", "no se pudo reemplazar %1: %2"), {archivo, ec.message()});
-        std::filesystem::remove(tmp, ec);
+    // Por el escritor único (temporal + rename + bajada al disco): si se corta la luz
+    // en la mitad, queda la libreta anterior entera y no media libreta. Volver a dar
+    // de alta a todos no es algo que se le pueda pedir a nadie.
+    if (!ba::persist::guardarConfig(archivo, json{{"personas", std::move(j)}})) {
+        error_ = ba::i18n::llenar(ba::i18n::traducir("rostros", "no se pudo guardar %1"), {archivo});
         return false;
     }
     return true;

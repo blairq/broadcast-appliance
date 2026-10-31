@@ -6,6 +6,7 @@
 #include "audio/UnificarEntradas.hpp"
 #include "dispositivos/Conocidos.hpp"
 #include "dispositivos/Dispositivos.hpp"
+#include "persist/ColaEscritura.hpp"
 
 #include <QCoreApplication>
 
@@ -77,7 +78,7 @@ int main(int argc, char** argv) {
         CHECK(c.todos().empty(), "sin archivo, vacío");
         CHECK(c.visto("local:audio:UID-1", "microfono", "MacBook Pro Microphone", "UID-1", "2026-10-25T10:00:00"),
               "uno nuevo se anota (y se guarda)");
-        CHECK(fs::exists(archivo), "el archivo se crea (con su carpeta)");
+        CHECK(ba::persist::cola().vaciar() && fs::exists(archivo), "el archivo se crea (con su carpeta)");
         CHECK(!fs::exists(fs::path(archivo).concat(".tmp")), "no queda el temporal");
         CHECK(!c.visto("local:audio:UID-1", "microfono", "MacBook Pro Microphone", "UID-1", "2026-10-25T11:00:00"),
               "volver a verlo igual no reescribe el archivo");

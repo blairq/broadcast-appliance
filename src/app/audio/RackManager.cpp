@@ -3,6 +3,7 @@
 // ============================================================================
 
 #include "audio/RackManager.hpp"
+#include "arranque/ArchivoConfig.hpp"
 #include "audio/GrupoDeSalida.hpp"
 #include "platform/Paths.hpp"
 #include "dispositivos/Conocidos.hpp"
@@ -448,22 +449,11 @@ void RackManager::syncMonitors() {
 }
 
 void RackManager::saveMonitor() const {
-    const fs::path file = root_ / "Config" / "audio-escucha.json";
-    std::error_code ec;
-    fs::create_directories(file.parent_path(), ec);
-    // Aparte y reemplazar: un corte a mitad no deja el archivo trunco.
-    QSaveFile out(QString::fromStdString(file.string()));
-    if (!out.open(QIODevice::WriteOnly)) return;
-    out.write(QByteArray::fromStdString(
-        json{{"id", monitorId_}, {"nombre", monitorName_}}.dump(2, ' ', false, nlohmann::json::error_handler_t::replace)));
-    out.commit();
+    config::guardar(root_ / "Config" / "audio-escucha.json", {{"id", monitorId_}, {"nombre", monitorName_}});
 }
 
 void RackManager::restoreMonitor() {
-    std::ifstream in(root_ / "Config" / "audio-escucha.json", std::ios::binary);
-    if (!in) return;
-    const json j = json::parse(in, nullptr, false);
-    if (!j.is_object()) return;
+    const json j = config::leerObjeto(root_ / "Config" / "audio-escucha.json");
     const std::string id = j.value("id", "");
     const std::string name = j.value("nombre", "");
     if (id.empty()) return;
@@ -940,25 +930,14 @@ constexpr const char* kPlantillasFile = "audio-plantillas.json";
 }
 
 void RackManager::cargarPlantillas() {
-    std::ifstream in(root_ / "Config" / kPlantillasFile, std::ios::binary);
-    if (!in) return;
-    const json j = json::parse(in, nullptr, false);
+    const json j = config::leerObjeto(root_ / "Config" / kPlantillasFile).value("plantillas", json::object());
     // Un archivo roto no tiene por que impedir que el audio ande: se ignora y
     // el operador se entera cuando la lista aparece vacia.
     if (j.is_object()) plantillas_ = j;
 }
 
 void RackManager::guardarPlantillas() const {
-    const fs::path file = root_ / "Config" / kPlantillasFile;
-    std::error_code ec;
-    fs::create_directories(file.parent_path(), ec);
-    const fs::path tmp = file.string() + ".tmp";
-    {
-        std::ofstream out(tmp, std::ios::binary);
-        if (!out) return;
-        out << plantillas_.dump(2, ' ', false, nlohmann::json::error_handler_t::replace);
-    }
-    fs::rename(tmp, file, ec);
+    config::guardar(root_ / "Config" / kPlantillasFile, {{"plantillas", plantillas_}});
 }
 
 json RackManager::plantillas() const {
@@ -1040,16 +1019,7 @@ void RackManager::saveNow() {
     json all = pending_.is_object() ? pending_ : json::object();
     for (const auto& [name, f] : filters_)
         all[name] = f->rack->save();
-    const fs::path file = root_ / "Config" / "audio-racks.json";
-    std::error_code ec;
-    fs::create_directories(file.parent_path(), ec);
-    const fs::path tmp = file.string() + ".tmp";
-    {
-        std::ofstream out(tmp, std::ios::binary);
-        if (!out) return;
-        out << all.dump(2, ' ', false, nlohmann::json::error_handler_t::replace);
-    }
-    fs::rename(tmp, file, ec);
+    config::guardar(root_ / "Config" / "audio-racks.json", {{"racks", all}});
 }
 
 std::string RackManager::restablecerInterfazLsp(bool* ok) {
@@ -1121,9 +1091,7 @@ std::string RackManager::restablecerInterfazLsp(bool* ok) {
 void RackManager::restore() {
     cargarPlantillas();
     restoreMonitor();
-    std::ifstream in(root_ / "Config" / "audio-racks.json", std::ios::binary);
-    if (!in) return;
-    const json all = json::parse(in, nullptr, false);
+    const json all = config::leerObjeto(root_ / "Config" / "audio-racks.json").value("racks", json::object());
     if (!all.is_object()) return;
     pending_ = all;
     for (auto it = all.begin(); it != all.end(); ++it)

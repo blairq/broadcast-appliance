@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 #include "agent/SubtitulosCC.hpp"
+#include "arranque/ArchivoConfig.hpp"
 
 #include "agent/FlujosTexto.hpp"
 
@@ -22,9 +23,8 @@ SubtitulosCC::SubtitulosCC(FlujosTexto& flujos, std::filesystem::path datos,
                            std::function<int(const QString&, double)> enviar608, QObject* parent)
     : QObject(parent), flujos_(flujos), datos_(std::move(datos)), enviar608_(std::move(enviar608)),
       red_(std::make_unique<QNetworkAccessManager>()) {
-    std::ifstream f(datos_ / "Config" / "cc.json");
-    const json j = json::parse(f, nullptr, false);
-    if (j.is_object()) {
+    const json j = config::leerObjeto(datos_ / "Config" / "cc.json");
+    if (!j.empty()) {
         activo_ = j.value("activo", false);
         flujo_ = QString::fromStdString(j.value("flujo", std::string()));
         metodo_ = QString::fromStdString(j.value("metodo", std::string("608")));
@@ -36,12 +36,8 @@ SubtitulosCC::SubtitulosCC(FlujosTexto& flujos, std::filesystem::path datos,
 SubtitulosCC::~SubtitulosCC() = default;
 
 void SubtitulosCC::guardar() const {
-    std::error_code ec;
-    std::filesystem::create_directories(datos_ / "Config", ec);
-    std::ofstream o(datos_ / "Config" / "cc.json");
-    o << json{{"activo", activo_}, {"flujo", flujo_.toStdString()}, {"metodo", metodo_.toStdString()},
-              {"url", url_.toStdString()}}
-             .dump(1, ' ', false, nlohmann::json::error_handler_t::replace);
+    config::guardar(datos_ / "Config" / "cc.json", {{"activo", activo_}, {"flujo", flujo_.toStdString()},
+                                                    {"metodo", metodo_.toStdString()}, {"url", url_.toStdString()}});
 }
 
 QVariantMap SubtitulosCC::estado() const {

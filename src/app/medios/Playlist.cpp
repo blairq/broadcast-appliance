@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 #include "medios/Playlist.hpp"
+#include "arranque/ArchivoConfig.hpp"
 #include "i18n/I18n.hpp"
 
 #include "arranque/AppRuntime.hpp"
@@ -26,9 +27,8 @@ QVariant aQv(const json& j) {
 
 Playlist::Playlist(AppRuntime& rt, QObject* parent) : QObject(parent), rt_(rt) {
     archivo_ = rt.dataRoot() / "Config" / "playlist.json";
-    std::ifstream f(archivo_);
-    const json j = json::parse(f, nullptr, false);
-    if (j.is_object()) {
+    const json j = config::leerObjeto(archivo_);
+    if (!j.empty()) {
         if (j.contains("items") && j["items"].is_array()) items_ = j["items"];
         autoNext_ = j.value("auto_next", true);
         loop_ = j.value("loop", false);
@@ -38,11 +38,7 @@ Playlist::Playlist(AppRuntime& rt, QObject* parent) : QObject(parent), rt_(rt) {
 }
 
 void Playlist::guardar() const {
-    std::error_code ec;
-    std::filesystem::create_directories(archivo_.parent_path(), ec);
-    const std::filesystem::path tmp = archivo_.string() + ".tmp";
-    std::ofstream(tmp) << json{{"items", items_}, {"auto_next", autoNext_}, {"loop", loop_}}.dump(1, ' ', false, nlohmann::json::error_handler_t::replace);
-    std::filesystem::rename(tmp, archivo_, ec);
+    config::guardar(archivo_, {{"items", items_}, {"auto_next", autoNext_}, {"loop", loop_}});
 }
 
 void Playlist::anotarAire() const {
@@ -129,7 +125,7 @@ std::string Playlist::cargarItem(int i) {
                                      {"clear_on_media_end", false}}
                                     .dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
     if (!rt_.updateSourceSettings(kFuente, ajustes)) return rt_.lastError();
-    // libobs no hace correr un medio que no se ve en ningún lado: si la escena no
+    // Un medio que no está en ninguna escena a la vista no se ve: si la escena no
     // está al aire, se arma en PVW (el programa no se toca).
     if (rt_.engine().currentScene() != kEscena && armar_) armar_(kEscena);
     rt_.engine().restartMedia(kFuente);

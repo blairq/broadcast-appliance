@@ -2,7 +2,7 @@
 // src/app/comun/HoraMonotonica.hpp — el reloj monotónico de la app (nanosegundos)
 //
 // El que usan las horas que se pasan entre piezas (las voces, los rings de
-// audio, lo que pinta la app): antes era os_gettime_ns de libobs. Cualquier pieza que
+// audio, lo que pinta la app). Cualquier pieza que
 // traduce estas horas a otro reloj (GstVoz al del pipeline) lee los dos juntos,
 // así que solo importa que todas usen ESTE.
 // ============================================================================

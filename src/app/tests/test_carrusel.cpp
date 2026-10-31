@@ -9,6 +9,7 @@
 //   6. Etiquetas: se piden una sola vez, aunque salgan vacias.
 //   7. Ida y vuelta por JSON, y un `actual` guardado que ya no existe.
 // ============================================================================
+#include "persist/ColaEscritura.hpp"
 #include <cstdio>
 #include <string>
 
@@ -231,10 +232,12 @@ void biblioteca() {
     {
         // Un archivo roto SE DICE. Si se hiciera pasar por vacia, el operador
         // rearma todo sin saber que lo suyo sigue ahi.
+        ba::persist::cola().vaciar(); // lo guardado antes, al disco: si no, se leería eso
         std::ofstream(archivo) << "{esto no es json";
         Store s(archivo);
         CHECK(!s.error().empty(), "una biblioteca rota avisa");
     }
+    ba::persist::cola().vaciar();
     std::filesystem::remove_all(dir);
 }
 

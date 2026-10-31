@@ -3,6 +3,7 @@
 // ============================================================================
 
 #include "agent/AlertEngine.hpp"
+#include "arranque/ArchivoConfig.hpp"
 
 #include "diag/Metricas.hpp"
 #include "i18n/I18n.hpp"
@@ -701,7 +702,7 @@ void AlertEngine::evaluate(json& rule, State& st, std::int64_t now) {
         // es el que sirve para ENGANCHARLE UNA ACCION: se dispara solo cuando
         // la salida se cayo sola y no consigue volver.
         //
-        // libobs reintenta por su cuenta, asi que un corte de dos segundos no
+        // El motor reintenta por su cuenta (motor/Salidas), asi que un corte de dos segundos no
         // es noticia: lo que importa es que LLEVE UN RATO sin lograrlo, o que
         // el reintento se haya dado por vencido (estaba reconectando y ahora
         // ni eso).
@@ -1112,14 +1113,7 @@ void AlertEngine::fire(json& rule, State& st, const std::string& text, const jso
 
 void AlertEngine::save() const {
     if (storePath_.empty()) return;
-    const std::string tmp = storePath_ + ".tmp";
-    {
-        std::ofstream out(tmp, std::ios::binary | std::ios::trunc);
-        if (!out) return;
-        out << json{{"rules", rules_}, {"ruleSeq", ruleSeq_}, {"fabricaOfrecida", sembrados_}}.dump(2, ' ', false, nlohmann::json::error_handler_t::replace);
-    }
-    std::error_code ec;
-    std::filesystem::rename(tmp, storePath_, ec);
+    config::guardar(storePath_, {{"rules", rules_}, {"ruleSeq", ruleSeq_}, {"fabricaOfrecida", sembrados_}});
 }
 
 json AlertEngine::activas() const {
@@ -1214,14 +1208,12 @@ json AlertEngine::fabrica(bool restablecer) {
 
 void AlertEngine::load() {
     if (storePath_.empty()) return;
-    std::ifstream in(storePath_, std::ios::binary);
-    if (!in) {
+    const json j = config::leerObjeto(storePath_);
+    if (j.empty()) {
         // Primer arranque: los de fábrica, prendidos.
         sembrar();
         return;
     }
-    const json j = json::parse(in, nullptr, false);
-    if (!j.is_object()) return;
     ruleSeq_ = j.value("ruleSeq", 0);
     // Un alertas.json de antes de esta lista: se le ofrecieron las diez primeras.
     sembrados_ = j.value("fabricaOfrecida",

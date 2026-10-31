@@ -1,6 +1,7 @@
 // src/app/ptz/ControlCamaras.cpp — ver ControlCamaras.hpp
 
 #include "ptz/ControlCamarasCamara.hpp"
+#include "arranque/ArchivoConfigQt.hpp"
 #include "platform/Paths.hpp"
 
 #include "ajustes/Ajustes.hpp"
@@ -52,12 +53,9 @@ ControlCamaras::ControlCamaras(AppRuntime& rt, std::filesystem::path dataRoot, Q
     connect(busqueda_.get(), &OnvifBusqueda::cambio, this, &ControlCamaras::busquedaCambio);
     leer();
     {
-        std::ifstream f(dataRoot / "Config" / "ptz-interlock.json");
-        const auto j = nlohmann::json::parse(f, nullptr, false);
-        if (j.is_object()) {
-            interlockActivo_ = j.value("activo", true);
-            seguirSuavePermitido_ = j.value("seguir_suave_permitido", true);
-        }
+        const auto j = config::leerObjeto(dataRoot / "Config" / "ptz-interlock.json");
+        interlockActivo_ = j.value("activo", true);
+        seguirSuavePermitido_ = j.value("seguir_suave_permitido", true);
     }
     revision_.setInterval(1500);
     connect(&revision_, &QTimer::timeout, this, &ControlCamaras::sincronizar);
@@ -583,9 +581,7 @@ void ControlCamaras::buscarOnvif() {
 // ---------------------------------------------------------------------------
 
 void ControlCamaras::leer() {
-    QFile f(QString::fromStdString(archivo_.string()));
-    if (!f.open(QIODevice::ReadOnly)) return;
-    const QJsonObject raiz = QJsonDocument::fromJson(f.readAll()).object();
+    const QJsonObject raiz = config::leerQObjeto(archivo_);
     const QJsonObject todas = raiz.value("camaras").toObject();
     for (auto it = todas.begin(); it != todas.end(); ++it) {
         const QJsonObject j = it.value().toObject();
@@ -633,12 +629,7 @@ void ControlCamaras::guardar() {
                                         {"posicion", c->posicion},
                                         {"posiciones", c->posiciones.json()}};
     }
-    std::error_code ec;
-    std::filesystem::create_directories(archivo_.parent_path(), ec);
-    QSaveFile f(QString::fromStdString(archivo_.string()));
-    if (!f.open(QIODevice::WriteOnly)) return;
-    f.write(QJsonDocument(QJsonObject{{"camaras", todas}}).toJson(QJsonDocument::Indented));
-    f.commit();
+    config::guardarQ(archivo_, QJsonObject{{"camaras", todas}});
 }
 
 bool ControlCamaras::alAire(const QString& entrada) const {
@@ -661,8 +652,8 @@ QString ControlCamaras::chequearMovimiento(const QString& entrada, bool forzar, 
 void ControlCamaras::setInterlock(const QVariantMap& c) {
     if (c.contains("activo")) interlockActivo_ = c.value("activo").toBool();
     if (c.contains("seguir_suave_permitido")) seguirSuavePermitido_ = c.value("seguir_suave_permitido").toBool();
-    std::ofstream o(rt_.dataRoot() / "Config" / "ptz-interlock.json");
-    o << nlohmann::json{{"activo", interlockActivo_}, {"seguir_suave_permitido", seguirSuavePermitido_}}.dump(1, ' ', false, nlohmann::json::error_handler_t::replace);
+    config::guardar(rt_.dataRoot() / "Config" / "ptz-interlock.json",
+                    {{"activo", interlockActivo_}, {"seguir_suave_permitido", seguirSuavePermitido_}});
 }
 
 } // namespace ba::app::ptz

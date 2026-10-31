@@ -1,5 +1,6 @@
 // src/app/agent/ControlSistema.cpp — ver ControlSistema.hpp
 #include "agent/ControlSistema.hpp"
+#include "arranque/ArchivoConfig.hpp"
 
 #include <QtGlobal>
 
@@ -75,29 +76,15 @@ std::filesystem::path ControlSistema::archivo(const std::filesystem::path& datos
 
 ControlSistema ControlSistema::leer(const std::filesystem::path& datos) {
     ControlSistema c;
-    std::ifstream f(archivo(datos));
-    if (!f) {
-        // El de antes (cuando era «Control de Windows»): se lee hasta que se guarde el nuevo.
-        std::ifstream viejo(datos / "Config" / "control-windows.json");
-        if (viejo) c.aplicar(json::parse(viejo, nullptr, false));
-        return c;
-    }
-    c.aplicar(json::parse(f, nullptr, false));
+    json j = config::leerObjeto(archivo(datos));
+    // El de antes (cuando era «Control de Windows»): se lee hasta que se guarde el nuevo.
+    if (j.empty()) j = config::leerObjeto(datos / "Config" / "control-windows.json");
+    c.aplicar(j);
     return c;
 }
 
 bool ControlSistema::guardar(const std::filesystem::path& datos) const {
-    std::error_code ec;
-    std::filesystem::create_directories(archivo(datos).parent_path(), ec);
-    const auto tmp = std::filesystem::path(archivo(datos)).concat(".tmp");
-    {
-        std::ofstream f(tmp, std::ios::trunc);
-        if (!f) return false;
-        f << comoJson().dump(2, ' ', false, nlohmann::json::error_handler_t::replace) << "\n";
-        if (!f) return false;
-    }
-    std::filesystem::rename(tmp, archivo(datos), ec);
-    return !ec;
+    return config::guardar(archivo(datos), comoJson());
 }
 
 } // namespace ba::app::agent

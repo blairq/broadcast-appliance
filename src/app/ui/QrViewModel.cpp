@@ -2,6 +2,7 @@
 // src/app/ui/QrViewModel.cpp — ver QrViewModel.hpp
 // ============================================================================
 #include "ui/QrViewModel.hpp"
+#include "arranque/ArchivoConfig.hpp"
 #include "i18n/I18n.hpp"
 
 #include <fstream>
@@ -233,8 +234,7 @@ struct QrViewModel::Impl {
         QVariantList out;
         const auto p = archivoDe(a);
         if (!p.empty()) {
-            std::ifstream f(p, std::ios::binary);
-            const json o = f ? json::parse(f, nullptr, false) : json();
+            const json o = config::leerObjeto(p).value("qr", json::array());
             if (o.is_array())
                 for (const json& x : o) {
                     if (!x.is_object()) continue;
@@ -270,7 +270,6 @@ struct QrViewModel::Impl {
     void guardarArchivo(const QString& a) const {
         const auto p = archivoDe(a);
         if (p.empty()) return;
-        QDir().mkpath(QString::fromStdString(p.parent_path().string()));
         json arr = json::array();
         for (const QVariant& v : biblioteca.value(a)) {
             const QVariantMap m = v.toMap();
@@ -294,8 +293,7 @@ struct QrViewModel::Impl {
                                {"datos", datos},
                                {"estilo", est}});
         }
-        std::ofstream f(p, std::ios::binary | std::ios::trunc);
-        f << arr.dump(2, ' ', false, nlohmann::json::error_handler_t::replace) << "\n";
+        config::guardar(p, {{"qr", arr}});
     }
 };
 

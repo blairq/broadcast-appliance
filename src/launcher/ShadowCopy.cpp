@@ -1,7 +1,7 @@
 // ShadowCopy.cpp
 //
 // Implementacion real de la copia sombra (spec 3.1.5, decision D3; ver
-// ShadowCopy.hpp). Copia bin/, obs-plugins/ y data/ desde la raiz del disco de
+// ShadowCopy.hpp). Copia bin/ y data/ desde la raiz del disco de
 // origen a <tempBase>/BroadcastAppliance/<hash>/ y devuelve esa raiz sombra
 // para que los procesos hijos se ejecuten desde ahi: asi un movimiento del
 // cable USB no mata a los hijos con EXCEPTION_IN_PAGE_ERROR.
@@ -20,7 +20,7 @@
 //   reconstruye en la proxima prepare().
 //
 // Nota (spec 3.1.5): config/, logs/ y recordings/ se quedan en el disco
-// original; solo se copian bin/, obs-plugins/ y data/.
+// original; solo se copian bin/ y data/ (kArboles).
 
 #include "ShadowCopy.hpp"
 #include "i18n/I18n.hpp"
@@ -158,6 +158,9 @@ std::wstring sanitizeHash(const std::wstring& h) {
 // lanza: ante un error de std::filesystem devuelve false. Si src no existe se
 // considera "no hay nada que copiar" y devuelve true (un layout parcial es
 // aceptable: por ejemplo un disco sin data/).
+/// Los arboles que viajan con la version (los binarios y sus datos).
+constexpr const char* kArboles[] = {"bin", "data"};
+
 bool copyTree(const fs::path& src, const fs::path& dst) {
     std::error_code ec;
     if (!fs::exists(src, ec) || ec) {
@@ -183,7 +186,7 @@ bool copyTree(const fs::path& src, const fs::path& dst) {
         const fs::path target = dst / rel;
         // Symlinks primero y como symlinks: las bibliotecas versionadas de
         // Linux/macOS son cadenas libX.so.6 -> libX.so.6.6.3. Antes se
-        // saltaban y la copia quedaba sin libQt6Core.so.6 / libobs.so.0: el
+        // saltaban y la copia quedaba sin libQt6Core.so.6 (o las de GStreamer): el
         // enlazador caia a las del SISTEMA (otra version) y A no arrancaba.
         if (entry.is_symlink(ec2)) {
             if (!fs::create_directories(target.parent_path(), ec2) && ec2) {
@@ -263,8 +266,7 @@ std::wstring ShadowCopy::prepare(const std::wstring& root, const std::wstring& v
 
     // Copia los tres arboles que viajan con la version (spec 3.1.5).
     const fs::path rootPath = toPath(root);
-    const char* subdirs[] = {"bin", "obs-plugins", "data"};
-    for (const char* sub : subdirs) {
+    for (const char* sub : kArboles) {
         if (!copyTree(rootPath / sub, shadowRoot / sub)) {
             BA_LOG_ERROR("shadow", 3,
                          ba::i18n::llenar(ba::i18n::traducir("shadow", "fallo al copiar %1 hacia %2; ejecutar desde la raiz"),
@@ -316,7 +318,7 @@ std::wstring ShadowCopy::versionKey(const std::wstring& root) {
     const fs::path rootPath = toPath(root);
     std::vector<fs::path> files;
     std::error_code ec;
-    for (const char* sub : {"bin", "obs-plugins", "data"}) {
+    for (const char* sub : kArboles) {
         for (fs::recursive_directory_iterator it(rootPath / sub, ec), end; !ec && it != end;
              it.increment(ec)) {
             if (it->is_regular_file(ec)) {

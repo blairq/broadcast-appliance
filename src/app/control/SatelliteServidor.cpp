@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 #include "i18n/I18n.hpp"
+#include "arranque/ArchivoConfig.hpp"
 #include "control/SatelliteServidor.hpp"
 
 #include "control/Botonera.hpp"
@@ -102,9 +103,8 @@ SatelliteServidor::SatelliteServidor(const fs::path& datos, Botonera& botonera, 
 SatelliteServidor::~SatelliteServidor() { cerrar(); }
 
 void SatelliteServidor::cargar() {
-    std::ifstream f(archivo_);
-    const json j = json::parse(f, nullptr, false);
-    if (!j.is_object()) return;
+    const json j = config::leerObjeto(archivo_);
+    if (j.empty()) return;
     activo_ = j.value("activo", false);
     puerto_ = j.value("puerto", 16622);
     for (const auto& ip : j.value("ip_permitidas", json::array()))
@@ -112,12 +112,9 @@ void SatelliteServidor::cargar() {
 }
 
 void SatelliteServidor::guardar() const {
-    std::error_code ec;
-    fs::create_directories(archivo_.parent_path(), ec);
     json ips = json::array();
     for (const auto& ip : permitidas_) ips.push_back(ip);
-    std::ofstream o(archivo_);
-    o << json{{"activo", activo_}, {"puerto", puerto_}, {"ip_permitidas", ips}}.dump(1, ' ', false, nlohmann::json::error_handler_t::replace);
+    config::guardar(archivo_, {{"activo", activo_}, {"puerto", puerto_}, {"ip_permitidas", ips}});
 }
 
 QStringList SatelliteServidor::ipPermitidas() const {

@@ -10,6 +10,7 @@
 
 #include "asamblea/Cuerpo.hpp"
 #include "asamblea/SesionRemota.hpp"
+#include "persist/ColaEscritura.hpp"
 
 using namespace ba::app;
 using json = nlohmann::json;
@@ -212,6 +213,7 @@ int main(int argc, char** argv) {
         std::ifstream in(e.path(), std::ios::binary);
         crudo += std::string((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
     }
+    ba::persist::cola().vaciar(); // lo guardado, al disco
     std::ifstream cfg(d / "Config" / "sesion-remota.json");
     crudo += std::string((std::istreambuf_iterator<char>(cfg)), std::istreambuf_iterator<char>());
     const std::string tok4 = f4.value("link", std::string()).substr(f4.value("link", std::string()).find("&t=") + 3);

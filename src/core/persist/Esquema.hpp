@@ -8,6 +8,9 @@
 // escribió una versión posterior del programa) no se toca: se avisa y se lee
 // como está, sin pasos para atrás.
 //
+// Los de Config/ no llaman a esto directo: pasan por ArchivoConfig.hpp, que lee y
+// guarda con el esquema que cada archivo declara en su tabla.
+//
 // Sin Qt: lo usan la app, el gateway y el launcher.
 // ============================================================================
 #pragma once

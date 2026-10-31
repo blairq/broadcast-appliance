@@ -13,9 +13,8 @@
 //   `Config/app.json` en la raiz del bundle; si no existe se escribe uno con
 //   valores por defecto para que el operador lo edite. Todo se puede pisar
 //   por linea de comandos (ver `runOperate`). La escena es una lista de
-//   fuentes de libobs con sus settings tal cual los usa OBS, asi que cualquier
-//   fuente que traiga el bundle (camara v4l2, captura, imagen, texto, media,
-//   navegador...) se agrega sin recompilar.
+//   entradas del motor (tipos de motor/Entrada, con sus ajustes); los tipos de
+//   antes se traducen al cargar (inputs::alMotor).
 //
 //   La clave de transmision NUNCA va en el archivo: se lee de la variable de
 //   entorno que indique `stream.keyEnv` (por defecto BA_STREAM_KEY).
@@ -29,7 +28,7 @@ namespace ba::app {
 ///
 /// Opciones:
 ///   --config=<archivo>      otro app.json
-///   --encoder=<alias|id>    auto | vaapi | nvenc | qsv | amf | videotoolbox | x264 | id de libobs
+///   --encoder=<alias|id>    auto | vaapi | nvenc | qsv | amf | videotoolbox | x264 | fábrica de GStreamer
 ///   --bitrate=<kbps>        bitrate de video
 ///   --resolution=<WxH>      lienzo y salida
 ///   --fps=<n>

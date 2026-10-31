@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 #include "asamblea/Quorum.hpp"
+#include "arranque/ArchivoConfig.hpp"
 #include "asamblea/Votos.hpp"
 #include "i18n/I18n.hpp"
 
@@ -56,29 +57,19 @@ Quorum::Quorum(const fs::path& datos, std::function<int()> presentes, std::funct
       archivoOficiales_(datos / "Config" / "votaciones-oficiales.json"),
       presentes_(std::move(presentes)),
       miembrosDelPadron_(std::move(miembrosDelPadron)) {
-    {
-        std::ifstream f(archivoRegla_);
-        const json j = json::parse(f, nullptr, false);
-        if (j.is_object()) {
-            miembros_ = j.value("miembros", 0);
-            minimo_ = j.contains("minimo") ? j["minimo"] : json("mitad_mas_uno");
-            mayoria_ = j.value("mayoria", std::string("simple"));
-        }
+    const json j = config::leerObjeto(archivoRegla_);
+    if (!j.empty()) {
+        miembros_ = j.value("miembros", 0);
+        minimo_ = j.contains("minimo") ? j["minimo"] : json("mitad_mas_uno");
+        mayoria_ = j.value("mayoria", std::string("simple"));
     }
-    std::ifstream f(archivoOficiales_);
-    const json j = json::parse(f, nullptr, false);
-    if (j.is_array()) oficiales_ = j;
+    const json o = config::leerObjeto(archivoOficiales_).value("votaciones", json::array());
+    if (o.is_array()) oficiales_ = o;
 }
 
 void Quorum::guardar() const {
-    std::error_code ec;
-    fs::create_directories(archivoRegla_.parent_path(), ec);
-    {
-        std::ofstream o(archivoRegla_);
-        o << regla().dump(1, ' ', false, nlohmann::json::error_handler_t::replace);
-    }
-    std::ofstream o(archivoOficiales_);
-    o << oficiales_.dump(1, ' ', false, nlohmann::json::error_handler_t::replace);
+    config::guardar(archivoRegla_, regla());
+    config::guardar(archivoOficiales_, {{"votaciones", oficiales_}});
 }
 
 json Quorum::regla() const { return {{"miembros", miembros_}, {"minimo", minimo_}, {"mayoria", mayoria_}}; }

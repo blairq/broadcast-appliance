@@ -1,6 +1,7 @@
 // agent/Vocabulario: corrección por sonido, solo con confianza alta.
 #include "agent/Vocabulario.hpp"
 #include "asamblea/Cuerpo.hpp"
+#include "persist/ColaEscritura.hpp"
 
 #include <cstdio>
 #include <filesystem>
@@ -24,7 +25,7 @@ int main() {
     fs::remove_all(dir);
     {
         Vocabulario v(dir / "vocabulario.json");
-        CHECK(fs::exists(dir / "vocabulario.json"), "siembra el archivo");
+        CHECK(ba::persist::cola().vaciar() && fs::exists(dir / "vocabulario.json"), "siembra el archivo");
         // Las localidades vienen vacías de fábrica (son de cada lugar): las de la prueba.
         v.ponerGrupo("localidades", {"Comodoro Rivadavia", "Trelew", "Cholila"});
         CHECK(Vocabulario::fonetica("Rivadavia") == Vocabulario::fonetica("ribadabia"), "b y v suenan igual");

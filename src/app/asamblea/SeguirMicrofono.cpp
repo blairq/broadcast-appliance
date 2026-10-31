@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 #include "asamblea/SeguirMicrofono.hpp"
+#include "arranque/ArchivoConfig.hpp"
 #include "i18n/I18n.hpp"
 
 #include "control/BusEventos.hpp"
@@ -20,9 +21,8 @@ namespace fs = std::filesystem;
 SeguirMicrofono::SeguirMicrofono(const fs::path& datos, control::BusEventos& bus, Cuerpo& cuerpo, Bancas& bancas,
                                  QObject* parent)
     : QObject(parent), archivo_(datos / "Config" / "seguir-microfono.json"), bus_(bus), cuerpo_(cuerpo), bancas_(bancas) {
-    std::ifstream f(archivo_);
-    const json j = json::parse(f, nullptr, false);
-    if (j.is_object()) {
+    const json j = config::leerObjeto(archivo_);
+    if (!j.empty()) {
         activo_ = j.value("activo", false);
         modo_ = j.value("modo", std::string("proponer"));
         fuente_ = j.value("fuente", std::string("niveles"));
@@ -45,12 +45,8 @@ SeguirMicrofono::SeguirMicrofono(const fs::path& datos, control::BusEventos& bus
 SeguirMicrofono::~SeguirMicrofono() { bus_.desuscribir(sub_); }
 
 void SeguirMicrofono::guardar() const {
-    std::error_code ec;
-    fs::create_directories(archivo_.parent_path(), ec);
-    std::ofstream o(archivo_);
-    o << json{{"activo", activo_}, {"modo", modo_}, {"fuente", fuente_}, {"umbral_db", umbralDb_}, {"sostener_ms", sostenerMs_},
-              {"soltar_ms", soltarMs_}}
-             .dump(1, ' ', false, nlohmann::json::error_handler_t::replace);
+    config::guardar(archivo_, {{"activo", activo_}, {"modo", modo_}, {"fuente", fuente_}, {"umbral_db", umbralDb_},
+                               {"sostener_ms", sostenerMs_}, {"soltar_ms", soltarMs_}});
 }
 
 json SeguirMicrofono::estado() const {

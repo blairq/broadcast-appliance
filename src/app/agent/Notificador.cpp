@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 #include "agent/Notificador.hpp"
+#include "arranque/ArchivoConfig.hpp"
 #include "ajustes/Ajustes.hpp"
 #include "platform/Paths.hpp"
 
@@ -38,16 +39,12 @@ const std::set<std::string> kTipos{"webhook", "telegram", "smtp"};
 
 Notificador::Notificador(const fs::path& datos, QObject* parent)
     : QObject(parent), archivo_(datos / "Config" / "notificadores.json"), credenciales_(ba::platform::credentialsDir()) {
-    std::ifstream f(archivo_);
-    const json j = json::parse(f, nullptr, false);
+    const json j = config::leerObjeto(archivo_).value("notificadores", json::array());
     if (j.is_array()) lista_ = j;
 }
 
 void Notificador::guardar() const {
-    std::error_code ec;
-    fs::create_directories(archivo_.parent_path(), ec);
-    std::ofstream o(archivo_);
-    o << lista_.dump(1, ' ', false, nlohmann::json::error_handler_t::replace);
+    config::guardar(archivo_, {{"notificadores", lista_}});
 }
 
 const json* Notificador::buscar(const std::string& id) const {

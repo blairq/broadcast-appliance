@@ -146,7 +146,7 @@ static GstFlowReturn crear(GstPushSrc* ps, GstBuffer** out) {
     const gsize bytes = t.muestras.size() * sizeof(float);
     GstBuffer* b = gst_buffer_new_allocate(nullptr, bytes, nullptr);
     gst_buffer_fill(b, 0, t.muestras.data(), bytes);
-    // La hora del tramo (reloj de libobs) en el reloj del pipeline: los dos
+    // La hora del tramo (ba::app::ahoraNs) en el reloj del pipeline: los dos
     // relojes leídos juntos, sin suponer que tengan la misma base.
     GstClockTime pts = GST_CLOCK_TIME_NONE;
     if (GstClock* reloj = gst_element_get_clock(GST_ELEMENT(v))) {

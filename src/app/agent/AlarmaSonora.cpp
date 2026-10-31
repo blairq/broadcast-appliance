@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 #include "agent/AlarmaSonora.hpp"
+#include "arranque/ArchivoConfig.hpp"
 #include "platform/Paths.hpp"
 
 #include <QAudioDevice>
@@ -64,12 +65,9 @@ AlarmaSonora::AlarmaSonora(fs::path datos, QObject* parent) : QObject(parent), d
     escribirWav(a, {{880, 140}, {0, 80}, {1175, 180}});
     escribirWav(c, {{988, 220}, {0, 60}, {740, 220}, {0, 500}});
     {
-        std::ifstream f(datos_ / "Config" / "alarmas.json");
-        const json j = json::parse(f, nullptr, false);
-        if (j.is_object()) {
-            volumen_ = std::clamp(j.value("volumen", volumen_), 0.0, 1.0);
-            dispositivo_ = QString::fromStdString(j.value("dispositivo", std::string()));
-        }
+        const json j = config::leerObjeto(datos_ / "Config" / "alarmas.json");
+        volumen_ = std::clamp(j.value("volumen", volumen_), 0.0, 1.0);
+        dispositivo_ = QString::fromStdString(j.value("dispositivo", std::string()));
     }
     aviso_ = std::make_unique<QSoundEffect>();
     critico_ = std::make_unique<QSoundEffect>();
@@ -119,10 +117,7 @@ QStringList AlarmaSonora::dispositivosUi() const {
 }
 
 void AlarmaSonora::guardar() const {
-    std::error_code ec;
-    fs::create_directories(datos_ / "Config", ec);
-    std::ofstream o(datos_ / "Config" / "alarmas.json");
-    o << json{{"volumen", volumen_}, {"dispositivo", dispositivo_.toStdString()}}.dump(1, ' ', false, nlohmann::json::error_handler_t::replace);
+    config::guardar(datos_ / "Config" / "alarmas.json", {{"volumen", volumen_}, {"dispositivo", dispositivo_.toStdString()}});
 }
 
 } // namespace ba::app::agent

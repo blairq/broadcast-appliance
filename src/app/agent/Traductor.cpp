@@ -1,6 +1,7 @@
 // src/app/agent/Traductor.cpp — ver Traductor.hpp
 
 #include "agent/Traductor.hpp"
+#include "arranque/ArchivoConfig.hpp"
 #include "ajustes/Ajustes.hpp"
 
 #include "agent/FlujosTexto.hpp"
@@ -45,22 +46,6 @@ json dejson(const QVariant& v) {
         json::parse(QJsonDocument::fromVariant(QVariantList{v}).toJson(QJsonDocument::Compact).toStdString(),
                     nullptr, false);
     return j.is_array() && !j.empty() ? j[0] : json();
-}
-json leerJson(const fs::path& p) {
-    std::ifstream f(p);
-    if (!f) return json();
-    json j = json::parse(f, nullptr, false);
-    return j.is_discarded() ? json() : j;
-}
-void escribirJson(const fs::path& p, const json& j) {
-    std::error_code ec;
-    fs::create_directories(p.parent_path(), ec);
-    const fs::path tmp = p.string() + ".tmp";
-    {
-        std::ofstream f(tmp, std::ios::binary | std::ios::trunc);
-        f << j.dump(1, ' ', false, nlohmann::json::error_handler_t::replace);
-    }
-    fs::rename(tmp, p, ec);
 }
 /// Las variantes en castellano de un término (una o varias), la primera es su clave.
 std::vector<std::string> variantes(const json& e) {
@@ -181,13 +166,13 @@ void Traductor::leer() {
         traducciones_ = l;
         return;
     }
-    const json j = leerJson(root_ / "Config" / "traducciones.json");
+    const json j = config::leerObjeto(root_ / "Config" / "traducciones.json");
     traducciones_ = j.is_object() ? j.value("traducciones", json::array()) : json::array();
 }
 
 void Traductor::guardar() const {
     if (!tarjetas_.listar)
-        escribirJson(root_ / "Config" / "traducciones.json", {{"traducciones", traducciones_}});
+        config::guardar(root_ / "Config" / "traducciones.json", {{"traducciones", traducciones_}});
 }
 
 void Traductor::setTarjetas(Tarjetas t) {
@@ -214,10 +199,11 @@ void Traductor::migrar() {
     porMigrar_ = quedan;
     const fs::path a = root_ / "Config" / "traducciones.json";
     std::error_code ec;
-    if (porMigrar_.empty())
+    if (porMigrar_.empty()) {
+        ba::persist::cola().vaciar(); // lo encolado antes, al disco: si no, el escritor lo recrea
         fs::rename(a, a.string() + ".migrado", ec);
-    else
-        escribirJson(a, {{"traducciones", porMigrar_}});
+    } else
+        config::guardar(a, {{"traducciones", porMigrar_}});
     migrando_ = false;
 }
 
@@ -307,7 +293,7 @@ std::string Traductor::ajustar(const std::string& id, const json& cambios) {
         if (t.value("id", "") == id) {
             for (auto it = c.begin(); it != c.end(); ++it)
                 t[it.key()] = it.value();
-            escribirJson(root_ / "Config" / "traducciones.json", {{"traducciones", porMigrar_}});
+            config::guardar(root_ / "Config" / "traducciones.json", {{"traducciones", porMigrar_}});
             sincronizar();
             return {};
         }
@@ -332,7 +318,7 @@ std::string Traductor::quitar(const std::string& id) {
     for (auto it = porMigrar_.begin(); it != porMigrar_.end(); ++it)
         if (it->value("id", "") == id) {
             porMigrar_.erase(it);
-            escribirJson(root_ / "Config" / "traducciones.json", {{"traducciones", porMigrar_}});
+            config::guardar(root_ / "Config" / "traducciones.json", {{"traducciones", porMigrar_}});
             sincronizar();
             return {};
         }
@@ -669,7 +655,7 @@ void Traductor::soltar(const std::string& id) {
 fs::path Traductor::archivoGlosario() const { return root_ / "Config" / "glosario-traduccion.json"; }
 
 void Traductor::leerGlosario() {
-    const json j = leerJson(archivoGlosario());
+    const json j = config::leerObjeto(archivoGlosario());
     operador_ = j.is_object() ? j : json::object();
     for (const char* k : {"terminos", "apagados", "grupos_apagados"})
         if (!operador_.contains(k) || !operador_[k].is_array()) operador_[k] = json::array();
@@ -685,7 +671,7 @@ void Traductor::guardarGlosario() const {
         "\"ru\": \"...\", \"zh\": \"...\", \"grupo\": \"...\"}. `apagados`: términos de fábrica que no se "
         "usan; `grupos_apagados`: "
         "grupos enteros. Se puede editar a mano: la app lo relee al cambiar algo desde la interfaz o MCP.";
-    escribirJson(archivoGlosario(), g);
+    config::guardar(archivoGlosario(), g);
 }
 
 json Traductor::glosario() const {

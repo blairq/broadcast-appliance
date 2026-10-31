@@ -2,6 +2,7 @@
 // src/app/video/BancoSuperRes.cpp — ver BancoSuperRes.hpp
 // ============================================================================
 #include "video/BancoSuperRes.hpp"
+#include "arranque/ArchivoConfig.hpp"
 
 #include <QCoreApplication>
 #include <QDateTime>
@@ -71,9 +72,7 @@ std::string nombreAcelerador(const std::string& a) {
 
 BancoSuperRes::BancoSuperRes(fs::path dataRoot, SuperRes& sr, Entorno en, QObject* parent)
     : QObject(parent), archivo_(dataRoot / "Config" / "superres-banco.json"), sr_(sr), en_(std::move(en)) {
-    std::ifstream f(archivo_);
-    const json j = f ? json::parse(f, nullptr, false) : json();
-    if (j.is_object()) resultado_ = j;
+    if (const json j = config::leerObjeto(archivo_); !j.empty()) resultado_ = j;
 }
 
 BancoSuperRes::~BancoSuperRes() {
@@ -316,13 +315,7 @@ void BancoSuperRes::trabajar(json cands, std::vector<std::pair<int, int>> tamano
              {"resultados", resultados},
              {"recomendado", recomendado}};
     if (!cancelado || !resultados.empty()) {
-        std::error_code ec;
-        fs::create_directories(archivo_.parent_path(), ec);
-        {
-            std::ofstream o(archivo_.string() + ".tmp");
-            o << res.dump(1, '\t', false, nlohmann::json::error_handler_t::replace);
-        }
-        fs::rename(archivo_.string() + ".tmp", archivo_, ec);
+        config::guardar(archivo_, res);
     }
     {
         std::lock_guard<std::mutex> l(mu_);

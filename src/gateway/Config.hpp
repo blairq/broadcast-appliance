@@ -356,7 +356,7 @@ struct Config {
         pinggyLog = utf8(root / "Logs" / "pinggy.log");
         webPath = utf8(binDir / exeWeb);
         // La web viene con el programa: del bundle; si no está (la copia
-        // sombra solo trae bin/, obs-plugins/ y data/), de la raíz real.
+        // sombra solo trae bin/ y data/), de la raíz real.
         std::error_code ec;
         const std::filesystem::path web =
             std::filesystem::exists(bundle / "Web", ec) ? bundle / "Web" : root / "Web";

@@ -2,6 +2,7 @@
 // src/app/ui/PantallasViewModel.cpp — ver PantallasViewModel.hpp
 // ============================================================================
 #include "ui/PantallasViewModel.hpp"
+#include "arranque/ArchivoConfig.hpp"
 #include "ajustes/Ajustes.hpp"
 
 #include <algorithm>
@@ -337,7 +338,6 @@ struct PantallasViewModel::Impl {
 
     void guardar() const {
         if (archivo.empty()) return;
-        QDir().mkpath(QString::fromStdString(archivo.parent_path().string()));
         json o = json::array();
         for (const Destino& d : destinos) {
             // Las descubiertas también se guardan: así la página no arranca
@@ -379,20 +379,17 @@ struct PantallasViewModel::Impl {
                                {"transicion", c.transicion.toStdString()},
                                {"pasos", pasos}});
         }
-        std::ofstream f(archivo, std::ios::binary | std::ios::trunc);
         // Se guardan los dos juntos: las pantallas y lo que rota en ellas son
         // la misma configuración de sala.
-        f << json{{"pantallas", o}, {"carruseles", car}}.dump(2, ' ', false, nlohmann::json::error_handler_t::replace) << "\n";
+        config::guardar(archivo, {{"pantallas", o}, {"carruseles", car}});
     }
 
     void leer() {
         if (archivo.empty()) return;
-        std::ifstream f(archivo, std::ios::binary);
-        if (!f) return;
-        const json raiz = json::parse(f, nullptr, false);
-        // Formato viejo: era un arreglo de pantallas a secas.
-        const json o = raiz.is_array() ? raiz : raiz.value("pantallas", json::array());
-        for (const json& c : raiz.is_object() ? raiz.value("carruseles", json::array()) : json::array()) {
+        // El formato viejo (un arreglo de pantallas a secas) lo trae el esquema 2.
+        const json raiz = config::leerObjeto(archivo);
+        const json o = raiz.value("pantallas", json::array());
+        for (const json& c : raiz.value("carruseles", json::array())) {
             if (!c.is_object()) continue;
             Carrusel x;
             x.id = QString::fromStdString(c.value("id", ""));
