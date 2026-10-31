@@ -24,9 +24,13 @@ sobre un evento de prueba PROPIO (nunca el del operador):
                              archivo nuevo y la placa en el hueco (RTO = el hueco más largo)
        kill_emisor, stop_emisor  kill -9 / SIGSTOP del emisor: el launcher lo relanza y
                              retoma el pedido (otra conexión y otro archivo: «-sigue2»)
+       gpu_video             la GPU del video se pierde (F3-09): la app rearma el motor
      y mide: cuándo contesta la app (MCP), cuándo vuelve el primer cuadro al servidor
      RTMP (RTO de la transmisión), cuándo vuelve a crecer el MKV, y la reapertura de los
-     anillos A↔B (lo que dice Logs/gateway.log después de la falla).
+     anillos A↔B (lo que dice Logs/gateway.log después de la falla). Con A relanzada,
+     además cuándo sacó el motor nuevo su primer cuadro de programa (Logs/app.log,
+     «primer_cuadro_s»: la parte de la retoma que es de A, F3-10, meta < 3 s); con la GPU
+     perdida, cuándo terminó el rearme («rearmado_s»).
   4. Al final: los huecos de la transmisión (servidor RTMP) y de la grabación (cada
      MKV con el gst-discoverer del bundle: duración, si abre, hueco entre partes).
   5. SIEMPRE, pase lo que pase: limpia las fallas programadas, para la transmisión y la
@@ -83,13 +87,17 @@ CAM = "Cámara de caos"
 WINDOWS = platform.system() == "Windows"
 ESCENARIOS = ["kill_a", "stop_a", "kill_b", "stop_b", "kill_web", "stop_web", "kill_cf", "stop_cf", "al_aire_truncado",
               "codificador_tx", "sumidero_tx", "codificador_rec", "sumidero_rec", "kill_a_con_emisor", "kill_emisor",
-              "stop_emisor"]
+              "stop_emisor", "gpu_video"]
 # Los procesos, por el nombre del ejecutable (A y B pueden correr desde la copia sombra:
 # la ruta no es la del bundle).
 PROCESOS = {"a": "ba-app", "b": "ba-gateway", "web": "ba-web", "cf": "cloudflared", "emisor": "ba-emisor",
             "launcher": "BroadcastAppliance"}
 # Lo que escribe el gateway cuando vuelve a tomar un anillo de A (MediaPump).
 ANILLO = re.compile(r"suscrito|resuscribiendo|abiert[oa]\b|\blisto\b")
+# Lo que escribe A cuando su motor saca el primer cuadro de programa (LatidoAire) y cuando
+# terminó de rearmarse tras perder la GPU (AppRuntime::rearmarPorGpu).
+PRIMER_CUADRO = re.compile(r"arranque: el primer cuadro del programa")
+REARMADO = re.compile(r"motor rearmado tras perder la GPU")
 
 
 def log(*a):
@@ -416,7 +424,7 @@ class Banco:
             r = self.al_aire_truncado()
         else:
             pieza, sal = nombre.split("_")
-            r = self.falla(pieza, {"tx": "transmision", "rec": "grabacion"}[sal])
+            r = self.falla(pieza, {"tx": "transmision", "rec": "grabacion", "video": "video"}[sal])
         if not r.get("saltado"):
             r["volvio"] = r.get("rto_s") is not None
         return r
@@ -458,6 +466,9 @@ class Banco:
             time.sleep(0.3)
         for k in pend:
             r[k + "_s"] = None
+        if mcp:
+            tp = self.app.primera_linea("app.log", t0, PRIMER_CUADRO)
+            r["primer_cuadro_s"] = round(tp - t0, 3) if tp else None
         ta = self.app.primera_linea("gateway.log", t0, ANILLO)
         r["anillos_s"] = round(ta - t0, 3) if ta else None
         huecos = self.rtmp.huecos(1.0, t0 - 1.0)
@@ -572,7 +583,13 @@ class Banco:
         time.sleep(max(0.0, t0 - time.time()) + 1.0)
         d = self.tool("diag_falla").get("disparadas", [])
         r: dict = {"disparada": any(x.get("pieza") == pieza and x.get("salida") == salida for x in d)}
-        if salida == "transmision":
+        if salida == "video":
+            # La GPU perdida: la app rearma el motor y retoma la transmisión (conexión nueva).
+            r.update(self.medir(t0, self.tamano_mkv(), video="nueva", grabacion=True))
+            tr = self.app.primera_linea("app.log", t0, REARMADO)
+            r["rearmado_s"] = round(tr - t0, 3) if tr else None
+            r["rto_s"] = r["video_s"]
+        elif salida == "transmision":
             r.update(self.medir(t0, 0, video="nueva"))
             r["rto_s"] = r["video_s"]
         else:
@@ -681,6 +698,8 @@ def informe(b: Banco, carpeta: str, mkv: dict, rtmp_ses: list, rtmp_huecos: list
             "rto_p95_s": percentil(rto, 95),
             "mcp_p50_s": percentil([r.get("mcp_s") for r in reps], 50),
             "anillos_p50_s": percentil([r.get("anillos_s") for r in reps], 50),
+            "primer_cuadro_p50_s": percentil([r.get("primer_cuadro_s") for r in reps], 50),
+            "primer_cuadro_p95_s": percentil([r.get("primer_cuadro_s") for r in reps], 95),
             "no_volvio": sum(1 for r in reps if not r.get("saltado") and not r.get("volvio")),
             "saltado": next((r["saltado"] for r in reps if r.get("saltado")), None),
         }
@@ -697,16 +716,17 @@ def informe(b: Banco, carpeta: str, mkv: dict, rtmp_ses: list, rtmp_huecos: list
           f"Plazo por escenario: {b.a.plazo_s:.0f} s.", ""]
     if corte:
         md += [f"**Cortó antes de terminar:** {corte}", ""]
-    md += ["| Escenario | Veces | RTO p50 (s) | RTO p95 (s) | MCP p50 (s) | Anillos p50 (s) | No volvió |",
-           "|---|---|---|---|---|---|---|"]
+    md += ["| Escenario | Veces | RTO p50 (s) | RTO p95 (s) | MCP p50 (s) | Anillos p50 (s) | 1.er cuadro p50/p95 (s) | No volvió |",
+           "|---|---|---|---|---|---|---|---|"]
     for n, e in esc.items():
         if e["saltado"]:
-            md.append(f"| {n} | — | saltado: {e['saltado']} | | | | |")
+            md.append(f"| {n} | — | saltado: {e['saltado']} | | | | | |")
             continue
         md.append(f"| {n} | {len(e['repeticiones'])} | {s(e['rto_p50_s'])} | {s(e['rto_p95_s'])} | {s(e['mcp_p50_s'])} | "
-                  f"{s(e['anillos_p50_s'])} | {e['no_volvio']} |")
+                  f"{s(e['anillos_p50_s'])} | {s(e['primer_cuadro_p50_s'])}/{s(e['primer_cuadro_p95_s'])} | {e['no_volvio']} |")
     md += ["", "RTO: de la falla al primer cuadro de una conexión NUEVA en el servidor RTMP local (en la grabación: "
-           "a que el MKV vuelva a crecer). Anillos: primera línea de reapertura en Logs/gateway.log.", "",
+           "a que el MKV vuelva a crecer). Anillos: primera línea de reapertura en Logs/gateway.log. 1.er cuadro: el "
+           "motor de la A relanzada saca su primer cuadro de programa (Logs/app.log; meta F3-10: < 3 s).", "",
            f"## Grabación ({len(mkv.get('archivos', []))} partes)", "",
            f"Hueco máximo entre partes: {s(mkv.get('hueco_max_s'))} s. "
            f"No abren: {', '.join(mkv.get('no_abren', [])) or 'ninguna'}.", ""]

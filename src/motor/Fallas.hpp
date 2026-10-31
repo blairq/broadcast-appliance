@@ -12,6 +12,8 @@
 //                (GST_RESOURCE_ERROR_WRITE, como un disco que se va o una conexión que
 //                se corta) y no recibe más nada.
 //
+//   video.gpu:   el mezclador de la composición dice que se perdió la GPU (F3-09).
+//
 // El mensaje es el mismo que da la falla de verdad, por el bus del pipeline: lo
 // atiende el camino de siempre (Transmision::tic reconecta; la grabación, lo que
 // haga F1-05). Sin nada programado, una carga atómica y vuelve.
@@ -28,5 +30,10 @@ namespace ba::motor {
 /// `codificacion`: el pipeline del codificador que lee esa salida (la Codificacion
 /// compartida): una falla de «codificador» va ahí, no al pipeline de la salida.
 void aplicarFallasProgramadas(GstElement* pipeline, const std::string& salida, GstElement* codificacion = nullptr);
+
+/// «video.gpu» (F3-09): el mezclador de GPU de una composición (glvideomixer,
+/// d3d12compositor) avisa el error que da cuando la GPU se pierde (GpuPerdida.hpp) y deja
+/// de sacar cuadros, como la placa de verdad. Lo llama el tic de cada composición en la GPU.
+void aplicarFallaDeGpu(GstElement* mezclador);
 
 } // namespace ba::motor

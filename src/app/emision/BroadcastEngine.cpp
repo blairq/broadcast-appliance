@@ -951,16 +951,8 @@ void BroadcastEngine::disablePreview() {
     previewActive_ = false;
 }
 
-bool BroadcastEngine::latestPreview(std::vector<std::uint8_t>& dst, int& width, int& height, int& stride,
-                                    std::uint64_t& serial) const {
-    if (!previewActive_ || !motor_) return false;
-    motor::Cuadro c;
-    if (!motor_->verUltimo("programa@ui", c, serial)) return false;
-    dst.assign(c.bgra.data(), c.bgra.data() + c.bgra.size()); // la interfaz se queda con su copia
-    width = c.ancho;
-    height = c.alto;
-    stride = c.stride;
-    return true;
+bool BroadcastEngine::latestPreview(motor::Cuadro& out, std::uint64_t& serial) const {
+    return previewActive_ && motor_ && motor_->verUltimo("programa@ui", out, serial);
 }
 
 void BroadcastEngine::programPeaksDb(float& left, float& right, const std::string& salida) {
@@ -1119,20 +1111,14 @@ std::string BroadcastEngine::scenePreviewName(const std::string& canal) const {
     return it == scenePreviews_.end() ? std::string() : it->second.name;
 }
 
-bool BroadcastEngine::renderScenePreview(const std::string& canal, std::vector<std::uint8_t>& dst, int& width,
-                                         int& height, int& stride, std::uint64_t& serial) {
+bool BroadcastEngine::renderScenePreview(const std::string& canal, motor::Cuadro& out, std::uint64_t& serial) {
     auto it = scenePreviews_.find(canal);
     if (it == scenePreviews_.end() || !motor_) return false;
     // Solo si hay uno nuevo: antes daba siempre el último y la interfaz lo
     // copiaba y le daba vuelta los colores 30 veces por segundo aunque fuera el
-    // mismo (la serie de las vistas es una sola y solo crece).
-    motor::Cuadro c;
-    if (!motor_->verUltimo(it->second.clave, c, serial)) return false;
-    dst.assign(c.bgra.data(), c.bgra.data() + c.bgra.size()); // la interfaz se queda con su copia
-    width = c.ancho;
-    height = c.alto;
-    stride = c.stride;
-    return true;
+    // mismo (la serie de las vistas es una sola y solo crece). Y sin copiarlo: la
+    // interfaz comparte los bytes con la vista (F3-11).
+    return motor_->verUltimo(it->second.clave, out, serial);
 }
 
 void BroadcastEngine::capturarAparte(const std::string& name, int maxWidth, Captura listo) {

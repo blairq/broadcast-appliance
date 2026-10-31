@@ -4,37 +4,163 @@
 
 #include "ui/FrameService.hpp"
 
+#include "Vistas.hpp" // motor: Cuadro y Pixeles
 #include "emision/BroadcastEngine.hpp"
 #include "ipc/SpoutTransport.hpp"
+#include "platform/Hilo.hpp"
 
-#include <QJsonObject>
-
+#include <algorithm>
+#include <atomic>
 #include <chrono>
+#include <climits>
+#include <condition_variable>
+#include <mutex>
+#include <thread>
+#include <utility>
 
 namespace ba::app {
 
 namespace {
-/// Una QImage que se queda con el buffer (BGRA = RGB32 en memoria): sin la
-/// copia de más que hacía `.copy()` en el hilo de la interfaz.
+/// Un cuadro del motor como QImage, SIN COPIARLO (F3-11): la imagen se queda con una
+/// referencia al buffer de GStreamer (motor::Pixeles) y lo suelta cuando la sueltan
+/// todos. Antes se copiaba entero en el hilo de la interfaz, cada cuadro de cada vista.
 ///
 /// RGB32 y no ARGB32: los cuadros son opacos (las composiciones tienen fondo
 /// negro; invitados y cámaras son video) y Qt Quick sube RGB32 tal cual a la GPU
 /// (BGRA8). Con ARGB32 lo convertía en CADA cuadro de CADA video a RGBA
 /// premultiplicado, repartido en su pool de hilos: en Windows eran 14 hilos
 /// despertándose sin parar (un cuarto de núcleo, visto con BA_PERFILAR).
-QImage envolver(std::vector<std::uint8_t>&& v, int w, int h, int stride) {
-    auto* p = new std::vector<std::uint8_t>(std::move(v));
+QImage envolver(const motor::Cuadro& c) {
+    auto* p = new motor::Pixeles(c.bgra);
+    // Con los datos const: si alguien la quisiera escribir, Qt la copia antes.
     return QImage(
-        p->data(), w, h, stride, QImage::Format_RGB32,
-        [](void* q) { delete static_cast<std::vector<std::uint8_t>*>(q); }, p);
+        static_cast<const uchar*>(p->data()), c.ancho, c.alto, c.stride, QImage::Format_RGB32,
+        [](void* q) { delete static_cast<motor::Pixeles*>(q); }, p);
+}
+
+std::int64_t ahoraUs() {
+    return std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
 }
 } // namespace
 
+// ============================================================================
+// Canales: los canales entre procesos, leídos en su hilo (F3-11)
+//
+// Lo que antes hacía poll en el hilo de la interfaz con cada canal: suscribirse (y
+// resuscribirse si el productor se reinició), copiar el cuadro nuevo y armar la
+// QImage. Ahora lo hace este hilo y deja la imagen en un buzón; poll la recoge.
+// Duerme hasta el próximo cuadro esperado del canal mirado que antes publique
+// (proximaMirada, F2-14), con un tope de 50 ms para ver los pedidos nuevos.
+// ============================================================================
+
+class FrameService::Canales {
+   public:
+    Canales() : hilo_([this] { bucle(); }) {}
+    ~Canales() {
+        {
+            std::lock_guard<std::mutex> l(mu_);
+            seguir_ = false;
+        }
+        cv_.notify_all();
+        hilo_.join();
+    }
+    Canales(const Canales&) = delete;
+    Canales& operator=(const Canales&) = delete;
+
+    /// Qué canales leer y cuándo los miró alguien por última vez (µs; 0 = nunca).
+    void pedir(std::vector<std::pair<QString, std::int64_t>> pedidos) {
+        std::lock_guard<std::mutex> l(mu_);
+        pedidos_ = std::move(pedidos);
+    }
+    /// Lo que llegó desde la última vez (por clave, la última imagen).
+    std::map<QString, QImage> tomar() {
+        std::lock_guard<std::mutex> l(mu_);
+        return std::exchange(llegados_, {});
+    }
+    std::uint64_t leidos() const { return leidos_.load(); }
+    std::uint64_t bytes() const { return bytes_.load(); }
+
+   private:
+    struct Lector {
+        ba::ipc::SpoutReceiver r;
+        std::int64_t intentoUs = 0; ///< el último intento de suscribirse
+        std::int64_t leidoUs = 0;   ///< la última vez que se copió un cuadro
+    };
+
+    void bucle() {
+        ba::platform::nombrarHilo("ui-canales");
+        std::vector<std::pair<QString, std::int64_t>> pedidos;
+        for (;;) {
+            {
+                std::lock_guard<std::mutex> l(mu_);
+                if (!seguir_) return;
+                pedidos = pedidos_;
+            }
+            auto despertar = std::chrono::steady_clock::now() + std::chrono::milliseconds(50);
+            for (const auto& [key, pedidoUs] : pedidos) leer(key, pedidoUs, despertar);
+            std::unique_lock<std::mutex> l(mu_);
+            const auto minimo = std::chrono::steady_clock::now() + std::chrono::milliseconds(2);
+            cv_.wait_until(l, std::max(despertar, minimo), [this] { return !seguir_; });
+        }
+    }
+
+    void leer(const QString& key, std::int64_t pedidoUs, std::chrono::steady_clock::time_point& despertar) {
+        const std::int64_t ahora = ahoraUs();
+        Lector& lec = lectores_[key];
+        auto& r = lec.r;
+        if (r.width() != 0 && r.stale()) r = ba::ipc::SpoutReceiver{};
+        if (r.width() == 0) {
+            // Nadie publica todavía: probar dos veces por segundo (eran ~20 canales
+            // abriendo memoria compartida en cada vuelta).
+            if (ahora - lec.intentoUs < 500'000) return;
+            lec.intentoUs = ahora;
+            bool ok = false;
+            for (const std::wstring& n : channelsOf(key))
+                if ((ok = r.subscribe(n.c_str()))) break;
+            if (!ok) return;
+        }
+        // Lo que nadie mira (una página que no se ve, un lugar vacío), una vez por segundo
+        // y no a cada cuadro: uno por segundo alcanza para que una captura (MCP) no salga vieja.
+        const bool mirado = ahora - pedidoUs <= 2'000'000;
+        if (mirado) despertar = std::min(despertar, r.proximaMirada(std::chrono::milliseconds(50)));
+        if (!mirado && ahora - lec.leidoUs < 1'000'000) return;
+        if (!r.hasData()) return;
+        // Directo al buffer que se queda la imagen (sin inicializar: se pisa entero).
+        const std::size_t cap = r.frameBytes();
+        auto* p = new std::uint8_t[cap];
+        ba::ipc::FrameMeta meta{};
+        if (!r.receive(p, cap, meta)) {
+            delete[] p;
+            return;
+        }
+        lec.leidoUs = ahora;
+        // Un invitado chico viaja a su tamaño (F2-13): las filas, juntas, de ancho×4.
+        const int w = meta.ancho != 0 ? static_cast<int>(meta.ancho) : r.width();
+        const int h = meta.alto != 0 ? static_cast<int>(meta.alto) : r.height();
+        QImage img(
+            p, w, h, w * 4, QImage::Format_RGB32, [](void* q) { delete[] static_cast<std::uint8_t*>(q); }, p);
+        ++leidos_;
+        bytes_ += static_cast<std::uint64_t>(w) * static_cast<std::uint64_t>(h) * 4;
+        std::lock_guard<std::mutex> l(mu_);
+        llegados_[key] = std::move(img);
+    }
+
+    std::mutex mu_; // lo de abajo, hasta lectores_
+    std::condition_variable cv_;
+    bool seguir_ = true;
+    std::vector<std::pair<QString, std::int64_t>> pedidos_;
+    std::map<QString, QImage> llegados_;
+    std::map<QString, Lector> lectores_; ///< solo el hilo
+    std::atomic<std::uint64_t> leidos_{0}, bytes_{0};
+    std::thread hilo_; // el último: arranca con todo lo de arriba ya construido
+};
+
 FrameService::FrameService(BroadcastEngine& engine, int guests, QObject* parent)
-    : QObject(parent), engine_(engine) {
+    : QObject(parent), engine_(engine), pollUs_(3600, -1) {
     slots_["program"];
     slots_["scene"];
     setGuests(guests);
+    canales_ = std::make_unique<Canales>();
 }
 
 FrameService::~FrameService() = default;
@@ -164,104 +290,20 @@ void FrameService::mirarClave(const QString& clave, bool mirar, int ancho) {
 
 void FrameService::setGuests(int guests) {
     guests_ = guests;
+    rehacerCanales();
     emit keysChanged();
 }
 
-void FrameService::setGuestNames(const QStringList& names) {
-    if (names == names_) return;
-    names_ = names;
-    emit keysChanged(); // las etiquetas cambian
+void FrameService::setLobbySlots(int n) {
+    lobbySlots_ = n;
+    rehacerCanales();
 }
 
-std::wstring FrameService::channelOf(const QString& key) {
-    if (key == "operator") return L"BA.Operator";
-    const std::wstring n = key.section(':', 1).toStdWString();
-    if (key.startsWith("guest:")) return L"BA.Guest." + n;
-    if (key.startsWith("share:")) return L"BA.GuestShare." + n;
-    if (key.startsWith("lobby:")) return L"BA.Lobby." + n;
-    if (key.startsWith("backstage:")) return L"BA.Backstage." + n;
-    if (key.startsWith("registro:")) return L"BA.Registro." + n; // la cámara de un tótem de registro
-    return {};
-}
-
-namespace {
-std::int64_t ahoraUs() {
-    return std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
-}
-} // namespace
-
-bool FrameService::latest(const QString& clave, QImage& out, std::uint64_t& serial) const {
-    const QString key = clavePropia(clave);
-    // La vista de otra salida se pide sola mientras alguien la lea (ver poll).
-    if (key.startsWith("program:") || key.startsWith("armada:")) salidasPedidas_[key] = ahoraUs();
-    auto it = slots_.find(key);
-    if (it != slots_.end()) it->second.pedidoUs = ahoraUs(); // alguien lo mira: a todos sus cuadros
-    if (it == slots_.end() || it->second.serial == serial || it->second.image.isNull()) {
-        return false;
-    }
-    out = it->second.image; // copia implicita (COW): barata
-    serial = it->second.serial;
-    return true;
-}
-
-void FrameService::poll() {
-    bool any = false;
-    int w = 0;
-    int h = 0;
-    int stride = 0;
-    std::vector<std::uint8_t> buf;
-    // Un canal del motor: solo si trae un cuadro nuevo, y sin copiarlo de nuevo.
-    const auto tomar = [&](const QString& key) {
-        Slot& s = slots_[key];
-        s.image = envolver(std::move(buf), w, h, stride);
-        ++s.serial;
-        any = true;
-    };
-    // Programa: vista previa del motor (BGRA, ya escalada en la GPU).
-    if (engine_.latestPreview(buf, w, h, stride, slots_["program"].serieMotor)) tomar("program");
-    // La escena ARMADA: la que va a salir con el proximo take, renderizada
-    // aunque no este al aire. Canal propio del motor, aparte del editor: son
-    // dos escenas distintas al mismo tiempo y con un solo canal se pisaban
-    // —abrir el editor apagaba el monitor del director—.
-    if (!armada_.isEmpty() && engine_.renderScenePreview("armada", buf, w, h, stride, slots_["armada"].serieMotor)) {
-        tomar("armada");
-    }
-    // Editor de escenas: la escena que se esta editando, renderizada aunque no
-    // este al aire (la activa StudioViewModel::setScenePreview).
-    if (engine_.renderScenePreview("editor", buf, w, h, stride, slots_["scene"].serieMotor)) tomar("scene");
-    ++vueltas_;
-    // Entradas que pidió alguien (mirarEntrada). Si la entrada se borró y
-    // volvió, el canal se vuelve a tomar.
-    for (auto& [key, n] : entradas_) {
-        const std::string canal = key.toStdString();
-        if (engine_.scenePreviewName(canal).empty()) {
-            if (vueltas_ % 30 != 0) continue; // una vez por segundo, no a 30 Hz
-            engine_.enableScenePreview(canal, vistaDeEntrada(key), 960);
-        }
-        if (engine_.renderScenePreview(canal, buf, w, h, stride, slots_[key].serieMotor)) tomar(key);
-    }
-    // El programa y el preview de las demás salidas: mientras alguien los lea; a los
-    // 3 s sin que nadie los mire se sueltan (cada uno es una vista más en la GPU).
-    for (auto it = salidasPedidas_.begin(); it != salidasPedidas_.end();) {
-        const QString& key = it->first;
-        const std::string canal = key.toStdString();
-        if (ahoraUs() - it->second > 3'000'000) {
-            engine_.disableScenePreview(canal);
-            slots_.erase(key);
-            it = salidasPedidas_.erase(it);
-            continue;
-        }
-        // Recién pedida, o se cayó (salida borrada, motor rearmado): de nuevo, una vez por segundo.
-        if (engine_.scenePreviewName(canal).empty() && (slots_.count(key) == 0 || vueltas_ % 30 == 0)) {
-            slots_[key];
-            engine_.enableSalidaPreview(canal, key.startsWith("program:") ? "programa" : "preview", key.section(':', 1).toStdString(), 960);
-        }
-        if (engine_.renderScenePreview(canal, buf, w, h, stride, slots_[key].serieMotor)) tomar(key);
-        ++it;
-    }
+void FrameService::rehacerCanales() {
     // Canales de memoria compartida (con resuscripcion si el escritor cambia):
     // invitados y sus pantallas (B), previews del lobby (B), feed propio (A).
-    std::vector<QString> wanted;
+    std::vector<QString>& wanted = canalesPedidos_;
+    wanted.clear();
     for (int i = 1; i <= guests_; ++i) {
         wanted.push_back(QString("guest:%1").arg(i));
         wanted.push_back(QString("share:%1").arg(i));
@@ -280,49 +322,138 @@ void FrameService::poll() {
         wanted.push_back(QString("registro:%1").arg(k));
     }
     wanted.push_back("operator");
-    for (const QString& key : wanted) {
+}
+
+void FrameService::setGuestNames(const QStringList& names) {
+    if (names == names_) return;
+    names_ = names;
+    emit keysChanged(); // las etiquetas cambian
+}
+
+std::vector<std::wstring> FrameService::channelsOf(const QString& key) {
+    if (key == "operator") return {L"BA.Operator"};
+    const std::wstring n = key.section(':', 1).toStdWString();
+    // El invitado: la vista chica que B publica para la interfaz (F3-11) y, si no está
+    // (un B de antes), el canal entero.
+    if (key.startsWith("guest:")) return {L"BA.GuestUi." + n, L"BA.Guest." + n};
+    if (key.startsWith("share:")) return {L"BA.GuestShare." + n};
+    if (key.startsWith("lobby:")) return {L"BA.Lobby." + n};
+    if (key.startsWith("backstage:")) return {L"BA.Backstage." + n};
+    if (key.startsWith("registro:")) return {L"BA.Registro." + n}; // la cámara de un tótem de registro
+    return {};
+}
+
+bool FrameService::latest(const QString& clave, QImage& out, std::uint64_t& serial) const {
+    const QString key = clavePropia(clave);
+    // La vista de otra salida se pide sola mientras alguien la lea (ver poll).
+    if (key.startsWith("program:") || key.startsWith("armada:")) salidasPedidas_[key] = ahoraUs();
+    auto it = slots_.find(key);
+    if (it != slots_.end()) it->second.pedidoUs = ahoraUs(); // alguien lo mira: a todos sus cuadros
+    if (it == slots_.end() || it->second.serial == serial || it->second.image.isNull()) {
+        return false;
+    }
+    out = it->second.image; // copia implicita (COW): barata
+    serial = it->second.serial;
+    return true;
+}
+
+void FrameService::poll() {
+    const std::int64_t t0 = ahoraUs();
+    bool any = false;
+    motor::Cuadro c;
+    // Un canal del motor: solo si trae un cuadro nuevo, y sin copiarlo (envolver).
+    const auto tomar = [&](const QString& key) {
         Slot& s = slots_[key];
-        if (!s.receiver) {
-            s.receiver = std::make_unique<ba::ipc::SpoutReceiver>();
-        }
-        auto& r = *s.receiver;
-        if (r.width() != 0 && r.stale()) {
-            r = ba::ipc::SpoutReceiver{};
-        }
-        if (r.width() == 0) {
-            // Nadie publica todavía: probar dos veces por segundo, no 30 (eran
-            // ~20 canales abriendo memoria compartida en cada vuelta).
-            if (vueltas_ % 15 != 0) continue;
-            const std::wstring name = channelOf(key);
-            if (name.empty() || !r.subscribe(name.c_str())) {
-                continue;
-            }
-        }
-        // Lo que nadie mira (una página que no se ve, un lugar vacío), una vez por segundo
-        // y no a 60: se copiaba cada cuadro de cada invitado, pantalla, lobby y orador.
-        // Uno por segundo alcanza para que una captura (MCP) no salga vieja.
-        if (ahoraUs() - s.pedidoUs > 2'000'000 && vueltas_ % 60 != 0) continue;
-        if (!r.hasData()) continue;
-        // Directo al buffer que se queda la imagen (sin inicializar: se pisa entero).
-        const std::size_t bytes = r.frameBytes();
-        auto* p = new std::uint8_t[bytes];
-        ba::ipc::FrameMeta meta{};
-        if (!r.receive(p, bytes, meta)) {
-            delete[] p;
-            continue;
-        }
-        // Un invitado chico viaja a su tamaño (F2-13): las filas, juntas, de ancho×4.
-        const int w = meta.ancho != 0 ? static_cast<int>(meta.ancho) : r.width();
-        const int h = meta.alto != 0 ? static_cast<int>(meta.alto) : r.height();
-        s.image = QImage(
-            p, w, h, w * 4, QImage::Format_RGB32,
-            [](void* q) { delete[] static_cast<std::uint8_t*>(q); }, p);
+        s.image = envolver(c);
         ++s.serial;
         any = true;
+    };
+    // Programa: vista previa del motor (BGRA, ya escalada en la GPU).
+    if (engine_.latestPreview(c, slots_["program"].serieMotor)) tomar("program");
+    // La escena ARMADA: la que va a salir con el proximo take, renderizada
+    // aunque no este al aire. Canal propio del motor, aparte del editor: son
+    // dos escenas distintas al mismo tiempo y con un solo canal se pisaban
+    // —abrir el editor apagaba el monitor del director—.
+    if (!armada_.isEmpty() && engine_.renderScenePreview("armada", c, slots_["armada"].serieMotor)) {
+        tomar("armada");
+    }
+    // Editor de escenas: la escena que se esta editando, renderizada aunque no
+    // este al aire (la activa StudioViewModel::setScenePreview).
+    if (engine_.renderScenePreview("editor", c, slots_["scene"].serieMotor)) tomar("scene");
+    ++vueltas_;
+    // Entradas que pidió alguien (mirarEntrada). Si la entrada se borró y
+    // volvió, el canal se vuelve a tomar.
+    for (auto& [key, n] : entradas_) {
+        const std::string canal = key.toStdString();
+        if (engine_.scenePreviewName(canal).empty()) {
+            if (vueltas_ % 30 != 0) continue; // una vez por segundo, no a 30 Hz
+            engine_.enableScenePreview(canal, vistaDeEntrada(key), 960);
+        }
+        if (engine_.renderScenePreview(canal, c, slots_[key].serieMotor)) tomar(key);
+    }
+    // El programa y el preview de las demás salidas: mientras alguien los lea; a los
+    // 3 s sin que nadie los mire se sueltan (cada uno es una vista más en la GPU).
+    for (auto it = salidasPedidas_.begin(); it != salidasPedidas_.end();) {
+        const QString& key = it->first;
+        const std::string canal = key.toStdString();
+        if (t0 - it->second > 3'000'000) {
+            engine_.disableScenePreview(canal);
+            slots_.erase(key);
+            it = salidasPedidas_.erase(it);
+            continue;
+        }
+        // Recién pedida, o se cayó (salida borrada, motor rearmado): de nuevo, una vez por segundo.
+        if (engine_.scenePreviewName(canal).empty() && (slots_.count(key) == 0 || vueltas_ % 30 == 0)) {
+            slots_[key];
+            engine_.enableSalidaPreview(canal, key.startsWith("program:") ? "programa" : "preview", key.section(':', 1).toStdString(), 960);
+        }
+        if (engine_.renderScenePreview(canal, c, slots_[key].serieMotor)) tomar(key);
+        ++it;
+    }
+    // Los canales entre procesos los lee su hilo (Canales): acá, decirle cuáles y cuándo
+    // los miró alguien, y recoger lo que llegó.
+    {
+        std::vector<std::pair<QString, std::int64_t>> pedidos;
+        pedidos.reserve(canalesPedidos_.size());
+        for (const QString& key : canalesPedidos_) {
+            const auto it = slots_.find(key);
+            pedidos.emplace_back(key, it == slots_.end() ? 0 : it->second.pedidoUs);
+        }
+        canales_->pedir(std::move(pedidos));
+        for (auto& [key, img] : canales_->tomar()) {
+            Slot& s = slots_[key];
+            s.image = std::move(img);
+            ++s.serial;
+            any = true;
+        }
     }
     if (any) {
         emit framesUpdated();
     }
+    // Lo que tardó esta vuelta en la UI (con lo que hagan los que escuchan framesUpdated).
+    pollUs_[pollPos_] = static_cast<std::int32_t>(std::min<std::int64_t>(ahoraUs() - t0, INT32_MAX));
+    pollPos_ = (pollPos_ + 1) % pollUs_.size();
+    ++polls_;
+}
+
+QJsonObject FrameService::medidas() const {
+    std::vector<std::int32_t> v;
+    v.reserve(pollUs_.size());
+    for (std::int32_t x : pollUs_)
+        if (x >= 0) v.push_back(x);
+    std::sort(v.begin(), v.end());
+    const auto pct = [&v](double p) {
+        if (v.empty()) return 0.0;
+        const auto k = std::min(v.size() - 1, static_cast<std::size_t>(p / 100.0 * static_cast<double>(v.size())));
+        return v[k] / 1000.0;
+    };
+    return QJsonObject{{"vueltas", static_cast<double>(polls_)},
+                       {"ultimo_minuto", QJsonObject{{"muestras", static_cast<int>(v.size())},
+                                                     {"p50_ms", pct(50)},
+                                                     {"p99_ms", pct(99)},
+                                                     {"max_ms", v.empty() ? 0.0 : v.back() / 1000.0}}},
+                       {"canales", QJsonObject{{"leidos", static_cast<double>(canales_->leidos())},
+                                               {"bytes", static_cast<double>(canales_->bytes())}}}};
 }
 
 } // namespace ba::app

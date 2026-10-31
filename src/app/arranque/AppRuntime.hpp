@@ -316,12 +316,23 @@ class AppRuntime {
     /// con --restore para retomar la emision tras una caida.
     /// También la escena al aire y si el cierre fue ordenado. Escritura atómica.
     void writeOnAirState() const;
+    /// Lo que sale ahora de cada salida (escena, transmisión, destinos, grabación): lo que
+    /// escribe writeOnAirState y lo que retoma el rearme por la GPU.
+    salidas::AlAire aireActual() const;
     static std::filesystem::path archivoAlAire();
+    /// F3-09: la GPU del video se perdió (motor/GpuPerdida.hpp; lo mira tick). Apaga el
+    /// motor, prueba una GPU nueva (o la CPU, a 720p como mucho), lo vuelve a armar con lo
+    /// que había y retoma las salidas que estaban saliendo.
+    void rearmarPorGpu();
+    /// Las ubicaciones de las fuentes son fracciones del lienzo: de nuevo en píxeles (tras
+    /// rearmar el motor con otro lienzo).
+    void reubicarFuentes();
     /// Lee al-aire.json (dos generaciones; el viejo de una sola también) al arrancar:
     /// deja aireAnterior_ y corteAnterior_, y si está dañado lo avisa (F1-03).
     void leerAireAnterior();
-    /// Retoma lo que transmitían y grababan TODAS las salidas (F1-04).
-    void restoreOutputs();
+    /// Retoma lo que transmitían y grababan TODAS las salidas (F1-04). `deEstaCorrida`: lo
+    /// que retoma es de esta misma corrida (el rearme por la GPU), también con --test.
+    void restoreOutputs(bool deEstaCorrida = false);
     /// Lo que se escribió por última vez en al-aire.json de las escenas al aire (para
     /// reescribirlo solo si cambió alguna).
     std::string firmaDelAire() const;

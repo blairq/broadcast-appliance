@@ -21,9 +21,14 @@ std::int64_t FallasProgramadas::ahora() const {
 }
 
 std::string FallasProgramadas::programar(const std::string& salida, const std::string& pieza, std::int64_t enMs) {
-    if (salida != "grabacion" && salida != "transmision")
-        return ba::i18n::traducir("fallas", "`salida`: grabacion o transmision");
-    if (pieza != "codificador" && pieza != "sumidero") return ba::i18n::traducir("fallas", "`pieza`: codificador o sumidero");
+    // «video.gpu» (F3-09): la GPU del motor se pierde; lo demás, una salida.
+    if (salida == "video" || pieza == "gpu") {
+        if (salida != "video" || pieza != "gpu") return ba::i18n::traducir("fallas", "la GPU perdida es `salida` video con `pieza` gpu");
+    } else {
+        if (salida != "grabacion" && salida != "transmision")
+            return ba::i18n::traducir("fallas", "`salida`: grabacion, transmision o video");
+        if (pieza != "codificador" && pieza != "sumidero") return ba::i18n::traducir("fallas", "`pieza`: codificador o sumidero");
+    }
     std::lock_guard<std::mutex> l(mu_);
     pendientes_.push_back({salida, pieza, ahora() + std::max<std::int64_t>(0, enMs)});
     cuantas_ = static_cast<int>(pendientes_.size());

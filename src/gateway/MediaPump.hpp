@@ -118,6 +118,9 @@ class MediaPump {
         std::vector<std::wstring> guestAudioNames;     // BA.Audio.Guest.<n>
         std::vector<std::wstring> guestVideoNames;     // BA.Guest.<n>
         std::vector<std::wstring> shareVideoNames;     // BA.GuestShare.<n>
+        // La vista chica de cada invitado para la interfaz de A (F3-11): A muestra la tarjeta
+        // con esta y no copia el cuadro entero. Vacío = sin vista chica (A lee BA.Guest.<n>).
+        std::vector<std::wstring> guestUiVideoNames;   // BA.GuestUi.<n>
         std::vector<std::wstring> lobbyAudioNames;     // BA.Audio.Lobby.<k>
         std::vector<std::wstring> lobbyVideoNames;     // BA.Lobby.<k>
         std::vector<std::wstring> backstageVideoNames; // BA.Backstage.<k>
@@ -134,6 +137,8 @@ class MediaPump {
         int programH = 720;
         int lobbyW = 640; // preview del lobby
         int lobbyH = 360;
+        int guestUiW = 640; // la vista chica del invitado para la interfaz (a lo sumo 30 cuadros/s)
+        int guestUiH = 360;
         int backstageW = 320; // preview de la fila de oradores
         int backstageH = 180;
         int guestVideoW = 640; // retorno al participante
@@ -316,6 +321,7 @@ class MediaPump {
     // crean bajo canalesLock_ y viven hasta el destructor (nunca se borran andando).
     std::array<std::atomic<VideoOut*>, kMaxInvitados + 1> guestVideo_{};
     std::array<std::atomic<VideoOut*>, kMaxInvitados + 1> shareVideo_{};
+    std::array<std::atomic<VideoOut*>, kMaxInvitados + 1> guestUiVideo_{}; ///< la vista chica (F3-11)
     std::array<std::atomic<AudioOut*>, kMaxInvitados + 1> guestAudio_{};
     mutable std::mutex canalesLock_;
     std::vector<std::unique_ptr<VideoOut>> videosInvitado_; // los dueños

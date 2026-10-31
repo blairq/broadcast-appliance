@@ -6,7 +6,7 @@
 # y salidas. Ver docs/planes/PLAN-TODO-EN-UNO.md, bloque M.
 # ============================================================================
 
-add_library(ba_motor STATIC Piezas.cpp BancoSr.cpp Reloj.cpp OrigenRed.cpp Entrada.cpp Mezcla.cpp Escucha.cpp Composicion.cpp Salidas.cpp Vistas.cpp Motor.cpp Mapa.cpp Candado.cpp Capturas.cpp Sondas.cpp ModosVideo.cpp Edad.cpp Prioridad.cpp Fallas.cpp)
+add_library(ba_motor STATIC Piezas.cpp BancoSr.cpp Reloj.cpp OrigenRed.cpp Entrada.cpp Mezcla.cpp Escucha.cpp Composicion.cpp Salidas.cpp Vistas.cpp Motor.cpp Mapa.cpp Candado.cpp Capturas.cpp Sondas.cpp ModosVideo.cpp Edad.cpp Prioridad.cpp Fallas.cpp GpuPerdida.cpp)
 target_include_directories(ba_motor PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
 target_link_libraries(ba_motor PUBLIC ba_core ba::gstreamer)
 # Capturas: las ventanas de cada sistema (ver Capturas.hpp).
@@ -35,6 +35,22 @@ if(BUILD_TESTING OR TRUE)
     target_compile_definitions(test_fallas PRIVATE BA_TEST_GST_RAIZ="${BA_GST_FW}/Versions/1.0")
     add_test(NAME test_fallas COMMAND test_fallas)
     set_tests_properties(test_fallas PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 30)
+
+    # F3-09: la GPU del video que se pierde (detección, falla inyectada, rearme, CPU).
+    add_executable(test_gpu_perdida tests/test_gpu_perdida.cpp)
+    target_link_libraries(test_gpu_perdida PRIVATE ba_motor)
+    ba_gst_rpath(test_gpu_perdida "")
+    target_compile_definitions(test_gpu_perdida PRIVATE BA_TEST_GST_RAIZ="${BA_GST_FW}/Versions/1.0")
+    add_test(NAME test_gpu_perdida COMMAND test_gpu_perdida)
+    set_tests_properties(test_gpu_perdida PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 60)
+
+    # F3-10: del proceso nuevo al primer cuadro real del programa (< 3 s).
+    add_executable(test_motor_arranque tests/test_motor_arranque.cpp)
+    target_link_libraries(test_motor_arranque PRIVATE ba_motor)
+    ba_gst_rpath(test_motor_arranque "")
+    target_compile_definitions(test_motor_arranque PRIVATE BA_TEST_GST_RAIZ="${BA_GST_FW}/Versions/1.0")
+    add_test(NAME test_motor_arranque COMMAND test_motor_arranque)
+    set_tests_properties(test_motor_arranque PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 60)
 
     add_executable(test_latencia_estudio tests/test_latencia_estudio.cpp)
     target_link_libraries(test_latencia_estudio PRIVATE ba_motor)
@@ -81,7 +97,7 @@ if(BUILD_TESTING OR TRUE)
         BA_TEST_GST_PLUGINS="${CMAKE_BINARY_DIR}/src/gst-plugins")
     add_dependencies(test_composicion gstbafiltros) # basombra
     add_test(NAME test_composicion COMMAND test_composicion)
-    set_tests_properties(test_composicion PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 120)
+    set_tests_properties(test_composicion PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 120 RUN_SERIAL TRUE) # tiempo real con GPU: solo
 
     add_executable(test_capturas tests/test_capturas.cpp)
     target_link_libraries(test_capturas PRIVATE ba_motor)

@@ -632,7 +632,10 @@ class BroadcastEngine {
     /// true si hay grabacion o transmision en curso (en alguna salida).
     bool outputsActive() const;
     /// Cambia resolucion/fps. Solo sin salidas activas: rearma el motor con todo lo que había.
-    bool resetVideo(const VideoConfig& video);
+    /// Con `conElMotorApagado` (F3-09, la GPU perdida) también con salidas: las para, corre
+    /// eso con el motor viejo ya apagado (rearmar la GPU) y arma el nuevo con el lienzo que
+    /// devuelve; las salidas las retoma quien llama.
+    bool resetVideo(const VideoConfig& video, const std::function<VideoConfig()>& conElMotorApagado = {});
     /// Compatibilidad: los codificadores se crean por salida. Solo sin salidas activas.
     bool resetEncoders();
     const VideoConfig& videoConfig() const { return video_; }
@@ -798,14 +801,13 @@ class BroadcastEngine {
     /// Diagnóstico de parpadeos (BA_MEDIR_PREVIEW=1): ver medirVista en el .cpp.
     void medirVista(const std::string& clave);
     void disableScenePreview() { disableScenePreview("editor"); }
-    /// El último cuadro de ese canal (BGRA, filas de `stride` bytes) si es más
-    /// nuevo que `serial`: `dst` se queda con el buffer (sin copias de más).
-    bool renderScenePreview(const std::string& canal, std::vector<std::uint8_t>& dst, int& width, int& height,
-                            int& stride, std::uint64_t& serial);
+    /// El último cuadro de ese canal (BGRA) si es más nuevo que `serial`: comparte los
+    /// bytes con la vista del motor (motor::Pixeles), no los copia (F3-11).
+    bool renderScenePreview(const std::string& canal, motor::Cuadro& out, std::uint64_t& serial);
     std::string scenePreviewName(const std::string& canal) const;
-    /// El ultimo frame de vista previa (BGRA, filas de `stride` bytes) si es mas
-    /// nuevo que `serial`: `dst` se queda con el buffer.
-    bool latestPreview(std::vector<std::uint8_t>& dst, int& width, int& height, int& stride, std::uint64_t& serial) const;
+    /// El ultimo frame de vista previa (BGRA) si es mas nuevo que `serial`, sin copiarlo
+    /// (como renderScenePreview).
+    bool latestPreview(motor::Cuadro& out, std::uint64_t& serial) const;
     /// Picos del programa desde la ultima llamada, en dBFS (L, R). -100 = silencio.
     void programPeaksDb(float& left, float& right, const std::string& salida = "");
 

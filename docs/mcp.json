@@ -10942,7 +10942,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 4267
+        "linea": 4268
       },
       "roles": [
         "asistente"
@@ -11031,7 +11031,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 4147
+        "linea": 4148
       },
       "roles": [
         "asistente"
@@ -11066,7 +11066,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 4181
+        "linea": 4182
       },
       "roles": [
         "asistente"
@@ -28493,7 +28493,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 4012
+        "linea": 4013
       },
       "roles": [
         "asistente"
@@ -28555,7 +28555,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3766
+        "linea": 3767
       },
       "roles": [
         "asistente"
@@ -28624,7 +28624,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3742
+        "linea": 3743
       },
       "roles": [
         "asistente"
@@ -28655,7 +28655,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 4081
+        "linea": 4082
       },
       "roles": [
         "asistente"
@@ -28687,7 +28687,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 4129
+        "linea": 4130
       },
       "roles": [
         "asistente"
@@ -28728,7 +28728,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3907
+        "linea": 3908
       },
       "roles": [
         "asistente"
@@ -28763,7 +28763,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3928
+        "linea": 3929
       },
       "roles": [
         "asistente"
@@ -28922,7 +28922,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3961
+        "linea": 3962
       },
       "roles": [
         "asistente"
@@ -28975,7 +28975,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3989
+        "linea": 3990
       },
       "roles": [
         "asistente"
@@ -29037,7 +29037,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3828
+        "linea": 3829
       },
       "roles": [
         "asistente"
@@ -29071,7 +29071,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3890
+        "linea": 3891
       },
       "roles": [
         "asistente"
@@ -29127,7 +29127,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3862
+        "linea": 3863
       },
       "roles": [
         "asistente"
@@ -29154,7 +29154,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3813
+        "linea": 3814
       },
       "roles": [
         "asistente"
@@ -29829,7 +29829,7 @@
       "nombre": "diag_falla",
       "titulo": "Inyectar una falla en una salida (solo --test)",
       "categoria": "sistema",
-      "descripcion": "SOLO EN MODO PRUEBA. Programa una falla: `pieza` codificador (deja de codificar, como un codificador de placa que se cae) o sumidero (no puede escribir: disco o conexión) de `salida` grabacion o transmision, dentro de `en_s` segundos (0 = ya). La primera de ese tipo que pase se la lleva, una vez. `limpiar`: borra lo programado. Siempre devuelve lo programado y lo ya disparado.",
+      "descripcion": "SOLO EN MODO PRUEBA. Programa una falla: `pieza` codificador (deja de codificar, como un codificador de placa que se cae) o sumidero (no puede escribir: disco o conexión) de `salida` grabacion o transmision, dentro de `en_s` segundos (0 = ya). La primera de ese tipo que pase se la lleva, una vez. `salida` video con `pieza` gpu: la GPU del video se pierde (el mezclador avisa el error de una GPU perdida y la app rearma el motor). `limpiar`: borra lo programado. Siempre devuelve lo programado y lo ya disparado.",
       "esquema": {
         "type": "object",
         "properties": {
@@ -29837,14 +29837,16 @@
             "type": "string",
             "enum": [
               "codificador",
-              "sumidero"
+              "sumidero",
+              "gpu"
             ]
           },
           "salida": {
             "type": "string",
             "enum": [
               "grabacion",
-              "transmision"
+              "transmision",
+              "video"
             ]
           },
           "en_s": {

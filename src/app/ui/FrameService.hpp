@@ -8,8 +8,9 @@
 // Claves:
 //   "program"   programa al aire (vista previa del motor: el motor ya la escala
 //               en la GPU)
-//   "guest:N"   video del invitado N tal como lo publica B (BA.Guest.N);
-//               se lee directo del transporte entre procesos, sin el motor
+//   "guest:N"   video del invitado N: la vista chica que B publica para la
+//               interfaz (BA.GuestUi.N, 640×360 a 30 cuadros/s; si B es de antes,
+//               BA.Guest.N entero); se lee directo del transporte entre procesos
 //   "entrada:X" la entrada de video X tal como sale de sus filtros (con el
 //               recorte del PTZ digital), mientras alguien la pida con
 //               mirarEntrada (la tarjeta PTZ suelta)
@@ -24,13 +25,20 @@
 //               los de las demás se le piden al motor solos mientras alguien los
 //               lea (latest) y se sueltan cuando nadie los mira.
 //
-// Modelo de threading: todo en el thread de la UI; `poll()` lo llama un timer.
+// Modelo de threading (F3-11): `poll()` lo llama un timer del hilo de la UI y ahí
+// queda solo lo barato: las vistas del motor se toman SIN COPIARLAS (la QImage
+// comparte el buffer de GStreamer, motor::Pixeles) y lo de los canales entre
+// procesos (invitados, lobby, fila, tótems, el operador) lo copia otro hilo
+// (Canales), que despierta cuando el productor publica (SpoutReceiver::
+// proximaMirada); poll recoge lo que llegó. `latest` y las claves, en la UI.
+// `medidas()`: lo que tarda poll en la UI (p50/p99/máx del último minuto).
 // ============================================================================
 
 #pragma once
 
 #include <QImage>
 #include <QJsonArray>
+#include <QJsonObject>
 #include <QObject>
 #include <QStringList>
 #include <QVariantMap>
@@ -42,10 +50,6 @@
 #include <vector>
 
 #include "ipc/CanalesRegistro.hpp"
-
-namespace ba::ipc {
-class SpoutReceiver;
-}
 
 namespace ba::app {
 
@@ -89,12 +93,15 @@ class FrameService : public QObject {
     void setGuests(int guests);
     /// Nombres de los invitados por slot (indice slot-1) para las etiquetas.
     void setGuestNames(const QStringList& names);
-    void setLobbySlots(int n) { lobbySlots_ = n; }
+    void setLobbySlots(int n);
     /// Las salidas, la por omisión primera: [{id, nombre, color, porOmision}] (la lista
     /// de StudioViewModel::salidas). Para las claves, las etiquetas y los colores.
     void setSalidas(const QJsonArray& salidas);
     QVariantMap colores() const { return colores_; }
     QStringList programas() const;
+    /// Lo que tarda `poll` en el hilo de la UI: {vueltas, ultimo_minuto: {p50_ms, p99_ms,
+    /// max_ms}, canales: {leidos, bytes}} (F3-11: p99 < 1 ms).
+    QJsonObject medidas() const;
 
    public slots:
     /// Trae frames nuevos (lo llama el timer de la UI, ~30 Hz).
@@ -111,12 +118,22 @@ class FrameService : public QObject {
         QImage image;
         std::uint64_t serial = 0;
         std::uint64_t serieMotor = 0; ///< el último cuadro del motor que se tomó
-        std::unique_ptr<ba::ipc::SpoutReceiver> receiver; // invitados
         mutable std::int64_t pedidoUs = 0; ///< la última vez que alguien lo leyó (latest)
     };
+    /// El hilo que lee los canales entre procesos (en el .cpp).
+    class Canales;
     BroadcastEngine& engine_;
     int guests_ = 0;
-    static std::wstring channelOf(const QString& key);
+    /// Los canales de una clave, en orden de preferencia (el chico primero).
+    static std::vector<std::wstring> channelsOf(const QString& key);
+    /// Las claves de los canales entre procesos que se leen (cambian con los invitados y el lobby).
+    void rehacerCanales();
+    std::vector<QString> canalesPedidos_;
+    std::unique_ptr<Canales> canales_;
+    /// Lo que tardó cada poll (µs), el último minuto (anillo de 3600 a 60 Hz).
+    std::vector<std::int32_t> pollUs_;
+    std::size_t pollPos_ = 0;
+    std::uint64_t polls_ = 0;
     std::map<QString, Slot> slots_;
     QStringList names_;
     int lobbySlots_ = 4;

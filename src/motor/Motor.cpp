@@ -6,6 +6,7 @@
 #include "diag/Utf8.hpp"
 #include "i18n/I18n.hpp"
 #include "Candado.hpp"
+#include "GpuPerdida.hpp"
 #include "OrigenRed.hpp"
 #include "ipc/CanalesSalida.hpp"
 
@@ -1866,6 +1867,8 @@ json Motor::estado() const {
                    return c;
                }()}}},
             {"programa", po["programa"]},
+            // F3-09: con qué GPU va el video y si se perdió (la app rearma el motor).
+            {"gpu", estadoGpu()},
             {"video",
              {{"al_aire", po["al_aire"]},
               {"armada", po["armada"]},

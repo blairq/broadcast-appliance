@@ -2,6 +2,8 @@
 // src/motor/Composicion.cpp — ver Composicion.hpp
 // ============================================================================
 #include "Composicion.hpp"
+#include "Fallas.hpp"
+#include "GpuPerdida.hpp"
 #include "Claves.hpp"
 #include "diag/Utf8.hpp"
 #include "i18n/I18n.hpp"
@@ -1064,6 +1066,7 @@ bool Composicion::ponerDsk(const std::vector<Capa>& capas, int ms) {
 void Composicion::tic() {
     std::lock_guard<std::mutex> l(mu_);
     if (pipeline_ == nullptr) return;
+    if (gpu_) aplicarFallaDeGpu(mezclador_); // banco de caos (F3-09); sin nada programado, una carga atómica
     aplicarLatencia();
     if (ahoraNs() - consultaNs_ > 1'000'000'000LL) {
         consultaNs_ = ahoraNs();
@@ -1131,6 +1134,7 @@ void Composicion::tic() {
     GstBus* bus = gst_element_get_bus(pipeline_);
     while (GstMessage* m = gst_bus_pop(bus)) {
         if (GST_MESSAGE_TYPE(m) == GST_MESSAGE_ERROR) {
+            revisarErrorDeGpu(m); // ¿se perdió la GPU? (F3-09)
             GError* e = nullptr;
             gst_message_parse_error(m, &e, nullptr);
             error_ = e != nullptr ? ba::diag::utf8Valido(e->message) : traducir("motor", "error");
