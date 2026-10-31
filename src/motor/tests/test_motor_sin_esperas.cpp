@@ -135,6 +135,8 @@ int main() {
     const auto foto = m.instantanea();
     CHECK(foto && foto->contains("entradas") && (*foto)["entradas"].contains("rojo"), "la foto tiene las entradas");
     m.detener(); // apagar sí
+    // F3-14: el candado es un mutex común; lo que corre con él tomado (los ...Ya) lo exige.
+    CHECK(faltasDelCandado() == 0, "nada de lo que va con el candado corrió sin él");
     if (fallos == 0) std::printf("== test_motor_sin_esperas: OK ==\n");
     return fallos == 0 ? 0 : 1;
 }

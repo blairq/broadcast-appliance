@@ -76,6 +76,7 @@
 // ============================================================================
 #pragma once
 
+#include "Candado.hpp"
 #include "Sondas.hpp"
 
 #include "Composicion.hpp"
@@ -288,9 +289,9 @@ class Motor {
     /// Las órdenes que se encolaron y fallaron (ver orden): `que` es la función.
     /// Se llama desde el hilo del motor.
     void alFallar(std::function<void(const std::string& que, const std::string& error)> fn);
-    /// Espera a que el hilo del motor corra todo lo que se encoló hasta ahora.
-    /// Para los tests y para hilos que no son la interfaz: la interfaz NUNCA
-    /// espera (si lo hace, queda en el registro).
+    /// Espera a que el hilo del motor corra todo lo que se encoló hasta ahora (y avise
+    /// lo que falló: alFallar ya se llamó). Para los tests y para hilos que no son la
+    /// interfaz: la interfaz NUNCA espera (si lo hace, queda en el registro).
     void esperarCola();
     /// Que la próxima vuelta del bucle (20 ms) publique la foto, sin esperar las
     /// 10 vueltas de siempre: lo pide quien acaba de cambiar algo.
@@ -373,8 +374,12 @@ class Motor {
     /// los desarmes ya esperados).
     std::shared_future<void> desarmarSalida(Salida& s, bool aparte);
     void armarPuente(Salida& s, const std::string& canal);
+    // LOS «...Ya»: corren con el candado tomado (las órdenes de la cola, el bucle); no lo
+    // piden, lo exigen (BA_CON_CANDADO, Candado.hpp). Las públicas los encolan.
     std::string crearSalidaYa(const std::string& id, const std::string& nombre);
     std::string borrarSalidaYa(const std::string& id);
+    std::string productorDeVideoYa(const std::string& bus, std::int64_t* latenciaNs, const std::string& salida);
+    nlohmann::json estadoYa() const;
     Mezcla* pista(int n, bool crear);
     /// El retorno del invitado n en la salida `sid` (lo arma de nuevo con lo que pide
     /// retornos_[n]; si está apagado, lo saca). false si no arrancó.
@@ -393,7 +398,7 @@ class Motor {
     Config cfg_;
     std::unique_ptr<Reloj> reloj_;
     GstObject* relojPublicado_ = nullptr; ///< GstNetTimeProvider
-    mutable std::recursive_mutex mu_;
+    mutable MutexMotor mu_; ///< el candado del motor (Candado.hpp): común, sin reentradas
     std::mutex sondasM_;
     std::atomic<bool> permitirBajar_{false};
     std::map<std::string, std::unique_ptr<Sondas>> sondasAparte_; ///< las del programa y la mezcla
@@ -466,7 +471,17 @@ class Motor {
     std::string orden(const char* que, std::function<std::string()> f);
     /// A la cola siempre, sin correrla nunca directo (desde los trabajadores).
     void encolar(const char* que, std::function<std::string()> f);
-    void correrOrdenes();
+    /// Lo que deja una vuelta de órdenes para después de soltar el candado: las que
+    /// fallaron (a alFallar) y los que esperan la cola (esperarCola), en ese orden.
+    struct DespuesDeLasOrdenes {
+        std::vector<std::pair<const char*, std::string>> fallas;
+        std::vector<std::shared_ptr<std::promise<void>>> esperan;
+    };
+    /// Corre lo encolado (con el candado).
+    DespuesDeLasOrdenes correrOrdenes();
+    /// Avisa las fallas y suelta a los que esperan (sin el candado).
+    void despuesDeLasOrdenes(DespuesDeLasOrdenes& d);
+    std::vector<std::shared_ptr<std::promise<void>>> esperanCola_; ///< bajo mu_ (las órdenes de esperarCola)
     // Lo que hacen de verdad las funciones públicas que se encolan.
     std::string agregarEntradaYa(const std::string& id, const nlohmann::json& ajustes, const nlohmann::json& opciones);
     std::string actualizarEntradaYa(const std::string& id, const nlohmann::json& ajustes);
