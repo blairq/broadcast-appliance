@@ -489,9 +489,13 @@ class Banco:
         return r
 
     def al_aire_truncado(self) -> dict:
-        ruta = os.path.join(self.app.runtime, "al-aire.json")
-        if not os.path.exists(ruta):
-            return {"saltado": "no hay Runtime/al-aire.json"}
+        # El estado de aire va en dos generaciones (al-aire.A/B.json, F1-03): se trunca la más
+        # nueva, como un corte a mitad de escritura; tiene que volver con la otra.
+        gens = [os.path.join(self.app.runtime, n) for n in ("al-aire.A.json", "al-aire.B.json", "al-aire.json")]
+        gens = [g for g in gens if os.path.exists(g)]
+        if not gens:
+            return {"saltado": "no hay Runtime/al-aire.A/B.json"}
+        ruta = max(gens, key=os.path.getmtime)
         pids = self.app.pids(PROCESOS["a"])
         if not pids:
             return {"saltado": "ba-app no corre"}
@@ -675,7 +679,10 @@ def lanzar(ruta: str) -> subprocess.Popen:
     else:
         exe = ruta
     log("lanzando", exe, "--test")
-    return subprocess.Popen([exe, "--test"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=not WINDOWS)
+    # Con --test la app no retoma la grabación ni la transmisión tras una caída (una prueba no
+    # sale al aire sola); el banco mide justo eso, así que la pide (BA_PRUEBA_RETOMA_SALIDAS).
+    env = dict(os.environ, BA_PRUEBA_RETOMA_SALIDAS="1")
+    return subprocess.Popen([exe, "--test"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=not WINDOWS, env=env)
 
 
 def ba_mcp_de(lanzado: str | None) -> str:

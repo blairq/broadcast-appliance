@@ -143,6 +143,9 @@ struct AppConfig {
     bool safeMode = false;
     bool restore = false; // --restore: el launcher relanzo A tras una caida
     bool modoPrueba = false; // --test/--debug: pruebas (nunca se arranca al aire)
+    // Con --test, retomar igual las salidas tras una caída: solo el banco de caos
+    // (tools/caos), que lo pide con BA_PRUEBA_RETOMA_SALIDAS=1 para medir la retoma.
+    bool retomaEnPrueba = false;
     std::filesystem::path configPath;
 };
 

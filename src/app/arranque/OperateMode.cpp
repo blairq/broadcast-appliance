@@ -167,6 +167,7 @@ void applyCli(AppConfig& c, int argc, char** argv, const fs::path& root) {
     c.statusEverySec = std::atoi(argValue(argc, argv, "--status-every", "5").c_str());
     c.restore = hasFlag(argc, argv, "--restore");
     c.modoPrueba = hasFlag(argc, argv, "--test") || hasFlag(argc, argv, "--debug");
+    if (const char* v = std::getenv("BA_PRUEBA_RETOMA_SALIDAS")) c.retomaEnPrueba = c.modoPrueba && std::string(v) == "1";
     c.safeMode = hasFlag(argc, argv, "--safe-mode");
     if (c.safeMode) {
         // Modo seguro (circuit breaker del launcher): lo minimo que funciona.
@@ -749,7 +750,7 @@ int AppRuntime::start() {
     arranque::avisar(ba::i18n::traducir("arranque", "Volviendo a como estaba…"));
     restoreOutputs();
     marca(ba::i18n::traducir("arranque", "volver como estaba"));
-    if (cfg_.modoPrueba) {
+    if (cfg_.modoPrueba && !cfg_.retomaEnPrueba) {
         ba::diag::registro().linea(ba::diag::Nivel::Aviso, "arranque", 0,
                                    ba::i18n::traducir("arranque", "modo prueba (--test): no se retoman las salidas (grabación, transmisión)"));
     }
@@ -1052,7 +1053,7 @@ void AppRuntime::avisarPersistencia(const std::string& texto) {
 void AppRuntime::restoreOutputs() {
     const salidas::AlAire& aire = aireAnterior_;
     if (aire.cerrado || aire.salidas.empty()) return; // se cerró en orden: nada al aire
-    if (cfg_.modoPrueba) return; // la escena sí; las salidas, nunca con --test
+    if (cfg_.modoPrueba && !cfg_.retomaEnPrueba) return; // la escena sí; las salidas, nunca con --test (salvo el banco de caos)
     // TODAS las salidas, cada una con lo suyo: grabación, transmisión principal y destinos.
     for (const auto& [id, s] : aire.salidas) {
         if (!engine_.existeSalida(id)) continue;
