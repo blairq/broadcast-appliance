@@ -7217,7 +7217,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpCore.cpp",
-        "linea": 98
+        "linea": 100
       },
       "roles": [
         "asistente",
@@ -7258,7 +7258,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpCore.cpp",
-        "linea": 153
+        "linea": 155
       },
       "roles": [
         "asistente",
@@ -7291,7 +7291,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpCore.cpp",
-        "linea": 139
+        "linea": 141
       },
       "roles": [
         "asistente",
@@ -12775,7 +12775,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpSystemTools.cpp",
-        "linea": 376
+        "linea": 389
       },
       "roles": [
         "asistente",
@@ -12813,7 +12813,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpSystemTools.cpp",
-        "linea": 405
+        "linea": 418
       },
       "roles": [
         "asistente",
@@ -12847,7 +12847,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpSystemTools.cpp",
-        "linea": 479
+        "linea": 492
       },
       "roles": [
         "asistente",
@@ -12882,7 +12882,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpSystemTools.cpp",
-        "linea": 546
+        "linea": 559
       },
       "roles": [
         "asistente",
@@ -12909,7 +12909,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpSystemTools.cpp",
-        "linea": 439
+        "linea": 452
       },
       "roles": [
         "asistente",
@@ -12940,7 +12940,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpSystemTools.cpp",
-        "linea": 458
+        "linea": 471
       },
       "roles": [
         "asistente",
@@ -12967,7 +12967,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpSystemTools.cpp",
-        "linea": 355
+        "linea": 368
       },
       "roles": [
         "asistente",
@@ -12978,7 +12978,7 @@
       "nombre": "sistema_recursos",
       "titulo": "Cuánto se usa de la máquina (CPU, GPU, RAM, red)",
       "categoria": "equipo",
-      "descripcion": "Lo que se está usando AHORA de la máquina, medido cada segundo: CPU de toda la máquina y de nuestros procesos (app, gateway, launcher: % y núcleos, memoria residente), RAM usada y total, GPU (% de uso) y memoria de video, red (Mbps que entran y salen por cada interfaz física; % del enlace si se sabe su velocidad), escritura de disco y el motor (cuadros por segundo, % de cuadros perdidos, kbps que salen). Cada recurso trae `pico` (de los últimos 10 minutos), `promedio_10s`, `estado` (normal, aviso desde el 80 %, critico desde el 92 %, sostenido `umbrales.sostenido_s` segundos; desconocido si el sistema no lo dice: nunca se inventa) y `margen` (lo que le queda). `margen` general: el del recurso más cargado y cuál `limita`. Sirve para decidir si la máquina aguanta otra salida (otra composición con sus codificadores): medí antes y después de sumarla y compará el margen. Con `historial_s` (hasta 600), la historia (columnas + filas, agrupada de a `paso_s` segundos con el máximo de cada grupo). La alarma `recursos` (alert_create) avisa sola cuando la máquina se acerca al límite. `bucle_ui`: cuánto se demora el bucle de eventos de la interfaz (un turno cada 50 ms: histograma desde el arranque, p50/p99/máximo del último minuto, y los peores `culpables`: el evento o la herramienta MCP que corría cuando el turno llegó tarde). `transporte`: cómo anda cada anillo de audio y canal de video que lee el gateway de la app, en la última ventana de 10 s: `ocupacion_max` (bloques de 10 ms sin leer; lo normal es 1 a 3), `descartados` (lo que se perdió porque el gateway no llegaba; en video, cuadros salteados), `faltantes` (bloques de audio que no llegaron), `edad_p50_ms` y `edad_p99_ms` (cuánto hace que se selló lo leído), los totales y `anomalia`. `deriva_placas`: cada placa de audio abierta (micrófonos, interfaces) contra el reloj del estudio: `ppm` (cuánto se aparta: positivo, va rápida; una placa sana, menos de 100), `reanclajes_sin_corregir` (los saltos de 50 ms que habría sin corrección), `corregida` (la sigue un remuestreador variable), `enganchada`, `desfase_ms` y `reanclajes` (los cortes que llegaron al programa: tiene que ser 0). Dos placas con word clock o PTP del mismo dominio tienen que dar la misma ppm.",
+      "descripcion": "Lo que se está usando AHORA de la máquina, medido cada segundo: CPU de toda la máquina y de nuestros procesos (app, gateway, launcher: % y núcleos, memoria residente), RAM usada y total, GPU (% de uso) y memoria de video, red (Mbps que entran y salen por cada interfaz física; % del enlace si se sabe su velocidad), escritura de disco y el motor (cuadros por segundo, % de cuadros perdidos, kbps que salen). Cada recurso trae `pico` (de los últimos 10 minutos), `promedio_10s`, `estado` (normal, aviso desde el 80 %, critico desde el 92 %, sostenido `umbrales.sostenido_s` segundos; desconocido si el sistema no lo dice: nunca se inventa) y `margen` (lo que le queda). `margen` general: el del recurso más cargado y cuál `limita`. Sirve para decidir si la máquina aguanta otra salida (otra composición con sus codificadores): medí antes y después de sumarla y compará el margen. Con `historial_s` (hasta 600), la historia (columnas + filas, agrupada de a `paso_s` segundos con el máximo de cada grupo). La alarma `recursos` (alert_create) avisa sola cuando la máquina se acerca al límite. `bucle_ui`: cuánto se demora el bucle de eventos de la interfaz (un turno cada 50 ms: histograma desde el arranque, p50/p99/máximo del último minuto, y los peores `culpables`: el evento o la herramienta MCP que corría cuando el turno llegó tarde). `transporte`: cómo anda cada anillo de audio y canal de video que lee el gateway de la app, en la última ventana de 10 s: `ocupacion_max` (bloques de 10 ms sin leer; lo normal es 1 a 3), `descartados` (lo que se perdió porque el gateway no llegaba; en video, cuadros salteados), `faltantes` (bloques de audio que no llegaron), `edad_p50_ms` y `edad_p99_ms` (cuánto hace que se selló lo leído), los totales y `anomalia`. `deriva_placas`: cada placa de audio abierta (micrófonos, interfaces) contra el reloj del estudio: `ppm` (cuánto se aparta: positivo, va rápida; una placa sana, menos de 100), `reanclajes_sin_corregir` (los saltos de 50 ms que habría sin corrección), `corregida` (la sigue un remuestreador variable), `enganchada`, `desfase_ms` y `reanclajes` (los cortes que llegaron al programa: tiene que ser 0). Dos placas con word clock o PTP del mismo dominio tienen que dar la misma ppm. `termica`: el nivel térmico (normal, templado, serio, critico; desconocido si el sistema no lo dice), la temperatura o el tope de frecuencia según el sistema, y `priorizar_programa`: los pasos que se apagaron por calor, en orden (superres, modelos, vistas, invitados; nunca el programa ni la grabación) y los que no tienen quien los atienda (`sin_gancho`). `metricas`: las métricas con nombre y tipo de la app (contadores, medidores y histogramas con p50/p90/p99: latencia por herramienta MCP, espera del candado del motor, bucle de la interfaz, colchón de grabación, reconexiones); las mismas que da GET /metrics.",
       "esquema": {
         "type": "object",
         "properties": {
@@ -13007,7 +13007,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpSystemTools.cpp",
-        "linea": 290
+        "linea": 291
       },
       "roles": [
         "asistente",
@@ -13034,7 +13034,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpSystemTools.cpp",
-        "linea": 250
+        "linea": 251
       },
       "roles": [
         "asistente",
@@ -13065,7 +13065,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpSystemTools.cpp",
-        "linea": 502
+        "linea": 515
       },
       "roles": [
         "asistente",

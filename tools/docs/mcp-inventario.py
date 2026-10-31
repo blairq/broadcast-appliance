@@ -312,7 +312,12 @@ def doc_md(doc):
 
 
 def _sin_fecha(d):
-    return {k: v for k, v in d.items() if k != "generado"}
+    """Lo que cuenta para la deriva: sin la fecha ni la linea de cada una (editar algo
+    arriba en el mismo archivo corre las lineas y no cambia el registro)."""
+    d = {k: v for k, v in d.items() if k != "generado"}
+    d["herramientas"] = [dict(h, donde={"archivo": h.get("donde", {}).get("archivo")})
+                         for h in d.get("herramientas", [])]
+    return d
 
 
 def _volcar(doc):
@@ -324,8 +329,8 @@ def verificar():
     deriva = []
     actual = json.loads(INVENTARIO.read_text(encoding="utf-8")) if INVENTARIO.exists() else {}
     if _sin_fecha(actual) != _sin_fecha(doc):
-        a = {h["nombre"]: h for h in actual.get("herramientas", [])}
-        b = {h["nombre"]: h for h in doc["herramientas"]}
+        a = {h["nombre"]: h for h in _sin_fecha(actual).get("herramientas", [])}
+        b = {h["nombre"]: h for h in _sin_fecha(doc)["herramientas"]}
         nuevas, quitadas = sorted(set(b) - set(a)), sorted(set(a) - set(b))
         cambiadas = sorted(n for n in set(a) & set(b) if a[n] != b[n])
         deriva.append("docs/mcp.json no es lo que sale del codigo"
