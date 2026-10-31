@@ -709,19 +709,27 @@ void McpService::registerPtzTools() {
         t.inputSchema = {{"type", "object"}, {"properties", json::object()}};
         t.run = [c](const json&, Done done) {
             if (!c) return done(ToolResult::error(ba::i18n::traducir("mcp", "el PTZ no está disponible")));
-            c->buscarOnvif();
-            QTimer::singleShot(3300, c.data(), [c, done]() {
-                if (!c) return done(ToolResult::error(ba::i18n::traducir("mcp", "el PTZ no está disponible")));
-                json lista = json::array();
+            const auto lista = [c]() {
+                json l = json::array();
                 for (const QVariant& v : c->encontradas()) {
                     const QVariantMap m = v.toMap();
-                    lista.push_back({{"direccion", m["direccion"].toString().toStdString()},
-                                     {"host", m["host"].toString().toStdString()},
-                                     {"nombre", m["nombre"].toString().toStdString()},
-                                     {"modelo", m["modelo"].toString().toStdString()}});
+                    l.push_back({{"direccion", m["direccion"].toString().toStdString()},
+                                 {"host", m["host"].toString().toStdString()},
+                                 {"nombre", m["nombre"].toString().toStdString()},
+                                 {"modelo", m["modelo"].toString().toStdString()}});
                 }
-                done(ToolResult().data({{"encontradas", lista}}));
-            });
+                return ToolResult().data({{"encontradas", l}});
+            };
+            c->buscarOnvif();
+            // La búsqueda avisa al terminar (busquedaCambio con `buscando` en false): no una
+            // espera fija. Tope 6 s, por las dudas.
+            esperarHasta(
+                c.data(), &ptz::ControlCamaras::busquedaCambio,
+                [c, lista]() -> std::optional<ToolResult> {
+                    if (c->buscando()) return std::nullopt;
+                    return lista();
+                },
+                6000, lista, done);
         };
         core_.addTool(std::move(t));
     }
