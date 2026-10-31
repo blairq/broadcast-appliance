@@ -39,6 +39,7 @@
 #include "emision/InputSpecs.hpp"
 #include "arranque/InicioConElSistema.hpp"
 #include "video/ElementosGst.hpp"
+#include "diag/Correlacion.hpp"
 #include "diag/Registro.hpp"
 #include "fault/ModoSeguro.hpp"
 #include "i18n/I18n.hpp"
@@ -805,7 +806,9 @@ int AppRuntime::start() {
 void AppRuntime::tick() {
     control_.poll([&](const ba::ipc::Message& m) {
         if (m.type == ba::ipc::Type::Shutdown) {
-            std::printf("ba-app: %s\n", ba::i18n::traducir("arranque", "cierre pedido por el launcher").c_str());
+            // Con la orden del launcher abierta (F4-02): la línea lleva su id.
+            const ba::diag::correlacion::Ambito orden(m.correlacion);
+            ba::diag::registro().info(ba::i18n::traducir("arranque", "cierre pedido por el launcher"));
             requestStop();
         }
     });
@@ -2061,6 +2064,7 @@ bool pedirReinicioGateway(std::string& error) {
     ba::ipc::Message m;
     m.type = ba::ipc::Type::Shutdown;
     m.payload = "{}";
+    m.correlacion = ba::diag::correlacion::actual(); // la orden que lo pidió, si hay (F4-02)
     if (!ep.sendRequest(m)) {
         error = ba::i18n::traducir("arranque", "no se pudo mandar el pedido al gateway");
         return false;

@@ -732,6 +732,7 @@ struct EstadoPlaca {
     std::atomic<double> ppm{0};         ///< de la placa cruda (lo que contó contra el reloj)
     std::atomic<guint64> reanclajes{0}; ///< los del sondeo: los saltos que habría sin corregir
     std::atomic<double> medidoS{0};     ///< sobre cuántos segundos se midió la ppm
+    std::atomic<int> hz{0};             ///< la frecuencia que da la placa (F4-07: ¿está a 48 kHz?)
     GWeakRef deriva;                    ///< el baderiva de esta placa (si hay)
     EstadoPlaca() { g_weak_ref_init(&deriva, nullptr); }
     ~EstadoPlaca() { g_weak_ref_clear(&deriva); }
@@ -796,6 +797,7 @@ GstPadProbeReturn ponerHoraAudio(GstPad* pad, GstPadProbeInfo* info, gpointer d)
         pts = real;
     }
     h->muestras += n;
+    if (h->placa) h->placa->hz.store(rate, std::memory_order_relaxed);
     // La ppm de la placa cruda: lo que contó contra lo que pasó en el reloj desde el
     // primer bloque (el temblor de la llegada pesa cada vez menos). Desde un minuto.
     if (!GST_CLOCK_TIME_IS_VALID(h->desde)) h->desde = real;
@@ -928,6 +930,7 @@ json derivaDePlacas() {
                {"dispositivo", p->dispositivo},
                {"ppm", std::round(p->ppm.load() * 10) / 10},
                {"medido_s", std::round(p->medidoS.load())},
+               {"hz", p->hz.load()},
                {"reanclajes_sin_corregir", p->reanclajes.load()}};
         if (auto* d = static_cast<GstElement*>(g_weak_ref_get(&p->deriva))) {
             double ppm = 0, desfase = 0;

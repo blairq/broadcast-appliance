@@ -34,6 +34,8 @@
 #include "ChildProcess.hpp"
 #include "ControlChannel.hpp"
 #include "Integrity.hpp"
+#include "MetricasLauncher.hpp"
+#include "PerroGuardian.hpp"
 #include "Politica.hpp"
 #include "ipc/HealthBlock.hpp"
 #include "platform/SingleInstance.hpp"
@@ -68,6 +70,9 @@ class Supervisor {
         int maxCaidas = 5;                       // más caídas que esto en la ventana: modo seguro
         std::uint64_t ventanaCaidasMs = 120000;  // la ventana del cortacircuito
         int reiniciosSinPreguntar = 2;           // fallas seguidas que se reinician sin preguntar
+        // Watchdog de hardware (F4-08, solo Linux): apagado de fábrica (perroS = 0).
+        std::string perroDispositivo = "/dev/watchdog";
+        int perroS = 0;                          // plazo de la placa; 0 = no se usa
         std::uint32_t slotA = ba::ipc::kSlotSaludApp;     // slot de A en BA.Health
         std::uint32_t slotB = ba::ipc::kSlotSaludGateway; // slot de B en BA.Health
     };
@@ -148,6 +153,8 @@ class Supervisor {
     // cargar modulos y el proceso todavia no late).
     std::uint64_t launchedAtMs_[2] = {0, 0};
     std::unique_ptr<Volcados> volcados_; ///< los volcados de A y B, con su .json (Volcados.hpp)
+    PerroGuardian perro_;         ///< el watchdog de hardware (PerroGuardian.hpp), si se pidió
+    MetricasLauncher metricas_;   ///< Runtime/metricas-launcher.prom (MetricasLauncher.hpp)
     std::uint64_t latidoAlLanzar_[2] = {0, 0}; ///< el latido que había al lanzarlo (para saber si ya latió)
     bool inStartupGrace(bool isA) const;
 

@@ -3,6 +3,7 @@
 // ============================================================================
 #include "diag/Recursos.hpp"
 #include "platform/Hilo.hpp"
+#include "platform/Termica.hpp"
 
 #include <algorithm>
 #include <array>
@@ -903,6 +904,12 @@ Recursos::Muestra Recursos::medir() {
         }
         m.procesos.push_back(pr);
     }
+    // La térmica (F4-05): barata en los tres sistemas (un estado, unos archivos de /sys).
+    const platform::EstadoTermico te = platform::leerTermica();
+    m.termica = platform::nombre(te.nivel);
+    m.temperaturaC = te.temperaturaC;
+    m.limiteFrecuenciaPct = te.limiteFrecuenciaPct;
+    m.termicaFuente = te.fuente;
     d_->cpuPrevia = std::move(cpuAhora);
     d_->previo = std::move(c);
     d_->tPrevio = t;
@@ -1069,6 +1076,10 @@ json Recursos::informe(int historialS, int pasoS) const {
                          {"nucleos", num(p.nucleos, 2)},
                          {"rss_mb", num(p.rssMb, 0)}});
     out["procesos"] = procs;
+    out["termica"] = {{"nivel", m.termica},
+                      {"temperatura_c", num(m.temperaturaC, 1)},
+                      {"limite_frecuencia_pct", num(m.limiteFrecuenciaPct, 0)},
+                      {"fuente", m.termicaFuente}};
 
     // El peor estado y lo que menos margen tiene (lo que va a explotar primero).
     Estado peor = Estado::Desconocido;

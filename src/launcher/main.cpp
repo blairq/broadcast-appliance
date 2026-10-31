@@ -154,6 +154,13 @@ int runLauncher(const std::vector<std::string>& args) {
             cfg.maxCaidas = static_cast<int>(entre("maxCaidas", 5, 1, 100));
             cfg.ventanaCaidasMs = static_cast<std::uint64_t>(entre("ventanaCaidasMin", 2, 1, 120) * 60000);
             cfg.reiniciosSinPreguntar = static_cast<int>(entre("reiniciosSinPreguntar", 2, 0, 100));
+#if defined(__linux__)
+            // El watchdog de hardware (F4-08): apagado de fábrica; con un plazo sano.
+            if (ba::ajustes::siNo("launcher.perroGuardian", false)) {
+                cfg.perroS = std::clamp(ba::ajustes::entero("launcher.perroS", 60), 10, 600);
+                cfg.perroDispositivo = ba::ajustes::texto("launcher.perroDispositivo", cfg.perroDispositivo);
+            }
+#endif
             for (const auto& a : j.value("appArgs", nlohmann::json::array())) {
                 if (a.is_string()) cfg.appArgs.push_back(a.get<std::string>());
             }

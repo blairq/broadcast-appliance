@@ -7,6 +7,7 @@
 //   GET    /mcp      405 (este servidor no empuja mensajes por SSE)
 //   DELETE /mcp      cierra la sesion (204)
 //   GET    /healthz  "ok"
+//   GET    /metrics  las métricas de la app (texto de Prometheus, con el Bearer; F4-01)
 //
 // Seguridad:
 //   - Escucha SOLO en 127.0.0.1.

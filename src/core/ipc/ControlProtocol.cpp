@@ -13,6 +13,8 @@
 
 #include "ControlProtocol.hpp"
 
+#include "diag/Correlacion.hpp"
+
 #include <cstdint>
 #include <nlohmann/json.hpp>
 #include <string>
@@ -170,6 +172,7 @@ std::string Message::toJson() const {
         }
     }
     j["payload"] = std::move(payloadObj);
+    if (!correlacion.empty()) j["correlacion"] = correlacion;
     return j.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
 }
 
@@ -221,6 +224,11 @@ bool Message::fromJson(const std::string& json, Message& out) {
     out.id = id;
     out.type = t;
     out.payload = std::move(payloadRaw);
+    // La orden, si viene y es un id sano (no mete basura en el registro de quien la lee).
+    const auto corrIt = root.find("correlacion");
+    out.correlacion = corrIt != root.end() && corrIt->is_string() && ba::diag::correlacion::valido(corrIt->get<std::string>())
+                          ? corrIt->get<std::string>()
+                          : std::string();
     return true;
 }
 

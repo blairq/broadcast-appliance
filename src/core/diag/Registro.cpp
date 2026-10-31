@@ -2,6 +2,7 @@
 // src/core/diag/Registro.cpp — ver Registro.hpp
 // ============================================================================
 #include "diag/Registro.hpp"
+#include "diag/Correlacion.hpp"
 #include "diag/Utf8.hpp"
 
 #include <algorithm>
@@ -375,7 +376,8 @@ void Registro::linea(Nivel n, const std::string& componente, int codigo, const s
     p.nivel = n;
     p.codigo = codigo;
     p.componente = componente;
-    p.texto = texto;
+    // La orden que atiende este hilo, si hay (F4-02): se sigue con un grep del id.
+    p.texto = texto + correlacion::sufijo(texto);
     if (!d_->cola.meter(std::move(p))) {
         d_->perdidas.fetch_add(1);
         return;

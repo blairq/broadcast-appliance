@@ -11,6 +11,16 @@
 // si se relanza) y lo del motor (cuadros por segundo, perdidos, lo que sale por
 // la transmisión). Lo leen también la herramienta MCP `sistema_recursos` y el
 // disparador de alarmas `recursos` (por `muestreador()`).
+//
+// En la misma vuelta (una por segundo, en el hilo de la interfaz):
+//   - copia lo medido a las métricas del proceso (diag::Metricas, F4-01): el motor,
+//     el bucle de la interfaz, el colchón de la grabación, las reconexiones de la
+//     transmisión y la térmica; las de las herramientas MCP y del candado del
+//     motor se cargan solas donde pasan;
+//   - arma los SLI de la página de diagnóstico (`slis`), con el transporte A→B que
+//     mide el gateway (llega en la foto de la sala: `alTransporte`);
+//   - lleva la política térmica «priorizar programa» (diag::PoliticaTermica, F4-05)
+//     y avisa cada paso que se apaga o se devuelve (`alDegradar`).
 // ============================================================================
 #pragma once
 
@@ -22,7 +32,15 @@
 #include <cstdint>
 #include <memory>
 
+#include "diag/PoliticaTermica.hpp"
 #include "diag/Recursos.hpp"
+
+#include <functional>
+#include <map>
+#include <string>
+#include <vector>
+
+#include <QVariantMap>
 
 namespace ba::app {
 
@@ -40,6 +58,10 @@ class RecursosViewModel : public QObject {
     Q_PROPERTY(QString limita READ limita NOTIFY cambio)
     /// Nuestros procesos: [{nombre, texto}] («app 12 % · 850 MB»).
     Q_PROPERTY(QVariantList procesos READ procesos NOTIFY cambio)
+    /// Los indicadores de servicio: [{clave, titulo, texto, estado (normal|aviso|critico|desconocido)}].
+    Q_PROPERTY(QVariantList slis READ slis NOTIFY cambio)
+    /// La térmica: {nivel, texto, apagados: [paso], estado}.
+    Q_PROPERTY(QVariantMap termica READ termica NOTIFY cambio)
     /// Cuántos segundos de historia muestra la línea de cada fila.
     Q_PROPERTY(int segundosHistoria READ segundosHistoria CONSTANT)
    public:
@@ -52,6 +74,18 @@ class RecursosViewModel : public QObject {
     QString limita() const { return limita_; }
     QVariantList procesos() const { return procesos_; }
     int segundosHistoria() const { return kHistoriaS; }
+    QVariantList slis() const { return slis_; }
+    QVariantMap termica() const { return termica_; }
+
+    /// De dónde sale lo que mide el gateway del transporte A→B (la foto de la sala:
+    /// `uso.transporte`). Sin esto, esos SLI quedan desconocidos.
+    void alTransporte(std::function<nlohmann::json()> f) { transporte_ = std::move(f); }
+    /// Un paso de la política térmica se apaga (`apagar`) o se devuelve. Los que no
+    /// tienen quien los atienda quedan en el informe como «sin_gancho».
+    using Degradar = std::function<bool(const std::string& paso, bool apagar)>;
+    void alDegradar(Degradar f) { degradar_ = std::move(f); }
+    /// {politica, sin_gancho} para `sistema_recursos`.
+    nlohmann::json informeTermico() const;
 
     diag::Recursos& muestreador() { return *recursos_; }
 
@@ -77,6 +111,19 @@ class RecursosViewModel : public QObject {
     int perdidosAntes_ = -1, totalAntes_ = -1;
     std::uint64_t bytesAntes_ = 0;
     std::chrono::steady_clock::time_point tAntes_{};
+
+    /// Las métricas de la vuelta y los SLI (F4-01).
+    void medirServicio(const diag::Recursos::Muestra& m, const nlohmann::json& informe);
+    /// La política térmica (F4-05).
+    void atenderTermica(const diag::Recursos::Muestra& m);
+    QVariantList slis_;
+    QVariantMap termica_;
+    std::function<nlohmann::json()> transporte_;
+    Degradar degradar_;
+    diag::PoliticaTermica politica_;
+    int apagadosAplicados_ = 0;
+    std::vector<std::string> sinGancho_;
+    std::map<std::string, bool> conectadaAntes_; ///< por salida: para contar las reconexiones
 };
 
 } // namespace ba::app

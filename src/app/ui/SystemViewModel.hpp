@@ -14,6 +14,8 @@
 #include <QStringList>
 #include <QVariantList>
 
+#include <functional>
+
 namespace ba::app {
 
 class SystemViewModel : public QObject {
@@ -35,6 +37,9 @@ class SystemViewModel : public QObject {
     bool canRollback() const;
     QString version() const;
     QVariantList preparacion() const;
+    /// Los chequeos del equipo (F4-07: sesiones de codificador, placas a 48 kHz, PTP,
+    /// deriva), que van al final de la preparación. Los arma quien tiene el motor.
+    void alEquipo(std::function<QVariantList()> f) { equipo_ = std::move(f); }
 
     Q_INVOKABLE void refresh();
     /// Arrancar al encender el equipo (InicioConElSistema): {activo, abre, notas}.
@@ -62,6 +67,7 @@ class SystemViewModel : public QObject {
     void quitForUpdate(const QString& aviso);
 
    private:
+    std::function<QVariantList()> equipo_;
 };
 
 /// Ruta local desde una URL file:// o una ruta.

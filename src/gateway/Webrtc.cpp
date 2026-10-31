@@ -169,6 +169,17 @@ constexpr int kAudioRate = 48000;
 constexpr int kAudioChannels = 2;
 constexpr size_t kFramesPer10Ms = kAudioRate / 100;
 
+/// DSCP por la prioridad de red de un sender (F4-06): libwebrtc pone EF al audio y AF41
+/// al video con prioridad alta (con `enable_dscp`; si el sistema no deja marcar el
+/// socket, se ignora). Una red sin QoS no lo mira; una con QoS los pasa primero.
+void marcarPrioridad(const rtc::scoped_refptr<webrtc::RtpSenderInterface>& sender) {
+    if (!sender || !ba::ajustes::siNo("red.dscp", true)) return;
+    webrtc::RtpParameters par = sender->GetParameters();
+    if (par.encodings.empty()) return;
+    for (auto& e : par.encodings) e.network_priority = webrtc::Priority::kHigh;
+    sender->SetParameters(par);
+}
+
 /// Modulo de audio SIN dispositivo que tira de la reproduccion cada 10 ms.
 ///
 /// Sin esto libwebrtc nunca decodifica el audio remoto (NetEq se consume desde
@@ -836,6 +847,7 @@ struct WebrtcSession::Impl : public webrtc::PeerConnectionObserver {
         config.sdp_semantics = webrtc::SdpSemantics::kUnifiedPlan;
         config.bundle_policy = webrtc::PeerConnectionInterface::kBundlePolicyMaxBundle;
         config.rtcp_mux_policy = webrtc::PeerConnectionInterface::kRtcpMuxPolicyRequire;
+        config.media_config.enable_dscp = ba::ajustes::siNo("red.dscp", true); // F4-06
         if (hub->minPort != 0) {
             config.port_allocator_config.min_port = hub->minPort;
             config.port_allocator_config.max_port = hub->maxPort;
@@ -887,6 +899,13 @@ struct WebrtcSession::Impl : public webrtc::PeerConnectionObserver {
         }
     }
 
+    /// La prioridad de red (F4-06): con `red.dscp`, libwebrtc marca los paquetes del audio
+    /// como EF (voz) y los del video como AF41 (video interactivo) a partir de
+    /// `network_priority` alta. Va DESPUÉS de negociar (antes no hay encodings).
+    static void prioridadDeRed(const rtc::scoped_refptr<webrtc::PeerConnectionInterface>& p) {
+        for (const auto& sender : p->GetSenders()) marcarPrioridad(sender);
+    }
+
     bool setRemoteOffer(const std::string& sdp) {
         rtc::scoped_refptr<webrtc::PeerConnectionInterface> p;
         {
@@ -909,6 +928,7 @@ struct WebrtcSession::Impl : public webrtc::PeerConnectionObserver {
             std::string answer;
             p->local_description()->ToString(&answer);
             seguirElReloj(p);
+            prioridadDeRed(p);
             if (self->cb.onLocalAnswer) self->cb.onLocalAnswer(answer);
         };
         auto onSrd = [self, p, onSld](webrtc::RTCError e) {
@@ -1241,6 +1261,7 @@ int WebrtcHub::openViewer(int session, bool screen, const std::string& offerSdp,
     config.sdp_semantics = webrtc::SdpSemantics::kUnifiedPlan;
     config.bundle_policy = webrtc::PeerConnectionInterface::kBundlePolicyMaxBundle;
     config.rtcp_mux_policy = webrtc::PeerConnectionInterface::kRtcpMuxPolicyRequire;
+    config.media_config.enable_dscp = ba::ajustes::siNo("red.dscp", true); // F4-06
     if (st->minPort != 0) {
         config.port_allocator_config.min_port = st->minPort;
         config.port_allocator_config.max_port = st->maxPort;
@@ -1271,6 +1292,7 @@ int WebrtcHub::openViewer(int session, bool screen, const std::string& offerSdp,
             return;
         }
         sender.value()->SetEncoderToPacketizerFrameTransformer(vp->tx);
+        marcarPrioridad(sender.value()); // AF41 (F4-06)
         p->SetLocalDescription(rtc::make_ref_counted<SldObserver<decltype(onSld)>>(onSld));
     };
     p->SetRemoteDescription(std::move(offer), rtc::make_ref_counted<SrdObserver<decltype(onSrd)>>(onSrd));

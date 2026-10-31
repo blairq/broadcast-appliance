@@ -155,6 +155,7 @@ int Supervisor::run() {
     // Lo que la verificación rápida no leyó (archivos nuevos o cambiados, o todo la
     // primera vez), con la app ya andando y a prioridad de fondo.
     fondo_ = std::thread([this]() { verificarEnElFondo(); });
+    if (cfg_.perroS > 0) perro_.abrir(cfg_.perroDispositivo, cfg_.perroS); // F4-08: si no se puede, sigue sin él
     watchdogLoop();
     pararFondo_ = true;
     if (fondo_.joinable()) fondo_.join();
@@ -572,6 +573,8 @@ void Supervisor::watchdogLoop() {
         }
 
         if (appDown || appHung || gwDown || gwHung) {
+            if (appDown || appHung) MetricasLauncher::falla(true, appHung);
+            if (gwDown || gwHung) MetricasLauncher::falla(false, gwHung);
             RecoveryAction action = RecoveryAction::Retry;
             const std::uint64_t failAt = nowMs();
             if (failAt - lastFailureMs_ > cfg_.ventanaCaidasMs) {
@@ -625,6 +628,9 @@ void Supervisor::watchdogLoop() {
             }
         }
         relanzarAgendados();
+        // Mientras el supervisor da vueltas, la máquina no está colgada (F4-08).
+        perro_.latir(ahora);
+        metricas_.vuelta(runtimeDir(), ahora, perro_.latidos());
         sleepInterruptible(kPollMs, stopRequested_);
     }
 }
@@ -664,6 +670,7 @@ void Supervisor::orderedShutdown() {
     health_.setIdentity(cfg_.slotA, 0, ba::ipc::kVersionProceso);
     health_.setIdentity(cfg_.slotB, 0, ba::ipc::kVersionProceso);
     Integrity::guardarCache(cacheIntegridad());
+    perro_.desarmar(); // salir en orden no reinicia la máquina
     BA_LOG_INFO("sup", 0, traducir("sup", "clean_shutdown marcado"));
 }
 
