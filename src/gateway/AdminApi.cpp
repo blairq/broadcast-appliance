@@ -19,7 +19,7 @@
 //   GET    /api/v1/events                  SSE: "room" (snapshot) y "chat"
 //   GET    /api/v1/network                 HTTPS, tunel WireGuard, IPs y enlaces
 //   GET    /api/v1/prompter?p=<id>         estado de un teleprompter (+ la clave y quien esta conectado; sin p, el principal)
-//   POST   /api/v1/prompter                {prompter?, texto?, titulo?, panico?, ...comandos}
+//   POST   /api/v1/prompter                {prompter?, texto?, titulo?, panico?, ...comandos} (prompter "*": a todos)
 //   GET    /api/v1/prompters               los teleprompters: [{id, titulo, palabras, corriendo, oradores, controles}]
 //   POST   /api/v1/prompters               {quitar: id}
 //   GET    /api/v1/prompter-link?target=local|remote&vista=control|orador&conClave=0|1&p=<id>  enlace + QR
@@ -523,6 +523,12 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
         const auto q = http::parseQuery(query);
         const std::string id = method == "POST" ? req.value("prompter", std::string())
                                                 : (q.count("p") ? http::urlDecode(q.at("p")) : std::string());
+        // «*»: a todos (lo del presentador de la línea de tiempo va a cada atril).
+        if (method == "POST" && id == "*") {
+            prompters_.comandarTodos(req);
+            sendJson(fd, 200, json{{"ok", true}});
+            return;
+        }
         const auto prompter = prompters_.de(id);
         if (!prompter) return sendErr(fd, 400, "prompter");
         // A ve siempre la clave del control: la necesita para armar el enlace

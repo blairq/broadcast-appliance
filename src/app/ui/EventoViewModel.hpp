@@ -635,6 +635,9 @@ class EventoViewModel : public QObject {
     void enchufar();
     /// Los temas del bus de las condiciones de la corrida, al día (suscribe los que faltan).
     void vigilarTemas();
+    /// Lo del presentador (cuánto le queda al paso, qué viene) a los atriles, si cambió.
+    void avisarPresentador();
+    nlohmann::json presentadorEnviado_; ///< lo último que se mandó (para no repetir)
     /// La línea con la que corre la corrida: la del evento o, grabando, la de grabar.
     evento::linea::Linea lineaDeCorrida() const;
     /// Lo que habló cada orador mientras su paso estuvo al aire, al recorrido (ver el .cpp).

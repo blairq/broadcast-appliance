@@ -72,7 +72,8 @@ class Prompter {
     ///
     /// Campos: corriendo (bool), posicion (palabra, double), ppm (int),
     /// tamano (int, 1..10), espejo (bool), aviso (string), parrafo (int:
-    /// saltar al principio de ese parrafo).
+    /// saltar al principio de ese parrafo), presentador (lo de la línea de tiempo:
+    /// {alAire: {nombre, hastaMs?, desdeMs}, proximo: {nombre}?} o null).
     bool comandar(const nlohmann::json& cmd);
 
     /// El boton de panico: para en seco donde este. No mueve la posicion, para
@@ -108,6 +109,10 @@ class Prompter {
     bool espejo_ = false; ///< para el vidrio del teleprompter
     std::string aviso_;   ///< "redondea", "te escuchamos bajo"
     int64_t avisoMs_ = 0;
+    /// Lo del presentador (la línea de tiempo del evento, en la app): cuánto le queda
+    /// al paso al aire y qué viene. Lo manda la app cuando cambia; la cuenta la hace
+    /// la página con `hastaMs` y el reloj del servidor. null = no corre ninguna línea.
+    nlohmann::json presentador_;
     struct Cliente {
         std::string vista;
         std::string nombre;
@@ -141,10 +146,13 @@ class Prompters {
     nlohmann::json lista() const;
     /// Saca uno (el principal no se saca). false si no estaba.
     bool quitar(const std::string& id);
+    /// Lo mismo a todos los que hay (lo del presentador va a cada atril).
+    void comandarTodos(const nlohmann::json& cmd);
 
    private:
     mutable std::mutex m_;
     std::map<std::string, std::shared_ptr<Prompter>> todos_;
+    nlohmann::json presentador_; ///< el último que fue a todos (para los que se abren después)
 };
 
 } // namespace ba::gateway

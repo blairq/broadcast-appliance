@@ -219,6 +219,21 @@ void varios() {
     CHECK(ps.lista().size() <= Prompters::kMax, "tienen tope");
 }
 
+// Lo del presentador (la línea de tiempo): va a todos, no mueve el texto y lo sabe el
+// que se abre después.
+void presentador() {
+    Prompters ps;
+    auto a = ps.de("principal");
+    a->cargar("Discurso", "uno dos tres");
+    const auto version = a->estado()["version"];
+    ps.comandarTodos(json{{"presentador", {{"alAire", {{"nombre", "Apertura"}, {"hastaMs", 1000}}}, {"proximo", {{"nombre", "Himno"}}}}}});
+    CHECK(a->estado()["presentador"]["proximo"]["nombre"] == "Himno", "llega al que hay");
+    CHECK(a->estado()["version"] == version, "y no cuenta como un cambio del texto");
+    CHECK(ps.de("atril-2")->estado()["presentador"]["alAire"]["nombre"] == "Apertura", "el que se abre después ya lo sabe");
+    ps.comandarTodos(json{{"presentador", nullptr}});
+    CHECK(a->estado()["presentador"].is_null() && ps.de("atril-2")->estado()["presentador"].is_null(), "sin línea, nada");
+}
+
 } // namespace
 
 int main() {
@@ -230,6 +245,7 @@ int main() {
     limites();
     conectados();
     varios();
+    presentador();
     if (g_fallos == 0) std::printf("test_prompter: OK\n");
     return g_fallos == 0 ? 0 : 1;
 }

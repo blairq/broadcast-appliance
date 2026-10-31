@@ -56,6 +56,7 @@ html, body {
 .espejado .texto { transform-origin: center; }
 .espejado .lienzo,
 .espejado .aviso,
+.espejado .presentador,
 .espejado .vacio { transform: scaleX(-1); }
 
 /* La palabra que toca leer, un poco mas viva; lo ya leido, apagado. */
@@ -241,3 +242,22 @@ button:active { background: rgba(255, 255, 255, 0.2); }
 }
 .nombre::placeholder { color: var(--tenue); }
 .nombre:focus { outline: none; border-color: rgba(255, 255, 255, 0.4); }
+
+/* Lo del presentador (la línea de tiempo): chico, abajo, para no tapar el texto. Pasado
+   de tiempo, la cuenta en el color del aviso. */
+.presentador {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 64px);
+  z-index: 2;
+  display: flex;
+  gap: 1.2em;
+  justify-content: center;
+  align-items: baseline;
+  font-size: clamp(14px, 2.2vw, 26px);
+  opacity: 0.85;
+}
+.presentador .queda { font-variant-numeric: tabular-nums; font-size: 1.4em; }
+.presentador.pasado .queda { color: var(--acento); }
+.presentador .despues { opacity: 0.7; }

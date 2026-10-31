@@ -1927,6 +1927,7 @@ void EventoViewModel::despachar(const std::vector<Accion>& acc) {
                            static_cast<int>(grabado_["ops"].size())),
                         "info");
     }
+    avisarPresentador();
     if (corriendo()) {
         escribirVivo();
         // El reloj de la vista se realinea con el cambio: así la cuenta y el aviso
@@ -3836,6 +3837,41 @@ void EventoViewModel::seguirPalabra(const std::vector<Accion>& acc) {
         if (p == nullptr || std::none_of(p->piezas.begin(), p->piezas.end(), [](const auto& z) { return z.tipo == "orador"; })) continue;
         palabras_[salida] = {a.paso, static_cast<int>(p->duracionPlanMs() / 1000), segundosDePalabra()};
     }
+}
+
+// --- Lo del presentador en los atriles (/prompter) -------------------------------------------
+//
+// La vista del orador (la tablet del atril) muestra además cuánto le queda al paso al
+// aire y qué viene, como la pantalla de presentador de Sofie. No es un aparato del
+// control web: va por el gateway a TODOS los teleprompters («*»), y solo cuando cambia
+// (la cuenta la hace la página con la hora de fin y el reloj del servidor).
+
+void EventoViewModel::avisarPresentador() {
+    if (sala_ == nullptr) return;
+    json p; // null: no corre ninguna línea (o es un ensayo: el atril no se entera)
+    if (corriendo() && !ensayo_) {
+        const json est = lineaEstado();
+        for (const json& x : est.value("salidas", json::array())) {
+            if (x.value("salida", std::string()) != salidaPorOmision()) continue;
+            const json a = x.value("alAire", json()), pr = x.value("proximo", json());
+            if (!a.is_object()) break;
+            const int64_t t = ahoraMs();
+            json aire{{"nombre", a.value("nombre", std::string())}, {"desdeMs", t - a.value("llevaSeg", 0LL) * 1000}};
+            if (a.value("previstoSeg", 0) > 0) aire["hastaMs"] = t + a.value("restanteSeg", 0LL) * 1000;
+            p = {{"alAire", aire}, {"hold", x.value("hold", false)}};
+            if (pr.is_object()) p["proximo"] = {{"nombre", pr.value("nombre", std::string())}, {"automatico", pr.value("automatico", false)}};
+        }
+    }
+    // Lo que cambia de verdad (no el segundo en que se calculó): el paso, su fin al
+    // segundo, el próximo y el HOLD.
+    json firma = p;
+    if (firma.is_object()) {
+        firma["alAire"].erase("desdeMs");
+        if (firma["alAire"].contains("hastaMs")) firma["alAire"]["hastaMs"] = firma["alAire"]["hastaMs"].get<int64_t>() / 2000;
+    }
+    if (firma == presentadorEnviado_) return;
+    presentadorEnviado_ = firma;
+    sala_->teleprompter().para("*").presentador(p);
 }
 
 // --- Grabar la línea en vivo (L10) ------------------------------------------------------------
