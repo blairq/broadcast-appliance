@@ -2,23 +2,21 @@
 
 #include "arranque/ArchivoConfig.hpp"
 
-#include <fstream>
+#include "persist/ColaEscritura.hpp"
 
 namespace ba::app::config {
 
 nlohmann::json leerObjeto(const std::filesystem::path& archivo) {
-    std::ifstream f(archivo);
-    if (!f) return nlohmann::json::object();
-    const nlohmann::json j = nlohmann::json::parse(f, nullptr, false);
+    // Lo último: si hay algo encolado que todavía no está en el disco, eso.
+    std::string bytes;
+    if (!ba::persist::cola().leer(archivo, bytes)) return nlohmann::json::object();
+    const nlohmann::json j = nlohmann::json::parse(bytes, nullptr, false);
     return j.is_object() ? j : nlohmann::json::object();
 }
 
 bool guardar(const std::filesystem::path& archivo, const nlohmann::json& j) {
-    std::error_code ec;
-    std::filesystem::create_directories(archivo.parent_path(), ec);
-    std::ofstream o(archivo);
-    o << j.dump(1, ' ', false, nlohmann::json::error_handler_t::replace);
-    return static_cast<bool>(o);
+    ba::persist::cola().escribir(archivo, j.dump(1, ' ', false, nlohmann::json::error_handler_t::replace));
+    return true;
 }
 
 } // namespace ba::app::config

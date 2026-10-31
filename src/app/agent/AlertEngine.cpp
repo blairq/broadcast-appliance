@@ -187,6 +187,10 @@ json AlertEngine::types() {
           {{"recurso", QT_TRANSLATE_NOOP("alertas", "\"*\" (todos, por defecto) o uno: cpu, gpu, ram, vram, red, motor")},
            {"nivel", QT_TRANSLATE_NOOP("alertas", "aviso (por defecto: desde el 80 %) o critico (desde el 92 %)")}}},
          {"cooldownSec", 120}},
+        {{"type", "persistencia"},
+         {"summary", QT_TRANSLATE_NOOP("alertas", "El estado guardado volvió dañado tras un corte (qué había al aire, la línea de "
+                     "tiempo) o la carpeta de datos está en un disco sin diario (FAT/exFAT).")},
+         {"params", json::object()}},
         {{"type", "timer"},
          {"summary", QT_TRANSLATE_NOOP("alertas", "Temporizador del servidor: en N segundos, a una hora, o cada N segundos.")},
          {"params",
@@ -721,6 +725,9 @@ void AlertEngine::evaluate(json& rule, State& st, std::int64_t now) {
                        : ba::i18n::llenar(ba::i18n::traducir("alertas", "El programa está congelado: la imagen no cambia hace %1 s."), {fmt1(quieto)}),
                  {{"luma", luma}, {"quietoSeg", quieto}}, now);
         }
+    } else if (type == "persistencia" && in_.persistencia) {
+        for (const std::string& texto : in_.persistencia())
+            if (st.seen.emplace("p:" + texto, "1").second) fire(rule, st, texto, json::object(), now);
     } else if (type == "record_down" && in_.status) {
         const auto s = in_.status();
         const std::int64_t forMs = static_cast<std::int64_t>(p.value("forSec", 5.0) * 1000);
@@ -1087,6 +1094,8 @@ void AlertEngine::sembrar(bool faltantes) {
          {"sonido", "critico"}, {"reconocer", true}},
         {{"type", "recursos"}, {"name", ba::i18n::traducir("alertas", "La máquina al límite")},
          {"params", {{"recurso", "*"}, {"nivel", "aviso"}}}, {"sonido", "aviso"}},
+        {{"type", "persistencia"}, {"name", ba::i18n::traducir("alertas", "Estado guardado dañado")},
+         {"params", json::object()}, {"sonido", "critico"}, {"reconocer", true}},
     });
     for (json r : reglas) {
         const std::string tipo = r.value("type", std::string());

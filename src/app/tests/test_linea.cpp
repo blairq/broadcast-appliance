@@ -1312,6 +1312,16 @@ void testCorridaRetoma() {
     const json est = g.estadoJson(T0 + 101 * S);
     CHECK(est["estado"] == "corriendo" && est["salidas"][0]["alAire"]["paso"] == "p2" && est["retoma"]["activa"] == false,
           "el estado para el MCP");
+
+    // F1-03: linea-aire.json volvió dañado (las dos generaciones rotas). No se sabe en
+    // qué iba: igual vuelve en HOLD en todas las salidas y pregunta, sin reponer nada.
+    Corrida d(l, entrada(T0));
+    acc = d.retomar(json{{"estado", "corriendo"}, {"escritoMs", T0 + 100 * S}, {"arranqueMs", T0 + 100 * S}}, T0 + 100 * S);
+    CHECK(d.retomando() && d.pideDescripcion() && d.hold("principal"), "dañado: HOLD y la pregunta");
+    CHECK(!hay(acc, Accion::Que::Pieza, "zMus") && !hay(acc, Accion::Que::Pieza, "zAsis") &&
+              !hay(acc, Accion::Que::Avisar, "zAsis"),
+          "dañado: no repone ni dispara nada");
+    CHECK(d.tick(T0 + 200 * S).empty(), "dañado: sigue en HOLD hasta que alguien cuente");
 }
 
 } // namespace

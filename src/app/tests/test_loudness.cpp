@@ -2,6 +2,7 @@
 //   - seno estéreo de 1 kHz a -23 dBFS -> -23 LUFS integrado (±0,3) y TP ≈ -23 dBTP;
 //   - silencio -> sin integrado (compuerta absoluta);
 //   - mitad a -20 y mitad a -30 dBFS -> LRA ≈ 10 LU.
+#include "persist/ColaEscritura.hpp"
 #include "audio/LoudnessPrograma.hpp"
 #include "audio/ObjetivoLoudness.hpp"
 
@@ -78,7 +79,9 @@ int main() {
         ba::app::audio::ObjetivoLoudness o(dir, l);
         CHECK(!o.poner({{"perfil", "custom"}, {"lufs", 3}}).empty() && !fs::exists(dir / "Config" / "loudness.json"),
               "objetivo inválido: error y nada guardado");
-        CHECK(o.poner({{"perfil", "plataforma14"}}).empty() && fs::exists(dir / "Config" / "loudness.json"),
+        // Se guarda por la cola de persistencia (persist::cola): al disco, al vaciarla.
+        CHECK(o.poner({{"perfil", "plataforma14"}}).empty() && ba::persist::cola().vaciar() &&
+                  fs::exists(dir / "Config" / "loudness.json"),
               "objetivo válido: queda guardado");
         LoudnessPrograma otro(48000);
         ba::app::audio::ObjetivoLoudness(dir, otro).cargar();

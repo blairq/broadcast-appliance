@@ -8,13 +8,13 @@
 #include "security/CredentialStore.hpp"
 #include "arranque/RutasPortables.hpp"
 #include "emision/InputSpecs.hpp"
+#include "persist/ColaEscritura.hpp"
 
 #include <nlohmann/json.hpp>
 
 #include <algorithm>
 #include <cstdio>
 #include <cstdlib>
-#include <fstream>
 #include "ipc/LugaresSala.hpp"
 
 namespace ba::app {
@@ -51,73 +51,53 @@ std::string& configRecuperada() {
 namespace {
 
 json readJson(const fs::path& path, bool& exists) {
-    std::error_code ec;
-    exists = fs::exists(path, ec);
+    // Lo último: lo encolado en el escritor si todavía no llegó al disco.
+    std::string bytes;
+    exists = ba::persist::cola().leer(path, bytes);
     if (!exists) {
         return json::object();
     }
-    std::ifstream in(path);
-    json j = json::parse(in, nullptr, /*allow_exceptions=*/false, /*ignore_comments=*/true);
+    json j = json::parse(bytes, nullptr, /*allow_exceptions=*/false, /*ignore_comments=*/true);
     if (j.is_discarded() || !j.is_object()) {
         // Dos generaciones: si la actual está rota, la anterior (la que había
         // antes del último guardado) suele estar bien.
         fs::path prev = path;
         prev += ".anterior";
-        std::ifstream pin(prev);
-        json pj = json::parse(pin, nullptr, false, true);
+        std::string anterior;
+        ba::persist::cola().leer(prev, anterior);
+        json pj = json::parse(anterior, nullptr, false, true);
+        // El proximo guardado pisaria el archivo roto: se deja una copia para
+        // poder recuperar escenas a mano.
+        fs::path backup = path;
+        backup += ".corrupto";
+        ba::persist::cola().escribir(backup, bytes);
         if (pj.is_object()) {
-            std::error_code cec;
-            fs::path backup = path;
-            backup += ".corrupto";
-            fs::copy_file(path, backup, fs::copy_options::overwrite_existing, cec);
             std::printf("ba-app: %s\n", ba::i18n::llenar(ba::i18n::traducir("config", "%1 no es JSON valido; se cargo la generacion anterior (%2)"), {path.string(), prev.string()}).c_str());
             configRecuperada() = path.filename().string();
             return pj;
         }
-        // El proximo guardado pisaria el archivo roto con los valores por
-        // defecto: se deja una copia para poder recuperar escenas a mano.
-        std::error_code cec;
-        fs::path backup = path;
-        backup += ".corrupto";
-        fs::copy_file(path, backup, fs::copy_options::overwrite_existing, cec);
         std::printf("ba-app: %s\n", ba::i18n::llenar(ba::i18n::traducir("config", "%1 no es JSON valido; se usan valores por defecto (copia en %2)"), {path.string(), backup.string()}).c_str());
         return json::object();
     }
     return j;
 }
 
-/// Escritura atomica: un corte a mitad nunca deja un archivo roto.
-bool writeJson(const fs::path& path, const json& j, std::string* err) {
-    std::error_code ec;
-    fs::create_directories(path.parent_path(), ec);
-    const fs::path tmp = path.string() + ".tmp";
-    {
-        std::ofstream out(tmp, std::ios::trunc);
-        if (!out) {
-            if (err != nullptr) {
-                *err = "no se pudo escribir " + tmp.string();
-            }
-            return false;
-        }
-        out << j.dump(2, ' ', false, nlohmann::json::error_handler_t::replace) << "\n";
-    }
-    // La generación anterior: la que estaba (si era JSON válido) queda como .anterior.
-    if (fs::exists(path, ec)) {
-        std::ifstream cur(path);
-        const json cj = json::parse(cur, nullptr, false, true);
-        if (cj.is_object()) {
+/// Lo encola en el escritor durable (persist/ColaEscritura.hpp): un corte a mitad
+/// nunca deja un archivo roto y el hilo que guarda no toca el disco. Antes de
+/// reemplazarlo, la versión que estaba (si era JSON válido) queda como .anterior.
+bool writeJson(const fs::path& path, const json& j, std::string* /*err: el escritor reintenta y lo anota*/) {
+    ba::persist::Pedido pedido;
+    pedido.antes = [path]() {
+        std::string actual;
+        if (!ba::persist::leerArchivo(path, actual)) return;
+        if (json::parse(actual, nullptr, false, true).is_object()) {
             fs::path prev = path;
             prev += ".anterior";
-            fs::copy_file(path, prev, fs::copy_options::overwrite_existing, ec);
+            ba::persist::escribir(prev, actual);
         }
-    }
-    fs::rename(tmp, path, ec);
-    if (ec) {
-        if (err != nullptr) {
-            *err = "no se pudo reemplazar " + path.string() + ": " + ec.message();
-        }
-        return false;
-    }
+    };
+    ba::persist::cola().escribir(path, j.dump(2, ' ', false, nlohmann::json::error_handler_t::replace) + "\n",
+                                 std::move(pedido));
     return true;
 }
 

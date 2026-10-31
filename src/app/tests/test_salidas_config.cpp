@@ -91,6 +91,19 @@ int main() {
         CHECK(b.de("b").escena == "Pantalla" && b.de("b").grabando && !b.de("b").transmitiendo, "nuevo: vuelve cada salida como estaba");
         CHECK(b.de("principal").escena == "Plano" && b.de("principal").transmitiendo, "nuevo: la por omisión también");
     }
+    {
+        // F1-04: cada salida con su transmisión y sus destinos (vuelven todas tras un corte).
+        salidas::AlAire a;
+        a.cerrado = false;
+        a.salidas["principal"] = {"Plano", true, false, {"respaldo"}};
+        a.salidas["b"] = {"Pantalla", true, true, {"youtube-b", "twitch-b"}};
+        const salidas::AlAire b = salidas::leerAlAire(salidas::aJson(a));
+        CHECK(b.de("b").transmitiendo && b.de("b").grabando, "otra salida: transmite y graba");
+        CHECK((b.de("b").destinos == std::vector<std::string>{"youtube-b", "twitch-b"}), "otra salida: sus destinos");
+        CHECK((b.de("principal").destinos == std::vector<std::string>{"respaldo"}), "la por omisión: sus destinos");
+        CHECK(salidas::leerAlAire(json{{"salidas", {{"b", {{"streaming", true}}}}}}).de("b").destinos.empty(),
+              "sin `destinos` (de antes): ninguno");
+    }
     std::printf(fallas == 0 ? "TODO OK\n" : "%d FALLAS\n", fallas);
     return fallas == 0 ? 0 : 1;
 }

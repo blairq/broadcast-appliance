@@ -236,7 +236,9 @@ AppConfig defaultAppConfig(const std::filesystem::path& dataRoot);
 /// Lee app.json; si no existe, escribe el de por defecto y lo devuelve.
 AppConfig loadAppConfig(const std::filesystem::path& path, const std::filesystem::path& dataRoot);
 
-/// Guarda app.json (escritura atomica: temporal + rename).
+/// Guarda app.json: lo encola en el escritor durable (core/persist/ColaEscritura.hpp;
+/// temporal + fsync + rename en su hilo). Los tres save* leen lo encolado, y antes de
+/// pedirle a otro proceso que relea uno de estos archivos hay que vaciar la cola.
 bool saveAppConfig(const std::filesystem::path& path, const AppConfig& cfg,
                    const std::filesystem::path& dataRoot, std::string* err = nullptr);
 

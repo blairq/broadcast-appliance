@@ -3,6 +3,7 @@
 // ============================================================================
 
 #include "security/CredentialStore.hpp"
+#include "persist/Escritor.hpp"
 
 #include <mbedtls/entropy.h>
 #include <mbedtls/gcm.h>
@@ -57,32 +58,6 @@ bool readAll(const fs::path& p, std::string& out) {
     if (!in) return false;
     out.assign(std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>());
     return !in.bad();
-}
-
-/// Escritura atomica: temporal en la misma carpeta + rename.
-bool writeAtomic(const fs::path& p, const std::string& data) {
-    fs::path tmp = p;
-    tmp += ".tmp";
-    {
-        std::ofstream out(tmp, std::ios::binary | std::ios::trunc);
-        if (!out) return false;
-        out.write(data.data(), static_cast<std::streamsize>(data.size()));
-        out.flush();
-        if (!out) {
-            out.close();
-            std::error_code ec;
-            fs::remove(tmp, ec);
-            return false;
-        }
-    }
-    std::error_code ec;
-    fs::permissions(tmp, fs::perms::owner_read | fs::perms::owner_write, fs::perm_options::replace, ec);
-    fs::rename(tmp, p, ec);
-    if (ec) {
-        fs::remove(tmp, ec);
-        return false;
-    }
-    return true;
 }
 
 int hexVal(char c) {
@@ -216,7 +191,9 @@ bool CredentialStore::write(const std::string& name, const std::string& data) co
                                    reinterpret_cast<const unsigned char*>(data.data()), ct, kTag, tag) == 0;
     mbedtls_gcm_free(&gcm);
     mbedtls_platform_zeroize(k, sizeof(k));
-    return ok && writeAtomic(pathOf(name), blob);
+    // Atómica y durable, solo-dueño (persist/Escritor.hpp): un corte no deja la
+    // credencial vacía.
+    return ok && ba::persist::escribir(pathOf(name), blob, ba::persist::Durabilidad::Normal, ba::persist::Permisos::Privados);
 }
 
 bool CredentialStore::remove(const std::string& name) const {

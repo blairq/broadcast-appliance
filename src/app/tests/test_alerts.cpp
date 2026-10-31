@@ -45,6 +45,7 @@ struct World {
     json mismoVolumen = json::array();
     json prog{{"valido", true}, {"luma", 120.0}, {"quieto_s", 0.0}};
     json recursos = json::object();
+    std::vector<std::string> persistencia;
 
     AlertInputs inputs() {
         AlertInputs in;
@@ -57,6 +58,7 @@ struct World {
         in.disco = [this]() { return json{{"libre_gb", disk}, {"horas", horas}, {"mismo_volumen", mismoVolumen}}; };
         in.programaVideo = [this]() { return prog; };
         in.recursos = [this]() { return recursos; };
+        in.persistencia = [this]() { return persistencia; };
         in.nowMs = [this]() { return now; };
         return in;
     }
@@ -360,6 +362,21 @@ int main(int argc, char** argv) {
     eng.clear();
     fired.clear();
     w.status = {};
+
+    // --- persistencia (el estado guardado volvió dañado) ------------------------------------------
+    eng.create(json{{"type", "persistencia"}, {"params", json::object()}});
+    step(250);
+    CHECK(fired.empty(), "persistencia: sin avisos, nada");
+    w.persistencia = {"al-aire.json volvió dañado"};
+    step(250);
+    step(250);
+    CHECK(fired.size() == 1 && fired[0]["type"] == "persistencia", "persistencia: avisa una vez");
+    w.persistencia.push_back("disco exFAT");
+    step(250);
+    CHECK(fired.size() == 2 && fired[1]["text"] == "disco exFAT", "persistencia: un aviso nuevo, otra vez");
+    eng.clear();
+    fired.clear();
+    w.persistencia.clear();
 
     // --- timer, once, persistencia, wait ----------------------------------------------------------------
     const json t1 = eng.create(json{{"type", "timer"}, {"name", "Pausa"}, {"params", {{"in", 60}}}});

@@ -27,6 +27,7 @@
 #include <thread>
 #include <cstdint>
 #include <filesystem>
+#include <map>
 #include <functional>
 #include <mutex>
 #include <set>
@@ -42,6 +43,7 @@
 #include "ipc/ControlService.hpp"
 #include "ipc/HealthBlock.hpp"
 #include "emision/OperatorFeed.hpp"
+#include "emision/SalidasConfig.hpp"
 
 namespace ba::app {
 
@@ -248,6 +250,15 @@ class AppRuntime {
     /// La corrida anterior terminó sin cerrarse (corte de luz, cuelgue): hay que
     /// volver como estaba (la escena, la playlist, las salidas).
     bool corteAnterior() const { return corteAnterior_; }
+    /// Lo que había al aire en cada salida al arrancar (Runtime/al-aire.json, la
+    /// generación más nueva que sirve): lo que se retomó. Vacío si estaba dañado.
+    const salidas::AlAire& aireAnterior() const { return aireAnterior_; }
+    /// Lo que el operador tiene que saber de la persistencia (el estado de aire dañado,
+    /// la carpeta de datos en FAT/exFAT): lo levanta la alarma «persistencia».
+    std::vector<std::string> avisosPersistencia() const;
+    /// Lo anota en el registro (error) y para la alarma. Lo usa también la línea de
+    /// tiempo cuando su estado vivo (linea-aire.json) vuelve dañado.
+    void avisarPersistencia(const std::string& texto);
     const std::filesystem::path& dataRoot() const { return root_; }
     /// El feed del operador (lobby): de ahí sale el micrófono del push-to-talk.
     OperatorFeed& operatorFeed() { return operator_; }
@@ -289,6 +300,11 @@ class AppRuntime {
     /// con --restore para retomar la emision tras una caida.
     /// También la escena al aire y si el cierre fue ordenado. Escritura atómica.
     void writeOnAirState() const;
+    static std::filesystem::path archivoAlAire();
+    /// Lee al-aire.json (dos generaciones; el viejo de una sola también) al arrancar:
+    /// deja aireAnterior_ y corteAnterior_, y si está dañado lo avisa (F1-03).
+    void leerAireAnterior();
+    /// Retoma lo que transmitían y grababan TODAS las salidas (F1-04).
     void restoreOutputs();
     /// Lo que se escribió por última vez en al-aire.json de las escenas al aire (para
     /// reescribirlo solo si cambió alguna).
@@ -318,6 +334,13 @@ class AppRuntime {
     bool recordStopWanted_ = true;
     /// Las salidas que no son la por omisión y que se graban a pedido (vuelven tras un corte).
     std::set<std::string> grabandoOtras_;
+    /// Lo mismo con su transmisión principal (servidor y clave, cifrados en Credenciales/).
+    std::set<std::string> transmitiendoOtras_;
+    /// Los destinos (destinos.json) que transmiten, con su salida: vuelven tras un corte.
+    std::map<std::string, std::string> destinosAlAire_;
+    salidas::AlAire aireAnterior_;
+    mutable std::mutex avisosMu_;
+    std::vector<std::string> avisosPersistencia_;
     bool corteAnterior_ = false;
     bool cerrando_ = false;           ///< stop(): al-aire.json dice «cerrado»
     mutable std::string escenaEscrita_; ///< lo que dice al-aire.json de las escenas (firmaDelAire)

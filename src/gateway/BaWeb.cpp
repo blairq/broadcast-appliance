@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
+#include "persist/Escritor.hpp"
 #include "BaWeb.hpp"
 
 #include <algorithm>
 #include <chrono>
 #include <filesystem>
-#include <fstream>
 
 #include "Log.hpp"
 #include "i18n/I18n.hpp"
@@ -36,19 +36,6 @@ std::string q(const std::string& ruta) {
         out += c;
     }
     return out + "\"";
-}
-
-bool escribirAtomico(const std::filesystem::path& p, const std::string& contenido) {
-    const std::filesystem::path tmp = p.string() + ".tmp";
-    {
-        std::ofstream f(tmp, std::ios::binary | std::ios::trunc);
-        if (!f) return false;
-        f << contenido;
-        if (!f) return false;
-    }
-    std::error_code ec;
-    std::filesystem::rename(tmp, p, ec);
-    return !ec;
 }
 
 } // namespace
@@ -121,7 +108,7 @@ bool WebSupervisor::start() {
     std::filesystem::create_directories(cfg_.dir, ec);
     setEventoDir("");
     // ba-web escribe (y rota: 5 MiB, tres archivos) su propio log; lo de stderr va aparte.
-    if (!escribirAtomico(confPath_, armarConf(cfg_, aliasPath_, cfg_.logPath))) {
+    if (!ba::persist::escribir(confPath_, armarConf(cfg_, aliasPath_, cfg_.logPath))) {
         log_.warn(llenar(traducir("gateway", "ba-web: no se pudo escribir %1; el túnel va directo al gateway"), {confPath_}), -1);
         return false;
     }
@@ -221,7 +208,7 @@ void WebSupervisor::runLoop() {
 void WebSupervisor::setEventoDir(const std::string& dir) {
     std::lock_guard<std::mutex> l(dirLock_);
     if (dir == dirActual_) return;
-    if (escribirAtomico(aliasPath_, dir.empty() ? std::string() : dir + "\n")) dirActual_ = dir;
+    if (ba::persist::escribir(aliasPath_, dir.empty() ? std::string() : dir + "\n")) dirActual_ = dir;
 }
 
 } // namespace ba::gateway
