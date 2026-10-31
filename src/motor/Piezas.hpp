@@ -16,6 +16,7 @@
 #include <condition_variable>
 #include <cstdint>
 #include <functional>
+#include <map>
 #include <memory>
 #include <mutex>
 #include <set>
@@ -220,6 +221,9 @@ class Vigia {
     bool hay(bool esVideo, const std::string& id, bool esperar = true);
     /// ¿Está la salida de audio `id` (la escucha)? Como hay(), sin esperar.
     bool haySalida(const std::string& id);
+    /// Las salidas de audio que hay: (id estable, nombre). Lo último que supo el hilo, sin
+    /// esperar (vacío si todavía no arrancó): para listarlas desde la interfaz sin enumerar.
+    std::vector<std::pair<std::string, std::string>> salidasDeAudio();
     std::uint64_t generacion() const { return generacion_.load(); }
 
    private:
@@ -234,6 +238,7 @@ class Vigia {
     bool listo_ = false;
     bool sinMonitor_ = false; ///< no arrancó: hay() dice que sí a todo
     std::set<std::string> audio_, video_, salidas_;
+    std::map<std::string, std::string> nombresSalida_; ///< id → nombre (las de salidas_)
     std::atomic<std::uint64_t> generacion_{1};
 };
 

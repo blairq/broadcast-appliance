@@ -56,6 +56,10 @@ class Escucha {
     void apagar();
     void ponerDispositivo(const std::string& id);
     void ponerNivel(double lineal);
+    /// Sin respaldo (las salidas de la Matriz, F3-08): si la placa elegida no está, muda
+    /// hasta que vuelva, en vez de ir por la del sistema (un cable virtual que se fue no
+    /// tiene que terminar en los parlantes de la sala). Antes de escuchar.
+    void sinRespaldo(bool si) { sinRespaldo_ = si; }
     /// Lo llama el motor: si lo escuchado cambió de latencia, se acomoda (con el
     /// trabajador ocupado, la saltea).
     void tic(std::int64_t latenciaNs);
@@ -78,6 +82,7 @@ class Escucha {
     GstElement* pipeline_ = nullptr;
     std::string productor_, dispositivo_, error_, sinkPrueba_;
     bool enRespaldo_ = false;         ///< pidió una placa que no estaba: va por la del sistema
+    bool sinRespaldo_ = false;        ///< sinRespaldo()
     std::uint64_t genVigia_ = 0;      ///< la generación del Vigía que ya se miró
     std::atomic<bool> rearmando_{false}; ///< un rearmado encargado y todavía no hecho
     std::int64_t ultimoRearmeNs_ = 0;    ///< del trabajador (con mu_)

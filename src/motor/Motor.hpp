@@ -70,6 +70,14 @@
 // bus:programa:<id>; vistas «programa:<id>», «preview:<id>», «limpio:<id>».
 // El audio de cada salida va al gateway: la por omisión a BA.Audio.ContentForReturn
 // (como siempre), las demás a BA.Audio.Salida.<id> (etapa 2).
+// LA MATRIZ (F3-08): los buses virtuales de la Matriz de la app son buses de OÍDO del
+// motor (bus:matriz-<id>), cada envío con su ganancia por canal (nivel y pan). Uno con
+// placa (una salida virtual) sale por ella como la escucha (su id estable, el Vigía, se
+// rearma si la placa va y vuelve, BuffersAudio); el productor de uno sin placa (una
+// entrada virtual) lo lee una entrada (`intersrc producer-name=bus:matriz-<id>`). Antes
+// los mezclaba un hilo de la app con las tomas de cada entrada (escucharEntrada) y los
+// sacaba con Qt Multimedia: un colchón y un dominio de reloj más.
+//
 // POR AHORA siguen a la salida por omisión: las pistas 2-6 y el multiview (su
 // PROGRAMA y su PREVIEW son los de la por omisión; el tally rojo es «al aire en
 // ALGUNA salida»). Los retornos son de cada salida; la escucha, de la que se elige.
@@ -216,6 +224,20 @@ class Motor {
     std::string ponerEscucha(const std::string& id, bool on);
     void escuchaDispositivo(const std::string& id);
     void escuchaNivel(double lineal);
+
+    // --- La Matriz (F3-08: ver arriba) ---
+    /// Lo que manda una entrada a un bus de la Matriz: la ganancia de cada canal (lineal).
+    struct EnvioMatriz {
+        std::string entrada;
+        double izq = 1.0, der = 1.0;
+    };
+    /// Arma (o acomoda: solo lo que cambió) el bus `id` con esos envíos. `dispositivo` no
+    /// vacío: sale por esa placa (su id estable; "default" = la del sistema); si no está,
+    /// muda hasta que vuelva (sin ir a la del sistema).
+    std::string matrizBus(const std::string& id, const std::vector<EnvioMatriz>& envios, const std::string& dispositivo);
+    std::string quitarMatrizBus(const std::string& id);
+    /// Lo que entrega un bus de la Matriz (para la entrada de una entrada virtual).
+    static std::string productorMatriz(const std::string& id) { return "bus:matriz-" + id; }
 
     // --- El máster ---
     /// El volumen de todo el programa de la salida (0…1) con fundido (el FTB baja el audio).
@@ -511,6 +533,16 @@ class Motor {
     std::string ponerEscuchaYa(const std::string& id, bool on);
     void escuchaDispositivoYa(const std::string& id);
     void escuchaNivelYa(double lineal);
+    std::string matrizBusYa(const std::string& id, const std::vector<EnvioMatriz>& envios, const std::string& dispositivo);
+    std::string quitarMatrizBusYa(const std::string& id);
+    /// Un bus de la Matriz: su mezcla y, si sale por una placa, su salida (una Escucha).
+    struct BusMatriz {
+        std::unique_ptr<Mezcla> mezcla;
+        std::unique_ptr<Escucha> salida;
+        std::string dispositivo;
+        std::map<std::string, std::pair<double, double>> envios; ///< entrada → (izq, der)
+    };
+    std::map<std::string, BusMatriz> matriz_; ///< bajo mu_
     void masterVolumenYa(double lineal, int ms, const std::string& salida);
     bool ponerLimitadorYa(bool activo, double techoDb, const std::string& salida);
     std::string ponerLoudnessYa(bool agc, double objetivoLufs, double techoDb, const std::string& salida);

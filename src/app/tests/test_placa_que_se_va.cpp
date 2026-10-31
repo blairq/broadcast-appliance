@@ -14,11 +14,10 @@
 //   - ESCUCHA: los auriculares elegidos se van con la escucha andando (el sumidero da
 //     error) → se rearma por la salida del sistema (en_respaldo); vuelven → regresa a
 //     ellos sin que nadie toque nada.
-//   - MATRIZ: la regla con la que una salida virtual de la Matriz se reabre o se suelta
-//     según los dispositivos que hay (Qt no deja inventar un QAudioDevice: se prueba la
-//     decisión, que es lo que tenía el agujero).
+//   - MATRIZ: una salida virtual de la Matriz es, en el motor (F3-08), una escucha SIN
+//     respaldo: su placa se va → muda (no a la del sistema: un cable virtual que se fue
+//     no termina en los parlantes); vuelve → sale por ella otra vez, sola.
 #include "agent/AlertEngine.hpp"
-#include "audio/ReaperturaSalidas.hpp"
 
 #include "Entrada.hpp"
 #include "Escucha.hpp"
@@ -268,6 +267,11 @@ int main(int argc, char** argv) {
     Escucha escucha(reloj, "baplacafalsa");
     escucha.ponerDispositivo("auris-falsos");
     escucha.escuchar(programa->productor(), reloj.latencia());
+    // Una salida virtual de la Matriz (Motor::matrizBus): la misma escucha, sin respaldo.
+    Escucha salidaMatriz(reloj, "baplacafalsa");
+    salidaMatriz.sinRespaldo(true);
+    salidaMatriz.ponerDispositivo("auris-falsos");
+    salidaMatriz.escuchar(programa->productor(), reloj.latencia(), Escucha::Margen::Oido);
 
     // Los disparadores, con el pico de la entrada como en la app (StudioViewModel).
     QTemporaryDir dir;
@@ -283,7 +287,8 @@ int main(int argc, char** argv) {
           "disparador de silencio en el micrófono");
 
     Banco banco;
-    banco.tics = {[&]() { mic->tic(); }, [&]() { programa->tic(); }, [&]() { escucha.tic(reloj.latencia()); }, [&]() { alertas.tick(); }};
+    banco.tics = {[&]() { mic->tic(); }, [&]() { programa->tic(); }, [&]() { escucha.tic(reloj.latencia()); },
+                  [&]() { salidaMatriz.tic(reloj.latencia()); }, [&]() { alertas.tick(); }};
     const auto picoMic = [&]() { return mic->estado().value("pico_audio_db", -100.0); };
     const auto escuchaEn = [&](bool respaldo) {
         const json e = escucha.estado();
@@ -312,25 +317,24 @@ int main(int argc, char** argv) {
     enchufar("mic-falso", "Audio/Source");
     CHECK(banco.correr(20000, [&]() { return picoMic() > -20; }), "y vuelve otra vez");
 
-    // --- ESCUCHA: se van los auriculares con la escucha andando --------------------------
+    // --- ESCUCHA y MATRIZ: se van los auriculares andando ---------------------------------
+    const auto matrizSuena = [&]() {
+        const json e = salidaMatriz.estado();
+        return e.value("anda", false) && !e.value("en_respaldo", true) && e.value("pico_db", -120.0) > -30;
+    };
+    CHECK(banco.correr(4000, matrizSuena), "matriz: la salida virtual sale por su placa");
     desenchufar("auris-falsos");
     CHECK(banco.correr(5000, [&]() { return escuchaEn(true); }), "la escucha se rearma por la salida del sistema");
     std::printf("   escucha sin auriculares: %s\n", escucha.estado().dump().c_str());
+    CHECK(banco.correr(5000, [&]() { return !salidaMatriz.estado().value("anda", true); }), "matriz: sin su placa, muda");
+    CHECK(!salidaMatriz.estado().value("en_respaldo", true), "matriz: y no va por la del sistema");
+    std::printf("   salida virtual sin su placa: %s\n", salidaMatriz.estado().dump().c_str());
     enchufar("auris-falsos", "Audio/Sink");
     CHECK(banco.correr(5000, [&]() { return escuchaEn(false); }), "volvieron: la escucha regresa a ellos sola");
+    CHECK(banco.correr(5000, matrizSuena), "matriz: volvió la placa, la salida virtual sale por ella sola");
 
-    // --- MATRIZ: la regla de reapertura de las salidas virtuales -------------------------
-    {
-        using ba::app::audio::SalidaVirtual;
-        using ba::app::audio::reaperturaSalidas;
-        const std::vector<SalidaVirtual> s{{"a", "placa-1", true}, {"b", "placa-2", false}, {"c", "", false}, {"d", "placa-3", true}};
-        const auto plan = reaperturaSalidas(s, {"placa-1", "placa-2"});
-        CHECK(plan.abrir == std::vector<std::string>{"b"}, "matriz: la que volvió se reabre");
-        CHECK(plan.soltar == std::vector<std::string>{"d"}, "matriz: la que se fue se suelta (queda esperándola)");
-        const auto nada = reaperturaSalidas(s, {"placa-1", "placa-3"});
-        CHECK(nada.abrir.empty() && nada.soltar.empty(), "matriz: abiertas que están y cerradas que no están, nada");
-    }
-
+    salidaMatriz.apagar();
+    salidaMatriz.esperar();
     escucha.apagar();
     escucha.esperar();
     programa->quitar("mic");

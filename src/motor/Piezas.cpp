@@ -645,12 +645,30 @@ void Vigia::anotar(GstDevice* dev, bool esta) {
     const std::string id = esVideo ? (camaraUsable(e) ? idDeCamara(dev, e) : std::string()) : idDeMicrofono(e);
     if (e != nullptr) gst_object_unref(e);
     if (id.empty()) return;
+    std::string nombre;
+    if (esSalida && esta) {
+        gchar* n = gst_device_get_display_name(dev);
+        nombre = n != nullptr ? n : id;
+        g_free(n);
+    }
     std::lock_guard<std::mutex> l(mu_);
     auto& conjunto = esVideo ? video_ : esSalida ? salidas_ : audio_;
     if (esta)
         conjunto.insert(id);
     else
         conjunto.erase(id);
+    if (esSalida) {
+        if (esta)
+            nombresSalida_[id] = nombre;
+        else
+            nombresSalida_.erase(id);
+    }
+}
+
+std::vector<std::pair<std::string, std::string>> Vigia::salidasDeAudio() {
+    revisar();
+    std::lock_guard<std::mutex> l(mu_);
+    return {nombresSalida_.begin(), nombresSalida_.end()};
 }
 
 void Vigia::revisar() {

@@ -88,6 +88,10 @@ void Escucha::armar() {
     }
     enRespaldo_ = false;
     for (const std::string& disp : {dispositivo_, std::string()}) {
+        if (sinRespaldo_ && disp.empty() && !dispositivo_.empty()) {
+            error_ = ba::i18n::llenar(ba::i18n::traducir("motor", "no está «%1»: muda hasta que vuelva"), {dispositivo_});
+            break;
+        }
         GError* e = nullptr;
         const std::string sink = !sinkPrueba_.empty()
                                      ? sinkPrueba_ + (disp.empty() ? std::string() : " " + std::string(propiedadDeDispositivo()) + "=" + entreComillas(disp)) + " name=sale"

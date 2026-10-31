@@ -166,6 +166,7 @@ void Motor::detener() {
         s = std::move(vacia);
     }
     vEscenas_.clear();
+    matriz_.clear();
     vMulti_.reset();
     mvAux_.clear();
     escucha_.reset();
@@ -380,6 +381,10 @@ void Motor::bucle() {
                 if (seleccion_) seleccion_->tic();
                 if (afl_) afl_->tic();
                 for (auto& [n, p] : pistas_) p->tic();
+                for (auto& [id, b] : matriz_) {
+                    b.mezcla->tic();
+                    if (b.salida) b.salida->tic(b.mezcla->latenciaSalidaNs());
+                }
             }
             {
                 Tramo t("tic de las composiciones");
@@ -648,9 +653,12 @@ std::string Motor::ponerMuteYa(const std::string& id, bool mute, const std::stri
     Salida* s = laSalida(salida);
     if (s == nullptr) return noHaySalida(salida);
     s->mandos[id].mute = mute;
-    if (s == &porOmision()) // las tomas de la matriz siguen a la por omisión
+    if (s == &porOmision()) { // la matriz (sus tomas y sus buses) sigue a la por omisión
         for (auto& [n, t] : tomasEntrada_)
             if (t->id == id) t->mute = mute;
+        for (auto& [bid, b] : matriz_)
+            if (b.envios.count(id) > 0) b.mezcla->ponerMute(id, mute);
+    }
     aplicarEnSalida(*s, id, 0);
     return {};
 }
@@ -1703,6 +1711,7 @@ void Motor::publicarNiveles() {
     };
     for (const auto& [sid, s] : salidas_) deBus(sid == porOmision_ ? "programa" : "programa:" + sid, s.mezcla.get());
     for (const auto& [num, m] : pistas_) deBus("pista" + std::to_string(num), m.get());
+    for (const auto& [id, b] : matriz_) deBus("matriz:" + id, b.mezcla.get());
     for (const auto& [sid, s] : salidas_)
         for (const auto& [num, m] : s.retornos) deBus(m ? m->nombre() : std::string(), m.get());
     std::shared_ptr<const std::vector<NivelAudio>> listo = std::move(v);
@@ -1898,6 +1907,20 @@ json Motor::estadoYa() const {
             {"retornos", ret},
             {"oido", oido},
             {"escucha", esc},
+            {"matriz", [&]() {
+                 json m = json::object();
+                 for (const auto& [id, b] : matriz_) {
+                     json envios = json::object();
+                     for (const auto& [ent, g] : b.envios) envios[ent] = {{"izq", g.first}, {"der", g.second}};
+                     m[id] = {{"productor", b.mezcla->productor()},
+                              {"pico_db", b.mezcla->picoDb()},
+                              {"latencia_ms", b.mezcla->latenciaSalidaNs() / 1'000'000},
+                              {"envios", envios},
+                              {"dispositivo", b.dispositivo},
+                              {"salida", b.salida ? b.salida->estado() : json()}};
+                 }
+                 return m;
+             }()},
             {"vistas", vistas_ ? vistas_->estado() : json::object()},
             {"procesador", topologiaCpu()},
             {"entradas", entradas}};
@@ -2095,6 +2118,83 @@ void Motor::escuchaDispositivo(const std::string& id) {
         return std::string();
     });
 }
+std::string Motor::matrizBus(const std::string& id, const std::vector<EnvioMatriz>& envios, const std::string& dispositivo) {
+    return orden("matrizBus", [=, this]() { return matrizBusYa(id, envios, dispositivo); });
+}
+std::string Motor::quitarMatrizBus(const std::string& id) {
+    return orden("quitarMatrizBus", [=, this]() { return quitarMatrizBusYa(id); });
+}
+
+std::string Motor::matrizBusYa(const std::string& id, const std::vector<EnvioMatriz>& envios, const std::string& dispositivo) {
+    BA_CON_CANDADO(mu_);
+    if (id.empty()) return traducir("motor", "un bus de la Matriz sin id");
+    BusMatriz& b = matriz_[id];
+    if (!b.mezcla) {
+        // Un bus de OÍDO (como los retornos): lo que pasa por la Matriz se oye ya, no espera
+        // al video del programa.
+        Mezcla::Opciones op;
+        op.medidores = false;
+        op.latenciaFijaNs = latenciaOidoNs();
+        op.panorama = true;
+        b.mezcla = std::make_unique<Mezcla>(*reloj_, "matriz-" + id, op);
+        if (!b.mezcla->anda()) {
+            const std::string e = b.mezcla->error();
+            matriz_.erase(id);
+            return e;
+        }
+    }
+    // Solo lo que cambió: una rama que se agrega o se va no corta a las demás.
+    std::map<std::string, std::pair<double, double>> nuevos;
+    for (const auto& e : envios) nuevos[e.entrada] = {e.izq, e.der};
+    for (const auto& [ent, g] : b.envios)
+        if (nuevos.count(ent) == 0) b.mezcla->quitar(ent);
+    for (const auto& [ent, g] : nuevos) {
+        const auto it = b.envios.find(ent);
+        if (it == b.envios.end()) {
+            b.mezcla->agregar(ent);
+            // El mute de la entrada (el de la salida por omisión) vale también acá, como valía
+            // en la toma que alimentaba la matriz de la app.
+            b.mezcla->ponerMute(ent, mandoPorOmision(ent).mute);
+        }
+        if (it == b.envios.end() || it->second != g) b.mezcla->ponerCanales(ent, g.first, g.second);
+    }
+    b.envios = std::move(nuevos);
+    if (dispositivo.empty()) {
+        // Sin placa (una entrada virtual, o una salida sin dispositivo): solo el productor.
+        if (b.salida) {
+            std::shared_ptr<Escucha> vieja(std::move(b.salida));
+            desarmarAparte([vieja]() mutable { vieja.reset(); }); // soltar la placa puede tardar
+        }
+        b.dispositivo.clear();
+        return {};
+    }
+    if (!b.salida) {
+        // Como la escucha: su id estable, la del sistema si no está (y vuelve con el Vigía),
+        // se rearma si el sink se cae, sus buffers explícitos (BuffersAudio).
+        // Sin respaldo: con la placa ausente, muda hasta que vuelva (no a los parlantes).
+        b.salida = std::make_unique<Escucha>(*reloj_, cfg_.sinkEscucha);
+        b.salida->sinRespaldo(true);
+        b.salida->ponerDispositivo(dispositivo == "default" ? std::string() : dispositivo);
+        b.salida->escuchar(b.mezcla->productor(), b.mezcla->latenciaSalidaNs(), Escucha::Margen::Oido);
+    } else if (dispositivo != b.dispositivo) {
+        b.salida->ponerDispositivo(dispositivo == "default" ? std::string() : dispositivo);
+    }
+    b.dispositivo = dispositivo;
+    return {};
+}
+
+std::string Motor::quitarMatrizBusYa(const std::string& id) {
+    BA_CON_CANDADO(mu_);
+    auto it = matriz_.find(id);
+    if (it == matriz_.end()) return {};
+    if (it->second.salida) {
+        std::shared_ptr<Escucha> vieja(std::move(it->second.salida));
+        desarmarAparte([vieja]() mutable { vieja.reset(); });
+    }
+    matriz_.erase(it);
+    return {};
+}
+
 void Motor::escuchaNivel(double lineal) {
     orden("escuchaNivel", [=, this]() {
         escuchaNivelYa(lineal);

@@ -2,33 +2,27 @@
 // src/app/audio/Matriz.cpp — ver Matriz.hpp
 // ============================================================================
 #include "audio/Matriz.hpp"
-#include "audio/ReaperturaSalidas.hpp"
 #include "diag/Registro.hpp"
 #include "i18n/I18n.hpp"
 #include <QCoreApplication>
-#include "audio/AnilloAudio.hpp"
+#include "audio/RingEstereo.hpp"
 #include "audio/EquipoAudio.hpp"
 
 #include <QAudioDevice>
-#include <QAudioFormat>
-#include <QAudioSink>
 #include <QIODevice>
 #include <QMediaDevices>
 #include <QSaveFile>
 
 #include "emision/BroadcastEngine.hpp"
 #include "emision/FuentesApp.hpp"
-#include "comun/HoraMonotonica.hpp"
 #include "Motor.hpp"
+#include "Piezas.hpp" // Vigia: las placas de salida
 #include "Prioridad.hpp"
-#include "audio/GstVoz.hpp"
 #include "platform/Ritmo.hpp"
 
 #include <algorithm>
 #include <chrono>
 #include <cmath>
-#include <cstring>
-#include <deque>
 #include <fstream>
 #include <set>
 #include "ajustes/Ajustes.hpp"
@@ -40,17 +34,37 @@ namespace ba::app::audio {
 
 namespace {
 
-using anillo::AlDispositivo;
 using anillo::kBloque;
-using anillo::kColchon;
-/// Lo que agrega un cruce a un bus virtual: el colchón del hilo de mezcla (a 48 kHz).
-constexpr int kRetardoBusMs = static_cast<int>(kColchon * 1000 / 48000);
+/// Lo que agrega un cruce a un bus virtual: el bus de oído del motor (latenciaOidoNs).
+int retardoBusMs() { return static_cast<int>(motor::latenciaOidoNs() / 1'000'000); }
 using anillo::Ring;
 
 float dbALineal(double db) { return db <= -96.0 ? 0.0f : static_cast<float>(std::pow(10.0, db / 20.0)); }
 double linealADb(float x) { return x <= 1e-6f ? -100.0 : 20.0 * std::log10(static_cast<double>(x)); }
 
 BroadcastEngine* motor() { return fuentes::motorApp(); }
+/// El motor de GStreamer de la app (nulo si no está andando).
+motor::Motor* motorGst() {
+    BroadcastEngine* e = motor();
+    return e != nullptr ? e->motor() : nullptr;
+}
+
+/// Pan de potencia constante: la ganancia de cada canal de un envío.
+std::pair<float, float> canalesDelPan(float ganancia, float pan) {
+    const float a = (pan + 1.0f) * 0.25f * 3.14159265f;
+    const float gl = pan == 0.0f ? 1.0f : std::cos(a) * 1.41421356f;
+    const float gr = pan == 0.0f ? 1.0f : std::sin(a) * 1.41421356f;
+    return {ganancia * gl, ganancia * gr};
+}
+
+/// Las placas de salida del equipo (las del motor: su id estable y su nombre), sin enumerar:
+/// lo último que vio el Vigía.
+std::vector<std::pair<std::string, std::string>> placasDeSalida() { return motor::Vigia::el().salidasDeAudio(); }
+std::string nombreDePlaca(const std::string& id) {
+    for (const auto& [i, n] : placasDeSalida())
+        if (i == id) return n;
+    return {};
+}
 
 /// Las pistas de una fuente como máscara (bit 0 = pista 1, el programa).
 std::uint32_t mascara(const std::string& f) {
@@ -90,14 +104,11 @@ void setEscucha(const std::string& f, bool on) {
 
 // --- Estructuras -------------------------------------------------------------------
 
+// Un bus virtual: en el motor (Motor::matrizBus, F3-08), que lo mezcla y lo saca.
 struct Matriz::Bus {
     std::string id, nombre, tipo;   // tipo: "salida" | "entrada"
-    std::string dispositivo;        // salida: id del QAudioDevice
-    bool entradaCreada = false;     // entrada: su entrada en el motor (lee la cola de `bavoz`)
-    std::shared_ptr<Ring> aDispositivo;
-    std::unique_ptr<QAudioSink> sink;
-    std::unique_ptr<AlDispositivo> io;
-    std::shared_ptr<std::atomic<float>> pico = std::make_shared<std::atomic<float>>(0.0f);
+    std::string dispositivo;        // salida: el id estable de la placa (el del motor)
+    bool entradaCreada = false;     // entrada: su entrada en el motor (lee el bus: intersrc)
 };
 
 struct Matriz::Toma {
@@ -106,6 +117,8 @@ struct Matriz::Toma {
     std::string nombre;
 };
 
+// Lo que mezcla el hilo de acá: solo las salidas FÍSICAS del equipo (EquipoAudio; los
+// buses virtuales los mezcla el motor).
 struct Matriz::Plan {
     struct Aporte {
         std::shared_ptr<Toma> toma;
@@ -115,7 +128,6 @@ struct Matriz::Plan {
         std::string id;
         std::vector<Aporte> aportes;
         std::shared_ptr<Ring> aDispositivo;
-        std::string entrada; ///< la entrada virtual (la cola de su `bavoz`), o vacío
         std::shared_ptr<std::atomic<float>> pico;
     };
     std::vector<BusPlan> buses;
@@ -130,7 +142,6 @@ Matriz::Matriz(fs::path dataRoot, QObject* parent) : QObject(parent), root_(std:
     // Se enchufó o desenchufó algo (o se ocultó): columnas, filas y plan de nuevo.
     connect(equipo_.get(), &EquipoAudio::cambio, this, [this]() {
         refrescar();
-        reabrirSalidas(); // una salida virtual cuya placa se fue o volvió
         armarPlan();
         usarEquipo();
         emit cambio();
@@ -148,12 +159,27 @@ Matriz::Matriz(fs::path dataRoot, QObject* parent) : QObject(parent), root_(std:
         // Entradas que aparecieron o se fueron (al arrancar, el motor las crea después):
         // filas, tomas y lo que se abre del equipo, sin esperar a que alguien mire la matriz.
         if (motor() != nullptr && fuentesConAudio() != filas_) refrescar();
+        // Un motor nuevo (arrancó, o se rearmó) no tiene los buses del anterior (se mira en su
+        // foto, sin su candado); y una placa guardada con el id de antes (el de Qt) se pasa al
+        // del motor cuando el Vigía la ve.
+        bool faltanBuses = false;
+        if (motor::Motor* m = motorGst())
+            if (const auto foto = m->instantanea()) {
+                const json mz = foto->value("matriz", json::object());
+                for (const auto& b : buses_) faltanBuses = faltanBuses || !mz.contains(b->id);
+            }
+        if (migrarPlacas() || faltanBuses) armarPlan();
+        // Se enchufó o se fue una placa (lo ve el Vigía del motor): la lista de dispositivos.
+        if (const auto g = motor::Vigia::el().generacion(); g != genPlacas_) {
+            genPlacas_ = g;
+            emit cambio();
+        }
         bool falta = false;
         {
             std::lock_guard<std::mutex> l(tomasLock_);
             BroadcastEngine* eng = motor();
-            for (const auto& [k, e] : envios_)
-                if (!tomas_.contains(k.first)) falta = true;
+            for (const auto& [k, e] : envios_) // (las tomas son de lo que va a una salida física)
+                if (k.second.rfind("fis:", 0) == 0 && !tomas_.contains(k.first)) falta = true;
             for (const auto& [n, t] : tomas_)
                 if (eng == nullptr || eng->motor() == nullptr || !eng->motor()->tomaViva(t->toma)) falta = true;
         }
@@ -192,8 +218,7 @@ Matriz::~Matriz() {
             if (t->toma != 0 && e != nullptr && e->motor() != nullptr) e->motor()->dejarDeEscucharEntrada(t->toma);
         tomas_.clear();
     }
-    for (auto& b : buses_)
-        if (b->sink) b->sink->stop();
+    // Los buses virtuales del motor se van con él (o con la app): no hace falta pedirlo.
 }
 
 // --- Fuentes y buses -------------------------------------------------------------------
@@ -277,11 +302,7 @@ QVariantList Matriz::columnas() const {
                                   {"tipo", "fisica"},
                                   {"dispositivoNombre", QString::fromStdString(c.dispositivo)}});
     for (const auto& b : buses_) {
-        QString disp;
-        if (b->tipo == "salida")
-            for (const QAudioDevice& d : QMediaDevices::audioOutputs())
-                if (QString::fromLatin1(d.id()) == QString::fromStdString(b->dispositivo))
-                    disp = d.description();
+        const QString disp = b->tipo == "salida" ? QString::fromStdString(nombreDePlaca(b->dispositivo)) : QString();
         out.push_back(QVariantMap{{"id", QString::fromStdString(b->id)},
                                   {"nombre", QString::fromStdString(b->nombre)},
                                   {"tipo", QString::fromStdString(b->tipo)},
@@ -310,13 +331,20 @@ QVariantMap Matriz::cruces() const {
                                                                             {"nivelDb", e.nivelDb},
                                                                             {"pan", e.pan},
                                                                             {"mute", e.mute},
-                                                                            {"retardo_ms", kRetardoBusMs}};
+                                                                            {"retardo_ms", retardoBusMs()}};
     return out;
 }
 
 double Matriz::picoDbDe(const std::string& columna) const {
-    for (const auto& b : buses_)
-        if (b->id == columna) return linealADb(b->pico->load());
+    // Un bus virtual: lo que el motor publica para los vúmetros (el mayor de los canales).
+    if (buscar(columna) != nullptr) {
+        motor::Motor* m = motorGst();
+        const auto niveles = m != nullptr ? m->niveles() : nullptr;
+        if (niveles)
+            for (const auto& n : *niveles)
+                if (n.id == "matriz:" + columna) return std::max(n.pico[0], n.pico[1]);
+        return -100.0;
+    }
     const auto it = picosEquipo_.find(columna);
     return it != picosEquipo_.end() ? linealADb(it->second->load()) : -100.0;
 }
@@ -334,8 +362,8 @@ QStringList Matriz::enviosDe(const QString& fuente) const {
 
 QVariantList Matriz::dispositivos() const {
     QVariantList out;
-    for (const QAudioDevice& d : QMediaDevices::audioOutputs())
-        out.push_back(QVariantMap{{"id", QString::fromLatin1(d.id())}, {"nombre", d.description()}});
+    for (const auto& [id, nombre] : placasDeSalida())
+        out.push_back(QVariantMap{{"id", QString::fromStdString(id)}, {"nombre", QString::fromStdString(nombre)}});
     return out;
 }
 
@@ -558,31 +586,32 @@ QString Matriz::agregarEntradaVirtual(const QString& nombre) {
     b->id = "entrada" + std::to_string(n);
     b->nombre = nom;
     b->tipo = "entrada";
-    if (!crearEntradaVirtual(nom)) return tr("No se pudo crear la fuente.");
+    if (!crearEntradaVirtual(nom, b->id)) return tr("No se pudo crear la fuente.");
     b->entradaCreada = true;
     buses_.push_back(std::move(b));
+    armarPlan(); // el bus en el motor (si no, la entrada lee un productor que no existe)
     refrescar();
     guardar();
     return {};
 }
 
-bool Matriz::crearEntradaVirtual(const std::string& nom) {
-    std::string esc;
-    for (char c : nom) {
-        if (c == '\\' || c == '"') esc += '\\';
-        esc += c;
-    }
-    // Una entrada global del motor que lee la mezcla del bus (la cola de su
-    // `bavoz`). Arranca sin pistas: se decide en la matriz a dónde va (para
-    // que no aparezca sola en el programa).
+bool Matriz::crearEntradaVirtual(const std::string& nom, const std::string& busId) {
+    // Una entrada global del motor que lee la mezcla del bus (su productor en el motor, con
+    // el reloj del estudio: F3-08). Arranca sin pistas: se decide en la matriz a dónde va
+    // (para que no aparezca sola en el programa).
+    const std::string lee = "intersrc producer-name=\"" + motor::Motor::productorMatriz(busId) + "\"";
     const nlohmann::json aj{{"pipeline", ""},
-                            {"pipeline_audio", "bavoz voz=\"" + esc + "\""},
+                            {"pipeline_audio", lee},
                             {"audio", true},
                             {"normalizar", false},
                             {"estudio", false},
-                            {"virtual", true},
-                            {"voz", nom}};
-    return fuentes::crearGlobal(nom, "ba_gst_fuente", aj, false, {});
+                            {"virtual", true}};
+    if (!fuentes::crearGlobal(nom, "ba_gst_fuente", aj, false, {})) return false;
+    // Una que ya estaba (guardada antes de F3-08) leía la cola de su `bavoz`, que ya nadie
+    // llena: pasa a leer el bus.
+    if (fuentes::ajustesDe(nom).value("pipeline_audio", std::string()) != lee)
+        if (BroadcastEngine* e = motor()) e->updateSourceSettings(nom, nlohmann::json{{"pipeline_audio", lee}}.dump());
+    return true;
 }
 
 QString Matriz::quitarBus(const QString& idQ) {
@@ -594,15 +623,14 @@ QString Matriz::quitarBus(const QString& idQ) {
             e = (e->first.second == id || (b.tipo == "entrada" && e->first.first == b.nombre))
                     ? envios_.erase(e)
                     : std::next(e);
-        if (b.sink) b.sink->stop();
         std::unique_ptr<Bus> muerto = std::move(*it);
         buses_.erase(it);
-        armarPlan(); // primero sale de la mezcla
+        armarPlan(); // primero salen sus envíos (y de los otros buses, lo que mandaba ella)
         if (muerto->entradaCreada) {
-            gstvoz::vaciar(muerto->nombre);
             fuentes::quitarGlobal(muerto->nombre);
             muerto->entradaCreada = false;
         }
+        if (motor::Motor* m = motorGst()) m->quitarMatrizBus(muerto->id);
         refrescar();
         guardar();
         return {};
@@ -627,10 +655,9 @@ QString Matriz::renombrar(const QString& idQ, const QString& nombreQ) {
             for (auto& [k, e] : envios_)
                 nuevos[{k.first == b->nombre ? nombre : k.first, k.second}] = e;
             envios_ = std::move(nuevos);
-            // En el motor la entrada ES su nombre: se arma una nueva que lee la cola nueva.
-            gstvoz::vaciar(b->nombre);
+            // En el motor la entrada ES su nombre: se arma una nueva que lee el mismo bus.
             fuentes::quitarGlobal(b->nombre);
-            b->entradaCreada = crearEntradaVirtual(nombre);
+            b->entradaCreada = crearEntradaVirtual(nombre, b->id);
         }
         b->nombre = nombre;
     }
@@ -643,58 +670,39 @@ QString Matriz::setDispositivo(const QString& idQ, const QString& dispositivo) {
     Bus* b = buscar(idQ.toStdString());
     if (b == nullptr || b->tipo != "salida") return tr("No es una salida virtual.");
     b->dispositivo = dispositivo.toStdString();
-    const QString e = abrirSalida(*b);
+    // La placa la abre el motor (y si se va, queda muda hasta que vuelva). Elegir una que no
+    // está es un error (si el Vigía ya sabe cuáles hay).
+    const auto placas = placasDeSalida();
+    const bool esta = b->dispositivo.empty() || placas.empty() ||
+                      std::any_of(placas.begin(), placas.end(), [&](const auto& p) { return p.first == b->dispositivo; });
     armarPlan();
-    if (e.isEmpty()) guardar();
+    if (esta) guardar();
     emit cambio();
-    return e;
+    return esta ? QString() : tr("Ese dispositivo ya no está.");
 }
 
-QString Matriz::abrirSalida(Bus& b) {
-    if (b.sink) b.sink->stop();
-    b.sink.reset();
-    b.io.reset();
-    QAudioDevice dev;
-    for (const QAudioDevice& d : QMediaDevices::audioOutputs())
-        if (QString::fromLatin1(d.id()).toStdString() == b.dispositivo) dev = d;
-    if (dev.isNull()) {
-        // Sin su placa: muda, con el dispositivo guardado (vuelve sola al reaparecer).
-        b.aDispositivo.reset();
-        return b.dispositivo.empty() ? QString() : tr("Ese dispositivo ya no está.");
+bool Matriz::migrarPlacas() {
+    // Antes de F3-08 la placa de una salida virtual se guardaba con el id de Qt Multimedia;
+    // el motor usa el suyo (el `unique-id` de macOS, el `device` del resto). Se pasa por el
+    // nombre, cuando el Vigía ya ve las placas.
+    const auto placas = placasDeSalida();
+    if (placas.empty()) return false;
+    bool cambio = false;
+    for (auto& b : buses_) {
+        if (b->tipo != "salida" || b->dispositivo.empty()) continue;
+        if (std::any_of(placas.begin(), placas.end(), [&](const auto& p) { return p.first == b->dispositivo; })) continue;
+        for (const QAudioDevice& d : QMediaDevices::audioOutputs()) {
+            if (QString::fromLatin1(d.id()).toStdString() != b->dispositivo) continue;
+            const std::string nombre = d.description().toStdString();
+            for (const auto& [id, n] : placas)
+                if (n == nombre) {
+                    b->dispositivo = id;
+                    cambio = true;
+                }
+        }
     }
-    QAudioFormat f;
-    f.setSampleRate(48000);
-    f.setChannelCount(2);
-    f.setSampleFormat(QAudioFormat::Float);
-    if (!dev.isFormatSupported(f)) {
-        b.aDispositivo.reset();
-        return tr("El dispositivo no acepta audio estéreo a 48 kHz.");
-    }
-    b.aDispositivo = std::make_shared<Ring>();
-    b.io = std::make_unique<AlDispositivo>(b.aDispositivo);
-    b.sink = std::make_unique<QAudioSink>(dev, f);
-    b.sink->setBufferSize(static_cast<qsizetype>(kColchon * 2 * sizeof(float) * 2));
-    b.sink->start(b.io.get());
-    return {};
-}
-
-void Matriz::reabrirSalidas() {
-    std::vector<SalidaVirtual> salidas;
-    for (const auto& b : buses_)
-        if (b->tipo == "salida")
-            salidas.push_back({b->id, b->dispositivo,
-                               b->sink && b->sink->error() == QAudio::NoError && b->sink->state() != QAudio::StoppedState});
-    std::set<std::string> hay;
-    for (const QAudioDevice& d : QMediaDevices::audioOutputs()) hay.insert(QString::fromLatin1(d.id()).toStdString());
-    const PlanReapertura plan = reaperturaSalidas(salidas, hay);
-    for (const auto* lista : {&plan.abrir, &plan.soltar})
-        for (const auto& id : *lista)
-            if (Bus* b = buscar(id)) {
-                const QString e = abrirSalida(*b);
-                ba::diag::registro().info(ba::i18n::llenar(lista == &plan.abrir ? ba::i18n::traducir("audio", "matriz: «%1» vuelve a su placa %2")
-                                                                                  : ba::i18n::traducir("audio", "matriz: «%1» se quedó sin su placa (%2): espera que vuelva"),
-                                                           {b->nombre, e.isEmpty() ? b->dispositivo : e.toStdString()}));
-            }
+    if (cambio) guardar();
+    return cambio;
 }
 
 // --- El audio ------------------------------------------------------------------------
@@ -702,10 +710,11 @@ void Matriz::reabrirSalidas() {
 
 
 void Matriz::sincronizarTomas() {
-    // Una toma por fuente que manda a algún bus virtual; las demás no cuestan nada.
+    // Una toma por fuente que manda a alguna salida FÍSICA (las del equipo: los buses
+    // virtuales los mezcla el motor, sin tomas); las demás no cuestan nada.
     std::set<std::string> hacen;
     for (const auto& [k, e] : envios_)
-        hacen.insert(k.first);
+        if (k.second.rfind("fis:", 0) == 0) hacen.insert(k.first);
     BroadcastEngine* eng = motor();
     motor::Motor* m = eng != nullptr ? eng->motor() : nullptr;
     std::vector<int> soltar;
@@ -792,27 +801,24 @@ void Matriz::setVisibleDispositivo(const QString& id, bool visible) {
 }
 
 void Matriz::armarPlan() {
+    // Los buses virtuales: en el motor (F3-08), con lo que les manda cada entrada (lo que
+    // no cambió no se toca allá). Uno de salida sale por su placa; uno de entrada solo
+    // entrega su mezcla (la lee su entrada).
+    if (motor::Motor* m = motorGst()) {
+        for (const auto& b : buses_) {
+            std::vector<motor::Motor::EnvioMatriz> envios;
+            for (const auto& [k, e] : envios_) {
+                if (k.second != b->id || e.mute) continue;
+                const auto [gl, gr] = canalesDelPan(e.ganancia, e.pan);
+                envios.push_back({k.first, gl, gr});
+            }
+            m->matrizBus(b->id, envios, b->tipo == "salida" ? b->dispositivo : std::string());
+        }
+    }
+    // Las salidas físicas: el hilo de mezcla de acá, con las tomas de cada entrada (todavía
+    // con Qt Multimedia: ver Matriz.hpp).
     auto p = std::make_shared<Plan>();
     std::lock_guard<std::mutex> l(tomasLock_);
-    for (const auto& b : buses_) {
-        Plan::BusPlan bp;
-        bp.id = b->id;
-        bp.aDispositivo = b->aDispositivo;
-        if (b->tipo == "entrada" && b->entradaCreada) bp.entrada = b->nombre;
-        bp.pico = b->pico;
-        for (const auto& [k, e] : envios_) {
-            if (k.second != b->id || e.mute) continue;
-            const auto t = tomas_.find(k.first);
-            if (t == tomas_.end()) continue;
-            // Pan de potencia constante.
-            const float a = (e.pan + 1.0f) * 0.25f * 3.14159265f;
-            const float gl = e.pan == 0.0f ? 1.0f : std::cos(a) * 1.41421356f;
-            const float gr = e.pan == 0.0f ? 1.0f : std::sin(a) * 1.41421356f;
-            bp.aportes.push_back({t->second, e.ganancia * gl, e.ganancia * gr});
-        }
-        p->buses.push_back(std::move(bp));
-    }
-    // Las salidas físicas, igual que una salida virtual: al anillo de su par de canales.
     for (const auto& c : equipo_->columnas()) {
         Plan::BusPlan bp;
         bp.id = c.id;
@@ -824,10 +830,8 @@ void Matriz::armarPlan() {
             if (k.second != c.id || e.mute) continue;
             const auto t = tomas_.find(k.first);
             if (t == tomas_.end()) continue;
-            const float a = (e.pan + 1.0f) * 0.25f * 3.14159265f;
-            const float gl = e.pan == 0.0f ? 1.0f : std::cos(a) * 1.41421356f;
-            const float gr = e.pan == 0.0f ? 1.0f : std::sin(a) * 1.41421356f;
-            bp.aportes.push_back({t->second, e.ganancia * gl, e.ganancia * gr});
+            const auto [gl, gr] = canalesDelPan(e.ganancia, e.pan);
+            bp.aportes.push_back({t->second, gl, gr});
         }
         if (!bp.aportes.empty()) p->buses.push_back(std::move(bp));
     }
@@ -887,16 +891,6 @@ void Matriz::bucleMezcla() {
                 pk = std::max({pk, std::fabs(ml[i]), std::fabs(mr[i])});
             b.pico->store(std::max(pk, b.pico->load() * 0.85f));
             if (b.aDispositivo) b.aDispositivo->push(ml.data(), mr.data(), kBloque);
-            if (!b.entrada.empty()) {
-                // A la cola de la entrada virtual (estéreo intercalado), un poco adelante de ahora.
-                thread_local std::vector<float> st;
-                st.resize(static_cast<std::size_t>(kBloque) * 2);
-                for (std::uint32_t i = 0; i < kBloque; ++i) {
-                    st[2 * i] = ml[i];
-                    st[2 * i + 1] = mr[i];
-                }
-                gstvoz::encolar(b.entrada, st.data(), kBloque, 48000, ba::app::ahoraNs() + 20'000'000ULL, 2);
-            }
         }
     }
 }
@@ -942,7 +936,7 @@ void Matriz::leerMedidores() {
     for (const auto& [n, p] : picos)
         m["fila:" + QString::fromStdString(n)] = p;
     for (const auto& b : buses_)
-        m["bus:" + QString::fromStdString(b->id)] = linealADb(b->pico->load());
+        m["bus:" + QString::fromStdString(b->id)] = picoDbDe(b->id);
     for (const auto& [id, pk] : picosEquipo_)
         m["bus:" + QString::fromStdString(id)] = linealADb(pk->load());
     // Pistas nativas: el máximo de lo que les llega (sin tocar el audio).
@@ -976,7 +970,7 @@ Matriz::json Matriz::estado() const {
                           {"mute", e.mute},
                           {"ajustes", e.ajustes},
                           // Lo que suma pasar por la mezcla propia (las pistas nativas: 0).
-                          {"retardo_ms", kRetardoBusMs}});
+                          {"retardo_ms", retardoBusMs()}});
     for (const auto& f : filas_) {
         json pis = json::array();
         const bool oye = escucha(f);
@@ -1003,7 +997,7 @@ Matriz::json Matriz::diagnostico() const {
     json filas = json::object(), buses = json::object(), tomas = json::array();
     if (BroadcastEngine* eng = motor())
         for (const auto& f : filas_) filas[f] = std::round(eng->sourceOutputPeakDb(f) * 10) / 10;
-    for (const auto& b : buses_) buses[b->id] = std::round(linealADb(b->pico->load()) * 10) / 10;
+    for (const auto& b : buses_) buses[b->id] = std::round(picoDbDe(b->id) * 10) / 10;
     for (const auto& [id, pk] : picosEquipo_) buses[id] = std::round(linealADb(pk->load()) * 10) / 10;
     {
         std::lock_guard<std::mutex> l(tomasLock_);
@@ -1057,12 +1051,27 @@ void Matriz::cargar() {
     for (const auto& b : j.value("buses", json::array())) {
         const std::string tipo = b.value("tipo", std::string());
         if (tipo == "salida") {
-            agregarSalidaVirtual(QString::fromStdString(b.value("nombre", std::string())),
-                                 QString::fromStdString(b.value("dispositivo", std::string())));
-            buses_.back()->id = b.value("id", buses_.back()->id);
+            // Tal como estaba, aunque su placa no esté (queda muda hasta que vuelva): validarla
+            // es de cuando se elige. Antes se validaba acá y una placa desenchufada al arrancar
+            // se llevaba el bus (y el id del guardado caía en otro).
+            if (buses_.size() >= kMaxVirtuales) continue;
+            auto nb = std::make_unique<Bus>();
+            nb->id = b.value("id", std::string("salida") + std::to_string(buses_.size() + 1));
+            nb->nombre = b.value("nombre", nb->id);
+            nb->tipo = "salida";
+            nb->dispositivo = b.value("dispositivo", std::string());
+            buses_.push_back(std::move(nb));
         } else if (tipo == "entrada") {
-            if (agregarEntradaVirtual(QString::fromStdString(b.value("nombre", std::string()))).isEmpty())
-                buses_.back()->id = b.value("id", buses_.back()->id);
+            // Con su id de siempre: su entrada lee el bus por él (y si la fuente ya estaba, se
+            // la deja, leyendo el bus).
+            const std::string nombre = b.value("nombre", std::string());
+            if (nombre.empty() || buses_.size() >= kMaxVirtuales) continue;
+            auto nb = std::make_unique<Bus>();
+            nb->id = b.value("id", std::string("entrada") + std::to_string(buses_.size() + 1));
+            nb->nombre = nombre;
+            nb->tipo = "entrada";
+            nb->entradaCreada = crearEntradaVirtual(nombre, nb->id);
+            buses_.push_back(std::move(nb));
         }
     }
     for (const auto& e : j.value("envios", json::array())) {
