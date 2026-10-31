@@ -21,7 +21,7 @@
 #include "graficos/GraficoSource.hpp"
 #include "graficos/Medios.hpp"
 #include "graficos/VideoEnGrafico.hpp"
-#include "ui/ListaConClave.hpp"
+#include "ui/ListaObjetos.hpp"
 
 namespace ba::app {
 
@@ -56,7 +56,7 @@ struct GraficoViewModel::Impl {
     QTimer reloj;
     QElapsedTimer desde;
     int desdeMs = 0;
-    ListaConClave filasRecuadros{QStringLiteral("fuente"), {QStringLiteral("alfa")}};
+    ListaObjetos filasRecuadros{QStringLiteral("fuente"), {QStringLiteral("alfa")}};
     QFileSystemWatcher vigia;
 
     Impl(AppRuntime& r, graficos::Emisor& e) : rt(r), em(e) {}

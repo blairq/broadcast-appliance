@@ -8,7 +8,7 @@
 #include "escenas/AjustesEscenas.hpp"
 #include "escenas/Conmutador.hpp"
 #include "i18n/I18n.hpp"
-#include "ui/ListaConClave.hpp"
+#include "ui/ListaObjetos.hpp"
 #include "ui/ListModels.hpp"
 #include "ui/SalidasViewModel.hpp"
 
@@ -60,7 +60,7 @@ std::string armarRepeticionEn(AppRuntime& rt, escenas::Conmutadores& cs, const s
 
 EscenasViewModel::EscenasViewModel(Partes p, QObject* parent)
     : QObject(parent), p_(std::move(p)), ajustes_(std::make_unique<escenas::AjustesEscenas>(p_.rt.dataRoot())),
-      arbol_(std::make_unique<ListaConClave>(QStringLiteral("clave"),
+      arbol_(std::make_unique<ListaObjetos>(QStringLiteral("clave"),
                                              QStringList{QStringLiteral("fila"), QStringLiteral("nombre"),
                                                          QStringLiteral("carpeta"), QStringLiteral("cuantas"),
                                                          QStringLiteral("abierta")})) {

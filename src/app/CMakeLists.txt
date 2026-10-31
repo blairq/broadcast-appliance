@@ -547,8 +547,8 @@ endif()
     target_link_libraries(test_dashboard_model PRIVATE ba_core Qt6::Core Qt6::Gui)
     set_target_properties(test_dashboard_model PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_dashboard_model COMMAND test_dashboard_model)
-    # La lista que se actualiza en su lugar por clave (ui/ListaConClave): avisa lo justo.
-    add_executable(test_lista_con_clave tests/test_lista_con_clave.cpp ui/ListaConClave.cpp)
+    # La lista que se actualiza en su lugar por clave (ui/ListaObjetos, sobre ui/ListaConClave): avisa lo justo.
+    add_executable(test_lista_con_clave tests/test_lista_con_clave.cpp ui/ListaObjetos.cpp)
     target_include_directories(test_lista_con_clave PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
     target_link_libraries(test_lista_con_clave PRIVATE Qt6::Core)
     set_target_properties(test_lista_con_clave PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
@@ -1437,7 +1437,7 @@ endif()
     add_test(NAME test_facebook COMMAND test_facebook)
     # La interfaz COMPILA: cada .qml con el motor de QML (agarra lo que qmllint no:
     # propiedades asignadas dos veces, tipos o ids que no existen).
-    add_executable(test_qml_carga tests/test_qml_carga.cpp ui/Vumetro.cpp ui/ListaConClave.cpp)
+    add_executable(test_qml_carga tests/test_qml_carga.cpp ui/Vumetro.cpp ui/ListaObjetos.cpp)
     target_include_directories(test_qml_carga PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
     target_link_libraries(test_qml_carga PRIVATE Qt6::Core Qt6::Gui Qt6::Qml Qt6::Quick)
     target_compile_definitions(test_qml_carga PRIVATE BA_QML_DIR="${CMAKE_CURRENT_SOURCE_DIR}/qml")

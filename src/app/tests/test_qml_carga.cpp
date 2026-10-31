@@ -8,7 +8,7 @@
 // el motor de QML de verdad, con los tipos de la app (Studio, VideoItem,
 // TerminalView) reemplazados por unos de mentira: las propiedades de Studio se
 // resuelven al ejecutar, así que para compilar alcanza con que exista.
-#include "ui/ListaConClave.hpp"
+#include "ui/ListaObjetos.hpp"
 #include "ui/Vumetro.hpp"
 #include <QDirIterator>
 #include <QGuiApplication>
@@ -90,7 +90,7 @@ int main(int argc, char** argv) {
     qmlRegisterType<TerminalFalsa>("BA", 1, 0, "TerminalView");
     qmlRegisterType<ImagenVivaFalsa>("BA", 1, 0, "ImagenViva");
     qmlRegisterType<ba::app::Vumetro>("BA", 1, 0, "Vumetro");
-    qmlRegisterType<ba::app::ListaConClave>("BA", 1, 0, "ListaConClave");
+    qmlRegisterType<ba::app::ListaObjetos>("BA", 1, 0, "ListaConClave");
     qmlRegisterSingletonType(QUrl::fromLocalFile(dir + "/Theme.qml"), "BA", 1, 0, "Theme");
 
     QQmlEngine engine;

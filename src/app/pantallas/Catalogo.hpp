@@ -35,7 +35,7 @@
 // ============================================================================
 #pragma once
 
-#include "pantallas/ListaConClave.hpp"
+#include "ui/ListaConClave.hpp"
 
 #include <QSortFilterProxyModel>
 #include <QStringList>

@@ -59,7 +59,7 @@
 #include "ipc/CanalesRegistro.hpp"
 #include "registro/Totems.hpp"
 #include "ui/LectorDocumentos.hpp"
-#include "ui/ListaConClave.hpp"
+#include "ui/ListaObjetos.hpp"
 
 namespace ba::registro {
 class Conversacion;
@@ -98,7 +98,7 @@ class TotemsViewModel : public QObject {
     /// totem, llegoMs, datos}].
     Q_PROPERTY(QVariantList registrados READ registrados NOTIFY registradosCambio)
     /// Las mismas tres listas como modelos que se actualizan en su lugar (por `id`, `conn`
-    /// e `id`): la vista no rearma las filas en cada cambio (ui/ListaConClave).
+    /// e `id`): la vista no rearma las filas en cada cambio (ui/ListaObjetos).
     Q_PROPERTY(QAbstractItemModel* filasTotems READ filasTotems CONSTANT)
     Q_PROPERTY(QAbstractItemModel* filasConexiones READ filasConexiones CONSTANT)
     Q_PROPERTY(QAbstractItemModel* filasRegistrados READ filasRegistrados CONSTANT)
@@ -309,9 +309,9 @@ class TotemsViewModel : public QObject {
 
     AppRuntime& rt_;
     StudioViewModel& vm_;
-    ListaConClave filasTotems_{QStringLiteral("id"), {}, this};
-    ListaConClave filasConexiones_{QStringLiteral("conn"), {}, this};
-    ListaConClave filasRegistrados_{QStringLiteral("id"), {}, this};
+    ListaObjetos filasTotems_{QStringLiteral("id"), {}, this};
+    ListaObjetos filasConexiones_{QStringLiteral("conn"), {}, this};
+    ListaObjetos filasRegistrados_{QStringLiteral("id"), {}, this};
     agent::Voz* voz_;
     agent::ModelosLocales* modelos_;
 

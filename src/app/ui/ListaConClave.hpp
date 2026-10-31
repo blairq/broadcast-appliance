@@ -1,85 +1,100 @@
+// ============================================================================
+// src/app/ui/ListaConClave.hpp — un modelo de lista que se actualiza EN SU LUGAR
+//
+// Muchas listas se rearman enteras cada vez que algo cambia (el catálogo de lo que
+// se puede mostrar, los monitores, los tótems, las grillas de personas, los recuadros
+// de un gráfico...), pero la vista no tiene que enterarse de eso: si el modelo se
+// resetea (o QML recibe un arreglo nuevo como `model:`), las listas saltan al
+// principio, los ComboBox pierden lo elegido, se pierde el foco y lo que se estaba
+// arrastrando. `aplicar` compara por `id` y avisa fila por fila: alta, baja, movida o
+// cambio (con los roles que cambiaron, si la fila lo sabe decir). Una sola
+// implementación para todos:
+//   - filas con tipo propio: se hereda de ListaConClave<T> (pantallas/Catalogo,
+//     pantallas/Monitores);
+//   - filas que ya vienen como QVariantMap (lo que entregan los view models):
+//     ui/ListaObjetos, que se usa también desde QML.
+//
+// T necesita un `QString id` y `operator==`. Las ids repetidas se emparejan en orden.
+// ============================================================================
 #pragma once
-// Una lista de objetos (QVariantMap) como modelo de Qt que se actualiza EN SU LUGAR.
-//
-// Los view models entregan muchas listas como QVariantList entera (los tótems, las
-// grillas, los tiempos, los recuadros de un gráfico...). Si la vista las usa tal cual
-// como `model:`, cada cambio rearma todos los delegados: se pierde el foco, el scroll
-// y lo que se estaba arrastrando. Antes cada página lo resolvía con un ListModel y un
-// «sincronizar» a mano en JavaScript (seis copias). Esto es la única copia: recibe la
-// lista nueva y avisa lo justo por clave (filas que entran, salen, se mueven o cambian),
-// como lo haría un modelo hecho a medida.
-//
-// Dos formas de usarlo:
-//  - Desde C++: el view model lo tiene como miembro, lo expone como
-//    Q_PROPERTY(QAbstractItemModel* x READ x CONSTANT) y le llama poner(lista) cada vez
-//    que su lista cambia.
-//  - Desde QML (registrado como «BA.ListaConClave»), para listas que vienen anidadas
-//    adentro de otra (las caras de una grilla):
-//        ListaConClave { id: caras; clave: "clave"; roles: ["nombre", "fijo"]; lista: fila.personas }
-//
-// Roles de cada fila: la clave, los de `roles` y `datos` (el objeto entero). Un
-// delegado los toma con `required property` o, para cualquier otro campo, `datos.x`.
-// Las filas con la misma clave se emparejan en orden; las que no tienen clave usan la
-// posición («#3»).
 
 #include <QAbstractListModel>
-#include <QStringList>
-#include <QVariantList>
-#include <QVariantMap>
-#include <QVector>
+
+#include <map>
+#include <vector>
 
 namespace ba::app {
 
+template <typename T>
 class ListaConClave : public QAbstractListModel {
-    Q_OBJECT
-    Q_PROPERTY(QString clave READ clave WRITE setClave NOTIFY claveChanged)
-    Q_PROPERTY(QStringList roles READ roles WRITE setRoles NOTIFY rolesChanged)
-    Q_PROPERTY(QVariantList lista READ lista WRITE poner NOTIFY listaChanged)
-    Q_PROPERTY(int count READ rowCount NOTIFY countChanged)
+   public:
+    using QAbstractListModel::QAbstractListModel;
+    int rowCount(const QModelIndex& padre = {}) const override {
+        return padre.isValid() ? 0 : static_cast<int>(filas_.size());
+    }
 
-public:
-    explicit ListaConClave(QObject* parent = nullptr);
-    ListaConClave(QString clave, QStringList roles, QObject* parent = nullptr);
+   protected:
+    /// Los roles que cambian de `antes` a `ahora` (vacío = todos). Para avisar lo justo.
+    virtual QList<int> rolesQueCambian(const T& antes, const T& ahora) const {
+        (void)antes;
+        (void)ahora;
+        return {};
+    }
 
-    QString clave() const { return clave_; }
-    void setClave(const QString& c);
-    QStringList roles() const { return roles_; }
-    void setRoles(const QStringList& r);
-    QVariantList lista() const;
+    /// Pasa de `filas_` a `nuevas`. true si cambió algo.
+    bool aplicar(std::vector<T> nuevas) {
+        bool hubo = false;
+        // 1) Bajas: las que ya no están (de atrás para adelante). Con ids repetidas,
+        //    salen las que sobran (las últimas).
+        std::map<QString, int> quedan, hay;
+        for (const T& c : nuevas) ++quedan[c.id];
+        for (const T& c : filas_) ++hay[c.id];
+        for (int r = static_cast<int>(filas_.size()) - 1; r >= 0; --r) {
+            const QString& id = filas_[static_cast<std::size_t>(r)].id;
+            const auto q = quedan.find(id);
+            if (hay[id] <= (q == quedan.end() ? 0 : q->second)) continue;
+            --hay[id];
+            beginRemoveRows({}, r, r);
+            filas_.erase(filas_.begin() + r);
+            endRemoveRows();
+            hubo = true;
+        }
+        // 2) En orden: la de la fila i ya está ahí, o más abajo (se la sube), o
+        //    es nueva (se la inserta). Las que estaban, si cambiaron, avisan.
+        for (int i = 0; i < static_cast<int>(nuevas.size()); ++i) {
+            T& n = nuevas[static_cast<std::size_t>(i)];
+            int j = -1;
+            for (int k = i; k < static_cast<int>(filas_.size()); ++k)
+                if (filas_[static_cast<std::size_t>(k)].id == n.id) {
+                    j = k;
+                    break;
+                }
+            if (j < 0) {
+                beginInsertRows({}, i, i);
+                filas_.insert(filas_.begin() + i, std::move(n));
+                endInsertRows();
+                hubo = true;
+                continue;
+            }
+            if (j != i) {
+                beginMoveRows({}, j, j, {}, i);
+                T c = std::move(filas_[static_cast<std::size_t>(j)]);
+                filas_.erase(filas_.begin() + j);
+                filas_.insert(filas_.begin() + i, std::move(c));
+                endMoveRows();
+                hubo = true;
+            }
+            if (!(filas_[static_cast<std::size_t>(i)] == n)) {
+                const QList<int> roles = rolesQueCambian(filas_[static_cast<std::size_t>(i)], n);
+                filas_[static_cast<std::size_t>(i)] = std::move(n);
+                emit dataChanged(index(i), index(i), roles);
+                hubo = true;
+            }
+        }
+        return hubo;
+    }
 
-    /// La lista nueva: avisa por clave lo que entró, salió, se movió o cambió.
-    void poner(const QVariantList& lista);
-    /// El objeto de la fila (vacío si no hay).
-    QVariantMap fila(int i) const { return i >= 0 && i < filas_.size() ? filas_[i].datos : QVariantMap{}; }
-    /// En qué fila está esa clave (-1 si no está).
-    int indiceDe(const QString& clave) const;
-
-    int rowCount(const QModelIndex& parent = {}) const override;
-    QVariant data(const QModelIndex& index, int role) const override;
-    QHash<int, QByteArray> roleNames() const override;
-
-signals:
-    void claveChanged();
-    void rolesChanged();
-    void listaChanged();
-    void countChanged();
-
-private:
-    struct Fila {
-        QString clave;
-        QVariantMap datos;
-    };
-    QString claveDe(const QVariant& v, int pos) const;
-    /// Los roles que cambian entre dos objetos (vacío si son iguales).
-    QList<int> rolesQueCambian(const QVariantMap& antes, const QVariantMap& ahora) const;
-
-    static constexpr int kRolDatos = Qt::UserRole + 1;
-    static constexpr int kRolClave = Qt::UserRole + 2;
-    static constexpr int kRolPrimero = Qt::UserRole + 3;
-
-    QString clave_ = QStringLiteral("id");
-    QStringList roles_;
-    QVector<Fila> filas_;
+    std::vector<T> filas_;
 };
 
 } // namespace ba::app

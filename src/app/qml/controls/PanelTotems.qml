@@ -31,7 +31,7 @@ Item {
     }
 
     // Las listas que cambian seguido vienen como modelos que se actualizan en su lugar
-    // (Studio.totems.filas*: ui/ListaConClave); cada fila trae su objeto en `datos`.
+    // (Studio.totems.filas*: ui/ListaObjetos); cada fila trae su objeto en `datos`.
     // Lo elegido, si se borró o todavía no hay: el primero.
     function elegirSiHaceFalta() {
         if (raiz.elegido === "" || !raiz.porId[raiz.elegido])

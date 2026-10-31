@@ -78,7 +78,7 @@ class GraficoViewModel : public QObject {
     /// dibuja ahí un recuadro (el video no se dibuja: es en vivo).
     Q_PROPERTY(QVariantList recuadros READ recuadros NOTIFY recuadrosChanged)
     /// Los mismos recuadros como modelo que se actualiza en su lugar (por `fuente`): cambian
-    /// en cada cuadro al reproducir y la vista no rearma los delegados (ui/ListaConClave).
+    /// en cada cuadro al reproducir y la vista no rearma los delegados (ui/ListaObjetos).
     Q_PROPERTY(QAbstractItemModel* filasRecuadros READ filasRecuadros CONSTANT)
     /// Ancho/alto del cuadro de la vista previa (para ubicar los recuadros encima).
     Q_PROPERTY(double aspecto READ aspecto NOTIFY imagenChanged)

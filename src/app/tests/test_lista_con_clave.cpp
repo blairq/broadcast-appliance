@@ -1,6 +1,6 @@
 // test_lista_con_clave.cpp
 //
-// ListaConClave (ui/ListaConClave): la lista que se actualiza en su lugar por clave.
+// ListaObjetos (ui/ListaObjetos): la lista que se actualiza en su lugar por clave.
 //   1. Una vista que solo escucha las señales (insert/remove/move/dataChanged) termina
 //      igual que la lista nueva, también en cientos de cambios al azar con claves
 //      repetidas y filas sin clave.
@@ -13,9 +13,9 @@
 
 #include <cstdio>
 
-#include "ui/ListaConClave.hpp"
+#include "ui/ListaObjetos.hpp"
 
-using ba::app::ListaConClave;
+using ba::app::ListaObjetos;
 
 namespace {
 int g_failures = 0;
@@ -32,7 +32,7 @@ struct Espejo {
     QVariantList filas;
     int insertadas = 0, sacadas = 0, movidas = 0, cambiadas = 0, resets = 0;
     QList<int> ultimosRoles;
-    explicit Espejo(ListaConClave& m) {
+    explicit Espejo(ListaObjetos& m) {
         QObject::connect(&m, &QAbstractItemModel::rowsInserted, [this, &m](const QModelIndex&, int a, int b) {
             for (int i = a; i <= b; ++i) filas.insert(i, m.fila(i));
             insertadas += b - a + 1;
@@ -72,7 +72,7 @@ int main(int argc, char** argv) {
 
     // --- 2) Lo justo ---------------------------------------------------------------------
     {
-        ListaConClave m(QStringLiteral("id"), {QStringLiteral("nombre"), QStringLiteral("n")});
+        ListaObjetos m(QStringLiteral("id"), {QStringLiteral("nombre"), QStringLiteral("n")});
         Espejo e(m);
         const QVariantList a{obj("a", "Ana"), obj("b", "Beto"), obj("c", "Ceci")};
         m.poner(a);
@@ -120,7 +120,7 @@ int main(int argc, char** argv) {
 
     // --- 1) Al azar: el espejo siempre queda igual ---------------------------------------
     {
-        ListaConClave m(QStringLiteral("id"), {QStringLiteral("n")});
+        ListaObjetos m(QStringLiteral("id"), {QStringLiteral("n")});
         Espejo e(m);
         auto* r = QRandomGenerator::global();
         int pasos = 0;
@@ -147,7 +147,7 @@ int main(int argc, char** argv) {
 
     // --- Cambiar la clave rearma (y sigue igual) -------------------------------------------
     {
-        ListaConClave m;
+        ListaObjetos m;
         Espejo e(m);
         m.setClave("fuente");
         const QVariantList l{QVariantMap{{"fuente", "x"}}, QVariantMap{{"fuente", "y"}}};

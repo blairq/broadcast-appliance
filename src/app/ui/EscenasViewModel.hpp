@@ -39,7 +39,7 @@
 
 namespace ba::app {
 class AppRuntime;
-class ListaConClave;
+class ListaObjetos;
 class SalidasViewModel;
 class SourcesModel;
 class VentanillaMotor;
@@ -78,7 +78,7 @@ class EscenasViewModel : public QObject {
     /// El árbol de la pestaña Escenas, fila por fila: un encabezado por carpeta (si hay
     /// carpetas) y debajo sus escenas, salvo que esté plegada. Roles: `fila` ("carpeta" o
     /// "escena"), `nombre`, `carpeta`, `cuantas` (las de la carpeta), `abierta` y `datos`.
-    /// Se actualiza en su lugar (ui/ListaConClave): plegar una carpeta no rearma las demás.
+    /// Se actualiza en su lugar (ui/ListaObjetos): plegar una carpeta no rearma las demás.
     Q_PROPERTY(QAbstractItemModel* arbol READ arbol CONSTANT)
    public:
     struct Partes {
@@ -192,7 +192,7 @@ class EscenasViewModel : public QObject {
     /// Lo que se avisó la última vez (para avisar solo cuando cambia).
     QStringList listaAntes_, afvAntes_;
     QVariantMap transicionesAntes_;
-    std::unique_ptr<ListaConClave> arbol_;
+    std::unique_ptr<ListaObjetos> arbol_;
     QSet<QString> plegadas_; ///< las carpetas plegadas del árbol (estado de la vista)
 };
 
