@@ -38,6 +38,7 @@
 
 #include <QObject>
 #include <QString>
+#include <QThreadPool>
 #include <QTimer>
 
 #include <functional>
@@ -609,6 +610,10 @@ class EventoViewModel : public QObject {
     QString rutaDeDiscurso(const QString& rel) const { return discursoPathPriv(rel); }
 
    private:
+    /// publicarWeb: lo de la interfaz acá, el sitio y el JSON en el fondo (webFondo_).
+    void armarWebEnElFondo(const QString& dir);
+    /// A la sala, si cambió desde lo último que se le mandó.
+    void publicarCuerpoWeb(const nlohmann::json& cuerpo);
     std::function<QString()> anexoActa_;
     // --- La línea corriendo -----------------------------------------------------------
     /// La corrida nueva (con un ejecutor por salida), sin arrancarla.
@@ -818,6 +823,8 @@ class EventoViewModel : public QObject {
     qint64 webArranqueMs_ = 0;
     int webVersion_ = 1;
     QByteArray webUltimo_;
+    bool webArmando_ = false, webOtraVez_ = false; ///< se arma en el fondo, de a uno
+    QThreadPool webFondo_;                         ///< un hilo; se espera al irse
     nlohmann::json webAviso_ = nlohmann::json::object();
     std::map<int, qint64> webInicioReal_; ///< cuándo empezó de verdad cada sección (índice → ms)
     QString carpetaWebAbs() const;

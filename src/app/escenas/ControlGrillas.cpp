@@ -9,6 +9,8 @@
 #include "asamblea/Cuerpo.hpp"
 #include "asamblea/SesionRemota.hpp"
 #include "emision/BroadcastEngine.hpp"
+#include "emision/FotoMotor.hpp"
+#include "emision/VentanillaMotor.hpp"
 #include "emision/FuentesApp.hpp"
 #include "emision/InputSpecs.hpp"
 #include "ui/ConferenceClient.hpp"
@@ -63,6 +65,10 @@ ControlGrillas::ControlGrillas(Partes p, QObject* parent) : QObject(parent), p_(
         pedir();
     });
     if (p_.sesion) connect(p_.sesion, &asamblea::SesionRemota::cambio, this, pedir);
+    // Lo que se ve en el programa cambió (un corte, una capa DSK, una fuente).
+    connect(&p_.motor, &VentanillaMotor::cambio, this, [pedir](unsigned partes) {
+        if ((partes & (FotoMotor::Escenas | FotoMotor::Salidas | FotoMotor::Superficies | FotoMotor::Video)) != 0) pedir();
+    });
     reloj_.setInterval(500);
     connect(&reloj_, &QTimer::timeout, this, &ControlGrillas::recalcular);
     reloj_.start();
@@ -77,20 +83,22 @@ std::vector<std::string> ControlGrillas::fuentes() const {
 }
 
 std::vector<std::string> ControlGrillas::queSeVe() const {
-    const BroadcastEngine& m = p_.motor;
+    const FotoMotor& f = p_.motor.foto();
     std::vector<std::string> raices;
-    if (!m.currentScene().empty()) raices.push_back(m.currentScene());
+    const FotoMotor::Salida* programa = f.salida({});
+    if (programa != nullptr && !programa->alAire.empty()) raices.push_back(programa->alAire);
     // Las capas DSK que están arriba (escenas o fuentes) también se ven en el programa.
-    for (const json& d : m.dskEstado())
-        if (d.value("visible", false))
-            for (const json& c : d.value("contenido", json::array()))
-                if (c.is_string()) raices.push_back(c.get<std::string>());
-    const std::vector<std::string> nombres = m.sceneNames();
-    const std::set<std::string> escenas(nombres.begin(), nombres.end());
-    return grilla::fuentesQueSeVen(raices, [&](const std::string& n) -> std::optional<std::vector<std::string>> {
-        if (!escenas.count(n)) return std::nullopt;
+    if (programa != nullptr)
+        for (const json& d : f.dsk.value("salidas", json::object()).value(programa->id, json::array()))
+            if (d.value("visible", false))
+                for (const json& c : d.value("contenido", json::array()))
+                    if (c.is_string()) raices.push_back(c.get<std::string>());
+    return grilla::fuentesQueSeVen(raices, [&f](const std::string& n) -> std::optional<std::vector<std::string>> {
+        const FotoMotor::Escena* e = f.escena(n);
+        if (e == nullptr) return std::nullopt;
         std::vector<std::string> hijos;
-        for (const auto& [f, rect] : m.itemsVisibles(n)) hijos.push_back(f);
+        for (const FotoMotor::Fuente& x : e->fuentes)
+            if (x.visible) hijos.push_back(x.nombre);
         return hijos;
     });
 }
@@ -131,17 +139,15 @@ std::vector<grilla::Persona> ControlGrillas::gente(std::int64_t ahora, const std
     // (Las grillas al aire las cuenta el Repartidor: quién va en cada una se decide ahí.)
     std::set<int> slotsAlAire, remotosAlAire;
     bool bancaAlAire = false;
-    BroadcastEngine& m = p_.motor;
+    const FotoMotor& f = p_.motor.foto();
     for (const std::string& n : seVe) {
-        const std::string tipo = m.sourceTypeId(n);
+        const std::string tipo = f.tipoDe(n);
         if (tipo == BroadcastEngine::kTipoBanca) {
             bancaAlAire = true;
             continue;
         }
-        const std::string aj = m.sourceSettingsJson(n);
-        if (!inputs::esVideoInvitado(tipo, aj)) continue;
-        const json s = json::parse(aj.empty() ? "{}" : aj, nullptr, false);
-        if (!s.is_object()) continue;
+        const json s = f.fuentesVideo.value(n, json::object()).value("ajustes", json::object());
+        if (!s.is_object() || !inputs::esVideoInvitado(tipo, s.dump())) continue;
         const std::string canal = s.value("channel", std::string("guest"));
         const int slot = s.value("slot", 0);
         if (canal == "remoto" || canal == "remoto_contenido")

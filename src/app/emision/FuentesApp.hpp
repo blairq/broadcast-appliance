@@ -101,7 +101,9 @@ void empujar(std::uint64_t id, const std::uint8_t* bgra, int ancho, int alto, in
 
 /// Cambiar ajustes de CUALQUIER fuente por nombre (se mezclan con los que
 /// tiene y quedan guardados con la escena). Lo conecta BroadcastEngine; sirve
-/// a piezas que no tienen el motor a mano (rótulos, gráficos). Hilo de la UI.
+/// a piezas que no tienen el motor a mano (rótulos, gráficos, la grilla de personas).
+/// Desde la interfaz se le encarga al dueño y devuelve true si la fuente existe (el cambio
+/// se ve en la foto cuando vuelve).
 using Cambiar = std::function<bool(const std::string& nombre, const nlohmann::json& cambios)>;
 void ponerCambiar(Cambiar c);
 bool cambiarAjustes(const std::string& nombre, const nlohmann::json& cambios);
@@ -138,7 +140,7 @@ void ponerConsultas(Consultas c);
 struct DesdeLaInterfaz {
     std::thread::id hilo;
     std::function<std::vector<std::pair<std::string, std::string>>()> listar;
-    /// Los ajustes de una fuente si la foto los tiene (las de audio); nullopt si no.
+    /// Los ajustes de una fuente si la foto los tiene; nullopt si no.
     std::function<std::optional<nlohmann::json>(const std::string&)> ajustes;
     /// Corre `orden` en el dueño (la agenda de la ventanilla), sin esperar.
     std::function<void(const char* que, std::function<void()> orden)> encargar;
@@ -147,7 +149,8 @@ void ponerDesdeLaInterfaz(DesdeLaInterfaz d);
 /// Todas las fuentes: (nombre, tipo). Desde la interfaz, de la foto.
 std::vector<std::pair<std::string, std::string>> listar();
 /// Los ajustes guardados de la fuente `nombre` (objeto vacío si no existe). Desde la
-/// interfaz, los de una fuente de audio salen de la foto.
+/// interfaz salen de la foto (las de audio, de la mezcla; las demás, de la parte Video):
+/// vacío si la foto todavía no la tiene.
 nlohmann::json ajustesDe(const std::string& nombre);
 /// Pone una propiedad a un elemento de la cadena de la entrada (ba_f_<id del filtro>). "" o el error.
 std::string propiedadElemento(const std::string& entrada, const std::string& elemento, const std::string& prop,

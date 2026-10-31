@@ -793,6 +793,28 @@ Rectangle {
         }
     }
 
+    // Un interruptor con su texto, que se parte en renglones. No es un RowLayout: el texto
+    // toma el ancho de la fila directo (no por un layout anidado), así su alto queda listo en
+    // una pasada; con el RowLayout, la columna del popup entraba en un bucle de polish.
+    component FilaInterruptor: Item {
+        id: fila
+        property alias checked: interruptor.checked
+        property alias texto: textoFila.text
+        signal toggled(bool wanted)
+        Layout.fillWidth: true
+        implicitHeight: Math.max(interruptor.implicitHeight, textoFila.implicitHeight)
+        Toggle {
+            id: interruptor
+            anchors.verticalCenter: parent.verticalCenter
+            onToggled: (wanted) => fila.toggled(wanted)
+        }
+        Text {
+            id: textoFila
+            anchors { left: interruptor.right; leftMargin: 8; right: parent.right; verticalCenter: parent.verticalCenter }
+            wrapMode: Text.WordWrap; color: Theme.text; font.pixelSize: 12
+        }
+    }
+
     // --- Qué se registra -------------------------------------------------------------
     Popup {
         id: ajustes
@@ -812,7 +834,10 @@ Rectangle {
             implicitHeight: ajustesCol.implicitHeight
         ColumnLayout {
             id: ajustesCol
-            width: ajustesScroll.availableWidth
+            // Un ancho que no depende de si aparece la barra de desplazamiento (el del
+            // popup, con lugar para ella): con el de la vista, la barra aparecía, el texto se
+            // partía distinto, cambiaba el alto, la barra se iba… (bucle de polish).
+            width: ajustes.availableWidth - 14
             spacing: 8
             Text { text: qsTr("Qué se registra en cada evento"); color: Theme.text; font { pixelSize: 14; weight: Font.DemiBold } }
             Repeater {
@@ -825,32 +850,23 @@ Rectangle {
                     { k: "config", t: qsTr("Cada cambio de configuración (con lo que cambió)") },
                     { k: "evento", t: qsTr("Cuándo arranca y se cierra la app, cuándo empieza y termina el evento") }
                 ]
-                delegate: RowLayout {
+                delegate: FilaInterruptor {
                     required property var modelData
-                    Layout.fillWidth: true
-                    Toggle {
-                        checked: !!ajustes.a.registrar && ajustes.a.registrar[modelData.k] !== false
-                        onToggled: (wanted) => {
-                            const r = {}
-                            r[modelData.k] = wanted
-                            const e = page.h.guardarAjustes({ registrar: r })
-                            if (e) page.toast(e, "error")
-                        }
+                    texto: modelData.t
+                    checked: !!ajustes.a.registrar && ajustes.a.registrar[modelData.k] !== false
+                    onToggled: (wanted) => {
+                        const r = {}
+                        r[modelData.k] = wanted
+                        const e = page.h.guardarAjustes({ registrar: r })
+                        if (e) page.toast(e, "error")
                     }
-                    Text { Layout.fillWidth: true; wrapMode: Text.WordWrap; text: modelData.t; color: Theme.text; font.pixelSize: 12 }
                 }
             }
-            RowLayout {
+            FilaInterruptor {
                 Layout.topMargin: 6
-                Toggle {
-                    checked: !!ajustes.a.evento_automatico
-                    onToggled: (wanted) => page.h.guardarAjustes({ evento_automatico: wanted })
-                }
-                Text {
-                    Layout.fillWidth: true; wrapMode: Text.WordWrap
-                    text: qsTr("Jornada automática: sin un evento elegido, todo va a «Jornada del día» (nada queda sin evento)")
-                    color: Theme.text; font.pixelSize: 12
-                }
+                texto: qsTr("Jornada automática: sin un evento elegido, todo va a «Jornada del día» (nada queda sin evento)")
+                checked: !!ajustes.a.evento_automatico
+                onToggled: (wanted) => page.h.guardarAjustes({ evento_automatico: wanted })
             }
             Text { text: qsTr("Del bus no se anota (se repite muchas veces por segundo):"); color: Theme.textDim; font.pixelSize: 11; Layout.topMargin: 6 }
             TextField {
@@ -888,7 +904,7 @@ Rectangle {
                     onValueModified: page.h.guardarAjustes({ retencion: { aviso_disco_pct: value } })
                 }
                 Text {
-                    Layout.fillWidth: true; wrapMode: Text.WordWrap
+                    Layout.fillWidth: true; elide: Text.ElideRight
                     readonly property var d: { page.version; return ajustes.visible ? page.h.discoUi() : ({}) }
                     text: qsTr("% (ahora %1 %, quedan %2 GB)").arg(d.usado_pct || 0).arg(d.libre_gb || 0)
                     color: Theme.textDim; font.pixelSize: 12

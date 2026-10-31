@@ -199,9 +199,11 @@ class AppRuntime {
     /// La carpeta del evento en curso (docs/planes/PLAN-EVENTOS-HISTORICO.md, H4): con
     /// uno, lo que se graba va a <evento>/Grabaciones/. Vacía = Recordings/.
     /// La carpeta del evento abierto (lo grabado va ahí). Al ponerla se retoman las
-    /// grabaciones que esperaban saber dónde (tras un corte: restoreOutputs).
+    /// grabaciones que esperaban saber dónde (tras un corte: restoreOutputs). Las dos son
+    /// del dueño: desde otro hilo se le encargan (la copia de los ajustes de aire que lee el
+    /// plano se rehace con la carpeta antes de retomar).
     void setCarpetaDelEvento(std::function<std::filesystem::path()> fn);
-    /// Retoma las grabaciones pendientes de un corte, si las hay. La interfaz la llama
+    /// Retoma las grabaciones pendientes de un corte, si las hay. La interfaz la pide
     /// sola sin evento abierto (con evento, la llama setCarpetaDelEvento).
     void retomarGrabaciones();
     /// Dónde va la próxima grabación: <evento>/Grabaciones o la de la configuración.
@@ -371,6 +373,13 @@ class AppRuntime {
     /// El turno del motor (emision/TurnoMotor.hpp), para quien lo toma con tope (el MCP del
     /// control): tomarlo no es entrar al motor.
     const TurnoMotor& turno() const { return engine_.turno(); }
+    /// DESDE CUALQUIER HILO: quién se entera de lo que el motor no pudo hacer
+    /// (BroadcastEngine::alFallarMotor, con su candado). No es una llamada directa.
+    void alFallarMotor(std::function<void(const std::string&)> fn) { engine_.alFallarMotor(std::move(fn)); }
+    /// El motor para lo que se lee DESDE CUALQUIER HILO (las vistas: FrameService). No cuenta
+    /// como entrada; un método con el turno llamado por acá desde la interfaz igual se cuenta
+    /// (su TurnoMotor::Guarda): la red de seguridad lo ve.
+    BroadcastEngine& motorEntreHilos() { return engine_; }
     /// El último error DE ESTE HILO (ver «Estrategia de errores»).
     const std::string& lastError() const;
     /// true si el ultimo corte de la transmision / grabacion lo PIDIO alguien

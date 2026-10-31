@@ -45,3 +45,9 @@ if(BUILD_TESTING OR TRUE)
     add_dependencies(test_ba_web ba-web)
     add_test(NAME test_ba_web COMMAND test_ba_web)
 endif()
+
+# El supervisor del gateway con el ba-web de verdad (src/gateway/tests/test_web_supervisor.cpp).
+if(TARGET test_web_supervisor)
+    target_compile_definitions(test_web_supervisor PRIVATE BA_TEST_BA_WEB="$<TARGET_FILE:ba-web>")
+    add_dependencies(test_web_supervisor ba-web)
+endif()

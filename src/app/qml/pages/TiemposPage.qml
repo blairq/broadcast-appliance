@@ -267,16 +267,22 @@ Rectangle {
         }
 
         // --- Sincronía (la otra pestaña) ----------------------------------------------------
-        VistaSincronia {
+        // Se arma la primera vez que se la abre (y queda: una medición en curso no se pierde
+        // al volver al mapa). Abrir Latencias no paga lo que no se ve.
+        Loader {
+            active: page.pestana === "sincronia"
+            onLoaded: active = true // ya armada, queda (rompe el enlace a la pestaña)
             visible: page.pestana === "sincronia"
             Layout.fillWidth: true
             Layout.fillHeight: true
-            vg: Studio.video
-            programaMs: {
-                const n = (page.mapa.nodos || []).find(x => x.id === "escena:programa")
-                return n && n.fuente === "medido" && n.acumulado_ms !== null && n.acumulado_ms !== undefined ? n.acumulado_ms : -1
+            sourceComponent: VistaSincronia {
+                vg: Studio.video
+                programaMs: {
+                    const n = (page.mapa.nodos || []).find(x => x.id === "escena:programa")
+                    return n && n.fuente === "medido" && n.acumulado_ms !== null && n.acumulado_ms !== undefined ? n.acumulado_ms : -1
+                }
+                onVerMapa: page.pestana = "mapa"
             }
-            onVerMapa: page.pestana = "mapa"
         }
 
         RowLayout {

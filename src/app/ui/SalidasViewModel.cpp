@@ -45,9 +45,15 @@ SalidasViewModel::SalidasViewModel(Partes p, QObject* parent) : QObject(parent),
     // El conmutador de escenas es del modelo (uno por salida) y vive en el dueño del motor:
     // se crea acá y se muda (sin padre: lo borra este área cuando vuelve, al cerrar). Lo que
     // muestra (la escena al aire, la armada, el AFV, la T-bar) llega en la foto.
-    conmutadores_ = std::make_unique<escenas::Conmutadores>(p_.rt);
+    {
+        std::vector<std::string> ids;
+        for (const FotoMotor::Salida& s : p_.ventanilla.foto().salidas) ids.push_back(s.id);
+        conmutadores_ = std::make_unique<escenas::Conmutadores>(p_.rt, ids);
+    }
     conmutador_ = &conmutadores_->porOmision();
     p_.ventanilla.adoptar(conmutadores_.get());
+    // Ya en el dueño: lo que haya cambiado entre la foto y la mudanza.
+    p_.ventanilla.pedir("conmutadores", [c = conmutadores_.get()]() { c->sincronizar(); });
     lista_ = std::make_unique<JsonListModel>(QStringList{"id", "nombre", "color", "porOmision", "alAire", "armada",
                                                          "transmitiendo", "grabando", "archivo", "destinos", "programa",
                                                          "codificador"},
