@@ -33,6 +33,7 @@
 #include "ui/ControlViewModel.hpp"
 #include "ui/EmisionViewModel.hpp"
 #include "ui/ImagenViewModel.hpp"
+#include "ui/MezclaViewModel.hpp"
 #include "ui/SalidasViewModel.hpp"
 #include "ui/MultiviewViewModel.hpp"
 
@@ -323,10 +324,8 @@ class StudioViewModel : public QObject {
     Q_PROPERTY(QString theme READ theme NOTIFY themeChanged)
     /// Arrancó con --test: el MCP no pide aprobaciones (la interfaz lo avisa siempre).
     Q_PROPERTY(bool modoTest READ modoTest CONSTANT)
-    /// Balística de los medidores (T31): "pico", "ppm" (EBU tipo IIb) o "vu".
-    Q_PROPERTY(QString balistica READ balistica WRITE setBalistica NOTIFY balisticaChanged)
-    /// La fuente que se escucha por el monitor (PFL), "" si ninguna.
-    Q_PROPERTY(QString pfl READ pfl NOTIFY pflChanged)
+    /// El área del audio (ui/MezclaViewModel): balística, PFL, retardo y medir la sincronía.
+    Q_PROPERTY(QObject* mezcla READ mezclaQml CONSTANT)
     // --- Submodelos -------------------------------------------------------------
     Q_PROPERTY(QObject* scenes READ scenes CONSTANT)
     /// Las salidas (PLAN-SALIDAS) y la activa de esta interfaz: ui/SalidasViewModel
@@ -621,21 +620,11 @@ class StudioViewModel : public QObject {
     sala::SeguridadSala& seguridad() { return *seguridad_; }
     /// Desde la interfaz: "" o el error inmediato (el resultado llega como aviso).
     Q_INVOKABLE QString cupoUi(int n);
-    QString balistica() const;
     bool modoTest() const { return modoTest_; }
     void setModoTest(bool on) { modoTest_ = on; }
-    void setBalistica(const QString& b);
-    QString pfl() const;
-    /// PFL exclusivo: escucha `fuente` por el monitor (o la apaga si ya era esa). "" o el error.
-    Q_INVOKABLE QString pflUi(const QString& fuente);
-    /// Retardo del audio de una fuente respecto de su video (ms, como audio_sincro).
-    Q_INVOKABLE int retardoUi(const QString& fuente) const;
-    Q_INVOKABLE QString setRetardoUi(const QString& fuente, int ms);
-    /// Medir con aplauso: mide `segundos` sobre el programa y llama a `listo` con el
-    /// resultado (ver BroadcastEngine::terminarMedicionSincro). "" o el error al empezar.
-    QString medirSincro(int segundos, std::function<void(const nlohmann::json&)> listo);
-    /// Lo mismo para la GUI: el resultado llega por medicionSincroLista(resultado).
-    Q_INVOKABLE QString medirSincroUi(int segundos);
+    /// El área del audio (los racks, la matriz, el Mezclador, el PFL, el retardo).
+    MezclaViewModel& mezcla() { return *mezcla_; }
+    QObject* mezclaQml() const;
     /// «Repetir»: guarda los últimos segundos y, cuando el clip está escrito, lo arma
     /// en la escena «Repetición» (lista para el take). "" o el error.
     Q_INVOKABLE QString repetirUi();
@@ -783,10 +772,8 @@ class StudioViewModel : public QObject {
     QObject* messages() const;
     QObject* inputs() const;
     QObject* audio() const;
-#if defined(BA_HAVE_CLAP)
-    /// Racks de audio (modulos LSP) de las fuentes. nullptr si no hay CLAP.
-    audio::RackManager* racks() const { return racks_.get(); }
-#endif
+    /// Racks de audio (módulos LSP) de las fuentes.
+    audio::RackManager* racks() const { return &mezcla_->racks(); }
     agent::AlertEngine& alerts();
     /// El área de las alarmas (ui/AlarmasViewModel): Studio.alarmas en QML.
     QObject* alarmasQml() const;
@@ -945,9 +932,6 @@ class StudioViewModel : public QObject {
     /// (ui_abrir_panel {page, panel}): lo que el operador abre con un botón.
     void abrirPanel(const QString& pagina, const QString& panel);
     void canvasChanged();
-    void medicionSincroLista(const QVariantMap& resultado);
-    void balisticaChanged();
-    void pflChanged();
     void afvChanged();
     void themeChanged();
     /// Aviso para el operador: level = "info" | "ok" | "warn" | "error".
@@ -1005,11 +989,8 @@ class StudioViewModel : public QObject {
     std::unique_ptr<VentanasModel> ventanas_;
     std::unique_ptr<MultiviewViewModel> multivistas_; ///< usa ventanas_ y monitores_: va después
     QString seccionConfig_;
-#if defined(BA_HAVE_CLAP)
-    std::unique_ptr<audio::RackManager> racks_;
-    std::unique_ptr<audio::Matriz> matriz_;
-    std::unique_ptr<audio::Mezclador> mezclador_;
-#endif
+    /// El audio: los racks, la pestaña Audio, la matriz y el Mezclador (ui/MezclaViewModel).
+    std::unique_ptr<MezclaViewModel> mezcla_;
     /// Las cámaras, los grafos de video, la superresolución, los tiempos, la resolución,
     /// los equipos de la red y seguir caras (ui/ImagenViewModel). Los plugins y los
     /// equipos los usan: van después (se destruyen antes).
@@ -1020,7 +1001,6 @@ class StudioViewModel : public QObject {
     bool modoTest_ = false;
     std::unique_ptr<DocumentosViewModel> documentos_;
     std::unique_ptr<PdfEscena> pdfEscena_;
-    std::unique_ptr<audio::AudioViewModel> audio_;
 #endif
     std::unique_ptr<CuentasViewModel> cuentas_; ///< YouTube, Twitch y Facebook (ui/CuentasViewModel)
     std::unique_ptr<SystemViewModel> system_;

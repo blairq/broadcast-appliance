@@ -29920,11 +29920,6 @@ and it reopens on its own. Settings, credentials, recordings and files are NOT t
         <translation>didn't respond</translation>
     </message>
     <message>
-        <location line="+136" />
-        <source>grabación del programa</source>
-        <translation>program recording</translation>
-    </message>
-    <message>
         <location line="+14" />
         <source>Conferencia reiniciada con la configuración nueva.</source>
         <translation>Conference restarted with the new settings.</translation>
@@ -29974,11 +29969,6 @@ and it reopens on its own. Settings, credentials, recordings and files are NOT t
         <location line="+333" />
         <source>El disco de los eventos está al %1 % (quedan %2 GB)</source>
         <translation>The events disk is %1 % full (%2 GB left)</translation>
-    </message>
-    <message>
-        <location line="+36" />
-        <source>Audio: «%1» se saltó por lento (pasa sin procesar). Rearmalo en Audio cuando esté bien.</source>
-        <translation>Audio: “%1” was skipped for being slow (passes through unprocessed). Rebuild it in Audio when it's fixed.</translation>
     </message>
     <message>
         <location line="+4" />
@@ -30106,11 +30096,6 @@ and it reopens on its own. Settings, credentials, recordings and files are NOT t
         <translation>New day: the conference has a new PIN (%1)</translation>
     </message>
     <message>
-        <location line="+97" />
-        <source>ya se está midiendo</source>
-        <translation>already being measured</translation>
-    </message>
-    <message>
         <location line="+20" />
         <source>La repetición no llegó a escribirse.</source>
         <translation>The replay wasn't written in time.</translation>
@@ -30234,6 +30219,21 @@ and it reopens on its own. Settings, credentials, recordings and files are NOT t
         <location line="+1" />
         <source>%1: %2 cierra la aplicación y %3.</source>
         <translation>%1: %2 closes the application and %3.</translation>
+    </message>
+</context>
+<context>
+    <name>MezclaViewModel</name>
+    <message>
+        <source>grabación del programa</source>
+        <translation>program recording</translation>
+    </message>
+    <message>
+        <source>Audio: «%1» se saltó por lento (pasa sin procesar). Rearmalo en Audio cuando esté bien.</source>
+        <translation>Audio: “%1” was skipped for being slow (passes through unprocessed). Rebuild it in Audio when it's fixed.</translation>
+    </message>
+    <message>
+        <source>ya se está midiendo</source>
+        <translation>already being measured</translation>
     </message>
 </context>
 <context>

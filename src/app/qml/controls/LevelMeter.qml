@@ -1,6 +1,6 @@
 // Vumetro en dBFS (-60..0) con zonas verde / ambar / rojo.
 //
-// Balística (T31, la elige el operador en el Mezclador: Studio.balistica):
+// Balística (T31, la elige el operador en el Mezclador: Studio.mezcla.balistica):
 //   pico  sube y baja con el pico (como antes);
 //   ppm   EBU tipo IIb: sube al instante y baja 24 dB en 2,8 s (8,6 dB/s), así un
 //         transitorio se alcanza a leer;
@@ -13,7 +13,7 @@ Item {
     id: m
     property real db: -100
     property bool vertical: false
-    property string balistica: (typeof Studio !== "undefined" && Studio) ? Studio.balistica : "pico"
+    property string balistica: (typeof Studio !== "undefined" && Studio && Studio.mezcla) ? Studio.mezcla.balistica : "pico"
     property real mostrado: -100
     readonly property real frac: Math.max(0, Math.min(1, ((m.balistica === "pico" ? m.db : m.mostrado) + 60) / 60))
 

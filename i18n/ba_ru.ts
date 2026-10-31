@@ -30039,11 +30039,6 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
         <translation>не ответил</translation>
     </message>
     <message>
-        <location line="+136" />
-        <source>grabación del programa</source>
-        <translation>запись программы</translation>
-    </message>
-    <message>
         <location line="+14" />
         <source>Conferencia reiniciada con la configuración nueva.</source>
         <translation>Конференция перезапущена с новыми настройками.</translation>
@@ -30093,11 +30088,6 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
         <location line="+333" />
         <source>El disco de los eventos está al %1 % (quedan %2 GB)</source>
         <translation>Диск мероприятий заполнен на %1 % (осталось %2 ГБ)</translation>
-    </message>
-    <message>
-        <location line="+36" />
-        <source>Audio: «%1» se saltó por lento (pasa sin procesar). Rearmalo en Audio cuando esté bien.</source>
-        <translation>Аудио: «%1» пропущен из-за медленной работы (проходит без обработки). Пересоберите его в «Аудио», когда всё будет в порядке.</translation>
     </message>
     <message>
         <location line="+4" />
@@ -30223,11 +30213,6 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
         <location line="+29" />
         <source>Día nuevo: la conferencia tiene PIN nuevo (%1)</source>
         <translation>Новый день: у конференции новый PIN (%1)</translation>
-    </message>
-    <message>
-        <location line="+97" />
-        <source>ya se está midiendo</source>
-        <translation>уже измеряется</translation>
     </message>
     <message>
         <location line="+20" />
@@ -30356,6 +30341,21 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
         <location line="+1" />
         <source>%1: %2 cierra la aplicación y %3.</source>
         <translation>%1: %2 закрывает приложение и %3.</translation>
+    </message>
+</context>
+<context>
+    <name>MezclaViewModel</name>
+    <message>
+        <source>grabación del programa</source>
+        <translation>запись программы</translation>
+    </message>
+    <message>
+        <source>Audio: «%1» se saltó por lento (pasa sin procesar). Rearmalo en Audio cuando esté bien.</source>
+        <translation>Аудио: «%1» пропущен из-за медленной работы (проходит без обработки). Пересоберите его в «Аудио», когда всё будет в порядке.</translation>
+    </message>
+    <message>
+        <source>ya se está midiendo</source>
+        <translation>уже измеряется</translation>
     </message>
 </context>
 <context>

@@ -29920,11 +29920,6 @@ puis elle se rouvre toute seule. Les paramètres, identifiants, enregistrements 
         <translation>n'a pas répondu</translation>
     </message>
     <message>
-        <location line="+136" />
-        <source>grabación del programa</source>
-        <translation>enregistrement du programme</translation>
-    </message>
-    <message>
         <location line="+14" />
         <source>Conferencia reiniciada con la configuración nueva.</source>
         <translation>Conférence redémarrée avec les nouveaux paramètres.</translation>
@@ -29974,11 +29969,6 @@ puis elle se rouvre toute seule. Les paramètres, identifiants, enregistrements 
         <location line="+333" />
         <source>El disco de los eventos está al %1 % (quedan %2 GB)</source>
         <translation>Le disque des événements est plein à %1 % (il reste %2 Go)</translation>
-    </message>
-    <message>
-        <location line="+36" />
-        <source>Audio: «%1» se saltó por lento (pasa sin procesar). Rearmalo en Audio cuando esté bien.</source>
-        <translation>Audio : « %1 » a été contourné car trop lent (passe sans traitement). Reconstruisez-le dans Audio une fois réglé.</translation>
     </message>
     <message>
         <location line="+4" />
@@ -30106,11 +30096,6 @@ puis elle se rouvre toute seule. Les paramètres, identifiants, enregistrements 
         <translation>Nouveau jour : la conférence a un nouveau PIN (%1)</translation>
     </message>
     <message>
-        <location line="+97" />
-        <source>ya se está midiendo</source>
-        <translation>mesure déjà en cours</translation>
-    </message>
-    <message>
         <location line="+20" />
         <source>La repetición no llegó a escribirse.</source>
         <translation>Le ralenti n'a pas pu être écrit à temps.</translation>
@@ -30234,6 +30219,21 @@ puis elle se rouvre toute seule. Les paramètres, identifiants, enregistrements 
         <location line="+1" />
         <source>%1: %2 cierra la aplicación y %3.</source>
         <translation>%1 : %2 ferme l'application et %3.</translation>
+    </message>
+</context>
+<context>
+    <name>MezclaViewModel</name>
+    <message>
+        <source>grabación del programa</source>
+        <translation>enregistrement du programme</translation>
+    </message>
+    <message>
+        <source>Audio: «%1» se saltó por lento (pasa sin procesar). Rearmalo en Audio cuando esté bien.</source>
+        <translation>Audio : « %1 » a été contourné car trop lent (passe sans traitement). Reconstruisez-le dans Audio une fois réglé.</translation>
+    </message>
+    <message>
+        <source>ya se está midiendo</source>
+        <translation>mesure déjà en cours</translation>
     </message>
 </context>
 <context>

@@ -29801,11 +29801,6 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
         <translation>无响应</translation>
     </message>
     <message>
-        <location line="+136" />
-        <source>grabación del programa</source>
-        <translation>节目录制</translation>
-    </message>
-    <message>
         <location line="+14" />
         <source>Conferencia reiniciada con la configuración nueva.</source>
         <translation>会议已使用新设置重启。</translation>
@@ -29855,11 +29850,6 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
         <location line="+333" />
         <source>El disco de los eventos está al %1 % (quedan %2 GB)</source>
         <translation>活动磁盘已用 %1 %（剩余 %2 GB）</translation>
-    </message>
-    <message>
-        <location line="+36" />
-        <source>Audio: «%1» se saltó por lento (pasa sin procesar). Rearmalo en Audio cuando esté bien.</source>
-        <translation>音频：「%1」因过慢被跳过（未经处理直通）。修复后请在「音频」中重建。</translation>
     </message>
     <message>
         <location line="+4" />
@@ -29987,11 +29977,6 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
         <translation>新的一天：会议已更换新 PIN（%1）</translation>
     </message>
     <message>
-        <location line="+97" />
-        <source>ya se está midiendo</source>
-        <translation>已在测量中</translation>
-    </message>
-    <message>
         <location line="+20" />
         <source>La repetición no llegó a escribirse.</source>
         <translation>回放未能及时写入。</translation>
@@ -30112,6 +30097,21 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
         <location line="+1" />
         <source>%1: %2 cierra la aplicación y %3.</source>
         <translation>%1：%2 会关闭应用，并%3。</translation>
+    </message>
+</context>
+<context>
+    <name>MezclaViewModel</name>
+    <message>
+        <source>grabación del programa</source>
+        <translation>节目录制</translation>
+    </message>
+    <message>
+        <source>Audio: «%1» se saltó por lento (pasa sin procesar). Rearmalo en Audio cuando esté bien.</source>
+        <translation>音频：「%1」因过慢被跳过（未经处理直通）。修复后请在「音频」中重建。</translation>
+    </message>
+    <message>
+        <source>ya se está midiendo</source>
+        <translation>已在测量中</translation>
     </message>
 </context>
 <context>

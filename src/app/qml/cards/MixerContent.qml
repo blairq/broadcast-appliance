@@ -115,11 +115,11 @@ Item {
                 height: 16; radius: 5
                 color: Qt.rgba(1, 1, 1, 0.06)
                 // La clave («pico», «ppm», «vu») no se traduce: solo su etiqueta.
-                Text { anchors.centerIn: parent; text: Studio.balistica === "pico" ? qsTr("PICO") : Studio.balistica.toUpperCase(); color: Theme.textDim; font { pixelSize: 9; weight: Font.Bold } }
+                Text { anchors.centerIn: parent; text: Studio.mezcla.balistica === "pico" ? qsTr("PICO") : Studio.mezcla.balistica.toUpperCase(); color: Theme.textDim; font { pixelSize: 9; weight: Font.Bold } }
                 MouseArea {
                     id: balMa
                     anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-                    onClicked: Studio.balistica = Studio.balistica === "pico" ? "ppm" : Studio.balistica === "ppm" ? "vu" : "pico"
+                    onClicked: Studio.mezcla.balistica = Studio.mezcla.balistica === "pico" ? "ppm" : Studio.mezcla.balistica === "ppm" ? "vu" : "pico"
                 }
                 ToolTip.visible: balMa.containsMouse; ToolTip.delay: 500
                 ToolTip.text: qsTr("Balística de los medidores: PICO (instantáneo), PPM (EBU IIb: cae 24 dB en 2,8 s) o VU (integra 300 ms)")
@@ -323,7 +323,7 @@ Item {
                     }
                     // PFL: escucharla por el monitor sin tocar el aire (uno a la vez, amarillo).
                     Rectangle {
-                        readonly property bool on: Studio.pfl === name
+                        readonly property bool on: Studio.mezcla.pfl === name
                         Layout.fillWidth: true
                         height: 18; radius: 6
                         color: on ? Theme.canalPfl : Qt.rgba(1, 1, 1, 0.05)
@@ -331,7 +331,7 @@ Item {
                         MouseArea {
                             id: pflMa
                             anchors.fill: parent; cursorShape: Qt.PointingHandCursor; hoverEnabled: true
-                            onClicked: { const e = Studio.pflUi(name); if (e !== "") Studio.notify(e, "error") }
+                            onClicked: { const e = Studio.mezcla.pflUi(name); if (e !== "") Studio.notify(e, "error") }
                         }
                         ToolTip.visible: pflMa.containsMouse; ToolTip.delay: 500
                         ToolTip.text: qsTr("Escucharla en los auriculares sin tocar lo que sale al aire (se suma a lo que ya va ahí, como la voz del asistente). Si está MUDA no suena ni acá: bajale el volumen en vez de silenciarla.")

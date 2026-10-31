@@ -53,13 +53,6 @@
 #include <QScreen>
 #include <QWindow>
 
-#if defined(BA_HAVE_CLAP)
-#include "audio/AudioViewModel.hpp"
-#include "audio/Matriz.hpp"
-#include "audio/Calibracion.hpp"
-#include "audio/Mezclador.hpp"
-#include "audio/RackManager.hpp"
-#endif
 
 #include <QFile>
 #include <QHostAddress>
@@ -169,6 +162,7 @@
 #include "ui/InputsViewModel.hpp"
 #include "ui/ListModels.hpp"
 #include "ui/MediosViewModel.hpp"
+#include "ui/MezclaViewModel.hpp"
 #include "ui/MultiviewViewModel.hpp"
 #include "ui/OperatorMessages.hpp"
 #include "ui/PantallasViewModel.hpp"
@@ -796,11 +790,6 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     marca("inputs");
     // Las cámaras (PTZ y Mejorar imagen), los grafos de video, la superresolución, los
     // tiempos, la resolución, los equipos de la red y seguir caras (ui/ImagenViewModel).
-#if defined(BA_HAVE_CLAP)
-    const auto racksDe = [this]() { return racks_.get(); };
-#else
-    const auto racksDe = []() -> audio::RackManager* { return nullptr; };
-#endif
     imagen_ = std::make_unique<ImagenViewModel>(ImagenViewModel::Partes{.rt = rt,
                                                                        .bus = *bus_,
                                                                        .sala = *conference_,
@@ -808,7 +797,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
                                                                        .recursos = *recursos_,
                                                                        .cuadros = *frames_,
                                                                        .personas = personas_.get(),
-                                                                       .racks = racksDe});
+                                                                       .racks = [this]() { return mezcla_ ? &mezcla_->racks() : nullptr; }});
     connect(imagen_.get(), &ImagenViewModel::notify, this, &StudioViewModel::notify);
     marca("imagen");
     // El catálogo de cosas que se pueden mostrar y los monitores de la máquina
@@ -958,52 +947,16 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     marca("dispositivos");
     dispositivos::registrarTodo(*dispositivos_, {&imagen_->red(), plugins_.get(), &imagen_->video(), &imagen_->camaras(),
                                                  &asistente_->mensajes(), &rt, inputs_.get()});
-#if defined(BA_HAVE_CLAP)
-    // Racks de audio (LSP) de cada fuente: se montan los guardados.
-    racks_ = std::make_unique<audio::RackManager>(rt.dataRoot());
-    marca("racks");
-    racks_->restore();
-    audio_ = std::make_unique<audio::AudioViewModel>(*racks_);
-    // Una entrada de audio nueva (o una que se va), la agregue quien la agregue (la
-    // interfaz, el asistente, una receta): la lista del modelo de Audio se rehace sola.
-    // El mezclador de las tarjetas la nota en su vuelta de 100 ms (reload = modelReset).
-    connect(mixer_.get(), &QAbstractItemModel::modelReset, audio_.get(), [this]() { audio_->refresh(); });
+    // El audio: los racks de cada fuente, la pestaña Audio, la matriz y el Mezclador
+    // (ui/MezclaViewModel).
+    mezcla_ = std::make_unique<MezclaViewModel>(MezclaViewModel::Partes{
+        .rt = rt, .tiras = *mixer_, .salida = salidas_->activaId(), .alAire = [this] { return alAire(); }});
+    connect(mezcla_.get(), &MezclaViewModel::notify, this, &StudioViewModel::notify);
     marca("audio");
     // La voz, las salidas de texto, las tarjetas «Texto a voz» y las traducciones, con los racks.
-    asistente_->conRacks(*racks_);
-    matriz_ = std::make_unique<audio::Matriz>(rt.dataRoot());
-    marca("matriz");
-    // El ruteo (escucha, pistas) es del motor: cuando cambia, por el camino que sea,
-    // la matriz avisa a sus vistas y el PFL de la tarjeta y del Mezclador se entera.
-    // El audio de cada fuente es del motor: cuando cambia, por el camino que sea, la
-    // matriz lo anota y guarda (y se lo pone a una fuente que nace), y el mezclador
-    // refresca esa tira. La matriz solo se redibuja si cambió el ruteo.
-    rt.engine().alCambiarAudioFuente([m = matriz_.get(), mx = mixer_.get()](const std::string& f, const char* que) {
-        m->avisarFuente(f, que);
-        if (std::strcmp(que, "alta") != 0) mx->avisarCambio(f);
-    });
-    connect(matriz_.get(), &audio::Matriz::cambio, this, &StudioViewModel::pflChanged);
-    // El Mezclador (la ventana propia): niveles de entradas y salidas, y su estado.
-    mezclador_ = std::make_unique<audio::Mezclador>(rt, matriz_.get());
-    mezclador_->setSalida(salidas_->activaId());
-    mezclador_->setRacks(racks_.get());
-    // Un barrido de calibración nunca con la emisión o la grabación en curso.
-    mezclador_->calibracion()->setAlAire([this] { return alAire(); });
-    // Una entrada de placa se abre si la trae la tarjeta «Entrada» de un rack, o si su
-    // propio rack tiene algo (un filtro, voz a texto): sin salida en la matriz igual
-    // tiene que llegarles el audio.
-    matriz_->setUsadasPorOtros([r = racks_.get()]() {
-        std::set<std::string> s = r->fuentesDeEntradas();
-        for (auto& f : r->fuentesConRack()) s.insert(f);
-        return s;
-    });
+    asistente_->conRacks(mezcla_->racks());
     // Las pistas que graba el programa (T29) quedan rotuladas en la Matriz.
-    connect(this, &StudioViewModel::statusChanged, this, [this]() {
-        const int mask = rt_.engine().pistasGrabacionMask();
-        for (int i = 1; i < audio::Matriz::kPistas; ++i)
-            matriz_->setUsoPista(i, (mask & (1 << i)) ? tr("grabación del programa").toStdString() : std::string());
-    });
-#endif
+    connect(this, &StudioViewModel::statusChanged, mezcla_.get(), &MezclaViewModel::revisarPistas);
     // Las etiquetas de video ("Invitado 2") pasan a ser el nombre real.
     connect(conference_.get(), &ConferenceViewModel::roomChanged, this,
             [this]() { frames_->setGuestNames(conference_->slotNames()); });
@@ -1155,7 +1108,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
 
 StudioViewModel::~StudioViewModel() {
     rt_.engine().alFallarMotor(nullptr);
-    rt_.engine().alCambiarAudioFuente(nullptr); // la matriz y el mezclador se van con la vista; el motor sigue
+    rt_.engine().alCambiarAudioFuente(nullptr); // la matriz y las tiras se van con la vista; el motor sigue
     rt_.dejarDeObservar(observadorRt_); // el runtime vive más que la vista
     // El runtime y los flujos de texto viven más que el evento: que no le
     // pregunten la carpeta a un EventoViewModel que ya no está.
@@ -1223,10 +1176,7 @@ void StudioViewModel::onTick() {
     // Señal de las entradas (multiview, escena de respaldo): una vez por segundo.
     if (vigiaTicks_ % 10 == 5) revisarSenales();
     // El vigía de los módulos de audio: lo que saltó por lento o colgado.
-    if (++vigiaTicks_ % 10 == 0 && racks_ != nullptr)
-        for (const auto& m : racks_->tomarSaltados())
-            emit notify(tr("Audio: «%1» se saltó por lento (pasa sin procesar). Rearmalo en Audio cuando esté bien.").arg(qs(m)),
-                        "warn");
+    if (++vigiaTicks_ % 10 == 0) mezcla_->vigilarModulos();
     // La interfaz volvió de una traba: cuánto duró (el aire no se cortó).
     if (const std::uint64_t ms = rt_.latido().tomarTrabaTerminada(); ms > 0)
         emit notify(tr("La interfaz estuvo trabada %1 s; el aire siguió").arg(ms / 1000.0, 0, 'f', 1), "warn");
@@ -1382,20 +1332,8 @@ QObject* StudioViewModel::modelos() const { return asistente_->modelosQml(); }
 QObject* StudioViewModel::descargas() const { return &net::Descargas::la(); }
 QObject* StudioViewModel::voz() const { return asistente_->vozQml(); }
 QObject* StudioViewModel::vozPrompter() const { return asistente_->vozPrompterQml(); }
-QObject* StudioViewModel::mezcladorQml() const {
-#if defined(BA_HAVE_CLAP)
-    return mezclador_.get();
-#else
-    return nullptr;
-#endif
-}
-QObject* StudioViewModel::matriz() const {
-#if defined(BA_HAVE_CLAP)
-    return matriz_.get();
-#else
-    return nullptr;
-#endif
-}
+QObject* StudioViewModel::mezcladorQml() const { return mezcla_->mezcladorQml(); }
+QObject* StudioViewModel::matriz() const { return mezcla_->matrizQml(); }
 QObject* StudioViewModel::camaras() const { return imagen_->camarasQml(); }
 QObject* StudioViewModel::tiempos() const { return imagen_->tiemposQml(); }
 QObject* StudioViewModel::resolucion() const { return imagen_->resolucionQml(); }
@@ -1423,12 +1361,10 @@ QObject* StudioViewModel::asistenteQml() const {
     return asistente_.get();
 }
 
-QObject* StudioViewModel::audio() const {
-#if defined(BA_HAVE_CLAP)
-    return audio_.get();
-#else
-    return nullptr;
-#endif
+QObject* StudioViewModel::audio() const { return mezcla_->audioQml(); }
+QObject* StudioViewModel::mezclaQml() const {
+    QQmlEngine::setObjectOwnership(mezcla_.get(), QQmlEngine::CppOwnership);
+    return mezcla_.get();
 }
 
 QObject* StudioViewModel::inputs() const { return inputs_.get(); }
@@ -1858,7 +1794,7 @@ void StudioViewModel::refrescarAvisos() {
                                  {MixerModel::VolumeDbRole, MixerModel::MutedRole});
     // Una entrada de audio nueva (audio_input_add del MCP, un plugin): la lista de
     // fuentes de la página Audio la muestra sin tener que volver a entrar.
-    if ((hubo(C::Audio) || hubo(C::Fuentes)) && audio_) audio_->revisarFuentes();
+    if (hubo(C::Audio) || hubo(C::Fuentes)) mezcla_->revisarFuentes();
     if (hubo(C::Escenas) || hubo(C::Aire)) {
         scenes_->liveChanged();
         emit sceneChanged();
@@ -1888,7 +1824,7 @@ void StudioViewModel::reflejarSalidaActiva() {
     scenes_->setArmada(escenaArmada());
     sources_->setScene(currentScene());
     mixer_->setSalida(activa);
-    if (mezclador_) mezclador_->setSalida(activa);
+    if (mezcla_) mezcla_->setSalida(activa);
     if (control_) control_->dsk().setSalida(activa);
     emit sceneChanged();
     emit afvChanged();
@@ -2243,48 +2179,6 @@ QString StudioViewModel::capitulosPuntosUi() const {
 
 namespace ba::app {
 
-
-QString StudioViewModel::balistica() const { return qs(rt_.config().balistica); }
-
-void StudioViewModel::setBalistica(const QString& b) {
-    const std::string v = b.toStdString();
-    if ((v != "pico" && v != "ppm" && v != "vu") || v == rt_.config().balistica) return;
-    rt_.config().balistica = v;
-    rt_.save();
-    emit balisticaChanged();
-}
-
-QString StudioViewModel::pfl() const { return qs(rt_.engine().pfl()); }
-
-QString StudioViewModel::pflUi(const QString& fuente) {
-    // Tocar la que está en PFL la apaga. Uno solo a la vez y sin tocar la escucha fija
-    // (Matriz::ponerPfl); el aviso llega por el motor (pflChanged).
-    return matriz_->ponerPfl(pfl() == fuente ? QString() : fuente);
-}
-
-int StudioViewModel::retardoUi(const QString& fuente) const { return rt_.engine().sourceSyncOffset(fuente.toStdString()); }
-
-QString StudioViewModel::setRetardoUi(const QString& fuente, int ms) {
-    if (!rt_.engine().setSourceSyncOffset(fuente.toStdString(), std::clamp(ms, -5000, 5000)))
-        return qs(rt_.engine().lastError());
-    rt_.save();
-    return {};
-}
-
-QString StudioViewModel::medirSincro(int segundos, std::function<void(const nlohmann::json&)> listo) {
-    if (rt_.engine().midiendoSincro()) return tr("ya se está midiendo");
-    if (!rt_.engine().empezarMedicionSincro()) return qs(rt_.engine().lastError());
-    QTimer::singleShot(std::clamp(segundos, 4, 30) * 1000, this, [this, listo = std::move(listo)]() {
-        listo(rt_.engine().terminarMedicionSincro());
-    });
-    return {};
-}
-
-QString StudioViewModel::medirSincroUi(int segundos) {
-    return medirSincro(segundos, [this](const nlohmann::json& r) {
-        emit medicionSincroLista(QJsonDocument::fromJson(QByteArray::fromStdString(r.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))).object().toVariantMap());
-    });
-}
 
 QString StudioViewModel::cupoUi(int n) { return QString::fromStdString(cupoSala_->cambiar(n)); }
 

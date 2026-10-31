@@ -1,6 +1,6 @@
 // Sincronizar un canal de audio con su video (sincro labios): el retardo del canal,
 // a mano o medido con aplausos. El mismo en la tarjeta del Mezclador, en su ventana
-// y en «Sincronía y red» (el modelo es Studio.retardoUi / setRetardoUi, como
+// y en «Sincronía y red» (el modelo es Studio.mezcla.retardoUi / setRetardoUi, como
 // audio_sincro del asistente).
 //
 // abrir(fuente) lo abre para ese canal; `aplicado` avisa para refrescar la vista.
@@ -19,7 +19,7 @@ Popup {
 
     function abrir(f) {
         fuente = f
-        ms = Studio.retardoUi(f)
+        ms = Studio.mezcla.retardoUi(f)
         retMs.value = ms
         resultado = ""
         open()
@@ -57,7 +57,7 @@ Popup {
                 compact: true; text: pop.midiendo ? qsTr("Midiendo… aplaudí") : qsTr("Medir con aplauso")
                 enabled: !pop.midiendo
                 onClicked: {
-                    const e = Studio.medirSincroUi(10)
+                    const e = Studio.mezcla.medirSincroUi(10)
                     if (e !== "") { Studio.notify(e, "error"); return }
                     pop.midiendo = true; pop.resultado = ""
                 }
@@ -67,7 +67,7 @@ Popup {
                          : qsTr("Con la cámara de este canal en el programa: 10 s para aplaudir 4 o 5 veces frente a ella, separadas.") }
         }
         Connections {
-            target: Studio
+            target: Studio.mezcla
             function onMedicionSincroLista(r) {
                 if (!pop.midiendo) return
                 pop.midiendo = false
@@ -86,7 +86,7 @@ Popup {
             GlassButton {
                 compact: true; active: true; text: qsTr("Aplicar")
                 onClicked: {
-                    const e = Studio.setRetardoUi(pop.fuente, retMs.value)
+                    const e = Studio.mezcla.setRetardoUi(pop.fuente, retMs.value)
                     if (e !== "") { Studio.notify(e, "error"); return }
                     pop.aplicado(pop.fuente, retMs.value)
                     pop.close()

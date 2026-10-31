@@ -2347,7 +2347,7 @@ void McpService::registerTools() {
                            {"aplicar_a", {{"type", "string"}}}}}};
         t.run = [&rt, &vm, persist](const json& a, Done done) {
             const std::string fuente = a.value("aplicar_a", std::string());
-            const QString e = vm.medirSincro(a.value("segundos", 10), [&rt, fuente, persist, done](const json& r0) {
+            const QString e = vm.mezcla().medirSincro(a.value("segundos", 10), [&rt, fuente, persist, done](const json& r0) {
                 json r = r0;
                 if (!fuente.empty() && r.value("confiable", false)) {
                     const int nuevo = std::clamp(rt.engine().sourceSyncOffset(fuente) + r.value("retardo_ms", 0), -5000, 5000);
@@ -2378,8 +2378,8 @@ void McpService::registerTools() {
         t.inputSchema = {{"type", "object"},
                          {"properties", {{"balistica", {{"type", "string"}, {"enum", {"pico", "ppm", "vu"}}}}}}};
         t.run = [&vm](const json& a, Done done) {
-            if (a.contains("balistica")) vm.setBalistica(QString::fromStdString(a.value("balistica", std::string("pico"))));
-            done(ToolResult().data(json{{"balistica", vm.balistica().toStdString()}}));
+            if (a.contains("balistica")) vm.mezcla().setBalistica(QString::fromStdString(a.value("balistica", std::string("pico"))));
+            done(ToolResult().data(json{{"balistica", vm.mezcla().balistica().toStdString()}}));
         };
         core_.addTool(std::move(t));
     }

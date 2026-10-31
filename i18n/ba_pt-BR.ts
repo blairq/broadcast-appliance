@@ -29920,11 +29920,6 @@ e ele abre de novo sozinho. Configuração, credenciais, gravações e arquivos 
         <translation>não respondeu</translation>
     </message>
     <message>
-        <location line="+136" />
-        <source>grabación del programa</source>
-        <translation>gravação do programa</translation>
-    </message>
-    <message>
         <location line="+14" />
         <source>Conferencia reiniciada con la configuración nueva.</source>
         <translation>Conferência reiniciada com a configuração nova.</translation>
@@ -29974,11 +29969,6 @@ e ele abre de novo sozinho. Configuração, credenciais, gravações e arquivos 
         <location line="+333" />
         <source>El disco de los eventos está al %1 % (quedan %2 GB)</source>
         <translation>O disco dos eventos está em %1 % (restam %2 GB)</translation>
-    </message>
-    <message>
-        <location line="+36" />
-        <source>Audio: «%1» se saltó por lento (pasa sin procesar). Rearmalo en Audio cuando esté bien.</source>
-        <translation>Áudio: “%1” foi pulado por lentidão (passa sem processar). Remonte-o em Áudio quando estiver bem.</translation>
     </message>
     <message>
         <location line="+4" />
@@ -30106,11 +30096,6 @@ e ele abre de novo sozinho. Configuração, credenciais, gravações e arquivos 
         <translation>Novo dia: a conferência tem PIN novo (%1)</translation>
     </message>
     <message>
-        <location line="+97" />
-        <source>ya se está midiendo</source>
-        <translation>já está sendo medido</translation>
-    </message>
-    <message>
         <location line="+20" />
         <source>La repetición no llegó a escribirse.</source>
         <translation>O replay não chegou a ser gravado.</translation>
@@ -30234,6 +30219,21 @@ e ele abre de novo sozinho. Configuração, credenciais, gravações e arquivos 
         <location line="+1" />
         <source>%1: %2 cierra la aplicación y %3.</source>
         <translation>%1: %2 fecha o aplicativo e %3.</translation>
+    </message>
+</context>
+<context>
+    <name>MezclaViewModel</name>
+    <message>
+        <source>grabación del programa</source>
+        <translation>gravação do programa</translation>
+    </message>
+    <message>
+        <source>Audio: «%1» se saltó por lento (pasa sin procesar). Rearmalo en Audio cuando esté bien.</source>
+        <translation>Áudio: “%1” foi pulado por lentidão (passa sem processar). Remonte-o em Áudio quando estiver bem.</translation>
+    </message>
+    <message>
+        <source>ya se está midiendo</source>
+        <translation>já está sendo medido</translation>
     </message>
 </context>
 <context>
