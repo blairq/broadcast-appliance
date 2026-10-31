@@ -437,85 +437,33 @@ Rectangle {
                             }
                         }
 
-                        // Cables
+                        // Cables (el de sidechain en ámbar; uno de canal suelto, más fino y con sus canales)
                         Repeater {
                             model: page.cables
-                            delegate: Item {
-                                id: cab
+                            delegate: CablePatchbay {
                                 required property var modelData
-                                readonly property point a: page.geo.portPos(modelData.desde, modelData.salida, false, modelData.canalSalida)
-                                readonly property point b: page.geo.portPos(modelData.hacia, modelData.entrada, true, modelData.canalEntrada)
-                                readonly property real ctl: page.geo.cableCtl(a, b)
-                                readonly property point mid: page.geo.cableMid(a, b)
                                 anchors.fill: parent
-                                Shape {
-                                    anchors.fill: parent
-                                    preferredRendererType: Shape.CurveRenderer
-                                    ShapePath {
-                                        strokeColor: modelData.entrada === "sc" ? "#f59e0b" : Qt.rgba(0.55, 0.75, 1, 0.9)
-                                        // Un cable de canal suelto se dibuja mas fino que uno de puerto entero.
-                                        strokeWidth: cab.modelData.canalSalida >= 0 ? 2 : 3
-                                        capStyle: ShapePath.RoundCap
-                                        fillColor: "transparent"
-                                        startX: cab.a.x; startY: cab.a.y
-                                        PathCubic {
-                                            x: cab.b.x; y: cab.b.y
-                                            control1X: cab.a.x + cab.ctl; control1Y: cab.a.y
-                                            control2X: cab.b.x - cab.ctl; control2Y: cab.b.y
-                                        }
-                                    }
-                                }
-                                Rectangle {
-                                    x: cab.mid.x - 10
-                                    y: cab.mid.y - 10
-                                    width: 20; height: 20; radius: 10
-                                    color: xMa.containsMouse ? Theme.live : Qt.rgba(0.1, 0.12, 0.18, 0.9)
-                                    border.color: Qt.rgba(1, 1, 1, 0.3)
-                                    Text { anchors.centerIn: parent; text: "✕"; color: "white"; font.pixelSize: 10 }
-                                    // Que canal lleva, cuando no es el puerto entero.
-                                    Text {
-                                        anchors { bottom: parent.top; horizontalCenter: parent.horizontalCenter }
-                                        visible: cab.modelData.canalSalida >= 0
-                                        text: page.chName(cab.modelData.canalSalida) + "→" + page.chName(cab.modelData.canalEntrada)
-                                        color: Theme.textFaint; font { pixelSize: 9; weight: Font.DemiBold }
-                                    }
-                                    MouseArea {
-                                        id: xMa
-                                        anchors.fill: parent
-                                        hoverEnabled: true
-                                        cursorShape: Qt.PointingHandCursor
-                                        onClicked: page.au.disconnectPorts(cab.modelData.desde, cab.modelData.salida, cab.modelData.hacia, cab.modelData.entrada, cab.modelData.canalSalida, cab.modelData.canalEntrada)
-                                        ToolTip.visible: containsMouse; ToolTip.text: qsTr("Quitar el cable")
-                                    }
-                                }
+                                geo: page.geo
+                                a: page.geo.portPos(modelData.desde, modelData.salida, false, modelData.canalSalida)
+                                b: page.geo.portPos(modelData.hacia, modelData.entrada, true, modelData.canalEntrada)
+                                color: modelData.entrada === "sc" ? "#f59e0b" : Qt.rgba(0.55, 0.75, 1, 0.9)
+                                grosor: modelData.canalSalida >= 0 ? 2 : 3
+                                etiqueta: modelData.canalSalida >= 0 ? page.chName(modelData.canalSalida) + "→" + page.chName(modelData.canalEntrada) : ""
+                                onQuitar: page.au.disconnectPorts(modelData.desde, modelData.salida, modelData.hacia, modelData.entrada,
+                                                                  modelData.canalSalida, modelData.canalEntrada)
                             }
                         }
 
-                        // Cable en construccion
-                        Shape {
+                        // Cable en construcción
+                        CablePatchbay {
                             anchors.fill: parent
                             visible: page.wire !== null
-                            preferredRendererType: Shape.CurveRenderer
-                            ShapePath {
-                                strokeColor: Theme.ok
-                                strokeWidth: 3
-                                strokeStyle: ShapePath.DashLine
-                                fillColor: "transparent"
-                                capStyle: ShapePath.RoundCap
-                                startX: page.wire ? page.wire.x0 : 0
-                                startY: page.wire ? page.wire.y0 : 0
-                                PathCubic {
-                                    readonly property real d: page.wire
-                                        ? page.geo.cableCtl(Qt.point(page.wire.x0, page.wire.y0),
-                                                        Qt.point(page.wire.x1, page.wire.y1)) : 60
-                                    x: page.wire ? page.wire.x1 : 0
-                                    y: page.wire ? page.wire.y1 : 0
-                                    control1X: page.wire ? page.wire.x0 + d : 0
-                                    control1Y: page.wire ? page.wire.y0 : 0
-                                    control2X: page.wire ? page.wire.x1 - d : 0
-                                    control2Y: page.wire ? page.wire.y1 : 0
-                                }
-                            }
+                            geo: page.geo
+                            quitable: false
+                            punteado: true
+                            color: Theme.ok
+                            a: page.wire ? Qt.point(page.wire.x0, page.wire.y0) : Qt.point(0, 0)
+                            b: page.wire ? Qt.point(page.wire.x1, page.wire.y1) : Qt.point(0, 0)
                         }
 
                         // Nodos

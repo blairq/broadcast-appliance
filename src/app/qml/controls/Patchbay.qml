@@ -179,81 +179,37 @@ Rectangle {
             // Cables
             Repeater {
                 model: pb.cables
-                delegate: Item {
+                delegate: CablePatchbay {
                     id: cab
                     required property var modelData
-                    readonly property point a: pb.geo.portPos(modelData.desde, modelData.salida, false)
-                    readonly property point b: pb.geo.portPos(modelData.hacia, modelData.entrada, true)
-                    readonly property real ctl: pb.geo.cableCtl(a, b)
-                    readonly property point mid: pb.geo.cableMid(a, b)
                     readonly property bool control: pb.tipoPuerto(modelData.desde, modelData.salida, false) === "control"
                     readonly property bool cruza: {
                         const d = pb.geo.nodeOf(modelData.desde), h = pb.geo.nodeOf(modelData.hacia)
                         return !!(d && d.externo) || !!(h && h.externo)
                     }
                     anchors.fill: parent
-                    Shape {
-                        anchors.fill: parent
-                        preferredRendererType: Shape.CurveRenderer
-                        ShapePath {
-                            // Un cable que sale de (o va a) otra parte del grafo, en otro tono.
-                            // El de control (un controlador que maneja la tarjeta), ámbar y punteado.
-                            strokeColor: cab.control ? pb.colorControl : cab.cruza ? Qt.rgba(0.78, 0.6, 1, 0.9) : Qt.rgba(0.55, 0.75, 1, 0.9)
-                            strokeWidth: cab.control ? 2 : 3
-                            strokeStyle: cab.control ? ShapePath.DashLine : ShapePath.SolidLine
-                            dashPattern: [4, 3]
-                            capStyle: ShapePath.RoundCap
-                            fillColor: "transparent"
-                            startX: cab.a.x; startY: cab.a.y
-                            PathCubic {
-                                x: cab.b.x; y: cab.b.y
-                                control1X: cab.a.x + cab.ctl; control1Y: cab.a.y
-                                control2X: cab.b.x - cab.ctl; control2Y: cab.b.y
-                            }
-                        }
-                    }
-                    Rectangle {
-                        x: cab.mid.x - 10
-                        y: cab.mid.y - 10
-                        width: 20; height: 20; radius: 10
-                        color: xMa.containsMouse ? Theme.live : Qt.rgba(0.1, 0.12, 0.18, 0.9)
-                        border.color: Qt.rgba(1, 1, 1, 0.3)
-                        Text { anchors.centerIn: parent; text: "✕"; color: "white"; font.pixelSize: 10 }
-                        MouseArea {
-                            id: xMa
-                            anchors.fill: parent
-                            hoverEnabled: true
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: pb.desconectar(cab.modelData.desde, cab.modelData.salida, cab.modelData.hacia, cab.modelData.entrada)
-                            ToolTip.visible: containsMouse; ToolTip.text: qsTr("Quitar el cable")
-                        }
-                    }
+                    geo: pb.geo
+                    a: pb.geo.portPos(modelData.desde, modelData.salida, false)
+                    b: pb.geo.portPos(modelData.hacia, modelData.entrada, true)
+                    // Un cable que sale de (o va a) otra parte del grafo, en otro tono.
+                    // El de control (un controlador que maneja la tarjeta), ámbar y punteado.
+                    color: control ? pb.colorControl : cruza ? Qt.rgba(0.78, 0.6, 1, 0.9) : Qt.rgba(0.55, 0.75, 1, 0.9)
+                    grosor: control ? 2 : 3
+                    punteado: control
+                    onQuitar: pb.desconectar(modelData.desde, modelData.salida, modelData.hacia, modelData.entrada)
                 }
             }
 
             // Cable en construcción
-            Shape {
+            CablePatchbay {
                 anchors.fill: parent
                 visible: pb.wire !== null
-                preferredRendererType: Shape.CurveRenderer
-                ShapePath {
-                    strokeColor: pb.wire && pb.wire.tipo === "control" ? pb.colorControl : Theme.ok
-                    strokeWidth: 3
-                    strokeStyle: ShapePath.DashLine
-                    fillColor: "transparent"
-                    capStyle: ShapePath.RoundCap
-                    startX: pb.wire ? pb.wire.x0 : 0
-                    startY: pb.wire ? pb.wire.y0 : 0
-                    PathCubic {
-                        readonly property real d: pb.wire ? pb.geo.cableCtl(Qt.point(pb.wire.x0, pb.wire.y0), Qt.point(pb.wire.x1, pb.wire.y1)) : 60
-                        x: pb.wire ? pb.wire.x1 : 0
-                        y: pb.wire ? pb.wire.y1 : 0
-                        control1X: pb.wire ? pb.wire.x0 + d : 0
-                        control1Y: pb.wire ? pb.wire.y0 : 0
-                        control2X: pb.wire ? pb.wire.x1 - d : 0
-                        control2Y: pb.wire ? pb.wire.y1 : 0
-                    }
-                }
+                geo: pb.geo
+                quitable: false
+                punteado: true
+                color: pb.wire && pb.wire.tipo === "control" ? pb.colorControl : Theme.ok
+                a: pb.wire ? Qt.point(pb.wire.x0, pb.wire.y0) : Qt.point(0, 0)
+                b: pb.wire ? Qt.point(pb.wire.x1, pb.wire.y1) : Qt.point(0, 0)
             }
 
             // Tarjetas
