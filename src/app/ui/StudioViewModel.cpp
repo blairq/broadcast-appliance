@@ -534,7 +534,12 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     rotulador_->setVinculos(vinculos_.get());
     evento_->setVinculos(vinculos_.get());
     evento_->setCarruseles(carruseles_.get());
-    evento_->setConmutador(conmutador_);
+    // La línea de tiempo: el conmutador de cada salida y lo que mandan sus piezas (L6/L7).
+    // Se pide cada vez: varios de estos se crean más abajo.
+    evento_->setSistema([this]() {
+        return EventoViewModel::Sistema{conmutadores_.get(), bus_.get(),        dsk_.get(),     camaras_.get(),
+                                        ordenDia_.get(),     votaciones_.get(), playlist_.get()};
+    });
 
     {
         // Mirar la carpeta es leer disco y parsear JSON ajeno: si eso se

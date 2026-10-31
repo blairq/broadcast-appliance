@@ -32,6 +32,7 @@
 
 #include <functional>
 #include <map>
+#include <set>
 
 #include <nlohmann/json.hpp>
 #include <QJsonArray>
@@ -57,6 +58,21 @@ class Vinculos;
 } // namespace graficos
 namespace escenas {
 class Conmutador;
+class Conmutadores;
+} // namespace escenas
+namespace control {
+class BusEventos;
+class Dsk;
+} // namespace control
+namespace ptz {
+class ControlCamaras;
+}
+namespace asamblea {
+class OrdenDelDia;
+class Votaciones;
+} // namespace asamblea
+namespace medios {
+class Playlist;
 }
 
 class EventoViewModel : public QObject {
@@ -328,9 +344,22 @@ class EventoViewModel : public QObject {
     void setVinculos(graficos::Vinculos* v) { vinculos_ = v; }
     /// Los carruseles, para el cue «carrusel» (ver CarruselViewModel::mostrar).
     void setCarruseles(CarruselViewModel* c) { carruseles_ = c; }
-    /// La mesa de corte: el cue «escena» se arma en el PVW y entra con TAKE (ver
-    /// armarSiguiente). Con varias salidas, por ahora la de la salida por omisión.
-    void setConmutador(escenas::Conmutador* c) { conmutador_ = c; }
+    /// Lo que la línea maneja además del guion (L6/L7, docs/planes/PLAN-LINEA-DE-TIEMPO.md
+    /// 3.4 y 3.6): la mesa de corte DE CADA SALIDA (el cue «escena» se arma en el PVW de
+    /// su salida y entra con TAKE), el bus (las condiciones y lo hecho «a mano»), las
+    /// capas DSK, las cámaras PTZ, el orden del día, las votaciones y la playlist.
+    /// Lo pone StudioViewModel; se pide cada vez (algunos se crean después que esto) y
+    /// cualquiera puede faltar: la pieza que lo necesita lo dice y la línea sigue.
+    struct Sistema {
+        escenas::Conmutadores* conmutadores = nullptr;
+        control::BusEventos* bus = nullptr;
+        control::Dsk* dsk = nullptr;
+        ptz::ControlCamaras* camaras = nullptr;
+        asamblea::OrdenDelDia* ordenDelDia = nullptr;
+        asamblea::Votaciones* votaciones = nullptr;
+        medios::Playlist* playlist = nullptr;
+    };
+    void setSistema(std::function<Sistema()> f) { sistema_ = std::move(f); }
     /// Lo que se sabe de YouTube, Twitch y Facebook para «dónde verlo en vivo» de la
     /// página web (ver evento::armarVivos). Lo pone StudioViewModel.
     void setPlataformas(std::function<nlohmann::json()> f) { plataformas_ = std::move(f); }
@@ -409,6 +438,22 @@ class EventoViewModel : public QObject {
     std::string lineaRetomar(const std::string& descripcion, bool simular);
     /// linea_soltar: suelta el HOLD del corte con lo que se decidió. "" o por qué no.
     std::string lineaSoltar(const std::string& decision);
+    /// Un pulso para las condiciones de la línea («tecla:F5», «botonera:<id>»,
+    /// «web:<botón>»): los atajos, la botonera y la web lo mandan. "" o por qué no.
+    std::string lineaPulso(const std::string& clave);
+    /// La salida quedó «a mano» (alguien cambió la escena fuera de la línea): vuelve a
+    /// la escena del paso al aire. "" o por qué no.
+    std::string lineaReenganchar(const std::string& salida);
+    /// Una pieza PTZ que esperaba (la cámara estaba al aire en alguna salida): «mover»
+    /// (igual, ya), «esperar» (a que se libere: lo de siempre) o «saltar». "" o por qué no.
+    std::string lineaPtz(const std::string& pieza, const std::string& decision);
+    Q_INVOKABLE QString pulsar(const QString& clave) { return QString::fromStdString(lineaPulso(clave.toStdString())); }
+    Q_INVOKABLE QString reenganchar(const QString& salida) {
+        return QString::fromStdString(lineaReenganchar(salida.toStdString()));
+    }
+    Q_INVOKABLE QString decidirPtz(const QString& pieza, const QString& decision) {
+        return QString::fromStdString(lineaPtz(pieza.toStdString(), decision.toStdString()));
+    }
 
     /// Ensayo acelerado: recorre el guion ENTERO de una, sin esperar las
     /// duraciones y sin tocar nada, y dice de cada cue si se podria ejecutar.
@@ -528,21 +573,50 @@ class EventoViewModel : public QObject {
     void despachar(const std::vector<evento::linea::Accion>& acc);
     /// Una acción en el aire (la llama el ejecutor de su salida). En ensayo no toca nada.
     void hacerAccion(const evento::linea::Accion& a);
-    /// Ejecuta un cue (lo que hace una pieza de un tipo del v1). `clave` la identifica
-    /// para poder sacarla después.
-    void ejecutarCue(const evento::Cue& c, const std::string& paso, const std::string& clave);
+    /// Ejecuta un cue (lo que hace una pieza de un tipo del v1) en `salida`. `clave` la
+    /// identifica para poder sacarla después. `global`: su pista no es de una salida (el
+    /// audio de una pista global va a la mezcla de todas).
+    void ejecutarCue(const evento::Cue& c, const std::string& paso, const std::string& clave, const std::string& salida,
+                     bool global);
     /// Saca una pieza que se terminó (un gráfico con su salida; la música que puso).
     void sacarPieza(const evento::linea::Accion& a);
     /// El LOOKAHEAD: deja la escena armada en el PVW, así el operador ve lo que va a
     /// entrar y el TAKE es inmediato.
-    void armarEscena(const std::string& escena);
+    void armarEscena(const std::string& escena, const std::string& salida);
     /// Pone al aire la escena de un cue por el PVW: la arma (si el lookahead no la
     /// dejó armada) y hace TAKE con la transición del cue o la de entrada de la
     /// escena. "" o por qué no.
-    std::string tomarEscena(const std::string& escena, const nlohmann::json& datos);
+    std::string tomarEscena(const std::string& escena, const nlohmann::json& datos, const std::string& salida);
     /// Saca (con su salida) los gráficos que puso el guion y «se van al avanzar»
-    /// según su ficha (títulos, placas): se llama al entrar otro paso.
-    void sacarAlAvanzar();
+    /// según su ficha (títulos, placas): se llama al entrar otro paso en esa salida
+    /// (vacía: en todas).
+    void sacarAlAvanzar(const std::string& salida = {});
+
+    // --- L6/L7 (EventoViewModelLinea.cpp) ---------------------------------------------
+    Sistema sistema() const { return sistema_ ? sistema_() : Sistema{}; }
+    /// El conmutador de la salida de la línea (nullptr si el motor no la tiene).
+    escenas::Conmutador* conmutador(const std::string& salida) const;
+    /// Se engancha a lo que la línea mira (una vez por cosa): los temas del bus que
+    /// usan las condiciones (con su último valor), el aire de cada salida (lo «a mano»
+    /// y las PTZ que esperan), el orden del día y la playlist. Tras nuevaCorrida.
+    void enchufar();
+    /// Los temas del bus de las condiciones de la corrida, al día (suscribe los que faltan).
+    void vigilarTemas();
+    /// La escena de una salida cambió: ¿fue a mano? ¿se liberó una cámara?
+    void alAireCambio(const std::string& salida, const std::string& escena);
+    /// El orden del día cambió: re-expande los bloques que salen de él (sin tocar lo emitido).
+    void expandirOrdenDelDia();
+    /// Las piezas que no son del v1: ptz, dsk, asamblea, playlist. true si era una de esas.
+    bool ejecutarPiezaLinea(const evento::linea::Pieza& z, const evento::linea::Accion& a, const QString& titulo);
+    void moverPtz(const std::string& clave, bool forzar);
+    /// Mira cada 250 ms los medios de las piezas que terminan con su medio (solo mientras haya).
+    void vigilarMedios();
+    /// "«sala» · texto" cuando hay más de una salida (la bitácora es una sola).
+    QString enSalida(const std::string& salida, const QString& texto) const;
+    /// El nombre del medio de la música y de la escena/fuente del video de cada salida.
+    std::string musicaDe(const std::string& salida) const;
+    std::string escenaVideoDe(const std::string& salida) const;
+    std::string videoDe(const std::string& salida) const;
     /// La línea cambió por el guion de cues (las ediciones de la página y de
     /// `guion_*`): reconcilia, vuelve a leer el guion y se lo pasa a la corrida.
     void lineaDesdeGuion();
@@ -597,7 +671,7 @@ class EventoViewModel : public QObject {
     /// Ruta de un medio (musica o video), siempre dentro de Medios/.
     /// Se asegura de que exista la escena del video con su fuente adentro, y
     /// la deja protegida. Devuelve false si no se pudo (ya lo anoto).
-    bool prepararEscenaDeVideo();
+    bool prepararEscenaDeVideo(const std::string& salida);
     QString medioPath(const QString& rel) const;
     /// Ruta de `rel` dentro de `sub` en la carpeta del evento, o vacia si se
     /// sale de ahi.
@@ -622,14 +696,34 @@ class EventoViewModel : public QObject {
     graficos::Emisor* graficos_ = nullptr;
     /// Los gráficos al aire que se van cuando entra otro paso: la fuente y la generación
     /// con que se pusieron (si después se puso otra cosa ahí, no se toca).
-    std::vector<std::pair<std::uint64_t, int>> alAvanzar_;
+    std::map<std::string, std::vector<std::pair<std::uint64_t, int>>> alAvanzar_; ///< por salida
     /// Los gráficos que puso cada pieza (por su clave), para sacarlos cuando se
-    /// termina su vida; y la pieza que puso la música que suena.
+    /// termina su vida; la pieza que puso la música que suena en cada salida; la capa
+    /// DSK que subió cada pieza ({capa, salida}).
     std::map<std::string, std::pair<std::uint64_t, int>> graficosDePieza_;
-    std::string musicaDePieza_;
+    std::map<std::string, std::string> musicaDePieza_; ///< salida → clave de la pieza
+    std::map<std::string, std::pair<int, std::string>> dskDePieza_;
+    /// Las PTZ que esperan a que su cámara salga del aire (clave → lo que hace falta).
+    struct PtzPendiente {
+        std::string salida, paso, pieza, camara, posicion;
+        double segundos = -1;
+        int64_t desdeMs = 0;
+    };
+    std::map<std::string, PtzPendiente> ptzPendientes_;
+    /// Los medios que se miran para «medio:<pieza>.termino»: pieza → el nombre del medio
+    /// (y las que ya se vieron andar: un medio que todavía no arrancó no «terminó»). La
+    /// playlist va aparte: avisa ella.
+    std::map<std::string, std::string> mediosVigilados_;
+    std::set<std::string> mediosAndando_;
+    std::string playlistDePieza_; ///< la pieza que arrancó la playlist (su fin es el de la playlist)
+    bool playlistAndando_ = false;
+    std::set<const QObject*> enchufados_; ///< a qué ya se conectó enchufar() (una vez cada uno)
+    QTimer vigiaMedios_;
+    std::map<std::string, int> suscripciones_; ///< tema del bus → id
+    int cambiandoEscena_ = 0; ///< > 0: la escena la está cambiando la línea (no es «a mano»)
+    std::function<Sistema()> sistema_;
     graficos::Vinculos* vinculos_ = nullptr;
     CarruselViewModel* carruseles_ = nullptr;
-    escenas::Conmutador* conmutador_ = nullptr;
     evento::EventoStore store_;
     evento::Evento e_;
     evento::Padron padron_;

@@ -6,6 +6,11 @@
 // el nombre de cada capa, qué tiene, si es FIJA (la de LSA: bajarla pide
 // confirmación y no se baja sola), el fundido y si estaba arriba (se restaura
 // al volver a abrir el programa). Config/dsk.json.
+//
+// Las capas se DEFINEN una vez y valen para todas las salidas (PLAN-SALIDAS);
+// cada salida las sube y las baja por su cuenta (la línea de tiempo sube el logo
+// en la principal y no en la sala). Lo de la por omisión va en `visible`; lo de
+// las demás, en `visible_en: {<salida>: true}`, y vuelve igual tras un corte.
 #pragma once
 
 #include <QObject>
@@ -34,8 +39,9 @@ class Dsk : public QObject {
     json capas() const;
     /// Define la capa (1..4). `def`: {nombre?, contenido?[] (escenas o fuentes), recuadro?, fijo?, transicion_ms?}.
     std::string definir(int capa, const json& def);
-    /// Sube o baja. Bajar una fija necesita `confirmada` (la confirmación de una persona).
-    std::string mostrar(int capa, bool visible, bool confirmada);
+    /// Sube o baja en `salida` (vacía: la por omisión). Bajar una fija necesita
+    /// `confirmada` (la confirmación de una persona).
+    std::string mostrar(int capa, bool visible, bool confirmada, const std::string& salida = {});
     /// La plantilla «Intérprete LSA»: la `entrada` en un recuadro abajo a la derecha, fija.
     std::string plantillaLsa(int capa, const std::string& entrada, const std::string& posicion, double tamano);
     /// Al arrancar: vuelve a armar las capas y sube las que estaban arriba (sin fundido).

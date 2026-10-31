@@ -17,6 +17,9 @@
 //   alarma/<id>                                   alarmas de los disparadores
 //   entrada/senal                                 entradas sin señal
 //   oradores/al_aire                              la banca o el orador al aire
+//   sesion/punto, sesion/votacion                 el punto en tratamiento; el resultado oficial
+//   votacion/estado                               {estado: sin|abierta|pausada|cerrada, numero, tema}
+//   votacion/abierta, votacion/cerrada            true/false (las condiciones de la línea de tiempo)
 //   sala/participantes                            la sala de invitados
 //
 // Cada tema guarda su último valor (para que el que se conecta tarde se ponga

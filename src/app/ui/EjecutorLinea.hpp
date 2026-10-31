@@ -12,8 +12,8 @@
 //     z7», «armar Cam 2 en el PVW») lo hace `hacer`, que pone quien sabe hacerlo
 //     (EventoViewModel: el conmutador, los gráficos, la música, la sala…).
 //
-// Hoy hay una salida que sale de verdad (la por omisión). Con varias (PLAN-SALIDAS)
-// cada ejecutor va a tener su conmutador; la estructura ya es por salida.
+// Cada salida sale de verdad (L6): lo que hace `hacer` va al conmutador, la mezcla y
+// las capas de SU salida (EventoViewModel::hacerAccion mira la salida de la acción).
 // ============================================================================
 #pragma once
 

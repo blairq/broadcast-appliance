@@ -39,6 +39,14 @@
 #include "diag/Registro.hpp"
 #include "emision/BroadcastEngine.hpp"
 #include "escenas/Conmutador.hpp"
+#include "asamblea/OrdenDelDia.hpp"
+#include "asamblea/Votaciones.hpp"
+#include "control/BusEventos.hpp"
+#include "control/Dsk.hpp"
+#include "evento/Condicion.hpp"
+#include "evento/LineaPlantillas.hpp"
+#include "medios/Playlist.hpp"
+#include "ptz/ControlCamaras.hpp"
 #include "graficos/Emisor.hpp"
 #include "graficos/GraficoSource.hpp"
 #include "graficos/Vinculos.hpp"
@@ -689,6 +697,9 @@ bool EventoViewModel::abrir(const QString& carpeta) {
     // mejoró, se ve ya) y se crean las que falten. Lo editado no se toca. Los datos no
     // están en los archivos: los publica la app (publicarWeb) y la página los dibuja.
     asegurarWebBase();
+    // Lo que la línea mira afuera; un bloque del orden del día se arma ya (si el resto
+    // de la app todavía no está, se arma al correr).
+    enchufar();
     emit padronChanged();
     emit guionChanged();
     emit sucioChanged();
@@ -1875,6 +1886,10 @@ void EventoViewModel::nuevaCorrida() {
     cursor_ = {};
     graficosDePieza_.clear();
     musicaDePieza_.clear();
+    dskDePieza_.clear();
+    ptzPendientes_.clear();
+    mediosVigilados_.clear();
+    playlistDePieza_.clear();
     // Un ejecutor por salida: su timer va a la hora justa de lo que le toca. El tick
     // es uno para todas (la corrida las resuelve juntas).
     for (const std::string& s : linea_.salidasEfectivas()) {
@@ -1885,6 +1900,9 @@ void EventoViewModel::nuevaCorrida() {
         });
         ejecutores_[s] = std::move(e);
     }
+    // Lo que la línea mira afuera (el bus, el aire de cada salida, el orden del día).
+    enchufar();
+    vigilarTemas();
 }
 
 void EventoViewModel::despachar(const std::vector<Accion>& acc) {
@@ -2027,6 +2045,9 @@ evento::linea::Entrada EventoViewModel::entradaBase(bool hoy) const {
     e.medianocheMs = QDateTime(dia, QTime(0, 0), z).toMSecsSinceEpoch();
     if (evento::horaValida(e_.inicio))
         e.inicioPlaneadoMs = QDateTime(dia, QTime::fromString(QString::fromStdString(e_.inicio), "HH:mm"), z).toMSecsSinceEpoch();
+    // Las cámaras de cada escena, para los conflictos de PTZ entre salidas: las fuentes
+    // de la escena (una cámara es una entrada, y una PTZ nombra la suya).
+    e.camarasDeEscena = [this](const std::string& escena) { return rt_.engine().sceneSources(escena); };
     return e;
 }
 
@@ -2049,12 +2070,14 @@ void EventoViewModel::lineaDesdeGuion() {
     proyeccion_ = evento::linea::proyectar(linea_);
     e_.bloques = proyeccion_.bloques;
     if (corrida_) corrida_->setLinea(linea_);
+    vigilarTemas();
 }
 
 void EventoViewModel::guionDesdeLinea() {
     proyeccion_ = evento::linea::proyectar(linea_);
     e_.bloques = proyeccion_.bloques;
     if (corrida_) corrida_->setLinea(linea_);
+    vigilarTemas();
     if (!sucio_) {
         sucio_ = true;
         emit sucioChanged();
@@ -2208,6 +2231,13 @@ json EventoViewModel::lineaEstado() const {
     j["evento"] = abierto_.toStdString();
     j["ensayo"] = ensayo_;
     j["salidaPorOmision"] = salidaPorOmision();
+    // Las PTZ que esperan que su cámara salga del aire: «mover igual» o «dejar para
+    // cuando se libere» (lineaPtz).
+    json ptz = json::array();
+    for (const auto& [clave, x] : ptzPendientes_)
+        ptz.push_back({{"pieza", x.pieza}, {"paso", x.paso}, {"salida", x.salida}, {"camara", x.camara}, {"posicion", x.posicion},
+                       {"desde", horaDe(x.desdeMs)}});
+    j["ptzPendientes"] = ptz;
     return j;
 }
 
@@ -2479,30 +2509,32 @@ QString EventoViewModel::carpetaDeDiscursos() const {
     return QString::fromStdString((store_.carpetaDe(abierto_.toStdString()) / "Discursos").string());
 }
 
-bool EventoViewModel::prepararEscenaDeVideo() {
+bool EventoViewModel::prepararEscenaDeVideo(const std::string& salida) {
+    // Una por salida (la por omisión, la de siempre): cada salida pasa su video.
+    const std::string escenaV = escenaVideoDe(salida), fuenteV = videoDe(salida);
     const auto escenas = rt_.engine().sceneNames();
-    const bool existe = std::find(escenas.begin(), escenas.end(), kEscenaVideo) != escenas.end();
+    const bool existe = std::find(escenas.begin(), escenas.end(), escenaV) != escenas.end();
     if (!existe) {
-        if (!rt_.addScene(kEscenaVideo)) {
+        if (!rt_.addScene(escenaV)) {
             anotar(tr("No se pudo crear la escena del video: %1").arg(QString::fromStdString(rt_.lastError())),
                    "error");
             return false;
         }
         // Protegida: si alguien la borra, todos los cues de video del guion
         // dejan de funcionar y no es obvio por qué.
-        rt_.setSceneProtected(kEscenaVideo, true);
-        anotar(tr("Creé la escena «%1» para los videos").arg(QString::fromStdString(kEscenaVideo)), "info");
+        rt_.setSceneProtected(escenaV, true);
+        anotar(tr("Creé la escena «%1» para los videos").arg(QString::fromStdString(escenaV)), "info");
     }
     // La fuente de video: se crea una vez y después solo se le cambia el
     // archivo. Ocupa el cuadro entero, que es lo que uno espera de un video.
-    const auto fuentes = rt_.engine().sceneSources(kEscenaVideo);
-    if (std::find(fuentes.begin(), fuentes.end(), kVideo) == fuentes.end()) {
+    const auto fuentes = rt_.engine().sceneSources(escenaV);
+    if (std::find(fuentes.begin(), fuentes.end(), fuenteV) == fuentes.end()) {
         SourceSpec spec;
         spec.id = inputs::kMedioType;
-        spec.name = kVideo;
+        spec.name = fuenteV;
         spec.rect = CanvasRect{0.0, 0.0, 1.0, 1.0};
         spec.settingsJson = R"({"clear_on_media_end":true})";
-        if (!rt_.addSource(kEscenaVideo, spec)) {
+        if (!rt_.addSource(escenaV, spec)) {
             anotar(tr("No se pudo crear la fuente de video: %1").arg(QString::fromStdString(rt_.lastError())),
                    "error");
             return false;
@@ -2527,33 +2559,45 @@ QString EventoViewModel::medioPath(const QString& rel) const {
     return dentroDelEvento("Medios", rel);
 }
 
-void EventoViewModel::sacarAlAvanzar() {
+void EventoViewModel::sacarAlAvanzar(const std::string& salida) {
     if (graficos_ == nullptr) return;
-    for (const auto& [fuente, gen] : alAvanzar_) graficos_->sacar(fuente, gen);
-    alAvanzar_.clear();
+    for (auto it = alAvanzar_.begin(); it != alAvanzar_.end();) {
+        if (!salida.empty() && it->first != salida) {
+            ++it;
+            continue;
+        }
+        for (const auto& [fuente, gen] : it->second) graficos_->sacar(fuente, gen);
+        it = alAvanzar_.erase(it);
+    }
 }
 
-std::string EventoViewModel::tomarEscena(const std::string& escena, const nlohmann::json& datos) {
+std::string EventoViewModel::tomarEscena(const std::string& escena, const nlohmann::json& datos, const std::string& salida) {
     if (escena.empty()) return tr("el cue no dice qué escena poner").toStdString();
-    if (conmutador_ == nullptr) return tr("no hay conmutador de escenas").toStdString();
+    escenas::Conmutador* c = conmutador(salida);
+    if (c == nullptr) return tr("la salida «%1» no tiene conmutador de escenas").arg(QString::fromStdString(salida)).toStdString();
     // Ya al aire (la puso el operador a mano, o la repite el cue): no hay nada que tomar.
-    if (conmutador_->alAire() == escena) return {};
-    if (conmutador_->armada() != escena)
-        if (std::string e = conmutador_->armar(escena); !e.empty()) return e;
+    if (c->alAire() == escena) return {};
+    // Lo cambia la línea: no es «a mano».
+    ++cambiandoEscena_;
+    std::string e;
+    if (c->armada() != escena) e = c->armar(escena);
     // La transición del cue si dice; si no, la de entrada de la escena (o la global).
-    return conmutador_->take(datos.value("transicion", std::string()), datos.value("ms", -1));
+    if (e.empty()) e = c->take(datos.value("transicion", std::string()), datos.value("ms", -1));
+    --cambiandoEscena_;
+    return e;
 }
 
-void EventoViewModel::armarEscena(const std::string& escena) {
-    if (ensayo_ || conmutador_ == nullptr) return;
+void EventoViewModel::armarEscena(const std::string& escena, const std::string& salida) {
+    escenas::Conmutador* c = conmutador(salida);
+    if (ensayo_ || c == nullptr) return;
     // La que ya está al aire no se arma (el TAKE no tendría sentido) y la ya armada, tampoco.
-    if (escena.empty() || escena == conmutador_->alAire() || escena == conmutador_->armada()) return;
-    if (const std::string e = conmutador_->armar(escena); !e.empty()) {
-        anotar(tr("No se pudo armar «%1» en el PVW: %2").arg(QString::fromStdString(escena), QString::fromStdString(e)),
+    if (escena.empty() || escena == c->alAire() || escena == c->armada()) return;
+    if (const std::string e = c->armar(escena); !e.empty()) {
+        anotar(enSalida(salida, tr("No se pudo armar «%1» en el PVW: %2").arg(QString::fromStdString(escena), QString::fromStdString(e))),
                "error");
         return;
     }
-    anotar(tr("Armada en el PVW: %1").arg(QString::fromStdString(escena)), "info");
+    anotar(enSalida(salida, tr("Armada en el PVW: %1").arg(QString::fromStdString(escena))), "info");
 }
 
 evento::Cue EventoViewModel::cueDePieza(const evento::linea::Pieza& z, const std::string& paso) const {
@@ -2573,29 +2617,28 @@ evento::Cue EventoViewModel::cueDePieza(const evento::linea::Pieza& z, const std
 
 void EventoViewModel::hacerAccion(const Accion& a) {
     if (!corrida_) return;
-    // Por ahora sale de verdad una sola salida (la por omisión): las otras quedan
-    // anotadas hasta que tengan su conmutador (PLAN-SALIDAS).
-    const bool deAqui = a.salida.empty() || a.salida == salidaPorOmision();
-    const QString salida = QString::fromStdString(a.salida);
+    // Cada salida sale de verdad (L6): su conmutador, su mezcla, sus capas. El cursor
+    // del guion de cues sigue a la por omisión (es su lectura).
+    const std::string salida = a.salida.empty() ? salidaPorOmision() : a.salida;
+    const bool principal = salida == salidaPorOmision();
     switch (a.que) {
         case Accion::Que::EntraPaso: {
-            if (!deAqui) {
-                anotar(tr("Salida «%1»: entra «%2»").arg(salida, QString::fromStdString(a.paso)), "info", !ensayo_);
-                return;
+            if (!ensayo_) sacarAlAvanzar(salida);
+            if (principal) {
+                const auto [b, c] = proyeccion_.cueDe(a.paso);
+                moverCursor(b, c);
             }
-            sacarAlAvanzar();
-            const auto [b, c] = proyeccion_.cueDe(a.paso);
-            moverCursor(b, c);
             const evento::linea::Paso* p = corrida_->linea().paso(a.paso);
             const QString nombre = QString::fromStdString(p && !p->nombre.empty() ? p->nombre : a.paso);
-            anotar(ensayo_ ? tr("(ensayo) Entra «%1»").arg(nombre) : tr("Entra «%1»").arg(nombre), "info", !ensayo_);
+            anotar(enSalida(salida, ensayo_ ? tr("(ensayo) Entra «%1»").arg(nombre) : tr("Entra «%1»").arg(nombre)), "info",
+                   !ensayo_);
             return;
         }
         case Accion::Que::Pieza: {
             const evento::linea::Pieza* z = corrida_->pieza(a.paso, a.pieza);
             if (z == nullptr) return;
             // El cursor del guion de cues sigue a lo que se dispara en el paso al aire.
-            if (deAqui && !a.reposicion && !a.paso.empty()) {
+            if (principal && !a.reposicion && !a.paso.empty()) {
                 const auto [b, c] = proyeccion_.cueDe(a.paso, a.pieza);
                 const auto* r = proyeccion_.ref(cursor_.bloque, cursor_.cue);
                 if (b >= 0 && r != nullptr && r->paso == a.paso && (b > cursor_.bloque || (b == cursor_.bloque && c > cursor_.cue)))
@@ -2605,14 +2648,10 @@ void EventoViewModel::hacerAccion(const Accion& a) {
             if (ensayo_) {
                 // El ensayo recorre la línea igual pero no toca nada: es para ver
                 // tiempos y orden antes del evento.
-                anotar(tr("(ensayo) %1").arg(titulo), "info", false);
+                anotar(enSalida(salida, tr("(ensayo) %1").arg(titulo)), "info", false);
                 return;
             }
-            if (!deAqui) {
-                anotar(tr("Salida «%1»: %2 (todavía sale solo la principal)").arg(salida, titulo), "info");
-                return;
-            }
-            if (a.reposicion) anotar(tr("Repone: %1").arg(titulo), "info");
+            if (a.reposicion) anotar(enSalida(salida, tr("Repone: %1").arg(titulo)), "info");
             // Una acción del asistente programada en la línea: se aprobó al escribirla y
             // no frena el vivo (se hace por el mismo servidor de herramientas).
             if (z->tipo == "asistente") {
@@ -2630,46 +2669,62 @@ void EventoViewModel::hacerAccion(const Accion& a) {
                 });
                 return;
             }
+            if (ejecutarPiezaLinea(*z, a, titulo)) return;
             evento::Tipo t{};
             if (!evento::tipoDeNombre(z->tipo, t)) {
                 // Honestidad: el tipo existe en la línea pero todavía no se ejecuta.
                 anotar(tr("Todavía no sé ejecutar una pieza de tipo «%1»: %2").arg(QString::fromStdString(z->tipo), titulo), "error");
                 return;
             }
-            ejecutarCue(cueDePieza(*z, a.paso), a.paso, a.salida + "/" + a.paso + "/" + a.pieza);
+            const evento::linea::Pista* pi = corrida_->linea().pista(z->pista);
+            ejecutarCue(cueDePieza(*z, a.paso), a.paso, salida + "/" + a.paso + "/" + a.pieza, salida, pi == nullptr || pi->salida.empty());
             return;
         }
         case Accion::Que::Saca:
-            if (!ensayo_ && deAqui) sacarPieza(a);
+            if (!ensayo_) sacarPieza(a);
             return;
         case Accion::Que::Armar:
-            if (deAqui) armarEscena(a.escena);
+            armarEscena(a.escena, salida);
             return;
         case Accion::Que::Avisar:
-            anotar(QString::fromStdString(a.texto), "info");
+            anotar(enSalida(salida, QString::fromStdString(a.texto)), "info");
             emit notify(QString::fromStdString(a.texto), "info");
             return;
         case Accion::Que::Termina:
-            if (deAqui) anotar(ensayo_ ? tr("Terminó el ensayo") : tr("Terminó el evento"), "ok");
+            anotar(enSalida(salida, ensayo_ ? tr("Terminó el ensayo") : tr("Terminó el evento")), "ok");
             return;
     }
 }
 
 void EventoViewModel::sacarPieza(const Accion& a) {
-    const std::string clave = a.salida + "/" + a.paso + "/" + a.pieza;
+    const std::string salida = a.salida.empty() ? salidaPorOmision() : a.salida;
+    const std::string clave = salida + "/" + a.paso + "/" + a.pieza;
     if (const auto it = graficosDePieza_.find(clave); it != graficosDePieza_.end()) {
         // Con su generación: si después se puso otra cosa en esa fuente, no se toca.
         if (graficos_ != nullptr) graficos_->sacar(it->second.first, it->second.second);
         graficosDePieza_.erase(it);
     }
-    if (musicaDePieza_ == clave) {
-        rt_.engine().stopMedia(kMusica);
-        musicaDePieza_.clear();
-        anotar(tr("Música: para"), "ok");
+    if (const auto it = musicaDePieza_.find(salida); it != musicaDePieza_.end() && it->second == clave) {
+        rt_.engine().stopMedia(musicaDe(salida));
+        musicaDePieza_.erase(it);
+        anotar(enSalida(salida, tr("Música: para")), "ok");
     }
+    // La capa que subió la pieza baja con ella (una fija, como la de LSA, no: pide confirmación).
+    if (const auto it = dskDePieza_.find(clave); it != dskDePieza_.end()) {
+        if (control::Dsk* d = sistema().dsk) {
+            const std::string e = d->mostrar(it->second.first, false, false, it->second.second);
+            if (!e.empty()) anotar(enSalida(salida, QString::fromStdString(e)), "info");
+        }
+        dskDePieza_.erase(it);
+    }
+    // Una PTZ que esperaba y ya no va: no se mueve más.
+    ptzPendientes_.erase(clave);
+    mediosVigilados_.erase(a.pieza);
+    if (playlistDePieza_ == a.pieza) playlistDePieza_.clear();
 }
 
-void EventoViewModel::ejecutarCue(const evento::Cue& cue, const std::string& paso, const std::string& clave) {
+void EventoViewModel::ejecutarCue(const evento::Cue& cue, const std::string& paso, const std::string& clave, const std::string& salida,
+                                  bool global) {
     const evento::Cue* c = &cue;
     const QString titulo = c->texto.empty() ? QString::fromStdString(evento::nombreDeTipo(c->tipo))
                                             : QString::fromStdString(c->texto);
@@ -2686,13 +2741,13 @@ void EventoViewModel::ejecutarCue(const evento::Cue& cue, const std::string& pas
                 datos["transicion"] = p->transicion.value("tipo", std::string());
                 datos["ms"] = p->transicion.value("ms", -1);
             }
-            if (const std::string err = tomarEscena(escena, datos); !err.empty()) {
-                anotar(tr("No se pudo poner la escena «%1»: %2").arg(QString::fromStdString(escena), QString::fromStdString(err)),
+            if (const std::string err = tomarEscena(escena, datos, salida); !err.empty()) {
+                anotar(enSalida(salida, tr("No se pudo poner la escena «%1»: %2").arg(QString::fromStdString(escena), QString::fromStdString(err))),
                        "error");
                 emit notify(tr("El cue no se pudo ejecutar: %1").arg(QString::fromStdString(err)), "error");
                 return;
             }
-            anotar(tr("Al aire: %1").arg(QString::fromStdString(escena)), "ok");
+            anotar(enSalida(salida, tr("Al aire: %1").arg(QString::fromStdString(escena))), "ok");
             return;
         }
         case evento::Tipo::Orador: {
@@ -2711,10 +2766,11 @@ void EventoViewModel::ejecutarCue(const evento::Cue& cue, const std::string& pas
             const std::string accion = c->datos.value("accion", std::string("arrancar"));
             // El nombre es fijo (kMusica): asi un tema nuevo reemplaza al anterior
             // en vez de encimarse, que es lo peor que puede pasar en vivo.
+            const std::string medio = musicaDe(salida);
             if (accion == "parar") {
-                rt_.engine().stopMedia(kMusica);
-                musicaDePieza_.clear();
-                anotar(tr("Música: para"), "ok");
+                rt_.engine().stopMedia(medio);
+                musicaDePieza_.erase(salida);
+                anotar(enSalida(salida, tr("Música: para")), "ok");
                 return;
             }
             const QString rel = QString::fromStdString(c->datos.value("archivo", std::string()));
@@ -2725,13 +2781,21 @@ void EventoViewModel::ejecutarCue(const evento::Cue& cue, const std::string& pas
                 return;
             }
             const bool repetir = c->datos.value("repetir", false);
-            if (!rt_.engine().playMedia(kMusica, ruta.toStdString(), repetir)) {
+            if (!rt_.engine().playMedia(medio, ruta.toStdString(), repetir)) {
                 anotar(tr("No se pudo reproducir %1: %2").arg(rel, QString::fromStdString(rt_.engine().lastError())),
                        "error");
                 return;
             }
-            musicaDePieza_ = clave; // la saca su pieza cuando se termina su vida (si la tiene)
-            anotar(repetir ? tr("Música: %1 (en bucle)").arg(rel) : tr("Música: %1").arg(rel), "ok");
+            // Con varias salidas, la música de cada una suena solo en su mezcla.
+            if (corrida_ && corrida_->linea().salidasEfectivas().size() > 1)
+                if (escenas::Conmutadores* cs = sistema().conmutadores)
+                    for (escenas::Conmutador* c : cs->todos())
+                        rt_.setMuted(medio, c->salida() != salida, c->salida());
+            musicaDePieza_[salida] = clave; // la saca su pieza cuando se termina su vida (si la tiene)
+            const std::string pieza = clave.substr(clave.rfind('/') + 1);
+            if (!repetir) mediosVigilados_[pieza] = medio; // para «medio:<pieza>.termino»
+            vigilarMedios();
+            anotar(enSalida(salida, repetir ? tr("Música: %1 (en bucle)").arg(rel) : tr("Música: %1").arg(rel)), "ok");
             return;
         }
         case evento::Tipo::Teleprompter: {
@@ -2831,10 +2895,10 @@ void EventoViewModel::ejecutarCue(const evento::Cue& cue, const std::string& pas
                 emit notify(tr("El cue de gráfico falló: %1").arg(err), "error");
                 return;
             }
-            alAvanzar_.erase(std::remove_if(alAvanzar_.begin(), alAvanzar_.end(),
-                                            [id](const auto& a) { return a.first == id; }),
-                             alAvanzar_.end());
-            if (seVa == "al-avanzar") alAvanzar_.emplace_back(id, graficos_->generacion(id));
+            // La fuente es una sola: si otra salida la tenía para «al avanzar», ahora es de esta.
+            for (auto& [s, lista] : alAvanzar_)
+                lista.erase(std::remove_if(lista.begin(), lista.end(), [id](const auto& a) { return a.first == id; }), lista.end());
+            if (seVa == "al-avanzar") alAvanzar_[salida].emplace_back(id, graficos_->generacion(id));
             graficosDePieza_[clave] = {id, graficos_->generacion(id)};
             anotar((seVa == "al-avanzar" ? tr("Al aire el gráfico %1 en %2 (se va al avanzar)")
                     : seVa == "sola"       ? tr("Al aire el gráfico %1 en %2 (se va solo)")
@@ -2872,9 +2936,24 @@ void EventoViewModel::ejecutarCue(const evento::Cue& cue, const std::string& pas
                 return;
             }
             const std::string f = fuente.toStdString();
+            // En qué mezcla: la de su salida; desde una pista global, en todas (así una
+            // salida no le apaga el micrófono a otra: eso solo lo hace una pista global).
+            std::vector<std::string> mezclas{salida};
+            if (global)
+                if (escenas::Conmutadores* cs = sistema().conmutadores) {
+                    mezclas.clear();
+                    for (escenas::Conmutador* c : cs->todos())
+                        mezclas.push_back(c->salida());
+                }
+            const auto enTodas = [&](const auto& hacer) {
+                bool ok = !mezclas.empty();
+                for (const std::string& m : mezclas)
+                    ok = hacer(m) && ok;
+                return ok;
+            };
             if (accion == "silenciar" || accion == "activar") {
                 const bool mudo = accion == "silenciar";
-                if (!rt_.setMuted(f, mudo)) {
+                if (!enTodas([&](const std::string& m) { return rt_.setMuted(f, mudo, m); })) {
                     anotar(tr("No existe la fuente de audio \"%1\"").arg(fuente), "error");
                     emit notify(tr("El cue no se pudo ejecutar: no existe la fuente \"%1\"").arg(fuente),
                                 "error");
@@ -2886,7 +2965,8 @@ void EventoViewModel::ejecutarCue(const evento::Cue& cue, const std::string& pas
             if (accion == "volumen") {
                 // En dB, que es como piensa el operador. 0 = sin cambio.
                 const double db = c->datos.value("db", 0.0);
-                if (!rt_.setVolume(f, static_cast<float>(std::pow(10.0, db / 20.0)))) {
+                const float mul = static_cast<float>(std::pow(10.0, db / 20.0));
+                if (!enTodas([&](const std::string& m) { return rt_.setVolume(f, mul, m); })) {
                     anotar(tr("No existe la fuente de audio \"%1\"").arg(fuente), "error");
                     return;
                 }
@@ -2911,7 +2991,7 @@ void EventoViewModel::ejecutarCue(const evento::Cue& cue, const std::string& pas
             if (accion == "parar") {
                 // Sin archivo, la fuente queda en negro. No se la saca de la
                 // escena: recrearla en cada video costaria mas y se veria.
-                rt_.updateSourceSettings(kVideo, R"({"local_file":""})");
+                rt_.updateSourceSettings(videoDe(salida), R"({"local_file":""})");
                 anotar(tr("Video: para"), "ok");
                 return;
             }
@@ -2922,34 +3002,38 @@ void EventoViewModel::ejecutarCue(const evento::Cue& cue, const std::string& pas
                 emit notify(tr("El cue no se pudo ejecutar: falta «%1» en los medios del evento").arg(rel), "error");
                 return;
             }
-            if (!prepararEscenaDeVideo()) return;
+            if (!prepararEscenaDeVideo(salida)) return;
             const bool repetir = c->datos.value("repetir", false);
             // Se le cambia el ARCHIVO a la fuente que ya esta en la escena, no
             // se crea una nueva: `playMedia` sirve para la musica, que va por
             // un canal global de audio y no se ve.
             const QJsonObject ajustes{{"local_file", ruta}, {"looping", repetir}, {"clear_on_media_end", true}};
             if (!rt_.updateSourceSettings(
-                    kVideo, QJsonDocument(ajustes).toJson(QJsonDocument::Compact).toStdString())) {
+                    videoDe(salida), QJsonDocument(ajustes).toJson(QJsonDocument::Compact).toStdString())) {
                 anotar(tr("No se pudo cargar %1: %2").arg(rel, QString::fromStdString(rt_.lastError())), "error");
                 return;
             }
             // Y se rebobina: si el archivo es el mismo que ya estaba, el motor no
             // tiene motivo para volver a empezar y el cue no mostraria nada.
-            rt_.engine().restartMedia(kVideo);
+            rt_.engine().restartMedia(videoDe(salida));
+            if (!repetir) mediosVigilados_[clave.substr(clave.rfind('/') + 1)] = videoDe(salida); // «medio:<pieza>.termino»
+            vigilarMedios();
             // Al aire recién DESPUÉS de que el archivo esté cargado: al revés
             // se ve un cuadro en negro mientras abre.
             if (c->datos.value("alAire", true)) {
-                escenaPrevia_ = QString::fromStdString(rt_.engine().currentScene());
-                // Por el conmutador (corte directo, como antes): el tally, el AFV y la
-                // escena guardada se enteran igual que con cualquier otro cambio del aire.
-                const std::string err = conmutador_ ? conmutador_->poner(kEscenaVideo)
-                                                    : tr("no hay conmutador de escenas").toStdString();
+                escenas::Conmutador* cm = conmutador(salida);
+                escenaPrevia_ = cm ? QString::fromStdString(cm->alAire()) : QString();
+                // Por el conmutador de su salida (corte directo, como antes): el tally, el
+                // AFV y la escena guardada se enteran igual que con cualquier otro cambio.
+                ++cambiandoEscena_;
+                const std::string err = cm ? cm->poner(escenaVideoDe(salida)) : tr("no hay conmutador de escenas").toStdString();
+                --cambiandoEscena_;
                 if (!err.empty()) {
-                    anotar(tr("No se pudo poner al aire la escena del video: %1").arg(QString::fromStdString(err)), "error");
+                    anotar(enSalida(salida, tr("No se pudo poner al aire la escena del video: %1").arg(QString::fromStdString(err))), "error");
                     return;
                 }
             }
-            anotar(repetir ? tr("Video: %1 (en bucle)").arg(rel) : tr("Video: %1").arg(rel), "ok");
+            anotar(enSalida(salida, repetir ? tr("Video: %1 (en bucle)").arg(rel) : tr("Video: %1").arg(rel)), "ok");
             return;
         }
         case evento::Tipo::Pantalla: {
@@ -3348,6 +3432,341 @@ bool EventoViewModel::marcarChequeo(const QString& item, bool hecho, const QStri
     if (!o) return false;
     emit chequeoChanged();
     return true;
+}
+
+
+// --- La línea con varias salidas y lo de afuera (L6/L7) ------------------------------------
+//
+// docs/planes/PLAN-LINEA-DE-TIEMPO.md 3.4, 3.6 y 3.9. La corrida (pura) decide; acá se
+// engancha a lo que hay en la app: el conmutador de cada salida, el bus (para las
+// condiciones), las capas DSK, las cámaras PTZ, el orden del día, las votaciones y la
+// playlist. Nada de esto publica temas linea/* (eso es de ui/LineaBus).
+
+escenas::Conmutador* EventoViewModel::conmutador(const std::string& salida) const {
+    escenas::Conmutadores* cs = sistema().conmutadores;
+    if (cs == nullptr) return nullptr;
+    // Los ids de la línea son los de las salidas del motor; la por omisión de la línea,
+    // si el motor no tiene una con ese id, es la por omisión del motor.
+    escenas::Conmutador* c = cs->de(salida);
+    return c == nullptr && salida == salidaPorOmision() ? &cs->porOmision() : c;
+}
+
+QString EventoViewModel::enSalida(const std::string& salida, const QString& texto) const {
+    if (linea_.salidasEfectivas().size() < 2) return texto;
+    return tr("«%1» · %2").arg(QString::fromStdString(salida), texto);
+}
+
+std::string EventoViewModel::musicaDe(const std::string& salida) const {
+    return salida.empty() || salida == salidaPorOmision() ? std::string(kMusica) : std::string(kMusica) + " · " + salida;
+}
+
+std::string EventoViewModel::escenaVideoDe(const std::string& salida) const {
+    return salida.empty() || salida == salidaPorOmision() ? std::string(kEscenaVideo) : std::string(kEscenaVideo) + " · " + salida;
+}
+
+std::string EventoViewModel::videoDe(const std::string& salida) const {
+    return salida.empty() || salida == salidaPorOmision() ? std::string(kVideo) : std::string(kVideo) + " · " + salida;
+}
+
+void EventoViewModel::enchufar() {
+    const Sistema s = sistema();
+    const auto primeraVez = [this](const QObject* o) { return o != nullptr && enchufados_.insert(o).second; };
+    // El aire de cada salida: lo hecho «a mano» y las PTZ que esperan una cámara.
+    if (primeraVez(s.conmutadores)) {
+        const auto seguir = [this](escenas::Conmutador* c) {
+            connect(c, &escenas::Conmutador::alAireCambio, this,
+                    [this, c](const QString& escena) { alAireCambio(c->salida(), escena.toStdString()); });
+        };
+        for (escenas::Conmutador* c : s.conmutadores->todos())
+            seguir(c);
+        connect(s.conmutadores, &escenas::Conmutadores::creado, this, seguir);
+    }
+    // El orden del día: los bloques que salen de él se re-expanden al cambiar.
+    if (primeraVez(s.ordenDelDia))
+        connect(s.ordenDelDia, &asamblea::OrdenDelDia::cambio, this, &EventoViewModel::expandirOrdenDelDia);
+    // La playlist: cuando se para sola, terminó «su medio» (para un paso que dura lo que ella).
+    if (primeraVez(s.playlist))
+        connect(s.playlist, &medios::Playlist::estadoCambio, this, [this]() {
+            const Sistema s = sistema();
+            if (s.playlist == nullptr || playlistDePieza_.empty()) return;
+            const bool suena = s.playlist->estado().value("reproduciendo", false);
+            if (suena) playlistAndando_ = true;
+            if (suena || !playlistAndando_) return;
+            const std::string pieza = playlistDePieza_;
+            playlistDePieza_.clear();
+            playlistAndando_ = false;
+            if (corriendo()) despachar(corrida_->medioTermino(pieza, ahoraMs()));
+        });
+    expandirOrdenDelDia();
+}
+
+void EventoViewModel::vigilarTemas() {
+    control::BusEventos* bus = sistema().bus;
+    if (bus == nullptr || !corrida_) return;
+    for (const std::string& tema : corrida_->temasQueMira()) {
+        if (!suscripciones_.count(tema)) {
+            // Lo de afuera llega en medio de cualquier cosa (hasta de un TAKE de la
+            // línea): se atiende después, en limpio. Los temas que dejan de usarse
+            // quedan suscriptos: la corrida ignora lo que no mira.
+            QPointer<EventoViewModel> yo(this);
+            suscripciones_[tema] = bus->suscribir(tema, [yo](const std::string& t, const json& valor) {
+                if (!yo) return;
+                QMetaObject::invokeMethod(
+                    yo,
+                    [yo, t, valor]() {
+                        if (!yo || !yo->corrida_) return;
+                        const std::vector<Accion> acc = yo->corrida_->hecho(t, valor, ahoraMs());
+                        if (yo->corriendo()) yo->despachar(acc);
+                    },
+                    Qt::QueuedConnection);
+            });
+        }
+        // La corrida es nueva (o el tema): se pone al día con lo último que se publicó.
+        const json u = bus->ultimo(tema);
+        if (u.is_object() && u.contains("valor")) {
+            const std::vector<Accion> acc = corrida_->hecho(tema, u["valor"], ahoraMs());
+            if (corriendo() && !acc.empty()) despachar(acc);
+        }
+    }
+}
+
+void EventoViewModel::alAireCambio(const std::string& salida, const std::string& escena) {
+    // ¿Fue a mano? Lo que cambia la línea misma (tomarEscena, el video) no cuenta.
+    if (cambiandoEscena_ == 0 && corriendo() && !ensayo_) {
+        const std::string antes = corrida_->aMano(salida);
+        corrida_->marcarAMano(salida, escena, ahoraMs());
+        const std::string ahora = corrida_->aMano(salida);
+        if (ahora != antes) {
+            if (!ahora.empty())
+                anotar(enSalida(salida, tr("A mano: «%1» en vez de la del paso (la línea sigue; «reenganchar» vuelve)")
+                                            .arg(QString::fromStdString(ahora))),
+                       "info");
+            volcarRecorrido();
+            emit correChanged();
+        }
+    }
+    // Una cámara pudo haber salido del aire: las PTZ que la esperaban, ahora.
+    ptz::ControlCamaras* cams = sistema().camaras;
+    if (cams == nullptr) return;
+    std::vector<std::string> listas;
+    for (const auto& [clave, x] : ptzPendientes_)
+        if (cams->chequearMovimiento(QString::fromStdString(x.camara)).isEmpty()) listas.push_back(clave);
+    for (const std::string& clave : listas)
+        moverPtz(clave, false);
+}
+
+void EventoViewModel::expandirOrdenDelDia() {
+    asamblea::OrdenDelDia* od = sistema().ordenDelDia;
+    if (od == nullptr || abierto_.isEmpty()) return;
+    std::set<std::string> emitidos;
+    if (corrida_)
+        for (const evento::linea::Instancia& x : corrida_->instancias())
+            emitidos.insert(x.paso);
+    if (!evento::linea::expandirOrdenDelDia(linea_, od->puntos(), emitidos)) return;
+    anotar(tr("El orden del día cambió: la línea se volvió a armar (lo que ya salió no se tocó)"), "info");
+    guionDesdeLinea();
+}
+
+bool EventoViewModel::ejecutarPiezaLinea(const evento::linea::Pieza& z, const Accion& a, const QString& titulo) {
+    const std::string salida = a.salida.empty() ? salidaPorOmision() : a.salida;
+    const std::string clave = salida + "/" + a.paso + "/" + a.pieza;
+    const Sistema s = sistema();
+    const auto falla = [&](const QString& porque) {
+        anotar(enSalida(salida, tr("No se pudo hacer «%1»: %2").arg(titulo, porque)), "error");
+        emit notify(tr("La pieza «%1» no se pudo hacer: %2").arg(titulo, porque), "error");
+    };
+    const auto bien = [&](const QString& que) { anotar(enSalida(salida, que), "ok"); };
+    const json& d = z.datos;
+
+    if (z.tipo == "ptz") {
+        // {camara, posicion, segundos?, siOcupada: esperar|mover|saltar}
+        if (s.camaras == nullptr) return falla(tr("no hay control de cámaras")), true;
+        PtzPendiente x{salida, a.paso, a.pieza, d.value("camara", std::string()), d.value("posicion", std::string()),
+                       d.value("segundos", -1.0), ahoraMs()};
+        if (x.camara.empty() || x.posicion.empty()) return falla(tr("la PTZ no dice qué cámara ni a qué posición")), true;
+        const QString motivo = s.camaras->chequearMovimiento(QString::fromStdString(x.camara));
+        const std::string si = d.value("siOcupada", std::string("esperar"));
+        ptzPendientes_[clave] = x;
+        if (motivo.isEmpty() || si == "mover") {
+            moverPtz(clave, !motivo.isEmpty());
+        } else if (si == "saltar") {
+            ptzPendientes_.erase(clave);
+            anotar(enSalida(salida, tr("PTZ «%1»: no se mueve (%2)").arg(titulo, motivo)), "info");
+        } else {
+            // Ocupada: espera a que se libere, y la persona puede decir «mover igual».
+            anotar(enSalida(salida, tr("PTZ «%1» espera: %2").arg(titulo, motivo)), "info");
+            emit notify(tr("%1 La PTZ «%2» se hace cuando se libere (o «mover igual»).").arg(motivo, titulo), "info");
+            emit correChanged();
+        }
+        return true;
+    }
+
+    if (z.tipo == "dsk") {
+        // {capa: 1..4, accion: subir|bajar, confirmada?}: en las capas de ESTA salida.
+        if (s.dsk == nullptr) return falla(tr("no hay capas DSK")), true;
+        const int capa = d.value("capa", 0);
+        const bool subir = d.value("accion", std::string("subir")) != "bajar";
+        const std::string e = s.dsk->mostrar(capa, subir, d.value("confirmada", false), salida);
+        if (!e.empty()) return falla(QString::fromStdString(e)), true;
+        if (subir) dskDePieza_[clave] = {capa, salida}; // baja cuando se termina su vida
+        else dskDePieza_.erase(clave);
+        bien(subir ? tr("Sube la capa %1").arg(capa) : tr("Baja la capa %1").arg(capa));
+        return true;
+    }
+
+    if (z.tipo == "asamblea") {
+        // {accion: tratar (punto) | siguiente | punto (punto, estado, resultado?) |
+        //  votacion (que: abrir|pausar|reanudar|cerrar|a_quorum, tema, menu, segundos,
+        //  resultado: al cerrar, también el resultado oficial; de fábrica, sí)}
+        const std::string accion = d.value("accion", std::string());
+        const auto numero = [&](const char* k) {
+            const json& v = d.contains(k) ? d[k] : json();
+            return v.is_number() ? v.get<int>() : v.is_string() ? std::atoi(v.get<std::string>().c_str()) : 0;
+        };
+        if (accion == "tratar" || accion == "siguiente" || accion == "punto") {
+            if (s.ordenDelDia == nullptr) return falla(tr("no hay orden del día")), true;
+            const int n = numero("punto");
+            const std::string e = accion == "siguiente" ? s.ordenDelDia->siguiente()
+                                  : accion == "tratar"  ? s.ordenDelDia->punto(n, "en_tratamiento", "")
+                                                        : s.ordenDelDia->punto(n, d.value("estado", std::string()), d.value("resultado", std::string()));
+            if (!e.empty()) return falla(QString::fromStdString(e)), true;
+            bien(accion == "siguiente" ? tr("Orden del día: el punto que sigue") : tr("Orden del día: punto %1").arg(n));
+            return true;
+        }
+        if (accion == "votacion") {
+            if (s.votaciones == nullptr) return falla(tr("no hay votaciones")), true;
+            const std::string que = d.value("que", std::string());
+            const bool conResultado = que == "cerrar" && d.value("resultado", true);
+            QPointer<EventoViewModel> yo(this);
+            QPointer<asamblea::Votaciones> vs(s.votaciones);
+            s.votaciones->accion(que, d, "linea", [yo, vs, titulo, salida, conResultado](const std::string& e) {
+                if (!yo) return;
+                if (!e.empty()) {
+                    yo->anotar(yo->enSalida(salida, tr("Votación (%1): %2").arg(titulo, QString::fromStdString(e))), "error");
+                    return;
+                }
+                yo->anotar(yo->enSalida(salida, tr("Votación: %1").arg(titulo)), "ok");
+                // Cerrada: el resultado oficial (a Quórum y al bus: sesion/votacion).
+                if (conResultado && vs)
+                    vs->accion("a_quorum", json::object(), "linea", [yo, salida](const std::string& e2) {
+                        if (yo && !e2.empty())
+                            yo->anotar(yo->enSalida(salida, tr("El resultado no se pudo cargar: %1").arg(QString::fromStdString(e2))),
+                                       "error");
+                    });
+            });
+            return true;
+        }
+        return falla(tr("«%1» no es una acción de la asamblea (tratar, siguiente, punto, votacion)").arg(QString::fromStdString(accion))),
+               true;
+    }
+
+    if (z.tipo == "playlist") {
+        // {accion: play|next|prev|stop, indice?, autoNext?, loop?}: la línea manda sobre la
+        // playlist, que sigue siendo la dueña del in/out y del auto-next.
+        if (s.playlist == nullptr) return falla(tr("no hay playlist")), true;
+        if (d.contains("autoNext")) s.playlist->setAutoNext(d.value("autoNext", true));
+        if (d.contains("loop")) s.playlist->setLoop(d.value("loop", false));
+        const std::string accion = d.value("accion", std::string("play"));
+        const std::string e = s.playlist->control(accion, d.value("indice", -1));
+        if (!e.empty()) return falla(QString::fromStdString(e)), true;
+        if (accion == "play") {
+            playlistDePieza_ = a.pieza; // su fin (medio:<pieza>.termino) es cuando la playlist se para sola
+            playlistAndando_ = false;
+        } else if (accion == "stop") {
+            playlistDePieza_.clear();
+        }
+        bien(tr("Playlist: %1").arg(QString::fromStdString(accion)));
+        return true;
+    }
+    return false;
+}
+
+void EventoViewModel::moverPtz(const std::string& clave, bool forzar) {
+    const auto it = ptzPendientes_.find(clave);
+    if (it == ptzPendientes_.end()) return;
+    const PtzPendiente x = it->second;
+    ptzPendientes_.erase(it);
+    ptz::ControlCamaras* cams = sistema().camaras;
+    if (cams == nullptr) return;
+    const QVariantMap r = cams->irAPosicion(QString::fromStdString(x.camara), QString::fromStdString(x.posicion), x.segundos);
+    if (!r.value("ok").toBool()) {
+        anotar(enSalida(x.salida, tr("PTZ «%1» a «%2»: %3")
+                                      .arg(QString::fromStdString(x.camara), QString::fromStdString(x.posicion), r.value("error").toString())),
+               "error");
+    } else {
+        anotar(enSalida(x.salida, (forzar ? tr("PTZ «%1» a «%2» (movida igual, estaba al aire)") : tr("PTZ «%1» a «%2»"))
+                                      .arg(QString::fromStdString(x.camara), QString::fromStdString(x.posicion))),
+               "ok");
+    }
+    emit correChanged();
+}
+
+void EventoViewModel::vigilarMedios() {
+    if (mediosVigilados_.empty()) {
+        vigiaMedios_.stop();
+        mediosAndando_.clear();
+        return;
+    }
+    if (vigiaMedios_.isActive()) return;
+    if (vigiaMedios_.interval() != 250) {
+        // Solo mientras haya piezas que terminan con su medio (la CPU ociosa importa).
+        vigiaMedios_.setInterval(250);
+        connect(&vigiaMedios_, &QTimer::timeout, this, [this]() {
+            std::map<std::string, std::string> estado;
+            for (const auto& m : rt_.engine().mediaSources())
+                estado[m.name] = m.state;
+            std::vector<std::string> terminaron;
+            for (const auto& [pieza, medio] : mediosVigilados_) {
+                const auto e = estado.find(medio);
+                const std::string st = e == estado.end() ? std::string("none") : e->second;
+                if (st == "playing") mediosAndando_.insert(pieza);
+                else if (mediosAndando_.count(pieza) && (st == "ended" || st == "stopped" || st == "none" || st == "error"))
+                    terminaron.push_back(pieza);
+            }
+            for (const std::string& pieza : terminaron) {
+                mediosVigilados_.erase(pieza);
+                mediosAndando_.erase(pieza);
+                if (corriendo()) despachar(corrida_->medioTermino(pieza, ahoraMs()));
+            }
+            if (mediosVigilados_.empty()) vigiaMedios_.stop();
+        });
+    }
+    vigiaMedios_.start();
+}
+
+std::string EventoViewModel::lineaPulso(const std::string& clave) {
+    if (!corriendo()) return tr("La línea no está corriendo.").toStdString();
+    if (const std::string e = evento::linea::errorDeCondicion(clave); !e.empty()) return e;
+    despachar(corrida_->pulso(clave, ahoraMs()));
+    return {};
+}
+
+std::string EventoViewModel::lineaReenganchar(const std::string& salida) {
+    if (!corriendo()) return tr("La línea no está corriendo.").toStdString();
+    const std::string s = salida.empty() ? salidaPorOmision() : salida;
+    if (std::string e = errorDeSalida(linea_, s); !e.empty()) return e;
+    std::string err;
+    const std::vector<Accion> acc = corrida_->reenganchar(s, ahoraMs(), &err);
+    if (err.empty()) anotar(enSalida(s, tr("Reengancha: vuelve a la escena del paso")), "info");
+    despachar(acc);
+    return err;
+}
+
+std::string EventoViewModel::lineaPtz(const std::string& pieza, const std::string& decision) {
+    for (const auto& [clave, x] : ptzPendientes_) {
+        if (x.pieza != pieza) continue;
+        const std::string k = clave;
+        if (decision == "mover") moverPtz(k, true);
+        else if (decision == "saltar") {
+            anotar(enSalida(x.salida, tr("PTZ «%1»: se deja sin mover").arg(QString::fromStdString(pieza))), "info");
+            ptzPendientes_.erase(k);
+            emit correChanged();
+        } else if (decision != "esperar") {
+            return tr("La decisión es «mover», «esperar» o «saltar».").toStdString();
+        }
+        return {};
+    }
+    return tr("No hay ninguna PTZ «%1» esperando.").arg(QString::fromStdString(pieza)).toStdString();
 }
 
 } // namespace ba::app
