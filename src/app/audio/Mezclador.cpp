@@ -6,8 +6,8 @@
 #include "audio/LoudnessPrograma.hpp"
 #include "audio/Matriz.hpp"
 #include "audio/RackManager.hpp"
-#include "emision/BroadcastEngine.hpp"
-#include "Motor.hpp"
+#include "emision/NivelesMotor.hpp"
+#include "emision/VentanillaMotor.hpp"
 
 #include <QDateTime>
 #include <QJsonDocument>
@@ -32,14 +32,19 @@ QVariantMap aMapa(const nlohmann::json& j) {
 }
 } // namespace
 
-Mezclador::Mezclador(AppRuntime& rt, Matriz* matriz, QObject* parent) : QObject(parent), rt_(rt), matriz_(matriz) {
+Mezclador::Mezclador(AppRuntime& rt, VentanillaMotor& ventanilla, Matriz* matriz, QObject* parent)
+    : QObject(parent), rt_(rt), v_(ventanilla), matriz_(matriz) {
     timer_.setInterval(kCuadroMs);
     timer_.setTimerType(Qt::PreciseTimer);
     connect(&timer_, &QTimer::timeout, this, &Mezclador::tic);
     // Una columna nueva (un bus, una placa que se enchufa), una pista renombrada…
     if (matriz_ != nullptr) connect(matriz_, &Matriz::cambio, this, &Mezclador::rehacerListas);
+    // Una entrada con audio que llega o se va: con la foto del motor.
+    connect(&v_, &VentanillaMotor::cambio, this, [this](unsigned partes) {
+        if ((partes & FotoMotor::Mezcla) != 0) rehacerListas();
+    });
     rehacerListas();
-    calibracion_ = std::make_unique<Calibracion>(rt.dataRoot(), rt.config().modoPrueba);
+    calibracion_ = std::make_unique<Calibracion>(rt.dataRoot(), rt.modoPrueba());
 }
 
 Mezclador::~Mezclador() = default;
@@ -84,7 +89,7 @@ void Mezclador::usar(QObject* vista, bool si) {
 
 void Mezclador::rehacerListas() {
     QStringList entradas;
-    for (const auto& n : rt_.engine().audioSources()) entradas << QString::fromStdString(n);
+    for (const auto& c : v_.foto().mezcla.canales) entradas << QString::fromStdString(c.nombre);
     QVariantList salidas;
     std::vector<std::string> ids;
     if (matriz_ != nullptr)
@@ -108,13 +113,12 @@ void Mezclador::medirYa() {
 }
 
 void Mezclador::tic() {
-    // Las fuentes cambian poco: se mira cada tanto (no hace falta un aviso aparte).
+    // (Las entradas que llegan o se van las trae la foto: rehacerListas.)
     static int vueltas = 0;
-    if (++vueltas % 30 == 0) rehacerListas();
+    ++vueltas;
 
-    std::unordered_map<std::string, const motor::Motor::NivelAudio*> porId;
-    std::shared_ptr<const std::vector<motor::Motor::NivelAudio>> niveles;
-    if (motor::Motor* m = rt_.engine().motor()) niveles = m->niveles();
+    std::unordered_map<std::string, const motor::NivelAudio*> porId;
+    const std::shared_ptr<const NivelesMotor::Niveles> niveles = rt_.niveles().niveles();
     if (niveles)
         for (const auto& n : *niveles) porId[(n.bus ? "bus:" : "") + n.id] = &n;
 
@@ -167,22 +171,28 @@ void Mezclador::tic() {
     nivelesS_ = std::move(ns);
     // El loudness cambia despacio (el momentáneo integra 400 ms): 5 veces por segundo
     // alcanza, y se ahorra la vuelta por JSON en cada cuadro.
-    if (vueltas % 6 == 0 || loudness_.isEmpty()) loudness_ = aMapa(rt_.engine().loudness(salida_).json());
+    if (vueltas % 6 == 0 || loudness_.isEmpty()) {
+        // De la foto (la parte Medidas: el loudness de cada salida, por su id).
+        const FotoMotor& f = v_.foto();
+        const std::string id = f.mezcla.salida(salida_);
+        loudness_ = f.loudness.contains(id) ? aMapa(f.loudness[id]) : QVariantMap{};
+    }
     emit nivelesCambio();
 }
 
 QVariantMap Mezclador::tira(const QString& nombre) const {
     const std::string n = nombre.toStdString();
-    auto& eng = rt_.engine();
-    const float v = eng.sourceVolume(n, salida_);
+    const FotoMotor::MezclaAudio& m = v_.foto().mezcla;
+    const float v = m.volumen(n, salida_);
+    const FotoMotor::CanalAudio* c = m.canal(n);
     return {{"nombre", nombre},
             {"volumenDb", v > 1e-5f ? 20.0 * std::log10(v) : -100.0},
-            {"mute", eng.sourceMuted(n, salida_)},
+            {"mute", m.mudo(n, salida_)},
             // El solo de la escucha (F2-03): antes del fader (PFL) o con el de esta salida (AFL).
-            {"pfl", eng.pfl() == n && eng.pflModo() == "pfl"},
-            {"afl", eng.pfl() == n && eng.pflModo() == "afl"},
+            {"pfl", m.pfl == n && m.pflModo == "pfl"},
+            {"afl", m.pfl == n && m.pflModo == "afl"},
             // El retardo respecto de su video (sincro labios, audio_sincro): positivo atrasa.
-            {"retardoMs", eng.sourceSyncOffset(n)},
+            {"retardoMs", c != nullptr ? c->retardoMs : 0},
             {"envios", matriz_ != nullptr ? matriz_->enviosDe(nombre) : QStringList{}}};
 }
 

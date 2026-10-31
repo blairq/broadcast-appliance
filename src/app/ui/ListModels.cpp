@@ -401,11 +401,13 @@ namespace {
 std::filesystem::path archivoVistaMezclador(AppRuntime& rt) { return rt.dataRoot() / "Config" / "mezclador-vista.json"; }
 } // namespace
 
-MixerModel::MixerModel(AppRuntime& rt, QObject* parent) : QAbstractListModel(parent), rt_(rt) {
+MixerModel::MixerModel(AppRuntime& rt, VentanillaMotor& ventanilla, QObject* parent)
+    : QAbstractListModel(parent), rt_(rt), v_(ventanilla), foto_(ventanilla.fotoCompartida()) {
     const nlohmann::json j = config::leerObjeto(archivoVistaMezclador(rt_));
     if (j.contains("compactos") && j["compactos"].is_array())
         for (const auto& g : j["compactos"])
             if (g.is_string()) compactos_.insert(g.get<std::string>());
+    connect(&v_, &VentanillaMotor::cambio, this, &MixerModel::alCambiar);
     reload();
 }
 
@@ -416,12 +418,19 @@ QVariant MixerModel::data(const QModelIndex& index, int role) const {
         return {};
     }
     const std::size_t i = static_cast<std::size_t>(index.row());
+    const FotoMotor::MezclaAudio& m = foto_->mezcla;
+    const auto p = pendientes_.find(names_[i]);
+    const Pendiente* pend = p != pendientes_.end() ? &p->second : nullptr;
     switch (role) {
         case NameRole: return qs(names_[i]);
         case PeakDbRole: return peaks_[i];
-        case VolumeDbRole: return mulToDb(rt_.engine().sourceVolume(names_[i], salida_));
-        case MutedRole: return rt_.engine().sourceMuted(names_[i], salida_);
-        case RetardoMsRole: return rt_.engine().sourceSyncOffset(names_[i]);
+        case VolumeDbRole:
+            return mulToDb(pend != nullptr && pend->volumen ? *pend->volumen : m.volumen(names_[i], salida_));
+        case MutedRole: return pend != nullptr && pend->mudo ? *pend->mudo : m.mudo(names_[i], salida_);
+        case RetardoMsRole: {
+            const FotoMotor::CanalAudio* c = m.canal(names_[i]);
+            return c != nullptr ? c->retardoMs : 0;
+        }
         case GrupoRole: return qs(grupos_[i]);
         case PrimeroDeGrupoRole: return !grupos_[i].empty() && (i == 0 || grupos_[i - 1] != grupos_[i]);
         case TamGrupoRole: {
@@ -431,8 +440,11 @@ QVariant MixerModel::data(const QModelIndex& index, int role) const {
             return n;
         }
         case CompactoRole: return !grupos_[i].empty() && compactos_.count(grupos_[i]) > 0;
-        case GananciaGrupoDbRole:
-            return grupos_[i].empty() ? 0.0 : mulToDb(rt_.engine().gananciaGrupo(grupos_[i], salida_));
+        case GananciaGrupoDbRole: {
+            if (grupos_[i].empty()) return 0.0;
+            const auto pg = pendientes_.find("grupo:" + grupos_[i]);
+            return mulToDb(pg != pendientes_.end() && pg->second.vca ? *pg->second.vca : m.vca(grupos_[i], salida_));
+        }
         case NombreGrupoRole: {
             const auto it = nombresGrupo_.find(grupos_[i]);
             return qs(it != nombresGrupo_.end() ? it->second : grupos_[i]);
@@ -457,25 +469,88 @@ QHash<int, QByteArray> MixerModel::roleNames() const {
 
 void MixerModel::reload() {
     beginResetModel();
-    names_ = rt_.engine().audioSources();
+    foto_ = v_.fotoCompartida();
+    const FotoMotor::MezclaAudio& m = foto_->mezcla;
+    // Los picos de una tira que sigue se quedan (no saltan a -100 al rehacer).
+    std::map<std::string, float> antes;
+    for (std::size_t i = 0; i < names_.size() && i < peaks_.size(); ++i) antes[names_[i]] = peaks_[i];
+    names_ = m.nombres();
     peaks_.assign(names_.size(), -100.0f);
+    for (std::size_t i = 0; i < names_.size(); ++i)
+        if (const auto it = antes.find(names_[i]); it != antes.end()) peaks_[i] = it->second;
     // Los grupos: tiras seguidas con la misma clave (dos o más); las demás, sueltas.
     grupos_.assign(names_.size(), std::string());
     for (std::size_t i = 0; i < names_.size();) {
-        const std::string g = BroadcastEngine::grupoDeAudio(names_[i]);
+        const std::string& g = m.canales[i].grupo;
         std::size_t j = i + 1;
-        while (j < names_.size() && BroadcastEngine::grupoDeAudio(names_[j]) == g) ++j;
+        while (j < names_.size() && m.canales[j].grupo == g) ++j;
         if (j - i >= 2) {
             for (std::size_t k = i; k < j; ++k) grupos_[k] = g;
             // La gente conectada se llama como en Audio y Video: Conferencia o Asamblea.
-            const std::string& n = names_[i];
-            const nlohmann::json ajustes = nlohmann::json::parse(rt_.engine().sourceSettingsJson(n), nullptr, false);
-            const char* gente = inputs::grupoDeGente(inputs::tipoLogico(rt_.engine().sourceTypeId(n), ajustes), ajustes);
+            const FotoMotor::CanalAudio& c = m.canales[i];
+            const char* gente = inputs::grupoDeGente(inputs::tipoLogico(c.tipo, c.ajustes), c.ajustes);
             nombresGrupo_[g] = gente != nullptr ? gente : g;
         }
         i = j;
     }
     endResetModel();
+}
+
+void MixerModel::alCambiar(unsigned partes) {
+    if ((partes & FotoMotor::Mezcla) == 0) return;
+    const std::shared_ptr<const FotoMotor> antes = foto_;
+    const FotoMotor::MezclaAudio& n = v_.foto().mezcla;
+    // Cambiaron las tiras (una entrada nueva, una que se fue, otro grupo): se rehacen.
+    bool rehacer = n.canales.size() != names_.size() || antes->mezcla.canales.size() != names_.size();
+    for (std::size_t i = 0; !rehacer && i < names_.size(); ++i)
+        rehacer = n.canales[i].nombre != names_[i] || n.canales[i].grupo != antes->mezcla.canales[i].grupo;
+    if (rehacer) return reload();
+    foto_ = v_.fotoCompartida();
+    // Si no, solo las filas que cambiaron (el fader, el mute, el retardo, el VCA del grupo).
+    const FotoMotor::MezclaAudio& a = antes->mezcla;
+    for (std::size_t i = 0; i < names_.size(); ++i) {
+        const bool cambio = a.canales[i].volumen != n.canales[i].volumen || a.canales[i].mudo != n.canales[i].mudo ||
+                            a.canales[i].retardoMs != n.canales[i].retardoMs ||
+                            (!grupos_[i].empty() && a.vca(grupos_[i], salida_) != n.vca(grupos_[i], salida_));
+        if (cambio)
+            emit dataChanged(index(static_cast<int>(i)), index(static_cast<int>(i)),
+                             {VolumeDbRole, MutedRole, RetardoMsRole, GananciaGrupoDbRole});
+    }
+}
+
+int MixerModel::filaDe(const std::string& nombre) const {
+    const auto it = std::find(names_.begin(), names_.end(), nombre);
+    return it == names_.end() ? -1 : static_cast<int>(it - names_.begin());
+}
+
+void MixerModel::pedir(const char* que, const std::string& clave, std::function<void(AppRuntime&)> orden,
+                       std::function<void()> listo) {
+    ++pendientes_[clave].pedidos;
+    v_.pedir(
+        this, que,
+        [&rt = rt_, orden = std::move(orden)]() {
+            orden(rt);
+            // El VCA no lo avisa el motor: la foto lo vuelve a leer igual.
+            rt.fotoSucia(FotoMotor::Mezcla);
+        },
+        [this, clave, listo = std::move(listo)]() {
+            // La respuesta llega después de la foto con el cambio: lo pendiente se suelta.
+            soltarPendiente(clave);
+            if (listo) listo();
+        });
+}
+
+void MixerModel::soltarPendiente(const std::string& clave) {
+    const auto it = pendientes_.find(clave);
+    if (it == pendientes_.end() || --it->second.pedidos > 0) return;
+    pendientes_.erase(it);
+    if (clave.rfind("grupo:", 0) == 0) {
+        const std::string g = clave.substr(6);
+        for (std::size_t i = 0; i < grupos_.size(); ++i)
+            if (grupos_[i] == g) emit dataChanged(index(static_cast<int>(i)), index(static_cast<int>(i)), {GananciaGrupoDbRole});
+    } else if (const int row = filaDe(clave); row >= 0) {
+        emit dataChanged(index(row), index(row), {VolumeDbRole, MutedRole});
+    }
 }
 
 QAbstractItemModel* MixerModel::delGrupo(const QString& grupo) {
@@ -493,19 +568,20 @@ QAbstractItemModel* MixerModel::delGrupo(const QString& grupo) {
 
 QVariantList MixerModel::gruposEn(const std::string& salida) const {
     QVariantList out;
+    const FotoMotor::MezclaAudio& m = foto_->mezcla;
     for (std::size_t i = 0; i < grupos_.size(); ++i) {
         if (grupos_[i].empty() || (i > 0 && grupos_[i - 1] == grupos_[i])) continue;
         QStringList tiras;
         bool mudo = true;
         for (std::size_t k = i; k < grupos_.size() && grupos_[k] == grupos_[i]; ++k) {
             tiras << qs(names_[k]);
-            mudo = mudo && rt_.engine().sourceMuted(names_[k], salida);
+            mudo = mudo && m.mudo(names_[k], salida);
         }
         const auto nom = nombresGrupo_.find(grupos_[i]);
         out.push_back(QVariantMap{{"grupo", qs(grupos_[i])},
                                   {"nombre", qs(nom != nombresGrupo_.end() ? nom->second : grupos_[i])},
                                   {"tiras", tiras},
-                                  {"volumenDb", mulToDb(rt_.engine().gananciaGrupo(grupos_[i], salida))},
+                                  {"volumenDb", mulToDb(m.vca(grupos_[i], salida))},
                                   {"compacto", compactos_.count(grupos_[i]) > 0},
                                   {"mudo", mudo}});
     }
@@ -515,22 +591,50 @@ QVariantList MixerModel::gruposEn(const std::string& salida) const {
 bool MixerModel::setGananciaGrupoDb(const QString& grupo, double db) {
     if (grupo.isEmpty()) return false;
     const double d = std::clamp(db, -60.0, 12.0);
-    return rt_.setGananciaGrupo(grupo.toStdString(), d <= -60.0 ? 0.0f : static_cast<float>(std::pow(10.0, d / 20.0)), salida_);
+    const float mul = d <= -60.0 ? 0.0f : static_cast<float>(std::pow(10.0, d / 20.0));
+    const std::string g = grupo.toStdString();
+    pendientes_["grupo:" + g].vca = mul;
+    for (std::size_t i = 0; i < grupos_.size(); ++i)
+        if (grupos_[i] == g) emit dataChanged(index(static_cast<int>(i)), index(static_cast<int>(i)), {GananciaGrupoDbRole});
+    pedir("mezcla_vca", "grupo:" + g, [g, mul, salida = salida_](AppRuntime& rt) { rt.setGananciaGrupo(g, mul, salida); });
+    return true;
 }
 
 void MixerModel::setMutedGrupo(const QString& grupo, bool muted) { setMutedGrupoEn(grupo.toStdString(), muted, salida_); }
 
-void MixerModel::setMutedGrupoEn(const std::string& g, bool muted, const std::string& salida) {
+void MixerModel::setMutedGrupoEn(const std::string& g, bool muted, const std::string& salida, std::function<void()> listo) {
+    std::vector<std::string> tiras;
     for (std::size_t i = 0; i < grupos_.size(); ++i)
-        if (!g.empty() && grupos_[i] == g) rt_.setMuted(names_[i], muted, salida);
+        if (!g.empty() && grupos_[i] == g) tiras.push_back(names_[i]);
+    if (tiras.empty()) {
+        if (listo) listo();
+        return;
+    }
+    if (salida == salida_)
+        for (const std::string& t : tiras) {
+            pendientes_[t].mudo = muted;
+            if (const int row = filaDe(t); row >= 0) emit dataChanged(index(row), index(row), {MutedRole});
+        }
+    // Una sola orden para todo el grupo; cada tira queda pendiente hasta que vuelve.
+    for (std::size_t k = 1; k < tiras.size(); ++k) ++pendientes_[tiras[k]].pedidos;
+    pedir(
+        "mezcla_mute_grupo", tiras.front(),
+        [tiras, muted, salida](AppRuntime& rt) {
+            for (const std::string& t : tiras) rt.setMuted(t, muted, salida);
+        },
+        [this, tiras, listo = std::move(listo)]() {
+            for (std::size_t k = 1; k < tiras.size(); ++k) soltarPendiente(tiras[k]);
+            if (listo) listo();
+        });
 }
 
 nlohmann::json MixerModel::nivelEn(int fila, const std::string& salida) const {
     if (fila < 0 || fila >= static_cast<int>(names_.size())) return {};
     const std::string& n = names_[static_cast<std::size_t>(fila)];
+    const FotoMotor::MezclaAudio& m = foto_->mezcla;
     return {{"pico_db", std::max(-60.0, std::round(static_cast<double>(peaks_[static_cast<std::size_t>(fila)])))},
-            {"volumen_db", std::round(mulToDb(rt_.engine().sourceVolume(n, salida)) * 10) / 10},
-            {"mudo", rt_.engine().sourceMuted(n, salida)}};
+            {"volumen_db", std::round(mulToDb(m.volumen(n, salida)) * 10) / 10},
+            {"mudo", m.mudo(n, salida)}};
 }
 
 void MixerModel::setCompacto(const QString& grupo, bool compacto) {
@@ -544,17 +648,19 @@ void MixerModel::setCompacto(const QString& grupo, bool compacto) {
 }
 
 void MixerModel::refreshLevels() {
-    if (names_ != rt_.engine().audioSources()) {
-        reload();
-        return;
-    }
+    // Del canal de niveles (los publica el motor cada ~40 ms), sin el turno ni el motor.
     // Solo se avisa lo que cambió (en silencio todo queda en -100: sin avisos, las
     // vistas no reevalúan nada diez veces por segundo).
+    const std::shared_ptr<const NivelesMotor::Niveles> nv = rt_.niveles().niveles();
     int desde = -1, hasta = -1;
     for (std::size_t i = 0; i < names_.size(); ++i) {
+        float ahora = -100.0f;
+        if (nv)
+            for (const auto& n : *nv)
+                if (!n.bus && n.id == names_[i]) ahora = std::max(n.pico[0], n.pico[1]);
         // Caida suave: 1,5 dB por vuelta del tick (100 ms).
         const float antes = peaks_[i];
-        peaks_[i] = std::max(rt_.engine().sourcePeakDb(names_[i]), peaks_[i] - 1.5f);
+        peaks_[i] = std::max(ahora, peaks_[i] - 1.5f);
         if (peaks_[i] < -100.0f) peaks_[i] = -100.0f;
         if (std::abs(peaks_[i] - antes) > 0.1f) {
             if (desde < 0) desde = static_cast<int>(i);
@@ -577,45 +683,40 @@ QVariantMap MixerModel::canal(int fila) const {
         {"nombre", data(i, NameRole)}, {"volumenDb", data(i, VolumeDbRole)}, {"mudo", data(i, MutedRole)}};
 }
 
-// El aviso a las vistas lo trae el motor (avisarCambio): igual que si lo cambia el
-// asistente, el AFV o la otra vista.
+// Se pide al dueño; mientras vuelve, la tira muestra lo pedido. El aviso a las demás
+// vistas lo trae la foto: igual que si lo cambia el asistente, el AFV o la otra vista.
 bool MixerModel::setVolumeDb(const QString& name, double db) {
+    const std::string n = name.toStdString();
+    const int row = filaDe(n);
+    if (row < 0) return false;
     const float mul = db <= -60.0 ? 0.0f : static_cast<float>(std::pow(10.0, db / 20.0));
-    return rt_.setVolume(name.toStdString(), mul, salida_);
+    pendientes_[n].volumen = mul;
+    emit dataChanged(index(row), index(row), {VolumeDbRole});
+    pedir("mezcla_volumen", n, [n, mul, salida = salida_](AppRuntime& rt) { rt.setVolume(n, mul, salida); });
+    return true;
 }
 
-bool MixerModel::setMuted(const QString& name, bool muted) { return rt_.setMuted(name.toStdString(), muted, salida_); }
+bool MixerModel::setMuted(const QString& name, bool muted) {
+    const std::string n = name.toStdString();
+    const int row = filaDe(n);
+    if (row < 0) return false;
+    pendientes_[n].mudo = muted;
+    emit dataChanged(index(row), index(row), {MutedRole});
+    pedir("mezcla_mute", n, [n, muted, salida = salida_](AppRuntime& rt) { rt.setMuted(n, muted, salida); });
+    return true;
+}
+
+void MixerModel::despues(std::function<void()> listo) {
+    // Las órdenes corren en orden en el dueño: una vacía vuelve después de todas.
+    v_.pedir(this, "mezcla_despues", []() {}, [listo = std::move(listo)]() {
+        if (listo) listo();
+    });
+}
 
 void MixerModel::setSalida(const std::string& salida) {
     if (salida == salida_) return;
     salida_ = salida;
     if (!names_.empty()) emit dataChanged(index(0), index(rowCount() - 1), {VolumeDbRole, MutedRole, GananciaGrupoDbRole});
-}
-
-void MixerModel::avisarCambio(const std::string& fuente) {
-    bool primero = false;
-    {
-        std::lock_guard<std::mutex> l(cambiosM_);
-        primero = cambios_.empty();
-        cambios_.insert(fuente);
-    }
-    if (!primero) return; // ya hay una vuelta en camino
-    QMetaObject::invokeMethod(
-        this,
-        [this]() {
-            std::set<std::string> c;
-            {
-                std::lock_guard<std::mutex> l(cambiosM_);
-                c.swap(cambios_);
-            }
-            for (const std::string& f : c) {
-                const auto it = std::find(names_.begin(), names_.end(), f);
-                if (it == names_.end()) continue;
-                const int row = static_cast<int>(it - names_.begin());
-                emit dataChanged(index(row), index(row), {VolumeDbRole, MutedRole, RetardoMsRole, GananciaGrupoDbRole});
-            }
-        },
-        Qt::QueuedConnection);
 }
 
 // ============================================================================

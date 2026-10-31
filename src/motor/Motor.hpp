@@ -93,6 +93,7 @@
 #include "Entrada.hpp"
 #include "Escucha.hpp"
 #include "Mezcla.hpp"
+#include "NivelAudio.hpp"
 #include "Piezas.hpp"
 #include "Reloj.hpp"
 #include "Vistas.hpp"
@@ -323,13 +324,12 @@ class Motor {
     /// entrega, después de su rack, vaya a donde vaya) y cada bus (programa,
     /// pista<n>, retorno<n>), por canal, pico y RMS en dB. La publica el bucle cada
     /// ~40 ms; como la foto, NO toma el candado (la interfaz nunca espera).
-    struct NivelAudio {
-        std::string id;
-        bool bus = false;
-        float pico[2] = {-100, -100};
-        float rms[2] = {-100, -100};
-    };
+    using NivelAudio = ba::motor::NivelAudio; ///< NivelAudio.hpp
     std::shared_ptr<const std::vector<NivelAudio>> niveles() const;
+    /// Quién recibe cada foto de niveles apenas se publica (en el hilo del motor; corto y
+    /// sin esperar a nadie): el canal de niveles de la app (emision/NivelesMotor), que la
+    /// interfaz lee sin tocar el motor. nullptr lo saca.
+    void alPublicarNiveles(std::function<void(std::shared_ptr<const std::vector<NivelAudio>>)> fn);
     /// Las órdenes que se encolaron y fallaron (ver orden): `que` es la función.
     /// Se llama desde el hilo del motor.
     void alFallar(std::function<void(const std::string& que, const std::string& error)> fn);
@@ -481,6 +481,7 @@ class Motor {
     void publicarNiveles();
     mutable std::mutex nivelesM_; ///< como instantaneaM_
     std::shared_ptr<const std::vector<NivelAudio>> niveles_;
+    std::function<void(std::shared_ptr<const std::vector<NivelAudio>>)> alPublicarNiveles_; ///< bajo nivelesM_
     std::atomic<bool> fotoPedida_{true};
     void publicarInstantanea();
     /// Las composiciones que se están desarmando aparte (ver soltarEscena).

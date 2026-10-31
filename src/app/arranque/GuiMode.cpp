@@ -45,6 +45,7 @@
 #include "arranque/AppRuntime.hpp"
 #include "agent/AlertEngine.hpp"
 #include "arranque/PlanoControl.hpp"
+#include "emision/FuentesApp.hpp"
 #include "emision/VentanillaMotor.hpp"
 #include "arranque/TraductorQt.hpp"
 #include "mcp/McpService.hpp"
@@ -365,11 +366,22 @@ int runGui(int argc, char** argv) {
         rt.cederDueno();
     });
     TurnoMotor::participarPorVuelta("interfaz");
+    // Las piezas que piden las fuentes sin el motor a mano (la matriz, los racks, el equipo
+    // de audio): desde la interfaz, la foto y la ventanilla (emision/FuentesApp.hpp).
+    fuentes::ponerDesdeLaInterfaz(
+        {.hilo = std::this_thread::get_id(),
+         .listar = [&ventanilla]() { return ventanilla.foto().fuentes; },
+         .ajustes = [&ventanilla](const std::string& n) -> std::optional<nlohmann::json> {
+             if (const FotoMotor::CanalAudio* c = ventanilla.foto().mezcla.canal(n)) return c->ajustes;
+             return std::nullopt;
+         },
+         .encargar = [&ventanilla](const char* que, std::function<void()> orden) { ventanilla.pedir(que, std::move(orden)); }});
     QObject::connect(QAbstractEventDispatcher::instance(), &QAbstractEventDispatcher::aboutToBlock, []() { TurnoMotor::soltarVuelta(); });
     // Al cerrar (o si la interfaz no carga), el motor vuelve a este hilo: el plano se para
     // (lo adoptado vuelve), este hilo es el dueño de nuevo y el cierre ordenado es suyo.
     const auto devolverElMotor = [&rt, &plano]() {
         TurnoMotor::soltarVuelta();
+        fuentes::ponerDesdeLaInterfaz({});
         plano.detener();
         TurnoMotor::participar("dueño");
         rt.cederDueno();

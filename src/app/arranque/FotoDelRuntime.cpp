@@ -72,10 +72,20 @@ void AppRuntime::publicarFoto() {
             cambiaron |= FotoMotor::Emision;
         if (n.ajustes != a.ajustes) cambiaron |= FotoMotor::Ajustes;
         if (n.medios != a.medios || n.salud != a.salud || n.loudness != a.loudness) cambiaron |= FotoMotor::Medidas;
+        if (n.mezcla != a.mezcla) cambiaron |= FotoMotor::Mezcla;
     }
     if (cambiaron == 0) return;
     foto_ = f;
+    {
+        const std::lock_guard<std::mutex> l(ultimaFotoMu_);
+        ultimaFoto_ = foto_;
+    }
     publicarFoto_(foto_, cambiaron);
+}
+
+std::shared_ptr<const FotoMotor> AppRuntime::ultimaFoto() const {
+    const std::lock_guard<std::mutex> l(ultimaFotoMu_);
+    return ultimaFoto_;
 }
 
 void AppRuntime::armarFoto(FotoMotor& f, unsigned p) {
@@ -225,6 +235,9 @@ void AppRuntime::armarFoto(FotoMotor& f, unsigned p) {
         a.claveGuardada = streamKeySaved();
         a.sala = gateway_.room;
     }
+
+    // --- El audio de cada fuente (FotoMezcla.cpp) -----------------------------------------
+    if ((p & FotoMotor::Mezcla) != 0) armarMezcla(f.mezcla);
 
     // --- Lo que se mueve siempre ---------------------------------------------------------
     if ((p & FotoMotor::Medidas) != 0) {

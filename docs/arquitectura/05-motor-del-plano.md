@@ -1,9 +1,9 @@
 # El motor es del plano de control (F3-03)
 
 Cómo se migra un área de la interfaz para que no toque el motor. Hecho para escenas,
-fuentes del editor, salidas, emisión, las pastillas de la raíz y las vistas de video
-(`FrameService`); falta para Mezcla/audio, Imagen/video, Control/DSK, Asamblea, Sala,
-Asistente y Escritorio.
+fuentes del editor, salidas, emisión, las pastillas de la raíz, las vistas de video
+(`FrameService`) y la mezcla y el audio; falta para Imagen/video, Control/DSK, Asamblea,
+Sala, Asistente y Escritorio.
 
 ## Quién es dueño de qué
 
@@ -49,6 +49,25 @@ Patrones que salieron al migrar:
   cuando se lo necesita (un medidor puede sondear a su ritmo).
 - Los avisos del runtime (`AppRuntime::observar`) llegan en el dueño: quien escucha y
   es de la interfaz se los encarga a su bucle.
+- Lo que se mueve A CADA RATO y no conviene comparar en la foto (los niveles de los
+  vúmetros) va por un canal propio con su cadencia: `emision/NivelesMotor` (los niveles
+  de cada entrada y bus los publica el hilo del motor, `Motor::alPublicarNiveles`; el
+  pico del programa de cada salida lo suma el dueño en `ticMotor`; la interfaz lo lee a
+  su ritmo con `AppRuntime::niveles()`, que no es una llamada directa).
+- Lo que el vigía de las alarmas mira del motor y es de un área (el audio de cada
+  entrada, los medios) se lee DIRECTO de la última foto publicada
+  (`AppRuntime::ultimaFoto`, desde cualquier hilo) y del canal: sale con la interfaz
+  trabada.
+- Las piezas sin el motor a mano que piden fuentes por `fuentes::` (la matriz, los racks,
+  el equipo de audio): desde la interfaz, `fuentes::ponerDesdeLaInterfaz` (GuiMode) les
+  da la lista y los ajustes de la foto y encarga al dueño crear o quitar una entrada.
+
+Mezcla y audio (2026-10-31): la parte `Mezcla` de la foto (`arranque/FotoMezcla.cpp`: el
+audio de cada fuente en cada salida, el VCA de los grupos, el solo, la balística; la
+ensucia `BroadcastEngine::alCambiarAudioFuente`, que ahora es del runtime) la leen
+`MixerModel`, `MezclaViewModel`, `audio::Mezclador`, `audio::Matriz` (anota y guarda lo
+que cambió comparando con la foto; a una fuente que nace, `CanalAudio::altas`, le pide lo
+guardado) y `audio::RackManager`; lo que cambian lo piden (pendiente hasta que vuelve).
 
 Para sumar algo a la foto: un campo en `FotoMotor` (con su parte), lo arma
 `AppRuntime::armarFoto` (o un modelo del dueño con `aportarALaFoto`), y quien lo cambia

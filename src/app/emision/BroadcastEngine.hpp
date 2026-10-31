@@ -78,6 +78,7 @@
 #include "ipc/CanalesEscena.hpp"
 #include "ipc/SharedAudioRing.hpp"
 #include "ipc/SpoutTransport.hpp"
+#include "emision/NivelesMotor.hpp"
 #include "emision/TurnoMotor.hpp"
 
 namespace ba::motor {
@@ -422,6 +423,9 @@ class BroadcastEngine {
     /// DESDE CUALQUIER HILO: la foto de lo que sale que publica el hilo de salidas
     /// ({principal, grabacion, salidas: {id: {principal, grabacion, …}}}; ver status()).
     nlohmann::json fotoSalidas() const;
+    /// DESDE CUALQUIER HILO: el canal de niveles (los vúmetros de cada entrada, bus y
+    /// programa; emision/NivelesMotor.hpp). Vive lo que el BroadcastEngine.
+    NivelesMotor& nivelesCanal() { return nivelesCanal_; }
     /// DESDE CUALQUIER HILO: el loudness del programa de la por omisión (tiene su candado).
     const audio::LoudnessPrograma& loudnessPrograma() const { return medidasPrograma_->loudness; }
 
@@ -1251,6 +1255,7 @@ class BroadcastEngine {
     std::atomic<int> capturasEnCurso_{0};
     std::mutex falloMotorM_;
     std::function<void(const std::string&)> falloMotor_;
+    NivelesMotor nivelesCanal_; ///< nivelesCanal
     std::function<void(const std::string&, const char*)> cambioAudio_; ///< alCambiarAudioFuente (se fija una vez, al armar)
     /// Lo que va al control de nivel del motor en la salida `s`: el fader de la fuente por la
     /// ganancia de su grupo en esa salida.

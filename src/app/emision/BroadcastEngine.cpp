@@ -539,11 +539,16 @@ bool BroadcastEngine::startup(const EnginePaths& paths, const VideoConfig& video
         }
         if (fn) fn(ba::i18n::llenar(ba::i18n::traducir("emision", "el motor no pudo hacer «%1»: %2"), {que, error}));
     });
+    // Los vúmetros: cada foto de niveles, al canal que lee la interfaz (NivelesMotor).
+    motor_->alPublicarNiveles([c = &nivelesCanal_](std::shared_ptr<const NivelesMotor::Niveles> n) {
+        c->ponerNiveles(std::move(n));
+    });
     const std::string e = motor_->iniciar();
     if (!e.empty()) {
         setError(e);
         const std::lock_guard<std::mutex> l(vistasMu_);
         motor_.reset();
+        nivelesCanal_.ponerNiveles(nullptr);
         return false;
     }
     started_ = true;
@@ -653,6 +658,7 @@ void BroadcastEngine::shutdown() {
         const std::lock_guard<std::mutex> l(vistasMu_);
         motor_->detener();
         motor_.reset();
+        nivelesCanal_.ponerNiveles(nullptr);
     }
     scenes_.clear();
     sources_.clear();

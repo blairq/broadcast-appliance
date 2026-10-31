@@ -29,6 +29,7 @@
 #include <atomic>
 
 #include "emision/BroadcastEngine.hpp"
+#include "emision/FotoMotor.hpp"
 #include "emision/FuentesApp.hpp"
 #include "comun/HoraMonotonica.hpp"
 #include "Motor.hpp"
@@ -52,13 +53,28 @@ namespace {
 
 BroadcastEngine* motorApp() { return fuentes::motorApp(); }
 
+/// La foto del motor (F3-03): qué fuentes hay, de qué tipo y el audio de cada una. La pone
+/// MezclaViewModel (RackManager::setFoto); se lee en el hilo de la interfaz. Sin ella (la
+/// consola, una prueba) se le pregunta al motor.
+std::function<std::shared_ptr<const FotoMotor>()> g_foto;
+/// Y a quién se le encarga lo que cambia en el motor (la ventanilla), sin esperar.
+std::function<void(std::function<void()>)> g_encargar;
+
+std::shared_ptr<const FotoMotor> fotoUi() {
+    if (!g_foto || QCoreApplication::instance() == nullptr || QThread::currentThread() != QCoreApplication::instance()->thread())
+        return nullptr;
+    return g_foto();
+}
+
 bool existe(const std::string& f) {
+    if (const auto fo = fotoUi()) return !fo->tipoDe(f).empty();
     BroadcastEngine* e = motorApp();
     return e != nullptr && e->sourceExists(f);
 }
 
 /// ¿Tiene audio? (una cámara de GStreamer con `audio` apagado, no).
 bool conAudio(const std::string& f) {
+    if (const auto fo = fotoUi()) return fo->mezcla.canal(f) != nullptr;
     BroadcastEngine* e = motorApp();
     if (e == nullptr) return false;
     const auto v = e->audioSources();
@@ -67,11 +83,18 @@ bool conAudio(const std::string& f) {
 
 nlohmann::json ajustesDe(const std::string& f) { return fuentes::ajustesDe(f); }
 
+/// El tipo del motor de una fuente ("" si no existe).
+std::string tipoDe(const std::string& f) {
+    if (const auto fo = fotoUi()) return fo->tipoDe(f);
+    BroadcastEngine* e = motorApp();
+    return e != nullptr ? e->sourceTypeId(f) : std::string();
+}
+
 /// El tipo lógico (inputs::tipoLogico): un micrófono o un invitado por GStreamer
 /// se agrupan y usan las plantillas por tipo.
 std::string tipoLogicoDe(const std::string& f) {
-    BroadcastEngine* e = motorApp();
-    return e != nullptr ? inputs::tipoLogico(e->sourceTypeId(f), ajustesDe(f)) : std::string();
+    const std::string t = tipoDe(f);
+    return t.empty() ? std::string() : inputs::tipoLogico(t, ajustesDe(f));
 }
 
 /// Las salidas de audio del equipo: (id estable, nombre).
@@ -468,11 +491,23 @@ void RackManager::restoreMonitor() {
     syncMonitors();
 }
 
+void RackManager::setFoto(std::function<std::shared_ptr<const FotoMotor>()> foto,
+                          std::function<void(std::function<void()>)> encargar) {
+    g_foto = std::move(foto);
+    g_encargar = std::move(encargar);
+}
+
 json RackManager::audioSources() const {
     json list = json::array();
-    BroadcastEngine* e = motorApp();
-    if (e == nullptr) return list;
-    for (const std::string& name : e->audioSources()) {
+    std::vector<std::string> nombres;
+    if (const auto fo = fotoUi()) {
+        nombres = fo->mezcla.nombres();
+    } else if (BroadcastEngine* e = motorApp()) {
+        nombres = e->audioSources();
+    } else {
+        return list;
+    }
+    for (const std::string& name : nombres) {
         const std::string type = tipoLogicoDe(name);
         // Grupo para el arbol de la interfaz: por donde entra el audio.
         std::string group = QT_TRANSLATE_NOOP("audio", "Otras fuentes");
@@ -484,13 +519,13 @@ json RackManager::audioSources() const {
             group = QT_TRANSLATE_NOOP("audio", "Entradas virtuales (matriz)");
         } else if (type == "ba_guest_audio") {
             // Los remotos de la asamblea, aparte de los invitados de la conferencia.
-            group = inputs::grupoDeGente(type, json::parse(e->sourceSettingsJson(name), nullptr, false));
+            group = inputs::grupoDeGente(type, ajustesDe(name));
         } else if (type.find("_input_capture") != std::string::npos) {
             group = QT_TRANSLATE_NOOP("audio", "Micrófonos y líneas del equipo");
         } else if (type.find("_output_capture") != std::string::npos) {
             group = QT_TRANSLATE_NOOP("audio", "Audio del equipo (lo que suena)");
         } else if (type == inputs::kMedioType || type == "ba_ndi_input" ||
-                   inputs::isNetworkInput(type, json::parse(e->sourceSettingsJson(name), nullptr, false))) {
+                   inputs::isNetworkInput(type, ajustesDe(name))) {
             group = QT_TRANSLATE_NOOP("audio", "Medios y red");
         }
         json j{{"nombre", name}, {"tipo", type}, {"grupo", group}, {"rack", false}};
@@ -555,12 +590,18 @@ json RackManager::estudio() const {
     double y = 0;
     for (const auto& f : audioSources()) {
         const std::string nombre = f.value("nombre", std::string());
-        BroadcastEngine* eng = motorApp();
-        if (eng == nullptr || !eng->sourceExists(nombre)) continue;
-        const std::string tipo = eng->sourceTypeId(nombre);
+        if (!existe(nombre)) continue;
+        const std::string tipo = tipoDe(nombre);
         const json ajustes = ajustesDe(nombre);
-        const float vol = eng->sourceVolume(nombre);
-        const bool mudo = eng->sourceMuted(nombre);
+        float vol = 1.0f;
+        bool mudo = false;
+        if (const auto fo = fotoUi()) {
+            vol = fo->mezcla.volumen(nombre);
+            mudo = fo->mezcla.mudo(nombre);
+        } else if (BroadcastEngine* eng = motorApp()) {
+            vol = eng->sourceVolume(nombre);
+            mudo = eng->sourceMuted(nombre);
+        }
 
         const std::string p = nombre + "|";
         const std::string motor = "gstreamer"; // en el motor, toda entrada es de GStreamer
@@ -1249,7 +1290,7 @@ void RackManager::sincronizarEntradas() {
             const std::string clave = nombre + "\n" + nodo;
             // Una toma vieja de otra fuente (cambió la tarjeta) se rehace.
             auto it = tomas_.find(clave);
-            if (it != tomas_.end() && (it->second->fuente != fuente || !eng->sourceExists(it->second->fuente) ||
+            if (it != tomas_.end() && (it->second->fuente != fuente || !existe(it->second->fuente) ||
                                        !eng->motor()->tomaViva(it->second->toma))) {
                 f->rack->setEntradaAnillo(nodo, nullptr);
                 tomas_.erase(it);
@@ -1261,7 +1302,7 @@ void RackManager::sincronizarEntradas() {
             }
             quiero.insert(clave);
             if (it == tomas_.end()) {
-                if (!eng->sourceExists(fuente)) continue; // todavía no existe: en la próxima vuelta
+                if (!existe(fuente)) continue; // todavía no existe: en la próxima vuelta
                 auto t = std::make_unique<Toma>();
                 t->fuente = fuente;
                 // El audio de la fuente después de su cadena, al anillo de la tarjeta.
@@ -1318,6 +1359,11 @@ void RackManager::ponerRackEnFuente(const std::string& fuente, const std::string
     // Solo el ajuste `rack` de la entrada (se mezcla con los demás): la cadena
     // se rearma con (o sin) `barack` al frente del audio. Por la app: queda
     // también en la configuración guardada.
+    // Desde la interfaz, al dueño del motor (la foto lo trae al volver).
+    if (g_encargar && fotoUi()) {
+        g_encargar([fuente, rack]() { fuentes::cambiarAjustes(fuente, json{{"rack", rack}}); });
+        return;
+    }
     fuentes::cambiarAjustes(fuente, json{{"rack", rack}});
 }
 

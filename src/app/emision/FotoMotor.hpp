@@ -26,10 +26,17 @@
 //   Ajustes  el lienzo, la transición global, el tema, los invitados, el servidor y la clave.
 //   Medidas  lo que se mueve siempre (los medios que suenan y cuánto les queda, la salud de
 //            cada destino, el loudness de cada salida): se lee cuando se lo necesita.
+//   Mezcla   el audio de cada fuente (en el orden del motor): su tipo y sus ajustes, su
+//            grupo, el fader y el mute en cada salida, el retardo, las pistas, la escucha; el
+//            VCA de cada grupo en cada salida, el solo (PFL/AFL), la salida de la escucha, la
+//            balística de los medidores y las pistas que graba el programa. Se rearma cuando
+//            el motor avisa un cambio de audio (BroadcastEngine::alCambiarAudioFuente). Los
+//            NIVELES no van acá: van por su canal (emision/NivelesMotor.hpp).
 // ============================================================================
 #pragma once
 
 #include <cstdint>
+#include <map>
 #include <string>
 #include <utility>
 #include <vector>
@@ -47,7 +54,8 @@ struct FotoMotor {
         Emision = 1u << 3,
         Ajustes = 1u << 4,
         Medidas = 1u << 5,
-        Todas = (1u << 6) - 1,
+        Mezcla = 1u << 10,
+        Todas = Escenas | Salidas | Estado | Emision | Ajustes | Medidas | Mezcla,
     };
 
     // --- Escenas ---------------------------------------------------------------------
@@ -143,6 +151,64 @@ struct FotoMotor {
     nlohmann::json medios = nlohmann::json::array();   ///< [{fuente, estado, duracion_ms, tiempo_ms}]
     nlohmann::json salud = nlohmann::json::object();   ///< BroadcastEngine::saludSalidas
     nlohmann::json loudness = nlohmann::json::object(); ///< {salida: LoudnessPrograma::json}
+
+    // --- Mezcla -------------------------------------------------------------------------
+    struct CanalAudio {
+        std::string nombre, tipo;    ///< el tipo del motor (sourceTypeId)
+        nlohmann::json ajustes = nlohmann::json::object();
+        std::string grupo;           ///< BroadcastEngine::grupoDeAudio
+        std::map<std::string, float> volumen; ///< por salida (su id; la por omisión también)
+        std::map<std::string, bool> mudo;     ///< ídem
+        int retardoMs = 0;           ///< respecto de su video (sourceSyncOffset)
+        std::uint32_t pistas = 0;    ///< bit 0 = pista 1 (el programa)
+        bool escuchaFija = false;    ///< el cruce Escucha de la matriz (lo que se guarda)
+        bool escucha = false;        ///< suena en los auriculares (la fija o el solo)
+        std::uint64_t altas = 0;     ///< cuántas veces nació (o se rehízo) con este nombre
+        bool operator==(const CanalAudio&) const = default;
+    };
+    struct MezclaAudio {
+        std::vector<CanalAudio> canales; ///< las fuentes con audio, en el orden del motor
+        std::string porOmision;          ///< el id de la salida por omisión
+        /// {salida: {grupo: VCA (multiplicador)}}: los grupos con dos o más fuentes.
+        std::map<std::string, std::map<std::string, float>> grupos;
+        std::string pfl, pflModo, salidaEscucha; ///< el solo (""= ninguno) y de qué salida es la escucha
+        std::string balistica = "pico";
+        int pistasGrabacion = 0;         ///< BroadcastEngine::pistasGrabacionMask
+        bool midiendoSincro = false;
+        bool operator==(const MezclaAudio&) const = default;
+
+        const CanalAudio* canal(const std::string& nombre) const {
+            for (const CanalAudio& c : canales)
+                if (c.nombre == nombre) return &c;
+            return nullptr;
+        }
+        /// La salida como la guarda la foto ("" = la por omisión).
+        const std::string& salida(const std::string& s) const { return s.empty() ? porOmision : s; }
+        float volumen(const std::string& nombre, const std::string& s = {}) const {
+            const CanalAudio* c = canal(nombre);
+            if (c == nullptr) return 1.0f;
+            const auto it = c->volumen.find(salida(s));
+            return it != c->volumen.end() ? it->second : 1.0f;
+        }
+        bool mudo(const std::string& nombre, const std::string& s = {}) const {
+            const CanalAudio* c = canal(nombre);
+            if (c == nullptr) return false;
+            const auto it = c->mudo.find(salida(s));
+            return it != c->mudo.end() && it->second;
+        }
+        float vca(const std::string& grupo, const std::string& s = {}) const {
+            const auto it = grupos.find(salida(s));
+            if (it == grupos.end()) return 1.0f;
+            const auto g = it->second.find(grupo);
+            return g != it->second.end() ? g->second : 1.0f;
+        }
+        std::vector<std::string> nombres() const {
+            std::vector<std::string> out;
+            for (const CanalAudio& c : canales) out.push_back(c.nombre);
+            return out;
+        }
+    };
+    MezclaAudio mezcla;
 
     // --- Para leerla -----------------------------------------------------------------
     const Escena* escena(const std::string& nombre) const {

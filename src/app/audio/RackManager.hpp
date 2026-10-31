@@ -36,6 +36,10 @@
 
 #include "audio/AudioRack.hpp"
 
+namespace ba::app {
+struct FotoMotor;
+}
+
 namespace ba::app::audio {
 
 class QtHostServices;
@@ -47,6 +51,11 @@ class RackManager : public QObject {
 
     RackManager(std::filesystem::path dataRoot, QObject* parent = nullptr);
     ~RackManager() override;
+    /// De dónde saca qué fuentes hay, su tipo y su audio en el hilo de la interfaz: la foto
+    /// del motor (F3-03; el motor es del plano de control). Sin esto, le pregunta al motor.
+    /// Lo que cambia en una fuente (el ajuste `rack`), a `encargar` (corre en el dueño).
+    static void setFoto(std::function<std::shared_ptr<const FotoMotor>()> foto,
+                        std::function<void(std::function<void()>)> encargar);
 
     /// Los plugins LSP (se abren la primera vez). nullptr + error si no estan.
     std::shared_ptr<ClapLibrary> library(std::string* error = nullptr);
