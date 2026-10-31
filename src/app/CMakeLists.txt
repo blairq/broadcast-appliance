@@ -863,7 +863,8 @@ endif()
     # time y retoma tras un corte; la fachada del guion de cues (proyectar/reconciliar),
     # editar en lote, y la corrida (el ejecutor: GO, HOLD, lo que entra solo, saltar,
     # adlibs, insertar, la retoma). Puro como el guion: sin Qt, sin motor, sin reloj.
-    add_executable(test_linea tests/test_linea.cpp evento/Linea.cpp evento/LineaEdicion.cpp evento/Corrida.cpp
+    add_executable(test_linea tests/test_linea.cpp evento/Linea.cpp evento/LineaEdicion.cpp evento/Corrida.cpp evento/Condicion.cpp
+                   evento/LineaPlantillas.cpp
                    evento/Evento.cpp)
     target_include_directories(test_linea PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
     target_link_libraries(test_linea PRIVATE nlohmann_json::nlohmann_json)

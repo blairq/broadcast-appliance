@@ -242,15 +242,26 @@ struct ItemEstante {
     static ItemEstante deJson(const nlohmann::json& j);
 };
 
+/// Algo que la línea hace sola cuando una condición PASA a cumplirse (el flanco: si
+/// sigue cumpliéndose no vuelve a hacerlo). Mientras la línea corre; en pausa o en
+/// el HOLD de un corte no se dispara (y lo que pasó ahí no queda pendiente).
+/// `hacer`: {accion, salida?, id?, alAire?} con `accion` una de las de vivo:
+///   go | hold | soltar | saltar (la salida; sin salida, la por omisión)
+///   adlib (id: una pieza del paso al aire o del estante)
+///   insertar (id: un paso del estante; alAire: true para que entre ya)
+///   ir (id: el paso)
 struct Disparador {
     std::string id;
     Condicion cuando;
-    nlohmann::json hacer = nlohmann::json::object(); ///< la acción (L7)
-    Vida activo = Vida::Evento;
+    nlohmann::json hacer = nlohmann::json::object();
+    Vida activo = Vida::Evento; ///< por ahora vale todo el evento
 
     nlohmann::json aJson() const;
     static Disparador deJson(const nlohmann::json& j);
 };
+
+/// "" si el `hacer` de un disparador se entiende; si no, por qué no.
+std::string errorDeHacer(const nlohmann::json& hacer);
 
 struct Plantilla {
     std::string id;
@@ -287,6 +298,13 @@ struct Linea {
     nlohmann::json aJson() const;
     static Linea deJson(const nlohmann::json& j);
 };
+
+/// La pieza que pone la escena de un paso en una salida (la de su pista de escena, o
+/// de tipo escena sin pista); nullptr si el paso no cambia el plano. La usan los
+/// conflictos de PTZ, el lookahead al PVW y el «reenganchar» de lo hecho a mano.
+const Pieza* piezaDeEscena(const Linea& l, const Paso& p, const std::string& salida);
+/// La escena que pone esa pieza ("" si ninguna).
+std::string escenaDe(const Linea& l, const Paso& p, const std::string& salida);
 
 /// Pasa un guion v1 (bloques → cues) a la línea v2, sin perder nada:
 ///  - cada bloque queda igual;
@@ -360,7 +378,16 @@ struct Entrada {
     std::map<std::string, int64_t> backTimesPisados;
     /// Las cámaras que usa una escena (para los conflictos de PTZ). Vacía = no se chequea.
     std::function<std::vector<std::string>(const std::string& escena)> camarasDeEscena;
+    /// Cuándo arrancó DE VERDAD cada pieza de lo emitido ("salida/paso/pieza" → ms; lo
+    /// lleva la corrida). Manda sobre su `desde`: un adlib del paso o una pieza «cuando»
+    /// que ya salió tiene hora aunque la condición ya no se cumpla, y vive lo suyo.
+    std::map<std::string, int64_t> arranques;
 };
+
+/// La clave de `Entrada::arranques`.
+inline std::string claveArranque(const std::string& salida, const std::string& paso, const std::string& pieza) {
+    return salida + "/" + paso + "/" + pieza;
+}
 
 // --- Lo que sale del resolvedor ------------------------------------------------------
 

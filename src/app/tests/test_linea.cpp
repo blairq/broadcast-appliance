@@ -16,6 +16,12 @@
 //  13. La vista compacta (linea_ver) y el ajuste simple (linea_ajustar).
 //  14. La corrida: GO, lo que entra solo, el aviso, HOLD, pausa, saltar, ir a con
 //      reposición, adlibs, insertar del estante y la retoma tras un corte.
+//  15. Condiciones (L7): leer, evaluar, la hora, el seguimiento y la revisión.
+//  16. La corrida con lo de afuera: «cuando», «mientras», piezas «cuando», pulsos y
+//      disparadores (en el flanco), el adlib del paso que vive su paso.
+//  17. Varias salidas (L6): cada una con su GO, momentos compartidos, anclas, «a mano».
+//  18. Lo disparado del estante vuelve tras un corte.
+//  19. El orden del día expande un bloque y se re-expande sin tocar lo emitido.
 //
 // Todo sin motor y con el reloj inyectado: ningún tiempo real.
 // ============================================================================
@@ -25,7 +31,9 @@
 #include <string>
 
 #include "evento/Evento.hpp"
+#include "evento/Condicion.hpp"
 #include "evento/Corrida.hpp"
+#include "evento/LineaPlantillas.hpp"
 #include "evento/Linea.hpp"
 #include "evento/LineaEdicion.hpp"
 
@@ -1324,6 +1332,327 @@ void testCorridaRetoma() {
     CHECK(d.tick(T0 + 200 * S).empty(), "dañado: sigue en HOLD hasta que alguien cuente");
 }
 
+
+// --- 15. Condiciones (L7): leer, evaluar y seguir en el tiempo ------------------------------
+
+void testCondiciones() {
+    Mundo m;
+    m.ahoraMs = T0;
+    m.inicioPlaneadoMs = T0;
+    m.bus["votacion/abierta"] = true;
+    m.bus["oradores/al_aire"] = json{{"banca", "banca-12"}, {"nombre", "Ana"}};
+    m.bus["sesion/punto"] = json{{"n", 3}, {"estado", "votado"}};
+    CHECK(evaluar("bus:votacion/abierta", m).cumple, "bus: verdadero");
+    CHECK(!evaluar("no bus:votacion/abierta", m).cumple && !evaluar("!bus:votacion/abierta", m).cumple, "no / !");
+    CHECK(!evaluar("bus:nadie/publico", m).cumple, "un tema que nadie publicó no se cumple");
+    CHECK(evaluar("bus:oradores/al_aire.banca == 'banca-12'", m).cumple, "un campo contra un texto");
+    CHECK(evaluar("bus:oradores/al_aire.banca=='banca-12'", m).cumple, "sin espacios");
+    CHECK(!evaluar("bus:oradores/al_aire.banca != 'banca-12'", m).cumple, "distinto");
+    CHECK(evaluar("bus:sesion/punto.n >= 3 y bus:sesion/punto.estado == \"votado\"", m).cumple, "número y texto, con y");
+    CHECK(evaluar("bus:sesion/punto.n > 5 o (tecla:F5 || bus:votacion/abierta)", m).cumple, "o con paréntesis");
+    CHECK(!evaluar("tecla:F5", m).cumple, "un pulso que no pasó");
+    m.pulsos.insert("tecla:F5");
+    CHECK(evaluar("tecla:F5", m).cumple && evaluar("tecla:F5", m).desdeMs == T0, "el pulso, en su instante");
+
+    // La hora: cuándo cambia y desde cuándo vale.
+    Evaluacion h = evaluar("hora>=19:30", m);
+    CHECK(!h.cumple && h.cambiaMs == T0 + 30 * M, "todavía no: cambia a las 19:30");
+    m.ahoraMs = T0 + 31 * M;
+    h = evaluar("hora >= 19:30", m);
+    CHECK(h.cumple && h.desdeMs == T0 + 30 * M && h.cambiaMs == kNunca, "ya: desde las 19:30");
+    CHECK(evaluar("hora<20:00", m).cumple && !evaluar("hora==19:30", m).cumple && evaluar("hora==19:31", m).cumple, "otras");
+    m.ahoraMs = T0;
+    CHECK(evaluar("hora>=02:00", m).cambiaMs == 26 * H, "una hora antes del arranque es de la madrugada siguiente");
+
+    // El fin de una pieza, el medio que terminó.
+    m.finesDePieza["z3"] = T0 - S;
+    Evaluacion pz = evaluar("pieza:z3.fin + 2s", m);
+    CHECK(!pz.cumple && pz.cambiaMs == T0 + S, "fin + 2s: falta un segundo");
+    m.ahoraMs = T0 + 2 * S;
+    CHECK(evaluar("pieza:z3.fin + 2s", m).cumple && evaluar("pieza:z3.fin + 500ms", m).cumple && evaluar("pieza:z3.fin", m).cumple,
+          "ya pasó");
+    m.mediosTerminados["zv"] = T0 + S;
+    CHECK(evaluar("medio:zv.termino", m).cumple && evaluar("medio:zv.termino", m).desdeMs == T0 + S, "el medio terminó");
+
+    // Lo que no se entiende.
+    CHECK(errorDeCondicion("bus:votacion/abierta y (tecla:F5 o web:aplauso)").empty(), "bien escrita");
+    CHECK(!errorDeCondicion("").empty() && !errorDeCondicion("votacion abierta").empty() &&
+              !errorDeCondicion("hora>=25:00").empty() && !errorDeCondicion("(bus:x").empty() &&
+              !errorDeCondicion("bus:x ==").empty() && !errorDeCondicion("pieza:z.fin + mucho").empty(),
+          "mal escritas");
+    CHECK(!evaluar("votacion abierta", m).cumple, "mal escrita no se cumple nunca");
+    CHECK(temasDe("bus:a/b.c == 1 o no bus:d/e") == std::vector<std::string>({"a/b", "d/e"}), "los temas que mira");
+
+    // El seguimiento: desde cuándo.
+    Seguimiento seg;
+    Mundo w;
+    w.ahoraMs = T0;
+    const std::set<Condicion> cs{"bus:votacion/abierta", "hora>=19:10"};
+    seg.actualizar(cs, w);
+    CHECK(!seg.cumple("bus:votacion/abierta") && seg.proximoCambioMs() == T0 + 10 * M, "nada todavía; la hora avisa");
+    w.ahoraMs = T0 + M;
+    w.bus["votacion/abierta"] = true;
+    CHECK(seg.actualizar(cs, w) && seg.estados().at("bus:votacion/abierta").desdeMs == T0 + M, "se abrió: desde ahora");
+    w.ahoraMs = T0 + 2 * M;
+    CHECK(!seg.actualizar(cs, w) && seg.estados().at("bus:votacion/abierta").desdeMs == T0 + M, "sigue igual: no cambia");
+    w.ahoraMs = T0 + 10 * M + 7;
+    CHECK(seg.actualizar(cs, w) && seg.estados().at("hora>=19:10").desdeMs == T0 + 10 * M, "la hora, exacta");
+
+    // Las que usa una línea.
+    Linea l = tresPasos();
+    l.bloques[0].pasos[1].inicio.modo = ModoInicio::Cuando;
+    l.bloques[0].pasos[1].inicio.condicion = "bus:votacion/cerrada";
+    l.bloques[0].pasos[0].fin.modo = ModoFin::Mientras;
+    l.bloques[0].pasos[0].fin.mientras = "bus:votacion/abierta";
+    l.bloques[0].pasos[0].piezas = {pieza("zv", "audio", "video")};
+    Disparador d;
+    d.id = "d1";
+    d.cuando = "tecla:F5";
+    l.disparadores = {d};
+    const std::set<Condicion> todas = condicionesDe(l);
+    CHECK(todas.count("bus:votacion/cerrada") && todas.count("bus:votacion/abierta") && todas.count("medio:zv.termino") &&
+              todas.count("tecla:F5"),
+          "condicionesDe: cuando, mientras, medios y disparadores");
+    const auto rs = revisar(l);
+    CHECK(hay(rs, {}, {}, true, "d1"), "un disparador que no dice qué hacer es grave");
+    l.bloques[0].pasos[1].inicio.condicion = "bus:votacion/cerrada y";
+    CHECK(hay(revisar(l), "p2", {}, true, "no se entiende"), "una condición mal escrita es grave");
+}
+
+// --- 16. La corrida con lo de afuera (L7) ---------------------------------------------------
+
+void testCorridaCondiciones() {
+    // La votación: p1 dura mientras está abierta y sigue solo; p2 (el resultado) entra
+    // cuando se cierra; el gráfico de resultado arranca «cuando» y queda aunque se reabra.
+    Linea l = lineaBase();
+    Paso p1 = paso("p1", 120);
+    p1.fin.modo = ModoFin::Mientras;
+    p1.fin.mientras = "bus:votacion/abierta";
+    p1.continuar = Continuar::Sigue;
+    Paso p2 = paso("p2", 60);
+    Pieza zR = pieza("zR", "graficos", "grafico", json{{"fuente", "F"}, {"grafico", "resultado"}});
+    zR.desde.modo = Ancla::Modo::Cuando;
+    zR.desde.cuando = "bus:votacion/cerrada";
+    p2.piezas = {zR};
+    Paso p3 = paso("p3", 60);
+    p3.inicio.modo = ModoInicio::Cuando;
+    p3.inicio.condicion = "tecla:F5";
+    Paso p4 = paso("p4", 60);
+    p4.inicio.modo = ModoInicio::Cuando;
+    p4.inicio.condicion = "bus:sesion/punto.estado == 'votado'";
+    l.bloques = {bloque("b1", {p1, p2, p3, p4})};
+
+    Corrida c(l, entrada(T0));
+    c.arrancar(T0);
+    CHECK(c.temasQueMira().size() == 3, "mira solo los temas que usa");
+    CHECK(c.hecho("audio/nivel/mic", json{{"pico", -3}}, T0 + S).empty(), "lo que no mira, ni lo guarda");
+    // p4 «cuando votado», ya votado pero no es el próximo: no se saltea p2 y p3.
+    auto acc = c.hecho("sesion/punto", json{{"estado", "votado"}}, T0 + 2 * S);
+    CHECK(!hay(acc, Accion::Que::EntraPaso, "p4") && c.alAire("principal")->paso == "p1", "un «cuando» espera su turno");
+    c.hecho("votacion/abierta", true, T0 + 10 * S);
+    acc = c.tick(T0 + 130 * S);
+    CHECK(!hay(acc, Accion::Que::EntraPaso, "p2"), "abierta: el paso no se va aunque pase lo previsto");
+    acc = c.hecho("votacion/abierta", false, T0 + 140 * S);
+    CHECK(hay(acc, Accion::Que::EntraPaso, "p2"), "se cerró: termina el «mientras» y entra el que sigue");
+    CHECK(!hay(acc, Accion::Que::Pieza, "zR"), "el resultado espera su condición");
+    acc = c.hecho("votacion/cerrada", true, T0 + 141 * S);
+    CHECK(hay(acc, Accion::Que::Pieza, "zR"), "y sale al cerrar");
+    acc = c.hecho("votacion/cerrada", false, T0 + 150 * S);
+    CHECK(!hay(acc, Accion::Que::Saca, "zR") && c.disparada("principal", "zR"), "se reabre: lo que salió, salió (vive su paso)");
+    // p3 entra con un pulso, y un pulso viejo no vale después.
+    acc = c.pulso("tecla:F4", T0 + 160 * S);
+    CHECK(!hay(acc, Accion::Que::EntraPaso, "p3"), "otra tecla, nada");
+    acc = c.pulso("tecla:F5", T0 + 161 * S);
+    CHECK(hay(acc, Accion::Que::EntraPaso, "p3") && hay(acc, Accion::Que::Saca, "zR"), "la tecla: entra p3 y el resultado se va con p2");
+    CHECK(c.instancias().back().comoEntro == ComoEntro::Cuando, "anotado como «cuando»");
+    // Y ahora que p4 es el próximo, su condición ya se cumplía: entra en el acto.
+    acc = c.tick(T0 + 162 * S);
+    CHECK(c.alAire("principal")->paso == "p4", "le llegó el turno y ya estaba votado: entra");
+}
+
+void testCorridaDisparadores() {
+    Linea l = tresPasos();
+    l.bloques[0].pasos[0].piezas = {pieza("zE", "escena", "escena", json{{"escena", "Cam 1"}})};
+    Pieza zN = pieza("zN", "graficos", "grafico", json{{"fuente", "F"}, {"grafico", "g"}});
+    zN.desde.modo = Ancla::Modo::Manual;
+    l.bloques[0].pasos[0].piezas.push_back(zN);
+    Disparador go;
+    go.id = "go-f5";
+    go.cuando = "tecla:F5";
+    go.hacer = {{"accion", "go"}};
+    Disparador hora;
+    hora.id = "zocalo";
+    hora.cuando = "hora>=19:00 y bus:oradores/al_aire";
+    hora.hacer = {{"accion", "adlib"}, {"id", "zN"}};
+    l.disparadores = {go, hora};
+    Corrida c(l, entrada(T0));
+    c.arrancar(T0);
+    auto acc = c.pulso("tecla:F5", T0 + S);
+    CHECK(hay(acc, Accion::Que::EntraPaso, "p2"), "el disparador hace GO");
+    acc = c.pulso("tecla:F5", T0 + 2 * S);
+    CHECK(hay(acc, Accion::Que::EntraPaso, "p3"), "otro pulso, otro GO (cada pulso es un flanco)");
+    // El adlib del paso: vuelve a p1 y el orador al aire lo dispara una vez.
+    c.irA("principal", "p1", T0 + 3 * S);
+    acc = c.hecho("oradores/al_aire", json{{"banca", "b1"}}, T0 + 4 * S);
+    CHECK(hay(acc, Accion::Que::Pieza, "zN"), "en el flanco, el adlib");
+    acc = c.hecho("oradores/al_aire", json{{"banca", "b2"}}, T0 + 5 * S);
+    CHECK(!hay(acc, Accion::Que::Pieza, "zN"), "sigue cumpliéndose: no se repite");
+    // El adlib del paso se va con su paso (antes quedaba para siempre).
+    acc = c.go("principal", T0 + 6 * S);
+    CHECK(hay(acc, Accion::Que::Saca, "zN"), "el adlib del paso vive lo que su paso");
+    bool anotado = false;
+    for (const json& x : c.sacarRecorrido())
+        anotado = anotado || (x["que"] == "disparador" && x["disparador"] == "zocalo");
+    CHECK(anotado, "el disparador queda en el recorrido");
+    // En pausa no dispara, y lo que pasó en pausa no queda pendiente.
+    c.pausar(T0 + 7 * S);
+    c.hecho("oradores/al_aire", nullptr, T0 + 8 * S);
+    c.hecho("oradores/al_aire", json{{"banca", "b3"}}, T0 + 9 * S);
+    acc = c.reanudar(T0 + 10 * S);
+    CHECK(!hay(acc, Accion::Que::Pieza, "zN"), "en pausa no se dispara");
+    const json est = c.estadoJson(T0 + 10 * S);
+    CHECK(est["condiciones"].size() == 2, "las condiciones, en el estado");
+}
+
+// --- 17. Varias salidas en la corrida (L6) --------------------------------------------------
+
+void testCorridaVariasSalidas() {
+    Linea l = lineaBase();
+    l.salidas = {"principal", "sala"};
+    l.pistas.push_back(pista("escena-sala", "escena", "sala"));
+    Paso a1 = paso("a1", 60, "principal");
+    a1.piezas = {pieza("zA1", "escena", "escena", json{{"escena", "Cam 1"}})};
+    Paso himno = paso("himno", 60, "*");
+    himno.piezas = {pieza("zH", "escena", "escena", json{{"escena", "Bandera"}}),
+                    pieza("zHs", "escena-sala", "escena", json{{"escena", "Bandera sala"}})};
+    Paso s1 = paso("s1", 60, "sala");
+    s1.piezas = {pieza("zS1", "escena-sala", "escena", json{{"escena", "Sala 1"}})};
+    Paso a2 = paso("a2", 60, "principal");
+    Paso s2 = paso("s2", 60, "sala");
+    s2.inicio.modo = ModoInicio::Ancla;
+    s2.inicio.salida = "principal";
+    s2.inicio.paso = "a2";
+    s2.piezas = {pieza("zS2", "escena-sala", "escena", json{{"escena", "Sala 2"}})};
+    l.bloques = {bloque("b1", {a1, s1, himno, a2, s2})};
+
+    Corrida c(l, entrada(T0));
+    auto acc = c.arrancar(T0);
+    CHECK(c.alAire("principal")->paso == "a1" && !c.alAire("sala"), "arranca la por omisión; la sala espera su GO");
+    CHECK(hay(acc, Accion::Que::Armar, "Bandera") && hay(acc, Accion::Que::Armar, "Sala 1"), "cada salida arma lo suyo");
+    acc = c.go("sala", T0 + S);
+    CHECK(c.alAire("sala")->paso == "s1" && hay(acc, Accion::Que::Pieza, "zS1"), "la sala con su GO");
+    bool deSala = false;
+    for (const Accion& a : acc)
+        deSala = deSala || (a.pieza == "zS1" && a.salida == "sala");
+    CHECK(deSala, "las acciones vienen con su salida");
+    // El himno: un GO lo toma en las dos, cada una con su escena.
+    acc = c.go("principal", T0 + 10 * S);
+    CHECK(c.alAire("principal")->paso == "himno" && c.alAire("sala")->paso == "himno", "momento compartido: un GO, las dos");
+    bool h1 = false, h2 = false;
+    for (const Accion& a : acc) {
+        h1 = h1 || (a.pieza == "zH" && a.salida == "principal");
+        h2 = h2 || (a.pieza == "zHs" && a.salida == "sala");
+    }
+    CHECK(h1 && h2, "cada salida pone su escena del himno");
+    // El ancla: s2 espera a a2 de la principal.
+    json est = c.estadoJson(T0 + 11 * S);
+    json sala = est["salidas"][1];
+    CHECK(sala["salida"] == "sala" && sala["proximo"]["paso"] == "s2" && sala["proximo"]["esperaA"]["salida"] == "principal" &&
+              sala["proximo"]["esperaA"]["paso"] == "a2",
+          "la cuenta «espera a principal/a2»");
+    acc = c.go("principal", T0 + 20 * S);
+    CHECK(c.alAire("principal")->paso == "a2" && c.alAire("sala")->paso == "s2", "entra a2 y la sala lo sigue sola");
+    CHECK(c.instancias().back().comoEntro == ComoEntro::Ancla, "anotado como ancla");
+
+    // «A mano»: el operador pone otra escena en la sala.
+    CHECK(c.escenaAlAire("sala") == "Sala 2", "la escena del paso");
+    c.marcarAMano("sala", "Cam 7", T0 + 21 * S);
+    est = c.estadoJson(T0 + 21 * S);
+    CHECK(c.aMano("sala") == "Cam 7" && est["salidas"][1]["aMano"]["escena"] == "Cam 7" &&
+              est["salidas"][1]["aMano"]["esperada"] == "Sala 2" && est["salidas"][0]["aMano"].is_null(),
+          "marcada a mano, sin tocar la otra");
+    CHECK(c.resolver(T0 + 21 * S).salida("sala")->alAire == "s2", "el pronóstico no se rompe");
+    acc = c.reenganchar("sala", T0 + 22 * S);
+    CHECK(hay(acc, Accion::Que::Pieza, "zS2") && c.aMano("sala").empty(), "reenganchar vuelve a la del paso");
+    c.marcarAMano("sala", "Cam 7", T0 + 23 * S);
+    c.marcarAMano("sala", "Sala 2", T0 + 24 * S);
+    CHECK(c.aMano("sala").empty(), "volver a la del paso a mano también desmarca");
+    std::string err;
+    CHECK(c.reenganchar("principal", T0 + 25 * S, &err).empty() && !err.empty(), "un paso sin escena no tiene a qué volver");
+}
+
+// --- 18. El estante vuelve tras un corte -----------------------------------------------------
+
+void testEstanteTrasCorte() {
+    Linea l = lineaCorrida();
+    ItemEstante fijo;
+    fijo.id = "logo";
+    fijo.pieza = pieza("zLogo", "dsk", "grafico", json{{"fuente", "D"}, {"grafico", "logo"}});
+    l.estante.push_back(fijo);
+    Corrida antes(l, entrada(T0));
+    antes.arrancar(T0);
+    antes.adlib("principal", "logo", T0 + S);
+    antes.adlib("principal", "aplauso", T0 + 2 * S);
+    const json vivo = antes.aJsonVivo(T0 + 3 * S);
+    CHECK(vivo["estante"].size() == 2, "lo del estante va en linea-aire.json");
+    Corrida c(l, entrada(T0));
+    auto acc = c.retomar(vivo, T0 + 60 * S);
+    CHECK(hay(acc, Accion::Que::Pieza, "zLogo"), "el logo del estante vuelve");
+    CHECK(hay(acc, Accion::Que::Saca, "zAp") && !hay(acc, Accion::Que::Pieza, "zAp"), "el aplauso (3 s) ya se terminó: se saca");
+    CHECK(c.activas("principal").size() >= 1, "y queda vivo");
+}
+
+// --- 19. El orden del día expande un bloque (L7, 3.6) ----------------------------------------
+
+void testOrdenDelDia() {
+    Linea l = lineaBase();
+    Plantilla t;
+    t.id = "punto";
+    Paso tp = paso("tratar", 300);
+    tp.nombre = "Punto {n}: {titulo}";
+    tp.fin.modo = ModoFin::Abierto;
+    tp.piezas = {pieza("esc", "escena", "escena", json{{"escena", "Debate"}}),
+                 pieza("zoc", "graficos", "grafico", json{{"fuente", "F"}, {"grafico", "zocalo"}, {"valores", {{"texto", "{punto}"}}}}),
+                 pieza("asa", "notas", "asamblea", json{{"accion", "tratar"}, {"punto", "{n}"}})};
+    t.pasos = {tp};
+    l.plantillas = {t};
+    Bloque b = bloque("od", {});
+    b.plantilla = "punto";
+    b.origen = kOrigenOrdenDelDia;
+    Paso aMano = paso("cierre", 30);
+    b.pasos = {aMano};
+    l.bloques = {bloque("ap", {paso("apertura", 60)}), b};
+
+    const json puntos = json::array({{{"n", 1}, {"titulo", "Acta"}, {"estado", "pendiente"}},
+                                     {{"n", 2}, {"titulo", "Presupuesto"}, {"estado", "pendiente"}},
+                                     {{"n", 3}, {"titulo", "Retirado"}, {"estado", "retirado"}}});
+    CHECK(expandirOrdenDelDia(l, puntos, {}), "expande");
+    const auto& ps = l.bloques[1].pasos;
+    CHECK(ps.size() == 3 && ps[0].id == "od-p1-tratar" && ps[1].id == "od-p2-tratar" && ps[2].id == "cierre",
+          "un paso por punto (sin el retirado) y lo puesto a mano al final");
+    CHECK(ps[1].nombre == "Punto 2: Presupuesto" && ps[1].piezas[1].datos["valores"]["texto"] == "2. Presupuesto" &&
+              ps[1].piezas[2].datos["punto"] == 2 && ps[1].piezas[0].id == "od-p2-esc",
+          "las marcas llenas, {n} como número, ids propios");
+    CHECK(!expandirOrdenDelDia(l, puntos, {}), "lo mismo otra vez: no cambia nada");
+    CHECK(revisar(l).empty() || std::none_of(revisar(l).begin(), revisar(l).end(), [](const Reparo& r) { return r.grave; }),
+          "lo expandido pasa la revisión");
+
+    // El punto 1 ya salió (con su nombre de entonces); se recarga con otro título y uno nuevo.
+    l.bloques[1].pasos[0].nombre = "Lo que salió";
+    const json nuevos = json::array({{{"n", 1}, {"titulo", "Acta corregida"}},
+                                     {{"n", 2}, {"titulo", "Presupuesto 2027"}},
+                                     {{"n", 4}, {"titulo", "Varios"}}});
+    CHECK(expandirOrdenDelDia(l, nuevos, {"od-p1-tratar"}), "re-expande");
+    const auto& qs = l.bloques[1].pasos;
+    CHECK(qs.size() == 4 && qs[0].nombre == "Lo que salió" && qs[1].nombre == "Punto 2: Presupuesto 2027" &&
+              qs[2].id == "od-p4-tratar" && qs[3].id == "cierre",
+          "lo emitido no se toca; lo demás se rehace");
+    // Se retira el 1, que ya salió: queda adelante igual.
+    CHECK(expandirOrdenDelDia(l, json::array({{{"n", 2}, {"titulo", "Presupuesto 2027"}}}), {"od-p1-tratar"}) &&
+              l.bloques[1].pasos.size() == 3 && l.bloques[1].pasos[0].id == "od-p1-tratar",
+          "lo emitido de un punto que ya no está, queda");
+}
+
 } // namespace
 
 int main() {
@@ -1347,6 +1676,12 @@ int main() {
     testCorridaSaltosEIr();
     testCorridaAdlibEInsertar();
     testCorridaRetoma();
+    testCondiciones();
+    testCorridaCondiciones();
+    testCorridaDisparadores();
+    testCorridaVariasSalidas();
+    testEstanteTrasCorte();
+    testOrdenDelDia();
     if (g_fallos == 0) std::printf("test_linea: todo OK\n");
     return g_fallos == 0 ? 0 : 1;
 }
