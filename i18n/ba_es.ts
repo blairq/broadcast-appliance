@@ -331,9 +331,9 @@
     <message numerus="yes">
         <location line="+250"/>
         <source>El ensayo grabó los tiempos de %n paso(s): confirmalos para que queden como duraciones previstas</source>
-        <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+        <translation>
+            <numerusform>El ensayo grabó los tiempos de %n paso: confirmalos para que queden como duraciones previstas</numerusform>
+            <numerusform>El ensayo grabó los tiempos de %n pasos: confirmalos para que queden como duraciones previstas</numerusform>
         </translation>
     </message>
     <message numerus="yes">
@@ -444,7 +444,7 @@
     <message numerus="yes">
         <location filename="../src/app/qml/controls/LineaConduccion.qml" line="+33"/>
         <source>La revisión encontró %n problema grave. Mirá «Revisión» antes de salir.</source>
-        <translation type="unfinished">
+        <translation>
             <numerusform>La revisión encontró %n problema grave. Mirá «Revisión» antes de salir.</numerusform>
             <numerusform>La revisión encontró %n problemas graves. Mirá «Revisión» antes de salir.</numerusform>
         </translation>
@@ -452,9 +452,9 @@
     <message numerus="yes">
         <location line="+490"/>
         <source>El ensayo grabó %n paso(s): de %1 a %2 en total</source>
-        <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+        <translation>
+            <numerusform>El ensayo grabó %n paso: de %1 a %2 en total</numerusform>
+            <numerusform>El ensayo grabó %n pasos: de %1 a %2 en total</numerusform>
         </translation>
     </message>
 </context>
@@ -463,17 +463,17 @@
     <message numerus="yes">
         <location filename="../src/app/qml/controls/LineaEscaleta.qml" line="+86"/>
         <source>Se suman %n paso(s) al final de la línea.</source>
-        <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+        <translation>
+            <numerusform>Se suma %n paso al final de la línea.</numerusform>
+            <numerusform>Se suman %n pasos al final de la línea.</numerusform>
         </translation>
     </message>
     <message numerus="yes">
         <location line="+47"/>
         <source>%n cambio(s) sin confirmar</source>
-        <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+        <translation>
+            <numerusform>%n cambio sin confirmar</numerusform>
+            <numerusform>%n cambios sin confirmar</numerusform>
         </translation>
     </message>
 </context>
@@ -482,9 +482,9 @@
     <message numerus="yes">
         <location filename="../src/app/qml/controls/LineaMultipista.qml" line="+71"/>
         <source>%n cambio(s) sin confirmar</source>
-        <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+        <translation>
+            <numerusform>%n cambio sin confirmar</numerusform>
+            <numerusform>%n cambios sin confirmar</numerusform>
         </translation>
     </message>
 </context>
@@ -1075,9 +1075,9 @@ No se borran del disco: si alguno estaba en una escena, se lo saca de ahí y lis
     <message numerus="yes">
         <location filename="../src/app/qml/pages/SalidasPage.qml" line="+86"/>
         <source>Tiene %n destino(s) guardado(s): ¿qué pasa con ellos?</source>
-        <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+        <translation>
+            <numerusform>Tiene %n destino guardado: ¿qué pasa con él?</numerusform>
+            <numerusform>Tiene %n destinos guardados: ¿qué pasa con ellos?</numerusform>
         </translation>
     </message>
 </context>
@@ -1178,9 +1178,9 @@ No se borran del disco: si alguno estaba en una escena, se lo saca de ahí y lis
     <message numerus="yes">
         <location filename="../src/app/ui/StudioViewModel.cpp" line="+3593"/>
         <source>Ya hay %n salida, que es el tope.</source>
-        <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+        <translation>
+            <numerusform>Ya hay %n salida, que es el tope.</numerusform>
+            <numerusform>Ya hay %n salidas, que es el tope.</numerusform>
         </translation>
     </message>
     <message numerus="yes">
