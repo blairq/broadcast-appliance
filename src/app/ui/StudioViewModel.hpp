@@ -280,10 +280,6 @@ class StudioViewModel : public QObject {
     Q_PROPERTY(QObject* notificador READ notificadorQml CONSTANT)
     /// El túnel de pinggy: estado, token (solo guardado/falta) y DNS (net/AccesoRemoto).
     Q_PROPERTY(QObject* accesoRemoto READ accesoRemotoQml CONSTANT)
-    /// El tally para el multiview: {aire: [fuentes en el programa (con las capas DSK)], armada: [las del preview]}.
-    Q_PROPERTY(QVariantMap tally READ tally NOTIFY tallyChanged)
-    /// Los medios que suenan/se ven al aire: [{fuente, restante_s, duracion_s}] (T46).
-    Q_PROPERTY(QVariantList mediosAlAire READ mediosAlAire NOTIFY mediosChanged)
     /// Grabar, transmitir y lo que los rodea (ui/EmisionViewModel): destinos, señal limpia,
     /// ISO, disco, loudness, retornos y la salud de cada destino.
     Q_PROPERTY(QObject* emision READ emisionQml CONSTANT)
@@ -570,8 +566,6 @@ class StudioViewModel : public QObject {
     AccesoRemoto* accesoRemoto() { return &sala_->accesoRemoto(); }
     /// Modo en vivo (T48): protege páginas y ajustes que cortan (ver AppViewModel).
     bool modoVivo() const { return app_ && app_->modoVivo(); }
-    QVariantMap tally() const { return tally_; }
-    QVariantList mediosAlAire() const { return mediosAlAire_; }
     /// El área de la emisión (los mandos de grabar y transmitir, la salud de los destinos).
     EmisionViewModel& emision() { return *emision_; }
     QObject* emisionQml() const;
@@ -809,8 +803,6 @@ class StudioViewModel : public QObject {
     void refreshModels();
 
    signals:
-    void tallyChanged();
-    void mediosChanged();
     void statusChanged();
     /// Los picos del programa (el vúmetro): a 10 Hz. Separados de statusChanged, que
     /// solo sale cuando cambia algo (antes salía cada 100 ms y re-evaluaba cada binding
@@ -919,8 +911,6 @@ class StudioViewModel : public QObject {
     /// Los conectados que se cortan al cerrar: sala + sesión remota.
     int personasConectadas() const;
     bool eventoEnVivo_ = false;
-    QVariantMap tally_;
-    QVariantList mediosAlAire_;
     /// Las salidas: el conmutador de escenas de cada una, el FTB y la placa, la activa
     /// (ui/SalidasViewModel). Lo que usa sus conmutadores (el respaldo de entradas) va
     /// más abajo.

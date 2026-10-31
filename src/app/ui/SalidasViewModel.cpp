@@ -5,11 +5,14 @@
 #include "arranque/AppRuntime.hpp"
 #include "arranque/InterfazConfig.hpp"
 #include "comun/Duracion.hpp"
+#include "control/BusEventos.hpp"
+#include "control/Dsk.hpp"
 #include "emision/SalidasConfig.hpp"
 #include "emision/SeguridadAire.hpp"
 #include "escenas/Conmutador.hpp"
 #include "i18n/I18n.hpp"
 #include "ui/ConferenceViewModel.hpp" // JsonListModel
+#include "ui/ListModels.hpp" // MixerModel
 #include "ui/RecursosViewModel.hpp"
 
 #include <QJsonDocument>
@@ -152,6 +155,127 @@ void SalidasViewModel::alTic(const EngineStatus& st) {
         ahora[e.id] = a;
     }
     aireSalidas_ = std::move(ahora);
+}
+
+void SalidasViewModel::publicarEnBus(control::BusEventos& bus, MixerModel& tiras, control::Dsk& dsk, bool transmitiendo,
+                                     bool grabando) {
+    BroadcastEngine& motor = p_.rt.engine();
+    // Lo del BusEventos es de la por omisión (los temas por salida son de la etapa 4).
+    const QString aire = qs(motor.currentScene());
+    const QString armada = qs(conmutador_->armada());
+    const auto fuentesDe = [&motor](const QString& escena) {
+        nlohmann::json out = nlohmann::json::array();
+        if (!escena.isEmpty())
+            for (const std::string& f : motor.sceneSources(escena.toStdString())) out.push_back(f);
+        return out;
+    };
+    bus.publicar("aire/escena", {{"escena", aire.toStdString()}});
+    bus.publicar("aire/armada", {{"escena", armada.toStdString()}});
+    nlohmann::json fuentesAire = fuentesDe(aire);
+    for (const std::string& f : motor.fuentesDsk())
+        if (std::find(fuentesAire.begin(), fuentesAire.end(), f) == fuentesAire.end()) fuentesAire.push_back(f);
+    {
+        // Para el multiview: el tally de la salida activa (rojo al aire, verde armada) y, con
+        // varias salidas, en cuáles está al aire cada fuente (las demás con su color).
+        const auto alAireEn = [&motor](const std::string& salida) {
+            QStringList out;
+            const std::string escena = motor.currentScene(salida);
+            if (!escena.empty())
+                for (const std::string& f : motor.sceneSources(escena)) out << qs(f);
+            for (const std::string& f : motor.fuentesDsk(salida))
+                if (!out.contains(qs(f))) out << qs(f);
+            return out;
+        };
+        const QStringList aireQ = alAireEn(activa_);
+        QStringList armadaQ;
+        for (const auto& f : fuentesDe(qs(conmutadorActivo().armada()))) armadaQ << QString::fromStdString(f.get<std::string>());
+        QVariantMap borde, enSalidas;
+        for (const QString& f : armadaQ) borde[f] = QStringLiteral("#2ecc71");
+        for (const QString& f : aireQ) borde[f] = QStringLiteral("#e53935");
+        if (varias())
+            for (const auto& v : lista_->items()) {
+                const QJsonObject o = v.toObject();
+                const QVariantMap marca{{"nombre", o.value("nombre").toString()}, {"color", o.value("color").toString()}};
+                for (const QString& f : alAireEn(o.value("id").toString().toStdString())) {
+                    enSalidas[f] = enSalidas.value(f).toList() << marca;
+                    if (!borde.contains(f)) borde[f] = marca.value("color");
+                }
+            }
+        const QVariantMap t{{"aire", aireQ}, {"armada", armadaQ}, {"borde", borde}, {"salidas", enSalidas}};
+        if (t != tally_) {
+            tally_ = t;
+            emit tallyCambio();
+        }
+    }
+    // Lo que se reproduce al aire en una salida (con las fuentes que muestra) y cuánto le
+    // queda, al segundo: [{fuente, restante_s, duracion_s}].
+    const std::vector<BroadcastEngine::MediaInfo> sonando = motor.mediaSources();
+    const auto mediosEn = [&sonando](const nlohmann::json& fuentes) {
+        nlohmann::json out = nlohmann::json::array();
+        for (const auto& m : sonando) {
+            if (m.state != "playing" || m.durationMs <= 0) continue;
+            if (std::find(fuentes.begin(), fuentes.end(), m.name) == fuentes.end()) continue;
+            out.push_back({{"fuente", m.name},
+                           {"restante_s", static_cast<int>((m.durationMs - m.timeMs + 999) / 1000)},
+                           {"duracion_s", static_cast<int>(m.durationMs / 1000)}});
+        }
+        return out;
+    };
+    {
+        const nlohmann::json mediosJ = mediosEn(fuentesAire);
+        QVariantList medios;
+        for (const auto& m : mediosJ)
+            medios.append(QVariantMap{{"fuente", qs(m.value("fuente", std::string()))},
+                                      {"restante_s", m.value("restante_s", 0)},
+                                      {"duracion_s", m.value("duracion_s", 0)}});
+        if (medios != mediosAlAire_) {
+            mediosAlAire_ = medios;
+            emit mediosCambio();
+            bus.publicar("aire/medios", mediosJ);
+        }
+    }
+    bus.publicar("aire/tbar", {{"hacia", motor.manualHacia()}, {"posicion", conmutador_->tbarPosicion()}});
+    bus.publicar("aire/tally", {{"programa", aire.toStdString()},
+                                {"preview", armada.toStdString()},
+                                {"fuentes_programa", fuentesAire},
+                                {"fuentes_preview", fuentesDe(armada)},
+                                {"transmitiendo", transmitiendo},
+                                {"grabando", grabando}});
+    // Lo mismo de cada salida (aire/<id>/…, salida/<id>/…): las superficies que
+    // manejan otra salida leen los suyos (PLAN-SALIDAS, etapa 4).
+    nlohmann::json ss = nlohmann::json::array();
+    for (const QJsonValue& v : lista_->items()) {
+        const QJsonObject f = v.toObject();
+        const std::string id = f.value("id").toString().toStdString();
+        const std::string esc = f.value("alAire").toString().toStdString();
+        const QString arm = f.value("armada").toString();
+        nlohmann::json fa = fuentesDe(qs(esc));
+        for (const std::string& d : motor.fuentesDsk(id))
+            if (std::find(fa.begin(), fa.end(), d) == fa.end()) fa.push_back(d);
+        const escenas::Conmutador* c = conmutadores_->de(id);
+        const bool porOmision = f.value("porOmision").toBool();
+        // El fader y el mudo de cada fuente en su mezcla (los de la por omisión ya van
+        // en audio/nivel/<fuente>).
+        nlohmann::json niveles = nlohmann::json::object();
+        if (!porOmision)
+            for (int i = 0; i < tiras.rowCount(); ++i)
+                niveles[tiras.data(tiras.index(i), MixerModel::NameRole).toString().toStdString()] = tiras.nivelEn(i, id);
+        ss.push_back({{"id", id},
+                      {"medios", mediosEn(fa)},
+                      {"dsk", dsk.capas(id)},
+                      {"tbar", {{"hacia", motor.manualHacia(id)}, {"posicion", c != nullptr ? c->tbarPosicion() : 0.0}}},
+                      {"niveles", niveles},
+                      {"nombre", f.value("nombre").toString().toStdString()},
+                      {"color", f.value("color").toString().toStdString()},
+                      {"por_omision", porOmision},
+                      {"escena", esc},
+                      {"armada", arm.toStdString()},
+                      {"fuentes_programa", fa},
+                      {"fuentes_preview", fuentesDe(arm)},
+                      {"transmitiendo", f.value("transmitiendo").toBool()},
+                      {"grabando", f.value("grabando").toBool()}});
+    }
+    bus.publicarSalidas(ss);
 }
 
 QObject* SalidasViewModel::lista() const { return lista_.get(); }

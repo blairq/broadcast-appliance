@@ -15,6 +15,8 @@
 //     las pantallas de tally de la sala) sigue con la por omisión (conmutador()).
 //   - Lo que sale de cada una (aire) y desde cuándo, con un reloj que no se reinicia al
 //     cambiar de activa; lo de la por omisión lo dicen las pastillas de la raíz.
+//   - Lo que está al aire de cada una, para el multiview (el tally, los medios que
+//     suenan) y para las superficies de control (el bus: aire/…, y los de cada salida).
 //
 // En QML: Studio.salidas (lista, activa, activaDatos, varias, aire, placa, tope, nueva
 // y los comandos).
@@ -38,12 +40,17 @@
 namespace ba::app {
 class AppRuntime;
 class JsonListModel;
+class MixerModel;
 class RecursosViewModel;
 struct EngineStatus;
 } // namespace ba::app
 namespace ba::app::config {
 class InterfazConfig;
 }
+namespace ba::app::control {
+class BusEventos;
+class Dsk;
+} // namespace ba::app::control
 namespace ba::app::emision {
 class SeguridadAire;
 }
@@ -81,6 +88,12 @@ class SalidasViewModel : public QObject {
     Q_PROPERTY(QVariantMap aire READ aire NOTIFY aireCambio)
     /// El FTB y la placa de la activa: {ftb, ftb_audio, placa, placa_texto, placa_imagen}.
     Q_PROPERTY(QVariantMap placa READ placa NOTIFY placaCambio)
+    /// El tally para el multiview, el de la activa: {aire: [fuentes en el programa (con las
+    /// capas DSK)], armada: [las del preview], borde: {fuente: color}, salidas: {fuente:
+    /// [{nombre, color}]} (con varias salidas, en cuáles está al aire cada una)}.
+    Q_PROPERTY(QVariantMap tally READ tally NOTIFY tallyCambio)
+    /// Los medios que suenan/se ven al aire en la por omisión: [{fuente, restante_s, duracion_s}] (T46).
+    Q_PROPERTY(QVariantList mediosAlAire READ mediosAlAire NOTIFY mediosCambio)
    public:
     struct Partes {
         AppRuntime& rt;
@@ -100,6 +113,12 @@ class SalidasViewModel : public QObject {
     void retomarActiva();
     /// En el reloj de la interfaz: qué sale de cada una de las demás salidas.
     void alTic(const EngineStatus& st);
+    /// En cada vuelta del reloj: lo que está al aire de cada salida, al bus (la escena, la
+    /// armada, el tally, los medios, la T-bar; las capas DSK y la mezcla de cada una) y al
+    /// multiview (tally, mediosAlAire). Lo que sale de la por omisión lo dicen las pastillas.
+    void publicarEnBus(control::BusEventos& bus, MixerModel& tiras, control::Dsk& dsk, bool transmitiendo, bool grabando);
+    QVariantMap tally() const { return tally_; }
+    QVariantList mediosAlAire() const { return mediosAlAire_; }
 
     QObject* lista() const;
     QString activa() const;
@@ -158,6 +177,8 @@ class SalidasViewModel : public QObject {
     void nuevaCambio();
     void aireCambio();
     void placaCambio();
+    void tallyCambio();
+    void mediosCambio();
     /// La interfaz pasa a manejar otra salida: escenas, fuentes, mezcla, tally.
     void activaElegida();
     /// Se rehízo la lista: [{id, nombre, color, porOmision}] para el gateway y el monitor.
@@ -189,6 +210,8 @@ class SalidasViewModel : public QObject {
         std::chrono::steady_clock::time_point transmiteDesde{}, grabaDesde{};
     };
     std::map<std::string, AireDeSalida> aireSalidas_;
+    QVariantMap tally_;
+    QVariantList mediosAlAire_;
 };
 
 } // namespace ba::app

@@ -914,7 +914,7 @@ void registerBotoneraTools(McpCore& core, StudioViewModel& vm) {
                         "el bus: aire/medios). Para avisar antes de que termine y armar lo que sigue.");
         t.run = [&vm](const json&, Done done) {
             json out = json::array();
-            for (const QVariant& v : vm.mediosAlAire()) {
+            for (const QVariant& v : vm.salidas().mediosAlAire()) {
                 const QVariantMap m = v.toMap();
                 out.push_back({{"fuente", m.value("fuente").toString().toStdString()},
                                {"restante_s", m.value("restante_s").toInt()},

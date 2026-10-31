@@ -57,7 +57,7 @@ Item {
         FilaDsk { Layout.fillWidth: true }
         // --- El medio al aire: cuánto le queda (rojo en los últimos 10 s) ---------
         Repeater {
-            model: Studio.mediosAlAire
+            model: Studio.salidas.mediosAlAire
             delegate: RowLayout {
                 required property var modelData
                 Layout.fillWidth: true

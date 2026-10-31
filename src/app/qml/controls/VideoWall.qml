@@ -132,13 +132,13 @@ Item {
             }
             // Tally: rojo si está al aire en la salida que se maneja, verde si está armada ahí,
             // y con varias salidas el color de otra salida donde esté al aire (el modelo dice
-            // cuál: Studio.tally.borde), con una marca por cada salida que la tiene.
+            // cuál: Studio.salidas.tally.borde), con una marca por cada salida que la tiene.
             Rectangle {
                 id: marcoTally
                 readonly property string f: wall.fuenteDe(modelData)
                 // El programa y la armada no llevan borde: ya se sabe qué son (y un borde rojo
                 // permanente en el fondo del tablero se confunde con una alarma).
-                readonly property string tono: f !== "" ? ((Studio.tally.borde || {})[f] || "") : ""
+                readonly property string tono: f !== "" ? ((Studio.salidas.tally.borde || {})[f] || "") : ""
                 visible: wall.tally && tono !== ""
                 anchors.fill: parent; color: "transparent"; z: 2
                 border { color: tono !== "" ? tono : "transparent"; width: wall.grosor(parent) }
@@ -146,7 +146,7 @@ Item {
                     anchors { left: parent.left; bottom: parent.bottom; margins: 6 }
                     spacing: 4
                     Repeater {
-                        model: marcoTally.f !== "" ? ((Studio.tally.salidas || {})[marcoTally.f] || []) : []
+                        model: marcoTally.f !== "" ? ((Studio.salidas.tally.salidas || {})[marcoTally.f] || []) : []
                         delegate: Rectangle {
                             required property var modelData
                             radius: 4; height: 16; width: marcaTxt.implicitWidth + 10
@@ -189,8 +189,8 @@ Item {
             }
             // Cuenta regresiva del medio que está al aire (roja en los últimos 10 s).
             Rectangle {
-                readonly property var m: (Studio.mediosAlAire || []).find(x => x.fuente === wall.fuenteDe(modelData) ||
-                                                                          (modelData === "program" && (Studio.mediosAlAire || []).length > 0))
+                readonly property var m: (Studio.salidas.mediosAlAire || []).find(x => x.fuente === wall.fuenteDe(modelData) ||
+                                                                          (modelData === "program" && (Studio.salidas.mediosAlAire || []).length > 0))
                 visible: !!m && wall.operador
                 anchors { right: parent.right; top: parent.top; margins: 8 }
                 radius: 8; height: 30; width: cuenta.implicitWidth + 16; z: 3
