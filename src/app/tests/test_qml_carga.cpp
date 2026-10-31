@@ -8,6 +8,7 @@
 // el motor de QML de verdad, con los tipos de la app (Studio, VideoItem,
 // TerminalView) reemplazados por unos de mentira: las propiedades de Studio se
 // resuelven al ejecutar, así que para compilar alcanza con que exista.
+#include "ui/Reloj.hpp"
 #include "ui/Vumetro.hpp"
 #include <QAbstractListModel>
 #include <QDirIterator>
@@ -126,6 +127,8 @@ int main(int argc, char** argv) {
     const QString dir = QStringLiteral(BA_QML_DIR);
     static QObject studio;
     qmlRegisterSingletonInstance("BA", 1, 0, "Studio", &studio);
+    static ba::app::Reloj reloj;
+    qmlRegisterSingletonInstance("BA", 1, 0, "Reloj", &reloj);
     qmlRegisterType<VideoItemFalso>("BA", 1, 0, "VideoItem");
     qmlRegisterType<TerminalFalsa>("BA", 1, 0, "TerminalView");
     qmlRegisterType<ImagenVivaFalsa>("BA", 1, 0, "ImagenViva");

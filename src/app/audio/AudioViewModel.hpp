@@ -40,6 +40,13 @@ class AudioViewModel : public QObject {
     /// Salidas de audio del equipo, agrupadas por dispositivo:
     /// [{dispositivo, salidas: [{id, nombre}]}].
     Q_PROPERTY(QVariantList outputDevices READ outputDevices NOTIFY changed)
+    /// La vista general de todo el audio (RackManager::estudio): {nodos, cables, franjas}.
+    /// Al día (una vez por segundo) mientras alguna vista la usa: usar(vista, si, "estudio").
+    Q_PROPERTY(QVariantMap estudio READ estudio NOTIFY estudioCambio)
+    /// La grabación de la tarjeta de salida de la fuente elegida: {grabar, grabando, archivo,
+    /// segundos, bytes, conCable, carpeta}. Al día mientras alguna vista la usa:
+    /// usar(vista, si, "grabacion").
+    Q_PROPERTY(QVariantMap grabacion READ grabacion NOTIFY grabacionCambio)
    public:
     explicit AudioViewModel(RackManager& mgr, QObject* parent = nullptr);
 
@@ -58,13 +65,14 @@ class AudioViewModel : public QObject {
     /// Una vista (la página Audio) empieza o deja de mostrarlo: los medidores corren
     /// mientras haya alguna (cuenta por vista).
     Q_INVOKABLE void usar(QObject* vista, bool si) { vistas_.usar(vista, si); }
+    /// Lo mismo para una parte que cuesta más: "estudio" o "grabacion".
+    Q_INVOKABLE void usar(QObject* vista, bool si, const QString& que) { vistas_.usar(vista, si, que); }
     Q_INVOKABLE void refresh();
     /// Cambiaron las fuentes o las entradas de audio (lo avisa el runtime, lo
     /// haya pedido quien sea): la lista se rehace si quedó distinta.
     void revisarFuentes();
     Q_INVOKABLE void selectSource(const QString& name);
-    /// La vista general de todo el audio (RackManager::estudio): {nodos, cables, franjas}.
-    Q_INVOKABLE QVariantMap estudio() const;
+    QVariantMap estudio() const { return estudio_; }
     Q_INVOKABLE void select(const QString& node);
     /// Modulo del catalogo ("gate", "eq"...) o id LSP. "" o el error.
     Q_INVOKABLE QString addModule(const QString& moduleOrId, const QString& after = {});
@@ -82,8 +90,7 @@ class AudioViewModel : public QObject {
     Q_INVOKABLE QString addTraduccion();
     /// Grabar todo lo que le llega a la tarjeta de salida (.wav).
     Q_INVOKABLE QString setGrabar(bool grabar);
-    /// {grabar, grabando, archivo, segundos, bytes, conCable, carpeta}.
-    Q_INVOKABLE QVariantMap grabacion() const;
+    QVariantMap grabacion() const { return grabacion_; }
     /// Agrega (o reapunta) la salida de audio de esta fuente: una tarjeta mas
     /// en el grafo, con el nombre del dispositivo elegido.
     Q_INVOKABLE QString addOutput(const QString& device);
@@ -141,12 +148,16 @@ class AudioViewModel : public QObject {
     void metersChanged();
     void selectionChanged();
     void detailChanged();
+    void estudioCambio();
+    void grabacionCambio();
 
    private:
     AudioRack* rack(bool create = false);
     void rebuildGraph();
     void rebuildDetail();
     void autoLayout();
+    /// Lo que cuesta más (la vista general, la grabación), si alguien lo usa.
+    void revisarPartes();
 
     RackManager& mgr_;
     QTimer tick_;
@@ -159,6 +170,8 @@ class AudioViewModel : public QObject {
     QVariantMap meters_;
     QString selected_;
     QVariantMap detail_;
+    QVariantMap estudio_, grabacion_;
+    int vueltas_ = 0;
 };
 
 } // namespace ba::app::audio

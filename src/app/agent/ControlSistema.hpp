@@ -44,6 +44,14 @@ struct ControlSistema {
     static std::filesystem::path archivo(const std::filesystem::path& datos);
     static ControlSistema leer(const std::filesystem::path& datos);
     bool guardar(const std::filesystem::path& datos) const;
+
+    /// Lo que muestran Configuración y control_estado (uno solo): comoJson() con
+    /// capacidades [{clave, etiqueta}], sistema, soportado (si su motor ya anda) y nota.
+    static nlohmann::json estado(const std::filesystem::path& datos);
+    /// Lo que hacen Configuración y control_configurar (uno solo): valida los permisos,
+    /// aplica `cambios` y guarda. "" o el error (ya traducido); en `resultado`, comoJson().
+    static std::string configurar(const std::filesystem::path& datos, const nlohmann::json& cambios,
+                                  nlohmann::json* resultado = nullptr);
 };
 
 } // namespace ba::app::agent

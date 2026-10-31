@@ -1001,12 +1001,7 @@ Rectangle {
                         readonly property var voces: Studio.voces ? Studio.voces.voces : []
                         readonly property var vozActual: voces.find(v => v.repo === h.voz)
                         property string idioma: vozActual ? vozActual.idioma : "es"
-                        property string estado: ""
-                        Timer {
-                            interval: 1000; repeat: true; triggeredOnStart: true
-                            running: hablaCol.visible && page.visible && !!Studio.voces
-                            onTriggered: hablaCol.estado = Studio.voces.estado(page.au.source, page.au.selected)
-                        }
+                        readonly property string estado: Studio.voces ? Studio.voces.estados[page.au.source + "/" + page.au.selected] || "" : ""
                         RowLayout {
                             Layout.fillWidth: true
                             Text { text: qsTr("Idioma"); color: Theme.textDim; font.pixelSize: 12; Layout.preferredWidth: 70 }
@@ -1077,16 +1072,12 @@ Rectangle {
                         Layout.fillWidth: true
                         visible: parent.d.tipo === "monitor"
                         spacing: 4
-                        property var g: ({})
-                        Timer {
-                            interval: 1000; repeat: true; triggeredOnStart: true
-                            running: grabCol.visible && page.visible
-                            onTriggered: grabCol.g = page.au.grabacion()
-                        }
+                        readonly property var g: page.au.grabacion
+                        Suscripcion { objetivo: page.au; que: "grabacion"; activa: grabCol.visible && page.visible }
                         RowLayout {
                             Layout.fillWidth: true
                             Toggle { checked: !!grabCol.g.grabar
-                                     onToggled: (w) => { page.msg = page.au.setGrabar(w); grabCol.g = page.au.grabacion() } }
+                                     onToggled: (w) => page.msg = page.au.setGrabar(w) }
                             Text { Layout.fillWidth: true; text: qsTr("Grabar todo lo que le llega en un archivo (.wav)"); color: Theme.text; font.pixelSize: 12; wrapMode: Text.WordWrap }
                             Rectangle { visible: !!grabCol.g.grabando; width: 10; height: 10; radius: 5; color: Theme.live }
                         }

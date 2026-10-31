@@ -4,7 +4,7 @@
 // filtros de su cadena de GStreamer (automixer…) → la mezcla—, los cables
 // entre franjas (tarjetas «Entrada») y las mesas del automixer. Se mira; para
 // cambiar algo, un clic en la tarjeta abre el rack de esa fuente.
-// Los datos: Studio.audio.estudio() (audio/RackManager::estudio).
+// Los datos: Studio.audio.estudio (audio/RackManager::estudio).
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
@@ -13,11 +13,11 @@ import BA
 Item {
     id: est
     property var au: null
-    property var datos: ({ nodos: [], cables: [], franjas: [] })
+    readonly property var datos: est.au && est.au.estudio.nodos ? est.au.estudio : ({ nodos: [], cables: [], franjas: [] })
     signal abrirRack(string fuente, string nodo)
 
-    function refrescar() { if (est.au) est.datos = est.au.estudio() }
-    Timer { interval: 1500; running: est.visible; repeat: true; triggeredOnStart: true; onTriggered: est.refrescar() }
+    // La vista general se mantiene al día (una vez por segundo) solo mientras se mira.
+    Suscripcion { objetivo: est.au; que: "estudio"; activa: est.visible }
 
     function colorDe(tipo) {
         if (tipo === "origen-gst") return "#10b981"

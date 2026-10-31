@@ -201,7 +201,7 @@ Item {
                         Slider {
                             Layout.preferredWidth: 110
                             from: 0; to: 1
-                            value: parent.al ? parent.al.ajustesUi().volumen : 0.8
+                            value: parent.al ? parent.al.ajustes.volumen : 0.8
                             onPressedChanged: if (!pressed && parent.al) parent.al.ponerAjustesUi({ volumen: value })
                         }
                         GlassButton { compact: true; text: qsTr("Probar"); onClicked: if (parent.al) parent.al.probar("aviso") }

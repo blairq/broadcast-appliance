@@ -35,9 +35,8 @@ Rectangle {
     property int genteAntes: 0
     function expandirDer() { anchoDer = anchoDerAntes >= 300 ? anchoDerAntes : 374 }
 
-    // Reloj para los "hace N min" (sin tocar el modelo).
-    property double now: Date.now()
-    Timer { interval: 5000; running: page.visible; repeat: true; onTriggered: page.now = Date.now() }
+    // La hora para los "hace N min" (el Reloj corre solo mientras se mira).
+    readonly property double now: page.visible ? Reloj.ahora : 0
     // El hilo de chat que se está leyendo: "" es la sala, o el uid de alguien.
     // Ver el comentario del TabBar: es también el destinatario de lo que se
     // escriba, para que no se pueda contestar en público algo privado.
@@ -59,15 +58,6 @@ Rectangle {
         const k = kbps || 0
         return k >= 1000 ? (k / 1000).toFixed(1) + " Mb/s" : Math.round(k) + " kb/s"
     }
-    function fmt(ms) {
-        const neg = ms < 0
-        const t = Math.floor(Math.abs(ms) / 1000)
-        return (neg ? "+" : "") + Math.floor(t / 60) + ":" + String(t % 60).padStart(2, "0")
-    }
-    // Reloj de la sala para los tiempos de los oradores (4 veces por segundo).
-    property double clock: Date.now() + conf.clockOffset
-    Timer { interval: 250; running: page.visible && conf.speakers.count > 0; repeat: true
-            onTriggered: page.clock = Date.now() + conf.clockOffset }
 
     ColumnLayout {
         anchors { fill: parent; leftMargin: page.leftInset; margins: 20 }
@@ -97,10 +87,10 @@ Rectangle {
                         TextField {
                             id: spkDefault
                             Layout.preferredWidth: 64
-                            text: page.fmt((conf.speakerCfg.defaultSec || 0) * 1000)
+                            text: conf.speakerCfg.defaultTexto || ""
                             font.pixelSize: 12
-                            ToolTip.visible: hovered; ToolTip.text: qsTr("Tiempo general para cada orador (m:ss o minutos)")
-                            onEditingFinished: { const s = conf.parseDuration(text); if (s > 0) conf.setSpeakerConfig({ defaultSec: s }) }
+                            ToolTip.visible: hovered; ToolTip.text: qsTr("Tiempo general para cada orador: «m:ss», segundos o «3m»")
+                            onEditingFinished: { const e = conf.setTiempoGeneral(text); if (e !== "") Studio.notify(e, "error") }
                         }
                         ComboBox {
                             model: [qsTr("Uno a la vez"), qsTr("Varios")]
@@ -162,8 +152,7 @@ Rectangle {
                     model: conf.speakers
                     ScrollBar.horizontal: ScrollBar { policy: ScrollBar.AsNeeded }
                     delegate: SpeakerCard {
-                        now: page.clock
-                        onEdit: profDlg.edit(uid, name, info, contact, allottedSec)
+                        onEdit: profDlg.edit(uid, name, info, contact, textoAsignado)
                     }
                     Text {
                         anchors.centerIn: parent
@@ -1065,7 +1054,7 @@ Rectangle {
                     readonly property var px: conf.proxy || ({})
                     readonly property var cfgp: px.configuracion || ({})
                     readonly property var acme: px.acme || ({})
-                    Timer { interval: 5000; repeat: true; running: proxyPanel.visible && conf.online; triggeredOnStart: true; onTriggered: conf.refrescarProxy() }
+                    Suscripcion { objetivo: conf; que: "proxy"; activa: proxyPanel.visible && conf.online }
                     // El vencimiento de los certificados TLS del proxy: lo lee el operador, en su idioma.
                     function fecha(s) { return s > 0 ? new Date(s * 1000).toLocaleDateString(Qt.locale(), "d/M/yyyy") : "—" }
                     ColumnLayout {
@@ -1250,10 +1239,10 @@ Rectangle {
         property string who: ""
         property string whoName: ""
         property bool withTime: true
-        function edit(id, name, info, contact, sec) {
+        function edit(id, name, info, contact, tiempo) {
             who = id; whoName = name; withTime = true
             profName.text = name; profInfo.text = info; profContact.text = contact
-            profTime.text = page.fmt(sec * 1000)
+            profTime.text = tiempo
             open()
         }
         /// Desde el lobby o la sala: los mismos datos, sin el tiempo de orador.
@@ -1362,8 +1351,7 @@ Rectangle {
         readonly property var b: conf.bloqueosPin || ({})
         readonly property var g: b.global || ({})
         readonly property var ips: (b.ips || []).filter(x => x.bloqueada)
-        onOpened: conf.pinBloqueos()
-        Timer { interval: 3000; running: bloqueosDlg.visible; repeat: true; onTriggered: conf.pinBloqueos() }
+        Suscripcion { objetivo: conf; que: "bloqueos"; activa: bloqueosDlg.visible }
         ColumnLayout {
             spacing: 10
             width: 420

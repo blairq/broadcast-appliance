@@ -1,6 +1,7 @@
 // src/app/agent/ControlSistema.cpp — ver ControlSistema.hpp
 #include "agent/ControlSistema.hpp"
 #include "arranque/ArchivoConfig.hpp"
+#include "i18n/I18n.hpp"
 
 #include <QtGlobal>
 
@@ -85,6 +86,43 @@ ControlSistema ControlSistema::leer(const std::filesystem::path& datos) {
 
 bool ControlSistema::guardar(const std::filesystem::path& datos) const {
     return config::guardar(archivo(datos), comoJson());
+}
+
+nlohmann::json ControlSistema::estado(const std::filesystem::path& datos) {
+    nlohmann::json d = leer(datos).comoJson();
+    nlohmann::json caps = nlohmann::json::array();
+    for (const auto& [k, etiqueta] : capacidades()) caps.push_back({{"clave", k}, {"etiqueta", etiqueta}});
+    d["capacidades"] = caps;
+    // En qué sistema está y si su motor ya está hecho (PLAN-CONTROL-SISTEMA: Windows
+    // primero; macOS y Linux en camino). Las herramientas son las mismas en los tres.
+#if defined(_WIN32)
+    d["sistema"] = "Windows";
+    d["soportado"] = true;
+#elif defined(__APPLE__)
+    d["sistema"] = "macOS";
+    d["soportado"] = true;
+    d["nota"] = ba::i18n::traducir("mcp", "pide los permisos «Accesibilidad» y «Grabación de pantalla» de macOS la primera vez");
+#else
+    d["sistema"] = "Linux";
+    d["soportado"] = false;
+    d["nota"] = ba::i18n::traducir("mcp", "en Linux andan system_archivos y system_chrome; el resto está en camino");
+#endif
+    return d;
+}
+
+std::string ControlSistema::configurar(const std::filesystem::path& datos, const nlohmann::json& cambios,
+                                       nlohmann::json* resultado) {
+    ControlSistema c = leer(datos);
+    const nlohmann::json p = cambios.is_object() ? cambios.value("permisos", nlohmann::json::object()) : nlohmann::json();
+    if (p.is_object())
+        for (auto it = p.begin(); it != p.end(); ++it)
+            if (c.capacidad(it.key()) == nullptr)
+                return ba::i18n::llenar(ba::i18n::traducir("mcp", "no existe el permiso «%1» (control_estado los lista)"),
+                                        {it.key()});
+    c.aplicar(cambios);
+    if (!c.guardar(datos)) return ba::i18n::traducir("mcp", "no se pudo guardar la configuración");
+    if (resultado != nullptr) *resultado = c.comoJson();
+    return {};
 }
 
 } // namespace ba::app::agent

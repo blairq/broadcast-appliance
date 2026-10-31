@@ -12,11 +12,13 @@
 // misma PC sea cual sea la configuración abierta, y ba-control recibe esa raíz.
 // ============================================================================
 
+#include "agent/AgentViewModel.hpp"
 #include "agent/ControlSistema.hpp"
 #include "i18n/I18n.hpp"
 #include "arranque/AppRuntime.hpp"
 #include "mcp/McpService.hpp"
 #include "mcp/McpToolsCommon.hpp"
+#include "ui/StudioViewModel.hpp"
 #include "platform/Paths.hpp"
 
 namespace ba::app::mcp {
@@ -34,26 +36,7 @@ void McpService::registerControlTools() {
                         "programas, buscar, ventanas, portapapeles, procesos, comandos, datos del equipo, los elementos "
                         "de las ventanas, Chrome, archivos, registro) y con qué permisos. `preguntar`: el asistente pide "
                         "permiso al operador antes de cada acción. `soportado`: si en este sistema ya anda.");
-        t.run = [this](const json&, Done done) {
-            json d = ControlSistema::leer(ba::platform::dataRoot()).comoJson();
-            json caps = json::array();
-            for (const auto& [k, etiqueta] : ControlSistema::capacidades())
-                caps.push_back({{"clave", k}, {"etiqueta", etiqueta}});
-            d["capacidades"] = caps;
-#if defined(_WIN32)
-            d["sistema"] = "Windows";
-            d["soportado"] = true;
-#elif defined(__APPLE__)
-            d["sistema"] = "macOS";
-            d["soportado"] = true;
-            d["nota"] = ba::i18n::traducir("mcp", "pide los permisos «Accesibilidad» y «Grabación de pantalla» de macOS la primera vez");
-#else
-            d["sistema"] = "Linux";
-            d["soportado"] = false;
-            d["nota"] = ba::i18n::traducir("mcp", "en Linux andan system_archivos y system_chrome; el resto está en camino");
-#endif
-            done(ToolResult().data(d));
-        };
+        t.run = [](const json&, Done done) { done(ToolResult().data(ControlSistema::estado(ba::platform::dataRoot()))); };
         core_.addTool(std::move(t));
     }
     {
@@ -77,16 +60,13 @@ void McpService::registerControlTools() {
                            {"permisos", {{"type", "object"}}}}}};
         t.examples = {R"({"habilitado": true})", R"({"permisos": {"ejecutar_admin": true}})"};
         t.run = [this](const json& a, Done done) {
-            ControlSistema c = ControlSistema::leer(ba::platform::dataRoot());
-            const json p = a.value("permisos", json::object());
-            if (p.is_object())
-                for (auto it = p.begin(); it != p.end(); ++it)
-                    if (c.capacidad(it.key()) == nullptr)
-                        return done(ToolResult::error(ba::i18n::llenar(
-                            ba::i18n::traducir("mcp", "no existe el permiso «%1» (control_estado los lista)"), {it.key()})));
-            c.aplicar(a);
-            if (!c.guardar(ba::platform::dataRoot())) return done(ToolResult::error(ba::i18n::traducir("mcp", "no se pudo guardar la configuración")));
-            done(ToolResult().data(c.comoJson()));
+            // Por el modelo: así Configuración se entera del cambio.
+            auto* agente = qobject_cast<agent::AgentViewModel*>(vm_.agent());
+            json resultado;
+            const std::string e = agente != nullptr ? agente->configurarControlSistema(a, &resultado)
+                                                    : ControlSistema::configurar(ba::platform::dataRoot(), a, &resultado);
+            if (!e.empty()) return done(ToolResult::error(e));
+            done(ToolResult().data(resultado));
         };
         core_.addTool(std::move(t));
     }

@@ -36,6 +36,27 @@ struct VocesRack::Cargada {
 
 VocesRack::VocesRack(ModelosLocales& modelos, QObject* parent) : QObject(parent), modelos_(modelos) {
     connect(&modelos_, &ModelosLocales::cambio, this, &VocesRack::cambio);
+    // El estado de las tarjetas depende de las voces (instaladas, cargándose) y de los racks.
+    connect(this, &VocesRack::cambio, this, &VocesRack::estadosCambio);
+}
+
+void VocesRack::setRacks(audio::RackManager* racks) {
+    racks_ = racks;
+#if defined(BA_HAVE_CLAP)
+    if (racks_ != nullptr) connect(racks_, &audio::RackManager::changed, this, &VocesRack::estadosCambio);
+#endif
+}
+
+QVariantMap VocesRack::estados() const {
+    QVariantMap out;
+#if defined(BA_HAVE_CLAP)
+    if (racks_ == nullptr) return out;
+    for (const auto& h : racks_->hablas()) {
+        const QString f = QString::fromStdString(h.value("fuente", "")), n = QString::fromStdString(h.value("nodo", ""));
+        out[f + "/" + n] = estado(f, n);
+    }
+#endif
+    return out;
 }
 
 VocesRack::~VocesRack() = default;

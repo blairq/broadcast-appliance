@@ -163,12 +163,11 @@ std::string FlujosTexto::corregir(std::uint64_t id, const QString& texto, bool d
 
 QVariantList FlujosTexto::pendientesUi() const {
     QVariantList out;
-    const qint64 ahora = QDateTime::currentMSecsSinceEpoch();
     for (const Pendiente& p : pendientes_)
         out.append(QVariantMap{{"id", QVariant::fromValue<qulonglong>(p.id)},
                                {"flujo", p.flujo},
                                {"texto", p.texto},
-                               {"resta", static_cast<int>(std::max<qint64>(0, p.venceMs - ahora) / 1000)}});
+                               {"venceMs", static_cast<double>(p.venceMs)}});
     return out;
 }
 

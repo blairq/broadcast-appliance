@@ -8,27 +8,15 @@ import BA
 Rectangle {
     id: timer
     readonly property var conf: Studio.conference
+    // Los que hablan, con su reloj (lo da el modelo: sala::OradoresSala::reloj).
     readonly property var speakers: conf.onAir
-    property double clock: Date.now() + conf.clockOffset
     signal clicked()
 
-    function fmt(ms) {
-        const neg = ms < 0
-        const t = Math.floor(Math.abs(ms) / 1000)
-        return (neg ? "+" : "") + Math.floor(t / 60) + ":" + String(t % 60).padStart(2, "0")
-    }
-    function leftOf(s) { return s.allottedSec * 1000 - (clock - s.onAirSinceMs) }
     // El mas apurado manda el color del marco.
-    readonly property double worst: {
-        let w = Infinity
-        for (const s of speakers) w = Math.min(w, leftOf(s))
-        return w
-    }
-    readonly property bool warn: worst >= 0 && worst <= 10000
-    readonly property bool over: worst < 0
+    readonly property bool warn: conf.peorEstado === "aviso"
+    readonly property bool over: conf.peorEstado === "excedido"
 
     visible: speakers.length > 0
-    Timer { interval: 250; running: timer.visible; repeat: true; onTriggered: timer.clock = Date.now() + timer.conf.clockOffset }
 
     implicitWidth: row.implicitWidth + 28
     implicitHeight: row.implicitHeight + 16
@@ -45,27 +33,27 @@ Rectangle {
             model: timer.speakers
             delegate: RowLayout {
                 required property var modelData
-                readonly property double remaining: timer.leftOf(modelData)
+                readonly property string estado: modelData.estadoTiempo
                 spacing: 8
-                Rectangle { width: 10; height: 10; radius: 5; color: remaining < 0 ? Theme.live : Theme.ok
+                Rectangle { width: 10; height: 10; radius: 5; color: estado === "excedido" ? Theme.live : Theme.ok
                     SequentialAnimation on opacity { loops: Animation.Infinite; running: timer.visible
                         NumberAnimation { to: 0.3; duration: 600 } NumberAnimation { to: 1; duration: 600 } } }
                 Text { text: modelData.name; color: Theme.text; font { pixelSize: 14; weight: Font.DemiBold } }
                 Text {
                     id: t
-                    text: remaining >= 0 ? timer.fmt(Math.ceil(remaining / 1000) * 1000) : timer.fmt(remaining)
-                    color: remaining < 0 ? Theme.live : remaining <= 10000 ? Theme.accent : Theme.text
-                    font { pixelSize: remaining <= 10000 ? 30 : 22; weight: Font.Black; family: Theme.font }
+                    text: modelData.textoTiempo
+                    color: estado === "excedido" ? Theme.live : estado === "aviso" ? Theme.accent : Theme.text
+                    font { pixelSize: estado !== "ok" ? 30 : 22; weight: Font.Black; family: Theme.font }
                     Behavior on font.pixelSize { NumberAnimation { duration: 200 } }
                     SequentialAnimation on scale {
                         loops: Animation.Infinite
                         // Los últimos 10 s y a la vista (pasado de tiempo no late para siempre).
-                        running: remaining <= 10000 && remaining >= 0 && t.visible
+                        running: estado === "aviso" && t.visible
                         NumberAnimation { to: 1.12; duration: 450; easing.type: Easing.InOutQuad }
                         NumberAnimation { to: 1.0; duration: 450; easing.type: Easing.InOutQuad }
                     }
                 }
-                Text { visible: remaining < 0; text: qsTr("se pasó"); color: Theme.live; font.pixelSize: 12 }
+                Text { visible: estado === "excedido"; text: qsTr("se pasó"); color: Theme.live; font.pixelSize: 12 }
             }
         }
     }

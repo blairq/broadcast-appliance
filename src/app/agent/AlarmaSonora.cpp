@@ -107,6 +107,7 @@ QString AlarmaSonora::ponerAjustesUi(const QVariantMap& a) {
     if (a.contains("dispositivo")) dispositivo_ = a.value("dispositivo").toString();
     aplicar();
     guardar();
+    emit ajustesCambio();
     return {};
 }
 

@@ -505,8 +505,7 @@ Rectangle {
                     Layout.fillWidth: true
                     Layout.preferredHeight: segCol.implicitHeight + 64
                     title: qsTr("Seguridad en vivo")
-                    property var info: ({})
-                    Timer { interval: 2000; running: page.visible; repeat: true; triggeredOnStart: true; onTriggered: segPanel.info = ag.aireUi() }
+                    readonly property var info: ag.aire
                     ColumnLayout {
                         id: segCol
                         anchors.fill: parent

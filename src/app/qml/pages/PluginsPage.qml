@@ -79,11 +79,11 @@ Rectangle {
             page.respuestas = r
         }
     }
-    // El registro se refresca solo mientras se mira.
-    Timer {
-        interval: 2000; repeat: true
-        running: page.visible && page.abierto !== "" && page.vista === "registro"
-        onTriggered: page.cargarVista()
+    // El registro se relee cuando el modelo avisa que le llegaron líneas (solo si se lo mira).
+    Connections {
+        target: page.pl
+        enabled: page.visible && page.abierto !== "" && page.vista === "registro"
+        function onRegistroCambio(id) { if (id === page.abierto) page.cargarVista() }
     }
 
     ScrollView {

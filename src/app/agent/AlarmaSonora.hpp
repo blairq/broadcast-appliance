@@ -23,6 +23,8 @@ namespace ba::app::agent {
 
 class AlarmaSonora : public QObject {
     Q_OBJECT
+    /// {volumen 0..1, dispositivo ("" = el del sistema)}.
+    Q_PROPERTY(QVariantMap ajustes READ ajustesUi NOTIFY ajustesCambio)
    public:
     explicit AlarmaSonora(std::filesystem::path datos, QObject* parent = nullptr);
     ~AlarmaSonora() override;
@@ -32,11 +34,14 @@ class AlarmaSonora : public QObject {
     /// La crítica sigue sonando mientras `hay` sea true.
     void criticaActiva(bool hay);
 
-    Q_INVOKABLE QVariantMap ajustesUi() const;
-    /// {volumen 0..1, dispositivo ("" = el del sistema)}. "" o el error.
+    QVariantMap ajustesUi() const;
+    /// Cambia los que vengan (ver `ajustes`). "" o el error.
     Q_INVOKABLE QString ponerAjustesUi(const QVariantMap& a);
     Q_INVOKABLE QStringList dispositivosUi() const;
     Q_INVOKABLE void probar(const QString& nivel) { sonar(nivel); }
+
+   signals:
+    void ajustesCambio();
 
    private:
     void aplicar();

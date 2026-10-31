@@ -1070,6 +1070,7 @@ void Plugins::escribirRegistro(const std::string& id, const QByteArray& datos) {
         fs::rename(arch, logs_ / (id + ".log.1"), ec);
     std::ofstream f(arch, std::ios::app | std::ios::binary);
     f.write(datos.constData(), datos.size());
+    emit registroCambio(QString::fromStdString(id));
 }
 
 std::string Plugins::registro(const std::string& id, int lineas) const {

@@ -12,7 +12,6 @@
 #include <QDesktopServices>
 #include <QGuiApplication>
 #include <QJsonDocument>
-#include <QRegularExpression>
 #include <QSet>
 #include <QTimer>
 #include <QUrl>
@@ -27,6 +26,7 @@
 #include "sala/ControlSala.hpp"
 #include "sala/EnlacesSala.hpp"
 #include "sala/OradoresSala.hpp"
+#include "comun/UsoPorVistas.hpp"
 #include "sala/PaginaPublico.hpp"
 #include "sala/ParticipantesSala.hpp"
 #include "sala/ReglasSala.hpp"
@@ -129,7 +129,8 @@ ConferenceViewModel::ConferenceViewModel(AppRuntime& rt, VentanillaMotor& ventan
           QStringList{"uid", "fromId", "fromName", "to", "text", "atMs", "mine"})),
       speakers_(std::make_unique<JsonListModel>(
           QStringList{"uid", "name", "info", "contact", "speaker", "position", "allottedSec", "onAirSinceMs",
-                      "usedMs", "connected", "slot", "avatar", "backstageSlot", "presenter"})) {
+                      "usedMs", "connected", "slot", "avatar", "backstageSlot", "presenter", "restanteMs",
+                      "estadoTiempo", "textoTiempo", "textoAsignado", "textoUsado"})) {
     connect(client_.get(), &ConferenceClient::onlineChanged, this, [this]() { emit onlineChanged(); });
     connect(client_.get(), &ConferenceClient::snapshotChanged, this, &ConferenceViewModel::onSnapshot);
     connect(client_.get(), &ConferenceClient::chatReceived, this,
@@ -184,6 +185,24 @@ ConferenceViewModel::ConferenceViewModel(AppRuntime& rt, VentanillaMotor& ventan
             }
         });
     };
+    // Lo que la sala no avisa (el proxy, los bloqueos por PIN): se pregunta solo mientras
+    // alguna vista lo mira.
+    proxyPoll_.setInterval(5000);
+    bloqueosPoll_.setInterval(3000);
+    connect(&proxyPoll_, &QTimer::timeout, this, &ConferenceViewModel::refrescarProxy);
+    connect(&bloqueosPoll_, &QTimer::timeout, this, &ConferenceViewModel::pinBloqueos);
+    usos_ = std::make_unique<UsoPorVistas>(this, [this](const QString& que) {
+        QTimer& t = que == "proxy" ? proxyPoll_ : bloqueosPoll_;
+        if (usos_->activo(que)) {
+            que == "proxy" ? refrescarProxy() : pinBloqueos();
+            t.start();
+        } else {
+            t.stop();
+        }
+    });
+    // El reloj de los que hablan (cuatro veces por segundo, solo con alguien al aire).
+    relojOradores_.setInterval(250);
+    connect(&relojOradores_, &QTimer::timeout, this, &ConferenceViewModel::actualizarRelojes);
     // Fotos de las tarjetas de oradores (las renueva el invitado cada 5 s).
     connect(&avatarPoll_, &QTimer::timeout, this, &ConferenceViewModel::pollAvatars);
     avatarPoll_.start(std::max(1000, ba::ajustes::entero("room.sondeoMs", 5000)));
@@ -214,31 +233,28 @@ QObject* ConferenceViewModel::shares() const { return shares_.get(); }
 QObject* ConferenceViewModel::chat() const { return chat_.get(); }
 QObject* ConferenceViewModel::speakers() const { return speakers_.get(); }
 QVariantMap ConferenceViewModel::speakerCfg() const {
-    return client_->snapshot().value("speakers").toObject().toVariantMap();
+    QVariantMap m = client_->snapshot().value("speakers").toObject().toVariantMap();
+    // El tiempo general escrito como se lee («m:ss»), para el campo de la página.
+    m["defaultTexto"] = QString::fromStdString(sala::OradoresSala::textoTiempo(m.value("defaultSec").toInt() * 1000.0));
+    return m;
 }
 bool ConferenceViewModel::speakerMode() const {
     return client_->snapshot().value("speakers").toObject().value("enabled").toBool();
 }
 
 void ConferenceViewModel::rebuildSpeakers() {
-    const QJsonObject s = client_->snapshot();
-    QHash<QString, QJsonObject> byId;
-    for (const QJsonValue& v : s.value("participants").toArray()) {
-        const QJsonObject p = v.toObject();
-        byId.insert(p.value("id").toString(), p);
-    }
+    // La fila en orden: la misma que da remotos_fila_ver (sala::OradoresSala::fila).
+    const nlohmann::json foto =
+        nlohmann::json::parse(QJsonDocument(client_->snapshot()).toJson(QJsonDocument::Compact).toStdString(), nullptr, false);
     QJsonArray rows;
     QVariantList onAir;
-    int pos = 0;
-    for (const QJsonValue& v : s.value("order").toArray()) {
-        const auto it = byId.constFind(v.toString());
-        if (it == byId.constEnd()) continue;
-        QJsonObject p = *it;
+    for (const nlohmann::json& f : sala::OradoresSala::fila(foto.is_object() ? foto : nlohmann::json::object())) {
+        QJsonObject p = QJsonDocument::fromJson(QByteArray::fromStdString(f.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))).object();
         p.insert("uid", p.value("id"));
-        const QString st = p.value("speaker").toString();
-        p.insert("position", st == "queued" ? ++pos : 0);
         p.insert("avatar", avatars_.value(p.value("id").toString()));
-        if (st == "onair") {
+        p.insert("textoAsignado", QString::fromStdString(sala::OradoresSala::textoTiempo(p.value("allottedSec").toInt() * 1000.0)));
+        p.insert("textoUsado", QString::fromStdString(sala::OradoresSala::textoTiempo(p.value("usedMs").toDouble())));
+        if (p.value("speaker").toString() == "onair") {
             onAir << QVariantMap{{"uid", p.value("id").toString()},
                                  {"name", p.value("name").toString()},
                                  {"allottedSec", p.value("allottedSec").toInt()},
@@ -248,6 +264,44 @@ void ConferenceViewModel::rebuildSpeakers() {
     }
     speakers_->setItems(rows);
     onAir_ = onAir;
+    // Con alguien al aire corre el reloj; sin nadie, se apaga.
+    if (onAir_.isEmpty()) relojOradores_.stop();
+    else if (!relojOradores_.isActive()) relojOradores_.start();
+    actualizarRelojes();
+    emit onAirCambio();
+}
+
+void ConferenceViewModel::actualizarRelojes() {
+    const double ahora = static_cast<double>(QDateTime::currentMSecsSinceEpoch()) + clockOffset_;
+    const auto poner = [ahora](auto& m, int asignado, double desde) {
+        const sala::OradoresSala::Reloj r = sala::OradoresSala::reloj(asignado, desde, ahora);
+        m.insert("restanteMs", r.restanteMs);
+        m.insert("estadoTiempo", QString::fromStdString(r.estado));
+        m.insert("textoTiempo", QString::fromStdString(r.texto));
+        return r;
+    };
+    // El peor manda (el color del reloj flotante): excedido > aviso > ok.
+    QString peor;
+    const auto rango = [](const QString& e) { return e == "excedido" ? 3 : e == "aviso" ? 2 : e == "ok" ? 1 : 0; };
+    QVariantList onAir;
+    for (const QVariant& v : onAir_) {
+        QVariantMap m = v.toMap();
+        const auto r = poner(m, m.value("allottedSec").toInt(), m.value("onAirSinceMs").toDouble());
+        if (rango(QString::fromStdString(r.estado)) > rango(peor)) peor = QString::fromStdString(r.estado);
+        onAir << m;
+    }
+    QJsonArray rows = speakers_->items();
+    for (int i = 0; i < rows.size(); ++i) {
+        QJsonObject p = rows.at(i).toObject();
+        if (p.value("speaker").toString() != "onair") continue;
+        poner(p, p.value("allottedSec").toInt(), p.value("onAirSinceMs").toDouble());
+        rows[i] = p;
+    }
+    speakers_->setItems(rows); // en el lugar: solo cambian las filas de los que hablan
+    const bool cambio = onAir != onAir_ || peor != peorEstado_;
+    onAir_ = onAir;
+    peorEstado_ = peor;
+    if (cambio) emit onAirCambio();
 }
 
 void ConferenceViewModel::pollAvatars() {
@@ -340,21 +394,26 @@ void ConferenceViewModel::setProfile(const QString& id, const QString& name, con
 void ConferenceViewModel::guardarFicha(const QString& id, const QString& name, const QString& info,
                                        const QString& contact, const QString& tiempo) {
     setProfile(id, name, info, contact);
-    // Sin tiempo (desde el lobby o la sala) o uno que no se entiende: solo la ficha.
-    if (const int s = parseDuration(tiempo); s > 0) speakerTime(id, s);
+    // Sin tiempo (desde el lobby o la sala): solo la ficha. Uno que no se entiende, se avisa.
+    if (tiempo.trimmed().isEmpty()) return;
+    int actual = 0;
+    for (const QJsonValue& v : client_->snapshot().value("participants").toArray())
+        if (v.toObject().value("id").toString() == id) actual = v.toObject().value("allottedSec").toInt();
+    if (actual <= 0) actual = speakerCfg().value("defaultSec").toInt();
+    if (const std::string e = oradores_->tiempo(ss(id), ss(tiempo), actual); !e.empty()) emit notify(frase(e), "error");
 }
 
-int ConferenceViewModel::parseDuration(const QString& text) const {
-    const QString t = text.trimmed();
-    static const QRegularExpression mss("^(\\d+):(\\d{1,2})$");
-    static const QRegularExpression secs("^(\\d+)\\s*s$");
-    static const QRegularExpression mins("^(\\d+)([.,](\\d+))?$");
-    if (const auto m = mss.match(t); m.hasMatch()) return m.captured(1).toInt() * 60 + m.captured(2).toInt();
-    if (const auto m = secs.match(t); m.hasMatch()) return m.captured(1).toInt();
-    if (const auto m = mins.match(t); m.hasMatch()) {
-        return static_cast<int>(QString(t).replace(',', '.').toDouble() * 60.0 + 0.5);
-    }
-    return 0;
+QVariantMap ConferenceViewModel::reloj(int asignadoS, double desdeMs, double ahoraMs) const {
+    const sala::OradoresSala::Reloj r = sala::OradoresSala::reloj(asignadoS, desdeMs, ahoraMs);
+    return {{"restanteMs", r.restanteMs}, {"estado", QString::fromStdString(r.estado)}, {"texto", QString::fromStdString(r.texto)}};
+}
+
+QString ConferenceViewModel::setTiempoGeneral(const QString& texto) {
+    int s = 0;
+    if (const std::string e = sala::OradoresSala::leerTiempo(ss(texto), speakerCfg().value("defaultSec").toInt(), s); !e.empty())
+        return frase(e);
+    setSpeakerConfig({{"defaultSec", s}});
+    return {};
 }
 
 void ConferenceViewModel::requestBoardLink(const QString& target) {
@@ -576,6 +635,10 @@ void ConferenceViewModel::pruebaTecnica(const QString& id) {
     });
 }
 
+void ConferenceViewModel::usar(QObject* vista, bool si, const QString& que) {
+    if (que == "proxy" || que == "bloqueos") usos_->usar(vista, si, que);
+}
+
 void ConferenceViewModel::refrescarProxy() {
     QPointer<ConferenceViewModel> yo(this);
     control_->verProxy([yo](const std::string& err, const nlohmann::json& r) {
@@ -639,6 +702,15 @@ QVariantMap ConferenceViewModel::participanteEnSlot(int slot) const {
         if (p.value("slot").toInt() == slot) return p.toVariantMap();
     }
     return {};
+}
+
+QVariantMap ConferenceViewModel::participantesPorSlot() const {
+    QVariantMap out;
+    for (const QJsonValue& v : client_->snapshot().value("participants").toArray()) {
+        const QJsonObject p = v.toObject();
+        if (const int slot = p.value("slot").toInt(); slot > 0) out[QString::number(slot)] = p.toVariantMap();
+    }
+    return out;
 }
 
 QStringList ConferenceViewModel::slotNames() const {

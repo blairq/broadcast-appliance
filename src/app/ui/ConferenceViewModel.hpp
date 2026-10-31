@@ -41,6 +41,7 @@ class Teleprompter;
 namespace ba::app {
 
 class AppRuntime;
+class UsoPorVistas;
 class ConferenceClient;
 class VentanillaMotor;
 
@@ -95,6 +96,8 @@ class ConferenceViewModel : public QObject {
     /// Por slot (indice slot-1): true si el invitado de ese lugar esta adentro y NO recibe
     /// retorno (su mix-minus no esta abierto en el gateway: lo publica en su participante).
     Q_PROPERTY(QVariantList slotsSinRetorno READ slotsSinRetorno NOTIFY roomChanged)
+    /// Quién está en cada lugar de invitado: {"<slot>": participante (con su red)}.
+    Q_PROPERTY(QVariantMap participantesPorSlot READ participantesPorSlot NOTIFY roomChanged)
     /// Destinos del chat: [{label, value}] ("all" + cada participante).
     Q_PROPERTY(QVariantList chatTargets READ chatTargets NOTIFY roomChanged)
     /// Sube con cada mensaje. Es para que la vista sepa que tiene que volver a
@@ -120,17 +123,23 @@ class ConferenceViewModel : public QObject {
     Q_PROPERTY(QObject* shares READ shares CONSTANT)
     Q_PROPERTY(QObject* chat READ chat CONSTANT)
     // --- Modo oradores ---------------------------------------------------------
-    /// Configuracion: {enabled, defaultSec, carousel, graceSec, multi, defaultSlot}.
+    /// Configuracion: {enabled, defaultSec, defaultTexto ("m:ss"), carousel, graceSec, multi, defaultSlot}.
     Q_PROPERTY(QVariantMap speakerCfg READ speakerCfg NOTIFY roomChanged)
     Q_PROPERTY(bool autoIntake READ autoIntake NOTIFY autoIntakeChanged)
     Q_PROPERTY(bool speakerMode READ speakerMode NOTIFY roomChanged)
     /// Fila de oradores en orden (tarjetas): uid, name, info, contact, speaker
     /// ("queued"|"onair"|"done"), position, allottedSec, onAirSinceMs, usedMs,
     /// connected, slot, avatar (data: URL o vacio), backstageSlot (preview de
-    /// la fila en BA.Backstage.<k>, 0 = sin preview).
+    /// la fila en BA.Backstage.<k>, 0 = sin preview); y, del que está al aire, su reloj
+    /// (sala::OradoresSala::reloj): restanteMs, estadoTiempo (ok | aviso | excedido),
+    /// textoTiempo ("m:ss" o "+m:ss"); textoAsignado y textoUsado ("m:ss").
     Q_PROPERTY(QObject* speakers READ speakers CONSTANT)
-    /// Los que estan al aire ahora: [{uid, name, allottedSec, onAirSinceMs}].
-    Q_PROPERTY(QVariantList onAir READ onAir NOTIFY roomChanged)
+    /// Los que estan al aire ahora: [{uid, name, allottedSec, onAirSinceMs, restanteMs,
+    /// estadoTiempo, textoTiempo}]. El reloj lo da el modelo (cuatro veces por segundo,
+    /// solo con alguien al aire).
+    Q_PROPERTY(QVariantList onAir READ onAir NOTIFY onAirCambio)
+    /// El peor reloj de los que hablan: "" (nadie al aire), ok, aviso o excedido.
+    Q_PROPERTY(QString peorEstado READ peorEstado NOTIFY onAirCambio)
     /// Reloj de la sala - reloj local (ms): los relojes se calculan con
     /// Date.now() + clockOffset.
     Q_PROPERTY(double clockOffset READ clockOffset NOTIFY roomChanged)
@@ -176,6 +185,7 @@ class ConferenceViewModel : public QObject {
     bool autoIntake() const;
     QObject* speakers() const;
     QVariantList onAir() const { return onAir_; }
+    QString peorEstado() const { return peorEstado_; }
     double clockOffset() const { return clockOffset_; }
 
     /// Cambia los campos presentes (ver speakerCfg).
@@ -220,12 +230,20 @@ class ConferenceViewModel : public QObject {
     void agregarDichoAlAtendido(const QString& id, const QString& nombre, const QString& texto);
     Q_INVOKABLE void setProfile(const QString& id, const QString& name, const QString& info,
                                 const QString& contact);
-    /// La ficha de un orador desde el diálogo: los datos y, si `tiempo` dice
-    /// algo que se entiende (ver parseDuration), su tiempo para hablar.
+    /// La ficha de un orador desde el diálogo: los datos y, si `tiempo` no va vacío, su
+    /// tiempo para hablar (sala::OradoresSala::leerTiempo: «2:30», «90», «3m», «+1:00»…).
     Q_INVOKABLE void guardarFicha(const QString& id, const QString& name, const QString& info,
                                   const QString& contact, const QString& tiempo);
-    /// "m:ss", "m" (minutos) o "Ns" -> segundos (0 = invalido).
-    Q_INVOKABLE int parseDuration(const QString& text) const;
+    /// El tiempo general por orador, escrito (ver guardarFicha). "" o el error.
+    Q_INVOKABLE QString setTiempoGeneral(const QString& texto);
+    /// Una vista empieza o deja de mirar lo que la sala no avisa y hay que pedirle: "proxy"
+    /// (cada 5 s) o "bloqueos" (los de PIN, cada 3 s). La cuenta es por vista
+    /// (comun/UsoPorVistas); sin nadie mirando no se pregunta.
+    Q_INVOKABLE void usar(QObject* vista, bool si, const QString& que);
+    /// La regla del reloj de quien habla (sala::OradoresSala::reloj), para un reloj que no
+    /// es de la sala (las bancas del recinto): {restanteMs, estado, texto}. Pura: no lee
+    /// estado; la hora la pone quien la llama (el Reloj).
+    Q_INVOKABLE QVariantMap reloj(int asignadoS, double desdeMs, double ahoraMs) const;
     /// Enlace + QR del tablero de oradores (tablet). Responde con qrReady,
     /// target "board-local" / "board-remote".
     Q_INVOKABLE void requestBoardLink(const QString& target);
@@ -239,7 +257,7 @@ class ConferenceViewModel : public QObject {
     /// Prueba técnica (T33): eco por su micrófono y red. El resultado llega por pruebaLista.
     Q_INVOKABLE void pruebaTecnica(const QString& id);
     QVariantMap proxy() const { return proxy_; }
-    Q_INVOKABLE void refrescarProxy();
+    void refrescarProxy();
     Q_INVOKABLE void renovarProxy(const QString& host);
     /// Cambia la configuración del proxy (activo, dominio, acme…) y reinicia la sala. "" o el error.
     Q_INVOKABLE QString configurarProxy(const QVariantMap& cambios);
@@ -254,7 +272,8 @@ class ConferenceViewModel : public QObject {
     /// "mute-mic" | "mute-cam" | "stop-screen" | "lower-hand"
     Q_INVOKABLE void request(const QString& id, const QString& what);
     /// El participante en el slot (1..invitados): {id, name, red{kbps_in, perdida_pct, jitter_ms, rtt_ms, semaforo}…}; {} si no hay.
-    Q_INVOKABLE QVariantMap participanteEnSlot(int slot) const;
+    QVariantMap participanteEnSlot(int slot) const;
+    QVariantMap participantesPorSlot() const;
     /// `to`: "all" o el id de un participante.
     Q_INVOKABLE void sendChat(const QString& to, const QString& text);
     Q_INVOKABLE void setLobby(bool on);
@@ -262,7 +281,7 @@ class ConferenceViewModel : public QObject {
     /// PIN nuevo (vacio = generar uno).
     Q_INVOKABLE void newPin(const QString& pin = {});
     /// Pide a la sala quién está bloqueado por PIN mal (actualiza bloqueosPin).
-    Q_INVOKABLE void pinBloqueos();
+    void pinBloqueos();
     /// Levanta los bloqueos: los de esa IP, o (vacío) todos, el global incluido.
     Q_INVOKABLE void desbloquearPin(const QString& ip = {});
     QVariantMap bloqueosPin() const { return bloqueosPin_; }
@@ -294,6 +313,7 @@ class ConferenceViewModel : public QObject {
     void pruebaLista(const QString& id, const QVariantMap& resultado);
     void onlineChanged();
     void roomChanged();
+    void onAirCambio();
     void autoIntakeChanged();
     void chatRevChanged();
     void operatorChanged();
@@ -347,6 +367,13 @@ class ConferenceViewModel : public QObject {
     QHash<QString, QString> avatars_; // id -> data:image/jpeg;base64,...
     QHash<QString, QString> nombresDeAfuera_; // id -> nombre de quien se atiende sin estar en la sala
     QTimer avatarPoll_;
+    std::unique_ptr<UsoPorVistas> usos_;
+    QTimer proxyPoll_, bloqueosPoll_;
+    /// El reloj de los que hablan: corre solo con alguien al aire (actualizarRelojes).
+    QTimer relojOradores_;
+    QString peorEstado_;
+    /// Pone el reloj (restante, estado, texto) a los que están al aire, en la fila y en onAir.
+    void actualizarRelojes();
     void pollAvatars();
     void rebuildSpeakers();
     QStringList knownWaiting_;

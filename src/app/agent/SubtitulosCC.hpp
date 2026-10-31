@@ -30,6 +30,8 @@ class FlujosTexto;
 
 class SubtitulosCC : public QObject {
     Q_OBJECT
+    /// Lo de estado(), para enlazarse (cambia con `cambio`).
+    Q_PROPERTY(QVariantMap estadoCc READ estado NOTIFY cambio)
    public:
     /// `enviar608(texto, segundos)` -> a cuántas salidas llegó.
     SubtitulosCC(FlujosTexto& flujos, std::filesystem::path datos, std::function<int(const QString&, double)> enviar608,
@@ -37,7 +39,7 @@ class SubtitulosCC : public QObject {
     ~SubtitulosCC() override;
 
     /// {activo, flujo, metodo, url_youtube(tiene), enviadas, ultimas[]}.
-    Q_INVOKABLE QVariantMap estado() const;
+    QVariantMap estado() const;
     /// {flujo, metodo: 608|youtube_http|ambos, url?}. "" o el error.
     Q_INVOKABLE QString activar(const QVariantMap& cfg);
     Q_INVOKABLE void desactivar();

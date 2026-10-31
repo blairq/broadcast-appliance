@@ -12,6 +12,7 @@
 #include "ajustes/Ajustes.hpp"
 #include "arranque/ArranqueAviso.hpp"
 #include "control/MonitorBus.hpp"
+#include "ui/Reloj.hpp"
 #include "ui/ScopeVista.hpp"
 #include "platform/Hilo.hpp"
 #include "platform/Paths.hpp"
@@ -410,6 +411,9 @@ int runGui(int argc, char** argv) {
         auto* frames = static_cast<FrameService*>(vm.frames());
         VideoItem::setService(frames);
         qmlRegisterSingletonInstance("BA", 1, 0, "Studio", &vm);
+        // La hora de las vistas (corre solo mientras alguien la lee).
+        Reloj reloj;
+        qmlRegisterSingletonInstance("BA", 1, 0, "Reloj", &reloj);
         qmlRegisterType<VideoItem>("BA", 1, 0, "VideoItem");
         qmlRegisterType<term::TerminalView>("BA", 1, 0, "TerminalView");
         qmlRegisterType<Vumetro>("BA", 1, 0, "Vumetro");

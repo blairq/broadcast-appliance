@@ -23,21 +23,17 @@ Rectangle {
     required property int backstageSlot // preview en vivo de la fila (0 = sin lugar)
     required property int index
     required property bool presenter
-    /// Reloj de la sala (ms), lo actualiza la pagina.
-    property double now: Date.now()
+    // El reloj de quien habla y los tiempos, del modelo (sala::OradoresSala::reloj).
+    required property string estadoTiempo
+    required property string textoTiempo
+    required property string textoAsignado
+    required property string textoUsado
     signal edit()
 
-    readonly property double leftMs: allottedSec * 1000 - (now - onAirSinceMs)
     readonly property bool onAir: speaker === "onair"
-    readonly property bool warn: onAir && leftMs >= 0 && leftMs <= 10000
-    readonly property bool over: onAir && leftMs < 0
+    readonly property bool warn: onAir && estadoTiempo === "aviso"
+    readonly property bool over: onAir && estadoTiempo === "excedido"
     readonly property var conf: Studio.conference
-
-    function fmt(ms) {
-        const neg = ms < 0
-        const t = Math.floor(Math.abs(ms) / 1000)
-        return (neg ? "+" : "") + Math.floor(t / 60) + ":" + String(t % 60).padStart(2, "0")
-    }
 
     width: 210
     height: col.implicitHeight + 20
@@ -98,8 +94,8 @@ Rectangle {
         RowLayout {
             Layout.fillWidth: true
             Text {
-                text: card.onAir ? (card.leftMs >= 0 ? card.fmt(Math.ceil(card.leftMs / 1000) * 1000) : card.fmt(card.leftMs))
-                      : card.speaker === "done" ? qsTr("usó %1").arg(card.fmt(card.usedMs)) : card.fmt(card.allottedSec * 1000)
+                text: card.onAir ? card.textoTiempo
+                      : card.speaker === "done" ? qsTr("usó %1").arg(card.textoUsado) : card.textoAsignado
                 color: card.over ? Theme.live : card.warn ? Theme.accent : Theme.text
                 font { pixelSize: card.warn || card.over ? 26 : 20; weight: Font.Black; family: Theme.font }
                 Layout.fillWidth: true

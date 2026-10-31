@@ -46,12 +46,15 @@ class VocesRack : public QObject {
     Q_PROPERTY(QVariantList voces READ voces NOTIFY cambio)
     /// Los idiomas que hay: [{codigo, nombre}]
     Q_PROPERTY(QVariantList idiomas READ idiomas NOTIFY cambio)
+    /// Cómo está cada tarjeta «Texto a voz»: {"<fuente>/<nodo>": «lista», «cargando…»,
+    /// «falta bajar la voz»…}. Cambia con las voces, su carga y los racks.
+    Q_PROPERTY(QVariantMap estados READ estados NOTIFY estadosCambio)
 
    public:
     explicit VocesRack(ModelosLocales& modelos, QObject* parent = nullptr);
     ~VocesRack() override;
 
-    void setRacks(audio::RackManager* racks) { racks_ = racks; }
+    void setRacks(audio::RackManager* racks);
     void setFlujos(FlujosTexto* flujos);
     /// La voz del sistema. Una tarjeta sin voz elegida usa la del idioma del evento: esta
     /// si habla esa lengua; si no, la del perfil del idioma (agent/VozIdioma).
@@ -65,12 +68,14 @@ class VocesRack : public QObject {
     /// Baja una voz del catálogo.
     Q_INVOKABLE void bajar(const QString& repo);
     /// Cómo está la tarjeta: «lista», «cargando…», «falta bajar la voz»…
-    Q_INVOKABLE QString estado(const QString& fuente, const QString& nodo) const;
+    QString estado(const QString& fuente, const QString& nodo) const;
+    QVariantMap estados() const;
 
     static QString nombreIdioma(const QString& codigo);
 
    signals:
     void cambio();
+    void estadosCambio();
 
    private:
     struct Cargada;

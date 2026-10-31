@@ -251,6 +251,8 @@ class Plugins : public QObject {
     void aviso(const QString& texto, bool ok);
     /// Cambió algún valor del panel de un plugin (va aparte de `cambio`: puede ser 10 veces por segundo).
     void valoresCambio(const QString& id);
+    /// Llegaron líneas al registro de un plugin (lo que escribe por stderr).
+    void registroCambio(const QString& id);
     /// Un evento de un plugin (para los disparadores).
     void evento(const QString& plugin, const QString& canal, const QString& datosJson);
 

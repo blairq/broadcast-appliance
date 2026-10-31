@@ -833,11 +833,10 @@ Rectangle {
                 id: ctl
                 width: parent.width
                 spacing: 12
-                property var estado: Studio.agent.controlSistema()
+                readonly property var estado: Studio.agent.controlSistema
                 function cambiar(c) {
                     const e = Studio.agent.setControlSistema(c)
                     if (e !== "") Studio.notify(e, "error")
-                    ctl.estado = Studio.agent.controlSistema()
                 }
                 Text {
                     Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.textDim; font.pixelSize: 12

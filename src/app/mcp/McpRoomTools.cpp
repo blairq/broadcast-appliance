@@ -1225,16 +1225,11 @@ void McpService::registerRoomTools() {
             "al que habla; no son las bancas del recinto.");
         t.run = [&vm](const json&, Done done) {
             const json s = roomSnapshot(vm);
-            const double now = s.value("serverNowMs", 0.0);
-            std::map<std::string, json> byId;
-            for (const auto& p : s.value("participants", json::array()))
-                byId[p.value("id", "")] = p;
+            // La hora de la sala: la de acá corregida con la diferencia con el servidor.
+            const auto* conf = static_cast<ConferenceViewModel*>(vm.conference());
+            const double ahora = static_cast<double>(QDateTime::currentMSecsSinceEpoch()) + conf->clockOffset();
             json order = json::array();
-            int pos = 0;
-            for (const auto& id : s.value("order", json::array())) {
-                const auto it = byId.find(id.get<std::string>());
-                if (it == byId.end()) continue;
-                const json& p = it->second;
+            for (const json& p : sala::OradoresSala::fila(s)) {
                 json e{{"id", p["id"]},
                        {"name", p["name"]},
                        {"state", p.value("speaker", "")},
@@ -1243,10 +1238,10 @@ void McpService::registerRoomTools() {
                        {"connected", p.value("connected", false)},
                        {"info", p.value("info", "")},
                        {"contact", p.value("contact", "")}};
-                if (p.value("speaker", "") == "queued") e["position"] = ++pos;
+                if (p.value("position", 0) > 0) e["position"] = p["position"];
                 if (p.value("speaker", "") == "onair") {
                     e["remainingSec"] =
-                        p.value("allottedSec", 0) - (now - p.value("onAirSinceMs", 0.0)) / 1000.0;
+                        sala::OradoresSala::reloj(p.value("allottedSec", 0), p.value("onAirSinceMs", 0.0), ahora).restanteMs / 1000.0;
                     e["slot"] = p.value("slot", 0);
                 }
                 order.push_back(e);
@@ -1280,8 +1275,10 @@ void McpService::registerRoomTools() {
             for (const char* k : {"enabled", "multi", "defaultSlot", "carousel", "graceSec"})
                 if (a.contains(k)) b[k] = a[k];
             if (a.contains("defaultTime")) {
-                const int s = parseSeconds(a["defaultTime"]);
-                if (s <= 0) return done(ToolResult::error(ba::i18n::traducir("mcp", "defaultTime invalido (segundos o 'm:ss').")));
+                int s = 0;
+                const json& d = a["defaultTime"];
+                const std::string e = sala::OradoresSala::leerTiempo(d.is_string() ? d.get<std::string>() : d.dump(), 0, s);
+                if (!e.empty()) return done(ToolResult::error("defaultTime: " + e));
                 b["defaultSec"] = s;
             }
             const std::string e = oradores.configurar(b, contestar(ba::i18n::traducir("mcp", "Modo oradores actualizado."), done));
@@ -1405,22 +1402,16 @@ void McpService::registerRoomTools() {
             json p;
             if (!withPerson(a, "participant", p, done)) return;
             // «+2:00» / «-30»: sobre lo que ya tiene (el suyo, o el general si no tiene uno);
-            // «=2:30» o «2:30»: eso. Antes el signo se perdia y «+2:00» lo DEJABA en dos minutos.
+            // «=2:30» o «2:30»: eso. La misma lectura que la interfaz (OradoresSala::leerTiempo).
+            int base = p.value("allottedSec", 0);
+            if (base <= 0) base = roomSnapshot(vm).value("speakers", json::object()).value("defaultSec", 0);
+            const json& tv = a["time"];
+            const std::string texto = tv.is_string() ? tv.get<std::string>() : tv.dump();
             int s = 0;
-            std::string txt = a["time"].is_string() ? a["time"].get<std::string>() : std::string();
-            while (!txt.empty() && txt.front() == ' ') txt.erase(0, 1);
-            if (!txt.empty() && (txt.front() == '+' || txt.front() == '-')) {
-                const int signo = txt.front() == '-' ? -1 : 1;
-                int base = p.value("allottedSec", 0);
-                if (base <= 0) base = roomSnapshot(vm).value("speakers", json::object()).value("defaultSec", 0);
-                s = base + signo * parseSeconds(json(txt.substr(1)));
-            } else if (!txt.empty() && txt.front() == '=') {
-                s = parseSeconds(json(txt.substr(1)));
-            } else {
-                s = parseSeconds(a["time"]);
-            }
+            if (const std::string e = sala::OradoresSala::leerTiempo(texto, base, s); !e.empty())
+                return done(ToolResult::error(e));
             const std::string e = oradores.tiempo(p["id"], s, contestar(ba::i18n::llenar(ba::i18n::traducir("mcp", "Tiempo: %1 s."), {std::to_string(s)}), done));
-            if (!e.empty()) done(ToolResult::error(e + " " + ba::i18n::traducir("mcp", "(segundos o 'm:ss').")));
+            if (!e.empty()) done(ToolResult::error(e));
         };
         core_.addTool(std::move(t));
     }

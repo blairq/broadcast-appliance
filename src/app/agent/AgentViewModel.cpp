@@ -1175,32 +1175,27 @@ QString AgentViewModel::controlPath() const {
 }
 
 QVariantMap AgentViewModel::controlSistema() const {
-    const ControlSistema c = ControlSistema::leer(ba::platform::dataRoot());
-    QVariantMap m = QJsonDocument::fromJson(QByteArray::fromStdString(c.comoJson().dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))).object().toVariantMap();
+    QVariantMap m = QJsonDocument::fromJson(QByteArray::fromStdString(ControlSistema::estado(ba::platform::dataRoot())
+                                                                          .dump(-1, ' ', false, nlohmann::json::error_handler_t::replace)))
+                        .object()
+                        .toVariantMap();
+    // Las etiquetas, en el idioma de la interfaz.
     QVariantList caps;
     for (const auto& [k, etiqueta] : ControlSistema::capacidades())
         caps << QVariantMap{{"clave", QString::fromStdString(k)}, {"etiqueta", QCoreApplication::translate("controlsistema", etiqueta.c_str())}};
     m["capacidades"] = caps;
-    // En qué sistema está y si su motor ya está hecho (PLAN-CONTROL-SISTEMA: Windows
-    // primero; macOS y Linux en camino). Las herramientas son las mismas en los tres.
-#if defined(_WIN32)
-    m["sistema"] = "Windows";
-    m["soportado"] = true;
-#elif defined(__APPLE__)
-    m["sistema"] = "macOS";
-    m["soportado"] = true;
-#else
-    m["sistema"] = "Linux";
-    m["soportado"] = false;
-#endif
     return m;
 }
 
+std::string AgentViewModel::configurarControlSistema(const json& cambios, json* resultado) {
+    const std::string e = ControlSistema::configurar(ba::platform::dataRoot(), cambios, resultado);
+    if (e.empty()) emit controlSistemaCambio();
+    return e;
+}
+
 QString AgentViewModel::setControlSistema(const QVariantMap& cambios) {
-    ControlSistema c = ControlSistema::leer(ba::platform::dataRoot());
-    c.aplicar(json::parse(QJsonDocument(QJsonObject::fromVariantMap(cambios)).toJson().toStdString(), nullptr, false));
-    if (!c.guardar(ba::platform::dataRoot())) return tr("No se pudo guardar la configuración.");
-    return {};
+    return QString::fromStdString(
+        configurarControlSistema(json::parse(QJsonDocument(QJsonObject::fromVariantMap(cambios)).toJson().toStdString(), nullptr, false)));
 }
 
 QString AgentViewModel::runtimeDe(const QString& proveedor) {

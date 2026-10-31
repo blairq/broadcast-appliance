@@ -39,6 +39,11 @@ namespace ba::app::agent {
 
 class FlujosTexto : public QObject {
     Q_OBJECT
+    /// Las frases que esperan corrección: [{id, flujo, texto, venceMs}] (la cuenta regresiva
+    /// la hace la vista con el Reloj). Cambia cuando entra, sale o se corrige una.
+    Q_PROPERTY(QVariantList pendientesLista READ pendientesUi NOTIFY pendientesCambio)
+    Q_PROPERTY(bool correccion READ correccionActiva NOTIFY pendientesCambio)
+    Q_PROPERTY(int demora READ demoraMs NOTIFY pendientesCambio)
     /// [{nombre, origen, ultima, hora, cantidad, archivo, rotulo}]
     Q_PROPERTY(QVariantList flujos READ flujos NOTIFY cambio)
 
@@ -75,11 +80,9 @@ class FlujosTexto : public QObject {
     nlohmann::json pendientes() const;
     /// Corrige (y suelta ya) la frase `id`; `descartar` la tira. "" o el error.
     std::string corregir(std::uint64_t id, const QString& texto, bool descartar);
-    Q_INVOKABLE QVariantList pendientesUi() const;
+    QVariantList pendientesUi() const;
     Q_INVOKABLE QString corregirUi(qulonglong id, const QString& texto, bool descartar = false);
     Q_INVOKABLE void setCorreccionUi(bool activa, int demoraMs) { setCorreccion(activa, demoraMs); }
-    Q_INVOKABLE bool correccionActivaUi() const { return correccionActiva_; }
-    Q_INVOKABLE int demoraMsUi() const { return demoraMs_; }
     /// Los archivos de transcripción de esta sesión (txt, srt, vtt).
     QStringList archivosDeSesion() const;
 

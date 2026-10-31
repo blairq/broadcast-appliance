@@ -329,23 +329,6 @@ bool parseLayout(const json& v, float& x, float& y, float& w, float& h, std::str
     return false;
 }
 
-int parseSeconds(const json& v) {
-    if (v.is_number()) return static_cast<int>(std::lround(v.get<double>()));
-    if (!v.is_string()) return 0;
-    const std::string s = v.get<std::string>();
-    int m = 0;
-    int sec = 0;
-    if (std::sscanf(s.c_str(), "%d:%d", &m, &sec) == 2) return m * 60 + sec;
-    double d = 0;
-    char unit = 0;
-    const int n = std::sscanf(s.c_str(), "%lf%c", &d, &unit);
-    if (n >= 1) {
-        if (n == 2 && (unit == 'm' || unit == 'M')) return static_cast<int>(std::lround(d * 60));
-        return static_cast<int>(std::lround(d));
-    }
-    return 0;
-}
-
 json toJson(const QJsonObject& o) {
     return json::parse(QJsonDocument(o).toJson(QJsonDocument::Compact).toStdString(), nullptr, false);
 }
@@ -780,6 +763,8 @@ void McpService::applySecurity() {
             const json j{{"hay_aire", core_.hayAire()}, {"herramientas", core_.aire().lista()}};
             return QJsonDocument::fromJson(QByteArray::fromStdString(j.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))).object().toVariantMap();
         });
+        // Si sale algo o no cambia con el estado de lo que sale.
+        QObject::connect(&vm_, &StudioViewModel::statusChanged, ag, &agent::AgentViewModel::aireCambio);
     }
     core_.setApprover(
         [this](const Tool& t, const json& args, const std::string& reason, std::function<void(bool)> decide) {

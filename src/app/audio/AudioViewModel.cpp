@@ -50,6 +50,8 @@ AudioViewModel::AudioViewModel(RackManager& mgr, QObject* parent) : QObject(pare
     connect(&tick_, &QTimer::timeout, this, [this]() {
         rebuildGraph();
         rebuildDetail();
+        // La vista general y la grabación cambian despacio: una vez por segundo.
+        if (++vueltas_ % 6 == 0) revisarPartes();
     });
     connect(&mgr_, &RackManager::changed, this, &AudioViewModel::refresh);
 }
@@ -73,6 +75,7 @@ QVariantList AudioViewModel::catalog() const {
 void AudioViewModel::alCambiarVistas() {
     if (vistas_.alguien()) {
         refresh();
+        revisarPartes();
         tick_.start();
     } else {
         tick_.stop();
@@ -279,7 +282,23 @@ void AudioViewModel::rebuildDetail() {
     }
 }
 
-QVariantMap AudioViewModel::estudio() const { return toVariant(mgr_.estudio()).toMap(); }
+void AudioViewModel::revisarPartes() {
+    if (vistas_.activo("estudio")) {
+        QVariantMap e = toVariant(mgr_.estudio()).toMap();
+        if (e != estudio_) {
+            estudio_ = std::move(e);
+            emit estudioCambio();
+        }
+    }
+    if (vistas_.activo("grabacion")) {
+        QVariantMap g = toVariant(mgr_.grabacion(source_.toStdString())).toMap();
+        g["carpeta"] = QString::fromStdString(mgr_.carpetaGrabaciones().string());
+        if (g != grabacion_) {
+            grabacion_ = std::move(g);
+            emit grabacionCambio();
+        }
+    }
+}
 
 void AudioViewModel::selectSource(const QString& name) {
     source_ = name;
@@ -289,6 +308,7 @@ void AudioViewModel::selectSource(const QString& name) {
     emit selectionChanged();
     rebuildGraph();
     rebuildDetail();
+    revisarPartes();
 }
 
 void AudioViewModel::select(const QString& node) {
@@ -417,13 +437,8 @@ QString AudioViewModel::setHablaOpciones(const QString& node, const QVariantMap&
 QString AudioViewModel::setGrabar(bool grabar) {
     const std::string e = mgr_.setGrabar(source_.toStdString(), grabar);
     rebuildDetail();
+    revisarPartes();
     return QString::fromStdString(e);
-}
-
-QVariantMap AudioViewModel::grabacion() const {
-    QVariantMap m = toVariant(mgr_.grabacion(source_.toStdString())).toMap();
-    m["carpeta"] = QString::fromStdString(mgr_.carpetaGrabaciones().string());
-    return m;
 }
 
 QString AudioViewModel::addGenerator() {

@@ -166,7 +166,5 @@ void addImage(ToolResult& r, const QImage& img, const json& args, int defaultWid
 /// valor > 4) lo convierte con el lienzo y lo cuenta en `nota`.
 bool parseLayout(const json& v, float& x, float& y, float& w, float& h, std::string& err,
                  std::string* nota = nullptr);
-/// "m:ss", "90", "90s", "1.5m" -> segundos (0 = invalido).
-int parseSeconds(const json& v);
 
 } // namespace ba::app::mcp

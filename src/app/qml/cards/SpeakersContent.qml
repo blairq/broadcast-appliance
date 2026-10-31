@@ -23,13 +23,6 @@ Item {
             e.accepted = true
         }
     }
-    property double clock: Date.now() + conf.clockOffset
-    Timer { interval: 250; running: root.visible && (conf.speakers.count > 0 || !!root.bst.al_aire); repeat: true; onTriggered: root.clock = Date.now() + root.conf.clockOffset }
-    function fmt(ms) {
-        const neg = ms < 0
-        const t = Math.floor(Math.abs(ms) / 1000)
-        return (neg ? "+" : "") + Math.floor(t / 60) + ":" + String(t % 60).padStart(2, "0")
-    }
 
     // Remotos (los invitados conectados) o Bancas (los presenciales del cuerpo).
     property string vista: "remotos"
@@ -56,10 +49,11 @@ Item {
                 Text { text: root.bst.al_aire ? qsTr("🪑 %1 · banca %2").arg(root.bst.al_aire.nombre).arg(root.bst.al_aire.banca) : "🪑 "
                        color: Theme.text; font { pixelSize: 15; weight: Font.DemiBold } elide: Text.ElideRight; Layout.fillWidth: true }
                 Text {
-                    property double usado: (root.clock - (root.bst.desde_ms || root.clock)) / 1000
-                    readonly property double resta: (root.bst.asignado_s || 0) - usado
-                    text: fmt(resta * 1000)
-                    color: resta < 0 ? Theme.live : resta <= 10 ? Theme.accent : Theme.text
+                    // La misma regla que los oradores remotos; la hora, del Reloj (solo mientras se ve).
+                    readonly property var r: root.bst.al_aire && visible
+                                             ? root.conf.reloj(root.bst.asignado_s || 0, root.bst.desde_ms || 0, Reloj.ahoraFino) : ({})
+                    text: r.texto || ""
+                    color: r.estado === "excedido" ? Theme.live : r.estado === "aviso" ? Theme.accent : Theme.text
                     font { pixelSize: 28; weight: Font.Black }
                 }
                 GlassButton { text: qsTr("Terminar"); compact: true; onClicked: root.ba.terminar() }
@@ -182,13 +176,12 @@ Item {
             model: root.vista === "remotos" ? conf.onAir : []
             delegate: RowLayout {
                 required property var modelData
-                readonly property double remaining: modelData.allottedSec * 1000 - (clock - modelData.onAirSinceMs)
                 Layout.fillWidth: true
                 Text { text: modelData.name; color: Theme.text; font { pixelSize: 16; weight: Font.DemiBold } elide: Text.ElideRight; Layout.fillWidth: true }
                 Text {
-                    text: remaining >= 0 ? fmt(Math.ceil(remaining / 1000) * 1000) : fmt(remaining)
-                    color: remaining < 0 ? Theme.live : remaining <= 10000 ? Theme.accent : Theme.text
-                    font { pixelSize: remaining <= 10000 ? 40 : 32; weight: Font.Black }
+                    text: modelData.textoTiempo
+                    color: modelData.estadoTiempo === "excedido" ? Theme.live : modelData.estadoTiempo === "aviso" ? Theme.accent : Theme.text
+                    font { pixelSize: modelData.estadoTiempo !== "ok" ? 40 : 32; weight: Font.Black }
                 }
                 GlassButton { text: qsTr("Sacar"); compact: true; onClicked: conf.speakerOnAir(modelData.uid, false) }
             }
@@ -205,12 +198,12 @@ Item {
                 required property string name
                 required property string speaker
                 required property int position
-                required property int allottedSec
+                required property string textoAsignado
                 visible: speaker === "queued"
                 height: visible ? implicitHeight : 0
                 width: ListView.view.width
                 Text { text: position + ". " + name; color: position === 1 ? Theme.accentSoft : Theme.textDim; font.pixelSize: 13; elide: Text.ElideRight; Layout.fillWidth: true }
-                Text { text: fmt(allottedSec * 1000); color: Theme.textFaint; font.pixelSize: 12 }
+                Text { text: textoAsignado; color: Theme.textFaint; font.pixelSize: 12 }
                 GlassButton { text: qsTr("Al aire"); compact: true; onClicked: conf.speakerOnAir(uid, true) }
             }
         }

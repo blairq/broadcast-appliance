@@ -155,8 +155,7 @@ Item {
                     // La red de este invitado: semáforo con las cifras y bajar su calidad.
                     Rectangle {
                         id: semaforo
-                        property var p: Studio.conference.participanteEnSlot(index + 1)
-                        Timer { interval: 2000; running: semaforo.visible; repeat: true; onTriggered: semaforo.p = Studio.conference.participanteEnSlot(index + 1) }
+                        readonly property var p: Studio.conference.participantesPorSlot[String(index + 1)] || null
                         readonly property var red: (p && p.red) || ({})
                         visible: !!(p && p.id)
                         anchors { right: parent.right; top: parent.top; margins: 6 }

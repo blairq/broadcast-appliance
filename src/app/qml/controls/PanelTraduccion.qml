@@ -249,13 +249,10 @@ ColumnLayout {
         Layout.fillWidth: true
         spacing: 6
         readonly property var fl: Studio.flujos
-        property var pend: fl ? fl.pendientesUi() : []
-        property bool activa: fl ? fl.correccionActivaUi() : false
-        Connections {
-            target: Studio.flujos
-            function onPendientesCambio() { corr.pend = Studio.flujos.pendientesUi(); corr.activa = Studio.flujos.correccionActivaUi() }
-        }
-        Timer { interval: 1000; repeat: true; running: corr.activa && corr.pend.length > 0; onTriggered: corr.pend = Studio.flujos.pendientesUi() }
+        readonly property var pend: fl ? fl.pendientesLista : []
+        readonly property bool activa: fl ? fl.correccion : false
+        // La cuenta regresiva: el Reloj solo corre mientras haya frases esperando a la vista.
+        readonly property real ahora: corr.visible && corr.pend.length > 0 ? Reloj.ahora : 0
         RowLayout {
             Text {
                 text: qsTr("Corrección antes del aire")
@@ -267,7 +264,7 @@ ColumnLayout {
             Text { text: qsTr("Demora (s)"); color: Theme.textDim; font.pixelSize: 11 }
             SpinBox {
                 id: demora; from: 1; to: 30; editable: true; Layout.preferredWidth: 96
-                value: corr.fl ? Math.max(1, Math.round(corr.fl.demoraMsUi() / 1000)) : 4
+                value: corr.fl ? Math.max(1, Math.round(corr.fl.demora / 1000)) : 4
                 onValueModified: if (corr.activa) corr.fl.setCorreccionUi(true, value * 1000)
             }
             CheckBox {
@@ -299,7 +296,8 @@ ColumnLayout {
                 required property var modelData
                 Layout.fillWidth: true
                 spacing: 6
-                Text { text: modelData.resta + " s"; color: modelData.resta <= 1 ? Theme.live : Theme.amber; font.pixelSize: 12; Layout.preferredWidth: 34 }
+                readonly property int resta: Math.max(0, Math.floor((modelData.venceMs - corr.ahora) / 1000))
+                Text { text: parent.resta + " s"; color: parent.resta <= 1 ? Theme.live : Theme.amber; font.pixelSize: 12; Layout.preferredWidth: 34 }
                 TextField {
                     Layout.fillWidth: true
                     text: modelData.texto
@@ -465,8 +463,7 @@ ColumnLayout {
         Layout.fillWidth: true
         spacing: 6
         readonly property var cc: Studio.cc
-        property var e: cc ? cc.estado() : ({})
-        Connections { target: Studio.cc; function onCambio() { ccSec.e = Studio.cc.estado() } }
+        readonly property var e: cc ? cc.estadoCc : ({})
         RowLayout {
             Text { text: qsTr("Subtítulos ocultos (CC)"); color: Theme.text; font { pixelSize: 14; weight: Font.DemiBold } Layout.fillWidth: true }
             StatusPill { text: ccSec.e.activo ? qsTr("CC prendido · %n línea", "", ccSec.e.enviadas || 0) : qsTr("CC apagado"); dot: ccSec.e.activo ? Theme.ok : Theme.textFaint }

@@ -65,6 +65,11 @@ class AlertEngine;
 
 class AgentViewModel : public QObject {
     Q_OBJECT
+    /// Control del sistema (ver controlSistema()).
+    Q_PROPERTY(QVariantMap controlSistema READ controlSistema NOTIFY controlSistemaCambio)
+    /// La seguridad en vivo: {hay_aire, herramientas: [las de aire]}. Cambia con lo que sale
+    /// (lo avisa quien la arma: setAireInfo y aireCambio).
+    Q_PROPERTY(QVariantMap aire READ aireUi NOTIFY aireCambio)
     Q_PROPERTY(QObject* session READ session CONSTANT)
     Q_PROPERTY(QVariantList providers READ providers CONSTANT)
     Q_PROPERTY(QString provider READ provider NOTIFY configChanged)
@@ -228,8 +233,11 @@ class AgentViewModel : public QObject {
     /// La consola del asistente está apagada por el aire (para el candado de la barra).
     Q_INVOKABLE bool consolaApagadaPorAire() const { return hayAire_ && hayAire_(); }
     /// Las herramientas de aire (para la sección Seguridad): {hay_aire, herramientas}.
-    void setAireInfo(std::function<QVariantMap()> fn) { aireInfo_ = std::move(fn); }
-    Q_INVOKABLE QVariantMap aireUi() const { return aireInfo_ ? aireInfo_() : QVariantMap{}; }
+    void setAireInfo(std::function<QVariantMap()> fn) {
+        aireInfo_ = std::move(fn);
+        emit aireCambio();
+    }
+    QVariantMap aireUi() const { return aireInfo_ ? aireInfo_() : QVariantMap{}; }
     /// Escribe un pedido en el prompt del agente y lo manda.
     Q_INVOKABLE void send(const QString& text);
     /// Le encarga algo al asistente aunque no esté corriendo: lo arranca, espera a que
@@ -249,8 +257,11 @@ class AgentViewModel : public QObject {
     /// Crea un disparador desde el editor ({type, name, params, sonido, reconocer, notificar, actions}). "" o el error.
     Q_INVOKABLE QString createAlertUi(const QVariantMap& spec);
     Q_INVOKABLE void openAgentsFolder() const;
-    /// Control del sistema (agent/ControlSistema): {habilitado, preguntar, permisos{}, capacidades[]}.
-    Q_INVOKABLE QVariantMap controlSistema() const;
+    /// Control del sistema (agent/ControlSistema::estado): {habilitado, preguntar, permisos{},
+    /// capacidades[], sistema, soportado}. Cambia al configurarlo (desde acá o el MCP).
+    QVariantMap controlSistema() const;
+    /// Lo mismo que setControlSistema, para el MCP (control_configurar). "" o el error.
+    std::string configurarControlSistema(const nlohmann::json& cambios, nlohmann::json* resultado = nullptr);
     /// Aplica {habilitado?, preguntar?, permisos?{}} y guarda. "" o el error.
     Q_INVOKABLE QString setControlSistema(const QVariantMap& cambios);
 
@@ -305,6 +316,8 @@ class AgentViewModel : public QObject {
     void setReclamado(std::function<bool(const nlohmann::json&)> fn) { reclamado_ = std::move(fn); }
 
    signals:
+    void controlSistemaCambio();
+    void aireCambio();
     /// Se retomó una conversación al arrancar: la interfaz muestra el asistente.
     void mostrarseAlReanudar();
     /// Se le encargó algo (encargar): la interfaz muestra el asistente.
