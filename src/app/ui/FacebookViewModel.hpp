@@ -23,31 +23,37 @@ namespace ba::app {
 class AppRuntime;
 class VentanillaMotor;
 class JsonListModel;
+class GrabacionesModel;
 
 class FacebookViewModel : public QObject {
     Q_OBJECT
-    Q_PROPERTY(bool configured READ configured NOTIFY stateChanged)
-    Q_PROPERTY(bool loggedIn READ loggedIn NOTIFY stateChanged)
-    Q_PROPERTY(bool loginPending READ loginPending NOTIFY stateChanged)
-    Q_PROPERTY(QString appId READ appId NOTIFY stateChanged)
-    Q_PROPERTY(int port READ port NOTIFY stateChanged)
-    Q_PROPERTY(QString redirectUri READ redirectUri NOTIFY stateChanged)
-    Q_PROPERTY(QVariantMap user READ user NOTIFY stateChanged)
-    Q_PROPERTY(QVariantList pages READ pages NOTIFY stateChanged)
-    Q_PROPERTY(QString pageId READ pageId NOTIFY stateChanged)
-    Q_PROPERTY(QVariantMap page READ page NOTIFY stateChanged)
+    // Cada grupo avisa solo si cambió lo suyo.
+    /// La app de Meta (ID, puerto de redirección).
+    Q_PROPERTY(bool configured READ configured NOTIFY appChanged)
+    Q_PROPERTY(QString appId READ appId NOTIFY appChanged)
+    Q_PROPERTY(int port READ port NOTIFY appChanged)
+    Q_PROPERTY(QString redirectUri READ redirectUri NOTIFY appChanged)
+    /// La cuenta.
+    Q_PROPERTY(bool loggedIn READ loggedIn NOTIFY cuentaChanged)
+    Q_PROPERTY(bool loginPending READ loginPending NOTIFY cuentaChanged)
+    Q_PROPERTY(QVariantMap user READ user NOTIFY cuentaChanged)
+    /// Las Páginas y la elegida.
+    Q_PROPERTY(QVariantList pages READ pages NOTIFY paginaChanged)
+    Q_PROPERTY(QString pageId READ pageId NOTIFY paginaChanged)
+    Q_PROPERTY(QVariantMap page READ page NOTIFY paginaChanged)
     Q_PROPERTY(bool busy READ busy NOTIFY busyChanged)
     Q_PROPERTY(QString lastError READ lastError NOTIFY errorChanged)
     Q_PROPERTY(QObject* lives READ lives CONSTANT)
     Q_PROPERTY(QObject* videos READ videos CONSTANT)
     Q_PROPERTY(QObject* recordings READ recordings CONSTANT)
     Q_PROPERTY(QObject* chat READ chat CONSTANT)
-    Q_PROPERTY(QString liveId READ liveId NOTIFY stateChanged)
+    Q_PROPERTY(QString liveId READ liveId NOTIFY liveIdChanged)
     Q_PROPERTY(QString chatLiveId READ chatLiveId NOTIFY chatChanged)
     Q_PROPERTY(QVariantMap upload READ upload NOTIFY uploadChanged)
    public:
     /// `ventanilla`: transmitir y cortar se le piden al motor; si transmite, de su foto (F3-03).
-    FacebookViewModel(AppRuntime& rt, VentanillaMotor& ventanilla, QObject* parent = nullptr);
+    /// `grabaciones`: la lista de grabaciones para subir (compartida con las otras plataformas).
+    FacebookViewModel(AppRuntime& rt, VentanillaMotor& ventanilla, GrabacionesModel& grabaciones, QObject* parent = nullptr);
     ~FacebookViewModel() override;
 
     bool configured() const { return client_->hasClient(); }
@@ -77,6 +83,7 @@ class FacebookViewModel : public QObject {
     Q_INVOKABLE void logout();
     Q_INVOKABLE void selectPage(const QString& id);
     Q_INVOKABLE void refresh();
+    /// Vuelve a leer las grabaciones (aparte: la lista cambia cuando termina).
     Q_INVOKABLE void refreshRecordings();
     /// Crea y transmite. `test` = sin publicar (solo lo ve la Pagina en Live Producer).
     Q_INVOKABLE void goLive(const QString& title, const QString& description, bool test);
@@ -99,7 +106,13 @@ class FacebookViewModel : public QObject {
     QString recordingsDir() const;
 
    signals:
+    /// Cambió algo de la cuenta o del vivo (la app, la cuenta, la Página, el vivo de acá):
+    /// para quien junta todo (la web del evento), no para enlazar propiedades.
     void stateChanged();
+    void appChanged();
+    void cuentaChanged();
+    void paginaChanged();
+    void liveIdChanged();
     void busyChanged();
     void errorChanged();
     void chatChanged();
@@ -115,17 +128,21 @@ class FacebookViewModel : public QObject {
     void setError(const QString& e);
     void track(bool start);
     void pollChat();
+    /// El cliente avisó: emite lo que cambió de la app, la cuenta y la Página.
+    void revisarCuenta();
+    void setLiveId(const QString& id);
 
     AppRuntime& rt_;
     VentanillaMotor& ventanilla_;
     std::unique_ptr<FacebookClient> client_;
     std::unique_ptr<JsonListModel> lives_;
     std::unique_ptr<JsonListModel> videos_;
-    std::unique_ptr<JsonListModel> recordings_;
+    GrabacionesModel& grabaciones_; ///< compartida (ui/GrabacionesModel)
     std::unique_ptr<JsonListModel> chat_;
     int busy_ = 0;
     QString lastError_;
     QString liveId_;
+    QVariantMap appAntes_, cuentaAntes_, paginaAntes_; ///< para avisar solo lo que cambió
     QString chatLiveId_;
     QJsonArray chatItems_;
     QTimer chatTimer_;

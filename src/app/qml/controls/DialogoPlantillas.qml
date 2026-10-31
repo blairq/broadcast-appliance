@@ -102,7 +102,7 @@ Dialog {
                         spacing: 3
                         GlassButton {
                             compact: true; text: qsTr("Editar")
-                            enabled: !modelData.activa && !(Studio.streaming || Studio.recording)
+                            enabled: !modelData.activa && !(Studio.aire.streaming || Studio.aire.recording)
                             onClicked: {
                                 const id = modelData.id, n = modelData.nombre
                                 ApplicationWindow.window.confirm({

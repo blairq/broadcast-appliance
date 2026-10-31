@@ -5,11 +5,18 @@
 #include "ui/PropertiesModel.hpp"
 
 #include <QColor>
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QJsonValue>
 #include <QVariantMap>
 
 #include "arranque/AppRuntime.hpp"
+#include "emision/FotoMotor.hpp"
 #include "emision/FuentesApp.hpp"
 #include "emision/InputSpecs.hpp"
+#include "emision/VentanillaMotor.hpp"
+#include "i18n/I18n.hpp"
 #include "video/Camaras.hpp"
 
 #include <nlohmann/json.hpp>
@@ -41,6 +48,22 @@ QVariant aVariant(const json& v) {
     return {};
 }
 
+json aJson(const QVariant& v) {
+    switch (v.typeId()) {
+        case QMetaType::Bool: return v.toBool();
+        case QMetaType::Int:
+        case QMetaType::LongLong: return v.toLongLong();
+        case QMetaType::Double: return v.toDouble();
+        case QMetaType::QString: return v.toString().toStdString();
+        default: break;
+    }
+    if (!v.isValid()) return nullptr;
+    const QJsonValue j = QJsonValue::fromVariant(v);
+    if (j.isArray()) return json::parse(QJsonDocument(j.toArray()).toJson().toStdString(), nullptr, false);
+    if (j.isObject()) return json::parse(QJsonDocument(j.toObject()).toJson().toStdString(), nullptr, false);
+    return v.toString().toStdString();
+}
+
 /// Etiqueta legible de una clave sin tipo registrado ("show_cursor" → "Show cursor").
 QString etiquetaDe(const std::string& k) {
     QString l = qs(k);
@@ -51,7 +74,14 @@ QString etiquetaDe(const std::string& k) {
 
 } // namespace
 
-PropertiesModel::PropertiesModel(AppRuntime& rt, QObject* parent) : QAbstractListModel(parent), rt_(rt) {}
+PropertiesModel::PropertiesModel(AppRuntime& rt, VentanillaMotor& ventanilla, QObject* parent)
+    : QAbstractListModel(parent), rt_(rt), ventanilla_(ventanilla) {
+    // La fuente desapareció o cambió de tipo (la borraron, se abrió otro evento): se relee.
+    connect(&ventanilla_, &VentanillaMotor::cambio, this, [this](unsigned partes) {
+        if ((partes & FotoMotor::Escenas) == 0 || source_.isEmpty()) return;
+        if (ventanilla_.foto().tipoDe(source_.toStdString()) != tipo_) releer();
+    });
+}
 
 PropertiesModel::~PropertiesModel() = default;
 
@@ -90,65 +120,127 @@ void PropertiesModel::setSourceName(const QString& name) {
     }
     source_ = name;
     emit sourceNameChanged();
-    rebuild();
+    // Otra fuente: las filas de la anterior no valen mientras llega su lectura.
+    if (!rows_.empty()) {
+        beginResetModel();
+        rows_.clear();
+        endResetModel();
+    }
+    tipo_.clear();
+    releer();
 }
 
-void PropertiesModel::rebuild() {
-    beginResetModel();
-    rows_.clear();
-    const std::string nombre = source_.toStdString();
-    const BroadcastEngine& e = rt_.engine();
-    if (!e.sourceExists(nombre)) {
+void PropertiesModel::releer() {
+    const unsigned esta = ++lecturas_;
+    if (source_.isEmpty()) return;
+    ventanilla_.pedir(
+        this, "propiedades", [&rt = rt_, n = source_.toStdString()]() { return leer(rt, n); },
+        [this, esta](Lectura l) {
+            if (esta == lecturas_) ponerFilas(std::move(l)); // si no, ya se pidió otra
+        });
+}
+
+void PropertiesModel::ponerFilas(Lectura l) {
+    tipo_ = l.tipo;
+    std::vector<Row> nuevas = filas(l);
+    // Las mismas filas (lo común: cambió un valor): solo se avisa lo que cambió, y la
+    // vista no pierde el foco ni el desplazamiento. Si cambió su forma, se rehacen.
+    bool misma = nuevas.size() == rows_.size();
+    for (std::size_t i = 0; misma && i < nuevas.size(); ++i)
+        misma = nuevas[i].name == rows_[i].name && nuevas[i].kind == rows_[i].kind;
+    if (!misma) {
+        beginResetModel();
+        rows_ = std::move(nuevas);
         endResetModel();
         return;
     }
-    const std::string tipo = e.sourceTypeId(nombre);
-    const json ajustes = fuentes::conDefectos(tipo, json::parse(e.sourceSettingsJson(nombre), nullptr, false));
-    fuentes::Tipo t;
+    for (std::size_t i = 0; i < nuevas.size(); ++i) {
+        Row& a = rows_[i];
+        const Row& n = nuevas[i];
+        QList<int> roles;
+        if (a.value != n.value) roles << ValueRole;
+        if (a.options != n.options) roles << OptionsRole;
+        if (a.label != n.label) roles << LabelRole;
+        if (a.help != n.help) roles << HelpRole;
+        if (a.enabled != n.enabled) roles << EnabledRole;
+        if (a.min != n.min || a.max != n.max || a.step != n.step || a.suffix != n.suffix)
+            roles << MinRole << MaxRole << StepRole << SuffixRole;
+        if (roles.isEmpty()) continue;
+        a = n;
+        const QModelIndex ix = index(static_cast<int>(i), 0);
+        emit dataChanged(ix, ix, roles);
+    }
+}
+
+PropertiesModel::Lectura PropertiesModel::leer(AppRuntime& rt, const std::string& nombre) {
+    Lectura l;
+    BroadcastEngine& e = rt.engine();
+    if (!e.sourceExists(nombre)) return l;
+    l.existe = true;
+    l.tipo = e.sourceTypeId(nombre);
+    l.ajustes = fuentes::conDefectos(l.tipo, json::parse(e.sourceSettingsJson(nombre), nullptr, false));
     // Una cámara, o una «Entrada por GStreamer» recién agregada (sin nada): la
     // cámara y su formato en una lista. Antes no tenía ninguna fila (los ajustes
     // estaban vacíos) y GStreamer mostraba su video de prueba: «aparece algo pero
     // no anda». Sin cámara, también el pipeline propio.
+    const json& a = l.ajustes;
     const auto vaciaGst = [&]() {
-        if (!ajustes.is_object()) return true;
+        if (!a.is_object()) return true;
         for (const char* k : {"microfono", "anillo", "pipeline_audio", "video_invitado", "virtual", "fisica", "ndi", "voz", "uri"})
-            if (ajustes.contains(k)) return false;
-        return ajustes.value("pipeline", std::string()).empty();
+            if (a.contains(k)) return false;
+        return a.value("pipeline", std::string()).empty();
     };
-    if (tipo == inputs::kMicType && (inputs::esCamara(tipo, ajustes) || vaciaGst())) {
+    l.conCamara = l.tipo == inputs::kMicType && (inputs::esCamara(l.tipo, a) || vaciaGst());
+    if (!l.conCamara) return l;
+    // Los dispositivos del equipo (el monitor de GStreamer): también acá, en el dueño.
+    for (const auto& d : video::camarasDelEquipo(e)) l.camaras.emplace_back(d.value, d.name);
+    const std::string cam = a.is_object() ? a.value("camara", std::string()) : std::string();
+    if (!cam.empty() || inputs::esCamara(l.tipo, a)) {
+        const auto au = video::modoAutomatico(cam, &l.porque);
+        if (au.ancho > 0) l.automatico = au.etiqueta();
+        for (const auto& mo : video::modosDeCamara(cam))
+            if (mo.usable()) l.modos.emplace_back(mo.valor(), mo.etiqueta());
+    }
+    return l;
+}
+
+std::vector<PropertiesModel::Row> PropertiesModel::filas(const Lectura& l) {
+    std::vector<Row> rows;
+    if (!l.existe) return rows;
+    const std::string& tipo = l.tipo;
+    const json& ajustes = l.ajustes;
+    if (l.conCamara) {
         const std::string cam = ajustes.is_object() ? ajustes.value("camara", std::string()) : std::string();
-        BroadcastEngine& motor = rt_.engine();
         Row c;
         c.name = "camara";
         c.label = tr("Cámara o capturadora");
         c.kind = "list";
         c.help = tr("Las cámaras USB y capturadoras conectadas a esta máquina.");
         bool esta = false;
-        for (const auto& d : video::camarasDelEquipo(motor)) {
-            c.options << QVariantMap{{"value", qs(d.value)}, {"label", qs(d.name)}};
-            esta = esta || d.value == cam;
+        for (const auto& [valor, nombre] : l.camaras) {
+            c.options << QVariantMap{{"value", qs(valor)}, {"label", qs(nombre)}};
+            esta = esta || valor == cam;
         }
         if (!cam.empty() && !esta) c.options << QVariantMap{{"value", qs(cam)}, {"label", tr("(no está conectada)")}};
         if (c.options.isEmpty()) c.help = tr("No se encontró ninguna cámara ni capturadora conectada.");
         c.value = qs(cam);
-        rows_.push_back(c);
+        rows.push_back(c);
         if (!cam.empty() || inputs::esCamara(tipo, ajustes)) {
             Row m;
             m.name = "camara_modo";
             m.label = "Formato";
             m.kind = "list";
-            std::string porque;
-            const auto a = video::modoAutomatico(cam, &porque);
-            m.help = porque.empty() ? tr("Tamaño, cuadros por segundo y formato (crudo, MJPEG, H.264), con quién lo "
-                                         "decodifica. Automático: el que conviene para el lienzo.")
-                                    : tr("Tamaño, cuadros por segundo y formato (crudo, MJPEG, H.264), con quién lo "
-                                         "decodifica. Automático: el que conviene para el lienzo (%1).")
-                                          .arg(qs(porque));
-            m.options << QVariantMap{{"value", QString()}, {"label", a.ancho > 0 ? tr("Automático: %1").arg(qs(a.etiqueta())) : tr("Automático")}};
-            for (const auto& mo : video::modosDeCamara(cam))
-                if (mo.usable()) m.options << QVariantMap{{"value", qs(mo.valor())}, {"label", qs(mo.etiqueta())}};
+            m.help = l.porque.empty() ? tr("Tamaño, cuadros por segundo y formato (crudo, MJPEG, H.264), con quién lo "
+                                           "decodifica. Automático: el que conviene para el lienzo.")
+                                      : tr("Tamaño, cuadros por segundo y formato (crudo, MJPEG, H.264), con quién lo "
+                                           "decodifica. Automático: el que conviene para el lienzo (%1).")
+                                            .arg(qs(l.porque));
+            m.options << QVariantMap{
+                {"value", QString()},
+                {"label", !l.automatico.empty() ? tr("Automático: %1").arg(qs(l.automatico)) : tr("Automático")}};
+            for (const auto& [valor, etiqueta] : l.modos) m.options << QVariantMap{{"value", qs(valor)}, {"label", qs(etiqueta)}};
             m.value = qs(ajustes.value("camara_modo", std::string()));
-            rows_.push_back(m);
+            rows.push_back(m);
         } else {
             Row pl;
             pl.name = "pipeline";
@@ -156,11 +248,11 @@ void PropertiesModel::rebuild() {
             pl.kind = "text";
             pl.help = tr("Cualquier origen: «rtspsrc location=rtsp://… ! decodebin», «videotestsrc»…");
             pl.value = QString();
-            rows_.push_back(pl);
+            rows.push_back(pl);
         }
-        endResetModel();
-        return;
+        return rows;
     }
+    fuentes::Tipo t;
     if (fuentes::tipo(tipo, t) && t.props) {
         for (const auto& p : t.props(ajustes)) {
             Row r;
@@ -184,7 +276,7 @@ void PropertiesModel::rebuild() {
             } else {
                 r.value = aVariant(v);
             }
-            rows_.push_back(r);
+            rows.push_back(r);
         }
     } else if (ajustes.is_object()) {
         // Un tipo sin propiedades registradas: lo que tiene, editable por su forma.
@@ -212,24 +304,30 @@ void PropertiesModel::rebuild() {
                 continue; // objetos y listas: por MCP (source_settings)
             }
             r.value = aVariant(*it);
-            rows_.push_back(r);
+            rows.push_back(r);
         }
     }
-    endResetModel();
+    return rows;
 }
 
-void PropertiesModel::setValue(const QString& prop, const QVariant& value) {
-    const std::string nombre = source_.toStdString();
-    if (!rt_.engine().sourceExists(nombre)) {
-        return;
-    }
-    const std::string key = prop.toStdString();
-    QString kind;
-    for (const auto& r : rows_) {
-        if (r.name == prop) {
-            kind = r.kind;
-        }
-    }
+json PropertiesModel::filasJson(const std::vector<Row>& filas) {
+    json out = json::array();
+    for (const Row& r : filas)
+        out.push_back(json{{"name", r.name.toStdString()},
+                           {"label", r.label.toStdString()},
+                           {"kind", r.kind.toStdString()},
+                           {"value", aJson(r.value)},
+                           {"options", aJson(r.options)},
+                           {"minimum", r.min},
+                           {"maximum", r.max},
+                           {"step", r.step},
+                           {"suffix", r.suffix.toStdString()},
+                           {"enabled", r.enabled},
+                           {"help", r.help.toStdString()}});
+    return out;
+}
+
+json PropertiesModel::cambioDe(const QString& kind, const std::string& key, const QVariant& value, const json& ajustes) {
     json cambio = json::object();
     if (kind == "bool") {
         cambio[key] = value.toBool();
@@ -241,7 +339,7 @@ void PropertiesModel::setValue(const QString& prop, const QVariant& value) {
         cambio[key] = hexToColor(value.toString());
     } else if (kind == "font") {
         const QVariantMap m = value.toMap();
-        json f = json::parse(rt_.engine().sourceSettingsJson(nombre), nullptr, false).value(key, json::object());
+        json f = ajustes.is_object() ? ajustes.value(key, json::object()) : json::object();
         if (!f.is_object()) f = json::object();
         f["face"] = m.value("face").toString().toStdString();
         f["size"] = m.value("size").toLongLong();
@@ -253,20 +351,90 @@ void PropertiesModel::setValue(const QString& prop, const QVariant& value) {
     } else {
         cambio[key] = value.toString().toStdString();
     }
+    return cambio;
+}
+
+std::string PropertiesModel::aplicar(AppRuntime& rt, const std::string& nombre, const std::string& prop,
+                                     const QString& kind, const QVariant& valor, bool apretar) {
+    BroadcastEngine& e = rt.engine();
+    if (!e.sourceExists(nombre)) return ba::i18n::llenar(ba::i18n::traducir("mcp", "No existe la fuente '%1'."), {nombre});
+    if (apretar) {
+        fuentes::Tipo t;
+        if (!fuentes::tipo(e.sourceTypeId(nombre), t)) return {};
+        const auto it = t.botones.find(prop);
+        if (it != t.botones.end()) it->second(nombre);
+        return {};
+    }
+    // La fuente se completa sobre sus ajustes (sin los por defecto del tipo).
+    const json cambio = cambioDe(kind, prop, valor, json::parse(e.sourceSettingsJson(nombre), nullptr, false));
     // Aplica y sincroniza la configuracion (todas las escenas que la usan).
-    rt_.updateSourceSettings(nombre, cambio.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
-    // Las filas pueden depender de los valores (listas que cambian): se rehacen.
-    rebuild();
+    if (!rt.updateSourceSettings(nombre, cambio.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace)))
+        return rt.lastError();
+    return {};
+}
+
+void PropertiesModel::leerFilas(VentanillaMotor& v, AppRuntime& rt, QObject* quien, const std::string& nombre,
+                                std::function<void(const Lectura&, std::vector<Row>)> listo) {
+    v.pedir(quien, "propiedades", [&rt, nombre]() { return leer(rt, nombre); },
+            [listo = std::move(listo)](Lectura l) { listo(l, filas(l)); });
+}
+
+void PropertiesModel::cambiar(VentanillaMotor& v, AppRuntime& rt, QObject* quien, const std::string& nombre,
+                              const std::string& prop, const QVariant& valor, bool apretar,
+                              std::function<void(const std::string&, const std::string&)> listo) {
+    struct Hecho {
+        std::string error, ajustes;
+    };
+    const auto pedirCambio = [&v, &rt, quien, nombre, prop, valor, apretar, listo](const QString& kind) {
+        v.pedir(
+            quien, "propiedad",
+            [&rt, nombre, prop, kind, valor, apretar]() {
+                Hecho h;
+                h.error = aplicar(rt, nombre, prop, kind, valor, apretar);
+                if (h.error.empty()) h.ajustes = rt.engine().sourceSettingsJson(nombre);
+                return h;
+            },
+            [listo](Hecho h) { listo(h.error, h.ajustes); });
+    };
+    if (apretar) return pedirCambio({});
+    // El tipo de la fila (cómo se escribe el valor) sale de las filas, que se arman acá.
+    leerFilas(v, rt, quien, nombre, [pedirCambio, prop, nombre, listo](const Lectura& l, std::vector<Row> fs) {
+        if (!l.existe) return listo(ba::i18n::llenar(ba::i18n::traducir("mcp", "No existe la fuente '%1'."), {nombre}), {});
+        QString kind;
+        for (const Row& r : fs)
+            if (r.name.toStdString() == prop) kind = r.kind;
+        pedirCambio(kind);
+    });
+}
+
+void PropertiesModel::setValue(const QString& prop, const QVariant& value) {
+    if (source_.isEmpty()) return;
+    QString kind;
+    // Mientras vuelve, la fila muestra lo pedido (no salta al valor viejo).
+    for (std::size_t i = 0; i < rows_.size(); ++i) {
+        Row& r = rows_[i];
+        if (r.name != prop) continue;
+        kind = r.kind;
+        if (r.kind == "font" || r.kind == "color" || r.value == value) continue;
+        r.value = value;
+        const QModelIndex ix = index(static_cast<int>(i), 0);
+        emit dataChanged(ix, ix, {ValueRole});
+    }
+    ventanilla_.pedir(
+        this, "propiedad",
+        [&rt = rt_, n = source_.toStdString(), p = prop.toStdString(), kind, value]() {
+            return aplicar(rt, n, p, kind, value, false);
+        },
+        // Las filas pueden depender de los valores (listas que cambian): se relee.
+        [this](const std::string&) { releer(); });
 }
 
 void PropertiesModel::press(const QString& prop) {
-    fuentes::Tipo t;
-    const std::string nombre = source_.toStdString();
-    if (!fuentes::tipo(rt_.engine().sourceTypeId(nombre), t)) return;
-    auto it = t.botones.find(prop.toStdString());
-    if (it == t.botones.end()) return;
-    it->second(nombre);
-    rebuild();
+    if (source_.isEmpty()) return;
+    ventanilla_.pedir(
+        this, "propiedad_boton",
+        [&rt = rt_, n = source_.toStdString(), p = prop.toStdString()]() { return aplicar(rt, n, p, {}, {}, true); },
+        [this](const std::string&) { releer(); });
 }
 
 } // namespace ba::app

@@ -42,6 +42,8 @@ class RespaldoEntradas : public QObject {
 
     /// El respaldo de una entrada: {escena, al_perder_aire, ms} o {}.
     nlohmann::json respaldo(const std::string& entrada) const;
+    /// Los de todas: {entrada: {escena, al_perder_aire, ms}} (lee el archivo).
+    nlohmann::json todos() const { return leer(); }
     /// `al_perder_aire`: avisar, armar o cortar; `ms` de 200 a 60000. "" o por qué no.
     std::string setRespaldo(const std::string& entrada, const std::string& escena, const std::string& alPerderAire,
                             int ms);
@@ -55,6 +57,8 @@ class RespaldoEntradas : public QObject {
     void sinSenalCambio(const QStringList& entradas);
     /// Qué pasó con una entrada al aire sin señal (para mostrarlo).
     void aviso(const QString& texto);
+    /// Se guardó el respaldo de una entrada (desde donde sea: la vista, el MCP).
+    void respaldosCambio();
 
    private:
     nlohmann::json leer() const;

@@ -11,6 +11,8 @@
 #include <QJsonObject>
 #include <QUrl>
 
+#include <vector>
+
 namespace ba::app {
 
 using json = nlohmann::json;
@@ -66,9 +68,23 @@ void VideoViewModel::releer() {
     // Lo que redibuja el patchbay (entradas y grafos), aparte de lo que se mueve siempre.
     const auto difiere = [&](const char* k) { return x.value(k, json()) != antes_.value(k, json()); };
     const bool estructura = difiere("entradas") || difiere("info") || difiere("grafos") || difiere("estudio");
-    const bool estado = difiere("estados") || difiere("red") || difiere("diagnostico") || difiere("eventos") ||
-                        difiere("programador") || difiere("reloj") || difiere("latencia") || difiere("automixer") ||
-                        difiere("filtros_audio") || difiere("escenas") || difiere("hay_superres");
+    // Lo que se mueve: cada propiedad avisa sola (el reloj o la red no redibujan el automixer).
+    std::vector<void (VideoViewModel::*)()> avisar;
+    const auto poner = [&](const char* k, auto& campo, auto nuevo, void (VideoViewModel::*senal)()) {
+        if (!difiere(k) || campo == nuevo) return;
+        campo = std::move(nuevo);
+        avisar.push_back(senal);
+    };
+    poner("red", estadoRed_, aVariant(x.value("red", json::array())).toList(), &VideoViewModel::redCambio);
+    poner("diagnostico", diagnostico_, aVariant(x.value("diagnostico", json::array())).toList(), &VideoViewModel::diagnosticoCambio);
+    poner("programador", programador_, aVariant(x.value("programador", json::object())).toMap(), &VideoViewModel::programadorCambio);
+    poner("reloj", reloj_, aVariant(x.value("reloj", json::object())).toMap(), &VideoViewModel::relojCambio);
+    poner("latencia", latencia_, aVariant(x.value("latencia", json::object())).toMap(), &VideoViewModel::latenciaCambio);
+    poner("automixer", automixer_, aVariant(x.value("automixer", json::object())).toMap(), &VideoViewModel::automixerCambio);
+    poner("filtros_audio", filtrosAudio_, aVariant(x.value("filtros_audio", json::object())).toMap(), &VideoViewModel::filtrosAudioCambio);
+    poner("escenas", escenas_, listaDeTextos(x.value("escenas", json::array())), &VideoViewModel::escenasCambio);
+    poner("hay_superres", haySuperres_, x.value("hay_superres", false), &VideoViewModel::haySuperresCambio);
+    const bool eventos = difiere("eventos");
     antes_ = x;
     if (estructura) {
         entradas_ = listaDeTextos(x.value("entradas", json::array()));
@@ -79,20 +95,16 @@ void VideoViewModel::releer() {
         grafo_ = entrada_.isEmpty() ? QVariantMap{}
                                     : aVariant(x.value("grafos", json::object()).value(entrada_.toStdString(), json::object())).toMap();
     }
-    if (estado || estructura) {
-        estadoRed_ = aVariant(x.value("red", json::array())).toList();
-        diagnostico_ = aVariant(x.value("diagnostico", json::array())).toList();
-        eventos_ = aVariant(x.value("eventos", json::object()).value(entrada_.toStdString(), json::object())).toMap();
-        programador_ = aVariant(x.value("programador", json::object())).toMap();
-        reloj_ = aVariant(x.value("reloj", json::object())).toMap();
-        latencia_ = aVariant(x.value("latencia", json::object())).toMap();
-        automixer_ = aVariant(x.value("automixer", json::object())).toMap();
-        filtrosAudio_ = aVariant(x.value("filtros_audio", json::object())).toMap();
-        escenas_ = listaDeTextos(x.value("escenas", json::array()));
-        haySuperres_ = x.value("hay_superres", false);
+    // Los eventos son los de la elegida (que puede haber cambiado con la estructura).
+    if (eventos || estructura) {
+        QVariantMap e = aVariant(x.value("eventos", json::object()).value(entrada_.toStdString(), json::object())).toMap();
+        if (e != eventos_) {
+            eventos_ = std::move(e);
+            avisar.push_back(&VideoViewModel::eventosCambio);
+        }
     }
     if (estructura) emit cambio();
-    if (estado || estructura) emit estadoCambio();
+    for (const auto senal : avisar) emit(this->*senal)();
 }
 
 void VideoViewModel::seleccionar(const QString& entrada) {
@@ -101,7 +113,7 @@ void VideoViewModel::seleccionar(const QString& entrada) {
     grafo_ = aVariant(v().value("grafos", json::object()).value(entrada_.toStdString(), json::object())).toMap();
     eventos_ = aVariant(v().value("eventos", json::object()).value(entrada_.toStdString(), json::object())).toMap();
     emit cambio();
-    emit estadoCambio();
+    emit eventosCambio();
     // VideoGrafos también la sabe: las herramientas sin entrada usan la elegida.
     ventanilla_.pedir("video_elegir", [&g = grafos_, e = entrada]() { g.seleccionar(e); });
 }

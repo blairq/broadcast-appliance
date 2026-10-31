@@ -70,17 +70,17 @@ class LineaViewModel : public QObject {
     Q_PROPERTY(QStringList salidas READ salidas NOTIFY salidaChanged)
     Q_PROPERTY(QString salida READ salida WRITE setSalida NOTIFY salidaChanged)
     /// parado, corriendo, pausado o terminado (el de la corrida).
-    Q_PROPERTY(QString estado READ estado NOTIFY vistaChanged)
-    Q_PROPERTY(bool corriendo READ corriendo NOTIFY vistaChanged)
+    Q_PROPERTY(QString estado READ estado NOTIFY estadoChanged)
+    Q_PROPERTY(bool corriendo READ corriendo NOTIFY estadoChanged)
     /// La escaleta compacta de la salida, por bloque (ver linea::escaleta).
-    Q_PROPERTY(QVariantList escaleta READ escaleta NOTIFY vistaChanged)
+    Q_PROPERTY(QVariantList escaleta READ escaleta NOTIFY escaletaChanged)
     /// El Storyboard: lo que viene (al aire, próximo y futuro), en fila.
-    Q_PROPERTY(QVariantList storyboard READ storyboard NOTIFY vistaChanged)
+    Q_PROPERTY(QVariantList storyboard READ storyboard NOTIFY escaletaChanged)
     /// La conducción y la barra de abajo: al aire, próximo, HOLD, entra solo en,
     /// over/under, próximo hard start, bloque, transcurrido, hora (ver linea::conduccion).
-    Q_PROPERTY(QVariantMap conduccion READ conduccion NOTIFY vistaChanged)
+    Q_PROPERTY(QVariantMap conduccion READ conduccion NOTIFY conduccionChanged)
     /// El estante de adlibs (cue cart): [{id, texto, tipo, color, tecla, esPaso}].
-    Q_PROPERTY(QVariantList estante READ estante NOTIFY vistaChanged)
+    Q_PROPERTY(QVariantList estante READ estante NOTIFY estanteChanged)
     /// Los atajos de la línea que valen en la página: [{accion, tecla}] (los de 3.5 D,
     /// menos los que la persona puso en otra cosa o reasignó en Botonera → Atajos).
     Q_PROPERTY(QVariantList teclas READ teclas NOTIFY teclasChanged)
@@ -93,7 +93,7 @@ class LineaViewModel : public QObject {
     Q_PROPERTY(QVariantList pendientes READ pendientes NOTIFY pendientesChanged)
     /// Las fotos de las escenas sin vista viva (escena → imagen) y cuántos segundos tienen.
     Q_PROPERTY(QVariantMap fotos READ fotos NOTIFY fotosChanged)
-    Q_PROPERTY(QVariantMap edadFotos READ edadFotos NOTIFY vistaChanged)
+    Q_PROPERTY(QVariantMap edadFotos READ edadFotos NOTIFY edadFotosChanged)
     /// Las miniaturas «con gráficos» (L10): paso → la escena con los gráficos del paso y
     /// sus valores, dibujada aparte. Solo del próximo y los dos que siguen (presupuesto).
     Q_PROPERTY(QVariantMap conGraficos READ conGraficos NOTIFY fotosChanged)
@@ -175,7 +175,13 @@ class LineaViewModel : public QObject {
    signals:
     void mirandoChanged();
     void salidaChanged();
-    void vistaChanged();
+    // Cada parte de la vista con su aviso: la conducción (la hora, lo transcurrido) se
+    // mueve cada segundo corriendo; la escaleta y el estante, solo cuando cambian.
+    void estadoChanged();
+    void escaletaChanged();
+    void conduccionChanged();
+    void estanteChanged();
+    void edadFotosChanged();
     void teclasChanged();
     void multipistaChanged();
     void pendientesChanged();

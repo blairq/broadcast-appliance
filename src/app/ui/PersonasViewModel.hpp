@@ -49,6 +49,9 @@ class PersonasViewModel : public QObject {
     Q_OBJECT
     /// [{id, nombre, cargo, nota, foto (url), caras, vistaSeg}]
     Q_PROPERTY(QVariantList personas READ personas NOTIFY cambio)
+    /// Las claves de video que se pueden mirar: [{clave, etiqueta}] (los cuadros que hay y
+    /// las cámaras del estudio).
+    Q_PROPERTY(QVariantList fuentes READ fuentes NOTIFY fuentesCambio)
     /// Si el reconocimiento está disponible (modelos vendoreados presentes).
     Q_PROPERTY(bool disponible READ disponible CONSTANT)
     /// Lo que no se pudo hacer, para mostrarlo donde se pidió.
@@ -165,8 +168,10 @@ class PersonasViewModel : public QObject {
     /// tarjeta «Rostros» mientras `usar` (ver Seguidor).
     void usarCamara(const QString& entrada, bool usar);
 
-    /// Las claves de video que se pueden mirar, con su etiqueta.
-    Q_INVOKABLE QVariantList fuentes() const;
+    /// Las claves de video que se pueden mirar, con su etiqueta (propiedad `fuentes`).
+    QVariantList fuentes() const { return fuentes_; }
+    /// Las rearma (cambiaron los cuadros que hay o las cámaras del estudio) y avisa si cambiaron.
+    void revisarFuentes();
     /// El nombre legible de una clave de video ("Programa", "Invitado 2").
     Q_INVOKABLE QString etiquetaDe(const QString& feed) const;
 
@@ -207,6 +212,7 @@ class PersonasViewModel : public QObject {
     void autoaltaCambio();
     void vistosCambio();
     void enLobbyCambio();
+    void fuentesCambio();
     void notify(const QString& texto, const QString& tipo);
 
    private:
@@ -253,6 +259,7 @@ class PersonasViewModel : public QObject {
 #endif
     struct Impl;
     std::unique_ptr<Impl> d_;
+    QVariantList fuentes_; ///< revisarFuentes
 };
 
 } // namespace ba::app

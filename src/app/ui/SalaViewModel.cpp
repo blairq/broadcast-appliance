@@ -76,16 +76,30 @@ SalaViewModel::SalaViewModel(Partes p, QObject* parent) : QObject(parent), p_(st
     accesoRemoto_->setEnVivo(p_.enVivo);
     // «Configurar todo con la API key»: los cambios de Configuración → Pinggy van por un
     // modelo aparte (como el MCP), así no se pisa lo que el operador tenga a medio editar.
-    accesoRemoto_->setAplicarPinggy([&rt](const QVariantMap& cambios) -> QString {
-        SettingsModel m(rt);
-        m.revert();
+    accesoRemoto_->setAplicarPinggy([this, &rt](const QVariantMap& cambios) -> QString {
+        auto* m = new SettingsModel(rt, p_.ventanilla, this);
+        m->revert();
         for (auto it = cambios.begin(); it != cambios.end(); ++it) {
-            if (!m.value(it.key()).isValid()) return tr("esta versión no tiene %1").arg(it.key());
-            m.setValue(it.key(), it.value());
+            if (!m->value(it.key()).isValid()) {
+                m->deleteLater();
+                return tr("esta versión no tiene %1").arg(it.key());
+            }
+            m->setValue(it.key(), it.value());
         }
-        const QString resumen = m.apply();
-        if (m.fallo()) return resumen;
-        return {}; // los formularios y las listas se enteran solos (avisos del runtime)
+        // Lo aplica el dueño del motor (en orden con lo que se pida después). Lo que se
+        // rechaza en el acto (en vivo) vuelve acá; lo que falle allá, como aviso.
+        struct Vuelta {
+            bool esperando = true;
+            QString error;
+        };
+        auto v = std::make_shared<Vuelta>();
+        m->aplicar([this, m, v](const QString& resumen, bool fallo) {
+            if (fallo && v->esperando) v->error = resumen;
+            else if (fallo) emit notify(resumen, "error");
+            m->deleteLater();
+        });
+        v->esperando = false;
+        return v->error; // los formularios y las listas se enteran solos (la foto)
     });
     // La votación es del modelo (con el padrón del evento abierto); el público y el MCP la usan.
     votacion_ = std::make_unique<sala::VotacionSala>(cli, [this]() {

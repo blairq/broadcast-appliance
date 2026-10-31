@@ -25,6 +25,7 @@
 #include "arranque/AppRuntime.hpp"
 #include "diag/Registro.hpp"
 #include "ui/FrameService.hpp"
+#include "emision/VentanillaMotor.hpp"
 #include "ui/StudioViewModel.hpp"
 
 #if BA_HAVE_ROSTROS
@@ -147,7 +148,7 @@ void PersonasViewModel::sincronizarRostros() {}
 void PersonasViewModel::usarCamara(const QString&, bool) {}
 void PersonasViewModel::analizar(const QString&, bool, const QString&) {}
 QVariantList PersonasViewModel::vistos() const { return {}; }
-QVariantList PersonasViewModel::fuentes() const { return {}; }
+void PersonasViewModel::revisarFuentes() {}
 QString PersonasViewModel::etiquetaDe(const QString& feed) const { return feed; }
 bool PersonasViewModel::autoalta() const { return false; }
 void PersonasViewModel::setAutoalta(bool) {}
@@ -367,7 +368,10 @@ void PersonasViewModel::alRostros(const QString& entrada, const std::string& js,
         const std::string texto = etiquetas.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
         if (hayVectores && d_->etiquetasDe[feed] != texto) {
             d_->etiquetasDe[feed] = texto;
-            d_->rt.engine().controlEntrada(entrada.toStdString(), {{"rostros_etiquetas", texto}});
+            // El dibujo de las etiquetas es de la entrada (motor): se le pide al dueño.
+            d_->vm.ventanilla().pedir("rostros_etiquetas", [&rt = d_->rt, e = entrada.toStdString(), texto]() {
+                rt.engine().controlEntrada(e, {{"rostros_etiquetas", texto}});
+            });
         }
     }
     auto it = d_->esperas.find(feed);
@@ -1208,7 +1212,7 @@ QString PersonasViewModel::etiquetaDe(const QString& feed) const {
     return static_cast<FrameService*>(d_->vm.frames())->label(feed);
 }
 
-QVariantList PersonasViewModel::fuentes() const {
+void PersonasViewModel::revisarFuentes() {
     QVariantList out;
     auto* frames = static_cast<FrameService*>(d_->vm.frames());
     for (const QString& k : frames->keys())
@@ -1217,7 +1221,9 @@ QVariantList PersonasViewModel::fuentes() const {
     if (auto* vg = d_->vm.videoVista())
         for (const QString& e : vg->entradas())
             out.append(QVariantMap{{"clave", "entrada:" + e}, {"etiqueta", tr("Cámara · %1").arg(e)}});
-    return out;
+    if (out == fuentes_) return;
+    fuentes_ = out;
+    emit fuentesCambio();
 }
 #endif // BA_HAVE_ROSTROS
 

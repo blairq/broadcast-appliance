@@ -30,6 +30,7 @@ namespace ba::app {
 class AppRuntime;
 class VentanillaMotor;
 class JsonListModel;
+class GrabacionesModel;
 
 class YouTubeViewModel : public QObject {
     Q_OBJECT
@@ -53,7 +54,8 @@ class YouTubeViewModel : public QObject {
     Q_PROPERTY(QString liveBroadcastId READ liveBroadcastId NOTIFY stateChanged)
    public:
     /// `ventanilla`: transmitir y cortar se le piden al motor; si transmite, de su foto (F3-03).
-    YouTubeViewModel(AppRuntime& rt, VentanillaMotor& ventanilla, QObject* parent = nullptr);
+    /// `grabaciones`: la lista de grabaciones para subir (compartida con las otras plataformas).
+    YouTubeViewModel(AppRuntime& rt, VentanillaMotor& ventanilla, GrabacionesModel& grabaciones, QObject* parent = nullptr);
     ~YouTubeViewModel() override;
 
     bool configured() const { return client_->hasClient(); }
@@ -80,6 +82,7 @@ class YouTubeViewModel : public QObject {
     Q_INVOKABLE void cancelLogin();
     Q_INVOKABLE void logout();
     Q_INVOKABLE void refresh();
+    /// Vuelve a leer las grabaciones (aparte: la lista cambia cuando termina).
     Q_INVOKABLE void refreshRecordings();
     Q_INVOKABLE void openUrl(const QString& url);
     Q_INVOKABLE void copy(const QString& text);
@@ -137,7 +140,7 @@ class YouTubeViewModel : public QObject {
     std::unique_ptr<YouTubeClient> client_;
     std::unique_ptr<JsonListModel> videos_;
     std::unique_ptr<JsonListModel> broadcasts_;
-    std::unique_ptr<JsonListModel> recordings_;
+    GrabacionesModel& grabaciones_; ///< compartida (ui/GrabacionesModel)
     std::unique_ptr<JsonListModel> chat_;
     QHash<QString, QString> thumbs_; // url -> data: URL
     int busy_ = 0;

@@ -17,6 +17,9 @@
 //     abierto) y el token de cada url en el almacén de secretos, como los links
 //     de la sesión remota (security/CredentialStore);
 //   - el guion: registro/Conversacion (puro, con test), uno por conexión;
+//   - el ritmo: registro/RitmoTotem (puro, con test), uno por conexión: cuándo se cierra
+//     un turno, cuándo vuelve a escuchar, las esperas, el silencio. El tic (200 ms, solo
+//     con conexiones) le pregunta con la hora y hace lo que decide;
 //   - el oído: agent::Voz::abrirOido (el reconocedor del dictado), con la voz
 //     que sube por WebRTC a BA.Audio.Registro.<k> (OperatorFeed::escucharRegistro);
 //   - la boca: audio/Habla con «la voz del atendedor» (la de AtencionViewModel),

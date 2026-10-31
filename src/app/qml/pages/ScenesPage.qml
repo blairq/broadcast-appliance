@@ -312,7 +312,7 @@ Rectangle {
                             const alAire = escena === Studio.currentScene
                             ApplicationWindow.window.confirm({
                                 title: qsTr("¿Borrar la escena «%1»?").arg(escena),
-                                text: (alAire ? (Studio.alAire ? qsTr("«%1» está AL AIRE: al borrarla se corta a otra escena.")
+                                text: (alAire ? (Studio.aire.alAire ? qsTr("«%1» está AL AIRE: al borrarla se corta a otra escena.")
                                                                : qsTr("«%1» es la del programa: al borrarla se corta a otra escena.")).arg(escena) + " " : "")
                                       + qsTr("Se pierden su disposición y las fuentes que solo están en ella."),
                                 accept: qsTr("Borrar"),
@@ -466,7 +466,7 @@ Rectangle {
                                         ApplicationWindow.window.confirm({
                                             title: qsTr("¿Quitar «%1» de la escena?").arg(fuente),
                                             text: (escena === Studio.currentScene
-                                                   ? (Studio.alAire ? qsTr("«%1» está AL AIRE: la fuente sale del programa al instante.")
+                                                   ? (Studio.aire.alAire ? qsTr("«%1» está AL AIRE: la fuente sale del programa al instante.")
                                                                     : qsTr("«%1» es la del programa: la fuente sale del programa al instante.")).arg(escena) + " " : "")
                                                   + qsTr("Se quita solo de esta escena; si no está en ninguna otra, se borra con su configuración."),
                                             accept: qsTr("Quitar"),

@@ -293,9 +293,10 @@ void McpService::registerDocumentosTools() {
                         "y la tarjeta «PDF» del tablero hace lo mismo a mano.");
         t.inputSchema = {{"type", "object"}, {"properties", {{"nombre", {{"type", "string"}}}}}};
         t.run = [pe](const json& a, Done done) {
-            const QString e = pe->crearEscena(QString::fromStdString(a.value("nombre", std::string("PDF"))));
-            if (!e.isEmpty()) return done(ToolResult::error(e.toStdString()));
-            done(ToolResult().data(pe->estado()));
+            pe->crearEscena(QString::fromStdString(a.value("nombre", std::string("PDF"))), [pe, done](const QString& e) {
+                if (!e.isEmpty()) return done(ToolResult::error(e.toStdString()));
+                done(ToolResult().data(pe->estado()));
+            });
         };
         core_.addTool(std::move(t));
     }

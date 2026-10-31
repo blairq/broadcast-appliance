@@ -325,10 +325,10 @@ Item {
 
                     delegate: Item {
                         id: celda
-                        required property var modelData
+                        required property var fila  // la fila entera (rol de ListaMedios)
                         required property int index
                         readonly property int indiceEnGrilla: index
-                        readonly property bool elegido: raiz.m.seleccion.indexOf(modelData.relativa) >= 0
+                        readonly property bool elegido: raiz.m.seleccion.indexOf(fila.relativa) >= 0
                         width: grilla.cellWidth - 10
                         height: grilla.cellHeight - 10
 
@@ -358,8 +358,8 @@ Item {
                                     // eso congela la grilla.
                                     Image {
                                         anchors.fill: parent
-                                        visible: celda.modelData.tipo === "imagen"
-                                        source: celda.modelData.tipo === "imagen" ? celda.modelData.url : ""
+                                        visible: celda.fila.tipo === "imagen"
+                                        source: celda.fila.tipo === "imagen" ? celda.fila.url : ""
                                         fillMode: Image.PreserveAspectFit
                                         asynchronous: true
                                         cache: true
@@ -368,16 +368,16 @@ Item {
                                     }
                                     Text {
                                         anchors.centerIn: parent
-                                        visible: celda.modelData.tipo !== "imagen"
-                                        text: celda.modelData.tipo === "video" ? "▶"
-                                            : celda.modelData.tipo === "audio" ? "♪" : "▤"
+                                        visible: celda.fila.tipo !== "imagen"
+                                        text: celda.fila.tipo === "video" ? "▶"
+                                            : celda.fila.tipo === "audio" ? "♪" : "▤"
                                         color: Theme.textFaint
                                         font.pixelSize: 40
                                     }
                                     Text {
                                         anchors { bottom: parent.bottom; right: parent.right; margins: 6 }
-                                        visible: celda.modelData.tipo !== "imagen"
-                                        text: celda.modelData.nombre.split(".").pop().toUpperCase()
+                                        visible: celda.fila.tipo !== "imagen"
+                                        text: celda.fila.nombre.split(".").pop().toUpperCase()
                                         color: Theme.textDim
                                         font { pixelSize: 11; weight: Font.DemiBold }
                                     }
@@ -385,14 +385,14 @@ Item {
 
                                 Text {
                                     Layout.fillWidth: true
-                                    text: celda.modelData.nombre
+                                    text: celda.fila.nombre
                                     color: Theme.text
                                     font.pixelSize: 12
                                     elide: Text.ElideMiddle
                                 }
                                 Text {
                                     Layout.fillWidth: true
-                                    text: celda.modelData.carpeta + " · " + raiz.tamano(celda.modelData.bytes)
+                                    text: celda.fila.carpeta + " · " + raiz.tamano(celda.fila.bytes)
                                     color: Theme.textFaint
                                     font.pixelSize: 10
                                     elide: Text.ElideRight
@@ -409,7 +409,7 @@ Item {
 
                                 onPressed: (mouse) => {
                                     grilla.forceActiveFocus()
-                                    raiz.ultimo = celda.modelData
+                                    raiz.ultimo = celda.fila
                                     if (mouse.button === Qt.RightButton) return
                                     const ctrl = (mouse.modifiers & Qt.ControlModifier) !== 0
                                     const shift = (mouse.modifiers & Qt.ShiftModifier) !== 0
@@ -418,7 +418,7 @@ Item {
                                     // selección: es lo que permite agarrar
                                     // cuarenta y arrastrarlos juntos.
                                     if (!ctrl && !shift && celda.elegido) return
-                                    raiz.m.elegir(celda.modelData.relativa,
+                                    raiz.m.elegir(celda.fila.relativa,
                                                   ctrl ? "sumar" : shift ? "hasta" : "solo")
                                 }
                                 onClicked: (mouse) => {
@@ -487,8 +487,7 @@ Item {
         MenuItem {
             text: qsTr("Abrir")
             enabled: raiz.m.cuantosElegidos === 1
-            onTriggered: visor.abrir(raiz.m.archivos.findIndex(
-                (a) => a.relativa === raiz.m.seleccion[0]))
+            onTriggered: visor.abrir(raiz.m.archivos.indiceDe(raiz.m.seleccion[0]))
         }
         MenuItem {
             text: qsTr("Renombrar…")

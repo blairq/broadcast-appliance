@@ -156,8 +156,8 @@ QVariantList opcionesUrlHost(const std::string& actual) {
 
 } // namespace
 
-SettingsModel::SettingsModel(AppRuntime& rt, VentanillaMotor* ventanilla, QObject* parent)
-    : QAbstractListModel(parent), rt_(rt), v_(ventanilla), idiomaAlArrancar_(guardada().launcher.idioma) {
+SettingsModel::SettingsModel(AppRuntime& rt, VentanillaMotor& ventanilla, QObject* parent)
+    : QAbstractListModel(parent), rt_(rt), v_(&ventanilla), idiomaAlArrancar_(guardada().launcher.idioma) {
     // Codificadores: los alias que se ofrecen (cuál hay de verdad en esta máquina lo
     // decide el motor al armar cada salida: motor/Salidas.cpp, elegirCodificador).
     QVariantList encoders = choices({{"auto", traducir("ajustes", "Automatico (hardware si hay)")},
@@ -324,33 +324,21 @@ SettingsModel::SettingsModel(AppRuntime& rt, VentanillaMotor* ventanilla, QObjec
     }
     load();
     // Otro formulario (el del MCP, el de la GUI) aplicó la configuración: este,
-    // si no tiene cambios a medio hacer, muestra lo vigente. Con la ventanilla, cuando
-    // llega la foto con la configuración nueva (la propia vuelve con la respuesta).
-    if (v_ != nullptr) {
-        connect(v_, &VentanillaMotor::cambio, this, [this](unsigned partes) {
-            if ((partes & FotoMotor::Configuracion) == 0) return;
-            emit idiomaPendienteChanged();
-            if (!aplicandoEnDueno_) traerDeAfuera();
-        });
-        return;
-    }
-    observador_ = rt_.observar([this](AppRuntime::Cambio c) {
-        if (c != AppRuntime::Cambio::Ajustes || aplicando_) return;
-        QMetaObject::invokeMethod(this, [this]() { traerDeAfuera(); }, Qt::QueuedConnection);
+    // si no tiene cambios a medio hacer, muestra lo vigente: cuando llega la foto con la
+    // configuración nueva (la propia vuelve con la respuesta).
+    connect(v_, &VentanillaMotor::cambio, this, [this](unsigned partes) {
+        if ((partes & FotoMotor::Configuracion) == 0) return;
+        emit idiomaPendienteChanged();
+        if (!aplicandoEnDueno_) traerDeAfuera();
     });
 }
 
-SettingsModel::~SettingsModel() {
-    if (observador_ != 0) rt_.dejarDeObservar(observador_);
-}
+SettingsModel::~SettingsModel() = default;
 
 SettingsModel::Guardada SettingsModel::guardada() const {
-    if (v_ != nullptr) {
-        const FotoMotor& f = v_->foto();
-        return {*f.configuracion.app, *f.configuracion.gateway, *f.configuracion.launcher,
-                f.apurosDisco.value("modo", std::string())};
-    }
-    return {rt_.config(), rt_.gateway(), rt_.launcher(), rt_.engine().modoDisco()};
+    const FotoMotor& f = v_->foto();
+    return {*f.configuracion.app, *f.configuracion.gateway, *f.configuracion.launcher,
+            f.apurosDisco.value("modo", std::string())};
 }
 
 QVariantMap SettingsModel::current() const {
@@ -650,8 +638,8 @@ void SettingsModel::resetSection(const QString& section) {
 }
 
 QString SettingsModel::apply() {
-    // Sin ventanilla (o si en vivo no se aplicó) termina en el acto: el resumen ya está.
-    // (Compartido: con la ventanilla la respuesta llega después de que esto volvió.)
+    // Si en vivo no se aplicó, termina en el acto: el resumen ya está. Si no, la respuesta
+    // del dueño llega después de que esto volvió ("" acá; el resumen, con `applied`).
     auto resumen = std::make_shared<std::optional<QString>>();
     aplicar([resumen](const QString& r, bool) { *resumen = r; });
     return resumen->value_or(QString());
@@ -685,15 +673,8 @@ void SettingsModel::aplicar(std::function<void(const QString& resumen, bool fall
         if (!e.empty()) pe.notaCupo = traducir("ajustes", "Cupo: %1").arg(QString::fromStdString(e));
     }
     const int conectados = configSala_ != nullptr ? configSala_->conectados() : -1;
-    if (v_ == nullptr) {
-        aplicando_ = true;
-        Aplicado a = aplicarEn(rt_, pe, this);
-        aplicando_ = false;
-        alAplicar(std::move(a), conectados, listo);
-        return;
-    }
-    // Con la ventanilla: la orden corre en el dueño; la foto con la configuración nueva
-    // llega antes que la respuesta (y no recarga: aplicandoEnDueno_).
+    // La orden corre en el dueño; la foto con la configuración nueva llega antes que la
+    // respuesta (y no recarga: aplicandoEnDueno_).
     aplicandoEnDueno_ = true;
     v_->pedir(
         this, "ajustes_aplicar",
