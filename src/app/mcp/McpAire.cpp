@@ -58,6 +58,7 @@ const std::map<std::string, std::string>& fijas() {
         {"stream_destino_borrar", QT_TRANSLATE_NOOP("mcp", "borra un destino (si transmite, lo corta)")},
         {"aire_placa", QT_TRANSLATE_NOOP("mcp", "tapa la salida con una placa")},
         {"dsk_mostrar", QT_TRANSLATE_NOOP("mcp", "sube o baja una capa (DSK) encima del programa")},
+        {"salida_borrar", QT_TRANSLATE_NOOP("mcp", "borra una salida (corta lo que sale de ella)")},
     };
     return m;
 }

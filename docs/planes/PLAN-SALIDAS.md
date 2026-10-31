@@ -131,6 +131,43 @@ Salida {
 3. **MCP** — argumento opcional `salida` en las ~60 herramientas; `salidas_listar`,
    `salida_crear`, `salida_editar`, `salida_borrar`; `status` con todas; `McpAire` decide
    «de aire» según qué salida está saliendo; `ArgumentosLocales` con la salida del asistente.
+   *Hecho (2026-10-31)*:
+   - En el núcleo (`McpCore`): `Tool::porSalida` (la herramienta apunta a una salida; `addTool`
+     le suma `salida` al esquema), `CallContext::salida` (la salida por omisión de quien llama:
+     su perfil, aparato o asistente; vacía = la del aparato), `setSalidas(lista, sale)`,
+     `resolverSalida` (id o nombre → id; "" = la por omisión), `salidaPedida` (args > contexto >
+     por omisión) y `salidaDe(args)` (la de la llamada en curso). `callTool` la valida ANTES
+     de aprobar o correr (error con las que hay) y la guarda de aire de una herramienta de
+     salida mira si sale ESA salida (`haySalidaEn`); las demás, si sale cualquiera. Nadie
+     mete la salida en los argumentos.
+   - Herramientas de salida: `scene_list`, `scene_switch`, `scene_preview`, `scene_cut`,
+     `preview_al_aire`, `transicion_manual`, `scene_define` (`switch`), `audio_afv`,
+     `aire_ftb`, `aire_placa`, `aire_placas_listar`, `mixer_list`, `audio_set`, `audio_loudness`,
+     `audio_loudness_reset`, `stream_start`, `stream_stop`, `stream_destino_agregar` (el destino
+     queda con esa salida), `stream_destino_editar` (con `salida`, lo pasa), `record_start`,
+     `record_stop`, `replay_ajustes`, `replay_guardar`, `salida_limpia`, `grafico_mostrar`
+     (`armar`). El conmutador lo da un solo helper (`conmutadorDe`, McpSalidasTools.cpp).
+   - Nuevas: `salidas_listar`, `salida_crear` (con `recursos` y un `aviso` si la máquina está
+     cerca del límite), `salida_editar` (nombre, color, `tope`), `salida_borrar` (de aire).
+     `status` trae `salidas` (resumen de cada una: escena, armada, transmite, graba, destinos,
+     limpia, repetición, negro/placa).
+   - App (agregados mínimos): `SeguridadAire` por salida (placa.json con `salidas: {id: …}`);
+     `AppRuntime::setVolume/setMuted(…, salida)` (las demás no se guardan: viven en el motor),
+     `startStreaming/stopStreaming/salirAlAireManual(…, salida)` (otra salida exige servidor y
+     clave; no se guarda), `ponerReplay(segundos, salida)`; `StudioViewModel::esperarReplay` y
+     `armarRepeticion` con salida.
+   - `ArgumentosLocales`: con más de una salida el estado trae `salidas` y `salida` (la del
+     asistente: la por omisión) y valida `salida` contra ellas; con una, el prompt de siempre.
+   - Tests: `test_mcp` (esquema, por id y por nombre, inexistente, contexto, args sobre
+     contexto, guarda de aire por salida) y `test_argumentos_locales`.
+   *Falta*: `dsk_*` (el modelo `control/Dsk` es de la por omisión: etapa 4),
+   `audio_loudness_objetivo` (`ObjetivoLoudness`), `banca_al_aire` (`Bancas` corta en la por
+   omisión), `foto_programa` (FrameService, etapa 5), las de escenas que toman «la escena al
+   aire» sin `scene` (crear_fuente, source_*, escena_fuentes_ver… siguen con la de la por
+   omisión: su guarda de aire tiene que seguir siendo global porque la escena es de todas),
+   `stream_salud`/`destinos` ya traen todas. La salida del asistente (y de la voz) no se elige
+   todavía: es la por omisión. `docs/mcp.json` sin regenerar (el inventario trae miles de
+   líneas ajenas). Las traducciones de las cadenas nuevas.
 4. **Control** — temas `aire/<salida>/…` y `salida/<id>/…` en el `BusEventos` (los de hoy
    siguen como la salida por omisión); `salida` en perfiles y aparatos de Botonera y
    ControlWeb, con acción «cambiar de salida»; tarjetas web y plantillas por salida.

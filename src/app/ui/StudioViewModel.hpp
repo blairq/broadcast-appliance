@@ -679,10 +679,13 @@ class StudioViewModel : public QObject {
     /// «Repetir»: guarda los últimos segundos y, cuando el clip está escrito, lo arma
     /// en la escena «Repetición» (lista para el take). "" o el error.
     Q_INVOKABLE QString repetirUi();
-    /// Pone `archivo` en la escena «Repetición» (la crea si falta) y la deja armada.
-    QString armarRepeticion(const QString& archivo);
-    /// Espera (hasta `ms`) a que haya un clip nuevo distinto de `antes` y llama a `listo` con él ("" si no llegó).
-    void esperarReplay(const std::string& antes, int ms, std::function<void(const QString&)> listo);
+    /// Pone `archivo` en la escena «Repetición» (la crea si falta) y la deja armada
+    /// en la `salida` ("" = la por omisión).
+    QString armarRepeticion(const QString& archivo, const std::string& salida = {});
+    /// Espera (hasta `ms`) a que haya un clip nuevo de la `salida` distinto de `antes`
+    /// y llama a `listo` con él ("" si no llegó).
+    void esperarReplay(const std::string& antes, int ms, std::function<void(const QString&)> listo,
+                       const std::string& salida = {});
     control::SatelliteServidor& satellite() { return *satellite_; }
     /// Empareja una tablet: código de un uso (2 min) y el QR. Contesta con
     /// emparejamientoListo({url, qr (data URL de un SVG), codigo, vence_ms, huella, aviso, error}).

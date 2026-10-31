@@ -281,6 +281,14 @@ const Fila kPropias[] = {
     //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
     {"salidas_profesionales", QT_TRANSLATE_NOOP("mcp-etiquetas", "srt rist ndi decklink sdi contribucion salidas profesionales")},
     //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
+    {"salidas_listar", QT_TRANSLATE_NOOP("mcp-etiquetas", "salidas programas operadores cuantas salidas varios programas otra salida segundo programa tope multiprograma")},
+    //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
+    {"salida_crear", QT_TRANSLATE_NOOP("mcp-etiquetas", "crear salida nueva otro programa segundo programa otra transmision otro operador sumar salida agregar salida")},
+    //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
+    {"salida_editar", QT_TRANSLATE_NOOP("mcp-etiquetas", "renombrar salida color de la salida nombre de la salida tope de salidas cambiar salida")},
+    //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
+    {"salida_borrar", QT_TRANSLATE_NOOP("mcp-etiquetas", "borrar salida sacar salida eliminar programa quitar salida")},
+    //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
     {"stream_destino_editar", QT_TRANSLATE_NOOP("mcp-etiquetas", "editar destino transmision")},
     //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
     {"stream_destino_borrar", QT_TRANSLATE_NOOP("mcp-etiquetas", "borrar destino transmision")},

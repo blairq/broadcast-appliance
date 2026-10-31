@@ -10,6 +10,7 @@
 // ============================================================================
 #include <algorithm>
 #include <memory>
+#include <set>
 
 #include <QJsonArray>
 #include <QJsonDocument>
@@ -143,6 +144,7 @@ void McpService::registerGraficoTools() {
     {
         Tool t;
         t.name = "grafico_mostrar";
+        t.porSalida = true; // `armar`: en el preview de esa salida
         t.title = ba::i18n::traducir("mcp", "Poner un gráfico al aire");
         t.category = "graficos";
         t.description = ba::i18n::traducir("mcp", "Dibuja el gráfico y lo reproduce en una fuente «Gráfico animado» de una escena. "
@@ -205,13 +207,16 @@ void McpService::registerGraficoTools() {
                 for (const auto& i : graficos::instancias())
                     if (i.id == id) nombreFuente = i.nombre;
                 if (nombreFuente.empty()) return done(ToolResult::error(ba::i18n::traducir("mcp", "No hay una fuente de gráfico con ese id (grafico_en_escena).")));
-                // La escena del programa solo frena si el programa sale (se transmite o graba).
+                // La escena al aire de una salida solo frena si esa salida sale (transmite o
+                // graba); la fuente es de todas, así que cuenta cualquier salida.
+                std::set<std::string> alAireQueSale;
+                for (const std::string& id : rt.engine().salidaIds())
+                    if (rt.engine().haySalidaEn(id)) alAireQueSale.insert(rt.engine().currentScene(id));
                 bool alAire = false;
-                const bool sale = rt.engine().haySalida();
                 for (const std::string& sc : rt.engine().sceneNames()) {
                     const auto ss = rt.engine().sceneSources(sc);
                     if (std::find(ss.begin(), ss.end(), nombreFuente) == ss.end()) continue;
-                    if (sale && sc == rt.engine().currentScene()) alAire = true;
+                    if (alAireQueSale.count(sc) > 0) alAire = true;
                     else if (escenaArmar.empty()) escenaArmar = sc;
                 }
                 if (alAire)
@@ -246,7 +251,7 @@ void McpService::registerGraficoTools() {
                                             a.value("duracionMs", 0), a.value("repetir", false));
             if (!err.isEmpty()) return done(ToolResult::error(err.toStdString()));
             if (!escenaArmar.empty()) {
-                vm_.conmutador().armar(escenaArmar);
+                conmutadorDe(core_, vm_, a).armar(escenaArmar); // en el preview de su salida
                 return done(ToolResult::ok(
                     ba::i18n::llenar(ba::i18n::traducir("mcp", "«%1» armado en el preview («%2»): sale con TAKE."),
                                      {a["nombre"].get<std::string>(), escenaArmar})));
