@@ -122,6 +122,13 @@ class EventoViewModel : public QObject {
     /// pideDescripcion, descripcion, resumen}. Activa: la línea volvió en HOLD y la
     /// conducción pregunta «¿Qué está pasando?».
     Q_PROPERTY(QVariantMap retoma READ retoma NOTIFY correChanged)
+    /// Grabar la línea en vivo (L10, como ProPresenter): el ensayo corre con todo a GO
+    /// y lo que dura cada paso queda para guardarlo como duración prevista. Se elige
+    /// antes de arrancar (prende el ensayo).
+    Q_PROPERTY(bool grabarTiempos READ grabarTiempos WRITE setGrabarTiempos NOTIFY correChanged)
+    /// Lo que grabó el último ensayo, sin guardar: {ops, pasos: [{paso, nombre, antesSeg,
+    /// grabadoSeg}], totalAntesSeg, totalGrabadoSeg}; vacío si no hay.
+    Q_PROPERTY(QVariantMap tiemposGrabados READ tiemposGrabadosUi NOTIFY correChanged)
     /// Lo ultimo que se ejecuto o se intento, para la vista de conduccion.
     Q_PROPERTY(QVariantList bitacora READ bitacora NOTIFY bitacoraChanged)
 
@@ -460,6 +467,25 @@ class EventoViewModel : public QObject {
         return QString::fromStdString(lineaPtz(pieza.toStdString(), decision.toStdString()));
     }
 
+    // --- L10: grabar la línea, la escaleta para afuera y desde afuera ---------------------
+    bool grabarTiempos() const { return grabar_; }
+    void setGrabarTiempos(bool on);
+    QVariantMap tiemposGrabadosUi() const;
+    /// linea_grabar: lo grabado (o, sin nada, si se está grabando).
+    nlohmann::json lineaTiemposGrabados() const;
+    /// Lo grabado pasa a la línea (linea_editar, con su revisión para deshacer). "" o por qué no.
+    Q_INVOKABLE QString aplicarTiemposGrabados();
+    Q_INVOKABLE void descartarTiemposGrabados();
+    /// La escaleta en "csv" o "mos" (evento/LineaIntercambio.hpp).
+    std::string lineaExportar(const std::string& formato) const;
+    /// Una escaleta de afuera (CSV o MOS; `formato` vacío: se adivina) como lote: con
+    /// `probar` no aplica. {ok, error?, diff, pronostico, ops, avisos, bloques}.
+    nlohmann::json lineaImportar(const std::string& formato, const std::string& texto, bool probar,
+                                 const std::string& nombreBloque = {});
+    /// Lo mismo desde la página (un archivo): "" o el error; el resultado de importar.
+    Q_INVOKABLE QString exportarEscaleta(const QString& formato, const QString& ruta);
+    Q_INVOKABLE QVariantMap importarEscaleta(const QString& ruta, bool probar);
+
     /// Ensayo acelerado: recorre el guion ENTERO de una, sin esperar las
     /// duraciones y sin tocar nada, y dice de cada cue si se podria ejecutar.
     /// A diferencia de `revisar`, que mira el guion quieto, esto camina el
@@ -607,6 +633,17 @@ class EventoViewModel : public QObject {
     void enchufar();
     /// Los temas del bus de las condiciones de la corrida, al día (suscribe los que faltan).
     void vigilarTemas();
+    /// La línea con la que corre la corrida: la del evento o, grabando, la de grabar.
+    evento::linea::Linea lineaDeCorrida() const;
+    /// Lo que habló cada orador mientras su paso estuvo al aire, al recorrido (ver el .cpp).
+    void seguirPalabra(const std::vector<evento::linea::Accion>& acc);
+    std::map<std::string, int64_t> segundosDePalabra() const;
+    struct Palabra {
+        std::string paso;
+        int previstoSeg = 0;
+        std::map<std::string, int64_t> segundos; ///< lo que llevaba cada uno al entrar el paso
+    };
+    std::map<std::string, Palabra> palabras_; ///< por salida
     /// La escena de una salida cambió: ¿fue a mano? ¿se liberó una cámara?
     void alAireCambio(const std::string& salida, const std::string& escena);
     /// El orden del día cambió: re-expande los bloques que salen de él (sin tocar lo emitido).
@@ -767,6 +804,8 @@ class EventoViewModel : public QObject {
     QString abierto_;
     bool sucio_ = false;
     bool ensayo_ = false;
+    bool grabar_ = false;      ///< el ensayo graba los tiempos
+    nlohmann::json grabado_;   ///< lo que grabó (null si nada)
     QVariantList bitacora_;
     std::vector<evento::Reparo> reparos_;
     /// Cada segundo mientras corre: la cuenta de la vista y el estado vivo (documento de aire).

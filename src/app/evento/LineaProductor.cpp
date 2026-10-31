@@ -726,6 +726,19 @@ json tiemposGrabados(const Linea& l, const std::vector<Instancia>& instancias, i
     return out;
 }
 
+Linea lineaParaGrabar(Linea l) {
+    for (Bloque& b : l.bloques) {
+        b.inicio.reset();
+        for (Paso& p : b.pasos) {
+            p.duracionPrevistaSeg = static_cast<int>(p.duracionPlanMs() / 1000);
+            p.inicio = Inicio{};
+            p.fin = Fin::deJson(json{{"abierto", true}});
+            p.continuar = Continuar::No;
+        }
+    }
+    return l;
+}
+
 // --- El vigía ---------------------------------------------------------------------------
 
 bool Vigia::debeProponer(const std::string& salida, int overSeg, int64_t ahoraMs) {

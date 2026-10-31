@@ -177,6 +177,9 @@ class Corrida {
     int64_t pausadoMs(int64_t ahora) const;
     /// Los renglones nuevos del recorrido (recorrido.jsonl), y se olvidan.
     std::vector<nlohmann::json> sacarRecorrido();
+    /// Un renglón que sabe la app y la corrida no (el tiempo real de quien habló en un
+    /// paso, que sale del orden del día): va al recorrido con lo demás.
+    void anotarDeAfuera(int64_t ahora, const std::string& que, nlohmann::json datos) { anotar(ahora, que.c_str(), std::move(datos)); }
 
     // --- Estado vivo y retoma (3.8) -----------------------------------------------------
     /// Runtime/linea-aire.json: el EstadoAire más lo que la corrida necesita para volver.

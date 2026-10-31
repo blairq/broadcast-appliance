@@ -116,6 +116,10 @@ nlohmann::json lineaDeGuia(const Linea& l, Linea guia);
 /// toca). Lo que no cambia en más de `toleranciaSeg` no va.
 /// {ops, pasos: [{paso, nombre, antesSeg, grabadoSeg}], totalAntesSeg, totalGrabadoSeg}.
 nlohmann::json tiemposGrabados(const Linea& l, const std::vector<Instancia>& instancias, int toleranciaSeg = 1);
+/// La línea con la que se corre el ensayo que graba: todo entra con GO y nada se va
+/// solo (cada paso abierto, sin seguir), así lo que dura cada uno lo dice la persona.
+/// Lo previsto queda (para la cuenta y el pronóstico) y las piezas, como estaban.
+Linea lineaParaGrabar(Linea l);
 
 // --- El rol que vigila el over/under ----------------------------------------------------
 

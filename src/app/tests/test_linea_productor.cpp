@@ -500,6 +500,11 @@ void testIntercambio() {
     const Edicion eg2 = editar(l, g2["ops"]);
     CHECK(eg2.ok && eg2.linea.paso("b")->fin.modo == ModoFin::Abierto && eg2.linea.paso("b")->duracionPrevistaSeg == 200,
           "a un paso abierto solo se le cambia lo previsto");
+    // El ensayo que graba corre con todo a GO y nada que se vaya solo.
+    const Linea pg = lineaParaGrabar(l);
+    CHECK(pg.paso("b")->inicio.modo == ModoInicio::Go && pg.paso("a")->fin.modo == ModoFin::Abierto &&
+              pg.paso("a")->duracionPrevistaSeg == 90 && pg.paso("a")->continuar == Continuar::No && pg.paso("a")->piezas.size() == 1,
+          "lineaParaGrabar: GO, abierto, lo previsto y las piezas");
 }
 
 int main() {
