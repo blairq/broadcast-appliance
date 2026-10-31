@@ -184,6 +184,24 @@ void el_tope() {
     CHECK(p.recuento()["total"] == 0, "y el recuento lo dice");
 }
 
+void sobrevive() {
+    // La cola vuelve entera desde la foto que guarda la app (una sala reiniciada).
+    Preguntas p;
+    const std::string a = p.preguntar("Ana", "¿Primera?", "publico", "tel-a", 100);
+    const std::string b = p.preguntar("", "¿Segunda?", "publico", "tel-b", 200);
+    p.votar(b, "tel-a");
+    p.elegir(a);
+    Preguntas otra;
+    otra.restaurar(p.foto());
+    CHECK(otra.lista() == p.lista(), "la foto la vuelve a armar igual");
+    CHECK(otra.listaPublica("tel-a") == p.listaPublica("tel-a"), "cada teléfono sigue viendo las suyas");
+    CHECK(!otra.votar(b, "tel-a"), "un voto que ya estaba no suma dos veces");
+    const std::string c = otra.preguntar("", "¿Tercera?", "publico", "tel-c", 300);
+    CHECK(c != a && c != b, "las nuevas no repiten id");
+    otra.restaurar(json::object());
+    CHECK(otra.lista().empty(), "una foto vacía la deja sin preguntas (otro evento)");
+}
+
 } // namespace
 
 int main() {
@@ -193,6 +211,7 @@ int main() {
     orden();
     lo_que_ve_el_publico();
     el_tope();
+    sobrevive();
     if (g_fallos == 0) std::printf("test_preguntas: OK\n");
     return g_fallos == 0 ? 0 : 1;
 }

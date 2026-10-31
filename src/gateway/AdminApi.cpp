@@ -631,12 +631,17 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
     // --- Las preguntas del publico -------------------------------------------
     if (path == "/api/v1/preguntas") {
         if (method == "GET") {
-            sendJson(fd, 200,
-                     json{{"ok", true},
-                          {"preguntas", preguntas_.lista()},
-                          {"recuento", preguntas_.recuento()},
-                          {"proxima", preguntas_.proxima()},
-                          {"clave", claves().publico}});
+            json out{{"ok", true},
+                     {"preguntas", preguntas_.lista()},
+                     {"recuento", preguntas_.recuento()},
+                     {"proxima", preguntas_.proxima()},
+                     {"clave", claves().publico}};
+            if (http::parseQuery(query).count("foto")) {
+                out["foto"] = preguntas_.foto();
+                std::lock_guard<std::mutex> l(publicoM_);
+                out["evento"] = eventoPreguntas_;
+            }
+            sendJson(fd, 200, out);
             return;
         }
         if (method == "POST") {
@@ -659,6 +664,15 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
             } else if (accion == "vaciar") {
                 preguntas_.vaciar();
                 ok = true;
+            } else if (accion == "restaurar") {
+                // La app (que las guarda en el evento) las devuelve: a una sala que se
+                // reinició, o al abrir otro evento (las de ese).
+                preguntas_.restaurar(req.value("foto", json::object()));
+                {
+                    std::lock_guard<std::mutex> l(publicoM_);
+                    eventoPreguntas_ = req.value("evento", std::string());
+                }
+                ok = true;
             } else if (accion == "preguntar") {
                 // Para meter en la cola lo que llego por otro lado (el chat de
                 // la sala, o el de YouTube): una sola cola para todos, que es
@@ -671,6 +685,7 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
                 sendErr(fd, 400, "accion");
                 return;
             }
+            if (ok) avisarPreguntas();
             sendJson(fd, 200,
                      json{{"ok", ok},
                           {"preguntas", preguntas_.lista()},
@@ -729,6 +744,12 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
         if (method == "GET") {
             const auto q = http::parseQuery(query);
             json out{{"ok", true}, {"votacion", votacion_.estado()}};
+            // Lo que la app guarda y de qué evento es (ver sala::UrnaEvento).
+            if (q.count("foto")) {
+                out["foto"] = votacion_.foto();
+                std::lock_guard<std::mutex> l(publicoM_);
+                out["evento"] = eventoVotacion_;
+            }
             // El historial solo cuando se pide: en una asamblea larga son
             // muchas, y quien mira «como va» no las quiere todas.
             if (q.count("historial")) out["historial"] = votacion_.historial();
@@ -739,16 +760,31 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
             const std::string accion = req.value("accion", std::string());
             if (accion == "cerrar") {
                 const bool ok = votacion_.cerrar();
+                avisarVotacion();
                 sendJson(fd, 200, json{{"ok", ok}, {"votacion", votacion_.estado()}});
                 return;
             }
             if (accion == "olvidar_historial") {
                 votacion_.olvidarHistorial();
+                avisarVotacion();
                 sendJson(fd, 200, json{{"ok", true}});
                 return;
             }
             if (accion == "en_vivo") {
                 votacion_.setMostrarEnVivo(req.value("si", false));
+                avisarVotacion();
+                sendJson(fd, 200, json{{"ok", true}, {"votacion", votacion_.estado()}});
+                return;
+            }
+            if (accion == "restaurar") {
+                // La urna es de A (ver Votacion.hpp): se la devuelve a una sala que se
+                // reinició, o al abrir otro evento (la de ese).
+                votacion_.restaurar(req.value("foto", json::object()));
+                {
+                    std::lock_guard<std::mutex> l(publicoM_);
+                    eventoVotacion_ = req.value("evento", std::string());
+                }
+                avisarVotacion();
                 sendJson(fd, 200, json{{"ok", true}, {"votacion", votacion_.estado()}});
                 return;
             }
@@ -773,11 +809,18 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
             const bool ok = votacion_.abrir(req.value("pregunta", std::string()), opciones, modo,
                                             req.value("secreta", false), habilitados, req.value("podian", 0),
                                             nowMsAdmin());
+            // Las reglas (cuántas opciones, el padrón) son de la app (sala::VotacionSala):
+            // esto solo es la urna que no acepta lo que no puede contar.
             if (!ok) {
-                sendErr(fd, 400, traducir("gateway", "hace falta una pregunta y al menos dos opciones").c_str());
+                sendErr(fd, 400, "votacion");
                 return;
             }
             votacion_.setMostrarEnVivo(req.value("enVivo", false));
+            {
+                std::lock_guard<std::mutex> l(publicoM_);
+                eventoVotacion_ = req.value("evento", eventoVotacion_);
+            }
+            avisarVotacion();
             sendJson(fd, 200, json{{"ok", true}, {"votacion", votacion_.estado()}});
             return;
         }
@@ -1268,11 +1311,33 @@ std::pair<std::string, std::uint64_t> idDeEvento(const std::string& v) {
 
 } // namespace
 
+void SignalingServer::avisarVotacion() {
+    std::string evento;
+    {
+        std::lock_guard<std::mutex> l(publicoM_);
+        evento = eventoVotacion_;
+    }
+    broadcastToHosts("votacion", json{{"votacion", votacion_.estado()}, {"foto", votacion_.foto()}, {"evento", evento}});
+}
+
+void SignalingServer::avisarPreguntas() {
+    std::string evento;
+    {
+        std::lock_guard<std::mutex> l(publicoM_);
+        evento = eventoPreguntas_;
+    }
+    broadcastToHosts("preguntas", json{{"preguntas", preguntas_.lista()},
+                                       {"recuento", preguntas_.recuento()},
+                                       {"proxima", preguntas_.proxima()},
+                                       {"foto", preguntas_.foto()},
+                                       {"evento", evento}});
+}
+
 bool SignalingServer::eventoDeEstado(const std::string& event) {
     // Lo que dice CÓMO ESTÁ algo (la foto al reconectar, o el próximo aviso, lo cubre):
     // reenviarlo viejo después de la foto la pisaría con algo más viejo.
-    static const std::set<std::string> kEstado{"room", "programa", "direcciones", "hablan", "prompter",
-                                               "superficies", "red", "web"};
+    static const std::set<std::string> kEstado{"room",        "programa", "direcciones", "hablan", "prompter",
+                                               "superficies", "red",      "web",         "votacion", "preguntas"};
     return kEstado.count(event) > 0;
 }
 

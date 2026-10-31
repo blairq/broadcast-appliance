@@ -226,6 +226,16 @@ Presidencia::json Presidencia::estadoConsola() const {
         e["central"] = {{"conectada", false}};
     }
     e["votacion"] = p_.sesion.votacion();
+    // Lo que la consola dibuja, ya resuelto acá (la regla es de Votaciones: manda la
+    // central, un voto por integrante): la página no suma ni decide.
+    if (p_.votaciones) {
+        const json u = p_.votaciones->enCurso();
+        e["votacion"]["estado_unificado"] = u["estado"];
+        e["votacion"]["tema_unificado"] = u["tema"];
+        e["votacion"]["opciones_unificadas"] = u["opciones"];
+        e["votacion"]["totales_unificados"] = u["totales"];
+        e["votacion"]["origen_unificado"] = u["origen"];
+    }
     e["voto_s"] = p_.sesion.votoSegundos();
     if (p_.quorum) e["quorum"] = p_.quorum->estado();
     if (p_.ordenDia) {

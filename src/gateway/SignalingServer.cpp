@@ -1652,6 +1652,7 @@ void SignalingServer::handleGuestHttp(long long fd, const std::string& method, c
                                    ? req["opcion"].get<int>()
                                    : -1;
             const std::string motivo = votacion_.votar(quien, codigo, opcion);
+            if (motivo.empty()) avisarVotacion(); // a A, que guarda la urna
             http::sendResponse(fd, 200, "application/json",
                                json{{"ok", motivo.empty()},
                                     {"error", motivo},
@@ -1728,6 +1729,7 @@ void SignalingServer::handleGuestHttp(long long fd, const std::string& method, c
             }
             if (req.contains("votar")) {
                 const bool sumo = preguntas_.votar(req["votar"].get<std::string>(), quien);
+                if (sumo) avisarPreguntas();
                 http::sendResponse(fd, 200, "application/json",
                                    json{{"ok", sumo}, {"preguntas", preguntas_.listaPublica(quien)}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
                 return;
@@ -1740,6 +1742,7 @@ void SignalingServer::handleGuestHttp(long long fd, const std::string& method, c
                                    json{{"ok", false}, {"error", QT_TRANSLATE_NOOP("web/comun", "la pregunta esta vacia")}}.dump());
                 return;
             }
+            avisarPreguntas();
             http::sendResponse(
                 fd, 200, "application/json",
                 json{{"ok", true}, {"id", id}, {"preguntas", preguntas_.listaPublica(quien)}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));

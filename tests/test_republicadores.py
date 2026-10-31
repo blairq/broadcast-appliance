@@ -89,7 +89,10 @@ NO_ESTADO = {"orden", "lectura", "arranque"}
 def _registrados():
     nombres = set()
     for p in (RAIZ / "src" / "app").rglob("*.cpp"):
-        nombres.update(re.findall(r'registrarRepublicador\(\s*"([a-z0-9-]+)"', p.read_text(encoding="utf-8")))
+        texto = p.read_text(encoding="utf-8")
+        nombres.update(re.findall(r'registrarRepublicador\(\s*"([a-z0-9-]+)"', texto))
+        # sala/GuardadoEnEvento registra con su nombre: «votacion», «preguntas».
+        nombres.update(re.findall(r'GuardadoEnEvento>\([^,]+,\s*"([a-z0-9-]+)"', texto))
     return nombres
 
 

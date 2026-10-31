@@ -38,6 +38,8 @@
 #include "platform/Paths.hpp"
 #include "plugins/Plugins.hpp"
 #include "sala/ClavesEvento.hpp"
+#include "sala/GuardadoEnEvento.hpp"
+#include "sala/PaginaPublico.hpp"
 #include "sala/CupoSala.hpp"
 #include "ui/AlarmasViewModel.hpp"
 #include "ui/AtencionViewModel.hpp"
@@ -323,6 +325,16 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, VentanillaMotor& ventanilla, QO
     clavesEvento_ = std::make_unique<sala::ClavesEvento>(conference_->client(),
                                                          [this]() { return evento_->carpetaAbierta(); });
     connect(evento_.get(), &EventoViewModel::guionChanged, clavesEvento_.get(), &sala::ClavesEvento::eventoCambio);
+    // La urna y las preguntas del público son del evento (sobreviven a la sala y no se mezclan).
+    urnaEvento_ = std::make_unique<sala::GuardadoEnEvento>(conference_->client(), "votacion",
+                                                           [this]() { return evento_->carpetaAbierta(); });
+    preguntasEvento_ = std::make_unique<sala::GuardadoEnEvento>(conference_->client(), "preguntas",
+                                                                [this]() { return evento_->carpetaAbierta(); });
+    connect(evento_.get(), &EventoViewModel::guionChanged, urnaEvento_.get(), &sala::GuardadoEnEvento::eventoCambio);
+    connect(evento_.get(), &EventoViewModel::guionChanged, preguntasEvento_.get(), &sala::GuardadoEnEvento::eventoCambio);
+    // Cómo se ve la página del público, también del evento.
+    conference_->paginaPublico().setCarpetaEvento([this]() { return evento_->carpetaAbierta(); });
+    connect(evento_.get(), &EventoViewModel::guionChanged, this, [this]() { conference_->paginaPublico().eventoCambio(); });
     // Despues de `frames_`: mira los mismos videos que el resto de la interfaz.
     personas_ = std::make_unique<PersonasViewModel>(rt, *this);
     marca("personas");

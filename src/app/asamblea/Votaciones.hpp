@@ -67,6 +67,10 @@ class Votaciones : public QObject {
     /// y al bus. Lo que devuelve Quórum ({…} o {error}).
     json cargarOficial(const json& resultado);
 
+    /// La votación en curso, ya resuelta para quien solo la dibuja (las consolas de
+    /// presidencia): la regla está en asamblea/VotacionUnificada.hpp.
+    json enCurso() const;
+
     // --- Para la interfaz ------------------------------------------------------------
     Q_INVOKABLE QString abrirEnCelularesUi(const QString& tema, const QString& menu, int segundos);
     Q_INVOKABLE void cerrarEnCelularesUi() { cerrarEnCelulares(); }

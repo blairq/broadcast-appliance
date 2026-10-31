@@ -11,8 +11,10 @@
 // convierten al público remoto en público de segunda, que es exactamente lo que
 // hace que un evento híbrido se sienta como dos eventos mal pegados.
 //
-// VIVE EN B Y NO EN A, porque llega de teléfonos y B es lo que los teléfonos
-// alcanzan. A (la app) las viene a buscar, las modera y las saca al aire.
+// LLEGA A B Y LA GUARDA A. Los teléfonos alcanzan a B, así que acá se reciben y se
+// cuentan; cada cambio va a la app (evento «preguntas», con la `foto()`), que la
+// guarda en la carpeta del evento y se la devuelve (`restaurar`) a una sala que se
+// reinició. La app las modera y las saca al aire.
 //
 // EL RECORRIDO de una pregunta:
 //
@@ -104,6 +106,11 @@ class Preguntas {
     std::size_t limpiar();
     /// Borra TODAS. Es para empezar un evento nuevo.
     void vaciar();
+
+    /// Todo, para volver a armarla (lo que guarda la app).
+    nlohmann::json foto() const;
+    /// La vuelve a armar desde una foto; una vacía la deja sin preguntas.
+    void restaurar(const nlohmann::json& foto);
 
    private:
     mutable std::mutex m_;

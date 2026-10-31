@@ -115,6 +115,10 @@ class ConferenceClient : public QObject {
     /// Cambió un teleprompter o quién lo mira: {prompter, estado (con `texto` solo si se
     /// cargó un discurso), clientes} o {prompter, quitado}.
     void prompterEvento(const QJsonObject& ev);
+    /// Cambió algo que llega a la sala y guarda el evento (sala/GuardadoEnEvento):
+    /// `nombre` "votacion" ({votacion, foto, evento}) o "preguntas" ({preguntas, recuento,
+    /// proxima, foto, evento}).
+    void estadoEvento(const QString& nombre, const QJsonObject& ev);
     /// Una accion fallo; `error` es el codigo de la API ("full", "not_found"...).
     void failed(const QString& error);
 

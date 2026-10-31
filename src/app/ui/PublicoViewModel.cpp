@@ -18,12 +18,6 @@
 namespace ba::app {
 namespace {
 
-/// Cada dos segundos mientras alguien mira. Es una cola de preguntas: ver
-/// aparecer una con tres segundos de retraso no cambia nada, y preguntar mas
-/// seguido es ruido en la red del lugar, que suele ser la misma que lleva la
-/// transmision.
-constexpr int kRondaMs = 2000;
-
 QVariantList aLista(const QJsonArray& a) {
     QVariantList out;
     for (const QJsonValue& v : a)
@@ -35,8 +29,29 @@ QVariantList aLista(const QJsonArray& a) {
 
 PublicoViewModel::PublicoViewModel(ConferenceViewModel* sala, QObject* parent)
     : QObject(parent), sala_(sala) {
-    reloj_.setInterval(kRondaMs);
-    connect(&reloj_, &QTimer::timeout, this, &PublicoViewModel::consultar);
+    if (sala_ == nullptr) return;
+    // Nadie pregunta cada dos segundos: la sala avisa cada cambio, con todo adentro.
+    ConferenceClient& c = sala_->client();
+    connect(&c, &ConferenceClient::estadoEvento, this, [this](const QString& nombre, const QJsonObject& o) {
+        const nlohmann::json r = nlohmann::json::parse(QJsonDocument(o).toJson(QJsonDocument::Compact).toStdString(), nullptr, false);
+        if (!r.is_object()) return;
+        if (nombre == "preguntas") {
+            if (!enLinea_) enLinea_ = true;
+            tomarPreguntas(r);
+        } else if (nombre == "votacion") {
+            alVolverVotacion({}, r, {});
+        }
+    });
+    // Sin conexión NO se vacía lo que ya está en pantalla (una cola vacía es «nadie
+    // preguntó», que es otra cosa): se marca `enLinea` y la vista lo dice.
+    connect(&c, &ConferenceClient::onlineChanged, this, [this](bool on) {
+        if (on) {
+            if (mirando_ > 0) consultar();
+        } else if (enLinea_) {
+            enLinea_ = false;
+            emit cambio();
+        }
+    });
 }
 
 PublicoViewModel::~PublicoViewModel() = default;
@@ -89,14 +104,8 @@ bool PublicoViewModel::activo() const { return mirando_ > 0; }
 void PublicoViewModel::setActivo(bool a) {
     const int antes = mirando_;
     mirando_ = std::max(0, mirando_ + (a ? 1 : -1));
-    if (mirando_ > 0 && antes == 0) {
-        // Se consulta YA y no en dos segundos: abrir la pestaña y ver un
-        // recuadro vacio dos segundos parece que esta roto.
-        consultar();
-        reloj_.start();
-    } else if (mirando_ == 0) {
-        reloj_.stop();
-    }
+    // Al empezar a mirar, lo de ahora (lo que cambie después llega solo).
+    if (mirando_ > 0 && antes == 0) consultar();
     emit cambio();
 }
 

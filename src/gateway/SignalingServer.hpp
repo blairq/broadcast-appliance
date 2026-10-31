@@ -491,6 +491,10 @@ class SignalingServer {
     /// estado, clientes}; con el texto solo si `conTexto`, que es lo pesado) y, con
     /// `aPaginas`, el estado a sus páginas por el canal (ellas tienen el texto).
     void avisarPrompter(const std::string& id, bool conTexto, bool aPaginas);
+    /// Cambió la urna o la cola de preguntas: evento a A, que es quien las guarda
+    /// (con la foto entera y de qué evento son).
+    void avisarVotacion();
+    void avisarPreguntas();
     /// Quiénes lo miran: los del canal y los que todavía preguntan por HTTP.
     nlohmann::json clientesPrompter(const std::string& id, const Prompter& p) const;
 
@@ -587,6 +591,8 @@ class SignalingServer {
     Votacion votacion_;
     mutable std::mutex publicoM_;
     nlohmann::json publicoInfo_ = nlohmann::json::object();
+    /// De qué evento son la urna y las preguntas (lo dice A al restaurarlas o abrir).
+    std::string eventoVotacion_, eventoPreguntas_;
     /// Los que miran la página del evento: id del navegador (lo manda el marco) → última vez.
     std::map<std::string, std::int64_t> mirando_;
     mutable std::mutex eventoWebM_;

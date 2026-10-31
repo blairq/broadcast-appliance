@@ -107,16 +107,14 @@ class PublicoViewModel : public QObject {
     ConferenceViewModel* sala_ = nullptr;
     sala::VotacionSala* votacionSala_ = nullptr;
     sala::PreguntasSala* preguntasSala_ = nullptr;
-    QTimer reloj_;
     QVariantList preguntas_;
     QVariantMap recuento_;
     QVariantMap votacion_;
     QVariantMap enlace_;
     bool enLinea_ = false;
-    /// Cuántas vistas lo están mirando. Es un contador y no un booleano
-    /// porque la misma cosa se muestra en dos lados —la página del Público y
-    /// la pestaña del Evento— y que una se cierre no puede apagarle la
-    /// consulta a la otra.
+    /// Cuántas vistas lo están mirando (la página del Público y la pestaña del
+    /// Evento). Lo que cambia llega solo (eventos «preguntas» y «votacion» de la
+    /// sala); al empezar a mirar, y al volver la sala, se pregunta una vez.
     int mirando_ = 0;
 };
 
