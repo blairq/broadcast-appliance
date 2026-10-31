@@ -1237,13 +1237,6 @@ float BroadcastEngine::sourcePeakDb(const std::string& name) const {
     return static_cast<float>(std::max(-100.0, e[name].value("pico_db", -100.0)));
 }
 
-float BroadcastEngine::sourceOutputPeakDb(const std::string& name) const {
-    const TurnoMotor::Guarda turno(turno_);
-    const json& es = seccion(estadoMotor(), "entradas");
-    if (!es.is_object() || !es.contains(name)) return -100.0f;
-    return static_cast<float>(std::max(-100.0, es[name].value("pico_audio_db", -100.0)));
-}
-
 bool BroadcastEngine::setSourceMonitoring(const std::string& name, bool on) {
     const TurnoMotor::Guarda turno(turno_);
     auto it = sources_.find(name);
@@ -1418,12 +1411,6 @@ bool BroadcastEngine::pararMedia(const std::string& name) {
     const TurnoMotor::Guarda turno(turno_);
     if (sources_.count(name) == 0) return false;
     return motor_->controlMedio(name, "parar").empty();
-}
-
-bool BroadcastEngine::pausarMedia(const std::string& name, bool pausa) {
-    const TurnoMotor::Guarda turno(turno_);
-    if (sources_.count(name) == 0) return false;
-    return motor_->controlMedio(name, pausa ? "pausa" : "play").empty();
 }
 
 bool BroadcastEngine::stopMedia(const std::string& name) {

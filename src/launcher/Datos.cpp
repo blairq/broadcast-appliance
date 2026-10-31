@@ -4,7 +4,6 @@
 
 #include <cctype>
 
-#include <fstream>
 #include <system_error>
 
 #include "i18n/I18n.hpp"
@@ -152,7 +151,7 @@ fs::path prepararConfiguraciones(const fs::path& bundle, const fs::path& datos, 
                                          {d, e2.message()})
                                 : llenar(traducir("datos", "%1 -> Configuraciones/Principal"), {d}));
         }
-        std::ofstream(datos / "configuraciones.json") << "{\n \"activa\": \"Principal\"\n}\n";
+        ba::platform::ponerConfigActiva(datos, "Principal");
     }
     fs::path activa = ba::platform::configRootFor(datos);
     if (activa == datos) {
@@ -160,15 +159,14 @@ fs::path prepararConfiguraciones(const fs::path& bundle, const fs::path& datos, 
         for (const auto& e : fs::directory_iterator(confs, ec))
             if (e.is_directory()) {
                 const std::u8string n = e.path().filename().u8string();
-                std::ofstream(datos / "configuraciones.json")
-                    << "{\n \"activa\": \"" << std::string(n.begin(), n.end()) << "\"\n}\n";
+                ba::platform::ponerConfigActiva(datos, std::string(n.begin(), n.end()));
                 avisos.push_back("la configuración activa no estaba: se usa " + u8(e.path().filename()));
                 activa = e.path();
                 break;
             }
         if (activa == datos) {
             fs::create_directories(confs / "Principal", ec);
-            std::ofstream(datos / "configuraciones.json") << "{\n \"activa\": \"Principal\"\n}\n";
+            ba::platform::ponerConfigActiva(datos, "Principal");
             activa = confs / "Principal";
         }
     }

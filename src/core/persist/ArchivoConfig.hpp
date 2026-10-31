@@ -44,6 +44,15 @@ struct EsquemaConfig {
     std::vector<PasoMigracion> pasos; ///< pasos.size() == actual - 1
 };
 
+/// La carpeta de la configuración activa: UNA raíz para todo el proceso. La pone el arranque
+/// (ponerRaizConfig, con la que eligió); si nadie la puso, platform::configRoot(). Todo
+/// archivo de Config/ se nombra con archivoConfig: nadie arma «raíz / "Config" / x» a mano
+/// (con dos raíces, una pieza leía de una configuración y otra de otra).
+void ponerRaizConfig(const std::filesystem::path& raiz);
+std::filesystem::path raizConfig();
+/// `<raíz>/Config/<nombre>` (nombre puede tener subcarpetas: «plugin_config/x.json»).
+std::filesystem::path archivoConfig(const std::string& nombre);
+
 /// La tabla: todos los archivos de Config/ que conoce el programa.
 const std::vector<EsquemaConfig>& esquemasConfig();
 /// El de `nombre` (el nombre del archivo, sin carpeta); si no está en la tabla, el 1.
@@ -60,5 +69,15 @@ bool guardarConfig(const std::filesystem::path& archivo, nlohmann::json j, Pedid
 /// que estar escrito antes de seguir aunque el proceso se caiga enseguida (la marca de
 /// un driver que se va a probar). Solo para archivos que nadie guarda por la cola.
 bool guardarConfigYa(const std::filesystem::path& archivo, nlohmann::json j);
+
+/// Un JSON que NO es de Config/ (la ficha de un evento, en-curso.json, los índices de una
+/// carpeta, configuraciones.json): lo escribe ya, entero o nada y bajado al disco
+/// (`escribir`), sin esquema. `sangria` como `json::dump`; termina en salto de línea.
+bool guardarJson(const std::filesystem::path& ruta, const nlohmann::json& j, int sangria = 1,
+                 Durabilidad d = Durabilidad::Normal, std::string* error = nullptr);
+/// Lo de un JSON que no es de Config/ (lo encolado cuenta): null si no está o está roto.
+nlohmann::json leerJson(const std::filesystem::path& ruta);
+/// leerJson, pero siempre un objeto ({} si no está, está roto o no es un objeto).
+nlohmann::json leerObjetoJson(const std::filesystem::path& ruta);
 
 } // namespace ba::persist

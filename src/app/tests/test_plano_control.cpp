@@ -75,6 +75,7 @@
 #include "agent/AlertEngine.hpp"
 #include "agent/EntradasAlarmas.hpp"
 #include "arranque/AppSettings.hpp"
+#include "arranque/EnergiaAire.hpp"
 #include "arranque/PlanoControl.hpp"
 #include "control/Dsk.hpp"
 #include "emision/DocumentoAire.hpp"
@@ -1776,6 +1777,94 @@ const auto tomadoM = canalM.tomarPrograma("");
               "E: se retoma en el dueño, con la interfaz trabada");
         atender(100);
         CHECK(ajustesAire() == "Eventos/ZZ caos", "E: la copia del plano ya tiene la carpeta");
+    }
+
+    // --- R2. La energía, la agenda al parar y la ventanilla que se va ----------------------
+    // (a) EnergiaAire es del dueño (adoptada con su reloj): con la interfaz trabada, a poca
+    //     batería las grabaciones se cierran EN EL CONTROL antes de que se apague la UPS.
+    // (b) Lo que quedó en la agenda al parar el plano NO se pierde: corre en el hilo que
+    //     recibe el motor, después de que se hace dueño, en orden; lo que se encola con el
+    //     plano parado también corre ahí (encolado).
+    // (c) La ventanilla que se va antes de que corra su orden: la orden corre sin tocarla y
+    //     la respuesta no llega (sin `this` crudo).
+    {
+        using ba::app::EnergiaAire;
+        using ba::app::VentanillaMotor;
+        ba::app::TurnoMotor turno2;
+        PlanoControl plano2({.control = []() {}, .motor = []() {}, .interfaz = []() {}});
+        plano2.setTurno({[&turno2](int ms) { return turno2.tomarHasta(ms); }, [&turno2]() { turno2.soltar(); }});
+        plano2.arrancar(20, 20);
+
+        // (a)
+        std::atomic<int> poca{0};
+        std::atomic<const QThread*> dondeCerro{nullptr};
+        std::atomic<bool> emergencia{false};
+        EnergiaAire::Acciones acc;
+        acc.cerrarGrabaciones = [&]() {
+            dondeCerro = QThread::currentThread();
+            emergencia = true;
+            return std::vector<std::string>{"principal"};
+        };
+        acc.retomarGrabaciones = [&]() { emergencia = false; };
+        acc.emergencia = [&]() { return emergencia.load(); };
+        acc.leer = [&]() {
+            ba::platform::EstadoEnergia e;
+            e.conocido = e.hayBateria = true;
+            e.enBateria = poca.load() != 0;
+            e.porcentaje = poca.load() != 0 ? 5 : 100;
+            e.minutos = poca.load() != 0 ? 2 : -1;
+            e.fuente = "ups";
+            return e;
+        };
+        auto energia = std::make_unique<EnergiaAire>(acc);
+        plano2.adoptar(energia.get(), [e = energia.get()]() { e->vigilar(30); });
+        atender(100);
+        poca = 1; // se corta la luz y la UPS se va quedando
+        trabarInterfaz(400);
+        CHECK(dondeCerro.load() == plano2.hilo() && emergencia.load(),
+              "R2: con la interfaz trabada, la energía cierra las grabaciones en el control");
+        CHECK(energia->estado().value("emergencia", false) && energia->estado().value("en_bateria", false),
+              "R2: su estado se lee desde la interfaz (con candado)");
+
+        // (b) La interfaz tiene el turno: lo encolado espera en la agenda.
+        turno2.tomar();
+        std::vector<std::string> orden;
+        std::atomic<const QThread*> dondeQuedo{nullptr};
+        for (const char* n : {"uno", "dos", "tres"})
+            plano2.encolarConTurno([&orden, &dondeQuedo, n]() {
+                orden.push_back(n);
+                dondeQuedo = QThread::currentThread();
+            });
+        // (c) Una ventanilla que se va con su orden en la agenda.
+        std::atomic<int> ordenesC{0}, respuestasC{0};
+        QObject quien;
+        {
+            auto vC = std::make_unique<VentanillaMotor>(VentanillaMotor::Dueno{
+                .encolar = [&plano2](std::function<void()> fn) { plano2.encolarConTurno(std::move(fn)); },
+                .alTerminarOrden = []() {},
+                .adoptar = {}});
+            vC->pedir(&quien, "se_va", [&ordenesC]() { return ++ordenesC; }, [&respuestasC](int) { ++respuestasC; });
+        } // la ventanilla se va acá, con su orden pendiente
+        atender(60); // las órdenes llegan a la agenda y esperan el turno
+        CHECK(orden.empty(), "R2: con el turno en la interfaz, la agenda espera");
+        bool recibio = false;
+        bool duenoAntes = false;
+        plano2.detener([&]() {
+            recibio = true;
+            duenoAntes = orden.empty();
+        });
+        turno2.soltar();
+        CHECK(recibio && duenoAntes, "R2: al parar, el que recibe el motor se hace dueño antes de correr lo pendiente");
+        CHECK((orden == std::vector<std::string>{"uno", "dos", "tres"}) && dondeQuedo.load() == interfaz,
+              "R2: lo que quedó en la agenda corre en el hilo que recibe el motor, en orden (no se pierde)");
+        CHECK(ordenesC.load() == 1, "R2: la orden de la ventanilla que se fue corre igual (sin tocarla)");
+        std::atomic<const QThread*> dondeDespues{nullptr};
+        plano2.encolarConTurno([&dondeDespues]() { dondeDespues = QThread::currentThread(); });
+        CHECK(dondeDespues.load() == nullptr, "R2: con el plano parado, encolar no corre en el acto");
+        atender(50);
+        CHECK(dondeDespues.load() == interfaz, "R2: lo encolado con el plano parado corre en el dueño nuevo");
+        CHECK(respuestasC.load() == 0, "R2: la respuesta a una ventanilla que se fue no llega");
+        CHECK(energia->thread() == interfaz, "R2: la energía vuelve a la interfaz al parar");
     }
 
     // --- I. Imagen: el grafo de video es del dueño del motor ----------------------------

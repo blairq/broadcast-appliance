@@ -68,26 +68,24 @@ class VentanillaMotor : public QObject {
         using R = std::invoke_result_t<Orden&>;
         const auto desde = std::chrono::steady_clock::now();
         ++pedidas_;
-        // La respuesta va a la ventanilla (vive lo que la app) y, en el hilo de la interfaz,
-        // a `quien` si sigue estando (un QPointer se mira en el hilo de su objeto).
-        d_.encolar([this, q = QPointer<QObject>(quien), que, desde, orden = std::move(orden),
-                    listo = std::move(listo)]() mutable {
+        // La orden no usa la ventanilla (puede irse antes de que corra): lo del dueño va por
+        // el núcleo compartido, y la respuesta, al bucle del hilo de la ventanilla (la
+        // aplicación, que vive más que todos), donde se mira si siguen la ventanilla y `quien`
+        // (un QPointer se mira en el hilo de su objeto; copiarlo es seguro desde cualquiera).
+        d_.encolar([n = nucleo_, v = QPointer<VentanillaMotor>(this), q = QPointer<QObject>(quien), que, desde,
+                    orden = std::move(orden), listo = std::move(listo)]() mutable {
             if constexpr (std::is_void_v<R>) {
                 orden();
-                terminar(que, desde);
-                QMetaObject::invokeMethod(
-                    this, [q, listo = std::move(listo)]() mutable {
-                        if (q) listo();
-                    },
-                    Qt::QueuedConnection);
+                n->terminar(que, desde);
+                responder([v, q, listo = std::move(listo)]() mutable {
+                    if (v && q) listo();
+                });
             } else {
                 R r = orden();
-                terminar(que, desde);
-                QMetaObject::invokeMethod(
-                    this, [q, listo = std::move(listo), r = std::move(r)]() mutable {
-                        if (q) listo(std::move(r));
-                    },
-                    Qt::QueuedConnection);
+                n->terminar(que, desde);
+                responder([v, q, listo = std::move(listo), r = std::move(r)]() mutable {
+                    if (v && q) listo(std::move(r));
+                });
             }
         });
     }
@@ -96,9 +94,9 @@ class VentanillaMotor : public QObject {
     void pedir(const char* que, Orden orden) {
         const auto desde = std::chrono::steady_clock::now();
         ++pedidas_;
-        d_.encolar([this, que, desde, orden = std::move(orden)]() mutable {
+        d_.encolar([n = nucleo_, que, desde, orden = std::move(orden)]() mutable {
             orden();
-            terminar(que, desde);
+            n->terminar(que, desde);
         });
     }
 
@@ -126,18 +124,26 @@ class VentanillaMotor : public QObject {
     void cambio(unsigned partes);
 
    private:
-    /// En el dueño, después de cada orden (la foto, las métricas).
-    void terminar(const char* que, std::chrono::steady_clock::time_point desde);
+    /// Lo que usa una orden en el dueño: compartido, vive lo que la última orden pendiente.
+    struct Nucleo {
+        std::function<void()> alTerminarOrden;
+        std::atomic<std::uint64_t> hechas{0};
+        /// En el dueño, después de cada orden (la foto, las métricas).
+        void terminar(const char* que, std::chrono::steady_clock::time_point desde);
+    };
+    /// Corre `fn` en el hilo de la aplicación (el de la interfaz), encolada.
+    static void responder(std::function<void()> fn);
     void alLlegar();
 
     Dueno d_;
+    std::shared_ptr<Nucleo> nucleo_;
     std::shared_ptr<const FotoMotor> vista_; ///< la de la interfaz (solo su hilo)
     mutable std::mutex mu_;
     std::shared_ptr<const FotoMotor> pendiente_; ///< la última publicada (con mu_)
     unsigned partesPendientes_ = 0;              ///< (con mu_)
     std::chrono::steady_clock::time_point publicadaEn_{}; ///< (con mu_)
     std::atomic<bool> avisoEnCamino_{false};
-    std::atomic<std::uint64_t> pedidas_{0}, hechas_{0}, publicadas_{0}, recibidas_{0};
+    std::atomic<std::uint64_t> pedidas_{0}, publicadas_{0}, recibidas_{0};
 };
 
 } // namespace ba::app

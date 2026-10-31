@@ -1778,7 +1778,7 @@ void McpService::registerTools() {
                        {"visible", rt.engine().sourceVisible(scene, n)},
                        {"volume", rt.engine().sourceVolume(n)},
                        {"muted", rt.engine().sourceMuted(n)}};
-                if (SourceSpec* spec = rt.findSpec(scene, n))
+                if (const std::optional<SourceSpec> spec = rt.specDe(scene, n))
                     s["layout"] = {
                         {"x", spec->rect.x}, {"y", spec->rect.y}, {"w", spec->rect.w}, {"h", spec->rect.h}};
                 if (const EfectosCapa ef = rt.engine().sourceEfectos(scene, n); !ef.vacio()) s["efectos"] = ef.aJson();

@@ -10,11 +10,11 @@
 
 namespace ba::app {
 
-void aplicarAjustesMotor(const AppConfig& c) {
+void aplicarAjustesMotor(const AppConfig& c, BroadcastEngine& motor) {
     motor::ponerReposoPlaca(c.placaReposoS);
     motor::ponerAjustesEntradas(c.sinSenalMs, c.rearmarSinDatosS, c.reintentoEntradaMaxMs);
     motor::ponerReintentoTransmision(c.reintentoTransmisionMaxS);
-    BroadcastEngine::ponerUmbralesDisco(c.discoApurosS, c.discoRecuperadoS);
+    motor.ponerUmbralesDisco(c.discoApurosS, c.discoRecuperadoS);
 }
 
 } // namespace ba::app

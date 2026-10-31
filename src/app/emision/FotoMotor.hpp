@@ -78,10 +78,13 @@ struct FotoMotor {
         Emision = 1u << 3,
         Ajustes = 1u << 4,
         Medidas = 1u << 5,
-        Video = 1u << 9, ///< (el 8 es AppRuntime::kFotoRelerArchivos)
+        /// No es una parte: para su dueño (AppRuntime), además de rearmar, volver a leer lo
+        /// que la foto lee de archivos (salidas.json, destinos.json). Nunca llega a la interfaz.
+        RelerArchivos = 1u << 8,
+        Video = 1u << 9,
         Mezcla = 1u << 10,
         Superficies = 1u << 11,
-        Sala = 1u << 12, // (los bits de cada área: I 9, M 10, C 11, S 12, R 13 y 14; el 8 es de AppRuntime)
+        Sala = 1u << 12, // (los bits de cada área: I 9, M 10, C 11, S 12, R 13 y 14; el 8, RelerArchivos)
         Configuracion = 1u << 13,
         Equipo = 1u << 14,
         Todas = Escenas | Salidas | Estado | Emision | Ajustes | Medidas | Video | Mezcla | Superficies | Sala |
@@ -127,6 +130,8 @@ struct FotoMotor {
         bool transmitiendo = false; ///< su principal o algún destino
         bool grabando = false, reconectando = false;
         bool sale = false; ///< sale algo de ella (BroadcastEngine::haySalidaEn)
+        /// Pedido y el motor todavía no dijo si arrancó (AppRuntime: lo pedido de cada salida).
+        bool grabacionPendiente = false, transmisionPendiente = false;
         nlohmann::json destinos = nlohmann::json::array(); ///< los suyos: [{id, nombre, activo, reconectando, respaldo}]
         nlohmann::json placa = nlohmann::json::object();   ///< {ftb, ftb_audio, placa, placa_texto, placa_imagen}
         std::vector<std::string> afv;  ///< las fuentes que siguen al video en ella
@@ -303,6 +308,32 @@ struct FotoMotor {
         }
     };
     MezclaAudio mezcla;
+
+    // --- Qué cambió ---------------------------------------------------------------------
+    /// De las partes `cuales`, las que `b` tiene distintas de `a`. Lo que compone cada
+    /// parte está ACÁ, junto a sus campos: un campo nuevo se suma a su parte en esta tabla.
+    static unsigned partesDistintas(const FotoMotor& a, const FotoMotor& b, unsigned cuales) {
+        unsigned d = 0;
+        const auto mirar = [&](Parte p, bool distinta) {
+            if ((cuales & p) != 0 && distinta) d |= p;
+        };
+        mirar(Escenas, a.escenas != b.escenas || a.fuentes != b.fuentes || a.tipos != b.tipos ||
+                           a.transicionesEntrada != b.transicionesEntrada);
+        mirar(Salidas, a.salidas != b.salidas || a.tope != b.tope);
+        mirar(Estado, a.estado != b.estado);
+        mirar(Emision, a.destinos != b.destinos || a.grabacion != b.grabacion || a.limpia != b.limpia || a.isos != b.isos ||
+                           a.apurosDisco != b.apurosDisco || a.remux != b.remux || a.retornos != b.retornos);
+        mirar(Ajustes, a.ajustes != b.ajustes);
+        mirar(Medidas, a.medios != b.medios || a.salud != b.salud || a.loudness != b.loudness);
+        mirar(Video, a.video != b.video || a.fuentesVideo != b.fuentesVideo || a.alAire != b.alAire ||
+                         a.configImagen != b.configImagen);
+        mirar(Configuracion, a.configuracion != b.configuracion);
+        mirar(Equipo, a.equipo != b.equipo);
+        mirar(Sala, a.sala != b.sala);
+        mirar(Superficies, a.dsk != b.dsk || a.temaWeb != b.temaWeb);
+        mirar(Mezcla, a.mezcla != b.mezcla);
+        return d;
+    }
 
     // --- Para leerla -----------------------------------------------------------------
     const Escena* escena(const std::string& nombre) const {
