@@ -1835,7 +1835,13 @@ void Motor::publicarNiveles() {
         for (const auto& [num, m] : s.retornos) deBus(m ? m->nombre() : std::string(), m.get());
     std::shared_ptr<const std::vector<NivelAudio>> listo = std::move(v);
     std::lock_guard<std::mutex> l(nivelesM_);
-    niveles_ = std::move(listo);
+    niveles_ = listo;
+    if (alPublicarNiveles_) alPublicarNiveles_(std::move(listo));
+}
+
+void Motor::alPublicarNiveles(std::function<void(std::shared_ptr<const std::vector<NivelAudio>>)> fn) {
+    std::lock_guard<std::mutex> l(nivelesM_);
+    alPublicarNiveles_ = std::move(fn);
 }
 
 std::shared_ptr<const json> Motor::instantanea() const {

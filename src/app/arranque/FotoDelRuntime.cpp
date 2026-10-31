@@ -74,10 +74,20 @@ void AppRuntime::publicarFoto() {
         if (n.medios != a.medios || n.salud != a.salud || n.loudness != a.loudness) cambiaron |= FotoMotor::Medidas;
         if (n.sala != a.sala) cambiaron |= FotoMotor::Sala;
         if (n.dsk != a.dsk || n.temaWeb != a.temaWeb) cambiaron |= FotoMotor::Superficies;
+        if (n.mezcla != a.mezcla) cambiaron |= FotoMotor::Mezcla;
     }
     if (cambiaron == 0) return;
     foto_ = f;
+    {
+        const std::lock_guard<std::mutex> l(ultimaFotoMu_);
+        ultimaFoto_ = foto_;
+    }
     publicarFoto_(foto_, cambiaron);
+}
+
+std::shared_ptr<const FotoMotor> AppRuntime::ultimaFoto() const {
+    const std::lock_guard<std::mutex> l(ultimaFotoMu_);
+    return ultimaFoto_;
 }
 
 void AppRuntime::armarFoto(FotoMotor& f, unsigned p) {
@@ -230,6 +240,9 @@ void AppRuntime::armarFoto(FotoMotor& f, unsigned p) {
 
     // --- Las superficies: el tema web (las capas DSK las suma CapasDsk, un aporte) ---------
     if ((p & (FotoMotor::Superficies | FotoMotor::Ajustes)) != 0) f.temaWeb = cfg_.temaWeb;
+
+    // --- El audio de cada fuente (FotoMezcla.cpp) -----------------------------------------
+    if ((p & FotoMotor::Mezcla) != 0) armarMezcla(f.mezcla);
 
     // --- Lo que se mueve siempre ---------------------------------------------------------
     if ((p & FotoMotor::Medidas) != 0) {

@@ -25,6 +25,8 @@
 #include <cstdint>
 #include <functional>
 #include <map>
+#include <optional>
+#include <thread>
 #include <string>
 #include <vector>
 
@@ -128,9 +130,24 @@ struct Consultas {
     std::function<void(const std::string&)> quitarGlobal;
 };
 void ponerConsultas(Consultas c);
-/// Todas las fuentes: (nombre, tipo).
+/// La interfaz no toca el motor (F3-03, docs/arquitectura/05-motor-del-plano.md): desde SU
+/// hilo, la lista de fuentes y los ajustes de las de audio salen de la foto del motor, y
+/// crear o quitar una entrada global se le encarga al dueño, sin esperar (lo que se pidió
+/// se ve en la foto cuando vuelve). Lo pone GuiMode con la ventanilla; vacío, todo va a las
+/// Consultas (los demás hilos y la consola, siempre).
+struct DesdeLaInterfaz {
+    std::thread::id hilo;
+    std::function<std::vector<std::pair<std::string, std::string>>()> listar;
+    /// Los ajustes de una fuente si la foto los tiene (las de audio); nullopt si no.
+    std::function<std::optional<nlohmann::json>(const std::string&)> ajustes;
+    /// Corre `orden` en el dueño (la agenda de la ventanilla), sin esperar.
+    std::function<void(const char* que, std::function<void()> orden)> encargar;
+};
+void ponerDesdeLaInterfaz(DesdeLaInterfaz d);
+/// Todas las fuentes: (nombre, tipo). Desde la interfaz, de la foto.
 std::vector<std::pair<std::string, std::string>> listar();
-/// Los ajustes guardados de la fuente `nombre` (objeto vacío si no existe).
+/// Los ajustes guardados de la fuente `nombre` (objeto vacío si no existe). Desde la
+/// interfaz, los de una fuente de audio salen de la foto.
 nlohmann::json ajustesDe(const std::string& nombre);
 /// Pone una propiedad a un elemento de la cadena de la entrada (ba_f_<id del filtro>). "" o el error.
 std::string propiedadElemento(const std::string& entrada, const std::string& elemento, const std::string& prop,
@@ -138,7 +155,8 @@ std::string propiedadElemento(const std::string& entrada, const std::string& ele
 nlohmann::json propiedadesElemento(const std::string& entrada, const std::string& elemento);
 /// Una entrada global de audio (las voces del sistema): si ya existe, la deja como está
 /// (con el ruteo que le haya dado el operador). `monitor`: suena en los auriculares;
-/// `pistas`: a qué mezclas va de fábrica (vacío: a ninguna). Hilo de la UI.
+/// `pistas`: a qué mezclas va de fábrica (vacío: a ninguna). Desde la interfaz se le
+/// encarga al dueño y devuelve true si se pidió (ya está en la foto: true, sin pedir).
 bool crearGlobal(const std::string& nombre, const std::string& tipo, const nlohmann::json& ajustes, bool monitor,
                  const std::vector<int>& pistas);
 void quitarGlobal(const std::string& nombre);

@@ -36,8 +36,15 @@
 // Sin lazos: una entrada virtual no puede mandarse al bus del que sale (ni
 // armar un círculo de buses).
 //
+// EL MOTOR ES DEL PLANO DE CONTROL (F3-03, docs/arquitectura/05-motor-del-plano.md): lo
+// que la matriz sabe de cada fuente (sus pistas, la escucha, el solo, el fader y el mute
+// que se guardan) lo lee de la foto del motor (la parte Mezcla) y lo que cambia lo pide
+// por la ventanilla. Cuando la foto trae un cambio, lo haya pedido quien sea, se anota y
+// se guarda; a una fuente que nace (o se rehace: CanalAudio::altas) se le pone lo guardado.
+// Los picos de las filas y los buses, del canal de niveles (emision/NivelesMotor).
+//
 // Se guarda en Config/audio-matriz.json. Hilos: todo lo de la interfaz en el
-// principal; lo del motor, en su cola; para las salidas físicas, el audio de las
+// principal; lo del motor, en su dueño; para las salidas físicas, el audio de las
 // fuentes llega en el de GStreamer (solo se copia) y la mezcla en el suyo.
 // ============================================================================
 #pragma once
@@ -63,6 +70,12 @@
 #include <vector>
 
 #include <nlohmann/json.hpp>
+
+namespace ba::app {
+class AppRuntime;
+class VentanillaMotor;
+struct FotoMotor;
+} // namespace ba::app
 
 namespace ba::app::audio {
 
@@ -95,7 +108,9 @@ class Matriz : public QObject {
     static constexpr int kPistas = 6;
     static constexpr int kMaxVirtuales = 16;
 
-    explicit Matriz(std::filesystem::path dataRoot, QObject* parent = nullptr);
+    /// Sin runtime ni ventanilla (una prueba) no toca el motor: sin fuentes.
+    explicit Matriz(std::filesystem::path dataRoot, AppRuntime* rt = nullptr, VentanillaMotor* ventanilla = nullptr,
+                    QObject* parent = nullptr);
     ~Matriz() override;
 
     QVariantList filas() const;
@@ -137,12 +152,6 @@ class Matriz : public QObject {
     /// La salida de la escucha fija: de cuál son su fader y su mute ("" = la por omisión;
     /// BroadcastEngine::setSalidaEscucha). No se guarda. Avisa con cambio(). "" o el error.
     Q_INVOKABLE QString ponerSalidaEscucha(const QString& salida);
-    /// El motor cambió el audio de una fuente (BroadcastEngine::alCambiarAudioFuente:
-    /// escucha, pistas, volumen, mute, retardo o «alta»), lo haya pedido quien sea.
-    /// Desde cualquier hilo; los de una misma vuelta se atienden juntos en el hilo de
-    /// la matriz: se anota y se guarda, a una fuente que nace se le pone lo guardado, y
-    /// si cambió el ruteo sale un solo cambio().
-    void avisarFuente(const std::string& fuente, const char* que);
     /// Mostrar (o no) nivel, pan y mute de un cruce de bus virtual.
     Q_INVOKABLE void setAjustes(const QString& fuente, const QString& bus, bool on);
     Q_INVOKABLE void ajustar(const QString& fuente, const QString& bus, double nivelDb, double pan,
@@ -167,6 +176,8 @@ class Matriz : public QObject {
    signals:
     void cambio();
     void medidoresCambio();
+    /// Lo pedido al motor no salió (ya traducido): para el operador.
+    void aviso(const QString& texto);
 
    private:
     struct Bus;
@@ -193,6 +204,19 @@ class Matriz : public QObject {
     void bucleMezcla();
     void leerMedidores();
     std::vector<std::string> fuentesConAudio() const;
+    // Lo de cada fuente, de la foto (con lo pedido que todavía no volvió encima).
+    const FotoMotor* foto() const;
+    bool existe(const std::string& f) const;
+    std::uint32_t mascara(const std::string& f) const;
+    bool escucha(const std::string& f) const;        ///< la fija (el cruce, lo que se guarda)
+    bool suenaEnEscucha(const std::string& f) const; ///< la fija o el solo
+    std::string enPfl() const;
+    void ponerMascara(const std::string& f, std::uint32_t m);
+    void setEscucha(const std::string& f, bool on);
+    /// Pide `orden` al dueño ("" o el error, que sale por aviso); `listo` al volver.
+    void pedir(const char* que, std::function<std::string(AppRuntime&)> orden, std::function<void()> listo = {});
+    /// Llegó una foto: las fuentes que nacieron reciben lo guardado, lo que cambió se anota.
+    void alCambiarFoto(unsigned partes);
     /// Abre lo del equipo que se usa y cierra lo que no.
     void usarEquipo();
     std::function<std::set<std::string>()> usadasPorOtros_;
@@ -234,12 +258,18 @@ class Matriz : public QObject {
     };
     mutable std::map<std::string, Canal> canales_;
     std::set<std::string> aplicadas_; ///< las que ya tienen lo guardado (desde ahí se anotan)
-    std::mutex avisosM_;
-    std::map<std::string, std::set<std::string>> avisos_; ///< avisarFuente: lo que falta atender
+    std::map<std::string, std::uint64_t> altas_; ///< con qué alta (CanalAudio::altas) se aplicó
+    std::set<std::string> aplicando_; ///< pedido lo guardado, todavía no volvió (no se anota)
     QTimer guardarLuego_; ///< el fader se mueve seguido: se guarda un rato después
     void aplicarGuardado(const std::string& fuente);
-    void anotar(const std::string& fuente) const; ///< del motor a canales_
-    void atenderAvisos();
+    /// De la foto a canales_; true si cambió algo.
+    bool anotar(const std::string& fuente) const;
+
+    AppRuntime* rt_ = nullptr;
+    VentanillaMotor* v_ = nullptr;
+    std::map<std::string, std::uint32_t> pendPistas_; ///< pedidas, hasta que vuelven
+    std::map<std::string, bool> pendEscucha_;
+    std::string pflVisto_, pflModoVisto_, salidaEscuchaVista_; ///< para avisar cambio() solo si cambió
 
     bool cargando_ = false; ///< no guardar a medio cargar
     QTimer lento_;          ///< engancha las tomas de fuentes que aparecen después

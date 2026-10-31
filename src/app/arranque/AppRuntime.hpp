@@ -127,6 +127,10 @@ class AppRuntime {
     /// Rearma lo sucio y, si algo cambió, la publica. En el dueño (toma el turno): después
     /// de cada orden de la ventanilla, en cada vuelta del motor y cuando algo la ensucia.
     void publicarFoto();
+    /// DESDE CUALQUIER HILO: la última foto publicada (nullptr antes de la primera). Para lo
+    /// que mira el motor sin la interfaz (el vigía de las alarmas): es la misma que recibe
+    /// la ventanilla, sin esperar a que la interfaz la tome.
+    std::shared_ptr<const FotoMotor> ultimaFoto() const;
     /// Lo de la configuración que usan las operaciones de aire (grabar, transmitir, cortar
     /// una escena), para poder hacerlas en el plano de control sin leer cfg_: el dueño la
     /// lee fresca (y deja la copia, también en cada vuelta del motor); los demás, la copia.
@@ -356,6 +360,11 @@ class AppRuntime {
     }
     /// El latido del supervisor que mira el motor (la UI trabada no corta el aire).
     LatidoAire& latido() { return latido_; }
+    /// DESDE CUALQUIER HILO: el canal de niveles (los vúmetros de entradas, buses y
+    /// programa; emision/NivelesMotor.hpp). No toca el motor: no es una llamada directa.
+    NivelesMotor& niveles() { return engine_.nivelesCanal(); }
+    /// DESDE CUALQUIER HILO: arrancó para pruebas (--test/--debug). No cambia después.
+    bool modoPrueba() const { return cfg_.modoPrueba; }
     /// El último error DE ESTE HILO (ver «Estrategia de errores»).
     const std::string& lastError() const;
     /// true si el ultimo corte de la transmision / grabacion lo PIDIO alguien
@@ -458,6 +467,11 @@ class AppRuntime {
     void avisarObservadores(Cambio c) const;
     /// Rearma en `f` las partes `partes` (en el dueño, con el turno): ver FotoMotor.
     void armarFoto(FotoMotor& f, unsigned partes);
+    /// La parte Mezcla (FotoMezcla.cpp), y el aviso del motor que la ensucia.
+    void armarMezcla(FotoMotor::MezclaAudio& m);
+    void anotarCambioAudio(const std::string& fuente, const char* que);
+    mutable std::mutex altasMu_;
+    std::map<std::string, std::uint64_t> altasAudio_; ///< las altas de cada fuente (CanalAudio::altas)
     mutable std::mutex observadoresMu_; ///< se suman desde la interfaz; se avisa en el dueño
     std::vector<std::pair<int, std::function<void(Cambio)>>> observadores_;
     int proximoObservador_ = 0;
@@ -469,6 +483,8 @@ class AppRuntime {
     mutable std::atomic<unsigned> fotoSucia_{FotoMotor::Todas | kFotoRelerArchivos};
     mutable std::atomic<bool> fotoPedida_{false};
     std::shared_ptr<const FotoMotor> foto_; ///< la última publicada (solo el dueño)
+    mutable std::mutex ultimaFotoMu_;
+    std::shared_ptr<const FotoMotor> ultimaFoto_; ///< la misma, para otros hilos (ultimaFoto)
     /// Lo que la foto lee de archivos (Config/salidas.json, destinos.json): solo cuando
     /// cambian las salidas, no en cada vuelta.
     nlohmann::json fotoListaSalidas_, fotoDestinos_;

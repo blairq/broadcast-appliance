@@ -2126,6 +2126,7 @@ void McpService::registerTools() {
     {
         Tool t;
         t.name = "mixer_list";
+        t.hilo = Hilo::Control;
         t.porSalida = true;
         t.title = ba::i18n::traducir("mcp", "Mezclador");
         t.category = "audio";
@@ -2134,7 +2135,7 @@ void McpService::registerTools() {
                         "Fuentes de audio con volumen (dB), silencio, si se esta escuchando por el monitor "
                         "(`escuchando`, ver audio_escuchar) y nivel pico actual (dBFS), mas el nivel del "
                         "programa. -100 = silencio; cerca de 0 = saturando. Cada salida tiene su mezcla: con `salida`, la de esa.");
-        t.run = [this, &rt, &vm](const json& a, Done done) {
+        t.run = [this, &rt](const json& a, Done done) {
             const std::string salida = core_.salidaDe(a);
             json out = json::array();
             for (const std::string& n : rt.engine().audioSources()) {
@@ -2149,12 +2150,11 @@ void McpService::registerTools() {
                                    {"escuchando", rt.engine().sourceMonitoring(n)},
                                    {"pfl", rt.engine().pfl() == n && rt.engine().pflModo() == "pfl"},
                                    {"afl", rt.engine().pfl() == n && rt.engine().pflModo() == "afl"},
-                                   {"peakDb", rt.engine().sourcePeakDb(n)}});
+                                   {"peakDb", rt.niveles().picoEntrada(n)}});
             }
-            // El pico de la por omisión lo lee la vista (leerlo acá se lo robaría); el de
-            // las demás, el motor (nadie más lo lee todavía).
-            float l = vm.programPeakL(), r = vm.programPeakR();
-            if (!salida.empty()) rt.engine().programPeaksDb(l, r, salida);
+            // El del programa, de la última vuelta del reloj del motor (el canal de niveles):
+            // sin robárselo al vúmetro de la vista.
+            const auto [l, r] = rt.niveles().programa(salida);
             done(ToolResult().data(json{{"sources", out}, {"programPeakDb", {l, r}}}));
         };
         core_.addTool(std::move(t));
@@ -2295,23 +2295,13 @@ void McpService::registerTools() {
                          {"properties",
                           {{"segundos", {{"type", "integer"}, {"minimum", 4}, {"maximum", 30}}},
                            {"aplicar_a", {{"type", "string"}}}}}};
-        t.run = [this, &rt, &vm, persist](const json& a, Done done) {
-            const std::string fuente = a.value("aplicar_a", std::string());
-            const QString e = vm.mezcla().medirSincro(a.value("segundos", 10), [&rt, fuente, persist, done](const json& r0) {
-                json r = r0;
-                if (!fuente.empty() && r.value("confiable", false)) {
-                    const int nuevo = std::clamp(rt.engine().sourceSyncOffset(fuente) + r.value("retardo_ms", 0), -5000, 5000);
-                    if (rt.engine().setSourceSyncOffset(fuente, nuevo)) {
-                        persist();
-                        r["aplicado"] = {{"fuente", fuente}, {"ms", nuevo}};
-                    } else {
-                        r["aplicado_error"] = rt.engine().lastError();
-                    }
-                } else if (!fuente.empty()) {
-                    r["aplicado"] = false;
-                }
-                done(ToolResult().data(r));
-            }, core_.salidaDe(a));
+        t.run = [this, &vm](const json& a, Done done) {
+            // Empezar, terminar y aplicar lo medido los hace el dueño del motor (la mezcla se
+            // lo pide por la ventanilla); acá se espera la respuesta.
+            const QString e = vm.mezcla().medirSincro(
+                a.value("segundos", 10), [done](const json& r) { done(ToolResult().data(r)); },
+                [done](const QString& err) { done(ToolResult::error(err.toStdString())); }, core_.salidaDe(a),
+                a.value("aplicar_a", std::string()));
             if (!e.isEmpty()) done(ToolResult::error(e.toStdString()));
         };
         core_.addTool(std::move(t));
@@ -2319,6 +2309,7 @@ void McpService::registerTools() {
     {
         Tool t;
         t.name = "audio_medidores";
+        t.hilo = Hilo::Control;
         t.title = ba::i18n::traducir("mcp", "Balística de los medidores");
         t.category = "audio";
         t.clase = Clase::Escritura;
@@ -2327,15 +2318,23 @@ void McpService::registerTools() {
                         "percibido). Sin argumentos dice cuál está.");
         t.inputSchema = {{"type", "object"},
                          {"properties", {{"balistica", {{"type", "string"}, {"enum", {"pico", "ppm", "vu"}}}}}}};
-        t.run = [&vm](const json& a, Done done) {
-            if (a.contains("balistica")) vm.mezcla().setBalistica(QString::fromStdString(a.value("balistica", std::string("pico"))));
-            done(ToolResult().data(json{{"balistica", vm.mezcla().balistica().toStdString()}}));
+        t.run = [&rt](const json& a, Done done) {
+            if (a.contains("balistica")) {
+                const std::string v = a.value("balistica", std::string("pico"));
+                if ((v == "pico" || v == "ppm" || v == "vu") && v != rt.config().balistica) {
+                    rt.config().balistica = v;
+                    rt.save();
+                    rt.fotoSucia(FotoMotor::Mezcla); // los medidores de la vista, con la foto
+                }
+            }
+            done(ToolResult().data(json{{"balistica", rt.config().balistica}}));
         };
         core_.addTool(std::move(t));
     }
     {
         Tool t;
         t.name = "audio_sincro";
+        t.hilo = Hilo::Control;
         t.title = ba::i18n::traducir("mcp", "Sincronizar labios y voz");
         t.category = "audio";
         t.clase = Clase::Escritura;
@@ -2395,6 +2394,7 @@ void McpService::registerTools() {
     {
         Tool t;
         t.name = "audio_loudness";
+        t.hilo = Hilo::Control;
         t.porSalida = true;
         t.title = ba::i18n::traducir("mcp", "Loudness de lo que sale");
         t.category = "audio";
@@ -2412,6 +2412,7 @@ void McpService::registerTools() {
     {
         Tool t;
         t.name = "audio_loudness_reset";
+        t.hilo = Hilo::Control;
         t.porSalida = true;
         t.title = ba::i18n::traducir("mcp", "Reiniciar el integrado del loudness");
         t.category = "audio";

@@ -180,19 +180,20 @@ class MixerModel : public QAbstractListModel {
         NombreGrupoRole,    ///< el nombre que se muestra: «Conferencia», «Asamblea» o la clave
         GananciaGrupoDbRole ///< el volumen general de su grupo (VCA), en dB
     };
-    explicit MixerModel(AppRuntime& rt, QObject* parent = nullptr);
+    /// Las tiras salen de la foto del motor (la parte Mezcla) y se actualizan solas con lo
+    /// que avisa la ventanilla: el audio de cada fuente lo cambie quien lo cambie (el
+    /// Mezclador, el asistente, el AFV, una escena que se carga). Lo que se mueve se PIDE
+    /// (F3-03) y se ve como pendiente hasta que vuelve. Los picos, del canal de niveles.
     /// El grupo de una tira: BroadcastEngine::grupoDeAudio («Invitado 3 (audio)» -> «Invitado
     /// (audio)»; los dos «Remoto con la palabra…», el mismo). Tiras SEGUIDAS con la misma
     /// clave, dos o más, son un grupo.
-    /// El motor cambió el audio de una fuente (volumen, mute, retardo…: BroadcastEngine::
-    /// alCambiarAudioFuente), lo haya pedido quien sea. Desde cualquier hilo; los de una
-    /// misma vuelta se juntan en un dataChanged por fila, en el hilo del modelo.
-    void avisarCambio(const std::string& fuente);
+    MixerModel(AppRuntime& rt, VentanillaMotor& ventanilla, QObject* parent = nullptr);
     int rowCount(const QModelIndex& = {}) const override;
     QVariant data(const QModelIndex& index, int role) const override;
     QHash<int, QByteArray> roleNames() const override;
+    /// Rehace las tiras con la foto.
     void reload();
-    /// Refresca los niveles (lo llama el tick de la UI).
+    /// Refresca los niveles (lo llama el tick de la UI): del canal de niveles, sin el motor.
     void refreshLevels();
 
     Q_INVOKABLE bool setVolumeDb(const QString& name, double db);
@@ -212,7 +213,9 @@ class MixerModel : public QAbstractListModel {
     /// Silenciar (o no) todas las tiras de un grupo (en la salida que muestra).
     Q_INVOKABLE void setMutedGrupo(const QString& grupo, bool muted);
     /// Lo mismo en la mezcla de `salida` ("" = la por omisión): el MCP va a la que pide.
-    void setMutedGrupoEn(const std::string& grupo, bool muted, const std::string& salida);
+    /// `listo` (si hay) corre en la interfaz cuando está hecho (la foto ya lo tiene).
+    void setMutedGrupoEn(const std::string& grupo, bool muted, const std::string& salida,
+                         std::function<void()> listo = {});
     /// El volumen general de un grupo (VCA), de -60 a +12 dB: mueve el grupo entero sin tocar
     /// el fader de cada uno (las diferencias entre ellos quedan); 0 dB = como si no estuviera.
     /// En la salida que muestra (cada una tiene los suyos).
@@ -232,9 +235,21 @@ class MixerModel : public QAbstractListModel {
     /// cada salida tiene la suya), y el VCA de sus grupos. "" = la por omisión. Lo demás
     /// (picos, retardo, qué grupos hay) es de la fuente: igual en todas.
     void setSalida(const std::string& salida);
+    /// `listo` cuando el dueño hizo todo lo pedido hasta ahora (la foto ya lo tiene).
+    void despues(std::function<void()> listo);
 
    private:
+    /// Llegó una foto: si cambiaron las tiras, se rehace; si no, solo las filas que cambiaron.
+    void alCambiar(unsigned partes);
+    /// Pide `orden` al dueño; lo pendiente de `clave` (una fuente o «grupo:<g>») se suelta al volver.
+    void pedir(const char* que, const std::string& clave, std::function<void(AppRuntime&)> orden,
+               std::function<void()> listo = {});
+    void soltarPendiente(const std::string& clave);
+    int filaDe(const std::string& nombre) const;
+
     AppRuntime& rt_;
+    VentanillaMotor& v_;
+    std::shared_ptr<const FotoMotor> foto_;
     std::string salida_;
     std::vector<std::string> names_;
     std::vector<float> peaks_;
@@ -242,8 +257,14 @@ class MixerModel : public QAbstractListModel {
     std::map<std::string, std::string> nombresGrupo_; ///< clave -> lo que se muestra
     std::set<std::string> compactos_; ///< los grupos compactados (Config/mezclador-vista.json)
     std::map<QString, QAbstractItemModel*> delGrupo_; ///< los filtros por grupo (hijos de este)
-    std::mutex cambiosM_;
-    std::set<std::string> cambios_; ///< avisarCambio: las fuentes a refrescar en la próxima vuelta
+    /// Lo pedido que todavía no volvió (en la salida que se muestra): se muestra esto.
+    struct Pendiente {
+        int pedidos = 0;
+        std::optional<float> volumen; ///< el multiplicador
+        std::optional<bool> mudo;
+        std::optional<float> vca;     ///< «grupo:<g>»
+    };
+    std::map<std::string, Pendiente> pendientes_;
 };
 
 class SourceTypesModel : public QAbstractListModel {

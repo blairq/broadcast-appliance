@@ -748,6 +748,36 @@ void ingles() {
     CHECK(entenderSiNo("sí") == 1 && entenderSiNo("yes") != 1, "el español sigue igual: sí");
 }
 
+void frances() {
+    // El totem.json real del francés: la regla «fr» (quatre-vingts, soixante-dix, «et un»).
+    long long n = -1;
+    const auto num = [&n](const char* dicho) {
+        n = -1;
+        return entenderNumero(dicho, n, "fr") ? n : -1;
+    };
+    CHECK(num("seize") == 16 && num("dix-sept") == 17 && num("dix-neuf") == 19, "francés: 16 a 19");
+    CHECK(num("vingt et un") == 21 && num("trente-cinq") == 35 && num("cinquante") == 50, "francés: decenas");
+    CHECK(num("soixante-dix") == 70 && num("soixante et onze") == 71 && num("soixante-dix-sept") == 77,
+          "francés: setenta");
+    CHECK(num("quatre-vingts") == 80 && num("quatre-vingt-un") == 81 && num("quatre-vingt-dix-neuf") == 99,
+          "francés: ochenta y noventa");
+    CHECK(num("cent") == 100 && num("deux cents") == 200 && num("trois cent quatre-vingt-douze") == 392,
+          "francés: la centena multiplica");
+    CHECK(num("deux mille vingt-six") == 2026 && num("septante-deux") == 72, "francés: miles y el belga");
+    std::string o;
+    CHECK(entenderTelefono("zéro six, douze, trente-quatre, cinquante-six, soixante-dix-huit", o, "fr") &&
+              o == "0612345678",
+          "francés: el teléfono de a pares");
+    CHECK(entenderCorreo("mon adresse c'est jean point dupont arobase gmail point com", o, "fr") &&
+              o == "jean.dupont@gmail.com",
+          "francés: el correo dictado");
+    CHECK(entenderSiNo("oui, c'est correct", "fr") == 1 && entenderSiNo("non, c'est incorrect", "fr") == 0 &&
+              entenderSiNo("ce n'est pas correct", "fr") == 0 && entenderSiNo("je ne sais pas", "fr") == -1,
+          "francés: sí y no");
+    CHECK(entenderNombre("Bonjour, je m'appelle Jean de La Fontaine", o, "fr") && o == "Jean de la Fontaine",
+          "francés: «je m'appelle» y partícula");
+}
+
 void otroIdioma() {
     namespace fs = std::filesystem;
     const fs::path base = fs::temp_directory_path() / "ba-test-registro-idioma";
@@ -838,6 +868,7 @@ int main() {
     documentoSinConfirmarYCara();
     documentoDorso();
     ingles();
+    frances();
     otroIdioma();
     if (g_fallos == 0) std::printf("test_registro_conversacion: todo bien\n");
     return g_fallos == 0 ? 0 : 1;

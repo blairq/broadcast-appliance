@@ -254,15 +254,16 @@ unsigned AppRuntime::partesDe(Cambio c) {
     // Qué partes de la foto toca cada aviso (FotoMotor::Parte); las salidas y los ajustes,
     // además, lo que la foto lee de archivos (salidas.json, destinos.json).
     switch (c) {
-        case Cambio::Salidas: return FotoMotor::Salidas | FotoMotor::Estado | FotoMotor::Emision | kFotoRelerArchivos;
+        case Cambio::Salidas:
+            return FotoMotor::Salidas | FotoMotor::Estado | FotoMotor::Emision | FotoMotor::Mezcla | kFotoRelerArchivos;
         // (La sala: las fuentes con audio y las de la banca siguen a las escenas y sus fuentes.)
-        case Cambio::Escenas: return FotoMotor::Escenas | FotoMotor::Salidas | FotoMotor::Sala;
+        case Cambio::Escenas: return FotoMotor::Escenas | FotoMotor::Salidas | FotoMotor::Sala | FotoMotor::Mezcla;
         case Cambio::Aire: return FotoMotor::Salidas | FotoMotor::Estado;
-        case Cambio::Fuentes:
+        case Cambio::Fuentes: return FotoMotor::Escenas | FotoMotor::Sala | FotoMotor::Mezcla;
         case Cambio::Capa: return FotoMotor::Escenas | FotoMotor::Sala;
-        case Cambio::Audio: return FotoMotor::Medidas;
+        case Cambio::Audio: return FotoMotor::Medidas | FotoMotor::Mezcla;
         case Cambio::Ajustes:
-            return FotoMotor::Ajustes | FotoMotor::Escenas | FotoMotor::Emision | FotoMotor::Salidas | FotoMotor::Sala |
+            return FotoMotor::Ajustes | FotoMotor::Escenas | FotoMotor::Emision | FotoMotor::Salidas | FotoMotor::Sala | FotoMotor::Mezcla |
                    kFotoRelerArchivos;
     }
     return FotoMotor::Todas | kFotoRelerArchivos;
@@ -716,6 +717,8 @@ int AppRuntime::start() {
     aplicarAjustesMotor(cfg_); // placa sin uso, entradas, transmisión, disco (Configuración)
     health_.beat(kHealthSlot);
     started_ = true;
+    // El audio de cada fuente cambió (por el camino que sea): la parte Mezcla de la foto.
+    engine_.alCambiarAudioFuente([this](const std::string& f, const char* que) { anotarCambioAudio(f, que); });
     // Los cambios de ajustes que piden piezas sin el motor a mano (rótulos,
     // gráficos) pasan por acá: así quedan también en la configuración.
     fuentes::ponerCambiar([this](const std::string& n, const nlohmann::json& c) { return updateSourceSettings(n, c.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace)); });
@@ -901,6 +904,18 @@ void AppRuntime::ticMotor() {
         // Las entradas de audio que el sistema tardó en abrir (addGlobalAudio) se
         // enganchan cuando llegan: una vez por segundo.
         if (ticsMotor_ % 10 == 0) engine_.adoptPendingAudio();
+        // El pico del programa de cada salida, al canal de niveles (el vúmetro de arriba y el
+        // de la salida activa lo toman de ahí, sin el motor).
+        NivelesMotor& nv = engine_.nivelesCanal();
+        nv.setPorOmision(engine_.idDeSalida(""));
+        float l = -100, r = -100;
+        engine_.programPeaksDb(l, r);
+        nv.sumarPrograma("", l, r);
+        for (const auto& s : st.salidas)
+            if (!s.porOmision) {
+                engine_.programPeaksDb(l, r, s.id);
+                nv.sumarPrograma(s.id, l, r);
+            }
     }
     engine_.aplicarRecortesPendientes(); // los de cámaras que recién tienen tamaño
     // La foto que lee la interfaz: lo que se mueve solo (lo que sale, las medidas) en cada
@@ -2183,6 +2198,7 @@ bool AppRuntime::updateSourceSettings(const std::string& name, const std::string
     for (auto& s : cfg_.audioInputs)
         if (s.name == name) s.settingsJson = current;
     avisar(Cambio::Capa);
+    fotoSucia(FotoMotor::Mezcla); // los ajustes de una entrada de audio también están ahí
     return true;
 }
 

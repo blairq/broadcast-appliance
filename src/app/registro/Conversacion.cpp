@@ -368,13 +368,84 @@ int grupoCentenaMultiplica(const Lengua& L, const std::vector<std::string>& w, s
     return v;
 }
 
+/// La regla «fr», una unidad de 0 a 19: una palabra («seize») o el diez seguido de su
+/// unidad («dix sept»: el guion llega como espacio).
+int unidadFr(const Lengua& L, const std::vector<std::string>& w, std::size_t& i) {
+    if (i >= w.size()) return -1;
+    const auto u = L.unidades.find(w[i]);
+    if (u == L.unidades.end()) return -1;
+    int v = u->second;
+    ++i;
+    if (v == 10 && i < w.size())
+        if (auto s = L.unidades.find(w[i]); s != L.unidades.end() && s->second >= 7 && s->second <= 9) {
+            v += s->second;
+            ++i;
+        }
+    return v;
+}
+
+/// La regla «fr», de 0 a 99: una decena («trente») o la de veinte multiplicada
+/// («quatre vingt» = 80), seguida o no de un conector («et») y de su resto: 1..9, o
+/// 1..19 después de 60 y 80 («soixante dix» = 70, «soixante et onze» = 71,
+/// «quatre vingt dix neuf» = 99); si no, una unidad.
+int decenaFr(const Lengua& L, const std::vector<std::string>& w, std::size_t& i) {
+    if (i >= w.size()) return -1;
+    std::size_t j = i;
+    int t = -1;
+    if (auto u = L.unidades.find(w[j]); u != L.unidades.end() && u->second >= 2 && u->second <= 9 && j + 1 < w.size())
+        if (auto d = L.decenas.find(w[j + 1]); d != L.decenas.end() && d->second == 20) {
+            t = u->second * 20;
+            j += 2;
+        }
+    if (t < 0)
+        if (auto d = L.decenas.find(w[j]); d != L.decenas.end()) {
+            t = d->second;
+            ++j;
+        }
+    if (t < 0) return unidadFr(L, w, i);
+    i = j;
+    const int tope = (t == 60 || t == 80) ? 19 : 9;
+    std::size_t k = i;
+    if (k < w.size() && esUna(L.conectores, w[k])) ++k;
+    if (const int r = unidadFr(L, w, k); r >= 1 && r <= tope) {
+        t += r;
+        i = k;
+    }
+    return t;
+}
+
+/// La regla «fr»: la centena multiplica a la unidad de antes («deux cents»; «cent» solo
+/// = 100), seguida o no de 1..99 («cent vingt», «trois cent quatre vingt dix»).
+int grupoFr(const Lengua& L, const std::vector<std::string>& w, std::size_t& i) {
+    if (i >= w.size()) return -1;
+    int v = -1;
+    if (auto u = L.unidades.find(w[i]); u != L.unidades.end() && u->second >= 2 && u->second <= 9 && i + 1 < w.size())
+        if (auto c = L.centenas.find(w[i + 1]); c != L.centenas.end()) {
+            v = u->second * c->second;
+            i += 2;
+        }
+    if (v < 0)
+        if (auto c = L.centenas.find(w[i]); c != L.centenas.end()) {
+            v = c->second;
+            ++i;
+        }
+    if (v < 0) return decenaFr(L, w, i);
+    std::size_t j = i;
+    if (const int resto = decenaFr(L, w, j); resto > 0 && resto < 100) {
+        v += resto;
+        i = j;
+    }
+    return v;
+}
+
 /// Un grupo de 0 a 999 dicho en palabras a partir de `i` («cuatrocientos
 /// cuarenta y cinco», «once», «treinta»). Devuelve -1 si en `i` no empieza uno.
 /// Cómo se arma lo dice `numeros.regla` del totem.json: «es» (la centena es una palabra
-/// propia, «doscientos», seguida o no de 1..99) o «en» (la centena multiplica a la unidad
+/// propia, «doscientos», seguida o no de 1..99), «en» o «fr» (la centena multiplica a la unidad
 /// de antes: «two hundred thirty»). Otra forma de armar los números va acá.
 int grupo(const Lengua& L, const std::vector<std::string>& w, std::size_t& i) {
     if (L.reglaNumeros == "en") return grupoCentenaMultiplica(L, w, i);
+    if (L.reglaNumeros == "fr") return grupoFr(L, w, i);
     if (i >= w.size()) return -1;
     int v = -1;
     if (auto c = L.centenas.find(w[i]); c != L.centenas.end()) {

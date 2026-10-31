@@ -28,6 +28,14 @@ Salida gSalida;
 std::shared_mutex gSalidaUso;
 Cambiar gCambiar;
 Consultas gConsultas;
+DesdeLaInterfaz gInterfaz;
+
+/// Lo de la interfaz, si el que llama es ella (si no, vacío: van las Consultas).
+DesdeLaInterfaz desdeLaInterfaz() {
+    std::lock_guard<std::mutex> l(gMu);
+    if (gInterfaz.hilo != std::this_thread::get_id()) return {};
+    return gInterfaz;
+}
 std::atomic<BroadcastEngine*> gMotor{nullptr};
 std::map<std::string, std::map<int, json>> gExtras;
 std::function<void(const std::string&)> gAvisoExtras;
@@ -143,7 +151,13 @@ void ponerConsultas(Consultas c) {
     gConsultas = std::move(c);
 }
 
+void ponerDesdeLaInterfaz(DesdeLaInterfaz d) {
+    std::lock_guard<std::mutex> l(gMu);
+    gInterfaz = std::move(d);
+}
+
 std::vector<std::pair<std::string, std::string>> listar() {
+    if (const DesdeLaInterfaz i = desdeLaInterfaz(); i.listar) return i.listar();
     Consultas c;
     {
         std::lock_guard<std::mutex> l(gMu);
@@ -153,6 +167,8 @@ std::vector<std::pair<std::string, std::string>> listar() {
 }
 
 json ajustesDe(const std::string& nombre) {
+    if (const DesdeLaInterfaz i = desdeLaInterfaz(); i.ajustes)
+        if (std::optional<json> a = i.ajustes(nombre)) return a->is_object() ? *a : json::object();
     Consultas c;
     {
         std::lock_guard<std::mutex> l(gMu);
@@ -182,8 +198,26 @@ json propiedadesElemento(const std::string& entrada, const std::string& elemento
     return o.is_object() ? o : json::object();
 }
 
+namespace {
+Consultas consultas() {
+    std::lock_guard<std::mutex> l(gMu);
+    return gConsultas;
+}
+} // namespace
+
 bool crearGlobal(const std::string& nombre, const std::string& tipo, const json& ajustes, bool monitor,
                  const std::vector<int>& pistas) {
+    // Desde la interfaz: al dueño, sin esperar (la que ya está, se deja como está).
+    if (const DesdeLaInterfaz i = desdeLaInterfaz(); i.encargar && i.listar) {
+        for (const auto& [n, t] : i.listar())
+            if (n == nombre) return true;
+        i.encargar("fuente_global_crear", [nombre, tipo, ajustes, monitor, pistas]() {
+            const Consultas c = consultas();
+            if (!c.crearGlobal || !c.crearGlobal(nombre, tipo, ajustes, monitor, pistas))
+                std::printf("ba-app: %s\n", ba::i18n::llenar(ba::i18n::traducir("emision", "no se pudo crear la entrada «%1»"), {nombre}).c_str());
+        });
+        return true;
+    }
     Consultas c;
     {
         std::lock_guard<std::mutex> l(gMu);
@@ -193,6 +227,12 @@ bool crearGlobal(const std::string& nombre, const std::string& tipo, const json&
 }
 
 void quitarGlobal(const std::string& nombre) {
+    if (const DesdeLaInterfaz i = desdeLaInterfaz(); i.encargar) {
+        i.encargar("fuente_global_quitar", [nombre]() {
+            if (const Consultas c = consultas(); c.quitarGlobal) c.quitarGlobal(nombre);
+        });
+        return;
+    }
     Consultas c;
     {
         std::lock_guard<std::mutex> l(gMu);

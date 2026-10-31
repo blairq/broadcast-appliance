@@ -153,8 +153,12 @@ void McpService::registerAudioTools() {
             if (!g.isEmpty() && a.contains("mudo")) m->setMutedGrupoEn(g.toStdString(), a["mudo"].get<bool>(), salida);
             if (!g.isEmpty() && a.contains("volumenDb") && a["volumenDb"].is_number())
                 m->setGananciaGrupoDb(g, a["volumenDb"].get<double>());
-            done(ToolResult().data(
-                json{{"grupos", json::parse(QJsonDocument(QJsonArray::fromVariantList(m->gruposEn(salida))).toJson().toStdString())}}));
+            // Lo pedido lo hace el dueño del motor, en orden: cuando vuelve lo último, la foto
+            // ya tiene todo.
+            m->despues([m, salida, done]() {
+                done(ToolResult().data(
+                    json{{"grupos", json::parse(QJsonDocument(QJsonArray::fromVariantList(m->gruposEn(salida))).toJson().toStdString())}}));
+            });
         };
         core_.addTool(std::move(t));
     }

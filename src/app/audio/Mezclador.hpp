@@ -6,12 +6,14 @@
 //
 // - Niveles: un solo temporizador (30 Hz) que corre SOLO mientras alguna vista lo
 //   usa (usar(vista, true/false): por cuenta de quién, no un bool compartido que
-//   una vista escondida le apaga a otra). Lee Motor::niveles() (entradas y buses
-//   por canal, sin candado) y los picos de la matriz; calcula la retención de
-//   picos (2 s) y deja todo en arreglos planos: QML recibe UN aviso por cuadro.
-// - Listas: las entradas con audio y las salidas (las columnas de la matriz), que
-//   se rehacen solo cuando cambian (no en cada cuadro: las columnas leen los
-//   dispositivos del sistema).
+//   una vista escondida le apaga a otra). Lee el canal de niveles (emision/
+//   NivelesMotor: entradas y buses por canal, lo publica el motor sin el turno) y los
+//   picos de la matriz; calcula la retención de picos (2 s) y deja todo en arreglos
+//   planos: QML recibe UN aviso por cuadro.
+// - Listas: las entradas con audio (de la foto del motor, F3-03) y las salidas (las
+//   columnas de la matriz), que se rehacen solo cuando cambian (no en cada cuadro:
+//   las columnas leen los dispositivos del sistema).
+// - El estado de cada tira (fader, mute, solo, retardo) y el loudness, de la foto.
 // - Lo mismo lo lee el MCP (estado()).
 // ============================================================================
 #pragma once
@@ -32,6 +34,7 @@
 
 namespace ba::app {
 class AppRuntime;
+class VentanillaMotor;
 }
 
 namespace ba::app::audio {
@@ -66,7 +69,7 @@ class Mezclador : public QObject {
     Q_PROPERTY(QObject* calibracion READ calibracionQml CONSTANT)
 
    public:
-    Mezclador(AppRuntime& rt, Matriz* matriz, QObject* parent = nullptr);
+    Mezclador(AppRuntime& rt, VentanillaMotor& ventanilla, Matriz* matriz, QObject* parent = nullptr);
     ~Mezclador() override;
 
     QStringList entradas() const { return entradas_; }
@@ -120,6 +123,7 @@ class Mezclador : public QObject {
     void tic();
 
     AppRuntime& rt_;
+    VentanillaMotor& v_;
     std::string salida_; ///< ver setSalida
     Matriz* matriz_ = nullptr;
     RackManager* racks_ = nullptr;

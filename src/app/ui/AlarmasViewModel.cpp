@@ -52,19 +52,7 @@ AlarmasViewModel::~AlarmasViewModel() = default;
 
 agent::AlertInputs AlarmasViewModel::deLaInterfaz(const Fuentes& f) {
     agent::AlertInputs in;
-    AppRuntime& rt = f.rt;
-    in.audio = [&rt]() {
-        std::vector<agent::AlertInputs::Audio> out;
-        for (const std::string& n : rt.engine().audioSources())
-            out.push_back({n, rt.engine().sourcePeakDb(n), rt.engine().sourceMuted(n)});
-        return out; // la mezcla del programa va directa (abajo)
-    };
-    in.media = [&rt]() {
-        std::vector<agent::AlertInputs::Media> out;
-        for (const auto& m : rt.engine().mediaSources())
-            out.push_back({m.name, m.state, m.durationMs, m.timeMs});
-        return out;
-    };
+    // (El audio de cada entrada y los medios van directos: abajo.)
     in.room = [s = &f.sala]() {
         return json::parse(QJsonDocument(s->client().snapshot()).toJson(QJsonDocument::Compact).toStdString(), nullptr,
                            false);
@@ -159,9 +147,25 @@ agent::AlertInputs AlarmasViewModel::directas(const Fuentes& f) {
     agent::AlertInputs directas;
     AppRuntime& rt = f.rt;
     BroadcastEngine& motor = rt.engine();
-    // La mezcla del programa (lo que sale): para el silencio y la saturación de fábrica.
-    directas.audio = [&motor]() {
-        return std::vector<agent::AlertInputs::Audio>{{"Programa", motor.picoProgramaVigiaDb(), false}};
+    // Cada entrada de audio (el silencio y la saturación de cada micrófono) y la mezcla del
+    // programa (lo que sale): de lo que el motor ya publicó (la foto del dueño, con el mute
+    // de la por omisión, y el canal de niveles), sin la interfaz: con ella trabada, siguen.
+    directas.audio = [&rt, &motor]() {
+        std::vector<agent::AlertInputs::Audio> out;
+        if (const std::shared_ptr<const FotoMotor> f = rt.ultimaFoto())
+            for (const FotoMotor::CanalAudio& c : f->mezcla.canales)
+                out.push_back({c.nombre, rt.niveles().picoEntrada(c.nombre), f->mezcla.mudo(c.nombre)});
+        out.push_back({"Programa", motor.picoProgramaVigiaDb(), false});
+        return out;
+    };
+    // Los medios que suenan y cuánto les queda (la parte Medidas de la foto del dueño).
+    directas.media = [&rt]() {
+        std::vector<agent::AlertInputs::Media> out;
+        if (const std::shared_ptr<const FotoMotor> f = rt.ultimaFoto())
+            for (const auto& m : f->medios)
+                out.push_back({m.value("fuente", std::string()), m.value("estado", std::string()),
+                               m.value("duracion_ms", std::int64_t{0}), m.value("tiempo_ms", std::int64_t{0})});
+        return out;
     };
     // De la foto de las salidas que publica el hilo de salidas del motor (no de status(),
     // que recorre las salidas de la interfaz).

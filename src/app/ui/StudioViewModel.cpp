@@ -160,7 +160,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, VentanillaMotor& ventanilla, QO
     sources_ = std::make_unique<SourcesModel>(rt, ventanilla_);
     marca("sources");
     sources_->setScene(currentScene());
-    mixer_ = std::make_unique<MixerModel>(rt);
+    mixer_ = std::make_unique<MixerModel>(rt, ventanilla_);
     marca("mixer");
     types_ = std::make_unique<SourceTypesModel>(rt);
     marca("types");
@@ -662,13 +662,11 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, VentanillaMotor& ventanilla, QO
     // El audio: los racks de cada fuente, la pestaña Audio, la matriz y el Mezclador
     // (ui/MezclaViewModel).
     mezcla_ = std::make_unique<MezclaViewModel>(MezclaViewModel::Partes{
-        .rt = rt, .tiras = *mixer_, .salida = salidas_->activaId(), .alAire = [this] { return alAire(); }});
+        .rt = rt, .ventanilla = ventanilla_, .tiras = *mixer_, .salida = salidas_->activaId(), .alAire = [this] { return alAire(); }});
     connect(mezcla_.get(), &MezclaViewModel::notify, this, &StudioViewModel::notify);
     marca("audio");
     // La voz, las salidas de texto, las tarjetas «Texto a voz» y las traducciones, con los racks.
     asistente_->conRacks(mezcla_->racks());
-    // Las pistas que graba el programa (T29) quedan rotuladas en la Matriz.
-    connect(this, &StudioViewModel::statusChanged, mezcla_.get(), &MezclaViewModel::revisarPistas);
     // Las etiquetas de video ("Invitado 2") pasan a ser el nombre real.
     connect(conference_.get(), &ConferenceViewModel::roomChanged, this,
             [this]() { frames_->setGuestNames(conference_->slotNames()); });
@@ -776,7 +774,6 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, VentanillaMotor& ventanilla, QO
 
 StudioViewModel::~StudioViewModel() {
     rt_.engine().alFallarMotor(nullptr);
-    rt_.engine().alCambiarAudioFuente(nullptr); // la matriz y las tiras se van con la vista; el motor sigue
     rt_.dejarDeObservar(observadorRt_); // el runtime vive más que la vista
     // El runtime y los flujos de texto viven más que el evento: que no le
     // pregunten la carpeta a un EventoViewModel que ya no está.
@@ -918,15 +915,15 @@ void StudioViewModel::onTick() {
     }
     cpu_ = cpuUso_.medir();
     gatewayAlive_ = rt_.gatewayAlive();
-    float l = -100;
-    float r = -100;
-    rt_.engine().programPeaksDb(l, r);
+    // Los vúmetros del programa: del canal de niveles (el mayor desde la vuelta anterior; lo
+    // suma el dueño en cada vuelta de su reloj), sin el motor.
+    const auto [l, r] = rt_.niveles().tomarPrograma({});
     peakL_ = std::max<double>(l, peakL_ - 1.5);
     peakR_ = std::max<double>(r, peakR_ - 1.5);
     if (const std::string& activa = salidas_->activaId(); !activa.empty()) { // el vúmetro de la activa (las alarmas siguen mirando la por omisión)
-        rt_.engine().programPeaksDb(l, r, activa);
-        peakActivaL_ = std::max<double>(l, peakActivaL_ - 1.5);
-        peakActivaR_ = std::max<double>(r, peakActivaR_ - 1.5);
+        const auto [la, ra] = rt_.niveles().tomarPrograma(activa);
+        peakActivaL_ = std::max<double>(la, peakActivaL_ - 1.5);
+        peakActivaR_ = std::max<double>(ra, peakActivaR_ - 1.5);
     }
     mixer_->refreshLevels();
     emit nivelesChanged();
@@ -1199,9 +1196,6 @@ void StudioViewModel::refrescarAvisos() {
     if (hubo(C::Ajustes)) {
         imagen_->ajustesAplicados(); // Mejorar imagen general y el legalizador rigen ya
     }
-    if (hubo(C::Audio) && mixer_->rowCount() > 0)
-        emit mixer_->dataChanged(mixer_->index(0), mixer_->index(mixer_->rowCount() - 1),
-                                 {MixerModel::VolumeDbRole, MixerModel::MutedRole});
     // Una entrada de audio nueva (audio_input_add del MCP, un plugin): la lista de
     // fuentes de la página Audio la muestra sin tener que volver a entrar.
     if (hubo(C::Audio) || hubo(C::Fuentes)) mezcla_->revisarFuentes();
