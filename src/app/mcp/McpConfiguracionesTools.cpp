@@ -66,10 +66,10 @@ void McpService::registerConfiguracionesTools() {
                            {"descripcion", {{"type", "string"}}},
                            {"abrir", {{"type", "boolean"}}},
                            {"cps", {{"type", "string"}}}}}};
-        StudioViewModel* vm = &vm_;
-        t.run = [cf, vm](const json& a, Done done) {
+        t.run = [cf](const json& a, Done done) {
             const std::string n = a.value("nombre", std::string());
-            const bool alAire = vm->alAire();
+            // La regla (no abrir con algo al aire) es de Configuraciones: acá solo se cuenta.
+            const bool alAire = cf->alAire();
             const bool abrir = a.value("abrir", false) && !alAire;
             // En otro hilo (una copia total puede ser de varios GB): contesta al terminar.
             const QString e = cf->nuevoEventoAparte(
@@ -101,13 +101,11 @@ void McpService::registerConfiguracionesTools() {
         t.inputSchema = {{"type", "object"},
                          {"required", {"nombre"}},
                          {"properties", {{"nombre", {{"type", "string"}}}, {"aunque_este_al_aire", {{"type", "boolean"}}}}}};
-        StudioViewModel* vm = &vm_;
-        t.run = [cf, vm](const json& a, Done done) {
+        t.run = [cf](const json& a, Done done) {
             const std::string n = a.value("nombre", std::string());
             if (n == cf->activa()) return done(ToolResult::error(ba::i18n::traducir("mcp", "ya es el evento abierto")));
-            if (vm->alAire() && !a.value("aunque_este_al_aire", false))
-                return done(ToolResult::error(ba::i18n::traducir("mcp", "hay una transmisión o una grabación en curso: abrir otro evento reinicia "
-                                              "la app y la corta. Esperá a que termine (o que el operador lo pida).")));
+            if (const std::string e = cf->puedeCambiar(); !e.empty() && !a.value("aunque_este_al_aire", false))
+                return done(ToolResult::error(e));
             if (const std::string e = cf->activar(n); !e.empty()) return done(ToolResult::error(e));
             done(ToolResult::ok(ba::i18n::llenar(ba::i18n::traducir("mcp", "Abriendo «%1»: la app se reinicia en unos segundos. Seguís en esta conversación: al volver te aviso que ya está abierto. No hagas nada más hasta entonces."), {n})));
             cf->reiniciar();

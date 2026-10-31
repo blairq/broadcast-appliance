@@ -120,6 +120,13 @@ class Configuraciones : public QObject {
     static json separarEventos(const std::filesystem::path& datos);
     /// Deja anotada `nombre` como activa (sin reiniciar). "" o el error.
     std::string activar(const std::string& nombre);
+    /// LA REGLA de abrir otro evento: reinicia la app, así que no con algo al aire (una
+    /// transmisión o una grabación). La página y el MCP la piden acá; el predicado lo pone
+    /// quien sabe qué está al aire.
+    void setAlAire(std::function<bool()> f) { alAire_ = std::move(f); }
+    bool alAire() const { return alAire_ && alAire_(); }
+    /// "" si se puede pasar a otro evento ahora; si no, por qué.
+    std::string puedeCambiar() const;
     std::string renombrar(const std::string& de, const std::string& a);
     std::string describir(const std::string& nombre, const std::string& descripcion);
     /// A la papelera (Configuraciones/.papelera/): nunca la activa.
@@ -203,6 +210,7 @@ class Configuraciones : public QObject {
     QTimer progresoCopia_; ///< mientras copia, avisa el progreso
     static std::string nombreValido(const std::string& nombre);
     std::function<QString()> reiniciar_;
+    std::function<bool()> alAire_;
 };
 
 /// El evento de la plantilla del programa de un escenario (el `escenario` de su

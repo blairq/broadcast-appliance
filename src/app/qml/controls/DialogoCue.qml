@@ -1,7 +1,7 @@
 // Editar un cue del guion, en un modal (lo abre el lápiz de la fila o al agregarlo).
 // Cada campo con su control: lo que se elige de una lista (la escena, el archivo de
 // los medios, el discurso, el gráfico y su fuente, quién habla, la acción) es un
-// selector con las opciones de verdad (EventoViewModel.opcionesDeCampo); un sí/no es
+// selector con las opciones de verdad (GuionViewModel.opciones: avisa cuando cambian); un sí/no es
 // un interruptor; el resto, texto. Los cambios se aplican al toque (como antes), y
 // la lista del guion los muestra enseguida (el modelo avisa).
 import QtQuick
@@ -12,6 +12,8 @@ import BA
 Dialog {
     id: dlg
     required property var ev
+    /// El guion (sus opciones y enlaces avisan solos: nada se pide al dibujar).
+    readonly property var gv: dlg.ev ? dlg.ev.guionVm : null
     property int bloque: -1
     property int cue: -1
     /// El cue tal como está en el guion (se relee cuando el guion cambia).
@@ -23,7 +25,7 @@ Dialog {
     }
     readonly property var campos: {
         if (!dlg.c) return []
-        for (const t of dlg.ev.tiposDeCue()) if (t.tipo === dlg.c.tipo) return t.campos
+        for (const t of dlg.ev.tiposDeCue) if (t.tipo === dlg.c.tipo) return t.campos
         return []
     }
     readonly property var kSiNo: ["repetir", "alAire", "arrancar"]
@@ -90,7 +92,10 @@ Dialog {
                     id: campo
                     required property string modelData
                     readonly property var valor: dlg.c ? dlg.c.datos[modelData] : undefined
-                    readonly property var opciones: dlg.c ? dlg.ev.opcionesDeCampo(dlg.c.tipo, modelData, dlg.c.datos) : []
+                    readonly property var opciones: !dlg.c || !dlg.gv ? []
+                        : (modelData === "lamina" ? dlg.gv.opciones["carrusel/lamina:" + ((dlg.c.datos || {}).carrusel || "")]
+                           : modelData === "escena" ? dlg.gv.opciones["escena/escena"]
+                           : dlg.gv.opciones[dlg.c.tipo + "/" + modelData]) || []
                     readonly property bool siNo: dlg.kSiNo.indexOf(modelData) >= 0
                     Layout.fillWidth: true
                     spacing: 3
@@ -153,7 +158,7 @@ Dialog {
                 visible: !!dlg.c && dlg.c.tipo === "grafico" && (dlg.c.datos.accion || "mostrar") === "mostrar"
                 Text { text: qsTr("Lo que dice el gráfico"); color: Theme.text; font { pixelSize: 12; weight: Font.DemiBold } }
                 Repeater {
-                    model: dlg.c && dlg.c.tipo === "grafico" ? dlg.ev.parametrosDeGrafico(dlg.c.datos.grafico || "") : []
+                    model: dlg.c && dlg.gv && dlg.c.tipo === "grafico" ? dlg.gv.opciones["parametros:" + (dlg.c.datos.grafico || "")] || [] : []
                     delegate: ColumnLayout {
                         required property var modelData
                         Layout.fillWidth: true
@@ -235,7 +240,8 @@ Dialog {
             onClicked: dlg.ev.irA(dlg.bloque, dlg.cue)
         }
         GlassButton {
-            readonly property string url: dlg.c ? dlg.ev.enlaceDeCue(dlg.c.tipo, dlg.c.datos || ({})) : ""
+            readonly property string url: dlg.c && dlg.gv && dlg.c.tipo === "teleprompter"
+                                          ? dlg.gv.enlacesPrompter[(dlg.c.datos || {}).prompter || ""] || dlg.gv.enlacesPrompter[""] : ""
             visible: url !== ""
             text: qsTr("Ver el teleprompter ↗"); compact: true
             onClicked: Qt.openUrlExternally(url)

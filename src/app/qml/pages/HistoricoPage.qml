@@ -21,10 +21,18 @@ Rectangle {
     property string grupo: ""
     property string sel: ""
     property string tab: "resumen"
-    property int version: 0     // se sube para releer (los métodos no avisan solos)
-    readonly property var lista: { page.version; return page.h ? page.h.eventos(page.grupo, filtro.text) : [] }
-    readonly property var resumen: { page.version; return page.h && page.sel ? page.h.resumen(page.sel) : ({}) }
+    // Lo que se elige va al modelo, que lee en el fondo y avisa: la página solo se enlaza.
+    readonly property var lista: page.h ? page.h.eventos : []
+    readonly property var resumen: page.h && page.sel ? page.h.resumen : ({})
     readonly property var actual: lista.find(e => e.carpeta === page.sel) || null
+    Binding { target: page.h; when: !!page.h; property: "grupo"; value: page.grupo }
+    Binding { target: page.h; when: !!page.h; property: "filtro"; value: filtro.text }
+    Binding { target: page.h; when: !!page.h; property: "seleccion"; value: page.sel }
+    Binding { target: page.h; when: !!page.h; property: "pestana"; value: page.tab }
+    Binding { target: page.h; when: !!page.h; property: "tiposTiempo"; value: tiempo.tipos }
+    Binding { target: page.h; when: !!page.h; property: "textoTiempo"; value: filtroTiempo.text }
+    Binding { target: page.h; when: !!page.h; property: "fotoConfig"; value: cfg.foto }
+    Binding { target: page.h; when: !!page.h; property: "archivoConfig"; value: cfg.archivo }
 
     function toast(t, n) { ApplicationWindow.window.toast(t, n || "info") }
     function bytes(b) {
@@ -41,7 +49,6 @@ Rectangle {
                   aviso: "#ff6a6a", evento: Theme.accent, config: "#4dd0c8" })[t] || Theme.textDim
     }
 
-    onVisibleChanged: if (visible) version++
     // ui_show_page {page: "historico", seccion: "<evento>[/<pestaña>]"} (resumen, tiempo,
     // grabaciones, config, archivos): ese evento en esa pestaña.
     Connections {
@@ -53,7 +60,6 @@ Rectangle {
             if (partes.length > 1 && tabs.indexOf(partes[partes.length - 1]) >= 0) page.tab = partes.pop()
             page.grupo = ""
             page.sel = partes.join("/")
-            page.version++
         }
         // ui_abrir_panel {page: "historico", panel: "registro"}: el de «Qué se registra…».
         function onAbrirPanel(pagina, panel) {
@@ -64,7 +70,6 @@ Rectangle {
     }
     Connections {
         target: page.h
-        function onCambio() { page.version++ }
         function onResultados(texto, l) { resultados.lista = l; resultados.texto = texto; resultados.open() }
         function onVerificado(carpeta, r) {
             if (r.ok) page.toast(qsTr("«%1»: intacto (%n archivo sellado)", "", r.archivos).arg(carpeta), "ok")
@@ -75,6 +80,15 @@ Rectangle {
         function onExportado(carpeta, error, copia) {
             if (error) page.toast(qsTr("No se pudo exportar: %1").arg(error), "error")
             else page.toast(qsTr("Exportado en %1").arg(copia), "ok")
+        }
+        function onTraido(carpeta, r) {
+            if (r.error) page.toast(r.error, "error")
+            else page.toast(qsTr("%1 y %2 del %3").arg(qsTr("%n grabación", "", (r.grabaciones || []).length))
+                            .arg(qsTr("%n transcripción", "", (r.transcripciones || []).length))
+                            .arg(r.desde.split(" ")[0]), "ok")
+        }
+        function onRetencionSimulada(r) {
+            page.toast(r.nota ? r.nota : qsTr("%n evento, %1 MB de grabaciones", "", r.eventos.length).arg(Math.round(r.bytes / 1e6)), "info")
         }
     }
 
@@ -412,8 +426,7 @@ Rectangle {
                         ColumnLayout {
                             id: tiempo
                             property var tipos: []
-                            readonly property var lineas: { page.version; return page.sel && page.tab === "tiempo"
-                                ? page.h.bitacora(page.sel, tiempo.tipos, filtroTiempo.text, 1500) : [] }
+                            readonly property var lineas: page.sel && page.tab === "tiempo" ? page.h.lineas : []
                             spacing: 6
                             RowLayout {
                                 Layout.fillWidth: true
@@ -442,7 +455,6 @@ Rectangle {
                                     placeholderText: qsTr("Buscar…")
                                     color: Theme.text; font.pixelSize: 12
                                 }
-                                GlassButton { compact: true; text: "↻"; onClicked: page.version++ }
                             }
                             ListView {
                                 Layout.fillWidth: true
@@ -482,7 +494,7 @@ Rectangle {
                             contentWidth: availableWidth
                             ColumnLayout {
                                 id: gv
-                                readonly property var d: { page.version; return page.sel && page.tab === "grabaciones" ? page.h.grabaciones(page.sel) : ({}) }
+                                readonly property var d: page.sel && page.tab === "grabaciones" ? page.h.grabaciones : ({})
                                 width: parent.width
                                 spacing: 6
                                 RowLayout {
@@ -490,14 +502,7 @@ Rectangle {
                                     CheckBox { id: moverlas; text: qsTr("moverlas a la carpeta del evento"); font.pixelSize: 11 }
                                     GlassButton {
                                         compact: true; text: qsTr("Traer lo del día")
-                                        onClicked: {
-                                            const r = page.h.traerDelDia(page.sel, moverlas.checked)
-                                            if (r.error) page.toast(r.error, "error")
-                                            else page.toast(qsTr("%1 y %2 del %3").arg(qsTr("%n grabación", "", (r.grabaciones || []).length))
-                                                            .arg(qsTr("%n transcripción", "", (r.transcripciones || []).length))
-                                                            .arg(r.desde.split(" ")[0]), "ok")
-                                            page.version++
-                                        }
+                                        onClicked: page.h.traerDelDia(page.sel, moverlas.checked)
                                     }
                                 }
                                 Text { visible: (gv.d.grabaciones || []).length === 0; text: qsTr("Ninguna"); color: Theme.textFaint; font.pixelSize: 12 }
@@ -575,8 +580,9 @@ Rectangle {
                             id: cfg
                             property string foto: "inicio"
                             property string archivo: ""
-                            property var cambios: null
-                            readonly property var archivos: { page.version; return page.sel && page.tab === "config" ? page.h.config(page.sel, cfg.foto) : [] }
+                            // Lo que dio «comparar con ahora» (null: no se comparó lo que se ve).
+                            readonly property var cambios: page.h && page.h.cambios !== undefined ? page.h.cambios : null
+                            readonly property var archivos: page.sel && page.tab === "config" ? page.h.archivosConfig : []
                             spacing: 6
                             RowLayout {
                                 Layout.fillWidth: true
@@ -588,14 +594,14 @@ Rectangle {
                                         compact: true
                                         text: modelData.t
                                         active: cfg.foto === modelData.id
-                                        onClicked: { cfg.foto = modelData.id; cfg.archivo = ""; cfg.cambios = null }
+                                        onClicked: { cfg.foto = modelData.id; cfg.archivo = "" }
                                     }
                                 }
                                 Item { Layout.fillWidth: true }
                                 GlassButton {
                                     compact: true; text: qsTr("Comparar con ahora")
                                     enabled: cfg.archivos.length > 0
-                                    onClicked: cfg.cambios = page.h.comparar(page.sel, cfg.foto, "", "actual")
+                                    onClicked: page.h.comparar()
                                 }
                                 GlassButton {
                                     compact: true; text: qsTr("Volver a esta configuración…")
@@ -641,7 +647,7 @@ Rectangle {
                                             text: modelData.archivo
                                             color: Theme.text; font.pixelSize: 11
                                         }
-                                        MouseArea { anchors.fill: parent; onClicked: { cfg.archivo = modelData.archivo; cfg.cambios = null } }
+                                        MouseArea { anchors.fill: parent; onClicked: cfg.archivo = modelData.archivo }
                                     }
                                 }
                                 ScrollView {
@@ -660,7 +666,7 @@ Rectangle {
                                                 return cfg.cambios.map(c => c.archivo + " — " + c.que + (c.total ? qsTr(" (%n cambio)", "", c.total) : "")
                                                     + (c.cambios ? "\n" + c.cambios.map(o => "   " + o.op + " " + o.path + (o.value !== undefined ? " = " + JSON.stringify(o.value) : "")).join("\n") : "")).join("\n\n")
                                             }
-                                            return cfg.archivo ? page.h.contenidoConfig(page.sel, cfg.foto, cfg.archivo) : qsTr("Elegí un archivo")
+                                            return cfg.archivo ? page.h.contenidoConfig : qsTr("Elegí un archivo")
                                         }
                                     }
                                 }
@@ -671,7 +677,7 @@ Rectangle {
                         ListView {
                             id: arch
                             clip: true
-                            model: { page.version; return page.sel && page.tab === "archivos" ? page.h.archivos(page.sel) : [] }
+                            model: page.sel && page.tab === "archivos" ? page.h.archivos : []
                             ScrollBar.vertical: ScrollBar {}
                             delegate: RowLayout {
                                 required property var modelData
@@ -827,6 +833,7 @@ Rectangle {
         modal: true
         background: Rectangle { color: Theme.panel; radius: 12; border.color: Theme.glassBorder }
         readonly property var a: page.h ? page.h.ajustes : ({})
+        onOpened: if (page.h) page.h.medirDisco()
         contentItem: ScrollView {
             id: ajustesScroll
             contentWidth: availableWidth
@@ -905,7 +912,7 @@ Rectangle {
                 }
                 Text {
                     Layout.fillWidth: true; elide: Text.ElideRight
-                    readonly property var d: { page.version; return ajustes.visible ? page.h.discoUi() : ({}) }
+                    readonly property var d: page.h ? page.h.disco : ({})
                     text: qsTr("% (ahora %1 %, quedan %2 GB)").arg(d.usado_pct || 0).arg(d.libre_gb || 0)
                     color: Theme.textDim; font.pixelSize: 12
                 }
@@ -915,10 +922,7 @@ Rectangle {
                 Layout.topMargin: 4
                 GlassButton {
                     compact: true; text: qsTr("¿Qué borraría?")
-                    onClicked: {
-                        const r = page.h.retencionUi(true)
-                        page.toast(r.nota ? r.nota : qsTr("%n evento, %1 MB de grabaciones", "", r.eventos.length).arg(Math.round(r.bytes / 1e6)), "info")
-                    }
+                    onClicked: page.h.simularRetencion()
                 }
                 Item { Layout.fillWidth: true }
                 GlassButton { text: qsTr("Listo"); onClicked: ajustes.close() }
