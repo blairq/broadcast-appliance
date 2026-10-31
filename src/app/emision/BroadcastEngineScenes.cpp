@@ -1474,8 +1474,7 @@ bool BroadcastEngine::resetEncoders() {
     return true;
 }
 
-std::vector<std::string> BroadcastEngine::videoEncoderCandidates(const EncoderConfig& enc) const {
-    const TurnoMotor::Guarda turno(turno_);
+std::vector<std::string> BroadcastEngine::videoEncoderCandidates(const EncoderConfig& enc) {
     std::vector<std::string> pedidos;
     const std::string& v = enc.videoEncoder;
     if (v == "videotoolbox") pedidos = {"vtenc_h264_hw", "vtenc_h264"};

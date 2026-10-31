@@ -689,7 +689,9 @@ class BroadcastEngine {
         return video_;
     }
     /// Codificadores de video en el orden en que se probarían para `enc` (el último, x264enc).
-    std::vector<std::string> videoEncoderCandidates(const EncoderConfig& enc) const;
+    /// No lee el estado del motor (solo `enc` y las fábricas de GStreamer): desde cualquier
+    /// hilo, sin el turno (lo usa también el hilo de salidas al arrancar una grabación).
+    static std::vector<std::string> videoEncoderCandidates(const EncoderConfig& enc);
 
     /// Publica el programa de cada salida hacia el Proceso B (la por omisión en
     /// BA.Program, las demás en BA.Salida.<id>; el audio lo escribe el motor: ver
