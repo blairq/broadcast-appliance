@@ -22,6 +22,8 @@
 // (no corta solo: decide la presidencia).
 #pragma once
 
+#include "escenas/RefEscena.hpp"
+
 #include <QObject>
 #include <QTimer>
 #include <QVariantMap>
@@ -60,8 +62,12 @@ class Debate : public QObject {
         std::function<bool(const std::string& banca, bool abierto, bool terminar)> microfonoBanca;
         /// Su cámara al preset de su banca (sin armar nada). "" o el aviso.
         std::function<std::string(const std::string& id)> apuntar;
+        /// `escena`: su id (o su nombre, sin `escenas`).
         std::function<void(const std::string& escena)> armar;
         std::function<void(const std::string& escena)> cortar;
+        /// Las escenas que hay (id, nombre): la de cada tipo de debate va por su id. Sin
+        /// esto (un test), por el nombre.
+        std::function<::ba::app::escenas::TablaEscenas()> escenas;
         /// La central en modo debate (true: guarda sus ajustes y la pone en operador con 2
         /// abiertos) o como estaba (false). Lo resuelve la app; puede tardar.
         std::function<void(bool debate)> central;
@@ -103,6 +109,10 @@ class Debate : public QObject {
     /// {escenas: {sala_sala, sala_remoto, remoto_remoto}, turno_s, directo}: se mezcla y se guarda.
     std::string configurar(const json& cambios);
     json config() const { return config_; }
+    /// La escena de cada tipo de debate va con su id al lado (`escenas_id`, escenas/
+    /// RefEscena.hpp): lo de antes toma el id y el nombre se pone al día (un renombre). Se
+    /// guarda si cambió. Con cada cambio de escenas (AsambleaViewModel, la foto).
+    void seguirEscenas(const escenas::TablaEscenas& t);
 
     Q_INVOKABLE void iniciarUi(const QString& a, const QString& b, const QString& turno);
     Q_INVOKABLE void turnoUi(const QString& t) { avisarError(QString::fromStdString(turno(t.toStdString()))); }
@@ -121,6 +131,8 @@ class Debate : public QObject {
     void cargar();
     void guardar() const;
     void tic();
+    /// Lo de seguirEscenas, sin guardar ni avisar. true si cambió.
+    bool seguirEnConfig(const escenas::TablaEscenas& t);
 
     Cuerpo& cuerpo_;
     std::filesystem::path archivo_;

@@ -111,6 +111,7 @@ struct FotoMotor {
         std::string nombre, carpeta;
         bool protegida = false;
         std::vector<Fuente> fuentes; ///< de abajo hacia arriba (el orden del motor)
+        std::string id; ///< estable: no cambia al renombrarla (escenas/RefEscena.hpp)
         bool operator==(const Escena&) const = default;
     };
     struct Tipo {
@@ -390,10 +391,20 @@ struct FotoMotor {
     }
 
     // --- Para leerla -----------------------------------------------------------------
+    /// Por el nombre o por el id.
     const Escena* escena(const std::string& nombre) const {
+        if (nombre.empty()) return nullptr;
+        for (const Escena& e : escenas)
+            if (e.id == nombre) return &e;
         for (const Escena& e : escenas)
             if (e.nombre == nombre) return &e;
         return nullptr;
+    }
+    /// Las escenas (id, nombre): para resolver lo guardado desde la interfaz (escenas/RefEscena.hpp).
+    std::vector<std::pair<std::string, std::string>> idsDeEscenas() const {
+        std::vector<std::pair<std::string, std::string>> out;
+        for (const Escena& e : escenas) out.emplace_back(e.id, e.nombre);
+        return out;
     }
     /// La salida `id` ("" = la por omisión), o nullptr.
     const Salida* salida(const std::string& id) const {

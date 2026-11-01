@@ -2019,6 +2019,44 @@ const auto tomadoM = canalM.tomarPrograma("");
           "6: lo adoptado vuelve a su hilo");
     CHECK(grafoI->thread() == interfaz && vigiaI->thread() == interfaz, "I: el grafo y su vigía vuelven a la interfaz al parar");
     pool.waitForDone();
+
+    // --- El contenido de una capa DSK, por el id de cada escena (escenas/RefEscena.hpp) ---
+    {
+        using ba::app::control::CapasDsk;
+        const fs::path datosE = fs::temp_directory_path() / "ba-test-plano-control-dsk-ids";
+        fs::remove_all(datosE);
+        fs::create_directories(datosE / "Config");
+        // Un dsk.json de antes: la escena por el nombre, al lado de una fuente.
+        std::ofstream(datosE / "Config" / "dsk.json")
+            << R"({"capas":[{"capa":1,"contenido":["Zócalo","Logo"],"visible":true}]})";
+        ba::app::escenas::TablaEscenas tabla({{"esc-00000001", "Zócalo"}});
+        std::vector<std::string> armado;
+        CapasDsk::Motor m;
+        m.armar = [&](int, const std::vector<std::string>& cont, const json&, const std::string&) {
+            armado = cont;
+            return true;
+        };
+        m.mostrar = [](int, bool, int, const std::string&) { return true; };
+        m.estado = [](const std::string&) { return json::array(); };
+        m.error = []() { return std::string(); };
+        m.escenas = [&tabla]() { return tabla; };
+        CapasDsk capas(datosE, std::move(m));
+        capas.restaurar();
+        CHECK(armado == std::vector<std::string>({"esc-00000001", "Logo"}), "DSK: al motor, la escena por el id");
+        tabla = ba::app::escenas::TablaEscenas({{"esc-00000001", "Zócalo grande"}});
+        capas.seguirEscenas();
+        const json c = capas.capas()[0];
+        CHECK(c["contenido"] == json::array({"Zócalo grande", "Logo"}) && c["contenido_ids"][0] == "esc-00000001",
+              "DSK: renombrada, la capa la sigue (con el nombre nuevo)");
+        CHECK(capas.mostrar(1, true, false).empty() && armado.empty() == false, "DSK: sube igual");
+        // Otro contenido a mano: los ids salen de los nombres nuevos.
+        CHECK(capas.definir(1, {{"contenido", json::array({"Logo", "Zócalo grande"})}}).empty() &&
+                  armado == std::vector<std::string>({"Logo", "esc-00000001"}),
+              "DSK: otro contenido, por el id de su escena");
+        CHECK(ba::persist::cola().vaciar(), "DSK: lo guardado, escrito");
+        fs::remove_all(datosE);
+    }
+
     std::printf(g_fallos == 0 ? "test_plano_control: OK\n" : "test_plano_control: %d fallo(s)\n", g_fallos);
     return g_fallos == 0 ? 0 : 1;
 }

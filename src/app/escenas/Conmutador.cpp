@@ -1,7 +1,7 @@
 // src/app/escenas/Conmutador.cpp — el conmutador de escenas de cada salida (ver el .hpp)
 
 #include "escenas/Conmutador.hpp"
-#include "escenas/SeguirEscenas.hpp"
+
 #include "arranque/ArchivoConfig.hpp"
 
 #include "i18n/I18n.hpp"
@@ -32,9 +32,11 @@ Conmutador::Conmutador(AppRuntime& rt, Conmutadores& registro, std::string salid
 
 std::string Conmutador::alAire() const { return rt_.engine().currentScene(salida_); }
 
+std::string Conmutador::alAireId() const { return rt_.engine().currentSceneId(salida_); }
+
 std::string Conmutador::armada() const {
     const TurnoMotor::Guarda turno(rt_.turno());
-    return armada_;
+    return rt_.engine().sceneName(armada_);
 }
 
 double Conmutador::tbarPosicion() const {
@@ -54,20 +56,24 @@ void Conmutador::avisar(std::function<void(Conmutador&)> emitir, unsigned partes
         Qt::AutoConnection);
 }
 
-std::string Conmutador::cortar(const std::string& escena, const std::string& tipoPedido, int msPedido, const char* via) {
+std::string Conmutador::cortar(const std::string& pedida, const std::string& tipoPedido, int msPedido, const char* via) {
     const TurnoMotor::Guarda turno(rt_.turno());
     const std::string antes = alAire();
+    // Por su id (lo que llega puede ser el nombre o el id); al registro y a la señal, el nombre.
+    const std::string id = rt_.engine().sceneId(pedida);
+    const std::string escena = id.empty() ? pedida : rt_.engine().sceneName(id);
+    const std::string a = id.empty() ? pedida : id;
     std::string tipo = tipoPedido;
     int ms = msPedido;
     // Sin pedido explícito: la transición de entrada de la escena (si tiene).
     if (tipo.empty()) {
-        const nlohmann::json e = registro_.transicionEntrada(escena);
+        const nlohmann::json e = registro_.transicionEntrada(a);
         if (!e.empty()) {
             tipo = e.value("tipo", std::string());
             ms = e.value("ms", -1);
         }
     }
-    const bool ok = tipo.empty() ? rt_.setScene(escena, salida_) : rt_.setSceneCon(escena, tipo, ms, salida_);
+    const bool ok = tipo.empty() ? rt_.setScene(a, salida_) : rt_.setSceneCon(a, tipo, ms, salida_);
     if (!ok)
         return rt_.lastError().empty()
                    ? ba::i18n::llenar(ba::i18n::traducir("aire", "no se pudo poner «%1» al aire"), {escena})
@@ -80,7 +86,7 @@ std::string Conmutador::cortar(const std::string& escena, const std::string& tip
                                                                {escena, antes, que})
                                             : ba::i18n::llenar(ba::i18n::traducir("aire", "al aire: «%1» (salió «%2», por %3, %4)"),
                                                                {escena, antes, que, tipo}));
-    aplicarAfv(escena, tipo == "cut" ? 0 : (ms < 0 ? rt_.ajustesAire().transicionMs : ms));
+    aplicarAfv(a, tipo == "cut" ? 0 : (ms < 0 ? rt_.ajustesAire().transicionMs : ms));
     rt_.save(); // la escena al aire vuelve igual tras un corte de luz
     avisar([e = QString::fromStdString(escena)](Conmutador& c) { emit c.alAireCambio(e); }, FotoMotor::Salidas);
     return {};
@@ -92,13 +98,13 @@ std::string Conmutador::poner(const std::string& escena, const std::string& tipo
 
 std::string Conmutador::armar(const std::string& escena) {
     const TurnoMotor::Guarda turno(rt_.turno());
-    if (escena == alAire())
+    const std::string id = rt_.engine().sceneId(escena);
+    if (!escena.empty() && id.empty()) return ba::i18n::llenar(ba::i18n::traducir("aire", "no existe la escena «%1»"), {escena});
+    if (!id.empty() && id == alAireId())
         // Armar lo que ya está al aire deja el TAKE sin sentido (cortaría a lo mismo).
-        return ba::i18n::llenar(ba::i18n::traducir("aire", "«%1» ya está al aire: armá otra para el próximo take."), {escena});
-    const auto nombres = rt_.engine().sceneNames();
-    if (!escena.empty() && std::find(nombres.begin(), nombres.end(), escena) == nombres.end())
-        return ba::i18n::llenar(ba::i18n::traducir("aire", "no existe la escena «%1»"), {escena});
-    setArmadaYAvisar(escena);
+        return ba::i18n::llenar(ba::i18n::traducir("aire", "«%1» ya está al aire: armá otra para el próximo take."),
+                                {rt_.engine().sceneName(id)});
+    setArmadaYAvisar(id);
     return {};
 }
 
@@ -106,7 +112,7 @@ std::string Conmutador::take(const std::string& tipo, int ms) {
     const TurnoMotor::Guarda turno(rt_.turno());
     if (armada_.empty()) return ba::i18n::traducir("aire", "No hay ninguna escena armada: elegí una en el bus de preview.");
     const std::string entra = armada_;
-    const std::string sale = alAire();
+    const std::string sale = alAireId();
     if (std::string e = cortar(entra, tipo, ms, "TAKE"); !e.empty()) return e;
     // El plano que sale del aire queda armado: en una mesa, después de un take
     // el preview tiene lo anterior y volver es un solo golpe.
@@ -118,7 +124,7 @@ std::string Conmutador::tbar(double t, bool soltar) {
     const TurnoMotor::Guarda turno(rt_.turno());
     if (armada_.empty()) return ba::i18n::traducir("aire", "No hay ninguna escena armada para la T-bar.");
     const std::string entra = armada_;
-    const std::string sale = alAire();
+    const std::string sale = alAireId();
     bool llego = false;
     if (!rt_.engine().transicionManual(entra, static_cast<float>(t), soltar, &llego, salida_)) return rt_.engine().lastError();
     tbarPos_ = soltar || llego ? 0.0 : std::clamp(t, 0.0, 1.0);
@@ -127,19 +133,20 @@ std::string Conmutador::tbar(double t, bool soltar) {
         rt_.anotarEscenaAlAire(entra, salida_);
         aplicarAfv(entra, 0);
         rt_.save();
-        avisar([e = QString::fromStdString(entra)](Conmutador& c) { emit c.alAireCambio(e); }, FotoMotor::Salidas);
+        avisar([e = QString::fromStdString(rt_.engine().sceneName(entra))](Conmutador& c) { emit c.alAireCambio(e); },
+               FotoMotor::Salidas);
         setArmadaYAvisar(sale);
     }
     return {};
 }
 
-void Conmutador::setArmadaYAvisar(const std::string& escena) {
-    if (escena == armada_) return;
-    armada_ = escena;
+void Conmutador::setArmadaYAvisar(const std::string& id) {
+    if (id == armada_) return;
+    armada_ = id;
     // El bus de preview de la salida en el motor (las vistas solo lo miran).
-    if (!rt_.engine().armar(escena, salida_))
+    if (!rt_.engine().armar(id, salida_))
         ba::diag::registro().linea(ba::diag::Nivel::Aviso, "aire", 0, rt_.engine().lastError());
-    avisar([e = QString::fromStdString(escena)](Conmutador& c) { emit c.armadaCambio(e); }, FotoMotor::Salidas);
+    avisar([e = QString::fromStdString(rt_.engine().sceneName(id))](Conmutador& c) { emit c.armadaCambio(e); }, FotoMotor::Salidas);
 }
 
 void Conmutador::aplicarAfv(const std::string& destino, int ms) {
@@ -225,13 +232,14 @@ Conmutadores::Conmutadores(AppRuntime& rt, const std::vector<std::string>& salid
     : QObject(parent), rt_(rt) {
     const nlohmann::json j = config::leerObjeto(ba::persist::archivoConfig("transiciones.json"));
     if (!j.empty()) {
+        // {id: {tipo, ms, escena}}; uno de antes, {nombre: {tipo, ms}}: lo pasa a ids
+        // reconciliarEscenas (ya en el dueño, con las escenas a la vista).
         transicionesEntrada_ = j.value("entrada", nlohmann::json::object());
         afvGuardado_[kPorOmision] = Afv::deJson(j); // lo de siempre: el de la por omisión
         const nlohmann::json otras = j.value("salidas", nlohmann::json::object()); // .items() de un temporal: UB
         for (const auto& [id, x] : otras.items())
             if (id != kPorOmision) afvGuardado_[id] = Afv::deJson(x);
     }
-    rt_.renombresDeEscena(renombresVistos_); // los de antes ya están en lo leído
     porOmision_ = crear(kPorOmision);
     // Los de las salidas que ya hay (las que dice la foto): se arma en la interfaz y todavía
     // no se mudó al dueño, así que no le pregunta al motor (sincronizar sí, ya en el dueño).
@@ -251,16 +259,25 @@ Conmutadores::Conmutadores(AppRuntime& rt, const std::vector<std::string>& salid
             for (FotoMotor::Salida& s : f.salidas)
                 if (const auto it = conmutadores_.find(s.id); it != conmutadores_.end()) {
                     const Conmutador& c = *it->second;
-                    s.armada = c.armada_;
+                    s.armada = rt_.engine().sceneName(c.armada_);
                     s.afv.assign(c.afv_.fuentes.begin(), c.afv_.fuentes.end());
                     s.tbar = c.tbarPos_;
                 }
-        if ((partes & FotoMotor::Escenas) != 0) f.transicionesEntrada = transicionesEntrada_;
+        // A la interfaz, por el nombre de ahora ({escena: {tipo, ms}}).
+        if ((partes & FotoMotor::Escenas) != 0) {
+            const TablaEscenas t = rt_.engine().tablaEscenas();
+            nlohmann::json porNombre = nlohmann::json::object();
+            for (const auto& [k, v] : transicionesEntrada_.items())
+                if (const std::string n = t.nombre(k); !n.empty() && v.is_object())
+                    porNombre[n] = {{"tipo", v.value("tipo", std::string())}, {"ms", v.value("ms", -1)}};
+            f.transicionesEntrada = porNombre;
+        }
     });
+    // Lo leído, a ids, ya en el dueño (un evento encolado se muda con el registro).
+    QMetaObject::invokeMethod(this, [this]() { reconciliarEscenas(); }, Qt::QueuedConnection);
 }
 
 Conmutadores::~Conmutadores() {
-    rt_.dejarDeLeerRenombres(renombresVistos_);
     if (aporte_ >= 0) rt_.dejarDeAportar(aporte_);
     if (observador_ >= 0) rt_.dejarDeObservar(observador_);
 }
@@ -317,30 +334,28 @@ void Conmutadores::sincronizar() {
 
 void Conmutadores::reconciliarEscenas() {
     const TurnoMotor::Guarda turno(rt_.turno());
-    // La armada de cada uno, en el orden del mapa (para saber a cuál avisar).
-    std::vector<Conmutador*> cs;
-    std::vector<std::string> armadas;
-    for (auto& [id, c] : conmutadores_) {
-        cs.push_back(c.get());
-        armadas.push_back(c->armada_);
-    }
-    // El motor ya la volvió a armar con el nombre nuevo (BroadcastEngine::renameScene).
-    const Seguidas s = seguirEscenas(transicionesEntrada_, armadas, rt_.renombresDeEscena(renombresVistos_),
-                                     rt_.engine().sceneNames());
-    for (const std::size_t i : s.armadas) {
-        cs[i]->armada_ = armadas[i];
-        cs[i]->avisar([e = QString::fromStdString(armadas[i])](Conmutador& x) { emit x.armadaCambio(e); }, FotoMotor::Salidas);
-    }
-    if (s.transiciones) {
-        guardar();
-        rt_.fotoSucia(FotoMotor::Escenas);
-    }
+    const TablaEscenas t = rt_.engine().tablaEscenas();
+    // La armada va por el id: un renombre no la toca (el nombre que muestra la foto sí
+    // cambia: abajo); la de una escena que ya no está, se va.
+    for (auto& [id, c] : conmutadores_)
+        if (!c->armada_.empty() && !t.hay(c->armada_)) {
+            c->armada_.clear();
+            c->avisar([](Conmutador& x) { emit x.armadaCambio(QString()); }, FotoMotor::Salidas);
+        }
+    if (seguirClaves(transicionesEntrada_, t)) guardar();
+    rt_.fotoSucia(FotoMotor::Escenas | FotoMotor::Salidas); // los nombres de ahora
 }
 
 nlohmann::json Conmutadores::transicionEntrada(const std::string& escena) const {
     const TurnoMotor::Guarda turno(rt_.turno());
-    if (!transicionesEntrada_.contains(escena)) return nlohmann::json::object();
-    return transicionesEntrada_[escena];
+    // Por el id; lo leído que todavía no pasó a ids (reconciliarEscenas), por el nombre.
+    const std::string id = rt_.engine().sceneId(escena);
+    for (const std::string& k : {id, rt_.engine().sceneName(escena)})
+        if (!k.empty() && transicionesEntrada_.contains(k) && transicionesEntrada_[k].is_object()) {
+            const nlohmann::json& v = transicionesEntrada_[k];
+            return {{"tipo", v.value("tipo", std::string())}, {"ms", v.value("ms", -1)}};
+        }
+    return nlohmann::json::object();
 }
 
 std::string Conmutadores::setTransicionEntrada(const std::string& escena, const std::string& tipo, int ms) {
@@ -348,10 +363,14 @@ std::string Conmutadores::setTransicionEntrada(const std::string& escena, const 
     static const std::vector<std::string> tipos{"", "cut", "fade", "swipe", "slide", "fade_to_color"};
     if (std::find(tipos.begin(), tipos.end(), tipo) == tipos.end())
         return ba::i18n::traducir("aire", "tipo: cut, fade, swipe, slide o fade_to_color (vacío = la global)");
+    const std::string id = rt_.engine().sceneId(escena);
+    if (id.empty()) return ba::i18n::llenar(ba::i18n::traducir("aire", "no existe la escena «%1»"), {escena});
+    const std::string nombre = rt_.engine().sceneName(id);
+    transicionesEntrada_.erase(nombre); // una de antes, bajo el nombre
     if (tipo.empty())
-        transicionesEntrada_.erase(escena);
+        transicionesEntrada_.erase(id);
     else
-        transicionesEntrada_[escena] = {{"tipo", tipo}, {"ms", ms}};
+        transicionesEntrada_[id] = {{"tipo", tipo}, {"ms", ms}, {"escena", nombre}};
     guardar();
     rt_.fotoSucia(FotoMotor::Escenas);
     return {};

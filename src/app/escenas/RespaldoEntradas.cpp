@@ -6,6 +6,7 @@
 #include "arranque/AppRuntime.hpp"
 #include "emision/TurnoMotor.hpp"
 #include "escenas/Conmutador.hpp"
+#include "escenas/RefEscena.hpp"
 #include "video/VideoGrafos.hpp"
 
 #include <QDateTime>
@@ -31,6 +32,30 @@ RespaldoEntradas::RespaldoEntradas(AppRuntime& rt, video::VideoGrafos& video, Co
         t.soltar();
     });
     reloj_.start();
+    // La escena de cada respaldo va por su id: un renombre pone al día el nombre (el aviso
+    // llega en el dueño, con el turno).
+    observador_ = rt_.observar([this](AppRuntime::Cambio c) {
+        if (c == AppRuntime::Cambio::Escenas) seguirEscenas();
+    });
+}
+
+RespaldoEntradas::~RespaldoEntradas() {
+    if (observador_ >= 0) rt_.dejarDeObservar(observador_);
+}
+
+void RespaldoEntradas::seguirEscenas() {
+    const TablaEscenas t = rt_.engine().tablaEscenas();
+    if (t.vacia()) return;
+    nlohmann::json todos;
+    {
+        const std::lock_guard<std::mutex> l(mu_);
+        bool hubo = false;
+        for (auto& [entrada, r] : respaldos_.items()) hubo = seguirRef(r, t) || hubo;
+        if (!hubo) return;
+        todos = respaldos_;
+    }
+    config::guardar(archivo(), {{"entradas", todos}});
+    emit respaldosCambio();
 }
 
 std::filesystem::path RespaldoEntradas::archivo() const { return rt_.dataRoot() / "Config" / "respaldo-entradas.json"; }
@@ -49,10 +74,13 @@ std::string RespaldoEntradas::setRespaldo(const std::string& entrada, const std:
                                           const std::string& alPerderAire, int ms) {
     if (alPerderAire != "avisar" && alPerderAire != "armar" && alPerderAire != "cortar")
         return tr("al_perder_aire: avisar, armar o cortar").toStdString();
+    nlohmann::json r{{"escena", escena}, {"al_perder_aire", alPerderAire}, {"ms", std::clamp(ms, 200, 60000)}};
+    // Con su id (de la última foto: esto se pide desde cualquier hilo), así un renombre no la pierde.
+    if (const auto f = rt_.ultimaFoto()) seguirRef(r, TablaEscenas(f->idsDeEscenas()));
     nlohmann::json todos;
     {
         const std::lock_guard<std::mutex> l(mu_);
-        respaldos_[entrada] = {{"escena", escena}, {"al_perder_aire", alPerderAire}, {"ms", std::clamp(ms, 200, 60000)}};
+        respaldos_[entrada] = r;
         todos = respaldos_;
     }
     config::guardar(archivo(), {{"entradas", todos}});
@@ -92,6 +120,7 @@ void RespaldoEntradas::revisar() {
     // entonces). Cada salida con su conmutador.
     if (sin.isEmpty()) return;
     const nlohmann::json resp = todos();
+    const TablaEscenas tabla = rt_.engine().tablaEscenas();
     QStringList perdidas; // las de solo avisar, juntas en un aviso (una vez aunque esté en varias)
     for (Conmutador* c : conmutadores_.todos()) {
         const std::string& salida = c->salida();
@@ -104,9 +133,10 @@ void RespaldoEntradas::revisar() {
             const nlohmann::json r = resp.value(e.toStdString(), nlohmann::json::object());
             if (ahora - sinSenalDesde_.value(e) < r.value("ms", 1000)) continue;
             hecho_.insert(clave);
-            const std::string escena = r.value("escena", std::string());
+            // Por el id si lo tiene; en los avisos, el nombre de ahora.
+            const std::string escena = apunta(r, tabla);
             const std::string modo = r.value("al_perder_aire", std::string("avisar"));
-            const QString qe = QString::fromStdString(escena);
+            const QString qe = QString::fromStdString(tabla.hay(escena) ? tabla.nombre(escena) : escena);
             if (modo == "cortar" && !escena.empty()) {
                 const std::string err = c->poner(escena);
                 emit aviso(err.empty() ? tr("«%1» se quedó sin señal al aire: se cortó a «%2»").arg(e, qe)

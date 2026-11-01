@@ -120,6 +120,7 @@ struct Aire {
     bool grabando = false;
     std::vector<std::string> destinos;    ///< los destinos (destinos.json) que transmitían su programa
     Placa placa;                          ///< el negro y la placa (antes, Runtime/placa.json)
+    std::string escenaId; ///< el id de la escena (escenas/RefEscena.hpp): manda sobre el nombre
 };
 /// La versión del documento: 2 = con la placa y la línea adentro (F3-04). Un arranque
 /// lee la 1 (al-aire.json sin secciones, con placa.json y linea-aire.json aparte) una

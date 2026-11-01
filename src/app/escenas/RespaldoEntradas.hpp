@@ -44,6 +44,7 @@ class RespaldoEntradas : public QObject {
     Q_OBJECT
    public:
     RespaldoEntradas(AppRuntime& rt, video::VideoGrafos& video, Conmutadores& conmutadores, QObject* parent = nullptr);
+    ~RespaldoEntradas() override;
 
     /// El respaldo de una entrada: {escena, al_perder_aire, ms} o {}.
     nlohmann::json respaldo(const std::string& entrada) const;
@@ -56,6 +57,10 @@ class RespaldoEntradas : public QObject {
     /// Una vuelta: mira qué entradas no tienen señal y aplica los respaldos (en el dueño,
     /// con el turno; la corre su reloj, cada segundo).
     void revisar();
+    /// La escena de cada respaldo va con su id (`escena_id`, escenas/RefEscena.hpp): lo de
+    /// antes lo toma y el nombre se pone al día (un renombre); se guarda si cambió. En el
+    /// dueño, al cambiar las escenas (Cambio::Escenas).
+    void seguirEscenas();
 
    signals:
     /// Cambió la lista de entradas sin señal.
@@ -67,6 +72,7 @@ class RespaldoEntradas : public QObject {
 
    private:
     std::filesystem::path archivo() const;
+    int observador_ = -1; ///< las escenas (AppRuntime::observar)
 
     QTimer reloj_{this}; ///< se muda con el objeto al hilo del dueño
     AppRuntime& rt_;

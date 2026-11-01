@@ -115,7 +115,8 @@ void PublicadorFoto::armarFoto(FotoMotor& f, unsigned p) {
         for (const std::string& n : rt_.orderedSceneNames()) {
             FotoMotor::Escena e;
             e.nombre = n;
-            const SceneConfig* sc = findScene(cfg, n);
+            e.id = eng.sceneId(n);
+            const SceneConfig* sc = findScene(cfg, e.id);
             if (sc != nullptr) {
                 e.carpeta = sc->folder;
                 e.protegida = sc->protegida;

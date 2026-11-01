@@ -8,6 +8,7 @@
 
 #include "ajustes/Ajustes.hpp"
 #include "arranque/AppRuntime.hpp"
+#include "emision/VentanillaMotor.hpp"
 #include "evento/EventoWeb.hpp"
 #include "i18n/I18n.hpp"
 #include "platform/Paths.hpp"
@@ -25,6 +26,13 @@ EventoViewModel::EventoViewModel(AppRuntime& rt, VentanillaMotor& ventanilla, Co
     corrida_ = new CorridaViewModel(*ab_, *guion_, rt, ventanilla, sala, graficos, this);
     web_ = new WebEventoViewModel(*ab_, *corrida_, *padron_, *lista_, rt, sala, this);
     informe_ = new InformeEventoViewModel(*ab_, *corrida_, *padron_, this);
+
+    // Las escenas de la línea van por su id: al cambiar las escenas (un renombre, una que
+    // se borra, la primera foto) el nombre que muestra cada pieza se pone al día.
+    connect(&ventanilla, &VentanillaMotor::cambio, this, [this, &ventanilla](unsigned p) {
+        if ((p & FotoMotor::Escenas) != 0) ab_->seguirEscenas(escenas::TablaEscenas(ventanilla.foto().idsDeEscenas()));
+    });
+    ventanilla_ = &ventanilla;
 
     // Los avisos de todas las piezas, juntos.
     for (QObject* o : std::initializer_list<QObject*>{lista_, guion_, padron_, corrida_, web_, informe_})
@@ -97,6 +105,7 @@ bool EventoViewModel::abrir(const QString& carpeta) {
     corrida_->olvidar();
     ba::i18n::usarEnEvento(e.idioma); // lo que ven y escuchan el público y los invitados
     const QString aviso = ab_->poner(carpeta, std::move(e));
+    ab_->seguirEscenas(escenas::TablaEscenas(ventanilla_->foto().idsDeEscenas())); // un evento de antes: por id
     corrida_->limpiarBitacora();
     if (!aviso.isEmpty()) corrida_->anotar(aviso, "info");
     padron_->cargar();

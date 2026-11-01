@@ -628,10 +628,6 @@ bool AppRuntime::copyScene(const std::string& from, const std::string& to) { ret
 bool AppRuntime::setSceneProtected(const std::string& name, bool protegida) { return escenas_->setSceneProtected(name, protegida); }
 bool AppRuntime::sceneProtected(const std::string& name) const { return escenas_->sceneProtected(name); }
 bool AppRuntime::renameScene(const std::string& from, const std::string& to) { return escenas_->renameScene(from, to); }
-std::vector<std::pair<std::string, std::string>> AppRuntime::renombresDeEscena(std::size_t& desde) const {
-    return escenas_->renombresDeEscena(desde);
-}
-void AppRuntime::dejarDeLeerRenombres(const std::size_t& desde) const { escenas_->dejarDeLeerRenombres(desde); }
 std::string AppRuntime::sceneFolder(const std::string& name) const { return escenas_->sceneFolder(name); }
 bool AppRuntime::setSceneFolder(const std::string& name, const std::string& folder) { return escenas_->setSceneFolder(name, folder); }
 std::vector<std::string> AppRuntime::sceneFolders() const { return escenas_->sceneFolders(); }

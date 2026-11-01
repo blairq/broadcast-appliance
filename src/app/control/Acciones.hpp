@@ -38,6 +38,7 @@
 #include <string>
 #include <vector>
 #include "ui/CapturaError.hpp"
+#include "escenas/RefEscena.hpp"
 
 namespace ba::app::control {
 
@@ -63,7 +64,8 @@ class Acciones : public QObject {
             ejecutar;
         /// Las salidas: [{id, nombre, color, por_omision}], la por omisión primera.
         std::function<json()> salidas;
-        std::function<std::vector<std::string>()> escenas;
+        /// Las escenas (id, nombre): «armar:<id>» y «cortar:<id>» (escenas/RefEscena.hpp).
+        std::function<::ba::app::escenas::TablaEscenas()> escenas;
         std::function<std::vector<std::string>()> fuentesAudio;
         std::function<bool(const std::string& fuente, const std::string& salida)> mudo;
         /// ¿La capa está arriba en esa salida? ("" = la por omisión: cada una sube las suyas).
@@ -98,6 +100,11 @@ class Acciones : public QObject {
     std::string asignar(const std::string& tecla, const std::string& accion, bool global);
     bool quitar(const std::string& tecla);
     bool globalesDisponibles() const;
+    /// Los atajos de una escena («armar:<escena>», «cortar:<escena>») van por su id, con
+    /// el nombre al lado (`escena`, para leer): lo de antes (por el nombre) pasa al id y
+    /// el nombre se pone al día (un renombre). Se guarda si cambió. Con cada cambio de
+    /// escenas (ControlViewModel, la foto).
+    void seguirEscenas(const escenas::TablaEscenas& t);
 
     QVariantList atajosUi() const;
     Q_INVOKABLE QVariantList catalogoUi() const;

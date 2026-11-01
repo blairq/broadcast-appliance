@@ -104,11 +104,12 @@ json Acciones::catalogo() const {
                      {"nombre", llenar(traducir("acciones", "Subir/bajar la capa DSK %1"), {std::to_string(capa)})},
                      {"grupo", traducir("acciones", "Capas")}, {"interna", true}});
     if (g_.escenas)
-        for (const auto& e : g_.escenas()) {
-            const std::string escenas = traducir("acciones", "Escenas");
-            c.push_back(herr("armar:" + e, llenar(traducir("acciones", "Armar «%1»"), {e}), escenas, "scene_preview",
+        // Por el id (un atajo guardado sigue a la escena aunque la renombren).
+        for (const auto& [id, e] : g_.escenas().todas()) {
+            const std::string grupo = traducir("acciones", "Escenas");
+            c.push_back(herr("armar:" + id, llenar(traducir("acciones", "Armar «%1»"), {e}), grupo, "scene_preview",
                              {{"name", e}}));
-            c.push_back(herr("cortar:" + e, llenar(traducir("acciones", "Cortar a «%1»"), {e}), escenas, "scene_switch",
+            c.push_back(herr("cortar:" + id, llenar(traducir("acciones", "Cortar a «%1»"), {e}), grupo, "scene_switch",
                              {{"name", e}}));
         }
     if (g_.salidas) {
@@ -215,6 +216,14 @@ json Acciones::resolverSinSalida(const std::string& id, const std::string& salid
         const bool arriba = g_.dskArriba && g_.dskArriba(capa, salida); // la capa es de cada salida
         return {{"herramienta", "dsk_mostrar"}, {"args", {{"capa", capa}, {"visible", !arriba}}}};
     }
+    // Una escena, por su id o por su nombre (los atajos de antes, o quien lo tipea).
+    for (const auto& [prefijo, herramienta] : {std::pair<std::string, std::string>{"armar:", "scene_preview"}, {"cortar:", "scene_switch"}})
+        if (id.rfind(prefijo, 0) == 0 && g_.escenas) {
+            const escenas::TablaEscenas t = g_.escenas();
+            const std::string e = id.substr(prefijo.size());
+            if (!t.hay(e)) return {{"error", llenar(traducir("acciones", "no hay una acción «%1» (acciones_listar)"), {id})}};
+            return {{"herramienta", herramienta}, {"args", {{"name", t.nombre(e)}}}};
+        }
     if (id.rfind("mudo:", 0) == 0) {
         const std::string f = id.substr(5);
         const bool mudo = g_.mudo && g_.mudo(f, salida); // el mudo es de cada salida
@@ -249,6 +258,36 @@ std::string Acciones::tecla(const std::string& t) {
     return {};
 }
 
+void Acciones::seguirEscenas(const escenas::TablaEscenas& t) {
+    if (t.vacia()) return;
+    bool hubo = false;
+    for (auto& a : atajos_) {
+        const std::string accion = a.value("accion", std::string());
+        for (const std::string prefijo : {"armar:", "cortar:"}) {
+            if (accion.rfind(prefijo, 0) != 0) continue;
+            // «armar:<escena>@<salida>»: la @ de la salida va aparte.
+            std::string e = accion.substr(prefijo.size()), sufijo;
+            if (const auto arroba = e.rfind('@'); arroba != std::string::npos && !salidaExistente(e.substr(arroba + 1)).empty()) {
+                sufijo = e.substr(arroba);
+                e = e.substr(0, arroba);
+            }
+            // El id manda; si no hay escena con ese id, el nombre de al lado (otra corrida).
+            std::string id = t.id(e);
+            if (id.empty()) id = t.id(a.value("escena", std::string()));
+            if (id.empty()) continue; // una escena que no está: queda como estaba
+            const std::string nueva = prefijo + id + sufijo, nombre = t.nombre(id);
+            if (nueva != accion || a.value("escena", std::string()) != nombre) {
+                a["accion"] = nueva;
+                a["escena"] = nombre;
+                hubo = true;
+            }
+        }
+    }
+    if (!hubo) return;
+    guardar();
+    emit cambio();
+}
+
 void Acciones::guardar() const {
     config::guardar(archivo_, {{"atajos", atajos_}});
 }
@@ -277,6 +316,7 @@ std::string Acciones::asignar(const std::string& tecla, const std::string& accio
                                  [&](const json& a) { return a.value("accion", std::string()) == accion; }),
                   atajos_.end());
     atajos_.push_back({{"tecla", t}, {"accion", accion}, {"global", global}});
+    if (g_.escenas) seguirEscenas(g_.escenas()); // «cortar:<nombre>»: por el id
     guardar();
     registrarGlobales();
     emit cambio();

@@ -1519,11 +1519,13 @@ endif()
     target_include_directories(test_foto_partes PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
     target_link_libraries(test_foto_partes PRIVATE nlohmann_json::nlohmann_json)
     add_test(NAME test_foto_partes COMMAND test_foto_partes)
-    # Renombrar una escena: la armada y las transiciones de entrada la siguen.
-    add_executable(test_seguir_escenas tests/test_seguir_escenas.cpp)
-    target_include_directories(test_seguir_escenas PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
-    target_link_libraries(test_seguir_escenas PRIVATE nlohmann_json::nlohmann_json)
-    add_test(NAME test_seguir_escenas COMMAND test_seguir_escenas)
+    # El id estable de escena (escenas/RefEscena.hpp): lo guardado de antes pasa al id, y
+    # renombrar no deja nada apuntando al nombre viejo (la línea, transiciones, DSK, botones).
+    add_executable(test_ref_escena tests/test_ref_escena.cpp evento/Linea.cpp evento/LineaEdicion.cpp evento/Condicion.cpp
+                   evento/Evento.cpp)
+    target_include_directories(test_ref_escena PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    target_link_libraries(test_ref_escena PRIVATE nlohmann_json::nlohmann_json)
+    add_test(NAME test_ref_escena COMMAND test_ref_escena)
     # Roles y despachador de agentes de un tiro, con un motor falso (script).
     add_executable(test_despachador tests/test_despachador.cpp agent/Despachador.cpp agent/Despachador.hpp
                    agent/Roles.cpp)

@@ -246,6 +246,7 @@ void AsambleaViewModel::armarBancas() {
     gd.apuntar = [this](const std::string& id) { return bancas_->prepararToma(QString::fromStdString(id)).toStdString(); };
     gd.armar = g.armar;
     gd.cortar = g.cortar;
+    gd.escenas = [this]() { return escenas::TablaEscenas(p_.ventanilla.foto().idsDeEscenas()); };
     gd.terminarOrador = [this]() { bancas_->terminar(); };
     gd.central = [this](bool debate) {
         if (!dcn_ || !dcn_->conectada()) return;
@@ -284,6 +285,10 @@ void AsambleaViewModel::armarBancas() {
             dcn_->control("tiempo", {{"banca", banca}, {"aviso", a}}, [](bool, const nlohmann::json&, const std::string&) {});
     };
     debate_ = std::make_unique<asamblea::Debate>(cuerpo_->cuerpo(), p_.rt.dataRoot(), gd);
+    // La escena de cada tipo de debate va por su id: el nombre, al día con las escenas.
+    connect(&p_.ventanilla, &VentanillaMotor::cambio, this, [this](unsigned partes) {
+        if ((partes & FotoMotor::Escenas) != 0) debate_->seguirEscenas(escenas::TablaEscenas(p_.ventanilla.foto().idsDeEscenas()));
+    });
     connect(debate_.get(), &asamblea::Debate::aviso, this, [this](const QString& t, const QString& n) { emit notify(t, n); });
     // La foto de cada integrante, capturada con la cámara de su banca.
     asamblea::CuerpoViewModel::Ganchos gc;

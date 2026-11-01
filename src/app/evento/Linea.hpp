@@ -48,6 +48,10 @@ struct Cue;
 enum class Tipo;
 }
 
+namespace ba::app::escenas {
+class TablaEscenas;
+}
+
 namespace ba::evento::linea {
 
 /// Lo que nunca termina (una pieza «hasta que se saque»).
@@ -309,8 +313,15 @@ struct Linea {
 /// de tipo escena sin pista); nullptr si el paso no cambia el plano. La usan los
 /// conflictos de PTZ, el lookahead al PVW y el «reenganchar» de lo hecho a mano.
 const Pieza* piezaDeEscena(const Linea& l, const Paso& p, const std::string& salida);
-/// La escena que pone esa pieza ("" si ninguna).
+/// La escena que pone esa pieza ("" si ninguna): su nombre, para mostrar y comparar.
 std::string escenaDe(const Linea& l, const Paso& p, const std::string& salida);
+/// La misma, para pedírsela al motor: el id si lo tiene (escenas/RefEscena.hpp), si no el nombre.
+std::string escenaParaPedir(const Linea& l, const Paso& p, const std::string& salida);
+/// Las piezas que ponen una escena guardan su nombre (`datos.escena`) y su id
+/// (`datos.escena_id`): lo de antes (solo el nombre) toma el id, y el nombre se pone al
+/// día por el id (un renombre). Quien cambia `escena` a mano saca el id viejo
+/// (escenas::soltarIdViejo). true si cambió algo (hay que guardar).
+bool seguirEscenas(Linea& l, const ba::app::escenas::TablaEscenas& t);
 
 /// Pasa un guion v1 (bloques → cues) a la línea v2, sin perder nada:
 ///  - cada bloque queda igual;

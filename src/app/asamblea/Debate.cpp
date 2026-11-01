@@ -54,13 +54,49 @@ std::string Debate::configurar(const json& c) {
     if (!c.is_object()) return ba::i18n::traducir("asamblea", "la configuración va como objeto");
     if (c.contains("escenas") && c["escenas"].is_object())
         for (const char* k : {"sala_sala", "sala_remoto", "remoto_remoto"})
-            if (c["escenas"].contains(k) && c["escenas"][k].is_string()) config_["escenas"][k] = c["escenas"][k];
+            if (c["escenas"].contains(k) && c["escenas"][k].is_string() && c["escenas"][k] != config_["escenas"][k]) {
+                config_["escenas"][k] = c["escenas"][k];
+                // Otra escena: el id de la de antes se va (lo pone seguirEscenas, ya).
+                if (config_.contains("escenas_id") && config_["escenas_id"].is_object()) config_["escenas_id"].erase(k);
+            }
+    if (c.contains("escenas_id") && c["escenas_id"].is_object()) // lo que devolvió cargar
+        for (const char* k : {"sala_sala", "sala_remoto", "remoto_remoto"})
+            if (c["escenas_id"].contains(k) && c["escenas_id"][k].is_string()) config_["escenas_id"][k] = c["escenas_id"][k];
+    if (g_.escenas) {
+        const escenas::TablaEscenas t = g_.escenas();
+        seguirEnConfig(t);
+    }
     if (c.contains("turno_s") && c["turno_s"].is_number_integer())
         config_["turno_s"] = std::clamp(c["turno_s"].get<int>(), 0, 3600);
     if (c.contains("directo") && c["directo"].is_boolean()) config_["directo"] = c["directo"];
     guardar();
     emit cambio();
     return {};
+}
+
+bool Debate::seguirEnConfig(const escenas::TablaEscenas& t) {
+    if (t.vacia()) return false;
+    bool hubo = false;
+    json ids = config_.value("escenas_id", json::object());
+    if (!ids.is_object()) ids = json::object();
+    for (const char* k : {"sala_sala", "sala_remoto", "remoto_remoto"}) {
+        json r{{"escena", config_["escenas"].value(k, std::string())}, {"escena_id", ids.value(k, std::string())}};
+        if (!escenas::seguirRef(r, t)) continue;
+        config_["escenas"][k] = r["escena"];
+        ids[k] = r["escena_id"];
+        hubo = true;
+    }
+    if (hubo) {
+        config_["escenas_id"] = ids;
+        if (activo_) escena_ = config_["escenas"].value(tipo(), std::string()); // el nombre de ahora
+    }
+    return hubo;
+}
+
+void Debate::seguirEscenas(const escenas::TablaEscenas& t) {
+    if (!seguirEnConfig(t)) return;
+    guardar();
+    emit cambio();
 }
 
 void Debate::configurarUi(const QVariantMap& cambios) {
@@ -132,10 +168,14 @@ std::string Debate::iniciar(const std::string& a, const std::string& b, const st
                    : tipo() == "sala_remoto" ? ba::i18n::traducir("asamblea", "no hay escena configurada para un debate entre uno de "
                                                                               "la sala y un remoto")
                                              : ba::i18n::traducir("asamblea", "no hay escena configurada para un debate entre dos remotos"));
-    } else if (config_.value("directo", false) && g_.cortar) {
-        g_.cortar(escena_);
-    } else if (g_.armar) {
-        g_.armar(escena_);
+    } else {
+        // Por el id si lo tiene (un renombre después de configurarlo no la pierde).
+        const json r{{"escena", escena_}, {"escena_id", config_.value("escenas_id", json::object()).value(tipo(), std::string())}};
+        const std::string pedir = g_.escenas ? escenas::apunta(r, g_.escenas()) : escena_;
+        if (config_.value("directo", false) && g_.cortar)
+            g_.cortar(pedir);
+        else if (g_.armar)
+            g_.armar(pedir);
     }
     turnoS_ = seg;
     turno_.clear();

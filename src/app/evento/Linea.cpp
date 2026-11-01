@@ -7,6 +7,7 @@
 
 #include "evento/Evento.hpp"
 #include "evento/LeerJson.hpp"
+#include "escenas/RefEscena.hpp"
 #include "i18n/I18n.hpp"
 
 #include <algorithm>
@@ -443,6 +444,32 @@ const Pieza* piezaDeEscena(const Linea& l, const Paso& p, const std::string& s) 
 std::string escenaDe(const Linea& l, const Paso& p, const std::string& s) {
     const Pieza* z = piezaDeEscena(l, p, s);
     return z ? leerTexto(z->datos, "escena") : std::string();
+}
+
+std::string escenaParaPedir(const Linea& l, const Paso& p, const std::string& s) {
+    const Pieza* z = piezaDeEscena(l, p, s);
+    if (z == nullptr) return {};
+    const std::string id = leerTexto(z->datos, "escena_id");
+    return id.empty() ? leerTexto(z->datos, "escena") : id;
+}
+
+bool seguirEscenas(Linea& l, const ba::app::escenas::TablaEscenas& t) {
+    if (t.vacia()) return false; // sin escenas a la vista (todavía no llegó la foto): nada que decir
+    bool cambio = false;
+    const auto pieza = [&](Pieza& z) {
+        if (z.datos.is_object() && z.datos.contains("escena") && z.datos["escena"].is_string())
+            cambio = ba::app::escenas::seguirRef(z.datos, t) || cambio;
+    };
+    const auto paso = [&](Paso& p) {
+        for (Pieza& z : p.piezas) pieza(z);
+    };
+    for (Bloque& b : l.bloques)
+        for (Paso& p : b.pasos) paso(p);
+    for (ItemEstante& e : l.estante) {
+        if (e.pieza) pieza(*e.pieza);
+        if (e.paso) paso(*e.paso);
+    }
+    return cambio;
 }
 
 json Linea::aJson() const {

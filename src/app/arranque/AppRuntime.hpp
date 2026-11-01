@@ -302,6 +302,9 @@ class AppRuntime {
     void detenerDestino(const std::string& id); ///< "todos": todos
 
     // --- Escenas y fuentes (motor + configuracion) ----------------------------
+    // Cada escena se pide por su nombre o por su id estable (escenas/RefEscena.hpp; el
+    // id, de engine().sceneId). Lo que se guarda apuntando a una escena guarda el id:
+    // renombrarla no corta el aire ni deja nada apuntando a un nombre viejo.
     bool addScene(const std::string& name);
     bool removeScene(const std::string& name);
     /// Copia una escena entera con sus fuentes. La copia NO queda protegida
@@ -311,14 +314,6 @@ class AppRuntime {
     bool setSceneProtected(const std::string& name, bool protegida);
     bool sceneProtected(const std::string& name) const;
     bool renameScene(const std::string& from, const std::string& to);
-    /// Los renombres de escena (de, a) desde el número `desde`, en el orden en que pasaron;
-    /// deja en `desde` el que sigue. Quien guarda cosas por el nombre de la escena (los
-    /// conmutadores: la armada, las transiciones de entrada) los aplica a lo suyo al llegar
-    /// el aviso Cambio::Escenas. Desde cualquier hilo. `desde` es también quién lee: lo que
-    /// TODOS los lectores ya pasaron se descarta (no crece sin tope); al irse, el lector
-    /// llama a dejarDeLeerRenombres(desde).
-    std::vector<std::pair<std::string, std::string>> renombresDeEscena(std::size_t& desde) const;
-    void dejarDeLeerRenombres(const std::size_t& desde) const;
     /// Carpeta de una escena ("" si no tiene).
     std::string sceneFolder(const std::string& name) const;
     /// Mueve la escena a una carpeta ("" la saca). Devuelve false si no existe.

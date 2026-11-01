@@ -1206,10 +1206,8 @@ void McpService::registerTools() {
         const std::string s = a.value("scene", std::string());
         return s.empty() ? rt.engine().currentScene() : s;
     };
-    const auto sceneExists = [&rt](const std::string& s) {
-        const auto names = rt.engine().sceneNames();
-        return std::find(names.begin(), names.end(), s) != names.end();
-    };
+    // Por el nombre (lo de siempre) o por el id estable que da scene_list.
+    const auto sceneExists = [&rt](const std::string& s) { return !rt.engine().sceneId(s).empty(); };
     const auto noScene = [&rt](const std::string& s) {
         std::string names;
         for (const auto& n : rt.engine().sceneNames())
@@ -1368,7 +1366,9 @@ void McpService::registerTools() {
             "pestaña Escenas: no cambian nada de la emision.\n\n"
             "`live` es la que esta AL AIRE; `armada` es la del bus de preview, la que sale con el "
             "proximo `preview_al_aire`. Son los dos buses de una mesa de switcher. Con `salida`, los de esa salida "
-            "(cada una tiene su aire y su armada; las escenas son de todas).");
+            "(cada una tiene su aire y su armada; las escenas son de todas).\n\n"
+            "Cada escena trae su `id`, que no cambia al renombrarla: donde va el nombre de una "
+            "escena también se puede pasar el id.");
         t.run = [this, &rt, &vm](const json& a, Done done) {
             const std::string salida = core_.salidaDe(a);
             const std::string armada = conmutadorDe(core_, vm, a).armada();
@@ -1376,6 +1376,7 @@ void McpService::registerTools() {
             json scenes = json::array();
             for (const std::string& n : rt.orderedSceneNames()) {
                 scenes.push_back(json{{"name", n},
+                                      {"id", rt.engine().sceneId(n)},
                                       {"live", n == alAire},
                                       {"armada", n == armada},
                                       {"folder", rt.sceneFolder(n)},
@@ -1591,7 +1592,9 @@ void McpService::registerTools() {
         t.inputSchema = {{"type", "object"},
                          {"properties", {{"from", {{"type", "string"}}}, {"to", {{"type", "string"}}}}},
                          {"required", {"from", "to"}}};
-        t.description = QT_TRANSLATE_NOOP("mcp", "Cambia el nombre de una escena (de `from` a `to`). Una protegida (scene_protect) no se puede renombrar.");
+        t.description = QT_TRANSLATE_NOOP("mcp", "Cambia el nombre de una escena (de `from` a `to`). Una protegida (scene_protect) no se puede renombrar. "
+                                                 "Al aire no corta: la escena es la misma (su `id` no cambia) y lo que la nombra (la línea, "
+                                                 "el DSK, los atajos) la sigue.");
         t.run = [&rt, sceneExists, noScene](const json& a, Done done) {
             if (!sceneExists(a["from"])) return done(noScene(a["from"]));
             if (!rt.renameScene(a["from"], a["to"])) return done(ToolResult::error(rt.lastError()));

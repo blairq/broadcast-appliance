@@ -146,10 +146,11 @@ bool VistasYMedicion::enableScenePreview(const std::string& canal, const std::st
     // «mini:X»: la escena X compuesta aparte a pocos cuadros por segundo (las miniaturas
     // de la línea de tiempo: motor::Motor::kMiniFps).
     const bool entera = name.rfind("entera:", 0) == 0 && m_.escenas_->sourceExists(name.substr(7));
+    // Las escenas, por su id (así las conoce el motor); `name` queda como lo pidieron.
     const bool mini = name.rfind("mini:", 0) == 0 && m_.escenas_->escena(name.substr(5)) != nullptr;
     const std::string base = entera                     ? "entrada-entera:" + name.substr(7)
-                             : mini                     ? name
-                             : m_.escenas_->escena(name) != nullptr  ? "escena:" + name
+                             : mini                     ? "mini:" + m_.escenas_->idDe(name.substr(5))
+                             : m_.escenas_->escena(name) != nullptr  ? "escena:" + m_.escenas_->idDe(name)
                              : m_.escenas_->sourceExists(name) ? "entrada:" + name
                                                         : "";
     if (base.empty()) {

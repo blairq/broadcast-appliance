@@ -163,15 +163,33 @@ json EfectosCapa::sombraMotor() const {
 }
 
 EscenasYFuentes::EscenaApp* EscenasYFuentes::escena(const std::string& nombre) {
-    for (auto& e : scenes_)
+    return const_cast<EscenaApp*>(std::as_const(*this).escena(nombre));
+}
+
+const EscenasYFuentes::EscenaApp* EscenasYFuentes::escena(const std::string& nombre) const {
+    // Por el id primero (lo que se guarda), después por el nombre (lo que se pide).
+    if (nombre.empty()) return nullptr;
+    for (const auto& e : scenes_)
+        if (e.id == nombre) return &e;
+    for (const auto& e : scenes_)
         if (e.nombre == nombre) return &e;
     return nullptr;
 }
 
-const EscenasYFuentes::EscenaApp* EscenasYFuentes::escena(const std::string& nombre) const {
-    for (const auto& e : scenes_)
-        if (e.nombre == nombre) return &e;
-    return nullptr;
+std::string EscenasYFuentes::idDe(const std::string& escenaPedida) const {
+    const EscenaApp* e = escena(escenaPedida);
+    return e != nullptr ? e->id : std::string();
+}
+
+std::string EscenasYFuentes::nombreDe(const std::string& escenaPedida) const {
+    const EscenaApp* e = escena(escenaPedida);
+    return e != nullptr ? e->nombre : std::string();
+}
+
+escenas::TablaEscenas EscenasYFuentes::tabla() const {
+    escenas::TablaEscenas t;
+    for (const auto& e : scenes_) t.agregar(e.id, e.nombre);
+    return t;
 }
 
 std::string EscenasYFuentes::errorDeCompositor(const std::string& nombre) const {
@@ -290,7 +308,7 @@ json EscenasYFuentes::escenaMotor(const EscenaApp& e) const {
         capas.push_back(c);
     }
     sumarVideoDeGraficos(e, capas); // el video en vivo de los gráficos que están al aire en ella
-    return {{"nombre", e.nombre}, {"capas", capas}};
+    return {{"nombre", e.id}, {"capas", capas}}; // el motor la conoce por el id: renombrarla no lo toca
 }
 
 int EscenasYFuentes::ranuraDe(const Fuente& f) const {
@@ -357,8 +375,8 @@ void EscenasYFuentes::publicarEscena(const EscenaApp& e) {
     m_.motor_->definirEscena(escenaMotor(e));
 }
 
-bool EscenasYFuentes::createScene(const std::string& name) {
-    if (!m_.started_ || name.empty() || escena(name) != nullptr) {
+bool EscenasYFuentes::createScene(const std::string& name, const std::string& idPedido) {
+    if (!m_.started_ || name.empty() || escena(name) != nullptr || (!idPedido.empty() && escena(idPedido) != nullptr)) {
         m_.setError(ba::i18n::llenar(ba::i18n::traducir("emision", "createScene: sin motor, nombre vacio o repetido: '%1'"), {name}));
         return false;
     }
@@ -366,24 +384,26 @@ bool EscenasYFuentes::createScene(const std::string& name) {
         m_.setError(ba::i18n::traducir("emision", "los nombres de escena que empiezan con «__» son internos"));
         return false;
     }
-    scenes_.push_back(EscenaApp{name, {}});
+    const std::string id = !idPedido.empty() ? idPedido : escenas::nuevoIdEscena([this](const std::string& i) { return escena(i) != nullptr; });
+    scenes_.push_back(EscenaApp{id, name, {}});
     publicarEscena(scenes_.back());
     return true;
 }
 
 bool EscenasYFuentes::removeScene(const std::string& name) {
-    auto it = std::find_if(scenes_.begin(), scenes_.end(), [&](const EscenaApp& e) { return e.nombre == name; });
+    const std::string id = idDe(name);
+    auto it = std::find_if(scenes_.begin(), scenes_.end(), [&](const EscenaApp& e) { return e.id == id; });
     if (it == scenes_.end() || scenes_.size() == 1) {
         m_.setError(ba::i18n::traducir("emision", "removeScene: no existe o es la unica escena"));
         return false;
     }
     // Las salidas que la tienen al aire pasan a otra con un corte.
-    const std::string other = (it == scenes_.begin()) ? (it + 1)->nombre : scenes_.front().nombre;
-    for (const auto& id : m_.ordenSalidas_)
-        if (m_.salidas_.at(id)->alAire == name) setCurrentSceneCon(other, "cut", 0, id);
+    const std::string other = (it == scenes_.begin()) ? (it + 1)->id : scenes_.front().id;
+    for (const auto& sid : m_.ordenSalidas_)
+        if (m_.salidas_.at(sid)->alAire == id) setCurrentSceneCon(other, "cut", 0, sid);
     const std::vector<Item> items = it->items;
     scenes_.erase(it);
-    m_.motor_->quitarEscena(name);
+    m_.motor_->quitarEscena(id);
     for (const auto& item : items) soltarSiHuerfana(item.fuente);
     return true;
 }
@@ -399,16 +419,9 @@ bool EscenasYFuentes::renameScene(const std::string& from, const std::string& to
     }
     EscenaApp* e = escena(from);
     if (e == nullptr) return false;
+    // Solo el nombre: el motor la conoce por el id, así que lo que está al aire o armado
+    // sigue como estaba, sin un corte ni un cuadro de más.
     e->nombre = to;
-    publicarEscena(*e);
-    for (const auto& [id, s] : m_.salidas_) {
-        if (s->alAire == from) {
-            s->alAire = to;
-            m_.motor_->alAire(to, "corte", 0, id);
-        }
-        if (s->armada == from) armar(to, id);
-    }
-    m_.motor_->quitarEscena(from);
     return true;
 }
 
@@ -441,12 +454,13 @@ bool EscenasYFuentes::setCurrentSceneCon(const std::string& name, const std::str
     if (s == nullptr) return false;
     const int dur = ms < 0 ? transitionMs_ : ms;
     const std::string t = s->alAire.empty() || dur == 0 ? "corte" : transicionMotor(tipo.empty() ? transitionType_ : tipo);
-    const std::string e = m_.motor_->alAire(name, t, dur, s->id);
+    const std::string id = idDe(name);
+    const std::string e = m_.motor_->alAire(id, t, dur, s->id);
     if (!e.empty()) {
         m_.setError(e);
         return false;
     }
-    s->alAire = name;
+    s->alAire = id;
     return true;
 }
 
@@ -456,7 +470,17 @@ bool EscenasYFuentes::setCurrentScene(const std::string& name, const std::string
 
 std::string EscenasYFuentes::currentScene(const std::string& salida) const {
     const SalidaAire* s = m_.laSalida(salida);
+    return s != nullptr ? nombreDe(s->alAire) : std::string();
+}
+
+std::string EscenasYFuentes::currentSceneId(const std::string& salida) const {
+    const SalidaAire* s = m_.laSalida(salida);
     return s != nullptr ? s->alAire : std::string();
+}
+
+std::string EscenasYFuentes::armadaId(const std::string& salida) const {
+    const SalidaAire* s = m_.laSalida(salida);
+    return s != nullptr ? s->armada : std::string();
 }
 
 bool EscenasYFuentes::transicionManual(const std::string& name, float t, bool soltar, bool* alAire, const std::string& salida) {
@@ -467,18 +491,19 @@ bool EscenasYFuentes::transicionManual(const std::string& name, float t, bool so
     }
     SalidaAire* s = m_.laSalida(salida);
     if (s == nullptr) return false;
-    if (name == s->alAire) {
+    const std::string id = idDe(name);
+    if (id == s->alAire) {
         m_.setError(ba::i18n::traducir("emision", "esa escena ya está al aire"));
         return false;
     }
     std::string e;
-    const bool quedo = m_.motor_->tbar(name, t, soltar, &e, s->id);
+    const bool quedo = m_.motor_->tbar(id, t, soltar, &e, s->id);
     if (!e.empty()) {
         m_.setError(e);
         return false;
     }
     if (quedo) {
-        s->alAire = name;
+        s->alAire = id;
         if (alAire != nullptr) *alAire = true;
     }
     return true;
@@ -486,7 +511,7 @@ bool EscenasYFuentes::transicionManual(const std::string& name, float t, bool so
 
 std::string EscenasYFuentes::manualHacia(const std::string& salida) const {
     const SalidaAire* s = m_.laSalida(salida);
-    return m_.motor_ && s != nullptr ? m_.motor_->tbarHacia(s->id) : std::string();
+    return m_.motor_ && s != nullptr ? nombreDe(m_.motor_->tbarHacia(s->id)) : std::string();
 }
 
 bool EscenasYFuentes::buildScene() {
@@ -501,8 +526,9 @@ bool EscenasYFuentes::armar(const std::string& name, const std::string& salida) 
         m_.setError(ba::i18n::llenar(ba::i18n::traducir("emision", "no existe la escena '%1'"), {name}));
         return false;
     }
+    const std::string id = idDe(name);
     if (!m_.started_ || !m_.motor_) {
-        s->armada = name; // el próximo motor la arma (resetVideo)
+        s->armada = id; // el próximo motor la arma (resetVideo)
         return true;
     }
     // LO ARMADO ES EL BUS DE PREVIEW DEL MOTOR: una composición que vive
@@ -511,12 +537,12 @@ bool EscenasYFuentes::armar(const std::string& name, const std::string& salida) 
     // escena armada tenía su propia vista y su propia composición: en cada
     // TAKE se soltaba una y se armaba otra de cero (ramas, shaders) y el
     // preview parpadeaba en negro o sin capas, y además iba a 10-15 cuadros/s.
-    const std::string e = m_.motor_->armar(name, s->id);
+    const std::string e = m_.motor_->armar(id, s->id);
     if (!e.empty()) {
         m_.setError(ba::i18n::llenar(ba::i18n::traducir("emision", "armar: %1"), {e}));
         return false;
     }
-    s->armada = name;
+    s->armada = id;
     return true;
 }
 
@@ -695,7 +721,7 @@ bool EscenasYFuentes::addSource(const std::string& sceneName, const SourceSpec& 
     std::copy(std::begin(spec.recorte), std::end(spec.recorte), std::begin(it.recorte));
     it.efectos = spec.efectos;
     e->items.push_back(it);
-    if (it.recorte[0] + it.recorte[1] + it.recorte[2] + it.recorte[3] > 0) recortesPendientes_.push_back({sceneName, spec.name});
+    if (it.recorte[0] + it.recorte[1] + it.recorte[2] + it.recorte[3] > 0) recortesPendientes_.push_back({e->id, spec.name});
     publicarEscena(*e);
     return true;
 }
@@ -781,7 +807,7 @@ bool EscenasYFuentes::setSourceCrop(const std::string& sceneName, const std::str
             publicarEscena(*e);
             // Sin tamaño todavía (una cámara que arranca): se vuelve a mandar cuando lo tenga.
             int w = 0, h = 0;
-            if (!sourceSize(name, w, h) || w == 0) recortesPendientes_.push_back({sceneName, name});
+            if (!sourceSize(name, w, h) || w == 0) recortesPendientes_.push_back({e->id, name});
             return true;
         }
     return false;

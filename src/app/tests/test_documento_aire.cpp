@@ -294,6 +294,34 @@ int main() {
         fs::remove_all(d);
     }
 
+    // --- 5) la escena por su id (escenas/RefEscena.hpp) ----------------------------------
+    {
+        // El id va y vuelve al lado del nombre; uno de antes (sin id) se lee con el id vacío.
+        const fs::path d = carpeta("escena-id");
+        DocumentoAire doc(d);
+        std::map<std::string, ba::app::salidas::Aire> s;
+        s["principal"].escena = "Plano general";
+        s["principal"].escenaId = "esc-00000001";
+        s["b"].escena = "Placa";
+        s["b"].escenaId = "esc-00000002";
+        doc.ponerSalidas(s, false);
+        doc.volcar();
+        CHECK(ba::persist::cola().vaciar(), "vaciar");
+        const DocumentoAire::Anterior a = arrancar(d);
+        CHECK(a.aire.de("principal").escenaId == "esc-00000001" && a.aire.de("principal").escena == "Plano general" &&
+                  a.aire.de("b").escenaId == "esc-00000002",
+              "el id de la escena de cada salida vuelve, con su nombre");
+        fs::remove_all(d);
+        const fs::path v = carpeta("escena-sin-id");
+        escribir(v / "al-aire.json", R"({"version":2,"streaming":false,"escena":"Plano","cerrado":false,)"
+                                     R"("salidas":{"principal":{"escena":"Plano"}}})");
+        DocumentoAire viejo(v);
+        const DocumentoAire::Anterior b = viejo.leerAnterior();
+        CHECK(b.aire.de("principal").escena == "Plano" && b.aire.de("principal").escenaId.empty(),
+              "uno de antes: el nombre (la escena se busca por él)");
+        fs::remove_all(v);
+    }
+
     std::printf(g_fallos == 0 ? "TODO OK\n" : "%d FALLOS\n", g_fallos);
     return g_fallos == 0 ? 0 : 1;
 }

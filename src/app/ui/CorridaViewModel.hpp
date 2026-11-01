@@ -303,6 +303,8 @@ class CorridaViewModel : public QObject {
     void hacerAccion(const evento::linea::Accion& a);
     void ejecutarCue(const evento::Cue& c, const std::string& paso, const std::string& clave, const std::string& salida, bool global);
     void sacarPieza(const evento::linea::Accion& a);
+    /// El nombre de ahora de una escena pedida por id o nombre (la foto); si no está, lo pedido.
+    std::string nombreDeEscena(const std::string& idONombre) const;
     void armarEscena(const std::string& escena, const std::string& salida);
     void tomarEscena(const std::string& escena, const nlohmann::json& datos, const std::string& salida,
                      std::function<void(const std::string& error)> listo);

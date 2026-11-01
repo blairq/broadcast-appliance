@@ -140,6 +140,7 @@ class EventoViewModel : public QObject {
     QObject* informeObj() const { return informe_; }
 
     AppRuntime& rt_;
+    VentanillaMotor* ventanilla_ = nullptr; ///< la foto: las escenas que hay (seguirEscenas)
     graficos::Emisor* graficos_ = nullptr;
     // Hijos de este QObject: se van con él.
     EventoAbierto* ab_;

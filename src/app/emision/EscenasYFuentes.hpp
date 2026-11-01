@@ -21,6 +21,7 @@
 #include <nlohmann/json.hpp>
 
 #include "emision/BroadcastEngine.hpp"
+#include "escenas/RefEscena.hpp"
 
 namespace ba::app {
 
@@ -50,7 +51,8 @@ class EscenasYFuentes {
         EfectosCapa efectos;
     };
     struct EscenaApp {
-        std::string nombre;
+        std::string id;     ///< estable (escenas/RefEscena.hpp): el motor la conoce por esto
+        std::string nombre; ///< el que se muestra y se pide
         std::vector<Item> items; ///< de abajo hacia arriba
     };
     using RanuraBanca = BroadcastEngine::RanuraBanca;
@@ -58,12 +60,21 @@ class EscenasYFuentes {
     explicit EscenasYFuentes(BroadcastEngine& m) : m_(m) {}
 
     // --- Escenas y transición -------------------------------------------------------------
-    bool createScene(const std::string& name);
+    // Cada escena se pide por su NOMBRE o por su ID (escenas/RefEscena.hpp): escena()
+    // entiende los dos. Al motor va el id, así que renombrar no le toca nada.
+    /// `id` vacío: uno nuevo.
+    bool createScene(const std::string& name, const std::string& id = {});
     bool removeScene(const std::string& name);
     bool renameScene(const std::string& from, const std::string& to);
     std::vector<std::string> sceneNames() const;
+    /// El id y el nombre de una escena pedida por cualquiera de los dos ("" si no está).
+    std::string idDe(const std::string& escena) const;
+    std::string nombreDe(const std::string& escena) const;
+    escenas::TablaEscenas tabla() const;
     bool setCurrentScene(const std::string& name, const std::string& salida = "");
     std::string currentScene(const std::string& salida = "") const;
+    std::string currentSceneId(const std::string& salida = "") const;
+    std::string armadaId(const std::string& salida = "") const;
     bool setTransition(const std::string& type, int durationMs);
     bool setCurrentSceneCon(const std::string& name, const std::string& tipo, int ms, const std::string& salida);
     bool transicionManual(const std::string& name, float t, bool soltar, bool* alAire, const std::string& salida);

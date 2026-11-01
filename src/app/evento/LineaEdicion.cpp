@@ -5,6 +5,7 @@
 
 #include "evento/Condicion.hpp"
 #include "evento/LeerJson.hpp"
+#include "escenas/RefEscena.hpp"
 #include "i18n/I18n.hpp"
 
 #include <algorithm>
@@ -241,7 +242,10 @@ Linea reconciliar(const Linea& vieja, const std::vector<v1::Bloque>& v1b) {
                 if (!igual(*nc, *oc)) {
                     // Solo lo que cambió: lo demás queda como estaba en la línea.
                     if (nc->texto != oc->texto) w.texto = z.texto;
-                    if (nc->datos != oc->datos) w.datos = z.datos;
+                    if (nc->datos != oc->datos) {
+                        w.datos = z.datos;
+                        ba::app::escenas::soltarIdViejo(oz->datos, w.datos); // otra escena en el guion
+                    }
                     // La vida y la duración solo siguen al v1 si eran las que da el v1.
                     Pieza derivada;
                     vidaDeCue(*oc, derivada);
@@ -561,7 +565,10 @@ class Editor {
             case Lugar::Que::Pieza: {
                 auto& p = l_.bloques[x.b].pasos[x.p];
                 if (!tocable(p.id)) return noSeToca(p.id);
-                p.piezas[x.z] = cambiado(p.piezas[x.z], campos);
+                Pieza nueva = cambiado(p.piezas[x.z], campos);
+                // Otra escena a mano con los datos de antes: el id viejo no la pisa.
+                ba::app::escenas::soltarIdViejo(p.piezas[x.z].datos, nueva.datos);
+                p.piezas[x.z] = std::move(nueva);
                 return {};
             }
             case Lugar::Que::Pista: l_.pistas[x.b] = cambiado(l_.pistas[x.b], campos); return {};

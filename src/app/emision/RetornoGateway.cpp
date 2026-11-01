@@ -156,7 +156,9 @@ bool RetornoGateway::escenaACanal(int k, const std::string& nombre) {
         return false;
     }
     CanalEscena& c = canalesEscena_[static_cast<std::size_t>(k)];
-    if (c.escena == nombre) return true;
+    // La escena por su id (renombrarla no rehace el canal); escenaDeCanal dice el nombre.
+    const std::string id = m_.escenas_->idDe(nombre);
+    if (!nombre.empty() && c.escena == id) return true;
     if (!c.clave.empty() && m_.motor_) {
         m_.motor_->verAvisar(c.clave, nullptr);
         m_.motor_->verSoltar(c.clave);
@@ -192,7 +194,7 @@ bool RetornoGateway::escenaACanal(int k, const std::string& nombre) {
         c.ancho = w;
         c.alto = h;
     }
-    const std::string clave = "escena:" + nombre + "@pantallas" + std::to_string(k);
+    const std::string clave = "escena:" + id + "@pantallas" + std::to_string(k);
     const std::string e = m_.motor_->verPedir(clave, w, h);
     if (!e.empty()) {
         m_.setError(ba::i18n::llenar(ba::i18n::traducir("emision", "escena para pantallas: %1"), {e}));
@@ -200,7 +202,7 @@ bool RetornoGateway::escenaACanal(int k, const std::string& nombre) {
     }
     {
         std::lock_guard<std::mutex> l(canalesEscenaM_);
-        c.escena = nombre;
+        c.escena = id;
         c.clave = clave;
     }
     m_.motor_->verAvisar(clave, [this, k](const motor::Cuadro& q) { enviarEscena(k, q); });
@@ -211,7 +213,7 @@ bool RetornoGateway::escenaACanal(int k, const std::string& nombre) {
 
 std::string RetornoGateway::escenaDeCanal(int k) const {
     if (k < 0 || k >= ba::ipc::kCanalesEscena) return {};
-    return canalesEscena_[static_cast<std::size_t>(k)].escena;
+    return m_.escenas_->nombreDe(canalesEscena_[static_cast<std::size_t>(k)].escena);
 }
 
 int RetornoGateway::tomarCanalEscena(const std::string& escena, const std::string& dueno) {

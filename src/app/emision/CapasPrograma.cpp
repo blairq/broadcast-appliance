@@ -49,7 +49,8 @@ void EscenasYFuentes::publicarCapas(SalidaAire& s, int ms) {
         if (!d.visible) continue;
         for (std::size_t k = 0; k < d.contenido.size(); ++k) {
             const std::string& n = d.contenido[k];
-            json c = escena(n) != nullptr ? json{{"escena", n}} : json{{"entrada", n}};
+            const EscenaApp* e = escena(n);
+            json c = e != nullptr ? json{{"escena", e->id}} : json{{"entrada", n}};
             int x = 0, y = 0, w = W, h = H;
             if (d.recuadro.is_object() && !d.recuadro.empty()) {
                 const double tam = std::clamp(d.recuadro.value("tamano", 0.28), 0.05, 1.0);
@@ -158,11 +159,13 @@ bool EscenasYFuentes::dskArmar(int capa, const std::vector<std::string>& conteni
         }
     DskSalida& d = s->dsk[capa - 1];
     const std::vector<std::string> antes = d.contenido;
-    d.contenido = contenido;
+    // Las escenas, por su id: renombrar una no la saca de la capa.
+    d.contenido.clear();
+    for (const auto& n : contenido) d.contenido.push_back(escena(n) != nullptr ? idDe(n) : n);
     d.recuadro = recuadro.is_object() ? recuadro : json::object();
     if (d.visible) publicarCapas(*s, 0);
     for (const auto& n : antes)
-        if (std::find(contenido.begin(), contenido.end(), n) == contenido.end()) soltarSiHuerfana(n);
+        if (std::find(d.contenido.begin(), d.contenido.end(), n) == d.contenido.end()) soltarSiHuerfana(n);
     return true;
 }
 
@@ -186,11 +189,15 @@ nlohmann::json EscenasYFuentes::dskEstado(const std::string& salida) const {
     nlohmann::json out = nlohmann::json::array();
     const SalidaAire* s = m_.laSalida(salida);
     if (s == nullptr) return out;
-    for (int i = 0; i < 4; ++i)
+    for (int i = 0; i < 4; ++i) {
+        // Las escenas, con el nombre de ahora.
+        std::vector<std::string> contenido;
+        for (const std::string& n : s->dsk[i].contenido) contenido.push_back(escena(n) != nullptr ? nombreDe(n) : n);
         out.push_back({{"capa", i + 1},
                        {"visible", s->dsk[i].visible},
                        {"opacidad", s->dsk[i].visible ? 1.0 : 0.0},
-                       {"contenido", s->dsk[i].contenido}});
+                       {"contenido", contenido}});
+    }
     return out;
 }
 

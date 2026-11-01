@@ -22,12 +22,6 @@ json deQv(const QVariantMap& m) {
     return json::parse(QJsonDocument(QJsonObject::fromVariantMap(m)).toJson(QJsonDocument::Compact).toStdString(),
                        nullptr, false);
 }
-std::vector<std::string> contenidoDe(const json& capa) {
-    std::vector<std::string> cont;
-    for (const auto& n : capa.value("contenido", json::array()))
-        if (n.is_string()) cont.push_back(n.get<std::string>());
-    return cont;
-}
 /// La salida por omisión: BroadcastEngine::kSalidaPorOmision (sin traer el motor: el
 /// modelo anda en un test con un motor sintético).
 constexpr const char* kPorOmision = "principal";
@@ -39,6 +33,27 @@ constexpr const char* kPorOmision = "principal";
 
 CapasDsk::CapasDsk(const fs::path& datos, Motor motor) : archivo_(datos / "Config" / "dsk.json"), motor_(std::move(motor)) {
     cargar();
+}
+
+std::vector<std::string> CapasDsk::paraPedir(const json& capa) const {
+    return escenas::listaParaPedir(capa.value("contenido", json::array()), capa.value("contenido_ids", json::array()),
+                                   motor_.escenas ? motor_.escenas() : escenas::TablaEscenas());
+}
+
+void CapasDsk::seguirEscenas() {
+    if (!motor_.escenas) return;
+    const escenas::TablaEscenas t = motor_.escenas();
+    if (t.vacia()) return;
+    bool cambio = false;
+    for (auto& c : capas_) {
+        if (!c.contains("contenido")) continue;
+        json ids = c.value("contenido_ids", json::array());
+        if (escenas::seguirLista(c["contenido"], ids, t)) {
+            c["contenido_ids"] = ids;
+            cambio = true;
+        }
+    }
+    if (cambio) avisar();
 }
 
 void CapasDsk::cargar() {
@@ -140,7 +155,14 @@ std::string CapasDsk::definir(int capa, const json& def) {
     json nueva = *c;
     for (const char* k : {"nombre", "contenido", "recuadro", "fijo", "transicion_ms"})
         if (def.contains(k)) nueva[k] = def[k];
-    if (!motor_.armar(capa, contenidoDe(nueva), nueva.value("recuadro", json::object()), {})) return motor_.error();
+    // Otro contenido: los ids salen de los nombres nuevos (los de antes eran de otra lista).
+    if (def.contains("contenido") && nueva.value("contenido", json()) != c->value("contenido", json())) nueva.erase("contenido_ids");
+    if (motor_.escenas && nueva.contains("contenido")) {
+        json ids = nueva.value("contenido_ids", json::array());
+        escenas::seguirLista(nueva["contenido"], ids, motor_.escenas());
+        nueva["contenido_ids"] = ids;
+    }
+    if (!motor_.armar(capa, paraPedir(nueva), nueva.value("recuadro", json::object()), {})) return motor_.error();
     *c = std::move(nueva);
     avisar();
     return {};
@@ -151,7 +173,7 @@ std::string CapasDsk::mostrar(int capa, bool visible, bool confirmada, const std
     if (std::string e = revisarMostrar(c != nullptr ? *c : json(), visible, confirmada); !e.empty()) return e;
     const bool porOmision = esPorOmision(salida);
     // La definición es una para todas: se arma en esa salida antes de subirla.
-    if (!porOmision && visible && !motor_.armar(capa, contenidoDe(*c), c->value("recuadro", json::object()), salida))
+    if (!porOmision && visible && !motor_.armar(capa, paraPedir(*c), c->value("recuadro", json::object()), salida))
         return motor_.error();
     if (!motor_.mostrar(capa, visible, c->value("transicion_ms", 300), porOmision ? std::string() : salida))
         return motor_.error();
@@ -173,9 +195,10 @@ std::string CapasDsk::plantillaLsa(int capa, const std::string& entrada, const s
 }
 
 void CapasDsk::restaurar() {
+    seguirEscenas(); // un dsk.json de antes: por id
     for (auto& c : capas_) {
         const int capa = c.value("capa", 0);
-        const std::vector<std::string> cont = contenidoDe(c);
+        const std::vector<std::string> cont = paraPedir(c);
         if (cont.empty()) continue;
         motor_.armar(capa, cont, c.value("recuadro", json::object()), {});
         if (c.value("visible", false)) motor_.mostrar(capa, true, 0, {});

@@ -643,7 +643,7 @@ EngineStatus BroadcastEngine::status() const {
         r.id = id;
         r.nombre = s.nombre;
         r.porOmision = s.porOmision();
-        r.escena = s.alAire;
+        r.escena = escenas_->nombreDe(s.alAire);
         const json p = fs.value("principal", json::object());
         r.streaming = p.value("andando", false);
         r.reconnecting = p.value("reconectando", false);
@@ -735,12 +735,17 @@ int BroadcastEngine::adoptPendingAudio() { return 0; }
 
 // --- Escenas y fuentes (EscenasYFuentes) ---------------------------------------------------
 std::string BroadcastEngine::errorDeCompositor(const std::string& nombre) const { BA_TURNO; return escenas_->errorDeCompositor(nombre); }
-bool BroadcastEngine::createScene(const std::string& name) { BA_TURNO; return escenas_->createScene(name); }
+bool BroadcastEngine::createScene(const std::string& name, const std::string& id) { BA_TURNO; return escenas_->createScene(name, id); }
 bool BroadcastEngine::removeScene(const std::string& name) { BA_TURNO; return escenas_->removeScene(name); }
 bool BroadcastEngine::renameScene(const std::string& from, const std::string& to) { BA_TURNO; return escenas_->renameScene(from, to); }
 std::vector<std::string> BroadcastEngine::sceneNames() const { BA_TURNO; return escenas_->sceneNames(); }
 bool BroadcastEngine::setCurrentScene(const std::string& name, const std::string& salida) { BA_TURNO; return escenas_->setCurrentScene(name, salida); }
 std::string BroadcastEngine::currentScene(const std::string& salida) const { BA_TURNO; return escenas_->currentScene(salida); }
+std::string BroadcastEngine::currentSceneId(const std::string& salida) const { BA_TURNO; return escenas_->currentSceneId(salida); }
+std::string BroadcastEngine::armadaId(const std::string& salida) const { BA_TURNO; return escenas_->armadaId(salida); }
+std::string BroadcastEngine::sceneId(const std::string& escena) const { BA_TURNO; return escenas_->idDe(escena); }
+std::string BroadcastEngine::sceneName(const std::string& escena) const { BA_TURNO; return escenas_->nombreDe(escena); }
+escenas::TablaEscenas BroadcastEngine::tablaEscenas() const { BA_TURNO; return escenas_->tabla(); }
 bool BroadcastEngine::setTransition(const std::string& type, int durationMs) { BA_TURNO; return escenas_->setTransition(type, durationMs); }
 bool BroadcastEngine::setCurrentSceneCon(const std::string& name, const std::string& tipo, int ms, const std::string& salida) {
     BA_TURNO;

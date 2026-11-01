@@ -26,6 +26,7 @@
 #include "evento/Evento.hpp"
 #include "evento/EventoStore.hpp"
 #include "evento/LineaEdicion.hpp"
+#include "escenas/RefEscena.hpp"
 
 namespace ba::app {
 
@@ -78,6 +79,11 @@ class EventoAbierto : public QObject {
     void ponerLinea(evento::linea::Linea l);
     /// Sin guardar (sin tocar la línea): p. ej. el idioma.
     void marcarSucio();
+    /// Las escenas de la línea van por su id (escenas/RefEscena.hpp): con las que hay
+    /// ahora, lo de antes toma el id y el nombre que muestra cada pieza se pone al día
+    /// (un renombre). Si cambió algo, lo guarda (o, con cambios sin guardar, queda con
+    /// ellos). true si cambió.
+    bool seguirEscenas(const escenas::TablaEscenas& t);
 
     evento::Cue* cue(int bloque, int cue);
     const evento::Cue* cue(int bloque, int cue) const;

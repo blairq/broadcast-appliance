@@ -187,6 +187,7 @@ class ControlViewModel : public QObject {
     std::unique_ptr<control::SatelliteServidor> satellite_;
     std::unique_ptr<control::CapasDsk> capasDsk_;
     int aporteDsk_ = 0; ///< el de las capas a la foto (AppRuntime::aportarALaFoto)
+    int observadorDsk_ = -1; ///< las escenas, para el contenido de las capas (AppRuntime::observar)
     std::unique_ptr<control::Dsk> dsk_;
     std::unique_ptr<control::Acciones> acciones_;
     std::string temaWebMandado_;

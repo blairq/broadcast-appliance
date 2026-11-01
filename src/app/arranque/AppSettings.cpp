@@ -10,12 +10,14 @@
 #include "emision/InputSpecs.hpp"
 #include "persist/ColaEscritura.hpp"
 #include "persist/Esquema.hpp"
+#include "escenas/RefEscena.hpp"
 
 #include <nlohmann/json.hpp>
 
 #include <algorithm>
 #include <cstdio>
 #include <cstdlib>
+#include <set>
 #include "ipc/LugaresSala.hpp"
 
 namespace ba::app {
@@ -199,6 +201,7 @@ AppConfig defaultAppConfig(const fs::path& dataRoot) {
     main.sources.push_back(title);
     c.scenes.push_back(main);
     c.currentScene = main.name;
+    darIdsAEscenas(c);
     return c;
 }
 
@@ -320,6 +323,7 @@ AppConfig loadAppConfig(const fs::path& path, const fs::path& dataRoot) {
         for (const auto& sc : j["scenes"]) {
             SceneConfig scene;
             scene.name = get<std::string>(sc, "name", "Escena");
+            scene.id = get<std::string>(sc, "id", "");
             scene.folder = get<std::string>(sc, "folder", "");
             scene.protegida = get<bool>(sc, "protegida", false);
             for (const auto& s : sc.value("sources", json::array())) scene.sources.push_back(sourceFromJson(s));
@@ -345,6 +349,7 @@ AppConfig loadAppConfig(const fs::path& path, const fs::path& dataRoot) {
     if (c.scenes.empty()) {
         c.scenes.push_back(SceneConfig{"Principal", {}});
     }
+    darIdsAEscenas(c);
     c.currentScene = get<std::string>(j, "currentScene", c.scenes.front().name);
     if (findScene(c, c.currentScene) == nullptr) {
         c.currentScene = c.scenes.front().name;
@@ -363,7 +368,7 @@ bool saveAppConfig(const fs::path& path, const AppConfig& c, const fs::path& dat
         for (const auto& s : sc.sources) {
             sources.push_back(sourceToJson(s));
         }
-        json j{{"name", sc.name}, {"folder", sc.folder}, {"sources", sources}};
+        json j{{"name", sc.name}, {"id", sc.id}, {"folder", sc.folder}, {"sources", sources}};
         // Solo si esta: un app.json lleno de "protegida": false no dice nada.
         if (sc.protegida) j["protegida"] = true;
         scenes.push_back(std::move(j));
@@ -607,12 +612,30 @@ bool saveLauncherSettings(const fs::path& path, const LauncherSettings& s, std::
 }
 
 SceneConfig* findScene(AppConfig& cfg, const std::string& name) {
+    // Por el id primero (escenas/RefEscena.hpp), después por el nombre.
+    for (auto& s : cfg.scenes)
+        if (!s.id.empty() && s.id == name) return &s;
     for (auto& s : cfg.scenes) {
         if (s.name == name) {
             return &s;
         }
     }
     return nullptr;
+}
+
+void darIdsAEscenas(AppConfig& cfg) {
+    // Un app.json de antes no tiene ids; uno editado a mano puede repetir alguno.
+    std::set<std::string> usados;
+    for (auto& s : cfg.scenes) {
+        if (s.id.empty() || usados.count(s.id) > 0)
+            s.id = escenas::nuevoIdEscena([&](const std::string& id) {
+                if (usados.count(id) > 0) return true;
+                for (const auto& o : cfg.scenes)
+                    if (o.id == id) return true;
+                return false;
+            });
+        usados.insert(s.id);
+    }
 }
 
 } // namespace ba::app

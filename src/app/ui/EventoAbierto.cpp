@@ -137,6 +137,17 @@ void EventoAbierto::ponerLinea(evento::linea::Linea l) {
     emit lineaCambio(true);
 }
 
+bool EventoAbierto::seguirEscenas(const escenas::TablaEscenas& t) {
+    if (abierto_.isEmpty() || !evento::linea::seguirEscenas(linea_, t)) return false;
+    proyeccion_ = evento::linea::proyectar(linea_);
+    e_.bloques = proyeccion_.bloques;
+    emit lineaCambio(false);
+    emit guionCambio();
+    // Es lo mismo que había (otro nombre de la misma escena): sin cambios a mano, al disco ya.
+    if (!sucio_) guardar();
+    return true;
+}
+
 void EventoAbierto::marcarSucio() {
     ponerSucio(true);
     emit guionCambio();

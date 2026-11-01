@@ -92,6 +92,7 @@ salidas::AlAire AireDurable::aireActual() const {
         const bool po = id == salidas::kPorOmision;
         salidas::Aire& x = a.salidas[id];
         x.escena = rt_.engine_.currentScene(id);
+        x.escenaId = rt_.engine_.currentSceneId(id);
         // LO PEDIDO (pedidos_), no lo que sale: lo que cerró el corte de luz sigue pedido y
         // vuelve con la energía; lo de un corte que espera la carpeta del evento
         // (retomarGrabaciones), también. Una orden que falló ya no está pedida.
@@ -186,14 +187,17 @@ void AireDurable::restaurarAire() {
     const salidas::AlAire& aire = aireAnterior_;
     // La escena que estaba al aire (app.json puede tener una vieja: no se guarda en cada
     // corte). También con --test: no sale nada al aire.
-    const std::string escena = aire.de(salidas::kPorOmision).escena;
-    if (corteAnterior_ && !escena.empty() && escena != rt_.engine_.currentScene() && rt_.setScene(escena))
+    // Por el id (un renombre después de escrito no la pierde); uno de antes, por el nombre.
+    const escenas::TablaEscenas t = rt_.engine_.tablaEscenas();
+    const salidas::Aire& po = aire.de(salidas::kPorOmision);
+    const std::string escena = escenas::apunta(po.escenaId, po.escena, t);
+    if (corteAnterior_ && !escena.empty() && rt_.engine_.sceneId(escena) != rt_.engine_.currentSceneId() && rt_.setScene(escena))
         ba::diag::registro().linea(ba::diag::Nivel::Aviso, "arranque", 0,
                                    ba::i18n::llenar(ba::i18n::traducir("arranque", "la corrida anterior no se cerró: vuelve la escena «%1»"),
-                                                    {escena}));
+                                                    {rt_.engine_.sceneName(escena)}));
     // Las demás salidas: su escena solo está ahí (no van en app.json), así que vuelve siempre.
     for (const std::string& id : rt_.engine_.salidaIds()) {
-        const std::string e = aire.de(id).escena;
+        const std::string e = escenas::apunta(aire.de(id).escenaId, aire.de(id).escena, t);
         if (id != salidas::kPorOmision && !e.empty() && !rt_.setScene(e, id))
             ba::diag::registro().linea(ba::diag::Nivel::Aviso, "arranque", 0,
                                        ba::i18n::llenar(ba::i18n::traducir("arranque", "la salida «%1» no pudo volver a «%2»: %3"),

@@ -149,7 +149,7 @@ void CorridaViewModel::ensayoAcelerado() {
     }
     // Se camina el recorrido de verdad, no la lista: asi se ve el orden real
     // y quedan a la vista los bloques que nunca se visitan.
-    const std::vector<std::string> escenas = ventanilla_.foto().nombresDeEscenas();
+    const std::vector<std::string> nombres = ventanilla_.foto().nombresDeEscenas();
     int visitados = 0;
     int problemas = 0;
     int sinEjecutar = 0;
@@ -170,8 +170,8 @@ void CorridaViewModel::ensayoAcelerado() {
             continue;
         }
         if (c.tipo == evento::Tipo::Escena) {
-            const std::string escena = c.datos.value("escena", std::string());
-            if (std::find(escenas.begin(), escenas.end(), escena) == escenas.end()) {
+            const std::string escena = nombreDeEscena(escenas::apunta(c.datos, escenas::TablaEscenas(ventanilla_.foto().idsDeEscenas())));
+            if (std::find(nombres.begin(), nombres.end(), escena) == nombres.end()) {
                 ++problemas;
                 anotar(QCoreApplication::translate("EventoViewModel", "%1 %2 — no existe la escena \"%3\"").arg(donde, que, QString::fromStdString(escena)), "error");
                 continue;
@@ -1090,8 +1090,16 @@ void CorridaViewModel::pedirAlConmutador(const char* que, const std::string& sal
         });
 }
 
-void CorridaViewModel::tomarEscena(const std::string& escena, const nlohmann::json& datos, const std::string& salida,
+std::string CorridaViewModel::nombreDeEscena(const std::string& idONombre) const {
+    // Lo de la línea apunta por el id (escenas/RefEscena.hpp); el aire se compara por el
+    // nombre de ahora, el de la foto.
+    const FotoMotor::Escena* e = ventanilla_.foto().escena(idONombre);
+    return e != nullptr ? e->nombre : idONombre;
+}
+
+void CorridaViewModel::tomarEscena(const std::string& pedida, const nlohmann::json& datos, const std::string& salida,
                                   std::function<void(const std::string& error)> listo) {
+    const std::string escena = nombreDeEscena(pedida);
     if (escena.empty()) return listo(QCoreApplication::translate("EventoViewModel", "el cue no dice qué escena poner").toStdString());
     // Ya al aire (la puso el operador a mano, o la repite el cue): no hay nada que tomar.
     const FotoMotor::Salida* s = aireDe(salida);
@@ -1122,7 +1130,8 @@ void CorridaViewModel::olvidarEscenaDeLaLinea(const std::string& salida, const s
     if (auto x = it->second.find(escena); x != it->second.end()) it->second.erase(x);
 }
 
-void CorridaViewModel::armarEscena(const std::string& escena, const std::string& salida) {
+void CorridaViewModel::armarEscena(const std::string& pedida, const std::string& salida) {
+    const std::string escena = nombreDeEscena(pedida);
     if (ensayo_ || escena.empty()) return;
     // La que ya está al aire no se arma (el TAKE no tendría sentido) y la ya armada, tampoco.
     if (const FotoMotor::Salida* s = aireDe(salida); s != nullptr && (escena == s->alAire || escena == s->armada)) return;
@@ -1275,7 +1284,9 @@ void CorridaViewModel::ejecutarCue(const evento::Cue& cue, const std::string& pa
     // (la tarjeta Dirección, el mezclador, el tally) y lo deja guardado en la configuración.
     switch (c->tipo) {
         case evento::Tipo::Escena: {
-            const std::string escena = c->datos.value("escena", std::string());
+            // Por el id si lo tiene (un renombre no la pierde); el nombre, el de ahora.
+            const std::string escena =
+                nombreDeEscena(escenas::apunta(c->datos, escenas::TablaEscenas(ventanilla_.foto().idsDeEscenas())));
             // Sin transición propia, la del paso (si dice).
             json datos = c->datos;
             const evento::linea::Paso* p = corrida_ ? corrida_->linea().paso(paso) : nullptr;

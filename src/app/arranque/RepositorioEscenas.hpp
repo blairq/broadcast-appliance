@@ -6,11 +6,11 @@
 // cfg_.currentScene): así lo que se arma sobrevive a un reinicio sin que nadie toque JSON
 // (lo escribe AppRuntime::save, por la cola de escritura de ba::persist). También la mezcla
 // que se guarda con la fuente (el fader y el mute de la por omisión; los de las demás
-// salidas van a Config/salidas.json por ServicioSalidas) y los renombres de escena que
-// leen los conmutadores.
+// salidas van a Config/salidas.json por ServicioSalidas). Cada escena tiene su id
+// estable (SceneConfig::id, escenas/RefEscena.hpp): todo lo que recibe una escena
+// entiende el nombre o el id.
 //
-// Hilos: EL DUEÑO (con el turno): cfg_ y el motor son suyos. renombresDeEscena y
-// dejarDeLeerRenombres, desde cualquier hilo (renombresMu_).
+// Hilos: EL DUEÑO (con el turno): cfg_ y el motor son suyos.
 // ============================================================================
 #pragma once
 
@@ -47,8 +47,6 @@ class RepositorioEscenas {
     bool setSceneProtected(const std::string& name, bool protegida);
     bool sceneProtected(const std::string& name) const;
     bool renameScene(const std::string& from, const std::string& to);
-    std::vector<std::pair<std::string, std::string>> renombresDeEscena(std::size_t& desde) const;
-    void dejarDeLeerRenombres(const std::size_t& desde) const;
     std::string sceneFolder(const std::string& name) const;
     bool setSceneFolder(const std::string& name, const std::string& folder);
     std::vector<std::string> sceneFolders() const;
@@ -86,11 +84,6 @@ class RepositorioEscenas {
     bool anotarAire(bool ok, const std::string& name, const std::string& salida);
 
     AppRuntime& rt_;
-    mutable std::mutex renombresMu_;
-    /// Cuántos renombres se descartaron (el número de renombres_[0]) y dónde va cada lector.
-    mutable std::size_t renombresBase_ = 0;
-    mutable std::map<const std::size_t*, std::size_t> lectoresRenombres_;
-    mutable std::vector<std::pair<std::string, std::string>> renombres_; ///< ver renombresDeEscena (los ya leídos por todos se descartan)
 };
 
 } // namespace ba::app

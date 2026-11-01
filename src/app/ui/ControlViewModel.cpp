@@ -73,8 +73,14 @@ ControlViewModel::ControlViewModel(Partes p, QObject* parent) : QObject(parent),
         };
         m.estado = [&rt](const std::string& salida) { return rt.engine().dskEstado(salida); };
         m.error = [&rt]() { return rt.engine().lastError(); };
+        m.escenas = [&rt]() { return rt.engine().tablaEscenas(); };
         capasDsk_ = std::make_unique<control::CapasDsk>(rt.dataRoot(), std::move(m));
         capasDsk_->setAlCambiar([&rt]() { rt.fotoSucia(FotoMotor::Superficies); });
+        // El contenido va por el id de cada escena: un renombre pone al día el nombre (el
+        // aviso llega en el dueño, que es de quien es el modelo).
+        observadorDsk_ = rt.observar([c = capasDsk_.get()](AppRuntime::Cambio ch) {
+            if (ch == AppRuntime::Cambio::Escenas) c->seguirEscenas();
+        });
         // En la foto, con las capas de cada salida (se rearman con la lista de salidas y en
         // cada vuelta del motor, que es cuando se mueve un fundido).
         aporteDsk_ = rt.aportarALaFoto([c = capasDsk_.get()](FotoMotor& f, unsigned partes) {
@@ -91,7 +97,7 @@ ControlViewModel::ControlViewModel(Partes p, QObject* parent) : QObject(parent),
     connect(acciones_.get(), &control::Acciones::notify, this, &ControlViewModel::notify);
     {
         auto& g = acciones_->ganchos();
-        g.escenas = [this]() { return escenas(); };
+        g.escenas = [this]() { return escenas::TablaEscenas(p_.ventanilla.foto().idsDeEscenas()); };
         g.fuentesAudio = [this]() { return fuentesAudio(); };
         g.mudo = [this](const std::string& f, const std::string& salida) { return mudo(f, salida); };
         g.salidas = p_.salidas;
@@ -153,6 +159,7 @@ ControlViewModel::ControlViewModel(Partes p, QObject* parent) : QObject(parent),
 ControlViewModel::~ControlViewModel() {
     // Que el dueño no lo use más para la foto (espera a la que esté armando).
     if (aporteDsk_ != 0) p_.rt.dejarDeAportar(aporteDsk_);
+    if (observadorDsk_ >= 0) p_.rt.dejarDeObservar(observadorDsk_);
 }
 
 std::vector<std::string> ControlViewModel::escenas() const {
@@ -180,6 +187,10 @@ bool ControlViewModel::mudo(const std::string& fuente, const std::string& salida
 void ControlViewModel::alCambiarFoto(unsigned partes) {
     const FotoMotor& f = p_.ventanilla.foto();
     if ((partes & FotoMotor::Escenas) != 0) {
+        // Lo guardado por escena (los atajos, los botones) va por su id: el nombre al día.
+        const escenas::TablaEscenas t(f.idsDeEscenas());
+        if (acciones_) acciones_->seguirEscenas(t);
+        if (botonera_) botonera_->seguirEscenas(t);
         QStringList n;
         for (const FotoMotor::Escena& e : f.escenas) n << qs(e.nombre);
         for (const auto& [fuente, tipo] : f.fuentes)

@@ -257,6 +257,7 @@ AlAire leerAlAire(const json& j) {
     if (const auto l = j.find("linea"); l != j.end() && l->is_object()) a.linea = *l;
     Aire& p = a.salidas[kPorOmision];
     p.escena = j.value("escena", std::string());
+    p.escenaId = j.value("escena_id", std::string());
     p.transmitiendo = j.value("streaming", false);
     p.grabando = j.value("recording", false);
     const json todas = j.value("salidas", json::object());
@@ -264,6 +265,7 @@ AlAire leerAlAire(const json& j) {
         if (!x.is_object() || !validarId(id).empty()) continue;
         Aire& s = a.salidas[id];
         s.escena = x.value("escena", s.escena);
+        s.escenaId = x.value("escena_id", s.escenaId);
         s.transmitiendo = x.value("streaming", s.transmitiendo);
         s.grabando = x.value("recording", s.grabando);
         if (const json d = x.value("destinos", json::array()); d.is_array())
@@ -277,11 +279,14 @@ AlAire leerAlAire(const json& j) {
 json aJson(const AlAire& a) {
     const Aire& p = a.de(kPorOmision);
     json todas = json::object();
-    for (const auto& [id, s] : a.salidas)
+    for (const auto& [id, s] : a.salidas) {
         todas[id] = {{"escena", s.escena}, {"streaming", s.transmitiendo}, {"recording", s.grabando}, {"destinos", s.destinos},
                      {"placa", aJson(s.placa)}};
+        if (!s.escenaId.empty()) todas[id]["escena_id"] = s.escenaId;
+    }
     json j{{"version", kVersionAire}, {"streaming", p.transmitiendo}, {"recording", p.grabando}, {"escena", p.escena},
            {"cerrado", a.cerrado}, {"salidas", todas}};
+    if (!p.escenaId.empty()) j["escena_id"] = p.escenaId;
     if (a.linea.is_object()) j["linea"] = a.linea;
     return j;
 }

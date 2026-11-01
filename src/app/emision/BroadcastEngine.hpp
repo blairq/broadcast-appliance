@@ -87,6 +87,7 @@
 #include "ipc/SpoutTransport.hpp"
 #include "emision/NivelesMotor.hpp"
 #include "emision/TurnoMotor.hpp"
+#include "escenas/RefEscena.hpp"
 
 namespace ba::motor {
 class Motor;
@@ -338,18 +339,31 @@ class BroadcastEngine {
     std::string idDeSalida(const std::string& salida) const;
 
     // --- Escenas ------------------------------------------------------------
-    bool createScene(const std::string& name);
+    // Cada escena tiene un id estable (escenas/RefEscena.hpp). Todo lo que recibe una
+    // escena entiende su NOMBRE o su ID; el motor la conoce por el id, así que
+    // renombrarla (aunque esté al aire) no corta ni toca el preview.
+    /// `id` vacío: uno nuevo (lo dice sceneId después).
+    bool createScene(const std::string& name, const std::string& id = {});
     /// Elimina una escena (no la actual si es la unica). Las salidas que la tenían
     /// al aire pasan a otra con un corte.
     bool removeScene(const std::string& name);
     bool renameScene(const std::string& from, const std::string& to);
     /// Nombres de las escenas en orden de creacion.
     std::vector<std::string> sceneNames() const;
+    /// El id de una escena pedida por nombre o id ("" si no está), y su nombre.
+    std::string sceneId(const std::string& escena) const;
+    std::string sceneName(const std::string& escena) const;
+    /// Las escenas (id, nombre), en orden de creación: para resolver lo guardado.
+    escenas::TablaEscenas tablaEscenas() const;
     /// Pone `name` al aire en la salida con la transicion configurada (setTransition).
     bool setCurrentScene(const std::string& name, const std::string& salida = "");
     /// Escena al aire en la salida ("" si no hay o no existe la salida). Una copia: la
     /// referencia de antes se la podía cambiar el otro que tiene el turno.
     std::string currentScene(const std::string& salida = "") const;
+    /// Lo mismo, el id ("" si no hay).
+    std::string currentSceneId(const std::string& salida = "") const;
+    /// El id de la escena armada en el preview de la salida ("" si nada).
+    std::string armadaId(const std::string& salida = "") const;
     /// Tipo ("cut", "fade", "swipe", "slide", "fade_to_color", "wipe") y duracion.
     bool setTransition(const std::string& type, int durationMs);
     /// Pone `name` al aire con OTRA transición solo esta vez (`ms` < 0 = la global).

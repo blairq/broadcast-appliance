@@ -36,6 +36,7 @@
 #include <string>
 #include <vector>
 #include "ui/CapturaError.hpp"
+#include "escenas/RefEscena.hpp"
 
 namespace ba::app {
 class VentanillaMotor;
@@ -55,6 +56,9 @@ class CapasDsk {
         std::function<bool(int capa, bool visible, int ms, const std::string& salida)> mostrar;
         std::function<json(const std::string& salida)> estado; ///< [{capa, opacidad}]
         std::function<std::string()> error;
+        /// Las escenas que hay (BroadcastEngine::tablaEscenas): el contenido guarda el id de
+        /// cada escena al lado del nombre. Sin esto (un test), solo los nombres.
+        std::function<::ba::app::escenas::TablaEscenas()> escenas;
     };
     CapasDsk(const std::filesystem::path& datos, Motor motor);
 
@@ -74,6 +78,10 @@ class CapasDsk {
     void restaurar();
     /// Lo que va en la foto: {capas: las definiciones, salidas: {<id>: capas(id)}}.
     json paraLaFoto(const std::vector<std::string>& salidas) const;
+    /// El contenido va con el id de cada escena (`contenido_ids`, al lado de `contenido`):
+    /// lo de antes toma el id y el nombre se pone al día con un renombre (se guarda). Al
+    /// cambiar las escenas (Cambio::Escenas, en el dueño) y al restaurar.
+    void seguirEscenas();
     /// Cambió algo (la app ensucia la foto: FotoMotor::Superficies).
     void setAlCambiar(std::function<void()> fn) { alCambiar_ = std::move(fn); }
 
@@ -91,6 +99,8 @@ class CapasDsk {
    private:
     void cargar();
     void guardar() const;
+    /// Lo que se le pide al motor de la capa: el id de cada escena, el nombre de lo demás.
+    std::vector<std::string> paraPedir(const json& capa) const;
     json* buscar(int capa);
     void avisar();
     std::filesystem::path archivo_;

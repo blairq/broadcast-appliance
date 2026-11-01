@@ -342,6 +342,59 @@ json Botonera::auditoria(std::int64_t desdeMs, const std::string& dispositivo) c
     return out;
 }
 
+namespace {
+/// Las herramientas cuyo `name` es una escena.
+bool esDeEscena(const std::string& herramienta) { return herramienta == "scene_switch" || herramienta == "scene_preview"; }
+
+/// Una acción (herramienta o secuencia) con lo suyo al día; `renombres` junta (viejo, nuevo).
+bool seguirAccion(json& a, const escenas::TablaEscenas& t, std::vector<std::pair<std::string, std::string>>& renombres) {
+    if (!a.is_object()) return false;
+    bool hubo = false;
+    if (a.value("tipo", std::string("herramienta")) == "secuencia" && a.contains("pasos") && a["pasos"].is_array()) {
+        for (auto& p : a["pasos"]) hubo = seguirAccion(p, t, renombres) || hubo;
+        return hubo;
+    }
+    if (!esDeEscena(a.value("herramienta", std::string())) || !a.contains("args") || !a["args"].is_object()) return false;
+    json& args = a["args"];
+    if (!args.contains("name") || !args["name"].is_string()) return false;
+    const std::string antes = args["name"].get<std::string>();
+    if (!escenas::seguirRef(args, t, "name", "escena_id")) return false;
+    if (args["name"] != antes) renombres.emplace_back(antes, args["name"].get<std::string>());
+    return true;
+}
+} // namespace
+
+void Botonera::seguirEscenas(const escenas::TablaEscenas& t) {
+    if (t.vacia() || !datos_.contains("perfiles")) return;
+    bool hubo = false;
+    for (auto& p : datos_["perfiles"]) {
+        if (!p.contains("paginas") || !p["paginas"].is_array()) continue;
+        for (auto& g : p["paginas"]) {
+            if (!g.contains("celdas") || !g["celdas"].is_array()) continue;
+            for (auto& c : g["celdas"]) {
+                if (!c.is_object() || !c.contains("accion")) continue;
+                std::vector<std::pair<std::string, std::string>> renombres;
+                if (!seguirAccion(c["accion"], t, renombres)) continue;
+                hubo = true;
+                // El texto y el tally que decían el nombre viejo, el nuevo.
+                for (const auto& [viejo, nuevo] : renombres) {
+                    if (c.contains("estilo") && c["estilo"].is_object() && c["estilo"].value("texto", std::string()) == viejo)
+                        c["estilo"]["texto"] = nuevo;
+                    if (c.contains("estado") && c["estado"].is_array())
+                        for (auto& l : c["estado"])
+                            if (l.is_object() && l.value("tema", std::string()) == "aire/tally" && l.value("valor", json()) == viejo)
+                                l["valor"] = nuevo;
+                }
+            }
+        }
+    }
+    if (!hubo) return;
+    guardar();
+    ultimoRender_.clear();
+    ensuciar();
+    emit cambio();
+}
+
 // ============================================================================
 // Búsquedas
 // ============================================================================
@@ -702,6 +755,11 @@ std::string Botonera::setCelda(const std::string& perfil, const std::string& pag
     if (x < 0 || y < 0 || x + w > g->value("columnas", 4) || y + h > g->value("filas", 3))
         return llenar(traducir("botonera", "la celda se sale de la grilla (%1×%2)"),
                       {std::to_string(g->value("columnas", 4)), std::to_string(g->value("filas", 3))});
+    // Otra escena en el mismo botón (el editor devuelve los argumentos de antes): el id
+    // viejo se va, seguirEscenas pone el de la nueva.
+    if (const json* vieja = celdaEn(*g, x, y); vieja != nullptr && vieja->contains("accion") && c.contains("accion") &&
+                                               (*vieja)["accion"].is_object() && c["accion"].is_object() && c["accion"].contains("args"))
+        escenas::soltarIdViejo((*vieja)["accion"].value("args", json::object()), c["accion"]["args"], "name", "escena_id");
     // Reemplaza lo que pise.
     auto& cs = (*g)["celdas"];
     cs.erase(std::remove_if(cs.begin(), cs.end(),
@@ -1988,8 +2046,10 @@ void Botonera::correr(const std::string& dev, const json& perfil, const json& ac
         } else if (t == "receta") {
             pasos.push_back({{"herramienta", "receta_correr"}, {"args", {{"id", a.value("id", std::string())}}}});
         } else if (t == "herramienta") {
-            pasos.push_back({{"herramienta", a.value("herramienta", std::string())},
-                             {"args", a.value("args", json::object())}});
+            json args = a.value("args", json::object());
+            // El id de la escena es de la botonera (seguirEscenas): a la herramienta, el nombre.
+            if (args.is_object()) args.erase("escena_id");
+            pasos.push_back({{"herramienta", a.value("herramienta", std::string())}, {"args", std::move(args)}});
         }
     };
     aplanar(accion);

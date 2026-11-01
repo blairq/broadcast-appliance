@@ -57,6 +57,9 @@ struct SceneConfig {
     /// se pierde el trabajo de todos— y para las que no se tocan en vivo.
     /// Copiarla SI se puede: de eso se trata.
     bool protegida = false;
+    /// Estable: no cambia al renombrarla (escenas/RefEscena.hpp). Lo que apunta a la
+    /// escena (la línea, el DSK, los atajos…) guarda esto; el motor la conoce por esto.
+    std::string id;
 };
 
 /// Transicion entre escenas.
@@ -254,7 +257,10 @@ bool saveLauncherSettings(const std::filesystem::path& path, const LauncherSetti
                           std::string* err = nullptr);
 
 /// Busca una escena por nombre (nullptr si no existe).
+/// La escena por su id o por su nombre (nullptr si no está).
 SceneConfig* findScene(AppConfig& cfg, const std::string& name);
+/// Le da un id a cada escena que no tiene (o lo repite): un app.json de antes.
+void darIdsAEscenas(AppConfig& cfg);
 
 /// Si al cargar, un archivo de configuración estaba roto y se usó su generación
 /// anterior: el nombre del archivo (vacío si no pasó).

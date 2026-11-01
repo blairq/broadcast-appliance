@@ -62,6 +62,7 @@
 #include <set>
 #include <string>
 #include "ui/CapturaError.hpp"
+#include "escenas/RefEscena.hpp"
 
 namespace ba::app {
 class UsoPorVistas;
@@ -310,6 +311,11 @@ class Botonera : public QObject {
     Q_INVOKABLE QStringList herramientasUi(const QString& filtro) const;
     /// El catálogo por categorías para el selector de herramientas (ver Ganchos::catalogo).
     Q_INVOKABLE QVariantList catalogoUi() const;
+    /// Los botones de una escena (scene_switch, scene_preview: `args.name`) guardan su id
+    /// al lado (`args.escena_id`, escenas/RefEscena.hpp): lo de antes toma el id y, con un
+    /// renombre, el nombre nuevo va al argumento, al texto y al tally que decían el viejo.
+    /// Se guarda si cambió. Con cada cambio de escenas (ControlViewModel, la foto).
+    void seguirEscenas(const escenas::TablaEscenas& t);
     /// Las herramientas que encuentra el buscador del asistente para `texto`, mejores primero.
     Q_INVOKABLE QVariantList buscarUi(const QString& texto) const;
 

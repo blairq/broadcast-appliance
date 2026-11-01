@@ -21,6 +21,7 @@
 
 #include "arranque/AppRuntime.hpp"
 #include "emision/VentanillaMotor.hpp"
+#include "escenas/RefEscena.hpp"
 #include "evento/EventoStore.hpp"
 #include "evento/TiposDeCue.hpp"
 #include "graficos/Emisor.hpp"
@@ -447,12 +448,14 @@ void GuionViewModel::editarCue(int bloque, int cue, const QVariantMap& campos) {
     }
     // `datos` se mezcla, no se reemplaza: la interfaz edita un campo por vez.
     if (campos.contains("datos")) {
+        const json antes = c->datos;
         const QVariantMap d = campos["datos"].toMap();
         for (auto it = d.begin(); it != d.end(); ++it) {
             const std::string clave = it.key().toStdString();
             if (it.value().toString().isEmpty() && it.value().typeId() == QMetaType::QString) c->datos.erase(clave);
             else c->datos[clave] = aJson(it.value());
         }
+        escenas::soltarIdViejo(antes, c->datos); // otra escena: el id de la de antes se va
     }
     c->normalizarDatos();
     editado();

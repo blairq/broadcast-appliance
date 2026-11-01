@@ -606,6 +606,33 @@ int main(int argc, char** argv) {
         CHECK(m.rowCount() == 2, "monitor: apagado no escucha");
     }
 
+    // Los botones de una escena la siguen por su id (escenas/RefEscena.hpp).
+    {
+        std::string esc;
+        CHECK(bot.crearPerfil({{"nombre", "Por id"}}, "director", &esc).empty(), "un perfil con botones de escenas");
+        const auto boton = [&bot, &esc]() {
+            const json p = bot.exportar(esc);
+            for (const auto& c : p["paginas"][0]["celdas"])
+                if (c.value("x", -1) == 0 && c.value("y", -1) == 0) return c;
+            return json();
+        };
+        bot.seguirEscenas(ba::app::escenas::TablaEscenas({{"esc-00000001", "Cámara 1"}, {"esc-00000002", "Cámara 2"}}));
+        CHECK(boton()["accion"]["args"].value("escena_id", "") == "esc-00000001" && boton()["accion"]["args"]["name"] == "Cámara 1",
+              "el botón de antes toma el id");
+        bot.seguirEscenas(ba::app::escenas::TablaEscenas({{"esc-00000001", "Plano general"}, {"esc-00000002", "Cámara 2"}}));
+        const json b = boton();
+        bool tally = true;
+        for (const auto& l : b["estado"]) tally = tally && l.value("valor", json()) == "Plano general";
+        CHECK(b["accion"]["args"]["name"] == "Plano general" && b["estilo"]["texto"] == "Plano general" && tally,
+              "renombrada: el argumento, el texto y el tally con el nombre nuevo");
+        llamadas.clear();
+        bot.probarUi(QString::fromStdString(esc), QString::fromStdString(bot.exportar(esc)["paginas"][0]["id"].get<std::string>()), 0, 0);
+        CHECK(!llamadas.empty() && llamadas.back().second.value("name", "") == "Plano general" &&
+                  !llamadas.back().second.contains("escena_id"),
+              "a la herramienta va el nombre (el id es de la botonera)");
+        bot.borrarPerfil(esc);
+    }
+
     // Persistencia del modelo.
     {
         Botonera otra(dir.path().toStdString(), bus, g);

@@ -239,7 +239,7 @@ void Corrida::procesar(int64_t ahora, bool avanzar, std::vector<Accion>& acc) {
     for (const SalidaResuelta& sr : r.salidas) {
         const Paso* p = sr.proximo.empty() ? nullptr : linea_.paso(sr.proximo);
         if (p == nullptr) continue;
-        const std::string escena = escenaDe(linea_, *p, sr.salida);
+        const std::string escena = escenaParaPedir(linea_, *p, sr.salida); // por el id: un renombre no la vuelve a armar
         if (escena.empty() || armado_[sr.salida] == escena) continue;
         armado_[sr.salida] = escena;
         acc.push_back({Accion::Que::Armar, sr.salida, p->id, {}, escena, false, {}});

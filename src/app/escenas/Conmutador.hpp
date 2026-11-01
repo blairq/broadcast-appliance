@@ -39,6 +39,7 @@
 #pragma once
 
 #include "escenas/Afv.hpp"
+#include "escenas/RefEscena.hpp"
 
 #include <QObject>
 #include <QString>
@@ -83,6 +84,7 @@ class Conmutador : public QObject {
     /// Por dónde va la T-bar (0…1; 0 = quieta). Para mostrarla (el bus: aire/<salida>/tbar).
     double tbarPosicion() const;
 
+    /// Las escenas al aire y armada, por su nombre de ahora.
     std::string alAire() const;
     std::string armada() const;
 
@@ -109,11 +111,13 @@ class Conmutador : public QObject {
    private:
     friend class Conmutadores; // lo suyo en la foto del motor (con el turno)
     /// La parte común de poner/take: transición de entrada, AFV, guardar y avisar.
+    /// `escena`: el nombre o el id.
     std::string cortar(const std::string& escena, const std::string& tipo, int ms, const char* via);
+    std::string alAireId() const;
     void aplicarAfv(const std::string& destino, int ms);
     /// Un paso de los fundidos del AFV en curso (ver rampas_).
     void pasoRampas();
-    void setArmadaYAvisar(const std::string& escena);
+    void setArmadaYAvisar(const std::string& id);
     /// `emitir` (una señal de este conmutador) en su hilo, si sigue vivo; y la foto del
     /// motor se rearma (lo que muestra la interfaz).
     void avisar(std::function<void(Conmutador&)> emitir, unsigned partesFoto);
@@ -121,7 +125,7 @@ class Conmutador : public QObject {
     AppRuntime& rt_;
     Conmutadores& registro_;
     const std::string salida_;
-    std::string armada_;
+    std::string armada_; ///< el id de la escena armada ("" = ninguna)
     double tbarPos_ = 0; ///< ver tbarPosicion
     Afv afv_;
     /// Los fundidos del AFV en curso, UNO por fuente: un corte nuevo reemplaza el de la fuente
@@ -154,9 +158,10 @@ class Conmutadores : public QObject {
 
     /// Uno por cada salida del motor: crea los que faltan y saca los que sobran.
     void sincronizar();
-    /// Lo que se guarda por el nombre de la escena (la armada de cada uno, las transiciones
-    /// de entrada) sigue a las escenas: lo renombrado toma el nombre nuevo (y se guarda) y lo
-    /// de una escena que ya no está se saca. Al llegar Cambio::Escenas.
+    /// Lo de cada escena (la armada de cada uno, las transiciones de entrada) va por su id:
+    /// un renombre no lo toca; lo de una escena que ya no está se saca, y lo leído de un
+    /// transiciones.json de antes (por el nombre) pasa a ids. Al llegar Cambio::Escenas
+    /// (y una vez al arrancar, ya en el dueño).
     void reconciliarEscenas();
 
     // Lo que comparten todos (lo usa cada Conmutador).
@@ -184,7 +189,6 @@ class Conmutadores : public QObject {
     std::map<std::string, Afv> afvGuardado_;
     std::map<std::string, std::unique_ptr<Conmutador>> conmutadores_;
     Conmutador* porOmision_ = nullptr;
-    std::size_t renombresVistos_ = 0; ///< AppRuntime::renombresDeEscena
 };
 
 } // namespace ba::app::escenas

@@ -102,6 +102,31 @@ int main(int argc, char** argv) {
     CHECK(!deb.iniciar("3", "nadie").empty(), "alguien que no está en el Cuerpo");
     CHECK(!deb.turno("a").empty(), "sin debate no hay turno");
 
+    // La escena de cada tipo, por su id (escenas/RefEscena.hpp): la configuración de antes
+    // (por el nombre) toma el id, y renombrar la escena no la pierde.
+    {
+        escenas::TablaEscenas tabla({{"esc-00000001", "Debate sala"}, {"esc-00000002", "Debate mixto"}});
+        asamblea::Debate::Ganchos g2 = g;
+        g2.escenas = [&tabla]() { return tabla; };
+        asamblea::Debate deb2(cuerpo, d, g2); // lee el debate.json de arriba (solo nombres)
+        deb2.seguirEscenas(tabla);
+        CHECK(deb2.config()["escenas_id"].value("sala_remoto", "") == "esc-00000002", "lo de antes toma el id");
+        CHECK(!deb2.config()["escenas_id"].contains("remoto_remoto"), "una escena que no está queda por el nombre");
+        tabla = escenas::TablaEscenas({{"esc-00000001", "Debate sala"}, {"esc-00000002", "Debate con remoto"}});
+        deb2.seguirEscenas(tabla);
+        CHECK(deb2.config()["escenas"].value("sala_remoto", "") == "Debate con remoto", "renombrada: el nombre al día");
+        CHECK(deb2.iniciar("3", "Juan", "a").empty() && armada == "esc-00000002", "se arma por el id");
+        deb2.terminar();
+        // Elegir otra escena a mano: el id de la de antes no la pisa.
+        deb2.configurar({{"escenas", {{"sala_remoto", "Debate sala"}}}});
+        CHECK(deb2.config()["escenas_id"].value("sala_remoto", "") == "esc-00000001", "otra a mano: su id");
+        // Lo guardado tiene los dos (el nombre para leer y el id).
+        asamblea::Debate deb3(cuerpo, d, g2);
+        CHECK(deb3.config()["escenas_id"].value("sala_remoto", "") == "esc-00000001" &&
+                  deb3.config()["escenas"].value("sala_remoto", "") == "Debate sala",
+              "se guarda con el id y el nombre");
+    }
+
     if (fallas == 0) std::printf("test_debate: OK\n");
     return fallas == 0 ? 0 : 1;
 }
