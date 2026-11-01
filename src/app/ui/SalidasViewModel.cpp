@@ -1,6 +1,7 @@
 // src/app/ui/SalidasViewModel.cpp — ver el .hpp
 
 #include "ui/SalidasViewModel.hpp"
+#include "comun/Restante.hpp"
 
 #include "arranque/AppRuntime.hpp"
 #include "arranque/InterfazConfig.hpp"
@@ -256,8 +257,10 @@ void SalidasViewModel::publicarEnBus(control::BusEventos& bus, MixerModel& tiras
             const std::int64_t dur = m.value("duracion_ms", std::int64_t{0}), t = m.value("tiempo_ms", std::int64_t{0});
             if (m.value("estado", std::string()) != "playing" || dur <= 0) continue;
             if (std::find(fuentes.begin(), fuentes.end(), m.value("fuente", std::string())) == fuentes.end()) continue;
+            const int restante = static_cast<int>((dur - t + 999) / 1000);
             out.push_back({{"fuente", m.value("fuente", std::string())},
-                           {"restante_s", static_cast<int>((dur - t + 999) / 1000)},
+                           {"restante_s", restante},
+                           {"estado", estadoRestante(restante)},
                            {"duracion_s", static_cast<int>(dur / 1000)}});
         }
         return out;
@@ -268,6 +271,7 @@ void SalidasViewModel::publicarEnBus(control::BusEventos& bus, MixerModel& tiras
         for (const auto& m : mediosJ)
             medios.append(QVariantMap{{"fuente", qs(m.value("fuente", std::string()))},
                                       {"restante_s", m.value("restante_s", 0)},
+                                      {"estado", qs(m.value("estado", std::string()))},
                                       {"duracion_s", m.value("duracion_s", 0)}});
         if (medios != mediosAlAire_) {
             mediosAlAire_ = medios;

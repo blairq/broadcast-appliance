@@ -70,10 +70,16 @@ Rectangle {
         for (let i = 0; i < l.length; ++i) if (l[i].id === sel) return l[i]
         return null
     }
-    readonly property var lista: {
-        const l = dd ? dd.equipos : []
-        const f = filtro.toLowerCase()
-        return f === "" ? l : l.filter(e => (e.nombre + " " + (e.tecnico || "") + " " + e.detalle + " " + e.tipo).toLowerCase().indexOf(f) >= 0)
+    // Lo que se ve según lo escrito: la búsqueda de todos los catálogos (el modelo), en su
+    // lugar por id (no se pierde la elegida ni el desplazamiento).
+    FiltroCatalogo {
+        id: lista
+        clave: "id"
+        roles: ["tipo"]
+        fuente: page.dd ? page.dd.equipos : []
+        camposCabeza: ["nombre"]
+        campos: ["tecnico", "detalle", "tipo"]
+        texto: page.filtro
     }
     function nombreTipo(t) {
         return ({ camara_red: qsTr("Cámaras de la red"), equipo_red: qsTr("Otros equipos de la red"), camara_local: qsTr("Cámaras y capturadoras"),
@@ -177,7 +183,7 @@ Rectangle {
                 Layout.fillHeight: true
                 clip: true
                 spacing: 4
-                model: page.lista
+                model: lista
                 section.property: "tipo"
                 section.delegate: Text {
                     required property string section
@@ -191,12 +197,12 @@ Rectangle {
                     text: qsTr("Todavía no hay equipos: tocá «Buscar» en un detector."); color: Theme.textFaint; font.pixelSize: 12
                 }
                 delegate: Rectangle {
-                    required property var modelData
+                    required property var datos
                     width: lv.width
                     height: col.implicitHeight + 12
                     radius: 8
-                    color: modelData.id === page.sel ? Qt.rgba(1, 0.42, 0.17, 0.16) : Qt.rgba(1, 1, 1, 0.04)
-                    border.color: modelData.id === page.sel ? Theme.accent : "transparent"
+                    color: datos.id === page.sel ? Qt.rgba(1, 0.42, 0.17, 0.16) : Qt.rgba(1, 1, 1, 0.04)
+                    border.color: datos.id === page.sel ? Theme.accent : "transparent"
                     ColumnLayout {
                         id: col
                         anchors { left: parent.left; right: parent.right; verticalCenter: parent.verticalCenter; margins: 8 }
@@ -207,15 +213,15 @@ Rectangle {
                             // Conectado (verde), ausente (rojo) o todavía sin buscar (gris).
                             Rectangle {
                                 width: 7; height: 7; radius: 3.5
-                                color: modelData.estado === "ausente" ? Theme.live : modelData.estado === "sin_buscar" ? Theme.textFaint : Theme.ok
+                                color: datos.estado === "ausente" ? Theme.live : datos.estado === "sin_buscar" ? Theme.textFaint : Theme.ok
                             }
-                            Text { Layout.fillWidth: true; text: modelData.nombre; color: modelData.conectado ? Theme.text : Theme.textDim
+                            Text { Layout.fillWidth: true; text: datos.nombre; color: datos.conectado ? Theme.text : Theme.textDim
                                    font.pixelSize: 12; elide: Text.ElideRight }
                         }
                         Text { Layout.fillWidth: true; color: Theme.textFaint; font.pixelSize: 10; elide: Text.ElideRight
-                               text: (modelData.nombre_propio ? modelData.tecnico + " · " : "") + modelData.detalle }
+                               text: (datos.nombre_propio ? datos.tecnico + " · " : "") + datos.detalle }
                     }
-                    MouseArea { anchors.fill: parent; onClicked: { page.verDrivers = false; page.sel = modelData.id } }
+                    MouseArea { anchors.fill: parent; onClicked: { page.verDrivers = false; page.sel = datos.id } }
                 }
             }
         }

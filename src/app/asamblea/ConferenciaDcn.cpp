@@ -172,6 +172,21 @@ void ConferenciaDcn::pedirUi(const QString& que, const QString& nombre, const QV
     });
 }
 
+void ConferenciaDcn::pedirFuncionUi(const QString& nombre, const QString& argsJson, bool confirmar) {
+    const std::string texto = argsJson.trimmed().isEmpty() ? std::string("{}") : argsJson.toStdString();
+    const json args = json::parse(texto, nullptr, false);
+    if (!args.is_object()) {
+        emit hecho("funcion", false, {},
+                   QString::fromStdString(ba::i18n::traducir("asamblea", "Los parámetros no son JSON válido (un objeto: {\"clave\": valor})")));
+        return;
+    }
+    QPointer<ConferenciaDcn> yo(this);
+    control("funcion", json{{"nombre", nombre.toStdString()}, {"args", args}, {"confirmar", confirmar}, {"quien", "interfaz"}},
+            [yo](bool ok, const json& r, const std::string& e) {
+                if (yo) emit yo->hecho("funcion", ok, aQv(r), QString::fromStdString(e));
+            });
+}
+
 void ConferenciaDcn::conectarUi(const QVariantMap& config) {
     QPointer<ConferenciaDcn> yo(this);
     conectar(deQv(config), [yo](bool ok, const json& r, const std::string& e) {

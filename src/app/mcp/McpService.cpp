@@ -4130,7 +4130,7 @@ void McpService::registerTools() {
         SettingsModel* settings = settings_.get();
         t.run = [settings](const json& a, Done done) {
             settings->revert(); // lo vigente, sin borradores viejos
-            json rows = modelRows(*settings);
+            json rows = qvToJson(settings->filas());
             const std::string section = a.value("section", std::string());
             if (!section.empty()) {
                 json f = json::array();

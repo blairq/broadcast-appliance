@@ -25,6 +25,29 @@ QVariantMap campo(const QString& name, const QString& label, const QString& kind
     return c;
 }
 
+QVariantMap deFila(const Fila& f) {
+    QString kind = f.kind;
+    if (kind == "choice") kind = QStringLiteral("list");
+    if (kind == "password" || kind == "secret") kind = QStringLiteral("clave");
+    QVariantMap c = campo(f.name, f.label, kind, f.value, f.help, f.options);
+    const bool numero = kind == "int" || kind == "float";
+    const bool conRango = f.max > f.min;
+    if (numero && (f.numeroEscrito || !conRango || f.max - f.min > 1e6)) {
+        c["kind"] = QStringLiteral("number");
+        if (kind == "int") c["decimales"] = 0;
+    }
+    if (conRango) {
+        c["min"] = f.min;
+        c["max"] = f.max;
+    }
+    if (f.step > 0) c["step"] = f.step;
+    if (!f.suffix.isEmpty()) c["suffix"] = f.suffix;
+    if (!f.badge.isEmpty()) c["badge"] = f.badge;
+    if (f.modified) c["modified"] = true;
+    if (!f.enabled) c["enabled"] = false;
+    return c;
+}
+
 QString kindDeTipo(const QString& tipo) {
     if (tipo == "clave") return QStringLiteral("clave");
     if (tipo == "numero") return QStringLiteral("number");

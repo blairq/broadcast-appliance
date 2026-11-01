@@ -8,7 +8,6 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
-import QtQuick.Shapes
 import BA
 import "../controls"
 
@@ -33,43 +32,7 @@ Rectangle {
     }
     Suscripcion { objetivo: page.au; activa: page.visible }
 
-    // --- Geometria de los nodos -------------------------------------------------------------
-    readonly property int nodeW: 178
-    readonly property int headH: 34
-    readonly property int portH: 22
-    readonly property var nodes: au && au.graph.nodos ? au.graph.nodos : []
-    readonly property var cables: au && au.graph.cables ? au.graph.cables : []
-    // Dónde está cada tarjeta y cada puerto (los puntos L/R de los estéreo), la curva de
-    // los cables y la entrada a la que va uno que se suelta: la misma geometría que el
-    // patchbay genérico (controls/GeometriaPatchbay).
-    readonly property GeometriaPatchbay geo: GeometriaPatchbay {
-        nodos: page.nodes
-        nodeW: page.nodeW
-        headH: page.headH
-        grid: page.grid
-        altoFila: function(id) { return page.rowH(id) }
-        altoCuerpo: function(n) { return 30 }
-        separacion: function(id) { return page.chOff(id) }
-    }
-    // Cable en construccion: {from, out, x0, y0, x1, y1}
-    property var wire: null
-    // Entrada candidata mientras se arrastra un cable: {node, port}
-    property var wireTarget: null
-    // Grilla del patchbay (la misma que usa el rack para ubicar los nodos).
-    readonly property real grid: au ? au.gridStep : 20
-    property bool showGrid: false      // el operador puede dejarla fija
-    property bool draggingNode: false  // mientras se mueve un nodo se ve igual
-    // Tarjetas en modo completo (nombres reales de los puertos, mono/estereo).
-    property var expanded: ({})
-    function isExpanded(id) { return !!expanded[id] }
-    // Con la tarjeta expandida las filas son mas altas y los puntos L/R mas
-    // grandes: asi se agarran bien y entran los nombres de los puertos.
-    function rowH(id) { return isExpanded(id) ? 48 : 28 }
-    function chOff(id) { return isExpanded(id) ? 14 : 8 }   // separacion del centro
-    function chW(id) { return isExpanded(id) ? 28 : 18 }
-    function chH(id) { return isExpanded(id) ? 18 : 10 }
-    function toggleExpanded(id) { const e = Object.assign({}, expanded); e[id] = !e[id]; expanded = e }
-
+    // --- El rack (el patchbay) --------------------------------------------------------------
     function kindColor(t) {
         if (t === "in" || t === "out") return "#64748b"
         if (t === "analyzer") return "#0ea5e9"
@@ -81,8 +44,6 @@ Rectangle {
         if (t === "traducir") return "#eab308"
         return Theme.accent
     }
-    function fmtDb(v) { return (v === undefined || v === null || v <= -139) ? "—" : (Math.round(v * 10) / 10).toFixed(1) }
-    function chName(ch) { return ch === 0 ? "L" : ch === 1 ? "R" : "" }
 
     // Arbol de fuentes: un encabezado por grupo y debajo sus fuentes, en el
     // orden en que el motor las informa.
@@ -225,20 +186,18 @@ Rectangle {
                             RowLayout {
                                 Text { text: parent.parent.parent.s.nombre || ""; color: Theme.text; font.pixelSize: 13; elide: Text.ElideRight; Layout.fillWidth: true }
                                 Text { visible: !!parent.parent.parent.s.rack; text: "🎚 " + (parent.parent.parent.s.modulos || 0); color: Theme.accent; font.pixelSize: 12 }
-                                // Dónde corre el rack: en la cadena de GStreamer de la entrada o en libobs.
+                                // El rack corre en la cadena de GStreamer de la entrada: si ya procesa.
                                 Text {
                                     readonly property var s: parent.parent.parent.s
-                                    visible: !!s.rack && !!s.motor
-                                    text: s.motor === "gstreamer" ? (s.procesando ? "GST" : "GST…") : "OBS"
-                                    color: s.motor === "gstreamer" ? Theme.textDim : Theme.accentSoft
+                                    visible: !!s.rack
+                                    text: s.procesando ? "GST" : "GST…"
+                                    color: Theme.textDim
                                     font.pixelSize: 10
                                     MouseArea {
                                         id: motorHover; anchors.fill: parent; hoverEnabled: true
                                         ToolTip.visible: containsMouse; ToolTip.delay: 400
-                                        ToolTip.text: parent.s.motor === "gstreamer"
-                                                      ? (parent.s.procesando ? qsTr("El rack corre en la cadena de GStreamer de la entrada")
-                                                                             : qsTr("El rack va en GStreamer: esperando que la entrada pase audio"))
-                                                      : qsTr("El rack corre como filtro de libobs (esta fuente todavía no pasó a GStreamer)")
+                                        ToolTip.text: parent.s.procesando ? qsTr("El rack corre en la cadena de GStreamer de la entrada")
+                                                                          : qsTr("El rack va en GStreamer: esperando que la entrada pase audio")
                                     }
                                 }
                             }
@@ -362,463 +321,57 @@ Rectangle {
                 font.pixelSize: 12; wrapMode: Text.WordWrap
             }
 
-            Rectangle {
+            // El rack: el patchbay de todos (controls/Patchbay) con lo del audio: puertos
+            // estéreo de dos puntos, tarjetas que se agrandan, el sidechain y los medidores.
+            Patchbay {
                 id: lienzoAudio
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-                radius: 16
-                color: Qt.rgba(0, 0, 0, 0.25)
-                border.color: Qt.rgba(1, 1, 1, 0.06)
-                clip: true
-                // La API que usa BarraGrafo (la misma que el Patchbay del video).
-                property real zoom: 0   // 0 = que entre a lo ancho (sin agrandar)
-                property alias grilla: page.showGrid
-                readonly property real anchoGrafo: {
-                    let m = 0
-                    for (let k = 0; k < page.nodes.length; ++k) m = Math.max(m, page.nodes[k].x + page.nodeW)
-                    return m + 40
+                nodos: page.au && page.au.graph.nodos ? page.au.graph.nodos : []
+                cables: page.au && page.au.graph.cables ? page.au.graph.cables : []
+                seleccionado: page.au ? page.au.selected : ""
+                grid: page.au ? page.au.gridStep : 20
+                // La grilla se ve con el botón (o mientras se acomoda algo).
+                grilla: false
+                bodyH: 30
+                soloMismoTipo: false
+                margenSoltar: 70
+                expandibles: true
+                colorDe: page.kindColor
+                // El sidechain se dibuja como un puerto de control (ámbar).
+                tipoDe: function(info, id) { return id === "sc" ? "control" : "audio" }
+                etiquetaPuerto: function(info, id, entrada, nodo) {
+                    return !entrada ? qsTr("salida") : id === "sc" ? qsTr("sidechain") : qsTr("entrada")
                 }
-                // Sola, no más chica que 75 % (más chico no se lee: se desplaza); «Ajustar», todo junto.
-                readonly property real escalaParaTodo: Math.max(0.25, Math.min(1, (flick.width - 8) / Math.max(1, anchoGrafo)))
-                readonly property real escala: zoom > 0 ? zoom : Math.max(0.75, escalaParaTodo)
-                function acercar(f) { zoom = Math.max(0.25, Math.min(2.5, escala * f)) }
-                function ordenar() { page.au.tidy() }
-                // Cmd/Ctrl + rueda: zoom (la rueda sola sigue desplazando).
-                WheelHandler {
-                    target: null
-                    acceptedModifiers: Qt.ControlModifier | Qt.MetaModifier
-                    onWheel: (ev) => lienzoAudio.acercar(ev.angleDelta.y > 0 ? 1.12 : 1 / 1.12)
-                }
-
-                Flickable {
-                    id: flick
-                    anchors.fill: parent
-                    contentWidth: canvas.width * lienzoAudio.escala
-                    contentHeight: canvas.height * lienzoAudio.escala
-                    interactive: page.wire === null
-                    ScrollBar.horizontal: ScrollBar {}
-                    ScrollBar.vertical: ScrollBar {}
-
-                    Item {
-                        id: canvas
-                        width: 2600
-                        height: 1400
-                        scale: lienzoAudio.escala
-                        transformOrigin: Item.TopLeft
-                        MouseArea { anchors.fill: parent; onClicked: page.au.select("") }
-
-                        // Grilla: fija con el boton, o mientras se acomoda algo.
-                        Canvas {
-                            anchors.fill: parent
-                            z: -1
-                            visible: opacity > 0
-                            opacity: page.showGrid || page.draggingNode || page.wire !== null ? 1 : 0
-                            Behavior on opacity { NumberAnimation { duration: 140 } }
-                            onWidthChanged: requestPaint()
-                            onHeightChanged: requestPaint()
-                            onPaint: {
-                                const c = getContext("2d")
-                                c.reset()
-                                const g = page.grid
-                                // Con fillRect y no con stroke(): en una pantalla
-                                // Retina el pintor de Qt trazaba cada línea vertical
-                                // renglón por renglón repartiéndolos a un grupo de
-                                // hilos, y la grilla trababa la interfaz segundos.
-                                for (let x = 0; x < width; x += g) {
-                                    // Cada 5 celdas la linea se ve un poco mas.
-                                    c.fillStyle = Qt.rgba(1, 1, 1, Math.round(x / g) % 5 === 0 ? 0.10 : 0.04)
-                                    c.fillRect(Math.round(x), 0, 1, height)
-                                }
-                                for (let y = 0; y < height; y += g) {
-                                    c.fillStyle = Qt.rgba(1, 1, 1, Math.round(y / g) % 5 === 0 ? 0.10 : 0.04)
-                                    c.fillRect(0, Math.round(y), width, 1)
-                                }
-                            }
-                        }
-
-                        // Cables (el de sidechain en ámbar; uno de canal suelto, más fino y con sus canales)
-                        Repeater {
-                            model: page.cables
-                            delegate: CablePatchbay {
-                                required property var modelData
-                                anchors.fill: parent
-                                geo: page.geo
-                                a: page.geo.portPos(modelData.desde, modelData.salida, false, modelData.canalSalida)
-                                b: page.geo.portPos(modelData.hacia, modelData.entrada, true, modelData.canalEntrada)
-                                color: modelData.entrada === "sc" ? "#f59e0b" : Qt.rgba(0.55, 0.75, 1, 0.9)
-                                grosor: modelData.canalSalida >= 0 ? 2 : 3
-                                etiqueta: modelData.canalSalida >= 0 ? page.chName(modelData.canalSalida) + "→" + page.chName(modelData.canalEntrada) : ""
-                                onQuitar: page.au.disconnectPorts(modelData.desde, modelData.salida, modelData.hacia, modelData.entrada,
-                                                                  modelData.canalSalida, modelData.canalEntrada)
-                            }
-                        }
-
-                        // Cable en construcción
-                        CablePatchbay {
-                            anchors.fill: parent
-                            visible: page.wire !== null
-                            geo: page.geo
-                            quitable: false
-                            punteado: true
-                            color: Theme.ok
-                            a: page.wire ? Qt.point(page.wire.x0, page.wire.y0) : Qt.point(0, 0)
-                            b: page.wire ? Qt.point(page.wire.x1, page.wire.y1) : Qt.point(0, 0)
-                        }
-
-                        // Nodos
-                        Repeater {
-                            model: page.nodes
-                            delegate: Rectangle {
-                                id: nd
-                                required property var modelData
-                                readonly property var m: page.au && page.au.meters[modelData.id] ? page.au.meters[modelData.id] : ({})
-                                x: modelData.x
-                                y: modelData.y
-                                width: page.nodeW
-                                height: page.geo.nodeH(modelData)
-                                radius: 12
-                                color: Qt.rgba(0.08, 0.1, 0.15, 0.96)
-                                border.width: page.au && page.au.selected === modelData.id ? 2 : 1
-                                border.color: page.au && page.au.selected === modelData.id ? Theme.accent : Qt.rgba(1, 1, 1, 0.14)
-                                opacity: modelData.bypass ? 0.55 : 1
-                                onXChanged: page.geo.mover(modelData.id, x, y)
-                                onYChanged: page.geo.mover(modelData.id, x, y)
-
-                                // Un clic en cualquier lado de la tarjeta la elige (y el panel muestra
-                                // Quitar, Anular…). Va primero: los puertos y la cabecera quedan encima.
-                                MouseArea { anchors.fill: parent; onClicked: page.au.select(nd.modelData.id) }
-
-                                // Cabecera: elegir y arrastrar.
-                                Rectangle {
-                                    id: head
-                                    width: parent.width
-                                    height: page.headH
-                                    radius: 12
-                                    color: Qt.rgba(1, 1, 1, 0.06)
-                                    Rectangle { width: 6; height: parent.height - 12; radius: 3; x: 8; anchors.verticalCenter: parent.verticalCenter; color: page.kindColor(nd.modelData.tipo) }
-                                    Text {
-                                        x: 22
-                                        width: parent.width - 52
-                                        anchors.verticalCenter: parent.verticalCenter
-                                        text: nd.modelData.etiqueta
-                                        color: Theme.text; font { pixelSize: 13; weight: Font.DemiBold } elide: Text.ElideRight
-                                    }
-                                    // Detalle de la tarjeta: simple o con todos los puertos.
-                                    // z por encima del area de arrastre (que se
-                                    // declara despues y si no se come el clic).
-                                    Rectangle {
-                                        z: 2
-                                        anchors { right: parent.right; rightMargin: 6; verticalCenter: parent.verticalCenter }
-                                        width: 22; height: 22; radius: 11
-                                        color: detMa.containsMouse ? Qt.rgba(1, 1, 1, 0.16) : "transparent"
-                                        Text {
-                                            anchors.centerIn: parent
-                                            text: page.isExpanded(nd.modelData.id) ? "⌃" : "⌄"
-                                            color: Theme.textFaint; font.pixelSize: 12
-                                        }
-                                        MouseArea {
-                                            id: detMa
-                                            anchors.fill: parent
-                                            hoverEnabled: true
-                                            cursorShape: Qt.PointingHandCursor
-                                            onClicked: page.toggleExpanded(nd.modelData.id)
-                                            ToolTip.visible: containsMouse
-                                            ToolTip.delay: 500
-                                            ToolTip.text: page.isExpanded(nd.modelData.id)
-                                                          ? qsTr("Mostrar la tarjeta simple")
-                                                          : qsTr("Mostrar los nombres de los puertos y si son mono o estéreo")
-                                        }
-                                    }
-                                    MouseArea {
-                                        id: headMa
-                                        anchors.fill: parent
-                                        preventStealing: true
-                                        cursorShape: drag.active ? Qt.ClosedHandCursor : Qt.OpenHandCursor
-                                        drag.target: nd
-                                        drag.minimumX: 0; drag.minimumY: 0
-                                        // OJO: no tocar nd.x/nd.y mientras se arrastra. El arrastre
-                                        // calcula la posicion a partir de la actual, asi que el ajuste
-                                        // a la grilla se le sumaba y la tarjeta se escapaba del cursor.
-                                        // Se muestra la celda destino y se encaja al soltar.
-                                        drag.onActiveChanged: {
-                                            page.draggingNode = drag.active
-                                            if (drag.active) return
-                                            nd.x = page.geo.snap(nd.x)
-                                            nd.y = page.geo.snap(nd.y)
-                                            page.au.moveNode(nd.modelData.id, nd.x, nd.y)
-                                        }
-                                        onClicked: page.au.select(nd.modelData.id)
-                                    }
-                                }
-
-                                // Celda donde va a quedar al soltar.
-                                Rectangle {
-                                    visible: headMa.drag.active
-                                    x: page.geo.snap(nd.x) - nd.x
-                                    y: page.geo.snap(nd.y) - nd.y
-                                    width: nd.width
-                                    height: nd.height
-                                    z: -1
-                                    radius: 12
-                                    color: Qt.rgba(1, 1, 1, 0.05)
-                                    border { color: Theme.accent; width: 2 }
-                                }
-
-                                // Puertos de entrada (izquierda)
-                                Repeater {
-                                    model: nd.modelData.entradas
-                                    delegate: Item {
-                                        required property string modelData
-                                        required property int index
-                                        readonly property bool target: page.wireTarget
-                                                                       && page.wireTarget.node === nd.modelData.id
-                                                                       && page.wireTarget.port === modelData
-                                        readonly property int targetCh: target ? page.wireTarget.ch : -2
-                                        readonly property var info: (nd.modelData.puertosEntrada || [])[index] || ({})
-                                        x: -7
-                                        y: page.headH + index * page.rowH(nd.modelData.id)
-                                           + page.rowH(nd.modelData.id) / 2 - 7
-                                        width: 14; height: 14
-                                        // Halo cuando el cable que se esta tirando va a caer aca.
-                                        Rectangle {
-                                            anchors.centerIn: parent
-                                            width: 30; height: 30; radius: 15
-                                            visible: parent.target
-                                            color: Qt.rgba(0.53, 0.94, 0.67, 0.28)
-                                            border.color: Theme.ok; border.width: 2
-                                        }
-                                        // Un punto si el puerto es mono; dos (L y R)
-                                        // si es estereo, para diferenciarlos de un vistazo.
-                                        // El cable sigue siendo del PUERTO entero.
-                                        Rectangle {
-                                            visible: parent.info.canales !== 2
-                                            anchors.fill: parent
-                                            radius: 7
-                                            color: modelData === "sc" ? "#f59e0b" : "#93c5fd"
-                                            border.color: "white"; border.width: 1
-                                        }
-                                        Column {
-                                            z: 3
-                                            visible: parent.info.canales === 2
-                                            anchors.centerIn: parent
-                                            spacing: 2 * page.chOff(nd.modelData.id) - page.chH(nd.modelData.id)
-                                            Repeater {
-                                                model: [0, 1]
-                                                delegate: Rectangle {
-                                                    id: inDot
-                                                    required property int modelData
-                                                    width: page.chW(nd.modelData.id)
-                                                    height: page.chH(nd.modelData.id)
-                                                    radius: height / 2
-                                                    // Verde si el cable que se arrastra va a caer aca;
-                                                    // mas claro con el mouse encima.
-                                                    color: parent.parent.targetCh === inDot.modelData
-                                                           ? Theme.ok
-                                                           : (inChMa.containsMouse ? Qt.lighter("#93c5fd", 1.35) : "#93c5fd")
-                                                    border.color: inChMa.containsMouse ? Theme.accent : "white"
-                                                    border.width: inChMa.containsMouse ? 2 : 1
-                                                    scale: inChMa.containsMouse ? 1.12 : 1
-                                                    Behavior on scale { NumberAnimation { duration: 90 } }
-                                                    // Solo para el hover: no acepta botones, asi no
-                                                    // interfiere con soltar un cable encima.
-                                                    MouseArea {
-                                                        id: inChMa
-                                                        anchors.fill: parent
-                                                        anchors.margins: -3
-                                                        hoverEnabled: true
-                                                        acceptedButtons: Qt.NoButton
-                                                    }
-                                                    Text {
-                                                        anchors.centerIn: parent
-                                                        text: page.chName(inDot.modelData)
-                                                        color: "#0b1220"
-                                                        font { pixelSize: page.isExpanded(nd.modelData.id) ? 10 : 7; weight: Font.Black }
-                                                    }
-                                                }
-                                            }
-                                        }
-                                        Column {
-                                            x: 18
-                                            anchors.verticalCenter: parent.verticalCenter
-                                            Text { text: modelData === "sc" ? qsTr("sidechain") : qsTr("entrada"); color: Theme.textFaint; font.pixelSize: 10 }
-                                            Text {
-                                                visible: page.isExpanded(nd.modelData.id)
-                                                width: page.nodeW / 2 - 24
-                                                elide: Text.ElideRight
-                                                text: (parent.parent.info.nombre ? parent.parent.info.nombre + " · " : "")
-                                                      + (parent.parent.info.canales === 1 ? qsTr("mono") : qsTr("estéreo"))
-                                                color: Theme.textFaint; font.pixelSize: 9
-                                            }
-                                        }
-                                    }
-                                }
-                                // Puertos de salida (derecha): se arrastran para conectar.
-                                Repeater {
-                                    model: nd.modelData.salidas
-                                    delegate: Item {
-                                        id: op
-                                        required property string modelData
-                                        required property int index
-                                        readonly property var info: (nd.modelData.puertosSalida || [])[index] || ({})
-                                        x: page.nodeW - 7
-                                        y: page.headH + index * page.rowH(nd.modelData.id)
-                                           + page.rowH(nd.modelData.id) / 2 - 7
-                                        width: 14; height: 14
-                                        Column {
-                                            anchors { right: parent.left; rightMargin: 4; verticalCenter: parent.verticalCenter }
-                                            Text { anchors.right: parent.right; text: qsTr("salida"); color: Theme.textFaint; font.pixelSize: 10 }
-                                            Text {
-                                                anchors.right: parent.right
-                                                visible: page.isExpanded(nd.modelData.id)
-                                                width: page.nodeW / 2 - 24
-                                                horizontalAlignment: Text.AlignRight
-                                                elide: Text.ElideRight
-                                                text: (op.info.nombre ? op.info.nombre + " · " : "")
-                                                      + (op.info.canales === 1 ? qsTr("mono") : qsTr("estéreo"))
-                                                color: Theme.textFaint; font.pixelSize: 9
-                                            }
-                                        }
-                                        Rectangle {
-                                            visible: op.info.canales !== 2
-                                            anchors.fill: parent
-                                            radius: 7
-                                            color: "#86efac"
-                                            border.color: "white"; border.width: 1
-                                        }
-                                        Column {
-                                            // z por encima del area del puerto entero, que se declara
-                                            // despues: si no, se comia el hover y el clic de los puntos
-                                            // (no se podia agarrar el canal de abajo).
-                                            z: 3
-                                            visible: op.info.canales === 2
-                                            anchors.centerIn: parent
-                                            spacing: 2 * page.chOff(nd.modelData.id) - page.chH(nd.modelData.id)
-                                            Repeater {
-                                                model: [0, 1]
-                                                delegate: Rectangle {
-                                                    id: chDot
-                                                    required property int modelData
-                                                    width: page.chW(nd.modelData.id)
-                                                    height: page.chH(nd.modelData.id)
-                                                    radius: height / 2
-                                                    // Encendido con el mouse encima y mientras se
-                                                    // arrastra SU cable (ahi el hover no se actualiza:
-                                                    // el area tiene agarrado el mouse).
-                                                    readonly property bool lit: outChMa.containsMouse
-                                                        || (page.wire && page.wire.from === nd.modelData.id
-                                                            && page.wire.out === op.modelData
-                                                            && page.wire.ch === chDot.modelData)
-                                                    color: lit ? Qt.lighter("#86efac", 1.25) : "#86efac"
-                                                    border.color: lit ? Theme.accent : "white"
-                                                    border.width: lit ? 2 : 1
-                                                    scale: lit ? 1.12 : 1
-                                                    Behavior on scale { NumberAnimation { duration: 90 } }
-                                                    Text {
-                                                        anchors.centerIn: parent
-                                                        text: page.chName(chDot.modelData)
-                                                        color: "#0b1220"
-                                                        font { pixelSize: page.isExpanded(nd.modelData.id) ? 10 : 7; weight: Font.Black }
-                                                    }
-                                                    // Arrastrar desde L o R lleva SOLO ese canal.
-                                                    MouseArea {
-                                                        id: outChMa
-                                                        anchors.fill: parent
-                                                        // Chico a proposito: el hueco del medio sigue
-                                                        // siendo del puerto entero (los dos canales).
-                                                        anchors.margins: -3
-                                                        cursorShape: Qt.CrossCursor
-                                                        preventStealing: true
-                                                        hoverEnabled: true
-                                                        ToolTip.visible: containsMouse && !page.wire
-                                                        ToolTip.delay: 600
-                                                        ToolTip.text: qsTr("Canal %1: arrastralo a la entrada que quieras").arg(page.chName(chDot.modelData))
-                                                        onPressed: (ev) => {
-                                                            const p = page.geo.portPos(nd.modelData.id, op.modelData, false, chDot.modelData)
-                                                            page.wire = { from: nd.modelData.id, out: op.modelData, ch: chDot.modelData,
-                                                                          x0: p.x, y0: p.y, x1: p.x, y1: p.y }
-                                                            page.wireTarget = null
-                                                        }
-                                                        onPositionChanged: (ev) => {
-                                                            if (!page.wire) return
-                                                            const q = mapToItem(canvas, ev.x, ev.y)
-                                                            const t = page.geo.inputAt(q.x, q.y, null, 70)
-                                                            page.wireTarget = t
-                                                            const end = t ? page.geo.portPos(t.node, t.port, true, t.ch) : q
-                                                            page.wire = Object.assign({}, page.wire, { x1: end.x, y1: end.y })
-                                                        }
-                                                        onReleased: (ev) => {
-                                                            if (!page.wire) return
-                                                            const t = page.wireTarget
-                                                            if (t) page.msg = page.au.connectPorts(page.wire.from, page.wire.out, t.node, t.port,
-                                                                                                   page.wire.ch, t.ch >= 0 ? t.ch : page.wire.ch)
-                                                            page.wire = null
-                                                            page.wireTarget = null
-                                                        }
-                                                        onCanceled: { page.wire = null; page.wireTarget = null }
-                                                    }
-                                                }
-                                            }
-                                        }
-                                        MouseArea {
-                                            anchors.fill: parent
-                                            // Agarre generoso: el punto es chico, la zona no.
-                                            anchors.margins: -12
-                                            cursorShape: Qt.CrossCursor
-                                            preventStealing: true
-                                            ToolTip.visible: containsMouse && !page.wire
-                                            ToolTip.delay: 600
-                                            ToolTip.text: qsTr("Arrastrá hasta la tarjeta (o la entrada) que quieras alimentar")
-                                            hoverEnabled: true
-                                            onPressed: (ev) => {
-                                                const p = page.geo.portPos(nd.modelData.id, op.modelData, false)
-                                                page.wire = { from: nd.modelData.id, out: op.modelData, x0: p.x, y0: p.y, x1: p.x, y1: p.y }
-                                                page.wireTarget = null
-                                            }
-                                            onPositionChanged: (ev) => {
-                                                if (!page.wire) return
-                                                const q = mapToItem(canvas, ev.x, ev.y)
-                                                // El cable se pega a la entrada candidata: se ve a donde va.
-                                                const t = page.geo.inputAt(q.x, q.y, null, 70)
-                                                page.wireTarget = t
-                                                const end = t ? page.geo.portPos(t.node, t.port, true) : q
-                                                page.wire = Object.assign({}, page.wire, { x1: end.x, y1: end.y })
-                                            }
-                                            onReleased: (ev) => {
-                                                if (!page.wire) return
-                                                const t = page.wireTarget
-                                                // Soltar en un punto L o R de un puerto estereo manda
-                                                // solo ese canal (el izquierdo de la salida).
-                                                if (t) page.msg = page.au.connectPorts(page.wire.from, page.wire.out, t.node, t.port,
-                                                                                       t.ch >= 0 ? 0 : -1, t.ch)
-                                                page.wire = null
-                                                page.wireTarget = null
-                                            }
-                                            onCanceled: { page.wire = null; page.wireTarget = null }
-                                        }
-                                    }
-                                }
-
-                                // Medidor del nodo
-                                Column {
-                                    anchors { left: parent.left; right: parent.right; bottom: parent.bottom; margins: 10 }
-                                    spacing: 3
-                                    LevelMeter {
-                                        width: parent.width
-                                        height: 5
-                                        db: nd.m.salidaDb !== undefined ? nd.m.salidaDb : (nd.m.entradaDb !== undefined ? nd.m.entradaDb : -100)
-                                    }
-                                    Text {
-                                        width: parent.width
-                                        horizontalAlignment: Text.AlignRight
-                                        color: nd.m.cambioDb !== undefined && nd.m.cambioDb < -0.5 ? Theme.amber : Theme.textFaint
-                                        font.pixelSize: 10
-                                        text: nd.modelData.bypass ? qsTr("anulado")
-                                              : nd.m.cambioDb !== undefined ? (nd.m.cambioDb > 0 ? "+" : "") + page.fmtDb(nd.m.cambioDb) + " dB"
-                                              : page.fmtDb(nd.m.salidaDb !== undefined ? nd.m.salidaDb : nd.m.entradaDb) + " dBFS"
-                                    }
-                                }
-                            }
-                        }
+                cuerpo: medidorC
+                onElegir: (id) => page.au.select(id)
+                onMover: (id, x, y) => page.au.moveNode(id, x, y)
+                onConectar: (desde, salida, hacia, entrada, chSalida, chEntrada) =>
+                    page.msg = page.au.connectPorts(desde, salida, hacia, entrada, chSalida, chEntrada)
+                onDesconectar: (desde, salida, hacia, entrada, chSalida, chEntrada) =>
+                    page.au.disconnectPorts(desde, salida, hacia, entrada, chSalida, chEntrada)
+                onOrdenar: page.au.tidy()
+            }
+            // El medidor de cada tarjeta: el nivel de salida y cuánto cambia el filtro.
+            Component {
+                id: medidorC
+                Column {
+                    property var nodo: ({})
+                    readonly property var m: page.au && page.au.meters[nodo.id] ? page.au.meters[nodo.id] : ({})
+                    spacing: 3
+                    LevelMeter {
+                        width: parent.width
+                        height: 5
+                        db: parent.m.salidaDb !== undefined ? parent.m.salidaDb : (parent.m.entradaDb !== undefined ? parent.m.entradaDb : -100)
+                    }
+                    Text {
+                        width: parent.width
+                        horizontalAlignment: Text.AlignRight
+                        color: parent.m.cambioDb !== undefined && parent.m.cambioDb < -0.5 ? Theme.amber : Theme.textFaint
+                        font.pixelSize: 10
+                        text: parent.nodo.bypass ? qsTr("anulado")
+                              : parent.m.cambioDb !== undefined ? (parent.m.cambioDb > 0 ? "+" : "") + Theme.db(parent.m.cambioDb) + " dB"
+                              : Theme.db(parent.m.salidaDb !== undefined ? parent.m.salidaDb : parent.m.entradaDb) + " dBFS"
                     }
                 }
             }
@@ -1088,7 +641,7 @@ Rectangle {
                                      db: parent.parent.d.medidores && parent.parent.d.medidores.salidaDb !== undefined ? parent.parent.d.medidores.salidaDb : -100 }
                         Text { text: qsTr("Cambio"); color: Theme.textDim; font.pixelSize: 12; visible: !!(parent.parent.d.medidores && parent.parent.d.medidores.cambioDb !== undefined) }
                         Text { visible: !!(parent.parent.d.medidores && parent.parent.d.medidores.cambioDb !== undefined)
-                               text: parent.parent.d.medidores ? page.fmtDb(parent.parent.d.medidores.cambioDb) + " dB" : ""
+                               text: parent.parent.d.medidores ? Theme.db(parent.parent.d.medidores.cambioDb) + " dB" : ""
                                color: Theme.amber; font { pixelSize: 13; weight: Font.DemiBold } }
                     }
 
@@ -1202,14 +755,14 @@ Rectangle {
                             columns: 2
                             columnSpacing: 12
                             Text { text: "LUFS M / S / I"; color: Theme.textDim; font.pixelSize: 12 }
-                            Text { text: parent.parent.an.lufs ? page.fmtDb(parent.parent.an.lufs.momentaneo) + " / " + page.fmtDb(parent.parent.an.lufs.corto) + " / " + page.fmtDb(parent.parent.an.lufs.integrado) : "—"
+                            Text { text: parent.parent.an.lufs ? Theme.db(parent.parent.an.lufs.momentaneo) + " / " + Theme.db(parent.parent.an.lufs.corto) + " / " + Theme.db(parent.parent.an.lufs.integrado) : "—"
                                    color: Theme.text; font.pixelSize: 12 }
                             Text { text: qsTr("Pico (máx.)"); color: Theme.textDim; font.pixelSize: 12 }
-                            Text { text: page.fmtDb(parent.parent.an.picoDbfs) + " (" + page.fmtDb(parent.parent.an.picoMaximoDbfs) + ") dBFS"; color: Theme.text; font.pixelSize: 12 }
+                            Text { text: Theme.db(parent.parent.an.picoDbfs) + " (" + Theme.db(parent.parent.an.picoMaximoDbfs) + ") dBFS"; color: Theme.text; font.pixelSize: 12 }
                             Text { text: qsTr("Piso de ruido"); color: Theme.textDim; font.pixelSize: 12 }
-                            Text { text: page.fmtDb(parent.parent.an.pisoDeRuidoDbfs) + " dBFS"; color: Theme.text; font.pixelSize: 12 }
+                            Text { text: Theme.db(parent.parent.an.pisoDeRuidoDbfs) + " dBFS"; color: Theme.text; font.pixelSize: 12 }
                             Text { text: qsTr("Nivel activo"); color: Theme.textDim; font.pixelSize: 12 }
-                            Text { text: page.fmtDb(parent.parent.an.nivelActivoDbfs) + " dBFS"; color: Theme.text; font.pixelSize: 12 }
+                            Text { text: Theme.db(parent.parent.an.nivelActivoDbfs) + " dBFS"; color: Theme.text; font.pixelSize: 12 }
                         }
                         // Espectro en tercios de octava
                         Item {
@@ -1328,33 +881,6 @@ Rectangle {
                 }
             }
             GlassButton { Layout.alignment: Qt.AlignRight; compact: true; text: qsTr("Cerrar"); onClicked: outPopup.close() }
-        }
-    }
-
-    // Otro modulo LSP por nombre
-    Popup {
-        id: lspPopup
-        anchors.centerIn: parent
-        width: 460
-        height: 420
-        modal: true
-        background: Rectangle { radius: 16; color: Theme.panel; border.color: Theme.glassBorder }
-        ColumnLayout {
-            anchors.fill: parent
-            anchors.margins: 12
-            TextField { id: lspQuery; Layout.fillWidth: true; placeholderText: qsTr("Buscar en los ~200 plugins LSP (p. ej. «delay», «filter», «loud»)") }
-            ListView {
-                Layout.fillWidth: true
-                Layout.fillHeight: true
-                clip: true
-                model: page.au ? page.au.search(lspQuery.text) : []
-                delegate: ItemDelegate {
-                    required property var modelData
-                    width: ListView.view.width
-                    text: modelData.nombre + "  —  " + modelData.id
-                    onClicked: { page.msg = page.au.addModule(modelData.id, ""); lspPopup.close() }
-                }
-            }
         }
     }
 

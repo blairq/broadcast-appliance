@@ -93,9 +93,29 @@ QtObject {
         return v >= 1000 ? (v / 1000).toFixed(2) + " s" : Number(v).toFixed(v < 10 ? 1 : 0) + " ms"
     }
 
+    /// Un nivel en dB con un decimal: «-12.3»; «—» si no hay (o es silencio, ≤ -139).
+    function db(v) {
+        return v === undefined || v === null || isNaN(v) || v <= -139 ? "—" : (Math.round(v * 10) / 10).toFixed(1)
+    }
+
+    /// Una medida con `d` decimales; «—» si no se midió (sin valor o negativa).
+    function medida(v, d) {
+        return v === undefined || v === null || isNaN(v) || v < 0 ? "—" : Number(v).toFixed(d)
+    }
+
+    /// Una velocidad de transferencia: en bytes («850 KB/s», «1.2 MB/s», de a 1024) o, con
+    /// `bits`, en bits («850 kb/s», «1.2 Mb/s», de a 1000). `k`: kilobytes o kilobits por segundo.
+    function velocidad(k, bits) {
+        const v = k || 0, base = bits ? 1000 : 1024
+        return v >= base ? (v / base).toFixed(1) + (bits ? " Mb/s" : " MB/s") : Math.round(v) + (bits ? " kb/s" : " KB/s")
+    }
+
     /// El color de un estado, el mismo en todas las páginas (plugins, agentes, pantallas,
-    /// salud, descargas, la escaleta): bien, en camino, a mirar, mal o apagado.
-    function colorDeEstado(e) {
+    /// salud, descargas, la escaleta, los relojes de los oradores, lo que le queda a un
+    /// medio, el loudness): bien, en camino, a mirar, mal o apagado. Con `normal`, lo que
+    /// está bien (o no tiene estado) va de ese color: un reloj que no avisa nada, en blanco.
+    function colorDeEstado(e, normal) {
+        if (normal !== undefined && (!e || e === "ok" || e === "normal")) return normal
         switch (e) {
         case "ok": case "corriendo": case "listo": case "libre": case "normal": case "terminado":
             return ok

@@ -20,6 +20,7 @@
 #include "ptz/PtzPanasonic.hpp"
 #include "ptz/PtzPlugin.hpp"
 #include "ptz/PtzVisca.hpp"
+#include "ui/Formulario.hpp"
 
 #include "emision/FuentesApp.hpp"
 
@@ -160,45 +161,37 @@ QVariantMap ControlCamaras::fotos() const {
 // ---------------------------------------------------------------------------
 
 QVariantList ControlCamaras::backends() {
-    const QVariantMap host{{"clave", "host"}, {"etiqueta", QCoreApplication::translate("ptz", "Dirección (IP o nombre)")}, {"tipo", "text"}};
-    const QVariantMap puerto{
-        {"clave", "puerto"}, {"etiqueta", QCoreApplication::translate("ptz", "Puerto (vacío = el de siempre)")}, {"tipo", "int"}};
-    const QVariantMap usuario{{"clave", "usuario"}, {"etiqueta", QCoreApplication::translate("ptz", "Usuario")}, {"tipo", "text"}};
-    const QVariantMap clave{{"clave", "clave"}, {"etiqueta", QCoreApplication::translate("ptz", "Clave")}, {"tipo", "password"}};
+    // Los campos, con el esquema de los formularios (ui/Formulario, los dibuja CampoFormulario).
+    const auto tr = [](const char* t) { return QCoreApplication::translate("ptz", t); };
+    const QVariantMap host = formulario::campo("host", tr("Dirección (IP o nombre)"), "text", {});
+    const QVariantMap puerto = formulario::campo("puerto", tr("Puerto (vacío = el de siempre)"), "number", {});
+    const QVariantMap usuario = formulario::campo("usuario", tr("Usuario"), "text", {});
+    const QVariantMap clave = formulario::campo("clave", tr("Clave"), "clave", {});
+    // El transporte arranca en el primero: lo que no se toca vale eso (convertirTodos).
+    const QVariantMap transporte = formulario::campo(
+        "transporte", tr("Transporte"), "list", "sony", {},
+        QVariantList{QVariantMap{{"value", "sony"}, {"label", tr("UDP con encabezado Sony (52381)")}},
+                     QVariantMap{{"value", "tcp"}, {"label", tr("TCP crudo (5678)")}},
+                     QVariantMap{{"value", "udp"}, {"label", tr("UDP crudo (1259)")}}});
     return {
         QVariantMap{{"id", "ninguno"},
-                    {"nombre", QCoreApplication::translate("ptz", "Solo digital")},
-                    {"ayuda", QCoreApplication::translate("ptz", "La cámara no se mueve: recorte y zoom en la GPU.")},
+                    {"nombre", tr("Solo digital")},
+                    {"ayuda", tr("La cámara no se mueve: recorte y zoom en la GPU.")},
                     {"campos", QVariantList{}}},
-        QVariantMap{
-            {"id", "visca"},
-            {"nombre", QCoreApplication::translate("ptz", "VISCA por IP")},
-            {"ayuda", QCoreApplication::translate("ptz", "Sony, PTZOptics, BirdDog, Avonic, Marshall, AVer, Lumens y la mayoría de las chinas. "
-                      "Sony usa UDP 52381; PTZOptics y similares, TCP 5678 o UDP 1259.")},
-            {"campos",
-             QVariantList{
-                 host,
-                 QVariantMap{{"clave", "transporte"},
-                             {"etiqueta", QCoreApplication::translate("ptz", "Transporte")},
-                             {"tipo", "choice"},
-                             {"opciones",
-                              QVariantList{QVariantMap{{"valor", "sony"},
-                                                       {"texto", QCoreApplication::translate("ptz", "UDP con encabezado Sony (52381)")}},
-                                           QVariantMap{{"valor", "tcp"}, {"texto", QCoreApplication::translate("ptz", "TCP crudo (5678)")}},
-                                           QVariantMap{{"valor", "udp"}, {"texto", QCoreApplication::translate("ptz", "UDP crudo (1259)")}}}}},
-                 puerto,
-                 QVariantMap{
-                     {"clave", "direccion"}, {"etiqueta", QCoreApplication::translate("ptz", "Dirección VISCA (1-7)")}, {"tipo", "int"}}}}},
+        QVariantMap{{"id", "visca"},
+                    {"nombre", tr("VISCA por IP")},
+                    {"ayuda", tr("Sony, PTZOptics, BirdDog, Avonic, Marshall, AVer, Lumens y la mayoría de las chinas. "
+                                 "Sony usa UDP 52381; PTZOptics y similares, TCP 5678 o UDP 1259.")},
+                    {"campos", QVariantList{host, transporte, puerto,
+                                            formulario::campo("direccion", tr("Dirección VISCA (1-7)"), "number", {})}}},
         QVariantMap{{"id", "onvif"},
                     {"nombre", "ONVIF"},
-                    {"ayuda", QCoreApplication::translate("ptz", "Cámaras IP en general (Profile S). «Buscar en la red» las encuentra solas.")},
+                    {"ayuda", tr("Cámaras IP en general (Profile S). «Buscar en la red» las encuentra solas.")},
                     {"campos", QVariantList{host, puerto, usuario, clave,
-                                            QVariantMap{{"clave", "perfil"},
-                                                        {"etiqueta", QCoreApplication::translate("ptz", "Perfil (vacío = el que tenga PTZ)")},
-                                                        {"tipo", "text"}}}}},
+                                            formulario::campo("perfil", tr("Perfil (vacío = el que tenga PTZ)"), "text", {})}}},
         QVariantMap{{"id", "panasonic"},
                     {"nombre", "Panasonic AW/UE"},
-                    {"ayuda", QCoreApplication::translate("ptz", "AW-HE40/42/50/60/70/130, AW-UE70/100/150/160 (control por HTTP).")},
+                    {"ayuda", tr("AW-HE40/42/50/60/70/130, AW-UE70/100/150/160 (control por HTTP).")},
                     {"campos", QVariantList{host, puerto, usuario, clave}}},
     };
 }
@@ -614,13 +607,22 @@ QString ControlCamaras::configurar(const QString& entrada, const QString& backen
         return QCoreApplication::translate("ptz", "Falta el plugin");
     if (backend != "ninguno" && backend != "plugin" && conf.value("host").toString().trimmed().isEmpty())
         return QCoreApplication::translate("ptz", "Falta la dirección de la cámara");
-    QJsonObject j = QJsonObject::fromVariantMap(conf);
+    // Los campos del backend, a su tipo (un número escrito como texto, lo que no se tocó con
+    // su valor de entrada, lo vacío no se manda); lo que no es un campo (el plugin) pasa tal cual.
+    QVariantMap limpia = conf;
+    for (const QVariant& b : backends())
+        if (b.toMap().value("id") == backend) {
+            const QVariantList campos = b.toMap().value("campos").toList();
+            QVariantMap convertidos;
+            const QString e = formulario::convertirTodos(campos, conf, &convertidos);
+            if (!e.isEmpty()) return e;
+            for (const QVariant& cv : campos) limpia.remove(cv.toMap().value("name").toString());
+            limpia.insert(convertidos);
+        }
+    QJsonObject j = QJsonObject::fromVariantMap(limpia);
     const QString clave = j.take("clave").toString();
     if (!clave.isEmpty()) cred::write(credenciales_, nombreClave(c->entrada).c_str(), clave.toUtf8());
     if (backend == "ninguno") cred::remove(credenciales_, nombreClave(c->entrada).c_str());
-    // Los números vienen como texto desde un formulario.
-    for (const char* k : {"puerto", "direccion"})
-        if (j.value(k).isString()) j[k] = j.value(k).toString().toInt();
     c->backend = backend;
     c->conf = backend == "ninguno" ? QJsonObject{} : j;
     if (c->backend != "ninguno") c->modo = QStringLiteral("optico");

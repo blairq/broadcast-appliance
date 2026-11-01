@@ -1226,8 +1226,10 @@ void StudioViewModel::refrescarAvisos() {
         imagen_->ajustesAplicados(); // Mejorar imagen general y el legalizador rigen ya
     }
     // Una entrada de audio nueva (audio_input_add del MCP, un plugin): la lista de
-    // fuentes de la página Audio la muestra sin tener que volver a entrar.
-    if (hubo(C::Audio) || hubo(C::Fuentes)) mezcla_->revisarFuentes();
+    // fuentes de la página Audio la muestra sin tener que volver a entrar. Y la vista
+    // general del audio (Audio → Estudio), que muestra el volumen, el silencio y los
+    // filtros de cada fuente (sus ajustes: Capa), se rehace si alguien la mira.
+    if (hubo(C::Audio) || hubo(C::Fuentes) || hubo(C::Capa)) mezcla_->revisarFuentes();
 }
 
 QObject* StudioViewModel::emisionQml() const {

@@ -325,9 +325,6 @@ void VideoViewModel::sincronizar() {
 QString VideoViewModel::agregar(const QString& tipo, const QString& despues) {
     return pedirEnLaElegida("video_agregar", [tipo, despues](video::VideoGrafos& g) { return g.agregar(tipo, despues); });
 }
-QString VideoViewModel::agregarFiltro(const QString& filtroId, const QString& despues) {
-    return pedirEnLaElegida("video_agregar", [filtroId, despues](video::VideoGrafos& g) { return g.agregarFiltro(filtroId, despues); });
-}
 QString VideoViewModel::agregarModulo(const QString& elemento, const QString& despues) {
     return pedirEnLaElegida("video_agregar", [elemento, despues](video::VideoGrafos& g) { return g.agregarModulo(elemento, despues); });
 }

@@ -665,7 +665,7 @@ json RackManager::estudio() const {
             }
         }
         poner({{"id", p + "origen"},
-               {"tipo", motor == "gstreamer" ? "origen-gst" : "origen-obs"},
+               {"tipo", "origen-gst"},
                {"etiqueta", nombre},
                {"resumen", describirOrigen(tipo, ajustes)},
                {"motor", motor},

@@ -2,6 +2,7 @@
 #include "evento/LineaVista.hpp"
 
 #include "evento/LeerJson.hpp"
+#include "comun/Restante.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -220,6 +221,7 @@ json conduccion(const Linea& l, const Resolucion& r, const ContextoVista& ctx, j
             a["guion"] = p->guion;
             a["nota"] = p->notaOperador;
             a["pasado"] = leerNumero(a, "restanteSeg") < 0;
+            a["estadoRestante"] = leerNumero(a, "previstoSeg") > 0 ? ba::app::estadoRestante(leerNumero(a, "restanteSeg"), true) : "ok";
             json adlibs = json::array();
             for (const json& c : chipsDe(l, *p, ctx.salida, ctx, true))
                 if (c.value("manual", false)) adlibs.push_back(c);
