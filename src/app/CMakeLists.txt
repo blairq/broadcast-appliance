@@ -1091,6 +1091,14 @@ endif()
     target_include_directories(test_calidad_calor PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
     add_test(NAME test_calidad_calor COMMAND test_calidad_calor)
 
+    # Quién mira el programa de cada salida: el retorno se le pide al motor solo al cambiar,
+    # con la gracia vencida por un reloj de una vez (sin sondeo).
+    add_executable(test_quien_mira tests/test_quien_mira.cpp sala/QuienMira.cpp sala/QuienMira.hpp)
+    target_include_directories(test_quien_mira PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    target_link_libraries(test_quien_mira PRIVATE Qt6::Core)
+    set_target_properties(test_quien_mira PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
+    add_test(NAME test_quien_mira COMMAND test_quien_mira)
+
     # Qué cámaras de remotos están al aire o armadas (la capa alta), de una foto del motor falsa.
     add_executable(test_capas_remotos tests/test_capas_remotos.cpp sala/CapasNecesarias.cpp)
     target_include_directories(test_capas_remotos PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")

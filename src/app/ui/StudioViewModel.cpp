@@ -40,6 +40,7 @@
 #include "sala/ClavesEvento.hpp"
 #include "sala/GuardadoEnEvento.hpp"
 #include "sala/PaginaPublico.hpp"
+#include "sala/QuienMira.hpp"
 #include "sala/SalidasSala.hpp"
 #include "sala/CupoSala.hpp"
 #include "ui/AlarmasViewModel.hpp"
@@ -816,6 +817,34 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, VentanillaMotor& ventanilla, QO
     // Lo que muestra la raíz (las pastillas, el lienzo, la escena del editor) sale de la foto
     // del motor: se refleja cuando llega una nueva (F3-03).
     connect(&ventanilla_, &VentanillaMotor::cambio, this, &StudioViewModel::alCambiarFoto);
+    // El retorno a los invitados: lo decide quién mira (sala/QuienMira), por los avisos de
+    // la sala, la sesión remota, las pantallas y las salidas de la foto; al motor, solo al cambiar.
+    {
+        auto* conf = conference_.get();
+        sala::QuienMira::Fuentes f;
+        f.porOmision = [this, conf]() {
+            return conf->salidas().miranPrograma() > 0 || static_cast<JsonListModel*>(conf->inside())->count() > 0 ||
+                   asamblea_->sesionRemota()->conectados() > 0 || pantallas_->muestraPrograma();
+        };
+        f.salidas = [this, conf]() {
+            std::map<std::string, bool> out;
+            const QJsonObject miran = conf->salidas().miranSalidas();
+            for (const FotoMotor::Salida& s : ventanilla_.foto().salidas)
+                if (!s.porOmision) out[s.id] = miran.value(qs(s.id)).toInt() > 0;
+            return out;
+        };
+        quienMira_ = std::make_unique<sala::QuienMira>(std::move(f), [&ven = ventanilla_, &rt = rt_](const std::string& salida, bool si) {
+            ven.pedir("retorno_en_uso", [&rt, salida, si]() { rt.engine().retornoEnUso(si, salida); });
+        });
+        quienMira_->escuchar(&conf->salidas(), &sala::SalidasSala::miranCambio);
+        quienMira_->escuchar(static_cast<JsonListModel*>(conf->inside()), &JsonListModel::countChanged);
+        quienMira_->escuchar(asamblea_->sesionRemota(), &asamblea::SesionRemota::cambio);
+        quienMira_->escuchar(pantallas_.get(), &PantallasViewModel::cambio);
+        connect(&ventanilla_, &VentanillaMotor::cambio, quienMira_.get(), [q = quienMira_.get()](unsigned partes) {
+            if (partes & FotoMotor::Salidas) q->revisar();
+        });
+        quienMira_->revisar();
+    }
     // Todos los enlaces del aparato (página Enlaces y MCP enlaces_*): cómo preguntar y
     // prender cada servicio, sin que el modelo conozca sus clases.
     {
@@ -943,39 +972,6 @@ void StudioViewModel::onTick() {
     asamblea_->tic();
     // (El reloj del runtime ya no es este: lo da el plano de control, arranque/PlanoControl.
     // Acá solo lo que muestra la vista.)
-    // El retorno a los invitados: sin nadie que lo mire hace 10 s, la vista que
-    // baja el programa entero en cada cuadro descansa (ver retornoEnUso). Quién
-    // mira lo dice el GATEWAY (cuántas sesiones reciben el programa: invitados,
-    // televisores, la consola de la presidencia…); lo de abajo queda por si la
-    // sala todavía no lo informó. Con una lista de casos acá se escapaba el que
-    // faltaba: la consola de la presidencia se quedaba «esperando el programa».
-    {
-        auto* conf = static_cast<ConferenceViewModel*>(conference());
-        const int miran = conf != nullptr ? conf->salidas().miranPrograma() : -1;
-        const bool alguien = miran > 0 ||
-                             (conf != nullptr && static_cast<JsonListModel*>(conf->inside())->count() > 0) ||
-                             asamblea_->sesionRemota()->conectados() > 0 ||
-                             (pantallas_ != nullptr && pantallas_->muestraPrograma());
-        const qint64 ahora = QDateTime::currentMSecsSinceEpoch();
-        if (alguien) retornoVistoMs_ = ahora;
-        // Al motor, solo cuando cambia (se le pide al dueño).
-        const auto enUso = [this](const std::string& salida, bool si) {
-            const auto it = retornoEnUso_.find(salida);
-            if (it != retornoEnUso_.end() && it->second == si) return;
-            retornoEnUso_[salida] = si;
-            ventanilla_.pedir("retorno_en_uso", [&rt = rt_, salida, si]() { rt.engine().retornoEnUso(si, salida); });
-        };
-        enUso({}, alguien || ahora - retornoVistoMs_ < 10000);
-        // Las demás salidas: su retorno (BA.Salida.<id>) solo mientras el gateway dice
-        // que alguien lo mira, con los mismos 10 s de gracia.
-        const QJsonObject miranSalidas = conf != nullptr ? conf->salidas().miranSalidas() : QJsonObject();
-        for (const FotoMotor::Salida& s : ventanilla_.foto().salidas) {
-            if (s.porOmision) continue;
-            const QString q = qs(s.id);
-            if (miranSalidas.value(q).toInt() > 0) salidaVistaMs_[q] = ahora;
-            enUso(s.id, ahora - salidaVistaMs_.value(q, ahora - 10000) < 10000);
-        }
-    }
     // Lo de la interfaz que mira el vigía de las alarmas (en el plano de control), como
     // foto: cada 200 ms (él evalúa cada 250).
     if (alarmas_ && vigiaTicks_ % 2 == 0) alarmas_->refrescarFoto();

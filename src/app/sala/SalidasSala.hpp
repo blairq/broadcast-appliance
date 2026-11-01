@@ -35,6 +35,10 @@ class SalidasSala : public QObject {
     /// Lo mismo por cada salida que no es la por omisión ({id: cuántos}).
     QJsonObject miranSalidas() const;
 
+   signals:
+    /// Cambió quién mira (lo dijo la sala, o la sala se fue o volvió).
+    void miranCambio();
+
    private:
     ConferenceClient& sala_;
     QJsonArray lista_; ///< la última (vacía = nunca se puso)
