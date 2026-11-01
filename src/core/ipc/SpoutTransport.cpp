@@ -291,7 +291,9 @@ bool SpoutSender::publish(const wchar_t* name, const SlotConfig& cfg) {
     h->instanceId = newInstanceId();
     h->periodoNs = cfg.periodoNs;
     h->envioNs = 0;
-    h->timbre = TimbreCompartido{};
+    // El timbre NO se pone en cero (ver SharedAudioRing::init): en Windows un canal que se
+    // vuelve a publicar con un lector todavia enganchado es la misma memoria, y cero en
+    // `durmientes` con ese lector durmiendo lo dejaba sin despertar (un cuadro por vigia).
     h->pubCount = 0;
     for (auto& b : h->buffers) {
         b = VideoBufferHeader{};

@@ -14,12 +14,19 @@
 #include <chrono>
 #include <cmath>
 #include <cstdio>
+#include <cstdint>
 #include <cstdlib>
 #include <ctime>
 #include <numbers>
 #include <string>
 #include <thread>
 #include <vector>
+
+#ifdef _WIN32
+#define WIN32_LEAN_AND_MEAN
+#define NOMINMAX
+#include <windows.h>
+#endif
 
 namespace ar = ba::ipc::audio_ring;
 
@@ -117,8 +124,19 @@ Medida correr(const char* canal, double segundos) {
 }
 } // namespace
 
-/// El hilo de la cadena no gira en vacío cuando no hay datos (underrun).
-double cpuDelProceso() { return static_cast<double>(std::clock()) / CLOCKS_PER_SEC; }
+/// El hilo de la cadena no gira en vacío cuando no hay datos (underrun). En Windows,
+/// std::clock() del CRT de Microsoft es el tiempo de pared desde que arrancó el proceso,
+/// no la CPU (daba «1,5 s de CPU en 1,5 s» con la cadena dormida): GetProcessTimes.
+double cpuDelProceso() {
+#ifdef _WIN32
+    FILETIME creado, fin, nucleo, usuario;
+    if (!GetProcessTimes(GetCurrentProcess(), &creado, &fin, &nucleo, &usuario)) return 0;
+    const auto cien = [](const FILETIME& f) { return (static_cast<std::uint64_t>(f.dwHighDateTime) << 32) | f.dwLowDateTime; };
+    return static_cast<double>(cien(nucleo) + cien(usuario)) / 1e7;
+#else
+    return static_cast<double>(std::clock()) / CLOCKS_PER_SEC;
+#endif
+}
 
 int main() {
 #if defined(BA_TEST_GST_PLUGINS)

@@ -166,7 +166,12 @@ Status SharedAudioRing::init(const wchar_t* name, uint32_t channels, uint64_t ca
     h->underrunCount = 0;
     h->overrunCount = 0;
     h->escritoNs = 0;
-    h->timbre = TimbreCompartido{};
+    // El timbre NO se pone en cero: en Windows, si un lector todavia tiene abierto el
+    // anillo de antes (el gateway se reinicio y baanillo sigue en la app), el nombre
+    // abre esa misma memoria y no una nueva. Ponerlo en cero borraba `durmientes` con
+    // el lector durmiendo: el escritor nuevo no lo despertaba nunca (solo su vigia de
+    // 1 s, 16 bloques por vez: el audio del invitado volvia cortado). Un anillo nuevo
+    // ya viene en cero (CreateFileMapping, shm_open+ftruncate).
 
     // Cero el area de datos (silencio inicial).
     std::memset(static_cast<uint8_t*>(region.data()) + dataOffset(), 0, dataBytes);
