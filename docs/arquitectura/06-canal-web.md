@@ -125,8 +125,8 @@ las páginas del sitio de cada evento, que no traen `/comun/`.
 
 El invitado de la conferencia (`/ws`) y el integrante de la asamblea que manda medios
 (`/ws?sesion=1`, `medios-oferta`) publican la cámara **dos veces** en la misma
-conexión WebRTC, con la **misma pista**: la capa **alta** (hasta 720p, ~1,5 Mbps) y la
-**baja** (~180p, 15 cps, ~150 kbps). La pantalla compartida sigue siendo otro video
+conexión WebRTC: la capa **alta** (hasta 720p, ~1,5 Mbps) con la pista de la cámara y la
+**baja** (~180p, 15 cps, ~150 kbps) con un **clon** de esa pista a 15 cps. La pantalla compartida sigue siendo otro video
 aparte, sin capas. **La que pide es la sala**: según dónde se ve a esa persona le dice
 al navegador qué capa prender; lo pausado no se codifica ni viaja. El cliente es
 `comun/capas.js` (`BACapas`); el porqué, en `src/gateway/Capas.hpp`.
@@ -136,12 +136,20 @@ recibe simulcast: contesta sin `a=simulcast` y el navegador manda solo la primer
 (lo verifica `test_webrtc_loopback`). Con dos transceptores cada capa es una recepción
 normal.
 
+**Por qué un clon para la baja:** con la misma pista en los dos senders, la fuente se
+adapta al pedido más lento y la alta también sale a 15 cps. Medido en Chrome headless
+(cámara falsa 720p30, 3 corridas por caso, 2026-11-01): con la misma pista, alta
+1280x720 a 15 cps con la baja prendida y a 30 con la baja pausada; con el clon, alta a
+30 y baja 320x180 a 15 con las dos prendidas (lo mismo del lado de quien recibe). Pasa
+igual en libwebrtc nativo. El clon sigue a la pista: `enabled` y `stop()` de la cámara
+lo apagan o lo sueltan también.
+
 ### Lo que manda el cliente
 
 1. Arma los transceptores en este orden: audio; **alta** (la primera de video:
    `sendrecv` en el invitado, porque por ahí le baja el retorno; `sendonly` en la
-   sesión); **baja** (`sendonly`). Las dos con la misma pista de cámara y una sola
-   encoding cada una (`sendEncodings: [{…}]`).
+   sesión); **baja** (`sendonly`). La alta con la pista de la cámara, la baja con su clon,
+   y una sola encoding cada una (`sendEncodings: [{…}]`).
 2. En la oferta dice qué `mid` es cada capa:
    - invitado: `{"type":"offer", "sdp": …, "capas": {"alta": "1", "baja": "2"}}`
    - integrante: `{"type":"medios-oferta", "sdp": …, "capas": {"alta": "1", "baja": "2"}}`
