@@ -388,9 +388,11 @@ json proponerAjuste(const Linea& l, const Resolucion& r, const std::string& sali
 
 std::vector<Plantilla> plantillasDeFabrica() {
     // Los textos de los pasos son del evento (los ve el operador y salen en los
-    // zócalos): van en castellano y la persona los cambia en la línea. Lo que
-    // traduce la app es lo que dice ella misma.
-    static const json fabrica = json::parse(R"([
+    // zócalos): van en el idioma del EVENTO (traducirEvento, como lo demás que sale al
+    // aire) y la persona los cambia en la línea. Acá quedan en el original; abajo se
+    // cambian por los del idioma del evento abierto (en cada llamada: el evento puede
+    // cambiar de idioma). Los «{marca}» quedan como están en la traducción.
+    static const char* const kFabrica = R"([
       {"id": "orador", "nombre": "Orador", "pasos": [
         {"id": "orador", "nombre": "{nombre}", "fin": {"abierto": true}, "duracionPrevistaSeg": 300,
          "guion": "{guion}", "notaOperador": "{nota}", "etiquetas": ["recortable"],
@@ -423,7 +425,35 @@ std::vector<Plantilla> plantillasDeFabrica() {
             "datos": {"fuente": "Resultado", "grafico": "votacion"}}
          ]}
       ]}
-    ])");
+    ])";
+    // Solo los textos: los nombres de fuentes («fuente»), ids y acciones no se traducen.
+    using ba::i18n::traducirEvento;
+    const std::map<std::string, std::string> textos = {
+        {"Orador", traducirEvento("linea", "Orador")},
+        {"Habla {nombre}", traducirEvento("linea", "Habla {nombre}")},
+        {"Zócalo: {nombre}", traducirEvento("linea", "Zócalo: {nombre}")},
+        {"Punto del orden del día", traducirEvento("linea", "Punto del orden del día")},
+        {"Punto {n}: {titulo}", traducirEvento("linea", "Punto {n}: {titulo}")},
+        {"Punto {n}", traducirEvento("linea", "Punto {n}")},
+        {"Se trata el punto {n}", traducirEvento("linea", "Se trata el punto {n}")},
+        {"Votación", traducirEvento("linea", "Votación")},
+        {"Votación: {titulo}", traducirEvento("linea", "Votación: {titulo}")},
+        {"Abrir la votación", traducirEvento("linea", "Abrir la votación")},
+        {"Resultado de la votación", traducirEvento("linea", "Resultado de la votación")},
+    };
+    const auto traducirTextos = [&textos](auto&& self, json& j) -> void {
+        if (!j.is_object() && !j.is_array()) return;
+        for (auto it = j.begin(); it != j.end(); ++it) {
+            const bool esTexto = j.is_object() && (it.key() == "nombre" || it.key() == "texto");
+            if (it->is_string() && esTexto) {
+                if (const auto t = textos.find(it->get<std::string>()); t != textos.end()) *it = t->second;
+            } else {
+                self(self, *it);
+            }
+        }
+    };
+    json fabrica = json::parse(kFabrica);
+    traducirTextos(traducirTextos, fabrica);
     std::vector<Plantilla> v;
     for (const json& j : fabrica) v.push_back(Plantilla::deJson(j));
     return v;
