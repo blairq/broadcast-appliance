@@ -10,6 +10,9 @@
 //   - LOS NIVELES de cada entrada y bus los publica el hilo del motor (Motor::niveles, cada
 //     ~40 ms; Motor::alPublicarNiveles): acá queda la última foto. Si el motor se rearma,
 //     el nuevo publica en el mismo canal; apagado, queda vacío.
+//   - DESPERTAR AL SONAR: la interfaz no relee el canal con un reloj mientras todo está en
+//     silencio. Quien lo lee (ui/RelojNiveles) arma `despertarAlSonar` y se duerme; lo
+//     despierta, UNA vez, el hilo que publique algo que suene (el del motor o el dueño).
 //   - EL PICO DEL PROGRAMA de cada salida lo suma el dueño en cada vuelta de su reloj
 //     (AppRuntime::ticMotor, BroadcastEngine::programPeaksDb): el mayor desde que la
 //     interfaz lo tomó (tomarPrograma, el vúmetro de arriba con su caída) y el de la
@@ -22,6 +25,8 @@
 
 #include "NivelAudio.hpp"
 
+#include <atomic>
+#include <functional>
 #include <map>
 #include <memory>
 #include <mutex>
@@ -56,7 +61,19 @@ class NivelesMotor {
     /// Una salida que ya no está (deja de sumarse).
     void olvidarSalida(const std::string& salida);
 
+    /// Por debajo de esto (dBFS) es silencio: nada que mostrar en un vúmetro.
+    static constexpr float kSilencioDb = -90.0f;
+    /// Si algo suena: una entrada, un bus o el programa de alguna salida (su última vuelta).
+    bool haySonido() const;
+    /// `fn` se llama UNA vez cuando algo suene (desde el hilo que lo publica, el del motor o
+    /// el dueño; o enseguida, desde este, si ya suena). Tiene que encolar y volver. nullptr
+    /// = nadie; ponerlo espera al aviso en curso (después no se llama más).
+    void despertarAlSonar(std::function<void()> fn);
+
    private:
+    bool haySonidoSinCandado() const; ///< con mu_
+    /// Si hay un despertador armado y algo suena, lo llama (sin mu_ tomado).
+    void despertarSiSuena();
     std::string clave(const std::string& salida) const; ///< con mu_
     struct Programa {
         float acum[2] = {-100, -100}; ///< el mayor desde que se tomó
@@ -66,6 +83,9 @@ class NivelesMotor {
     std::shared_ptr<const Niveles> niveles_;
     std::string porOmision_;
     std::map<std::string, Programa> programa_; ///< "" = la por omisión
+    std::function<void()> despertar_;   ///< con mu_ (ver despertarAlSonar)
+    std::atomic<bool> armado_{false};   ///< hay despertador: el que publica mira si suena
+    std::mutex avisoMu_;                ///< tomado mientras se llama al despertador
 };
 
 } // namespace ba::app

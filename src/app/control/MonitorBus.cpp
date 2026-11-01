@@ -37,6 +37,7 @@ void MonitorBus::setBus(QObject* b) {
 void MonitorBus::setFiltro(const QString& f) {
     if (f == filtro_) return;
     filtro_ = f;
+    pedir();
     emit configCambio();
     if (activo_) actualizar();
 }
@@ -44,6 +45,7 @@ void MonitorBus::setFiltro(const QString& f) {
 void MonitorBus::setConMediciones(bool c) {
     if (c == conMediciones_) return;
     conMediciones_ = c;
+    pedir();
     emit configCambio();
     if (activo_) actualizar();
 }
@@ -58,9 +60,16 @@ void MonitorBus::setActivo(bool a) {
 void MonitorBus::conectar() {
     disconnect(conexion_);
     espera_.stop();
+    interes_.setBus(bus_);
+    pedir();
     if (!activo_ || !bus_) return;
     conexion_ = connect(bus_, &BusEventos::publicado, this, &MonitorBus::pronto);
     actualizar();
+}
+
+void MonitorBus::pedir() {
+    if (!activo_ || (!conMediciones_ && filtro_.isEmpty())) return interes_.poner({});
+    interes_.poner({filtro_.contains('/') ? filtro_.toStdString() : std::string("#")});
 }
 
 void MonitorBus::pronto() {

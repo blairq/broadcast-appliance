@@ -64,6 +64,8 @@ class SeguirMicrofono : public QObject {
 
    private:
     void mirar();
+    /// Con la función prendida y por niveles, se piden al bus (se publican a pedido).
+    void pedirNiveles();
     void guardar() const;
     std::filesystem::path archivo_;
     control::BusEventos& bus_;
@@ -75,6 +77,7 @@ class SeguirMicrofono : public QObject {
     std::string fuente_ = "niveles"; ///< niveles (audio/nivel/<fuente>) o conferencia (evento conferencia/microfono)
     std::map<std::string, std::pair<bool, std::int64_t>> conferencia_; ///< banca -> (abierto, desde)
     int sub_ = 0;
+    int interesNiveles_ = 0; ///< el de BusEventos::interesar (0 = no se piden)
     double umbralDb_ = -30;
     int sostenerMs_ = 800;
     int soltarMs_ = 2500;

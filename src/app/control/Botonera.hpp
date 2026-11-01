@@ -63,14 +63,13 @@
 #include <string>
 #include "ui/CapturaError.hpp"
 #include "escenas/RefEscena.hpp"
+#include "control/BusEventos.hpp"
 
 namespace ba::app {
 class UsoPorVistas;
 }
 
 namespace ba::app::control {
-
-class BusEventos;
 
 class Botonera : public QObject {
     Q_OBJECT
@@ -413,6 +412,11 @@ class Botonera : public QObject {
     QVariantMap paginas_;
     QTimer coalescer_;
     int sub_ = 0;
+    /// Los temas que leyeron las páginas en la última vuelta de refrescar: los que se
+    /// publican a pedido (los niveles) se piden mientras alguna página que se muestra los lee.
+    mutable std::set<std::string> leidos_;
+    mutable bool juntandoLeidos_ = false;
+    InteresEnBus interes_{&bus_};
     bool sucio_ = true;
     bool enCoalescer_ = false; ///< faders y perillas: no cuentan para el límite de acciones
 };

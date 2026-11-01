@@ -159,7 +159,7 @@ class AsambleaViewModel : public QObject {
     /// orador presencial (manda sobre el de la sala) con su cronómetro, el quórum y la
     /// última votación oficial. `ctx` ya trae lo de la sala.
     void completarVinculos(QJsonObject& ctx) const;
-    /// En el reloj de la interfaz (10 Hz): el tiempo del que tiene la palabra.
+    /// Una vez por segundo (StudioViewModel::alSegundo): el tiempo del que tiene la palabra.
     void tic();
 
    signals:
@@ -194,7 +194,6 @@ class AsambleaViewModel : public QObject {
     /// El orador presencial cuyo tiempo se lleva en la central (banca@desde) y los avisos ya dados.
     std::string dcnOrador_;
     int dcnAvisos_ = 0;
-    int dcnTic_ = 0;
     QTimer ranurasTarde_; ///< una vuelta más, cuando ya se sabe el tamaño de la cámara
 };
 

@@ -504,7 +504,7 @@ void AsambleaViewModel::tic() {
     // El tiempo del que tiene la palabra (presencial o remoto), una vez por segundo:
     // a un minuto y al terminar, aviso al operador, en el celular del remoto y en la
     // unidad de su banca si está la central (Bosch DCN), que además lleva el reloj.
-    if (++dcnTic_ % 10 != 0 || !bancas_) return;
+    if (!bancas_) return;
     const nlohmann::json j = bancas_->estadoJson();
     const nlohmann::json al = j.value("al_aire", nlohmann::json());
     if (!al.is_object()) {

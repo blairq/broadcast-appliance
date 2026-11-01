@@ -71,7 +71,11 @@ Patrones que salieron al migrar:
   vúmetros) va por un canal propio con su cadencia: `emision/NivelesMotor` (los niveles
   de cada entrada y bus los publica el hilo del motor, `Motor::alPublicarNiveles`; el
   pico del programa de cada salida lo suma el dueño en `ticMotor`; la interfaz lo lee a
-  su ritmo con `AppRuntime::niveles()`, que no es una llamada directa).
+  su ritmo con `AppRuntime::niveles()`, que no es una llamada directa). Ese ritmo es a
+  pedido (`ui/RelojNiveles`): 10 Hz solo con alguien mirando —una vista con
+  `Suscripcion { objetivo: Studio.niveles }` o quien pidió los niveles al bus de eventos
+  (`BusEventos::interesar`)— y algo que suene; en silencio se duerme y lo despierta el
+  canal (`NivelesMotor::despertarAlSonar`).
 - Lo que el vigía de las alarmas mira del motor y es de un área (el audio de cada
   entrada, los medios) se lee DIRECTO de la última foto publicada
   (`AppRuntime::ultimaFoto`, desde cualquier hilo) y del canal: sale con la interfaz

@@ -53,8 +53,10 @@ int main(int argc, char** argv) {
     bus.publicar("audio/nivel/Mic 3", {{"pico_db", -12.0}, {"mudo", false}});
     esperar(1200);
     CHECK(seg.estado()["propuesta"].is_null(), "apagado no propone nada");
+    CHECK(!bus.hayInteresEn("audio/nivel/#"), "apagado no pide los niveles al bus");
 
     seg.configurar({{"activo", true}, {"sostener_ms", 300}, {"soltar_ms", 400}});
+    CHECK(bus.hayInteres("audio/nivel/Mic 3"), "prendido (por niveles), los pide");
     esperar(200);
     CHECK(seg.estado()["propuesta"].is_null(), "todavía no pasó el tiempo de sostener");
     esperar(400);

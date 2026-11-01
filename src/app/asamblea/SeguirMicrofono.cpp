@@ -43,9 +43,22 @@ SeguirMicrofono::SeguirMicrofono(const fs::path& datos, control::BusEventos& bus
         const std::string banca = v.value("banca", std::string());
         if (!banca.empty()) conferencia_[banca] = {v.value("abierto", false), QDateTime::currentMSecsSinceEpoch()};
     });
+    pedirNiveles();
 }
 
-SeguirMicrofono::~SeguirMicrofono() { bus_.desuscribir(sub_); }
+SeguirMicrofono::~SeguirMicrofono() {
+    bus_.desuscribir(sub_);
+    if (interesNiveles_ != 0) bus_.desinteresar(interesNiveles_);
+}
+
+void SeguirMicrofono::pedirNiveles() {
+    const bool quiere = activo_ && fuente_ == "niveles";
+    if (quiere && interesNiveles_ == 0) interesNiveles_ = bus_.interesar("audio/nivel/#");
+    if (!quiere && interesNiveles_ != 0) {
+        bus_.desinteresar(interesNiveles_);
+        interesNiveles_ = 0;
+    }
+}
 
 void SeguirMicrofono::guardar() const {
     config::guardar(archivo_, {{"activo", activo_}, {"modo", modo_}, {"fuente", fuente_}, {"umbral_db", umbralDb_},
@@ -80,6 +93,7 @@ std::string SeguirMicrofono::configurar(const json& c) {
         if (activo_) reloj_.start();
         else reloj_.stop();
     }
+    pedirNiveles();
     guardar();
     emit cambio();
     return {};

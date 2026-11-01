@@ -8,7 +8,8 @@
 // su propio tamaño y estilo. Solo redibuja cuando algo cambio.
 //
 // DOS HILOS. Juntar los mensajes es leer modelos de la interfaz: eso queda en
-// la interfaz (cada 400 ms), y deja una COPIA. Filtrar, desvanecer los viejos
+// la interfaz (cuando algún chat avisa que cambió: `mensajesCambio`, que también
+// escucha el vigía de las alarmas), y deja una COPIA. Filtrar, desvanecer los viejos
 // (fade_sec), dibujar y entregar corre en su hilo («chat-aire», ver
 // emision/PintorAire.hpp): con la interfaz trabada, el chat al aire sigue
 // desvaneciendo lo que tiene.
@@ -20,7 +21,6 @@
 #include <QObject>
 #include <QSet>
 #include <QStringList>
-#include <QTimer>
 
 #include <memory>
 #include <mutex>
@@ -64,7 +64,13 @@ class ChatOverlayRenderer : public QObject {
     void quitarDestacado(const QString& key); ///< "" = todos
     QStringList destacados() const { return QStringList(destacados_.begin(), destacados_.end()); }
 
+   signals:
+    /// Llegó (o se fue) un mensaje de algún chat: collect() cambió.
+    void mensajesCambio();
+
    private:
+    /// Algún chat avisó: se junta una vez, con todo lo que llegó en esta vuelta del bucle.
+    void alCambiar();
     /// En la interfaz: junta los mensajes y deja la copia para el hilo que pinta.
     void recoger();
     /// En el hilo que pinta: filtra, desvanece, dibuja y entrega lo que cambió.
@@ -73,7 +79,7 @@ class ChatOverlayRenderer : public QObject {
     ConferenceViewModel& conf_;
     TwitchViewModel& tw_;
     FacebookViewModel& fb_;
-    QTimer timer_;
+    bool recogerPendiente_ = false;
     QSet<QString> destacados_; // keys de los mensajes destacados (interfaz)
     /// La copia que pinta el otro hilo (bajo fotoM_).
     std::mutex fotoM_;

@@ -90,8 +90,6 @@ class MezclaViewModel : public QObject {
     void setSalida(const std::string& salida);
     /// Una entrada de audio nueva (o una que se va): la lista de la pestaña Audio se rehace.
     void revisarFuentes();
-    /// Una vez por segundo: los módulos que se saltaron por lentos o colgados (se avisa).
-    void vigilarModulos();
 
     QString balistica() const;
     void setBalistica(const QString& b);
@@ -128,6 +126,9 @@ class MezclaViewModel : public QObject {
     void notify(const QString& texto, const QString& nivel);
 
    private:
+    /// Los módulos que se saltaron por lentos o colgados (se avisa): cuando el vigía de los
+    /// racks dice que hay (RackManager::saltados).
+    void vigilarModulos();
     /// Llegó una foto: lo que muestra el área (PFL, balística, las pistas que graba el programa).
     void alCambiarFoto(unsigned partes);
     /// El final de medirSincro (en el dueño, y lo que se aplica).

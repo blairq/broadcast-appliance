@@ -15,8 +15,8 @@
 //   salida/<salida>/estado                        {id, nombre, color, por_omision, escena, armada,
 //                                                  transmitiendo, grabando}
 //   salida/<salida>/stream, salida/<salida>/grabacion  {activo, …} de cada salida
-//   audio/nivel/<fuente> (10 Hz como mucho)       pico, volumen y mudo (el fader de la por omisión)
-//   audio/<salida>/nivel/<fuente>                 lo mismo con el fader y el mudo de esa salida
+//   audio/nivel/<fuente> (10 Hz como mucho; A PEDIDO)  pico, volumen y mudo (el fader de la por omisión)
+//   audio/<salida>/nivel/<fuente> (A PEDIDO)      lo mismo con el fader y el mudo de esa salida
 //   audio/loudness                                M/S/I, true peak, LRA (1 Hz)
 //   alarma/<id>                                   alarmas de los disparadores
 //   entrada/senal                                 entradas sin señal
@@ -44,9 +44,19 @@
 //
 // Patrones de suscripción: «+» o «*» es un nivel cualquiera; «#» (o «*» al
 // final) es todo lo que sigue. «aire/#», «audio/nivel/+», «#».
+//
+// A PEDIDO: lo que se mide sin parar (los niveles) se publica solo mientras alguien lo
+// quiere, para que la app quieta no trabaje (ni despierte a la interfaz) para nadie.
+// Lo quiere quien lo declara con `interesar` y quien se suscribe con un patrón que no
+// sea el de todo; los que escuchan todo («#»: los que reenvían o anotan, como los
+// plugins, la bitácora o la botonera) declaran aparte lo que de verdad miran. Quien
+// produce pregunta `hayInteres`/`hayInteresEn` y se entera por `interesCambio`; al
+// dejar de publicar, `olvidar` saca los valores viejos (nadie lee un nivel de antes
+// como si fuera de ahora).
 #pragma once
 
 #include <QObject>
+#include <QPointer>
 #include <QString>
 
 #include <nlohmann/json.hpp>
@@ -82,7 +92,19 @@ class BusEventos : public QObject {
     int suscribir(const std::string& patron, Oyente fn);
     void desuscribir(int id);
 
+    /// Quiere lo que caiga en `patron` (sin oyente: lee con `ultimo`). Devuelve el id.
+    int interesar(const std::string& patron);
+    void desinteresar(int id);
+    /// Si alguien quiere el tema `tema` (concreto).
+    bool hayInteres(const std::string& tema) const;
+    /// Si alguien quiere algún tema de la familia `familia` (un patrón: «audio/nivel/#»).
+    bool hayInteresEn(const std::string& familia) const;
+    /// Olvida los últimos valores de los temas que caen en `patron`.
+    void olvidar(const std::string& patron);
+
     static bool coincide(const std::string& patron, const std::string& tema);
+    /// Si algún tema cae en los dos patrones a la vez.
+    static bool seCruzan(const std::string& a, const std::string& b);
 
     /// Los últimos para la vista (la pestaña Eventos): [{tema, valor, hora}].
     /// Lo último publicado, lo más nuevo primero. Sin filtro ni `conMediciones`, sin las
@@ -103,15 +125,19 @@ class BusEventos : public QObject {
     static std::string temaDeSalida(const std::string& tema, const std::string& salida, bool porOmision);
     /// Publica los temas de cada salida (ver arriba). `salidas`: [{id, nombre, color,
     /// por_omision, escena, armada, fuentes_programa, fuentes_preview, transmitiendo,
-    /// grabando, reconectando, medios?, dsk?, tbar?, niveles? {fuente: {pico_db,
-    /// volumen_db, mudo}}}]. Los de una salida que ya no está se olvidan.
+    /// grabando, reconectando, medios?, dsk?, tbar?}]. Los de una salida que ya no está se
+    /// olvidan (también sus niveles, que se publican a pedido aparte).
     void publicarSalidas(const json& salidas);
     Q_INVOKABLE QVariantList temasUi(const QString& filtro = {}) const;
 
    signals:
     void publicado(const QString& tema);
+    /// Cambió quién quiere qué (interesar, desinteresar, suscribir, desuscribir).
+    void interesCambio();
 
    private:
+    /// Lo que cuenta como interés de una suscripción (no el patrón de todo).
+    static bool esDeTodo(const std::string& patron) { return patron.empty() || patron == "#" || patron == "*"; }
     mutable std::mutex mu_;
     std::vector<std::string> mediciones_; ///< ver setMediciones
     struct Entrada {
@@ -123,8 +149,41 @@ class BusEventos : public QObject {
     std::deque<json> recientes_; ///< {tema, valor, ms, seq}
     std::uint64_t seq_ = 0;
     std::map<int, std::pair<std::string, Oyente>> oyentes_;
+    std::map<int, std::string> intereses_; ///< ver interesar
     int proximo_ = 1;
     std::set<std::string> salidasPublicadas_; ///< ver publicarSalidas
+};
+
+/// Lo que una pieza quiere del bus, como conjunto (los temas que lee una página de la
+/// botonera, lo que escuchan los plugins): `poner` declara lo nuevo y suelta lo que ya no.
+/// Al destruirse suelta todo. Del hilo de la interfaz, como el bus.
+class InteresEnBus {
+   public:
+    explicit InteresEnBus(BusEventos* bus = nullptr) : bus_(bus) {}
+    ~InteresEnBus() { poner({}); }
+    InteresEnBus(const InteresEnBus&) = delete;
+    InteresEnBus& operator=(const InteresEnBus&) = delete;
+    /// Cambia de bus (suelta lo del anterior).
+    void setBus(BusEventos* bus) {
+        poner({});
+        bus_ = bus;
+    }
+    void poner(const std::set<std::string>& patrones) {
+        for (auto it = ids_.begin(); it != ids_.end();)
+            if (!patrones.count(it->first)) {
+                if (bus_) bus_->desinteresar(it->second);
+                it = ids_.erase(it);
+            } else {
+                ++it;
+            }
+        if (!bus_) return;
+        for (const std::string& p : patrones)
+            if (!ids_.count(p)) ids_[p] = bus_->interesar(p);
+    }
+
+   private:
+    QPointer<BusEventos> bus_;
+    std::map<std::string, int> ids_;
 };
 
 } // namespace ba::app::control

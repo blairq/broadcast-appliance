@@ -4,7 +4,9 @@
 // Un modelo por vista (tipo QML `MonitorBus`, con su filtro): una fila por tema con su
 // último valor, y los recientes. Mientras está `activo` escucha el bus y se pone al día a
 // lo sumo cuatro veces por segundo, en su lugar (sin rearmar la lista: no salta ni pierde
-// el desplazamiento). Apagado no hace nada.
+// el desplazamiento). Apagado no hace nada. Encendido con mediciones o con un filtro, pide
+// al bus lo que se publica a pedido (los niveles): lo que filtra (un tema o un comodín) o,
+// si el filtro es un pedazo del nombre, todo.
 //
 //   MonitorBus { bus: Studio.bus; filtro: campo.text; activo: pestana.visible }
 // ============================================================================
@@ -15,11 +17,11 @@
 #include <QTimer>
 #include <QVariantList>
 
+#include "control/BusEventos.hpp"
+
 #include <vector>
 
 namespace ba::app::control {
-
-class BusEventos;
 
 class MonitorBus : public QAbstractListModel {
     Q_OBJECT
@@ -60,6 +62,8 @@ class MonitorBus : public QAbstractListModel {
    private:
     void conectar();
     void pronto();
+    /// Lo que se pide al bus (ver arriba).
+    void pedir();
 
     struct Fila {
         QString tema, valor;
@@ -72,6 +76,7 @@ class MonitorBus : public QAbstractListModel {
     std::vector<Fila> filas_;
     QVariantList recientes_;
     QTimer espera_;
+    InteresEnBus interes_;
 };
 
 } // namespace ba::app::control

@@ -13,7 +13,7 @@
 #include "escenas/Conmutador.hpp"
 #include "i18n/I18n.hpp"
 #include "ui/ConferenceViewModel.hpp" // JsonListModel
-#include "ui/ListModels.hpp" // MixerModel
+#include "ui/ListModels.hpp"
 #include "ui/EstadoAireViewModel.hpp"
 #include "ui/RecursosViewModel.hpp"
 
@@ -195,8 +195,7 @@ void SalidasViewModel::retomarActiva() {
         setActiva(qs(v.get<std::string>()));
 }
 
-void SalidasViewModel::publicarEnBus(control::BusEventos& bus, MixerModel& tiras, control::Dsk& dsk, bool transmitiendo,
-                                     bool grabando) {
+void SalidasViewModel::publicarEnBus(control::BusEventos& bus, control::Dsk& dsk, bool transmitiendo, bool grabando) {
     const FotoMotor& foto = p_.ventanilla.foto();
     static const FotoMotor::Salida kNinguna;
     const FotoMotor::Salida* po = foto.salida({});
@@ -292,17 +291,10 @@ void SalidasViewModel::publicarEnBus(control::BusEventos& bus, MixerModel& tiras
         nlohmann::json fa = fuentesDe(qs(s.alAire));
         for (const std::string& d : s.dsk)
             if (std::find(fa.begin(), fa.end(), d) == fa.end()) fa.push_back(d);
-        // El fader y el mudo de cada fuente en su mezcla (los de la por omisión ya van
-        // en audio/nivel/<fuente>).
-        nlohmann::json niveles = nlohmann::json::object();
-        if (!s.porOmision)
-            for (int i = 0; i < tiras.rowCount(); ++i)
-                niveles[tiras.data(tiras.index(i), MixerModel::NameRole).toString().toStdString()] = tiras.nivelEn(i, s.id);
         ss.push_back({{"id", s.id},
                       {"medios", mediosEn(fa)},
                       {"dsk", dsk.capas(s.id)},
                       {"tbar", {{"hacia", s.manualHacia}, {"posicion", s.tbar}}},
-                      {"niveles", niveles},
                       {"nombre", s.nombre},
                       {"color", s.color},
                       {"por_omision", s.porOmision},

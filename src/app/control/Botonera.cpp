@@ -1450,6 +1450,7 @@ json Botonera::renderCelda(const json& c, const std::string& claveValor, const j
     const bool salOmision = salida.value("por_omision", true);
     for (const auto& l : c.value("estado", json::array())) {
         const std::string tema = BusEventos::temaDeSalida(l.value("tema", std::string()), salId, salOmision);
+        if (juntandoLeidos_ && tema != "superficie/salida") leidos_.insert(tema);
         const json u = tema == "superficie/salida" ? json{{"valor", salida}} : bus_.ultimo(tema);
         const json val = u.is_object() ? resolver(u["valor"], l.value("ruta", std::string())) : json();
         if (!u.is_object()) continue;
@@ -1543,6 +1544,16 @@ void Botonera::usar(QObject* vista, bool si, const QString& que) {
 void Botonera::refrescar() {
     if (!sucio_) return;
     sucio_ = false;
+    // Lo que leen las páginas que se muestran (aparatos y escritorio): eso se pide al bus.
+    leidos_.clear();
+    juntandoLeidos_ = true;
+    struct AlTerminar {
+        Botonera& b;
+        ~AlTerminar() {
+            b.juntandoLeidos_ = false;
+            b.interes_.poner(b.leidos_);
+        }
+    } alTerminar{*this};
     for (const auto& id : conectados_) {
         json r = render(id);
         auto it = ultimoRender_.find(id);
