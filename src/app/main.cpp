@@ -44,7 +44,7 @@
 
 #if BA_HAVE_MOTOR
 #include "emision/EngineSelfTest.hpp"
-#include "arranque/OperateMode.hpp"
+#include "arranque/ModoConsola.hpp"
 #endif
 #if BA_APP_HAVE_GUI
 #include "arranque/GuiMode.hpp"

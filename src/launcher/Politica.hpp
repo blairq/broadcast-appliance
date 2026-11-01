@@ -45,6 +45,29 @@ class Relanzador : public ba::platform::Relanzador {
               .esperaMs = [](int n) { return static_cast<std::uint64_t>(esperaRelanzarS(n)) * 1000; }}) {}
 };
 
+/// Cómo se vigila el latido de un hijo. A y B laten desde un hilo propio y arrancan
+/// pesado (QML, la sala): se les da `graciaArranqueMs` desde que se lanzan y un cuelgue
+/// es `cuelgueMs` (5 s) de latido quieto. El emisor late POR SERVICIO desde el primer
+/// instante (src/emisor/LatidoServicio.hpp: solo si su bucle atiende, y también mientras
+/// arranca) y lleva el aire: la gracia termina con su primer latido y un cuelgue es
+/// `emisor.cuelgueS` (2 s). Antes, un emisor frenado se veía recién a los 15-20 s (la
+/// gracia de 20 s del recién relanzado, más 5 s) y la transmisión quedaba en negro.
+struct VigiaLatido {
+    std::uint64_t cuelgueMs = 5000;
+    std::uint64_t graciaArranqueMs = 20000;
+    bool graciaHastaElPrimerLatido = false; ///< latido de servicio: latió = ya atiende
+
+    /// ¿Todavía no se mira su latido? `pasadoMs` desde que se lanzó; `latio`: ya latió
+    /// alguna vez desde entonces; `primerLatidoMs`: lo más que se espera el primero.
+    bool enGracia(std::uint64_t pasadoMs, bool latio, std::uint64_t primerLatidoMs) const {
+        if (graciaHastaElPrimerLatido) return !latio && pasadoMs < primerLatidoMs;
+        if (pasadoMs < graciaArranqueMs) return true;
+        return !latio && pasadoMs < primerLatidoMs;
+    }
+};
+/// La del emisor: gracia hasta el primer latido y `emisor.cuelgueS` (2 s; entre 1 y 120).
+VigiaLatido vigiaEmisor();
+
 /// Qué hacer con un hijo que puede seguir vivo de un launcher anterior (spec 3.1.9).
 enum class Readopcion {
     Lanzar,    ///< no hay nadie vivo (o no late): se lanza uno nuevo

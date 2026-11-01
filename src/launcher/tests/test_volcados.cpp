@@ -8,6 +8,7 @@
 //      (tomarCaida) deja A-<fecha>-caida.pila y su .json con hilo, módulo y
 //      pieza «ndi», y hayCaida vuelve a false.
 //   3. Un cuelgue (porCuelgue): SIGQUIT, pilas de todos los hilos, tipo «colgado».
+//   3b. Uno frenado (SIGSTOP): no se le piden pilas (no las daría), sin esperar.
 //   4. causaDeCodigo: 139 es un error de memoria.
 // ============================================================================
 #include "Volcados.hpp"
@@ -155,6 +156,26 @@ int main(int argc, char** argv) {
         std::ifstream f(c.dmp);
         const std::string t((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
         CHECK(t.find("ba-ndi-rx\n#00 ") != std::string::npos, "la pila del otro hilo, con su nombre");
+    }
+
+    // 3b: uno frenado (SIGSTOP) no atiende el SIGQUIT: no se esperan sus pilas (eran 3 s
+    // más de negro con el emisor frenado del banco de caos).
+    {
+        Volcados v(logs);
+        const auto env = v.canalPara("E.principal", logs / "emisor-principal.log");
+        const pid_t pid = lanzar(argv[0], "colgado", env);
+        std::this_thread::sleep_for(std::chrono::milliseconds(300));
+        kill(pid, SIGSTOP);
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        const auto t0 = std::chrono::steady_clock::now();
+        const auto c = v.porCuelgue("E.principal", static_cast<std::uint32_t>(pid), logs / "emisor-principal.log");
+        const auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - t0).count();
+        kill(pid, SIGKILL);
+        int st = 0;
+        waitpid(pid, &st, 0);
+        CHECK(ms < 1000, "frenado: sin esperar las pilas");
+        const auto j = leerJson(c.json);
+        CHECK(j.value("tipo", "") == "colgado" && j.value("frenado", false), "colgado y frenado en el json");
     }
 
     // 4

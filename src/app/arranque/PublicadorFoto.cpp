@@ -1,15 +1,18 @@
-// src/app/arranque/FotoDelRuntime.cpp — la foto que lee la interfaz (AppRuntime, F3-03)
+// src/app/arranque/PublicadorFoto.cpp — la foto que lee la interfaz y los avisos (F3-03)
 //
-// Ver AppRuntime.hpp («La foto que lee la interfaz») y emision/FotoMotor.hpp. Todo acá corre
-// en el dueño (el plano de control) con el turno del motor: lee cfg_ y el motor sin pisarse
+// Ver PublicadorFoto.hpp y emision/FotoMotor.hpp. Armar corre en el dueño (el plano de
+// control) con el turno del motor: lee cfg_, las piezas del runtime y el motor sin pisarse
 // con nadie y deja un valor que la interfaz lee sin candados.
 
-#include "arranque/AppRuntime.hpp"
+#include "arranque/PublicadorFoto.hpp"
+
+#include "arranque/ServicioEmision.hpp"
 
 #include "diag/Registro.hpp"
 #include "emision/SalidasConfig.hpp"
 #include "i18n/I18n.hpp"
 
+#include <algorithm>
 #include <chrono>
 #include <cstdlib>
 #include <memory>
@@ -30,14 +33,14 @@ std::int64_t desdeMs(bool sale, bool sigue, std::int64_t antes) {
 
 } // namespace
 
-void AppRuntime::setFoto(std::function<void(std::shared_ptr<const FotoMotor>, unsigned)> publicar) {
+void PublicadorFoto::setFoto(std::function<void(std::shared_ptr<const FotoMotor>, unsigned)> publicar) {
     publicarFoto_ = std::move(publicar);
     foto_.reset();
     trabajo_ = FotoMotor{};
     fotoSucia_ = FotoMotor::Todas | kFotoRelerArchivos;
 }
 
-int AppRuntime::aportarALaFoto(std::function<void(FotoMotor&, unsigned)> aporte) {
+int PublicadorFoto::aportarALaFoto(std::function<void(FotoMotor&, unsigned)> aporte) {
     int id = 0;
     {
         const std::lock_guard<std::mutex> l(aportesMu_);
@@ -48,25 +51,25 @@ int AppRuntime::aportarALaFoto(std::function<void(FotoMotor&, unsigned)> aporte)
     return id;
 }
 
-void AppRuntime::dejarDeAportar(int id) {
+void PublicadorFoto::dejarDeAportar(int id) {
     const std::lock_guard<std::mutex> l(aportesMu_);
     aportes_.erase(std::remove_if(aportes_.begin(), aportes_.end(), [id](const auto& a) { return a.first == id; }),
                    aportes_.end());
 }
 
-void AppRuntime::fotoSucia(unsigned partes) const {
+void PublicadorFoto::fotoSucia(unsigned partes) const {
     fotoSucia_.fetch_or(partes);
     // Una sola publicación pedida a la vez: las que se juntan mientras tanto salen juntas.
     if (!publicarFoto_ || fotoPedida_.exchange(true)) return;
-    despuesEnDueno([this]() { const_cast<AppRuntime*>(this)->publicarFoto(); });
+    rt_.despuesEnDueno([this]() { const_cast<PublicadorFoto*>(this)->publicarFoto(); });
 }
 
-void AppRuntime::publicarFoto() {
+void PublicadorFoto::publicarFoto() {
     fotoPedida_ = false;
-    if (!publicarFoto_ || !started_) return;
+    if (!publicarFoto_ || !rt_.started_) return;
     const unsigned sucias = fotoSucia_.exchange(0);
     if ((sucias & FotoMotor::Todas) == 0) return;
-    const TurnoMotor::Guarda turno(engine_.turno());
+    const TurnoMotor::Guarda turno(rt_.engine_.turno());
     // Se rearma lo sucio sobre la de trabajo (lo demás sigue como estaba) y se compara
     // SOLO lo sucio: la foto nueva (una copia) se hace solo si algo cambió de verdad.
     armarFoto(trabajo_, sucias);
@@ -80,7 +83,7 @@ void AppRuntime::publicarFoto() {
     const unsigned cambiaron = foto_ ? FotoMotor::queCambio(*foto_, trabajo_, sucias) : unsigned(FotoMotor::Todas);
     // En pruebas, TODA la foto: algo que cambió sin compararse es una vista que no se
     // entera nunca (el reloj del motor publica enseguida y la próxima comparación da igual).
-    if (foto_ && cfg_.modoPrueba)
+    if (foto_ && rt_.cfg_.modoPrueba)
         if (const unsigned sin = FotoMotor::cambioSinMarcar(*foto_, trabajo_, sucias); sin != 0)
             ba::diag::registro().linea(
                 ba::diag::Nivel::Error, "foto", 0,
@@ -96,41 +99,44 @@ void AppRuntime::publicarFoto() {
     publicarFoto_(foto_, cambiaron);
 }
 
-std::shared_ptr<const FotoMotor> AppRuntime::ultimaFoto() const {
+std::shared_ptr<const FotoMotor> PublicadorFoto::ultimaFoto() const {
     const std::lock_guard<std::mutex> l(ultimaFotoMu_);
     return ultimaFoto_;
 }
 
-void AppRuntime::armarFoto(FotoMotor& f, unsigned p) {
+void PublicadorFoto::armarFoto(FotoMotor& f, unsigned p) {
+    // Lo del dueño que se lee acá: la configuración y el motor (con el turno).
+    AppConfig& cfg = rt_.cfg_;
+    BroadcastEngine& eng = rt_.engine_;
     // --- Escenas: el orden del operador, la carpeta, si está protegida y las fuentes ------
     if ((p & FotoMotor::Escenas) != 0) {
         f.escenas.clear();
-        for (const std::string& n : orderedSceneNames()) {
+        for (const std::string& n : rt_.orderedSceneNames()) {
             FotoMotor::Escena e;
             e.nombre = n;
-            const SceneConfig* sc = findScene(cfg_, n);
+            const SceneConfig* sc = findScene(cfg, n);
             if (sc != nullptr) {
                 e.carpeta = sc->folder;
                 e.protegida = sc->protegida;
             }
-            for (const std::string& fu : engine_.sceneSources(n)) {
+            for (const std::string& fu : eng.sceneSources(n)) {
                 FotoMotor::Fuente x;
                 x.nombre = fu;
-                x.tipo = engine_.sourceTypeId(fu);
-                x.visible = engine_.sourceVisible(n, fu);
+                x.tipo = eng.sourceTypeId(fu);
+                x.visible = eng.sourceVisible(n, fu);
                 // El lugar es el guardado (en fracciones del lienzo), como lo mueve el editor.
                 if (sc != nullptr)
                     for (const SourceSpec& s : sc->sources)
                         if (s.name == fu) x.lugar = {s.rect.x, s.rect.y, s.rect.w, s.rect.h};
-                x.efectos = engine_.sourceEfectos(n, fu).aJson();
+                x.efectos = eng.sourceEfectos(n, fu).aJson();
                 e.fuentes.push_back(std::move(x));
             }
             f.escenas.push_back(std::move(e));
         }
         f.fuentes.clear();
-        for (const std::string& n : engine_.sourceNames()) f.fuentes.emplace_back(n, engine_.sourceTypeId(n));
+        for (const std::string& n : eng.sourceNames()) f.fuentes.emplace_back(n, eng.sourceTypeId(n));
         f.tipos.clear();
-        for (const SourceType& t : engine_.inputTypes()) f.tipos.push_back({t.id, t.displayName, t.video, t.audio});
+        for (const SourceType& t : eng.inputTypes()) f.tipos.push_back({t.id, t.displayName, t.video, t.audio});
     }
 
     // --- Lo que sale de la por omisión, y de cada salida ---------------------------------
@@ -138,14 +144,14 @@ void AppRuntime::armarFoto(FotoMotor& f, unsigned p) {
     EngineStatus st;
     nlohmann::json destinos = nlohmann::json::array();
     if (salidasYa) {
-        st = engine_.status();
+        st = eng.status();
         // Los archivos (la lista de salidas, los destinos guardados y si tienen clave) solo
         // cuando cambiaron; lo que dice el motor de cada destino, siempre.
         if ((p & kFotoRelerArchivos) != 0 || fotoListaSalidas_.is_null()) {
-            fotoListaSalidas_ = salidas();
-            fotoDestinos_ = destinosGuardados();
+            fotoListaSalidas_ = rt_.salidas();
+            fotoDestinos_ = rt_.emision_->destinosGuardados();
         }
-        destinos = destinosConEstado(fotoDestinos_);
+        destinos = rt_.emision_->destinosConEstado(fotoDestinos_);
     }
     if ((p & FotoMotor::Salidas) != 0) {
         // La armada, el AFV y la T-bar de cada una las suman los conmutadores (aportes_).
@@ -154,15 +160,15 @@ void AppRuntime::armarFoto(FotoMotor& f, unsigned p) {
         f.tope = fotoListaSalidas_.value("tope", 1);
         for (const auto& s : fotoListaSalidas_.value("salidas", nlohmann::json::array())) {
             const std::string id = s.value("id", std::string());
-            if (!engine_.existeSalida(id)) continue;
+            if (!eng.existeSalida(id)) continue;
             FotoMotor::Salida x;
             x.id = id;
             x.nombre = s.value("nombre", id);
             x.color = s.value("color", std::string());
             x.codificador = s.value("codificador", std::string());
             x.porOmision = s.value("por_omision", false);
-            x.alAire = engine_.currentScene(id);
-            x.archivo = engine_.archivoGrabacion(id);
+            x.alAire = eng.currentScene(id);
+            x.archivo = eng.archivoGrabacion(id);
             bool caida = false;
             for (const auto& e : st.salidas)
                 if (e.id == id) {
@@ -171,8 +177,8 @@ void AppRuntime::armarFoto(FotoMotor& f, unsigned p) {
                     x.reconectando = e.reconnecting;
                     caida = e.recordingDown;
                 }
-            x.sale = engine_.haySalidaEn(id);
-            const PedidoSalida pedido = pedidos_.de(id);
+            x.sale = eng.haySalidaEn(id);
+            const salidas::Pedidos::DeSalida pedido = rt_.emision_->pedidos().de(id);
             x.grabacionPendiente = pedido.graba == salidas::Pedidos::Estado::Pendiente;
             x.transmisionPendiente = pedido.transmite == salidas::Pedidos::Estado::Pendiente;
             for (const auto& d : destinos)
@@ -182,9 +188,9 @@ void AppRuntime::armarFoto(FotoMotor& f, unsigned p) {
                                           {"activo", d.value("activo", false)},
                                           {"reconectando", d.value("reconectando", false)},
                                           {"respaldo", d.value("respaldo", false)}});
-            x.placa = engine_.estadoPlaca(id);
-            x.dsk = engine_.fuentesDsk(id);
-            x.manualHacia = engine_.manualHacia(id);
+            x.placa = eng.estadoPlaca(id);
+            x.dsk = eng.fuentesDsk(id);
+            x.manualHacia = eng.manualHacia(id);
             // Lo de los conmutadores, como estaba (si esta vuelta no lo rearman, no se pierde),
             // y desde cuándo sale.
             const FotoMotor::Salida* previa = nullptr;
@@ -212,10 +218,10 @@ void AppRuntime::armarFoto(FotoMotor& f, unsigned p) {
         e.descartados = st.droppedFrames;
         e.cuadros = st.totalFrames;
         e.bytes = st.bytesSent;
-        e.haySalida = engine_.haySalida();
-        e.hayTransmision = engine_.haySalida(false);
-        e.corteGrabacionPedido = recordStopWanted();
-        e.corteTransmisionPedido = streamStopWanted();
+        e.haySalida = eng.haySalida();
+        e.hayTransmision = eng.haySalida(false);
+        e.corteGrabacionPedido = rt_.recordStopWanted();
+        e.corteTransmisionPedido = rt_.streamStopWanted();
         e.grabaDesdeMs = desdeMs(e.graba, e.grabacionCaida, e.grabaDesdeMs);
         e.transmiteDesdeMs = desdeMs(e.transmite, e.reconectando, e.transmiteDesdeMs);
     }
@@ -223,46 +229,46 @@ void AppRuntime::armarFoto(FotoMotor& f, unsigned p) {
     // --- La emisión ----------------------------------------------------------------------
     if ((p & FotoMotor::Emision) != 0) {
         f.destinos = destinos;
-        f.grabacion = engine_.grabacionEstado();
-        f.grabacion["replay"] = engine_.replayEstado();
-        f.limpia = engine_.cleanFeedEstado();
+        f.grabacion = eng.grabacionEstado();
+        f.grabacion["replay"] = eng.replayEstado();
+        f.limpia = eng.cleanFeedEstado();
         f.isos = nlohmann::json::array();
         // El tamaño, de lo que contó el motor: preguntarle al disco trababa con el disco trabado.
-        for (const auto& g : engine_.sourceRecordings())
+        for (const auto& g : eng.sourceRecordings())
             f.isos.push_back({{"fuente", g.source},
                               {"archivo", g.path},
                               {"mb", static_cast<double>(g.bytes) / 1e6},
                               {"audioPropio", g.audioPropio},
                               {"activa", g.activa},
                               {"pausada", g.pausada}});
-        f.apurosDisco = engine_.discoEstado();
-        f.remux = engine_.remuxEstado();
+        f.apurosDisco = eng.discoEstado();
+        f.remux = eng.remuxEstado();
         f.retornos = nlohmann::json::object();
-        for (int s = 1; s <= cfg_.guests; ++s) f.retornos[std::to_string(s)] = engine_.retornoInvitado(s);
+        for (int s = 1; s <= cfg.guests; ++s) f.retornos[std::to_string(s)] = eng.retornoInvitado(s);
     }
 
     // --- Los ajustes que muestra la interfaz ----------------------------------------------
     if ((p & FotoMotor::Ajustes) != 0) {
         FotoMotor::AjustesVideo& a = f.ajustes;
-        a.baseAncho = cfg_.video.baseWidth;
-        a.baseAlto = cfg_.video.baseHeight;
-        a.salidaAncho = cfg_.video.outputWidth;
-        a.salidaAlto = cfg_.video.outputHeight;
-        a.fpsNum = cfg_.video.fpsNum;
-        a.fpsDen = cfg_.video.fpsDen;
-        a.transicion = cfg_.transition.type;
-        a.transicionMs = cfg_.transition.durationMs;
-        a.tema = cfg_.theme;
-        a.invitados = cfg_.guests;
-        a.servidor = cfg_.streamCfg.server;
-        const char* k = std::getenv(cfg_.streamKeyEnv.c_str());
+        a.baseAncho = cfg.video.baseWidth;
+        a.baseAlto = cfg.video.baseHeight;
+        a.salidaAncho = cfg.video.outputWidth;
+        a.salidaAlto = cfg.video.outputHeight;
+        a.fpsNum = cfg.video.fpsNum;
+        a.fpsDen = cfg.video.fpsDen;
+        a.transicion = cfg.transition.type;
+        a.transicionMs = cfg.transition.durationMs;
+        a.tema = cfg.theme;
+        a.invitados = cfg.guests;
+        a.servidor = cfg.streamCfg.server;
+        const char* k = std::getenv(cfg.streamKeyEnv.c_str());
         a.claveEnEntorno = k != nullptr && *k != '\0';
-        a.claveGuardada = streamKeySaved();
-        a.sala = gateway_.room;
+        a.claveGuardada = rt_.streamKeySaved();
+        a.sala = rt_.gateway_.room;
     }
 
     // --- Las superficies: el tema web (las capas DSK las suma CapasDsk, un aporte) ---------
-    if (FotoMotor::rearmar(FotoMotor::kTemaWeb, p)) f.temaWeb = cfg_.temaWeb;
+    if (FotoMotor::rearmar(FotoMotor::kTemaWeb, p)) f.temaWeb = cfg.temaWeb;
 
     // --- El audio de cada fuente (FotoMezcla.cpp) -----------------------------------------
     if ((p & FotoMotor::Mezcla) != 0) armarMezcla(f.mezcla);
@@ -270,26 +276,26 @@ void AppRuntime::armarFoto(FotoMotor& f, unsigned p) {
     // --- Lo que se mueve siempre ---------------------------------------------------------
     if ((p & FotoMotor::Medidas) != 0) {
         f.medios = nlohmann::json::array();
-        for (const auto& m : engine_.mediaSources())
+        for (const auto& m : eng.mediaSources())
             f.medios.push_back({{"fuente", m.name}, {"estado", m.state}, {"duracion_ms", m.durationMs}, {"tiempo_ms", m.timeMs}});
-        f.salud = engine_.saludSalidas();
+        f.salud = eng.saludSalidas();
         f.loudness = nlohmann::json::object();
-        for (const std::string& id : engine_.salidaIds())
-            if (const audio::LoudnessPrograma* l = engine_.loudnessDe(id)) f.loudness[id] = l->json();
+        for (const std::string& id : eng.salidaIds())
+            if (const audio::LoudnessPrograma* l = eng.loudnessDe(id)) f.loudness[id] = l->json();
     }
 
     // --- La configuración guardada: copias nuevas (las viejas siguen en las fotos que se leen)
     if ((p & FotoMotor::Configuracion) != 0) {
-        f.configuracion.app = std::make_shared<const AppConfig>(cfg_);
-        f.configuracion.gateway = std::make_shared<const GatewaySettings>(gateway_);
-        f.configuracion.launcher = std::make_shared<const LauncherSettings>(launcher_);
+        f.configuracion.app = std::make_shared<const AppConfig>(cfg);
+        f.configuracion.gateway = std::make_shared<const GatewaySettings>(rt_.gateway_);
+        f.configuracion.launcher = std::make_shared<const LauncherSettings>(rt_.launcher_);
     }
 
     // --- Lo del equipo (los chequeos de la preparación) ------------------------------------
     if ((p & FotoMotor::Equipo) != 0) {
-        std::tie(f.equipo.relojTipo, f.equipo.relojError) = engine_.relojEstado();
-        f.equipo.salidas = engine_.fotoSalidas();
-        const EngineStatus est = salidasYa ? st : engine_.status();
+        std::tie(f.equipo.relojTipo, f.equipo.relojError) = eng.relojEstado();
+        f.equipo.salidas = eng.fotoSalidas();
+        const EngineStatus est = salidasYa ? st : eng.status();
         nlohmann::json porSalida = nlohmann::json::array();
         for (const auto& s : est.salidas)
             porSalida.push_back({{"id", s.id},
@@ -303,17 +309,17 @@ void AppRuntime::armarFoto(FotoMotor& f, unsigned p) {
                                  {"limpia", s.limpia},
                                  {"repeticion", s.repeticion}});
         f.equipo.motor = {{"ultimo_error", est.lastError},
-                          {"respaldo_codificador", engine_.encoderRespaldoActivo()},
+                          {"respaldo_codificador", eng.encoderRespaldoActivo()},
                           {"salidas", std::move(porSalida)}};
         f.equipo.audio = nlohmann::json::array();
-        for (const std::string& n : engine_.audioSources())
-            f.equipo.audio.push_back({{"fuente", n}, {"pico_db", engine_.sourcePeakDb(n)}, {"mudo", engine_.sourceMuted(n)}});
+        for (const std::string& n : eng.audioSources())
+            f.equipo.audio.push_back({{"fuente", n}, {"pico_db", eng.sourcePeakDb(n)}, {"mudo", eng.sourceMuted(n)}});
     }
 
     // --- Lo que leen la asamblea, la sala y la línea de tiempo ------------------------------
     if ((p & FotoMotor::Sala) != 0) {
         FotoMotor::SalaYEvento& s = f.sala;
-        const GatewaySettings& g = gateway_;
+        const GatewaySettings& g = rt_.gateway_;
         s.sala = g.room;
         s.puerto = g.port;
         s.atencionAutomatica = g.autoIntake;
@@ -329,14 +335,72 @@ void AppRuntime::armarFoto(FotoMotor& f, unsigned p) {
         s.pinggyCnameDestino = g.pinggyCnameDestino;
         s.pinggyListaBlanca = g.pinggyListaBlanca;
         s.pinggyPuertoTunel = g.pinggyPuertoTunel;
-        s.operadorVideo = cfg_.operatorVideo;
-        s.operadorAudio = cfg_.operatorAudio;
-        s.carpetaGrabacion = carpetaGrabacion();
-        s.audio = engine_.audioSources();
-        s.hayFuenteBanca = engine_.hayFuenteBanca();
+        s.operadorVideo = cfg.operatorVideo;
+        s.operadorAudio = cfg.operatorAudio;
+        s.carpetaGrabacion = rt_.carpetaGrabacion();
+        s.audio = eng.audioSources();
+        s.hayFuenteBanca = eng.hayFuenteBanca();
         s.escenaDeRanura.clear();
-        for (int r = 1; r <= BroadcastEngine::kRanurasBanca; ++r) s.escenaDeRanura.push_back(engine_.escenaDeRanura(r));
+        for (int r = 1; r <= BroadcastEngine::kRanurasBanca; ++r) s.escenaDeRanura.push_back(eng.escenaDeRanura(r));
     }
+}
+
+// --- Los avisos -------------------------------------------------------------------------
+
+int PublicadorFoto::observar(std::function<void(AppRuntime::Cambio)> fn) {
+    const std::lock_guard<std::mutex> l(observadoresMu_);
+    observadores_.emplace_back(++proximoObservador_, std::move(fn));
+    return proximoObservador_;
+}
+
+void PublicadorFoto::dejarDeObservar(int id) {
+    const std::lock_guard<std::mutex> l(observadoresMu_);
+    observadores_.erase(std::remove_if(observadores_.begin(), observadores_.end(),
+                                       [id](const auto& o) { return o.first == id; }),
+                        observadores_.end());
+}
+
+unsigned PublicadorFoto::partesDe(AppRuntime::Cambio c) {
+    using Cambio = AppRuntime::Cambio;
+    // Qué partes de la foto toca cada aviso (FotoMotor::Parte); las salidas y los ajustes,
+    // además, lo que la foto lee de archivos (salidas.json, destinos.json).
+    switch (c) {
+        case Cambio::Salidas:
+            return FotoMotor::Salidas | FotoMotor::Estado | FotoMotor::Emision | FotoMotor::Mezcla | kFotoRelerArchivos;
+        // (La sala: las fuentes con audio y las de la banca siguen a las escenas y sus fuentes.)
+        case Cambio::Escenas: return FotoMotor::Escenas | FotoMotor::Salidas | FotoMotor::Sala | FotoMotor::Mezcla;
+        case Cambio::Aire: return FotoMotor::Salidas | FotoMotor::Estado;
+        case Cambio::Fuentes: return FotoMotor::Escenas | FotoMotor::Sala | FotoMotor::Mezcla;
+        case Cambio::Capa: return FotoMotor::Escenas | FotoMotor::Sala;
+        case Cambio::Audio: return FotoMotor::Medidas | FotoMotor::Mezcla;
+        case Cambio::Ajustes:
+            return FotoMotor::Ajustes | FotoMotor::Escenas | FotoMotor::Emision | FotoMotor::Salidas | FotoMotor::Sala | FotoMotor::Mezcla |
+                   FotoMotor::Configuracion | kFotoRelerArchivos;
+    }
+    return FotoMotor::Todas | kFotoRelerArchivos;
+}
+
+void PublicadorFoto::avisar(AppRuntime::Cambio c) const {
+    // La foto que lee la interfaz se rearma con esto (la publica el dueño enseguida).
+    fotoSucia(partesDe(c));
+    // Los que escuchan, en el dueño (los conmutadores son suyos; los view models se lo
+    // encargan a su bucle): lo que cambió otro hilo les llega encolado (F3-03).
+    if (!rt_.esDueno() && rt_.encolarEnDueno_) {
+        rt_.enDueno([this, c]() { avisarObservadores(c); });
+        return;
+    }
+    avisarObservadores(c);
+}
+
+void PublicadorFoto::avisarObservadores(AppRuntime::Cambio c) const {
+    // Sobre una copia: quien escucha puede darse de baja mientras se le avisa.
+    std::vector<std::pair<int, std::function<void(AppRuntime::Cambio)>>> lista;
+    {
+        const std::lock_guard<std::mutex> l(observadoresMu_);
+        lista = observadores_;
+    }
+    for (const auto& [id, fn] : lista)
+        if (fn) fn(c);
 }
 
 } // namespace ba::app

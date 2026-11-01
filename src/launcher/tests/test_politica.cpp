@@ -8,8 +8,10 @@
 //      misma versión → adoptar; nadie vivo → lanzar.
 //   4. Aire: al-aire.json con alguna salida transmitiendo o grabando, solo si A
 //      vive y late en BA.Health; una corrida cerrada en orden no es aire.
+//   5. El vigía del latido: la gracia de arranque y el cuelgue de A/B y del emisor.
 
 #include "Politica.hpp"
+#include "ajustes/Ajustes.hpp"
 #include "persist/Generaciones.hpp"
 
 #include "ipc/HealthBlock.hpp"
@@ -163,6 +165,24 @@ int main() {
         escribir(alAire, R"({"streaming":false,"cerrado":false})");
         CHECK(!hayAire(salud, runtime), "A late sin nada prendido");
         fs::remove_all(base);
+    }
+
+    // 5. El vigía del latido: A y B con su gracia de 20 s; el emisor (latido de servicio)
+    //    se vigila desde su primer latido, y se lo da por colgado a los 2 s.
+    {
+        using ba::launcher::VigiaLatido;
+        VigiaLatido ab; // A y B: los de siempre
+        CHECK(ab.enGracia(10000, true, 90000), "A recién lanzado que ya latió: en gracia (20 s)");
+        CHECK(!ab.enGracia(21000, true, 90000), "A a los 21 s: se lo vigila");
+        CHECK(ab.enGracia(40000, false, 90000), "A que nunca latió: se lo espera hasta el primer latido");
+        const VigiaLatido e = ba::launcher::vigiaEmisor();
+        CHECK(e.cuelgueMs == 2000, "emisor: cuelgue a los 2 s");
+        CHECK(!e.enGracia(8000, true, 90000), "emisor relanzado hace 8 s que ya latió: se lo vigila (antes: 20 s de gracia)");
+        CHECK(e.enGracia(8000, false, 90000), "emisor que todavía no latió: en gracia");
+        CHECK(!e.enGracia(91000, false, 90000), "emisor que nunca latió en 90 s: se lo vigila");
+        ba::ajustes::poner("emisor.cuelgueS", 0.2);
+        CHECK(ba::launcher::vigiaEmisor().cuelgueMs == 1000, "emisor.cuelgueS con piso de 1 s");
+        ba::ajustes::poner("emisor.cuelgueS", nullptr);
     }
 
     if (g_fallos == 0) std::printf("test_politica: OK\n");
