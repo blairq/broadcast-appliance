@@ -35,12 +35,11 @@
 
 class QImage;
 
-typedef struct _GstSample GstSample; // gst/gst.h
-
 namespace ba::rostros {
 struct Cara;
 class Motor;
 class Personas;
+class QuienEs;
 } // namespace ba::rostros
 
 namespace ba::app {
@@ -195,12 +194,6 @@ class PersonasViewModel : public QObject {
     ///        si ya hay otra en vuelo; false para lo que alguien espera.
     using Analisis = std::function<void(std::vector<Reconocedor::Visto>, const QImage&, const QString&)>;
     void pedirAnalisis(const QString& feed, bool descartable, Analisis luego);
-    /// Una cámara del estudio recién pedida tarda unos cuadros en tener imagen
-    /// (su tarjeta empieza a bajar con el primer pedido): se reintenta ~2 s.
-    void reintentarAnalisis(const QString& feed, Analisis luego, int intento);
-    /// Lo que vio la tarjeta «Rostros» de una entrada (su mensaje del bus, ya en
-    /// el hilo de la interfaz): contesta a quien lo esté esperando.
-    void alRostros(const QString& entrada, const std::string& json, GstSample* cuadro);
 
     /// La libreta EN USO, para quien tenga que trabajar sobre la misma y no
     /// sobre otra copia del archivo.
@@ -232,6 +225,9 @@ class PersonasViewModel : public QObject {
     void vistas(const std::vector<std::string>& ids);
     /// Dónde van las fotos de las fichas.
     QString carpetaFotos() const;
+    /// Las reglas de quién es cada cara (rostros/QuienEs), para quien mira caras por su
+    /// cuenta (el MCP) y tiene que decir lo mismo que la página.
+    ba::rostros::QuienEs& quienEs();
 #endif
 
    signals:
@@ -280,11 +276,8 @@ class PersonasViewModel : public QObject {
     void acreditarEnLaPuerta(const QString& personaId, const QString& nombre);
     void dejarPasarSiCorresponde(const QString& uid, const QString& personaId, const QString& nombre,
                                  float parecido, bool sirve);
-    /// Una cara que no cayó en ninguna ficha. Devuelve el id de la ficha nueva
-    /// cuando la vio las veces suficientes como para creerle, o vacío si
-    /// todavía la está mirando.
-    QString anotarDesconocida(const std::vector<float>& v, const QImage& img, const ba::rostros::Cara& c,
-                              std::int64_t ahora);
+    /// La foto de la ficha `id`: el recorte de `cara` en `img` (sin guardar la libreta).
+    void ponerFoto(const std::string& id, const QImage& img, const ba::rostros::Cara& cara);
     /// Alta automática en el lobby: si la ficha de `uid` no tiene nombre (la
     /// anotó sola el reconocimiento) y esa persona dio el suyo, se lo pone.
     void altaSiDioSuNombre(const QString& uid, const QString& fichaId, bool sirve);

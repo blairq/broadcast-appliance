@@ -30,8 +30,17 @@ VentanasModel::VentanasModel(std::filesystem::path archivo, CatalogoVisible* cat
     cargar();
     // Los títulos salen del catálogo: si una escena se renombra o se borra, lo
     // que dice cada ventana cambia con ella.
+    // Lo guardado por la clave de antes (una escena por el nombre) pasa a la de hoy (su id).
     if (catalogo_ != nullptr)
         connect(catalogo_, &CatalogoVisible::cambio, this, [this]() {
+            for (int r = 0; r < rowCount(); ++r) {
+                FilaVentana& f = filas_[static_cast<std::size_t>(r)];
+                QStringList claves;
+                for (const QString& c : f.cosas) claves << catalogo_->claveDe(c);
+                if (claves == f.cosas) continue;
+                f.cosas = claves;
+                tocada(r, {CosasRole});
+            }
             if (rowCount() > 0) emit dataChanged(index(0), index(rowCount() - 1), {TituloRole});
         });
     if (monitores_ != nullptr) connect(monitores_, &MonitoresModel::cambio, this, &VentanasModel::traducirMonitores);

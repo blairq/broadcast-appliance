@@ -275,4 +275,70 @@ class Corrida {
     std::map<std::string, std::string> aMano_; ///< salida → la escena que se puso a mano
 };
 
+// --- Las reglas de la conducción (las lee la vista, el MCP y la web) -------------------------
+// Lo que la app (ui/ConduccionLinea, ui/CorridaViewModel) calcula sobre la corrida y el guion
+// de cues, sin Qt y con la hora como argumento.
+
+/// "" si la salida existe en la línea; si no, por qué no (con las que hay).
+std::string errorDeSalida(const Linea& l, const std::string& salida);
+
+/// El cursor del guion de cues: el cue que se ve «al aire» (el último disparado del paso de
+/// la salida por omisión), desde cuándo y lo que la corrida llevaba pausado al entrar.
+struct CursorGuion {
+    int bloque = -1;
+    int cue = -1;
+    int64_t desdeMs = 0;
+    int64_t pausadoAlEntrarMs = 0;
+    bool valido() const { return bloque >= 0 && cue >= 0; }
+};
+/// El cue que sigue a (bloque, cue) en el guion (sin cursor: el primero); {-1, -1} al final.
+std::pair<int, int> cueSiguiente(const Evento& ev, int bloque, int cue);
+/// El anterior; {-1, -1} si no hay.
+std::pair<int, int> cueAnterior(const Evento& ev, int bloque, int cue);
+/// Lo que lleva el cue del cursor (ms), sin lo pausado mientras estaba en él: el operador
+/// paró el evento.
+int64_t enCueMs(const Corrida& c, const CursorGuion& k, int64_t ahora);
+
+/// Lo que el reloj de la conducción necesita y no cambia mientras nada cambie (el cue, la
+/// pausa, lo previsto): con la hora, `relojEn` da el reloj. Una sola cuenta para la vista
+/// (que la hace con el Reloj de las vistas), el MCP y el bus.
+struct MarcasReloj {
+    int64_t marcaMs = 0;   ///< cuándo se tomaron
+    bool sigue = false;    ///< corriendo (no en pausa): el tiempo avanza con la hora
+    bool corriendo = false; ///< corriendo o en pausa
+    bool cursor = false;   ///< hay un cue al aire
+    int64_t transcurridoMs = 0; ///< lo que lleva el evento, sin las pausas
+    int64_t enCueMs = 0;   ///< lo que lleva el cue
+    int duracionCueSeg = 0;
+    int previstoSeg = -1;  ///< dónde tendría que estar el evento al entrar este cue (-1: sin cue)
+    /// Back-timing (T46): lo previsto de lo que sigue al cue, del guion y del bloque.
+    int despuesSeg = 0;
+    int despuesBloqueSeg = 0;
+    int totalPrevistoSeg = 0;
+    int cueNro = 0; ///< para «12 de 34»
+    int cuesTotal = 0;
+};
+MarcasReloj marcasReloj(const Evento& ev, const Corrida& c, const CursorGuion& k, bool corriendo, int64_t ahora);
+/// El reloj con las marcas y la hora. Lo pausado no cuenta (lo resuelven las marcas).
+struct Reloj {
+    int desvioSeg = 0;          ///< contra lo previsto para el cue: positivo = vamos tarde
+    int enCueSeg = 0;
+    int restanteSeg = 0;        ///< del cue (negativo: se pasó)
+    int restanteBloqueSeg = 0;
+    int restanteGuionSeg = 0;
+    int transcurridoSeg = 0;
+    int64_t finPrevistoMs = 0;  ///< la hora a la que terminaría el guion a este ritmo
+};
+Reloj relojEn(const MarcasReloj& m, int64_t ahora);
+
+/// Lo público para la página web del evento: en qué sección va (nada de cues ni notas) y lo
+/// que le falta. Un ensayo no se publica.
+struct Publico {
+    std::string estado = "proximo"; ///< proximo | en_vivo | pausa | terminado
+    int bloque = -1;
+    int restanteActualSeg = -1; ///< -1: no corre
+    std::string habla;          ///< el que tiene la palabra (un cue de orador al aire)
+};
+Publico publico(const Evento& ev, const Corrida* c, const CursorGuion& k, bool ensayo, int64_t ahora);
+
 } // namespace ba::evento::linea

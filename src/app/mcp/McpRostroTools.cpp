@@ -48,6 +48,7 @@
 
 #include "arranque/AppRuntime.hpp"
 #include "rostros/Personas.hpp"
+#include "rostros/QuienEs.hpp"
 #include "rostros/Rostros.hpp"
 #include "ui/CalidadCara.hpp"
 #include "ui/FrameService.hpp"
@@ -140,12 +141,11 @@ void McpService::registerRostroTools() {
                     std::vector<std::string> vistas;
                     for (const auto& visto : caras) {
                         const ba::rostros::Cara& c = visto.cara;
-                        const auto q = pv->libreta().buscar(visto.vector);
-                        const bool seguro = q.parecido >= ba::rostros::kMismaPersona();
-                        if (seguro) vistas.push_back(q.id);
+                        const auto q = pv->quienEs().quien(visto.vector); // vacío si no se sabe quién es
+                        if (!q.id.empty()) vistas.push_back(q.id);
                         out.push_back(json{
-                            {"id", seguro ? q.id : ""},
-                            {"nombre", seguro ? q.nombre : ""},
+                            {"id", q.id},
+                            {"nombre", q.nombre},
                             {"parecido", q.parecido},
                             {"donde", json{{"x", c.x}, {"y", c.y}, {"ancho", c.ancho}, {"alto", c.alto}}},
                             {"confianza", c.confianza}});
@@ -331,11 +331,10 @@ void McpService::registerRostroTools() {
                     json out = json::array();
                     for (const auto& visto : caras) {
                         const ba::rostros::Cara& c = visto.cara;
-                        const auto q = pv->libreta().buscar(visto.vector);
-                        const bool seguro = q.parecido >= ba::rostros::kMismaPersona();
+                        const auto q = pv->quienEs().quien(visto.vector); // vacío si no se sabe quién es
                         json j = calidadJson(calidadDe(img, c));
-                        j["id"] = seguro ? q.id : "";
-                        j["nombre"] = seguro ? q.nombre : "";
+                        j["id"] = q.id;
+                        j["nombre"] = q.nombre;
                         j["parecido"] = q.parecido;
                         j["donde"] = json{{"x", c.x}, {"y", c.y}, {"ancho", c.ancho}, {"alto", c.alto}};
                         out.push_back(j);

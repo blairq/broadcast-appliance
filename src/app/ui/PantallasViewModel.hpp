@@ -51,13 +51,19 @@
 // Todo lo que habla con un aparato BLOQUEA (TLS, esperas): va en un hilo
 // aparte y vuelve por señales. La interfaz nunca se congela por un televisor
 // apagado.
+//
+// LAS PIEZAS. Los destinos, el catálogo de contenidos, los carruseles y sus reglas (qué se
+// guarda, cuándo se restaura lo fijado, cómo se arma cada URL, qué canales de escena del
+// motor se usan y cuál se elige) son el modelo pantallas/Destinos, sin Qt y con test. Esta
+// clase es la vista y lo de afuera: los hilos que le hablan a cada aparato (pantallas/Cast,
+// pantallas/Buscar), la dirección con que cada televisor nos ve, el gateway y el dueño del
+// motor (los canales de escena se piden por la ventanilla).
 // ============================================================================
 #pragma once
 
 #include <functional>
 
 #include <memory>
-#include <set>
 
 #include <QObject>
 #include <QString>
@@ -208,8 +214,6 @@ class PantallasViewModel : public QObject {
     QString mostrarEscena(const QString& id, const QString& escena);
     /// Suelta los canales de escena que ninguna pantalla está usando.
     void revisarCanales();
-    /// Los canales de escena que usan las pantallas (los que no se sueltan).
-    std::set<int> canalesUsados() const;
     /// Ya con el canal (lo dio el dueño del motor): el enlace de la sala y la URL.
     void enviarEscena(const QString& id, const QString& escena, int canal);
 

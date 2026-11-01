@@ -421,6 +421,21 @@ int main(int argc, char** argv) {
         CHECK(VentanasModel::cosaDeClave("share:2") == "video:share:2");
     }
 
+    // ===================== Las escenas por su id (escenas/RefEscena.hpp) =====
+    {
+        std::vector<std::pair<std::string, std::string>> ids{{"esc-00000001", "Atril"}};
+        CatalogoVisible::Fuentes f = fuentes();
+        f.escenasConId = [&ids]() { return ids; };
+        CatalogoVisible c(f);
+        const auto* e = c.buscar("escena:esc-00000001");
+        CHECK(e && e->titulo == "Atril" && e->redDatos.value("escena_id").toString() == "esc-00000001");
+        CHECK(c.claveDe("escena:Atril") == "escena:esc-00000001"); // guardado antes por el nombre
+        ids = {{"esc-00000001", "Atril grande"}};                   // renombrada
+        c.refrescar();
+        CHECK(c.existe("escena:esc-00000001") && c.buscar("escena:esc-00000001")->titulo == "Atril grande");
+        CHECK(c.claveDe("escena:Ninguna") == "escena:Ninguna");
+    }
+
     if (g_fallas == 0) std::printf("test_pantallas_catalogo: OK\n");
     return g_fallas == 0 ? 0 : 1;
 }

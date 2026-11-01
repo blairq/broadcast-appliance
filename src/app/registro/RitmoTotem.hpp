@@ -7,10 +7,10 @@
 // silencio largo («¿seguís ahí?»), la pantalla de gracias que vuelve sola a esperar y el
 // arranque con canal y sin cara. Una conexión, un RitmoTotem.
 //
-// Sin Qt, sin reloj y sin audio: ui/TotemsViewModel le avisa lo que pasa (los campos de
+// Sin Qt, sin reloj y sin audio: registro/ConexionesTotem le avisa lo que pasa (los campos de
 // abajo, que son el estado de la conexión) y cada tanto (su tic) le pregunta `revisar` con
 // la hora y lo que mira de afuera (`Mirada`: si el VAD oye voz, si la voz ya salió por el
-// canal…). Lo que vuelve (`Decision`) lo hace el view model: cerrar el turno, pedirle a la
+// canal…). Lo que vuelve (`Decision`) lo hace la conexión: cerrar el turno, pedirle a la
 // conversación el fallo de la foto, mandar `listo` a la página. Con test
 // (test_registro_ritmo), con la hora como argumento.
 // ============================================================================

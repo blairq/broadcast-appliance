@@ -132,8 +132,18 @@ std::vector<CatalogoVisible::Cosa> CatalogoVisible::armar() const {
         out.push_back(c);
     }
 
-    // 3) Las escenas: cada una en vivo, esté o no al aire.
-    if (fuentes_.escenas)
+    // 3) Las escenas: cada una en vivo, esté o no al aire. Con su id, por el id (un
+    //    renombre no deja colgado lo guardado); si no, por el nombre.
+    if (fuentes_.escenasConId)
+        for (const auto& [idEsc, nombre] : fuentes_.escenasConId()) {
+            if (idEsc.empty()) continue;
+            const QString e = QString::fromStdString(nombre), clave = "escena:" + QString::fromStdString(idEsc);
+            Cosa c{clave, "escena", e, "▦", video({clave}), "escena",
+                   QVariantMap{{"escena", e}, {"escena_id", QString::fromStdString(idEsc)}}, ""};
+            c.dibujo["escena"] = e;
+            out.push_back(c);
+        }
+    else if (fuentes_.escenas)
         for (const QString& e : fuentes_.escenas()) {
             if (e.isEmpty()) continue;
             Cosa c{"escena:" + e, "escena", e, "▦", video({"escena:" + e}), "escena", QVariantMap{{"escena", e}}, ""};
@@ -240,7 +250,16 @@ void CatalogoVisible::refrescar() {
 const CatalogoVisible::Cosa* CatalogoVisible::buscar(const QString& id) const {
     for (const Cosa& c : filas_)
         if (c.id == id) return &c;
+    // Una escena guardada antes por el nombre («escena:<nombre>»), hoy por su id.
+    if (id.startsWith("escena:"))
+        for (const Cosa& c : filas_)
+            if (c.grupo == "escena" && c.titulo == id.mid(7)) return &c;
     return nullptr;
+}
+
+QString CatalogoVisible::claveDe(const QString& id) const {
+    const Cosa* c = buscar(id);
+    return c != nullptr ? c->id : id;
 }
 
 namespace {

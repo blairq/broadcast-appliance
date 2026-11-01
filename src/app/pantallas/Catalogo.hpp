@@ -43,6 +43,7 @@
 #include <QVariantMap>
 
 #include <functional>
+#include <utility>
 #include <vector>
 
 namespace ba::app {
@@ -89,6 +90,10 @@ class CatalogoVisible : public ListaConClave<CosaVisible> {
     struct Fuentes {
         /// Los nombres de las escenas, en el orden del operador.
         std::function<QStringList()> escenas;
+        /// Las escenas con su id estable (id, nombre), en el orden del operador: si está,
+        /// manda sobre `escenas` y cada una es «escena:<id>» (escenas/RefEscena.hpp), así un
+        /// renombre no deja colgado al monitor o la ventana que la muestra.
+        std::function<std::vector<std::pair<std::string, std::string>>()> escenasConId;
         /// Las multivistas: [{id, nombre}].
         std::function<QVariantList()> multiviews;
         /// Lo que va de fondo en el tablero: claves de video y su distribución.
@@ -133,7 +138,11 @@ class CatalogoVisible : public ListaConClave<CosaVisible> {
     /// Qué se abre al sacar a ventana la tarjeta `kind` del tablero (el panel
     /// propio si lo tiene; la PTZ, la de la primera cámara). Vacío si nada.
     Q_INVOKABLE QString ventanaDeTarjeta(const QString& kind) const;
+    /// Por su clave; una escena también por la clave de antes («escena:<nombre>»).
     const Cosa* buscar(const QString& id) const;
+    /// La clave de hoy de lo que dice `id` (una escena guardada por el nombre pasa a su id);
+    /// si no está, `id` igual.
+    QString claveDe(const QString& id) const;
     const std::vector<Cosa>& cosas() const { return filas_; }
 
     /// El nombre legible de cada grupo («Escena», «Página»…).

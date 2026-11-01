@@ -72,8 +72,17 @@ MonitoresModel::MonitoresModel(std::filesystem::path archivo, CatalogoVisible* c
     presentes_->setFilterRegularExpression(QRegularExpression(QStringLiteral("^true$")));
     // Los títulos salen del catálogo: si una escena se renombra o se borra, lo
     // que dice cada monitor cambia con ella.
+    // Lo guardado por la clave de antes (una escena por el nombre) pasa a la de hoy (su id).
     if (catalogo_ != nullptr)
         connect(catalogo_, &CatalogoVisible::cambio, this, [this]() {
+            for (int r = 0; r < rowCount(); ++r) {
+                Fila& f = filas_[static_cast<std::size_t>(r)];
+                QStringList claves;
+                for (const QString& c : f.cosas) claves << catalogo_->claveDe(c);
+                if (claves == f.cosas) continue;
+                f.cosas = claves;
+                tocada(r);
+            }
             if (rowCount() > 0) emit dataChanged(index(0), index(rowCount() - 1), {TituloRole});
         });
 }

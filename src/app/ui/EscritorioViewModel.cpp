@@ -45,6 +45,7 @@ EscritorioViewModel::EscritorioViewModel(Partes p, QObject* parent) : QObject(pa
         for (const FotoMotor::Escena& e : v.foto().escenas) out << QString::fromStdString(e.nombre);
         return out;
     };
+    f.escenasConId = [&v = p_.ventanilla]() { return v.foto().idsDeEscenas(); };
     f.multiviews = [this]() { return multivistas_->lista(); };
     f.fondo = [t = p_.tablero]() { return t ? t->background() : QStringList{}; };
     f.fondoDistribucion = [t = p_.tablero]() { return t ? t->backgroundLayout() : QString("grid"); };

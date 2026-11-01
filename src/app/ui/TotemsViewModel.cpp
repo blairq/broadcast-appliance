@@ -36,8 +36,8 @@
 #include "emision/VentanillaMotor.hpp"
 #include "emision/VozAlLobby.hpp"
 #include "registro/AgenteTotem.hpp"
+#include "registro/ConexionesTotem.hpp"
 #include "registro/Conversacion.hpp"
-#include "registro/RitmoTotem.hpp"
 #include "sala/Direcciones.hpp"
 #include "sala/Pedido.hpp"
 #include "security/CredentialStore.hpp"
@@ -59,12 +59,7 @@ using nlohmann::json;
 
 namespace {
 
-// Cada cuánto se mira (los tiempos de la conversación son de registro/RitmoTotem).
-constexpr qint64 kEntreFotosMs = 600;      ///< a lo sumo una foto al reconocimiento por conexión
-constexpr qint64 kEntreFotosFrenteMs = 250; ///< en el paso de la foto, más seguido: se busca el momento
-constexpr qint64 kEntreDocumentosMs = 300; ///< mostrando el documento: un cuadro al lector cada tanto
-
-qint64 ahoraMs() { return QDateTime::currentMSecsSinceEpoch(); }
+std::int64_t ahoraMs() { return QDateTime::currentMSecsSinceEpoch(); }
 
 std::string hexAleatorio(int bytes) {
     static const char* h = "0123456789abcdef";
@@ -140,74 +135,281 @@ ConferenceClient* clienteDe(StudioViewModel& vm) {
 
 } // namespace
 
-/// Una conexión de la página (un tótem puede tener varias: la TV y cada
-/// celular que escaneó su QR).
-struct TotemsViewModel::Conexion {
-    QString conn, totem, ip, lugar;
-    qint64 desdeMs = 0;
-    int canal = 0;
-    bool audio = false;
-    std::unique_ptr<registro::Conversacion> conv;
-    /// Cuándo: el fin del turno, la voz que termina, las esperas de la foto y del
-    /// documento, el silencio, las gracias, el arranque sin cara (registro/RitmoTotem).
-    registro::RitmoTotem ritmo;
-    // El audio.
-    int toma = 0;
-    bool oido = false;
-    /// Mientras habla el asistente: al oído le llegan ceros. Lo lee el hilo de
-    /// GStreamer, por eso atómico y compartido (sobrevive a la conexión).
-    std::shared_ptr<std::atomic<bool>> callado = std::make_shared<std::atomic<bool>>(false);
-    /// El oído sigue oyendo mientras habla el asistente (Nemotron y «puede interrumpir»).
-    std::shared_ptr<std::atomic<bool>> oye;
-    /// Lo oído en este turno que todavía no se mandó: las frases se juntan hasta el fin del turno.
-    QString turno;
-    bool sintetizando = false;
-    // La cara.
-    bool identificando = false;
-    qint64 ultimaFotoMs = 0;
-    std::uint64_t ultimoCuadro = 0; ///< el número del último cuadro mirado (uno nuevo o nada)
-    QString ultimaCara; ///< "" sin cara, "?" desconocida, o el id de la ficha
-    QString ultimoNombre;
-    int vecesCara = 0;
-    QByteArray mejorFoto; ///< la última foto con una cara que sirve (para el alta)
-    // El paso de la foto de frente (Conversacion::Estado::Foto).
-    QString fotoSugerencia;  ///< qué corregir, según la última toma que no sirvió
-    // El paso del documento (Conversacion::Estado::Documento).
-    qint64 ultimoDocMs = 0;
-    std::uint64_t ultimoCuadroDoc = 0;
-    bool leyendoDocumento = false;  ///< hay un cuadro en el lector
-    /// Las lecturas dudosas del dorso (sin el verificador compuesto) hasta que dos coinciden.
-    std::shared_ptr<documentos::ConfirmadorMrz> dorsoLecturas = std::make_shared<documentos::ConfirmadorMrz>();
-    QString docSugerencia;          ///< qué corregir, según lo último que se vio
-    /// Después de terminar, la próxima arranca recién cuando esa cara se va (o
-    /// aparece otra conocida): si no, la misma persona empezaría de nuevo.
-    bool esperaVacio = false;
-    QString ultimaPersona;
-    // Para la vista.
-    std::string pedidoEnviado;
-    /// El `listo` se manda cuando termina de decir la despedida: el celular
-    /// suelta el canal al recibirlo, y con él se cortaría la voz a mitad.
-    std::string listoPendiente;
-    QString oidoTexto, diceTexto, estado = "esperando";
-    // La atención remota: la página de atención que la atiende ("" = la app o el MCP) y si el
-    // gateway y la pantalla del tótem ya lo saben. `mudo`: lo que la síntesis entregue tarde
-    // (de antes de atenderla) no sale; lo lee el hilo de la síntesis.
-    QString atiendeConn;
-    bool enAtencion = false;
-    std::shared_ptr<std::atomic<bool>> mudo = std::make_shared<std::atomic<bool>>(false);
-    // El modelo que entiende (región propia al final). Declarado después de `conv`, que usa: se
-    // destruye antes. `piezas`: frases en la síntesis (la voz termina con la última);
-    // `textoModelo`: lo que escribió en este turno; `diceAntes`: va adelante de lo próximo que
-    // diga el guion en la pantalla (lo del modelo ya se dijo en voz).
-    std::unique_ptr<registro::AgenteTotem> agente;
-    int piezas = 0;
-    std::string textoModelo;
-    std::string diceAntes;
+namespace {
+
+/// El modelo que entiende (registro/AgenteTotem) como lo ve registro/ConexionesTotem.
+class EntendedorTotem : public registro::Entendedor {
+   public:
+    explicit EntendedorTotem(std::unique_ptr<registro::AgenteTotem> a) : a_(std::move(a)) {}
+    bool oido(const std::string& dicho) override { return a_->oido(dicho); }
+    bool ocupado() const override { return a_->ocupado(); }
+    bool caido() const override { return a_->caido(); }
+    std::string motivoCaida() const override { return a_->motivoCaida(); }
+    std::string nombre() const override { return a_->fuente().nombre; }
+    void cancelar() override { a_->cancelar(); }
+
+   private:
+    std::unique_ptr<registro::AgenteTotem> a_;
 };
+
+} // namespace
+
+/// Lo que registro/ConexionesTotem le pide al mundo: el gateway, la voz, la cámara, el
+/// lector, el padrón y el modelo que entiende.
+struct TotemsViewModel::Puertos : registro::ConexionesTotem::Puertos {
+    TotemsViewModel& vm;
+    explicit Puertos(TotemsViewModel& v) : vm(v) {}
+
+    TotemsViewModel::Medios& medios(const std::string& conn) { return vm.medios_[conn]; }
+    VozAlLobby* voz(int canal) const {
+        return canal > 0 && canal < static_cast<int>(vm.voces_.size()) ? vm.voces_[static_cast<std::size_t>(canal)].get()
+                                                                         : nullptr;
+    }
+
+    void vivoCambio() override { emit vm.vivoCambio(); }
+    void conectadosCambio() override { emit vm.cambio(); }
+    void registradosCambio() override { emit vm.registradosCambio(); }
+    void pedirTic(bool si) override {
+        if (si) vm.tic_.start();
+        else vm.tic_.stop();
+    }
+
+    void enviar(const std::string& conn, const json& msg) override { vm.enviar(QString::fromStdString(conn), msg); }
+    void alGateway(const std::string& ruta, const json& cuerpo) override {
+        ConferenceClient* c = clienteDe(vm.vm_);
+        if (c == nullptr || !c->online()) return;
+        sala::pedir(*c, "POST", "/api/v1/registro/" + ruta, cuerpo, [](const std::string&, const json&) {});
+    }
+
+    void abrirAudio(const std::string& conn, int k) override {
+        if (k < 1 || k >= static_cast<int>(vm.voces_.size())) return;
+        vm.cargarVoz();
+        if (!vm.voces_[static_cast<std::size_t>(k)])
+            vm.voces_[static_cast<std::size_t>(k)] = std::make_unique<VozAlLobby>(ba::ipc::nombreVozRegistro(k));
+        vm.voces_[static_cast<std::size_t>(k)]->abrir();
+        medios(conn).canal = k;
+        revisarOido(conn, k);
+    }
+    void cerrarAudio(const std::string& conn, int canal) override {
+        auto it = vm.medios_.find(conn);
+        if (it != vm.medios_.end()) {
+            vm.cerrarMedios(conn, it->second);
+            vm.medios_.erase(it);
+        }
+        if (VozAlLobby* v = voz(canal)) v->cerrar();
+    }
+    void revisarOido(const std::string& conn, int k) override {
+        // El reconocedor carga en segundo plano al arrancar la app: un tótem que se conecta
+        // antes (la app se reinició y la página volvió sola) se queda sin oído hasta que
+        // esté; cada vuelta del tic vuelve a probar. El del tótem es el que se eligió en la
+        // pestaña Agentes (Parakeet o Nemotron): con que esté bajado alcanza, se carga al abrirlo.
+        TotemsViewModel::Medios& m = medios(conn);
+        if (m.oido || vm.voz_ == nullptr || !vm.voz_->puedeOir("registro") || k < 1) return;
+        const QString clave = QString::fromStdString("registro:" + conn);
+        QPointer<TotemsViewModel> yo(&vm);
+        m.oido = vm.voz_->abrirOido(
+            clave,
+            [yo, conn](const QString& t) {
+                if (yo) yo->vivo_->alOido(conn, t.trimmed().toStdString(), ahoraMs());
+            },
+            [yo, conn]() {
+                if (yo) yo->vivo_->interrumpido(conn, ahoraMs());
+            });
+        if (!m.oido) return;
+        agent::Voz* voz = vm.voz_;
+        const std::string cl = clave.toStdString();
+        const auto callado = m.callado;
+        // Con Nemotron y «interrumpir», el oído sigue oyendo mientras habla el asistente: la
+        // página pide el micrófono con cancelación de eco y su voz baja por el mismo WebRTC.
+        m.oye = voz->oyeMientrasHabla(clave);
+        const auto oye = m.oye;
+        m.toma = vm.rt_.operatorFeed().escucharRegistro(k, [voz, cl, callado, oye](const float* d, std::size_t n) {
+            thread_local std::vector<float> mono;
+            mono.resize(n);
+            // Mientras habla el asistente, ceros: así el reconocedor cierra la frase
+            // que tuviera abierta y no se transcribe la propia voz que vuelve.
+            const bool cero = callado->load(std::memory_order_relaxed) && !oye->load(std::memory_order_relaxed);
+            for (std::size_t i = 0; i < n; ++i) mono[i] = cero ? 0.0f : d[2 * i]; // un micrófono es mono
+            voz->alimentarOido(cl, mono.data(), n, 48000);
+        });
+    }
+    bool sintetizar(const std::string& conn, int k, const std::string& texto) override {
+#if defined(BA_HAVE_VOZ)
+        vm.cargarVoz(); // si cambió el idioma del evento, la voz de ese idioma (la frase que sigue)
+        AtencionViewModel* a = vm.vm_.atencionVm();
+        VozAlLobby* destino = voz(k);
+        if (!vm.vozLista_ || !vm.habla_ || a == nullptr || destino == nullptr) return false;
+        TotemsViewModel::Medios& m = medios(conn);
+        m.mudo->store(false);
+        m.callado->store(true);
+        QPointer<TotemsViewModel> yo(&vm);
+        vm.habla_->decir(
+            // El hablante elegido es de la voz del atendedor: con la del idioma del evento, el primero.
+            texto, vm.vozCargada_ == a->vozElegida() ? a->hablante() : 0, static_cast<float>(a->velocidad()),
+            [destino, mudo = m.mudo](const float* d, std::size_t n, std::uint32_t f) {
+                if (!mudo->load()) destino->encolar(d, n, f); // atendida en el medio: no sale
+            },
+            [yo, conn]() {
+                QMetaObject::invokeMethod(yo.data(), [yo, conn]() {
+                    if (yo) yo->vivo_->alTerminarFrase(conn);
+                });
+            });
+        return true;
+#else
+        (void)conn;
+        (void)k;
+        (void)texto;
+        return false;
+#endif
+    }
+    void callar(const std::string& conn, int canal, bool sintesis) override {
+        TotemsViewModel::Medios& m = medios(conn);
+        m.mudo->store(true);
+        if (VozAlLobby* v = voz(canal)) v->callar();
+#if defined(BA_HAVE_VOZ)
+        if (sintesis && vm.habla_) vm.habla_->callar();
+#else
+        (void)sintesis;
+#endif
+        m.callado->store(false);
+    }
+    void escuchar(const std::string& conn) override { medios(conn).callado->store(false); }
+    bool oyeMientrasHabla(const std::string& conn) const override {
+        const auto it = vm.medios_.find(conn);
+        return it != vm.medios_.end() && it->second.oye && it->second.oye->load(std::memory_order_relaxed);
+    }
+    bool oyendoVoz(const std::string& conn) const override {
+        return vm.voz_ != nullptr && vm.voz_->oyendoVoz(QString::fromStdString("registro:" + conn));
+    }
+    bool vozPendiente(int canal) const override {
+        const VozAlLobby* v = voz(canal);
+        return v != nullptr && v->pendiente() >= 0.02;
+    }
+
+    /// El último cuadro de la cámara del tótem si es nuevo (y anota su número).
+    bool cuadro(int canal, std::uint64_t& ultimo, QImage& img) const {
+        auto* frames = static_cast<FrameService*>(vm.vm_.frames());
+        if (frames == nullptr) return false;
+        std::uint64_t serie = 0;
+        if (!frames->latest(QString("registro:%1").arg(canal), img, serie) || img.isNull() || serie == ultimo) return false;
+        ultimo = serie;
+        return true;
+    }
+    bool pedirCara(const std::string& conn, int canal) override {
+        PersonasViewModel* pv = personasDe(vm.vm_);
+        if (pv == nullptr || !pv->disponible()) return false;
+        QImage img;
+        if (!cuadro(canal, medios(conn).ultimoCuadro, img)) return false;
+        // En JPEG: es lo que guarda la libreta como foto de la ficha si hay alta.
+        QByteArray jpeg;
+        QBuffer buf(&jpeg);
+        buf.open(QIODevice::WriteOnly);
+        if (!img.convertToFormat(QImage::Format_RGB888).save(&buf, "JPG", 88) || jpeg.isEmpty()) return false;
+        QPointer<TotemsViewModel> yo(&vm);
+        pv->identificarFoto(jpeg, [yo, conn, jpeg](const PersonasViewModel::Identificado& q, const QString& error) {
+            if (!yo) return;
+            if (!error.isEmpty()) return yo->vivo_->sinCara(conn);
+            registro::ConexionesTotem::Cara c;
+            c.personaId = q.personaId.toStdString();
+            c.nombre = q.nombre.toStdString();
+            c.hayCara = q.hayCara;
+            c.sirve = q.sirve;
+            c.sugerencia = q.sugerenciaEvento.toStdString();
+            c.foto = jpeg.toStdString();
+            yo->vivo_->alCara(conn, c, ahoraMs());
+        });
+        return true;
+    }
+    bool pedirDocumento(const std::string& conn, int canal, const std::vector<std::string>& aceptados) override {
+        if (!vm.lector_) return false;
+        QImage img;
+        if (!cuadro(canal, medios(conn).ultimoCuadroDoc, img)) return false;
+        QPointer<TotemsViewModel> yo(&vm);
+        // No descartable: ya hay a lo sumo uno por conexión, y uno descartado no volvería y
+        // dejaría la conexión esperando para siempre.
+        vm.lector_->leer(img, aceptados, false, [yo, conn](LectorDocumentos::Resultado r) {
+            if (yo) yo->vivo_->alLeerDocumento(conn, lectura(r), ahoraMs());
+        });
+        return true;
+    }
+    void traducirCodigo(const std::string& conn, const std::string& formato, const std::string& texto,
+                        const std::vector<std::string>& aceptados) override {
+        if (!vm.lector_) return vm.vivo_->alLeerDocumento(conn, {}, ahoraMs());
+        documentos::Codigo cod;
+        cod.formato = formato;
+        cod.texto = texto;
+        QPointer<TotemsViewModel> yo(&vm);
+        vm.lector_->traducir({cod}, aceptados, [yo, conn](LectorDocumentos::Resultado r) {
+            if (yo) yo->vivo_->alLeerDocumento(conn, lectura(r), ahoraMs());
+        });
+    }
+    void pedirCuadroDePagina(const std::string& conn) override {
+        ConferenceClient* cli = clienteDe(vm.vm_);
+        if (cli == nullptr || !vm.lector_) {
+            vm.vivo_->alCuadroDePagina(conn, false);
+            return;
+        }
+        QPointer<TotemsViewModel> yo(&vm);
+        cli->getRaw("/api/v1/registro/cuadro?conn=" + QString::fromUtf8(QUrl::toPercentEncoding(QString::fromStdString(conn))),
+                    [yo, conn](bool ok, const QByteArray& jpeg) {
+                        if (!yo) return;
+                        const QImage img = ok ? QImage::fromData(jpeg, "JPG") : QImage();
+                        const auto q = yo->vivo_->alCuadroDePagina(conn, !img.isNull());
+                        if (q.dorso)
+                            yo->lector_->leerDorso(img, q.aceptados, q.lecturas, [yo, conn](LectorDocumentos::Resultado r) {
+                                if (yo) yo->vivo_->alLeerDorso(conn, lectura(r), ahoraMs());
+                            });
+                        if (q.frente)
+                            yo->lector_->leer(img.convertToFormat(QImage::Format_RGB32), q.aceptados, false,
+                                              [yo, conn](LectorDocumentos::Resultado r) {
+                                                  if (yo) yo->vivo_->alLeerDocumento(conn, lectura(r), ahoraMs());
+                                              });
+                    });
+    }
+    void prepararDorso() override {
+        if (vm.lector_) vm.lector_->prepararDorso();
+    }
+    void soltarDorso() override {
+        if (vm.lector_) vm.lector_->soltarDorso();
+    }
+    bool dorsoDisponible() const override { return vm.dorsoDisponible(); }
+
+    bool yaRegistrado(const std::string& personaId) const override {
+        EventoViewModel* ev = eventoDe(vm.vm_);
+        return ev != nullptr && ev->padronVm().registradoPorTotem(QString::fromStdString(personaId));
+    }
+    void guardarRegistro(const std::string& conn, const std::string& totem, const std::string& nombre,
+                         const std::string& personaId, const json& datos, const std::string& foto) override {
+        vm.guardarRegistro(conn, QString::fromStdString(totem), QString::fromStdString(nombre),
+                           QString::fromStdString(personaId), datos, QByteArray::fromStdString(foto));
+    }
+    std::unique_ptr<registro::Entendedor> crearEntendedor(const std::string& conn, const std::string& totem,
+                                                          registro::Conversacion& conv, bool avisar) override {
+        return vm.crearEntendedor(conn, totem, conv, avisar);
+    }
+    void prepararModelo() override { vm.prepararModelo(); }
+    void soltarModelo() override { vm.soltarModelo(); }
+
+    /// Lo leído, como lo entiende el modelo.
+    static registro::ConexionesTotem::Lectura lectura(const LectorDocumentos::Resultado& r) {
+        registro::ConexionesTotem::Lectura l;
+        l.leido = r.leido;
+        l.datos = r.datos;
+        l.hayCodigos = !r.codigos.empty();
+        l.con = r.con;
+        l.error = r.error.toStdString();
+        l.dudosa = r.dudosa;
+        l.noSeVe = r.noSeVe;
+        l.hayDetalle = !r.detalle.empty();
+        return l;
+    }
+};
+
 
 TotemsViewModel::TotemsViewModel(AppRuntime& rt, StudioViewModel& vm, agent::Voz* voz, agent::ModelosLocales* modelos,
                                  QObject* parent)
-    : QObject(parent), rt_(rt), vm_(vm), voz_(voz), modelos_(modelos) {
+    : QObject(parent), rt_(rt), vm_(vm), voz_(voz), modelos_(modelos), puertos_(std::make_unique<Puertos>(*this)),
+      vivo_(std::make_unique<registro::ConexionesTotem>(*puertos_)) {
     connect(this, &TotemsViewModel::cambio, this, [this] { filasTotems_.poner(totems()); });
     connect(this, &TotemsViewModel::vivoCambio, this, [this] { filasConexiones_.poner(conexiones()); });
     connect(this, &TotemsViewModel::registradosCambio, this, [this] { filasRegistrados_.poner(registrados()); });
@@ -218,20 +420,17 @@ TotemsViewModel::TotemsViewModel(AppRuntime& rt, StudioViewModel& vm, agent::Voz
     if (ConferenceClient* c = clienteDe(vm_)) {
         connect(c, &ConferenceClient::registroEvento, this, [this](const QJsonObject& o) {
             const json ev = json::parse(QJsonDocument(o).toJson(QJsonDocument::Compact).toStdString(), nullptr, false);
-            if (ev.is_object()) alEvento(ev);
+            if (ev.is_object()) vivo_->alEvento(ev, ahoraMs());
         });
         // El gateway volvió (o se reinició): no sabe de los tótems ni de nada vivo.
         c->registrarRepublicador("totems", this, [this]() { publicar(); });
         // Sin gateway no hay nadie conectado; al volver (el mismo o uno nuevo) se le
         // pregunta quién está.
         connect(c, &ConferenceClient::onlineChanged, this, [this](bool on) {
-            if (on) {
+            if (on)
                 reconocerConexiones();
-            } else {
-                std::vector<QString> todas;
-                for (const auto& [k, c] : conns_) todas.push_back(k);
-                for (const QString& k : todas) soltar(k);
-            }
+            else
+                vivo_->soltarTodas(ahoraMs());
             emit cambio();
         });
     }
@@ -243,8 +442,9 @@ TotemsViewModel::TotemsViewModel(AppRuntime& rt, StudioViewModel& vm, agent::Voz
             if (vozLista_ && vm_.atencionVm() != nullptr && vm_.atencionVm()->vozElegida() != vozCargada_) vozLista_ = false;
             emit cambio();
         });
+    // El reloj de las conversaciones: lo pide el modelo, solo con conexiones activas.
     tic_.setInterval(200);
-    connect(&tic_, &QTimer::timeout, this, &TotemsViewModel::tic);
+    connect(&tic_, &QTimer::timeout, this, [this]() { vivo_->tic(ahoraMs()); });
     lector_ = std::make_unique<LectorDocumentos>(vm_.plugins(), rt_.dataRoot());
     // El dorso con el modelo local: el llama-server del programa con el proyector de
     // visión (--mmproj), en 127.0.0.1. La foto no sale de la máquina.
@@ -292,12 +492,24 @@ TotemsViewModel::TotemsViewModel(AppRuntime& rt, StudioViewModel& vm, agent::Voz
 
 TotemsViewModel::~TotemsViewModel() {
     tic_.stop();
-    for (auto& [k, c] : conns_) cerrarAudio(*c);
+    for (auto& [conn, m] : medios_) {
+        cerrarMedios(conn, m);
+        if (m.canal > 0 && m.canal < static_cast<int>(voces_.size()) && voces_[static_cast<std::size_t>(m.canal)])
+            voces_[static_cast<std::size_t>(m.canal)]->cerrar();
+    }
 #if defined(BA_HAVE_VOZ)
     if (habla_) habla_->callar();
     habla_.reset(); // antes que los canales: su hilo les escribe
 #endif
     for (auto& v : voces_) v.reset();
+}
+
+void TotemsViewModel::cerrarMedios(const std::string& conn, Medios& m) {
+    if (m.toma != 0) rt_.operatorFeed().dejarDeEscucharLobby(m.toma);
+    m.toma = 0;
+    if (m.oido && voz_ != nullptr) voz_->cerrarOido(QString::fromStdString("registro:" + conn));
+    m.oido = false;
+    m.callado->store(false);
 }
 
 // --- La configuración ----------------------------------------------------------------
@@ -318,18 +530,14 @@ void TotemsViewModel::recargar() {
         if (nombre != eventoNombre_ || idioma != eventoIdioma_) {
             eventoNombre_ = nombre;
             eventoIdioma_ = idioma;
-            for (auto& [k, c] : conns_) mandarPantalla(*c);
+            vivo_->ponerEvento(&totems_, eventoNombre_, eventoIdioma_);
+            vivo_->mandarPantallas();
             emit cambio();
         }
         return;
     }
     // Otro evento: lo que se conversaba era del anterior.
-    std::vector<QString> todas;
-    for (const auto& [k, c] : conns_) todas.push_back(k);
-    for (const QString& k : todas) {
-        enviar(k, {{"type", "reiniciar"}});
-        soltar(k);
-    }
+    vivo_->reiniciarTodas(ahoraMs());
     carpeta_ = carpeta;
     eventoNombre_ = nombre;
     eventoIdioma_ = idioma;
@@ -337,6 +545,7 @@ void TotemsViewModel::recargar() {
     bool ok = true;
     std::string err;
     totems_ = registro::cargarTotems(carpeta_, &ok, &err);
+    vivo_->ponerEvento(&totems_, eventoNombre_, eventoIdioma_);
     if (!ok) emit notify(tr("No pude leer los tótems de registro: %1").arg(QString::fromStdString(err)), "error");
     publicar();
     // La voz se carga ya, no con la primera persona: si no, el primer saludo sale mudo.
@@ -351,7 +560,7 @@ std::string TotemsViewModel::guardarYPublicar() {
         return tr("No se pudo guardar: %1").arg(QString::fromStdString(err)).toStdString();
     publicar();
     // Lo que muestran las pantallas de cada tótem (título, campos) cambia en el acto.
-    for (auto& [k, c] : conns_) mandarPantalla(*c);
+    vivo_->mandarPantallas();
     emit cambio();
     return {};
 }
@@ -440,33 +649,7 @@ void TotemsViewModel::reconocerConexiones() {
     if (c == nullptr) return;
     QPointer<TotemsViewModel> yo(this);
     sala::pedir(*c, "GET", "/api/v1/registro/estado", {}, [yo](const std::string& err, const json& r) {
-        if (!yo || !err.empty()) return;
-        for (const json& x : r.value("conexiones", json::array())) {
-            const QString conn = QString::fromStdString(texto(x, "conn"));
-            if (conn.isEmpty()) continue;
-            Conexion& k = yo->conexion(conn, QString::fromStdString(texto(x, "id")));
-            k.ip = QString::fromStdString(texto(x, "ip"));
-            k.lugar = QString::fromStdString(texto(x, "lugar"));
-            if (x.contains("desdeMs") && x["desdeMs"].is_number()) k.desdeMs = x["desdeMs"].get<qint64>();
-            k.audio = x.value("audio", false);
-            const int canal = x.value("canal", 0);
-            if (canal > 0 && k.canal != canal) {
-                k.canal = canal;
-                k.ritmo.canalDesdeMs = ahoraMs();
-                k.ritmo.primeraDelCanal = true;
-                yo->abrirAudio(k);
-            }
-        }
-        // Quienes tenían abierta la página de atención (el gateway las conserva si solo se
-        // reinició la app).
-        for (const json& x : r.value("atienden", json::array())) {
-            const QString aconn = QString::fromStdString(texto(x, "aconn"));
-            if (aconn.isEmpty()) continue;
-            yo->atienden_[aconn] = {aconn, QString::fromStdString(texto(x, "nombre")), QString::fromStdString(texto(x, "ip")),
-                                    QString::fromStdString(texto(x, "lugar"))};
-        }
-        if (!yo->atienden_.empty()) yo->enviarAtencion();
-        emit yo->vivoCambio();
+        if (yo && err.empty()) yo->vivo_->reconocer(r, ahoraMs());
     });
 }
 
@@ -498,10 +681,7 @@ json TotemsViewModel::totemJson(const QString& id) const {
     json j = t->aJson();
     j["url"] = url(id).toStdString();
     j["urlPantalla"] = urlPantalla(id).toStdString();
-    int n = 0;
-    for (const auto& [k, c] : conns_)
-        if (c->totem == id) ++n;
-    j["conectados"] = n;
+    j["conectados"] = vivo_->conectados(id.toStdString());
     return j;
 }
 
@@ -660,100 +840,6 @@ void TotemsViewModel::enviar(const QString& a, const json& msg, bool porTotem) {
     sala::pedir(*c, "POST", "/api/v1/registro/enviar", cuerpo, [](const std::string&, const json&) {});
 }
 
-void TotemsViewModel::mandarPantalla(Conexion& c) {
-    const registro::Totem* t = totems_.porId(c.totem.toStdString());
-    if (t == nullptr) return;
-    // Una conversación de mentira solo para armar los textos y la lista de
-    // campos vacía con la MISMA regla que la de verdad.
-    const registro::Conversacion vacia(*t, eventoNombre_, eventoIdioma_);
-    enviar(c.conn, {{"type", "pantalla"}, {"titulo", vacia.titulo()}, {"subtitulo", vacia.subtitulo()}});
-    if (c.conv == nullptr || !c.conv->enCurso()) {
-        enviar(c.conn, {{"type", "campos"}, {"lista", vacia.camposParaMostrar()}});
-        enviar(c.conn, {{"type", "estado"}, {"estado", "esperando"}});
-    }
-}
-
-TotemsViewModel::Conexion& TotemsViewModel::conexion(const QString& conn, const QString& totem) {
-    auto& p = conns_[conn];
-    if (!p) {
-        p = std::make_unique<Conexion>();
-        p->conn = conn;
-        p->desdeMs = ahoraMs();
-    }
-    if (!totem.isEmpty()) p->totem = totem;
-    if (!tic_.isActive()) tic_.start();
-    return *p;
-}
-
-void TotemsViewModel::soltar(const QString& conn) {
-    auto it = conns_.find(conn);
-    if (it == conns_.end()) return;
-    cerrarAudio(*it->second);
-    conns_.erase(it);
-    if (conns_.empty()) {
-        tic_.stop();
-        soltarModelo();
-    }
-    emit vivoCambio();
-}
-
-void TotemsViewModel::alEvento(const json& ev) {
-    if (alEventoAtencion(ev)) return; // la atención remota: al final del archivo
-    const std::string tipo = texto(ev, "tipo");
-    const QString conn = QString::fromStdString(texto(ev, "conn"));
-    const QString totem = QString::fromStdString(texto(ev, "id"));
-    if (tipo == "intento") {
-        ba::diag::registro().linea(ba::diag::Nivel::Aviso, "registro", 0,
-                                   ba::i18n::llenar(ba::i18n::traducir("registro", "tótem «%1»: intento fallido desde %2"), {texto(ev, "id"), texto(ev, "ip")}));
-        return;
-    }
-    if (conn.isEmpty()) return;
-    if (tipo == "conexion") {
-        if (!ev.value("conectado", false)) {
-            soltar(conn);
-            return;
-        }
-        Conexion& c = conexion(conn, totem);
-        c.ip = QString::fromStdString(texto(ev, "ip"));
-        c.lugar = QString::fromStdString(texto(ev, "lugar"));
-        prepararModelo(); // que el modelo que entiende ya esté cargado cuando alguien hable
-        mandarPantalla(c);
-        emit vivoCambio();
-        emit cambio(); // `conectados` de cada tótem
-        return;
-    }
-    auto it = conns_.find(conn);
-    Conexion& c = it != conns_.end() ? *it->second : conexion(conn, totem);
-    if (tipo == "canal") {
-        const int k = ev.value("canal", 0);
-        if (k == c.canal) return;
-        cerrarAudio(c);
-        // Sin canal no hay voz: lo que se conversaba se pierde (no se guarda a medias).
-        if (k == 0 && c.conv != nullptr && c.conv->enCurso()) {
-            c.agente.reset(); // usa la conversación
-            c.conv.reset();
-        }
-        c.canal = k;
-        if (k > 0) {
-            c.ritmo.canalDesdeMs = ahoraMs();
-            c.ritmo.primeraDelCanal = true;
-            c.esperaVacio = false;
-            abrirAudio(c);
-        }
-    } else if (tipo == "audio") {
-        c.audio = ev.value("listo", false);
-    } else if (tipo == "toque") {
-        alToque(c, ev);
-    } else if (tipo == "codigo") {
-        alCodigoDePagina(c, ev);
-        return;
-    } else if (tipo == "cuadro") {
-        alCuadroDePagina(c);
-        return;
-    }
-    emit vivoCambio();
-}
-
 // --- El audio -----------------------------------------------------------------------------
 
 void TotemsViewModel::cargarVoz() {
@@ -781,385 +867,27 @@ void TotemsViewModel::cargarVoz() {
 #endif
 }
 
-void TotemsViewModel::abrirAudio(Conexion& c) {
-    const int k = c.canal;
-    if (k < 1 || k >= static_cast<int>(voces_.size())) return;
-    cargarVoz();
-    if (!voces_[static_cast<std::size_t>(k)])
-        voces_[static_cast<std::size_t>(k)] = std::make_unique<VozAlLobby>(ba::ipc::nombreVozRegistro(k));
-    voces_[static_cast<std::size_t>(k)]->abrir();
-    abrirOido(c);
+void TotemsViewModel::cortar(const QString& conn) {
+    ConferenceClient* c = clienteDe(vm_);
+    if (c == nullptr) return;
+    sala::pedir(*c, "POST", "/api/v1/registro/cortar", {{"conn", conn.toStdString()}}, [](const std::string&, const json&) {});
 }
 
-void TotemsViewModel::abrirOido(Conexion& c) {
-    // El reconocedor carga en segundo plano al arrancar la app: un tótem que se conecta
-    // antes (la app se reinició y la página volvió sola) se queda sin oído hasta que
-    // esté. tic() vuelve a probar.
-    const int k = c.canal;
-    // El reconocedor del tótem es el que se eligió en la pestaña Agentes (Parakeet o
-    // Nemotron): con que esté bajado alcanza, se carga al abrir el oído.
-    if (c.oido || voz_ == nullptr || !voz_->puedeOir("registro") || k < 1) return;
-    const QString conn = c.conn;
-    const QString clave = "registro:" + conn;
-    QPointer<TotemsViewModel> yo(this);
-    c.oido = voz_->abrirOido(
-        clave,
-        [yo, conn](const QString& t) {
-            if (yo) yo->alOido(conn, t);
-        },
-        [yo, conn]() {
-            if (yo) yo->interrumpido(conn);
-        });
-    if (!c.oido) return;
-    agent::Voz* voz = voz_;
-    const std::string cl = clave.toStdString();
-    const auto callado = c.callado;
-    // Con Nemotron y «interrumpir», el oído sigue oyendo mientras habla el asistente: la
-    // página pide el micrófono con cancelación de eco y su voz baja por el mismo WebRTC.
-    c.oye = voz_->oyeMientrasHabla(clave);
-    const auto oye = c.oye;
-    c.toma = rt_.operatorFeed().escucharRegistro(k, [voz, cl, callado, oye](const float* d, std::size_t n) {
-        thread_local std::vector<float> mono;
-        mono.resize(n);
-        // Mientras habla el asistente, ceros: así el reconocedor cierra la frase
-        // que tuviera abierta y no se transcribe la propia voz que vuelve.
-        const bool cero = callado->load(std::memory_order_relaxed) && !oye->load(std::memory_order_relaxed);
-        for (std::size_t i = 0; i < n; ++i) mono[i] = cero ? 0.0f : d[2 * i]; // un micrófono es mono
-        voz->alimentarOido(cl, mono.data(), n, 48000);
-    });
+QVariantList TotemsViewModel::conexiones() const { return aQv(vivo_->filas()).toList(); }
+
+json TotemsViewModel::estadoJson() const {
+    return {{"conexiones", vivo_->filasParaAfuera()},
+            {"atienden", vivo_->atiendenJson()},
+            {"hablarFalta", hablarFalta().toStdString()},
+            {"agente", agente().toStdString()},
+            {"enLinea", enLinea()},
+            {"conversando", vivo_->conversando()}};
 }
 
-void TotemsViewModel::cerrarAudio(Conexion& c) {
-    if (c.toma != 0) rt_.operatorFeed().dejarDeEscucharLobby(c.toma);
-    c.toma = 0;
-    if (c.oido && voz_ != nullptr) voz_->cerrarOido("registro:" + c.conn);
-    c.oido = false;
-    if (c.canal > 0 && c.canal < static_cast<int>(voces_.size()) && voces_[static_cast<std::size_t>(c.canal)])
-        voces_[static_cast<std::size_t>(c.canal)]->cerrar();
-    c.ritmo.hablando = false;
-    c.callado->store(false);
-}
-
-// --- La cara ------------------------------------------------------------------------------
-
-void TotemsViewModel::mirarCara(Conexion& c) {
-    if (c.identificando || c.canal == 0) return;
-    if (ahoraMs() - c.ultimaFotoMs < kEntreFotosMs) return;
-    // Conversando, solo hace falta si todavía no hay una foto que sirva (para
-    // el alta) o no se sabe quién es; en el paso de la foto, siempre (y más seguido).
-    if (c.ritmo.buscandoFoto) {
-        if (c.ritmo.fotoDesdeMs == 0 || ahoraMs() - c.ultimaFotoMs < kEntreFotosFrenteMs) return;
-    } else if (c.conv != nullptr && c.conv->enCurso() && !c.mejorFoto.isEmpty()) {
-        return;
-    }
-    PersonasViewModel* pv = personasDe(vm_);
-    auto* frames = static_cast<FrameService*>(vm_.frames());
-    if (pv == nullptr || !pv->disponible() || frames == nullptr) return;
-    // La cámara del tótem llega por WebRTC al canal BA.Registro.<k>, como la del
-    // lobby: el mismo cuadro que ve el operador (o un monitor) es el que se reconoce.
-    QImage img;
-    std::uint64_t serie = 0;
-    if (!frames->latest(QString("registro:%1").arg(c.canal), img, serie) || img.isNull() || serie == c.ultimoCuadro)
-        return;
-    c.ultimoCuadro = serie;
-    c.ultimaFotoMs = ahoraMs();
-    // En JPEG: es lo que guarda la libreta como foto de la ficha si hay alta.
-    QByteArray jpeg;
-    QBuffer buf(&jpeg);
-    buf.open(QIODevice::WriteOnly);
-    if (!img.convertToFormat(QImage::Format_RGB888).save(&buf, "JPG", 88) || jpeg.isEmpty()) return;
-    c.identificando = true;
-    const QString conn = c.conn;
-    QPointer<TotemsViewModel> yo(this);
-    pv->identificarFoto(jpeg, [yo, conn, jpeg](const PersonasViewModel::Identificado& q, const QString& error) {
-        if (!yo) return;
-        const auto it = yo->conns_.find(conn);
-        if (it == yo->conns_.end()) return;
-        it->second->identificando = false;
-        if (!error.isEmpty()) return;
-        yo->alCara(conn, jpeg, q.personaId, q.nombre, q.hayCara, q.sirve, q.sugerenciaEvento);
-    });
-}
-
-void TotemsViewModel::alCara(const QString& conn, const QByteArray& jpeg, const QString& personaId, const QString& nombre,
-                             bool hayCara, bool sirve, const QString& sugerencia) {
-    auto it = conns_.find(conn);
-    if (it == conns_.end()) return;
-    Conexion& c = *it->second;
-    // El paso de la foto: la primera toma de frente que sirve es la de su ficha.
-    if (c.ritmo.buscandoFoto && c.ritmo.fotoDesdeMs > 0 && c.conv != nullptr) {
-        if (hayCara && sirve) {
-            c.mejorFoto = jpeg;
-            if (!personaId.isEmpty()) c.conv->conocerCara({personaId.toStdString(), nombre.toStdString(), false});
-            const auto r = c.conv->fotoLista();
-            aplicar(c, r.decir, r.campos, r.pedir, r.guardar, r.terminar, r.foto);
-        } else {
-            c.fotoSugerencia = hayCara ? sugerencia : QString::fromStdString(idiomaDelEvento().traducir("totem", "No te veo la cara."));
-        }
-        return;
-    }
-    if (c.conv != nullptr && c.conv->enCurso()) {
-        if (hayCara && sirve && c.mejorFoto.isEmpty()) c.mejorFoto = jpeg;
-        if (!personaId.isEmpty())
-            c.conv->conocerCara({personaId.toStdString(), nombre.toStdString(), false});
-        return;
-    }
-    const QString clave = !hayCara ? QString() : personaId.isEmpty() ? QString("?") : personaId;
-    if (c.esperaVacio) {
-        // Recién terminó: la próxima arranca cuando esa cara se va o aparece otra persona conocida.
-        const bool otra = !clave.isEmpty() && clave != "?" && clave != c.ultimaPersona;
-        if (clave.isEmpty() || otra) {
-            c.esperaVacio = false;
-            c.mejorFoto.clear();
-            c.vecesCara = 0;
-        }
-        if (clave.isEmpty() || !otra) return;
-    }
-    if (clave.isEmpty()) {
-        c.vecesCara = 0;
-        c.ultimaCara.clear();
-        return;
-    }
-    if (clave == c.ultimaCara) {
-        ++c.vecesCara;
-    } else {
-        c.ultimaCara = clave;
-        c.ultimoNombre = nombre;
-        c.vecesCara = 1;
-        c.mejorFoto.clear();
-    }
-    if (sirve) c.mejorFoto = jpeg;
-    // Dos fotos seguidas de la misma cara: hay alguien parado ahí, no pasando.
-    if (c.vecesCara >= 2) empezar(c, personaId, nombre);
-}
-
-// --- La conversación --------------------------------------------------------------------------
-
-void TotemsViewModel::empezar(Conexion& c, const QString& personaId, const QString& nombre) {
-    const registro::Totem* t = totems_.porId(c.totem.toStdString());
-    if (t == nullptr || !t->activo) return;
-    if (c.conv != nullptr && c.conv->enCurso()) return;
+void TotemsViewModel::guardarRegistro(const std::string& conn, const QString& totem, const QString& nombre,
+                                      const QString& personaId, const json& datos, const QByteArray& foto) {
     EventoViewModel* ev = eventoDe(vm_);
-    registro::Conversacion::Cara cara;
-    cara.personaId = personaId.toStdString();
-    cara.nombre = nombre.toStdString();
-    cara.yaRegistrado = !personaId.isEmpty() && ev != nullptr && ev->padronVm().registradoPorTotem(personaId);
-    c.agente.reset(); // el de la conversación anterior
-    c.conv = std::make_unique<registro::Conversacion>(*t, eventoNombre_, eventoIdioma_);
-    // El dorso se ofrece solo si hay con qué leerlo (el modelo propio del operador).
-    c.conv->ofrecerDorso(lector_ && lector_->dorsoDisponible());
-    crearAgente(c); // el modelo que entiende, si hay (si no, el guion solo)
-    c.ritmo.primeraDelCanal = false;
-    c.esperaVacio = false;
-    c.pedidoEnviado.clear();
-    c.oidoTexto.clear();
-    c.ritmo.ultimaVozMs = ahoraMs();
-    const auto r = c.conv->empezar(cara);
-    ba::diag::registro().linea(ba::diag::Nivel::Info, "registro", 0,
-                               cara.personaId.empty()
-                                   ? ba::i18n::llenar(ba::i18n::traducir("registro", "tótem «%1» (%2): empieza"), {t->id, c.conn.toStdString()})
-                                   : ba::i18n::llenar(ba::i18n::traducir("registro", "tótem «%1» (%2): empieza con %3"), {t->id, c.conn.toStdString(), cara.personaId}));
-    aplicar(c, r.decir, r.campos, r.pedir, r.guardar, r.terminar, r.foto);
-}
-
-void TotemsViewModel::alOido(const QString& conn, const QString& t) {
-    auto it = conns_.find(conn);
-    if (it == conns_.end()) return;
-    Conexion& c = *it->second;
-    if (t.trimmed().isEmpty()) return;
-    // Si el oído sigue mientras habla el asistente (la página cancela el eco), una frase que
-    // termina con la voz sonando es la persona que siguió hablando: la frase anterior se
-    // cerró en una pausa, pero la voz nunca paró y el VAD no avisó que «empieza» otra.
-    // Interrumpe como si hubiera empezado ahora.
-    if (c.ritmo.hablando && c.oye && c.oye->load(std::memory_order_relaxed)) interrumpido(conn);
-    // Sin eso, lo que el oído cerró justo cuando el asistente empezaba a hablar (o el eco
-    // de su propia voz) no cuenta.
-    if (c.ritmo.hablando) return;
-    c.oidoTexto = t.trimmed();
-    c.ritmo.ultimaVozMs = ahoraMs();
-    ba::diag::registro().linea(ba::diag::Nivel::Depuracion, "registro", 0,
-                               ba::i18n::llenar(ba::i18n::traducir("registro", "tótem (%1): oyó «%2»"), {conn.toStdString(), c.oidoTexto.toStdString()}));
-    enviar(conn, {{"type", "oido"}, {"texto", c.oidoTexto.toStdString()}});
-    // Atendida: lo oído se muestra (a quien atiende también), pero le contesta una persona.
-    if (c.conv != nullptr && c.conv->atendida()) {
-        emit vivoCambio();
-        return;
-    }
-    if (c.conv != nullptr && c.conv->enCurso()) {
-        // Se junta con lo anterior del turno; sale cuando la persona termina (tic). Un «sí» o un
-        // «no» corto a una confirmación, al instante: ahí no viene nada más.
-        c.turno = c.turno.isEmpty() ? c.oidoTexto : c.turno + " " + c.oidoTexto;
-        c.ritmo.turnoMs = c.ritmo.ultimaVozMs;
-        if (c.turno != c.oidoTexto) enviar(conn, {{"type", "oido"}, {"texto", c.turno.toStdString()}});
-        const std::string dicho = c.turno.toStdString();
-        if (c.conv->pedido().value("confirmando", false) && registro::entenderSiNo(dicho, c.conv->idioma()) != -1 &&
-            c.turno.split(' ', Qt::SkipEmptyParts).size() <= 3)
-            cerrarTurno(c);
-    }
-    emit vivoCambio();
-}
-
-void TotemsViewModel::cerrarTurno(Conexion& c) {
-    const std::string dicho = c.turno.toStdString();
-    c.turno.clear();
-    c.ritmo.turnoMs = 0;
-    if (dicho.empty() || c.conv == nullptr || !c.conv->enCurso() || c.conv->atendida()) return;
-    ba::diag::registro().linea(ba::diag::Nivel::Depuracion, "registro", 0,
-                               ba::i18n::llenar(ba::i18n::traducir("registro", "tótem (%1): turno «%2»"), {c.conn.toStdString(), dicho}));
-    if (!c.ritmo.buscandoFoto) enviar(c.conn, {{"type", "estado"}, {"estado", "pensando"}});
-    if (alOidoAgente(c, dicho)) { // lo entiende el modelo (y el guion retoma)
-        emit vivoCambio();
-        return;
-    }
-    const auto r = c.conv->oido(dicho);
-    aplicar(c, r.decir, r.campos, r.pedir, r.guardar, r.terminar, r.foto);
-    emit vivoCambio();
-}
-
-void TotemsViewModel::alToque(Conexion& c, const json& ev) {
-    const std::string accion = texto(ev, "accion");
-    if (accion == "empezar") {
-        c.esperaVacio = false;
-        const bool conocida = !c.ultimaCara.isEmpty() && c.ultimaCara != "?";
-        empezar(c, conocida ? c.ultimaCara : QString(), conocida ? c.ultimoNombre : QString());
-    } else if (c.conv != nullptr && accion == "cancelar") {
-        if (c.agente) c.agente->cancelar();
-        const auto r = c.conv->cancelar();
-        aplicar(c, r.decir, r.campos, r.pedir, r.guardar, r.terminar, r.foto);
-    } else if (c.conv != nullptr && accion == "escrito") {
-        c.ritmo.ultimaVozMs = ahoraMs();
-        if (c.agente) c.agente->cancelar(); // lo tocado manda sobre lo que el modelo estuviera pensando
-        const auto r = c.conv->escrito(texto(ev, "clave"), texto(ev, "valor"));
-        aplicar(c, r.decir, r.campos, r.pedir, r.guardar, r.terminar, r.foto);
-    }
-}
-
-void TotemsViewModel::aplicar(Conexion& c, const std::string& decirTxt, bool campos, const std::string& pedir,
-                              bool guardar, bool terminar, bool foto) {
-    if (c.conv == nullptr) return;
-    // El documento se busca mientras la conversación esté en ese paso (lo dice ella,
-    // no una bandera aparte). Cada vez que lo pide de nuevo, el tiempo cuenta de
-    // nuevo desde que termina de decirlo (tic); la charla oída mientras tanto, no.
-    if (c.conv->estado() == registro::Conversacion::Estado::Documento) {
-        if (!c.ritmo.buscandoDocumento || !decirTxt.empty()) {
-            c.ritmo.buscandoDocumento = true;
-            c.ritmo.docDesdeMs = 0;
-            c.docSugerencia.clear();
-            c.dorsoLecturas->reiniciar(); // lo pidió de nuevo (o «no»): las fotos de antes no cuentan
-            // Si después hace falta el dorso, que el modelo local con visión ya esté cargado.
-            if (c.conv->dorsoDisponible() && lector_) lector_->prepararDorso();
-        }
-    } else {
-        c.ritmo.buscandoDocumento = false;
-        c.dorsoLecturas->reiniciar();
-    }
-    // La foto de frente: se busca recién cuando terminó de pedirla (tic), no mientras habla.
-    // Una respuesta vacía (algo que se oyó mientras mira a la cámara) no la interrumpe.
-    if (foto) {
-        c.ritmo.buscandoFoto = true;
-        c.ritmo.fotoDesdeMs = 0;
-        c.fotoSugerencia.clear();
-    } else if (terminar || !decirTxt.empty()) {
-        c.ritmo.buscandoFoto = false;
-    }
-    if (campos) enviar(c.conn, {{"type", "campos"}, {"lista", c.conv->camposParaMostrar()}});
-    // Lo que se pide cambia también al pasar a confirmar (aparecen los botones Sí / No).
-    const std::string clavePedido =
-        pedir.empty() ? std::string()
-                      : pedir + (c.conv->estado() == registro::Conversacion::Estado::Confirmando ? "?" : "");
-    if (!clavePedido.empty() && clavePedido != c.pedidoEnviado) {
-        json p = c.conv->pedido();
-        if (p.is_object()) {
-            p["type"] = "pedir";
-            enviar(c.conn, p);
-        }
-        c.pedidoEnviado = clavePedido;
-    }
-    if (!decirTxt.empty()) decir(c, decirTxt);
-    if (guardar) guardarRegistro(c);
-    if (terminar && c.enAtencion) liberarAtencion(c); // cancelada desde el tótem, por ejemplo
-    if (terminar && c.agente) c.agente->cancelar();
-    if (terminar) {
-        if (c.ritmo.hablando) {
-            c.listoPendiente = decirTxt;
-            c.ritmo.hayListo = true;
-        } else {
-            enviar(c.conn, {{"type", "listo"}, {"texto", decirTxt}});
-        }
-        c.estado = "listo";
-        c.esperaVacio = true;
-        c.ultimaPersona = QString::fromStdString(c.conv->cara().personaId);
-        if (c.ultimaPersona.isEmpty()) c.ultimaPersona = c.ultimaCara;
-        c.ritmo.terminoMs = ahoraMs();
-        c.pedidoEnviado.clear();
-    } else if (decirTxt.empty() && !c.ritmo.buscandoFoto && !c.ritmo.buscandoDocumento && !c.conv->atendida()) {
-        c.estado = "escuchando";
-        enviar(c.conn, {{"type", "estado"}, {"estado", "escuchando"}});
-    }
-    emit vivoCambio();
-}
-
-void TotemsViewModel::decir(Conexion& c, const std::string& t) {
-    // Lo que dijo el modelo en este turno (ya en voz) queda en la pantalla adelante.
-    const std::string pantalla = c.diceAntes.empty() ? t : c.diceAntes + " " + t;
-    c.diceAntes.clear();
-    c.diceTexto = QString::fromStdString(pantalla);
-    enviar(c.conn, {{"type", "dice"}, {"texto", pantalla}});
-    hablar(c, t);
-}
-
-void TotemsViewModel::hablar(Conexion& c, const std::string& t) {
-#if defined(BA_HAVE_VOZ)
-    cargarVoz(); // si cambió el idioma del evento, la voz de ese idioma (la frase que sigue)
-    const int k = c.canal;
-    AtencionViewModel* a = vm_.atencionVm();
-    if (vozLista_ && habla_ && a != nullptr && k > 0 && k < static_cast<int>(voces_.size()) &&
-        voces_[static_cast<std::size_t>(k)]) {
-        VozAlLobby* destino = voces_[static_cast<std::size_t>(k)].get();
-        c.mudo->store(false);
-        c.ritmo.hablando = true;
-        c.sintetizando = true;
-        ++c.piezas; // varias frases en cola (el modelo, frase por frase): la voz termina con la última
-        c.ritmo.finHablaMs = 0;
-        c.callado->store(true);
-        if (c.estado != "listo") {
-            c.estado = "hablando";
-            enviar(c.conn, {{"type", "estado"}, {"estado", "hablando"}});
-        }
-        const QString conn = c.conn;
-        QPointer<TotemsViewModel> yo(this);
-        habla_->decir(
-            // El hablante elegido es de la voz del atendedor: con la del idioma del evento, el primero.
-            t, vozCargada_ == a->vozElegida() ? a->hablante() : 0, static_cast<float>(a->velocidad()),
-            [destino, mudo = c.mudo](const float* m, std::size_t n, std::uint32_t f) {
-                if (!mudo->load()) destino->encolar(m, n, f); // atendida en el medio: no sale
-            },
-            [yo, conn]() {
-                QMetaObject::invokeMethod(yo.data(), [yo, conn]() {
-                    if (!yo) return;
-                    if (auto it = yo->conns_.find(conn); it != yo->conns_.end() && --it->second->piezas <= 0) {
-                        it->second->piezas = 0;
-                        it->second->sintetizando = false;
-                    }
-                });
-            });
-        return;
-    }
-#endif
-    // Sin voz: la página lo muestra escrito y se sigue escuchando.
-    if (c.estado != "listo") {
-        c.estado = "escuchando";
-        enviar(c.conn, {{"type", "estado"}, {"estado", "escuchando"}});
-    }
-}
-
-void TotemsViewModel::guardarRegistro(Conexion& c) {
-    EventoViewModel* ev = eventoDe(vm_);
-    if (ev == nullptr || c.conv == nullptr) return;
-    const json datos = c.conv->datos();
-    const QString nombre = QString::fromStdString(c.conv->nombre());
-    const QString totem = c.totem;
-    const QString personaId = QString::fromStdString(c.conv->cara().personaId);
+    if (ev == nullptr) return;
     PersonasViewModel* pv = personasDe(vm_);
     const auto anotar = [this, ev, nombre, totem, datos](const QString& persona) {
         const QString id = ev->padronVm().registrarDesdeTotem(persona, nombre, totem, datos);
@@ -1173,14 +901,11 @@ void TotemsViewModel::guardarRegistro(Conexion& c) {
     };
     // Una cara que no se conocía: se la da de alta con su foto (y el nombre, si
     // lo dijo), así la próxima vez la reconoce la puerta, el lobby o el tótem.
-    if (personaId.isEmpty() && !c.mejorFoto.isEmpty() && pv != nullptr && pv->disponible()) {
+    if (personaId.isEmpty() && !foto.isEmpty() && pv != nullptr && pv->disponible()) {
         QPointer<TotemsViewModel> yo(this);
-        const QString conn = c.conn;
-        pv->altaConFoto(c.mejorFoto, nombre, {}, [yo, anotar, conn](const QString& id, const QString&) {
+        pv->altaConFoto(foto, nombre, {}, [yo, anotar, conn](const QString& id, const QString&) {
             if (!yo) return;
-            // Desde ahora esa cara es conocida: la que acaba de terminar, no «otra persona»
-            // frente al tótem (si no, el kiosco la saludaría de nuevo enseguida).
-            if (auto it = yo->conns_.find(conn); it != yo->conns_.end() && !id.isEmpty()) it->second->ultimaPersona = id;
+            yo->vivo_->conocida(conn, id.toStdString());
             anotar(id);
         });
         return;
@@ -1188,276 +913,6 @@ void TotemsViewModel::guardarRegistro(Conexion& c) {
     anotar(personaId);
 }
 
-void TotemsViewModel::tic() {
-    const qint64 ahora = ahoraMs();
-    // Nadie mostrando un documento: el modelo local con visión ya no hace falta cargado
-    // (si el chat lo usa, sigue; si no, se apaga y libera la GPU).
-    if (lector_ && std::none_of(conns_.begin(), conns_.end(), [](const auto& kv) { return kv.second->ritmo.buscandoDocumento; }))
-        lector_->soltarDorso();
-    for (auto& [k, cp] : conns_) {
-        Conexion& c = *cp;
-        if (c.canal > 0 && !c.oido) abrirOido(c);
-        mirarCara(c);
-        mirarDocumento(c);
-        // Lo que el ritmo no sabe (y solo si lo va a mirar: el VAD con turno, la voz hablando).
-        registro::RitmoTotem::Mirada m;
-        m.atendida = c.conv != nullptr && c.conv->atendida();
-        m.conversacion = c.conv != nullptr;
-        m.enCurso = c.conv != nullptr && c.conv->enCurso();
-        m.hayTurno = !c.turno.isEmpty();
-        m.oyendoVoz = m.hayTurno && !c.ritmo.hablando && voz_ != nullptr && voz_->oyendoVoz("registro:" + c.conn);
-        if (c.ritmo.hablando) {
-            const VozAlLobby* v = c.canal > 0 && c.canal < static_cast<int>(voces_.size())
-                                      ? voces_[static_cast<std::size_t>(c.canal)].get()
-                                      : nullptr;
-            m.vozSalio = !c.sintetizando && (v == nullptr || v->pendiente() < 0.02) &&
-                         !(c.agente && c.agente->ocupado()); // el modelo sigue escribiendo: viene otra frase
-        }
-        m.buscandoDorso = c.conv != nullptr && c.conv->buscandoDorso();
-        m.pantallaListo = c.estado == "listo";
-        m.hayCanal = c.canal > 0;
-        m.identificando = c.identificando;
-        const registro::RitmoTotem::Decision d = c.ritmo.revisar(m, ahora);
-        if (d.volverAEsperar) {
-            c.estado = "esperando";
-            emit vivoCambio();
-        }
-        using Paso = registro::RitmoTotem::Paso;
-        switch (d.paso) {
-            case Paso::Nada: break;
-            case Paso::CerrarTurno: cerrarTurno(c); break;
-            case Paso::TerminoDeHablar:
-                c.callado->store(false); // vuelve a escuchar
-                if (d.mandarListo) enviar(c.conn, {{"type", "listo"}, {"texto", c.listoPendiente}});
-                if (!d.estado.empty()) {
-                    c.estado = QString::fromStdString(d.estado);
-                    enviar(c.conn, {{"type", "estado"}, {"estado", d.estado}});
-                    emit vivoCambio();
-                }
-                break;
-            case Paso::FotoFallo: {
-                const auto r = c.conv->fotoFallo(c.fotoSugerencia.toStdString());
-                aplicar(c, r.decir, r.campos, r.pedir, r.guardar, r.terminar, r.foto);
-                break;
-            }
-            case Paso::DocumentoFallo: {
-                const auto r = c.conv->documentoFallo(c.docSugerencia.toStdString());
-                aplicar(c, r.decir, r.campos, r.pedir, r.guardar, r.terminar, r.foto);
-                break;
-            }
-            case Paso::Silencio: {
-                const auto r = c.conv->silencio();
-                aplicar(c, r.decir, r.campos, r.pedir, r.guardar, r.terminar, r.foto);
-                break;
-            }
-            case Paso::Arrancar: {
-                const bool conocida = !c.ultimaCara.isEmpty() && c.ultimaCara != "?";
-                empezar(c, conocida ? c.ultimaCara : QString(), conocida ? c.ultimoNombre : QString());
-                break;
-            }
-        }
-    }
-}
-
-void TotemsViewModel::mirarDocumento(Conexion& c) {
-    if (!c.ritmo.buscandoDocumento || c.ritmo.docDesdeMs == 0 || c.leyendoDocumento || c.canal == 0 || !lector_ ||
-        c.conv == nullptr)
-        return;
-    if (ahoraMs() - c.ultimoDocMs < kEntreDocumentosMs) return;
-    auto* frames = static_cast<FrameService*>(vm_.frames());
-    if (frames == nullptr) return;
-    // El mismo cuadro de la cámara del tótem que se reconoce (y que ve el operador).
-    QImage img;
-    std::uint64_t serie = 0;
-    if (!frames->latest(QString("registro:%1").arg(c.canal), img, serie) || img.isNull() || serie == c.ultimoCuadroDoc)
-        return;
-    c.ultimoCuadroDoc = serie;
-    c.ultimoDocMs = ahoraMs();
-    c.leyendoDocumento = true;
-    const QString conn = c.conn;
-    QPointer<TotemsViewModel> yo(this);
-    // No descartable: ya hay a lo sumo uno por conexión (leyendoDocumento), y uno
-    // descartado no volvería y dejaría la conexión esperando para siempre.
-    lector_->leer(img, c.conv->documentosAceptados(), false, [yo, conn](LectorDocumentos::Resultado r) {
-        if (yo) yo->alLeerDocumento(conn, std::move(r));
-    });
-}
-
-void TotemsViewModel::alCodigoDePagina(Conexion& c, const json& ev) {
-    // La página leyó el código ella (BarcodeDetector del navegador, sobre la imagen ORIGINAL
-    // de la cámara: el PDF417 de un DNI es demasiado denso para el video comprimido) y manda
-    // solo el texto. Se traduce con los mismos tipos de documento (los de fábrica y los de
-    // los plugins).
-    if (!c.ritmo.buscandoDocumento || c.leyendoDocumento || !lector_ || c.conv == nullptr) return;
-    documentos::Codigo cod;
-    cod.formato = texto(ev, "formato");
-    cod.texto = texto(ev, "texto");
-    if (cod.texto.empty()) return;
-    c.leyendoDocumento = true;
-    const QString conn = c.conn;
-    QPointer<TotemsViewModel> yo(this);
-    lector_->traducir({cod}, c.conv->documentosAceptados(), [yo, conn](LectorDocumentos::Resultado r) {
-        if (yo) yo->alLeerDocumento(conn, std::move(r));
-    });
-}
-
-void TotemsViewModel::alCuadroDePagina(Conexion& c) {
-    // El respaldo de los navegadores sin BarcodeDetector (Safari): una foto entera de la
-    // cámara, sin la compresión del video, que se lee acá con zxing.
-    if (!c.ritmo.buscandoDocumento || c.leyendoDocumento || !lector_ || c.conv == nullptr) return;
-    ConferenceClient* cli = clienteDe(vm_);
-    if (cli == nullptr) return;
-    c.leyendoDocumento = true;
-    const QString conn = c.conn;
-    QPointer<TotemsViewModel> yo(this);
-    cli->getRaw("/api/v1/registro/cuadro?conn=" + QString::fromUtf8(QUrl::toPercentEncoding(conn)),
-                [yo, conn](bool ok, const QByteArray& jpeg) {
-                    if (!yo) return;
-                    const auto it = yo->conns_.find(conn);
-                    if (it == yo->conns_.end()) return;
-                    Conexion& k = *it->second;
-                    const QImage img = ok ? QImage::fromData(jpeg, "JPG") : QImage();
-                    if (img.isNull() || k.conv == nullptr) {
-                        k.leyendoDocumento = false;
-                        return;
-                    }
-                    QPointer<TotemsViewModel> yo2(yo);
-                    // Pidió la parte de atrás: la misma foto, al modelo propio (el OCR de
-                    // la zona de lectura mecánica). Una por vez por conexión: mientras una
-                    // está en el modelo, las demás fotos solo buscan el código del frente.
-                    if (k.conv->buscandoDorso() && !k.ritmo.leyendoDorso) {
-                        k.ritmo.leyendoDorso = true;
-                        yo->lector_->leerDorso(img, k.conv->documentosAceptados(), k.dorsoLecturas,
-                                               [yo2, conn](LectorDocumentos::Resultado r) {
-                                                   if (yo2) yo2->alLeerDorso(conn, std::move(r));
-                                               });
-                    }
-                    yo->lector_->leer(img.convertToFormat(QImage::Format_RGB32), k.conv->documentosAceptados(), false,
-                                      [yo2, conn](LectorDocumentos::Resultado r) {
-                                          if (yo2) yo2->alLeerDocumento(conn, std::move(r));
-                                      });
-                });
-}
-
-void TotemsViewModel::alLeerDocumento(const QString& conn, LectorDocumentos::Resultado r) {
-    const auto it = conns_.find(conn);
-    if (it == conns_.end()) return;
-    Conexion& k = *it->second;
-    k.leyendoDocumento = false;
-    if (!k.ritmo.buscandoDocumento || k.conv == nullptr) return;
-    if (r.leido) {
-        // En el registro, a lo sumo el tipo y los últimos tres dígitos.
-        const registro::Totem* t = totems_.porId(k.totem.toStdString());
-        ba::diag::registro().linea(ba::diag::Nivel::Info, "registro", 0,
-                                   ba::i18n::llenar(ba::i18n::traducir("registro", "tótem «%1» (%2): documento leído (%3)"), {t != nullptr ? t->id : k.totem.toStdString(), conn.toStdString(),
-                                                     documentos::paraLog(documentos::Datos::deJson(r.datos))}));
-        const auto x = k.conv->documentoLeido(r.datos);
-        aplicar(k, x.decir, x.campos, x.pedir, x.guardar, x.terminar, x.foto);
-        return;
-    }
-    // Qué corregir, si pasa el tiempo: se vio un código pero no es de un documento aceptado.
-    if (!r.codigos.empty())
-        k.docSugerencia = QString::fromStdString(idiomaDelEvento().traducir(
-            "totem", "Ese código no es de un documento que pueda leer. Mostrame el lado del código de barras."));
-}
-
-void TotemsViewModel::alLeerDorso(const QString& conn, LectorDocumentos::Resultado r) {
-    const auto it = conns_.find(conn);
-    if (it == conns_.end()) return;
-    Conexion& k = *it->second;
-    k.ritmo.leyendoDorso = false;
-    if (!k.ritmo.buscandoDocumento || k.conv == nullptr) return;
-    const registro::Totem* t = totems_.porId(k.totem.toStdString());
-    const std::string quien = ba::i18n::llenar(ba::i18n::traducir("registro", "tótem «%1» (%2)"), {t != nullptr ? t->id : k.totem.toStdString(), conn.toStdString()});
-    if (r.leido) {
-        // Como el frente: a lo sumo el tipo y los últimos tres dígitos.
-        ba::diag::registro().linea(ba::diag::Nivel::Info, "registro", 0,
-                                   ba::i18n::llenar(ba::i18n::traducir("registro", "%1: documento leído por el dorso, con el %2 (%3)"), {quien, r.con, documentos::paraLog(documentos::Datos::deJson(r.datos))}));
-        // De dónde salió el dato, en el padrón: el dorso (si no, documentoLeido pone «codigo»).
-        json datos = r.datos;
-        if (datos.is_object()) datos["origen"] = "dorso";
-        const auto x = k.conv->documentoLeido(datos);
-        aplicar(k, x.decir, x.campos, x.pedir, x.guardar, x.terminar, x.foto);
-        return;
-    }
-    // Por qué no (sin datos): el modelo no contestó, no se ven los renglones o no cierran.
-    if (!r.error.isEmpty())
-        ba::diag::registro().linea(ba::diag::Nivel::Aviso, "registro", 0,
-                                   ba::i18n::llenar(ba::i18n::traducir("registro", "%1: dorso: %2"), {quien, r.error.toStdString()}));
-    if (r.dudosa) return; // cerró casi todo: la próxima foto que coincida la confirma
-    if (r.noSeVe) k.docSugerencia = QString::fromStdString(idiomaDelEvento().traducir("totem", "No veo los renglones de abajo."));
-    else if (!r.detalle.empty())
-        k.docSugerencia = QString::fromStdString(idiomaDelEvento().traducir("totem", "No se leen bien los renglones de abajo."));
-}
-
-void TotemsViewModel::cortar(const QString& conn) {
-    ConferenceClient* c = clienteDe(vm_);
-    if (c == nullptr) return;
-    sala::pedir(*c, "POST", "/api/v1/registro/cortar", {{"conn", conn.toStdString()}}, [](const std::string&, const json&) {});
-}
-
-QVariantMap TotemsViewModel::filaDe(const Conexion& c) const {
-    const registro::Totem* t = totems_.porId(c.totem.toStdString());
-    return QVariantMap{{"conn", c.conn},
-                       {"id", c.totem},
-                       {"totem", t != nullptr ? QString::fromStdString(t->nombre) : c.totem},
-                       {"canal", c.canal},
-                       {"audio", c.audio},
-                       {"ip", c.ip},
-                       {"lugar", c.lugar},
-                       {"desdeMs", c.desdeMs},
-                       {"estado", c.estado},
-                       {"paso", c.conv != nullptr ? QString::fromStdString(c.conv->pasoParaOperador()) : tr("esperando")},
-                       {"quien", c.conv != nullptr ? QString::fromStdString(c.conv->nombre()) : QString()},
-                       {"oido", c.oidoTexto},
-                       {"dice", c.diceTexto},
-                       {"atendida", c.conv != nullptr && c.conv->atendida()},
-                       {"atiende", c.conv != nullptr && c.conv->atendida()
-                                       ? (c.conv->atendidaPor().empty() ? tr("alguien del equipo")
-                                                                        : QString::fromStdString(c.conv->atendidaPor()))
-                                       : QString()},
-                       {"campos", c.conv != nullptr ? aQv(c.conv->camposParaMostrar()) : QVariant(QVariantList{})},
-                       // Con qué entiende esta conversación: el modelo del rol «registro» o el guion solo.
-                       {"modo", c.agente && !c.agente->caido() ? QString("agente") : QString("guion")},
-                       {"modelo", c.agente ? QString::fromStdString(c.agente->fuente().nombre) : QString()},
-                       {"modoPorQue", c.agente && c.agente->caido() ? QString::fromStdString(c.agente->motivoCaida())
-                                                                    : QString()}};
-}
-
-QVariantList TotemsViewModel::conexiones() const {
-    QVariantList out;
-    for (const auto& [k, c] : conns_) out << filaDe(*c);
-    return out;
-}
-
-json TotemsViewModel::estadoJson() const {
-    json cs = json::array();
-    for (const auto& [k, c] : conns_) {
-        json f = aJson(QVariant(filaDe(*c)));
-        // Por MCP, sin los datos del documento (ver datosParaAfuera): lo dicho y oído
-        // con los números largos tapados, y el campo `documento` en su resumen.
-        f["dice"] = documentos::taparNumeros(f.value("dice", std::string()));
-        f["oido"] = documentos::taparNumeros(f.value("oido", std::string()));
-        if (c->conv != nullptr) {
-            const json d = c->conv->datos();
-            for (json& campo : f["campos"]) {
-                const std::string clave = campo.value("clave", std::string());
-                if (!d.contains(clave) || !d[clave].is_object()) continue;
-                const json r = documentos::resumenParaAfuera(d[clave]);
-                const std::string nombre = r.value("nombre", std::string()), numero = r.value("numero", std::string());
-                campo["valor"] = nombre.empty() ? numero : numero.empty() ? nombre : nombre + " · " + numero;
-            }
-        }
-        cs.push_back(std::move(f));
-    }
-    return {{"conexiones", cs},
-            {"atienden", atencionJson()["atienden"]},
-            {"hablarFalta", hablarFalta().toStdString()},
-            {"agente", agente().toStdString()},
-            {"enLinea", enLinea()},
-            {"conversando", std::count_if(conns_.begin(), conns_.end(),
-                                          [](const auto& p) { return p.second->conv && p.second->conv->enCurso(); })}};
-}
 
 QVariantList TotemsViewModel::registrados() const {
     QVariantList out;
@@ -1524,18 +979,14 @@ constexpr int kJuntarMs = 150;
 void TotemsViewModel::conectarAtencion() {
     atencionTimer_.setSingleShot(true);
     atencionTimer_.setInterval(kJuntarMs);
-    connect(&atencionTimer_, &QTimer::timeout, this, [this]() { enviarAtencion(); });
+    connect(&atencionTimer_, &QTimer::timeout, this, [this]() {
+        if (vivo_->hayAtienden()) puertos_->alGateway("enviar", vivo_->paraAtencion());
+    });
     // Cualquier cambio de lo vivo (lo oído, lo dicho, los campos, quién atiende) va a las
     // páginas de atención, juntado: en una charla cambia varias veces por segundo.
     connect(this, &TotemsViewModel::vivoCambio, this, [this]() {
-        if (!atienden_.empty() && !atencionTimer_.isActive()) atencionTimer_.start();
+        if (vivo_->hayAtienden() && !atencionTimer_.isActive()) atencionTimer_.start();
     });
-    if (ConferenceClient* c = clienteDe(vm_))
-        connect(c, &ConferenceClient::onlineChanged, this, [this](bool on) {
-            if (on) return;
-            atienden_.clear(); // el gateway se fue: las páginas vuelven a entrar solas
-            emit vivoCambio();
-        });
 }
 
 QString TotemsViewModel::urlAtencion() const {
@@ -1569,199 +1020,21 @@ void TotemsViewModel::publicarAtencion() {
     });
 }
 
-QVariantList TotemsViewModel::atienden() const { return aQv(atencionJson()["atienden"]).toList(); }
+QVariantList TotemsViewModel::atienden() const { return aQv(vivo_->atiendenJson()).toList(); }
 
-json TotemsViewModel::atencionJson() const {
-    json lista = json::array();
-    for (const auto& [aconn, a] : atienden_) {
-        QString atiende;
-        for (const auto& [k, c] : conns_)
-            if (c->enAtencion && c->atiendeConn == aconn && c->conv != nullptr && c->conv->atendida()) atiende = k;
-        lista.push_back({{"aconn", aconn.toStdString()}, {"nombre", a.nombre.toStdString()}, {"lugar", a.lugar.toStdString()},
-                         {"ip", a.ip.toStdString()}, {"atiende", atiende.toStdString()}});
-    }
-    return {{"url", urlAtencion().toStdString()}, {"atienden", lista}};
-}
-
-json TotemsViewModel::conversacionesJson() const {
-    json lista = json::array();
-    for (const auto& [k, cp] : conns_) {
-        const Conexion& c = *cp;
-        json f = aJson(QVariant(filaDe(c)));
-        f["atiendeConn"] = c.conv != nullptr && c.conv->atendida() ? c.atiendeConn.toStdString() : std::string();
-        f["enCurso"] = c.conv != nullptr && c.conv->enCurso();
-        f["pedido"] = c.conv != nullptr ? c.conv->pedido() : json();
-        // Los campos con lo que hace falta para editarlos (el tipo, las opciones), en el orden
-        // de la conversación (o del tótem, si todavía no empezó).
-        const registro::Totem* t = totems_.porId(c.totem.toStdString());
-        if (c.conv == nullptr && t == nullptr) {
-            f["editables"] = json::array();
-        } else {
-            const registro::Totem& tt = c.conv != nullptr ? c.conv->totem() : *t;
-            json cs = c.conv != nullptr ? c.conv->camposParaMostrar()
-                                        : registro::Conversacion(tt, eventoNombre_, eventoIdioma_).camposParaMostrar();
-            for (std::size_t i = 0; i < cs.size() && i < tt.campos.size(); ++i) {
-                cs[i]["tipo"] = registro::nombreDeTipo(tt.campos[i].tipo);
-                cs[i]["obligatorio"] = tt.campos[i].obligatorio;
-                cs[i]["opciones"] = tt.campos[i].opciones;
-            }
-            f["editables"] = cs;
-        }
-        lista.push_back(f);
-    }
-    return lista;
-}
-
-void TotemsViewModel::enviarAtencion(const QString& aconn) {
-    ConferenceClient* c = clienteDe(vm_);
-    if (c == nullptr || !c->online() || atienden_.empty()) return;
-    json cuerpo{{"msg", {{"type", "conversaciones"}, {"evento", eventoNombre_}, {"lista", conversacionesJson()}}}};
-    if (aconn.isEmpty()) cuerpo["atiende"] = "*";
-    else cuerpo["aconn"] = aconn.toStdString();
-    sala::pedir(*c, "POST", "/api/v1/registro/enviar", cuerpo, [](const std::string&, const json&) {});
-}
-
-void TotemsViewModel::callarAsistente(Conexion& c) {
-    c.mudo->store(true);
-    if (c.canal > 0 && c.canal < static_cast<int>(voces_.size()) && voces_[static_cast<std::size_t>(c.canal)])
-        voces_[static_cast<std::size_t>(c.canal)]->callar();
-    c.ritmo.hablando = false;
-    c.sintetizando = false;
-    c.ritmo.finHablaMs = 0;
-    c.callado->store(false); // el oído sigue: quien atiende lee lo que se le entiende
-    c.ritmo.hayListo = false;
-    c.ritmo.buscandoFoto = false;
-}
-
-void TotemsViewModel::interrumpido(const QString& conn) {
-    auto it = conns_.find(conn);
-    if (it == conns_.end()) return;
-    Conexion& c = *it->second;
-    // Solo con el asistente hablando en una conversación en curso, y no en la despedida
-    // (el `listo` se manda cuando termina de decirla). Atendida, habla una persona.
-    if (!c.ritmo.hablando || c.ritmo.hayListo || c.conv == nullptr || !c.conv->enCurso() || c.conv->atendida()) return;
-    c.mudo->store(true); // lo que la síntesis entregue todavía no sale
-    if (c.canal > 0 && c.canal < static_cast<int>(voces_.size()) && voces_[static_cast<std::size_t>(c.canal)])
-        voces_[static_cast<std::size_t>(c.canal)]->callar();
-#if defined(BA_HAVE_VOZ)
-    // La síntesis es una para todos los tótems: se corta solo si no habla en otro.
-    if (habla_ && std::none_of(conns_.begin(), conns_.end(), [&c](const auto& kv) {
-            return kv.second.get() != &c && kv.second->ritmo.hablando;
-        }))
-        habla_->callar();
-#endif
-    const qint64 ahora = ahoraMs();
-    c.ritmo.hablando = false;
-    c.sintetizando = false;
-    c.ritmo.finHablaMs = 0;
-    c.callado->store(false);
-    c.ritmo.ultimaVozMs = ahora;
-    // Lo mismo que cuando termina de hablar (tic): la foto o el documento se buscan desde ahora.
-    if (c.ritmo.buscandoFoto) c.ritmo.fotoDesdeMs = ahora;
-    if (c.ritmo.buscandoDocumento) c.ritmo.docDesdeMs = ahora;
-    c.estado = c.ritmo.buscandoFoto ? "foto" : !c.ritmo.buscandoDocumento ? "escuchando" : c.conv->buscandoDorso() ? "dorso" : "documento";
-    enviar(c.conn, {{"type", "estado"}, {"estado", c.estado.toStdString()}});
-    ba::diag::registro().linea(ba::diag::Nivel::Info, "registro", 0,
-                               ba::i18n::llenar(ba::i18n::traducir("registro", "tótem (%1): la persona interrumpió al asistente"), {c.conn.toStdString()}));
-    emit vivoCambio();
-}
-
-void TotemsViewModel::liberarAtencion(Conexion& c) {
-    if (!c.enAtencion) return;
-    c.enAtencion = false;
-    c.atiendeConn.clear();
-    if (ConferenceClient* cl = clienteDe(vm_); cl != nullptr && cl->online())
-        sala::pedir(*cl, "POST", "/api/v1/registro/atendida", {{"conn", c.conn.toStdString()}, {"aconn", ""}},
-                    [](const std::string&, const json&) {});
-    enviar(c.conn, {{"type", "atiende"}, {"nombre", ""}, {"activo", false}});
-    if (c.estado == "atendida") c.estado = "escuchando";
-}
+json TotemsViewModel::atencionJson() const { return {{"url", urlAtencion().toStdString()}, {"atienden", vivo_->atiendenJson()}}; }
 
 std::string TotemsViewModel::atenderConn(const QString& conn, const QString& quien, const QString& aconn) {
-    auto it = conns_.find(conn);
-    if (it == conns_.end()) return tr("No hay esa conexión (ya se fue).").toStdString();
-    Conexion& c = *it->second;
-    if (c.conv != nullptr && c.conv->atendida() && c.atiendeConn != aconn)
-        return tr("Ya la atiende %1.")
-            .arg(c.conv->atendidaPor().empty() ? tr("alguien del equipo") : QString::fromStdString(c.conv->atendidaPor()))
-            .toStdString();
-    if (c.conv == nullptr || !c.conv->enCurso()) {
-        // Todavía no conversa (o ya terminó y la persona sigue ahí): empieza una, atendida.
-        const registro::Totem* t = totems_.porId(c.totem.toStdString());
-        if (t == nullptr) return tr("Ese tótem ya no existe.").toStdString();
-        c.agente.reset(); // usa la conversación anterior
-        c.conv = std::make_unique<registro::Conversacion>(*t, eventoNombre_, eventoIdioma_);
-        const bool conocida = !c.ultimaCara.isEmpty() && c.ultimaCara != "?";
-        if (conocida) c.conv->conocerCara({c.ultimaCara.toStdString(), c.ultimoNombre.toStdString(), false});
-        c.ritmo.primeraDelCanal = false;
-        c.esperaVacio = false;
-        c.pedidoEnviado.clear();
-    }
-    if (!c.conv->atender(quien.toStdString())) return tr("Esa conversación ya terminó.").toStdString();
-    if (c.agente) c.agente->cancelar(); // lo que el modelo estuviera pensando ya no se dice
-    callarAsistente(c);
-    c.atiendeConn = aconn;
-    c.enAtencion = true;
-    c.estado = "atendida";
-    // El gateway: su voz baja a ese tótem (si es una página de atención; desde la app, a nadie).
-    if (ConferenceClient* cl = clienteDe(vm_); cl != nullptr && cl->online())
-        sala::pedir(*cl, "POST", "/api/v1/registro/atendida",
-                    {{"conn", conn.toStdString()}, {"aconn", aconn.toStdString()}}, [](const std::string&, const json&) {});
-    // La pantalla del tótem: quién la atiende, y los datos tal como están.
-    enviar(conn, {{"type", "atiende"}, {"nombre", quien.toStdString()}, {"activo", true}});
-    enviar(conn, {{"type", "campos"}, {"lista", c.conv->camposParaMostrar()}});
-    ba::diag::registro().linea(ba::diag::Nivel::Info, "registro", 0,
-                               ba::i18n::llenar(ba::i18n::traducir("registro", "tótem «%1» (%2): la atiende %3"), {c.totem.toStdString(), conn.toStdString(),
-                                                 quien.isEmpty() ? ba::i18n::traducir("registro", "alguien del equipo") : quien.toStdString()}));
-    emit vivoCambio();
-    return {};
+    return vivo_->atender(conn.toStdString(), quien.toStdString(), aconn.toStdString(), ahoraMs());
 }
 
 std::string TotemsViewModel::terminarConn(const QString& conn, const QString& como, const QString& aconn) {
-    auto it = conns_.find(conn);
-    if (it == conns_.end()) return tr("No hay esa conexión (ya se fue).").toStdString();
-    Conexion& c = *it->second;
-    if (c.conv == nullptr || !c.conv->enCurso()) return tr("Esa conversación no está en curso.").toStdString();
-    // Una página de atención termina solo lo que atiende ella (o lo que no atiende nadie); la
-    // app y el MCP pueden siempre.
-    if (!aconn.isEmpty() && c.conv->atendida() && c.atiendeConn != aconn) return tr("La atiende otra persona.").toStdString();
-    registro::Conversacion::Respuesta r;
-    if (como == "asistente") {
-        if (!c.conv->atendida()) return tr("No la está atendiendo nadie: ya la lleva el asistente.").toStdString();
-        r = c.conv->devolver();
-    } else if (como == "guardar") {
-        std::string error;
-        r = c.conv->guardarYa(error);
-        if (!error.empty()) return error;
-    } else if (como == "cancelar") {
-        r = c.conv->cancelar();
-    } else {
-        return tr("«como» es asistente, guardar o cancelar.").toStdString();
-    }
-    liberarAtencion(c);
-    c.ritmo.ultimaVozMs = ahoraMs();
-    c.pedidoEnviado.clear(); // que la pantalla vuelva a mostrar qué se pide
-    ba::diag::registro().linea(ba::diag::Nivel::Info, "registro", 0,
-                               ba::i18n::llenar(ba::i18n::traducir("registro", "tótem «%1» (%2): atención terminada (%3)"), {c.totem.toStdString(), conn.toStdString(), como.toStdString()}));
-    aplicar(c, r.decir, r.campos, r.pedir, r.guardar, r.terminar, r.foto);
-    emit vivoCambio();
-    return {};
+    return vivo_->terminar(conn.toStdString(), como.toStdString(), aconn.toStdString(), ahoraMs());
 }
 
 std::string TotemsViewModel::ponerDatoConn(const QString& conn, const QString& clave, const QString& valor,
                                            const QString& aconn) {
-    auto it = conns_.find(conn);
-    if (it == conns_.end()) return tr("No hay esa conexión (ya se fue).").toStdString();
-    Conexion& c = *it->second;
-    if (c.conv == nullptr || !c.conv->enCurso())
-        return tr("Todavía no hay una conversación en curso ahí: atendela para empezarla.").toStdString();
-    if (!aconn.isEmpty() && c.conv->atendida() && c.atiendeConn != aconn) return tr("La atiende otra persona.").toStdString();
-    std::string error;
-    const auto r = c.conv->poner(clave.toStdString(), valor.toStdString(), error);
-    if (!error.empty()) return error;
-    c.ritmo.ultimaVozMs = ahoraMs();
-    aplicar(c, r.decir, r.campos, r.pedir, r.guardar, r.terminar, r.foto);
-    return {};
+    return vivo_->ponerDato(conn.toStdString(), clave.toStdString(), valor.toStdString(), aconn.toStdString(), ahoraMs());
 }
 
 void TotemsViewModel::atender(const QString& conn) { return avisarError(QString::fromStdString(atenderConn(conn, {}, {}))); }
@@ -1774,58 +1047,6 @@ void TotemsViewModel::ponerDato(const QString& conn, const QString& clave, const
     avisarError(QString::fromStdString(ponerDatoConn(conn, clave, valor, {})));
 }
 
-bool TotemsViewModel::alEventoAtencion(const json& ev) {
-    const std::string tipo = texto(ev, "tipo");
-    if (tipo == "intento" && ev.value("atiende", false)) {
-        ba::diag::registro().linea(ba::diag::Nivel::Aviso, "registro", 0,
-                                   ba::i18n::llenar(ba::i18n::traducir("registro", "atención remota: intento fallido desde %1"), {texto(ev, "ip")}));
-        return true;
-    }
-    const QString aconn = QString::fromStdString(texto(ev, "aconn"));
-    if (tipo == "atiende-conexion") {
-        if (aconn.isEmpty()) return true;
-        if (ev.value("conectado", false)) {
-            atienden_[aconn] = {aconn, QString::fromStdString(texto(ev, "nombre")), QString::fromStdString(texto(ev, "ip")),
-                                QString::fromStdString(texto(ev, "lugar"))};
-            ba::diag::registro().linea(ba::diag::Nivel::Info, "registro", 0,
-                                       ba::i18n::llenar(ba::i18n::traducir("registro", "atención remota: entró «%1» desde %2"), {texto(ev, "nombre"), texto(ev, "ip")}));
-            enviarAtencion(aconn); // lo que hay ahora, sin esperar al próximo cambio
-        } else {
-            atienden_.erase(aconn);
-            // Se fue (cerró la página, se cortó): lo que atendía vuelve al asistente, que no
-            // quede una persona frente al tótem esperando a nadie.
-            std::vector<QString> suyas;
-            for (const auto& [k, c] : conns_)
-                if (c->enAtencion && c->atiendeConn == aconn && c->conv != nullptr && c->conv->atendida())
-                    suyas.push_back(k);
-            for (const QString& k : suyas) terminarConn(k, "asistente", {});
-        }
-        emit vivoCambio();
-        return true;
-    }
-    if (tipo != "atiende") return false;
-    const QString conn = QString::fromStdString(texto(ev, "conn"));
-    const QString nombre = QString::fromStdString(texto(ev, "nombre"));
-    const std::string accion = texto(ev, "accion");
-    std::string error;
-    if (accion == "atender") error = atenderConn(conn, nombre, aconn);
-    else if (accion == "devolver") error = terminarConn(conn, "asistente", aconn);
-    else if (accion == "guardar") error = terminarConn(conn, "guardar", aconn);
-    else if (accion == "cancelar") error = terminarConn(conn, "cancelar", aconn);
-    else if (accion == "dato")
-        error = ponerDatoConn(conn, QString::fromStdString(texto(ev, "clave")), QString::fromStdString(texto(ev, "valor")),
-                              aconn);
-    // Lo que no se pudo, a quien lo pidió (lo que sí, lo ve en la lista que se le manda).
-    if (!error.empty() && !aconn.isEmpty()) {
-        ConferenceClient* c = clienteDe(vm_);
-        if (c != nullptr && c->online())
-            sala::pedir(*c, "POST", "/api/v1/registro/enviar",
-                        {{"aconn", aconn.toStdString()},
-                         {"msg", {{"type", "aviso"}, {"texto", error}, {"conn", conn.toStdString()}}}},
-                        [](const std::string&, const json&) {});
-    }
-    return true;
-}
 
 // ============================================================================
 // El modelo que entiende (el rol «registro»; registro/AgenteRegistro, registro/AgenteTotem)
@@ -1939,72 +1160,38 @@ bool TotemsViewModel::fuenteAgente(agent::FuenteMirada& f, std::string& prompt, 
     return true;
 }
 
-void TotemsViewModel::crearAgente(Conexion& c, bool avisar) {
-    c.agente.reset();
-    c.textoModelo.clear();
-    c.diceAntes.clear();
-    if (c.conv == nullptr || !c.conv->totem().conModelo) return;
+std::unique_ptr<registro::Entendedor> TotemsViewModel::crearEntendedor(const std::string& conn, const std::string& totem,
+                                                                       registro::Conversacion& conv, bool avisar) {
     prepararModelo(); // por si el servidor se reinició: la próxima conversación ya lo tiene
     agent::FuenteMirada f;
     std::string prompt, falta;
     if (!fuenteAgente(f, prompt, falta)) {
         if (avisar)
             ba::diag::registro().linea(ba::diag::Nivel::Info, "registro", 0,
-                                       ba::i18n::llenar(ba::i18n::traducir("registro", "tótem «%1» (%2): por ahora el guion solo (%3)"), {c.totem.toStdString(), c.conn.toStdString(), falta}));
-        return;
+                                       ba::i18n::llenar(ba::i18n::traducir("registro", "tótem «%1» (%2): por ahora el guion solo (%3)"), {totem, conn, falta}));
+        return nullptr;
     }
-    auto a = std::make_unique<registro::AgenteTotem>(f, prompt, *c.conv, registro::AgenteTotem::tiemposDeAjustes());
-    const QString conn = c.conn;
+    auto a = std::make_unique<registro::AgenteTotem>(f, prompt, conv, registro::AgenteTotem::tiemposDeAjustes());
     QPointer<TotemsViewModel> yo(this);
-    const auto de = [yo, conn]() -> Conexion* {
-        if (!yo) return nullptr;
-        const auto it = yo->conns_.find(conn);
-        return it == yo->conns_.end() ? nullptr : it->second.get();
-    };
     // Lo que va escribiendo: a la pantalla del tótem en el acto (y a quien mira la conversación).
-    a->alTexto = [yo, de](const std::string& acumulado) {
-        Conexion* k = de();
-        if (k == nullptr) return;
-        k->textoModelo = acumulado;
-        k->diceTexto = QString::fromStdString(acumulado);
-        k->ritmo.ultimaVozMs = ahoraMs(); // pensando no es un silencio
-        yo->enviar(k->conn, {{"type", "dice"}, {"texto", acumulado}});
-        emit yo->vivoCambio();
+    a->alTexto = [yo, conn](const std::string& acumulado) {
+        if (yo) yo->vivo_->alTextoModelo(conn, acumulado, ahoraMs());
     };
     // Frase por frase a la voz, mientras sigue escribiendo.
-    a->alFrase = [yo, de](const std::string& frase) {
-        if (Conexion* k = de()) yo->hablar(*k, frase);
+    a->alFrase = [yo, conn](const std::string& frase) {
+        if (yo) yo->vivo_->alFraseModelo(conn, frase, ahoraMs());
     };
     // Terminó el turno: lo que hace el guion (confirmar lo anotado, retomar la pregunta…).
-    a->alListo = [yo, de](const registro::Conversacion::Respuesta& r, bool) {
-        Conexion* k = de();
-        if (k == nullptr || k->conv == nullptr) return;
-        k->diceAntes = std::move(k->textoModelo);
-        k->textoModelo.clear();
-        k->ritmo.ultimaVozMs = ahoraMs();
-        yo->aplicar(*k, r.decir, r.campos, r.pedir, r.guardar, r.terminar, r.foto);
-        k->diceAntes.clear(); // si el guion no dijo nada, lo del modelo ya está en la pantalla
+    a->alListo = [yo, conn](const registro::Conversacion::Respuesta& r, bool) {
+        if (yo) yo->vivo_->alListoModelo(conn, r, ahoraMs());
     };
-    a->alCaer = [yo, de](const std::string& motivo) {
-        Conexion* k = de();
-        if (k == nullptr) return;
-        ba::diag::registro().linea(ba::diag::Nivel::Aviso, "registro", 0,
-                                   ba::i18n::llenar(ba::i18n::traducir("registro", "tótem «%1» (%2): el modelo no contesta, sigue el guion solo (%3)"), {k->totem.toStdString(), k->conn.toStdString(), motivo}));
-        emit yo->vivoCambio();
+    a->alCaer = [yo, conn](const std::string& motivo) {
+        if (yo) yo->vivo_->alCaerModelo(conn, motivo);
     };
-    c.agente = std::move(a);
     // Al empezar la conversación (mientras saluda): el primer turno ya encuentra el sistema y
     // las herramientas leídos. Creado en un turno (el modelo recién cargó), no hay tiempo.
-    if (avisar) c.agente->precalentar();
-}
-
-bool TotemsViewModel::alOidoAgente(Conexion& c, const std::string& texto) {
-    // El modelo puede no estar listo cuando la conversación empieza (el servidor local
-    // carga en unos segundos): se vuelve a intentar en cada turno, y apenas está, entiende
-    // él. Antes se decidía una vez y la conversación entera quedaba con el guion solo.
-    // (Un agente que ya se cayó por no contestar sigue existiendo: no se rehace acá.)
-    if (c.agente == nullptr && c.conv != nullptr && c.conv->totem().conModelo) crearAgente(c, false);
-    return c.agente != nullptr && c.agente->oido(texto);
+    if (avisar) a->precalentar();
+    return std::make_unique<EntendedorTotem>(std::move(a));
 }
 
 } // namespace ba::app

@@ -3,6 +3,7 @@
 // ============================================================================
 #include "evento/Corrida.hpp"
 
+#include "evento/Evento.hpp"
 #include "evento/LeerJson.hpp"
 #include "i18n/I18n.hpp"
 
@@ -957,6 +958,118 @@ json Corrida::estadoJson(int64_t ahora, const std::function<std::string(int64_t)
     }
     if (estado_ == EstadoCorrida::Pausada) out["pausadaSeg"] = (ahora - pausadoDesdeMs_) / 1000;
     return out;
+}
+
+// --- Las reglas de la conducción --------------------------------------------------------------
+
+std::string errorDeSalida(const Linea& l, const std::string& s) {
+    const auto ss = l.salidasEfectivas();
+    if (std::find(ss.begin(), ss.end(), s) != ss.end()) return {};
+    std::string hay;
+    for (const auto& x : ss) hay += (hay.empty() ? "" : ", ") + x;
+    return ba::i18n::llenar(ba::i18n::traducir("evento", "No hay una salida «%1» en la línea (hay: %2)."), {s, hay});
+}
+
+std::pair<int, int> cueSiguiente(const Evento& ev, int bloque, int cue) {
+    const int n = static_cast<int>(ev.bloques.size());
+    if (bloque < 0) bloque = 0, cue = -1;
+    for (int b = bloque; b < n; ++b) {
+        const int desde = b == bloque ? cue + 1 : 0;
+        if (desde < static_cast<int>(ev.bloques[static_cast<std::size_t>(b)].cues.size())) return {b, desde};
+    }
+    return {-1, -1};
+}
+
+std::pair<int, int> cueAnterior(const Evento& ev, int bloque, int cue) {
+    if (bloque < 0 || bloque >= static_cast<int>(ev.bloques.size())) return {-1, -1};
+    if (cue > 0) return {bloque, cue - 1};
+    for (int b = bloque - 1; b >= 0; --b) {
+        const auto& cues = ev.bloques[static_cast<std::size_t>(b)].cues;
+        if (!cues.empty()) return {b, static_cast<int>(cues.size()) - 1};
+    }
+    return {-1, -1};
+}
+
+int64_t enCueMs(const Corrida& c, const CursorGuion& k, int64_t ahora) {
+    if (k.desdeMs == 0) return 0;
+    const int64_t pausa = c.pausadoMs(ahora) - k.pausadoAlEntrarMs;
+    return std::max<int64_t>(0, ahora - k.desdeMs - pausa);
+}
+
+MarcasReloj marcasReloj(const Evento& ev, const Corrida& c, const CursorGuion& k, bool corriendo, int64_t ahora) {
+    MarcasReloj m;
+    // En qué número de cue vamos, para «12 de 34».
+    int nro = 0;
+    for (int b = 0; b < static_cast<int>(ev.bloques.size()) && b <= k.bloque; ++b)
+        nro += b == k.bloque ? k.cue + 1 : static_cast<int>(ev.bloques[static_cast<std::size_t>(b)].cues.size());
+    // Back-timing (T46): lo previsto de lo que sigue al cue (el del cue se descuenta en
+    // relojEn con lo que lleva), del guion y del bloque.
+    for (int b = 0; b < static_cast<int>(ev.bloques.size()); ++b) {
+        const auto& cues = ev.bloques[static_cast<std::size_t>(b)].cues;
+        for (int i = 0; i < static_cast<int>(cues.size()); ++i) {
+            const int d = cues[static_cast<std::size_t>(i)].duracionSeg;
+            m.totalPrevistoSeg += d;
+            if (!k.valido() || !(b > k.bloque || (b == k.bloque && i > k.cue))) continue;
+            m.despuesSeg += d;
+            if (b == k.bloque) m.despuesBloqueSeg += d;
+        }
+    }
+    const Cue* cue = k.valido() && k.bloque < static_cast<int>(ev.bloques.size()) &&
+                             k.cue < static_cast<int>(ev.bloques[static_cast<std::size_t>(k.bloque)].cues.size())
+                         ? &ev.bloques[static_cast<std::size_t>(k.bloque)].cues[static_cast<std::size_t>(k.cue)]
+                         : nullptr;
+    m.marcaMs = ahora;
+    m.sigue = c.estado() == EstadoCorrida::Corriendo;
+    m.corriendo = corriendo;
+    m.cursor = k.valido();
+    // Lo que lleva el evento y el cue sin las pausas, en `ahora`; corriendo (no en pausa),
+    // siguen con la hora.
+    m.transcurridoMs = c.arranqueMs() > 0 ? ahora - c.arranqueMs() - c.pausadoMs(ahora) : 0;
+    m.enCueMs = enCueMs(c, k, ahora);
+    m.duracionCueSeg = cue != nullptr ? cue->duracionSeg : 0;
+    m.previstoSeg = k.valido() ? ev.offsetDeCueSeg(static_cast<std::size_t>(k.bloque), static_cast<std::size_t>(k.cue)) : -1;
+    m.cueNro = k.valido() ? nro : 0;
+    m.cuesTotal = static_cast<int>(ev.cantidadDeCues());
+    return m;
+}
+
+Reloj relojEn(const MarcasReloj& m, int64_t ahora) {
+    Reloj r;
+    const int64_t dt = m.sigue ? std::max<int64_t>(0, ahora - m.marcaMs) : 0;
+    r.transcurridoSeg = static_cast<int>((m.transcurridoMs + dt) / 1000);
+    r.enCueSeg = static_cast<int>((m.enCueMs + dt) / 1000);
+    const int falta = m.cursor ? std::max(0, m.duracionCueSeg - r.enCueSeg) : 0;
+    r.restanteGuionSeg = m.despuesSeg + falta;
+    r.restanteBloqueSeg = m.despuesBloqueSeg + falta;
+    r.restanteSeg = m.duracionCueSeg > 0 ? m.duracionCueSeg - r.enCueSeg : 0;
+    r.finPrevistoMs = ahora + r.restanteGuionSeg * 1000LL;
+    // El desvío contra lo previsto para el cue donde está: positivo = vamos tarde.
+    r.desvioSeg = m.previstoSeg >= 0 && m.corriendo ? r.transcurridoSeg - m.previstoSeg : 0;
+    return r;
+}
+
+Publico publico(const Evento& ev, const Corrida* c, const CursorGuion& k, bool ensayo, int64_t ahora) {
+    Publico p;
+    if (c == nullptr || ensayo) return p;
+    switch (c->estado()) {
+        case EstadoCorrida::Corriendo: p.estado = "en_vivo"; break;
+        case EstadoCorrida::Pausada: p.estado = "pausa"; break;
+        case EstadoCorrida::Terminada: p.estado = "terminado"; break;
+        default: break;
+    }
+    const bool corriendo = p.estado == "en_vivo" || p.estado == "pausa";
+    if (corriendo) p.bloque = k.bloque;
+    if (corriendo && p.bloque >= 0 && p.bloque < static_cast<int>(ev.bloques.size())) {
+        // Lo que le falta a la sección actual según lo previsto, y quién habla (si el cue
+        // que corre es de orador: el que tiene la palabra se ve al aire, no es privado).
+        const auto& cues = ev.bloques[static_cast<std::size_t>(p.bloque)].cues;
+        int falta = 0;
+        for (int i = k.cue; i >= 0 && i < static_cast<int>(cues.size()); ++i) falta += cues[static_cast<std::size_t>(i)].duracionSeg;
+        p.restanteActualSeg = std::max(0, falta - static_cast<int>(enCueMs(*c, k, ahora) / 1000));
+        if (k.cue >= 0 && k.cue < static_cast<int>(cues.size()) && cues[static_cast<std::size_t>(k.cue)].tipo == Tipo::Orador)
+            p.habla = cues[static_cast<std::size_t>(k.cue)].datos.value("participante", std::string());
+    }
+    return p;
 }
 
 } // namespace ba::evento::linea
