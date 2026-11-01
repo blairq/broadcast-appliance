@@ -1487,6 +1487,13 @@ endif()
     add_executable(test_pedidos_salida tests/test_pedidos_salida.cpp)
     target_include_directories(test_pedidos_salida PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
     add_test(NAME test_pedidos_salida COMMAND test_pedidos_salida)
+    # Lo pedido al hilo de salidas del motor y su buzón (emision/BuzonSalidas): un «no arrancó»
+    # viejo no baja lo pedido después; el buzón entrega en orden, desde varios hilos.
+    add_executable(test_buzon_salidas tests/test_buzon_salidas.cpp)
+    target_include_directories(test_buzon_salidas PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    find_package(Threads REQUIRED)
+    target_link_libraries(test_buzon_salidas PRIVATE Threads::Threads)
+    add_test(NAME test_buzon_salidas COMMAND test_buzon_salidas)
     # Qué avisa la foto del motor: lo que se rearma con otra parte se compara con la suya.
     add_executable(test_foto_partes tests/test_foto_partes.cpp)
     target_include_directories(test_foto_partes PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
