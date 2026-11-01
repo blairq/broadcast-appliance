@@ -240,8 +240,9 @@ class MixerModel : public QAbstractListModel {
     QHash<int, QByteArray> roleNames() const override;
     /// Rehace las tiras con la foto.
     void reload();
-    /// Refresca los niveles (lo llama el tick de la UI): del canal de niveles, sin el motor.
-    void refreshLevels();
+    /// Refresca los niveles (una vuelta de los vúmetros, ui/RelojNiveles: solo con alguien
+    /// mirando): del canal de niveles, sin el motor. Si alguno se movió.
+    bool refreshLevels();
 
     Q_INVOKABLE bool setVolumeDb(const QString& name, double db);
     Q_INVOKABLE bool setMuted(const QString& name, bool muted);

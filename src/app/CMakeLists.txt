@@ -1376,6 +1376,13 @@ endif()
     target_link_libraries(test_uso_por_vistas PRIVATE Qt6::Core)
     set_target_properties(test_uso_por_vistas PROPERTIES BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_uso_por_vistas COMMAND test_uso_por_vistas)
+    # Los vúmetros a pedido (ui/RelojNiveles): solo con alguien mirando y algo que suene.
+    add_executable(test_reloj_niveles tests/test_reloj_niveles.cpp ui/RelojNiveles.cpp ui/RelojNiveles.hpp
+                   emision/NivelesMotor.cpp)
+    target_include_directories(test_reloj_niveles PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_SOURCE_DIR}/src/motor")
+    target_link_libraries(test_reloj_niveles PRIVATE Qt6::Core)
+    set_target_properties(test_reloj_niveles PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
+    add_test(NAME test_reloj_niveles COMMAND test_reloj_niveles)
     # Los oradores: la regla del reloj, el texto, la lectura de tiempos y la fila (lo que
     # comparten la interfaz y el MCP; sala::OradoresSala, sin sala).
     add_executable(test_oradores_sala tests/test_oradores_sala.cpp sala/OradoresSalaReglas.cpp sala/OradoresSala.hpp)

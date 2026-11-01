@@ -64,6 +64,24 @@ void VigiaBucle::anotar(const std::string& que) {
     a.texto = que;
 }
 
+void VigiaBucle::contarTemporizador(const std::string& que) {
+    std::lock_guard<std::mutex> l(mu_);
+    auto it = temporizadores_.find(que);
+    if (it != temporizadores_.end()) {
+        ++it->second;
+        return;
+    }
+    if (temporizadores_.size() >= kMaxCulpables) return; // los de siempre ya están
+    temporizadores_.emplace(que, 1);
+}
+
+std::int64_t VigiaBucle::edadMs() const {
+    const std::int64_t ahora = reloj_();
+    std::lock_guard<std::mutex> l(mu_);
+    if (anteriorUs_ < 0) return -1;
+    return std::max<std::int64_t>(0, ahora - anteriorUs_) / 1000;
+}
+
 std::string VigiaBucle::quien(std::int64_t hasta) const {
     const Anotado* mejor = nullptr;
     for (const Anotado& a : anotados_)
@@ -152,7 +170,14 @@ nlohmann::json VigiaBucle::informe() const {
     json culpables = json::array();
     for (const auto& [que, c] : orden)
         culpables.push_back({{"que", que}, {"veces", c.veces}, {"total_ms", ms(c.totalUs)}, {"max_ms", ms(c.maxUs)}});
+    std::vector<std::pair<std::string, std::uint64_t>> temps(temporizadores_.begin(), temporizadores_.end());
+    std::sort(temps.begin(), temps.end(), [](const auto& a, const auto& b) { return a.second > b.second; });
+    if (temps.size() > 15) temps.resize(15);
+    json temporizadores = json::array();
+    for (const auto& [que, veces] : temps) temporizadores.push_back({{"que", que}, {"veces", veces}});
     json out = {{"periodo_ms", periodoUs_ / 1000},
+                {"despertares", despertares_.load(std::memory_order_relaxed)},
+                {"temporizadores", std::move(temporizadores)},
                 {"umbral_ms", umbralUs_ / 1000},
                 {"vueltas", vueltas_},
                 {"tarde", tarde_},

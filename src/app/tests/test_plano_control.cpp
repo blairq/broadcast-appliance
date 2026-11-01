@@ -78,6 +78,7 @@
 #include "arranque/EnergiaAire.hpp"
 #include "arranque/PlanoControl.hpp"
 #include "control/Dsk.hpp"
+#include "diag/VigiaBucle.hpp"
 #include "emision/DocumentoAire.hpp"
 #include "emision/NivelesMotor.hpp"
 #include "emision/TurnoMotor.hpp"
@@ -709,7 +710,17 @@ int main(int argc, char** argv) {
         if (QThread::currentThread() == interfaz) ++preguntasEnLaInterfaz;
         return sala();
     };
-    ba::app::agent::EntradasAlarmas entradas(deLaInterfaz, directas, respaldo, 500);
+    // El latido de la interfaz, como en la app (ui/VigiaInterfaz): un temporizador de 50 ms
+    // en su hilo da la vuelta del vigía de su bucle. La foto NO se copia con un reloj: solo
+    // cuando lo que la da cambia (acá, al empezar).
+    ba::diag::VigiaBucle bucleUi({}, 50, 1000);
+    bucleUi.alAvisar([](const std::string&) {});
+    QTimer latidoUi;
+    QObject::connect(&latidoUi, &QTimer::timeout, [&bucleUi]() { bucleUi.tic(); });
+    latidoUi.start(50);
+    bucleUi.tic();
+    ba::app::agent::EntradasAlarmas entradas(deLaInterfaz, directas, respaldo, [&bucleUi]() { return bucleUi.edadMs(); },
+                                             500);
     entradas.refrescar();
     ba::app::agent::AlertEngine vigia9(entradas.paraElVigia(), "");
     for (const std::string tipo : {"guest_drop", "energia", "disk"})
@@ -725,15 +736,14 @@ int main(int argc, char** argv) {
         Qt::DirectConnection);
     vigia9.start(100);
     plano.adoptar(&vigia9);
-    // El reloj de la interfaz copia su foto (en la app, cada 200 ms).
-    QTimer refresco;
-    QObject::connect(&refresco, &QTimer::timeout, [&]() { entradas.refrescar(); });
-    refresco.start(100);
-    atender(600); // el vigía se entera de cómo está todo (Ana conectada)
+    // La foto no se vuelve a copiar (nada cambió): pasa más que `quietaMs` y, con la
+    // interfaz latiendo, el vigía sigue con la foto sin preguntarle a B.
+    atender(1200); // el vigía se entera de cómo está todo (Ana conectada)
     const int preguntasAntes = preguntasAB.load();
     {
         const std::lock_guard<std::mutex> l(disparosMu);
-        CHECK(disparos9.empty() && preguntasAntes == 0, "9b: con la interfaz andando, nada que avisar y nada que preguntarle a B");
+        CHECK(disparos9.empty() && preguntasAntes == 0,
+              "9b: con la interfaz andando (la foto vieja, sin cambios), nada que avisar y nada que preguntarle a B");
     }
     {
         // Se traba la interfaz; recién ahí Ana se cae, se corta la luz y se llena el disco.
@@ -757,8 +767,15 @@ int main(int argc, char** argv) {
         }
     }
     CHECK(preguntasAB.load() > 0 && preguntasEnLaInterfaz.load() == 0,
-          "9b: la sala se le preguntó a B desde el vigía, solo mientras la foto de la interfaz estaba quieta");
-    refresco.stop();
+          "9b: la sala se le preguntó a B desde el vigía, solo mientras la interfaz no latía");
+    {
+        // Al volver la interfaz, deja de preguntarle a B (aunque la foto siga sin copiarse).
+        atender(300);
+        const int alVolver = preguntasAB.load();
+        atender(800);
+        CHECK(preguntasAB.load() == alVolver, "9b: con la interfaz latiendo de nuevo, no se le pregunta más a B");
+    }
+    latidoUi.stop();
 
     // --- 8. Las de aire, en el control y con el turno del motor -------------------------
     // Como en la app: participan del turno la interfaz (el dueño del motor) y el control.

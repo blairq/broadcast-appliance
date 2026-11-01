@@ -20,6 +20,7 @@
 
 using ba::app::control::Botonera;
 using ba::app::control::BusEventos;
+using ba::app::control::InteresEnBus;
 using json = nlohmann::json;
 
 namespace {
@@ -58,6 +59,42 @@ int main(int argc, char** argv) {
     bus.publicar("aire/escena", {{"escena", "A"}});
     CHECK(avisos == 1, "el mismo valor no avisa dos veces");
     CHECK(bus.ultimo("aire/escena")["valor"]["escena"] == "A", "guarda el último valor");
+
+    // A pedido: quién quiere los niveles (los que escuchan todo no cuentan).
+    {
+        CHECK(BusEventos::seCruzan("audio/+/nivel/#", "audio/nivel/#") && BusEventos::seCruzan("audio/#", "audio/nivel/#") &&
+                  !BusEventos::seCruzan("aire/#", "audio/nivel/#") && BusEventos::seCruzan("audio/nivel/Mic 1", "audio/nivel/#") &&
+                  !BusEventos::seCruzan("audio/nivel/Mic 1", "audio/cam2/nivel/#"),
+              "seCruzan: dos patrones con algún tema en común");
+        int cambiosInteres = 0;
+        const QMetaObject::Connection conCambios =
+            QObject::connect(&bus, &BusEventos::interesCambio, [&]() { ++cambiosInteres; });
+        const int todo = bus.suscribir("#", [](const std::string&, const json&) {});
+        CHECK(!bus.hayInteresEn("audio/nivel/#") && cambiosInteres == 0, "el que escucha todo no pide los niveles");
+        const int i1 = bus.interesar("audio/nivel/Mic 1");
+        CHECK(cambiosInteres == 1 && bus.hayInteres("audio/nivel/Mic 1") && !bus.hayInteres("audio/nivel/Mic 2") &&
+                  bus.hayInteresEn("audio/nivel/#"),
+              "interesar: ese tema, y avisa");
+        const int s1 = bus.suscribir("audio/+/nivel/+", [](const std::string&, const json&) {});
+        CHECK(bus.hayInteres("audio/cam2/nivel/Mic 2") && cambiosInteres == 2, "una suscripción concreta también es interés");
+        bus.desinteresar(i1);
+        bus.desuscribir(s1);
+        bus.desuscribir(todo);
+        CHECK(!bus.hayInteresEn("audio/nivel/#") && !bus.hayInteresEn("audio/+/nivel/#") && cambiosInteres == 4,
+              "sin nadie, nadie quiere los niveles");
+        bus.publicar("audio/nivel/Mic 9", {{"pico_db", -20}});
+        bus.olvidar("audio/nivel/#");
+        CHECK(bus.ultimo("audio/nivel/Mic 9").is_null() && !bus.ultimo("aire/escena").is_null(), "olvidar: solo esos temas");
+        {
+            InteresEnBus in(&bus);
+            in.poner({"audio/nivel/A", "audio/nivel/B"});
+            CHECK(bus.hayInteres("audio/nivel/A") && bus.hayInteres("audio/nivel/B"), "InteresEnBus declara el conjunto");
+            in.poner({"audio/nivel/B"});
+            CHECK(!bus.hayInteres("audio/nivel/A") && bus.hayInteres("audio/nivel/B"), "y suelta lo que ya no");
+        }
+        CHECK(!bus.hayInteresEn("audio/nivel/#"), "al irse, suelta todo");
+        QObject::disconnect(conCambios); // cambiosInteres se va con el bloque
+    }
 
     // --- Botonera ---------------------------------------------------------------
     std::vector<std::pair<std::string, json>> llamadas;
@@ -241,6 +278,9 @@ int main(int argc, char** argv) {
                                   {"accion", {{"herramienta", "audio_set"}, {"args", {{"name", "Mic 1"}, {"muted", "{{no_activo}}"}}}}},
                                   {"estado", {{{"tema", "audio/nivel/Mic 1"}, {"ruta", "mudo"}, {"op", "=="}, {"valor", true}, {"efecto", "activo"}}}}}).empty(),
           "mudo");
+    esperar(80);
+    CHECK(bus.hayInteres("audio/nivel/Mic 1") && !bus.hayInteres("audio/nivel/Mic 2"),
+          "la botonera pide los niveles que lee la página que muestra (y solo esos)");
     bus.publicar("audio/nivel/Mic 1", {{"mudo", true}});
     llamadas.clear();
     bot.entrada("hw1", {{"type", "presionar"}, {"x", 5}, {"y", 2}});
@@ -432,11 +472,9 @@ int main(int argc, char** argv) {
                   {"escena", "Cámara 1"}, {"armada", "Cámara 2"}, {"transmitiendo", true}},
              json{{"id", "cam2"}, {"nombre", "Segunda"}, {"color", "#1565c0"}, {"escena", "Cámara 2"}, {"armada", "Cámara 1"},
                   {"grabando", true}, {"tbar", {{"hacia", "Cámara 1"}, {"posicion", 0.5}}},
-                  {"dsk", json::array({json{{"capa", 1}, {"visible", true}}})},
-                  {"niveles", {{"Mic 1", {{"pico_db", -20}, {"volumen_db", -6}, {"mudo", false}}}}}}}));
+                  {"dsk", json::array({json{{"capa", 1}, {"visible", true}}})}}}));
         CHECK(bus.ultimo("aire/cam2/tbar")["valor"]["posicion"] == 0.5, "aire/<salida>/tbar");
         CHECK(bus.ultimo("aire/cam2/dsk")["valor"][0]["visible"] == true, "aire/<salida>/dsk");
-        CHECK(bus.ultimo("audio/cam2/nivel/Mic 1")["valor"]["volumen_db"] == -6, "audio/<salida>/nivel/<fuente>");
 
         // Una botonera con dos salidas: cada aparato maneja la suya.
         Botonera::Ganchos g2 = g;

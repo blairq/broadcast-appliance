@@ -11,8 +11,10 @@
 //     de un reconocimiento. Antes la franja y la tarjeta Sistema llamaban a un
 //     Q_INVOKABLE cada vez que algo les decía que releyeran.
 //   - Lo que el vigía lee: de dónde sale cada entrada (las de la interfaz, como foto
-//     que la interfaz refresca en su reloj con `refrescarFoto`; las directas, seguras
-//     entre hilos, siguen con la interfaz trabada: agent/EntradasAlarmas). La señal de
+//     que se copia cuando lo que la da avisa que cambió —la sala, los chats, las salidas
+//     de texto: `fotoCambio`—; las directas, seguras entre hilos, siguen con la interfaz
+//     trabada; con la interfaz trabada, según su latido, el respaldo:
+//     agent/EntradasAlarmas). La señal de
 //     cada entrada de video y la superresolución son directas: el grafo de video es del
 //     dueño del motor, el mismo hilo que el vigía (con el turno, sin esperar).
 //   - Cada disparo: los notificadores desde el hilo del vigía (AvisoFueraDeUi, sale
@@ -88,8 +90,10 @@ class AlarmasViewModel : public QObject {
 
     /// El vigía (el MCP, los asistentes, el plano de control que lo adopta).
     agent::AlertEngine& motor() { return *motor_; }
-    /// En el reloj de la interfaz: copia lo suyo para el vigía.
-    void refrescarFoto();
+    /// Algo de lo que el vigía lee de la interfaz cambió: la foto se copia (una vez por
+    /// vuelta del bucle, aunque avisen varios). La sala y los chats se conectan solos; lo
+    /// que se arma después (las salidas de texto) lo conecta quien lo arma.
+    void fotoCambio();
     /// Quién lleva los notificadores afuera sin la interfaz (se crea después).
     void setAvisoFueraDeUi(AvisoFueraDeUi* a) { aviso_.store(a); }
     /// Cómo se publica un disparo en el bus de eventos (tema, datos): lo ve el control web.
@@ -123,7 +127,7 @@ class AlarmasViewModel : public QObject {
     /// Las seguras entre hilos (el motor, la foto de las salidas, la persistencia, los recursos).
     static agent::AlertInputs directas(const Fuentes& f);
     /// Lo de la interfaz que también se le puede preguntar a su dueño (la sala, a B): el
-    /// vigía lo usa solo si la foto de la interfaz se quedó quieta (EntradasAlarmas).
+    /// vigía lo usa solo si la interfaz está trabada (su latido, EntradasAlarmas).
     static agent::AlertInputs sinLaInterfaz();
 
     std::unique_ptr<agent::EntradasAlarmas> entradas_;
@@ -131,6 +135,7 @@ class AlarmasViewModel : public QObject {
     std::unique_ptr<agent::AlarmaSonora> sonido_;
     std::atomic<AvisoFueraDeUi*> aviso_{nullptr}; ///< lo lee el hilo del vigía
     std::function<void(const std::string&, const nlohmann::json&)> publicar_;
+    bool fotoPendiente_ = false; ///< ver fotoCambio
     QVariantList activas_;
     agent::AlertEngine::Criticas criticas_;
 };

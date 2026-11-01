@@ -19,6 +19,9 @@ Item {
     id: tarjeta
     focus: true
 
+    // Los vúmetros se miden solo mientras alguien los mira (Studio.niveles, por vista).
+    Suscripcion { objetivo: Studio.niveles; activa: tarjeta.visible }
+
     /// Que canal manda el teclado. -1 = ninguno todavia.
     property int elegido: -1
     // El canal elegido con el teclado se trae a la vista (si no, con muchos quedaba oculto).

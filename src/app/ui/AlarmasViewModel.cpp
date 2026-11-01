@@ -7,6 +7,7 @@
 #include "agent/FlujosTexto.hpp"
 #include "arranque/AppRuntime.hpp"
 #include "arranque/EnergiaAire.hpp"
+#include "diag/VigiaBucle.hpp"
 #include "emision/TurnoMotor.hpp"
 #include "emision/AvisoFueraDeUi.hpp"
 #include "emision/VentanillaMotor.hpp"
@@ -34,9 +35,20 @@ using json = nlohmann::json;
 
 AlarmasViewModel::AlarmasViewModel(Fuentes f, QObject* parent)
     : QObject(parent),
-      entradas_(std::make_unique<agent::EntradasAlarmas>(deLaInterfaz(f), directas(f), sinLaInterfaz())),
+      entradas_(std::make_unique<agent::EntradasAlarmas>(deLaInterfaz(f), directas(f), sinLaInterfaz(),
+                                                         // El latido de la interfaz: el vigía de su bucle
+                                                         // (ui/VigiaInterfaz) da una vuelta cada 50 ms.
+                                                         []() { return diag::VigiaBucle::interfaz().edadMs(); })),
       sonido_(std::make_unique<agent::AlarmaSonora>(f.rt.dataRoot())) {
     entradas_->refrescar();
+    // Lo de la interfaz que lee el vigía se copia cuando cambia (nada de releerlo con un reloj).
+    connect(&f.sala.client(), &ConferenceClient::snapshotChanged, this, &AlarmasViewModel::fotoCambio);
+    auto* chatSala = static_cast<JsonListModel*>(f.sala.chat());
+    connect(chatSala, &QAbstractItemModel::modelReset, this, &AlarmasViewModel::fotoCambio);
+    connect(chatSala, &QAbstractItemModel::rowsInserted, this, &AlarmasViewModel::fotoCambio);
+    connect(chatSala, &QAbstractItemModel::rowsRemoved, this, &AlarmasViewModel::fotoCambio);
+    connect(chatSala, &QAbstractItemModel::dataChanged, this, &AlarmasViewModel::fotoCambio);
+    connect(&f.chat, &ChatOverlayRenderer::mensajesCambio, this, &AlarmasViewModel::fotoCambio);
     motor_ = std::make_unique<agent::AlertEngine>(entradas_->paraElVigia(),
                                                   (f.rt.dataRoot() / "Config" / "alertas.json").string());
     // Los notificadores, en el hilo del vigía (conexión directa): salen aunque la interfaz
@@ -263,7 +275,17 @@ agent::AlertInputs AlarmasViewModel::sinLaInterfaz() {
     return in;
 }
 
-void AlarmasViewModel::refrescarFoto() { entradas_->refrescar(); }
+void AlarmasViewModel::fotoCambio() {
+    if (fotoPendiente_) return;
+    fotoPendiente_ = true;
+    QMetaObject::invokeMethod(
+        this,
+        [this]() {
+            fotoPendiente_ = false;
+            entradas_->refrescar();
+        },
+        Qt::QueuedConnection);
+}
 
 QObject* AlarmasViewModel::sonido() const {
     // Sin padre y devuelto a QML: que no se lo quede su recolector (se borraba dos veces al

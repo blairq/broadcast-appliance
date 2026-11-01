@@ -26,8 +26,16 @@ namespace ba::app {
 ChatOverlayRenderer::ChatOverlayRenderer(YouTubeViewModel& yt, ConferenceViewModel& conf, TwitchViewModel& tw,
                                          FacebookViewModel& fb, QObject* parent)
     : QObject(parent), yt_(yt), conf_(conf), tw_(tw), fb_(fb) {
-    connect(&timer_, &QTimer::timeout, this, &ChatOverlayRenderer::recoger);
-    timer_.start(400);
+    // Los chats avisan cuando cambian (nadie los relee con un reloj).
+    for (PlataformaViewModel* p : {static_cast<PlataformaViewModel*>(&yt_), static_cast<PlataformaViewModel*>(&tw_),
+                                   static_cast<PlataformaViewModel*>(&fb_)})
+        connect(p, &PlataformaViewModel::chatChanged, this, &ChatOverlayRenderer::alCambiar);
+    auto* sala = static_cast<JsonListModel*>(conf_.chat());
+    connect(sala, &QAbstractItemModel::modelReset, this, &ChatOverlayRenderer::alCambiar);
+    connect(sala, &QAbstractItemModel::rowsInserted, this, &ChatOverlayRenderer::alCambiar);
+    connect(sala, &QAbstractItemModel::rowsRemoved, this, &ChatOverlayRenderer::alCambiar);
+    connect(sala, &QAbstractItemModel::dataChanged, this, &ChatOverlayRenderer::alCambiar);
+    recoger();
     pintor_ = std::make_unique<fuentes::PintorAire>("chat-aire", std::chrono::milliseconds(400), [this]() { pintar(); });
 }
 
@@ -157,6 +165,7 @@ bool ChatOverlayRenderer::destacar(const QString& key) {
     for (const Message& m : collect())
         if (m.key == key) {
             destacados_.insert(key);
+            recoger();
             return true;
         }
     return false;
@@ -167,10 +176,25 @@ void ChatOverlayRenderer::quitarDestacado(const QString& key) {
         destacados_.clear();
     else
         destacados_.remove(key);
+    recoger();
+}
+
+void ChatOverlayRenderer::alCambiar() {
+    if (recogerPendiente_) return;
+    recogerPendiente_ = true;
+    QMetaObject::invokeMethod(
+        this,
+        [this]() {
+            recogerPendiente_ = false;
+            recoger();
+            emit mensajesCambio();
+        },
+        Qt::QueuedConnection);
 }
 
 void ChatOverlayRenderer::recoger() {
-    if (chatoverlay::instances().empty()) return;
+    // Siempre (no solo con el chat al aire): llega cuando algo cambió, y una fuente que se
+    // agrega después encuentra la copia al día.
     std::vector<Message> todos = collect();
     std::lock_guard<std::mutex> l(fotoM_);
     foto_ = std::move(todos);

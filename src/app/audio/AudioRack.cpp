@@ -96,6 +96,8 @@ struct AudioRack::Node {
     std::atomic<float> msUltimo{0}, msMax{0}, msMedio{0};
     int lentos = 0; // bloques lentos seguidos (solo el hilo de audio)
     std::atomic<bool> bypassAuto{false};
+    /// El hilo de audio lo saltó y todavía nadie avisó (lo toma tomarSaltados, en la interfaz).
+    std::atomic<bool> saltadoSinAvisar{false};
     double x = 0, y = 0; // posicion en el patchbay
     // Medidores (el audio escribe potencia/pico lineales; se leen en dB).
     std::atomic<float> inPow{0}, outPow{0}, inPeak{0}, outPeak{0};
@@ -1005,6 +1007,9 @@ std::mutex& racksMu() {
 }
 std::set<AudioRack*>* g_racks = nullptr;
 std::atomic<bool> g_vigiaAndando{false};
+/// Quién se entera de que algún rack saltó algo (bajo racksMu, ver AudioRack::alSaltar).
+std::map<int, std::function<void()>>* g_alSaltar = nullptr;
+int g_proximoAviso = 1;
 std::int64_t ahoraNsRack() {
     return std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now().time_since_epoch())
         .count();
@@ -1019,7 +1024,9 @@ void AudioRack::registrar(AudioRack* r, bool alta) {
     else
         g_racks->erase(r);
     // Un solo hilo vigía para todos los racks: cada 50 ms mira si alguno está
-    // adentro de un process() hace más de 200 ms.
+    // adentro de un process() hace más de 200 ms, y es el que despierta a la interfaz
+    // cuando el hilo de audio saltó un módulo (el de audio solo marca atómicos: no
+    // puede tomar candados, alocar ni emitir señales).
     if (alta && !g_vigiaAndando.exchange(true))
         std::thread([] {
             ba::platform::nombrarHilo("rack-vigia");
@@ -1027,15 +1034,47 @@ void AudioRack::registrar(AudioRack* r, bool alta) {
                 std::this_thread::sleep_for(std::chrono::milliseconds(50));
                 std::lock_guard<std::mutex> l2(racksMu());
                 const std::int64_t ahora = ahoraNsRack();
+                bool despertar = false;
                 for (AudioRack* x : *g_racks) {
                     const std::int64_t desde = x->enProcesoDesde_.load();
                     if (desde != 0 && ahora - desde > 200'000'000LL && !x->colgado_.exchange(true)) {
-                        std::lock_guard<std::mutex> l3(x->saltadosMu_);
-                        x->saltados_.push_back(ba::i18n::traducir("rack", "rack colgado (un módulo no volvió en 200 ms)"));
+                        x->colgadoSinAvisar_.store(true);
+                        x->haySaltos_.store(true);
                     }
+                    if (x->haySaltos_.exchange(false)) despertar = true;
                 }
+                // Con el candado: quien se da de baja (alSaltar(nullptr)) espera a este aviso.
+                if (despertar && g_alSaltar != nullptr)
+                    for (const auto& [id, fn] : *g_alSaltar) fn();
             }
         }).detach();
+}
+
+int AudioRack::alSaltar(std::function<void()> fn) {
+    std::lock_guard<std::mutex> l(racksMu());
+    if (g_alSaltar == nullptr) g_alSaltar = new std::map<int, std::function<void()>>();
+    const int id = g_proximoAviso++;
+    (*g_alSaltar)[id] = std::move(fn);
+    return id;
+}
+
+void AudioRack::dejarDeAvisar(int id) {
+    std::lock_guard<std::mutex> l(racksMu());
+    if (g_alSaltar != nullptr) g_alSaltar->erase(id);
+}
+
+void AudioRack::marcarSaltado(Node& n) {
+    // Solo atómicos: lo llama el hilo de audio.
+    n.saltadoSinAvisar.store(true, std::memory_order_relaxed);
+    haySaltos_.store(true, std::memory_order_release);
+}
+
+bool AudioRack::simularSalto(const std::string& nodo) {
+    Node* n = find(nodo);
+    if (n == nullptr) return false;
+    n->bypassAuto.store(true);
+    marcarSaltado(*n);
+    return true;
 }
 
 void AudioRack::rehacerTodos() {
@@ -1065,9 +1104,11 @@ bool AudioRack::rearmar(const std::string& nodo) {
 }
 
 std::vector<std::string> AudioRack::tomarSaltados() {
-    std::lock_guard<std::mutex> l(saltadosMu_);
     std::vector<std::string> v;
-    v.swap(saltados_);
+    if (colgadoSinAvisar_.exchange(false))
+        v.push_back(ba::i18n::traducir("rack", "rack colgado (un módulo no volvió en 200 ms)"));
+    for (const auto& n : nodes_)
+        if (n->saltadoSinAvisar.exchange(false)) v.push_back(n->label.empty() ? n->id : n->label);
     return v;
 }
 
@@ -1205,8 +1246,7 @@ void AudioRack::process(float* const* planes, int channels, uint32_t frames) {
                         if (++node.lentos >= g_bloques.load(std::memory_order_relaxed)) {
                             node.bypassAuto.store(true, std::memory_order_relaxed);
                             node.lentos = 0;
-                            std::unique_lock<std::mutex> ls(saltadosMu_, std::try_to_lock);
-                            if (ls.owns_lock()) saltados_.push_back(node.label.empty() ? node.id : node.label);
+                            marcarSaltado(node);
                         }
                     } else {
                         node.lentos = 0;

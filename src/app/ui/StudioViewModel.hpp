@@ -27,6 +27,7 @@
 #include <chrono>
 #include <cstdint>
 #include <functional>
+#include "control/BusEventos.hpp"
 #include "comun/UsoCpu.hpp"
 #include "ui/AppViewModel.hpp"
 #include "ui/AsambleaViewModel.hpp"
@@ -213,6 +214,7 @@ class FuenteQrPintor;
 class DashboardModel;
 class FrameService;
 class MixerModel;
+class RelojNiveles;
 class PropertiesModel;
 class ScenesModel;
 class SettingsModel;
@@ -299,6 +301,10 @@ class StudioViewModel : public QObject {
     Q_PROPERTY(double cpuPercent READ cpuPercent NOTIFY cpuChanged)
     Q_PROPERTY(bool gatewayAlive READ gatewayAlive NOTIFY gatewayChanged)
     /// El vúmetro del programa de la salida activa (ver salidaActiva).
+    /// Los vúmetros a pedido (ui/RelojNiveles): `Suscripcion { objetivo: Studio.niveles;
+    /// activa: visible }` en cada vista que muestra niveles (programPeakL/R, los picos del
+    /// mezclador). Sin nadie que mire, no se miden.
+    Q_PROPERTY(QObject* niveles READ nivelesQml CONSTANT)
     Q_PROPERTY(double programPeakL READ picoActivaL NOTIFY nivelesChanged)
     Q_PROPERTY(double programPeakR READ picoActivaR NOTIFY nivelesChanged)
     Q_PROPERTY(QString currentScene READ currentScene NOTIFY sceneChanged)
@@ -604,9 +610,11 @@ class StudioViewModel : public QObject {
     void setCorteDirectoEditor(bool si);
     double cpuPercent() const { return cpu_; }
     bool gatewayAlive() const { return gatewayAlive_; }
-    /// Los de la por omisión (el MCP, las alarmas).
-    double programPeakL() const { return peakL_; }
-    double programPeakR() const { return peakR_; }
+    /// Los de la por omisión, de la última vuelta del dueño (el MCP: no depende de que
+    /// alguien mire los vúmetros).
+    double programPeakL() const;
+    double programPeakR() const;
+    QObject* nivelesQml() const;
     double picoActivaL() const { return salidas_->activaId().empty() ? peakL_ : peakActivaL_; }
     double picoActivaR() const { return salidas_->activaId().empty() ? peakR_ : peakActivaR_; }
     QString currentScene() const;
@@ -809,9 +817,6 @@ class StudioViewModel : public QObject {
     void senalChanged();
     void respaldosChanged();
 
-   private slots:
-    void onTick();
-
    private:
     AppRuntime& rt_;
     VentanillaMotor& ventanilla_; ///< el motor es del plano de control: se le pide y se lee su foto
@@ -872,6 +877,10 @@ class StudioViewModel : public QObject {
     std::unique_ptr<AppViewModel> app_; ///< el modo en vivo, la versión, los eventos, la caída (ui/AppViewModel)
     std::unique_ptr<AlarmasViewModel> alarmas_; ///< el área de las alarmas (y su vigía)
     std::unique_ptr<control::BusEventos> bus_;
+    /// Lo que escuchan los plugins, pedido al bus (los niveles, si escuchan eso).
+    control::InteresEnBus interesPlugins_;
+    /// El ritmo de los vúmetros, a pedido: usa el mezclador, las salidas y el bus (va después).
+    std::unique_ptr<RelojNiveles> niveles_;
     /// La asamblea y sus modelos (ui/AsambleaViewModel). Después del bus (se desuscriben
     /// de él): lo que usa sus modelos (la grilla, la atención, los tótems) va más abajo.
     std::unique_ptr<AsambleaViewModel> asamblea_;
@@ -900,11 +909,18 @@ class StudioViewModel : public QObject {
     double peakActivaL_ = -100; ///< el vúmetro del programa de la activa (si no es la por omisión)
     double peakActivaR_ = -100;
     std::unique_ptr<EmisionViewModel> emision_; ///< grabar, transmitir y lo que los rodea (ui/EmisionViewModel)
-    /// Publica en el bus lo que cambió (cada vuelta del reloj, 10 Hz).
-    void publicarEventos();
+    /// Lo que está al aire de cada salida, al bus (cuando cambia la foto, el aire o el DSK).
+    void publicarSalidas();
+    /// Los niveles que alguien pidió al bus (a pedido: ver BusEventos).
+    void publicarNivelesEnBus();
+    /// Las entradas sin señal, al bus (cuando cambian).
+    void publicarSenal();
+    /// Lo que se mide cada segundo (la salud de las salidas, el loudness, el orador), al bus.
+    void publicarSegundo();
+    /// Los vúmetros del programa (una vuelta de niveles_): si se movieron.
+    bool medirPrograma();
     /// La transmisión y la grabación de la por omisión, al bus (salida/stream, salida/grabacion).
     void publicarAire();
-    int busTicks_ = 0;
     /// Usa conference_ (su cliente), la sesión remota y el cuerpo (asamblea_) y el motor: va
     /// después (se destruye antes).
     std::unique_ptr<escenas::ControlGrillas> grillasPersonas_;
@@ -917,7 +933,6 @@ class StudioViewModel : public QObject {
     std::atomic<unsigned> avisosPendientes_{0};
     void refrescarAvisos();
     std::unique_ptr<config::InterfazConfig> interfaz_;        ///< Config/interfaz.json (modelo)
-    unsigned vigiaTicks_ = 0;
     QVariantMap latido_; ///< lo último del latido (se avisa solo si cambia)
     /// Lee el latido (de otro hilo, atómico) y avisa si cambió.
     void revisarLatido();
@@ -933,7 +948,6 @@ class StudioViewModel : public QObject {
     std::unique_ptr<InputsViewModel> inputs_;
     std::unique_ptr<ChatOverlayRenderer> chatOverlay_;
     std::unique_ptr<FuenteQrPintor> fuenteQr_; ///< pinta las fuentes «Código QR» de las escenas
-    QTimer tick_;
     QTimer frameTick_;
 
     /// El CPU de la app y si el gateway contesta: cada segundo (cpuChanged, gatewayChanged).

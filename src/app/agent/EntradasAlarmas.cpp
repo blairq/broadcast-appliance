@@ -6,8 +6,13 @@
 
 namespace ba::app::agent {
 
-EntradasAlarmas::EntradasAlarmas(AlertInputs deLaInterfaz, AlertInputs directas, AlertInputs sinLaInterfaz, int quietaMs)
-    : ui_(std::move(deLaInterfaz)), directas_(std::move(directas)), respaldo_(std::move(sinLaInterfaz)), quietaMs_(quietaMs) {}
+EntradasAlarmas::EntradasAlarmas(AlertInputs deLaInterfaz, AlertInputs directas, AlertInputs sinLaInterfaz,
+                                 Latido latido, int quietaMs)
+    : ui_(std::move(deLaInterfaz)),
+      directas_(std::move(directas)),
+      respaldo_(std::move(sinLaInterfaz)),
+      latido_(std::move(latido)),
+      quietaMs_(quietaMs) {}
 
 void EntradasAlarmas::refrescar() {
     // Solo lo que la interfaz da y no hay directo (lo directo no pasa por la foto).
@@ -29,20 +34,20 @@ void EntradasAlarmas::refrescar() {
     copiar(ui_.recursos, directas_.recursos, f_->recursos);
     copiar(ui_.persistencia, directas_.persistencia, f_->persistencia);
     copiar(ui_.energia, directas_.energia, f_->energia);
-    f_->vuelta.poner(true);
 }
 
 AlertInputs EntradasAlarmas::paraElVigia() const {
     AlertInputs in;
     const std::shared_ptr<Fotos> f = f_;
-    // Directa si la hay; si no, la foto de lo que dio la interfaz (o, si se quedó quieta y
-    // hay respaldo, el respaldo); si no, nada (como antes). Las fotos viven en f_, que se
-    // comparte con el vigía: no dependen de esta instancia.
+    // Directa si la hay; si no, la foto de lo que dio la interfaz (o, si la interfaz está
+    // trabada y hay respaldo, el respaldo); si no, nada (como antes). Las fotos viven en
+    // f_, que se comparte con el vigía: no dependen de esta instancia.
     const int quieta = quietaMs_;
-    const auto deFoto = [f, quieta](auto Fotos::*miembro, auto respaldo) {
-        return [f, miembro, respaldo, quieta]() {
-            if (respaldo) {
-                const std::int64_t edad = f->vuelta.edadMs();
+    const Latido latido = latido_;
+    const auto deFoto = [f, quieta, latido](auto Fotos::*miembro, auto respaldo) {
+        return [f, miembro, respaldo, quieta, latido]() {
+            if (respaldo && latido) {
+                const std::int64_t edad = latido();
                 if (edad < 0 || edad > quieta) return respaldo();
             }
             return ((*f).*miembro).leer();

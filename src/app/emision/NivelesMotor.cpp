@@ -7,8 +7,49 @@
 namespace ba::app {
 
 void NivelesMotor::ponerNiveles(std::shared_ptr<const Niveles> n) {
+    {
+        const std::lock_guard<std::mutex> l(mu_);
+        niveles_ = std::move(n);
+    }
+    despertarSiSuena();
+}
+
+bool NivelesMotor::haySonidoSinCandado() const {
+    if (niveles_)
+        for (const auto& n : *niveles_)
+            if (std::max(n.pico[0], n.pico[1]) > kSilencioDb) return true;
+    for (const auto& [id, p] : programa_)
+        if (std::max(p.ultimo[0], p.ultimo[1]) > kSilencioDb) return true;
+    return false;
+}
+
+bool NivelesMotor::haySonido() const {
     const std::lock_guard<std::mutex> l(mu_);
-    niveles_ = std::move(n);
+    return haySonidoSinCandado();
+}
+
+void NivelesMotor::despertarAlSonar(std::function<void()> fn) {
+    {
+        const std::lock_guard<std::mutex> a(avisoMu_); // espera al aviso en curso
+        const std::lock_guard<std::mutex> l(mu_);
+        despertar_ = std::move(fn);
+        armado_ = static_cast<bool>(despertar_);
+    }
+    despertarSiSuena(); // si ya suena, ya
+}
+
+void NivelesMotor::despertarSiSuena() {
+    if (!armado_.load(std::memory_order_acquire)) return; // lo de siempre: nadie duerme
+    const std::lock_guard<std::mutex> a(avisoMu_);
+    std::function<void()> fn;
+    {
+        const std::lock_guard<std::mutex> l(mu_);
+        if (!despertar_ || !haySonidoSinCandado()) return;
+        fn = std::move(despertar_); // una vez
+        despertar_ = nullptr;
+        armado_ = false;
+    }
+    fn();
 }
 
 std::shared_ptr<const NivelesMotor::Niveles> NivelesMotor::niveles() const {
@@ -39,12 +80,15 @@ void NivelesMotor::setPorOmision(const std::string& id) {
 }
 
 void NivelesMotor::sumarPrograma(const std::string& salida, float l, float r) {
-    const std::lock_guard<std::mutex> g(mu_);
-    Programa& p = programa_[clave(salida)];
-    p.ultimo[0] = l;
-    p.ultimo[1] = r;
-    p.acum[0] = std::max(p.acum[0], l);
-    p.acum[1] = std::max(p.acum[1], r);
+    {
+        const std::lock_guard<std::mutex> g(mu_);
+        Programa& p = programa_[clave(salida)];
+        p.ultimo[0] = l;
+        p.ultimo[1] = r;
+        p.acum[0] = std::max(p.acum[0], l);
+        p.acum[1] = std::max(p.acum[1], r);
+    }
+    despertarSiSuena();
 }
 
 std::pair<float, float> NivelesMotor::tomarPrograma(const std::string& salida) {

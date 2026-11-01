@@ -42,6 +42,8 @@ Item {
     property bool vumetros: operador
     // Los picos de las fuentes (los avisa el modelo del mezclador cuando se mueven).
     readonly property var picos: wall.vumetros && Studio.mixer ? Studio.mixer.picos : ({})
+    // Los vúmetros del muro se miden solo mientras se ven (Studio.niveles, por vista).
+    Suscripcion { objetivo: Studio.niveles; activa: wall.vumetros && wall.visible }
 
     /// La fuente del programa que muestra la celda (para el tally y el nivel).
     function fuenteDe(key) {

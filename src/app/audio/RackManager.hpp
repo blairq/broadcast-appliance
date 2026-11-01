@@ -71,7 +71,8 @@ class RackManager : public QObject {
     json estudio() const;
     /// El rack de la fuente; con `create` lo monta si no tiene.
     AudioRack* rack(const std::string& source, bool create, std::string* error = nullptr);
-    /// Los módulos que el vigía saltó en todos los racks ("<fuente>: <módulo>").
+    /// Los módulos que el vigía saltó en todos los racks ("<fuente>: <módulo>"). Lo que
+    /// haya lo avisa `saltados` (no hace falta preguntar a cada rato).
     std::vector<std::string> tomarSaltados();
     /// Quita el rack de la fuente (el audio vuelve a pasar directo).
     bool removeRack(const std::string& source);
@@ -223,8 +224,11 @@ class RackManager : public QObject {
     void changed();
     /// Cambió algo de algún rack (cada markDirty: también al quitar una tarjeta a mano).
     void editado();
+    /// El vigía saltó un módulo (o se colgó un rack): hay algo para tomarSaltados.
+    void saltados();
 
    private:
+    int avisoSaltos_ = 0; ///< el de AudioRack::alSaltar
     std::filesystem::path root_;
     QtHostServices* services_ = nullptr; // del proceso (ver el constructor)
     std::shared_ptr<ClapLibrary> lib_;

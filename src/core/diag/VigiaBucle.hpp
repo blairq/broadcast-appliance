@@ -26,6 +26,7 @@
 #include <nlohmann/json.hpp>
 
 #include <array>
+#include <atomic>
 #include <cstdint>
 #include <functional>
 #include <map>
@@ -52,10 +53,20 @@ class VigiaBucle {
     void anotar(const char* que, int detalle = 0);
     /// Igual, con un texto que se copia (la herramienta MCP: «mcp scene_switch»).
     void anotar(const std::string& que);
+    /// El hilo se despertó (el despachador de eventos salió de su espera). Atómico.
+    void despertar() { despertares_.fetch_add(1, std::memory_order_relaxed); }
+    /// Corrió un temporizador (`que`: «QTimer de X, cada N ms»): cuántas veces corrió cada uno.
+    void contarTemporizador(const std::string& que);
+
+    /// EL LATIDO DE LA INTERFAZ: cuánto hace (ms) de la última vuelta del temporizador
+    /// (-1 si nunca dio una). Con la interfaz trabada crece; lo lee el vigía de las alarmas
+    /// (agent/EntradasAlarmas) para pasarse al respaldo. Desde cualquier hilo.
+    std::int64_t edadMs() const;
 
     /// {periodo_ms, umbral_ms, vueltas, tarde, histograma, ultimo_minuto: {p50_ms,
     /// p99_ms, max_ms, muestras}, culpables: [{que, veces, total_ms, max_ms}] (los 10
-    /// peores por total), ultimo_tarde: {ms, que, hace_s}}.
+    /// peores por total), ultimo_tarde: {ms, que, hace_s}, despertares (desde el
+    /// arranque), temporizadores: [{que, veces}] (los 15 que más corrieron)}.
     nlohmann::json informe() const;
 
     void alAvisar(Avisar a);
@@ -98,6 +109,8 @@ class VigiaBucle {
     std::map<std::string, Culpable> culpables_;
     std::int64_t ultimoTardeUs_ = 0, ultimoTardeCuandoUs_ = -1;
     std::string ultimoTardeQue_;
+    std::atomic<std::uint64_t> despertares_{0};
+    std::map<std::string, std::uint64_t> temporizadores_; ///< con mu_ (a lo sumo kMaxCulpables)
 };
 
 } // namespace ba::diag

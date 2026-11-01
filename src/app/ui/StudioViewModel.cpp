@@ -75,6 +75,7 @@
 #include "ui/PropertiesModel.hpp"
 #include "ui/PublicoViewModel.hpp"
 #include "ui/QrViewModel.hpp"
+#include "ui/RelojNiveles.hpp"
 #include "ui/RecursosViewModel.hpp"
 #include "ui/RegistroViewModel.hpp"
 #include "ui/RielConfig.hpp"
@@ -607,6 +608,10 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, VentanillaMotor& ventanilla, QO
             .dsk = [this]() { return control_ ? &control_->dsk() : nullptr; },
             .cuerpo = [this]() { return asamblea_ ? &asamblea_->cuerpo().cuerpo() : nullptr; }});
         connect(asistente_.get(), &AsistenteViewModel::notify, this, &StudioViewModel::notify);
+        // Las frases de las salidas de texto que mira el vigía de las alarmas: se copian
+        // cuando llega una.
+        connect(&asistente_->flujos(), &agent::FlujosTexto::cambio, alarmas_.get(), &AlarmasViewModel::fotoCambio);
+        alarmas_->fotoCambio();
         // El traductor sabe a qué idiomas se traduce en el evento abierto: su idioma, del guion.
         if (agent::Traductor* t = asistente_->traductor(); t != nullptr && evento_) {
             const auto idioma = [t, ev = evento_.get()]() {
@@ -891,10 +896,58 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, VentanillaMotor& ventanilla, QO
     if (qr_) qr_->setTotems([this]() { return totems_ ? totems_->paraElegir() : QVariantList{}; });
     escritorio_->refrescarCatalogo();
     marca("totems");
-    connect(&tick_, &QTimer::timeout, this, &StudioViewModel::onTick);
-    tick_.start(100);
+    // Sin un reloj de la interfaz a 10 Hz: cada cosa por su aviso.
+    //   - Los vúmetros (el programa y cada tira) y los niveles del bus: a 10 Hz SOLO con
+    //     alguien mirando (una vista, o quien los pidió al bus) y algo que suene
+    //     (ui/RelojNiveles; en silencio, el canal lo despierta).
+    niveles_ = std::make_unique<RelojNiveles>(rt_.niveles());
+    niveles_->medir([this]() { return mixer_->refreshLevels(); });
+    niveles_->medir([this]() { return medirPrograma(); });
+    niveles_->medir([this]() {
+        publicarNivelesEnBus();
+        return false; // lo que publica sale de los picos de arriba
+    });
+    const auto revisarInteres = [this]() {
+        const bool quieren = bus_->hayInteresEn("audio/nivel/#") || bus_->hayInteresEn("audio/+/nivel/#");
+        niveles_->usar(bus_.get(), quieren);
+        if (!quieren) { // nadie lee un nivel viejo como si fuera de ahora
+            bus_->olvidar("audio/nivel/#");
+            bus_->olvidar("audio/+/nivel/#");
+        }
+        publicarNivelesEnBus(); // el volumen y el mudo de lo que se empieza a pedir, ya
+    };
+    connect(bus_.get(), &control::BusEventos::interesCambio, this, revisarInteres);
+    revisarInteres();
+    // El volumen y el mudo de cada tira, al bus cuando cambian (los picos van con el reloj).
+    connect(mixer_.get(), &QAbstractItemModel::dataChanged, this, [this](const QModelIndex&, const QModelIndex&, const QList<int>& roles) {
+        if (roles.isEmpty() || roles.contains(MixerModel::VolumeDbRole) || roles.contains(MixerModel::MutedRole))
+            publicarNivelesEnBus();
+    });
+    connect(mixer_.get(), &QAbstractItemModel::modelReset, this, [this]() { publicarNivelesEnBus(); });
+    //   - Lo que escuchan los plugins también se pide al bus (los niveles, si escuchan eso).
+    if (plugins_) {
+        const auto escuchas = [this]() {
+            const std::vector<std::string> v = plugins_->escuchas();
+            interesPlugins_.poner(std::set<std::string>(v.begin(), v.end()));
+        };
+        connect(plugins_.get(), &plugins::Plugins::cambio, this, escuchas);
+        escuchas();
+    }
+    //   - Lo que está al aire de cada salida (tally, medios, DSK, T-bar): cuando cambia la
+    //     foto, el aire o el DSK. El modo en vivo y la vuelta del aire tras una caída: con
+    //     la foto (Estado) y cuando cambia el vivo.
+    connect(aire_.get(), &EstadoAireViewModel::aireChanged, this, &StudioViewModel::publicarSalidas);
+    connect(control_.get(), &ControlViewModel::dskCambio, this, &StudioViewModel::publicarSalidas);
+    connect(app_.get(), &AppViewModel::vivoCambio, this, [this]() { app_->vigilar(*bus_); });
+    publicarSalidas();
+    app_->vigilar(*bus_);
+    //   - Las entradas sin señal y la gente de la sala: cuando cambian.
+    connect(this, &StudioViewModel::senalChanged, this, &StudioViewModel::publicarSenal);
+    publicarSenal();
+    connect(&conference_->client(), &ConferenceClient::snapshotChanged, this, [this]() { sala_->publicarParticipantes(*bus_); });
+    sala_->publicarParticipantes(*bus_);
     // El CPU y el gateway, una vez por segundo (el CPU medido en una ventana de 100 ms
-    // bailaba y hacía avisar a todo en cada vuelta).
+    // bailaba y hacía avisar a todo en cada vuelta); también lo que se mide cada segundo.
     connect(&segundo_, &QTimer::timeout, this, &StudioViewModel::alSegundo);
     segundo_.start(1000);
     alSegundo();
@@ -970,34 +1023,32 @@ void StudioViewModel::uiGuardar(const QString& clave, const QVariant& valor) {
     interfaz_->guardar(clave.toStdString(), v);
 }
 
-void StudioViewModel::onTick() {
-    asamblea_->tic();
-    // (El reloj del runtime ya no es este: lo da el plano de control, arranque/PlanoControl.
-    // Acá solo lo que muestra la vista.)
-    // Lo de la interfaz que mira el vigía de las alarmas (en el plano de control), como
-    // foto: cada 200 ms (él evalúa cada 250).
-    if (alarmas_ && vigiaTicks_ % 2 == 0) alarmas_->refrescarFoto();
-    // El vigía de los módulos de audio: lo que saltó por lento o colgado.
-    if (++vigiaTicks_ % 10 == 0) mezcla_->vigilarModulos();
-    // La interfaz volvió de una traba: cuánto duró (el aire no se cortó).
-    if (const std::uint64_t ms = rt_.latido().tomarTrabaTerminada(); ms > 0)
-        emit notify(tr("La interfaz estuvo trabada %1 s; el aire siguió").arg(ms / 1000.0, 0, 'f', 1), "warn");
-    // El latido (si el motor saca cuadros, la última traba, la política): para la salud.
-    if (vigiaTicks_ % 10 == 0) revisarLatido();
-    // (Lo que sale de la por omisión lo dice aire_, de la foto: avisa cuando cambia.)
+double StudioViewModel::programPeakL() const { return rt_.niveles().programa({}).first; }
+double StudioViewModel::programPeakR() const { return rt_.niveles().programa({}).second; }
+QObject* StudioViewModel::nivelesQml() const {
+    QQmlEngine::setObjectOwnership(niveles_.get(), QQmlEngine::CppOwnership);
+    return niveles_.get();
+}
+
+bool StudioViewModel::medirPrograma() {
     // Los vúmetros del programa: del canal de niveles (el mayor desde la vuelta anterior; lo
-    // suma el dueño en cada vuelta de su reloj), sin el motor.
+    // suma el dueño en cada vuelta de su reloj), sin el motor. Caída de 1,5 dB por vuelta.
+    const auto caer = [](double& pico, float ahora) {
+        const double antes = pico;
+        pico = std::max<double>(ahora, pico - 1.5);
+        if (pico < -100) pico = -100;
+        return std::abs(pico - antes) > 0.1;
+    };
     const auto [l, r] = rt_.niveles().tomarPrograma({});
-    peakL_ = std::max<double>(l, peakL_ - 1.5);
-    peakR_ = std::max<double>(r, peakR_ - 1.5);
+    bool movio = caer(peakL_, l);
+    movio = caer(peakR_, r) || movio;
     if (const std::string& activa = salidas_->activaId(); !activa.empty()) { // el vúmetro de la activa (las alarmas siguen mirando la por omisión)
         const auto [la, ra] = rt_.niveles().tomarPrograma(activa);
-        peakActivaL_ = std::max<double>(la, peakActivaL_ - 1.5);
-        peakActivaR_ = std::max<double>(ra, peakActivaR_ - 1.5);
+        movio = caer(peakActivaL_, la) || movio;
+        movio = caer(peakActivaR_, ra) || movio;
     }
-    mixer_->refreshLevels();
-    emit nivelesChanged();
-    publicarEventos();
+    if (movio) emit nivelesChanged();
+    return movio;
 }
 
 void StudioViewModel::alSegundo() {
@@ -1010,6 +1061,14 @@ void StudioViewModel::alSegundo() {
         gatewayAlive_ = vivo;
         emit gatewayChanged();
     }
+    // El tiempo del que tiene la palabra (los avisos de un minuto y del final).
+    asamblea_->tic();
+    // La interfaz volvió de una traba: cuánto duró (el aire no se cortó).
+    if (const std::uint64_t ms = rt_.latido().tomarTrabaTerminada(); ms > 0)
+        emit notify(tr("La interfaz estuvo trabada %1 s; el aire siguió").arg(ms / 1000.0, 0, 'f', 1), "warn");
+    // El latido (si el motor saca cuadros, la última traba, la política): para la salud.
+    revisarLatido();
+    publicarSegundo();
 }
 
 QObject* StudioViewModel::aireQml() const {
@@ -1240,6 +1299,11 @@ void StudioViewModel::refreshModels() {
 }
 
 void StudioViewModel::alCambiarFoto(unsigned partes) {
+    // Lo que está al aire de cada salida (y sus medios, que van en Medidas), al bus.
+    if ((partes & (FotoMotor::Salidas | FotoMotor::Escenas | FotoMotor::Medidas | FotoMotor::Superficies)) != 0)
+        publicarSalidas();
+    // Volviendo de una caída (cuánto tardó el aire en volver) y el modo en vivo.
+    if ((partes & FotoMotor::Estado) != 0 && app_ && bus_) app_->vigilar(*bus_);
     if ((partes & FotoMotor::Ajustes) != 0) {
         // Se aplicó la configuración (la GUI o settings_set del MCP): lo que rige ya.
         emit canvasChanged();
@@ -1393,31 +1457,44 @@ void StudioViewModel::publicarAire() {
     bus_->publicar("salida/grabacion", {{"activo", a.recording()}, {"tiempo", a.recordTime().toStdString()}});
 }
 
-void StudioViewModel::publicarEventos() {
-    if (!bus_) return;
-    // Volviendo de una caída (cuánto tardó el aire en volver) y el modo en vivo que cambia.
-    app_->vigilar(*bus_);
-    ++busTicks_;
+void StudioViewModel::publicarSalidas() {
+    if (!bus_ || !control_) return;
     // Lo que está al aire de cada salida (la escena, la armada, el tally, los medios, la
-    // T-bar, las capas y la mezcla de cada una), al bus y al multiview.
+    // T-bar y las capas de cada una), al bus y al multiview. Repetir lo mismo no avisa.
     const EstadoAireViewModel& a = *aire_;
-    salidas_->publicarEnBus(*bus_, *mixer_, control_->dsk(), a.streaming(), a.recording());
+    salidas_->publicarEnBus(*bus_, control_->dsk(), a.streaming(), a.recording());
     // (La transmisión y la grabación las publica publicarAire, cuando EstadoAire avisa.)
-    const bool segundo = busTicks_ % 10 == 0;
-    // Niveles: solo si se movieron 1 dB o más (o cambió el volumen o el mudo). El fader y
-    // el mudo de la por omisión (el mezclador muestra el de la activa: no es lo mismo).
-    for (int i = 0; i < mixer_->rowCount(); ++i)
-        bus_->publicar("audio/nivel/" + mixer_->data(mixer_->index(i), MixerModel::NameRole).toString().toStdString(),
-                       mixer_->nivelEn(i, {}));
-    if (segundo) {
-        emision_->muestrearSalud(*bus_);
-        bus_->publicar("audio/loudness", ventanilla_.foto().loudness.value(BroadcastEngine::kSalidaPorOmision, nlohmann::json::object()));
-        nlohmann::json sin = nlohmann::json::array();
-        for (const QString& e : sinSenal()) sin.push_back(e.toStdString());
-        bus_->publicar("entrada/senal", {{"sin_senal", sin}});
-        if (asamblea_) bus_->publicar("oradores/al_aire", asamblea_->bancas().oradorParaZocalo());
-        sala_->publicarParticipantes(*bus_);
+}
+
+void StudioViewModel::publicarNivelesEnBus() {
+    if (!bus_ || !mixer_) return;
+    // A PEDIDO (BusEventos): solo los temas que alguien quiere. El fader y el mudo de la por
+    // omisión en audio/nivel/<fuente>; los de cada otra salida, en audio/<salida>/nivel/<fuente>.
+    std::vector<std::string> otras;
+    for (const FotoMotor::Salida& s : ventanilla_.foto().salidas)
+        if (!s.porOmision) otras.push_back(s.id);
+    for (int i = 0; i < mixer_->rowCount(); ++i) {
+        const std::string f = mixer_->data(mixer_->index(i), MixerModel::NameRole).toString().toStdString();
+        if (const std::string t = "audio/nivel/" + f; bus_->hayInteres(t)) bus_->publicar(t, mixer_->nivelEn(i, {}));
+        for (const std::string& id : otras)
+            if (const std::string t = "audio/" + id + "/nivel/" + f; bus_->hayInteres(t))
+                bus_->publicar(t, mixer_->nivelEn(i, id));
     }
+}
+
+void StudioViewModel::publicarSenal() {
+    if (!bus_) return;
+    nlohmann::json sin = nlohmann::json::array();
+    for (const QString& e : sinSenal()) sin.push_back(e.toStdString());
+    bus_->publicar("entrada/senal", {{"sin_senal", sin}});
+}
+
+void StudioViewModel::publicarSegundo() {
+    if (!bus_) return;
+    // Las mediciones de cada segundo (la salud de las salidas, el loudness) y el orador.
+    emision_->muestrearSalud(*bus_);
+    bus_->publicar("audio/loudness", ventanilla_.foto().loudness.value(BroadcastEngine::kSalidaPorOmision, nlohmann::json::object()));
+    if (asamblea_) bus_->publicar("oradores/al_aire", asamblea_->bancas().oradorParaZocalo());
 }
 
 QObject* StudioViewModel::botoneraQml() const { return control_->botoneraQml(); }

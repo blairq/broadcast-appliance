@@ -110,6 +110,9 @@ class Plugins : public QObject {
     /// Un evento de la app (bus): a los plugins que escuchan ese tema
     /// (@plugin.escuchar("aire/tally"), "audio/nivel/+", "alarma/#").
     void eventoApp(const std::string& tema, const json& datos);
+    /// Lo que escuchan los plugins que andan (sus patrones): la app lo pide al bus, así lo
+    /// que se publica a pedido (los niveles) les llega. Avisa `cambio` cuando cambia.
+    std::vector<std::string> escuchas() const;
     // --- Superficies de hardware (Stream Deck, MIDI, X-keys…) ---------------------
     // Un plugin registra un aparato como una botonera más (control/Botonera):
     // el operador le asigna perfil y página, el plugin recibe el estado de cada

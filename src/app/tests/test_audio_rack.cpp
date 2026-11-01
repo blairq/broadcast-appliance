@@ -11,6 +11,9 @@
 // ============================================================================
 
 #include <numbers>
+#include <atomic>
+#include <chrono>
+#include <thread>
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
@@ -340,6 +343,38 @@ int main() {
     CHECK(rack3.hasOutput() && rack3.outputDevice() == "dev-1",
           "la salida y su dispositivo vuelven del archivo");
     (void)setByName;
+
+    // 5. El buzón de lo saltado por lento: el hilo de audio solo marca atómicos y el vigía
+    //    de los racks despierta a quien escucha UNA vez por salto; sin saltos, nadie se
+    //    despierta (no hay que sondear el buzón).
+    {
+        AudioRack rs(lib, &svc, 48000); // uno nuevo: el de arriba quedó «colgado» a propósito
+        const std::string comp = rs.addPlugin("in.lsp-plug.compressor_stereo", "Compresor", "", &err);
+        CHECK(!comp.empty(), "buzón: un compresor");
+        std::atomic<int> avisos{0};
+        const int id = AudioRack::alSaltar([&avisos]() { ++avisos; });
+        const auto esperar = [&avisos](int n) {
+            for (int i = 0; i < 100 && avisos.load() < n; ++i) std::this_thread::sleep_for(std::chrono::milliseconds(10));
+            return avisos.load();
+        };
+        feed(rs, 0.5f, 0.3); // el compresor anda rápido: nada que avisar
+        std::this_thread::sleep_for(std::chrono::milliseconds(200));
+        CHECK(avisos.load() == 0 && rs.tomarSaltados().empty(), "sin saltos, el vigía no despierta a nadie");
+        CHECK(rs.simularSalto(comp), "el hilo de audio salta el compresor");
+        CHECK(esperar(1) == 1, "el vigía avisa el salto");
+        const std::vector<std::string> s1 = rs.tomarSaltados();
+        CHECK(s1.size() == 1 && s1[0] == "Compresor", "el buzón trae el módulo saltado");
+        CHECK(rs.tomarSaltados().empty(), "y se vacía al tomarlo");
+        std::this_thread::sleep_for(std::chrono::milliseconds(200));
+        CHECK(avisos.load() == 1, "un salto, un aviso (el vigía no repite)");
+        CHECK(rs.describe().dump().find("\"bypass_auto\":true") != std::string::npos,
+              "el módulo saltado queda en bypass automático");
+        AudioRack::dejarDeAvisar(id);
+        CHECK(rs.simularSalto(comp), "otro salto");
+        std::this_thread::sleep_for(std::chrono::milliseconds(200));
+        CHECK(avisos.load() == 1, "dado de baja, no se lo avisa más");
+        CHECK(rs.tomarSaltados().size() == 1, "lo saltado igual queda en el buzón");
+    }
 
     if (g_failures == 0) std::printf("test_audio_rack: OK\n");
     return g_failures == 0 ? 0 : 1;

@@ -52,7 +52,6 @@ class AppRuntime;
 class EstadoAireViewModel;
 struct FotoMotor;
 class JsonListModel;
-class MixerModel;
 class RecursosViewModel;
 class VentanillaMotor;
 } // namespace ba::app
@@ -138,10 +137,11 @@ class SalidasViewModel : public QObject {
     void publicar();
     /// Vuelve a la activa que tenía esta interfaz al cerrarse (si sigue estando).
     void retomarActiva();
-    /// En cada vuelta del reloj: lo que está al aire de cada salida, al bus (la escena, la
-    /// armada, el tally, los medios, la T-bar; las capas DSK y la mezcla de cada una) y al
-    /// multiview (tally, mediosAlAire). Lo que sale de la por omisión lo dicen las pastillas.
-    void publicarEnBus(control::BusEventos& bus, MixerModel& tiras, control::Dsk& dsk, bool transmitiendo, bool grabando);
+    /// Cuando cambia la foto, el aire o el DSK: lo que está al aire de cada salida, al bus (la
+    /// escena, la armada, el tally, los medios, la T-bar y las capas DSK de cada una) y al
+    /// multiview (tally, mediosAlAire). Lo que sale de la por omisión lo dicen las pastillas;
+    /// los niveles de cada mezcla van a pedido (StudioViewModel::publicarNivelesEnBus).
+    void publicarEnBus(control::BusEventos& bus, control::Dsk& dsk, bool transmitiendo, bool grabando);
     QVariantMap tally() const { return tally_; }
     QVariantList mediosAlAire() const { return mediosAlAire_; }
 

@@ -78,7 +78,17 @@ class AudioRack {
     /// Saca un módulo del bypass automático (y al rack de «colgado»). false si no existe.
     bool rearmar(const std::string& nodo);
     /// Los módulos que el vigía saltó desde la última vez que se preguntó (para avisar).
+    /// En el hilo principal (recorre los nodos).
     std::vector<std::string> tomarSaltados();
+    /// Quién se entera de que algún rack saltó algo (para llamar a tomarSaltados): lo
+    /// llama el hilo vigía de los racks (no el de audio), sin la interfaz; tiene que
+    /// encolar y volver. Así nadie sondea el buzón. Devuelve el id para dejarDeAvisar,
+    /// que espera al aviso en curso (después no llama más).
+    static int alSaltar(std::function<void()> fn);
+    static void dejarDeAvisar(int id);
+    /// Para las pruebas: lo mismo que hace el hilo de audio con un módulo lento (lo pone
+    /// en bypass automático y lo deja para avisar). false si no existe.
+    bool simularSalto(const std::string& nodo);
 
     // --- hilo principal --------------------------------------------------------------
     /// Agrega un modulo CLAP. `after`: insertarlo en la cadena despues de ese
@@ -231,8 +241,13 @@ class AudioRack {
 
     std::atomic<std::int64_t> enProcesoDesde_{0}; ///< ns en que entró a un process() (0 = afuera)
     std::atomic<bool> colgado_{false};
-    std::mutex saltadosMu_;
-    std::vector<std::string> saltados_;
+    // El buzón de lo saltado, sin candados (lo escribe el hilo de audio): cada nodo lleva su
+    // marca (Node::saltadoSinAvisar) y el rack dice si hay algo nuevo; el vigía lo ve y
+    // despierta a quien escucha (alSaltar).
+    std::atomic<bool> haySaltos_{false};
+    std::atomic<bool> colgadoSinAvisar_{false};
+    /// Lo que hace el hilo de audio al saltar un módulo (solo atómicos).
+    void marcarSaltado(Node& n);
     /// Vuelve a armar el plan de todos los racks (un plugin cambió su latencia).
    public:
     static void rehacerTodos();

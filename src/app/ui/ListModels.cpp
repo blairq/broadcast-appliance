@@ -677,7 +677,7 @@ void MixerModel::setCompacto(const QString& grupo, bool compacto) {
         if (grupos_[i] == g) emit dataChanged(index(static_cast<int>(i)), index(static_cast<int>(i)), {CompactoRole});
 }
 
-void MixerModel::refreshLevels() {
+bool MixerModel::refreshLevels() {
     // Del canal de niveles (los publica el motor cada ~40 ms), sin el turno ni el motor.
     // Solo se avisa lo que cambió (en silencio todo queda en -100: sin avisos, las
     // vistas no reevalúan nada diez veces por segundo).
@@ -688,7 +688,7 @@ void MixerModel::refreshLevels() {
         if (nv)
             for (const auto& n : *nv)
                 if (!n.bus && n.id == names_[i]) ahora = std::max(n.pico[0], n.pico[1]);
-        // Caida suave: 1,5 dB por vuelta del tick (100 ms).
+        // Caida suave: 1,5 dB por vuelta (100 ms).
         const float antes = peaks_[i];
         peaks_[i] = std::max(ahora, peaks_[i] - 1.5f);
         if (peaks_[i] < -100.0f) peaks_[i] = -100.0f;
@@ -697,10 +697,10 @@ void MixerModel::refreshLevels() {
             hasta = static_cast<int>(i);
         }
     }
-    if (desde >= 0) {
-        emit dataChanged(index(desde), index(hasta), {PeakDbRole});
-        emit picosCambio();
-    }
+    if (desde < 0) return false;
+    emit dataChanged(index(desde), index(hasta), {PeakDbRole});
+    emit picosCambio();
+    return true;
 }
 
 QVariantMap MixerModel::picos() const {

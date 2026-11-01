@@ -50,6 +50,9 @@ MezclaViewModel::MezclaViewModel(Partes p, QObject* parent) : QObject(parent), p
     racks_->setFoto([v = &p_.ventanilla]() { return v->fotoCompartida(); },
                     [v = &p_.ventanilla](std::function<void()> orden) { v->pedir("rack_en_fuente", std::move(orden)); });
     racks_->restore();
+    // El vigía de los módulos de audio: lo que saltó por lento o colgado, cuando el hilo
+    // vigía de los racks avisa (el de audio no puede emitir; nadie sondea el buzón).
+    connect(racks_.get(), &audio::RackManager::saltados, this, &MezclaViewModel::vigilarModulos);
     audio_ = std::make_unique<audio::AudioViewModel>(*racks_);
     // Una entrada de audio nueva (o una que se va), la agregue quien la agregue (la
     // interfaz, el asistente, una receta): la lista del modelo de Audio se rehace sola.

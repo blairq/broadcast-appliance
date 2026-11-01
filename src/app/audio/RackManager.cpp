@@ -293,9 +293,15 @@ RackManager::RackManager(fs::path dataRoot, QObject* parent) : QObject(parent), 
         sincronizarEntradas();
     });
     revision_.start();
+    // Lo que el vigía de los módulos saltó (AudioRack::alSaltar): el hilo vigía lo avisa y
+    // la interfaz se entera por la señal, sin mirar el buzón a cada rato.
+    avisoSaltos_ = AudioRack::alSaltar([this]() {
+        QMetaObject::invokeMethod(this, [this]() { emit saltados(); }, Qt::QueuedConnection);
+    });
 }
 
 RackManager::~RackManager() {
+    AudioRack::dejarDeAvisar(avisoSaltos_); // espera al aviso en curso
     saveNow();
     revision_.stop();
     tomas_.clear(); // cada Toma suelta la del motor

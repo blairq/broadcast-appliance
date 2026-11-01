@@ -4,6 +4,7 @@
 
 #include "diag/VigiaBucle.hpp"
 
+#include <QAbstractEventDispatcher>
 #include <QEvent>
 
 #include <string>
@@ -15,6 +16,9 @@ VigiaInterfaz::VigiaInterfaz(QObject* app) : QObject(app) {
     timer_.setTimerType(Qt::PreciseTimer);
     timer_.setInterval(50); // el período de VigiaBucle::interfaz()
     connect(&timer_, &QTimer::timeout, this, [&v]() { v.tic(); });
+    // Cuántas veces se despierta el hilo (lo que cuesta la interfaz quieta).
+    if (QAbstractEventDispatcher* d = QAbstractEventDispatcher::instance(thread()))
+        connect(d, &QAbstractEventDispatcher::awake, this, [&v]() { v.despertar(); });
     app->installEventFilter(this);
     timer_.start();
 }
@@ -28,7 +32,9 @@ bool VigiaInterfaz::eventFilter(QObject* destino, QEvent* e) {
         const auto* t = static_cast<const QTimer*>(destino);
         std::string que = "QTimer";
         if (destino->parent() != nullptr) que += std::string(" de ") + destino->parent()->metaObject()->className();
-        diag::VigiaBucle::interfaz().anotar(que + ", cada " + std::to_string(t->interval()) + " ms");
+        que += ", cada " + std::to_string(t->interval()) + " ms";
+        diag::VigiaBucle::interfaz().contarTemporizador(que);
+        diag::VigiaBucle::interfaz().anotar(que);
         return false;
     }
     diag::VigiaBucle::interfaz().anotar(destino->metaObject()->className(), static_cast<int>(e->type()));

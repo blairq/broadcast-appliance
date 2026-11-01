@@ -991,6 +991,7 @@ void Plugins::detener(const std::string& id, bool porPedido) {
     p.listo = false;
     p.puerto = 0;
     if (camaras_) camaras_->refrescarPlugins();
+    avisarCambio(); // lo que escuchaba deja de pedirse al bus
 }
 
 void Plugins::alError(const std::string& id) {
@@ -1443,6 +1444,14 @@ void Plugins::eventoApp(const std::string& tema, const json& datos) {
                 break;
             }
     }
+}
+
+std::vector<std::string> Plugins::escuchas() const {
+    std::vector<std::string> out;
+    for (const auto& [id, pr] : procesos_)
+        if (pr->p)
+            for (const auto& patron : pr->escucha) out.push_back(patron);
+    return out;
 }
 
 json Plugins::eventos(const std::string& id, const std::string& canal, int cuantos) const {

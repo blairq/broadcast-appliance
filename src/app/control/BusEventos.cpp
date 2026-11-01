@@ -104,15 +104,85 @@ std::uint64_t BusEventos::seq() const {
 }
 
 int BusEventos::suscribir(const std::string& patron, Oyente fn) {
-    std::lock_guard<std::mutex> l(mu_);
-    const int id = proximo_++;
-    oyentes_[id] = {patron, std::move(fn)};
+    int id = 0;
+    {
+        std::lock_guard<std::mutex> l(mu_);
+        id = proximo_++;
+        oyentes_[id] = {patron, std::move(fn)};
+    }
+    if (!esDeTodo(patron)) emit interesCambio();
     return id;
 }
 
 void BusEventos::desuscribir(int id) {
+    bool cambia = false;
+    {
+        std::lock_guard<std::mutex> l(mu_);
+        const auto it = oyentes_.find(id);
+        if (it == oyentes_.end()) return;
+        cambia = !esDeTodo(it->second.first);
+        oyentes_.erase(it);
+    }
+    if (cambia) emit interesCambio();
+}
+
+int BusEventos::interesar(const std::string& patron) {
+    int id = 0;
+    {
+        std::lock_guard<std::mutex> l(mu_);
+        id = proximo_++;
+        intereses_[id] = patron;
+    }
+    emit interesCambio();
+    return id;
+}
+
+void BusEventos::desinteresar(int id) {
+    {
+        std::lock_guard<std::mutex> l(mu_);
+        if (intereses_.erase(id) == 0) return;
+    }
+    emit interesCambio();
+}
+
+bool BusEventos::hayInteres(const std::string& tema) const {
     std::lock_guard<std::mutex> l(mu_);
-    oyentes_.erase(id);
+    for (const auto& [id, p] : intereses_)
+        if (coincide(p, tema)) return true;
+    for (const auto& [id, o] : oyentes_)
+        if (!esDeTodo(o.first) && coincide(o.first, tema)) return true;
+    return false;
+}
+
+bool BusEventos::hayInteresEn(const std::string& familia) const {
+    std::lock_guard<std::mutex> l(mu_);
+    for (const auto& [id, p] : intereses_)
+        if (seCruzan(p, familia)) return true;
+    for (const auto& [id, o] : oyentes_)
+        if (!esDeTodo(o.first) && seCruzan(o.first, familia)) return true;
+    return false;
+}
+
+void BusEventos::olvidar(const std::string& patron) {
+    std::lock_guard<std::mutex> l(mu_);
+    for (auto it = ultimos_.begin(); it != ultimos_.end();)
+        it = coincide(patron, it->first) ? ultimos_.erase(it) : std::next(it);
+}
+
+bool BusEventos::seCruzan(const std::string& a, const std::string& b) {
+    if (esDeTodo(a) || esDeTodo(b)) return true;
+    const std::vector<std::string> x = niveles(a), y = niveles(b);
+    // «#» (o «*» al final) es todo lo que sigue; «+» y «*», un nivel cualquiera.
+    const auto resto = [](const std::vector<std::string>& v, std::size_t i) {
+        return v[i] == "#" || (v[i] == "*" && i + 1 == v.size());
+    };
+    for (std::size_t i = 0;; ++i) {
+        const bool finX = i >= x.size(), finY = i >= y.size();
+        if (finX || finY) return finX && finY;
+        if (resto(x, i) || resto(y, i)) return true;
+        const bool comodin = x[i] == "+" || x[i] == "*" || y[i] == "+" || y[i] == "*";
+        if (!comodin && x[i] != y[i]) return false;
+    }
 }
 
 void BusEventos::setMediciones(std::vector<std::string> patrones) {
@@ -195,8 +265,6 @@ void BusEventos::publicarSalidas(const json& salidas) {
         if (s.contains("medios")) publicar("aire/" + id + "/medios", s["medios"]);
         if (s.contains("dsk")) publicar("aire/" + id + "/dsk", s["dsk"]);
         if (s.contains("tbar")) publicar("aire/" + id + "/tbar", s["tbar"]);
-        if (s.contains("niveles") && s["niveles"].is_object())
-            for (const auto& [fuente, n] : s["niveles"].items()) publicar("audio/" + id + "/nivel/" + fuente, n);
         publicar("salida/" + id + "/stream", {{"activo", tx}, {"reconectando", s.value("reconectando", false)}});
         publicar("salida/" + id + "/grabacion", {{"activo", rec}});
         publicar("salida/" + id + "/estado", {{"id", id},
