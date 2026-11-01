@@ -35,6 +35,9 @@
 #include <csignal>
 #include <cxxabi.h>
 #include <sys/types.h>
+#if defined(__APPLE__)
+#include <sys/sysctl.h>
+#endif
 #endif
 
 namespace ba::launcher {
@@ -381,8 +384,28 @@ bool hayPilas(const std::filesystem::path& p) {
 
 /// Se lleva el archivo de pilas a su nombre con la hora y le escribe el .json al
 /// lado, como en Windows (lo que leen tools/caidas/analizar.py y el cartel).
+/// ¿Está frenado (SIGSTOP, un depurador)? Uno frenado no atiende el SIGQUIT hasta que
+/// lo suelten: esperar sus pilas eran 3 s más con la salida en negro, para nada.
+bool frenado(std::uint32_t pid) {
+#if defined(__APPLE__)
+    int mib[4] = {CTL_KERN, KERN_PROC, KERN_PROC_PID, static_cast<int>(pid)};
+    struct kinfo_proc kp {};
+    size_t largo = sizeof kp;
+    return sysctl(mib, 4, &kp, &largo, nullptr, 0) == 0 && largo > 0 && kp.kp_proc.p_stat == SSTOP;
+#elif defined(__linux__)
+    std::ifstream f("/proc/" + std::to_string(pid) + "/stat");
+    std::string l;
+    std::getline(f, l);
+    const std::size_t p = l.rfind(')'); // el nombre puede tener espacios y paréntesis
+    return p != std::string::npos && p + 2 < l.size() && (l[p + 2] == 'T' || l[p + 2] == 't');
+#else
+    (void)pid;
+    return false;
+#endif
+}
+
 Volcado guardar(const std::filesystem::path& dir, const std::string& nombre, std::uint32_t pid,
-                const std::filesystem::path& log, bool colgado) {
+                const std::filesystem::path& log, bool colgado, bool estabaFrenado = false) {
     Volcado v;
     std::error_code ec;
     const std::filesystem::path origen = pilaDe(dir, nombre);
@@ -401,6 +424,7 @@ Volcado guardar(const std::filesystem::path& dir, const std::string& nombre, std
         else j["volcado"] = v.dmp.filename().string();
     }
     if (!p.completa) j["error"] = texto.empty() ? "sin pilas" : "pilas a medias";
+    if (estabaFrenado) j["frenado"] = true; // SIGSTOP o un depurador: no hay pilas que pedir
     v.atribucion = p.atribucion;
     const std::string queFue = causaDeCodigo(p.senal > 0 ? std::optional<int>(128 + p.senal) : std::nullopt);
     if (colgado) {
@@ -458,14 +482,16 @@ bool Volcados::hayCaida(const std::string& nombre) const {
 Volcado Volcados::porCuelgue(const std::string& nombre, std::uint32_t pid, const std::filesystem::path& logDelHijo) {
     // SIGQUIT: el manejador del hijo escribe las pilas de todos sus hilos y se
     // termina. Se lo espera hasta «FIN» (3 s como mucho); después el supervisor lo mata igual.
-    if (pid != 0 && ::kill(static_cast<pid_t>(pid), SIGQUIT) == 0) {
+    // A uno frenado no se le pide nada: no lo atendería (y el emisor está en negro).
+    const bool estabaFrenado = pid != 0 && frenado(pid);
+    if (pid != 0 && !estabaFrenado && ::kill(static_cast<pid_t>(pid), SIGQUIT) == 0) {
         for (int i = 0; i < 60; ++i) {
             std::this_thread::sleep_for(std::chrono::milliseconds(50));
             if (leerTodo(pilaDe(dir_, nombre)).find("\nFIN\n") != std::string::npos) break;
         }
     }
     std::lock_guard<std::mutex> l(mu_);
-    return guardar(dir_, nombre, pid, logDelHijo, true);
+    return guardar(dir_, nombre, pid, logDelHijo, true, estabaFrenado);
 }
 
 #endif

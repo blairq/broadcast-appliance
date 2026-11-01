@@ -8,7 +8,8 @@
 //
 // Lo lanza el launcher como un hijo más (Supervisor: B, los emisores, A) cuando
 // `emisor.aparte` está prendido en launcher.json. Late en su slot de BA.Health
-// (slotSaludEmisor: el launcher lo relanza si se cae o se cuelga), atiende el cierre
+// mientras ATIENDE (LatidoServicio.hpp: el latido es del bucle, no del proceso; el
+// launcher lo relanza si se cae o si deja de latir 2 s), atiende el cierre
 // ordenado en control.emisor.<id> (y SIGTERM), y en cada vuelta (100 ms):
 //
 //   - mira el pedido (Runtime/emisor/<id>.json, lo escribe la app; Pedido.hpp) y,
@@ -35,6 +36,7 @@
 // ============================================================================
 
 #include "Emisor.hpp"
+#include "LatidoServicio.hpp"
 #include "Pedido.hpp"
 
 #include "Piezas.hpp"
@@ -223,6 +225,35 @@ int correr(const std::vector<std::string>& args) {
             salud.beat(slot);
         }
     }
+    // EL LATIDO ES DE SERVICIO (LatidoServicio.hpp): lo da un hilo aparte, pero solo si el
+    // bucle de abajo da vueltas (hace menos de `emisor.vueltaMaxS`, 3 s) o si está en algo
+    // largo y declarado (arrancar, aplicar un pedido, cerrar: hasta `emisor.colgadoS`,
+    // 15 s, desde que empezó o desde que avanzó). Si no, deja de latir y el launcher hace
+    // lo de siempre (volcado y relanzamiento) a los `emisor.cuelgueS` (2 s).
+    const auto msAhora = []() {
+        return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
+    };
+    ba::emisor::LatidoServicio servicio(static_cast<std::int64_t>(ba::ajustes::numero("emisor.vueltaMaxS", 3) * 1000),
+                                        static_cast<std::int64_t>(ba::ajustes::entero("emisor.colgadoS", 15)) * 1000);
+    servicio.ocupado(msAhora()); // arrancando
+    std::atomic<bool> finLatido{false};
+    std::thread latido;
+    if (conSalud)
+        latido = std::thread([&]() {
+            while (!finLatido.load()) {
+                if (servicio.late(msAhora())) salud.beat(slot);
+                std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            }
+        });
+    // Lo que termine `correr` (también si sale antes del bucle), el hilo se va con él.
+    struct FinLatido {
+        std::atomic<bool>& fin;
+        std::thread& hilo;
+        ~FinLatido() {
+            fin = true;
+            if (hilo.joinable()) hilo.join();
+        }
+    } finLatidoAlSalir{finLatido, latido};
 
     std::string err;
     // Late mientras GStreamer arranca: la primera vez en una PC rehace su lista de
@@ -278,29 +309,10 @@ int correr(const std::vector<std::string>& args) {
         if (nlohmann::json r = remux.pendiente(); !r.is_null()) e["remux_pendiente"] = std::move(r);
         ba::persist::escribir(rutaEstado, e.dump(1, ' ', false, nlohmann::json::error_handler_t::replace));
     };
-    // EL LATIDO va en su hilo: parar una grabación espera que se cierre el archivo
-    // (hasta 5 s, y la copia otros 5) y el launcher lo daría por colgado. Late mientras
-    // el bucle dé vueltas; si el bucle se traba más de `emisor.colgadoS` (15 s), deja de
-    // latir y el launcher hace lo de siempre (volcado y relanzamiento).
-    std::atomic<std::int64_t> ultimaVuelta{0};
-    const auto msAhora = []() {
-        return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
-    };
-    ultimaVuelta = msAhora();
-    std::atomic<bool> finLatido{false};
-    std::thread latido;
-    if (conSalud)
-        latido = std::thread([&]() {
-            const std::int64_t colgadoMs = static_cast<std::int64_t>(ba::ajustes::entero("emisor.colgadoS", 15)) * 1000;
-            while (!finLatido.load()) {
-                if (msAhora() - ultimaVuelta.load() < colgadoMs) salud.beat(slot);
-                std::this_thread::sleep_for(std::chrono::milliseconds(250));
-            }
-        });
     auto proximoEstado = std::chrono::steady_clock::now();
     while (!g_parar.load()) {
         const auto ahora = std::chrono::steady_clock::now();
-        ultimaVuelta = msAhora();
+        servicio.vuelta(msAhora());
         control.poll([](const ba::ipc::Message& m) {
             if (m.type == ba::ipc::Type::Shutdown) g_parar.store(true);
         });
@@ -320,6 +332,7 @@ int correr(const std::vector<std::string>& args) {
                                          llenar(traducir("emisor", "pedido %1: transmisión %2, grabación %3"),
                                                 {std::to_string(p.seq), traducir("emisor", p.transmision ? "sí" : "no"),
                                                  traducir("emisor", p.grabacion ? "sí" : "no")}));
+                    servicio.ocupado(msAhora()); // parar una grabación espera que se cierre el archivo
                     emisor.aplicar(p);
                 }
             } else if (!primero) {
@@ -334,7 +347,7 @@ int correr(const std::vector<std::string>& args) {
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
     ba::motor::registrar(ba::motor::Nivel::Info, traducir("emisor", "cierre ordenado: se cierran los archivos"));
-    ultimaVuelta = msAhora();
+    servicio.ocupado(msAhora());
     const std::string formato = emisor.pedido().remux;
     const std::vector<std::string> archivos = emisor.parar();
     // Cerrado y con lo que falta pasar anotado ANTES de pasarlo (ver arriba).
@@ -344,7 +357,7 @@ int correr(const std::vector<std::string>& args) {
     escribirEstado(e);
     // Mientras pasa, late (el launcher espera mientras tanto) y el estado lo dice.
     remux.terminar([&]() {
-        ultimaVuelta = msAhora();
+        servicio.ocupado(msAhora()); // avanza: sigue latiendo
         escribirEstado(e);
     });
     escribirEstado(e);
