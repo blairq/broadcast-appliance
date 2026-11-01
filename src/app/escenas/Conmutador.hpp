@@ -177,6 +177,10 @@ class Conmutadores : public QObject {
     void creado(const QString& salida);
     /// Cambió qué salidas hay (después de creado/sacar).
     void cambio();
+    /// Lo que va al aire en alguna salida (el alAireCambio de cada conmutador, con su id):
+    /// quien sigue el aire de todas se conecta acá una vez, sin recorrer los conmutadores
+    /// (que son del dueño del motor) ni enterarse de los nuevos.
+    void alAireCambio(const QString& salida, const QString& escena);
 
    private:
     Conmutador* crear(const std::string& salida);

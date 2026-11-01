@@ -287,6 +287,8 @@ Conmutador* Conmutadores::crear(const std::string& salida) {
     // Hijo del registro: se muda con él al hilo del dueño.
     auto c = std::make_unique<Conmutador>(rt_, *this, salida, g != afvGuardado_.end() ? g->second : Afv{}, this);
     Conmutador* p = c.get();
+    connect(p, &Conmutador::alAireCambio, this,
+            [this, id = QString::fromStdString(salida)](const QString& escena) { emit alAireCambio(id, escena); });
     conmutadores_[salida] = std::move(c);
     rt_.fotoSucia(FotoMotor::Salidas);
     emit creado(QString::fromStdString(salida));

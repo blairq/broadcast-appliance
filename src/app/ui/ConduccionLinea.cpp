@@ -842,21 +842,13 @@ void ConduccionLinea::enchufar() {
     const SistemaLinea s = sistema();
     const auto primeraVez = [this](const QObject* o) { return o != nullptr && enchufados_.insert(o).second; };
     // El aire de cada salida: lo hecho «a mano» y las PTZ que esperan una cámara.
-    if (primeraVez(s.conmutadores)) {
-        const auto seguir = [this](escenas::Conmutador* c) {
-            // La salida por su id (no el puntero): el aviso puede llegar encolado (F3-03).
-            connect(c, &escenas::Conmutador::alAireCambio, this,
-                    [this, salida = c->salida()](const QString& escena) { alAireCambio(salida, escena.toStdString()); });
-        };
-        for (escenas::Conmutador* c : s.conmutadores->todos())
-            seguir(c);
-        // Una salida nueva: el aviso llega encolado (los conmutadores son del dueño del
-        // motor) y por su id; si ya se fue, no hay a quién seguir.
-        connect(s.conmutadores, &escenas::Conmutadores::creado, this, [this, seguir](const QString& salida) {
-            if (escenas::Conmutador* c = sistema().conmutadores->de(salida.toStdString()); c != nullptr && c->salida() == salida.toStdString())
-                seguir(c);
-        });
-    }
+    if (primeraVez(s.conmutadores))
+        // El aviso del contenedor (todas las salidas, también las que se creen después), por
+        // el id de la salida: llega encolado desde el dueño del motor (F3-03).
+        connect(s.conmutadores, &escenas::Conmutadores::alAireCambio, this,
+                [this](const QString& salida, const QString& escena) {
+                    alAireCambio(salida.toStdString(), escena.toStdString());
+                });
     // El orden del día: los bloques que salen de él se re-expanden al cambiar.
     if (primeraVez(s.ordenDelDia))
         connect(s.ordenDelDia, &asamblea::OrdenDelDia::cambio, this, &ConduccionLinea::expandirOrdenDelDia);
