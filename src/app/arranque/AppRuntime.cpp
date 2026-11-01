@@ -376,6 +376,8 @@ void AppRuntime::ticMotor() {
         ~Soltar() { t.soltar(); }
     } soltar{turno};
     ++ticsMotor_;
+    // Lo que contó el hilo de salidas del motor (lo que no arrancó, el AAC con que transmite).
+    engine_.atenderSalidas();
     if (started_) {
         const EngineStatus st = engine_.status();
         hayAire_ = st.streaming || st.recording;

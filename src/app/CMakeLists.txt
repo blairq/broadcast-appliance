@@ -35,7 +35,7 @@ list(FILTER BA_APP_SOURCES EXCLUDE REGEX ".*/src/app/tools/.*") # herramientas c
 list(FILTER BA_APP_SOURCES EXCLUDE REGEX ".*/BroadcastEnginePlaca\\.cpp$")
 list(FILTER BA_APP_SOURCES EXCLUDE REGEX ".*/WindowingPlatform\\.cpp$")
 if(NOT BA_HAVE_MOTOR)
-    list(FILTER BA_APP_SOURCES EXCLUDE REGEX ".*/BroadcastEngine(Scenes|Dsk|Emisor)?\\.cpp$")
+    list(FILTER BA_APP_SOURCES EXCLUDE REGEX ".*/emision/(BroadcastEngine|EscenasYFuentes|CapasPrograma|MezclaApp|MediosApp|VistasYMedicion|RetornoGateway|EmisionSalidas|VigiaDisco|EmisorAparte)\\.cpp$")
     list(FILTER BA_APP_SOURCES EXCLUDE REGEX ".*/AppSettings\\.cpp$")
     list(FILTER BA_APP_SOURCES EXCLUDE REGEX ".*/EngineSelfTest\\.cpp$")
     # AppRuntime y sus piezas (y el modo consola) necesitan el motor.

@@ -1,10 +1,9 @@
 // ============================================================================
-// src/app/emision/BroadcastEngineScenes.cpp — Escenas, transiciones, fuentes y audio
+// src/app/emision/EscenasYFuentes.cpp — ver EscenasYFuentes.hpp
 //
-// Parte de BroadcastEngine (ver BroadcastEngine.hpp). El modelo (qué escenas
-// hay, qué fuentes tienen, dónde y con qué recorte) vive acá; el motor recibe
-// cada escena ya traducida a capas en píxeles del lienzo y cada fuente ya
-// traducida a los ajustes de su entrada.
+// El modelo (qué escenas hay, qué fuentes tienen, dónde y con qué recorte) vive acá; el
+// motor recibe cada escena ya traducida a capas en píxeles del lienzo y cada fuente ya
+// traducida a los ajustes de su entrada. Las capas encima del programa, en CapasPrograma.cpp.
 //
 // LOS TIPOS: lo que llega con un tipo de antes (de la época de OBS) pasa primero
 // por inputs::alMotor (InputSpecs.hpp), una sola vez y en un solo lugar. Después
@@ -15,7 +14,11 @@
 //   los tipos registrados con `motor` (color, texto, imagen, grilla…: FuentesApp)
 // ============================================================================
 
-#include "emision/BroadcastEngine.hpp"
+#include "emision/EscenasYFuentes.hpp"
+
+#include "emision/EmisionSalidas.hpp"
+#include "emision/MezclaApp.hpp"
+#include "emision/SalidaMotor.hpp"
 #include "i18n/I18n.hpp"
 #include "platform/Paths.hpp"
 
@@ -159,50 +162,31 @@ json EfectosCapa::sombraMotor() const {
             {"radio", esquinas}};
 }
 
-// ============================================================================
-// Escenas y transicion
-// ============================================================================
-
-BroadcastEngine::EscenaApp* BroadcastEngine::escena(const std::string& nombre) {
+EscenasYFuentes::EscenaApp* EscenasYFuentes::escena(const std::string& nombre) {
     for (auto& e : scenes_)
         if (e.nombre == nombre) return &e;
     return nullptr;
 }
 
-const BroadcastEngine::EscenaApp* BroadcastEngine::escena(const std::string& nombre) const {
+const EscenasYFuentes::EscenaApp* EscenasYFuentes::escena(const std::string& nombre) const {
     for (const auto& e : scenes_)
         if (e.nombre == nombre) return &e;
     return nullptr;
 }
 
-std::string BroadcastEngine::errorDeCompositor(const std::string& nombre) const {
-    const TurnoMotor::Guarda turno(turno_);
-    const json e = estadoMotor().value("video", json::object()).value("errores_escenas", json::object());
+std::string EscenasYFuentes::errorDeCompositor(const std::string& nombre) const {
+    const json e = m_.estadoMotor().value("video", json::object()).value("errores_escenas", json::object());
     const auto it = e.find(kPrefijoCompositor + nombre);
     return it != e.end() && it->is_string() ? it->get<std::string>() : std::string();
 }
 
-const json& BroadcastEngine::estadoMotor() const {
-    // La foto que publica el bucle del motor: leerla no espera el candado (ver
-    // Motor::instantanea). Se guarda la copia para devolver una referencia que
-    // no cambie mientras el que llama la recorre.
-    // La foto no cambia nunca (el motor publica una nueva): alcanza con quedarse con
-    // ella, sin copiarla (se copiaba entera con cada foto nueva, varias por segundo).
-    // Sin foto todavía, un objeto vacío: arrancando, `value()` sobre un null tiraba
-    // excepción (caída del 2026-10-11).
-    static const json vacio = json::object();
-    if (motor_)
-        if (auto f = motor_->instantanea(); f && f.get() != estadoFoto_.get() && f->is_object()) estadoFoto_ = f;
-    return estadoFoto_ ? *estadoFoto_ : vacio;
-}
-
-json BroadcastEngine::escenaCompositor(const std::string& nombre, const json& config) const {
+json EscenasYFuentes::escenaCompositor(const std::string& nombre, const json& config) const {
     // Con lienzo propio (la Cámara 360: las dos lentes lado a lado sin achicar), las
     // capas van en ese; si no, en el del estudio.
     const json lienzo = config.is_object() ? config.value("lienzo", json::object()) : json::object();
     const bool propio = lienzo.is_object() && lienzo.value("ancho", 0) > 0 && lienzo.value("alto", 0) > 0;
-    const double W = propio ? lienzo.value("ancho", 0) : video_.baseWidth;
-    const double H = propio ? lienzo.value("alto", 0) : video_.baseHeight;
+    const double W = propio ? lienzo.value("ancho", 0) : m_.video_.baseWidth;
+    const double H = propio ? lienzo.value("alto", 0) : m_.video_.baseHeight;
     json capas = json::array();
     int orden = 0;
     if (config.is_object())
@@ -239,9 +223,9 @@ json BroadcastEngine::escenaCompositor(const std::string& nombre, const json& co
     return e;
 }
 
-json BroadcastEngine::escenaMotor(const EscenaApp& e) const {
-    const double W = video_.baseWidth, H = video_.baseHeight;
-    const json& entradas = seccion(estadoMotor(), "entradas");
+json EscenasYFuentes::escenaMotor(const EscenaApp& e) const {
+    const double W = m_.video_.baseWidth, H = m_.video_.baseHeight;
+    const json& entradas = seccion(m_.estadoMotor(), "entradas");
     json capas = json::array();
     for (std::size_t i = 0; i < e.items.size(); ++i) {
         const Item& it = e.items[i];
@@ -309,16 +293,15 @@ json BroadcastEngine::escenaMotor(const EscenaApp& e) const {
     return {{"nombre", e.nombre}, {"capas", capas}};
 }
 
-int BroadcastEngine::ranuraDe(const Fuente& f) const {
+int EscenasYFuentes::ranuraDe(const Fuente& f) const {
     const json a = json::parse(f.spec.settingsJson.empty() ? "{}" : f.spec.settingsJson, nullptr, false);
     // Número (o texto, si vino de un formulario). Una que no existe (0: no se dibuja), no la 1: repetiría al que habla.
     const json r = a.is_object() ? a.value("ranura", json(1)) : json(1);
     const int n = r.is_number() ? r.get<int>() : r.is_string() ? std::atoi(r.get<std::string>().c_str()) : 1;
-    return n < 1 ? 1 : n <= kRanurasBanca ? n : 0;
+    return n < 1 ? 1 : n <= BroadcastEngine::kRanurasBanca ? n : 0;
 }
 
-void BroadcastEngine::setRanurasBanca(std::vector<RanuraBanca> ranuras, bool forzar) {
-    const TurnoMotor::Guarda turno(turno_);
+void EscenasYFuentes::setRanurasBanca(std::vector<RanuraBanca> ranuras, bool forzar) {
     const auto igual = [](const RanuraBanca& a, const RanuraBanca& b) {
         return a.entrada == b.entrada && a.entera == b.entera && std::equal(std::begin(a.recorte), std::end(a.recorte), std::begin(b.recorte));
     };
@@ -336,13 +319,11 @@ void BroadcastEngine::setRanurasBanca(std::vector<RanuraBanca> ranuras, bool for
         }
 }
 
-bool BroadcastEngine::hayFuenteBanca() const {
-    const TurnoMotor::Guarda turno(turno_);
+bool EscenasYFuentes::hayFuenteBanca() const {
     return !escenaDeRanura(0).empty();
 }
 
-std::string BroadcastEngine::escenaDeRanura(int ranura) const {
-    const TurnoMotor::Guarda turno(turno_);
+std::string EscenasYFuentes::escenaDeRanura(int ranura) const {
     // 0: cualquier ranura.
     for (const EscenaApp& e : scenes_)
         for (const Item& i : e.items) {
@@ -352,8 +333,7 @@ std::string BroadcastEngine::escenaDeRanura(int ranura) const {
     return {};
 }
 
-void BroadcastEngine::setTraer(const std::string& entrada, const std::string& compositor, const std::string& productor) {
-    const TurnoMotor::Guarda turno(turno_);
+void EscenasYFuentes::setTraer(const std::string& entrada, const std::string& compositor, const std::string& productor) {
     const auto antes = traer_.find(entrada);
     if (compositor.empty() && productor.empty()) {
         if (antes == traer_.end()) return;
@@ -371,20 +351,19 @@ void BroadcastEngine::setTraer(const std::string& entrada, const std::string& co
             }
 }
 
-void BroadcastEngine::publicarEscena(const EscenaApp& e) {
-    if (!motor_) return;
-    motor_->pedirFoto(); // el tamaño de una fuente nueva puede haber llegado recién
-    motor_->definirEscena(escenaMotor(e));
+void EscenasYFuentes::publicarEscena(const EscenaApp& e) {
+    if (!m_.motor_) return;
+    m_.motor_->pedirFoto(); // el tamaño de una fuente nueva puede haber llegado recién
+    m_.motor_->definirEscena(escenaMotor(e));
 }
 
-bool BroadcastEngine::createScene(const std::string& name) {
-    const TurnoMotor::Guarda turno(turno_);
-    if (!started_ || name.empty() || escena(name) != nullptr) {
-        setError(ba::i18n::llenar(ba::i18n::traducir("emision", "createScene: sin motor, nombre vacio o repetido: '%1'"), {name}));
+bool EscenasYFuentes::createScene(const std::string& name) {
+    if (!m_.started_ || name.empty() || escena(name) != nullptr) {
+        m_.setError(ba::i18n::llenar(ba::i18n::traducir("emision", "createScene: sin motor, nombre vacio o repetido: '%1'"), {name}));
         return false;
     }
     if (name.rfind("__", 0) == 0) { // las internas (kPrefijoCompositor) viven en el mismo lugar del motor
-        setError(ba::i18n::traducir("emision", "los nombres de escena que empiezan con «__» son internos"));
+        m_.setError(ba::i18n::traducir("emision", "los nombres de escena que empiezan con «__» son internos"));
         return false;
     }
     scenes_.push_back(EscenaApp{name, {}});
@@ -392,118 +371,110 @@ bool BroadcastEngine::createScene(const std::string& name) {
     return true;
 }
 
-bool BroadcastEngine::removeScene(const std::string& name) {
-    const TurnoMotor::Guarda turno(turno_);
+bool EscenasYFuentes::removeScene(const std::string& name) {
     auto it = std::find_if(scenes_.begin(), scenes_.end(), [&](const EscenaApp& e) { return e.nombre == name; });
     if (it == scenes_.end() || scenes_.size() == 1) {
-        setError(ba::i18n::traducir("emision", "removeScene: no existe o es la unica escena"));
+        m_.setError(ba::i18n::traducir("emision", "removeScene: no existe o es la unica escena"));
         return false;
     }
     // Las salidas que la tienen al aire pasan a otra con un corte.
     const std::string other = (it == scenes_.begin()) ? (it + 1)->nombre : scenes_.front().nombre;
-    for (const auto& id : ordenSalidas_)
-        if (salidas_.at(id)->alAire == name) setCurrentSceneCon(other, "cut", 0, id);
+    for (const auto& id : m_.ordenSalidas_)
+        if (m_.salidas_.at(id)->alAire == name) setCurrentSceneCon(other, "cut", 0, id);
     const std::vector<Item> items = it->items;
     scenes_.erase(it);
-    motor_->quitarEscena(name);
+    m_.motor_->quitarEscena(name);
     for (const auto& item : items) soltarSiHuerfana(item.fuente);
     return true;
 }
 
-bool BroadcastEngine::renameScene(const std::string& from, const std::string& to) {
-    const TurnoMotor::Guarda turno(turno_);
+bool EscenasYFuentes::renameScene(const std::string& from, const std::string& to) {
     if (to.empty() || escena(to) != nullptr) {
-        setError(ba::i18n::traducir("emision", "renameScene: nombre vacio o repetido"));
+        m_.setError(ba::i18n::traducir("emision", "renameScene: nombre vacio o repetido"));
         return false;
     }
     if (to.rfind("__", 0) == 0) {
-        setError(ba::i18n::traducir("emision", "los nombres de escena que empiezan con «__» son internos"));
+        m_.setError(ba::i18n::traducir("emision", "los nombres de escena que empiezan con «__» son internos"));
         return false;
     }
     EscenaApp* e = escena(from);
     if (e == nullptr) return false;
     e->nombre = to;
     publicarEscena(*e);
-    for (const auto& [id, s] : salidas_) {
+    for (const auto& [id, s] : m_.salidas_) {
         if (s->alAire == from) {
             s->alAire = to;
-            motor_->alAire(to, "corte", 0, id);
+            m_.motor_->alAire(to, "corte", 0, id);
         }
         if (s->armada == from) armar(to, id);
     }
-    motor_->quitarEscena(from);
+    m_.motor_->quitarEscena(from);
     return true;
 }
 
-std::vector<std::string> BroadcastEngine::sceneNames() const {
-    const TurnoMotor::Guarda turno(turno_);
+std::vector<std::string> EscenasYFuentes::sceneNames() const {
     std::vector<std::string> out;
     for (const auto& e : scenes_) out.push_back(e.nombre);
     return out;
 }
 
-std::string BroadcastEngine::transicionMotor(const std::string& tipo) const {
+std::string EscenasYFuentes::transicionMotor(const std::string& tipo) const {
     if (tipo == "cut") return "corte";
     if (tipo == "swipe" || tipo == "slide") return "empuje";
     if (tipo == "wipe" || tipo == "cortina") return "cortina";
     return "mezcla"; // fade, fade_to_color, stinger…
 }
 
-bool BroadcastEngine::setTransition(const std::string& type, int durationMs) {
-    const TurnoMotor::Guarda turno(turno_);
-    if (!started_) return false;
+bool EscenasYFuentes::setTransition(const std::string& type, int durationMs) {
+    if (!m_.started_) return false;
     transitionType_ = type.empty() ? std::string("fade") : type;
     transitionMs_ = std::max(0, durationMs);
     return true;
 }
 
-bool BroadcastEngine::setCurrentSceneCon(const std::string& name, const std::string& tipo, int ms, const std::string& salida) {
-    const TurnoMotor::Guarda turno(turno_);
+bool EscenasYFuentes::setCurrentSceneCon(const std::string& name, const std::string& tipo, int ms, const std::string& salida) {
     if (escena(name) == nullptr) {
-        setError(ba::i18n::llenar(ba::i18n::traducir("emision", "no existe la escena '%1'"), {name}));
+        m_.setError(ba::i18n::llenar(ba::i18n::traducir("emision", "no existe la escena '%1'"), {name}));
         return false;
     }
-    Salida* s = laSalida(salida);
+    SalidaAire* s = m_.laSalida(salida);
     if (s == nullptr) return false;
     const int dur = ms < 0 ? transitionMs_ : ms;
     const std::string t = s->alAire.empty() || dur == 0 ? "corte" : transicionMotor(tipo.empty() ? transitionType_ : tipo);
-    const std::string e = motor_->alAire(name, t, dur, s->id);
+    const std::string e = m_.motor_->alAire(name, t, dur, s->id);
     if (!e.empty()) {
-        setError(e);
+        m_.setError(e);
         return false;
     }
     s->alAire = name;
     return true;
 }
 
-bool BroadcastEngine::setCurrentScene(const std::string& name, const std::string& salida) {
-    const TurnoMotor::Guarda turno(turno_);
+bool EscenasYFuentes::setCurrentScene(const std::string& name, const std::string& salida) {
     return setCurrentSceneCon(name, transitionType_, -1, salida);
 }
 
-std::string BroadcastEngine::currentScene(const std::string& salida) const {
-    const TurnoMotor::Guarda turno(turno_);
-    const Salida* s = laSalida(salida);
+std::string EscenasYFuentes::currentScene(const std::string& salida) const {
+    const SalidaAire* s = m_.laSalida(salida);
     return s != nullptr ? s->alAire : std::string();
 }
 
-bool BroadcastEngine::transicionManual(const std::string& name, float t, bool soltar, bool* alAire, const std::string& salida) {
-    const TurnoMotor::Guarda turno(turno_);
+bool EscenasYFuentes::transicionManual(const std::string& name, float t, bool soltar, bool* alAire, const std::string& salida) {
     if (alAire != nullptr) *alAire = false;
     if (escena(name) == nullptr) {
-        setError(ba::i18n::llenar(ba::i18n::traducir("emision", "no existe la escena '%1'"), {name}));
+        m_.setError(ba::i18n::llenar(ba::i18n::traducir("emision", "no existe la escena '%1'"), {name}));
         return false;
     }
-    Salida* s = laSalida(salida);
+    SalidaAire* s = m_.laSalida(salida);
     if (s == nullptr) return false;
     if (name == s->alAire) {
-        setError(ba::i18n::traducir("emision", "esa escena ya está al aire"));
+        m_.setError(ba::i18n::traducir("emision", "esa escena ya está al aire"));
         return false;
     }
     std::string e;
-    const bool quedo = motor_->tbar(name, t, soltar, &e, s->id);
+    const bool quedo = m_.motor_->tbar(name, t, soltar, &e, s->id);
     if (!e.empty()) {
-        setError(e);
+        m_.setError(e);
         return false;
     }
     if (quedo) {
@@ -513,23 +484,43 @@ bool BroadcastEngine::transicionManual(const std::string& name, float t, bool so
     return true;
 }
 
-std::string BroadcastEngine::manualHacia(const std::string& salida) const {
-    const TurnoMotor::Guarda turno(turno_);
-    const Salida* s = laSalida(salida);
-    return motor_ && s != nullptr ? motor_->tbarHacia(s->id) : std::string();
+std::string EscenasYFuentes::manualHacia(const std::string& salida) const {
+    const SalidaAire* s = m_.laSalida(salida);
+    return m_.motor_ && s != nullptr ? m_.motor_->tbarHacia(s->id) : std::string();
 }
 
-bool BroadcastEngine::buildScene() {
-    const TurnoMotor::Guarda turno(turno_);
+bool EscenasYFuentes::buildScene() {
     if (escena("programa") == nullptr && !createScene("programa")) return false;
     return setCurrentScene("programa");
 }
 
-// ============================================================================
-// Fuentes
-// ============================================================================
+bool EscenasYFuentes::armar(const std::string& name, const std::string& salida) {
+    SalidaAire* s = m_.laSalida(salida);
+    if (s == nullptr) return false;
+    if (!name.empty() && escena(name) == nullptr) {
+        m_.setError(ba::i18n::llenar(ba::i18n::traducir("emision", "no existe la escena '%1'"), {name}));
+        return false;
+    }
+    if (!m_.started_ || !m_.motor_) {
+        s->armada = name; // el próximo motor la arma (resetVideo)
+        return true;
+    }
+    // LO ARMADO ES EL BUS DE PREVIEW DEL MOTOR: una composición que vive
+    // siempre y a la que armar le cambia la escena con un corte (las capas
+    // nuevas reemplazan a las viejas cuando ya tienen cuadro). Antes cada
+    // escena armada tenía su propia vista y su propia composición: en cada
+    // TAKE se soltaba una y se armaba otra de cero (ramas, shaders) y el
+    // preview parpadeaba en negro o sin capas, y además iba a 10-15 cuadros/s.
+    const std::string e = m_.motor_->armar(name, s->id);
+    if (!e.empty()) {
+        m_.setError(ba::i18n::llenar(ba::i18n::traducir("emision", "armar: %1"), {e}));
+        return false;
+    }
+    s->armada = name;
+    return true;
+}
 
-bool BroadcastEngine::ajustesMotor(const SourceSpec& spec, json& a) const {
+bool EscenasYFuentes::ajustesMotor(const SourceSpec& spec, json& a) const {
     if (!ajustesMotorTipo(spec, a)) return false;
     // Los filtros de la cadena (las tarjetas del grafo, el PTZ digital...), el rack de
     // audio, los desfases y la clase de sincronía (estudio: sala/propia) valen para
@@ -543,8 +534,7 @@ bool BroadcastEngine::ajustesMotor(const SourceSpec& spec, json& a) const {
     return true;
 }
 
-
-bool BroadcastEngine::ajustesMotorTipo(const SourceSpec& spec, json& a) const {
+bool EscenasYFuentes::ajustesMotorTipo(const SourceSpec& spec, json& a) const {
     const json s = json::parse(spec.settingsJson.empty() ? "{}" : spec.settingsJson, nullptr, false);
     const json in = s.is_object() ? s : json::object();
     const std::string& id = spec.id;
@@ -575,8 +565,8 @@ bool BroadcastEngine::ajustesMotorTipo(const SourceSpec& spec, json& a) const {
     // Los tipos registrados que traen su entrada del motor (FuentesApp: Tipo::motor).
     if (fuentes::Tipo t; fuentes::tipo(id, t) && t.motor) {
         // Con el tamaño que ocupa en el lienzo (un texto se arma a ese tamaño).
-        a = t.motor(fuentes::conDefectos(id, in), std::max(16, static_cast<int>(std::lround(spec.rect.w * video_.baseWidth))),
-                    std::max(16, static_cast<int>(std::lround(spec.rect.h * video_.baseHeight))));
+        a = t.motor(fuentes::conDefectos(id, in), std::max(16, static_cast<int>(std::lround(spec.rect.w * m_.video_.baseWidth))),
+                    std::max(16, static_cast<int>(std::lround(spec.rect.h * m_.video_.baseHeight))));
         a["nombre"] = spec.name;
         return true;
     }
@@ -587,19 +577,19 @@ bool BroadcastEngine::ajustesMotorTipo(const SourceSpec& spec, json& a) const {
     return false;
 }
 
-bool BroadcastEngine::crearFuente(const SourceSpec& pedida, bool global) {
+bool EscenasYFuentes::crearFuente(const SourceSpec& pedida, bool global) {
     if (sources_.count(pedida.name) > 0) return true;
     // El motor separa con «:» la entrada de lo que sale de ella («Cámara:video»): un nombre
     // con «:» no se puede crear allá. Se dice acá, y no queda una fuente «agregada» y muerta.
     if (pedida.name.find(':') != std::string::npos) {
-        setError(ba::i18n::llenar(ba::i18n::traducir("emision", "el nombre de una fuente no puede tener «:» («%1»): usá «—» o «-»"), {pedida.name}));
+        m_.setError(ba::i18n::llenar(ba::i18n::traducir("emision", "el nombre de una fuente no puede tener «:» («%1»): usá «—» o «-»"), {pedida.name}));
         return false;
     }
     // Lo que llegue con un tipo de antes (el MCP lo acepta), al del motor; lo que no
     // tiene equivalente se avisa (InputSpecs: alMotor).
     SourceSpec spec = pedida;
     inputs::alMotor(spec);
-    if (spec.id == kTipoBanca) {
+    if (spec.id == BroadcastEngine::kTipoBanca) {
         // «Banca con la palabra»: no hay entrada en el motor; la escena la resuelve al publicarse.
         Fuente f;
         f.spec = spec;
@@ -613,24 +603,24 @@ bool BroadcastEngine::crearFuente(const SourceSpec& pedida, bool global) {
         // Una escena interna del motor (sus capas: las entradas que junta; la
         // salida de una tarjeta, su entrada a todo el lienzo).
         const json aj = json::parse(spec.settingsJson.empty() ? "{}" : spec.settingsJson, nullptr, false);
-        motor_->definirEscena(escenaCompositor(spec.name, configDe(spec.id, aj)));
+        m_.motor_->definirEscena(escenaCompositor(spec.name, configDe(spec.id, aj)));
         Fuente f;
         f.spec = spec;
         f.global = global;
-        f.compProductor = motor_->usarEscena(kPrefijoCompositor + spec.name);
+        f.compProductor = m_.motor_->usarEscena(kPrefijoCompositor + spec.name);
         sources_[spec.name] = f;
         ordenFuentes_.push_back(spec.name);
         return true;
     }
     json ajustes;
     if (!ajustesMotor(spec, ajustes)) {
-        setError(ba::i18n::llenar(ba::i18n::traducir("emision", "fuente '%1': el tipo '%2' todavía no lo arma el motor"), {spec.name, spec.id}));
+        m_.setError(ba::i18n::llenar(ba::i18n::traducir("emision", "fuente '%1': el tipo '%2' todavía no lo arma el motor"), {spec.name, spec.id}));
         return false;
     }
-    json opciones{{"global", global}, {"nivel", nivelAplicado(spec.name, spec.volume, porOmision())}, {"mute", spec.muted}};
-    const std::string e = motor_->agregarEntrada(spec.name, ajustes, opciones);
+    json opciones{{"global", global}, {"nivel", m_.mezcla_->nivelAplicado(spec.name, spec.volume, m_.porOmision())}, {"mute", spec.muted}};
+    const std::string e = m_.motor_->agregarEntrada(spec.name, ajustes, opciones);
     if (!e.empty()) {
-        setError(ba::i18n::llenar(ba::i18n::traducir("emision", "fuente '%1': %2"), {spec.name, e}));
+        m_.setError(ba::i18n::llenar(ba::i18n::traducir("emision", "fuente '%1': %2"), {spec.name, e}));
         return false;
     }
     Fuente f;
@@ -640,17 +630,17 @@ bool BroadcastEngine::crearFuente(const SourceSpec& pedida, bool global) {
     ordenFuentes_.push_back(spec.name);
     // En la mezcla de cada salida entra con el mismo volumen y mute (las opciones valen para
     // todas), con el VCA de su grupo en ESA salida.
-    for (auto& [id, s] : salidas_)
+    for (auto& [id, s] : m_.salidas_)
         if (!s->porOmision()) {
             s->volumen[spec.name] = spec.volume;
             s->mute[spec.name] = spec.muted;
-            if (const float n = nivelAplicado(spec.name, spec.volume, *s); n != nivelAplicado(spec.name, spec.volume, porOmision()))
-                motor_->ponerNivel(spec.name, n, id);
+            if (const float n = m_.mezcla_->nivelAplicado(spec.name, spec.volume, *s); n != m_.mezcla_->nivelAplicado(spec.name, spec.volume, m_.porOmision()))
+                m_.motor_->ponerNivel(spec.name, n, id);
         }
     if (esDeApp(spec.id)) fuentes::alta(spec.name, spec.id, json::parse(spec.settingsJson, nullptr, false));
     // Una fuente nueva (o rehecha: una placa que cambió de canales): lo guardado de su
     // audio se le vuelve a poner (Matriz).
-    if (cambioAudio_) cambioAudio_(spec.name, "alta");
+    if (m_.cambioAudio_) m_.cambioAudio_(spec.name, "alta");
     // Los compositores que la juntan (creados antes que ella, p. ej. al arrancar) se rearman.
     for (const auto& [n, c] : sources_) {
         if (c.compProductor.empty()) continue;
@@ -659,41 +649,40 @@ bool BroadcastEngine::crearFuente(const SourceSpec& pedida, bool global) {
         bool usa = false;
         if (config.is_object())
             for (const auto& k : config.value("capas", json::array())) usa = usa || k.value("fuente", std::string()) == spec.name;
-        if (usa) motor_->definirEscena(escenaCompositor(n, config));
+        if (usa) m_.motor_->definirEscena(escenaCompositor(n, config));
     }
-    if (motor_) motor_->pedirFoto();
+    if (m_.motor_) m_.motor_->pedirFoto();
     return true;
 }
 
-void BroadcastEngine::soltarSiHuerfana(const std::string& nombre) {
+void EscenasYFuentes::soltarSiHuerfana(const std::string& nombre) {
     auto it = sources_.find(nombre);
     if (it == sources_.end() || it->second.global) return;
     for (const auto& e : scenes_)
         for (const auto& i : e.items)
             if (i.fuente == nombre) return;
-    for (const auto& [id, s] : salidas_)
+    for (const auto& [id, s] : m_.salidas_)
         for (const auto& d : s->dsk)
             if (std::find(d.contenido.begin(), d.contenido.end(), nombre) != d.contenido.end()) return;
     if (!it->second.compProductor.empty()) {
-        motor_->soltarEscena(kPrefijoCompositor + nombre);
-        motor_->quitarEscena(kPrefijoCompositor + nombre);
+        m_.motor_->soltarEscena(kPrefijoCompositor + nombre);
+        m_.motor_->quitarEscena(kPrefijoCompositor + nombre);
     } else if (!it->second.banca)
-        motor_->quitarEntrada(nombre);
+        m_.motor_->quitarEntrada(nombre);
     fuentes::baja(nombre);
     sources_.erase(it);
-    if (pfl_ == nombre) pfl_.clear();
+    m_.mezcla_->olvidarFuente(nombre);
     ordenFuentes_.erase(std::remove(ordenFuentes_.begin(), ordenFuentes_.end(), nombre), ordenFuentes_.end());
 }
 
-bool BroadcastEngine::addSource(const std::string& sceneName, const SourceSpec& spec) {
-    const TurnoMotor::Guarda turno(turno_);
+bool EscenasYFuentes::addSource(const std::string& sceneName, const SourceSpec& spec) {
     EscenaApp* e = escena(sceneName);
     if (e == nullptr) {
-        setError(ba::i18n::llenar(ba::i18n::traducir("emision", "addSource: no existe la escena '%1'"), {sceneName}));
+        m_.setError(ba::i18n::llenar(ba::i18n::traducir("emision", "addSource: no existe la escena '%1'"), {sceneName}));
         return false;
     }
     if (spec.id.empty() || spec.name.empty()) {
-        setError(ba::i18n::traducir("emision", "addSource: fuente sin id o sin nombre"));
+        m_.setError(ba::i18n::traducir("emision", "addSource: fuente sin id o sin nombre"));
         return false;
     }
     if (!crearFuente(spec, false)) return false;
@@ -711,14 +700,12 @@ bool BroadcastEngine::addSource(const std::string& sceneName, const SourceSpec& 
     return true;
 }
 
-bool BroadcastEngine::addSource(const SourceSpec& spec) {
-    const TurnoMotor::Guarda turno(turno_);
+bool EscenasYFuentes::addSource(const SourceSpec& spec) {
     if (currentScene().empty() && !buildScene()) return false;
     return addSource(currentScene(), spec);
 }
 
-bool BroadcastEngine::removeSource(const std::string& sceneName, const std::string& name) {
-    const TurnoMotor::Guarda turno(turno_);
+bool EscenasYFuentes::removeSource(const std::string& sceneName, const std::string& name) {
     EscenaApp* e = escena(sceneName);
     if (e == nullptr) return false;
     const auto it = std::find_if(e->items.begin(), e->items.end(), [&](const Item& i) { return i.fuente == name; });
@@ -729,8 +716,7 @@ bool BroadcastEngine::removeSource(const std::string& sceneName, const std::stri
     return true;
 }
 
-bool BroadcastEngine::moveSource(const std::string& sceneName, const std::string& name, int delta) {
-    const TurnoMotor::Guarda turno(turno_);
+bool EscenasYFuentes::moveSource(const std::string& sceneName, const std::string& name, int delta) {
     EscenaApp* e = escena(sceneName);
     if (e == nullptr || delta == 0) return false;
     auto it = std::find_if(e->items.begin(), e->items.end(), [&](const Item& i) { return i.fuente == name; });
@@ -743,16 +729,14 @@ bool BroadcastEngine::moveSource(const std::string& sceneName, const std::string
     return true;
 }
 
-std::vector<std::string> BroadcastEngine::sceneSources(const std::string& sceneName) const {
-    const TurnoMotor::Guarda turno(turno_);
+std::vector<std::string> EscenasYFuentes::sceneSources(const std::string& sceneName) const {
     std::vector<std::string> out;
     if (const EscenaApp* e = escena(sceneName))
         for (const auto& i : e->items) out.push_back(i.fuente);
     return out;
 }
 
-bool BroadcastEngine::setSourceVisible(const std::string& sceneName, const std::string& name, bool visible) {
-    const TurnoMotor::Guarda turno(turno_);
+bool EscenasYFuentes::setSourceVisible(const std::string& sceneName, const std::string& name, bool visible) {
     EscenaApp* e = escena(sceneName);
     if (e == nullptr) return false;
     for (auto& i : e->items)
@@ -764,16 +748,14 @@ bool BroadcastEngine::setSourceVisible(const std::string& sceneName, const std::
     return false;
 }
 
-bool BroadcastEngine::sourceVisible(const std::string& sceneName, const std::string& name) const {
-    const TurnoMotor::Guarda turno(turno_);
+bool EscenasYFuentes::sourceVisible(const std::string& sceneName, const std::string& name) const {
     if (const EscenaApp* e = escena(sceneName))
         for (const auto& i : e->items)
             if (i.fuente == name) return i.visible;
     return false;
 }
 
-bool BroadcastEngine::setSourceRect(const std::string& sceneName, const std::string& name, const CanvasRect& rect) {
-    const TurnoMotor::Guarda turno(turno_);
+bool EscenasYFuentes::setSourceRect(const std::string& sceneName, const std::string& name, const CanvasRect& rect) {
     EscenaApp* e = escena(sceneName);
     if (e == nullptr) return false;
     for (auto& i : e->items)
@@ -785,9 +767,8 @@ bool BroadcastEngine::setSourceRect(const std::string& sceneName, const std::str
     return false;
 }
 
-bool BroadcastEngine::setSourceCrop(const std::string& sceneName, const std::string& name, float izquierda, float arriba,
+bool EscenasYFuentes::setSourceCrop(const std::string& sceneName, const std::string& name, float izquierda, float arriba,
                                     float derecha, float abajo) {
-    const TurnoMotor::Guarda turno(turno_);
     EscenaApp* e = escena(sceneName);
     if (e == nullptr) return false;
     if (izquierda + derecha >= 0.95f || arriba + abajo >= 0.95f) return false;
@@ -806,8 +787,7 @@ bool BroadcastEngine::setSourceCrop(const std::string& sceneName, const std::str
     return false;
 }
 
-bool BroadcastEngine::setSourceEfectos(const std::string& sceneName, const std::string& name, const EfectosCapa& efectos) {
-    const TurnoMotor::Guarda turno(turno_);
+bool EscenasYFuentes::setSourceEfectos(const std::string& sceneName, const std::string& name, const EfectosCapa& efectos) {
     EscenaApp* e = escena(sceneName);
     if (e == nullptr) return false;
     for (auto& i : e->items)
@@ -819,20 +799,18 @@ bool BroadcastEngine::setSourceEfectos(const std::string& sceneName, const std::
     return false;
 }
 
-EfectosCapa BroadcastEngine::sourceEfectos(const std::string& sceneName, const std::string& name) const {
-    const TurnoMotor::Guarda turno(turno_);
+EfectosCapa EscenasYFuentes::sourceEfectos(const std::string& sceneName, const std::string& name) const {
     if (const EscenaApp* e = escena(sceneName))
         for (const auto& i : e->items)
             if (i.fuente == name) return i.efectos;
     return {};
 }
 
-void BroadcastEngine::aplicarRecortesPendientes() {
-    const TurnoMotor::Guarda turno(turno_);
+void EscenasYFuentes::aplicarRecortesPendientes() {
     if (recortesPendientes_.empty()) return;
     const auto pendientes = recortesPendientes_;
     recortesPendientes_.clear();
-    if (motor_) motor_->pedirFoto();
+    if (m_.motor_) m_.motor_->pedirFoto();
     for (const auto& r : pendientes) {
         int w = 0, h = 0;
         if (!sourceSize(r.fuente, w, h) || w == 0) {
@@ -843,10 +821,9 @@ void BroadcastEngine::aplicarRecortesPendientes() {
     }
 }
 
-bool BroadcastEngine::renameSource(const std::string& from, const std::string& to) {
-    const TurnoMotor::Guarda turno(turno_);
+bool EscenasYFuentes::renameSource(const std::string& from, const std::string& to) {
     if (to.empty() || sources_.count(to) > 0) {
-        setError(ba::i18n::traducir("emision", "renameSource: nombre vacio o repetido"));
+        m_.setError(ba::i18n::traducir("emision", "renameSource: nombre vacio o repetido"));
         return false;
     }
     auto it = sources_.find(from);
@@ -856,18 +833,18 @@ bool BroadcastEngine::renameSource(const std::string& from, const std::string& t
     f.spec.name = to;
     json ajustes;
     if (!ajustesMotor(f.spec, ajustes)) return false;
-    const std::string e = motor_->agregarEntrada(
-        to, ajustes, json{{"global", f.global}, {"nivel", nivelAplicado(to, f.spec.volume, porOmision())}, {"mute", f.spec.muted}});
+    const std::string e = m_.motor_->agregarEntrada(
+        to, ajustes, json{{"global", f.global}, {"nivel", m_.mezcla_->nivelAplicado(to, f.spec.volume, m_.porOmision())}, {"mute", f.spec.muted}});
     if (!e.empty()) {
-        setError(e);
+        m_.setError(e);
         return false;
     }
     sources_.erase(it);
     sources_[to] = f;
-    if (pfl_ == from) pfl_ = to;
+    m_.mezcla_->renombrarFuente(from, to);
     fuentes::baja(from);
     if (esDeApp(f.spec.id)) fuentes::alta(to, f.spec.id, json::parse(f.spec.settingsJson, nullptr, false));
-    if (cambioAudio_) cambioAudio_(to, "alta");
+    if (m_.cambioAudio_) m_.cambioAudio_(to, "alta");
     std::replace(ordenFuentes_.begin(), ordenFuentes_.end(), from, to);
     std::replace(micInputs_.begin(), micInputs_.end(), from, to);
     for (auto& sc : scenes_) {
@@ -881,34 +858,32 @@ bool BroadcastEngine::renameSource(const std::string& from, const std::string& t
     }
     // En cada salida: sus capas, y su volumen y su mute (la entrada nueva llega con los
     // de la por omisión).
-    for (auto& [id, s] : salidas_) {
+    for (auto& [id, s] : m_.salidas_) {
         for (auto& d : s->dsk) std::replace(d.contenido.begin(), d.contenido.end(), from, to);
         if (s->porOmision()) continue;
         if (auto v = s->volumen.extract(from)) {
             v.key() = to;
-            motor_->ponerNivel(to, nivelAplicado(to, v.mapped(), *s), id);
+            m_.motor_->ponerNivel(to, m_.mezcla_->nivelAplicado(to, v.mapped(), *s), id);
             s->volumen.insert(std::move(v));
         }
         if (auto m = s->mute.extract(from)) {
             m.key() = to;
-            motor_->ponerMute(to, m.mapped(), id);
+            m_.motor_->ponerMute(to, m.mapped(), id);
             s->mute.insert(std::move(m));
         }
     }
-    motor_->quitarEntrada(from);
-    if (!f.pistas.empty()) motor_->ponerPistas(to, f.pistas);
+    m_.motor_->quitarEntrada(from);
+    if (!f.pistas.empty()) m_.motor_->ponerPistas(to, f.pistas);
     return true;
 }
 
-json BroadcastEngine::estadoEntrada(const std::string& name) const {
-    const TurnoMotor::Guarda turno(turno_);
+json EscenasYFuentes::estadoEntrada(const std::string& name) const {
     if (sources_.count(name) == 0) return nullptr;
-    const json& e = seccion(estadoMotor(), "entradas");
+    const json& e = seccion(m_.estadoMotor(), "entradas");
     return e.contains(name) ? e[name] : json::object();
 }
 
-std::vector<std::pair<std::string, CanvasRect>> BroadcastEngine::itemsVisibles(const std::string& scene) const {
-    const TurnoMotor::Guarda turno(turno_);
+std::vector<std::pair<std::string, CanvasRect>> EscenasYFuentes::itemsVisibles(const std::string& scene) const {
     std::vector<std::pair<std::string, CanvasRect>> v;
     if (const EscenaApp* e = escena(scene))
         for (const auto& i : e->items)
@@ -916,47 +891,20 @@ std::vector<std::pair<std::string, CanvasRect>> BroadcastEngine::itemsVisibles(c
     return v;
 }
 
-bool BroadcastEngine::ponerReloj(const std::string& tipo, const std::string& servidor, int puerto, int dominio) {
-    const TurnoMotor::Guarda turno(turno_);
-    if (tipo == relojTipo_ && servidor == relojServidor_ && puerto == relojPuerto_ && dominio == relojDominio_) return true;
-    relojTipo_ = tipo;
-    relojServidor_ = servidor;
-    relojPuerto_ = puerto;
-    relojDominio_ = dominio;
-    // Todo el estudio corre con ese reloj: se arma de nuevo con lo que había.
-    return !started_ || resetVideo(video_);
-}
-
-std::pair<std::string, std::string> BroadcastEngine::relojEstado() const {
-    const TurnoMotor::Guarda turno(turno_);
-    return {relojTipo_.empty() ? std::string("sistema") : relojTipo_, motor_ ? motor_->reloj().error() : std::string()};
-}
-
-std::string BroadcastEngine::publicarReloj(int puerto) {
-    const TurnoMotor::Guarda turno(turno_);
-    relojPublicar_ = std::max(0, puerto);
-    return motor_ ? motor_->publicarReloj(relojPublicar_) : std::string();
-}
-
-std::string BroadcastEngine::controlEntrada(const std::string& name, const json& campos) {
-    const TurnoMotor::Guarda turno(turno_);
+std::string EscenasYFuentes::controlEntrada(const std::string& name, const json& campos) {
     if (sources_.count(name) == 0) return ba::i18n::llenar(ba::i18n::traducir("emision", "no existe «%1»"), {name});
-    return motor_ ? motor_->controlEntrada(name, campos) : ba::i18n::traducir("emision", "no hay motor");
+    return m_.motor_ ? m_.motor_->controlEntrada(name, campos) : ba::i18n::traducir("emision", "no hay motor");
 }
 
-std::string BroadcastEngine::sourceTypeId(const std::string& name) const {
-    const TurnoMotor::Guarda turno(turno_);
+std::string EscenasYFuentes::sourceTypeId(const std::string& name) const {
     auto it = sources_.find(name);
     return it != sources_.end() ? it->second.spec.id : std::string();
 }
 
-void BroadcastEngine::holdShowing(const std::string&, bool) {}
-
-bool BroadcastEngine::sourceSize(const std::string& name, int& width, int& height) const {
-    const TurnoMotor::Guarda turno(turno_);
+bool EscenasYFuentes::sourceSize(const std::string& name, int& width, int& height) const {
     width = height = 0;
     if (sources_.count(name) == 0) return false;
-    const json& e = seccion(estadoMotor(), "entradas");
+    const json& e = seccion(m_.estadoMotor(), "entradas");
     if (!e.contains(name)) return true;
     const json sale = e[name].value("sale", json::object());
     width = sale.value("ancho", 0);
@@ -964,19 +912,17 @@ bool BroadcastEngine::sourceSize(const std::string& name, int& width, int& heigh
     return true;
 }
 
-std::string BroadcastEngine::sourceSettingsJson(const std::string& name) const {
-    const TurnoMotor::Guarda turno(turno_);
+std::string EscenasYFuentes::sourceSettingsJson(const std::string& name) const {
     auto it = sources_.find(name);
     return it != sources_.end() ? it->second.spec.settingsJson : std::string("{}");
 }
 
-bool BroadcastEngine::updateSourceSettings(const std::string& name, const std::string& settingsJson) {
-    const TurnoMotor::Guarda turno(turno_);
+bool EscenasYFuentes::updateSourceSettings(const std::string& name, const std::string& settingsJson) {
     auto it = sources_.find(name);
     if (it == sources_.end()) return false;
     const json nuevos = json::parse(settingsJson, nullptr, false);
     if (!nuevos.is_object()) {
-        setError(ba::i18n::traducir("emision", "settings no son JSON valido"));
+        m_.setError(ba::i18n::traducir("emision", "settings no son JSON valido"));
         return false;
     }
     // Como OBS: lo nuevo se suma a lo que había.
@@ -994,22 +940,22 @@ bool BroadcastEngine::updateSourceSettings(const std::string& name, const std::s
         return true;
     }
     if (!it->second.compProductor.empty()) {
-        motor_->definirEscena(escenaCompositor(name, configDe(it->second.spec.id, todo)));
+        m_.motor_->definirEscena(escenaCompositor(name, configDe(it->second.spec.id, todo)));
         return true;
     }
     if (esDeApp(it->second.spec.id)) fuentes::alta(name, it->second.spec.id, todo);
     json ajustes;
     if (!ajustesMotor(it->second.spec, ajustes)) return false;
     if (it->second.syncMs != 0) ajustes["desfase_audio"] = it->second.syncMs;
-    const std::string e = motor_->actualizarEntrada(name, ajustes);
+    const std::string e = m_.motor_->actualizarEntrada(name, ajustes);
     if (!e.empty()) {
-        setError(e);
+        m_.setError(e);
         return false;
     }
     return true;
 }
 
-std::vector<SourceType> BroadcastEngine::tiposDeFuente() {
+std::vector<SourceType> EscenasYFuentes::tiposDeFuente() {
     return {{inputs::kVideoType, ba::i18n::traducir("emision", "Cámara o capturadora (USB, HDMI)"), true, true},
             {inputs::kMicType, ba::i18n::traducir("emision", "Entrada por GStreamer (pipeline propio)"), true, true},
             {inputs::kMedioType, ba::i18n::traducir("emision", "Archivo de video o audio"), true, true},
@@ -1020,29 +966,23 @@ std::vector<SourceType> BroadcastEngine::tiposDeFuente() {
             {"screen_capture", ba::i18n::traducir("emision", "Captura de pantalla"), true, false},
             {video::kTipoVentana, ba::i18n::traducir("emision", "Captura de una aplicación"), true, false},
             {"ba_qr", ba::i18n::traducir("emision", "Código QR (Público, Conferencia, uno guardado…)"), true, false},
-            {kTipoBanca, ba::i18n::traducir("emision", "Banca con la palabra (asamblea: la cámara de quien habla)"), true, false},
+            {BroadcastEngine::kTipoBanca, ba::i18n::traducir("emision", "Banca con la palabra (asamblea: la cámara de quien habla)"), true, false},
             {"ba_pdf", ba::i18n::traducir("emision", "PDF (una página por vez)"), true, false},
             {"ba_grilla", ba::i18n::traducir("emision", "Grilla de personas (la gente de la Conferencia y la Asamblea)"), true, false},
             {"ba_app", ba::i18n::traducir("emision", "Lo que pinta la app"), true, false}};
 }
 
-bool BroadcastEngine::sourceTypeExists(const std::string& typeId) const {
-    const TurnoMotor::Guarda turno(turno_);
+bool EscenasYFuentes::sourceTypeExists(const std::string& typeId) const {
     if (typeId.empty()) return false;
     // Un tipo de antes vale si su versión del motor vale (lo pasa crearFuente).
     SourceSpec s;
     s.id = typeId;
     inputs::alMotor(s);
     json a;
-    return s.id == kTipoBanca || s.id == inputs::kMicType || s.id == inputs::kMedioType || ajustesMotor(s, a);
+    return s.id == BroadcastEngine::kTipoBanca || s.id == inputs::kMicType || s.id == inputs::kMedioType || ajustesMotor(s, a);
 }
 
-// ============================================================================
-// Invitados y entradas globales
-// ============================================================================
-
-bool BroadcastEngine::addGuestAudio(int slot) {
-    const TurnoMotor::Guarda turno(turno_);
+bool EscenasYFuentes::addGuestAudio(int slot) {
     const std::string name = "Invitado " + std::to_string(slot) + " (audio)";
     if (sources_.count(name) == 0) {
         SourceSpec spec;
@@ -1052,22 +992,17 @@ bool BroadcastEngine::addGuestAudio(int slot) {
         if (!crearFuente(spec, true)) return false;
     }
     // Lo que oye: de fábrica, el programa sin su propia voz.
-    const auto r = retornos_.find(slot);
-    motor_->retorno(slot, r != retornos_.end() ? r->second : "mix_minus", name);
+    m_.motor_->retorno(slot, m_.mezcla_->retornoInvitado(slot), name);
     return true;
 }
 
-bool BroadcastEngine::addGlobalAudio(const SourceSpec& spec) {
-    const TurnoMotor::Guarda turno(turno_);
+bool EscenasYFuentes::addGlobalAudio(const SourceSpec& spec) {
     if (sources_.count(spec.name) == 0 && !crearFuente(spec, true)) return false;
     if (std::find(micInputs_.begin(), micInputs_.end(), spec.name) == micInputs_.end()) micInputs_.push_back(spec.name);
     return true;
 }
 
-int BroadcastEngine::adoptPendingAudio() { return 0; }
-
-bool BroadcastEngine::removeGlobalAudio(const std::string& name) {
-    const TurnoMotor::Guarda turno(turno_);
+bool EscenasYFuentes::removeGlobalAudio(const std::string& name) {
     const auto it = std::find(micInputs_.begin(), micInputs_.end(), name);
     if (it == micInputs_.end()) return false;
     micInputs_.erase(it);
@@ -1076,518 +1011,49 @@ bool BroadcastEngine::removeGlobalAudio(const std::string& name) {
     return true;
 }
 
-bool BroadcastEngine::addGuestVideo(int slot) { return addGuestVideo(slot, CanvasRect{0.5f, 0.5f, 0.5f, 0.5f}); }
-
-bool BroadcastEngine::addGuestVideo(int slot, const CanvasRect& rect) {
-    const TurnoMotor::Guarda turno(turno_);
-    SourceSpec spec = inputs::videoInvitadoSpec(slot, "guest", "Invitado " + std::to_string(slot));
-    spec.rect = rect;
-    return addSource(spec);
-}
-
-void BroadcastEngine::setRetornoInvitado(int slot, const std::string& modo) {
-    const TurnoMotor::Guarda turno(turno_);
-    retornos_[slot] = modo;
-    const std::string name = "Invitado " + std::to_string(slot) + " (audio)";
-    if (motor_ && sources_.count(name) > 0) motor_->retorno(slot, modo, name);
-}
-
-std::string BroadcastEngine::retornoInvitado(int slot) const {
-    const TurnoMotor::Guarda turno(turno_);
-    const auto it = retornos_.find(slot);
-    return it != retornos_.end() ? it->second : "mix_minus";
-}
-
-// ============================================================================
-// Audio por fuente
-// ============================================================================
-
-std::vector<std::string> BroadcastEngine::audioSources() const {
-    const TurnoMotor::Guarda turno(turno_);
+std::vector<std::string> EscenasYFuentes::fuentesEnPrograma() const {
     std::vector<std::string> out;
-    const json& e = seccion(estadoMotor(), "entradas");
-    for (const auto& n : ordenFuentes_)
-        if (e.contains(n) && e[n].value("audio", false)) out.push_back(n);
+    for (const auto& id : m_.ordenSalidas_)
+        for (const std::string& f : fuentesEnPrograma(id))
+            if (std::find(out.begin(), out.end(), f) == out.end()) out.push_back(f);
     return out;
 }
 
-std::vector<std::string> BroadcastEngine::sourceNames() const {
-    const TurnoMotor::Guarda turno(turno_);
-    return ordenFuentes_;
-}
-
-bool BroadcastEngine::setSourceVolume(const std::string& name, float mul, const std::string& salida) {
-    const TurnoMotor::Guarda turno(turno_);
-    auto it = sources_.find(name);
-    if (it == sources_.end()) return false;
-    const float v = std::max(0.0f, mul);
-    Salida* s = laSalida(salida);
-    if (s == nullptr) return false;
-    if (!s->porOmision()) {
-        // La mezcla de otra salida: solo su fader en su bus (la fuente y su matriz son de la por omisión).
-        // Avisa igual: el Mezclador puede estar mirando esta salida (la salida activa de la interfaz).
-        const bool cambia = sourceVolume(name, s->id) != v;
-        s->volumen[name] = v;
-        const bool ok = motor_->ponerNivel(name, nivelAplicado(name, v, *s), s->id).empty();
-        if (cambia && cambioAudio_) cambioAudio_(name, "volumen");
-        return ok;
-    }
-    const bool cambia = it->second.spec.volume != v;
-    it->second.spec.volume = v;
-    const bool ok = motor_->ponerNivel(name, nivelAplicado(name, v, *s)).empty();
-    if (cambia && cambioAudio_) cambioAudio_(name, "volumen");
-    return ok;
-}
-
-std::string BroadcastEngine::grupoDeAudio(const std::string& nombre) {
-    std::string g;
-    for (char c : nombre) {
-        if (c >= '0' && c <= '9') continue;
-        if (c == ' ' && (g.empty() || g.back() == ' ')) continue;
-        g.push_back(c);
-    }
-    while (!g.empty() && g.back() == ' ') g.pop_back();
-    // «Invitado  (audio)» queda con un espacio solo antes del paréntesis.
-    for (std::size_t p = g.find(" )"); p != std::string::npos; p = g.find(" )")) g.erase(p, 1);
-    return g;
-}
-
-float BroadcastEngine::nivelAplicado(const std::string& name, float volumen, const Salida& s) const {
-    if (s.gananciaGrupo.empty()) return volumen;
-    const auto it = s.gananciaGrupo.find(grupoDeAudio(name));
-    return it != s.gananciaGrupo.end() ? volumen * it->second : volumen;
-}
-
-void BroadcastEngine::setGananciaGrupo(const std::string& grupo, float mul, const std::string& salida) {
-    const TurnoMotor::Guarda turno(turno_);
-    Salida* s = laSalida(salida);
-    if (s == nullptr) return;
-    const float g = std::max(0.0f, mul);
-    if (std::abs(g - gananciaGrupo(grupo, s->id)) < 1e-6f) return;
-    if (std::abs(g - 1.0f) < 1e-6f) s->gananciaGrupo.erase(grupo);
-    else s->gananciaGrupo[grupo] = g;
-    // El VCA es del grupo en la mezcla de ESA salida (cada fuente con su fader ahí).
-    for (const auto& [nombre, f] : sources_) {
-        if (grupoDeAudio(nombre) != grupo) continue;
-        if (motor_) // sin audio no tiene nivel: no importa
-            motor_->ponerNivel(nombre, nivelAplicado(nombre, sourceVolume(nombre, s->id), *s), s->porOmision() ? std::string() : s->id);
-        if (cambioAudio_) cambioAudio_(nombre, "volumen");
-    }
-}
-
-float BroadcastEngine::gananciaGrupo(const std::string& grupo, const std::string& salida) const {
-    const TurnoMotor::Guarda turno(turno_);
-    const Salida* s = laSalida(salida);
-    if (s == nullptr) return 1.0f;
-    const auto it = s->gananciaGrupo.find(grupo);
-    return it != s->gananciaGrupo.end() ? it->second : 1.0f;
-}
-
-float BroadcastEngine::sourceVolume(const std::string& name, const std::string& salida) const {
-    const TurnoMotor::Guarda turno(turno_);
-    auto it = sources_.find(name);
-    if (it == sources_.end()) return 0.0f;
-    const Salida* s = laSalida(salida);
-    if (s == nullptr || s->porOmision()) return it->second.spec.volume;
-    const auto v = s->volumen.find(name);
-    return v != s->volumen.end() ? v->second : it->second.spec.volume;
-}
-
-bool BroadcastEngine::setSourceMuted(const std::string& name, bool muted, const std::string& salida) {
-    const TurnoMotor::Guarda turno(turno_);
-    auto it = sources_.find(name);
-    if (it == sources_.end()) return false;
-    Salida* s = laSalida(salida);
-    if (s == nullptr) return false;
-    if (!s->porOmision()) {
-        const bool cambia = sourceMuted(name, s->id) != muted;
-        s->mute[name] = muted;
-        const bool ok = motor_->ponerMute(name, muted, s->id).empty();
-        if (cambia && cambioAudio_) cambioAudio_(name, "mute");
-        return ok;
-    }
-    const bool cambia = it->second.spec.muted != muted;
-    it->second.spec.muted = muted;
-    const bool ok = motor_->ponerMute(name, muted).empty();
-    if (cambia && cambioAudio_) cambioAudio_(name, "mute");
-    return ok;
-}
-
-bool BroadcastEngine::sourceMuted(const std::string& name, const std::string& salida) const {
-    const TurnoMotor::Guarda turno(turno_);
-    auto it = sources_.find(name);
-    if (it == sources_.end()) return false;
-    const Salida* s = laSalida(salida);
-    if (s == nullptr || s->porOmision()) return it->second.spec.muted;
-    const auto m = s->mute.find(name);
-    return m != s->mute.end() ? m->second : it->second.spec.muted;
-}
-
-float BroadcastEngine::sourcePeakDb(const std::string& name) const {
-    const TurnoMotor::Guarda turno(turno_);
-    // Lo que entrega la entrada (después de su rack, vaya a donde vaya), como los
-    // vúmetros del Mezclador. El del bus Programa marcaba -100 con audio si la
-    // fuente no iba al Programa (un micrófono que sale solo por un parlante).
-    if (motor_)
-        if (const auto niveles = motor_->niveles())
-            for (const auto& n : *niveles)
-                if (!n.bus && n.id == name) return std::max(-100.0f, std::max(n.pico[0], n.pico[1]));
-    const json& e = seccion(seccion(estadoMotor(), "programa"), "entradas");
-    if (!e.contains(name)) return -100.0f;
-    return static_cast<float>(std::max(-100.0, e[name].value("pico_db", -100.0)));
-}
-
-bool BroadcastEngine::setSourceMonitoring(const std::string& name, bool on) {
-    const TurnoMotor::Guarda turno(turno_);
-    auto it = sources_.find(name);
-    if (it == sources_.end()) return false;
-    // La escucha fija: las marcadas suenan juntas (con un solo prendido, el motor solo la
-    // marca: suena al soltarlo).
-    const bool cambia = it->second.monitor != on;
-    it->second.monitor = on;
-    const std::string e = motor_->ponerEscucha(name, on);
-    if (!e.empty()) setError(e);
-    if (cambia && cambioAudio_) cambioAudio_(name, "escucha");
-    return e.empty();
-}
-
-bool BroadcastEngine::sourceMonitoring(const std::string& name) const {
-    const TurnoMotor::Guarda turno(turno_);
-    auto it = sources_.find(name);
-    return it != sources_.end() && (it->second.monitor || pfl_ == name);
-}
-
-bool BroadcastEngine::sourceEscuchaFija(const std::string& name) const {
-    const TurnoMotor::Guarda turno(turno_);
-    auto it = sources_.find(name);
-    return it != sources_.end() && it->second.monitor;
-}
-
-std::string BroadcastEngine::aplicarEscucha() {
-    const auto idMotor = [this](const std::string& salida) {
-        const Salida* s = laSalida(salida);
-        return s == nullptr || s->porOmision() ? std::string() : s->id;
-    };
-    // Sin solo, la selección (las marcadas) con el fader de su salida; sin ninguna marcada
-    // el motor la apaga.
-    if (pfl_.empty()) return motor_->escuchar("seleccion", "", idMotor(salidaEscucha_));
-    return motor_->escuchar(pflModo_, pfl_, pflModo_ == "afl" ? idMotor(pflSalida_) : std::string());
-}
-
-bool BroadcastEngine::setPfl(const std::string& name, const std::string& modo, const std::string& salida) {
-    const TurnoMotor::Guarda turno(turno_);
-    if (modo != "pfl" && modo != "afl") {
-        setError(ba::i18n::traducir("emision", "el solo de la escucha es «pfl» o «afl»"));
-        return false;
-    }
-    if (!name.empty() && sources_.count(name) == 0) return false;
-    const Salida* s = laSalida(salida);
-    if (s == nullptr) return false;
-    if (name == pfl_ && (name.empty() || (modo == pflModo_ && s->id == pflSalida_))) return true;
-    const std::string antes = pfl_;
-    pfl_ = name;
-    pflModo_ = modo;
-    pflSalida_ = s->id;
-    // Uno solo a la vez: el nuevo reemplaza al anterior; soltarlo devuelve la escucha fija.
-    const std::string e = aplicarEscucha();
-    if (!e.empty()) {
-        setError(e);
-        pfl_.clear();
-        aplicarEscucha();
-    }
-    if (cambioAudio_) {
-        if (!antes.empty()) cambioAudio_(antes, "escucha");
-        if (!name.empty() && name != antes) cambioAudio_(name, "escucha");
-    }
-    return e.empty();
-}
-
-bool BroadcastEngine::setSalidaEscucha(const std::string& salida) {
-    const TurnoMotor::Guarda turno(turno_);
-    const Salida* s = laSalida(salida);
-    if (s == nullptr) return false;
-    if (s->id == salidaEscucha_) return true;
-    salidaEscucha_ = s->id;
-    // Con un solo prendido queda para cuando se suelte.
-    if (pfl_.empty()) {
-        const std::string e = aplicarEscucha();
-        if (!e.empty()) {
-            setError(e);
-            return false;
+std::vector<std::string> EscenasYFuentes::fuentesEnPrograma(const std::string& salida) const {
+    std::vector<std::string> out;
+    const SalidaAire* s = m_.laSalida(salida);
+    if (s == nullptr) return out;
+    if (const EscenaApp* e = escena(s->alAire))
+        for (const auto& i : e->items) {
+            if (!i.visible) continue;
+            // «Banca con la palabra»: lo que se ve es su cámara. Recortada de la toma
+            // entera (digital) no cuenta: mover el PTZ de esa cámara no la cambia.
+            const auto f = sources_.find(i.fuente);
+            if (f != sources_.end() && f->second.banca) {
+                const int r = ranuraDe(f->second);
+                if (r >= 1 && r <= static_cast<int>(ranurasBanca_.size()) && !ranurasBanca_[r - 1].entrada.empty() &&
+                    !ranurasBanca_[r - 1].entera)
+                    out.push_back(ranurasBanca_[r - 1].entrada);
+                continue;
+            }
+            out.push_back(i.fuente);
         }
-    }
-    return true;
-}
-
-bool BroadcastEngine::setSourceSyncOffset(const std::string& name, int ms) {
-    const TurnoMotor::Guarda turno(turno_);
-    auto it = sources_.find(name);
-    if (it == sources_.end()) {
-        setError(ba::i18n::llenar(ba::i18n::traducir("emision", "no existe la fuente '%1'"), {name}));
-        return false;
-    }
-    const int v = std::clamp(ms, -5000, 5000);
-    const bool cambia = it->second.syncMs != v;
-    it->second.syncMs = v;
-    json ajustes;
-    if (!ajustesMotor(it->second.spec, ajustes)) return false;
-    ajustes["desfase_audio"] = it->second.syncMs; // solo el audio; cambia andando (el offset del pad)
-    const bool ok = motor_->actualizarEntrada(name, ajustes).empty();
-    if (cambia && cambioAudio_) cambioAudio_(name, "retardo");
-    return ok;
-}
-
-int BroadcastEngine::sourceSyncOffset(const std::string& name) const {
-    const TurnoMotor::Guarda turno(turno_);
-    auto it = sources_.find(name);
-    return it != sources_.end() ? it->second.syncMs : 0;
-}
-
-bool BroadcastEngine::setSourcePistas(const std::string& name, const std::vector<int>& pistas) {
-    const TurnoMotor::Guarda turno(turno_);
-    auto it = sources_.find(name);
-    if (it == sources_.end()) return false;
-    const std::string e = motor_->ponerPistas(name, pistas);
-    if (!e.empty()) {
-        setError(e);
-        return false;
-    }
-    const bool cambia = it->second.pistas != pistas;
-    it->second.pistas = pistas;
-    if (cambia && cambioAudio_) cambioAudio_(name, "pistas");
-    return true;
-}
-
-std::vector<int> BroadcastEngine::sourcePistas(const std::string& name) const {
-    const TurnoMotor::Guarda turno(turno_);
-    auto it = sources_.find(name);
-    return it != sources_.end() ? it->second.pistas : std::vector<int>{};
-}
-
-// ============================================================================
-// Medios
-// ============================================================================
-
-bool BroadcastEngine::playMedia(const std::string& name, const std::string& file, bool loop, float volume) {
-    const TurnoMotor::Guarda turno(turno_);
-    if (file.empty()) {
-        setError(ba::i18n::traducir("emision", "no se dijo que archivo reproducir"));
-        return false;
-    }
-    const json s{{"local_file", file}, {"looping", loop}, {"clear_on_media_end", true}};
-    if (sources_.count(name) > 0) {
-        // Ya existe: se le cambia el archivo y arranca de nuevo (otra fuente dejaría la anterior sonando).
-        updateSourceSettings(name, s.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
-        setSourceVolume(name, volume);
-        setSourceMuted(name, false);
-        return restartMedia(name);
-    }
-    SourceSpec spec;
-    spec.id = inputs::kMedioType;
-    spec.name = name;
-    spec.settingsJson = s.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
-    spec.volume = volume;
-    return addGlobalAudio(spec);
-}
-
-bool BroadcastEngine::restartMedia(const std::string& name) {
-    const TurnoMotor::Guarda turno(turno_);
-    if (sources_.count(name) == 0) {
-        setError(ba::i18n::llenar(ba::i18n::traducir("emision", "no existe la fuente de medios \"%1\""), {name}));
-        return false;
-    }
-    const std::string e = motor_->controlMedio(name, "reiniciar");
-    if (!e.empty()) setError(e);
-    return e.empty();
-}
-
-bool BroadcastEngine::seekMedia(const std::string& name, std::int64_t ms) {
-    const TurnoMotor::Guarda turno(turno_);
-    if (sources_.count(name) == 0) return false;
-    return motor_->controlMedio(name, "ir", std::max<std::int64_t>(0, ms)).empty();
-}
-
-bool BroadcastEngine::pararMedia(const std::string& name) {
-    const TurnoMotor::Guarda turno(turno_);
-    if (sources_.count(name) == 0) return false;
-    return motor_->controlMedio(name, "parar").empty();
-}
-
-bool BroadcastEngine::stopMedia(const std::string& name) {
-    const TurnoMotor::Guarda turno(turno_);
-    if (sources_.count(name) == 0) return false;
-    motor_->controlMedio(name, "parar");
-    return removeGlobalAudio(name);
-}
-
-std::vector<BroadcastEngine::MediaInfo> BroadcastEngine::mediaSources() const {
-    const TurnoMotor::Guarda turno(turno_);
-    std::vector<MediaInfo> out;
-    if (!motor_) return out;
-    for (const auto& n : ordenFuentes_) {
-        const json m = motor_->medio(n);
-        if (m.is_null()) continue;
-        out.push_back({n, m.value("estado", std::string("none")), m.value("duracion_ms", std::int64_t{0}),
-                       m.value("tiempo_ms", std::int64_t{0})});
-    }
+    for (const std::string& f : fuentesDsk(s->id)) out.push_back(f);
     return out;
 }
 
-// ============================================================================
-// Capacidades
-// ============================================================================
-
-std::string BroadcastEngine::graphicsDeviceName() {
-#if defined(__APPLE__)
-    return "Apple (VideoToolbox, GStreamer)";
-#else
-    return "GStreamer";
-#endif
-}
-
-std::vector<BroadcastEngine::EncoderInfo> BroadcastEngine::videoEncoders() {
-    std::vector<EncoderInfo> out;
-    for (const char* f : {"vtenc_h264_hw", "vtenc_h264", "nvh264enc", "qsvh264enc", "d3d12h264enc", "amfh264enc", "vah264enc",
-                          "mfh264enc", "x264enc"}) {
-        if (!motor::hayFabrica(f)) continue;
-        const std::string id = f;
-        out.push_back({id, id, "h264", id != "x264enc"});
+bool EscenasYFuentes::fuenteAlAire(const std::string& fuente) const {
+    if (fuente.empty()) return false;
+    // En alguna salida que esté saliendo.
+    for (const auto& id : m_.ordenSalidas_) {
+        if (!m_.emision_->haySalidaEn(id)) continue;
+        const auto ss = fuentesEnPrograma(id);
+        if (std::find(ss.begin(), ss.end(), fuente) != ss.end()) return true;
     }
-    return out;
-}
-
-bool BroadcastEngine::outputsActive() const {
-    const TurnoMotor::Guarda turno(turno_);
-    // Lo pedido (las salidas son del hilo de salidas: ver enSalidas), en todas las salidas.
-    std::lock_guard<std::mutex> l(pedidosM_);
-    for (const auto& [id, s] : salidas_)
-        if (s->streamPedido || s->grabacionPedida || !s->extrasPedidos.empty()) return true;
     return false;
 }
 
-bool BroadcastEngine::resetEncoders() {
-    const TurnoMotor::Guarda turno(turno_);
-    if (outputsActive()) {
-        setError(ba::i18n::traducir("emision", "no se puede cambiar la codificacion con salidas activas"));
-        return false;
-    }
-    return true;
-}
-
-std::vector<std::string> BroadcastEngine::videoEncoderCandidates(const EncoderConfig& enc) {
-    std::vector<std::string> pedidos;
-    const std::string& v = enc.videoEncoder;
-    if (v == "videotoolbox") pedidos = {"vtenc_h264_hw", "vtenc_h264"};
-    else if (v == "nvenc") pedidos = {"nvh264enc"};
-    else if (v == "qsv") pedidos = {"qsvh264enc"};
-    else if (v == "amf") pedidos = {"amfh264enc"};
-    else if (v == "vaapi") pedidos = {"vah264enc", "vah264lpenc"};
-    else if (v == "x264") pedidos = {"x264enc"};
-    else if (!v.empty() && v != "auto") pedidos = {v};
-    else if (enc.preferHardware) pedidos = {"vtenc_h264_hw", "nvh264enc", "qsvh264enc", "d3d12h264enc", "amfh264enc", "vah264enc", "vtenc_h264"};
-    std::vector<std::string> out;
-    for (const auto& p : pedidos)
-        if (motor::hayFabrica(p)) out.push_back(p);
-    if (std::find(out.begin(), out.end(), "x264enc") == out.end() && motor::hayFabrica("x264enc")) out.push_back("x264enc");
-    return out;
-}
-
-bool BroadcastEngine::resetVideo(const VideoConfig& video, const std::function<VideoConfig()>& conElMotorApagado) {
-    const TurnoMotor::Guarda turno(turno_);
-    if (!started_) return false;
-    if (outputsActive() && !conElMotorApagado) {
-        setError(ba::i18n::traducir("emision", "no se puede cambiar la resolucion con salidas activas"));
-        return false;
-    }
-    // El lienzo es de todo el motor: se arma uno nuevo con todo lo que había.
-    const auto escenas = scenes_;
-    const auto fuentes = sources_;
-    const auto orden = ordenFuentes_;
-    const auto mics = micInputs_;
-    // Las salidas: lo que tenía al aire y armado cada una, sus capas (DSK, placa y negro:
-    // el rearme por la GPU o un lienzo nuevo no le sacan al aire lo que tenía encima), y
-    // la mezcla, los VCA y el objetivo de loudness de las que no son la por omisión (la
-    // por omisión no se va: los suyos quedan).
-    struct Antes {
-        std::string id, nombre, alAire, armada;
-        std::map<std::string, float> volumen;
-        std::map<std::string, bool> mute;
-        std::map<std::string, float> gananciaGrupo;
-        audio::LoudnessPrograma::Objetivo objetivo;
-        Dsk dsk[4];
-        bool ftb = false, ftbAudio = false, placa = false;
-        std::string placaTexto, placaImagen;
-    };
-    std::vector<Antes> salidas;
-    for (const auto& s : lasSalidas()) {
-        Antes a{s->id, s->nombre, s->alAire, s->armada, s->volumen, s->mute, s->gananciaGrupo, s->medidas->loudness.objetivo()};
-        std::copy(std::begin(s->dsk), std::end(s->dsk), std::begin(a.dsk));
-        a.ftb = s->ftb;
-        a.ftbAudio = s->ftbAudio;
-        a.placa = s->placa;
-        a.placaTexto = s->placaTexto;
-        a.placaImagen = s->placaImagen;
-        salidas.push_back(std::move(a));
-    }
-    const bool feeds = returnFeedsActive_;
-    const bool preview = previewActive_;
-    stopReturnFeeds();
-    disablePreview();
-    shutdown();
-    if (!startup(paths_, conElMotorApagado ? conElMotorApagado() : video, audio_)) return false;
-    for (const auto& n : orden) {
-        const auto& f = fuentes.at(n);
-        crearFuente(f.spec, f.global);
-        if (f.syncMs != 0) setSourceSyncOffset(n, f.syncMs);
-        if (f.pistas != std::vector<int>{1}) setSourcePistas(n, f.pistas);
-        if (f.monitor) setSourceMonitoring(n, true);
-    }
-    // La escucha como estaba (el solo, o la fija con su salida) en el motor nuevo.
-    if (!pfl_.empty() && sources_.count(pfl_) == 0) pfl_.clear();
-    aplicarEscucha();
-    micInputs_ = mics;
-    scenes_ = escenas;
-    for (const auto& e : scenes_) publicarEscena(e);
-    for (const Antes& a : salidas) {
-        if (a.id != kSalidaPorOmision && !crearSalida(a.id, a.nombre)) continue;
-        if (a.id != kSalidaPorOmision) {
-            for (const auto& [n, v] : a.volumen) setSourceVolume(n, v, a.id);
-            for (const auto& [n, m] : a.mute) setSourceMuted(n, m, a.id);
-            for (const auto& [g, v] : a.gananciaGrupo) setGananciaGrupo(g, v, a.id);
-            laSalida(a.id)->medidas->loudness.ponerObjetivo(
-                {{"perfil", a.objetivo.perfil}, {"lufs", a.objetivo.lufs}, {"tp", a.objetivo.tp}, {"agc", a.objetivo.agc}});
-        }
-        if (!a.alAire.empty()) setCurrentSceneCon(a.alAire, "cut", 0, a.id);
-        if (!a.armada.empty()) armar(a.armada, a.id);
-        // Las capas vuelven como estaban, sin fundido (por la misma API: las internas de
-        // la placa y el negro se piden de nuevo al motor nuevo, y el negro baja el audio).
-        for (int i = 0; i < 4; ++i) {
-            const Dsk& d = a.dsk[i];
-            if (!d.contenido.empty()) dskArmar(i + 1, d.contenido, d.recuadro, a.id);
-            if (d.visible && !d.contenido.empty()) dskMostrar(i + 1, true, 0, a.id);
-        }
-        if (a.placa) placa(true, a.placaTexto, a.placaImagen, 0, a.id);
-        if (a.ftb) ftb(true, 0, a.ftbAudio, a.id);
-        publicarCapas(*laSalida(a.id), 0);
-    }
-    aplicarLoudness(); // el objetivo de cada una, al motor nuevo
-    for (const auto& [slot, modo] : retornos_) setRetornoInvitado(slot, modo);
-    if (feeds) publishReturnFeeds();
-    if (preview) enablePreview(video_.outputWidth / 2, video_.outputHeight / 2);
-    return true;
-}
-
-// ============================================================================
-// Video en vivo dentro de un gráfico (graficos/VideoEnGrafico.hpp)
-//
-// La cámara que entra con el zócalo es una capa más de la escena del gráfico, con
-// claves que el motor interpola cuadro a cuadro (Composicion: Capa::claves). No toca
-// el modelo de la escena (no se guarda, no se ve en el editor de escenas): se suma al
-// traducirla para el motor, y al sacarla la escena vuelve a ser la de siempre.
-// ============================================================================
-
-std::string BroadcastEngine::ponerVideoDeGrafico(const std::string& grafico, const json& capas) {
-    const TurnoMotor::Guarda turno(turno_);
+std::string EscenasYFuentes::ponerVideoDeGrafico(const std::string& grafico, const json& capas) {
     if (!capas.is_array() || capas.empty()) {
         quitarVideoDeGrafico(grafico);
         return {};
@@ -1609,20 +1075,18 @@ std::string BroadcastEngine::ponerVideoDeGrafico(const std::string& grafico, con
     return {};
 }
 
-void BroadcastEngine::empezarVideoDeGrafico(const std::string& grafico, std::int64_t desdeNs) {
-    const TurnoMotor::Guarda turno(turno_);
+void EscenasYFuentes::empezarVideoDeGrafico(const std::string& grafico, std::int64_t desdeNs) {
     const auto it = videoDeGraficos_.find(grafico);
     if (it == videoDeGraficos_.end()) return;
     it->second["desde_ns"] = desdeNs;
     publicarEscenasCon(grafico);
 }
 
-void BroadcastEngine::quitarVideoDeGrafico(const std::string& grafico) {
-    const TurnoMotor::Guarda turno(turno_);
+void EscenasYFuentes::quitarVideoDeGrafico(const std::string& grafico) {
     if (videoDeGraficos_.erase(grafico) > 0) publicarEscenasCon(grafico);
 }
 
-void BroadcastEngine::publicarEscenasCon(const std::string& fuente) {
+void EscenasYFuentes::publicarEscenasCon(const std::string& fuente) {
     for (const EscenaApp& e : scenes_)
         for (const Item& i : e.items)
             if (i.fuente == fuente) {
@@ -1631,10 +1095,10 @@ void BroadcastEngine::publicarEscenasCon(const std::string& fuente) {
             }
 }
 
-void BroadcastEngine::sumarVideoDeGraficos(const EscenaApp& e, json& capas) const {
+void EscenasYFuentes::sumarVideoDeGraficos(const EscenaApp& e, json& capas) const {
     if (videoDeGraficos_.empty()) return;
-    const double W = video_.baseWidth, H = video_.baseHeight;
-    const json& entradas = seccion(estadoMotor(), "entradas");
+    const double W = m_.video_.baseWidth, H = m_.video_.baseHeight;
+    const json& entradas = seccion(m_.estadoMotor(), "entradas");
     // El orden de cada capa con decimales: las del video van entre el gráfico y la de al lado
     // (arriba o debajo), y al final se renumera todo de corrido.
     std::vector<double> orden;
@@ -1705,6 +1169,35 @@ void BroadcastEngine::sumarVideoDeGraficos(const EscenaApp& e, json& capas) cons
     std::iota(idx.begin(), idx.end(), std::size_t{0});
     std::stable_sort(idx.begin(), idx.end(), [&](std::size_t a, std::size_t b) { return orden[a] < orden[b]; });
     for (std::size_t n = 0; n < idx.size(); ++n) capas[idx[n]]["orden"] = static_cast<int>(n);
+}
+
+bool EscenasYFuentes::addGuestVideo(int slot, const CanvasRect& rect) {
+    SourceSpec spec = inputs::videoInvitadoSpec(slot, "guest", "Invitado " + std::to_string(slot));
+    spec.rect = rect;
+    return addSource(spec);
+}
+
+EscenasYFuentes::Fuente* EscenasYFuentes::fuente(const std::string& nombre) {
+    const auto it = sources_.find(nombre);
+    return it != sources_.end() ? &it->second : nullptr;
+}
+
+const EscenasYFuentes::Fuente* EscenasYFuentes::fuente(const std::string& nombre) const {
+    const auto it = sources_.find(nombre);
+    return it != sources_.end() ? &it->second : nullptr;
+}
+
+void EscenasYFuentes::reponer(const Copia& c) {
+    micInputs_ = c.mics;
+    scenes_ = c.escenas;
+    for (const auto& e : scenes_) publicarEscena(e);
+}
+
+void EscenasYFuentes::vaciar() {
+    scenes_.clear();
+    sources_.clear();
+    ordenFuentes_.clear();
+    micInputs_.clear();
 }
 
 } // namespace ba::app
