@@ -34,7 +34,9 @@ std::string ObjetivoLoudness::poner(const nlohmann::json& objetivo, const std::s
         if (!j.contains("salidas") || !j["salidas"].is_object()) j["salidas"] = nlohmann::json::object();
         j["salidas"][salida] = guardado;
     }
-    if (!config::guardar(archivo_, j)) return "el objetivo rige, pero no se pudo guardar " + archivo_.filename().string();
+    if (!config::guardar(archivo_, j))
+        return ba::i18n::llenar(ba::i18n::traducir("loudness", "el objetivo rige, pero no se pudo guardar %1"),
+                                {archivo_.filename().string()});
     return {};
 }
 

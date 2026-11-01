@@ -4,7 +4,7 @@
 <context>
     <name>AccesoRemoto</name>
     <message numerus="yes">
-        <location filename="../src/app/net/AccesoRemoto.cpp" line="+727"/>
+        <location filename="../src/app/net/AccesoRemoto.cpp" line="+721"/>
         <source>Pedí cortar %n túnel de la cuenta (el de este equipo vuelve a conectarse solo si está prendido).</source>
         <translation>
             <numerusform>Pedí cortar %n túnel de la cuenta (el de este equipo vuelve a conectarse solo si está prendido).</numerusform>
@@ -15,7 +15,7 @@
 <context>
     <name>AgentesPage</name>
     <message numerus="yes">
-        <location filename="../src/app/qml/pages/AgentesPage.qml" line="+304"/>
+        <location filename="../src/app/qml/pages/AgentesPage.qml" line="+295"/>
         <source>%n reciente</source>
         <translation>
             <numerusform>%n reciente</numerusform>
@@ -34,7 +34,7 @@
 <context>
     <name>AppViewModel</name>
     <message numerus="yes">
-        <location filename="../src/app/ui/AppViewModel.cpp" line="+250"/>
+        <location filename="../src/app/ui/AppViewModel.cpp" line="+311"/>
         <source>Hay %n persona conectada</source>
         <translation>
             <numerusform>Hay %n persona conectada</numerusform>
@@ -130,7 +130,7 @@
 <context>
     <name>AssistantPage</name>
     <message numerus="yes">
-        <location filename="../src/app/qml/pages/AssistantPage.qml" line="+601"/>
+        <location filename="../src/app/qml/pages/AssistantPage.qml" line="+599"/>
         <source>%1 · %n aviso</source>
         <translation>
             <numerusform>%1 · %n aviso</numerusform>
@@ -141,7 +141,7 @@
 <context>
     <name>AudioPage</name>
     <message numerus="yes">
-        <location filename="../src/app/qml/pages/AudioPage.qml" line="+1584"/>
+        <location filename="../src/app/qml/pages/AudioPage.qml" line="+1462"/>
         <source>%n módulo  ·  predeterminada de %1</source>
         <translation>
             <numerusform>%n módulo  ·  predeterminada de %1</numerusform>
@@ -160,7 +160,7 @@
 <context>
     <name>BotoneraPage</name>
     <message numerus="yes">
-        <location filename="../src/app/qml/pages/BotoneraPage.qml" line="+128"/>
+        <location filename="../src/app/qml/pages/BotoneraPage.qml" line="+119"/>
         <source>%n conectado de %1</source>
         <translation>
             <numerusform>%n conectado de %1</numerusform>
@@ -195,7 +195,7 @@
 <context>
     <name>BuscadorRed</name>
     <message numerus="yes">
-        <location filename="../src/app/qml/controls/BuscadorRed.qml" line="+210"/>
+        <location filename="../src/app/qml/controls/BuscadorRed.qml" line="+218"/>
         <source>%n presets</source>
         <translation>
             <numerusform>%n preset</numerusform>
@@ -206,7 +206,7 @@
 <context>
     <name>CatalogoFiltros</name>
     <message numerus="yes">
-        <location filename="../src/app/qml/controls/CatalogoFiltros.qml" line="+80"/>
+        <location filename="../src/app/qml/controls/CatalogoFiltros.qml" line="+27"/>
         <source>%1 de %n familias</source>
         <translation>
             <numerusform>%1 de %n familia</numerusform>
@@ -214,7 +214,7 @@
         </translation>
     </message>
     <message numerus="yes">
-        <location line="+112"/>
+        <location line="+69"/>
         <source>%n variante</source>
         <translation>
             <numerusform>%n variante</numerusform>
@@ -225,7 +225,7 @@
 <context>
     <name>ConferencePage</name>
     <message numerus="yes">
-        <location filename="../src/app/qml/pages/ConferencePage.qml" line="+245"/>
+        <location filename="../src/app/qml/pages/ConferencePage.qml" line="+233"/>
         <location line="+639"/>
         <source>%n esperando</source>
         <translation>
@@ -261,7 +261,7 @@
 <context>
     <name>DireccionContent</name>
     <message numerus="yes">
-        <location filename="../src/app/qml/cards/DireccionContent.qml" line="+210"/>
+        <location filename="../src/app/qml/cards/DireccionContent.qml" line="+203"/>
         <source>%n perdido</source>
         <translation>
             <numerusform>%n perdido</numerusform>
@@ -313,7 +313,7 @@
 <context>
     <name>EventoPage</name>
     <message numerus="yes">
-        <location filename="../src/app/qml/pages/EventoPage.qml" line="+375"/>
+        <location filename="../src/app/qml/pages/EventoPage.qml" line="+366"/>
         <source>%n herramienta · %1 s</source>
         <translation>
             <numerusform>%n herramienta · %1 s</numerusform>
@@ -340,7 +340,7 @@
 <context>
     <name>EventoViewModel</name>
     <message numerus="yes">
-        <location filename="../src/app/ui/EventoViewModel.cpp" line="+1261"/>
+        <location filename="../src/app/ui/CorridaViewModel.cpp" line="+194"/>
         <source>, %n bloque vacío que no pasa</source>
         <translation>
             <numerusform>, %n bloque vacío que no pasa</numerusform>
@@ -348,7 +348,15 @@
         </translation>
     </message>
     <message numerus="yes">
-        <location line="+415"/>
+        <location line="+687"/>
+        <source>La revisión encontró %n problema(s) grave(s): mirá evento_revisar y corregilo, o arrancá igual con evento_correr {accion: arrancar, forzar: true}.</source>
+        <translation>
+            <numerusform>La revisión encontró %n problema grave: mirá evento_revisar y corregilo, o arrancá igual con evento_correr {accion: arrancar, forzar: true}.</numerusform>
+            <numerusform>La revisión encontró %n problemas graves: mirá evento_revisar y corregilos, o arrancá igual con evento_correr {accion: arrancar, forzar: true}.</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location filename="../src/app/ui/GuionViewModel.cpp" line="+572"/>
         <source>La revisión encontró %n problema que impide correr el guion</source>
         <translation>
             <numerusform>La revisión encontró %n problema que impide correr el guion</numerusform>
@@ -356,15 +364,7 @@
         </translation>
     </message>
     <message numerus="yes">
-        <location line="+250"/>
-        <source>El ensayo grabó los tiempos de %n paso(s): confirmalos para que queden como duraciones previstas</source>
-        <translation>
-            <numerusform>El ensayo grabó los tiempos de %n paso: confirmalos para que queden como duraciones previstas</numerusform>
-            <numerusform>El ensayo grabó los tiempos de %n pasos: confirmalos para que queden como duraciones previstas</numerusform>
-        </translation>
-    </message>
-    <message numerus="yes">
-        <location line="+1330"/>
+        <location filename="../src/app/ui/PadronViewModel.cpp" line="+236"/>
         <source>%n persona llegó (escanearon su invitación).</source>
         <translation>
             <numerusform>%n persona llegó (escaneó su invitación).</numerusform>
@@ -375,7 +375,7 @@
 <context>
     <name>GraficosPage</name>
     <message numerus="yes">
-        <location filename="../src/app/qml/pages/GraficosPage.qml" line="+494"/>
+        <location filename="../src/app/qml/pages/GraficosPage.qml" line="+472"/>
         <source>%n cuadro</source>
         <translation>
             <numerusform>%n cuadro</numerusform>
@@ -386,7 +386,7 @@
 <context>
     <name>HistoricoPage</name>
     <message numerus="yes">
-        <location filename="../src/app/qml/pages/HistoricoPage.qml" line="+70"/>
+        <location filename="../src/app/qml/pages/HistoricoPage.qml" line="+68"/>
         <source>«%1»: intacto (%n archivo sellado)</source>
         <translation>
             <numerusform>«%1»: intacto (%n archivo sellado)</numerusform>
@@ -394,7 +394,7 @@
         </translation>
     </message>
     <message numerus="yes">
-        <location line="+20"/>
+        <location line="+29"/>
         <source>%n evento</source>
         <translation>
             <numerusform>%n evento</numerusform>
@@ -410,7 +410,7 @@
         </translation>
     </message>
     <message numerus="yes">
-        <location line="+376"/>
+        <location line="-48"/>
         <source>%n grabación</source>
         <translation>
             <numerusform>%n grabación</numerusform>
@@ -426,7 +426,7 @@
         </translation>
     </message>
     <message numerus="yes">
-        <location line="+55"/>
+        <location line="+470"/>
         <source> · %n caída</source>
         <translation>
             <numerusform> · %n caída</numerusform>
@@ -434,7 +434,7 @@
         </translation>
     </message>
     <message numerus="yes">
-        <location line="+54"/>
+        <location line="+55"/>
         <source>toda la configuración (%n archivo)</source>
         <translation>
             <numerusform>toda la configuración (%n archivo)</numerusform>
@@ -458,7 +458,7 @@
         </translation>
     </message>
     <message numerus="yes">
-        <location line="+195"/>
+        <location line="-624"/>
         <source>%n evento, %1 MB de grabaciones</source>
         <translation>
             <numerusform>%n evento, %1 MB de grabaciones</numerusform>
@@ -488,7 +488,7 @@
 <context>
     <name>LineaEscaleta</name>
     <message numerus="yes">
-        <location filename="../src/app/qml/controls/LineaEscaleta.qml" line="+86"/>
+        <location filename="../src/app/qml/controls/LineaEscaleta.qml" line="+87"/>
         <source>Se suman %n paso(s) al final de la línea.</source>
         <translation>
             <numerusform>Se suma %n paso al final de la línea.</numerusform>
@@ -548,7 +548,7 @@
 <context>
     <name>MatrizAudio</name>
     <message numerus="yes">
-        <location filename="../src/app/qml/controls/MatrizAudio.qml" line="+643"/>
+        <location filename="../src/app/qml/controls/MatrizAudio.qml" line="+664"/>
         <source>%n canal</source>
         <translation>
             <numerusform>%n canal</numerusform>
@@ -559,7 +559,7 @@
 <context>
     <name>MediosPage</name>
     <message numerus="yes">
-        <location filename="../src/app/qml/pages/MediosPage.qml" line="+141"/>
+        <location filename="../src/app/qml/pages/MediosPage.qml" line="+135"/>
         <source>%n archivo · %1</source>
         <translation>
             <numerusform>%n archivo · %1</numerusform>
@@ -570,7 +570,7 @@
 <context>
     <name>MediosViewModel</name>
     <message numerus="yes">
-        <location filename="../src/app/ui/MediosViewModel.cpp" line="+251"/>
+        <location filename="../src/app/ui/MediosViewModel.cpp" line="+372"/>
         <source>%n archivo a «%1»</source>
         <translation>
             <numerusform>%n archivo a «%1»</numerusform>
@@ -581,7 +581,7 @@
 <context>
     <name>MesaAutomixer</name>
     <message numerus="yes">
-        <location filename="../src/app/qml/controls/MesaAutomixer.qml" line="+98"/>
+        <location filename="../src/app/qml/controls/MesaAutomixer.qml" line="+95"/>
         <source>Mesa «%1» (%n micrófono)</source>
         <translation>
             <numerusform>Mesa «%1» (%n micrófono)</numerusform>
@@ -592,7 +592,7 @@
 <context>
     <name>MixerContent</name>
     <message numerus="yes">
-        <location filename="../src/app/qml/cards/MixerContent.qml" line="+299"/>
+        <location filename="../src/app/qml/cards/MixerContent.qml" line="+300"/>
         <source>Compactar %1: sin faders, una casilla por tira (%n tira)</source>
         <translation>
             <numerusform>Compactar %1: sin faders, una casilla por tira (%n tira)</numerusform>
@@ -600,7 +600,7 @@
         </translation>
     </message>
     <message numerus="yes">
-        <location line="+109"/>
+        <location line="+110"/>
         <source>Mostrar los faders de %1 (%n tira)</source>
         <translation>
             <numerusform>Mostrar los faders de %1 (%n tira)</numerusform>
@@ -622,8 +622,8 @@
 <context>
     <name>OutputsContent</name>
     <message numerus="yes">
-        <location filename="../src/app/qml/cards/OutputsContent.qml" line="+75"/>
-        <location line="+99"/>
+        <location filename="../src/app/qml/cards/OutputsContent.qml" line="+73"/>
+        <location line="+97"/>
         <source>%n perdido</source>
         <translation>
             <numerusform>%n perdido</numerusform>
@@ -631,7 +631,7 @@
         </translation>
     </message>
     <message numerus="yes">
-        <location line="-39"/>
+        <location line="-37"/>
         <source>%n reconexión</source>
         <translation>
             <numerusform>%n reconexión</numerusform>
@@ -653,7 +653,7 @@
 <context>
     <name>PanelArchivos</name>
     <message numerus="yes">
-        <location filename="../src/app/qml/controls/PanelArchivos.qml" line="+60"/>
+        <location filename="../src/app/qml/controls/PanelArchivos.qml" line="+54"/>
         <location line="+233"/>
         <source>%n archivo</source>
         <translation>
@@ -662,7 +662,7 @@
         </translation>
     </message>
     <message numerus="yes">
-        <location line="+284"/>
+        <location line="+283"/>
         <source>%n archivo (%1) van a Papelera/.
 
 No se borran del disco: si alguno estaba en una escena, se lo saca de ahí y listo.</source>
@@ -690,7 +690,7 @@ No se borran del disco: si alguno estaba en una escena, se lo saca de ahí y lis
 <context>
     <name>PanelConexionesRemotas</name>
     <message numerus="yes">
-        <location filename="../src/app/qml/controls/PanelConexionesRemotas.qml" line="+33"/>
+        <location filename="../src/app/qml/controls/PanelConexionesRemotas.qml" line="+35"/>
         <source>%n espera que lo habiliten → Recinto</source>
         <translation>
             <numerusform>%n espera que lo habiliten → Recinto</numerusform>
@@ -755,7 +755,7 @@ No se borran del disco: si alguno estaba en una escena, se lo saca de ahí y lis
 <context>
     <name>PanelDescargas</name>
     <message numerus="yes">
-        <location filename="../src/app/qml/controls/PanelDescargas.qml" line="+45"/>
+        <location filename="../src/app/qml/controls/PanelDescargas.qml" line="+40"/>
         <source>Hay %n actualización.</source>
         <translation>
             <numerusform>Hay %n actualización.</numerusform>
@@ -766,7 +766,7 @@ No se borran del disco: si alguno estaba en una escena, se lo saca de ahí y lis
 <context>
     <name>PanelDocumentos</name>
     <message numerus="yes">
-        <location filename="../src/app/qml/controls/PanelDocumentos.qml" line="+66"/>
+        <location filename="../src/app/qml/controls/PanelDocumentos.qml" line="+65"/>
         <source>%n documento</source>
         <translation>
             <numerusform>%n documento</numerusform>
@@ -788,7 +788,7 @@ No se borran del disco: si alguno estaba en una escena, se lo saca de ahí y lis
 <context>
     <name>PanelMezclador</name>
     <message numerus="yes">
-        <location filename="../src/app/qml/controls/PanelMezclador.qml" line="+460"/>
+        <location filename="../src/app/qml/controls/PanelMezclador.qml" line="+462"/>
         <source>Mostrar los faders de %1 (%n tira)</source>
         <translation>
             <numerusform>Mostrar los faders de %1 (%n tira)</numerusform>
@@ -796,7 +796,7 @@ No se borran del disco: si alguno estaba en una escena, se lo saca de ahí y lis
         </translation>
     </message>
     <message numerus="yes">
-        <location line="+147"/>
+        <location line="+146"/>
         <source>%n entrada</source>
         <translation>
             <numerusform>%n entrada</numerusform>
@@ -845,7 +845,7 @@ No se borran del disco: si alguno estaba en una escena, se lo saca de ahí y lis
 <context>
     <name>PanelTotems</name>
     <message numerus="yes">
-        <location filename="../src/app/qml/controls/PanelTotems.qml" line="+154"/>
+        <location filename="../src/app/qml/controls/PanelTotems.qml" line="+130"/>
         <source>%n conexión</source>
         <translation>
             <numerusform>%n conexión</numerusform>
@@ -856,7 +856,7 @@ No se borran del disco: si alguno estaba en una escena, se lo saca de ahí y lis
 <context>
     <name>PanelTraduccion</name>
     <message numerus="yes">
-        <location filename="../src/app/qml/controls/PanelTraduccion.qml" line="+472"/>
+        <location filename="../src/app/qml/controls/PanelTraduccion.qml" line="+469"/>
         <source>CC prendido · %n línea</source>
         <translation>
             <numerusform>CC prendido · %n línea</numerusform>
@@ -886,7 +886,7 @@ No se borran del disco: si alguno estaba en una escena, se lo saca de ahí y lis
 <context>
     <name>PantallasPage</name>
     <message numerus="yes">
-        <location filename="../src/app/qml/pages/PantallasPage.qml" line="+112"/>
+        <location filename="../src/app/qml/pages/PantallasPage.qml" line="+103"/>
         <source>%n mostrando</source>
         <translation>
             <numerusform>%n mostrando</numerusform>
@@ -913,7 +913,7 @@ No se borran del disco: si alguno estaba en una escena, se lo saca de ahí y lis
 <context>
     <name>PantallasViewModel</name>
     <message numerus="yes">
-        <location filename="../src/app/ui/PantallasViewModel.cpp" line="+659"/>
+        <location filename="../src/app/ui/PantallasViewModel.cpp" line="+657"/>
         <source>Encontré %n pantalla</source>
         <translation>
             <numerusform>Encontré %n pantalla</numerusform>
@@ -959,7 +959,7 @@ No se borran del disco: si alguno estaba en una escena, se lo saca de ahí y lis
         </translation>
     </message>
     <message numerus="yes">
-        <location line="+324"/>
+        <location line="+322"/>
         <source>%n cara · vista hace %1</source>
         <translation>
             <numerusform>%n cara · vista hace %1</numerusform>
@@ -978,7 +978,7 @@ No se borran del disco: si alguno estaba en una escena, se lo saca de ahí y lis
 <context>
     <name>PluginsPage</name>
     <message numerus="yes">
-        <location filename="../src/app/qml/pages/PluginsPage.qml" line="+319"/>
+        <location filename="../src/app/qml/pages/PluginsPage.qml" line="+314"/>
         <source>%n reinicio</source>
         <translation>
             <numerusform>%n reinicio</numerusform>
@@ -986,7 +986,7 @@ No se borran del disco: si alguno estaba en una escena, se lo saca de ahí y lis
         </translation>
     </message>
     <message numerus="yes">
-        <location line="+486"/>
+        <location line="+431"/>
         <source>%n equipo HID</source>
         <translation>
             <numerusform>%n equipo HID</numerusform>
@@ -1005,7 +1005,7 @@ No se borran del disco: si alguno estaba en una escena, se lo saca de ahí y lis
 <context>
     <name>PrompterPage</name>
     <message numerus="yes">
-        <location filename="../src/app/qml/pages/PrompterPage.qml" line="+63"/>
+        <location filename="../src/app/qml/pages/PrompterPage.qml" line="+58"/>
         <location line="+2"/>
         <location line="+47"/>
         <source>%n en el atril</source>
@@ -1054,7 +1054,7 @@ No se borran del disco: si alguno estaba en una escena, se lo saca de ahí y lis
 <context>
     <name>RecorridoEntrada</name>
     <message numerus="yes">
-        <location filename="../src/app/qml/controls/RecorridoEntrada.qml" line="+93"/>
+        <location filename="../src/app/qml/controls/RecorridoEntrada.qml" line="+92"/>
         <source>%n elemento</source>
         <translation>
             <numerusform>%n elemento</numerusform>
@@ -1073,7 +1073,7 @@ No se borran del disco: si alguno estaba en una escena, se lo saca de ahí y lis
 <context>
     <name>RegistroPage</name>
     <message numerus="yes">
-        <location filename="../src/app/qml/pages/RegistroPage.qml" line="+58"/>
+        <location filename="../src/app/qml/pages/RegistroPage.qml" line="+50"/>
         <source>%n línea</source>
         <translation>
             <numerusform>%n línea</numerusform>
@@ -1111,7 +1111,7 @@ No se borran del disco: si alguno estaba en una escena, se lo saca de ahí y lis
 <context>
     <name>SalidasViewModel</name>
     <message numerus="yes">
-        <location filename="../src/app/ui/SalidasViewModel.cpp" line="+327"/>
+        <location filename="../src/app/ui/SalidasViewModel.cpp" line="+367"/>
         <source>Ya hay %n salida, que es el tope.</source>
         <translation>
             <numerusform>Ya hay %n salida, que es el tope.</numerusform>
@@ -1122,7 +1122,7 @@ No se borran del disco: si alguno estaba en una escena, se lo saca de ahí y lis
 <context>
     <name>ScenesPage</name>
     <message numerus="yes">
-        <location filename="../src/app/qml/pages/ScenesPage.qml" line="+572"/>
+        <location filename="../src/app/qml/pages/ScenesPage.qml" line="+537"/>
         <source>%n lámina</source>
         <translation>
             <numerusform>%n lámina</numerusform>
@@ -1133,7 +1133,7 @@ No se borran del disco: si alguno estaba en una escena, se lo saca de ahí y lis
 <context>
     <name>SelectorHerramientas</name>
     <message numerus="yes">
-        <location filename="../src/app/qml/controls/SelectorHerramientas.qml" line="+163"/>
+        <location filename="../src/app/qml/controls/SelectorHerramientas.qml" line="+126"/>
         <source>%n herramienta</source>
         <translation>
             <numerusform>%n herramienta</numerusform>
@@ -1144,7 +1144,7 @@ No se borran del disco: si alguno estaba en una escena, se lo saca de ahí y lis
 <context>
     <name>SettingsPage</name>
     <message numerus="yes">
-        <location filename="../src/app/qml/pages/SettingsPage.qml" line="+1027"/>
+        <location filename="../src/app/qml/pages/SettingsPage.qml" line="+1051"/>
         <source>Entrenado con %n herramienta</source>
         <translation>
             <numerusform>Entrenado con %n herramienta</numerusform>
@@ -1184,7 +1184,7 @@ No se borran del disco: si alguno estaba en una escena, se lo saca de ahí y lis
         </translation>
     </message>
     <message numerus="yes">
-        <location line="+86"/>
+        <location line="+85"/>
         <source>%n modelo · %1</source>
         <translation>
             <numerusform>%n modelo · %1</numerusform>
@@ -1203,7 +1203,7 @@ No se borran del disco: si alguno estaba en una escena, se lo saca de ahí y lis
 <context>
     <name>SolicitudesPendientes</name>
     <message numerus="yes">
-        <location filename="../src/app/qml/controls/SolicitudesPendientes.qml" line="+131"/>
+        <location filename="../src/app/qml/controls/SolicitudesPendientes.qml" line="+118"/>
         <source>y %n más esperando</source>
         <translation>
             <numerusform>y %n más esperando</numerusform>
@@ -1274,7 +1274,7 @@ No se borran del disco: si alguno estaba en una escena, se lo saca de ahí y lis
 <context>
     <name>TiemposPage</name>
     <message numerus="yes">
-        <location filename="../src/app/qml/pages/TiemposPage.qml" line="+811"/>
+        <location filename="../src/app/qml/pages/TiemposPage.qml" line="+791"/>
         <source>%n tramo medido (sin salidas andando)</source>
         <translation>
             <numerusform>%n tramo medido (sin salidas andando)</numerusform>
@@ -1285,7 +1285,7 @@ No se borran del disco: si alguno estaba en una escena, se lo saca de ahí y lis
 <context>
     <name>Traductor</name>
     <message numerus="yes">
-        <location filename="../src/app/agent/Traductor.cpp" line="+243"/>
+        <location filename="../src/app/agent/Traductor.cpp" line="+229"/>
         <source>falta bajar %n paquete</source>
         <translation>
             <numerusform>falta bajar %n paquete</numerusform>
@@ -1315,39 +1315,7 @@ No se borran del disco: si alguno estaba en una escena, se lo saca de ahí y lis
 <context>
     <name>VideoPage</name>
     <message numerus="yes">
-        <location filename="../src/app/qml/pages/VideoPage.qml" line="+101"/>
-        <source>%n entrada · %1</source>
-        <translation>
-            <numerusform>%n entrada · %1</numerusform>
-            <numerusform>%n entradas · %1</numerusform>
-        </translation>
-    </message>
-    <message numerus="yes">
-        <location line="+1"/>
-        <source>GStreamer · %1 · %n conectada</source>
-        <translation>
-            <numerusform>GStreamer · %1 · %n conectada</numerusform>
-            <numerusform>GStreamer · %1 · %n conectadas</numerusform>
-        </translation>
-    </message>
-    <message numerus="yes">
-        <location line="+15"/>
-        <source>%n cámara · %1</source>
-        <translation>
-            <numerusform>%n cámara · %1</numerusform>
-            <numerusform>%n cámaras · %1</numerusform>
-        </translation>
-    </message>
-    <message numerus="yes">
-        <location line="+3"/>
-        <source>%n cuadro de atraso</source>
-        <translation>
-            <numerusform>%n cuadro de atraso</numerusform>
-            <numerusform>%n cuadros de atraso</numerusform>
-        </translation>
-    </message>
-    <message numerus="yes">
-        <location line="+463"/>
+        <location filename="../src/app/qml/pages/VideoPage.qml" line="+518"/>
         <source>Maneja %n tarjeta: lo que ajustes acá cambia en todas.</source>
         <translation>
             <numerusform>Maneja %n tarjeta: lo que ajustes acá cambia en ella.</numerusform>
@@ -1358,7 +1326,7 @@ No se borran del disco: si alguno estaba en una escena, se lo saca de ahí y lis
 <context>
     <name>VistaGrillas</name>
     <message numerus="yes">
-        <location filename="../src/app/qml/controls/VistaGrillas.qml" line="+109"/>
+        <location filename="../src/app/qml/controls/VistaGrillas.qml" line="+92"/>
         <source>%n persona</source>
         <translation>
             <numerusform>%n persona</numerusform>
@@ -1369,7 +1337,7 @@ No se borran del disco: si alguno estaba en una escena, se lo saca de ahí y lis
 <context>
     <name>VistaSincronia</name>
     <message numerus="yes">
-        <location filename="../src/app/qml/controls/VistaSincronia.qml" line="+239"/>
+        <location filename="../src/app/qml/controls/VistaSincronia.qml" line="+228"/>
         <source>%n cuadro tarde en el último minuto</source>
         <translation>
             <numerusform>%n cuadro tarde en el último minuto</numerusform>
@@ -1388,7 +1356,7 @@ No se borran del disco: si alguno estaba en una escena, se lo saca de ahí y lis
 <context>
     <name>YouTubePage</name>
     <message numerus="yes">
-        <location filename="../src/app/qml/pages/YouTubePage.qml" line="+295"/>
+        <location filename="../src/app/qml/pages/YouTubePage.qml" line="+294"/>
         <source>%n vista</source>
         <translation>
             <numerusform>%n vista</numerusform>
@@ -1415,7 +1383,7 @@ No se borran del disco: si alguno estaba en una escena, se lo saca de ahí y lis
 <context>
     <name>asamblea</name>
     <message numerus="yes">
-        <location filename="../src/app/asamblea/SesionRemota.cpp" line="+906"/>
+        <location filename="../src/app/asamblea/SesionRemota.cpp" line="+915"/>
         <source>Votación %1: se cerró (%n voto remoto)</source>
         <translation>
             <numerusform>Votación %1: se cerró (%n voto remoto)</numerusform>
@@ -1456,7 +1424,7 @@ No se borran del disco: si alguno estaba en una escena, se lo saca de ahí y lis
 <context>
     <name>mcp</name>
     <message numerus="yes">
-        <location filename="../src/app/mcp/McpAsambleaTools.cpp" line="+173"/>
+        <location filename="../src/app/mcp/McpAsambleaTools.cpp" line="+190"/>
         <source>Ninguna escena muestra la cámara «%1» (la de %n banca): al darle la palabra no hay qué armar.</source>
         <translation>
             <numerusform>Ninguna escena muestra la cámara «%1» (la de %n banca): al darle la palabra no hay qué armar.</numerusform>
@@ -1464,7 +1432,7 @@ No se borran del disco: si alguno estaba en una escena, se lo saca de ahí y lis
         </translation>
     </message>
     <message numerus="yes">
-        <location filename="../src/app/mcp/McpBotoneraTools.cpp" line="+452"/>
+        <location filename="../src/app/mcp/McpBotoneraTools.cpp" line="+419"/>
         <source>%n cuadro</source>
         <translation>
             <numerusform>%n cuadro</numerusform>
@@ -1472,7 +1440,7 @@ No se borran del disco: si alguno estaba en una escena, se lo saca de ahí y lis
         </translation>
     </message>
     <message numerus="yes">
-        <location filename="../src/app/mcp/McpEventoTools.cpp" line="+1438"/>
+        <location filename="../src/app/mcp/McpEventoTools.cpp" line="+1350"/>
         <source>La revisión encontró %n problema grave: mirá evento_revisar (o evento_verificar) y corregilo, o repetí con `forzar`: true.</source>
         <translation>
             <numerusform>La revisión encontró %n problema grave: mirá evento_revisar (o evento_verificar) y corregilo, o repetí con `forzar`: true.</numerusform>
@@ -1480,7 +1448,7 @@ No se borran del disco: si alguno estaba en una escena, se lo saca de ahí y lis
         </translation>
     </message>
     <message numerus="yes">
-        <location line="+238"/>
+        <location line="+242"/>
         <source>%n bloque</source>
         <translation>
             <numerusform>%n bloque</numerusform>
@@ -1504,7 +1472,7 @@ No se borran del disco: si alguno estaba en una escena, se lo saca de ahí y lis
         </translation>
     </message>
     <message numerus="yes">
-        <location filename="../src/app/mcp/McpPantallaTools.cpp" line="+567"/>
+        <location filename="../src/app/mcp/McpPantallaTools.cpp" line="+583"/>
         <source>Mandado a %n superficie. Ya cambio: superficie_listar lo confirma.</source>
         <translation>
             <numerusform>Mandado a %n superficie. Ya cambió: superficie_listar lo confirma.</numerusform>
@@ -1552,7 +1520,7 @@ No se borran del disco: si alguno estaba en una escena, se lo saca de ahí y lis
         </translation>
     </message>
     <message numerus="yes">
-        <location filename="../src/app/mcp/McpRoomTools.cpp" line="+204"/>
+        <location filename="../src/app/mcp/McpRoomTools.cpp" line="+175"/>
         <source>Cupo: %n invitado, sin reiniciar la conferencia.</source>
         <translation>
             <numerusform>Cupo: %n invitado, sin reiniciar la conferencia.</numerusform>
@@ -1584,7 +1552,7 @@ No se borran del disco: si alguno estaba en una escena, se lo saca de ahí y lis
         </translation>
     </message>
     <message numerus="yes">
-        <location filename="../src/app/mcp/McpTraduccionTools.cpp" line="+249"/>
+        <location filename="../src/app/mcp/McpTraduccionTools.cpp" line="+250"/>
         <source>Borrado %n cuadro de subtítulos.</source>
         <translation>
             <numerusform>Borrado %n cuadro de subtítulos.</numerusform>
@@ -1592,7 +1560,7 @@ No se borran del disco: si alguno estaba en una escena, se lo saca de ahí y lis
         </translation>
     </message>
     <message numerus="yes">
-        <location line="+78"/>
+        <location line="+77"/>
         <source>Importado %n término revisado.</source>
         <translation>
             <numerusform>Importado %n término revisado.</numerusform>
@@ -1625,7 +1593,7 @@ No se borran del disco: si alguno estaba en una escena, se lo saca de ahí y lis
 <context>
     <name>web/evento</name>
     <message numerus="yes">
-        <location line="+746"/>
+        <location line="+748"/>
         <source>%n día %1 h</source>
         <translation>
             <numerusform>%n día %1 h</numerusform>
@@ -1671,7 +1639,7 @@ No se borran del disco: si alguno estaba en una escena, se lo saca de ahí y lis
 <context>
     <name>web/publico</name>
     <message numerus="yes">
-        <location line="+618"/>
+        <location line="+612"/>
         <source>%n voto</source>
         <translation>
             <numerusform>%n voto</numerusform>
