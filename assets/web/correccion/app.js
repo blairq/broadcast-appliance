@@ -13,8 +13,8 @@
 
   async function mandar(id, texto, descartar) {
     try {
-      const r = await fetch("/api/correccion", { method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ k: clave, id, texto, descartar: !!descartar }) });
+      const r = await fetch("/api/correccion", { method: "POST", headers: { "Content-Type": "application/json", "X-BA-Clave": clave },
+        body: JSON.stringify({ id, texto, descartar: !!descartar }) });
       if (!r.ok) mostrarEstado(BAi18n.llenar(t("no se pudo mandar (%1)"), r.status), "mal");
     } catch (e) { mostrarEstado(t("sin conexión"), "mal"); }
     const tj = tarjetas.get(id);
@@ -73,7 +73,7 @@
   // vez que cambian las frases que esperan): nadie pregunta cada medio segundo.
   async function pedir() {
     try {
-      const r = await fetch("/api/correccion?k=" + encodeURIComponent(clave), { cache: "no-store" });
+      const r = await fetch("/api/correccion", { cache: "no-store", headers: { "X-BA-Clave": clave } });
       if (r.status === 403) { mostrarEstado(t("la clave no sirve (pedile el enlace nuevo al operador)"), "mal"); return; }
       aplicar(await r.json());
     } catch (e) { mostrarEstado(t("sin conexión"), "mal"); }
@@ -116,6 +116,7 @@
       que: () => BAi18n.llenar(t("%1 esperando"), tarjetas.size),
       onAviso: (m) => { if (m.type === "correccion") aplicar(m); },
       onClaveMal: () => mostrarEstado(t("la clave no sirve (pedile el enlace nuevo al operador)"), "mal"),
+      onClaveBien: () => pedir(),
       onEstado: (on) => { if (!on) mostrarEstado(t("sin conexión"), "mal"); },
     });
     setInterval(tic, 100); // la cuenta regresiva de cada frase (de acá, no del servidor)

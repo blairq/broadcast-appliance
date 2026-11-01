@@ -359,6 +359,10 @@ class EventoViewModel : public QObject {
     void enCursoChanged();
     void notify(const QString& texto, const QString& tipo);
     void webChanged();
+    /// Se abrió otro evento, se cerró o cambió de carpeta (carpetaAbierta()). Para lo que
+    /// es del evento y no del guion (las claves, la urna, las preguntas, la página del
+    /// público): guionChanged salta además con cada edición.
+    void carpetaAbiertaChanged();
     /// Se puso en curso un evento con sitio y «dirección al iniciar»: la dirección pública
     /// tiene que pasar a ser la de su subdominio (lo hace StudioViewModel).
     void pedirDireccion(const QString& subdominio);

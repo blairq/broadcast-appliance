@@ -291,7 +291,15 @@ class SignalingServer {
     Claves claves() const;
     /// Cambia las que vienen ({prompter?, correccion?, rotulos?, publico?, tablero?}, cada
     /// una en hexadecimal de 16 a 128). "" si quedaron; si no, cuál está mal (y no cambia nada).
+    /// Las superficies que habían dicho una clave que cambió dejan de estar autorizadas.
+    /// {sinEvento: true}: A cerró el evento; claves nuevas al azar y se limpian la urna, las
+    /// preguntas y la información de la página del público.
     std::string ponerClaves(const nlohmann::json& c);
+    /// Las del evento en curso que dejó A en el almacén (ba::ipc::kClavesEnCurso), o null.
+    static nlohmann::json clavesEnCurso();
+    /// La clave de las marcas de los códigos de votante (Votacion::setClaveCodigos), del
+    /// almacén de credenciales; la crea si no está.
+    static std::string claveCodigosVotante();
     std::string rotulosKey() const { return claves().rotulos; }
     std::string prompterKey() const { return claves().prompter; }
 
@@ -487,6 +495,8 @@ class SignalingServer {
     void handleAdmin(long long fd, const std::string& method, const std::string& path,
                      const std::string& query, const std::string& headers, const std::string& body);
     bool adminAuthorized(const std::string& headers, const std::string& method) const;
+    /// El candado principal que no se pudo tomar en un segundo (/healthz), o nullptr.
+    const char* candadoTrabado();
     /// PUT /api/v1/config/<sección>: la configuración en caliente (F3-06; ver sala/ConfigSala.hpp de la app).
     void aplicarConfig(long long fd, const std::string& seccion, const nlohmann::json& req);
     void adminEvents(long long fd, const std::string& headers);
@@ -497,6 +507,15 @@ class SignalingServer {
     /// ¿La clave del pedido es `esperada`? La da la cabecera X-BA-Clave o, si no está, como
     /// se daba antes en esa superficie (`comoAntes`: ?k=, el cuerpo, X-BA-Board).
     static bool claveValida(const std::string& headers, const std::string& comoAntes, const std::string& esperada);
+    /// La «lectura» de la página del público: deja leer /api/publico/estado (lo igual para
+    /// todos los teléfonos) y nada más. Sale de la clave del público; "" sin clave.
+    std::string lecturaPublico() const;
+    /// /api/publico/estado armado una vez por cambio (publicoVersion_ sube en avisarVotacion
+    /// y avisarPreguntas).
+    std::atomic<std::uint64_t> publicoVersion_{1};
+    std::mutex publicoCacheM_;
+    std::string publicoCache_;
+    std::uint64_t publicoCacheVersion_ = 0;
     /// La clave que tiene que decir una superficie de ese tipo ("" = ninguna).
     std::string claveDeSuperficie(const std::string& tipo) const;
     /// Lo que se les manda a las superficies de `que` (rotulos, correccion, votacion).
@@ -520,8 +539,10 @@ class SignalingServer {
     // Cada evento lleva un id «<epoch>:<n>». Los de UN SOLO DISPARO (una solicitud de la
     // botonera, una corrección, un intento de la sesión…) quedan además en una cola corta:
     // si la app se desconectó un momento, al volver con Last-Event-ID se le mandan los que
-    // se perdió. Los de ESTADO (room, programa, direcciones…) no: al reconectar recibe la
-    // foto entera, que es más nueva. Ver adminEvents.
+    // se perdió. De los de ESTADO (programa, direcciones, votacion…) se guarda el ÚLTIMO de
+    // cada uno y TODA conexión nueva lo recibe después de la foto, se reanude o no: la foto
+    // (Room::snapshot) solo trae la sala, y una app que reanuda no vuelve a preguntar
+    // (sin esto, la urna que guarda A quedaba vieja). «room» no: es la foto. Ver adminEvents.
     //
     // Nadie le escribe a la app desde el hilo que emite: cada conexión tiene su cola y su
     // propio hilo (el de la conexión) que escribe. Una app trabada llena SU cola y, pasado
@@ -540,7 +561,7 @@ class SignalingServer {
     /// distinto le dice a la app que esta sala no sabe nada de lo que ella le había dicho.
     std::string epoch_;
     std::vector<std::shared_ptr<SseConn>> sse_;
-    std::mutex sseLock_; ///< sse_, sseSeq_, guardados_ y descartadoHasta_
+    std::mutex sseLock_; ///< sse_, sseSeq_, guardados_, descartadoHasta_ y estados_
     std::uint64_t sseSeq_ = 0;
     struct EventoGuardado {
         std::uint64_t seq = 0;
@@ -548,6 +569,12 @@ class SignalingServer {
     };
     std::deque<EventoGuardado> guardados_; ///< los de un solo disparo, los últimos
     std::uint64_t descartadoHasta_ = 0;    ///< el último que se cayó de la cola corta
+    /// El último de cada evento de estado, armado SIN id (un id viejo haría retroceder el
+    /// Last-Event-ID de la app y le reenviaría de nuevo lo de un solo disparo). La clave es
+    /// el evento y, si hay varios del mismo (un teleprompter por id), «evento/id».
+    std::map<std::string, std::string> estados_;
+    /// La clave en estados_ de un evento de estado (ver arriba); "" = no se guarda.
+    static std::string claveDeEstado(const std::string& event, const nlohmann::json& data);
     /// Lo encola en una conexión (con sseLock_ tomado: así cada cola sale en orden).
     static void encolarSse(SseConn& c, std::uint64_t seq, const std::string& texto);
 
@@ -556,7 +583,7 @@ class SignalingServer {
     const std::string& epoch() const { return epoch_; }
     /// Un evento a la app de algo que no es de este servidor (los vigías de main: ba-web).
     void avisarApp(const std::string& evento, const nlohmann::json& datos) { broadcastToHosts(evento, datos); }
-    /// ¿Es un evento de estado (la foto al reconectar lo cubre) y no de un solo disparo?
+    /// ¿Es un evento de estado (la foto o el último guardado lo cubren) y no de un solo disparo?
     static bool eventoDeEstado(const std::string& event);
 
    private:

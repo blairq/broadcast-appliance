@@ -34,8 +34,9 @@ class PaginaPublico {
 
     explicit PaginaPublico(ConferenceClient& sala);
 
-    /// `fondo`: la ruta de la imagen; "" lo saca. Devuelve el error inmediato
-    /// (no se puede leer, pesa demasiado, no hay nada que cambiar) o "".
+    /// `fondo`: la ruta de la imagen; "" lo saca. Devuelve el error inmediato (no hay nada
+    /// que cambiar) o ""; la imagen se lee en otro hilo y lo que falle (no se puede leer,
+    /// pesa demasiado, la sala no lo tomó) va a `listo`.
     std::string cambiar(const std::optional<std::string>& titulo, const std::optional<std::string>& cuando,
                         const std::optional<std::string>& fondo, Listo listo = {});
 
@@ -52,6 +53,9 @@ class PaginaPublico {
    private:
     /// Lo guardado, a la sala (lee la imagen en otro hilo).
     void mandarGuardado();
+    /// Arma el cuerpo en el pool (la imagen es disco) y lo manda desde el hilo de la interfaz.
+    /// `sinFondoSiFalla`: si la imagen ya no está, va lo demás sin ella (al republicar).
+    void enviar(const nlohmann::json& pedido, bool sinFondoSiFalla, Listo listo);
 
     ConferenceClient& sala_;
     std::function<std::filesystem::path()> carpeta_;

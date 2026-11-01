@@ -4,6 +4,7 @@
 #include "Preguntas.hpp"
 
 #include <algorithm>
+#include <cstdio>
 
 namespace ba::gateway {
 namespace {
@@ -261,6 +262,42 @@ json Preguntas::listaPublica(const std::string& quien) const {
         return a.value("votos", 0) > b.value("votos", 0);
     });
     return json{{"mias", mias}, {"otras", otras}};
+}
+
+std::string Preguntas::marcaDe(const std::string& id, const std::string& quien) {
+    std::uint32_t h = 2166136261u;
+    for (const unsigned char c : id + ":" + quien) {
+        h ^= c;
+        h *= 16777619u;
+    }
+    char buf[9];
+    std::snprintf(buf, sizeof buf, "%08x", h);
+    return buf;
+}
+
+json Preguntas::listaComun() const {
+    std::lock_guard<std::mutex> g(m_);
+    json todas = json::array();
+    json enCola = json::array();
+    for (const Pregunta& p : ps_) {
+        if (p.estado == Estado::Descartada) continue;
+        todas.push_back(json{{"id", p.id},
+                             {"nombre", p.nombre},
+                             {"texto", p.texto},
+                             {"votos", p.votos},
+                             {"alAire", p.estado == Estado::AlAire},
+                             {"respondida", p.estado == Estado::Respondida}});
+    }
+    for (const auto& [quien, id] : votos_) {
+        if (enCola.size() >= 4096) break; // tope: la respuesta va a todos los teléfonos
+        const auto it = std::find_if(ps_.begin(), ps_.end(), [&](const Pregunta& p) { return p.id == id; });
+        if (it != ps_.end() && it->estado == Estado::Elegida) enCola.push_back(marcaDe(id, quien));
+    }
+    std::sort(todas.begin(), todas.end(), [](const json& a, const json& b) {
+        if (a.value("alAire", false) != b.value("alAire", false)) return a.value("alAire", false);
+        return a.value("votos", 0) > b.value("votos", 0);
+    });
+    return json{{"todas", todas}, {"enCola", enCola}};
 }
 
 json Preguntas::recuento() const {

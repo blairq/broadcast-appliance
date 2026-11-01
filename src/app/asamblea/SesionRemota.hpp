@@ -13,7 +13,13 @@
 //   * el estado de cada uno: conectado, habilitado (por quién), dónde está
 //     (sala/afuera), desde cuándo;
 //   * el registro de la sesión (quién entró, quién lo habilitó, intentos
-//     fallidos, bloqueos), que va anexado al acta.
+//     fallidos, bloqueos), que va anexado al acta;
+//   * los APARATOS REGISTRADOS (gateway/Sesion.hpp): el celular de un integrante o la
+//     tablet de una consola que ya dijo el PIN una vez y entra con su token guardado en
+//     el navegador. Se guardan como hash con sal junto a su credencial (nunca el token),
+//     viajan al gateway con ella y se revocan de a uno o todos. No son del evento: un
+//     integrante y su celular siguen siendo los mismos de un evento a otro. Renovar el
+//     link (generar) los da de baja: la URL que tenían ya no es la correcta.
 //
 // El borde de red es el gateway (src/gateway/Sesion.hpp): esta clase no habla
 // con él directamente; pide lo que hace falta por las señales (`enviar`,
@@ -179,6 +185,16 @@ class SesionRemota : public QObject {
     bool revocarConsola(const std::string& id);
     /// [{id, nombre, conectada, creado_ms}]
     json consolas() const;
+
+    // --- Los aparatos registrados (ver arriba) ------------------------------------------
+    /// Los que registró el gateway y A todavía no tenía ([{de, id, sal, hash, nombre,
+    /// creado_ms}], GET /api/v1/sesion/aparatos): se guardan. Devuelve los ids recibidos
+    /// (para confirmárselos al gateway), también los de una credencial que ya no está.
+    json incorporarAparatos(const json& pendientes);
+    /// [{de, de_nombre, tipo: integrante|consola, id, nombre, creado_ms, uso_ms, conectado}]
+    json aparatos() const;
+    /// Revoca un aparato por su id, todos los de una credencial (`de`) o "todos". Cuántos.
+    int revocarAparato(const std::string& cual);
     bool hayConsolas() const { return !consolasConectadas_.empty(); }
 
     // --- Registro (va al acta) ---------------------------------------------------------
@@ -203,19 +219,25 @@ class SesionRemota : public QObject {
         for (const auto& id : presentesIds()) out << QString::fromStdString(id);
         return out;
     }
-    /// La foto de su cámara (la última que mandó): se le pide al gateway (`fotoPedida`) cada
-    /// 3 s para los conectados, mientras alguna vista las usa (usar(vista, si, "fotos"));
-    /// llega con ponerFoto y queda en ui/FotosPersonas («integrante:<id>»: en QML,
+    /// La foto de su cámara (la última que mandó): se le pide al gateway (`fotoPedida`) cuando
+    /// avisa que hay una nueva (fotoNueva), mientras alguna vista las usa (usar(vista, si,
+    /// "fotos")); llega con ponerFoto y queda en ui/FotosPersonas («integrante:<id>»: en QML,
     /// Fotos.urls).
     Q_INVOKABLE void usar(QObject* vista, bool si, const QString& que);
     /// Una sola, ya (la atención, para comparar la cara): llega igual, con ponerFoto.
     void pedirFoto(const QString& integrante) { emit fotoPedida(integrante); }
+    /// El gateway avisa que hay una foto nueva de `integrante`: se pide si alguna vista mira.
+    void fotoNueva(const QString& integrante);
     QVariantMap votacionUi() const;
     /// Sin la central: abrir con un menú (si_no, si_no_abstencion…) o cerrar.
     Q_PROPERTY(QVariantList consolasUi READ consolasUi NOTIFY cambio)
     QVariantList consolasUi() const;
     Q_INVOKABLE QVariantMap generarConsolaUi(const QString& nombre);
     Q_INVOKABLE bool revocarConsolaUi(const QString& id) { return revocarConsola(id.toStdString()); }
+    /// Los aparatos registrados (ver aparatos()).
+    Q_PROPERTY(QVariantList aparatosUi READ aparatosUi NOTIFY cambio)
+    QVariantList aparatosUi() const;
+    Q_INVOKABLE int revocarAparatoUi(const QString& cual) { return revocarAparato(cual.toStdString()); }
     /// La misma foto, en bytes (JPEG; vacía si no llegó): para compararle la
     /// cara con su ficha (ui/AtencionViewModel).
     QByteArray fotoJpeg(const QString& integrante) const;
@@ -238,6 +260,8 @@ class SesionRemota : public QObject {
     void enviar(const QString& integrante, const nlohmann::json& msg);
     void cortar(const QString& integrante, const QString& motivo);
     void fotoPedida(const QString& integrante);
+    /// El gateway registró aparatos nuevos: hay que ir a buscarlos (incorporarAparatos).
+    void aparatosPorBuscar();
     void fotoLista(const QString& integrante);
     /// Algo para avisarle al operador (un bloqueo, alguien que espera).
     void aviso(const QString& texto, const QString& nivel);
@@ -284,7 +308,6 @@ class SesionRemota : public QObject {
     int graciaS_ = 120;
     int votoSegundos_ = 60;
     std::unique_ptr<UsoPorVistas> usos_;
-    QTimer fotosPoll_;
     void pedirFotos();
     struct Palabra {
         std::string id;
@@ -307,6 +330,10 @@ class SesionRemota : public QObject {
         std::map<std::string, std::pair<std::string, std::int64_t>> votos; // id -> (opcion, ms)
     } vot_;
     json mensajeVotacion(const std::string& id) const;
+    /// La credencial (integrante o «consola:<c>») donde viven sus aparatos, o null.
+    json* credencialDe(const std::string& de);
+    /// Los aparatos de una credencial para el gateway: [{id, sal, hash}].
+    static json aparatosParaGateway(const json& credencial);
     bool pinEnQr_ = false;
     bool accesoFijo_ = false;
     /// Nombre en el CredentialStore del link y PIN guardados de un integrante.

@@ -8,10 +8,10 @@
     "«hay acople» llegue a audio_set sin que nadie nombre la herramienta."
   ],
   "fuente": "codigo",
-  "cuantas": 815,
+  "cuantas": 817,
   "por_clase": {
-    "lectura": 268,
-    "escritura": 481,
+    "lectura": 269,
+    "escritura": 482,
     "aire": 50,
     "ui": 16
   },
@@ -964,6 +964,8 @@
       "titulo": "Banca virtual (sesión remota)",
       "herramientas": [
         "sesion_acceso_opciones",
+        "sesion_aparato_revocar",
+        "sesion_aparatos",
         "sesion_clave",
         "sesion_consola",
         "sesion_credencial",
@@ -29788,6 +29790,67 @@
       "donde": {
         "archivo": "src/app/mcp/McpSesionTools.cpp",
         "linea": 100
+      },
+      "roles": [
+        "asistente",
+        "recepcion"
+      ]
+    },
+    {
+      "nombre": "sesion_aparato_revocar",
+      "titulo": "Revocar un aparato registrado",
+      "categoria": "sesion",
+      "descripcion": "El aparato deja de entrar sin PIN y, si está conectado, se le corta: la próxima vez tiene que decir el PIN de nuevo. `aparato`: su id (de sesion_aparatos), el id de un integrante o «consola:<id>» (todos los suyos) o \"todos\". Confirmalo con el operador.",
+      "esquema": {
+        "type": "object",
+        "required": [
+          "aparato"
+        ],
+        "properties": {
+          "aparato": {
+            "type": "string"
+          }
+        }
+      },
+      "clase": "escritura",
+      "hilo": "interfaz",
+      "soloLectura": false,
+      "destructiva": true,
+      "idempotente": false,
+      "etiquetas": {
+        "propias": "revocar aparato registrado celular tablet perdido olvidar volver a pedir pin",
+        "porPrefijo": ""
+      },
+      "donde": {
+        "archivo": "src/app/mcp/McpSesionTools.cpp",
+        "linea": 390
+      },
+      "roles": [
+        "asistente",
+        "recepcion"
+      ]
+    },
+    {
+      "nombre": "sesion_aparatos",
+      "titulo": "Aparatos registrados de la banca virtual",
+      "categoria": "sesion",
+      "descripcion": "Los celulares de los integrantes y las tablets de las consolas de la presidencia que ya dijeron el PIN una vez y entran sin pedirlo (con su link): de quién son, cómo se ven (sistema y navegador), cuándo se registraron, su último uso y si están conectados. Se revocan con sesion_aparato_revocar.",
+      "esquema": {
+        "type": "object",
+        "properties": {}
+      },
+      "clase": "lectura",
+      "hilo": "interfaz",
+      "soloLectura": true,
+      "destructiva": false,
+      "idempotente": false,
+      "etiquetas": {
+        "propias": "aparatos registrados celular tablet consola presidencia entran sin pin recordado",
+        "porPrefijo": ""
+      },
+      "donde": {
+        "archivo": "src/app/mcp/McpSesionTools.cpp",
+        "linea": 376
       },
       "roles": [
         "asistente",

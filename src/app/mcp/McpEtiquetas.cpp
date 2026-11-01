@@ -361,6 +361,8 @@ const Fila kPropias[] = {
     {"sesion_consola", QT_TRANSLATE_NOOP("mcp-etiquetas", "consola web de la presidencia acceso tablet de la presidencia link y pin de la consola")},
     //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
     {"sesion_registro", QT_TRANSLATE_NOOP("mcp-etiquetas", "registro de la sesion remota quien entro intentos fallidos acta banca virtual")},
+    {"sesion_aparatos", QT_TRANSLATE_NOOP("mcp-etiquetas", "aparatos registrados celular tablet consola presidencia entran sin pin recordado")},
+    {"sesion_aparato_revocar", QT_TRANSLATE_NOOP("mcp-etiquetas", "revocar aparato registrado celular tablet perdido olvidar volver a pedir pin")},
     //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
     {"dcn_estado", QT_TRANSLATE_NOOP("mcp-etiquetas", "central de conferencia bosch dcn microfonos de banca estado de la sala quien habla")},
     //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra

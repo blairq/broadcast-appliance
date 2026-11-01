@@ -10,6 +10,9 @@
 //   7. Abrir otra no arrastra los votos de la anterior.
 //   8. La urna sobrevive a la sala (G-2): la foto que guarda la app la vuelve a armar
 //      igual; en una secreta la foto no dice quién votó qué y lo que vuelve queda sellado.
+//   9. Los códigos no van en claro (web 15): la foto lleva sus marcas (HMAC con la clave del
+//      almacén); con la misma clave la urna restaurada los reconoce, con otra no; una foto
+//      vieja con los códigos en claro se pasa a marcas.
 // ============================================================================
 #include <cstdio>
 #include <map>
@@ -238,6 +241,36 @@ void sobrevive() {
     CHECK(!v.hayAbierta() && v.estado()["hubo"] == false, "una foto vacía la deja sin nada (otro evento)");
 }
 
+void codigos_no_en_claro() {
+    const std::map<std::string, std::string> padron = {{"AAA111", "Ana"}, {"BBB222", "Beto"}};
+    Votacion v;
+    v.setClaveCodigos("clave-de-prueba");
+    v.abrir("¿Punto?", kSiNo, Votacion::Modo::Formal, false, padron, 2, 1000);
+    v.votar("", "AAA111", 0);
+    const std::string texto = v.foto().dump();
+    CHECK(texto.find("AAA111") == std::string::npos && texto.find("BBB222") == std::string::npos,
+          "la foto no lleva los códigos en claro");
+    Votacion misma;
+    misma.setClaveCodigos("clave-de-prueba");
+    misma.restaurar(v.foto());
+    CHECK(misma.votar("", "AAA111", 1).empty() && misma.estado()["votaron"] == 1, "con la misma clave, reconoce el código (cambia el voto)");
+    CHECK(misma.estadoPublico("", "BBB222")["puedeVotar"] == true, "y sabe quién puede votar");
+    Votacion otra;
+    otra.setClaveCodigos("otra-clave");
+    otra.restaurar(v.foto());
+    CHECK(!otra.votar("", "AAA111", 1).empty(), "con otra clave, la foto sola no deja votar");
+    // Una foto de antes, con los códigos en claro.
+    const json vieja{{"hubo", true},       {"abierta", true}, {"modo", "formal"}, {"pregunta", "¿Viejo?"},
+                     {"opciones", kSiNo},  {"podian", 2},     {"habilitados", {{"AAA111", "Ana"}, {"BBB222", "Beto"}}},
+                     {"votos", {{"AAA111", 0}}}};
+    Votacion migrada;
+    migrada.setClaveCodigos("clave-de-prueba");
+    migrada.restaurar(vieja);
+    CHECK(migrada.estado()["votaron"] == 1 && migrada.votar("", "BBB222", 1).empty(), "una foto vieja se lee");
+    CHECK(migrada.votar("", "AAA111", 1).empty() && migrada.estado()["votaron"] == 2, "y su voto es el mismo (se cambia, no se suma)");
+    CHECK(migrada.foto().dump().find("AAA111") == std::string::npos, "y al guardarla de nuevo, ya sin el código en claro");
+}
+
 } // namespace
 
 int main() {
@@ -248,6 +281,7 @@ int main() {
     una_por_vez();
     historial();
     sobrevive();
+    codigos_no_en_claro();
     if (g_fallos == 0) std::printf("test_votacion: OK\n");
     return g_fallos == 0 ? 0 : 1;
 }

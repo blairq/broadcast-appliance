@@ -135,9 +135,14 @@
       },
       // El operador manda otra cosa: se abre esa, sin recargar el carrusel.
       onMostrar: (url) => { location.href = url; },
+      // La lista cambió (la sala avisa): se relee. Al volver el canal, también (pudo
+      // cambiar mientras no estaba).
+      onAviso: (m) => { if (m.type === "carrusel") leerLista(); },
+      onEstado: (on) => { if (on) leerLista(); },
     });
   }
   leerLista();
-  setInterval(leerLista, RELEER_MS);
+  // Sin canal (un televisor viejo sin WebSocket), como antes: cada tanto.
+  if (!window.BACanal) setInterval(leerLista, RELEER_MS);
   requestAnimationFrame(pintarBarra);
 })();

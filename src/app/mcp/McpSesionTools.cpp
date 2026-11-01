@@ -371,6 +371,38 @@ void McpService::registerSesionTools() {
         };
         core_.addTool(std::move(t));
     }
+    {
+        Tool t;
+        t.name = "sesion_aparatos";
+        t.title = ba::i18n::traducir("mcp", "Aparatos registrados de la banca virtual");
+        t.category = "sesion";
+        t.clase = Clase::Lectura;
+        t.description = QT_TRANSLATE_NOOP("mcp", "Los celulares de los integrantes y las tablets de las consolas de la presidencia que ya "
+                        "dijeron el PIN una vez y entran sin pedirlo (con su link): de quién son, cómo se ven (sistema y "
+                        "navegador), cuándo se registraron, su último uso y si están conectados. Se revocan con "
+                        "sesion_aparato_revocar.");
+        t.inputSchema = {{"type", "object"}, {"properties", json::object()}};
+        t.run = [s](const json&, Done done) { done(ToolResult().data({{"aparatos", s->aparatos()}})); };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "sesion_aparato_revocar";
+        t.title = ba::i18n::traducir("mcp", "Revocar un aparato registrado");
+        t.category = "sesion";
+        t.clase = Clase::Escritura;
+        t.destructive = true;
+        t.description = QT_TRANSLATE_NOOP("mcp", "El aparato deja de entrar sin PIN y, si está conectado, se le corta: la próxima vez "
+                        "tiene que decir el PIN de nuevo. `aparato`: su id (de sesion_aparatos), el id de un integrante o "
+                        "«consola:<id>» (todos los suyos) o \"todos\". Confirmalo con el operador.");
+        t.inputSchema = {{"type", "object"}, {"required", {"aparato"}}, {"properties", {{"aparato", {{"type", "string"}}}}}};
+        t.run = [s](const json& a, Done done) {
+            const int n = s->revocarAparato(a.value("aparato", std::string()));
+            if (n == 0) return done(ToolResult::error(ba::i18n::traducir("mcp", "no hay ese aparato")));
+            done(ToolResult().data({{"revocados", n}}));
+        };
+        core_.addTool(std::move(t));
+    }
 }
 
 } // namespace ba::app::mcp

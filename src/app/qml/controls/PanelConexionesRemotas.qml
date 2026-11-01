@@ -96,6 +96,42 @@ ColumnLayout {
             text: qsTr("Todavía no hay ningún acceso. Tocá «Nuevo acceso…» y pasale el link (o el QR) a quien preside.")
         }
     }
+    // --- Aparatos registrados (gateway/Sesion.hpp): el PIN se dijo una vez y entran solos ---
+    Seccion {
+        titulo: qsTr("Aparatos registrados")
+        subtitulo: qsTr("El celular de cada integrante y la tablet de cada consola dicen el PIN una sola vez: después entran con su link sin pedir nada, aunque se cierre el navegador. Revocá un aparato perdido o prestado y la próxima vez pide el PIN.")
+        extra: GlassButton { compact: true; text: qsTr("Revocar todos"); visible: !!cr.s && cr.s.aparatosUi.length > 1
+                             onClicked: ApplicationWindow.window.confirm({ title: qsTr("¿Revocar todos los aparatos registrados?"),
+                                 text: qsTr("Todos van a tener que decir el PIN de nuevo; los conectados se cortan ya."),
+                                 accept: qsTr("Revocar todos"), reject: qsTr("Cancelar"),
+                                 action: function() { cr.s.revocarAparatoUi("todos") } }) }
+        Repeater {
+            model: cr.s ? cr.s.aparatosUi : []
+            delegate: RowLayout {
+                required property var modelData
+                Layout.fillWidth: true
+                spacing: 8
+                Rectangle { implicitWidth: 8; implicitHeight: 8; radius: 4; color: modelData.conectado ? Theme.ok : Theme.textFaint }
+                Text { text: modelData.de_nombre; color: Theme.text; font.pixelSize: 12; font.weight: Font.DemiBold }
+                Text { text: modelData.tipo === "consola" ? qsTr("consola") : qsTr("integrante"); color: Theme.textFaint; font.pixelSize: 11 }
+                Text { text: modelData.nombre; color: Theme.textDim; font.pixelSize: 12 }
+                Text { Layout.fillWidth: true; color: Theme.textFaint; font.pixelSize: 11; elide: Text.ElideRight
+                       text: qsTr("registrado el %1 · último uso %2")
+                             .arg(Qt.formatDateTime(new Date(modelData.creado_ms), "d/M hh:mm"))
+                             .arg(Qt.formatDateTime(new Date(modelData.uso_ms), "d/M hh:mm")) }
+                GlassButton { compact: true; text: qsTr("Revocar")
+                              onClicked: ApplicationWindow.window.confirm({ title: qsTr("¿Revocar «%1» de %2?").arg(modelData.nombre).arg(modelData.de_nombre),
+                                  text: qsTr("Deja de entrar solo: la próxima vez pide el PIN. Si está conectado, se corta ya."),
+                                  accept: qsTr("Revocar"), reject: qsTr("Cancelar"),
+                                  action: function() { cr.s.revocarAparatoUi(modelData.id) } }) }
+            }
+        }
+        Text {
+            visible: !cr.s || cr.s.aparatosUi.length === 0
+            color: Theme.textFaint; font.pixelSize: 12
+            text: qsTr("Ninguno todavía: se registran solos la primera vez que alguien entra con su PIN.")
+        }
+    }
     Dialog {
         id: nuevaConsola
         anchors.centerIn: Overlay.overlay

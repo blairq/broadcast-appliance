@@ -3,6 +3,13 @@
 // No entra a la sala, no pide cámara ni micrófono y no abre WebRTC. En un salón
 // con doscientas personas eso sería un acople garantizado y el ancho de banda
 // tirado; acá alcanza con HTTP.
+//
+// LO QUE SE MIRA ES IGUAL PARA TODOS. Cada 3 s se pide /api/publico/estado: la urna y
+// las preguntas sin nada de este teléfono, así ba-web lo reparte de su microcaché y a la
+// sala le llega un pedido por segundo y no doscientos. Lo de cada uno lo sabe el
+// teléfono: qué preguntó y qué votó (en el navegador) y, de la urna, su voto. Para saber
+// si una suya está en la cola, la sala manda marcas (Preguntas::marcaDe) que solo este
+// teléfono reconoce. La clave va en una cabecera (X-BA-Clave), nunca en la dirección.
 (async () => {
   'use strict';
   const llenar = (s, ...v) => BAi18n.llenar(s, ...v);
@@ -32,6 +39,19 @@
     if (!yo) { yo = nuevoYo(); localStorage.setItem('ba-publico-yo', yo); }
   } catch (_) {
     yo = nuevoYo();
+  }
+
+  // Lo que preguntó y votó este teléfono: la sala no lo dice en lo que ven todos.
+  const leerLista = (k) => { try { return JSON.parse(localStorage.getItem(k) || '[]'); } catch (_) { return []; } };
+  const guardarLista = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v.slice(-100))); } catch (_) {} };
+  let mias = leerLista('ba-publico-mias');        // [{id, texto}] las que mandé
+  let votadas = leerLista('ba-publico-votadas');  // [id] las que voté
+  const conClave = (h) => Object.assign({ 'X-BA-Clave': clave }, h || {});
+  // La misma marca que Preguntas::marcaDe (FNV-1a de 32 bits de «id:yo»).
+  function marca(id) {
+    let h = 0x811c9dc5;
+    for (const b of new TextEncoder().encode(id + ':' + yo)) { h ^= b; h = Math.imul(h, 0x01000193) >>> 0; }
+    return h.toString(16).padStart(8, '0');
   }
 
   const $ = (id) => document.getElementById(id);
@@ -98,6 +118,25 @@
   }
 
   let ultimas = null; // las últimas preguntas (para volver a pintar si cambia el idioma)
+  // Lo que ven todos ({todas, enCola}) -> {mias, otras} como las pinta la página.
+  function separar(c) {
+    const propias = new Set(mias.map((q) => q.id).concat(votadas));
+    const enCola = new Set(c.enCola || []);
+    const out = { mias: [], otras: [] };
+    const vistas = new Set();
+    for (const q of c.todas || []) {
+      vistas.add(q.id);
+      if (!propias.has(q.id)) { out.otras.push(q); continue; }
+      const estado = q.alAire ? 'al_aire' : q.respondida ? 'respondida' : enCola.has(marca(q.id)) ? 'elegida' : 'nueva';
+      out.mias.push(Object.assign({}, q, { estado }));
+    }
+    // Una que mandé y ya no está: no se va a preguntar (salvo que la acabe de mandar: lo que
+    // ven todos puede tener hasta un segundo).
+    for (const q of mias)
+      if (!vistas.has(q.id))
+        out.mias.push({ id: q.id, texto: q.texto, votos: 1, estado: Date.now() - (q.ms || 0) < 10000 ? 'nueva' : 'descartada' });
+    return out;
+  }
   function pintar(p) {
     ultimas = p;
     const mias = $('mias'), otras = $('otras');
@@ -110,13 +149,16 @@
   }
 
   // --- Hablar con el gateway ------------------------------------------------
+  let lectura = '';     // la que da /api/publico-info (deja leer lo que ven todos)
+  let comun = null;     // lo último que se vio: {votacion, preguntas: {todas, enCola}}
   async function traer() {
+    if (!lectura) { infoDelEvento(); return; }
     try {
-      const r = await fetch('/api/preguntas?k=' + encodeURIComponent(clave) +
-                            '&yo=' + encodeURIComponent(yo), { cache: 'no-store' });
-      if (r.status === 403) { estado.textContent = t('Clave rechazada'); return; }
-      const j = await r.json();
-      if (j.preguntas) pintar(j.preguntas);
+      const r = await fetch('/api/publico/estado?l=' + encodeURIComponent(lectura), { cache: 'no-store' });
+      if (r.status === 403) { lectura = ''; estado.textContent = t('Clave rechazada'); return; }
+      comun = await r.json();
+      pintar(separar(comun.preguntas || {}));
+      urnaComun(comun.votacion);
       estado.textContent = '';
     } catch (_) {
       // Sin conexión no se borra lo que ya está en pantalla: el que está
@@ -125,12 +167,13 @@
       estado.textContent = t('Sin conexión');
     }
   }
+  const repintarPreguntas = () => { if (comun) pintar(separar(comun.preguntas || {})); };
 
   async function mandar(cuerpo) {
     const r = await fetch('/api/preguntas', {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify(Object.assign({ clave, yo }, cuerpo)),
+      headers: conClave({ 'content-type': 'application/json' }),
+      body: JSON.stringify(Object.assign({ yo }, cuerpo)),
     });
     return r.json();
   }
@@ -139,7 +182,10 @@
     boton.disabled = true;
     try {
       const j = await mandar({ votar: id });
-      if (j.preguntas) pintar(j.preguntas);
+      if (!votadas.includes(id)) { votadas.push(id); guardarLista('ba-publico-votadas', votadas); }
+      // Hasta la próxima vuelta, el voto sumado acá.
+      if (j.ok && comun) for (const q of (comun.preguntas || {}).todas || []) if (q.id === id) q.votos++;
+      repintarPreguntas();
     } catch (_) {
       boton.disabled = false;
     }
@@ -154,9 +200,10 @@
     try {
       const j = await mandar({ texto, nombre: $('nombre').value.trim() });
       if (!j.ok) { decir(textoDeError(j) || t('No se pudo mandar.'), 'mal'); return; }
+      if (j.id) { mias.push({ id: j.id, texto, ms: Date.now() }); guardarLista('ba-publico-mias', mias); }
       $('texto').value = '';
       decir(t('Mandada. Vas a ver acá si la eligen.'), 'bien');
-      if (j.preguntas) pintar(j.preguntas);
+      repintarPreguntas();
     } catch (_) {
       decir(t('No se pudo mandar: revisá la conexión.'), 'mal');
     } finally {
@@ -175,10 +222,15 @@
 
   // El fondo y el nombre del evento los pone el operador; si no hay, la página
   // funciona igual, que es lo que importa.
-  fetch('/api/publico-info?k=' + encodeURIComponent(clave), { cache: 'no-store' })
-    .then((r) => (r.ok ? r.json() : null))
+  // También da la lectura para lo que ven todos (ver arriba).
+  const infoDelEvento = () => fetch('/api/publico-info', { cache: 'no-store', headers: conClave() })
+    .then((r) => {
+      if (r.status === 403) estado.textContent = t('Clave rechazada');
+      return r.ok ? r.json() : null;
+    })
     .then(async (j) => {
       if (!j) return;
+      if (j.lectura && !lectura) { lectura = j.lectura; traer(); }
       // El idioma del evento, si la app lo manda: vale cuando el del teléfono no está.
       if (j.idioma) { await BAi18n.iniciar({ evento: j.idioma }); repintar(); }
       if (j.evento) $('evento').textContent = j.evento;
@@ -186,6 +238,7 @@
       if (j.fondo) $('fondo').style.backgroundImage = 'url("' + j.fondo + '")';
     })
     .catch(() => {});
+  infoDelEvento();
 
   // --- Escanear la invitacion acredita --------------------------------------
   // El QR de la invitacion trae el codigo de la persona. Con eso, llegar y
@@ -201,8 +254,8 @@
     if (yaAvise !== codigoDelQr) {
       fetch('/api/acreditar', {
         method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ clave, codigo: codigoDelQr }),
+        headers: conClave({ 'content-type': 'application/json' }),
+        body: JSON.stringify({ codigo: codigoDelQr }),
       }).then(() => {
         try { localStorage.setItem('ba-publico-acreditado', codigoDelQr); } catch (_) {}
         estado.textContent = t('Llegada registrada');
@@ -223,10 +276,43 @@
     codigo = $('codigo').value.trim().toUpperCase();
     $('codigo').value = codigo;
     try { localStorage.setItem('ba-publico-codigo', codigo); } catch (_) {}
-    pintarUrna(ultimaUrna);
+    puedeDe = '';
+    urnaComun(urnaVista);
   });
 
   let ultimaUrna = null;
+  // La urna como la ven todos + lo de este teléfono: su voto (lo recuerda acá, por la
+  // votación: `desdeMs`) y, en una formal, si su código puede votar (se le pregunta a la
+  // sala una vez por votación y código, no en cada vuelta).
+  let urnaVista = null;
+  let puedeDe = '', puede = undefined;
+  const leerVoto = () => { try { return JSON.parse(localStorage.getItem('ba-publico-voto') || 'null'); } catch (_) { return null; } };
+  function urnaComun(v) {
+    urnaVista = v;
+    if (!v || !v.hay) { pintarUrna(v); return; }
+    const mio = leerVoto();
+    const propia = Object.assign({}, v, { miVoto: mio && mio.desde === v.desdeMs ? mio.opcion : -1 });
+    if (v.modo === 'formal' && codigo) {
+      const de = v.desdeMs + ':' + codigo;
+      if (puedeDe !== de) { puedeDe = de; puede = undefined; preguntarCodigo(); }
+      if (puede !== undefined) propia.puedeVotar = puede;
+    }
+    pintarUrna(propia);
+  }
+  async function preguntarCodigo() {
+    try {
+      const r = await fetch('/api/votacion?yo=' + encodeURIComponent(yo),
+                            { cache: 'no-store', headers: conClave({ 'X-BA-Codigo': codigo }) });
+      const j = await r.json();
+      if (!j.votacion) return;
+      puede = j.votacion.puedeVotar;
+      if (j.votacion.miVoto >= 0) recordarVoto(j.votacion);
+      urnaComun(urnaVista);
+    } catch (_) { puedeDe = ''; }
+  }
+  function recordarVoto(v) {
+    try { localStorage.setItem('ba-publico-voto', JSON.stringify({ desde: v.desdeMs, opcion: v.miVoto })); } catch (_) {}
+  }
 
   function pintarUrna(v) {
     ultimaUrna = v;
@@ -315,25 +401,18 @@
     try {
       const r = await fetch('/api/votacion', {
         method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ clave, yo, codigo, opcion: i }),
+        headers: conClave({ 'content-type': 'application/json' }),
+        body: JSON.stringify({ yo, codigo, opcion: i }),
       });
       const j = await r.json();
-      if (j.votacion) pintarUrna(j.votacion);
+      if (j.votacion) {
+        if (j.ok) recordarVoto(j.votacion); // «ya voté», en el teléfono
+        pintarUrna(j.votacion);
+      }
       if (!j.ok && j.error) decirUrna(textoDeError(j), 'mal');
     } catch (_) {
       decirUrna(t('No se pudo votar: revisá la conexión.'), 'mal');
     }
-  }
-
-  async function traerUrna() {
-    try {
-      // El código de votante en una cabecera: en la dirección queda en los registros.
-      const r = await fetch('/api/votacion?k=' + encodeURIComponent(clave) + '&yo=' + encodeURIComponent(yo),
-                            { cache: 'no-store', headers: codigo ? { 'X-BA-Codigo': codigo } : {} });
-      const j = await r.json();
-      if (j.votacion) pintarUrna(j.votacion);
-    } catch (_) { /* se deja lo que ya está en pantalla */ }
   }
 
   // --- El idioma ---------------------------------------------------------------
@@ -362,13 +441,11 @@
   });
   armarIdiomas();
 
-  traerUrna();
-  traer();
-  // Cada tres segundos: alcanza para ver subir los votos y no es nada de
-  // tráfico ni de batería. Cuando la página no se está mirando, no se pide:
-  // doscientos teléfonos en el bolsillo no tienen por qué preguntar nada.
-  setInterval(() => { if (!document.hidden) { traer(); traerUrna(); } }, 3000);
+  // Cada tres segundos lo que ven todos (del microcaché: ver arriba). Cuando la
+  // página no se está mirando, no se pide: doscientos teléfonos en el bolsillo no
+  // tienen por qué preguntar nada.
+  setInterval(() => { if (!document.hidden) traer(); }, 3000);
   document.addEventListener('visibilitychange', () => {
-    if (!document.hidden) { traer(); traerUrna(); }
+    if (!document.hidden) traer();
   });
 })();

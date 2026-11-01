@@ -27,10 +27,13 @@
 #include <sstream>
 #include <system_error>
 
+#include "Borde.hpp"
 #include "HttpIo.hpp"
 #include "ipc/CanalesEscena.hpp"
 #include "ipc/CanalesSalida.hpp"
 #include "ipc/ControlProtocol.hpp"
+#include "ipc/ProtocoloSala.hpp"
+#include "crypto/Sha256.hpp"
 #include "Log.hpp"
 #include "Grillas.hpp"
 #include "MediaPump.hpp"
@@ -38,6 +41,7 @@
 #include "Room.hpp"
 #include "Salidas.hpp"
 #include "tema/TemaWeb.hpp"
+#include "security/CredentialStore.hpp"
 #include "security/SecretsStore.hpp" // randomSecretHex (ids de participante)
 #include "security/TokenService.hpp" // nowUnix() para el rate-limit por IP
 #include "ShareStore.hpp"
@@ -100,31 +104,6 @@ std::string ipText(std::uint32_t ipNetOrder) {
     return buf;
 }
 
-const char* contentTypeFor(const std::string& relOriginal) {
-    std::string rel = relOriginal; // «Acta.PDF» también
-    for (char& c : rel) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
-    const auto ends = [&](const char* ext) {
-        const std::string e(ext);
-        return rel.size() >= e.size() && rel.compare(rel.size() - e.size(), e.size(), e) == 0;
-    };
-    if (ends(".pdf")) return "application/pdf";
-    if (ends(".jpg") || ends(".jpeg")) return "image/jpeg";
-    if (ends(".webp")) return "image/webp";
-    if (ends(".gif")) return "image/gif";
-    if (ends(".html")) return "text/html; charset=utf-8";
-    if (ends(".js")) return "text/javascript; charset=utf-8";
-    if (ends(".css")) return "text/css; charset=utf-8";
-    if (ends(".svg")) return "image/svg+xml";
-    if (ends(".png")) return "image/png";
-    if (ends(".ico")) return "image/x-icon";
-    if (ends(".json")) return "application/json";
-    // Las fuentes del tema del evento (Eventos/<x>/Tema/).
-    if (ends(".woff2")) return "font/woff2";
-    if (ends(".woff")) return "font/woff";
-    if (ends(".ttf")) return "font/ttf";
-    if (ends(".otf")) return "font/otf";
-    return "application/octet-stream";
-}
 
 } // namespace
 
@@ -264,6 +243,12 @@ SignalingServer::SignalingServer(const Cfg& cfg, TokenAuth& auth, WebrtcHub& hub
     claves_.correccion = cfg_.correccionKey;
     claves_.rotulos = cfg_.rotulosKey;
     claves_.publico = cfg_.publicoKey;
+    // Las marcas de los códigos de votante (Votacion.hpp): con la clave del almacén, la misma
+    // en todos los arranques (una urna restaurada tiene que reconocer los códigos de antes).
+    votacion_.setClaveCodigos(claveCodigosVotante());
+    // Las del evento en curso, si A las dejó (ver ba::ipc::kClavesEnCurso): un QR que
+    // llega antes de que A reconecte ya vale. Si están mal, quedan las de arriba.
+    if (const json enCurso = clavesEnCurso(); enCurso.is_object()) ponerClaves(enCurso);
     rotulador_.setAppConectada([this]() {
         std::lock_guard<std::mutex> l(sseLock_);
         return !sse_.empty();
@@ -302,7 +287,6 @@ bool SignalingServer::start() {
         std::map<std::string, int64_t> anotada; // pantalla -> la última vez que su salida fue al log
         int miranAntes = -1;
         json salidasAntes = json::object();
-        int vueltas = 0;
         int vueltasRed = 0;
         json redAntes;
         while (!stop_.load()) {
@@ -318,18 +302,17 @@ bool SignalingServer::start() {
                     broadcastToHosts("red", red);
                 }
             }
-            // Cuántos reciben el programa: a la app, al cambiar y cada 10 s (por si su
-            // escucha de eventos se reconectó). Sin nadie, deja de bajarlo y descansa.
+            // Cuántos reciben el programa: a la app, al cambiar (una app que se reconecta
+            // recibe el último: es un evento de estado). Sin nadie, deja de bajarlo y descansa.
             // Lo mismo por cada otra salida que alguien mira ({id: cuántos}): la app
             // publica BA.Salida.<id> solo mientras figura acá.
             if (pump_ != nullptr) {
                 const int miran = pump_->miranPrograma();
                 json salidas = json::object();
                 for (const auto& [id, n] : pump_->miranSalidas()) salidas[id] = n;
-                if (miran != miranAntes || salidas != salidasAntes || ++vueltas >= 5) {
+                if (miran != miranAntes || salidas != salidasAntes) {
                     miranAntes = miran;
                     salidasAntes = salidas;
-                    vueltas = 0;
                     broadcastToHosts("programa", json{{"mirando", miran}, {"salidas", salidas}});
                 }
             }
@@ -713,7 +696,7 @@ bool SignalingServer::servirTema(long long fd, const std::string& method, const 
     ss << f.rdbuf();
     const bool svg = rel.size() > 4 && rel.compare(rel.size() - 4, 4, ".svg") == 0;
     // El nombre cambia con el contenido (logo-<huella>.svg): se puede guardar un día.
-    http::sendResponse(fd, 200, contentTypeFor(rel), ss.str(),
+    http::sendResponse(fd, 200, borde::tipoDe(rel), ss.str(),
                        std::string("Cache-Control: public, max-age=86400\r\nX-Content-Type-Options: nosniff\r\n") +
                            (svg ? "Content-Security-Policy: sandbox\r\n" : ""));
     return true;
@@ -1587,8 +1570,39 @@ void SignalingServer::handleGuestHttp(long long fd, const std::string& method, c
             hayFondo = !fondoBytes_.empty();
         }
         info["ok"] = true;
+        info["lectura"] = lecturaPublico(); // para /api/publico/estado (ver allí)
         if (hayFondo) info["fondo"] = "/api/publico-fondo";
         http::sendResponse(fd, 200, "application/json", info.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
+        return;
+    }
+    // Lo que ven TODOS los teléfonos del público, igual para todos: la urna sin «mi voto» y
+    // las preguntas sin las de cada uno (Preguntas::listaComun). Los teléfonos lo piden cada
+    // 3 s; como no depende de quién pregunta, ba-web lo reparte de su microcaché (ver
+    // BaWeb.cpp) y acá llega uno por segundo, no doscientos. Va con la LECTURA (`l`, un
+    // derivado de la clave del público que da /api/publico-info) en la dirección: el
+    // microcaché arma la clave con la dirección, y la clave verdadera no tiene que quedar en
+    // ningún registro. La lectura solo deja leer esto; escribir sigue pidiendo la clave.
+    if (method == "GET" && path == "/api/publico/estado") {
+        const auto q = http::parseQuery(query);
+        const std::string l = q.count("l") ? http::urlDecode(q.at("l")) : std::string();
+        if (!ba::security::igualesEnTiempoConstante(l, lecturaPublico())) {
+            http::sendResponse(fd, 403, "application/json", R"({"ok":false,"error":"clave"})");
+            return;
+        }
+        std::string cuerpo;
+        {
+            // Armada una vez por cambio (avisarVotacion/avisarPreguntas suben la versión).
+            std::lock_guard<std::mutex> g(publicoCacheM_);
+            const std::uint64_t v = publicoVersion_.load();
+            if (publicoCache_.empty() || publicoCacheVersion_ != v) {
+                publicoCache_ = json{{"ok", true}, {"version", v}, {"votacion", votacion_.estadoPublico("", "")},
+                                     {"preguntas", preguntas_.listaComun()}}
+                                    .dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
+                publicoCacheVersion_ = v;
+            }
+            cuerpo = publicoCache_;
+        }
+        http::sendResponse(fd, 200, "application/json", cuerpo, "Cache-Control: no-cache\r\n");
         return;
     }
     // La urna, del lado del telefono. El `codigo` solo lo manda el que esta en
@@ -1760,41 +1774,12 @@ bool SignalingServer::servirCarpeta(long long fd, const std::string& method, con
 }
 
 bool SignalingServer::serveStatic(long long fd, const std::string& root, const std::string& relPath) {
-    // Contra path traversal por CANONICALIZACION: la ruta resuelta debe quedar
-    // dentro del webroot resuelto.
-    std::error_code ec;
-    const std::filesystem::path rootCanon = std::filesystem::weakly_canonical(root, ec);
-    if (ec || root.empty()) {
-        http::sendResponse(fd, 404, "text/plain", traducir("gateway", "no encontrado") + "\n");
-        return true;
-    }
-    const std::filesystem::path target =
-        std::filesystem::weakly_canonical(std::filesystem::path(root) / http::urlDecode(relPath), ec);
-    if (ec) {
-        http::sendResponse(fd, 400, "text/plain", traducir("gateway", "ruta invalida") + "\n");
-        return true;
-    }
-    const auto rootStr = rootCanon.generic_string();
-    const auto targetStr = target.generic_string();
-    if (targetStr.size() < rootStr.size() || targetStr.compare(0, rootStr.size(), rootStr) != 0 ||
-        (targetStr.size() > rootStr.size() && targetStr[rootStr.size()] != '/')) {
-        http::sendResponse(fd, 400, "text/plain", traducir("gateway", "ruta invalida") + "\n");
-        return true;
-    }
-    std::ifstream f(target, std::ios::binary);
-    if (!f || std::filesystem::is_directory(target, ec)) {
-        http::sendResponse(fd, 404, "text/plain", traducir("gateway", "no encontrado") + "\n");
-        return true;
-    }
-    std::ostringstream ss;
-    ss << f.rdbuf();
-    // `no-cache` NO quiere decir «no guardes»: quiere decir «preguntá antes de
-    // usar lo guardado». Sin esto el navegador decide solo cuanto se queda con
-    // un archivo, y como los nombres no llevan version, un telefono se queda
-    // con el app.js de la actualizacion anterior y lo arreglado no aparece.
-    // Pasa siempre y no se nota: la pagina carga, anda, y anda como antes.
-    http::sendResponse(fd, 200, contentTypeFor(relPath), ss.str(), "Cache-Control: no-cache\r\n");
-    return true;
+    // El mismo servidor de archivos que los bordes (borde::servir: sin salirse de la carpeta,
+    // por canonicalización). `no-cache` NO quiere decir «no guardes»: quiere decir «preguntá
+    // antes de usar lo guardado». Sin esto el navegador decide solo cuanto se queda con un
+    // archivo, y como los nombres no llevan version, un telefono se queda con el app.js de la
+    // actualizacion anterior y lo arreglado no aparece.
+    return borde::servir(fd, root, relPath, "Cache-Control: no-cache\r\n");
 }
 
 void SignalingServer::apiJoin(long long fd, const std::string& body, std::uint32_t clientIp) {
@@ -3052,6 +3037,9 @@ SignalingServer::Claves SignalingServer::claves() const {
 
 std::string SignalingServer::ponerClaves(const json& c) {
     if (!c.is_object()) return "claves";
+    // Sin evento abierto (A lo dice al cerrarlo): claves nuevas de este arranque y nada del
+    // evento anterior (la urna, las preguntas, cómo se ve la página del público).
+    const bool sinEvento = c.value("sinEvento", false);
     const auto valida = [](const json& v) {
         if (!v.is_string()) return false;
         const std::string& s = v.get_ref<const std::string&>();
@@ -3064,14 +3052,61 @@ std::string SignalingServer::ponerClaves(const json& c) {
                                                            {"rotulos", &n.rotulos},
                                                            {"publico", &n.publico},
                                                            {"tablero", &n.tablero}};
+    std::vector<std::string> cambiaron;
     for (const auto& [k, destino] : campos) {
-        if (!c.contains(k)) continue;
-        if (!valida(c[k])) return k;
-        *destino = c[k].get<std::string>();
+        std::string nueva;
+        if (sinEvento) {
+            // Sin entropía queda vacía: esa superficie no abre (nunca una predecible).
+            if (!ba::security::randomSecretHex(16, nueva)) nueva.clear();
+        } else {
+            if (!c.contains(k)) continue;
+            if (!valida(c[k])) return k;
+            nueva = c[k].get<std::string>();
+        }
+        if (nueva != *destino) cambiaron.emplace_back(k);
+        *destino = std::move(nueva);
     }
-    std::lock_guard<std::mutex> l(clavesM_);
-    claves_ = n;
+    {
+        std::lock_guard<std::mutex> l(clavesM_);
+        claves_ = n;
+    }
+    // Las que ya habían dicho la clave de antes (un celular del evento anterior) dejan de
+    // valer: tienen que decir la nueva. La página vuelve a probar con la que tiene.
+    for (const std::string& tipo : cambiaron)
+        for (const std::string& pid : superficies_.desautorizar(tipo)) sendToGuest(pid, json{{"type", "clave_mal"}});
+    if (sinEvento) {
+        votacion_.restaurar(json());
+        preguntas_.restaurar(json());
+        {
+            std::lock_guard<std::mutex> l(publicoM_);
+            eventoVotacion_.clear();
+            eventoPreguntas_.clear();
+            publicoInfo_ = json::object();
+            fondoBytes_.clear();
+            fondoTipo_.clear();
+        }
+        avisarVotacion();
+        avisarPreguntas();
+    }
     return {};
+}
+
+std::string SignalingServer::claveCodigosVotante() {
+    constexpr const char* kNombre = "sala-codigos-votante";
+    const auto almacen = ba::security::CredentialStore::bundle();
+    std::string clave;
+    if (almacen.read(kNombre, clave) && clave.size() == 64) return clave;
+    // Sin almacén (o sin entropía) queda una de este arranque: los códigos igual no van en claro.
+    if (!ba::security::randomSecretHex(32, clave)) return "sin-entropia";
+    almacen.write(kNombre, clave);
+    return clave;
+}
+
+json SignalingServer::clavesEnCurso() {
+    std::string datos;
+    if (!ba::security::CredentialStore::bundle().read(ba::ipc::kClavesEnCurso, datos)) return {};
+    const json j = json::parse(datos, nullptr, false);
+    return j.is_object() ? j : json();
 }
 
 json SignalingServer::clientesPrompter(const std::string& id, const Prompter& p) const {
@@ -3120,6 +3155,13 @@ void SignalingServer::avisarPrompter(const std::string& pedido, bool conTexto, b
     }
     for (const std::string& pid : invitados)
         if (!esPantalla(pid)) sendToGuest(pid, msg);
+}
+
+std::string SignalingServer::lecturaPublico() const {
+    const std::string k = claves().publico;
+    if (k.empty()) return {};
+    const std::string base = "lectura:" + k;
+    return ba::crypto::sha256Hex(base.data(), base.size()).substr(0, 32);
 }
 
 std::string SignalingServer::claveDeSuperficie(const std::string& tipo) const {
@@ -3372,6 +3414,8 @@ void SignalingServer::setGrillas(Grillas* g) {
     sesion_->setAlFoto([this](const std::string& id, const std::string& jpeg) {
         if (grillas_ != nullptr) grillas_->foto("asamblea:" + id, jpeg, Grillas::reloj());
     });
+    // Y a la app, que la pide solo si alguna vista la muestra (evento de estado: uno por integrante).
+    sesion_->setAlFotoNueva([this](const std::string& id) { broadcastToHosts("foto", json{{"id", id}}); });
 }
 
 void SignalingServer::enviarCalidadGrilla(const std::string& pid, bool forzar) {

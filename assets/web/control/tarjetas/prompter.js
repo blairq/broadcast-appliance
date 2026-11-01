@@ -4,7 +4,7 @@
   const { el, boton, maxDb, ms, vacio, texto, attr, sincronizar } = BA.tj;
   BA.tarjetas.push(
   {
-    id: "prompter", get titulo() { return t("Teleprompter"); }, temas: [],
+    id: "prompter", get titulo() { return t("Teleprompter"); }, temas: ["prompter"],
     herramientas: ["prompter_control"],
     crear(c, api) {
       const fila1 = el("div", "fila");
@@ -20,13 +20,13 @@
       avisos.append(boton(t("Borrar aviso"), () => api.hacer("prompter_control", { aviso: "" }), { compacto: true }));
       c.append(fila1, this.ppm, el("h3", "", t("Avisarle al orador")), avisos);
       this.api = api;
-      this.leer = () => api.llamar("prompter_estado", {}).then((d) => {
-        this.corriendo = !!(d && d.corriendo);
-        this.play.textContent = this.corriendo ? t("⏸ Pausa") : t("▶ Arrancar");
-        if (d && d.ppm) this.ppm.valor = d.ppm;
-      }).catch(() => {});
-      this.leer();
-      this.reloj = setInterval(() => document.contains(c) ? this.leer() : clearInterval(this.reloj), 2000);
+      // Cómo está llega por el tema «prompter» cuando cambia (actualizar): no se pregunta.
+      this.leer = () => api.llamar("prompter_estado", {}).then((d) => this.actualizar("prompter", d)).catch(() => {});
+    },
+    actualizar(_, d) {
+      this.corriendo = !!(d && d.corriendo);
+      this.play.textContent = this.corriendo ? t("⏸ Pausa") : t("▶ Arrancar");
+      if (d && d.ppm) this.ppm.valor = d.ppm;
     },
   });
 })();

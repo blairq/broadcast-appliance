@@ -11,6 +11,11 @@
 //     vigia que corta si el servidor deja de latir (B manda ": ping" cada 15 s).
 //     Cada evento trae su id; al reconectar se manda Last-Event-ID y B reenvía
 //     los de un solo disparo que se perdieron (o dice que no pudo: `reanudado`).
+//   - El flujo lo lee LectorSala, en SU PROPIO HILO: una interfaz trabada no deja de
+//     leer (B cortaba el flujo a una app que no leía, y los eventos de estado se
+//     perdían). Arma cada evento ahí y se lo pasa a este objeto por cola (las señales
+//     siguen saliendo en el hilo de la interfaz); la última foto de la sala queda además
+//     bajo candado (fotoSala): la lee cualquier hilo sin I/O (el vigía de las alarmas).
 //   - Acciones: POST/DELETE con Bearer.
 //
 // A ES LA FUENTE DE VERDAD; B, EL BORDE (gateway/Sesion.hpp). Lo que A le dice a B
@@ -38,9 +43,46 @@
 #include <optional>
 #include <vector>
 
+#include <QThread>
+
 class QNetworkReply;
 
 namespace ba::app {
+
+/// El que lee el flujo de eventos de B, en su hilo (ver arriba). Solo transporte: no sabe
+/// qué quiere decir cada evento.
+class LectorSala : public QObject {
+    Q_OBJECT
+   public:
+    /// Se crea en el hilo de la interfaz y se mueve a su hilo; `iniciar` arranca allá.
+    Q_INVOKABLE void iniciar();
+    /// Corta y vuelve a entrar (B se reinició con otro token: un 401 en un pedido).
+    Q_INVOKABLE void reconectar();
+    Q_INVOKABLE void parar();
+
+   signals:
+    /// Antes de cada conexión, el puerto y el token leídos de gateway-admin.json.
+    void acceso(int puerto, const QString& token);
+    /// Un evento entero, ya armado (en el hilo del lector: se conecta por cola).
+    void evento(const QByteArray& nombre, const QJsonObject& datos);
+    /// Se cortó el flujo (o no se pudo abrir): va a volver a probar solo.
+    void cerrado();
+
+   private:
+    void conectar();
+    void alLeer();
+    void alCerrar();
+    void reintentar();
+
+    QNetworkAccessManager* nam_ = nullptr; ///< del hilo del lector (se crea en iniciar)
+    QNetworkReply* sse_ = nullptr;
+    QTimer* retry_ = nullptr;
+    QTimer* watchdog_ = nullptr;
+    QByteArray buf_;
+    QByteArray ultimoId_; ///< el id del último evento (Last-Event-ID al reconectar)
+    int backoffMs_ = 1000;
+    bool parado_ = false;
+};
 
 class ConferenceClient : public QObject {
     Q_OBJECT
@@ -52,16 +94,9 @@ class ConferenceClient : public QObject {
 
     bool online() const { return online_; }
     const QJsonObject& snapshot() const { return snap_; }
-    /// Cuántas sesiones del gateway reciben el programa (evento «programa»); -1 = todavía
-    /// no lo dijo (un gateway que no lo informa).
-    int miranPrograma() const { return online_ ? miranPrograma_ : -1; }
-    /// Lo mismo por cada salida que no es la por omisión y que alguien mira ({id: cuántos},
-    /// mismo evento): la app publica BA.Salida.<id> solo mientras figura acá.
-    QJsonObject miranSalidas() const { return online_ ? miranSalidas_ : QJsonObject(); }
-    /// Las salidas del aparato para el gateway (docs/planes/PLAN-SALIDAS.md):
-    /// [{id, nombre, color, porOmision}]. Se guarda y se vuelve a mandar sola cada vez que
-    /// el gateway vuelve (un gateway reiniciado arranca sin lista: todo a BA.Program).
-    void ponerSalidas(const QJsonArray& lista);
+    /// La última foto de la sala que llegó por eventos, desde CUALQUIER hilo y sin I/O (la
+    /// guarda el lector, bajo candado). Vacía si no hay conexión con B.
+    static QJsonObject fotoSala();
 
     /// Cómo volver a decirle a B algo de estado que A le dijo (ver arriba). `fn` se
     /// llama con B en línea: enseguida si ya lo está (en la vuelta siguiente del
@@ -129,17 +164,16 @@ class ConferenceClient : public QObject {
     void redEvento(const QJsonObject& red);
     /// Un participante cambió su foto (la de su tarjeta): {id}.
     void avatarEvento(const QString& id);
+    /// Quién mira el programa y cada salida: {mirando, salidas: {id: cuántos}} (sala/SalidasSala).
+    void programaEvento(const QJsonObject& ev);
+    /// Hay una foto nueva de la cámara de un integrante de la sesión remota: {id}.
+    void fotoSesionEvento(const QString& id);
     /// Una accion fallo; `error` es el codigo de la API ("full", "not_found"...).
     void failed(const QString& error);
 
    private:
-    bool loadAdminFile();
-    void connectEvents();
-    void onEventsData();
-    void onEventsClosed();
-    void dispatch(const QByteArray& event, const QByteArray& data);
+    void dispatch(const QByteArray& event, const QJsonObject& obj);
     void setOnline(bool on);
-    void scheduleReconnect();
     void send(const QByteArray& verb, const QString& path, const QByteArray& body, Done done, int timeoutMs = 5000);
     void republicarTodo();
 
@@ -151,21 +185,14 @@ class ConferenceClient : public QObject {
     };
 
     QNetworkAccessManager nam_;
-    QNetworkReply* sse_ = nullptr;
-    QByteArray buf_;
+    QThread hilo_;                 ///< el del lector
+    LectorSala* lector_ = nullptr; ///< vive en hilo_
     QString token_;
     int port_ = 0;
     bool online_ = false;
     QJsonObject snap_;
-    int miranPrograma_ = -1;
-    QJsonObject miranSalidas_;
-    QJsonArray salidas_; ///< la última lista de ponerSalidas (vacía = nunca se mandó)
     std::vector<Republicador> republicadores_;
     QString epoch_;
-    QByteArray ultimoId_; ///< el id del último evento (Last-Event-ID al reconectar)
-    QTimer retry_;
-    QTimer watchdog_;
-    int backoffMs_ = 1000;
 };
 
 } // namespace ba::app

@@ -30,6 +30,7 @@ EventoViewModel::EventoViewModel(AppRuntime& rt, VentanillaMotor& ventanilla, Co
     connect(lista_, &EventosListaViewModel::enCursoChanged, this, &EventoViewModel::enCursoChanged);
     connect(lista_, &EventosListaViewModel::automaticoChanged, this, &EventoViewModel::enCursoChanged);
     connect(guion_, &GuionViewModel::guionChanged, this, &EventoViewModel::guionChanged);
+    connect(ab_, &EventoAbierto::abiertoCambio, this, &EventoViewModel::carpetaAbiertaChanged);
     connect(guion_, &GuionViewModel::sucioChanged, this, &EventoViewModel::sucioChanged);
     connect(guion_, &GuionViewModel::reparosChanged, this, &EventoViewModel::reparosChanged);
     connect(guion_, &GuionViewModel::chequeoChanged, this, &EventoViewModel::chequeoChanged);

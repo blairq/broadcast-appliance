@@ -2,6 +2,7 @@
 // src/gateway/Votacion.cpp — ver Votacion.hpp
 // ============================================================================
 #include "Votacion.hpp"
+#include "crypto/HmacSha256.hpp"
 
 #include <algorithm>
 
@@ -95,7 +96,8 @@ bool Votacion::abrir(const std::string& pregunta, const std::vector<std::string>
     desdeMs_ = ahoraMs;
     hastaMs_ = 0;
     cuantosPodian_ = std::max(0, cuantosPodian);
-    habilitados_ = habilitados;
+    habilitados_.clear();
+    for (const auto& [codigo, nombre] : habilitados) habilitados_[marca(codigo)] = nombre;
     // Los votos de la anterior NO se arrastran: son de otra pregunta.
     votos_.clear();
     sellados_.clear();
@@ -153,9 +155,9 @@ std::string Votacion::votar(const std::string& quien, const std::string& codigo,
         // identifica es el codigo, y solo valen los que mando A desde el
         // padron.
         if (codigo.empty()) return QT_TRANSLATE_NOOP("web/comun", "falta el codigo: en una votacion formal hay que identificarse");
-        if (habilitados_.find(codigo) == habilitados_.end())
+        clave = marca(codigo);
+        if (habilitados_.find(clave) == habilitados_.end())
             return QT_TRANSLATE_NOOP("web/comun", "ese codigo no figura entre los que pueden votar");
-        clave = codigo;
     } else {
         if (quien.empty()) return QT_TRANSLATE_NOOP("web/comun", "no se de que telefono viene");
         clave = quien;
@@ -285,27 +287,41 @@ void Votacion::restaurar(const json& f) {
     hastaMs_ = f.value("hastaMs", std::int64_t{0});
     cuantosPodian_ = std::max(0, f.value("podian", 0));
     // (Copias con nombre: iterar los items() de un temporal deja colgada la referencia.)
+    // Una foto de antes trae los códigos en claro: pasan a marcas (ver Votacion.hpp).
+    const auto deFoto = [this](const std::string& k) { return k.rfind("c:", 0) == 0 ? k : marca(k); };
     const json hs = f.value("habilitados", json::object());
     for (const auto& [c, n] : hs.items())
-        if (n.is_string()) habilitados_[c] = n.get<std::string>();
+        if (n.is_string()) habilitados_[deFoto(c)] = n.get<std::string>();
     const auto opcionValida = [this](const json& v) {
         return v.is_number_integer() && v.get<int>() >= 0 && static_cast<std::size_t>(v.get<int>()) < opciones_.size();
     };
     const json vs = f.value("votos", json::object());
+    const bool formal = modo_ == Modo::Formal;
     for (const auto& [k, v] : vs.items())
-        if (opcionValida(v)) votos_[k] = v.get<int>();
+        if (opcionValida(v)) votos_[formal ? deFoto(k) : k] = v.get<int>();
     for (const json& k : f.value("votaron", json::array()))
-        if (k.is_string()) votos_[k.get<std::string>()] = -1;
+        if (k.is_string()) votos_[formal ? deFoto(k.get<std::string>()) : k.get<std::string>()] = -1;
     for (const json& n : f.value("conteo", json::array()))
         sellados_.push_back(n.is_number_integer() ? std::max(0, n.get<int>()) : 0);
     for (const json& h : f.value("historial", json::array()))
         if (h.is_object()) historial_.push_back(h);
 }
 
+void Votacion::setClaveCodigos(const std::string& clave) {
+    std::lock_guard<std::mutex> g(m_);
+    claveCodigos_ = clave;
+}
+
+std::string Votacion::marca(const std::string& codigo) const {
+    // (Sin candado: la clave se pone una vez, antes de abrir o restaurar.)
+    if (codigo.empty()) return {};
+    return "c:" + ba::crypto::hmacSha256Hex(claveCodigos_, "votante:" + codigo).substr(0, 32);
+}
+
 json Votacion::estadoPublico(const std::string& quien, const std::string& codigo) const {
     std::lock_guard<std::mutex> g(m_);
     if (!hubo_) return json{{"hay", false}};
-    const std::string clave = modo_ == Modo::Formal ? codigo : quien;
+    const std::string clave = modo_ == Modo::Formal ? marca(codigo) : quien;
     const auto mio = votos_.find(clave);
     json e{{"hay", true},
            {"abierta", abierta_},
@@ -313,9 +329,10 @@ json Votacion::estadoPublico(const std::string& quien, const std::string& codigo
            {"pregunta", pregunta_},
            {"opciones", opciones_},
            {"miVoto", mio == votos_.end() ? -1 : mio->second},
-           {"votaron", static_cast<int>(votos_.size())}};
+           {"votaron", static_cast<int>(votos_.size())},
+           {"desdeMs", desdeMs_}}; // cuál votación es: el teléfono recuerda su voto por esto
     if (modo_ == Modo::Formal)
-        e["puedeVotar"] = !codigo.empty() && habilitados_.find(codigo) != habilitados_.end();
+        e["puedeVotar"] = !codigo.empty() && habilitados_.find(clave) != habilitados_.end();
     // El resultado mientras esta abierta solo si se dejo. En una votacion
     // formal suele NO quererse: ver que va perdiendo cambia lo que vota el que
     // todavia no voto.

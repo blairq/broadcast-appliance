@@ -78,7 +78,7 @@
   // Una vez al abrir; lo demás llega por el canal de control (la sala avisa cada voto).
   // Si la red se corta, lo que está en pantalla se queda: borrarlo sería dejar la sala
   // sin saber qué se está votando.
-  fetch("/api/votacion?k=" + encodeURIComponent(clave), { cache: "no-store" })
+  fetch("/api/votacion", { cache: "no-store", headers: { "X-BA-Clave": clave } })
     .then((r) => r.json())
     .then((j) => aplicar(j.votacion))
     .catch(() => {});

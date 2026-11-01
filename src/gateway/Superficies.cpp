@@ -98,6 +98,17 @@ void Superficies::autorizar(const std::string& pid) {
     if (it != canal_.end()) it->second.autorizada = true;
 }
 
+std::vector<std::string> Superficies::desautorizar(const std::string& tipo) {
+    std::lock_guard<std::mutex> lock(m_);
+    std::vector<std::string> out;
+    for (auto& [pid, c] : canal_)
+        if (c.tipo == tipo && c.autorizada) {
+            c.autorizada = false;
+            out.push_back(pid);
+        }
+    return out;
+}
+
 void Superficies::ponerExtra(const std::string& pid, const std::string& clave, const std::string& valor) {
     std::lock_guard<std::mutex> lock(m_);
     const auto it = canal_.find(pid);

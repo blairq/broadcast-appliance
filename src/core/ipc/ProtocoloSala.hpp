@@ -21,4 +21,11 @@ namespace ba::ipc {
 
 inline constexpr int kProtocoloSala = 2;
 
+/// Las claves de las superficies del evento en curso, en el almacén de credenciales del
+/// paquete (cifradas): las deja A cada vez que cambia el evento (sala::ClavesEvento) y B
+/// arranca con ellas. Sin esto, una B reiniciada usaba claves al azar hasta que A
+/// reconectaba y le daba las buenas, y un QR impreso que llegaba antes recibía «clave mal».
+/// Sin evento abierto no está.
+inline constexpr const char* kClavesEnCurso = "claves-sala-en-curso";
+
 } // namespace ba::ipc

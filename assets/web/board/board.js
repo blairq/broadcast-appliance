@@ -1,7 +1,7 @@
 /* ============================================================================
    Web/board/board.js — Tablero de oradores (solo lectura)
 
-   Lee GET /api/v1/board (cabecera X-BA-Board) al abrir y después le llega
+   Lee GET /api/v1/board (cabecera X-BA-Clave) al abrir y después le llega
    cada cambio por el canal de control (comun/canal.js, con la clave en su
    primer mensaje); los relojes corren localmente, corregidos con el reloj de
    la sala (serverNowMs). La clave viene en el fragmento del enlace (#k=...),
@@ -25,7 +25,7 @@
   let board = null;
   // Video en vivo de los oradores: relay de B (los mismos paquetes que manda
   // el invitado, sin re-codificar). Sin video, la foto.
-  const live = window.BALive ? BALive.create({ endpoint: "/api/v1/board/view", headers: { "X-BA-Board": key } }) : null;
+  const live = window.BALive ? BALive.create({ endpoint: "/api/v1/board/view", headers: { "X-BA-Clave": key } }) : null;
   let liveIds = new Set();
   let offset = 0; // reloj de la sala - reloj local
   let lastOk = 0;
@@ -44,12 +44,29 @@
     if (text !== undefined) e.textContent = text;
     return e;
   }
+  // Las fotos con la clave en la cabecera (nunca en la dirección: queda en los registros):
+  // se bajan con fetch y se muestran desde la memoria; una nueva cada 5 s como mucho.
+  const avatares = new Map(); // id -> {stamp, url}
+  function avatar(id, f) {
+    const stamp = Math.floor(Date.now() / 5000);
+    const a = avatares.get(id);
+    if (a && a.url) f.style.backgroundImage = `url("${a.url}")`;
+    if (a && a.stamp === stamp) return;
+    avatares.set(id, { stamp, url: a ? a.url : "" });
+    fetch("/api/v1/board/avatar/" + encodeURIComponent(id), { headers: { "X-BA-Clave": key }, cache: "no-store" })
+      .then((r) => (r.ok ? r.blob() : null))
+      .then((b) => {
+        if (!b) return;
+        const viejo = avatares.get(id);
+        if (viejo && viejo.url) URL.revokeObjectURL(viejo.url);
+        avatares.set(id, { stamp, url: URL.createObjectURL(b) });
+        render();
+      })
+      .catch(() => {});
+  }
   function face(p, cls, withLive) {
     const f = el("div", "face " + (cls || ""), p.hasAvatar ? "" : (p.name || "?").slice(0, 1).toUpperCase());
-    if (p.hasAvatar) {
-      const stamp = Math.floor(Date.now() / 5000);
-      f.style.backgroundImage = `url("/api/v1/board/avatar/${encodeURIComponent(p.id)}?k=${encodeURIComponent(key)}&t=${stamp}")`;
-    }
+    if (p.hasAvatar) avatar(p.id, f);
     if (withLive && live && p.connected && p.mediaUp) {
       f.textContent = "";
       f.append(live.video(p.id, cls || "card"));
@@ -61,7 +78,7 @@
   async function poll() {
     if (!key) return blocked(t("Este enlace no trae la clave del tablero. Escaneá el QR desde la consola del operador."));
     try {
-      const r = await fetch("/api/v1/board", { headers: { "X-BA-Board": key }, cache: "no-store" });
+      const r = await fetch("/api/v1/board", { headers: { "X-BA-Clave": key }, cache: "no-store" });
       if (r.status === 401) return blocked(t("La clave del tablero cambió (se reinició la sala). Escaneá el QR de nuevo."));
       if (!r.ok) throw new Error(String(r.status));
       aplicar(await r.json());

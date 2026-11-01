@@ -59,6 +59,24 @@
 //        señalización WebRTC directa con un integrante ({type:"rtc", a, …}: el
 //        gateway solo la pasa, y solo entre una consola y un integrante).
 //
+// APARATOS REGISTRADOS (una consola en la tablet de la presidencia, el celular de un
+// integrante): el PIN se pide UNA vez, para registrar el aparato. Con el PIN bien, B le da
+// a la página un token de aparato (256 bits, al azar) que ella guarda en el navegador
+// (comun/aparato.js) y que vale, junto con el link, para las siguientes: recargar, cerrar
+// el navegador o reiniciar la app o la sala no vuelve a pedir el PIN.
+//   - El primer mensaje lleva {aparato} en vez de {pin} (con el link igual: la URL tiene
+//     que ser la correcta). Si no vale (revocado, de otro integrante), {ok:false,
+//     error_codigo:"aparato"}: la página lo olvida y recién ahí pide el PIN.
+//   - Con el PIN, {registrar:true, nombre}: el {ok:true} trae {aparato} (el token).
+//   - El dueño es A (asamblea/SesionRemota): los guarda como hash con sal junto con la
+//     credencial y los manda con ella (credenciales: [{…, aparatos:[{id, sal, hash}]}]).
+//     Uno recién registrado queda en B como PENDIENTE hasta que A lo va a buscar
+//     (GET /api/v1/sesion/aparatos; avisa el evento sesion {tipo:"aparatos"}) y lo
+//     confirma (POST /api/v1/sesion/aparatos {recibidos:[id]}): una app que no estaba no
+//     lo pierde. Revocar = A manda la lista sin él: la conexión de ese aparato se corta.
+//   - Una B recién arrancada que todavía no recibió las credenciales de A contesta
+//     {ok:false, error_codigo:"esperar"} (nunca «mal»): la página reintenta sola.
+//
 // Seguridad: el token del link (256 bits) y el PIN se guardan solo como hash con
 // sal; comparación en tiempo constante; 10 intentos por IP cada 10 min; 5 PIN
 // errados seguidos bloquean al integrante 15 min (la app se entera); Origin
@@ -132,6 +150,10 @@ class SesionBorde {
     /// Llegó una foto de la cámara de un integrante (la grilla de personas la muestra).
     /// Desde el hilo de su WebSocket, sin candados tomados. Antes de recibir conexiones.
     void setAlFoto(std::function<void(const std::string& id, const std::string& jpeg)> fn) { alFoto_ = std::move(fn); }
+    /// Hay una foto nueva de `id` (como mucho una cada kAvisoFotoMs por integrante): la sala
+    /// se lo dice a la app (evento «foto») y la sesión, a las consolas ({type:"foto_nueva", id});
+    /// cada una pide la imagen solo si la muestra. Antes las dos preguntaban cada 3 s.
+    void setAlFotoNueva(std::function<void(const std::string& id)> fn) { alFotoNueva_ = std::move(fn); }
 
     /// Prende o apaga la atención hablada de `id` (ver /api/v1/sesion/atiende). "" o el
     /// error (no está conectado). De a uno: prenderla para otro se la apaga al anterior.
@@ -158,6 +180,18 @@ class SesionBorde {
     /// Con usuario y contraseña: el id, o "" (`claveMal` si el usuario existe; `id` queda con el suyo).
     std::string autenticarUsuario(const std::string& usuario, const std::string& clave, std::string& id, bool& claveMal);
     void ponerCredenciales(const nlohmann::json& participantes);
+    /// ¿El token de aparato vale para la credencial `id` (con el token del link, o sin él si
+    /// entró con usuario: `token` vacío)? El id del aparato, o "" si no.
+    std::string autenticarAparato(const std::string& id, const std::string& token, const std::string& aparato);
+    /// Registra un aparato nuevo de `id` (entró con el PIN): queda pendiente para A. El token
+    /// para la página, o "" sin entropía. `aparatoId` queda con su id.
+    std::string registrarAparato(const std::string& id, const std::string& nombre, std::string& aparatoId);
+    /// Los registrados que A todavía no confirmó: [{de, id, sal, hash, nombre, creado_ms}].
+    nlohmann::json aparatosPendientes() const;
+    /// A ya los guardó: dejan de estar pendientes.
+    void aparatosRecibidos(const nlohmann::json& ids);
+    /// Ya llegaron las credenciales de A (antes, la página espera en vez de oír «mal»).
+    bool credencialesListas() const;
     /// Cuántos integrantes están conectados ahora desde el navegador (sin las consolas).
     int conectados() const;
     bool bloqueado(const std::string& id) const;
@@ -168,13 +202,28 @@ class SesionBorde {
         long long fd = -1;
         std::string id, ip;
         std::string lugar; // "sala" (red local) o "afuera" (túnel o IP pública)
+        std::string aparato; ///< el id del aparato registrado con el que entró ("" = ninguno)
         std::mutex sendLock;
+    };
+    struct Aparato {
+        std::string id, sal, hash; ///< hash = hashConSal(sal + ":aparato:" + token)
     };
     struct Credencial {
         std::string nombre, banca, sal, hashToken, hashPin, usuario, hashClave;
+        std::vector<Aparato> aparatos;
         int fallas = 0;
         std::int64_t bloqueadoHastaMs = 0;
     };
+    struct Pendiente {
+        std::string de; ///< la credencial (integrante o «consola:<c>»)
+        Aparato aparato;
+        std::string nombre;
+        std::int64_t creadoMs = 0;
+    };
+    std::vector<Pendiente> pendientes_; ///< registrados que A todavía no confirmó (con mu_)
+    bool credencialesListas_ = false;   ///< A ya mandó la lista alguna vez (con mu_)
+    /// ¿Ese aparato de `id` sigue valiendo (en su credencial o pendiente)? Con mu_ tomado.
+    bool aparatoVale(const std::string& id, const std::string& aparato) const;
     void wsLoop(long long fd, const std::string& ip, const std::string& lugar, bool consola);
     void enviar(const std::shared_ptr<Conn>& c, const nlohmann::json& msg);
     bool intentoPermitido(const std::string& ip);
@@ -189,6 +238,8 @@ class SesionBorde {
     std::map<std::string, std::vector<std::int64_t>> intentos_;
     Medios medios_;
     std::function<void(const std::string&, const std::string&)> alFoto_;
+    std::function<void(const std::string&)> alFotoNueva_;
+    std::map<std::string, std::int64_t> avisoFotoMs_; ///< la última vez que se avisó la foto de cada uno (con mu_)
     static constexpr int kCanalesRemotos = 2;
     std::map<std::string, int> mediosDe_; ///< quiénes mandan audio y video a la sala, y por qué canal (1..2)
     void ponerMedios(const std::vector<std::string>& ids);

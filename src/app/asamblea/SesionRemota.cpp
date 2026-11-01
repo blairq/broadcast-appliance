@@ -65,16 +65,10 @@ SesionRemota::SesionRemota(const Cuerpo& cuerpo, std::filesystem::path datos, QO
     : QObject(parent), cuerpo_(cuerpo), archivo_(datos / "Config" / "sesion-remota.json"),
       archivoRegistro_(datos / "Logs" / "sesion-remota.jsonl") {
     cargar();
-    // Las caras de los conectados: cada 3 s, solo mientras alguna vista las muestra.
-    fotosPoll_.setInterval(3000);
-    connect(&fotosPoll_, &QTimer::timeout, this, &SesionRemota::pedirFotos);
+    // Las caras de los conectados, solo mientras alguna vista las muestra: al empezar a
+    // mirarlas, todas; después, la que el gateway avisa que cambió (fotoNueva).
     usos_ = std::make_unique<UsoPorVistas>(this, [this](const QString& que) {
-        if (usos_->activo(que)) {
-            pedirFotos();
-            fotosPoll_.start();
-        } else {
-            fotosPoll_.stop();
-        }
+        if (usos_->activo(que)) pedirFotos();
     });
 }
 
@@ -293,7 +287,8 @@ json SesionRemota::paraGateway() const {
                        {"nombre", it.value().value("nombre", std::string())},
                        {"sal", it.value().value("sal", std::string())},
                        {"hash_token", it.value().value("hash_token", std::string())},
-                       {"hash_pin", it.value().value("hash_pin", std::string())}});
+                       {"hash_pin", it.value().value("hash_pin", std::string())},
+                       {"aparatos", aparatosParaGateway(it.value())}});
     for (auto it = credenciales_.begin(); it != credenciales_.end(); ++it) {
         const json i = integrante(it.key());
         if (!i.is_object()) continue; // si lo borraron del Cuerpo, su link deja de andar
@@ -304,9 +299,109 @@ json SesionRemota::paraGateway() const {
                        {"hash_token", it.value().value("hash_token", std::string())},
                        {"hash_pin", it.value().value("hash_pin", std::string())},
                        {"usuario", it.value().value("usuario", std::string())},
-                       {"hash_clave", it.value().value("hash_clave", std::string())}});
+                       {"hash_clave", it.value().value("hash_clave", std::string())},
+                       {"aparatos", aparatosParaGateway(it.value())}});
     }
     return out;
+}
+
+// --- Los aparatos registrados ---------------------------------------------------------
+
+json SesionRemota::aparatosParaGateway(const json& credencial) {
+    json out = json::array();
+    for (const json& a : credencial.value("aparatos", json::array()))
+        if (a.is_object())
+            out.push_back({{"id", a.value("id", std::string())}, {"sal", a.value("sal", std::string())},
+                           {"hash", a.value("hash", std::string())}});
+    return out;
+}
+
+json* SesionRemota::credencialDe(const std::string& de) {
+    if (de.rfind("consola:", 0) == 0) {
+        const std::string c = de.substr(8);
+        return consolas_.contains(c) ? &consolas_[c] : nullptr;
+    }
+    return credenciales_.contains(de) ? &credenciales_[de] : nullptr;
+}
+
+json SesionRemota::incorporarAparatos(const json& pendientes) {
+    json recibidos = json::array();
+    bool nuevos = false;
+    for (const json& p : pendientes.is_array() ? pendientes : json::array()) {
+        if (!p.is_object()) continue;
+        const std::string aid = p.value("id", std::string());
+        if (aid.empty()) continue;
+        recibidos.push_back(aid); // aunque la credencial ya no esté: que el gateway lo suelte
+        json* cr = credencialDe(p.value("de", std::string()));
+        if (cr == nullptr || p.value("hash", std::string()).size() != 64) continue;
+        json& lista = (*cr)["aparatos"];
+        if (!lista.is_array()) lista = json::array();
+        if (std::any_of(lista.begin(), lista.end(), [&](const json& a) { return a.value("id", std::string()) == aid; }))
+            continue;
+        std::string nombre = p.value("nombre", std::string());
+        if (nombre.size() > 80) nombre.resize(80);
+        lista.push_back({{"id", aid}, {"sal", p.value("sal", std::string())}, {"hash", p.value("hash", std::string())},
+                         {"nombre", nombre}, {"creado_ms", p.value("creado_ms", ahoraMs())}, {"uso_ms", p.value("creado_ms", ahoraMs())}});
+        anotar("aparato_registrado", p.value("de", std::string()), {{"aparato", aid}, {"nombre", nombre}});
+        nuevos = true;
+    }
+    if (nuevos) {
+        guardar();
+        emit credencialesCambio();
+        emit cambio();
+    }
+    return recibidos;
+}
+
+json SesionRemota::aparatos() const {
+    json out = json::array();
+    const auto agregar = [&](const std::string& de, const std::string& deNombre, const char* tipo, const json& cr,
+                             bool conectado) {
+        for (const json& a : cr.value("aparatos", json::array()))
+            out.push_back({{"de", de},
+                           {"de_nombre", deNombre},
+                           {"tipo", tipo},
+                           {"id", a.value("id", std::string())},
+                           {"nombre", a.value("nombre", std::string())},
+                           {"creado_ms", a.value("creado_ms", std::int64_t(0))},
+                           {"uso_ms", a.value("uso_ms", std::int64_t(0))},
+                           {"conectado", conectado}});
+    };
+    for (auto it = consolas_.begin(); it != consolas_.end(); ++it)
+        agregar("consola:" + it.key(), it.value().value("nombre", std::string()), "consola", it.value(),
+                consolasConectadas_.count("consola:" + it.key()) > 0);
+    for (auto it = credenciales_.begin(); it != credenciales_.end(); ++it) {
+        const auto e = estado_.find(it.key());
+        agregar(it.key(), nombreDe(it.key(), it.key()), "integrante", it.value(), e != estado_.end() && e->second.conectado);
+    }
+    return out;
+}
+
+QVariantList SesionRemota::aparatosUi() const { return aQv(aparatos()).toList(); }
+
+int SesionRemota::revocarAparato(const std::string& cual) {
+    if (cual.empty()) return 0;
+    int n = 0;
+    const auto barrer = [&](const std::string& de, json& cr) {
+        json& lista = cr["aparatos"];
+        if (!lista.is_array()) return;
+        for (auto it = lista.begin(); it != lista.end();) {
+            if (cual == "todos" || cual == de || it->value("id", std::string()) == cual) {
+                anotar("aparato_revocado", de, {{"aparato", it->value("id", std::string())}});
+                it = lista.erase(it);
+                ++n;
+            } else {
+                ++it;
+            }
+        }
+    };
+    for (auto it = consolas_.begin(); it != consolas_.end(); ++it) barrer("consola:" + it.key(), it.value());
+    for (auto it = credenciales_.begin(); it != credenciales_.end(); ++it) barrer(it.key(), it.value());
+    if (n == 0) return 0;
+    guardar();
+    emit credencialesCambio(); // el gateway corta la conexión de los revocados
+    emit cambio();
+    return n;
 }
 
 void SesionRemota::setOrigenes(const std::string& local, const std::string& remoto, const std::string& motivo) {
@@ -334,7 +429,19 @@ void SesionRemota::mandarEstado(const std::string& id) {
 void SesionRemota::evento(const json& ev) {
     const std::string tipo = ev.value("tipo", std::string());
     const std::string id = ev.value("id", std::string());
+    if (tipo == "aparatos") {
+        emit aparatosPorBuscar(); // el gateway tiene registrados nuevos (los guarda hasta que se los busca)
+        return;
+    }
     if (id.empty()) return;
+    // Entró con un aparato registrado: su último uso.
+    if (tipo == "conexion" && ev.value("conectado", false) && !ev.value("aparato", std::string()).empty())
+        if (json* cr = credencialDe(id))
+            for (json& a : (*cr)["aparatos"])
+                if (a.value("id", std::string()) == ev.value("aparato", std::string())) {
+                    a["uso_ms"] = ahoraMs();
+                    guardar();
+                }
     // La consola de la presidencia: no es un integrante.
     if (id.rfind("consola:", 0) == 0) {
         if (tipo == "conexion") {
@@ -968,6 +1075,10 @@ QString SesionRemota::expulsarUi(const QString& id, const QString& motivo) {
 
 void SesionRemota::usar(QObject* vista, bool si, const QString& que) {
     if (que == "fotos") usos_->usar(vista, si, que);
+}
+
+void SesionRemota::fotoNueva(const QString& id) {
+    if (usos_->activo("fotos")) emit fotoPedida(id);
 }
 
 void SesionRemota::pedirFotos() {

@@ -9,6 +9,8 @@
 //   4. otra B (epoch nuevo) republica;
 //   5. registrarse con B ya en línea corre el republicador (una vez, en la vuelta siguiente);
 //   6. si el dueño muere, deja de figurar.
+//   7. el flujo lo lee un hilo propio (web 5): la última foto se lee desde cualquier hilo
+//      sin I/O (fotoSala) y se vacía cuando B no está.
 #include <QCoreApplication>
 #include <QElapsedTimer>
 #include <QPointer>
@@ -22,6 +24,7 @@
 #include <functional>
 #include <memory>
 #include <string>
+#include <thread>
 
 #include <nlohmann/json.hpp>
 
@@ -111,6 +114,9 @@ int main(int argc, char** argv) {
     CHECK(esperar([&]() { return c.online(); }, 5000), "se conecta");
     esperar([&]() { return veces >= 1; }, 1000);
     CHECK(veces == 1 && c.epoch() == "E1", "primera conexión: republica");
+    QString deOtroHilo;
+    std::thread([&deOtroHilo]() { deOtroHilo = ba::app::ConferenceClient::fotoSala().value("epoch").toString(); }).join();
+    CHECK(deOtroHilo == "E1", "la última foto se lee desde otro hilo (sin I/O)");
 
     // 2) La misma B, que pudo reenviar lo perdido.
     b.proximo = {{"epoch", "E1"}, {"reanudado", true}};
@@ -143,6 +149,12 @@ int main(int argc, char** argv) {
     CHECK(c.republicadores().contains("prueba"), "figura");
     dueno.reset();
     CHECK(!c.republicadores().contains("prueba"), "muerto el dueño, deja de figurar");
+
+    // 7) Sin B, la foto no vale.
+    b.srv.close();
+    b.cortar();
+    CHECK(esperar([&]() { return !c.online(); }, 5000) && ba::app::ConferenceClient::fotoSala().isEmpty(),
+          "sin B, la foto queda vacía («no se sabe»)");
 
     std::printf(g_fallas == 0 ? "test_republicadores: OK\n" : "test_republicadores: %d FALLAS\n", g_fallas);
     return g_fallas == 0 ? 0 : 1;

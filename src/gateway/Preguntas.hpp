@@ -99,6 +99,15 @@ class Preguntas {
     /// descartadas de otros —enterarse de que a alguien se la bocharon no le
     /// sirve a nadie— ni el estado de moderación de las ajenas.
     nlohmann::json listaPublica(const std::string& quien) const;
+    /// Lo mismo para TODOS los teléfonos (no depende de quién pregunta, así se reparte del
+    /// microcaché de ba-web): las que siguen en juego, sin estado de moderación
+    /// ({id, nombre, texto, votos, alAire, respondida}), y `enCola`: la marca (marcaDe) de
+    /// cada teléfono con cada pregunta suya que eligieron. Cada teléfono reconoce las suyas
+    /// (las preguntó o las votó) con su `yo`; los demás no saben de quién son.
+    nlohmann::json listaComun() const;
+    /// La marca de (pregunta, teléfono): FNV-1a de 32 bits de «id:yo», en hexadecimal (la
+    /// misma cuenta hace publico/app.js).
+    static std::string marcaDe(const std::string& id, const std::string& quien);
     /// Cuántas hay en cada estado.
     nlohmann::json recuento() const;
 

@@ -56,7 +56,10 @@ std::string hashConSal(const std::string& s) {
     return r;
 }
 
-const char* tipoDe(const std::string& rel) {
+const char* tipoDe(const std::string& relOriginal) {
+    // La única tabla de tipos del gateway (las páginas, los bordes, el tema y los archivos del
+    // evento). Sin distinguir mayúsculas: «Acta.PDF» también.
+    const std::string rel = minus(relOriginal);
     const auto termina = [&](const char* e) {
         const std::string x(e);
         return rel.size() >= x.size() && rel.compare(rel.size() - x.size(), x.size(), x) == 0;
@@ -69,8 +72,15 @@ const char* tipoDe(const std::string& rel) {
     if (termina(".svg")) return "image/svg+xml";
     if (termina(".png")) return "image/png";
     if (termina(".jpg") || termina(".jpeg")) return "image/jpeg";
-    if (termina(".woff2")) return "font/woff2";
+    if (termina(".webp")) return "image/webp";
+    if (termina(".gif")) return "image/gif";
     if (termina(".ico")) return "image/x-icon";
+    if (termina(".pdf")) return "application/pdf";
+    // Las fuentes (las del programa y las del tema del evento, Eventos/<x>/Tema/).
+    if (termina(".woff2")) return "font/woff2";
+    if (termina(".woff")) return "font/woff";
+    if (termina(".ttf")) return "font/ttf";
+    if (termina(".otf")) return "font/otf";
     return "application/octet-stream";
 }
 

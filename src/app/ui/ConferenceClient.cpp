@@ -6,6 +6,7 @@
 #include "ajustes/Ajustes.hpp"
 
 #include <algorithm>
+#include <mutex>
 
 #include <QElapsedTimer>
 #include <QFile>
@@ -30,28 +31,156 @@ inline int kMaxBackoffMs() { return ba::ajustes::sAMs("room.reconexionMaxS", 15)
 inline int kWatchdogMs() { return ba::ajustes::sAMs("room.salaMuertaS", 40); } // B late cada 15 s: tanto sin nada = conexion muerta
 } // namespace
 
-ConferenceClient::ConferenceClient(QObject* parent) : QObject(parent) {
-    // Loopback directo: un http_proxy del entorno no debe interceptar la API.
-    nam_.setProxy(QNetworkProxy::NoProxy);
-    retry_.setSingleShot(true);
-    connect(&retry_, &QTimer::timeout, this, &ConferenceClient::connectEvents);
-    watchdog_.setSingleShot(true);
-    connect(&watchdog_, &QTimer::timeout, this, [this]() {
-        if (sse_ != nullptr) sse_->abort(); // onEventsClosed reprograma
-    });
-    // Las salidas del aparato: una B reiniciada arranca sin lista (todo a BA.Program).
-    registrarRepublicador("salidas", this, [this]() {
-        if (!salidas_.isEmpty()) post("/api/v1/salidas", QJsonObject{{"lista", salidas_}});
-    });
-    connectEvents();
+namespace {
+/// La última foto de la sala (ver fotoSala): la escribe el lector, la lee cualquiera.
+struct FotoCompartida {
+    std::mutex m;
+    QJsonObject foto;
+};
+FotoCompartida& compartida() {
+    static FotoCompartida f;
+    return f;
+}
+void ponerFoto(const QJsonObject& foto) {
+    std::lock_guard<std::mutex> l(compartida().m);
+    compartida().foto = foto;
+}
+} // namespace
+
+QJsonObject ConferenceClient::fotoSala() {
+    std::lock_guard<std::mutex> l(compartida().m);
+    return compartida().foto;
 }
 
-ConferenceClient::~ConferenceClient() {
+// --- El lector (en su hilo) ------------------------------------------------------------
+
+void LectorSala::iniciar() {
+    nam_ = new QNetworkAccessManager(this);
+    // Loopback directo: un http_proxy del entorno no debe interceptar la API.
+    nam_->setProxy(QNetworkProxy::NoProxy);
+    retry_ = new QTimer(this);
+    retry_->setSingleShot(true);
+    connect(retry_, &QTimer::timeout, this, &LectorSala::conectar);
+    watchdog_ = new QTimer(this);
+    watchdog_->setSingleShot(true);
+    connect(watchdog_, &QTimer::timeout, this, [this]() {
+        if (sse_ != nullptr) sse_->abort(); // alCerrar reprograma
+    });
+    conectar();
+}
+
+void LectorSala::parar() {
+    parado_ = true;
+    if (retry_ != nullptr) retry_->stop();
+    if (watchdog_ != nullptr) watchdog_->stop();
     if (sse_ != nullptr) {
         sse_->disconnect(this);
         sse_->abort();
         sse_->deleteLater();
+        sse_ = nullptr;
     }
+    ponerFoto({});
+}
+
+void LectorSala::reconectar() {
+    if (sse_ != nullptr) sse_->abort();
+    else if (!parado_ && retry_ != nullptr && !retry_->isActive()) conectar();
+}
+
+void LectorSala::conectar() {
+    if (sse_ != nullptr || parado_) return;
+    int puerto = 0;
+    QString token;
+    if (!ConferenceClient::leerAdmin(puerto, token)) {
+        // B todavia no arranco (o no tiene API): se reintenta.
+        emit cerrado();
+        reintentar();
+        return;
+    }
+    emit acceso(puerto, token);
+    QNetworkRequest req(QUrl(QString("http://127.0.0.1:%1/api/v1/events").arg(puerto)));
+    req.setRawHeader("Authorization", "Bearer " + token.toUtf8());
+    req.setRawHeader("Accept", "text/event-stream");
+    // Lo último que llegó: B reenvía lo de un solo disparo que se perdió en el corte.
+    if (!ultimoId_.isEmpty()) req.setRawHeader("Last-Event-ID", ultimoId_);
+    req.setAttribute(QNetworkRequest::CacheLoadControlAttribute, QNetworkRequest::AlwaysNetwork);
+    buf_.clear();
+    sse_ = nam_->get(req);
+    connect(sse_, &QNetworkReply::readyRead, this, &LectorSala::alLeer);
+    connect(sse_, &QNetworkReply::finished, this, &LectorSala::alCerrar);
+    watchdog_->start(kWatchdogMs());
+}
+
+void LectorSala::alLeer() {
+    watchdog_->start(kWatchdogMs());
+    buf_ += sse_->readAll();
+    // Bloques separados por linea en blanco; lineas "id:", "event:", "data:", ":".
+    for (;;) {
+        const int end = buf_.indexOf("\n\n");
+        if (end < 0) break;
+        const QByteArray block = buf_.left(end);
+        buf_.remove(0, end + 2);
+        QByteArray event = "message";
+        QByteArray data;
+        for (const QByteArray& line : block.split('\n')) {
+            if (line.startsWith("id:")) {
+                ultimoId_ = line.mid(3).trimmed();
+            } else if (line.startsWith("event:")) {
+                event = line.mid(6).trimmed();
+            } else if (line.startsWith("data:")) {
+                if (!data.isEmpty()) data += '\n';
+                data += line.mid(5).trimmed();
+            }
+        }
+        if (data.isEmpty()) continue;
+        const QJsonObject obj = QJsonDocument::fromJson(data).object();
+        if (event == "room") {
+            backoffMs_ = 1000;
+            ponerFoto(obj);
+        }
+        emit evento(event, obj);
+    }
+}
+
+void LectorSala::alCerrar() {
+    QNetworkReply* r = sse_;
+    sse_ = nullptr;
+    watchdog_->stop();
+    if (r != nullptr) r->deleteLater();
+    ponerFoto({}); // sin B, la foto no vale («no se sabe»)
+    emit cerrado();
+    reintentar();
+}
+
+void LectorSala::reintentar() {
+    if (parado_ || retry_->isActive()) return;
+    retry_->start(backoffMs_);
+    backoffMs_ = std::min(backoffMs_ * 2, kMaxBackoffMs());
+}
+
+// --- El cliente (en el hilo de la interfaz) ----------------------------------------------
+
+ConferenceClient::ConferenceClient(QObject* parent) : QObject(parent) {
+    // Loopback directo: un http_proxy del entorno no debe interceptar la API.
+    nam_.setProxy(QNetworkProxy::NoProxy);
+    lector_ = new LectorSala;
+    lector_->moveToThread(&hilo_);
+    connect(&hilo_, &QThread::finished, lector_, &QObject::deleteLater);
+    connect(lector_, &LectorSala::acceso, this, [this](int puerto, const QString& token) {
+        port_ = puerto;
+        token_ = token;
+    });
+    connect(lector_, &LectorSala::evento, this, &ConferenceClient::dispatch);
+    connect(lector_, &LectorSala::cerrado, this, [this]() { setOnline(false); });
+    hilo_.setObjectName("ba-sala-eventos");
+    hilo_.start();
+    QMetaObject::invokeMethod(lector_, &LectorSala::iniciar, Qt::QueuedConnection);
+}
+
+ConferenceClient::~ConferenceClient() {
+    QMetaObject::invokeMethod(lector_, &LectorSala::parar, Qt::BlockingQueuedConnection);
+    hilo_.quit();
+    hilo_.wait();
 }
 
 bool ConferenceClient::leerAdmin(int& puerto, QString& token) {
@@ -65,7 +194,6 @@ bool ConferenceClient::leerAdmin(int& puerto, QString& token) {
     return puerto > 0 && !token.isEmpty();
 }
 
-bool ConferenceClient::loadAdminFile() { return leerAdmin(port_, token_); }
 
 std::optional<QJsonObject> ConferenceClient::pedirSinInterfaz(const QString& ruta, int topeMs) {
     int puerto = 0;
@@ -99,56 +227,8 @@ std::optional<QJsonObject> ConferenceClient::pedirSinInterfaz(const QString& rut
     return d.object();
 }
 
-void ConferenceClient::connectEvents() {
-    if (sse_ != nullptr) return;
-    if (!loadAdminFile()) {
-        // B todavia no arranco (o no tiene API): se reintenta.
-        setOnline(false);
-        scheduleReconnect();
-        return;
-    }
-    QNetworkRequest req(QUrl(QString("http://127.0.0.1:%1/api/v1/events").arg(port_)));
-    req.setRawHeader("Authorization", "Bearer " + token_.toUtf8());
-    req.setRawHeader("Accept", "text/event-stream");
-    // Lo último que llegó: B reenvía lo de un solo disparo que se perdió en el corte.
-    if (!ultimoId_.isEmpty()) req.setRawHeader("Last-Event-ID", ultimoId_);
-    req.setAttribute(QNetworkRequest::CacheLoadControlAttribute, QNetworkRequest::AlwaysNetwork);
-    buf_.clear();
-    sse_ = nam_.get(req);
-    connect(sse_, &QNetworkReply::readyRead, this, &ConferenceClient::onEventsData);
-    connect(sse_, &QNetworkReply::finished, this, &ConferenceClient::onEventsClosed);
-    watchdog_.start(kWatchdogMs());
-}
-
-void ConferenceClient::onEventsData() {
-    watchdog_.start(kWatchdogMs());
-    buf_ += sse_->readAll();
-    // Bloques separados por linea en blanco; lineas "event:", "data:", ":".
-    for (;;) {
-        const int end = buf_.indexOf("\n\n");
-        if (end < 0) break;
-        const QByteArray block = buf_.left(end);
-        buf_.remove(0, end + 2);
-        QByteArray event = "message";
-        QByteArray data;
-        for (const QByteArray& line : block.split('\n')) {
-            if (line.startsWith("id:")) {
-                ultimoId_ = line.mid(3).trimmed();
-            } else if (line.startsWith("event:")) {
-                event = line.mid(6).trimmed();
-            } else if (line.startsWith("data:")) {
-                if (!data.isEmpty()) data += '\n';
-                data += line.mid(5).trimmed();
-            }
-        }
-        if (!data.isEmpty()) dispatch(event, data);
-    }
-}
-
-void ConferenceClient::dispatch(const QByteArray& event, const QByteArray& data) {
-    const QJsonObject obj = QJsonDocument::fromJson(data).object();
+void ConferenceClient::dispatch(const QByteArray& event, const QJsonObject& obj) {
     if (event == "room") {
-        backoffMs_ = 1000;
         // El primero de cada conexión dice de qué arranque es la B y si pudo reenviar lo
         // perdido; los que siguen son solo la foto.
         bool nueva = false;
@@ -196,27 +276,13 @@ void ConferenceClient::dispatch(const QByteArray& event, const QByteArray& data)
         emit redEvento(obj);
     } else if (event == "avatar") {
         emit avatarEvento(obj.value("id").toString());
+    } else if (event == "foto") {
+        emit fotoSesionEvento(obj.value("id").toString());
     } else if (event == "votacion" || event == "preguntas") {
         emit estadoEvento(QString::fromUtf8(event), obj);
     } else if (event == "programa") {
-        miranPrograma_ = obj.value("mirando").toInt(-1);
-        miranSalidas_ = obj.value("salidas").toObject();
+        emit programaEvento(obj);
     }
-}
-
-void ConferenceClient::onEventsClosed() {
-    QNetworkReply* r = sse_;
-    sse_ = nullptr;
-    watchdog_.stop();
-    if (r != nullptr) r->deleteLater();
-    setOnline(false);
-    scheduleReconnect();
-}
-
-void ConferenceClient::scheduleReconnect() {
-    if (retry_.isActive()) return;
-    retry_.start(backoffMs_);
-    backoffMs_ = std::min(backoffMs_ * 2, kMaxBackoffMs());
 }
 
 void ConferenceClient::setOnline(bool on) {
@@ -274,12 +340,6 @@ void ConferenceClient::republicarTodo() {
     emit salaNueva();
 }
 
-void ConferenceClient::ponerSalidas(const QJsonArray& lista) { // (republicador «salidas»)
-    if (lista == salidas_) return;
-    salidas_ = lista;
-    if (online_) post("/api/v1/salidas", QJsonObject{{"lista", salidas_}});
-}
-
 void ConferenceClient::post(const QString& path, const QJsonObject& body, Done done, int timeoutMs) {
     send("POST", path, QJsonDocument(body).toJson(QJsonDocument::Compact), std::move(done), timeoutMs);
 }
@@ -330,9 +390,10 @@ void ConferenceClient::send(const QByteArray& verb, const QString& path, const Q
         const bool ok = status >= 200 && status < 300;
         if (!ok) {
             if (status == 401) {
-                // B se reinicio con otro token: releer y reconectar eventos.
-                loadAdminFile();
-                if (sse_ != nullptr) sse_->abort();
+                // B se reinicio con otro token: releer y reconectar eventos (el lector
+                // relee gateway-admin.json y avisa el puerto y el token nuevos).
+                leerAdmin(port_, token_);
+                QMetaObject::invokeMethod(lector_, &LectorSala::reconectar, Qt::QueuedConnection);
             }
             emit failed(reply.value("error").toString(status == 0 ? "offline" : QString::number(status)));
         }

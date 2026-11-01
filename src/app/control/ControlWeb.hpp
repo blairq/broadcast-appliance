@@ -158,6 +158,8 @@ class ControlWeb : public QObject {
     /// "" o el error (código inválido, vencido o ya usado; demasiados aparatos).
     std::string solicitud(const std::string& solicitud, const std::string& codigo, const std::string& nombre,
                           const std::string& ip);
+    /// ¿Esa solicitud ya llegó (espera a una persona)? (ver ControlWebGateway::sincronizar)
+    bool tieneSolicitud(const std::string& solicitud) const { return solicitudes_.count(solicitud) > 0; }
     /// Aprueba (genera el token: {aprobada, aparato, token}) o rechaza. `perfil`
     /// null = el que propuso el código. Aprobar SOLO si `humano`: si no, {error}.
     json resolverSolicitud(const std::string& solicitud, bool aprobar, const json& perfil, bool humano);

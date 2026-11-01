@@ -3,9 +3,14 @@
 // 5 fallas, Origin igual a Host (y por el túnel también). La atención hablada
 // del que espera: solo con conexión, la oferta sube solo audio, y la voz del que
 // atiende le llega solo a él (MediaRoute::oyeAlAtendedor).
+// Los APARATOS REGISTRADOS (el PIN una vez): registrar con el PIN y entrar después con el
+// token sin PIN; un token revocado pide el PIN; tras un reinicio de B, mientras no llegan
+// las credenciales, «esperar» (nunca «mal») y después sigue entrando; el token de un
+// integrante (o de una consola) no abre otro; renovar el link lo da de baja.
 
 #include <cstdio>
 #include <string>
+#include <thread>
 
 #include <nlohmann/json.hpp>
 
@@ -16,6 +21,7 @@
 
 #include "Botonera.hpp"
 #include "Borde.hpp"
+#include "HttpIo.hpp"
 #include "Log.hpp"
 #include "MediaRoute.hpp"
 #include "Sesion.hpp"
@@ -169,6 +175,107 @@ int main() {
     l = vistas(nlohmann::json::parse(R"([{"id":"esc","nombre":"Atril","canal":0}])"));
     CHECK(l.size() == 1, "sin el programa en la lista, ninguna otra salida");
 #endif
+
+    // --- Aparatos registrados (Sesion.hpp) ---------------------------------------------
+    {
+        const std::string tok(64, 'd');
+        const auto cred = [&](const std::string& id, const nlohmann::json& aparatos) {
+            return nlohmann::json{{"id", id},
+                                  {"sal", sal},
+                                  {"hash_token", ba::gateway::borde::hashConSal(sal + tok)},
+                                  {"hash_pin", ba::gateway::borde::hashConSal(sal + ":" + pin + ":" + tok)},
+                                  {"aparatos", aparatos}};
+        };
+        int avisos = 0;
+        SesionBorde b("", log, [&](const nlohmann::json& d) { avisos += d.value("tipo", std::string()) == "aparatos"; });
+        CHECK(!b.credencialesListas(), "recién arrancada: todavía sin las credenciales de la app («esperar»)");
+        b.ponerCredenciales(nlohmann::json::array({cred("leg-9", nlohmann::json::array()), cred("leg-8", nlohmann::json::array()),
+                                                   cred("consola:p", nlohmann::json::array())}));
+        CHECK(b.credencialesListas(), "con las credenciales, ya valida");
+        std::string aid;
+        const std::string aparato = b.registrarAparato("leg-9", "iPad · Safari", aid);
+        CHECK(aparato.size() == 64 && !aid.empty() && avisos == 1, "registrar con el PIN: un token largo, y la app se entera");
+        CHECK(b.autenticarAparato("leg-9", tok, aparato) == aid, "recargar: entra con el token, sin PIN");
+        CHECK(b.autenticarAparato("leg-9", std::string(64, 'e'), aparato).empty(), "con otra URL (otro link), no");
+        CHECK(b.autenticarAparato("leg-8", tok, aparato).empty(), "el token de un integrante no abre a otro");
+        CHECK(b.autenticarAparato("consola:p", tok, aparato).empty(), "ni a una consola");
+        const nlohmann::json pend = b.aparatosPendientes();
+        CHECK(pend.size() == 1 && pend[0]["de"] == "leg-9" && pend[0]["hash"].get<std::string>().size() == 64 &&
+                  pend[0].dump().find(aparato) == std::string::npos,
+              "queda pendiente para la app, como hash (el token no sale de la página)");
+        // La app lo guarda y lo manda con la credencial; confirma; B se reinicia.
+        const nlohmann::json guardado{{"id", pend[0]["id"]}, {"sal", pend[0]["sal"]}, {"hash", pend[0]["hash"]}};
+        b.ponerCredenciales(nlohmann::json::array({cred("leg-9", nlohmann::json::array({guardado}))}));
+        b.aparatosRecibidos(nlohmann::json::array({aid}));
+        CHECK(b.aparatosPendientes().empty() && b.autenticarAparato("leg-9", tok, aparato) == aid,
+              "confirmado por la app: sigue entrando (ahora por la credencial)");
+        SesionBorde nueva("", log, [](const nlohmann::json&) {});
+        nueva.ponerCredenciales(nlohmann::json::array({cred("leg-9", nlohmann::json::array({guardado}))}));
+        CHECK(nueva.autenticarAparato("leg-9", tok, aparato) == aid, "una sala reiniciada lo reconoce (la app se lo da)");
+        // Revocado: la app manda la credencial sin él.
+        nueva.ponerCredenciales(nlohmann::json::array({cred("leg-9", nlohmann::json::array())}));
+        CHECK(nueva.autenticarAparato("leg-9", tok, aparato).empty(), "revocado: ya no entra (pide el PIN)");
+
+#ifndef _WIN32
+        // De punta a punta, por el WebSocket de la página.
+        SesionBorde w("", log, [](const nlohmann::json&) {});
+        const auto entrar = [&](const nlohmann::json& auth) {
+            int sv[2];
+            if (socketpair(AF_UNIX, SOCK_STREAM, 0, sv) != 0) return nlohmann::json();
+            std::thread srv([&w, fd = sv[0]]() {
+                w.atender(fd, "GET", "/ws", "sesion=1", "Host: x\r\nSec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\n", 0x0100007f);
+                ::close(fd);
+            });
+            // El pedido de la página: un frame de texto enmascarado (máscara 0).
+            const std::string txt = auth.dump();
+            std::string f;
+            f.push_back(static_cast<char>(0x81));
+            if (txt.size() < 126) {
+                f.push_back(static_cast<char>(0x80 | txt.size()));
+            } else {
+                f.push_back(static_cast<char>(0x80 | 126));
+                f.push_back(static_cast<char>(txt.size() >> 8));
+                f.push_back(static_cast<char>(txt.size() & 0xFF));
+            }
+            f.append(4, '\0');
+            f += txt;
+            (void)!::write(sv[1], f.data(), f.size());
+            // La respuesta: después del 101, el primer frame (sin máscara).
+            std::string r;
+            char buf[4096];
+            nlohmann::json out;
+            for (ssize_t n; (n = ::read(sv[1], buf, sizeof buf)) > 0;) {
+                r.append(buf, static_cast<size_t>(n));
+                const auto p = r.find("\r\n\r\n");
+                if (p == std::string::npos || r.size() < p + 6) continue;
+                const std::size_t h = p + 4;
+                std::size_t len = static_cast<unsigned char>(r[h + 1]) & 0x7F, ini = h + 2;
+                if (len == 126) {
+                    len = (static_cast<unsigned char>(r[h + 2]) << 8) | static_cast<unsigned char>(r[h + 3]);
+                    ini = h + 4;
+                }
+                if (r.size() < ini + len) continue;
+                out = nlohmann::json::parse(r.substr(ini, len), nullptr, false);
+                break;
+            }
+            ::shutdown(sv[1], SHUT_RDWR);
+            ::close(sv[1]);
+            srv.join();
+            return out;
+        };
+        nlohmann::json r = entrar({{"type", "auth"}, {"i", "leg-9"}, {"t", tok}, {"pin", pin}, {"registrar", true}});
+        CHECK(r.value("ok", true) == false && r.value("error_codigo", "") == "esperar",
+              "B recién arrancada: «esperar», no «mal» (la página reintenta sola)");
+        w.ponerCredenciales(nlohmann::json::array({cred("leg-9", nlohmann::json::array())}));
+        r = entrar({{"type", "auth"}, {"i", "leg-9"}, {"t", tok}, {"pin", pin}, {"registrar", true}, {"nombre", "Android · Chrome"}});
+        const std::string token = r.value("aparato", std::string());
+        CHECK(r.value("ok", false) && token.size() == 64, "con el PIN y «registrar»: entra y recibe el token del aparato");
+        r = entrar({{"type", "auth"}, {"i", "leg-9"}, {"t", tok}, {"aparato", token}});
+        CHECK(r.value("ok", false) && !r.contains("aparato"), "después: entra con el token, sin el PIN");
+        r = entrar({{"type", "auth"}, {"i", "leg-9"}, {"t", tok}, {"aparato", std::string(64, 'f')}});
+        CHECK(!r.value("ok", true) && r.value("error_codigo", "") == "aparato", "un token que no vale: «aparato» (la página pide el PIN)");
+#endif
+    }
 
     std::printf(g_fallas ? "\n%d fallas\n" : "\ntodo ok\n", g_fallas);
     return g_fallas ? 1 : 0;

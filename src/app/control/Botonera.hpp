@@ -215,6 +215,9 @@ class Botonera : public QObject {
     /// "" o el error (código inválido, vencido o ya usado).
     std::string solicitud(const std::string& solicitud, const std::string& codigo, const std::string& nombre,
                    const std::string& ip);
+    /// ¿Esa solicitud ya llegó (espera a una persona)? Para no tratarla dos veces cuando se
+    /// la va a buscar al gateway (BotoneraGateway::sincronizar).
+    bool tieneSolicitud(const std::string& solicitud) const { return solicitudes_.count(solicitud) > 0; }
     /// Aprueba (genera el token y devuelve {dispositivo, token}) o rechaza. `perfil`
     /// (id), si no va vacío, reemplaza al del código: la persona que aprueba elige
     /// con qué perfil entra el aparato.

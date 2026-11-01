@@ -12,6 +12,7 @@
 #include "sala/Direcciones.hpp"
 #include "sala/PreguntasSala.hpp"
 #include "sala/SeguridadSala.hpp"
+#include "sala/GuardadoEnEvento.hpp"
 #include "sala/VotacionSala.hpp"
 #include "ui/ChatOverlayRenderer.hpp"
 #include "ui/ConferenceClient.hpp"
@@ -102,10 +103,16 @@ SalaViewModel::SalaViewModel(Partes p, QObject* parent) : QObject(parent), p_(st
         return v->error; // los formularios y las listas se enteran solos (la foto)
     });
     // La votación es del modelo (con el padrón del evento abierto); el público y el MCP la usan.
-    votacion_ = std::make_unique<sala::VotacionSala>(cli, [this]() {
-        EventoViewModel* ev = p_.evento ? p_.evento() : nullptr;
-        return ev ? ev->votantes() : std::nullopt;
-    });
+    votacion_ = std::make_unique<sala::VotacionSala>(
+        cli,
+        [this]() {
+            EventoViewModel* ev = p_.evento ? p_.evento() : nullptr;
+            return ev ? ev->votantes() : std::nullopt;
+        },
+        [this]() {
+            EventoViewModel* ev = p_.evento ? p_.evento() : nullptr;
+            return ev ? sala::GuardadoEnEvento::etiquetaDe(ev->carpetaAbierta()) : std::string();
+        });
     // Las preguntas, ídem; un mensaje del chat se busca en el chat que junta las plataformas.
     preguntas_ = std::make_unique<sala::PreguntasSala>(
         cli, [this](const std::string& clave) -> std::optional<sala::PreguntasSala::MensajeChat> {

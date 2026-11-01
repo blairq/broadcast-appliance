@@ -3,6 +3,7 @@
 // ============================================================================
 
 #include "net/WgDevice.hpp"
+#include "security/Comparar.hpp"
 #include "i18n/I18n.hpp"
 #include "platform/Hilo.hpp"
 
@@ -85,11 +86,10 @@ void mixHash(Key32& h, const uint8_t* data, size_t n) {
     h = out;
 }
 
+/// En tiempo constante (security/Comparar.hpp, la única comparación de claves).
 bool ctEqual(const uint8_t* a, const uint8_t* b, size_t n) {
-    uint8_t d = 0;
-    for (size_t i = 0; i < n; ++i)
-        d |= static_cast<uint8_t>(a[i] ^ b[i]);
-    return d == 0;
+    return ba::security::igualesEnTiempoConstante(std::string_view(reinterpret_cast<const char*>(a), n),
+                                                  std::string_view(reinterpret_cast<const char*>(b), n));
 }
 
 void closeSock(long long s) {

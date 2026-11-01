@@ -47,7 +47,7 @@ class GuardadoEnEvento : public QObject {
     void eventoCambio();
     /// Lo último que se sabe (la foto), o null si todavía no se leyó.
     const nlohmann::json& foto() const { return foto_; }
-    /// La etiqueta de un evento para la sala (no la ruta en claro).
+    /// La etiqueta de un evento para la sala (no la ruta en claro); "" sin evento.
     static std::string etiquetaDe(const std::filesystem::path& carpeta);
 
    private:

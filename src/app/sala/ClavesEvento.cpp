@@ -8,6 +8,7 @@
 #include <QThreadPool>
 
 #include "crypto/Sha256.hpp"
+#include "ipc/ProtocoloSala.hpp"
 #include "security/CredentialStore.hpp"
 #include "security/SecretsStore.hpp"
 #include "sala/Pedido.hpp"
@@ -50,14 +51,26 @@ nlohmann::json ClavesEvento::leerOCrear(const std::filesystem::path& carpeta) {
 
 void ClavesEvento::eventoCambio() {
     const std::filesystem::path carpeta = carpeta_ ? carpeta_() : std::filesystem::path();
-    if (carpeta == deEstas_ && !claves_.is_null()) return;
+    if (carpeta == deEstas_ && (!claves_.is_null() || carpeta.empty())) return;
+    // Se cerró el evento que había (no el arranque sin ninguno: la sala puede tener una
+    // votación viva que A todavía no guardó): que la sala olvide sus claves y lo suyo.
+    const bool cerro = carpeta.empty() && !deEstas_.empty();
     deEstas_ = carpeta;
     claves_ = nullptr;
-    if (carpeta.empty()) return; // sin evento: quedan las que la sala inventó al arrancar
+    if (carpeta.empty() && !cerro) return;
     const int pedido = ++pedido_;
+    auto ultimo = ultimoPedido_;
+    ultimo->store(pedido);
     QPointer<ClavesEvento> yo(this);
-    QThreadPool::globalInstance()->start([yo, carpeta, pedido]() {
-        nlohmann::json c = leerOCrear(carpeta);
+    QThreadPool::globalInstance()->start([yo, carpeta, pedido, ultimo]() {
+        nlohmann::json c = carpeta.empty() ? nlohmann::json{{"sinEvento", true}} : leerOCrear(carpeta);
+        // Las del evento en curso, para que una sala que arranca ya las tenga (no si llegó
+        // otro pedido después: el de él es el que vale).
+        if (ultimo->load() == pedido && !c.is_null()) {
+            const auto almacen = ba::security::CredentialStore::bundle();
+            if (carpeta.empty()) almacen.remove(ba::ipc::kClavesEnCurso);
+            else almacen.write(ba::ipc::kClavesEnCurso, c.dump());
+        }
         QMetaObject::invokeMethod(
             QCoreApplication::instance(), // de vuelta en el hilo de la interfaz
             [yo, c = std::move(c), pedido]() {

@@ -87,6 +87,7 @@ class BotoneraBorde {
     };
     struct Solicitud {
         std::string estado = "pendiente"; // pendiente|aprobada|rechazada|invalido
+        std::string codigo, nombre;       ///< lo que trajo (para la app que la va a buscar)
         std::string dispositivo, token, error, ip;
         std::int64_t ms = 0;
     };
