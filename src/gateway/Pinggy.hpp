@@ -48,7 +48,9 @@
 
 #include <nlohmann/json.hpp>
 
+#include "ajustes/Ajustes.hpp"
 #include "platform/Process.hpp"
+#include "platform/Relanzador.hpp"
 
 namespace ba::gateway {
 
@@ -134,7 +136,8 @@ class PinggySupervisor {
     void kill();
     bool processAlive();
     void leerLog();
-    void sleepBackoff();
+    /// Cuenta la caída y espera lo que toca (platform/Relanzador.hpp). :returns: la espera.
+    std::uint64_t esperarRelanzar();
     void setEstado(const std::string& estado, const std::string& error = {});
 
     Cfg cfg_;
@@ -144,7 +147,10 @@ class PinggySupervisor {
     std::atomic<bool> alive_{false};
     std::atomic<bool> started_{false};
     std::atomic<int> restartCount_{0};
-    int backoffMs_ = 1000;
+    /// Duplicando de 1 s al tope (gateway.tunelReintentoMaxS); se olvida con el túnel listo.
+    ba::platform::Relanzador rel_{ba::platform::PoliticaRelanzar{
+        .esperaMs = ba::platform::PoliticaRelanzar::duplicando(
+            1000, []() { return static_cast<std::uint64_t>(ba::ajustes::sAMs("gateway.tunelReintentoMaxS", 30)); })}};
 
     std::thread thread_;
     std::uintmax_t logOffset_ = 0; // solo spawn/leerLog (thread de supervisión o start)

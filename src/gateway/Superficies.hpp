@@ -45,6 +45,15 @@ class Superficies {
         std::string pid; ///< la conexión (para mandarle)
         std::string tipo;
         std::string que;
+        std::string ip;
+        std::int64_t desdeMs = 0;
+        /// Lo que la página dijo de sí al entrar, según su tipo (el teleprompter: cuál
+        /// es `p`, su `vista` y su `nombre`). Datos, recortados; nunca órdenes.
+        nlohmann::json extra = nlohmann::json::object();
+        /// Las que muestran algo reservado (los rótulos, la corrección) dicen su clave en
+        /// el primer mensaje (nunca en la dirección: queda en los registros). Hasta
+        /// entonces no se les manda nada.
+        bool autorizada = true;
     };
 
     /// Una página dice que está viva. `tipo` es qué es ("carrusel",
@@ -59,14 +68,24 @@ class Superficies {
 
     // --- Las que están conectadas por el canal ---------------------------------
     /// Entra una. `pid` es su conexión.
-    void conectar(const std::string& pid, const std::string& tipo, const std::string& id);
+    void conectar(const std::string& pid, const std::string& tipo, const std::string& id, std::uint32_t ip = 0,
+                  const nlohmann::json& extra = nlohmann::json::object(), bool autorizada = true);
+    /// Dijo bien su clave (ver Conectada::autorizada).
+    void autorizar(const std::string& pid);
+    /// Cambia un dato de `extra` (el nombre que le pusieron, por ejemplo).
+    void ponerExtra(const std::string& pid, const std::string& clave, const std::string& valor);
+    /// Las conectadas de ese tipo, enteras.
+    std::vector<Conectada> conectadas(const std::string& tipo) const;
     void desconectar(const std::string& pid);
     /// Qué está mostrando (lo dice ella misma por el canal).
     void dice(const std::string& pid, const std::string& que);
     /// La conexión de esa superficie por su `id`, o vacío.
     std::string conexionDe(const std::string& id) const;
-    /// Todas las conexiones de ese tipo (para mandarle a todas las pantallas).
+    /// Todas las conexiones de ese tipo (para mandarle a todas las pantallas); solo las
+    /// autorizadas.
     std::vector<std::string> conexionesDe(const std::string& tipo) const;
+    /// El tipo de una conexión ("" si no es una superficie conectada).
+    std::string tipoDe(const std::string& pid) const;
 
    private:
     struct Viva {

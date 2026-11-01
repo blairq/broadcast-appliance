@@ -9,9 +9,8 @@
 // LAS REGLAS VIVEN ACÁ, para la página y para el MCP (`padron_*`): dejar pasar solo a
 // alguien exige su ficha de rostro, y que exista (`motivoEntrarSolo`).
 //
-// LAS ACREDITACIONES por QR: mientras hay un evento abierto se le pide al gateway cada
-// 2 s quiénes escanearon su invitación. (Cuando el gateway avise por su canal de eventos,
-// esto pasa a escucharlo: ver `recogerAcreditaciones`.)
+// LAS ACREDITACIONES por QR: el gateway avisa por su canal de eventos cada invitación
+// escaneada («acreditacion») y acá se las va a buscar (ver `recogerAcreditaciones`).
 // ============================================================================
 #pragma once
 
@@ -100,7 +99,6 @@ class PadronViewModel : public QObject {
     ConferenceViewModel* sala_ = nullptr;
     evento::Padron padron_;
     FichaDe fichaDe_;
-    QTimer buzon_;
 };
 
 } // namespace ba::app

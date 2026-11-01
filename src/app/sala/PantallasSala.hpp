@@ -13,6 +13,8 @@
 #include <string>
 #include <vector>
 
+#include <QObject>
+
 #include "sala/Pedido.hpp"
 
 namespace ba::app::sala {
@@ -50,6 +52,8 @@ class PantallasSala {
 
    private:
     ConferenceClient& sala_;
+    nlohmann::json tally_ = nlohmann::json::object(); ///< el último que se publicó (se republica)
+    QObject vida_; ///< mientras vive, la sala le pide que republique
 };
 
 } // namespace ba::app::sala

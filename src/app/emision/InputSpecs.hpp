@@ -17,6 +17,7 @@
 #include <nlohmann/json.hpp>
 
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "emision/BroadcastEngine.hpp"
@@ -93,6 +94,10 @@ std::string ajustesVideoInvitado(int slot, const std::string& channel);
 SourceSpec videoInvitadoSpec(int slot, const std::string& channel, const std::string& name);
 /// ¿Es el video de un invitado? (el de GStreamer o un ba_guest_video viejo).
 bool esVideoInvitado(const std::string& type, const std::string& settingsJson);
+/// El lugar y el canal (guest | share | remoto | remoto_contenido) del video de invitado
+/// `s`, de sus ajustes (el JSON parseado); {0, ""} si no es un video de invitado. Es su
+/// identidad: el nombre («Invitado 2») se puede cambiar.
+std::pair<int, std::string> lugarDeInvitado(const SourceSpec& s);
 
 /// Una entrada NDI por GStreamer: `ba_gst_fuente` con `bandisrc` (libNoIDea) y
 /// `avdec_speedhq`. Guarda ndi_name/host/port como el ba_ndi_input de antes.

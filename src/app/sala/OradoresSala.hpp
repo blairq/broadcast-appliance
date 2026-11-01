@@ -19,6 +19,7 @@
 #include <string>
 
 #include <nlohmann/json.hpp>
+#include <QObject>
 
 #include "sala/Pedido.hpp"
 
@@ -65,6 +66,8 @@ class OradoresSala {
 
    private:
     ConferenceClient& sala_;
+    nlohmann::json pedido_ = nlohmann::json::object(); ///< la configuración pedida (se republica)
+    QObject vida_; ///< mientras vive, la sala le pide que republique
 };
 
 } // namespace ba::app::sala

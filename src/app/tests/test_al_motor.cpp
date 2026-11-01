@@ -196,6 +196,17 @@ int main() {
         SourceSpec v = inputs::videoInvitadoSpec(1, "guest", "Invitado 1");
         CHECK(!pasar(v).cambio);
     }
+    // 8. El lugar de un invitado sale de sus ajustes parseados: el 1 no es el 10, con o sin
+    //    espacios en el JSON, y el nombre no cuenta (se puede renombrar).
+    {
+        const SourceSpec diez = inputs::videoInvitadoSpec(10, "share", "Invitado 1");
+        CHECK(inputs::lugarDeInvitado(diez) == std::make_pair(10, std::string("share")));
+        SourceSpec uno = inputs::videoInvitadoSpec(1, "guest", "Cualquiera");
+        uno.settingsJson = json::parse(uno.settingsJson).dump(2); // con espacios: "slot": 1
+        CHECK(inputs::lugarDeInvitado(uno) == std::make_pair(1, std::string("guest")));
+        CHECK(inputs::lugarDeInvitado(inputs::videoInvitadoSpec(2, "remoto_contenido", "R")).second == "remoto_contenido");
+        CHECK(inputs::lugarDeInvitado(inputs::hardwareSpec("cam", "C", json::object())).first == 0);
+    }
     std::printf(fallas == 0 ? "test_al_motor: OK\n" : "test_al_motor: %d fallas\n", fallas);
     return fallas == 0 ? 0 : 1;
 }

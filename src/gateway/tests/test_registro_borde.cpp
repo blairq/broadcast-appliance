@@ -16,6 +16,7 @@
 #include <nlohmann/json.hpp>
 
 #include "Botonera.hpp"
+#include "Borde.hpp"
 #include "HttpIo.hpp"
 #include "Log.hpp"
 #include "MediaRoute.hpp"
@@ -52,7 +53,7 @@ int g_fallas = 0;
     } while (0)
 
 json totem(const std::string& id, const std::string& sal, const std::string& token, const std::string& nombre = "") {
-    return {{"id", id}, {"nombre", nombre}, {"sal", sal}, {"hash_token", BotoneraBorde::sha256Hex(sal + token)}};
+    return {{"id", id}, {"nombre", nombre}, {"sal", sal}, {"hash_token", ba::gateway::borde::hashConSal(sal + token)}};
 }
 
 /// Una petición a la API de control por un socket de verdad: `admin` escribe la

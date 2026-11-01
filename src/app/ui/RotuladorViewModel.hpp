@@ -96,15 +96,15 @@ class RotuladorViewModel : public QObject {
     void notify(const QString& texto, const QString& tipo);
 
    public:
-    /// Los encargos de los celulares (rotulos-encargo): los trae la vuelta de sincronizar o,
-    /// cuando la sala los avise con su evento (agente G), ese evento.
+    /// Los encargos de los celulares (rotulos-encargo): los trae tomarEncargos cuando la
+    /// sala avisa (evento «rotulos») o al volver.
     void aplicarEncargos(const nlohmann::json& encargos);
 
    private:
-    /// Publica lo que hay en B y se lleva lo que encargaron desde los
-    /// celulares. Una vez por segundo, en un solo viaje (también es el latido que el
-    /// celular mira para saber que la app sigue viva).
+    /// Publica lo que hay en B, si cambió.
     void sincronizar();
+    /// Se lleva lo que encargaron desde los celulares (B avisa que hay).
+    void tomarEncargos();
     /// Ejecuta un encargo que vino del celular.
     void atender(const QJsonObject& encargo);
 

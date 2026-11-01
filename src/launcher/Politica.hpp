@@ -20,6 +20,8 @@
 #include <filesystem>
 #include <optional>
 
+#include "platform/Relanzador.hpp"
+
 namespace ba::ipc {
 class HealthBlock;
 }
@@ -30,36 +32,17 @@ namespace ba::launcher {
 /// después `launcher.relanzarMaxS` (10 s; nunca menos de 5) (spec 3.1.8).
 int esperaRelanzarS(int consecutivas);
 
-/// El relanzamiento de UN hijo. El backoff ya no se duerme dentro del bucle del
-/// watchdog (mientras A esperaba sus 10 s, B se caía y nadie lo veía): se agenda
-/// acá y en cada vuelta el bucle pregunta si ya toca. Y las caídas se olvidan:
-/// un hijo que anduvo bien `launcher.estableS` vuelve a relanzarse sin espera
-/// (antes, en un evento largo, la quinta caída aislada esperaba 10 s en negro).
-class Relanzador {
+/// El relanzamiento de UN hijo (platform/Relanzador.hpp, la misma pieza que usan los
+/// vigías de la sala) con la escalera del launcher. El backoff no se duerme dentro del
+/// bucle del watchdog (mientras A esperaba sus 10 s, B se caía y nadie lo veía): se
+/// agenda y en cada vuelta el bucle pregunta si ya toca. Y las caídas se olvidan: un
+/// hijo que anduvo bien `launcher.estableS` vuelve a relanzarse sin espera (antes, en
+/// un evento largo, la quinta caída aislada esperaba 10 s en negro).
+class Relanzador : public ba::platform::Relanzador {
    public:
-    /// Se cayó: agenda el relanzamiento con el backoff que toca y cuenta la caída.
-    /// :returns: la espera agendada, en ms.
-    std::uint64_t caida(std::uint64_t ahoraMs);
-    /// Agenda un relanzamiento a `esperaMs` sin contarlo como caída (p. ej. el
-    /// hijo dijo que el entorno no le permite andar: se reintenta más tarde).
-    void agendar(std::uint64_t ahoraMs, std::uint64_t esperaMs);
-    bool agendado() const { return relanzarEn_.has_value(); }
-    /// Hay un relanzamiento agendado y ya llegó la hora.
-    bool toca(std::uint64_t ahoraMs) const { return relanzarEn_ && ahoraMs >= *relanzarEn_; }
-    /// Se lanzó (o se readoptó): sin agenda; desde acá se cuenta la estabilidad.
-    void lanzado(std::uint64_t ahoraMs);
-    /// Una vuelta del watchdog con el hijo andando. Si lleva `estableMs` desde
-    /// que se lanzó y su latido está fresco, las caídas anteriores se olvidan.
-    /// :returns: true si recién se olvidaron (para dejarlo en el registro).
-    bool vigilar(std::uint64_t ahoraMs, bool lateFresco, std::uint64_t estableMs);
-    /// Desde cero (el operador forzó el reinicio).
-    void olvidar();
-    int consecutivas() const { return consecutivas_; }
-
-   private:
-    int consecutivas_ = 0;
-    std::optional<std::uint64_t> relanzarEn_;
-    std::optional<std::uint64_t> lanzadoEn_;
+    Relanzador()
+        : ba::platform::Relanzador(ba::platform::PoliticaRelanzar{
+              .esperaMs = [](int n) { return static_cast<std::uint64_t>(esperaRelanzarS(n)) * 1000; }}) {}
 };
 
 /// Qué hacer con un hijo que puede seguir vivo de un launcher anterior (spec 3.1.9).

@@ -401,10 +401,10 @@ $("asignado").addEventListener("change", () => {
 // --- La votación -------------------------------------------------------------------------------
 let votTimer = null;
 function pintarVotacion() {
-  const central = (est.central || {}).votacion || {};
   const v = est.votacion || {};
-  // La de la central manda si está; si no, la de los celulares.
-  const estado = central.estado && central.estado !== "sin_preparar" ? central.estado : v.estado;
+  // Todo viene resuelto de la app (asamblea/Votaciones: manda la central si está, un
+  // voto por integrante): esta página solo lo dibuja.
+  const estado = v.estado_unificado || v.estado;
   const abierta = estado === "abierta" || estado === "pausada";
   $("tarjetaVotacion").classList.toggle("abierta", abierta);
   $("votAbrir").classList.toggle("oculto", abierta);
@@ -416,23 +416,20 @@ function pintarVotacion() {
   // Lo que hace el botón va en un dato aparte: el texto se traduce.
   $("votPausar").dataset.pausada = estado === "pausada" ? "1" : "";
   $("votPausar").textContent = estado === "pausada" ? t("Reanudar") : t("Pausar");
-  $("votTemaActual").textContent = v.tema || central.tema || "";
-  // Totales: los de la central (si hay) más los de los celulares.
-  const opciones = v.opciones && v.opciones.length ? v.opciones
-    : [{ id: "afirmativo", texto: t("Afirmativo") }, { id: "negativo", texto: t("Negativo") }, { id: "abstencion", texto: t("Abstención") }];
-  const tot = {};
-  for (const o of opciones) tot[o.id] = ((central.totales || {})[o.id] || 0) + ((v.totales || {})[o.id] || 0);
+  $("votTemaActual").textContent = v.tema_unificado || v.tema || "";
+  const opciones = v.opciones_unificadas || v.opciones || [];
+  const tot = v.totales_unificados || v.totales || {};
   const max = Math.max(1, ...Object.values(tot));
   const barras = $("votBarras");
   barras.textContent = "";
   for (const o of opciones) {
     const b = el("div", "barra-voto " + o.id);
     const ll = el("div", "lleno");
-    ll.style.width = (100 * tot[o.id] / max) + "%";
+    ll.style.width = (100 * (tot[o.id] || 0) / max) + "%";
     b.appendChild(ll);
     const s = el("span");
     s.appendChild(el("b", "", o.texto));
-    s.appendChild(el("b", "", String(tot[o.id])));
+    s.appendChild(el("b", "", String(tot[o.id] || 0)));
     b.appendChild(s);
     barras.appendChild(b);
   }

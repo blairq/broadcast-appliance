@@ -37,6 +37,10 @@ PlanoControl::~PlanoControl() {
 
 void PlanoControl::arrancar(int controlMs, int interfazMs) {
     if (hilo_.isRunning()) return;
+    {
+        const std::lock_guard<std::mutex> l(paradoMu_);
+        parado_ = false;
+    }
     controlMs_ = std::max(10, controlMs);
     hilo_.start();
     // El reloj del control se crea y arranca en SU hilo (un QTimer solo anda en el suyo).
@@ -52,20 +56,29 @@ void PlanoControl::arrancar(int controlMs, int interfazMs) {
     relojInterfaz_.start(std::max(10, interfazMs));
 }
 
-void PlanoControl::detener() {
+void PlanoControl::detener(const std::function<void()>& alRecibir) {
     relojInterfaz_.stop();
-    if (!hilo_.isRunning()) return;
-    // En el hilo de control: el reloj se va y lo adoptado vuelve al hilo de la interfaz (un
-    // objeto solo se puede «empujar» desde el suyo). Bloquea: el control nunca espera a la
-    // interfaz, así que no hay abrazo mortal. Lo que quedó en la agenda no se hace (el
-    // cierre ordenado lo hace el runtime después, en este hilo).
+    if (!hilo_.isRunning()) {
+        if (alRecibir) alRecibir();
+        return;
+    }
+    // Desde acá lo que se encola va al hilo que recibe el motor; lo que ya estaba encolado
+    // en el control está antes que lo de abajo en su cola, así que llega a la agenda.
+    {
+        const std::lock_guard<std::mutex> l(paradoMu_);
+        parado_ = true;
+    }
+    // En el hilo de control: el reloj se va, la agenda pendiente se lleva y lo adoptado vuelve
+    // al hilo de la interfaz (un objeto solo se puede «empujar» desde el suyo). Bloquea: el
+    // control nunca espera a la interfaz, así que no hay abrazo mortal.
+    std::deque<std::function<void()>> quedo;
     QMetaObject::invokeMethod(
         contexto_,
-        [this]() {
+        [this, &quedo]() {
             delete relojControl_;
             relojControl_ = nullptr;
+            quedo = std::move(agenda_);
             agenda_.clear();
-            agendaPendientes_ = 0;
             for (const QPointer<QObject>& o : adoptados_)
                 if (o && o->thread() == &hilo_) o->moveToThread(interfaz_);
         },
@@ -73,21 +86,40 @@ void PlanoControl::detener() {
     adoptados_.clear();
     hilo_.quit();
     hilo_.wait();
+    // Este hilo es el dueño ahora: lo pendiente corre acá, en orden (el turno lo toma cada
+    // método del motor, como el dueño).
+    if (alRecibir) alRecibir();
+    for (std::function<void()>& fn : quedo) {
+        if (fn) fn();
+        --agendaPendientes_;
+        ++agendaHechas_;
+    }
+}
+
+void PlanoControl::alDuenoNuevo(std::function<void()> fn) {
+    QMetaObject::invokeMethod(this, std::move(fn), Qt::QueuedConnection);
 }
 
 void PlanoControl::encolar(std::function<void()> fn) {
+    const std::lock_guard<std::mutex> l(paradoMu_);
+    if (parado_) return alDuenoNuevo(std::move(fn));
     QMetaObject::invokeMethod(contexto_, std::move(fn), Qt::QueuedConnection);
 }
 
 void PlanoControl::encolarConTurno(std::function<void()> fn) {
+    const std::lock_guard<std::mutex> l(paradoMu_);
+    if (parado_) return alDuenoNuevo(std::move(fn));
     ++agendaPendientes_;
     // A la agenda en su hilo (la deque es solo del control) y se atiende después de lo que
     // esté corriendo: nunca adentro de quien la encoló.
-    encolar([this, fn = std::move(fn)]() mutable {
-        if (agenda_.empty()) agendaDesde_ = std::chrono::steady_clock::now();
-        agenda_.push_back(std::move(fn));
-        if (!agendaReintento_) atenderAgenda();
-    });
+    QMetaObject::invokeMethod(
+        contexto_,
+        [this, fn = std::move(fn)]() mutable {
+            if (agenda_.empty()) agendaDesde_ = std::chrono::steady_clock::now();
+            agenda_.push_back(std::move(fn));
+            if (!agendaReintento_) atenderAgenda();
+        },
+        Qt::QueuedConnection);
 }
 
 void PlanoControl::atenderAgenda() {
@@ -109,16 +141,27 @@ void PlanoControl::atenderAgenda() {
         std::function<void()> fn = std::move(agenda_.front());
         agenda_.pop_front();
         agendaDesde_ = std::chrono::steady_clock::now();
-        if (fn) fn();
-        if (conTurno) turno_.soltar();
+        {
+            // El turno se suelta pase lo que pase en la orden.
+            struct Soltar {
+                const Turno* t;
+                ~Soltar() {
+                    if (t != nullptr) t->soltar();
+                }
+            } soltar{conTurno ? &turno_ : nullptr};
+            if (fn) fn();
+        }
         --agendaPendientes_;
         ++agendaHechas_;
     }
 }
 
 void PlanoControl::despues(int ms, std::function<void()> fn) {
-    // El temporizador se arma en el hilo de control: corre ahí aunque la interfaz no ande.
-    encolar([this, ms, fn = std::move(fn)]() mutable { QTimer::singleShot(ms, contexto_, std::move(fn)); });
+    // El temporizador se arma en el hilo de control: corre ahí aunque la interfaz no ande
+    // (parado, en el que recibió el motor).
+    encolar([this, ms, fn = std::move(fn)]() mutable {
+        QTimer::singleShot(ms, enControl() ? contexto_ : static_cast<QObject*>(this), std::move(fn));
+    });
 }
 
 void PlanoControl::encolarEnInterfaz(std::function<void()> fn) {

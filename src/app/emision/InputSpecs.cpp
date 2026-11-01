@@ -150,6 +150,12 @@ bool esVideoInvitado(const std::string& type, const std::string& settingsJson) {
     return leer(settingsJson).value("video_invitado", false);
 }
 
+std::pair<int, std::string> lugarDeInvitado(const SourceSpec& s) {
+    if (!esVideoInvitado(s.id, s.settingsJson)) return {0, {}};
+    const json j = leer(s.settingsJson);
+    return {j.value("slot", 0), j.value("channel", std::string("guest"))};
+}
+
 std::string ajustesNdi(const std::string& nombre, const std::string& host, int port) {
     std::string esc;
     for (char c : nombre) {

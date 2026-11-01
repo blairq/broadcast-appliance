@@ -50,21 +50,28 @@ nlohmann::json aJson(const platform::EstadoEnergia& e, platform::AccionEnergia a
 EnergiaAire::EnergiaAire(Acciones acciones, QObject* parent) : QObject(parent), acciones_(std::move(acciones)) {
     // Una sola vez, acá: con una lambda Qt no acepta UniqueConnection (la conexión fallaba
     // y la energía nunca se miraba), y vigilar() se puede llamar de nuevo sin duplicarla.
-    connect(&timer_, &QTimer::timeout, this, [this]() { evaluar(platform::leerEnergia()); });
+    connect(&timer_, &QTimer::timeout, this, [this]() { evaluar(leer()); });
 }
 
 void EnergiaAire::vigilar(int cadaMs) {
     timer_.setInterval(cadaMs);
     timer_.start();
-    evaluar(platform::leerEnergia());
+    evaluar(leer());
 }
 
 void EnergiaAire::evaluar(const platform::EstadoEnergia& e) {
     using ba::i18n::llenar;
     using ba::i18n::traducir;
     const platform::AccionEnergia a = platform::decidirEnergia(e, politica());
-    const bool cambio_ = !igual(e, ultimo_) || a != accion_;
-    if (e.enBateria && !ultimo_.enBateria)
+    platform::EstadoEnergia antes;
+    platform::AccionEnergia accionAntes;
+    {
+        const std::lock_guard<std::mutex> l(mu_);
+        antes = ultimo_;
+        accionAntes = accion_;
+    }
+    const bool cambio_ = !igual(e, antes) || a != accionAntes;
+    if (e.enBateria && !antes.enBateria)
         ba::diag::registro().linea(ba::diag::Nivel::Aviso, "energia", 0,
                                    llenar(traducir("energia", "corte de luz: el equipo anda con %1 (%2 %)"),
                                           {e.fuente == "ups" ? traducir("energia", "el UPS") : traducir("energia", "la batería"),
@@ -84,16 +91,22 @@ void EnergiaAire::evaluar(const platform::EstadoEnergia& e) {
         ba::diag::registro().linea(ba::diag::Nivel::Aviso, "energia", 0, texto);
         emit aviso(QString::fromStdString(texto), QStringLiteral("ok"));
     }
-    ultimo_ = e;
-    accion_ = a;
+    {
+        const std::lock_guard<std::mutex> l(mu_);
+        ultimo_ = e;
+        accion_ = a;
+    }
     emergencia_ = acciones_.emergencia();
     if (cambio_) emit cambio();
 }
 
-nlohmann::json EnergiaAire::estado() const { return aJson(ultimo_, accion_, acciones_.emergencia()); }
+nlohmann::json EnergiaAire::estado() const {
+    const std::lock_guard<std::mutex> l(mu_);
+    return aJson(ultimo_, accion_, emergencia_.load());
+}
 
 nlohmann::json EnergiaAire::estadoAhora() const {
-    const platform::EstadoEnergia e = platform::leerEnergia();
+    const platform::EstadoEnergia e = leer();
     return aJson(e, platform::decidirEnergia(e, politica()), emergencia_.load());
 }
 

@@ -18,9 +18,7 @@ PuestoCorreccion::PuestoCorreccion(ConferenceClient& sala, agent::FlujosTexto& f
     demora_.setInterval(80);
     connect(&demora_, &QTimer::timeout, this, &PuestoCorreccion::sincronizar);
     connect(&flujos_, &agent::FlujosTexto::pendientesCambio, &demora_, qOverload<>(&QTimer::start));
-    connect(&sala_, &ConferenceClient::onlineChanged, this, [this](bool on) {
-        if (on) sincronizar();
-    });
+    sala_.registrarRepublicador("correccion", this, [this]() { sincronizar(); });
     // Lo que manda el corrector (la página -> gateway -> SSE).
     connect(&sala_, &ConferenceClient::correccionEvento, this, [this](const QJsonObject& ev) {
         const auto id = static_cast<std::uint64_t>(ev.value("id").toDouble());

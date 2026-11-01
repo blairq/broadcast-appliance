@@ -28,7 +28,11 @@
 // QUIÉN NO: el hilo de salidas del motor, el de los cuadros, los de GStreamer, el pool de la
 // foto del MCP. Lo que ellos tocan tiene su candado o se publica como foto (fotoSalidas,
 // programaVideo, los picos, las vistas), y quien tiene el turno a veces los ESPERA (apagar
-// espera al hilo de salidas): si lo tomaran, sería un abrazo mortal.
+// espera al hilo de salidas): si lo tomaran esperando, sería un abrazo mortal. Si uno de
+// ellos igual entra a un método con Guarda (un error: lo que usa no es suyo), lo toma CON
+// TOPE (si está libre, nadie le cambia el motor debajo; si no, sigue sin él) y la entrada
+// se cuenta por lugar (estado().sin_participar, una línea en el registro la primera vez;
+// con `estricto`, el modo de prueba, como error).
 // ============================================================================
 #pragma once
 
@@ -53,6 +57,8 @@ class TurnoMotor {
     /// Este hilo (la interfaz) participa POR VUELTA: ver arriba.
     static void participarPorVuelta(const char* nombre);
     static bool participa();
+    /// Las entradas de hilos que no participan van al registro como error (--test).
+    static void estricto(bool si);
     /// Suelta el turno de la vuelta, si este hilo lo tiene (fin de un evento de la interfaz).
     static void soltarVuelta();
 
@@ -99,6 +105,7 @@ class TurnoMotor {
     void anotarEntrada() const;
     void entrarPorVuelta(const std::source_location& donde) const;
     void anotarDirecta(const std::source_location& donde) const;
+    void anotarSinParticipar(const std::source_location& donde) const;
 
     mutable std::recursive_timed_mutex mu_;
     mutable std::atomic<std::thread::id> dueno_{};
@@ -109,6 +116,7 @@ class TurnoMotor {
     mutable std::atomic<std::uint64_t> directasTotal_{0};
     mutable std::mutex directasMu_;
     mutable std::map<std::string, std::uint64_t> directas_;
+    mutable std::map<std::string, std::uint64_t> sinParticipar_; ///< (con directasMu_)
 };
 
 } // namespace ba::app

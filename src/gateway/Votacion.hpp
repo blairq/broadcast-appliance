@@ -29,6 +29,14 @@
 // SECRETA quiere decir que no se guarda quién votó qué, no que no se sepa
 // quién votó: para el acta hace falta saber que Fulano votó (si no, no hay
 // cómo probar el quórum) y puede no corresponder saber qué votó.
+//
+// LA URNA ES DE A; ESTO ES SU BORDE. Los teléfonos llegan acá, así que acá se
+// valida y se cuenta al instante; pero cada cambio va a la app (evento
+// «votacion», con la `foto()`), que la guarda en la carpeta del evento. Si la
+// sala se reinicia en medio de una votación, la app se la devuelve entera
+// (`restaurar`) y la urna sigue donde estaba. En una SECRETA la foto no lleva
+// quién votó qué —solo quiénes votaron y cuántos votos tiene cada opción—: lo
+// que vuelve de una caída queda «sellado» (cuenta, pero ya no se puede cambiar).
 // ============================================================================
 #pragma once
 
@@ -77,6 +85,9 @@ class Votacion {
     /// lo que lo vuelve definitivo.
     /// :returns: un motivo vacío si contó; si no, por qué no.
     std::string votar(const std::string& quien, const std::string& codigo, int opcion);
+    /// El código estable de un motivo de votar() («cerrada», «sin_codigo»…), para que la
+    /// página no dependa de cómo está escrita la frase (la frase sigue yendo aparte).
+    static const char* codigoDeMotivo(const std::string& motivo);
 
     /// Lo que ve el operador: el recuento, si está abierta y quién votó (o
     /// solo cuántos, si es secreta).
@@ -97,6 +108,11 @@ class Votacion {
     /// todavía no votó.
     void setMostrarEnVivo(bool si);
 
+    /// Todo lo que hace falta para volver a armarla (ver arriba): lo que la app guarda.
+    nlohmann::json foto() const;
+    /// La vuelve a armar desde una foto (la que guardó la app). Una vacía la deja sin nada.
+    void restaurar(const nlohmann::json& foto);
+
    private:
     mutable std::mutex m_;
     bool abierta_ = false;
@@ -114,6 +130,9 @@ class Votacion {
     /// quién votó qué. La clave es el código (formal) o el navegador
     /// (encuesta).
     std::map<std::string, int> votos_;
+    /// Lo que volvió de una caída en una secreta: cuántos votos por opción (los votantes
+    /// están en votos_ con -1: sellados).
+    std::vector<int> sellados_;
 
     std::vector<nlohmann::json> historial_;
     /// Guarda la que está abierta en el historial. Se llama al cerrar y al

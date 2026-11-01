@@ -445,6 +445,10 @@
       case "speaker":
         onSpeaker(msg);
         break;
+      case "prompter":
+        // El teleprompter principal cambió (la sala lo avisa: no se pregunta cada segundo).
+        if (prompter.timer !== 0) aplicarPrompter(msg.estado);
+        break;
       case "profile":
         state.name = msg.name || state.name;
         $("self-label").textContent = state.name;
@@ -853,32 +857,36 @@
 
   async function leerPrompter() {
     try {
-      const d = await (await fetch("/api/prompter", { cache: "no-store" })).json();
-      prompter.desfaseMs = (d.ahoraMs || Date.now()) - Date.now();
-      if (d.texto !== prompter.texto) {
-        prompter.texto = d.texto || "";
-        prompter.palabras = prompter.texto.split(/\s+/).filter((w) => w !== "");
-      }
-      prompter.pos = d.posicion || 0;
-      prompter.ppm = d.ppm || 140;
-      prompter.corriendo = !!d.corriendo;
-      prompter.desdeMs = d.desdeMs || 0;
-      if (d.aviso !== prompter.aviso && d.aviso) toast(d.aviso, "ok");
-      prompter.aviso = d.aviso || "";
+      aplicarPrompter(await (await fetch("/api/prompter", { cache: "no-store" })).json());
     } catch (e) { /* sin prompter, el panel simplemente no aparece */ }
   }
 
-  /// Se consulta solo mientras esta en modo oradores: al resto de la sala el
-  /// teleprompter no le importa y no hay por que pedirlo.
+  function aplicarPrompter(d) {
+    if (!d || typeof d !== "object") return;
+    prompter.desfaseMs = (d.ahoraMs || Date.now()) - Date.now();
+    // Sin `texto`: es un cambio de lo demás (el texto es el que ya está).
+    if (typeof d.texto === "string" && d.texto !== prompter.texto) {
+      prompter.texto = d.texto;
+      prompter.palabras = prompter.texto.split(/\s+/).filter((w) => w !== "");
+    }
+    prompter.pos = d.posicion || 0;
+    prompter.ppm = d.ppm || 140;
+    prompter.corriendo = !!d.corriendo;
+    prompter.desdeMs = d.desdeMs || 0;
+    if (d.aviso !== prompter.aviso && d.aviso) toast(d.aviso, "ok");
+    prompter.aviso = d.aviso || "";
+  }
+
+  /// Solo mientras esta en modo oradores: al resto de la sala el teleprompter no
+  /// le importa. Se lee una vez; lo que cambia lo avisa la sala por el WebSocket.
   function seguirPrompter(on) {
-    clearInterval(prompter.timer);
     if (!on) {
       prompter.timer = 0;
       $("orador-panel").classList.add("hidden");
       return;
     }
+    prompter.timer = 1;
     leerPrompter().then(pintarOrador);
-    prompter.timer = setInterval(() => { leerPrompter(); }, 1000);
   }
 
   function onSpeaker(msg) {

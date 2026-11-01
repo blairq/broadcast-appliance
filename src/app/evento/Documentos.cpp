@@ -2,6 +2,7 @@
 // src/app/evento/Documentos.cpp — ver Documentos.hpp
 
 #include "evento/Documentos.hpp"
+#include "persist/ArchivoConfig.hpp"
 
 #include "i18n/I18n.hpp"
 
@@ -55,23 +56,12 @@ void aplicar(json& d, const json& c) {
 Documentos::Documentos(fs::path evento) : evento_(std::move(evento)), docs_(evento_ / "docs") {}
 
 json Documentos::leer() const {
-    std::ifstream f(docs_ / "documentos.json");
-    json j = json::parse(f, nullptr, false);
+    const json j = ba::persist::leerJson(docs_ / "documentos.json");
     return j.is_object() && j.contains("documentos") && j["documentos"].is_array() ? j["documentos"] : json::array();
 }
 
 bool Documentos::guardar(const json& l) const {
-    std::error_code ec;
-    fs::create_directories(docs_, ec);
-    const fs::path tmp = docs_ / "documentos.json.tmp";
-    {
-        std::ofstream o(tmp, std::ios::trunc);
-        if (!o) return false;
-        o << json{{"version", 1}, {"documentos", l}}.dump(1, ' ', false, json::error_handler_t::replace);
-        if (!o) return false;
-    }
-    fs::rename(tmp, docs_ / "documentos.json", ec);
-    return !ec;
+    return ba::persist::guardarJson(docs_ / "documentos.json", json{{"version", 1}, {"documentos", l}});
 }
 
 json Documentos::lista() const {

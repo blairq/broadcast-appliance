@@ -16,7 +16,7 @@ std::string RetornosInvitados::poner(int slot, const std::string& modo) {
     if (modo != "mix_minus" && modo != "programa") return ba::i18n::traducir("emision", "retorno: mix_minus o programa");
     if (slot < 1 || slot > rt_.config().guests) return ba::i18n::llenar(ba::i18n::traducir("emision", "no hay un invitado %1"), {std::to_string(slot)});
     rt_.engine().setRetornoInvitado(slot, modo);
-    const auto archivo = rt_.dataRoot() / "Config" / "retornos.json";
+    const auto archivo = ba::persist::archivoConfig("retornos.json");
     nlohmann::json j = config::leerObjeto(archivo);
     j[std::to_string(slot)] = modo;
     if (!config::guardar(archivo, j)) return ba::i18n::traducir("emision", "el retorno rige, pero no se pudo guardar retornos.json");
@@ -26,7 +26,7 @@ std::string RetornosInvitados::poner(int slot, const std::string& modo) {
 std::string RetornosInvitados::modo(int slot) const { return rt_.engine().retornoInvitado(slot); }
 
 void RetornosInvitados::cargar() {
-    const nlohmann::json j = config::leerObjeto(rt_.dataRoot() / "Config" / "retornos.json");
+    const nlohmann::json j = config::leerObjeto(ba::persist::archivoConfig("retornos.json"));
     for (const auto& [slot, modo] : j.items())
         if (modo.is_string() && (modo == "mix_minus" || modo == "programa"))
             rt_.engine().setRetornoInvitado(std::atoi(slot.c_str()), modo.get<std::string>());

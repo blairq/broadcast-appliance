@@ -25,6 +25,7 @@
 
 #include <QByteArray>
 #include <QMetaObject>
+#include <QObject>
 
 #include <functional>
 #include <optional>
@@ -117,6 +118,8 @@ class ControlSala {
     /// El estado de los rótulos para el celular que los encarga (también es su
     /// latido); `listo` recibe los encargos pendientes ({encargos: […]}).
     void publicarRotulos(const nlohmann::json& estado, Listo listo);
+    /// Se lleva los encargos de los celulares (la respuesta trae `encargos`).
+    void tomarRotulos(Listo listo);
     /// El estado público del evento para su página (/evento/).
     void publicarEventoWeb(const nlohmann::json& estado);
     /// Los códigos de votante acreditados en la puerta desde la última vez ({codigos: […]}).
@@ -139,7 +142,8 @@ class ControlSala {
     VentanillaMotor& ventanilla_;
     ConferenceClient& sala_;
     std::optional<bool> atencionPedida_; ///< la pedida, hasta que vuelve la respuesta
-    QMetaObject::Connection alConectar_;
+    nlohmann::json entradaPedida_ = nlohmann::json::object(); ///< {lobby?, locked?}: lo último pedido (se republica)
+    QObject vida_; ///< mientras vive, la sala le pide que republique (ConferenceClient::registrarRepublicador)
     std::function<void()> alTomarArchivo_;
     std::function<void(const std::string&, const std::string&)> alChatear_;
 };

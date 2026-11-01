@@ -8,6 +8,8 @@
 //   5. Secreta no es anonima: se sabe QUIEN voto, no QUE voto.
 //   6. En vivo: el resultado no se ve hasta cerrar, salvo que se deje.
 //   7. Abrir otra no arrastra los votos de la anterior.
+//   8. La urna sobrevive a la sala (G-2): la foto que guarda la app la vuelve a armar
+//      igual; en una secreta la foto no dice quién votó qué y lo que vuelve queda sellado.
 // ============================================================================
 #include <cstdio>
 #include <map>
@@ -196,6 +198,46 @@ void historial() {
     CHECK(v.historial().empty(), "se puede vaciar para el evento siguiente");
 }
 
+void sobrevive() {
+    const std::map<std::string, std::string> padron = {{"AAA", "Ana"}, {"BBB", "Beto"}, {"CCC", "Ceci"}};
+    // Pública: vuelve entera, y se puede seguir votando y cambiando.
+    {
+        Votacion v;
+        v.abrir("¿Punto?", kSiNo, Votacion::Modo::Formal, false, padron, 3, 1000);
+        v.votar("", "AAA", 0);
+        v.votar("", "BBB", 1);
+        const json f = v.foto();
+        Votacion otra;
+        otra.restaurar(f);
+        CHECK(otra.estado() == v.estado(), "la foto la vuelve a armar igual");
+        CHECK(otra.votar("", "AAA", 1).empty(), "y se sigue pudiendo cambiar el voto");
+        CHECK(otra.votar("", "CCC", 0).empty(), "y votar el que faltaba");
+        CHECK(votosDe(otra.estado()["resultado"], "En contra") == 2, "con la cuenta bien");
+    }
+    // Secreta: la foto no lleva quién votó qué; lo que vuelve cuenta pero queda sellado.
+    {
+        Votacion v;
+        v.abrir("¿Secreta?", kSiNo, Votacion::Modo::Formal, true, padron, 3, 1000);
+        v.votar("", "AAA", 0);
+        v.votar("", "BBB", 0);
+        const json f = v.foto();
+        CHECK(!f.contains("votos") && f["votaron"].size() == 2, "la foto de una secreta no dice quién votó qué");
+        Votacion otra;
+        otra.restaurar(f);
+        CHECK(votosDe(otra.estado()["resultado"], "A favor") == 2 && otra.estado()["votaron"] == 2,
+              "los votos de antes cuentan");
+        CHECK(!otra.votar("", "AAA", 1).empty(), "uno sellado no se puede cambiar");
+        CHECK(otra.votar("", "CCC", 1).empty(), "el que faltaba vota");
+        CHECK(votosDe(otra.estado()["resultado"], "En contra") == 1, "y suma");
+        CHECK(otra.estado()["faltanVotar"].empty(), "ya no falta nadie");
+    }
+    // Vacía: sin nada.
+    Votacion v;
+    v.abrir("¿x?", kSiNo, Votacion::Modo::Encuesta, false, {}, 0, 1);
+    v.restaurar(json::object());
+    CHECK(!v.hayAbierta() && v.estado()["hubo"] == false, "una foto vacía la deja sin nada (otro evento)");
+}
+
 } // namespace
 
 int main() {
@@ -205,6 +247,7 @@ int main() {
     en_vivo();
     una_por_vez();
     historial();
+    sobrevive();
     if (g_fallos == 0) std::printf("test_votacion: OK\n");
     return g_fallos == 0 ? 0 : 1;
 }

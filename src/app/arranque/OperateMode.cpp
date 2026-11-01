@@ -97,6 +97,15 @@ void audioDeInvitado(BroadcastEngine& engine, bool conAudio, int slot) {
                                         .c_str());
 }
 
+/// ¿Alguna escena tiene el video del invitado del lugar `slot` por `canal`? La identidad es el
+/// lugar y el canal (de sus ajustes), nunca el nombre («Invitado 2» se puede renombrar).
+bool hayVideoDeInvitado(const AppConfig& c, int slot, const std::string& canal) {
+    for (const auto& sc : c.scenes)
+        for (const auto& s : sc.sources)
+            if (inputs::lugarDeInvitado(s) == std::make_pair(slot, canal)) return true;
+    return false;
+}
+
 extern "C" void onStopSignal(int) { g_stop.store(true); }
 
 std::uint32_t currentPid() {
@@ -307,10 +316,7 @@ void AppRuntime::setEncolarEnDueno(std::function<void(std::function<void()>)> en
 
 void AppRuntime::cederDueno() { dueno_ = std::this_thread::get_id(); }
 
-bool AppRuntime::esDueno() const {
-    const std::thread::id d = dueno_.load();
-    return d == std::thread::id() || d == std::this_thread::get_id();
-}
+bool AppRuntime::esDueno() const { return dueno_.load() == std::this_thread::get_id(); }
 
 void AppRuntime::enDueno(std::function<void()> fn) const {
     if (esDueno() || !encolarEnDueno_) return fn();
@@ -333,7 +339,7 @@ AppRuntime::AjustesAire AppRuntime::ajustesAire() const {
     a.stream = cfg_.streamCfg;
     a.claveEnv = cfg_.streamKeyEnv;
     a.transicionMs = cfg_.transition.durationMs;
-    a.carpetaEvento = carpetaDelEvento_ ? carpetaDelEvento_() : fs::path();
+    a.carpetaEvento = carpetaDelEvento_;
     std::lock_guard<std::mutex> l(ajustesAireMu_);
     ajustesAire_ = a;
     return a;
@@ -352,13 +358,15 @@ void AppRuntime::configure(int argc, char** argv) {
     if (root_.empty()) {
         root_ = bin_;
     }
+    // La raíz única de Config/ del proceso (persist::archivoConfig): la misma para todos.
+    ba::persist::ponerRaizConfig(root_);
     // Volver a la configuración de un evento (histórico, H6): se preparó con
     // la app andando y se aplica acá, antes de que nadie lea Config/.
     {
         const auto ahora = std::chrono::duration_cast<std::chrono::milliseconds>(
                                std::chrono::system_clock::now().time_since_epoch())
                                .count();
-        const nlohmann::json r = ba::evento::FotosConfig::aplicarPendiente(root_ / "Config", ahora);
+        const nlohmann::json r = ba::evento::FotosConfig::aplicarPendiente(ba::persist::raizConfig() / "Config", ahora);
         if (!r.is_null())
             ba::diag::registro().linea(ba::diag::Nivel::Aviso, "historico", 0,
                                        ba::i18n::llenar(ba::i18n::traducir("historico", "se volvió a la configuración de «%1»: %2 (lo de antes en Config/.restaurar/%3)"),
@@ -372,6 +380,13 @@ void AppRuntime::configure(int argc, char** argv) {
     gateway_ = loadGatewaySettings(gatewayConfigPath(root_));
     launcher_ = loadLauncherSettings(launcherConfigPath(root_));
     applyCli(cfg_, argc, argv, root_);
+    // En las pruebas, un hilo que no participa del turno y entra al motor es un error.
+    TurnoMotor::estricto(cfg_.modoPrueba);
+}
+
+std::optional<SourceSpec> AppRuntime::specDe(const std::string& scene, const std::string& name) const {
+    if (const SourceSpec* s = const_cast<AppRuntime*>(this)->findSpec(scene, name)) return *s;
+    return std::nullopt;
 }
 
 SourceSpec* AppRuntime::findSpec(const std::string& scene, const std::string& name) {
@@ -433,17 +448,11 @@ void AppRuntime::ajustarInvitados(int n) {
     // esto, con el cupo en 4 se veían solo 2 invitados en Entradas. Ocultas en la
     // primera escena, como las del arranque: el operador las pone donde quiera.
     if (cfg_.guestVideo && !cfg_.scenes.empty()) {
-        const auto existe = [this](const std::string& nombre) {
-            for (const auto& sc : cfg_.scenes)
-                for (const auto& s : sc.sources)
-                    if (s.name == nombre) return true;
-            return false;
-        };
         for (int slot = antes + 1; slot <= n; ++slot)
             for (const bool share : {false, true}) {
+                if (hayVideoDeInvitado(cfg_, slot, share ? "share" : "guest")) continue;
                 SourceSpec spec = inputs::videoInvitadoSpec(slot, share ? "share" : "guest",
                                                             "Invitado " + std::to_string(slot) + (share ? " — pantalla" : ""));
-                if (existe(spec.name)) continue;
                 spec.visible = false;
                 if (!addSource(cfg_.scenes.front().name, spec))
                     std::printf("ba-app: %s\n", ba::i18n::llenar(ba::i18n::traducir("arranque", "«%1» omitido: %2"),
@@ -459,11 +468,8 @@ void AppRuntime::ajustarInvitados(int n) {
         std::vector<std::pair<std::string, std::string>> sacar; // escena, fuente
         for (const auto& sc : cfg_.scenes)
             for (const auto& s : sc.sources) {
-                if (!inputs::esVideoInvitado(s.id, s.settingsJson)) continue;
-                const nlohmann::json j = nlohmann::json::parse(s.settingsJson.empty() ? "{}" : s.settingsJson, nullptr, false);
-                const std::string canal = j.is_object() ? j.value("channel", std::string("guest")) : "guest";
-                if (j.is_object() && j.value("slot", 0) > n && (canal == "guest" || canal == "share"))
-                    sacar.emplace_back(sc.name, s.name);
+                const auto [slot, canal] = inputs::lugarDeInvitado(s);
+                if (slot > n && (canal == "guest" || canal == "share")) sacar.emplace_back(sc.name, s.name);
             }
         for (const auto& [escena, fuente] : sacar) removeSource(escena, fuente);
     }
@@ -495,7 +501,6 @@ void AppRuntime::addGuests() {
     // Dos canales: el que tiene la palabra y, en un debate entre remotos, el otro (canal 2).
     for (int k = 1; k <= 2; ++k) {
         const std::string sufijo = k == 1 ? "" : " " + std::to_string(k);
-        const std::string slot = std::to_string(k);
         SourceSpec a;
         a.name = "Remoto con la palabra" + sufijo + " (audio)";
         a.id = inputs::kMicType; // por GStreamer (baanillo): su rack corre en la cadena
@@ -504,58 +509,26 @@ void AppRuntime::addGuests() {
             std::printf("ba-app: %s\n", ba::i18n::llenar(ba::i18n::traducir("arranque", "el audio de «%1» no entró: %2"),
                                                          {a.name, engine_.lastError()})
                                             .c_str());
-        bool hayVideo = false, hayContenido = false;
-        const std::string deSlot = "\"slot\":" + slot;
-        for (const auto& sc : cfg_.scenes)
-            for (const auto& s : sc.sources) {
-                if (!inputs::esVideoInvitado(s.id, s.settingsJson) || s.settingsJson.find(deSlot) == std::string::npos) continue;
-                hayVideo = hayVideo || s.settingsJson.find("\"remoto\"") != std::string::npos;
-                hayContenido = hayContenido || s.settingsJson.find("\"remoto_contenido\"") != std::string::npos;
-            }
-        if (!hayVideo && !cfg_.scenes.empty()) {
+        if (!hayVideoDeInvitado(cfg_, k, "remoto") && !cfg_.scenes.empty()) {
             SourceSpec v = inputs::videoInvitadoSpec(k, "remoto", "Remoto con la palabra" + sufijo);
             v.visible = false;
             cfg_.scenes.front().sources.push_back(v);
         }
         // Lo que comparte (su pantalla o la otra cámara del celular), oculto como la pantalla de un invitado.
-        if (!hayContenido && !cfg_.scenes.empty()) {
+        if (!hayVideoDeInvitado(cfg_, k, "remoto_contenido") && !cfg_.scenes.empty()) {
             SourceSpec v = inputs::videoInvitadoSpec(k, "remoto_contenido", "Remoto con la palabra" + sufijo + " — contenido");
             v.visible = false;
             cfg_.scenes.front().sources.push_back(v);
         }
     }
-    // Pantalla o ventana que comparte cada invitado: a pantalla completa y
-    // OCULTA; el operador la muestra cuando la quiere al aire.
-    bool anyShare = false;
-    for (const auto& sc : cfg_.scenes) {
-        for (const auto& s : sc.sources) {
-            anyShare =
-                anyShare || (inputs::esVideoInvitado(s.id, s.settingsJson) && s.settingsJson.find("share") != std::string::npos);
-        }
-    }
-    if (!anyShare && cfg_.guestVideo && !cfg_.scenes.empty()) {
-        for (int slot = 1; slot <= cfg_.guests; ++slot) {
-            SourceSpec spec = inputs::videoInvitadoSpec(slot, "share", "Invitado " + std::to_string(slot) + " — pantalla");
-            spec.visible = false;
-            cfg_.scenes.front().sources.push_back(spec);
-        }
-    }
-    // Cada lugar con su cámara y su pantalla, aunque ya hubiera invitados: si el
-    // cupo se subió (a 4) con escenas que tenían los de 2, los nuevos no se creaban
-    // y en Entradas se veían solo 2. Los que faltan, ocultos en la primera escena.
+    // Cada lugar con su cámara y su pantalla (la pantalla o ventana que comparte, a pantalla
+    // completa), aunque ya hubiera invitados: si el cupo se subió (a 4) con escenas que
+    // tenían los de 2, los nuevos no se creaban y en Entradas se veían solo 2. Los que
+    // faltan, OCULTOS en la primera escena: el operador los muestra cuando los quiere al aire.
     if (cfg_.guestVideo && !cfg_.scenes.empty()) {
-        const auto hay = [this](int slot, const std::string& canal) {
-            for (const auto& sc : cfg_.scenes)
-                for (const auto& s : sc.sources) {
-                    if (!inputs::esVideoInvitado(s.id, s.settingsJson)) continue;
-                    const nlohmann::json j = nlohmann::json::parse(s.settingsJson.empty() ? "{}" : s.settingsJson, nullptr, false);
-                    if (j.is_object() && j.value("slot", 0) == slot && j.value("channel", std::string("guest")) == canal) return true;
-                }
-            return false;
-        };
         for (int slot = 1; slot <= cfg_.guests; ++slot)
             for (const bool share : {false, true}) {
-                if (hay(slot, share ? "share" : "guest")) continue;
+                if (hayVideoDeInvitado(cfg_, slot, share ? "share" : "guest")) continue;
                 SourceSpec spec = inputs::videoInvitadoSpec(slot, share ? "share" : "guest",
                                                             "Invitado " + std::to_string(slot) + (share ? " — pantalla" : ""));
                 spec.visible = false;
@@ -672,7 +645,7 @@ int AppRuntime::start() {
         });
 
     EnginePaths paths;
-    paths.configDir = (root_ / "Config" / "plugin_config").string();
+    paths.configDir = ba::persist::archivoConfig("plugin_config").string();
 
     std::printf("ba-app: %s\n",
                 ba::i18n::llenar(cfg_.safeMode ? ba::i18n::traducir("arranque", "arrancando motor %1x%2@%3, codificador=%4 (modo seguro)")
@@ -683,7 +656,7 @@ int AppRuntime::start() {
     arranque::avisar(ba::i18n::traducir("arranque", "Arrancando el motor de video y audio…"));
     // El reloj del estudio (Video → Sincronía): con él arranca el motor.
     {
-        const nlohmann::json r = config::leerObjeto(root_ / "Config" / "video-reloj.json");
+        const nlohmann::json r = config::leerObjeto(ba::persist::archivoConfig("video-reloj.json"));
         if (!r.empty()) {
             engine_.ponerReloj(r.value("tipo", std::string("sistema")), r.value("servidor", std::string()),
                                r.value("puerto", 0), r.value("dominio", 0));
@@ -714,7 +687,7 @@ int AppRuntime::start() {
         return 2;
     }
     marca(ba::i18n::traducir("arranque", "el motor"));
-    aplicarAjustesMotor(cfg_); // placa sin uso, entradas, transmisión, disco (Configuración)
+    aplicarAjustesMotor(cfg_, engine_); // placa sin uso, entradas, transmisión, disco (Configuración)
     health_.beat(kHealthSlot);
     started_ = true;
     // El audio de cada fuente cambió (por el camino que sea): la parte Mezcla de la foto.
@@ -809,12 +782,6 @@ int AppRuntime::start() {
 
     marca(ba::i18n::traducir("arranque", "los codificadores"));
     if (cfg_.replaySegundos > 0) aplicarReplay();
-    if (cfg_.record) {
-        startRecording();
-    }
-    if (cfg_.stream) {
-        startStreaming();
-    }
     // VOLVER COMO ESTABA, todo acá y de una (F3-04): la escena de cada salida, el negro
     // y la placa, y lo que salía. Antes la placa volvía desde un temporizador de la
     // interfaz, un segundo y medio después y solo con interfaz.
@@ -967,10 +934,7 @@ void AppRuntime::stop() {
     // en un corte de luz con poca batería (F1-11): el que cierra es el sistema que se apaga,
     // no el operador; al-aire.json queda como estaba (sin «cerrado») y al volver se retoma.
     if (!emergenciaEnergia_) {
-        streamStopWanted_ = recordStopWanted_ = true;
-        grabandoOtras_.clear();
-        transmitiendoOtras_.clear();
-        destinosAlAire_.clear();
+        pedidos_.olvidarTodo();
         cerrando_ = true;
     }
     writeOnAirState();
@@ -1009,8 +973,26 @@ std::vector<std::string> AppRuntime::carpetasDeGrabaciones() const {
     return out;
 }
 
-bool AppRuntime::startRecording(const std::string& salida) {
+AppRuntime::AlResultado AppRuntime::alResultado(std::uint64_t orden, AlResultado listo) {
+    return [this, orden, listo = std::move(listo)](const ResultadoOrden& r) {
+        // Desde el hilo de salidas del motor. El documento de aire lo pone la próxima vuelta
+        // del motor (en el dueño); la foto y los que escuchan, ya (avisar se lo encarga).
+        if (pedidos_.resultado(r.salida, r.que == "grabar", orden, r.ok)) {
+            if (!r.ok)
+                ba::diag::registro().linea(
+                    ba::diag::Nivel::Error, "salidas", 0,
+                    ba::i18n::llenar(r.que == "grabar" ? ba::i18n::traducir("salidas", "la grabación de la salida «%1» no arrancó: %2")
+                                                       : ba::i18n::traducir("salidas", "la transmisión de la salida «%1» no arrancó: %2"),
+                                     {r.salida, r.error}));
+            avisar(Cambio::Salidas);
+        }
+        if (listo) listo(r);
+    };
+}
+
+bool AppRuntime::startRecording(const std::string& salida, AlResultado listo) {
     const TurnoMotor::Guarda turno(engine_.turno());
+    errorDelHilo().clear(); // el de una llamada anterior no es de esta (el resultado real llega en `listo`)
     const std::string id = engine_.idDeSalida(salida);
     if (id.empty()) {
         errorDelHilo() = ba::i18n::llenar(ba::i18n::traducir("salidas", "no hay una salida «%1»"), {salida});
@@ -1032,7 +1014,10 @@ bool AppRuntime::startRecording(const std::string& salida) {
     }
     fs::create_directories(rec.directory, ec);
     const EngineStatus antes = engine_.status();
-    if (!engine_.startRecording(rec, codificadorDe(id), id)) {
+    const bool yaPedida = pedidos_.de(id).graba != salidas::Pedidos::Estado::No;
+    const std::uint64_t orden = pedidos_.pedir(id, true);
+    if (!engine_.startRecording(rec, codificadorDe(id), id, alResultado(orden, std::move(listo)))) {
+        if (!yaPedida) pedidos_.dejarDePedir(id, true);
         errorDelHilo() = engine_.lastError();
         std::printf("ba-app: %s\n",
                     ba::i18n::llenar(ba::i18n::traducir("grabacion", "la grabacion no arranco: %1"), {errorDelHilo()}).c_str());
@@ -1042,10 +1027,8 @@ bool AppRuntime::startRecording(const std::string& salida) {
     // El integrado del loudness arranca con la sesión (si no había nada saliendo de esa salida).
     if (porOmision) {
         if (!antes.streaming && !antes.recording) engine_.loudness().reiniciar();
-        recordStopWanted_ = false;
-    } else {
-        if (!engine_.haySalidaEn(id)) engine_.loudness(id).reiniciar();
-        grabandoOtras_.insert(id);
+    } else if (!engine_.haySalidaEn(id)) {
+        engine_.loudness(id).reiniciar();
     }
     writeOnAirState();
     avisar(Cambio::Salidas);
@@ -1090,11 +1073,10 @@ std::vector<std::string> AppRuntime::cerrarGrabacionesPorEnergia() {
     emergenciaEnergia_ = true;
     std::vector<std::string> cerradas;
     for (const std::string& id : engine_.salidaIds()) {
-        const bool graba = id == salidas::kPorOmision ? !recordStopWanted_ : grabandoOtras_.count(id) > 0;
-        if (!graba) continue;
-        // Como la para el operador (EOS: el archivo queda cerrado y se abre), pero anotada.
-        porEnergia_.insert(id);
+        if (pedidos_.de(id).graba == salidas::Pedidos::Estado::No) continue;
+        // Como la para el operador (EOS: el archivo queda cerrado y se abre), pero sigue pedida.
         stopRecording(id);
+        pedidos_.cerrarPorEnergia(id);
         cerradas.push_back(id);
     }
     if (cerradas.empty()) writeOnAirState();
@@ -1104,9 +1086,7 @@ std::vector<std::string> AppRuntime::cerrarGrabacionesPorEnergia() {
 void AppRuntime::retomarGrabacionesPorEnergia() {
     const TurnoMotor::Guarda turno(engine_.turno());
     emergenciaEnergia_ = false;
-    const std::set<std::string> volver = std::move(porEnergia_);
-    porEnergia_.clear();
-    for (const std::string& id : volver) startRecording(id == salidas::kPorOmision ? std::string() : id);
+    for (const std::string& id : pedidos_.tomarCerradasPorEnergia()) startRecording(id == salidas::kPorOmision ? std::string() : id);
     writeOnAirState();
 }
 
@@ -1114,10 +1094,7 @@ void AppRuntime::stopRecording(const std::string& salida) {
     const TurnoMotor::Guarda turno(engine_.turno());
     const std::string id = engine_.idDeSalida(salida);
     if (id.empty()) return;
-    if (id == salidas::kPorOmision)
-        recordStopWanted_ = true;
-    else
-        grabandoOtras_.erase(id);
+    pedidos_.dejarDePedir(id, true);
     writeOnAirState();
     engine_.stopRecording(id);
     avisar(Cambio::Salidas);
@@ -1169,13 +1146,13 @@ salidas::AlAire AppRuntime::aireActual() const {
         const bool po = id == salidas::kPorOmision;
         salidas::Aire& x = a.salidas[id];
         x.escena = engine_.currentScene(id);
-        x.transmitiendo = po ? !streamStopWanted_ : transmitiendoOtras_.count(id) > 0;
-        // Las que cerró el corte de luz siguen pedidas: vuelven con la energía; y las de un
-        // corte que esperan la carpeta del evento (retomarGrabaciones), también.
-        x.grabando = (po ? !recordStopWanted_ : grabandoOtras_.count(id) > 0) || porEnergia_.count(id) > 0 ||
-                     (grabacionesPorRetomar_ && aireAnterior_.de(id).grabando);
-        for (const auto& [destino, salida] : destinosAlAire_)
-            if (salida == id) x.destinos.push_back(destino);
+        // LO PEDIDO (pedidos_), no lo que sale: lo que cerró el corte de luz sigue pedido y
+        // vuelve con la energía; lo de un corte que espera la carpeta del evento
+        // (retomarGrabaciones), también. Una orden que falló ya no está pedida.
+        const PedidoSalida p = pedidos_.de(id);
+        x.transmitiendo = p.transmitePedida();
+        x.grabando = p.grabaPedida() || (grabacionesPorRetomar_ && aireAnterior_.de(id).grabando);
+        x.destinos.assign(p.destinos.begin(), p.destinos.end());
         x.placa = salidas::placaDeJson(engine_.estadoPlaca(po ? std::string() : id));
     }
     return a;
@@ -1244,15 +1221,16 @@ void AppRuntime::avisarPersistencia(const std::string& texto) {
         avisosPersistencia_.push_back(texto);
 }
 
-void AppRuntime::setCarpetaDelEvento(std::function<fs::path()> fn) {
+void AppRuntime::setCarpetaDelEvento(fs::path carpeta) {
     // Es del dueño: la lee ajustesAire() al armar la copia del plano, y desde otro hilo
     // ajustesAire() devuelve esa copia. Puesta desde la interfaz, la grabación que se
     // retomaba enseguida salía con la copia vieja (sin carpeta): iba a Recordings/.
     if (!esDueno() && encolarEnDueno_)
-        return encolarEnDueno_([this, fn = std::move(fn)]() mutable { setCarpetaDelEvento(std::move(fn)); });
-    carpetaDelEvento_ = std::move(fn);
+        return encolarEnDueno_([this, c = std::move(carpeta)]() mutable { setCarpetaDelEvento(std::move(c)); });
+    carpetaDelEvento_ = std::move(carpeta);
+    carpetaSabida_ = true;
     ajustesAire(); // la copia del plano, ya con la carpeta
-    if (carpetaDelEvento_) retomarGrabaciones();
+    retomarGrabaciones();
 }
 
 void AppRuntime::retomarGrabaciones() {
@@ -1262,7 +1240,7 @@ void AppRuntime::retomarGrabaciones() {
     grabacionesPorRetomar_ = false;
     for (const auto& [id, s] : aireAnterior_.salidas) {
         if (!s.grabando || !engine_.existeSalida(id)) continue;
-        if (id == salidas::kPorOmision ? engine_.status().recording : grabandoOtras_.count(id) > 0) continue;
+        if (pedidos_.de(id).grabaPedida()) continue;
         ba::diag::registro().linea(ba::diag::Nivel::Aviso, "arranque", 0,
                                    ba::i18n::llenar(ba::i18n::traducir("arranque", "la corrida anterior no se cerró (corte de luz o cuelgue): se retoma la grabación de la salida «%1»"), {id}));
         if (!startRecording(id))
@@ -1292,6 +1270,10 @@ void AppRuntime::restaurarAire() {
     // El negro y la placa vuelven siempre (son de la máquina, no de la corrida): si la app
     // se cerró o se cayó con la placa puesta, vuelve con la placa puesta.
     placaRestaurada_ = restaurarPlacas(aire);
+    // Lo que pide la línea de comandos (--record, --stream-server) es parte de volver como
+    // estaba: se pide acá, y lo que dice el documento no lo vuelve a pedir (pedidos_).
+    if (cfg_.record) startRecording();
+    if (cfg_.stream) startStreaming();
     // VOLVER COMO ESTABA lo que salía: un cierre ordenado deja el documento en «nada al
     // aire» (stop()). Si dice que se transmitía o grababa, la corrida anterior terminó
     // sin cerrarse (corte de luz, cuelgue, la máquina se apagó): se retoma, también en un
@@ -1334,12 +1316,12 @@ void AppRuntime::restoreOutputs(bool deEstaCorrida) {
     // (setCarpetaDelEvento) después de este arranque; si se retoman antes caen en la
     // carpeta de fábrica, fuera del evento. Sin evento, retomarGrabaciones() a secas.
     grabacionesPorRetomar_ = true;
-    if (carpetaDelEvento_) retomarGrabaciones();
+    if (carpetaSabida_) retomarGrabaciones();
     // TODAS las salidas, cada una con lo suyo: transmisión principal y destinos.
     for (const auto& [id, s] : aire.salidas) {
         if (!engine_.existeSalida(id)) continue;
         const bool po = id == salidas::kPorOmision;
-        if (s.transmitiendo && !engine_.haySalidaEn(id, /*contarGrabacion=*/false)) {
+        if (s.transmitiendo && !pedidos_.de(id).transmitePedida() && !engine_.haySalidaEn(id, /*contarGrabacion=*/false)) {
             ba::diag::registro().linea(ba::diag::Nivel::Aviso, "arranque", 0,
                                        ba::i18n::llenar(ba::i18n::traducir("arranque", "la corrida anterior no se cerró (corte de luz o cuelgue): se retoma la transmisión de la salida «%1»"), {id}));
             // La principal, con su clave de siempre; las demás, con la que usaron (cifrada).
@@ -1385,8 +1367,9 @@ bool AppRuntime::salirAlAireManual(const std::string& server, const std::string&
 }
 
 bool AppRuntime::startStreaming(const std::string& server, const std::string& key, bool cambiarEnCaliente,
-                                const std::string& salida) {
+                                const std::string& salida, AlResultado listo) {
     const TurnoMotor::Guarda turno(engine_.turno());
+    errorDelHilo().clear(); // el de una llamada anterior no es de esta (el resultado real llega en `listo`)
     const AjustesAire a = ajustesAire();
     const std::string id = engine_.idDeSalida(salida);
     if (id.empty()) {
@@ -1407,13 +1390,15 @@ bool AppRuntime::startStreaming(const std::string& server, const std::string& ke
         sc.server = server;
         sc.key = key;
         const bool salia = engine_.haySalidaEn(id);
-        if (!engine_.startStreaming(sc, codificadorDe(id), cambiarEnCaliente, id)) {
+        const bool yaPedida = pedidos_.de(id).transmitePedida();
+        const std::uint64_t orden = pedidos_.pedir(id, false);
+        if (!engine_.startStreaming(sc, codificadorDe(id), cambiarEnCaliente, id, alResultado(orden, std::move(listo)))) {
+            if (!yaPedida) pedidos_.dejarDePedir(id, false);
             errorDelHilo() = engine_.lastError();
             return false;
         }
         if (!salia) engine_.loudness(id).reiniciar();
-        // Para volver tras un corte: que transmitía y adónde (la clave, cifrada).
-        transmitiendoOtras_.insert(id);
+        // Para volver tras un corte: adónde (la clave, cifrada).
         ba::security::CredentialStore::bundle().write(
             credencialDeSalida(id), nlohmann::json{{"server", server}, {"key", key}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
         writeOnAirState();
@@ -1442,7 +1427,10 @@ bool AppRuntime::startStreaming(const std::string& server, const std::string& ke
         return false;
     }
     const EngineStatus antes = engine_.status();
-    if (!engine_.startStreaming(sc, a.encoder, cambiarEnCaliente)) {
+    const bool yaPedida = pedidos_.de(id).transmitePedida();
+    const std::uint64_t orden = pedidos_.pedir(id, false);
+    if (!engine_.startStreaming(sc, a.encoder, cambiarEnCaliente, {}, alResultado(orden, std::move(listo)))) {
+        if (!yaPedida) pedidos_.dejarDePedir(id, false);
         errorDelHilo() = engine_.lastError();
         std::printf("ba-app: %s\n",
                     ba::i18n::llenar(ba::i18n::traducir("salidas", "la transmision no arranco: %1"), {errorDelHilo()}).c_str());
@@ -1450,7 +1438,6 @@ bool AppRuntime::startStreaming(const std::string& server, const std::string& ke
     }
     std::printf("ba-app: %s\n", ba::i18n::llenar(ba::i18n::traducir("salidas", "transmitiendo a %1"), {sc.server}).c_str());
     if (!antes.streaming && !antes.recording) engine_.loudness().reiniciar();
-    streamStopWanted_ = false;
     if (!sc.key.empty()) {
         ba::security::CredentialStore::bundle().write(
             kStreamCredential, nlohmann::json{{"server", sc.server}, {"key", sc.key}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
@@ -1465,10 +1452,7 @@ void AppRuntime::stopStreaming(const std::string& salida) {
     const TurnoMotor::Guarda turno(engine_.turno());
     const std::string id = engine_.idDeSalida(salida);
     if (id.empty()) return;
-    if (id == salidas::kPorOmision)
-        streamStopWanted_ = true;
-    else
-        transmitiendoOtras_.erase(id);
+    pedidos_.dejarDePedir(id, false);
     writeOnAirState();
     engine_.stopStreaming(id);
     avisar(Cambio::Salidas);
@@ -1476,11 +1460,11 @@ void AppRuntime::stopStreaming(const std::string& salida) {
 
 namespace {
 nlohmann::json leerDestinos(const std::filesystem::path& root) {
-    const nlohmann::json j = config::leerObjeto(root / "Config" / "destinos.json").value("destinos", nlohmann::json::array());
+    const nlohmann::json j = config::leerObjeto(ba::persist::archivoConfig("destinos.json")).value("destinos", nlohmann::json::array());
     return j.is_array() ? j : nlohmann::json::array();
 }
 void escribirDestinos(const std::filesystem::path& root, const nlohmann::json& d) {
-    config::guardar(root / "Config" / "destinos.json", {{"destinos", d}});
+    config::guardar(ba::persist::archivoConfig("destinos.json"), {{"destinos", d}});
 }
 } // namespace
 
@@ -1654,7 +1638,8 @@ std::string AppRuntime::borrarDestino(const std::string& id) {
         if (x.value("id", std::string()) != id) nueva.push_back(x);
     if (nueva.size() == lista.size()) return ba::i18n::llenar(ba::i18n::traducir("salidas", "no hay un destino «%1»"), {id});
     engine_.stopExtra(id);
-    if (destinosAlAire_.erase(id) > 0) writeOnAirState();
+    pedidos_.sacarDestino(id);
+    writeOnAirState();
     ba::security::CredentialStore::bundle().remove("stream-" + id);
     escribirDestinos(root_, nueva);
     avisar(Cambio::Salidas);
@@ -1673,9 +1658,11 @@ std::string AppRuntime::iniciarDestino(const std::string& id) {
         ba::security::CredentialStore::bundle().read("stream-" + did, clave);
         if (engine_.startExtra(did, d.value("url", std::string()), clave, codificadorDe(salidas::salidaDeDestino(d)),
                                salidas::salidaDeDestino(d),
-                               d.value("url_respaldo", std::string())))
-            destinosAlAire_[did] = salidas::salidaDeDestino(d); // vuelve tras un corte
-        else
+                               d.value("url_respaldo", std::string()))) {
+            // Pedido en su salida (vuelve tras un corte), en ninguna otra.
+            const std::string sal = engine_.idDeSalida(salidas::salidaDeDestino(d));
+            if (!sal.empty()) pedidos_.ponerDestino(sal, did);
+        } else
             errores += (errores.empty() ? "" : "; ") + did + ": " + engine_.lastError();
     }
     if (!alguno) return ba::i18n::llenar(ba::i18n::traducir("salidas", "no hay un destino «%1» (stream_destinos los lista)"), {id});
@@ -1723,10 +1710,7 @@ nlohmann::json AppRuntime::discoGrabacion() const {
 
 void AppRuntime::detenerDestino(const std::string& id) {
     const TurnoMotor::Guarda turno(engine_.turno());
-    if (id == "todos")
-        destinosAlAire_.clear();
-    else
-        destinosAlAire_.erase(id);
+    pedidos_.sacarDestino(id);
     writeOnAirState();
     if (id == "todos")
         engine_.stopExtras();
@@ -1839,8 +1823,20 @@ bool AppRuntime::renameScene(const std::string& from, const std::string& to) {
         sc->name = to;
     }
     cfg_.currentScene = engine_.currentScene();
+    {
+        const std::lock_guard<std::mutex> l(renombresMu_);
+        renombres_.emplace_back(from, to);
+    }
     avisar(Cambio::Escenas);
     return true;
+}
+
+std::vector<std::pair<std::string, std::string>> AppRuntime::renombresDeEscena(std::size_t& desde) const {
+    const std::lock_guard<std::mutex> l(renombresMu_);
+    std::vector<std::pair<std::string, std::string>> out;
+    for (std::size_t i = desde; i < renombres_.size(); ++i) out.push_back(renombres_[i]);
+    desde = renombres_.size();
+    return out;
 }
 
 std::string AppRuntime::sceneFolder(const std::string& name) const {
@@ -2028,11 +2024,9 @@ std::string AppRuntime::borrarSalida(const std::string& id, const std::string& s
     // Lo que sale de ella (transmisiones, grabación, repetición, limpia) se para con ella.
     if (engine_.existeSalida(id) && !engine_.borrarSalida(id)) return engine_.lastError();
     objetivoLoudness().olvidar(id);
-    grabandoOtras_.erase(id);
     config::guardar(archivoSalidas(), salidas::aJson(l));
-    // Los destinos que salían con ella ya se cortaron (borrarSalida): no vuelven tras un corte.
-    for (auto it = destinosAlAire_.begin(); it != destinosAlAire_.end();)
-        it = it->second == id ? destinosAlAire_.erase(it) : std::next(it);
+    // Lo suyo (y los destinos que salían con ella, ya cortados) no vuelve tras un corte.
+    pedidos_.olvidar(id);
     for (const auto& b : borrados) ba::security::CredentialStore::bundle().remove("stream-" + b);
     escribirDestinos(root_, destinos);
     ba::diag::registro().linea(ba::diag::Nivel::Info, "salidas", 0,
@@ -2344,9 +2338,7 @@ void AppRuntime::rearmarPorGpu() {
     operator_.configure(engine_, cfg_.operatorVideo, cfg_.operatorAudio); // lo que ve el lobby, del motor nuevo
     // Las salidas, como restoreOutputs después de un corte: las de otras salidas se vuelven a
     // anotar al arrancar (startRecording/startStreaming).
-    grabandoOtras_.clear();
-    transmitiendoOtras_.clear();
-    destinosAlAire_.clear();
+    pedidos_.olvidarTodo();
     aireAnterior_ = aire;
     aireAnterior_.cerrado = false;
     restaurarPlacas(aire);
@@ -2453,16 +2445,9 @@ bool pedirReinicioGateway(std::string& error) {
 }
 } // namespace
 
-bool AppRuntime::restartGateway() {
-    std::string e;
-    const bool ok = pedirReinicioGateway(e);
-    if (!ok) errorDelHilo() = e;
-    return ok;
-}
-
 void AppRuntime::reiniciarSalaEnElFondo(std::function<void(const std::string& error)> listo) {
     if (reiniciandoSala_.exchange(true)) {
-        if (listo) listo(ba::i18n::traducir("arranque", "ya se está reiniciando la conferencia"));
+        if (listo) despuesEnDueno([listo, e = ba::i18n::traducir("arranque", "ya se está reiniciando la conferencia")]() { listo(e); });
         return;
     }
     if (reinicioSala_.joinable()) reinicioSala_.join(); // el anterior ya terminó
@@ -2471,7 +2456,7 @@ void AppRuntime::reiniciarSalaEnElFondo(std::function<void(const std::string& er
         std::string e;
         pedirReinicioGateway(e);
         reiniciandoSala_ = false;
-        if (listo) listo(e);
+        if (listo) despuesEnDueno([listo, e]() { listo(e); });
     });
 }
 

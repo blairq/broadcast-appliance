@@ -75,6 +75,7 @@
 #include "ipc/CanalesRegistro.hpp"
 #include "ipc/ControlService.hpp"
 #include "ipc/HealthBlock.hpp"
+#include "ipc/ProtocoloSala.hpp"
 #include "security/CredentialStore.hpp"
 #include "security/SecretsStore.hpp" // randomSecretHex (clave HMAC por arranque)
 
@@ -84,6 +85,7 @@
 #include "Log.hpp"
 #include "Pinggy.hpp"
 #include "BaWeb.hpp"
+#include "Sondeo.hpp"
 
 #include "diag/Caidas.hpp"
 #include "diag/Correlacion.hpp"
@@ -672,11 +674,13 @@ int main(int argc, char** argv) {
         sigCfg.registroWebroot = (guestRoot.parent_path() / "registro").string();
         sigCfg.controlWebroot = (guestRoot.parent_path() / "control").string();
     }
-    // Clave del control del teleprompter: nueva en cada arranque. No hace
-    // falta que sobreviva -- el operador manda el enlace (o el QR) cuando va a
-    // usarlo, y una clave que no se guarda en ningun lado no se filtra.
+    // Las claves de las superficies son del EVENTO: la app las guarda (cifradas) y
+    // se las da a la sala al conectar (POST /api/v1/claves; SignalingServer::Claves),
+    // así un QR impreso sobrevive a un reinicio. Hasta entonces (o sin evento
+    // abierto) valen estas, aleatorias de este arranque.
+    // La del control del teleprompter.
     if (!ba::security::randomSecretHex(16, sigCfg.prompterKey)) sigCfg.prompterKey.clear();
-    // La del puesto de corrección de subtítulos (T44): también por arranque.
+    // La del puesto de corrección de subtítulos (T44).
     if (!ba::security::randomSecretHex(16, sigCfg.correccionKey)) sigCfg.correccionKey.clear();
     // Idem los rotulos, con su propia clave: que el que rotula desde el celular
     // no pueda ademas frenarle el texto al orador.
@@ -684,8 +688,8 @@ int main(int argc, char** argv) {
     // Y la del publico. Esta la tiene TODO el que esta en la sala —viaja en un
     // QR que se proyecta o se reparte—, asi que no es un secreto fuerte y no
     // pretende serlo: es lo que evita que la cola de preguntas la llene
-    // cualquiera que pase por el tunel. Nueva en cada arranque, como las otras:
-    // las preguntas del evento de ayer no son las de hoy.
+    // cualquiera que pase por el tunel. Otro evento, otra clave: las preguntas
+    // del evento de ayer no son las de hoy.
     if (!ba::security::randomSecretHex(16, sigCfg.publicoKey)) sigCfg.publicoKey.clear();
     // La de ba-web (el servidor público adelante del túnel): para que pueda mandar los ids
     // de mirada que juntó su caché. Nueva en cada arranque; le llega por el entorno.
@@ -1000,6 +1004,8 @@ int main(int argc, char** argv) {
             baWeb = std::make_unique<WebSupervisor>(std::move(wc), log);
             WebSupervisor* bw = baWeb.get();
             server.setAlCambiarEventoDir([bw](const std::string& dir) { bw->setEventoDir(dir); });
+            // Cómo anda (se relanzó, se cae seguido): la app se entera (evento «web»).
+            bw->setAlCambiar([&server](const nlohmann::json& e) { server.avisarApp("web", e); });
             if (!baWeb->start()) {
                 server.setAlCambiarEventoDir(nullptr);
                 baWeb.reset();
@@ -1270,7 +1276,10 @@ int main(int argc, char** argv) {
             const nlohmann::json info{{"port", server.adminPort()},
                                       {"token", adminToken},
                                       {"pid", static_cast<long long>(pid)},
-                                      {"guestPort", cfg.port}};
+                                      {"guestPort", cfg.port},
+                                      // El arranque y la versión del contrato (ipc/ProtocoloSala.hpp).
+                                      {"epoch", server.epoch()},
+                                      {"protocolo", ba::ipc::kProtocoloSala}};
             // Cómo encontrar la API de control: puerto y token, legible SOLO por el
             // usuario (0600 en POSIX; en Windows rige la ACL del perfil). La app Qt lo lee.
             if (!ba::persist::escribir(adminFile, info.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace),
@@ -1336,6 +1345,33 @@ int main(int argc, char** argv) {
         }
     }
 
+    // El latido lo da este bucle, pero lo que importa es que la SALA atienda: un B con
+    // este hilo andando y los de HTTP/WS trabados latía igual y el launcher no se enteraba.
+    // Un vigía se pregunta a sí mismo /healthz por la API de control cada 2 s; tres sin
+    // contestar seguidas y se deja de latir (el launcher lo ve colgado, lo vuelca y lo
+    // relanza).
+    std::atomic<bool> atiende{true};
+    std::thread vigiaServicio;
+    if (server.adminPort() != 0)
+        vigiaServicio = std::thread([&atiende, puerto = server.adminPort(), &log]() {
+            ba::platform::nombrarHilo("vigia-servicio");
+            int fallas = 0;
+            while (!g_stop.load(std::memory_order_relaxed)) {
+                for (int i = 0; i < 20 && !g_stop.load(std::memory_order_relaxed); ++i)
+                    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+                if (g_stop.load(std::memory_order_relaxed)) break;
+                fallas = contestaHttp(puerto, "/healthz", 1500) ? 0 : fallas + 1;
+                const bool ok = fallas < 3;
+                if (ok != atiende.load()) {
+                    if (!ok)
+                        log.error(traducir("gateway", "la sala no contesta su propio /healthz: se deja de latir"), -1);
+                    else
+                        log.info(traducir("gateway", "la sala volvió a contestar /healthz"));
+                }
+                atiende.store(ok);
+            }
+        });
+
     while (!g_stop.load(std::memory_order_relaxed)) {
         control.poll([&](const ba::ipc::Message& m) {
             if (m.type == ba::ipc::Type::Shutdown) {
@@ -1351,7 +1387,7 @@ int main(int argc, char** argv) {
             if (elapsed >= cfg.durationMs) break;
         }
         std::this_thread::sleep_for(beatPeriod);
-        health.beat(kHealthSlot);
+        if (atiende.load(std::memory_order_relaxed)) health.beat(kHealthSlot);
         hub.reapViewers(); // espectadores de las vistas web que se fueron sin avisar
         room.tick(std::chrono::duration_cast<std::chrono::milliseconds>(
                       std::chrono::system_clock::now().time_since_epoch())
@@ -1367,6 +1403,7 @@ int main(int argc, char** argv) {
         room.setSinRetorno(pump.lugaresSinRetorno());
     }
 
+    if (vigiaServicio.joinable()) vigiaServicio.join();
     ba::diag::Metricas::proceso().quitarColector(colectorTransporte); // antes que se vaya el pump
     log.info(traducir("gateway", "parando: deteniendo componentes..."));
 

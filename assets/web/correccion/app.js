@@ -69,25 +69,30 @@
     marcar();
   }
 
+  // Una vez al abrir; lo que cambia llega por el canal de control (la app avisa cada
+  // vez que cambian las frases que esperan): nadie pregunta cada medio segundo.
   async function pedir() {
     try {
       const r = await fetch("/api/correccion?k=" + encodeURIComponent(clave), { cache: "no-store" });
       if (r.status === 403) { mostrarEstado(t("la clave no sirve (pedile el enlace nuevo al operador)"), "mal"); return; }
-      const d = await r.json();
-      mostrarEstado(t("conectado"), "ok");
-      desfase = d.edad_ms || 0;
-      const vistos = new Set();
-      for (const p of d.pendientes || []) {
-        vistos.add(p.id);
-        if (!tarjetas.has(p.id)) crear(p);
-        const tj = tarjetas.get(p.id);
-        tj.vence = Date.now() + Math.max(0, (p.resta_ms || 0) - desfase);
-      }
-      // Las que ya salieron (solas o por otro corrector): fuera.
-      for (const [id, tj] of tarjetas) if (!vistos.has(id)) { tj.el.remove(); tarjetas.delete(id); }
-      vacio.classList.toggle("oculto", tarjetas.size > 0);
-      enfocarSiguiente();
+      aplicar(await r.json());
     } catch (e) { mostrarEstado(t("sin conexión"), "mal"); }
+  }
+
+  function aplicar(d) {
+    mostrarEstado(t("conectado"), "ok");
+    desfase = d.edad_ms || 0;
+    const vistos = new Set();
+    for (const p of d.pendientes || []) {
+      vistos.add(p.id);
+      if (!tarjetas.has(p.id)) crear(p);
+      const tj = tarjetas.get(p.id);
+      tj.vence = Date.now() + Math.max(0, (p.resta_ms || 0) - desfase);
+    }
+    // Las que ya salieron (solas o por otro corrector): fuera.
+    for (const [id, tj] of tarjetas) if (!vistos.has(id)) { tj.el.remove(); tarjetas.delete(id); }
+    vacio.classList.toggle("oculto", tarjetas.size > 0);
+    enfocarSiguiente();
   }
 
   function tic() {
@@ -103,5 +108,16 @@
   // Los textos, en el idioma del evento.
   await BAi18n.iniciar({ contexto: "web/correccion", preferir: "evento" });
   if (!clave) mostrarEstado(t("falta la clave en el enlace (#k=…)"), "mal");
-  else { pedir(); setInterval(pedir, 500); setInterval(tic, 100); }
+  else {
+    pedir();
+    window.BACanal.abrir({
+      tipo: "correccion",
+      clave,
+      que: () => BAi18n.llenar(t("%1 esperando"), tarjetas.size),
+      onAviso: (m) => { if (m.type === "correccion") aplicar(m); },
+      onClaveMal: () => mostrarEstado(t("la clave no sirve (pedile el enlace nuevo al operador)"), "mal"),
+      onEstado: (on) => { if (!on) mostrarEstado(t("sin conexión"), "mal"); },
+    });
+    setInterval(tic, 100); // la cuenta regresiva de cada frase (de acá, no del servidor)
+  }
 })();

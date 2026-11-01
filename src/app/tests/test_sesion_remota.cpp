@@ -10,6 +10,7 @@
 
 #include "asamblea/Cuerpo.hpp"
 #include "asamblea/SesionRemota.hpp"
+#include "asamblea/VotacionUnificada.hpp"
 #include "persist/ColaEscritura.hpp"
 
 using namespace ba::app;
@@ -122,6 +123,28 @@ int main(int argc, char** argv) {
     CHECK(comb["totales"].value("negativo", 0) == 2 && comb["totales"].value("afirmativo", 0) == 0,
           "un voto por integrante: vale el del celular");
     CHECK(comb.value("observaciones", json::array()).size() == 1, "queda la observación del doble voto");
+    // Lo que dibuja la consola de presidencia (G-3): resuelto acá, no en la página.
+    {
+        const auto combinar = [&s](const json& n) { return s.resultadoCombinado(n); };
+        const json central{{"estado", "abierta"},
+                           {"tema", "Proyecto 12"},
+                           {"menu", "si_no_abstencion"},
+                           {"totales", {{"afirmativo", 1}, {"negativo", 1}}},
+                           {"nominal", json::array({{{"banca", "7"}, {"voto", "afirmativo"}}, {{"banca", "9"}, {"voto", "negativo"}}})}};
+        json u = asamblea::votacionUnificada(central, s.votacion(), combinar, &asamblea::SesionRemota::opcionesDeMenu);
+        CHECK(u["estado"] == "abierta" && u["totales"].value("negativo", 0) == 2 && u["totales"].value("afirmativo", 0) == 0,
+              "consola: un voto por integrante (no central + celulares sumados)");
+        CHECK(u["totales"].contains("abstencion"), "consola: todas las opciones, aunque estén en cero");
+        json sinNominal = central;
+        sinNominal.erase("nominal");
+        u = asamblea::votacionUnificada(sinNominal, s.votacion(), combinar, &asamblea::SesionRemota::opcionesDeMenu);
+        CHECK(u["totales"].value("negativo", 0) == 2 && u["origen"] == "central + celulares (sumados)",
+              "sin la nominal de la central se suman, y se dice");
+        u = asamblea::votacionUnificada(json::object(), s.votacion(), combinar, &asamblea::SesionRemota::opcionesDeMenu);
+        CHECK(u["origen"] == "celulares" && u["totales"].value("negativo", 0) == 1, "sin central: los celulares");
+        u = asamblea::votacionUnificada({{"estado", "sin_preparar"}}, s.votacion(), combinar, &asamblea::SesionRemota::opcionesDeMenu);
+        CHECK(u["origen"] == "celulares", "una central sin votación preparada no manda");
+    }
     s.cerrarVotacion();
 
     // La palabra: si se le corta y vuelve («hola»), la sigue teniendo con lo que le queda.

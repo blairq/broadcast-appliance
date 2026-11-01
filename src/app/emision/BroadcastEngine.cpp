@@ -532,12 +532,7 @@ bool BroadcastEngine::startup(const EnginePaths& paths, const VideoConfig& video
     // Lo que se le encargó y falló después (las órdenes van en cola: ver
     // Motor::orden). Llega desde el hilo del motor.
     motor_->alFallar([this](const std::string& que, const std::string& error) {
-        std::function<void(const std::string&)> fn;
-        {
-            std::lock_guard<std::mutex> l(falloMotorM_);
-            fn = falloMotor_;
-        }
-        if (fn) fn(ba::i18n::llenar(ba::i18n::traducir("emision", "el motor no pudo hacer «%1»: %2"), {que, error}));
+        avisarFallo(ba::i18n::llenar(ba::i18n::traducir("emision", "el motor no pudo hacer «%1»: %2"), {que, error}));
     });
     // Los vúmetros: cada foto de niveles, al canal que lee la interfaz (NivelesMotor).
     motor_->alPublicarNiveles([c = &nivelesCanal_](std::shared_ptr<const NivelesMotor::Niveles> n) {
@@ -557,7 +552,7 @@ bool BroadcastEngine::startup(const EnginePaths& paths, const VideoConfig& video
         salidasSeguir_ = true;
     }
     {
-        const std::string m = config::leerObjeto(ba::platform::configRoot() / "Config" / "disco.json")
+        const std::string m = config::leerObjeto(ba::persist::archivoConfig("disco.json"))
                                   .value("priorizar_programa", std::string("preguntar"));
         modoDisco_ = m == "auto" ? 1 : m == "nunca" ? 2 : 0;
     }
@@ -905,7 +900,7 @@ void BroadcastEngine::retornoEnUso(bool si, const std::string& salida) {
         soltarVistaRetorno(*s);
 }
 
-void BroadcastEngine::alFallarMotor(std::function<void(const std::string&)> fn) {
+void BroadcastEngine::alFallarMotor(std::function<void(const AvisoMotor&)> fn) {
     std::lock_guard<std::mutex> l(falloMotorM_);
     falloMotor_ = std::move(fn);
 }
@@ -1282,20 +1277,6 @@ void BroadcastEngine::capturarAparte(const std::string& name, int maxWidth, Capt
     }).detach();
 }
 
-bool BroadcastEngine::captureSource(const std::string& name, int maxWidth, std::vector<std::uint8_t>& rgba, int& width,
-                                    int& height) {
-    std::string clave;
-    int w = 0, h = 0;
-    bool esEscena = false;
-    std::string e = prepararCaptura(name, maxWidth, clave, w, h, esEscena);
-    if (e.empty()) e = capturarVista(clave, w, h, esEscena, rgba, width, height);
-    if (!e.empty()) {
-        setError(ba::i18n::llenar(ba::i18n::traducir("emision", "captura: %1"), {e}));
-        return false;
-    }
-    return true;
-}
-
 std::string BroadcastEngine::prepararCaptura(const std::string& name, int maxWidth, std::string& clave, int& w, int& h,
                                              bool& esEscena) const {
     const TurnoMotor::Guarda turno(turno_);
@@ -1454,14 +1435,15 @@ void BroadcastEngine::enSalidas(const std::string& que, std::function<std::strin
     salidasCv_.notify_one();
 }
 
-void BroadcastEngine::avisarFallo(const std::string& texto) {
-    ba::diag::registro().linea(ba::diag::Nivel::Aviso, "salidas", 0, texto);
-    std::function<void(const std::string&)> fn;
+void BroadcastEngine::avisar(const AvisoMotor& a) {
+    ba::diag::registro().linea(a.nivel == AvisoMotor::Nivel::Bien ? ba::diag::Nivel::Info : ba::diag::Nivel::Aviso, "salidas", 0,
+                               a.texto);
+    std::function<void(const AvisoMotor&)> fn;
     {
         std::lock_guard<std::mutex> l(falloMotorM_);
         fn = falloMotor_;
     }
-    if (fn) fn(texto);
+    if (fn) fn(a);
 }
 
 void BroadcastEngine::bucleSalidas() {
@@ -1639,7 +1621,7 @@ void BroadcastEngine::publicarFotoSalidas() {
 }
 
 bool BroadcastEngine::startStreaming(const StreamConfig& stream, const EncoderConfig& enc, bool cambiarEnCaliente,
-                                     const std::string& salida) {
+                                     const std::string& salida, AlResultado alTerminar) {
     const TurnoMotor::Guarda turno(turno_);
     if (!started_) {
         setError(ba::i18n::traducir("emision", "startStreaming sin startup"));
@@ -1659,6 +1641,8 @@ bool BroadcastEngine::startStreaming(const StreamConfig& stream, const EncoderCo
             const bool mismo = (stream.server.empty() || stream.server == s->activeServer) && (stream.key.empty() || stream.key == s->activeKey);
             if (mismo) {
                 t_inicio = Inicio::YaIgual;
+                // La que ya está pedida dice lo suyo cuando termine; esta, ya está.
+                if (alTerminar) alTerminar({s->id, "transmitir", true, {}});
                 return true;
             }
         }
@@ -1683,7 +1667,11 @@ bool BroadcastEngine::startStreaming(const StreamConfig& stream, const EncoderCo
         s->activeKey = stream.key;
     }
     t_inicio = Inicio::Iniciado;
-    enSalidas("startStreaming", [this, s, stream, enc]() { return startStreamingYa(*s, stream, enc); });
+    enSalidas("startStreaming", [this, s, stream, enc, alTerminar = std::move(alTerminar)]() {
+        std::string e = startStreamingYa(*s, stream, enc);
+        if (alTerminar) alTerminar({s->id, "transmitir", e.empty(), e});
+        return e;
+    });
     return true;
 }
 
@@ -1871,7 +1859,8 @@ struct BroadcastEngine::EstadoRemux {
     std::atomic<bool> andando{false}, ok{false};
 };
 
-bool BroadcastEngine::startRecording(const RecordConfig& rec, const EncoderConfig& enc, const std::string& salida) {
+bool BroadcastEngine::startRecording(const RecordConfig& rec, const EncoderConfig& enc, const std::string& salida,
+                                     AlResultado alTerminar) {
     const TurnoMotor::Guarda turno(turno_);
     if (!started_) {
         setError(ba::i18n::traducir("emision", "startRecording sin startup"));
@@ -1881,7 +1870,11 @@ bool BroadcastEngine::startRecording(const RecordConfig& rec, const EncoderConfi
     if (!s) return false;
     {
         std::lock_guard<std::mutex> l(pedidosM_);
-        if (s->grabacionPedida) return true;
+        if (s->grabacionPedida) {
+            // La que ya está pedida dice lo suyo cuando termine; esta, ya está.
+            if (alTerminar) alTerminar({s->id, "grabar", true, {}});
+            return true;
+        }
         s->grabacionPedida = true;
     }
     s->lastRec = rec;
@@ -1900,10 +1893,13 @@ bool BroadcastEngine::startRecording(const RecordConfig& rec, const EncoderConfi
     std::sort(pistas.begin(), pistas.end());
     // Las de las demás salidas llevan su id: dos salidas grabando a la vez no se pisan.
     const std::string nombre = s->porOmision() ? "ba-" + marcaDeTiempo() : "ba-" + s->id + "-" + marcaDeTiempo();
-    enSalidas("startRecording", [this, s, rec, enc, pistas, nombre, remuxA, alTerminar = rec.remuxAlTerminar]() {
+    enSalidas("startRecording", [this, s, rec, enc, pistas, nombre, remuxA, remuxAlTerminar = rec.remuxAlTerminar,
+                                 alTerminar = std::move(alTerminar)]() {
         s->remuxSal = remuxA; // lo que mira stopRecordingYa, en este hilo
-        s->remuxAlTerminarSal = alTerminar;
-        return startRecordingYa(*s, rec, enc, pistas, nombre);
+        s->remuxAlTerminarSal = remuxAlTerminar;
+        std::string e = startRecordingYa(*s, rec, enc, pistas, nombre);
+        if (alTerminar) alTerminar({s->id, "grabar", e.empty(), e});
+        return e;
     });
     return true;
 }
@@ -2080,11 +2076,6 @@ void BroadcastEngine::stopRecordingYa(Salida& s) {
 std::string BroadcastEngine::archivoGrabacion(const std::string& salida) const {
     const TurnoMotor::Guarda turno(turno_);
     return fotoDeSalida(salida).value("grabacion", json::object()).value("archivo", std::string());
-}
-
-std::string BroadcastEngine::archivoCopiaGrabacion(const std::string& salida) const {
-    const TurnoMotor::Guarda turno(turno_);
-    return fotoDeSalida(salida).value("grabacion", json::object()).value("copia", std::string());
 }
 
 nlohmann::json BroadcastEngine::grabacionEstado(const std::string& salida) const {
@@ -2277,11 +2268,9 @@ void BroadcastEngine::ticSalidas() {
 // --- El disco en apuros ---------------------------------------------------------------------
 
 namespace {
-// Umbrales: entra en apuros con 3 s esperando al disco (o el registro trabado
-// 3 s escribiendo); sale con todo al día durante 30 s. Los dos primeros se
-// ajustan en Configuración → Grabación (ponerUmbralesDisco).
-std::atomic<double> kAtrasoApurosS{3.0};
-std::atomic<std::int64_t> kRegistroTrabadoMs{3000}, kBienDuranteMs{30000};
+// Umbrales (VigiaDisco): entra en apuros con 3 s esperando al disco (o el registro trabado
+// 3 s escribiendo); sale con todo al día durante 30 s. Se ajustan en Configuración →
+// Grabación (ponerUmbralesDisco). Para estar «al día», esto:
 constexpr double kAtrasoBienS = 0.5;
 } // namespace
 
@@ -2315,9 +2304,10 @@ void BroadcastEngine::medirDiscoRestante() {
 }
 
 void BroadcastEngine::ponerUmbralesDisco(double apurosS, int recuperadoS) {
-    kAtrasoApurosS = std::clamp(apurosS, 0.5, 60.0);
-    kRegistroTrabadoMs = static_cast<std::int64_t>(kAtrasoApurosS.load() * 1000);
-    kBienDuranteMs = static_cast<std::int64_t>(std::clamp(recuperadoS, 5, 3600)) * 1000;
+    const double s = std::clamp(apurosS, 0.5, 60.0);
+    vigiaDisco_.apurosS = s;
+    vigiaDisco_.registroTrabadoMs = static_cast<std::int64_t>(s * 1000);
+    vigiaDisco_.bienDuranteMs = static_cast<std::int64_t>(std::clamp(recuperadoS, 5, 3600)) * 1000;
 }
 
 std::string BroadcastEngine::modoDisco() const {
@@ -2329,7 +2319,7 @@ std::string BroadcastEngine::setModoDisco(const std::string& modo) {
     const TurnoMotor::Guarda turno(turno_);
     if (modo != "preguntar" && modo != "auto" && modo != "nunca") return ba::i18n::traducir("emision", "modo: preguntar, auto o nunca");
     modoDisco_ = modo == "auto" ? 1 : modo == "nunca" ? 2 : 0;
-    config::guardar(ba::platform::configRoot() / "Config" / "disco.json", {{"priorizar_programa", modo}});
+    config::guardar(ba::persist::archivoConfig("disco.json"), {{"priorizar_programa", modo}});
     // En apuros y ahora «auto»: ya.
     if (modo == "auto") enSalidas("modoDisco", [this]() {
             if (discoApuros_ && !prioridad_) aplicarPrioridad(true, true);
@@ -2394,16 +2384,6 @@ void BroadcastEngine::aplicarPrioridad(bool si, bool automatica) {
                                  : ba::i18n::traducir("disco", "el disco vuelve a ser de todos: siguen las grabaciones pausadas y el registro"));
 }
 
-namespace {
-std::string discoBien(bool habia) {
-    return habia ? ba::i18n::traducir("emision", "El disco anda bien de nuevo: siguen las ISO, la repetición y el registro.")
-                 : ba::i18n::traducir("emision", "El disco anda bien de nuevo.");
-}
-} // namespace
-
-bool BroadcastEngine::esAvisoDeDiscoBien(const std::string& texto) {
-    return texto == discoBien(true) || texto == discoBien(false);
-}
 
 void BroadcastEngine::vigilarDisco() {
     const std::int64_t ahora = ahoraMs();
@@ -2423,7 +2403,8 @@ void BroadcastEngine::vigilarDisco() {
     const ba::diag::EstadoSalida reg = ba::diag::estadoSalidaEstandar();
     atrasoDisco_ = atraso;
     registroTrabadoMs_ = reg.escribiendoMs;
-    const bool mal = atraso > kAtrasoApurosS || reg.escribiendoMs > kRegistroTrabadoMs;
+    const double apurosS = vigiaDisco_.apurosS.load();
+    const bool mal = atraso > apurosS || reg.escribiendoMs > vigiaDisco_.registroTrabadoMs.load();
     const bool bien = atraso < kAtrasoBienS && reg.escribiendoMs < 500;
     if (!discoApuros_ && mal) {
         discoApuros_ = true;
@@ -2431,31 +2412,33 @@ void BroadcastEngine::vigilarDisco() {
         discoBienDesdeMs_ = 0;
         char t[64];
         std::snprintf(t, sizeof t, "%.0f s", atraso);
-        const std::string causa = atraso > kAtrasoApurosS ? ba::i18n::llenar(ba::i18n::traducir("emision", "lo grabado espera %1 para entrar al disco"), {t})
+        const std::string causa = atraso > apurosS ? ba::i18n::llenar(ba::i18n::traducir("emision", "lo grabado espera %1 para entrar al disco"), {t})
                                                           : ba::i18n::traducir("emision", "el registro no puede escribir");
         if (modoDisco_.load() == 1 && grabaPrograma) {
             aplicarPrioridad(true, true);
-            avisarFallo(ba::i18n::llenar(ba::i18n::traducir("emision", "El disco no da abasto (%1): se le dio el disco a la grabación del programa. "
+            avisar({"disco_apuros", AvisoMotor::Nivel::Error, ba::i18n::llenar(ba::i18n::traducir("emision", "El disco no da abasto (%1): se le dio el disco a la grabación del programa. "
                                                                    "Las ISO, la repetición y el registro siguen cuando el disco se recupere."),
-                                         {causa}));
+                                         {causa})});
         } else {
-            avisarFallo(ba::i18n::llenar(
+            avisar({"disco_apuros", AvisoMotor::Nivel::Error, ba::i18n::llenar(
                 grabaPrograma && modoDisco_.load() == 0
                     ? ba::i18n::traducir("emision", "El disco no da abasto (%1). Conviene darle el disco a la grabación del programa (pausar ISO, repetición y registro): "
                                                     "el botón está en el aviso de arriba.")
                     : ba::i18n::traducir("emision", "El disco no da abasto (%1)."),
-                {causa}));
+                {causa})});
         }
     } else if (discoApuros_) {
         if (!bien) {
             discoBienDesdeMs_ = 0;
         } else if (discoBienDesdeMs_ == 0) {
             discoBienDesdeMs_ = ahora;
-        } else if (ahora - discoBienDesdeMs_ > kBienDuranteMs) {
+        } else if (ahora - discoBienDesdeMs_ > vigiaDisco_.bienDuranteMs.load()) {
             discoApuros_ = false;
             const bool habia = prioridad_;
             aplicarPrioridad(false, false);
-            avisarFallo(discoBien(habia));
+            avisar({"disco_bien", AvisoMotor::Nivel::Bien,
+                    habia ? ba::i18n::traducir("emision", "El disco anda bien de nuevo: siguen las ISO, la repetición y el registro.")
+                          : ba::i18n::traducir("emision", "El disco anda bien de nuevo.")});
         }
     }
 }

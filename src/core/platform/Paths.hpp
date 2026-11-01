@@ -98,6 +98,10 @@ std::filesystem::path configRootFor(const std::filesystem::path& datos);
 std::filesystem::path configRoot();
 /// El nombre de la activa ("" en una instalación sin configuraciones).
 std::string configActiva(const std::filesystem::path& datos);
+/// Marca `nombre` como la activa en `<datos>/configuraciones.json`: el ÚNICO que escribe
+/// ese archivo (la app al cambiar de evento, el launcher al prepararlo), por el escritor
+/// único (entero o nada, bajado al disco). false si no quedó escrito.
+bool ponerConfigActiva(const std::filesystem::path& datos, const std::string& nombre);
 
 /// Una ruta para GUARDAR en la configuración: si está dentro de los datos, relativa
 /// a ellos («Modelos/superres/x.onnx»); si no, tal cual. Así la carpeta se puede

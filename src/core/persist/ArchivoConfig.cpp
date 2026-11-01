@@ -5,6 +5,7 @@
 
 #include "diag/Registro.hpp"
 #include "i18n/I18n.hpp"
+#include "platform/Paths.hpp"
 
 #include <mutex>
 #include <set>
@@ -139,6 +140,36 @@ MasNuevos& masNuevos() {
 }
 } // namespace
 
+namespace {
+struct Raiz {
+    std::mutex mu;
+    std::filesystem::path p;
+};
+Raiz& raiz() {
+    static Raiz r;
+    return r;
+}
+} // namespace
+
+void ponerRaizConfig(const std::filesystem::path& p) {
+    Raiz& r = raiz();
+    const std::lock_guard<std::mutex> l(r.mu);
+    r.p = p;
+}
+
+std::filesystem::path raizConfig() {
+    Raiz& r = raiz();
+    {
+        const std::lock_guard<std::mutex> l(r.mu);
+        if (!r.p.empty()) return r.p;
+    }
+    return ba::platform::configRoot();
+}
+
+std::filesystem::path archivoConfig(const std::string& nombre) {
+    return raizConfig() / "Config" / std::filesystem::path(std::u8string(nombre.begin(), nombre.end()));
+}
+
 json leerConfig(const std::filesystem::path& archivo, bool* habia) {
     // Lo último: si hay algo encolado que todavía no está en el disco, eso.
     std::string bytes;
@@ -194,6 +225,22 @@ bool guardarConfig(const std::filesystem::path& archivo, json j, Pedido p) {
 bool guardarConfigYa(const std::filesystem::path& archivo, json j) {
     std::string bytes;
     return preparar(archivo, j, bytes) && escribir(archivo, bytes);
+}
+
+bool guardarJson(const std::filesystem::path& ruta, const json& j, int sangria, Durabilidad d, std::string* error) {
+    return escribir(ruta, j.dump(sangria, ' ', false, json::error_handler_t::replace) + "\n", d, Permisos::Comunes, error);
+}
+
+json leerJson(const std::filesystem::path& ruta) {
+    std::string bytes;
+    if (!cola().leer(ruta, bytes)) return json();
+    json j = json::parse(bytes, nullptr, false);
+    return j.is_discarded() ? json() : j;
+}
+
+json leerObjetoJson(const std::filesystem::path& ruta) {
+    json j = leerJson(ruta);
+    return j.is_object() ? j : json::object();
 }
 
 } // namespace ba::persist

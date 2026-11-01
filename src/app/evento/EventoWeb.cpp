@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // src/app/evento/EventoWeb.cpp — ver EventoWeb.hpp
 #include "i18n/I18n.hpp"
+#include "persist/Escritor.hpp"
 #include "evento/EventoWeb.hpp"
 
 #include <algorithm>
@@ -34,19 +35,7 @@ void reemplazar(std::string& s, const std::string& de, const std::string& a) {
     for (std::size_t p = s.find(de); p != std::string::npos; p = s.find(de, p + a.size())) s.replace(p, de.size(), a);
 }
 
-bool escribir(const fs::path& p, const std::string& texto) {
-    std::error_code ec;
-    fs::create_directories(p.parent_path(), ec);
-    const fs::path tmp = p.string() + ".tmp";
-    {
-        std::ofstream f(tmp, std::ios::binary);
-        if (!f) return false;
-        f << texto;
-        if (!f) return false;
-    }
-    fs::rename(tmp, p, ec);
-    return !ec;
-}
+bool escribir(const fs::path& p, const std::string& texto) { return ba::persist::escribir(p, texto); }
 
 /// FNV-1a de 64 bits en hex: para reconocer una página que sigue tal cual la dejó la plantilla.
 std::string huella(const std::string& t) {

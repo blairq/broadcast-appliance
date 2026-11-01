@@ -37,7 +37,25 @@ $("pinOk").addEventListener("click", () => {
   try { sessionStorage.setItem("rotulos.k", clave); } catch (e) { /* nada */ }
   $("pin").classList.add("hidden");
   mirar();
+  escuchar();
 });
+
+// Lo que cambia (lo que publica la app, si la app está) llega por el canal de control:
+// no se pregunta cada segundo y medio. La clave va en su primer mensaje.
+let canal = null;
+function escuchar() {
+  if (canal) canal.cerrar();
+  canal = null;
+  if (!clave) return;
+  canal = window.BACanal.abrir({
+    tipo: "rotulos",
+    clave,
+    que: () => $("estado").textContent || "",
+    onAviso: (m) => { if (m.type === "rotulos") dibujar(m.estado); },
+    onClaveMal: () => mostrarPin(t("La clave no sirve. Pedile el QR al operador.")),
+    onEstado: (on) => { if (!on) $("estado").textContent = t("sin conexión"); },
+  });
+}
 
 async function mirar() {
   if (!clave) { mostrarPin(); return; }
@@ -170,6 +188,6 @@ function dibujar(est) {
 // (los componentes de neuro.js se traducen solos con el evento ba-idioma)
 BAi18n.iniciar({ contexto: "web/rotulos", preferir: "evento" }).then(() => {
   mirar();
-  setInterval(mirar, 1500);
+  escuchar();
 });
-window.addEventListener("hashchange", () => { clave = claveDelEnlace(); ultimo = ""; mirar(); });
+window.addEventListener("hashchange", () => { clave = claveDelEnlace(); ultimo = ""; mirar(); escuchar(); });

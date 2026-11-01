@@ -12,6 +12,11 @@
 // el desfase contra el reloj del aparato, porque una tablet con la hora
 // corrida arrancaria el texto en cualquier lado.
 //
+// NO PREGUNTA. El estado llega por el canal de control (comun/canal.js) cuando
+// cambia: entero (con el texto) al conectarse y cuando se carga un discurso, y
+// sin el texto en lo demas. El mismo canal es lo que le dice al operador que
+// esta tablet esta prendida.
+//
 // LA POSICION VA EN PALABRAS, no en pixeles: la tablet y el celular tienen
 // pantallas distintas y tienen que hablar del mismo lugar del texto.
 // ============================================================================
@@ -29,10 +34,8 @@
   const clave = new URLSearchParams(location.hash.replace(/^#/, "").replace("control&", "")).get("k") || "";
 
   // QUIEN SOY. El operador necesita ver, antes del discurso, si la tablet del
-  // atril esta prendida. No hace falta un canal aparte: se manda la identidad
-  // en el mismo pedido de estado que ya se hace cada medio segundo. El id se
-  // guarda para que recargar la pagina no aparezca como un aparato nuevo, y el
-  // nombre lo escribe quien la usa ("Atril 1") desde la propia pagina.
+  // atril esta prendida: lo dice el canal (con la vista y el nombre, que lo
+  // escribe quien la usa, "Atril 1", desde la propia pagina).
   const vista = esControl ? "control" : "orador";
   const guardado = (k, v) => {
     try {
@@ -42,11 +45,6 @@
       return ""; // modo privado o storage bloqueado: se anda igual, sin recordar
     }
   };
-  let miId = guardado("ba-prompter-id");
-  if (!miId) {
-    miId = Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
-    guardado("ba-prompter-id", miId);
-  }
   // El nombre del aparato ("Atril 1") es de cada teleprompter: la misma tablet
   // puede ser el atril de uno y despues el de otro.
   const claveNombre = "ba-prompter-nombre" + (prompterId ? "-" + prompterId : "");
@@ -84,12 +82,10 @@
   }
 
   // --- Conversacion con el servidor ----------------------------------------
+  // Una vez al abrir (por si el canal tarda): lo demas llega por el canal.
   async function leer() {
-    const quien =
-      "?vista=" + vista + "&id=" + encodeURIComponent(miId) +
-      (miNombre ? "&nombre=" + encodeURIComponent(miNombre) : "") +
-      (prompterId ? "&p=" + encodeURIComponent(prompterId) : "");
-    const r = await fetch("/api/prompter" + quien, { cache: "no-store" });
+    const r = await fetch("/api/prompter" + (prompterId ? "?p=" + encodeURIComponent(prompterId) : ""),
+                          { cache: "no-store" });
     const d = await r.json();
     aplicar(d);
     return d;
@@ -113,9 +109,11 @@
 
   function aplicar(d) {
     if (!d || typeof d !== "object") return;
-    const textoNuevo = d.texto !== estado.texto;
+    // Sin `texto`: es un cambio de lo demas (el texto es el que ya esta).
+    const conTexto = typeof d.texto === "string";
+    const textoNuevo = conTexto && d.texto !== estado.texto;
     estado.desfaseMs = (d.ahoraMs || Date.now()) - Date.now();
-    estado.texto = d.texto || "";
+    if (conTexto) estado.texto = d.texto;
     estado.titulo = d.titulo || "";
     estado.palabras = d.palabras || 0;
     estado.parrafos = d.parrafos || [];
@@ -319,15 +317,16 @@
     $("lienzo").addEventListener("click", () => mandar({ corriendo: !estado.corriendo }).catch(() => {}));
   }
 
-  // El nombre del aparato: se escribe una vez y viaja en cada pedido de
-  // estado. No se manda aparte porque no hace falta: el proximo pedido (medio
-  // segundo) ya lo lleva.
+  // El nombre del aparato: se escribe una vez, viaja al conectarse el canal y,
+  // si se cambia, por el canal.
+  let canal = null;
   function conectarNombre(campo) {
     if (!campo) return;
     campo.value = miNombre;
     campo.addEventListener("change", () => {
       miNombre = campo.value.trim().slice(0, 40);
       guardado(claveNombre, miNombre);
+      if (canal) canal.mandar({ type: "nombre", nombre: miNombre });
     });
   }
 
@@ -349,11 +348,16 @@
     }
   }
 
-  // Se consulta dos veces por segundo: alcanza, porque entre consulta y
-  // consulta cada vista calcula la posicion sola.
-  const refrescar = () => leer().catch(() => {});
-  refrescar();
-  setInterval(refrescar, 500);
+  // Lo que cambia llega por el canal; entre aviso y aviso cada vista calcula
+  // la posicion sola.
+  leer().catch(() => {});
+  canal = window.BACanal.abrir({
+    tipo: "prompter",
+    idClave: "prompter-" + vista + (prompterId ? "-" + prompterId : ""),
+    extra: { p: prompterId, vista, nombre: miNombre },
+    que: () => (estado.titulo || "") + (estado.corriendo ? " ▶" : ""),
+    onAviso: (m) => { if (m.type === "prompter") aplicar(m.estado); },
+  });
 
   (function cuadro() {
     if (esControl) dibujarControl();

@@ -168,6 +168,10 @@ class ConferenceViewModel;
 class JsonListModel;
 class EventoViewModel;
 class TemaEventoViewModel;
+namespace sala {
+class ClavesEvento;
+class GuardadoEnEvento;
+}
 class LineaViewModel;
 class AtencionViewModel;
 class TotemsViewModel;
@@ -835,6 +839,9 @@ class StudioViewModel : public QObject {
     std::unique_ptr<PantallasViewModel> pantallas_;
     std::unique_ptr<QrViewModel> qr_;
     std::unique_ptr<TemaEventoViewModel> temaEvento_; ///< usa evento_ y conference_: va después
+    std::unique_ptr<sala::ClavesEvento> clavesEvento_; ///< las claves de las superficies, del evento abierto
+    /// La urna y las preguntas del público: llegan a la sala y las guarda el evento.
+    std::unique_ptr<sala::GuardadoEnEvento> urnaEvento_, preguntasEvento_;
     std::unique_ptr<PersonasViewModel> personas_;
     std::unique_ptr<PublicoViewModel> publico_;
     bool publicoPorWeb_ = false; ///< la cola del público se consulta porque el evento tiene página

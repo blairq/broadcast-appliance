@@ -7,6 +7,7 @@
 
 #include "control/BusEventos.hpp"
 #include "comun/UsoPorVistas.hpp"
+#include "diag/LogRotator.hpp"
 #include "diag/Registro.hpp"
 #include "i18n/I18n.hpp"
 
@@ -222,6 +223,13 @@ Botonera::Botonera(const fs::path& datos, BusEventos& bus, Ganchos g, QObject* p
       bus_(bus),
       g_(std::move(g)) {
     cargar();
+    // Logs/botonera.log: lo que se audita (componente «botonera» del registro) lo escribe el
+    // hilo del registro, rotando; quien audita nunca toca el disco.
+    auto diario = std::make_shared<ba::diag::LogRotator>(log_.parent_path().string(), 2u * 1024u * 1024u, 3,
+                                                         log_.filename().string(), false);
+    oyente_ = ba::diag::registro().agregarOyente([diario](const ba::diag::Registrado& r) {
+        if (r.componente == "botonera") diario->write(r.aLinea());
+    });
     // El estado vivo: cualquier tema puede cambiar lo que muestra una celda.
     // Se recalcula a lo sumo cada 50 ms y solo se manda lo que cambió.
     sub_ = bus_.suscribir("#", [this](const std::string& tema, const json&) {
@@ -268,7 +276,10 @@ Botonera::Botonera(const fs::path& datos, BusEventos& bus, Ganchos g, QObject* p
     vencerDispositivos();
 }
 
-Botonera::~Botonera() { bus_.desuscribir(sub_); }
+Botonera::~Botonera() {
+    bus_.desuscribir(sub_);
+    ba::diag::registro().quitarOyente(oyente_);
+}
 
 // ============================================================================
 // Persistencia
@@ -315,16 +326,12 @@ void Botonera::auditar(const std::string& dispositivo, const std::string& que, c
     const std::int64_t ms = ahoraMs();
     const json e{{"ms", ms}, {"dispositivo", dispositivo}, {"que", que}, {"detalle", detalle}};
     auditoria_.push_back(e);
-    // También al registro general: de ahí lo toma la bitácora del evento en curso.
+    // Al registro general (de ahí lo toma la bitácora del evento en curso) y, por su
+    // oyente, a Logs/botonera.log.
     ba::diag::registro().linea(ba::diag::Nivel::Info, "botonera", 0,
-                               dispositivo + " " + que + (detalle.empty() ? "" : " " + detalle));
+                               dispositivo + "  " + que + (detalle.empty() ? "" : "  " + detalle));
     while (auditoria_.size() > kAuditoria()) auditoria_.pop_front();
     emit auditoriaCambio();
-    std::error_code ec;
-    fs::create_directories(log_.parent_path(), ec);
-    std::ofstream o(log_, std::ios::app);
-    o << QDateTime::fromMSecsSinceEpoch(ms).toString(Qt::ISODateWithMs).toStdString() << "  " << dispositivo << "  "
-      << que << "  " << detalle << "\n";
 }
 
 json Botonera::auditoria(std::int64_t desdeMs, const std::string& dispositivo) const {

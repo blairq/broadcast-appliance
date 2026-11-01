@@ -104,28 +104,22 @@ class PublicoViewModel : public QObject {
     void enlaceCambio();
     void notify(const QString& texto, const QString& tipo);
 
-   public:
-    /// Lo que la sala avisa (o el sondeo de respaldo trae): la cola de preguntas y la
-    /// votación. Listos para los eventos de la sala (agente G: preguntas, votación).
-    void aplicarPreguntas(const nlohmann::json& respuesta) { tomarPreguntas(respuesta); }
-    void aplicarVotacion(const nlohmann::json& respuesta) { alVolverVotacion({}, respuesta, {}); }
-
    private:
     void alVolverVotacion(const std::string& error, const nlohmann::json& respuesta, const QString& queFallo);
     void tomarPreguntas(const nlohmann::json& respuesta);
-    /// RESPALDO: cada 2 s mientras alguien mira, hasta que la sala avise con sus eventos.
     void consultar();
 
     ConferenceViewModel* sala_ = nullptr;
     sala::VotacionSala* votacionSala_ = nullptr;
     sala::PreguntasSala* preguntasSala_ = nullptr;
-    QTimer reloj_;
     QVariantList preguntas_;
     QVariantMap recuento_;
     QVariantMap votacion_;
     QVariantMap enlace_;
     bool enLinea_ = false;
-    /// Quiénes lo están mirando (por vista, no un booleano: ver arriba).
+    /// Quiénes lo están mirando (por vista, no un booleano: ver arriba). Lo que cambia
+    /// llega solo (eventos «preguntas» y «votacion» de la sala); al empezar a mirar, y al
+    /// volver la sala, se pregunta una vez.
     UsoPorVistas mirando_{this, [this](const QString&) { alCambiarMirada(); }};
     void alCambiarMirada();
 };

@@ -31,6 +31,14 @@
 
 namespace ba::gateway {
 
+namespace {
+std::uint64_t ahoraMono() {
+    return static_cast<std::uint64_t>(
+        std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count());
+}
+} // namespace
+
+
 using ba::i18n::llenar;
 using ba::i18n::traducir;
 
@@ -385,7 +393,7 @@ void PinggySupervisor::leerLog() {
                           ? llenar(traducir("gateway", "pinggy: túnel listo: %1"), {u})
                           : llenar(traducir("gateway", "pinggy: túnel listo: %1 (TURN %2 %3)"),
                                    {u, despues.turnTipo, despues.turnPublico}));
-            backoffMs_ = 1000;
+            rel_.vigilar(ahoraMono(), true, 0); // listo de verdad: las caídas se olvidan
         } else if (despues.estado == "reconectando" && antes.estado != "reconectando") {
             log_.warn(traducir("gateway", "pinggy: reconectando"), -1);
         } else if (despues.estado == "error" && despues.error != antes.error) {
@@ -399,10 +407,10 @@ void PinggySupervisor::leerLog() {
     pendiente_.erase(0, pos);
 }
 
-void PinggySupervisor::sleepBackoff() {
-    for (int waited = 0; waited < backoffMs_ && !stop_.load(); waited += 100)
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
-    if (backoffMs_ < ba::ajustes::sAMs("gateway.tunelReintentoMaxS", 30)) backoffMs_ *= 2;
+std::uint64_t PinggySupervisor::esperarRelanzar() {
+    const std::uint64_t espera = rel_.caida(ahoraMono());
+    while (!rel_.toca(ahoraMono()) && !stop_.load()) std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    return espera;
 }
 
 void PinggySupervisor::runLoop() {
@@ -430,12 +438,15 @@ void PinggySupervisor::runLoop() {
             break;
         }
         kill();
-        setEstado("reconectando",
-                  llenar(traducir("gateway", "ba-pinggy se cerró; reintento en %1 s"), {std::to_string(backoffMs_ / 1000)}));
+        setEstado("reconectando", traducir("gateway", "ba-pinggy se cerró; reintentando"));
         log_.warn(traducir("gateway", "pinggy: ba-pinggy se cerró; reiniciando con backoff"), -1);
-        sleepBackoff();
+        const std::uint64_t espera = esperarRelanzar();
         if (stop_.load(std::memory_order_relaxed)) break;
-        if (spawn()) ++restartCount_;
+        if (spawn()) {
+            ++restartCount_;
+            rel_.lanzado(ahoraMono());
+        }
+        log_.info(llenar(traducir("gateway", "pinggy: relanzado tras %1 s"), {std::to_string(espera / 1000)}));
     }
 }
 

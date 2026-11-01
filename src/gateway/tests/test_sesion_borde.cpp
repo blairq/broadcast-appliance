@@ -15,6 +15,7 @@
 #endif
 
 #include "Botonera.hpp"
+#include "Borde.hpp"
 #include "Log.hpp"
 #include "MediaRoute.hpp"
 #include "Sesion.hpp"
@@ -53,8 +54,8 @@ int main() {
           {"nombre", "Ana Pérez"},
           {"banca", "12"},
           {"sal", sal},
-          {"hash_token", BotoneraBorde::sha256Hex(sal + token)},
-          {"hash_pin", BotoneraBorde::sha256Hex(sal + ":" + pin + ":" + token)}}}));
+          {"hash_token", ba::gateway::borde::hashConSal(sal + token)},
+          {"hash_pin", ba::gateway::borde::hashConSal(sal + ":" + pin + ":" + token)}}}));
 
     bool pinMal = false;
     CHECK(s.autenticar("leg-1", token, pin, pinMal) == "leg-1" && !pinMal, "link y PIN correctos");
@@ -72,16 +73,16 @@ int main() {
     s.ponerCredenciales(nlohmann::json::array(
         {{{"id", "leg-1"},
           {"sal", sal},
-          {"hash_token", BotoneraBorde::sha256Hex(sal + token)},
-          {"hash_pin", BotoneraBorde::sha256Hex(sal + ":" + pin + ":" + token)}}}));
+          {"hash_token", ba::gateway::borde::hashConSal(sal + token)},
+          {"hash_pin", ba::gateway::borde::hashConSal(sal + ":" + pin + ":" + token)}}}));
     CHECK(s.bloqueado("leg-1"), "el bloqueo sobrevive a que se reenvíen las credenciales");
     // Un link nuevo (regenerado) sí empieza de cero.
     const std::string token2(64, 'c');
     s.ponerCredenciales(nlohmann::json::array(
         {{{"id", "leg-1"},
           {"sal", sal},
-          {"hash_token", BotoneraBorde::sha256Hex(sal + token2)},
-          {"hash_pin", BotoneraBorde::sha256Hex(sal + ":" + pin + ":" + token2)}}}));
+          {"hash_token", ba::gateway::borde::hashConSal(sal + token2)},
+          {"hash_pin", ba::gateway::borde::hashConSal(sal + ":" + pin + ":" + token2)}}}));
     CHECK(!s.bloqueado("leg-1"), "con el link regenerado se desbloquea");
     CHECK(s.autenticar("leg-1", token, pin, pinMal).empty(), "el link viejo ya no anda");
 
@@ -89,10 +90,10 @@ int main() {
     s.ponerCredenciales(nlohmann::json::array(
         {{{"id", "leg-2"},
           {"sal", sal},
-          {"hash_token", BotoneraBorde::sha256Hex(sal + token2)},
-          {"hash_pin", BotoneraBorde::sha256Hex(sal + ":" + pin + ":" + token2)},
+          {"hash_token", ba::gateway::borde::hashConSal(sal + token2)},
+          {"hash_pin", ba::gateway::borde::hashConSal(sal + ":" + pin + ":" + token2)},
           {"usuario", "Banca7"},
-          {"hash_clave", BotoneraBorde::sha256Hex(sal + ":clave:" + "abcdefgh2345")}}}));
+          {"hash_clave", ba::gateway::borde::hashConSal(sal + ":clave:" + "abcdefgh2345")}}}));
     std::string idU;
     bool claveMal = false;
     CHECK(s.autenticarUsuario("banca7", "abcdefgh2345", idU, claveMal) == "leg-2", "usuario (sin mayúsculas) y contraseña");

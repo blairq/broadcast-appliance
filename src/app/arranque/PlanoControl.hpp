@@ -40,6 +40,7 @@
 #include <cstdint>
 #include <deque>
 #include <functional>
+#include <mutex>
 #include <vector>
 
 #include <nlohmann/json.hpp>
@@ -65,9 +66,11 @@ class PlanoControl : public QObject {
     /// Arranca el hilo y los relojes. Idempotente.
     void arrancar(int controlMs = 100, int interfazMs = 100);
     /// Para los relojes, devuelve los objetos adoptados al hilo que creó el plano y
-    /// termina el hilo (espera a lo que esté corriendo). Lo que quedó en la agenda no se
-    /// hace. Idempotente.
-    void detener();
+    /// termina el hilo (espera a lo que esté corriendo). Ese hilo RECIBE EL MOTOR: corre
+    /// `alRecibir` (hacerse dueño) y después, en orden, lo que quedó en la agenda (nada se
+    /// pierde: quien pidió recibe su respuesta). Desde ahí, lo que se encola (`encolar`,
+    /// `encolarConTurno`, `despues`) corre en ese hilo, encolado. Idempotente.
+    void detener(const std::function<void()>& alRecibir = {});
     bool andando() const { return hilo_.isRunning(); }
 
     /// El turno de la agenda (ver arriba). Antes de arrancar.
@@ -121,6 +124,8 @@ class PlanoControl : public QObject {
     void vueltaInterfaz();
     /// Corre lo que se pueda de la agenda (en el hilo de control).
     void atenderAgenda();
+    /// Lo encolado con el plano parado: al hilo que recibió el motor (el que lo creó).
+    void alDuenoNuevo(std::function<void()> fn);
 
     Tareas tareas_;
     Turno turno_;
@@ -132,6 +137,10 @@ class PlanoControl : public QObject {
     std::vector<QPointer<QObject>> adoptados_;
     std::function<bool()> cierre_;
     bool cierreAvisado_ = false;
+    /// Parado (detener): lo que se encola va al hilo que lo creó. Con paradoMu_ se mira y se
+    /// encola junto, así nada cae en el hilo que se está parando.
+    std::mutex paradoMu_;
+    bool parado_ = false;
     // La agenda: solo la toca el hilo de control.
     std::deque<std::function<void()>> agenda_;
     bool agendaReintento_ = false; ///< ya hay un reintento armado

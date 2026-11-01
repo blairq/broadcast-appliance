@@ -31,6 +31,7 @@ std::int64_t desdeMs(bool sale, bool sigue, std::int64_t antes) {
 void AppRuntime::setFoto(std::function<void(std::shared_ptr<const FotoMotor>, unsigned)> publicar) {
     publicarFoto_ = std::move(publicar);
     foto_.reset();
+    trabajo_ = FotoMotor{};
     fotoSucia_ = FotoMotor::Todas | kFotoRelerArchivos;
 }
 
@@ -64,41 +65,18 @@ void AppRuntime::publicarFoto() {
     const unsigned sucias = fotoSucia_.exchange(0);
     if ((sucias & FotoMotor::Todas) == 0) return;
     const TurnoMotor::Guarda turno(engine_.turno());
-    auto f = std::make_shared<FotoMotor>(foto_ ? *foto_ : FotoMotor{});
-    armarFoto(*f, sucias);
+    // Se rearma lo sucio sobre la de trabajo (lo demás sigue como estaba) y se compara
+    // SOLO lo sucio: la foto nueva (una copia) se hace solo si algo cambió de verdad.
+    armarFoto(trabajo_, sucias);
     {
         const std::lock_guard<std::mutex> l(aportesMu_);
         for (const auto& [id, aporte] : aportes_)
-            if (aporte) aporte(*f, sucias);
+            if (aporte) aporte(trabajo_, sucias);
     }
     // Qué cambió de verdad: la interfaz se entera solo de eso.
-    unsigned cambiaron = 0;
-    if (!foto_) {
-        cambiaron = FotoMotor::Todas;
-    } else {
-        const FotoMotor& a = *foto_;
-        const FotoMotor& n = *f;
-        if (n.escenas != a.escenas || n.fuentes != a.fuentes || n.tipos != a.tipos ||
-            n.transicionesEntrada != a.transicionesEntrada)
-            cambiaron |= FotoMotor::Escenas;
-        if (n.salidas != a.salidas || n.tope != a.tope) cambiaron |= FotoMotor::Salidas;
-        if (n.estado != a.estado) cambiaron |= FotoMotor::Estado;
-        if (n.destinos != a.destinos || n.grabacion != a.grabacion || n.limpia != a.limpia || n.isos != a.isos ||
-            n.apurosDisco != a.apurosDisco || n.remux != a.remux || n.retornos != a.retornos)
-            cambiaron |= FotoMotor::Emision;
-        if (n.ajustes != a.ajustes) cambiaron |= FotoMotor::Ajustes;
-        if (n.medios != a.medios || n.salud != a.salud || n.loudness != a.loudness) cambiaron |= FotoMotor::Medidas;
-        if (n.video != a.video || n.fuentesVideo != a.fuentesVideo || n.alAire != a.alAire ||
-            n.configImagen != a.configImagen)
-            cambiaron |= FotoMotor::Video;
-        if (n.configuracion != a.configuracion) cambiaron |= FotoMotor::Configuracion;
-        if (n.equipo != a.equipo) cambiaron |= FotoMotor::Equipo;
-        if (n.sala != a.sala) cambiaron |= FotoMotor::Sala;
-        if (n.dsk != a.dsk || n.temaWeb != a.temaWeb) cambiaron |= FotoMotor::Superficies;
-        if (n.mezcla != a.mezcla) cambiaron |= FotoMotor::Mezcla;
-    }
+    const unsigned cambiaron = foto_ ? FotoMotor::partesDistintas(*foto_, trabajo_, sucias) : unsigned(FotoMotor::Todas);
     if (cambiaron == 0) return;
-    foto_ = f;
+    foto_ = std::make_shared<const FotoMotor>(trabajo_);
     {
         const std::lock_guard<std::mutex> l(ultimaFotoMu_);
         ultimaFoto_ = foto_;
@@ -182,6 +160,9 @@ void AppRuntime::armarFoto(FotoMotor& f, unsigned p) {
                     caida = e.recordingDown;
                 }
             x.sale = engine_.haySalidaEn(id);
+            const PedidoSalida pedido = pedidos_.de(id);
+            x.grabacionPendiente = pedido.graba == salidas::Pedidos::Estado::Pendiente;
+            x.transmisionPendiente = pedido.transmite == salidas::Pedidos::Estado::Pendiente;
             for (const auto& d : destinos)
                 if (salidas::salidaDeDestino(d) == id)
                     x.destinos.push_back({{"id", d.value("id", std::string())},
@@ -221,8 +202,8 @@ void AppRuntime::armarFoto(FotoMotor& f, unsigned p) {
         e.bytes = st.bytesSent;
         e.haySalida = engine_.haySalida();
         e.hayTransmision = engine_.haySalida(false);
-        e.corteGrabacionPedido = recordStopWanted_;
-        e.corteTransmisionPedido = streamStopWanted_;
+        e.corteGrabacionPedido = recordStopWanted();
+        e.corteTransmisionPedido = streamStopWanted();
         e.grabaDesdeMs = desdeMs(e.graba, e.grabacionCaida, e.grabaDesdeMs);
         e.transmiteDesdeMs = desdeMs(e.transmite, e.reconectando, e.transmiteDesdeMs);
     }

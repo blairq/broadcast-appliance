@@ -653,7 +653,8 @@ endif()
                    mcp/McpIndice.cpp mcp/McpEtiquetas.cpp mcp/McpTraza.cpp mcp/McpFoto.cpp mcp/McpMando.cpp
                    emision/DocumentoAire.cpp emision/SalidasConfig.cpp emision/TurnoMotor.cpp
                    emision/VentanillaMotor.cpp emision/VentanillaMotor.hpp emision/NivelesMotor.cpp
-                   evento/EventoStore.cpp evento/Evento.cpp control/Dsk.cpp control/Dsk.hpp)
+                   evento/EventoStore.cpp evento/Evento.cpp control/Dsk.cpp control/Dsk.hpp
+                   arranque/EnergiaAire.cpp arranque/EnergiaAire.hpp)
     # NivelesMotor lee motor/NivelAudio.hpp (sin el motor).
     target_include_directories(test_plano_control PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_SOURCE_DIR}/src/motor")
     target_link_libraries(test_plano_control PRIVATE ba_core Qt6::Core Qt6::Network)
@@ -1354,7 +1355,8 @@ endif()
     set_target_properties(test_seguir_microfono PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_seguir_microfono COMMAND test_seguir_microfono)
     add_executable(test_sesion_remota tests/test_sesion_remota.cpp asamblea/SesionRemota.cpp asamblea/SesionRemota.hpp
-                   asamblea/Cuerpo.cpp ui/FotosPersonas.cpp ui/FotosPersonas.hpp "${CMAKE_SOURCE_DIR}/third_party/qrcodegen/qrcodegen.cpp")
+                   asamblea/Cuerpo.cpp asamblea/VotacionUnificada.cpp ui/FotosPersonas.cpp ui/FotosPersonas.hpp
+                   "${CMAKE_SOURCE_DIR}/third_party/qrcodegen/qrcodegen.cpp")
     target_include_directories(test_sesion_remota PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_SOURCE_DIR}/third_party/qrcodegen")
     target_link_libraries(test_sesion_remota PRIVATE ba_core Qt6::Core)
     set_target_properties(test_sesion_remota PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
@@ -1406,6 +1408,13 @@ endif()
     set_target_properties(test_latido_aire PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_latido_aire COMMAND test_latido_aire)
     set_tests_properties(test_latido_aire PROPERTIES TIMEOUT 60)
+    # A le vuelve a decir a B lo de estado cuando B no lo sabe (G-7): con una B de mentira.
+    add_executable(test_republicadores tests/test_republicadores.cpp ui/ConferenceClient.cpp ui/ConferenceClient.hpp)
+    target_include_directories(test_republicadores PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    target_link_libraries(test_republicadores PRIVATE ba_core Qt6::Core Qt6::Network)
+    set_target_properties(test_republicadores PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
+    add_test(NAME test_republicadores COMMAND test_republicadores)
+    set_tests_properties(test_republicadores PROPERTIES TIMEOUT 60)
     add_executable(test_vocabulario tests/test_vocabulario.cpp agent/Vocabulario.cpp asamblea/Cuerpo.cpp)
     target_include_directories(test_vocabulario PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
     target_link_libraries(test_vocabulario PRIVATE ba_core)
@@ -1448,6 +1457,15 @@ endif()
     target_link_libraries(test_energia_aire PRIVATE ba_core Qt6::Core)
     set_target_properties(test_energia_aire PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_energia_aire COMMAND test_energia_aire)
+    # Lo pedido de cada salida (un solo dueño; el resultado de la orden manda).
+    add_executable(test_pedidos_salida tests/test_pedidos_salida.cpp)
+    target_include_directories(test_pedidos_salida PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    add_test(NAME test_pedidos_salida COMMAND test_pedidos_salida)
+    # Renombrar una escena: la armada y las transiciones de entrada la siguen.
+    add_executable(test_seguir_escenas tests/test_seguir_escenas.cpp)
+    target_include_directories(test_seguir_escenas PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    target_link_libraries(test_seguir_escenas PRIVATE nlohmann_json::nlohmann_json)
+    add_test(NAME test_seguir_escenas COMMAND test_seguir_escenas)
     # Roles y despachador de agentes de un tiro, con un motor falso (script).
     add_executable(test_despachador tests/test_despachador.cpp agent/Despachador.cpp agent/Despachador.hpp
                    agent/Roles.cpp)

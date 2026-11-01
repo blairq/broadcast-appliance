@@ -35,8 +35,7 @@ ControlWebGateway::ControlWebGateway(ControlWeb& control, ConferenceClient& gate
     });
     connect(&cw_, &ControlWeb::credencialesCambio, this, [this]() { sincronizar(); });
     connect(&cw_, &ControlWeb::resuelta, this, [this](const json& cuerpo) { enviar("/api/v1/control/resolver", cuerpo); });
-    connect(&gw_, &ConferenceClient::onlineChanged, this, [this](bool on) {
-        if (!on) return;
+    gw_.registrarRepublicador("control-web", this, [this]() {
         sincronizar();
         reconocerConexiones();
     });

@@ -30,8 +30,9 @@ json Rotulador::estado() const {
     e["publicadoMs"] = publicadoMs_;
     e["ahoraMs"] = ahoraMs();
     // Sin esto, un celular con la app caida mostraria para siempre la escena
-    // que habia, y el que rotula escribiria contra un fantasma.
-    e["viva"] = publicadoMs_ > 0 && (ahoraMs() - publicadoMs_) < 8000;
+    // que habia, y el que rotula escribiria contra un fantasma. La app ya no
+    // publica cada segundo (solo cuando cambia): está si su flujo de eventos lo está.
+    e["viva"] = publicadoMs_ > 0 && (appConectada_ ? appConectada_() : (ahoraMs() - publicadoMs_) < 8000);
     e["pendientes"] = encargos_.size();
     return e;
 }

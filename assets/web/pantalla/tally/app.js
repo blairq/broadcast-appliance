@@ -1,19 +1,17 @@
 // El tally de una cámara: rojo al aire, verde armada, apagado si no.
 //
 // QUE MIRA. `?fuente=<nombre>` es la cámara (o la escena) de esta pantalla.
-// El estado sale de /pantalla/tally.json, que publica la app en cada cambio.
 // Coincide si el nombre es el de la escena al aire O el de una de sus fuentes:
 // así una pantalla puede ser de una cámara («Cam 1») o de un plano entero
 // («02 Invitado 1»), sin dos páginas distintas.
 //
-// NO PREGUNTA CADA MEDIO SEGUNDO. El canal de control avisa cuando algo
-// cambió (mensaje `tally`) y recién ahí se relee. Se consulta igual cada 5 s
-// por si se perdió un aviso: un tally que llega tarde es peor que no tenerlo,
-// porque alguien se confía.
+// NO PREGUNTA. El estado llega entero por el canal de control (mensaje `tally`):
+// al conectarse y en cada cambio, que la app publica apenas pasa. Un tally que
+// llega tarde es peor que no tenerlo, porque alguien se confía.
 //
 // SI SE CAE LA CONEXION NO DICE «LISTO»: dice que no sabe. Un tally apagado
 // se lee como «no estoy al aire», y esa es justo la mentira que no se puede
-// permitir.
+// permitir. El canal se da por caído si se cierra o si se queda mudo (canal.js).
 (async () => {
   "use strict";
   // Los textos, en el idioma del evento.
@@ -24,8 +22,7 @@
   const fuente = (q.get("fuente") || "").trim();
 
   const luz = $("luz");
-  let ultimo = 0;
-  let supoAlgunaVez = false;
+  let caida = null;
 
   function pintar(clase, estado, quien) {
     luz.className = clase;
@@ -40,37 +37,32 @@
     return Array.isArray(lista) && lista.indexOf(fuente) >= 0;
   }
 
-  async function leer() {
-    try {
-      const r = await fetch("../tally.json", { cache: "no-store" });
-      const tl = await r.json();
-      ultimo = Date.now();
-      supoAlgunaVez = true;
-      if (!fuente) {
-        // Sin fuente asignada muestra el estado general, que sirve para una
-        // pantalla de control en la cabina.
-        pintar(tl.aire ? "aire" : "listo", tl.aire ? t("AL AIRE") : t("FUERA"),
-               (tl.aire || "") + (tl.armada ? "   →   " + tl.armada : ""));
-        return;
-      }
-      if (coincide(tl.fuentesAire, tl.aire)) pintar("aire", t("AL AIRE"), fuente);
-      else if (coincide(tl.fuentesArmadas, tl.armada)) pintar("armada", t("PREPARADA"), fuente);
-      else pintar("listo", t("listo"), fuente);
-    } catch (e) {
-      // Hasta que se sepa una vez, se dice que no se sabe. Después se aguanta
-      // un rato antes de avisar: un hipo de red no tiene que apagar la sala.
-      if (!supoAlgunaVez || Date.now() - ultimo > 12000)
-        pintar("caido", t("SIN SEÑAL"), t("no sé si estás al aire"));
+  function sinSenal() { pintar("caido", t("SIN SEÑAL"), t("no sé si estás al aire")); }
+
+  function aplicar(tl) {
+    if (!tl || typeof tl !== "object") return;
+    if (!fuente) {
+      // Sin fuente asignada muestra el estado general, que sirve para una
+      // pantalla de control en la cabina.
+      pintar(tl.aire ? "aire" : "listo", tl.aire ? t("AL AIRE") : t("FUERA"),
+             (tl.aire || "") + (tl.armada ? "   →   " + tl.armada : ""));
+      return;
     }
+    if (coincide(tl.fuentesAire, tl.aire)) pintar("aire", t("AL AIRE"), fuente);
+    else if (coincide(tl.fuentesArmadas, tl.armada)) pintar("armada", t("PREPARADA"), fuente);
+    else pintar("listo", t("listo"), fuente);
   }
 
+  sinSenal(); // hasta que se sepa una vez
   window.BACanal.abrir({
     tipo: "tally",
     que: () => luz.className + (fuente ? " · " + fuente : ""),
     onMostrar: (url) => { location.href = url; },
-    onAviso: (m) => { if (m.type === "tally") leer(); },
+    onAviso: (m) => { if (m.type === "tally") aplicar(m.tally); },
+    // Un hipo de red no tiene que apagar la sala: se aguanta un rato antes de avisar.
+    onEstado: (on) => {
+      clearTimeout(caida);
+      if (!on) caida = setTimeout(sinSenal, 12000);
+    },
   });
-
-  leer();
-  setInterval(leer, 5000);
 })();

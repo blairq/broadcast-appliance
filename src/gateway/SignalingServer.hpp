@@ -83,7 +83,9 @@
 #pragma once
 
 #include <atomic>
+#include <condition_variable>
 #include <cstdint>
+#include <deque>
 #include <functional>
 #include <map>
 #include <memory>
@@ -144,7 +146,7 @@ class SignalingServer {
         /// remoto (la tablet igual muestra el texto).
         std::string prompterKey;
         std::string correccionWebroot; // Web/correccion (puesto del corrector de subtítulos, T44)
-        std::string correccionKey;     // clave del puesto: nueva en cada arranque
+        std::string correccionKey;     // clave del puesto (la de arranque; ver Claves)
         std::string rotulosWebroot;  // Web/rotulos (los rotulos desde el celular)
         std::string pantallaWebroot; // Web/pantalla (lo que se manda a un televisor)
         std::string castWebroot;     // Web/cast (el programa en vivo, para un televisor)
@@ -279,8 +281,19 @@ class SignalingServer {
     /// segundos, y una imagen repetida en cada respuesta es el mismo fondo
     /// mandado mil veces. Asi va una vez y el navegador la cachea.
     void setPublicoFondo(std::string bytes, std::string tipo);
-    const std::string& rotulosKey() const { return cfg_.rotulosKey; }
-    const std::string& prompterKey() const { return cfg_.prompterKey; }
+    /// Las claves de las superficies de la sala. Son del EVENTO: las genera y guarda la
+    /// app (cifradas) y se las pasa a la sala al conectar (POST /api/v1/claves), así un
+    /// QR impreso sigue andando tras una caída o un reinicio de la sala. Hasta que la
+    /// app las da, valen las de este arranque (Cfg y la del tablero, aleatorias).
+    struct Claves {
+        std::string prompter, correccion, rotulos, publico, tablero;
+    };
+    Claves claves() const;
+    /// Cambia las que vienen ({prompter?, correccion?, rotulos?, publico?, tablero?}, cada
+    /// una en hexadecimal de 16 a 128). "" si quedaron; si no, cuál está mal (y no cambia nada).
+    std::string ponerClaves(const nlohmann::json& c);
+    std::string rotulosKey() const { return claves().rotulos; }
+    std::string prompterKey() const { return claves().prompter; }
 
     /// true si el offer es de SOLO RECEPCION (ninguna pista sube). Lo que
     /// decide es el SDP, no la buena fe del cliente: el token de ingreso de
@@ -304,6 +317,9 @@ class SignalingServer {
     nlohmann::json direcciones() const;
     /// El origen de un servicio, "local" o "remote": {origen, url} o {error, message}.
     nlohmann::json origenDe(const std::string& servicio, const std::string& donde) const;
+    /// El enlace de un servicio para el operador: su origen ("local" o "remote") + `ruta`,
+    /// con el QR: {ok, target, url, size, modules, message?}, o {ok: false, message} sin origen.
+    nlohmann::json enlaceConQr(const std::string& servicio, const std::string& target, const std::string& ruta) const;
     /// Genera la configuracion del servidor WireGuard (/api/v1/network/server-config).
     void setServerConfigGenerator(std::function<nlohmann::json(const nlohmann::json&)> fn) {
         serverConfig_ = std::move(fn);
@@ -323,8 +339,8 @@ class SignalingServer {
     /// con otro día se genera uno nuevo. Vacío si no hay o es de otro día.
     static std::string pinDeHoy();
     static void guardarPinDeHoy(const std::string& pin);
-    /// Clave del tablero de oradores (aleatoria por arranque).
-    const std::string& boardToken() const { return boardToken_; }
+    /// Clave del tablero de oradores (ver Claves).
+    std::string boardToken() const { return claves().tablero; }
 
    private:
     // --- Conexiones ---------------------------------------------------------
@@ -371,6 +387,10 @@ class SignalingServer {
                          const std::string& query, const std::string& headers, const std::string& body,
                          std::uint32_t clientIp);
     bool serveStatic(long long fd, const std::string& root, const std::string& relPath);
+    /// Una página de la sala en su carpeta (/<prefijo>/…): la redirección sin la barra, el
+    /// index y el 404. true si `path` era suyo (ya contestado).
+    bool servirCarpeta(long long fd, const std::string& method, const std::string& path, const std::string& prefijo,
+                       const std::string& webroot);
     void apiJoin(long long fd, const std::string& body, std::uint32_t clientIp);
     void apiVerify(long long fd, const std::string& query);
     void apiUpload(long long fd, const std::string& headers, const std::string& query);
@@ -469,16 +489,77 @@ class SignalingServer {
     bool adminAuthorized(const std::string& headers, const std::string& method) const;
     /// PUT /api/v1/config/<sección>: la configuración en caliente (F3-06; ver sala/ConfigSala.hpp de la app).
     void aplicarConfig(long long fd, const std::string& seccion, const nlohmann::json& req);
-    void adminEvents(long long fd);
+    void adminEvents(long long fd, const std::string& headers);
     void adminShareContent(long long fd, const std::string& id);
     void broadcastToHosts(const std::string& event, const nlohmann::json& data);
+    /// Lo que una superficie recién conectada tiene que mostrar, según su tipo.
+    void saludarSuperficie(const std::string& pid);
+    /// ¿La clave del pedido es `esperada`? La da la cabecera X-BA-Clave o, si no está, como
+    /// se daba antes en esa superficie (`comoAntes`: ?k=, el cuerpo, X-BA-Board).
+    static bool claveValida(const std::string& headers, const std::string& comoAntes, const std::string& esperada);
+    /// La clave que tiene que decir una superficie de ese tipo ("" = ninguna).
+    std::string claveDeSuperficie(const std::string& tipo) const;
+    /// Lo que se les manda a las superficies de `que` (rotulos, correccion, votacion).
+    nlohmann::json mensajeDeSuperficie(const std::string& que);
+    /// Cambió `que`: a las que lo muestran (no preguntan, se les avisa).
+    void empujarASuperficies(const std::string& que);
+    /// Cambió un teleprompter (o quién lo mira): evento «prompter» a A ({prompter,
+    /// estado, clientes}; con el texto solo si `conTexto`, que es lo pesado) y, con
+    /// `aPaginas`, el estado a sus páginas por el canal (ellas tienen el texto).
+    void avisarPrompter(const std::string& id, bool conTexto, bool aPaginas);
+    /// Cambió la urna o la cola de preguntas: evento a A, que es quien las guarda
+    /// (con la foto entera y de qué evento son).
+    void avisarVotacion();
+    void avisarPreguntas();
+    /// Cambió el tema de las páginas (el de las interfaces o el del evento).
+    void avisarTema();
+    /// Quiénes lo miran: los del canal y los que todavía preguntan por HTTP.
+    nlohmann::json clientesPrompter(const std::string& id, const Prompter& p) const;
 
+    // --- Los eventos a la app (SSE) -------------------------------------------
+    // Cada evento lleva un id «<epoch>:<n>». Los de UN SOLO DISPARO (una solicitud de la
+    // botonera, una corrección, un intento de la sesión…) quedan además en una cola corta:
+    // si la app se desconectó un momento, al volver con Last-Event-ID se le mandan los que
+    // se perdió. Los de ESTADO (room, programa, direcciones…) no: al reconectar recibe la
+    // foto entera, que es más nueva. Ver adminEvents.
+    //
+    // Nadie le escribe a la app desde el hilo que emite: cada conexión tiene su cola y su
+    // propio hilo (el de la conexión) que escribe. Una app trabada llena SU cola y, pasado
+    // el tope, se le corta el flujo (vuelve a entrar y recibe la foto): el hilo del
+    // WebSocket de un invitado, que es el que suele emitir, nunca espera a la app.
     struct SseConn {
         long long fd = -1;
-        std::mutex sendLock;
+        std::mutex m;
+        std::condition_variable cv;
+        std::deque<std::string> cola;
+        std::size_t bytes = 0;
+        std::uint64_t ultimo = 0; ///< el último evento que ya está en su cola
+        bool cortar = false;      ///< la cola se llenó: se la corta
     };
+    /// El arranque de esta sala: va en el primer `room` y en cada id de evento. Uno
+    /// distinto le dice a la app que esta sala no sabe nada de lo que ella le había dicho.
+    std::string epoch_;
     std::vector<std::shared_ptr<SseConn>> sse_;
-    std::mutex sseLock_;
+    std::mutex sseLock_; ///< sse_, sseSeq_, guardados_ y descartadoHasta_
+    std::uint64_t sseSeq_ = 0;
+    struct EventoGuardado {
+        std::uint64_t seq = 0;
+        std::string texto; ///< el evento ya armado (id, event, data)
+    };
+    std::deque<EventoGuardado> guardados_; ///< los de un solo disparo, los últimos
+    std::uint64_t descartadoHasta_ = 0;    ///< el último que se cayó de la cola corta
+    /// Lo encola en una conexión (con sseLock_ tomado: así cada cola sale en orden).
+    static void encolarSse(SseConn& c, std::uint64_t seq, const std::string& texto);
+
+   public:
+    /// El de este arranque (también en gateway-admin.json).
+    const std::string& epoch() const { return epoch_; }
+    /// Un evento a la app de algo que no es de este servidor (los vigías de main: ba-web).
+    void avisarApp(const std::string& evento, const nlohmann::json& datos) { broadcastToHosts(evento, datos); }
+    /// ¿Es un evento de estado (la foto al reconectar lo cubre) y no de un solo disparo?
+    static bool eventoDeEstado(const std::string& event);
+
+   private:
 
     Cfg cfg_;
     TokenAuth& auth_;
@@ -530,6 +611,8 @@ class SignalingServer {
     Votacion votacion_;
     mutable std::mutex publicoM_;
     nlohmann::json publicoInfo_ = nlohmann::json::object();
+    /// De qué evento son la urna y las preguntas (lo dice A al restaurarlas o abrir).
+    std::string eventoVotacion_, eventoPreguntas_;
     /// Los que miran la página del evento: id del navegador (lo manda el marco) → última vez.
     std::map<std::string, std::int64_t> mirando_;
     mutable std::mutex eventoWebM_;
@@ -590,7 +673,8 @@ class SignalingServer {
     std::function<std::string(bool externo)> ice_;
     std::map<std::string, std::string> avatars_; // pid -> JPEG (solo en memoria)
     std::mutex avatarsLock_;
-    std::string boardToken_;
+    mutable std::mutex clavesM_;
+    Claves claves_;
     /// Reescribe 127.0.0.1 -> IP publica en un candidato ("candidate:...").
     std::string publicCandidate(const std::string& line) const;
 

@@ -98,6 +98,7 @@ bool Votacion::abrir(const std::string& pregunta, const std::vector<std::string>
     habilitados_ = habilitados;
     // Los votos de la anterior NO se arrastran: son de otra pregunta.
     votos_.clear();
+    sellados_.clear();
     return true;
 }
 
@@ -160,15 +161,31 @@ std::string Votacion::votar(const std::string& quien, const std::string& codigo,
         clave = quien;
     }
     // Volver a votar CAMBIA el voto: alguien que se equivoco de boton tiene que
-    // poder arreglarlo, y cerrar la urna es lo que lo vuelve definitivo.
+    // poder arreglarlo, y cerrar la urna es lo que lo vuelve definitivo. Salvo uno
+    // sellado (ver restaurar): cuenta, pero no se sabe cuál era para sacarlo.
+    if (const auto it = votos_.find(clave); it != votos_.end() && it->second < 0)
+        return QT_TRANSLATE_NOOP("web/comun", "tu voto ya esta contado");
     votos_[clave] = opcion;
     return {};
+}
+
+const char* Votacion::codigoDeMotivo(const std::string& m) {
+    static const std::pair<const char*, const char*> tabla[] = {
+        {"la votacion no esta abierta", "cerrada"},
+        {"esa opcion no existe", "opcion"},
+        {"falta el codigo: en una votacion formal hay que identificarse", "sin_codigo"},
+        {"ese codigo no figura entre los que pueden votar", "codigo_invalido"},
+        {"no se de que telefono viene", "sin_telefono"},
+        {"tu voto ya esta contado", "sellado"}};
+    for (const auto& [motivo, codigo] : tabla)
+        if (m == motivo) return codigo;
+    return m.empty() ? "" : "otro";
 }
 
 json Votacion::recuentoSinLock() const {
     json conteo = json::array();
     for (std::size_t i = 0; i < opciones_.size(); ++i) {
-        int n = 0;
+        int n = i < sellados_.size() ? sellados_[i] : 0;
         for (const auto& [k, v] : votos_)
             if (v == static_cast<int>(i)) ++n;
         conteo.push_back(json{{"opcion", opciones_[i]}, {"votos", n}});
@@ -204,7 +221,7 @@ json Votacion::estadoSinLock() const {
             // SECRETA no es anonima: para el acta hace falta saber QUE FULANO
             // VOTO —si no, no hay como probar el quorum— y puede no
             // corresponder saber QUE voto.
-            if (!secreta_) q["opcion"] = opciones_[static_cast<std::size_t>(opcion)];
+            if (!secreta_ && opcion >= 0) q["opcion"] = opciones_[static_cast<std::size_t>(opcion)];
             quienes.push_back(q);
         }
         e["quienes"] = quienes;
@@ -214,6 +231,75 @@ json Votacion::estadoSinLock() const {
         e["faltanVotar"] = faltan;
     }
     return e;
+}
+
+json Votacion::foto() const {
+    std::lock_guard<std::mutex> g(m_);
+    json hs = json::object();
+    for (const auto& [c, n] : habilitados_) hs[c] = n;
+    json f{{"hubo", hubo_},          {"abierta", abierta_},   {"modo", nombreDeModo(modo_)},
+           {"secreta", secreta_},    {"enVivo", enVivo_},     {"pregunta", pregunta_},
+           {"opciones", opciones_},  {"desdeMs", desdeMs_},   {"hastaMs", hastaMs_},
+           {"podian", cuantosPodian_}, {"habilitados", hs},   {"historial", historial_}};
+    if (secreta_) {
+        // Quiénes votaron y cuántos votos tiene cada opción; nunca quién votó qué.
+        json quienes = json::array();
+        std::vector<int> conteo(opciones_.size(), 0);
+        for (std::size_t i = 0; i < conteo.size() && i < sellados_.size(); ++i) conteo[i] = sellados_[i];
+        for (const auto& [k, v] : votos_) {
+            quienes.push_back(k);
+            if (v >= 0 && static_cast<std::size_t>(v) < conteo.size()) ++conteo[static_cast<std::size_t>(v)];
+        }
+        f["votaron"] = quienes;
+        f["conteo"] = conteo;
+    } else {
+        json vs = json::object();
+        for (const auto& [k, v] : votos_) vs[k] = v;
+        f["votos"] = vs;
+    }
+    return f;
+}
+
+void Votacion::restaurar(const json& f) {
+    std::lock_guard<std::mutex> g(m_);
+    abierta_ = hubo_ = secreta_ = enVivo_ = false;
+    modo_ = Modo::Encuesta;
+    pregunta_.clear();
+    opciones_.clear();
+    desdeMs_ = hastaMs_ = 0;
+    cuantosPodian_ = 0;
+    habilitados_.clear();
+    votos_.clear();
+    sellados_.clear();
+    historial_.clear();
+    if (!f.is_object()) return;
+    hubo_ = f.value("hubo", false);
+    abierta_ = hubo_ && f.value("abierta", false);
+    modoDeNombre(f.value("modo", std::string("encuesta")), modo_);
+    secreta_ = f.value("secreta", false);
+    enVivo_ = f.value("enVivo", false);
+    pregunta_ = recortar(f.value("pregunta", std::string()), kMaxTexto);
+    for (const json& o : f.value("opciones", json::array()))
+        if (o.is_string() && opciones_.size() < kMaxOpciones) opciones_.push_back(recortar(o.get<std::string>(), kMaxTexto));
+    desdeMs_ = f.value("desdeMs", std::int64_t{0});
+    hastaMs_ = f.value("hastaMs", std::int64_t{0});
+    cuantosPodian_ = std::max(0, f.value("podian", 0));
+    // (Copias con nombre: iterar los items() de un temporal deja colgada la referencia.)
+    const json hs = f.value("habilitados", json::object());
+    for (const auto& [c, n] : hs.items())
+        if (n.is_string()) habilitados_[c] = n.get<std::string>();
+    const auto opcionValida = [this](const json& v) {
+        return v.is_number_integer() && v.get<int>() >= 0 && static_cast<std::size_t>(v.get<int>()) < opciones_.size();
+    };
+    const json vs = f.value("votos", json::object());
+    for (const auto& [k, v] : vs.items())
+        if (opcionValida(v)) votos_[k] = v.get<int>();
+    for (const json& k : f.value("votaron", json::array()))
+        if (k.is_string()) votos_[k.get<std::string>()] = -1;
+    for (const json& n : f.value("conteo", json::array()))
+        sellados_.push_back(n.is_number_integer() ? std::max(0, n.get<int>()) : 0);
+    for (const json& h : f.value("historial", json::array()))
+        if (h.is_object()) historial_.push_back(h);
 }
 
 json Votacion::estadoPublico(const std::string& quien, const std::string& codigo) const {

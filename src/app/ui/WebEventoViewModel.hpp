@@ -65,9 +65,8 @@ class WebEventoViewModel : public QObject {
     QVariantMap avisoWeb() const;
     /// Las páginas que falten del sitio (no pisa nada): al crear, abrir y guardar.
     void asegurarBase();
-    /// La sala (el gateway) volvió a arrancar: no tiene nada, se le manda todo de nuevo.
-    /// EL PUNTO DE ENGANCHE para el aviso de reinicio del gateway (su «epoch»): cuando
-    /// llegue, se llama acá y el reenvío de cada 10 s (`reenvio_`) se va.
+    /// La sala (el gateway) volvió a arrancar: no tiene nada, se le manda todo de nuevo
+    /// (republicador «evento-web» de ConferenceClient, con el «epoch» de la sala).
     void salaReiniciada();
     /// Si el abierto tiene página con «dirección al iniciar»: su subdominio (al ponerlo en curso).
     std::string subdominioAlIniciar(const std::string& carpeta) const;
@@ -96,7 +95,6 @@ class WebEventoViewModel : public QObject {
     QVariantMap web_;
     bool hayPortada_ = false;
     int genSitio_ = 0;
-    QTimer reenvio_; ///< cada 10 s, por si se reinició la sala (ver salaReiniciada)
     qint64 arranqueMs_ = 0;
     int version_ = 1;
     QByteArray ultimo_;

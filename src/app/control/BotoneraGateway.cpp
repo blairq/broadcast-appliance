@@ -37,9 +37,7 @@ BotoneraGateway::BotoneraGateway(Botonera& botonera, ConferenceClient& gateway, 
             enviar("/api/v1/botonera/enviar", {{"dispositivo", dev.toStdString()}, {"msg", msg}});
     });
     connect(&bot_, &Botonera::credencialesCambio, this, [this]() { sincronizar(); });
-    connect(&gw_, &ConferenceClient::onlineChanged, this, [this](bool on) {
-        if (on) sincronizar();
-    });
+    gw_.registrarRepublicador("botonera", this, [this]() { sincronizar(); });
 }
 
 void BotoneraGateway::enviar(const std::string& ruta, const json& cuerpo) {

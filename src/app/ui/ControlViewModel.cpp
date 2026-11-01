@@ -118,9 +118,7 @@ ControlViewModel::ControlViewModel(Partes p, QObject* parent) : QObject(parent),
     controlWeb_->ganchos().salidas = p_.salidas;
     controlWebGw_ = std::make_unique<control::ControlWebGateway>(*controlWeb_, cli);
     // El tema de las páginas web: cada vez que la sala (re)arranca, se lo vuelve a pasar.
-    connect(&p_.sala, &ConferenceViewModel::onlineChanged, this, [this]() {
-        if (p_.sala.online()) mandarTemaWeb();
-    });
+    p_.sala.client().registrarRepublicador("tema-web", this, [this]() { mandarTemaWeb(); });
     connect(controlWebGw_.get(), &control::ControlWebGateway::aviso, this,
             [this](const QString& texto, const QString& nivel) { emit notify(texto, nivel); });
     connect(controlWeb_.get(), &control::ControlWeb::solicitudNueva, this,

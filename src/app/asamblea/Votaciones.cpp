@@ -1,6 +1,7 @@
 // src/app/asamblea/Votaciones.cpp — las votaciones de la asamblea (ver el .hpp)
 
 #include "asamblea/Votaciones.hpp"
+#include "asamblea/VotacionUnificada.hpp"
 #include "i18n/I18n.hpp"
 
 #include "asamblea/ConferenciaDcn.hpp"
@@ -131,6 +132,12 @@ Votaciones::json Votaciones::combinada(const json& rCentral) const {
     r["origen"] = rCentral.value("origen", std::string("sala")) + " + celulares";
     if (!c.value("observaciones", json::array()).empty()) r["observaciones"] = c["observaciones"];
     return r;
+}
+
+Votaciones::json Votaciones::enCurso() const {
+    return votacionUnificada(
+        dcn_.conectada() ? dcn_.estado().value("votacion", json::object()) : json::object(), sesion_.votacion(),
+        [this](const json& nominal) { return sesion_.resultadoCombinado(nominal); }, &SesionRemota::opcionesDeMenu);
 }
 
 void Votaciones::seguirCentral() {

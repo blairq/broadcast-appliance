@@ -340,7 +340,6 @@ class ConferenceViewModel : public QObject {
     QVariantList onAir_;
     double clockOffset_ = 0;
     QHash<QString, QString> nombresDeAfuera_; // id -> nombre de quien se atiende sin estar en la sala
-    QTimer avatarPoll_;
     std::unique_ptr<UsoPorVistas> usos_;
     QTimer proxyPoll_, bloqueosPoll_;
     /// El reloj de los que hablan: corre solo con alguien al aire (actualizarRelojes).
@@ -348,11 +347,12 @@ class ConferenceViewModel : public QObject {
     QString peorEstado_;
     /// Pone el reloj (restante, estado, texto) a los que están al aire, en la fila y en onAir.
     void actualizarRelojes();
+    /// Todas las fotos (al volver la sala) y una (la sala avisa que cambió: «avatar»).
     void pollAvatars();
+    void traerAvatar(const QString& id);
 
    public:
-    /// Lo que la sala avisa (o el sondeo de respaldo trae): la red de cada uno y la foto de
-    /// un invitado. Listos para los eventos de la sala (agente G).
+    /// Lo que la sala avisa: la red de cada uno y la foto de un invitado.
     void aplicarRed(const nlohmann::json& r);
     void aplicarAvatar(const QString& id, const QByteArray& jpeg);
 
@@ -360,7 +360,6 @@ class ConferenceViewModel : public QObject {
     void rebuildSpeakers();
     QStringList knownWaiting_;
     QVariantMap network_;
-    QTimer networkPoll_;
     QStringList slotNames_;
     QVariantList slotsSinRetorno_;
     qint64 lastSeq_ = 0;
