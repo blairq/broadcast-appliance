@@ -29,9 +29,28 @@ int main() {
     ba::diag::VigiaBucle v([&ahora]() { return ahora; }, 50, 50);
     v.alAvisar([&avisos](const std::string& t) { avisos.push_back(t); });
 
+    // El latido: sin ningún turno no se sabe; después, cuánto hace del último.
+    CHECK(v.edadMs() == -1, "sin turnos, el latido no se sabe");
     // Primer turno: solo toma la hora.
     v.tic();
     CHECK(v.informe()["vueltas"] == 0, "el primer turno no cuenta");
+    CHECK(v.edadMs() == 0, "recién latió");
+    ahora += 300'000;
+    CHECK(v.edadMs() == 300, "300 ms sin latir (la interfaz trabada)");
+    ahora -= 300'000;
+    // Los despertares y los temporizadores que más corren.
+    v.despertar();
+    v.despertar();
+    v.contarTemporizador("QTimer de A, cada 100 ms");
+    v.contarTemporizador("QTimer de A, cada 100 ms");
+    v.contarTemporizador("QTimer de B, cada 1000 ms");
+    {
+        const auto i = v.informe();
+        CHECK(i["despertares"] == 2, "dos despertares");
+        CHECK(i["temporizadores"].size() == 2 && i["temporizadores"][0]["que"] == "QTimer de A, cada 100 ms" &&
+                  i["temporizadores"][0]["veces"] == 2,
+              "el que más corrió, primero");
+    }
 
     // 100 turnos a horario (con 1 ms de juego): sin tarde.
     for (int i = 0; i < 100; ++i) {
