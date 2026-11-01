@@ -109,15 +109,19 @@ QString FacebookViewModel::saveClient(const QString& appId, const QString& secre
 
 void FacebookViewModel::clearClient() { client_->clearClient(); }
 
-void FacebookViewModel::login() {
+void FacebookViewModel::login() { login(FacebookClient::Done{}); }
+
+void FacebookViewModel::login(FacebookClient::Done listo) {
     setError({});
-    client_->login([this](bool ok, const QJsonObject& d, const QString& e) {
+    client_->login([this, listo](bool ok, const QJsonObject& d, const QString& e) {
         if (!ok) {
             if (e != "Login cancelado.") setError(e);
+            if (listo) listo(false, d, e);
             return;
         }
         emit notify(tr("Conectado a Facebook: %1").arg(d.value("user").toObject().value("name").toString()), "ok");
         refresh();
+        if (listo) listo(true, d, {});
     });
 }
 

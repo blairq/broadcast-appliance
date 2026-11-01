@@ -208,7 +208,7 @@ Item {
                     spacing: 6
                     SpinBox {
                         from: 10; to: 3600; stepSize: 10; editable: true
-                        value: { const p = (Studio.latidoUi().politica || {}); return p.espera_ui_s || 60 }
+                        value: Studio.latidoPolitica.espera_ui_s || 60
                         onValueModified: { const e = Studio.latidoPoliticaUi({ espera_ui_s: value }); if (e !== "") Studio.notify(e, "error") }
                         ToolTip.visible: hovered; ToolTip.delay: 400
                         ToolTip.text: qsTr("Con la interfaz trabada y el motor andando, cuánto esperar antes de relanzar la app (solo si no hay transmisión ni grabación)")

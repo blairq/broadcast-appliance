@@ -1129,9 +1129,18 @@ std::string RackManager::restablecerInterfazLsp(bool* ok) {
                   {copia.toStdString()});
 }
 
+nlohmann::json RackManager::ponerVigia(const nlohmann::json& v) {
+    AudioRack::ponerVigia(v);
+    const json quedo = AudioRack::vigia();
+    config::guardar(root_ / "Config" / "audio-vigia.json", quedo);
+    return quedo;
+}
+
 void RackManager::restore() {
     cargarPlantillas();
     restoreMonitor();
+    // El ajuste del vigía (audio_rack_vigia): lo que se haya puesto, o el de fábrica.
+    AudioRack::ponerVigia(config::leerObjeto(root_ / "Config" / "audio-vigia.json"));
     const json all = config::leerObjeto(root_ / "Config" / "audio-racks.json").value("racks", json::object());
     if (!all.is_object()) return;
     pending_ = all;

@@ -6,9 +6,8 @@
 // desde la app, estado del vivo, VODs y chat.
 // ============================================================================
 
-#include <QTimer>
-
 #include <memory>
+#include <optional>
 
 #include "i18n/I18n.hpp"
 #include "arranque/AppRuntime.hpp"
@@ -133,30 +132,40 @@ void McpService::registerTwitchTools() {
             }
             if (!tw->configured()) return done(ToolResult::error(ba::i18n::traducir("mcp", "Primero twitch_setup (ID de cliente).")));
             if (a.value("wait", false)) {
-                tw->client().login([tw, done](bool ok, const QJsonObject& u, const QString& e) {
+                // El login del modelo (relee la cuenta y avisa a la página), con la respuesta.
+                tw->login([done](bool ok, const QJsonObject& u, const QString& e) {
                     if (!ok) return done(ToolResult::error(e.toStdString()));
-                    tw->refresh();
                     done(ToolResult().data(json{{"connected", toJson(u)}}));
                 });
                 return;
             }
-            tw->login();
-            // El codigo llega en un momento: esperarlo (max. ~8 s) para devolverlo.
-            auto* timer = new QTimer(tw);
-            auto tries = std::make_shared<int>(0);
-            QObject::connect(timer, &QTimer::timeout, tw, [tw, timer, tries, done]() {
-                if (tw->userCode().isEmpty() && tw->lastError().isEmpty() && ++*tries < 40) return;
-                timer->deleteLater();
-                if (tw->userCode().isEmpty())
-                    return done(
-                        ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "Twitch no devolvio el codigo: %1"), {tw->lastError().toStdString()})));
-                done(ToolResult()
-                         .text(ba::i18n::llenar(ba::i18n::traducir("mcp", "Codigo: %1 — se abrio %2; la persona confirma ahi. Despues, twitch_status."),
-                                               {tw->userCode().toStdString(), tw->verificationUri().toStdString()}))
-                         .data(json{{"userCode", tw->userCode().toStdString()},
-                                    {"verificationUri", tw->verificationUri().toStdString()}}));
+            // El código llega en un momento y el modelo AVISA (cuentaChanged): se espera esa
+            // señal (máx. ~8 s), no se lo sondea. Un error del login contesta antes.
+            auto contestado = std::make_shared<bool>(false);
+            const Done unaVez = [contestado, done](ToolResult r) {
+                if (*contestado) return;
+                *contestado = true;
+                done(std::move(r));
+            };
+            tw->login([unaVez](bool ok, const QJsonObject&, const QString& e) {
+                if (!ok) unaVez(ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "Twitch no devolvio el codigo: %1"), {e.toStdString()})));
             });
-            timer->start(200);
+            esperarHasta(
+                tw, &TwitchViewModel::cuentaChanged,
+                [tw]() -> std::optional<ToolResult> {
+                    if (tw->userCode().isEmpty()) return std::nullopt;
+                    return ToolResult()
+                        .text(ba::i18n::llenar(ba::i18n::traducir("mcp", "Codigo: %1 — se abrio %2; la persona confirma ahi. Despues, twitch_status."),
+                                               {tw->userCode().toStdString(), tw->verificationUri().toStdString()}))
+                        .data(json{{"userCode", tw->userCode().toStdString()},
+                                   {"verificationUri", tw->verificationUri().toStdString()}});
+                },
+                8000,
+                [tw]() {
+                    return ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "Twitch no devolvio el codigo: %1"),
+                                                              {tw->lastError().toStdString()}));
+                },
+                unaVez);
         };
         core_.addTool(std::move(t));
     }
@@ -177,7 +186,7 @@ void McpService::registerTwitchTools() {
     {
         Tool t;
         t.name = "twitch_channel";
-        t.title = ba::i18n::traducir("mcp", "Canal: titulo, categoria, etiquetas");
+        t.title = ba::i18n::traducir("mcp", "Canal: título, categoría, etiquetas");
         t.category = "twitch";
         t.clase = Clase::Escritura;
         t.description =
@@ -234,7 +243,7 @@ void McpService::registerTwitchTools() {
     {
         Tool t;
         t.name = "twitch_live_stop";
-        t.title = ba::i18n::traducir("mcp", "Cortar la transmision a Twitch");
+        t.title = ba::i18n::traducir("mcp", "Cortar la transmisión a Twitch");
         t.category = "twitch";
         t.clase = Clase::Escritura;
         t.destructive = true;

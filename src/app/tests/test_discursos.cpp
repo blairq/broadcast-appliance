@@ -137,7 +137,11 @@ int main(int argc, char** argv) {
     CHECK(existe(raiz + "/intendente.txt"), "y el original sigue donde estaba");
 
     CHECK(d.borrar("intendente.txt").isEmpty() && !existe(raiz + "/intendente.txt"), "borrar");
+    CHECK(existe(raiz + "/../Papelera/Discursos/intendente.txt"), "borrar lo manda a la papelera del evento");
     CHECK(d.borrar("intendente.txt") == "No encuentro ese discurso.", "borrar dos veces avisa");
+    d.crear("", "intendente");
+    CHECK(d.borrar("intendente.txt").isEmpty() && existe(raiz + "/../Papelera/Discursos/intendente (2).txt"),
+          "el segundo con el mismo nombre no pisa al primero en la papelera");
 
     // --- 6) sin raiz --------------------------------------------------------------
     Discursos vacio;

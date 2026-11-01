@@ -104,6 +104,9 @@ class CarruselViewModel : public QObject {
     Q_INVOKABLE bool agregar(const QString& archivo);
     Q_INVOKABLE bool quitar(int i);
     Q_INVOKABLE bool mover(int de, int a);
+    /// Lo mismo en un carrusel con nombre, sin cambiar el que mira el operador (el MCP).
+    bool quitar(const QString& carrusel, int i);
+    bool mover(const QString& carrusel, int de, int a);
     /// Salta a una lámina. Es lo que hace el operador tocando una tarjeta.
     Q_INVOKABLE bool ir(int i);
     int posicion() const;
@@ -131,6 +134,11 @@ class CarruselViewModel : public QObject {
     QStringList nombres() const;
     /// Las láminas de un carrusel cualquiera, para elegir una: [{numero (desde 1), titulo}].
     QVariantList laminasDe(const QString& nombre) const;
+    /// Las láminas de `carrusel` que coinciden con `texto` (título y etiquetas, con
+    /// medios::coincide; vacío = todas), como las da `laminas`: [{indice, archivo, url,
+    /// titulo, etiquetas, analizada, actual}]. No toca lo que mira el operador: es lo que
+    /// la grilla muestra para su carrusel y su filtro, y lo que el MCP lee de cualquiera.
+    QVariantList buscar(const QString& carrusel, const QString& texto) const;
     /// true si hay un carrusel con ese nombre.
     Q_INVOKABLE bool existe(const QString& carrusel) const;
     /// Lo desvincula: la fuente queda donde está, con la lámina que tenía. Se

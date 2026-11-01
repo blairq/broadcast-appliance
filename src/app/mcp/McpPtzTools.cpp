@@ -115,7 +115,7 @@ void McpService::registerPtzTools() {
     {
         Tool t;
         t.name = "ptz_interlock";
-        t.title = ba::i18n::traducir("mcp", "Interlock de PTZ (no mover la camara al aire)");
+        t.title = ba::i18n::traducir("mcp", "Interlock de PTZ (no mover la cámara al aire)");
         t.category = "camaras";
         t.clase = Clase::Escritura;
         t.description = QT_TRANSLATE_NOOP("mcp", "Con `activo` (de fabrica true), lo automatico (asistente, plugins, disparadores) no mueve una "

@@ -25,9 +25,7 @@
 #include "video/VideoGrafos.hpp"
 
 #include <QCoreApplication>
-#include <QDateTime>
 #include <QJsonDocument>
-#include <QTimer>
 #include <QPointer>
 
 #include <cctype>
@@ -1916,6 +1914,7 @@ void McpService::registerVideoTools() {
             t.title = ba::i18n::traducir("mcp", "El laboratorio de superresolución (las bibliotecas de Python)");
             t.category = "video";
             t.clase = Clase::Escritura;
+            t.destructivaSi = {"accion", {"borrar"}}; // borra las bibliotecas bajadas
             t.description =
                 QT_TRANSLATE_NOOP("mcp", "Las bibliotecas con las que se bajan, convierten y entrenan las redes (PyTorch, spandrel, onnx; "
                 "~800 MB, una vez). `accion`: estado (si está, si usa DirectML —AMD/Intel en Windows: entrena en "
@@ -2005,22 +2004,22 @@ void McpService::registerVideoTools() {
                 }
                 if (ac != "esperar" || !srp->trabajo().value("corriendo").toBool())
                     return done(ToolResult().data(estado()));
-                // Esperar sin trabar la app: se mira cada medio segundo.
-                const qint64 hasta = QDateTime::currentMSecsSinceEpoch() +
-                                     static_cast<qint64>(a.value("segundos", 600.0) * 1000);
-                auto mirar = std::make_shared<std::function<void()>>();
-                *mirar = [srp, done, hasta, estado, mirar]() {
-                    const bool corre = srp->trabajo().value("corriendo").toBool();
-                    if (!corre || QDateTime::currentMSecsSinceEpoch() >= hasta) {
+                // Esperar sin trabar la app: el laboratorio avisa (trabajoCambio) al terminar.
+                esperarHasta(
+                    srp.data(), &video::SuperRes::trabajoCambio,
+                    [srp, estado]() -> std::optional<ToolResult> {
+                        if (srp->trabajo().value("corriendo").toBool()) return std::nullopt;
+                        return ToolResult().data(estado());
+                    },
+                    static_cast<int>(a.value("segundos", 600.0) * 1000),
+                    [srp, estado]() {
+                        if (!srp) return ToolResult::error(ba::i18n::traducir("mcp", "no disponible"));
                         json d = estado();
-                        if (corre) d["espera"] = ba::i18n::traducir("mcp", "se cumplió el tiempo: sigue trabajando");
-                        done(ToolResult().data(d));
-                        *mirar = nullptr; // corta el ciclo de la captura
-                        return;
-                    }
-                    QTimer::singleShot(500, *mirar);
-                };
-                QTimer::singleShot(500, *mirar);
+                        if (srp->trabajo().value("corriendo").toBool())
+                            d["espera"] = ba::i18n::traducir("mcp", "se cumplió el tiempo: sigue trabajando");
+                        return ToolResult().data(d);
+                    },
+                    done);
             };
             core_.addTool(std::move(t));
         }

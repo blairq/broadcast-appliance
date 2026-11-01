@@ -79,6 +79,9 @@ class FacebookViewModel : public QObject {
     Q_INVOKABLE QString saveClient(const QString& appId, const QString& secret, int port);
     Q_INVOKABLE void clearClient();
     Q_INVOKABLE void login();
+    /// El mismo login, con la respuesta (el MCP con `wait`): conectada (o el error), la
+    /// cuenta ya releída. Lo que ve la página es lo mismo que con login().
+    void login(FacebookClient::Done listo);
     Q_INVOKABLE void cancelLogin();
     Q_INVOKABLE void logout();
     Q_INVOKABLE void selectPage(const QString& id);

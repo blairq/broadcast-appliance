@@ -39,7 +39,7 @@ etiquetas de búsqueda, en qué archivo vive), y esta tabla. `test_mcp_registro`
 
 <!-- registro: lo genera tools/docs/mcp-inventario.py --desde-codigo; no se edita a mano -->
 
-**815 herramientas** en 55 categorías: 268 de lectura, 481 de escritura, 50 de aire y 16 de interfaz (la clase la declara cada una al registrarse; ver «Clases» más abajo).
+**815 herramientas** en 56 categorías: 268 de lectura, 481 de escritura, 50 de aire y 16 de interfaz (la clase la declara cada una al registrarse; ver «Clases» más abajo).
 
 | Categoría | Herramientas | Lectura | Escritura | Aire | Interfaz |
 |---|---:|---:|---:|---:|---:|
@@ -83,6 +83,7 @@ etiquetas de búsqueda, en qué archivo vive), y esta tabla. `test_mcp_registro`
 | Plugins de Python (`plugins`) | 18 | 7 | 10 | 0 | 1 |
 | Preguntas del público (`preguntas`) | 12 | 3 | 9 | 0 | 0 |
 | Teleprompter (`prompter`) | 8 | 3 | 5 | 0 | 0 |
+| Chat del público (`publico`) | 1 | 1 | 0 | 0 | 0 |
 | Códigos QR (`qr`) | 9 | 5 | 4 | 0 | 0 |
 | Recetas (`recetas`) | 4 | 1 | 3 | 0 | 0 |
 | Registro (`registro`) | 5 | 2 | 3 | 0 | 0 |
@@ -97,7 +98,7 @@ etiquetas de búsqueda, en qué archivo vive), y esta tabla. `test_mcp_registro`
 | Twitch (`twitch`) | 11 | 3 | 8 | 0 | 0 |
 | Ventanas y monitores (`ventanas`) | 5 | 1 | 0 | 0 | 4 |
 | Grafo de video (`video`) | 49 | 10 | 38 | 1 | 0 |
-| YouTube (`youtube`) | 19 | 5 | 12 | 2 | 0 |
+| YouTube (`youtube`) | 18 | 4 | 12 | 2 | 0 |
 
 Las de **aire** (con la transmisión o la grabación andando, si las pide algo automático las confirma una persona; `cuando`: con qué argumentos cuentan):
 

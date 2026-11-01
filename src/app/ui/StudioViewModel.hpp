@@ -461,6 +461,7 @@ class StudioViewModel : public QObject {
     Q_PROPERTY(QObject* bancoSr READ bancoSrObj CONSTANT)
     /// Los roles automaticos y sus corridas (pagina Agentes).
     Q_PROPERTY(QObject* despachador READ despachadorQml CONSTANT)
+    Q_PROPERTY(QVariantMap latidoPolitica READ latidoPolitica NOTIFY latidoPoliticaCambio)
     Q_PROPERTY(QObject* messages READ messages CONSTANT)
     Q_PROPERTY(QObject* inputs READ inputs CONSTANT)
     /// Pestaña Audio (patchbay de modulos LSP por fuente); null sin CLAP.
@@ -476,6 +477,9 @@ class StudioViewModel : public QObject {
     QObject* aireQml() const;
     /// El latido del supervisor: {motor_vivo, ui_viva, ui_trabada_ms, ultima_traba_ms, politica}.
     Q_INVOKABLE QVariantMap latidoUi() const;
+    /// La política del supervisor ({espera_ui_s, matar_si_ui_trabada_sin_aire, notificar}):
+    /// avisa cuando cambia, la cambie la página o el MCP (supervisor_politica).
+    QVariantMap latidoPolitica() const;
     /// Preferencias chicas de la interfaz (anchos de paneles, lo último elegido),
     /// en Config/interfaz.json: portable, al lado de la app, nunca en el sistema.
     Q_INVOKABLE QVariant uiValor(const QString& clave, const QVariant& porDefecto = {}) const;
@@ -775,6 +779,7 @@ class StudioViewModel : public QObject {
     void refreshModels();
 
    signals:
+    void latidoPoliticaCambio();
     /// Lo de la configuración que muestran la raíz y las tarjetas (streamServer, la clave,
     /// room, guests): sale de la parte Ajustes de la foto.
     void ajustesChanged();

@@ -66,8 +66,11 @@ class LatidoAire {
     void uiTick(bool hayAire);
 
     Politica politica() const;
-    /// Cambia y guarda la política. "" o el error.
+    /// Cambia y guarda la política. "" o el error. Avisa a `alCambiarPolitica`.
     std::string ponerPolitica(const nlohmann::json& cambios);
+    /// Quién se entera de que cambió la política (desde el hilo que la cambió: el MCP
+    /// corre en el de control). nullptr = nadie; ponerla en nullptr espera al aviso en curso.
+    void alCambiarPolitica(std::function<void()> f);
 
     /// {motor_vivo, ui_viva, ui_trabada_ms, ultima_traba_ms, politica}.
     nlohmann::json estado() const;
@@ -96,6 +99,8 @@ class LatidoAire {
     /// y el que lleva la alarma se puede destruir después sin carrera.
     std::mutex avisoMu_;
     Aviso aviso_;
+    std::mutex cambioMu_; ///< lo mismo para alCambiarPolitica
+    std::function<void()> alCambiar_;
 };
 
 } // namespace ba::app
