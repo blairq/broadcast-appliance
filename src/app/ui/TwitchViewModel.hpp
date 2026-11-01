@@ -60,7 +60,7 @@ class TwitchViewModel : public PlataformaViewModel {
     QJsonObject estadoCuenta() const override;
     QJsonObject estado() const override;
     QStringList permisos() const override { return TwitchClient::permisos(); }
-    QString guardarCredencial(const QVariantMap& campos) override;
+    bool guardarCredencial(const QVariantMap& campos) override;
     using PlataformaViewModel::login;
     void login(Done listo) override;
     bool loginConCodigo() const override { return true; }
@@ -84,7 +84,7 @@ class TwitchViewModel : public PlataformaViewModel {
     QObject* categories() const;
     bool chatOn() const { return client_->chatRunning(); }
 
-    Q_INVOKABLE QString saveClient(const QString& id, const QString& secret = {});
+    Q_INVOKABLE bool saveClient(const QString& id, const QString& secret = {});
     void clearClient() override;
     void cancelLogin() override;
     void logout() override;

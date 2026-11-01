@@ -65,7 +65,7 @@ class YouTubeViewModel : public PlataformaViewModel {
     QString cuentaNombre() const override { return client_->account().value("title").toString(); }
     QJsonObject estado() const override;
     QStringList permisos() const override { return YouTubeClient::permisos(); }
-    QString guardarCredencial(const QVariantMap& campos) override;
+    bool guardarCredencial(const QVariantMap& campos) override;
     using PlataformaViewModel::login;
     void login(Done listo) override;
     void listarVideos(int max, Done done) override;
@@ -85,8 +85,8 @@ class YouTubeViewModel : public PlataformaViewModel {
     QString liveBroadcastId() const { return liveBroadcastId_; }
 
     // --- Configuracion y cuenta -------------------------------------------------------
-    /// Pega el JSON descargado (o el ID si `secret` no esta vacio). "" = ok.
-    Q_INVOKABLE QString saveClient(const QString& jsonOrId, const QString& secret = {});
+    /// Pega el JSON descargado (o el ID si `secret` no esta vacio). El error, por avisarError.
+    Q_INVOKABLE bool saveClient(const QString& jsonOrId, const QString& secret = {});
     void clearClient() override;
     void cancelLogin() override;
     void logout() override;

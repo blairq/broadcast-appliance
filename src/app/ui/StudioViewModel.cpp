@@ -45,6 +45,7 @@
 #include "ui/AlarmasViewModel.hpp"
 #include "ui/AtencionViewModel.hpp"
 #include "ui/BitacoraEvento.hpp"
+#include "ui/CapturaError.hpp"
 #include "ui/CarruselViewModel.hpp"
 #include "ui/ChatOverlayRenderer.hpp"
 #include "ui/ConferenceClient.hpp"
@@ -597,7 +598,9 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, VentanillaMotor& ventanilla, QO
             .sala = *conference_,
             .evento = evento_.get(),
             .enVivo = [this]() { return modoVivo(); },
-            .guardarCredencial = [this](const QString& pl, const QVariantMap& v) { return cuentas_->saveAccountCredential(pl, v); },
+            .guardarCredencial = [this](const QString& pl, const QVariantMap& v) {
+                return errorDe([&] { return cuentas_->saveAccountCredential(pl, v); });
+            },
             .dsk = [this]() { return control_ ? &control_->dsk() : nullptr; },
             .cuerpo = [this]() { return asamblea_ ? &asamblea_->cuerpo().cuerpo() : nullptr; }});
         connect(asistente_.get(), &AsistenteViewModel::notify, this, &StudioViewModel::notify);

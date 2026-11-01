@@ -10,6 +10,7 @@
 #include "plugins/Plugins.hpp"
 #include "red/Red.hpp"
 #include "ui/FacebookViewModel.hpp"
+#include "ui/CapturaError.hpp"
 #include "ui/GrabacionesModel.hpp"
 #include "ui/PlataformaViewModel.hpp"
 #include "ui/TwitchViewModel.hpp"
@@ -112,7 +113,17 @@ QVariantMap CuentasViewModel::accountGuide(const QString& platform) const {
     return QJsonDocument::fromJson(QByteArray::fromStdString(g.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))).object().toVariantMap();
 }
 
-QString CuentasViewModel::saveAccountCredential(const QString& platform, const QVariantMap& v) {
+void CuentasViewModel::avisarError(const QString& e) {
+    if (!e.isEmpty() && !CapturaError::tomar(e)) emit notify(e, "error");
+}
+
+bool CuentasViewModel::saveAccountCredential(const QString& platform, const QVariantMap& v) {
+    const QString e = guardarCredencial(platform, v);
+    avisarError(e);
+    return e.isEmpty();
+}
+
+QString CuentasViewModel::guardarCredencial(const QString& platform, const QVariantMap& v) {
     red::Red* red = p_.red ? p_.red() : nullptr;
     // Una cámara de la red (camara:<ip>): usuario y clave, cifrados.
     if (platform.startsWith("camara:")) {
@@ -156,9 +167,9 @@ QString CuentasViewModel::saveAccountCredential(const QString& platform, const Q
     if (p == youtube_.get() && (!v.value("importFile").toString().isEmpty() || v.value("fromDownloads").toBool())) {
         const ArchivoDeCredencial a = leerArchivoDeCredencial(v);
         if (!a.error.isEmpty()) return a.error;
-        return p->guardarCredencial({{"clientJson", a.contenido}});
+        return errorDe([&] { return p->guardarCredencial({{"clientJson", a.contenido}}); });
     }
-    return p->guardarCredencial(v);
+    return errorDe([&] { return p->guardarCredencial(v); });
 }
 
 } // namespace ba::app

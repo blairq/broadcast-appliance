@@ -25,6 +25,7 @@
 #include "mcp/McpCore.hpp"
 #include "mcp/McpPlataformas.hpp"
 #include "mcp/McpToolsCommon.hpp"
+#include "ui/CapturaError.hpp"
 #include "ui/PlataformaViewModel.hpp"
 
 using namespace ba::app;
@@ -66,7 +67,7 @@ class Falsa : public PlataformaViewModel {
     }
     QJsonObject estado() const override { return {{"plataforma", id_}, {"configured", configurada}}; }
     QStringList permisos() const override { return {"leer", "transmitir"}; }
-    QString guardarCredencial(const QVariantMap&) override { return {}; }
+    bool guardarCredencial(const QVariantMap&) override { return true; }
     void clearClient() override { llamadas << "clear"; }
     using PlataformaViewModel::login;
     void login(Done listo) override {
@@ -97,6 +98,8 @@ class Falsa : public PlataformaViewModel {
         done(true, {}, {});
     }
     const QJsonArray& chatMessages() const override { return chat; }
+    /// Una acción que falla (como saveClient con un ID malo).
+    void fallar(const QString& e) { avisarError(e); }
 
     bool configurada = true, conectada = true, pendiente = false, conCodigo = false, pidePagina = false;
     QString errorVideos;
@@ -298,6 +301,13 @@ int main(int argc, char** argv) {
         CHECK(yt.ultimosMensajes(2) == (QJsonArray{"b", "c"}), "los últimos 2");
         CHECK(yt.ultimosMensajes(10).size() == 3 && yt.ultimosMensajes(0).isEmpty(), "ni más ni menos");
         CHECK(tw.conNombre("Twitch: x") == "Twitch: x" && tw.conNombre("x") == "Twitch: x", "conNombre una vez");
+        // El contrato de errores (ui/CapturaError): quien llama desde C++ se lo queda; si no, la vista.
+        QString aviso;
+        QObject::connect(&tw, &PlataformaViewModel::notify, [&aviso](const QString& m, const QString&) { aviso = m; });
+        CHECK(errorDe([&] { tw.fallar("ID malo"); }) == "ID malo" && tw.lastError().isEmpty() && aviso.isEmpty(),
+              "capturado: ni lastError ni aviso");
+        tw.fallar("ID malo");
+        CHECK(tw.lastError() == "ID malo" && aviso == "Twitch: ID malo", "sin captura: a la vista, con el nombre");
     }
 
     std::printf(g_fallas == 0 ? "OK\n" : "%d FALLAS\n", g_fallas);

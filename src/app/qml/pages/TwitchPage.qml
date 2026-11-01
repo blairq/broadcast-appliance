@@ -107,8 +107,7 @@ Rectangle {
                         }
                         RowLayout {
                             GlassButton { text: qsTr("Guardar"); active: true; activeColor: page.purple
-                                          onClicked: { twErr.text = tw.saveClient(twId.text, twSecret.text); if (twErr.text === "") twSecret.text = "" } }
-                            Text { id: twErr; color: Theme.live; font.pixelSize: 12; Layout.fillWidth: true; wrapMode: Text.WordWrap }
+                                          onClicked: if (tw.saveClient(twId.text, twSecret.text)) twSecret.text = "" }
                         }
                         Text { Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.textFaint; font.pixelSize: 11
                                text: qsTr("Se guarda cifrado en Credenciales/, dentro de la carpeta portable (una actualización no lo toca).") }

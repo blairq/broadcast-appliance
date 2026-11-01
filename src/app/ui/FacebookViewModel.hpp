@@ -66,7 +66,7 @@ class FacebookViewModel : public PlataformaViewModel {
     QJsonObject estadoCuenta() const override;
     QJsonObject estado() const override;
     QStringList permisos() const override { return FacebookClient::permisos(); }
-    QString guardarCredencial(const QVariantMap& campos) override;
+    bool guardarCredencial(const QVariantMap& campos) override;
     using PlataformaViewModel::login;
     void login(Done listo) override;
     QJsonObject alConectar() const override { return {{"pages", client_->pages()}}; }
@@ -89,7 +89,7 @@ class FacebookViewModel : public PlataformaViewModel {
     QString chatLiveId() const { return chatLiveId_; }
     QVariantMap upload() const { return upload_; }
 
-    Q_INVOKABLE QString saveClient(const QString& appId, const QString& secret, int port);
+    Q_INVOKABLE bool saveClient(const QString& appId, const QString& secret, int port);
     void clearClient() override;
     void cancelLogin() override;
     void logout() override;

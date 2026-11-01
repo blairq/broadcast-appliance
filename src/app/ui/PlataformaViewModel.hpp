@@ -59,8 +59,9 @@ class PlataformaViewModel : public QObject {
 
     // --- Configurar y conectar ------------------------------------------------------------
     /// Guarda la app con los campos del formulario seguro (los nombres del esquema de
-    /// *_setup). "" o el error. YouTube acepta además {"clientJson": contenido}.
-    virtual QString guardarCredencial(const QVariantMap& campos) = 0;
+    /// *_setup). YouTube acepta además {"clientJson": contenido}. El error, por avisarError
+    /// (quien llama desde C++ lo toma con errorDe, ui/CapturaError.hpp).
+    virtual bool guardarCredencial(const QVariantMap& campos) = 0;
     Q_INVOKABLE virtual void clearClient() = 0;
     /// Conectar: la página no espera la respuesta.
     Q_INVOKABLE void login() { login(Done{}); }
@@ -112,8 +113,11 @@ class PlataformaViewModel : public QObject {
 
    protected:
     explicit PlataformaViewModel(QObject* parent = nullptr);
-    /// El último error (y el aviso al operador, con el nombre: conNombre).
+    /// El último error (y el aviso al operador, con el nombre: conNombre). "" lo borra.
     void setError(const QString& e);
+    /// El error de una acción (las Q_INVOKABLE void/bool): a quien la llamó desde C++ si lo
+    /// captura (CapturaError); si no, a la vista (setError).
+    void avisarError(const QString& e);
     /// Un pedido más (o menos) en curso: `busy`.
     void track(bool start);
     /// `done` con la vuelta de la página: cuenta el pedido y, si salió, la relee (refresh)

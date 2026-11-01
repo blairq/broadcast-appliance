@@ -136,8 +136,7 @@ Rectangle {
                         }
                         RowLayout {
                             GlassButton { text: qsTr("Guardar"); active: true; activeColor: page.blue
-                                          onClicked: { fbErr.text = fb.saveClient(fbId.text, fbSecret.text, parseInt(fbPort.text) || 8791); if (fbErr.text === "") fbSecret.text = "" } }
-                            Text { id: fbErr; color: Theme.live; font.pixelSize: 12; Layout.fillWidth: true; wrapMode: Text.WordWrap }
+                                          onClicked: if (fb.saveClient(fbId.text, fbSecret.text, parseInt(fbPort.text) || 8791)) fbSecret.text = "" }
                         }
                         Text { Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.textFaint; font.pixelSize: 11
                                text: qsTr("Se guarda cifrado en Credenciales/, dentro de la carpeta portable (una actualización no lo toca). Permisos que se piden al conectar: páginas (listar, leer, publicar, comentarios) y video en vivo.") }

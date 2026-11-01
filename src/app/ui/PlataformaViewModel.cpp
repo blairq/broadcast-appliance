@@ -2,6 +2,8 @@
 
 #include "ui/PlataformaViewModel.hpp"
 
+#include "ui/CapturaError.hpp"
+
 #include <QClipboard>
 #include <QDesktopServices>
 #include <QGuiApplication>
@@ -43,6 +45,10 @@ void PlataformaViewModel::setError(const QString& e) {
     lastError_ = e;
     emit errorChanged();
     if (!e.isEmpty()) emit notify(conNombre(e), "error");
+}
+
+void PlataformaViewModel::avisarError(const QString& e) {
+    if (!e.isEmpty() && !CapturaError::tomar(e)) setError(e);
 }
 
 void PlataformaViewModel::track(bool start) {

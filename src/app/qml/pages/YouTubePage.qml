@@ -149,18 +149,16 @@ Rectangle {
                             GlassButton {
                                 text: qsTr("Guardar credencial"); active: true
                                 onClicked: {
-                                    const e = clientSecret.text !== "" ? yt.saveClient(clientId.text, clientSecret.text)
-                                                                       : yt.saveClient(clientJson.text, "")
-                                    saveError.text = e
-                                    if (e === "") { clientJson.text = ""; clientSecret.text = "" }
+                                    const ok = clientSecret.text !== "" ? yt.saveClient(clientId.text, clientSecret.text)
+                                                                        : yt.saveClient(clientJson.text, "")
+                                    if (ok) { clientJson.text = ""; clientSecret.text = "" }
                                 }
                             }
                             GlassButton {
                                 text: qsTr("Importar el JSON de Descargas")
-                                onClicked: saveError.text = Studio.cuentas.saveAccountCredential("youtube", { "fromDownloads": true })
+                                onClicked: Studio.cuentas.saveAccountCredential("youtube", { "fromDownloads": true })
                                 ToolTip.visible: hovered; ToolTip.text: qsTr("Busca el client_secret_….json más nuevo que bajaste de Google (paso 5)")
                             }
-                            Text { id: saveError; color: Theme.live; font.pixelSize: 12; Layout.fillWidth: true; wrapMode: Text.WordWrap }
                         }
                     }
                 }

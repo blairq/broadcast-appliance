@@ -74,8 +74,9 @@ class CuentasViewModel : public QObject {
     /// Guarda la credencial de una plataforma desde el formulario seguro: campos
     /// del formulario, {"importFile": ruta} o {"fromDownloads": true}. También las de
     /// las cámaras de la red («camara:<ip>», «camaras:<ip>,<ip>») y las claves de un
-    /// plugin («plugin:<id>»). "" o el error.
-    Q_INVOKABLE QString saveAccountCredential(const QString& platform, const QVariantMap& values);
+    /// plugin («plugin:<id>»). El error, por el aviso (quien llama desde C++ lo toma con
+    /// errorDe, ui/CapturaError.hpp).
+    Q_INVOKABLE bool saveAccountCredential(const QString& platform, const QVariantMap& values);
 
     /// El JSON del cliente de Google que piden {"importFile": ruta} o {"fromDownloads": true}
     /// (el client_secret_….json más nuevo de Descargas). Solo lee el disco: de cualquier
@@ -94,6 +95,10 @@ class CuentasViewModel : public QObject {
     void notify(const QString& texto, const QString& nivel);
 
    private:
+    /// saveAccountCredential: "" o el error.
+    QString guardarCredencial(const QString& platform, const QVariantMap& values);
+    void avisarError(const QString& e);
+
     Partes p_;
     std::unique_ptr<GrabacionesModel> grabaciones_; ///< la comparten YouTube y Facebook (antes que ellos)
     std::unique_ptr<YouTubeViewModel> youtube_;

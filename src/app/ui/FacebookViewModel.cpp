@@ -110,16 +110,20 @@ QJsonObject FacebookViewModel::estado() const {
                        {"upload", QJsonObject::fromVariantMap(upload_)}};
 }
 
-QString FacebookViewModel::guardarCredencial(const QVariantMap& v) {
+bool FacebookViewModel::guardarCredencial(const QVariantMap& v) {
     return saveClient(v.value("appId").toString().trimmed(), v.value("appSecret").toString().trimmed(),
                       v.value("port", port()).toInt());
 }
 
-QString FacebookViewModel::saveClient(const QString& appId, const QString& secret, int port) {
+bool FacebookViewModel::saveClient(const QString& appId, const QString& secret, int port) {
     QString err;
-    if (!client_->saveClient(appId, secret, port, err)) return err;
+    if (!client_->saveClient(appId, secret, port, err)) {
+        avisarError(err);
+        return false;
+    }
+    setError({});
     emit notify(tr("App de Meta guardada: ahora conecta tu cuenta."), "ok");
-    return {};
+    return true;
 }
 
 void FacebookViewModel::clearClient() { client_->clearClient(); }

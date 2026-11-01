@@ -98,16 +98,20 @@ QJsonObject YouTubeViewModel::estado() const {
                        {"upload", QJsonObject::fromVariantMap(upload_)}};
 }
 
-QString YouTubeViewModel::guardarCredencial(const QVariantMap& v) {
+bool YouTubeViewModel::guardarCredencial(const QVariantMap& v) {
     if (v.contains("clientJson")) return saveClient(v.value("clientJson").toString());
     return saveClient(v.value("clientId").toString().trimmed(), v.value("clientSecret").toString().trimmed());
 }
 
-QString YouTubeViewModel::saveClient(const QString& jsonOrId, const QString& secret) {
+bool YouTubeViewModel::saveClient(const QString& jsonOrId, const QString& secret) {
     QString err;
-    if (!client_->saveClient(jsonOrId, secret, err)) return err;
+    if (!client_->saveClient(jsonOrId, secret, err)) {
+        avisarError(err);
+        return false;
+    }
+    setError({});
     emit notify(tr("Credenciales de Google guardadas: ahora conecta tu cuenta."), "ok");
-    return {};
+    return true;
 }
 
 void YouTubeViewModel::clearClient() {

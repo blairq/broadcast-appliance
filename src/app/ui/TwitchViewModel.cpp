@@ -142,15 +142,19 @@ QJsonObject TwitchViewModel::estado() const {
                        {"chatOn", chatOn()}};
 }
 
-QString TwitchViewModel::guardarCredencial(const QVariantMap& v) {
+bool TwitchViewModel::guardarCredencial(const QVariantMap& v) {
     return saveClient(v.value("clientId").toString().trimmed(), v.value("clientSecret").toString().trimmed());
 }
 
-QString TwitchViewModel::saveClient(const QString& id, const QString& secret) {
+bool TwitchViewModel::saveClient(const QString& id, const QString& secret) {
     QString err;
-    if (!client_->saveClient(id, secret, err)) return err;
+    if (!client_->saveClient(id, secret, err)) {
+        avisarError(err);
+        return false;
+    }
+    setError({});
     emit notify(tr("App de Twitch guardada: ahora conecta tu cuenta."), "ok");
-    return {};
+    return true;
 }
 
 void TwitchViewModel::clearClient() { client_->clearClient(); }

@@ -27,6 +27,7 @@
 #include "mcp/McpPlataformas.hpp"
 #include "mcp/McpService.hpp"
 #include "mcp/McpToolsCommon.hpp"
+#include "ui/CapturaError.hpp"
 #include "ui/CuentasViewModel.hpp"
 #include "ui/FacebookViewModel.hpp"
 #include "ui/OperatorMessages.hpp"
@@ -47,7 +48,7 @@ void McpService::registerPlataformaTools() {
     registrarPlataformas(
         core_, Plataformas{c.youtube(), c.twitch(), c.facebook(),
                            [cuentas = &c](const QString& plataforma, const QVariantMap& campos) {
-                               return cuentas->saveAccountCredential(plataforma, campos);
+                               return errorDe([&] { return cuentas->saveAccountCredential(plataforma, campos); });
                            },
                            [](auto listo) {
                                // El disco, en el pool; la respuesta, en la interfaz.
