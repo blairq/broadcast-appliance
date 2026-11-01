@@ -5,12 +5,9 @@
   const CLAVE_TOKEN = "ba-botonera-token";
   const CLAVE_DISP = "ba-botonera-dispositivo";
   const CLAVE_NOMBRE = "ba-botonera-nombre";
-  const $ = (id) => document.getElementById(id);
 
-  let ws = null;
+  let canal = null;             // el canal web (comun/canal.js)
   let estado = null;            // el último {type: "estado", ...} de la app
-  let reintento = 1000;
-  let latido = null;
   const celdas = new Map();     // "x,y" -> {el, def, actualizar}
   const enviarCada = new Map(); // throttling de faders: "x,y" -> {t, pendiente}
 
@@ -94,49 +91,31 @@
   }
 
   // --- Conexión ------------------------------------------------------------------
+  // El canal (comun/canal.js): vuelve solo si se corta; un token que no vale, no.
   function conectar() {
-    const token = leer(CLAVE_TOKEN);
-    if (!token) return mensaje(t("Tablet sin emparejar"), t("Escaneá el QR que muestra la app en la página Botonera → Emparejar tablet."));
-    const url = (location.protocol === "https:" ? "wss://" : "ws://") + location.host + "/ws?botonera=1";
-    try { ws = new WebSocket(url); } catch (e) { return reconectar(); }
-    ws.onopen = () => {
-      ws.send(JSON.stringify({ type: "auth", token: token }));
-    };
-    ws.onmessage = (ev) => {
-      let m;
-      try { m = JSON.parse(ev.data); } catch (e) { return; }
-      recibir(m);
-    };
-    ws.onclose = () => {
-      ws = null;
-      $("conexion").className = "conexion apagada";
-      clearInterval(latido);
-      reconectar();
-    };
+    if (!leer(CLAVE_TOKEN)) return mensaje(t("Tablet sin emparejar"), t("Escaneá el QR que muestra la app en la página Botonera → Emparejar tablet."));
+    if (canal) { canal.reabrir(); return; }
+    canal = BAWs.abrir({
+      rol: "botonera",
+      auth: () => (leer(CLAVE_TOKEN) ? { token: leer(CLAVE_TOKEN) } : null),
+      alEntrar: recibir,
+      alMensaje: recibir,
+      alRechazo: recibir,
+      alCaer: () => { $("conexion").className = "conexion apagada"; },
+    });
   }
-  let reconectando = null;
-  function reconectar() {
-    if (reconectando || !leer(CLAVE_TOKEN)) return;
-    reconectando = setTimeout(() => { reconectando = null; conectar(); }, reintento);
-    reintento = Math.min(reintento * 2, 10000);
-  }
-  function mandar(m) {
-    if (ws && ws.readyState === 1) ws.send(JSON.stringify(m));
-  }
+  const mandar = (m) => !!canal && canal.mandar(m);
 
   function recibir(m) {
     if (m.type === "auth") {
       if (!m.ok) {
         guardar(CLAVE_TOKEN, null);
         mensaje(t("Tablet sin emparejar"), t(m.error) || t("El token no vale."), false);
-        if (ws) ws.close();
+        if (canal) canal.cerrar();
         return;
       }
-      reintento = 1000;
       $("conexion").className = "conexion viva";
       sinMensaje();
-      clearInterval(latido);
-      latido = setInterval(() => mandar({ type: "ping" }), 10000);
       return;
     }
     if (m.type === "estado") {
@@ -607,7 +586,7 @@
   $("olvidar").onclick = () => {
     guardar(CLAVE_TOKEN, null);
     guardar(CLAVE_DISP, null);
-    if (ws) ws.close();
+    if (canal) canal.cerrar();
     mensaje(t("Tablet sin emparejar"), t("Escaneá el QR que muestra la app en la página Botonera → Emparejar tablet."));
   };
   // Que la pantalla no se apague (si el navegador lo permite).

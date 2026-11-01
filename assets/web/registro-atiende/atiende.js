@@ -5,14 +5,11 @@
 // tótem) y completar o corregir los datos. La app decide todo; esta página pide y muestra.
 "use strict";
 
-const $ = (id) => document.getElementById(id);
 const token = new URLSearchParams(location.hash.slice(1)).get("t") || "";
 const kClaveNombre = "ba.registroAtiende.nombre";
 
-let ws = null;
-let reintento = 1000;
+let cws = null;          // el canal web (comun/canal.js)
 let terminado = false;
-let timerPing = 0;
 let aconn = "";          // quién soy para el gateway ("a3")
 let nombre = "";
 let lista = [];          // las conversaciones, como las manda la app
@@ -59,11 +56,11 @@ function cortar(texto) {
   cerrarMedios();
   $("cortadoTexto").textContent = texto;
   mostrar("cortado");
-  if (ws) { try { ws.close(); } catch (e) {} }
+  if (cws) cws.cerrar();
 }
 
 function mandar(m) {
-  if (ws && ws.readyState === 1) ws.send(JSON.stringify(m));
+  if (cws) cws.mandar(m);
 }
 
 function conversacion(conn) {
@@ -74,7 +71,7 @@ function conversacion(conn) {
 async function iniciarMedios() {
   if (pc) return;
   if (window.BAIce) await BAIce.listo();
-  if (pc || !ws || ws.readyState !== 1) return;
+  if (pc || !cws || !cws.listo()) return;
   const p = new RTCPeerConnection(window.BAIce ? BAIce.config() : { iceServers: [] });
   pc = p;
   remoto = new MediaStream();
@@ -301,40 +298,28 @@ function pintarDetalle() {
 }
 
 // --- El WebSocket ------------------------------------------------------------------------------------
+// El canal (comun/canal.js): vuelve solo si se corta.
 function conectar() {
-  const proto = location.protocol === "https:" ? "wss:" : "ws:";
-  ws = new WebSocket(proto + "//" + location.host + "/ws?registro_atiende=1");
-  ws.onopen = () => mandar({ type: "auth", t: token, nombre });
-  ws.onmessage = (ev) => {
-    let m;
-    try { m = JSON.parse(ev.data); } catch (e) { return; }
-    recibir(m);
-  };
-  ws.onclose = () => {
-    conexion(false);
-    clearInterval(timerPing);
-    cerrarMedios();
-    if (terminado) return;
-    setTimeout(conectar, reintento);
-    reintento = Math.min(reintento * 2, 15000);
-  };
+  if (cws) { cws.reabrir(); return; }
+  cws = BAWs.abrir({
+    rol: "registro_atiende",
+    auth: () => ({ t: token, nombre }),
+    alEntrar: recibir,
+    alMensaje: recibir,
+    alRechazo: (m) => cortar(t(m.error) || t("Este enlace de atención no es válido.")),
+    alCaer: () => { conexion(false); cerrarMedios(); },
+  });
 }
 
 function recibir(m) {
   switch (m.type) {
-    case "hola":
-      reintento = 1000;
+    case "auth":
       conexion(true);
       aconn = m.aconn || "";
       nombre = m.nombre || nombre;
       $("quien").textContent = nombre;
-      clearInterval(timerPing);
-      timerPing = setInterval(() => mandar({ type: "ping" }), 20000);
       mostrar("atencion");
       if (elegida) { mandar({ type: "mirar", conn: elegida }); iniciarMedios(); } // volvió la conexión
-      break;
-    case "error":
-      cortar(t(m.error) || t("Este enlace de atención no es válido."));
       break;
     case "cortado":
       cortar(t(m.motivo) || t("Se cerró la atención."));
@@ -369,8 +354,6 @@ function recibir(m) {
       if (m.conn && m.conn === elegida) sucios.clear();
       aviso(m.texto || "");
       pintarDetalle();
-      break;
-    case "pong":
       break;
   }
 }
@@ -413,9 +396,9 @@ $("formNombre").addEventListener("submit", (ev) => {
   nombre = n;
   guardarNombre(n);
   $("quien").textContent = n;
-  if (!ws) { conectar(); return; }
+  if (!cws) { conectar(); return; }
   // Otro nombre: se vuelve a entrar con él (es lo que ve la persona del tótem).
-  if (cambio && ws.readyState === 1) ws.close();
+  if (cambio && cws.listo()) { cws.cerrar(); cws.reabrir(); }
   else mostrar("atencion");
 });
 document.addEventListener("click", () => { if ($("sonido").srcObject) $("sonido").play().catch(() => {}); });

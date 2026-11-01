@@ -97,6 +97,7 @@
 
 #include <nlohmann/json.hpp>
 
+#include "Canal.hpp"
 #include "Botonera.hpp"
 #include "Direcciones.hpp"
 #include "Registro.hpp"
@@ -418,9 +419,9 @@ class SignalingServer {
     std::string avatarOf(const std::string& id);
     void sendAvatar(long long fd, const std::string& id);
 
-    /// Handshake + alta del participante. :returns: su id, o vacio si fallo.
-    std::string wsOpen(long long fd, const std::string& headers, const std::string& query,
-                       std::uint32_t clientIp);
+    /// La entrada por /ws (ya con el 101 y el primer mensaje, `primero`): valida según el
+    /// rol (`query`) y da de alta. Contesta el «auth». :returns: su id, o vacío si no entró.
+    std::string wsOpen(long long fd, const std::string& query, const nlohmann::json& primero, std::uint32_t clientIp);
     void wsLoop(long long fd, const std::string& pid, uint64_t gen);
     void handleWsMessage(const std::string& pid, uint64_t gen, const nlohmann::json& msg);
     void handleOffer(const std::string& pid, uint64_t gen, const std::string& sdp);
@@ -444,10 +445,8 @@ class SignalingServer {
     bool ofertaRegistro(const std::string& conn, int canal, const std::string& sdp,
                         std::function<void(const nlohmann::json&)> enviar);
 
-    struct WsConn {
-        long long fd = -1;
+    struct WsConn : canal::Salida {
         uint64_t gen = 0; // distingue una reconexion del mismo participante
-        std::mutex sendLock;
     };
     uint64_t registerConn(const std::string& pid, long long fd);
     /// Quita la conexion si sigue siendo la vigente. :returns: true si lo era.

@@ -3,6 +3,7 @@
 // ============================================================================
 
 #include "ControlWeb.hpp"
+#include "Canal.hpp"
 #include "Borde.hpp"
 #include "security/Comparar.hpp"
 
@@ -236,23 +237,12 @@ bool ControlWebBorde::atender(long long fd, const std::string& method, const std
     return true;
 }
 
-void ControlWebBorde::enviar(const std::shared_ptr<Conn>& c, const json& msg) {
-    std::lock_guard<std::mutex> l(c->sendLock);
-    if (c->fd >= 0) http::writeWsFrame(c->fd, 0x1, volcar(msg));
-}
-
 void ControlWebBorde::cortar(const std::shared_ptr<Conn>& c, const std::string& motivo) {
-    if (!motivo.empty()) enviar(c, {{"type", "auth"}, {"ok", false}, {"error", motivo}});
-    std::lock_guard<std::mutex> l(c->sendLock);
-    if (c->fd >= 0) http::shutdownFd(c->fd);
+    if (!motivo.empty()) c->enviar({{"type", "auth"}, {"ok", false}, {"error", motivo}, {"error_codigo", "token"}});
+    c->cortar();
 }
 
 void ControlWebBorde::wsLoop(long long fd, const std::string& headers, std::uint32_t clientIp, bool remoto) {
-    const std::string key = http::getHeader(headers, "Sec-WebSocket-Key");
-    if (key.empty()) {
-        http::sendResponse(fd, 400, "text/plain", traducir("gateway", "falta Sec-WebSocket-Key") + "\n");
-        return;
-    }
     {
         std::lock_guard<std::mutex> l(mu_);
         if (static_cast<int>(conns_.size()) >= kMaxConexiones()) {
@@ -260,25 +250,16 @@ void ControlWebBorde::wsLoop(long long fd, const std::string& headers, std::uint
             return;
         }
     }
-    const std::string accept = http::base64(http::sha1(key + "258EAFA5-E914-47DA-95CA-C5AB0DC85B11").data(), 20);
-    const std::string ok = "HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n"
-                           "Sec-WebSocket-Accept: " + accept + "\r\n\r\n";
-    if (!http::sendAll(fd, ok.data(), ok.size())) return;
-    http::setSocketTimeout(fd, 0);
+    if (!canal::aceptar(fd, headers)) return;
     auto c = std::make_shared<Conn>();
-    c->fd = fd;
     c->ip = borde::ipTexto(clientIp);
     c->remoto = remoto;
-    // 1. Autenticación: el primer mensaje, a los 10 s como mucho.
+    // 1. Autenticación: el primer mensaje (docs/arquitectura/06-canal-web.md), a los 10 s como mucho.
     {
-        if (http::waitReadable(fd, kAuthMs()) <= 0) return;
-        std::string payload;
-        int op = 0;
-        if (!http::readWsFrame(fd, payload, op) || op != 0x1 || payload.size() > 4096) return;
-        const json m = json::parse(payload, nullptr, false);
-        const bool esAuth = m.is_object() && m.value("type", std::string()) == "auth";
-        const std::string token = esAuth && m.contains("token") && m["token"].is_string() ? m["token"].get<std::string>() : "";
-        const std::string pin = esAuth && m.contains("pin") && m["pin"].is_string() ? m["pin"].get<std::string>() : "";
+        const json m = canal::primerMensaje(fd, kAuthMs());
+        if (m.is_null()) return;
+        const std::string token = m.contains("token") && m["token"].is_string() ? m["token"].get<std::string>() : "";
+        const std::string pin = m.contains("pin") && m["pin"].is_string() ? m["pin"].get<std::string>() : "";
         // Con 5 errores seguidos desde esa IP no se prueba nada más (el PIN es corto).
         const std::string ap = bloqueada(clientIp) ? std::string() : autenticar(token, pin, remoto);
         if (ap.empty()) {
@@ -287,17 +268,17 @@ void ControlWebBorde::wsLoop(long long fd, const std::string& headers, std::uint
             log_.warn(remoto ? llenar(traducir("gateway", "control web: token o PIN inválido desde %1"), {c->ip})
                              : llenar(traducir("gateway", "control web: token inválido desde %1"), {c->ip}),
                       -1);
-            enviar(c, {{"type", "auth"},
-                       {"ok", false},
-                       {"error", !otra    ? QT_TRANSLATE_NOOP("web/comun", "Demasiados intentos: esperá 10 minutos.")
-                                 : remoto ? QT_TRANSLATE_NOOP("web/comun", "Este aparato no está emparejado, o falta el PIN "
+            if (!otra) return canal::rechazar(fd, QT_TRANSLATE_NOOP("web/comun", "Demasiados intentos: esperá 10 minutos."), "intentos");
+            return canal::rechazar(fd,
+                                   remoto ? QT_TRANSLATE_NOOP("web/comun", "Este aparato no está emparejado, o falta el PIN "
                                                                            "para entrar desde afuera.")
-                                          : QT_TRANSLATE_NOOP("web/comun", "Este aparato no está emparejado (o fue quitado).")}});
-            http::writeWsFrame(fd, 0x8, "");
-            return;
+                                          : QT_TRANSLATE_NOOP("web/comun", "Este aparato no está emparejado (o fue quitado)."),
+                                   "token");
         }
         c->aparato = ap;
     }
+    c->fd = fd;
+    canal::anotar(c);
     {
         std::string id;
         if (!ba::security::randomSecretHex(8, id)) return;
@@ -315,41 +296,14 @@ void ControlWebBorde::wsLoop(long long fd, const std::string& headers, std::uint
             {"ip", c->ip},
             {"lugar", remoto ? "afuera" : "sala"}});
     // 2. El lazo.
-    std::vector<std::int64_t> ventana;
-    while (true) {
-        const int r = http::waitReadable(fd, kLatidoMs());
-        if (r <= 0) break; // sin latido: se da por caída
-        std::string payload;
-        int op = 0;
-        if (!http::readWsFrame(fd, payload, op)) break;
-        if (op == 0x8) break;
-        if (op == 0x9) {
-            std::lock_guard<std::mutex> l(c->sendLock);
-            http::writeWsFrame(fd, 0xA, payload);
-            continue;
-        }
-        if (op != 0x1 || payload.size() > kMaxMensaje) continue;
-        const std::int64_t ahora = ahoraMs();
-        ventana.erase(std::remove_if(ventana.begin(), ventana.end(), [&](std::int64_t t) { return ahora - t > 1000; }),
-                      ventana.end());
-        if (static_cast<int>(ventana.size()) >= kMensajesPorSegundo()) {
-            log_.warn(llenar(traducir("gateway", "control web: %1 manda demasiado; se corta"), {c->aparato}), -1);
-            break;
-        }
-        ventana.push_back(ahora);
-        const json m = json::parse(payload, nullptr, false);
-        if (!m.is_object()) continue;
+    const canal::Fin fin = canal::leer(*c, {kLatidoMs(), kMaxMensaje, kMensajesPorSegundo()}, [&](const json& m) {
         const std::string t = m.value("type", std::string());
-        if (t == "ping") {
-            enviar(c, {{"type", "pong"}});
-            continue;
-        }
-        if (!kTipos.count(t)) continue;
+        if (!kTipos.count(t)) return true;
         // Se reenvía solo lo que la app entiende, con los campos que espera.
         json limpio{{"type", t}};
         if (m.contains("id") && (m["id"].is_number() || m["id"].is_string())) limpio["id"] = m["id"];
         if (t == "llamar") {
-            if (!m.contains("herramienta") || !m["herramienta"].is_string()) continue;
+            if (!m.contains("herramienta") || !m["herramienta"].is_string()) return true;
             limpio["herramienta"] = m["herramienta"];
             limpio["args"] = m.contains("args") && m["args"].is_object() ? m["args"] : json::object();
             if (m.contains("confirmado") && m["confirmado"].is_boolean()) limpio["confirmado"] = m["confirmado"];
@@ -360,19 +314,19 @@ void ControlWebBorde::wsLoop(long long fd, const std::string& headers, std::uint
                     if (x.is_string() && temas.size() < 32) temas.push_back(x);
             limpio["temas"] = temas;
         } else if (t == "preferencias") {
-            if (!m.contains("datos") || !m["datos"].is_object() || m["datos"].dump().size() > 8192) continue;
+            if (!m.contains("datos") || !m["datos"].is_object() || m["datos"].dump().size() > 8192) return true;
             limpio["datos"] = m["datos"];
         }
         alApp_({{"tipo", "entrada"}, {"conexion", c->id}, {"aparato", c->aparato}, {"msg", limpio}});
-    }
+        return true;
+    });
+    if (fin == canal::Fin::Exceso)
+        log_.warn(llenar(traducir("gateway", "control web: %1 manda demasiado; se corta"), {c->aparato}), -1);
     {
         std::lock_guard<std::mutex> l(mu_);
         conns_.erase(std::remove(conns_.begin(), conns_.end(), c), conns_.end());
     }
-    {
-        std::lock_guard<std::mutex> l(c->sendLock);
-        c->fd = -1;
-    }
+    c->soltar();
     alApp_({{"tipo", "conexion"}, {"conexion", c->id}, {"aparato", c->aparato}, {"conectado", false}, {"ip", c->ip}});
     log_.info(llenar(traducir("gateway", "control web: %1 desconectado [%2]"), {c->aparato, c->id}));
 }
@@ -448,7 +402,7 @@ bool ControlWebBorde::admin(long long fd, const std::string& method, const std::
         }
         if (que == "enviar") {
             const json msg = r.value("msg", json::object());
-            for (const auto& c : a) enviar(c, msg);
+            for (const auto& c : a) c->enviar(msg);
         } else {
             for (const auto& c : a) cortar(c, r.value("motivo", std::string()));
         }

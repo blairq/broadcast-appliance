@@ -30,13 +30,13 @@
   function create(opts) {
     const endpoint = opts.endpoint;
     const headers = Object.assign({ "Content-Type": "application/json" }, opts.headers || {});
-    const entries = new Map(); // id -> {videos, stream, pc, viewer, frames, stalls}
+    const entries = new Map(); // id -> {videos, stream, pc, viewer, vigia}
     const failedAt = new Map(); // id -> ms (no reintentar enseguida)
 
     function video(id, place) {
       let e = entries.get(id);
       if (!e) {
-        e = { videos: new Map(), stream: null, pc: null, viewer: 0, frames: -1, stalls: 0, opening: false };
+        e = { videos: new Map(), stream: null, pc: null, viewer: 0, vigia: null, opening: false };
         entries.set(id, e);
       }
       const key = place || "";
@@ -89,6 +89,19 @@
         }
         e.viewer = j.viewer;
         await pc.setRemoteDescription({ type: "answer", sdp: j.sdp });
+        // Si deja de decodificar, se pide un keyframe (B lo pide al invitado); si
+        // sigue muerta, se reabre en el proximo render (comun/vigia-video.js).
+        e.vigia = BAVigia.vigilar({
+          cadaMs: 2000,
+          cuadros: async () => {
+            if (e.pc !== pc || pc.connectionState !== "connected") return null;
+            let decoded = 0;
+            (await pc.getStats()).forEach((x) => { if (x.type === "inbound-rtp" && x.kind === "video") decoded = x.framesDecoded || 0; });
+            return decoded;
+          },
+          alTrabado: () => fetch(`${endpoint}/${e.viewer}/keyframe`, { method: "POST", credentials: "same-origin", headers }).catch(() => {}),
+          alMuerto: () => close(id, true),
+        });
       } catch (err) {
         close(id, true);
       } finally {
@@ -102,12 +115,12 @@
       if (failed) failedAt.set(id, Date.now());
       const pc = e.pc;
       e.pc = null;
+      if (e.vigia) { e.vigia.parar(); e.vigia = null; }
       if (pc) { try { pc.close(); } catch (x) {} }
       if (e.viewer) {
         fetch(`${endpoint}/${e.viewer}`, { method: "DELETE", credentials: "same-origin", headers }).catch(() => {});
         e.viewer = 0;
       }
-      e.frames = -1;
       e.stream = null;
       if (!failed) entries.delete(id);
     }
@@ -116,30 +129,6 @@
     function keep(ids) {
       for (const id of [...entries.keys()]) if (!ids.has(id)) close(id, false);
     }
-
-    // Vigia: si una vista conectada deja de decodificar, se pide un keyframe
-    // (B lo pide al invitado); si sigue muerta, se reabre.
-    setInterval(async () => {
-      for (const [id, e] of entries) {
-        if (!e.pc || !e.viewer || e.pc.connectionState !== "connected") continue;
-        let decoded = 0;
-        try {
-          const stats = await e.pc.getStats();
-          stats.forEach((s) => { if (s.type === "inbound-rtp" && s.kind === "video") decoded = s.framesDecoded || 0; });
-        } catch (x) { continue; }
-        if (decoded === e.frames) {
-          e.stalls++;
-          if (e.stalls === 1 || e.stalls === 3) {
-            fetch(`${endpoint}/${e.viewer}/keyframe`, { method: "POST", credentials: "same-origin", headers }).catch(() => {});
-          } else if (e.stalls >= 6) {
-            close(id, true); // se reabre en el proximo render
-          }
-        } else {
-          e.stalls = 0;
-        }
-        e.frames = decoded;
-      }
-    }, 2000);
 
     window.addEventListener("pagehide", () => { for (const id of [...entries.keys()]) close(id, false); });
     return { video, keep, close: (id) => close(id, false) };

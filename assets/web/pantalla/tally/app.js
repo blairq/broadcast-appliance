@@ -17,7 +17,6 @@
   // Los textos, en el idioma del evento.
   await BAi18n.iniciar({ contexto: "web/pantalla", preferir: "evento" });
 
-  const $ = (id) => document.getElementById(id);
   const q = new URLSearchParams(location.search);
   const fuente = (q.get("fuente") || "").trim();
 

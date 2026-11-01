@@ -3,6 +3,7 @@
 // ============================================================================
 
 #include "Sesion.hpp"
+#include "Canal.hpp"
 #include "Borde.hpp"
 #include "security/Comparar.hpp"
 #include "security/SecretsStore.hpp"
@@ -301,48 +302,26 @@ bool SesionBorde::atender(long long fd, const std::string& method, const std::st
         return servir(fd, rel, paginaConsola ? (std::filesystem::path(webroot_).parent_path() / "presidencia").string()
                                              : webroot_);
     }
-    const std::string key = http::getHeader(headers, "Sec-WebSocket-Key");
-    if (key.empty()) return http::sendResponse(fd, 400, "text/plain", traducir("gateway", "falta Sec-WebSocket-Key") + "\n"), true;
     {
         std::lock_guard<std::mutex> l(mu_);
         if (static_cast<int>(conns_.size()) >= kMaxConexiones())
             return http::sendResponse(fd, 503, "text/plain", traducir("gateway", "sesion llena") + "\n"), true;
     }
-    const std::string accept = http::base64(http::sha1(key + "258EAFA5-E914-47DA-95CA-C5AB0DC85B11").data(), 20);
-    const std::string ok = "HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n"
-                           "Sec-WebSocket-Accept: " + accept + "\r\n\r\n";
-    if (!http::sendAll(fd, ok.data(), ok.size())) return true;
-    http::setSocketTimeout(fd, 0);
+    if (!canal::aceptar(fd, headers)) return true;
     wsLoop(fd, ip, lugar, wsConsola);
     return true;
 }
 
-void SesionBorde::enviar(const std::shared_ptr<Conn>& c, const json& msg) {
-    std::lock_guard<std::mutex> l(c->sendLock);
-    if (c->fd >= 0) http::writeWsFrame(c->fd, 0x1, msg.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
-}
-
 void SesionBorde::wsLoop(long long fd, const std::string& ip, const std::string& lugar, bool consola) {
     auto c = std::make_shared<Conn>();
-    c->fd = fd;
     c->ip = ip;
     c->lugar = lugar;
-    // 1. Autenticación: el primer mensaje, a los 15 s como mucho.
+    // 1. Autenticación: el primer mensaje (docs/arquitectura/06-canal-web.md), a los 15 s como mucho.
     json pedido;
     {
-        if (http::waitReadable(fd, kAuthMs()) <= 0) return;
-        std::string payload;
-        int op = 0;
-        if (!http::readWsFrame(fd, payload, op) || op != 0x1) return;
-        const json m = json::parse(payload, nullptr, false);
-        const auto rechazar = [&](const std::string& error, const std::string& codigo = {}) {
-            json r{{"type", "auth"}, {"ok", false}, {"error", error}};
-            if (!codigo.empty()) r["error_codigo"] = codigo;
-            enviar(c, r);
-            http::writeWsFrame(fd, 0x8, "");
-        };
-        if (!m.is_object() || m.value("type", std::string()) != "auth")
-            return rechazar(QT_TRANSLATE_NOOP("web/comun", "Mensaje inválido."));
+        const json m = canal::primerMensaje(fd, kAuthMs());
+        if (m.is_null()) return;
+        const auto rechazar = [&](const std::string& error, const std::string& codigo = {}) { canal::rechazar(fd, error, codigo); };
         pedido = m;
         // La consola de la presidencia tiene su propia credencial (id "consola:<x>"); un
         // integrante nunca entra por la consola ni la consola por la página del integrante.
@@ -409,6 +388,8 @@ void SesionBorde::wsLoop(long long fd, const std::string& ip, const std::string&
             c->id = quien;
         }
     }
+    c->fd = fd;
+    canal::anotar(c);
     // Entró con el PIN y la página pide registrar el aparato: el token, una sola vez.
     std::string tokenAparato;
     if (c->aparato.empty() && pedido.value("registrar", false))
@@ -427,10 +408,9 @@ void SesionBorde::wsLoop(long long fd, const std::string& ip, const std::string&
         }
     }
     if (vieja) { // un integrante, una conexión: la nueva corta la vieja
-        enviar(vieja, {{"type", "cortado"},
+        vieja->enviar({{"type", "cortado"},
                        {"motivo", QT_TRANSLATE_NOOP("web/comun", "Entraste desde otro lado: esta ventana se cerró.")}});
-        std::lock_guard<std::mutex> l(vieja->sendLock);
-        if (vieja->fd >= 0) http::shutdownFd(vieja->fd);
+        vieja->cortar();
     }
     int canalMedios = 0;
     {
@@ -445,20 +425,20 @@ void SesionBorde::wsLoop(long long fd, const std::string& ip, const std::string&
     json bien{{"type", "auth"}, {"ok", true}, {"id", c->id}, {"nombre", datos.value("nombre", std::string())},
               {"banca", datos.value("banca", std::string())}, {"lugar", c->lugar}};
     if (!tokenAparato.empty()) bien["aparato"] = tokenAparato;
-    enviar(c, bien);
+    c->enviar(bien);
     log_.info(llenar(traducir("gateway", "sesion: %1 conectado desde %2"), {c->id, c->ip}));
     alApp_({{"tipo", "conexion"}, {"id", c->id}, {"conectado", true}, {"ip", c->ip}, {"lugar", c->lugar},
             {"aparato", c->aparato}});
     // Volvió el que tiene la palabra (se le cortó la red, recargó la página): se le
     // vuelve a pedir el micrófono y la cámara.
-    if (tieneMedios) enviar(c, {{"type", "medios"}, {"activo", true}});
+    if (tieneMedios) c->enviar({{"type", "medios"}, {"activo", true}});
     if (!consola) {
         json lista;
         {
             std::lock_guard<std::mutex> l(mu_);
             lista = listaVistas();
         }
-        enviar(c, {{"type", "vistas"}, {"lista", lista}});
+        c->enviar({{"type", "vistas"}, {"lista", lista}});
         // Su vista de la conexión vieja (si la había) era de esa página: la nueva ofrece otra.
         if (vieja && medios_.vistaCerrar) medios_.vistaCerrar(c->id);
         // Lo estaba atendiendo el asistente hablando (recargó la página, se le cortó
@@ -470,40 +450,13 @@ void SesionBorde::wsLoop(long long fd, const std::string& ip, const std::string&
         }
         if (atendido) {
             if (vieja && medios_.atiendeCerrar) medios_.atiendeCerrar(c->id);
-            enviar(c, {{"type", "atiende"}, {"on", true}});
+            c->enviar({{"type", "atiende"}, {"on", true}});
         }
     }
-    // 2. El lazo.
-    std::vector<std::int64_t> ventana;
-    while (true) {
-        const int r = http::waitReadable(fd, kLatidoMs());
-        if (r <= 0) break; // sin latido: se da por caído
-        std::string payload;
-        int op = 0;
-        if (!http::readWsFrame(fd, payload, op)) break;
-        if (op == 0x8) break;
-        if (op == 0x9) {
-            std::lock_guard<std::mutex> l(c->sendLock);
-            http::writeWsFrame(fd, 0xA, payload);
-            continue;
-        }
-        if (op != 0x1 || payload.size() > kMaxFoto() * 2) continue;
-        const std::int64_t ahora = ahoraMs();
-        ventana.erase(std::remove_if(ventana.begin(), ventana.end(), [&](std::int64_t t) { return ahora - t > 1000; }),
-                      ventana.end());
-        // La consola junta candidatos ICE de varias conexiones a la vez: más margen.
-        if (static_cast<int>(ventana.size()) >= (consola ? kMensajesPorSegundo() * 4 : kMensajesPorSegundo())) {
-            log_.warn(llenar(traducir("gateway", "sesion: %1 manda demasiado; se corta"), {c->id}), -1);
-            break;
-        }
-        ventana.push_back(ahora);
-        const json m = json::parse(payload, nullptr, false);
-        if (!m.is_object()) continue;
+    // 2. El lazo (la consola junta candidatos ICE de varias conexiones a la vez: más margen).
+    const canal::Fin fin = canal::leer(*c, {kLatidoMs(), kMaxFoto() * 2, consola ? kMensajesPorSegundo() * 4 : kMensajesPorSegundo()},
+                                       [&](const json& m) {
         const std::string t = m.value("type", std::string());
-        if (t == "ping") {
-            enviar(c, {{"type", "pong"}});
-            continue;
-        }
         // R3: el que tiene la palabra manda su micrófono y su cámara a la sala.
         if (!consola && (t == "medios-oferta" || t == "medios-ice")) {
             int canal = 0;
@@ -511,28 +464,28 @@ void SesionBorde::wsLoop(long long fd, const std::string& ip, const std::string&
                 std::lock_guard<std::mutex> l(mu_);
                 if (auto it = mediosDe_.find(c->id); it != mediosDe_.end()) canal = it->second;
             }
-            if (canal == 0 || !medios_.oferta) continue;
+            if (canal == 0 || !medios_.oferta) return true;
             if (t == "medios-oferta") {
                 std::weak_ptr<Conn> w = c;
                 const bool ok = medios_.oferta(c->id, canal, m.value("sdp", std::string()), [this, w](const json& r) {
-                    if (auto cc = w.lock()) enviar(cc, r);
+                    if (auto cc = w.lock()) cc->enviar(r);
                 });
                 if (!ok)
-                    enviar(c, {{"type", "medios"},
+                    c->enviar({{"type", "medios"},
                                {"activo", false},
                                {"error", QT_TRANSLATE_NOOP("web/comun", "no hay lugar para el audio en la sala")}});
             } else if (medios_.ice) {
                 const json& cand = m.contains("candidate") ? m["candidate"] : json();
                 medios_.ice(c->id, cand.is_string() ? cand.get<std::string>() : cand.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
             }
-            continue;
+            return true;
         }
         // Lo que mira en su celular: un WebRTC que solo recibe, y el canal que elige.
         if (!consola && (t == "vista-oferta" || t == "vista-ice" || t == "vista")) {
             if (t == "vista-ice") {
                 const json& cand = m.contains("candidate") ? m["candidate"] : json();
                 if (medios_.vistaIce) medios_.vistaIce(c->id, cand.is_string() ? cand.get<std::string>() : cand.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
-                continue;
+                return true;
             }
             Vista vista;
             bool habla;
@@ -549,13 +502,13 @@ void SesionBorde::wsLoop(long long fd, const std::string& ip, const std::string&
             } else if (medios_.vistaOferta) {
                 std::weak_ptr<Conn> w = c;
                 const bool ok = medios_.vistaOferta(c->id, m.value("sdp", std::string()), vista, habla, [this, w](const json& r) {
-                    if (auto cc = w.lock()) enviar(cc, r);
+                    if (auto cc = w.lock()) cc->enviar(r);
                 });
                 if (!ok)
-                    enviar(c, {{"type", "vista-error"},
+                    c->enviar({{"type", "vista-error"},
                                {"error", QT_TRANSLATE_NOOP("web/comun", "La sala no tiene lugar para mandarte la imagen ahora.")}});
             }
-            continue;
+            return true;
         }
         // La atención hablada mientras espera: su micrófono, solo audio, solo si la app
         // la prendió para él (lo demás se ignora: nadie se abre un canal solo).
@@ -565,9 +518,9 @@ void SesionBorde::wsLoop(long long fd, const std::string& ip, const std::string&
                 std::lock_guard<std::mutex> l(mu_);
                 atendido = atiende_ == c->id;
             }
-            if (!atendido) continue;
+            if (!atendido) return true;
             const auto noSePudo = [&](const std::string& error) {
-                enviar(c, {{"type", "atiende-fallo"}, {"error", error}});
+                c->enviar({{"type", "atiende-fallo"}, {"error", error}});
                 alApp_({{"tipo", "atiende_error"}, {"id", c->id}, {"error", error}});
             };
             if (t == "atiende-error") {
@@ -588,16 +541,16 @@ void SesionBorde::wsLoop(long long fd, const std::string& ip, const std::string&
                                      {c->id}),
                               -1);
                     noSePudo(QT_TRANSLATE_NOOP("web/comun", "La página ofreció algo más que el micrófono."));
-                    continue;
+                    return true;
                 }
                 std::weak_ptr<Conn> w = c;
                 if (!medios_.atiendeOferta ||
                     !medios_.atiendeOferta(c->id, sdp, [this, w](const json& r) {
-                        if (auto cc = w.lock()) enviar(cc, r);
+                        if (auto cc = w.lock()) cc->enviar(r);
                     }))
                     noSePudo(QT_TRANSLATE_NOOP("web/comun", "La sala no tiene lugar para escucharte ahora."));
             }
-            continue;
+            return true;
         }
         if (t == "rtc") {
             // Señalización WebRTC directa entre la consola de la presidencia y un
@@ -616,9 +569,9 @@ void SesionBorde::wsLoop(long long fd, const std::string& ip, const std::string&
                     auto it = conns_.find(a);
                     if (it != conns_.end()) dest = it->second;
                 }
-                if (dest) enviar(dest, r);
+                if (dest) dest->enviar(r);
             }
-            continue;
+            return true;
         }
         if (consola) {
             if (t == "foto") {
@@ -631,13 +584,13 @@ void SesionBorde::wsLoop(long long fd, const std::string& ip, const std::string&
                     if (it != fotos_.end()) jpeg = it->second;
                 }
                 if (!jpeg.empty())
-                    enviar(c, {{"type", "foto"}, {"id", quien},
+                    c->enviar({{"type", "foto"}, {"id", quien},
                                {"jpeg", http::base64(reinterpret_cast<const uint8_t*>(jpeg.data()), jpeg.size())}});
-                continue;
+                return true;
             }
             // Lo demás lo decide la app (habilitar, dar la palabra, votar…).
             if (kTiposConsola.count(t)) alApp_({{"tipo", "consola"}, {"id", c->id}, {"msg", m}});
-            continue;
+            return true;
         }
         if (t == "foto") {
             // La foto de su cámara: queda acá; la app la pide cuando la muestra.
@@ -659,19 +612,21 @@ void SesionBorde::wsLoop(long long fd, const std::string& ip, const std::string&
                     }
                 }
                 if (avisar) {
-                    for (const auto& cc : consolas) enviar(cc, {{"type", "foto_nueva"}, {"id", c->id}});
+                    for (const auto& cc : consolas) cc->enviar({{"type", "foto_nueva"}, {"id", c->id}});
                     if (alFotoNueva_) alFotoNueva_(c->id);
                 }
             }
-            continue;
+            return true;
         }
-        if (!kTipos.count(t)) continue;
+        if (!kTipos.count(t)) return true;
         // Se reenvía solo lo que la app entiende, con los campos que espera.
         json limpio{{"type", t}};
         for (const char* k : {"accion", "opcion", "votacion"})
             if (m.contains(k) && (m[k].is_number() || m[k].is_string() || m[k].is_boolean())) limpio[k] = m[k];
         alApp_({{"tipo", "entrada"}, {"id", c->id}, {"msg", limpio}});
-    }
+        return true;
+    });
+    if (fin == canal::Fin::Exceso) log_.warn(llenar(traducir("gateway", "sesion: %1 manda demasiado; se corta"), {c->id}), -1);
     bool eraLaActual = false;
     {
         std::lock_guard<std::mutex> l(mu_);
@@ -681,10 +636,7 @@ void SesionBorde::wsLoop(long long fd, const std::string& ip, const std::string&
             eraLaActual = true;
         }
     }
-    {
-        std::lock_guard<std::mutex> l(c->sendLock);
-        c->fd = -1;
-    }
+    c->soltar();
     // Si lo reemplazó otra conexión suya, no se avisa que se fue.
     if (eraLaActual && medios_.cerrar) {
         int canal = 0;
@@ -756,9 +708,8 @@ bool SesionBorde::admin(long long fd, const std::string& method, const std::stri
                 if (!credenciales_.count(id) || !aparatoVale(id, c->aparato)) cortar.push_back(c);
         }
         for (const auto& c : cortar) {
-            enviar(c, {{"type", "cortado"}, {"motivo", QT_TRANSLATE_NOOP("web/comun", "Tu acceso fue revocado.")}});
-            std::lock_guard<std::mutex> l(c->sendLock);
-            if (c->fd >= 0) http::shutdownFd(c->fd);
+            c->enviar({{"type", "cortado"}, {"motivo", QT_TRANSLATE_NOOP("web/comun", "Tu acceso fue revocado.")}});
+            c->cortar();
         }
         http::sendResponse(fd, 200, "application/json", json{{"ok", true}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
         return true;
@@ -848,12 +799,11 @@ bool SesionBorde::admin(long long fd, const std::string& method, const std::stri
         }
         for (const auto& c : a) {
             if (que == "enviar") {
-                enviar(c, r.value("msg", json::object()));
+                c->enviar(r.value("msg", json::object()));
             } else {
-                enviar(c, {{"type", "cortado"},
+                c->enviar({{"type", "cortado"},
                            {"motivo", r.value("motivo", std::string(QT_TRANSLATE_NOOP("web/comun", "La presidencia te desconectó.")))}});
-                std::lock_guard<std::mutex> l(c->sendLock);
-                if (c->fd >= 0) http::shutdownFd(c->fd);
+                c->cortar();
             }
         }
         http::sendResponse(fd, 200, "application/json", json{{"ok", true}, {"entregado", a.size()}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
@@ -870,8 +820,7 @@ void SesionBorde::cerrar() {
         for (const auto& [id, c] : conns_) a.push_back(c);
     }
     for (const auto& c : a) {
-        std::lock_guard<std::mutex> l(c->sendLock);
-        if (c->fd >= 0) http::shutdownFd(c->fd);
+        c->cortar();
     }
 }
 
@@ -909,7 +858,7 @@ void SesionBorde::avisarAtiende(const std::string& id, bool on) {
         std::lock_guard<std::mutex> l(mu_);
         if (auto it = conns_.find(id); it != conns_.end()) c = it->second;
     }
-    if (c) enviar(c, {{"type", "atiende"}, {"on", on}});
+    if (c) c->enviar({{"type", "atiende"}, {"on", on}});
 }
 
 bool SesionBorde::subeSoloAudio(const std::string& sdp) {
@@ -1006,7 +955,7 @@ void SesionBorde::difundirVistas() {
     }
     for (const auto& [id, ru] : rutas)
         if (medios_.vistaRuta) medios_.vistaRuta(id, ru.first, ru.second);
-    for (const auto& c : a) enviar(c, {{"type", "vistas"}, {"lista", lista}});
+    for (const auto& c : a) c->enviar({{"type", "vistas"}, {"lista", lista}});
 }
 
 void SesionBorde::ponerSalidas(const json& saneada) {
@@ -1050,8 +999,8 @@ void SesionBorde::ponerMedios(const std::vector<std::string>& ids) {
     }
     for (const auto& [id, canal] : salen)
         if (medios_.cerrar) medios_.cerrar(id, canal);
-    for (const auto& c : avisarSale) enviar(c, {{"type", "medios"}, {"activo", false}});
-    for (const auto& c : avisarEntra) enviar(c, {{"type", "medios"}, {"activo", true}});
+    for (const auto& c : avisarSale) c->enviar({{"type", "medios"}, {"activo", false}});
+    for (const auto& c : avisarEntra) c->enviar({{"type", "medios"}, {"activo", true}});
     std::string quienes;
     for (const auto& [id, canal] : nuevo)
         quienes += (quienes.empty() ? "" : ", ") + llenar(traducir("gateway", "%1 (canal %2)"), {id, std::to_string(canal)});

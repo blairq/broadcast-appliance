@@ -113,7 +113,7 @@
     window.BACanal.abrir({
       tipo: "correccion",
       clave,
-      que: () => BAi18n.llenar(t("%1 esperando"), tarjetas.size),
+      que: () => t("%n esperando", { n: tarjetas.size }),
       onAviso: (m) => { if (m.type === "correccion") aplicar(m); },
       onClaveMal: () => mostrarEstado(t("la clave no sirve (pedile el enlace nuevo al operador)"), "mal"),
       onClaveBien: () => pedir(),

@@ -49,6 +49,8 @@
 
 #include <nlohmann/json.hpp>
 
+#include "Canal.hpp"
+
 namespace ba::gateway {
 
 class Log;
@@ -80,11 +82,9 @@ class ControlWebBorde {
     bool tunelHabilitado() const;
 
    private:
-    struct Conn {
-        long long fd = -1;
+    struct Conn : canal::Salida {
         std::string id, aparato, ip;
         bool remoto = false;
-        std::mutex sendLock;
     };
     struct Credencial {
         std::string hash, sal;
@@ -96,7 +96,6 @@ class ControlWebBorde {
         std::int64_t ms = 0;
     };
     void wsLoop(long long fd, const std::string& headers, std::uint32_t clientIp, bool remoto);
-    void enviar(const std::shared_ptr<Conn>& c, const nlohmann::json& msg);
     void cortar(const std::shared_ptr<Conn>& c, const std::string& motivo);
     bool servir(long long fd, const std::string& rel);
     bool intentoPermitido(std::uint32_t ip);

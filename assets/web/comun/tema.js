@@ -19,7 +19,8 @@
    Lo que hace: cambia el <link> a /comun/tema.css?v=<versión> (así se guarda en la caché
    y un cambio se ve sin recargar), pone el logo, el favicon y el theme-color, guarda una
    copia en el aparato (para no pintar la página sin tema un instante al abrir) y vuelve a
-   mirar cada 15 s y al volver a la pestaña. Avisa con el evento `ba-tema-datos` en
+   mirar cuando la sala avisa por el canal (o cada 15 s en las páginas sin canal) y al
+   volver a la pestaña. Avisa con el evento `ba-tema-datos` en
    document (detail: lo de tema.json), que es de donde neuro.js toma el de las consolas:
    un solo pedido para los dos.
 
@@ -156,10 +157,10 @@
     .then((d) => recibir(d, true))
     .catch(() => {});
   leer();
-  // Con el canal de control abierto, la sala avisa cuando cambia («tema»); sin él (las
-  // páginas que no lo usan), se relee cada 15 s.
+  // Con el canal web abierto (comun/canal.js, cualquier rol), la sala avisa cuando cambia
+  // («tema»); solo las páginas sin canal (el público, el evento) lo releen cada 15 s.
   document.addEventListener("ba-canal", (e) => { if (e.detail && e.detail.type === "tema") leer(); });
-  setInterval(() => { if (!(window.BACanal && window.BACanal.abiertos > 0)) leer(); }, 15000);
+  setInterval(() => { if (!(window.BAWs && window.BAWs.abiertos > 0)) leer(); }, 15000);
   document.addEventListener("visibilitychange", () => { if (!document.hidden) leer(); });
   if (document.readyState === "loading")
     document.addEventListener("DOMContentLoaded", () => aplicar(datos && datos.evento));

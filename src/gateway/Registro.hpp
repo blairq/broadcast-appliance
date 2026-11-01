@@ -89,6 +89,8 @@
 
 #include <nlohmann/json.hpp>
 
+#include "Canal.hpp"
+
 namespace ba::gateway {
 
 class Log;
@@ -191,15 +193,13 @@ class RegistroBorde {
     std::vector<std::string> atiendenTodas() const;
 
    private:
-    struct Conn {
-        long long fd = -1;
+    struct Conn : canal::Salida {
         std::string conn, id, ip;
         std::string lugar; // "sala" (red local) o "afuera" (túnel o IP pública)
         std::int64_t desdeMs = 0;
         int canal = 0;
         bool audio = false;
         std::int64_t cuadroMs = 0; // el último `cuadro` guardado (tope por segundo)
-        std::mutex sendLock;
     };
     struct Totem {
         std::string nombre, sal, hashToken;
@@ -207,19 +207,16 @@ class RegistroBorde {
     void wsLoop(long long fd, const std::string& ip, const std::string& lugar);
 
     // La atención remota (RegistroAtiende.cpp).
-    struct Atiende {
-        long long fd = -1;
+    struct Atiende : canal::Salida {
         std::string aconn, nombre, ip, lugar;
         std::string mira; // la conversación (`conn`) que mira; "" = ninguna
         std::int64_t desdeMs = 0;
         bool medios = false; // ya ofreció su WebRTC
-        std::mutex sendLock;
     };
     bool atenderAtiende(long long fd, const std::string& method, const std::string& path, const std::string& query,
                         const std::string& headers, std::uint32_t clientIp, bool externo);
     bool adminAtiende(long long fd, const std::string& method, const std::string& que, const std::string& body);
     void wsLoopAtiende(long long fd, const std::string& ip, const std::string& lugar);
-    void enviarAtiende(const std::shared_ptr<Atiende>& a, const nlohmann::json& msg);
     std::shared_ptr<Atiende> buscarAtiende(const std::string& aconn) const;
     /// La conversación `conn` cambió de canal, se fue o cambió quién la atiende: las rutas de
     /// quienes la miran se rehacen.
@@ -227,7 +224,6 @@ class RegistroBorde {
     void aplicarRuta(const std::shared_ptr<Atiende>& a);
     std::pair<int, bool> rutaAtiendeSinLock(const Atiende& a) const;
     nlohmann::json estadoAtiendenSinLock() const;
-    void enviar(const std::shared_ptr<Conn>& c, const nlohmann::json& msg);
     void enviarA(const std::string& conn, const nlohmann::json& msg);
     void cortarConn(const std::string& conn, const std::string& motivo);
     bool intentoPermitido(const std::string& ip);

@@ -4,6 +4,7 @@
 
 #include "Botonera.hpp"
 #include "Borde.hpp"
+#include "Canal.hpp"
 #include "security/Comparar.hpp"
 
 #include <algorithm>
@@ -269,17 +270,7 @@ bool BotoneraBorde::atender(long long fd, const std::string& method, const std::
     return true;
 }
 
-void BotoneraBorde::enviar(const std::shared_ptr<Conn>& c, const json& msg) {
-    std::lock_guard<std::mutex> l(c->sendLock);
-    if (c->fd >= 0) http::writeWsFrame(c->fd, 0x1, msg.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
-}
-
 void BotoneraBorde::wsLoop(long long fd, const std::string& headers, std::uint32_t clientIp) {
-    const std::string key = http::getHeader(headers, "Sec-WebSocket-Key");
-    if (key.empty()) {
-        http::sendResponse(fd, 400, "text/plain", traducir("gateway", "falta Sec-WebSocket-Key") + "\n");
-        return;
-    }
     {
         std::lock_guard<std::mutex> l(mu_);
         if (static_cast<int>(conns_.size()) >= kMaxConexiones()) {
@@ -287,88 +278,50 @@ void BotoneraBorde::wsLoop(long long fd, const std::string& headers, std::uint32
             return;
         }
     }
-    const std::string accept = http::base64(http::sha1(key + "258EAFA5-E914-47DA-95CA-C5AB0DC85B11").data(), 20);
-    const std::string ok = "HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n"
-                           "Sec-WebSocket-Accept: " + accept + "\r\n\r\n";
-    if (!http::sendAll(fd, ok.data(), ok.size())) return;
-    http::setSocketTimeout(fd, 0);
+    if (!canal::aceptar(fd, headers)) return;
     auto c = std::make_shared<Conn>();
-    c->fd = fd;
     c->ip = borde::ipTexto(clientIp);
-    // 1. Autenticación: el primer mensaje, a los 10 s como mucho.
+    // 1. Autenticación: el primer mensaje (docs/arquitectura/06-canal-web.md), a los 10 s como mucho.
     {
-        if (http::waitReadable(fd, kAuthMs()) <= 0) return;
-        std::string payload;
-        int op = 0;
-        if (!http::readWsFrame(fd, payload, op) || op != 0x1) return;
-        const json m = json::parse(payload, nullptr, false);
-        const std::string dev = m.is_object() && m.value("type", std::string()) == "auth"
-                                    ? autenticar(m.value("token", std::string()))
-                                    : std::string();
+        const json m = canal::primerMensaje(fd, kAuthMs());
+        if (m.is_null()) return;
+        const std::string dev = autenticar(m.value("token", std::string()));
         if (dev.empty()) {
             log_.warn(llenar(traducir("gateway", "botonera: token inválido desde %1"), {c->ip}), -1);
-            enviar(c, {{"type", "auth"},
-                       {"ok", false},
-                       {"error", QT_TRANSLATE_NOOP("web/comun", "Este aparato no está emparejado (o fue revocado).")}});
-            http::writeWsFrame(fd, 0x8, "");
-            return;
+            return canal::rechazar(fd, QT_TRANSLATE_NOOP("web/comun", "Este aparato no está emparejado (o fue revocado)."),
+                                   "token");
         }
         c->dispositivo = dev;
     }
+    c->fd = fd;
+    canal::anotar(c);
     {
         std::lock_guard<std::mutex> l(mu_);
         conns_.push_back(c);
     }
-    enviar(c, {{"type", "auth"}, {"ok", true}, {"dispositivo", c->dispositivo}});
+    c->enviar({{"type", "auth"}, {"ok", true}, {"dispositivo", c->dispositivo}});
     log_.info(llenar(traducir("gateway", "botonera: %1 conectada desde %2"), {c->dispositivo, c->ip}));
     alApp_({{"tipo", "conexion"}, {"dispositivo", c->dispositivo}, {"conectado", true}, {"ip", c->ip}});
     alApp_({{"tipo", "entrada"}, {"dispositivo", c->dispositivo}, {"msg", {{"type", "hola"}}}});
     // 2. El lazo.
-    std::vector<std::int64_t> ventana;
-    while (true) {
-        const int r = http::waitReadable(fd, kLatidoMs());
-        if (r <= 0) break; // sin latido: se da por caída
-        std::string payload;
-        int op = 0;
-        if (!http::readWsFrame(fd, payload, op)) break;
-        if (op == 0x8) break;
-        if (op == 0x9) {
-            std::lock_guard<std::mutex> l(c->sendLock);
-            http::writeWsFrame(fd, 0xA, payload);
-            continue;
-        }
-        if (op != 0x1 || payload.size() > 16384) continue;
-        const std::int64_t ahora = ahoraMs();
-        ventana.erase(std::remove_if(ventana.begin(), ventana.end(), [&](std::int64_t t) { return ahora - t > 1000; }),
-                      ventana.end());
-        if (static_cast<int>(ventana.size()) >= kMensajesPorSegundo()) {
-            log_.warn(llenar(traducir("gateway", "botonera: %1 manda demasiado; se corta"), {c->dispositivo}), -1);
-            break;
-        }
-        ventana.push_back(ahora);
-        const json m = json::parse(payload, nullptr, false);
-        if (!m.is_object()) continue;
+    const canal::Fin fin = canal::leer(*c, {kLatidoMs(), 16384, kMensajesPorSegundo()}, [&](const json& m) {
         const std::string t = m.value("type", std::string());
-        if (t == "ping") {
-            enviar(c, {{"type", "pong"}});
-            continue;
-        }
-        if (!kTipos.count(t)) continue;
+        if (!kTipos.count(t)) return true;
         // Se reenvía solo lo que la app entiende, con los campos que espera.
         json limpio{{"type", t}};
         for (const char* k : {"x", "y", "v", "delta", "id"})
             if (m.contains(k) && (m[k].is_number() || m[k].is_string())) limpio[k] = m[k];
         if (t == "editar" && m.contains("celda") && m["celda"].is_object()) limpio["celda"] = m["celda"];
         alApp_({{"tipo", "entrada"}, {"dispositivo", c->dispositivo}, {"msg", limpio}});
-    }
+        return true;
+    });
+    if (fin == canal::Fin::Exceso)
+        log_.warn(llenar(traducir("gateway", "botonera: %1 manda demasiado; se corta"), {c->dispositivo}), -1);
     {
         std::lock_guard<std::mutex> l(mu_);
         conns_.erase(std::remove(conns_.begin(), conns_.end(), c), conns_.end());
     }
-    {
-        std::lock_guard<std::mutex> l(c->sendLock);
-        c->fd = -1;
-    }
+    c->soltar();
     alApp_({{"tipo", "conexion"}, {"dispositivo", c->dispositivo}, {"conectado", false}, {"ip", c->ip}});
     log_.info(llenar(traducir("gateway", "botonera: %1 desconectada"), {c->dispositivo}));
 }
@@ -417,9 +370,11 @@ bool BotoneraBorde::admin(long long fd, const std::string& method, const std::st
                 if (!credenciales_.count(c->dispositivo)) cortar.push_back(c);
         }
         for (const auto& c : cortar) {
-            enviar(c, {{"type", "auth"}, {"ok", false}, {"error", QT_TRANSLATE_NOOP("web/comun", "Este aparato fue revocado.")}});
-            std::lock_guard<std::mutex> l(c->sendLock);
-            if (c->fd >= 0) http::shutdownFd(c->fd);
+            c->enviar({{"type", "auth"},
+                       {"ok", false},
+                       {"error", QT_TRANSLATE_NOOP("web/comun", "Este aparato fue revocado.")},
+                       {"error_codigo", "token"}});
+            c->cortar();
         }
         http::sendResponse(fd, 200, "application/json", json{{"ok", true}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
         return true;
@@ -446,7 +401,7 @@ bool BotoneraBorde::admin(long long fd, const std::string& method, const std::st
             for (const auto& c : conns_)
                 if (c->dispositivo == dev) a.push_back(c);
         }
-        for (const auto& c : a) enviar(c, r.value("msg", json::object()));
+        for (const auto& c : a) c->enviar(r.value("msg", json::object()));
         http::sendResponse(fd, 200, "application/json", json{{"ok", true}, {"entregado", a.size()}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
         return true;
     }
@@ -460,10 +415,7 @@ void BotoneraBorde::cerrar() {
         std::lock_guard<std::mutex> l(mu_);
         a = conns_;
     }
-    for (const auto& c : a) {
-        std::lock_guard<std::mutex> l(c->sendLock);
-        if (c->fd >= 0) http::shutdownFd(c->fd);
-    }
+    for (const auto& c : a) c->cortar();
 }
 
 } // namespace ba::gateway

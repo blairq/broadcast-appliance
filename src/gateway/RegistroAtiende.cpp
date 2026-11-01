@@ -22,6 +22,7 @@
 #include "Log.hpp"
 #include "MediaRoute.hpp"
 #include "Registro.hpp"
+#include "Canal.hpp"
 #include "Sesion.hpp" // servir, origenValido: las mismas defensas
 #include "ajustes/Ajustes.hpp"
 #include "i18n/I18n.hpp"
@@ -151,6 +152,7 @@ std::string RegistroBorde::altaAtiende(const std::string& nombre, const std::str
     a->ip = ip;
     a->lugar = lugar;
     a->desdeMs = ahoraMs();
+    if (fd >= 0) canal::anotar(a);
     {
         std::lock_guard<std::mutex> l(mu_);
         if (static_cast<int>(atienden_.size()) >= kMaxAtiendenConectadas()) return {};
@@ -177,10 +179,7 @@ void RegistroBorde::bajaAtiende(const std::string& aconn) {
         for (auto at = atendida_.begin(); at != atendida_.end();)
             at = at->second == aconn ? atendida_.erase(at) : std::next(at);
     }
-    {
-        std::lock_guard<std::mutex> l(a->sendLock);
-        a->fd = -1;
-    }
+    a->soltar();
     if (medios && mediosAtiende_.cerrar) mediosAtiende_.cerrar(aconn);
     log_.info(llenar(traducir("gateway", "registro: atención remota %1 desconectada"), {aconn}));
     alApp_({{"tipo", "atiende-conexion"}, {"aconn", aconn}, {"nombre", a->nombre}, {"conectado", false}});
@@ -211,7 +210,7 @@ void RegistroBorde::aplicarRuta(const std::shared_ptr<Atiende>& a) {
         conn = a->mira;
     }
     if (medios && mediosAtiende_.ruta) mediosAtiende_.ruta(a->aconn, r.first, r.second);
-    enviarAtiende(a, {{"type", "mirando"}, {"conn", conn}, {"canal", r.first}, {"habla", r.second}});
+    a->enviar({{"type", "mirando"}, {"conn", conn}, {"canal", r.first}, {"habla", r.second}});
 }
 
 void RegistroBorde::reubicarAtienden(const std::string& conn) {
@@ -301,11 +300,6 @@ json RegistroBorde::accionAtiende(const std::string& aconn, const std::string& n
     return out;
 }
 
-void RegistroBorde::enviarAtiende(const std::shared_ptr<Atiende>& a, const json& msg) {
-    std::lock_guard<std::mutex> l(a->sendLock);
-    if (a->fd >= 0) http::writeWsFrame(a->fd, 0x1, volcar(msg));
-}
-
 // --- La página y su WebSocket -----------------------------------------------------------------
 
 bool RegistroBorde::atenderAtiende(long long fd, const std::string& method, const std::string& path,
@@ -333,18 +327,12 @@ bool RegistroBorde::atenderAtiende(long long fd, const std::string& method, cons
         // Al lado de la del tótem (Web/registro-atiende), como la consola de la presidencia.
         return SesionBorde::servir(fd, rel, (std::filesystem::path(webroot_).parent_path() / "registro-atiende").string());
     }
-    const std::string key = http::getHeader(headers, "Sec-WebSocket-Key");
-    if (key.empty()) return http::sendResponse(fd, 400, "text/plain", traducir("gateway", "falta Sec-WebSocket-Key") + "\n"), true;
     {
         std::lock_guard<std::mutex> l(mu_);
         if (static_cast<int>(atienden_.size()) >= kMaxAtiendenConectadas())
             return http::sendResponse(fd, 503, "text/plain", traducir("gateway", "atencion llena") + "\n"), true;
     }
-    const std::string accept = http::base64(http::sha1(key + "258EAFA5-E914-47DA-95CA-C5AB0DC85B11").data(), 20);
-    const std::string ok = "HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n"
-                           "Sec-WebSocket-Accept: " + accept + "\r\n\r\n";
-    if (!http::sendAll(fd, ok.data(), ok.size())) return true;
-    http::setSocketTimeout(fd, 0);
+    if (!canal::aceptar(fd, headers)) return true;
     wsLoopAtiende(fd, ip, lugar);
     return true;
 }
@@ -353,17 +341,9 @@ void RegistroBorde::wsLoopAtiende(long long fd, const std::string& ip, const std
     // 1. Autenticación: el primer mensaje, a los 15 s como mucho.
     std::string aconn, nombre;
     {
-        if (http::waitReadable(fd, kAuthMs()) <= 0) return;
-        std::string payload;
-        int op = 0;
-        if (!http::readWsFrame(fd, payload, op) || op != 0x1) return;
-        const json m = json::parse(payload, nullptr, false);
-        const auto rechazar = [&](const std::string& error) {
-            http::writeWsFrame(fd, 0x1, volcar({{"type", "error"}, {"error", error}}));
-            http::writeWsFrame(fd, 0x8, "");
-        };
-        if (!m.is_object() || m.value("type", std::string()) != "auth")
-            return rechazar(QT_TRANSLATE_NOOP("web/comun", "Mensaje inválido."));
+        const json m = canal::primerMensaje(fd, kAuthMs());
+        if (m.is_null()) return;
+        const auto rechazar = [&](const std::string& error, const std::string& codigo = {}) { canal::rechazar(fd, error, codigo); };
         if (!intentoPermitido(ip)) {
             log_.warn(llenar(traducir("gateway", "registro: demasiados intentos fallidos (atención remota) desde %1"), {ip}), -1);
             return rechazar(QT_TRANSLATE_NOOP("web/comun", "Demasiados intentos desde esta conexión. Esperá 10 minutos."));
@@ -371,71 +351,47 @@ void RegistroBorde::wsLoopAtiende(long long fd, const std::string& ip, const std
         if (!autenticarAtiende(m.value("t", std::string()))) {
             anotarIntentoFallido(ip);
             alApp_({{"tipo", "intento"}, {"atiende", true}, {"id", ""}, {"ip", ip}});
-            return rechazar(QT_TRANSLATE_NOOP("web/comun", "Este enlace de atención no es válido (o lo cambiaron). Pedí el nuevo."));
+            return rechazar(QT_TRANSLATE_NOOP("web/comun", "Este enlace de atención no es válido (o lo cambiaron). Pedí el nuevo."),
+                            "token");
         }
         nombre = nombreAtiende(m.contains("nombre") && m["nombre"].is_string() ? m["nombre"].get<std::string>() : "");
         aconn = altaAtiende(nombre, ip, lugar, fd);
         if (aconn.empty())
-            return rechazar(QT_TRANSLATE_NOOP("web/comun", "Hay demasiadas personas atendiendo ahora. Probá en un rato."));
+            return rechazar(QT_TRANSLATE_NOOP("web/comun", "Hay demasiadas personas atendiendo ahora. Probá en un rato."), "esperar");
     }
     const auto a = buscarAtiende(aconn);
     if (!a) return;
     nombre = a->nombre;
-    enviarAtiende(a, {{"type", "hola"}, {"aconn", aconn}, {"nombre", nombre}});
+    a->enviar({{"type", "auth"}, {"ok", true}, {"aconn", aconn}, {"nombre", nombre}});
     // 2. El lazo.
-    std::vector<std::int64_t> ventana;
-    while (true) {
-        const int r = http::waitReadable(fd, kLatidoMs());
-        if (r <= 0) break;
-        std::string payload;
-        int op = 0;
-        if (!http::readWsFrame(fd, payload, op)) break;
-        if (op == 0x8) break;
-        if (op == 0x9) {
-            std::lock_guard<std::mutex> l(a->sendLock);
-            http::writeWsFrame(fd, 0xA, payload);
-            continue;
-        }
-        if (op != 0x1 || payload.size() > kMaxMensaje) continue;
-        const std::int64_t ahora = ahoraMs();
-        ventana.erase(std::remove_if(ventana.begin(), ventana.end(), [&](std::int64_t t) { return ahora - t > 1000; }),
-                      ventana.end());
-        if (static_cast<int>(ventana.size()) >= kMensajesPorSegundo()) {
-            log_.warn(llenar(traducir("gateway", "registro: la atención remota %1 manda demasiado; se corta"), {aconn}), -1);
-            break;
-        }
-        ventana.push_back(ahora);
-        const json m = json::parse(payload, nullptr, false);
-        if (!m.is_object()) continue;
+    const canal::Fin fin = canal::leer(*a, {kLatidoMs(), kMaxMensaje, kMensajesPorSegundo()}, [&](const json& m) {
         const std::string t = m.value("type", std::string());
-        if (t == "ping") {
-            enviarAtiende(a, {{"type", "pong"}});
-        } else if (t == "mirar") {
+        if (t == "mirar") {
             const std::string conn = m.value("conn", std::string());
-            if (!conn.empty() && !connValido(conn)) continue;
+            if (!conn.empty() && !connValido(conn)) return true;
             if (!mirar(aconn, conn))
-                enviarAtiende(a, {{"type", "aviso"}, {"texto", QT_TRANSLATE_NOOP("web/comun", "Esa conversación ya terminó.")}});
+                a->enviar({{"type", "aviso"}, {"texto", QT_TRANSLATE_NOOP("web/comun", "Esa conversación ya terminó.")}});
         } else if (t == "oferta") {
             // Su micrófono (por ahí oye) y a lo sumo un video (por ahí ve la cámara del tótem): lo
             // mismo que el tótem, y nada más (ni una pantalla, ni datos).
             const std::string sdp = m.value("sdp", std::string());
             if (!ofertaValida(sdp)) {
-                enviarAtiende(a, {{"type", "medios-error"},
+                a->enviar({{"type", "medios-error"},
                                   {"error", QT_TRANSLATE_NOOP("web/comun", "La página ofreció algo más que audio y video.")}});
-                continue;
+                return true;
             }
             const auto ruta = rutaAtiende(aconn);
             std::weak_ptr<Atiende> w = a;
             const bool ok = mediosAtiende_.oferta && mediosAtiende_.oferta(aconn, ruta.first, ruta.second, sdp,
                                                                             [this, w](const json& resp) {
-                                                                                if (auto x = w.lock()) enviarAtiende(x, resp);
+                                                                                if (auto x = w.lock()) x->enviar(resp);
                                                                             });
             {
                 std::lock_guard<std::mutex> l(mu_);
                 a->medios = ok;
             }
             if (!ok)
-                enviarAtiende(a, {{"type", "medios-error"}, {"error", QT_TRANSLATE_NOOP("web/comun", "No hay lugar para ver y oír ahora.")}});
+                a->enviar({{"type", "medios-error"}, {"error", QT_TRANSLATE_NOOP("web/comun", "No hay lugar para ver y oír ahora.")}});
             else aplicarRuta(a); // por si cambió mientras se armaba
         } else if (t == "ice") {
             bool medios = false;
@@ -443,14 +399,17 @@ void RegistroBorde::wsLoopAtiende(long long fd, const std::string& ip, const std
                 std::lock_guard<std::mutex> l(mu_);
                 medios = a->medios;
             }
-            if (!medios || !mediosAtiende_.ice) continue;
+            if (!medios || !mediosAtiende_.ice) return true;
             const json& cand = m.contains("candidate") ? m["candidate"] : json();
             mediosAtiende_.ice(aconn, cand.is_string() ? cand.get<std::string>() : volcar(cand));
         } else {
             const json ac = accionAtiende(aconn, nombre, m);
             if (!ac.is_null()) alApp_(ac);
         }
-    }
+        return true;
+    });
+    if (fin == canal::Fin::Exceso)
+        log_.warn(llenar(traducir("gateway", "registro: la atención remota %1 manda demasiado; se corta"), {aconn}), -1);
     bajaAtiende(aconn);
 }
 
@@ -465,10 +424,9 @@ bool RegistroBorde::adminAtiende(long long fd, const std::string& method, const 
         const auto cortar = ponerCredencialAtiende(r);
         for (const auto& aconn : cortar)
             if (auto a = buscarAtiende(aconn)) {
-                enviarAtiende(a, {{"type", "cortado"},
+                a->enviar({{"type", "cortado"},
                                   {"motivo", QT_TRANSLATE_NOOP("web/comun", "Cambiaron el enlace de atención (o se cerró el evento).")}});
-                std::lock_guard<std::mutex> l(a->sendLock);
-                if (a->fd >= 0) http::shutdownFd(a->fd);
+                a->cortar();
             }
         http::sendResponse(fd, 200, "application/json", volcar({{"ok", true}, {"cortadas", cortar.size()}}));
         return true;
@@ -490,7 +448,7 @@ bool RegistroBorde::adminAtiende(long long fd, const std::string& method, const 
     std::size_t entregado = 0;
     for (const auto& aconn : a)
         if (auto x = buscarAtiende(aconn)) {
-            enviarAtiende(x, r["msg"]);
+            x->enviar(r["msg"]);
             ++entregado;
         }
     http::sendResponse(fd, 200, "application/json", volcar({{"ok", true}, {"entregado", entregado}}));

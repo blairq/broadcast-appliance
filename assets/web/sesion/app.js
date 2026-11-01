@@ -5,7 +5,6 @@
 // video por WebRTC, la palabra y el voto llegan en las fases siguientes.
 "use strict";
 
-const $ = (id) => document.getElementById(id);
 const llenar = (s, ...v) => BAi18n.llenar(s, ...v);
 const frag = new URLSearchParams(location.hash.slice(1));
 const integrante = frag.get("i") || "";
@@ -14,7 +13,9 @@ const token = frag.get("t") || "";
 const conLink = integrante !== "" && token.length === 64;
 // El PIN adentro del link (opción «PIN en el QR» de la app): entra sin tipear nada.
 const pinDelLink = conLink ? (frag.get("p") || "") : "";
-let ws = null;
+let canal = null;       // el canal web (comun/canal.js)
+const mandar = (o) => !!canal && canal.mandar(o);
+const listo = () => !!canal && canal.listo();
 let pin = "";          // el PIN o la contraseña: solo en memoria, hasta que el aparato queda registrado
 let usuario = "";
 // El aparato registrado (comun/aparato.js): con el link, por el integrante; sin link, por
@@ -26,16 +27,12 @@ if (!conLink) {
   if (usuario) aparato = BAAparato.leer("sesion", deAparato());
 }
 let estado = "conectado";
-let reintento = 1000;
-let cortadoAProposito = false;
 let timerFoto = null;
 let pidio = false;
 let palabraHasta = 0;   // ms en que se le termina el tiempo (0 = no tiene la palabra)
 let timerReloj = null;
 let vot = null;         // la votación abierta (o pausada)
 let timerVot = null;
-let desfase = 0;        // reloj del servidor - reloj de acá (para la cuenta regresiva)
-let timerPing = null;
 let lugar = "afuera";    // "sala" (red local) o "afuera": en la sala, el sonido arranca apagado (acople)
 
 function mostrar(id) {
@@ -136,7 +133,7 @@ function avisoTiempo(aviso) {
 
 // --- La votación --------------------------------------------------------------------
 function ponerVotacion(m) {
-  desfase = (m.ahora_ms || Date.now()) - Date.now();
+  BAReloj.tomar(m);
   if (m.estado === "abierta" || m.estado === "pausada") {
     const nueva = !vot || vot.numero !== m.numero;
     vot = m;
@@ -169,7 +166,7 @@ function pintarVotacion() {
     b.disabled = pausada || vencida();
     if (vot.mi_voto === o.id) b.classList.add("elegida");
     b.addEventListener("click", () => {
-      if (ws && ws.readyState === 1) ws.send(JSON.stringify({ type: "voto", votacion: vot.numero, opcion: o.id }));
+      mandar({ type: "voto", votacion: vot.numero, opcion: o.id });
     });
     caja.appendChild(b);
   }
@@ -178,13 +175,13 @@ function pintarVotacion() {
 }
 
 function vencida() {
-  return vot && vot.hasta_ms > 0 && Date.now() + desfase > vot.hasta_ms;
+  return vot && vot.hasta_ms > 0 && BAReloj.ahora() > vot.hasta_ms;
 }
 
 function pintarReloj() {
   if (!vot) return;
   if (!vot.hasta_ms) { $("votReloj").textContent = ""; return; }
-  const s = Math.max(0, Math.ceil((vot.hasta_ms - (Date.now() + desfase)) / 1000));
+  const s = Math.max(0, Math.ceil((vot.hasta_ms - BAReloj.ahora()) / 1000));
   $("votReloj").textContent = Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0");
   $("votReloj").classList.toggle("poco", s <= 10);
   if (s === 0) pintarVotacion();
@@ -252,7 +249,7 @@ async function rtc(m) {
     if (local) for (const t of local.getTracks()) pc.addTrack(t, local);
     pc.ontrack = (ev) => { $("presidencia").srcObject = ev.streams[0] || new MediaStream([ev.track]); };
     pc.onicecandidate = (ev) => {
-      if (ev.candidate && ws && ws.readyState === 1) ws.send(JSON.stringify({ type: "rtc", a: de, candidato: ev.candidate }));
+      if (ev.candidate) mandar({ type: "rtc", a: de, candidato: ev.candidate });
     };
     pc.onconnectionstatechange = () => {
       if (pc.connectionState === "failed" || pc.connectionState === "closed") conexiones.delete(de);
@@ -260,7 +257,7 @@ async function rtc(m) {
     await pc.setRemoteDescription({ type: "offer", sdp: m.sdp });
     const answer = await pc.createAnswer();
     await pc.setLocalDescription(answer);
-    ws.send(JSON.stringify({ type: "rtc", a: de, tipo: "answer", sdp: answer.sdp }));
+    mandar({ type: "rtc", a: de, tipo: "answer", sdp: answer.sdp });
   } else if (m.candidato && pc) {
     try { await pc.addIceCandidate(m.candidato); } catch (e) {}
   } else if (m.tipo === "cerrar" && pc) {
@@ -278,12 +275,12 @@ async function iniciarSala() {
   cerrarSala();
   if (!local) await prenderCamara();
   if (window.BAIce) await BAIce.listo();
-  if (!local || !ws || ws.readyState !== 1) return;
+  if (!local || !listo()) return;
   const pc = new RTCPeerConnection(window.BAIce ? BAIce.config() : { iceServers: [] });
   pcSala = pc;
   for (const t of local.getTracks()) pc.addTransceiver(t, { direction: "sendonly", streams: [local] });
   pc.onicecandidate = (ev) => {
-    if (ev.candidate && ws && ws.readyState === 1) ws.send(JSON.stringify({ type: "medios-ice", candidate: ev.candidate }));
+    if (ev.candidate) mandar({ type: "medios-ice", candidate: ev.candidate });
   };
   pintarCompartir();
   pc.onconnectionstatechange = () => {
@@ -292,7 +289,7 @@ async function iniciarSala() {
   };
   const oferta = await pc.createOffer();
   await pc.setLocalDescription(oferta);
-  ws.send(JSON.stringify({ type: "medios-oferta", sdp: oferta.sdp }));
+  mandar({ type: "medios-oferta", sdp: oferta.sdp });
 }
 
 function cerrarSala() {
@@ -332,12 +329,12 @@ async function iniciarAtencion() {
   }
   if (!microAtiende) {
     $("atiendeTexto").textContent = t("Sin permiso para el micrófono el asistente no te puede escuchar. La presidencia te ve por la cámara igual.");
-    if (ws && ws.readyState === 1) ws.send(JSON.stringify({ type: "atiende-error", error: "no dio permiso para el micrófono" }));
+    mandar({ type: "atiende-error", error: "no dio permiso para el micrófono" });
     return;
   }
   microAtiende.enabled = true;
   if (window.BAIce) await BAIce.listo();
-  if (!ws || ws.readyState !== 1 || $("atiende").classList.contains("oculto")) { cerrarAtencion(); return; }
+  if (!listo() || $("atiende").classList.contains("oculto")) { cerrarAtencion(); return; }
   const pc = new RTCPeerConnection(window.BAIce ? BAIce.config() : { iceServers: [] });
   pcAtiende = pc;
   // sendrecv: sube su voz y baja la del asistente por la misma pista.
@@ -347,14 +344,14 @@ async function iniciarAtencion() {
     oirAtencion();
   };
   pc.onicecandidate = (ev) => {
-    if (ev.candidate && ws && ws.readyState === 1) ws.send(JSON.stringify({ type: "atiende-ice", candidate: ev.candidate }));
+    if (ev.candidate) mandar({ type: "atiende-ice", candidate: ev.candidate });
   };
   pc.onconnectionstatechange = () => {
     if (pc.connectionState === "failed" && pcAtiende === pc) setTimeout(() => { if (pcAtiende === pc) iniciarAtencion(); }, 2000);
   };
   const oferta = await pc.createOffer();
   await pc.setLocalDescription(oferta);
-  ws.send(JSON.stringify({ type: "atiende-oferta", sdp: oferta.sdp }));
+  mandar({ type: "atiende-oferta", sdp: oferta.sdp });
 }
 
 // El navegador no deja sonar nada hasta que la persona toca la página: si no arranca solo, un botón.
@@ -392,10 +389,10 @@ function pintarCompartir() {
 }
 
 async function renegociar() {
-  if (!pcSala || !ws || ws.readyState !== 1) return;
+  if (!pcSala || !listo()) return;
   const oferta = await pcSala.createOffer();
   await pcSala.setLocalDescription(oferta);
-  ws.send(JSON.stringify({ type: "medios-oferta", sdp: oferta.sdp }));
+  mandar({ type: "medios-oferta", sdp: oferta.sdp });
 }
 
 async function compartir(cual) {
@@ -467,14 +464,14 @@ function ponerVistas(lista) {
   }
   $("vistas").classList.toggle("oculto", vistas.length === 0);
   pintarVista();
-  if (pcVista && ws && ws.readyState === 1) ws.send(JSON.stringify({ type: "vista", vista }));
+  if (pcVista) mandar({ type: "vista", vista });
 }
 
 function elegirVista(v) {
   vista = v;
   guardarVista(v);
   pintarVista();
-  if (ws && ws.readyState === 1) ws.send(JSON.stringify({ type: "vista", vista: v }));
+  mandar({ type: "vista", vista: v });
   activarSonido(); // tocar es el gesto que deja sonar al navegador
 }
 
@@ -489,7 +486,7 @@ function pintarVista() {
 
 async function iniciarVista() {
   if (window.BAIce) await BAIce.listo();
-  if (pcVista || !ws || ws.readyState !== 1) return;
+  if (pcVista || !listo()) return;
   const pc = new RTCPeerConnection(window.BAIce ? BAIce.config() : { iceServers: [] });
   pcVista = pc;
   pc.addTransceiver("video", { direction: "recvonly" });
@@ -502,7 +499,7 @@ async function iniciarVista() {
     pintarVista();
   };
   pc.onicecandidate = (ev) => {
-    if (ev.candidate && ws && ws.readyState === 1) ws.send(JSON.stringify({ type: "vista-ice", candidate: ev.candidate }));
+    if (ev.candidate) mandar({ type: "vista-ice", candidate: ev.candidate });
   };
   pc.onconnectionstatechange = () => {
     pintarVista();
@@ -513,7 +510,7 @@ async function iniciarVista() {
   };
   const oferta = await pc.createOffer();
   await pc.setLocalDescription(oferta);
-  ws.send(JSON.stringify({ type: "vista-oferta", sdp: oferta.sdp, vista }));
+  mandar({ type: "vista-oferta", sdp: oferta.sdp, vista });
 }
 
 function cerrarVista() {
@@ -536,11 +533,11 @@ function activarSonido() { if (sonidoPrendido || pttActivo) $("sonidoSala").play
 
 function mandarFoto() {
   const v = $("propia");
-  if (!ws || ws.readyState !== 1 || !v.videoWidth) return;
+  if (!listo() || !v.videoWidth) return;
   const c = $("lienzo");
   c.getContext("2d").drawImage(v, 0, 0, c.width, c.height);
   const datos = c.toDataURL("image/jpeg", 0.6).split(",")[1] || "";
-  if (datos) ws.send(JSON.stringify({ type: "foto", jpeg: datos }));
+  if (datos) mandar({ type: "foto", jpeg: datos });
 }
 
 function programarFotos() {
@@ -550,44 +547,40 @@ function programarFotos() {
   timerFoto = setInterval(mandarFoto, estado === "habilitado" ? 3000 : 1000);
 }
 
-// --- El WebSocket -----------------------------------------------------------------
+// --- El canal (comun/canal.js) -----------------------------------------------------
+// Vuelve solo si se corta; sin PIN ni aparato registrado no hay con qué entrar.
 function conectar() {
-  const proto = location.protocol === "https:" ? "wss:" : "ws:";
-  ws = new WebSocket(proto + "//" + location.host + "/ws?sesion=1");
-  ws.onopen = () => {
-    const quien = conLink ? { i: integrante, t: token } : { u: usuario };
-    ws.send(JSON.stringify(Object.assign({ type: "auth" }, quien, aparato ? { aparato }
-      : Object.assign(conLink ? { pin } : { clave: pin }, { registrar: true, nombre: BAAparato.nombre() }))));
-  };
-  ws.onmessage = (ev) => {
-    let m;
-    try { m = JSON.parse(ev.data); } catch (e) { return; }
-    recibir(m);
-  };
-  ws.onclose = () => {
-    conexion(false);
-    cerrarVista();
-    cerrarAtencion(); // si vuelve y lo seguían atendiendo, el gateway se lo vuelve a pedir
-    clearInterval(timerPing);
-    if (cortadoAProposito || (!pin && !aparato)) return;
-    setTimeout(conectar, reintento);
-    reintento = Math.min(reintento * 2, 15000);
-  };
+  if (canal) { canal.reabrir(); return; }
+  canal = BAWs.abrir({
+    rol: "sesion",
+    auth: () => {
+      if (!pin && !aparato) return null;
+      const quien = conLink ? { i: integrante, t: token } : { u: usuario };
+      return Object.assign(quien, aparato ? { aparato }
+        : Object.assign(conLink ? { pin } : { clave: pin }, { registrar: true, nombre: BAAparato.nombre() }));
+    },
+    alEntrar: (m) => recibir(m),
+    alMensaje: recibir,
+    alRechazo: (m) => recibir(m),
+    alCaer: () => {
+      conexion(false);
+      cerrarVista();
+      cerrarAtencion(); // si vuelve y lo seguían atendiendo, el gateway se lo vuelve a pedir
+    },
+  });
 }
 
 function recibir(m) {
   switch (m.type) {
     case "auth":
       if (!m.ok) {
-        // La sala recién arrancó y todavía no sabe de las credenciales: se vuelve a probar.
-        if (m.error_codigo === "esperar") { setTimeout(conectar, BAAparato.ESPERA_MS); return; }
+        // («esperar»: la sala recién arrancó; el canal vuelve a probar solo.)
         if (m.error_codigo === "aparato") {
           // Lo revocaron (o se renovó el link): recién ahora, el PIN.
           BAAparato.olvidar("sesion", deAparato());
           aparato = "";
         }
         pin = "";
-        cortadoAProposito = true;
         mostrar("entrar");
         $("botonEntrar").disabled = false;
         error(t(m.error) || t("No se pudo entrar."));
@@ -599,7 +592,6 @@ function recibir(m) {
         if (!conLink) { try { localStorage.setItem("ba-sesion-usuario", usuario); } catch (e) { /* nada */ } }
         pin = ""; // ya no hace falta: el aparato quedó registrado
       }
-      reintento = 1000;
       conexion(true);
       $("quien").textContent = (m.nombre || "") + (m.banca ? " · " + llenar(t("Banca %1"), m.banca) : "");
       lugar = m.lugar || "afuera";
@@ -607,9 +599,7 @@ function recibir(m) {
       ponerSonido(lugar !== "sala"); // en la sala, el sonido apagado: el celular acoplaría
       mostrar("sala");
       prenderCamara().then(programarFotos);
-      clearInterval(timerPing);
-      timerPing = setInterval(() => ws && ws.readyState === 1 && ws.send('{"type":"ping"}'), 20000);
-      ws.send(JSON.stringify({ type: "hola" }));
+      mandar({ type: "hola" });
       break;
     case "estado":
       ponerEstado(m.estado, m.texto);
@@ -709,7 +699,7 @@ function recibir(m) {
       }
       break;
     case "cortado":
-      cortadoAProposito = true;
+      canal.cerrar();
       pin = "";
       $("cortadoTexto").textContent = t(m.motivo) || t("Se cerró la sesión.");
       mostrar("cortado");
@@ -726,12 +716,11 @@ $("formPin").addEventListener("submit", (e) => {
   if (!pin || (!conLink && !usuario)) return;
   error("");
   $("botonEntrar").disabled = true;
-  cortadoAProposito = false;
   conectar();
 });
 $("pedir").addEventListener("click", () => {
-  if (!ws || ws.readyState !== 1) return;
-  ws.send(JSON.stringify({ type: "palabra", accion: pidio ? "cancelar" : "pedir" }));
+  if (!listo()) return;
+  mandar({ type: "palabra", accion: pidio ? "cancelar" : "pedir" });
   // Se ve enseguida; la fila de verdad la confirma la app (mensaje «fila»).
   ponerPedido(pidio ? 0 : 99);
   if (pidio) $("turno").textContent = t("Pedido enviado");

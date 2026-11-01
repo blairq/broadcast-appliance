@@ -1,7 +1,8 @@
 // ============================================================================
 // El programa en vivo, en una pantalla. Ver index.html para el por qué.
 //
-// COMO ENTRA. Por /ws?pantalla=1 con un token de ingreso. NO es un invitado:
+// COMO ENTRA. Por /ws?pantalla con un token de ingreso en el primer mensaje
+// (comun/canal.js, docs/arquitectura/06-canal-web.md). NO es un invitado:
 // no tiene nombre, no aparece en la lista de la sala, no pasa por el lobby y
 // no puede escribir en el chat.
 //
@@ -28,7 +29,6 @@
 (async () => {
   "use strict";
 
-  const $ = (id) => document.getElementById(id);
   const q = new URLSearchParams(location.search);
   const token = q.get("token") || "";
   const nombre = q.get("nombre") || "";
@@ -49,12 +49,10 @@
   const hud = q.get("hud") === "1";
 
   const st = {
-    ws: null,
+    canal: null,
     pc: null,
-    reintento: 0,
     cerrado: false,
-    ultimoCuadro: -1,
-    quieto: 0,
+    cuadros: 0,
     medida: null,
     retardoPuesto: null,
     id: "",
@@ -84,76 +82,55 @@
 
   // --- Señalización ---------------------------------------------------------
 
-  function enviar(m) {
-    if (st.ws && st.ws.readyState === WebSocket.OPEN) st.ws.send(window.BATrama.encode(m));
-  }
+  const enviar = (m) => st.canal && st.canal.mandar(m);
 
   function conectar() {
-    if (st.cerrado) return;
-    const proto = location.protocol === "https:" ? "wss" : "ws";
-    // Reenganche si ya tenemos sesión: el servidor nos devuelve la misma y no
-    // aparecemos dos veces en la sala.
-    // Siempre con token: una pantalla no se "reengancha" porque no tiene nada
-    // que retomar (no hay sesión en la sala, no hay lugar guardado).
     // El token de ingreso es de UN SOLO USO. Despues de entrar la primera vez
     // se vuelve con el id y la clave que mando el servidor en el "hello": si
     // no, un corte de un segundo dejaria al televisor afuera para siempre.
-    const args = (st.id
-      ? `pantalla=1&resume=${encodeURIComponent(st.id)}&key=${encodeURIComponent(st.key)}`
-      : `pantalla=1&token=${encodeURIComponent(token)}`) + (canal ? `&canal=${canal}` : "") +
-      (salida ? `&salida=${salida}` : "");
-    const ws = new WebSocket(`${proto}://${location.host}/ws?${args}`);
-    // Los mensajes del canal van envueltos en un frame binario (ver
-    // ../comun/trama.js): sin esto llegan como Blob y no se leen.
-    ws.binaryType = "arraybuffer";
-    st.ws = ws;
-
-    let abrio = false;
-    ws.onopen = () => { abrio = true; st.reintento = 0; };
-
-    ws.onmessage = (ev) => {
-      const m = window.BATrama.decode(ev.data);
-      if (!m) return;
-      if (m.type === "hello") {
-        if (m.id) { st.id = m.id; st.key = m.key || ""; guardarSesion(); }
-        avisar(t("Esperando el programa…"), nombre || t("Pantalla"));
-        armarPeer();
-      } else if (m.type === "answer" && st.pc) {
-        st.pc.setRemoteDescription({ type: "answer", sdp: m.sdp }).catch(() => {});
-      } else if (m.type === "ice" && st.pc && m.candidate) {
-        st.pc.addIceCandidate(m.candidate).catch(() => {});
-      } else if (m.type === "rejected") {
-        // No se reintenta en loop: se dice por qué y se queda quieta.
-        st.cerrado = true;
-        if (m.reason === "solo_mirar") {
-          // No debería pasar nunca desde acá: es el servidor diciendo que el
-          // offer ofrecía subir algo. Si aparece, es que esta página cambió.
-          avisar(t("El servidor me cortó"), t("Esta pantalla solo puede mirar"));
-        } else {
-          avisar(t("La conferencia no me dejó entrar"), m.reason === "locked" ? t("Está cerrada") : t("No hay lugar"));
+    const donde = Object.assign(canal ? { canal } : {}, salida ? { salida } : {});
+    st.canal = BAWs.abrir({
+      rol: "pantalla",
+      auth: () => Object.assign(st.id ? { resume: st.id, key: st.key } : { token }, donde),
+      alMensaje: (m) => {
+        if (m.type === "hello") {
+          if (m.id) { st.id = m.id; st.key = m.key || ""; guardarSesion(); }
+          avisar(t("Esperando el programa…"), nombre || t("Pantalla"));
+          armarPeer();
+        } else if (m.type === "answer" && st.pc) {
+          st.pc.setRemoteDescription({ type: "answer", sdp: m.sdp }).catch(() => {});
+        } else if (m.type === "ice" && st.pc && m.candidate) {
+          st.pc.addIceCandidate(m.candidate).catch(() => {});
+        } else if (m.type === "rejected") {
+          // No se reintenta en loop: se dice por qué y se queda quieta.
+          st.cerrado = true;
+          st.canal.cerrar();
+          if (m.reason === "solo_mirar") {
+            // No debería pasar nunca desde acá: es el servidor diciendo que el
+            // offer ofrecía subir algo. Si aparece, es que esta página cambió.
+            avisar(t("El servidor me cortó"), t("Esta pantalla solo puede mirar"));
+          } else {
+            avisar(t("La conferencia no me dejó entrar"), m.reason === "locked" ? t("Está cerrada") : t("No hay lugar"));
+          }
+        } else if (m.type === "busy") {
+          avisar(t("No hay lugar para otra pantalla"), t("Probá cerrando alguna"));
         }
-      } else if (m.type === "busy") {
-        avisar(t("No hay lugar para otra pantalla"), t("Probá cerrando alguna"));
-      }
-    };
-
-    ws.onclose = () => {
-      if (st.cerrado) return;
-      // Ni siquiera llego a abrir con un reenganche: esa sesion ya no existe
-      // (se reinicio el gateway, o se vencio). Se tira y se prueba con el
-      // token, que es lo unico que queda.
-      if (!abrio && st.id) {
-        st.id = "";
-        st.key = "";
-        guardarSesion();
-      }
-      // Reintento con espera creciente, con tope: un televisor puede quedar
-      // días prendido y no tiene sentido que martille la red.
-      st.reintento = Math.min(st.reintento + 1, 6);
-      const espera = Math.min(1000 * 2 ** st.reintento, 30000);
-      avisar(t("Reconectando…"), BAi18n.llenar(t("En %1 s"), Math.round(espera / 1000)));
-      setTimeout(conectar, espera);
-    };
+      },
+      alCaer: () => { if (!st.cerrado) avisar(t("Reconectando…")); },
+      alRechazo: (m) => {
+        // Esa sesion ya no existe (se reinicio la sala, o se vencio): se tira y se
+        // prueba con el token, que es lo unico que queda.
+        if (m.error_codigo === "sesion" && st.id) {
+          st.id = "";
+          st.key = "";
+          guardarSesion();
+          st.canal.reabrir();
+          return;
+        }
+        st.cerrado = true;
+        avisar(t("La conferencia no me dejó entrar"), t(m.error) || t("No hay lugar"));
+      },
+    });
   }
 
   // --- Medios ---------------------------------------------------------------
@@ -247,23 +224,19 @@
 
   // --- Vigilancia -----------------------------------------------------------
   // Que la conexión diga "connected" no quiere decir que se vea algo: puede
-  // estar llegando todo negro. Lo que importa son los CUADROS.
-  setInterval(async () => {
+  // estar llegando todo negro. Lo que importa son los CUADROS (comun/vigia-video.js).
+  const cuadrosVistos = () => {
     const v = $("video");
-    const cuadros = v.getVideoPlaybackQuality ? v.getVideoPlaybackQuality().totalVideoFrames : v.webkitDecodedFrameCount;
-    if (typeof cuadros === "number" && cuadros > 0 && cuadros !== st.ultimoCuadro) {
-      st.ultimoCuadro = cuadros;
-      st.quieto = 0;
-      alAire();
-    } else if (st.pc && st.pc.connectionState === "connected") {
-      // Diez segundos sin un cuadro nuevo con la conexión "sana": se rearma.
-      if (++st.quieto >= 10) {
-        st.quieto = 0;
-        avisar(t("Sin imagen"), t("Reintentando…"));
-        armarPeer();
-      }
-    }
+    const n = v.getVideoPlaybackQuality ? v.getVideoPlaybackQuality().totalVideoFrames : v.webkitDecodedFrameCount;
+    return typeof n === "number" ? n : 0;
+  };
+  BAVigia.vigilar({
+    cuadros: () => (st.pc && st.pc.connectionState === "connected" ? cuadrosVistos() : null),
+    alAndar: alAire,
+    alMuerto: () => { avisar(t("Sin imagen"), t("Reintentando…")); armarPeer(); },
+  });
 
+  setInterval(async () => {
     // Las medidas se toman SIEMPRE, no solo con ?hud=1: son las que viajan por
     // el canal de control, y el retardo de una pantalla de sala hay que poder
     // verlo desde la cabina sin ir hasta el televisor a mirarle la esquina.
@@ -329,8 +302,7 @@
       tipo: canal ? "escena" : "programa", // el de otra salida también es un programa
       que: () => {
         const cs = st.pc ? st.pc.connectionState : "sin conexión";
-        const v = $("video");
-        const q = v.getVideoPlaybackQuality ? v.getVideoPlaybackQuality().totalVideoFrames : 0;
+        const q = cuadrosVistos();
         if (st.cerrado) return "cerrado";
         const m = st.medida;
         // El retardo se dice SIEMPRE que se sepa: «al aire» sin un número al

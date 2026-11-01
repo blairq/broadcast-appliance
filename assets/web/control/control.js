@@ -4,7 +4,6 @@
    Sin estilos en línea (la CSP no los deja). */
 (async () => {
   "use strict";
-  const $ = (id) => document.getElementById(id);
   const CLAVE_OCULTAS = "ba-control-ocultas";
   const leer = (k) => { try { return localStorage.getItem(k); } catch (_) { return null; } };
   const guardar = (k, v) => { try { v === null ? localStorage.removeItem(k) : localStorage.setItem(k, v); } catch (_) {} };

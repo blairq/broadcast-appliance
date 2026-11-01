@@ -12,8 +12,8 @@
 //      enseguida (la vieja deja de valer); una mal formada no cambia nada.
 //   8. Una sala que arranca usa las claves del evento en curso que dejó la app en el almacén
 //      (web 2): un QR que llega antes de que la app reconecte ya vale.
-//   9. Cambiar una clave desautoriza a las superficies que habían dicho la de antes: les
-//      llega «clave_mal» y no reciben más nada hasta decir la nueva (web 3).
+//   9. Cambiar una clave corta a las superficies que habían entrado con la de antes: al
+//      volver con esa, «clave_mal»; con la nueva, reciben lo suyo (web 3).
 //  10. «Sin evento»: claves nuevas al azar y se olvidan la urna y la página del público (web 3).
 //   7. Los eventos de estado no se pierden al reanudar (web 1): con la app desconectada
 //      cambia la urna (se abre una votación y llega un voto); la app vuelve REANUDANDO y
@@ -174,7 +174,7 @@ void abrir(Flujo& f, uint16_t admin, const std::string& token, const std::string
     send(f.fd, p.data(), static_cast<int>(p.size()), 0);
 }
 
-// --- Un WebSocket de superficie (como comun/canal.js: frames binarios con 4 bytes de largo) ---
+// --- Un WebSocket de superficie (como comun/canal.js: texto JSON, docs/arquitectura/06-canal-web.md) ---
 TestFd wsAbrir(uint16_t puerto, const std::string& query) {
     TestFd fd = conectar(puerto);
     const std::string p = "GET /ws?" + query + " HTTP/1.1\r\nHost: x\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n"
@@ -186,13 +186,9 @@ TestFd wsAbrir(uint16_t puerto, const std::string& query) {
     return fd;
 }
 void wsMandar(TestFd fd, const json& m) {
-    const std::string txt = m.dump();
-    std::string carga(4, '\0');
-    const std::uint32_t n = static_cast<std::uint32_t>(txt.size());
-    for (int i = 0; i < 4; ++i) carga[static_cast<std::size_t>(i)] = static_cast<char>((n >> (8 * i)) & 0xFF);
-    carga += txt;
+    const std::string carga = m.dump();
     std::string f;
-    f.push_back(static_cast<char>(0x82));
+    f.push_back(static_cast<char>(0x81));
     f.push_back(static_cast<char>(0x80 | carga.size())); // < 126
     f.append(4, '\0');                                   // máscara 0
     f += carga;
@@ -219,9 +215,7 @@ std::vector<json> wsLeer(TestFd fd, int ms) {
             break;
         }
         if (ini + len > b.size()) break;
-        const std::string carga = b.substr(ini, len);
-        const std::string j = carga.size() >= 4 && carga[0] != '{' ? carga.substr(4) : carga;
-        out.push_back(json::parse(j, nullptr, false));
+        out.push_back(json::parse(b.substr(ini, len), nullptr, false));
         p = ini + len;
     }
     return out;
@@ -413,14 +407,28 @@ int main() {
     // --- 9) Cambiar una clave desautoriza a las superficies de antes -------------------
     {
         const std::string auth = "Authorization: Bearer " + kToken + "\r\n";
-        TestFd ws = wsAbrir(invitados, "superficie=rotulos&id=rot-1");
-        wsMandar(ws, {{"type", "clave"}, {"k", srv.claves().rotulos}});
+        const auto entrar = [&](const std::string& k) {
+            TestFd ws = wsAbrir(invitados, "superficie");
+            wsMandar(ws, {{"v", 1}, {"type", "auth"}, {"tipo", "rotulos"}, {"id", "rot-1"}, {"k", k}});
+            return ws;
+        };
+        const std::string vieja = srv.claves().rotulos;
+        TestFd ws = entrar(vieja);
         CHECK(llego(wsLeer(ws, 400), "rotulos"), "una superficie de rótulos con la clave buena recibe lo suyo");
         const std::string otra = "abcdefabcdefabcdefabcdefabcdef01";
         pedir(admin, con("POST", "/api/v1/claves", json{{"rotulos", otra}}.dump(), auth));
-        CHECK(llego(wsLeer(ws, 400), "clave_mal"), "otra clave (otro evento): le llega «clave mal»");
-        wsMandar(ws, {{"type", "clave"}, {"k", otra}});
-        CHECK(llego(wsLeer(ws, 400), "rotulos"), "dice la nueva (la página reintenta): vuelve, sin recargar");
+        wsLeer(ws, 300);
+        char c;
+        CHECK(recv(ws, &c, 1, 0) <= 0, "otra clave (otro evento): se le corta el canal");
+        cerrar(ws);
+        ws = entrar(vieja);
+        const std::vector<json> r = wsLeer(ws, 400);
+        bool mal = false;
+        for (const json& m : r) mal = mal || (m.value("type", "") == "auth" && m.value("error_codigo", "") == "clave_mal");
+        CHECK(mal && !llego(r, "rotulos"), "al volver con la de antes: «clave_mal» y nada de lo suyo");
+        cerrar(ws);
+        ws = entrar(otra);
+        CHECK(llego(wsLeer(ws, 400), "rotulos"), "con la nueva (la página reintenta sola): vuelve, sin recargar");
         cerrar(ws);
     }
 

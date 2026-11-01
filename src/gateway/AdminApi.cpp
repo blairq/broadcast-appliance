@@ -78,6 +78,7 @@
 #include <thread>
 #include <system_error>
 
+#include "Canal.hpp"
 #include "HttpIo.hpp"
 #include "diag/Correlacion.hpp"
 #include "diag/Metricas.hpp"
@@ -90,6 +91,7 @@
 #include "security/SecretsStore.hpp"
 #include "ShareStore.hpp"
 #include "SignalingServer.hpp"
+#include "Canal.hpp"
 #include "MediaPump.hpp"
 #include "Grillas.hpp"
 #include "ipc/CanalesSalida.hpp"
@@ -1288,9 +1290,9 @@ std::pair<std::string, std::uint64_t> idDeEvento(const std::string& v) {
 } // namespace
 
 void SignalingServer::avisarTema() {
-    // Las páginas con canal no preguntan por el tema cada 15 s: se les avisa que lo relean.
-    const json aviso{{"type", "tema"}};
-    for (const std::string& pid : superficies_.conexionesDe("")) sendToGuest(pid, aviso);
+    // Las páginas con canal (todas las de /ws, de cualquier rol: docs/arquitectura/06-canal-web.md) no
+    // preguntan por el tema cada 15 s: se les avisa que lo relean.
+    canal::aTodos(json{{"type", "tema"}});
 }
 
 void SignalingServer::avisarVotacion() {

@@ -6,7 +6,7 @@
 //   levanta un SignalingServer real en 127.0.0.1, crea la sesion "host" de
 //   WebrtcSession (lado B, el ANSWERER; la posee el hub) y una sesion "guest"
 //   (el invitado, el OFFERER), intercambia offer/answer por el WebSocket del
-//   servidor (framing ba_core::ipc::Frame) y verifica que el MediaPump enrute
+//   servidor (texto JSON, docs/arquitectura/06-canal-web.md) y verifica que el MediaPump enrute
 //   un buffer de audio del ring de retorno (SharedAudioRing) al track de la
 //   sesion conectada.
 //
@@ -313,10 +313,8 @@ int main() {
         return g_failures ? 1 : 0;
     }
 
-    // Handshake RFC 6455. El token es b64url + '.', sin caracteres que
-    // requieran URL-encoding en la query.
-    const std::string req = "GET /ws?token=" + token + "&room=" + scfg.room +
-                            "&slot=1 HTTP/1.1\r\n"
+    // Handshake RFC 6455; el token va en el primer mensaje (docs/arquitectura/06-canal-web.md).
+    const std::string req = "GET /ws HTTP/1.1\r\n"
                             "Host: 127.0.0.1\r\n"
                             "Upgrade: websocket\r\n"
                             "Connection: Upgrade\r\n"
@@ -326,6 +324,10 @@ int main() {
     std::string headers;
     CHECK(readHeaders(fd, headers), "leer respuesta del handshake WS");
     CHECK(headers.find("101") != std::string::npos, "esperado 101 Switching Protocols");
+    {
+        const json auth{{"v", 1}, {"type", "auth"}, {"token", token}, {"room", scfg.room}};
+        CHECK(writeWsFrame(fd, 0x1, auth.dump()), "enviar el primer mensaje (auth)");
+    }
 
     // --- Offer del guest (SDP del navegador) → servidor → host --------------
     // SDP minimo coherente: en el backend real seria el offer del navegador;
@@ -342,27 +344,20 @@ int main() {
         json offer;
         offer["type"] = "offer";
         offer["sdp"] = kOfferSdp;
-        const std::vector<uint8_t> frame = Frame::encodeFrame(offer.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
-        CHECK(writeWsFrame(fd, 0x2, std::string(frame.begin(), frame.end())),
-              "enviar offer (Frame + frame WS binario)");
+        CHECK(writeWsFrame(fd, 0x1, offer.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace)),
+              "enviar offer (texto JSON)");
     }
 
-    // --- Answer: servidor → WS → guest ---------------------------------------
-    std::string payload;
-    int opcode = 0;
-    CHECK(readWsFrame(fd, payload, opcode), "leer frame WS del answer");
-    CHECK(opcode == 0x2, "esperado frame binario");
-    std::string jsonStr;
-    size_t consumed = 0;
-    CHECK(Frame::decodeFrame(reinterpret_cast<const uint8_t*>(payload.data()), payload.size(), jsonStr,
-                             consumed),
-          "decodificar Frame del answer");
+    // --- Answer: servidor → WS → guest (antes llegan el auth, el hello, el lobby) --
     json ans;
     bool parsed = false;
-    try {
-        ans = json::parse(jsonStr);
-        parsed = true;
-    } catch (...) {
+    for (int i = 0; i < 16 && ans.value("type", "") != "answer"; ++i) {
+        std::string payload;
+        int opcode = 0;
+        if (!readWsFrame(fd, payload, opcode)) break;
+        CHECK(opcode == 0x1, "esperado frame de texto");
+        ans = json::parse(payload, nullptr, false);
+        parsed = ans.is_object();
     }
     CHECK(parsed, "parsear JSON del answer");
     CHECK(ans.value("type", "") == "answer", "el mensaje es un answer");
