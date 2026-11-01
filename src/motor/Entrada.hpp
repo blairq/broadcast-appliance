@@ -122,9 +122,18 @@ class Entrada {
     bool ocupada() const { return ocupadas_.load() > 0; }
     /// Espera los trabajos pendientes (al morir: no desde el hilo del motor).
     void esperarTrabajos();
-    /// Lo llama el motor seguido (~20 veces por segundo): bus, reintentos, vigías, latencia.
+    /// Lo llama el hilo de las entradas del motor (~20 veces por segundo, sin el candado
+    /// del motor): bus, reintentos, vigías, latencia.
     void tic();
+    /// Lo último que se supo de la entrada (lo arma refrescarEstado). Barato: no toca
+    /// GStreamer, así el motor lo puede pedir con su candado tomado (la foto).
     nlohmann::json estado() const;
+    /// Arma el estado de nuevo (busca sus filtros, lee lo que informan): toca los
+    /// candados de GStreamer, así que NUNCA con el candado del motor (lo llama el hilo
+    /// del informe del motor, o Motor::estado antes de tomarlo). Ocupada: lo deja como estaba.
+    void refrescarEstado() const;
+    /// Su pipeline con una referencia (análisis y pruebas); nullptr si no anda.
+    GstElement* pipelineRef() const;
     /// Una propiedad de un elemento de la cadena (por nombre: ba_f_<id>, ba_fa_<id>), en vivo.
     std::string propiedad(const std::string& elemento, const std::string& prop, const std::string& valor);
     /// Las propiedades legibles de un elemento de la cadena (vacío si no está).

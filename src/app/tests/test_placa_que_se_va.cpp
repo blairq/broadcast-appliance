@@ -287,7 +287,7 @@ int main(int argc, char** argv) {
           "disparador de silencio en el micrófono");
 
     Banco banco;
-    banco.tics = {[&]() { mic->tic(); }, [&]() { programa->tic(); }, [&]() { escucha.tic(reloj.latencia()); },
+    banco.tics = {[&]() { mic->tic(); mic->refrescarEstado(); }, [&]() { programa->tic(); }, [&]() { escucha.tic(reloj.latencia()); },
                   [&]() { salidaMatriz.tic(reloj.latencia()); }, [&]() { alertas.tick(); }};
     const auto picoMic = [&]() { return mic->estado().value("pico_audio_db", -100.0); };
     const auto escuchaEn = [&](bool respaldo) {

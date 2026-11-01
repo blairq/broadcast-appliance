@@ -123,6 +123,7 @@ std::string Motor::iniciar() {
     seguir_ = true;
     hilo_ = std::thread([this]() { ba::platform::nombrarHilo("motor"); bucle(); });
     hiloCuadros_ = std::thread([this]() { ba::platform::nombrarHilo("motor-cuadros"); cuadros(); });
+    hiloInforme_ = std::thread([this]() { ba::platform::nombrarHilo("motor-entradas"); informe(); });
     return {};
 }
 
@@ -132,6 +133,7 @@ void Motor::detener() {
     buzonesCv_.notify_all();
     if (hilo_.joinable()) hilo_.join();
     if (hiloCuadros_.joinable()) hiloCuadros_.join();
+    if (hiloInforme_.joinable()) hiloInforme_.join();
     {
         std::lock_guard<std::mutex> l(buzonesM_);
         deApp_.clear();
@@ -427,11 +429,7 @@ void Motor::bucle() {
                 Tramo t("actualizarUso");
                 actualizarUso();
             }
-            for (auto& [id, c] : canales_) {
-                const std::string donde = llenar(traducir("motor", "tic de la entrada «%1»"), {id}); // si tarda, cuál
-                Tramo t(donde.c_str());
-                c.entrada->tic();
-            }
+            // (El tic de cada entrada no va acá: lo da su hilo, sin este candado. Ver informe.)
             {
                 Tramo t("tic de los buses de audio");
                 for (auto& [sid, s] : salidas_) {
@@ -1205,6 +1203,46 @@ void Motor::cuadros() {
     }
 }
 
+void Motor::refrescarEntradas() {
+    std::vector<std::shared_ptr<Entrada>> todas;
+    {
+        std::lock_guard<std::mutex> l(buzonesM_);
+        todas.reserve(todas_.size());
+        for (const auto& [id, e] : todas_) todas.push_back(e);
+    }
+    for (auto& e : todas) {
+        e->refrescarEstado();
+        soltarEntrada(std::move(e));
+    }
+}
+
+void Motor::informe() {
+    // Cada entrada es suya (su candado, su trabajador, su bus): su tic no necesita el
+    // del motor. Antes iba en la vuelta del motor, con su candado tomado: una entrada que
+    // esperaba a GStreamer (el bus, un elemento, una consulta) frenaba todo lo demás.
+    std::vector<std::shared_ptr<Entrada>> todas;
+    for (unsigned vuelta = 0; seguir_.load(); ++vuelta) {
+        {
+            std::lock_guard<std::mutex> l(buzonesM_);
+            todas.reserve(todas_.size());
+            for (const auto& [id, e] : todas_) todas.push_back(e);
+        }
+        const bool refrescar = vuelta % 6 == 0; // el estado, cada ~300 ms (la foto sale cada ~1 s)
+        for (auto& e : todas) {
+            {
+                const std::string donde = llenar(traducir("motor", "tic de la entrada «%1»"), {e->id()}); // si tarda, cuál
+                Tramo t(donde.c_str());
+                e->tic();
+            }
+            if (refrescar) e->refrescarEstado();
+            soltarEntrada(std::move(e));
+        }
+        todas.clear();
+        std::unique_lock<std::mutex> l(buzonesM_);
+        buzonesCv_.wait_for(l, std::chrono::milliseconds(50), [this]() { return !seguir_.load(); });
+    }
+}
+
 Lienzo Motor::lienzoDe(const Escena& e, bool mini) const {
     Lienzo l = cfg_.lienzo;
     if (e.lienzoAncho > 0 && e.lienzoAlto > 0) {
@@ -1866,6 +1904,18 @@ std::shared_ptr<const json> Motor::instantanea() const {
     return instantanea_;
 }
 
+GstElement* Motor::pipelineDeEntrada(const std::string& id) const {
+    std::shared_ptr<Entrada> e;
+    {
+        std::lock_guard<std::mutex> l(const_cast<std::mutex&>(buzonesM_));
+        auto it = todas_.find(id);
+        if (it != todas_.end()) e = it->second;
+    }
+    GstElement* p = e ? e->pipelineRef() : nullptr;
+    const_cast<Motor*>(this)->soltarEntrada(std::move(e));
+    return p;
+}
+
 void Motor::publicarInstantanea() {
     auto foto = std::make_shared<const json>(estadoYa()); // del bucle, con el candado
     std::lock_guard<std::mutex> l(instantaneaM_);
@@ -1925,6 +1975,9 @@ json Motor::analizarTerminar(const std::string& entrada) {
 }
 
 json Motor::estado() const {
+    // Al día (quien lo pide espera lo que acaba de cambiar), pero lo que toca GStreamer
+    // antes del candado: ver Entrada::refrescarEstado.
+    const_cast<Motor*>(this)->refrescarEntradas();
     BA_CANDADO(mu_);
     return estadoYa();
 }

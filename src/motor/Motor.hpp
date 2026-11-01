@@ -325,6 +325,8 @@ class Motor {
     /// 100 ms; con `estado()` cualquier espera del candado congelaba la app).
     /// Vacía (json nulo) hasta la primera vuelta del bucle.
     std::shared_ptr<const nlohmann::json> instantanea() const;
+    /// El pipeline de una entrada, con una referencia (análisis y pruebas); nullptr si no está.
+    GstElement* pipelineDeEntrada(const std::string& id) const;
     /// Los niveles para los vúmetros (el Mezclador): cada entrada con audio (lo que
     /// entrega, después de su rack, vaya a donde vaya) y cada bus (programa,
     /// pista<n>, retorno<n>), por canal, pico y RMS en dB. La publica el bucle cada
@@ -521,6 +523,14 @@ class Motor {
     std::map<std::string, std::shared_ptr<Entrada>> todas_; ///< bajo buzonesM_: índice para leer sin mu_
     std::thread hiloCuadros_;
     void cuadros();
+    /// LAS ENTRADAS, en su hilo y SIN el candado del motor: el tic de cada una (~20 por
+    /// segundo: su bus, sus vigías, su latencia) y su estado (Entrada::refrescarEstado, cada
+    /// ~300 ms). Lo que toca GStreamer (buscar un elemento, leer sus propiedades, el bus) no
+    /// frena la vuelta del motor ni los cuadros: el motor arma la foto con lo último.
+    std::thread hiloInforme_;
+    void informe();
+    /// Refresca el estado de todas las entradas (sin el candado del motor).
+    void refrescarEntradas();
     void indexarDeApp(const std::string& id, const std::shared_ptr<Entrada>& e);
     /// Suelta una referencia a una entrada: si era la última, se desarma en otro
     /// hilo (su destructor pasa sus pipelines a NULL: ni la interfaz ni el bucle).

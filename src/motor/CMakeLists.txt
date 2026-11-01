@@ -90,6 +90,16 @@ if(BUILD_TESTING OR TRUE)
     add_test(NAME test_motor_mixminus COMMAND test_motor_mixminus)
     set_tests_properties(test_motor_mixminus PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 120)
 
+    # El motor no espera a GStreamer con su candado tomado (la foto, el tic de las entradas).
+    add_executable(test_motor_sin_esperar tests/test_motor_sin_esperar.cpp)
+    target_link_libraries(test_motor_sin_esperar PRIVATE ba_motor)
+    ba_gst_rpath(test_motor_sin_esperar "")
+    target_compile_definitions(test_motor_sin_esperar PRIVATE BA_TEST_GST_RAIZ="${BA_GST_FW}/Versions/1.0"
+        BA_TEST_GST_PLUGINS="${CMAKE_BINARY_DIR}/src/gst-plugins")
+    add_dependencies(test_motor_sin_esperar gstbaaudio gstbaipc)
+    add_test(NAME test_motor_sin_esperar COMMAND test_motor_sin_esperar)
+    set_tests_properties(test_motor_sin_esperar PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 60)
+
     # Los buses de oído (F2-01, F2-03): pulso sintético → anillo, lazo contra el sello.
     add_executable(test_lazo_latencia tests/test_lazo_latencia.cpp)
     target_link_libraries(test_lazo_latencia PRIVATE ba_motor)

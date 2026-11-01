@@ -44,7 +44,10 @@ struct Banco {
     void correr(int ms) {
         const auto fin = std::chrono::steady_clock::now() + std::chrono::milliseconds(ms);
         while (std::chrono::steady_clock::now() < fin) {
-            for (Entrada* e : entradas) e->tic();
+            for (Entrada* e : entradas) {
+                e->tic();
+                e->refrescarEstado(); // como el hilo de las entradas del motor
+            }
             if (mezcla != nullptr) mezcla->tic();
             std::this_thread::sleep_for(std::chrono::milliseconds(20));
         }

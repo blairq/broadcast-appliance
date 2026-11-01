@@ -1917,18 +1917,30 @@ double Entrada::edadAudioP95Ms() const {
 }
 
 json Entrada::estado() const {
-    // Lo arma el bucle del motor para la foto: ocupada, va lo último que se supo.
-    std::unique_lock<std::timed_mutex> l(mu_, std::try_to_lock);
-    if (!l.owns_lock()) {
+    // Lo arma el bucle del motor para la foto, con su candado: va lo último que se supo
+    // (refrescarEstado). Antes lo armaba acá, buscando cada filtro por nombre y leyendo sus
+    // propiedades: con GStreamer en fila (1600 hilos de los retornos), el motor quedaba
+    // esperando con su candado tomado 16 s y la app se clavaba.
+    json e;
+    {
         std::lock_guard<std::mutex> la(anteriorM_);
-        json e = estadoAnterior_.is_object() ? estadoAnterior_ : json{{"id", id_}, {"anda", false}};
-        e["ocupada"] = true;
-        return e;
+        e = estadoAnterior_.is_object() ? estadoAnterior_ : json{{"id", id_}, {"anda", false}};
     }
+    if (ocupadas_.load() > 0) e["ocupada"] = true;
+    return e;
+}
+
+GstElement* Entrada::pipelineRef() const {
+    std::lock_guard<std::timed_mutex> l(mu_);
+    return pipeline_ != nullptr ? GST_ELEMENT(gst_object_ref(pipeline_)) : nullptr;
+}
+
+void Entrada::refrescarEstado() const {
+    std::unique_lock<std::timed_mutex> l(mu_, std::try_to_lock);
+    if (!l.owns_lock()) return; // ocupada (armando): queda lo último que se supo
     json e = estadoYa();
     std::lock_guard<std::mutex> la(anteriorM_);
-    estadoAnterior_ = e;
-    return e;
+    estadoAnterior_ = std::move(e);
 }
 
 json Entrada::estadoYa() const {
