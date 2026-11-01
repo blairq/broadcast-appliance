@@ -254,7 +254,7 @@ void McpService::registerAudioTools() {
         Tool t;
         t.name = "audio_modules";
         t.hilo = Hilo::Foto; // el catálogo de módulos es estático
-        t.title = ba::i18n::traducir("mcp", "Modulos con interfaz propia");
+        t.title = ba::i18n::traducir("mcp", "Módulos con interfaz propia");
         t.category = "audio_rack";
         t.clase = Clase::Lectura;
         t.description =
@@ -423,7 +423,7 @@ void McpService::registerAudioTools() {
     {
         Tool t;
         t.name = "audio_module_add";
-        t.title = ba::i18n::traducir("mcp", "Agregar un modulo");
+        t.title = ba::i18n::traducir("mcp", "Agregar un módulo");
         t.category = "audio_rack";
         t.clase = Clase::Escritura;
         t.description =
@@ -501,7 +501,7 @@ void McpService::registerAudioTools() {
     {
         Tool t;
         t.name = "audio_module_remove";
-        t.title = ba::i18n::traducir("mcp", "Quitar un modulo");
+        t.title = ba::i18n::traducir("mcp", "Quitar un módulo");
         t.category = "audio_rack";
         t.clase = Clase::Escritura;
         t.destructive = true;
@@ -628,8 +628,8 @@ void McpService::registerAudioTools() {
     {
         Tool t;
         t.name = "audio_rack_vigia";
-        t.hilo = Hilo::Foto; // el vigía del rack son dos atómicos
-        t.title = ba::i18n::traducir("mcp", "Vigia de los modulos de audio");
+        t.hilo = Hilo::SinInterfaz; // dos atómicos y su archivo (por la cola): nada de la interfaz
+        t.title = ba::i18n::traducir("mcp", "Vigía de los módulos de audio");
         t.category = "audio_rack";
         t.clase = Clase::Escritura;
         t.description = QT_TRANSLATE_NOOP("mcp", "Cada modulo CLAP se mide en cada bloque. Si tarda mas del `umbral_pct` % de lo que dura el "
@@ -641,16 +641,16 @@ void McpService::registerAudioTools() {
                          {"properties",
                           {{"umbral_pct", {{"type", "integer"}, {"minimum", 10}, {"maximum", 200}}},
                            {"bloques", {{"type", "integer"}, {"minimum", 1}, {"maximum", 1000}}}}}};
-        t.run = [](const json& a, Done done) {
-            AudioRack::ponerVigia(a);
-            done(ToolResult().data(AudioRack::vigia()));
+        t.run = [mgr](const json& a, Done done) {
+            if (a.empty()) return done(ToolResult().data(AudioRack::vigia()));
+            done(ToolResult().data(mgr()->ponerVigia(a)));
         };
         core_.addTool(std::move(t));
     }
     {
         Tool t;
         t.name = "audio_module_rearmar";
-        t.title = ba::i18n::traducir("mcp", "Rearmar un modulo saltado por lento");
+        t.title = ba::i18n::traducir("mcp", "Rearmar un módulo saltado por lento");
         t.category = "audio_rack";
         t.clase = Clase::Escritura;
         t.description = QT_TRANSLATE_NOOP("mcp", "Saca un modulo del bypass automatico (el vigia lo salto por lento) y saca al rack de "
@@ -670,7 +670,7 @@ void McpService::registerAudioTools() {
     {
         Tool t;
         t.name = "audio_bypass";
-        t.title = ba::i18n::traducir("mcp", "Anular / activar un modulo");
+        t.title = ba::i18n::traducir("mcp", "Anular / activar un módulo");
         t.category = "audio_rack";
         t.clase = Clase::Escritura;
         t.description =
@@ -693,7 +693,7 @@ void McpService::registerAudioTools() {
     {
         Tool t;
         t.name = "audio_module_get";
-        t.title = ba::i18n::traducir("mcp", "Parametros de un modulo");
+        t.title = ba::i18n::traducir("mcp", "Parámetros de un módulo");
         t.category = "audio_rack";
         t.clase = Clase::Lectura;
         t.description =
@@ -724,7 +724,7 @@ void McpService::registerAudioTools() {
     {
         Tool t;
         t.name = "audio_module_set";
-        t.title = ba::i18n::traducir("mcp", "Cambiar parametros de un modulo");
+        t.title = ba::i18n::traducir("mcp", "Cambiar parámetros de un módulo");
         t.category = "audio_rack";
         t.clase = Clase::Escritura;
         t.description =
@@ -903,7 +903,7 @@ void McpService::registerAudioTools() {
         // primero que hay que hacer. La categoria dice QUE ES la herramienta,
         // no en que archivo quedo.
         t.name = "audio_measure";
-        t.title = ba::i18n::traducir("mcp", "Medir un modulo o la cadena (fuera de linea)");
+        t.title = ba::i18n::traducir("mcp", "Medir un módulo o la cadena (fuera de línea)");
         t.category = "audio";
         t.clase = Clase::Lectura;
         t.description =
@@ -1091,7 +1091,7 @@ void McpService::registerAudioTools() {
     {
         Tool t;
         t.name = "audio_editor";
-        t.title = ba::i18n::traducir("mcp", "Abrir la interfaz del modulo");
+        t.title = ba::i18n::traducir("mcp", "Abrir la interfaz del módulo");
         t.category = "audio_rack";
         t.clase = Clase::Ui;
         t.openWorld = true;

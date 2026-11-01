@@ -119,7 +119,7 @@ void McpService::registerAlertTools() {
     {
         Tool t;
         t.name = "alert_types";
-        t.title = ba::i18n::traducir("mcp", "Que se puede vigilar");
+        t.title = ba::i18n::traducir("mcp", "Qué se puede vigilar");
         t.category = "alertas";
         t.clase = Clase::Lectura;
         // Documentación fija: en el pool (F3-03), aunque la interfaz no ande.
@@ -352,7 +352,7 @@ void McpService::registerAlertTools() {
     {
         Tool t;
         t.name = "alert_wait";
-        t.title = ba::i18n::traducir("mcp", "Esperar el proximo aviso");
+        t.title = ba::i18n::traducir("mcp", "Esperar el próximo aviso");
         t.category = "alertas";
         t.clase = Clase::Lectura;
         // Espera en el vigía (plano de control), no en la interfaz: en el pool (F3-03).

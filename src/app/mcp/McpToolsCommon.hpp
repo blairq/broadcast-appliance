@@ -14,6 +14,7 @@
 #include <functional>
 #include <memory>
 #include <optional>
+#include <tuple>
 
 #include "mcp/McpCore.hpp"
 
@@ -45,12 +46,12 @@ json modelRows(const QAbstractItemModel& m);
 void enPool(QObject* volver, std::function<ToolResult()> trabajo, Done done);
 
 /// Esperar algo que AVISA, en vez de sondearlo con un reloj: cada vez que `obj` emite
-/// `senal` (y una vez al empezar) se pregunta `mirar()`; cuando trae un resultado se
+/// `senal` (o cualquiera de las de una std::tuple; y una vez al empezar) se pregunta `mirar()`; cuando trae un resultado se
 /// contesta con él, y si pasan `topeMs` sin resultado, con `alVencer()`. En el hilo de
 /// `obj` (la interfaz, si es un modelo de ella). Una sola respuesta; lo de la espera se
 /// borra solo (y si `obj` se va antes, también: entonces contesta `alVencer()`).
-template <class Obj, class Senal>
-void esperarHasta(Obj* obj, Senal senal, std::function<std::optional<ToolResult>()> mirar, int topeMs,
+template <class Obj, class... Senal>
+void esperarHasta(Obj* obj, std::tuple<Senal...> senales, std::function<std::optional<ToolResult>()> mirar, int topeMs,
                   std::function<ToolResult()> alVencer, Done done) {
     if (auto ya = mirar()) return done(*ya);
     auto* espera = new QObject(obj); // dueño de las conexiones y del reloj: se va con ellas
@@ -61,15 +62,26 @@ void esperarHasta(Obj* obj, Senal senal, std::function<std::optional<ToolResult>
         espera->deleteLater();
         done(std::move(r));
     };
-    QObject::connect(obj, senal, espera, [mirar, terminar]() {
-        if (auto r = mirar()) terminar(*r);
-    });
+    std::apply(
+        [&](auto... s) {
+            (QObject::connect(obj, s, espera, [mirar, terminar]() {
+                 if (auto r = mirar()) terminar(*r);
+             }),
+             ...);
+        },
+        senales);
     QTimer::singleShot(topeMs, espera, [alVencer, terminar]() { terminar(alVencer()); });
     QObject::connect(espera, &QObject::destroyed, [alVencer, terminado, done]() {
         if (*terminado) return;
         *terminado = true;
         done(alVencer());
     });
+}
+/// Con una sola señal (lo más común).
+template <class Obj, class Senal>
+void esperarHasta(Obj* obj, Senal senal, std::function<std::optional<ToolResult>()> mirar, int topeMs,
+                  std::function<ToolResult()> alVencer, Done done) {
+    esperarHasta(obj, std::make_tuple(senal), std::move(mirar), topeMs, std::move(alVencer), std::move(done));
 }
 
 /// Estado de la sala tal como lo publica B (snapshot vigente, sin pedirlo).

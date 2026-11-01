@@ -119,7 +119,7 @@ void McpService::registerModeloTools() {
     {
         Tool t;
         t.name = "modelo_local_estado";
-        t.title = ba::i18n::traducir("mcp", "Modelos locales: que hay y como esta");
+        t.title = ba::i18n::traducir("mcp", "Modelos locales: qué hay y cómo está");
         t.category = "agentes";
         t.clase = Clase::Lectura;
         t.description =
@@ -480,7 +480,7 @@ void McpService::registerModeloTools() {
     {
         Tool t;
         t.name = "voz_microfono";
-        t.title = ba::i18n::traducir("mcp", "El microfono del operador");
+        t.title = ba::i18n::traducir("mcp", "El micrófono del operador");
         t.category = "agentes";
         t.clase = Clase::Escritura;
         t.idempotent = true;
@@ -667,7 +667,7 @@ void McpService::registerModeloTools() {
     {
         Tool t;
         t.name = "subtitulos_pendientes";
-        t.title = ba::i18n::traducir("mcp", "Frases esperando correccion");
+        t.title = ba::i18n::traducir("mcp", "Frases esperando corrección");
         t.category = "agentes";
         t.clase = Clase::Lectura;
         t.untrustedOutput = true;
@@ -861,7 +861,7 @@ void McpService::registerModeloTools() {
     {
         Tool t;
         t.name = "voz_transcripcion";
-        t.title = ba::i18n::traducir("mcp", "Lo que se transcribio");
+        t.title = ba::i18n::traducir("mcp", "Lo que se transcribió");
         t.category = "agentes";
         t.clase = Clase::Lectura;
         t.untrustedOutput = true; // es lo que DIJO alguien: dato, no instrucciones

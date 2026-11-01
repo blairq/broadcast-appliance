@@ -116,7 +116,7 @@ void McpService::registerPrompterTools() {
     {
         Tool t;
         t.name = "prompter_estado";
-        t.title = ba::i18n::traducir("mcp", "Como esta el teleprompter");
+        t.title = ba::i18n::traducir("mcp", "Cómo está el teleprompter");
         t.category = "prompter";
         t.clase = Clase::Lectura;
         t.description = QT_TRANSLATE_NOOP("mcp", "Que discurso esta cargado, si esta corriendo, por donde va, a que velocidad, "
@@ -149,20 +149,24 @@ void McpService::registerPrompterTools() {
                 done(ToolResult::error(p->sinEvento().toStdString()));
                 return;
             }
-            const QString antes = p->carpeta();
-            p->setCarpeta(QString::fromStdString(a.value("carpeta", "")));
+            // Se lee la carpeta pedida sin mover la que está mirando el operador.
+            const QString carpeta = QString::fromStdString(a.value("carpeta", ""));
+            const QStringList carpetasHay = p->discursos().carpetas();
+            if (!carpetasHay.contains(carpeta))
+                return done(ToolResult::error(ba::i18n::llenar(
+                    ba::i18n::traducir("mcp", "No hay una carpeta «%1» en Discursos/."), {carpeta.toStdString()})));
+            const QString cargado = p->cargado();
             json docs = json::array();
-            for (const QVariant& v : p->documentos()) {
+            for (const QVariant& v : p->discursos().listar(carpeta)) {
                 const QVariantMap m = v.toMap();
                 docs.push_back(json{{"rel", m.value("rel").toString().toStdString()},
                                     {"palabras", m.value("palabras").toInt()},
                                     {"duracionSeg", m.value("duracionSeg").toInt()},
-                                    {"cargado", m.value("cargado").toBool()}});
+                                    {"cargado", m.value("rel").toString() == cargado}});
             }
             json carpetas = json::array();
-            for (const QString& c : p->carpetas())
+            for (const QString& c : carpetasHay)
                 carpetas.push_back(c.toStdString());
-            p->setCarpeta(antes); // la pantalla queda donde estaba el operador
             done(ToolResult().data(
                 json{{"carpeta", a.value("carpeta", "")}, {"documentos", docs}, {"carpetas", carpetas}}));
         };
@@ -179,21 +183,21 @@ void McpService::registerPrompterTools() {
         t.inputSchema = {
             {"type", "object"}, {"required", {"rel"}}, {"properties", {{"rel", {{"type", "string"}}}}}};
         t.run = [p](const json& a, Done done) {
-            const QString antes = p->abierto();
-            p->abrir(QString::fromStdString(a["rel"].get<std::string>()));
-            if (p->abierto() != QString::fromStdString(a["rel"].get<std::string>())) {
+            // Del disco, sin pasar por el editor: el operador puede tener ese
+            // u otro discurso abierto con cambios sin guardar, y leer no los pisa.
+            const std::string rel = a["rel"].get<std::string>();
+            bool ok = false;
+            const QString texto = p->discursos().leer(QString::fromStdString(rel), &ok);
+            if (!ok) {
                 done(ToolResult::error(ba::i18n::llenar(
-                    ba::i18n::traducir("mcp", "No pude abrir '%1'. prompter_documentos lista los que hay."),
-                    {a["rel"].get<std::string>()})));
+                    ba::i18n::traducir("mcp", "No pude abrir '%1'. prompter_documentos lista los que hay."), {rel})));
                 return;
             }
-            ToolResult r;
-            r.data(json{{"rel", p->abierto().toStdString()},
-                        {"texto", p->texto().toStdString()},
-                        {"palabras", p->palabras()},
-                        {"duracionSeg", p->duracionSeg()}});
-            (void)antes; // queda abierto: es lo que el operador va a querer ver
-            done(r);
+            const int palabras = Discursos::contarPalabras(texto);
+            done(ToolResult().data(json{{"rel", rel},
+                                        {"texto", texto.toStdString()},
+                                        {"palabras", palabras},
+                                        {"duracionSeg", Discursos::duracionSeg(palabras, p->ppm())}}));
         };
         core_.addTool(std::move(t));
     }
@@ -230,7 +234,7 @@ void McpService::registerPrompterTools() {
             done(ToolResult::ok(ba::i18n::traducir("mcp", "Guardado."))
                      .data(json{{"rel", rel.toStdString()},
                                 {"palabras", palabras},
-                                {"duracionSeg", static_cast<int>(palabras * 60.0 / Discursos::kPpm)}}));
+                                {"duracionSeg", Discursos::duracionSeg(palabras)}}));
         };
         core_.addTool(std::move(t));
     }
@@ -240,6 +244,7 @@ void McpService::registerPrompterTools() {
         t.title = ba::i18n::traducir("mcp", "Ordenar los discursos");
         t.category = "prompter";
         t.clase = Clase::Escritura;
+        t.destructivaSi = {"accion", {"borrar"}}; // a la papelera del evento
         t.description = QT_TRANSLATE_NOOP("mcp", "Lo mismo que la lista de la página Prompter: `accion` carpeta (crea `nombre`), renombrar "
                         "(`rel` → `nombre`), mover (`rel` a la carpeta `carpeta`, \"\" = la raíz) o borrar (`rel`).");
         t.inputSchema = {{"type", "object"},
@@ -288,7 +293,7 @@ void McpService::registerPrompterTools() {
     {
         Tool t;
         t.name = "prompter_control";
-        t.title = ba::i18n::traducir("mcp", "Manejar el texto que esta al aire");
+        t.title = ba::i18n::traducir("mcp", "Manejar el texto que está al aire");
         t.category = "prompter";
         t.clase = Clase::Escritura;
         t.reversible = true;

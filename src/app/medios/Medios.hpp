@@ -124,4 +124,8 @@ bool renombrar(const QString& raiz, const QString& queRel, const QString& nombre
 /// deshacer tiene que ser sacarlo de una carpeta, no volver a conseguirlo.
 bool aPapelera(const QString& raiz, const QString& queRel, QString* error);
 
+/// Un nombre que no esté ocupado en `dir`: el mismo, o con « (2)», « (3)»…
+/// antes de la extensión. Lo usan todas las papeleras para no pisar nada.
+QString nombreLibre(const QString& dir, const QString& nombre);
+
 } // namespace ba::app::medios

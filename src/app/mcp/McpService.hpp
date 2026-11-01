@@ -137,6 +137,7 @@ class McpService : public QObject {
     std::unique_ptr<McpHttp> http_;
     PlanoControl* plano_ = nullptr;
     std::unique_ptr<QThreadPool> pool_; ///< las herramientas de la foto (Hilo::Foto)
+    std::unique_ptr<QThreadPool> poolSinInterfaz_; ///< las que escriben o tardan sin la interfaz (Hilo::SinInterfaz)
     std::unique_ptr<SettingsModel> settings_; ///< propio: borrador independiente
     std::function<QQuickWindow*()> mainWindow_;
     /// ¿Hay alguien en la sala? Lo pone la interfaz cuando cambia la sala (la copia de

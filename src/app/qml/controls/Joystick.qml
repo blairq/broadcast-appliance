@@ -1,21 +1,22 @@
-// El joystick de pan/tilt de una cámara (la tarjeta PTZ, su ventana y la página
-// Cámaras PTZ): se arrastra la perilla y la cámara se mueve con esa velocidad
-// mientras se tiene apretado; al soltar, para. El centro es quieto (zona muerta);
-// cuanto más lejos, más rápido.
+// Un joystick: se arrastra la perilla y, mientras se tiene apretado, avisa cada 60 ms
+// hacia dónde está corrida (`mover(px, py)`, -1..1, y hacia arriba positivo); al soltar,
+// `soltado()`. El centro es quieto (zona muerta); cuanto más lejos, más rápido. Lo que
+// mueve lo decide quien lo usa: una cámara (JoystickPtz), lo que se ve de un PDF.
 import QtQuick
 import BA
 
 Rectangle {
     id: pad
-    /// La entrada que mueve y la velocidad máxima (0..1).
-    property string entrada: ""
-    property real velocidad: 0.6
     /// Las flechas en los bordes (la página grande).
     property bool flechas: false
-    /// Lo que contestó el modelo al empezar a mover ("" si anduvo).
-    signal aviso(string texto)
+    /// La rueda encima avisa `rueda(+1 | -1)` (si no, sigue de largo: desplaza la página).
+    property bool conRueda: false
+    /// Al apretar (con dónde se apretó), mientras se tiene apretado y al soltar.
+    signal apretado(real px, real py)
+    signal mover(real px, real py)
+    signal soltado()
+    signal rueda(int sentido)
 
-    readonly property var cc: Studio.camaras
     property real px: 0
     property real py: 0
     readonly property real perilla: Math.max(26, width * 0.3)
@@ -37,11 +38,11 @@ Rectangle {
         x: pad.width / 2 - width / 2 + pad.px * (pad.width / 2 - width / 2)
         y: pad.height / 2 - height / 2 - pad.py * (pad.height / 2 - height / 2)
     }
-    // Mientras se tiene apretado, la orden se repite con la velocidad de ahora (es una
-    // acción, no una lectura: la cámara para sola si deja de recibirla).
+    // Mientras se tiene apretado, la orden se repite con la posición de ahora (es una
+    // acción, no una lectura: una cámara para sola si deja de recibirla).
     Timer {
         interval: 60; repeat: true; running: area.pressed
-        onTriggered: pad.cc.mover(pad.entrada, pad.px * pad.velocidad, pad.py * pad.velocidad, 0)
+        onTriggered: pad.mover(pad.px, pad.py)
     }
     MouseArea {
         id: area
@@ -56,9 +57,14 @@ Rectangle {
             pad.px = Math.abs(dx) < 0.08 ? 0 : dx
             pad.py = Math.abs(dy) < 0.08 ? 0 : dy
         }
-        onPressed: (m) => { leer(m); pad.aviso(pad.cc.mover(pad.entrada, pad.px * pad.velocidad, pad.py * pad.velocidad, 0)) }
+        function soltar() { pad.px = 0; pad.py = 0; pad.soltado() }
+        onPressed: (m) => { leer(m); pad.apretado(pad.px, pad.py) }
         onPositionChanged: (m) => leer(m)
-        onReleased: { pad.px = 0; pad.py = 0; pad.cc.parar(pad.entrada) }
-        onCanceled: { pad.px = 0; pad.py = 0; pad.cc.parar(pad.entrada) }
+        onReleased: soltar()
+        onCanceled: soltar()
+        onWheel: (w) => {
+            if (!pad.conRueda) { w.accepted = false; return }
+            pad.rueda(w.angleDelta.y > 0 ? 1 : -1)
+        }
     }
 }

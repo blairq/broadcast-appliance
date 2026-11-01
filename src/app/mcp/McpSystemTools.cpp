@@ -340,7 +340,7 @@ void McpService::registerSystemTools() {
     {
         Tool t;
         t.name = "audio_input_add";
-        t.title = ba::i18n::traducir("mcp", "Agregar un microfono o entrada de audio");
+        t.title = ba::i18n::traducir("mcp", "Agregar un micrófono o entrada de audio");
         t.category = "equipo";
         t.clase = Clase::Escritura;
         t.description =
@@ -377,7 +377,7 @@ void McpService::registerSystemTools() {
     {
         Tool t;
         t.name = "inicio_con_el_equipo";
-        t.hilo = Hilo::Foto; // solo el sistema (el arranque con el equipo): nada de la app
+        t.hilo = Hilo::SinInterfaz; // escribe en el sistema (el arranque con el equipo): nada de la interfaz; la página se entera (inicio::alCambiar)
         t.title = ba::i18n::traducir("mcp", "Arrancar solo al encender el equipo");
         t.category = "equipo";
         t.clase = Clase::Escritura;
@@ -399,7 +399,7 @@ void McpService::registerSystemTools() {
     {
         Tool t;
         t.name = "audio_input_remove";
-        t.title = ba::i18n::traducir("mcp", "Quitar un microfono o entrada de audio");
+        t.title = ba::i18n::traducir("mcp", "Quitar un micrófono o entrada de audio");
         t.category = "equipo";
         t.clase = Clase::Escritura;
         t.destructive = true;
@@ -424,7 +424,7 @@ void McpService::registerSystemTools() {
     {
         Tool t;
         t.name = "video_devices";
-        t.title = ba::i18n::traducir("mcp", "Camaras y capturadoras");
+        t.title = ba::i18n::traducir("mcp", "Cámaras y capturadoras");
         t.category = "equipo";
         t.clase = Clase::Lectura;
         t.description =

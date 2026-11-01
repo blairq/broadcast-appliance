@@ -3,8 +3,9 @@
 //
 // Una sola hora para toda la interfaz, en vez de un `Timer` con `Date.now()` en cada
 // archivo: `Reloj.ahora` (ms, cambia una vez por segundo) para relojes y cuentas
-// regresivas, y `Reloj.ahoraFino` (cuatro veces por segundo) para lo que necesita más
-// (la cuenta de un orador en los últimos segundos). Cada uno corre SOLO mientras algún
+// regresivas, y `Reloj.ahoraFino` (ocho veces por segundo) para lo que necesita más
+// (la cuenta de un orador en los últimos segundos, lo que titila, las caras animadas de
+// la Botonera). Cada uno corre SOLO mientras algún
 // enlace de QML lo lee: Qt avisa cuando un enlace se conecta o se desconecta de su
 // señal (connectNotify). Una vista que no se ve y no lo necesita lo lee condicionado:
 //   readonly property real ahora: visible ? Reloj.ahora : 0
@@ -41,7 +42,7 @@ class Reloj : public QObject {
    private:
     void revisar();
 
-    QTimer segundo_, cuarto_;
+    QTimer segundo_, fino_;
     int lectores_ = 0, lectoresFinos_ = 0;
     bool alineando_ = false;
 };

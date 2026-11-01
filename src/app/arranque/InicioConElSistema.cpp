@@ -12,6 +12,7 @@
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
+#include <mutex>
 #include <sstream>
 
 #if defined(_WIN32)
@@ -109,7 +110,27 @@ bool activo() {
 #endif
 }
 
+namespace {
+std::mutex g_avisoMu;
+std::function<void()> g_aviso;
+
+std::string ponerSinAvisar(bool on);
+} // namespace
+
+void alCambiar(std::function<void()> f) {
+    std::lock_guard<std::mutex> l(g_avisoMu);
+    g_aviso = std::move(f);
+}
+
 std::string poner(bool on) {
+    const std::string e = ponerSinAvisar(on);
+    std::lock_guard<std::mutex> l(g_avisoMu);
+    if (g_aviso) g_aviso();
+    return e;
+}
+
+namespace {
+std::string ponerSinAvisar(bool on) {
 #if defined(_WIN32)
     if (!on) {
         const LSTATUS r = RegDeleteKeyValueW(HKEY_CURRENT_USER, kClave, kValor);
@@ -131,6 +152,7 @@ std::string poner(bool on) {
                : ba::i18n::llenar(ba::i18n::traducir("inicio", "no se pudo escribir %1"), {archivo().string()});
 #endif
 }
+} // namespace
 
 void revisar() {
     if (hayEntrada() && !activo()) poner(true); // se movió la carpeta: la ruta nueva

@@ -38,6 +38,7 @@ class SystemViewModel : public QObject {
     Q_PROPERTY(QVariantList faltantes READ faltantes NOTIFY faltantesChanged)
    public:
     explicit SystemViewModel(QObject* parent = nullptr);
+    ~SystemViewModel() override;
 
     QString dataRoot() const;
     QStringList credentials() const;

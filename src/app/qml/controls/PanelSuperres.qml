@@ -593,7 +593,15 @@ ColumnLayout {
         property var valores: ({})
         property string busca: ""
         readonly property var modulos: panel.vg ? panel.vg.modulosGst : []
-        readonly property var visibles: modulos.filter(m => busca === "" || (m.elemento + " " + (m.nombre || "")).toLowerCase().indexOf(busca.toLowerCase()) >= 0)
+        // Lo que se ve según lo escrito: la búsqueda de todos los catálogos (el modelo).
+        FiltroCatalogo {
+            id: elementosVisibles
+            clave: "elemento"
+            fuente: editorPropio.modulos
+            camposCabeza: ["elemento"]
+            campos: ["nombre"]
+            texto: editorPropio.busca
+        }
         function abrir(p) {
             pid = p ? p.id : ""; nombre = p ? (p.nombre || "") : ""; elemento = p ? p.elemento : ""
             memoria = p ? (p.memoria || "") : ""; saleSistema = p ? (p.memoria_salida === "") : false
@@ -636,10 +644,10 @@ ColumnLayout {
                     TextField { Layout.preferredWidth: 150; placeholderText: qsTr("Buscar"); text: editorPropio.busca; onTextEdited: editorPropio.busca = text }
                     ComboBox {
                         Layout.fillWidth: true
-                        model: editorPropio.visibles
+                        model: elementosVisibles
                         textRole: "elemento"
                         displayText: editorPropio.elemento !== "" ? editorPropio.elemento : qsTr("— elegí un elemento —")
-                        onActivated: (i) => { editorPropio.elemento = editorPropio.visibles[i].elemento; editorPropio.valores = ({}) }
+                        onActivated: (i) => { editorPropio.elemento = elementosVisibles.fila(i).elemento; editorPropio.valores = ({}) }
                     }
                     // Uno propio que todavía no está registrado: el nombre a mano.
                     TextField { Layout.preferredWidth: 140; placeholderText: qsTr("o el nombre a mano"); onEditingFinished: if (text !== "") editorPropio.elemento = text }

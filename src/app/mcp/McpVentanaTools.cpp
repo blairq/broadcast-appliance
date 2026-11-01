@@ -276,7 +276,7 @@ void McpService::registerVentanaTools() {
     {
         Tool t;
         t.name = "ventana_listar";
-        t.title = ba::i18n::traducir("mcp", "Que ventanas hay abiertas y donde");
+        t.title = ba::i18n::traducir("mcp", "Qué ventanas hay abiertas y dónde");
         t.category = "ventanas";
         t.hilo = Hilo::Interfaz;
         t.clase = Clase::Lectura;
@@ -676,7 +676,7 @@ void McpService::registerVentanaTools() {
     {
         Tool t;
         t.name = "monitor_identificar";
-        t.title = ba::i18n::traducir("mcp", "Mostrar en cada monitor cual es");
+        t.title = ba::i18n::traducir("mcp", "Mostrar en cada monitor cuál es");
         t.category = "ventanas";
         t.clase = Clase::Ui;
         t.description =

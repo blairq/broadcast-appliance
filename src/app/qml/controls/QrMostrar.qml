@@ -106,13 +106,9 @@ Dialog {
             color: "white"
             border.color: dlg.colorQr
             border.width: 4
-            Image {
+            ImagenQr {
                 anchors { fill: parent; margins: 14 }
-                source: dlg.texto !== "" ? "image://qr/texto/" + encodeURIComponent(dlg.texto) : ""
-                sourceSize: Qt.size(640, 640)
-                fillMode: Image.PreserveAspectFit
-                smooth: false
-                cache: false
+                texto: dlg.texto
             }
         }
         Text {

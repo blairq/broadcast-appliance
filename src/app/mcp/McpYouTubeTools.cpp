@@ -6,7 +6,9 @@
 // terminar), chat y la fuente "Chat en vivo" en una escena.
 // ============================================================================
 
+#include <QCoreApplication>
 #include <QFileInfo>
+#include <memory>
 #include <QJsonDocument>
 
 #include "i18n/I18n.hpp"
@@ -41,6 +43,11 @@ void McpService::registerYouTubeTools() {
         "youtube", "YouTube",
         ba::i18n::traducir("mcp", "Cuenta de YouTube: videos, subidas, eventos en vivo (crear, transmitir, terminar) y chat. "
         "Primero youtube_status: si no está configurado o conectado, explica qué falta."));
+    // El chat del PÚBLICO junta YouTube, Twitch, Facebook y la web: categoría propia (youtube_chat
+    // y facebook_chat leen una plataforma sola, para diagnóstico).
+    core_.addCategory("publico", ba::i18n::traducir("mcp", "Chat del público"),
+                      ba::i18n::traducir("mcp", "Los mensajes del público de todas las plataformas juntas (YouTube, Twitch, "
+                                                "Facebook y la web), para leerlos y destacarlos."));
     auto* yt = static_cast<YouTubeViewModel*>(vm_.youtube());
     AppRuntime& rt = rt_;
     const auto needLogin = [yt](Done& done) {
@@ -87,7 +94,7 @@ void McpService::registerYouTubeTools() {
         Tool t;
         t.name = "publico_chat_leer";
         t.title = ba::i18n::traducir("mcp", "Mensajes recientes del chat (para destacar)");
-        t.category = "youtube";
+        t.category = "publico"; // las cuatro fuentes, no solo YouTube
         t.clase = Clase::Lectura;
         t.untrustedOutput = true;
         t.description = QT_TRANSLATE_NOOP("mcp", "Lee el chat del PÚBLICO (YouTube, Twitch, Facebook y la web), cada mensaje con su key y si está "
@@ -154,20 +161,32 @@ void McpService::registerYouTubeTools() {
                 return done(ToolResult::ok(ba::i18n::traducir("mcp", "Credencial borrada.")));
             }
             if (a.value("fromDownloads", false)) {
-                QString why;
-                const QString path = accounts::findGoogleClientJson(&why);
-                if (path.isEmpty()) return done(ToolResult::error(why.toStdString()));
-                QFile f(path);
-                if (!f.open(QIODevice::ReadOnly))
-                    return done(ToolResult::error(
-                        ba::i18n::llenar(ba::i18n::traducir("mcp", "No se pudo leer %1"), {path.toStdString()})));
-                const QString err = yt->saveClient(QString::fromUtf8(f.readAll()));
-                if (!err.isEmpty()) return done(ToolResult::error(err.toStdString()));
-                return done(ToolResult()
-                                .text(ba::i18n::llenar(
-                                    ba::i18n::traducir("mcp", "Credencial importada de %1. Siguiente paso: youtube_login."),
-                                    {QFileInfo(path).fileName().toStdString()}))
-                                .data(json{{"clientId", yt->clientId().toStdString()}}));
+                // Buscar en Descargas y leer el archivo, fuera de la interfaz; guardarlo, en ella.
+                auto leido = std::make_shared<std::pair<QString, QString>>(); // {ruta, contenido}
+                enPool(
+                    qApp,
+                    [leido]() {
+                        QString why;
+                        const QString path = accounts::findGoogleClientJson(&why);
+                        if (path.isEmpty()) return ToolResult::error(why.toStdString());
+                        QFile f(path);
+                        if (!f.open(QIODevice::ReadOnly))
+                            return ToolResult::error(
+                                ba::i18n::llenar(ba::i18n::traducir("mcp", "No se pudo leer %1"), {path.toStdString()}));
+                        *leido = {path, QString::fromUtf8(f.readAll())};
+                        return ToolResult();
+                    },
+                    [yt, leido, done](ToolResult r) {
+                        if (r.isError) return done(std::move(r));
+                        const QString err = yt->saveClient(leido->second);
+                        if (!err.isEmpty()) return done(ToolResult::error(err.toStdString()));
+                        done(ToolResult()
+                                 .text(ba::i18n::llenar(
+                                     ba::i18n::traducir("mcp", "Credencial importada de %1. Siguiente paso: youtube_login."),
+                                     {QFileInfo(leido->first).fileName().toStdString()}))
+                                 .data(json{{"clientId", yt->clientId().toStdString()}}));
+                    });
+                return;
             }
             const QString e = a.contains("clientSecret")
                                   ? yt->saveClient(QString::fromStdString(a.value("clientId", "")),
@@ -206,9 +225,9 @@ void McpService::registerYouTubeTools() {
                     ToolResult::ok(ba::i18n::traducir("mcp", "Se abrio el navegador: la persona tiene que elegir la cuenta y aceptar. "
                                    "Despues, youtube_status.")));
             }
-            yt->client().login([yt, done](bool ok, const QJsonObject& acc, const QString& e) {
+            // El login del modelo (relee la cuenta y avisa a la página), con la respuesta.
+            yt->login([done](bool ok, const QJsonObject& acc, const QString& e) {
                 if (!ok) return done(ToolResult::error(e.toStdString()));
-                yt->refresh();
                 done(ToolResult().data(json{{"connected", toJson(acc)}}));
             });
         };
@@ -302,7 +321,7 @@ void McpService::registerYouTubeTools() {
     {
         Tool t;
         t.name = "youtube_video_upload";
-        t.title = ba::i18n::traducir("mcp", "Subir un video (p. ej. la grabacion)");
+        t.title = ba::i18n::traducir("mcp", "Subir un video (p. ej. la grabación)");
         t.category = "youtube";
         t.clase = Clase::Escritura;
         t.description =

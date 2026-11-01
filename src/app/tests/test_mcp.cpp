@@ -491,6 +491,20 @@ int main(int argc, char** argv) {
                       !McpCore::esDestructiva(*v, json{{"delete", false}}),
                   "esDestructiva: solo con delete=true");
         }
+        // Con clave y valores: borra solo con esa acción (prompter_archivos accion=borrar).
+        {
+            Tool t;
+            t.name = "archivos_ordenar";
+            t.destructivaSi = {"accion", {"borrar", "vaciar"}};
+            t.run = [](const json&, Done done) { done(ToolResult::ok("ok")); };
+            sec.addTool(std::move(t));
+            const Tool* v = sec.findTool("archivos_ordenar");
+            CHECK(v != nullptr && v->destructive, "destructivaSi con valores: la anotación dice que puede borrar");
+            CHECK(McpCore::esDestructiva(*v, json{{"accion", "borrar"}}) && McpCore::esDestructiva(*v, json{{"accion", "vaciar"}}) &&
+                      !McpCore::esDestructiva(*v, json{{"accion", "mover"}}) && !McpCore::esDestructiva(*v, json::object()) &&
+                      !McpCore::esDestructiva(*v, json{{"accion", true}}),
+                  "esDestructiva: solo con accion borrar o vaciar");
+        }
 
         // --- Guardas de aire: con aire, una herramienta de aire pedida por algo
         // automático espera SIEMPRE a una persona (aunque la política sea "nunca").

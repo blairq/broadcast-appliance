@@ -46,6 +46,10 @@ class Discursos {
 
     /// La MISMA cuenta que hace el gateway (ver Prompter::contarPalabras).
     static int contarPalabras(const QString& texto);
+    /// Cuántos segundos lleva leer `palabras` a `ppm` palabras por minuto.
+    static int duracionSeg(int palabras, int ppm = kPpm) {
+        return ppm > 0 ? static_cast<int>(palabras * 60.0 / ppm) : 0;
+    }
     /// Un nombre que sirva de archivo en Windows y en Linux; vacío si no
     /// queda nada usable. Le agrega .txt si no tiene extensión de discurso.
     static QString limpiarNombre(QString n, bool conExtension = true);
@@ -71,6 +75,9 @@ class Discursos {
     QString renombrar(const QString& rel, const QString& nombre, QString* relOut = nullptr);
     /// Lo lleva a otra carpeta ("" es la raíz), con el mismo nombre.
     QString mover(const QString& rel, const QString& aCarpeta, QString* relOut = nullptr);
+    /// A la papelera del evento (<evento>/Papelera/Discursos/, al lado de esta
+    /// raíz), NO se borra: un discurso que se tocó sin querer se recupera
+    /// sacándolo de una carpeta, como los medios y los documentos.
     QString borrar(const QString& rel);
 
    private:

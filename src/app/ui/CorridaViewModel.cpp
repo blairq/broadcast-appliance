@@ -20,6 +20,7 @@
 #include <fstream>
 
 #include "ajustes/Ajustes.hpp"
+#include "comun/Restante.hpp"
 #include "arranque/AppRuntime.hpp"
 #include "asamblea/OrdenDelDia.hpp"
 #include "asamblea/Votaciones.hpp"
@@ -335,6 +336,7 @@ QVariantMap CorridaViewModel::reloj() const {
     QVariantMap m{{"desvioSeg", previsto >= 0 && corriendo() ? transcurrido - previsto : 0},
                   {"enCueSeg", enCue},
                   {"restanteSeg", c != nullptr && c->duracionSeg > 0 ? c->duracionSeg - enCue : 0},
+                  {"estadoRestante", estadoRestante(c != nullptr && c->duracionSeg > 0 ? c->duracionSeg - enCue : 0)},
                   {"cueNro", p.valido() ? nro : 0},
                   {"cuesTotal", static_cast<int>(ev().cantidadDeCues())},
                   {"restanteBloqueSeg", restanteBloque},

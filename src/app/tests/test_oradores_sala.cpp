@@ -10,6 +10,8 @@
 
 #include "sala/OradoresSala.hpp"
 
+#include <QJsonDocument>
+
 using ba::app::sala::OradoresSala;
 
 namespace {
@@ -70,6 +72,34 @@ int main() {
     CHECK(leer("0", 0, &e) == -1 && !e.empty(), "leer: cero no vale");
     CHECK(leer("abc", 0, &e) == -1 && !e.empty(), "leer: lo que no se entiende es error");
     CHECK(leer("99999999999999", 0, &e) == -1, "leer: un número enorme es error (no excepción)");
+    // --- Un tiempo en JSON: un ENTERO son segundos (lo que manda un programa), un texto
+    // sigue la regla del operador -------------------------------------------------------------
+    {
+        const auto json = [](const nlohmann::json& v, int actual, std::string* error = nullptr) {
+            int s = -1;
+            const std::string e = OradoresSala::leerTiempoJson(v, actual, s);
+            if (error != nullptr) *error = e;
+            return e.empty() ? s : -1;
+        };
+        CHECK(json(120, 0) == 120, "json: 120 entero son 120 segundos (dos minutos, no dos horas)");
+        CHECK(json(90, 600) == 90, "json: un entero es absoluto, no suma");
+        CHECK(json("3", 0) == 180, "json: el texto «3» son tres minutos (regla del operador)");
+        CHECK(json("45s", 0) == 45 && json("0:45", 0) == 45, "json: «45s» y «0:45» son segundos");
+        CHECK(json("+2", 60) == 180 && json("-30s", 60) == 30, "json: «+2» y «-30s» suman y restan");
+        CHECK(json(0, 0, &e) == -1 && !e.empty(), "json: cero no vale");
+        CHECK(json(-5, 0, &e) == -1 && !e.empty(), "json: negativo no vale");
+        CHECK(json(1.5, 0, &e) == -1 && !e.empty(), "json: un número con decimales no se adivina");
+        CHECK(json(true, 0, &e) == -1 && !e.empty(), "json: un booleano es error");
+    }
+    // --- Sobre qué se suma: el tiempo propio, o el general ----------------------------------------
+    {
+        const QJsonObject foto = QJsonDocument::fromJson(R"({"speakers": {"defaultSec": 300},
+            "participants": [{"id": "a", "allottedSec": 120}, {"id": "b", "allottedSec": 0}, {"id": "", "allottedSec": 9}]})").object();
+        CHECK(OradoresSala::tiempoActual(foto, "a") == 120, "actual: el suyo si tiene");
+        CHECK(OradoresSala::tiempoActual(foto, "b") == 300, "actual: el general si el suyo es 0");
+        CHECK(OradoresSala::tiempoActual(foto, "zz") == 300, "actual: el general si no está");
+        CHECK(OradoresSala::tiempoActual(foto, "") == 300, "actual: sin id, el general");
+    }
     // --- La fila -----------------------------------------------------------------------------
     {
         const nlohmann::json foto{

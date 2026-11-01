@@ -35,14 +35,14 @@ Rectangle {
                 required property var modelData
                 readonly property string estado: modelData.estadoTiempo
                 spacing: 8
-                Rectangle { width: 10; height: 10; radius: 5; color: estado === "excedido" ? Theme.live : Theme.ok
+                Rectangle { width: 10; height: 10; radius: 5; color: Theme.colorDeEstado(estado, Theme.ok)
                     SequentialAnimation on opacity { loops: Animation.Infinite; running: timer.visible
                         NumberAnimation { to: 0.3; duration: 600 } NumberAnimation { to: 1; duration: 600 } } }
                 Text { text: modelData.name; color: Theme.text; font { pixelSize: 14; weight: Font.DemiBold } }
                 Text {
                     id: t
                     text: modelData.textoTiempo
-                    color: estado === "excedido" ? Theme.live : estado === "aviso" ? Theme.accent : Theme.text
+                    color: Theme.colorDeEstado(estado, Theme.text)
                     font { pixelSize: estado !== "ok" ? 30 : 22; weight: Font.Black; family: Theme.font }
                     Behavior on font.pixelSize { NumberAnimation { duration: 200 } }
                     SequentialAnimation on scale {

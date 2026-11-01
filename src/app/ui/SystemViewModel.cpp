@@ -58,7 +58,13 @@ QString localPath(const QString& folderOrUrl) {
     return u.isLocalFile() ? u.toLocalFile() : folderOrUrl;
 }
 
-SystemViewModel::SystemViewModel(QObject* parent) : QObject(parent) { leerInicio(); }
+SystemViewModel::SystemViewModel(QObject* parent) : QObject(parent) {
+    leerInicio();
+    // Lo cambia también el MCP (inicio_con_el_equipo, fuera de la interfaz): avisa y se relee.
+    inicio::alCambiar([this]() { QMetaObject::invokeMethod(this, [this]() { leerInicio(); }, Qt::QueuedConnection); });
+}
+
+SystemViewModel::~SystemViewModel() { inicio::alCambiar(nullptr); }
 
 QVariantList SystemViewModel::faltantes() const {
     // Los elementos de GStreamer que faltan: recorrer el registro tarda; una vez, aparte, la
@@ -158,9 +164,8 @@ QVariantList SystemViewModel::preparacion() const {
 }
 
 QString SystemViewModel::inicioPoner(bool activo) {
-    const QString err = QString::fromStdString(inicio::poner(activo));
-    leerInicio(); // la preparación tiene «arranca con la sesión»
-    return err;
+    // Se relee solo (alCambiar): la preparación tiene «arranca con la sesión».
+    return QString::fromStdString(inicio::poner(activo));
 }
 
 void SystemViewModel::refresh() {

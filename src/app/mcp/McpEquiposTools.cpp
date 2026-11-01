@@ -22,7 +22,6 @@
 
 #include <QJsonDocument>
 #include <QPointer>
-#include <QTimer>
 
 namespace ba::app::mcp {
 
@@ -299,18 +298,15 @@ void McpService::registerDriversTools() {
             const QString id = QString::fromStdString(a.value("id", std::string()));
             const QString err = dr->reintentar(id);
             if (!err.isEmpty()) return done(ToolResult::error(err.toStdString()));
-            // Se espera a que deje de estar «probando» (lo dice el modelo), con un tope.
-            auto* reloj = new QTimer(dr.data());
-            auto vueltas = std::make_shared<int>(0);
-            QObject::connect(reloj, &QTimer::timeout, reloj, [dr, id, reloj, vueltas, done]() {
-                if (!dr) return reloj->deleteLater();
-                const QVariantMap u = dr->uno(id);
-                if (u.value("estado").toString() == "probando" && ++*vueltas < 300) return;
-                reloj->stop();
-                reloj->deleteLater();
-                done(ToolResult().data(aJ(u)));
-            });
-            reloj->start(200);
+            // Se espera a que deje de estar «probando»: el modelo avisa (estadoCambio), con un tope.
+            esperarHasta(
+                dr.data(), &dispositivos::Drivers::estadoCambio,
+                [dr, id]() -> std::optional<ToolResult> {
+                    const QVariantMap u = dr->uno(id);
+                    if (u.value("estado").toString() == "probando") return std::nullopt;
+                    return ToolResult().data(aJ(u));
+                },
+                60000, [dr, id]() { return dr ? ToolResult().data(aJ(dr->uno(id))) : ToolResult::error("drivers"); }, done);
         };
         core_.addTool(std::move(t));
     }

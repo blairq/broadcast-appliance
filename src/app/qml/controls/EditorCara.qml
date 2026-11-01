@@ -120,71 +120,35 @@ Popup {
                     onActivated: dlg.entrada = currentText
                 }
             }
-            Rectangle {
+            ImagenApuntable {
                 id: vista
                 Layout.fillWidth: true
                 Layout.preferredHeight: width * 9 / 16
-                radius: 10; color: "black"; clip: true
-                VideoItem { id: video; anchors.fill: parent; source: dlg.entrada !== "" ? "entrada:" + dlg.entrada : ""; fillMode: VideoItem.Fit }
-                Text { visible: !video.hasFrame; anchors.centerIn: parent; text: qsTr("Sin señal"); color: Theme.textFaint; font.pixelSize: 13 }
-                readonly property real aspecto: video.frameSize.width > 0 ? video.frameSize.width / video.frameSize.height : 16 / 9
-                readonly property real iw: Math.min(width, height * aspecto)
-                readonly property real ih: iw / aspecto
-                readonly property real ix: (width - iw) / 2
-                readonly property real iy: (height - ih) / 2
-                function u(x) { return Math.max(0, Math.min(1, (x - ix) / iw)) }
-                function v(y) { return Math.max(0, Math.min(1, (y - iy) / ih)) }
+                enabled: dlg.cam !== null
+                fuente: dlg.entrada !== "" ? "entrada:" + dlg.entrada : ""
+                ayuda: dlg.digital ? qsTr("Clic: apuntar · arrastrar: encuadrar · rueda: zoom · doble clic: cuadro completo · el cuadrado es lo que sale en el botón")
+                                   : qsTr("Clic: apuntar · arrastrar: encuadrar · rueda: zoom · el cuadrado es lo que sale en el botón")
                 // Lo que va a salir en el botón: el cuadrado del centro.
                 Rectangle {
                     anchors.centerIn: parent
                     width: Math.min(vista.iw, vista.ih); height: width
                     color: "transparent"; border { color: Qt.rgba(1, 1, 1, 0.5); width: 1 }
                 }
-                Rectangle { id: cuadro; visible: false; color: Qt.rgba(1, 0.42, 0.17, 0.15); border { color: Theme.accent; width: 2 } }
-                Text {
-                    anchors { left: parent.left; right: parent.right; bottom: parent.bottom; margins: 6 }
-                    horizontalAlignment: Text.AlignHCenter; elide: Text.ElideRight
-                    text: dlg.digital ? qsTr("Clic: apuntar · arrastrar: encuadrar · rueda: zoom · doble clic: cuadro completo · el cuadrado es lo que sale en el botón")
-                                  : qsTr("Clic: apuntar · arrastrar: encuadrar · rueda: zoom · el cuadrado es lo que sale en el botón")
-                    color: Qt.rgba(1, 1, 1, 0.6); font.pixelSize: 10
-                    style: Text.Outline; styleColor: Qt.rgba(0, 0, 0, 0.7)
-                }
-                MouseArea {
-                    anchors.fill: parent
-                    enabled: dlg.cam !== null
-                    preventStealing: true
-                    cursorShape: Qt.CrossCursor
-                    property point desde
-                    onPressed: (m) => { desde = Qt.point(m.x, m.y); cuadro.visible = false }
-                    onPositionChanged: (m) => {
-                        if (!pressed) return
-                        if (Math.abs(m.x - desde.x) < 6 && Math.abs(m.y - desde.y) < 6) return
-                        cuadro.x = Math.min(m.x, desde.x); cuadro.y = Math.min(m.y, desde.y)
-                        cuadro.width = Math.abs(m.x - desde.x); cuadro.height = Math.abs(m.y - desde.y)
-                        cuadro.visible = true
-                    }
-                    onReleased: (m) => {
-                        let u = vista.u(m.x), v = vista.v(m.y), an = 0, al = 0
-                        if (cuadro.visible) {
-                            cuadro.visible = false
-                            u = vista.u(cuadro.x + cuadro.width / 2); v = vista.v(cuadro.y + cuadro.height / 2)
-                            an = cuadro.width / vista.iw; al = cuadro.height / vista.ih
-                        }
-                        dlg.siNoAlAire(function() { dlg.avisar(dlg.cc.apuntar(dlg.entrada, u, v, an, al)) })
-                    }
-                    onDoubleClicked: if (dlg.digital) dlg.siNoAlAire(function() { dlg.avisar(dlg.cc.encuadre(dlg.entrada, 0.5, 0.5, 1, 0.8)) })
-                    onWheel: (w) => {
-                        if (dlg.digital) {
-                            const z = dlg.pos.zoom || 1
-                            dlg.avisar(dlg.cc.encuadre(dlg.entrada, dlg.pos.x || 0.5, dlg.pos.y || 0.5,
-                                                       Math.max(1, Math.min(8, z * (w.angleDelta.y > 0 ? 1.15 : 1 / 1.15))), 0.15))
-                        } else {
-                            dlg.cc.mover(dlg.entrada, 0, 0, w.angleDelta.y > 0 ? 0.5 : -0.5)
-                            pararZoom.restart()
-                        }
+                onClic: (u, v) => dlg.siNoAlAire(function() { dlg.avisar(dlg.cc.apuntar(dlg.entrada, u, v, 0, 0)) })
+                onCuadro: (u, v, an, al) => dlg.siNoAlAire(function() { dlg.avisar(dlg.cc.apuntar(dlg.entrada, u, v, an, al)) })
+                onDobleClic: if (dlg.digital) dlg.siNoAlAire(function() { dlg.avisar(dlg.cc.encuadre(dlg.entrada, 0.5, 0.5, 1, 0.8)) })
+                onRueda: (sentido) => {
+                    if (dlg.digital) {
+                        const z = dlg.pos.zoom || 1
+                        dlg.avisar(dlg.cc.encuadre(dlg.entrada, dlg.pos.x || 0.5, dlg.pos.y || 0.5,
+                                                   Math.max(1, Math.min(8, z * (sentido > 0 ? 1.15 : 1 / 1.15))), 0.15))
+                    } else {
+                        // Óptico: un empujón de zoom que se frena solo (como la ventana del PTZ).
+                        dlg.avisar(dlg.cc.mover(dlg.entrada, 0, 0, sentido * 0.5))
+                        pararZoom.restart()
                     }
                 }
-                Timer { id: pararZoom; interval: 250; onTriggered: dlg.cc.mover(dlg.entrada, 0, 0, 0) }
+                Timer { id: pararZoom; interval: 250; onTriggered: dlg.cc.parar(dlg.entrada) }
             }
             RowLayout {
                 spacing: 8

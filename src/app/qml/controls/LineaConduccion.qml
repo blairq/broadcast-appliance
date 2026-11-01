@@ -87,7 +87,7 @@ ColumnLayout {
                         readonly property int r: cond.aire ? cond.aire.restanteSeg : 0
                         text: cond.aire && cond.aire.previstoSeg > 0 ? (r < 0 ? "+" + Theme.mmss(-r) : Theme.mmss(r))
                                                                      : (cond.aire ? Theme.mmss(cond.aire.llevaSeg) : "")
-                        color: r < 0 ? Theme.live : r <= 10 ? Theme.amber : Theme.text
+                        color: Theme.colorDeEstado(cond.aire ? cond.aire.estadoRestante : "", Theme.text)
                         font { family: Theme.mono; pixelSize: 30; weight: Font.Bold }
                     }
                 }

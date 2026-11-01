@@ -212,7 +212,7 @@ class ConferenceViewModel : public QObject {
     Q_INVOKABLE void setProfile(const QString& id, const QString& name, const QString& info,
                                 const QString& contact);
     /// La ficha de un orador desde el diálogo: los datos y, si `tiempo` no va vacío, su
-    /// tiempo para hablar (sala::OradoresSala::leerTiempo: «2:30», «90», «3m», «+1:00»…).
+    /// tiempo para hablar (sala::OradoresSala::leerTiempo: «2:30», «3» —tres minutos—, «90s», «+1:00»…).
     Q_INVOKABLE void guardarFicha(const QString& id, const QString& name, const QString& info,
                                   const QString& contact, const QString& tiempo);
     /// El tiempo general por orador, escrito (ver guardarFicha). "" o el error.

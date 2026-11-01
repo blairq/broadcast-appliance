@@ -379,11 +379,8 @@ void ConferenceViewModel::guardarFicha(const QString& id, const QString& name, c
     setProfile(id, name, info, contact);
     // Sin tiempo (desde el lobby o la sala): solo la ficha. Uno que no se entiende, se avisa.
     if (tiempo.trimmed().isEmpty()) return;
-    int actual = 0;
-    for (const QJsonValue& v : client_->snapshot().value("participants").toArray())
-        if (v.toObject().value("id").toString() == id) actual = v.toObject().value("allottedSec").toInt();
-    if (actual <= 0) actual = speakerCfg().value("defaultSec").toInt();
-    if (const std::string e = oradores_->tiempo(ss(id), ss(tiempo), actual); !e.empty()) emit notify(frase(e), "error");
+    // Lo escrito, sobre lo que ya tiene (el suyo o el general): la misma lectura que el MCP.
+    if (const std::string e = oradores_->tiempo(ss(id), nlohmann::json(ss(tiempo))); !e.empty()) emit notify(frase(e), "error");
 }
 
 QVariantMap ConferenceViewModel::reloj(int asignadoS, double desdeMs, double ahoraMs) const {
@@ -392,10 +389,7 @@ QVariantMap ConferenceViewModel::reloj(int asignadoS, double desdeMs, double aho
 }
 
 QString ConferenceViewModel::setTiempoGeneral(const QString& texto) {
-    int s = 0;
-    if (const std::string e = sala::OradoresSala::leerTiempo(ss(texto), speakerCfg().value("defaultSec").toInt(), s); !e.empty())
-        return frase(e);
-    setSpeakerConfig({{"defaultSec", s}});
+    if (const std::string e = oradores_->tiempoGeneral(nlohmann::json(ss(texto))); !e.empty()) return frase(e);
     return {};
 }
 

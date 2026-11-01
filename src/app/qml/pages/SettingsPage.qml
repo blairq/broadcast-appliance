@@ -338,16 +338,7 @@ Rectangle {
                 id: fila
                 required property string key
                 required property string section
-                required property string label
-                required property string kind
-                required property var value
-                required property var options
-                required property var minimum
-                required property var maximum
-                required property string suffix
-                required property string help
-                required property bool modified
-                required property string scope
+                required property var campo
                 required property int index
                 required property bool avanzado
                 visible: section === campos.seccion && (campos.claves.length === 0 || campos.claves.indexOf(key) >= 0) && (!avanzado || page.verAvanzados || !Studio.settings.tieneBasicos(section)) && page.campoVisible(key)
@@ -361,19 +352,12 @@ Rectangle {
                     color: Theme.text
                     font { pixelSize: 15; weight: Font.DemiBold }
                 }
-                FormField {
+                CampoFormulario {
                     width: fila.width
-                    label: fila.label
-                    kind: fila.kind
-                    value: fila.value
-                    options: fila.options
-                    minimum: fila.minimum
-                    maximum: fila.maximum
-                    suffix: fila.suffix
-                    help: fila.help
-                    modified: fila.modified
-                    badge: fila.scope
-                    onEdited: (v) => Studio.settings.setValue(fila.key, v)
+                    c: fila.campo
+                    etiquetaAlCostado: true
+                    ayudaAbajo: true
+                    onCambio: (v) => Studio.settings.setValue(fila.key, v)
                 }
             }
         }

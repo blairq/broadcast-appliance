@@ -142,7 +142,7 @@ McpCore::McpCore() {
     // Estado de la salvaguarda de la sesion que llama (lo resuelve callTool).
     Tool sec;
     sec.name = "security_status";
-    sec.title = ba::i18n::traducir("mcp", "Salvaguarda de esta sesion");
+    sec.title = ba::i18n::traducir("mcp", "Salvaguarda de esta sesión");
     sec.category = "ayuda";
     sec.clase = Clase::Lectura;
     sec.hilo = Hilo::Foto;
@@ -387,6 +387,7 @@ const char* nombreHilo(Hilo h) {
     switch (h) {
         case Hilo::Interfaz: return "interfaz";
         case Hilo::Foto: return "foto";
+        case Hilo::SinInterfaz: return "sin_interfaz";
         case Hilo::Control:
         case Hilo::SegunClase: break;
     }
@@ -401,7 +402,7 @@ void McpCore::addTool(Tool tool) {
     tool.readOnly = tool.clase == Clase::Lectura;
     // Lo de fábrica es la interfaz: ver Hilo en McpCore.hpp (por qué no se deduce de la clase).
     if (tool.hilo == Hilo::SegunClase) tool.hilo = Hilo::Interfaz;
-    if (tool.destructivaSi != nullptr) tool.destructive = true; // puede borrar (ver esDestructiva)
+    if (tool.destructivaSi.clave != nullptr) tool.destructive = true; // puede borrar (ver esDestructiva)
     // Una de aire sin motivo deja a mcp_aire_lista diciendo nada; la prueba del
     // inventario no la deja pasar, pero se avisa igual (una armada en ejecución).
     if (tool.clase == Clase::Aire && tool.porQueAire == nullptr)
@@ -959,6 +960,9 @@ void McpCore::correrEn(Hilo h, Tarea fn, Tarea vencio) {
     switch (h) {
         case Hilo::Foto:
             ej_.foto(std::move(fn));
+            return;
+        case Hilo::SinInterfaz:
+            (ej_.sinInterfaz ? ej_.sinInterfaz : ej_.foto)(std::move(fn));
             return;
         case Hilo::Control:
             if (ej_.enControl()) return fn();

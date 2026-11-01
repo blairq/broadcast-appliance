@@ -39,7 +39,7 @@ Rectangle {
     height: col.implicitHeight + 20
     radius: 16
     color: over ? Qt.rgba(1, 0.23, 0.19, 0.14) : onAir ? Qt.rgba(0.21, 0.77, 0.42, 0.12) : Qt.rgba(1, 1, 1, 0.05)
-    border.color: over ? Theme.live : warn ? Theme.accent : onAir ? Theme.ok : Theme.glassBorder
+    border.color: onAir ? Theme.colorDeEstado(estadoTiempo, Theme.ok) : Theme.glassBorder
     border.width: onAir ? 2 : 1
     opacity: speaker === "done" ? 0.6 : (connected ? 1 : 0.75)
 
@@ -96,7 +96,7 @@ Rectangle {
             Text {
                 text: card.onAir ? card.textoTiempo
                       : card.speaker === "done" ? qsTr("usó %1").arg(card.textoUsado) : card.textoAsignado
-                color: card.over ? Theme.live : card.warn ? Theme.accent : Theme.text
+                color: card.onAir ? Theme.colorDeEstado(card.estadoTiempo, Theme.text) : Theme.text
                 font { pixelSize: card.warn || card.over ? 26 : 20; weight: Font.Black; family: Theme.font }
                 Layout.fillWidth: true
             }

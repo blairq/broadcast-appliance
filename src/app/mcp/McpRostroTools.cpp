@@ -44,9 +44,6 @@
 #if BA_HAVE_ROSTROS
 #include <cmath>
 
-#include <QDateTime>
-#include <QDir>
-#include <QFile>
 #include <QImage>
 
 #include "arranque/AppRuntime.hpp"
@@ -74,34 +71,9 @@ namespace {
 /// Además los modelos se cargan una vez y no dos.
 PersonasViewModel* libretaViva(StudioViewModel& vm) { return static_cast<PersonasViewModel*>(vm.personas()); }
 
-std::int64_t ahoraMs() { return QDateTime::currentMSecsSinceEpoch(); }
-
 json fichaJson(const ba::rostros::Persona& p) {
     return json{{"id", p.id},     {"nombre", p.nombre},      {"cargo", p.cargo},    {"nota", p.nota},
                 {"foto", p.foto}, {"caras", p.caras.size()}, {"vistaMs", p.vistaMs}};
-}
-
-/// Guarda el recorte de la cara como foto de la ficha. Devuelve el nombre del
-/// archivo, o vacío si no se pudo.
-///
-/// CON MARGEN Y CUADRADO. El rectángulo que da el detector es justo la cara:
-/// recortado ahí, la foto queda claustrofóbica y cuesta reconocer a quién
-/// pertenece. Un 40% alrededor entra el pelo y algo de hombro, que es lo que
-/// una persona usa para decir «sí, es ella».
-///
-/// Chica a propósito (256 px): es para mirar en una lista, no para imprimir, y
-/// multiplicada por cien fichas la carpeta portable se nota.
-QString guardarFoto(const QImage& img, const ba::rostros::Cara& c, const QString& carpeta,
-                    const QString& id) {
-    const int margen = static_cast<int>(std::max(c.ancho, c.alto) * 0.4);
-    const int lado = std::max(c.ancho, c.alto) + margen * 2;
-    QRect r(c.x + c.ancho / 2 - lado / 2, c.y + c.alto / 2 - lado / 2, lado, lado);
-    r = r.intersected(img.rect());
-    if (r.width() < 16 || r.height() < 16) return {};
-    QDir().mkpath(carpeta);
-    const QString nombre = id + ".jpg";
-    const QImage recorte = img.copy(r).scaled(256, 256, Qt::KeepAspectRatio, Qt::SmoothTransformation);
-    return recorte.save(carpeta + "/" + nombre, "JPG", 88) ? nombre : QString();
 }
 
 json calidadJson(const Calidad& q) {
@@ -136,7 +108,7 @@ void McpService::registerRostroTools() {
     {
         Tool t;
         t.name = "persona_identificar";
-        t.title = ba::i18n::traducir("mcp", "Quien aparece en una camara");
+        t.title = ba::i18n::traducir("mcp", "Quién aparece en una cámara");
         t.category = "rostros";
         t.clase = Clase::Lectura;
         t.description = QT_TRANSLATE_NOOP("mcp", "Dice QUIÉN es la persona que se ve en un feed (programa, armada, invitado); solo identifica, no "
@@ -165,11 +137,12 @@ void McpService::registerRostroTools() {
                 [pv, feed, done](std::vector<Reconocedor::Visto> caras, const QImage&, const QString& error) {
                     if (!error.isEmpty()) return done(ToolResult::error(error.toStdString()));
                     json out = json::array();
+                    std::vector<std::string> vistas;
                     for (const auto& visto : caras) {
                         const ba::rostros::Cara& c = visto.cara;
                         const auto q = pv->libreta().buscar(visto.vector);
                         const bool seguro = q.parecido >= ba::rostros::kMismaPersona();
-                        if (seguro) pv->libreta().vistaAhora(q.id, ahoraMs());
+                        if (seguro) vistas.push_back(q.id);
                         out.push_back(json{
                             {"id", seguro ? q.id : ""},
                             {"nombre", seguro ? q.nombre : ""},
@@ -177,7 +150,7 @@ void McpService::registerRostroTools() {
                             {"donde", json{{"x", c.x}, {"y", c.y}, {"ancho", c.ancho}, {"alto", c.alto}}},
                             {"confianza", c.confianza}});
                     }
-                    if (!caras.empty()) pv->persistir();
+                    pv->vistas(vistas); // «la vi recién», guardado cada tanto como en el lobby
                     done(ToolResult().data(json{{"feed", feed.toStdString()}, {"caras", out}}));
                 });
         };
@@ -222,13 +195,14 @@ void McpService::registerRostroTools() {
             p.nombre = a.value("nombre", std::string());
             p.cargo = a.value("cargo", std::string());
             p.nota = a.value("nota", std::string());
-            const std::string id = pv->libreta().guardarFicha(p);
+            std::string error;
+            const std::string id = pv->guardarFicha(p, &error);
+            if (id.empty())
+                return done(ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "No se pudo guardar: %1"), {error})));
 
             // Contestar es lo ultimo que pasa, y puede pasar despues de mirar
             // una camara: eso corre en otro hilo (ver Reconocedor.hpp).
             const auto contestar = [pv, id, done](const std::string& extra) {
-                if (!pv->persistir())
-                    return done(ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "No se pudo guardar: %1"), {pv->libreta().error()})));
                 const auto* f = pv->libreta().porId(id);
                 ToolResult r;
                 r.text(ba::i18n::llenar(ba::i18n::traducir("mcp", "Guardada «%1» (id %2)."), {f != nullptr ? f->nombre : std::string(), id}) +
@@ -252,21 +226,7 @@ void McpService::registerRostroTools() {
                         return contestar(" " + ba::i18n::traducir("mcp", "(hay %n cara en el cuadro: no adivino cual es. Usa una camara "
                                                                     "donde este sola)", nullptr,
                                                                     static_cast<int>(caras.size())));
-                    pv->libreta().sumarCara(id, caras[0].vector);
-                    // La foto se saca la PRIMERA vez y después solo si la
-                    // pidieron: cambiarla en cada captura haría que la ficha se
-                    // vea distinta cada vez sin que nadie lo decidiera, y la
-                    // que quedaría es la última, no la mejor.
-                    const auto* f0 = pv->libreta().porId(id);
-                    if (f0 != nullptr && (f0->foto.empty() || nuevaFoto)) {
-                        const QString archivo =
-                            guardarFoto(img, caras[0].cara, pv->carpetaFotos(), QString::fromStdString(id));
-                        if (!archivo.isEmpty()) {
-                            ba::rostros::Persona conFoto = *f0;
-                            conFoto.foto = archivo.toStdString();
-                            pv->libreta().guardarFicha(conFoto);
-                        }
-                    }
+                    pv->anotarCara(id, caras[0], img, nuevaFoto);
                     const auto* f = pv->libreta().porId(id);
                     const int n = static_cast<int>(f != nullptr ? f->caras.size() : 0);
                     contestar(" " + (f != nullptr && !f->foto.empty()
@@ -315,15 +275,9 @@ void McpService::registerRostroTools() {
             const std::string id = a["id"].get<std::string>();
             const auto* f = pv->libreta().porId(id);
             const std::string nombre = f != nullptr ? f->nombre : std::string();
-            const QString foto = f != nullptr ? QString::fromStdString(f->foto) : QString();
-            if (!pv->libreta().borrar(id))
+            // El borrado de la página (con la foto: la ficha no se va dejando su cara en el disco).
+            if (!pv->borrar(QString::fromStdString(id)))
                 return done(ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "No hay nadie con id '%1' (rostro_listar los da)."), {id})));
-            // LA FOTO SE VA CON LA FICHA. Esto no lo hacia, y dejaba la cara de
-            // alguien a quien pidieron borrar tirada en el disco: la ficha
-            // desaparecia de la lista y el archivo se quedaba para siempre. Es
-            // la misma regla que ya cumplia la pagina; aca faltaba.
-            if (!foto.isEmpty()) QFile::remove(pv->carpetaFotos() + "/" + foto);
-            pv->persistir();
             done(ToolResult::ok(ba::i18n::llenar(ba::i18n::traducir("mcp", "Borrada «%1» y sus caras."), {nombre})));
         };
         core_.addTool(std::move(t));
@@ -332,7 +286,7 @@ void McpService::registerRostroTools() {
     {
         Tool t;
         t.name = "rostro_calidad";
-        t.title = ba::i18n::traducir("mcp", "Si la cara que se ve sirve para reconocer, y que pedir si no");
+        t.title = ba::i18n::traducir("mcp", "Si la cara que se ve sirve para reconocer, y qué pedir si no");
         t.category = "rostros";
         t.clase = Clase::Lectura;
         t.description =
@@ -400,7 +354,7 @@ void McpService::registerRostroTools() {
     {
         Tool t;
         t.name = "rostro_sumar";
-        t.title = ba::i18n::traducir("mcp", "Sumarle una pose mas a alguien que ya esta");
+        t.title = ba::i18n::traducir("mcp", "Sumarle una pose más a alguien que ya está");
         t.category = "rostros";
         t.clase = Clase::Escritura;
         t.description =
@@ -451,18 +405,7 @@ void McpService::registerRostroTools() {
                         r.structured = calidadJson(q);
                         return done(r);
                     }
-                    const auto alta = pv->libreta().sumarCara(id, caras[0].vector);
-                    const auto* f = pv->libreta().porId(id);
-                    if (f != nullptr && (f->foto.empty() || nuevaFoto)) {
-                        const QString archivo =
-                            guardarFoto(img, caras[0].cara, pv->carpetaFotos(), QString::fromStdString(id));
-                        if (!archivo.isEmpty()) {
-                            ba::rostros::Persona conFoto = *f;
-                            conFoto.foto = archivo.toStdString();
-                            pv->libreta().guardarFicha(conFoto);
-                        }
-                    }
-                    pv->persistir();
+                    const auto alta = pv->anotarCara(id, caras[0], img, nuevaFoto);
                     const bool aporto = alta == ba::rostros::Personas::Alta::Sumada;
                     const auto* fin = pv->libreta().porId(id);
                     ToolResult r;
@@ -483,7 +426,7 @@ void McpService::registerRostroTools() {
     {
         Tool t;
         t.name = "rostro_pendientes";
-        t.title = ba::i18n::traducir("mcp", "Las fichas sin nombre, esperando que alguien diga quien es");
+        t.title = ba::i18n::traducir("mcp", "Las fichas sin nombre, esperando que alguien diga quién es");
         t.category = "rostros";
         t.clase = Clase::Lectura;
         t.description = QT_TRANSLATE_NOOP("mcp", "Las personas que el sistema anoto solo (interruptor `rostro_autoalta`) y todavia no "
@@ -531,17 +474,10 @@ void McpService::registerRostroTools() {
             PersonasViewModel* pv = pvDe();
             const std::string id = a["id"].get<std::string>();
             const std::string otro = a["otro"].get<std::string>();
-            const auto* b = pv->libreta().porId(otro);
-            const QString fotoOtro = b != nullptr ? QString::fromStdString(b->foto) : QString();
-            if (!pv->libreta().fusionar(id, otro))
+            if (!pv->fusionar(id, otro))
                 return done(
                     ToolResult::error(ba::i18n::traducir("mcp", "No pude fusionar: revisa que los dos ids existan y sean distintos.")));
             const auto* f = pv->libreta().porId(id);
-            // La foto de la absorbida se borra solo si la fusionada no se quedo
-            // con ella (pasa cuando la que queda no tenia foto).
-            if (!fotoOtro.isEmpty() && (f == nullptr || QString::fromStdString(f->foto) != fotoOtro))
-                QFile::remove(pv->carpetaFotos() + "/" + fotoOtro);
-            pv->persistir();
             ToolResult r;
             r.text(ba::i18n::llenar(ba::i18n::traducir("mcp", "Fusionadas. «%1» quedo con %n cara.", nullptr,
                                                        static_cast<int>(f != nullptr ? f->caras.size() : 0)),
@@ -555,7 +491,7 @@ void McpService::registerRostroTools() {
     {
         Tool t;
         t.name = "padron_puerta";
-        t.title = ba::i18n::traducir("mcp", "La camara de la entrada: acreditar sola a quien llega");
+        t.title = ba::i18n::traducir("mcp", "La cámara de la entrada: acreditar sola a quien llega");
         t.category = "padron";
         t.clase = Clase::Escritura;
         t.description =
@@ -610,7 +546,7 @@ void McpService::registerRostroTools() {
     {
         Tool t;
         t.name = "rostro_autoalta";
-        t.title = ba::i18n::traducir("mcp", "Anotar sola a cada persona nueva que pase por una camara");
+        t.title = ba::i18n::traducir("mcp", "Anotar sola a cada persona nueva que pase por una cámara");
         t.category = "rostros";
         t.clase = Clase::Escritura;
         t.description =
@@ -675,7 +611,7 @@ void McpService::registerRostroTools() {
     {
         Tool t;
         t.name = "rostro_lobby";
-        t.title = ba::i18n::traducir("mcp", "Quien es cada uno de los que estan esperando");
+        t.title = ba::i18n::traducir("mcp", "Quién es cada uno de los que están esperando");
         t.category = "rostros";
         t.clase = Clase::Lectura;
         t.description = QT_TRANSLATE_NOOP("mcp", "Solo IDENTIFICA, no deja entrar a nadie. Para cada posicion del lobby: a quien "

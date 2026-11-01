@@ -5,7 +5,8 @@
 //      vivas, el resto fotos; las repetidas comparten).
 //   2. La escaleta: numeración, entrada, lo real contra lo previsto, chips, lo que
 //      no se edita y lo pendiente.
-//   3. La conducción completa el estado de la corrida (escena, adlibs, bloque).
+//   3. La conducción completa el estado de la corrida (escena, adlibs, bloque, el estado
+//      de la cuenta) y el umbral de las cuentas regresivas (comun/Restante).
 //   4. El estante con F1…F8 y la tecla que dispara cada ítem.
 //   5. La multipista: cajas de pasos con su fantasma y el over, piezas en su
 //      carril, hard starts con su nivel y la regla alineada a la hora.
@@ -19,6 +20,7 @@
 #include "evento/Corrida.hpp"
 #include "evento/Linea.hpp"
 #include "evento/LineaVista.hpp"
+#include "comun/Restante.hpp"
 
 using namespace ba::evento::linea;
 using json = nlohmann::json;
@@ -187,6 +189,18 @@ int main() {
         CHECK(cond["proximo"]["escena"] == "C" && cond["proximo"]["mini"]["fuente"] == "pvw", "el próximo con su PVW");
         CHECK(cond["bloque"]["nombre"] == "Apertura", "el bloque con su nombre");
         CHECK(cond["proximoHardStart"]["nombre"] == "Paso p4", "el hard start con el nombre de su paso");
+        // El estado de la cuenta lo da el modelo (comun/Restante: un umbral para todas).
+        const json& a = cond["alAire"];
+        const std::string esperado = a.value("previstoSeg", 0) > 0 ? ba::app::estadoRestante(a.value("restanteSeg", 0), true) : "ok";
+        CHECK(a.value("estadoRestante", std::string()) == esperado, "al aire, el estado de lo que le queda");
+    }
+    // El umbral de las cuentas regresivas: los últimos segundos y lo pasado.
+    {
+        using ba::app::estadoRestante;
+        CHECK(std::string(estadoRestante(11)) == "ok" && std::string(estadoRestante(10)) == "excedido", "un medio: en rojo los últimos 10 s");
+        CHECK(std::string(estadoRestante(0)) == "excedido", "un medio terminado: en rojo");
+        CHECK(std::string(estadoRestante(11, true)) == "ok" && std::string(estadoRestante(10, true)) == "aviso", "un paso: aviso en los últimos 10 s");
+        CHECK(std::string(estadoRestante(0, true)) == "aviso" && std::string(estadoRestante(-1, true)) == "excedido", "un paso: pasado, excedido");
     }
 
     // --- 4. El estante -----------------------------------------------------------------------
