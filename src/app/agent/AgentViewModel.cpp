@@ -2157,7 +2157,8 @@ QString AgentViewModel::createAlertUi(const QVariantMap& spec) {
     if (!j.is_object()) return tr("no se entiende el disparador");
     // Los parámetros, como los escribió el operador: sí/no, número o texto (vacío no va).
     json params = json::object();
-    for (const auto& [k, v] : j.value("params", json::object()).items()) {
+    const json escritos = j.value("params", json::object());
+    for (const auto& [k, v] : escritos.items()) {
         if (!v.is_string()) {
             params[k] = v;
             continue;
