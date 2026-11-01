@@ -35,10 +35,11 @@ list(FILTER BA_APP_SOURCES EXCLUDE REGEX ".*/src/app/tools/.*") # herramientas c
 list(FILTER BA_APP_SOURCES EXCLUDE REGEX ".*/BroadcastEnginePlaca\\.cpp$")
 list(FILTER BA_APP_SOURCES EXCLUDE REGEX ".*/WindowingPlatform\\.cpp$")
 if(NOT BA_HAVE_MOTOR)
-    list(FILTER BA_APP_SOURCES EXCLUDE REGEX ".*/BroadcastEngine(Scenes|Dsk|Emisor)?\\.cpp$")
+    list(FILTER BA_APP_SOURCES EXCLUDE REGEX ".*/emision/(BroadcastEngine|EscenasYFuentes|CapasPrograma|MezclaApp|MediosApp|VistasYMedicion|RetornoGateway|EmisionSalidas|VigiaDisco|EmisorAparte)\\.cpp$")
     list(FILTER BA_APP_SOURCES EXCLUDE REGEX ".*/AppSettings\\.cpp$")
     list(FILTER BA_APP_SOURCES EXCLUDE REGEX ".*/EngineSelfTest\\.cpp$")
-    list(FILTER BA_APP_SOURCES EXCLUDE REGEX ".*/OperateMode\\.cpp$")
+    # AppRuntime y sus piezas (y el modo consola) necesitan el motor.
+    list(FILTER BA_APP_SOURCES EXCLUDE REGEX ".*/arranque/(AppRuntime|ModoConsola|PublicadorFoto|FotoMezcla|RepositorioEscenas|ServicioSalidas|ServicioEmision|AireDurable|Invitados|SaludProceso)\\.cpp$")
     list(FILTER BA_APP_SOURCES EXCLUDE REGEX ".*/GuiMode\\.cpp$")
     list(FILTER BA_APP_SOURCES EXCLUDE REGEX ".*/OperatorFeed\\.cpp$")
     list(FILTER BA_APP_SOURCES EXCLUDE REGEX ".*/ChatOverlaySource\\.cpp$")
@@ -817,6 +818,11 @@ endif()
     target_include_directories(test_grafo_video PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
     target_link_libraries(test_grafo_video PRIVATE ba_core)
     add_test(NAME test_grafo_video COMMAND test_grafo_video)
+    # El resumen de la tarjeta de cada nodo (ui/ResumenNodo): nunca tira (a42d4a31).
+    add_executable(test_resumen_nodo tests/test_resumen_nodo.cpp ui/ResumenNodo.cpp)
+    target_include_directories(test_resumen_nodo PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    target_link_libraries(test_resumen_nodo PRIVATE ba_core Qt6::Core)
+    add_test(NAME test_resumen_nodo COMMAND test_resumen_nodo)
 
     # F3-12: los tipos de antes al motor (inputs::alMotor): toda opción llega o se avisa.
     add_executable(test_al_motor tests/test_al_motor.cpp emision/InputSpecs.cpp)
@@ -1486,6 +1492,13 @@ endif()
     add_executable(test_pedidos_salida tests/test_pedidos_salida.cpp)
     target_include_directories(test_pedidos_salida PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
     add_test(NAME test_pedidos_salida COMMAND test_pedidos_salida)
+    # Lo pedido al hilo de salidas del motor y su buzón (emision/BuzonSalidas): un «no arrancó»
+    # viejo no baja lo pedido después; el buzón entrega en orden, desde varios hilos.
+    add_executable(test_buzon_salidas tests/test_buzon_salidas.cpp)
+    target_include_directories(test_buzon_salidas PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    find_package(Threads REQUIRED)
+    target_link_libraries(test_buzon_salidas PRIVATE Threads::Threads)
+    add_test(NAME test_buzon_salidas COMMAND test_buzon_salidas)
     # Qué avisa la foto del motor: lo que se rearma con otra parte se compara con la suya.
     add_executable(test_foto_partes tests/test_foto_partes.cpp)
     target_include_directories(test_foto_partes PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")

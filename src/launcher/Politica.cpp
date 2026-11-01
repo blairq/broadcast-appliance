@@ -20,6 +20,13 @@ int esperaRelanzarS(int consecutivas) {
     return std::max(5, ba::ajustes::entero("launcher.relanzarMaxS", 10));
 }
 
+VigiaLatido vigiaEmisor() {
+    VigiaLatido v;
+    v.cuelgueMs = static_cast<std::uint64_t>(std::clamp(ba::ajustes::numero("emisor.cuelgueS", 2.0), 1.0, 120.0) * 1000);
+    v.graciaHastaElPrimerLatido = true;
+    return v;
+}
+
 Readopcion decidirReadopcion(bool vivoYLate, std::uint32_t versionPublicada, std::uint32_t versionEsperada,
                              bool hayAire) {
     if (!vivoYLate) return Readopcion::Lanzar;

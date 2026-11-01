@@ -1,23 +1,11 @@
 // ============================================================================
-// src/app/emision/BroadcastEngineEmisor.cpp — las salidas que codifica un emisor aparte
-//
-// Parte de BroadcastEngine (ver EL EMISOR APARTE en BroadcastEngine.hpp y
-// docs/arquitectura/04-plan-unificado.md, F3-01). Para una salida con emisor, lo que
-// startStreamingYa, startExtraYa, startRecordingYa, setReplayYa y startCleanFeedYa
-// armarían acá (las mismas configuraciones de motor::Transmision, motor::Grabacion y
-// motor::Repeticion) se escribe en su pedido; el `ba-emisor` lo aplica, y lo que hace
-// se lee de su estado para la foto de las salidas.
-//
-// Su video le llega por canales propios (CanalEmisor): el programa de la salida en
-// NV12 y del tamaño de la salida (lo que toma el codificador, sin el tope del retorno
-// al gateway ni otra conversión), y la señal limpia mientras se la pide. Las pistas
-// 2-6 de su grabación, por un anillo cada una (Motor::pistasAlEmisor).
-//
-// Todo en el hilo de salidas, como lo que reemplaza; los canales también desde la
-// interfaz (al arrancar y al crear o borrar una salida) y sus cuadros desde el motor.
+// src/app/emision/EmisorAparte.cpp — ver EmisorAparte.hpp
 // ============================================================================
 
-#include "emision/BroadcastEngine.hpp"
+#include "emision/EmisorAparte.hpp"
+
+#include "emision/EmisionSalidas.hpp"
+#include "emision/SalidaMotor.hpp"
 
 #include "Motor.hpp"
 #include "Pedido.hpp"
@@ -39,16 +27,6 @@ namespace ba::app {
 
 using json = nlohmann::json;
 
-/// El canal de video de una salida a su emisor: el escritor y la vista que lo alimenta.
-struct BroadcastEngine::CanalEmisor {
-    std::mutex mu; ///< tx, el tamaño y las filas (el motor manda los cuadros desde su hilo)
-    ba::ipc::SpoutSender tx;
-    int ancho = 0, alto = 0;
-    std::uint64_t cuadros = 0;
-    std::vector<std::uint8_t> filas;
-    std::string clave; ///< la vista del motor («programa…@emisor», «limpio…@emisor»)
-    bool pedida = false;
-};
 
 namespace {
 
@@ -102,7 +80,7 @@ void enviarNv12(ba::ipc::SpoutSender& tx, std::vector<std::uint8_t>& filas, std:
 
 } // namespace
 
-const std::set<std::string>& BroadcastEngine::salidasConEmisor() {
+const std::set<std::string>& EmisorAparte::salidasConEmisor() {
     // El launcher lo fija al lanzar A (Supervisor::armarHijos): no cambia en la corrida.
     static const std::set<std::string> ids = []() {
         std::set<std::string> out;
@@ -117,39 +95,39 @@ const std::set<std::string>& BroadcastEngine::salidasConEmisor() {
 
 // --- Sus canales de video -------------------------------------------------------------
 
-bool BroadcastEngine::publicarCanalEmisor(Salida& s, bool limpio) {
-    std::shared_ptr<CanalEmisor>& c = limpio ? s.canalLimpioEmisor : s.canalEmisor;
+bool EmisorAparte::publicarCanal(std::shared_ptr<CanalEmisor>& c, const std::string& id, bool porOmision, bool limpio) {
     if (!c) c = std::make_shared<CanalEmisor>();
+    const VideoConfig& video = m_.video_;
     // Del tamaño de la salida (par: NV12 tiene el plano de color a la mitad).
-    ba::ipc::SlotConfig cfg{std::max(2, video_.outputWidth) & ~1, std::max(2, video_.outputHeight) & ~1};
+    ba::ipc::SlotConfig cfg{std::max(2, video.outputWidth) & ~1, std::max(2, video.outputHeight) & ~1};
     cfg.formato = ba::ipc::FormatoCanal::NV12;
-    if (video_.fpsNum > 0 && video_.fpsDen > 0)
-        cfg.periodoNs = static_cast<std::uint64_t>(video_.fpsDen) * 1'000'000'000ULL / static_cast<std::uint64_t>(video_.fpsNum);
+    if (video.fpsNum > 0 && video.fpsDen > 0)
+        cfg.periodoNs = static_cast<std::uint64_t>(video.fpsDen) * 1'000'000'000ULL / static_cast<std::uint64_t>(video.fpsNum);
     {
         std::lock_guard<std::mutex> l(c->mu);
         // Como el retorno: un canal no cambia de tamaño; con otro lienzo se rehace y el
         // emisor se vuelve a suscribir solo (otra instancia).
         if (c->tx.published() && (c->ancho != cfg.width || c->alto != cfg.height)) c->tx = ba::ipc::SpoutSender();
         if (!c->tx.published()) {
-            const std::string nombre = limpio ? ba::ipc::canalVideoLimpioEmisor(s.id) : ba::ipc::canalVideoEmisor(s.id);
+            const std::string nombre = limpio ? ba::ipc::canalVideoLimpioEmisor(id) : ba::ipc::canalVideoEmisor(id);
             const std::wstring w(nombre.begin(), nombre.end());
             if (!c->tx.publish(w.c_str(), cfg)) {
-                setError(ba::i18n::llenar(ba::i18n::traducir("emision", "no se pudo publicar el canal del emisor de «%1»"), {s.id}));
+                m_.setError(ba::i18n::llenar(ba::i18n::traducir("emision", "no se pudo publicar el canal del emisor de «%1»"), {id}));
                 return false;
             }
             c->ancho = cfg.width;
             c->alto = cfg.height;
         }
     }
-    if (!motor_ || c->pedida) return true;
-    const std::string sufijo = s.porOmision() ? std::string() : ":" + s.id;
+    if (!m_.motor_ || c->pedida) return true;
+    const std::string sufijo = porOmision ? std::string() : ":" + id;
     c->clave = (limpio ? "limpio" : "programa") + sufijo + "@emisor";
-    if (const std::string e = motor_->verPedir(c->clave, cfg.width, cfg.height, "NV12"); !e.empty()) {
-        setError(e);
+    if (const std::string e = m_.motor_->verPedir(c->clave, cfg.width, cfg.height, "NV12"); !e.empty()) {
+        m_.setError(e);
         return false;
     }
     // El canal va en el aviso: vive mientras el motor pueda llamarlo.
-    motor_->verAvisar(c->clave, [c](const motor::Cuadro& q) {
+    m_.motor_->verAvisar(c->clave, [c](const motor::Cuadro& q) {
         std::lock_guard<std::mutex> l(c->mu);
         if (c->tx.published() && q.nv12 && q.ancho == c->ancho && q.alto == c->alto) enviarNv12(c->tx, c->filas, ++c->cuadros, q);
     });
@@ -157,12 +135,11 @@ bool BroadcastEngine::publicarCanalEmisor(Salida& s, bool limpio) {
     return true;
 }
 
-void BroadcastEngine::soltarCanalEmisor(Salida& s, bool limpio, bool cerrar) {
-    std::shared_ptr<CanalEmisor>& c = limpio ? s.canalLimpioEmisor : s.canalEmisor;
+void EmisorAparte::soltarCanal(std::shared_ptr<CanalEmisor>& c, bool cerrar) {
     if (!c) return;
-    if (c->pedida && motor_) {
-        motor_->verAvisar(c->clave, nullptr);
-        motor_->verSoltar(c->clave);
+    if (c->pedida && m_.motor_) {
+        m_.motor_->verAvisar(c->clave, nullptr);
+        m_.motor_->verSoltar(c->clave);
     }
     c->pedida = false;
     if (!cerrar) return; // publicado: el emisor sigue suscripto y, sin cuadros, en la placa
@@ -173,18 +150,18 @@ void BroadcastEngine::soltarCanalEmisor(Salida& s, bool limpio, bool cerrar) {
     c.reset();
 }
 
-void BroadcastEngine::desengancharEmisores() {
-    for (const auto& s : lasSalidas()) {
+void EmisorAparte::desenganchar() {
+    for (const auto& s : m_.lasSalidas()) {
         if (!s->emisor) continue;
-        soltarCanalEmisor(*s, false, false);
-        soltarCanalEmisor(*s, true, false);
-        s->emisorEnganchado = false; // el motor nuevo los vuelve a enganchar (leerEmisor)
+        soltarCanal(s->canalEmisor, false);
+        soltarCanal(s->emision->canalLimpioEmisor, false);
+        s->emision->emisorEnganchado = false; // el motor nuevo los vuelve a enganchar (leer)
     }
 }
 
 // --- El pedido y el estado -------------------------------------------------------------
 
-void BroadcastEngine::leerEmisor(Salida& s) {
+void EmisorAparte::leer(SalidaEmision& s) {
     const std::int64_t ahora = ahoraMsMono();
     if (s.pedidoEmisor && s.emisorEnganchado && ahora - s.estadoEmisorMs < 500) return;
     s.estadoEmisorMs = ahora;
@@ -196,16 +173,13 @@ void BroadcastEngine::leerEmisor(Salida& s) {
     // Lo que el pedido ya tenía y necesita algo de acá (un motor nuevo, o la app que
     // vuelve): el canal de la señal limpia y los puentes de las pistas; y se anota como
     // pedido, así la interfaz lo muestra y lo puede parar.
-    if (!s.emisorEnganchado && motor_) {
+    if (!s.emisorEnganchado && m_.motor_) {
         s.emisorEnganchado = true;
         const emisor::Pedido& p = *s.pedidoEmisor;
-        {
-            std::lock_guard<std::mutex> l(pedidosM_);
-            for (const auto& [id, c] : p.extras) s.extrasPedidos.insert(id);
-            if (p.limpio) s.limpioPedido = true;
-        }
-        if (p.limpio) publicarCanalEmisor(s, true);
-        if (!p.pistas.empty()) motor_->pistasAlEmisor(s.id, std::set<int>(p.pistas.begin(), p.pistas.end()));
+        for (const auto& [id, c] : p.extras) m_.emision_->contarAlDueno({MensajeSalida::Tipo::ExtraAdoptado, s.id, id});
+        if (p.limpio) m_.emision_->contarAlDueno({MensajeSalida::Tipo::LimpioAdoptado, s.id, {}});
+        if (p.limpio) publicarCanal(s.canalLimpioEmisor, s.id, s.porOmision(), true);
+        if (!p.pistas.empty()) m_.motor_->pistasAlEmisor(s.id, std::set<int>(p.pistas.begin(), p.pistas.end()));
     }
     std::string txt;
     if (ba::persist::leerArchivo(emisor::rutaEstado(runtime(), s.id), txt)) {
@@ -214,7 +188,7 @@ void BroadcastEngine::leerEmisor(Salida& s) {
     }
 }
 
-bool BroadcastEngine::emisorLaTiene(const Salida& s, const char* que) const {
+bool EmisorAparte::laTiene(const SalidaEmision& s, const char* que) const {
     const json& e = s.estadoEmisor;
     if (!e.is_object() || e.value("cerrado", false)) return false;
     const json x = objeto(e, que);
@@ -222,18 +196,18 @@ bool BroadcastEngine::emisorLaTiene(const Salida& s, const char* que) const {
     return std::string(que) == "transmision" ? x.value("andando", false) : (x.value("grabando", false) || x.value("caida", false));
 }
 
-std::string BroadcastEngine::pedirAlEmisor(Salida& s, const std::function<void(emisor::Pedido&)>& cambio) {
+std::string EmisorAparte::pedir(SalidaEmision& s, const std::function<void(emisor::Pedido&)>& cambio) {
     s.estadoEmisorMs = 0;
-    leerEmisor(s);
+    leer(s);
     emisor::Pedido p = *s.pedidoEmisor;
     cambio(p);
     // El siguiente de lo que vio el emisor también (si el pedido se perdió, uno con un
     // `seq` viejo podría ser el que cerró en orden y lo ignoraría).
     p.seq = std::max<std::uint64_t>(p.seq, s.estadoEmisor.value("seq_visto", std::uint64_t{0})) + 1;
-    p.ancho = video_.outputWidth;
-    p.alto = video_.outputHeight;
-    p.fpsN = std::max(1, video_.fpsNum);
-    p.fpsD = std::max(1, video_.fpsDen);
+    p.ancho = m_.video_.outputWidth;
+    p.alto = m_.video_.outputHeight;
+    p.fpsN = std::max(1, m_.video_.fpsNum);
+    p.fpsD = std::max(1, m_.video_.fpsDen);
     p.placaTexto = ba::i18n::traducirEvento("emision", "Volvemos enseguida");
     std::string err;
     // Las claves de las URL van al CredentialStore; el pedido queda sin ellas.
@@ -245,13 +219,13 @@ std::string BroadcastEngine::pedirAlEmisor(Salida& s, const std::function<void(e
 
 // --- Lo que delega cada salida ---------------------------------------------------------
 
-std::string BroadcastEngine::extraAlEmisor(Salida& s, const std::string& id, const emisor::Pedido* desde) {
+std::string EmisorAparte::extraAl(SalidaEmision& s, const std::string& id, const emisor::Pedido* desde) {
     const motor::Transmision::Config* c = nullptr;
     if (desde != nullptr)
         if (const auto it = desde->extras.find(id); it != desde->extras.end()) c = &it->second;
-    leerEmisor(s);
+    leer(s);
     if (c == nullptr && s.pedidoEmisor->extras.count(id) == 0) return {};
-    return pedirAlEmisor(s, [&](emisor::Pedido& p) {
+    return pedir(s, [&](emisor::Pedido& p) {
         if (c == nullptr) {
             p.extras.erase(id);
             return;
@@ -263,8 +237,8 @@ std::string BroadcastEngine::extraAlEmisor(Salida& s, const std::string& id, con
     });
 }
 
-std::string BroadcastEngine::replayAlEmisor(Salida& s, int segundos, const std::string& dir, int kbps) {
-    return pedirAlEmisor(s, [&](emisor::Pedido& p) {
+std::string EmisorAparte::replayAl(SalidaEmision& s, int segundos, const std::string& dir, int kbps) {
+    return pedir(s, [&](emisor::Pedido& p) {
         if (segundos <= 0) {
             p.repeticion.reset();
             return;
@@ -277,28 +251,28 @@ std::string BroadcastEngine::replayAlEmisor(Salida& s, int segundos, const std::
     });
 }
 
-std::string BroadcastEngine::guardarReplayEnEmisor(Salida& s, const std::string& nombre) {
-    leerEmisor(s);
+std::string EmisorAparte::guardarReplayEn(SalidaEmision& s, const std::string& nombre) {
+    leer(s);
     if (!s.pedidoEmisor->repeticion) return ba::i18n::traducir("emision", "la repetición está apagada (replay_ajustes con segundos)");
-    return pedirAlEmisor(s, [&](emisor::Pedido& p) {
+    return pedir(s, [&](emisor::Pedido& p) {
         if (!p.repeticion) return;
         ++p.repeticion->guardarSeq;
         p.repeticion->guardarEn = (std::filesystem::path(p.repeticion->carpeta) / nombre).string();
     });
 }
 
-std::string BroadcastEngine::limpioAlEmisor(Salida& s, const emisor::PedidoLimpio* l) {
+std::string EmisorAparte::limpioAl(SalidaEmision& s, const emisor::PedidoLimpio* l) {
     const motor::Transmision::Config* tx = l != nullptr && l->transmision ? &*l->transmision : nullptr;
     const motor::Grabacion::Config* grab = l != nullptr && l->grabacion ? &*l->grabacion : nullptr;
-    leerEmisor(s);
+    leer(s);
     if (tx == nullptr && grab == nullptr) {
         if (!s.pedidoEmisor->limpio) return {};
-        const std::string e = pedirAlEmisor(s, [](emisor::Pedido& p) { p.limpio.reset(); });
-        soltarCanalEmisor(s, true, true);
+        const std::string e = pedir(s, [](emisor::Pedido& p) { p.limpio.reset(); });
+        soltarCanal(s.canalLimpioEmisor, true);
         return e;
     }
-    if (!publicarCanalEmisor(s, true)) return lastError();
-    return pedirAlEmisor(s, [&](emisor::Pedido& p) {
+    if (!publicarCanal(s.canalLimpioEmisor, s.id, s.porOmision(), true)) return m_.lastError();
+    return pedir(s, [&](emisor::Pedido& p) {
         // La que ya hace (la app que vuelve): sigue esa.
         if (p.limpio && ((tx != nullptr && p.limpio->transmision && p.limpio->transmision->url == tx->url) ||
                          (grab != nullptr && p.limpio->grabacion)))
@@ -309,7 +283,7 @@ std::string BroadcastEngine::limpioAlEmisor(Salida& s, const emisor::PedidoLimpi
 
 // --- La foto ---------------------------------------------------------------------------
 
-void BroadcastEngine::fotoDelEmisor(const Salida& s, json& f) const {
+void EmisorAparte::fotoDel(const SalidaEmision& s, json& f) const {
     const json& e = s.estadoEmisor;
     const emisor::Pedido* p = s.pedidoEmisor.get();
     const bool vivo = fresco(e);
@@ -379,6 +353,6 @@ void BroadcastEngine::fotoDelEmisor(const Salida& s, json& f) const {
                    {"remux_pendiente", e.value("remux_pendiente", json())}};
 }
 
-bool BroadcastEngine::aireEnEmisor(const Salida& s) const { return s.pedidoEmisor && s.pedidoEmisor->hayAire(); }
+bool EmisorAparte::aireEn(const SalidaEmision& s) const { return s.pedidoEmisor && s.pedidoEmisor->hayAire(); }
 
 } // namespace ba::app

@@ -1,5 +1,5 @@
 // ============================================================================
-// src/app/arranque/OperateMode.hpp — Modo de operacion de ba-app sin UI grafica
+// src/app/arranque/ModoConsola.hpp — Modo de operacion de ba-app sin UI grafica
 //
 // Proposito:
 //   El Proceso A de verdad cuando no hay UI Qt (Linux/macOS hoy, o un
@@ -18,11 +18,19 @@
 //
 //   La clave de transmision NUNCA va en el archivo: se lee de la variable de
 //   entorno que indique `stream.keyEnv` (por defecto BA_STREAM_KEY).
+//
+// Hilos: el bucle de runOperate es el dueño del motor (arranque/AppRuntime.hpp); las
+// señales (SIGINT/SIGTERM) solo prenden la marca de cierre (AppRuntime::requestStop).
 // ============================================================================
 
 #pragma once
 
+#include <filesystem>
+#include <string>
+
 namespace ba::app {
+
+struct AppConfig;
 
 /// Ejecuta el modo de operacion.
 ///
@@ -46,5 +54,11 @@ namespace ba::app {
 ///
 /// :returns: 0 en cierre ordenado; !=0 si el motor no pudo arrancar.
 int runOperate(int argc, char** argv);
+
+/// El valor de `--clave=valor` en la línea de comandos (`def` si no está).
+std::string argValue(int argc, char** argv, const char* key, const std::string& def);
+/// Lo que pisa la línea de comandos sobre la configuración leída (las opciones de arriba;
+/// también el modo seguro escalonado y el modo prueba). Lo usa AppRuntime::configure.
+void applyCli(AppConfig& c, int argc, char** argv, const std::filesystem::path& root);
 
 } // namespace ba::app

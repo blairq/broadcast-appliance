@@ -72,6 +72,18 @@ def test_deja_de_medir_y_lo_salteado() -> None:
     assert sorted((r["escenario"], r["que"]) for r in c["regresiones"]) == [("kill_a", "sin_rto"), ("kill_emisor", "no_volvio")]
 
 
+def test_no_aplica_y_cortes() -> None:
+    """Lo que no aplica en el modo de la corrida no cuenta; con el emisor aparte, una falla de
+    la app que cortó la salida es regresión aunque haya vuelto."""
+    na = {"repeticiones": [{"no_aplica": "con el emisor aparte la salida no es de la app"}], "rto_p95_s": None,
+          "no_volvio": 0, "no_aplica": "con el emisor aparte la salida no es de la app"}
+    antes = informe({"codificador_tx": esc(1.0), "kill_a": esc(0.0)})
+    ahora = informe({"codificador_tx": na, "kill_a": dict(esc(0.0), cortes=1)})
+    c = comparar.comparar(antes, ahora)
+    assert [(r["escenario"], r["que"]) for r in c["regresiones"]] == [("kill_a", "cortes")]
+    assert "se cortó 1 de 5" in c["regresiones"][0]["texto"]
+
+
 def test_cual_es_la_anterior(tmp_path: Path) -> None:
     caos = tmp_path / "Logs" / "caos"
 
@@ -90,6 +102,11 @@ def test_cual_es_la_anterior(tmp_path: Path) -> None:
     actual = poner("20261031-030000", informe({}, fecha="31"))
     assert comparar.anterior(str(caos), str(actual)) == str(buena / "caos.json")
     assert comparar.anterior(str(caos)) == str(actual / "caos.json")
+    # Del mismo modo: una con el emisor aparte no es la vara de una normal (ni al revés);
+    # las de antes de que el informe dijera el modo son normales.
+    emisor = poner("20261030-170000", dict(informe({}, fecha="30e"), modo="emisor"))
+    assert comparar.anterior(str(caos), str(actual), "normal") == str(buena / "caos.json")
+    assert comparar.anterior(str(caos), str(actual), "emisor") == str(emisor / "caos.json")
 
 
 def test_codigo_de_salida(tmp_path: Path) -> None:
@@ -111,8 +128,9 @@ def test_informe_nocturno_del_banco(tmp_path: Path) -> None:
 
     def correr(carpeta: str, rto: float) -> dict:
         reps = [{"volvio": True, "rto_s": rto} for _ in range(5)]
-        b = types.SimpleNamespace(resultados={"kill_a": reps}, a=types.SimpleNamespace(plazo_s=90.0),
-                                  app=types.SimpleNamespace(version=lambda: {"version": "1.2.3", "generado": "hoy"}))
+        b = types.SimpleNamespace(resultados={"kill_a": reps}, a=types.SimpleNamespace(plazo_s=90.0, no_esperar_estable=False),
+                                  app=types.SimpleNamespace(version=lambda: {"version": "1.2.3", "generado": "hoy"}),
+                                  modo="normal", estable_s=120.0, esperado_estable_s=0.0)
         return banco.informe(b, str(caos / carpeta), {}, [], [], None, nocturno=True)
 
     j1 = correr("20261030-030000", 4.0)

@@ -3,13 +3,28 @@
 //
 // Proposito:
 //   Todo lo que hace ba-app para estar "al aire", comun a la consola
-//   (OperateMode) y al dashboard (QML): leer la configuracion (AppSettings) y
+//   (ModoConsola) y al dashboard (QML): leer la configuracion (AppSettings) y
 //   la linea de comandos, arrancar el motor, armar escenas y fuentes, publicar
 //   el retorno hacia B, latir en BA.Health y atender el canal de control.
 //
 //   Cada accion del operador actualiza el motor Y la configuracion en memoria;
 //   `save()` la persiste. Asi lo que se arma en el dashboard sobrevive a un
 //   reinicio sin que la interfaz toque JSON.
+//
+// Es una FACHADA: la API de siempre (la usan la interfaz, el MCP y la automatización), y
+// cada parte la hace una pieza con su estado y su dueño de hilo (en su cabecera):
+//   - PublicadorFoto     la foto que lee la interfaz, los aportes y los avisos (observar)
+//   - RepositorioEscenas las escenas y sus fuentes en el motor y en cfg_, la mezcla guardada
+//   - ServicioSalidas    las salidas del aparato (Config/salidas.json, el tope, el codificador)
+//   - ServicioEmision    grabar, transmitir, destinos, réplica, señal limpia, el disco y lo
+//                        pedido de cada salida (emision/PedidosSalida)
+//   - AireDurable        el documento de aire, volver como estaba, la energía, la GPU perdida
+//   - Invitados          los lugares de los invitados y del integrante remoto
+//   - SaludProceso       el latido en BA.Health, el canal del launcher, el gateway
+// Lo que queda acá: la configuración (cfg_, gateway_, launcher_), el motor, el feed del
+// operador, el hilo dueño y el arranque y cierre (AppRuntime.cpp). El modo consola, en
+// ModoConsola.cpp. Los que toman el turno lo toman acá (la fachada), como siempre: las
+// piezas se llaman ya con él.
 //
 // Modelo de threading (F3-03; el patrón en docs/arquitectura/05-motor-del-plano.md):
 //   EL DUEÑO es el hilo del plano de control (arranque/PlanoControl; en la consola, su
@@ -68,8 +83,17 @@
 
 namespace ba::app {
 
+class PublicadorFoto;
+class RepositorioEscenas;
+class ServicioSalidas;
+class ServicioEmision;
+class AireDurable;
+class Invitados;
+class SaludProceso;
+
 class AppRuntime {
    public:
+    AppRuntime();
     /// Lee la configuracion y la linea de comandos (sin arrancar nada).
     void configure(int argc, char** argv);
 
@@ -258,7 +282,7 @@ class AppRuntime {
     /// bus y en el histórico venga de donde venga.
     bool salirAlAireManual(const std::string& server, const std::string& key, bool cambiarEnCaliente = false,
                            const std::string& salida = "", AlResultado listo = {});
-    void alVivoManual(std::function<void(const std::string& servidor)> f) { alVivoManual_ = std::move(f); }
+    void alVivoManual(std::function<void(const std::string& servidor)> f);
 
     // --- Destinos adicionales de la transmisión (Config/destinos.json; la
     // clave de cada uno en el almacén cifrado como "stream-<id>") -------------
@@ -376,7 +400,7 @@ class AppRuntime {
         return engine_;
     }
     /// El latido del supervisor que mira el motor (la UI trabada no corta el aire).
-    LatidoAire& latido() { return latido_; }
+    LatidoAire& latido();
     /// DESDE CUALQUIER HILO: el canal de niveles (los vúmetros de entradas, buses y
     /// programa; emision/NivelesMotor.hpp). No toca el motor: no es una llamada directa.
     NivelesMotor& niveles() { return engine_.nivelesCanal(); }
@@ -404,24 +428,24 @@ class AppRuntime {
     /// aire: sirve para no tipearla de nuevo y para retomar tras una caida.
     bool streamKeySaved() const;
     /// Desde cualquier hilo (el vigía de las alarmas): lo pedido de la por omisión.
-    bool streamStopWanted() const { return !pedidos_.de(salidas::kPorOmision).transmitePedida(); }
-    bool recordStopWanted() const { return !pedidos_.de(salidas::kPorOmision).grabaPedida(); }
+    bool streamStopWanted() const;
+    bool recordStopWanted() const;
     /// La corrida anterior terminó sin cerrarse (corte de luz, cuelgue): hay que
     /// volver como estaba (la escena, la playlist, las salidas).
-    bool corteAnterior() const { return corteAnterior_; }
+    bool corteAnterior() const;
     /// Lo que había al aire en cada salida al arrancar (el documento de aire,
     /// Runtime/al-aire.json, la generación más nueva que sirve): lo que se retomó, con la
     /// sección de la línea de tiempo (la retoma EventoViewModel). Vacío si estaba dañado.
-    const salidas::AlAire& aireAnterior() const { return aireAnterior_; }
+    const salidas::AlAire& aireAnterior() const;
     /// No se sabe en qué iba la línea de tiempo (el documento, o la línea vieja, volvió
     /// dañado): la del evento abierto vuelve en HOLD preguntando, sin reponer nada.
-    bool lineaDesconocida() const { return lineaDesconocida_; }
+    bool lineaDesconocida() const;
     /// Al arrancar volvió el negro o la placa de alguna salida (para avisarle al operador).
-    bool placaRestaurada() const { return placaRestaurada_; }
+    bool placaRestaurada() const;
     /// EL DOCUMENTO DE AIRE (F3-04, emision/DocumentoAire.hpp): una sola verdad sobre qué
     /// está al aire. La sección de las salidas la pone el runtime (writeOnAirState); la de
     /// la línea, la línea de tiempo (EventoViewModel); lo escribe su dueño.
-    salidas::DocumentoAire& documentoAire() { return documento_; }
+    salidas::DocumentoAire& documentoAire();
     /// Algo de lo que sale cambió por fuera del runtime (el negro, la placa: SeguridadAire):
     /// la sección de las salidas se vuelve a poner (el documento compara).
     void aireCambio();
@@ -440,7 +464,7 @@ class AppRuntime {
     std::vector<std::string> cerrarGrabacionesPorEnergia();
     /// Volvió la energía antes de apagarse: las grabaciones que se cerraron vuelven.
     void retomarGrabacionesPorEnergia();
-    bool emergenciaEnergia() const { return emergenciaEnergia_; }
+    bool emergenciaEnergia() const;
     const std::filesystem::path& dataRoot() const { return root_; }
     /// El objetivo de loudness de cada salida (Config/loudness.json), que se lleva al motor
     /// al ponerlo. Liviano: cada quien arma el suyo (el archivo se lee y se escribe entero).
@@ -469,98 +493,25 @@ class AppRuntime {
     bool addAudioInput(const SourceSpec& spec);
     bool removeAudioInput(const std::string& name);
 
-   private:
-    /// La definición guardada (para cambiarla, en el dueño); nullptr si no está.
-    SourceSpec* findSpec(const std::string& scene, const std::string& name);
-    void addGuests();
-   public:
     /// El cupo de invitados cambió en caliente (T33): agrega el audio de los lugares
     /// nuevos (los que sobran quedan, mudos hasta que alguien entre).
     void ajustarInvitados(int n);
 
    private:
-    /// A los que observan, en el hilo dueño (ver enDueno).
+    // Las piezas usan lo de acá (la configuración, el motor, el hilo dueño) y se llaman
+    // entre ellas por sus punteros.
+    friend class PublicadorFoto;
+    friend class RepositorioEscenas;
+    friend class ServicioSalidas;
+    friend class ServicioEmision;
+    friend class AireDurable;
+    friend class Invitados;
+    friend class SaludProceso;
+
+    /// A los que observan, en el hilo dueño (PublicadorFoto::avisar).
     void avisar(Cambio c) const;
     /// El último error del hilo que llama (lastError).
     static std::string& errorDelHilo();
-    /// Anota en Config/salidas.json el fader y el mute que tiene ahora `fuente` en la
-    /// salida `salida` (otra que la por omisión): vuelven al arrancar.
-    void guardarMando(const std::string& salida, const std::string& fuente);
-    /// Los destinos de destinos.json con su salida y si tienen clave (lee el disco: la
-    /// foto lo lee solo cuando cambian las salidas) y, con lo que dice el motor de cada uno
-    /// (activo, reconectando, perdidos…), lo que devuelve destinos().
-    nlohmann::json destinosGuardados() const;
-    nlohmann::json destinosConEstado(const nlohmann::json& guardados) const;
-    /// La lista de salidas para otros hilos (salidasPublicadas).
-    void publicarSalidas(const EngineStatus& st);
-    /// Qué partes de la foto toca cada aviso.
-    static unsigned partesDe(Cambio c);
-    /// Además de las partes: lo que la foto lee de archivos se vuelve a leer.
-    static constexpr unsigned kFotoRelerArchivos = FotoMotor::RelerArchivos;
-    /// Los avisos a los observadores (en el dueño; ver avisar).
-    void avisarObservadores(Cambio c) const;
-    /// Rearma en `f` las partes `partes` (en el dueño, con el turno): ver FotoMotor.
-    void armarFoto(FotoMotor& f, unsigned partes);
-    /// La parte Mezcla (FotoMezcla.cpp), y el aviso del motor que la ensucia.
-    void armarMezcla(FotoMotor::MezclaAudio& m);
-    void anotarCambioAudio(const std::string& fuente, const char* que);
-    mutable std::mutex altasMu_;
-    std::map<std::string, std::uint64_t> altasAudio_; ///< las altas de cada fuente (CanalAudio::altas)
-    mutable std::mutex observadoresMu_; ///< se suman desde la interfaz; se avisa en el dueño
-    std::vector<std::pair<int, std::function<void(Cambio)>>> observadores_;
-    int proximoObservador_ = 0;
-    // La foto (F3-03): la publicación, lo que suman otros, lo sucio y la última publicada.
-    std::function<void(std::shared_ptr<const FotoMotor>, unsigned)> publicarFoto_;
-    mutable std::mutex aportesMu_;
-    std::vector<std::pair<int, std::function<void(FotoMotor&, unsigned)>>> aportes_;
-    int proximoAporte_ = 0;
-    mutable std::atomic<unsigned> fotoSucia_{FotoMotor::Todas | kFotoRelerArchivos};
-    mutable std::atomic<bool> fotoPedida_{false};
-    std::shared_ptr<const FotoMotor> foto_; ///< la última publicada (solo el dueño)
-    /// Donde se rearma lo sucio (solo el dueño): se copia a una foto nueva solo si algo cambió.
-    FotoMotor trabajo_;
-    mutable std::mutex ultimaFotoMu_;
-    std::shared_ptr<const FotoMotor> ultimaFoto_; ///< la misma, para otros hilos (ultimaFoto)
-    /// Lo que la foto lee de archivos (Config/salidas.json, destinos.json): solo cuando
-    /// cambian las salidas, no en cada vuelta.
-    nlohmann::json fotoListaSalidas_, fotoDestinos_;
-    unsigned ticsMotor_ = 0;
-    std::atomic<bool> hayAire_{false}; ///< para el latido de la interfaz (ticMotor lo pone)
-    std::filesystem::path carpetaDelEvento_; ///< del dueño (setCarpetaDelEvento)
-    bool carpetaSabida_ = false;             ///< la interfaz ya dijo cuál es (aunque sea ninguna)
-    bool grabacionesPorRetomar_ = false; ///< restoreOutputs: esperan la carpeta del evento
-    void addAudioInputs();
-    /// La sección de las salidas del documento de aire: qué salidas estaban activas, la
-    /// escena, el negro y la placa, y si el cierre fue ordenado. La lee el arranque para
-    /// retomar la emisión tras una caída. No escribe nada hasta aireListo_.
-    void writeOnAirState();
-    /// Lo que sale ahora de cada salida (escena, transmisión, destinos, grabación, negro y
-    /// placa): lo que escribe writeOnAirState y lo que retoma el rearme por la GPU.
-    salidas::AlAire aireActual() const;
-    /// F3-09: la GPU del video se perdió (motor/GpuPerdida.hpp; lo mira tick). Apaga el
-    /// motor, prueba una GPU nueva (o la CPU, a 720p como mucho), lo vuelve a armar con lo
-    /// que había y retoma las salidas que estaban saliendo.
-    void rearmarPorGpu();
-    /// Las ubicaciones de las fuentes son fracciones del lienzo: de nuevo en píxeles (tras
-    /// rearmar el motor con otro lienzo).
-    void reubicarFuentes();
-    /// Lee el documento de aire (dos generaciones; la versión 1 con placa.json y
-    /// linea-aire.json aparte, también) al arrancar: deja aireAnterior_ y corteAnterior_, y
-    /// si está dañado lo avisa (F1-03).
-    void leerAireAnterior();
-    /// VOLVER COMO ESTABA, en un solo lugar (F3-04): la escena de cada salida, el negro y
-    /// la placa, y lo que salía (restoreOutputs).
-    void restaurarAire();
-    /// El negro y la placa de cada salida como dice `aire`. true si había alguno.
-    bool restaurarPlacas(const salidas::AlAire& aire);
-    /// Retoma lo que transmitían y grababan TODAS las salidas (F1-04). `deEstaCorrida`: lo
-    /// que retoma es de esta misma corrida (el rearme por la GPU), también con --test.
-    void restoreOutputs(bool deEstaCorrida = false);
-    /// Crea las salidas guardadas (Config/salidas.json) que el motor todavía no tiene.
-    void crearSalidasGuardadas();
-    /// Lo común de setScene y setSceneCon después de pedirlo al motor.
-    bool anotarAire(bool ok, const std::string& name, const std::string& salida);
-    std::filesystem::path archivoSalidas() const { return ba::persist::archivoConfig("salidas.json"); }
 
     AppConfig cfg_;
     GatewaySettings gateway_;
@@ -568,45 +519,20 @@ class AppRuntime {
     std::filesystem::path root_; // datos (BA_DATA_ROOT)
     std::filesystem::path bin_;  // binarios
     BroadcastEngine engine_;
-    ba::ipc::HealthBlock health_;
-    std::mutex healthMu_; ///< latidos desde la UI y desde LatidoAire
-    LatidoAire latido_;
-    ba::ipc::ControlService control_;
+    // Las piezas (ver arriba). El orden importa al destruir: lo que mira el motor (el
+    // latido, el canal) se va antes que él, y el feed del operador antes que eso.
+    std::unique_ptr<SaludProceso> salud_;
     OperatorFeed operator_; // vive mientras el motor este arriba (stop lo apaga antes que al motor)
-    std::thread reinicioSala_;              ///< reiniciarSalaEnElFondo
-    std::function<void(const std::string&)> alVivoManual_;
-    std::atomic<bool> reiniciandoSala_{false};
-    mutable std::mutex renombresMu_;
-    /// Cuántos renombres se descartaron (el número de renombres_[0]) y dónde va cada lector.
-    mutable std::size_t renombresBase_ = 0;
-    mutable std::map<const std::size_t*, std::size_t> lectoresRenombres_;
-    mutable std::vector<std::pair<std::string, std::string>> renombres_; ///< ver renombresDeEscena (los ya leídos por todos se descartan)
-    mutable std::mutex salidasMu_;
-    nlohmann::json salidasPublicadas_ = nlohmann::json::array();
-    /// LO PEDIDO de cada salida (emision/PedidosSalida.hpp): el ÚNICO dueño. Lo cambian las
-    /// órdenes (grabar, transmitir, un destino, pararlos, el corte de luz) y el resultado
-    /// que manda el motor de las que corren en su hilo de salidas (alResultado: una que
-    /// falló deja de estar pedida). El documento de aire guarda esto; la foto, lo real.
-    salidas::Pedidos pedidos_;
-    using PedidoSalida = salidas::Pedidos::DeSalida;
-    /// El callback que va al motor con la orden `orden`: anota el resultado y avisa (desde
-    /// el hilo de salidas), y después se lo pasa a `listo`.
-    AlResultado alResultado(std::uint64_t orden, AlResultado listo);
-    salidas::AlAire aireAnterior_;
-    salidas::DocumentoAire documento_;
-    bool aireListo_ = false;        ///< ya volvió como estaba: el documento se puede escribir
-    bool lineaDesconocida_ = false; ///< ver lineaDesconocida
-    bool placaRestaurada_ = false;
-    mutable std::mutex avisosMu_;
-    std::vector<std::string> avisosPersistencia_;
-    bool corteAnterior_ = false;
-    bool cerrando_ = false;           ///< stop(): al-aire.json dice «cerrado»
-    bool emergenciaEnergia_ = false;  ///< cerrarGrabacionesPorEnergia: un cierre es un corte
-    mutable std::atomic<int> keySaved_{-1}; // cache de streamKeySaved (-1 = sin consultar)
+    std::unique_ptr<PublicadorFoto> foto_;
+    std::unique_ptr<RepositorioEscenas> escenas_;
+    std::unique_ptr<ServicioSalidas> servicioSalidas_;
+    std::unique_ptr<ServicioEmision> emision_;
+    std::unique_ptr<AireDurable> aire_;
+    std::unique_ptr<Invitados> invitados_;
+    unsigned ticsMotor_ = 0;
+    std::atomic<bool> hayAire_{false}; ///< para el latido de la interfaz (ticMotor lo pone)
     std::atomic<std::thread::id> dueno_{};  ///< el hilo que hizo start (ver esDueno)
     std::function<void(std::function<void()>)> encolarEnDueno_;
-    mutable std::mutex ajustesAireMu_;
-    mutable AjustesAire ajustesAire_; ///< la copia para los demás hilos (ver ajustesAire)
     bool safeBackupDone_ = false; // app.json resguardado antes de guardar en modo seguro
     bool started_ = false;
 };

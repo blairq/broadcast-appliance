@@ -132,6 +132,52 @@ lo lee en su hilo. Es lo que se hizo con `video/VideoGrafos`:
   que carga un hilo de imágenes (no la interfaz) puede esperar una orden con tope
   (`std::promise` + `wait_for`), por si el plano ya paró.
 
+## Las piezas de AppRuntime y BroadcastEngine (2026-11-01)
+
+`AppRuntime` y `BroadcastEngine` son FACHADAS: la API de siempre (la interfaz, el MCP y la
+automatización no cambian) que toma el turno donde lo tomaba siempre y delega en una pieza.
+Cada pieza tiene su estado y su dueño de hilo declarado en su cabecera; las piezas se llaman
+ya con el turno tomado.
+
+`AppRuntime` (`arranque/`; el núcleo, `AppRuntime.cpp`, es la configuración, el motor, el hilo
+dueño, el arranque y el cierre; el modo consola, `ModoConsola.cpp`):
+
+| Pieza | Qué tiene | Hilo dueño |
+|---|---|---|
+| `PublicadorFoto` | la foto, los aportes, los avisos (`observar`) | el dueño arma y publica; `fotoSucia`, `ultimaFoto`, `observar`: cualquier hilo (sus candados) |
+| `RepositorioEscenas` | escenas y fuentes en el motor y en `cfg_`, la mezcla que se guarda, los renombres | el dueño; los renombres, cualquier hilo |
+| `ServicioSalidas` | las salidas del aparato, `Config/salidas.json` (único escritor) | el dueño; `salidasPublicadas`, cualquier hilo |
+| `ServicioEmision` | grabar, transmitir, destinos, réplica, señal limpia, disco; LO PEDIDO (`PedidosSalida`) | el dueño; el resultado de una orden llega del hilo de salidas (candado de `Pedidos`) |
+| `AireDurable` | el documento de aire, volver como estaba, la energía, la GPU perdida | el dueño; lo vuelca el plano de control; los avisos de persistencia, cualquier hilo |
+| `Invitados` | los lugares de los invitados y del integrante remoto | el dueño |
+| `SaludProceso` | el latido en BA.Health, el canal del launcher, el reinicio del gateway | el bloque de salud, cualquier hilo (candado); el canal, el plano de control |
+
+`BroadcastEngine` (`emision/`; el núcleo, `BroadcastEngine.cpp`, es el ciclo de vida, las
+salidas, el reloj, el estado y los avisos):
+
+| Pieza | Qué tiene | Hilo dueño |
+|---|---|---|
+| `EscenasYFuentes` (+ `CapasPrograma.cpp`) | el modelo de escenas y fuentes, la escena al aire y la armada, DSK/placa/negro, banca, traer, video en gráficos | el dueño |
+| `MezclaApp` | fader, mute y VCA por salida, escucha (fija, PFL/AFL), retardo, pistas, retornos, loudness | el dueño |
+| `MediosApp` | los archivos como fuente | el dueño |
+| `VistasYMedicion` | vistas previas, capturas, medidas del programa, sincronía, latencia del estudio | pedir/soltar, el dueño; leer vistas, cualquier hilo (`vistasMu_`, que también toma el núcleo al cambiar el motor); las medidas, atómicas |
+| `RetornoGateway` | el retorno de cada salida a B y los canales de escena | el dueño; los cuadros, el hilo del motor (candado de cada canal) |
+| `EmisionSalidas` | el HILO DE SALIDAS: transmisiones, grabaciones, ISO, limpia, réplica, la foto de las salidas | ver abajo |
+| `VigiaDisco` | el disco en apuros, lo que queda de disco | el hilo de salidas; modo y umbrales, atómicos que pone el dueño |
+| `EmisorAparte` | lo que codifica un `ba-emisor` (F3-01) | el hilo de salidas; el canal del programa, el dueño |
+
+UNA SALIDA, DOS MITADES (`emision/SalidaMotor.hpp`): `SalidaAire` es del dueño (la escena,
+las capas, la mezcla y LO PEDIDO: transmitir, grabar, limpia, destinos, cada uno con el
+número de la orden que lo pidió) y `SalidaEmision` es del hilo de salidas (lo que sale de
+verdad). Se hablan por mensajes: el dueño encola órdenes (`EmisionSalidas::enSalidas`, con la
+`SalidaEmision` adentro) y el hilo de salidas le contesta por el BUZÓN (`BuzonSalidas`: «no
+arrancó la orden N», «adopté lo que el emisor ya tenía», «transmito AAC a tantos kbps»). El
+dueño atiende el buzón antes de leer lo pedido y en cada vuelta del motor
+(`BroadcastEngine::atenderSalidas`, desde `AppRuntime::ticMotor`). Un «no arrancó» de una orden
+ya reemplazada no baja lo que se pidió después. Lo que sale de verdad lo lee cualquiera de la
+foto de las salidas (`fotoSalidas`, con su candado). Ningún campo de una salida lo tocan dos
+hilos: antes, lo pedido estaba bajo un candado compartido (`pedidosM_`) que los dos escribían.
+
 ## La red de seguridad: el turno y las llamadas directas
 
 Lo que todavía entra directo (`rt.config()`, `rt.engine()`, los métodos de `AppRuntime`

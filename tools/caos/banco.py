@@ -18,14 +18,22 @@ sobre un evento de prueba PROPIO (nunca el del operador):
        sumidero_tx           la conexión RTMP no puede escribir
        codificador_rec       el codificador de la grabación da error
        sumidero_rec          el disco de la grabación no puede escribir (a los --sumidero-s)
-       kill_a_con_emisor     kill -9 de A con el emisor aparte (F3-01, `emisor.aparte` o
-                             --emisor-aparte): la transmisión y la grabación son del emisor y
-                             NO se tienen que enterar: 0 conexiones RTMP nuevas, ningún
-                             archivo nuevo y la placa en el hueco (RTO = el hueco más largo)
+       kill_a_con_emisor     kill_a con el emisor aparte (F3-01, `emisor.aparte` o
+                             --emisor-aparte; el nombre queda por las corridas anteriores)
        kill_emisor, stop_emisor  kill -9 / SIGSTOP del emisor: el launcher lo relanza y
                              retoma el pedido (otra conexión y otro archivo: «-sigue2»)
        gpu_video             la GPU del video se pierde (F3-09): la app rearma el motor
-     y mide: cuándo contesta la app (MCP), cuándo vuelve el primer cuadro al servidor
+     Cada escenario dice en qué modo aplica (MODOS): con el emisor aparte los de los
+     codificadores y sumideros de la app no aplican; sin él, los del emisor. Lo que no
+     aplica no se corre ni cuenta como «no volvió». Con el emisor aparte, en las fallas de
+     A la salida NO se tiene que enterar: se mide por separado el hueco que vio el público
+     (el RTO; 0 conexiones RTMP y 0 archivos nuevos, la placa en el hueco) y cuándo volvió
+     la app.
+     Antes de cada escenario que tira abajo un hijo del launcher que ya tiró, el banco
+     espera `launcher.estableS` desde que lo relanzaron (el launcher olvida las caídas; si
+     no, su espera para relanzar escala 0, 1, 2, 5, 10 s y a la quinta A pasa al modo
+     seguro); con --no-esperar-estable no espera y el informe muestra el backoff que hubo.
+     Y mide: cuándo contesta la app (MCP), cuándo vuelve el primer cuadro al servidor
      RTMP (RTO de la transmisión), cuándo vuelve a crecer el MKV, y la reapertura de los
      anillos A↔B (lo que dice Logs/gateway.log después de la falla). Con A relanzada,
      además cuándo sacó el motor nuevo su primer cuadro de programa (Logs/app.log,
@@ -55,7 +63,8 @@ de cada sistema (apagada de fábrica) está en tools/caos/nocturno/ (instalar.py
     python3 -I tools/caos/banco.py --lanzar dist/BroadcastAppliance.app --emisor-aparte \
         --escenarios kill_a_con_emisor,kill_emisor
 
-Sale con 0 si todo volvió dentro de --plazo-s, 1 si algo no volvió, 2 si cortó antes de
+Sale con 0 si todo volvió dentro de --plazo-s, 1 si algo no volvió (o, con el emisor
+aparte, una falla de la app cortó la salida), 2 si cortó antes de
 tocar nada y, con --nocturno, 3 si algo empeoró contra la corrida anterior. Sin sonido: la cámara virtual no tiene audio y nada sale por los parlantes.
 """
 from __future__ import annotations
@@ -97,6 +106,24 @@ WINDOWS = platform.system() == "Windows"
 ESCENARIOS = ["kill_a", "stop_a", "kill_b", "stop_b", "kill_web", "stop_web", "kill_cf", "stop_cf", "al_aire_truncado",
               "codificador_tx", "sumidero_tx", "codificador_rec", "sumidero_rec", "kill_a_con_emisor", "kill_emisor",
               "stop_emisor", "gpu_video"]
+# En qué modo aplica cada escenario: «normal» (la app codifica la salida principal) o
+# «emisor» (la codifica ba-emisor, F3-01: `emisor.aparte` o --emisor-aparte). Con el
+# emisor aparte los codificadores y sumideros de la app no se usan (la falla programada no
+# se dispara) y kill_a_con_emisor es kill_a; sin emisor, sus escenarios no tienen a quién.
+# Lo que no aplica no se corre ni cuenta como «no volvió».
+AMBOS = frozenset({"normal", "emisor"})
+MODOS = {e: AMBOS for e in ESCENARIOS} | {
+    "codificador_tx": frozenset({"normal"}), "sumidero_tx": frozenset({"normal"}),
+    "codificador_rec": frozenset({"normal"}), "sumidero_rec": frozenset({"normal"}),
+    "kill_a_con_emisor": frozenset({"emisor"}), "kill_emisor": frozenset({"emisor"}), "stop_emisor": frozenset({"emisor"})}
+# Los que tiran abajo (o frenan) un hijo del launcher, y cuál: el launcher escala su espera
+# para relanzarlo con cada caída seguida (0, 1, 2, 5, 10 s; a la quinta en la ventana, A
+# pasa al modo seguro) y la olvida cuando el hijo anduvo bien `launcher.estableS`. Antes de
+# cada uno el banco espera eso (o, con --no-esperar-estable, solo informa la espera que hubo).
+MATA = {"kill_a": "a", "stop_a": "a", "al_aire_truncado": "a", "kill_a_con_emisor": "a", "kill_b": "b", "stop_b": "b",
+        "kill_emisor": "emisor", "stop_emisor": "emisor"}
+# Cómo los nombra el launcher en Logs/launcher.log.
+EN_LAUNCHER = {"a": "A", "b": "B", "emisor": "E.principal"}
 # Los procesos, por el nombre del ejecutable (A y B pueden correr desde la copia sombra:
 # la ruta no es la del bundle).
 PROCESOS = {"a": "ba-app", "b": "ba-gateway", "web": "ba-web", "cf": "cloudflared", "emisor": "ba-emisor",
@@ -107,6 +134,20 @@ ANILLO = re.compile(r"suscrito|resuscribiendo|abiert[oa]\b|\blisto\b")
 # terminó de rearmarse tras perder la GPU (AppRuntime::rearmarPorGpu).
 PRIMER_CUADRO = re.compile(r"arranque: el primer cuadro del programa")
 REARMADO = re.compile(r"motor rearmado tras perder la GPU")
+# Lo que escribe el launcher (en el idioma de la máquina; el banco se corre en castellano):
+# la espera agendada para relanzar un hijo y el cortacircuito de A (modo seguro).
+CORTACIRCUITO = re.compile(r"\| sup \|.*(cortacircuito|modo seguro)")
+HORA_LOG = re.compile(r"(\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d+)?)(Z?)")
+
+
+def espera_relanzar(nombre: str) -> re.Pattern:
+    """«A: reinicio en 2 s» (Supervisor::restartChild) de ese hijo."""
+    return re.compile(r"\| sup \|[^|]*\| " + re.escape(nombre) + r": \D*?(\d+) s\s*$")
+
+
+def lanzado(nombre: str, pid: int) -> re.Pattern:
+    """«lanzado 'A' pid=123» (Supervisor::startChild)."""
+    return re.compile(r"'" + re.escape(nombre) + r"' pid=" + str(pid) + r"\b")
 
 
 def log(*a):
@@ -271,22 +312,39 @@ class App:
         except (OSError, ValueError, KeyError):
             return False
 
-    def primera_linea(self, nombre_log: str, desde: float, patron: re.Pattern) -> float | None:
-        """El momento (epoch) de la primera línea de Logs/<nombre_log> posterior a `desde` que
-        coincide con `patron` (las líneas empiezan con la hora ISO en UTC)."""
-        ruta = os.path.join(self.logs, nombre_log)
+    def lineas(self, nombre_log: str, desde: float, patron: re.Pattern) -> list[tuple[float, re.Match]]:
+        """(momento epoch, coincidencia) de las líneas de Logs/<nombre_log> posteriores a
+        `desde` que coinciden con `patron`. Las líneas empiezan con la hora ISO: en UTC con
+        «Z» (app.log, gateway.log) o local sin ella (launcher.log)."""
+        out = []
         try:
-            with open(ruta, encoding="utf-8", errors="replace") as f:
+            with open(os.path.join(self.logs, nombre_log), encoding="utf-8", errors="replace") as f:
                 for l in f:
-                    m = re.match(r"(\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d+)Z", l)
+                    m = HORA_LOG.match(l)
                     if not m:
                         continue
-                    t = datetime.datetime.fromisoformat(m.group(1)).replace(tzinfo=datetime.timezone.utc).timestamp()
-                    if t >= desde and patron.search(l):
-                        return t
+                    t = datetime.datetime.fromisoformat(m.group(1))
+                    t = (t.replace(tzinfo=datetime.timezone.utc) if m.group(2) else t).timestamp()
+                    if t >= desde and (c := patron.search(l)):
+                        out.append((t, c))
         except OSError:
             pass
-        return None
+        return out
+
+    def primera_linea(self, nombre_log: str, desde: float, patron: re.Pattern) -> float | None:
+        """El momento (epoch) de la primera línea de Logs/<nombre_log> posterior a `desde` que
+        coincide con `patron`."""
+        ll = self.lineas(nombre_log, desde, patron)
+        return ll[0][0] if ll else None
+
+    def ajuste_launcher(self, clave: str, respaldo: float) -> float:
+        """Un ajuste de la máquina (launcher.json → «ajustes»), como lo lee el launcher."""
+        try:
+            with open(os.path.join(self.datos, "launcher.json"), encoding="utf-8") as f:
+                v = (json.load(f).get("ajustes") or {}).get(clave)
+            return float(v) if isinstance(v, (int, float)) and not isinstance(v, bool) else respaldo
+        except (OSError, ValueError, AttributeError):
+            return respaldo
 
 
 # --- El banco ----------------------------------------------------------------------------
@@ -323,6 +381,12 @@ class Banco:
         self.carpeta_rec = None
         self.inicio = time.time()
         self.resultados: dict[str, list[dict]] = {}
+        self.modo = "normal"  # o «emisor»: lo dice preparar() (¿corre ba-emisor?)
+        # Los hijos del launcher que el banco tiró abajo desde que estaban estables, y el
+        # pid de cada uno entonces (el que relanzó el launcher es otro).
+        self.fallados: dict[str, list[int]] = {}
+        self.estable_s = app.ajuste_launcher("launcher.estableS", 120.0)
+        self.esperado_estable_s = 0.0
 
     # --- Lo de siempre -------------------------------------------------------------------
     def tool(self, nombre: str, args: dict | None = None) -> dict:
@@ -396,6 +460,8 @@ class Banco:
         if r.get("_isError"):
             raise Corte("no se pudo crear la cámara virtual: " + r.get("_texto", ""))
         self.asegurar_aire()
+        self.modo = "emisor" if self.app.pids(PROCESOS["emisor"]) else "normal"
+        log("modo:", "emisor aparte (ba-emisor lleva la salida principal)" if self.modo == "emisor" else "normal (la app codifica)")
 
     def asegurar_aire(self):
         """Transmisión al RTMP local y grabación andando, con cuadros llegando."""
@@ -423,19 +489,65 @@ class Banco:
         time.sleep(self.a.estable_s)
 
     # --- Los escenarios ---------------------------------------------------------------------
+    def no_aplica(self, nombre: str) -> str | None:
+        """Por qué el escenario no aplica en este modo (None si aplica)."""
+        if self.modo in MODOS[nombre]:
+            return None
+        return ("con el emisor aparte la salida no es de la app" if self.modo == "emisor"
+                else "sin el emisor aparte (emisor.aparte, o --emisor-aparte con --lanzar)")
+
+    def esperar_estable(self, q: str) -> float:
+        """Antes de tirar abajo `q` otra vez: que el launcher haya olvidado sus caídas (el
+        hijo anduvo bien `launcher.estableS` desde que lo relanzó). Si no, la espera para
+        relanzarlo crece de un escenario al otro y lo que se mide es el backoff, no la
+        retoma (y a la quinta A pasa al modo seguro). Devuelve cuánto se esperó."""
+        viejos = self.fallados.pop(q, None)
+        if viejos is None:
+            return 0.0
+        nombre = EN_LAUNCHER[q]
+        pids = [p for p in self.app.pids(PROCESOS[q]) if p not in viejos]
+        lanz = [t for p in pids for t, _ in self.app.lineas("launcher.log", self.inicio - 5, lanzado(nombre, p))]
+        desde = max(lanz) if lanz else time.time()  # sin saber cuándo: desde ahora
+        hasta = desde + self.estable_s + 1.0  # el supervisor lo mira cada 250 ms
+        espera = max(0.0, hasta - time.time())
+        if espera > 0:
+            log(f"  esperando {espera:.0f} s a que el launcher olvide las caídas de {nombre} (launcher.estableS = {self.estable_s:.0f})")
+            while time.time() < hasta:
+                time.sleep(1.0)
+            self.esperado_estable_s += espera
+        return round(espera, 1)
+
     def correr(self, nombre: str) -> dict:
+        q = MATA.get(nombre)
+        espera = None
+        if q and not self.a.no_esperar_estable:
+            espera = self.esperar_estable(q)
+            if espera:
+                self.asegurar_aire()
+        t0 = time.time()
         if nombre == "kill_a_con_emisor":
-            r = self.kill_a_con_emisor()
+            r = self.proceso("a", "kill")  # kill_a, que con el emisor aparte no corta nada
         elif nombre.startswith(("kill_", "stop_")):
-            cual, q = nombre.split("_", 1)
-            r = self.proceso(q, cual)
+            cual, que = nombre.split("_", 1)
+            r = self.proceso(que, cual)
         elif nombre == "al_aire_truncado":
             r = self.al_aire_truncado()
         else:
             pieza, sal = nombre.split("_")
             r = self.falla(pieza, {"tx": "transmision", "rec": "grabacion", "video": "video"}[sal])
-        if not r.get("saltado"):
-            r["volvio"] = r.get("rto_s") is not None
+        if r.get("saltado"):
+            return r
+        if q:
+            # Lo que encontró: la espera agendada para relanzarlo y si A pasó al modo seguro.
+            if espera is not None:
+                r["espera_estable_s"] = espera
+            back = [int(m.group(1)) for _, m in self.app.lineas("launcher.log", t0, espera_relanzar(EN_LAUNCHER[q]))]
+            r["backoff_s"] = back[0] if back else 0
+            if self.app.lineas("launcher.log", t0, CORTACIRCUITO):
+                r["modo_seguro"] = True
+            self.fallados[q] = r.get("pids", [])
+        # Volvió: la salida (RTO) y, si se mide, la app.
+        r["volvio"] = r.get("rto_s") is not None and ("app_s" not in r or r["app_s"] is not None)
         return r
 
     def medir(self, t0: float, base_mkv: int, *, mcp: bool = False, video: str | None = None, grabacion: bool = False,
@@ -484,6 +596,36 @@ class Banco:
         r["hueco_tx_s"] = max((h["s"] for h in huecos if h["desde"] <= hasta), default=0.0)
         return r
 
+    def foto(self) -> dict:
+        """Lo de antes de una falla, para ver si la salida se cortó: conexiones al RTMP y MKV."""
+        return {"sesiones": len(self.rtmp.sesiones()), "mkvs": self.mkvs(), "base": self.tamano_mkv()}
+
+    def medir_aire(self, t0: float, antes: dict, *, mcp: bool, video: str = "nueva") -> dict:
+        """Después de una falla de A (matarla, frenarla, perder la GPU), según el modo:
+
+        - normal: la salida es de A y se corta; vuelve con una conexión RTMP NUEVA (RTO;
+          `video`: «cualquiera» si A siguió, frenada y soltada sin que nadie la relanzara).
+        - emisor aparte: la salida es del emisor y NO se tiene que enterar. Por separado:
+          el hueco que vio el público (RTO = el hueco más largo; si hubo una conexión RTMP
+          o un archivo nuevos, «sin_corte» es false) y cuándo volvió la app (app_s).
+        """
+        if self.modo == "normal":
+            r = self.medir(t0, antes["base"], mcp=mcp, video=video, grabacion=True)
+            r["rto_s"] = r["video_s"]
+        else:
+            r = self.medir(t0, antes["base"], mcp=mcp, video="cualquiera", grabacion=True)
+            r["desconexiones_rtmp"] = len(self.rtmp.sesiones()) - antes["sesiones"]
+            r["archivos_nuevos"] = sorted(os.path.basename(f) for f in self.mkvs() - antes["mkvs"])
+            r["sin_corte"] = r["desconexiones_rtmp"] == 0 and not r["archivos_nuevos"] and r["hueco_tx_s"] < 1.0
+            r["rto_s"] = r["hueco_tx_s"] if r["video_s"] is not None else None
+            if mcp and self.m is not None:
+                st = self.estado()
+                r["a_ve_transmision"] = bool(st.get("streaming"))
+                r["a_ve_grabacion"] = bool(st.get("recording"))
+        if mcp:
+            r["app_s"] = r["mcp_s"]
+        return r
+
     def proceso(self, q: str, cual: str) -> dict:
         nombre = PROCESOS[q]
         pids = self.app.pids(nombre)
@@ -493,7 +635,8 @@ class Banco:
             return {"saltado": "SIGSTOP no existe en Windows"}
         if len(pids) > 1:
             log(f"  ojo: {len(pids)} procesos {nombre}: {pids}")
-        base = self.tamano_mkv()
+        antes = self.foto()
+        base = antes["base"]
         t0 = time.time()
         for p in pids:
             self.app.senal(p, cual)
@@ -512,8 +655,7 @@ class Banco:
             if vivos:
                 nueva = "cualquiera"  # sigue el mismo proceso: lo que vuelva por su conexión vale
         if q == "a":
-            r.update(self.medir(t0, base, mcp=True, video=nueva, grabacion=True))
-            r["rto_s"] = r["video_s"]
+            r.update(self.medir_aire(t0, antes, mcp=True, video=nueva))
         elif q == "emisor":
             # El emisor lleva la transmisión y la grabación: al volver retoma su pedido con
             # otra conexión (y otro archivo). El RTO es el del video en el servidor RTMP.
@@ -531,34 +673,6 @@ class Banco:
                 r["rto_s"] = None  # frenado y nadie lo relanzó: no volvió solo
         return r
 
-    def kill_a_con_emisor(self) -> dict:
-        """F3-01: con el emisor aparte, kill -9 de A no corta nada. Se mide que no haya
-        ninguna conexión RTMP nueva, ningún MKV nuevo (la grabación sigue en el mismo
-        archivo) y el hueco de video más largo en el servidor (la placa lo llena). El RTO
-        de este escenario es ese hueco; si hubo un corte, no volvió (rto_s None)."""
-        if not self.app.pids(PROCESOS["emisor"]):
-            return {"saltado": "ba-emisor no corre (prender emisor.aparte, o --emisor-aparte con --lanzar)"}
-        pids = self.app.pids(PROCESOS["a"])
-        if not pids:
-            return {"saltado": "ba-app no corre"}
-        sesiones0 = len(self.rtmp.sesiones())
-        archivos0 = self.mkvs()
-        base = self.tamano_mkv()
-        t0 = time.time()
-        for p in pids:
-            self.app.senal(p, "kill")
-        r: dict = {"pids": pids}
-        # Que vuelva A (MCP) y, mientras tanto, que el video siga llegando por la MISMA conexión.
-        r.update(self.medir(t0, base, mcp=True, video="cualquiera", grabacion=True))
-        r["desconexiones_rtmp"] = len(self.rtmp.sesiones()) - sesiones0
-        r["archivos_nuevos"] = sorted(os.path.basename(f) for f in self.mkvs() - archivos0)
-        st = self.estado() if self.m else {}
-        r["a_ve_transmision"] = bool(st.get("streaming"))
-        r["a_ve_grabacion"] = bool(st.get("recording"))
-        r["sin_corte"] = r["desconexiones_rtmp"] == 0 and not r["archivos_nuevos"] and r["hueco_tx_s"] < 1.0
-        r["rto_s"] = r["hueco_tx_s"] if r["sin_corte"] else None
-        return r
-
     def al_aire_truncado(self) -> dict:
         # El estado de aire va en dos generaciones (al-aire.A/B.json, F1-03): se trunca la más
         # nueva, como un corte a mitad de escritura; tiene que volver con la otra.
@@ -570,21 +684,21 @@ class Banco:
         pids = self.app.pids(PROCESOS["a"])
         if not pids:
             return {"saltado": "ba-app no corre"}
-        base = self.tamano_mkv()
+        antes = self.foto()
         with open(ruta, "w", encoding="utf-8"):
             pass  # 0 bytes: lo que deja un corte a mitad de escritura
         t0 = time.time()
         for p in pids:
             self.app.senal(p, "kill")
-        r = self.medir(t0, base, mcp=True, video="nueva", grabacion=True)
+        r = {"pids": pids, **self.medir_aire(t0, antes, mcp=True)}
         st = self.estado() if self.m else {}
         r["retomo_transmision"] = bool(st.get("streaming"))
         r["retomo_grabacion"] = bool(st.get("recording"))
-        r["rto_s"] = r["video_s"]
         return r
 
     def falla(self, pieza: str, salida: str) -> dict:
         en = self.a.sumidero_s if (pieza, salida) == ("sumidero", "grabacion") else 2.0
+        antes = self.foto()
         r0 = self.tool("diag_falla", {"pieza": pieza, "salida": salida, "en_s": en})
         if r0.get("_isError"):
             return {"saltado": "diag_falla: " + r0.get("_texto", "")[:160] + " (¿la app es de antes de F1-14?)"}
@@ -593,11 +707,11 @@ class Banco:
         d = self.tool("diag_falla").get("disparadas", [])
         r: dict = {"disparada": any(x.get("pieza") == pieza and x.get("salida") == salida for x in d)}
         if salida == "video":
-            # La GPU perdida: la app rearma el motor y retoma la transmisión (conexión nueva).
-            r.update(self.medir(t0, self.tamano_mkv(), video="nueva", grabacion=True))
+            # La GPU perdida: la app rearma el motor y retoma la transmisión (normal: con una
+            # conexión nueva; con el emisor aparte, sin cortarla). La app vuelve al rearmarse.
+            r.update(self.medir_aire(t0, antes, mcp=False))
             tr = self.app.primera_linea("app.log", t0, REARMADO)
-            r["rearmado_s"] = round(tr - t0, 3) if tr else None
-            r["rto_s"] = r["video_s"]
+            r["rearmado_s"] = r["app_s"] = round(tr - t0, 3) if tr else None
         elif salida == "transmision":
             r.update(self.medir(t0, 0, video="nueva"))
             r["rto_s"] = r["video_s"]
@@ -701,49 +815,80 @@ def informe(b: Banco, carpeta: str, mkv: dict, rtmp_ses: list, rtmp_huecos: list
             nocturno: bool = False) -> dict:
     esc = {}
     for nombre, reps in b.resultados.items():
-        rto = [r.get("rto_s") for r in reps if not r.get("saltado")]
+        corridas = [r for r in reps if not r.get("saltado") and not r.get("no_aplica")]
+        rto = [r.get("rto_s") for r in corridas]
         esc[nombre] = {
             "repeticiones": reps,
             "rto_p50_s": percentil(rto, 50),
             "rto_p95_s": percentil(rto, 95),
             "mcp_p50_s": percentil([r.get("mcp_s") for r in reps], 50),
+            "app_p50_s": percentil([r.get("app_s") for r in reps], 50),
+            "detectado_p50_s": percentil([r.get("detectado_s") for r in reps], 50),
+            "hueco_tx_max_s": max((r["hueco_tx_s"] for r in corridas if r.get("hueco_tx_s") is not None), default=None),
             "anillos_p50_s": percentil([r.get("anillos_s") for r in reps], 50),
             "primer_cuadro_p50_s": percentil([r.get("primer_cuadro_s") for r in reps], 50),
             "primer_cuadro_p95_s": percentil([r.get("primer_cuadro_s") for r in reps], 95),
-            "no_volvio": sum(1 for r in reps if not r.get("saltado") and not r.get("volvio")),
+            "no_volvio": sum(1 for r in corridas if not r.get("volvio")),
+            # Con el emisor aparte, una falla de A que cortó la salida (conexión o archivo nuevos).
+            "cortes": sum(1 for r in corridas if r.get("sin_corte") is False),
+            "backoff_s": [r["backoff_s"] for r in corridas if "backoff_s" in r],
+            "modo_seguro": any(r.get("modo_seguro") for r in corridas),
             "saltado": next((r["saltado"] for r in reps if r.get("saltado")), None),
+            "no_aplica": next((r["no_aplica"] for r in reps if r.get("no_aplica")), None),
         }
     j = {"banco": "caos F1-14", "fecha": datetime.datetime.now().isoformat(timespec="seconds"), "app": b.app.version(),
          "maquina": {"sistema": platform.system(), "version": platform.release(), "nodo": platform.node()},
-         "plazo_s": b.a.plazo_s, "corte": corte, "escenarios": esc, "mkv": mkv,
+         "modo": b.modo, "plazo_s": b.a.plazo_s, "corte": corte, "escenarios": esc, "mkv": mkv,
+         "launcher": {"estable_s": b.estable_s, "esperar_estable": not b.a.no_esperar_estable,
+                      "esperado_s": round(b.esperado_estable_s, 1)},
          "rtmp": {"sesiones": rtmp_ses, "huecos": rtmp_huecos}}
     if nocturno:
         # Contra la nocturna anterior de la misma carpeta (Logs/caos): antes de escribir la de
         # ahora, así no se encuentra a sí misma.
         j["nocturno"] = True
-        ant = comparar.anterior(os.path.dirname(os.path.abspath(carpeta)), carpeta)
+        ant = comparar.anterior(os.path.dirname(os.path.abspath(carpeta)), carpeta, b.modo)
         j["comparacion"] = comparar.comparar(comparar.leer(ant) if ant else None, j)
         j["comparacion"]["informe_anterior"] = ant
     os.makedirs(carpeta, exist_ok=True)
     with open(os.path.join(carpeta, "caos.json"), "w", encoding="utf-8") as f:
         json.dump(j, f, ensure_ascii=False, indent=1)
     s = lambda x: "—" if x is None else f"{x:.2f}"
+    emisor = b.modo == "emisor"
     md = [f"# Banco de caos — {j['fecha']}", "",
           f"App {j['app'].get('version')} ({j['app'].get('generado')}), {j['maquina']['sistema']} {j['maquina']['version']}. "
-          f"Plazo por escenario: {b.a.plazo_s:.0f} s.", ""]
+          f"Plazo por escenario: {b.a.plazo_s:.0f} s.", "",
+          "**Modo: " + ("emisor aparte** (ba-emisor codifica, transmite y graba la salida principal; F3-01)." if emisor
+                        else "normal** (la app codifica, transmite y graba)."),
+          "",
+          (f"Entre escenarios que tiran abajo el mismo hijo, el banco esperó a que el launcher olvidara sus caídas "
+           f"(launcher.estableS = {b.estable_s:.0f} s; {b.esperado_estable_s:.0f} s en total)." if not b.a.no_esperar_estable
+           else "Sin esperar launcher.estableS entre escenarios (--no-esperar-estable): mirá la columna Backoff."), ""]
     if corte:
         md += [f"**Cortó antes de terminar:** {corte}", ""]
-    md += ["| Escenario | Veces | RTO p50 (s) | RTO p95 (s) | MCP p50 (s) | Anillos p50 (s) | 1.er cuadro p50/p95 (s) | No volvió |",
-           "|---|---|---|---|---|---|---|---|"]
+    md += ["| Escenario | Veces | RTO p50 (s) | RTO p95 (s) | App vuelve p50 (s) | Hueco tx máx (s) | Cortes | "
+           "Detectado p50 (s) | Backoff (s) | Anillos p50 (s) | 1.er cuadro p50/p95 (s) | No volvió |",
+           "|---|---|---|---|---|---|---|---|---|---|---|---|"]
     for n, e in esc.items():
-        if e["saltado"]:
-            md.append(f"| {n} | — | saltado: {e['saltado']} | | | | | |")
+        if e["saltado"] or e["no_aplica"]:
+            que = f"saltado: {e['saltado']}" if e["saltado"] else f"no aplica: {e['no_aplica']}"
+            md.append(f"| {n} | — | {que} | | | | | | | | | |")
             continue
-        md.append(f"| {n} | {len(e['repeticiones'])} | {s(e['rto_p50_s'])} | {s(e['rto_p95_s'])} | {s(e['mcp_p50_s'])} | "
+        back = ", ".join(str(x) for x in e["backoff_s"]) or "—"
+        if e["modo_seguro"]:
+            back += " (modo seguro)"
+        md.append(f"| {n} | {len(e['repeticiones'])} | {s(e['rto_p50_s'])} | {s(e['rto_p95_s'])} | {s(e['app_p50_s'])} | "
+                  f"{s(e['hueco_tx_max_s'])} | {e['cortes'] if emisor else '—'} | {s(e['detectado_p50_s'])} | {back} | "
                   f"{s(e['anillos_p50_s'])} | {s(e['primer_cuadro_p50_s'])}/{s(e['primer_cuadro_p95_s'])} | {e['no_volvio']} |")
-    md += ["", "RTO: de la falla al primer cuadro de una conexión NUEVA en el servidor RTMP local (en la grabación: "
-           "a que el MKV vuelva a crecer). Anillos: primera línea de reapertura en Logs/gateway.log. 1.er cuadro: el "
-           "motor de la A relanzada saca su primer cuadro de programa (Logs/app.log; meta F3-10: < 3 s).", "",
+    md += ["", ("RTO: con el emisor aparte, en las fallas de la app, el hueco más largo de video en el servidor RTMP local "
+                "(la transmisión no se corta: 0 conexiones y 0 archivos nuevos, si no suma en Cortes); en las del emisor, "
+                "al primer cuadro de una conexión NUEVA." if emisor else
+                "RTO: de la falla al primer cuadro de una conexión NUEVA en el servidor RTMP local (en la grabación: "
+                "a que el MKV vuelva a crecer).") +
+           " App vuelve: la app contesta por MCP (o, con la GPU perdida, terminó de rearmarse). Hueco tx: lo que el "
+           "público no vio. Detectado: el supervisor se dio cuenta del frenado y lo mató. Backoff: la espera para "
+           "relanzar que agendó el launcher (Logs/launcher.log). Anillos: primera línea de reapertura en "
+           "Logs/gateway.log. 1.er cuadro: el motor de la A relanzada saca su primer cuadro de programa (Logs/app.log; "
+           "meta F3-10: < 3 s).", "",
            f"## Grabación ({len(mkv.get('archivos', []))} partes)", "",
            f"Hueco máximo entre partes: {s(mkv.get('hueco_max_s'))} s. "
            f"No abren: {', '.join(mkv.get('no_abren', [])) or 'ninguna'}.", ""]
@@ -806,6 +951,9 @@ def main() -> int:
     ap.add_argument("--no-matar", action="store_true", help="al final, app_quit pero sin matar lo que quede")
     ap.add_argument("--emisor-aparte", action="store_true",
                     help="con --lanzar: la salida principal la codifica ba-emisor (F3-01; para kill_a_con_emisor)")
+    ap.add_argument("--no-esperar-estable", action="store_true",
+                    help="no esperar launcher.estableS entre escenarios que tiran abajo el mismo hijo: el backoff "
+                         "que crece se informa en cada uno (backoff_s, modo_seguro)")
     a = ap.parse_args()
     if a.nocturno:
         a.repeticiones, a.plazo_s = max(a.repeticiones, 5), max(a.plazo_s, 90.0)
@@ -831,6 +979,10 @@ def main() -> int:
         b.preparar()
         for e in escenarios:
             b.resultados[e] = []
+            if (por := b.no_aplica(e)) is not None:
+                log(f"== {e}: no aplica ({por})")
+                b.resultados[e].append({"no_aplica": por})
+                continue
             for i in range(a.repeticiones):
                 b.asegurar_aire()
                 log(f"== {e} ({i + 1}/{a.repeticiones})")
@@ -862,7 +1014,7 @@ def main() -> int:
     log("informe:", os.path.join(carpeta, "caos.md"))
     if corte and not b.resultados:
         return 2
-    no_volvio = sum(e["no_volvio"] for e in j["escenarios"].values())
+    no_volvio = sum(e["no_volvio"] + e["cortes"] for e in j["escenarios"].values())
     if corte or no_volvio:
         return 1
     if a.nocturno and j["comparacion"]["regresiones"]:
