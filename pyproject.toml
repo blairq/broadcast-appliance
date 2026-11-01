@@ -4,7 +4,7 @@
 
 [project]
 name = "broadcast-appliance"
-version = "2.0.0"
+version = "2.1.0"
 description = "Repo-invariant pytest suite for the broadcast-appliance C++20 broadcast appliance"
 requires-python = ">=3.10"
 

@@ -22,7 +22,7 @@ cmake_minimum_required(VERSION 3.21)
 # --- Proyecto ---------------------------------------------------------------
 project(
     BroadcastAppliance
-    VERSION 2.0.0
+    VERSION 2.1.0
     DESCRIPTION "Broadcast Appliance Portable v2 (motor GStreamer + Gateway WebRTC + Supervisor)"
     LANGUAGES C CXX
 )

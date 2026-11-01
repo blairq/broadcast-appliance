@@ -14,7 +14,7 @@
 # ============================================================================
 
 PROJECT_NAME           = "Broadcast Appliance Portable v2"
-PROJECT_NUMBER         = 2.0.0
+PROJECT_NUMBER         = 2.1.0
 PROJECT_BRIEF          = "Appliance de emisión en vivo (motor GStreamer + WebRTC + Supervisor)"
 
 # --- Entradas ----------------------------------------------------------------
