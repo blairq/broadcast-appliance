@@ -26,6 +26,7 @@
 #include <QJsonObject>
 #include <QObject>
 #include <QString>
+#include <QStringList>
 #include <QUrl>
 #include <QUrlQuery>
 
@@ -119,6 +120,8 @@ class YouTubeClient : public QObject {
 
     /// Texto legible de un error de Google (tambien lo usan los tests).
     static QString explain(int status, const QByteArray& body);
+    /// Los permisos que pide el login (scope de OAuth): un solo lugar.
+    static QStringList permisos();
 
    signals:
     void stateChanged();

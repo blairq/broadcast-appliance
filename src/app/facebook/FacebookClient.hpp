@@ -29,6 +29,7 @@
 #include <QJsonObject>
 #include <QObject>
 #include <QString>
+#include <QStringList>
 #include <QUrlQuery>
 
 #include <functional>
@@ -98,6 +99,8 @@ class FacebookClient : public QObject {
     /// Separa la URL RTMPS de Facebook en servidor + clave (la transmisión las lleva aparte).
     static bool splitIngest(const QString& secureUrl, QString& server, QString& key);
     static QString explain(int status, const QByteArray& body);
+    /// Los permisos que pide el login (y los que account_check exige): un solo lugar.
+    static QStringList permisos();
 
    signals:
     void stateChanged();

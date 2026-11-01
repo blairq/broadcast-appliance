@@ -11,18 +11,23 @@
 //   account_check                prueba real de la conexion con diagnostico
 // Crear las apps en Google/Twitch/Meta lo tiene que hacer la persona (con su
 // cuenta y aceptando sus terminos); todo lo demas se automatiza.
+//
+// Tambien arma la fabrica de lo comun de las tres (McpPlataformas) con las
+// plataformas de CuentasViewModel: registerPlataformaTools.
 // ============================================================================
 
+#include <QCoreApplication>
 #include <QJsonArray>
-#include <QUrlQuery>
 
 #include <algorithm>
 #include <memory>
 
 #include "i18n/I18n.hpp"
 #include "net/AccountGuides.hpp"
+#include "mcp/McpPlataformas.hpp"
 #include "mcp/McpService.hpp"
 #include "mcp/McpToolsCommon.hpp"
+#include "ui/CuentasViewModel.hpp"
 #include "ui/FacebookViewModel.hpp"
 #include "ui/OperatorMessages.hpp"
 #include "ui/StudioViewModel.hpp"
@@ -37,71 +42,44 @@ const json kPlatformArg{{"type", "string"}, {"enum", {"youtube", "twitch", "face
 
 } // namespace
 
+void McpService::registerPlataformaTools() {
+    CuentasViewModel& c = vm_.cuentas();
+    registrarPlataformas(
+        core_, Plataformas{c.youtube(), c.twitch(), c.facebook(),
+                           [cuentas = &c](const QString& plataforma, const QVariantMap& campos) {
+                               return cuentas->saveAccountCredential(plataforma, campos);
+                           },
+                           [](auto listo) {
+                               // El disco, en el pool; la respuesta, en la interfaz.
+                               auto leido = std::make_shared<CuentasViewModel::ArchivoDeCredencial>();
+                               enPool(
+                                   qApp,
+                                   [leido]() {
+                                       *leido = CuentasViewModel::leerArchivoDeCredencial({{"fromDownloads", true}});
+                                       return ToolResult();
+                                   },
+                                   [leido, listo](const ToolResult&) { listo(leido->ruta, leido->contenido, leido->error); });
+                           }});
+    registerYouTubeTools();
+    registerTwitchTools();
+    registerFacebookTools();
+}
+
 void McpService::registerAccountTools() {
     core_.addCategory(
         "cuentas", ba::i18n::traducir("mcp", "Cuentas (YouTube, Twitch, Facebook)"),
         ba::i18n::traducir("mcp", "Conectar las cuentas de las plataformas: qué falta, pasos guiados con enlaces, formulario "
         "seguro para las credenciales y prueba de la conexión. Empezar por accounts_status."));
-    auto* yt = static_cast<YouTubeViewModel*>(vm_.youtube());
-    auto* tw = static_cast<TwitchViewModel*>(vm_.twitch());
-    auto* fb = static_cast<FacebookViewModel*>(vm_.facebook());
+    CuentasViewModel& cuentas = vm_.cuentas();
+    YouTubeViewModel* yt = &cuentas.youtube();
+    TwitchViewModel* tw = &cuentas.twitch();
+    FacebookViewModel* fb = &cuentas.facebook();
     auto* msgs = static_cast<OperatorMessages*>(vm_.messages());
 
-    // Estado + paso siguiente de cada plataforma.
-    const auto state = [yt, tw, fb](const std::string& p) -> json {
-        if (p == "youtube") {
-            const QJsonObject ch = yt->client().account();
-            json s{{"configured", yt->configured()},
-                   {"loggedIn", yt->loggedIn()},
-                   {"loginPending", yt->loginPending()},
-                   {"account", ch.value("title").toString().toStdString()}};
-            s["next"] = !yt->configured()
-                            ? ba::i18n::traducir("mcp", "Falta la credencial de Google: account_setup_guide + "
-                                                        "account_credentials_request (o youtube_setup "
-                                                        "{\"fromDownloads\": true} si ya bajo el JSON).")
-                        : yt->loginPending()
-                            ? ba::i18n::traducir("mcp", "Login en curso: la persona tiene que elegir la cuenta en el "
-                                                        "navegador.")
-                        : !yt->loggedIn()
-                            ? ba::i18n::traducir("mcp", "Falta conectar la cuenta: youtube_login.")
-                            : ba::i18n::traducir("mcp", "Listo. account_check {\"platform\": \"youtube\"} lo verifica.");
-            return s;
-        }
-        if (p == "twitch") {
-            json s{{"configured", tw->configured()},
-                   {"loggedIn", tw->loggedIn()},
-                   {"loginPending", tw->loginPending()},
-                   {"account", tw->client().user().value("display_name").toString().toStdString()}};
-            if (tw->loginPending()) {
-                s["userCode"] = tw->userCode().toStdString();
-                s["verificationUri"] = tw->verificationUri().toStdString();
-            }
-            s["next"] = !tw->configured()
-                            ? ba::i18n::traducir("mcp", "Falta el ID de cliente de una app de Twitch: account_setup_guide + "
-                                                        "account_credentials_request.")
-                        : tw->loginPending()
-                            ? ba::i18n::traducir("mcp", "Login en curso: la persona confirma el codigo userCode en "
-                                                        "verificationUri (twitch.tv/activate).")
-                        : !tw->loggedIn()
-                            ? ba::i18n::traducir("mcp", "Falta conectar la cuenta: twitch_login.")
-                            : ba::i18n::traducir("mcp", "Listo. account_check {\"platform\": \"twitch\"} lo verifica.");
-            return s;
-        }
-        json s{{"configured", fb->configured()},
-               {"loggedIn", fb->loggedIn()},
-               {"loginPending", fb->loginPending()},
-               {"account", fb->client().user().value("name").toString().toStdString()},
-               {"page", fb->client().page().value("name").toString().toStdString()},
-               {"redirectUri", fb->redirectUri().toStdString()}};
-        s["next"] = !fb->configured()
-                        ? ba::i18n::traducir("mcp", "Falta la app de Meta (ID + clave secreta): account_setup_guide + "
-                                                    "account_credentials_request.")
-                    : fb->loginPending() ? ba::i18n::traducir("mcp", "Login en curso: la persona autoriza en el navegador.")
-                    : !fb->loggedIn()    ? ba::i18n::traducir("mcp", "Falta conectar la cuenta: facebook_login.")
-                    : fb->client().pageId().isEmpty()
-                        ? ba::i18n::traducir("mcp", "Falta elegir la pagina donde transmitir: facebook_pages.")
-                        : ba::i18n::traducir("mcp", "Listo. account_check {\"platform\": \"facebook\"} lo verifica.");
-        return s;
+    // Estado + paso siguiente de cada plataforma (el de la plataforma: estadoDeCuenta).
+    const auto state = [c = &cuentas](const std::string& p) -> json {
+        const PlataformaViewModel* pl = c->plataforma(QString::fromStdString(p));
+        return pl != nullptr ? estadoDeCuenta(*pl) : json::object();
     };
 
     {
@@ -113,10 +91,9 @@ void McpService::registerAccountTools() {
         t.description =
             QT_TRANSLATE_NOOP("mcp", "Para YouTube, Twitch y Facebook: si hay credencial, si hay cuenta conectada (cual) y el "
             "PASO SIGUIENTE (`next`). Nunca devuelve secretos.");
-        t.run = [state](const json&, Done done) {
-            done(ToolResult().data(json{{"youtube", state("youtube")},
-                                        {"twitch", state("twitch")},
-                                        {"facebook", state("facebook")}}));
+        t.run = [yt, tw, fb](const json&, Done done) {
+            done(ToolResult().data(
+                json{{"youtube", estadoDeCuenta(*yt)}, {"twitch", estadoDeCuenta(*tw)}, {"facebook", estadoDeCuenta(*fb)}}));
         };
         core_.addTool(std::move(t));
     }
@@ -249,10 +226,10 @@ void McpService::registerAccountTools() {
             if (!st.value("configured", false) || !st.value("loggedIn", false))
                 return done(ToolResult().data(json{{"ok", false}, {"problem", st.value("next", "")}}));
             if (p == "youtube") {
-                yt->client().loadChannel([yt, done](bool ok, const QJsonObject& ch, const QString& e) {
+                yt->cargarCanal([yt, done](bool ok, const QJsonObject& ch, const QString& e) {
                     if (!ok)
                         return done(ToolResult().data(json{{"ok", false}, {"problem", e.toStdString()}}));
-                    yt->client().listBroadcasts([done, ch](bool ok2, const QJsonObject&, const QString& e2) {
+                    yt->listarEventos([done, ch](bool ok2, const QJsonObject&, const QString& e2) {
                         json r{{"ok", ok2},
                                {"channel", ch.value("title").toString().toStdString()},
                                {"liveEnabled", ok2}};
@@ -263,13 +240,10 @@ void McpService::registerAccountTools() {
                 return;
             }
             if (p == "twitch") {
-                tw->client().channel([tw, done](bool ok, const QJsonObject& ch, const QString& e) {
+                tw->leerCanal([tw, done](bool ok, const QJsonObject& ch, const QString& e) {
                     if (!ok)
                         return done(ToolResult().data(json{{"ok", false}, {"problem", e.toStdString()}}));
-                    QUrlQuery q;
-                    q.addQueryItem("broadcaster_id", tw->client().user().value("id").toString());
-                    tw->client().api(
-                        "GET", "/streams/key", q, {},
+                    tw->probarClave(
                         [done, ch](bool ok2, const QJsonObject&, const QString& e2) {
                             json r{{"ok", ok2}, {"channel", toJson(ch)}, {"streamKeyAccess", ok2}};
                             if (!ok2)
@@ -282,8 +256,8 @@ void McpService::registerAccountTools() {
                 });
                 return;
             }
-            fb->client().graph(
-                "GET", "/me/permissions", {}, [fb, done](bool ok, const QJsonObject& d, const QString& e) {
+            fb->permisosOtorgados(
+                [fb, done](bool ok, const QJsonObject& d, const QString& e) {
                     if (!ok)
                         return done(ToolResult().data(json{{"ok", false}, {"problem", e.toStdString()}}));
                     json granted = json::array();
@@ -293,20 +267,20 @@ void McpService::registerAccountTools() {
                         (o.value("status").toString() == "granted" ? granted : missing)
                             .push_back(o.value("permission").toString().toStdString());
                     }
-                    for (const char* need : {"pages_show_list", "pages_manage_posts", "publish_video"}) {
-                        bool have = false;
-                        for (const auto& g : granted)
-                            have = have || g == need;
-                        if (!have && std::find(missing.begin(), missing.end(), need) == missing.end())
+                    // Todos los que pide el login (los permisos de la plataforma: un solo lugar).
+                    for (const QString& permiso : fb->permisos()) {
+                        const std::string need = permiso.toStdString();
+                        if (std::find(granted.begin(), granted.end(), need) == granted.end() &&
+                            std::find(missing.begin(), missing.end(), need) == missing.end())
                             missing.push_back(need);
                     }
-                    const int pages = static_cast<int>(fb->client().pages().size());
-                    const bool pageChosen = !fb->client().pageId().isEmpty();
+                    const int pages = static_cast<int>(fb->paginas().size());
+                    const bool pageChosen = !fb->pageId().isEmpty();
                     json r{{"ok", missing.empty() && pages > 0 && pageChosen},
                            {"granted", granted},
                            {"missing", missing},
                            {"pages", pages},
-                           {"page", fb->client().page().value("name").toString().toStdString()}};
+                           {"page", fb->page().value("name").toString().toStdString()}};
                     if (!missing.empty())
                         r["problem"] = ba::i18n::traducir("mcp", "Faltan permisos: al conectar, la persona tiene que aceptar todos (y "
                                                                  "elegir la pagina). facebook_logout + facebook_login.");

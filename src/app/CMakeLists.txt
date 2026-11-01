@@ -710,6 +710,15 @@ endif()
     set_target_properties(test_youtube PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_youtube COMMAND test_youtube)
 
+    # Lo común de YouTube, Twitch y Facebook: la fábrica de herramientas del MCP
+    # (mcp/McpPlataformas) con tres plataformas falsas y un McpCore de verdad.
+    add_executable(test_plataformas tests/test_plataformas.cpp mcp/McpPlataformas.cpp ui/PlataformaViewModel.cpp
+                   mcp/McpCore.cpp mcp/McpAire.cpp mcp/McpIndice.cpp mcp/McpEtiquetas.cpp mcp/McpTraza.cpp)
+    target_include_directories(test_plataformas PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    target_link_libraries(test_plataformas PRIVATE ba_core Qt6::Core Qt6::Gui Qt6::Network)
+    set_target_properties(test_plataformas PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
+    add_test(NAME test_plataformas COMMAND test_plataformas)
+
     # El PTZ: protocolos byte a byte y cada backend contra una camara falsa
     # (VISCA UDP/TCP, Panasonic HTTP, ONVIF HTTP con WS-Security, WS-Discovery).
     add_executable(test_ptz tests/test_ptz.cpp ptz/PtzProtocolos.cpp ptz/PtzBackend.cpp ptz/PtzVisca.cpp

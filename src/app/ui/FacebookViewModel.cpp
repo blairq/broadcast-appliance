@@ -6,15 +6,10 @@
 #include "ajustes/Ajustes.hpp"
 #include "platform/Paths.hpp"
 
-#include <algorithm>
-#include <QClipboard>
-#include <QDesktopServices>
 #include <QDir>
 #include <QFileInfo>
-#include <QGuiApplication>
 #include <QPointer>
 #include <QSet>
-#include <QUrl>
 
 #include "arranque/AppRuntime.hpp"
 #include "ui/AireDeCuentas.hpp"
@@ -37,7 +32,7 @@ QJsonArray withUid(const QJsonArray& in) {
 } // namespace
 
 FacebookViewModel::FacebookViewModel(AppRuntime& rt, VentanillaMotor& ventanilla, GrabacionesModel& grabaciones, QObject* parent)
-    : QObject(parent), rt_(rt), ventanilla_(ventanilla), client_(std::make_unique<FacebookClient>(
+    : PlataformaViewModel(parent), rt_(rt), ventanilla_(ventanilla), client_(std::make_unique<FacebookClient>(
                                     QString::fromStdString((ba::platform::credentialsDir()).string()))),
       lives_(std::make_unique<JsonListModel>(
           QStringList{"uid", "title", "description", "status", "url", "views", "created"})),
@@ -89,15 +84,35 @@ QObject* FacebookViewModel::videos() const { return videos_.get(); }
 QObject* FacebookViewModel::recordings() const { return &grabaciones_; }
 QObject* FacebookViewModel::chat() const { return chat_.get(); }
 
-void FacebookViewModel::setError(const QString& e) {
-    lastError_ = e;
-    emit errorChanged();
-    if (!e.isEmpty()) emit notify(e.startsWith("Facebook") ? e : tr("Facebook: %1").arg(e), "error");
+PlataformaViewModel::Falta FacebookViewModel::falta() const {
+    const Falta f = PlataformaViewModel::falta();
+    return f == Falta::Nada && pageId().isEmpty() ? Falta::Pagina : f;
 }
 
-void FacebookViewModel::track(bool start) {
-    busy_ = std::max(0, busy_ + (start ? 1 : -1));
-    emit busyChanged();
+QJsonObject FacebookViewModel::estadoCuenta() const {
+    QJsonObject s = PlataformaViewModel::estadoCuenta();
+    s.insert("page", client_->page().value("name").toString());
+    s.insert("redirectUri", redirectUri());
+    return s;
+}
+
+QJsonObject FacebookViewModel::estado() const {
+    return QJsonObject{{"configured", configured()},
+                       {"loggedIn", loggedIn()},
+                       {"loginPending", loginPending()},
+                       {"appId", appId()},
+                       {"redirectUri", redirectUri()},
+                       {"user", client_->user()},
+                       {"page", client_->page()},
+                       {"liveId", liveId_},
+                       {"appStreaming", cuentas::transmitiendo(ventanilla_)}, // de la foto
+                       {"chatLiveId", chatLiveId_},
+                       {"upload", QJsonObject::fromVariantMap(upload_)}};
+}
+
+QString FacebookViewModel::guardarCredencial(const QVariantMap& v) {
+    return saveClient(v.value("appId").toString().trimmed(), v.value("appSecret").toString().trimmed(),
+                      v.value("port", port()).toInt());
 }
 
 QString FacebookViewModel::saveClient(const QString& appId, const QString& secret, int port) {
@@ -109,16 +124,7 @@ QString FacebookViewModel::saveClient(const QString& appId, const QString& secre
 
 void FacebookViewModel::clearClient() { client_->clearClient(); }
 
-FacebookClient::Done FacebookViewModel::conRefresco(FacebookClient::Done listo) {
-    return [this, listo = std::move(listo)](bool ok, const QJsonObject& d, const QString& e) {
-        if (ok) refresh();
-        if (listo) listo(ok, d, e);
-    };
-}
-
-void FacebookViewModel::login() { login(FacebookClient::Done{}); }
-
-void FacebookViewModel::login(FacebookClient::Done listo) {
+void FacebookViewModel::login(Done listo) {
     setError({});
     client_->login([this, listo](bool ok, const QJsonObject& d, const QString& e) {
         if (!ok) {
@@ -217,12 +223,19 @@ void FacebookViewModel::alSalir(const QJsonObject& d, const QJsonObject& ing, co
 }
 
 void FacebookViewModel::publishLive(const QString& id) {
-    client_->publishLive(id, [this](bool ok, const QJsonObject&, const QString& e) {
+    publicarVivo(id, [this](bool ok, const QJsonObject&, const QString& e) {
         if (!ok) return setError(e);
         emit notify(tr("Vivo publicado en la Pagina."), "ok");
-        refresh();
     });
 }
+
+void FacebookViewModel::publicarVivo(const QString& id, Done done) { client_->publishLive(id, alVolver(std::move(done))); }
+
+void FacebookViewModel::vivos(Done done) { client_->liveVideos(std::move(done)); }
+
+void FacebookViewModel::estadoDeVivo(const QString& id, Done done) { client_->liveStatus(id, std::move(done)); }
+
+void FacebookViewModel::permisosOtorgados(Done done) { client_->graph("GET", "/me/permissions", {}, std::move(done)); }
 
 void FacebookViewModel::endLive(const QString& id) {
     endLive(id, [this](bool ok, const QJsonObject&, const QString& e) {
@@ -243,20 +256,24 @@ void FacebookViewModel::endLive(const QString& id, FacebookClient::Done done) {
 }
 
 void FacebookViewModel::deleteItem(const QString& id) {
-    client_->deleteObject(id, [this](bool ok, const QJsonObject&, const QString& e) {
+    borrar(id, [this](bool ok, const QJsonObject&, const QString& e) {
         if (!ok) return setError(e);
         emit notify(tr("Borrado de Facebook."), "ok");
-        refresh();
     });
 }
 
+void FacebookViewModel::borrar(const QString& id, Done done) { client_->deleteObject(id, alVolver(std::move(done))); }
+
 void FacebookViewModel::updateVideo(const QString& id, const QString& title, const QString& description) {
-    client_->updateVideo(id, QJsonObject{{"title", title}, {"description", description}},
-                         [this](bool ok, const QJsonObject&, const QString& e) {
-                             if (!ok) return setError(e);
-                             emit notify(tr("Video actualizado."), "ok");
-                             refresh();
-                         });
+    cambiarVideo(id, QJsonObject{{"title", title}, {"description", description}},
+                 [this](bool ok, const QJsonObject&, const QString& e) {
+                     if (!ok) return setError(e);
+                     emit notify(tr("Video actualizado."), "ok");
+                 });
+}
+
+void FacebookViewModel::cambiarVideo(const QString& id, const QJsonObject& cambios, Done done) {
+    client_->updateVideo(id, cambios, alVolver(std::move(done)));
 }
 
 void FacebookViewModel::uploadRecording(const QString& path, const QString& title,
@@ -327,8 +344,5 @@ void FacebookViewModel::sendChat(const QString& text) {
         chatTimer_.start(500);
     });
 }
-
-void FacebookViewModel::openUrl(const QString& url) { QDesktopServices::openUrl(QUrl(url)); }
-void FacebookViewModel::copy(const QString& text) { QGuiApplication::clipboard()->setText(text); }
 
 } // namespace ba::app

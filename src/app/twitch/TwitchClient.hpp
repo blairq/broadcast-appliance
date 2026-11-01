@@ -27,6 +27,7 @@
 #include <QJsonObject>
 #include <QObject>
 #include <QString>
+#include <QStringList>
 #include <QUrlQuery>
 
 #include <atomic>
@@ -103,6 +104,8 @@ class TwitchClient : public QObject {
     const QJsonArray& chatMessages() const { return chat_; }
 
     static QString explain(int status, const QByteArray& body);
+    /// Los permisos que pide el login (scopes): un solo lugar.
+    static QStringList permisos();
 
    signals:
     void stateChanged();

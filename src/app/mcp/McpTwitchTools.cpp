@@ -1,17 +1,13 @@
 // ============================================================================
 // src/app/mcp/McpTwitchTools.cpp — Herramientas de Twitch del servidor MCP
 //
-// Las mismas capas que la pagina Twitch (TwitchViewModel/TwitchClient):
-// cuenta (login por codigo), canal (titulo, categoria, etiquetas), transmitir
-// desde la app, estado del vivo, VODs y chat.
+// Lo propio de Twitch, por la pagina (TwitchViewModel): canal (titulo, categoria,
+// etiquetas), transmitir desde la app, estado del vivo, borrar VODs y chat. La cuenta
+// (login por codigo), el estado y la lista de VODs: la fábrica (McpPlataformas).
 // ============================================================================
 
-#include <memory>
-#include <optional>
-
 #include "i18n/I18n.hpp"
-#include "arranque/AppRuntime.hpp"
-#include "emision/VentanillaMotor.hpp"
+#include "mcp/McpPlataformas.hpp"
 #include "mcp/McpService.hpp"
 #include "mcp/McpToolsCommon.hpp"
 #include "ui/StudioViewModel.hpp"
@@ -19,170 +15,15 @@
 
 namespace ba::app::mcp {
 
-namespace {
-
-TwitchClient::Done reply(Done done, const std::string& okText = {}) {
-    return [done, okText](bool ok, const QJsonObject& d, const QString& e) {
-        if (!ok) return done(ToolResult::error("Twitch: " + e.toStdString()));
-        ToolResult r;
-        if (!okText.empty()) r.text(okText);
-        if (!d.isEmpty()) r.data(toJson(d));
-        done(r);
-    };
-}
-
-} // namespace
-
 void McpService::registerTwitchTools() {
     core_.addCategory(
         "twitch", ba::i18n::traducir("mcp", "Twitch"),
         ba::i18n::traducir("mcp", "Canal de Twitch: título y categoría, transmitir desde la app, estado del vivo, VODs y chat. "
         "Primero twitch_status: si no está configurado o conectado, explica qué falta."));
     auto* tw = static_cast<TwitchViewModel*>(vm_.twitch());
-    const auto needLogin = [tw](Done& done) {
-        if (!tw->configured()) {
-            done(ToolResult::error(
-                ba::i18n::traducir("mcp", "Twitch no esta configurado: falta el ID de cliente de una app de dev.twitch.tv. "
-                "Usa twitch_setup (o la pestaña Twitch de la app, con los pasos y enlaces); "
-                "help {\"topic\": \"twitch\"} los explica.")));
-            return true;
-        }
-        if (!tw->loggedIn()) {
-            done(ToolResult::error(
-                ba::i18n::traducir("mcp", "No hay una cuenta de Twitch conectada: llama twitch_login (muestra un codigo que "
-                "la persona confirma en twitch.tv/activate).")));
-            return true;
-        }
-        return false;
-    };
+    const auto needLogin = [tw](const Done& done) { return faltaParaUsar(*tw, done); };
+    const auto reply = [tw](Done done, const std::string& okText = {}) { return responder(std::move(done), *tw, okText); };
 
-    {
-        Tool t;
-        t.name = "twitch_status";
-        t.title = ba::i18n::traducir("mcp", "Estado de Twitch");
-        t.category = "twitch";
-        t.clase = Clase::Lectura;
-        t.description =
-            QT_TRANSLATE_NOOP("mcp", "Si la app de Twitch esta configurada, que cuenta esta conectada, si hay un login en curso (con "
-            "su codigo), datos del canal, si esta en vivo y si la app transmite a Twitch.");
-        // Si la app transmite, de la foto del motor (la interfaz no entra al motor).
-        t.run = [tw, &vm = vm_](const json&, Done done) {
-            done(ToolResult().data(json{{"configured", tw->configured()},
-                                        {"loggedIn", tw->loggedIn()},
-                                        {"loginPending", tw->loginPending()},
-                                        {"userCode", tw->userCode().toStdString()},
-                                        {"verificationUri", tw->verificationUri().toStdString()},
-                                        {"clientId", tw->clientId().toStdString()},
-                                        {"user", qvToJson(tw->user())},
-                                        {"channel", qvToJson(tw->channel())},
-                                        {"stream", qvToJson(tw->stream())},
-                                        {"streamingHere", tw->streamingHere()},
-                                        {"appStreaming", vm.ventanilla().foto().estado.transmite},
-                                        {"chatOn", tw->chatOn()}}));
-        };
-        core_.addTool(std::move(t));
-    }
-    {
-        Tool t;
-        t.name = "twitch_setup";
-        t.destructivaSi = "clear"; // clear=true borra
-        t.title = ba::i18n::traducir("mcp", "Configurar la app de Twitch");
-        t.category = "twitch";
-        t.clase = Clase::Escritura;
-        t.description =
-            QT_TRANSLATE_NOOP("mcp", "Guarda el ID de cliente de la app registrada en dev.twitch.tv (tipo Publico; `clientSecret` "
-            "solo si es Confidencial). clear=true la borra.");
-        t.inputSchema = {{"type", "object"},
-                         {"properties",
-                          {{"clientId", {{"type", "string"}}},
-                           {"clientSecret", {{"type", "string"}}},
-                           {"clear", {{"type", "boolean"}}}}}};
-        t.run = [tw](const json& a, Done done) {
-            if (a.value("clear", false)) {
-                tw->clearClient();
-                return done(ToolResult::ok(ba::i18n::traducir("mcp", "App de Twitch borrada.")));
-            }
-            const QString e = tw->saveClient(QString::fromStdString(a.value("clientId", std::string())),
-                                             QString::fromStdString(a.value("clientSecret", std::string())));
-            done(e.isEmpty() ? ToolResult::ok(ba::i18n::traducir("mcp", "App guardada. Siguiente paso: twitch_login."))
-                             : ToolResult::error(e.toStdString()));
-        };
-        core_.addTool(std::move(t));
-    }
-    {
-        Tool t;
-        t.name = "twitch_login";
-        t.title = ba::i18n::traducir("mcp", "Conectar una cuenta de Twitch");
-        t.category = "twitch";
-        t.clase = Clase::Escritura;
-        t.openWorld = true;
-        t.description =
-            QT_TRANSLATE_NOOP("mcp", "Pide un codigo a Twitch y abre twitch.tv/activate en el navegador de esta maquina: la PERSONA "
-            "inicia sesion con la cuenta del canal y confirma. Devuelve el codigo (mostraselo). Con "
-            "wait=true espera a que termine (max. 5 min); si no, twitch_status dice cuando quedo "
-            "conectado. cancel=true cancela.");
-        t.inputSchema = {
-            {"type", "object"},
-            {"properties",
-             {{"wait", {{"type", "boolean"}, {"default", false}}}, {"cancel", {{"type", "boolean"}}}}}};
-        t.run = [tw](const json& a, Done done) {
-            if (a.value("cancel", false)) {
-                tw->cancelLogin();
-                return done(ToolResult::ok(ba::i18n::traducir("mcp", "Login cancelado.")));
-            }
-            if (!tw->configured()) return done(ToolResult::error(ba::i18n::traducir("mcp", "Primero twitch_setup (ID de cliente).")));
-            if (a.value("wait", false)) {
-                // El login del modelo (relee la cuenta y avisa a la página), con la respuesta.
-                tw->login([done](bool ok, const QJsonObject& u, const QString& e) {
-                    if (!ok) return done(ToolResult::error(e.toStdString()));
-                    done(ToolResult().data(json{{"connected", toJson(u)}}));
-                });
-                return;
-            }
-            // El código llega en un momento y el modelo AVISA (cuentaChanged): se espera esa
-            // señal (máx. ~8 s), no se lo sondea. Un error del login contesta antes.
-            auto contestado = std::make_shared<bool>(false);
-            const Done unaVez = [contestado, done](ToolResult r) {
-                if (*contestado) return;
-                *contestado = true;
-                done(std::move(r));
-            };
-            tw->login([unaVez](bool ok, const QJsonObject&, const QString& e) {
-                if (!ok) unaVez(ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "Twitch no devolvio el codigo: %1"), {e.toStdString()})));
-            });
-            esperarHasta(
-                tw, &TwitchViewModel::cuentaChanged,
-                [tw]() -> std::optional<ToolResult> {
-                    if (tw->userCode().isEmpty()) return std::nullopt;
-                    return ToolResult()
-                        .text(ba::i18n::llenar(ba::i18n::traducir("mcp", "Codigo: %1 — se abrio %2; la persona confirma ahi. Despues, twitch_status."),
-                                               {tw->userCode().toStdString(), tw->verificationUri().toStdString()}))
-                        .data(json{{"userCode", tw->userCode().toStdString()},
-                                   {"verificationUri", tw->verificationUri().toStdString()}});
-                },
-                8000,
-                [tw]() {
-                    return ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "Twitch no devolvio el codigo: %1"),
-                                                              {tw->lastError().toStdString()}));
-                },
-                unaVez);
-        };
-        core_.addTool(std::move(t));
-    }
-    {
-        Tool t;
-        t.name = "twitch_logout";
-        t.title = ba::i18n::traducir("mcp", "Desconectar la cuenta");
-        t.category = "twitch";
-        t.clase = Clase::Escritura;
-        t.destructive = true;
-        t.description = QT_TRANSLATE_NOOP("mcp", "Revoca el token en Twitch y lo borra de la carpeta portable.");
-        t.run = [tw](const json&, Done done) {
-            tw->logout();
-            done(ToolResult::ok(ba::i18n::traducir("mcp", "Cuenta de Twitch desconectada.")));
-        };
-        core_.addTool(std::move(t));
-    }
     {
         Tool t;
         t.name = "twitch_channel";
@@ -201,18 +42,14 @@ void McpService::registerTwitchTools() {
                            {"language", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "ISO 639-1, p. ej. es")}}},
                            {"search", {{"type", "string"}}}}}};
         t.examples = {R"({"title": "Charla en vivo", "game": "Just Chatting"})"};
-        t.run = [tw, needLogin](const json& a, Done done) {
+        t.run = [tw, needLogin, reply](const json& a, Done done) {
             if (needLogin(done)) return;
-            if (a.contains("search"))
-                return tw->client().searchCategories(QString::fromStdString(a["search"]), reply(done));
-            json changes = a;
-            if (changes.empty()) return tw->client().channel(reply(done));
-            tw->client().updateChannel(toQt(changes),
-                                       tw->conRefresco([tw, done](bool ok, const QJsonObject&, const QString& e) {
-                                           if (!ok)
-                                               return done(ToolResult::error("Twitch: " + e.toStdString()));
-                                           tw->client().channel(reply(done, ba::i18n::traducir("mcp", "Canal actualizado.")));
-                                       }));
+            if (a.contains("search")) return tw->buscarCategorias(QString::fromStdString(a["search"]), reply(done));
+            if (a.empty()) return tw->leerCanal(reply(done));
+            tw->cambiarCanal(toQt(a), [tw, reply, done](bool ok, const QJsonObject&, const QString& e) {
+                if (!ok) return done(ToolResult::error(tw->conNombre(e).toStdString()));
+                tw->leerCanal(reply(done, ba::i18n::traducir("mcp", "Canal actualizado.")));
+            });
         };
         core_.addTool(std::move(t));
     }
@@ -228,11 +65,11 @@ void McpService::registerTwitchTools() {
             "Opcional: `title`/`game` se aplican antes. Verifica con twitch_stream_status en ~15 s.");
         t.inputSchema = {{"type", "object"},
                          {"properties", {{"title", {{"type", "string"}}}, {"game", {{"type", "string"}}}}}};
-        t.run = [tw, needLogin](const json& a, Done done) {
+        t.run = [tw, needLogin, reply](const json& a, Done done) {
             if (needLogin(done)) return;
-            const auto go = [tw, done]() { tw->goLive(reply(done, ba::i18n::traducir("mcp", "Transmitiendo a Twitch."))); };
+            const auto go = [tw, reply, done]() { tw->goLive(reply(done, ba::i18n::traducir("mcp", "Transmitiendo a Twitch."))); };
             if (!a.contains("title") && !a.contains("game")) return go();
-            tw->client().updateChannel(toQt(a), [go, done](bool ok, const QJsonObject&, const QString& e) {
+            tw->cambiarCanal(toQt(a), [go, done](bool ok, const QJsonObject&, const QString& e) {
                 if (!ok) return done(ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "Twitch (canal): %1"), {e.toStdString()})));
                 go();
             });
@@ -248,7 +85,9 @@ void McpService::registerTwitchTools() {
         t.destructive = true;
         t.description =
             QT_TRANSLATE_NOOP("mcp", "Corta la transmision de la app si iba a Twitch (Twitch termina el vivo al dejar de recibir).");
-        t.run = [tw](const json&, Done done) { tw->stopLive(reply(done, ba::i18n::traducir("mcp", "Transmision cortada."))); };
+        t.run = [tw, reply](const json&, Done done) {
+            tw->terminarVivo({}, reply(done, ba::i18n::traducir("mcp", "Transmision cortada.")));
+        };
         core_.addTool(std::move(t));
     }
     {
@@ -259,28 +98,9 @@ void McpService::registerTwitchTools() {
         t.clase = Clase::Lectura;
         t.description =
             QT_TRANSLATE_NOOP("mcp", "Lo que ve Twitch: si el canal esta en vivo, espectadores, desde cuando, titulo y categoria.");
-        t.run = [tw, needLogin](const json&, Done done) {
+        t.run = [tw, needLogin, reply](const json&, Done done) {
             if (needLogin(done)) return;
-            tw->client().streamStatus(reply(done));
-        };
-        core_.addTool(std::move(t));
-    }
-    {
-        Tool t;
-        t.name = "twitch_videos";
-        t.title = ba::i18n::traducir("mcp", "VODs del canal");
-        t.category = "twitch";
-        t.clase = Clase::Lectura;
-        t.description =
-            QT_TRANSLATE_NOOP("mcp", "Videos del canal (vivos guardados, destacados, subidos): id, titulo, enlace, vistas, fecha, "
-            "duracion y tipo.");
-        t.inputSchema = {
-            {"type", "object"},
-            {"properties",
-             {{"max", {{"type", "integer"}, {"minimum", 1}, {"maximum", 100}, {"default", 25}}}}}};
-        t.run = [tw, needLogin](const json& a, Done done) {
-            if (needLogin(done)) return;
-            tw->client().videos(a.value("max", 25), reply(done));
+            tw->estadoDelVivo(reply(done));
         };
         core_.addTool(std::move(t));
     }
@@ -298,12 +118,12 @@ void McpService::registerTwitchTools() {
              {{"ids",
                {{"type", "array"}, {"items", {{"type", "string"}}}, {"minItems", 1}, {"maxItems", 5}}}}},
             {"required", {"ids"}}};
-        t.run = [tw, needLogin](const json& a, Done done) {
+        t.run = [tw, needLogin, reply](const json& a, Done done) {
             if (needLogin(done)) return;
             QStringList ids;
             for (const auto& id : a["ids"])
                 ids << QString::fromStdString(id.get<std::string>());
-            tw->client().deleteVideos(ids, tw->conRefresco(reply(done, ba::i18n::traducir("mcp", "Videos borrados."))));
+            tw->borrarVideos(ids, reply(done, ba::i18n::traducir("mcp", "Videos borrados.")));
         };
         core_.addTool(std::move(t));
     }
@@ -331,12 +151,8 @@ void McpService::registerTwitchTools() {
                 if (!tw->chatOn()) tw->setChatOn(true);
                 tw->sendChat(QString::fromStdString(a["send"]));
             }
-            const QJsonArray& all = tw->chatMessages();
-            const int n = std::min<int>(all.size(), a.value("limit", 30));
-            QJsonArray last;
-            for (int i = all.size() - n; i < all.size(); ++i)
-                last.append(all[i]);
-            done(ToolResult().data(json{{"chatOn", tw->chatOn()}, {"messages", toJson(last)}}));
+            done(ToolResult().data(
+                json{{"chatOn", tw->chatOn()}, {"messages", toJson(tw->ultimosMensajes(a.value("limit", 30)))}}));
         };
         core_.addTool(std::move(t));
     }

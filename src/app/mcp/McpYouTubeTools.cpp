@@ -1,42 +1,24 @@
 // ============================================================================
 // src/app/mcp/McpYouTubeTools.cpp — Herramientas de YouTube del servidor MCP
 //
-// Las mismas capas que la pagina YouTube (YouTubeViewModel/YouTubeClient):
-// cuenta, videos, subidas, eventos en vivo (crear, transmitir desde la app,
-// terminar), chat y la fuente "Chat en vivo" en una escena.
+// Lo propio de YouTube, por la pagina (YouTubeViewModel): videos, subidas, eventos en
+// vivo (crear, transmitir desde la app, terminar), chat y la fuente "Chat en vivo" en
+// una escena. La cuenta, el estado y la lista de videos: la fábrica (McpPlataformas).
 // ============================================================================
 
-#include <QCoreApplication>
 #include <QFileInfo>
-#include <memory>
-#include <QJsonDocument>
 
 #include "i18n/I18n.hpp"
-#include "net/AccountGuides.hpp"
 #include "arranque/AppRuntime.hpp"
 #include "emision/ChatOverlaySource.hpp"
 #include "emision/VentanillaMotor.hpp"
+#include "mcp/McpPlataformas.hpp"
 #include "mcp/McpService.hpp"
 #include "mcp/McpToolsCommon.hpp"
 #include "ui/StudioViewModel.hpp"
 #include "ui/YouTubeViewModel.hpp"
 
 namespace ba::app::mcp {
-
-namespace {
-
-/// Respuesta de YouTubeClient -> resultado MCP.
-YouTubeClient::Done reply(Done done, const std::string& okText = {}) {
-    return [done, okText](bool ok, const QJsonObject& d, const QString& e) {
-        if (!ok) return done(ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "YouTube: %1"), {e.toStdString()})));
-        ToolResult r;
-        if (!okText.empty()) r.text(okText);
-        if (!d.isEmpty()) r.data(toJson(d));
-        done(r);
-    };
-}
-
-} // namespace
 
 void McpService::registerYouTubeTools() {
     core_.addCategory(
@@ -50,46 +32,9 @@ void McpService::registerYouTubeTools() {
                                                 "Facebook y la web), para leerlos y destacarlos."));
     auto* yt = static_cast<YouTubeViewModel*>(vm_.youtube());
     AppRuntime& rt = rt_;
-    const auto needLogin = [yt](Done& done) {
-        if (!yt->configured()) {
-            done(ToolResult::error(
-                ba::i18n::traducir("mcp", "YouTube no esta configurado: falta el cliente OAuth de Google Cloud. Usa "
-                "youtube_setup (o la pestaña YouTube de la app, que tiene los pasos con enlaces); "
-                "help {\"topic\": \"youtube\"} los explica.")));
-            return true;
-        }
-        if (!yt->loggedIn()) {
-            done(ToolResult::error(
-                ba::i18n::traducir("mcp", "No hay una cuenta de YouTube conectada: llama youtube_login (abre el navegador "
-                "para que la persona elija la cuenta).")));
-            return true;
-        }
-        return false;
-    };
+    const auto needLogin = [yt](const Done& done) { return faltaParaUsar(*yt, done); };
+    const auto reply = [yt](Done done, const std::string& okText = {}) { return responder(std::move(done), *yt, okText); };
 
-    {
-        Tool t;
-        t.name = "youtube_status";
-        t.title = ba::i18n::traducir("mcp", "Estado de YouTube");
-        t.category = "youtube";
-        t.clase = Clase::Lectura;
-        t.description =
-            QT_TRANSLATE_NOOP("mcp", "Si la API esta configurada, que canal esta conectado, si hay un login en curso, a que evento "
-            "se esta transmitiendo desde la app y de cual se lee el chat.");
-        // Si la app transmite, de la foto del motor (la interfaz no entra al motor).
-        t.run = [yt, &vm = vm_](const json&, Done done) {
-            done(ToolResult().data(json{{"configured", yt->configured()},
-                                        {"loggedIn", yt->loggedIn()},
-                                        {"loginPending", yt->loginPending()},
-                                        {"clientId", yt->clientId().toStdString()},
-                                        {"channel", toJson(yt->client().account())},
-                                        {"liveBroadcastId", yt->liveBroadcastId().toStdString()},
-                                        {"appStreaming", vm.ventanilla().foto().estado.transmite},
-                                        {"chatBroadcastId", yt->chatBroadcastId().toStdString()},
-                                        {"upload", qvToJson(yt->upload())}}));
-        };
-        core_.addTool(std::move(t));
-    }
     {
         Tool t;
         t.name = "publico_chat_leer";
@@ -138,136 +83,6 @@ void McpService::registerYouTubeTools() {
     }
     {
         Tool t;
-        t.name = "youtube_setup";
-        t.destructivaSi = "clear"; // clear=true borra
-        t.title = ba::i18n::traducir("mcp", "Configurar la credencial de Google");
-        t.category = "youtube";
-        t.clase = Clase::Escritura;
-        t.description =
-            QT_TRANSLATE_NOOP("mcp", "Guarda el cliente OAuth (tipo \"App de escritorio\") de Google Cloud. Lo mejor: "
-            "`fromDownloads: true` importa solo el client_secret_….json mas nuevo de la carpeta de Descargas "
-            "(el secreto no pasa por el chat). Si no, account_credentials_request (formulario seguro). "
-            "`clientJson` / `clientId` + `clientSecret` quedan para casos especiales. clear=true lo borra.");
-        t.inputSchema = {{"type", "object"},
-                         {"properties",
-                          {{"fromDownloads", {{"type", "boolean"}}},
-                           {"clientJson", {{"type", "string"}}},
-                           {"clientId", {{"type", "string"}}},
-                           {"clientSecret", {{"type", "string"}}},
-                           {"clear", {{"type", "boolean"}}}}}};
-        t.run = [yt](const json& a, Done done) {
-            if (a.value("clear", false)) {
-                yt->clearClient();
-                return done(ToolResult::ok(ba::i18n::traducir("mcp", "Credencial borrada.")));
-            }
-            if (a.value("fromDownloads", false)) {
-                // Buscar en Descargas y leer el archivo, fuera de la interfaz; guardarlo, en ella.
-                auto leido = std::make_shared<std::pair<QString, QString>>(); // {ruta, contenido}
-                enPool(
-                    qApp,
-                    [leido]() {
-                        QString why;
-                        const QString path = accounts::findGoogleClientJson(&why);
-                        if (path.isEmpty()) return ToolResult::error(why.toStdString());
-                        QFile f(path);
-                        if (!f.open(QIODevice::ReadOnly))
-                            return ToolResult::error(
-                                ba::i18n::llenar(ba::i18n::traducir("mcp", "No se pudo leer %1"), {path.toStdString()}));
-                        *leido = {path, QString::fromUtf8(f.readAll())};
-                        return ToolResult();
-                    },
-                    [yt, leido, done](ToolResult r) {
-                        if (r.isError) return done(std::move(r));
-                        const QString err = yt->saveClient(leido->second);
-                        if (!err.isEmpty()) return done(ToolResult::error(err.toStdString()));
-                        done(ToolResult()
-                                 .text(ba::i18n::llenar(
-                                     ba::i18n::traducir("mcp", "Credencial importada de %1. Siguiente paso: youtube_login."),
-                                     {QFileInfo(leido->first).fileName().toStdString()}))
-                                 .data(json{{"clientId", yt->clientId().toStdString()}}));
-                    });
-                return;
-            }
-            const QString e = a.contains("clientSecret")
-                                  ? yt->saveClient(QString::fromStdString(a.value("clientId", "")),
-                                                   QString::fromStdString(a["clientSecret"]))
-                                  : yt->saveClient(QString::fromStdString(a.value("clientJson", "")));
-            done(e.isEmpty() ? ToolResult::ok(ba::i18n::traducir("mcp", "Credencial guardada. Siguiente paso: youtube_login."))
-                             : ToolResult::error(e.toStdString()));
-        };
-        core_.addTool(std::move(t));
-    }
-    {
-        Tool t;
-        t.name = "youtube_login";
-        t.title = ba::i18n::traducir("mcp", "Conectar una cuenta de YouTube");
-        t.category = "youtube";
-        t.clase = Clase::Escritura;
-        t.openWorld = true;
-        t.description =
-            QT_TRANSLATE_NOOP("mcp", "Abre el navegador de esta maquina en la pantalla de Google para que la PERSONA elija la cuenta "
-            "y de permiso. Con wait=true espera hasta que termine (max. 5 min); si no, vuelve enseguida "
-            "y youtube_status dice cuando quedo conectado. cancel=true cancela uno en curso.");
-        t.inputSchema = {
-            {"type", "object"},
-            {"properties",
-             {{"wait", {{"type", "boolean"}, {"default", false}}}, {"cancel", {{"type", "boolean"}}}}}};
-        t.run = [yt](const json& a, Done done) {
-            if (a.value("cancel", false)) {
-                yt->cancelLogin();
-                return done(ToolResult::ok(ba::i18n::traducir("mcp", "Login cancelado.")));
-            }
-            if (!yt->configured())
-                return done(ToolResult::error(ba::i18n::traducir("mcp", "Primero youtube_setup (credencial de Google Cloud).")));
-            if (!a.value("wait", false)) {
-                yt->login();
-                return done(
-                    ToolResult::ok(ba::i18n::traducir("mcp", "Se abrio el navegador: la persona tiene que elegir la cuenta y aceptar. "
-                                   "Despues, youtube_status.")));
-            }
-            // El login del modelo (relee la cuenta y avisa a la página), con la respuesta.
-            yt->login([done](bool ok, const QJsonObject& acc, const QString& e) {
-                if (!ok) return done(ToolResult::error(e.toStdString()));
-                done(ToolResult().data(json{{"connected", toJson(acc)}}));
-            });
-        };
-        core_.addTool(std::move(t));
-    }
-    {
-        Tool t;
-        t.name = "youtube_logout";
-        t.title = ba::i18n::traducir("mcp", "Desconectar la cuenta");
-        t.category = "youtube";
-        t.clase = Clase::Escritura;
-        t.destructive = true;
-        t.description = QT_TRANSLATE_NOOP("mcp", "Desconecta la cuenta de YouTube de este aparato: revoca el acceso en Google y borra el token guardado.");
-        t.run = [yt](const json&, Done done) {
-            yt->logout();
-            done(ToolResult::ok(ba::i18n::traducir("mcp", "Cuenta desconectada.")));
-        };
-        core_.addTool(std::move(t));
-    }
-    {
-        Tool t;
-        t.name = "youtube_videos";
-        t.title = ba::i18n::traducir("mcp", "Videos del canal");
-        t.category = "youtube";
-        t.clase = Clase::Lectura;
-        t.description =
-            QT_TRANSLATE_NOOP("mcp", "Videos subidos (mas nuevos primero) con id, titulo, descripcion, privacidad, fecha, vistas, "
-            "me gusta, comentarios, duracion y enlace.");
-        t.inputSchema = {
-            {"type", "object"},
-            {"properties",
-             {{"max", {{"type", "integer"}, {"minimum", 1}, {"maximum", 50}, {"default", 25}}}}}};
-        t.run = [yt, needLogin](const json& a, Done done) {
-            if (needLogin(done)) return;
-            yt->client().listVideos(a.value("max", 25), reply(done));
-        };
-        core_.addTool(std::move(t));
-    }
-    {
-        Tool t;
         t.name = "youtube_video_update";
         t.title = ba::i18n::traducir("mcp", "Editar un video");
         t.category = "youtube";
@@ -284,18 +99,17 @@ void McpService::registerYouTubeTools() {
                            {"tags", {{"type", "array"}, {"items", {{"type", "string"}}}}},
                            {"thumbnail", {{"type", "string"}}}}},
                          {"required", {"id"}}};
-        t.run = [yt, needLogin](const json& a, Done done) {
+        t.run = [yt, needLogin, reply](const json& a, Done done) {
             if (needLogin(done)) return;
             const QString id = QString::fromStdString(a["id"]);
             json changes = a;
             changes.erase("id");
             changes.erase("thumbnail");
-            const auto thumb = [yt, a, id, done](bool ok, const QJsonObject& d, const QString& e) {
-                if (!ok) return done(ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "YouTube: %1"), {e.toStdString()})));
+            const auto thumb = [yt, reply, a, id, done](bool ok, const QJsonObject&, const QString& e) {
+                if (!ok) return done(ToolResult::error(yt->conNombre(e).toStdString()));
                 if (!a.contains("thumbnail")) return done(ToolResult::ok(ba::i18n::traducir("mcp", "Video actualizado.")));
-                yt->client().setThumbnail(id, QString::fromStdString(a["thumbnail"]),
-                                          reply(done, ba::i18n::traducir("mcp", "Video y miniatura actualizados.")));
-                (void)d;
+                yt->ponerMiniatura(id, QString::fromStdString(a["thumbnail"]),
+                                   reply(done, ba::i18n::traducir("mcp", "Video y miniatura actualizados.")));
             };
             if (changes.empty()) return thumb(true, {}, {});
             yt->updateVideo(id, toQt(changes), thumb); // como la página: la lista se pone al día
@@ -312,7 +126,7 @@ void McpService::registerYouTubeTools() {
         t.description = QT_TRANSLATE_NOOP("mcp", "Borra un video del canal de YouTube (`id`, de youtube_videos). No se puede deshacer.");
         t.inputSchema = {
             {"type", "object"}, {"properties", {{"id", {{"type", "string"}}}}}, {"required", {"id"}}};
-        t.run = [yt, needLogin](const json& a, Done done) {
+        t.run = [yt, needLogin, reply](const json& a, Done done) {
             if (needLogin(done)) return;
             yt->deleteVideo(QString::fromStdString(a["id"]), reply(done, ba::i18n::traducir("mcp", "Video borrado.")));
         };
@@ -336,7 +150,7 @@ void McpService::registerYouTubeTools() {
               {"privacy",
                {{"type", "string"}, {"enum", {"public", "unlisted", "private"}}, {"default", "private"}}},
               {"tags", {{"type", "array"}, {"items", {{"type", "string"}}}}}}}};
-        t.run = [yt, needLogin](const json& a, Done done) {
+        t.run = [yt, needLogin, reply](const json& a, Done done) {
             if (needLogin(done)) return;
             QString path = QString::fromStdString(a.value("path", std::string()));
             if (path.isEmpty()) {
@@ -365,9 +179,9 @@ void McpService::registerYouTubeTools() {
         t.description =
             QT_TRANSLATE_NOOP("mcp", "Eventos en vivo del canal: id, titulo, estado (created, ready, testing, live, complete), "
             "privacidad, horario, enlaces.");
-        t.run = [yt, needLogin](const json&, Done done) {
+        t.run = [yt, needLogin, reply](const json&, Done done) {
             if (needLogin(done)) return;
-            yt->client().listBroadcasts(reply(done));
+            yt->listarEventos(reply(done));
         };
         core_.addTool(std::move(t));
     }
@@ -401,14 +215,12 @@ void McpService::registerYouTubeTools() {
             json p = a;
             p.erase("start");
             const bool start = a.value("start", false);
-            yt->createBroadcast(toQt(p), [yt, start, done](bool ok, const QJsonObject& d,
-                                                                    const QString& e) {
-                if (!ok) return done(ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "YouTube: %1"), {e.toStdString()})));
+            yt->createBroadcast(toQt(p), [yt, start, done](bool ok, const QJsonObject& d, const QString& e) {
+                if (!ok) return done(ToolResult::error(yt->conNombre(e).toStdString()));
                 QJsonObject shown = d;
                 QJsonObject ing = shown.value("ingestion").toObject();
                 ing.remove("key"); // la clave no se muestra
                 shown.insert("ingestion", ing);
-                yt->refresh();
                 if (!start) return done(ToolResult().data(toJson(shown)));
                 const QString id = d.value("broadcast").toObject().value("id").toString();
                 yt->goLive(id, [shown, done](bool ok2, const QJsonObject& g, const QString& e2) {
@@ -441,7 +253,7 @@ void McpService::registerYouTubeTools() {
             "automatico, la app lo pasa sola).");
         t.inputSchema = {
             {"type", "object"}, {"properties", {{"id", {{"type", "string"}}}}}, {"required", {"id"}}};
-        t.run = [yt, needLogin](const json& a, Done done) {
+        t.run = [yt, needLogin, reply](const json& a, Done done) {
             if (needLogin(done)) return;
             yt->goLive(QString::fromStdString(a["id"]), reply(done, ba::i18n::traducir("mcp", "Transmitiendo al evento.")));
         };
@@ -459,7 +271,7 @@ void McpService::registerYouTubeTools() {
             "app si iba a ese evento.");
         t.inputSchema = {
             {"type", "object"}, {"properties", {{"id", {{"type", "string"}}}}}, {"required", {"id"}}};
-        t.run = [yt, needLogin](const json& a, Done done) {
+        t.run = [yt, needLogin, reply](const json& a, Done done) {
             if (needLogin(done)) return;
             yt->endBroadcast(QString::fromStdString(a["id"]), reply(done, ba::i18n::traducir("mcp", "Evento terminado.")));
         };
@@ -485,7 +297,7 @@ void McpService::registerYouTubeTools() {
                            {"transition", {{"type", "string"}, {"enum", {"testing", "live", "complete"}}}},
                            {"delete", {{"type", "boolean"}}}}},
                          {"required", {"id"}}};
-        t.run = [yt, needLogin](const json& a, Done done) {
+        t.run = [yt, needLogin, reply](const json& a, Done done) {
             if (needLogin(done)) return;
             const QString id = QString::fromStdString(a["id"]);
             if (a.value("delete", false))
@@ -510,14 +322,9 @@ void McpService::registerYouTubeTools() {
             "salud (good/ok/bad/noData). La clave no se muestra.");
         t.inputSchema = {
             {"type", "object"}, {"properties", {{"id", {{"type", "string"}}}}}, {"required", {"id"}}};
-        t.run = [yt, needLogin](const json& a, Done done) {
+        t.run = [yt, needLogin, reply](const json& a, Done done) {
             if (needLogin(done)) return;
-            yt->client().ingestion(QString::fromStdString(a["id"]),
-                                   [done](bool ok, QJsonObject d, const QString& e) {
-                                       if (!ok) return done(ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "YouTube: %1"), {e.toStdString()})));
-                                       d.remove("key");
-                                       done(ToolResult().data(toJson(d)));
-                                   });
+            yt->ingesta(QString::fromStdString(a["id"]), reply(done)); // sin la clave
         };
         core_.addTool(std::move(t));
     }
@@ -541,14 +348,9 @@ void McpService::registerYouTubeTools() {
             if (needLogin(done)) return;
             if (a.contains("broadcast")) yt->setChatBroadcast(QString::fromStdString(a["broadcast"]));
             if (a.contains("send")) yt->sendChat(QString::fromStdString(a["send"]));
-            const QJsonArray& all = yt->chatMessages();
-            const int n = std::min<int>(all.size(), a.value("limit", 30));
-            QJsonArray last;
-            for (int i = all.size() - n; i < all.size(); ++i)
-                last.append(all[i]);
             done(ToolResult().data(
                 json{{"broadcast", yt->chatBroadcastId().toStdString()},
-                     {"messages", toJson(QJsonObject{{"items", last}})["items"]},
+                     {"messages", toJson(yt->ultimosMensajes(a.value("limit", 30)))},
                      {"note", ba::i18n::traducir("mcp", "Los mensajes se leen cada ~6 s; si recien elegiste el evento, "
                                                         "volve a llamar en unos segundos.")}}));
         };

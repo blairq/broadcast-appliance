@@ -6,13 +6,10 @@
 #include "ajustes/Ajustes.hpp"
 #include "platform/Paths.hpp"
 
-#include <QClipboard>
 #include <QCoreApplication>
 #include <QDateTime>
-#include <QDesktopServices>
 #include <QDir>
 #include <QFileInfo>
-#include <QGuiApplication>
 #include <QJsonDocument>
 #include <QPointer>
 #include <QUrl>
@@ -43,7 +40,7 @@ QJsonArray withUid(const QJsonArray& in, const QString& key = "id") {
 } // namespace
 
 YouTubeViewModel::YouTubeViewModel(AppRuntime& rt, VentanillaMotor& ventanilla, GrabacionesModel& grabaciones, QObject* parent)
-    : QObject(parent), rt_(rt), ventanilla_(ventanilla), client_(std::make_unique<YouTubeClient>(
+    : PlataformaViewModel(parent), rt_(rt), ventanilla_(ventanilla), client_(std::make_unique<YouTubeClient>(
                                     QString::fromStdString((ba::platform::credentialsDir()).string()))),
       videos_(std::make_unique<JsonListModel>(
           QStringList{"uid", "title", "description", "privacy", "publishedAt", "thumb", "views", "likes",
@@ -87,18 +84,24 @@ QObject* YouTubeViewModel::broadcasts() const { return broadcasts_.get(); }
 QObject* YouTubeViewModel::recordings() const { return &grabaciones_; }
 QObject* YouTubeViewModel::chat() const { return chat_.get(); }
 
-void YouTubeViewModel::setError(const QString& e) {
-    lastError_ = e;
-    emit errorChanged();
-    if (!e.isEmpty()) emit notify(tr("YouTube: %1").arg(e), "error");
-}
-
-void YouTubeViewModel::track(bool start) {
-    busy_ = std::max(0, busy_ + (start ? 1 : -1));
-    emit busyChanged();
-}
-
 // --- Configuracion y cuenta ------------------------------------------------------------
+
+QJsonObject YouTubeViewModel::estado() const {
+    return QJsonObject{{"configured", configured()},
+                       {"loggedIn", loggedIn()},
+                       {"loginPending", loginPending()},
+                       {"clientId", clientId()},
+                       {"channel", client_->account()},
+                       {"liveBroadcastId", liveBroadcastId_},
+                       {"appStreaming", cuentas::transmitiendo(ventanilla_)}, // de la foto
+                       {"chatBroadcastId", chatBroadcastId_},
+                       {"upload", QJsonObject::fromVariantMap(upload_)}};
+}
+
+QString YouTubeViewModel::guardarCredencial(const QVariantMap& v) {
+    if (v.contains("clientJson")) return saveClient(v.value("clientJson").toString());
+    return saveClient(v.value("clientId").toString().trimmed(), v.value("clientSecret").toString().trimmed());
+}
 
 QString YouTubeViewModel::saveClient(const QString& jsonOrId, const QString& secret) {
     QString err;
@@ -113,16 +116,7 @@ void YouTubeViewModel::clearClient() {
     broadcasts_->setItems({});
 }
 
-YouTubeClient::Done YouTubeViewModel::conRefresco(YouTubeClient::Done listo) {
-    return [this, listo = std::move(listo)](bool ok, const QJsonObject& d, const QString& e) {
-        if (ok) refresh();
-        if (listo) listo(ok, d, e);
-    };
-}
-
-void YouTubeViewModel::login() { login(YouTubeClient::Done{}); }
-
-void YouTubeViewModel::login(YouTubeClient::Done listo) {
+void YouTubeViewModel::login(Done listo) {
     setError({});
     client_->login([this, listo](bool ok, const QJsonObject& acc, const QString& e) {
         if (!ok) {
@@ -201,18 +195,23 @@ QString YouTubeViewModel::recordingsDir() const { return grabaciones_.carpeta();
 
 void YouTubeViewModel::refreshRecordings() { grabaciones_.refrescar(); }
 
-void YouTubeViewModel::openUrl(const QString& url) { QDesktopServices::openUrl(QUrl(url)); }
-void YouTubeViewModel::copy(const QString& text) { QGuiApplication::clipboard()->setText(text); }
-
 // --- Videos --------------------------------------------------------------------------------
 
-YouTubeClient::Done YouTubeViewModel::alVolver(YouTubeClient::Done done) {
-    track(true);
-    return [this, done = std::move(done)](bool ok, const QJsonObject& d, const QString& e) {
-        track(false);
-        if (ok) refresh();
-        if (done) done(ok, d, e);
-    };
+void YouTubeViewModel::listarVideos(int max, Done done) { client_->listVideos(max, std::move(done)); }
+
+void YouTubeViewModel::listarEventos(Done done) { client_->listBroadcasts(std::move(done)); }
+
+void YouTubeViewModel::cargarCanal(Done done) { client_->loadChannel(std::move(done)); }
+
+void YouTubeViewModel::ingesta(const QString& broadcastId, Done done) {
+    client_->ingestion(broadcastId, [done = std::move(done)](bool ok, QJsonObject d, const QString& e) {
+        d.remove("key"); // la clave no sale de la app
+        done(ok, d, e);
+    });
+}
+
+void YouTubeViewModel::ponerMiniatura(const QString& videoId, const QString& imagen, Done done) {
+    client_->setThumbnail(videoId, imagen, alVolver(std::move(done)));
 }
 
 void YouTubeViewModel::updateVideo(const QString& id, const QString& title, const QString& description,

@@ -1,16 +1,16 @@
 // ============================================================================
 // src/app/mcp/McpFacebookTools.cpp — Herramientas de Facebook del servidor MCP
 //
-// Las mismas capas que la pagina Facebook (FacebookViewModel/FacebookClient):
-// cuenta, Paginas, vivos (crear y transmitir, publicar una prueba, terminar),
-// videos (editar, borrar, subir la grabacion) y comentarios del vivo.
+// Lo propio de Facebook, por la pagina (FacebookViewModel): Paginas, vivos (crear y
+// transmitir, publicar una prueba, terminar), videos (editar, borrar, subir la
+// grabacion) y comentarios del vivo. La cuenta, el estado y la lista de videos: la
+// fábrica (McpPlataformas).
 // ============================================================================
 
 #include <QFileInfo>
 
-#include "arranque/AppRuntime.hpp"
 #include "i18n/I18n.hpp"
-#include "emision/VentanillaMotor.hpp"
+#include "mcp/McpPlataformas.hpp"
 #include "mcp/McpService.hpp"
 #include "mcp/McpToolsCommon.hpp"
 #include "ui/FacebookViewModel.hpp"
@@ -18,157 +18,14 @@
 
 namespace ba::app::mcp {
 
-namespace {
-
-FacebookClient::Done reply(Done done, const std::string& okText = {}) {
-    return [done, okText](bool ok, const QJsonObject& d, const QString& e) {
-        if (!ok) return done(ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "Facebook: %1"), {e.toStdString()})));
-        ToolResult r;
-        if (!okText.empty()) r.text(okText);
-        if (!d.isEmpty()) r.data(toJson(d));
-        done(r);
-    };
-}
-
-} // namespace
-
 void McpService::registerFacebookTools() {
     core_.addCategory("facebook", "Facebook",
                       ba::i18n::traducir("mcp", "Páginas de Facebook: vivos (crear, transmitir, publicar, terminar), videos, subidas y "
                       "comentarios. Solo Páginas (la API no transmite a perfiles). Primero facebook_status."));
     auto* fb = static_cast<FacebookViewModel*>(vm_.facebook());
-    const auto needPage = [fb](Done& done) {
-        if (!fb->configured()) {
-            done(ToolResult::error(
-                ba::i18n::traducir("mcp", "Facebook no esta configurado: falta la app de Meta (ID y clave secreta). Usa "
-                "facebook_setup (o la pestaña Facebook de la app, con los pasos y enlaces); "
-                "help {\"topic\": \"facebook\"} los explica.")));
-            return true;
-        }
-        if (!fb->loggedIn()) {
-            done(ToolResult::error(
-                ba::i18n::traducir("mcp", "No hay una cuenta de Facebook conectada: llama facebook_login (abre el navegador "
-                "para que la persona elija la cuenta y las Paginas).")));
-            return true;
-        }
-        if (fb->pageId().isEmpty()) {
-            done(ToolResult::error(
-                ba::i18n::traducir("mcp", "No hay una Pagina elegida: facebook_pages {\"select\": \"<id>\"}. Si la lista esta "
-                "vacia, la cuenta no administra Paginas o no se marcaron al conectar.")));
-            return true;
-        }
-        return false;
-    };
+    const auto needPage = [fb](const Done& done) { return faltaParaUsar(*fb, done); };
+    const auto reply = [fb](Done done, const std::string& okText = {}) { return responder(std::move(done), *fb, okText); };
 
-    {
-        Tool t;
-        t.name = "facebook_status";
-        t.title = ba::i18n::traducir("mcp", "Estado de Facebook");
-        t.category = "facebook";
-        t.clase = Clase::Lectura;
-        t.description =
-            QT_TRANSLATE_NOOP("mcp", "Si la app de Meta esta configurada (y su URI de redireccion), que cuenta esta conectada, la "
-            "Pagina elegida, el vivo al que transmite la app, de cual se leen comentarios y la subida en "
-            "curso.");
-        // Si la app transmite, de la foto del motor (la interfaz no entra al motor).
-        t.run = [fb, &vm = vm_](const json&, Done done) {
-            done(ToolResult().data(json{{"configured", fb->configured()},
-                                        {"loggedIn", fb->loggedIn()},
-                                        {"loginPending", fb->loginPending()},
-                                        {"appId", fb->appId().toStdString()},
-                                        {"redirectUri", fb->redirectUri().toStdString()},
-                                        {"user", qvToJson(fb->user())},
-                                        {"page", qvToJson(fb->page())},
-                                        {"liveId", fb->liveId().toStdString()},
-                                        {"appStreaming", vm.ventanilla().foto().estado.transmite},
-                                        {"chatLiveId", fb->chatLiveId().toStdString()},
-                                        {"upload", qvToJson(fb->upload())}}));
-        };
-        core_.addTool(std::move(t));
-    }
-    {
-        Tool t;
-        t.name = "facebook_setup";
-        t.destructivaSi = "clear"; // clear=true borra
-        t.title = ba::i18n::traducir("mcp", "Configurar la app de Meta");
-        t.category = "facebook";
-        t.clase = Clase::Escritura;
-        t.description =
-            QT_TRANSLATE_NOOP("mcp", "Guarda el ID y la clave secreta de la app de developers.facebook.com, y el puerto de la "
-            "redireccion (por defecto 8791: la app de Meta tiene que tener http://localhost:<puerto>/ "
-            "como URI de OAuth valida). clear=true la borra.");
-        t.inputSchema = {
-            {"type", "object"},
-            {"properties",
-             {{"appId", {{"type", "string"}}},
-              {"appSecret", {{"type", "string"}}},
-              {"port", {{"type", "integer"}, {"minimum", 1024}, {"maximum", 65535}, {"default", 8791}}},
-              {"clear", {{"type", "boolean"}}}}}};
-        t.run = [fb](const json& a, Done done) {
-            if (a.value("clear", false)) {
-                fb->clearClient();
-                return done(ToolResult::ok(ba::i18n::traducir("mcp", "App de Meta borrada.")));
-            }
-            const QString e = fb->saveClient(QString::fromStdString(a.value("appId", std::string())),
-                                             QString::fromStdString(a.value("appSecret", std::string())),
-                                             a.value("port", 8791));
-            done(e.isEmpty() ? ToolResult::ok(ba::i18n::llenar(
-                                   ba::i18n::traducir("mcp", "App guardada (redireccion %1). Siguiente paso: facebook_login."),
-                                   {fb->redirectUri().toStdString()}))
-                             : ToolResult::error(e.toStdString()));
-        };
-        core_.addTool(std::move(t));
-    }
-    {
-        Tool t;
-        t.name = "facebook_login";
-        t.title = ba::i18n::traducir("mcp", "Conectar una cuenta de Facebook");
-        t.category = "facebook";
-        t.clase = Clase::Escritura;
-        t.openWorld = true;
-        t.description =
-            QT_TRANSLATE_NOOP("mcp", "Abre el navegador de esta maquina en Facebook para que la PERSONA elija la cuenta, marque "
-            "las Paginas y acepte los permisos. Con wait=true espera a que termine (max. 5 min); si no, "
-            "facebook_status dice cuando quedo conectado. cancel=true cancela.");
-        t.inputSchema = {
-            {"type", "object"},
-            {"properties",
-             {{"wait", {{"type", "boolean"}, {"default", false}}}, {"cancel", {{"type", "boolean"}}}}}};
-        t.run = [fb](const json& a, Done done) {
-            if (a.value("cancel", false)) {
-                fb->cancelLogin();
-                return done(ToolResult::ok(ba::i18n::traducir("mcp", "Login cancelado.")));
-            }
-            if (!fb->configured()) return done(ToolResult::error(ba::i18n::traducir("mcp", "Primero facebook_setup (app de Meta).")));
-            if (!a.value("wait", false)) {
-                fb->login();
-                return done(ToolResult::ok(
-                    ba::i18n::traducir("mcp", "Se abrio el navegador: la persona elige la cuenta y las Paginas y acepta. "
-                    "Despues, facebook_status.")));
-            }
-            // El login del modelo (relee la cuenta y avisa a la página), con la respuesta.
-            fb->login([fb, done](bool ok, const QJsonObject& d, const QString& e) {
-                if (!ok) return done(ToolResult::error(e.toStdString()));
-                done(ToolResult().data(
-                    json{{"connected", toJson(d)}, {"pages", toJson(fb->client().pages())}}));
-            });
-        };
-        core_.addTool(std::move(t));
-    }
-    {
-        Tool t;
-        t.name = "facebook_logout";
-        t.title = ba::i18n::traducir("mcp", "Desconectar la cuenta");
-        t.category = "facebook";
-        t.clase = Clase::Escritura;
-        t.destructive = true;
-        t.description = QT_TRANSLATE_NOOP("mcp", "Quita el permiso de la app en Facebook y borra los tokens guardados.");
-        t.run = [fb](const json&, Done done) {
-            fb->logout();
-            done(ToolResult::ok(ba::i18n::traducir("mcp", "Cuenta de Facebook desconectada.")));
-        };
-        core_.addTool(std::move(t));
-    }
     {
         Tool t;
         t.name = "facebook_pages";
@@ -182,7 +39,7 @@ void McpService::registerFacebookTools() {
                          {"properties", {{"select", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "id o nombre")}}}}}};
         t.run = [fb](const json& a, Done done) {
             if (!fb->loggedIn()) return done(ToolResult::error(ba::i18n::traducir("mcp", "Primero facebook_login.")));
-            const QJsonArray pages = fb->client().pages();
+            const QJsonArray pages = fb->paginas();
             if (a.contains("select")) {
                 const QString q = QString::fromStdString(a["select"]);
                 QString id;
@@ -211,11 +68,10 @@ void McpService::registerFacebookTools() {
             QT_TRANSLATE_NOOP("mcp", "Vivos de la Pagina: id, titulo, estado (LIVE, UNPUBLISHED = prueba, LIVE_STOPPED, VOD, "
             "SCHEDULED_UNPUBLISHED), enlace y vistas. Con `id`, el estado de uno solo.");
         t.inputSchema = {{"type", "object"}, {"properties", {{"id", {{"type", "string"}}}}}};
-        t.run = [fb, needPage](const json& a, Done done) {
+        t.run = [fb, needPage, reply](const json& a, Done done) {
             if (needPage(done)) return;
-            if (a.contains("id"))
-                return fb->client().liveStatus(QString::fromStdString(a["id"]), reply(done));
-            fb->client().liveVideos(reply(done));
+            if (a.contains("id")) return fb->estadoDeVivo(QString::fromStdString(a["id"]), reply(done));
+            fb->vivos(reply(done));
         };
         core_.addTool(std::move(t));
     }
@@ -237,7 +93,7 @@ void McpService::registerFacebookTools() {
                            {"test", {{"type", "boolean"}, {"default", true}}}}},
                          {"required", {"title"}}};
         t.examples = {R"({"title": "Prueba", "test": true})"};
-        t.run = [fb, needPage](const json& a, Done done) {
+        t.run = [fb, needPage, reply](const json& a, Done done) {
             if (needPage(done)) return;
             QJsonObject p{{"title", QString::fromStdString(a["title"])},
                           {"description", QString::fromStdString(a.value("description", std::string()))},
@@ -260,10 +116,9 @@ void McpService::registerFacebookTools() {
             QT_TRANSLATE_NOOP("mcp", "Pasa un vivo sin publicar (UNPUBLISHED) a publico en la Pagina, sin cortar la transmision.");
         t.inputSchema = {
             {"type", "object"}, {"properties", {{"id", {{"type", "string"}}}}}, {"required", {"id"}}};
-        t.run = [fb, needPage](const json& a, Done done) {
+        t.run = [fb, needPage, reply](const json& a, Done done) {
             if (needPage(done)) return;
-            fb->client().publishLive(QString::fromStdString(a["id"]),
-                                     fb->conRefresco(reply(done, ba::i18n::traducir("mcp", "Vivo publicado."))));
+            fb->publicarVivo(QString::fromStdString(a["id"]), reply(done, ba::i18n::traducir("mcp", "Vivo publicado.")));
         };
         core_.addTool(std::move(t));
     }
@@ -277,31 +132,13 @@ void McpService::registerFacebookTools() {
         t.description = QT_TRANSLATE_NOOP("mcp", "Termina el vivo en Facebook (queda como video) y corta la transmision de la app si "
                         "iba a ese vivo.");
         t.inputSchema = {{"type", "object"}, {"properties", {{"id", {{"type", "string"}}}}}};
-        t.run = [fb, needPage](const json& a, Done done) {
+        t.run = [fb, needPage, reply](const json& a, Done done) {
             if (needPage(done)) return;
             const QString id = a.contains("id") ? QString::fromStdString(a["id"]) : fb->liveId();
             if (id.isEmpty())
                 return done(
                     ToolResult::error(ba::i18n::traducir("mcp", "Falta `id` (la app no esta transmitiendo a un vivo de Facebook).")));
-            fb->endLive(id, reply(done, ba::i18n::traducir("mcp", "Vivo terminado.")));
-        };
-        core_.addTool(std::move(t));
-    }
-    {
-        Tool t;
-        t.name = "facebook_videos";
-        t.title = ba::i18n::traducir("mcp", "Videos de la Página");
-        t.category = "facebook";
-        t.clase = Clase::Lectura;
-        t.description = QT_TRANSLATE_NOOP("mcp", "Videos de la Pagina (mas nuevos primero): id, titulo, descripcion, enlace, "
-                        "miniatura, fecha y duracion.");
-        t.inputSchema = {
-            {"type", "object"},
-            {"properties",
-             {{"max", {{"type", "integer"}, {"minimum", 1}, {"maximum", 100}, {"default", 25}}}}}};
-        t.run = [fb, needPage](const json& a, Done done) {
-            if (needPage(done)) return;
-            fb->client().videos(a.value("max", 25), reply(done));
+            fb->terminarVivo(id, reply(done, ba::i18n::traducir("mcp", "Vivo terminado.")));
         };
         core_.addTool(std::move(t));
     }
@@ -322,17 +159,16 @@ void McpService::registerFacebookTools() {
                            {"description", {{"type", "string"}}},
                            {"delete", {{"type", "boolean"}}}}},
                          {"required", {"id"}}};
-        t.run = [fb, needPage](const json& a, Done done) {
+        t.run = [fb, needPage, reply](const json& a, Done done) {
             if (needPage(done)) return;
             const QString id = QString::fromStdString(a["id"]);
-            const auto after = [fb, done](const std::string& text) { return fb->conRefresco(reply(done, text)); };
-            if (a.value("delete", false)) return fb->client().deleteObject(id, after(ba::i18n::traducir("mcp", "Borrado.")));
+            if (a.value("delete", false)) return fb->borrar(id, reply(done, ba::i18n::traducir("mcp", "Borrado.")));
             json changes = a;
             changes.erase("id");
             changes.erase("delete");
             if (changes.empty())
                 return done(ToolResult::error(ba::i18n::traducir("mcp", "Nada para cambiar (title, description o delete).")));
-            fb->client().updateVideo(id, toQt(changes), after(ba::i18n::traducir("mcp", "Video actualizado.")));
+            fb->cambiarVideo(id, toQt(changes), reply(done, ba::i18n::traducir("mcp", "Video actualizado.")));
         };
         core_.addTool(std::move(t));
     }
@@ -350,7 +186,7 @@ void McpService::registerFacebookTools() {
                           {{"path", {{"type", "string"}}},
                            {"title", {{"type", "string"}}},
                            {"description", {{"type", "string"}}}}}};
-        t.run = [fb, needPage](const json& a, Done done) {
+        t.run = [fb, needPage, reply](const json& a, Done done) {
             if (needPage(done)) return;
             QString path = QString::fromStdString(a.value("path", std::string()));
             if (path.isEmpty()) {
@@ -390,14 +226,9 @@ void McpService::registerFacebookTools() {
             if (needPage(done)) return;
             if (a.contains("live")) fb->setChatLive(QString::fromStdString(a["live"]));
             if (a.contains("send")) fb->sendChat(QString::fromStdString(a["send"]));
-            const QJsonArray& all = fb->chatMessages();
-            const int n = std::min<int>(all.size(), a.value("limit", 30));
-            QJsonArray last;
-            for (int i = all.size() - n; i < all.size(); ++i)
-                last.append(all[i]);
             done(ToolResult().data(
                 json{{"live", fb->chatLiveId().toStdString()},
-                     {"messages", toJson(last)},
+                     {"messages", toJson(fb->ultimosMensajes(a.value("limit", 30)))},
                      {"note", ba::i18n::traducir("mcp", "Los comentarios se leen cada ~5 s; si recien elegiste el vivo, volve "
                                                         "a llamar en unos segundos.")}}));
         };

@@ -11,6 +11,7 @@
 #include "red/Red.hpp"
 #include "ui/FacebookViewModel.hpp"
 #include "ui/GrabacionesModel.hpp"
+#include "ui/PlataformaViewModel.hpp"
 #include "ui/TwitchViewModel.hpp"
 #include "ui/YouTubeViewModel.hpp"
 
@@ -42,17 +43,8 @@ CuentasViewModel::CuentasViewModel(Partes p, QObject* parent) : QObject(parent),
     // Las grabaciones para subir: una lista para YouTube y Facebook (se lee aparte).
     grabaciones_ = std::make_unique<GrabacionesModel>(p_.ventanilla);
     youtube_ = std::make_unique<YouTubeViewModel>(p_.rt, p_.ventanilla, *grabaciones_);
-    connect(youtube_.get(), &YouTubeViewModel::notify, this, &CuentasViewModel::notify);
     twitch_ = std::make_unique<TwitchViewModel>(p_.rt, p_.ventanilla);
-    connect(twitch_.get(), &TwitchViewModel::notify, this, &CuentasViewModel::notify);
     facebook_ = std::make_unique<FacebookViewModel>(p_.rt, p_.ventanilla, *grabaciones_);
-    connect(facebook_.get(), &FacebookViewModel::notify, this, &CuentasViewModel::notify);
-    // La página web del evento muestra dónde verlo en vivo.
-    connect(youtube_.get(), &YouTubeViewModel::stateChanged, this, &CuentasViewModel::webCambio);
-    connect(twitch_.get(), &TwitchViewModel::stateChanged, this, &CuentasViewModel::webCambio);
-    connect(twitch_.get(), &TwitchViewModel::channelChanged, this, &CuentasViewModel::webCambio);
-    connect(twitch_.get(), &TwitchViewModel::streamChanged, this, &CuentasViewModel::webCambio);
-    connect(facebook_.get(), &FacebookViewModel::stateChanged, this, &CuentasViewModel::webCambio);
     // Cada vivo con su URL pública (sin la clave), al bus y al histórico.
     const auto alVivo = [this](const QVariantMap& m) {
         control::BusEventos* bus = p_.bus ? p_.bus() : nullptr;
@@ -62,9 +54,16 @@ CuentasViewModel::CuentasViewModel(Partes p, QObject* parent) : QObject(parent),
                                             false),
                       true);
     };
-    connect(youtube_.get(), &YouTubeViewModel::vivo, this, alVivo);
-    connect(twitch_.get(), &TwitchViewModel::vivo, this, alVivo);
-    connect(facebook_.get(), &FacebookViewModel::vivo, this, alVivo);
+    for (PlataformaViewModel* pl : {static_cast<PlataformaViewModel*>(youtube_.get()),
+                                    static_cast<PlataformaViewModel*>(twitch_.get()),
+                                    static_cast<PlataformaViewModel*>(facebook_.get())}) {
+        connect(pl, &PlataformaViewModel::notify, this, &CuentasViewModel::notify);
+        // La página web del evento muestra dónde verlo en vivo.
+        connect(pl, &PlataformaViewModel::stateChanged, this, &CuentasViewModel::webCambio);
+        connect(pl, &PlataformaViewModel::vivo, this, alVivo);
+    }
+    connect(twitch_.get(), &TwitchViewModel::channelChanged, this, &CuentasViewModel::webCambio);
+    connect(twitch_.get(), &TwitchViewModel::streamChanged, this, &CuentasViewModel::webCambio);
 }
 
 CuentasViewModel::~CuentasViewModel() = default;
@@ -72,6 +71,31 @@ CuentasViewModel::~CuentasViewModel() = default;
 QObject* CuentasViewModel::youtubeQml() const { return deCpp(youtube_.get()); }
 QObject* CuentasViewModel::twitchQml() const { return deCpp(twitch_.get()); }
 QObject* CuentasViewModel::facebookQml() const { return deCpp(facebook_.get()); }
+
+PlataformaViewModel* CuentasViewModel::plataforma(const QString& id) {
+    const std::string p = accounts::normalize(id.toStdString());
+    if (p == "youtube") return youtube_.get();
+    if (p == "twitch") return twitch_.get();
+    if (p == "facebook") return facebook_.get();
+    return nullptr;
+}
+
+CuentasViewModel::ArchivoDeCredencial CuentasViewModel::leerArchivoDeCredencial(const QVariantMap& v) {
+    ArchivoDeCredencial a;
+    a.ruta = v.value("importFile").toString();
+    if (v.value("fromDownloads").toBool()) {
+        a.ruta = accounts::findGoogleClientJson(&a.error);
+        if (a.ruta.isEmpty()) return a;
+    }
+    const QUrl u(a.ruta);
+    QFile f(u.isLocalFile() ? u.toLocalFile() : a.ruta);
+    if (!f.open(QIODevice::ReadOnly)) {
+        a.error = tr("No se pudo leer %1.").arg(f.fileName());
+        return a;
+    }
+    a.contenido = QString::fromUtf8(f.readAll());
+    return a;
+}
 
 nlohmann::json CuentasViewModel::paraLaWeb() const {
     nlohmann::json yt{{"liveId", youtube_->liveBroadcastId().toStdString()},
@@ -126,28 +150,15 @@ QString CuentasViewModel::saveAccountCredential(const QString& platform, const Q
         }
         return guardadas == 0 ? tr("No escribiste ninguna clave.") : QString();
     }
-    const std::string pl = accounts::normalize(platform.toStdString());
-    if (pl == "youtube") {
-        QString path = v.value("importFile").toString();
-        if (v.value("fromDownloads").toBool()) {
-            QString why;
-            path = accounts::findGoogleClientJson(&why);
-            if (path.isEmpty()) return why;
-        }
-        if (!path.isEmpty()) {
-            const QUrl u(path);
-            QFile f(u.isLocalFile() ? u.toLocalFile() : path);
-            if (!f.open(QIODevice::ReadOnly)) return tr("No se pudo leer %1.").arg(f.fileName());
-            return youtube_->saveClient(QString::fromUtf8(f.readAll()));
-        }
-        return youtube_->saveClient(v.value("clientId").toString().trimmed(), v.value("clientSecret").toString().trimmed());
+    PlataformaViewModel* p = plataforma(platform);
+    if (p == nullptr) return tr("Plataforma desconocida: %1.").arg(platform);
+    // El JSON de Google desde un archivo (el formulario: un archivo chico, en el acto).
+    if (p == youtube_.get() && (!v.value("importFile").toString().isEmpty() || v.value("fromDownloads").toBool())) {
+        const ArchivoDeCredencial a = leerArchivoDeCredencial(v);
+        if (!a.error.isEmpty()) return a.error;
+        return p->guardarCredencial({{"clientJson", a.contenido}});
     }
-    if (pl == "twitch")
-        return twitch_->saveClient(v.value("clientId").toString().trimmed(), v.value("clientSecret").toString().trimmed());
-    if (pl == "facebook")
-        return facebook_->saveClient(v.value("appId").toString().trimmed(), v.value("appSecret").toString().trimmed(),
-                                     facebook_->client().port());
-    return tr("Plataforma desconocida: %1.").arg(platform);
+    return p->guardarCredencial(v);
 }
 
 } // namespace ba::app

@@ -26,9 +26,6 @@ namespace ba::app {
 
 namespace {
 
-constexpr const char* kScopes =
-    "channel:manage:broadcast channel:read:stream_key channel:manage:videos chat:read chat:edit";
-
 QJsonObject parse(const std::string& body) {
     return QJsonDocument::fromJson(QByteArray::fromStdString(body)).object();
 }
@@ -119,6 +116,10 @@ void TwitchClient::clearClient() {
     emit stateChanged();
 }
 
+QStringList TwitchClient::permisos() {
+    return {"channel:manage:broadcast", "channel:read:stream_key", "channel:manage:videos", "chat:read", "chat:edit"};
+}
+
 QString TwitchClient::explain(int status, const QByteArray& body) {
     const QJsonObject o = QJsonDocument::fromJson(body).object();
     const QString msg = o.value("message").toString();
@@ -141,7 +142,7 @@ void TwitchClient::login(Done done) {
     req.method = "POST";
     req.url = (ep_.id + "/device").toStdString();
     req.headers = {{"Content-Type", "application/x-www-form-urlencoded"}};
-    req.body = form({{"client_id", clientId_.toStdString()}, {"scopes", kScopes}});
+    req.body = form({{"client_id", clientId_.toStdString()}, {"scopes", permisos().join(' ').toStdString()}});
     QPointer<TwitchClient> self(this);
     net::asyncRequest(this, req, [self, done](const net::HttpResponse& r) {
         const QJsonObject o = parse(r.body);
@@ -176,7 +177,7 @@ void TwitchClient::pollDevice(Done done) {
     req.headers = {{"Content-Type", "application/x-www-form-urlencoded"}};
     std::vector<std::pair<std::string, std::string>> kv{
         {"client_id", clientId_.toStdString()},
-        {"scopes", kScopes},
+        {"scopes", permisos().join(' ').toStdString()},
         {"device_code", deviceCode_.toStdString()},
         {"grant_type", "urn:ietf:params:oauth:grant-type:device_code"}};
     if (!clientSecret_.isEmpty()) kv.emplace_back("client_secret", clientSecret_.toStdString());

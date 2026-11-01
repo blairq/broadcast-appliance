@@ -27,10 +27,6 @@ namespace ba::app {
 
 namespace {
 
-constexpr const char* kScopes =
-    "pages_show_list,pages_read_engagement,pages_read_user_content,pages_manage_posts,"
-    "pages_manage_engagement,publish_video";
-
 QJsonObject parse(const std::string& b) {
     return QJsonDocument::fromJson(QByteArray::fromStdString(b)).object();
 }
@@ -162,6 +158,11 @@ bool FacebookClient::selectPage(const QString& id) {
     return false;
 }
 
+QStringList FacebookClient::permisos() {
+    return {"pages_show_list",         "pages_read_engagement",   "pages_read_user_content",
+            "pages_manage_posts",      "pages_manage_engagement", "publish_video"};
+}
+
 QString FacebookClient::explain(int status, const QByteArray& body) {
     const QJsonObject e = QJsonDocument::fromJson(body).object().value("error").toObject();
     const int code = e.value("code").toInt();
@@ -196,7 +197,7 @@ void FacebookClient::login(Done done) {
     q.addQueryItem("client_id", appId_);
     q.addQueryItem("redirect_uri", redirectUri());
     q.addQueryItem("state", loginState_);
-    q.addQueryItem("scope", kScopes);
+    q.addQueryItem("scope", permisos().join(','));
     q.addQueryItem("response_type", "code");
     q.addQueryItem("auth_type", "rerequest");
     QUrl url(ep_.dialog);

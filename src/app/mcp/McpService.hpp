@@ -73,6 +73,8 @@ class McpService : public QObject {
     void registerImageTools();
     void registerRoomTools();
     void registerUiTools();
+    /// Lo común de YouTube, Twitch y Facebook (la fábrica de McpPlataformas) y lo propio de cada una.
+    void registerPlataformaTools();
     void registerYouTubeTools();
     void registerTwitchTools();
     void registerFacebookTools();

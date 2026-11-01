@@ -31,7 +31,6 @@ namespace ba::app {
 
 namespace {
 
-constexpr const char* kScope = "https://www.googleapis.com/auth/youtube";
 inline int kLoginTimeoutMs() { return ba::ajustes::entero("plataformas.loginMin", 5) * 60 * 1000; }
 
 QString randomToken(int n) {
@@ -191,6 +190,8 @@ void YouTubeClient::run(std::shared_ptr<Req> req, std::function<void(int, QByteA
             Qt::QueuedConnection);
     }).detach();
 }
+
+QStringList YouTubeClient::permisos() { return {QStringLiteral("https://www.googleapis.com/auth/youtube")}; }
 
 QString YouTubeClient::explain(int status, const QByteArray& body) {
     const QJsonObject o = parse(body);
@@ -362,7 +363,7 @@ void YouTubeClient::login(Done done) {
     q.addQueryItem("client_id", clientId_);
     q.addQueryItem("redirect_uri", redirectUri());
     q.addQueryItem("response_type", "code");
-    q.addQueryItem("scope", kScope);
+    q.addQueryItem("scope", permisos().join(' '));
     q.addQueryItem("access_type", "offline");
     q.addQueryItem("prompt", "select_account consent"); // elegir cuenta + asegurar refresh token
     q.addQueryItem("code_challenge", QString::fromLatin1(challenge));

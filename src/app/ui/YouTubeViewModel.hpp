@@ -1,7 +1,7 @@
 // ============================================================================
 // src/app/ui/YouTubeViewModel.hpp — Pagina YouTube (ViewModel)
 //
-// Adapta YouTubeClient a la vista y al servidor MCP:
+// Adapta YouTubeClient a la vista y al servidor MCP (lo común, en PlataformaViewModel):
 //   - Configuracion: cliente OAuth (pegar el JSON de Google Cloud), login con
 //     el navegador (elegir cuenta), desconectar.
 //   - Videos subidos (miniaturas descargadas por el HTTPS propio y servidas a
@@ -16,13 +16,13 @@
 
 #include <QHash>
 #include <QJsonArray>
-#include <QObject>
 #include <QTimer>
 #include <QVariantMap>
 
 #include <functional>
 #include <memory>
 
+#include "ui/PlataformaViewModel.hpp"
 #include "youtube/YouTubeClient.hpp"
 
 namespace ba::app {
@@ -32,7 +32,7 @@ class VentanillaMotor;
 class JsonListModel;
 class GrabacionesModel;
 
-class YouTubeViewModel : public QObject {
+class YouTubeViewModel : public PlataformaViewModel {
     Q_OBJECT
     Q_PROPERTY(bool configured READ configured NOTIFY stateChanged)
     Q_PROPERTY(bool loggedIn READ loggedIn NOTIFY stateChanged)
@@ -41,8 +41,6 @@ class YouTubeViewModel : public QObject {
     Q_PROPERTY(QVariantMap account READ account NOTIFY stateChanged)
     /// Avatar del canal como data: URL (vacio mientras se descarga).
     Q_PROPERTY(QString accountThumb READ accountThumb NOTIFY stateChanged)
-    Q_PROPERTY(bool busy READ busy NOTIFY busyChanged)
-    Q_PROPERTY(QString lastError READ lastError NOTIFY errorChanged)
     Q_PROPERTY(QObject* videos READ videos CONSTANT)
     Q_PROPERTY(QObject* broadcasts READ broadcasts CONSTANT)
     Q_PROPERTY(QObject* recordings READ recordings CONSTANT)
@@ -58,14 +56,26 @@ class YouTubeViewModel : public QObject {
     YouTubeViewModel(AppRuntime& rt, VentanillaMotor& ventanilla, GrabacionesModel& grabaciones, QObject* parent = nullptr);
     ~YouTubeViewModel() override;
 
-    bool configured() const { return client_->hasClient(); }
-    bool loggedIn() const { return client_->loggedIn(); }
-    bool loginPending() const { return client_->loginPending(); }
+    // --- La plataforma (PlataformaViewModel) -----------------------------------------------
+    QString plataforma() const override { return QStringLiteral("youtube"); }
+    QString nombre() const override { return QStringLiteral("YouTube"); }
+    bool configured() const override { return client_->hasClient(); }
+    bool loggedIn() const override { return client_->loggedIn(); }
+    bool loginPending() const override { return client_->loginPending(); }
+    QString cuentaNombre() const override { return client_->account().value("title").toString(); }
+    QJsonObject estado() const override;
+    QStringList permisos() const override { return YouTubeClient::permisos(); }
+    QString guardarCredencial(const QVariantMap& campos) override;
+    using PlataformaViewModel::login;
+    void login(Done listo) override;
+    void listarVideos(int max, Done done) override;
+    void terminarVivo(const QString& id, Done done) override { endBroadcast(id, std::move(done)); }
+    /// Mensajes de chat en memoria (YouTube), del mas viejo al mas nuevo.
+    const QJsonArray& chatMessages() const override { return chatItems_; }
+
     QString clientId() const { return client_->clientId(); }
     QVariantMap account() const { return client_->account().toVariantMap(); }
     QString accountThumb() const { return thumbs_.value(client_->account().value("thumbnail").toString()); }
-    bool busy() const { return busy_ > 0; }
-    QString lastError() const { return lastError_; }
     QObject* videos() const;
     QObject* broadcasts() const;
     QObject* recordings() const;
@@ -77,21 +87,12 @@ class YouTubeViewModel : public QObject {
     // --- Configuracion y cuenta -------------------------------------------------------
     /// Pega el JSON descargado (o el ID si `secret` no esta vacio). "" = ok.
     Q_INVOKABLE QString saveClient(const QString& jsonOrId, const QString& secret = {});
-    Q_INVOKABLE void clearClient();
-    Q_INVOKABLE void login();
-    /// El mismo login, con la respuesta (el MCP con `wait`): conectada (o el error), la
-    /// cuenta ya releída. Lo que ve la página es lo mismo que con login().
-    void login(YouTubeClient::Done listo);
-    /// Para una escritura hecha con el cliente (el MCP): si sale bien, la página se
-    /// relee (refresh) antes de contestar. Una sola regla para todas las escrituras.
-    YouTubeClient::Done conRefresco(YouTubeClient::Done listo);
-    Q_INVOKABLE void cancelLogin();
-    Q_INVOKABLE void logout();
-    Q_INVOKABLE void refresh();
+    void clearClient() override;
+    void cancelLogin() override;
+    void logout() override;
+    void refresh() override;
     /// Vuelve a leer las grabaciones (aparte: la lista cambia cuando termina).
     Q_INVOKABLE void refreshRecordings();
-    Q_INVOKABLE void openUrl(const QString& url);
-    Q_INVOKABLE void copy(const QString& text);
 
     // --- Videos ----------------------------------------------------------------------
     Q_INVOKABLE void updateVideo(const QString& id, const QString& title, const QString& description,
@@ -113,7 +114,6 @@ class YouTubeViewModel : public QObject {
     Q_INVOKABLE void sendChat(const QString& text);
 
     // --- Para el MCP (mismo comportamiento, con resultado) ------------------------------
-    YouTubeClient& client() { return *client_; }
     void goLive(const QString& broadcastId, YouTubeClient::Done done);
     void endBroadcast(const QString& broadcastId, YouTubeClient::Done done);
     void uploadRecording(const QString& path, const QJsonObject& meta, YouTubeClient::Done done);
@@ -126,29 +126,20 @@ class YouTubeViewModel : public QObject {
     void updateBroadcast(const QString& id, const QJsonObject& cambios, YouTubeClient::Done done);
     void transition(const QString& id, const QString& estado, YouTubeClient::Done done);
     void deleteBroadcast(const QString& broadcastId, YouTubeClient::Done done);
-    /// Mensajes de chat en memoria (YouTube), del mas viejo al mas nuevo.
-    const QJsonArray& chatMessages() const { return chatItems_; }
+    /// Lecturas para el MCP (no cambian la página): los eventos, el canal, la ingesta de
+    /// un evento (sin la clave) y la miniatura de un video (esa sí relee la página).
+    void listarEventos(Done done);
+    void cargarCanal(Done done);
+    void ingesta(const QString& broadcastId, Done done);
+    void ponerMiniatura(const QString& videoId, const QString& imagen, Done done);
     QString recordingsDir() const;
 
    signals:
-    void stateChanged();
-    void busyChanged();
-    void errorChanged();
     void uploadChanged();
-    void chatChanged();
-    /// Aviso para el operador (mismo formato que el resto de la app).
-    void notify(const QString& message, const QString& level);
-    /// Arrancó un vivo desde acá: {plataforma, url, id, estudio?} (sin la clave).
-    /// Va al bus como «salida/vivo» y queda en el histórico del evento.
-    void vivo(const QVariantMap& datos);
 
    private:
-    /// `done` con la vuelta de la página: deja de contar el pedido y, si salió, refresca.
-    YouTubeClient::Done alVolver(YouTubeClient::Done done);
     /// El motor contestó si salió al aire (`error` vacío = sí): sigue goLive.
     void alSalir(const QString& broadcastId, const QString& url, const std::string& error, const YouTubeClient::Done& done);
-    void setError(const QString& e);
-    void track(bool start);
     void fetchThumbs(const QJsonArray& items, JsonListModel* model);
     void pollChat();
 
@@ -160,8 +151,6 @@ class YouTubeViewModel : public QObject {
     GrabacionesModel& grabaciones_; ///< compartida (ui/GrabacionesModel)
     std::unique_ptr<JsonListModel> chat_;
     QHash<QString, QString> thumbs_; // url -> data: URL
-    int busy_ = 0;
-    QString lastError_;
     QVariantMap upload_;
     // Chat
     QString chatBroadcastId_;

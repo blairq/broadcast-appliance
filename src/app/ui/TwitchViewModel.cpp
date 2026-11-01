@@ -6,9 +6,8 @@
 #include "ajustes/Ajustes.hpp"
 #include "platform/Paths.hpp"
 
-#include <QDesktopServices>
 #include <QPointer>
-#include <QUrl>
+#include <QUrlQuery>
 
 #include "arranque/AppRuntime.hpp"
 #include "ui/AireDeCuentas.hpp"
@@ -31,7 +30,7 @@ QJsonArray withUid(const QJsonArray& in) {
 } // namespace
 
 TwitchViewModel::TwitchViewModel(AppRuntime& rt, VentanillaMotor& ventanilla, QObject* parent)
-    : QObject(parent), rt_(rt), ventanilla_(ventanilla), client_(std::make_unique<TwitchClient>(
+    : PlataformaViewModel(parent), rt_(rt), ventanilla_(ventanilla), client_(std::make_unique<TwitchClient>(
                                     QString::fromStdString((ba::platform::credentialsDir()).string()))),
       videos_(std::make_unique<JsonListModel>(
           QStringList{"uid", "title", "url", "thumb", "views", "created_at", "duration", "type"})),
@@ -87,8 +86,10 @@ void TwitchViewModel::revisarCuenta() {
         algo = true;
     }
     if (cuenta != cuentaAntes_) {
+        const bool codigoNuevo = !userCode().isEmpty() && userCode() != cuentaAntes_.value("userCode").toString();
         cuentaAntes_ = cuenta;
         emit cuentaChanged();
+        if (codigoNuevo) emit codigoListo();
         algo = true;
     }
     if (algo) emit stateChanged();
@@ -117,15 +118,32 @@ QObject* TwitchViewModel::videos() const { return videos_.get(); }
 QObject* TwitchViewModel::chat() const { return chat_.get(); }
 QObject* TwitchViewModel::categories() const { return categories_.get(); }
 
-void TwitchViewModel::setError(const QString& e) {
-    lastError_ = e;
-    emit errorChanged();
-    if (!e.isEmpty()) emit notify(e.startsWith("Twitch") ? e : tr("Twitch: %1").arg(e), "error");
+QJsonObject TwitchViewModel::estadoCuenta() const {
+    QJsonObject s = PlataformaViewModel::estadoCuenta();
+    if (loginPending()) { // el código que la persona confirma
+        s.insert("userCode", userCode());
+        s.insert("verificationUri", verificationUri());
+    }
+    return s;
 }
 
-void TwitchViewModel::track(bool start) {
-    busy_ = std::max(0, busy_ + (start ? 1 : -1));
-    emit busyChanged();
+QJsonObject TwitchViewModel::estado() const {
+    return QJsonObject{{"configured", configured()},
+                       {"loggedIn", loggedIn()},
+                       {"loginPending", loginPending()},
+                       {"userCode", userCode()},
+                       {"verificationUri", verificationUri()},
+                       {"clientId", clientId()},
+                       {"user", client_->user()},
+                       {"channel", channel_},
+                       {"stream", stream_},
+                       {"streamingHere", streamingHere_},
+                       {"appStreaming", cuentas::transmitiendo(ventanilla_)}, // de la foto
+                       {"chatOn", chatOn()}};
+}
+
+QString TwitchViewModel::guardarCredencial(const QVariantMap& v) {
+    return saveClient(v.value("clientId").toString().trimmed(), v.value("clientSecret").toString().trimmed());
 }
 
 QString TwitchViewModel::saveClient(const QString& id, const QString& secret) {
@@ -137,16 +155,7 @@ QString TwitchViewModel::saveClient(const QString& id, const QString& secret) {
 
 void TwitchViewModel::clearClient() { client_->clearClient(); }
 
-TwitchClient::Done TwitchViewModel::conRefresco(TwitchClient::Done listo) {
-    return [this, listo = std::move(listo)](bool ok, const QJsonObject& d, const QString& e) {
-        if (ok) refresh();
-        if (listo) listo(ok, d, e);
-    };
-}
-
-void TwitchViewModel::login() { login(TwitchClient::Done{}); }
-
-void TwitchViewModel::login(TwitchClient::Done listo) {
+void TwitchViewModel::login(Done listo) {
     setError({});
     client_->login([this, listo](bool ok, const QJsonObject& u, const QString& e) {
         if (!ok) {
@@ -221,12 +230,9 @@ void TwitchViewModel::updateChannel(const QString& title, const QString& categor
     QJsonObject changes{{"title", title}};
     if (!category.trimmed().isEmpty() && category != channel_.value("game_name").toString())
         changes.insert("game", category.trimmed());
-    track(true);
-    client_->updateChannel(changes, [this](bool ok, const QJsonObject&, const QString& e) {
-        track(false);
+    cambiarCanal(changes, [this](bool ok, const QJsonObject&, const QString& e) {
         if (!ok) return setError(e);
         emit notify(tr("Canal de Twitch actualizado."), "ok");
-        refresh();
     });
 }
 
@@ -296,10 +302,43 @@ void TwitchViewModel::stopLive(TwitchClient::Done done) {
 }
 
 void TwitchViewModel::deleteVideo(const QString& id) {
-    client_->deleteVideos({id}, [this](bool ok, const QJsonObject&, const QString& e) {
+    borrarVideos({id}, [this](bool ok, const QJsonObject&, const QString& e) {
         if (!ok) return setError(e);
         emit notify(tr("VOD borrado de Twitch."), "ok");
-        refresh();
+    });
+}
+
+void TwitchViewModel::borrarVideos(const QStringList& ids, Done done) {
+    client_->deleteVideos(ids, alVolver(std::move(done)));
+}
+
+void TwitchViewModel::leerCanal(Done done) {
+    client_->channel([this, done = std::move(done)](bool ok, const QJsonObject& d, const QString& e) {
+        if (ok) setChannel(d);
+        done(ok, d, e);
+    });
+}
+
+void TwitchViewModel::cambiarCanal(const QJsonObject& cambios, Done done) {
+    client_->updateChannel(cambios, alVolver(std::move(done)));
+}
+
+void TwitchViewModel::buscarCategorias(const QString& texto, Done done) {
+    client_->searchCategories(texto, std::move(done));
+}
+
+void TwitchViewModel::estadoDelVivo(Done done) {
+    client_->streamStatus([this, done = std::move(done)](bool ok, const QJsonObject& d, const QString& e) {
+        if (ok) setStream(d);
+        done(ok, d, e);
+    });
+}
+
+void TwitchViewModel::probarClave(Done done) {
+    QUrlQuery q;
+    q.addQueryItem("broadcaster_id", client_->user().value("id").toString());
+    client_->api("GET", "/streams/key", q, {}, [done = std::move(done)](bool ok, const QJsonObject&, const QString& e) {
+        done(ok, {}, e); // la clave no sale de acá
     });
 }
 
@@ -312,6 +351,5 @@ void TwitchViewModel::setChatOn(bool on) {
 }
 
 void TwitchViewModel::sendChat(const QString& text) { client_->sendChat(text); }
-void TwitchViewModel::openUrl(const QString& url) { QDesktopServices::openUrl(QUrl(url)); }
 
 } // namespace ba::app

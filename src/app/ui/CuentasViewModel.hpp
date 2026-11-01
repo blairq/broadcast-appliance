@@ -28,6 +28,7 @@ class YouTubeViewModel;
 class TwitchViewModel;
 class FacebookViewModel;
 class GrabacionesModel;
+class PlataformaViewModel;
 } // namespace ba::app
 namespace ba::app::control {
 class BusEventos;
@@ -61,6 +62,9 @@ class CuentasViewModel : public QObject {
     QObject* youtubeQml() const;
     QObject* twitchQml() const;
     QObject* facebookQml() const;
+    /// La plataforma por su id ("youtube", "twitch", "facebook"; acepta los alias de
+    /// accounts::normalize) o nullptr.
+    PlataformaViewModel* plataforma(const QString& id);
 
     /// «Dónde verlo en vivo» de la página web del evento: {youtube, twitch, facebook}.
     nlohmann::json paraLaWeb() const;
@@ -72,6 +76,16 @@ class CuentasViewModel : public QObject {
     /// las cámaras de la red («camara:<ip>», «camaras:<ip>,<ip>») y las claves de un
     /// plugin («plugin:<id>»). "" o el error.
     Q_INVOKABLE QString saveAccountCredential(const QString& platform, const QVariantMap& values);
+
+    /// El JSON del cliente de Google que piden {"importFile": ruta} o {"fromDownloads": true}
+    /// (el client_secret_….json más nuevo de Descargas). Solo lee el disco: de cualquier
+    /// hilo (el MCP lo lee en el pool y guarda con {"clientJson": contenido}).
+    struct ArchivoDeCredencial {
+        QString ruta;
+        QString contenido;
+        QString error; ///< "" = leído
+    };
+    static ArchivoDeCredencial leerArchivoDeCredencial(const QVariantMap& values);
 
    signals:
     /// Cambió algo que muestra la página web del evento (el vivo, el canal).

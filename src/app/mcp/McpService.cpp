@@ -460,9 +460,7 @@ McpService::McpService(AppRuntime& rt, StudioViewModel& vm, QObject* parent)
     registerImageTools();
     registerRoomTools();
     registerUiTools();
-    registerYouTubeTools();
-    registerTwitchTools();
-    registerFacebookTools();
+    registerPlataformaTools();
     registerAlertTools();
     registerAssistantTools();
     // Lo dictado pasa por el modelo local: necesita saber qué es cada

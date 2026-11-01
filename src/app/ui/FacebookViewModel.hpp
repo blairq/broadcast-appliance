@@ -1,7 +1,7 @@
 // ============================================================================
 // src/app/ui/FacebookViewModel.hpp — Pagina Facebook (ViewModel)
 //
-// Adapta FacebookClient a la vista y al MCP: app de Meta (ID, clave, puerto de
+// Adapta FacebookClient a la vista y al MCP (lo común, en PlataformaViewModel): app de Meta (ID, clave, puerto de
 // redireccion), login, eleccion de Pagina, vivos (crear en prueba o en vivo,
 // transmitir con RTMPS, publicar, terminar), videos (editar, borrar, subir
 // grabaciones) y comentarios del vivo (pagina y fuente "Chat en vivo").
@@ -9,7 +9,6 @@
 #pragma once
 
 #include <QJsonArray>
-#include <QObject>
 #include <QTimer>
 #include <QVariantList>
 #include <QVariantMap>
@@ -17,6 +16,7 @@
 #include <memory>
 
 #include "facebook/FacebookClient.hpp"
+#include "ui/PlataformaViewModel.hpp"
 
 namespace ba::app {
 
@@ -25,7 +25,7 @@ class VentanillaMotor;
 class JsonListModel;
 class GrabacionesModel;
 
-class FacebookViewModel : public QObject {
+class FacebookViewModel : public PlataformaViewModel {
     Q_OBJECT
     // Cada grupo avisa solo si cambió lo suyo.
     /// La app de Meta (ID, puerto de redirección).
@@ -41,8 +41,6 @@ class FacebookViewModel : public QObject {
     Q_PROPERTY(QVariantList pages READ pages NOTIFY paginaChanged)
     Q_PROPERTY(QString pageId READ pageId NOTIFY paginaChanged)
     Q_PROPERTY(QVariantMap page READ page NOTIFY paginaChanged)
-    Q_PROPERTY(bool busy READ busy NOTIFY busyChanged)
-    Q_PROPERTY(QString lastError READ lastError NOTIFY errorChanged)
     Q_PROPERTY(QObject* lives READ lives CONSTANT)
     Q_PROPERTY(QObject* videos READ videos CONSTANT)
     Q_PROPERTY(QObject* recordings READ recordings CONSTANT)
@@ -56,9 +54,26 @@ class FacebookViewModel : public QObject {
     FacebookViewModel(AppRuntime& rt, VentanillaMotor& ventanilla, GrabacionesModel& grabaciones, QObject* parent = nullptr);
     ~FacebookViewModel() override;
 
-    bool configured() const { return client_->hasClient(); }
-    bool loggedIn() const { return client_->loggedIn(); }
-    bool loginPending() const { return client_->loginPending(); }
+    // --- La plataforma (PlataformaViewModel) -----------------------------------------------
+    QString plataforma() const override { return QStringLiteral("facebook"); }
+    QString nombre() const override { return QStringLiteral("Facebook"); }
+    bool configured() const override { return client_->hasClient(); }
+    bool loggedIn() const override { return client_->loggedIn(); }
+    bool loginPending() const override { return client_->loginPending(); }
+    QString cuentaNombre() const override { return client_->user().value("name").toString(); }
+    /// Además de la cuenta, la Página donde transmitir.
+    Falta falta() const override;
+    QJsonObject estadoCuenta() const override;
+    QJsonObject estado() const override;
+    QStringList permisos() const override { return FacebookClient::permisos(); }
+    QString guardarCredencial(const QVariantMap& campos) override;
+    using PlataformaViewModel::login;
+    void login(Done listo) override;
+    QJsonObject alConectar() const override { return {{"pages", client_->pages()}}; }
+    void listarVideos(int max, Done done) override { client_->videos(max, std::move(done)); }
+    void terminarVivo(const QString& id, Done done) override { endLive(id, std::move(done)); }
+    const QJsonArray& chatMessages() const override { return chatItems_; }
+
     QString appId() const { return client_->appId(); }
     int port() const { return client_->port(); }
     QString redirectUri() const { return client_->redirectUri(); }
@@ -66,8 +81,6 @@ class FacebookViewModel : public QObject {
     QVariantList pages() const { return client_->pages().toVariantList(); }
     QString pageId() const { return client_->pageId(); }
     QVariantMap page() const { return client_->page().toVariantMap(); }
-    bool busy() const { return busy_ > 0; }
-    QString lastError() const { return lastError_; }
     QObject* lives() const;
     QObject* videos() const;
     QObject* recordings() const;
@@ -77,18 +90,11 @@ class FacebookViewModel : public QObject {
     QVariantMap upload() const { return upload_; }
 
     Q_INVOKABLE QString saveClient(const QString& appId, const QString& secret, int port);
-    Q_INVOKABLE void clearClient();
-    Q_INVOKABLE void login();
-    /// El mismo login, con la respuesta (el MCP con `wait`): conectada (o el error), la
-    /// cuenta ya releída. Lo que ve la página es lo mismo que con login().
-    void login(FacebookClient::Done listo);
-    /// Para una escritura hecha con el cliente (el MCP): si sale bien, la página se
-    /// relee (refresh) antes de contestar. Una sola regla para todas las escrituras.
-    FacebookClient::Done conRefresco(FacebookClient::Done listo);
-    Q_INVOKABLE void cancelLogin();
-    Q_INVOKABLE void logout();
+    void clearClient() override;
+    void cancelLogin() override;
+    void logout() override;
     Q_INVOKABLE void selectPage(const QString& id);
-    Q_INVOKABLE void refresh();
+    void refresh() override;
     /// Vuelve a leer las grabaciones (aparte: la lista cambia cuando termina).
     Q_INVOKABLE void refreshRecordings();
     /// Crea y transmite. `test` = sin publicar (solo lo ve la Pagina en Live Producer).
@@ -100,39 +106,36 @@ class FacebookViewModel : public QObject {
     Q_INVOKABLE void uploadRecording(const QString& path, const QString& title, const QString& description);
     Q_INVOKABLE void setChatLive(const QString& id);
     Q_INVOKABLE void sendChat(const QString& text);
-    Q_INVOKABLE void openUrl(const QString& url);
-    Q_INVOKABLE void copy(const QString& text);
 
-    // Para el MCP
-    FacebookClient& client() { return *client_; }
+    // Para el MCP (lo que ve la página se pone al día)
     void goLive(const QJsonObject& p, FacebookClient::Done done);
     void endLive(const QString& id, FacebookClient::Done done);
     void uploadRecording(const QString& path, const QJsonObject& meta, FacebookClient::Done done);
-    const QJsonArray& chatMessages() const { return chatItems_; }
     QString recordingsDir() const;
+    /// Las Páginas de la cuenta: [{id, name, category, picture}] (sin tokens).
+    QJsonArray paginas() const { return client_->pages(); }
+    /// Los vivos de la Página / el estado de uno (lecturas: no cambian la página).
+    void vivos(Done done);
+    void estadoDeVivo(const QString& id, Done done);
+    /// Publicar un vivo en prueba, cambiar un video o borrarlo (la página se relee).
+    void publicarVivo(const QString& id, Done done);
+    void cambiarVideo(const QString& id, const QJsonObject& cambios, Done done);
+    void borrar(const QString& id, Done done);
+    /// Los permisos que la cuenta otorgó: {data: [{permission, status}]} (account_check).
+    void permisosOtorgados(Done done);
 
    signals:
-    /// Cambió algo de la cuenta o del vivo (la app, la cuenta, la Página, el vivo de acá):
-    /// para quien junta todo (la web del evento), no para enlazar propiedades.
-    void stateChanged();
+    // stateChanged (en PlataformaViewModel): cambió algo de la cuenta o del vivo (la app,
+    // la cuenta, la Página, el vivo de acá), para quien junta todo; no para enlazar.
     void appChanged();
     void cuentaChanged();
     void paginaChanged();
     void liveIdChanged();
-    void busyChanged();
-    void errorChanged();
-    void chatChanged();
     void uploadChanged();
-    void notify(const QString& message, const QString& level);
-    /// Arrancó un vivo desde acá: {plataforma, url, id, estudio?} (sin la clave).
-    /// Va al bus como «salida/vivo» y queda en el histórico del evento.
-    void vivo(const QVariantMap& datos);
 
    private:
     /// El motor contestó si salió al aire (`error` vacío = sí): sigue goLive.
     void alSalir(const QJsonObject& d, const QJsonObject& ing, const std::string& error, const FacebookClient::Done& done);
-    void setError(const QString& e);
-    void track(bool start);
     void pollChat();
     /// El cliente avisó: emite lo que cambió de la app, la cuenta y la Página.
     void revisarCuenta();
@@ -145,8 +148,6 @@ class FacebookViewModel : public QObject {
     std::unique_ptr<JsonListModel> videos_;
     GrabacionesModel& grabaciones_; ///< compartida (ui/GrabacionesModel)
     std::unique_ptr<JsonListModel> chat_;
-    int busy_ = 0;
-    QString lastError_;
     QString liveId_;
     QVariantMap appAntes_, cuentaAntes_, paginaAntes_; ///< para avisar solo lo que cambió
     QString chatLiveId_;
