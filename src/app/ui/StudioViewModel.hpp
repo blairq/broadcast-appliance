@@ -171,6 +171,7 @@ class TemaEventoViewModel;
 namespace sala {
 class ClavesEvento;
 class GuardadoEnEvento;
+class QuienMira;
 }
 class LineaViewModel;
 class AtencionViewModel;
@@ -818,9 +819,6 @@ class StudioViewModel : public QObject {
     std::unique_ptr<EstadoAireViewModel> aire_;
     /// Lo que cambió en la foto del motor (lo de la raíz: las pastillas, el lienzo, el editor).
     void alCambiarFoto(unsigned partes);
-    /// El retorno de cada salida que alguien mira ("" = la por omisión): se le pide al motor
-    /// solo cuando cambia.
-    std::map<std::string, bool> retornoEnUso_;
     std::unique_ptr<ScenesModel> scenes_;
     std::unique_ptr<SourcesModel> sources_;
     std::unique_ptr<MixerModel> mixer_;
@@ -901,8 +899,6 @@ class StudioViewModel : public QObject {
     void reflejarSalidaActiva();
     double peakActivaL_ = -100; ///< el vúmetro del programa de la activa (si no es la por omisión)
     double peakActivaR_ = -100;
-    /// Desde cuándo nadie mira el retorno de cada salida que no es la por omisión (ver onTick).
-    QHash<QString, qint64> salidaVistaMs_;
     std::unique_ptr<EmisionViewModel> emision_; ///< grabar, transmitir y lo que los rodea (ui/EmisionViewModel)
     /// Publica en el bus lo que cambió (cada vuelta del reloj, 10 Hz).
     void publicarEventos();
@@ -912,7 +908,9 @@ class StudioViewModel : public QObject {
     /// Usa conference_ (su cliente), la sesión remota y el cuerpo (asamblea_) y el motor: va
     /// después (se destruye antes).
     std::unique_ptr<escenas::ControlGrillas> grillasPersonas_;
-    qint64 retornoVistoMs_ = 0; ///< la última vez que alguien miraba el retorno (ver onTick)
+    /// Quién mira el programa de cada salida: le pide al motor el retorno a los invitados.
+    /// Lee la sala (conference_), la sesión remota (asamblea_) y las pantallas: va después.
+    std::unique_ptr<sala::QuienMira> quienMira_;
     /// Los avisos del runtime (AppRuntime::observar): se juntan en una máscara y se
     /// reflejan en una sola pasada por vuelta del bucle (refrescarAvisos).
     int observadorRt_ = 0;

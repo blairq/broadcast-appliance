@@ -26,6 +26,8 @@
 
 #include "agent/Despachador.hpp"
 #include "agent/Roles.hpp"
+#include "platform/Huerfanos.hpp"
+#include "platform/Paths.hpp"
 
 using ba::app::agent::Despachador;
 using ba::app::agent::Lanzamiento;
@@ -83,6 +85,8 @@ int main(int argc, char** argv) {
     std::printf("== test_despachador ==\n");
     QTemporaryDir tmp;
     const QString dir = tmp.path();
+    // Los agentes quedan anotados en <datos>/Runtime/hijos (agent/HijosDeLaApp): acá.
+    qputenv(ba::platform::kDataRootEnv, dir.toLocal8Bit());
 
     // --- Roles --------------------------------------------------------------------------
     {
@@ -117,13 +121,14 @@ int main(int argc, char** argv) {
 #ifndef _WIN32
     // --- El motor falso -------------------------------------------------------------------
     // $1 = encargo; escribe el encargo en encargo.txt y emite stream-json.
-    // Con MOTOR_FALLA=1 termina con codigo 3; con MOTOR_LENTO=1 duerme 30 s.
+    // Con MOTOR_FALLA=1 termina con codigo 3; con MOTOR_LENTO=1 duerme 30 s (en un hijo, como
+    // los MCP que lanza opencode: detener se lo lleva también).
     const QString motor = dir + "/motor.sh";
     {
         std::ofstream s(motor.toStdString());
         s << "#!/bin/sh\n"
              "printf '%s' \"$1\" > \"$PWD/encargo.txt\"\n"
-             "[ -n \"$MOTOR_LENTO\" ] && sleep 30\n"
+             "[ -n \"$MOTOR_LENTO\" ] && { sleep 30 & echo $! > \"$PWD/sleep.pid\"; wait; }\n"
              "printf '%s\\n' "
              "'{\"type\":\"system\",\"subtype\":\"init\",\"model\":\"falso-1\",\"tools\":[\"a\",\"b\"]}'\n"
              "printf '%s\\n' "
@@ -240,9 +245,18 @@ int main(int argc, char** argv) {
         CHECK(a2 == a, "el mismo lobby en curso no se duplica");
         CHECK(d.corrida(a)["estado"] == "corriendo" && d.corrida(b)["estado"] == "esperando", "una a la vez");
         CHECK(d.enCurso() == 1, "enCurso");
+        const QString anotado = dir + "/Runtime/hijos/agente-" + QString::fromStdString(a) + ".json";
+        CHECK(esperar([&]() { return QFile::exists(dir + "/sleep.pid") && QFile::exists(anotado); }),
+              "el agente arranca, lanza su hijo y queda anotado");
+        QFile pf(dir + "/sleep.pid");
+        const qint64 nieto = pf.open(QIODevice::ReadOnly) ? pf.readAll().trimmed().toLongLong() : 0;
+        ambiente.clear(); // la que espera arranca apenas se va esta: ya sin dormir
         d.detener(QString::fromStdString(a));
         CHECK(esperar([&]() { return d.corrida(a)["estado"] == "detenida"; }), "detener mata la corrida");
-        ambiente.clear();
+        CHECK(nieto > 1 && esperar([&]() { return !ba::platform::huerfanos::vivo(nieto); }),
+              "y lo que lanzó el agente (no queda huérfano)");
+        CHECK(!QFile::exists(anotado), "y ya no está anotado");
+        QFile::remove(dir + "/sleep.pid");
         CHECK(esperar([&]() { return d.corrida(b)["estado"] == "ok"; }), "la que esperaba corre despues");
     }
 

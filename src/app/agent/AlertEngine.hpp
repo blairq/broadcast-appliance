@@ -87,6 +87,9 @@ struct AlertInputs {
         bool grabacionPedida = false; ///< alguien la puso a grabar (y no la paró): si no graba, se cortó sola
         /// Las salidas (ids) con la grabación pedida y cortada: el motor la está rearmando en otra parte.
         std::vector<std::string> grabacionesCaidas;
+        /// Alguien la puso a transmitir y no la paró (salidas::Pedidos): si deja de salir, se
+        /// cortó sola. Sin el dato, como pedida (avisa como siempre).
+        bool transmisionPedida = true;
     };
     std::function<std::vector<Audio>()> audio;
     std::function<std::vector<Media>()> media;

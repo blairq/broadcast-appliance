@@ -14,7 +14,9 @@ SalidasSala::SalidasSala(ConferenceClient& sala, QObject* parent) : QObject(pare
     connect(&sala_, &ConferenceClient::programaEvento, this, [this](const QJsonObject& o) {
         miranPrograma_ = o.value("mirando").toInt(-1);
         miranSalidas_ = o.value("salidas").toObject();
+        emit miranCambio();
     });
+    connect(&sala_, &ConferenceClient::onlineChanged, this, &SalidasSala::miranCambio);
 }
 
 void SalidasSala::poner(const QJsonArray& lista) {

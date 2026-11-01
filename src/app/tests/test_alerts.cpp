@@ -227,6 +227,13 @@ int main(int argc, char** argv) {
     step(250);
     CHECK(fired.size() == 3 && fired[2]["text"].get<std::string>().find("detuvo") != std::string::npos,
           "se corto");
+    // La para el operador: ya no está pedida (salidas::Pedidos) y no es noticia.
+    w.status = {true, true, 0, 1000};
+    step(250);
+    w.status.streaming = false;
+    w.status.transmisionPedida = false;
+    step(250);
+    CHECK(fired.size() == 3, "pararla a proposito no avisa que se detuvo");
     eng.clear();
     fired.clear();
 
@@ -289,6 +296,15 @@ int main(int argc, char** argv) {
     step(250);
     CHECK(fired.size() == 1 && fired[0]["text"].get<std::string>().find("vencida") != std::string::npos,
           "si el reintento se rinde, avisa aunque no haya pasado el tiempo");
+    // Reintentaba y el operador la paró: dejó de reintentar, pero no se rindió.
+    step(61000);
+    fired.clear();
+    w.status = {true, false, 0, 1000, true};
+    step(250);
+    w.status = {false, false, 0, 1000, false};
+    w.status.transmisionPedida = false;
+    step(250);
+    CHECK(fired.empty(), "pararla mientras reintenta no dice que se dio por vencida");
     eng.clear();
     fired.clear();
 

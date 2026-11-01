@@ -127,6 +127,7 @@ agent::AlertInputs AlarmasViewModel::directas(const Fuentes& f) {
         a.reconnecting = t.value("reconectando", false);
         a.recording = fo.value("grabacion", json::object()).value("activa", false);
         a.grabacionPedida = !rt.recordStopWanted();
+        a.transmisionPedida = !rt.streamStopWanted();
         const json salidas = fo.value("salidas", json::object()); // con nombre: UB si no
         for (const auto& [id, x] : salidas.items())
             if (x.value("grabacion", json::object()).value("caida", false)) a.grabacionesCaidas.push_back(id);
