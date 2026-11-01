@@ -817,6 +817,11 @@ endif()
     target_include_directories(test_grafo_video PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
     target_link_libraries(test_grafo_video PRIVATE ba_core)
     add_test(NAME test_grafo_video COMMAND test_grafo_video)
+    # El resumen de la tarjeta de cada nodo (ui/ResumenNodo): nunca tira (a42d4a31).
+    add_executable(test_resumen_nodo tests/test_resumen_nodo.cpp ui/ResumenNodo.cpp)
+    target_include_directories(test_resumen_nodo PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    target_link_libraries(test_resumen_nodo PRIVATE ba_core Qt6::Core)
+    add_test(NAME test_resumen_nodo COMMAND test_resumen_nodo)
 
     # F3-12: los tipos de antes al motor (inputs::alMotor): toda opción llega o se avisa.
     add_executable(test_al_motor tests/test_al_motor.cpp emision/InputSpecs.cpp)
