@@ -1,7 +1,7 @@
 // ============================================================================
 // src/app/evento/TemaEvento.cpp — ver TemaEvento.hpp
 // ============================================================================
-#include "persist/Escritor.hpp"
+#include "persist/ArchivoConfig.hpp"
 #include "evento/TemaEvento.hpp"
 
 #include "i18n/I18n.hpp" // QT_TRANSLATE_NOOP: los errores se traducen al mostrarlos
@@ -111,8 +111,7 @@ json TemaEvento::aJson() const {
 
 TemaEvento TemaEvento::leer(const fs::path& carpetaEvento) {
     {
-        std::ifstream f(carpetaEvento / "tema.json");
-        const json j = f ? json::parse(f, nullptr, false) : json();
+        const json j = ba::persist::leerJson(carpetaEvento / "tema.json"); // lo encolado cuenta
         if (j.is_object()) return deJson(j);
     }
     // Sin tema.json pero con sitio: hay tema, el de fábrica con los colores del sitio (sus
@@ -125,8 +124,10 @@ TemaEvento TemaEvento::leer(const fs::path& carpetaEvento) {
 }
 
 bool TemaEvento::guardar(const fs::path& carpetaEvento) const {
-    // El escritor único (temporal + fsync + reemplazo que también pisa en Windows).
-    return ba::persist::escribir(carpetaEvento / "tema.json", aJson().dump(2, ' ', false, json::error_handler_t::replace) + "\n");
+    // El escritor único (temporal + fsync + reemplazo que también pisa en Windows), por su
+    // cola: se guarda desde la interfaz; leer ya lo ve.
+    ba::persist::guardarJsonEnCola(carpetaEvento / "tema.json", aJson(), 2);
+    return true;
 }
 
 json TemaEvento::paraPublicar(const fs::path& carpetaEvento) const {

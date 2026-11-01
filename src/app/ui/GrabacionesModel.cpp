@@ -23,27 +23,35 @@
 
 namespace ba::app {
 
-GrabacionesModel::GrabacionesModel(AppRuntime& rt, VentanillaMotor& ventanilla, QObject* parent)
-    : JsonListModel(QStringList{"uid", "name", "size", "modified", "path"}, parent), rt_(rt), ventanilla_(ventanilla) {
+GrabacionesModel::GrabacionesModel(VentanillaMotor& ventanilla, QObject* parent)
+    : JsonListModel(QStringList{"uid", "name", "size", "modified", "path"}, parent), ventanilla_(ventanilla) {
     grababa_ = ventanilla_.foto().estado.graba;
-    // Empezó o terminó una grabación: hay un archivo nuevo (o ya cerrado, con su tamaño).
+    carpeta_ = ventanilla_.foto().sala.carpetaGrabacion;
+    // Empezó o terminó una grabación: hay un archivo nuevo (o ya cerrado, con su tamaño). Se
+    // abrió otro evento: otra carpeta.
     connect(&ventanilla_, &VentanillaMotor::cambio, this, [this](unsigned partes) {
-        if ((partes & FotoMotor::Estado) == 0) return;
-        const bool graba = ventanilla_.foto().estado.graba;
-        if (graba == grababa_) return;
-        grababa_ = graba;
-        refrescar();
+        const FotoMotor& f = ventanilla_.foto();
+        bool releer = false;
+        if ((partes & FotoMotor::Estado) != 0 && f.estado.graba != grababa_) {
+            grababa_ = f.estado.graba;
+            releer = true;
+        }
+        if ((partes & FotoMotor::Sala) != 0 && f.sala.carpetaGrabacion != carpeta_) {
+            carpeta_ = f.sala.carpetaGrabacion;
+            releer = true;
+        }
+        if (releer) refrescar();
     });
     refrescar();
 }
 
-QString GrabacionesModel::carpeta() const { return QString::fromStdString(rt_.carpetaGrabacion()); }
-
 void GrabacionesModel::refrescar() {
     const unsigned esta = ++lecturas_;
-    // Las carpetas son de la copia de los ajustes de aire (se leen desde la interfaz); los
-    // archivos, aparte.
-    const std::vector<std::string> carpetas = rt_.carpetasDeGrabaciones();
+    // Dónde: la de ahora (la del evento, de la foto) y la general de la configuración (lo de
+    // antes de los eventos). Los archivos, aparte.
+    std::vector<std::string> carpetas{carpeta_};
+    if (const auto& app = ventanilla_.foto().configuracion.app; app && app->rec.directory != carpeta_)
+        carpetas.push_back(app->rec.directory);
     QPointer<GrabacionesModel> yo(this);
     QThreadPool::globalInstance()->start([yo, esta, carpetas]() {
         // Las del evento en curso y las de Recordings/, lo más nuevo primero.

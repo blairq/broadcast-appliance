@@ -225,13 +225,9 @@ agent::AlertInputs AlarmasViewModel::directas(const Fuentes& f) {
         return *cache;
     };
     directas.loudness = [&motor]() { return motor.loudnessPrograma().json(); };
-    // El corte de luz: medido acá (una consulta al sistema, una vez cada 5 s), no en la
-    // vuelta de EnergiaAire, que es de la interfaz.
-    directas.energia = [e = &f.energia, cache = std::make_shared<std::pair<qint64, json>>()]() {
-        const qint64 ahora = QDateTime::currentMSecsSinceEpoch();
-        if (cache->first == 0 || ahora - cache->first >= 5000) *cache = {ahora, e->estadoAhora()};
-        return cache->second;
-    };
+    // El corte de luz: lo que midió EnergiaAire en su última vuelta (es del dueño, como el
+    // vigía: una sola medición, con su candado).
+    directas.energia = [e = &f.energia]() { return e->estado(); };
     // El disco de todo lo que se graba (por volumen; la copia en el mismo disco). Mira
     // el espacio libre de cada carpeta: una vez cada 5 s alcanza. Lee lo que graba el
     // motor con su turno, y sin esperar: si la interfaz lo tiene (trabada ADENTRO del

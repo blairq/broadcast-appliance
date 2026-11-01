@@ -2,6 +2,7 @@
 // src/app/ui/AtencionViewModel.cpp — ver AtencionViewModel.hpp
 // ============================================================================
 #include "ui/AtencionViewModel.hpp"
+#include "persist/ColaEscritura.hpp"
 #include "arranque/ArchivoConfig.hpp"
 #include "i18n/I18n.hpp"
 
@@ -53,24 +54,24 @@ std::filesystem::path archivoAjustes(const std::filesystem::path& datos) { retur
 /// La clave del oído de alguien que se atiende hablando (agent::Voz).
 QString claveOido(const QString& id) { return "atencion:" + id; }
 
-/// Un .wav mono de 16 bits (la prueba de la voz del atendedor).
+/// Un .wav mono de 16 bits (la prueba de la voz del atendedor), por el escritor único (su
+/// cola: entero o nada, fuera de la interfaz; crea la carpeta).
 bool escribirWav(const QString& ruta, const std::vector<float>& m, std::uint32_t frecuencia) {
-    QDir().mkpath(QFileInfo(ruta).absolutePath());
-    QFile f(ruta);
-    if (!f.open(QIODevice::WriteOnly | QIODevice::Truncate)) return false;
+    std::string f;
     const auto u32 = [&f](std::uint32_t v) {
         const char b[4] = {static_cast<char>(v), static_cast<char>(v >> 8), static_cast<char>(v >> 16),
                            static_cast<char>(v >> 24)};
-        f.write(b, 4);
+        f.append(b, 4);
     };
     const auto u16 = [&f](std::uint16_t v) {
         const char b[2] = {static_cast<char>(v), static_cast<char>(v >> 8)};
-        f.write(b, 2);
+        f.append(b, 2);
     };
     const auto datos = static_cast<std::uint32_t>(m.size() * 2);
-    f.write("RIFF", 4);
+    f.reserve(44 + datos);
+    f.append("RIFF", 4);
     u32(36 + datos);
-    f.write("WAVEfmt ", 8);
+    f.append("WAVEfmt ", 8);
     u32(16);
     u16(1); // PCM
     u16(1); // mono
@@ -78,9 +79,10 @@ bool escribirWav(const QString& ruta, const std::vector<float>& m, std::uint32_t
     u32(frecuencia * 2);
     u16(2);
     u16(16);
-    f.write("data", 4);
+    f.append("data", 4);
     u32(datos);
     for (const float x : m) u16(static_cast<std::uint16_t>(static_cast<std::int16_t>(std::clamp(x, -1.0f, 1.0f) * 32767.0f)));
+    ba::persist::cola().escribir(ruta.toStdWString(), std::move(f));
     return true;
 }
 

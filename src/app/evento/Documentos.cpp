@@ -61,7 +61,9 @@ json Documentos::leer() const {
 }
 
 bool Documentos::guardar(const json& l) const {
-    return ba::persist::guardarJson(docs_ / "documentos.json", json{{"version", 1}, {"documentos", l}});
+    // Encolado (se guarda desde la interfaz): leer ya lo ve.
+    ba::persist::guardarJsonEnCola(docs_ / "documentos.json", json{{"version", 1}, {"documentos", l}});
+    return true;
 }
 
 json Documentos::lista() const {

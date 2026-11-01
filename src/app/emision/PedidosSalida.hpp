@@ -11,7 +11,9 @@
 // (BroadcastEngine::ResultadoOrden) la deja en «Si» o, si falló, en «No» (ya no está
 // pedida: el documento deja de decir que graba y tras un corte no se retoma algo que nunca
 // grabó). Solo cuenta el resultado de la ÚLTIMA orden: uno viejo (se paró y se volvió a
-// pedir) no pisa lo de ahora. La por omisión es una salida más (sin caso aparte).
+// pedir) no pisa lo de ahora. Pedir de nuevo lo que está Pendiente (un doble clic, el
+// operador y el MCP a la vez) NO es otra orden: es la misma, y su resultado es el de los
+// dos. La por omisión es una salida más (sin caso aparte).
 //
 // Lo usa AppRuntime (su dueño). Seguro entre hilos: lo leen el vigía de las alarmas y el
 // hilo de salidas (el resultado). Sin Qt.
@@ -45,14 +47,26 @@ class Pedidos {
         const auto it = salidas_.find(id);
         return it == salidas_.end() ? DeSalida{} : it->second;
     }
-    /// Pide grabar (o transmitir) en `id`: queda Pendiente. Devuelve el número de la orden.
+    /// Pide grabar (o transmitir) en `id`: queda Pendiente. Devuelve el número de la orden;
+    /// si ya estaba Pendiente, el de esa (la misma orden: la del motor dice por las dos).
     std::uint64_t pedir(const std::string& id, bool grabar) {
         const std::lock_guard<std::mutex> l(mu_);
         DeSalida& p = salidas_[id];
-        const std::uint64_t n = ++proxima_;
-        (grabar ? p.graba : p.transmite) = Estado::Pendiente;
-        (grabar ? p.ordenGraba : p.ordenTransmite) = n;
-        return n;
+        Estado& e = grabar ? p.graba : p.transmite;
+        std::uint64_t& orden = grabar ? p.ordenGraba : p.ordenTransmite;
+        if (e == Estado::Pendiente && orden != 0) return orden;
+        e = Estado::Pendiente;
+        orden = ++proxima_;
+        return orden;
+    }
+    /// La orden `orden` ni se pudo encolar: vuelve lo de antes de pedirla (`antes`, lo que
+    /// devolvió `de` justo antes de `pedir`), si nadie pidió otra mientras tanto.
+    void devolver(const std::string& id, bool grabar, std::uint64_t orden, const DeSalida& antes) {
+        const std::lock_guard<std::mutex> l(mu_);
+        const auto it = salidas_.find(id);
+        if (it == salidas_.end() || (grabar ? it->second.ordenGraba : it->second.ordenTransmite) != orden) return;
+        (grabar ? it->second.graba : it->second.transmite) = grabar ? antes.graba : antes.transmite;
+        (grabar ? it->second.ordenGraba : it->second.ordenTransmite) = grabar ? antes.ordenGraba : antes.ordenTransmite;
     }
     /// Ya no se pide (lo pararon, o la orden ni se pudo encolar).
     void dejarDePedir(const std::string& id, bool grabar) {
@@ -88,10 +102,15 @@ class Pedidos {
             else
                 p.destinos.erase(destino);
     }
-    /// El corte de luz cerró su grabación: sigue pedida hasta que vuelva la energía.
+    /// El corte de luz cierra su grabación: deja de grabar pero SIGUE PEDIDA hasta que
+    /// vuelva la energía, en un solo paso (nadie lee «no graba» en el medio: el documento
+    /// de aire se escribe con lo pedido).
     void cerrarPorEnergia(const std::string& id) {
         const std::lock_guard<std::mutex> l(mu_);
-        salidas_[id].cerradaPorEnergia = true;
+        DeSalida& p = salidas_[id];
+        p.cerradaPorEnergia = true;
+        p.graba = Estado::No;
+        p.ordenGraba = 0;
     }
     /// Las que cerró el corte de luz (y dejan de estarlo: se vuelven a pedir).
     std::vector<std::string> tomarCerradasPorEnergia() {
@@ -109,10 +128,28 @@ class Pedidos {
         const std::lock_guard<std::mutex> l(mu_);
         salidas_.erase(id);
     }
-    /// Cierre ordenado (o el rearme, que vuelve a pedir lo que había): nada pedido.
+    /// Cierre ordenado: nada pedido.
     void olvidarTodo() {
         const std::lock_guard<std::mutex> l(mu_);
         salidas_.clear();
+    }
+    /// El rearme del motor (se perdió la GPU), que vuelve a pedir lo que salía: nada
+    /// pedido, SALVO lo que cerró el corte de luz, que sigue esperando la energía (no se
+    /// retoma con la batería baja). Devuelve esas salidas.
+    std::vector<std::string> rearmar() {
+        const std::lock_guard<std::mutex> l(mu_);
+        std::vector<std::string> porEnergia;
+        for (auto it = salidas_.begin(); it != salidas_.end();) {
+            if (it->second.cerradaPorEnergia) {
+                porEnergia.push_back(it->first);
+                it->second = DeSalida{};
+                it->second.cerradaPorEnergia = true;
+                ++it;
+            } else {
+                it = salidas_.erase(it);
+            }
+        }
+        return porEnergia;
     }
 
    private:

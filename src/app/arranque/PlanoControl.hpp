@@ -67,10 +67,15 @@ class PlanoControl : public QObject {
     void arrancar(int controlMs = 100, int interfazMs = 100);
     /// Para los relojes, devuelve los objetos adoptados al hilo que creó el plano y
     /// termina el hilo (espera a lo que esté corriendo). Ese hilo RECIBE EL MOTOR: corre
-    /// `alRecibir` (hacerse dueño) y después, en orden, lo que quedó en la agenda (nada se
-    /// pierde: quien pidió recibe su respuesta). Desde ahí, lo que se encola (`encolar`,
-    /// `encolarConTurno`, `despues`) corre en ese hilo, encolado. Idempotente.
+    /// `alRecibir` (hacerse dueño, UNA vez) y después, en orden, lo que quedó en la agenda
+    /// (quien pidió recibe su respuesta). Desde ahí, lo que se encola (`encolar`,
+    /// `encolarConTurno`, `despues`) queda PENDIENTE para ese hilo: corre en su bucle si
+    /// anda, o cuando él llama a `atenderPendientes` (al cerrar ya no hay bucle: lo que piden
+    /// los destructores de las vistas corre así, antes del cierre ordenado). Idempotente.
     void detener(const std::function<void()>& alRecibir = {});
+    /// Con el plano parado, en el hilo que recibió el motor: corre YA lo pendiente (ver
+    /// detener), en orden, también lo que se encole mientras tanto. Devuelve cuántas.
+    int atenderPendientes();
     bool andando() const { return hilo_.isRunning(); }
 
     /// El turno de la agenda (ver arriba). Antes de arrancar.
@@ -124,7 +129,8 @@ class PlanoControl : public QObject {
     void vueltaInterfaz();
     /// Corre lo que se pueda de la agenda (en el hilo de control).
     void atenderAgenda();
-    /// Lo encolado con el plano parado: al hilo que recibió el motor (el que lo creó).
+    /// Lo encolado con el plano parado: pendiente para el hilo que recibió el motor (el que
+    /// lo creó), que lo corre en su bucle o en atenderPendientes. Con paradoMu_ tomado.
     void alDuenoNuevo(std::function<void()> fn);
 
     Tareas tareas_;
@@ -141,6 +147,8 @@ class PlanoControl : public QObject {
     /// encola junto, así nada cae en el hilo que se está parando.
     std::mutex paradoMu_;
     bool parado_ = false;
+    bool recibido_ = false; ///< el motor ya volvió (alRecibir corrió): una sola vez
+    std::deque<std::function<void()>> pendientes_; ///< lo encolado con el plano parado (con paradoMu_)
     // La agenda: solo la toca el hilo de control.
     std::deque<std::function<void()>> agenda_;
     bool agendaReintento_ = false; ///< ya hay un reintento armado

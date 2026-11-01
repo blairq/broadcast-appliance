@@ -2,6 +2,7 @@
 // src/app/ui/RegistroViewModel.cpp — ver RegistroViewModel.hpp
 // ============================================================================
 #include "ui/RegistroViewModel.hpp"
+#include "persist/ColaEscritura.hpp"
 #include "i18n/I18n.hpp"
 #include "ajustes/Ajustes.hpp"
 #include "platform/Paths.hpp"
@@ -174,11 +175,6 @@ void RegistroViewModel::prender(const QString& id) {
 QString RegistroViewModel::exportar() {
     const QString nombre = "registro-" + QDateTime::currentDateTime().toString("yyyyMMdd-HHmmss") + ".txt";
     const QString ruta = QDir(d_->carpeta()).filePath(nombre);
-    QFile f(ruta);
-    if (!f.open(QIODevice::WriteOnly | QIODevice::Text)) {
-        emit notify(tr("No se pudo escribir %1").arg(ruta), "error");
-        return {};
-    }
     // Con el filtro adelante: quien lo reciba tiene que saber que esta mirando
     // un recorte y cual.
     QString cab = "# " + tr("Registro exportado %1").arg(QDateTime::currentDateTime().toString("dd/MM/yyyy HH:mm:ss")) + "\n";
@@ -186,9 +182,8 @@ QString RegistroViewModel::exportar() {
     if (!modulo().isEmpty()) cab += "  " + tr("modulo: %1").arg(modulo());
     if (!busca().isEmpty()) cab += "  " + tr("busca: %1").arg(busca());
     cab += "  " + tr("(%1 lineas)").arg(d_->lineas.size()) + "\n\n";
-    f.write(cab.toUtf8());
-    f.write(comoTexto().toUtf8());
-    f.close();
+    // El escritor único, por su cola (entero o nada, fuera de la interfaz).
+    ba::persist::cola().escribir(ruta.toStdWString(), (cab + comoTexto()).toUtf8().toStdString());
     ba::diag::registro().linea(ba::diag::Nivel::Info, "registro", 0,
                                ba::i18n::llenar(ba::i18n::traducir("registro", "registro exportado a %1"), {nombre.toStdString()}));
     emit notify(tr("Registro guardado en Logs/%1").arg(nombre), "ok");

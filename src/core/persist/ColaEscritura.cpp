@@ -68,6 +68,38 @@ void ColaEscritura::escribirGeneracion(const fs::path& archivo, std::string cuer
     encolar(Tipo::Generacion, archivo, std::move(cuerpo), std::move(p));
 }
 
+void ColaEscritura::agregar(const fs::path& ruta, std::string bytes, Pedido p) {
+    {
+        std::lock_guard<std::mutex> l(mu_);
+        ++cuentas_.pedidos;
+        // Aparte de lo que reemplaza el archivo entero (otra clave): un diario solo se suma.
+        Entrada& e = pendientes_[clave(ruta) + "\n+"];
+        if (e.version == 0) {
+            e.orden = ++orden_;
+            e.tipo = Tipo::Agregar;
+            e.ruta = ruta;
+            e.pedido = std::move(p);
+        }
+        // Al final de lo que falta (aunque el hilo esté agregando lo anterior: al terminar
+        // saca solo lo que escribió).
+        e.bytes += bytes;
+        e.version = ++version_;
+        e.reintento = {};
+    }
+    hay_.notify_one();
+}
+
+bool ColaEscritura::existe(const fs::path& ruta) const {
+    {
+        std::lock_guard<std::mutex> l(mu_);
+        const auto it = pendientes_.find(clave(ruta));
+        if (it != pendientes_.end()) return it->second.tipo != Tipo::Borrar;
+        if (pendientes_.count(clave(ruta) + "\n+") != 0) return true;
+    }
+    std::error_code ec;
+    return fs::exists(ruta, ec);
+}
+
 void ColaEscritura::borrar(const fs::path& ruta, Prioridad prioridad) {
     Pedido p;
     p.prioridad = prioridad;
@@ -75,8 +107,10 @@ void ColaEscritura::borrar(const fs::path& ruta, Prioridad prioridad) {
 }
 
 bool ColaEscritura::leer(const fs::path& ruta, std::string& out) const {
+    std::string falta; // lo encolado para agregar al final (un diario)
     {
         std::lock_guard<std::mutex> l(mu_);
+        if (const auto a = pendientes_.find(clave(ruta) + "\n+"); a != pendientes_.end()) falta = a->second.bytes;
         const auto it = pendientes_.find(clave(ruta));
         if (it != pendientes_.end() && it->second.tipo != Tipo::Generacion) {
             if (it->second.tipo == Tipo::Borrar) return false;
@@ -84,7 +118,9 @@ bool ColaEscritura::leer(const fs::path& ruta, std::string& out) const {
             return true;
         }
     }
-    return leerArchivo(ruta, out);
+    if (!leerArchivo(ruta, out) && falta.empty()) return false;
+    out += falta;
+    return true;
 }
 
 Lectura ColaEscritura::leerGeneraciones(const fs::path& archivo) const {
@@ -126,6 +162,8 @@ bool ColaEscritura::hacer(const Entrada& e, std::string& error) {
             generaciones_.erase(clave(e.ruta));
             // Las generaciones (si las hay) y el archivo de siempre.
             return DosGeneraciones(e.ruta).borrar();
+        case Tipo::Agregar:
+            return persist::agregar(e.ruta, e.bytes, e.pedido.durabilidad, &error);
     }
     return false;
 }
@@ -172,7 +210,15 @@ void ColaEscritura::correr() {
         const bool ok = hacer(e, error);
         l.lock();
         auto it = pendientes_.find(k);
-        if (ok) {
+        if (ok && e.tipo == Tipo::Agregar && it != pendientes_.end()) {
+            // Se agregó lo que había al tomarla; lo que llegó mientras tanto sigue.
+            ++cuentas_.escrituras;
+            it->second.bytes.erase(0, e.bytes.size());
+            if (it->second.bytes.empty())
+                pendientes_.erase(it);
+            else
+                it->second.enCurso = false;
+        } else if (ok) {
             ++cuentas_.escrituras;
             if (it != pendientes_.end() && it->second.version == e.version) {
                 if (e.tipo == Tipo::Generacion && !e.igualar) {

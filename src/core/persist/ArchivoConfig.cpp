@@ -232,6 +232,10 @@ bool guardarJson(const std::filesystem::path& ruta, const json& j, int sangria, 
     return escribir(ruta, j.dump(sangria, ' ', false, json::error_handler_t::replace) + "\n", d, Permisos::Comunes, error);
 }
 
+void guardarJsonEnCola(const std::filesystem::path& ruta, const json& j, int sangria, Pedido p) {
+    cola().escribir(ruta, j.dump(sangria, ' ', false, json::error_handler_t::replace) + "\n", std::move(p));
+}
+
 json leerJson(const std::filesystem::path& ruta) {
     std::string bytes;
     if (!cola().leer(ruta, bytes)) return json();

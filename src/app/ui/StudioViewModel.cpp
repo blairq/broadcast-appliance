@@ -642,7 +642,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, VentanillaMotor& ventanilla, QO
     escritorio_->refrescarCatalogo();
     // El respaldo de las entradas al aire que pierden señal (modelo): es del dueño del motor
     // (corta por el conmutador con la interfaz trabada); acá solo se muestra.
-    respaldo_ = std::make_unique<escenas::RespaldoEntradas>(rt, imagen_->video(), salidas_->conmutador());
+    respaldo_ = std::make_unique<escenas::RespaldoEntradas>(rt, imagen_->video(), salidas_->conmutadores());
     connect(respaldo_.get(), &escenas::RespaldoEntradas::sinSenalCambio, this, [this](const QStringList& sin) {
         sinSenal_ = sin;
         emit senalChanged();

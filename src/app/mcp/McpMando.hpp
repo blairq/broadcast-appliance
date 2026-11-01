@@ -50,6 +50,15 @@ struct MandoDeAire {
         placa;
     std::function<json(const std::string& salida)> estadoPlaca;
 
+    /// Lo que de verdad pasó con una orden de grabar o transmitir (el motor la hace en su
+    /// hilo de salidas): llega después, en el hilo de la herramienta.
+    struct Resultado {
+        bool ok = false;
+        std::string error;   ///< por qué no
+        std::string archivo; ///< grabar: el que abrió
+    };
+    using Hecho = std::function<void(const Resultado&)>;
+
     // --- La transmisión (AppRuntime::salirAlAireManual, los destinos) ---
     struct Inicio {
         bool ok = false;
@@ -57,7 +66,8 @@ struct MandoDeAire {
         std::string activoEn;  ///< transmite a OTRO destino (enmascarado): no cambió nada
         std::string error;
     };
-    std::function<Inicio(const std::string& salida, const std::string& server, const std::string& key, bool caliente)>
+    /// Si `ok` (encolada), `hecho` llega una vez con lo que pasó; si no, nunca.
+    std::function<Inicio(const std::string& salida, const std::string& server, const std::string& key, bool caliente, Hecho hecho)>
         transmitir;
     std::function<void(const std::string& salida)> cortarTransmision;
     std::function<std::string(const std::string& destino)> iniciarDestino;
@@ -68,9 +78,9 @@ struct MandoDeAire {
     // --- La grabación ---
     std::function<json(const std::string& salida)> grabacion; ///< BroadcastEngine::grabacionEstado
     std::function<json()> disco;                               ///< AppRuntime::discoGrabacion
-    std::function<std::string(const std::string& salida)> grabar;
+    /// "" (encolada: `hecho` llega una vez con lo que pasó) o por qué ni se pudo pedir.
+    std::function<std::string(const std::string& salida, Hecho hecho)> grabar;
     std::function<void(const std::string& salida)> pararGrabacion;
-    std::function<bool()> algoSale;             ///< hay alguna salida pedida (outputsActive)
     std::function<std::string()> contenedor;    ///< el pedido en la configuración (mkv, mp4…)
     double discoMinimoH = 0.25;                 ///< con menos, no se arranca sola (AppRuntime::kDiscoMinimoH)
 };

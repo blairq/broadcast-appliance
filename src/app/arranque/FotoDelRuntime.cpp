@@ -6,7 +6,9 @@
 
 #include "arranque/AppRuntime.hpp"
 
+#include "diag/Registro.hpp"
 #include "emision/SalidasConfig.hpp"
+#include "i18n/I18n.hpp"
 
 #include <chrono>
 #include <cstdlib>
@@ -73,8 +75,18 @@ void AppRuntime::publicarFoto() {
         for (const auto& [id, aporte] : aportes_)
             if (aporte) aporte(trabajo_, sucias);
     }
-    // Qué cambió de verdad: la interfaz se entera solo de eso.
-    const unsigned cambiaron = foto_ ? FotoMotor::partesDistintas(*foto_, trabajo_, sucias) : unsigned(FotoMotor::Todas);
+    // Qué cambió de verdad: la interfaz se entera solo de eso. Con lo sucio se compara lo
+    // que arrastra (FotoMotor::kArrastres: campos de una parte que se rehacen con otra).
+    const unsigned cambiaron = foto_ ? FotoMotor::queCambio(*foto_, trabajo_, sucias) : unsigned(FotoMotor::Todas);
+    // En pruebas, TODA la foto: algo que cambió sin compararse es una vista que no se
+    // entera nunca (el reloj del motor publica enseguida y la próxima comparación da igual).
+    if (foto_ && cfg_.modoPrueba)
+        if (const unsigned sin = FotoMotor::cambioSinMarcar(*foto_, trabajo_, sucias); sin != 0)
+            ba::diag::registro().linea(
+                ba::diag::Nivel::Error, "foto", 0,
+                ba::i18n::llenar(ba::i18n::traducir("foto", "la foto cambió partes sin compararlas (%1) al rearmar %2: falta su "
+                                                            "fila en FotoMotor::kArrastres"),
+                                 {std::to_string(sin), std::to_string(sucias)}));
     if (cambiaron == 0) return;
     foto_ = std::make_shared<const FotoMotor>(trabajo_);
     {
@@ -250,7 +262,7 @@ void AppRuntime::armarFoto(FotoMotor& f, unsigned p) {
     }
 
     // --- Las superficies: el tema web (las capas DSK las suma CapasDsk, un aporte) ---------
-    if ((p & (FotoMotor::Superficies | FotoMotor::Ajustes)) != 0) f.temaWeb = cfg_.temaWeb;
+    if (FotoMotor::rearmar(FotoMotor::kTemaWeb, p)) f.temaWeb = cfg_.temaWeb;
 
     // --- El audio de cada fuente (FotoMezcla.cpp) -----------------------------------------
     if ((p & FotoMotor::Mezcla) != 0) armarMezcla(f.mezcla);
@@ -319,7 +331,7 @@ void AppRuntime::armarFoto(FotoMotor& f, unsigned p) {
         s.pinggyPuertoTunel = g.pinggyPuertoTunel;
         s.operadorVideo = cfg_.operatorVideo;
         s.operadorAudio = cfg_.operatorAudio;
-        s.carpetaGrabacion = cfg_.rec.directory;
+        s.carpetaGrabacion = carpetaGrabacion();
         s.audio = engine_.audioSources();
         s.hayFuenteBanca = engine_.hayFuenteBanca();
         s.escenaDeRanura.clear();

@@ -23,6 +23,7 @@
 #include <string>
 
 #include "evento/EventoStore.hpp"
+#include "persist/ColaEscritura.hpp"
 
 namespace fs = std::filesystem;
 using namespace ba::evento;
@@ -41,6 +42,7 @@ int g_fallos = 0;
 fs::path carpetaDePrueba() {
     const fs::path p = fs::temp_directory_path() / "ba-test-eventos";
     std::error_code ec;
+    ba::persist::cola().vaciar(); // lo encolado por la prueba anterior, antes de borrar su carpeta
     fs::remove_all(p, ec);
     return p;
 }
@@ -71,7 +73,9 @@ void crear_y_listar() {
     CHECK(err.empty(), "sin error");
 
     const fs::path dir = s.carpetaDe(carpeta);
-    CHECK(fs::exists(dir / "evento.json"), "deja el guion escrito");
+    // Se guarda por la cola del escritor único (no en el hilo que llama): lo ven enseguida
+    // cargar y listar; en el disco, al vaciarla.
+    CHECK(ba::persist::cola().vaciar() && fs::exists(dir / "evento.json"), "deja el guion escrito");
     CHECK(fs::is_directory(dir / "Medios"), "y la carpeta de medios");
     CHECK(fs::is_directory(dir / "Discursos"), "y la de discursos");
     CHECK(fs::is_directory(dir / "Respaldos"), "y la de respaldos");
@@ -108,8 +112,9 @@ void guardar_respalda() {
     CHECK(s.guardar(carpeta, conUnBloque()), "guarda el guion con un bloque");
     bool ok = false;
     Evento leido = s.cargar(carpeta, &ok);
-    CHECK(ok && leido.bloques.size() == 1, "se lee lo que se guardo");
+    CHECK(ok && leido.bloques.size() == 1, "se lee lo que se guardo (aunque esté encolado)");
     CHECK(leido.duracionSeg() == 30, "con sus tiempos");
+    ba::persist::cola().vaciar(); // el primero, en el disco: el segundo lo respalda
 
     // El segundo guardado respalda el primero.
     Evento otro = conUnBloque();
@@ -118,6 +123,7 @@ void guardar_respalda() {
     leido = s.cargar(carpeta, &ok);
     CHECK(leido.duracionSeg() == 60, "queda el nuevo");
 
+    ba::persist::cola().vaciar(); // el respaldo lo hace el hilo escritor, justo antes de escribir
     int respaldos = 0;
     std::error_code ec;
     for (const auto& d : fs::directory_iterator(s.carpetaDe(carpeta) / "Respaldos", ec)) {
@@ -132,6 +138,7 @@ void guardar_respalda() {
 void guion_danado() {
     EventoStore s(carpetaDePrueba());
     const std::string carpeta = s.crear("Acto");
+    ba::persist::cola().vaciar(); // lo de crear, ya escrito: lo roto no se pisa después
     {
         std::ofstream out(s.carpetaDe(carpeta) / "evento.json", std::ios::trunc);
         out << "{ esto no es json";
@@ -150,11 +157,13 @@ void ultimo_tocado() {
     CHECK(s.ultimoTocado().empty(), "sin eventos no hay ultimo");
 
     const std::string viejo = s.crear("Acto viejo");
+    ba::persist::cola().vaciar();
     // La fecha del archivo tiene la resolucion del sistema: se la fuerza para
     // que la prueba no dependa de cuanto tarda en correr.
     std::error_code ec;
     const auto ahora = fs::last_write_time(s.carpetaDe(viejo) / "evento.json", ec);
     const std::string nuevo = s.crear("Acto nuevo");
+    ba::persist::cola().vaciar();
     fs::last_write_time(s.carpetaDe(viejo) / "evento.json", ahora - std::chrono::hours(48), ec);
 
     // Ojo: los tics del reloj de archivos son NEGATIVOS en libstdc++ (epoca
@@ -163,6 +172,7 @@ void ultimo_tocado() {
     CHECK(s.ultimoTocado() == nuevo, "el ultimo tocado es el que se guardo despues");
 
     s.guardar(viejo, conUnBloque());
+    ba::persist::cola().vaciar();
     CHECK(s.ultimoTocado() == viejo, "guardar el otro lo pone primero");
 }
 

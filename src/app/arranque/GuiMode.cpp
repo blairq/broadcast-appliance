@@ -669,7 +669,9 @@ int runGui(int argc, char** argv) {
         // vuelca rt.stop en el acto.
         devolverElMotor();
     }
-    devolverElMotor();
+    // Lo que pidieron las vistas al irse (ya sin bucle de eventos): corre acá, como dueño,
+    // antes del cierre ordenado.
+    plano.atenderPendientes();
     rt.stop();
     return result;
 }

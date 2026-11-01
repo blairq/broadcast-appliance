@@ -752,6 +752,7 @@ class BroadcastEngine {
         std::string salida, que;
         bool ok = true;
         std::string error;
+        std::string archivo; ///< grabar: el que abrió (la foto de las salidas llega después)
     };
     using AlResultado = std::function<void(const ResultadoOrden&)>;
 
@@ -1029,6 +1030,11 @@ class BroadcastEngine {
     mutable std::mutex fotoSalidasM_;
     nlohmann::json fotoSalidas_ = nlohmann::json::object();
     void avisarFallo(const std::string& texto) { avisar({"orden_fallida", AvisoMotor::Nivel::Error, texto}); }
+    /// Un pedido de lo que YA está pedido (`que`: "grabar" o "transmitir"): su respuesta es
+    /// la de la orden que está en camino, así que se encola detrás de ella en el hilo de
+    /// salidas y contesta lo que pasó con esa (no «ok» en el acto: si fallaba, quien pidió
+    /// la segunda vez se quedaba con un ok que nunca fue).
+    void contestarComoLaAnterior(const std::shared_ptr<Salida>& s, const std::string& que, AlResultado alTerminar);
     void avisar(const AvisoMotor& a);
     // Lo pedido (lo escribe el que tiene el turno al pedir; el hilo de salidas lo baja si
     // no arrancó y lo avisa con el ResultadoOrden): para contestar «ya está» o «ya hay tantas» sin esperar. Lo de
@@ -1095,6 +1101,10 @@ class BroadcastEngine {
         int oyenteAudio = 0;
         // --- Bajo pedidosM_ ---
         bool streamPedido = false, grabacionPedida = false, limpioPedido = false;
+        /// Por qué no arrancó la última orden de grabar / transmitir ("" = arrancó). Solo los
+        /// toca el hilo de salidas: lo contesta a un segundo pedido de lo mismo (ver
+        /// contestarComoLaAnterior).
+        std::string falloGrabacion, falloTransmision;
         std::set<std::string> extrasPedidos;
         std::string activeServer, activeKey;
         // --- Del hilo de salidas ---
