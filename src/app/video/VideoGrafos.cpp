@@ -3098,7 +3098,7 @@ void VideoGrafos::aportar(FotoMotor& foto, unsigned partes) {
     BroadcastEngine& e = rt_.engine();
     // Las fuentes que miran las cámaras y las entradas (con su tamaño, que llega cuando la
     // cámara arranca: se rearma también con la revisión de cada 1,5 s).
-    if ((partes & (FotoMotor::Escenas | FotoMotor::Video)) != 0) {
+    if (FotoMotor::rearmar(FotoMotor::kFuentesVideo, partes)) {
         json fuentes = json::object();
         std::map<std::string, json> escenasDe;
         for (const auto& sc : e.sceneNames())
@@ -3136,7 +3136,7 @@ void VideoGrafos::aportar(FotoMotor& foto, unsigned partes) {
         foto.fuentesVideo = std::move(fuentes);
     }
     // Lo que está al aire, con cada corte (el interlock del PTZ).
-    if ((partes & (FotoMotor::Salidas | FotoMotor::Escenas | FotoMotor::Video)) != 0) {
+    if (FotoMotor::rearmar(FotoMotor::kAlAire, partes)) {
         std::vector<std::string> aire;
         for (const std::string& id : e.salidaIds()) {
             if (!e.haySalidaEn(id)) continue;
@@ -3145,7 +3145,7 @@ void VideoGrafos::aportar(FotoMotor& foto, unsigned partes) {
         }
         foto.alAire = std::move(aire);
     }
-    if ((partes & (FotoMotor::Ajustes | FotoMotor::Video)) != 0) {
+    if (FotoMotor::rearmar(FotoMotor::kConfigImagen, partes)) {
         const AppConfig& c = rt_.config();
         foto.configImagen = {{"mejora", {{"activa", c.mejora.activa}, {"ruido", c.mejora.ruido}, {"color", c.mejora.color},
                                          {"nitidez", c.mejora.nitidez}}},

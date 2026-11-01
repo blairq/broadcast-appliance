@@ -410,18 +410,16 @@ Padron Padron::deJson(const json& j) {
 Padron cargarPadron(const fs::path& carpeta, bool* ok, std::string* err) {
     if (ok != nullptr) *ok = true;
     const fs::path archivo = carpeta / kArchivo;
-    std::error_code ec;
     // Que no exista es lo normal hasta que alguien anota al primero: no es un
-    // error, es un padrón vacío.
-    if (!fs::exists(archivo, ec)) return {};
-
-    std::ifstream in(archivo);
-    if (!in) {
+    // error, es un padrón vacío. (Lo encolado para guardar cuenta: guardarPadron.)
+    if (!ba::persist::cola().existe(archivo)) return {};
+    std::string texto;
+    if (!ba::persist::cola().leer(archivo, texto)) {
         if (ok != nullptr) *ok = false;
         if (err != nullptr) *err = ba::i18n::llenar(ba::i18n::traducir("evento", "no se pudo abrir %1"), {archivo.string()});
         return {};
     }
-    const json j = json::parse(in, nullptr, false);
+    const json j = json::parse(texto, nullptr, false);
     if (j.is_discarded()) {
         if (ok != nullptr) *ok = false;
         if (err != nullptr)
@@ -432,14 +430,12 @@ Padron cargarPadron(const fs::path& carpeta, bool* ok, std::string* err) {
 }
 
 bool guardarPadron(const fs::path& carpeta, const Padron& p, std::string* err) {
-    const fs::path archivo = carpeta / kArchivo;
     // Entero o nada (el escritor único): si se corta la luz en medio de una
-    // acreditación, el padrón que estaba sigue entero.
-    std::string e;
-    if (ba::persist::guardarJson(archivo, p.aJson(), 2, ba::persist::Durabilidad::Normal, &e)) return true;
-    if (err != nullptr)
-        *err = ba::i18n::llenar(ba::i18n::traducir("evento", "no se pudo reemplazar el padron: %1"), {e});
-    return false;
+    // acreditación, el padrón que estaba sigue entero. Encolado (se acredita desde la
+    // interfaz): cargarPadron ya lo ve; si el disco falla, se reintenta y va al registro.
+    (void)err;
+    ba::persist::guardarJsonEnCola(carpeta / kArchivo, p.aJson(), 2);
+    return true;
 }
 
 } // namespace ba::evento

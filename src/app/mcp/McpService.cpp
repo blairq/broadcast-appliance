@@ -1095,9 +1095,16 @@ MandoDeAire McpService::mandoDeAire() {
         return seg.placa(activar, texto, imagen, ms, salida);
     };
     m.estadoPlaca = [&seg](const std::string& salida) { return seg.estado(salida); };
-    m.transmitir = [&rt](const std::string& salida, const std::string& server, const std::string& key, bool caliente) {
+    // Lo que pasó llega en el dueño (AppRuntime::alResultado), que es el hilo de la herramienta.
+    const auto hechoDe = [](MandoDeAire::Hecho hecho) {
+        return [hecho = std::move(hecho)](const AppRuntime::ResultadoOrden& r) {
+            if (hecho) hecho({r.ok, r.error, r.archivo});
+        };
+    };
+    m.transmitir = [&rt, hechoDe](const std::string& salida, const std::string& server, const std::string& key, bool caliente,
+                                  MandoDeAire::Hecho hecho) {
         MandoDeAire::Inicio r;
-        r.ok = rt.salirAlAireManual(server, key, caliente, salida);
+        r.ok = rt.salirAlAireManual(server, key, caliente, salida, hechoDe(std::move(hecho)));
         // ultimoInicio y lastError son de este hilo (como errno): los de recién.
         const BroadcastEngine::Inicio i = rt.engine().ultimoInicio();
         r.yaIgual = r.ok && i == BroadcastEngine::Inicio::YaIgual;
@@ -1112,9 +1119,10 @@ MandoDeAire McpService::mandoDeAire() {
     m.variableClave = [&rt]() { return rt.ajustesAire().claveEnv; };
     m.grabacion = [&rt](const std::string& salida) { return rt.engine().grabacionEstado(salida); };
     m.disco = [&rt]() { return rt.discoGrabacion(); };
-    m.grabar = [&rt](const std::string& salida) { return rt.startRecording(salida) ? std::string() : rt.lastError(); };
+    m.grabar = [&rt, hechoDe](const std::string& salida, MandoDeAire::Hecho hecho) {
+        return rt.startRecording(salida, hechoDe(std::move(hecho))) ? std::string() : rt.lastError();
+    };
     m.pararGrabacion = [&rt](const std::string& salida) { rt.stopRecording(salida); };
-    m.algoSale = [&rt]() { return rt.engine().outputsActive(); };
     m.contenedor = [&rt]() { return rt.ajustesAire().rec.container; };
     m.discoMinimoH = AppRuntime::kDiscoMinimoH;
     return m;

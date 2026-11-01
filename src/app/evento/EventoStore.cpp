@@ -25,16 +25,16 @@ constexpr const char* kGuion = "evento.json";
 constexpr const char* kFicha = "ficha.json";
 constexpr const char* kEnCurso = "en-curso.json";
 
-/// Escribe un JSON entero o nada, bajado al disco (el escritor único: un corte de luz no
-/// lo deja a medias ni vacío).
-bool escribirJson(const fs::path& archivo, const json& j, std::string* err) {
-    if (ba::persist::guardarJson(archivo, j, 2)) return true;
-    if (err != nullptr)
-        *err = ba::i18n::llenar(ba::i18n::traducir("evento", "no se pudo escribir %1"), {archivo.filename().string()});
-    return false;
-}
+/// Guarda un JSON por la cola del escritor único: entero o nada y bajado al disco, en su
+/// hilo (se guarda desde la interfaz, con cada edición: un disco USB lento no la traba). Lo
+/// que se lee (leerJson, cargar, hayGuion) ya ve lo encolado; si el disco falla, se
+/// reintenta y queda en el registro.
+void escribirJson(const fs::path& archivo, const json& j) { ba::persist::guardarJsonEnCola(archivo, j, 2); }
 
 json leerJson(const fs::path& archivo) { return ba::persist::leerJson(archivo); }
+
+/// ¿Es un evento? (Tiene guion, aunque esté encolado.)
+bool hayGuion(const fs::path& dir) { return ba::persist::cola().existe(dir / kGuion); }
 
 /// "a/b" + "c" (sin «/» de más si `a` está vacía).
 std::string unir(const std::string& a, const std::string& b) { return a.empty() ? b : a + "/" + b; }
@@ -233,7 +233,7 @@ std::vector<Ficha> EventoStore::listar() const {
             const std::string nombre = d.path().filename().string();
             if (esInterna(nombre)) continue;
             const std::string carpeta = unir(grupo, nombre);
-            if (!fs::exists(d.path() / kGuion, e2)) {
+            if (!hayGuion(d.path())) {
                 if (hondo < 8) recorrer(carpeta, hondo + 1);
                 continue;
             }
@@ -273,7 +273,7 @@ std::vector<std::string> EventoStore::carpetas() const {
         for (const fs::directory_entry& d : fs::directory_iterator(grupo.empty() ? raiz_ : raiz_ / grupo, ec)) {
             if (!d.is_directory(ec)) continue;
             const std::string nombre = d.path().filename().string();
-            if (esInterna(nombre) || fs::exists(d.path() / kGuion, ec)) continue;
+            if (esInterna(nombre) || hayGuion(d.path())) continue;
             const std::string carpeta = unir(grupo, nombre);
             out.push_back(carpeta);
             if (hondo < 8) recorrer(carpeta, hondo + 1);
@@ -303,7 +303,7 @@ std::string EventoStore::crearCarpeta(const std::string& ruta, std::string* err)
     std::stringstream s2(limpia);
     while (std::getline(s2, parte, '/')) {
         tramo = unir(tramo, parte);
-        if (fs::exists(raiz_ / tramo / kGuion, ec)) {
+        if (hayGuion(raiz_ / tramo)) {
             ponerErr(err, ba::i18n::llenar(ba::i18n::traducir("evento", "«%1» es un evento, no una carpeta"), {tramo}));
             return {};
         }
@@ -372,7 +372,7 @@ Evento EventoStore::cargar(const std::string& carpeta, bool* ok, std::string* er
     if (ok != nullptr) *ok = false;
     const fs::path archivo = raiz_ / carpeta / kGuion;
     std::string txt;
-    if (!ba::persist::leerArchivo(archivo, txt)) {
+    if (!ba::persist::cola().leer(archivo, txt)) {
         ponerErr(err, ba::i18n::llenar(ba::i18n::traducir("evento", "no hay guion en %1"), {archivo.string()}));
         return {};
     }
@@ -397,20 +397,19 @@ bool EventoStore::guardar(const std::string& carpeta, const Evento& e, std::stri
     }
     const fs::path archivo = dir / kGuion;
 
-    // Respaldo del que estaba. Que falle el respaldo no impide guardar, pero
-    // se avisa: es peor quedarse sin poder guardar en medio de un evento.
-    if (fs::exists(archivo, ec)) {
-        fs::create_directories(dir / "Respaldos", ec);
+    // Entero o nada (el escritor único, encolado: escribirJson): si se corta la luz en el
+    // medio, el guion que estaba sigue entero. Justo antes, en el hilo escritor, el respaldo
+    // del que está en el disco (que falle el respaldo no impide guardar: es peor quedarse
+    // sin poder guardar en medio de un evento).
+    ba::persist::Pedido p;
+    p.antes = [archivo, dir]() {
+        std::error_code e2;
+        if (!fs::exists(archivo, e2)) return;
+        fs::create_directories(dir / "Respaldos", e2);
         fs::copy_file(archivo, dir / "Respaldos" / ("evento-" + ahoraParaNombre() + ".json"),
-                      fs::copy_options::overwrite_existing, ec);
-    }
-
-    // Entero o nada (el escritor único): si se corta la luz en el medio, el guion que
-    // estaba sigue entero.
-    if (!ba::persist::guardarJson(archivo, e.aJson(), 2)) {
-        ponerErr(err, ba::i18n::traducir("evento", "no se pudo escribir en la carpeta del evento"));
-        return false;
-    }
+                      fs::copy_options::overwrite_existing, e2);
+    };
+    ba::persist::guardarJsonEnCola(archivo, e.aJson(), 2, std::move(p));
     return true;
 }
 
@@ -422,11 +421,13 @@ bool EventoStore::borrar(const std::string& carpeta, std::string* err) const {
     std::error_code ec;
     const fs::path dir = raiz_ / carpeta;
     // Solo eventos: una carpeta que agrupa puede tener años de histórico adentro.
-    if (!fs::is_directory(dir, ec) || !fs::exists(dir / kGuion, ec)) {
+    if (!fs::is_directory(dir, ec) || !hayGuion(dir)) {
         ponerErr(err, ba::i18n::traducir("evento", "no existe ese evento"));
         return false;
     }
-    if (enCurso() == carpeta) fs::remove(raiz_ / kEnCurso, ec);
+    if (enCurso() == carpeta) ba::persist::cola().borrar(raiz_ / kEnCurso);
+    // Lo encolado para adentro de la carpeta, antes: si no, volvería a crearla.
+    ba::persist::cola().vaciar();
     fs::remove_all(dir, ec);
     if (ec) {
         ponerErr(err, ba::i18n::llenar(ba::i18n::traducir("evento", "no se pudo borrar: %1"), {ec.message()}));
@@ -437,7 +438,7 @@ bool EventoStore::borrar(const std::string& carpeta, std::string* err) const {
 
 std::string EventoStore::mover(const std::string& evento, const std::string& aCarpeta, std::string* err) {
     std::error_code ec;
-    if (!rutaValida(evento) || !fs::exists(raiz_ / evento / kGuion, ec)) {
+    if (!rutaValida(evento) || !hayGuion(raiz_ / evento)) {
         ponerErr(err, ba::i18n::traducir("evento", "no existe ese evento"));
         return {};
     }
@@ -456,6 +457,8 @@ std::string EventoStore::mover(const std::string& evento, const std::string& aCa
     for (int i = 2; fs::exists(raiz_ / destino, ec) && i < 1000; ++i)
         destino = unir(grupo, nombre + "-" + std::to_string(i));
     const bool eraEnCurso = enCurso() == evento;
+    // Lo encolado para la carpeta, antes de moverla (si no, la volvería a crear donde estaba).
+    ba::persist::cola().vaciar();
     fs::rename(raiz_ / evento, raiz_ / destino, ec);
     if (ec) {
         ponerErr(err, ba::i18n::llenar(ba::i18n::traducir("evento", "no se pudo mover: %1"), {ec.message()}));
@@ -465,7 +468,7 @@ std::string EventoStore::mover(const std::string& evento, const std::string& aCa
         json j = leerJson(raiz_ / kEnCurso);
         if (!j.is_object()) j = json::object();
         j["evento"] = destino;
-        escribirJson(raiz_ / kEnCurso, j, nullptr);
+        escribirJson(raiz_ / kEnCurso, j);
     }
     return destino;
 }
@@ -477,11 +480,12 @@ DatosDelEvento EventoStore::datos(const std::string& evento) const {
 
 bool EventoStore::guardarDatos(const std::string& evento, const DatosDelEvento& d, std::string* err) const {
     std::error_code ec;
-    if (!rutaValida(evento) || !fs::exists(raiz_ / evento / kGuion, ec)) {
+    if (!rutaValida(evento) || !hayGuion(raiz_ / evento)) {
         ponerErr(err, ba::i18n::traducir("evento", "no existe ese evento"));
         return false;
     }
-    return escribirJson(raiz_ / evento / kFicha, d.aJson(), err);
+    escribirJson(raiz_ / evento / kFicha, d.aJson());
+    return true;
 }
 
 std::string EventoStore::enCurso() const {
@@ -489,7 +493,7 @@ std::string EventoStore::enCurso() const {
     if (!j.is_object()) return {};
     const std::string e = j.value("evento", std::string());
     std::error_code ec;
-    if (!rutaValida(e) || !fs::exists(raiz_ / e / kGuion, ec)) return {};
+    if (!rutaValida(e) || !hayGuion(raiz_ / e)) return {};
     return e;
 }
 
@@ -503,7 +507,7 @@ fs::path EventoStore::carpetaExistente(const std::string& carpeta) const {
 
 bool EventoStore::iniciar(const std::string& evento, std::int64_t ahoraMs, std::string* err) {
     std::error_code ec;
-    if (!rutaValida(evento) || !fs::exists(raiz_ / evento / kGuion, ec)) {
+    if (!rutaValida(evento) || !hayGuion(raiz_ / evento)) {
         ponerErr(err, ba::i18n::traducir("evento", "no existe ese evento"));
         return false;
     }
@@ -516,13 +520,13 @@ bool EventoStore::iniciar(const std::string& evento, std::int64_t ahoraMs, std::
     if (d.iniciadoMs == 0) d.iniciadoMs = ahoraMs;
     d.terminadoMs = 0;
     if (!guardarDatos(evento, d, err)) return false;
-    return escribirJson(raiz_ / kEnCurso, json{{"evento", evento}, {"desde_ms", ahoraMs}}, err);
+    escribirJson(raiz_ / kEnCurso, json{{"evento", evento}, {"desde_ms", ahoraMs}});
+    return true;
 }
 
 bool EventoStore::terminar(std::int64_t ahoraMs, std::string* err) {
     const std::string e = enCurso();
-    std::error_code ec;
-    fs::remove(raiz_ / kEnCurso, ec);
+    ba::persist::cola().borrar(raiz_ / kEnCurso);
     if (e.empty()) {
         ponerErr(err, ba::i18n::traducir("evento", "no hay ningún evento en curso"));
         return false;
@@ -554,7 +558,7 @@ std::string EventoStore::asegurarDelDia(const std::string& dia, std::int64_t aho
     const std::string grupo = dia.substr(0, 4) + "/" + kMeses[mes - 1];
     const std::string carpeta = unir(grupo, dia + "-jornada");
     std::error_code ec;
-    if (!fs::exists(raiz_ / carpeta / kGuion, ec)) {
+    if (!hayGuion(raiz_ / carpeta)) {
         // El nombre lo ven el público y los integrantes (la web, el acta): en el idioma del
         // evento (si no hay uno abierto, el del operador). Se pone una vez, al crearlo; después
         // es un nombre que el operador edita y no cambia con el idioma. %1 día, %2 mes, %3 año.

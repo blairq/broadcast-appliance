@@ -47,6 +47,13 @@ enum class Permisos {
 bool escribir(const std::filesystem::path& ruta, std::string_view bytes, Durabilidad d = Durabilidad::Normal,
               Permisos p = Permisos::Comunes, std::string* error = nullptr);
 
+/// Agrega `bytes` al final de `ruta` (un diario: líneas que solo se suman, nunca se
+/// reemplazan) y lo baja al disco. Crea la carpeta y el archivo si faltan. Un corte a mitad
+/// puede dejar la última línea cortada (no las de antes): quien lo lee se saltea una línea
+/// que no termina.
+bool agregar(const std::filesystem::path& ruta, std::string_view bytes, Durabilidad d = Durabilidad::Normal,
+             std::string* error = nullptr);
+
 /// Borra `ruta` (si está) y baja la carpeta al disco: tras un corte no reaparece.
 bool borrar(const std::filesystem::path& ruta);
 

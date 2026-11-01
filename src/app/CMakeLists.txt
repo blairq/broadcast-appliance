@@ -1461,6 +1461,11 @@ endif()
     add_executable(test_pedidos_salida tests/test_pedidos_salida.cpp)
     target_include_directories(test_pedidos_salida PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
     add_test(NAME test_pedidos_salida COMMAND test_pedidos_salida)
+    # Qué avisa la foto del motor: lo que se rearma con otra parte se compara con la suya.
+    add_executable(test_foto_partes tests/test_foto_partes.cpp)
+    target_include_directories(test_foto_partes PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    target_link_libraries(test_foto_partes PRIVATE nlohmann_json::nlohmann_json)
+    add_test(NAME test_foto_partes COMMAND test_foto_partes)
     # Renombrar una escena: la armada y las transiciones de entrada la siguen.
     add_executable(test_seguir_escenas tests/test_seguir_escenas.cpp)
     target_include_directories(test_seguir_escenas PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")

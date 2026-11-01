@@ -13,12 +13,7 @@
 
 #include "diag/Registro.hpp"
 #include "i18n/I18n.hpp"
-
-#if defined(_WIN32)
-#include <io.h>
-#else
-#include <unistd.h>
-#endif
+#include "persist/Escritor.hpp"
 
 namespace ba::diag {
 namespace {
@@ -112,12 +107,12 @@ struct DiarioDeArranque::Impl {
     std::set<std::string> apagados;
     bool modoSeguro = false; ///< transitorio: NO se escribe
 
-    /// Escribe y **sincroniza**. El fsync no es una ceremonia: sin él, lo que
-    /// se anotó justo antes de un cuelgue duro se queda en el buffer del
-    /// sistema y se pierde exactamente en el caso para el que existe esto.
+    /// Escribe y **sincroniza**, YA y entero o nada (el escritor único: temporal, fsync y
+    /// rename). El fsync no es una ceremonia: sin él, lo que se anotó justo antes de un
+    /// cuelgue duro se queda en el buffer del sistema y se pierde exactamente en el caso
+    /// para el que existe esto; y truncar y reescribir encima dejaba el diario cortado si
+    /// la caída era a mitad de la escritura (justo lo que registra).
     void guardar() const {
-        std::error_code ec;
-        fs::create_directories(archivo.parent_path(), ec);
         std::ostringstream o;
         o << "{\n  \"arranque\": " << arranque;
         if (!cargando.empty()) o << ",\n  \"cargando\": " << entreComillas(cargando);
@@ -136,24 +131,7 @@ struct DiarioDeArranque::Impl {
         o << "]\n}\n";
         const std::string s = o.str();
 
-        // Por la ruta ANCHA en Windows: `archivo.string()` la pasa a la
-        // pagina de codigos del sistema y una carpeta con acentos
-        // (C:\Users\Jose...) deja de abrirse. `path::c_str()` ya es wchar_t
-        // ahi y char en el resto.
-#if defined(_WIN32)
-        std::FILE* f = _wfopen(archivo.c_str(), L"wb");
-#else
-        std::FILE* f = std::fopen(archivo.c_str(), "wb");
-#endif
-        if (f == nullptr) return;
-        std::fwrite(s.data(), 1, s.size(), f);
-        std::fflush(f);
-#if defined(_WIN32)
-        _commit(_fileno(f));
-#else
-        fsync(fileno(f));
-#endif
-        std::fclose(f);
+        ba::persist::escribir(archivo, s);
     }
 };
 

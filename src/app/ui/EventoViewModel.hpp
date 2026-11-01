@@ -144,8 +144,9 @@ class EventoViewModel : public QObject {
     Q_INVOKABLE QString crear(const QString& nombre, const QString& enCarpeta = {});
     Q_INVOKABLE bool abrir(const QString& carpeta);
     Q_INVOKABLE void cerrar();
-    /// Lo borra del disco. Si es el abierto, primero lo cierra SIN guardar.
-    Q_INVOKABLE bool borrar(const QString& carpeta);
+    /// Lo borra del disco (en el fondo: la lista se entera al terminar; si falla, `notify`).
+    /// Si es el abierto, primero lo cierra SIN guardar.
+    Q_INVOKABLE void borrar(const QString& carpeta);
     /// Pone en curso un evento (termina el que estaba).
     Q_INVOKABLE bool iniciarEvento(const QString& carpeta);
     /// Termina el que está en curso. Con el automático prendido, el del día vuelve a quedar en curso.

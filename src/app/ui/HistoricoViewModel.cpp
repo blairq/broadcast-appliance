@@ -497,26 +497,25 @@ void HistoricoViewModel::abrirArchivo(const QString& ruta) { QDesktopServices::o
 
 QVariantMap HistoricoViewModel::aQvPublico(const json& j) { return aQv(j).toMap(); }
 
-nlohmann::json HistoricoViewModel::retencion(bool simular) {
-    const int dias = ajustesJson()["retencion"].value("grabaciones_dias", 0);
+namespace {
+using json = nlohmann::json;
+/// La retención sobre lo que se le pasa (copias: corre en el fondo). Ver retencion().
+json aplicarRetencion(const HistoricoConsulta& c, const std::vector<evento::Ficha>& fichas, const std::string& enCurso,
+                      int dias, bool simular) {
     json eventos = json::array();
     std::uintmax_t total = 0;
-    if (dias <= 0) return {{"grabaciones_dias", 0}, {"eventos", eventos}, {"bytes", 0}, {"nota", tr("la retención está apagada").toStdString()}};
     const qint64 ahora = QDateTime::currentMSecsSinceEpoch();
     const qint64 limite = ahora - static_cast<qint64>(dias) * 24 * 3600 * 1000;
-    const std::string enCursoAhora = enCurso().toStdString();
-    const HistoricoConsulta c = consulta();
-    for (const evento::Ficha& f : ev_.listaVm().fichas()) {
-        const std::string& carpeta = f.carpeta;
-        if (carpeta.empty() || carpeta == enCursoAhora) continue;
+    for (const evento::Ficha& f : fichas) {
         const auto& d = f.datos;
-        if (d.estado != "terminado" || d.terminadoMs == 0 || d.terminadoMs > limite) continue;
-        const fs::path dir = c.carpeta(carpeta);
+        if (f.carpeta.empty() || f.carpeta == enCurso || d.estado != "terminado" || d.terminadoMs == 0 || d.terminadoMs > limite)
+            continue;
+        const fs::path dir = c.carpeta(f.carpeta);
         if (dir.empty()) continue;
         const json r = evento::Historico::limpiarGrabaciones(dir, ahora, simular);
         if (r["archivos"].empty()) continue;
         total += r.value("bytes", std::uintmax_t{0});
-        eventos.push_back(json{{"evento", carpeta}, {"terminado", hora(d.terminadoMs).toStdString()}, {"archivos", r["archivos"]},
+        eventos.push_back(json{{"evento", f.carpeta}, {"terminado", hora(d.terminadoMs).toStdString()}, {"archivos", r["archivos"]},
                                {"bytes", r["bytes"]}});
         if (!simular) {
             evento::Bitacora b;
@@ -528,43 +527,41 @@ nlohmann::json HistoricoViewModel::retencion(bool simular) {
             b.vaciar();
         }
     }
-    if (!simular && !eventos.empty()) {
-        emit cambio();
-        leerLista();
-        leerDetalle();
-    }
     return {{"grabaciones_dias", dias}, {"simular", simular}, {"eventos", eventos}, {"bytes", total}};
+}
+} // namespace
+
+void HistoricoViewModel::retencion(bool simular, std::function<void(const json&)> listo) {
+    const int dias = ajustesJson()["retencion"].value("grabaciones_dias", 0);
+    if (dias <= 0) {
+        if (listo)
+            listo({{"grabaciones_dias", 0}, {"eventos", json::array()}, {"bytes", 0}, {"nota", tr("la retención está apagada").toStdString()}});
+        return;
+    }
+    // Lo de la caché, copiado: recorrer y borrar grabaciones (gigas) va al fondo.
+    QPointer<HistoricoViewModel> yo(this);
+    fondo_.start([yo, dias, simular, listo = std::move(listo), c = consulta(), fichas = ev_.listaVm().fichas(),
+                  enCurso = enCurso().toStdString()]() {
+        const json r = aplicarRetencion(c, fichas, enCurso, dias, simular);
+        QMetaObject::invokeMethod(
+            yo,
+            [yo, r, listo]() {
+                if (!yo) return;
+                if (!r.value("simular", true) && !r["eventos"].empty()) {
+                    emit yo->cambio();
+                    yo->leerLista();
+                    yo->leerDetalle();
+                }
+                if (listo) listo(r);
+            },
+            Qt::QueuedConnection);
+    });
 }
 
 void HistoricoViewModel::simularRetencion() {
     QPointer<HistoricoViewModel> yo(this);
-    // Recorre las grabaciones de los eventos terminados: en el fondo. Simular no cambia
-    // nada, así que se puede hacer con lo de la caché copiado.
-    const int dias = ajustesJson()["retencion"].value("grabaciones_dias", 0);
-    if (dias <= 0) {
-        emit retencionSimulada(aQv(json{{"grabaciones_dias", 0}, {"eventos", json::array()}, {"bytes", 0},
-                                        {"nota", tr("la retención está apagada").toStdString()}})
-                                   .toMap());
-        return;
-    }
-    fondo_.start([yo, dias, c = consulta(), fichas = ev_.listaVm().fichas(), enCurso = ev_.listaVm().carpetaEnCurso()]() {
-        const qint64 ahora = QDateTime::currentMSecsSinceEpoch();
-        const qint64 limite = ahora - static_cast<qint64>(dias) * 24 * 3600 * 1000;
-        json eventos = json::array();
-        std::uintmax_t total = 0;
-        for (const evento::Ficha& f : fichas) {
-            const auto& d = f.datos;
-            if (f.carpeta == enCurso || d.estado != "terminado" || d.terminadoMs == 0 || d.terminadoMs > limite) continue;
-            const fs::path dir = c.carpeta(f.carpeta);
-            if (dir.empty()) continue;
-            const json r = evento::Historico::limpiarGrabaciones(dir, ahora, true);
-            if (r["archivos"].empty()) continue;
-            total += r.value("bytes", std::uintmax_t{0});
-            eventos.push_back(json{{"evento", f.carpeta}, {"archivos", r["archivos"]}, {"bytes", r["bytes"]}});
-        }
-        const json r{{"grabaciones_dias", dias}, {"simular", true}, {"eventos", eventos}, {"bytes", total}};
-        QMetaObject::invokeMethod(
-            yo, [yo, r]() { if (yo) emit yo->retencionSimulada(aQv(r).toMap()); }, Qt::QueuedConnection);
+    retencion(true, [yo](const json& r) {
+        if (yo) emit yo->retencionSimulada(aQv(r).toMap());
     });
 }
 
@@ -581,20 +578,17 @@ nlohmann::json medir(const fs::path& raiz, int aviso) {
 }
 } // namespace
 
-nlohmann::json HistoricoViewModel::disco() const {
-    return medir(ev_.raizEventos(), ajustesJson()["retencion"].value("aviso_disco_pct", 90));
-}
-
-void HistoricoViewModel::medirDisco() {
+void HistoricoViewModel::medirDiscoY(std::function<void(const json&)> listo) {
     QPointer<HistoricoViewModel> yo(this);
-    fondo_.start([yo, raiz = ev_.raizEventos(), aviso = ajustesJson()["retencion"].value("aviso_disco_pct", 90)]() {
+    fondo_.start([yo, listo = std::move(listo), raiz = ev_.raizEventos(), aviso = ajustesJson()["retencion"].value("aviso_disco_pct", 90)]() {
         const nlohmann::json d = medir(raiz, aviso);
         QMetaObject::invokeMethod(
             yo,
-            [yo, d]() {
+            [yo, d, listo]() {
                 if (!yo) return;
                 yo->disco_ = aQv(d).toMap();
                 emit yo->discoCambio();
+                if (listo) listo(d);
             },
             Qt::QueuedConnection);
     });

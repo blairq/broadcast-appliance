@@ -21,6 +21,7 @@
 #include <QCoreApplication>
 #include <QDate>
 #include <QDateTime>
+#include <QPointer>
 #include <QTime>
 #include <QTimer>
 
@@ -313,24 +314,28 @@ void BitacoraEvento::armar() {
     // CADA HORA (y al minuto de arrancar): el disco de Eventos/ y la retención.
     {
         auto* tDisco = new QTimer(this);
+        // Las dos en el fondo (medir el disco y borrar grabaciones de gigas): acá solo se
+        // avisa lo que vuelve.
         const auto revisar = [this]() {
             if (!historico_) return;
-            const nlohmann::json d = historico_->disco();
-            if (d.value("lleno", false)) {
+            QPointer<BitacoraEvento> yo(this);
+            historico_->medirDiscoY([yo](const nlohmann::json& d) {
+                if (!yo || !d.value("lleno", false)) return;
                 // Con el contexto de siempre (el texto ya está traducido ahí).
                 const QString t = QCoreApplication::translate("StudioViewModel", "El disco de los eventos está al %1 % (quedan %2 GB)")
                                       .arg(d.value("usado_pct", 0))
                                       .arg(d.value("libre_gb", 0.0));
                 ba::diag::registro().linea(ba::diag::Nivel::Aviso, "historico", 0, t.toStdString());
-                emit notify(t, "warn");
-            }
-            const nlohmann::json r = historico_->retencion(false);
-            if (!r.value("eventos", nlohmann::json::array()).empty())
-                ba::diag::registro().linea(ba::diag::Nivel::Info, "historico", 0,
-                                           ba::i18n::llenar(ba::i18n::traducir("historico",
-                                                                               "retención: grabaciones borradas de %1 eventos (%2 MB)"),
-                                                            {std::to_string(r["eventos"].size()),
-                                                             std::to_string(r.value("bytes", 0ULL) / 1000000)}));
+                emit yo->notify(t, "warn");
+            });
+            historico_->retencion(false, [](const nlohmann::json& r) {
+                if (!r.value("eventos", nlohmann::json::array()).empty())
+                    ba::diag::registro().linea(ba::diag::Nivel::Info, "historico", 0,
+                                               ba::i18n::llenar(ba::i18n::traducir("historico",
+                                                                                   "retención: grabaciones borradas de %1 eventos (%2 MB)"),
+                                                                {std::to_string(r["eventos"].size()),
+                                                                 std::to_string(r.value("bytes", 0ULL) / 1000000)}));
+            });
         };
         QTimer::singleShot(ba::ajustes::sAMs("historico.primeraRevisionS", 60), this, revisar);
         connect(tDisco, &QTimer::timeout, this, revisar);

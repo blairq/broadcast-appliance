@@ -1435,6 +1435,22 @@ void BroadcastEngine::enSalidas(const std::string& que, std::function<std::strin
     salidasCv_.notify_one();
 }
 
+void BroadcastEngine::contestarComoLaAnterior(const std::shared_ptr<Salida>& s, const std::string& que, AlResultado alTerminar) {
+    if (!alTerminar) return;
+    enSalidas("como_la_anterior", [this, s, que, alTerminar = std::move(alTerminar)]() {
+        // Acá ya corrió la orden de antes (la cola es en orden): lo pedido sigue si arrancó.
+        bool sigue = false;
+        {
+            std::lock_guard<std::mutex> l(pedidosM_);
+            sigue = que == "grabar" ? s->grabacionPedida : s->streamPedido;
+        }
+        std::string fallo = que == "grabar" ? s->falloGrabacion : s->falloTransmision;
+        if (!sigue && fallo.empty()) fallo = ba::i18n::traducir("emision", "se paró antes de arrancar");
+        alTerminar({s->id, que, sigue, sigue ? std::string() : fallo, sigue && que == "grabar" ? s->recordPath : std::string()});
+        return std::string(); // la falla, si hubo, ya la contó la orden de antes
+    });
+}
+
 void BroadcastEngine::avisar(const AvisoMotor& a) {
     ba::diag::registro().linea(a.nivel == AvisoMotor::Nivel::Bien ? ba::diag::Nivel::Info : ba::diag::Nivel::Aviso, "salidas", 0,
                                a.texto);
@@ -1641,8 +1657,7 @@ bool BroadcastEngine::startStreaming(const StreamConfig& stream, const EncoderCo
             const bool mismo = (stream.server.empty() || stream.server == s->activeServer) && (stream.key.empty() || stream.key == s->activeKey);
             if (mismo) {
                 t_inicio = Inicio::YaIgual;
-                // La que ya está pedida dice lo suyo cuando termine; esta, ya está.
-                if (alTerminar) alTerminar({s->id, "transmitir", true, {}});
+                contestarComoLaAnterior(s, "transmitir", std::move(alTerminar));
                 return true;
             }
         }
@@ -1669,7 +1684,8 @@ bool BroadcastEngine::startStreaming(const StreamConfig& stream, const EncoderCo
     t_inicio = Inicio::Iniciado;
     enSalidas("startStreaming", [this, s, stream, enc, alTerminar = std::move(alTerminar)]() {
         std::string e = startStreamingYa(*s, stream, enc);
-        if (alTerminar) alTerminar({s->id, "transmitir", e.empty(), e});
+        s->falloTransmision = e;
+        if (alTerminar) alTerminar({s->id, "transmitir", e.empty(), e, {}});
         return e;
     });
     return true;
@@ -1871,8 +1887,7 @@ bool BroadcastEngine::startRecording(const RecordConfig& rec, const EncoderConfi
     {
         std::lock_guard<std::mutex> l(pedidosM_);
         if (s->grabacionPedida) {
-            // La que ya está pedida dice lo suyo cuando termine; esta, ya está.
-            if (alTerminar) alTerminar({s->id, "grabar", true, {}});
+            contestarComoLaAnterior(s, "grabar", std::move(alTerminar));
             return true;
         }
         s->grabacionPedida = true;
@@ -1898,7 +1913,8 @@ bool BroadcastEngine::startRecording(const RecordConfig& rec, const EncoderConfi
         s->remuxSal = remuxA; // lo que mira stopRecordingYa, en este hilo
         s->remuxAlTerminarSal = remuxAlTerminar;
         std::string e = startRecordingYa(*s, rec, enc, pistas, nombre);
-        if (alTerminar) alTerminar({s->id, "grabar", e.empty(), e});
+        s->falloGrabacion = e;
+        if (alTerminar) alTerminar({s->id, "grabar", e.empty(), e, e.empty() ? s->recordPath : std::string()});
         return e;
     });
     return true;

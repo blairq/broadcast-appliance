@@ -2,6 +2,9 @@
 // src/app/ui/QrViewModel.cpp — ver QrViewModel.hpp
 // ============================================================================
 #include "ui/QrViewModel.hpp"
+#include "persist/ColaEscritura.hpp"
+
+#include <QBuffer>
 #include "arranque/ArchivoConfig.hpp"
 #include "i18n/I18n.hpp"
 
@@ -793,6 +796,7 @@ QString QrViewModel::escribir(const QString& svgTexto, const QString& nombre, co
     QDir().mkpath(dir);
     const QString base = limpiarNombre(nombre.isEmpty() ? "codigo-qr" : nombre);
     const QString ruta = dir + "/" + base + (formato == "png" ? ".png" : ".svg");
+    // El escritor único, por su cola (entero o nada, fuera de la interfaz).
     if (formato == "png") {
         QImage img(px, px, QImage::Format_ARGB32);
         img.fill(Qt::transparent);
@@ -800,11 +804,13 @@ QString QrViewModel::escribir(const QString& svgTexto, const QString& nombre, co
         QSvgRenderer r(svgTexto.toUtf8());
         r.render(&p);
         p.end();
-        return img.save(ruta) ? ruta : QString();
+        QByteArray png;
+        QBuffer b(&png);
+        if (!b.open(QIODevice::WriteOnly) || !img.save(&b, "PNG")) return {};
+        ba::persist::cola().escribir(ruta.toStdWString(), png.toStdString());
+        return ruta;
     }
-    QFile f(ruta);
-    if (!f.open(QIODevice::WriteOnly | QIODevice::Truncate)) return {};
-    f.write(svgTexto.toUtf8());
+    ba::persist::cola().escribir(ruta.toStdWString(), svgTexto.toUtf8().toStdString());
     return ruta;
 }
 

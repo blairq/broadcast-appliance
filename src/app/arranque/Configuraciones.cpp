@@ -119,6 +119,7 @@ std::uintmax_t bytesDe(const fs::path& dir) {
 /// compartieron los invitados, lo preparado para restaurar). `sinHistorial` (un evento
 /// nuevo): tampoco sus eventos, lo exportado ni la sesión (orden del día, quórum, votos).
 std::string copiar(const fs::path& de, const fs::path& a, bool conGrabaciones, bool sinHistorial = false) {
+    ba::persist::cola().vaciar(); // lo encolado (el guion, el padrón…), en el disco antes de copiar
     std::error_code ec;
     fs::create_directories(a, ec);
     for (const auto& e : fs::directory_iterator(de, ec)) {
@@ -154,6 +155,7 @@ void sembrar(const fs::path& a) {
 /// estado al aire (al-aire.json: una copia no sale al aire sola al abrirla). Va sumando
 /// en `hechos` los bytes copiados (el progreso que ve el operador).
 std::string copiarTodo(const fs::path& de, const fs::path& a, std::atomic<std::uintmax_t>* hechos) {
+    ba::persist::cola().vaciar(); // lo encolado (el guion, el padrón…), en el disco antes de copiar
     std::error_code ec;
     fs::create_directories(a, ec);
     if (ec) return ba::i18n::llenar(ba::i18n::traducir("configuraciones", "no se pudo crear %1: %2"), {aU8(a), ec.message()});

@@ -2,6 +2,8 @@
 
 #include "arranque/PlanoControl.hpp"
 
+#include "diag/Registro.hpp"
+#include "i18n/I18n.hpp"
 #include "platform/Hilo.hpp"
 
 #include <QMetaObject>
@@ -31,6 +33,18 @@ PlanoControl::PlanoControl(Tareas t, QObject* parent) : QObject(parent), tareas_
 
 PlanoControl::~PlanoControl() {
     detener();
+    // Lo que quedó sin correr (nadie llamó a atenderPendientes después del último pedido):
+    // ya no hay a quién dárselo; que quede anotado.
+    std::size_t quedan = 0;
+    {
+        const std::lock_guard<std::mutex> l(paradoMu_);
+        quedan = pendientes_.size();
+        pendientes_.clear();
+    }
+    if (quedan > 0)
+        ba::diag::registro().linea(ba::diag::Nivel::Aviso, "plano", 0,
+                                   ba::i18n::llenar(ba::i18n::traducir("plano", "al cerrar quedaron %1 órdenes sin correr"),
+                                                    {std::to_string(quedan)}));
     // El hilo ya terminó: lo que vivía en él se borra desde acá sin carreras.
     delete contexto_;
 }
@@ -59,7 +73,16 @@ void PlanoControl::arrancar(int controlMs, int interfazMs) {
 void PlanoControl::detener(const std::function<void()>& alRecibir) {
     relojInterfaz_.stop();
     if (!hilo_.isRunning()) {
-        if (alRecibir) alRecibir();
+        // Ya parado (o nunca arrancó): el motor se recibe una sola vez; lo pendiente, ya.
+        bool recibir = false;
+        {
+            const std::lock_guard<std::mutex> l(paradoMu_);
+            parado_ = true;
+            recibir = !recibido_;
+            recibido_ = true;
+        }
+        if (recibir && alRecibir) alRecibir();
+        atenderPendientes();
         return;
     }
     // Desde acá lo que se encola va al hilo que recibe el motor; lo que ya estaba encolado
@@ -88,16 +111,40 @@ void PlanoControl::detener(const std::function<void()>& alRecibir) {
     hilo_.wait();
     // Este hilo es el dueño ahora: lo pendiente corre acá, en orden (el turno lo toma cada
     // método del motor, como el dueño).
+    {
+        const std::lock_guard<std::mutex> l(paradoMu_);
+        recibido_ = true;
+    }
     if (alRecibir) alRecibir();
     for (std::function<void()>& fn : quedo) {
         if (fn) fn();
         --agendaPendientes_;
         ++agendaHechas_;
     }
+    // Y lo que se encoló mientras se paraba (ya para el dueño nuevo), detrás.
+    atenderPendientes();
 }
 
 void PlanoControl::alDuenoNuevo(std::function<void()> fn) {
-    QMetaObject::invokeMethod(this, std::move(fn), Qt::QueuedConnection);
+    // Pendiente (no al bucle de eventos: al cerrar ya no corre, y se perdía) y, por si el
+    // bucle anda, un aviso para atenderlo ahí en orden.
+    pendientes_.push_back(std::move(fn));
+    QMetaObject::invokeMethod(this, [this]() { atenderPendientes(); }, Qt::QueuedConnection);
+}
+
+int PlanoControl::atenderPendientes() {
+    int hechas = 0;
+    for (;;) {
+        std::function<void()> fn;
+        {
+            const std::lock_guard<std::mutex> l(paradoMu_);
+            if (pendientes_.empty()) return hechas;
+            fn = std::move(pendientes_.front());
+            pendientes_.pop_front();
+        }
+        if (fn) fn();
+        ++hechas;
+    }
 }
 
 void PlanoControl::encolar(std::function<void()> fn) {
@@ -157,10 +204,18 @@ void PlanoControl::atenderAgenda() {
 }
 
 void PlanoControl::despues(int ms, std::function<void()> fn) {
-    // El temporizador se arma en el hilo de control: corre ahí aunque la interfaz no ande
-    // (parado, en el que recibió el motor).
+    // El temporizador se arma en el hilo de control: corre ahí aunque la interfaz no ande.
+    // Con el plano parado (el cierre) no hay a quién esperar: va con lo pendiente, sin
+    // temporizador (sin bucle no vencería nunca).
+    {
+        const std::lock_guard<std::mutex> l(paradoMu_);
+        if (parado_) return alDuenoNuevo(std::move(fn));
+    }
     encolar([this, ms, fn = std::move(fn)]() mutable {
-        QTimer::singleShot(ms, enControl() ? contexto_ : static_cast<QObject*>(this), std::move(fn));
+        if (enControl()) return QTimer::singleShot(ms, contexto_, std::move(fn));
+        // Se paró mientras tanto: con lo pendiente del dueño nuevo.
+        const std::lock_guard<std::mutex> l(paradoMu_);
+        alDuenoNuevo(std::move(fn));
     });
 }
 

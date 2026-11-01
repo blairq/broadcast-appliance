@@ -248,6 +248,36 @@ void probarCola() {
     CHECK(c.vaciar(), "vacía");
     CHECK((orden == std::vector<std::string>{"a", "c", "b"}), "lo de aire pasa adelante");
 
+    // Un diario (agregar): lo encolado se junta y se agrega en orden, una vez; leer lo ve.
+    {
+        const fs::path j = d / "sub" / "recorrido.jsonl";
+        CHECK(!c.existe(j), "existe: no hay diario todavía");
+        std::atomic<bool> suelta{false};
+        Pedido lento;
+        lento.antes = [&]() {
+            while (!suelta) std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        };
+        c.agregar(j, "1\n", lento);
+        std::this_thread::sleep_for(std::chrono::milliseconds(20)); // el hilo la tomó y espera
+        for (int i = 2; i <= 50; ++i) c.agregar(j, std::to_string(i) + "\n");
+        std::string todo;
+        CHECK(c.existe(j) && c.leer(j, todo), "existe y se lee con lo encolado");
+        suelta = true;
+        CHECK(c.vaciar(), "vacía el diario");
+        std::string esperado;
+        for (int i = 1; i <= 50; ++i) esperado += std::to_string(i) + "\n";
+        CHECK(leer(j) == esperado, "cada línea una vez, en orden (aunque llegaran mientras se agregaba)");
+        CHECK(todo == esperado, "leer veía lo que faltaba agregar");
+        c.agregar(j, "51\n");
+        CHECK(c.vaciar() && leer(j) == esperado + "51\n", "y se sigue sumando al final");
+        // existe: un borrado encolado dice que no; una escritura encolada, que sí.
+        c.borrar(d / "a.json");
+        CHECK(!c.existe(d / "a.json"), "existe: el borrado encolado cuenta");
+        c.escribir(d / "nuevo.json", "{}");
+        CHECK(c.existe(d / "nuevo.json"), "existe: la escritura encolada cuenta");
+        CHECK(c.vaciar(), "vacía");
+    }
+
     // Generaciones por la cola, y su lectura antes de que lleguen al disco.
     const fs::path g = d / "linea-aire.json";
     c.escribirGeneracion(g, "{\"estado\":\"corriendo\"}");

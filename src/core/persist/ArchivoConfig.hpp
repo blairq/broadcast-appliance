@@ -75,6 +75,10 @@ bool guardarConfigYa(const std::filesystem::path& archivo, nlohmann::json j);
 /// (`escribir`), sin esquema. `sangria` como `json::dump`; termina en salto de línea.
 bool guardarJson(const std::filesystem::path& ruta, const nlohmann::json& j, int sangria = 1,
                  Durabilidad d = Durabilidad::Normal, std::string* error = nullptr);
+/// Lo mismo, ENCOLADO (ColaEscritura: el disco lo toca su hilo, entero o nada, bajado al
+/// disco; si falla, se reintenta y va al registro). Para lo que se guarda desde la interfaz
+/// (los JSON de un evento): leerJson ya ve lo encolado.
+void guardarJsonEnCola(const std::filesystem::path& ruta, const nlohmann::json& j, int sangria = 1, Pedido p = {});
 /// Lo de un JSON que no es de Config/ (lo encolado cuenta): null si no está o está roto.
 nlohmann::json leerJson(const std::filesystem::path& ruta);
 /// leerJson, pero siempre un objeto ({} si no está, está roto o no es un objeto).

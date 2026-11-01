@@ -74,7 +74,7 @@ class AlarmasViewModel : public QObject {
     struct Fuentes {
         AppRuntime& rt;            ///< el motor, el disco, la persistencia; Config/alertas.json y el sonido
         VentanillaMotor& ventanilla; ///< el audio y los medios, de la foto del motor (F3-03)
-        EnergiaAire& energia;      ///< la alarma «en batería» (estadoAhora, desde el vigía)
+        EnergiaAire& energia;      ///< la alarma «en batería» (su estado, desde el vigía)
         ConferenceViewModel& sala; ///< la foto de la sala y su chat
         ChatOverlayRenderer& chat; ///< el chat de las plataformas
         std::function<RecursosViewModel*()> recursos; ///< lo lee el hilo del vigía
