@@ -339,35 +339,35 @@ void Voz::moverCorriente(const std::string& clave) {
 #endif
 }
 
-QString Voz::elegirReconocedor(const QString& consumidor, const QString& motor) {
+void Voz::elegirReconocedor(const QString& consumidor, const QString& motor) {
 #if defined(BA_HAVE_VOZ)
     const std::string c = consumidor.toStdString();
     if (const std::string e = reconocedores_->elegir(c, motor.toStdString()); !e.empty())
-        return QString::fromStdString(e);
+        return avisarError(QString::fromStdString(e));
     // Lo que estaba abierto pasa al motor nuevo (el viejo se suelta con su margen).
     for (const std::string& clave : reconocedores_->usosDe(c)) moverCorriente(clave);
     actualizarReconocedores();
-    return {};
+    return;
 #else
     Q_UNUSED(consumidor);
     Q_UNUSED(motor);
-    return tr("Esta compilación no trae el motor de voz.");
+    return avisarError(tr("Esta compilación no trae el motor de voz."));
 #endif
 }
 
-QString Voz::setInterrumpir(const QString& consumidor, bool on) {
+void Voz::setInterrumpir(const QString& consumidor, bool on) {
 #if defined(BA_HAVE_VOZ)
     const std::string c = consumidor.toStdString();
-    if (const std::string e = reconocedores_->setInterrumpir(c, on); !e.empty()) return QString::fromStdString(e);
+    if (const std::string e = reconocedores_->setInterrumpir(c, on); !e.empty()) return avisarError(QString::fromStdString(e));
     for (const std::string& clave : reconocedores_->usosDe(c))
         if (const auto b = oyeMientras_.find(QString::fromStdString(clave)); b != oyeMientras_.end())
             b->second->store(reconocedores_->interrumpir(c));
     actualizarReconocedores();
-    return {};
+    return;
 #else
     Q_UNUSED(consumidor);
     Q_UNUSED(on);
-    return tr("Esta compilación no trae el motor de voz.");
+    return avisarError(tr("Esta compilación no trae el motor de voz."));
 #endif
 }
 
@@ -722,17 +722,16 @@ bool Voz::dictadoConMicrofono() const {
     return false;
 }
 
-QString Voz::setMicrofono(const QString& fuente) {
+void Voz::setMicrofono(const QString& fuente) {
     // Se le pide al dueño del motor; el error vuelve como aviso y el micrófono nuevo, en la
     // foto (parte Configuracion), que llega antes que la respuesta.
     const std::string f = fuente.toStdString();
     const auto& todas = ventanilla_.foto().fuentes;
     if (!f.empty() && std::none_of(todas.begin(), todas.end(), [&f](const auto& x) { return x.first == f; }))
-        return tr("No existe la fuente «%1».").arg(fuente);
+        return avisarError(tr("No existe la fuente «%1».").arg(fuente));
     ventanilla_.pedir(
         this, "voz_microfono", [&rt = rt_, f]() { return rt.setOperatorFeed(rt.config().operatorVideo, f); },
         [this](bool) { emit cambio(); });
-    return {};
 }
 
 QVariantList Voz::fuentesTexto() const {
@@ -1322,10 +1321,10 @@ QVariantMap Voz::cortes() const {
     return {{"pausa", cortePausa_}, {"maximo", corteMaximo_}, {"umbral", corteUmbral_}};
 }
 
-QString Voz::setCortes(double pausa, double maximo, double umbral) {
-    if (pausa < 0.1 || pausa > 3) return tr("La pausa va de 0,1 a 3 s.");
-    if (maximo < 2 || maximo > 30) return tr("El largo máximo va de 2 a 30 s.");
-    if (umbral < 0.1 || umbral > 0.95) return tr("El umbral va de 0,1 a 0,95.");
+void Voz::setCortes(double pausa, double maximo, double umbral) {
+    if (pausa < 0.1 || pausa > 3) return avisarError(tr("La pausa va de 0,1 a 3 s."));
+    if (maximo < 2 || maximo > 30) return avisarError(tr("El largo máximo va de 2 a 30 s."));
+    if (umbral < 0.1 || umbral > 0.95) return avisarError(tr("El umbral va de 0,1 a 0,95."));
     cortePausa_ = pausa;
     corteMaximo_ = maximo;
     corteUmbral_ = umbral;
@@ -1335,7 +1334,6 @@ QString Voz::setCortes(double pausa, double maximo, double umbral) {
 #endif
     guardarAjustes();
     emit cambio();
-    return {};
 }
 
 QVariantList Voz::voces() const {

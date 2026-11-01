@@ -30,6 +30,9 @@
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include "ui/CapturaError.hpp"
+
+using ::ba::app::errorDe;
 
 using ba::app::CatalogoVisible;
 using ba::app::VentanasModel;
@@ -232,25 +235,25 @@ int main(int argc, char** argv) {
         // ===================== 4. Asignar y validar ===========================
         auto* activos = qobject_cast<QAbstractItemModel*>(m.activos());
         CHECK(activos->rowCount() == 0);
-        CHECK(m.asignar(idC, {"programa"}, true).isEmpty());
-        CHECK(m.asignar(idD, {"multiview:principal", "preguntas", "preguntas"}, false).isEmpty());
+        CHECK(errorDe([&] { m.asignar(idC, {"programa"}, true); }).isEmpty());
+        CHECK(errorDe([&] { m.asignar(idD, {"multiview:principal", "preguntas", "preguntas"}, false); }).isEmpty());
         CHECK(m.monitor(idD).value("cosas").toStringList() == (QStringList{"multiview:principal", "preguntas"}));
-        CHECK(!m.asignar(idA, {"no-existe"}, true).isEmpty());
-        CHECK(!m.asignar(idA, {"web:mensaje"}, true).isEmpty()); // solo TV
-        CHECK(!m.asignar(idA, {}, true).isEmpty());
-        CHECK(!m.asignar("monitor-inventado", {"programa"}, true).isEmpty());
+        CHECK(!errorDe([&] { m.asignar(idA, {"no-existe"}, true); }).isEmpty());
+        CHECK(!errorDe([&] { m.asignar(idA, {"web:mensaje"}, true); }).isEmpty()); // solo TV
+        CHECK(!errorDe([&] { m.asignar(idA, {}, true); }).isEmpty());
+        CHECK(!errorDe([&] { m.asignar("monitor-inventado", {"programa"}, true); }).isEmpty());
         QStringList muchas;
         for (const char* c : {"programa", "preview", "fondo", "padron", "preguntas", "votacion", "mezclador",
                               "tarjeta:aire", "tarjeta:health", "pagina:guion"})
             muchas << c;
-        CHECK(!m.asignar(idA, muchas, true).isEmpty()); // más de 9 no se leen
+        CHECK(!errorDe([&] { m.asignar(idA, muchas, true); }).isEmpty()); // más de 9 no se leen
         CHECK(activos->rowCount() == 2);
         CHECK(m.monitor(idC).value("titulo").toString() == "Programa (lo que sale al aire)");
         CHECK(m.monitor(idD).value("titulo").toString().contains(" + "));
-        CHECK(m.setPantallaCompleta(idD, true).isEmpty());
-        CHECK(m.quitar(idD).isEmpty());
+        CHECK(errorDe([&] { m.setPantallaCompleta(idD, true); }).isEmpty());
+        CHECK(errorDe([&] { m.quitar(idD); }).isEmpty());
         CHECK(activos->rowCount() == 1);
-        CHECK(m.asignar(idD, {"escena:Recinto"}, false).isEmpty());
+        CHECK(errorDe([&] { m.asignar(idD, {"escena:Recinto"}, false); }).isEmpty());
     }
 
     // ===================== 5. Persistencia y espera ==========================
@@ -289,14 +292,14 @@ int main(int argc, char** argv) {
         // Se desenchufa D: queda esperando; se lo olvida y ya no se espera.
         m.actualizarPantallas({A, B, C});
         CHECK(m.monitor(idD).value("esperando").toBool());
-        CHECK(m.quitar(idD).isEmpty()); // sin estar y sin nada: se olvida
+        CHECK(errorDe([&] { m.quitar(idD); }).isEmpty()); // sin estar y sin nada: se olvida
         CHECK(m.monitor(idD).isEmpty());
         CHECK(reset.count() == 0);
 
         // Una escena del monitor que se borra: el monitor la sigue recordando y lo dice.
         g_escenas = {"Plano general"};
         cat.refrescar();
-        CHECK(m.asignar(idA, {"escena:Plano general"}, true).isEmpty());
+        CHECK(errorDe([&] { m.asignar(idA, {"escena:Plano general"}, true); }).isEmpty());
         g_escenas = {};
         cat.refrescar();
         CHECK(m.monitor(idA).value("titulo").toString().contains("ya no existe"));

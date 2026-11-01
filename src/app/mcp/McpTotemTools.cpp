@@ -27,6 +27,9 @@
 #include "ui/PantallasViewModel.hpp"
 #include "ui/StudioViewModel.hpp"
 #include "ui/TotemsViewModel.hpp"
+#include "ui/CapturaError.hpp"
+
+using ::ba::app::errorDe;
 
 namespace ba::app::mcp {
 
@@ -209,7 +212,7 @@ void McpService::registerTotemTools() {
             if (p == nullptr) return done(ToolResult::error(ba::i18n::traducir("mcp", "No hay pantallas en este proceso.")));
             const QString url = tv()->urlPantalla(QString::fromStdString(a.value("id", std::string())));
             if (url.isEmpty()) return done(ToolResult::error(ba::i18n::traducir("mcp", "No hay ningún tótem con ese id (totem_listar).")));
-            const QString e = p->mostrar(QString::fromStdString(a.value("pantalla", std::string())), "url", {{"url", url}});
+            const QString e = errorDe([&] { p->mostrar(QString::fromStdString(a.value("pantalla", std::string())), "url", {{"url", url}}); });
             if (!e.isEmpty()) return done(ToolResult::error(e.toStdString()));
             done(ToolResult::ok(ba::i18n::traducir("mcp", "Mandado.")));
         };

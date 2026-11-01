@@ -154,7 +154,7 @@ ApplicationWindow {
         if (quitting) return
         confirm({
             title: qsTr("¿Cerrar Broadcast Appliance?"),
-            text: Studio.app.impactoDeCerrar.hay ? Studio.app.avisoDeCerrar("")
+            text: Studio.app.impactoDeCerrar.hay ? Studio.app.impactoDeCerrar.aviso
                   : qsTr("Se cierran la conferencia, las salidas y los asistentes."),
             accept: qsTr("Cerrar"),
             reject: qsTr("Cancelar"),
@@ -448,7 +448,7 @@ ApplicationWindow {
     function contextoDePagina(i) {
         // Tras un corte de luz la línea de tiempo vuelve en HOLD y pregunta qué está
         // pasando: lo que se dicte o escriba acá es esa respuesta, esté donde esté.
-        const r = Studio.evento.retoma
+        const r = Studio.evento.corridaVm.retoma
         const corte = r && r.activa
             ? qsTr("Volvió la luz en medio del evento y la línea de tiempo está en HOLD: lo que te cuento es qué está pasando. Pasalo con linea_retomar, proponé cómo seguir (linea_editar o linea_ajustar con probar) y soltá con linea_soltar cuando lo confirme. ")
             : ""
@@ -465,8 +465,8 @@ ApplicationWindow {
         case 6: return qsTr("Estoy en Configuracion.")
         case 8: return qsTr("Estoy en Entradas de video (camaras, capturadoras y red).")
         case 9: return qsTr("Estoy en Audio, en el patchbay de modulos por fuente.")
-        case 10: return Studio.evento.abierto
-                        ? qsTr("Estoy en el Guion del evento «%1».").arg(Studio.evento.abierto)
+        case 10: return Studio.evento.guionVm.abierto
+                        ? qsTr("Estoy en el Guion del evento «%1».").arg(Studio.evento.guionVm.abierto)
                         : qsTr("Estoy en el Guion del evento, sin ningun evento abierto.")
         case 11: return Studio.grafico.abierto !== ""
                         ? (Studio.grafico.declarativo
@@ -547,8 +547,8 @@ ApplicationWindow {
             StatusPill {
                 height: 16
                 text: Studio.aire.reconnecting ? qsTr("RECONECTANDO")
-                      : Studio.aire.transmitiendo ? (Studio.aire.streaming ? qsTr("AL AIRE  %1").arg(Studio.aire.streamTime) : qsTr("AL AIRE"))
-                      : Studio.aire.alAire ? (Studio.aire.recording ? qsTr("AL AIRE · GRABANDO  %1").arg(Studio.aire.recordTime) : qsTr("AL AIRE · GRABANDO"))
+                      : Studio.aire.transmitiendo ? (Studio.aire.streaming ? qsTr("AL AIRE  %1").arg(Theme.cronometro(Studio.aire.transmiteDesdeMs, Reloj.ahora)) : qsTr("AL AIRE"))
+                      : Studio.aire.alAire ? (Studio.aire.recording ? qsTr("AL AIRE · GRABANDO  %1").arg(Theme.cronometro(Studio.aire.grabaDesdeMs, Reloj.ahora)) : qsTr("AL AIRE · GRABANDO"))
                       : qsTr("FUERA DEL AIRE")
                 dot: Studio.aire.reconnecting ? Theme.amber : Theme.live
                 on: Studio.aire.alAire || Studio.aire.reconnecting
@@ -559,7 +559,7 @@ ApplicationWindow {
                               : qsTr("No sale nada (ni transmisión ni grabación): se puede mover y tocar todo sin avisos de aire.")
                 MouseArea { id: pillMa; anchors.fill: parent; hoverEnabled: true; acceptedButtons: Qt.NoButton }
             }
-            StatusPill { height: 16; visible: Studio.aire.recording && Studio.aire.transmitiendo; text: qsTr("REC  %1").arg(Studio.aire.recordTime); dot: Theme.accent; pulse: true }
+            StatusPill { height: 16; visible: Studio.aire.recording && Studio.aire.transmitiendo; text: qsTr("REC  %1").arg(Theme.cronometro(Studio.aire.grabaDesdeMs, Reloj.ahora)); dot: Theme.accent; pulse: true }
             // En las otras páginas, solo si algo de la IA no anda.
             PastillaIA { height: 16; visible: total > 0 }
         }
@@ -638,8 +638,7 @@ ApplicationWindow {
             sequence: modelData.tecla
             context: Qt.ApplicationShortcut
             onActivated: {
-                const e = Studio.acciones.teclaUi(modelData.tecla)
-                if (e !== "") Studio.notify(e, "error")
+                Studio.acciones.teclaUi(modelData.tecla)
             }
         }
     }

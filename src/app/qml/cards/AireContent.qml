@@ -109,7 +109,7 @@ Item {
         // (se arrancan y se cortan en la página Salidas).
         Fila {
             etiqueta: t.aire.transmitiendo ? qsTr("TRANSMITIENDO") : qsTr("TRANSMISIÓN")
-            reloj: t.aire.tiempoTransmision
+            reloj: Theme.cronometro(t.aire.transmiteDesdeMs || 0, Reloj.ahora)
             detalle: !t.porOmision ? qsTr("por sus destinos (página Salidas)")
                      : t.aire.transmitiendo ? Studio.aire.streamKbps + " kbps" : (Studio.streamServer || qsTr("sin servidor configurado"))
             prendida: !!t.aire.transmitiendo
@@ -120,15 +120,14 @@ Item {
         Fila {
             id: filaGrabacion
             etiqueta: t.aire.grabando ? qsTr("GRABANDO") : qsTr("GRABACIÓN")
-            reloj: t.aire.tiempoGrabacion
+            reloj: Theme.cronometro(t.aire.grabaDesdeMs || 0, Reloj.ahora)
             prendida: !!t.aire.grabando
             tono: Theme.live
             accion: t.aire.grabando ? qsTr("Detener") : qsTr("Grabar")
             // La de la por omisión con lo suyo de siempre (el aviso del disco); las demás, la de su salida.
             function grabar(si) {
                 if (t.porOmision) { if (si !== Studio.aire.recording) Studio.emision.toggleRecording(); return }
-                const e = Studio.salidas.grabar(Studio.salidas.activa, si)
-                if (e !== "") Studio.notify(e, "error")
+                Studio.salidas.grabar(Studio.salidas.activa, si)
             }
             onTocar: {
                 if (!t.aire.grabando) { filaGrabacion.grabar(true); return }

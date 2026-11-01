@@ -63,18 +63,7 @@ Rectangle {
         styleColor: "#000000"
     }
 
-    // Solo se fotografía lo que se ve: el ListView crea y destruye las cajas al desplazar.
-    property string avisada: ""
-    function avisar() {
-        const quiere = esFoto && visible ? escena : ""
-        if (quiere === avisada || !Studio.linea) return
-        if (avisada !== "") Studio.linea.mirarFoto(avisada, false)
-        if (quiere !== "") Studio.linea.mirarFoto(quiere, true)
-        avisada = quiere
-    }
-    onEsFotoChanged: avisar()
-    onEscenaChanged: avisar()
-    onVisibleChanged: avisar()
-    Component.onCompleted: avisar()
-    Component.onDestruction: if (avisada !== "" && Studio.linea) Studio.linea.mirarFoto(avisada, false)
+    // Solo se fotografía lo que se ve: el ListView crea y destruye las cajas al desplazar
+    // (la Suscripcion se suelta sola al destruirse la caja).
+    Suscripcion { objetivo: Studio.linea; que: "foto:" + m.escena; activa: m.esFoto && m.visible && m.escena !== "" }
 }

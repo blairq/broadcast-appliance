@@ -8,10 +8,12 @@
 #include "platform/Paths.hpp"
 
 #include <algorithm>
+#include <atomic>
 
 #include <QDateTime>
 #include <QDir>
 #include <QFile>
+#include <QThreadPool>
 #include <QTimer>
 
 #include "arranque/AppRuntime.hpp"
@@ -22,10 +24,12 @@
 namespace ba::app {
 namespace {
 
-/// Cada cuánto se vuelve a leer mientras se sigue la cola. Dos segundos: un
-/// registro no es un vúmetro, y leer la cola de cuatro archivos cada 200 ms
-/// sería gastar disco para mirar lo mismo.
+/// Cada cuánto se miran los archivos mientras se sigue la cola (lo de los otros procesos;
+/// lo de este llega por aviso). Dos segundos: un registro no es un vúmetro. La lectura es
+/// en el fondo.
 constexpr int kSeguirMs = 2000;
+/// Lo que llega junto del registro de este proceso se junta en una sola relectura.
+constexpr int kJuntarMs = 250;
 
 /// Cuántas líneas se muestran como mucho. Más que esto no lo lee nadie y la
 /// lista se pone pesada; para más, están los filtros.
@@ -33,6 +37,32 @@ inline int kTope() { return ba::ajustes::entero("limites.registroLineas", 800); 
 
 QString horaLocal(std::int64_t ms) {
     return QDateTime::fromMSecsSinceEpoch(ms).toString("dd/MM HH:mm:ss.zzz");
+}
+
+QVariantList aLineas(const std::vector<ba::diag::Registrado>& rs) {
+    QVariantList out;
+    out.reserve(static_cast<int>(rs.size()));
+    for (const auto& r : rs)
+        out.append(QVariantMap{{"hora", horaLocal(r.ms)},
+                               {"ms", static_cast<qlonglong>(r.ms)},
+                               {"nivel", QString::fromUtf8(ba::diag::nombreDeNivel(r.nivel))},
+                               {"nivelN", static_cast<int>(r.nivel)},
+                               {"modulo", QString::fromStdString(r.componente)},
+                               {"codigo", r.codigo},
+                               {"texto", QString::fromStdString(r.texto)}});
+    return out;
+}
+
+/// Los módulos para elegir: los de los archivos más los que aparecen en lo que se ve.
+QStringList aModulos(const std::vector<std::string>& enLogs, const QVariantList& lineas) {
+    QStringList mods;
+    for (const std::string& m : enLogs) mods << QString::fromStdString(m);
+    for (const QVariant& v : lineas) {
+        const QString m = v.toMap().value("modulo").toString();
+        if (!m.isEmpty() && !mods.contains(m)) mods << m;
+    }
+    mods.sort();
+    return mods;
 }
 
 } // namespace
@@ -44,9 +74,20 @@ struct RegistroViewModel::Impl {
     ba::diag::Filtro filtro;
     bool siguiendo = true;
     bool enMemoria = false;
-    QTimer reloj;
+    QTimer reloj;   ///< los archivos, mientras se sigue (lo de los otros procesos)
+    QTimer juntar;  ///< lo que avisó el registro de este proceso, junto
+    int oyente = -1;
+    std::atomic<bool> avisado{false};
+    // La lectura de los archivos, en el fondo (una por vez; la última pedida manda).
+    QThreadPool fondo;
+    std::uint64_t gen = 0;
+    bool leyendo = false, otraVez = false;
+    QStringList modulosEnLogs; ///< de la última lectura de los archivos
 
-    explicit Impl(AppRuntime& r) : rt(r) { filtro.cuantas = kTope(); }
+    explicit Impl(AppRuntime& r) : rt(r) {
+        filtro.cuantas = kTope();
+        fondo.setMaxThreadCount(1);
+    }
 
     QString carpeta() const { return QString::fromStdString((ba::platform::dataRoot() / "Logs").string()); }
 };
@@ -54,11 +95,39 @@ struct RegistroViewModel::Impl {
 RegistroViewModel::RegistroViewModel(AppRuntime& rt, QObject* parent)
     : QObject(parent), d_(std::make_unique<Impl>(rt)) {
     d_->reloj.setInterval(kSeguirMs);
-    connect(&d_->reloj, &QTimer::timeout, this, &RegistroViewModel::refrescar);
-    // El reloj arranca cuando alguien mira (mirar).
+    connect(&d_->reloj, &QTimer::timeout, this, [this]() {
+        if (!d_->enMemoria) refrescar();
+    });
+    d_->juntar.setSingleShot(true);
+    d_->juntar.setInterval(kJuntarMs);
+    connect(&d_->juntar, &QTimer::timeout, this, [this]() {
+        d_->avisado = false;
+        refrescar();
+    });
+    // Se sigue cuando alguien mira (usar).
 }
 
-RegistroViewModel::~RegistroViewModel() = default;
+RegistroViewModel::~RegistroViewModel() {
+    seguir(false);
+    d_->fondo.waitForDone();
+}
+
+void RegistroViewModel::seguir(bool si) {
+    if (si == (d_->oyente >= 0)) return;
+    if (si) {
+        // Desde el hilo escritor del registro: solo marca y pasa a este hilo una vez.
+        d_->oyente = ba::diag::registro().agregarOyente([this](const ba::diag::Registrado&) {
+            if (!d_->avisado.exchange(true)) QMetaObject::invokeMethod(&d_->juntar, qOverload<>(&QTimer::start), Qt::QueuedConnection);
+        });
+        d_->reloj.start();
+    } else {
+        ba::diag::registro().quitarOyente(d_->oyente);
+        d_->oyente = -1;
+        d_->reloj.stop();
+        d_->juntar.stop();
+        d_->avisado = false;
+    }
+}
 
 QVariantList RegistroViewModel::lineas() const { return d_->lineas; }
 
@@ -108,22 +177,14 @@ void RegistroViewModel::setSiguiendo(bool s) {
     // Se deja de leer del todo al dejar de seguir: mirar una línea de hace
     // media hora no tiene por qué costar una lectura de disco cada dos
     // segundos, y además la lista se movería sola mientras se lee.
-    if (s && vistas_.alguien())
-        d_->reloj.start();
-    else
-        d_->reloj.stop();
+    seguir(s && vistas_.alguien());
     emit filtroCambio();
 }
 
 void RegistroViewModel::alCambiarVistas() {
-    if (vistas_.alguien() && d_->siguiendo) {
-        if (!d_->reloj.isActive()) {
-            d_->reloj.start();
-            refrescar();
-        }
-    } else {
-        d_->reloj.stop();
-    }
+    const bool antes = d_->oyente >= 0;
+    seguir(vistas_.alguien() && d_->siguiendo);
+    if (vistas_.alguien() && !antes) refrescar();
 }
 
 bool RegistroViewModel::enMemoria() const { return d_->enMemoria; }
@@ -191,10 +252,10 @@ QString RegistroViewModel::exportar() {
 }
 
 void RegistroViewModel::refrescar() {
-    std::vector<ba::diag::Registrado> rs;
     if (d_->enMemoria) {
         // El anillo no está filtrado: se filtra acá con el mismo criterio que
-        // el lector, para que cambiar de fuente no cambie lo que se ve.
+        // el lector, para que cambiar de fuente no cambie lo que se ve. Es memoria: ya.
+        std::vector<ba::diag::Registrado> rs;
         const std::string busca = d_->filtro.busca;
         for (const auto& r : ba::diag::registro().ultimas(kTope())) {
             if (static_cast<int>(r.nivel) < static_cast<int>(d_->filtro.minimo)) continue;
@@ -210,35 +271,43 @@ void RegistroViewModel::refrescar() {
                 continue;
             rs.push_back(r);
         }
-    } else {
-        rs = ba::diag::leerLogs(ba::platform::dataRoot() / "Logs", d_->filtro);
+        const QVariantList out = aLineas(rs);
+        llego(++d_->gen, out, aModulos({}, out));
+        return;
     }
-
-    QVariantList out;
-    out.reserve(static_cast<int>(rs.size()));
-    for (const auto& r : rs)
-        out.append(QVariantMap{{"hora", horaLocal(r.ms)},
-                               {"ms", static_cast<qlonglong>(r.ms)},
-                               {"nivel", QString::fromUtf8(ba::diag::nombreDeNivel(r.nivel))},
-                               {"nivelN", static_cast<int>(r.nivel)},
-                               {"modulo", QString::fromStdString(r.componente)},
-                               {"codigo", r.codigo},
-                               {"texto", QString::fromStdString(r.texto)}});
-
-    // Se avisa solo si cambió: si no, la lista se redibuja cada dos segundos y
-    // se pierde la posición del que está leyendo.
-    if (out == d_->lineas) return;
-    d_->lineas = out;
-
-    QStringList mods;
-    for (const std::string& m : ba::diag::componentesEnLogs(ba::platform::dataRoot() / "Logs"))
-        mods << QString::fromStdString(m);
-    for (const QVariant& v : out) {
-        const QString m = v.toMap().value("modulo").toString();
-        if (!m.isEmpty() && !mods.contains(m)) mods << m;
+    // Los archivos pesan megas: se leen en el fondo, uno por vez (si se pide otra vez
+    // mientras lee, se lee de nuevo al terminar, con el filtro de ese momento).
+    if (d_->leyendo) {
+        d_->otraVez = true;
+        return;
     }
-    mods.sort();
-    d_->modulos = mods;
+    d_->leyendo = true;
+    const std::uint64_t gen = ++d_->gen;
+    d_->fondo.start([this, gen, filtro = d_->filtro, carpeta = ba::platform::dataRoot() / "Logs"]() {
+        const QVariantList out = aLineas(ba::diag::leerLogs(carpeta, filtro));
+        const QStringList mods = aModulos(ba::diag::componentesEnLogs(carpeta), out);
+        QMetaObject::invokeMethod(
+            this,
+            [this, gen, out, mods]() {
+                d_->leyendo = false;
+                if (d_->otraVez) {
+                    d_->otraVez = false;
+                    refrescar();
+                    return;
+                }
+                llego(gen, out, mods);
+            },
+            Qt::QueuedConnection);
+    });
+}
+
+void RegistroViewModel::llego(std::uint64_t gen, QVariantList lineas, QStringList modulos) {
+    if (gen != d_->gen) return; // se pidió otra cosa después (otro filtro, otra fuente)
+    // Se avisa solo si cambió: si no, la lista se redibuja y se pierde la posición del que
+    // está leyendo.
+    if (lineas == d_->lineas && modulos == d_->modulos) return;
+    d_->lineas = std::move(lineas);
+    d_->modulos = std::move(modulos);
     emit cambio();
 }
 

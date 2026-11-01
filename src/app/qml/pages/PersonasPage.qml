@@ -39,15 +39,12 @@ Rectangle {
         campoCargo.text = p ? p.cargo : ""
         campoNota.text = p ? p.nota : ""
     }
-    function mirar() {
-        page.pv.mirar(page.fuente)
-    }
-    Timer {
-        // Cada segundo alcanza: esto es para confirmar a quién se está viendo,
-        // no para seguirle la cara a nadie. Mirar más seguido gasta CPU que le
-        // hace falta al video.
-        interval: 1000; running: page.visible && page.pestana === "libreta" && page.pv.disponible; repeat: true
-        onTriggered: page.mirar()
+    // Mientras se ve la libreta, el modelo pregunta quién hay en la fuente elegida (una vez
+    // por segundo: es para confirmar a quién se ve, no para seguirle la cara a nadie).
+    Suscripcion {
+        objetivo: page.pv
+        que: page.fuente
+        activa: page.visible && page.pestana === "libreta" && page.pv.disponible && page.fuente !== ""
     }
     Component.onCompleted: page.pv.refrescar()
     Connections { target: page.pv; function onNotify(t, k) { Studio.notify(t, k) } }
@@ -147,9 +144,9 @@ Rectangle {
                                             for (let i = 0; i < f.length; ++i)
                                                 if (f[i].clave === page.fuente) return i
                                             return 0 }
+                            // Cambiar la fuente cambia lo que se mira (la Suscripcion).
                             onActivated: (i) => { page.fuente = page.pv.fuentes[i].clave
-                                                  page.pv.feedAuto = page.fuente
-                                                  page.mirar() }
+                                                  page.pv.feedAuto = page.fuente }
                         }
                     }
                     // --- El anotado automático ------------------------------

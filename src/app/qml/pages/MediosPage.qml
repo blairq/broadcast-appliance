@@ -168,8 +168,7 @@ Rectangle {
             GlassButton {
                 text: qsTr("Sumar a la playlist")
                 onClicked: {
-                    const e = Studio.playlist.agregarVariosUi(page.m.seleccion.map((r) => page.m.rutaAbsoluta(r)))
-                    if (e !== "") { Studio.notify(e, "error"); return }
+                    if (!Studio.playlist.agregarVariosUi(page.m.seleccion.map((r) => page.m.rutaAbsoluta(r)))) return
                     page.m.noElegirNada()
                     page.solapa = 2
                 }

@@ -29,6 +29,7 @@
 #include "comun/UsoPorVistas.hpp"
 
 #include <functional>
+#include "ui/CapturaError.hpp"
 
 namespace ba::app {
 
@@ -40,6 +41,17 @@ class Direcciones;
 
 class AccesoRemoto : public QObject {
     Q_OBJECT
+    /// El error de una acción de la interfaz (las Q_INVOKABLE void): a quien mira.
+    void avisarError(const QString& e) {
+        if (!e.isEmpty() && !::ba::app::CapturaError::tomar(e)) emit notify(e, "error");
+    }
+    void avisarError(const std::string& e) { avisarError(QString::fromStdString(e)); }
+    /// Para las acciones que dicen si se hicieron: el error a quien mira y true si no hubo.
+    bool sinError(const QString& e) {
+        avisarError(e);
+        return e.isEmpty();
+    }
+    bool sinError(const std::string& e) { return sinError(QString::fromStdString(e)); }
     /// {disponible, sala, pinggy:{activo, estado, urls, urlPublica, error, turn:{...}}, texto}
     Q_PROPERTY(QVariantMap estado READ estado NOTIFY estadoChanged)
     /// [{nombre, url}]: la dirección de cada página (invitados, sesión remota, público…)
@@ -81,7 +93,7 @@ class AccesoRemoto : public QObject {
     bool siguiendo() const { return vistas_.alguien(); }
     /// Una vista (la tarjeta de invitados, Configuración) empieza o deja de mirar el
     /// estado: se consulta mientras haya alguna (cerrar una no le apaga a la otra).
-    Q_INVOKABLE void usar(QObject* vista, bool si) { vistas_.usar(vista, si); }
+    Q_INVOKABLE void usar(QObject* vista, bool si, const QString& que = {}) { vistas_.usar(vista, si, que); }
     QVariantMap dns() const { return dns_; }
     QVariantMap panel() const { return panel_; }
     QVariantMap prueba() const { return prueba_; }
@@ -94,9 +106,9 @@ class AccesoRemoto : public QObject {
     /// "cloudflare" (el token de Cloudflare) o "pinggy-gratis" (sin cuenta, dirección
     /// al azar, se corta a los 60 min). Apaga la otra. "" si arrancó; si no, el motivo.
     /// Reinicia la sala (en el fondo): los invitados conectados se reconectan.
-    Q_INVOKABLE QString conectar(const QString& id);
+    Q_INVOKABLE bool conectar(const QString& id);
     /// Apaga pinggy y Cloudflare. "" si salió; si no, el motivo.
-    Q_INVOKABLE QString desconectar();
+    Q_INVOKABLE bool desconectar();
     /// Guarda el token de túnel (cifrado). "" si salió bien, si no el motivo.
     Q_INVOKABLE QString guardarToken(const QString& token);
     /// Guarda el token de túnel y dice si hay que reiniciar la sala para que
@@ -108,7 +120,7 @@ class AccesoRemoto : public QObject {
     Q_INVOKABLE QString borrarToken();
     Q_INVOKABLE QString guardarTokenCloudflare(const QString& token);
     Q_INVOKABLE QString borrarTokenCloudflare();
-    Q_INVOKABLE QString guardarApiKey(const QString& clave);
+    Q_INVOKABLE bool guardarApiKey(const QString& clave);
     Q_INVOKABLE QString borrarApiKey();
     /// Las instrucciones para el que administra el DNS (dominio propio).
     Q_INVOKABLE QString instruccionesDns(const QString& host, const QString& destino) const;
@@ -140,6 +152,8 @@ class AccesoRemoto : public QObject {
     void consultar(std::function<void(nlohmann::json)> done);
 
    signals:
+    /// Para el operador (ya traducido): los errores de las acciones de la interfaz.
+    void notify(const QString& texto, const QString& tipo);
     void estadoChanged();
     void credencialesChanged();
     void siguiendoChanged();

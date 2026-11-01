@@ -18,7 +18,7 @@ Item {
             Layout.fillWidth: true
             spacing: 8
             GlassButton { text: pp.est.reproduciendo ? qsTr("▶ Desde el elegido") : qsTr("▶ Play"); active: !pp.est.reproduciendo
-                          onClicked: { const e = pp.pl.controlUi("play", lista.currentIndex); if (e !== "") Studio.notify(e, "error") } }
+                          onClicked: { pp.pl.controlUi("play", lista.currentIndex) } }
             GlassButton { text: qsTr("⏭ Siguiente"); enabled: !!pp.est.reproduciendo; onClicked: pp.pl.controlUi("next") }
             GlassButton { text: qsTr("⏹ Parar"); enabled: !!pp.est.reproduciendo; onClicked: pp.pl.controlUi("stop") }
             GlassButton { text: qsTr("Armar en PVW"); onClicked: pp.pl.armarUi()

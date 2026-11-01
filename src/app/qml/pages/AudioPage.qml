@@ -588,7 +588,7 @@ Rectangle {
                         Text { text: qsTr("Subtítulos en"); color: Theme.textDim; font.pixelSize: 12 }
                         ComboBox {
                             Layout.fillWidth: true
-                            readonly property var lista: [qsTr("(ninguno)")].concat(page.au ? page.au.fuentesDeTexto() : [])
+                            readonly property var lista: [qsTr("(ninguno)")].concat(page.au ? page.au.fuentesTexto : [])
                             model: lista
                             currentIndex: Math.max(0, lista.indexOf((parent.parent.d.salidas && parent.parent.d.salidas.rotulo) || qsTr("(ninguno)")))
                             onActivated: page.msg = page.au.setTextoOpciones(page.au.selected, {salidas: {rotulo: currentIndex === 0 ? "" : currentText}})

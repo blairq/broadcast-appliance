@@ -32,7 +32,7 @@ ColumnLayout {
             compact: true; text: qsTr("Siguiente punto ▶"); active: true
             visible: od.o.puntos.length > 0
             enabled: od.o.puntos.some(p => p.estado === "pendiente")
-            onClicked: { const e = od.o.siguienteUi(); if (e !== "") Studio.notify(e, "error") }
+            onClicked: { od.o.siguienteUi() }
         }
         Text {
             visible: od.o.puntos.length > 0
@@ -180,8 +180,7 @@ ColumnLayout {
                 GlassButton {
                     compact: true; text: qsTr("Cargar"); active: true
                     onClicked: {
-                        const e = od.o.cargarUi(textoOd.text)
-                        if (e !== "") Studio.notify(e, "error"); else { carga.close(); textoOd.text = "" }
+                        if (od.o.cargarUi(textoOd.text)) { carga.close(); textoOd.text = "" }
                     }
                 }
                 GlassButton {

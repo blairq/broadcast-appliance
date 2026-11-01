@@ -21,11 +21,10 @@ ColumnLayout {
         for (const x of l) if (x.codigo === c) return x.nombre
         return c
     }
-    function avisar(e, ok) { if (e !== "") Studio.notify(e, "error"); else if (ok) Studio.notify(ok, "info") }
     // Se traduce desde el idioma del evento (el del guion; "" = el del operador): los destinos
-    // son los que tienen paquete desde ese idioma. Se rehace cuando cambia el guion.
-    readonly property string idiomaEvento: Studio.evento && Studio.evento.guion ? (Studio.evento.guion.idioma || "") : ""
-    readonly property var delEvento: tr ? tr.idiomasDelEvento(idiomaEvento) : ({ destinos: [] })
+    // son los que tienen paquete desde ese idioma (Traductor::delEvento: avisa cuando cambia
+    // el idioma del evento o se baja un paquete).
+    readonly property var delEvento: tr ? tr.delEvento : ({ destinos: [] })
     readonly property var destinos: delEvento.destinos || []
     // Las columnas del glosario: los idiomas además del de su clave (ver Traductor::idiomasGlosario).
     readonly property var idiomasGlosario: tr ? tr.idiomasGlosario : []
@@ -109,7 +108,7 @@ ColumnLayout {
         GlassButton {
             compact: true; text: qsTr("Bajar idioma"); icon: "⇩"
             enabled: !!panel.ml && panel.destinos.length > 0
-            onClicked: panel.avisar(panel.tr.bajarUi(panel.delEvento.origen, panel.destinos[idiomaPrueba.currentIndex].codigo), "")
+            onClicked: panel.tr.bajarUi(panel.delEvento.origen, panel.destinos[idiomaPrueba.currentIndex].codigo)
             ToolTip.visible: hovered; ToolTip.delay: 400
             ToolTip.text: qsTr("Baja los paquetes para traducir del idioma del evento a este (70 a 300 MB cada uno; si no hay uno directo, pasa por otro idioma, casi siempre el inglés)")
         }
@@ -146,7 +145,7 @@ ColumnLayout {
                     spacing: 8
                     Toggle {
                         checked: fila.modelData.activa !== false
-                        onToggled: (q) => panel.avisar(panel.tr.ajustarUi(fila.modelData.id, { activa: q }), "")
+                        onToggled: (q) => panel.tr.ajustarUi(fila.modelData.id, { activa: q })
                     }
                     Text {
                         Layout.fillWidth: true; elide: Text.ElideRight
@@ -163,9 +162,9 @@ ColumnLayout {
                         visible: (fila.modelData.faltan || []).length > 0
                         enabled: !!panel.ml
                         text: qsTr("Bajar"); icon: "⇩"
-                        onClicked: panel.avisar(panel.tr.bajarUi(fila.modelData.idioma_desde, fila.modelData.a), "")
+                        onClicked: panel.tr.bajarUi(fila.modelData.idioma_desde, fila.modelData.a)
                     }
-                    GlassButton { compact: true; text: qsTr("Quitar"); onClicked: panel.avisar(panel.tr.quitarUi(fila.modelData.id), "") }
+                    GlassButton { compact: true; text: qsTr("Quitar"); onClicked: panel.tr.quitarUi(fila.modelData.id) }
                 }
                 RowLayout {
                     Layout.fillWidth: true
@@ -177,19 +176,19 @@ ColumnLayout {
                         placeholderText: qsTr("nombre de la fuente de texto")
                         color: Theme.text; font.pixelSize: 11
                         background: Rectangle { color: Qt.rgba(1, 1, 1, 0.05); radius: 6 }
-                        onEditingFinished: if (text !== (fila.modelData.rotulo || "")) panel.avisar(panel.tr.ajustarUi(fila.modelData.id, { rotulo: text }), "")
+                        onEditingFinished: if (text !== (fila.modelData.rotulo || "")) panel.tr.ajustarUi(fila.modelData.id, { rotulo: text })
                     }
                     Text { text: qsTr("Archivo (.txt y .srt)"); color: Theme.textDim; font.pixelSize: 11 }
                     Toggle {
                         checked: fila.modelData.archivo === true
-                        onToggled: (q) => panel.avisar(panel.tr.ajustarUi(fila.modelData.id, { archivo: q }), "")
+                        onToggled: (q) => panel.tr.ajustarUi(fila.modelData.id, { archivo: q })
                     }
                     Item { Layout.fillWidth: true }
                 }
                 TiemposTraduccion {
                     Layout.fillWidth: true
                     t: fila.modelData
-                    onCambiar: (c) => panel.avisar(panel.tr.ajustarUi(fila.modelData.id, c), "")
+                    onCambiar: (c) => panel.tr.ajustarUi(fila.modelData.id, c)
                 }
                 Text {
                     visible: !!fila.modelData.ultima
@@ -229,9 +228,10 @@ ColumnLayout {
             compact: true; text: qsTr("Agregar"); active: true
             enabled: desde.currentText !== "" && panel.destinos.length > 0
             onClicked: {
-                const e = panel.tr.agregarUi(desde.currentText, panel.destinos[hacia.currentIndex].codigo, nombreNueva.text, panel.delEvento.origen)
-                panel.avisar(e, qsTr("Traducción agregada"))
-                if (e === "") nombreNueva.text = ""
+                if (panel.tr.agregarUi(desde.currentText, panel.destinos[hacia.currentIndex].codigo, nombreNueva.text, panel.delEvento.origen)) {
+                    Studio.notify(qsTr("Traducción agregada"), "info")
+                    nombreNueva.text = ""
+                }
             }
         }
     }
@@ -310,8 +310,8 @@ ColumnLayout {
         }
         CheckBox {
             text: qsTr("Rotular «Traducción automática» mientras sale una traducción (capa DSK 4)")
-            checked: Studio.asistente.rotuloTraduccionActivo()
-            onToggled: Studio.asistente.setRotuloTraduccion(checked)
+            checked: Studio.asistente.rotuloTraduccion
+            onToggled: Studio.asistente.rotuloTraduccion = checked
         }
     }
 
@@ -361,7 +361,7 @@ ColumnLayout {
                 compact: true
                 text: modelData.nombre + " (" + modelData.cuantos + ")"
                 active: modelData.activo
-                onClicked: panel.avisar(panel.tr.glosarioGrupoUi(modelData.grupo, !modelData.activo), "")
+                onClicked: panel.tr.glosarioGrupoUi(modelData.grupo, !modelData.activo)
                 ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: modelData.activo ? qsTr("Activo: tocá para apagar el grupo") : qsTr("Apagado: tocá para usarlo")
             }
         }
@@ -410,9 +410,10 @@ ColumnLayout {
                     const it = campos.itemAt(i)
                     if (it.texto.trim() !== "") e[panel.idiomasGlosario[i].codigo] = it.texto.trim()
                 }
-                const err = panel.tr.glosarioAgregarUi(e)
-                panel.avisar(err, qsTr("Término agregado"))
-                if (err === "") { tEs.text = ""; for (let i = 0; i < campos.count; ++i) campos.itemAt(i).texto = "" }
+                if (panel.tr.glosarioAgregarUi(e)) {
+                    Studio.notify(qsTr("Término agregado"), "info")
+                    tEs.text = ""; for (let i = 0; i < campos.count; ++i) campos.itemAt(i).texto = ""
+                }
             }
         }
     }
@@ -459,7 +460,7 @@ ColumnLayout {
             }
             GlassButton {
                 compact: true; text: "✕"
-                onClicked: panel.avisar(panel.tr.glosarioQuitarUi(Array.isArray(term.datos.es) ? term.datos.es[0] : term.datos.es), "")
+                onClicked: panel.tr.glosarioQuitarUi(Array.isArray(term.datos.es) ? term.datos.es[0] : term.datos.es)
                 ToolTip.visible: hovered; ToolTip.delay: 400
                 ToolTip.text: term.datos.origen === "operador" ? qsTr("Sacar este término") : qsTr("Apagar este término de fábrica")
             }
@@ -505,11 +506,11 @@ ColumnLayout {
                 onClicked: {
                     const cfg = { flujo: ccFlujo.text, metodo: ccMetodo.model[ccMetodo.currentIndex].v }
                     if (ccUrl.text !== "") cfg.url = ccUrl.text
-                    const r = ccSec.cc.activar(cfg); if (r !== "") Studio.notify(r, "error")
+                    ccSec.cc.activar(cfg)
                 }
             }
             GlassButton { compact: true; visible: !!ccSec.e.activo; text: qsTr("Apagar"); onClicked: ccSec.cc.desactivar() }
-            GlassButton { compact: true; text: qsTr("Probar"); onClicked: { const r = ccSec.cc.probar(qsTr("Prueba de subtítulos")); if (r !== "") Studio.notify(r, "error") } }
+            GlassButton { compact: true; text: qsTr("Probar"); onClicked: { ccSec.cc.probar(qsTr("Prueba de subtítulos")) } }
         }
         Text {
             visible: (ccSec.e.ultimas || []).length > 0
@@ -525,9 +526,15 @@ ColumnLayout {
         id: vocSec
         Layout.fillWidth: true
         spacing: 6
-        property var v: Studio.asistente.vocabularioUi()
+        readonly property var v: Studio.asistente.vocabulario
         property string grupo: "operador"
-        function refrescar() { v = Studio.asistente.vocabularioUi() }
+        // Lo que se pidió agregar: los campos se vacían cuando el término aparece (si no se
+        // pudo, el porqué llega por notify y los campos quedan para corregirlo).
+        property string agregando: ""
+        onVChanged: {
+            const ts = ((v.grupos || {})[grupo] || {}).terminos || []
+            if (agregando !== "" && ts.some(t => t.termino === agregando)) { vocTerm.text = ""; vocVar.text = ""; agregando = "" }
+        }
         readonly property var grupos: Object.keys((v && v.grupos) || {})
         RowLayout {
             Text {
@@ -539,7 +546,7 @@ ColumnLayout {
             }
             GlassButton {
                 compact: true; text: qsTr("Importar del Cuerpo")
-                onClicked: { Studio.asistente.vocabularioDelCuerpoUi(); vocSec.refrescar() }
+                onClicked: Studio.asistente.vocabularioDelCuerpoUi()
             }
         }
         Text {
@@ -565,7 +572,7 @@ ColumnLayout {
                 readonly property bool on: !!(((vocSec.v.grupos || {})[vocSec.grupo] || {}).activo)
                 compact: true
                 text: (on ? qsTr("Apagar «%1»") : qsTr("Prender «%1»")).arg(vocSec.grupo)
-                onClicked: { Studio.asistente.vocabularioGrupoUi(vocSec.grupo, !on); vocSec.refrescar() }
+                onClicked: Studio.asistente.vocabularioGrupoUi(vocSec.grupo, !on)
             }
         }
         Flow {
@@ -576,7 +583,7 @@ ColumnLayout {
                     required property var modelData
                     compact: true
                     text: modelData.termino + ((modelData.variantes || []).length ? " ←" + modelData.variantes.join(", ") : "") + "  ✕"
-                    onClicked: { Studio.asistente.vocabularioQuitarUi(modelData.termino); vocSec.refrescar() }
+                    onClicked: Studio.asistente.vocabularioQuitarUi(modelData.termino)
                     ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: qsTr("Sacar este término")
                 }
             }
@@ -588,8 +595,8 @@ ColumnLayout {
             GlassButton {
                 compact: true; text: qsTr("Agregar a %1").arg(vocSec.grupo)
                 onClicked: {
-                    const r = Studio.asistente.vocabularioAgregarUi(vocTerm.text, vocVar.text, vocSec.grupo)
-                    if (r !== "") Studio.notify(r, "error"); else { vocTerm.text = ""; vocVar.text = ""; vocSec.refrescar() }
+                    vocSec.agregando = vocTerm.text.trim()
+                    Studio.asistente.vocabularioAgregarUi(vocTerm.text, vocVar.text, vocSec.grupo)
                 }
             }
         }

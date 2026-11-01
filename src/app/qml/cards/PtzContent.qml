@@ -53,7 +53,7 @@ Item {
         const i = t.elegida >= 0 && t.elegida < t.caras.length ? t.elegida : (t.caras.length === 1 ? 0 : -1)
         if (i < 0) { t.avisar(t.caras.length === 0 ? qsTr("Primero «Analizar rostros» (o no hay caras en cuadro)") : qsTr("Elegí a quién seguir: tocá su recuadro o elegilo en la lista")); return }
         const c = t.caras[i]
-        t.avisar(t.sg.seguir(t.entrada, c.id ? { id: c.id, nombre: c.nombre } : { x: c.x + c.ancho / 2, y: c.y + c.alto / 2 }))
+        t.sg.seguir(t.entrada, c.id ? { id: c.id, nombre: c.nombre } : { x: c.x + c.ancho / 2, y: c.y + c.alto / 2 })
     }
     Connections {
         target: t.sg
@@ -68,10 +68,11 @@ Item {
 
     function avisar(e) { t.error = e || "" }
 
-    // La imagen en vivo se pide solo afuera del tablero (renderizarla cuesta). Con el
-    // PTZ digital, también la toma entera (antes del recorte), para manejarlo encima.
-    Suscripcion { objetivo: Studio.frames; que: "entrada:" + t.entrada; activa: t.enVentana && t.entrada !== "" }
-    Suscripcion { objetivo: Studio.frames; que: "entrada-entera:" + t.entrada; activa: t.enVentana && t.mueveDigital && t.entrada !== "" }
+    // La imagen en vivo se pide solo afuera del tablero y con la ventana a la vista
+    // (renderizarla cuesta). Con el PTZ digital, también la toma entera (antes del
+    // recorte), para manejarlo encima.
+    Suscripcion { objetivo: Studio.frames; que: "entrada:" + t.entrada; activa: t.enVentana && t.visible && t.entrada !== "" }
+    Suscripcion { objetivo: Studio.frames; que: "entrada-entera:" + t.entrada; activa: t.enVentana && t.visible && t.mueveDigital && t.entrada !== "" }
     Suscripcion { objetivo: t.cc; que: t.entrada; activa: t.visible && t.cam !== null && t.cam.digital }
 
     // En su ventana: el panel completo (imágenes, puntos a la vista, configuración).
@@ -163,7 +164,7 @@ Item {
                         required property var modelData
                         Layout.fillWidth: true
                         text: modelData.t
-                        onPresionado: t.avisar(t.cc.mover(t.entrada, 0, 0, modelData.v * t.velocidad))
+                        onPresionado: t.cc.mover(t.entrada, 0, 0, modelData.v * t.velocidad)
                         onSoltado: t.cc.parar(t.entrada)
                     }
                 }
@@ -176,7 +177,7 @@ Item {
                     compact: true
                     visible: t.caps.home === true
                     text: qsTr("Inicio")
-                    onClicked: t.avisar(t.cc.home(t.entrada))
+                    onClicked: t.cc.home(t.entrada)
                 }
             }
         }

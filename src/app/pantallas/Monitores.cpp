@@ -260,9 +260,9 @@ void MonitoresModel::tocada(int fila) {
     guardar();
 }
 
-QString MonitoresModel::asignar(const QString& id, const QStringList& cosas, bool pantallaCompleta) {
+bool MonitoresModel::asignar(const QString& id, const QStringList& cosas, bool pantallaCompleta) {
     const int r = filaDe(id);
-    if (r < 0) return QCoreApplication::translate("pantallas", "No conozco ese monitor: los que hay salen en la lista de Pantallas conectadas.");
+    if (r < 0) return sinError(QCoreApplication::translate("pantallas", "No conozco ese monitor: los que hay salen en la lista de Pantallas conectadas."));
     QStringList limpias;
     for (const QString& c : cosas) {
         const QString t = c.trimmed();
@@ -270,55 +270,52 @@ QString MonitoresModel::asignar(const QString& id, const QStringList& cosas, boo
         if (catalogo_ != nullptr) {
             const CatalogoVisible::Cosa* cosa = catalogo_->buscar(t);
             if (cosa == nullptr)
-                return QCoreApplication::translate("pantallas", "No hay nada que se llame «%1» en lo que se puede mostrar.").arg(t);
+                return sinError(QCoreApplication::translate("pantallas", "No hay nada que se llame «%1» en lo que se puede mostrar.").arg(t));
             if (cosa->dibujo.isEmpty())
-                return QCoreApplication::translate("pantallas", "«%1» no se puede mostrar en un monitor (solo en una TV de la red).")
-                    .arg(cosa->titulo);
+                return sinError(QCoreApplication::translate("pantallas", "«%1» no se puede mostrar en un monitor (solo en una TV de la red).")
+                    .arg(cosa->titulo));
         }
         limpias << t;
     }
-    if (limpias.isEmpty()) return QCoreApplication::translate("pantallas", "Elegí qué mostrar (para dejarlo vacío, «Quitar»).");
+    if (limpias.isEmpty()) return sinError(QCoreApplication::translate("pantallas", "Elegí qué mostrar (para dejarlo vacío, «Quitar»)."));
     if (limpias.size() > kMaxCosas)
-        return QCoreApplication::translate("pantallas", "Como mucho %1 cosas en un monitor: más ya no se leen.").arg(kMaxCosas);
+        return sinError(QCoreApplication::translate("pantallas", "Como mucho %1 cosas en un monitor: más ya no se leen.").arg(kMaxCosas));
     Fila& f = filas_[static_cast<std::size_t>(r)];
-    if (f.cosas == limpias && f.pantallaCompleta == pantallaCompleta) return {};
+    if (f.cosas == limpias && f.pantallaCompleta == pantallaCompleta) return true;
     f.cosas = limpias;
     f.pantallaCompleta = pantallaCompleta;
     tocada(r);
-    return {};
+    return true;
 }
 
-QString MonitoresModel::setPantallaCompleta(const QString& id, bool si) {
+void MonitoresModel::setPantallaCompleta(const QString& id, bool si) {
     const int r = filaDe(id);
-    if (r < 0) return QCoreApplication::translate("pantallas", "No conozco ese monitor.");
+    if (r < 0) return avisarError(QCoreApplication::translate("pantallas", "No conozco ese monitor."));
     Fila& f = filas_[static_cast<std::size_t>(r)];
-    if (f.pantallaCompleta == si) return {};
+    if (f.pantallaCompleta == si) return;
     f.pantallaCompleta = si;
     tocada(r);
-    return {};
 }
 
-QString MonitoresModel::quitar(const QString& id) {
+void MonitoresModel::quitar(const QString& id) {
     const int r = filaDe(id);
-    if (r < 0) return QCoreApplication::translate("pantallas", "No conozco ese monitor.");
+    if (r < 0) return avisarError(QCoreApplication::translate("pantallas", "No conozco ese monitor."));
     Fila& f = filas_[static_cast<std::size_t>(r)];
     if (!f.conectado) return olvidar(id); // sin nada y sin estar: no hay qué esperar
-    if (f.cosas.isEmpty()) return {};
+    if (f.cosas.isEmpty()) return;
     f.cosas.clear();
     tocada(r);
-    return {};
 }
 
-QString MonitoresModel::olvidar(const QString& id) {
+void MonitoresModel::olvidar(const QString& id) {
     const int r = filaDe(id);
-    if (r < 0) return QCoreApplication::translate("pantallas", "No conozco ese monitor.");
+    if (r < 0) return avisarError(QCoreApplication::translate("pantallas", "No conozco ese monitor."));
     if (filas_[static_cast<std::size_t>(r)].conectado) return quitar(id);
     beginRemoveRows({}, r, r);
     filas_.erase(filas_.begin() + r);
     endRemoveRows();
     emit cambio();
     guardar();
-    return {};
 }
 
 QVariantMap MonitoresModel::monitor(const QString& id) const {

@@ -45,6 +45,7 @@
 #include <vector>
 #include <memory>
 #include <string>
+#include "ui/CapturaError.hpp"
 
 namespace ba::app {
 class AppRuntime;
@@ -74,6 +75,17 @@ namespace ba::app {
 
 class SalidasViewModel : public QObject {
     Q_OBJECT
+    /// El error de una acción de la interfaz (las Q_INVOKABLE void): a quien mira.
+    void avisarError(const QString& e) {
+        if (!e.isEmpty() && !::ba::app::CapturaError::tomar(e)) emit notify(e, "error");
+    }
+    void avisarError(const std::string& e) { avisarError(QString::fromStdString(e)); }
+    /// Para las acciones que dicen si se hicieron: el error a quien mira y true si no hubo.
+    bool sinError(const QString& e) {
+        avisarError(e);
+        return e.isEmpty();
+    }
+    bool sinError(const std::string& e) { return sinError(QString::fromStdString(e)); }
     /// Las salidas: filas con id, nombre, color, porOmision, alAire, armada,
     /// transmitiendo, grabando, archivo (lo que graba), destinos ([{id, nombre, activo,
     /// reconectando, respaldo}], los suyos), programa (la clave de FrameService de su
@@ -95,7 +107,8 @@ class SalidasViewModel : public QObject {
     Q_PROPERTY(QVariantMap nueva READ nueva NOTIFY nuevaCambio)
     /// Lo que sale de la activa: {transmitiendo (su principal o algún destino), grabando,
     /// reconectando, alAire (transmisión, grabación o señal limpia: lo que pide confirmar),
-    /// tiempoTransmision, tiempoGrabacion}. Con la por omisión, lo de sus pastillas.
+    /// transmiteDesdeMs, grabaDesdeMs} (el tiempo lo cuenta la vista). Con la por omisión, lo de
+    /// sus pastillas.
     Q_PROPERTY(QVariantMap aire READ aire NOTIFY aireCambio)
     /// El FTB y la placa de la activa: {ftb, ftb_audio, placa, placa_texto, placa_imagen}.
     Q_PROPERTY(QVariantMap placa READ placa NOTIFY placaCambio)
@@ -165,12 +178,12 @@ class SalidasViewModel : public QObject {
     // de antemano); lo que falle después lo dice `notify`.
     /// Crear, cambiar y sacar salidas en caliente (AppRuntime).
     Q_INVOKABLE QString crearSalida(const QString& id, const QString& nombre, const QString& color = {});
-    Q_INVOKABLE QString editar(const QString& id, const QString& nombre, const QString& color);
+    Q_INVOKABLE void editar(const QString& id, const QString& nombre, const QString& color);
     /// El codificador de video de la salida ("" = el de la configuración): rige desde lo
     /// próximo que arranque en ella.
-    Q_INVOKABLE QString setCodificador(const QString& id, const QString& codificador);
+    Q_INVOKABLE void setCodificador(const QString& id, const QString& codificador);
     /// `susDestinos`: "borrar" o el id de otra salida (con destinos guardados hay que decirlo).
-    Q_INVOKABLE QString borrar(const QString& id, const QString& susDestinos = {});
+    Q_INVOKABLE bool borrar(const QString& id, const QString& susDestinos = {});
     /// Lo mismo, para quien necesita el resultado (el MCP): `listo(error)` en este hilo, con
     /// la foto ya al día. `tope` >= 0 cambia también cuántas salidas puede haber (antes de
     /// los cambios); `cambios` vacío no cambia la salida.
@@ -180,16 +193,16 @@ class SalidasViewModel : public QObject {
     void borrar(const std::string& id, const std::string& susDestinos, Listo listo);
     /// Una salida nueva con su nombre (el id sale del nombre, único) y su color ("" = el
     /// que le toque). Queda como la activa. "" o por qué no.
-    Q_INVOKABLE QString crear(const QString& nombre, const QString& color);
-    Q_INVOKABLE QString setTope(int tope);
+    Q_INVOKABLE bool crear(const QString& nombre, const QString& color);
+    Q_INVOKABLE bool setTope(int tope);
     /// Graba (o deja de grabar) el programa de una salida. "" o por qué no.
-    Q_INVOKABLE QString grabar(const QString& id, bool grabar);
+    Q_INVOKABLE void grabar(const QString& id, bool grabar);
     // --- FTB y placa de seguridad (encima de todo lo que sale) ---------------
     // Los dos son de la activa (cada salida tiene su negro y su placa).
-    /// Fundido a negro; `audio`: "bajar" (de fábrica) o "mantener". "" o el error.
-    Q_INVOKABLE QString ftbUi(bool activar, int ms = 800, const QString& audio = "bajar");
-    /// La placa con `texto` (y una imagen opcional). "" o el error.
-    Q_INVOKABLE QString placaUi(bool activar, const QString& texto = {}, const QString& imagen = {}, int ms = 600);
+    /// Fundido a negro; `audio`: "bajar" (de fábrica) o "mantener". El error va por la señal del modelo.
+    Q_INVOKABLE void ftbUi(bool activar, int ms = 800, const QString& audio = "bajar");
+    /// La placa con `texto` (y una imagen opcional). El error va por la señal del modelo.
+    Q_INVOKABLE void placaUi(bool activar, const QString& texto = {}, const QString& imagen = {}, int ms = 600);
     QStringList textosPlaca() const { return textosPlaca_; }
     /// Rearma los textos de placa (cambió el idioma del evento o la placa usada) y avisa si cambiaron.
     void revisarTextosPlaca();

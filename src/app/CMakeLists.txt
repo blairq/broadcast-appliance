@@ -1348,6 +1348,31 @@ endif()
     target_link_libraries(test_reloj_vistas PRIVATE Qt6::Core)
     set_target_properties(test_reloj_vistas PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_reloj_vistas COMMAND test_reloj_vistas)
+    # Un hilo del chat de la sala como modelo filtrado (sin copiar ni contador).
+    add_executable(test_chat_hilo tests/test_chat_hilo.cpp ui/ChatHilo.cpp ui/ChatHilo.hpp)
+    target_include_directories(test_chat_hilo PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    target_link_libraries(test_chat_hilo PRIVATE Qt6::Core Qt6::Gui)
+    set_target_properties(test_chat_hilo PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
+    add_test(NAME test_chat_hilo COMMAND test_chat_hilo)
+    # El flanco de subida (el PIN del día al arrancar el vivo, T47).
+    add_executable(test_flanco tests/test_flanco.cpp ui/Flanco.hpp)
+    target_include_directories(test_flanco PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    target_link_libraries(test_flanco PRIVATE Qt6::Core)
+    set_target_properties(test_flanco PROPERTIES BUILD_RPATH "${BA_QT_PREFIX}/lib")
+    add_test(NAME test_flanco COMMAND test_flanco)
+    # El nombre del evento abierto: el del vínculo {evento.nombre} de los gráficos.
+    add_executable(test_evento_abierto tests/test_evento_abierto.cpp ui/EventoAbierto.cpp evento/EventoStore.cpp
+                   evento/Evento.cpp evento/Linea.cpp evento/LineaEdicion.cpp evento/Condicion.cpp)
+    target_include_directories(test_evento_abierto PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    target_link_libraries(test_evento_abierto PRIVATE ba_core Qt6::Core nlohmann_json::nlohmann_json)
+    set_target_properties(test_evento_abierto PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
+    add_test(NAME test_evento_abierto COMMAND test_evento_abierto)
+    # Un solo contrato de errores: las acciones avisan; el MCP y las pruebas los capturan.
+    add_executable(test_captura_error tests/test_captura_error.cpp ui/CapturaError.hpp)
+    target_include_directories(test_captura_error PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    target_link_libraries(test_captura_error PRIVATE Qt6::Core)
+    set_target_properties(test_captura_error PROPERTIES BUILD_RPATH "${BA_QT_PREFIX}/lib")
+    add_test(NAME test_captura_error COMMAND test_captura_error)
     # El control web (dashboard /control/): emparejar, perfiles, llamar, confirmar y mirar
     # contra un McpCore de prueba (docs/planes/PLAN-WEB-CONTROL.md §2).
     add_executable(test_control_web tests/test_control_web.cpp control/ControlWeb.cpp control/ControlWeb.hpp
@@ -1539,7 +1564,7 @@ endif()
     # La interfaz COMPILA: cada .qml con el motor de QML (agarra lo que qmllint no:
     # propiedades asignadas dos veces, tipos o ids que no existen).
     add_executable(test_qml_carga tests/test_qml_carga.cpp ui/Vumetro.cpp ui/ListaObjetos.cpp ui/FiltroCatalogo.cpp
-                   ui/Reloj.cpp ui/Reloj.hpp ui/FotosPersonas.cpp ui/FotosPersonas.hpp)
+                   ui/Reloj.cpp ui/Reloj.hpp ui/FotosPersonas.cpp ui/FotosPersonas.hpp ui/ChatHilo.cpp ui/ChatHilo.hpp)
     target_include_directories(test_qml_carga PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
     target_link_libraries(test_qml_carga PRIVATE Qt6::Core Qt6::Gui Qt6::Qml Qt6::Quick)
     target_compile_definitions(test_qml_carga PRIVATE BA_QML_DIR="${CMAKE_CURRENT_SOURCE_DIR}/qml")

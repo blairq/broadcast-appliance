@@ -46,7 +46,7 @@ Item {
 
         OutputRow {
             label: Studio.aire.streaming ? qsTr("AL AIRE") : qsTr("TRANSMISION")
-            time: Studio.aire.streamTime
+            time: Theme.cronometro(Studio.aire.transmiteDesdeMs, Reloj.ahora)
             detail: Studio.aire.streaming ? Studio.aire.streamKbps + " kbps" : (Studio.streamServer || qsTr("sin servidor"))
             on: Studio.aire.streaming
             tone: Theme.live
@@ -207,7 +207,7 @@ Item {
                 compact: true
                 visible: grab.g.replay && grab.g.replay.activa
                 text: qsTr("⟲ Repetir %1 s").arg(grab.g.replay ? grab.g.replay.segundos : 0)
-                onClicked: { const e = Studio.escenas.repetirUi(); if (e !== "") Studio.notify(e, "error") }
+                onClicked: { Studio.escenas.repetirUi() }
             }
         }
         // El disco a este bitrate y el pase a MP4 al terminar.
@@ -232,7 +232,7 @@ Item {
         }
         OutputRow {
             label: Studio.aire.recording ? qsTr("GRABANDO") : qsTr("GRABACION")
-            time: Studio.aire.recordTime
+            time: Theme.cronometro(Studio.aire.grabaDesdeMs, Reloj.ahora)
             detail: ""
             on: Studio.aire.recording
             tone: Theme.accent

@@ -11,8 +11,9 @@ ScrollView {
     id: pw
     contentWidth: availableWidth
     clip: true
-    readonly property var ev: Studio.evento
-    readonly property var w: ev.web || ({})
+    readonly property var guionVm: Studio.evento.guionVm
+    readonly property var webVm: Studio.evento.webVm
+    readonly property var w: webVm.web || ({})
     readonly property var sitio: w.sitio || ({})
     readonly property var ar: Studio.accesoRemoto
     // La dirección pública la decide la sala (sala/Direcciones): el túnel que esté listo.
@@ -24,8 +25,7 @@ ScrollView {
     signal pedirAsistente(string texto)
 
     function guardar(campos) {
-        const e = pw.ev.setWebSitio(campos)
-        if (e !== "") Studio.notify(e, "error")
+        pw.webVm.setWebSitio(campos)
     }
 
     ColumnLayout {
@@ -47,7 +47,7 @@ ScrollView {
             titulo: qsTr("Este evento todavía no tiene página web")
             texto: qsTr("Se genera una página por sección del guion, más una portada y un cierre. Después las personaliza el asistente o las editás a mano.")
             accion: qsTr("Generar la página web")
-            onActivado: { const r = pw.ev.generarWeb(false); if (r.error) Studio.notify(r.error, "error") }
+            onActivado: { const r = pw.webVm.generarWeb(false); if (r.error) Studio.notify(r.error, "error") }
         }
 
         // --- La dirección -------------------------------------------------------------
@@ -122,29 +122,29 @@ ScrollView {
                     Layout.fillWidth: true
                     placeholderText: qsTr("Arrancamos en 5 minutos · Hay un corte técnico, ya volvemos…")
                     text: (pw.w.aviso || {}).texto || ""
-                    onAccepted: pw.ev.setAvisoWeb(text, urgente.checked ? "urgente" : "info")
+                    onAccepted: pw.webVm.setAvisoWeb(text, urgente.checked ? "urgente" : "info")
                 }
                 CheckBox { id: urgente; text: qsTr("Urgente"); checked: (pw.w.aviso || {}).nivel === "urgente" }
                 GlassButton { compact: true; text: qsTr("Publicar"); active: avisoCampo.text !== ""
-                              onClicked: pw.ev.setAvisoWeb(avisoCampo.text, urgente.checked ? "urgente" : "info") }
+                              onClicked: pw.webVm.setAvisoWeb(avisoCampo.text, urgente.checked ? "urgente" : "info") }
                 GlassButton { compact: true; text: qsTr("Sacar"); enabled: !!(pw.w.aviso || {}).texto
-                              onClicked: { avisoCampo.text = ""; pw.ev.setAvisoWeb("", "info") } }
+                              onClicked: { avisoCampo.text = ""; pw.webVm.setAvisoWeb("", "info") } }
             }
             // Lo que usa el evento (está en su definición: lo leen la página y el asistente).
             RowLayout {
                 spacing: 8
-                Toggle { checked: pw.ev.guion.invitados === true; onToggled: (v) => { pw.ev.setInvitados(v); pw.ev.guardar() } }
+                Toggle { checked: pw.guionVm.guion.invitados === true; onToggled: (v) => { pw.guionVm.setInvitados(v); pw.guionVm.guardar() } }
                 Text { text: qsTr("Usa invitados en la conferencia (la página ofrece «Entrar a la conferencia»)"); color: Theme.text; font.pixelSize: 12 }
             }
             RowLayout {
                 spacing: 8
-                Toggle { checked: pw.ev.guion.asamblea === true; onToggled: (v) => { pw.ev.setAsamblea(v); pw.ev.guardar() } }
+                Toggle { checked: pw.guionVm.guion.asamblea === true; onToggled: (v) => { pw.guionVm.setAsamblea(v); pw.guionVm.guardar() } }
                 Text { text: qsTr("Es una sesión de asamblea (integrantes y presentes, quórum, orden del día y votaciones oficiales)"); color: Theme.text; font.pixelSize: 12 }
             }
             RowLayout {
                 spacing: 8
-                Toggle { checked: pw.ev.guion.preguntas === true || pw.sitio.participacion === true
-                         onToggled: (v) => { pw.ev.setPreguntas(v); pw.ev.guardar(); if (!v && pw.sitio.participacion) pw.guardar({ participacion: false }) } }
+                Toggle { checked: pw.guionVm.guion.preguntas === true || pw.sitio.participacion === true
+                         onToggled: (v) => { pw.guionVm.setPreguntas(v); pw.guionVm.guardar(); if (!v && pw.sitio.participacion) pw.guardar({ participacion: false }) } }
                 Text { text: qsTr("El público puede preguntar y votar (la página muestra el enlace y las preguntas moderadas)"); color: Theme.text; font.pixelSize: 12 }
             }
         }
@@ -191,7 +191,7 @@ ScrollView {
                 columns: 2
                 columnSpacing: 10; rowSpacing: 8
                 Text { text: qsTr("Título"); color: Theme.textDim; font.pixelSize: 12 }
-                TextField { Layout.fillWidth: true; text: pw.sitio.titulo || ""; placeholderText: pw.ev.guion.nombre || qsTr("el nombre del evento")
+                TextField { Layout.fillWidth: true; text: pw.sitio.titulo || ""; placeholderText: pw.guionVm.guion.nombre || qsTr("el nombre del evento")
                             onEditingFinished: if (text !== (pw.sitio.titulo || "")) pw.guardar({ titulo: text }) }
                 Text { text: qsTr("Bajada"); color: Theme.textDim; font.pixelSize: 12 }
                 TextField { Layout.fillWidth: true; text: pw.sitio.bajada || ""; placeholderText: qsTr("una línea abajo del título")
@@ -211,8 +211,7 @@ ScrollView {
                             MouseArea {
                                 anchors.fill: parent; cursorShape: Qt.PointingHandCursor
                                 onClicked: {
-                                    const e = Studio.temaEvento.cambiar({ colores: { acento: parent.modelData } })
-                                    if (e !== "") Studio.notify(e, "error")
+                                    Studio.temaEvento.cambiar({ colores: { acento: parent.modelData } })
                                 }
                             }
                         }
@@ -266,14 +265,14 @@ ScrollView {
             RowLayout {
                 spacing: 8
                 GlassButton { compact: true; text: qsTr("Crear las que faltan")
-                              onClicked: { const r = pw.ev.generarWeb(false); if (r.error) Studio.notify(r.error, "error")
+                              onClicked: { const r = pw.webVm.generarWeb(false); if (r.error) Studio.notify(r.error, "error")
                                            else Studio.notify(qsTr("%n creada", "", (r.escritas || []).length), "ok") } }
                 GlassButton { compact: true; text: qsTr("Rehacer todo con la plantilla…")
                               onClicked: ApplicationWindow.window.confirm({
                                   title: qsTr("¿Rehacer todas las páginas con la plantilla?"),
                                   text: qsTr("Se pisan las páginas editadas (las tuyas o las del asistente). Las imágenes y otros archivos de la carpeta quedan."),
                                   accept: qsTr("Rehacer"), reject: qsTr("Cancelar"),
-                                  action: function() { const r = pw.ev.generarWeb(true); if (r.error) Studio.notify(r.error, "error") } }) }
+                                  action: function() { const r = pw.webVm.generarWeb(true); if (r.error) Studio.notify(r.error, "error") } }) }
             }
         }
         Item { Layout.preferredHeight: 4 }

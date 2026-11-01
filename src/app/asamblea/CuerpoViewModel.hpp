@@ -13,11 +13,17 @@
 
 #include <functional>
 #include <memory>
+#include "ui/CapturaError.hpp"
 
 namespace ba::app::asamblea {
 
 class CuerpoViewModel : public QObject {
     Q_OBJECT
+    /// El error de una acción de la interfaz (las Q_INVOKABLE void): a quien mira.
+    void avisarError(const QString& e) {
+        if (!e.isEmpty() && !::ba::app::CapturaError::tomar(e)) emit notify(e, "error");
+    }
+    void avisarError(const std::string& e) { avisarError(QString::fromStdString(e)); }
     Q_PROPERTY(QString nombre READ nombre NOTIFY cambio)
     Q_PROPERTY(QVariantList integrantes READ integrantes NOTIFY cambio)
     /// {filas, columnas, bancas: [{banca, fila, columna, integrante?}], sin_lugar}.
@@ -31,10 +37,10 @@ class CuerpoViewModel : public QObject {
     QString nombre() const;
     QVariantList integrantes() const;
     Q_INVOKABLE void setNombre(const QString& n);
-    /// Crea o cambia (con `id`). "" o el error.
-    Q_INVOKABLE QString guardar(const QVariantMap& campos);
-    /// La toma de una banca (cámara y posición; `camara` vacía la saca). "" o el error.
-    Q_INVOKABLE QString setToma(const QString& banca, const QString& camara, const QString& posicion);
+    /// Crea o cambia (con `id`). El error va por la señal del modelo.
+    Q_INVOKABLE void guardar(const QVariantMap& campos);
+    /// La toma de una banca (cámara y posición; `camara` vacía la saca). El error va por la señal del modelo.
+    Q_INVOKABLE void setToma(const QString& banca, const QString& camara, const QString& posicion);
     Q_INVOKABLE bool borrar(const QString& id);
     Q_INVOKABLE bool validar(const QString& id);
     /// Importa una planilla CSV. Texto con lo que pasó.
@@ -72,6 +78,8 @@ class CuerpoViewModel : public QObject {
     void setGanchos(Ganchos g) { g_ = std::move(g); }
 
    signals:
+    /// Para el operador (ya traducido): los errores de las acciones de la interfaz.
+    void notify(const QString& texto, const QString& tipo);
     void cambio();
     void fotoLista(const QString& id, bool ok, const QString& texto);
     void fotosPendientesCambio();

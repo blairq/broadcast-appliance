@@ -18,6 +18,7 @@
 #include <filesystem>
 #include <map>
 #include <string>
+#include "ui/CapturaError.hpp"
 
 namespace ba::app::control {
 class BusEventos;
@@ -30,6 +31,11 @@ class Bancas;
 
 class SeguirMicrofono : public QObject {
     Q_OBJECT
+    /// El error de una acción de la interfaz (las Q_INVOKABLE void): a quien mira.
+    void avisarError(const QString& e) {
+        if (!e.isEmpty() && !::ba::app::CapturaError::tomar(e)) emit notify(e, "error");
+    }
+    void avisarError(const std::string& e) { avisarError(QString::fromStdString(e)); }
     Q_PROPERTY(QVariantMap estado READ estadoUi NOTIFY cambio)
    public:
     using json = nlohmann::json;
@@ -47,11 +53,13 @@ class SeguirMicrofono : public QObject {
     void descartar();
 
     QVariantMap estadoUi() const;
-    Q_INVOKABLE QString configurarUi(const QVariantMap& c);
-    Q_INVOKABLE QString aceptarUi() { return QString::fromStdString(aceptar()); }
+    Q_INVOKABLE void configurarUi(const QVariantMap& c);
+    Q_INVOKABLE void aceptarUi() { avisarError(QString::fromStdString(aceptar())); }
     Q_INVOKABLE void descartarUi() { descartar(); }
 
    signals:
+    /// Para el operador (ya traducido): los errores de las acciones de la interfaz.
+    void notify(const QString& texto, const QString& tipo);
     void cambio();
 
    private:

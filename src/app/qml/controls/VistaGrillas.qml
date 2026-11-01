@@ -29,7 +29,6 @@ ColumnLayout {
     /// Hay algo que mostrar (para que quien la usa la esconda si no).
     readonly property bool hay: vg.mias.length > 0
 
-    function avisar(e) { if (e !== "") Studio.notify(e, "error") }
 
     // Una fila por grilla (las caras las lleva cada fila).
     ListaConClave { id: filas; clave: "fuente"; lista: vg.mias }
@@ -158,7 +157,7 @@ ColumnLayout {
                         text: nombre + "  ↺"
                         ToolTip.visible: hovered; ToolTip.delay: 300
                         ToolTip.text: qsTr("Devolver a «%1» a esta grilla (vuelve a lo automático)").arg(nombre)
-                        onClicked: vg.avisar(vg.ctl.devolverQml(fila.fuente, clave))
+                        onClicked: vg.ctl.devolverQml(fila.fuente, clave)
                     }
                 }
             }
@@ -190,7 +189,7 @@ ColumnLayout {
                     compact: true; text: qsTr("Fijar"); active: true
                     enabled: !!sumar.opcionElegida
                     onClicked: {
-                        vg.avisar(vg.ctl.fijarQml(fila.fuente, sumar.elegido))
+                        vg.ctl.fijarQml(fila.fuente, sumar.elegido)
                         sumar.elegido = ""
                     }
                 }
@@ -212,12 +211,12 @@ ColumnLayout {
         MenuSeparator {}
         MenuItem {
             text: menuCara.fijo ? qsTr("Soltar (vuelve a lo automático)") : qsTr("Fijar en esta grilla")
-            onTriggered: vg.avisar(menuCara.fijo ? vg.ctl.devolverQml(menuCara.fuente, menuCara.clave)
-                                                 : vg.ctl.fijarQml(menuCara.fuente, menuCara.clave))
+            onTriggered: menuCara.fijo ? vg.ctl.devolverQml(menuCara.fuente, menuCara.clave)
+                                                 : vg.ctl.fijarQml(menuCara.fuente, menuCara.clave)
         }
         MenuItem {
             text: qsTr("Sacar de esta grilla")
-            onTriggered: vg.avisar(vg.ctl.sacarQml(menuCara.fuente, menuCara.clave))
+            onTriggered: vg.ctl.sacarQml(menuCara.fuente, menuCara.clave)
         }
         Menu {
             id: menuMover
@@ -229,7 +228,7 @@ ColumnLayout {
                 delegate: MenuItem {
                     required property string modelData
                     text: modelData
-                    onTriggered: vg.avisar(vg.ctl.moverQml(menuCara.clave, menuCara.fuente, modelData))
+                    onTriggered: vg.ctl.moverQml(menuCara.clave, menuCara.fuente, modelData)
                 }
             }
         }

@@ -38,6 +38,9 @@
 #include <QQmlEngine>
 
 #include <set>
+#include "ui/CapturaError.hpp"
+
+using ::ba::app::errorDe;
 
 namespace ba::app {
 
@@ -56,6 +59,7 @@ QObject* deCpp(QObject* o) {
 ControlViewModel::ControlViewModel(Partes p, QObject* parent) : QObject(parent), p_(std::move(p)) {
     armarBotonera();
     satellite_ = std::make_unique<control::SatelliteServidor>(p_.rt.dataRoot(), *botonera_);
+    connect(satellite_.get(), &control::SatelliteServidor::notify, this, &ControlViewModel::notify);
     // Las capas DSK: el modelo es del dueño del motor (lo que le pide al motor corre allá);
     // la interfaz lo ve por la foto (control::Dsk).
     {
@@ -81,8 +85,10 @@ ControlViewModel::ControlViewModel(Partes p, QObject* parent) : QObject(parent),
         });
     }
     dsk_ = std::make_unique<control::Dsk>(*capasDsk_, p_.ventanilla);
+    connect(dsk_.get(), &control::Dsk::notify, this, &ControlViewModel::notify);
     connect(dsk_.get(), &control::Dsk::fallo, this, [this](const QString& e) { emit notify(e, "error"); });
     acciones_ = std::make_unique<control::Acciones>(p_.rt.dataRoot());
+    connect(acciones_.get(), &control::Acciones::notify, this, &ControlViewModel::notify);
     {
         auto& g = acciones_->ganchos();
         g.escenas = [this]() { return escenas(); };
@@ -115,6 +121,7 @@ ControlViewModel::ControlViewModel(Partes p, QObject* parent) : QObject(parent),
     });
     // El control web (dashboard /control/): sus aparatos y el puente con el gateway (como la botonera).
     controlWeb_ = std::make_unique<control::ControlWeb>(p_.rt.dataRoot());
+    connect(controlWeb_.get(), &control::ControlWeb::notify, this, &ControlViewModel::notify);
     controlWeb_->ganchos().salidas = p_.salidas;
     controlWebGw_ = std::make_unique<control::ControlWebGateway>(*controlWeb_, cli);
     // El tema de las páginas web: cada vez que la sala (re)arranca, se lo vuelve a pasar.
@@ -278,6 +285,11 @@ void ControlViewModel::armarBotonera() {
         },
         p_.rt.dataRoot());
     botonera_ = std::make_unique<control::Botonera>(p_.rt.dataRoot(), p_.bus, std::move(g));
+    connect(botonera_.get(), &control::Botonera::notify, this, &ControlViewModel::notify);
+    // La API remota cambia con sus accesos y al prenderla (la botonera avisa dispositivosCambio)
+    // y con la dirección de la sala (la puerta HTTP).
+    connect(botonera_.get(), &control::Botonera::dispositivosCambio, this, &ControlViewModel::apiRemotaCambio);
+    connect(&p_.direcciones, &sala::Direcciones::cambio, this, &ControlViewModel::apiRemotaCambio);
 }
 
 QObject* ControlViewModel::botoneraQml() const { return deCpp(botonera_.get()); }
@@ -396,7 +408,7 @@ void ControlViewModel::alimentarEnlaces(EnlacesViewModel::Fuentes& f) {
         return {{"activo", satellite_->activo()}, {"puerto", satellite_->puerto()}, {"error", satellite_->error()}};
     };
     f.activarSatellite = [this](bool on) -> QString {
-        return satellite_ ? satellite_->configurar(on, satellite_->puerto()) : tr("No disponible.");
+        return satellite_ ? errorDe([&] { satellite_->configurar(on, satellite_->puerto()); }) : tr("No disponible.");
     };
     f.controlWeb = [this]() -> QVariantMap {
         return {{"conectados", controlWeb_->conectados()},
@@ -446,7 +458,7 @@ void ControlViewModel::alimentarEnlaces(EnlacesViewModel::Fuentes& f) {
             return out;
         };
         a.resolver = [this](const QString& sol, bool aprobar, const QString& perfil) -> QString {
-            const QString e = controlWeb_->aprobarUi(sol, aprobar, perfil);
+            const QString e = errorDe([&] { controlWeb_->aprobarUi(sol, aprobar, perfil); });
             if (e.isEmpty()) emit notify(aprobar ? tr("Aparato emparejado.") : tr("Pedido rechazado."), aprobar ? "ok" : "info");
             return e;
         };

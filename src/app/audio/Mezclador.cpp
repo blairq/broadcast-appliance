@@ -56,6 +56,7 @@ Mezclador::Mezclador(AppRuntime& rt, VentanillaMotor& ventanilla, Matriz* matriz
     rehacerListas();
     revisarLoudness();
     calibracion_ = std::make_unique<Calibracion>(rt.dataRoot(), rt.modoPrueba());
+    connect(calibracion_.get(), &Calibracion::notify, this, &Mezclador::notify);
 }
 
 Mezclador::~Mezclador() = default;
@@ -74,7 +75,7 @@ void Mezclador::setRacks(RackManager* r) {
     calibracion_->setRacks(r);
 }
 
-void Mezclador::usar(QObject* vista, bool si) { usos_.usar(vista, si); }
+void Mezclador::usar(QObject* vista, bool si, const QString& que) { usos_.usar(vista, si, que); }
 
 void Mezclador::rehacerListas() {
     QStringList entradas;
@@ -210,10 +211,10 @@ QVariantList Mezclador::analisisLsp() const {
     return out;
 }
 
-QString Mezclador::abrirAnalisisLsp(const QString& entrada, const QString& cual) {
-    if (racks_ == nullptr) return tr("el audio de los racks no está disponible");
-    if (!entradas_.contains(entrada)) return tr("no hay una entrada con audio «%1»").arg(entrada);
-    return QString::fromStdString(racks_->abrirAnalisisLsp(entrada.toStdString(), cual.toStdString()));
+void Mezclador::abrirAnalisisLsp(const QString& entrada, const QString& cual) {
+    if (racks_ == nullptr) return avisarError(tr("el audio de los racks no está disponible"));
+    if (!entradas_.contains(entrada)) return avisarError(tr("no hay una entrada con audio «%1»").arg(entrada));
+    avisarError(QString::fromStdString(racks_->abrirAnalisisLsp(entrada.toStdString(), cual.toStdString())));
 }
 
 nlohmann::json Mezclador::estado() const {

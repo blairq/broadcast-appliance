@@ -341,7 +341,7 @@ void EnlacesViewModel::avisarCambio() {
     emit cambio();
 }
 
-QString EnlacesViewModel::activar(const QString& id, bool activo) {
+void EnlacesViewModel::activar(const QString& id, bool activo) {
     QString err;
     if (id == "invitados" && f_.cerrarSala) f_.cerrarSala(!activo);
     else if (id == "companion" && f_.activarApiRemota) f_.activarApiRemota(activo);
@@ -353,20 +353,20 @@ QString EnlacesViewModel::activar(const QString& id, bool activo) {
                            : tr("«%1» no se prende ni se apaga desde acá.").arg(te(s->nombre));
     }
     emit cambio();
-    return err;
+    avisarError(err);
 }
 
 void EnlacesViewModel::accion(const QString& id) {
     if (id == "control" && f_.emparejarControlWeb) f_.emparejarControlWeb();
 }
 
-QString EnlacesViewModel::resolver(const QString& servicio, const QString& solicitud, bool aprobar,
+void EnlacesViewModel::resolver(const QString& servicio, const QString& solicitud, bool aprobar,
                                    const QString& perfil) {
     const auto ap = f_.aprobaciones.find(servicio.toStdString());
-    if (ap == f_.aprobaciones.end() || !ap->second.resolver) return tr("«%1» no pide aprobaciones.").arg(servicio);
+    if (ap == f_.aprobaciones.end() || !ap->second.resolver) return avisarError(tr("«%1» no pide aprobaciones.").arg(servicio));
     const QString err = ap->second.resolver(solicitud, aprobar, perfil);
     avisarCambio(); // la fuente también avisa; por si el pedido ya no estaba
-    return err;
+    avisarError(err);
 }
 
 } // namespace ba::app

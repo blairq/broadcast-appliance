@@ -231,22 +231,22 @@ std::string Quorum::anexoActa() const {
 
 QVariantMap Quorum::estadoUi() const { return aQv(estado()).toMap(); }
 QVariantList Quorum::oficialesUi() const { return aQv(oficiales_).toList(); }
-QString Quorum::setReglaUi(const QVariantMap& r) {
+void Quorum::setReglaUi(const QVariantMap& r) {
     const json j = json::parse(QJsonDocument(QJsonObject::fromVariantMap(r)).toJson(QJsonDocument::Compact).toStdString(),
                                nullptr, false);
-    return QString::fromStdString(setRegla(j));
+    avisarError(QString::fromStdString(setRegla(j)));
 }
-QString Quorum::cargarOficialUi(const QString& asunto, int af, int ne, int ab, const QString& mayoria) {
+bool Quorum::cargarOficialUi(const QString& asunto, int af, int ne, int ab, const QString& mayoria) {
     json r{{"asunto", asunto.toStdString()}, {"afirmativos", af}, {"negativos", ne}, {"abstenciones", ab}};
     if (!mayoria.isEmpty()) r["mayoria"] = mayoria.toStdString();
     const json res = cargarOficial(r);
-    return QString::fromStdString(res.value("error", std::string()));
+    return sinError(QString::fromStdString(res.value("error", std::string())));
 }
-QString Quorum::cargarCsvUi(const QString& asunto, const QString& csv, const QString& mayoria) {
+bool Quorum::cargarCsvUi(const QString& asunto, const QString& csv, const QString& mayoria) {
     json r{{"asunto", asunto.toStdString()}, {"csv", csv.toStdString()}};
     if (!mayoria.isEmpty()) r["mayoria"] = mayoria.toStdString();
     const json res = cargarOficial(r);
-    return QString::fromStdString(res.value("error", std::string()));
+    return sinError(QString::fromStdString(res.value("error", std::string())));
 }
 
 } // namespace ba::app::asamblea

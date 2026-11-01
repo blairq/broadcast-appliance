@@ -60,6 +60,7 @@
 #include <memory>
 #include <set>
 #include <string>
+#include "ui/CapturaError.hpp"
 
 namespace ba::app {
 class UsoPorVistas;
@@ -71,6 +72,19 @@ class BusEventos;
 
 class Botonera : public QObject {
     Q_OBJECT
+    /// Las plantillas para un perfil nuevo: [{id, nombre, descripcion}] (fijas).
+    Q_PROPERTY(QVariantList plantillas READ plantillasUi CONSTANT)
+    /// El error de una acción de la interfaz (las Q_INVOKABLE void): a quien mira.
+    void avisarError(const QString& e) {
+        if (!e.isEmpty() && !::ba::app::CapturaError::tomar(e)) emit notify(e, "error");
+    }
+    void avisarError(const std::string& e) { avisarError(QString::fromStdString(e)); }
+    /// Para las acciones que dicen si se hicieron: el error a quien mira y true si no hubo.
+    bool sinError(const QString& e) {
+        avisarError(e);
+        return e.isEmpty();
+    }
+    bool sinError(const std::string& e) { return sinError(QString::fromStdString(e)); }
     Q_PROPERTY(QVariantList perfiles READ perfilesUi NOTIFY cambio)
     Q_PROPERTY(QVariantList dispositivos READ dispositivosUi NOTIFY dispositivosCambio)
     Q_PROPERTY(QVariantList solicitudes READ solicitudesUi NOTIFY solicitudesCambio)
@@ -257,17 +271,17 @@ class Botonera : public QObject {
     QVariantMap paginas() const { return paginas_; }
     /// Una vista del escritorio empieza o deja de mirar la página `que` («<perfil>/<página>»;
     /// la cuenta es por vista: comun/UsoPorVistas).
-    Q_INVOKABLE void usar(QObject* vista, bool si, const QString& que);
+    Q_INVOKABLE void usar(QObject* vista, bool si, const QString& que = {});
     /// `salida`: la que manejan sus aparatos ("" = la por omisión).
     Q_INVOKABLE QString crearPerfilUi(const QString& nombre, const QString& plantilla, const QString& salida = {});
     /// Le suma a la primera página del perfil la fila del guion («◀ Cue», el cue actual,
     /// «Cue ▶») si no la tiene: un perfil hecho antes con la plantilla «director». "" o el error.
     std::string completarGuion(const std::string& perfil);
     Q_INVOKABLE QString completarGuionUi(const QString& perfil);
-    Q_INVOKABLE QString editarPerfilUi(const QString& id, const QVariantMap& cambios);
+    Q_INVOKABLE bool editarPerfilUi(const QString& id, const QVariantMap& cambios);
     Q_INVOKABLE bool borrarPerfilUi(const QString& id);
     Q_INVOKABLE QString crearPaginaUi(const QString& perfil, const QString& nombre, int columnas, int filas);
-    Q_INVOKABLE QString editarPaginaUi(const QString& perfil, const QString& pagina, const QVariantMap& cambios);
+    Q_INVOKABLE void editarPaginaUi(const QString& perfil, const QString& pagina, const QVariantMap& cambios);
     Q_INVOKABLE bool borrarPaginaUi(const QString& perfil, const QString& pagina);
     /// El panel derecho: formularioCelda, editarCelda («Guardar»), setCeldaEn con
     /// el texto JSON («Guardar JSON»), ponerCara / quitarCara / setAlTocarCara. "" o el error.
@@ -278,13 +292,13 @@ class Botonera : public QObject {
     Q_INVOKABLE QString quitarCaraUi(const QString& perfil, const QString& pagina, int x, int y);
     Q_INVOKABLE QString alTocarCaraUi(const QString& perfil, const QString& pagina, int x, int y, bool on);
     Q_INVOKABLE bool borrarCeldaUi(const QString& perfil, const QString& pagina, int x, int y);
-    Q_INVOKABLE QVariantList plantillasUi() const;
+    QVariantList plantillasUi() const;
     Q_INVOKABLE QString exportarUi(const QString& perfil) const;
     Q_INVOKABLE QString importarUi(const QString& texto);
     /// Probar una celda desde el escritorio (como si la apretaran en el aparato «escritorio»).
     Q_INVOKABLE void probarUi(const QString& perfil, const QString& pagina, int x, int y);
-    Q_INVOKABLE QString asignarUi(const QString& dispositivo, const QString& perfil, const QString& pagina);
-    Q_INVOKABLE QString elegirSalidaUi(const QString& dispositivo, const QString& salida);
+    Q_INVOKABLE void asignarUi(const QString& dispositivo, const QString& perfil, const QString& pagina);
+    Q_INVOKABLE void elegirSalidaUi(const QString& dispositivo, const QString& salida);
     QVariantList salidasUi() const;
     Q_INVOKABLE int revocarUi(const QString& dispositivo);
     QVariantList auditoriaUi() const;
@@ -295,6 +309,8 @@ class Botonera : public QObject {
     Q_INVOKABLE QVariantList buscarUi(const QString& texto) const;
 
    signals:
+    /// Para el operador (ya traducido): los errores de las acciones de la interfaz.
+    void notify(const QString& texto, const QString& tipo);
     void cambio();
     void dispositivosCambio();
     void solicitudesCambio();

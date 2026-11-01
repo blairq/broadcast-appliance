@@ -23,6 +23,7 @@
 #include <functional>
 #include <map>
 #include <memory>
+#include "ui/CapturaError.hpp"
 
 class QPdfDocument;
 
@@ -33,6 +34,11 @@ class VentanillaMotor;
 
 class PdfEscena : public QObject {
     Q_OBJECT
+    /// El error de una acción de la interfaz (las Q_INVOKABLE void): a quien mira.
+    void avisarError(const QString& e) {
+        if (!e.isEmpty() && !::ba::app::CapturaError::tomar(e)) emit notify(e, "error");
+    }
+    void avisarError(const std::string& e) { avisarError(QString::fromStdString(e)); }
     /// [{nombre, documento, archivo, titulo, pagina, paginas, zoom, x, y, error}]
     Q_PROPERTY(QVariantList fuentes READ fuentes NOTIFY cambio)
     /// Los PDF de la documentación del evento: [{id, titulo, paginas, url_miniatura}]
@@ -49,27 +55,27 @@ class PdfEscena : public QObject {
     json estado() const;
 
     /// Muestra en la fuente `fuente` ("" = la primera) el documento `id` de la
-    /// documentación del evento, desde la página 1. "" o el error.
-    Q_INVOKABLE QString elegir(const QString& fuente, const QString& id);
+    /// documentación del evento, desde la página 1. El error va por la señal del modelo.
+    Q_INVOKABLE void elegir(const QString& fuente, const QString& id);
     /// Ídem con un PDF cualquiera (ruta o URL file://).
-    Q_INVOKABLE QString elegirArchivo(const QString& fuente, const QString& ruta);
+    Q_INVOKABLE void elegirArchivo(const QString& fuente, const QString& ruta);
     /// A la página `pagina` (1 = la primera; se acota a las que tiene).
-    Q_INVOKABLE QString irA(const QString& fuente, int pagina);
+    Q_INVOKABLE void irA(const QString& fuente, int pagina);
     /// `delta` páginas para adelante (o para atrás, negativo).
-    Q_INVOKABLE QString paso(const QString& fuente, int delta);
+    Q_INVOKABLE void paso(const QString& fuente, int delta);
     /// El zoom (1 = la página entera; hasta 8) y el centro de lo que se ve (x, y de 0 a 1
     /// sobre la página); fuera de rango se acota. Un valor < 0 deja el que estaba.
-    Q_INVOKABLE QString encuadre(const QString& fuente, double zoom, double x, double y);
+    Q_INVOKABLE void encuadre(const QString& fuente, double zoom, double x, double y);
     /// Corre lo que se ve (`dx`, `dy`: fracciones de lo visible; positivo = derecha / abajo),
     /// sin salirse de la página. Para el joystick.
-    Q_INVOKABLE QString mover(const QString& fuente, double dx, double dy);
+    Q_INVOKABLE void mover(const QString& fuente, double dx, double dy);
     /// Arma la escena `nombre` con una fuente PDF a pantalla completa (si no existe):
     /// lo pide al dueño del motor; el error vuelve con `notify` (y la fuente, en `fuentes`).
     Q_INVOKABLE void crearEscena(const QString& nombre);
     /// Lo mismo, con lo que vuelva ("" o el error) en `listo` (el MCP).
     void crearEscena(const QString& nombre, std::function<void(const QString&)> listo);
     /// La documentación cambió (agregaron o quitaron un PDF).
-    Q_INVOKABLE void refrescarDocumentos();
+    void refrescarDocumentos();
 
    signals:
     void cambio();

@@ -48,6 +48,8 @@ class CarasBotonera : public QObject {
     Q_PROPERTY(QString estado READ estado NOTIFY cambio)
     /// file:// de Media/botonera/ (con «/»): la grilla arma <raizUrl><id>/NNNN.jpg.
     Q_PROPERTY(QString raizUrl READ raizUrl CONSTANT)
+    /// Las caras que hay: {id: info(id)}. Se releen al terminar una toma (no en cada enlace).
+    Q_PROPERTY(QVariantMap caras READ caras NOTIFY carasCambio)
 
    public:
     static constexpr int kFps = 8;
@@ -76,7 +78,8 @@ class CarasBotonera : public QObject {
 
     /// {id, url (el primer cuadro), base (file:// de la carpeta, con «/»),
     /// cuadros, video, medio (ruta relativa a los datos, para medio_poner)} o {}.
-    Q_INVOKABLE QVariantMap info(const QString& id) const;
+    QVariantMap info(const QString& id) const;
+    QVariantMap caras() const { return caras_; }
 
     /// Para la botonera: el primer cuadro de «medio:<id>» (ruta) y la
     /// referencia liviana {id, cuadros, fps} (null si no existe).
@@ -87,12 +90,16 @@ class CarasBotonera : public QObject {
 
    signals:
     void cambio();
+    void carasCambio();
     /// Terminó la toma `id` (la que devolvió importar/capturarFoto/grabar):
     /// error vacío = lista para usar como «medio:<id>».
     void lista(const QString& id, const QString& error);
 
    private:
     std::filesystem::path carpeta(const QString& id) const;
+    /// Relee Media/botonera/ (las carpetas de las caras) y avisa si cambió.
+    void releerCaras();
+    QVariantMap caras_;
     QString nuevoId() const;
     /// Recorta al cuadrado del centro y escribe los cuadros; `grande` (si no es
     /// nula) queda como medio.jpg. Devuelve el error o "".

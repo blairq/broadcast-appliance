@@ -64,6 +64,7 @@ MezclaViewModel::MezclaViewModel(Partes p, QObject* parent) : QObject(parent), p
     connect(&p_.ventanilla, &VentanillaMotor::cambio, this, &MezclaViewModel::alCambiarFoto);
     // El Mezclador (la ventana propia): niveles de entradas y salidas, y su estado.
     mezclador_ = std::make_unique<audio::Mezclador>(rt, p_.ventanilla, matriz_.get());
+    connect(mezclador_.get(), &audio::Mezclador::notify, this, &MezclaViewModel::notify);
     mezclador_->setSalida(p_.salida);
     mezclador_->setRacks(racks_.get());
     // Un barrido de calibración nunca con la emisión o la grabación en curso.
@@ -138,16 +139,16 @@ void MezclaViewModel::setSalidaEscucha(const QString& salida) {
     if (const QString e = matriz_->ponerSalidaEscucha(salida); !e.isEmpty()) emit notify(e, "error");
 }
 
-QString MezclaViewModel::pflUi(const QString& fuente) {
+void MezclaViewModel::pflUi(const QString& fuente) {
     // Tocar la que está en PFL la apaga. Uno solo a la vez y sin tocar la escucha fija
     // (Matriz::ponerPfl); el aviso llega con la foto (pflChanged).
-    return matriz_->ponerPfl(pfl() == fuente && pflModo() == "pfl" ? QString() : fuente);
+    avisarError(matriz_->ponerPfl(pfl() == fuente && pflModo() == "pfl" ? QString() : fuente));
 }
 
-QString MezclaViewModel::aflUi(const QString& fuente) {
+void MezclaViewModel::aflUi(const QString& fuente) {
     // Como pflUi, con el fader de la salida que muestra el Mezclador.
     const QString salida = qs(mezclador_->salida());
-    return matriz_->ponerPfl(pfl() == fuente && pflModo() == "afl" ? QString() : fuente, QStringLiteral("afl"), salida);
+    avisarError(matriz_->ponerPfl(pfl() == fuente && pflModo() == "afl" ? QString() : fuente, QStringLiteral("afl"), salida));
 }
 
 int MezclaViewModel::retardoUi(const QString& fuente) const {
@@ -155,9 +156,9 @@ int MezclaViewModel::retardoUi(const QString& fuente) const {
     return c != nullptr ? c->retardoMs : 0;
 }
 
-QString MezclaViewModel::setRetardoUi(const QString& fuente, int ms) {
+bool MezclaViewModel::setRetardoUi(const QString& fuente, int ms) {
     const std::string f = fuente.toStdString();
-    if (p_.ventanilla.foto().tipoDe(f).empty()) return tr("No existe la fuente «%1».").arg(fuente);
+    if (p_.ventanilla.foto().tipoDe(f).empty()) return sinError(tr("No existe la fuente «%1».").arg(fuente));
     p_.ventanilla.pedir(
         this, "mezcla_retardo",
         [&rt = p_.rt, f, ms = std::clamp(ms, -5000, 5000)]() -> std::string {
@@ -169,7 +170,7 @@ QString MezclaViewModel::setRetardoUi(const QString& fuente, int ms) {
         [this](const std::string& e) {
             if (!e.empty()) emit notify(qs(e), "error");
         });
-    return {};
+    return true;
 }
 
 QString MezclaViewModel::medirSincro(int segundos, std::function<void(const nlohmann::json&)> listo,
@@ -224,11 +225,11 @@ void MezclaViewModel::terminarSincro(std::function<void(const nlohmann::json&)> 
         });
 }
 
-QString MezclaViewModel::medirSincroUi(int segundos, const QString& salida) {
-    return medirSincro(
+bool MezclaViewModel::medirSincroUi(int segundos, const QString& salida) {
+    return sinError(medirSincro(
         segundos, [this](const nlohmann::json& r) { emit medicionSincroLista(aMapa(r)); },
         [this](const QString& e) { emit medicionSincroLista(aMapa({{"ok", false}, {"problema", e.toStdString()}})); },
-        salida.toStdString());
+        salida.toStdString()));
 }
 
 } // namespace ba::app

@@ -22,6 +22,9 @@
 #include <filesystem>
 #include <fstream>
 #include <string>
+#include "ui/CapturaError.hpp"
+
+using ::ba::app::errorDe;
 
 namespace ba::app::mcp {
 
@@ -213,9 +216,9 @@ void McpService::registerTraduccionTools() {
             if (vz == nullptr) return done(ToolResult::error(ba::i18n::traducir("mcp", "la voz no está")));
             QVariantMap c = vz->cortes();
             if (a.contains("pausa") || a.contains("maximo") || a.contains("umbral")) {
-                const QString e = vz->setCortes(a.value("pausa", c.value("pausa").toDouble()),
+                const QString e = errorDe([&] { vz->setCortes(a.value("pausa", c.value("pausa").toDouble()),
                                                 a.value("maximo", c.value("maximo").toDouble()),
-                                                a.value("umbral", c.value("umbral").toDouble()));
+                                                a.value("umbral", c.value("umbral").toDouble())); });
                 if (!e.isEmpty()) return done(ToolResult::error(e.toStdString()));
                 c = vz->cortes();
             }

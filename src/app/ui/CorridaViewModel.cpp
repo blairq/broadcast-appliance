@@ -50,6 +50,9 @@
 #include "ui/EventoAbierto.hpp"
 #include <QCoreApplication>
 #include "ui/GuionViewModel.hpp"
+#include "ui/CapturaError.hpp"
+
+using ::ba::app::errorDe;
 
 namespace ba::app {
 namespace {
@@ -96,15 +99,13 @@ using evento::linea::Accion;
 CorridaViewModel::CorridaViewModel(EventoAbierto& abierto, GuionViewModel& guion, AppRuntime& rt, VentanillaMotor& ventanilla,
                                    ConferenceViewModel* sala, graficos::Emisor* graficos, QObject* parent)
     : QObject(parent), ab_(abierto), guion_(guion), rt_(rt), ventanilla_(ventanilla), sala_(sala), graficos_(graficos) {
-    // El reloj del evento va aparte del guion: cambia cada segundo y no tiene sentido
-    // redibujar la lista de cues por eso. Y de paso deja puesto el estado vivo (la sección
-    // `linea` del documento de aire): «cada segundo y en cada cambio». Lo que entra solo
-    // lo programa cada EjecutorLinea a la hora justa.
+    // El estado vivo (la sección `linea` del documento de aire): «cada segundo y en cada
+    // cambio». Lo que entra solo lo programa cada EjecutorLinea a la hora justa. El reloj de
+    // la vista no es este: la vista cuenta con el Reloj de las vistas y las marcas, que
+    // cambian con cada cambio de estado.
     reloj_.setInterval(1000);
-    connect(&reloj_, &QTimer::timeout, this, [this]() {
-        escribirVivo();
-        emit relojChanged();
-    });
+    connect(&reloj_, &QTimer::timeout, this, &CorridaViewModel::escribirVivo);
+    connect(this, &CorridaViewModel::correChanged, this, &CorridaViewModel::relojChanged);
     connect(&ab_, &EventoAbierto::lineaCambio, this, &CorridaViewModel::lineaCambio);
     connect(&ab_, &EventoAbierto::abiertoCambio, this, [this]() { revision_ = -1; });
     // Los medios que suenan llegan en la foto (parte Medidas): ahí se ve si terminó el de
@@ -133,7 +134,6 @@ void CorridaViewModel::olvidar() {
     corrida_.reset();
     cursor_ = {};
     emit correChanged();
-    emit relojChanged();
 }
 
 void CorridaViewModel::lineaCambio(bool desdeLinea) {
@@ -297,66 +297,93 @@ int CorridaViewModel::enCueSeg(int64_t ahora) const {
     return static_cast<int>(std::max<int64_t>(0, ahora - cursor_.desdeMs - pausa) / 1000);
 }
 
-QVariantMap CorridaViewModel::reloj() const {
-    if (!corrida_) return QVariantMap{{"desvioSeg", 0}, {"enCueSeg", 0}, {"restanteSeg", 0}};
+QVariantMap CorridaViewModel::marcasReloj() const {
+    if (!corrida_) return {};
     const int64_t t = ahoraMs();
-    // En que numero de cue vamos, para "12 de 34".
-    int nro = 0;
     const Cursor& p = cursor_;
-    for (int b = 0; b < static_cast<int>(ev().bloques.size()) && b <= p.bloque; ++b) {
-        const int hasta =
-            b == p.bloque ? p.cue + 1 : static_cast<int>(ev().bloques[static_cast<std::size_t>(b)].cues.size());
-        nro += hasta;
-    }
-    // Back-timing (T46): lo que falta del guion si se sigue lo previsto desde
-    // acá, lo que falta del bloque, a qué hora terminaría y, si el guion tiene
-    // hora de inicio, contra qué hora de fin planeada se compara.
-    int restanteGuion = 0, restanteBloque = 0, totalPrevisto = 0;
-    const int enCue = enCueSeg(t);
+    // En qué número de cue vamos, para "12 de 34".
+    int nro = 0;
+    for (int b = 0; b < static_cast<int>(ev().bloques.size()) && b <= p.bloque; ++b)
+        nro += b == p.bloque ? p.cue + 1 : static_cast<int>(ev().bloques[static_cast<std::size_t>(b)].cues.size());
+    // Back-timing (T46): lo previsto de lo que sigue al cue (el del cue se descuenta en
+    // relojEn con lo que lleva), del guion y del bloque.
+    int despues = 0, despuesBloque = 0, total = 0;
     for (int b = 0; b < static_cast<int>(ev().bloques.size()); ++b) {
         const auto& cues = ev().bloques[static_cast<std::size_t>(b)].cues;
         for (int c = 0; c < static_cast<int>(cues.size()); ++c) {
             const int d = cues[static_cast<std::size_t>(c)].duracionSeg;
-            totalPrevisto += d;
-            if (!p.valido()) continue;
-            int falta = 0;
-            if (b > p.bloque || (b == p.bloque && c > p.cue)) falta = d;
-            else if (b == p.bloque && c == p.cue) falta = std::max(0, d - enCue);
-            restanteGuion += falta;
-            if (b == p.bloque) restanteBloque += falta;
+            total += d;
+            if (!p.valido() || !(b > p.bloque || (b == p.bloque && c > p.cue))) continue;
+            despues += d;
+            if (b == p.bloque) despuesBloque += d;
         }
     }
-    // Lo que lleva el evento sin las pausas, y el desvío contra lo previsto para el cue
-    // donde está: positivo = vamos tarde.
-    const int transcurrido =
-        corrida_->arranqueMs() > 0 ? static_cast<int>((t - corrida_->arranqueMs() - corrida_->pausadoMs(t)) / 1000) : 0;
-    const int previsto = p.valido() ? ev().offsetDeCueSeg(static_cast<std::size_t>(p.bloque), static_cast<std::size_t>(p.cue)) : -1;
     const evento::Cue* c = cue(p.bloque, p.cue);
-    const std::string s = salidaPorOmision();
-    QVariantMap m{{"desvioSeg", previsto >= 0 && corriendo() ? transcurrido - previsto : 0},
-                  {"enCueSeg", enCue},
-                  {"restanteSeg", c != nullptr && c->duracionSeg > 0 ? c->duracionSeg - enCue : 0},
-                  {"estadoRestante", estadoRestante(c != nullptr && c->duracionSeg > 0 ? c->duracionSeg - enCue : 0)},
+    // Lo que lleva el evento y el cue sin las pausas, en `t`; corriendo (no en pausa),
+    // siguen con la hora.
+    const int64_t transcurrido = corrida_->arranqueMs() > 0 ? t - corrida_->arranqueMs() - corrida_->pausadoMs(t) : 0;
+    int64_t enCue = 0;
+    if (cursor_.desdeMs != 0) enCue = std::max<int64_t>(0, t - cursor_.desdeMs - (corrida_->pausadoMs(t) - cursor_.pausadoAlEntrarMs));
+    QVariantMap m{{"marcaMs", static_cast<double>(t)},
+                  {"sigue", corrida_->estado() == evento::linea::EstadoCorrida::Corriendo},
+                  {"corriendo", corriendo()},
+                  {"cursor", p.valido()},
+                  {"transcurridoMs", static_cast<double>(transcurrido)},
+                  {"enCueMs", static_cast<double>(enCue)},
+                  {"duracionCueSeg", c != nullptr ? c->duracionSeg : 0},
+                  {"previstoSeg", p.valido() ? ev().offsetDeCueSeg(static_cast<std::size_t>(p.bloque), static_cast<std::size_t>(p.cue)) : -1},
+                  {"despuesSeg", despues},
+                  {"despuesBloqueSeg", despuesBloque},
+                  {"totalPrevistoSeg", total},
                   {"cueNro", p.valido() ? nro : 0},
-                  {"cuesTotal", static_cast<int>(ev().cantidadDeCues())},
-                  {"restanteBloqueSeg", restanteBloque},
-                  {"restanteGuionSeg", restanteGuion},
-                  {"horaFinPrevista", QDateTime::fromMSecsSinceEpoch(t + restanteGuion * 1000LL).toString("HH:mm")},
-                  {"transcurridoSeg", transcurrido},
-                  {"totalPrevistoSeg", totalPrevisto},
-                  // Lo del avance automático, para el MCP y el bus (la página usa las propiedades).
-                  {"entraSoloEnSeg", corrida_->entraSoloEnSeg(s, t)},
-                  {"hold", corrida_->hold(s)},
-                  {"retoma", corrida_->retomando()}};
+                  {"cuesTotal", static_cast<int>(ev().cantidadDeCues())}};
     if (!ev().inicio.empty()) {
         const QTime ini = QTime::fromString(QString::fromStdString(ev().inicio), "HH:mm");
-        if (ini.isValid()) {
-            const QDateTime finPlan(QDate::currentDate(), ini.addSecs(totalPrevisto));
-            m["horaFinPlaneada"] = finPlan.toString("HH:mm");
-            // Positivo: sobra tiempo; negativo: hay que recortar.
-            m["backTimingSeg"] = static_cast<int>((finPlan.toMSecsSinceEpoch() - (t + restanteGuion * 1000LL)) / 1000);
-        }
+        if (ini.isValid()) m["finPlaneadoMs"] = static_cast<double>(QDateTime(QDate::currentDate(), ini.addSecs(total)).toMSecsSinceEpoch());
     }
+    return m;
+}
+
+QVariantMap CorridaViewModel::relojEn(const QVariantMap& m, double ahora) {
+    if (m.isEmpty()) return QVariantMap{{"desvioSeg", 0}, {"enCueSeg", 0}, {"restanteSeg", 0}};
+    const double dt = m.value("sigue").toBool() ? std::max(0.0, ahora - m.value("marcaMs").toDouble()) : 0.0;
+    const int transcurrido = static_cast<int>((m.value("transcurridoMs").toDouble() + dt) / 1000);
+    const int enCue = static_cast<int>((m.value("enCueMs").toDouble() + dt) / 1000);
+    const int dur = m.value("duracionCueSeg").toInt();
+    const int falta = m.value("cursor").toBool() ? std::max(0, dur - enCue) : 0;
+    const int restanteGuion = m.value("despuesSeg").toInt() + falta;
+    const int previsto = m.value("previstoSeg").toInt();
+    const qint64 fin = static_cast<qint64>(ahora) + restanteGuion * 1000LL;
+    // El desvío contra lo previsto para el cue donde está: positivo = vamos tarde.
+    QVariantMap r{{"desvioSeg", previsto >= 0 && m.value("corriendo").toBool() ? transcurrido - previsto : 0},
+                  {"enCueSeg", enCue},
+                  {"restanteSeg", dur > 0 ? dur - enCue : 0},
+                  {"estadoRestante", QString::fromLatin1(estadoRestante(dur > 0 ? dur - enCue : 0))},
+                  {"cueNro", m.value("cueNro")},
+                  {"cuesTotal", m.value("cuesTotal")},
+                  {"restanteBloqueSeg", m.value("despuesBloqueSeg").toInt() + falta},
+                  {"restanteGuionSeg", restanteGuion},
+                  {"horaFinPrevista", QDateTime::fromMSecsSinceEpoch(fin).toString("HH:mm")},
+                  {"transcurridoSeg", transcurrido},
+                  {"totalPrevistoSeg", m.value("totalPrevistoSeg")}};
+    if (m.contains("finPlaneadoMs")) {
+        const qint64 plan = static_cast<qint64>(m.value("finPlaneadoMs").toDouble());
+        r["horaFinPlaneada"] = QDateTime::fromMSecsSinceEpoch(plan).toString("HH:mm");
+        // Positivo: sobra tiempo; negativo: hay que recortar.
+        r["backTimingSeg"] = static_cast<int>((plan - fin) / 1000);
+    }
+    return r;
+}
+
+QVariantMap CorridaViewModel::reloj() const {
+    const int64_t t = ahoraMs();
+    QVariantMap m = relojEn(marcasReloj(), static_cast<double>(t));
+    if (!corrida_) return m;
+    // Lo del avance automático, para el MCP y el bus (la página usa las propiedades).
+    const std::string s = salidaPorOmision();
+    m["entraSoloEnSeg"] = corrida_->entraSoloEnSeg(s, t);
+    m["hold"] = corrida_->hold(s);
+    m["retoma"] = corrida_->retomando();
     return m;
 }
 
@@ -451,15 +478,12 @@ void CorridaViewModel::despachar(const std::vector<Accion>& acc) {
     avisarPresentador();
     if (corriendo()) {
         escribirVivo();
-        // El reloj de la vista se realinea con el cambio: así la cuenta y el aviso
-        // «entra solo en 0:05» cambian de segundo juntos.
         reloj_.start();
     } else {
         reloj_.stop();
         borrarVivo();
     }
     emit correChanged();
-    emit relojChanged();
 }
 
 void CorridaViewModel::arrancar() {
@@ -475,36 +499,6 @@ void CorridaViewModel::arrancar() {
     nuevaCorrida();
     anotar(ensayo_ ? QCoreApplication::translate("EventoViewModel", "Arranca el ensayo") : QCoreApplication::translate("EventoViewModel", "Arranca el evento"), "ok");
     despachar(corrida_->arrancar(ahoraMs()));
-}
-
-void CorridaViewModel::setHold(bool on) {
-    if (!corriendo()) return;
-    // Tras un corte, soltar el HOLD es seguir como estaba.
-    if (!on && corrida_->retomando()) {
-        seguirComoEstaba();
-        return;
-    }
-    if (hold() == on || !corrida_->setHold(salidaPorOmision(), on, ahoraMs())) return;
-    anotar(on ? QCoreApplication::translate("EventoViewModel", "HOLD: este paso no se va solo") : QCoreApplication::translate("EventoViewModel", "HOLD suelto: el paso vuelve a irse solo"), "info");
-    despachar(corrida_->alDia(ahoraMs()));
-}
-
-void CorridaViewModel::avanzar() {
-    if (!corriendo()) {
-        arrancar();
-        return;
-    }
-    // Lo que en el v1 era el cue siguiente: si es una pieza del paso al aire que no
-    // salió todavía (un adlib, o una que no llegó a su hora), se dispara ya; si no, GO.
-    const std::string s = salidaPorOmision();
-    const evento::linea::Instancia* a = corrida_->alAire(s);
-    const auto [nb, nc] = cueSiguienteDe(cursor_.bloque, cursor_.cue);
-    const auto* r = proy().ref(nb, nc);
-    if (a && r && r->paso == a->paso && !r->pieza.empty() && !corrida_->disparada(s, r->pieza)) {
-        despachar(corrida_->adlib(s, r->pieza, ahoraMs()));
-        return;
-    }
-    despachar(corrida_->go(s, ahoraMs()));
 }
 
 void CorridaViewModel::retroceder() {
@@ -887,7 +881,14 @@ std::string CorridaViewModel::lineaGo(const std::string& salida) {
                 .toStdString();
         return corriendo() ? std::string() : QCoreApplication::translate("EventoViewModel", "No se pudo arrancar: la línea no tiene pasos.").toStdString();
     }
-    despachar(corrida_->go(s, ahoraMs()));
+    // La pieza que sigue en el guion de cues (el cursor es el de la salida por omisión): si
+    // es del paso al aire y no salió, el GO la dispara (evento::linea::Corrida::goDelGuion).
+    std::string pasoSig, piezaSig;
+    if (s == salidaPorOmision()) {
+        const auto [nb, nc] = cueSiguienteDe(cursor_.bloque, cursor_.cue);
+        if (const auto* r = proy().ref(nb, nc)) pasoSig = r->paso, piezaSig = r->pieza;
+    }
+    despachar(corrida_->goDelGuion(s, pasoSig, piezaSig, ahoraMs()));
     return {};
 }
 
@@ -896,10 +897,12 @@ std::string CorridaViewModel::lineaHold(const std::string& salida, std::optional
     const std::string s = salida.empty() ? salidaPorOmision() : salida;
     if (std::string e = errorDeSalida(linea(), s); !e.empty()) return e;
     const bool v = on ? *on : !corrida_->hold(s);
+    // Tras un corte, soltar el HOLD es seguir como estaba.
     if (!v && corrida_->retomando()) {
         seguirComoEstaba();
         return {};
     }
+    if (corrida_->hold(s) == v) return {};
     if (!corrida_->setHold(s, v, ahoraMs())) return QCoreApplication::translate("EventoViewModel", "No hay ningún paso al aire en esa salida.").toStdString();
     anotar(v ? QCoreApplication::translate("EventoViewModel", "HOLD: este paso no se va solo") : QCoreApplication::translate("EventoViewModel", "HOLD suelto: el paso vuelve a irse solo"), "info");
     despachar(corrida_->alDia(ahoraMs()));
@@ -1468,7 +1471,7 @@ void CorridaViewModel::ejecutarCue(const evento::Cue& cue, const std::string& pa
                 anotar(QCoreApplication::translate("EventoViewModel", "No hay carruseles en este programa"), "error");
                 return;
             }
-            const QString err = carruseles_->mostrar(nombre, lamina);
+            const QString err = errorDe([&] { carruseles_->mostrar(nombre, lamina); });
             if (!err.isEmpty()) {
                 anotar(QCoreApplication::translate("EventoViewModel", "No se pudo poner el carrusel: %1").arg(err), "error");
                 emit notify(QCoreApplication::translate("EventoViewModel", "El cue de carrusel falló: %1").arg(err), "error");
@@ -2110,15 +2113,14 @@ json CorridaViewModel::lineaTiemposGrabados() const {
     return {{"grabando", grabar_}, {"corriendo", corriendo()}, {"pasos", json::array()}};
 }
 
-QString CorridaViewModel::aplicarTiemposGrabados() {
-    if (!grabado_.is_object() || grabado_["ops"].empty()) return QCoreApplication::translate("EventoViewModel", "No hay tiempos grabados para guardar.");
+void CorridaViewModel::aplicarTiemposGrabados() {
+    if (!grabado_.is_object() || grabado_["ops"].empty()) return avisarError(QCoreApplication::translate("EventoViewModel", "No hay tiempos grabados para guardar."));
     const json r = lineaEditar(grabado_["ops"], false);
-    if (!r.value("ok", false)) return QString::fromStdString(r.value("error", std::string()));
+    if (!r.value("ok", false)) return avisarError(QString::fromStdString(r.value("error", std::string())));
     anotar(QCoreApplication::translate("EventoViewModel", "Los tiempos del ensayo quedaron como duraciones previstas"), "ok");
     grabado_ = nullptr;
     grabar_ = false;
     emit correChanged();
-    return {};
 }
 
 void CorridaViewModel::descartarTiemposGrabados() {

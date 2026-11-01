@@ -67,7 +67,6 @@ Rectangle {
     }
     Connections {
         target: page.pl
-        function onAviso(texto, ok) { Studio.notify(texto, ok ? "info" : "error") }
         function onRespuesta(id, control, texto, ok) {
             const r = Object.assign({}, page.respuestas)
             r[id + "/" + control] = { texto: texto, ok: ok }
@@ -232,9 +231,7 @@ Rectangle {
                             compact: true; text: qsTr("Crear"); icon: "＋"; active: true
                             enabled: nuevoPanel.elegido !== null && nuevoId.text !== ""
                             onClicked: {
-                                const e = page.pl.copiarEjemplo(nuevoPanel.elegido.ejemplo, nuevoId.text)
-                                if (e !== "") Studio.notify(e, "error")
-                                else {
+                                if (page.pl.copiarEjemplo(nuevoPanel.elegido.ejemplo, nuevoId.text)) {
                                     Studio.notify(qsTr("Listo «%1»: prendelo y usalo desde su tarjeta de abajo").arg(nuevoId.text), "info")
                                     page.abierto = nuevoId.text; page.vista = "resumen"; nuevoId.text = ""; ejemploBox.currentIndex = -1
                                 }
@@ -336,7 +333,7 @@ Rectangle {
                                         title: qsTr("¿Aprobar «%1» para el aire?").arg(tarjeta.modelData.nombre),
                                         text: cambios + qsTr("Queda fijado el código de ahora. Si después cambia, en vivo no arranca hasta que lo vuelvas a aprobar."),
                                         accept: qsTr("Aprobar"), reject: qsTr("Cancelar"),
-                                        action: function() { const e = page.pl.aprobarUi(id); if (e !== "") Studio.notify(e, "error") }
+                                        action: function() { page.pl.aprobarUi(id) }
                                     })
                                 }
                             }
@@ -414,9 +411,7 @@ Rectangle {
                                 GlassButton {
                                     compact: true; text: qsTr("Borrar"); icon: "✕"
                                     onClicked: {
-                                        const e = page.pl.borrarUi(tarjeta.modelData.id)
-                                        if (e !== "") Studio.notify(e, "error")
-                                        else { Studio.notify(qsTr("Se movió a Plugins/.papelera"), "info"); page.abierto = "" }
+                                        if (page.pl.borrarUi(tarjeta.modelData.id)) { Studio.notify(qsTr("Se movió a Plugins/.papelera"), "info"); page.abierto = "" }
                                     }
                                 }
                             }
@@ -549,8 +544,8 @@ Rectangle {
                                             compact: true; text: tj.audio ? qsTr("Poner como filtro") : qsTr("Poner en el grafo")
                                             enabled: destino.currentIndex >= 0 && tarjeta.modelData.estado === "corriendo"
                                             onClicked: {
-                                                const e = page.pl.tarjetaUi(tarjeta.modelData.id, tj.modelData.nombre, destino.currentText, tj.audio)
-                                                Studio.notify(e !== "" ? e : qsTr("Listo: «%1» en %2").arg(tj.modelData.nombre).arg(destino.currentText), e !== "" ? "error" : "info")
+                                                if (page.pl.tarjetaUi(tarjeta.modelData.id, tj.modelData.nombre, destino.currentText, tj.audio))
+                                                    Studio.notify(qsTr("Listo: «%1» en %2").arg(tj.modelData.nombre).arg(destino.currentText), "info")
                                             }
                                         }
                                         Text {

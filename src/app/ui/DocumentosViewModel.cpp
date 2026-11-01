@@ -201,7 +201,7 @@ json DocumentosViewModel::texto(const std::string& id, int desde, int hasta) con
     return {{"id", id}, {"paginas", n}, {"desde", a}, {"hasta", b}, {"texto", t.toStdString()}};
 }
 
-QString DocumentosViewModel::agregarUi(const QStringList& archivos) {
+void DocumentosViewModel::agregarUi(const QStringList& archivos) {
     QStringList errores;
     for (const QString& a : archivos) {
         const QString local = a.startsWith("file:") ? QUrl(a).toLocalFile() : a;
@@ -216,14 +216,14 @@ QString DocumentosViewModel::agregarUi(const QStringList& archivos) {
                                 "error");
         });
     }
-    return errores.join("; ");
+    avisarError(errores.join("; "));
 }
 
-QString DocumentosViewModel::editarUi(const QString& id, const QVariantMap& cambios) {
-    return QString::fromStdString(editar(id.toStdString(), deQv(cambios)));
+void DocumentosViewModel::editarUi(const QString& id, const QVariantMap& cambios) {
+    avisarError(QString::fromStdString(editar(id.toStdString(), deQv(cambios))));
 }
 
-QString DocumentosViewModel::quitarUi(const QString& id) { return QString::fromStdString(quitar(id.toStdString())); }
+bool DocumentosViewModel::quitarUi(const QString& id) { return sinError(QString::fromStdString(quitar(id.toStdString()))); }
 
 void DocumentosViewModel::abrirUi(const QString& id) {
     const fs::path r = evento::Documentos(evento_()).ruta(id.toStdString());

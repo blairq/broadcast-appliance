@@ -497,7 +497,7 @@ Rectangle {
                                 anchors { right: parent.right; top: parent.top; rightMargin: 40 }
                                 compact: true
                                 text: "?"
-                                onClicked: { const e = Studio.sala.preguntaDesdeChatUi("yt:" + msg.model.id); if (e !== "") Studio.notify(e, "error") }
+                                onClicked: { Studio.sala.preguntaDesdeChatUi("yt:" + msg.model.id) }
                                 ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: qsTr("Sumar a la cola de preguntas")
                             }
                         }

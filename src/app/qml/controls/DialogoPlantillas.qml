@@ -13,17 +13,14 @@ import BA
 Dialog {
     id: dlg
     readonly property var cf: Studio.configuraciones
-    property var lista: []
-    function refrescar() { dlg.lista = dlg.cf ? dlg.cf.plantillasAdminUi() : [] }
-    function ok(e) { if (e !== "") Studio.notify(e, "error"); refrescar() }
+    // Del modelo (avisa al ajustar, mover, ocultar o crear una); solo con el diálogo abierto.
+    readonly property var lista: dlg.visible && dlg.cf ? dlg.cf.plantillasAdmin : []
 
     anchors.centerIn: parent
     width: Math.min(parent ? parent.width - 60 : 900, 900)
     height: Math.min(parent ? parent.height - 60 : 720, 720)
     modal: true
     title: qsTr("Plantillas de evento")
-    onAboutToShow: refrescar()
-    Connections { target: dlg.cf; function onCambio() { dlg.refrescar() } }
 
     ColumnLayout {
         anchors.fill: parent
@@ -55,8 +52,8 @@ Dialog {
                     spacing: 8
                     ColumnLayout {
                         spacing: 0
-                        GlassButton { compact: true; text: "▲"; enabled: index > 0; onClicked: dlg.ok(dlg.cf.plantillaMoverUi(modelData.id, -1)) }
-                        GlassButton { compact: true; text: "▼"; enabled: index < dlg.lista.length - 1; onClicked: dlg.ok(dlg.cf.plantillaMoverUi(modelData.id, 1)) }
+                        GlassButton { compact: true; text: "▲"; enabled: index > 0; onClicked: dlg.cf.plantillaMoverUi(modelData.id, -1) }
+                        GlassButton { compact: true; text: "▼"; enabled: index < dlg.lista.length - 1; onClicked: dlg.cf.plantillaMoverUi(modelData.id, 1) }
                     }
                     Text { text: modelData.icono; color: Theme.accent; font.pixelSize: 24; Layout.preferredWidth: 30 }
                     ColumnLayout {
@@ -70,7 +67,7 @@ Dialog {
                                 text: modelData.nombre
                                 color: Theme.text
                                 font { pixelSize: 13; weight: Font.DemiBold }
-                                onEditingFinished: if (text !== modelData.nombre) dlg.ok(dlg.cf.plantillaAjustarUi(modelData.id, { nombre: text }))
+                                onEditingFinished: if (text !== modelData.nombre) dlg.cf.plantillaAjustarUi(modelData.id, { nombre: text })
                             }
                             Repeater {
                                 model: [modelData.programa && !modelData.editada ? qsTr("del programa") : "",
@@ -90,13 +87,13 @@ Dialog {
                             color: Theme.textDim
                             font.pixelSize: 11
                             placeholderText: qsTr("Para qué sirve")
-                            onEditingFinished: if (text !== modelData.descripcion) dlg.ok(dlg.cf.plantillaAjustarUi(modelData.id, { descripcion: text }))
+                            onEditingFinished: if (text !== modelData.descripcion) dlg.cf.plantillaAjustarUi(modelData.id, { descripcion: text })
                         }
                     }
                     ColumnLayout {
                         spacing: 2
                         Text { text: qsTr("Visible"); color: Theme.textFaint; font.pixelSize: 10; Layout.alignment: Qt.AlignHCenter }
-                        Toggle { checked: modelData.visible; onToggled: (w) => dlg.ok(dlg.cf.plantillaAjustarUi(modelData.id, { visible: w })) }
+                        Toggle { checked: modelData.visible; onToggled: (w) => dlg.cf.plantillaAjustarUi(modelData.id, { visible: w }) }
                     }
                     ColumnLayout {
                         spacing: 3
@@ -109,7 +106,7 @@ Dialog {
                                     title: qsTr("¿Editar «%1»?").arg(n),
                                     text: qsTr("La app se reinicia con la plantilla abierta (sus escenas, gráficos y guion). Lo que cambies queda en la plantilla. Para volver, «Abrir otro…»."),
                                     accept: qsTr("Editarla"), reject: qsTr("Cancelar"),
-                                    action: function() { dlg.ok(dlg.cf.plantillaEditarUi(id)) } })
+                                    action: function() { dlg.cf.plantillaEditarUi(id) } })
                             }
                         }
                         GlassButton {
@@ -121,7 +118,7 @@ Dialog {
                                     title: rest ? qsTr("¿Restablecer «%1»?").arg(n) : qsTr("¿Borrar «%1»?").arg(n),
                                     text: rest ? qsTr("Se saca tu copia (va a la papelera) y vuelve la del programa.") : qsTr("Va a la papelera de eventos."),
                                     accept: rest ? qsTr("Restablecer") : qsTr("Borrar"), reject: qsTr("Cancelar"),
-                                    action: function() { dlg.ok(rest ? dlg.cf.plantillaRestablecerUi(id) : dlg.cf.plantillaBorrarUi(id)) } })
+                                    action: function() { rest ? dlg.cf.plantillaRestablecerUi(id) : dlg.cf.plantillaBorrarUi(id) } })
                             }
                         }
                     }
@@ -137,7 +134,7 @@ Dialog {
             ComboBox {
                 id: nuevaEsc
                 Layout.preferredWidth: 220
-                model: [{ titulo: qsTr("Sin tipo"), id: "" }].concat(Studio.evento ? Studio.evento.escenarios : [])
+                model: [{ titulo: qsTr("Sin tipo"), id: "" }].concat(Studio.evento ? Studio.evento.guionVm.escenarios : [])
                 textRole: "titulo"
                 valueRole: "id"
                 ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: qsTr("El tipo de evento (su guía, para el asistente)")
@@ -145,7 +142,7 @@ Dialog {
             GlassButton {
                 compact: true; active: true; text: qsTr("Guardar")
                 enabled: nuevaN.text.trim() !== ""
-                onClicked: { dlg.ok(dlg.cf.plantillaDesdeActualUi(nuevaN.text, nuevaEsc.currentValue)); nuevaN.text = "" }
+                onClicked: { dlg.cf.plantillaDesdeActualUi(nuevaN.text, nuevaEsc.currentValue); nuevaN.text = "" }
             }
         }
     }

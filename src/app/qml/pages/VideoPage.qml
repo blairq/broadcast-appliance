@@ -20,7 +20,6 @@ Rectangle {
     // Dos vistas, como el audio: el rack de UNA entrada, o todo el estudio
     // (cada entrada en su franja y los cables que cruzan entre ellas).
     readonly property string vista: vg ? vg.vista : "racks"
-    property string msg: ""
     readonly property var alarmaSel: page.sel !== "" && Studio.resolucion ? Studio.resolucion.niveles[page.sel] : undefined
     // Lo que se edita: un controlador, el molde de su tarjeta; una tarjeta, con lo que corre.
     readonly property string tipoEf: page.nodo ? (page.nodo.tipo === "control" ? page.nodo.params.tarjeta : page.nodo.tipo) : ""
@@ -169,17 +168,16 @@ Rectangle {
         }
         return filas
     }
-    function avisar(e) { page.msg = e || "" }
     // Los deslizadores aplican mientras se mueven, sin pedir un cambio por píxel.
     property var pendiente: null
-    Timer { id: aplicar; interval: 80; onTriggered: if (page.pendiente) { page.avisar(page.vg.ajustar(page.pendiente.id, page.pendiente.p)); page.pendiente = null } }
+    Timer { id: aplicar; interval: 80; onTriggered: if (page.pendiente) { page.vg.ajustar(page.pendiente.id, page.pendiente.p); page.pendiente = null } }
     property var pendienteFiltro: null
     Timer {
         id: aplicarFiltro; interval: 80
         onTriggered: if (page.pendienteFiltro) {
             const p = page.pendienteFiltro
             page.pendienteFiltro = null
-            page.avisar(p.puerto !== undefined ? page.vg.ajustarPad(p.id, p.puerto, p.k, p.v) : page.vg.ajustarFiltro(p.id, p.k, p.v))
+            p.puerto !== undefined ? page.vg.ajustarPad(p.id, p.puerto, p.k, p.v) : page.vg.ajustarFiltro(p.id, p.k, p.v)
         }
     }
     function ajustarFiltro(id, clave, valor) {
@@ -296,13 +294,13 @@ Rectangle {
                           t: c.titulo + (c.tipo === "mezcla" ? "…" : ""), tip: c.descripcion,
                           // La mezcla necesita su módulo: se elige en el catálogo (los de varias entradas).
                           f: c.tipo === "mezcla" ? () => catalogo.abrirMezclas()
-                                                 : () => page.avisar(page.vg.agregar(c.tipo, page.nodo && page.nodo.tipo !== "escena" && !page.nodo.externo ? page.sel : ""))
+                                                 : () => page.vg.agregar(c.tipo, page.nodo && page.nodo.tipo !== "escena" && !page.nodo.externo ? page.sel : "")
                       })) },
                     // Las tarjetas de video de los plugins que corren (Plugins.tarjetasVideo).
                     ...(Studio.plugins && Studio.plugins.tarjetasVideo.length > 0 ? [{ titulo: qsTr("De los plugins"),
                       items: Studio.plugins.tarjetasVideo.map(t => ({
                           t: t.nombre, tip: t.descripcion,
-                          f: () => page.avisar(Studio.plugins.tarjetaUi(t.plugin, t.tarjeta, page.vg.entrada, false))
+                          f: () => Studio.plugins.tarjetaUi(t.plugin, t.tarjeta, page.vg.entrada, false)
                       })) }] : []),
                     { titulo: qsTr("Todos los módulos"),
                       items: [{ t: qsTr("Buscar módulo…"), tip: qsTr("Cualquier módulo de video de GStreamer como tarjeta, con su ayuda: color, llaves, desentrelazado, textos y reloj, nitidez, efectos, OpenGL…"), f: () => catalogo.open() }] }
@@ -323,7 +321,7 @@ Rectangle {
                         title: qsTr("¿Sacar todas las tarjetas de «%1»?").arg(page.vg.entrada),
                         text: qsTr("La entrada vuelve a ir directo a la escena. Las salidas que estén en escenas quedan en negro."),
                         accept: qsTr("Sacar todo"), reject: qsTr("Cancelar"),
-                        action: function() { page.avisar(page.vg.limpiar()); page.sel = "" }
+                        action: function() { page.vg.limpiar(); page.sel = "" }
                     })
                 }] : []
                 lienzo: grafo
@@ -339,16 +337,11 @@ Rectangle {
                 colorDe: page.colorDe
                 alarmas: Studio.resolucion ? Studio.resolucion.niveles : ({})
                 onElegir: (id) => page.elegir(id)
-                onMover: (id, x, y) => page.avisar(page.vista === "estudio" ? page.vg.mover(id, x, y - 30)
-                                                   : page.vg.mover(id, x + page.corrimiento.x, y + page.corrimiento.y))
-                onConectar: (desde, salida, hacia, entrada) => page.avisar(page.vg.conectar(desde, salida, hacia, entrada))
-                onDesconectar: (desde, salida, hacia, entrada) => page.avisar(page.vg.desconectar(desde, salida, hacia, entrada))
-                onOrdenar: page.avisar(page.vg.ordenar())
-            }
-            Text {
-                visible: page.msg !== ""
-                Layout.fillWidth: true
-                text: page.msg; color: Theme.warn; font.pixelSize: 12; wrapMode: Text.WordWrap
+                onMover: (id, x, y) => page.vista === "estudio" ? page.vg.mover(id, x, y - 30)
+                                                   : page.vg.mover(id, x + page.corrimiento.x, y + page.corrimiento.y)
+                onConectar: (desde, salida, hacia, entrada) => page.vg.conectar(desde, salida, hacia, entrada)
+                onDesconectar: (desde, salida, hacia, entrada) => page.vg.desconectar(desde, salida, hacia, entrada)
+                onOrdenar: page.vg.ordenar()
             }
         }
 
@@ -397,7 +390,8 @@ Rectangle {
                             const iw = Math.min(width, height * asp), ih = iw / asp
                             const u = Math.max(0, Math.min(1, (m.x - (width - iw) / 2) / iw))
                             const v = Math.max(0, Math.min(1, (m.y - (height - ih) / 2) / ih))
-                            page.avisar(Studio.seguidor ? Studio.seguidor.seguirPunto(page.vg.entrada, u, v) : qsTr("El seguimiento no está disponible"))
+                            if (Studio.seguidor) Studio.seguidor.seguirPunto(page.vg.entrada, u, v)
+                            else Studio.notify(qsTr("El seguimiento no está disponible"), "error")
                         }
                     }
                     Text {
@@ -543,7 +537,7 @@ Rectangle {
                                         delegate: GlassButton {
                                             required property string modelData
                                             compact: true; text: "+ " + modelData
-                                            onClicked: page.avisar(page.vg.agregarControlada(page.sel, modelData))
+                                            onClicked: page.vg.agregarControlada(page.sel, modelData)
                                         }
                                     }
                                 }
@@ -551,7 +545,7 @@ Rectangle {
                                     visible: !!page.nodo && !!page.nodo.controlador
                                     compact: true
                                     text: qsTr("Soltar del controlador")
-                                    onClicked: page.avisar(page.vg.soltarControl(page.sel))
+                                    onClicked: page.vg.soltarControl(page.sel)
                                     ToolTip.visible: hovered; ToolTip.delay: 400
                                     ToolTip.text: qsTr("Esta tarjeta deja de seguir al controlador y se queda con los valores de ahora")
                                 }
@@ -563,8 +557,7 @@ Rectangle {
                             text: qsTr("Usar en varias entradas…")
                             icon: "⇶"
                             onClicked: {
-                                const e = page.vg.controlar(page.sel)
-                                page.avisar(e)
+                                page.vg.controlar(page.sel)
                             }
                             ToolTip.visible: hovered; ToolTip.delay: 400
                             ToolTip.text: qsTr("Hace un controlador con esta tarjeta: después se la agrega a otras entradas (otras cámaras) y un solo ajuste las maneja a todas")
@@ -646,9 +639,9 @@ Rectangle {
                         FormularioPropiedades {
                             Layout.fillWidth: true
                             vacio: ""
-                            props: page.nodo && (page.tipoEf === "gst" || page.tipoEf === "mezcla") ? page.vg.propiedades(page.sel) : []
+                            props: page.nodo && (page.tipoEf === "gst" || page.tipoEf === "mezcla") ? ((page.vg.formularios[page.sel] || {}).props || []) : []
                             onCambio: (nombre, valor) => typeof valor === "number" ? page.ajustarFiltro(page.sel, nombre, valor)
-                                                                                 : page.avisar(page.vg.ajustarFiltro(page.sel, nombre, valor))
+                                                                                 : page.vg.ajustarFiltro(page.sel, nombre, valor)
                         }
 
                         // Vista 360 y Cámara 360: la vista, las lentes y la guía para calibrar.
@@ -659,7 +652,7 @@ Rectangle {
                             camara: page.tipoEf === "panoramica"
                             lentes: page.nodo && page.nodo.tipo === "panoramica" ? (page.nodo.entradas || []).filter(e => !e.pedido).length : 0
                             onAjustar: (clave, valor) => page.ajustar(page.sel, clave, valor)
-                            onAtajo: (preset, campo) => page.avisar(page.vg.presetPanoramicaUi(page.sel, preset, campo))
+                            onAtajo: (preset, campo) => page.vg.presetPanoramicaUi(page.sel, preset, campo)
                         }
                         ColumnLayout {
                             visible: page.tipoEf === "panoramica" && !!page.nodo && page.nodo.tipo === "panoramica"
@@ -674,7 +667,7 @@ Rectangle {
                             }
                             GlassButton {
                                 text: qsTr("Poner en la escena al aire")
-                                onClicked: page.avisar(page.vg.aEscena(page.sel, ""))
+                                onClicked: page.vg.aEscena(page.sel, "")
                             }
                         }
 
@@ -684,14 +677,14 @@ Rectangle {
                             spacing: 6
                             Text { text: qsTr("Fondo"); color: Theme.textDim; font.pixelSize: 12 }
                             Rectangle { width: 22; height: 22; radius: 4; color: page.paramsEf && page.paramsEf.clave !== undefined ? page.hex(page.paramsEf.clave) : "transparent"; border.color: Qt.rgba(1, 1, 1, 0.3) }
-                            GlassButton { compact: true; text: qsTr("Verde"); onClicked: page.avisar(page.vg.ajustar(page.sel, { clave: 0x00B140 })) }
-                            GlassButton { compact: true; text: qsTr("Azul"); onClicked: page.avisar(page.vg.ajustar(page.sel, { clave: 0x0047BB })) }
+                            GlassButton { compact: true; text: qsTr("Verde"); onClicked: page.vg.ajustar(page.sel, { clave: 0x00B140 }) }
+                            GlassButton { compact: true; text: qsTr("Azul"); onClicked: page.vg.ajustar(page.sel, { clave: 0x0047BB }) }
                             TextField {
                                 Layout.preferredWidth: 80
                                 placeholderText: qsTr("#RRGGBB")
                                 onAccepted: {
                                     const v = parseInt(text.replace("#", ""), 16)
-                                    if (!isNaN(v)) page.avisar(page.vg.ajustar(page.sel, { clave: v }))
+                                    if (!isNaN(v)) page.vg.ajustar(page.sel, { clave: v })
                                 }
                             }
                         }
@@ -717,8 +710,8 @@ Rectangle {
                             Flow {
                                 Layout.fillWidth: true
                                 spacing: 6
-                                GlassButton { compact: true; text: qsTr("La más grande"); onClicked: page.avisar(Studio.seguidor.seguir(page.vg.entrada, { regla: "mayor" })) }
-                                GlassButton { compact: true; text: qsTr("La del centro"); onClicked: page.avisar(Studio.seguidor.seguir(page.vg.entrada, { regla: "centro" })) }
+                                GlassButton { compact: true; text: qsTr("La más grande"); onClicked: Studio.seguidor.seguir(page.vg.entrada, { regla: "mayor" }) }
+                                GlassButton { compact: true; text: qsTr("La del centro"); onClicked: Studio.seguidor.seguir(page.vg.entrada, { regla: "centro" }) }
                                 GlassButton { compact: true; text: qsTr("Soltar"); onClicked: Studio.seguidor.dejar(page.vg.entrada) }
                             }
                         }
@@ -749,7 +742,7 @@ Rectangle {
                                 CheckBox {
                                     text: qsTr("Reconocer (para Personas)")
                                     checked: !!rostrosPanel.p.reconocer
-                                    onToggled: page.avisar(page.vg.ajustar(page.sel, { reconocer: checked }))
+                                    onToggled: page.vg.ajustar(page.sel, { reconocer: checked })
                                     ToolTip.visible: hovered; ToolTip.delay: 400
                                     ToolTip.text: qsTr("Saca el vector de cada cara (lo que compara la libreta). Personas lo prende sola cuando usa la cámara.")
                                 }
@@ -759,7 +752,7 @@ Rectangle {
                                     model: [{ t: qsTr("Automático"), v: "auto" }, { t: "Apple (Vision)", v: "vision" }, { t: "YuNet", v: "yunet" }]
                                     textRole: "t"
                                     currentIndex: Math.max(0, model.findIndex(m => m.v === (rostrosPanel.p.detector || "auto")))
-                                    onActivated: (i) => page.avisar(page.vg.ajustar(page.sel, { detector: model[i].v }))
+                                    onActivated: (i) => page.vg.ajustar(page.sel, { detector: model[i].v })
                                 }
                             }
                             Rectangle { Layout.fillWidth: true; height: 1; color: Theme.glassBorder }
@@ -768,7 +761,7 @@ Rectangle {
                                 CheckBox {
                                     text: qsTr("Overlay sobre las caras")
                                     checked: !!rostrosPanel.p.marcar
-                                    onToggled: page.avisar(page.vg.ajustar(page.sel, { marcar: checked }))
+                                    onToggled: page.vg.ajustar(page.sel, { marcar: checked })
                                 }
                                 Item { Layout.fillWidth: true }
                                 ComboBox {
@@ -777,7 +770,7 @@ Rectangle {
                                             { t: qsTr("Tapar"), v: "tapar" }, { t: qsTr("Pixelar"), v: "pixelar" }]
                                     textRole: "t"
                                     currentIndex: Math.max(0, model.findIndex(m => m.v === (rostrosPanel.p.estilo || "recuadro")))
-                                    onActivated: (i) => page.avisar(page.vg.ajustar(page.sel, { estilo: model[i].v }))
+                                    onActivated: (i) => page.vg.ajustar(page.sel, { estilo: model[i].v })
                                     ToolTip.visible: hovered; ToolTip.delay: 400
                                     ToolTip.text: qsTr("Tapar y pixelar sirven para no mostrar una cara (privacidad)")
                                 }
@@ -794,7 +787,7 @@ Rectangle {
                                         color: "#" + (modelData & 0xFFFFFF).toString(16).padStart(6, "0")
                                         border.width: (rostrosPanel.p.color || 0xFFFFC83C) === modelData ? 2 : 1
                                         border.color: (rostrosPanel.p.color || 0xFFFFC83C) === modelData ? Theme.text : Qt.rgba(1, 1, 1, 0.3)
-                                        MouseArea { anchors.fill: parent; onClicked: page.avisar(page.vg.ajustar(page.sel, { color: modelData })) }
+                                        MouseArea { anchors.fill: parent; onClicked: page.vg.ajustar(page.sel, { color: modelData }) }
                                     }
                                 }
                             }
@@ -808,13 +801,13 @@ Rectangle {
                                     textRole: "t"
                                     currentIndex: rostrosPanel.plantillas.findIndex(m => m.v === (rostrosPanel.p.texto || ""))
                                     displayText: currentIndex < 0 ? qsTr("Personalizado") : currentText
-                                    onActivated: (i) => page.avisar(page.vg.ajustar(page.sel, { texto: rostrosPanel.plantillas[i].v }))
+                                    onActivated: (i) => page.vg.ajustar(page.sel, { texto: rostrosPanel.plantillas[i].v })
                                 }
                                 ComboBox {
                                     model: [{ t: qsTr("Arriba"), v: "arriba" }, { t: qsTr("Abajo"), v: "abajo" }]
                                     textRole: "t"
                                     currentIndex: rostrosPanel.p.texto_posicion === "abajo" ? 1 : 0
-                                    onActivated: (i) => page.avisar(page.vg.ajustar(page.sel, { texto_posicion: model[i].v }))
+                                    onActivated: (i) => page.vg.ajustar(page.sel, { texto_posicion: model[i].v })
                                 }
                             }
                             TextField {
@@ -823,7 +816,7 @@ Rectangle {
                                 text: rostrosPanel.p.texto || ""
                                 placeholderText: qsTr("Plantilla: {nombre} {cargo} {id} {confianza} {n}")
                                 color: Theme.text
-                                onEditingFinished: if (text !== (rostrosPanel.p.texto || "")) page.avisar(page.vg.ajustar(page.sel, { texto: text }))
+                                onEditingFinished: if (text !== (rostrosPanel.p.texto || "")) page.vg.ajustar(page.sel, { texto: text })
                             }
                             Text {
                                 Layout.fillWidth: true; wrapMode: Text.WordWrap
@@ -838,12 +831,12 @@ Rectangle {
                             CheckBox {
                                 text: qsTr("Espejo ↔")
                                 checked: !!page.paramsEf && !!page.paramsEf.espejoH
-                                onToggled: page.avisar(page.vg.ajustar(page.sel, { espejoH: checked }))
+                                onToggled: page.vg.ajustar(page.sel, { espejoH: checked })
                             }
                             CheckBox {
                                 text: qsTr("Espejo ↕")
                                 checked: !!page.paramsEf && !!page.paramsEf.espejoV
-                                onToggled: page.avisar(page.vg.ajustar(page.sel, { espejoV: checked }))
+                                onToggled: page.vg.ajustar(page.sel, { espejoV: checked })
                             }
                         }
 
@@ -913,7 +906,7 @@ Rectangle {
                                     onActivated: (i) => {
                                         const f = {}
                                         f[srEstado.entrada] = opciones[i].v
-                                        page.avisar(page.vg.configurarProgramadorUi({ forzar: f }))
+                                        page.vg.configurarProgramadorUi({ forzar: f })
                                     }
                                 }
                             }
@@ -931,12 +924,11 @@ Rectangle {
                                         const p = lista[i]
                                         if (p.id === "") return
                                         if (!p.instalado) {
-                                            const e = srPanel.sr.instalarPluginUi(p.id)
-                                            page.avisar(e === "" ? "" : e)
-                                            if (e === "") Studio.notify(qsTr("Instalando «%1»: tarda unos minutos").arg(p.nombre), "info")
+                                            if (srPanel.sr.instalarPluginUi(p.id))
+                                                Studio.notify(qsTr("Instalando «%1»: tarda unos minutos").arg(p.nombre), "info")
                                             return
                                         }
-                                        page.avisar(page.vg.ajustar(page.sel, { plugin: p.id, activo: true }))
+                                        page.vg.ajustar(page.sel, { plugin: p.id, activo: true })
                                     }
                                 }
                             }
@@ -976,7 +968,7 @@ Rectangle {
                             CheckBox {
                                 text: qsTr("Activa (si no, pasa sin tocar)")
                                 checked: !page.paramsEf || page.paramsEf.activo !== false
-                                onToggled: page.avisar(page.vg.ajustar(page.sel, { activo: checked }))
+                                onToggled: page.vg.ajustar(page.sel, { activo: checked })
                             }
                             // Una red CoreML (Mac): dónde corre. Con dos redes a la vez, una en la GPU reparte la carga.
                             RowLayout {
@@ -989,7 +981,7 @@ Rectangle {
                                              { t: qsTr("GPU (compite con la composición)"), v: "gpu" }, { t: qsTr("Procesador (lento)"), v: "cpu" } ]
                                     textRole: "t"
                                     currentIndex: Math.max(0, model.findIndex(o => o.v === ((page.paramsEf && page.paramsEf.unidades) || "auto")))
-                                    onActivated: (i) => page.avisar(page.vg.ajustar(page.sel, { unidades: model[i].v }))
+                                    onActivated: (i) => page.vg.ajustar(page.sel, { unidades: model[i].v })
                                 }
                             }
                             // Una red ONNX (Windows/Linux): con qué la corre la placa. Vulkan pasa la red a ncnn la
@@ -1007,7 +999,7 @@ Rectangle {
                                              { t: qsTr("MIGraphX (AMD en Linux)"), v: "migraphx" }, { t: qsTr("Procesador (lento)"), v: "cpu" } ]
                                     textRole: "t"
                                     currentIndex: Math.max(0, model.findIndex(o => o.v === ((page.paramsEf && page.paramsEf.proveedor) || "auto")))
-                                    onActivated: (i) => page.avisar(page.vg.ajustar(page.sel, { proveedor: model[i].v }))
+                                    onActivated: (i) => page.vg.ajustar(page.sel, { proveedor: model[i].v })
                                 }
                             }
                             RowLayout {
@@ -1035,7 +1027,7 @@ Rectangle {
                                         required property var modelData
                                         compact: true; text: modelData.t
                                         active: srPanel.elegido === "" && !!page.paramsEf && page.paramsEf.motor === modelData.m
-                                        onClicked: page.avisar(page.vg.ajustar(page.sel, { plugin: "", motor: modelData.m }))
+                                        onClicked: page.vg.ajustar(page.sel, { plugin: "", motor: modelData.m })
                                     }
                                 }
                             }
@@ -1048,7 +1040,7 @@ Rectangle {
                                     Layout.fillWidth: true
                                     text: page.paramsEf ? page.paramsEf.modelo || "" : ""
                                     placeholderText: qsTr("ruta del .onnx o del .mlmodelc")
-                                    onEditingFinished: page.avisar(page.vg.ajustar(page.sel, { modelo: text }))
+                                    onEditingFinished: page.vg.ajustar(page.sel, { modelo: text })
                                 }
                             }
                         }
@@ -1073,13 +1065,13 @@ Rectangle {
                                 return puerto
                             }
                             // La disposición la arma el modelo (VideoGrafos::aplicarDisposicion), la misma que video_mosaico.
-                            function armar(cual) { page.avisar(page.vg.aplicarDisposicionUi(page.sel, cual)) }
+                            function armar(cual) { page.vg.aplicarDisposicionUi(page.sel, cual) }
                             Text { text: qsTr("Nombre de la fuente"); color: Theme.textDim; font.pixelSize: 12 }
                             TextField {
                                 Layout.fillWidth: true
                                 text: page.nodo && page.nodo.params && page.nodo.params.nombre !== undefined ? page.nodo.params.nombre : ""
                                 enabled: !!page.nodo && !page.nodo.publicada
-                                onEditingFinished: if (page.nodo && text !== page.nodo.params.nombre) page.avisar(page.vg.ajustar(page.sel, { nombre: text }))
+                                onEditingFinished: if (page.nodo && text !== page.nodo.params.nombre) page.vg.ajustar(page.sel, { nombre: text })
                             }
                             RowLayout {
                                 spacing: 6
@@ -1090,7 +1082,7 @@ Rectangle {
                                         required property var modelData
                                         compact: true; text: modelData.t
                                         active: !!page.nodo && page.nodo.params && (page.nodo.params.ancho || 0) === modelData.w && (page.nodo.params.alto || 0) === modelData.h
-                                        onClicked: page.avisar(page.vg.ajustar(page.sel, { ancho: modelData.w, alto: modelData.h }))
+                                        onClicked: page.vg.ajustar(page.sel, { ancho: modelData.w, alto: modelData.h })
                                     }
                                 }
                             }
@@ -1101,13 +1093,13 @@ Rectangle {
                                 SpinBox {
                                     from: 0; to: 8192; stepSize: 2; editable: true
                                     value: page.nodo && page.nodo.params ? (page.nodo.params.ancho || 0) : 0
-                                    onValueModified: page.avisar(page.vg.ajustar(page.sel, { ancho: value }))
+                                    onValueModified: page.vg.ajustar(page.sel, { ancho: value })
                                 }
                                 Text { text: qsTr("Alto"); color: Theme.textDim; font.pixelSize: 12 }
                                 SpinBox {
                                     from: 0; to: 8192; stepSize: 2; editable: true
                                     value: page.nodo && page.nodo.params ? (page.nodo.params.alto || 0) : 0
-                                    onValueModified: page.avisar(page.vg.ajustar(page.sel, { alto: value }))
+                                    onValueModified: page.vg.ajustar(page.sel, { alto: value })
                                 }
                             }
                             RowLayout {
@@ -1165,7 +1157,7 @@ Rectangle {
                             }
                             GlassButton {
                                 text: qsTr("Poner en la escena al aire")
-                                onClicked: page.avisar(page.vg.aEscena(page.sel, ""))
+                                onClicked: page.vg.aEscena(page.sel, "")
                             }
                         }
 
@@ -1185,7 +1177,7 @@ Rectangle {
                                 Layout.fillWidth: true
                                 text: page.nodo && page.nodo.params && page.nodo.params.nombre !== undefined ? page.nodo.params.nombre : ""
                                 enabled: !!page.nodo && !page.nodo.publicada
-                                onEditingFinished: if (page.nodo && text !== page.nodo.params.nombre) page.avisar(page.vg.ajustar(page.sel, { nombre: text }))
+                                onEditingFinished: if (page.nodo && text !== page.nodo.params.nombre) page.vg.ajustar(page.sel, { nombre: text })
                             }
                             // Lo que sale (0 = el lienzo del estudio).
                             RowLayout {
@@ -1194,13 +1186,13 @@ Rectangle {
                                 SpinBox {
                                     from: 0; to: 8192; stepSize: 2; editable: true
                                     value: page.nodo && page.nodo.params ? (page.nodo.params.ancho || 0) : 0
-                                    onValueModified: page.avisar(page.vg.ajustar(page.sel, { ancho: value }))
+                                    onValueModified: page.vg.ajustar(page.sel, { ancho: value })
                                 }
                                 Text { text: qsTr("Alto"); color: Theme.textDim; font.pixelSize: 12 }
                                 SpinBox {
                                     from: 0; to: 8192; stepSize: 2; editable: true
                                     value: page.nodo && page.nodo.params ? (page.nodo.params.alto || 0) : 0
-                                    onValueModified: page.avisar(page.vg.ajustar(page.sel, { alto: value }))
+                                    onValueModified: page.vg.ajustar(page.sel, { alto: value })
                                 }
                             }
                             Repeater {
@@ -1211,7 +1203,7 @@ Rectangle {
                                     Layout.fillWidth: true
                                     spacing: 2
                                     // Las propiedades de este pad (de la introspección del módulo), con sus valores.
-                                    readonly property var props: page.nodo ? page.vg.propiedadesPad(page.sel, modelData) : []
+                                    readonly property var props: page.nodo ? (((page.vg.formularios[page.sel] || {}).pads || {})[modelData] || []) : []
                                     Text { text: mezclaPanel.origen(padCol.modelData) + "  (" + padCol.modelData + ")"; color: Theme.text; font { pixelSize: 12; weight: Font.DemiBold } }
                                     // Las posiciones y tamaños vienen con rangos enormes: hasta el doble del lienzo alcanza.
                                     FormularioPropiedades {
@@ -1222,7 +1214,7 @@ Rectangle {
                                         spacing: 0
                                         vacio: qsTr("Esta entrada no tiene propiedades propias.")
                                         onCambio: (nombre, valor) => typeof valor === "number" ? page.ajustarPad(page.sel, padCol.modelData, nombre, valor)
-                                                                                             : page.avisar(page.vg.ajustarPad(page.sel, padCol.modelData, nombre, valor))
+                                                                                             : page.vg.ajustarPad(page.sel, padCol.modelData, nombre, valor)
                                     }
                                 }
                             }
@@ -1235,7 +1227,7 @@ Rectangle {
                             }
                             GlassButton {
                                 text: qsTr("Poner en la escena al aire")
-                                onClicked: page.avisar(page.vg.aEscena(page.sel, ""))
+                                onClicked: page.vg.aEscena(page.sel, "")
                             }
                         }
 
@@ -1249,7 +1241,7 @@ Rectangle {
                                 Layout.fillWidth: true
                                 text: page.nodo && page.nodo.params.nombre !== undefined ? page.nodo.params.nombre : ""
                                 enabled: !!page.nodo && !page.nodo.publicada
-                                onEditingFinished: if (page.nodo && text !== page.nodo.params.nombre) page.avisar(page.vg.ajustar(page.sel, { nombre: text }))
+                                onEditingFinished: if (page.nodo && text !== page.nodo.params.nombre) page.vg.ajustar(page.sel, { nombre: text })
                             }
                             Text {
                                 Layout.fillWidth: true
@@ -1261,7 +1253,7 @@ Rectangle {
                             }
                             GlassButton {
                                 text: qsTr("Poner en la escena al aire")
-                                onClicked: page.avisar(page.vg.aEscena(page.sel, ""))
+                                onClicked: page.vg.aEscena(page.sel, "")
                             }
                         }
 
@@ -1316,12 +1308,12 @@ Rectangle {
                             spacing: 6
                             GlassButton {
                                 compact: true; text: qsTr("◀ Antes")
-                                onClicked: page.avisar(page.vg.correr(page.sel, -1))
+                                onClicked: page.vg.correr(page.sel, -1)
                                 ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: qsTr("Un lugar antes en la cadena")
                             }
                             GlassButton {
                                 compact: true; text: qsTr("Después ▶")
-                                onClicked: page.avisar(page.vg.correr(page.sel, 1))
+                                onClicked: page.vg.correr(page.sel, 1)
                                 ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: qsTr("Un lugar después en la cadena")
                             }
                         }
@@ -1329,7 +1321,7 @@ Rectangle {
                             visible: !!page.nodo && page.nodo.tipo !== "entrada" && page.nodo.tipo !== "escena" && page.nodo.tipo !== "ptz"
                             compact: true
                             text: qsTr("Quitar la tarjeta")
-                            onClicked: { page.avisar(page.vg.quitar(page.sel)); page.sel = "" }
+                            onClicked: { page.vg.quitar(page.sel); page.sel = "" }
                         }
                     }
                 }
@@ -1383,9 +1375,9 @@ Rectangle {
         }
         onElegido: (tipo, id) => {
             const despues = page.nodo && page.nodo.tipo !== "escena" && !page.nodo.externo ? page.sel : ""
-            page.avisar(tipo === "tarjeta" ? page.vg.agregar(id, despues) // comoTarjeta: superres, rostros, seguir
-                        : tipo === "mezcla" ? page.vg.agregarMezcla(id) // del estudio: no va después de nada
-                        : page.vg.agregarModulo(id, despues))
+            if (tipo === "tarjeta") page.vg.agregar(id, despues) // comoTarjeta: superres, rostros, seguir
+            else if (tipo === "mezcla") page.vg.agregarMezcla(id) // del estudio: no va después de nada
+            else page.vg.agregarModulo(id, despues)
         }
     }
 
@@ -1455,11 +1447,12 @@ Rectangle {
                     compact: true; text: qsTr("Crear"); active: true
                     enabled: nombreVirtual.text.trim() !== "" && (virtualPop.preset !== "pipeline" || pipelineVirtual.text.trim() !== "")
                     onClicked: {
-                        const e = page.vg.crearVirtual(nombreVirtual.text.trim(),
-                                                       virtualPop.preset === "pipeline" ? "pipeline:" + pipelineVirtual.text.trim() : virtualPop.preset,
-                                                       escenaVirtual.currentText)
-                        page.avisar(e)
-                        if (e === "") { page.vg.entrada = nombreVirtual.text.trim(); virtualPop.close() }
+                        if (page.vg.crearVirtual(nombreVirtual.text.trim(),
+                                                 virtualPop.preset === "pipeline" ? "pipeline:" + pipelineVirtual.text.trim() : virtualPop.preset,
+                                                 escenaVirtual.currentText)) {
+                            page.vg.entrada = nombreVirtual.text.trim()
+                            virtualPop.close()
+                        }
                     }
                 }
             }

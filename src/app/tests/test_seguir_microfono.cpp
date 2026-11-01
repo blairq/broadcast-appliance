@@ -10,6 +10,9 @@
 #include "asamblea/Bancas.hpp"
 #include "asamblea/Cuerpo.hpp"
 #include "asamblea/SeguirMicrofono.hpp"
+#include "ui/CapturaError.hpp"
+
+using ::ba::app::errorDe;
 
 using namespace ba::app;
 using json = nlohmann::json;
@@ -125,13 +128,13 @@ int main(int argc, char** argv) {
         CHECK(b.resolver("Ana López").value("error", std::string()).find("banca 11") != std::string::npos,
               "enfocar: la banca 11 sin toma lo dice");
         CHECK(b.resolver("Presidencia").value("tipo", std::string()) == "posicion", "enfocar: el nombre de una posición");
-        CHECK(b.enfocar("consejero Ferreyra").isEmpty() && !movidas.empty() && movidas.back().second == "Banca 12",
+        CHECK(errorDe([&] { b.enfocar("consejero Ferreyra"); }).isEmpty() && !movidas.empty() && movidas.back().second == "Banca 12",
               "enfocar: mueve a la toma de la banca");
         // Con la fuente de banca recortando (digital), dar la palabra no mueve la cámara.
         gg.laEncuadraLaFuente = [](const std::string&, const std::string&) { return true; };
         asamblea::Bancas b2(cu, gg);
         movidas.clear();
-        CHECK(b2.alAire("10").isEmpty() && movidas.empty(), "con la fuente de banca, dar la palabra no mueve la cámara");
+        CHECK(errorDe([&] { b2.alAire("10"); }).isEmpty() && movidas.empty(), "con la fuente de banca, dar la palabra no mueve la cámara");
         CHECK(b2.prepararToma("12").isEmpty() && movidas.empty(), "ni prepararla para el debate");
     }
     std::printf(g_fallas ? "\n%d fallas\n" : "\ntodo ok\n", g_fallas);

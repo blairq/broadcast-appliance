@@ -17,14 +17,13 @@ ColumnLayout {
     property string pluginId: ""
     property var controles: []
     property bool corriendo: true
-    property var valores: ({})
     readonly property var pl: Studio.plugins
+    // Lo que muestra el panel, del modelo (avisa con cada valor que manda el plugin).
+    readonly property var valores: pl && pluginId !== "" ? (pl.valores[pluginId] || ({})) : ({})
     spacing: 8
 
-    function refrescar() { if (pl && pluginId !== "") valores = pl.valoresUi(pluginId) }
     function poner(clave, valor) {
-        const e = pl.panelUi(pluginId, clave, valor)
-        if (e !== "") Studio.notify(e, "error")
+        pl.panelUi(pluginId, clave, valor)
     }
     function num(v, d) { return typeof v === "number" ? v : (v !== undefined && v !== null && v !== "" && !isNaN(Number(v)) ? Number(v) : d) }
     function mostrar(v, c) {
@@ -35,12 +34,6 @@ ColumnLayout {
         return String(v) + (c.unidad ? " " + c.unidad : "")
     }
 
-    onPluginIdChanged: refrescar()
-    Component.onCompleted: refrescar()
-    Connections {
-        target: panel.pl
-        function onValoresCambio(id) { if (id === panel.pluginId) panel.refrescar() }
-    }
 
     Text {
         visible: !panel.corriendo

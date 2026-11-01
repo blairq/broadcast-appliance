@@ -21,7 +21,6 @@ ColumnLayout {
     readonly property var sr: Studio.sesionRemota
     readonly property var remotos: sr ? sr.presentesLista : []
     readonly property var etiquetas: integrantes.map(i => (pd.remotos.indexOf(i.id) >= 0 ? qsTr("Banca %1 · %2  (remoto)") : qsTr("Banca %1 · %2")).arg(i.banca).arg(i.nombre))
-    function avisar(e) { if (e) Studio.notify(e, "error") }
 
     // Las escenas para elegir.
     readonly property var escenas: ["—"].concat(Studio.escenas.nombres)
@@ -51,7 +50,7 @@ ColumnLayout {
         GlassButton {
             text: qsTr("Empezar el debate"); active: true
             enabled: pd.integrantes.length >= 2 && elegirA.currentIndex !== elegirB.currentIndex
-            onClicked: pd.avisar(pd.deb.iniciarUi(pd.integrantes[elegirA.currentIndex].id, pd.integrantes[elegirB.currentIndex].id, "a"))
+            onClicked: pd.deb.iniciarUi(pd.integrantes[elegirA.currentIndex].id, pd.integrantes[elegirB.currentIndex].id, "a")
         }
         Item { Layout.fillWidth: true }
     }
@@ -97,10 +96,10 @@ ColumnLayout {
     RowLayout {
         visible: pd.activo
         spacing: 8
-        GlassButton { text: qsTr("Turno de A"); active: pd.e.turno === "a"; onClicked: pd.avisar(pd.deb.turnoUi("a")) }
-        GlassButton { text: qsTr("Turno de B"); active: pd.e.turno === "b"; onClicked: pd.avisar(pd.deb.turnoUi("b")) }
-        GlassButton { text: qsTr("Ambos"); active: pd.e.turno === "ambos"; onClicked: pd.avisar(pd.deb.turnoUi("ambos")) }
-        GlassButton { text: qsTr("Nadie"); active: pd.e.turno === "nadie"; onClicked: pd.avisar(pd.deb.turnoUi("nadie")) }
+        GlassButton { text: qsTr("Turno de A"); active: pd.e.turno === "a"; onClicked: pd.deb.turnoUi("a") }
+        GlassButton { text: qsTr("Turno de B"); active: pd.e.turno === "b"; onClicked: pd.deb.turnoUi("b") }
+        GlassButton { text: qsTr("Ambos"); active: pd.e.turno === "ambos"; onClicked: pd.deb.turnoUi("ambos") }
+        GlassButton { text: qsTr("Nadie"); active: pd.e.turno === "nadie"; onClicked: pd.deb.turnoUi("nadie") }
         GlassButton { compact: true; text: "+30 s"; onClicked: pd.deb.sumarUi(30) }
         GlassButton { compact: true; text: "−30 s"; onClicked: pd.deb.sumarUi(-30) }
         Item { Layout.fillWidth: true }
@@ -129,7 +128,7 @@ ColumnLayout {
             onActivated: {
                 const esc = {}
                 esc[clave] = currentIndex <= 0 ? "" : currentText
-                pd.avisar(pd.deb.configurarUi({ escenas: esc }))
+                pd.deb.configurarUi({ escenas: esc })
             }
         }
         Text { text: qsTr("Dos de la sala"); color: Theme.textDim; font.pixelSize: 12 }
@@ -141,12 +140,12 @@ ColumnLayout {
         Text { text: qsTr("Tiempo de cada turno"); color: Theme.textDim; font.pixelSize: 12 }
         RowLayout {
             SpinBox { from: 0; to: 1800; stepSize: 30; editable: true; value: pd.cfg.turno_s || 0
-                      onValueModified: pd.avisar(pd.deb.configurarUi({ turno_s: value })) }
+                      onValueModified: pd.deb.configurarUi({ turno_s: value }) }
             Text { text: qsTr("segundos (0 = sin reloj)"); color: Theme.textFaint; font.pixelSize: 11 }
         }
         Text { text: qsTr("Al empezar"); color: Theme.textDim; font.pixelSize: 12 }
         CheckBox { text: qsTr("Cortar la escena al aire (si no, queda armada para el TAKE)"); checked: !!pd.cfg.directo
-                   onToggled: pd.avisar(pd.deb.configurarUi({ directo: checked })) }
+                   onToggled: pd.deb.configurarUi({ directo: checked }) }
     }
     Text {
         Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.textFaint; font.pixelSize: 11

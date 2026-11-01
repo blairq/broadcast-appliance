@@ -198,32 +198,31 @@ QVariantMap Dispositivos::porValor(const QString& tipo, const QString& valor) co
     return c.id.empty() ? QVariantMap{} : ausente(qs(c.id));
 }
 
-QString Dispositivos::renombrar(const QString& id, const QString& nombre) {
+bool Dispositivos::renombrar(const QString& id, const QString& nombre) {
     const auto it = equipos_.find(id);
     if (it != equipos_.end() && !seRecuerda(it->second.value("tipo").toString().toStdString()))
-        return tr("solo se les pone nombre a los dispositivos de audio y video (cámaras, micrófonos, placas, NDI, "
-                  "cámaras de red)");
+        return sinError(tr("solo se les pone nombre a los dispositivos de audio y video (cámaras, micrófonos, placas, NDI, "
+                  "cámaras de red)"));
     const std::string err = conocidos_->renombrar(id.toStdString(), nombre.toStdString());
-    if (!err.empty()) return qs(err);
+    if (!err.empty()) return sinError(qs(err));
     emit cambio();
-    return {};
+    return true;
 }
 
-QString Dispositivos::configurar(const QString& id, const QVariantMap& config) {
+bool Dispositivos::configurar(const QString& id, const QVariantMap& config) {
     const std::string err = conocidos_->configurar(id.toStdString(), aJ(config));
-    if (!err.empty()) return qs(err);
+    if (!err.empty()) return sinError(qs(err));
     emit cambio();
-    return {};
+    return true;
 }
 
-QString Dispositivos::olvidar(const QString& id) {
+void Dispositivos::olvidar(const QString& id) {
     // Uno conectado se volvería a anotar en la próxima búsqueda: olvidarlo
     // solo borraría su nombre sin querer.
-    if (equipos_.count(id) > 0) return tr("está conectado: solo se olvida uno que ya no está");
+    if (equipos_.count(id) > 0) return avisarError(tr("está conectado: solo se olvida uno que ya no está"));
     const std::string err = conocidos_->olvidar(id.toStdString());
-    if (!err.empty()) return qs(err);
+    if (!err.empty()) return avisarError(qs(err));
     emit cambio();
-    return {};
 }
 
 void Dispositivos::anotar(const QString& detector, QVariantMap e) {

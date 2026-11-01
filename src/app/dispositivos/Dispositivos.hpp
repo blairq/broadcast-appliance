@@ -42,6 +42,7 @@
 #include <map>
 #include <memory>
 #include <vector>
+#include "ui/CapturaError.hpp"
 
 namespace ba::app::dispositivos {
 
@@ -80,6 +81,17 @@ struct Detector {
 
 class Dispositivos : public QObject {
     Q_OBJECT
+    /// El error de una acción de la interfaz (las Q_INVOKABLE void): a quien mira.
+    void avisarError(const QString& e) {
+        if (!e.isEmpty() && !::ba::app::CapturaError::tomar(e)) emit notify(e, "error");
+    }
+    void avisarError(const std::string& e) { avisarError(QString::fromStdString(e)); }
+    /// Para las acciones que dicen si se hicieron: el error a quien mira y true si no hubo.
+    bool sinError(const QString& e) {
+        avisarError(e);
+        return e.isEmpty();
+    }
+    bool sinError(const std::string& e) { return sinError(QString::fromStdString(e)); }
     Q_PROPERTY(QVariantList equipos READ equiposQml NOTIFY cambio)
     Q_PROPERTY(QVariantList detectores READ detectoresQml NOTIFY cambio)
     /// Los drivers de la máquina y su cuarentena (dispositivos/Drivers, un modelo de lista).
@@ -107,12 +119,12 @@ class Dispositivos : public QObject {
     void anotar(const QString& detector, QVariantMap equipo);
 
     // --- Los nombres del operador (de la máquina) --------------------------------------
-    /// "" o el error. Nombre vacío: vuelve al del sistema.
-    Q_INVOKABLE QString renombrar(const QString& id, const QString& nombre);
-    /// Mezcla `config` ({nota, modo…}) en la del dispositivo. "" o el error.
-    Q_INVOKABLE QString configurar(const QString& id, const QVariantMap& config);
+    /// El error va por la señal del modelo (y dice si anduvo). Nombre vacío: vuelve al del sistema.
+    Q_INVOKABLE bool renombrar(const QString& id, const QString& nombre);
+    /// Mezcla `config` ({nota, modo…}) en la del dispositivo. El error va por la señal del modelo (y dice si anduvo).
+    Q_INVOKABLE bool configurar(const QString& id, const QVariantMap& config);
     /// Se olvida de un dispositivo que ya no está (su nombre y su configuración).
-    Q_INVOKABLE QString olvidar(const QString& id);
+    Q_INVOKABLE void olvidar(const QString& id);
     /// El dispositivo (conectado o ausente) de ese tipo cuyo valor es `valor`: lo
     /// que guarda una entrada (id de la cámara, del micrófono, nombre NDI, IP).
     QVariantMap porValor(const QString& tipo, const QString& valor) const;
@@ -131,6 +143,8 @@ class Dispositivos : public QObject {
     Q_INVOKABLE void accionUi(const QString& id, const QString& accion, const QVariantMap& args);
 
    signals:
+    /// Para el operador (ya traducido): los errores de las acciones de la interfaz.
+    void notify(const QString& texto, const QString& tipo);
     void cambio();
     void driversCambio();
     void resultado(const QString& id, const QString& accion, const QVariantMap& resultado);

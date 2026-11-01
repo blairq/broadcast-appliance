@@ -18,12 +18,12 @@ RowLayout {
 
     readonly property var cc: Studio.camaras
     readonly property var camaras: cc ? cc.camaras.map(c => c.entrada) : []
-    // Las posiciones de la cámara elegida (por nombre: es lo que se guarda y se dice).
-    property var posiciones: []
-    function leer() { sel.posiciones = sel.cc && sel.camara !== "" ? sel.cc.posiciones(sel.camara).map(p => p.nombre) : [] }
-    onCamaraChanged: leer()
-    Component.onCompleted: leer()
-    Connections { target: sel.cc; function onCambio() { sel.leer() } }
+    // Las posiciones de la cámara elegida (por nombre: es lo que se guarda y se dice), de la
+    // fila de esa cámara (`camaras` avisa cuando cambian).
+    readonly property var posiciones: {
+        const c = (sel.cc ? sel.cc.camaras : []).find(x => x.entrada === sel.camara)
+        return c ? (c.posiciones || []).map(p => p.nombre) : []
+    }
 
     ComboBox {
         id: cam
@@ -36,7 +36,6 @@ RowLayout {
             if (i === 0) { sel.elegido("", ""); return }
             sel.camara = sel.camaras[i - 1]
             // La posición se elige después (con la cámara sola no hay toma).
-            sel.leer()
             if (sel.posiciones.length === 1) sel.elegido(sel.camara, sel.posiciones[0])
         }
     }

@@ -100,8 +100,7 @@ Rectangle {
                 GlassButton {
                     compact: true; active: true; activeColor: Theme.live; text: qsTr("Borrar")
                     onClicked: {
-                        const e = Studio.salidas.borrar(borrarDlg.salida, borrarDlg.destinos > 0 ? aDonde.currentValue : "")
-                        if (e !== "") Studio.notify(e, "error"); else borrarDlg.close()
+                        if (Studio.salidas.borrar(borrarDlg.salida, borrarDlg.destinos > 0 ? aDonde.currentValue : "")) borrarDlg.close()
                     }
                 }
             }
@@ -141,8 +140,7 @@ Rectangle {
                         enabled: page.nueva.puede === true && nombreNueva.text.trim() !== ""
                         function crear() {
                             if (!enabled) return
-                            const e = Studio.salidas.crear(nombreNueva.text, colorNueva.elegido)
-                            if (e !== "") { Studio.notify(e, "error"); return }
+                            if (!Studio.salidas.crear(nombreNueva.text, colorNueva.elegido)) return
                             nombreNueva.text = ""; colorNueva.elegido = ""
                         }
                         onClicked: crear()
@@ -151,7 +149,7 @@ Rectangle {
                     Text { text: qsTr("Tope"); color: Theme.textDim; font.pixelSize: 12 }
                     SpinBox {
                         from: 1; to: 16; value: Studio.salidas.tope
-                        onValueModified: { const e = Studio.salidas.setTope(value); if (e !== "") { Studio.notify(e, "error"); value = Studio.salidas.tope } }
+                        onValueModified: if (!Studio.salidas.setTope(value)) value = Studio.salidas.tope
                         ToolTip.visible: hovered; ToolTip.delay: 400
                         ToolTip.text: qsTr("Cuántas salidas se pueden tener a la vez (cada una es un programa, un preview y una mezcla más)")
                     }
@@ -219,8 +217,7 @@ Rectangle {
                                     text: tarjeta.model.nombre
                                     font { pixelSize: 15; weight: Font.DemiBold }
                                     onEditingFinished: if (text.trim() !== "" && text !== tarjeta.model.nombre) {
-                                        const e = Studio.salidas.editar(tarjeta.salida, text.trim(), "")
-                                        if (e !== "") Studio.notify(e, "error")
+                                        Studio.salidas.editar(tarjeta.salida, text.trim(), "")
                                     }
                                 }
                                 Text { visible: tarjeta.porOmision; text: qsTr("por omisión"); color: Theme.textFaint; font.pixelSize: 11 }
@@ -235,7 +232,7 @@ Rectangle {
                             }
                             Paleta {
                                 elegido: tarjeta.model.color
-                                onElegir: (c) => { const e = Studio.salidas.editar(tarjeta.salida, "", c); if (e !== "") Studio.notify(e, "error") }
+                                onElegir: (c) => { Studio.salidas.editar(tarjeta.salida, "", c) }
                             }
                             // Su programa, en vivo (mientras se la mira).
                             Rectangle {
@@ -268,7 +265,7 @@ Rectangle {
                                     text: tarjeta.model.grabando ? qsTr("Detener") : qsTr("Grabar")
                                     active: !!tarjeta.model.grabando; activeColor: Theme.live
                                     onClicked: {
-                                        if (!tarjeta.model.grabando) { const e = Studio.salidas.grabar(tarjeta.salida, true); if (e !== "") Studio.notify(e, "error"); return }
+                                        if (!tarjeta.model.grabando) { Studio.salidas.grabar(tarjeta.salida, true);  return }
                                         const id = tarjeta.salida, n = tarjeta.model.nombre
                                         ApplicationWindow.window.confirm({ title: qsTr("¿Detener la grabación de «%1»?").arg(n),
                                                                            text: qsTr("El archivo se cierra y lo que siga no queda grabado."),
@@ -297,8 +294,7 @@ Rectangle {
                                     valueRole: "value"
                                     currentIndex: Math.max(0, model.findIndex(o => o.value === (tarjeta.model.codificador || "")))
                                     onActivated: (i) => {
-                                        const e = Studio.salidas.setCodificador(tarjeta.salida, model[i].value)
-                                        if (e !== "") Studio.notify(e, "error")
+                                        Studio.salidas.setCodificador(tarjeta.salida, model[i].value)
                                     }
                                     ToolTip.visible: hovered; ToolTip.delay: 400
                                     ToolTip.text: qsTr("El de video de esta salida: rige desde lo próximo que arranque en ella (transmisión, destino o grabación)")

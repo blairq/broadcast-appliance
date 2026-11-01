@@ -104,6 +104,7 @@
 #include <set>
 #include <string>
 #include <vector>
+#include "ui/CapturaError.hpp"
 
 namespace ba::app::mcp {
 class McpCore;
@@ -114,6 +115,11 @@ namespace ba::app::control {
 
 class ControlWeb : public QObject {
     Q_OBJECT
+    /// El error de una acción de la interfaz (las Q_INVOKABLE void): a quien mira.
+    void avisarError(const QString& e) {
+        if (!e.isEmpty() && !::ba::app::CapturaError::tomar(e)) emit notify(e, "error");
+    }
+    void avisarError(const std::string& e) { avisarError(QString::fromStdString(e)); }
     /// [{id, nombre, perfil (texto: «todo» o las categorías), categorias, ip,
     ///   creado_ms, ultimo_uso_ms, conectado}] (sin hashes).
     Q_PROPERTY(QVariantList aparatos READ aparatosUi NOTIFY aparatosCambio)
@@ -209,13 +215,15 @@ class ControlWeb : public QObject {
     QVariantList aparatosUi() const;
     QVariantList solicitudesUi() const;
     QVariantList salidasUi() const;
-    /// Aprobar con las categorías (texto: «todo», «*» o «escenas, audio»). "" o el error.
-    Q_INVOKABLE QString aprobarUi(const QString& solicitud, bool aprobar, const QString& categorias);
+    /// Aprobar con las categorías (texto: «todo», «*» o «escenas, audio»). El error va por la señal del modelo.
+    Q_INVOKABLE void aprobarUi(const QString& solicitud, bool aprobar, const QString& categorias);
     Q_INVOKABLE QString perfilUi(const QString& aparato, const QString& categorias);
     Q_INVOKABLE bool quitarUi(const QString& aparato);
-    Q_INVOKABLE QString salidaUi(const QString& aparato, const QString& salida);
+    Q_INVOKABLE void salidaUi(const QString& aparato, const QString& salida);
 
    signals:
+    /// Para el operador (ya traducido): los errores de las acciones de la interfaz.
+    void notify(const QString& texto, const QString& tipo);
     void aparatosCambio();
     void solicitudesCambio();
     void conexionesCambio();
