@@ -83,7 +83,7 @@ Rectangle {
             Text {
                 visible: borrarDlg.destinos > 0
                 Layout.fillWidth: true; wrapMode: Text.WordWrap
-                text: qsTr("Tiene %n destino(s) guardado(s): ¿qué pasa con ellos?", "", borrarDlg.destinos)
+                text: qsTr("Tiene %n destino guardado: ¿qué pasa con él?", "", borrarDlg.destinos)
                 color: Theme.text; font.pixelSize: 12
             }
             ComboBox {

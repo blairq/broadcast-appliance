@@ -519,7 +519,7 @@ ColumnLayout {
             spacing: 2
             Text {
                 Layout.fillWidth: true
-                text: qsTr("El ensayo grabó %n paso(s): de %1 a %2 en total", "", grab.g.pasos ? grab.g.pasos.length : 0)
+                text: qsTr("El ensayo grabó %n paso: de %1 a %2 en total", "", grab.g.pasos ? grab.g.pasos.length : 0)
                       .arg(Theme.mmss(grab.g.totalAntesSeg || 0)).arg(Theme.mmss(grab.g.totalGrabadoSeg || 0))
                 wrapMode: Text.WordWrap
                 color: Theme.text

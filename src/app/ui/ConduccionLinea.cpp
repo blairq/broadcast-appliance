@@ -225,7 +225,7 @@ void ConduccionLinea::despachar(const std::vector<Accion>& acc) {
     if (!corriendo() && grabar_ && corrida_ && grabado_.is_null()) {
         grabado_ = evento::linea::tiemposGrabados(linea(), corrida_->instancias());
         if (!grabado_["ops"].empty())
-            emit notify(QCoreApplication::translate("EventoViewModel", "El ensayo grabó los tiempos de %n paso(s): confirmalos para que queden como duraciones previstas", "",
+            emit notify(QCoreApplication::translate("EventoViewModel", "El ensayo grabó los tiempos de %n paso: confirmalos para que queden como duraciones previstas", "",
                            static_cast<int>(grabado_["ops"].size())),
                         "info");
     }
@@ -616,7 +616,7 @@ std::string ConduccionLinea::lineaGo(const std::string& salida) {
         // Arrancar es con la revisión previa, venga de donde venga (la conducción, la vista
         // de la línea o el MCP): con problemas graves no sale.
         if (const int graves = arrancarRevisando(false); graves > 0)
-            return QCoreApplication::translate("EventoViewModel", "La revisión encontró %n problema(s) grave(s): mirá evento_revisar y corregilo, o "
+            return QCoreApplication::translate("EventoViewModel", "La revisión encontró %n problema grave: mirá evento_revisar y corregilo, o "
                                        "arrancá igual con evento_correr {accion: arrancar, forzar: true}.",
                                        "", graves)
                 .toStdString();

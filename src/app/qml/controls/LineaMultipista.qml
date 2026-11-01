@@ -67,7 +67,7 @@ Item {
             // Silent Edition: lo arrastrado espera acá hasta confirmarlo.
             Text {
                 visible: mp.lv && mp.lv.pendientes.length > 0
-                text: mp.lv ? qsTr("%n cambio(s) sin confirmar", "", mp.lv.pendientes.length) : ""
+                text: mp.lv ? qsTr("%n cambio sin confirmar", "", mp.lv.pendientes.length) : ""
                 color: Theme.amber
                 font { pixelSize: 12; weight: Font.DemiBold }
                 ToolTip.visible: pendHover.hovered; ToolTip.delay: 300

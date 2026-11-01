@@ -82,7 +82,7 @@ Item {
             const pasos = (r.diff || []).filter(d => d.tipo === "paso" && d.que === "agregado").length
             ApplicationWindow.window.confirm({
                 title: qsTr("¿Importar la escaleta?"),
-                text: qsTr("Se suman %n paso(s) al final de la línea.", "", pasos)
+                text: qsTr("Se suma %n paso al final de la línea.", "", pasos)
                       + ((r.avisos || []).length > 0 ? "\n\n" + r.avisos.join("\n") : ""),
                 accept: qsTr("Importar"), reject: qsTr("Cancelar"),
                 action: function() {
@@ -127,7 +127,7 @@ Item {
         // Lo arrastrado espera acá hasta confirmarlo (lo mismo que en la Línea).
         Text {
             visible: esc.lv && esc.lv.pendientes.length > 0
-            text: esc.lv ? qsTr("%n cambio(s) sin confirmar", "", esc.lv.pendientes.length) : ""
+            text: esc.lv ? qsTr("%n cambio sin confirmar", "", esc.lv.pendientes.length) : ""
             color: Theme.amber
             font { pixelSize: 12; weight: Font.DemiBold }
             ToolTip.visible: pendEscHover.hovered; ToolTip.delay: 300
