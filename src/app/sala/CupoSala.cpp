@@ -30,7 +30,10 @@ std::string CupoSala::cambiar(int n, Listo listo) {
             // rige cuando arranque (lee el cupo de la configuración).
             ventanilla_.pedir("sala_cupo", [&rt = rt_, n]() {
                 rt.ajustarInvitados(n);
-                rt.fotoSucia(FotoMotor::Ajustes | FotoMotor::Escenas | FotoMotor::Sala);
+                // Y la configuración guardada (el cupo de app.json y gateway.json): sin ella
+                // Configuración seguía mostrando el cupo de antes al bajarlo (el formulario
+                // lee la parte Configuracion) y había que aplicarlo dos veces.
+                rt.fotoSucia(FotoMotor::Ajustes | FotoMotor::Escenas | FotoMotor::Sala | FotoMotor::Configuracion);
             });
             if (cambio_) cambio_(n);
         }
