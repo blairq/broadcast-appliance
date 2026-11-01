@@ -5,6 +5,7 @@
 // tope de peso y sin SVG con scripts), y que un sitio generado antes del tema pase a
 // /comun/tema.css sin perder lo que alguien cambió a mano.
 #include "evento/TemaEvento.hpp"
+#include "persist/ColaEscritura.hpp"
 
 #include <chrono>
 #include <cstdio>
@@ -66,6 +67,8 @@ int main() {
         check(t.tipografia.archivos.size() == 1 && t.tipografia.archivos[0].peso == "400", "fuente con peso por omisión");
         t.colores.acento = "#654321";
         check(t.guardar(ev), "guarda");
+        check(TemaEvento::leer(ev).colores.acento == "#654321", "lo guardado se lee enseguida (la cola del escritor)");
+        ba::persist::cola().vaciar();
         // Leído y cerrado ya: en Windows un archivo abierto no se puede reemplazar (y abajo se guarda de nuevo).
         const json j = [&] {
             std::ifstream f(ev / "tema.json");

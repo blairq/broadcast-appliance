@@ -210,17 +210,16 @@ class AppRuntime {
     /// Retoma las grabaciones pendientes de un corte, si las hay. La interfaz la pide
     /// sola sin evento abierto (con evento, la llama setCarpetaDelEvento).
     void retomarGrabaciones();
-    /// Dónde va la próxima grabación: <evento>/Grabaciones o la de la configuración.
-    /// Desde cualquier hilo (ajustesAire).
+    /// Dónde va la próxima grabación: <evento>/Grabaciones o la de la configuración. La
+    /// interfaz la lee de la foto (FotoMotor::sala.carpetaGrabacion, que arma el dueño).
     std::string carpetaGrabacion() const;
-    /// Dónde buscar grabaciones (para subir, listar): la del evento y Recordings/.
-    std::vector<std::string> carpetasDeGrabaciones() const;
     /// Lo que de verdad pasó con una orden de grabar/transmitir (BroadcastEngine::ResultadoOrden).
     using ResultadoOrden = BroadcastEngine::ResultadoOrden;
     using AlResultado = BroadcastEngine::AlResultado;
     /// Graba `salida`. true = ENCOLADA (queda pedida, «pendiente»); lo que pasó llega por
-    /// `listo` (desde el hilo de salidas del motor: quien lo recibe se lo encarga a su hilo)
-    /// y, si falló, deja de estar pedida (el documento de aire ya no dice que graba).
+    /// `listo`, EN EL DUEÑO y después de la foto que lo muestra (quien lo recibe se lo
+    /// encarga a su hilo), y si falló deja de estar pedida (el documento de aire ya no dice
+    /// que graba). Pedirlo otra vez mientras está pendiente es la misma orden.
     bool startRecording(const std::string& salida = "", AlResultado listo = {});
     void stopRecording(const std::string& salida = "");
     /// Graba una entrada a su propio archivo, ademas del programa. Ver
@@ -258,7 +257,7 @@ class AppRuntime {
     /// servidor (nunca la clave). La GUI y el MCP pasan por acá: el vivo queda en el
     /// bus y en el histórico venga de donde venga.
     bool salirAlAireManual(const std::string& server, const std::string& key, bool cambiarEnCaliente = false,
-                           const std::string& salida = "");
+                           const std::string& salida = "", AlResultado listo = {});
     void alVivoManual(std::function<void(const std::string& servidor)> f) { alVivoManual_ = std::move(f); }
 
     // --- Destinos adicionales de la transmisión (Config/destinos.json; la
@@ -291,8 +290,11 @@ class AppRuntime {
     /// Los renombres de escena (de, a) desde el número `desde`, en el orden en que pasaron;
     /// deja en `desde` el que sigue. Quien guarda cosas por el nombre de la escena (los
     /// conmutadores: la armada, las transiciones de entrada) los aplica a lo suyo al llegar
-    /// el aviso Cambio::Escenas. Desde cualquier hilo.
+    /// el aviso Cambio::Escenas. Desde cualquier hilo. `desde` es también quién lee: lo que
+    /// TODOS los lectores ya pasaron se descarta (no crece sin tope); al irse, el lector
+    /// llama a dejarDeLeerRenombres(desde).
     std::vector<std::pair<std::string, std::string>> renombresDeEscena(std::size_t& desde) const;
+    void dejarDeLeerRenombres(const std::size_t& desde) const;
     /// Carpeta de una escena ("" si no tiene).
     std::string sceneFolder(const std::string& name) const;
     /// Mueve la escena a una carpeta ("" la saca). Devuelve false si no existe.
@@ -575,7 +577,10 @@ class AppRuntime {
     std::function<void(const std::string&)> alVivoManual_;
     std::atomic<bool> reiniciandoSala_{false};
     mutable std::mutex renombresMu_;
-    std::vector<std::pair<std::string, std::string>> renombres_; ///< ver renombresDeEscena
+    /// Cuántos renombres se descartaron (el número de renombres_[0]) y dónde va cada lector.
+    mutable std::size_t renombresBase_ = 0;
+    mutable std::map<const std::size_t*, std::size_t> lectoresRenombres_;
+    mutable std::vector<std::pair<std::string, std::string>> renombres_; ///< ver renombresDeEscena (los ya leídos por todos se descartan)
     mutable std::mutex salidasMu_;
     nlohmann::json salidasPublicadas_ = nlohmann::json::array();
     /// LO PEDIDO de cada salida (emision/PedidosSalida.hpp): el ÚNICO dueño. Lo cambian las

@@ -14,6 +14,7 @@
 
 #include "evento/LineaIntercambio.hpp"
 #include "i18n/I18n.hpp"
+#include "persist/ColaEscritura.hpp"
 #include "ui/CorridaViewModel.hpp"
 #include "ui/EventoAbierto.hpp"
 #include <QCoreApplication>
@@ -215,19 +216,18 @@ QString InformeEventoViewModel::acta(const QJsonArray& votaciones) const {
 QString InformeEventoViewModel::guardarActa(const QString& texto) const {
     if (!ab_.hay()) return {};
     const QString nombre = "acta-" + QDateTime::currentDateTime().toString("yyyy-MM-dd-HHmm") + ".md";
-    const QString ruta =
-        QString::fromStdString((ab_.dir() / nombre.toStdString()).string());
-    QFile f(ruta);
-    if (!f.open(QIODevice::WriteOnly | QIODevice::Truncate)) return {};
-    f.write(texto.toUtf8());
-    if (f.error() != QFile::NoError) return {};
-    f.close();
-    // La huella del acta (SHA-256), al lado: cualquiera puede verificar que el
-    // texto no cambió (`shasum -a 256 -c acta-….md.sha256`).
-    QFile h(ruta + ".sha256");
-    if (h.open(QIODevice::WriteOnly | QIODevice::Truncate))
-        h.write(hashActa(texto).toUtf8() + "  " + nombre.toUtf8() + "\n");
-    return ruta;
+    const std::filesystem::path archivo = ab_.dir() / nombre.toStdString();
+    // Tiene valor legal: el escritor único, entero o nada y bajado al disco hasta su caché
+    // (Critica), en su hilo (no traba la interfaz). Primero el acta y después su huella
+    // (SHA-256), al lado: cualquiera puede verificar que el texto no cambió
+    // (`shasum -a 256 -c acta-….md.sha256`). Si el disco falla, se reintenta y va al registro.
+    const ba::persist::Pedido critico{ba::persist::Durabilidad::Critica, ba::persist::Prioridad::Normal,
+                                      ba::persist::Permisos::Comunes, {}};
+    ba::persist::cola().escribir(archivo, texto.toUtf8().toStdString(), critico);
+    std::filesystem::path huella = archivo;
+    huella += ".sha256";
+    ba::persist::cola().escribir(huella, (hashActa(texto) + "  " + nombre + "\n").toUtf8().toStdString(), critico);
+    return QString::fromStdString(archivo.string());
 }
 
 QString InformeEventoViewModel::hashActa(const QString& texto) {
@@ -317,12 +317,9 @@ QString InformeEventoViewModel::guardarInforme() {
     const QDir carpeta(QString::fromStdString(ab_.dir().string()));
     const QString nombre = "informe-" + QDateTime::currentDateTime().toString("yyyyMMdd-HHmmss") + ".json";
     const QString ruta = carpeta.filePath(nombre);
-    QFile f(ruta);
-    if (!f.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
-        emit notify(QCoreApplication::translate("EventoViewModel", "No se pudo escribir el informe en %1").arg(ruta), "error");
-        return {};
-    }
-    f.write(QJsonDocument(QJsonObject::fromVariantMap(inf)).toJson());
+    // El escritor único, por su cola (fuera de la interfaz; si el disco falla, se reintenta
+    // y va al registro).
+    ba::persist::cola().escribir(ruta.toStdWString(), QJsonDocument(QJsonObject::fromVariantMap(inf)).toJson().toStdString());
     emit notify(QCoreApplication::translate("EventoViewModel", "Informe guardado en %1").arg(nombre), "ok");
     return ruta;
 }
@@ -359,9 +356,9 @@ QString rutaLocal(const QString& r) {
 QString InformeEventoViewModel::exportarEscaleta(const QString& formato, const QString& rutaOUrl) {
     if (!ab_.hay()) return QCoreApplication::translate("EventoViewModel", "No hay un evento abierto.");
     const QString ruta = rutaLocal(rutaOUrl);
-    QFile f(ruta);
-    if (!f.open(QIODevice::WriteOnly | QIODevice::Truncate)) return QCoreApplication::translate("EventoViewModel", "No se pudo escribir «%1».").arg(ruta);
-    f.write(QByteArray::fromStdString(lineaExportar(formato.toStdString())));
+    if (ruta.isEmpty()) return QCoreApplication::translate("EventoViewModel", "No se pudo escribir «%1».").arg(ruta);
+    // El escritor único, por su cola (fuera de la interfaz).
+    ba::persist::cola().escribir(ruta.toStdWString(), lineaExportar(formato.toStdString()));
     return {};
 }
 

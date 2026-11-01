@@ -10,13 +10,16 @@
 #include "ui/ConferenceClient.hpp"
 #include "ui/ConferenceViewModel.hpp"
 
+#include <QCoreApplication>
 #include <QDateTime>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QPointer>
 #include <QStringList>
 
 #include <algorithm>
+#include <atomic>
 #include <cmath>
 
 namespace ba::app {
@@ -43,7 +46,7 @@ QVariantList listaDe(const nlohmann::json& j) {
 struct Grabar {
     bool confirmar = false, ok = false;
     double horas = -1;
-    std::string carpeta, error;
+    std::string error;
 };
 
 /// Cómo salió salir al aire (BroadcastEngine::ultimoInicio).
@@ -52,6 +55,21 @@ struct Transmitir {
     BroadcastEngine::Inicio inicio{};
     std::string activo, error;
 };
+
+/// Lo que de verdad pasó con una orden de grabar o transmitir (llega en el dueño, cuando el
+/// motor la hizo), a la vista y en su hilo; si la vista se fue, nada. Una falla ya la avisa
+/// el motor (una línea en el registro y el aviso de la interfaz: alFallarMotor): acá, lo
+/// que la vista dice cuando arrancó de verdad.
+AppRuntime::AlResultado aLaVista(QPointer<EmisionViewModel> yo,
+                                 std::function<void(EmisionViewModel&, const AppRuntime::ResultadoOrden&)> fn) {
+    return [yo, fn = std::move(fn)](const AppRuntime::ResultadoOrden& r) {
+        QMetaObject::invokeMethod(
+            qApp, [yo, fn, r]() {
+                if (yo) fn(*yo, r);
+            },
+            Qt::QueuedConnection);
+    };
+}
 
 } // namespace
 
@@ -136,26 +154,27 @@ void EmisionViewModel::toggleRecording() {
     // el disco; con poco, vuelve a pedir que el operador confirme).
     p_.ventanilla.pedir(
         this, "grabar",
-        [&rt = p_.rt]() {
+        [&rt = p_.rt, yo = QPointer<EmisionViewModel>(this)]() {
             Grabar g;
             g.horas = rt.discoGrabacion().value("horas", -1.0);
             if (g.horas >= 0 && g.horas < AppRuntime::kDiscoMinimoH) {
                 g.confirmar = true;
                 return g;
             }
-            g.ok = rt.startRecording();
-            g.carpeta = rt.carpetaGrabacion();
+            g.ok = rt.startRecording({}, aLaVista(yo, [horas = g.horas, carpeta = qs(rt.carpetaGrabacion())](
+                                                          EmisionViewModel& vm, const AppRuntime::ResultadoOrden& r) {
+                if (!r.ok) return;
+                if (horas >= 0 && horas < 2)
+                    emit vm.notify(tr("Ojo: el disco alcanza para ~%1 h de grabación").arg(horas, 0, 'f', 1), "warn");
+                emit vm.notify(tr("Grabando en %1").arg(carpeta), "ok");
+            }));
             if (!g.ok) g.error = rt.lastError();
             return g;
         },
         [this](const Grabar& g) {
             if (g.confirmar) return emit pedirConfirmarGrabacion(g.horas);
-            if (!g.ok) {
-                emit notify(tr("No se pudo grabar: %1").arg(qs(g.error)), "error");
-            } else {
-                if (g.horas >= 0 && g.horas < 2) emit notify(tr("Ojo: el disco alcanza para ~%1 h de grabación").arg(g.horas, 0, 'f', 1), "warn");
-                emit notify(tr("Grabando en %1").arg(qs(g.carpeta)), "ok");
-            }
+            // Ni se pudo pedir; lo que pasa después lo dice el motor (aLaVista).
+            if (!g.ok) emit notify(tr("No se pudo grabar: %1").arg(qs(g.error)), "error");
         });
 }
 
@@ -163,34 +182,42 @@ void EmisionViewModel::grabarIgual() {
     if (p_.ventanilla.foto().estado.graba) return;
     p_.ventanilla.pedir(
         this, "grabar_igual",
-        [&rt = p_.rt]() { return rt.startRecording() ? std::string() : rt.lastError().empty() ? std::string("?") : rt.lastError(); },
+        [&rt = p_.rt, yo = QPointer<EmisionViewModel>(this)]() {
+            const bool ok = rt.startRecording({}, aLaVista(yo, [](EmisionViewModel& vm, const AppRuntime::ResultadoOrden& r) {
+                if (r.ok) emit vm.notify(tr("Grabando (con poco disco)"), "warn");
+            }));
+            return ok ? std::string() : rt.lastError().empty() ? std::string("?") : rt.lastError();
+        },
         [this](const std::string& e) {
-            if (e.empty())
-                emit notify(tr("Grabando (con poco disco)"), "warn");
-            else
-                emit notify(tr("No se pudo grabar: %1").arg(qs(e)), "error");
+            if (!e.empty()) emit notify(tr("No se pudo grabar: %1").arg(qs(e)), "error");
         });
 }
 
 void EmisionViewModel::startStreaming(const QString& server, const QString& key) {
     p_.ventanilla.pedir(
         this, "transmitir",
-        [&rt = p_.rt, s = server.toStdString(), k = key.toStdString()]() {
+        [&rt = p_.rt, s = server.toStdString(), k = key.toStdString(), yo = QPointer<EmisionViewModel>(this)]() {
             Transmitir t;
-            t.ok = rt.salirAlAireManual(s, k);
+            // Lo que hizo la orden lo sabe el que llama recién al volver; la respuesta del
+            // motor llega después (en el dueño, después de esto).
+            const auto igual = std::make_shared<std::atomic<bool>>(false);
+            t.ok = rt.salirAlAireManual(s, k, false, {}, aLaVista(yo, [igual](EmisionViewModel& vm, const AppRuntime::ResultadoOrden& r) {
+                if (!r.ok) return;
+                // Nunca un "Al aire" verde si no cambió nada.
+                if (*igual)
+                    emit vm.notify(tr("Ya estabas transmitiendo a ese destino: no cambió nada"), "info");
+                else
+                    emit vm.notify(tr("Al aire"), "ok");
+            }));
             t.inicio = rt.engine().ultimoInicio();
+            *igual = t.ok && t.inicio == BroadcastEngine::Inicio::YaIgual;
             t.activo = rt.engine().destinoActivo();
             t.error = rt.lastError();
             return t;
         },
         [this, server, key](const Transmitir& t) {
-            if (t.ok) {
-                // Nunca un "Al aire" verde si no cambió nada.
-                if (t.inicio == BroadcastEngine::Inicio::YaIgual)
-                    emit notify(tr("Ya estabas transmitiendo a ese destino: no cambió nada"), "info");
-                else
-                    emit notify(tr("Al aire"), "ok");
-            } else if (t.inicio == BroadcastEngine::Inicio::YaOtroDestino) {
+            if (t.ok) return; // lo dice la respuesta del motor (aLaVista)
+            if (t.inicio == BroadcastEngine::Inicio::YaOtroDestino) {
                 emit pedirCambioDestino(qs(t.activo), server, key);
             } else {
                 emit notify(tr("No se pudo transmitir: %1").arg(qs(t.error)), "error");
@@ -201,14 +228,14 @@ void EmisionViewModel::startStreaming(const QString& server, const QString& key)
 void EmisionViewModel::cambiarDestinoStream(const QString& server, const QString& key) {
     p_.ventanilla.pedir(
         this, "transmitir_cambiar",
-        [&rt = p_.rt, s = server.toStdString(), k = key.toStdString()]() {
-            return rt.salirAlAireManual(s, k, true) ? std::string() : rt.lastError().empty() ? std::string("?") : rt.lastError();
+        [&rt = p_.rt, s = server.toStdString(), k = key.toStdString(), yo = QPointer<EmisionViewModel>(this)]() {
+            const bool ok = rt.salirAlAireManual(s, k, true, {}, aLaVista(yo, [](EmisionViewModel& vm, const AppRuntime::ResultadoOrden& r) {
+                if (r.ok) emit vm.notify(tr("Transmitiendo al destino nuevo"), "ok");
+            }));
+            return ok ? std::string() : rt.lastError().empty() ? std::string("?") : rt.lastError();
         },
         [this](const std::string& e) {
-            if (e.empty())
-                emit notify(tr("Transmitiendo al destino nuevo"), "ok");
-            else
-                emit notify(tr("No se pudo cambiar de destino: %1").arg(qs(e)), "error");
+            if (!e.empty()) emit notify(tr("No se pudo cambiar de destino: %1").arg(qs(e)), "error");
         });
 }
 

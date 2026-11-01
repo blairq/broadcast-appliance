@@ -24,8 +24,14 @@ tiempos, la resolución, la red); falta para Asamblea, Sala, Asistente y Escrito
   ahí, como pide macOS); la primera foto se publica ahí y después
   `PlanoControl::enControlYEsperar` muda al dueño. Al cerrar, `devolverElMotor` (GuiMode)
   para el plano y el hilo principal vuelve a ser dueño para el cierre ordenado: lo que quedó
-  en la agenda corre ahí, ya como dueño (`PlanoControl::detener(alRecibir)`), y lo que se
-  encola con el plano parado también (encolado): ninguna respuesta se pierde.
+  en la agenda corre ahí, ya como dueño (`PlanoControl::detener(alRecibir)`, que lo recibe
+  una sola vez aunque se llame de nuevo). Lo que se encola con el plano parado queda
+  PENDIENTE para ese hilo: corre en su bucle si todavía anda, y si no (después de
+  `app.exec()`, lo que piden los destructores de las vistas) cuando GuiMode llama a
+  `PlanoControl::atenderPendientes`, justo antes de `rt.stop()`. Lo que se encole DESPUÉS
+  de eso (con el runtime ya parado) no corre: el plano lo anota en el registro al irse
+  («quedaron N órdenes sin correr»). `despues(ms, …)` con el plano parado no espera: va
+  con lo pendiente.
 
 ## La API para los view models: `emision/VentanillaMotor`
 

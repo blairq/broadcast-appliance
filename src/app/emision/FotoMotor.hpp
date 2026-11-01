@@ -243,7 +243,9 @@ struct FotoMotor {
         int pinggyPuertoTunel = 8786;
         // Lo del operador y lo que se graba.
         std::string operadorVideo, operadorAudio; ///< con qué aparece ante el lobby
-        std::string carpetaGrabacion;             ///< cfg rec.directory
+        /// Donde va la próxima grabación (la EFECTIVA: <evento>/Grabaciones con un evento
+        /// abierto, si no la de la configuración; AppRuntime::carpetaGrabacion, en el dueño).
+        std::string carpetaGrabacion;
         std::vector<std::string> audio;           ///< las fuentes con audio (BroadcastEngine::audioSources)
         // La fuente «Banca con la palabra».
         bool hayFuenteBanca = false;
@@ -315,6 +317,49 @@ struct FotoMotor {
     MezclaAudio mezcla;
 
     // --- Qué cambió ---------------------------------------------------------------------
+    /// LOS CAMPOS QUE SE REARMAN CON OTRA PARTE: cada uno es de su parte (`de`, la que se
+    /// compara y avisa), pero quien lo arma lo rehace también cuando está sucia alguna de
+    /// `por` (lo que lo mueve está en ellas). Es la tabla ÚNICA: quien arma el campo pregunta
+    /// `rearmar(kX, sucias)` y la publicación compara `sucias | arrastradas(sucias)`
+    /// (comparadas), así lo que se rehízo siempre se compara con su parte y avisa. Un campo
+    /// que se arma con otra parte se suma acá, nunca con un `if` propio.
+    struct Arrastre {
+        Parte de;
+        unsigned por;
+    };
+    /// fuentesVideo: los ajustes de una capa (Cambio::Capa ensucia Escenas).
+    static constexpr Arrastre kFuentesVideo{Video, Escenas};
+    /// alAire: cada corte (Salidas) y lo que hay en cada escena (Escenas).
+    static constexpr Arrastre kAlAire{Video, Salidas | Escenas};
+    /// configImagen: la mejora y el legalizador son de la configuración (Ajustes).
+    static constexpr Arrastre kConfigImagen{Video, Ajustes};
+    /// dsk: con la lista de salidas y en cada vuelta del motor (un fundido que se mueve).
+    static constexpr Arrastre kDsk{Superficies, Salidas};
+    /// temaWeb: es de la configuración (Ajustes).
+    static constexpr Arrastre kTemaWeb{Superficies, Ajustes};
+    static constexpr Arrastre kArrastres[] = {kFuentesVideo, kAlAire, kConfigImagen, kDsk, kTemaWeb};
+
+    /// ¿Se rearma el campo `a` con estas partes sucias? (Su parte o las que lo mueven.)
+    static constexpr bool rearmar(const Arrastre& a, unsigned sucias) { return (sucias & (a.de | a.por)) != 0; }
+    /// Las partes que, además de las sucias, se rehacen al rearmar `sucias`.
+    static constexpr unsigned arrastradas(unsigned sucias) {
+        unsigned d = 0;
+        for (const Arrastre& a : kArrastres)
+            if ((sucias & a.por) != 0) d |= a.de;
+        return d;
+    }
+    /// Lo que hay que comparar al publicar después de rearmar `sucias`.
+    static constexpr unsigned comparadas(unsigned sucias) { return sucias | arrastradas(sucias); }
+    /// Lo que cambió al rearmar `sucias` (de `a` a `b`): lo que la ventanilla avisa.
+    static unsigned queCambio(const FotoMotor& a, const FotoMotor& b, unsigned sucias) {
+        return partesDistintas(a, b, comparadas(sucias));
+    }
+    /// Lo que cambió SIN que se lo compare (un campo armado con una parte que no está en la
+    /// tabla de arriba): tiene que dar 0. Lo mira la publicación en --test y el test.
+    static unsigned cambioSinMarcar(const FotoMotor& a, const FotoMotor& b, unsigned sucias) {
+        return partesDistintas(a, b, Todas & ~comparadas(sucias));
+    }
+
     /// De las partes `cuales`, las que `b` tiene distintas de `a`. Lo que compone cada
     /// parte está ACÁ, junto a sus campos: un campo nuevo se suma a su parte en esta tabla.
     static unsigned partesDistintas(const FotoMotor& a, const FotoMotor& b, unsigned cuales) {

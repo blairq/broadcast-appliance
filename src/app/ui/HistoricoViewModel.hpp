@@ -140,7 +140,9 @@ class HistoricoViewModel : public QObject {
     /// «¿Qué borraría?»: la retención simulada, en el fondo (avisa con `retencionSimulada`).
     Q_INVOKABLE void simularRetencion();
     /// Vuelve a medir el disco (en el fondo; llega en `disco`).
-    Q_INVOKABLE void medirDisco();
+    Q_INVOKABLE void medirDisco() { medirDiscoY({}); }
+    /// Lo mismo, y `listo` con la medida (en este hilo, después de `discoCambio`).
+    void medirDiscoY(std::function<void(const json&)> listo);
     bool buscando() const { return buscando_; }
 
     Q_INVOKABLE void abrirCarpeta(const QString& carpeta, const QString& sub = {});
@@ -150,10 +152,12 @@ class HistoricoViewModel : public QObject {
     QVariantMap ajustes() const;
     /// RETENCIÓN (Config/historico.json «retencion»: grabaciones_dias, 0 = nunca;
     /// aviso_disco_pct): borra las grabaciones de los eventos terminados hace más
-    /// de N días (todo lo demás queda). Con `simular`, solo dice qué borraría.
-    json retencion(bool simular);
-    /// El disco de Eventos/: {libre_gb, total_gb, usado_pct, aviso_pct, lleno}.
-    json disco() const;
+    /// de N días (todo lo demás queda). Con `simular`, solo dice qué borraría. Recorre y
+    /// borra EN EL FONDO (pueden ser gigas); `listo` recibe lo hecho en este hilo (con lo
+    /// borrado, la lista y el detalle ya se están releyendo).
+    void retencion(bool simular, std::function<void(const json&)> listo);
+    /// El disco de Eventos/ (la última medida: medirDisco): {libre_gb, total_gb, usado_pct,
+    /// aviso_pct, lleno}.
     QVariantMap discoUi() const { return disco_; }
     static QVariantMap aQvPublico(const json& j);
     /// {registrar: {bus, mcp, …}, bus_excluir: [...], evento_automatico}. "" o el error.

@@ -17,7 +17,7 @@
 #include <algorithm>
 #include <chrono>
 #include <cmath>
-#include <fstream>
+#include <sstream>
 
 #include "ajustes/Ajustes.hpp"
 #include "comun/Restante.hpp"
@@ -690,9 +690,10 @@ void CorridaViewModel::volcarRecorrido() {
     const std::vector<json> v = corrida_->sacarRecorrido();
     // Lo emitido de verdad: lo del ensayo no se anota.
     if (v.empty() || ensayo_ || !ab_.hay()) return;
-    std::ofstream f(archivoRecorrido(), std::ios::app);
-    for (const json& x : v)
-        f << x.dump(-1, ' ', false, json::error_handler_t::replace) << '\n';
+    // Un diario: se suma al final por la cola del escritor único (fuera de la interfaz).
+    std::string lineas;
+    for (const json& x : v) lineas += x.dump(-1, ' ', false, json::error_handler_t::replace) + '\n';
+    ba::persist::cola().agregar(archivoRecorrido(), std::move(lineas));
 }
 
 // --- La línea, para el MCP ---------------------------------------------------------
@@ -975,7 +976,9 @@ std::string CorridaViewModel::lineaInsertar(const std::string& salida, const std
 
 json CorridaViewModel::lineaRecorrido(int ultimos) const {
     json v = json::array();
-    std::ifstream f(archivoRecorrido());
+    std::string texto; // con lo encolado para sumar (volcarRecorrido)
+    ba::persist::cola().leer(archivoRecorrido(), texto);
+    std::istringstream f(texto);
     for (std::string l; std::getline(f, l);) {
         json x = json::parse(l, nullptr, false);
         if (!x.is_object()) continue;

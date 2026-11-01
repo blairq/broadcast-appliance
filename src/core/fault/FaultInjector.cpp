@@ -17,6 +17,7 @@
 // path). Ninguna funcion lanza.
 
 #include "fault/FaultInjector.hpp"
+#include "persist/Escritor.hpp"
 
 #include <algorithm>
 #include <cstdint>
@@ -83,14 +84,8 @@ bool writeWithFault(const FaultInjector& injector, const std::string& sourcePath
         data[0] = static_cast<char>(static_cast<unsigned char>(data[0]) ^ 0x01u);
     }
 
-    // 3) Escribir la copia (binario, truncando el destino previo).
-    std::ofstream out(outPath, std::ios::binary | std::ios::trunc);
-    if (!out) {
-        return false; // no se puede escribir el destino
-    }
-    out.write(data.data(), static_cast<std::streamsize>(data.size()));
-    out.close();
-    return out.good();
+    // 3) Escribir la copia (el escritor único: entera o nada).
+    return ba::persist::escribir(outPath, data);
 }
 
 } // namespace ba::fault

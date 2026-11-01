@@ -139,6 +139,61 @@ bool escribir(const fs::path& ruta, std::string_view bytes, Durabilidad d, Permi
 #endif
 }
 
+bool agregar(const fs::path& ruta, std::string_view bytes, Durabilidad d, std::string* error) {
+    std::error_code ec;
+    const fs::path carpeta = ruta.parent_path();
+    if (!carpeta.empty()) fs::create_directories(carpeta, ec);
+#if defined(_WIN32)
+    (void)d;
+    HANDLE h = CreateFileW(ruta.wstring().c_str(), FILE_APPEND_DATA, FILE_SHARE_READ, nullptr, OPEN_ALWAYS,
+                           FILE_ATTRIBUTE_NORMAL, nullptr);
+    if (h == INVALID_HANDLE_VALUE) {
+        anotar(error, "no se pudo abrir", ruta, ultimoError());
+        return false;
+    }
+    std::size_t hecho = 0;
+    bool ok = true;
+    while (ok && hecho < bytes.size()) {
+        const DWORD n = static_cast<DWORD>(std::min<std::size_t>(bytes.size() - hecho, 1u << 30));
+        DWORD escritos = 0;
+        ok = WriteFile(h, bytes.data() + hecho, n, &escritos, nullptr) != 0 && escritos == n;
+        hecho += escritos;
+    }
+    if (ok) ok = FlushFileBuffers(h) != 0;
+    const std::string porQue = ok ? std::string() : ultimoError();
+    CloseHandle(h);
+    if (!ok) anotar(error, "no se pudo agregar a", ruta, porQue);
+    return ok;
+#else
+    const bool nuevo = !fs::exists(ruta, ec);
+    const int fd = ::open(ruta.c_str(), O_WRONLY | O_CREAT | O_APPEND | O_CLOEXEC, 0644);
+    if (fd < 0) {
+        anotar(error, "no se pudo abrir", ruta, ultimoError());
+        return false;
+    }
+    std::size_t hecho = 0;
+    bool ok = true;
+    while (hecho < bytes.size()) {
+        const ssize_t n = ::write(fd, bytes.data() + hecho, bytes.size() - hecho);
+        if (n < 0 && errno == EINTR) continue;
+        if (n <= 0) {
+            ok = false;
+            break;
+        }
+        hecho += static_cast<std::size_t>(n);
+    }
+    if (ok) ok = bajar(fd, d);
+    const std::string porQue = ok ? std::string() : ultimoError();
+    if (::close(fd) != 0 && ok) ok = false;
+    if (!ok) {
+        anotar(error, "no se pudo agregar a", ruta, porQue);
+        return false;
+    }
+    if (nuevo) bajarCarpeta(carpeta, d); // el archivo nuevo es una entrada de la carpeta
+    return true;
+#endif
+}
+
 bool borrar(const fs::path& ruta) {
     std::error_code ec;
     const bool habia = fs::remove(ruta, ec);

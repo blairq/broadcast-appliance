@@ -658,9 +658,14 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
         t.run = [&vm](const json& a, Done done) {
             auto* h = vm.historico();
             if (h == nullptr) return done(ToolResult::error(ba::i18n::traducir("mcp", "el histórico no está disponible")));
-            json r = h->retencion(a.value("simular", true));
-            r["disco"] = h->disco();
-            done(ToolResult().data(r));
+            // Las dos en el fondo del histórico; se contesta al terminar.
+            h->retencion(a.value("simular", true), [h, done](const json& r) {
+                h->medirDiscoY([r, done](const json& d) {
+                    json x = r;
+                    x["disco"] = d;
+                    done(ToolResult().data(x));
+                });
+            });
         };
         core.addTool(std::move(t));
     }

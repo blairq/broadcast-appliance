@@ -105,9 +105,4 @@ nlohmann::json EnergiaAire::estado() const {
     return aJson(ultimo_, accion_, emergencia_.load());
 }
 
-nlohmann::json EnergiaAire::estadoAhora() const {
-    const platform::EstadoEnergia e = leer();
-    return aJson(e, platform::decidirEnergia(e, politica()), emergencia_.load());
-}
-
 } // namespace ba::app

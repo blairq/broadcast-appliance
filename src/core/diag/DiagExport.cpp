@@ -16,6 +16,7 @@
 //      flujo de emision: no debe tumbar al launcher.
 
 #include "DiagExport.hpp"
+#include "persist/Escritor.hpp"
 
 #include <algorithm>
 #include <chrono>
@@ -203,15 +204,10 @@ ExportResult DiagExport::exportBundle(const std::string& logDir, const std::stri
         meta["logFiles"] = static_cast<std::uint64_t>(logs.size());
         meta["totalBytes"] = static_cast<std::uint64_t>(totalBytes);
 
-        // Escribe el bundle: header + metadatos + secciones de logs.
-        std::ofstream out(outPath, std::ios::binary | std::ios::trunc);
-        if (!out) {
-            return res; // no se pudo abrir el destino
-        }
-
-        auto writeAll = [&out](const std::string& s) {
-            out.write(s.data(), static_cast<std::streamsize>(s.size()));
-        };
+        // Arma el bundle (header + metadatos + secciones de logs) y lo escribe entero o
+        // nada (el escritor único).
+        std::string out;
+        auto writeAll = [&out](const std::string& s) { out += s; };
 
         writeAll(std::string(kBundleHeader) + "\n");
         writeAll(meta.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace) + "\n");
@@ -229,8 +225,7 @@ ExportResult DiagExport::exportBundle(const std::string& logDir, const std::stri
             }
         }
 
-        out.flush();
-        if (!out) {
+        if (!ba::persist::escribir(outPath, out)) {
             return res; // fallo al escribir
         }
         res.ok = true;
