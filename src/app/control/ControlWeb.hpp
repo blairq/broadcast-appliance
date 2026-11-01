@@ -96,6 +96,7 @@
 #include <nlohmann/json.hpp>
 
 #include <cstdint>
+#include <algorithm>
 #include <deque>
 #include <filesystem>
 #include <functional>
@@ -165,7 +166,11 @@ class ControlWeb : public QObject {
     std::string solicitud(const std::string& solicitud, const std::string& codigo, const std::string& nombre,
                           const std::string& ip);
     /// ¿Esa solicitud ya llegó (espera a una persona)? (ver ControlWebGateway::sincronizar)
-    bool tieneSolicitud(const std::string& solicitud) const { return solicitudes_.count(solicitud) > 0; }
+    /// También las ya resueltas: el gateway todavía la puede listar como pendiente (no llegó el
+    /// «resolver») y volver a tratarla gastaría el código de nuevo y la daría por inválida.
+    bool tieneSolicitud(const std::string& solicitud) const {
+        return solicitudes_.count(solicitud) > 0 || std::find(resueltas_.begin(), resueltas_.end(), solicitud) != resueltas_.end();
+    }
     /// Aprueba (genera el token: {aprobada, aparato, token}) o rechaza. `perfil`
     /// null = el que propuso el código. Aprobar SOLO si `humano`: si no, {error}.
     json resolverSolicitud(const std::string& solicitud, bool aprobar, const json& perfil, bool humano);
@@ -288,6 +293,7 @@ class ControlWeb : public QObject {
     std::map<std::string, Conn> conns_;
     std::map<std::string, Codigo> codigos_;
     std::map<std::string, Solicitud> solicitudes_;
+    std::deque<std::string> resueltas_; ///< las últimas resueltas (ver tieneSolicitud)
     std::map<std::string, Sondeo> sondeos_;
     std::string ultimasSalidas_; ///< la lista que vieron los aparatos (salidasCambiaron)
 };

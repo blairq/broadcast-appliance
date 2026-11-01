@@ -158,6 +158,8 @@ int main(int argc, char** argv) {
     const std::string token = r.value("token", "");
     const std::string ap = r.value("aparato", "");
     CHECK(r.value("aprobada", false) && token.size() == 64 && !ap.empty(), "una persona aprueba: aparato y token");
+    CHECK(cw.tieneSolicitud("s1") && cw.solicitudes().empty(),
+          "resuelta: el gateway todavía la puede listar como pendiente y no se vuelve a tratar (gastaría el código)");
     CHECK(credenciales > credAntes && !resueltas.empty() && resueltas.back().value("estado", "") == "aprobada" &&
               resueltas.back().value("token", "") == token,
           "credenciales al gateway y el token a la solicitud");

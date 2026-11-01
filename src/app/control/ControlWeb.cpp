@@ -312,6 +312,8 @@ json ControlWeb::resolverSolicitud(const std::string& sol, bool aprobar, const j
     }
     const Solicitud s = it->second;
     solicitudes_.erase(it);
+    resueltas_.push_back(sol);
+    if (resueltas_.size() > 64) resueltas_.pop_front();
     emit solicitudesCambio();
     if (!aprobar) {
         ba::diag::registro().linea(ba::diag::Nivel::Info, "control-web", 0,

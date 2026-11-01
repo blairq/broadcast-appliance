@@ -1763,6 +1763,8 @@ json Botonera::resolverSolicitud(const std::string& sol, bool aprobar, const std
     Solicitud s = it->second;
     if (aprobar && !perfil.empty()) s.perfil = perfil;
     solicitudes_.erase(it);
+    resueltas_.push_back(sol);
+    if (resueltas_.size() > 64) resueltas_.pop_front();
     emit solicitudesCambio();
     if (!aprobar) {
         auditar(s.ip, "emparejar_negado", s.nombre);

@@ -265,6 +265,7 @@ int main(int argc, char** argv) {
     CHECK(!bot.solicitud("s2", codigo, "otra", "10.0.0.3").empty(), "el código es de un solo uso");
     const json ap = bot.resolverSolicitud("s1", true);
     CHECK(ap["aprobada"] == true && ap["token"].get<std::string>().size() == 64, "aprobada, token de 256 bits");
+    CHECK(bot.tieneSolicitud("s1"), "resuelta: si el gateway la lista todavía, no se vuelve a tratar");
     const json cred = bot.credencialesParaGateway();
     CHECK(cred.size() == 1, "una credencial para el gateway");
     const std::string esperado =
