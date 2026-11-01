@@ -22,10 +22,13 @@
 //      escritura mas grande que el buffer del SO; EOF cuando el otro lado sale;
 //      el nombre ocupado por un servidor vivo no se puede tomar; un servidor
 //      que murio sin cerrar no bloquea el nombre; timeout de connect;
-//      ControlEndpoint de punta a punta sobre el socket.
+//      ControlEndpoint de punta a punta sobre el socket; un cliente que manda y
+//      cierra antes de que el servidor lo acepte (el shutdown del launcher) igual
+//      entrega su mensaje, y el canal sigue atendiendo al próximo.
 //   4. SingleInstance: exclusion dentro del proceso y entre procesos.
 
 #include "ipc/ControlProtocol.hpp"
+#include "ipc/ControlService.hpp"
 #include "platform/Herramientas.hpp"
 #include "platform/LocalSocket.hpp"
 #include "platform/Paths.hpp"
@@ -687,6 +690,37 @@ void testControlEndpointOverSocket() {
     CHECK(fired);
 }
 
+// El launcher pide el cierre así: conecta, manda el Shutdown y cierra en el acto, antes de
+// que el bucle del hijo (que acepta cada 250 ms) llegue a aceptarlo. El mensaje tiene que
+// llegar igual (en Windows, ConnectNamedPipe sobre un cliente que ya se fue da ERROR_NO_DATA
+// y el Shutdown se perdía: B cerraba recién con la señal de terminación) y el canal tiene que
+// seguir vivo para el próximo cliente.
+void testControlClienteQueMandaYSeVa() {
+    const std::string name = uniqueName("ctl-va");
+    ba::ipc::ControlService svc;
+    CHECK(svc.start(name));
+    for (int vuelta = 0; vuelta < 3; ++vuelta) {
+        {
+            LocalStream c;
+            CHECK(LocalStream::connect(name, 5000, c));
+            ba::ipc::ControlEndpoint launcher(c, ba::ipc::ControlEndpoint::kLauncher);
+            ba::ipc::Message m;
+            m.type = ba::ipc::Type::Shutdown;
+            m.payload = "{}";
+            CHECK(launcher.sendRequest(m));
+        } // el cliente cierra acá, sin esperar nada
+        int recibidos = 0;
+        for (int i = 0; i < 100 && recibidos == 0; ++i) {
+            svc.poll([&recibidos](const ba::ipc::Message& m) {
+                if (m.type == ba::ipc::Type::Shutdown) ++recibidos;
+            });
+            if (recibidos == 0) std::this_thread::sleep_for(20ms);
+        }
+        if (recibidos != 1) std::printf("  vuelta %d: %d Shutdown recibidos\n", vuelta, recibidos);
+        CHECK(recibidos == 1);
+    }
+}
+
 // ============================================================================
 // 4) SingleInstance
 // ============================================================================
@@ -777,6 +811,7 @@ int main(int argc, char** argv) {
     testSocketNameInUseAndStale();
     testSocketConnectTimeout();
     testControlEndpointOverSocket();
+    testControlClienteQueMandaYSeVa();
     testSingleInstance();
     testRutasDeDatos();
 

@@ -201,7 +201,7 @@ int LocalStream::read(std::uint8_t* buf, std::size_t cap) {
     HANDLE h = static_cast<HANDLE>(pipe_);
     DWORD avail = 0;
     if (!PeekNamedPipe(h, nullptr, 0, nullptr, &avail, nullptr)) {
-        return -1; // ERROR_BROKEN_PIPE: el otro lado cerro
+        return -1; // ERROR_BROKEN_PIPE: el otro lado cerro (y no queda nada sin leer)
     }
     if (avail == 0) {
         return 0;
@@ -335,6 +335,12 @@ bool LocalServer::accept(int timeoutMs, LocalStream& out, std::string* err) {
         connected = true;
     } else if (GetLastError() == ERROR_PIPE_CONNECTED) {
         connected = true; // el cliente llego entre CreateNamedPipe y aca
+    } else if (GetLastError() == ERROR_NO_DATA) {
+        // El cliente llegó, escribió y ya cerró (el launcher manda el Shutdown y cuelga sin
+        // esperar): lo que escribió sigue en el pipe hasta leerlo, como en un socket que
+        // se acepta después de que el otro cerró. Se acepta y `read` lo entrega antes del
+        // cierre; rechazarlo perdía el mensaje y dejaba esta instancia trabada para siempre.
+        connected = true;
     } else {
         connected = finishOverlapped(h, ov, FALSE, timeoutMs, n);
     }
