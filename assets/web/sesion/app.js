@@ -205,7 +205,7 @@ function mostrarResultado(m) {
 let local = null;       // la cámara y el micrófono propios
 async function prenderCamara() {
   try {
-    // Hasta 720p: es la capa alta hacia la sala; la baja (comun/capas.js) sale de la misma pista.
+    // Hasta 720p: es la capa alta hacia la sala; la baja (comun/capas.js) sale de un clon de la pista a 15 cps.
     local = await navigator.mediaDevices.getUserMedia({
       video: { width: { ideal: 1280 }, height: { ideal: 720 } },
       audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
