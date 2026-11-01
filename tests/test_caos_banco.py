@@ -52,6 +52,41 @@ def test_helpers(tmp_path: Path) -> None:
     assert app.primera_linea("gateway.log", t0, banco.ANILLO) == pytest.approx(t0 + 1.25)
     assert app.primera_linea("gateway.log", t0 + 10, banco.ANILLO) is None
     assert app.primera_linea("no-esta.log", t0, banco.ANILLO) is None
+    # launcher.log: hora LOCAL sin «Z»; la espera agendada y el lanzamiento de cada hijo.
+    (datos / "Logs" / "launcher.log").write_text(
+        "2026-10-31T21:59:16.620 WARN | sup | code=137 | E.principal termino inesperadamente; reiniciando con backoff\n"
+        "2026-10-31T21:59:16.620 INFO | sup | code=0 | E.principal: reinicio en 1 s\n"
+        "2026-10-31T21:59:17.794 INFO | child | code=0 | lanzado 'E.principal' pid=30064\n"
+        "2026-10-31T21:59:41.283 INFO | sup | code=0 | A: reinicio en 2 s\n"
+        "2026-10-31T22:00:01.000 WARN | sup | code=0 | cortacircuito: A pasa al modo seguro nivel 1 (sin: superres)\n",
+        encoding="utf-8")
+    local = datetime.datetime(2026, 10, 31, 21, 59, 0).timestamp()
+    esp = app.lineas("launcher.log", local, banco.espera_relanzar("E.principal"))
+    assert [int(m.group(1)) for _, m in esp] == [1]
+    assert esp[0][0] == pytest.approx(local + 16.62)
+    assert [int(m.group(1)) for _, m in app.lineas("launcher.log", local, banco.espera_relanzar("A"))] == [2]
+    assert app.primera_linea("launcher.log", local, banco.lanzado("E.principal", 30064)) == pytest.approx(local + 17.794)
+    assert app.primera_linea("launcher.log", local, banco.lanzado("E.principal", 3006)) is None
+    assert app.lineas("launcher.log", local, banco.CORTACIRCUITO)
+    # launcher.estableS de los ajustes de la máquina (de fábrica, 120).
+    assert app.ajuste_launcher("launcher.estableS", 120.0) == 120.0
+    (datos / "launcher.json").write_text(json.dumps({"ajustes": {"launcher.estableS": 30}}), encoding="utf-8")
+    assert app.ajuste_launcher("launcher.estableS", 120.0) == 30.0
+
+
+def test_modos() -> None:
+    """Cada escenario dice en qué modo aplica: con el emisor aparte, los codificadores y
+    sumideros de la app no (la falla no se dispara); sin él, los del emisor tampoco."""
+    assert set(banco.MODOS) == set(banco.ESCENARIOS)
+    b = banco.Banco.__new__(banco.Banco)
+    b.modo = "emisor"
+    assert b.no_aplica("codificador_tx") and b.no_aplica("sumidero_rec")
+    assert b.no_aplica("kill_a") is None and b.no_aplica("stop_emisor") is None and b.no_aplica("gpu_video") is None
+    b.modo = "normal"
+    assert b.no_aplica("kill_emisor") and b.no_aplica("kill_a_con_emisor")
+    assert b.no_aplica("codificador_tx") is None and b.no_aplica("al_aire_truncado") is None
+    # Los que tiran abajo un hijo del launcher (para esperar que olvide las caídas).
+    assert banco.MATA["stop_emisor"] == "emisor" and banco.MATA["al_aire_truncado"] == "a" and "gpu_video" not in banco.MATA
 
 
 def test_bench_against_fake_app(tmp_path: Path) -> None:

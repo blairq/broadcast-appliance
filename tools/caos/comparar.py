@@ -8,9 +8,11 @@ Logs/caos/<fecha>/caos.json y compara escenario por escenario. Es regresión:
   - el RTO p95 de un escenario subió más que la tolerancia: más de `tolerancia` (25 %) Y
     más de `margen_s` (1 s) sobre el de antes (los dos: un escenario de 0,4 s que pasa a
     0,6 s es ruido, uno de 20 s que pasa a 21 s también);
-  - un escenario que antes volvía y ahora no tiene RTO (no midió: algo se rompió).
+  - un escenario que antes volvía y ahora no tiene RTO (no midió: algo se rompió);
+  - con el emisor aparte, una falla de la app que cortó la salida («cortes»).
 
-Lo que ahora se saltea (no corre cloudflared en esta máquina) no cuenta. Puro: sin la app,
+Lo que ahora se saltea (no corre cloudflared en esta máquina) o no aplica en el modo de la
+corrida (normal o emisor aparte) no cuenta, y solo se compara contra una del mismo modo. Puro: sin la app,
 solo los JSON (se prueba con informes falsos en tests/test_caos_comparar.py).
 
     python3 -I tools/caos/comparar.py <anterior/caos.json> <actual/caos.json>
@@ -37,9 +39,11 @@ def leer(ruta: str) -> dict | None:
         return None
 
 
-def anterior(raiz_caos: str, actual: str | None = None) -> str | None:
+def anterior(raiz_caos: str, actual: str | None = None, modo: str | None = None) -> str | None:
     """El caos.json nocturno más reciente de `raiz_caos` (Logs/caos), sin contar la carpeta
-    `actual`. Las carpetas se llaman por la fecha (AAAAMMDD-HHMMSS): ordenan solas."""
+    `actual` y, con `modo`, del mismo modo («normal» o «emisor»; las de antes de que el
+    informe lo dijera son «normal»). Las carpetas se llaman por la fecha
+    (AAAAMMDD-HHMMSS): ordenan solas."""
     try:
         carpetas = sorted(os.listdir(raiz_caos), reverse=True)
     except OSError:
@@ -52,7 +56,7 @@ def anterior(raiz_caos: str, actual: str | None = None) -> str | None:
         j = leer(os.path.join(d, "caos.json"))
         # Solo una corrida nocturna completa contra otra: una a pedido (dos escenarios, otro
         # plazo) o una que cortó antes no es la vara.
-        if j and j.get("nocturno") and not j.get("corte"):
+        if j and j.get("nocturno") and not j.get("corte") and (modo is None or j.get("modo", "normal") == modo):
             return os.path.join(d, "caos.json")
     return None
 
@@ -63,15 +67,19 @@ def comparar(antes: dict | None, ahora: dict, tolerancia: float = TOLERANCIA, ma
     regresiones, mejoras = [], []
     previos = (antes or {}).get("escenarios", {})
     for nombre, e in (ahora.get("escenarios") or {}).items():
-        if e.get("saltado"):
+        if e.get("saltado") or e.get("no_aplica"):
             continue
-        veces = len([r for r in e.get("repeticiones", []) if not r.get("saltado")])
+        veces = len([r for r in e.get("repeticiones", []) if not r.get("saltado") and not r.get("no_aplica")])
         if e.get("no_volvio"):
             regresiones.append({"escenario": nombre, "que": "no_volvio", "antes": (previos.get(nombre) or {}).get("no_volvio"),
                                 "ahora": e["no_volvio"], "texto": f"no volvió {e['no_volvio']} de {veces}"})
             continue
+        if e.get("cortes"):
+            regresiones.append({"escenario": nombre, "que": "cortes", "antes": (previos.get(nombre) or {}).get("cortes"),
+                                "ahora": e["cortes"], "texto": f"la salida se cortó {e['cortes']} de {veces} (con el emisor aparte)"})
+            continue
         p = previos.get(nombre) or {}
-        if p.get("saltado"):
+        if p.get("saltado") or p.get("no_aplica"):
             continue
         a, b = p.get("rto_p95_s"), e.get("rto_p95_s")
         if a is None:
