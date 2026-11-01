@@ -3,6 +3,7 @@
 // ============================================================================
 
 #include "ui/PropertiesModel.hpp"
+#include "ui/Formulario.hpp"
 
 #include <QColor>
 #include <QJsonArray>
@@ -104,14 +105,18 @@ QVariant PropertiesModel::data(const QModelIndex& index, int role) const {
         case SuffixRole: return r.suffix;
         case EnabledRole: return r.enabled;
         case HelpRole: return r.help;
+        case CampoRole: {
+            formulario::Fila f{r.name, r.label, r.kind, r.value, r.options, r.min, r.max, r.step, r.suffix, r.help};
+            f.enabled = r.enabled;
+            return formulario::deFila(f);
+        }
         default: return {};
     }
 }
 
 QHash<int, QByteArray> PropertiesModel::roleNames() const {
-    return {{NameRole, "name"},       {LabelRole, "label"},     {KindRole, "kind"},   {ValueRole, "value"},
-            {OptionsRole, "options"}, {MinRole, "minimum"},     {MaxRole, "maximum"}, {StepRole, "step"},
-            {SuffixRole, "suffix"},   {EnabledRole, "enabled"}, {HelpRole, "help"}};
+    // La vista dibuja la fila con `campo` (el MCP tiene sus claves en filasJson).
+    return {{NameRole, "name"}, {CampoRole, "campo"}};
 }
 
 void PropertiesModel::setSourceName(const QString& name) {
@@ -166,6 +171,7 @@ void PropertiesModel::ponerFilas(Lectura l) {
         if (a.min != n.min || a.max != n.max || a.step != n.step || a.suffix != n.suffix)
             roles << MinRole << MaxRole << StepRole << SuffixRole;
         if (roles.isEmpty()) continue;
+        roles << CampoRole;
         a = n;
         const QModelIndex ix = index(static_cast<int>(i), 0);
         emit dataChanged(ix, ix, roles);
@@ -415,10 +421,12 @@ void PropertiesModel::setValue(const QString& prop, const QVariant& value) {
         Row& r = rows_[i];
         if (r.name != prop) continue;
         kind = r.kind;
+        // Un número borrado en el campo no es un valor: queda lo que estaba.
+        if ((r.kind == "int" || r.kind == "float") && value.typeId() == QMetaType::QString) return;
         if (r.kind == "font" || r.kind == "color" || r.value == value) continue;
         r.value = value;
         const QModelIndex ix = index(static_cast<int>(i), 0);
-        emit dataChanged(ix, ix, {ValueRole});
+        emit dataChanged(ix, ix, {ValueRole, CampoRole});
     }
     ventanilla_.pedir(
         this, "propiedad",

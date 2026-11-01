@@ -175,72 +175,28 @@ Rectangle {
                         spacing: 14
                         // La imagen en vivo: clic apunta ahí, arrastrar encuadra ese cuadro
                         // (lo mismo que la ventana de la tarjeta PTZ: ControlCamaras::apuntar).
-                        Rectangle {
+                        ImagenApuntable {
                             id: vista
                             Layout.fillWidth: true
                             Layout.preferredHeight: width * 9 / 16
                             Layout.maximumHeight: 340
-                            radius: 10; color: "black"; clip: true
-                            VideoItem { id: video; anchors.fill: parent; source: page.cam ? "entrada:" + page.sel : ""; fillMode: VideoItem.Fit }
-                            Text { visible: !video.hasFrame; anchors.centerIn: parent
-                                   text: qsTr("Sin señal"); color: Theme.textFaint; font.pixelSize: 13 }
-                            // Donde cae la imagen dentro del rectángulo (Fit deja bandas).
-                            readonly property real aspecto: video.frameSize.width > 0 ? video.frameSize.width / video.frameSize.height : 16 / 9
-                            readonly property real iw: Math.min(width, height * aspecto)
-                            readonly property real ih: iw / aspecto
-                            readonly property real ix: (width - iw) / 2
-                            readonly property real iy: (height - ih) / 2
-                            function u(x) { return Math.max(0, Math.min(1, (x - ix) / iw)) }
-                            function v(y) { return Math.max(0, Math.min(1, (y - iy) / ih)) }
-                            Rectangle {
-                                id: cuadro
-                                visible: false
-                                color: Qt.rgba(1, 0.42, 0.17, 0.15)
-                                border { color: Theme.accent; width: 2 }
-                            }
+                            enabled: page.cam !== null
+                            fuente: page.cam ? "entrada:" + page.sel : ""
+                            ayuda: page.mueveDigital ? qsTr("Clic: apuntar · arrastrar: encuadrar ese cuadro · rueda: zoom · doble clic: cuadro completo")
+                                                     : qsTr("Clic: apuntar · arrastrar: encuadrar ese cuadro")
                             // La mira en el centro: ahí va lo que se toque.
                             Rectangle { anchors.centerIn: parent; width: 18; height: 1; color: Qt.rgba(1, 1, 1, 0.35) }
                             Rectangle { anchors.centerIn: parent; width: 1; height: 18; color: Qt.rgba(1, 1, 1, 0.35) }
                             StatusPill { anchors { left: parent.left; top: parent.top; margins: 8 }
                                          text: page.mueveDigital ? qsTr("DIGITAL") : qsTr("ÓPTICO"); dot: page.cam && page.cam.listo ? Theme.ok : Theme.warn }
-                            Text {
-                                anchors { left: parent.left; right: parent.right; bottom: parent.bottom; margins: 6 }
-                                horizontalAlignment: Text.AlignHCenter; elide: Text.ElideRight
-                                text: page.mueveDigital ? qsTr("Clic: apuntar · arrastrar: encuadrar ese cuadro · rueda: zoom · doble clic: cuadro completo")
-                                                       : qsTr("Clic: apuntar · arrastrar: encuadrar ese cuadro")
-                                color: Qt.rgba(1, 1, 1, 0.55); font.pixelSize: 10
-                                style: Text.Outline; styleColor: Qt.rgba(0, 0, 0, 0.7)
-                            }
-                            MouseArea {
-                                anchors.fill: parent
-                                enabled: page.cam !== null
-                                preventStealing: true // que el ScrollView no se lleve el arrastre
-                                cursorShape: Qt.CrossCursor
-                                property point desde
-                                onPressed: (m) => { desde = Qt.point(m.x, m.y); cuadro.visible = false }
-                                onPositionChanged: (m) => {
-                                    if (!pressed) return
-                                    if (Math.abs(m.x - desde.x) < 6 && Math.abs(m.y - desde.y) < 6) return
-                                    cuadro.x = Math.min(m.x, desde.x); cuadro.y = Math.min(m.y, desde.y)
-                                    cuadro.width = Math.abs(m.x - desde.x); cuadro.height = Math.abs(m.y - desde.y)
-                                    cuadro.visible = true
-                                }
-                                onReleased: (m) => {
-                                    let u = vista.u(m.x), v = vista.v(m.y), an = 0, al = 0
-                                    if (cuadro.visible) {
-                                        cuadro.visible = false
-                                        u = vista.u(cuadro.x + cuadro.width / 2); v = vista.v(cuadro.y + cuadro.height / 2)
-                                        an = cuadro.width / vista.iw; al = cuadro.height / vista.ih
-                                    }
-                                    page.siNoAlAire(function() { page.avisar(page.cc.apuntar(page.sel, u, v, an, al)) })
-                                }
-                                onDoubleClicked: if (page.mueveDigital) page.siNoAlAire(function() { page.avisar(page.cc.encuadre(page.sel, 0.5, 0.5, 1, 0.8)) })
-                                onWheel: (w) => {
-                                    if (!page.mueveDigital) return
-                                    const z = page.pos.zoom || 1
-                                    page.avisar(page.cc.encuadre(page.sel, page.pos.x || 0.5, page.pos.y || 0.5,
-                                                                 Math.max(1, Math.min(8, z * (w.angleDelta.y > 0 ? 1.15 : 1 / 1.15))), 0.15))
-                                }
+                            onClic: (u, v) => page.siNoAlAire(function() { page.avisar(page.cc.apuntar(page.sel, u, v, 0, 0)) })
+                            onCuadro: (u, v, an, al) => page.siNoAlAire(function() { page.avisar(page.cc.apuntar(page.sel, u, v, an, al)) })
+                            onDobleClic: if (page.mueveDigital) page.siNoAlAire(function() { page.avisar(page.cc.encuadre(page.sel, 0.5, 0.5, 1, 0.8)) })
+                            onRueda: (sentido) => {
+                                if (!page.mueveDigital) return
+                                const z = page.pos.zoom || 1
+                                page.avisar(page.cc.encuadre(page.sel, page.pos.x || 0.5, page.pos.y || 0.5,
+                                                             Math.max(1, Math.min(8, z * (sentido > 0 ? 1.15 : 1 / 1.15))), 0.15))
                             }
                         }
                         // Mapa: el cuadro entero y la ventana del recorte. Clic = centrar ahí.
@@ -371,7 +327,7 @@ Rectangle {
                         }
                         RowLayout {
                             spacing: 24
-                            Joystick {
+                            JoystickPtz {
                                 visible: page.caps.panTilt === true
                                 implicitWidth: 170; implicitHeight: 170
                                 flechas: true
@@ -608,46 +564,24 @@ Rectangle {
                         }
                         Text { Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.textFaint; font.pixelSize: 11
                                text: panelHw.definicion().ayuda }
-                        Repeater {
-                            model: panelHw.definicion().campos
-                            delegate: RowLayout {
-                                required property var modelData
-                                Layout.fillWidth: true
-                                Text { text: modelData.etiqueta; color: Theme.textDim; font.pixelSize: 12; Layout.preferredWidth: 110
-                                       wrapMode: Text.WordWrap }
-                                TextField {
-                                    visible: modelData.tipo !== "choice"
-                                    Layout.fillWidth: true
-                                    echoMode: modelData.tipo === "password" ? TextInput.Password : TextInput.Normal
-                                    placeholderText: modelData.tipo === "password" && page.cam && page.cam.tieneClave ? qsTr("(guardada; vacío = no cambiar)") : ""
-                                    text: panelHw.valores[modelData.clave] !== undefined ? String(panelHw.valores[modelData.clave]) : ""
-                                    onTextEdited: { const v = panelHw.valores; v[modelData.clave] = text; panelHw.valores = v }
-                                }
-                                ComboBox {
-                                    visible: modelData.tipo === "choice"
-                                    Layout.fillWidth: true
-                                    model: modelData.opciones || []
-                                    textRole: "texto"
-                                    valueRole: "valor"
-                                    currentIndex: { const o = modelData.opciones || []
-                                                    for (let i = 0; i < o.length; ++i) if (o[i].valor === panelHw.valores[modelData.clave]) return i
-                                                    return 0 }
-                                    onActivated: { const v = panelHw.valores; v[modelData.clave] = currentValue; panelHw.valores = v }
-                                }
-                            }
+                        // Los campos del backend (el esquema lo arma ControlCamaras); lo escrito es
+                        // un borrador que se manda con «Aplicar».
+                        FormularioPropiedades {
+                            Layout.fillWidth: true
+                            etiquetaAlCostado: true
+                            alEscribir: true
+                            vacio: ""
+                            props: panelHw.definicion().campos.map(c => Object.assign({}, c, {
+                                value: panelHw.valores[c.name] !== undefined ? panelHw.valores[c.name] : c.value,
+                                placeholder: c.kind === "clave" && page.cam && page.cam.tieneClave ? qsTr("(guardada; vacío = no cambiar)") : undefined }))
+                            onCambio: (nombre, valor) => { const v = Object.assign({}, panelHw.valores); v[nombre] = valor; panelHw.valores = v }
                         }
                         RowLayout {
                             Layout.fillWidth: true
                             GlassButton {
                                 text: qsTr("Aplicar"); active: true
-                                onClicked: {
-                                    const v = Object.assign({}, panelHw.valores)
-                                    // Lo que no se tocó del combo vale su primera opción.
-                                    const campos = panelHw.definicion().campos
-                                    for (let i = 0; i < campos.length; ++i)
-                                        if (campos[i].tipo === "choice" && v[campos[i].clave] === undefined) v[campos[i].clave] = campos[i].opciones[0].valor
-                                    page.avisar(page.cc.configurar(page.sel, panelHw.backend, v))
-                                }
+                                // Lo que no se tocó (el transporte) lo completa ControlCamaras.
+                                onClicked: page.avisar(page.cc.configurar(page.sel, panelHw.backend, panelHw.valores))
                             }
                             GlassButton {
                                 visible: panelHw.backend === "onvif"

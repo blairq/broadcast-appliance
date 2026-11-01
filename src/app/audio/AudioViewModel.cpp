@@ -50,10 +50,13 @@ AudioViewModel::AudioViewModel(RackManager& mgr, QObject* parent) : QObject(pare
     connect(&tick_, &QTimer::timeout, this, [this]() {
         rebuildGraph();
         rebuildDetail();
-        // La vista general y la grabación cambian despacio: una vez por segundo.
+        // La grabación cambia despacio: una vez por segundo.
         if (++vueltas_ % 6 == 0) revisarPartes();
     });
     connect(&mgr_, &RackManager::changed, this, &AudioViewModel::refresh);
+    // La vista general la rehace lo que cambia algo de lo que muestra (no un reloj).
+    connect(&mgr_, &RackManager::changed, this, &AudioViewModel::revisarEstudio);
+    connect(&mgr_, &RackManager::editado, this, &AudioViewModel::revisarEstudio);
 }
 
 bool AudioViewModel::available() const { return const_cast<RackManager&>(mgr_).library() != nullptr; }
@@ -76,6 +79,7 @@ void AudioViewModel::alCambiarVistas() {
     if (vistas_.alguien()) {
         refresh();
         revisarPartes();
+        revisarEstudio();
         tick_.start();
     } else {
         tick_.stop();
@@ -104,6 +108,7 @@ void AudioViewModel::refresh() {
 
 void AudioViewModel::revisarFuentes() {
     if (toVariant(mgr_.audioSources()).toList() != sources_) refresh();
+    revisarEstudio();
 }
 
 AudioRack* AudioViewModel::rack(bool create) {
@@ -282,14 +287,16 @@ void AudioViewModel::rebuildDetail() {
     }
 }
 
-void AudioViewModel::revisarPartes() {
-    if (vistas_.activo("estudio")) {
-        QVariantMap e = toVariant(mgr_.estudio()).toMap();
-        if (e != estudio_) {
-            estudio_ = std::move(e);
-            emit estudioCambio();
-        }
+void AudioViewModel::revisarEstudio() {
+    if (!vistas_.activo("estudio")) return;
+    QVariantMap e = toVariant(mgr_.estudio()).toMap();
+    if (e != estudio_) {
+        estudio_ = std::move(e);
+        emit estudioCambio();
     }
+}
+
+void AudioViewModel::revisarPartes() {
     if (vistas_.activo("grabacion")) {
         QVariantMap g = toVariant(mgr_.grabacion(source_.toStdString())).toMap();
         g["carpeta"] = QString::fromStdString(mgr_.carpetaGrabaciones().string());
@@ -719,21 +726,6 @@ QVariantList AudioViewModel::catalogoLsp() const {
         const QString cap = ":/lsp/" + QString::fromStdString(clave) + ".jpg";
         v["captura"] = QFile::exists(cap) ? "qrc" + cap : QString();
         out << v;
-    }
-    return out;
-}
-
-QVariantList AudioViewModel::search(const QString& text) const {
-    QVariantList out;
-    auto lib = const_cast<RackManager&>(mgr_).library();
-    if (!lib || text.trimmed().size() < 2) return out;
-    const QString q = text.trimmed().toLower();
-    for (const auto& p : lib->plugins()) {
-        const QString h = QString::fromStdString(p.id + " " + p.name).toLower();
-        if (h.contains(q))
-            out << QVariantMap{{"id", QString::fromStdString(p.id)},
-                               {"nombre", QString::fromStdString(p.name)}};
-        if (out.size() >= 30) break;
     }
     return out;
 }

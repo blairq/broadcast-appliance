@@ -87,6 +87,9 @@ class ConferenciaDcn : public QObject {
 
     // --- Para la interfaz: el resultado llega por `hecho` --------------------------
     Q_INVOKABLE void pedirUi(const QString& que, const QString& control, const QVariantMap& args);
+    /// Una función de la central con sus argumentos como los escribió el operador (un
+    /// objeto JSON): si no es JSON válido, `hecho("funcion", false, …, el error)`.
+    Q_INVOKABLE void pedirFuncionUi(const QString& nombre, const QString& argsJson, bool confirmar);
     Q_INVOKABLE void conectarUi(const QVariantMap& config);
     Q_INVOKABLE void refrescar();
 

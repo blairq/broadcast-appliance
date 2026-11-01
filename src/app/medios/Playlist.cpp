@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 #include "medios/Playlist.hpp"
 #include "arranque/ArchivoConfig.hpp"
+#include "comun/Restante.hpp"
 #include "i18n/I18n.hpp"
 
 #include "arranque/AppRuntime.hpp"
@@ -222,6 +223,7 @@ json Playlist::estado() const {
             {"auto_next", autoNext_},
             {"loop", loop_},
             {"restante_s", std::round(restante * 10) / 10},
+            {"estado_restante", ba::app::estadoRestante(restante)},
             {"duracion_s", std::round(dur * 10) / 10},
             {"items", items_.size()},
             {"medio", medio},

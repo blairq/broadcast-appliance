@@ -88,7 +88,6 @@ Item {
         if (!simulada() && !confirmado) { confirmar.open(); return }
         aviso(cal.medir(parlante, punto, microfono, etapa, duracion, nivelDb))
     }
-    function fmt(v, d) { return v === undefined || v === null || v < 0 ? "—" : Number(v).toFixed(d) }
 
     // --- Antes del primer barrido de verdad -------------------------------------------
     Dialog {
@@ -783,7 +782,7 @@ Item {
                             font { family: Theme.font; pixelSize: 12 }
                             text: parent.u.id ? qsTr("Medición %1: %2 → %3 · directo %4 ms · SNR %5 dB · C50 %6 dB · polaridad %7")
                                       .arg(parent.u.id).arg(c.nombreDe(c.parlantes, parent.u.parlante)).arg(c.nombreDe(c.puntos, parent.u.punto))
-                                      .arg(c.fmt(parent.u.directo_ms, 2)).arg(c.fmt(parent.u.snr_db, 0)).arg(c.fmt(parent.u.c50_db, 1))
+                                      .arg(Theme.medida(parent.u.directo_ms, 2)).arg(Theme.medida(parent.u.snr_db, 0)).arg(Theme.medida(parent.u.c50_db, 1))
                                       .arg(parent.u.polaridad < 0 ? qsTr("INVERTIDA") : qsTr("normal"))
                                 : qsTr("Todavía no hay mediciones.")
                         }
@@ -847,7 +846,7 @@ Item {
                             wrapMode: Text.WordWrap
                             color: Theme.text
                             font { family: Theme.font; pixelSize: 12 }
-                            text: qsTr("RT60 medio (500 Hz–1 kHz): %1 s — palabra: 0,4–0,8 s en salas chicas; más largo se entiende peor (eso es tratamiento acústico, no EQ).").arg(c.fmt(c.cal ? c.cal.analisis.rt60_medio_s : -1, 2))
+                            text: qsTr("RT60 medio (500 Hz–1 kHz): %1 s — palabra: 0,4–0,8 s en salas chicas; más largo se entiende peor (eso es tratamiento acústico, no EQ).").arg(Theme.medida(c.cal ? c.cal.analisis.rt60_medio_s : -1, 2))
                         }
                         Canvas {
                             id: cvRt
@@ -947,8 +946,8 @@ Item {
                                 wrapMode: Text.WordWrap
                                 color: Theme.textDim
                                 text: (prop.p.ganancia_db >= 0
-                                       ? qsTr("Retardar %1 ms y dejar para que llegue junto y parejo con los demás.").arg(c.fmt(prop.p.retardo_ms, 2))
-                                       : qsTr("Retardar %1 ms y bajar %2 dB para que llegue junto y parejo con los demás.").arg(c.fmt(prop.p.retardo_ms, 2)).arg(Math.abs(prop.p.ganancia_db).toFixed(1)))
+                                       ? qsTr("Retardar %1 ms y dejar para que llegue junto y parejo con los demás.").arg(Theme.medida(prop.p.retardo_ms, 2))
+                                       : qsTr("Retardar %1 ms y bajar %2 dB para que llegue junto y parejo con los demás.").arg(Theme.medida(prop.p.retardo_ms, 2)).arg(Math.abs(prop.p.ganancia_db).toFixed(1)))
                                       + (prop.p.polaridad ? " " + qsTr("Polaridad: %1").arg(prop.p.polaridad) : "")
                             }
                             Titulo { text: qsTr("APLICAR"); visible: (prop.p.filtros || []).length > 0; Layout.topMargin: 6 }

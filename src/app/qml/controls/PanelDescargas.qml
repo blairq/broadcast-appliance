@@ -20,7 +20,6 @@ Dialog {
 
     readonly property var dl: Studio.descargas
 
-    function velocidad(kbps) { return kbps >= 1024 ? (kbps / 1024).toFixed(1) + " MB/s" : Math.round(kbps) + " KB/s" }
     function nombreEstado(e) {
         return e === "bajando" ? qsTr("bajando") : e === "en_cola" ? qsTr("en la cola") : e === "listo" ? qsTr("listo")
              : e === "error" ? qsTr("falló") : qsTr("cancelada")
@@ -107,7 +106,7 @@ Dialog {
                     color: modelData.estado === "error" ? Theme.live : Theme.textDim
                     font.pixelSize: 11
                     text: modelData.estado === "bajando" && modelData.kbps > 0
-                          ? modelData.texto + "  ·  " + dlg.velocidad(modelData.kbps)
+                          ? modelData.texto + "  ·  " + Theme.velocidad(modelData.kbps)
                           : modelData.estado === "listo" && modelData.bytes > 0
                           ? qsTr("Listo  ·  %1").arg(Theme.tamano(modelData.bytes))
                           : modelData.texto

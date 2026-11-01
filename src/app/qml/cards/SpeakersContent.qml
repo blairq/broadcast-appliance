@@ -53,7 +53,7 @@ Item {
                     readonly property var r: root.bst.al_aire && visible
                                              ? root.conf.reloj(root.bst.asignado_s || 0, root.bst.desde_ms || 0, Reloj.ahoraFino) : ({})
                     text: r.texto || ""
-                    color: r.estado === "excedido" ? Theme.live : r.estado === "aviso" ? Theme.accent : Theme.text
+                    color: Theme.colorDeEstado(r.estado, Theme.text)
                     font { pixelSize: 28; weight: Font.Black }
                 }
                 GlassButton { text: qsTr("Terminar"); compact: true; onClicked: root.ba.terminar() }
@@ -180,7 +180,7 @@ Item {
                 Text { text: modelData.name; color: Theme.text; font { pixelSize: 16; weight: Font.DemiBold } elide: Text.ElideRight; Layout.fillWidth: true }
                 Text {
                     text: modelData.textoTiempo
-                    color: modelData.estadoTiempo === "excedido" ? Theme.live : modelData.estadoTiempo === "aviso" ? Theme.accent : Theme.text
+                    color: Theme.colorDeEstado(modelData.estadoTiempo, Theme.text)
                     font { pixelSize: modelData.estadoTiempo !== "ok" ? 40 : 32; weight: Font.Black }
                 }
                 GlassButton { text: qsTr("Sacar"); compact: true; onClicked: conf.speakerOnAir(modelData.uid, false) }

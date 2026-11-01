@@ -59,6 +59,22 @@ std::string hora(std::int64_t ms) {
     return QDateTime::fromMSecsSinceEpoch(ms).toString("HH:mm:ss").toStdString();
 }
 
+/// Lo que codifica el QR de un acceso (`qr_texto`: la interfaz lo dibuja con image://qr)
+/// y sus módulos (`qr`: filas de '0'/'1', para quien lo pide por MCP).
+void ponerQr(json& out, const std::string& texto) {
+    out["qr_texto"] = texto;
+    try {
+        const auto qr = qrcodegen::QrCode::encodeText(texto.c_str(), qrcodegen::QrCode::Ecc::MEDIUM);
+        json filas = json::array();
+        for (int y = 0; y < qr.getSize(); ++y) {
+            std::string f;
+            for (int x = 0; x < qr.getSize(); ++x) f.push_back(qr.getModule(x, y) ? '1' : '0');
+            filas.push_back(f);
+        }
+        out["qr"] = filas;
+    } catch (...) {
+    }
+}
 } // namespace
 
 SesionRemota::SesionRemota(const Cuerpo& cuerpo, std::filesystem::path datos, QObject* parent)
@@ -147,18 +163,7 @@ json SesionRemota::armarAcceso(const json& i, const std::string& token, const st
     ponerLinks(out, frag);
     // Con el PIN adentro, el link solo alcanza para entrar: es la credencial entera.
     if (pinEnQr_) out["link_con_pin"] = out["link"].get<std::string>() + "&p=" + pin;
-    const std::string enQr = pinEnQr_ ? out["link_con_pin"].get<std::string>() : out["link"].get<std::string>();
-    try {
-        const auto qr = qrcodegen::QrCode::encodeText(enQr.c_str(), qrcodegen::QrCode::Ecc::MEDIUM);
-        json filas = json::array();
-        for (int y = 0; y < qr.getSize(); ++y) {
-            std::string f;
-            for (int x = 0; x < qr.getSize(); ++x) f.push_back(qr.getModule(x, y) ? '1' : '0');
-            filas.push_back(f);
-        }
-        out["qr"] = filas;
-    } catch (...) {
-    }
+    ponerQr(out, pinEnQr_ ? out["link_con_pin"].get<std::string>() : out["link"].get<std::string>());
     if (origen().empty())
         out["aviso"] = motivoOrigen_.empty()
                            ? ba::i18n::traducir("asamblea", "El servidor todavía no dio su dirección: completá el comienzo del link.")
@@ -707,17 +712,7 @@ json SesionRemota::generarConsola(const std::string& nombre) {
     const std::string frag = "/presidencia/#c=" + id + "&t=" + token;
     json out{{"id", id}, {"pin", pin}, {"nombre", consolas_[id]["nombre"]}};
     ponerLinks(out, frag);
-    try {
-        const auto qr = qrcodegen::QrCode::encodeText(out["link"].get<std::string>().c_str(), qrcodegen::QrCode::Ecc::MEDIUM);
-        json filas = json::array();
-        for (int y = 0; y < qr.getSize(); ++y) {
-            std::string f;
-            for (int x = 0; x < qr.getSize(); ++x) f.push_back(qr.getModule(x, y) ? '1' : '0');
-            filas.push_back(f);
-        }
-        out["qr"] = filas;
-    } catch (...) {
-    }
+    ponerQr(out, out["link"].get<std::string>());
     return out;
 }
 

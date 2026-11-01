@@ -27,13 +27,6 @@ Popup {
     }
     background: Rectangle { color: Theme.bg; border.color: Theme.glassBorder; radius: 12 }
 
-    function convertir(v) {
-        const t = String(v).trim()
-        if (t === "true") return true
-        if (t === "false") return false
-        if (t !== "" && !isNaN(Number(t))) return Number(t)
-        return t
-    }
 
     contentItem: ColumnLayout {
         spacing: 8
@@ -105,18 +98,13 @@ Popup {
             GlassButton {
                 compact: true; text: qsTr("Crear"); active: true
                 onClicked: {
-                    const params = {}
-                    for (const k in ed.valores) if (String(ed.valores[k]).trim() !== "") params[k] = ed.convertir(ed.valores[k])
+                    // Los parámetros y los argumentos van como se escribieron: los convierte y
+                    // los valida el modelo (AgentViewModel::createAlertUi).
                     const notificar = []
                     for (let i = 0; i < notifRep.count; ++i) if (notifRep.itemAt(i).checked) notificar.push(Studio.notificador.lista[i].id)
-                    const spec = { type: ed.tipo.type, params: params, sonido: sonido.currentValue, reconocer: reconocer.checked, notificar: notificar }
+                    const spec = { type: ed.tipo.type, params: ed.valores, sonido: sonido.currentValue, reconocer: reconocer.checked, notificar: notificar,
+                                   accion: { herramienta: accionHerr.editText, argumentos: accionArgs.text } }
                     if (nombre.text.trim() !== "") spec.name = nombre.text.trim()
-                    if (accionHerr.editText.trim() !== "") {
-                        let args = {}
-                        try { if (accionArgs.text.trim() !== "") args = JSON.parse(accionArgs.text) }
-                        catch (e) { Studio.notify(qsTr("Los argumentos no son JSON válido"), "error"); return }
-                        spec.actions = [{ tool: accionHerr.editText.trim(), arguments: args }]
-                    }
                     const e = ed.ag.createAlertUi(spec)
                     if (e !== "") Studio.notify(e, "error"); else { Studio.notify(qsTr("Disparador creado"), "ok"); ed.close() }
                 }
