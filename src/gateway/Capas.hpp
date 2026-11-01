@@ -17,8 +17,10 @@
 //   PRIMERA capa (la otra queda inactiva). Lo verifica test_webrtc_loopback. Con dos
 //   transceptores cada capa es una recepción normal (su decodificador, su sink), la sala elige
 //   entre las dos sin tocar libwebrtc, y pausar una capa en el navegador apaga su codificador.
-//   Chrome acepta la misma pista en dos transceptores; reactivar una capa pausada tarda ~0,1 s
-//   en lazo local (arranca con un cuadro completo).
+//   La baja lleva un CLON de la pista de la cámara, no la misma pista: con la misma en los dos
+//   senders la fuente se adapta al pedido más lento y la alta también sale a 15 cps
+//   (docs/arquitectura/06-canal-web.md §7). Reactivar una capa pausada tarda ~0,1 s en lazo
+//   local (arranca con un cuadro completo).
 //
 // SIN PARPADEO AL PASAR: al cambiar de capa se prenden las dos; la salida (el canal de la
 // app, la grilla, la vista chica) sigue con la vieja hasta que llega el primer cuadro de la

@@ -20,8 +20,10 @@
 //      CAMARA del invitado (rojo, 640x360: no es el retorno gris de B) y otra
 //      su PANTALLA (1280 de ancho), con los cuadros reenviados codificados
 //      (keyframe pedido aguas arriba al abrir). Cerrar el espectador lo saca.
-//   6. La camara en DOS capas (Capas.hpp): la misma pista en dos transceptores
-//      (alta 640x360, baja 320x180); B elige cual sale y le pide al navegador que
+//   6. La camara en DOS capas (Capas.hpp): dos transceptores (alta 640x360, baja
+//      320x180). El navegador manda en la baja un clon de la pista de la cámara
+//      (06-canal-web.md §7); acá los dos llevan la misma pista porque lo que se
+//      prueba es lo que recibe B, no el ritmo de la fuente; B elige cual sale y le pide al navegador que
 //      prenda o pause cada una (onCapas). Al pasar de la baja a la alta no hay
 //      corte (la baja sale hasta que llega la alta) y despues la baja se pausa.
 //   7. Por que dos transceptores: ante una oferta con simulcast (a=rid +
@@ -540,7 +542,7 @@ int main() {
         eb.max_framerate = 15;
         baja.send_encodings = {eb};
         auto ta = b2.pc->AddTransceiver(pista, alta);
-        auto tb = b2.pc->AddTransceiver(pista, baja); // la MISMA pista
+        auto tb = b2.pc->AddTransceiver(pista, baja); // la misma pista (el navegador usa un clon: §7)
         CHECK(ta.ok() && tb.ok(), "la misma pista en dos transceptores");
         senderAlta = ta.value()->sender();
         senderBaja = tb.value()->sender();
