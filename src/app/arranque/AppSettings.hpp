@@ -128,6 +128,9 @@ struct AppConfig {
     std::string operatorVideo;
     std::string operatorAudio;
     std::vector<SceneConfig> scenes;
+    /// No se guarda: al leer, alguna escena no tenía id (un app.json de antes) y se le dio
+    /// uno. Hay que guardar ya: lo demás (la línea, el DSK…) se pasa a esos ids.
+    bool escenasIdsNuevos = false;
     std::string currentScene;
     TransitionConfig transition;
     std::string theme = "dark"; ///< "dark" | "light" | "system"
@@ -260,7 +263,8 @@ bool saveLauncherSettings(const std::filesystem::path& path, const LauncherSetti
 /// La escena por su id o por su nombre (nullptr si no está).
 SceneConfig* findScene(AppConfig& cfg, const std::string& name);
 /// Le da un id a cada escena que no tiene (o lo repite): un app.json de antes.
-void darIdsAEscenas(AppConfig& cfg);
+/// true si dio alguno.
+bool darIdsAEscenas(AppConfig& cfg);
 
 /// Si al cargar, un archivo de configuración estaba roto y se usó su generación
 /// anterior: el nombre del archivo (vacío si no pasó).

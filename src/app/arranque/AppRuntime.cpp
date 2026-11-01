@@ -294,6 +294,12 @@ int AppRuntime::start() {
     // Lo que oye cada invitado (mix-minus de fábrica): lo guardado en Config/retornos.json.
     emision::RetornosInvitados(*this).cargar();
     escenas_->armarEnElMotor();
+    // Un app.json de antes: los ids nuevos de las escenas, al disco ya (la línea, el DSK y
+    // los atajos se pasan a ellos; si no se guardaran, el próximo arranque daría otros).
+    if (cfg_.escenasIdsNuevos) {
+        cfg_.escenasIdsNuevos = false;
+        save();
+    }
     marca(ba::i18n::traducir("arranque", "las escenas"));
     engine_.setCurrentScene(cfg_.currentScene);
     // Las demás salidas (Config/salidas.json), con las fuentes ya puestas: cada una

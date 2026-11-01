@@ -349,7 +349,7 @@ AppConfig loadAppConfig(const fs::path& path, const fs::path& dataRoot) {
     if (c.scenes.empty()) {
         c.scenes.push_back(SceneConfig{"Principal", {}});
     }
-    darIdsAEscenas(c);
+    c.escenasIdsNuevos = darIdsAEscenas(c);
     c.currentScene = get<std::string>(j, "currentScene", c.scenes.front().name);
     if (findScene(c, c.currentScene) == nullptr) {
         c.currentScene = c.scenes.front().name;
@@ -623,19 +623,23 @@ SceneConfig* findScene(AppConfig& cfg, const std::string& name) {
     return nullptr;
 }
 
-void darIdsAEscenas(AppConfig& cfg) {
+bool darIdsAEscenas(AppConfig& cfg) {
     // Un app.json de antes no tiene ids; uno editado a mano puede repetir alguno.
     std::set<std::string> usados;
+    bool dio = false;
     for (auto& s : cfg.scenes) {
-        if (s.id.empty() || usados.count(s.id) > 0)
+        if (s.id.empty() || usados.count(s.id) > 0) {
+            dio = true;
             s.id = escenas::nuevoIdEscena([&](const std::string& id) {
                 if (usados.count(id) > 0) return true;
                 for (const auto& o : cfg.scenes)
                     if (o.id == id) return true;
                 return false;
             });
+        }
         usados.insert(s.id);
     }
+    return dio;
 }
 
 } // namespace ba::app
