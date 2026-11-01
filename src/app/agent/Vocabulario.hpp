@@ -19,6 +19,7 @@
 
 #include <deque>
 #include <filesystem>
+#include <functional>
 #include <mutex>
 #include <string>
 #include <vector>
@@ -53,6 +54,10 @@ class Vocabulario {
     /// Los últimos reemplazos hechos al aire ({original, reemplazo, ms}).
     json ultimosReemplazos() const;
 
+    /// Avisa cada vez que cambia lo que se muestra (términos, grupos o los últimos
+    /// reemplazos). Puede llamarse desde el hilo del reconocedor: quien escucha pasa al suyo.
+    void alCambiar(std::function<void()> f);
+
     /// La clave fonética en castellano (pública para las pruebas).
     static std::string fonetica(const std::string& s);
 
@@ -69,6 +74,10 @@ class Vocabulario {
     };
     std::vector<Entrada> indice_;
     std::deque<json> reemplazos_;
+    std::function<void()> alCambiar_; ///< se pone una vez, antes de usarlo desde otros hilos
+    void avisar() const {
+        if (alCambiar_) alCambiar_();
+    }
 };
 
 } // namespace ba::app::agent

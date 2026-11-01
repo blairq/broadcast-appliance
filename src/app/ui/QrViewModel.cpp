@@ -225,9 +225,9 @@ struct QrViewModel::Impl {
 
     std::filesystem::path archivoDe(const QString& a) const {
         if (a == "evento") {
-            if (evento == nullptr || evento->carpetaDeDiscursos().isEmpty()) return {};
+            if (evento == nullptr || evento->guionVm().carpetaDeDiscursos().isEmpty()) return {};
             // Al lado de Discursos/, dentro del evento.
-            return std::filesystem::path(evento->carpetaDeDiscursos().toStdString()).parent_path() / "QR" /
+            return std::filesystem::path(evento->guionVm().carpetaDeDiscursos().toStdString()).parent_path() / "QR" /
                    "qr.json";
         }
         return rt->dataRoot() / "Config" / "qr.json";
@@ -314,7 +314,7 @@ QrViewModel::QrViewModel(AppRuntime& rt, EventoViewModel* evento, ConferenceView
     d_->evento = evento;
     d_->sala = sala;
     refrescar();
-    if (evento != nullptr) connect(evento, &EventoViewModel::guionChanged, this, [this]() { refrescar(); });
+    if (evento != nullptr) connect(&evento->guionVm(), &GuionViewModel::guionChanged, this, [this]() { refrescar(); });
     resolver();
 }
 
@@ -362,7 +362,7 @@ void QrViewModel::setAmbito(const QString& a) {
 }
 
 QString QrViewModel::sinEvento() const {
-    if (d_->evento == nullptr || d_->evento->carpetaDeDiscursos().isEmpty())
+    if (d_->evento == nullptr || d_->evento->guionVm().carpetaDeDiscursos().isEmpty())
         return tr("No hay ningún evento abierto: los códigos del evento se guardan en su carpeta.");
     return {};
 }
@@ -581,10 +581,10 @@ void QrViewModel::Impl::guardarEnBiblioteca(const QString& a, const QVariantMap&
                                              m.value("tipo").toString().toStdString(), a.toStdString()}));
 }
 
-QString QrViewModel::guardar(const QString& nombre) {
+bool QrViewModel::guardar(const QString& nombre) {
     const QString n = limpiarNombre(nombre.isEmpty() ? d_->nombre : nombre);
-    if (n.isEmpty()) return tr("Ponele un nombre.");
-    if (d_->ambito == "evento" && !sinEvento().isEmpty()) return sinEvento();
+    if (n.isEmpty()) return sinError(tr("Ponele un nombre."));
+    if (d_->ambito == "evento" && !sinEvento().isEmpty()) return sinError(sinEvento());
     QVariantMap m;
     m["id"] = d_->abierto.isEmpty() ? nuevoId() : d_->abierto;
     m["nombre"] = n;
@@ -597,7 +597,7 @@ QString QrViewModel::guardar(const QString& nombre) {
     d_->sucio = false;
     emit bibliotecaCambio();
     emit editorCambio();
-    return {};
+    return true;
 }
 
 QString QrViewModel::guardarCodigo(const QString& ambito, const QString& id, const QString& nombre,
@@ -637,7 +637,7 @@ QString QrViewModel::guardarCodigo(const QString& ambito, const QString& id, con
     return {};
 }
 
-QString QrViewModel::borrar(const QString& id) {
+void QrViewModel::borrar(const QString& id) {
     QVariantList lista = d_->biblioteca.value(d_->ambito);
     const auto antes = lista.size();
     for (int i = 0; i < lista.size(); ++i)
@@ -645,7 +645,7 @@ QString QrViewModel::borrar(const QString& id) {
             lista.removeAt(i);
             break;
         }
-    if (lista.size() == antes) return tr("No lo encuentro.");
+    if (lista.size() == antes) return avisarError(tr("No lo encuentro."));
     d_->biblioteca[d_->ambito] = lista;
     d_->guardarArchivo(d_->ambito);
     diag::registro().linea(diag::Nivel::Info, "qr", 0, ba::i18n::llenar(ba::i18n::traducir("qr", "borrado %1"), {id.toStdString()}));
@@ -655,13 +655,12 @@ QString QrViewModel::borrar(const QString& id) {
         emit editorCambio();
     }
     emit bibliotecaCambio();
-    return {};
 }
 
-QString QrViewModel::copiarA(const QString& id, const QString& ambito) {
+void QrViewModel::copiarA(const QString& id, const QString& ambito) {
     const QString destino = ambito == "evento" ? "evento" : "global";
-    if (destino == d_->ambito) return tr("Ya está en ese ámbito.");
-    if (destino == "evento" && !sinEvento().isEmpty()) return sinEvento();
+    if (destino == d_->ambito) return avisarError(tr("Ya está en ese ámbito."));
+    if (destino == "evento" && !sinEvento().isEmpty()) return avisarError(sinEvento());
     for (const QVariant& v : d_->biblioteca.value(d_->ambito)) {
         QVariantMap m = v.toMap();
         if (m.value("id").toString() != id) continue;
@@ -673,9 +672,9 @@ QString QrViewModel::copiarA(const QString& id, const QString& ambito) {
         emit bibliotecaCambio();
         emit notify(destino == "evento" ? tr("Copiado al evento") : tr("Copiado a la biblioteca general"),
                     "ok");
-        return {};
+        return;
     }
-    return tr("No lo encuentro.");
+    avisarError(tr("No lo encuentro."));
 }
 
 // --- Salidas --------------------------------------------------------------------

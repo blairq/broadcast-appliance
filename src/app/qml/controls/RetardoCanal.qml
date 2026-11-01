@@ -57,8 +57,7 @@ Popup {
                 compact: true; text: pop.midiendo ? qsTr("Midiendo… aplaudí") : qsTr("Medir con aplauso")
                 enabled: !pop.midiendo
                 onClicked: {
-                    const e = Studio.mezcla.medirSincroUi(10, Studio.salidas.activa)
-                    if (e !== "") { Studio.notify(e, "error"); return }
+                    if (!Studio.mezcla.medirSincroUi(10, Studio.salidas.activa)) return
                     pop.midiendo = true; pop.resultado = ""
                 }
             }
@@ -86,8 +85,7 @@ Popup {
             GlassButton {
                 compact: true; active: true; text: qsTr("Aplicar")
                 onClicked: {
-                    const e = Studio.mezcla.setRetardoUi(pop.fuente, retMs.value)
-                    if (e !== "") { Studio.notify(e, "error"); return }
+                    if (!Studio.mezcla.setRetardoUi(pop.fuente, retMs.value)) return
                     pop.aplicado(pop.fuente, retMs.value)
                     pop.close()
                 }

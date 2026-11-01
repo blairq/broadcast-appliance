@@ -26,7 +26,6 @@ ColumnLayout {
         return Object.keys(e).map(k => Object.assign({ entrada: k }, e[k]))
     }
     readonly property var redesCatalogo: sr ? sr.plugins.filter(p => p.tipo === "red" && !p.propio) : []
-    function avisar(e, ok) { if (e !== "") Studio.notify(e, "error"); else if (ok) Studio.notify(ok, "info") }
 
     // Las opciones de motor: los que hay y cada modelo ONNX.
     readonly property var opciones: {
@@ -79,7 +78,7 @@ ColumnLayout {
                 currentIndex: panel.indiceDe(fila.g)
                 onActivated: (i) => {
                     const o = panel.opciones[i]
-                    panel.avisar(panel.sr.aplicarUi(fila.modelData.entrada, o.motor, o.modelo), qsTr("Aplicado: se rearma la entrada"))
+                    if (panel.sr.aplicarUi(fila.modelData.entrada, o.motor, o.modelo)) Studio.notify(qsTr("Aplicado: se rearma la entrada"), "info")
                 }
             }
             Text {
@@ -139,7 +138,7 @@ ColumnLayout {
             compact: true; active: true
             text: panel.tr.corriendo ? qsTr("Trabajando…") : qsTr("Entrenar con lo que ve")
             enabled: !panel.tr.corriendo && entradaEnt.currentText !== ""
-            onClicked: panel.avisar(panel.sr.entrenarUi(entradaEnt.currentText, minutos.value, true), "")
+            onClicked: panel.sr.entrenarUi(entradaEnt.currentText, minutos.value, true)
         }
         GlassButton { compact: true; text: qsTr("Cancelar"); visible: !!panel.tr.corriendo; onClicked: panel.sr.cancelarUi() }
         Item { Layout.fillWidth: true }
@@ -231,7 +230,7 @@ ColumnLayout {
                     if (e !== "")
                         ApplicationWindow.window.confirm({
                             title: qsTr("Medir igual"), text: e + ".", accept: qsTr("Medir igual"), reject: qsTr("No"),
-                            action: () => panel.avisar(banco.b.correrUi({ forzar: true }), qsTr("Midiendo…"))
+                            action: () => { const e = banco.b.correrUi({ forzar: true }); Studio.notify(e !== "" ? e : qsTr("Midiendo…"), e !== "" ? "error" : "info") }
                         })
                 }
             }
@@ -364,7 +363,7 @@ ColumnLayout {
             compact: true; active: true
             text: panel.tr.corriendo ? qsTr("Trabajando…") : qsTr("Bajar el runtime de GPU")
             enabled: !panel.tr.corriendo
-            onClicked: panel.avisar(panel.sr.instalarRuntimeGpuUi(tipoGpu.model[tipoGpu.currentIndex].v, conTrt.checked), qsTr("Bajando: al terminar, reiniciá el programa"))
+            onClicked: if (panel.sr.instalarRuntimeGpuUi(tipoGpu.model[tipoGpu.currentIndex].v, conTrt.checked)) Studio.notify(qsTr("Bajando: al terminar, reiniciá el programa"), "info")
         }
         Item { Layout.fillWidth: true }
     }
@@ -411,8 +410,8 @@ ColumnLayout {
             compact: true; active: true
             text: panel.tr.corriendo ? qsTr("Trabajando…") : qsTr("Destilar")
             enabled: !panel.tr.corriendo && entradaDest.currentText !== "" && maestro.currentIndex >= 0
-            onClicked: panel.avisar(panel.sr.destilarUi(entradaDest.currentText, panel.redesCatalogo[maestro.currentIndex].id,
-                                                         minDest.value, destAplicar.checked, destCpu.checked), "")
+            onClicked: panel.sr.destilarUi(entradaDest.currentText, panel.redesCatalogo[maestro.currentIndex].id,
+                                                         minDest.value, destAplicar.checked, destCpu.checked)
         }
         Item { Layout.fillWidth: true }
     }
@@ -434,18 +433,11 @@ ColumnLayout {
         spacing: 8
         readonly property var redes: panel.sr ? panel.sr.plugins.filter(p => p.tipo === "red" && p.instalado) : []
         property string plugin: ""
-        property var lista: []
-        property var faltan: []
         readonly property string elegido: plugin !== "" ? plugin : (redes.length > 0 ? redes[0].id : "")
-        function refrescar() {
-            lista = panel.sr && elegido !== "" ? panel.sr.variantesUi(elegido) : []
-            faltan = panel.sr && elegido !== "" ? panel.sr.tamanosSinVarianteUi(elegido) : []
-        }
-        onElegidoChanged: refrescar()
-        // Las variantes cambian con el modelo (crear, borrar) y los tamaños que faltan, también
-        // con las cámaras (su tamaño llega con las entradas).
-        Connections { target: panel.sr; function onCambio() { varSec.refrescar() } }
-        Connections { target: Studio.inputs; function onChanged() { varSec.refrescar() } }
+        // Del modelo: cambian con lo instalado (crear, borrar) y con las cámaras (su tamaño).
+        readonly property var deLaRed: panel.sr && elegido !== "" ? (panel.sr.variantes[elegido] || ({})) : ({})
+        readonly property var lista: deLaRed.lista || []
+        readonly property var faltan: deLaRed.faltan || []
         Text {
             visible: varSec.redes.length === 0
             text: qsTr("No hay redes instaladas (Modelos, más abajo, o superres_instalar).")
@@ -470,7 +462,7 @@ ColumnLayout {
             GlassButton {
                 compact: true; text: qsTr("Crear las que faltan")
                 enabled: varSec.faltan.length > 0 && !panel.tr.corriendo
-                onClicked: panel.avisar(panel.sr.crearFaltantesUi(varSec.elegido), qsTr("Compilando %1…").arg(varSec.faltan.join(", ")))
+                onClicked: if (panel.sr.crearFaltantesUi(varSec.elegido)) Studio.notify(qsTr("Compilando %1…").arg(varSec.faltan.join(", ")), "info")
             }
         }
         RowLayout {
@@ -491,9 +483,9 @@ ColumnLayout {
             GlassButton {
                 compact: true; active: true; text: qsTr("Crear")
                 enabled: !panel.tr.corriendo
-                onClicked: panel.avisar(panel.sr.crearVarianteUi(varSec.elegido, varAncho.value, varAlto.value, varPara.text,
-                                                                 varMotores.model[varMotores.currentIndex].v),
-                                        qsTr("Compilando %1…").arg(varAncho.value + "x" + varAlto.value))
+                onClicked: if (panel.sr.crearVarianteUi(varSec.elegido, varAncho.value, varAlto.value, varPara.text,
+                                                         varMotores.model[varMotores.currentIndex].v))
+                               Studio.notify(qsTr("Compilando %1…").arg(varAncho.value + "x" + varAlto.value), "info")
             }
         }
         Text {
@@ -527,11 +519,12 @@ ColumnLayout {
                     text: vr.modelData.para || ""
                     placeholderText: qsTr("Para qué")
                     onEditingFinished: if (text !== (vr.modelData.para || ""))
-                        panel.avisar(panel.sr.editarVarianteUi(vr.modelData.plugin, vr.modelData.id, text, vr.modelData.descripcion || ""), qsTr("Guardado"))
+                        if (panel.sr.editarVarianteUi(vr.modelData.plugin, vr.modelData.id, text, vr.modelData.descripcion || ""))
+                            Studio.notify(qsTr("Guardado"), "info")
                 }
                 GlassButton {
                     compact: true; text: "✕"
-                    onClicked: { panel.avisar(panel.sr.borrarVarianteUi(vr.modelData.plugin, vr.modelData.id), qsTr("Variante borrada")); varSec.refrescar() }
+                    onClicked: { if (panel.sr.borrarVarianteUi(vr.modelData.plugin, vr.modelData.id)) Studio.notify(qsTr("Variante borrada"), "info") }
                 }
             }
         }
@@ -571,7 +564,7 @@ ColumnLayout {
                 color: pp.modelData.anda ? Theme.textDim : Theme.live; font.pixelSize: 11
             }
             GlassButton { compact: true; text: qsTr("Editar"); onClicked: editorPropio.abrir(pp.modelData) }
-            GlassButton { compact: true; text: "✕"; onClicked: panel.avisar(panel.sr.borrarPluginUi(pp.modelData.id), qsTr("Plugin borrado")) }
+            GlassButton { compact: true; text: "✕"; onClicked: if (panel.sr.borrarPluginUi(pp.modelData.id)) Studio.notify(qsTr("Plugin borrado"), "info") }
         }
     }
     Popup {
@@ -694,12 +687,12 @@ ColumnLayout {
         Text { text: qsTr("Modelos"); color: Theme.text; font { pixelSize: 14; weight: Font.DemiBold } Layout.fillWidth: true }
         GlassButton {
             compact: true; text: qsTr("Bajar SPAN x2"); enabled: !panel.tr.corriendo
-            onClicked: panel.avisar(panel.sr.convertirUi("span"), "")
+            onClicked: panel.sr.convertirUi("span")
             ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: qsTr("SPAN (Apache-2.0): liviano y fiel. En una Mac ~140 ms por cuadro: para probar")
         }
         GlassButton {
             compact: true; text: qsTr("Bajar Real-ESRGAN"); enabled: !panel.tr.corriendo
-            onClicked: panel.avisar(panel.sr.convertirUi("esrgan"), "")
+            onClicked: panel.sr.convertirUi("esrgan")
             ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: qsTr("Real-ESRGAN compacto x4 (BSD-3): limpia ruido y compresión; pesado (~290 ms en una Mac)")
         }
     }
@@ -726,7 +719,7 @@ ColumnLayout {
                       (mod.modelData.licencia ? " · " + mod.modelData.licencia : "")
                 color: Theme.textDim; font.pixelSize: 11
             }
-            GlassButton { compact: true; text: "✕"; onClicked: panel.avisar(panel.sr.borrarModelo(mod.modelData.archivo), qsTr("Modelo borrado")) }
+            GlassButton { compact: true; text: "✕"; onClicked: if (panel.sr.borrarModelo(mod.modelData.archivo)) Studio.notify(qsTr("Modelo borrado"), "info") }
         }
     }
 }

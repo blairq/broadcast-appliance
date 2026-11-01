@@ -486,9 +486,8 @@ ColumnLayout {
                                    model: [ { t: qsTr("Sí / No / Abst."), v: "si_no_abstencion" }, { t: qsTr("Sí / No"), v: "si_no" },
                                             { t: qsTr("Sí / No / Abst. / NP"), v: "si_no_abstencion_nppv" } ] }
                         GlassButton { text: qsTr("Abrir en los celulares"); enabled: temaCel.text.trim() !== ""
-                                      onClicked: { const e = Studio.votaciones.abrirEnCelularesUi(temaCel.text, menuCel.model[menuCel.currentIndex].v,
-                                                                                                 Studio.sesionRemota.votoSegundos)
-                                                   if (e) Studio.notify(e, "error") } }
+                                      onClicked: { Studio.votaciones.abrirEnCelularesUi(temaCel.text, menuCel.model[menuCel.currentIndex].v,
+                                                                                                 Studio.sesionRemota.votoSegundos) } }
                     }
                     RowLayout {
                         visible: (vot.vr.estado === "abierta" || vot.vr.estado === "pausada") && vot.vr.origen === "app"

@@ -16,8 +16,7 @@ Instantiator {
         sequence: modelData.tecla
         enabled: at.activos
         onActivated: {
-            const e = Studio.linea.atajo(modelData.accion)
-            if (e !== "") Studio.notify(e, "error")
+            Studio.linea.atajo(modelData.accion)
         }
     }
 }

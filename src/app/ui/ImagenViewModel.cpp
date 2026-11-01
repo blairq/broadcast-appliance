@@ -98,6 +98,7 @@ ImagenViewModel::ImagenViewModel(Partes p, QObject* parent) : QObject(parent), p
     });
     // La superresolución de las entradas de red (motores, modelos, laboratorio).
     superres_ = std::make_unique<video::SuperRes>(rt.dataRoot(), videoVm_.get());
+    connect(superres_.get(), &video::SuperRes::notify, this, &ImagenViewModel::notify);
     {
         video::BancoSuperRes::Entorno en;
         en.alAire = [this]() { return p_.ventanilla.foto().estado.haySalida; };
@@ -126,6 +127,7 @@ ImagenViewModel::ImagenViewModel(Partes p, QObject* parent) : QObject(parent), p
     connect(red_.get(), &red::Red::ptzListo, camaras_.get(), &ptz::ControlCamaras::revisarRed);
     // Seguir una cara con el PTZ (la ventana del PTZ y el asistente).
     seguidor_ = std::make_unique<Seguidor>(p_.personas, camaras_.get());
+    connect(seguidor_.get(), &Seguidor::notify, this, &ImagenViewModel::notify);
     // Ir a una posición a pedido (enfocar, dar la palabra, un preset) corta el
     // seguimiento de caras de esa cámara: si no, se pelean.
     camaras_->setDejarDeSeguir([this](const QString& e) {
@@ -178,6 +180,7 @@ void ImagenViewModel::armarTiempos() {
         }
         return f;
     }, rt.dataRoot() / "Config" / "tiempos-analisis.json");
+    connect(tiempos_.get(), &tiempos::TiemposModel::notify, this, &ImagenViewModel::notify);
     // El análisis por elemento (las sondas del motor): lo llama el modelo en su hilo (el
     // motor de GStreamer lo hace con el candado de la entrada).
     tiempos_->setSondas({[&me = p_.motorEntreHilos](const std::string& e) -> std::string {
@@ -343,9 +346,9 @@ bool ImagenViewModel::cuadroScope(const QString& fuente, QImage& img, std::uint6
 
 QString ImagenViewModel::legalizador() const { return legalizador_; }
 
-QString ImagenViewModel::legalizarUi(const QString& modo) {
+void ImagenViewModel::legalizarUi(const QString& modo) {
     const std::string m = modo.toStdString();
-    if (m != "no" && m != "pal" && m != "ntsc" && m != "rango") return tr("modo desconocido");
+    if (m != "no" && m != "pal" && m != "ntsc" && m != "rango") return avisarError(tr("modo desconocido"));
     // La configuración y el motor son del dueño: allá se guarda y se rearma.
     videoVm_->pedir("video_legalizar", [&rt = p_.rt, m](video::VideoGrafos& g) {
         rt.config().legalizar = m;
@@ -354,7 +357,6 @@ QString ImagenViewModel::legalizarUi(const QString& modo) {
         g.setLegalizar(m);
         return std::string();
     });
-    return {};
 }
 
 } // namespace ba::app

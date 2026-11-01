@@ -24,6 +24,8 @@ class AudioRack;
 
 class AudioViewModel : public QObject {
     Q_OBJECT
+    /// Las fuentes de texto (para los subtítulos de una salida): cambian con las fuentes.
+    Q_PROPERTY(QStringList fuentesTexto READ fuentesDeTexto NOTIFY changed)
     Q_PROPERTY(bool available READ available NOTIFY changed)
     Q_PROPERTY(QString error READ error NOTIFY changed)
     Q_PROPERTY(QVariantList sources READ sources NOTIFY changed)
@@ -66,10 +68,9 @@ class AudioViewModel : public QObject {
     double gridStep() const;
 
     /// Una vista (la página Audio) empieza o deja de mostrarlo: los medidores corren
-    /// mientras haya alguna (cuenta por vista).
-    Q_INVOKABLE void usar(QObject* vista, bool si) { vistas_.usar(vista, si); }
-    /// Lo mismo para una parte que cuesta más: "estudio" o "grabacion".
-    Q_INVOKABLE void usar(QObject* vista, bool si, const QString& que) { vistas_.usar(vista, si, que); }
+    /// mientras haya alguna (cuenta por vista). `que`: una parte que cuesta más, "estudio" o
+    /// "grabacion" (cada una con su cuenta).
+    Q_INVOKABLE void usar(QObject* vista, bool si, const QString& que = {}) { vistas_.usar(vista, si, que); }
     Q_INVOKABLE void refresh();
     /// Cambiaron las fuentes, las entradas de audio, el volumen o el silencio (lo avisa el
     /// runtime, lo haya pedido quien sea): la lista se rehace si quedó distinta, y la
@@ -104,7 +105,7 @@ class AudioViewModel : public QObject {
     /// Cambia una voz a texto: {modo?, flujo?, salidas?: {archivo, rotulo}}.
     Q_INVOKABLE QString setTextoOpciones(const QString& node, const QVariantMap& cambios);
     /// Las fuentes de texto (para subtítulos en un rótulo).
-    Q_INVOKABLE QStringList fuentesDeTexto() const;
+    QStringList fuentesDeTexto() const;
     /// El catálogo de filtros LSP por familia (datos/lsp-catalogo.json, en
     /// castellano) con sus variantes reales: [{clave, nombre, categoria,
     /// ilustracion, vivo, esFiltro, descripcion, usoVivo, etiquetas,

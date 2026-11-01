@@ -37,8 +37,7 @@ Panel {
         return m.instalado ? qsTr("sin usar") : qsTr("sin bajar")
     }
     function elegir(consumidor, motor) {
-        const err = panel.voz.elegirReconocedor(consumidor, motor)
-        if (err !== "") Studio.notify(err, "error")
+        panel.voz.elegirReconocedor(consumidor, motor)
     }
 
     ColumnLayout {
@@ -136,8 +135,7 @@ Panel {
                     enabled: fila.modelData.motor === "nemotron"
                     checked: fila.modelData.interrumpir
                     onToggled: (w) => {
-                        const err = panel.voz.setInterrumpir(fila.modelData.id, w)
-                        if (err !== "") Studio.notify(err, "error")
+                        panel.voz.setInterrumpir(fila.modelData.id, w)
                     }
                 }
                 Text {

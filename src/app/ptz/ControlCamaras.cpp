@@ -42,6 +42,9 @@
 #include <algorithm>
 #include <fstream>
 #include <cmath>
+#include "ui/CapturaError.hpp"
+
+using ::ba::app::errorDe;
 
 namespace ba::app::ptz {
 
@@ -379,10 +382,10 @@ PtzBackend* ControlCamaras::activo(Camara& c) const {
 #define BA_PTZ_ACTIVO(entrada)                                                                               \
     QString error;                                                                                           \
     Camara* c = camara(entrada, &error);                                                                     \
-    if (c == nullptr) return error;                                                                          \
+    if (c == nullptr) return avisarError(error);                                                             \
     PtzBackend* b = activo(*c);                                                                              \
     if (b == nullptr)                                                                                        \
-        return QCoreApplication::translate("ptz", "«%1» no tiene PTZ: prendé el digital o elegí un backend").arg(entrada);        \
+        return avisarError(QCoreApplication::translate("ptz", "«%1» no tiene PTZ: prendé el digital o elegí un backend").arg(entrada)); \
     movida(*c);
 
 void ControlCamaras::pulsar(const QString& entrada, double pan, double tilt, double zoom) {
@@ -395,100 +398,94 @@ void ControlCamaras::pulsar(const QString& entrada, double pan, double tilt, dou
         b->mover(pan, tilt, zoom);
 }
 
-QString ControlCamaras::mover(const QString& entrada, double pan, double tilt, double zoom) {
+void ControlCamaras::mover(const QString& entrada, double pan, double tilt, double zoom) {
     BA_PTZ_ACTIVO(entrada);
     ++pulsos_[entrada.toStdString()]; // lo manual manda: corta un apuntar a medias
     b->mover(qBound(-1.0, pan, 1.0), qBound(-1.0, tilt, 1.0), qBound(-1.0, zoom, 1.0));
-    return {};
 }
 
-QString ControlCamaras::parar(const QString& entrada) {
+void ControlCamaras::parar(const QString& entrada) {
     QString error;
     Camara* c = camara(entrada, &error);
-    if (c == nullptr) return error;
+    if (c == nullptr) return avisarError(error);
     ++pulsos_[entrada.toStdString()];
     // Para todo lo que pueda estar moviéndose (por si cambió el modo en medio).
     if (c->hw) c->hw->parar();
     if (c->dig) c->dig->parar();
     despertarEncuadre(c->entrada);
     guardarPronto();
-    return {};
 }
 
-QString ControlCamaras::enfocar(const QString& entrada, double v) {
+void ControlCamaras::enfocar(const QString& entrada, double v) {
     QString error;
     Camara* c = camara(entrada, &error);
-    if (c == nullptr) return error;
+    if (c == nullptr) return avisarError(error);
     if (!c->hw || !c->hw->capacidades().foco)
-        return QCoreApplication::translate("ptz", "«%1» no tiene foco controlable").arg(entrada);
+        return avisarError(QCoreApplication::translate("ptz", "«%1» no tiene foco controlable").arg(entrada));
     c->hw->enfocar(qBound(-1.0, v, 1.0));
-    return {};
 }
 
-QString ControlCamaras::autoFoco(const QString& entrada, bool automatico) {
+void ControlCamaras::autoFoco(const QString& entrada, bool automatico) {
     QString error;
     Camara* c = camara(entrada, &error);
-    if (c == nullptr) return error;
+    if (c == nullptr) return avisarError(error);
     if (!c->hw || !c->hw->capacidades().autoFoco)
-        return QCoreApplication::translate("ptz", "«%1» no deja cambiar el autofoco").arg(entrada);
+        return avisarError(QCoreApplication::translate("ptz", "«%1» no deja cambiar el autofoco").arg(entrada));
     c->hw->autoFoco(automatico);
-    return {};
 }
 
-QString ControlCamaras::irPreset(const QString& entrada, int n) {
+void ControlCamaras::irPreset(const QString& entrada, int n) {
     QString error;
     Camara* c = camara(entrada, &error);
-    if (c == nullptr) return error;
+    if (c == nullptr) return avisarError(error);
     // El preset N es la posición N (digital, de la cámara o las dos).
     if (const Posicion* p = c->posiciones.porNumero(n)) {
         const QVariantMap r = irAPosicion(entrada, p->id, -1);
-        return r.value("ok").toBool() ? QString() : r.value("error").toString();
+        return avisarError(r.value("ok").toBool() ? QString() : r.value("error").toString());
     }
     // Sin posición con ese número: el preset propio de la cámara (grabado en ella), si tiene.
     if (c->hw && activo(*c) == c->hw.get() && n >= 1 && n <= c->hw->capacidades().presets) {
         movida(*c);
         c->hw->irAPreset(n);
         emit cambio();
-        return {};
+        return;
     }
-    return QCoreApplication::translate("ptz", "«%1» no tiene una posición número %2 (ptz_posiciones da las que hay)").arg(entrada).arg(n);
+    avisarError(QCoreApplication::translate("ptz", "«%1» no tiene una posición número %2 (ptz_posiciones da las que hay)").arg(entrada).arg(n));
 }
 
-QString ControlCamaras::guardarPreset(const QString& entrada, int n) {
+void ControlCamaras::guardarPreset(const QString& entrada, int n) {
     QString error;
     Camara* c = camara(entrada, &error);
-    if (c == nullptr) return error;
-    if (n < 1) return QCoreApplication::translate("ptz", "El número de preset va desde 1");
+    if (c == nullptr) return avisarError(error);
+    if (n < 1) return avisarError(QCoreApplication::translate("ptz", "El número de preset va desde 1"));
     // Ya hay una posición con ese número: se regraba donde está ahora. Si no, una nueva.
     if (const Posicion* p = c->posiciones.porNumero(n)) {
         const QVariantMap r = editarPosicion(entrada, p->id, {{"regrabar", true}});
-        return r.value("ok").toBool() ? QString() : r.value("error").toString();
+        return avisarError(r.value("ok").toBool() ? QString() : r.value("error").toString());
     }
     const QVariantMap r = crearPosicion(entrada, nombreLibre(*c, QCoreApplication::translate("ptz", "Preset %1").arg(n)), {}, 0, -1, n);
-    return r.value("ok").toBool() ? QString() : r.value("error").toString();
+    avisarError(r.value("ok").toBool() ? QString() : r.value("error").toString());
 }
 
-QString ControlCamaras::home(const QString& entrada) {
+void ControlCamaras::home(const QString& entrada) {
     BA_PTZ_ACTIVO(entrada);
     b->home();
     guardarPronto();
-    return {};
 }
 
-QString ControlCamaras::encuadre(const QString& entrada, double x, double y, double zoom, double segundos) {
+void ControlCamaras::encuadre(const QString& entrada, double x, double y, double zoom, double segundos) {
     QString error;
     Camara* c = camara(entrada, &error);
-    if (c == nullptr) return error;
-    if (!c->digital || !c->dig) return QCoreApplication::translate("ptz", "El PTZ digital está apagado en «%1»").arg(entrada);
+    if (c == nullptr) return avisarError(error);
+    if (!c->digital || !c->dig) return avisarError(QCoreApplication::translate("ptz", "El PTZ digital está apagado en «%1»").arg(entrada));
     movida(*c);
     if (!c->dig->ir(qBound(0.0, x, 1.0), qBound(0.0, y, 1.0), qBound(1.0, zoom, 8.0),
                     qBound(0.0, segundos, 10.0)))
-        return c->dig->estado();
+        return avisarError(c->dig->estado());
     guardarPronto();
-    return {};
 }
 
-QString ControlCamaras::apuntar(const QString& entrada, double u, double v, double ancho, double alto) {
+void ControlCamaras::apuntar(const QString& entrada, double u, double v, double ancho, double alto) {
     BA_PTZ_ACTIVO(entrada);
     u = qBound(0.0, u, 1.0);
     v = qBound(0.0, v, 1.0);
@@ -507,15 +504,15 @@ QString ControlCamaras::apuntar(const QString& entrada, double u, double v, doub
         // Que la ventana nueva no se salga del cuadro.
         x = qBound(0.5 / nz, x, 1.0 - 0.5 / nz);
         y = qBound(0.5 / nz, y, 1.0 - 0.5 / nz);
-        if (!c->dig->ir(x, y, nz, 0.5)) return c->dig->estado();
+        if (!c->dig->ir(x, y, nz, 0.5)) return avisarError(c->dig->estado());
         guardarPronto();
-        return {};
+        return;
     }
 
     // Motorizada que sabe apuntar sola (Axis): exacto, con su campo de visión real.
     if (b->apuntar(u, v, ancho, alto)) {
         ++pulsos_[entrada.toStdString()];
-        return {};
+        return;
     }
     // Motorizada: un pulso de pan/tilt proporcional a lo que falta hasta el
     // centro y, si hubo cuadro, uno de zoom. Las constantes son las de una
@@ -539,7 +536,7 @@ QString ControlCamaras::apuntar(const QString& entrada, double u, double v, doub
     };
     if (mayor < 0.02) {
         zoom();
-        return {};
+        return;
     }
     // Las dos velocidades en la misma proporción que la distancia: llega en
     // diagonal y en un solo pulso. Tilt + es arriba; v crece hacia abajo.
@@ -550,7 +547,6 @@ QString ControlCamaras::apuntar(const QString& entrada, double u, double v, doub
                            yo->pulsar(entrada, 0, 0, 0);
                            QTimer::singleShot(150, yo, zoom);
                        });
-    return {};
 }
 
 #undef BA_PTZ_ACTIVO
@@ -595,18 +591,18 @@ void ControlCamaras::crearHardware(Camara& c) {
     c.hw->configurar(conf);
 }
 
-QString ControlCamaras::configurar(const QString& entrada, const QString& backend, const QVariantMap& conf) {
+void ControlCamaras::configurar(const QString& entrada, const QString& backend, const QVariantMap& conf) {
     static const QStringList kValidos{"ninguno", "visca", "onvif", "panasonic", "plugin"};
     if (!kValidos.contains(backend))
-        return QCoreApplication::translate("ptz", "Backend «%1» desconocido (ninguno, visca, onvif, panasonic, plugin)")
-            .arg(backend);
+        return avisarError(QCoreApplication::translate("ptz", "Backend «%1» desconocido (ninguno, visca, onvif, panasonic, plugin)")
+            .arg(backend));
     QString error;
     Camara* c = camara(entrada, &error);
-    if (c == nullptr) return error;
+    if (c == nullptr) return avisarError(error);
     if (backend == "plugin" && conf.value("plugin").toString().isEmpty())
-        return QCoreApplication::translate("ptz", "Falta el plugin");
+        return avisarError(QCoreApplication::translate("ptz", "Falta el plugin"));
     if (backend != "ninguno" && backend != "plugin" && conf.value("host").toString().trimmed().isEmpty())
-        return QCoreApplication::translate("ptz", "Falta la dirección de la cámara");
+        return avisarError(QCoreApplication::translate("ptz", "Falta la dirección de la cámara"));
     // Los campos del backend, a su tipo (un número escrito como texto, lo que no se tocó con
     // su valor de entrada, lo vacío no se manda); lo que no es un campo (el plugin) pasa tal cual.
     QVariantMap limpia = conf;
@@ -615,7 +611,7 @@ QString ControlCamaras::configurar(const QString& entrada, const QString& backen
             const QVariantList campos = b.toMap().value("campos").toList();
             QVariantMap convertidos;
             const QString e = formulario::convertirTodos(campos, conf, &convertidos);
-            if (!e.isEmpty()) return e;
+            if (!e.isEmpty()) return avisarError(e);
             for (const QVariant& cv : campos) limpia.remove(cv.toMap().value("name").toString());
             limpia.insert(convertidos);
         }
@@ -629,7 +625,6 @@ QString ControlCamaras::configurar(const QString& entrada, const QString& backen
     crearHardware(*c);
     guardarPronto();
     emit cambio();
-    return {};
 }
 
 QVariantMap ControlCamaras::funcionesDe(const QString& entrada) {
@@ -650,46 +645,43 @@ void ControlCamaras::refrescarPlugins() {
     emit cambio();
 }
 
-QString ControlCamaras::setDigital(const QString& entrada, bool prendido) {
+void ControlCamaras::setDigital(const QString& entrada, bool prendido) {
     QString error;
     Camara* c = camara(entrada, &error);
-    if (c == nullptr) return error;
+    if (c == nullptr) return avisarError(error);
     c->digital = prendido;
     if (!prendido) c->modo = QStringLiteral("optico");
     aplicarFiltros(*c, mejoraActiva());
     guardarPronto();
     emit cambio();
-    return {};
 }
 
-QString ControlCamaras::setMejora(const QString& entrada, const QString& modo) {
+void ControlCamaras::setMejora(const QString& entrada, const QString& modo) {
     if (modo != "general" && modo != "si" && modo != "no")
-        return QCoreApplication::translate("ptz", "Modo «%1»: general, si o no").arg(modo);
+        return avisarError(QCoreApplication::translate("ptz", "Modo «%1»: general, si o no").arg(modo));
     QString error;
     Camara* c = camara(entrada, &error);
-    if (c == nullptr) return error;
+    if (c == nullptr) return avisarError(error);
     c->mejora = modo;
     aplicarFiltros(*c, mejoraActiva());
     guardarPronto();
     emit cambio();
-    return {};
 }
 
-QString ControlCamaras::setModo(const QString& entrada, const QString& modo) {
-    if (modo != "optico" && modo != "digital") return QCoreApplication::translate("ptz", "Modo «%1»: optico o digital").arg(modo);
+void ControlCamaras::setModo(const QString& entrada, const QString& modo) {
+    if (modo != "optico" && modo != "digital") return avisarError(QCoreApplication::translate("ptz", "Modo «%1»: optico o digital").arg(modo));
     QString error;
     Camara* c = camara(entrada, &error);
-    if (c == nullptr) return error;
-    if (modo == "optico" && !c->hw) return QCoreApplication::translate("ptz", "«%1» no tiene backend de hardware").arg(entrada);
+    if (c == nullptr) return avisarError(error);
+    if (modo == "optico" && !c->hw) return avisarError(QCoreApplication::translate("ptz", "«%1» no tiene backend de hardware").arg(entrada));
     if (modo == "digital" && !c->digital)
-        return QCoreApplication::translate("ptz", "El PTZ digital está apagado en «%1»").arg(entrada);
+        return avisarError(QCoreApplication::translate("ptz", "El PTZ digital está apagado en «%1»").arg(entrada));
     // Lo que se estaba moviendo, se para.
     if (c->hw) c->hw->parar();
     if (c->dig) c->dig->parar();
     c->modo = modo;
     guardarPronto();
     emit cambio();
-    return {};
 }
 
 void ControlCamaras::buscarOnvif() {

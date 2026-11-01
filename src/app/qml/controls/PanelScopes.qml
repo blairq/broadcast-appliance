@@ -87,7 +87,7 @@ Popup {
                 textRole: "t"
                 model: [{ id: "no", t: qsTr("No") }, { id: "pal", t: qsTr("Sí, PAL (+133 %)") }, { id: "ntsc", t: qsTr("Sí, estricto (+120 %)") }, { id: "rango", t: qsTr("Solo el rango") }]
                 currentIndex: Math.max(0, model.findIndex(m => m.id === (Studio.imagen.legalizador || "no")))
-                onActivated: (i) => { const e = Studio.imagen.legalizarUi(model[i].id); if (e !== "") Studio.notify(e, "error") }
+                onActivated: (i) => { Studio.imagen.legalizarUi(model[i].id) }
             }
             Text { Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.textFaint; font.pixelSize: 10
                    text: qsTr("Corre en la cadena de GStreamer de cada entrada (balegal): lo que se agrega después en la escena (zócalos, gráficos) no pasa por él.") }

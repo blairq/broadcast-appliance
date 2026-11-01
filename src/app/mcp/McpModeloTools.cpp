@@ -32,6 +32,9 @@
 
 #if defined(BA_HAVE_CLAP)
 #include "audio/RackManager.hpp"
+#include "ui/CapturaError.hpp"
+
+using ::ba::app::errorDe;
 #endif
 
 namespace ba::app::mcp {
@@ -465,11 +468,11 @@ void McpService::registerModeloTools() {
                 if (c.isEmpty()) return done(ToolResult::error(ba::i18n::traducir("mcp", "falta `consumidor`")));
                 if (a.contains("motor") && a["motor"].is_string()) {
                     const QString e =
-                        voz->elegirReconocedor(c, QString::fromStdString(a["motor"].get<std::string>()));
+                        errorDe([&] { voz->elegirReconocedor(c, QString::fromStdString(a["motor"].get<std::string>())); });
                     if (!e.isEmpty()) return done(ToolResult::error(e.toStdString()));
                 }
                 if (a.contains("interrumpir") && a["interrumpir"].is_boolean()) {
-                    const QString e = voz->setInterrumpir(c, a["interrumpir"].get<bool>());
+                    const QString e = errorDe([&] { voz->setInterrumpir(c, a["interrumpir"].get<bool>()); });
                     if (!e.isEmpty()) return done(ToolResult::error(e.toStdString()));
                 }
             }
@@ -491,7 +494,7 @@ void McpService::registerModeloTools() {
         t.inputSchema = {{"type", "object"}, {"properties", {{"fuente", {{"type", "string"}}}}}};
         t.run = [voz](const json& a, Done done) {
             if (a.contains("fuente") && a["fuente"].is_string()) {
-                const QString e = voz->setMicrofono(QString::fromStdString(a["fuente"].get<std::string>()));
+                const QString e = errorDe([&] { voz->setMicrofono(QString::fromStdString(a["fuente"].get<std::string>())); });
                 if (!e.isEmpty()) return done(ToolResult::error(e.toStdString()));
             }
             done(ToolResult().data(json{{"microfono", voz->microfono().toStdString()}}));

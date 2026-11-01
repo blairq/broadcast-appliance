@@ -158,7 +158,8 @@ json TiemposModel::ahora() {
 }
 
 void TiemposModel::tic() {
-    if (!rehacer()) return;
+    // El grafo y la historia de esta vuelta van juntos: se avisa con todo puesto.
+    if (!rehacer(false)) return;
     const qint64 t = QDateTime::currentMSecsSinceEpoch();
     std::set<std::string> vivos;
     for (const auto& n : mapa_["nodos"]) {
@@ -171,6 +172,31 @@ void TiemposModel::tic() {
     }
     for (auto it = historia_.begin(); it != historia_.end();)
         it = vivos.count(it->first) ? std::next(it) : historia_.erase(it);
+    mapaUi_ = aVariant(mapa_).toMap();
+    finMs_ = t;
+    armarHistorias();
+    emit cambio();
+    armarSerie();
+}
+
+void TiemposModel::armarHistorias() {
+    QVariantMap m;
+    for (const auto& [id, h] : historia_) m.insert(QString::fromStdString(id), historia(QString::fromStdString(id), kHistoriaS));
+    historiasUi_ = m;
+}
+
+void TiemposModel::armarSerie() {
+    QVariantList out;
+    for (const QString& id : linea_) out << QVariantMap{{"id", id}, {"datos", historia(id, ventanaLineaS_)}};
+    serieUi_ = out;
+    emit serieCambio();
+}
+
+void TiemposModel::setVentanaLineaS(int s) {
+    s = std::clamp(s, 10, kHistoriaLargaS);
+    if (s == ventanaLineaS_) return;
+    ventanaLineaS_ = s;
+    armarSerie();
 }
 
 json TiemposModel::nodo(const std::string& id, int segundos) const {

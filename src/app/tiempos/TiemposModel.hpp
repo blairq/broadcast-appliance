@@ -23,11 +23,17 @@
 #include <map>
 #include <string>
 #include <thread>
+#include "ui/CapturaError.hpp"
 
 namespace ba::app::tiempos {
 
 class TiemposModel : public QObject {
     Q_OBJECT
+    /// El error de una acción de la interfaz (las Q_INVOKABLE void): a quien mira.
+    void avisarError(const QString& e) {
+        if (!e.isEmpty() && !::ba::app::CapturaError::tomar(e)) emit notify(e, "error");
+    }
+    void avisarError(const std::string& e) { avisarError(QString::fromStdString(e)); }
     Q_PROPERTY(QVariantMap mapa READ mapa NOTIFY cambio)
     /// Alguna vista lo usa (usar): mide 5 veces por segundo.
     Q_PROPERTY(bool activo READ activo NOTIFY activoCambio)
@@ -42,6 +48,15 @@ class TiemposModel : public QObject {
     /// Los nodos que se ven en la línea de tiempo de la página (en orden: el color sale de
     /// ahí). La eligen el operador (tocando tarjetas) o el asistente (tiempos_linea).
     Q_PROPERTY(QStringList linea READ linea WRITE setLinea NOTIFY lineaCambio)
+    /// La historia de cada nodo, los últimos 60 s: {id: [{t, ms, acumulado}]} (las tarjetas).
+    /// Se rehace con cada vuelta mientras alguien mira.
+    Q_PROPERTY(QVariantMap historias READ historias NOTIFY cambio)
+    /// Cuántos segundos muestra la línea de tiempo (la elige el operador: 30 s a 30 min).
+    Q_PROPERTY(int ventanaLineaS READ ventanaLineaS WRITE setVentanaLineaS NOTIFY serieCambio)
+    /// Los nodos de `linea` con su historia de `ventanaLineaS`: [{id, datos}].
+    Q_PROPERTY(QVariantList serieLinea READ serieLinea NOTIFY serieCambio)
+    /// La hora de la última vuelta (ms): el borde derecho de la línea de tiempo.
+    Q_PROPERTY(double finMs READ finMs NOTIFY cambio)
 
    public:
     /// `fotos`: junta lo que publica cada parte (lo arma StudioViewModel; no espera a nadie).
@@ -60,7 +75,7 @@ class TiemposModel : public QObject {
     QVariantMap mapa() const { return mapaUi_; }
     bool activo() const { return timer_.isActive(); }
     /// Una vista (la página) empieza o deja de mirar.
-    Q_INVOKABLE void usar(QObject* vista, bool si) { vistas_.usar(vista, si); }
+    Q_INVOKABLE void usar(QObject* vista, bool si, const QString& que = {}) { vistas_.usar(vista, si, que); }
 
     /// El grafo de ahora (lo rehace en el momento; para el MCP).
     nlohmann::json ahora();
@@ -68,10 +83,20 @@ class TiemposModel : public QObject {
     nlohmann::json nodo(const std::string& id, int segundos = 60) const;
     /// La historia de un nodo de los últimos `segundos`: hasta 60 s, a 5 por segundo (si la
     /// página está abierta); más, a uno por segundo (se junta siempre, hasta 30 min).
-    Q_INVOKABLE QVariantList historia(const QString& id, int segundos = 60) const;
+    QVariantList historia(const QString& id, int segundos = 60) const;
+    QVariantMap historias() const { return historiasUi_; }
+    int ventanaLineaS() const { return ventanaLineaS_; }
+    void setVentanaLineaS(int s);
+    QVariantList serieLinea() const { return serieUi_; }
+    double finMs() const { return static_cast<double>(finMs_); }
     QVariantList eventos() const;
     QStringList linea() const { return linea_; }
-    void setLinea(const QStringList& l) { if (l != linea_) { linea_ = l; emit lineaCambio(); } }
+    void setLinea(const QStringList& l) {
+        if (l == linea_) return;
+        linea_ = l;
+        emit lineaCambio();
+        armarSerie();
+    }
     nlohmann::json eventosJson(int segundos) const;
     /// Un evento propio (una nota del operador o del asistente) en el momento `t` (ms de época;
     /// 0 = ahora). Devuelve el evento.
@@ -91,10 +116,10 @@ class TiemposModel : public QObject {
     /// `entradas` vacío = todas las del motor.
     QString analizar(int segundos, std::function<void(const nlohmann::json&)> listo = {},
                      std::vector<std::string> entradas = {});
-    Q_INVOKABLE QString analizarUi(int segundos) { return analizar(segundos); }
+    Q_INVOKABLE void analizarUi(int segundos) { avisarError(analizar(segundos)); }
     /// Analizar solo una entrada (tocando su tarjeta).
-    Q_INVOKABLE QString analizarEntradaUi(const QString& entrada, int segundos) {
-        return analizar(segundos, {}, {entrada.toStdString()});
+    Q_INVOKABLE void analizarEntradaUi(const QString& entrada, int segundos) {
+        avisarError(analizar(segundos, {}, {entrada.toStdString()}));
     }
     /// El último análisis por elemento de una entrada, para leerlo (el MCP): {entrada, t_ms,
     /// hace_s, segundos, rearmada, resumen, hallazgos, tarjetas: [{id, titulo, ms,
@@ -110,11 +135,14 @@ class TiemposModel : public QObject {
     static constexpr int kHistoriaLargaS = 30 * 60;
 
    signals:
+    /// Para el operador (ya traducido): los errores de las acciones de la interfaz.
+    void notify(const QString& texto, const QString& tipo);
     void cambio();
     void activoCambio();
     void analisisCambio();
     void eventosCambio();
     void lineaCambio();
+    void serieCambio();
 
    private:
     void tic();
@@ -136,6 +164,13 @@ class TiemposModel : public QObject {
     };
     std::map<std::string, std::deque<Muestra>> historia_;
     QStringList linea_;
+    int ventanaLineaS_ = 60;
+    QVariantMap historiasUi_;
+    QVariantList serieUi_;
+    qint64 finMs_ = 0;
+    /// Rehace lo que ve la página de la historia (tras cada vuelta, o al cambiar la línea).
+    void armarHistorias();
+    void armarSerie();
     QTimer reloj1s_;
     std::map<std::string, std::deque<Muestra>> larga_;
     std::deque<nlohmann::json> eventos_;

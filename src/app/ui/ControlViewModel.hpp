@@ -80,6 +80,8 @@ namespace ba::app {
 
 class ControlViewModel : public QObject {
     Q_OBJECT
+    /// La API remota HTTP de la botonera: {activo, accesos: [{id, nombre, perfil}], url, aviso?}.
+    Q_PROPERTY(QVariantMap apiRemota READ apiRemotaUi NOTIFY apiRemotaCambio)
     /// El tema de las interfaces web de control (Servicios → Templates, Configuración).
     Q_PROPERTY(QString temaWeb READ temaWeb WRITE setTemaWeb NOTIFY temaWebChanged)
     /// [{id, nombre, descripcion, fondo, superficie, texto, acento}] (control/TemasWeb.hpp).
@@ -131,14 +133,14 @@ class ControlViewModel : public QObject {
     static std::string guardarTemaWeb(AppRuntime& rt, const std::string& id);
 
     /// Genera el código de un uso del control web y muestra su QR (mostrarQr).
-    Q_INVOKABLE void emparejarControlWebUi();
+    void emparejarControlWebUi();
     /// Empareja una tablet: código de un uso (2 min) y el QR. Contesta con
     /// emparejamientoListo({url, qr (data URL de un SVG), codigo, vence_ms, huella, aviso, error}).
     Q_INVOKABLE void emparejarTabletUi(const QString& perfil, const QString& nombre, int venceDias);
     /// Una persona aprueba (o no) la tablet que pidió emparejarse.
     Q_INVOKABLE void aprobarTabletUi(const QString& solicitud, bool aprobar, const QString& perfil = QString());
     /// La API remota HTTP de la botonera (T59): {activo, accesos, url, aviso?}.
-    Q_INVOKABLE QVariantMap apiRemotaUi() const;
+    QVariantMap apiRemotaUi() const;
     Q_INVOKABLE void setApiRemotaUi(bool activo);
     /// Un acceso nuevo para `perfil`: {dispositivo, token, url_ejemplo} (el token se ve UNA vez) o {error}.
     Q_INVOKABLE QVariantMap crearAccesoHttpUi(const QString& perfil, const QString& nombre);
@@ -153,6 +155,7 @@ class ControlViewModel : public QObject {
     void avisarA(EnlacesViewModel& e);
 
    signals:
+    void apiRemotaCambio();
     void temaWebChanged();
     void nombresParaDskChanged();
     void emparejamientoListo(const QVariantMap& r);

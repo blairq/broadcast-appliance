@@ -17,8 +17,8 @@ Item {
     property bool enVentana: false
     /// 0 = conducción, 1 = escaleta, 2 = multipista.
     property int vista: 0
-    readonly property var ev: Studio.evento
-    readonly property bool hayEvento: !!ev && ev.abierto !== ""
+    readonly property var guionVm: Studio.evento.guionVm
+    readonly property bool hayEvento: guionVm.abierto !== ""
 
     // La línea recalcula cada segundo y pide miniaturas solo si alguien la mira: esta
     // tarjeta es una de las que miran (por vista: puede haber varias).

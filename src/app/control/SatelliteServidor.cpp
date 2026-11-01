@@ -169,8 +169,8 @@ json SatelliteServidor::estado() const {
             {"ip_permitidas", p}, {"pendientes", pe}, {"clientes", cs}, {"error", error_.toStdString()}};
 }
 
-QString SatelliteServidor::configurar(bool activo, int puerto) {
-    if (puerto < 1024 || puerto > 65535) return tr("puerto entre 1024 y 65535");
+void SatelliteServidor::configurar(bool activo, int puerto) {
+    if (puerto < 1024 || puerto > 65535) return avisarError(tr("puerto entre 1024 y 65535"));
     const bool reabrir = activo_ != activo || puerto_ != puerto;
     activo_ = activo;
     puerto_ = puerto;
@@ -182,7 +182,7 @@ QString SatelliteServidor::configurar(bool activo, int puerto) {
     bot_.auditar("escritorio", "satellite",
                  activo_ ? tr("prendido en %1").arg(puerto_).toStdString() : tr("apagado").toStdString());
     emit cambio();
-    return error_;
+    avisarError(error_);
 }
 
 void SatelliteServidor::permitir(const QString& ip, bool si) {

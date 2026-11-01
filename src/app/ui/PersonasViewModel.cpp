@@ -145,6 +145,8 @@ QString PersonasViewModel::guardar(const QString&, const QString&, const QString
 bool PersonasViewModel::borrar(const QString&) { return false; }
 void PersonasViewModel::sumarCara(const QString&, const QString&, bool) { emit notify(d_->aviso, "error"); }
 void PersonasViewModel::mirar(const QString&) {}
+void PersonasViewModel::alCambiarMirados() {}
+void PersonasViewModel::mirarAhora() {}
 void PersonasViewModel::sincronizarRostros() {}
 void PersonasViewModel::usarCamara(const QString&, bool) {}
 void PersonasViewModel::analizar(const QString&, bool, const QString&) {}
@@ -306,6 +308,8 @@ QString escribirFoto(const QImage& img, const ba::rostros::Cara& c, const QStrin
 
 PersonasViewModel::PersonasViewModel(AppRuntime& rt, StudioViewModel& vm, QObject* parent)
     : QObject(parent), d_(std::make_unique<Impl>(rt, vm)) {
+    mirada_.setInterval(1000);
+    connect(&mirada_, &QTimer::timeout, this, &PersonasViewModel::mirarAhora);
     d_->archivo = QString::fromStdString((rt.dataRoot() / "Config" / "personas.json").string());
     d_->carpetaFotos = QString::fromStdString((rt.dataRoot() / "Config" / "personas").string());
     // Los modelos se cargan UNA vez, y acá y no en cada llamada: cuesta ~100 ms
@@ -1046,6 +1050,25 @@ void PersonasViewModel::sumarCara(const QString& id, const QString& feed, bool n
 
 QVariantList PersonasViewModel::vistos() const { return d_->vistos; }
 
+void PersonasViewModel::alCambiarMirados() {
+    if (mirando_.usados().isEmpty()) {
+        mirada_.stop();
+        // Nadie mira: la cámara del estudio deja de tener su tarjeta.
+        if (d_->feedMirado.startsWith("entrada:")) {
+            d_->feedMirado.clear();
+            sincronizarRostros();
+        }
+        return;
+    }
+    if (!mirada_.isActive()) mirada_.start();
+    mirarAhora();
+}
+
+void PersonasViewModel::mirarAhora() {
+    for (const QString& f : mirando_.usados())
+        if (!f.isEmpty()) mirar(f);
+}
+
 void PersonasViewModel::mirar(const QString& feed) {
     // Una cámara del estudio: que tenga su tarjeta mientras se la mira.
     if (feed.startsWith("entrada:")) {
@@ -1084,13 +1107,13 @@ void PersonasViewModel::dejarPasarSiCorresponde(const QString& uid, const QStrin
     // El permiso vive en el PADRON del evento (`dejarPasarSolo`). Antes habia
     // una lista blanca aparte en el guion; dos listas para lo mismo se
     // desincronizan, asi que quedo una sola (ver EventoViewModel::migrarAutoAceptar).
-    if (!ev->puedeEntrarSolo(personaId)) return;
+    if (!ev->padronVm().puedeEntrarSolo(personaId)) return;
     d_->yaPasaron.insert(uid);
     conf->admit(uid);
     // Y QUEDA ANOTADO QUE LLEGO. El que entra por la sala y el que entra por la
     // puerta van al mismo padron: si no, «quienes estan» solo sabe de la mitad
     // de la gente, que es el agujero que el padron vino a tapar.
-    ev->acreditarPorPersona(personaId, "lobby");
+    ev->padronVm().acreditarPorPersona(personaId, "lobby");
     // El asistente la atiende DE OTRA MANERA: confirmarle lo que ya sabemos,
     // no preguntarle quién es. `marcarAtendido` evita además que el camino de
     // siempre la aborde con el cuestionario completo.
@@ -1108,12 +1131,12 @@ void PersonasViewModel::dejarPasarSiCorresponde(const QString& uid, const QStrin
 
 void PersonasViewModel::acreditarEnLaPuerta(const QString& personaId, const QString& nombre) {
     auto* ev = static_cast<EventoViewModel*>(d_->vm.evento());
-    if (ev == nullptr || ev->abierto().isEmpty()) return;
+    if (ev == nullptr || ev->guionVm().abierto().isEmpty()) return;
     // Acreditar de nuevo es inofensivo —no mueve la hora de la primera vez—,
     // pero AVISAR de nuevo no: alguien parado frente a la camara daria un aviso
     // por segundo. El aviso es una vez por persona; la constancia, siempre.
     const bool primera = !d_->avisadosPuerta.contains(personaId);
-    if (!ev->acreditarPorPersona(personaId, "rostro")) {
+    if (!ev->padronVm().acreditarPorPersona(personaId, "rostro")) {
         // Esta en la libreta pero no en la lista de este evento. NO se lo anota
         // solo: quien entra sin estar invitado es una decision del que
         // organiza, no del reconocimiento. Se avisa una vez y se sigue.

@@ -333,7 +333,7 @@ Item {
                         MouseArea {
                             id: pflMa
                             anchors.fill: parent; cursorShape: Qt.PointingHandCursor; hoverEnabled: true
-                            onClicked: { const e = Studio.mezcla.pflUi(name); if (e !== "") Studio.notify(e, "error") }
+                            onClicked: { Studio.mezcla.pflUi(name) }
                         }
                         ToolTip.visible: pflMa.containsMouse; ToolTip.delay: 500
                         ToolTip.text: qsTr("Escucharla sola en los auriculares, antes del fader, sin tocar lo que sale al aire. Lo que ya iba ahí (como la voz del asistente) vuelve al soltarla. Si está MUDA no suena ni acá: bajale el volumen en vez de silenciarla.")

@@ -20,7 +20,7 @@ ColumnLayout {
     property bool resultadoOk: true
     spacing: 6
 
-    function cambiar(c) { const e = tr.ajustarUi(traduccionId, c); if (e !== "") Studio.notify(e, "error") }
+    function cambiar(c) { tr.ajustarUi(traduccionId, c) }
     function nombreIdioma(c) { const x = idiomas.find(i => i.codigo === c); return x ? x.nombre : c }
 
     Connections {
@@ -79,7 +79,7 @@ ColumnLayout {
         compact: true; icon: "⇩"
         text: qsTr("Bajar %1 → %2 (%n paquete)", "", (panel.t.faltan || []).length)
                   .arg(panel.nombreIdioma(panel.t.idioma_desde)).arg(panel.nombreIdioma(panel.t.a))
-        onClicked: { const e = panel.tr.bajarUi(panel.t.idioma_desde, panel.t.a); if (e !== "") Studio.notify(e, "error") }
+        onClicked: { panel.tr.bajarUi(panel.t.idioma_desde, panel.t.a) }
     }
     Text {
         visible: panel.ml && panel.ml.descargando

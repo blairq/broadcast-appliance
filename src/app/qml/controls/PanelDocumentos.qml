@@ -31,10 +31,9 @@ Item {
         }
         return l.length ? l : [qsTr("General")]
     }
-    function cambiar(c) { const e = pd.dv.editarUi(pd.elegido, c); if (e !== "") Studio.notify(e, "error") }
+    function cambiar(c) { pd.dv.editarUi(pd.elegido, c) }
     function agregar(urls) {
-        const e = pd.dv.agregarUi(urls)
-        if (e !== "") Studio.notify(qsTr("No se pudo agregar: %1").arg(e), "error")
+        pd.dv.agregarUi(urls)
     }
 
     FileDialog {
@@ -281,7 +280,7 @@ Item {
                                     title: qsTr("¿Quitar «%1»?").arg(t),
                                     text: qsTr("Sale de la documentación del evento (el archivo va a la papelera del evento)."),
                                     accept: qsTr("Quitar"), reject: qsTr("Cancelar"),
-                                    action: function() { const e = pd.dv.quitarUi(id); if (e !== "") Studio.notify(e, "error"); else pd.elegido = "" } })
+                                    action: function() { if (pd.dv.quitarUi(id)) pd.elegido = "" } })
                             }
                         }
                     }

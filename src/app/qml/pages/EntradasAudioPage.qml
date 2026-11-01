@@ -16,10 +16,9 @@ Rectangle {
     color: Theme.bg
     property real leftInset: 92
     readonly property var inp: Studio.inputs
-    // Al entrar se busca de nuevo (lo enchufado recién aparece; igual el registro
-    // se entera solo cuando el sistema avisa).
-    onVisibleChanged: if (visible) inp.refresh()
-    Component.onCompleted: if (visible) inp.refresh()
+    // Mientras se ve, la lista de la máquina (al entrar se busca de nuevo: lo enchufado recién
+    // aparece; igual el registro se entera solo cuando el sistema avisa).
+    Suscripcion { objetivo: page.inp; que: "dispositivos"; activa: page.visible }
 
     RowLayout {
         anchors { fill: parent; leftMargin: page.leftInset; margins: 20 }

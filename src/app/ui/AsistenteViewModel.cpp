@@ -64,13 +64,19 @@ QVariant vocabQv(const nlohmann::json& j) {
 
 AsistenteViewModel::AsistenteViewModel(Partes p, QObject* parent) : QObject(parent), p_(std::move(p)) {
     vocabulario_ = std::make_unique<agent::Vocabulario>(p_.rt.dataRoot() / "Config" / "vocabulario.json");
+    // Lo cambian la página, el MCP y el reconocedor (los reemplazos, desde su hilo): el
+    // aviso llega siempre por la cola, en este hilo.
+    vocabulario_->alCambiar([this]() { QMetaObject::invokeMethod(this, &AsistenteViewModel::vocabularioCambio, Qt::QueuedConnection); });
     rotulo_ = std::make_unique<agent::RotuloTraduccionConfig>(p_.rt.dataRoot());
     armarAsistentes();
     armarMensajes();
     armarTextos();
 }
 
-AsistenteViewModel::~AsistenteViewModel() = default;
+AsistenteViewModel::~AsistenteViewModel() {
+    // El reconocedor puede seguir corrigiendo un rato: que ya no avise a este objeto.
+    vocabulario_->alCambiar({});
+}
 
 void AsistenteViewModel::armarAsistentes() {
     agent::AlertEngine& vigia = p_.alarmas.motor();
@@ -112,6 +118,7 @@ void AsistenteViewModel::armarAsistentes() {
         .encargar = [this](const QString& t) { if (agent_) agent_->encargar(t); },
         .faltaAsistente = [this]() { return agent_ ? agent_->faltaParaEncargo() : QString("El asistente no está disponible."); },
         .paginas = []() { return RielConfig::idsDePaginas(); }});
+    connect(manuales_.get(), &ManualesViewModel::notify, this, &AsistenteViewModel::notify);
     connect(despachador_.get(), &agent::Despachador::notify, this, &AsistenteViewModel::notify);
     // Las alertas las recibe el de automatización: él se las ofrece primero a los roles
     // (una sola vez por alerta; el del evento ya no las mira).
@@ -227,6 +234,7 @@ void AsistenteViewModel::armarTextos() {
         p_.ventanilla.pedir("cc_608", [&rt = p_.rt, t = t.toStdString(), s]() { rt.engine().enviarCaption(t, s); });
         return 0;
     });
+    connect(cc_.get(), &agent::SubtitulosCC::notify, this, &AsistenteViewModel::notify);
     // «Traducción automática» rotulada mientras sale una traducción (pantalla o CC).
     rotuloApagar_.setSingleShot(true);
     connect(&rotuloApagar_, &QTimer::timeout, this, [this]() {
@@ -241,6 +249,7 @@ void AsistenteViewModel::armarTextos() {
     voces_->setVozSistema([v = voz_.get()]() { return v != nullptr ? v->vozElegida() : QString(); });
     // La traducción en vivo: de una salida de texto a otra, en otro idioma.
     traductor_ = std::make_unique<agent::Traductor>(p_.rt.dataRoot(), *modelos_, *flujos_);
+    connect(traductor_.get(), &agent::Traductor::notify, this, &AsistenteViewModel::notify);
     // Lo que no anda de la IA, junto (la pastilla «IA» y ia_estado).
     estadoIA_ = std::make_unique<agent::EstadoIA>(agent_.get(), modelos_.get(), voz_.get(), vozPrompter_.get(), traductor_.get());
 }
@@ -301,14 +310,15 @@ QVariantMap AsistenteViewModel::vocabularioUi() const {
     return m;
 }
 
-QString AsistenteViewModel::vocabularioAgregarUi(const QString& termino, const QString& variantes, const QString& grupo) {
+void AsistenteViewModel::vocabularioAgregarUi(const QString& termino, const QString& variantes, const QString& grupo) {
     std::vector<std::string> v;
     for (const QString& x : variantes.split(',', Qt::SkipEmptyParts))
         if (!x.trimmed().isEmpty()) v.push_back(x.trimmed().toStdString());
-    return QString::fromStdString(vocabulario_->agregar(termino.trimmed().toStdString(), v, grupo.toStdString()));
+    if (const std::string e = vocabulario_->agregar(termino.trimmed().toStdString(), v, grupo.toStdString()); !e.empty())
+        emit notify(QString::fromStdString(e), "error");
 }
 
-bool AsistenteViewModel::vocabularioQuitarUi(const QString& termino) { return vocabulario_->quitar(termino.toStdString()); }
+void AsistenteViewModel::vocabularioQuitarUi(const QString& termino) { vocabulario_->quitar(termino.toStdString()); }
 
 void AsistenteViewModel::vocabularioGrupoUi(const QString& grupo, bool activo) {
     vocabulario_->activarGrupo(grupo.toStdString(), activo);
@@ -320,11 +330,10 @@ QVariantMap AsistenteViewModel::vocabularioProbarUi(const QString& texto) {
     return {{"texto", QString::fromStdString(t)}, {"reemplazos", vocabQv(r)}};
 }
 
-int AsistenteViewModel::vocabularioDelCuerpoUi() {
+void AsistenteViewModel::vocabularioDelCuerpoUi() {
     const asamblea::Cuerpo* cuerpo = p_.cuerpo ? p_.cuerpo() : nullptr;
     const int n = cuerpo != nullptr ? vocabulario_->cargarCuerpo(*cuerpo) : 0;
     emit notify(tr("Nombres del cuerpo: %1").arg(n), "info");
-    return n;
 }
 
 void AsistenteViewModel::rotularTraduccion(const QString& flujo, const QString& origen) {
@@ -368,7 +377,9 @@ void AsistenteViewModel::mostrarRotulo(control::Dsk& dsk, const std::string& nom
 bool AsistenteViewModel::rotuloTraduccionActivo() const { return rotulo_->activo(); }
 
 void AsistenteViewModel::setRotuloTraduccion(bool activo) {
+    const bool antes = rotulo_->activo();
     rotulo_->setActivo(activo);
+    if (rotulo_->activo() != antes) emit rotuloTraduccionCambio();
     if (control::Dsk* dsk = p_.dsk ? p_.dsk() : nullptr; !activo && dsk != nullptr) dsk->mostrar(rotulo_->capa(), false, true);
 }
 

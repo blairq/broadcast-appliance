@@ -139,39 +139,41 @@ QVariantList AccesoRemoto::formasDeConectar() const {
     return out;
 }
 
-QString AccesoRemoto::conectar(const QString& id) {
-    if (!aplicarPinggy_) return tr("no disponible");
+bool AccesoRemoto::conectar(const QString& id) {
+    if (!aplicarPinggy_) return sinError(tr("no disponible"));
     if (enVivo_ && enVivo_())
-        return tr("Se está transmitiendo o grabando: el túnel no se toca hasta que termine (reinicia la conferencia).");
+        return sinError(tr("Se está transmitiendo o grabando: el túnel no se toca hasta que termine (reinicia la conferencia)."));
     if (id == "pinggy-cuenta") {
-        if (!apiKeyGuardada()) return tr("No hay API key de pinggy guardada (Configuración → Pinggy).");
+        if (!apiKeyGuardada()) return sinError(tr("No hay API key de pinggy guardada (Configuración → Pinggy)."));
         if (ventanilla_.foto().sala.tunel)
-            if (const QString e = aplicarPinggy_({{"gateway.tunnel", false}}); !e.isEmpty()) return e;
+            if (const QString e = aplicarPinggy_({{"gateway.tunnel", false}}); !e.isEmpty()) return sinError(e);
         configurarConApiKey(); // asíncrono: el resultado en `cuenta`
-        return {};
+        return true;
     }
     QVariantMap cambios;
     if (id == "pinggy") {
-        if (!tokenGuardado()) return tr("No hay token de pinggy guardado (Configuración → Pinggy).");
+        if (!tokenGuardado()) return sinError(tr("No hay token de pinggy guardado (Configuración → Pinggy)."));
         cambios = {{"pinggy.activo", true}, {"gateway.tunnel", false}};
     } else if (id == "pinggy-gratis") {
         cambios = {{"pinggy.activo", true}, {"pinggy.dominioTipo", "azar"}, {"gateway.tunnel", false}};
     } else if (id == "cloudflare") {
-        if (!tokenCloudflareGuardado()) return tr("No hay token de Cloudflare guardado (Configuración → Cloudflare).");
+        if (!tokenCloudflareGuardado()) return sinError(tr("No hay token de Cloudflare guardado (Configuración → Cloudflare)."));
         cambios = {{"gateway.tunnel", true}, {"pinggy.activo", false}};
     } else {
-        return tr("No conozco esa forma de conectar: «%1».").arg(id);
+        return sinError(tr("No conozco esa forma de conectar: «%1».").arg(id));
     }
-    return aplicarPinggy_(cambios);
+    avisarError(aplicarPinggy_(cambios));
+    return true;
 }
 
-QString AccesoRemoto::desconectar() {
-    if (!aplicarPinggy_) return tr("no disponible");
+bool AccesoRemoto::desconectar() {
+    if (!aplicarPinggy_) return sinError(tr("no disponible"));
     if (enVivo_ && enVivo_())
-        return tr("Se está transmitiendo o grabando: el túnel no se toca hasta que termine (reinicia la conferencia).");
+        return sinError(tr("Se está transmitiendo o grabando: el túnel no se toca hasta que termine (reinicia la conferencia)."));
     const FotoMotor::SalaYEvento& g = ventanilla_.foto().sala;
-    if (!g.pinggyActivo && !g.tunel) return {};
-    return aplicarPinggy_({{"pinggy.activo", false}, {"gateway.tunnel", false}});
+    if (!g.pinggyActivo && !g.tunel) return true;
+    avisarError(aplicarPinggy_({{"pinggy.activo", false}, {"gateway.tunnel", false}}));
+    return true;
 }
 
 bool AccesoRemoto::tokenGuardado() const { return ba::security::CredentialStore::bundle().exists(kToken); }
@@ -278,13 +280,13 @@ QString AccesoRemoto::borrarTokenCloudflare() {
     return {};
 }
 
-QString AccesoRemoto::guardarApiKey(const QString& clave) {
+bool AccesoRemoto::guardarApiKey(const QString& clave) {
     QString limpio;
-    if (const QString e = validarSecreto(clave, limpio); !e.isEmpty()) return e;
+    if (const QString e = validarSecreto(clave, limpio); !e.isEmpty()) return sinError(e);
     if (!ba::security::CredentialStore::bundle().write(kApiKey, limpio.toStdString()))
-        return tr("No se pudo guardar en Credenciales/.");
+        return sinError(tr("No se pudo guardar en Credenciales/."));
     emit credencialesChanged();
-    return {};
+    return true;
 }
 
 QString AccesoRemoto::borrarApiKey() {

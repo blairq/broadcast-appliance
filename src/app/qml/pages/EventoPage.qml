@@ -14,22 +14,28 @@ Rectangle {
     color: Theme.bg
     property real leftInset: 92
     readonly property var ev: Studio.evento
+    readonly property var listaVm: Studio.evento.listaVm
+    readonly property var guionVm: Studio.evento.guionVm
+    readonly property var padronVm: Studio.evento.padronVm
+    readonly property var corridaVm: Studio.evento.corridaVm
+    readonly property var informeVm: Studio.evento.informeVm
 
     // Cue seleccionado para editar (bloque, cue). -1 = ninguno.
-    property var informe: ({})
+    // El informe (lo que realmente pasó), del modelo: solo se arma con el diálogo abierto.
+    readonly property var informe: informeDlg.visible ? page.informeVm.informe : ({})
     property int selB: -1
     /// Cómo se ve el guion: 0 = los cues (para armarlo), 1 = la escaleta, 2 = el
     /// Storyboard, 3 = la Línea multipista (PLAN-LINEA-DE-TIEMPO 3.5).
     property int vistaGuion: 1
     /// El guion y la conducción se ven: la línea recalcula cada segundo y pide
     /// miniaturas solo entonces (y los atajos de la línea valen solo entonces).
-    readonly property bool guionALaVista: page.visible && page.ev.abierto !== "" && !page.armando && pestanas.currentIndex === 0
+    readonly property bool guionALaVista: page.visible && page.guionVm.abierto !== "" && !page.armando && pestanas.currentIndex === 0
     // La línea la pueden mirar varias vistas a la vez (esta, la tarjeta, su ventana).
     Suscripcion { objetivo: Studio.linea; activa: page.guionALaVista }
     Suscripcion { objetivo: Studio.linea; que: "multipista"; activa: page.guionALaVista && page.vistaGuion === 3 }
     property int selC: -1
     readonly property var selCue: {
-        const bs = ev.guion.bloques || []
+        const bs = guionVm.guion.bloques || []
         if (selB < 0 || selB >= bs.length) return null
         const cs = bs[selB].cues || []
         return (selC < 0 || selC >= cs.length) ? null : cs[selC]
@@ -40,8 +46,12 @@ Rectangle {
     property bool armando: false
     /// La corrida del agente Organizador, mientras dura.
     property string corridaId: ""
-    readonly property var corrida: corridaId === "" ? ({})
-                                                    : Studio.despachador.corridaQml(corridaId)
+    // Del despachador (avisa mientras corre): el resumen y su detalle (pasos, resultado).
+    readonly property var corrida: {
+        if (corridaId === "") return ({})
+        const r = (Studio.despachador.corridas || []).find(x => x.id === corridaId) || ({})
+        return Object.assign({}, r, Studio.despachador.detalles[corridaId] || ({}))
+    }
     readonly property bool corriendo: corridaId !== "" &&
                                       (corrida.estado === "esperando" || corrida.estado === "corriendo")
 
@@ -53,12 +63,12 @@ Rectangle {
     /// mitad de por qué existe el rol.
     function armar(texto) {
         const r = Studio.despachador.encargarDesdeUiConId("organizador", texto)
-        if (r.error !== "") { ev.notify(r.error, "error"); return }
+        if (r.error !== "") { Studio.notify(r.error, "error"); return }
         corridaId = r.id
     }
 
     function descartarLoArmado() {
-        const cual = ev.abierto
+        const cual = guionVm.abierto
         if (cual === "") return
         ApplicationWindow.window.confirm({
             title: qsTr("Descartar el evento armado"),
@@ -81,8 +91,8 @@ Rectangle {
     /// El "cuando" para el boton del encabezado: corto, y diciendo lo que
     /// falta cuando falta.
     function cuandoCorto() {
-        const f = ev.guion.fecha || ""
-        const h = ev.guion.inicio || ""
+        const f = guionVm.guion.fecha || ""
+        const h = guionVm.guion.inicio || ""
         if (f === "" && h === "") return qsTr("Sin fecha")
         if (f === "") return qsTr("Sin fecha · %1").arg(h)
         if (h === "") return qsTr("%1 · sin hora").arg(f)
@@ -144,10 +154,10 @@ Rectangle {
                     Layout.fillWidth: true
                     Layout.minimumWidth: 130
                     Layout.maximumWidth: 220
-                    model: page.ev.eventos
+                    model: page.listaVm.eventos
                     textRole: "nombre"
-                    displayText: page.ev.abierto === "" ? qsTr("Elegí un evento…") : (page.ev.guion.nombre || page.ev.abierto)
-                    onActivated: (i) => page.ev.abrir(page.ev.eventos[i].carpeta)
+                    displayText: page.guionVm.abierto === "" ? qsTr("Elegí un evento…") : (page.guionVm.guion.nombre || page.guionVm.abierto)
+                    onActivated: (i) => page.ev.abrir(page.listaVm.eventos[i].carpeta)
                     // Con su carpeta adelante: con el histórico hay muchos y se agrupan.
                     delegate: ItemDelegate {
                         required property var modelData
@@ -178,8 +188,8 @@ Rectangle {
                 Item { Layout.fillWidth: true }
 
                 Text {
-                    visible: page.ev.abierto !== ""
-                    text: qsTr("%1 cues · %2").arg(page.ev.guion.cues).arg(Theme.mmss(page.ev.guion.duracionSeg))
+                    visible: page.guionVm.abierto !== ""
+                    text: qsTr("%1 cues · %2").arg(page.guionVm.guion.cues).arg(Theme.mmss(page.guionVm.guion.duracionSeg))
                     color: Theme.textDim
                     font.pixelSize: 12
                     elide: Text.ElideRight
@@ -191,28 +201,28 @@ Rectangle {
                 // archivar, asi que cuando falta se ve que falta en vez de no
                 // mostrar nada.
                 GlassButton {
-                    visible: page.ev.abierto !== ""
+                    visible: page.guionVm.abierto !== ""
                     compact: true
                     text: page.cuandoCorto()
-                    active: page.ev.guion.fecha === ""
+                    active: page.guionVm.guion.fecha === ""
                     onClicked: cuandoDlg.open()
                     ToolTip.visible: hovered
                     ToolTip.delay: 400
-                    ToolTip.text: page.ev.guion.cuando !== ""
-                                  ? qsTr("Arranca %1").arg(page.ev.guion.cuando)
+                    ToolTip.text: page.guionVm.guion.cuando !== ""
+                                  ? qsTr("Arranca %1").arg(page.guionVm.guion.cuando)
                                   : qsTr("Poner el dia y la hora del evento")
                 }
                 Text {
-                    visible: page.ev.sucio
+                    visible: page.guionVm.sucio
                     text: qsTr("sin guardar")
                     color: Theme.amber
                     font.pixelSize: 12
                 }
                 GlassButton {
-                    visible: page.ev.abierto !== ""
+                    visible: page.guionVm.abierto !== ""
                     text: qsTr("Guardar"); compact: true
-                    active: page.ev.sucio
-                    onClicked: page.ev.guardar()
+                    active: page.guionVm.sucio
+                    onClicked: page.guionVm.guardar()
                 }
             }
         }
@@ -250,44 +260,44 @@ Rectangle {
                 spacing: 10
                 Rectangle {
                     width: 10; height: 10; radius: 5
-                    color: page.ev.enCurso.carpeta ? Theme.ok : Theme.textDim
+                    color: page.listaVm.enCurso.carpeta ? Theme.ok : Theme.textDim
                 }
                 Text {
                     Layout.fillWidth: true
                     elide: Text.ElideRight
                     color: Theme.text
                     font.pixelSize: 13
-                    text: page.ev.enCurso.carpeta
-                          ? qsTr("En curso: %1").arg(page.ev.enCurso.nombre) +
-                            (page.ev.enCurso.grupo ? "  ·  " + page.ev.enCurso.grupo : "") +
-                            (page.ev.enCurso.desdeMs ? qsTr("  ·  desde las %1").arg(Qt.formatTime(new Date(page.ev.enCurso.desdeMs), "HH:mm")) : "") +
-                            (page.ev.enCurso.automatico ? qsTr("  (la jornada del día: se creó sola)") : "")
+                    text: page.listaVm.enCurso.carpeta
+                          ? qsTr("En curso: %1").arg(page.listaVm.enCurso.nombre) +
+                            (page.listaVm.enCurso.grupo ? "  ·  " + page.listaVm.enCurso.grupo : "") +
+                            (page.listaVm.enCurso.desdeMs ? qsTr("  ·  desde las %1").arg(Qt.formatTime(new Date(page.listaVm.enCurso.desdeMs), "HH:mm")) : "") +
+                            (page.listaVm.enCurso.automatico ? qsTr("  (la jornada del día: se creó sola)") : "")
                           : qsTr("Ningún evento en curso: lo que pase no queda en ningún evento")
                 }
                 GlassButton {
                     compact: true
-                    visible: page.ev.abierto !== "" && page.ev.enCurso.carpeta !== page.ev.abierto
+                    visible: page.guionVm.abierto !== "" && page.listaVm.enCurso.carpeta !== page.guionVm.abierto
                     text: qsTr("Poner en curso este")
-                    onClicked: page.ev.iniciarEvento(page.ev.abierto)
+                    onClicked: page.ev.iniciarEvento(page.guionVm.abierto)
                     ToolTip.visible: hovered
                     ToolTip.delay: 400
                     ToolTip.text: qsTr("Desde ahora, grabaciones, vivos y registro van a «%1». Correr el guion de verdad lo hace solo.")
-                                  .arg(page.ev.guion.nombre || page.ev.abierto)
+                                  .arg(page.guionVm.guion.nombre || page.guionVm.abierto)
                 }
                 GlassButton {
                     compact: true
-                    visible: !!page.ev.enCurso.carpeta
+                    visible: !!page.listaVm.enCurso.carpeta
                     text: qsTr("Terminar")
-                    onClicked: page.ev.terminarEvento()
+                    onClicked: page.listaVm.terminarEnCurso()
                     ToolTip.visible: hovered
                     ToolTip.delay: 400
-                    ToolTip.text: page.ev.eventoAutomatico
+                    ToolTip.text: page.listaVm.eventoAutomatico
                                   ? qsTr("Queda en el histórico como terminado; lo que siga va a la jornada del día")
                                   : qsTr("Queda en el histórico como terminado")
                 }
                 GlassButton {
                     compact: true
-                    visible: page.ev.abierto !== ""
+                    visible: page.guionVm.abierto !== ""
                     text: qsTr("Carpeta…")
                     onClicked: moverDlg.open()
                     ToolTip.visible: hovered
@@ -296,8 +306,8 @@ Rectangle {
                 }
                 CheckBox {
                     text: qsTr("Jornada automática")
-                    checked: page.ev.eventoAutomatico
-                    onToggled: page.ev.eventoAutomatico = checked
+                    checked: page.listaVm.eventoAutomatico
+                    onToggled: page.listaVm.eventoAutomatico = checked
                     ToolTip.visible: hovered
                     ToolTip.delay: 400
                     ToolTip.text: qsTr("Si no hay ningún evento en curso, se crea solo el del día: nada queda sin evento")
@@ -400,22 +410,22 @@ Rectangle {
                 // Y lo que quedó ESCRITO, que es lo que hay que aceptar o tirar.
                 RowLayout {
                     Layout.fillWidth: true
-                    visible: !page.corriendo && page.corridaId !== "" && page.ev.abierto !== ""
+                    visible: !page.corriendo && page.corridaId !== "" && page.guionVm.abierto !== ""
                     spacing: 8
                     Text {
                         Layout.fillWidth: true
                         wrapMode: Text.WordWrap
                         color: Theme.textDim
                         font.pixelSize: 12
-                        text: qsTr("Quedó abierto «%1»: %n bloque, %2 cues, %3.", "", page.ev.guion.bloques.length)
-                                  .arg(page.ev.abierto).arg(page.ev.guion.cues).arg(Theme.mmss(page.ev.guion.duracionSeg)) +
-                              (page.ev.reparos.length > 0
-                               ? " " + qsTr("%n cosa para mirar.", "", page.ev.reparos.length)
+                        text: qsTr("Quedó abierto «%1»: %n bloque, %2 cues, %3.", "", page.guionVm.guion.bloques.length)
+                                  .arg(page.guionVm.abierto).arg(page.guionVm.guion.cues).arg(Theme.mmss(page.guionVm.guion.duracionSeg)) +
+                              (page.guionVm.reparos.length > 0
+                               ? " " + qsTr("%n cosa para mirar.", "", page.guionVm.reparos.length)
                                : "")
                     }
                     GlassButton {
                         text: qsTr("Verlo")
-                        onClicked: { page.armando = false; page.ev.revisar() }
+                        onClicked: { page.armando = false; page.guionVm.revisar() }
                     }
                     GlassButton {
                         text: qsTr("Descartarlo")
@@ -427,7 +437,7 @@ Rectangle {
 
         // --- Sin evento abierto ----------------------------------------------
         Panel {
-            visible: page.ev.abierto === "" && !page.armando
+            visible: page.guionVm.abierto === "" && !page.armando
             Layout.fillWidth: true
             Layout.fillHeight: true
             ColumnLayout {
@@ -480,12 +490,12 @@ Rectangle {
         }
         TabBar {
             id: pestanas
-            visible: page.ev.abierto !== "" && !page.armando
+            visible: page.guionVm.abierto !== "" && !page.armando
             Layout.fillWidth: true
             TabButton { text: qsTr("Guion") }
             TabButton {
-                text: page.ev.resumenPadron.total > 0
-                      ? qsTr("Padrón (%1/%2)").arg(page.ev.resumenPadron.presentes).arg(page.ev.resumenPadron.total)
+                text: page.padronVm.resumenPadron.total > 0
+                      ? qsTr("Padrón (%1/%2)").arg(page.padronVm.resumenPadron.presentes).arg(page.padronVm.resumenPadron.total)
                       : qsTr("Padrón")
             }
             TabButton {
@@ -501,16 +511,16 @@ Rectangle {
 
         // ---- Documentación del evento (PDF con carátula, por punto y sección) ----------
         Panel {
-            visible: page.ev.abierto !== "" && !page.armando && pestanas.currentIndex === 5
+            visible: page.guionVm.abierto !== "" && !page.armando && pestanas.currentIndex === 5
             Layout.fillWidth: true
             Layout.fillHeight: true
             title: qsTr("Documentación del evento")
-            PanelDocumentos { anchors.fill: parent; bloques: page.ev.guion.bloques || [] }
+            PanelDocumentos { anchors.fill: parent; bloques: page.guionVm.guion.bloques || [] }
         }
 
         // ---- Página web del evento en vivo -----------------------------------------
         Panel {
-            visible: page.ev.abierto !== "" && !page.armando && pestanas.currentIndex === 4
+            visible: page.guionVm.abierto !== "" && !page.armando && pestanas.currentIndex === 4
             Layout.fillWidth: true
             Layout.fillHeight: true
             title: qsTr("La página web del evento en vivo")
@@ -519,7 +529,7 @@ Rectangle {
 
         // ---- Orden del día ---------------------------------------------------
         Panel {
-            visible: page.ev.abierto !== "" && !page.armando && pestanas.currentIndex === 3
+            visible: page.guionVm.abierto !== "" && !page.armando && pestanas.currentIndex === 3
             Layout.fillWidth: true
             Layout.fillHeight: true
             title: qsTr("Orden del día y uso de la palabra")
@@ -528,7 +538,7 @@ Rectangle {
 
         // ---- Padrón ----------------------------------------------------------
         Panel {
-            visible: page.ev.abierto !== "" && !page.armando && pestanas.currentIndex === 1
+            visible: page.guionVm.abierto !== "" && !page.armando && pestanas.currentIndex === 1
             Layout.fillWidth: true
             Layout.fillHeight: true
             title: qsTr("Quiénes vienen y quiénes llegaron")
@@ -567,7 +577,7 @@ Rectangle {
                     GlassButton {
                         text: qsTr("Invitaciones")
                         icon: "✉"
-                        enabled: page.ev.resumenPadron.total > 0
+                        enabled: page.padronVm.resumenPadron.total > 0
                         onClicked: page.pedirAsistente(
                             qsTr("Armame las invitaciones de los del padrón con `invitacion`, una por " +
                             "persona, con su enlace y su código."))
@@ -582,7 +592,7 @@ Rectangle {
 
         // ---- Público ---------------------------------------------------------
         RowLayout {
-            visible: page.ev.abierto !== "" && !page.armando && pestanas.currentIndex === 2
+            visible: page.guionVm.abierto !== "" && !page.armando && pestanas.currentIndex === 2
             Layout.fillWidth: true
             Layout.fillHeight: true
             spacing: 14
@@ -603,7 +613,7 @@ Rectangle {
 
         // --- El guion + la conduccion ----------------------------------------
         RowLayout {
-            visible: page.ev.abierto !== "" && !page.armando && pestanas.currentIndex === 0
+            visible: page.guionVm.abierto !== "" && !page.armando && pestanas.currentIndex === 0
             Layout.fillWidth: true
             Layout.fillHeight: true
             spacing: 14
@@ -640,17 +650,17 @@ Rectangle {
                         // Alto fijo: con fillHeight la fila entera pide estirarse (un layout hereda el
                         // fillHeight de sus hijos) y le saca el alto a la escaleta de abajo.
                         Rectangle { width: 1; Layout.preferredHeight: 20; Layout.margins: 4; color: Qt.rgba(1, 1, 1, 0.1) }
-                        GlassButton { visible: page.vistaGuion === 0; text: qsTr("+ Bloque"); compact: true; onClicked: page.ev.agregarBloque("") }
+                        GlassButton { visible: page.vistaGuion === 0; text: qsTr("+ Bloque"); compact: true; onClicked: page.guionVm.agregarBloque("") }
                         Item { Layout.fillWidth: true }
                         GlassButton {
                             text: qsTr("Revisar"); compact: true
-                            onClicked: page.ev.revisar()
+                            onClicked: page.guionVm.revisar()
                             ToolTip.visible: hovered
                             ToolTip.text: qsTr("Busca lo que impide correr el guion, sin tocar nada")
                         }
                         GlassButton {
                             text: qsTr("Ensayo rápido"); compact: true
-                            onClicked: page.ev.ensayoAcelerado()
+                            onClicked: page.corridaVm.ensayoAcelerado()
                             ToolTip.visible: hovered
                             ToolTip.text: qsTr("Recorre el guion entero de una, sin esperar las duraciones, " +
                                           "para ver si cada cue se podría ejecutar")
@@ -688,7 +698,7 @@ Rectangle {
                             spacing: 10
 
                             Repeater {
-                                model: page.ev.guion.bloques
+                                model: page.guionVm.guion.bloques
                                 delegate: ColumnLayout {
                                     required property var modelData
                                     required property int index
@@ -713,7 +723,7 @@ Rectangle {
                                                 color: Theme.text
                                                 font { family: Theme.font; pixelSize: 13; weight: Font.DemiBold }
                                                 background: Item {}
-                                                onEditingFinished: page.ev.renombrarBloque(index, text)
+                                                onEditingFinished: page.guionVm.renombrarBloque(index, text)
                                             }
                                             Text {
                                                 // La hora la calcula el modelo (la misma que lee el asistente).
@@ -724,9 +734,9 @@ Rectangle {
                                                 font { family: Theme.mono; pixelSize: 12 }
                                             }
                                             GlassButton { text: qsTr("+ Cue"); compact: true; onClicked: tipoDlg.abrir(index) }
-                                            GlassButton { icon: "↑"; compact: true; onClicked: page.ev.moverBloque(index, index - 1) }
-                                            GlassButton { icon: "↓"; compact: true; onClicked: page.ev.moverBloque(index, index + 1) }
-                                            GlassButton { icon: "✕"; compact: true; onClicked: page.ev.quitarBloque(index) }
+                                            GlassButton { icon: "↑"; compact: true; onClicked: page.guionVm.moverBloque(index, index - 1) }
+                                            GlassButton { icon: "↓"; compact: true; onClicked: page.guionVm.moverBloque(index, index + 1) }
+                                            GlassButton { icon: "✕"; compact: true; onClicked: page.guionVm.quitarBloque(index) }
                                         }
                                     }
 
@@ -747,9 +757,9 @@ Rectangle {
                                         delegate: Rectangle {
                                             required property var modelData
                                             required property int index
-                                            readonly property bool esActual: page.ev.actual
-                                                && page.ev.actual.bloque === modelData.bloque
-                                                && page.ev.actual.cue === modelData.cue
+                                            readonly property bool esActual: page.corridaVm.actual
+                                                && page.corridaVm.actual.bloque === modelData.bloque
+                                                && page.corridaVm.actual.cue === modelData.cue
                                             readonly property bool elegido: page.selB === modelData.bloque
                                                 && page.selC === modelData.cue
 
@@ -771,7 +781,7 @@ Rectangle {
                                             MouseArea {
                                                 anchors.fill: parent
                                                 onClicked: { page.selB = modelData.bloque; page.selC = modelData.cue }
-                                                onDoubleClicked: page.ev.irA(modelData.bloque, modelData.cue)
+                                                onDoubleClicked: page.corridaVm.irA(modelData.bloque, modelData.cue)
                                             }
 
                                             RowLayout {
@@ -858,7 +868,7 @@ Rectangle {
                 // confirma y recién ahí se suelta. Todo sale de `retoma` (view model).
                 Panel {
                     id: retomaPanel
-                    readonly property var r: page.ev.retoma || ({})
+                    readonly property var r: page.corridaVm.retoma || ({})
                     visible: !!r.activa
                     Layout.fillWidth: true
                     implicitHeight: retomaCuerpo.implicitHeight + 46 + padding // el título y el margen de Panel
@@ -910,7 +920,7 @@ Rectangle {
                                 active: true
                                 Layout.fillWidth: true
                                 onClicked: {
-                                    const pedido = page.ev.describirRetoma(retomaTexto.text)
+                                    const pedido = page.corridaVm.describirRetoma(retomaTexto.text)
                                     if (pedido === "") return
                                     retomaTexto.text = ""
                                     Studio.agent.encargar(pedido)
@@ -919,7 +929,7 @@ Rectangle {
                             GlassButton {
                                 text: qsTr("Seguir como estaba")
                                 Layout.fillWidth: true
-                                onClicked: page.ev.seguirComoEstaba()
+                                onClicked: page.corridaVm.seguirComoEstaba()
                                 ToolTip.visible: hovered; ToolTip.delay: 400
                                 ToolTip.text: qsTr("Suelta el HOLD sin cambiar nada: lo que ya se pasó de su hora entra en el acto.")
                             }
@@ -934,7 +944,7 @@ Rectangle {
                 Panel {
                     Layout.fillWidth: true
                     Layout.preferredHeight: Math.min(conduccion.implicitHeight + 56, 560)
-                    title: page.ev.ensayo ? qsTr("Conducción (ensayo)") : qsTr("Conducción")
+                    title: page.corridaVm.ensayo ? qsTr("Conducción (ensayo)") : qsTr("Conducción")
                     AtajosLinea { activos: page.guionALaVista }
                     ScrollView {
                         id: conduccionScroll
@@ -945,7 +955,7 @@ Rectangle {
                         LineaConduccion {
                             id: conduccion
                             width: conduccionScroll.availableWidth
-                            onPedirInforme: { page.informe = page.ev.informe(); informeDlg.open() }
+                            onPedirInforme: informeDlg.open()
                         }
                     }
                 }
@@ -1038,9 +1048,9 @@ Rectangle {
                                 Layout.topMargin: 6
                                 spacing: 6
                                 GlassButton { text: qsTr("Editar…"); compact: true; active: true; onClicked: cueDlg.abrir(page.selB, page.selC) }
-                                GlassButton { text: qsTr("Poner al aire"); compact: true; onClicked: page.ev.irA(page.selB, page.selC) }
+                                GlassButton { text: qsTr("Poner al aire"); compact: true; onClicked: page.corridaVm.irA(page.selB, page.selC) }
                                 GlassButton {
-                                    readonly property var enlaces: page.ev.guionVm.enlacesPrompter
+                                    readonly property var enlaces: page.guionVm.enlacesPrompter
                                     readonly property string url: page.selCue && page.selCue.tipo === "teleprompter"
                                                                   ? enlaces[(page.selCue.datos || {}).prompter || ""] || enlaces[""] : ""
                                     visible: url !== ""
@@ -1079,7 +1089,7 @@ Rectangle {
                             Layout.fillWidth: true
                             Layout.preferredHeight: Math.min(260, 48 + lista.length * 30)
                             title: qsTr("Antes de salir · %1/%2").arg(lista.filter(x => x.hecho).length).arg(lista.length)
-                            readonly property var lista: page.ev.chequeo
+                            readonly property var lista: page.guionVm.chequeo
                             ListView {
                                 anchors.fill: parent
                                 clip: true
@@ -1091,7 +1101,7 @@ Rectangle {
                                     spacing: 6
                                     CheckBox {
                                         checked: modelData.hecho
-                                        onToggled: page.ev.marcarChequeo(modelData.item, checked, modelData.nota)
+                                        onToggled: page.guionVm.marcarChequeo(modelData.item, checked, modelData.nota)
                                     }
                                     Text {
                                         Layout.fillWidth: true; elide: Text.ElideRight
@@ -1106,14 +1116,14 @@ Rectangle {
                         // Reparos de la revision previa
                         Panel {
                             Layout.fillWidth: true
-                            Layout.preferredHeight: Math.min(150, 40 + page.ev.reparos.length * 34)
-                            visible: page.ev.reparos.length > 0
+                            Layout.preferredHeight: Math.min(150, 40 + page.guionVm.reparos.length * 34)
+                            visible: page.guionVm.reparos.length > 0
                             title: qsTr("Revisión")
                             ListView {
                                 anchors.fill: parent
                                 clip: true
                                 spacing: 4
-                                model: page.ev.reparos
+                                model: page.guionVm.reparos
                                 delegate: RowLayout {
                                     required property var modelData
                                     width: ListView.view.width
@@ -1145,13 +1155,13 @@ Rectangle {
                         Panel {
                             Layout.fillWidth: true
                             Layout.preferredHeight: 130
-                            visible: page.ev.bitacora.length > 0
+                            visible: page.corridaVm.bitacora.length > 0
                             title: qsTr("Lo que pasó")
                             ListView {
                                 anchors.fill: parent
                                 clip: true
                                 spacing: 2
-                                model: page.ev.bitacora
+                                model: page.corridaVm.bitacora
                                 delegate: RowLayout {
                                     required property var modelData
                                     width: ListView.view.width
@@ -1240,7 +1250,7 @@ Rectangle {
 
             GlassButton {
                 text: qsTr("Guardar en la carpeta del evento"); compact: true
-                onClicked: page.ev.guardarInforme()
+                onClicked: page.informeVm.guardarInforme()
             }
         }
     }
@@ -1254,17 +1264,17 @@ Rectangle {
         title: qsTr("Cuándo es el evento")
         standardButtons: Dialog.Ok | Dialog.Cancel
         onAboutToShow: {
-            fechaCampo.text = page.ev.guion.fecha || ""
-            horaCampo.text = page.ev.guion.inicio || ""
-            husoCampo.text = page.ev.guion.huso || ""
-            idiomaCampo.model = page.ev.idiomas
-            idiomaCampo.currentIndex = Math.max(0, idiomaCampo.indexOfValue(page.ev.guion.idioma || ""))
+            fechaCampo.text = page.guionVm.guion.fecha || ""
+            horaCampo.text = page.guionVm.guion.inicio || ""
+            husoCampo.text = page.guionVm.guion.huso || ""
+            idiomaCampo.model = page.guionVm.idiomas
+            idiomaCampo.currentIndex = Math.max(0, idiomaCampo.indexOfValue(page.guionVm.guion.idioma || ""))
         }
         onAccepted: {
-            page.ev.setFecha(fechaCampo.text.trim())
-            page.ev.setInicio(horaCampo.text.trim())
-            page.ev.setHuso(husoCampo.text.trim())
-            page.ev.setIdioma(idiomaCampo.currentValue || "")
+            page.guionVm.setFecha(fechaCampo.text.trim())
+            page.guionVm.setInicio(horaCampo.text.trim())
+            page.guionVm.setHuso(husoCampo.text.trim())
+            page.guionVm.setIdioma(idiomaCampo.currentValue || "")
         }
         ColumnLayout {
             anchors.fill: parent
@@ -1311,7 +1321,7 @@ Rectangle {
                 GlassButton {
                     compact: true
                     text: qsTr("El de acá")
-                    onClicked: husoCampo.text = page.ev.husoDelAparato()
+                    onClicked: husoCampo.text = page.guionVm.husoDelAparato()
                 }
             }
             // El idioma del evento: el de lo que ven y escuchan el público y los invitados
@@ -1364,7 +1374,7 @@ Rectangle {
                 id: carpetaNueva
                 Layout.fillWidth: true
                 editable: true
-                model: page.ev.carpetas
+                model: page.listaVm.carpetas
             }
         }
     }
@@ -1465,10 +1475,8 @@ Rectangle {
                         const m = nuevoEventoDlg.modo
                         const desde = m === "anterior" ? anterior.currentText : m === "plantilla" ? "plantilla:" + plantilla.currentValue : m
                         // En otro hilo (una copia puede tardar): el progreso arriba, el aviso al terminar.
-                        const e = nuevoEventoDlg.cf.nuevoEventoUi(nombreEv.text.trim(), desde, abrirlo.checked,
-                                                                  cpsEv.currentValue || "")
-                        if (e !== "") { Studio.notify(e, "error"); return }
-                        nuevoEventoDlg.close()
+                        if (nuevoEventoDlg.cf.nuevoEventoUi(nombreEv.text.trim(), desde, abrirlo.checked, cpsEv.currentValue || ""))
+                            nuevoEventoDlg.close()
                     }
                 }
             }
@@ -1561,7 +1569,7 @@ Rectangle {
                     compact: true; active: true; text: qsTr("Empezar con el asistente")
                     enabled: asistenteEvtDlg.elegido !== ""
                     onClicked: {
-                        Studio.agent.encargar(page.ev.pedidoDeEscenario(asistenteEvtDlg.elegido, notasEvt.text, asistenteEvtDlg.plantillaElegida))
+                        Studio.agent.encargar(page.guionVm.pedidoDeEscenario(asistenteEvtDlg.elegido, notasEvt.text, asistenteEvtDlg.plantillaElegida))
                         asistenteEvtDlg.close()
                     }
                 }
@@ -1601,7 +1609,7 @@ Rectangle {
                                 title: qsTr("¿Abrir «%1»?").arg(n),
                                 text: qsTr("La app se reinicia con ese evento (sus escenas, mezclador, medios y asamblea)."),
                                 accept: qsTr("Abrir"), reject: qsTr("Cancelar"),
-                                action: function() { const e = abrirEventoDlg.cf.cambiarUi(n); if (e !== "") Studio.notify(e, "error") } })
+                                action: function() { abrirEventoDlg.cf.cambiarUi(n) } })
                         }
                     }
                 }
@@ -1621,11 +1629,11 @@ Rectangle {
         title: qsTr("Llevar a otra carpeta")
         standardButtons: Dialog.Ok | Dialog.Cancel
         onAboutToShow: {
-            const c = page.ev.abierto
+            const c = page.guionVm.abierto
             const i = c.lastIndexOf("/")
             carpetaDestino.editText = i < 0 ? "" : c.substring(0, i)
         }
-        onAccepted: page.ev.moverEvento(page.ev.abierto, carpetaDestino.editText.trim())
+        onAccepted: page.ev.moverEvento(page.guionVm.abierto, carpetaDestino.editText.trim())
         ColumnLayout {
             anchors.fill: parent
             spacing: 8
@@ -1641,7 +1649,7 @@ Rectangle {
                 id: carpetaDestino
                 Layout.fillWidth: true
                 editable: true
-                model: page.ev.carpetas
+                model: page.listaVm.carpetas
             }
         }
     }
@@ -1664,7 +1672,7 @@ Rectangle {
             anchors.fill: parent
             spacing: 4
             Repeater {
-                model: page.ev.tiposDeCue
+                model: page.guionVm.tiposDeCue
                 delegate: Rectangle {
                     required property var modelData
                     Layout.fillWidth: true
@@ -1699,8 +1707,8 @@ Rectangle {
                         hoverEnabled: true
                         cursorShape: Qt.PointingHandCursor
                         onClicked: {
-                            page.ev.agregarCue(tipoDlg.bloque, modelData.tipo)
-                            const cs = page.ev.guion.bloques[tipoDlg.bloque].cues
+                            page.guionVm.agregarCue(tipoDlg.bloque, modelData.tipo)
+                            const cs = page.guionVm.guion.bloques[tipoDlg.bloque].cues
                             page.selB = tipoDlg.bloque
                             page.selC = cs.length - 1
                             tipoDlg.close()

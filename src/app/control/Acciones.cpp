@@ -298,9 +298,9 @@ bool Acciones::quitar(const std::string& tecla) {
 
 QVariantList Acciones::atajosUi() const { return aQv(atajos_).toList(); }
 QVariantList Acciones::catalogoUi() const { return aQv(catalogo()).toList(); }
-QString Acciones::ejecutarUi(const QString& id) { return QString::fromStdString(ejecutar(id.toStdString())); }
-QString Acciones::asignarUi(const QString& tecla, const QString& accion, bool global) {
-    return QString::fromStdString(asignar(tecla.toStdString(), accion.toStdString(), global));
+void Acciones::ejecutarUi(const QString& id) { return avisarError(QString::fromStdString(ejecutar(id.toStdString()))); }
+void Acciones::asignarUi(const QString& tecla, const QString& accion, bool global) {
+    avisarError(QString::fromStdString(asignar(tecla.toStdString(), accion.toStdString(), global)));
 }
 bool Acciones::quitarUi(const QString& tecla) { return quitar(tecla.toStdString()); }
 QString Acciones::atajoDe(const QString& accion) const {

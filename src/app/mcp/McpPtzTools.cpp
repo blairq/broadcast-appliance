@@ -27,6 +27,9 @@
 #include <QJsonDocument>
 #include <QPointer>
 #include <QTimer>
+#include "ui/CapturaError.hpp"
+
+using ::ba::app::errorDe;
 
 namespace ba::app::mcp {
 
@@ -166,7 +169,7 @@ void McpService::registerPtzTools() {
         t.run = [c](const json& a, Done done) {
             if (!c) return done(ToolResult::error(ba::i18n::traducir("mcp", "el PTZ no está disponible")));
             const QString e = qarg(a, "entrada");
-            const QString err = c->mover(e, a.value("pan", 0.0), a.value("tilt", 0.0), a.value("zoom", 0.0));
+            const QString err = errorDe([&] { c->mover(e, a.value("pan", 0.0), a.value("tilt", 0.0), a.value("zoom", 0.0)); });
             if (!err.isEmpty()) return done(ToolResult::error(err.toStdString()));
             const int ms = std::clamp(a.value("duracion_ms", 800), 100, 10000);
             QTimer::singleShot(ms, c.data(), [c, e, done]() {
@@ -207,11 +210,11 @@ void McpService::registerPtzTools() {
             if (!c) return done(ToolResult::error(ba::i18n::traducir("mcp", "el PTZ no está disponible")));
             const QString e = qarg(a, "entrada");
             if (a.contains("auto")) {
-                const QString err = c->autoFoco(e, a.value("auto", true));
+                const QString err = errorDe([&] { c->autoFoco(e, a.value("auto", true)); });
                 if (!err.isEmpty() || !a.contains("velocidad")) return done(err.isEmpty() ? ToolResult::ok(ba::i18n::traducir("mcp", "listo")) : ToolResult::error(err.toStdString()));
             }
             if (!a.contains("velocidad")) return done(ToolResult::error(ba::i18n::traducir("mcp", "falta `auto` o `velocidad`")));
-            const QString err = c->enfocar(e, a.value("velocidad", 0.0));
+            const QString err = errorDe([&] { c->enfocar(e, a.value("velocidad", 0.0)); });
             if (!err.isEmpty()) return done(ToolResult::error(err.toStdString()));
             QTimer::singleShot(std::clamp(a.value("duracion_ms", 600), 100, 5000), c.data(), [c, e, done]() {
                 if (c) c->enfocar(e, 0.0);
@@ -232,7 +235,7 @@ void McpService::registerPtzTools() {
         t.inputSchema = {{"type", "object"}, {"required", {"entrada"}}, {"properties", {{"entrada", entrada}}}};
         t.run = [c](const json& a, Done done) {
             if (!c) return done(ToolResult::error(ba::i18n::traducir("mcp", "el PTZ no está disponible")));
-            const QString err = c->home(qarg(a, "entrada"));
+            const QString err = errorDe([&] { c->home(qarg(a, "entrada")); });
             done(err.isEmpty() ? ToolResult::ok(ba::i18n::traducir("mcp", "en home")) : ToolResult::error(err.toStdString()));
         };
         conInterlock(t);
@@ -314,7 +317,7 @@ void McpService::registerPtzTools() {
                 if (a.contains("regla")) obj["regla"] = qarg(a, "regla");
                 if (a.contains("x")) obj["x"] = a.value("x", 0.5);
                 if (a.contains("y")) obj["y"] = a.value("y", 0.5);
-                const QString err = seg->seguir(e, obj);
+                const QString err = errorDe([&] { seg->seguir(e, obj); });
                 if (!err.isEmpty()) return done(ToolResult::error(err.toStdString()));
                 done(ToolResult::ok(ba::i18n::llenar(
                     ba::i18n::traducir("mcp", "Siguiendo en «%1». Para dejar: ptz_seguir {\"entrada\", \"parar\": true}."), {e.toStdString()})));
@@ -336,7 +339,7 @@ void McpService::registerPtzTools() {
             {"type", "object"}, {"required", {"entrada"}}, {"properties", {{"entrada", entrada}}}};
         t.run = [c, resultado](const json& a, Done done) {
             if (!c) return done(ToolResult::error(ba::i18n::traducir("mcp", "el PTZ no está disponible")));
-            done(resultado(c->parar(qarg(a, "entrada")), ba::i18n::traducir("mcp", "parada")));
+            done(resultado(errorDe([&] { c->parar(qarg(a, "entrada")); }), ba::i18n::traducir("mcp", "parada")));
         };
         core_.addTool(std::move(t));
     }
@@ -365,7 +368,12 @@ void McpService::registerPtzTools() {
             const QString e = qarg(a, "entrada");
             const int n = a.value("numero", 1);
             const bool guardar = a.value("accion", std::string("ir")) == "guardar";
-            done(resultado(guardar ? c->guardarPreset(e, n) : c->irPreset(e, n),
+            done(resultado(errorDe([&] {
+                               if (guardar)
+                                   c->guardarPreset(e, n);
+                               else
+                                   c->irPreset(e, n);
+                           }),
                            ba::i18n::llenar(guardar ? ba::i18n::traducir("mcp", "preset guardado: %1") : ba::i18n::traducir("mcp", "yendo al preset %1"),
                                             {std::to_string(n)})));
         };
@@ -397,8 +405,8 @@ void McpService::registerPtzTools() {
                       R"({"entrada": "Cámara 1", "zoom": 1})"};
         t.run = [c, resultado](const json& a, Done done) {
             if (!c) return done(ToolResult::error(ba::i18n::traducir("mcp", "el PTZ no está disponible")));
-            done(resultado(c->encuadre(qarg(a, "entrada"), a.value("x", 0.5), a.value("y", 0.5),
-                                       a.value("zoom", 1.0), a.value("segundos", 1.0)),
+            done(resultado(errorDe([&] { c->encuadre(qarg(a, "entrada"), a.value("x", 0.5), a.value("y", 0.5),
+                                       a.value("zoom", 1.0), a.value("segundos", 1.0)); }),
                            ba::i18n::traducir("mcp", "encuadre aplicado")));
         };
         conInterlock(t);
@@ -430,8 +438,8 @@ void McpService::registerPtzTools() {
                       R"({"entrada": "Cámara 1", "u": 0.3, "v": 0.5, "ancho": 0.25, "alto": 0.3})"};
         t.run = [c, resultado](const json& a, Done done) {
             if (!c) return done(ToolResult::error(ba::i18n::traducir("mcp", "el PTZ no está disponible")));
-            done(resultado(c->apuntar(qarg(a, "entrada"), a.value("u", 0.5), a.value("v", 0.5),
-                                      a.value("ancho", 0.0), a.value("alto", 0.0)),
+            done(resultado(errorDe([&] { c->apuntar(qarg(a, "entrada"), a.value("u", 0.5), a.value("v", 0.5),
+                                      a.value("ancho", 0.0), a.value("alto", 0.0)); }),
                            ba::i18n::traducir("mcp", "apuntada")));
         };
         conInterlock(t);
@@ -484,11 +492,11 @@ void McpService::registerPtzTools() {
                     if (a.contains(k)) conf[k] = qarg(a, k);
                 for (const char* k : {"puerto", "direccion"})
                     if (a.contains(k)) conf[k] = a.value(k, 0);
-                err = c->configurar(e, qarg(a, "backend"), conf);
+                err = errorDe([&] { c->configurar(e, qarg(a, "backend"), conf); });
             }
-            if (err.isEmpty() && a.contains("digital")) err = c->setDigital(e, a.value("digital", true));
-            if (err.isEmpty() && a.contains("mejora")) err = c->setMejora(e, qarg(a, "mejora"));
-            if (err.isEmpty() && a.contains("modo")) err = c->setModo(e, qarg(a, "modo"));
+            if (err.isEmpty() && a.contains("digital")) err = errorDe([&] { c->setDigital(e, a.value("digital", true)); });
+            if (err.isEmpty() && a.contains("mejora")) err = errorDe([&] { c->setMejora(e, qarg(a, "mejora")); });
+            if (err.isEmpty() && a.contains("modo")) err = errorDe([&] { c->setModo(e, qarg(a, "modo")); });
             if (!err.isEmpty()) return done(ToolResult::error(err.toStdString()));
             done(ToolResult().data(aJson(c->estadoJson(e))));
         };
@@ -628,7 +636,7 @@ void McpService::registerPtzTools() {
                          {"properties", {{"entrada", entrada}, {"posicion", posicion}}}};
         t.run = [c, resultado](const json& a, Done done) {
             if (!c) return done(ToolResult::error(ba::i18n::traducir("mcp", "el PTZ no está disponible")));
-            done(resultado(c->borrarPosicion(qarg(a, "entrada"), qarg(a, "posicion")), ba::i18n::traducir("mcp", "posición borrada")));
+            done(resultado(errorDe([&] { c->borrarPosicion(qarg(a, "entrada"), qarg(a, "posicion")); }), ba::i18n::traducir("mcp", "posición borrada")));
         };
         core_.addTool(std::move(t));
     }

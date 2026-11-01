@@ -17,7 +17,6 @@ Item {
             for (const x of m.microfonos) if (x.nombre === nombre) return { mesa: m, mic: x }
         return null
     }
-    function avisar(err, ok) { msg = err ? err : ok }
 
     ColumnLayout {
         anchors.fill: parent
@@ -58,7 +57,7 @@ Item {
                         ToolTip.visible: hovered; ToolTip.delay: 400
                         ToolTip.text: qsTr("La mesa (p. ej. «bancas»). Vacío: fuera del automixer.")
                         onEditingFinished: if (text !== (fila.en ? fila.en.mesa.grupo : ""))
-                                               mesa.avisar(mesa.vg.automixerPonerUi(fila.modelData, text), text ? qsTr("En la mesa «%1»").arg(text) : qsTr("Fuera de la mesa"))
+                                               mesa.vg.automixerPonerUi(fila.modelData, text)
                     }
                     // La ganancia que aplica ahora (0 dB = pasa entero; -40 dB = abajo de todo).
                     Rectangle {
@@ -114,7 +113,7 @@ Item {
                                 value: panelMesa.valor(modelData.k, modelData.d)
                                 onValueModified: {
                                     const c = {}; c[modelData.k] = value
-                                    mesa.avisar(mesa.vg.automixerAjustesUi(panelMesa.modelData.grupo, c), qsTr("Ajuste de la mesa guardado"))
+                                    mesa.vg.automixerAjustesUi(panelMesa.modelData.grupo, c)
                                 }
                             }
                         }

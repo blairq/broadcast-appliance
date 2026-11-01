@@ -143,13 +143,7 @@ class EmisionViewModel : public QObject {
     /// La arranca (a `destino`, id de un destino guardado, o a disco si vacío) o la corta.
     Q_INVOKABLE void limpiaActivarUi(bool activar, const QString& destino);
     QVariantMap grabacionUi() const;
-    /// El loudness de lo que sale por `salida` ("" = la por omisión; el Mezclador pasa la
-    /// activa): {m, s, i, tp, lra, segundos, gr_db, objetivo, fuera_de_objetivo}. De las
-    /// medidas de la foto (la última vuelta del motor): se lee cuando se lo necesita.
-    Q_INVOKABLE QVariantMap loudnessUi(const QString& salida = {}) const;
     Q_INVOKABLE void resetLoudnessUi(const QString& salida = {});
-    /// {perfil: r128|a85|plataforma16|plataforma14|custom, lufs?, tp?} de esa salida.
-    Q_INVOKABLE void objetivoLoudnessUi(const QVariantMap& o, const QString& salida = {});
     /// Lo que oye el invitado del slot: "mix_minus" (el programa sin su voz) o "programa"
     /// (en QML: retornos[slot]).
     QString retornoInvitadoUi(int slot) const;

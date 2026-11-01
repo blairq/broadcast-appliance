@@ -30,6 +30,7 @@
 #include <functional>
 #include <memory>
 #include <string>
+#include "ui/CapturaError.hpp"
 
 namespace ba::app {
 class AppRuntime;
@@ -47,6 +48,17 @@ namespace ba::app {
 
 class MezclaViewModel : public QObject {
     Q_OBJECT
+    /// El error de una acción de la interfaz (las Q_INVOKABLE void): a quien mira.
+    void avisarError(const QString& e) {
+        if (!e.isEmpty() && !::ba::app::CapturaError::tomar(e)) emit notify(e, "error");
+    }
+    void avisarError(const std::string& e) { avisarError(QString::fromStdString(e)); }
+    /// Para las acciones que dicen si se hicieron: el error a quien mira y true si no hubo.
+    bool sinError(const QString& e) {
+        avisarError(e);
+        return e.isEmpty();
+    }
+    bool sinError(const std::string& e) { return sinError(QString::fromStdString(e)); }
     /// Balística de los medidores (T31): "pico", "ppm" (EBU tipo IIb) o "vu".
     Q_PROPERTY(QString balistica READ balistica WRITE setBalistica NOTIFY balisticaChanged)
     /// La fuente en solo por el monitor (PFL o AFL), "" si ninguna.
@@ -87,15 +99,15 @@ class MezclaViewModel : public QObject {
     QString pflModo() const;
     QString salidaEscucha() const;
     void setSalidaEscucha(const QString& salida);
-    /// PFL exclusivo: escucha `fuente` por el monitor (o la apaga si ya era esa). "" o el error.
-    Q_INVOKABLE QString pflUi(const QString& fuente);
+    /// PFL exclusivo: escucha `fuente` por el monitor (o la apaga si ya era esa). El error va por la señal del modelo.
+    Q_INVOKABLE void pflUi(const QString& fuente);
     /// AFL: lo mismo con el fader y el mute de la salida activa (la del Mezclador).
-    Q_INVOKABLE QString aflUi(const QString& fuente);
+    Q_INVOKABLE void aflUi(const QString& fuente);
     /// Retardo del audio de una fuente respecto de su video (ms, como audio_sincro): el de
     /// la foto, al abrir el diálogo.
     Q_INVOKABLE int retardoUi(const QString& fuente) const;
     /// Se pide al dueño; "" (si no se pudo, llega por notify).
-    Q_INVOKABLE QString setRetardoUi(const QString& fuente, int ms);
+    Q_INVOKABLE bool setRetardoUi(const QString& fuente, int ms);
     /// Medir con aplauso: mide `segundos` sobre el programa de `salida` ("" = la por
     /// omisión) y llama a `listo` con el resultado (ver BroadcastEngine::terminarMedicionSincro);
     /// con `aplicarA` (una fuente) y una medición confiable, le suma el retardo medido al que
@@ -106,7 +118,7 @@ class MezclaViewModel : public QObject {
                         std::function<void(const QString&)> fallo, const std::string& salida = "",
                         const std::string& aplicarA = "");
     /// Lo mismo para la GUI (la salida activa): el resultado llega por medicionSincroLista(resultado).
-    Q_INVOKABLE QString medirSincroUi(int segundos, const QString& salida = {});
+    Q_INVOKABLE bool medirSincroUi(int segundos, const QString& salida = {});
 
    signals:
     void balisticaChanged();

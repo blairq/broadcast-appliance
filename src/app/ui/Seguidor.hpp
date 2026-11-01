@@ -28,6 +28,7 @@
 
 #include <map>
 #include <memory>
+#include "ui/CapturaError.hpp"
 
 namespace ba::app {
 class PersonasViewModel;
@@ -38,6 +39,11 @@ class ControlCamaras;
 
 class Seguidor : public QObject {
     Q_OBJECT
+    /// El error de una acción de la interfaz (las Q_INVOKABLE void): a quien mira.
+    void avisarError(const QString& e) {
+        if (!e.isEmpty() && !::ba::app::CapturaError::tomar(e)) emit notify(e, "error");
+    }
+    void avisarError(const std::string& e) { avisarError(QString::fromStdString(e)); }
     /// entrada -> [{x, y, ancho, alto (0..1), id, nombre, parecido}] (lo último que se analizó)
     Q_PROPERTY(QVariantMap caras READ caras NOTIFY cambio)
     /// entrada -> {id, nombre, estado («siguiendo», «centrada», «perdida…»), x, y}
@@ -56,15 +62,17 @@ class Seguidor : public QObject {
     /// Sigue a `objetivo`: {id} (una persona reconocida), {cara} (el número que le
     /// puso Rostros), {regla: "mayor"|"centro"} o {x, y} (la cara más cercana a ese
     /// punto de la TOMA entera, 0..1).
-    Q_INVOKABLE QString seguir(const QString& entrada, const QVariantMap& objetivo);
+    Q_INVOKABLE void seguir(const QString& entrada, const QVariantMap& objetivo);
     /// Un clic en la imagen de la entrada (u, v en 0..1 de lo que se VE, después
     /// del PTZ digital): sigue a la cara más cercana a ese punto.
-    Q_INVOKABLE QString seguirPunto(const QString& entrada, double u, double v);
+    Q_INVOKABLE void seguirPunto(const QString& entrada, double u, double v);
     /// El grafo de video (la tarjeta Seguimiento se le pide: es del dueño del motor).
     void setGrafos(VideoViewModel* g) { grafos_ = g; }
     Q_INVOKABLE void dejar(const QString& entrada);
 
    signals:
+    /// Para el operador (ya traducido): los errores de las acciones de la interfaz.
+    void notify(const QString& texto, const QString& tipo);
     void cambio();
     void analizado(const QString& entrada, const QString& error);
 

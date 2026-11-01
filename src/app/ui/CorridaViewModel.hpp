@@ -42,6 +42,7 @@
 #include "evento/Corrida.hpp"
 #include "evento/Evento.hpp"
 #include "evento/LineaEdicion.hpp"
+#include "ui/CapturaError.hpp"
 
 namespace ba::app {
 class AppRuntime;
@@ -76,6 +77,11 @@ class Playlist;
 
 class CorridaViewModel : public QObject {
     Q_OBJECT
+    /// El error de una acción de la interfaz (las Q_INVOKABLE void): a quien mira.
+    void avisarError(const QString& e) {
+        if (!e.isEmpty() && !::ba::app::CapturaError::tomar(e)) emit notify(e, "error");
+    }
+    void avisarError(const std::string& e) { avisarError(QString::fromStdString(e)); }
     /// "parado" | "corriendo" | "pausado" | "terminado"
     Q_PROPERTY(QString estado READ estado NOTIFY correChanged)
     Q_PROPERTY(bool ensayo READ ensayo WRITE setEnsayo NOTIFY correChanged)
@@ -85,11 +91,10 @@ class CorridaViewModel : public QObject {
     Q_PROPERTY(bool guionCorriendo READ guionCorriendo NOTIFY correChanged)
     Q_PROPERTY(QVariantMap actual READ actual NOTIFY correChanged)
     Q_PROPERTY(QVariantMap siguiente READ siguiente NOTIFY correChanged)
-    /// {desvioSeg, enCueSeg, restanteSeg, cueNro, cuesTotal, …}: el reloj, que cambia cada
-    /// segundo (aparte para no redibujar el guion entero).
-    Q_PROPERTY(QVariantMap reloj READ reloj NOTIFY relojChanged)
-    /// El aviso «entra solo en 0:05» (los últimos 5 s); 0 = no hay aviso.
-    Q_PROPERTY(int entraSoloEnSeg READ entraSoloEnSeg NOTIFY relojChanged)
+    /// Lo que el reloj necesita y no cambia mientras nada cambie (el cue, la pausa, lo
+    /// previsto): con la hora, `relojEn` da el reloj. La vista lo calcula con el Reloj de las
+    /// vistas (un solo reloj para toda la interfaz); el modelo avisa solo los cambios de estado.
+    Q_PROPERTY(QVariantMap marcasReloj READ marcasReloj NOTIFY relojChanged)
     /// HOLD: el paso al aire no se va solo aunque se cumpla su duración.
     Q_PROPERTY(bool hold READ hold WRITE setHold NOTIFY correChanged)
     /// Tras un corte de luz: {activa, pideDescripcion, descripcion, resumen}.
@@ -137,7 +142,13 @@ class CorridaViewModel : public QObject {
     bool guionCorriendo() const;
     QVariantMap actual() const;
     QVariantMap siguiente() const;
+    /// {desvioSeg, enCueSeg, restanteSeg, cueNro, cuesTotal, …} ahora (el MCP y el bus), más
+    /// lo del avance automático (entraSoloEnSeg, hold, retoma).
     QVariantMap reloj() const;
+    QVariantMap marcasReloj() const;
+    /// El reloj con las marcas y la hora (ms): una sola cuenta para la vista, el MCP y el bus.
+    /// Lo pausado no cuenta (lo resuelve el modelo en las marcas).
+    Q_INVOKABLE static QVariantMap relojEn(const QVariantMap& marcas, double ahoraMs);
     int entraSoloEnSeg() const;
     bool hold() const;
     QVariantMap retoma() const;
@@ -172,17 +183,20 @@ class CorridaViewModel : public QObject {
     void limpiarBitacora();
 
     // --- Correr --------------------------------------------------------------------------
-    Q_INVOKABLE void arrancar();
+    // LAS ÓRDENES TIENEN UN SOLO NÚCLEO: las `linea*` de abajo (devuelven "" o por qué
+    // no), con las reglas del vivo. La página las llama por estas (el error, a `notify`) y
+    // el MCP directo (el error, a su respuesta): nadie repite las reglas.
     /// Arrancar con la revisión previa: si encontró problemas graves y no se pide `forzar`,
     /// NO arranca y devuelve cuántos son. 0 = arrancó.
     Q_INVOKABLE int arrancarRevisando(bool forzar);
-    Q_INVOKABLE void avanzar();
+    /// GO (lineaGo): la pieza pendiente del paso al aire o el paso que sigue; parada, arranca
+    /// con la revisión previa.
+    Q_INVOKABLE void go(const QString& salida = {}) { avisar(lineaGo(salida.toStdString())); }
     Q_INVOKABLE void retroceder();
     Q_INVOKABLE void irA(int bloque, int cue);
     Q_INVOKABLE void pausar();
     Q_INVOKABLE void reanudar();
-    void setHold(bool on);
-    Q_INVOKABLE void alternarHold() { setHold(!hold()); }
+    void setHold(bool on) { avisar(lineaHold({}, on)); }
     Q_INVOKABLE void parar();
     /// Ensayo acelerado: recorre el guion ENTERO de una, sin esperar las duraciones y sin
     /// tocar nada, y dice de cada cue si se podría ejecutar.
@@ -193,12 +207,12 @@ class CorridaViewModel : public QObject {
     /// «Seguir como estaba»: suelta el HOLD del corte sin cambiar nada.
     Q_INVOKABLE void seguirComoEstaba();
     /// Lo grabado pasa a la línea (con su revisión para deshacer). "" o por qué no.
-    Q_INVOKABLE QString aplicarTiemposGrabados();
+    Q_INVOKABLE void aplicarTiemposGrabados();
     Q_INVOKABLE void descartarTiemposGrabados();
-    Q_INVOKABLE QString pulsar(const QString& clave) { return QString::fromStdString(lineaPulso(clave.toStdString())); }
-    Q_INVOKABLE QString reenganchar(const QString& salida) { return QString::fromStdString(lineaReenganchar(salida.toStdString())); }
-    Q_INVOKABLE QString decidirPtz(const QString& pieza, const QString& decision) {
-        return QString::fromStdString(lineaPtz(pieza.toStdString(), decision.toStdString()));
+    Q_INVOKABLE void pulsar(const QString& clave) { avisar(lineaPulso(clave.toStdString())); }
+    Q_INVOKABLE void reenganchar(const QString& salida) { avisar(lineaReenganchar(salida.toStdString())); }
+    Q_INVOKABLE void decidirPtz(const QString& pieza, const QString& decision) {
+        avisar(lineaPtz(pieza.toStdString(), decision.toStdString()));
     }
 
     /// Se abre otro evento (o se cierra): para lo que corría y olvida la corrida.
@@ -253,6 +267,12 @@ class CorridaViewModel : public QObject {
     void notify(const QString& texto, const QString& tipo);
 
    private:
+    /// El error de una orden, a quien mira (la página): "" no dice nada.
+    void avisar(const std::string& error) {
+        if (!error.empty()) emit notify(QString::fromStdString(error), "error");
+    }
+    void arrancar();
+
     // El cursor del guion de cues: el cue que se ve «al aire» (el último disparado del paso).
     struct Cursor {
         int bloque = -1;
@@ -344,7 +364,7 @@ class CorridaViewModel : public QObject {
     bool grabar_ = false;
     nlohmann::json grabado_;
     QVariantList bitacora_;
-    QTimer reloj_;
+    QTimer reloj_; ///< cada segundo, corriendo: el estado vivo al documento de aire (escribirVivo)
     int revision_ = -1; ///< la última de Respaldos/linea-<n>.json (-1: sin leer todavía)
 
     std::map<std::string, std::vector<std::pair<std::uint64_t, int>>> alAvanzar_; ///< por salida

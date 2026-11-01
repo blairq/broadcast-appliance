@@ -35,6 +35,7 @@
 #include <functional>
 #include <memory>
 #include <vector>
+#include "ui/CapturaError.hpp"
 
 namespace ba::app::plugins {
 class Hijo;
@@ -47,6 +48,21 @@ namespace ba::app::video {
 
 class SuperRes : public QObject {
     Q_OBJECT
+    /// Las variantes de cada red instalada y los tamaños de las cámaras que todavía no tienen la
+    /// suya: {plugin: {lista: [...], faltan: ["1920x1080"…]}}. Cambian con lo instalado y con
+    /// las entradas (su tamaño llega cuando arrancan).
+    Q_PROPERTY(QVariantMap variantes READ variantesPorPlugin NOTIFY variantesCambio)
+    /// El error de una acción de la interfaz (las Q_INVOKABLE void): a quien mira.
+    void avisarError(const QString& e) {
+        if (!e.isEmpty() && !::ba::app::CapturaError::tomar(e)) emit notify(e, "error");
+    }
+    void avisarError(const std::string& e) { avisarError(QString::fromStdString(e)); }
+    /// Para las acciones que dicen si se hicieron: el error a quien mira y true si no hubo.
+    bool sinError(const QString& e) {
+        avisarError(e);
+        return e.isEmpty();
+    }
+    bool sinError(const std::string& e) { return sinError(QString::fromStdString(e)); }
     /// [{archivo, nombre, arquitectura, escala, canales, psnr_red, psnr_bicubico, licencia, fecha,
     /// tamano_mb}]
     Q_PROPERTY(QVariantList modelos READ modelosQml NOTIFY cambio)
@@ -151,43 +167,47 @@ class SuperRes : public QObject {
     // --- Interfaz ---------------------------------------------------------------------
     QVariantList modelosQml() const;
     Q_INVOKABLE QString prepararUi() { return q(prepararLaboratorio()); }
-    Q_INVOKABLE QString convertirUi(const QString& cual) { return q(convertir(cual.toStdString())); }
-    Q_INVOKABLE QString entrenarUi(const QString& entrada, double minutos, bool aplicar) {
-        return q(entrenar(entrada.toStdString(), minutos, 60, aplicar));
+    Q_INVOKABLE void convertirUi(const QString& cual) { avisarError(q(convertir(cual.toStdString()))); }
+    Q_INVOKABLE void entrenarUi(const QString& entrada, double minutos, bool aplicar) {
+        avisarError(q(entrenar(entrada.toStdString(), minutos, 60, aplicar)));
     }
     Q_INVOKABLE void cancelarUi() { cancelar(); }
-    Q_INVOKABLE QString aplicarUi(const QString& entrada, const QString& motor, const QString& modelo) {
-        return q(aplicar(entrada.toStdString(), motor.toStdString(), modelo.toStdString()));
+    Q_INVOKABLE bool aplicarUi(const QString& entrada, const QString& motor, const QString& modelo) {
+        return sinError(q(aplicar(entrada.toStdString(), motor.toStdString(), modelo.toStdString())));
     }
-    Q_INVOKABLE QString borrarModelo(const QString& archivo);
+    Q_INVOKABLE bool borrarModelo(const QString& archivo);
     QVariantList pluginsUi() const;
-    Q_INVOKABLE QString instalarPluginUi(const QString& id) { return q(instalarPlugin(id.toStdString())); }
+    Q_INVOKABLE bool instalarPluginUi(const QString& id) { return sinError(q(instalarPlugin(id.toStdString()))); }
     QVariantMap runtimeGpuUi() const;
-    Q_INVOKABLE QString instalarRuntimeGpuUi(const QString& tipo, bool tensorrt) {
-        return q(instalarRuntimeGpu(tipo.toStdString(), tensorrt));
+    Q_INVOKABLE bool instalarRuntimeGpuUi(const QString& tipo, bool tensorrt) {
+        return sinError(q(instalarRuntimeGpu(tipo.toStdString(), tensorrt)));
     }
     Q_INVOKABLE QString guardarPluginElementoUi(const QVariantMap& p);
-    Q_INVOKABLE QString borrarPluginUi(const QString& id) { return q(borrarPlugin(id.toStdString())); }
+    Q_INVOKABLE bool borrarPluginUi(const QString& id) { return sinError(q(borrarPlugin(id.toStdString()))); }
     /// Los plugins instalados de tipo «elemento», con su plugin.json completo.
     QVariantList pluginsElementoUi() const;
-    Q_INVOKABLE QVariantList variantesUi(const QString& plugin) const;
-    Q_INVOKABLE QString crearVarianteUi(const QString& plugin, int ancho, int alto, const QString& para,
+    QVariantList variantesUi(const QString& plugin) const;
+    QVariantMap variantesPorPlugin() const { return variantesUi_; }
+    Q_INVOKABLE bool crearVarianteUi(const QString& plugin, int ancho, int alto, const QString& para,
                                         const QString& motores);
-    Q_INVOKABLE QString crearFaltantesUi(const QString& plugin);
-    Q_INVOKABLE QStringList tamanosSinVarianteUi(const QString& plugin) const;
-    Q_INVOKABLE QString borrarVarianteUi(const QString& plugin, const QString& id) {
-        return q(borrarVariante(plugin.toStdString(), id.toStdString()));
+    Q_INVOKABLE bool crearFaltantesUi(const QString& plugin);
+    QStringList tamanosSinVarianteUi(const QString& plugin) const;
+    Q_INVOKABLE bool borrarVarianteUi(const QString& plugin, const QString& id) {
+        return sinError(q(borrarVariante(plugin.toStdString(), id.toStdString())));
     }
-    Q_INVOKABLE QString editarVarianteUi(const QString& plugin, const QString& id, const QString& para,
+    Q_INVOKABLE bool editarVarianteUi(const QString& plugin, const QString& id, const QString& para,
                                          const QString& descripcion);
-    Q_INVOKABLE QString destilarUi(const QString& entrada, const QString& maestro, double minutos, bool aplicar,
+    Q_INVOKABLE void destilarUi(const QString& entrada, const QString& maestro, double minutos, bool aplicar,
                                    bool cpu) {
-        return q(destilar(entrada.toStdString(), maestro.toStdString(), minutos, aplicar, cpu));
+        avisarError(q(destilar(entrada.toStdString(), maestro.toStdString(), minutos, aplicar, cpu)));
     }
 
    signals:
+    /// Para el operador (ya traducido): los errores de las acciones de la interfaz.
+    void notify(const QString& texto, const QString& tipo);
     void cambio();
     void pluginsCambio();
+    void variantesCambio();
     void trabajoCambio();
 
    private:
@@ -210,6 +230,8 @@ class SuperRes : public QObject {
 
     std::filesystem::path root_;
     VideoViewModel* video_;
+    QVariantMap variantesUi_; ///< ver `variantes`
+    void armarVariantes();
     QVariantMap trabajo_;
     std::unique_ptr<plugins::Hijo> hijo_;
     QByteArray pendiente_;

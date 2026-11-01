@@ -2098,8 +2098,9 @@ QString Botonera::crearPerfilUi(const QString& nombre, const QString& plantilla,
     return QString::fromStdString(e.empty() ? id : "error: " + e);
 }
 
-QString Botonera::editarPerfilUi(const QString& id, const QVariantMap& c) {
-    return QString::fromStdString(editarPerfil(id.toStdString(), deQv(c), true));
+bool Botonera::editarPerfilUi(const QString& id, const QVariantMap& c) {
+    avisarError(QString::fromStdString(editarPerfil(id.toStdString(), deQv(c), true)));
+    return true;
 }
 bool Botonera::borrarPerfilUi(const QString& id) { return borrarPerfil(id.toStdString()); }
 QString Botonera::crearPaginaUi(const QString& perfil, const QString& nombre, int columnas, int filas) {
@@ -2107,8 +2108,8 @@ QString Botonera::crearPaginaUi(const QString& perfil, const QString& nombre, in
     const std::string e = crearPagina(perfil.toStdString(), nombre.toStdString(), columnas, filas, &id);
     return QString::fromStdString(e.empty() ? id : "error: " + e);
 }
-QString Botonera::editarPaginaUi(const QString& perfil, const QString& pagina, const QVariantMap& c) {
-    return QString::fromStdString(editarPagina(perfil.toStdString(), pagina.toStdString(), deQv(c)));
+void Botonera::editarPaginaUi(const QString& perfil, const QString& pagina, const QVariantMap& c) {
+    avisarError(QString::fromStdString(editarPagina(perfil.toStdString(), pagina.toStdString(), deQv(c))));
 }
 bool Botonera::borrarPaginaUi(const QString& perfil, const QString& pagina) {
     return borrarPagina(perfil.toStdString(), pagina.toStdString());
@@ -2167,12 +2168,12 @@ void Botonera::probarUi(const QString& perfil, const QString& pagina, int x, int
     correr("escritorio", *p, (*c)["accion"], claveCelda(c->value("x", 0), c->value("y", 0)), 0, 0, true);
 }
 
-QString Botonera::asignarUi(const QString& dispositivo, const QString& perfil, const QString& pagina) {
-    return QString::fromStdString(asignar(dispositivo.toStdString(), perfil.toStdString(), pagina.toStdString()));
+void Botonera::asignarUi(const QString& dispositivo, const QString& perfil, const QString& pagina) {
+    avisarError(QString::fromStdString(asignar(dispositivo.toStdString(), perfil.toStdString(), pagina.toStdString())));
 }
 int Botonera::revocarUi(const QString& dispositivo) { return revocar(dispositivo.toStdString()); }
-QString Botonera::elegirSalidaUi(const QString& dispositivo, const QString& salida) {
-    return QString::fromStdString(elegirSalida(dispositivo.toStdString(), salida.toStdString()));
+void Botonera::elegirSalidaUi(const QString& dispositivo, const QString& salida) {
+    avisarError(QString::fromStdString(elegirSalida(dispositivo.toStdString(), salida.toStdString())));
 }
 QVariantList Botonera::salidasUi() const { return aQv(g_.salidas ? g_.salidas() : json::array()).toList(); }
 

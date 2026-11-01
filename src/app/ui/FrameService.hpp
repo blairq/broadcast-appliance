@@ -72,6 +72,10 @@ class FrameService : public QObject {
     /// Las claves del programa de cada salida, en su orden ("program" primero): el
     /// multiview con todas de un toque.
     Q_PROPERTY(QStringList programas READ programas NOTIFY keysChanged)
+    /// El nombre legible de cada clave ({"program": "Programa", "guest:1": "Ana"…}): cambia
+    /// cuando cambian los nombres de los invitados o las salidas. Una clave que no está
+    /// (una entrada o una escena sueltas) se muestra tal cual.
+    Q_PROPERTY(QVariantMap rotulos READ rotulos NOTIFY keysChanged)
    public:
     /// Lo que se le encarga al dueño del motor (pedir y soltar vistas), sin esperar.
     using Encargar = std::function<void(std::function<void(BroadcastEngine&)>)>;
@@ -87,7 +91,8 @@ class FrameService : public QObject {
     static constexpr int kRegistroSlots = ba::ipc::kCanalesRegistro;
 
     /// Nombre legible de una clave ("Programa", "Invitado 1").
-    Q_INVOKABLE QString label(const QString& key) const;
+    QString label(const QString& key) const;
+    QVariantMap rotulos() const { return rotulos_; }
 
     /// Ultima imagen de `key` si es mas nueva que `serial` (y lo actualiza).
     bool latest(const QString& key, QImage& out, std::uint64_t& serial) const;
@@ -103,7 +108,7 @@ class FrameService : public QObject {
     /// digital) o "escena:<nombre>" (una escena cualquiera, esté o no al aire: los
     /// monitores y las ventanas del catálogo). Se renderiza mientras alguna la use (la
     /// cuenta es por vista y la que se destruye se suelta sola; en QML, Suscripcion).
-    Q_INVOKABLE void usar(QObject* vista, bool si, const QString& que);
+    Q_INVOKABLE void usar(QObject* vista, bool si, const QString& que = {});
     /// Igual, chica y lenta, en "mini:<nombre>": las miniaturas vivas de la línea de tiempo.
     void mirarMiniatura(const QString& escena, bool mirar);
     /// Cambia la cantidad de invitados.
@@ -147,6 +152,7 @@ class FrameService : public QObject {
     /// Las claves de los canales entre procesos que se leen (cambian con los invitados y el lobby).
     void rehacerCanales();
     std::vector<QString> canalesPedidos_;
+    QVariantMap rotulos_; ///< label() de cada clave conocida (se rehace con keysChanged)
     std::unique_ptr<Canales> canales_;
     /// Lo que tardó cada poll (µs), el último minuto (anillo de 3600 a 60 Hz).
     std::vector<std::int32_t> pollUs_;

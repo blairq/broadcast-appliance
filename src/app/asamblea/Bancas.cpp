@@ -43,15 +43,14 @@ QVariantMap Bancas::estado() const {
     return QJsonDocument::fromJson(QByteArray::fromStdString(estadoJson().dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))).object().toVariantMap();
 }
 
-QString Bancas::agregar(const QString& clave) {
+void Bancas::agregar(const QString& clave) {
     const json i = cuerpo_.buscar(clave.toStdString());
-    if (i.empty()) return tr("no hay nadie con esa banca, id o nombre en el cuerpo");
+    if (i.empty()) return avisarError(tr("no hay nadie con esa banca, id o nombre en el cuerpo"));
     const std::string id = i.value("id", std::string());
-    if (id == alAire_ || std::find(cola_.begin(), cola_.end(), id) != cola_.end()) return {};
+    if (id == alAire_ || std::find(cola_.begin(), cola_.end(), id) != cola_.end()) return;
     cola_.push_back(id);
     avisarFila();
     emit cambio();
-    return {};
 }
 
 void Bancas::avisarFila() {
@@ -81,9 +80,9 @@ void Bancas::quitar(const QString& clave) {
     emit cambio();
 }
 
-QString Bancas::alAire(const QString& clave, const QString& modo, int segundos) {
+void Bancas::alAire(const QString& clave, const QString& modo, int segundos) {
     const json i = cuerpo_.buscar(clave.toStdString());
-    if (i.empty()) return tr("no hay nadie con esa banca, id o nombre en el cuerpo");
+    if (i.empty()) return avisarError(tr("no hay nadie con esa banca, id o nombre en el cuerpo"));
     aviso_.clear();
     const std::string id = i.value("id", std::string());
     // El micrófono de la anterior se cierra (en la central y en la mezcla).
@@ -139,19 +138,18 @@ QString Bancas::alAire(const QString& clave, const QString& modo, int segundos) 
     }
     avisarFila();
     emit cambio();
-    return {};
 }
 
-QString Bancas::apuntar(const QString& clave) {
+void Bancas::apuntar(const QString& clave) {
     const json i = cuerpo_.buscar(clave.toStdString());
-    if (i.empty()) return tr("no hay nadie con esa banca, id o nombre en el cuerpo");
+    if (i.empty()) return avisarError(tr("no hay nadie con esa banca, id o nombre en el cuerpo"));
     const json ptz = i.value("preset_ptz", json::object());
     const std::string camara = ptz.value("camara", std::string()), posicion = ptz.value("posicion", std::string());
-    if (camara.empty() || posicion.empty()) return tr("la banca no tiene preset de cámara (Cuerpo)");
+    if (camara.empty() || posicion.empty()) return avisarError(tr("la banca no tiene preset de cámara (Cuerpo)"));
     if (g_.camaraAlAire && g_.camaraAlAire(camara))
-        return tr("la cámara «%1» está al aire: no se mueve").arg(QString::fromStdString(camara));
-    if (!g_.irAPosicion) return tr("el PTZ no está disponible");
-    return QString::fromStdString(g_.irAPosicion(camara, posicion));
+        return avisarError(tr("la cámara «%1» está al aire: no se mueve").arg(QString::fromStdString(camara)));
+    if (!g_.irAPosicion) return avisarError(tr("el PTZ no está disponible"));
+    avisarError(QString::fromStdString(g_.irAPosicion(camara, posicion)));
 }
 
 QString Bancas::prepararToma(const QString& clave) {
@@ -160,7 +158,7 @@ QString Bancas::prepararToma(const QString& clave) {
     const json ptz = i.value("preset_ptz", json::object());
     const std::string camara = ptz.value("camara", std::string()), posicion = ptz.value("posicion", std::string());
     if (!camara.empty() && g_.laEncuadraLaFuente && g_.laEncuadraLaFuente(camara, posicion)) return {};
-    return apuntar(clave);
+    return errorDe([&] { apuntar(clave); });
 }
 
 json Bancas::resolver(const std::string& que) const {
@@ -241,7 +239,7 @@ json Bancas::resolver(const std::string& que) const {
     return {{"error", ba::i18n::llenar(ba::i18n::traducir("asamblea", "no encontré una banca, una persona ni una posición «%1»"), {que})}};
 }
 
-QString Bancas::enfocar(const QString& que, bool forzar) {
+void Bancas::enfocar(const QString& que, bool forzar) {
     frenoPorAire_ = false;
     const json r = resolver(que.toStdString());
     if (r.contains("error")) {
@@ -250,15 +248,15 @@ QString Bancas::enfocar(const QString& que, bool forzar) {
             e += ": ";
             for (size_t k = 0; k < r["candidatos"].size(); ++k) e += (k ? ", " : "") + r["candidatos"][k].get<std::string>();
         }
-        return QString::fromStdString(e);
+        return avisarError(QString::fromStdString(e));
     }
     const std::string camara = r.value("camara", std::string()), posicion = r.value("posicion", std::string());
     if (!forzar && g_.camaraAlAire && g_.camaraAlAire(camara)) {
         frenoPorAire_ = true;
-        return tr("la cámara «%1» está al aire: moverla se ve (pedilo con forzar)").arg(QString::fromStdString(camara));
+        return avisarError(tr("la cámara «%1» está al aire: moverla se ve (pedilo con forzar)").arg(QString::fromStdString(camara)));
     }
-    if (!g_.irAPosicion) return tr("el PTZ no está disponible");
-    return QString::fromStdString(g_.irAPosicion(camara, posicion));
+    if (!g_.irAPosicion) return avisarError(tr("el PTZ no está disponible"));
+    avisarError(QString::fromStdString(g_.irAPosicion(camara, posicion)));
 }
 
 void Bancas::terminar() {
@@ -274,8 +272,8 @@ void Bancas::terminar() {
     emit cambio();
 }
 
-QString Bancas::siguiente(const QString& modo) {
-    if (cola_.empty()) return tr("la fila de bancas está vacía");
+void Bancas::siguiente(const QString& modo) {
+    if (cola_.empty()) return avisarError(tr("la fila de bancas está vacía"));
     return alAire(QString::fromStdString(cola_.front()), modo);
 }
 

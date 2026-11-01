@@ -281,12 +281,12 @@ void Dsk::restaurar() {
 }
 
 QVariantList Dsk::capasUi() const { return aQv(ultimaUi_).toList(); }
-QString Dsk::definirUi(int capa, const QVariantMap& def) { return QString::fromStdString(definir(capa, deQv(def))); }
-QString Dsk::mostrarUi(int capa, bool visible, bool confirmada) {
-    return QString::fromStdString(mostrar(capa, visible, confirmada, salidaUi_));
+bool Dsk::definirUi(int capa, const QVariantMap& def) { return sinError(QString::fromStdString(definir(capa, deQv(def)))); }
+void Dsk::mostrarUi(int capa, bool visible, bool confirmada) {
+    avisarError(QString::fromStdString(mostrar(capa, visible, confirmada, salidaUi_)));
 }
-QString Dsk::plantillaLsaUi(int capa, const QString& entrada) {
-    return QString::fromStdString(plantillaLsa(capa, entrada.toStdString(), "abajo_derecha", 0.28));
+bool Dsk::plantillaLsaUi(int capa, const QString& entrada) {
+    return sinError(QString::fromStdString(plantillaLsa(capa, entrada.toStdString(), "abajo_derecha", 0.28)));
 }
 bool Dsk::fija(int capa) const {
     const json c = definicion(capa);

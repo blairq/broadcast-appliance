@@ -21,7 +21,8 @@ Rectangle {
     property real leftInset: 92
     readonly property var d: Studio.despachador
     property string abierta: ""      // id de la corrida desplegada
-    property var detalle: ({})       // su contenido (con pasos)
+    // Su contenido (con pasos), del modelo: cambia mientras corre.
+    readonly property var detalle: page.abierta !== "" ? (page.d.detalles[page.abierta] || ({})) : ({})
 
     // El estado es una clave ("corriendo", "ok"...): se compara; lo que se lee es esto.
     function etiquetaDeEstado(e) {
@@ -33,13 +34,6 @@ Rectangle {
         case "esperando": return qsTr("esperando")
         default: return e
         }
-    }
-    function refrescarDetalle() {
-        if (page.abierta !== "") page.detalle = page.d.corridaQml(page.abierta)
-    }
-    Connections {
-        target: page.d
-        function onCambio() { page.refrescarDetalle() }
     }
 
     ColumnLayout {
@@ -157,7 +151,7 @@ Rectangle {
                                 Layout.fillWidth: true
                                 Layout.minimumWidth: 300
                                 editable: true
-                                model: page.d.modelosDe(fila.modelData.proveedor)
+                                model: page.d.modelos[fila.modelData.proveedor] || []
                                 editText: fila.modelData.modelo
                                 onAccepted: page.d.setModelo(fila.modelData.id, editText)
                                 onActivated: page.d.setModelo(fila.modelData.id, currentText)
@@ -210,9 +204,7 @@ Rectangle {
                                 id: mandar
                                 compact: true; text: qsTr("Mandar"); active: true
                                 onClicked: {
-                                    const err = page.d.encargarDesdeUi(fila.modelData.id, encargoTexto.text)
-                                    if (err !== "") Studio.notify(err, "error")
-                                    else { encargoTexto.text = ""; encargo.visible = false }
+                                    if (page.d.encargarDesdeUi(fila.modelData.id, encargoTexto.text)) { encargoTexto.text = ""; encargo.visible = false }
                                 }
                             }
                         }
@@ -318,7 +310,6 @@ Rectangle {
                         anchors.fill: parent
                         onClicked: {
                             page.abierta = item.abierta ? "" : item.modelData.id
-                            page.refrescarDetalle()
                         }
                     }
                     ColumnLayout {

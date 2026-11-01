@@ -12,20 +12,21 @@ import BA
 Dialog {
     id: dlg
     required property var ev
+    readonly property var guionVm: ev ? ev.guionVm : null
+    readonly property var corridaVm: ev ? ev.corridaVm : null
     /// El guion (sus opciones y enlaces avisan solos: nada se pide al dibujar).
-    readonly property var gv: dlg.ev ? dlg.ev.guionVm : null
     property int bloque: -1
     property int cue: -1
     /// El cue tal como está en el guion (se relee cuando el guion cambia).
     readonly property var c: {
-        const bs = dlg.ev ? dlg.ev.guion.bloques || [] : []
+        const bs = dlg.guionVm ? dlg.guionVm.guion.bloques || [] : []
         if (dlg.bloque < 0 || dlg.bloque >= bs.length) return null
         const cs = bs[dlg.bloque].cues || []
         return dlg.cue >= 0 && dlg.cue < cs.length ? cs[dlg.cue] : null
     }
     readonly property var campos: {
         if (!dlg.c) return []
-        for (const t of dlg.ev.tiposDeCue) if (t.tipo === dlg.c.tipo) return t.campos
+        for (const t of dlg.guionVm.tiposDeCue) if (t.tipo === dlg.c.tipo) return t.campos
         return []
     }
     readonly property var kSiNo: ["repetir", "alAire", "arrancar"]
@@ -44,7 +45,7 @@ Dialog {
     function poner(campo, valor) {
         let d = {}
         d[campo] = valor
-        dlg.ev.editarCue(dlg.bloque, dlg.cue, { datos: d })
+        dlg.guionVm.editarCue(dlg.bloque, dlg.cue, { datos: d })
     }
 
     anchors.centerIn: parent
@@ -82,7 +83,7 @@ Dialog {
                 placeholderText: qsTr("Lo que vas a leer cuando toque")
                 color: Theme.text
                 font.pixelSize: 12
-                onEditingFinished: if (dlg.c && text !== dlg.c.texto) dlg.ev.editarCue(dlg.bloque, dlg.cue, { texto: text })
+                onEditingFinished: if (dlg.c && text !== dlg.c.texto) dlg.guionVm.editarCue(dlg.bloque, dlg.cue, { texto: text })
             }
 
             // Los campos propios del tipo.
@@ -92,10 +93,10 @@ Dialog {
                     id: campo
                     required property string modelData
                     readonly property var valor: dlg.c ? dlg.c.datos[modelData] : undefined
-                    readonly property var opciones: !dlg.c || !dlg.gv ? []
-                        : (modelData === "lamina" ? dlg.gv.opciones["carrusel/lamina:" + ((dlg.c.datos || {}).carrusel || "")]
-                           : modelData === "escena" ? dlg.gv.opciones["escena/escena"]
-                           : dlg.gv.opciones[dlg.c.tipo + "/" + modelData]) || []
+                    readonly property var opciones: !dlg.c || !dlg.guionVm ? []
+                        : (modelData === "lamina" ? dlg.guionVm.opciones["carrusel/lamina:" + ((dlg.c.datos || {}).carrusel || "")]
+                           : modelData === "escena" ? dlg.guionVm.opciones["escena/escena"]
+                           : dlg.guionVm.opciones[dlg.c.tipo + "/" + modelData]) || []
                     readonly property bool siNo: dlg.kSiNo.indexOf(modelData) >= 0
                     Layout.fillWidth: true
                     spacing: 3
@@ -158,7 +159,7 @@ Dialog {
                 visible: !!dlg.c && dlg.c.tipo === "grafico" && (dlg.c.datos.accion || "mostrar") === "mostrar"
                 Text { text: qsTr("Lo que dice el gráfico"); color: Theme.text; font { pixelSize: 12; weight: Font.DemiBold } }
                 Repeater {
-                    model: dlg.c && dlg.gv && dlg.c.tipo === "grafico" ? dlg.gv.opciones["parametros:" + (dlg.c.datos.grafico || "")] || [] : []
+                    model: dlg.c && dlg.guionVm && dlg.c.tipo === "grafico" ? dlg.guionVm.opciones["parametros:" + (dlg.c.datos.grafico || "")] || [] : []
                     delegate: ColumnLayout {
                         required property var modelData
                         Layout.fillWidth: true
@@ -190,7 +191,7 @@ Dialog {
                                 const v = dlg.c && dlg.c.datos.valores
                                 return !v || v[modelData.clave] === undefined ? "" : String(v[modelData.clave])
                             }
-                            onEditingFinished: dlg.ev.setValorDeCue(dlg.bloque, dlg.cue, modelData.clave, text)
+                            onEditingFinished: dlg.guionVm.setValorDeCue(dlg.bloque, dlg.cue, modelData.clave, text)
                         }
                     }
                 }
@@ -212,7 +213,7 @@ Dialog {
                         color: Theme.text
                         font.pixelSize: 12
                         validator: IntValidator { bottom: 0; top: 86400 }
-                        onEditingFinished: dlg.ev.editarCue(dlg.bloque, dlg.cue, { duracionSeg: parseInt(text) || 0 })
+                        onEditingFinished: dlg.guionVm.editarCue(dlg.bloque, dlg.cue, { duracionSeg: parseInt(text) || 0 })
                     }
                 }
                 ColumnLayout {
@@ -221,7 +222,7 @@ Dialog {
                     Text { text: qsTr("Encadena solo con el siguiente"); color: Theme.textDim; font.pixelSize: 11 }
                     Toggle {
                         checked: dlg.c ? dlg.c.automatico : false
-                        onToggled: (w) => dlg.ev.editarCue(dlg.bloque, dlg.cue, { automatico: w })
+                        onToggled: (w) => dlg.guionVm.editarCue(dlg.bloque, dlg.cue, { automatico: w })
                     }
                 }
             }
@@ -233,15 +234,15 @@ Dialog {
         Item { Layout.preferredWidth: 8 }
         GlassButton {
             icon: "✕"; text: qsTr("Quitar el cue"); compact: true
-            onClicked: { const b = dlg.bloque, c = dlg.cue; dlg.close(); dlg.ev.quitarCue(b, c) }
+            onClicked: { const b = dlg.bloque, c = dlg.cue; dlg.close(); dlg.guionVm.quitarCue(b, c) }
         }
         GlassButton {
             text: qsTr("Poner al aire"); compact: true
-            onClicked: dlg.ev.irA(dlg.bloque, dlg.cue)
+            onClicked: dlg.corridaVm.irA(dlg.bloque, dlg.cue)
         }
         GlassButton {
-            readonly property string url: dlg.c && dlg.gv && dlg.c.tipo === "teleprompter"
-                                          ? dlg.gv.enlacesPrompter[(dlg.c.datos || {}).prompter || ""] || dlg.gv.enlacesPrompter[""] : ""
+            readonly property string url: dlg.c && dlg.guionVm && dlg.c.tipo === "teleprompter"
+                                          ? dlg.guionVm.enlacesPrompter[(dlg.c.datos || {}).prompter || ""] || dlg.guionVm.enlacesPrompter[""] : ""
             visible: url !== ""
             text: qsTr("Ver el teleprompter ↗"); compact: true
             onClicked: Qt.openUrlExternally(url)

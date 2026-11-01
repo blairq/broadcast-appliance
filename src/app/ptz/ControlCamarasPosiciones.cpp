@@ -77,12 +77,12 @@ std::filesystem::path ControlCamaras::carpetaMiniaturas() const {
     return archivo_.parent_path().parent_path() / "Miniaturas" / "ptz";
 }
 
-QString ControlCamaras::capturarMiniatura(const QString& entrada, const QString& idONombre) {
+void ControlCamaras::capturarMiniatura(const QString& entrada, const QString& idONombre) {
     QString error;
     Camara* c = camara(entrada, &error);
-    if (c == nullptr) return error;
+    if (c == nullptr) return avisarError(error);
     Posicion* p = c->posiciones.buscar(idONombre);
-    if (p == nullptr) return QCoreApplication::translate("ptz", "No hay una posición «%1» en «%2»").arg(idONombre, entrada);
+    if (p == nullptr) return avisarError(QCoreApplication::translate("ptz", "No hay una posición «%1» en «%2»").arg(idONombre, entrada));
     // El cuadro llega aparte (la interfaz no lo espera); lo que sigue, cuando llega.
     const std::string fuente = c->entrada;
     const QString posicion = p->id;
@@ -90,7 +90,6 @@ QString ControlCamaras::capturarMiniatura(const QString& entrada, const QString&
         const QString err = guardarMiniatura(entrada, posicion, img);
         if (!err.isEmpty()) emit aviso(err);
     });
-    return {};
 }
 
 QString ControlCamaras::guardarMiniatura(const QString& entrada, const QString& idONombre, const QImage& img) {
@@ -363,12 +362,12 @@ QVariantMap ControlCamaras::editarPosicion(const QString& entrada, const QString
     return {{"ok", true}, {"aviso", aviso}};
 }
 
-QString ControlCamaras::borrarPosicion(const QString& entrada, const QString& idONombre) {
+void ControlCamaras::borrarPosicion(const QString& entrada, const QString& idONombre) {
     QString error;
     Camara* c = camara(entrada, &error);
-    if (c == nullptr) return error;
+    if (c == nullptr) return avisarError(error);
     const Posicion* p = c->posiciones.buscar(idONombre);
-    if (p == nullptr) return QCoreApplication::translate("ptz", "No hay una posición «%1» en «%2»").arg(idONombre, entrada);
+    if (p == nullptr) return avisarError(QCoreApplication::translate("ptz", "No hay una posición «%1» en «%2»").arg(idONombre, entrada));
     // Libera la memoria en la cámara (si es la misma cámara que la grabó).
     if (c->hw && p->tieneCamara() && p->backend == c->backend) c->hw->borrarPosicion(p->memoria, p->token);
     if (!p->miniatura.isEmpty()) {
@@ -378,7 +377,6 @@ QString ControlCamaras::borrarPosicion(const QString& entrada, const QString& id
     c->posiciones.borrar(p->id);
     guardarPronto();
     emit cambio();
-    return {};
 }
 
 QVariantMap ControlCamaras::irAPosicion(const QString& entrada, const QString& idONombre, double segundos) {

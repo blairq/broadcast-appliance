@@ -112,7 +112,24 @@ QVector<QImage> cuadrosDeVideo(const QString& ruta, int max, QString& error) {
 } // namespace
 
 CarasBotonera::CarasBotonera(Capturar capturar, fs::path dataRoot, QObject* parent)
-    : QObject(parent), capturar_(std::move(capturar)), raiz_(std::move(dataRoot)) {}
+    : QObject(parent), capturar_(std::move(capturar)), raiz_(std::move(dataRoot)) {
+    // Terminó una toma: la lista de caras es otra (se lee una vez, no en cada enlace).
+    connect(this, &CarasBotonera::lista, this, &CarasBotonera::releerCaras);
+    releerCaras();
+}
+
+void CarasBotonera::releerCaras() {
+    QVariantMap m;
+    std::error_code ec;
+    for (const auto& e : fs::directory_iterator(raiz_ / "Media" / "botonera", ec)) {
+        if (!e.is_directory(ec)) continue;
+        const QString id = QString::fromStdWString(e.path().filename().wstring());
+        if (QVariantMap i = info(id); !i.isEmpty()) m.insert(id, i);
+    }
+    if (m == caras_) return;
+    caras_ = std::move(m);
+    emit carasCambio();
+}
 
 fs::path CarasBotonera::carpeta(const QString& id) const {
     return raiz_ / "Media" / "botonera" / id.toStdWString();

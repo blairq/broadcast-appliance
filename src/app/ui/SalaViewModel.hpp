@@ -38,6 +38,7 @@
 #include <string>
 
 #include "ui/EnlacesViewModel.hpp"
+#include "ui/CapturaError.hpp"
 
 namespace ba::app {
 class AccesoRemoto;
@@ -65,6 +66,11 @@ namespace ba::app {
 
 class SalaViewModel : public QObject {
     Q_OBJECT
+    /// El error de una acción de la interfaz (las Q_INVOKABLE void): a quien mira.
+    void avisarError(const QString& e) {
+        if (!e.isEmpty() && !::ba::app::CapturaError::tomar(e)) emit notify(e, "error");
+    }
+    void avisarError(const std::string& e) { avisarError(QString::fromStdString(e)); }
    public:
     struct Partes {
         AppRuntime& rt;
@@ -103,8 +109,8 @@ class SalaViewModel : public QObject {
     Q_INVOKABLE QVariantList chatRecientesUi() const;
     Q_INVOKABLE bool destacarChatUi(const QString& key);
     Q_INVOKABLE void quitarDestacadoChatUi(const QString& key);
-    /// Suma un mensaje del chat (por su key) a la cola de preguntas. "" o el error.
-    Q_INVOKABLE QString preguntaDesdeChatUi(const QString& key);
+    /// Suma un mensaje del chat (por su key) a la cola de preguntas. El error va por la señal del modelo.
+    Q_INVOKABLE void preguntaDesdeChatUi(const QString& key);
     /// El operador le encarga al asistente atender a alguien del lobby: que le
     /// pida sus datos por chat y despues le presente todo junto para admitirlo.
     /// Devuelve el error o "".

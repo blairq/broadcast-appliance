@@ -307,12 +307,12 @@ void CarruselViewModel::revisarEscena() {
     emit enEscenaCambio();
 }
 
-QString CarruselViewModel::mostrar(const QString& nombre, int numero) {
+void CarruselViewModel::mostrar(const QString& nombre, int numero) {
     carrusel::Carrusel* c = store_->porNombre(nombre.toStdString());
-    if (c == nullptr) return tr("No hay ningún carrusel llamado «%1».").arg(nombre);
+    if (c == nullptr) return avisarError(tr("No hay ningún carrusel llamado «%1».").arg(nombre));
     if (c->fuente().empty())
-        return tr("«%1» no está en ninguna escena: aplicalo a una desde Medios › Carruseles.").arg(nombre);
-    if (!c->ir(numero - 1)) return tr("«%1» no tiene una lámina %2 (tiene %3).").arg(nombre).arg(numero).arg(c->tamano());
+        return avisarError(tr("«%1» no está en ninguna escena: aplicalo a una desde Medios › Carruseles.").arg(nombre));
+    if (!c->ir(numero - 1)) return avisarError(tr("«%1» no tiene una lámina %2 (tiene %3).").arg(nombre).arg(numero).arg(c->tamano()));
     store_->persistir();
     empujar(*c);
     // Y SE VE: en cada escena que lo tiene, su fuente visible y las de los otros carruseles
@@ -335,7 +335,6 @@ QString CarruselViewModel::mostrar(const QString& nombre, int numero) {
     // Que la tarjeta maneje este (aunque ya estuviera en otro de la misma escena).
     enEscena_.clear();
     revisarEscena();
-    return {};
 }
 
 QStringList CarruselViewModel::nombres() const {

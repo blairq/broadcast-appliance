@@ -48,6 +48,7 @@
 #include <nlohmann/json.hpp>
 
 #include "agent/Lanzamiento.hpp"
+#include "ui/CapturaError.hpp"
 
 class QProcess;
 class QTimer;
@@ -58,6 +59,17 @@ class Roles;
 
 class Despachador : public QObject {
     Q_OBJECT
+    /// El error de una acción de la interfaz (las Q_INVOKABLE void): a quien mira.
+    void avisarError(const QString& e) {
+        if (!e.isEmpty() && !::ba::app::CapturaError::tomar(e)) emit notify(e, "error");
+    }
+    void avisarError(const std::string& e) { avisarError(QString::fromStdString(e)); }
+    /// Para las acciones que dicen si se hicieron: el error a quien mira y true si no hubo.
+    bool sinError(const QString& e) {
+        avisarError(e);
+        return e.isEmpty();
+    }
+    bool sinError(const std::string& e) { return sinError(QString::fromStdString(e)); }
     /// Los roles con su estado (ver Roles::aJson) mas `corriendo` y `enCola`.
     Q_PROPERTY(QVariantList roles READ rolesQml NOTIFY cambio)
     /// Las ultimas corridas, la mas nueva primero (sin los pasos: corrida(id)).
@@ -65,6 +77,10 @@ class Despachador : public QObject {
     Q_PROPERTY(int enCurso READ enCurso NOTIFY cambio)
     /// Los proveedores que se pueden elegir por rol (los mismos del asistente).
     Q_PROPERTY(QVariantList proveedores READ proveedores CONSTANT)
+    /// Lo que no va en `corridas`: {id: {encargo, pasos, resultado}} de cada una.
+    Q_PROPERTY(QVariantMap detalles READ detallesQml NOTIFY cambio)
+    /// Los modelos de cada proveedor: {proveedor: [nombres]}.
+    Q_PROPERTY(QVariantMap modelos READ modelosQml NOTIFY cambio)
 
    public:
     using json = nlohmann::json;
@@ -113,14 +129,15 @@ class Despachador : public QObject {
     Q_INVOKABLE void setModelo(const QString& rol, const QString& modelo);
     /// Lo propio del rol (vacío o igual al de fábrica: vuelve al de fábrica).
     Q_INVOKABLE void setPrompt(const QString& rol, const QString& texto);
-    Q_INVOKABLE QStringList modelosDe(const QString& proveedor) const;
+    QStringList modelosDe(const QString& proveedor) const;
+    QVariantMap modelosQml() const;
+    QVariantMap detallesQml() const;
     /// Devuelve el error (vacio si se encolo).
-    Q_INVOKABLE QString encargarDesdeUi(const QString& rol, const QString& texto);
+    Q_INVOKABLE bool encargarDesdeUi(const QString& rol, const QString& texto);
     /// Lo mismo, para la vista que después sigue esa corrida: {error, id}
     /// (id vacío si no se encoló). Así no tiene que adivinar cuál es.
     Q_INVOKABLE QVariantMap encargarDesdeUiConId(const QString& rol, const QString& texto);
     Q_INVOKABLE void detener(const QString& id);
-    Q_INVOKABLE QVariantMap corridaQml(const QString& id) const;
 
    signals:
     void cambio();

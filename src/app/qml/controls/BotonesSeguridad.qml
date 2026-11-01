@@ -20,9 +20,8 @@ GridLayout {
 
     function poner(cual, activar) {
         const hacer = function() {
-            const e = cual === "ftb" ? Studio.salidas.ftbUi(activar, 800, audioFtb.checked ? "bajar" : "mantener")
-                                     : Studio.salidas.placaUi(activar, textoPlaca.editText, "", 600)
-            if (e !== "") Studio.notify(e, "error")
+            if (cual === "ftb") Studio.salidas.ftbUi(activar, 800, audioFtb.checked ? "bajar" : "mantener")
+            else Studio.salidas.placaUi(activar, textoPlaca.editText, "", 600)
         }
         if (activar && Studio.salidas.aire.alAire)
             ApplicationWindow.window.confirm({

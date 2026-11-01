@@ -33,6 +33,9 @@
 #include "ui/ConferenceClient.hpp"
 #include "ui/ConferenceViewModel.hpp"
 #include "ui/StudioViewModel.hpp"
+#include "ui/CapturaError.hpp"
+
+using ::ba::app::errorDe;
 
 namespace ba::app::mcp {
 
@@ -919,7 +922,7 @@ void registerBotoneraTools(McpCore& core, StudioViewModel& vm) {
             auto& s = vm.satellite();
             if (a.contains("quitar_ip")) s.permitir(QString::fromStdString(a.value("quitar_ip", std::string())), false);
             if (a.contains("activo") || a.contains("puerto")) {
-                const QString e = s.configurar(a.value("activo", s.activo()), a.value("puerto", s.puerto()));
+                const QString e = errorDe([&] { s.configurar(a.value("activo", s.activo()), a.value("puerto", s.puerto())); });
                 if (!e.isEmpty()) return done(ToolResult::error(e.toStdString()));
             }
             done(ToolResult().data(s.estado()));

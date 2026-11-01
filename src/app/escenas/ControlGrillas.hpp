@@ -44,6 +44,7 @@
 #include <set>
 #include <string>
 #include <vector>
+#include "ui/CapturaError.hpp"
 
 namespace ba::app {
 class ConferenceClient;
@@ -58,6 +59,11 @@ namespace ba::app::escenas {
 
 class ControlGrillas : public QObject {
     Q_OBJECT
+    /// El error de una acción de la interfaz (las Q_INVOKABLE void): a quien mira.
+    void avisarError(const QString& e) {
+        if (!e.isEmpty() && !::ba::app::CapturaError::tomar(e)) emit notify(e, "error");
+    }
+    void avisarError(const std::string& e) { avisarError(QString::fromStdString(e)); }
     /// [{fuente, canal, grupo, al_aire, personas: [{clave, nombre, fijo, hablando}], fuera: [{clave, nombre}],
     /// mas, aviso?}]: lo que muestra cada grilla (y a quién se sacó a mano de cada una).
     Q_PROPERTY(QVariantList grillas READ grillasUi NOTIFY cambio)
@@ -94,14 +100,16 @@ class ControlGrillas : public QObject {
     std::string mover(const std::string& clave, const std::string& desde, const std::string& hacia);
     /// Vuelve a lo automático en `fuente` (ni fijada ni sacada).
     std::string devolver(const std::string& fuente, const std::string& clave);
-    Q_INVOKABLE QString fijarQml(const QString& fuente, const QString& clave) { return QString::fromStdString(fijar(fuente.toStdString(), clave.toStdString())); }
-    Q_INVOKABLE QString sacarQml(const QString& fuente, const QString& clave) { return QString::fromStdString(sacar(fuente.toStdString(), clave.toStdString())); }
-    Q_INVOKABLE QString moverQml(const QString& clave, const QString& desde, const QString& hacia) {
-        return QString::fromStdString(mover(clave.toStdString(), desde.toStdString(), hacia.toStdString()));
+    Q_INVOKABLE void fijarQml(const QString& fuente, const QString& clave) { avisarError(QString::fromStdString(fijar(fuente.toStdString(), clave.toStdString()))); }
+    Q_INVOKABLE void sacarQml(const QString& fuente, const QString& clave) { avisarError(QString::fromStdString(sacar(fuente.toStdString(), clave.toStdString()))); }
+    Q_INVOKABLE void moverQml(const QString& clave, const QString& desde, const QString& hacia) {
+        avisarError(QString::fromStdString(mover(clave.toStdString(), desde.toStdString(), hacia.toStdString())));
     }
-    Q_INVOKABLE QString devolverQml(const QString& fuente, const QString& clave) { return QString::fromStdString(devolver(fuente.toStdString(), clave.toStdString())); }
+    Q_INVOKABLE void devolverQml(const QString& fuente, const QString& clave) { avisarError(QString::fromStdString(devolver(fuente.toStdString(), clave.toStdString()))); }
 
    signals:
+    /// Para el operador (ya traducido): los errores de las acciones de la interfaz.
+    void notify(const QString& texto, const QString& tipo);
     void cambio();
 
    public slots:

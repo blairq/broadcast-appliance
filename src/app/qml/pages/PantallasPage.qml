@@ -70,7 +70,6 @@ Rectangle {
         }
     }
     function avisar(t, tipo) { Studio.notify(t, tipo || "error") }
-    function chequear(err) { if (err && err !== "") page.avisar(err); return !err || err === "" }
 
     ColumnLayout {
         anchors { fill: parent; leftMargin: page.leftInset; margins: 20 }
@@ -244,30 +243,28 @@ Rectangle {
                                                 text: qsTr("Que muestre siempre este carrusel")
                                                 enabled: page.modoCarrusel && page.elegida === fila.modelData.id &&
                                                          page.carruselActual() && page.carruselActual().pasos.length > 0
-                                                onTriggered: page.chequear(
-                                                    page.p.fijar(fila.modelData.id, "carrusel:" + page.carrusel, ({})))
+                                                onTriggered: page.p.fijar(fila.modelData.id, "carrusel:" + page.carrusel, ({}))
                                             }
                                             MenuItem {
                                                 text: qsTr("Que muestre siempre esto")
                                                 enabled: page.elegida === fila.modelData.id &&
                                                          page.contenidoActual() && page.contenidoActual().disponible
-                                                onTriggered: page.chequear(
-                                                    page.p.fijar(fila.modelData.id, page.tipo, page.datos))
+                                                onTriggered: page.p.fijar(fila.modelData.id, page.tipo, page.datos)
                                             }
                                             MenuItem {
                                                 text: qsTr("Dejar fijo lo que está mostrando")
                                                 enabled: fila.modelData.estado === "mostrando"
-                                                onTriggered: page.chequear(page.p.fijarLoQueMuestra(fila.modelData.id))
+                                                onTriggered: page.p.fijarLoQueMuestra(fila.modelData.id)
                                             }
                                             MenuItem {
                                                 text: qsTr("No dejar nada fijo")
                                                 enabled: fila.modelData.fijadoTipo !== ""
-                                                onTriggered: page.chequear(page.p.desfijar(fila.modelData.id))
+                                                onTriggered: page.p.desfijar(fila.modelData.id)
                                             }
                                             MenuSeparator {}
                                             MenuItem {
                                                 text: qsTr("Olvidar esta pantalla")
-                                                onTriggered: page.chequear(page.p.olvidar(fila.modelData.id))
+                                                onTriggered: page.p.olvidar(fila.modelData.id)
                                             }
                                         }
                                     }
@@ -386,7 +383,7 @@ Rectangle {
                                             GlassButton {
                                                 compact: true; text: "✕"
                                                 visible: pasoRaton.containsMouse
-                                                onClicked: page.chequear(page.p.pasoQuitar(page.carrusel, paso.index))
+                                                onClicked: page.p.pasoQuitar(page.carrusel, paso.index)
                                             }
                                         }
                                     }
@@ -423,7 +420,7 @@ Rectangle {
                                     text: qsTr("Mostrar el carrusel"); icon: "▶"; active: true
                                     enabled: page.elegida !== "" && page.carruselActual() &&
                                              page.carruselActual().pasos.length > 0
-                                    onClicked: page.chequear(page.p.mostrarCarrusel(page.elegida, page.carrusel))
+                                    onClicked: page.p.mostrarCarrusel(page.elegida, page.carrusel)
                                 }
                             }
 
@@ -488,7 +485,7 @@ Rectangle {
                                         id: listaQr
                                         visible: modelData.opciones === "qrs"
                                         Layout.fillWidth: true
-                                        property var opciones: visible ? [{ value: "", label: qsTr("Escribirlo a mano (abajo)") }].concat(Studio.qr.paraElegir()) : []
+                                        property var opciones: visible ? [{ value: "", label: qsTr("Escribirlo a mano (abajo)") }].concat(Studio.qr.paraElegir) : []
                                         model: opciones
                                         textRole: "label"
                                         valueRole: "value"
@@ -553,13 +550,12 @@ Rectangle {
                                     Layout.fillWidth: true
                                     text: qsTr("Mostrar"); icon: "▶"; active: true
                                     enabled: page.elegida !== "" && page.contenidoActual() && page.contenidoActual().disponible
-                                    onClicked: page.chequear(page.p.mostrar(page.elegida, page.tipo, page.datos))
+                                    onClicked: page.p.mostrar(page.elegida, page.tipo, page.datos)
                                 }
                                 GlassButton {
                                     text: qsTr("Al carrusel"); icon: "+"
                                     enabled: page.carrusel !== "" && page.contenidoActual() && page.contenidoActual().disponible
-                                    onClicked: page.chequear(page.p.pasoAgregar(page.carrusel, page.tipo, page.datos, 15),
-                                                             qsTr("Agregado al carrusel"))
+                                    onClicked: if (page.p.pasoAgregar(page.carrusel, page.tipo, page.datos, 15)) page.avisar(qsTr("Agregado al carrusel"), "info")
                                     ToolTip.visible: hovered
                                     ToolTip.text: page.carrusel === "" ? qsTr("Creá un carrusel primero (pestaña Carrusel)")
                                                                        : qsTr("Suma esto como un paso más")
@@ -591,7 +587,7 @@ Rectangle {
         property string id: ""
         property string actual: ""
         onOpened: { nuevoNombre.text = actual; nuevoNombre.forceActiveFocus(); nuevoNombre.selectAll() }
-        onAccepted: page.chequear(page.p.renombrar(id, nuevoNombre.text))
+        onAccepted: page.p.renombrar(id, nuevoNombre.text)
         ColumnLayout {
             spacing: 8
             Text {
@@ -635,7 +631,7 @@ Rectangle {
         title: qsTr("Agregar una pantalla")
         standardButtons: Dialog.Ok | Dialog.Cancel
         onOpened: { nom.text = ""; ip.text = ""; ip.forceActiveFocus() }
-        onAccepted: page.chequear(page.p.agregar(nom.text, ip.text, 0))
+        onAccepted: page.p.agregar(nom.text, ip.text, 0)
         ColumnLayout {
             spacing: 8
             Text {

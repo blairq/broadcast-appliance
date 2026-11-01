@@ -63,6 +63,7 @@
 #include "registro/Totems.hpp"
 #include "ui/LectorDocumentos.hpp"
 #include "ui/ListaObjetos.hpp"
+#include "ui/CapturaError.hpp"
 
 namespace ba::registro {
 class Conversacion;
@@ -87,6 +88,11 @@ struct FuenteMirada;
 
 class TotemsViewModel : public QObject {
     Q_OBJECT
+    /// El error de una acción de la interfaz (las Q_INVOKABLE void): a quien mira.
+    void avisarError(const QString& e) {
+        if (!e.isEmpty() && !::ba::app::CapturaError::tomar(e)) emit notify(e, "error");
+    }
+    void avisarError(const std::string& e) { avisarError(QString::fromStdString(e)); }
     /// Hay un evento abierto (los tótems son de un evento).
     Q_PROPERTY(bool hayEvento READ hayEvento NOTIFY cambio)
     /// El nombre del evento abierto (lo que va en {evento}).
@@ -161,20 +167,20 @@ class TotemsViewModel : public QObject {
     // --- Configurar -------------------------------------------------------------------
     /// Un tótem nuevo con valores de fábrica. Devuelve su id, o "" (y avisa).
     Q_INVOKABLE QString crear(const QString& nombre);
-    /// Cambia las claves que vengan (las de `totems`; `campos` reemplaza la lista). "" o el error.
-    Q_INVOKABLE QString cambiar(const QString& id, const QVariantMap& cambios);
+    /// Cambia las claves que vengan (las de `totems`; `campos` reemplaza la lista). El error va por la señal del modelo.
+    Q_INVOKABLE void cambiar(const QString& id, const QVariantMap& cambios);
     Q_INVOKABLE bool borrar(const QString& id);
-    /// Los campos, de a uno (para el editor). "" o el error.
-    Q_INVOKABLE QString agregarCampo(const QString& id, const QString& tipo);
-    Q_INVOKABLE QString quitarCampo(const QString& id, int indice);
-    Q_INVOKABLE QString moverCampo(const QString& id, int desde, int hasta);
-    Q_INVOKABLE QString cambiarCampo(const QString& id, int indice, const QVariantMap& cambios);
+    /// Los campos, de a uno (para el editor). El error va por la señal del modelo.
+    Q_INVOKABLE void agregarCampo(const QString& id, const QString& tipo);
+    Q_INVOKABLE void quitarCampo(const QString& id, int indice);
+    Q_INVOKABLE void moverCampo(const QString& id, int desde, int hasta);
+    Q_INVOKABLE void cambiarCampo(const QString& id, int indice, const QVariantMap& cambios);
     /// La url del tótem (con su token en el fragmento) y la de la TV (?pantalla=1:
     /// muestra el QR de la otra). "" si no hay ese tótem.
     Q_INVOKABLE QString url(const QString& id) const;
     Q_INVOKABLE QString urlPantalla(const QString& id) const;
     /// Token nuevo: la url vieja deja de andar. Devuelve la nueva.
-    Q_INVOKABLE QString renovar(const QString& id);
+    Q_INVOKABLE void renovar(const QString& id);
     /// Corta una conexión en vivo.
     Q_INVOKABLE void cortar(const QString& conn);
 
@@ -183,15 +189,15 @@ class TotemsViewModel : public QObject {
     QVariantList atienden() const;
     /// Token nuevo para el link de atención: el viejo deja de andar (y se corta a quien entró
     /// con él). Devuelve el nuevo.
-    Q_INVOKABLE QString renovarAtencion();
+    Q_INVOKABLE void renovarAtencion();
     /// Atender una conversación desde la app (sin voz): el asistente se calla y deja de
-    /// preguntar; la pantalla del tótem dice «Te atiende una persona del equipo». "" o el error.
-    Q_INVOKABLE QString atender(const QString& conn);
+    /// preguntar; la pantalla del tótem dice «Te atiende una persona del equipo». El error va por la señal del modelo.
+    Q_INVOKABLE void atender(const QString& conn);
     /// Terminar la atención: `como` = "asistente" (sigue el guion), "guardar" (guarda ya) o
-    /// "cancelar". "" o el error.
-    Q_INVOKABLE QString terminarAtencion(const QString& conn, const QString& como);
+    /// "cancelar". El error va por la señal del modelo.
+    Q_INVOKABLE void terminarAtencion(const QString& conn, const QString& como);
     /// Completar o corregir un dato (atendida o no), como si lo hubiera tipeado. Vacío = borrarlo.
-    Q_INVOKABLE QString ponerDato(const QString& conn, const QString& clave, const QString& valor);
+    Q_INVOKABLE void ponerDato(const QString& conn, const QString& clave, const QString& valor);
     /// Lo mismo, diciendo quién (`quien`, para la pantalla del tótem) y desde qué página de
     /// atención (`aconn`; "" = la app o el MCP, que pueden siempre).
     std::string atenderConn(const QString& conn, const QString& quien, const QString& aconn);

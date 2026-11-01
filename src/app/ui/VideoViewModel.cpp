@@ -86,6 +86,14 @@ void VideoViewModel::releer() {
     poner("filtros_audio", filtrosAudio_, aVariant(x.value("filtros_audio", json::object())).toMap(), &VideoViewModel::filtrosAudioCambio);
     poner("escenas", escenas_, listaDeTextos(x.value("escenas", json::array())), &VideoViewModel::escenasCambio);
     poner("hay_superres", haySuperres_, x.value("hay_superres", false), &VideoViewModel::haySuperresCambio);
+    // Los formularios: solo si cambiaron (la introspección de cada módulo la guarda el catálogo).
+    if (difiere("formularios")) {
+        QVariantMap f = armarFormularios(x.value("formularios", json::object()));
+        if (f != formularios_) {
+            formularios_ = std::move(f);
+            avisar.push_back(&VideoViewModel::formulariosCambio);
+        }
+    }
     const bool eventos = difiere("eventos");
     antes_ = x;
     if (estructura) {
@@ -138,14 +146,19 @@ QString VideoViewModel::versionGst() const {
     return c->disponible() ? q(c->version()) : tr("Sin GStreamer: %1").arg(q(c->error()));
 }
 
-QVariantList VideoViewModel::propiedades(const QString& id) const {
-    // De la vista: el elemento y los valores con que corre (un controlador, los de su molde).
-    return video::VideoGrafos::controlesDe(*gst(), v().value("formularios", json::object()).value(id.toStdString(), json()));
-}
-
-QVariantList VideoViewModel::propiedadesPad(const QString& id, const QString& puerto) const {
-    return video::VideoGrafos::controlesDe(*gst(), v().value("formularios", json::object()).value(id.toStdString(), json()),
-                                           puerto.toStdString());
+QVariantMap VideoViewModel::armarFormularios(const json& formularios) const {
+    // De la vista: el elemento y los valores con que corre cada tarjeta (un controlador, los
+    // de su molde) y los de cada pad de una Mezcla.
+    QVariantMap out;
+    if (!formularios.is_object()) return out;
+    const auto c = gst();
+    for (auto it = formularios.begin(); it != formularios.end(); ++it) {
+        QVariantMap pads;
+        if (const auto pf = it->find("pads"); pf != it->end() && pf->is_object())
+            for (auto p = pf->begin(); p != pf->end(); ++p) pads.insert(q(p.key()), video::VideoGrafos::controlesDe(*c, *it, p.key()));
+        out.insert(q(it.key()), QVariantMap{{"props", video::VideoGrafos::controlesDe(*c, *it)}, {"pads", pads}});
+    }
+    return out;
 }
 
 QVariantList VideoViewModel::propiedadesModulo(const QString& elemento) const {
@@ -210,84 +223,85 @@ void VideoViewModel::sincronizar() {
     ventanilla_.pedir("video_revisar", [&g = grafos_]() { g.sincronizar(); });
 }
 
-QString VideoViewModel::agregar(const QString& tipo, const QString& despues) {
-    return pedirEnLaElegida("video_agregar", [tipo, despues](video::VideoGrafos& g) { return g.agregar(tipo, despues); });
+void VideoViewModel::agregar(const QString& tipo, const QString& despues) {
+    avisarError(pedirEnLaElegida("video_agregar", [tipo, despues](video::VideoGrafos& g) { return g.agregar(tipo, despues); }));
 }
-QString VideoViewModel::agregarModulo(const QString& elemento, const QString& despues) {
-    return pedirEnLaElegida("video_agregar", [elemento, despues](video::VideoGrafos& g) { return g.agregarModulo(elemento, despues); });
+void VideoViewModel::agregarModulo(const QString& elemento, const QString& despues) {
+    avisarError(pedirEnLaElegida("video_agregar", [elemento, despues](video::VideoGrafos& g) { return g.agregarModulo(elemento, despues); }));
 }
-QString VideoViewModel::agregarMezcla(const QString& elemento) {
-    return pedirQ("video_agregar", [elemento](video::VideoGrafos& g) { return g.agregarMezcla(elemento); });
+void VideoViewModel::agregarMezcla(const QString& elemento) {
+    avisarError(pedirQ("video_agregar", [elemento](video::VideoGrafos& g) { return g.agregarMezcla(elemento); }));
 }
-QString VideoViewModel::ajustarPad(const QString& id, const QString& puerto, const QString& clave, const QVariant& valor) {
-    return pedirQ("video_ajustar", [id, puerto, clave, valor](video::VideoGrafos& g) { return g.ajustarPad(id, puerto, clave, valor); });
+void VideoViewModel::ajustarPad(const QString& id, const QString& puerto, const QString& clave, const QVariant& valor) {
+    avisarError(pedirQ("video_ajustar", [id, puerto, clave, valor](video::VideoGrafos& g) { return g.ajustarPad(id, puerto, clave, valor); }));
 }
-QString VideoViewModel::agregarSuperresUi(const QString& motor, const QString& modelo, const QString& despues) {
-    return pedirEnLaElegida("video_agregar", [motor, modelo, despues](video::VideoGrafos& g) {
+void VideoViewModel::agregarSuperresUi(const QString& motor, const QString& modelo, const QString& despues) {
+    return avisarError(pedirEnLaElegida("video_agregar", [motor, modelo, despues](video::VideoGrafos& g) {
         return g.agregarSuperresUi(motor, modelo, despues);
-    });
+    }));
 }
-QString VideoViewModel::crearVirtual(const QString& nombre, const QString& preset, const QString& escena) {
-    return pedirQ("video_virtual", [nombre, preset, escena](video::VideoGrafos& g) { return g.crearVirtual(nombre, preset, escena); });
+bool VideoViewModel::crearVirtual(const QString& nombre, const QString& preset, const QString& escena) {
+    avisarError(pedirQ("video_virtual", [nombre, preset, escena](video::VideoGrafos& g) { return g.crearVirtual(nombre, preset, escena); }));
+    return true;
 }
-QString VideoViewModel::quitar(const QString& id) {
-    return pedirQ("video_quitar", [id](video::VideoGrafos& g) { return g.quitar(id); });
+void VideoViewModel::quitar(const QString& id) {
+    avisarError(pedirQ("video_quitar", [id](video::VideoGrafos& g) { return g.quitar(id); }));
 }
-QString VideoViewModel::reubicar(const QString& id, const QString& despues) {
-    return pedirQ("video_mover", [id, despues](video::VideoGrafos& g) { return g.reubicar(id, despues); });
+void VideoViewModel::reubicar(const QString& id, const QString& despues) {
+    avisarError(pedirQ("video_mover", [id, despues](video::VideoGrafos& g) { return g.reubicar(id, despues); }));
 }
-QString VideoViewModel::correr(const QString& id, int paso) {
-    return pedirQ("video_mover", [id, paso](video::VideoGrafos& g) { return g.correr(id, paso); });
+void VideoViewModel::correr(const QString& id, int paso) {
+    avisarError(pedirQ("video_mover", [id, paso](video::VideoGrafos& g) { return g.correr(id, paso); }));
 }
-QString VideoViewModel::conectar(const QString& desde, const QString& salida, const QString& hacia, const QString& entrada) {
-    return pedirQ("video_cable", [desde, salida, hacia, entrada](video::VideoGrafos& g) { return g.conectar(desde, salida, hacia, entrada); });
+void VideoViewModel::conectar(const QString& desde, const QString& salida, const QString& hacia, const QString& entrada) {
+    avisarError(pedirQ("video_cable", [desde, salida, hacia, entrada](video::VideoGrafos& g) { return g.conectar(desde, salida, hacia, entrada); }));
 }
-QString VideoViewModel::desconectar(const QString& desde, const QString& salida, const QString& hacia, const QString& entrada) {
-    return pedirQ("video_cable",
-                  [desde, salida, hacia, entrada](video::VideoGrafos& g) { return g.desconectar(desde, salida, hacia, entrada); });
+void VideoViewModel::desconectar(const QString& desde, const QString& salida, const QString& hacia, const QString& entrada) {
+    avisarError(pedirQ("video_cable",
+                  [desde, salida, hacia, entrada](video::VideoGrafos& g) { return g.desconectar(desde, salida, hacia, entrada); }));
 }
-QString VideoViewModel::mover(const QString& id, int x, int y) {
-    return pedirQ("video_mover", [id, x, y](video::VideoGrafos& g) { return g.mover(id, x, y); });
+void VideoViewModel::mover(const QString& id, int x, int y) {
+    avisarError(pedirQ("video_mover", [id, x, y](video::VideoGrafos& g) { return g.mover(id, x, y); }));
 }
-QString VideoViewModel::ajustar(const QString& id, const QVariantMap& params) {
-    return pedirQ("video_ajustar", [id, params](video::VideoGrafos& g) { return g.ajustar(id, params); });
+void VideoViewModel::ajustar(const QString& id, const QVariantMap& params) {
+    avisarError(pedirQ("video_ajustar", [id, params](video::VideoGrafos& g) { return g.ajustar(id, params); }));
 }
-QString VideoViewModel::controlar(const QString& id) {
-    return pedirQ("video_controlador", [id](video::VideoGrafos& g) { return g.controlar(id); });
+void VideoViewModel::controlar(const QString& id) {
+    avisarError(pedirQ("video_controlador", [id](video::VideoGrafos& g) { return g.controlar(id); }));
 }
-QString VideoViewModel::agregarControlada(const QString& control, const QString& entrada) {
-    return pedirQ("video_controlador", [control, entrada](video::VideoGrafos& g) { return g.agregarControlada(control, entrada); });
+void VideoViewModel::agregarControlada(const QString& control, const QString& entrada) {
+    avisarError(pedirQ("video_controlador", [control, entrada](video::VideoGrafos& g) { return g.agregarControlada(control, entrada); }));
 }
-QString VideoViewModel::soltarControl(const QString& id) {
-    return pedirQ("video_controlador", [id](video::VideoGrafos& g) { return g.soltarControl(id); });
+void VideoViewModel::soltarControl(const QString& id) {
+    avisarError(pedirQ("video_controlador", [id](video::VideoGrafos& g) { return g.soltarControl(id); }));
 }
-QString VideoViewModel::ajustarFiltro(const QString& id, const QString& clave, const QVariant& valor) {
-    return pedirQ("video_ajustar", [id, clave, valor](video::VideoGrafos& g) { return g.ajustarFiltro(id, clave, valor); });
+void VideoViewModel::ajustarFiltro(const QString& id, const QString& clave, const QVariant& valor) {
+    avisarError(pedirQ("video_ajustar", [id, clave, valor](video::VideoGrafos& g) { return g.ajustarFiltro(id, clave, valor); }));
 }
-QString VideoViewModel::aEscena(const QString& id, const QString& escena) {
-    return pedirQ("video_a_escena", [id, escena](video::VideoGrafos& g) { return g.aEscena(id, escena); });
+void VideoViewModel::aEscena(const QString& id, const QString& escena) {
+    avisarError(pedirQ("video_a_escena", [id, escena](video::VideoGrafos& g) { return g.aEscena(id, escena); }));
 }
-QString VideoViewModel::limpiar() {
-    return pedirEnLaElegida("video_limpiar", [](video::VideoGrafos& g) { return g.limpiar(); });
+void VideoViewModel::limpiar() {
+    avisarError(pedirEnLaElegida("video_limpiar", [](video::VideoGrafos& g) { return g.limpiar(); }));
 }
-QString VideoViewModel::ordenar() {
-    return pedirQ("video_ordenar", [](video::VideoGrafos& g) { return g.ordenar(); });
+void VideoViewModel::ordenar() {
+    avisarError(pedirQ("video_ordenar", [](video::VideoGrafos& g) { return g.ordenar(); }));
 }
-QString VideoViewModel::configurarRelojUi(const QVariantMap& cambios) {
-    return pedirQ("video_reloj", [cambios](video::VideoGrafos& g) { return g.configurarRelojUi(cambios); });
+bool VideoViewModel::configurarRelojUi(const QVariantMap& cambios) {
+    return sinError(pedirQ("video_reloj", [cambios](video::VideoGrafos& g) { return g.configurarRelojUi(cambios); }));
 }
 void VideoViewModel::medirUi(const QString& a, const QString& b, bool aplicar) {
     // El resultado llega por VideoGrafos::medicion (conectada a la nuestra).
     ventanilla_.pedir("video_medir", [&g = grafos_, a, b, aplicar]() { g.medirUi(a, b, aplicar); });
 }
-QString VideoViewModel::desfaseUi(const QString& entrada, double ms) {
-    return pedirQ("video_desfase", [entrada, ms](video::VideoGrafos& g) { return g.desfaseUi(entrada, ms); });
+bool VideoViewModel::desfaseUi(const QString& entrada, double ms) {
+    return sinError(pedirQ("video_desfase", [entrada, ms](video::VideoGrafos& g) { return g.desfaseUi(entrada, ms); }));
 }
-QString VideoViewModel::superresUi(const QString& entrada, bool activa) {
-    return pedirQ("video_superres", [entrada, activa](video::VideoGrafos& g) { return g.superresUi(entrada, activa); });
+bool VideoViewModel::superresUi(const QString& entrada, bool activa) {
+    return sinError(pedirQ("video_superres", [entrada, activa](video::VideoGrafos& g) { return g.superresUi(entrada, activa); }));
 }
-QString VideoViewModel::sincroniaUi(const QString& entrada, const QString& modo) {
-    return pedirQ("video_sincronia", [entrada, modo](video::VideoGrafos& g) { return g.sincroniaUi(entrada, modo); });
+bool VideoViewModel::sincroniaUi(const QString& entrada, const QString& modo) {
+    return sinError(pedirQ("video_sincronia", [entrada, modo](video::VideoGrafos& g) { return g.sincroniaUi(entrada, modo); }));
 }
 void VideoViewModel::ponerTopeEstudioUi(int tope) {
     pedir("video_latencia", [tope](video::VideoGrafos& g) {
@@ -295,50 +309,51 @@ void VideoViewModel::ponerTopeEstudioUi(int tope) {
         return std::string();
     });
 }
-QString VideoViewModel::claseSincroniaUi(const QString& entrada, const QString& clase) {
-    return pedirQ("video_sincronia", [entrada, clase](video::VideoGrafos& g) { return g.claseSincroniaUi(entrada, clase); });
+bool VideoViewModel::claseSincroniaUi(const QString& entrada, const QString& clase) {
+    return sinError(pedirQ("video_sincronia", [entrada, clase](video::VideoGrafos& g) { return g.claseSincroniaUi(entrada, clase); }));
 }
-QString VideoViewModel::bajarLatenciaUi() {
+bool VideoViewModel::bajarLatenciaUi() {
     // «Ya está en lo que piden» no es un error: va como aviso.
     pedir("video_latencia", [](video::VideoGrafos& g) { return g.bajarLatenciaUi().toStdString(); },
           [this](const std::string& e) {
               if (!e.empty()) emit notify(q(e), "info");
           });
-    return {};
+    return true;
 }
-QString VideoViewModel::automixerPonerUi(const QString& entrada, const QString& grupo) {
-    return pedirQ("video_automixer", [entrada, grupo](video::VideoGrafos& g) { return g.automixerPonerUi(entrada, grupo); });
+void VideoViewModel::automixerPonerUi(const QString& entrada, const QString& grupo) {
+    avisarError(pedirQ("video_automixer", [entrada, grupo](video::VideoGrafos& g) { return g.automixerPonerUi(entrada, grupo); }));
 }
-QString VideoViewModel::automixerAjustesUi(const QString& grupo, const QVariantMap& ajustes) {
-    return pedirQ("video_automixer", [grupo, ajustes](video::VideoGrafos& g) { return g.automixerAjustesUi(grupo, ajustes); });
+void VideoViewModel::automixerAjustesUi(const QString& grupo, const QVariantMap& ajustes) {
+    avisarError(pedirQ("video_automixer", [grupo, ajustes](video::VideoGrafos& g) { return g.automixerAjustesUi(grupo, ajustes); }));
 }
-QString VideoViewModel::configurarProgramadorUi(const QVariantMap& cambios) {
-    return pedirQ("video_programador", [cambios](video::VideoGrafos& g) { return g.configurarProgramadorUi(cambios); });
+bool VideoViewModel::configurarProgramadorUi(const QVariantMap& cambios) {
+    return sinError(pedirQ("video_programador", [cambios](video::VideoGrafos& g) { return g.configurarProgramadorUi(cambios); }));
 }
-QString VideoViewModel::agregarFiltroAudioUi(const QString& entrada, const QString& cual) {
-    return pedirQ("video_filtro_audio", [entrada, cual](video::VideoGrafos& g) { return g.agregarFiltroAudioUi(entrada, cual); });
+bool VideoViewModel::agregarFiltroAudioUi(const QString& entrada, const QString& cual) {
+    return sinError(pedirQ("video_filtro_audio", [entrada, cual](video::VideoGrafos& g) { return g.agregarFiltroAudioUi(entrada, cual); }));
 }
-QString VideoViewModel::quitarFiltroAudioUi(const QString& entrada, int indice) {
-    return pedirQ("video_filtro_audio", [entrada, indice](video::VideoGrafos& g) { return g.quitarFiltroAudioUi(entrada, indice); });
+bool VideoViewModel::quitarFiltroAudioUi(const QString& entrada, int indice) {
+    return sinError(pedirQ("video_filtro_audio", [entrada, indice](video::VideoGrafos& g) { return g.quitarFiltroAudioUi(entrada, indice); }));
 }
-QString VideoViewModel::ponerFiltrosAudioUi(const QString& entrada, const QVariantList& filtros) {
-    return pedirQ("video_filtro_audio", [entrada, filtros](video::VideoGrafos& g) { return g.ponerFiltrosAudioUi(entrada, filtros); });
+bool VideoViewModel::ponerFiltrosAudioUi(const QString& entrada, const QVariantList& filtros) {
+    return sinError(pedirQ("video_filtro_audio", [entrada, filtros](video::VideoGrafos& g) { return g.ponerFiltrosAudioUi(entrada, filtros); }));
 }
-QString VideoViewModel::superresMotorUi(const QString& entrada, const QString& motor, const QString& modelo) {
-    return pedirQ("video_superres", [entrada, motor, modelo](video::VideoGrafos& g) { return g.superresMotorUi(entrada, motor, modelo); });
+void VideoViewModel::superresMotorUi(const QString& entrada, const QString& motor, const QString& modelo) {
+    avisarError(pedirQ("video_superres", [entrada, motor, modelo](video::VideoGrafos& g) { return g.superresMotorUi(entrada, motor, modelo); }));
 }
-QString VideoViewModel::nuevaEntradaRed(const QString& nombre, const QString& uri, const QString& escena, int latenciaMs,
+bool VideoViewModel::nuevaEntradaRed(const QString& nombre, const QString& uri, const QString& escena, int latenciaMs,
                                         bool normalizar) {
-    return pedirQ("video_entrada_red", [nombre, uri, escena, latenciaMs, normalizar](video::VideoGrafos& g) {
+    return sinError(pedirQ("video_entrada_red", [nombre, uri, escena, latenciaMs, normalizar](video::VideoGrafos& g) {
         return g.nuevaEntradaRed(nombre, uri, escena, latenciaMs, normalizar);
-    });
+    }));
+    return true;
 }
-QString VideoViewModel::presetPanoramicaUi(const QString& id, const QString& preset, double campo) {
-    return pedirQ("video_panoramica", [id, preset, campo](video::VideoGrafos& g) { return g.presetPanoramicaUi(id, preset, campo); });
+void VideoViewModel::presetPanoramicaUi(const QString& id, const QString& preset, double campo) {
+    avisarError(pedirQ("video_panoramica", [id, preset, campo](video::VideoGrafos& g) { return g.presetPanoramicaUi(id, preset, campo); }));
 }
-QString VideoViewModel::aplicarDisposicionUi(const QString& compositor, const QString& disposicion) {
-    return pedirQ("video_mosaico",
-                  [compositor, disposicion](video::VideoGrafos& g) { return g.aplicarDisposicionUi(compositor, disposicion); });
+void VideoViewModel::aplicarDisposicionUi(const QString& compositor, const QString& disposicion) {
+    avisarError(pedirQ("video_mosaico",
+                  [compositor, disposicion](video::VideoGrafos& g) { return g.aplicarDisposicionUi(compositor, disposicion); }));
 }
 
 // --- Para los demás modelos (de la foto) ---------------------------------------------

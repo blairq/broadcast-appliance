@@ -924,41 +924,41 @@ QVariantList aQvl(const json& j) {
 QVariantList Configuraciones::listaUi() const { return aQvl(listar()); }
 QVariantList Configuraciones::demosUi() const { return aQvl(demos()); }
 QVariantList Configuraciones::papeleraUi() const { return aQvl(papelera()); }
-QString Configuraciones::recuperarUi(const QString& id) { return QString::fromStdString(recuperar(id.toStdString())); }
-QString Configuraciones::vaciarPapeleraUi(const QString& id) { return QString::fromStdString(vaciarPapelera(id.toStdString())); }
+void Configuraciones::recuperarUi(const QString& id) { return avisarError(QString::fromStdString(recuperar(id.toStdString()))); }
+void Configuraciones::vaciarPapeleraUi(const QString& id) { return avisarError(QString::fromStdString(vaciarPapelera(id.toStdString()))); }
 QString Configuraciones::crearUi(const QString& n, const QString& d, const QString& desc) {
     return QString::fromStdString(crear(n.toStdString(), d.toStdString(), desc.toStdString()));
 }
-QString Configuraciones::nuevoEventoUi(const QString& n, const QString& desde, bool abrir, const QString& cps) {
+bool Configuraciones::nuevoEventoUi(const QString& n, const QString& desde, bool abrir, const QString& cps) {
     // Una copia puede ser de varios GB (grabaciones): en otro hilo, con progreso (`copia`).
-    if (n.toStdString() == activa() && abrir) return tr("ya es el evento abierto");
-    return nuevoEventoAparte(n, desde, abrir, {}, cps);
+    if (n.toStdString() == activa() && abrir) return sinError(tr("ya es el evento abierto"));
+    return sinError(nuevoEventoAparte(n, desde, abrir, {}, cps));
 }
-QString Configuraciones::marcarPlantillaUi(const QString& n, bool p) {
-    return QString::fromStdString(marcarPlantilla(n.toStdString(), p));
+void Configuraciones::marcarPlantillaUi(const QString& n, bool p) {
+    avisarError(QString::fromStdString(marcarPlantilla(n.toStdString(), p)));
 }
 QVariantList Configuraciones::plantillasUi() const { return aQvl(plantillas()); }
 QVariantList Configuraciones::plantillasAdminUi() const { return aQvl(plantillasAdmin()); }
-QString Configuraciones::plantillaAjustarUi(const QString& id, const QVariantMap& c) {
-    return QString::fromStdString(plantillaAjustar(id.toStdString(), json::parse(QJsonDocument::fromVariant(c).toJson().toStdString(), nullptr, false)));
+void Configuraciones::plantillaAjustarUi(const QString& id, const QVariantMap& c) {
+    avisarError(QString::fromStdString(plantillaAjustar(id.toStdString(), json::parse(QJsonDocument::fromVariant(c).toJson().toStdString(), nullptr, false))));
 }
-QString Configuraciones::plantillaMoverUi(const QString& id, int d) { return QString::fromStdString(plantillaMover(id.toStdString(), d)); }
-QString Configuraciones::plantillaEditarUi(const QString& id) {
-    if (const std::string e = plantillaParaEditar(id.toStdString()); !e.empty()) return QString::fromStdString(e);
-    return reiniciar();
+void Configuraciones::plantillaMoverUi(const QString& id, int d) { return avisarError(QString::fromStdString(plantillaMover(id.toStdString(), d))); }
+void Configuraciones::plantillaEditarUi(const QString& id) {
+    if (const std::string e = plantillaParaEditar(id.toStdString()); !e.empty()) return avisarError(QString::fromStdString(e));
+    avisarError(reiniciar());
 }
-QString Configuraciones::plantillaRestablecerUi(const QString& id) { return QString::fromStdString(plantillaRestablecer(id.toStdString())); }
-QString Configuraciones::plantillaBorrarUi(const QString& id) {
+void Configuraciones::plantillaRestablecerUi(const QString& id) { return avisarError(QString::fromStdString(plantillaRestablecer(id.toStdString()))); }
+void Configuraciones::plantillaBorrarUi(const QString& id) {
     for (const auto& p : plantillasAdmin())
         if (p.value("id", std::string()) == id.toStdString()) {
-            if (p.value("programa", false)) return tr("las del programa no se borran: ocultala (o restablecela si la editaste)");
-            if (p.value("activa", false)) return tr("está abierta: pasá a otro evento antes de borrarla");
-            return QString::fromStdString(borrar(id.toStdString()));
+            if (p.value("programa", false)) return avisarError(tr("las del programa no se borran: ocultala (o restablecela si la editaste)"));
+            if (p.value("activa", false)) return avisarError(tr("está abierta: pasá a otro evento antes de borrarla"));
+            return avisarError(QString::fromStdString(borrar(id.toStdString())));
         }
-    return tr("no hay una plantilla «%1»").arg(id);
+    avisarError(tr("no hay una plantilla «%1»").arg(id));
 }
-QString Configuraciones::plantillaDesdeActualUi(const QString& n, const QString& esc) {
-    return QString::fromStdString(plantillaDesdeActual(n.trimmed().toStdString(), esc.toStdString()));
+void Configuraciones::plantillaDesdeActualUi(const QString& n, const QString& esc) {
+    avisarError(QString::fromStdString(plantillaDesdeActual(n.trimmed().toStdString(), esc.toStdString())));
 }
 std::string Configuraciones::puedeCambiar() const {
     if (!alAire()) return {};
@@ -966,18 +966,18 @@ std::string Configuraciones::puedeCambiar() const {
                                      "la app y la corta. Esperá a que termine (o que el operador lo pida).");
 }
 
-QString Configuraciones::cambiarUi(const QString& n) {
-    if (n.toStdString() == activa()) return tr("ya es la activa");
-    if (const std::string e = puedeCambiar(); !e.empty()) return QString::fromStdString(e);
-    if (const std::string e = activar(n.toStdString()); !e.empty()) return QString::fromStdString(e);
-    return reiniciar();
+void Configuraciones::cambiarUi(const QString& n) {
+    if (n.toStdString() == activa()) return avisarError(tr("ya es la activa"));
+    if (const std::string e = puedeCambiar(); !e.empty()) return avisarError(QString::fromStdString(e));
+    if (const std::string e = activar(n.toStdString()); !e.empty()) return avisarError(QString::fromStdString(e));
+    avisarError(reiniciar());
 }
-QString Configuraciones::renombrarUi(const QString& de, const QString& a) {
-    return QString::fromStdString(renombrar(de.toStdString(), a.toStdString()));
+void Configuraciones::renombrarUi(const QString& de, const QString& a) {
+    avisarError(QString::fromStdString(renombrar(de.toStdString(), a.toStdString())));
 }
 QString Configuraciones::describirUi(const QString& n, const QString& d) {
     return QString::fromStdString(describir(n.toStdString(), d.toStdString()));
 }
-QString Configuraciones::borrarUi(const QString& n) { return QString::fromStdString(borrar(n.toStdString())); }
+void Configuraciones::borrarUi(const QString& n) { return avisarError(QString::fromStdString(borrar(n.toStdString()))); }
 
 } // namespace ba::app

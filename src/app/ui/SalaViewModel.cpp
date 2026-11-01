@@ -25,6 +25,9 @@
 #include <QJsonDocument>
 #include <QPointer>
 #include <QQmlEngine>
+#include "ui/CapturaError.hpp"
+
+using ::ba::app::errorDe;
 
 namespace ba::app {
 
@@ -61,6 +64,7 @@ SalaViewModel::SalaViewModel(Partes p, QObject* parent) : QObject(parent), p_(st
         return assistantIntake(id, name, yaAdentro);
     });
     accesoRemoto_ = std::make_unique<AccesoRemoto>(p_.ventanilla, cli);
+    connect(accesoRemoto_.get(), &AccesoRemoto::notify, this, &SalaViewModel::notify);
     // Con la máquina muy caliente (F4-05), los invitados mandan menos: a los de adentro y a
     // los que entren mientras dure. Al aliviarse, la calidad completa a esos mismos.
     calidadPorCalor_ = std::make_unique<sala::CalidadPorCalor>(
@@ -107,11 +111,11 @@ SalaViewModel::SalaViewModel(Partes p, QObject* parent) : QObject(parent), p_(st
         cli,
         [this]() {
             EventoViewModel* ev = p_.evento ? p_.evento() : nullptr;
-            return ev ? ev->votantes() : std::nullopt;
+            return ev ? ev->padronVm().votantes() : std::nullopt;
         },
         [this]() {
             EventoViewModel* ev = p_.evento ? p_.evento() : nullptr;
-            return ev ? sala::GuardadoEnEvento::etiquetaDe(ev->carpetaAbierta()) : std::string();
+            return ev ? sala::GuardadoEnEvento::etiquetaDe(ev->eventoAbierto().dir()) : std::string();
         });
     // Las preguntas, ídem; un mensaje del chat se busca en el chat que junta las plataformas.
     preguntas_ = std::make_unique<sala::PreguntasSala>(
@@ -165,14 +169,14 @@ void SalaViewModel::quitarDestacadoChatUi(const QString& key) {
     if (ChatOverlayRenderer* chat = p_.chat ? p_.chat() : nullptr) chat->quitarDestacado(key);
 }
 
-QString SalaViewModel::preguntaDesdeChatUi(const QString& key) {
+void SalaViewModel::preguntaDesdeChatUi(const QString& key) {
     QPointer<SalaViewModel> yo(this);
-    return qs(preguntas_->sumarDesdeChat(key.toStdString(), [yo](const std::string& err, const nlohmann::json&) {
+    return avisarError(qs(preguntas_->sumarDesdeChat(key.toStdString(), [yo](const std::string& err, const nlohmann::json&) {
         if (yo)
             emit yo->notify(err.empty() ? tr("Sumada a la cola de preguntas")
                                         : tr("No se pudo sumar la pregunta: %1").arg(QString::fromStdString(err)),
                             err.empty() ? "ok" : "error");
-    }));
+    })));
 }
 
 QString SalaViewModel::assistantIntake(const QString& id, const QString& name, bool yaAdentro) {
@@ -262,11 +266,11 @@ void SalaViewModel::alimentarEnlaces(EnlacesViewModel::Fuentes& f) {
     f.cerrarSala = [c](bool on) { c->setLocked(on); };
     f.tunel = [this]() { return accesoRemoto_->conexion(); };
     f.activarTunel = [this](bool on) -> QString {
-        if (!on) return accesoRemoto_->desconectar();
+        if (!on) return errorDe([&] { accesoRemoto_->desconectar(); });
         const QVariantList formas = accesoRemoto_->formasDeConectar();
         if (formas.isEmpty())
             return tr("No hay ninguna forma de conectar guardada: configurala en Configuración → Acceso remoto.");
-        return accesoRemoto_->conectar(formas.first().toMap().value("id").toString());
+        return errorDe([&] { accesoRemoto_->conectar(formas.first().toMap().value("id").toString()); });
     };
     f.direcciones = [this]() -> const sala::Direcciones* { return direcciones_.get(); };
     // Los que esperan en el lobby: se admiten en la misma fila de Servicios.

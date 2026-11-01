@@ -76,6 +76,11 @@ namespace ba::app {
 
 class AsistenteViewModel : public QObject {
     Q_OBJECT
+    /// El vocabulario del reconocedor: {grupos, reemplazos} (cambia por la página, el MCP o
+    /// lo que corrige al aire).
+    Q_PROPERTY(QVariantMap vocabulario READ vocabularioUi NOTIFY vocabularioCambio)
+    /// El rótulo «Traducción automática» (lo cambian la página y traduccion_rotulo).
+    Q_PROPERTY(bool rotuloTraduccion READ rotuloTraduccionActivo WRITE setRotuloTraduccion NOTIFY rotuloTraduccionCambio)
    public:
     struct Partes {
         AppRuntime& rt;
@@ -127,25 +132,27 @@ class AsistenteViewModel : public QObject {
     QObject* manualesQml() const;
 
     /// Vocabulario del reconocedor de voz (agent/Vocabulario): grupos, términos,
-    /// probar una frase y traer los nombres del Cuerpo.
-    Q_INVOKABLE QVariantMap vocabularioUi() const;
-    Q_INVOKABLE QString vocabularioAgregarUi(const QString& termino, const QString& variantes, const QString& grupo);
-    Q_INVOKABLE bool vocabularioQuitarUi(const QString& termino);
+    /// probar una frase y traer los nombres del Cuerpo. Los errores, a `notify`.
+    QVariantMap vocabularioUi() const;
+    Q_INVOKABLE void vocabularioAgregarUi(const QString& termino, const QString& variantes, const QString& grupo);
+    Q_INVOKABLE void vocabularioQuitarUi(const QString& termino);
     Q_INVOKABLE void vocabularioGrupoUi(const QString& grupo, bool activo);
     /// {texto, reemplazos: [{original, reemplazo}]}.
     Q_INVOKABLE QVariantMap vocabularioProbarUi(const QString& texto);
     /// Pone los nombres y apellidos del Cuerpo en el grupo «cuerpo» (agent::Vocabulario::cargarCuerpo)
-    /// y avisa cuántos. Devuelve cuántos.
-    Q_INVOKABLE int vocabularioDelCuerpoUi();
+    /// y avisa cuántos.
+    Q_INVOKABLE void vocabularioDelCuerpoUi();
 
     /// «Traducción automática»: mientras salga una traducción en pantalla o en CC, una capa DSK lo rotula.
-    Q_INVOKABLE bool rotuloTraduccionActivo() const;
-    Q_INVOKABLE void setRotuloTraduccion(bool activo);
+    bool rotuloTraduccionActivo() const;
+    void setRotuloTraduccion(bool activo);
     nlohmann::json rotuloTraduccionEstado() const;
 
    signals:
     /// Para el operador (ya traducido).
     void notify(const QString& texto, const QString& nivel);
+    void vocabularioCambio();
+    void rotuloTraduccionCambio();
 
    private:
     void armarAsistentes();

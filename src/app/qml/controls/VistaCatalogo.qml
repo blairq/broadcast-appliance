@@ -102,7 +102,7 @@ Item {
                 width: parent.width - 40
                 horizontalAlignment: Text.AlignHCenter
                 wrapMode: Text.WordWrap
-                text: v.itemId === "" ? "" : qsTr("%1\nElegí otra cosa en Salidas → Pantallas.").arg(Studio.catalogo.tituloDe(v.itemId))
+                text: v.itemId === "" ? "" : qsTr("%1\nElegí otra cosa en Salidas → Pantallas.").arg((Studio.catalogo.porId[v.itemId] || {}).etiqueta || v.itemId.slice(v.itemId.indexOf(":") + 1))
                 color: Theme.textDim; font.pixelSize: 16
             }
         }

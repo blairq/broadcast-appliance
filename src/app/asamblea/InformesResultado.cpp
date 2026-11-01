@@ -350,8 +350,8 @@ QVariantMap InformesResultado::crearUi(const QString& nombre) {
     return {{"id", QString::fromStdString(id)}};
 }
 
-QString InformesResultado::guardarUi(const QString& id, const QString& texto, const QString& nombre) {
-    return QString::fromStdString(guardar(id.toStdString(), texto.toStdString(), nombre.toStdString()));
+bool InformesResultado::guardarUi(const QString& id, const QString& texto, const QString& nombre) {
+    return sinError(QString::fromStdString(guardar(id.toStdString(), texto.toStdString(), nombre.toStdString())));
 }
 
 QVariantMap InformesResultado::generarUi(const QString& id) { return aQv(generar(id.toStdString())).toMap(); }

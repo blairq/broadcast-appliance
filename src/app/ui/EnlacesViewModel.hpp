@@ -37,6 +37,7 @@
 #include <QString>
 #include <QVariantList>
 #include <QVariantMap>
+#include "ui/CapturaError.hpp"
 
 namespace ba::app {
 
@@ -48,6 +49,11 @@ struct ServicioEnlace; ///< una fila del catálogo (EnlacesViewModel.cpp)
 
 class EnlacesViewModel : public QObject {
     Q_OBJECT
+    /// El error de una acción de la interfaz (las Q_INVOKABLE void): a quien mira.
+    void avisarError(const QString& e) {
+        if (!e.isEmpty() && !::ba::app::CapturaError::tomar(e)) emit notify(e, "error");
+    }
+    void avisarError(const std::string& e) { avisarError(QString::fromStdString(e)); }
     /// [{id, grupo, nombre, para, led ("ok"|"aviso"|"apagado"|"error"), estado,
     ///   activable, activo, local, remoto, nota, pagina, porPersona, accion,
     ///   aprueba (pide aprobación por aparato), pendientes (cuántos esperan),
@@ -128,18 +134,20 @@ class EnlacesViewModel : public QObject {
     /// Vuelve a pedirle a la sala los enlaces (los de afuera, si hay túnel).
     Q_INVOKABLE void refrescar();
     /// Prende o apaga el servicio `id` (los que tienen `activable`). "" o el motivo.
-    Q_INVOKABLE QString activar(const QString& id, bool activo);
+    Q_INVOKABLE void activar(const QString& id, bool activo);
     /// La acción propia de una fila (`accion`).
     Q_INVOKABLE void accion(const QString& id);
     /// Una PERSONA aprueba o rechaza, desde la página, un pedido de `servicio`
-    /// (`perfil`: el elegido, si el servicio lo usa). "" o el error.
-    Q_INVOKABLE QString resolver(const QString& servicio, const QString& solicitud, bool aprobar,
+    /// (`perfil`: el elegido, si el servicio lo usa). El error va por la señal del modelo.
+    Q_INVOKABLE void resolver(const QString& servicio, const QString& solicitud, bool aprobar,
                                  const QString& perfil = QString());
 
     /// Algo cambió en un servicio (lo llama quien conoce las señales).
     void avisarCambio();
 
    signals:
+    /// Para el operador (ya traducido): los errores de las acciones de la interfaz.
+    void notify(const QString& texto, const QString& tipo);
     void cambio();
     void aprobacionesCambio();
 
