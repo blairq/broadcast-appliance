@@ -277,14 +277,14 @@ foreach(test_source ${BA_GATEWAY_TESTS})
     get_filename_component(test_name ${test_source} NAME_WE)
     add_executable(${test_name} ${test_source} ${BA_GATEWAY_LIB_SOURCES} "${BA_QRCODEGEN_DIR}/qrcodegen.cpp")
     target_include_directories(${test_name} PRIVATE "${BA_QRCODEGEN_DIR}")
-    target_include_directories(${test_name} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    target_include_directories(${test_name} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_SOURCE_DIR}/src/core/tests")
     # Tests de LOGICA: siempre con el backend NULL (el SDP de prueba no es un
     # SDP real). Los medios reales los prueba test_webrtc_loopback.
     target_compile_definitions(${test_name} PRIVATE
         BA_GATEWAY_HAVE_WEBRTC=0
-        # Webroot real (assets/web/guest) para el humo HTTP: sirve el index del
-        # invitado de verdad en vez de un directorio inventado.
-        BA_TEST_WEBROOT="${CMAKE_SOURCE_DIR}/assets/web/guest"
+        # El árbol fuente (assets/web/guest: el humo HTTP sirve el index del invitado
+        # de verdad); BA_FUENTES en el entorno manda (src/core/tests/RutasPrueba.h).
+        BA_PRUEBA_FUENTES="${CMAKE_SOURCE_DIR}"
         # Par WireGuard de referencia (Python) para la interoperabilidad.
         BA_TEST_WG_PEER="${CMAKE_CURRENT_SOURCE_DIR}/tests/wg_reference_peer.py")
     target_link_libraries(${test_name} PRIVATE ba_core mbedcrypto)

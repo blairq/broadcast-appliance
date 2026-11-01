@@ -36,7 +36,7 @@ class PaginaPublico {
 
     /// `fondo`: la ruta de la imagen; "" lo saca. Devuelve el error inmediato (no hay nada
     /// que cambiar) o ""; la imagen se lee en otro hilo y lo que falle (no se puede leer,
-    /// pesa demasiado, la sala no lo tomó) va a `listo`.
+    /// pesa demasiado, la sala no lo tomó) va a `listo`, ya dicho para mostrarlo tal cual.
     std::string cambiar(const std::optional<std::string>& titulo, const std::optional<std::string>& cuando,
                         const std::optional<std::string>& fondo, Listo listo = {});
 

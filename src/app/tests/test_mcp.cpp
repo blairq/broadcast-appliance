@@ -29,6 +29,7 @@
 //      contaminada, y las de aire «siempre» esperan a una persona al aire.
 
 #include "mcp/McpTraza.hpp"
+#include "RutasPrueba.h"
 
 #include "diag/Registro.hpp"
 
@@ -198,6 +199,10 @@ json otroTipo(const json& p) {
 int main(int argc, char** argv) {
     QCoreApplication app(argc, argv);
     std::printf("== test_mcp ==\n");
+    // El puente: $BA_MCP_EXE, el de al lado de la prueba o el del build (RutasPrueba.h).
+    const char* rutaPuente = ba_prueba_programa("BA_MCP_EXE", "ba-mcp", BA_MCP_PUENTE);
+    const QString puente = rutaPuente != nullptr ? QString::fromLocal8Bit(rutaPuente) : QString();
+    CHECK(!puente.isEmpty(), "está ba-mcp");
 
     McpCore core;
     core.setServerInfo("prueba", "0.1", "Instrucciones de prueba: empeza por help.");
@@ -617,7 +622,7 @@ int main(int argc, char** argv) {
         env.insert("BA_MCP_URL", QString("http://127.0.0.1:%1/mcp").arg(port));
         env.insert("BA_MCP_TOKEN", token);
         bridge.setProcessEnvironment(env);
-        bridge.start(BA_MCP_BRIDGE, {});
+        bridge.start(puente, {});
         CHECK(bridge.waitForStarted(5000), "arranca ba-mcp");
         bridge.write(
             QByteArray::fromStdString(req(40, "initialize", {{"protocolVersion", "2025-06-18"}}).dump(-1, ' ', false, nlohmann::json::error_handler_t::replace)) +
@@ -659,7 +664,7 @@ int main(int argc, char** argv) {
         env.insert("BA_MCP_URL", "");
         env.insert("BA_DATA_ROOT", "/nonexistent-ba-test"); // sin bundle de datos: no hay Runtime/mcp.json
         bridge.setProcessEnvironment(env);
-        bridge.start(BA_MCP_BRIDGE, {});
+        bridge.start(puente, {});
         bridge.write(QByteArray::fromStdString(req(50, "initialize").dump(-1, ' ', false, nlohmann::json::error_handler_t::replace)) + "\n");
         bridge.closeWriteChannel();
         bridge.waitForFinished(5000);
@@ -722,7 +727,7 @@ int main(int argc, char** argv) {
         env.insert("BA_MCP_URL", QString("http://127.0.0.1:%1/mcp").arg(port));
         env.insert("BA_MCP_TOKEN", token);
         bridge.setProcessEnvironment(env);
-        bridge.start(BA_MCP_BRIDGE, {"--rol", "rec"});
+        bridge.start(puente, {"--rol", "rec"});
         CHECK(bridge.waitForStarted(5000), "arranca ba-mcp --rol");
         bridge.write(QByteArray::fromStdString(req(68, "tools/list").dump(-1, ' ', false, nlohmann::json::error_handler_t::replace)) + "\n");
         bridge.closeWriteChannel();
@@ -983,161 +988,170 @@ int main(int argc, char** argv) {
     // docs/mcp.json es lo que el código declara (test_mcp_registro lo garantiza): acá cada
     // una pasa por McpCore con su esquema y su clase, con un run que solo cuenta. Lo que se
     // prueba es lo que el despachador hace con lo declarado, para TODAS, no para un ejemplo.
-#ifdef BA_MCP_INVENTARIO
     {
-        std::ifstream f(BA_MCP_INVENTARIO);
-        const json inv = json::parse(f, nullptr, false);
-        CHECK(inv.is_object() && inv.value("herramientas", json::array()).size() > 500, "el registro se lee");
-        McpCore reg;
-        reg.setApprovalPolicy(ApprovalPolicy::Untrusted);
-        int sincronizadas = 0;
-        reg.setSincronizador([&sincronizadas]() { ++sincronizadas; });
-        bool hayAire = false;
-        reg.setHayAire([&hayAire]() { return hayAire; });
-        std::map<std::string, int> corridas;
-        const auto claseDe = [](const std::string& s) {
-            for (Clase c : {Clase::Lectura, Clase::Escritura, Clase::Aire, Clase::Ui})
-                if (s == nombreClase(c)) return c;
-            return Clase::SinDeclarar;
-        };
-        const auto reglaDe = [](const std::string& s) {
-            for (AireSi a : {AireSi::Siempre, AireSi::AjustesQueCortan, AireSi::RelojNuevo, AireSi::MasterOPrograma,
-                             AireSi::SacarDelAire, AireSi::AlActivar, AireSi::ChatEnFlujo, AireSi::BancaDirecto,
-                             AireSi::CamaraForzada})
-                if (s == McpAire::nombre(a)) return a;
-            return AireSi::Siempre;
-        };
-        int fallas = 0; // se cuentan todas, se muestran las primeras
-        const auto fallo = [&fallas](const std::string& n, const std::string& que) {
-            if (++fallas <= 25) std::printf("FALLO: %s: %s\n", n.c_str(), que.c_str());
-        };
-        // Ochocientas llamadas por vuelta: al registro solo lo grave (se restaura al final).
-        const ba::diag::Nivel nivelAntes = ba::diag::registro().nivel();
-        ba::diag::registro().setNivel(ba::diag::Nivel::Error);
-        std::vector<json> todas;
-        for (const auto& h : inv.value("herramientas", json::array())) {
-            const std::string n = h.value("nombre", std::string());
-            if (reg.findTool(n) != nullptr) continue; // las del núcleo (help, help_search): las prueba lo de arriba
-            // Lo que el lector no pudo evaluar sin la app (`origen`: sin_leer) no es el esquema de verdad.
-            const bool esquemaReal = h.value("origen", json::object()).value("esquema", std::string()) != "sin_leer";
-            if (esquemaReal) {
-                const json& s = h["esquema"];
-                if (!s.is_object() || s.value("type", std::string()) != "object")
-                    fallo(n, "el esquema no es {type: object}");
-                else if (std::string m = objetoMal(s, ""); !m.empty())
-                    fallo(n, "esquema: " + m);
-            }
-            const Clase c = claseDe(h.value("clase", std::string()));
-            if (c == Clase::SinDeclarar) fallo(n, "sin clase");
-            if ((c == Clase::Aire) != h.contains("aire")) fallo(n, "`aire` sin clase aire (o al revés)");
-            Tool t;
-            t.name = n;
-            t.category = h.value("categoria", std::string());
-            t.inputSchema = h["esquema"];
-            t.clase = c;
-            t.porSalida = h.value("porSalida", false);
-            t.reversible = h.value("reversible", false);
-            if (c == Clase::Aire) {
-                t.porQueAire = "registro";
-                t.aireSi = reglaDe(h["aire"].value("cuando", std::string()));
-            }
-            t.run = [&corridas, n](const json&, Done done) {
-                ++corridas[n];
-                done(ToolResult::ok("ok"));
+        // Del árbol fuente: $BA_FUENTES o el de la compilación (RutasPrueba.h). Si no está o
+        // no se lee, es un FALLO y se sigue con lo demás (antes, `value` sobre un json
+        // descartado tiraba una excepción y la prueba se caía: 0xC0000409 en Windows).
+        const char* rutaInv = ba_prueba_fuente("docs/mcp.json");
+        json inv = json::object();
+        if (rutaInv != nullptr) {
+            std::ifstream f(rutaInv);
+            inv = json::parse(f, nullptr, false);
+        }
+        const bool leido = inv.is_object() && inv.contains("herramientas") && inv["herramientas"].is_array() &&
+                           inv["herramientas"].size() > 500;
+        CHECK(leido, "el registro (docs/mcp.json) se lee");
+        if (leido) {
+            McpCore reg;
+            reg.setApprovalPolicy(ApprovalPolicy::Untrusted);
+            int sincronizadas = 0;
+            reg.setSincronizador([&sincronizadas]() { ++sincronizadas; });
+            bool hayAire = false;
+            reg.setHayAire([&hayAire]() { return hayAire; });
+            std::map<std::string, int> corridas;
+            const auto claseDe = [](const std::string& s) {
+                for (Clase c : {Clase::Lectura, Clase::Escritura, Clase::Aire, Clase::Ui})
+                    if (s == nombreClase(c)) return c;
+                return Clase::SinDeclarar;
             };
-            reg.addTool(std::move(t));
-            if (esquemaReal && n != "security_status") todas.push_back(h); // security_status la resuelve el despacho
-        }
-        const auto llamar = [&reg](const std::string& n, const json& args, const CallContext& c) {
-            json r;
-            reg.callTool({{"name", n}, {"arguments", args}}, [&r](json x) { r = std::move(x); }, c);
-            return r;
-        };
-        int conObligatorios = 0, conTipo = 0, lecturas = 0, deAire = 0;
-        for (const json& h : todas) {
-            const std::string n = h["nombre"];
-            const json& s = h["esquema"];
-            const json props = s.value("properties", json::object());
-            const json req = s.value("required", json::array());
-            json valido = json::object();
-            for (const auto& r : req) valido[r.get<std::string>()] = ejemploDe(props.value(r.get<std::string>(), json::object()));
-            const CallContext limpia{"limpia", "", "asistente"};
-            // Sin un obligatorio: no corre, y el error dice cuál.
-            if (!req.empty()) {
-                ++conObligatorios;
-                json falta = valido;
-                falta.erase(req[0].get<std::string>());
-                const int antes = corridas[n];
-                const json r = llamar(n, falta, limpia);
-                if (!r.value("isError", false) || corridas[n] != antes || textOf(r).find(req[0].get<std::string>()) == std::string::npos)
-                    fallo(n, "sin el obligatorio `" + req[0].get<std::string>() + "` corrió o no lo dijo");
+            const auto reglaDe = [](const std::string& s) {
+                for (AireSi a : {AireSi::Siempre, AireSi::AjustesQueCortan, AireSi::RelojNuevo, AireSi::MasterOPrograma,
+                                 AireSi::SacarDelAire, AireSi::AlActivar, AireSi::ChatEnFlujo, AireSi::BancaDirecto,
+                                 AireSi::CamaraForzada})
+                    if (s == McpAire::nombre(a)) return a;
+                return AireSi::Siempre;
+            };
+            int fallas = 0; // se cuentan todas, se muestran las primeras
+            const auto fallo = [&fallas](const std::string& n, const std::string& que) {
+                if (++fallas <= 25) std::printf("FALLO: %s: %s\n", n.c_str(), que.c_str());
+            };
+            // Ochocientas llamadas por vuelta: al registro solo lo grave (se restaura al final).
+            const ba::diag::Nivel nivelAntes = ba::diag::registro().nivel();
+            ba::diag::registro().setNivel(ba::diag::Nivel::Error);
+            std::vector<json> todas;
+            for (const auto& h : inv.value("herramientas", json::array())) {
+                const std::string n = h.value("nombre", std::string());
+                if (reg.findTool(n) != nullptr) continue; // las del núcleo (help, help_search): las prueba lo de arriba
+                // Lo que el lector no pudo evaluar sin la app (`origen`: sin_leer) no es el esquema de verdad.
+                const bool esquemaReal = h.value("origen", json::object()).value("esquema", std::string()) != "sin_leer";
+                if (esquemaReal) {
+                    const json& s = h["esquema"];
+                    if (!s.is_object() || s.value("type", std::string()) != "object")
+                        fallo(n, "el esquema no es {type: object}");
+                    else if (std::string m = objetoMal(s, ""); !m.empty())
+                        fallo(n, "esquema: " + m);
+                }
+                const Clase c = claseDe(h.value("clase", std::string()));
+                if (c == Clase::SinDeclarar) fallo(n, "sin clase");
+                if ((c == Clase::Aire) != h.contains("aire")) fallo(n, "`aire` sin clase aire (o al revés)");
+                Tool t;
+                t.name = n;
+                t.category = h.value("categoria", std::string());
+                t.inputSchema = h["esquema"];
+                t.clase = c;
+                t.porSalida = h.value("porSalida", false);
+                t.reversible = h.value("reversible", false);
+                if (c == Clase::Aire) {
+                    t.porQueAire = "registro";
+                    t.aireSi = reglaDe(h["aire"].value("cuando", std::string()));
+                }
+                t.run = [&corridas, n](const json&, Done done) {
+                    ++corridas[n];
+                    done(ToolResult::ok("ok"));
+                };
+                reg.addTool(std::move(t));
+                if (esquemaReal && n != "security_status") todas.push_back(h); // security_status la resuelve el despacho
             }
-            // Con un tipo equivocado: no corre.
-            for (auto it = props.begin(); it != props.end(); ++it) {
-                const json malo = otroTipo(it.value());
-                if (malo.is_null() || it.value().contains("enum")) continue;
-                ++conTipo;
-                json args = valido;
-                args[it.key()] = malo;
-                const int antes = corridas[n];
-                const json r = llamar(n, args, limpia);
-                if (!r.value("isError", false) || corridas[n] != antes) fallo(n, "`" + it.key() + "` con otro tipo corrió");
-                break;
+            const auto llamar = [&reg](const std::string& n, const json& args, const CallContext& c) {
+                json r;
+                reg.callTool({{"name", n}, {"arguments", args}}, [&r](json x) { r = std::move(x); }, c);
+                return r;
+            };
+            int conObligatorios = 0, conTipo = 0, lecturas = 0, deAire = 0;
+            for (const json& h : todas) {
+                const std::string n = h["nombre"];
+                const json& s = h["esquema"];
+                const json props = s.value("properties", json::object());
+                const json req = s.value("required", json::array());
+                json valido = json::object();
+                for (const auto& r : req) valido[r.get<std::string>()] = ejemploDe(props.value(r.get<std::string>(), json::object()));
+                const CallContext limpia{"limpia", "", "asistente"};
+                // Sin un obligatorio: no corre, y el error dice cuál.
+                if (!req.empty()) {
+                    ++conObligatorios;
+                    json falta = valido;
+                    falta.erase(req[0].get<std::string>());
+                    const int antes = corridas[n];
+                    const json r = llamar(n, falta, limpia);
+                    if (!r.value("isError", false) || corridas[n] != antes || textOf(r).find(req[0].get<std::string>()) == std::string::npos)
+                        fallo(n, "sin el obligatorio `" + req[0].get<std::string>() + "` corrió o no lo dijo");
+                }
+                // Con un tipo equivocado: no corre.
+                for (auto it = props.begin(); it != props.end(); ++it) {
+                    const json malo = otroTipo(it.value());
+                    if (malo.is_null() || it.value().contains("enum")) continue;
+                    ++conTipo;
+                    json args = valido;
+                    args[it.key()] = malo;
+                    const int antes = corridas[n];
+                    const json r = llamar(n, args, limpia);
+                    if (!r.value("isError", false) || corridas[n] != antes) fallo(n, "`" + it.key() + "` con otro tipo corrió");
+                    break;
+                }
+                // Válida y con un argumento que no existe: corre, y si tiene argumentos, se avisa.
+                json conDeMas = valido;
+                conDeMas["argumento_que_no_existe"] = 1;
+                const int antes = corridas[n], sincAntes = sincronizadas;
+                const json r = llamar(n, conDeMas, limpia);
+                if (r.value("isError", false) || corridas[n] != antes + 1)
+                    fallo(n, "con argumentos válidos no corrió: " + textOf(r).substr(0, 160));
+                else if (!props.empty() && textOf(r).find("argumento_que_no_existe") == std::string::npos)
+                    fallo(n, "un argumento que no existe pasó callado");
+                // Las de lectura no cambian la foto: el despacho no persiste ni refresca las vistas
+                // tras ellas; todas las demás, sí (setSincronizador).
+                const bool lectura = h["clase"] == "lectura";
+                lecturas += lectura;
+                if (lectura != (sincronizadas == sincAntes))
+                    fallo(n, lectura ? "lectura: el despacho sincronizó como si hubiera cambiado algo"
+                                     : "cambia algo y el despacho no sincronizó");
+                // Al aire, pedida por el asistente (política nunca): solo las de aire «siempre» esperan.
+                if (h["clase"] == "aire" && h["aire"].value("cuando", std::string()) == "siempre") {
+                    ++deAire;
+                    reg.setApprovalPolicy(ApprovalPolicy::Never);
+                    hayAire = true;
+                    const int a = corridas[n];
+                    const json x = llamar(n, valido, limpia);
+                    if (corridas[n] != a || !x.value("structuredContent", json::object()).value("necesita_confirmacion", false))
+                        fallo(n, "de aire, al aire y sin nadie que confirme: corrió");
+                    hayAire = false;
+                    reg.setApprovalPolicy(ApprovalPolicy::Untrusted);
+                }
             }
-            // Válida y con un argumento que no existe: corre, y si tiene argumentos, se avisa.
-            json conDeMas = valido;
-            conDeMas["argumento_que_no_existe"] = 1;
-            const int antes = corridas[n], sincAntes = sincronizadas;
-            const json r = llamar(n, conDeMas, limpia);
-            if (r.value("isError", false) || corridas[n] != antes + 1)
-                fallo(n, "con argumentos válidos no corrió: " + textOf(r).substr(0, 160));
-            else if (!props.empty() && textOf(r).find("argumento_que_no_existe") == std::string::npos)
-                fallo(n, "un argumento que no existe pasó callado");
-            // Las de lectura no cambian la foto: el despacho no persiste ni refresca las vistas
-            // tras ellas; todas las demás, sí (setSincronizador).
-            const bool lectura = h["clase"] == "lectura";
-            lecturas += lectura;
-            if (lectura != (sincronizadas == sincAntes))
-                fallo(n, lectura ? "lectura: el despacho sincronizó como si hubiera cambiado algo"
-                                 : "cambia algo y el despacho no sincronizó");
-            // Al aire, pedida por el asistente (política nunca): solo las de aire «siempre» esperan.
-            if (h["clase"] == "aire" && h["aire"].value("cuando", std::string()) == "siempre") {
-                ++deAire;
-                reg.setApprovalPolicy(ApprovalPolicy::Never);
-                hayAire = true;
+            // En una sesión que leyó contenido de invitados, sin a quién preguntar: la lectura
+            // corre, lo demás no (la clase declarada decide, no el nombre).
+            reg.taint("sucia", "prueba");
+            int bloqueadas = 0, corrieron = 0;
+            for (const json& h : todas) {
+                const std::string n = h["nombre"];
+                json valido = json::object();
+                const json props = h["esquema"].value("properties", json::object());
+                for (const auto& r : h["esquema"].value("required", json::array()))
+                    valido[r.get<std::string>()] = ejemploDe(props.value(r.get<std::string>(), json::object()));
                 const int a = corridas[n];
-                const json x = llamar(n, valido, limpia);
-                if (corridas[n] != a || !x.value("structuredContent", json::object()).value("necesita_confirmacion", false))
-                    fallo(n, "de aire, al aire y sin nadie que confirme: corrió");
-                hayAire = false;
-                reg.setApprovalPolicy(ApprovalPolicy::Untrusted);
+                llamar(n, valido, CallContext{"sucia", "", "asistente"});
+                const bool corrio = corridas[n] == a + 1;
+                (corrio ? corrieron : bloqueadas)++;
+                if ((h["clase"] == "lectura") != corrio)
+                    fallo(n, corrio ? "en una sesión contaminada corrió sin aprobación" : "lectura bloqueada en una sesión contaminada");
             }
+            ba::diag::registro().setNivel(nivelAntes);
+            g_failures += fallas;
+            std::printf("  registro: %zu herramientas por el despacho (%d con obligatorios, %d con tipo, %d de lectura, "
+                        "%d de aire; contaminada: %d corrieron, %d esperaron)%s\n",
+                        todas.size(), conObligatorios, conTipo, lecturas, deAire, corrieron, bloqueadas,
+                        fallas ? "" : ": OK");
         }
-        // En una sesión que leyó contenido de invitados, sin a quién preguntar: la lectura
-        // corre, lo demás no (la clase declarada decide, no el nombre).
-        reg.taint("sucia", "prueba");
-        int bloqueadas = 0, corrieron = 0;
-        for (const json& h : todas) {
-            const std::string n = h["nombre"];
-            json valido = json::object();
-            const json props = h["esquema"].value("properties", json::object());
-            for (const auto& r : h["esquema"].value("required", json::array()))
-                valido[r.get<std::string>()] = ejemploDe(props.value(r.get<std::string>(), json::object()));
-            const int a = corridas[n];
-            llamar(n, valido, CallContext{"sucia", "", "asistente"});
-            const bool corrio = corridas[n] == a + 1;
-            (corrio ? corrieron : bloqueadas)++;
-            if ((h["clase"] == "lectura") != corrio)
-                fallo(n, corrio ? "en una sesión contaminada corrió sin aprobación" : "lectura bloqueada en una sesión contaminada");
-        }
-        ba::diag::registro().setNivel(nivelAntes);
-        g_failures += fallas;
-        std::printf("  registro: %zu herramientas por el despacho (%d con obligatorios, %d con tipo, %d de lectura, "
-                    "%d de aire; contaminada: %d corrieron, %d esperaron)%s\n",
-                    todas.size(), conObligatorios, conTipo, lecturas, deAire, corrieron, bloqueadas,
-                    fallas ? "" : ": OK");
     }
-#endif
 
     if (g_failures == 0) {
         std::printf("test_mcp: OK\n");

@@ -572,8 +572,8 @@ void registerPreguntaTools(McpCore& core, StudioViewModel& vm, AppRuntime& rt) {
             if (!a.contains("titulo") && !a.contains("cuando") && !a.contains("fondo")) return darEnlace(done);
             const std::string e = conf->paginaPublico().cambiar(
                 texto("titulo"), texto("cuando"), texto("fondo"), [darEnlace, done](const std::string& err, const json&) {
-                    if (!err.empty())
-                        return done(ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "No pude hablar con el servidor (gateway): %1. Fijate `room_status`."), {err})));
+                    // Ya viene dicho: la imagen (no se lee, pesa de más) o la sala que no contestó.
+                    if (!err.empty()) return done(ToolResult::error(err));
                     // Despues de cambiarla, se devuelve el enlace: quien la
                     // configura casi siempre quiere el QR a continuacion.
                     darEnlace(done);

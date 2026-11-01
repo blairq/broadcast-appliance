@@ -646,11 +646,12 @@ endif()
                      -P ${CMAKE_CURRENT_SOURCE_DIR}/tests/ba_control_esquemas.cmake)
     add_executable(test_mcp tests/test_mcp.cpp mcp/McpCore.cpp mcp/McpAire.cpp mcp/McpHttp.cpp mcp/McpIndice.cpp
                    mcp/McpEtiquetas.cpp mcp/McpTraza.cpp)
-    target_include_directories(test_mcp PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    target_include_directories(test_mcp PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_SOURCE_DIR}/src/core/tests")
     target_link_libraries(test_mcp PRIVATE ba_core Qt6::Core Qt6::Network)
-    # BA_MCP_INVENTARIO: el registro (docs/mcp.json) para la prueba genérica de cada herramienta.
-    target_compile_definitions(test_mcp PRIVATE BA_MCP_BRIDGE="$<TARGET_FILE:ba-mcp>"
-                                                BA_MCP_INVENTARIO="${CMAKE_SOURCE_DIR}/docs/mcp.json")
+    # Dónde estaban al compilar el puente y el árbol fuente (el registro, docs/mcp.json, para la
+    # prueba genérica de cada herramienta); BA_MCP_EXE y BA_FUENTES mandan (RutasPrueba.h).
+    target_compile_definitions(test_mcp PRIVATE BA_MCP_PUENTE="$<TARGET_FILE:ba-mcp>"
+                                                BA_PRUEBA_FUENTES="${CMAKE_SOURCE_DIR}")
     set_target_properties(test_mcp PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_dependencies(test_mcp ba-mcp)
     # El plano de control con la interfaz trabada (F3-03): MCP, alarmas y relojes, sin QML; y
@@ -1497,6 +1498,14 @@ endif()
     set_target_properties(test_republicadores PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_republicadores COMMAND test_republicadores)
     set_tests_properties(test_republicadores PROPERTIES TIMEOUT 60)
+    # Los errores de la página del público (publico_pagina): la imagen o la sala, cada uno dicho.
+    add_executable(test_pagina_publico tests/test_pagina_publico.cpp sala/PaginaPublico.cpp sala/Pedido.cpp
+                   ui/ConferenceClient.cpp ui/ConferenceClient.hpp)
+    target_include_directories(test_pagina_publico PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    target_link_libraries(test_pagina_publico PRIVATE ba_core Qt6::Core Qt6::Network)
+    set_target_properties(test_pagina_publico PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
+    add_test(NAME test_pagina_publico COMMAND test_pagina_publico)
+    set_tests_properties(test_pagina_publico PROPERTIES TIMEOUT 60)
     add_executable(test_vocabulario tests/test_vocabulario.cpp agent/Vocabulario.cpp asamblea/Cuerpo.cpp)
     target_include_directories(test_vocabulario PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
     target_link_libraries(test_vocabulario PRIVATE ba_core)
