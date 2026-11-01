@@ -11,6 +11,11 @@
 //
 // Persistencia: <datos>/Config/ui.json. Las ventanas sueltas ya no van acá: son
 // pantallas/Ventanas.hpp (ventanas.json), que trae las que había en ui.json.
+//
+// Una escena en el fondo o en un monitor va por su ID («escena:<id>», como en los
+// monitores y las ventanas: escenas/RefEscena.hpp), así un renombre no la deja
+// colgada. Lo guardado antes por el nombre («escena:<nombre>») pasa al id cuando se
+// conocen las escenas (seguirEscenas), y lo que se elige después ya entra por el id.
 // ============================================================================
 
 #pragma once
@@ -25,6 +30,8 @@
 #include <filesystem>
 #include <functional>
 #include <vector>
+
+#include "escenas/RefEscena.hpp"
 
 namespace ba::app {
 
@@ -55,6 +62,10 @@ class DashboardModel : public QAbstractListModel {
     void setBackgroundDim(double d);
     QString backgroundLayout() const { return layout_; }
     void setBackgroundLayout(const QString& l);
+
+    /// Las escenas que hay: lo que apunta a una escena por el nombre pasa a su id (y lo
+    /// que se elija de ahora en más, también). true si cambió algo (y lo guardó).
+    bool seguirEscenas(const escenas::TablaEscenas& t);
 
     /// Tipos de tarjeta que se pueden agregar.
     QStringList cardKinds() const;
@@ -108,6 +119,9 @@ class DashboardModel : public QAbstractListModel {
     /// Las ocultas con la barra: dónde estaban y qué mostraban, para volver igual.
     std::vector<Card> ocultas_;
     QStringList background_;
+    escenas::TablaEscenas escenas_;
+    /// «escena:<nombre o id>» de una escena que hay → «escena:<id>»; lo demás, igual.
+    QString conId(const QString& clave) const;
     double dim_ = 0.35;
     QString layout_ = "grid";
     int nextId_ = 1;

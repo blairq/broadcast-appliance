@@ -6,6 +6,9 @@
 //   2. snap(): una tarjeta soltada cerca del borde de otra se pega a ese borde
 //      con la separacion (efecto "stick"); nunca sale del area; tamaño minimo.
 //   3. Persistencia: lo que se mueve se guarda en ui.json y se relee igual.
+//   4. Prender y apagar tarjetas se recuerda.
+//   5. Una escena en el fondo o en un monitor va por su id: lo guardado por el
+//      nombre se migra al conocer las escenas y un renombre no la pierde.
 
 #include <QCoreApplication>
 #include <QTemporaryDir>
@@ -93,6 +96,40 @@ int main(int argc, char** argv) {
     CHECK(vacio.rowCount() == 0);
     vacio.alternarTarjeta(antes.first());
     CHECK(tipos(DashboardModel(file)) == QStringList({antes.first()}));
+
+    // 5) Escenas por id. Lo de antes, por el nombre (fondo, un monitor y una oculta).
+    {
+        const std::filesystem::path f5 = dir.filePath("ui-escenas.json").toStdString();
+        {
+            DashboardModel d(f5);
+            d.setBackground({"program", "escena:Atril", "escena:Ninguna"});
+            d.addCard("monitor", "escena:Atril");
+            d.addCard("ptz", "escena:Atril");
+            d.alternarTarjeta("ptz"); // queda oculta, con su fuente
+        }
+        DashboardModel d(f5);
+        CHECK(d.background() == QStringList({"program", "escena:Atril", "escena:Ninguna"})); // sin escenas, como estaba
+        ba::app::escenas::TablaEscenas tabla({{"esc-00000001", "Atril"}});
+        CHECK(d.seguirEscenas(tabla));
+        CHECK(d.background() == QStringList({"program", "escena:esc-00000001", "escena:Ninguna"}));
+        const int fila = d.rowCount() - 1;
+        CHECK(d.data(d.index(fila), DashboardModel::SourceRole).toString() == "escena:esc-00000001");
+        CHECK(!d.seguirEscenas(tabla)); // ya estaba
+        // Se guardó migrado; la oculta también.
+        DashboardModel releido(f5);
+        CHECK(releido.background() == QStringList({"program", "escena:esc-00000001", "escena:Ninguna"}));
+        releido.seguirEscenas(tabla);
+        releido.alternarTarjeta("ptz");
+        CHECK(releido.data(releido.index(releido.rowCount() - 1), DashboardModel::SourceRole).toString() == "escena:esc-00000001");
+        // Un renombre no cambia nada de lo guardado.
+        CHECK(!d.seguirEscenas(ba::app::escenas::TablaEscenas({{"esc-00000001", "Atril grande"}})));
+        CHECK(d.background().contains("escena:esc-00000001"));
+        // Lo que se elige después por el nombre entra por el id.
+        d.setBackground({"escena:Atril grande"});
+        CHECK(d.background() == QStringList({"escena:esc-00000001"}));
+        d.setCardSource(d.data(d.index(fila), DashboardModel::IdRole).toInt(), "escena:Atril grande");
+        CHECK(d.data(d.index(fila), DashboardModel::SourceRole).toString() == "escena:esc-00000001");
+    }
 
     if (g_failures == 0) {
         std::printf("test_dashboard_model: OK\n");

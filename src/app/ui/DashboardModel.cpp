@@ -141,7 +141,42 @@ QString DashboardModel::kindTitle(const QString& kind) const {
     return kind;
 }
 
-void DashboardModel::setBackground(const QStringList& keys) {
+QString DashboardModel::conId(const QString& clave) const {
+    if (!clave.startsWith(QStringLiteral("escena:"))) return clave;
+    const std::string id = escenas_.id(clave.mid(7).toStdString());
+    return id.empty() ? clave : QStringLiteral("escena:") + QString::fromStdString(id);
+}
+
+bool DashboardModel::seguirEscenas(const escenas::TablaEscenas& t) {
+    escenas_ = t;
+    bool cambio = false;
+    QStringList fondo;
+    for (const QString& k : background_) fondo << conId(k);
+    if (fondo != background_) {
+        background_ = fondo;
+        cambio = true;
+        emit backgroundChanged();
+    }
+    for (std::size_t i = 0; i < cards_.size(); ++i) {
+        const QString s = conId(cards_[i].source);
+        if (s == cards_[i].source) continue;
+        cards_[i].source = s;
+        cambio = true;
+        emit dataChanged(index(static_cast<int>(i)), index(static_cast<int>(i)), {SourceRole});
+    }
+    for (Card& c : ocultas_) {
+        const QString s = conId(c.source);
+        if (s == c.source) continue;
+        c.source = s;
+        cambio = true;
+    }
+    if (cambio) save();
+    return cambio;
+}
+
+void DashboardModel::setBackground(const QStringList& pedidas) {
+    QStringList keys;
+    for (const QString& k : pedidas) keys << conId(k);
     if (keys == background_) {
         return;
     }
@@ -200,7 +235,7 @@ void DashboardModel::addCard(const QString& kind, const QString& source) {
     const QSizeF t = tamanoInicial(kind);
     beginInsertRows({}, row, row);
     cards_.push_back(Card{nextId_++, kind,
-                          QRectF(0.5 - t.width() / 2, 0.5 - t.height() / 2, t.width(), t.height()), source});
+                          QRectF(0.5 - t.width() / 2, 0.5 - t.height() / 2, t.width(), t.height()), conId(source)});
     endInsertRows();
     save();
 }
@@ -221,7 +256,7 @@ void DashboardModel::setCardSource(int id, const QString& source) {
     if (row < 0) {
         return;
     }
-    cards_[static_cast<std::size_t>(row)].source = source;
+    cards_[static_cast<std::size_t>(row)].source = conId(source);
     emit dataChanged(index(row), index(row), {SourceRole});
     save();
 }

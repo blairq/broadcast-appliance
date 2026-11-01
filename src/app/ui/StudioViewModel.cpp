@@ -197,6 +197,8 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, VentanillaMotor& ventanilla, QO
         dashboard_ = std::make_unique<DashboardModel>(c.saltear() ? std::filesystem::path{}
                                                                   : rt.dataRoot() / "Config" / "ui.json");
         marca("dashboard");
+        // Lo guardado por el nombre de una escena pasa a su id (DashboardModel.hpp).
+        dashboard_->seguirEscenas(escenas::TablaEscenas(ventanilla_.foto().idsDeEscenas()));
     }
     // Las vistas del motor se leen sin el turno; pedirlas y soltarlas se le encarga al dueño.
     frames_ = std::make_unique<FrameService>(
@@ -1248,6 +1250,7 @@ void StudioViewModel::alCambiarFoto(unsigned partes) {
     }
     if ((partes & FotoMotor::Escenas) != 0) {
         emit escenasCambiaron(); // el árbol por carpetas se rearma (barato)
+        dashboard_->seguirEscenas(escenas::TablaEscenas(ventanilla_.foto().idsDeEscenas()));
         // Si la escena que mostraba el editor ya no existe, sigue a la del aire.
         if (ventanilla_.foto().escena(sources_->scene().toStdString()) == nullptr) sources_->setScene(currentScene());
     }
