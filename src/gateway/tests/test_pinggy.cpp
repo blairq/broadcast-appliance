@@ -17,6 +17,7 @@
 //      recuperable no se reintenta.
 // ============================================================================
 #include "Log.hpp"
+#include "RutasPrueba.h"
 #include "Pinggy.hpp"
 #include "Room.hpp"
 #include "ShareStore.hpp"
@@ -300,12 +301,16 @@ void escuchaTunel() {
     const auto sharesDir = std::filesystem::temp_directory_path() / "ba-test-pinggy-shares";
     std::filesystem::remove_all(sharesDir);
     ShareStore shares(sharesDir, 1u << 20);
+    const char* webroot = ba_prueba_fuente("assets/web/guest");
+    const char* webBotonera = ba_prueba_fuente("assets/web/botonera");
+    CHECK(webroot != nullptr && webBotonera != nullptr, "las páginas del árbol fuente (assets/web)");
+    if (webroot == nullptr || webBotonera == nullptr) return;
     SignalingServer::Cfg s;
     s.room = "sala-test";
     s.port = 0;
     s.adminPort = 0;
-    s.webroot = BA_TEST_WEBROOT;
-    s.botoneraWebroot = (std::filesystem::path(BA_TEST_WEBROOT).parent_path() / "botonera").string();
+    s.webroot = webroot;
+    s.botoneraWebroot = webBotonera;
     s.adminToken = "token-operador";
     s.pinIntentos = 3;
     s.tunel = true;

@@ -6,6 +6,7 @@
  * mal formados. Lo comprimido se descomprime y se compara con el original.
  */
 #include "bw.h"
+#include "RutasPrueba.h"
 
 #include <libdeflate.h>
 #include <stdio.h>
@@ -339,6 +340,10 @@ static int puerto_libre(void) {
 }
 
 int main(void) {
+    /* ba-web: $BA_WEB_EXE, el de al lado de la prueba (copiadas juntas a otra máquina, p. ej.
+       la PC con Windows) o el del build (RutasPrueba.h) */
+    const char* exe = ba_prueba_programa("BA_WEB_EXE", "ba-web", BA_WEB_EXE);
+    if (exe == NULL) return 1;
     sock_init();
 #ifndef _WIN32
     signal(SIGPIPE, SIG_IGN);
@@ -412,9 +417,7 @@ int main(void) {
                g_port, g_up_port, dir, alias_file);
     escribir(conf, cf.p, cf.len);
 
-    /* ba-web -t y después de verdad (BA_WEB_EXE en el entorno manda: para correr la prueba en
-       otra máquina que la que compiló, p. ej. la PC con Windows) */
-    const char* exe = getenv("BA_WEB_EXE") && *getenv("BA_WEB_EXE") ? getenv("BA_WEB_EXE") : BA_WEB_EXE;
+    /* ba-web -t y después de verdad */
 #ifdef _WIN32
     _putenv("BA_WEB_CLAVE=clave-de-prueba");
     char linea[2048];

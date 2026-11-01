@@ -87,10 +87,17 @@ void PaginaPublico::enviar(const nlohmann::json& pedido, bool sinFondoSiFalla, L
             [this, vida, e, cuerpo = std::move(cuerpo), listo]() {
                 if (!vida) return;
                 if (!e.empty()) {
-                    if (listo) listo(e, {});
+                    if (listo) listo(e, {}); // la imagen: el mensaje ya dice qué pasó
                     return;
                 }
-                pedir(sala_, "POST", "/api/v1/publico-info", cuerpo, listo);
+                // Lo que falle de acá en adelante es la sala: se dice así, para que no se
+                // confunda con lo de la imagen (quien llama pasa el error tal cual).
+                pedir(sala_, "POST", "/api/v1/publico-info", cuerpo, [listo](const std::string& err, const nlohmann::json& r) {
+                    if (!listo) return;
+                    listo(err.empty() ? err
+                                      : ba::i18n::llenar(ba::i18n::traducir("sala", "No pude hablar con el servidor (gateway): %1"), {err}),
+                          r);
+                });
             },
             Qt::QueuedConnection);
     });

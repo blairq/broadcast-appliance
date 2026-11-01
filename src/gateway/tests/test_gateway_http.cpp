@@ -28,6 +28,7 @@
 //      tumba al gateway.
 
 #include "Log.hpp"
+#include "RutasPrueba.h"
 #include "Room.hpp"
 #include "ShareStore.hpp"
 #include "SignalingServer.hpp"
@@ -392,6 +393,12 @@ int main() {
     std::signal(SIGPIPE, SIG_IGN);
 #endif
     CHECK(socketInitTest(), "init de sockets");
+    // El index del invitado de verdad (assets/web/guest), del árbol fuente: ver RutasPrueba.h.
+    const char* webroot = ba_prueba_fuente("assets/web/guest");
+    if (webroot == nullptr) {
+        std::printf("test_gateway_http: 1 fallo(s)\n");
+        return 1;
+    }
 
     Log log;
     WebrtcHub hub(2, 640, 360, 48000, 2);
@@ -411,10 +418,10 @@ int main() {
     scfg.maxGuests = 2;
     scfg.port = 0;      // efimero: nada de pelear por un puerto fijo en CI
     scfg.adminPort = 0; // idem
-    scfg.webroot = BA_TEST_WEBROOT;
-    scfg.boardWebroot = BA_TEST_WEBROOT;
-    scfg.comunWebroot = BA_TEST_WEBROOT;
-    scfg.controlWebroot = BA_TEST_WEBROOT;
+    scfg.webroot = webroot;
+    scfg.boardWebroot = webroot;
+    scfg.comunWebroot = webroot;
+    scfg.controlWebroot = webroot;
     scfg.controlLan = true; // la puerta de los aparatos de control (efimera)
     const std::string kAdmin = "token-de-operador-de-prueba";
     scfg.adminToken = kAdmin;
