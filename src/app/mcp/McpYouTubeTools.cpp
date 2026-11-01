@@ -52,7 +52,7 @@ void McpService::registerYouTubeTools() {
         Tool t;
         t.name = "chat_destacar";
         t.title = ba::i18n::traducir("mcp", "Destacar un mensaje del chat para el aire");
-        t.category = "youtube";
+        t.category = "publico"; // el chat de las cuatro fuentes (publico_chat_leer)
         t.clase = Clase::Aire;
         t.porQueAire = QT_TRANSLATE_NOOP("mcp", "pone al aire un mensaje del público");
         t.description = QT_TRANSLATE_NOOP("mcp", "Destaca un mensaje (`key`, de publico_chat_leer): sale en los overlays de chat en modo destacado. "
@@ -70,7 +70,7 @@ void McpService::registerYouTubeTools() {
         Tool t;
         t.name = "chat_quitar_destacado";
         t.title = ba::i18n::traducir("mcp", "Sacar un mensaje destacado del aire");
-        t.category = "youtube";
+        t.category = "publico";
         t.clase = Clase::Escritura;
         t.description = QT_TRANSLATE_NOOP("mcp", "Saca un mensaje destacado (`key`), o todos si no se dice cual.");
         t.inputSchema = {{"type", "object"}, {"properties", {{"key", {{"type", "string"}}}}}};

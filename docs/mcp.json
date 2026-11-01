@@ -835,6 +835,8 @@
       "id": "publico",
       "titulo": "Chat del público",
       "herramientas": [
+        "chat_destacar",
+        "chat_quitar_destacado",
         "publico_chat_leer"
       ]
     },
@@ -1149,9 +1151,7 @@
       "id": "youtube",
       "titulo": "YouTube",
       "herramientas": [
-        "chat_destacar",
         "chat_overlay_add",
-        "chat_quitar_destacado",
         "youtube_chat",
         "youtube_live_create",
         "youtube_live_end",
@@ -17023,7 +17023,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpPlataformas.cpp",
-        "linea": 350
+        "linea": 351
       },
       "roles": [
         "asistente"
@@ -17049,7 +17049,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpPlataformas.cpp",
-        "linea": 383
+        "linea": 384
       },
       "roles": [
         "asistente"
@@ -17122,7 +17122,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpPlataformas.cpp",
-        "linea": 248
+        "linea": 249
       },
       "roles": [
         "asistente"
@@ -17149,7 +17149,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpPlataformas.cpp",
-        "linea": 167
+        "linea": 168
       },
       "roles": [
         "asistente"
@@ -17261,7 +17261,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpPlataformas.cpp",
-        "linea": 414
+        "linea": 415
       },
       "roles": [
         "asistente"
@@ -25995,6 +25995,73 @@
       ]
     },
     {
+      "nombre": "chat_destacar",
+      "titulo": "Destacar un mensaje del chat para el aire",
+      "categoria": "publico",
+      "descripcion": "Destaca un mensaje (`key`, de publico_chat_leer): sale en los overlays de chat en modo destacado. Es poner al aire algo que escribio el publico: confirmalo con el operador.",
+      "esquema": {
+        "type": "object",
+        "required": [
+          "key"
+        ],
+        "properties": {
+          "key": {
+            "type": "string"
+          }
+        }
+      },
+      "clase": "aire",
+      "hilo": "interfaz",
+      "soloLectura": false,
+      "destructiva": false,
+      "idempotente": false,
+      "etiquetas": {
+        "propias": "destacar mensaje chat aire pantalla publico pregunta",
+        "porPrefijo": "chat mensaje texto escribir conversacion comentario"
+      },
+      "donde": {
+        "archivo": "src/app/mcp/McpYouTubeTools.cpp",
+        "linea": 53
+      },
+      "roles": [
+        "asistente"
+      ],
+      "aire": {
+        "cuando": "siempre",
+        "por_que": "pone al aire un mensaje del público"
+      }
+    },
+    {
+      "nombre": "chat_quitar_destacado",
+      "titulo": "Sacar un mensaje destacado del aire",
+      "categoria": "publico",
+      "descripcion": "Saca un mensaje destacado (`key`), o todos si no se dice cual.",
+      "esquema": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string"
+          }
+        }
+      },
+      "clase": "escritura",
+      "hilo": "interfaz",
+      "soloLectura": false,
+      "destructiva": false,
+      "idempotente": false,
+      "etiquetas": {
+        "propias": "sacar destacado chat",
+        "porPrefijo": "chat mensaje texto escribir conversacion comentario"
+      },
+      "donde": {
+        "archivo": "src/app/mcp/McpYouTubeTools.cpp",
+        "linea": 71
+      },
+      "roles": [
+        "asistente"
+      ]
+    },
+    {
       "nombre": "publico_chat_leer",
       "titulo": "Mensajes recientes del chat (para destacar)",
       "categoria": "publico",
@@ -32721,7 +32788,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpPlataformas.cpp",
-        "linea": 342
+        "linea": 343
       },
       "roles": [
         "asistente"
@@ -32747,7 +32814,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpPlataformas.cpp",
-        "linea": 381
+        "linea": 382
       },
       "roles": [
         "asistente"
@@ -32783,7 +32850,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpPlataformas.cpp",
-        "linea": 238
+        "linea": 239
       },
       "roles": [
         "asistente"
@@ -32810,7 +32877,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpPlataformas.cpp",
-        "linea": 163
+        "linea": 164
       },
       "roles": [
         "asistente"
@@ -32907,7 +32974,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpPlataformas.cpp",
-        "linea": 409
+        "linea": 410
       },
       "roles": [
         "asistente"
@@ -35311,43 +35378,6 @@
       ]
     },
     {
-      "nombre": "chat_destacar",
-      "titulo": "Destacar un mensaje del chat para el aire",
-      "categoria": "youtube",
-      "descripcion": "Destaca un mensaje (`key`, de publico_chat_leer): sale en los overlays de chat en modo destacado. Es poner al aire algo que escribio el publico: confirmalo con el operador.",
-      "esquema": {
-        "type": "object",
-        "required": [
-          "key"
-        ],
-        "properties": {
-          "key": {
-            "type": "string"
-          }
-        }
-      },
-      "clase": "aire",
-      "hilo": "interfaz",
-      "soloLectura": false,
-      "destructiva": false,
-      "idempotente": false,
-      "etiquetas": {
-        "propias": "destacar mensaje chat aire pantalla publico pregunta",
-        "porPrefijo": "chat mensaje texto escribir conversacion comentario"
-      },
-      "donde": {
-        "archivo": "src/app/mcp/McpYouTubeTools.cpp",
-        "linea": 53
-      },
-      "roles": [
-        "asistente"
-      ],
-      "aire": {
-        "cuando": "siempre",
-        "por_que": "pone al aire un mensaje del público"
-      }
-    },
-    {
       "nombre": "chat_overlay_add",
       "titulo": "Chat en pantalla (fuente de escena)",
       "categoria": "youtube",
@@ -35420,36 +35450,6 @@
         "cuando": "chat_en_flujo",
         "por_que": "pone el chat del público en pantalla (en modo flujo, sin elegir)"
       }
-    },
-    {
-      "nombre": "chat_quitar_destacado",
-      "titulo": "Sacar un mensaje destacado del aire",
-      "categoria": "youtube",
-      "descripcion": "Saca un mensaje destacado (`key`), o todos si no se dice cual.",
-      "esquema": {
-        "type": "object",
-        "properties": {
-          "key": {
-            "type": "string"
-          }
-        }
-      },
-      "clase": "escritura",
-      "hilo": "interfaz",
-      "soloLectura": false,
-      "destructiva": false,
-      "idempotente": false,
-      "etiquetas": {
-        "propias": "sacar destacado chat",
-        "porPrefijo": "chat mensaje texto escribir conversacion comentario"
-      },
-      "donde": {
-        "archivo": "src/app/mcp/McpYouTubeTools.cpp",
-        "linea": 71
-      },
-      "roles": [
-        "asistente"
-      ]
     },
     {
       "nombre": "youtube_chat",
@@ -35776,7 +35776,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpPlataformas.cpp",
-        "linea": 333
+        "linea": 334
       },
       "roles": [
         "asistente"
@@ -35802,7 +35802,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpPlataformas.cpp",
-        "linea": 377
+        "linea": 378
       },
       "roles": [
         "asistente"
@@ -35844,7 +35844,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpPlataformas.cpp",
-        "linea": 207
+        "linea": 208
       },
       "roles": [
         "asistente"
@@ -35871,7 +35871,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpPlataformas.cpp",
-        "linea": 160
+        "linea": 161
       },
       "roles": [
         "asistente"
@@ -36044,7 +36044,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpPlataformas.cpp",
-        "linea": 404
+        "linea": 405
       },
       "roles": [
         "asistente"
