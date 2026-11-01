@@ -23,6 +23,7 @@
 #include <chrono>
 #include <cstdio>
 #include <cstring>
+#include <deque>
 #include <filesystem>
 #include <fstream>
 #include <sstream>
@@ -818,7 +819,49 @@ void SignalingServer::avisarRechazo(Escucha escucha, bool porIp) {
 void SignalingServer::acceptLoop(long long listenFd, Escucha escucha) {
     constexpr int kAcceptPollMs = 200;
     std::atomic<int>& enEsta = porEscucha_[static_cast<int>(escucha)];
+    // Las rechazadas (503) no se cierran en el acto: a esa altura su peticion todavia
+    // llega o quedo sin leer, y cerrar asi manda RST en vez de FIN; en Windows el RST
+    // hace que el cliente tire lo recibido y no vea el 503 (test_cupos en la PC). Se
+    // corta el envio (FIN tras el 503), se espera a que el otro cierre (o kGraciaMs)
+    // leyendo y tirando lo que llegue, y recien ahi se cierra. A lo sumo kMaxPorCerrar
+    // esperando: con mas (una inundacion), la mas vieja se cierra ya, drenada.
+    constexpr std::int64_t kGraciaMs = 2000;
+    constexpr std::size_t kMaxPorCerrar = 256;
+    struct PorCerrar {
+        long long fd;
+        std::int64_t hasta;
+    };
+    std::deque<PorCerrar> porCerrar;
+    const auto cerrarDrenado = [](long long fd) {
+        http::drenar(fd);
+        http::closeFd(fd);
+    };
+    const auto rechazar = [&](long long fd) {
+        http::sendResponse(fd, 503, "text/plain", traducir("gateway", "servidor saturado") + "\n");
+        http::terminarEnvio(fd);
+        if (porCerrar.size() >= kMaxPorCerrar) {
+            cerrarDrenado(porCerrar.front().fd);
+            porCerrar.pop_front();
+        }
+        porCerrar.push_back({fd, nowMs() + kGraciaMs});
+    };
+    const auto barrer = [&](bool todas) {
+        const std::int64_t ahora = nowMs();
+        for (auto it = porCerrar.begin(); it != porCerrar.end();) {
+            if (http::drenar(it->fd) || todas || ahora >= it->hasta) {
+                cerrarDrenado(it->fd);
+                it = porCerrar.erase(it);
+            } else {
+                ++it;
+            }
+        }
+    };
+    std::int64_t proximoBarrido = 0; // de a 100 ms: en una inundacion no se las mira en cada accept
     while (!stop_.load(std::memory_order_relaxed)) {
+        if (!porCerrar.empty() && nowMs() >= proximoBarrido) {
+            barrer(false);
+            proximoBarrido = nowMs() + 100;
+        }
         const int ready = http::waitReadable(listenFd, kAcceptPollMs);
         if (ready == 0) continue;
         if (ready < 0) {
@@ -844,8 +887,7 @@ void SignalingServer::acceptLoop(long long listenFd, Escucha escucha) {
         // conexion entra «de sobrecupo» y se queda solo si trae el token (la app).
         const bool sobrecupo = enEsta.load(std::memory_order_relaxed) >= cupoDe(escucha);
         if (sobrecupo && escucha != Escucha::Admin) {
-            http::sendResponse(fd, 503, "text/plain", traducir("gateway", "servidor saturado") + "\n");
-            http::closeFd(fd);
+            rechazar(fd);
             avisarRechazo(escucha, false);
             continue;
         }
@@ -853,8 +895,7 @@ void SignalingServer::acceptLoop(long long listenFd, Escucha escucha) {
         // loopback se cuenta cuando diga de quien es (PROXY v1 / X-Forwarded-For).
         const bool directa = ntohl(clientIp) != INADDR_LOOPBACK;
         if (directa && !tomarIp(clientIp)) {
-            http::sendResponse(fd, 503, "text/plain", traducir("gateway", "servidor saturado") + "\n");
-            http::closeFd(fd);
+            rechazar(fd);
             avisarRechazo(escucha, true);
             continue;
         }
@@ -873,6 +914,7 @@ void SignalingServer::acceptLoop(long long listenFd, Escucha escucha) {
             }
         }).detach();
     }
+    barrer(true);
 }
 
 void SignalingServer::handleConnection(long long fd, std::uint32_t clientIp, Escucha escucha, std::uint32_t ipCupo,

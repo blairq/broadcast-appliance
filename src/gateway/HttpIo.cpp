@@ -5,6 +5,7 @@
 #include "HttpIo.hpp"
 
 #include <cctype>
+#include <cerrno>
 #include <algorithm>
 #include <cstring>
 
@@ -586,6 +587,33 @@ void shutdownFd(long long fd) {
 #else
     ::shutdown(toFd(fd), SHUT_RDWR);
 #endif
+}
+
+void terminarEnvio(long long fd) {
+    if (fd < 0) return;
+#ifdef _WIN32
+    ::shutdown(toFd(fd), SD_SEND);
+    u_long si = 1;
+    ioctlsocket(toFd(fd), FIONBIO, &si);
+#else
+    ::shutdown(toFd(fd), SHUT_WR);
+#endif
+}
+
+bool drenar(long long fd) {
+    if (fd < 0) return true;
+    char b[2048];
+    for (int i = 0; i < 64; ++i) { // a lo sumo 128 KiB por pasada: el que inunda no nos tiene leyendo
+#ifdef _WIN32
+        const int n = ::recv(toFd(fd), b, sizeof(b), 0);
+        if (n < 0 && WSAGetLastError() == WSAEWOULDBLOCK) return false;
+#else
+        const ssize_t n = ::recv(toFd(fd), b, sizeof(b), MSG_DONTWAIT);
+        if (n < 0 && (errno == EAGAIN || errno == EWOULDBLOCK || errno == EINTR)) return false;
+#endif
+        if (n <= 0) return true;
+    }
+    return false;
 }
 
 uint16_t localPort(long long fd) {

@@ -36,6 +36,13 @@ void socketCleanup();
 void closeFd(long long fd);
 /// shutdown(SHUT_RDWR): desbloquea un recv de otro thread sin cerrar el fd.
 void shutdownFd(long long fd);
+/// Despues de la ultima respuesta: FIN tras lo escrito (shutdown de envio) y el socket
+/// no bloqueante, para cerrarlo mas tarde con drenar() + closeFd(). Cerrar enseguida un
+/// socket al que todavia le llega (o le quedo sin leer) la peticion manda RST en vez de
+/// FIN, y en Windows el RST hace que el otro lado tire lo recibido: no ve la respuesta.
+void terminarEnvio(long long fd);
+/// Lee y descarta, sin bloquear, lo que ya llego. true si el otro lado ya cerro (o fallo).
+bool drenar(long long fd);
 
 /// Socket de escucha TCP en `bindAddress:port` (IPv4). -1 si fallo.
 long long makeListen(const std::string& bindAddress, uint16_t port);
