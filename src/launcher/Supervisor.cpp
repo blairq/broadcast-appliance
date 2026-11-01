@@ -12,6 +12,7 @@
 #include "Log.hpp"
 #include "i18n/I18n.hpp"
 #include "ipc/CanalesSalida.hpp"
+#include "platform/Huerfanos.hpp"
 #include "RecoveryUi.hpp"
 #include "ShadowCopy.hpp"
 #include "Sha256.hpp"
@@ -150,12 +151,16 @@ int Supervisor::run() {
     }
     BA_LOG_INFO("health", 0, llenar(traducir("health", "BA.Health listo con %1 slots"), {std::to_string(slotCount)}));
 
+    // Lo que dejó una app que murió sin cerrarlo (los de una app viva, que se readopta, quedan).
+    barrerHuerfanos(traducir("sup", "al arrancar"));
     launchChildren();
     // Lo que la verificación rápida no leyó (archivos nuevos o cambiados, o todo la
     // primera vez), con la app ya andando y a prioridad de fondo.
     fondo_ = std::thread([this]() { verificarEnElFondo(); });
     if (cfg_.perroS > 0) perro_.abrir(cfg_.perroDispositivo, cfg_.perroS); // F4-08: si no se puede, sigue sin él
     watchdogLoop();
+    // La app ya se fue (cerró o hubo que matarla): lo suyo que haya quedado.
+    barrerHuerfanos(traducir("sup", "al cerrar"));
     pararFondo_ = true;
     if (fondo_.joinable()) fondo_.join();
     return 0;
@@ -337,6 +342,12 @@ void Supervisor::reemplazarOtraVersion(Hijo& h) {
 
 std::filesystem::path Supervisor::runtimeDir() const {
     return (cfg_.dataRoot.empty() ? cfg_.root : cfg_.dataRoot) / "Runtime";
+}
+
+void Supervisor::barrerHuerfanos(const std::string& cuando) {
+    for (const auto& b : ba::platform::huerfanos::barrer(runtimeDir() / "hijos"))
+        BA_LOG_INFO("sup", 0, llenar(traducir("sup", "%1: quedaba andando %2 (pid %3) sin la app que lo lanzó: parado"),
+                                     {cuando, b.nombre, std::to_string(b.pid)}));
 }
 
 bool Supervisor::startChild(Hijo& h) {

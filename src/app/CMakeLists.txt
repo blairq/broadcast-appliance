@@ -900,7 +900,7 @@ endif()
         add_executable(test_terminal tests/test_terminal.cpp term/TerminalSession.cpp term/Pty_posix.cpp term/Pty.hpp
                                      term/TerminalSession.hpp)
         target_include_directories(test_terminal PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
-        target_link_libraries(test_terminal PRIVATE ba_vterm Qt6::Core Qt6::Gui)
+        target_link_libraries(test_terminal PRIVATE ba_vterm ba_core Qt6::Core Qt6::Gui)
         if(NOT APPLE)
             target_link_libraries(test_terminal PRIVATE util)
         endif()
@@ -1534,7 +1534,7 @@ endif()
     add_test(NAME test_seguir_escenas COMMAND test_seguir_escenas)
     # Roles y despachador de agentes de un tiro, con un motor falso (script).
     add_executable(test_despachador tests/test_despachador.cpp agent/Despachador.cpp agent/Despachador.hpp
-                   agent/Roles.cpp)
+                   agent/Roles.cpp agent/HijosDeLaApp.cpp)
     target_include_directories(test_despachador PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
     target_link_libraries(test_despachador PRIVATE ba_core Qt6::Core)
     set_target_properties(test_despachador PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
