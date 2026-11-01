@@ -94,8 +94,8 @@
   async function mandar(cmd) {
     const r = await fetch("/api/prompter", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(Object.assign({ clave, prompter: prompterId }, cmd)),
+      headers: { "Content-Type": "application/json", "X-BA-Clave": clave },
+      body: JSON.stringify(Object.assign({ prompter: prompterId }, cmd)),
     });
     if (r.status === 403) {
       if ($("c-error")) $("c-error").textContent =

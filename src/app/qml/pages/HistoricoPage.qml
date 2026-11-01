@@ -519,7 +519,7 @@ Rectangle {
                                                 }
                                                 Text {
                                                     text: modelData.desde + (modelData.duracion_seg !== undefined
-                                                          ? " · " + Math.floor(modelData.duracion_seg / 60) + ":" + String(modelData.duracion_seg % 60).padStart(2, "0")
+                                                          ? " · " + Theme.mmss(modelData.duracion_seg)
                                                           : qsTr(" · grabando")) + " · " + Theme.tamano(modelData.bytes)
                                                     color: Theme.textDim; font.pixelSize: 11
                                                 }
@@ -530,7 +530,7 @@ Rectangle {
                                                 wrapMode: Text.WordWrap
                                                 visible: (modelData.capitulos || []).length > 0
                                                 color: Theme.textDim; font.pixelSize: 11
-                                                text: (modelData.capitulos || []).map(c => Math.floor(c.seg / 60) + ":" + String(c.seg % 60).padStart(2, "0") + " " + c.escena).join("  ·  ")
+                                                text: (modelData.capitulos || []).map(c => Theme.mmss(c.seg) + " " + c.escena).join("  ·  ")
                                             }
                                         }
                                     }

@@ -13,6 +13,7 @@
 // intentos. Cuando la ventana expira, el presupuesto de intentos se refresca.
 
 #include "security/TokenService.hpp"
+#include "security/Comparar.hpp"
 
 #include <chrono>
 #include <cstdio>
@@ -230,14 +231,6 @@ bool jsonValue(const std::string& json, const std::string& key, std::string& out
     return !out.empty();
 }
 
-// Comparacion de MAC en tiempo constante (mitiga timing attacks).
-bool constantTimeEqual(const std::uint8_t* a, const std::uint8_t* b, std::size_t n) {
-    volatile unsigned char diff = 0;
-    for (std::size_t i = 0; i < n; ++i) {
-        diff |= static_cast<unsigned char>(a[i] ^ b[i]);
-    }
-    return diff == 0;
-}
 
 } // namespace
 
@@ -307,7 +300,9 @@ TokenService::VerifyResult TokenService::verify(const std::string& token, const 
     const auto expected =
         ba::crypto::hmacSha256(reinterpret_cast<const std::uint8_t*>(secret_.data()), secret_.size(),
                                reinterpret_cast<const std::uint8_t*>(b64payload.data()), b64payload.size());
-    if (!constantTimeEqual(expected.data(), macBytes.data(), macBytes.size())) {
+    // En tiempo constante (security/Comparar.hpp): no filtra cuánto acertó.
+    if (!igualesEnTiempoConstante(std::string_view(reinterpret_cast<const char*>(macBytes.data()), macBytes.size()),
+                                  std::string_view(reinterpret_cast<const char*>(expected.data()), macBytes.size()))) {
         return VerifyResult::BadSignature;
     }
 

@@ -822,13 +822,15 @@ int main(int argc, char** argv) {
     };
     mando.placa = [](const std::string&, bool, const std::string&, const std::string&, int) { return std::string(); };
     mando.estadoPlaca = [&](const std::string&) { return json{{"ftb", aire.ftb}}; };
-    mando.transmitir = [&](const std::string&, const std::string&, const std::string&, bool) {
+    // Lo que pasó llega después, en el hilo de la herramienta (como AppRuntime::alResultado).
+    mando.transmitir = [&](const std::string&, const std::string&, const std::string&, bool, MandoDeAire::Hecho hecho) {
         MandoDeAire::Inicio r;
         operar([&]() {
             r.yaIgual = aire.transmite;
             aire.transmite = true;
         });
         r.ok = true;
+        QTimer::singleShot(0, [hecho]() { hecho({true, {}, {}}); });
         return r;
     };
     mando.cortarTransmision = [&](const std::string&) { operar([&]() { aire.transmite = false; }); };
@@ -840,12 +842,12 @@ int main(int argc, char** argv) {
         return json{{"activa", aire.graba}, {"archivo", aire.graba ? "programa-0001.mkv" : ""}};
     };
     mando.disco = []() { return json{{"horas", 12.0}}; };
-    mando.grabar = [&](const std::string&) {
+    mando.grabar = [&](const std::string&, MandoDeAire::Hecho hecho) {
         operar([&]() { aire.graba = true; });
+        QTimer::singleShot(0, [hecho]() { hecho({true, {}, "programa-0001.mkv"}); });
         return std::string();
     };
     mando.pararGrabacion = [&](const std::string&) { operar([&]() { aire.graba = false; }); };
-    mando.algoSale = [&]() { return aire.transmite || aire.graba; };
     mando.contenedor = []() { return std::string("mkv"); };
     const std::size_t antesAire = core.tools().size();
     registrarHerramientasDeAire(core, mando);
@@ -1866,6 +1868,20 @@ const auto tomadoM = canalM.tomarPrograma("");
         CHECK(dondeDespues.load() == nullptr, "R2: con el plano parado, encolar no corre en el acto");
         atender(50);
         CHECK(dondeDespues.load() == interfaz, "R2: lo encolado con el plano parado corre en el dueño nuevo");
+        // El cierre (después de app.exec(), sin bucle): lo que piden los destructores de las
+        // vistas, también un `despues`, corre al atender lo pendiente, en orden; antes se
+        // encolaba en un bucle que ya no corría y se perdía.
+        std::vector<int> alCerrar;
+        plano2.encolarConTurno([&alCerrar]() { alCerrar.push_back(1); });
+        plano2.despues(60000, [&alCerrar]() { alCerrar.push_back(2); });
+        plano2.encolar([&alCerrar]() { alCerrar.push_back(3); });
+        CHECK(alCerrar.empty(), "R2: parado, lo encolado espera al dueño nuevo");
+        CHECK(plano2.atenderPendientes() == 3 && (alCerrar == std::vector<int>{1, 2, 3}),
+              "R2: sin bucle, lo pendiente corre al atenderlo (también el `despues`), en orden");
+        // Parar otra vez no vuelve a recibir el motor (se hacía dueño dos veces al cerrar).
+        int recibe = 0;
+        plano2.detener([&recibe]() { ++recibe; });
+        CHECK(recibe == 0, "R2: detener otra vez no vuelve a correr alRecibir");
         CHECK(respuestasC.load() == 0, "R2: la respuesta a una ventanilla que se fue no llega");
         CHECK(energia->thread() == interfaz, "R2: la energía vuelve a la interfaz al parar");
     }

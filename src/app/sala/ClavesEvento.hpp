@@ -10,7 +10,11 @@
 //     guardan CIFRADAS en el almacén de credenciales (nunca en la carpeta en claro), con
 //     un nombre que sale de la carpeta del evento;
 //   - se le pasan a la sala cada vez que conecta una nueva (republicador «claves») y al
-//     cambiar de evento: otro evento, otras claves (los QR de ayer no abren lo de hoy).
+//     cambiar de evento: otro evento, otras claves (los QR de ayer no abren lo de hoy);
+//   - las del evento en curso quedan además en el almacén (ba::ipc::kClavesEnCurso): una
+//     sala que arranca ya las tiene, sin esperar a que A reconecte;
+//   - al cerrar el evento se le dice a la sala «sin evento» ({sinEvento}): claves nuevas
+//     y olvida la urna, las preguntas y la página del público del anterior.
 //
 // Leer y escribir el almacén es disco: va en otro hilo; la sala las recibe cuando están.
 // ============================================================================
@@ -18,8 +22,10 @@
 
 #include <QObject>
 
+#include <atomic>
 #include <filesystem>
 #include <functional>
+#include <memory>
 
 #include <nlohmann/json.hpp>
 
@@ -49,8 +55,10 @@ class ClavesEvento : public QObject {
     ConferenceClient& sala_;
     std::function<std::filesystem::path()> carpeta_;
     std::filesystem::path deEstas_; ///< de qué evento son las que hay
-    nlohmann::json claves_;         ///< {prompter, correccion, rotulos, publico, tablero} o null
+    nlohmann::json claves_;         ///< {prompter, correccion, rotulos, publico, tablero}, {sinEvento} o null
     int pedido_ = 0;                ///< para descartar una lectura vieja que vuelve tarde
+    /// El último pedido, visto desde el pool (solo ese escribe las del evento en curso).
+    std::shared_ptr<std::atomic<int>> ultimoPedido_ = std::make_shared<std::atomic<int>>(0);
 };
 
 } // namespace ba::app::sala

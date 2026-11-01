@@ -372,6 +372,7 @@ QVariantList VideoGrafos::catalogo() { return aVariant(GrafoVideo::catalogo()).t
 
 std::string VideoGrafos::nombreFiltro(const std::string& filtroId) { return filtroId; }
 
+
 QString VideoGrafos::ajustarPad(const QString& id, const QString& puerto, const QString& clave, const QVariant& valor) {
     const json v = paraGst(deVariant(valor));
     return q(editar([&](GrafoVideo& g) {
@@ -677,18 +678,6 @@ QString VideoGrafos::agregar(const QString& tipo, const QString& despues) {
     return q(editar([&](GrafoVideo& g) {
         std::string e;
         g.agregar(tipo.toStdString(), entrada_.toStdString(), despues.toStdString(), json::object(), &e);
-        return e;
-    }));
-}
-QString VideoGrafos::agregarFiltro(const QString& filtroId, const QString& despues) {
-    const std::string nombre = nombreFiltro(filtroId.toStdString());
-    if (nombre.empty()) return tr("No existe el filtro «%1»").arg(filtroId);
-    return q(editar([&](GrafoVideo& g) {
-        std::string e;
-        const std::string id =
-            g.agregar("obs", entrada_.toStdString(), despues.toStdString(),
-                      json{{"filtro", filtroId.toStdString()}, {"ajustes", json::object()}}, &e);
-        if (!id.empty()) g.ajustar(id, json{{"etiqueta", nombre}}, nullptr);
         return e;
     }));
 }
@@ -2273,6 +2262,10 @@ std::string VideoGrafos::filtrosAudio(const std::string& entrada, const json& fi
         const std::string el = f.is_object() ? f.value("elemento", std::string()) : std::string();
         if (el.empty()) return tr("a un filtro le falta `elemento`").toStdString();
         if (!hayElemento(el.c_str())) return "GStreamer no tiene el elemento «" + el + "»";
+        // La tarjeta de un plugin: sus parámetros son un objeto JSON (escrito por el operador).
+        if (const json pp = f.value("propiedades", json::object()).value("parametros", json());
+            el == "baplugin" && pp.is_string() && !json::parse(pp.get<std::string>().empty() ? std::string("{}") : pp.get<std::string>(), nullptr, false).is_object())
+            return tr("Los parámetros de la tarjeta no son JSON válido (un objeto: {\"clave\": valor})").toStdString();
         std::string id = f.contains("id") && f["id"].is_string() ? f["id"].get<std::string>() : std::string();
         if (id.empty()) {
             do id = "a" + std::to_string(i++);
@@ -2430,9 +2423,7 @@ QString VideoGrafos::agregarFiltroAudioUi(const QString& entrada, const QString&
     const auto it = kComunes.find(cual.toStdString());
     if (it == kComunes.end()) return tr("filtro desconocido");
     json l = filtrosAudioDe(entrada.toStdString());
-    json f = it->second;
-    f["id"] = cual.toStdString() + std::to_string(l.size());
-    l.push_back(f);
+    l.push_back(it->second); // el id lo pone filtrosAudio (uno que no esté)
     return q(filtrosAudio(entrada.toStdString(), l));
 }
 
@@ -3098,7 +3089,7 @@ void VideoGrafos::aportar(FotoMotor& foto, unsigned partes) {
     BroadcastEngine& e = rt_.engine();
     // Las fuentes que miran las cámaras y las entradas (con su tamaño, que llega cuando la
     // cámara arranca: se rearma también con la revisión de cada 1,5 s).
-    if ((partes & (FotoMotor::Escenas | FotoMotor::Video)) != 0) {
+    if (FotoMotor::rearmar(FotoMotor::kFuentesVideo, partes)) {
         json fuentes = json::object();
         std::map<std::string, json> escenasDe;
         for (const auto& sc : e.sceneNames())
@@ -3136,7 +3127,7 @@ void VideoGrafos::aportar(FotoMotor& foto, unsigned partes) {
         foto.fuentesVideo = std::move(fuentes);
     }
     // Lo que está al aire, con cada corte (el interlock del PTZ).
-    if ((partes & (FotoMotor::Salidas | FotoMotor::Escenas | FotoMotor::Video)) != 0) {
+    if (FotoMotor::rearmar(FotoMotor::kAlAire, partes)) {
         std::vector<std::string> aire;
         for (const std::string& id : e.salidaIds()) {
             if (!e.haySalidaEn(id)) continue;
@@ -3145,7 +3136,7 @@ void VideoGrafos::aportar(FotoMotor& foto, unsigned partes) {
         }
         foto.alAire = std::move(aire);
     }
-    if ((partes & (FotoMotor::Ajustes | FotoMotor::Video)) != 0) {
+    if (FotoMotor::rearmar(FotoMotor::kConfigImagen, partes)) {
         const AppConfig& c = rt_.config();
         foto.configImagen = {{"mejora", {{"activa", c.mejora.activa}, {"ruido", c.mejora.ruido}, {"color", c.mejora.color},
                                          {"nitidez", c.mejora.nitidez}}},

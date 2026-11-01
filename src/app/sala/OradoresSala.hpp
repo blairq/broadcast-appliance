@@ -9,7 +9,9 @@
 // más de cero segundos; el lugar en la fila empieza en 0.
 //
 // Un tiempo escrito ("2:30", "3", "45s", "3m", "+2:00", "-30s", "=2:30") se lee acá
-// (leerTiempo), igual para la interfaz y el MCP: un número solo son MINUTOS. Y la
+// (leerTiempo), igual para la interfaz y el MCP: un número escrito solo son MINUTOS (lo
+// que escribe el operador). Un ENTERO JSON (lo que manda un programa: el MCP, el guion)
+// son SEGUNDOS, como `graceSec` y como lo esperan los modelos (leerTiempoJson). Y la
 // regla del reloj de quien habla (reloj: los últimos 10 s avisan, pasado cero se
 // excede) y la fila en orden (fila) también: la página, la tarjeta, el reloj flotante y
 // remotos_fila_ver muestran lo mismo.
@@ -19,6 +21,7 @@
 #include <string>
 
 #include <nlohmann/json.hpp>
+#include <QJsonObject>
 #include <QObject>
 
 #include "sala/Pedido.hpp"
@@ -43,6 +46,12 @@ class OradoresSala {
     /// (lo que escribe el operador). "" o el error (ya traducido); en `segundos`, el
     /// resultado (más de cero).
     static std::string leerTiempo(const std::string& texto, int actual, int& segundos);
+    /// Un tiempo como viene en un JSON: un número son SEGUNDOS (120 = dos minutos); un
+    /// texto, leerTiempo (sobre `actual`: «3» = tres minutos, «+2», «-30s»). "" o el error.
+    static std::string leerTiempoJson(const nlohmann::json& valor, int actual, int& segundos);
+    /// Sobre qué se suma o resta un tiempo de `id` («+2»): el suyo (allottedSec) o, si no
+    /// tiene (o `id` vacío), el general (speakers.defaultSec) de la foto de la sala.
+    static int tiempoActual(const QJsonObject& foto, const std::string& id);
     /// La fila de una foto de la sala, en orden: cada participante tal cual, con
     /// `position` (desde 1) si espera su turno.
     static nlohmann::json fila(const nlohmann::json& foto);
@@ -57,8 +66,12 @@ class OradoresSala {
     void mover(const std::string& id, int lugar, Listo listo = {});
     /// Segundos para hablar (más de cero). Devuelve el error inmediato o "".
     std::string tiempo(const std::string& id, int segundos, Listo listo = {});
-    /// El tiempo escrito (leerTiempo, sobre `actual`). Devuelve el error inmediato o "".
-    std::string tiempo(const std::string& id, const std::string& texto, int actual, Listo listo = {});
+    /// El tiempo como lo pide alguien (leerTiempoJson, sobre tiempoActual): la página
+    /// manda el texto que escribió el operador; el MCP, un texto o un número de segundos.
+    /// Devuelve el error inmediato o ""; en `segundos` (si no es nulo), lo que quedó.
+    std::string tiempo(const std::string& id, const nlohmann::json& valor, Listo listo = {}, int* segundos = nullptr);
+    /// El tiempo general por orador, con la misma lectura (sobre el general de ahora).
+    std::string tiempoGeneral(const nlohmann::json& valor, Listo listo = {}, int* segundos = nullptr);
     /// A la fila de oradores (o de vuelta a ella si ya habló).
     void aLaFila(const std::string& id, Listo listo = {});
     /// Presentador fijo: se queda al aire mientras rotan los oradores.

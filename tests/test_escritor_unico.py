@@ -7,11 +7,12 @@ UI, `persist::cola()` (el hilo escritor) y `config::guardar`. Un `std::ofstream`
 `QSaveFile` a mano no baja nada al disco: tras un corte de luz el archivo puede volver
 vacío o a medias, y «todo vuelve solo como estaba» (T47) deja de ser cierto.
 
-Esta prueba no deja sumar escritores nuevos: cuenta los `std::ofstream`/`QSaveFile` de
-src/ (fuera de src/core/persist/ y de las pruebas) y falla si aparece uno que no está en
-DEUDA. Lo que ya estaba queda anotado con su cantidad, que solo puede bajar: al migrar un
-archivo, se baja (o se borra) su número acá. Los agregados al final (`std::ios::app`, los
-registros) no cuentan: son diarios, no estado que se reemplaza.
+Esta prueba no deja sumar escritores nuevos: cuenta los `std::ofstream`/`QSaveFile`, los
+que agregan al final (`std::ios::app`) y los `fopen`/`_wfopen` que escriben, de src/ (fuera
+de src/core/persist/ y de las pruebas), y falla si aparece uno que no está en DEUDA. Lo que
+ya estaba queda anotado con su cantidad, que solo puede bajar: al migrar un archivo, se
+baja (o se borra) su número acá. Un diario (líneas que solo se suman) también va por el
+escritor: `persist::agregar` o `persist::cola().agregar`.
 
 Si lo nuevo de verdad no es estado (exportar un documento que pidió el operador, un WAV que
 se graba de a poco), se suma a DEUDA con un comentario que diga por qué.
@@ -20,7 +21,8 @@ import pathlib
 import re
 
 RAIZ = pathlib.Path(__file__).resolve().parent.parent
-ESCRITOR = re.compile(r"\bstd::ofstream\b|\bofstream\s*[a-zA-Z_(]|\bQSaveFile\s+\w+\s*\(|\bQSaveFile\s+\w+\s*;")
+ESCRITOR = re.compile(r"\bstd::ofstream\b|\bofstream\s*[a-zA-Z_(]|\bQSaveFile\s+\w+\s*\(|\bQSaveFile\s+\w+\s*;"
+                      r"|\bios::app\b|\b_?w?fopen\s*\([^;]*,\s*L?\"[wa]")
 
 # Lo de antes del escritor único, por archivo (relativo a src/). SOLO PUEDE BAJAR.
 DEUDA = {
@@ -37,21 +39,32 @@ DEUDA = {
     "app/graficos/Catalogo.cpp": 1,
     "app/graficos/Medios.cpp": 1,
     "app/medios/Playlist.cpp": 1,
-    "app/mcp/McpTraza.cpp": 1,
+    "app/mcp/McpTraza.cpp": 2,  # la traza: un diario de cada llamada (sin fsync por línea)
     "app/net/Descargas.cpp": 1,
-    "app/plugins/Plugins.cpp": 1,
+    "app/plugins/Plugins.cpp": 2,
     "app/registro/Totems.cpp": 1,
     "app/sala/ListaPrompters.cpp": 1,
     "app/video/SuperRes.cpp": 5,
-    "core/diag/DiagExport.cpp": 1,
-    "core/fault/FaultInjector.cpp": 1,
-    "core/platform/GstEntorno.cpp": 1,
-    "core/security/CredentialStore.cpp": 1,  # borra el archivo viejo pisándolo con ceros
+    # Crea la clave una vez, exclusiva (fopen "wbx": si otro proceso ganó, se usa la suya);
+    # y borra el archivo viejo pisándolo con ceros.
+    "core/security/CredentialStore.cpp": 2,
     "gateway/ShareStore.cpp": 1,
     "launcher/Integrity.cpp": 1,
     "launcher/ShadowCopy.cpp": 1,
-    "launcher/Supervisor.cpp": 2,
+    "launcher/Supervisor.cpp": 3,
     "modelo-llama/main.cpp": 1,
+    # Los registros y diarios de diagnóstico (se agregan al final, sin fsync por línea: no son
+    # estado que vuelva tras un corte). Antes no se contaban; ahora sí (solo pueden bajar).
+    "app/asamblea/SesionRemota.cpp": 1,
+    "app/dispositivos/SondaDrivers.cpp": 1,
+    "app/escritorio/control_archivos.cpp": 1,
+    "app/evento/Bitacora.cpp": 2,
+    "app/net/HttpsClient.cpp": 1,  # una descarga que sigue donde quedó
+    "app/term/TerminalSession.cpp": 1,
+    "core/diag/LogRotator.cpp": 1,
+    "core/diag/Perfil.cpp": 1,
+    "launcher/ChildOutput.cpp": 1,
+    "launcher/Log.cpp": 2,
 }
 
 
@@ -65,7 +78,7 @@ def contar():
             continue
         for linea in f.read_text(encoding="utf-8", errors="replace").splitlines():
             codigo = linea.split("//")[0]
-            if codigo.lstrip().startswith(("#include", "*", "///")) or "ios::app" in codigo:
+            if codigo.lstrip().startswith(("#include", "*", "///")):
                 continue
             if ESCRITOR.search(codigo):
                 cuenta[rel] = cuenta.get(rel, 0) + 1

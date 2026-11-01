@@ -880,6 +880,7 @@ McpService::~McpService() {
         QMetaObject::invokeMethod(h, [h]() { delete h; }, Qt::BlockingQueuedConnection);
     }
     if (pool_) pool_->waitForDone(5000);
+    if (poolSinInterfaz_) poolSinInterfaz_->waitForDone(5000);
 }
 
 void McpService::setPlano(PlanoControl& plano) {
@@ -891,6 +892,12 @@ void McpService::setPlano(PlanoControl& plano) {
     e.interfaz = [&plano](McpCore::Tarea t) { plano.encolarEnInterfaz(std::move(t)); };
     e.control = [&plano](McpCore::Tarea t) { plano.encolar(std::move(t)); };
     e.foto = [p = pool_.get()](McpCore::Tarea t) { p->start(std::move(t)); };
+    // Lo que escribe sin la interfaz o tarda (ndi_sources espera segundos a la red): aparte,
+    // así cuatro búsquedas a la vez no dejan sin hilo a status, help y room_status.
+    poolSinInterfaz_ = std::make_unique<QThreadPool>();
+    poolSinInterfaz_->setMaxThreadCount(4);
+    poolSinInterfaz_->setObjectName("mcp-sin-interfaz");
+    e.sinInterfaz = [p = poolSinInterfaz_.get()](McpCore::Tarea t) { p->start(std::move(t)); };
     e.despues = [&plano](int ms, McpCore::Tarea t) { plano.despues(ms, std::move(t)); };
     e.enInterfaz = [&plano]() { return plano.enInterfaz(); };
     e.enControl = [&plano]() { return plano.enControl(); };
@@ -1098,9 +1105,16 @@ MandoDeAire McpService::mandoDeAire() {
         return seg.placa(activar, texto, imagen, ms, salida);
     };
     m.estadoPlaca = [&seg](const std::string& salida) { return seg.estado(salida); };
-    m.transmitir = [&rt](const std::string& salida, const std::string& server, const std::string& key, bool caliente) {
+    // Lo que pasó llega en el dueño (AppRuntime::alResultado), que es el hilo de la herramienta.
+    const auto hechoDe = [](MandoDeAire::Hecho hecho) {
+        return [hecho = std::move(hecho)](const AppRuntime::ResultadoOrden& r) {
+            if (hecho) hecho({r.ok, r.error, r.archivo});
+        };
+    };
+    m.transmitir = [&rt, hechoDe](const std::string& salida, const std::string& server, const std::string& key, bool caliente,
+                                  MandoDeAire::Hecho hecho) {
         MandoDeAire::Inicio r;
-        r.ok = rt.salirAlAireManual(server, key, caliente, salida);
+        r.ok = rt.salirAlAireManual(server, key, caliente, salida, hechoDe(std::move(hecho)));
         // ultimoInicio y lastError son de este hilo (como errno): los de recién.
         const BroadcastEngine::Inicio i = rt.engine().ultimoInicio();
         r.yaIgual = r.ok && i == BroadcastEngine::Inicio::YaIgual;
@@ -1115,9 +1129,10 @@ MandoDeAire McpService::mandoDeAire() {
     m.variableClave = [&rt]() { return rt.ajustesAire().claveEnv; };
     m.grabacion = [&rt](const std::string& salida) { return rt.engine().grabacionEstado(salida); };
     m.disco = [&rt]() { return rt.discoGrabacion(); };
-    m.grabar = [&rt](const std::string& salida) { return rt.startRecording(salida) ? std::string() : rt.lastError(); };
+    m.grabar = [&rt, hechoDe](const std::string& salida, MandoDeAire::Hecho hecho) {
+        return rt.startRecording(salida, hechoDe(std::move(hecho))) ? std::string() : rt.lastError();
+    };
     m.pararGrabacion = [&rt](const std::string& salida) { rt.stopRecording(salida); };
-    m.algoSale = [&rt]() { return rt.engine().outputsActive(); };
     m.contenedor = [&rt]() { return rt.ajustesAire().rec.container; };
     m.discoMinimoH = AppRuntime::kDiscoMinimoH;
     return m;
@@ -1427,7 +1442,7 @@ void McpService::registerTools() {
         Tool t;
         t.name = "escena_transicion";
         t.hilo = Hilo::Control;
-        t.title = ba::i18n::traducir("mcp", "Transicion de entrada de una escena");
+        t.title = ba::i18n::traducir("mcp", "Transición de entrada de una escena");
         t.category = "escenas";
         t.clase = Clase::Escritura;
         t.description = QT_TRANSLATE_NOOP("mcp", "La transicion con la que ENTRA la `escena` al aire (`tipo`: cut, fade, swipe, slide, "
@@ -1780,7 +1795,7 @@ void McpService::registerTools() {
         Tool t;
         t.name = "transition_set";
         t.hilo = Hilo::Control;
-        t.title = ba::i18n::traducir("mcp", "Transicion entre escenas");
+        t.title = ba::i18n::traducir("mcp", "Transición entre escenas");
         t.category = "escenas";
         t.clase = Clase::Aire;
         t.porQueAire = QT_TRANSLATE_NOOP("mcp", "cambia la transición");
@@ -2124,7 +2139,7 @@ void McpService::registerTools() {
     {
         Tool t;
         t.name = "source_set_property";
-        t.title = ba::i18n::traducir("mcp", "Cambiar una propiedad (o apretar un boton)");
+        t.title = ba::i18n::traducir("mcp", "Cambiar una propiedad (o apretar un botón)");
         t.category = "fuentes";
         t.clase = Clase::Escritura;
         t.description =
@@ -2532,7 +2547,7 @@ void McpService::registerTools() {
     {
         Tool t;
         t.name = "invitado_info_aprobar";
-        t.title = ba::i18n::traducir("mcp", "Aprobar el cargo que escribio un invitado");
+        t.title = ba::i18n::traducir("mcp", "Aprobar el cargo que escribió un invitado");
         t.category = "sala";
         t.clase = Clase::Escritura;
         t.description = QT_TRANSLATE_NOOP("mcp", "Lo que un invitado escribe de si mismo al entrar (`info`) NO sale en el zocalo hasta que una "
@@ -2748,7 +2763,7 @@ void McpService::registerTools() {
     {
         Tool t;
         t.name = "entrada_respaldo";
-        t.title = ba::i18n::traducir("mcp", "Que hacer si una entrada se cae al aire");
+        t.title = ba::i18n::traducir("mcp", "Qué hacer si una entrada se cae al aire");
         t.category = "video";
         t.clase = Clase::Escritura;
         t.description = QT_TRANSLATE_NOOP("mcp", "Si la entrada `entrada` se queda sin señal mas de `ms` (de fabrica 1000) estando en la escena al "
@@ -2864,7 +2879,7 @@ void McpService::registerTools() {
     {
         Tool t;
         t.name = "seguir_microfono_estado";
-        t.title = ba::i18n::traducir("mcp", "Seguir al microfono: estado");
+        t.title = ba::i18n::traducir("mcp", "Seguir al micrófono: estado");
         t.category = "oradores";
         t.clase = Clase::Lectura;
         t.description = QT_TRANSLATE_NOOP("mcp", "Si esta prendido, el modo (proponer o automatico), el umbral y los tiempos, los microfonos de "
@@ -2875,7 +2890,7 @@ void McpService::registerTools() {
     {
         Tool t;
         t.name = "seguir_microfono";
-        t.title = ba::i18n::traducir("mcp", "Seguir al microfono abierto");
+        t.title = ba::i18n::traducir("mcp", "Seguir al micrófono abierto");
         t.category = "oradores";
         t.clase = Clase::Escritura;
         t.description = QT_TRANSLATE_NOOP("mcp", "Cuando un microfono de banca (cuerpo: microfono.fuente) pasa `umbral_db` durante `sostener_ms`, "
@@ -2909,9 +2924,10 @@ void McpService::registerTools() {
     {
         Tool t;
         t.name = "orden_del_dia_cargar";
-        t.title = ba::i18n::traducir("mcp", "Cargar el orden del dia");
+        t.title = ba::i18n::traducir("mcp", "Cargar el orden del día");
         t.category = "oradores";
         t.clase = Clase::Escritura;
+        t.destructive = true; // reemplaza los puntos que había (y con `limpiar`, también los tiempos)
         t.description = QT_TRANSLATE_NOOP("mcp", "Carga los puntos de la sesion desde `texto`: una linea por punto («1. Expte. 123/24 – Titulo», "
                         "«2) Titulo») o CSV («n;expediente;titulo»). Reemplaza los que habia (el uso de la palabra sigue). "
                         "Con `limpiar`: true empieza una sesion nueva (borra puntos y tiempos).");
@@ -2930,7 +2946,7 @@ void McpService::registerTools() {
     {
         Tool t;
         t.name = "orden_del_dia_ver";
-        t.title = ba::i18n::traducir("mcp", "Orden del dia");
+        t.title = ba::i18n::traducir("mcp", "Orden del día");
         t.category = "oradores";
         t.clase = Clase::Lectura;
         t.description = QT_TRANSLATE_NOOP("mcp", "Los puntos con su estado (pendiente, en_tratamiento, votado, comision, retirado), cuando se "
@@ -3595,7 +3611,7 @@ void McpService::registerTools() {
     {
         Tool t;
         t.name = "record_disco";
-        t.title = ba::i18n::traducir("mcp", "Disco de la grabacion");
+        t.title = ba::i18n::traducir("mcp", "Disco de la grabación");
         t.category = "salidas";
         t.clase = Clase::Lectura;
         t.description = QT_TRANSLATE_NOOP("mcp", "Cuanto disco queda y para cuantas horas alcanza al bitrate de todo lo que se graba "
@@ -3613,7 +3629,7 @@ void McpService::registerTools() {
     {
         Tool t;
         t.name = "disco_prioridad";
-        t.title = ba::i18n::traducir("mcp", "El disco, para la grabacion del programa");
+        t.title = ba::i18n::traducir("mcp", "El disco, para la grabación del programa");
         t.category = "salidas";
         t.clase = Clase::Escritura;
         t.description = QT_TRANSLATE_NOOP("mcp", "Cuando el disco no da abasto (lo grabado espera en memoria para entrar, o el registro no puede "
@@ -3754,9 +3770,10 @@ void McpService::registerTools() {
     {
         Tool t;
         t.name = "record_remux";
-        t.title = ba::i18n::traducir("mcp", "Pasar una grabacion a MP4/MOV");
+        t.title = ba::i18n::traducir("mcp", "Pasar una grabación a MP4/MOV");
         t.category = "salidas";
         t.clase = Clase::Escritura;
+        t.destructivaSi = "borrar_mkv"; // borra la grabación original
         t.description = QT_TRANSLATE_NOOP("mcp", "Pasa un `archivo` .mkv a `formato` (mp4, de fabrica, o mov) sin recodificar, en otro hilo "
                         "(record_disco dice como va). `borrar_mkv`: borrar el original si salio bien (de fabrica false).");
         t.inputSchema = {{"type", "object"},
@@ -3780,7 +3797,7 @@ void McpService::registerTools() {
     {
         Tool t;
         t.name = "record_ajustes";
-        t.title = ba::i18n::traducir("mcp", "Ajustes de la grabacion");
+        t.title = ba::i18n::traducir("mcp", "Ajustes de la grabación");
         t.category = "salidas";
         t.clase = Clase::Escritura;
         t.description = QT_TRANSLATE_NOOP("mcp", "`contenedor`: mkv (de fabrica, sobrevive a un corte), mp4, mov o flv (mp4/mov se graban en MKV "
@@ -3828,7 +3845,7 @@ void McpService::registerTools() {
     {
         Tool t;
         t.name = "stream_destinos";
-        t.title = ba::i18n::traducir("mcp", "Destinos de la transmision");
+        t.title = ba::i18n::traducir("mcp", "Destinos de la transmisión");
         t.category = "salidas";
         t.clase = Clase::Lectura;
         t.description = QT_TRANSLATE_NOOP("mcp", "Los destinos adicionales (respaldo, otras plataformas), que comparten los codificadores del "
@@ -3846,7 +3863,7 @@ void McpService::registerTools() {
         Tool t;
         t.name = "stream_destino_agregar";
         t.porSalida = true;
-        t.title = ba::i18n::traducir("mcp", "Agregar o cambiar un destino de transmision");
+        t.title = ba::i18n::traducir("mcp", "Agregar o cambiar un destino de transmisión");
         t.category = "salidas";
         t.clase = Clase::Escritura;
         t.description = QT_TRANSLATE_NOOP("mcp", "Un destino adicional: `nombre`, `url` (rtmp://, rtmps://, srt:// o rist://), `clave` (se "
@@ -3884,7 +3901,7 @@ void McpService::registerTools() {
         Tool t;
         t.name = "stream_destino_editar";
         t.porSalida = true;
-        t.title = ba::i18n::traducir("mcp", "Cambiar un destino de transmision");
+        t.title = ba::i18n::traducir("mcp", "Cambiar un destino de transmisión");
         t.category = "salidas";
         t.clase = Clase::Escritura;
         t.description = QT_TRANSLATE_NOOP("mcp", "Cambia `nombre`, `url`, `url_respaldo` (el ingest de respaldo, misma clave; "
@@ -3912,7 +3929,7 @@ void McpService::registerTools() {
     {
         Tool t;
         t.name = "stream_destino_borrar";
-        t.title = ba::i18n::traducir("mcp", "Borrar un destino de transmision");
+        t.title = ba::i18n::traducir("mcp", "Borrar un destino de transmisión");
         t.category = "salidas";
         t.clase = Clase::Aire;
         t.porQueAire = QT_TRANSLATE_NOOP("mcp", "borra un destino (si transmite, lo corta)");
@@ -4128,7 +4145,7 @@ void McpService::registerTools() {
         SettingsModel* settings = settings_.get();
         t.run = [settings](const json& a, Done done) {
             settings->revert(); // lo vigente, sin borradores viejos
-            json rows = modelRows(*settings);
+            json rows = qvToJson(settings->filas());
             const std::string section = a.value("section", std::string());
             if (!section.empty()) {
                 json f = json::array();
@@ -4240,7 +4257,7 @@ void McpService::registerTools() {
     {
         Tool t;
         t.name = "app_save";
-        t.title = ba::i18n::traducir("mcp", "Guardar configuracion");
+        t.title = ba::i18n::traducir("mcp", "Guardar configuración");
         t.category = "config";
         t.clase = Clase::Escritura;
         t.description = QT_TRANSLATE_NOOP("mcp", "Guarda escenas y ajustes en disco (las herramientas ya guardan solas; esto fuerza).");

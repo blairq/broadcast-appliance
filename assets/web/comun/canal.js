@@ -27,8 +27,14 @@
 //     idClave: "prompter-control",  // con qué se recuerda el id (opcional; si no, el tipo)
 //     clave: "…",                   // la de las superficies reservadas (rótulos, corrección):
 //                                   // va en el primer mensaje, nunca en la dirección
-//     onClaveMal: () => {...},      // la sala no la aceptó
+//     onClaveMal: () => {...},      // la sala no la aceptó (el canal vuelve a probar solo)
+//     onClaveBien: () => {...},     // después de un «clave mal», la sala la aceptó (opcional)
 //   });
+//
+// UNA CLAVE RECHAZADA SE VUELVE A PROBAR. La sala puede decir «clave mal» porque se
+// cambió de evento (y esta página ya no vale) o porque recién arrancó y todavía no tiene
+// las claves del evento. Por las dudas, el canal la vuelve a decir con espera creciente
+// (5 s, 10 s… hasta 1 min): si era lo segundo, la página vuelve sola, sin recargarla.
 //
 // EL CANAL ES LA PRESENCIA Y EL AVISO. Lo que la página muestra le llega por acá
 // cuando cambia (el tally, el texto del teleprompter): no hace falta preguntar
@@ -43,6 +49,8 @@
   const ESPERA_MAX_MS = 30000;
   const PING_MS = 15000;
   const MUDO_MS = 40000;
+  const CLAVE_MIN_MS = 5000;
+  const CLAVE_MAX_MS = 60000;
 
   /// Un id estable entre recargas: si no, cada recarga aparecería como una
   /// superficie nueva y la lista del operador se llenaría de fantasmas.
@@ -70,7 +78,8 @@
       // `idClave`: dos páginas del mismo tipo en el mismo aparato (el control y la
       // vista del teleprompter) necesitan ids distintos.
       const id = miId(opciones.idClave || tipo);
-      const st = { ws: null, intentos: 0, latido: null, ping: null, oido: 0, cerrado: false, conectado: false };
+      const st = { ws: null, intentos: 0, latido: null, ping: null, oido: 0, cerrado: false, conectado: false,
+                   claveMal: false, claveEspera: CLAVE_MIN_MS, claveTimer: null };
       const estado = (on) => {
         if (st.conectado === on) return;
         st.conectado = on;
@@ -105,6 +114,7 @@
           window.BACanal.abiertos++;
           estado(true);
           if (opciones.clave) mandar({ type: "clave", k: opciones.clave });
+          st.claveEspera = CLAVE_MIN_MS;
           late();
           clearInterval(st.latido);
           st.latido = setInterval(late, LATIDO_MS);
@@ -119,13 +129,24 @@
           st.oido = Date.now();
           const m = window.BATrama.decode(ev.data);
           if (!m || m.type === "pong") return;
+          // Lo primero que llega después de un «clave mal» que no es otro: la aceptó.
+          if (st.claveMal && m.type !== "clave_mal" && m.type !== "tema") {
+            st.claveMal = false;
+            st.claveEspera = CLAVE_MIN_MS;
+            if (opciones.onClaveBien) opciones.onClaveBien();
+          }
           // Para los que no abren el canal pero escuchan (comun/tema.js: «tema»).
           document.dispatchEvent(new CustomEvent("ba-canal", { detail: m }));
           if (m.type === "mostrar" && m.url && opciones.onMostrar) {
             opciones.onMostrar(m.url);
             late(); // que el operador vea el cambio enseguida
           } else if (m.type === "clave_mal") {
+            st.claveMal = true;
             if (opciones.onClaveMal) opciones.onClaveMal();
+            // Se vuelve a decir más tarde (ver arriba), en este mismo canal.
+            clearTimeout(st.claveTimer);
+            st.claveTimer = setTimeout(() => mandar({ type: "clave", k: opciones.clave }), st.claveEspera);
+            st.claveEspera = Math.min(st.claveEspera * 2, CLAVE_MAX_MS);
           } else if (m.type === "recargar") {
             if (opciones.onRecargar) opciones.onRecargar();
             else location.reload();
@@ -138,6 +159,7 @@
         };
 
         ws.onclose = () => {
+          clearTimeout(st.claveTimer);
           clearInterval(st.latido);
           clearInterval(st.ping);
           if (st.conectado) window.BACanal.abiertos--;

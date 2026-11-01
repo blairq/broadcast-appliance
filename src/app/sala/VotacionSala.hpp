@@ -34,8 +34,12 @@ class VotacionSala {
     using Listo = sala::Listo;
     /// Los votantes del evento abierto, o nada si no hay evento (no hay padrón).
     using Votantes = std::function<std::optional<evento::Padron::Votantes>()>;
+    /// De qué evento es la urna que se abre (GuardadoEnEvento::etiquetaDe; "" sin evento).
+    /// Viaja con «abrir»: así la urna guardada del evento, que se restaura al abrirlo, no
+    /// pisa una votación recién abierta.
+    using Evento = std::function<std::string()>;
 
-    VotacionSala(ConferenceClient& sala, Votantes votantes);
+    VotacionSala(ConferenceClient& sala, Votantes votantes, Evento evento = {});
 
     /// `modo`: encuesta o formal. Devuelve el error inmediato o ""; lo que diga la sala va a `listo`.
     std::string abrir(const std::string& pregunta, const std::vector<std::string>& opciones, const std::string& modo,
@@ -49,6 +53,7 @@ class VotacionSala {
    private:
     ConferenceClient& sala_;
     Votantes votantes_;
+    Evento evento_;
 };
 
 } // namespace ba::app::sala

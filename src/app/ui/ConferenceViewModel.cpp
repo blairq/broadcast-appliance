@@ -29,6 +29,7 @@
 #include "comun/UsoPorVistas.hpp"
 #include "ui/FotosPersonas.hpp"
 #include "sala/PaginaPublico.hpp"
+#include "sala/SalidasSala.hpp"
 #include "sala/ParticipantesSala.hpp"
 #include "sala/ReglasSala.hpp"
 #include "sala/Teleprompter.hpp"
@@ -94,6 +95,7 @@ ConferenceViewModel::ConferenceViewModel(AppRuntime& rt, VentanillaMotor& ventan
     participantes_ = std::make_unique<sala::ParticipantesSala>(*client_);
     oradores_ = std::make_unique<sala::OradoresSala>(*client_);
     enlaces_ = std::make_unique<sala::EnlacesSala>(*client_);
+    salidas_ = std::make_unique<sala::SalidasSala>(*client_);
     paginaPublico_ = std::make_unique<sala::PaginaPublico>(*client_);
     teleprompter_ = std::make_unique<sala::Teleprompter>(*client_);
     // Un archivo compartido que entra a la escena (por la GUI o el MCP): las
@@ -117,20 +119,27 @@ ConferenceViewModel::ConferenceViewModel(AppRuntime& rt, VentanillaMotor& ventan
         const std::string t = sala::explicarError(ss(e));
         emit notify(t == ss(e) ? tr("La conferencia respondio: %1").arg(e) : frase(t), "error");
     });
-    // ba-web (la página pública) se cae una y otra vez: el gateway dejó de insistir seguido.
-    connect(client_.get(), &ConferenceClient::webEvento, this, [this, cortado = false](const QJsonObject& e) mutable {
-        const bool ahora = e.value("cortado").toBool();
-        if (ahora == cortado) return;
-        cortado = ahora;
-        emit notify(ahora ? tr("La página pública se cae una y otra vez: se reintenta cada pocos minutos. Mirá el "
-                               "registro de la conferencia (ba-web).")
-                          : tr("La página pública volvió a andar."),
-                    ahora ? "error" : "ok");
-    });
-    connect(client_.get(), &ConferenceClient::onlineChanged, this, [this](bool on) {
-        if (!on) return;
-        avisoSinSalaMs_ = 0; // volvió: la próxima caída se avisa enseguida
-        authSeguidos_ = 0;
+    // Cómo anda ba-web (la página pública): una propiedad (la lee Enlaces) y un aviso cuando
+    // se cae una y otra vez (el gateway dejó de insistir seguido) o es otra versión.
+    connect(client_.get(), &ConferenceClient::webEvento, this, [this](const QJsonObject& e) {
+        const QVariantMap nuevo = e.toVariantMap();
+        if (nuevo == baWeb_) return;
+        const bool antesCortado = baWeb_.value("cortado").toBool();
+        const QString antesProblema = baWeb_.value("problema").toString();
+        baWeb_ = nuevo;
+        emit baWebChanged();
+        const bool cortado = nuevo.value("cortado").toBool();
+        if (cortado != antesCortado)
+            emit notify(cortado ? tr("La página pública se cae una y otra vez: se reintenta cada pocos minutos. Mirá el "
+                                     "registro de la conferencia (ba-web).")
+                                : tr("La página pública volvió a andar."),
+                        cortado ? "error" : "ok");
+        const QString problema = nuevo.value("problema").toString();
+        if (problema == "version" && antesProblema != problema)
+            emit notify(tr("El servidor de la página pública es de otra versión (%1, se esperaba %2): el túnel va directo "
+                           "a la conferencia. ¿Un paquete mezclado?")
+                            .arg(nuevo.value("version").toString(), nuevo.value("esperada").toString()),
+                        "error");
     });
     // El estado de red y las fotos de las tarjetas los avisa la sala cuando cambian
     // (eventos «red» y «avatar»); al volver la sala se piden una vez.
@@ -138,8 +147,11 @@ ConferenceViewModel::ConferenceViewModel(AppRuntime& rt, VentanillaMotor& ventan
         aplicarRed(nlohmann::json::parse(QJsonDocument(o).toJson(QJsonDocument::Compact).toStdString(), nullptr, false));
     });
     connect(client_.get(), &ConferenceClient::avatarEvento, this, [this](const QString& id) { traerAvatar(id); });
+    // Volvió la sala (una sola conexión a la señal: antes eran dos).
     connect(client_.get(), &ConferenceClient::onlineChanged, this, [this](bool on) {
         if (!on) return;
+        avisoSinSalaMs_ = 0; // la próxima caída se avisa enseguida
+        authSeguidos_ = 0;
         QPointer<ConferenceViewModel> yo(this);
         control_->verRed([yo](const std::string& err, const nlohmann::json& r) {
             if (yo && err.empty()) yo->aplicarRed(r);
@@ -364,11 +376,8 @@ void ConferenceViewModel::guardarFicha(const QString& id, const QString& name, c
     setProfile(id, name, info, contact);
     // Sin tiempo (desde el lobby o la sala): solo la ficha. Uno que no se entiende, se avisa.
     if (tiempo.trimmed().isEmpty()) return;
-    int actual = 0;
-    for (const QJsonValue& v : client_->snapshot().value("participants").toArray())
-        if (v.toObject().value("id").toString() == id) actual = v.toObject().value("allottedSec").toInt();
-    if (actual <= 0) actual = speakerCfg().value("defaultSec").toInt();
-    if (const std::string e = oradores_->tiempo(ss(id), ss(tiempo), actual); !e.empty()) emit notify(frase(e), "error");
+    // Lo escrito, sobre lo que ya tiene (el suyo o el general): la misma lectura que el MCP.
+    if (const std::string e = oradores_->tiempo(ss(id), nlohmann::json(ss(tiempo))); !e.empty()) emit notify(frase(e), "error");
 }
 
 QVariantMap ConferenceViewModel::reloj(int asignadoS, double desdeMs, double ahoraMs) const {
@@ -377,10 +386,7 @@ QVariantMap ConferenceViewModel::reloj(int asignadoS, double desdeMs, double aho
 }
 
 void ConferenceViewModel::setTiempoGeneral(const QString& texto) {
-    int s = 0;
-    if (const std::string e = sala::OradoresSala::leerTiempo(ss(texto), speakerCfg().value("defaultSec").toInt(), s); !e.empty())
-        return avisarError(frase(e));
-    setSpeakerConfig({{"defaultSec", s}});
+    if (const std::string e = oradores_->tiempoGeneral(nlohmann::json(ss(texto))); !e.empty()) return avisarError(frase(e));
 }
 
 void ConferenceViewModel::requestBoardLink(const QString& target) {

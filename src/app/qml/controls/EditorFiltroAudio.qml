@@ -33,8 +33,15 @@ Popup {
     background: Rectangle { color: Theme.panel; radius: Theme.radiusSmall; border.color: Theme.glassBorder }
 
     readonly property var modulos: vg ? vg.modulosAudio : []
-    readonly property var modulosVisibles: modulos.filter(m => filtroTexto === "" ||
-        (m.elemento + " " + (m.nombre || "") + " " + (m.descripcion || "")).toLowerCase().indexOf(filtroTexto.toLowerCase()) >= 0)
+    // Lo que se ve según lo escrito: la búsqueda de todos los catálogos (el modelo).
+    FiltroCatalogo {
+        id: modulosVisibles
+        clave: "elemento"
+        fuente: ed.modulos
+        camposCabeza: ["elemento", "nombre"]
+        campos: ["descripcion"]
+        texto: ed.filtroTexto
+    }
     // Las tarjetas de audio de los plugins de Python instalados.
     readonly property var tarjetasPlugins: {
         const out = []
@@ -75,12 +82,13 @@ Popup {
             f = { elemento: elemento, propiedades: valores }
         } else {
             if (pluginId === "" || tarjeta === "") { Studio.notify(qsTr("Elegí una tarjeta de un plugin"), "error"); return }
-            try { JSON.parse(parametros) } catch (e) { Studio.notify(qsTr("Los parámetros no son JSON válido"), "error"); return }
             f = { elemento: "baplugin", propiedades: { plugin: pluginId, tarjeta: tarjeta, medio: "audio",
                                                         parametros: parametros, "espera-ms": String(esperaMs) } }
         }
         const l = lista.slice()
-        if (indice >= 0) { f.id = l[indice].id; l[indice] = f } else { f.id = "a" + Date.now() % 100000; l.push(f) }
+        // Uno nuevo va sin id: lo pone el modelo (uno que no esté); el JSON de los
+        // parámetros también lo valida él (VideoGrafos::filtrosAudio).
+        if (indice >= 0) { f.id = l[indice].id; l[indice] = f } else l.push(f)
         if (!vg.ponerFiltrosAudioUi(entrada, l)) return
         Studio.notify(qsTr("Filtro de audio guardado (la demora se compensa sola)"), "info")
         guardado()
@@ -118,15 +126,15 @@ Popup {
             }
             ComboBox {
                 Layout.fillWidth: true
-                model: ed.modulosVisibles
+                model: modulosVisibles
                 textRole: "elemento"
                 displayText: ed.elemento !== "" ? ed.elemento : qsTr("— elegí un módulo —")
                 delegate: ItemDelegate {
-                    required property var modelData
+                    required property var datos
                     width: ListView.view ? ListView.view.width : 300
-                    text: modelData.elemento + "  —  " + (modelData.titulo || modelData.nombre || "")
+                    text: datos.elemento + "  —  " + (datos.titulo || datos.nombre || "")
                 }
-                onActivated: (i) => { ed.elemento = ed.modulosVisibles[i].elemento; ed.valores = ({}) }
+                onActivated: (i) => { ed.elemento = modulosVisibles.fila(i).elemento; ed.valores = ({}) }
             }
         }
         Text {

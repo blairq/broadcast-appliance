@@ -37,6 +37,7 @@
 namespace ba::app::sala {
 class ControlSala;
 class EnlacesSala;
+class SalidasSala;
 class OradoresSala;
 class PaginaPublico;
 class ParticipantesSala;
@@ -64,6 +65,10 @@ class ConferenceViewModel : public QObject {
     Q_PROPERTY(QString pin READ pin NOTIFY salaChanged)
     /// Los bloqueos por PIN mal ({global, ips, intentosPorIp, bloqueoS}): se piden con pinBloqueos().
     Q_PROPERTY(QVariantMap bloqueosPin READ bloqueosPin NOTIFY bloqueosPinChanged)
+    /// Cómo anda ba-web, el servidor de la página pública (lo avisa la sala: evento «web»):
+    /// {vivo, cortado, reinicios, seguidas, problema ("" | "version" | "falta"), version,
+    /// esperada}. Vacío = la sala todavía no dijo nada (o no usa ba-web).
+    Q_PROPERTY(QVariantMap baWeb READ baWeb NOTIFY baWebChanged)
     Q_PROPERTY(QString guestUrl READ guestUrl NOTIFY salaChanged)
     Q_PROPERTY(bool lobby READ lobby NOTIFY salaChanged)
     Q_PROPERTY(bool locked READ locked NOTIFY salaChanged)
@@ -156,6 +161,7 @@ class ConferenceViewModel : public QObject {
     sala::ParticipantesSala& participantes() { return *participantes_; }
     sala::OradoresSala& oradores() { return *oradores_; }
     sala::EnlacesSala& enlaces() { return *enlaces_; }
+    sala::SalidasSala& salidas() { return *salidas_; }
     sala::PaginaPublico& paginaPublico() { return *paginaPublico_; }
     sala::Teleprompter& teleprompter() { return *teleprompter_; }
     QVariantMap speakerCfg() const;
@@ -208,7 +214,7 @@ class ConferenceViewModel : public QObject {
     Q_INVOKABLE void setProfile(const QString& id, const QString& name, const QString& info,
                                 const QString& contact);
     /// La ficha de un orador desde el diálogo: los datos y, si `tiempo` no va vacío, su
-    /// tiempo para hablar (sala::OradoresSala::leerTiempo: «2:30», «90», «3m», «+1:00»…).
+    /// tiempo para hablar (sala::OradoresSala::leerTiempo: «2:30», «3» —tres minutos—, «90s», «+1:00»…).
     Q_INVOKABLE void guardarFicha(const QString& id, const QString& name, const QString& info,
                                   const QString& contact, const QString& tiempo);
     /// El tiempo general por orador, escrito (ver guardarFicha). El error va por la señal del modelo.
@@ -307,6 +313,7 @@ class ConferenceViewModel : public QObject {
     void serverConfigReady(const QString& config, const QString& error);
     void notify(const QString& message, const QString& level);
     void bloqueosPinChanged();
+    void baWebChanged();
     /// Se agrego una fuente a la escena (la vista de fuentes debe recargar).
     void sourceAdded();
 
@@ -315,6 +322,7 @@ class ConferenceViewModel : public QObject {
     /// con `id`/`uid` (su número de secuencia) y `mine`. Sin estado: lo usa también el
     /// vigía de las alarmas cuando le pregunta a B con la interfaz trabada.
     static QJsonObject mensajeDelChat(const QJsonObject& msg);
+    QVariantMap baWeb() const { return baWeb_; }
 
    private:
     void onSnapshot();
@@ -336,6 +344,7 @@ class ConferenceViewModel : public QObject {
     std::unique_ptr<sala::ParticipantesSala> participantes_;
     std::unique_ptr<sala::OradoresSala> oradores_;
     std::unique_ptr<sala::EnlacesSala> enlaces_;
+    std::unique_ptr<sala::SalidasSala> salidas_;
     std::unique_ptr<sala::PaginaPublico> paginaPublico_;
     std::unique_ptr<sala::Teleprompter> teleprompter_;
     std::unique_ptr<JsonListModel> waiting_;
@@ -371,6 +380,7 @@ class ConferenceViewModel : public QObject {
     QVariantList firmaSala_, firmaParticipantes_, firmaUso_, firmaOradoresCfg_; ///< lo último avisado de cada grupo
     qint64 lastSeq_ = 0;
     bool firstSnapshot_ = true;
+    QVariantMap baWeb_; ///< ver la propiedad baWeb
     qint64 avisoSinSalaMs_ = 0; ///< cuándo se avisó que la sala no responde (uno cada 30 s, no uno por pedido)
     int authSeguidos_ = 0;      ///< 401 seguidos: el primero lo arregla el cliente releyendo el token
 };

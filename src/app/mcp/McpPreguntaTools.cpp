@@ -69,7 +69,7 @@ void registerPreguntaTools(McpCore& core, StudioViewModel& vm, AppRuntime& rt) {
     {
         Tool t;
         t.name = "preguntas_ver";
-        t.title = ba::i18n::traducir("mcp", "La cola de preguntas del publico");
+        t.title = ba::i18n::traducir("mcp", "La cola de preguntas del público");
         t.category = "preguntas";
         t.clase = Clase::Lectura;
         t.description =
@@ -99,6 +99,7 @@ void registerPreguntaTools(McpCore& core, StudioViewModel& vm, AppRuntime& rt) {
         t.title = ba::i18n::traducir("mcp", "Elegir, sacar al aire o descartar una pregunta");
         t.category = "preguntas";
         t.clase = Clase::Escritura;
+        t.destructivaSi = {"accion", {"limpiar", "vaciar"}}; // borran preguntas
         t.description =
             QT_TRANSLATE_NOOP("mcp", "Mueve una pregunta por la cola: elegirla para preguntarla, ponerla al aire, darla por "
             "respondida o descartarla.");
@@ -135,7 +136,7 @@ void registerPreguntaTools(McpCore& core, StudioViewModel& vm, AppRuntime& rt) {
     {
         Tool t;
         t.name = "pregunta_sumar";
-        t.title = ba::i18n::traducir("mcp", "Meter en la cola una pregunta que llego por otro lado");
+        t.title = ba::i18n::traducir("mcp", "Meter en la cola una pregunta que llegó por otro lado");
         t.category = "preguntas";
         t.clase = Clase::Escritura;
         t.description =
@@ -169,7 +170,7 @@ void registerPreguntaTools(McpCore& core, StudioViewModel& vm, AppRuntime& rt) {
     {
         Tool t;
         t.name = "quorum_regla";
-        t.title = ba::i18n::traducir("mcp", "Reglas de quorum y mayoria");
+        t.title = ba::i18n::traducir("mcp", "Reglas de quórum y mayoría");
         t.category = "preguntas";
         t.clase = Clase::Escritura;
         t.description = QT_TRANSLATE_NOOP("mcp", "Las reglas del cuerpo: `miembros` (cuantos lo integran; 0 = los del padron con voto), `minimo` para sesionar "
@@ -190,7 +191,7 @@ void registerPreguntaTools(McpCore& core, StudioViewModel& vm, AppRuntime& rt) {
     {
         Tool t;
         t.name = "quorum_presentes";
-        t.title = ba::i18n::traducir("mcp", "Hay quorum?");
+        t.title = ba::i18n::traducir("mcp", "¿Hay quórum?");
         t.category = "preguntas";
         t.clase = Clase::Lectura;
         t.description = QT_TRANSLATE_NOOP("mcp", "Si hay QUÓRUM ahora: cuántos presentes con voto hay y cuántos hacen falta; no es una votación.");
@@ -200,7 +201,7 @@ void registerPreguntaTools(McpCore& core, StudioViewModel& vm, AppRuntime& rt) {
     {
         Tool t;
         t.name = "votacion_resultado_oficial";
-        t.title = ba::i18n::traducir("mcp", "Cargar el resultado oficial de una votacion");
+        t.title = ba::i18n::traducir("mcp", "Cargar el resultado oficial de una votación");
         t.category = "preguntas";
         t.clase = Clase::Escritura;
         t.description = QT_TRANSLATE_NOOP("mcp", "El resultado OFICIAL (el del tablero del recinto o el que lee Secretaria), que es el que va al "
@@ -249,7 +250,7 @@ void registerPreguntaTools(McpCore& core, StudioViewModel& vm, AppRuntime& rt) {
     {
         Tool t;
         t.name = "votacion_abrir";
-        t.title = ba::i18n::traducir("mcp", "Abrir una votacion o una encuesta");
+        t.title = ba::i18n::traducir("mcp", "Abrir una votación o una encuesta");
         t.category = "preguntas";
         t.clase = Clase::Escritura;
         t.description = QT_TRANSLATE_NOOP("mcp", "Pone una pregunta a votar en la pagina del publico, con sus opciones.");
@@ -307,7 +308,7 @@ void registerPreguntaTools(McpCore& core, StudioViewModel& vm, AppRuntime& rt) {
     {
         Tool t;
         t.name = "votacion_recuento";
-        t.title = ba::i18n::traducir("mcp", "Como va la votacion, y cerrarla");
+        t.title = ba::i18n::traducir("mcp", "Cómo va la votación, y cerrarla");
         t.category = "preguntas";
         t.clase = Clase::Escritura;
         t.description =
@@ -351,7 +352,7 @@ void registerPreguntaTools(McpCore& core, StudioViewModel& vm, AppRuntime& rt) {
     {
         Tool t;
         t.name = "invitado_chequeo";
-        t.title = ba::i18n::traducir("mcp", "Si los que esperan estan listos para salir al aire");
+        t.title = ba::i18n::traducir("mcp", "Si los que esperan están listos para salir al aire");
         t.category = "preguntas";
         t.clase = Clase::Lectura;
         t.description = QT_TRANSLATE_NOOP("mcp", "Para cada persona que espera en el lobby: si su camara y su microfono sirven, y que "
@@ -457,7 +458,7 @@ void registerPreguntaTools(McpCore& core, StudioViewModel& vm, AppRuntime& rt) {
     {
         Tool t;
         t.name = "evento_acta";
-        t.title = ba::i18n::traducir("mcp", "El acta del evento: quienes estuvieron y que se decidio");
+        t.title = ba::i18n::traducir("mcp", "El acta del evento: quiénes estuvieron y qué se decidió");
         t.category = "preguntas";
         t.clase = Clase::Escritura;
         t.description = QT_TRANSLATE_NOOP("mcp", "Arma el acta con el padron de presentes, el quorum y todas las votaciones que se "
@@ -516,7 +517,7 @@ void registerPreguntaTools(McpCore& core, StudioViewModel& vm, AppRuntime& rt) {
     {
         Tool t;
         t.name = "publico_pagina";
-        t.title = ba::i18n::traducir("mcp", "La pagina del publico: enlace, QR y como se ve");
+        t.title = ba::i18n::traducir("mcp", "La página del público: enlace, QR y cómo se ve");
         t.category = "preguntas";
         t.clase = Clase::Escritura;
         t.description =

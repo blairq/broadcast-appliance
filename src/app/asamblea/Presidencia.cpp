@@ -61,6 +61,7 @@ void Presidencia::conectar() {
         sala::pedir(p_.sala, "POST", "/api/v1/sesion/cortar", {{"id", id.toStdString()}, {"motivo", motivo.toStdString()}},
                     sinRespuesta);
     });
+    connect(&p_.sala, &ConferenceClient::fotoSesionEvento, s, &SesionRemota::fotoNueva);
     connect(s, &SesionRemota::fotoPedida, this, [this](const QString& id) {
         QPointer<Presidencia> yo(this);
         p_.sala.getRaw("/api/v1/sesion/foto?id=" + QString::fromUtf8(QUrl::toPercentEncoding(id)),
@@ -74,6 +75,7 @@ void Presidencia::conectar() {
         else p_.bancas.quitar(id);
     });
     connect(s, &SesionRemota::credencialesCambio, this, &Presidencia::sincronizar);
+    connect(s, &SesionRemota::aparatosPorBuscar, this, &Presidencia::buscarAparatos);
     connect(s, &SesionRemota::cambio, this, [this]() { aplicarVistas(); });
     p_.sala.registrarRepublicador("presidencia", this, [this]() { sincronizar(); });
 
@@ -340,12 +342,24 @@ void Presidencia::accionConsola(const std::string& consola, const json& m) {
 void Presidencia::sincronizar() {
     if (!p_.sala.online()) return;
     sala::pedir(p_.sala, "POST", "/api/v1/sesion/credenciales", {{"participantes", p_.sesion.paraGateway()}}, sinRespuesta);
+    // Los aparatos que registró mientras la app no estaba (los guarda hasta que se los busca).
+    buscarAparatos();
     aplicarVistas(true);
     // Si el gateway se reinició no sabe quién tiene la palabra: se le vuelve a decir.
     json ids = json::array();
     for (const auto& i : p_.sesion.conPalabraTodos()) ids.push_back(i);
     sala::pedir(p_.sala, "POST", "/api/v1/sesion/medios", {{"ids", ids}, {"seq", ++mediosSeq_}}, sinRespuesta);
     // Los orígenes de los links los pone StudioViewModel desde sala/Direcciones.
+}
+
+void Presidencia::buscarAparatos() {
+    if (!p_.sala.online()) return;
+    QPointer<Presidencia> yo(this);
+    sala::pedir(p_.sala, "GET", "/api/v1/sesion/aparatos", {}, [yo](const std::string& e, const json& r) {
+        if (!yo || !e.empty() || r.value("pendientes", json::array()).empty()) return;
+        const json recibidos = yo->p_.sesion.incorporarAparatos(r["pendientes"]);
+        sala::pedir(yo->p_.sala, "POST", "/api/v1/sesion/aparatos", {{"recibidos", recibidos}}, sinRespuesta);
+    });
 }
 
 void Presidencia::mandarMedios(const QStringList& ids) {

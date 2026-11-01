@@ -225,7 +225,7 @@ void registerBotoneraTools(McpCore& core, StudioViewModel& vm) {
     {
         Tool t;
         t.name = "botonera_paginas";
-        t.title = ba::i18n::traducir("mcp", "Paginas de un perfil");
+        t.title = ba::i18n::traducir("mcp", "Páginas de un perfil");
         t.category = "botonera";
         t.clase = Clase::Lectura;
         t.description = QT_TRANSLATE_NOOP("mcp", "Las paginas del `perfil` con su grilla (columnas x filas) y cuantas celdas tienen.");
@@ -241,7 +241,7 @@ void registerBotoneraTools(McpCore& core, StudioViewModel& vm) {
     {
         Tool t;
         t.name = "botonera_pagina_crear";
-        t.title = ba::i18n::traducir("mcp", "Crear una pagina");
+        t.title = ba::i18n::traducir("mcp", "Crear una página");
         t.category = "botonera";
         t.clase = Clase::Escritura;
         t.description = QT_TRANSLATE_NOOP("mcp", "Una pagina nueva en el `perfil`, con `columnas` y `filas` (1 a 16).");
@@ -264,7 +264,7 @@ void registerBotoneraTools(McpCore& core, StudioViewModel& vm) {
     {
         Tool t;
         t.name = "botonera_pagina_editar";
-        t.title = ba::i18n::traducir("mcp", "Editar una pagina");
+        t.title = ba::i18n::traducir("mcp", "Editar una página");
         t.category = "botonera";
         t.clase = Clase::Escritura;
         t.description = QT_TRANSLATE_NOOP("mcp", "Cambia el `nombre` o el tamaño de la grilla (`columnas`, `filas`, de 1 a 16) de una `pagina` de un "
@@ -291,7 +291,7 @@ void registerBotoneraTools(McpCore& core, StudioViewModel& vm) {
         Tool t;
         t.name = "botonera_pagina_borrar";
         t.destructive = true;
-        t.title = ba::i18n::traducir("mcp", "Borrar una pagina");
+        t.title = ba::i18n::traducir("mcp", "Borrar una página");
         t.category = "botonera";
         t.clase = Clase::Escritura;
         t.description = QT_TRANSLATE_NOOP("mcp", "Borra la `pagina` (un perfil siempre conserva al menos una).");
@@ -308,7 +308,7 @@ void registerBotoneraTools(McpCore& core, StudioViewModel& vm) {
     {
         Tool t;
         t.name = "botonera_celdas";
-        t.title = ba::i18n::traducir("mcp", "Celdas de una pagina");
+        t.title = ba::i18n::traducir("mcp", "Celdas de una página");
         t.category = "botonera";
         t.clase = Clase::Lectura;
         t.description = QT_TRANSLATE_NOOP("mcp", "Las celdas de la `pagina` con su definicion y lo que muestran ahora (render: texto, fondo, "
@@ -755,7 +755,7 @@ void registerBotoneraTools(McpCore& core, StudioViewModel& vm) {
     {
         Tool t;
         t.name = "accion_ejecutar";
-        t.title = ba::i18n::traducir("mcp", "Ejecutar una accion");
+        t.title = ba::i18n::traducir("mcp", "Ejecutar una acción");
         t.category = "botonera";
         t.clase = Clase::Escritura;
         t.description = QT_TRANSLATE_NOOP("mcp", "Ejecuta la `accion` (id de acciones_listar) como si se apretara su atajo, pero con los permisos "
@@ -814,7 +814,7 @@ void registerBotoneraTools(McpCore& core, StudioViewModel& vm) {
     {
         Tool t;
         t.name = "config_generaciones";
-        t.title = ba::i18n::traducir("mcp", "Generaciones de la configuracion");
+        t.title = ba::i18n::traducir("mcp", "Generaciones de la configuración");
         t.category = "botonera";
         t.clase = Clase::Escritura;
         t.description = QT_TRANSLATE_NOOP("mcp", "Cada archivo de Config/ guarda la version anterior (.anterior) al guardarse; si el actual esta "
@@ -853,7 +853,7 @@ void registerBotoneraTools(McpCore& core, StudioViewModel& vm) {
     {
         Tool t;
         t.name = "media_restante";
-        t.title = ba::i18n::traducir("mcp", "Cuanto le queda al medio al aire");
+        t.title = ba::i18n::traducir("mcp", "Cuánto le queda al medio al aire");
         t.category = "botonera";
         t.clase = Clase::Lectura;
         t.description = QT_TRANSLATE_NOOP("mcp", "Los videos o audios que se estan reproduciendo al aire y cuantos segundos les quedan (tambien en "
@@ -873,7 +873,7 @@ void registerBotoneraTools(McpCore& core, StudioViewModel& vm) {
     {
         Tool t;
         t.name = "stream_salud";
-        t.title = ba::i18n::traducir("mcp", "Salud de la transmision");
+        t.title = ba::i18n::traducir("mcp", "Salud de la transmisión");
         t.category = "salidas";
         t.clase = Clase::Lectura;
         t.description = QT_TRANSLATE_NOOP("mcp", "Por destino (principal y los adicionales): kbps reales, cuadros perdidos por la red y por el "

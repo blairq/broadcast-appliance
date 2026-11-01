@@ -242,10 +242,18 @@ QVariantMap EnlacesViewModel::fila(const ServicioEnlace& s) const {
         m["local"] = w.value("hay").toBool() ? dir("evento", false) : QVariant();
         m["remoto"] = w.value("hay").toBool() ? dir("evento", true) : QVariant();
         if (m.value("local").isNull()) m["nota"] = porQue("evento");
+        // ba-web es quien la sirve: si se cae una y otra vez o es de otra versión, no está bien.
+        const QVariantMap bw = f_.baWeb ? f_.baWeb() : QVariantMap();
         if (!w.value("hay").toBool())
             poner(estado("apagado", w.value("evento").toString().isEmpty()
                                         ? tr("No hay un evento abierto")
                                         : tr("Sin generar: Evento → Web del evento")));
+        else if (bw.value("problema").toString() == "version")
+            poner(estado("error", tr("El servidor de la página es de otra versión (%1)").arg(bw.value("version").toString())));
+        else if (bw.value("cortado").toBool())
+            poner(estado("error", tr("El servidor de la página se cae una y otra vez")));
+        else if (!bw.isEmpty() && !bw.value("vivo").toBool())
+            poner(estado("error", tr("El servidor de la página no responde: se lo está relanzando")));
         else
             poner(segunEnlaces());
     } else if (id == "pantallas") {

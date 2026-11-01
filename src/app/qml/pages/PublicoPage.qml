@@ -109,27 +109,9 @@ Rectangle {
                 Layout.preferredHeight: 300
                 radius: 12
                 color: "white"
-                Canvas {
-                    id: lienzo
+                ImagenQr {
                     anchors { fill: parent; margins: 12 }
-                    Connections {
-                        target: page.pub
-                        function onEnlaceCambio() { lienzo.requestPaint() }
-                    }
-                    onPaint: {
-                        const ctx = getContext("2d")
-                        ctx.reset()
-                        const filas = (page.pub.enlace && page.pub.enlace.modulos) || []
-                        if (filas.length === 0) return
-                        const n = filas.length + 8 // zona silenciosa
-                        const cell = Math.floor(Math.min(width, height) / n)
-                        const off = Math.floor((Math.min(width, height) - cell * n) / 2) + 4 * cell
-                        ctx.fillStyle = "#000000"
-                        for (let y = 0; y < filas.length; ++y)
-                            for (let x = 0; x < filas[y].length; ++x)
-                                if (filas[y][x] === "1")
-                                    ctx.fillRect(off + x * cell, off + y * cell, cell, cell)
-                    }
+                    texto: page.pub.enlace && page.pub.enlace.ok ? page.pub.enlace.url || "" : ""
                 }
             }
             // Sin QR: por qué (y dónde se arregla).

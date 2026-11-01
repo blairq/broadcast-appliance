@@ -6,6 +6,7 @@
 #include "emision/BroadcastEngine.hpp"
 #include "emision/VentanillaMotor.hpp"
 #include "ui/SettingsModel.hpp"
+#include "ui/Formulario.hpp"
 #include <QCoreApplication>
 #include <QMetaObject>
 #include <QPointer>
@@ -518,16 +519,37 @@ QVariant SettingsModel::data(const QModelIndex& index, int role) const {
         case ScopeRole: return f.scope;
         case AvanzadoRole: return f.avanzado;
         case ModifiedRole: return draft_.value(f.key) != saved_.value(f.key);
+        case CampoRole: {
+            formulario::Fila fila{f.key, f.label, f.kind, draft_.value(f.key, f.def), f.options, f.min, f.max};
+            fila.suffix = f.suffix;
+            fila.help = f.help;
+            fila.badge = f.scope == QLatin1String("live") ? QString() : f.scope;
+            fila.modified = draft_.value(f.key) != saved_.value(f.key);
+            fila.numeroEscrito = true;
+            return formulario::deFila(fila);
+        }
         default: return {};
     }
 }
 
 QHash<int, QByteArray> SettingsModel::roleNames() const {
-    return {{KeyRole, "key"},     {SectionRole, "section"}, {LabelRole, "label"},
-            {KindRole, "kind"},   {ValueRole, "value"},     {OptionsRole, "options"},
-            {MinRole, "minimum"}, {MaxRole, "maximum"},     {SuffixRole, "suffix"},
-            {HelpRole, "help"},   {ScopeRole, "scope"},     {ModifiedRole, "modified"},
-            {AvanzadoRole, "avanzado"}};
+    // La vista dibuja la fila con `campo`; lo demás es para elegir qué filas se ven.
+    return {{KeyRole, "key"}, {SectionRole, "section"}, {AvanzadoRole, "avanzado"}, {CampoRole, "campo"}};
+}
+
+QVariantList SettingsModel::filas() const {
+    static const QList<QPair<int, const char*>> kClaves{
+        {KeyRole, "key"},     {SectionRole, "section"}, {LabelRole, "label"}, {KindRole, "kind"},
+        {ValueRole, "value"}, {OptionsRole, "options"}, {MinRole, "minimum"}, {MaxRole, "maximum"},
+        {SuffixRole, "suffix"}, {HelpRole, "help"},     {ScopeRole, "scope"}, {ModifiedRole, "modified"},
+        {AvanzadoRole, "avanzado"}};
+    QVariantList out;
+    for (int r = 0; r < rowCount(); ++r) {
+        QVariantMap fila;
+        for (const auto& [rol, clave] : kClaves) fila.insert(QString::fromLatin1(clave), data(index(r), rol));
+        out << fila;
+    }
+    return out;
 }
 
 QVariantList SettingsModel::codificadores() const {
@@ -573,7 +595,7 @@ void SettingsModel::setValue(const QString& key, const QVariant& value) {
     }
     const bool wasDirty = dirty();
     draft_[key] = value;
-    emit dataChanged(index(row), index(row), {ValueRole, ModifiedRole});
+    emit dataChanged(index(row), index(row), {ValueRole, ModifiedRole, CampoRole});
     emit draftChanged();
     if (wasDirty != dirty()) {
         emit dirtyChanged();
@@ -594,7 +616,7 @@ void SettingsModel::traerDeAfuera() {
         if (!loEditaba) draft_[it.key()] = it.value();
     }
     saved_ = nuevo;
-    emit dataChanged(index(0), index(rowCount() - 1), {ValueRole, ModifiedRole});
+    emit dataChanged(index(0), index(rowCount() - 1), {ValueRole, ModifiedRole, CampoRole});
     emit dirtyChanged();
     emit draftChanged();
 }
@@ -606,7 +628,7 @@ void SettingsModel::revert() {
     // foto pareciera «sin cambios» y no se aplicara.
     saved_ = current();
     draft_ = saved_;
-    emit dataChanged(index(0), index(rowCount() - 1), {ValueRole, ModifiedRole});
+    emit dataChanged(index(0), index(rowCount() - 1), {ValueRole, ModifiedRole, CampoRole});
     emit dirtyChanged();
     emit draftChanged();
 }

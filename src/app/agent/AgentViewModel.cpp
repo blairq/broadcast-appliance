@@ -2152,9 +2152,39 @@ QVariantList AgentViewModel::alertTypesUi() const {
 }
 
 bool AgentViewModel::createAlertUi(const QVariantMap& spec) {
-    const json j = json::parse(QJsonDocument(QJsonObject::fromVariantMap(spec)).toJson(QJsonDocument::Compact).toStdString(),
+    json j = json::parse(QJsonDocument(QJsonObject::fromVariantMap(spec)).toJson(QJsonDocument::Compact).toStdString(),
                                nullptr, false);
     if (!j.is_object()) return sinError(tr("no se entiende el disparador"));
+    // Los parámetros, como los escribió el operador: sí/no, número o texto (vacío no va).
+    json params = json::object();
+    const json escritos = j.value("params", json::object());
+    for (const auto& [k, v] : escritos.items()) {
+        if (!v.is_string()) {
+            params[k] = v;
+            continue;
+        }
+        const std::string t = QString::fromStdString(v.get<std::string>()).trimmed().toStdString();
+        if (t.empty()) continue;
+        const json n = json::parse(t, nullptr, false);
+        params[k] = t == "true" ? json(true) : t == "false" ? json(false) : n.is_number() ? n : json(t);
+    }
+    j["params"] = params;
+    // La acción al dispararse: la herramienta y sus argumentos, escritos en JSON (un objeto).
+    if (j.contains("accion")) {
+        const json a = j["accion"];
+        j.erase("accion");
+        const std::string herramienta = QString::fromStdString(a.value("herramienta", std::string())).trimmed().toStdString();
+        const std::string texto = QString::fromStdString(a.value("argumentos", std::string())).trimmed().toStdString();
+        if (!herramienta.empty()) {
+            const json args = texto.empty() ? json::object() : json::parse(texto, nullptr, false);
+            if (!args.is_object()) return sinError(tr("Los argumentos no son JSON válido (un objeto: {\"clave\": valor})"));
+            json accionJ = json::object();
+            accionJ["tool"] = herramienta;
+            accionJ["arguments"] = args;
+            j["actions"] = json::array();
+            j["actions"].push_back(std::move(accionJ));
+        }
+    }
     const json r = alerts_.create(j);
     emit alertsChanged();
     return sinError(QString::fromStdString(r.value("error", std::string())));

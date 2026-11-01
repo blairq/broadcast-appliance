@@ -181,7 +181,7 @@ const std::set<std::string>& Roles::juegoDelAsistente() {
         // para el. Ver el aviso de McpCore::setRoles.
         "escenas", "fuentes", "imagenes", "sala", "oradores", "salidas", "graficos", "rostros", "interfaz",
         "ventanas", "operador", "medios", "recetas", "audio", "audio_rack", "config", "sistema", "equipo",
-        "entradas", "alertas", "pantallas", "evento", "prompter", "qr", "cuentas", "asistente", "youtube",
+        "entradas", "alertas", "pantallas", "evento", "prompter", "qr", "cuentas", "asistente", "youtube", "publico",
         "twitch", "facebook", "padron", "preguntas", "laminas", "totems", "identidad",
         // El grafo de video (tarjetas, módulos de GStreamer, controladores,
         // compositor, relojes y sincronía) y las cámaras PTZ: armar bien un

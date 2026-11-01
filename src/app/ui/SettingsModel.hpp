@@ -7,8 +7,8 @@
 //             falta, queda para el proximo arranque)
 //   gateway   al aplicar se reinicia B (relee gateway.json)
 //   restart   rige desde el proximo arranque (launcher.json)
-// La vista arma los formularios de forma generica segun `kind`; agregar una
-// opcion es agregar una linea al esquema en el .cpp.
+// La vista dibuja cada fila con CampoFormulario (el rol `campo`, con el esquema de
+// ui/Formulario); agregar una opcion es agregar una linea al esquema en el .cpp.
 //
 // Edicion transaccional: `setValue` escribe en un BORRADOR; `apply` aplica y
 // guarda; `revert` descarta. `dirty` indica cambios sin aplicar.
@@ -72,7 +72,8 @@ class SettingsModel : public QAbstractListModel {
         HelpRole,
         ScopeRole, ///< "live" "gateway" "restart"
         ModifiedRole,
-        AvanzadoRole ///< de los «avanzados» (ajustes/Registro): se ven con «Mostrar ajustes avanzados»
+        AvanzadoRole, ///< de los «avanzados» (ajustes/Registro): se ven con «Mostrar ajustes avanzados»
+        CampoRole     ///< la fila con el esquema de CampoFormulario (ui/Formulario: deFila)
     };
 
     /// `ventanilla`: el motor y la configuración, por la foto y los pedidos (el plano de
@@ -82,6 +83,11 @@ class SettingsModel : public QAbstractListModel {
     int rowCount(const QModelIndex& = {}) const override;
     QVariant data(const QModelIndex& index, int role) const override;
     QHash<int, QByteArray> roleNames() const override;
+
+    /// Las filas como las lee el MCP (settings_list), con sus claves de siempre: key,
+    /// section, label, kind, value, options, minimum, maximum, suffix, help, scope,
+    /// modified, avanzado. La vista no las usa: dibuja `campo` (el esquema del formulario).
+    QVariantList filas() const;
 
     bool dirty() const;
     bool idiomaPendiente() const;

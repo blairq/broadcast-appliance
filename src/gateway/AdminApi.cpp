@@ -75,6 +75,7 @@
 #include <fstream>
 #include <map>
 #include <set>
+#include <thread>
 #include <system_error>
 
 #include "HttpIo.hpp"
@@ -293,13 +294,39 @@ void SignalingServer::guardarPinDeHoy(const std::string& pin) {
     ba::security::CredentialStore::bundle().write(kPinDelDia, json{{"fecha", hoyLocal()}, {"pin", pin}}.dump());
 }
 
+const char* SignalingServer::candadoTrabado() {
+    const auto seToma = [](std::mutex& m) {
+        const auto hasta = std::chrono::steady_clock::now() + std::chrono::seconds(1);
+        while (std::chrono::steady_clock::now() < hasta) {
+            if (m.try_lock()) {
+                m.unlock();
+                return true;
+            }
+            std::this_thread::sleep_for(std::chrono::milliseconds(5));
+        }
+        return false;
+    };
+    if (!seToma(connsLock_)) return "conexiones";
+    if (!seToma(sessLock_)) return "sesiones";
+    if (!seToma(sseLock_)) return "eventos";
+    return nullptr;
+}
+
 void SignalingServer::handleAdmin(long long fd, const std::string& method, const std::string& path,
                                   const std::string& query, const std::string& headers,
                                   const std::string& body) {
     // La orden de la app que trae esto (F4-02): todo lo que se registre al atenderla lleva su id.
     const ba::diag::correlacion::Ambito orden(http::getHeader(headers, ba::diag::correlacion::kCabecera));
     // --- Sin autenticacion: la salud ------------------------------------------
+    // No alcanza con contestar (eso solo prueba que se acepta una conexión y se crea un
+    // hilo): los candados de los que vive la sala (las conexiones, las sesiones del hub, los
+    // eventos a la app) tienen que poder tomarse. Uno que no se suelta en un segundo es una
+    // sala trabada aunque conteste.
     if (path == "/healthz") {
+        if (const char* trabado = candadoTrabado()) {
+            http::sendResponse(fd, 503, "text/plain", std::string("trabado: ") + trabado + "\n");
+            return;
+        }
         http::sendResponse(fd, 200, "text/plain", "ok\n");
         return;
     }
@@ -644,11 +671,13 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
                 ok = true;
             } else if (accion == "restaurar") {
                 // La app (que las guarda en el evento) las devuelve: a una sala que se
-                // reinició, o al abrir otro evento (las de ese).
-                preguntas_.restaurar(req.value("foto", json::object()));
-                {
-                    std::lock_guard<std::mutex> l(publicoM_);
-                    eventoPreguntas_ = req.value("evento", std::string());
+                // reinició, o al abrir otro evento (las de ese). Si ya son de ese evento,
+                // las de acá son más nuevas: no se tocan (ver la urna, abajo).
+                const std::string evento = req.value("evento", std::string());
+                std::lock_guard<std::mutex> l(publicoM_);
+                if (evento.empty() || evento != eventoPreguntas_) {
+                    preguntas_.restaurar(req.value("foto", json::object()));
+                    eventoPreguntas_ = evento;
                 }
                 ok = true;
             } else if (accion == "preguntar") {
@@ -756,11 +785,17 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
             }
             if (accion == "restaurar") {
                 // La urna es de A (ver Votacion.hpp): se la devuelve a una sala que se
-                // reinició, o al abrir otro evento (la de ese).
-                votacion_.restaurar(req.value("foto", json::object()));
+                // reinició, o al abrir otro evento (la de ese). Si la de acá ya es de ese
+                // evento (se abrió una votación mientras A leía la guardada), es la más
+                // nueva y no se pisa: mirar y restaurar van juntos, con publicoM_, como
+                // abrir (abajo).
                 {
+                    const std::string evento = req.value("evento", std::string());
                     std::lock_guard<std::mutex> l(publicoM_);
-                    eventoVotacion_ = req.value("evento", std::string());
+                    if (evento.empty() || evento != eventoVotacion_) {
+                        votacion_.restaurar(req.value("foto", json::object()));
+                        eventoVotacion_ = evento;
+                    }
                 }
                 avisarVotacion();
                 sendJson(fd, 200, json{{"ok", true}, {"votacion", votacion_.estado()}});
@@ -784,20 +819,22 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
                 for (const json& h : req["habilitados"])
                     if (h.is_object() && h.contains("codigo"))
                         habilitados[h["codigo"].get<std::string>()] = h.value("nombre", std::string());
+            // Abrir y decir de qué evento es, juntos (con publicoM_): un restaurar que llega
+            // en el medio no la pisa (ver «restaurar»).
+            std::unique_lock<std::mutex> deEvento(publicoM_);
             const bool ok = votacion_.abrir(req.value("pregunta", std::string()), opciones, modo,
                                             req.value("secreta", false), habilitados, req.value("podian", 0),
                                             nowMsAdmin());
             // Las reglas (cuántas opciones, el padrón) son de la app (sala::VotacionSala):
             // esto solo es la urna que no acepta lo que no puede contar.
             if (!ok) {
+                deEvento.unlock();
                 sendErr(fd, 400, "votacion");
                 return;
             }
             votacion_.setMostrarEnVivo(req.value("enVivo", false));
-            {
-                std::lock_guard<std::mutex> l(publicoM_);
-                eventoVotacion_ = req.value("evento", eventoVotacion_);
-            }
+            eventoVotacion_ = req.value("evento", eventoVotacion_);
+            deEvento.unlock();
             avisarVotacion();
             sendJson(fd, 200, json{{"ok", true}, {"votacion", votacion_.estado()}});
             return;
@@ -882,14 +919,22 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
             return;
         }
         if (method == "POST") {
+            // Las pantallas de carrusel releen su lista cuando cambia (se les avisa por el
+            // canal); antes la releían cada 10 s.
+            const auto avisarCarruseles = [this]() {
+                for (const std::string& pid : superficies_.conexionesDe("carrusel")) sendToGuest(pid, json{{"type", "carrusel"}});
+            };
             if (req.contains("borrar")) {
-                sendJson(fd, 200, json{{"ok", carruseles_.borrar(req["borrar"].get<std::string>())}});
+                const bool ok = carruseles_.borrar(req["borrar"].get<std::string>());
+                if (ok) avisarCarruseles();
+                sendJson(fd, 200, json{{"ok", ok}});
                 return;
             }
             if (!carruseles_.publicar(req)) {
                 sendErr(fd, 400, "carrusel");
                 return;
             }
+            avisarCarruseles();
             sendJson(fd, 200, json{{"ok", true}});
             return;
         }
@@ -1219,7 +1264,10 @@ void SignalingServer::adminShareContent(long long fd, const std::string& id) {
 namespace {
 
 /// Cuántos eventos de un solo disparo se guardan para reenviar (ver SseConn). Un corte de
-/// la app de unos segundos junta pocos; esto alcanza para un reinicio de la app entero.
+/// la app de unos segundos junta pocos. Un REINICIO de la app no se cubre con esto (la app
+/// nueva no trae Last-Event-ID): lo que pide una acción es estado con pendientes que la app
+/// va a buscar al conectar (solicitudes de emparejamiento, acreditaciones, rótulos,
+/// aparatos de la sesión).
 constexpr std::size_t kGuardadosSse = 1024;
 /// Lo más que se le junta a una conexión sin poder escribirle: pasado esto se la corta.
 constexpr std::size_t kTopeColaSse = 8u * 1024u * 1024u;
@@ -1246,6 +1294,7 @@ void SignalingServer::avisarTema() {
 }
 
 void SignalingServer::avisarVotacion() {
+    ++publicoVersion_; // lo que ven los teléfonos del público cambió (ver /api/publico/estado)
     empujarASuperficies("votacion"); // la pantalla de la votación
     std::string evento;
     {
@@ -1256,6 +1305,7 @@ void SignalingServer::avisarVotacion() {
 }
 
 void SignalingServer::avisarPreguntas() {
+    ++publicoVersion_;
     std::string evento;
     {
         std::lock_guard<std::mutex> l(publicoM_);
@@ -1269,11 +1319,17 @@ void SignalingServer::avisarPreguntas() {
 }
 
 bool SignalingServer::eventoDeEstado(const std::string& event) {
-    // Lo que dice CÓMO ESTÁ algo (la foto al reconectar, o el próximo aviso, lo cubre):
-    // reenviarlo viejo después de la foto la pisaría con algo más viejo.
-    static const std::set<std::string> kEstado{"room",        "programa", "direcciones", "hablan", "prompter",
-                                               "superficies", "red",      "web",         "votacion", "preguntas"};
+    // Lo que dice CÓMO ESTÁ algo, entero: no va a la cola de un solo disparo (ver estados_).
+    static const std::set<std::string> kEstado{"room", "programa", "direcciones", "hablan",    "prompter",
+                                               "red",  "web",      "votacion",    "preguntas", "foto"};
     return kEstado.count(event) > 0;
+}
+
+std::string SignalingServer::claveDeEstado(const std::string& event, const json& data) {
+    if (event == "room") return {}; // es la foto misma
+    if (event == "prompter" && data.is_object()) return "prompter/" + data.value("prompter", std::string());
+    if (event == "foto" && data.is_object()) return "foto/" + data.value("id", std::string());
+    return event;
 }
 
 void SignalingServer::encolarSse(SseConn& c, std::uint64_t seq, const std::string& texto) {
@@ -1311,6 +1367,9 @@ void SignalingServer::adminEvents(long long fd, const std::string& headers) {
         foto["reanudado"] = reanudado;
         conn->cola.push_back("retry: 2000\nid: " + epoch_ + ":" + std::to_string(sseSeq_) + "\nevent: room\ndata: " +
                              foto.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace) + "\n\n");
+        // El último de cada estado, a toda conexión (ver estados_): sin id, no mueven el
+        // Last-Event-ID que dejó la foto.
+        for (const auto& [clave, texto] : estados_) conn->cola.push_back(texto);
         if (reanudado)
             for (const EventoGuardado& g : guardados_)
                 if (g.seq > desde) conn->cola.push_back(g.texto);
@@ -1370,7 +1429,13 @@ void SignalingServer::broadcastToHosts(const std::string& event, const json& dat
     const std::uint64_t seq = ++sseSeq_;
     std::string msg = "id: " + epoch_ + ":" + std::to_string(seq) + "\nevent: " + event + "\ndata: " + cuerpo + "\n\n";
     for (const auto& c : sse_) encolarSse(*c, seq, msg);
-    if (estado) return;
+    if (estado) {
+        if (const std::string clave = claveDeEstado(event, data); !clave.empty()) {
+            if (data.is_object() && data.value("quitado", false)) estados_.erase(clave); // ya no existe: nada que recordar
+            else estados_[clave] = "event: " + event + "\ndata: " + cuerpo + "\n\n";
+        }
+        return;
+    }
     guardados_.push_back({seq, std::move(msg)});
     while (guardados_.size() > kGuardadosSse) {
         descartadoHasta_ = guardados_.front().seq;

@@ -114,6 +114,11 @@ std::string WebSupervisor::armarConf(const Cfg& c, const std::string& aliasFile,
     // La hoja, por URL entera: la versionada (?v=) se guarda un día y la otra no.
     s += "location = /comun/tema.css { proxy_pass; proxy_cache_valid " + cache + "; proxy_cache_key $request_uri; }\n";
     s += "location = /comun/tema.json { proxy_pass; proxy_cache_valid " + cache + "; proxy_cache_key $uri; }\n";
+    // Lo que ven todos los teléfonos del público (la urna y las preguntas, sin lo de cada
+    // uno): lo piden cada 3 s y es igual para todos los que tienen la misma lectura (`l`,
+    // en la dirección: por eso la clave es la dirección entera). Ver SignalingServer.cpp.
+    s += "location = /api/publico/estado { proxy_pass; proxy_cache_valid " + cache +
+         "; proxy_cache_key $request_uri; }\n";
     // Todo lo demás, al gateway (con gzip si conviene; WebSocket y POST como túnel).
     s += "location / { proxy_pass; }\n";
     return s;
@@ -153,6 +158,7 @@ bool WebSupervisor::start() {
     std::error_code ec;
     if (!std::filesystem::exists(cfg_.exe, ec)) {
         log_.warn(llenar(traducir("gateway", "ba-web: no está el binario (%1); el túnel va directo al gateway"), {cfg_.exe}), -1);
+        avisarProblema("falta", "");
         return false;
     }
     std::filesystem::create_directories(cfg_.dir, ec);
@@ -162,6 +168,7 @@ bool WebSupervisor::start() {
         log_.warn(llenar(traducir("gateway", "ba-web: es otra versión (%1, se esperaba %2); el túnel va directo al gateway"),
                          {v.empty() ? "?" : v, std::string("ba-web/") + BW_VERSION}),
                   -1);
+        avisarProblema("version", v);
         return false;
     }
     setEventoDir("");
@@ -337,7 +344,26 @@ void WebSupervisor::avisar(const ba::platform::Relanzador& rel) {
         fn(nlohmann::json{{"vivo", alive_.load()},
                           {"reinicios", r},
                           {"cortado", rel.cortado()},
-                          {"seguidas", rel.consecutivas()}});
+                          {"seguidas", rel.consecutivas()},
+                          {"problema", ""},
+                          {"version", std::string("ba-web/") + BW_VERSION},
+                          {"esperada", std::string("ba-web/") + BW_VERSION}});
+}
+
+void WebSupervisor::avisarProblema(const std::string& problema, const std::string& version) {
+    std::function<void(const nlohmann::json&)> fn;
+    {
+        std::lock_guard<std::mutex> l(avisoLock_);
+        fn = alCambiar_;
+    }
+    if (fn)
+        fn(nlohmann::json{{"vivo", false},
+                          {"reinicios", 0},
+                          {"cortado", false},
+                          {"seguidas", 0},
+                          {"problema", problema},
+                          {"version", version.empty() ? std::string("?") : version},
+                          {"esperada", std::string("ba-web/") + BW_VERSION}});
 }
 
 void WebSupervisor::setEventoDir(const std::string& dir) {

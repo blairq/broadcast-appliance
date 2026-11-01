@@ -16,6 +16,7 @@
 #include <string>
 
 #include "evento/Padron.hpp"
+#include "persist/ColaEscritura.hpp"
 
 namespace fs = std::filesystem;
 using namespace ba::evento;
@@ -292,7 +293,13 @@ void disco() {
     CHECK(vacio.gente().empty(), "es un padron vacio");
 
     CHECK(guardarPadron(tmp, asamblea()), "se guarda");
-    CHECK(fs::exists(tmp / "padron.json"), "y el archivo queda");
+    // Por la cola del escritor único (se acredita desde la interfaz): se lee enseguida,
+    // antes de que llegue al disco.
+    {
+        const Padron yaEncolado = cargarPadron(tmp, &ok);
+        CHECK(ok && yaEncolado.gente().size() == 4, "lo guardado se lee enseguida (aunque esté encolado)");
+    }
+    CHECK(ba::persist::cola().vaciar() && fs::exists(tmp / "padron.json"), "y el archivo queda");
     CHECK(!fs::exists(tmp / "padron.json.tmp"), "sin dejar el temporal tirado");
 
     const Padron leido = cargarPadron(tmp, &ok);

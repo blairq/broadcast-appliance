@@ -16,7 +16,6 @@ Dialog {
     standardButtons: Dialog.Close
     property string target: "local"
     property string url: ""
-    property var modules: []
     property string message: ""
     property bool loading: false
     readonly property bool board: target.startsWith("board-")
@@ -24,7 +23,7 @@ Dialog {
                                               : qsTr("Tablero de oradores (solo lectura) — red local"))
                  : target === "remote" ? qsTr("QR remoto — por internet") : qsTr("QR local — misma red")
     function show(t) {
-        target = t; url = ""; modules = []; message = ""; loading = true
+        target = t; url = ""; message = ""; loading = true
         open()
         if (board) qrDlg.conf.requestBoardLink(t.substring(6))
         else qrDlg.conf.requestQr(t, qrPin.checked)
@@ -35,9 +34,7 @@ Dialog {
             if (t !== qrDlg.target) return
             qrDlg.loading = false
             qrDlg.url = url
-            qrDlg.modules = modules
             qrDlg.message = message
-            qrCanvas.requestPaint()
         }
     }
     ColumnLayout {
@@ -48,24 +45,11 @@ Dialog {
             Layout.preferredHeight: 300
             radius: 12
             color: qrDlg.url !== "" ? "white" : Qt.rgba(1, 1, 1, 0.05)
-            Canvas {
-                id: qrCanvas
+            ImagenQr {
                 anchors.fill: parent
                 anchors.margins: 12
                 visible: qrDlg.url !== ""
-                onPaint: {
-                    const ctx = getContext("2d")
-                    ctx.reset()
-                    const rows = qrDlg.modules
-                    if (!rows || rows.length === 0) return
-                    const n = rows.length + 8 // zona silenciosa de 4 modulos
-                    const cell = Math.floor(Math.min(width, height) / n)
-                    const off = Math.floor((Math.min(width, height) - cell * n) / 2) + 4 * cell
-                    ctx.fillStyle = "#000000"
-                    for (let y = 0; y < rows.length; ++y)
-                        for (let x = 0; x < rows[y].length; ++x)
-                            if (rows[y][x] === "1") ctx.fillRect(off + x * cell, off + y * cell, cell, cell)
-                }
+                texto: qrDlg.url
             }
             Text {
                 anchors.fill: parent

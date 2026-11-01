@@ -5,7 +5,7 @@
 // bus se iluminan TODOS sus caminos —la fila, las columnas a las que llega y
 // el cable de luz entre medio— y el resto de la consola se apaga un poco.
 //
-// Pistas de OBS: el cruce es la asignación nativa (sin retardo). Buses
+// Pistas de la grabación multipista: el cruce es la asignación nativa (sin retardo). Buses
 // virtuales: el cruce pasa por nuestra mezcla (~25 ms) y, si se le activan
 // los ajustes (clic derecho), tiene nivel, pan y mute. Ver audio/Matriz.hpp.
 import QtQuick
@@ -17,7 +17,7 @@ Item {
     id: mx
     readonly property var mz: Studio.matriz
     readonly property var filas: mz ? mz.filas : []
-    // Las pistas 2-6 de OBS (las de la grabación multipista) van plegadas por
+    // Las pistas 2-6 (las de la grabación multipista) van plegadas por
     // defecto: se ve solo la 1 (Programa). Se despliegan con el «+5» de su cabecera.
     // (Se guarda con la Matriz, en la carpeta portable: no en las preferencias del sistema.)
     readonly property bool pistasPlegadas: !mz || mz.pistasPlegadas
@@ -519,7 +519,7 @@ Item {
             spacing: 10
             width: 340
             Text {
-                text: busPop.bus.tipo === "pista" ? qsTr("Pista %1 de OBS").arg(busPop.bus.indice + 1)
+                text: busPop.bus.tipo === "pista" ? qsTr("Pista %1 de la grabación").arg(busPop.bus.indice + 1)
                       : busPop.bus.tipo === "escucha" ? qsTr("Escucha: los auriculares del operador")
                       : busPop.bus.tipo === "fisica" ? qsTr("Salida del equipo")
                       : busPop.bus.tipo === "salida" ? qsTr("Salida virtual") : qsTr("Entrada virtual")

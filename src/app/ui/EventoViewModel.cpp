@@ -3,6 +3,7 @@
 // ============================================================================
 #include "ui/EventoViewModel.hpp"
 
+#include <QPointer>
 #include <QTimer>
 
 #include "ajustes/Ajustes.hpp"
@@ -121,7 +122,7 @@ void EventoViewModel::cerrar() {
     padron_->cargar();
 }
 
-bool EventoViewModel::borrar(const QString& carpeta) {
+void EventoViewModel::borrar(const QString& carpeta) {
     // Si es el abierto, se cierra ANTES de borrarlo y sin guardar: cerrar guarda lo
     // pendiente, y hacerlo después volvía a escribir en el disco el evento recién borrado.
     if (ab_->carpeta() == carpeta) {
@@ -130,12 +131,10 @@ bool EventoViewModel::borrar(const QString& carpeta) {
         ba::i18n::usarEnEvento({});
         padron_->cargar();
     }
-    std::string err;
-    if (!lista_->borrar(carpeta.toStdString(), &err)) {
-        emit notify(tr("No se pudo borrar: %1").arg(QString::fromStdString(err)), "error");
-        return false;
-    }
-    return true;
+    QPointer<EventoViewModel> yo(this);
+    lista_->borrar(carpeta.toStdString(), [yo](const std::string& err) {
+        if (yo && !err.empty()) emit yo->notify(tr("No se pudo borrar: %1").arg(QString::fromStdString(err)), "error");
+    });
 }
 
 QString EventoViewModel::crear(const QString& nombre, const QString& enCarpeta) {

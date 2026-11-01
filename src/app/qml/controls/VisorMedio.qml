@@ -231,7 +231,7 @@ Popup {
                            ? reproductor.pause() : reproductor.play()
             }
             Text {
-                text: visor.reloj(reproductor.position)
+                text: Theme.mmss(Math.floor(reproductor.position / 1000))
                 color: Theme.textDim
                 font.pixelSize: 11
             }
@@ -246,7 +246,7 @@ Popup {
                 onMoved: reproductor.position = value
             }
             Text {
-                text: visor.reloj(reproductor.duration)
+                text: Theme.mmss(Math.floor(reproductor.duration / 1000))
                 color: Theme.textDim
                 font.pixelSize: 11
             }
@@ -284,17 +284,5 @@ Popup {
                 }
             }
         }
-    }
-
-    /// m:ss a partir de milisegundos. Las horas sólo si las hay: «0:03:12»
-    /// para un corte de tres minutos es ruido.
-    function reloj(ms) {
-        if (!ms || ms < 0) ms = 0
-        const s = Math.floor(ms / 1000)
-        const h = Math.floor(s / 3600)
-        const m2 = Math.floor((s % 3600) / 60)
-        const s2 = s % 60
-        const dos = (n) => (n < 10 ? "0" : "") + n
-        return h > 0 ? h + ":" + dos(m2) + ":" + dos(s2) : m2 + ":" + dos(s2)
     }
 }

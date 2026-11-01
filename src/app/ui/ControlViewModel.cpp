@@ -78,7 +78,7 @@ ControlViewModel::ControlViewModel(Partes p, QObject* parent) : QObject(parent),
         // En la foto, con las capas de cada salida (se rearman con la lista de salidas y en
         // cada vuelta del motor, que es cuando se mueve un fundido).
         aporteDsk_ = rt.aportarALaFoto([c = capasDsk_.get()](FotoMotor& f, unsigned partes) {
-            if ((partes & (FotoMotor::Superficies | FotoMotor::Salidas)) == 0) return;
+            if (!FotoMotor::rearmar(FotoMotor::kDsk, partes)) return;
             std::vector<std::string> ids;
             for (const FotoMotor::Salida& s : f.salidas) ids.push_back(s.id);
             f.dsk = c->paraLaFoto(ids);
@@ -191,7 +191,7 @@ void ControlViewModel::alCambiarFoto(unsigned partes) {
     }
     // El tema web: lo cambie quien lo cambie (esta vista, Configuración, el MCP), se le
     // pasa al gateway y la vista se entera.
-    if ((partes & (FotoMotor::Superficies | FotoMotor::Ajustes)) != 0 && f.temaWeb != temaWeb_) {
+    if ((partes & FotoMotor::Superficies) != 0 && f.temaWeb != temaWeb_) {
         temaWeb_ = f.temaWeb;
         if (temaWeb_ != temaWebMandado_) mandarTemaWeb();
         emit temaWebChanged();
@@ -316,7 +316,7 @@ std::string ControlViewModel::guardarTemaWeb(AppRuntime& rt, const std::string& 
     if (id == rt.config().temaWeb) return {};
     rt.config().temaWeb = id;
     rt.save();
-    rt.ajustesAplicados(); // Configuración se entera; la foto lo trae (la parte Superficies)
+    rt.ajustesAplicados(); // Configuración se entera; la foto lo trae (Superficies: se rearma con Ajustes, FotoMotor::kTemaWeb)
     return {};
 }
 

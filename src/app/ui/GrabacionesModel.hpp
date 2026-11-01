@@ -21,17 +21,17 @@ class VentanillaMotor;
 class GrabacionesModel : public JsonListModel {
     Q_OBJECT
    public:
-    GrabacionesModel(AppRuntime& rt, VentanillaMotor& ventanilla, QObject* parent = nullptr);
+    explicit GrabacionesModel(VentanillaMotor& ventanilla, QObject* parent = nullptr);
 
     /// Vuelve a leer las carpetas (aparte): la lista cambia cuando termina.
     void refrescar();
-    /// La carpeta donde se graba ahora.
-    QString carpeta() const;
+    /// La carpeta donde se graba ahora (la de la foto: FotoMotor::sala.carpetaGrabacion).
+    QString carpeta() const { return QString::fromStdString(carpeta_); }
 
    private:
-    AppRuntime& rt_;
     VentanillaMotor& ventanilla_;
     bool grababa_ = false;  ///< para ver el flanco de `graba`
+    std::string carpeta_;   ///< donde se graba ahora (FotoMotor::sala.carpetaGrabacion)
     unsigned lecturas_ = 0; ///< para quedarse solo con la última lectura pedida
 };
 

@@ -151,7 +151,6 @@ class VideoViewModel : public QObject {
 
     // --- Lo que pide QML ("" siempre: el error llega por notify) ------------------------
     Q_INVOKABLE void agregar(const QString& tipo, const QString& despues);
-    Q_INVOKABLE void agregarFiltro(const QString& filtroId, const QString& despues);
     Q_INVOKABLE void agregarModulo(const QString& elemento, const QString& despues);
     Q_INVOKABLE void agregarMezcla(const QString& elemento);
     Q_INVOKABLE void ajustarPad(const QString& id, const QString& puerto, const QString& clave, const QVariant& valor);

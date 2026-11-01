@@ -456,7 +456,7 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
                       R"({"evento": "2026/Octubre/Sesion-03", "comparar_con": {"evento": "2026/Octubre/Sesion-10", "foto": "inicio"}})"};
         // Solo lee el disco: en el pool, con la API del histórico (la misma de la página;
         // entiende los eventos de otra configuración, «@<evento>/<carpeta>»).
-        t.hilo = Hilo::Foto;
+        t.hilo = Hilo::SinInterfaz; // compara históricos en el disco: fuera del pool de la foto
         t.run = [c = HistoricoConsulta::deLaApp(ev.raizEventos(), ev.carpetaConfig())](const json& a, Done done) {
             const std::string carpeta = a.value("evento", std::string());
             const std::string foto = a.value("foto", std::string());
@@ -661,9 +661,14 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
         t.run = [&vm](const json& a, Done done) {
             auto* h = vm.historico();
             if (h == nullptr) return done(ToolResult::error(ba::i18n::traducir("mcp", "el histórico no está disponible")));
-            json r = h->retencion(a.value("simular", true));
-            r["disco"] = h->disco();
-            done(ToolResult().data(r));
+            // Las dos en el fondo del histórico; se contesta al terminar.
+            h->retencion(a.value("simular", true), [h, done](const json& r) {
+                h->medirDiscoY([r, done](const json& d) {
+                    json x = r;
+                    x["disco"] = d;
+                    done(ToolResult().data(x));
+                });
+            });
         };
         core.addTool(std::move(t));
     }
@@ -1625,7 +1630,7 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
     {
         Tool t;
         t.name = "evento_capitulos";
-        t.title = ba::i18n::traducir("mcp", "Los capitulos de la grabacion");
+        t.title = ba::i18n::traducir("mcp", "Los capítulos de la grabación");
         t.category = "evento";
         t.clase = Clase::Lectura;
         t.description =
@@ -1744,7 +1749,7 @@ void registrarPadron(McpCore& core, EventoViewModel& ev, FichaDe fichaDe) {
     {
         Tool t;
         t.name = "padron_ver";
-        t.title = ba::i18n::traducir("mcp", "La gente del evento, y quienes estan");
+        t.title = ba::i18n::traducir("mcp", "La gente del evento, y quiénes están");
         t.category = "padron";
         t.clase = Clase::Lectura;
         t.description =
@@ -1893,7 +1898,7 @@ void registrarPadron(McpCore& core, EventoViewModel& ev, FichaDe fichaDe) {
     {
         Tool t;
         t.name = "padron_acreditar";
-        t.title = ba::i18n::traducir("mcp", "Marcar que alguien llego (o que se fue)");
+        t.title = ba::i18n::traducir("mcp", "Marcar que alguien llegó (o que se fue)");
         t.category = "padron";
         t.clase = Clase::Escritura;
         t.description =
@@ -1949,7 +1954,7 @@ void registrarPadron(McpCore& core, EventoViewModel& ev, FichaDe fichaDe) {
     {
         Tool t;
         t.name = "invitacion";
-        t.title = ba::i18n::traducir("mcp", "La invitacion de una persona, con su QR");
+        t.title = ba::i18n::traducir("mcp", "La invitación de una persona, con su QR");
         t.category = "padron";
         t.clase = Clase::Lectura;
         t.description =

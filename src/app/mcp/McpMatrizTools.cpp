@@ -295,7 +295,7 @@ void McpService::registerMatrizTools() {
     {
         Tool t;
         t.name = "audio_filtros_catalogo";
-        t.title = ba::i18n::traducir("mcp", "Catalogo de filtros de audio (LSP)");
+        t.title = ba::i18n::traducir("mcp", "Catálogo de filtros de audio (LSP)");
         t.category = "audio_rack";
         t.clase = Clase::Lectura;
         t.description =

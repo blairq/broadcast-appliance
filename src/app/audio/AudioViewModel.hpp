@@ -43,7 +43,8 @@ class AudioViewModel : public QObject {
     /// [{dispositivo, salidas: [{id, nombre}]}].
     Q_PROPERTY(QVariantList outputDevices READ outputDevices NOTIFY changed)
     /// La vista general de todo el audio (RackManager::estudio): {nodos, cables, franjas}.
-    /// Al día (una vez por segundo) mientras alguna vista la usa: usar(vista, si, "estudio").
+    /// Al día mientras alguna vista la usa (usar(vista, si, "estudio")): se rehace cuando
+    /// cambia algo que muestra (un rack, las fuentes, el volumen o el silencio), no por reloj.
     Q_PROPERTY(QVariantMap estudio READ estudio NOTIFY estudioCambio)
     /// La grabación de la tarjeta de salida de la fuente elegida: {grabar, grabando, archivo,
     /// segundos, bytes, conCable, carpeta}. Al día mientras alguna vista la usa:
@@ -71,8 +72,9 @@ class AudioViewModel : public QObject {
     /// "grabacion" (cada una con su cuenta).
     Q_INVOKABLE void usar(QObject* vista, bool si, const QString& que = {}) { vistas_.usar(vista, si, que); }
     Q_INVOKABLE void refresh();
-    /// Cambiaron las fuentes o las entradas de audio (lo avisa el runtime, lo
-    /// haya pedido quien sea): la lista se rehace si quedó distinta.
+    /// Cambiaron las fuentes, las entradas de audio, el volumen o el silencio (lo avisa el
+    /// runtime, lo haya pedido quien sea): la lista se rehace si quedó distinta, y la
+    /// vista general si alguien la mira.
     void revisarFuentes();
     Q_INVOKABLE void selectSource(const QString& name);
     QVariantMap estudio() const { return estudio_; }
@@ -142,8 +144,6 @@ class AudioViewModel : public QObject {
     Q_INVOKABLE QString applyPreset(const QString& node, const QString& preset);
     /// Generador: tipo de señal, frecuencia y nivel.
     Q_INVOKABLE void setGenerator(const QString& node, const QString& kind, double freq, double levelDb);
-    /// Otros plugins LSP por texto: [{id, nombre}].
-    Q_INVOKABLE QVariantList search(const QString& text) const;
 
    signals:
     void changed();
@@ -159,8 +159,10 @@ class AudioViewModel : public QObject {
     void rebuildGraph();
     void rebuildDetail();
     void autoLayout();
-    /// Lo que cuesta más (la vista general, la grabación), si alguien lo usa.
+    /// La grabación (cambia con el tiempo: una vez por segundo), si alguien la usa.
     void revisarPartes();
+    /// La vista general, si alguien la mira: cuando cambió algo de lo que muestra.
+    void revisarEstudio();
 
     RackManager& mgr_;
     QTimer tick_;

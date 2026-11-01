@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // src/app/control/ControlWeb.cpp — ver el .hpp
 #include "control/ControlWeb.hpp"
+#include "security/Comparar.hpp"
 #include "arranque/ArchivoConfig.hpp"
 
 #include "ajustes/Ajustes.hpp"
@@ -54,13 +55,6 @@ std::string hexAleatorio(int bytes) {
 
 std::string sha256(const std::string& s) {
     return QCryptographicHash::hash(QByteArray::fromStdString(s), QCryptographicHash::Sha256).toHex().toStdString();
-}
-
-bool igualesTiempoConstante(const std::string& a, const std::string& b) {
-    if (a.size() != b.size()) return false;
-    unsigned char d = 0;
-    for (std::size_t i = 0; i < a.size(); ++i) d |= static_cast<unsigned char>(a[i] ^ b[i]);
-    return d == 0;
 }
 
 std::string volcar(const json& j) { return j.dump(-1, ' ', false, json::error_handler_t::replace); }
@@ -148,6 +142,8 @@ const std::vector<ControlWeb::Tema>& ControlWeb::temas() {
         // La línea de tiempo (L8): la escaleta, el presentador y la pantalla de cámara.
         {"linea", {"linea_estado", "linea_ver"}, 1000},
         {"linea-camaras", {"linea_camaras"}, 1000},
+        // El teleprompter (la tarjeta del control): antes preguntaba ella cada 2 s.
+        {"prompter", {"prompter_estado"}, 1000},
     };
     return t;
 }
@@ -437,7 +433,7 @@ std::string ControlWeb::autenticar(const std::string& token) const {
     if (token.size() != 64) return {};
     std::string encontrado;
     for (const auto& a : datos_["aparatos"])
-        if (igualesTiempoConstante(sha256(a.value("sal", std::string()) + token), a.value("hash", std::string())))
+        if (ba::security::igualesEnTiempoConstante(sha256(a.value("sal", std::string()) + token), a.value("hash", std::string())))
             encontrado = a.value("id", std::string());
     return encontrado;
 }

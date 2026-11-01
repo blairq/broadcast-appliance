@@ -34,7 +34,7 @@ Item {
             Text { text: qsTr("AL AIRE"); color: Theme.live; font.pixelSize: 11; font.weight: Font.Bold }
             Text { Layout.fillWidth: true; elide: Text.ElideRight; color: Theme.text; font.pixelSize: 15
                    text: pp.est.indice >= 0 && pp.pl.items[pp.est.indice] ? (pp.est.indice + 1) + ". " + pp.pl.items[pp.est.indice].nombre : "" }
-            Text { text: "−" + Theme.mmss(pp.est.restante_s); color: (pp.est.restante_s || 0) <= 10 ? Theme.live : Theme.text
+            Text { text: "−" + Theme.mmss(pp.est.restante_s); color: Theme.colorDeEstado(pp.est.estado_restante, Theme.text)
                    font.pixelSize: 22; font.weight: Font.DemiBold; font.family: "Menlo" }
         }
         Text { visible: !pp.pl || pp.pl.items.length === 0; color: Theme.textFaint; font.pixelSize: 12; Layout.fillWidth: true; wrapMode: Text.WordWrap

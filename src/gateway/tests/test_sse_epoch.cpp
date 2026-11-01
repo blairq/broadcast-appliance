@@ -10,6 +10,14 @@
 //      terminan enseguida aunque haya una conexión de eventos que no lee nada.
 //   6. Las claves de las superficies son del evento (G-1): la app las pone y valen
 //      enseguida (la vieja deja de valer); una mal formada no cambia nada.
+//   8. Una sala que arranca usa las claves del evento en curso que dejó la app en el almacén
+//      (web 2): un QR que llega antes de que la app reconecte ya vale.
+//   9. Cambiar una clave desautoriza a las superficies que habían dicho la de antes: les
+//      llega «clave_mal» y no reciben más nada hasta decir la nueva (web 3).
+//  10. «Sin evento»: claves nuevas al azar y se olvidan la urna y la página del público (web 3).
+//   7. Los eventos de estado no se pierden al reanudar (web 1): con la app desconectada
+//      cambia la urna (se abre una votación y llega un voto); la app vuelve REANUDANDO y
+//      recibe, después de la foto, el último «votacion» (con el voto), sin id propio.
 
 #include "Log.hpp"
 #include "Room.hpp"
@@ -18,11 +26,15 @@
 #include "TokenAuth.hpp"
 #include "Webrtc.hpp"
 #include "ipc/ProtocoloSala.hpp"
+#include "platform/Paths.hpp"
+#include "security/CredentialStore.hpp"
 
 #include <chrono>
 #include <cstdio>
+#include <cstdlib>
 #include <filesystem>
 #include <string>
+#include <vector>
 
 #include <nlohmann/json.hpp>
 
@@ -162,6 +174,64 @@ void abrir(Flujo& f, uint16_t admin, const std::string& token, const std::string
     send(f.fd, p.data(), static_cast<int>(p.size()), 0);
 }
 
+// --- Un WebSocket de superficie (como comun/canal.js: frames binarios con 4 bytes de largo) ---
+TestFd wsAbrir(uint16_t puerto, const std::string& query) {
+    TestFd fd = conectar(puerto);
+    const std::string p = "GET /ws?" + query + " HTTP/1.1\r\nHost: x\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n"
+                          "Sec-WebSocket-Version: 13\r\nSec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\n\r\n";
+    send(fd, p.data(), static_cast<int>(p.size()), 0);
+    std::string r;
+    char c;
+    while (r.find("\r\n\r\n") == std::string::npos && recv(fd, &c, 1, 0) == 1) r.push_back(c);
+    return fd;
+}
+void wsMandar(TestFd fd, const json& m) {
+    const std::string txt = m.dump();
+    std::string carga(4, '\0');
+    const std::uint32_t n = static_cast<std::uint32_t>(txt.size());
+    for (int i = 0; i < 4; ++i) carga[static_cast<std::size_t>(i)] = static_cast<char>((n >> (8 * i)) & 0xFF);
+    carga += txt;
+    std::string f;
+    f.push_back(static_cast<char>(0x82));
+    f.push_back(static_cast<char>(0x80 | carga.size())); // < 126
+    f.append(4, '\0');                                   // máscara 0
+    f += carga;
+    send(fd, f.data(), static_cast<int>(f.size()), 0);
+}
+/// Los mensajes que llegan en `ms` (frames del servidor, sin máscara).
+std::vector<json> wsLeer(TestFd fd, int ms) {
+    std::string b;
+    char buf[8192];
+    const auto hasta = std::chrono::steady_clock::now() + std::chrono::milliseconds(ms);
+    while (std::chrono::steady_clock::now() < hasta) {
+        const int n = static_cast<int>(recv(fd, buf, sizeof(buf), 0));
+        if (n == 0) break;
+        if (n > 0) b.append(buf, static_cast<size_t>(n));
+    }
+    std::vector<json> out;
+    std::size_t p = 0;
+    while (p + 2 <= b.size()) {
+        std::size_t len = static_cast<unsigned char>(b[p + 1]) & 0x7F, ini = p + 2;
+        if (len == 126) {
+            len = (static_cast<std::size_t>(static_cast<unsigned char>(b[p + 2])) << 8) | static_cast<unsigned char>(b[p + 3]);
+            ini = p + 4;
+        } else if (len == 127) {
+            break;
+        }
+        if (ini + len > b.size()) break;
+        const std::string carga = b.substr(ini, len);
+        const std::string j = carga.size() >= 4 && carga[0] != '{' ? carga.substr(4) : carga;
+        out.push_back(json::parse(j, nullptr, false));
+        p = ini + len;
+    }
+    return out;
+}
+bool llego(const std::vector<json>& ms, const std::string& tipo) {
+    for (const json& m : ms)
+        if (m.is_object() && m.value("type", "") == tipo) return true;
+    return false;
+}
+
 std::string corregir(uint16_t invitados, int id, const std::string& texto) {
     return pedir(invitados,
                  con("POST", "/api/correccion", json{{"k", "clave-corr"}, {"id", id}, {"texto", texto}}.dump()));
@@ -176,6 +246,15 @@ int main() {
     WSAStartup(MAKEWORD(2, 2), &wsa);
 #else
     std::signal(SIGPIPE, SIG_IGN);
+#endif
+    // Un almacén de credenciales propio (las claves del evento en curso, el 8).
+    const auto datos = std::filesystem::temp_directory_path() / "ba-test-sse-epoch-datos";
+    std::filesystem::remove_all(datos);
+    std::filesystem::create_directories(datos);
+#ifdef _WIN32
+    _putenv_s(ba::platform::kDataRootEnv, datos.string().c_str());
+#else
+    setenv(ba::platform::kDataRootEnv, datos.string().c_str(), 1);
 #endif
     Log log;
     WebrtcHub hub(2, 640, 360, 48000, 2);
@@ -237,6 +316,46 @@ int main() {
         }
         CHECK(siete, "la corrección perdida se reenvía");
         CHECK(!uno, "la que ya había llegado, no");
+        for (const auto& e : ev)
+            if (e.contains("id")) ultimo = e.value("id", "");
+    }
+
+    // --- 7) La urna cambia mientras la app no está; vuelve reanudando ----------------
+    {
+        const std::string auth = "Authorization: Bearer " + kToken + "\r\n";
+        Flujo f;
+        abrir(f, admin, kToken, ultimo);
+        f.leer(300);
+        // Con la app conectada se abre la votación (la app lo ve)…
+        std::string r = pedir(admin, con("POST", "/api/v1/votacion",
+                                         json{{"accion", "abrir"}, {"pregunta", "¿Sí?"}, {"opciones", {"sí", "no"}},
+                                              {"evento", "ev-prueba"}}.dump(), auth));
+        CHECK(r.find("200 OK") != std::string::npos, "se abre una votación");
+        f.leer(300);
+        for (const auto& e : f.eventos())
+            if (e.contains("id")) ultimo = e.value("id", "");
+        cerrar(f.fd);
+        f.fd = kFdInvalid;
+        // …y con la app afuera llega un voto (cambia la urna).
+        pedir(admin, con("POST", "/api/v1/claves", json{{"publico", "1234567890abcdef1234567890abcdef"}}.dump(), auth));
+        r = pedir(invitados, con("POST", "/api/votacion", json{{"opcion", 0}, {"yo", "tel-1"}}.dump(),
+                                 "X-BA-Clave: " + srv.claves().publico + "\r\n"));
+        CHECK(r.find("\"ok\":true") != std::string::npos, "llega un voto con la app desconectada");
+        Flujo g;
+        abrir(g, admin, kToken, ultimo);
+        g.leer(400);
+        const auto ev = g.eventos();
+        CHECK(!ev.empty() && ev[0].value("data", json()).value("reanudado", false), "la app reanuda");
+        int votos = -1;
+        bool conId = false;
+        for (const auto& e : ev) {
+            if (e.value("event", "") != "votacion") continue;
+            votos = e.value("data", json()).value("votacion", json()).value("votaron", -1);
+            conId = conId || e.contains("id");
+        }
+        CHECK(votos == 1, "y recibe la urna como está ahora (con el voto)");
+        CHECK(!conId, "sin id: no mueve el Last-Event-ID de la foto");
+        CHECK(!ev.empty() && ev.back().value("event", "") != "room", "después de la foto");
     }
 
     // --- 3) De otra sala -----------------------------------------------------------------
@@ -291,7 +410,50 @@ int main() {
         CHECK(r.find(nueva) != std::string::npos || r.find("\"ok\":false") != std::string::npos, "el enlace del QR lleva la del evento");
     }
 
+    // --- 9) Cambiar una clave desautoriza a las superficies de antes -------------------
+    {
+        const std::string auth = "Authorization: Bearer " + kToken + "\r\n";
+        TestFd ws = wsAbrir(invitados, "superficie=rotulos&id=rot-1");
+        wsMandar(ws, {{"type", "clave"}, {"k", srv.claves().rotulos}});
+        CHECK(llego(wsLeer(ws, 400), "rotulos"), "una superficie de rótulos con la clave buena recibe lo suyo");
+        const std::string otra = "abcdefabcdefabcdefabcdefabcdef01";
+        pedir(admin, con("POST", "/api/v1/claves", json{{"rotulos", otra}}.dump(), auth));
+        CHECK(llego(wsLeer(ws, 400), "clave_mal"), "otra clave (otro evento): le llega «clave mal»");
+        wsMandar(ws, {{"type", "clave"}, {"k", otra}});
+        CHECK(llego(wsLeer(ws, 400), "rotulos"), "dice la nueva (la página reintenta): vuelve, sin recargar");
+        cerrar(ws);
+    }
+
+    // --- 10) Sin evento -------------------------------------------------------------------
+    {
+        const std::string auth = "Authorization: Bearer " + kToken + "\r\n";
+        const std::string antes = srv.claves().publico;
+        pedir(admin, con("POST", "/api/v1/publico-info", json{{"info", {{"evento", "El de ayer"}}}}.dump(), auth));
+        std::string r = pedir(admin, con("POST", "/api/v1/claves", json{{"sinEvento", true}}.dump(), auth));
+        CHECK(r.find("200 OK") != std::string::npos && srv.claves().publico != antes && srv.claves().publico.size() == 32,
+              "sin evento: claves nuevas al azar");
+        r = pedir(admin, con("GET", "/api/v1/votacion", "", auth));
+        CHECK(r.find("\"hubo\":false") != std::string::npos, "y la urna del evento anterior se olvida");
+        r = pedir(invitados, con("GET", "/api/publico-info", "", "X-BA-Clave: " + srv.claves().publico + "\r\n"));
+        CHECK(r.find("200 OK") != std::string::npos && r.find("El de ayer") == std::string::npos,
+              "y la página del público también");
+    }
+
     srv.stop();
+
+    // --- 8) Una sala que arranca, con las claves del evento en curso ------------------------
+    {
+        const std::string publico = "0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f";
+        ba::security::CredentialStore::bundle().write(ba::ipc::kClavesEnCurso, json{{"publico", publico}}.dump());
+        SignalingServer otra(c, auth, hub, room, shares, log);
+        CHECK(otra.claves().publico == publico, "arranca con la clave del evento en curso (sin esperar a la app)");
+        CHECK(otra.start(), "y arranca");
+        const std::string r =
+            pedir(otra.guestPort(), con("GET", "/api/publico-info", "", "X-BA-Clave: " + publico + "\r\n"));
+        CHECK(r.find("200 OK") != std::string::npos, "un QR impreso que llega antes que la app: vale");
+        otra.stop();
+    }
+    std::filesystem::remove_all(datos);
     std::filesystem::remove_all(dir);
     std::printf(g_fallas == 0 ? "== OK ==\n" : "== %d FALLAS ==\n", g_fallas);
     return g_fallas == 0 ? 0 : 1;

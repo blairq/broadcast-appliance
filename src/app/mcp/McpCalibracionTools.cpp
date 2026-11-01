@@ -275,6 +275,7 @@ void McpService::registerCalibracionTools() {
         t.title = ba::i18n::traducir("mcp", "Mover o quitar algo del croquis; cambiar la calibración de un micrófono");
         t.category = kCat;
         t.clase = Clase::Escritura;
+        t.destructivaSi = "borrar_medicion"; // borra una medición
         t.description = QT_TRANSLATE_NOOP("mcp", "Con `x`, `y`: mueve el parlante, micrófono o punto `id`. Con `quitar: true`: lo saca (sus "
                         "mediciones quedan pero no entran al análisis). Con `calibracion` (y `modelo`/`archivo`): "
                         "cambia la del micrófono. Con `borrar_medicion: true`, `id` es una medición y se borra.");

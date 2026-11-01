@@ -47,6 +47,7 @@ const std::vector<EsquemaConfig>& esquemasConfig() {
         {"audio-matriz.json"},
         {"audio-plantillas.json", 2, {mapaEn("plantillas")}},
         {"audio-racks.json", 2, {mapaEn("racks")}},
+        {"audio-vigia.json"},
         {"botonera-dispositivos.json"},
         {"botonera-satellite.json"},
         {"botonera.json"},
@@ -229,6 +230,10 @@ bool guardarConfigYa(const std::filesystem::path& archivo, json j) {
 
 bool guardarJson(const std::filesystem::path& ruta, const json& j, int sangria, Durabilidad d, std::string* error) {
     return escribir(ruta, j.dump(sangria, ' ', false, json::error_handler_t::replace) + "\n", d, Permisos::Comunes, error);
+}
+
+void guardarJsonEnCola(const std::filesystem::path& ruta, const json& j, int sangria, Pedido p) {
+    cola().escribir(ruta, j.dump(sangria, ' ', false, json::error_handler_t::replace) + "\n", std::move(p));
 }
 
 json leerJson(const std::filesystem::path& ruta) {

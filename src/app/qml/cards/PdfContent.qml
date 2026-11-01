@@ -153,53 +153,25 @@ Item {
             }
             // El joystick: mantenerlo corrido mueve lo que se ve hacia ese lado (más
             // lejos del centro, más rápido); la rueda acerca y aleja.
-            Rectangle {
+            Joystick {
                 id: pad
-                property real px: 0
-                property real py: 0
                 Layout.preferredWidth: 104; Layout.preferredHeight: 104
                 Layout.alignment: Qt.AlignTop
-                radius: 52
                 // Mueve solo con zoom (entera no hay adónde ir); la rueda anda siempre.
                 readonly property bool activo: !!tarjeta.f && tarjeta.f.paginas > 0 && (tarjeta.f.zoom || 1) > 1.001
                 opacity: activo ? 1 : 0.45
-                color: Qt.rgba(1, 1, 1, 0.05); border.color: Qt.rgba(1, 1, 1, 0.18)
-                Rectangle {
-                    width: 32; height: 32; radius: 16
-                    color: padMa.pressed ? Theme.accent : Qt.rgba(1, 1, 1, 0.22)
-                    x: pad.width / 2 - width / 2 + pad.px * (pad.width / 2 - 16)
-                    y: pad.height / 2 - height / 2 - pad.py * (pad.height / 2 - 16)
-                }
+                conRueda: true
                 Text {
                     anchors { horizontalCenter: parent.horizontalCenter; top: parent.bottom; topMargin: 2 }
                     text: pad.activo ? qsTr("mover · rueda: zoom") : qsTr("rueda: zoom")
                     color: Theme.textFaint; font.pixelSize: 9
                 }
-                Timer {
-                    interval: 60; repeat: true; running: pad.activo && padMa.pressed && (pad.px !== 0 || pad.py !== 0)
-                    onTriggered: tarjeta.pe.mover(tarjeta.f.nombre, pad.px * 0.06, -pad.py * 0.06)
-                }
-                MouseArea {
-                    id: padMa
-                    anchors.fill: parent
-                    preventStealing: true
-                    function leer(m) {
-                        let dx = (m.x - pad.width / 2) / (pad.width / 2 - 16)
-                        let dy = -(m.y - pad.height / 2) / (pad.height / 2 - 16)
-                        const r = Math.sqrt(dx * dx + dy * dy)
-                        if (r > 1) { dx /= r; dy /= r }
-                        pad.px = Math.abs(dx) < 0.08 ? 0 : dx
-                        pad.py = Math.abs(dy) < 0.08 ? 0 : dy
-                    }
-                    onPressed: (m) => { tarjeta.forceActiveFocus(); leer(m) }
-                    onPositionChanged: (m) => leer(m)
-                    onReleased: { pad.px = 0; pad.py = 0 }
-                    onCanceled: { pad.px = 0; pad.py = 0 }
-                    onWheel: (w) => {
-                        if (!tarjeta.f || !(tarjeta.f.paginas > 0)) return
-                        const z = Math.max(1, Math.min(8, (tarjeta.f.zoom || 1) * (w.angleDelta.y > 0 ? 1.15 : 1 / 1.15)))
-                        tarjeta.pe.encuadre(tarjeta.f.nombre, z, -1, -1)
-                    }
+                onApretado: tarjeta.forceActiveFocus()
+                onMover: (px, py) => { if (pad.activo && (px !== 0 || py !== 0)) tarjeta.pe.mover(tarjeta.f.nombre, px * 0.06, -py * 0.06) }
+                onRueda: (sentido) => {
+                    if (!tarjeta.f || !(tarjeta.f.paginas > 0)) return
+                    const z = Math.max(1, Math.min(8, (tarjeta.f.zoom || 1) * (sentido > 0 ? 1.15 : 1 / 1.15)))
+                    tarjeta.pe.encuadre(tarjeta.f.nombre, z, -1, -1)
                 }
             }
         }

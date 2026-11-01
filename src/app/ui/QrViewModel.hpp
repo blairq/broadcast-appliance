@@ -113,6 +113,14 @@ class QrViewModel : public QObject {
     Q_INVOKABLE void nuevo(const QString& tipo);
     Q_INVOKABLE void abrir(const QString& id);
     Q_INVOKABLE bool guardar(const QString& nombre);
+    /// Guarda un código SIN pasar por el editor (lo usa el MCP): `id` vacío crea
+    /// uno; con `id` lo reemplaza, encimando `datos` y `estilo` sobre lo que tenía.
+    /// No toca el ámbito que se está mirando ni lo que el operador está
+    /// diseñando: si ese mismo código está abierto SIN cambios, se recarga; con
+    /// cambios sin guardar, el borrador queda como estaba. Devuelve el error, o
+    /// vacío y el id en `idOut`.
+    QString guardarCodigo(const QString& ambito, const QString& id, const QString& nombre, const QString& tipo,
+                          const QVariantMap& datos, const QVariantMap& estilo, QString* idOut = nullptr);
     Q_INVOKABLE void borrar(const QString& id);
     /// Lo copia al otro ámbito (del evento a la biblioteca general o al revés).
     Q_INVOKABLE void copiarA(const QString& id, const QString& ambito);

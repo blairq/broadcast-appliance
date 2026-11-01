@@ -601,21 +601,14 @@ Rectangle {
                         Rectangle { visible: grillaAhora.visible; Layout.fillWidth: true; height: 1; color: Qt.rgba(1, 1, 1, 0.08) }
                         Repeater {
                             model: Studio.properties
-                            delegate: FormField {
+                            delegate: CampoFormulario {
                                 required property string name
-                                required label
-                                required kind
-                                required value
-                                required options
-                                required minimum
-                                required maximum
-                                required step
-                                required suffix
-                                required help
-                                required enabled
+                                required property var campo
                                 Layout.fillWidth: true
-                                onEdited: (v) => Studio.properties.setValue(name, v)
-                                onPressed: Studio.properties.press(name)
+                                c: campo
+                                etiquetaAlCostado: true
+                                onCambio: (v) => Studio.properties.setValue(name, v)
+                                onApretado: Studio.properties.press(name)
                             }
                         }
                     }

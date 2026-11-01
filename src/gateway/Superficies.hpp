@@ -72,6 +72,9 @@ class Superficies {
                   const nlohmann::json& extra = nlohmann::json::object(), bool autorizada = true);
     /// Dijo bien su clave (ver Conectada::autorizada).
     void autorizar(const std::string& pid);
+    /// Cambió la clave de ese tipo (otro evento): las que dijeron la de antes dejan de estar
+    /// autorizadas y tienen que decir la nueva. Devuelve sus conexiones.
+    std::vector<std::string> desautorizar(const std::string& tipo);
     /// Cambia un dato de `extra` (el nombre que le pusieron, por ejemplo).
     void ponerExtra(const std::string& pid, const std::string& clave, const std::string& valor);
     /// Las conectadas de ese tipo, enteras.

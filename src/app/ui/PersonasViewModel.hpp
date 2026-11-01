@@ -29,6 +29,7 @@
 
 #if BA_HAVE_ROSTROS
 #include "comun/UsoPorVistas.hpp"
+#include "rostros/Personas.hpp"
 #include "ui/Reconocedor.hpp"
 #endif
 
@@ -213,6 +214,22 @@ class PersonasViewModel : public QObject {
     ba::rostros::Personas& libreta();
     /// Guarda la libreta y avisa a la vista. Lo llama quien la tocó.
     bool persistir();
+
+    // --- Lo que cambia la libreta (la página y el MCP, por el mismo camino) ----
+    // Cada una guarda (por el escritor único) y avisa (`cambio`).
+    /// Crea (`p.id` vacío) o corrige la ficha sin tocar sus caras. El id, o vacío
+    /// y el motivo en `error`.
+    std::string guardarFicha(const ba::rostros::Persona& p, std::string* error = nullptr);
+    /// Le suma a `id` la cara `visto` y, si la ficha no tiene foto (o `nuevaFoto`),
+    /// le saca una del cuadro `img`. NoExiste si no está.
+    ba::rostros::Personas::Alta anotarCara(const std::string& id, const Reconocedor::Visto& visto, const QImage& img,
+                                           bool nuevaFoto);
+    /// Pasa las caras de `otro` a `id` y borra `otro` (con su foto, si `id` no se
+    /// quedó con ella). false si no se pudo.
+    bool fusionar(const std::string& id, const std::string& otro);
+    /// «La vi recién» (lo que se identificó al mirar): se anota y se guarda cada
+    /// tanto (rostros.guardarVistasS), como en el lobby.
+    void vistas(const std::vector<std::string>& ids);
     /// Dónde van las fotos de las fichas.
     QString carpetaFotos() const;
 #endif

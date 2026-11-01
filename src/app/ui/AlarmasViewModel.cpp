@@ -225,13 +225,9 @@ agent::AlertInputs AlarmasViewModel::directas(const Fuentes& f) {
         return *cache;
     };
     directas.loudness = [&motor]() { return motor.loudnessPrograma().json(); };
-    // El corte de luz: medido acá (una consulta al sistema, una vez cada 5 s), no en la
-    // vuelta de EnergiaAire, que es de la interfaz.
-    directas.energia = [e = &f.energia, cache = std::make_shared<std::pair<qint64, json>>()]() {
-        const qint64 ahora = QDateTime::currentMSecsSinceEpoch();
-        if (cache->first == 0 || ahora - cache->first >= 5000) *cache = {ahora, e->estadoAhora()};
-        return cache->second;
-    };
+    // El corte de luz: lo que midió EnergiaAire en su última vuelta (es del dueño, como el
+    // vigía: una sola medición, con su candado).
+    directas.energia = [e = &f.energia]() { return e->estado(); };
     // El disco de todo lo que se graba (por volumen; la copia en el mismo disco). Mira
     // el espacio libre de cada carpeta: una vez cada 5 s alcanza. Lee lo que graba el
     // motor con su turno, y sin esperar: si la interfaz lo tiene (trabada ADENTRO del
@@ -251,24 +247,10 @@ agent::AlertInputs AlarmasViewModel::directas(const Fuentes& f) {
 
 agent::AlertInputs AlarmasViewModel::sinLaInterfaz() {
     agent::AlertInputs in;
-    // La sala y su chat, preguntados a B (ConferenceClient::pedirSinInterfaz) cuando la
-    // foto de la interfaz se quedó quieta: una vez por segundo como mucho, y la misma
-    // respuesta para las dos.
-    struct Sala {
-        std::mutex mu;
-        qint64 cuando = 0;
-        QJsonObject foto;
-    };
-    auto sala = std::make_shared<Sala>();
-    const auto leer = [sala]() {
-        const std::lock_guard<std::mutex> l(sala->mu);
-        const qint64 ahora = QDateTime::currentMSecsSinceEpoch();
-        if (ahora - sala->cuando >= 1000) {
-            sala->cuando = ahora;
-            sala->foto = ConferenceClient::pedirSinInterfaz("/api/v1/room", 800).value_or(QJsonObject());
-        }
-        return sala->foto;
-    };
+    // La sala y su chat cuando la foto de la interfaz se quedó quieta: la última que leyó el
+    // lector de eventos de la sala en su hilo (ConferenceClient::fotoSala), sin I/O ni esperar
+    // a B (antes, un GET de hasta 800 ms por segundo desde el plano de control).
+    const auto leer = []() { return ConferenceClient::fotoSala(); };
     in.room = [leer]() {
         return json::parse(QJsonDocument(leer()).toJson(QJsonDocument::Compact).toStdString(), nullptr, false);
     };

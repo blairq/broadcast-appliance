@@ -7,7 +7,8 @@
 // cual (bool, número, texto), así cualquier fuente se configura igual.
 //
 // Tipos que expone (`kind`): bool, int, float, text, textarea, password, path,
-// list, color, font, button, info. Los grupos se aplanan con un encabezado.
+// list, color, font, button, info. Los grupos se aplanan con un encabezado. La vista
+// dibuja cada fila con CampoFormulario (el rol `campo`, con el esquema de ui/Formulario).
 //
 // EL MOTOR ES DEL PLANO DE CONTROL (docs/arquitectura/05-motor-del-plano.md): lo que
 // hace falta para armar las filas (el tipo, los ajustes, las cámaras del equipo y sus
@@ -52,7 +53,8 @@ class PropertiesModel : public QAbstractListModel {
         StepRole,
         SuffixRole,
         EnabledRole,
-        HelpRole
+        HelpRole,
+        CampoRole ///< la fila con el esquema de CampoFormulario (ui/Formulario: deFila)
     };
     struct Row {
         QString name;

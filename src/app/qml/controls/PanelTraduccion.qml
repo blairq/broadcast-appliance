@@ -422,37 +422,47 @@ ColumnLayout {
         placeholderText: qsTr("Buscar en el glosario…")
         color: Theme.text; font.pixelSize: 12
         background: Rectangle { color: Theme.field; radius: 6 }
-        onTextChanged: panel.buscar = text.toLowerCase()
+        onTextChanged: panel.buscar = text
+    }
+    // Los términos según lo escrito (en cualquier idioma): la búsqueda de todos los
+    // catálogos (el modelo).
+    FiltroCatalogo {
+        id: glosarioVisible
+        clave: "es"
+        fuente: panel.tr ? panel.tr.glosario : []
+        camposCabeza: ["es"]
+        campos: ["en", "pt", "fr", "de", "ru", "zh", "origen"]
+        texto: panel.buscar
     }
     Repeater {
-        model: (panel.tr ? panel.tr.glosario : []).filter(e => panel.buscar === "" || JSON.stringify(e).toLowerCase().indexOf(panel.buscar) >= 0)
+        model: glosarioVisible
         delegate: RowLayout {
             id: term
-            required property var modelData
+            required property var datos
             Layout.fillWidth: true
             spacing: 8
-            opacity: modelData.activo ? 1 : 0.45
+            opacity: datos.activo ? 1 : 0.45
             Text {
                 Layout.preferredWidth: 220; elide: Text.ElideRight
-                text: (Array.isArray(term.modelData.es) ? term.modelData.es[0] : term.modelData.es)
+                text: (Array.isArray(term.datos.es) ? term.datos.es[0] : term.datos.es)
                 color: Theme.text; font.pixelSize: 12
-                ToolTip.visible: tHover.hovered; ToolTip.text: Array.isArray(term.modelData.es) ? term.modelData.es.join(" · ") : ""
+                ToolTip.visible: tHover.hovered; ToolTip.text: Array.isArray(term.datos.es) ? term.datos.es.join(" · ") : ""
                 HoverHandler { id: tHover }
             }
             Text {
                 Layout.fillWidth: true; elide: Text.ElideRight
-                text: ["en", "pt", "fr", "de", "ru", "zh"].filter(k => !!term.modelData[k]).map(k => k + ": " + term.modelData[k]).join("  ·  ")
+                text: ["en", "pt", "fr", "de", "ru", "zh"].filter(k => !!term.datos[k]).map(k => k + ": " + term.datos[k]).join("  ·  ")
                 color: Theme.textDim; font.pixelSize: 11
             }
             Text {
-                text: term.modelData.origen === "operador" ? qsTr("propio") : ""
+                text: term.datos.origen === "operador" ? qsTr("propio") : ""
                 color: Theme.accent; font.pixelSize: 10
             }
             GlassButton {
                 compact: true; text: "✕"
-                onClicked: panel.tr.glosarioQuitarUi(Array.isArray(term.modelData.es) ? term.modelData.es[0] : term.modelData.es)
+                onClicked: panel.tr.glosarioQuitarUi(Array.isArray(term.datos.es) ? term.datos.es[0] : term.datos.es)
                 ToolTip.visible: hovered; ToolTip.delay: 400
-                ToolTip.text: term.modelData.origen === "operador" ? qsTr("Sacar este término") : qsTr("Apagar este término de fábrica")
+                ToolTip.text: term.datos.origen === "operador" ? qsTr("Sacar este término") : qsTr("Apagar este término de fábrica")
             }
         }
     }

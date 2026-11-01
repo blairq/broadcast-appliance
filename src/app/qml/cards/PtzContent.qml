@@ -150,7 +150,7 @@ Item {
             visible: t.cam !== null
             Layout.fillWidth: true
             spacing: 10
-            Joystick {
+            JoystickPtz {
                 entrada: t.entrada; velocidad: t.velocidad
                 Layout.preferredWidth: 120; Layout.preferredHeight: 120
                 onAviso: (e) => t.avisar(e)

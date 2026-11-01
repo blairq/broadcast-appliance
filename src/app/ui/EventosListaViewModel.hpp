@@ -21,6 +21,7 @@
 #pragma once
 
 #include <atomic>
+#include <functional>
 #include <filesystem>
 #include <string>
 #include <vector>
@@ -87,7 +88,9 @@ class EventosListaViewModel : public QObject {
     std::string mover(const std::string& carpeta, const std::string& aCarpeta, std::string* err);
     std::string crearCarpeta(const std::string& ruta, std::string* err);
     std::string crear(const std::string& nombre, const std::string& enCarpeta, std::string* err);
-    bool borrar(const std::string& carpeta, std::string* err);
+    /// Borra el evento (la carpeta entera, con sus grabaciones: puede ser de gigas) EN EL
+    /// FONDO; la lista se entera al terminar (listaChanged) y `listo` recibe "" o el error.
+    void borrar(const std::string& carpeta, std::function<void(const std::string& error)> listo);
     bool guardarDatos(const std::string& carpeta, const evento::DatosDelEvento& d, std::string* err);
     /// El abierto se guardó: lo suyo pasa a la caché ya.
     void alGuardar(const std::string& carpeta, const evento::Evento& e);

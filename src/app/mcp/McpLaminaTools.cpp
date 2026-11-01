@@ -44,7 +44,7 @@ void McpService::registerLaminaTools() {
     {
         Tool t;
         t.name = "carruseles_listar";
-        t.title = ba::i18n::traducir("mcp", "Que carruseles de laminas hay");
+        t.title = ba::i18n::traducir("mcp", "Qué carruseles de láminas hay");
         t.category = "laminas";
         t.clase = Clase::Lectura;
         t.description = QT_TRANSLATE_NOOP("mcp", "Los carruseles de la biblioteca (no sus láminas), con cuántas láminas tiene cada uno y cuál está "
@@ -76,7 +76,7 @@ void McpService::registerLaminaTools() {
     {
         Tool t;
         t.name = "carrusel_laminas_ver";
-        t.title = ba::i18n::traducir("mcp", "Las laminas de un carrusel");
+        t.title = ba::i18n::traducir("mcp", "Las láminas de un carrusel");
         t.category = "laminas";
         t.clase = Clase::Lectura;
         t.description = QT_TRANSLATE_NOOP("mcp", "Las láminas DE UN carrusel, en orden, con su número, su título y cuál está puesta. El numero es lo "
@@ -86,14 +86,14 @@ void McpService::registerLaminaTools() {
                          {"required", {"carrusel"}}};
         t.run = [cc](const json& a, Done done) {
             const QString n = QString::fromStdString(a.value("carrusel", std::string()));
-            const QString antes = cc->actual();
-            const QString consulta = cc->consulta();
-            // Se mira SIN dejarlo abierto ni pisar el filtro del operador: una
-            // consulta del asistente no puede cambiarle la pantalla de abajo.
-            cc->setConsulta("");
-            cc->setActual(n);
+            // Se mira SIN abrirlo ni pisar el filtro del operador: una consulta del
+            // asistente no puede cambiarle la pantalla de abajo.
+            if (!cc->existe(n)) {
+                done(ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "No hay ningun carrusel llamado «%1». carruseles_listar los da."), {n.toStdString()})));
+                return;
+            }
             json out = json::array();
-            for (const QVariant& v : cc->laminas()) {
+            for (const QVariant& v : cc->buscar(n, {})) {
                 const QVariantMap m = v.toMap();
                 out.push_back(json{{"numero", m["indice"].toInt() + 1},
                                    {"titulo", m["titulo"].toString().toStdString()},
@@ -101,13 +101,6 @@ void McpService::registerLaminaTools() {
                                    {"analizada", m["analizada"].toBool()},
                                    {"puesta", m["actual"].toBool()},
                                    {"archivo", m["archivo"].toString().toStdString()}});
-            }
-            const bool existe = !out.empty() || cc->actual() == n;
-            cc->setActual(antes);
-            cc->setConsulta(consulta);
-            if (!existe) {
-                done(ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "No hay ningun carrusel llamado «%1». carruseles_listar los da."), {n.toStdString()})));
-                return;
             }
             done(ToolResult().data(json{{"carrusel", n.toStdString()}, {"laminas", out}}));
         };
@@ -117,7 +110,7 @@ void McpService::registerLaminaTools() {
     {
         Tool t;
         t.name = "laminas_ir";
-        t.title = ba::i18n::traducir("mcp", "Saltar a una lamina");
+        t.title = ba::i18n::traducir("mcp", "Saltar a una lámina");
         t.category = "laminas";
         t.clase = Clase::Escritura;
         t.description = QT_TRANSLATE_NOOP("mcp", "Pone la lamina numero N del carrusel. Es la razon de que el carrusel exista: "
@@ -154,10 +147,7 @@ void McpService::registerLaminaTools() {
                 // cuadro de busqueda de la pestaña, y si el operador dejo algo
                 // escrito ahi, «la siguiente» contaria sobre tres laminas en
                 // vez de cincuenta.
-                const QString filtro = cc->consulta();
-                cc->setConsulta("");
-                const int n = cc->laminas().size();
-                cc->setConsulta(filtro);
+                const int n = static_cast<int>(cc->buscar(cc->actual(), {}).size());
                 if (n == 0) {
                     done(ToolResult::error(ba::i18n::traducir("mcp", "Ese carrusel esta vacio.")));
                     return;
@@ -181,7 +171,7 @@ void McpService::registerLaminaTools() {
     {
         Tool t;
         t.name = "laminas_buscar";
-        t.title = ba::i18n::traducir("mcp", "Buscar una lamina por lo que dice");
+        t.title = ba::i18n::traducir("mcp", "Buscar una lámina por lo que dice");
         t.category = "laminas";
         t.clase = Clase::Lectura;
         t.description =
@@ -207,20 +197,14 @@ void McpService::registerLaminaTools() {
                 done(ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "No hay ningun carrusel llamado «%1». carruseles_listar los da."), {n.toStdString()})));
                 return;
             }
-            const QString antes = cc->actual();
-            const QString consulta = cc->consulta();
-            cc->setActual(n);
-            cc->setConsulta(QString::fromStdString(a.value("texto", std::string())));
             json out = json::array();
-            for (const QVariant& v : cc->laminas()) {
+            for (const QVariant& v : cc->buscar(n, QString::fromStdString(a.value("texto", std::string())))) {
                 const QVariantMap m = v.toMap();
                 out.push_back(json{{"numero", m["indice"].toInt() + 1},
                                    {"titulo", m["titulo"].toString().toStdString()},
                                    {"etiquetas", m["etiquetas"].toString().toStdString()},
                                    {"puesta", m["actual"].toBool()}});
             }
-            cc->setActual(antes);
-            cc->setConsulta(consulta);
             done(ToolResult().data(json{{"carrusel", n.toStdString()}, {"encontradas", out}}));
         };
         core_.addTool(std::move(t));
@@ -338,6 +322,7 @@ void McpService::registerLaminaTools() {
         t.title = ba::i18n::traducir("mcp", "Cambiar un carrusel ya armado");
         t.category = "laminas";
         t.clase = Clase::Escritura;
+        t.destructivaSi = {"accion", {"borrar"}}; // se lleva el carrusel
         t.description =
             QT_TRANSLATE_NOOP("mcp", "Quitar una lamina, moverla de lugar, renombrar el carrusel, borrarlo, o soltarlo de la "
             "escena.\n\n"
@@ -371,12 +356,12 @@ void McpService::registerLaminaTools() {
             } else if (accion == "renombrar") {
                 ok = cc->renombrar(n, QString::fromStdString(a.value("nombre", std::string())));
             } else {
-                cc->setActual(n);
+                // Sobre el carrusel nombrado, sin cambiar el que el operador tiene abierto.
                 const int numero = a.value("numero", 0);
                 if (accion == "quitar")
-                    ok = cc->quitar(numero - 1);
+                    ok = cc->quitar(n, numero - 1);
                 else if (accion == "mover")
-                    ok = cc->mover(numero - 1, a.value("hasta", 0) - 1);
+                    ok = cc->mover(n, numero - 1, a.value("hasta", 0) - 1);
             }
             if (!ok) {
                 done(ToolResult::error(ba::i18n::traducir("mcp", "No se pudo: revisa los numeros con carrusel_laminas_ver (empiezan en 1) "
@@ -436,7 +421,7 @@ void McpService::registerLaminaTools() {
     {
         Tool t;
         t.name = "laminas_sin_analizar";
-        t.title = ba::i18n::traducir("mcp", "La proxima lamina sin etiquetas");
+        t.title = ba::i18n::traducir("mcp", "La próxima lámina sin etiquetas");
         t.category = "laminas";
         t.clase = Clase::Lectura;
         t.description =
@@ -450,12 +435,8 @@ void McpService::registerLaminaTools() {
                          {"required", {"carrusel"}}};
         t.run = [cc](const json& a, Done done) {
             const QString n = QString::fromStdString(a.value("carrusel", std::string()));
-            const QString antes = cc->actual();
-            const QString consulta = cc->consulta();
-            cc->setConsulta("");
-            cc->setActual(n);
             json r = json::object();
-            for (const QVariant& v : cc->laminas()) {
+            for (const QVariant& v : cc->buscar(n, {})) {
                 const QVariantMap m = v.toMap();
                 if (m["analizada"].toBool()) continue;
                 r = json{{"numero", m["indice"].toInt() + 1},
@@ -463,8 +444,6 @@ void McpService::registerLaminaTools() {
                          {"titulo", m["titulo"].toString().toStdString()}};
                 break;
             }
-            cc->setActual(antes);
-            cc->setConsulta(consulta);
             done(ToolResult().data(r.empty() ? json{{"quedan", false}}
                                              : json{{"quedan", true}, {"lamina", r}}));
         };
@@ -474,7 +453,7 @@ void McpService::registerLaminaTools() {
     {
         Tool t;
         t.name = "laminas_etiquetar";
-        t.title = ba::i18n::traducir("mcp", "Guardar lo que se ve en una lamina");
+        t.title = ba::i18n::traducir("mcp", "Guardar lo que se ve en una lámina");
         t.category = "laminas";
         t.clase = Clase::Escritura;
         t.description = QT_TRANSLATE_NOOP("mcp", "Guarda las palabras con las que despues se va a buscar esa lamina: lo que "

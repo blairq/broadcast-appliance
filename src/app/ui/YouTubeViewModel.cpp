@@ -113,15 +113,26 @@ void YouTubeViewModel::clearClient() {
     broadcasts_->setItems({});
 }
 
-void YouTubeViewModel::login() {
+YouTubeClient::Done YouTubeViewModel::conRefresco(YouTubeClient::Done listo) {
+    return [this, listo = std::move(listo)](bool ok, const QJsonObject& d, const QString& e) {
+        if (ok) refresh();
+        if (listo) listo(ok, d, e);
+    };
+}
+
+void YouTubeViewModel::login() { login(YouTubeClient::Done{}); }
+
+void YouTubeViewModel::login(YouTubeClient::Done listo) {
     setError({});
-    client_->login([this](bool ok, const QJsonObject& acc, const QString& e) {
+    client_->login([this, listo](bool ok, const QJsonObject& acc, const QString& e) {
         if (!ok) {
             if (e != "Login cancelado.") setError(e);
+            if (listo) listo(false, acc, e);
             return;
         }
         emit notify(tr("Conectado a YouTube: %1").arg(acc.value("title").toString()), "ok");
         refresh();
+        if (listo) listo(true, acc, {});
     });
 }
 

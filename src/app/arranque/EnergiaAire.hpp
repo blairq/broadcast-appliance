@@ -15,8 +15,9 @@
 // ES DEL DUEÑO DEL MOTOR (el plano de control; docs/arquitectura/05-motor-del-plano.md):
 // se arma en la interfaz y se adopta (VentanillaMotor::adoptar) con su reloj, que es hijo;
 // `vigilar` se llama ya mudado. Así, con la interfaz trabada, las grabaciones igual se
-// cierran antes de que se apague la UPS. `estado()` y `estadoAhora()` se leen desde
-// cualquier hilo; las señales salen en el dueño (a la interfaz le llegan encoladas).
+// cierran antes de que se apague la UPS. `estado()` se lee desde cualquier hilo (el vigía
+// de las alarmas, en el mismo dueño; la interfaz); las señales salen en el dueño (a la
+// interfaz le llegan encoladas).
 // Lo que hace sobre el aire va por `Acciones` (la app le pasa las de AppRuntime:
 // cerrar/retomarGrabacionesPorEnergia; el test, falsas).
 // ============================================================================
@@ -53,11 +54,6 @@ class EnergiaAire : public QObject {
     /// {conocido, hay_bateria, en_bateria, porcentaje, minutos, fuente, accion, emergencia, umbral{…}}:
     /// lo de la última vuelta. Desde cualquier hilo.
     nlohmann::json estado() const;
-    /// DESDE CUALQUIER HILO (F3-03): el mismo estado, medido AHORA (una consulta al
-    /// sistema) en vez de el de la última vuelta, con `emergencia` de la última vuelta. Lo
-    /// lee el vigía de las alarmas en el plano de control: con la interfaz trabada, el
-    /// corte de luz igual se avisa.
-    nlohmann::json estadoAhora() const;
     /// Una vuelta con este estado de la energía.
     void evaluar(const platform::EstadoEnergia& e);
 
@@ -75,7 +71,7 @@ class EnergiaAire : public QObject {
     mutable std::mutex mu_; ///< ultimo_ y accion_ (los escribe el dueño, se leen de cualquiera)
     platform::EstadoEnergia ultimo_;
     platform::AccionEnergia accion_ = platform::AccionEnergia::Nada;
-    std::atomic<bool> emergencia_{false}; ///< acciones_.emergencia() de la última vuelta (estadoAhora)
+    std::atomic<bool> emergencia_{false}; ///< acciones_.emergencia() de la última vuelta
 };
 
 } // namespace ba::app

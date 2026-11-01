@@ -3,6 +3,7 @@
 #include "platform/GstEntorno.hpp"
 
 #include "hw/SaludDrivers.hpp"
+#include "persist/Escritor.hpp"
 #include "platform/Maquina.hpp"
 #include "platform/Paths.hpp"
 
@@ -269,8 +270,7 @@ std::vector<fs::path> archivosDeEscaneres() {
 
 void registroTerminado(bool ok) {
     if (ok && !archivoRutaRegistro().empty()) {
-        std::ofstream f(archivoRutaRegistro(), std::ios::binary | std::ios::trunc);
-        f << rutaPlugins(gstRaiz());
+        ba::persist::escribir(archivoRutaRegistro(), rutaPlugins(gstRaiz()));
     }
     if (!g_diagnostico) return;
     g_diagnostico = false;

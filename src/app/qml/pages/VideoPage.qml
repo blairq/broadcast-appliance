@@ -48,7 +48,6 @@ Rectangle {
 
     function colorDe(tipo) {
         if (tipo === "entrada" || tipo === "escena") return "#64748b"
-        if (tipo === "obs") return "#0ea5e9"
         if (tipo === "gst") return "#10b981"
         if (tipo === "control") return "#fbbf24"
         if (tipo === "compositor" || tipo === "mezcla") return "#f472b6"
@@ -304,7 +303,7 @@ Rectangle {
                           f: () => Studio.plugins.tarjetaUi(t.plugin, t.tarjeta, page.vg.entrada, false)
                       })) }] : []),
                     { titulo: qsTr("Todos los módulos"),
-                      items: [{ t: qsTr("Buscar módulo…"), tip: qsTr("Cualquier módulo de video de GStreamer o filtro de OBS como tarjeta, con su ayuda: color, llaves, desentrelazado, textos y reloj, nitidez, efectos, OpenGL…"), f: () => catalogo.open() }] }
+                      items: [{ t: qsTr("Buscar módulo…"), tip: qsTr("Cualquier módulo de video de GStreamer como tarjeta, con su ayuda: color, llaves, desentrelazado, textos y reloj, nitidez, efectos, OpenGL…"), f: () => catalogo.open() }] }
                 ]
                 acciones: [
                     { t: qsTr("Sincronía y red…"), icon: "⏱", f: () => page.irASincronia(),
@@ -553,7 +552,7 @@ Rectangle {
                             }
                         }
                         GlassButton {
-                            visible: !!page.nodo && !page.nodo.controlador && ["color", "croma", "recorte", "obs", "gst"].indexOf(page.nodo.tipo) >= 0 && !page.nodo.externo
+                            visible: !!page.nodo && !page.nodo.controlador && ["color", "croma", "recorte", "gst"].indexOf(page.nodo.tipo) >= 0 && !page.nodo.externo
                             compact: true
                             text: qsTr("Usar en varias entradas…")
                             icon: "⇶"
@@ -635,12 +634,12 @@ Rectangle {
                             }
                         }
 
-                        // Una tarjeta de OBS (o un módulo de GStreamer): sus controles, de las
-                        // propiedades del filtro. Los deslizadores aplican mientras se mueven.
+                        // Un módulo de GStreamer (o una mezcla): sus controles, de las
+                        // propiedades del elemento. Los deslizadores aplican mientras se mueven.
                         FormularioPropiedades {
                             Layout.fillWidth: true
                             vacio: ""
-                            props: page.nodo && (page.tipoEf === "obs" || page.tipoEf === "gst" || page.tipoEf === "mezcla") ? ((page.vg.formularios[page.sel] || {}).props || []) : []
+                            props: page.nodo && (page.tipoEf === "gst" || page.tipoEf === "mezcla") ? ((page.vg.formularios[page.sel] || {}).props || []) : []
                             onCambio: (nombre, valor) => typeof valor === "number" ? page.ajustarFiltro(page.sel, nombre, valor)
                                                                                  : page.vg.ajustarFiltro(page.sel, nombre, valor)
                         }
@@ -1376,10 +1375,9 @@ Rectangle {
         }
         onElegido: (tipo, id) => {
             const despues = page.nodo && page.nodo.tipo !== "escena" && !page.nodo.externo ? page.sel : ""
-            if (tipo === "gst") page.vg.agregarModulo(id, despues)
-            else if (tipo === "tarjeta") page.vg.agregar(id, despues) // comoTarjeta: superres, rostros, seguir
+            if (tipo === "tarjeta") page.vg.agregar(id, despues) // comoTarjeta: superres, rostros, seguir
             else if (tipo === "mezcla") page.vg.agregarMezcla(id) // del estudio: no va después de nada
-            else page.vg.agregarFiltro(id, despues)
+            else page.vg.agregarModulo(id, despues)
         }
     }
 

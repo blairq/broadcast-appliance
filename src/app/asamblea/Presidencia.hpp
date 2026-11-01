@@ -109,6 +109,8 @@ class Presidencia : public QObject {
 
     /// Le vuelve a decir todo al gateway (credenciales, vistas, quién tiene la palabra).
     void sincronizar();
+    /// Va a buscar los aparatos que registró el gateway (gateway/Sesion.hpp) y se los confirma.
+    void buscarAparatos();
 
    signals:
     /// Algo para el operador (la interfaz lo muestra).

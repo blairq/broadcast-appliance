@@ -701,11 +701,8 @@ ColumnLayout {
                         GlassButton {
                             text: qsTr("Mandar a la central"); active: true
                             enabled: pc.ok && (!avz.sel || avz.sel.riesgo !== "peligrosa" || confirmarF.checked)
-                            onClicked: {
-                                let a
-                                try { a = JSON.parse(args.text || "{}") } catch (err) { Studio.notify(qsTr("Los parámetros no son JSON válido"), "error"); return }
-                                pc.pedir("funcion", "funcion", {nombre: avz.sel.nombre, args: a, confirmar: confirmarF.checked})
-                            }
+                            // El JSON lo valida la central (ConferenciaDcn): un error vuelve por `hecho`.
+                            onClicked: pc.dcn.pedirFuncionUi(avz.sel.nombre, args.text, confirmarF.checked)
                         }
                     }
                     Text { visible: !!avz.sel && avz.sel.clase === "aviso"; color: Theme.textFaint; font.pixelSize: 12

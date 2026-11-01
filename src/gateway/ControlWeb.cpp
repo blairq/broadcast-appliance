@@ -185,6 +185,9 @@ bool ControlWebBorde::atender(long long fd, const std::string& method, const std
             http::sendResponse(fd, 400, "application/json", volcar({{"error", QT_TRANSLATE_NOOP("web/comun", "código inválido")}}));
             return true;
         }
+        // La app valida el código (lo emitió ella) y le pregunta a una persona.
+        std::string nombre = r.value("nombre", std::string("Navegador"));
+        if (nombre.size() > 60) nombre.resize(60);
         std::string sol;
         if (!ba::security::randomSecretHex(16, sol)) return http::sendResponse(fd, 500, "text/plain", "\n"), true;
         {
@@ -195,11 +198,10 @@ bool ControlWebBorde::atender(long long fd, const std::string& method, const std
             Solicitud s;
             s.ip = borde::ipTexto(clientIp);
             s.ms = ahora;
+            s.codigo = codigo;
+            s.nombre = nombre;
             solicitudes_[sol] = s;
         }
-        // La app valida el código (lo emitió ella) y le pregunta a una persona.
-        std::string nombre = r.value("nombre", std::string("Navegador"));
-        if (nombre.size() > 60) nombre.resize(60);
         alApp_({{"tipo", "solicitud"}, {"solicitud", sol}, {"codigo", codigo}, {"nombre", nombre}, {"ip", borde::ipTexto(clientIp)}});
         http::sendResponse(fd, 200, "application/json", volcar({{"solicitud", sol}}), "Cache-Control: no-store\r\n");
         return true;
@@ -379,6 +381,20 @@ bool ControlWebBorde::admin(long long fd, const std::string& method, const std::
     if (path.rfind("/api/v1/control/", 0) != 0) return false;
     const std::string que = path.substr(std::string("/api/v1/control/").size());
     const json r = json::parse(body.empty() ? "{}" : body, nullptr, false);
+    // Las solicitudes que la app todavía no resolvió (una app que no estaba cuando llegaron,
+    // o que no recibió el evento: las va a buscar al conectar).
+    if (method == "GET" && que == "solicitudes") {
+        json ps = json::array();
+        {
+            std::lock_guard<std::mutex> l(mu_);
+            const std::int64_t ahora = ahoraMs();
+            for (const auto& [sol, s] : solicitudes_)
+                if (s.estado == "pendiente" && ahora - s.ms <= kSolicitudMs())
+                    ps.push_back({{"solicitud", sol}, {"codigo", s.codigo}, {"nombre", s.nombre}, {"ip", s.ip}});
+        }
+        http::sendResponse(fd, 200, "application/json", json{{"solicitudes", ps}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
+        return true;
+    }
     if (method == "GET" && que == "estado") {
         json cs = json::array();
         std::lock_guard<std::mutex> l(mu_);

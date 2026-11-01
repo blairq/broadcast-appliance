@@ -5,6 +5,7 @@
 #include "Sesion.hpp"
 #include "Borde.hpp"
 #include "security/Comparar.hpp"
+#include "security/SecretsStore.hpp"
 
 #include <algorithm>
 #include <chrono>
@@ -52,6 +53,8 @@ inline int kIntentosPorIp() { return ba::ajustes::entero("sesion.intentosPorIp",
 inline int kFallasParaBloquear() { return ba::ajustes::entero("sesion.fallasParaBloquear", 5); }
 inline std::int64_t kBloqueoMs() { return ba::ajustes::entero64("sesion.bloqueoMin", 15) * 60 * 1000; }
 inline std::size_t kMaxFoto() { return static_cast<std::size_t>(ba::ajustes::entero("sesion.fotoKB", 96)) * 1024; }
+// Cada cuánto, como mucho, se avisa que hay foto nueva de alguien (el celular manda una cada 1-3 s).
+inline std::int64_t kAvisoFotoMs() { return ba::ajustes::entero64("sesion.avisoFotoMs", 2500); }
 // Lo que la página puede mandar; lo demás se ignora. Las de la palabra y el voto
 // se agregan en sus fases (R2, R4): la app decide si las acepta.
 const std::set<std::string> kTipos{"hola", "palabra", "voto"};
@@ -118,6 +121,9 @@ void SesionBorde::ponerCredenciales(const json& participantes) {
         c.hashPin = p.value("hash_pin", std::string());
         c.usuario = minus(p.value("usuario", std::string()));
         c.hashClave = p.value("hash_clave", std::string());
+        for (const auto& a : p.value("aparatos", json::array()))
+            if (a.is_object() && a.value("hash", std::string()).size() == 64 && !a.value("id", std::string()).empty())
+                c.aparatos.push_back({a.value("id", std::string()), a.value("sal", std::string()), a.value("hash", std::string())});
         // Las fallas y el bloqueo sobreviven a que la app reenvíe la lista.
         auto it = credenciales_.find(id);
         if (it != credenciales_.end() && it->second.hashToken == c.hashToken) {
@@ -127,6 +133,81 @@ void SesionBorde::ponerCredenciales(const json& participantes) {
         nuevas[id] = std::move(c);
     }
     credenciales_ = std::move(nuevas);
+    credencialesListas_ = true;
+}
+
+bool SesionBorde::credencialesListas() const {
+    std::lock_guard<std::mutex> l(mu_);
+    return credencialesListas_;
+}
+
+bool SesionBorde::aparatoVale(const std::string& id, const std::string& aparato) const {
+    if (aparato.empty()) return true;
+    const auto it = credenciales_.find(id);
+    if (it != credenciales_.end())
+        for (const Aparato& a : it->second.aparatos)
+            if (a.id == aparato) return true;
+    for (const Pendiente& p : pendientes_)
+        if (p.de == id && p.aparato.id == aparato) return true;
+    return false;
+}
+
+std::string SesionBorde::autenticarAparato(const std::string& id, const std::string& token, const std::string& aparato) {
+    if (aparato.size() != 64) return {};
+    std::lock_guard<std::mutex> l(mu_);
+    const auto it = credenciales_.find(id);
+    if (it == credenciales_.end()) return {};
+    // La URL tiene que ser la correcta: el token del link, si entró con link.
+    if (!token.empty() && !ba::security::igualesEnTiempoConstante(borde::hashConSal(it->second.sal + token), it->second.hashToken))
+        return {};
+    const auto vale = [&](const Aparato& a) {
+        return ba::security::igualesEnTiempoConstante(borde::hashConSal(a.sal + ":aparato:" + aparato), a.hash);
+    };
+    for (const Aparato& a : it->second.aparatos)
+        if (vale(a)) return a.id;
+    for (const Pendiente& p : pendientes_)
+        if (p.de == id && vale(p.aparato)) return p.aparato.id;
+    return {};
+}
+
+std::string SesionBorde::registrarAparato(const std::string& id, const std::string& nombre, std::string& aparatoId) {
+    std::string token, sal;
+    if (!ba::security::randomSecretHex(32, token) || !ba::security::randomSecretHex(8, sal) ||
+        !ba::security::randomSecretHex(6, aparatoId))
+        return {};
+    Pendiente p;
+    p.de = id;
+    p.aparato = {aparatoId, sal, borde::hashConSal(sal + ":aparato:" + token)};
+    p.nombre = nombre.substr(0, 80);
+    p.creadoMs = ahoraMs();
+    {
+        std::lock_guard<std::mutex> l(mu_);
+        if (pendientes_.size() >= 256) pendientes_.erase(pendientes_.begin()); // tope: A no viene a buscarlos
+        pendientes_.push_back(std::move(p));
+    }
+    alApp_({{"tipo", "aparatos"}}); // que A los vaya a buscar (y si no está, al volver)
+    return token;
+}
+
+json SesionBorde::aparatosPendientes() const {
+    std::lock_guard<std::mutex> l(mu_);
+    json out = json::array();
+    for (const Pendiente& p : pendientes_)
+        out.push_back({{"de", p.de},
+                       {"id", p.aparato.id},
+                       {"sal", p.aparato.sal},
+                       {"hash", p.aparato.hash},
+                       {"nombre", p.nombre},
+                       {"creado_ms", p.creadoMs}});
+    return out;
+}
+
+void SesionBorde::aparatosRecibidos(const json& ids) {
+    if (!ids.is_array()) return;
+    std::lock_guard<std::mutex> l(mu_);
+    std::erase_if(pendientes_, [&](const Pendiente& p) {
+        return std::find(ids.begin(), ids.end(), json(p.aparato.id)) != ids.end();
+    });
 }
 
 bool SesionBorde::bloqueado(const std::string& id) const {
@@ -247,56 +328,91 @@ void SesionBorde::wsLoop(long long fd, const std::string& ip, const std::string&
     c->ip = ip;
     c->lugar = lugar;
     // 1. Autenticación: el primer mensaje, a los 15 s como mucho.
+    json pedido;
     {
         if (http::waitReadable(fd, kAuthMs()) <= 0) return;
         std::string payload;
         int op = 0;
         if (!http::readWsFrame(fd, payload, op) || op != 0x1) return;
         const json m = json::parse(payload, nullptr, false);
-        const auto rechazar = [&](const std::string& error) {
-            enviar(c, {{"type", "auth"}, {"ok", false}, {"error", error}});
+        const auto rechazar = [&](const std::string& error, const std::string& codigo = {}) {
+            json r{{"type", "auth"}, {"ok", false}, {"error", error}};
+            if (!codigo.empty()) r["error_codigo"] = codigo;
+            enviar(c, r);
             http::writeWsFrame(fd, 0x8, "");
         };
         if (!m.is_object() || m.value("type", std::string()) != "auth")
             return rechazar(QT_TRANSLATE_NOOP("web/comun", "Mensaje inválido."));
+        pedido = m;
         // La consola de la presidencia tiene su propia credencial (id "consola:<x>"); un
         // integrante nunca entra por la consola ni la consola por la página del integrante.
         const bool conUsuario = !consola && m.contains("u");
         std::string id = consola ? "consola:" + m.value("c", std::string()) : m.value("i", std::string());
         if (!consola && id.rfind("consola:", 0) == 0) return rechazar(QT_TRANSLATE_NOOP("web/comun", "Mensaje inválido."));
-        if (!intentoPermitido(ip)) {
-            log_.warn(llenar(traducir("gateway", "sesion: demasiados intentos desde %1"), {ip}), -1);
-            return rechazar(QT_TRANSLATE_NOOP("web/comun", "Demasiados intentos desde esta conexión. Esperá 10 minutos."));
-        }
-        bool pinMal = false;
-        std::string quien;
-        if (conUsuario) {
-            quien = autenticarUsuario(m.value("u", std::string()), m.value("clave", std::string()), id, pinMal);
-            if (!id.empty() && bloqueado(id))
-                return rechazar(
-                    QT_TRANSLATE_NOOP("web/comun", "Por contraseña errada varias veces, tu acceso está bloqueado 15 minutos."));
-            if (quien.empty() && !pinMal) {
-                alApp_({{"tipo", "intento"}, {"id", ""}, {"ip", ip}, {"motivo", "usuario"}});
-                return rechazar(QT_TRANSLATE_NOOP("web/comun", "Usuario o contraseña incorrectos."));
+        // Una sala recién arrancada sin las credenciales de A todavía: «esperá», no «mal»
+        // (la página reintenta sola y no se cuenta como intento).
+        if (!credencialesListas())
+            return rechazar(QT_TRANSLATE_NOOP("web/comun", "Conectando con la sala…"), "esperar");
+        // Un aparato registrado (ver Sesion.hpp): con el link correcto, entra sin el PIN.
+        if (const std::string aparato = m.value("aparato", std::string()); !aparato.empty()) {
+            std::string deQuien = conUsuario ? std::string() : id;
+            if (conUsuario) {
+                const std::string u = minus(m.value("u", std::string()));
+                std::lock_guard<std::mutex> l(mu_);
+                for (const auto& [cid, cr] : credenciales_)
+                    if (!cr.usuario.empty() && cr.usuario == u) deQuien = cid;
             }
+            const std::string cual =
+                deQuien.empty() || bloqueado(deQuien)
+                    ? std::string()
+                    : autenticarAparato(deQuien, conUsuario ? std::string() : m.value("t", std::string()), aparato);
+            if (cual.empty()) {
+                intentoPermitido(ip); // cuenta como intento: no se puede probar sin fin
+                alApp_({{"tipo", "intento"}, {"id", deQuien}, {"ip", ip}, {"motivo", "aparato"}});
+                return rechazar(QT_TRANSLATE_NOOP("web/comun", "Este aparato ya no está registrado: entrá con el PIN."),
+                                "aparato");
+            }
+            c->id = deQuien;
+            c->aparato = cual;
         } else {
-            if (bloqueado(id))
-                return rechazar(QT_TRANSLATE_NOOP("web/comun", "Por PIN errado varias veces, tu acceso está bloqueado 15 minutos."));
-            quien = autenticar(id, m.value("t", std::string()), m.value("pin", std::string()), pinMal);
-        }
-        if (quien.empty()) {
-            if (pinMal) {
-                anotarPinMal(id);
-                alApp_({{"tipo", "intento"}, {"id", id}, {"ip", ip}, {"motivo", "pin"}});
-                return rechazar(conUsuario ? QT_TRANSLATE_NOOP("web/comun", "Usuario o contraseña incorrectos.")
-                                           : QT_TRANSLATE_NOOP("web/comun", "El PIN no es correcto."));
+            if (!intentoPermitido(ip)) {
+                log_.warn(llenar(traducir("gateway", "sesion: demasiados intentos desde %1"), {ip}), -1);
+                return rechazar(QT_TRANSLATE_NOOP("web/comun", "Demasiados intentos desde esta conexión. Esperá 10 minutos."));
             }
-            alApp_({{"tipo", "intento"}, {"id", id}, {"ip", ip}, {"motivo", "link"}});
-            return rechazar(
-                QT_TRANSLATE_NOOP("web/comun", "Este link no es válido (o fue revocado). Pedile uno nuevo a la secretaría."));
+            bool pinMal = false;
+            std::string quien;
+            if (conUsuario) {
+                quien = autenticarUsuario(m.value("u", std::string()), m.value("clave", std::string()), id, pinMal);
+                if (!id.empty() && bloqueado(id))
+                    return rechazar(
+                        QT_TRANSLATE_NOOP("web/comun", "Por contraseña errada varias veces, tu acceso está bloqueado 15 minutos."));
+                if (quien.empty() && !pinMal) {
+                    alApp_({{"tipo", "intento"}, {"id", ""}, {"ip", ip}, {"motivo", "usuario"}});
+                    return rechazar(QT_TRANSLATE_NOOP("web/comun", "Usuario o contraseña incorrectos."));
+                }
+            } else {
+                if (bloqueado(id))
+                    return rechazar(QT_TRANSLATE_NOOP("web/comun", "Por PIN errado varias veces, tu acceso está bloqueado 15 minutos."));
+                quien = autenticar(id, m.value("t", std::string()), m.value("pin", std::string()), pinMal);
+            }
+            if (quien.empty()) {
+                if (pinMal) {
+                    anotarPinMal(id);
+                    alApp_({{"tipo", "intento"}, {"id", id}, {"ip", ip}, {"motivo", "pin"}});
+                    return rechazar(conUsuario ? QT_TRANSLATE_NOOP("web/comun", "Usuario o contraseña incorrectos.")
+                                               : QT_TRANSLATE_NOOP("web/comun", "El PIN no es correcto."));
+                }
+                alApp_({{"tipo", "intento"}, {"id", id}, {"ip", ip}, {"motivo", "link"}});
+                return rechazar(
+                    QT_TRANSLATE_NOOP("web/comun", "Este link no es válido (o fue revocado). Pedile uno nuevo a la secretaría."));
+            }
+            c->id = quien;
         }
-        c->id = quien;
     }
+    // Entró con el PIN y la página pide registrar el aparato: el token, una sola vez.
+    std::string tokenAparato;
+    if (c->aparato.empty() && pedido.value("registrar", false))
+        tokenAparato = registrarAparato(c->id, pedido.value("nombre", std::string()), c->aparato);
     std::shared_ptr<Conn> vieja;
     json datos;
     {
@@ -326,10 +442,13 @@ void SesionBorde::wsLoop(long long fd, const std::string& ip, const std::string&
     // Si tenía la palabra, su WebRTC hacia la sala era de la conexión vieja (las
     // respuestas iban a ella): se cierra para que la oferta nueva arranque limpia.
     if (tieneMedios && vieja && medios_.cerrar) medios_.cerrar(c->id, canalMedios);
-    enviar(c, {{"type", "auth"}, {"ok", true}, {"id", c->id}, {"nombre", datos.value("nombre", std::string())},
-               {"banca", datos.value("banca", std::string())}, {"lugar", c->lugar}});
+    json bien{{"type", "auth"}, {"ok", true}, {"id", c->id}, {"nombre", datos.value("nombre", std::string())},
+              {"banca", datos.value("banca", std::string())}, {"lugar", c->lugar}};
+    if (!tokenAparato.empty()) bien["aparato"] = tokenAparato;
+    enviar(c, bien);
     log_.info(llenar(traducir("gateway", "sesion: %1 conectado desde %2"), {c->id, c->ip}));
-    alApp_({{"tipo", "conexion"}, {"id", c->id}, {"conectado", true}, {"ip", c->ip}, {"lugar", c->lugar}});
+    alApp_({{"tipo", "conexion"}, {"id", c->id}, {"conectado", true}, {"ip", c->ip}, {"lugar", c->lugar},
+            {"aparato", c->aparato}});
     // Volvió el que tiene la palabra (se le cortó la red, recargó la página): se le
     // vuelve a pedir el micrófono y la cámara.
     if (tieneMedios) enviar(c, {{"type", "medios"}, {"activo", true}});
@@ -526,8 +645,23 @@ void SesionBorde::wsLoop(long long fd, const std::string& ip, const std::string&
             if (jpeg.size() >= 4 && jpeg.size() <= kMaxFoto() && static_cast<unsigned char>(jpeg[0]) == 0xFF &&
                 static_cast<unsigned char>(jpeg[1]) == 0xD8) {
                 if (alFoto_) alFoto_(c->id, jpeg);
-                std::lock_guard<std::mutex> l(mu_);
-                fotos_[c->id] = std::move(jpeg);
+                std::vector<std::shared_ptr<Conn>> consolas;
+                bool avisar = false;
+                {
+                    std::lock_guard<std::mutex> l(mu_);
+                    fotos_[c->id] = std::move(jpeg);
+                    std::int64_t& antes = avisoFotoMs_[c->id];
+                    if (ahoraMs() - antes >= kAvisoFotoMs()) {
+                        antes = ahoraMs();
+                        avisar = true;
+                        for (const auto& [cid, cc] : conns_)
+                            if (cid.rfind("consola:", 0) == 0) consolas.push_back(cc);
+                    }
+                }
+                if (avisar) {
+                    for (const auto& cc : consolas) enviar(cc, {{"type", "foto_nueva"}, {"id", c->id}});
+                    if (alFotoNueva_) alFotoNueva_(c->id);
+                }
             }
             continue;
         }
@@ -602,6 +736,11 @@ bool SesionBorde::admin(long long fd, const std::string& method, const std::stri
         http::sendResponse(fd, 200, "image/jpeg", jpeg, "Cache-Control: no-store\r\n");
         return true;
     }
+    if (method == "GET" && que == "aparatos") {
+        http::sendResponse(fd, 200, "application/json",
+                           json{{"pendientes", aparatosPendientes()}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
+        return true;
+    }
     const json r = json::parse(body.empty() ? "{}" : body, nullptr, false);
     if (method != "POST" || !r.is_object()) {
         http::sendResponse(fd, 400, "application/json", json{{"error", "bad_request"}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
@@ -614,7 +753,7 @@ bool SesionBorde::admin(long long fd, const std::string& method, const std::stri
         {
             std::lock_guard<std::mutex> l(mu_);
             for (const auto& [id, c] : conns_)
-                if (!credenciales_.count(id)) cortar.push_back(c);
+                if (!credenciales_.count(id) || !aparatoVale(id, c->aparato)) cortar.push_back(c);
         }
         for (const auto& c : cortar) {
             enviar(c, {{"type", "cortado"}, {"motivo", QT_TRANSLATE_NOOP("web/comun", "Tu acceso fue revocado.")}});
@@ -622,6 +761,11 @@ bool SesionBorde::admin(long long fd, const std::string& method, const std::stri
             if (c->fd >= 0) http::shutdownFd(c->fd);
         }
         http::sendResponse(fd, 200, "application/json", json{{"ok", true}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
+        return true;
+    }
+    if (que == "aparatos") {
+        aparatosRecibidos(r.value("recibidos", json::array()));
+        http::sendResponse(fd, 200, "application/json", json{{"ok", true}}.dump());
         return true;
     }
     if (que == "vistas") {

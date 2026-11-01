@@ -128,11 +128,13 @@ void CarruselViewModel::setActual(const QString& nombre) {
     emit cambio();
 }
 
-QVariantList CarruselViewModel::laminas() const {
+QVariantList CarruselViewModel::laminas() const { return buscar(actual_, consulta_); }
+
+QVariantList CarruselViewModel::buscar(const QString& carrusel, const QString& texto) const {
     QVariantList out;
-    const carrusel::Carrusel* c = store_->porNombre(actual_.toStdString());
+    const carrusel::Carrusel* c = store_->porNombre(carrusel.toStdString());
     if (!c) return out;
-    const QString q = consulta_.trimmed();
+    const QString q = texto.trimmed();
     int i = -1;
     for (const carrusel::Lamina& l : c->laminas()) {
         ++i;
@@ -232,16 +234,20 @@ bool CarruselViewModel::agregar(const QString& archivo) {
     return true;
 }
 
-bool CarruselViewModel::quitar(int i) {
-    carrusel::Carrusel* c = store_->porNombre(actual_.toStdString());
+bool CarruselViewModel::quitar(int i) { return quitar(actual_, i); }
+
+bool CarruselViewModel::quitar(const QString& nombre, int i) {
+    carrusel::Carrusel* c = store_->porNombre(nombre.toStdString());
     if (!c || i < 0 || !c->quitar(std::size_t(i))) return false;
     store_->persistir();
     emit cambio();
     return true;
 }
 
-bool CarruselViewModel::mover(int de, int a) {
-    carrusel::Carrusel* c = store_->porNombre(actual_.toStdString());
+bool CarruselViewModel::mover(int de, int a) { return mover(actual_, de, a); }
+
+bool CarruselViewModel::mover(const QString& nombre, int de, int a) {
+    carrusel::Carrusel* c = store_->porNombre(nombre.toStdString());
     if (!c || de < 0 || a < 0 || !c->mover(std::size_t(de), std::size_t(a))) return false;
     store_->persistir();
     emit cambio();

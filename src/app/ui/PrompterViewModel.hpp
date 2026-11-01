@@ -59,6 +59,7 @@
 namespace ba::app {
 
 class ConferenceViewModel;
+class Discursos;
 class EventoViewModel;
 
 class PrompterViewModel : public QObject {
@@ -135,6 +136,11 @@ class PrompterViewModel : public QObject {
     int palabras() const;
     int duracionSeg() const;
     QString sinEvento() const;
+    /// La carpeta de discursos del evento, para LEER sin mover el editor ni la
+    /// carpeta que mira el operador (el MCP lee de acá).
+    const Discursos& discursos() const;
+    /// La velocidad del teleprompter elegido (palabras por minuto).
+    int ppm() const;
 
     QVariantList prompters() const;
     QString elegido() const;

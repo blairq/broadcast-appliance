@@ -61,8 +61,8 @@ Item {
                 Layout.fillWidth: true
                 Text { Layout.fillWidth: true; elide: Text.ElideRight; text: "▶ " + modelData.fuente; color: Theme.text; font.pixelSize: 12 }
                 Text {
-                    text: "−" + Math.floor(modelData.restante_s / 60) + ":" + String(modelData.restante_s % 60).padStart(2, "0")
-                    color: modelData.restante_s <= 10 ? Theme.live : Theme.text
+                    text: "−" + Theme.mmss(modelData.restante_s)
+                    color: Theme.colorDeEstado(modelData.estado, Theme.text)
                     font.pixelSize: 26; font.weight: Font.Black; font.family: Theme.mono
                 }
             }
@@ -296,7 +296,7 @@ Item {
                 }
                 Text {
                     text: Theme.mmss(tarjeta.reloj.restanteSeg || 0)
-                    color: (tarjeta.reloj.restanteSeg || 0) <= 10 ? Theme.live : Theme.text
+                    color: Theme.colorDeEstado(tarjeta.reloj.estadoRestante, Theme.text)
                     font { family: "JetBrains Mono"; pixelSize: 22; weight: Font.DemiBold }
                 }
             }

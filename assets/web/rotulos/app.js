@@ -15,10 +15,10 @@ function claveDelEnlace() {
   const h = new URLSearchParams(location.hash.replace(/^#/, ""));
   const k = h.get("k");
   if (k) {
-    try { sessionStorage.setItem("rotulos.k", k); } catch (e) { /* modo privado */ }
+    try { localStorage.setItem("rotulos.k", k); } catch (e) { /* modo privado */ }
     return k;
   }
-  try { return sessionStorage.getItem("rotulos.k") || ""; } catch (e) { return ""; }
+  try { return localStorage.getItem("rotulos.k") || ""; } catch (e) { return ""; }
 }
 
 let clave = claveDelEnlace();
@@ -34,7 +34,7 @@ function mostrarPin(msg) {
 
 $("pinOk").addEventListener("click", () => {
   clave = $("pinCampo").value.trim();
-  try { sessionStorage.setItem("rotulos.k", clave); } catch (e) { /* nada */ }
+  try { localStorage.setItem("rotulos.k", clave); } catch (e) { /* nada */ }
   $("pin").classList.add("hidden");
   mirar();
   escuchar();
@@ -53,6 +53,7 @@ function escuchar() {
     que: () => $("estado").textContent || "",
     onAviso: (m) => { if (m.type === "rotulos") dibujar(m.estado); },
     onClaveMal: () => mostrarPin(t("La clave no sirve. Pedile el QR al operador.")),
+    onClaveBien: () => $("pin").classList.add("hidden"),
     onEstado: (on) => { if (!on) $("estado").textContent = t("sin conexión"); },
   });
 }
@@ -61,7 +62,7 @@ async function mirar() {
   if (!clave) { mostrarPin(); return; }
   let r;
   try {
-    r = await fetch(API + "?k=" + encodeURIComponent(clave), { cache: "no-store" });
+    r = await fetch(API, { cache: "no-store", headers: { "X-BA-Clave": clave } });
   } catch (e) {
     $("estado").textContent = t("sin conexión");
     return;
@@ -72,13 +73,13 @@ async function mirar() {
 }
 
 async function encargar(id, accion, valores, grafico) {
-  const cuerpo = { clave: clave, id: id, accion: accion };
+  const cuerpo = { id: id, accion: accion };
   if (valores) cuerpo.valores = valores;
   if (grafico) cuerpo.grafico = grafico;
   try {
     const r = await fetch(API, {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", "X-BA-Clave": clave },
       body: JSON.stringify(cuerpo)
     });
     if (r.status === 403) { mostrarPin(t("La clave no sirve.")); return; }

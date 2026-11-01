@@ -7,7 +7,8 @@
 
 namespace ba::app::sala {
 
-VotacionSala::VotacionSala(ConferenceClient& sala, Votantes votantes) : sala_(sala), votantes_(std::move(votantes)) {}
+VotacionSala::VotacionSala(ConferenceClient& sala, Votantes votantes, Evento evento)
+    : sala_(sala), votantes_(std::move(votantes)), evento_(std::move(evento)) {}
 
 std::string VotacionSala::abrir(const std::string& pregunta, const std::vector<std::string>& opcionesPedidas,
                                 const std::string& modo, bool secreta, bool enVivo, Listo listo) {
@@ -24,6 +25,7 @@ std::string VotacionSala::abrir(const std::string& pregunta, const std::vector<s
     if (modo != "encuesta" && modo != "formal") return ba::i18n::traducir("sala", "modo: encuesta o formal");
     nlohmann::json cuerpo{{"accion", "abrir"}, {"pregunta", pregunta}, {"opciones", opciones},
                           {"modo", modo},      {"secreta", secreta},   {"enVivo", enVivo}};
+    if (evento_) cuerpo["evento"] = evento_();
     if (modo == "formal") {
         const auto v = votantes_ ? votantes_() : std::nullopt;
         if (!v) return ba::i18n::traducir("sala", "Una votación formal necesita el padrón, y el padrón vive en el evento: abrí uno.");

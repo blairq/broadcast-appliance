@@ -3,6 +3,7 @@
 // ============================================================================
 
 #include "mcp/McpHttp.hpp"
+#include "security/Comparar.hpp"
 
 #include "net/Credentials.hpp"
 
@@ -37,14 +38,6 @@ QByteArray headerValue(const QByteArray& headers, const QByteArray& name) {
         if (line.left(colon).trimmed().toLower() == name.toLower()) return line.mid(colon + 1).trimmed();
     }
     return {};
-}
-
-bool constantTimeEquals(const QByteArray& a, const QByteArray& b) {
-    if (a.size() != b.size()) return false;
-    unsigned char d = 0;
-    for (qsizetype i = 0; i < a.size(); ++i)
-        d |= static_cast<unsigned char>(a[i] ^ b[i]);
-    return d == 0;
 }
 
 bool localOrigin(const QByteArray& origin) {
@@ -172,7 +165,7 @@ void McpHttp::onReadable(QTcpSocket* s) {
         return;
     }
     const QByteArray auth = headerValue(headers, "Authorization");
-    if (!auth.startsWith("Bearer ") || !constantTimeEquals(auth.mid(7).trimmed(), token().toUtf8())) {
+    if (!auth.startsWith("Bearer ") || !ba::security::igualesEnTiempoConstante(auth.mid(7).trimmed().toStdString(), token().toStdString())) {
         respond(
             s, 401, "application/json",
             R"x({"error":"token invalido: usa Authorization: Bearer <token> (bin/64bit/ba-mcp --token lo muestra)"})x",

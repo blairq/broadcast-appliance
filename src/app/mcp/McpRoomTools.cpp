@@ -863,7 +863,7 @@ void McpService::registerRoomTools() {
     {
         Tool t;
         t.name = "participant_calidad";
-        t.title = ba::i18n::traducir("mcp", "Bajar o devolver la calidad de la camara de un invitado");
+        t.title = ba::i18n::traducir("mcp", "Bajar o devolver la calidad de la cámara de un invitado");
         t.category = "sala";
         t.clase = Clase::Escritura;
         t.description =
@@ -1176,7 +1176,7 @@ void McpService::registerRoomTools() {
     {
         Tool t;
         t.name = "operator_feed";
-        t.title = ba::i18n::traducir("mcp", "Como te ve y oye el lobby");
+        t.title = ba::i18n::traducir("mcp", "Cómo te ve y oye el lobby");
         t.category = "sala";
         t.clase = Clase::Escritura;
         t.description =
@@ -1280,20 +1280,23 @@ void McpService::registerRoomTools() {
              {{"enabled", {{"type", "boolean"}}},
               {"defaultTime",
                {{"type", json::array({"string", "integer"})},
-                {"description", QT_TRANSLATE_NOOP("mcp", "Un número solo son minutos ('3' = 3 minutos); '45s' o '0:45' = segundos.")}}},
+                {"description", QT_TRANSLATE_NOOP("mcp", "Un ENTERO son segundos (180 = tres minutos, como graceSec). Un TEXTO es como lo escribe "
+                                                         "el operador: '3' = 3 minutos, '45s' o '0:45' = segundos, '+1' / '-30s' suman o restan al de ahora.")}}},
               {"multi", {{"type", "boolean"}}},
               {"defaultSlot", {{"type", "integer"}, {"minimum", 1}}},
               {"carousel", {{"type", "string"}, {"enum", {"manual", "chain", "time"}}}},
               {"graceSec", {{"type", "integer"}, {"minimum", 0}, {"maximum", 600}}}}}};
-        t.run = [&oradores, contestar](const json& a, Done done) {
+        t.run = [&oradores, conf, contestar](const json& a, Done done) {
             json b = json::object();
             for (const char* k : {"enabled", "multi", "defaultSlot", "carousel", "graceSec"})
                 if (a.contains(k)) b[k] = a[k];
             if (a.contains("defaultTime")) {
+                // La misma lectura que la página (sobre el general de ahora): un entero son segundos.
                 int s = 0;
                 const json& d = a["defaultTime"];
-                const std::string e = sala::OradoresSala::leerTiempo(d.is_string() ? d.get<std::string>() : d.dump(), 0, s);
-                if (!e.empty()) return done(ToolResult::error("defaultTime: " + e));
+                const int ahora = sala::OradoresSala::tiempoActual(conf->client().snapshot(), {});
+                if (const std::string e = sala::OradoresSala::leerTiempoJson(d, ahora, s); !e.empty())
+                    return done(ToolResult::error("defaultTime: " + e));
                 b["defaultSec"] = s;
             }
             const std::string e = oradores.configurar(b, contestar(ba::i18n::traducir("mcp", "Modo oradores actualizado."), done));
@@ -1405,31 +1408,30 @@ void McpService::registerRoomTools() {
         t.title = ba::i18n::traducir("mcp", "Tiempo de un orador");
         t.category = "oradores";
         t.clase = Clase::Escritura;
-        t.description = QT_TRANSLATE_NOOP("mcp", "Tiempo asignado para hablar de una persona. Un número solo son MINUTOS ('3' = tres "
-                        "minutos); 'm:ss' ('0:45') o con 's' ('45s') para segundos. '+2' le suma dos minutos, "
-                        "'-30s' le saca treinta segundos, '2:30' o '=2:30' lo deja en eso. Se puede cambiar "
-                        "estando al aire.");
+        t.description = QT_TRANSLATE_NOOP("mcp", "Tiempo asignado para hablar de una persona. Un ENTERO son SEGUNDOS (120 = dos minutos). "
+                        "Un TEXTO es como lo escribe el operador: '3' = tres minutos; 'm:ss' ('0:45') o con 's' ('45s') "
+                        "para segundos; '+2' le suma dos minutos, '-30s' le saca treinta segundos, '2:30' o '=2:30' lo "
+                        "deja en eso. Se puede cambiar estando al aire.");
         t.inputSchema = {
             {"type", "object"},
             {"properties",
              {{"participant", personProp},
               {"time",
                {{"type", json::array({"string", "integer"})},
-                {"description", QT_TRANSLATE_NOOP("mcp", "'3' = 3 minutos; '45s' o '0:45' = 45 segundos; '+2' / '-30s' suman o restan.")}}}}},
+                {"description", QT_TRANSLATE_NOOP("mcp", "Entero: segundos (90 = un minuto y medio). Texto: '3' = 3 minutos; '45s' o '0:45' = 45 segundos; '+2' / '-30s' suman o restan.")}}}}},
             {"required", {"participant", "time"}}};
-        t.run = [withPerson, &oradores, &vm, contestar](const json& a, Done done) {
+        t.run = [withPerson, &oradores, conf, contestar](const json& a, Done done) {
             json p;
             if (!withPerson(a, "participant", p, done)) return;
-            // «+2:00» / «-30s»: sobre lo que ya tiene (el suyo, o el general si no tiene uno);
-            // «=2:30» o «2:30»: eso. La misma lectura que la interfaz (OradoresSala::leerTiempo).
-            int base = p.value("allottedSec", 0);
-            if (base <= 0) base = roomSnapshot(vm).value("speakers", json::object()).value("defaultSec", 0);
-            const json& tv = a["time"];
-            const std::string texto = tv.is_string() ? tv.get<std::string>() : tv.dump();
+            // Un entero son segundos; un texto, la lectura de la página («+2:00» / «-30s» sobre
+            // lo que ya tiene: el suyo o el general, OradoresSala::tiempoActual, el mismo de la página).
+            const std::string id = p.value("id", std::string());
             int s = 0;
-            if (const std::string e = sala::OradoresSala::leerTiempo(texto, base, s); !e.empty())
+            if (const std::string e = sala::OradoresSala::leerTiempoJson(
+                    a["time"], sala::OradoresSala::tiempoActual(conf->client().snapshot(), id), s);
+                !e.empty())
                 return done(ToolResult::error(e));
-            const std::string e = oradores.tiempo(p["id"], s, contestar(ba::i18n::llenar(ba::i18n::traducir("mcp", "Tiempo: %1 s."), {std::to_string(s)}), done));
+            const std::string e = oradores.tiempo(id, s, contestar(ba::i18n::llenar(ba::i18n::traducir("mcp", "Tiempo: %1 s."), {std::to_string(s)}), done));
             if (!e.empty()) done(ToolResult::error(e));
         };
         core_.addTool(std::move(t));

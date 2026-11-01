@@ -40,6 +40,7 @@
 #include "sala/ClavesEvento.hpp"
 #include "sala/GuardadoEnEvento.hpp"
 #include "sala/PaginaPublico.hpp"
+#include "sala/SalidasSala.hpp"
 #include "sala/CupoSala.hpp"
 #include "ui/AlarmasViewModel.hpp"
 #include "ui/AtencionViewModel.hpp"
@@ -217,7 +218,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, VentanillaMotor& ventanilla, QO
         frames_->setSalidas(alGateway); // las claves «program:<id>», sus nombres y sus colores
         // El gateway sabe qué salidas hay para que la sesión remota y el cast elijan (se la
         // vuelve a mandar sola si el gateway se reinicia).
-        if (conference_) conference_->client().ponerSalidas(alGateway);
+        if (conference_) conference_->salidas().poner(alGateway);
         if (control_) control_->controlWeb().salidasCambiaron(); // sus aparatos ven la lista nueva
     });
     // (La lista de escenas sabe sola qué está al aire y qué armado: lo lee de la foto.)
@@ -346,17 +347,17 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, VentanillaMotor& ventanilla, QO
     // Las claves de las superficies (los QR del público, el teleprompter…) son del evento.
     clavesEvento_ = std::make_unique<sala::ClavesEvento>(conference_->client(),
                                                          [this]() { return evento_->eventoAbierto().dir(); });
-    connect(&evento_->guionVm(), &GuionViewModel::guionChanged, clavesEvento_.get(), &sala::ClavesEvento::eventoCambio);
+    connect(&evento_->eventoAbierto(), &EventoAbierto::abiertoCambio, clavesEvento_.get(), &sala::ClavesEvento::eventoCambio);
     // La urna y las preguntas del público son del evento (sobreviven a la sala y no se mezclan).
     urnaEvento_ = std::make_unique<sala::GuardadoEnEvento>(conference_->client(), "votacion",
                                                            [this]() { return evento_->eventoAbierto().dir(); });
     preguntasEvento_ = std::make_unique<sala::GuardadoEnEvento>(conference_->client(), "preguntas",
                                                                 [this]() { return evento_->eventoAbierto().dir(); });
-    connect(&evento_->guionVm(), &GuionViewModel::guionChanged, urnaEvento_.get(), &sala::GuardadoEnEvento::eventoCambio);
-    connect(&evento_->guionVm(), &GuionViewModel::guionChanged, preguntasEvento_.get(), &sala::GuardadoEnEvento::eventoCambio);
+    connect(&evento_->eventoAbierto(), &EventoAbierto::abiertoCambio, urnaEvento_.get(), &sala::GuardadoEnEvento::eventoCambio);
+    connect(&evento_->eventoAbierto(), &EventoAbierto::abiertoCambio, preguntasEvento_.get(), &sala::GuardadoEnEvento::eventoCambio);
     // Cómo se ve la página del público, también del evento.
     conference_->paginaPublico().setCarpetaEvento([this]() { return evento_->eventoAbierto().dir(); });
-    connect(&evento_->guionVm(), &GuionViewModel::guionChanged, this, [this]() { conference_->paginaPublico().eventoCambio(); });
+    connect(&evento_->eventoAbierto(), &EventoAbierto::abiertoCambio, this, [this]() { conference_->paginaPublico().eventoCambio(); });
     // Despues de `frames_`: mira los mismos videos que el resto de la interfaz.
     personas_ = std::make_unique<PersonasViewModel>(rt, *this);
     marca("personas");
@@ -669,7 +670,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, VentanillaMotor& ventanilla, QO
     escritorio_->refrescarCatalogo();
     // El respaldo de las entradas al aire que pierden señal (modelo): es del dueño del motor
     // (corta por el conmutador con la interfaz trabada); acá solo se muestra.
-    respaldo_ = std::make_unique<escenas::RespaldoEntradas>(rt, imagen_->video(), salidas_->conmutador());
+    respaldo_ = std::make_unique<escenas::RespaldoEntradas>(rt, imagen_->video(), salidas_->conmutadores());
     connect(respaldo_.get(), &escenas::RespaldoEntradas::sinSenalCambio, this, [this](const QStringList& sin) {
         sinSenal_ = sin;
         emit senalChanged();
@@ -822,6 +823,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, VentanillaMotor& ventanilla, QO
             if (!evento_) return {};
             return {{"hay", evento_->webVm().web().value("hay").toBool()}, {"evento", evento_->eventoAbierto().carpeta()}};
         };
+        f.baWeb = [this]() { return conference_->baWeb(); };
         // La API remota, el Satellite, el control web y los pedidos de cada aparato.
         control_->alimentarEnlaces(f);
         enlaces_ = std::make_unique<EnlacesViewModel>(std::move(f));
@@ -830,6 +832,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, VentanillaMotor& ventanilla, QO
         const auto avisar = [e]() { e->avisarCambio(); };
         sala_->avisarA(*e);
         control_->avisarA(*e);
+        connect(conference_.get(), &ConferenceViewModel::baWebChanged, e, avisar);
         if (evento_) {
             connect(&evento_->webVm(), &WebEventoViewModel::webChanged, e, avisar);
             connect(&evento_->guionVm(), &GuionViewModel::guionChanged, e, avisar);
@@ -893,9 +896,14 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, VentanillaMotor& ventanilla, QO
                                                             {g.nombre, e.toStdString()}));
             }
     });
+    // La política del supervisor la cambia también el MCP (en el hilo de control): avisa
+    // y la vista se entera por la propiedad, sin releerla con un reloj.
+    rt_.latido().alCambiarPolitica(
+        [this]() { QMetaObject::invokeMethod(this, [this]() { revisarLatido(); }, Qt::QueuedConnection); });
 }
 
 StudioViewModel::~StudioViewModel() {
+    rt_.latido().alCambiarPolitica(nullptr); // espera al aviso en curso: después no queda nadie que lo llame
     videoParaVigia_.store(nullptr); // el vigía sigue un rato; el grafo se va con la imagen
     rt_.alFallarMotor(nullptr);
     rt_.dejarDeObservar(observadorRt_); // el runtime vive más que la vista
@@ -940,7 +948,7 @@ void StudioViewModel::onTick() {
     // faltaba: la consola de la presidencia se quedaba «esperando el programa».
     {
         auto* conf = static_cast<ConferenceViewModel*>(conference());
-        const int miran = conf != nullptr ? conf->client().miranPrograma() : -1;
+        const int miran = conf != nullptr ? conf->salidas().miranPrograma() : -1;
         const bool alguien = miran > 0 ||
                              (conf != nullptr && static_cast<JsonListModel*>(conf->inside())->count() > 0) ||
                              asamblea_->sesionRemota()->conectados() > 0 ||
@@ -957,7 +965,7 @@ void StudioViewModel::onTick() {
         enUso({}, alguien || ahora - retornoVistoMs_ < 10000);
         // Las demás salidas: su retorno (BA.Salida.<id>) solo mientras el gateway dice
         // que alguien lo mira, con los mismos 10 s de gracia.
-        const QJsonObject miranSalidas = conf != nullptr ? conf->client().miranSalidas() : QJsonObject();
+        const QJsonObject miranSalidas = conf != nullptr ? conf->salidas().miranSalidas() : QJsonObject();
         for (const FotoMotor::Salida& s : ventanilla_.foto().salidas) {
             if (s.porOmision) continue;
             const QString q = qs(s.id);
@@ -1257,8 +1265,10 @@ void StudioViewModel::refrescarAvisos() {
         imagen_->ajustesAplicados(); // Mejorar imagen general y el legalizador rigen ya
     }
     // Una entrada de audio nueva (audio_input_add del MCP, un plugin): la lista de
-    // fuentes de la página Audio la muestra sin tener que volver a entrar.
-    if (hubo(C::Audio) || hubo(C::Fuentes)) mezcla_->revisarFuentes();
+    // fuentes de la página Audio la muestra sin tener que volver a entrar. Y la vista
+    // general del audio (Audio → Estudio), que muestra el volumen, el silencio y los
+    // filtros de cada fuente (sus ajustes: Capa), se rehace si alguien la mira.
+    if (hubo(C::Audio) || hubo(C::Fuentes) || hubo(C::Capa)) mezcla_->revisarFuentes();
 }
 
 QObject* StudioViewModel::emisionQml() const {

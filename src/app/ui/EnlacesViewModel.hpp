@@ -113,6 +113,8 @@ class EnlacesViewModel : public QObject {
         std::function<const sala::Direcciones*()> direcciones;
         /// {hay (la web generada), evento (el abierto)}
         std::function<QVariantMap()> webEvento;
+        /// Cómo anda ba-web (ConferenceViewModel::baWeb): {vivo, cortado, problema…}.
+        std::function<QVariantMap()> baWeb;
         /// El control web (/control/): {conectados, aparatos, tunel}.
         std::function<QVariantMap()> controlWeb;
         /// Genera el código de un uso y muestra el QR para emparejar un aparato.

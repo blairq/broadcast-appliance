@@ -361,6 +361,8 @@ const Fila kPropias[] = {
     {"sesion_consola", QT_TRANSLATE_NOOP("mcp-etiquetas", "consola web de la presidencia acceso tablet de la presidencia link y pin de la consola")},
     //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
     {"sesion_registro", QT_TRANSLATE_NOOP("mcp-etiquetas", "registro de la sesion remota quien entro intentos fallidos acta banca virtual")},
+    {"sesion_aparatos", QT_TRANSLATE_NOOP("mcp-etiquetas", "aparatos registrados celular tablet consola presidencia entran sin pin recordado")},
+    {"sesion_aparato_revocar", QT_TRANSLATE_NOOP("mcp-etiquetas", "revocar aparato registrado celular tablet perdido olvidar volver a pedir pin")},
     //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
     {"dcn_estado", QT_TRANSLATE_NOOP("mcp-etiquetas", "central de conferencia bosch dcn microfonos de banca estado de la sala quien habla")},
     //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
@@ -498,7 +500,7 @@ const Fila kPropias[] = {
     //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
     {"botonera_emparejar", QT_TRANSLATE_NOOP("mcp-etiquetas", "emparejar tablet qr botonera codigo")},
     //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
-    {"botonera_revocar", QT_TRANSLATE_NOOP("mcp-etiquetas", "revocar tablet token botonera")},
+    {"botonera_revocar", QT_TRANSLATE_NOOP("mcp-etiquetas", "revocar tablet token botonera companion http acceso sacarle el acceso")},
     //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
     {"botonera_auditoria", QT_TRANSLATE_NOOP("mcp-etiquetas", "auditoria registro botonera acciones")},
     //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
@@ -506,7 +508,8 @@ const Fila kPropias[] = {
     //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
     {"seguridad_estado", QT_TRANSLATE_NOOP("mcp-etiquetas", "seguridad token pin sesion accesos")},
     //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
-    {"stream_salud", QT_TRANSLATE_NOOP("mcp-etiquetas", "salud transmision kbps perdidos congestion reconexiones")},
+    {"stream_salud", QT_TRANSLATE_NOOP("mcp-etiquetas", "salud transmision kbps perdidos congestion reconexiones como esta la "
+                                                    "transmision cuadros perdidos stream red")},
     //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
     {"scene_cut", QT_TRANSLATE_NOOP("mcp-etiquetas", "cut corte seco escena armada")},
     //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
@@ -713,7 +716,8 @@ const Fila kPropias[] = {
     //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
     {"gst_elementos", QT_TRANSLATE_NOOP("mcp-etiquetas", "plugins elementos gstreamer faltan diagnostico silencio negro")},
     //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
-    {"inicio_con_el_equipo", QT_TRANSLATE_NOOP("mcp-etiquetas", "arrancar solo al encender corte de luz volver solo inicio automatico")},
+    {"inicio_con_el_equipo", QT_TRANSLATE_NOOP("mcp-etiquetas", "arrancar solo al encender corte de luz volver solo inicio automatico "
+                                                            "arrancar la app al prender la maquina iniciar con el sistema")},
     //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
     {"audio_input_add", QT_TRANSLATE_NOOP("mcp-etiquetas", "agregar microfono entrada de audio linea")},
     //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
@@ -947,7 +951,7 @@ const Fila kPropias[] = {
     //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
     {"linea_camaras", QT_TRANSLATE_NOOP("mcp-etiquetas", "camara camarografo proximos planos ptz cuando entra mi camara pantalla de camara")},
     //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
-    {"linea_go", QT_TRANSLATE_NOOP("mcp-etiquetas", "go take entra el siguiente paso adelante dale")},
+    {"linea_go", QT_TRANSLATE_NOOP("mcp-etiquetas", "go take entra el siguiente paso adelante dale revision previa antes de salir")},
     //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
     {"linea_hold", QT_TRANSLATE_NOOP("mcp-etiquetas", "hold frenar retener que no pase solo esperar automatico")},
     //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
@@ -1123,7 +1127,8 @@ const Fila kPropias[] = {
     {"remotos_fila_ver", QT_TRANSLATE_NOOP("mcp-etiquetas", "quien esta en la fila estado de oradores")},
     //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
     {"speakers_config",
-     QT_TRANSLATE_NOOP("mcp-etiquetas", "configurar fila de oradores tiempos reglas activar el modo oradores minutos por orador")},
+     QT_TRANSLATE_NOOP("mcp-etiquetas", "configurar fila de oradores tiempos reglas activar el modo oradores minutos por orador "
+                                        "tiempo general de cada orador margen carrusel")},
     //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
     {"speaker_on_air", QT_TRANSLATE_NOOP("mcp-etiquetas", "poner orador al aire darle el aire a quien habla" " dar el aire al orador remoto")},
     //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
@@ -1145,7 +1150,8 @@ const Fila kPropias[] = {
     //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
     {"speaker_presenter", QT_TRANSLATE_NOOP("mcp-etiquetas", "presentador conductor moderador anfitrion")},
     //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
-    {"speaker_time", QT_TRANSLATE_NOOP("mcp-etiquetas", "tiempo cronometro reloj cuanto le queda al orador")},
+    {"speaker_time", QT_TRANSLATE_NOOP("mcp-etiquetas", "tiempo cronometro reloj cuanto le queda al orador oradora mas tiempo sumar extender "
+                                                    "alargar minutos darle tiempo al que esta hablando cuanto tiene para hablar")},
 
     // --- Interfaz ----------------------------------------------------------
     //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra

@@ -823,12 +823,12 @@ Item {
                             // loudness (audio/LoudnessPrograma::json): la misma regla que la tarjeta.
                             Dato { etiqueta: qsTr("MOMENTÁNEO"); valor: parent.lufs(m.lu.m) }
                             Dato { etiqueta: qsTr("CORTO (3 s)"); valor: parent.lufs(m.lu.s)
-                                   tinte: m.lu.estado_corto === "aviso" ? Theme.colorDeEstado("aviso") : Theme.text }
+                                   tinte: Theme.colorDeEstado(m.lu.estado_corto, Theme.text) }
                             Dato { etiqueta: qsTr("INTEGRADO"); valor: parent.lufs(m.lu.i)
-                                   tinte: m.lu.estado_integrado ? Theme.colorDeEstado(m.lu.estado_integrado) : Theme.text }
+                                   tinte: Theme.colorDeEstado(m.lu.estado_integrado, Theme.text) }
                             Dato { etiqueta: "LRA"; valor: m.lu.lra !== undefined ? m.lu.lra.toFixed(1) : "—" }
                             Dato { etiqueta: "TRUE PEAK"; valor: m.lu.tp !== undefined && m.lu.tp > -70 ? m.lu.tp.toFixed(1) : "—"
-                                   tinte: m.lu.estado_tp === "excedido" ? Theme.colorDeEstado("excedido") : Theme.text }
+                                   tinte: Theme.colorDeEstado(m.lu.estado_tp, Theme.text) }
                             Text { visible: pgm.obj.lufs !== undefined; text: qsTr("Objetivo %1 LUFS").arg(Number(pgm.obj.lufs).toFixed(0)); color: Theme.textFaint; font { family: Theme.font; pixelSize: 10 } }
                         }
                     }

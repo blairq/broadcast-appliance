@@ -965,28 +965,15 @@ std::string AppRuntime::carpetaGrabacion() const {
     return a.carpetaEvento.empty() ? a.rec.directory : (a.carpetaEvento / "Grabaciones").string();
 }
 
-std::vector<std::string> AppRuntime::carpetasDeGrabaciones() const {
-    // De la copia de los ajustes de aire (como carpetaGrabacion): se lee desde la interfaz.
-    std::vector<std::string> out{carpetaGrabacion()};
-    const std::string general = ajustesAire().rec.directory;
-    if (out.front() != general) out.push_back(general);
-    return out;
-}
-
 AppRuntime::AlResultado AppRuntime::alResultado(std::uint64_t orden, AlResultado listo) {
     return [this, orden, listo = std::move(listo)](const ResultadoOrden& r) {
-        // Desde el hilo de salidas del motor. El documento de aire lo pone la próxima vuelta
-        // del motor (en el dueño); la foto y los que escuchan, ya (avisar se lo encarga).
-        if (pedidos_.resultado(r.salida, r.que == "grabar", orden, r.ok)) {
-            if (!r.ok)
-                ba::diag::registro().linea(
-                    ba::diag::Nivel::Error, "salidas", 0,
-                    ba::i18n::llenar(r.que == "grabar" ? ba::i18n::traducir("salidas", "la grabación de la salida «%1» no arrancó: %2")
-                                                       : ba::i18n::traducir("salidas", "la transmisión de la salida «%1» no arrancó: %2"),
-                                     {r.salida, r.error}));
-            avisar(Cambio::Salidas);
-        }
-        if (listo) listo(r);
+        // Desde el hilo de salidas del motor. La falla ya está en el registro (UNA línea: la
+        // de la orden en el motor, BroadcastEngine::avisarFallo). El documento de aire lo
+        // pone la próxima vuelta del motor (en el dueño); la foto y los que escuchan, ya
+        // (avisar se lo encarga). Quien pidió recibe lo que pasó en el dueño, después de
+        // esa foto.
+        if (pedidos_.resultado(r.salida, r.que == "grabar", orden, r.ok)) avisar(Cambio::Salidas);
+        if (listo) despuesEnDueno([listo, r]() { listo(r); });
     };
 }
 
@@ -1014,10 +1001,10 @@ bool AppRuntime::startRecording(const std::string& salida, AlResultado listo) {
     }
     fs::create_directories(rec.directory, ec);
     const EngineStatus antes = engine_.status();
-    const bool yaPedida = pedidos_.de(id).graba != salidas::Pedidos::Estado::No;
+    const PedidoSalida antesPedido = pedidos_.de(id);
     const std::uint64_t orden = pedidos_.pedir(id, true);
     if (!engine_.startRecording(rec, codificadorDe(id), id, alResultado(orden, std::move(listo)))) {
-        if (!yaPedida) pedidos_.dejarDePedir(id, true);
+        pedidos_.devolver(id, true, orden, antesPedido);
         errorDelHilo() = engine_.lastError();
         std::printf("ba-app: %s\n",
                     ba::i18n::llenar(ba::i18n::traducir("grabacion", "la grabacion no arranco: %1"), {errorDelHilo()}).c_str());
@@ -1074,12 +1061,17 @@ std::vector<std::string> AppRuntime::cerrarGrabacionesPorEnergia() {
     std::vector<std::string> cerradas;
     for (const std::string& id : engine_.salidaIds()) {
         if (pedidos_.de(id).graba == salidas::Pedidos::Estado::No) continue;
-        // Como la para el operador (EOS: el archivo queda cerrado y se abre), pero sigue pedida.
-        stopRecording(id);
+        // Como la para el operador (EOS: el archivo queda cerrado y se abre), pero sigue
+        // pedida: se marca ANTES de pararla, así el documento de aire nunca dice «no graba»
+        // (justo antes de que se apague el equipo es cuando más importa).
         pedidos_.cerrarPorEnergia(id);
+        engine_.stopRecording(id);
         cerradas.push_back(id);
     }
-    if (cerradas.empty()) writeOnAirState();
+    if (!cerradas.empty()) {
+        writeOnAirState();
+        avisar(Cambio::Salidas);
+    }
     return cerradas;
 }
 
@@ -1230,6 +1222,7 @@ void AppRuntime::setCarpetaDelEvento(fs::path carpeta) {
     carpetaDelEvento_ = std::move(carpeta);
     carpetaSabida_ = true;
     ajustesAire(); // la copia del plano, ya con la carpeta
+    fotoSucia(FotoMotor::Sala); // la carpeta de grabación efectiva
     retomarGrabaciones();
 }
 
@@ -1355,14 +1348,22 @@ std::string AppRuntime::grabarAparte(const std::string& fuente) {
 }
 
 bool AppRuntime::salirAlAireManual(const std::string& server, const std::string& key, bool cambiarEnCaliente,
-                                   const std::string& salida) {
+                                   const std::string& salida, AlResultado listo) {
     const TurnoMotor::Guarda turno(engine_.turno());
-    if (!startStreaming(server, key, cambiarEnCaliente, salida)) return false;
-    if (engine_.ultimoInicio() != BroadcastEngine::Inicio::YaIgual && alVivoManual_) {
+    // El vivo lo anotan el bus y el histórico (son del dueño) cuando de verdad arrancó (o
+    // cambió de destino): no con la orden encolada, que puede fallar; y no si ya salía ahí.
+    // (La respuesta llega en el dueño después de esto: `igual` ya está puesto.)
+    const auto igual = std::make_shared<std::atomic<bool>>(false);
+    AlResultado alTerminar = std::move(listo);
+    if (alVivoManual_) {
         const std::string srv = server.empty() ? ajustesAire().stream.server : server;
-        // Lo anotan el bus y el histórico, que son del dueño.
-        if (!srv.empty()) enDueno([f = alVivoManual_, srv]() { f(srv); });
+        alTerminar = [this, srv, igual, listo = std::move(alTerminar)](const ResultadoOrden& r) {
+            if (r.ok && !*igual && !srv.empty() && alVivoManual_) alVivoManual_(srv);
+            if (listo) listo(r);
+        };
     }
+    if (!startStreaming(server, key, cambiarEnCaliente, salida, std::move(alTerminar))) return false;
+    *igual = engine_.ultimoInicio() == BroadcastEngine::Inicio::YaIgual;
     return true;
 }
 
@@ -1390,10 +1391,10 @@ bool AppRuntime::startStreaming(const std::string& server, const std::string& ke
         sc.server = server;
         sc.key = key;
         const bool salia = engine_.haySalidaEn(id);
-        const bool yaPedida = pedidos_.de(id).transmitePedida();
+        const PedidoSalida antesPedido = pedidos_.de(id);
         const std::uint64_t orden = pedidos_.pedir(id, false);
         if (!engine_.startStreaming(sc, codificadorDe(id), cambiarEnCaliente, id, alResultado(orden, std::move(listo)))) {
-            if (!yaPedida) pedidos_.dejarDePedir(id, false);
+            pedidos_.devolver(id, false, orden, antesPedido);
             errorDelHilo() = engine_.lastError();
             return false;
         }
@@ -1427,10 +1428,10 @@ bool AppRuntime::startStreaming(const std::string& server, const std::string& ke
         return false;
     }
     const EngineStatus antes = engine_.status();
-    const bool yaPedida = pedidos_.de(id).transmitePedida();
+    const PedidoSalida antesPedido = pedidos_.de(id);
     const std::uint64_t orden = pedidos_.pedir(id, false);
     if (!engine_.startStreaming(sc, a.encoder, cambiarEnCaliente, {}, alResultado(orden, std::move(listo)))) {
-        if (!yaPedida) pedidos_.dejarDePedir(id, false);
+        pedidos_.devolver(id, false, orden, antesPedido);
         errorDelHilo() = engine_.lastError();
         std::printf("ba-app: %s\n",
                     ba::i18n::llenar(ba::i18n::traducir("salidas", "la transmision no arranco: %1"), {errorDelHilo()}).c_str());
@@ -1833,10 +1834,25 @@ bool AppRuntime::renameScene(const std::string& from, const std::string& to) {
 
 std::vector<std::pair<std::string, std::string>> AppRuntime::renombresDeEscena(std::size_t& desde) const {
     const std::lock_guard<std::mutex> l(renombresMu_);
+    // Los números son de toda la corrida: renombres_[0] es el número renombresBase_.
     std::vector<std::pair<std::string, std::string>> out;
-    for (std::size_t i = desde; i < renombres_.size(); ++i) out.push_back(renombres_[i]);
-    desde = renombres_.size();
+    for (std::size_t i = std::max(desde, renombresBase_); i < renombresBase_ + renombres_.size(); ++i)
+        out.push_back(renombres_[i - renombresBase_]);
+    desde = renombresBase_ + renombres_.size();
+    lectoresRenombres_[&desde] = desde;
+    // Lo que ya pasaron todos los lectores, afuera.
+    std::size_t minimo = desde;
+    for (const auto& [lector, va] : lectoresRenombres_) minimo = std::min(minimo, va);
+    if (minimo > renombresBase_) {
+        renombres_.erase(renombres_.begin(), renombres_.begin() + static_cast<std::ptrdiff_t>(minimo - renombresBase_));
+        renombresBase_ = minimo;
+    }
     return out;
+}
+
+void AppRuntime::dejarDeLeerRenombres(const std::size_t& desde) const {
+    const std::lock_guard<std::mutex> l(renombresMu_);
+    lectoresRenombres_.erase(&desde);
 }
 
 std::string AppRuntime::sceneFolder(const std::string& name) const {
@@ -2337,10 +2353,12 @@ void AppRuntime::rearmarPorGpu() {
     reubicarFuentes();
     operator_.configure(engine_, cfg_.operatorVideo, cfg_.operatorAudio); // lo que ve el lobby, del motor nuevo
     // Las salidas, como restoreOutputs después de un corte: las de otras salidas se vuelven a
-    // anotar al arrancar (startRecording/startStreaming).
-    pedidos_.olvidarTodo();
+    // anotar al arrancar (startRecording/startStreaming). Lo que cerró el corte de luz NO se
+    // retoma acá (la batería sigue baja): sigue esperando la energía.
     aireAnterior_ = aire;
     aireAnterior_.cerrado = false;
+    for (const std::string& id : pedidos_.rearmar())
+        if (const auto it = aireAnterior_.salidas.find(id); it != aireAnterior_.salidas.end()) it->second.grabando = false;
     restaurarPlacas(aire);
     restoreOutputs(/*deEstaCorrida=*/true);
     writeOnAirState();

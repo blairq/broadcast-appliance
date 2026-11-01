@@ -1347,9 +1347,11 @@ int main(int argc, char** argv) {
 
     // El latido lo da este bucle, pero lo que importa es que la SALA atienda: un B con
     // este hilo andando y los de HTTP/WS trabados latía igual y el launcher no se enteraba.
-    // Un vigía se pregunta a sí mismo /healthz por la API de control cada 2 s; tres sin
+    // Un vigía se pregunta a sí mismo /healthz por la API de control cada 2 s (que además
+    // prueba los candados principales: ver SignalingServer::candadoTrabado); varias sin
     // contestar seguidas y se deja de latir (el launcher lo ve colgado, lo vuelca y lo
-    // relanza).
+    // relanza). Con margen: una CPU cargada contesta tarde y eso no es estar trabado (antes
+    // bastaban tres de 1,5 s para tirar a la sala en pleno evento).
     std::atomic<bool> atiende{true};
     std::thread vigiaServicio;
     if (server.adminPort() != 0)
@@ -1360,8 +1362,8 @@ int main(int argc, char** argv) {
                 for (int i = 0; i < 20 && !g_stop.load(std::memory_order_relaxed); ++i)
                     std::this_thread::sleep_for(std::chrono::milliseconds(100));
                 if (g_stop.load(std::memory_order_relaxed)) break;
-                fallas = contestaHttp(puerto, "/healthz", 1500) ? 0 : fallas + 1;
-                const bool ok = fallas < 3;
+                fallas = contestaHttp(puerto, "/healthz", ba::ajustes::sAMs("room.vigiaTopeS", 3)) ? 0 : fallas + 1;
+                const bool ok = fallas < ba::ajustes::entero("room.vigiaFallas", 5);
                 if (ok != atiende.load()) {
                     if (!ok)
                         log.error(traducir("gateway", "la sala no contesta su propio /healthz: se deja de latir"), -1);

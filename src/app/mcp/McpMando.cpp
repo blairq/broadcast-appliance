@@ -5,7 +5,6 @@
 #include "i18n/I18n.hpp"
 #include "mcp/McpCore.hpp"
 
-#include <QTimer>
 
 #include <algorithm>
 #include <filesystem>
@@ -128,7 +127,7 @@ void registrarHerramientasDeAire(McpCore& core, MandoDeAire mando) {
         t.name = "scene_preview";
         t.porSalida = true;
         t.hilo = Hilo::Control;
-        t.title = ba::i18n::traducir("mcp", "Armar la proxima escena (sin sacarla al aire)");
+        t.title = ba::i18n::traducir("mcp", "Armar la próxima escena (sin sacarla al aire)");
         t.category = "escenas";
         t.clase = Clase::Escritura;
         t.description =
@@ -178,7 +177,7 @@ void registrarHerramientasDeAire(McpCore& core, MandoDeAire mando) {
         t.name = "transicion_manual";
         t.porSalida = true;
         t.hilo = Hilo::Control;
-        t.title = ba::i18n::traducir("mcp", "T-bar: transicion a mano");
+        t.title = ba::i18n::traducir("mcp", "T-bar: transición a mano");
         t.category = "escenas";
         t.clase = Clase::Aire;
         t.porQueAire = QT_TRANSLATE_NOOP("mcp", "lleva la transición a mano (T-bar)");
@@ -262,8 +261,18 @@ void registrarHerramientasDeAire(McpCore& core, MandoDeAire mando) {
                 return done(ToolResult().text(ba::i18n::traducir("mcp", "Destino iniciado.")).data(json{{"destinos", m->destinos()}}));
             }
             // La misma operación del modelo que el botón (el vivo queda en el bus y el histórico).
-            const MandoDeAire::Inicio r = m->transmitir(salida, a.value("server", std::string()), a.value("key", std::string()),
-                                                        a.value("cambiar_en_caliente", false));
+            // Se contesta con lo que de verdad pasó (el motor la hace en su hilo de salidas).
+            const auto igual = std::make_shared<bool>(false);
+            const MandoDeAire::Inicio r = m->transmitir(
+                salida, a.value("server", std::string()), a.value("key", std::string()), a.value("cambiar_en_caliente", false),
+                [done, igual, m](const MandoDeAire::Resultado& x) {
+                    if (!x.ok)
+                        return done(ToolResult::error(ba::i18n::llenar(
+                            ba::i18n::traducir("mcp", "No arranco: %1. Si falta la clave: pasala en `key` o en la variable %2."),
+                            {x.error, m->variableClave()})));
+                    if (*igual) return done(ToolResult::ok(ba::i18n::traducir("mcp", "Ya estaba transmitiendo a ese destino: no cambio nada.")));
+                    done(ToolResult::ok(ba::i18n::traducir("mcp", "Transmitiendo.")));
+                });
             if (!r.ok) {
                 if (!r.activoEn.empty()) {
                     ToolResult x = ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "Ya esta transmitiendo a %1: NO se cambio nada. Para pasar a "
@@ -277,8 +286,7 @@ void registrarHerramientasDeAire(McpCore& core, MandoDeAire mando) {
                                                                                "variable %2."),
                                                            {r.error, m->variableClave()})));
             }
-            if (r.yaIgual) return done(ToolResult::ok(ba::i18n::traducir("mcp", "Ya estaba transmitiendo a ese destino: no cambio nada.")));
-            done(ToolResult::ok(ba::i18n::traducir("mcp", "Transmitiendo.")));
+            *igual = r.yaIgual; // la respuesta llega después de esto
         };
         core.addTool(std::move(t));
     }
@@ -287,7 +295,7 @@ void registrarHerramientasDeAire(McpCore& core, MandoDeAire mando) {
         t.name = "stream_stop";
         t.porSalida = true;
         t.hilo = Hilo::Control;
-        t.title = ba::i18n::traducir("mcp", "Cortar la transmision");
+        t.title = ba::i18n::traducir("mcp", "Cortar la transmisión");
         t.category = "salidas";
         t.clase = Clase::Aire;
         t.porQueAire = QT_TRANSLATE_NOOP("mcp", "corta la transmisión");
@@ -327,35 +335,21 @@ void registrarHerramientasDeAire(McpCore& core, MandoDeAire mando) {
             if (d.value("horas", -1.0) >= 0 && d.value("horas", -1.0) < m->discoMinimoH)
                 return done(ToolResult::error(ba::i18n::traducir("mcp", "Queda disco para menos de 15 minutos a este bitrate: no se arranca sola. "
                                               "Liberá espacio o que el operador lo arranque desde Salidas.")));
-            if (const std::string e = m->grabar(salida); !e.empty())
-                return done(ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "No arranco: %1"), {e})));
             // La grabación arranca en el hilo de salidas del motor (nadie espera el
-            // codificador): se mira cada 200 ms desde ESTE hilo (el control, sin la
-            // interfaz), sin trabar nada, hasta que tiene archivo.
-            auto mirar = std::make_shared<std::function<void(int)>>();
-            *mirar = [m, d, done, mirar, salida](int n) {
-                const json g = m->grabacion(salida);
-                const std::string archivo = g.value("archivo", std::string());
-                if (g.value("activa", false) && !archivo.empty()) {
-                    QTimer::singleShot(0, [mirar]() { *mirar = nullptr; });
-                    return done(ToolResult()
-                                    .text(ba::i18n::llenar(ba::i18n::traducir("mcp", "Grabando en %1."), {archivo}))
-                                    .data(json{{"archivo", archivo},
-                                               {"contenedor_real", std::filesystem::path(archivo).extension().string()},
-                                               {"contenedor_pedido", m->contenedor()},
-                                               {"horas_restantes", d.value("horas", -1.0)}}));
-                }
-                if (n >= 25 || !m->algoSale()) {
-                    QTimer::singleShot(0, [mirar]() { *mirar = nullptr; });
-                    return done(m->algoSale()
-                                    ? ToolResult::ok(ba::i18n::traducir("mcp", "Pedido: la grabación está arrancando (todavía sin archivo)."))
-                                    : ToolResult::error(ba::i18n::traducir("mcp", "La grabación no arrancó: mirá el aviso en la interfaz.")));
-                }
-                QTimer::singleShot(200, [mirar, n]() {
-                    if (*mirar) (*mirar)(n + 1);
-                });
-            };
-            (*mirar)(0);
+            // codificador): se contesta cuando el motor dice lo que pasó (en ESTE hilo, el
+            // control), con el archivo que abrió o por qué no.
+            const std::string e = m->grabar(salida, [m, d, done](const MandoDeAire::Resultado& x) {
+                if (!x.ok)
+                    return done(ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "La grabación no arrancó: %1"), {x.error})));
+                const std::string& archivo = x.archivo;
+                done(ToolResult()
+                         .text(ba::i18n::llenar(ba::i18n::traducir("mcp", "Grabando en %1."), {archivo}))
+                         .data(json{{"archivo", archivo},
+                                    {"contenedor_real", std::filesystem::path(archivo).extension().string()},
+                                    {"contenedor_pedido", m->contenedor()},
+                                    {"horas_restantes", d.value("horas", -1.0)}}));
+            });
+            if (!e.empty()) return done(ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "No arranco: %1"), {e})));
         };
         core.addTool(std::move(t));
     }
@@ -365,7 +359,7 @@ void registrarHerramientasDeAire(McpCore& core, MandoDeAire mando) {
         t.porSalida = true;
         t.hilo = Hilo::Control;
         t.destructive = true;
-        t.title = ba::i18n::traducir("mcp", "Detener grabacion");
+        t.title = ba::i18n::traducir("mcp", "Detener grabación");
         t.category = "salidas";
         t.clase = Clase::Aire;
         t.porQueAire = QT_TRANSLATE_NOOP("mcp", "corta la grabación");

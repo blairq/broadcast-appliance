@@ -16,6 +16,8 @@ const token = frag.get("t") || "";
 
 let ws = null;
 let pin = "";
+// El token de este aparato (comun/aparato.js): con él no se vuelve a pedir el PIN.
+let aparato = consola ? BAAparato.leer("presidencia", consola) : "";
 let est = null;              // el último estado
 let desfase = 0;             // reloj de la app - reloj de acá
 let reintento = 1000;
@@ -73,18 +75,36 @@ listo.then(() => {
   if (!consola || token.length !== 64) {
     $("entrarTexto").textContent = t("Este link está incompleto: abrí el acceso de la consola que te dio la secretaría.");
     $("formPin").classList.add("oculto");
+    return;
+  }
+  // Ya registrado: entra solo.
+  if (aparato) {
+    $("formPin").classList.add("oculto");
+    $("entrarTexto").textContent = t("Entrando…");
+    conectar();
   }
 });
+
+function pedirPin(texto) {
+  $("formPin").classList.remove("oculto");
+  $("botonEntrar").disabled = false;
+  $("entrarTexto").textContent = t("Escribí el PIN de la consola.");
+  if (texto) {
+    $("error").textContent = texto;
+    $("error").classList.remove("oculto");
+  }
+}
 
 function conectar() {
   const proto = location.protocol === "https:" ? "wss:" : "ws:";
   ws = new WebSocket(proto + "//" + location.host + "/ws?presidencia=1");
-  ws.onopen = () => ws.send(JSON.stringify({ type: "auth", c: consola, t: token, pin }));
+  ws.onopen = () => ws.send(JSON.stringify(aparato ? { type: "auth", c: consola, t: token, aparato }
+    : { type: "auth", c: consola, t: token, pin, registrar: true, nombre: BAAparato.nombre() }));
   ws.onmessage = (ev) => { let m; try { m = JSON.parse(ev.data); } catch (e) { return; } recibir(m); };
   ws.onclose = () => {
     $("conexion").className = "punto-con apagado";
     $("sinConexion").classList.toggle("oculto", !adentro || cortado);
-    if (cortado || !pin) return;
+    if (cortado || (!pin && !aparato)) return;
     setTimeout(conectar, reintento);
     reintento = Math.min(reintento * 2, 15000);
   };
@@ -94,11 +114,22 @@ function recibir(m) {
   switch (m.type) {
     case "auth":
       if (!m.ok) {
-        pin = ""; cortado = true;
-        $("botonEntrar").disabled = false;
-        $("error").textContent = t(m.error) || t("No se pudo entrar.");
-        $("error").classList.remove("oculto");
+        // La sala recién arrancó y todavía no sabe de las credenciales: se vuelve a probar.
+        if (m.error_codigo === "esperar") { setTimeout(conectar, BAAparato.ESPERA_MS); return; }
+        cortado = true;
+        if (m.error_codigo === "aparato") {
+          // Lo revocaron (o se renovó el link): recién ahora, el PIN.
+          BAAparato.olvidar("presidencia", consola);
+          aparato = "";
+        }
+        pin = "";
+        pedirPin(t(m.error) || t("No se pudo entrar."));
         return;
+      }
+      if (m.aparato) {
+        aparato = m.aparato;
+        BAAparato.guardar("presidencia", consola, aparato);
+        pin = ""; // ya no hace falta: el aparato quedó registrado
       }
       reintento = 1000;
       adentro = true;
@@ -107,6 +138,7 @@ function recibir(m) {
       $("entrar").classList.add("oculto");
       $("consola").classList.remove("oculto");
       mandar({ type: "hola" });
+      setTimeout(pedirFotosVivas, 500); // la ronda inicial, con el estado ya llegado
       // Uno solo: al reconectar se volvía a sumar otro intervalo cada vez.
       if (!pingTimer) pingTimer = setInterval(() => mandar({ type: "ping" }), 20000);
       despierta();
@@ -119,6 +151,11 @@ function recibir(m) {
     case "cast":
       if (m.url && $("programa").getAttribute("src") !== m.url) { $("programa").src = m.url; $("sinPrograma").classList.add("oculto"); }
       break;
+    case "foto_nueva": {
+      const r = remotoDe(m.id);
+      if (r && r.conectado) mandar({ type: "foto", id: m.id });
+      break;
+    }
     case "foto":
     case "foto_cuerpo":
       if (m.jpeg) {
@@ -521,13 +558,12 @@ let redibujar = null;
 window.addEventListener("resize", () => { clearTimeout(redibujar); redibujar = setTimeout(() => { if (est) pintarRecinto(); }, 120); });
 
 // --- Las caras en vivo ---------------------------------------------------------------------------
-let ultimaRonda = 0;
+// La sala avisa cuando hay una foto nueva de alguien ({type:"foto_nueva", id}); se pide la de
+// los conectados. Al entrar (o volver), una ronda entera.
 function pedirFotosVivas() {
-  if (Date.now() - ultimaRonda < 2500) return;
-  ultimaRonda = Date.now();
+  if (!est) return;
   for (const r of (est.remotos || [])) if (r.conectado) mandar({ type: "foto", id: r.id });
 }
-setInterval(() => { if (est) pedirFotosVivas(); }, 3000);
 
 // --- WebRTC directo con un integrante ----------------------------------------------------------
 // Una conexión por integrante: video y audio de él hacia acá; el micrófono de la

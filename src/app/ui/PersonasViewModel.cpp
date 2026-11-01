@@ -24,6 +24,7 @@
 
 #include "arranque/AppRuntime.hpp"
 #include "diag/Registro.hpp"
+#include "persist/ColaEscritura.hpp"
 #include "ui/FrameService.hpp"
 #include "emision/VentanillaMotor.hpp"
 #include "ui/StudioViewModel.hpp"
@@ -277,7 +278,16 @@ inline float kAbrirLaPuerta() { return static_cast<float>(ba::ajustes::numero("r
 /// Un alta o una cara nueva sí se guardan en el acto.
 inline std::int64_t kGuardarVistasMs() { return ba::ajustes::entero64("rostros.guardarVistasS", 30) * 1000; }
 
-/// El recorte de la cara, con margen, para la ficha (ver McpRostroTools).
+/// Guarda el recorte de la cara como foto de la ficha. Devuelve el nombre del
+/// archivo, o vacío si no se pudo.
+///
+/// CON MARGEN Y CUADRADO. El rectángulo que da el detector es justo la cara:
+/// recortado ahí, la foto queda claustrofóbica y cuesta reconocer a quién
+/// pertenece. Un 40% alrededor entra el pelo y algo de hombro, que es lo que
+/// una persona usa para decir «sí, es ella».
+///
+/// Chica a propósito (256 px): es para mirar en una lista, no para imprimir, y
+/// multiplicada por cien fichas la carpeta portable se nota.
 QString escribirFoto(const QImage& img, const ba::rostros::Cara& c, const QString& carpeta,
                      const QString& id) {
     const int margen = static_cast<int>(std::max(c.ancho, c.alto) * 0.4);
@@ -941,13 +951,23 @@ QString PersonasViewModel::guardar(const QString& id, const QString& nombre, con
     p.nombre = nombre.trimmed().toStdString();
     p.cargo = cargo.trimmed().toStdString();
     p.nota = nota.trimmed().toStdString();
-    const QString nuevo = QString::fromStdString(d_->libreta.guardarFicha(p));
-    if (!d_->libreta.guardar(d_->archivo.toStdString())) {
-        emit notify(QString::fromStdString(d_->libreta.error()), "error");
+    std::string error;
+    const std::string nuevo = guardarFicha(p, &error);
+    if (nuevo.empty()) emit notify(QString::fromStdString(error), "error");
+    return QString::fromStdString(nuevo);
+}
+
+std::string PersonasViewModel::guardarFicha(const ba::rostros::Persona& p, std::string* error) {
+    if (!d_->listo) {
+        if (error != nullptr) *error = d_->aviso.toStdString();
         return {};
     }
-    emit cambio();
-    return nuevo;
+    const std::string id = d_->libreta.guardarFicha(p);
+    if (!persistir()) {
+        if (error != nullptr) *error = d_->libreta.error();
+        return {};
+    }
+    return id;
 }
 
 bool PersonasViewModel::borrar(const QString& id) {
@@ -956,11 +976,52 @@ bool PersonasViewModel::borrar(const QString& id) {
     const QString foto = p != nullptr ? QString::fromStdString(p->foto) : QString();
     if (!d_->libreta.borrar(id.toStdString())) return false;
     // La foto se va con la ficha: dejarla suelta sería guardar la cara de
-    // alguien que se pidió borrar.
-    if (!foto.isEmpty()) QFile::remove(d_->carpetaFotos + "/" + foto);
-    d_->libreta.guardar(d_->archivo.toStdString());
-    emit cambio();
+    // alguien que se pidió borrar. Por el escritor único, como la libreta.
+    if (!foto.isEmpty()) ba::persist::cola().borrar((d_->carpetaFotos + "/" + foto).toStdU16String());
+    persistir();
     return true;
+}
+
+ba::rostros::Personas::Alta PersonasViewModel::anotarCara(const std::string& id, const Reconocedor::Visto& visto,
+                                                          const QImage& img, bool nuevaFoto) {
+    const auto alta = d_->libreta.sumarCara(id, visto.vector);
+    if (alta == ba::rostros::Personas::Alta::NoExiste) return alta;
+    // La foto se saca la PRIMERA vez y después solo si la piden: cambiarla en
+    // cada captura haría que la ficha se vea distinta cada vez sin que nadie lo
+    // decidiera, y la que quedaría es la última, no la mejor.
+    const auto* p = d_->libreta.porId(id);
+    if (p != nullptr && (p->foto.empty() || nuevaFoto)) {
+        const QString archivo = escribirFoto(img, visto.cara, d_->carpetaFotos, QString::fromStdString(id));
+        if (!archivo.isEmpty()) {
+            ba::rostros::Persona conFoto = *p;
+            conFoto.foto = archivo.toStdString();
+            d_->libreta.guardarFicha(conFoto);
+        }
+    }
+    persistir();
+    return alta;
+}
+
+bool PersonasViewModel::fusionar(const std::string& id, const std::string& otro) {
+    if (!d_->listo) return false;
+    const auto* b = d_->libreta.porId(otro);
+    const std::string fotoOtro = b != nullptr ? b->foto : std::string();
+    if (!d_->libreta.fusionar(id, otro)) return false;
+    // La foto de la absorbida se borra solo si la que queda no se quedó con ella
+    // (pasa cuando la que queda no tenía foto).
+    const auto* f = d_->libreta.porId(id);
+    if (!fotoOtro.empty() && (f == nullptr || f->foto != fotoOtro))
+        ba::persist::cola().borrar((d_->carpetaFotos + "/" + QString::fromStdString(fotoOtro)).toStdU16String());
+    persistir();
+    return true;
+}
+
+void PersonasViewModel::vistas(const std::vector<std::string>& ids) {
+    if (!d_->listo || ids.empty()) return;
+    const std::int64_t ahora = QDateTime::currentMSecsSinceEpoch();
+    for (const std::string& id : ids)
+        d_->libreta.vistaAhora(id, ahora);
+    if (ahora - d_->ultimoGuardado > kGuardarVistasMs()) persistir();
 }
 
 void PersonasViewModel::sumarCara(const QString& id, const QString& feed, bool nuevaFoto) {
@@ -977,19 +1038,9 @@ void PersonasViewModel::sumarCara(const QString& id, const QString& feed, bool n
                                                 "donde esté sola.")
                                                  .arg(vistos.size()),
                                              "aviso");
-                      const auto alta = d_->libreta.sumarCara(id.toStdString(), vistos[0].vector);
+                      const auto alta = anotarCara(id.toStdString(), vistos[0], img, nuevaFoto);
                       if (alta == ba::rostros::Personas::Alta::NoExiste)
                           return emit notify(tr("No existe esa persona."), "error");
-                      const auto* p = d_->libreta.porId(id.toStdString());
-                      if (p != nullptr && (p->foto.empty() || nuevaFoto)) {
-                          const QString archivo = escribirFoto(img, vistos[0].cara, d_->carpetaFotos, id);
-                          if (!archivo.isEmpty()) {
-                              ba::rostros::Persona conFoto = *p;
-                              conFoto.foto = archivo.toStdString();
-                              d_->libreta.guardarFicha(conFoto);
-                          }
-                      }
-                      persistir();
                       emit notify(alta == ba::rostros::Personas::Alta::Sumada
                                       ? tr("Cara sumada.")
                                       : tr("Esa pose ya la tenía: probá desde otro ángulo."),

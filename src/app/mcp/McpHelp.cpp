@@ -136,7 +136,7 @@ const TopicDef kTopics[] = {
 
 std::string settingsJson(SettingsModel& s) {
     s.revert();
-    return modelRows(s).dump(2, ' ', false, nlohmann::json::error_handler_t::replace);
+    return qvToJson(s.filas()).dump(2, ' ', false, nlohmann::json::error_handler_t::replace);
 }
 
 } // namespace

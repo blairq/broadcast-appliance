@@ -71,10 +71,13 @@ CLASIFICACION = {
 
 # Los bordes: su prefijo y lo que atiende cada uno (`que == "…"`).
 BORDES = {
-    "Botonera.cpp": {"credenciales": "botonera", "estado": "botonera", "enviar": "orden", "resolver": "orden"},
+    # «solicitudes»: las de emparejamiento que la app no oyó; las va a buscar al conectar.
+    "Botonera.cpp": {"credenciales": "botonera", "estado": "botonera", "enviar": "orden", "resolver": "orden",
+                     "solicitudes": "botonera"},
     "ControlWeb.cpp": {"credenciales": "control-web", "estado": "lectura", "enviar": "orden", "resolver": "orden",
-                       "cortar": "orden"},
-    "Sesion.cpp": {"credenciales": "presidencia", "medios": "presidencia", "vistas": "presidencia",
+                       "cortar": "orden", "solicitudes": "control-web"},
+    # «aparatos»: los registrados que la app todavía no guardó (los busca al conectar).
+    "Sesion.cpp": {"credenciales": "presidencia", "medios": "presidencia", "vistas": "presidencia", "aparatos": "presidencia",
                    "estado": "lectura", "foto": "lectura", "enviar": "orden", "cortar": "orden",
                    "hablar": "orden", "atiende": "orden"},
     "Registro.cpp": {"totems": "totems", "estado": "lectura", "cuadro": "lectura", "enviar": "orden",

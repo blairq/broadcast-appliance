@@ -46,7 +46,7 @@ _CANDIDATAS = [RAIZ / "release", RAIZ / "dist" / "BroadcastAppliance.app" / "Con
 APP = next((c for c in _CANDIDATAS if (c / "Runtime" / "mcp.json").exists()), _CANDIDATAS[0])
 MCP_PUENTE = APP / "bin" / "64bit" / "ba-mcp"
 CLASES = ("lectura", "escritura", "aire", "ui")
-HILOS = ("foto", "control", "interfaz")
+HILOS = ("foto", "control", "interfaz", "sin_interfaz")
 
 
 def del_aparato():

@@ -260,6 +260,7 @@ Conmutadores::Conmutadores(AppRuntime& rt, const std::vector<std::string>& salid
 }
 
 Conmutadores::~Conmutadores() {
+    rt_.dejarDeLeerRenombres(renombresVistos_);
     if (aporte_ >= 0) rt_.dejarDeAportar(aporte_);
     if (observador_ >= 0) rt_.dejarDeObservar(observador_);
 }

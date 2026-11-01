@@ -54,7 +54,7 @@ void McpService::registerPantallaTools() {
     {
         Tool t;
         t.name = "pantalla_listar";
-        t.title = ba::i18n::traducir("mcp", "Que pantallas hay");
+        t.title = ba::i18n::traducir("mcp", "Qué pantallas hay");
         t.category = "pantallas";
         t.clase = Clase::Lectura;
         t.description =
@@ -504,7 +504,7 @@ void McpService::registerPantallaTools() {
     {
         Tool t;
         t.name = "superficie_listar";
-        t.title = ba::i18n::traducir("mcp", "Que paginas del aparato estan vivas");
+        t.title = ba::i18n::traducir("mcp", "Qué páginas del aparato están vivas");
         t.category = "pantallas";
         t.clase = Clase::Lectura;
         t.description =
@@ -539,7 +539,7 @@ void McpService::registerPantallaTools() {
     {
         Tool t;
         t.name = "superficie_mostrar";
-        t.title = ba::i18n::traducir("mcp", "Cambiarle la pagina a una superficie viva");
+        t.title = ba::i18n::traducir("mcp", "Cambiarle la página a una superficie viva");
         t.category = "pantallas";
         t.clase = Clase::Escritura;
         t.description =
@@ -598,7 +598,7 @@ void McpService::registerPantallaTools() {
     {
         Tool t;
         t.name = "catalogo_listar";
-        t.title = ba::i18n::traducir("mcp", "Que se puede mostrar");
+        t.title = ba::i18n::traducir("mcp", "Qué se puede mostrar");
         t.category = "pantallas";
         t.clase = Clase::Lectura;
         t.description =
@@ -637,7 +637,7 @@ void McpService::registerPantallaTools() {
     {
         Tool t;
         t.name = "monitor_listar";
-        t.title = ba::i18n::traducir("mcp", "Que monitores hay y que muestra cada uno");
+        t.title = ba::i18n::traducir("mcp", "Qué monitores hay y qué muestra cada uno");
         t.category = "pantallas";
         t.clase = Clase::Lectura;
         t.description =

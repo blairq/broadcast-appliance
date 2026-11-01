@@ -56,15 +56,44 @@ std::string PaginaPublico::cambiar(const std::optional<std::string>& titulo, con
     total.update(pedido);
     nlohmann::json aMandar = total;
     if (!pedido.contains("fondo")) aMandar.erase("fondo");
-    nlohmann::json cuerpo;
-    if (std::string e = armar(aMandar, cuerpo); !e.empty()) return e;
-    // Del evento: queda guardado.
-    guardado_ = total;
-    if (!deEste_.empty())
-        ba::persist::cola().escribir(deEste_ / "publico.json",
-                                     guardado_.dump(1, ' ', false, nlohmann::json::error_handler_t::replace));
-    pedir(sala_, "POST", "/api/v1/publico-info", cuerpo, std::move(listo));
+    // La imagen es disco: se arma en el pool (como al volver la sala, mandarGuardado). Si no
+    // se puede (no se lee, pesa demasiado), el error va a `listo` y no se guarda nada.
+    const std::filesystem::path carpeta = deEste_;
+    enviar(aMandar, false, [this, total, carpeta, listo = std::move(listo)](const std::string& e, const nlohmann::json& r) {
+        if (e.empty() && carpeta == deEste_) {
+            // Del evento: queda guardado.
+            guardado_ = total;
+            if (!deEste_.empty())
+                ba::persist::cola().escribir(deEste_ / "publico.json",
+                                             guardado_.dump(1, ' ', false, nlohmann::json::error_handler_t::replace));
+        }
+        if (listo) listo(e, r);
+    });
     return {};
+}
+
+void PaginaPublico::enviar(const nlohmann::json& pedido, bool sinFondoSiFalla, Listo listo) {
+    QPointer<QObject> vida(&vida_);
+    QThreadPool::globalInstance()->start([this, vida, pedido, sinFondoSiFalla, listo = std::move(listo)]() {
+        nlohmann::json cuerpo;
+        std::string e = armar(pedido, cuerpo);
+        if (!e.empty() && sinFondoSiFalla) {
+            nlohmann::json sinFondo = pedido;
+            sinFondo["fondo"] = ""; // la imagen ya no está: lo demás igual
+            e = armar(sinFondo, cuerpo);
+        }
+        QMetaObject::invokeMethod(
+            QCoreApplication::instance(), // de vuelta en el hilo de la interfaz
+            [this, vida, e, cuerpo = std::move(cuerpo), listo]() {
+                if (!vida) return;
+                if (!e.empty()) {
+                    if (listo) listo(e, {});
+                    return;
+                }
+                pedir(sala_, "POST", "/api/v1/publico-info", cuerpo, listo);
+            },
+            Qt::QueuedConnection);
+    });
 }
 
 void PaginaPublico::setCarpetaEvento(std::function<std::filesystem::path()> carpeta) {
@@ -101,23 +130,7 @@ void PaginaPublico::eventoCambio() {
 
 void PaginaPublico::mandarGuardado() {
     if (guardado_.empty() || !sala_.online()) return;
-    const nlohmann::json pedido = guardado_;
-    QPointer<QObject> vida(&vida_);
-    // La imagen es disco: se arma en otro hilo y se manda desde el de la interfaz.
-    QThreadPool::globalInstance()->start([this, vida, pedido]() {
-        nlohmann::json cuerpo;
-        if (!armar(pedido, cuerpo).empty()) {
-            nlohmann::json sinFondo = pedido;
-            sinFondo["fondo"] = ""; // la imagen ya no está: lo demás igual
-            armar(sinFondo, cuerpo);
-        }
-        QMetaObject::invokeMethod(
-            QCoreApplication::instance(),
-            [this, vida, cuerpo = std::move(cuerpo)]() {
-                if (vida) pedir(sala_, "POST", "/api/v1/publico-info", cuerpo, {});
-            },
-            Qt::QueuedConnection);
-    });
+    enviar(guardado_, true, {});
 }
 
 } // namespace ba::app::sala

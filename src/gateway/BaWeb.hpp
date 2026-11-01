@@ -75,8 +75,9 @@ class WebSupervisor {
     uint16_t puerto() const { return cfg_.puerto; }
     bool atiendeTunel() const { return cfg_.tunel; }
     bool atiendeLan() const { return cfg_.lanPuerto != 0 && !cfg_.tlsPem.empty(); }
-    /// Cada vez que cambia cómo anda ({vivo, reinicios, cortado, seguidas}): la sala se lo
-    /// cuenta a la app (evento «web»). Desde el hilo del vigía.
+    /// Cada vez que cambia cómo anda ({vivo, reinicios, cortado, seguidas, problema, version,
+    /// esperada}): la sala se lo cuenta a la app (evento «web»). Desde el hilo del vigía; al
+    /// arrancar, también si no se lo puede usar (problema «falta» o «version»).
     void setAlCambiar(std::function<void(const nlohmann::json&)> fn) {
         std::lock_guard<std::mutex> l(avisoLock_);
         alCambiar_ = std::move(fn);
@@ -106,6 +107,8 @@ class WebSupervisor {
     std::atomic<int> restarts_{0};
     std::mutex avisoLock_;
     std::function<void(const nlohmann::json&)> alCambiar_;
+    /// No se lo usa (no está el binario, o es de otra versión): que la app lo sepa.
+    void avisarProblema(const std::string& problema, const std::string& version);
     std::mutex dirLock_;
     std::string dirActual_ = "\x01"; // distinto de todo, para que la primera vez se escriba
 };

@@ -16,8 +16,10 @@
 #include "mcp/McpToolsCommon.hpp"
 #include "ui/StudioViewModel.hpp"
 
+#include <QCoreApplication>
 #include <QPointer>
 
+#include <filesystem>
 #include <fstream>
 #include <string>
 #include "ui/CapturaError.hpp"
@@ -318,16 +320,30 @@ void McpService::registerTraduccionTools() {
                           {{"csv", {{"type", "string"}}}, {"archivo", {{"type", "string"}}}, {"revisado_por", {{"type", "string"}}}}}};
         x.run = [t](const json& a, Done done) {
             if (!t) return done(ToolResult::error(ba::i18n::traducir("mcp", "el traductor no está")));
-            std::string csv = a.value("csv", std::string());
-            if (csv.empty() && a.contains("archivo")) {
-                std::ifstream f(a.value("archivo", std::string()));
-                if (!f) return done(ToolResult::error(ba::i18n::traducir("mcp", "no pude leer el archivo")));
-                csv.assign(std::istreambuf_iterator<char>(f), {});
-            }
-            int n = 0;
-            const std::string e = t->glosarioImportarCsv(csv, a.value("revisado_por", std::string()), &n);
-            if (!e.empty()) return done(ToolResult::error(e));
-            done(ToolResult::ok(ba::i18n::traducir("mcp", "Importado %n término revisado.", nullptr, n)));
+            const std::string revisadoPor = a.value("revisado_por", std::string());
+            const auto importar = [t, revisadoPor, done](const std::string& csv) {
+                if (!t) return done(ToolResult::error(ba::i18n::traducir("mcp", "el traductor no está")));
+                int n = 0;
+                const std::string e = t->glosarioImportarCsv(csv, revisadoPor, &n);
+                if (!e.empty()) return done(ToolResult::error(e));
+                done(ToolResult::ok(ba::i18n::traducir("mcp", "Importado %n término revisado.", nullptr, n)));
+            };
+            const std::string csv = a.value("csv", std::string());
+            if (!csv.empty() || !a.contains("archivo")) return importar(csv);
+            // El archivo se lee fuera de la interfaz (como glosario_exportar escribe por la cola).
+            auto leido = std::make_shared<std::string>();
+            enPool(
+                qApp,
+                [leido, ruta = a.value("archivo", std::string())]() {
+                    std::ifstream f(std::filesystem::u8path(ruta), std::ios::binary);
+                    if (!f) return ToolResult::error(ba::i18n::traducir("mcp", "no pude leer el archivo"));
+                    leido->assign(std::istreambuf_iterator<char>(f), {});
+                    return ToolResult();
+                },
+                [leido, importar, done](ToolResult r) {
+                    if (r.isError) return done(std::move(r));
+                    importar(*leido);
+                });
         };
         core_.addTool(std::move(x));
     }

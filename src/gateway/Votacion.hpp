@@ -37,6 +37,12 @@
 // (`restaurar`) y la urna sigue donde estaba. En una SECRETA la foto no lleva
 // quién votó qué —solo quiénes votaron y cuántos votos tiene cada opción—: lo
 // que vuelve de una caída queda «sellado» (cuenta, pero ya no se puede cambiar).
+//
+// LOS CÓDIGOS NO SE GUARDAN EN CLARO. Son la credencial de voto: la urna los guarda (y
+// la foto los lleva, y la app los escribe en votacion.json) como su MARCA, un HMAC con
+// una clave que vive cifrada en el almacén de credenciales (setClaveCodigos). Con el
+// archivo solo no se puede votar por nadie; un código corto tampoco se adivina probando,
+// sin la clave. Una foto vieja con los códigos en claro se pasa a marcas al restaurarla.
 // ============================================================================
 #pragma once
 
@@ -110,6 +116,10 @@ class Votacion {
 
     /// Todo lo que hace falta para volver a armarla (ver arriba): lo que la app guarda.
     nlohmann::json foto() const;
+    /// La clave de las marcas de los códigos (ver arriba). Antes de abrir o restaurar.
+    void setClaveCodigos(const std::string& clave);
+    /// La marca de un código («c:» + HMAC); "" si no hay código.
+    std::string marca(const std::string& codigo) const;
     /// La vuelve a armar desde una foto (la que guardó la app). Una vacía la deja sin nada.
     void restaurar(const nlohmann::json& foto);
 
@@ -125,9 +135,10 @@ class Votacion {
     std::int64_t desdeMs_ = 0;
     std::int64_t hastaMs_ = 0;
     int cuantosPodian_ = 0;
-    /// codigo -> nombre, los que pueden votar en la formal.
+    std::string claveCodigos_; ///< ver setClaveCodigos
+    /// marca del código -> nombre, los que pueden votar en la formal.
     std::map<std::string, std::string> habilitados_;
-    /// quién votó qué. La clave es el código (formal) o el navegador
+    /// quién votó qué. La clave es la marca del código (formal) o el navegador
     /// (encuesta).
     std::map<std::string, int> votos_;
     /// Lo que volvió de una caída en una secreta: cuántos votos por opción (los votantes

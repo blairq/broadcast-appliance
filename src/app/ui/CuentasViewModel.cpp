@@ -40,7 +40,7 @@ CuentasViewModel::CuentasViewModel(Partes p, QObject* parent) : QObject(parent),
          (p_.rt.dataRoot() / "data" / "cacert.pem").string(),
          (QCoreApplication::applicationDirPath() + "/../../data/cacert.pem").toStdString()});
     // Las grabaciones para subir: una lista para YouTube y Facebook (se lee aparte).
-    grabaciones_ = std::make_unique<GrabacionesModel>(p_.rt, p_.ventanilla);
+    grabaciones_ = std::make_unique<GrabacionesModel>(p_.ventanilla);
     youtube_ = std::make_unique<YouTubeViewModel>(p_.rt, p_.ventanilla, *grabaciones_);
     connect(youtube_.get(), &YouTubeViewModel::notify, this, &CuentasViewModel::notify);
     twitch_ = std::make_unique<TwitchViewModel>(p_.rt, p_.ventanilla);

@@ -63,6 +63,16 @@ void ControlWebGateway::evento(const json& ev) {
 void ControlWebGateway::sincronizar() {
     if (!gw_.online()) return;
     enviar("/api/v1/control/credenciales", cw_.credencialesParaGateway());
+    // Las solicitudes de emparejamiento son estado del gateway: las que llegaron sin que esta
+    // app las oyera (no estaba, o se perdió el evento) se van a buscar.
+    QPointer<ControlWebGateway> yo(this);
+    sala::pedir(gw_, "GET", "/api/v1/control/solicitudes", {}, [yo](const std::string& e, const json& r) {
+        if (!yo || !e.empty()) return;
+        for (const json& s : r.value("solicitudes", json::array()))
+            if (s.is_object() && !yo->cw_.tieneSolicitud(texto(s, "solicitud")))
+                yo->evento({{"tipo", "solicitud"}, {"solicitud", texto(s, "solicitud")}, {"codigo", texto(s, "codigo")},
+                            {"nombre", texto(s, "nombre")}, {"ip", texto(s, "ip")}});
+    });
 }
 
 void ControlWebGateway::reconocerConexiones() {

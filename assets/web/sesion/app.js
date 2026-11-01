@@ -15,8 +15,16 @@ const conLink = integrante !== "" && token.length === 64;
 // El PIN adentro del link (opción «PIN en el QR» de la app): entra sin tipear nada.
 const pinDelLink = conLink ? (frag.get("p") || "") : "";
 let ws = null;
-let pin = "";          // el PIN o la contraseña: solo en memoria, para reconectar sin volver a pedirlo
+let pin = "";          // el PIN o la contraseña: solo en memoria, hasta que el aparato queda registrado
 let usuario = "";
+// El aparato registrado (comun/aparato.js): con el link, por el integrante; sin link, por
+// el usuario con que entró (se recuerda junto con el token).
+const deAparato = () => conLink ? integrante : "u:" + usuario;
+let aparato = conLink ? BAAparato.leer("sesion", integrante) : "";
+if (!conLink) {
+  try { usuario = localStorage.getItem("ba-sesion-usuario") || ""; } catch (e) { usuario = ""; }
+  if (usuario) aparato = BAAparato.leer("sesion", deAparato());
+}
 let estado = "conectado";
 let reintento = 1000;
 let cortadoAProposito = false;
@@ -546,8 +554,11 @@ function programarFotos() {
 function conectar() {
   const proto = location.protocol === "https:" ? "wss:" : "ws:";
   ws = new WebSocket(proto + "//" + location.host + "/ws?sesion=1");
-  ws.onopen = () => ws.send(JSON.stringify(conLink ? { type: "auth", i: integrante, t: token, pin }
-                                                   : { type: "auth", u: usuario, clave: pin }));
+  ws.onopen = () => {
+    const quien = conLink ? { i: integrante, t: token } : { u: usuario };
+    ws.send(JSON.stringify(Object.assign({ type: "auth" }, quien, aparato ? { aparato }
+      : Object.assign(conLink ? { pin } : { clave: pin }, { registrar: true, nombre: BAAparato.nombre() }))));
+  };
   ws.onmessage = (ev) => {
     let m;
     try { m = JSON.parse(ev.data); } catch (e) { return; }
@@ -558,7 +569,7 @@ function conectar() {
     cerrarVista();
     cerrarAtencion(); // si vuelve y lo seguían atendiendo, el gateway se lo vuelve a pedir
     clearInterval(timerPing);
-    if (cortadoAProposito || !pin) return;
+    if (cortadoAProposito || (!pin && !aparato)) return;
     setTimeout(conectar, reintento);
     reintento = Math.min(reintento * 2, 15000);
   };
@@ -568,12 +579,25 @@ function recibir(m) {
   switch (m.type) {
     case "auth":
       if (!m.ok) {
+        // La sala recién arrancó y todavía no sabe de las credenciales: se vuelve a probar.
+        if (m.error_codigo === "esperar") { setTimeout(conectar, BAAparato.ESPERA_MS); return; }
+        if (m.error_codigo === "aparato") {
+          // Lo revocaron (o se renovó el link): recién ahora, el PIN.
+          BAAparato.olvidar("sesion", deAparato());
+          aparato = "";
+        }
         pin = "";
         cortadoAProposito = true;
         mostrar("entrar");
         $("botonEntrar").disabled = false;
         error(t(m.error) || t("No se pudo entrar."));
         return;
+      }
+      if (m.aparato) {
+        aparato = m.aparato;
+        BAAparato.guardar("sesion", deAparato(), aparato);
+        if (!conLink) { try { localStorage.setItem("ba-sesion-usuario", usuario); } catch (e) { /* nada */ } }
+        pin = ""; // ya no hace falta: el aparato quedó registrado
       }
       reintento = 1000;
       conexion(true);
@@ -763,7 +787,11 @@ $("idioma").addEventListener("change", async (e) => {
   // Los textos: el idioma del navegador del integrante (o el que elija arriba).
   await BAi18n.iniciar({ contexto: "web/sesion", preferir: "navegador" });
   armarIdiomas();
-  if (pinDelLink) {
+  if (aparato) {
+    // Ya registrado: entra solo, sin pedir nada.
+    $("botonEntrar").disabled = true;
+    conectar();
+  } else if (pinDelLink) {
     pin = pinDelLink;
     $("botonEntrar").disabled = true;
     conectar();

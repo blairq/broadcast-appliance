@@ -52,11 +52,6 @@ Rectangle {
     function since(ms) {
         return Theme.hace((page.now - ms) / 1000)
     }
-    /// kbit/s a algo que se lea de un vistazo.
-    function mbits(kbps) {
-        const k = kbps || 0
-        return k >= 1000 ? (k / 1000).toFixed(1) + " Mb/s" : Math.round(k) + " kb/s"
-    }
 
     ColumnLayout {
         anchors { fill: parent; leftMargin: page.leftInset; margins: 20 }
@@ -905,8 +900,8 @@ Rectangle {
                                 color: Theme.textDim; font.pixelSize: 11
                             }
                             Text {
-                                text: "↓ " + page.mbits(usoCol.u.kbpsEntrada) +
-                                      "   ↑ " + page.mbits(usoCol.u.kbpsSalida)
+                                text: "↓ " + Theme.velocidad(usoCol.u.kbpsEntrada, true) +
+                                      "   ↑ " + Theme.velocidad(usoCol.u.kbpsSalida, true)
                                 color: Theme.textFaint
                                 font { family: Theme.mono; pixelSize: 11 }
                             }

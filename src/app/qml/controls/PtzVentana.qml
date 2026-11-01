@@ -181,7 +181,7 @@ ColumnLayout {
             RowLayout {
                 Layout.fillWidth: true
                 spacing: 10
-                Joystick {
+                JoystickPtz {
                     entrada: v.t.entrada; velocidad: v.t.velocidad
                     Layout.preferredWidth: 104; Layout.preferredHeight: 104
                     onAviso: (e) => v.t.avisar(e)

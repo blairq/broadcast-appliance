@@ -13,7 +13,10 @@
 //   - Lo encolado se ve enseguida: `leer` devuelve lo último encolado aunque todavía
 //     no esté en el disco (quien guarda y relee ve lo suyo).
 //   - Al cerrar, `vaciar` espera a que todo esté escrito (AppRuntime::stop, y antes de
-//     pedirle a otro proceso que relea un archivo).
+//     pedirle a otro proceso que relea un archivo, o de mover, copiar o borrar la carpeta
+//     que lo tiene: lo encolado volvería a crearla).
+//   - Los diarios (`agregar`: líneas que solo se suman) no se fusionan: lo encolado se
+//     junta y se agrega en orden, una vez.
 //   - Si el disco falla, el pedido queda y se reintenta (cada 500 ms) hasta que ande
 //     o llegue otro más nuevo; el error va al registro una vez por archivo.
 //
@@ -65,12 +68,18 @@ class ColaEscritura {
                             Pedido p = {Durabilidad::Critica, Prioridad::Aire, Permisos::Comunes, {}});
     /// Encola el borrado de `ruta` (y de sus generaciones, si las tiene).
     void borrar(const std::filesystem::path& ruta, Prioridad prioridad = Prioridad::Normal);
+    /// Encola `bytes` para agregar al final de `ruta` (un diario; ver persist::agregar). Lo
+    /// encolado para el mismo archivo se junta, en orden.
+    void agregar(const std::filesystem::path& ruta, std::string bytes, Pedido p = {});
 
     /// Lo último de `ruta`: lo encolado si hay, si no lo del disco. false si no hay
     /// archivo (o su borrado está encolado).
     bool leer(const std::filesystem::path& ruta, std::string& out) const;
     /// Lo mismo para un archivo en dos generaciones.
     Lectura leerGeneraciones(const std::filesystem::path& archivo) const;
+    /// ¿Hay `ruta`? Lo encolado cuenta (una escritura encolada sí; un borrado encolado no),
+    /// sin leerlo.
+    bool existe(const std::filesystem::path& ruta) const;
 
     /// Espera a que no quede nada por escribir. false si venció el tope (el disco no
     /// responde) o si se llama desde el hilo escritor.
@@ -86,11 +95,11 @@ class ColaEscritura {
     bool esHiloEscritor() const { return std::this_thread::get_id() == hilo_.get_id(); }
 
    private:
-    enum class Tipo { Archivo, Generacion, Borrar };
+    enum class Tipo { Archivo, Generacion, Borrar, Agregar };
     struct Entrada {
         Tipo tipo = Tipo::Archivo;
         std::filesystem::path ruta;
-        std::string bytes;
+        std::string bytes; ///< Agregar: lo que falta agregar (lo que llega se suma al final)
         Pedido pedido;
         std::uint64_t orden = 0;   ///< cuándo se encoló por primera vez (FIFO entre iguales)
         std::uint64_t version = 0; ///< sube con cada pedido nuevo para la ruta

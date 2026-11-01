@@ -16,6 +16,7 @@
 #include "arranque/AppRuntime.hpp"
 #include "evento/Documentos.hpp"
 #include "evento/EventoWeb.hpp"
+#include "persist/ColaEscritura.hpp"
 #include "sala/ControlSala.hpp"
 #include "ui/ConferenceViewModel.hpp"
 #include "ui/CorridaViewModel.hpp"
@@ -73,6 +74,7 @@ void WebEventoViewModel::leerSitio() {
     // Qué páginas hay y sitio.json: del disco, en el fondo.
     QPointer<WebEventoViewModel> yo(this);
     fondo_.start([yo, gen, e = ab_.evento(), dir = carpetaWebAbs()]() {
+        ba::persist::cola().vaciar(); // una página recién guardada, ya en el disco
         const std::filesystem::path d = dir.toStdWString();
         std::error_code ec;
         const bool hay = std::filesystem::exists(d / "portada.html", ec);
@@ -158,8 +160,10 @@ QString WebEventoViewModel::leerPaginaWeb(const QString& pagina) const {
     if (!ab_.hay()) return {};
     const std::string rel = evento::resolverPagina(ab_.evento(), pagina.toStdString());
     if (rel.empty()) return {};
-    QFile f(carpetaWebAbs() + "/" + QString::fromStdString(rel));
-    return f.open(QIODevice::ReadOnly) ? QString::fromUtf8(f.readAll()) : QString();
+    std::string texto; // lo encolado para guardar cuenta (escribirPaginaWeb)
+    return ba::persist::cola().leer((carpetaWebAbs() + "/" + QString::fromStdString(rel)).toStdWString(), texto)
+               ? QString::fromStdString(texto)
+               : QString();
 }
 
 QString WebEventoViewModel::escribirPaginaWeb(const QString& pagina, const QString& contenido) {
@@ -167,12 +171,10 @@ QString WebEventoViewModel::escribirPaginaWeb(const QString& pagina, const QStri
     const std::string rel = evento::resolverPagina(ab_.evento(), pagina.toStdString());
     if (rel.empty())
         return QCoreApplication::translate("EventoViewModel", "No conozco la página «%1»: portada, cierre, una sección o un .html propio.").arg(pagina);
-    QDir().mkpath(carpetaWebAbs());
-    QFile f(carpetaWebAbs() + "/" + QString::fromStdString(rel));
-    if (!f.open(QIODevice::WriteOnly | QIODevice::Truncate))
-        return QCoreApplication::translate("EventoViewModel", "No se pudo escribir %1").arg(QString::fromStdString(rel));
-    f.write(contenido.toUtf8());
-    f.close();
+    // El escritor único, por su cola (entero o nada, fuera de la interfaz; crea la carpeta):
+    // lo que lee la página (leerPaginaWeb) y lo que arma la web en el fondo ya lo ven.
+    ba::persist::cola().escribir((carpetaWebAbs() + "/" + QString::fromStdString(rel)).toStdWString(),
+                                 contenido.toUtf8().toStdString());
     cambio();
     return {};
 }
@@ -268,6 +270,7 @@ void WebEventoViewModel::armarEnElFondo(const QString& dir) {
     // sitio armado tardaba ~50 ms en la interfaz.
     fondo_.start([this, dir, e, est, bloque, inicioMs, arranco = arranqueMs_, x = std::move(x),
                   plataformas = plataformas_ ? plataformas_() : json::object(), version = version_, raiz = rt_.dataRoot()]() mutable {
+        ba::persist::cola().vaciar(); // una página recién guardada, ya en el disco
         const evento::SitioWeb s = evento::SitioWeb::leer(dir.toStdWString(), e);
         x.vivos = evento::armarVivos(s, plataformas);
         json estado = evento::estadoPublico(e, s, est, bloque, inicioMs, arranco, 0, x);

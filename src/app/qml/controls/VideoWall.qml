@@ -195,12 +195,12 @@ Item {
                 visible: !!m && wall.operador
                 anchors { right: parent.right; top: parent.top; margins: 8 }
                 radius: 8; height: 30; width: cuenta.implicitWidth + 16; z: 3
-                color: m && m.restante_s <= 10 ? "#c62828" : Qt.rgba(0, 0, 0, 0.6)
+                color: m ? Theme.colorDeEstado(m.estado, Qt.rgba(0, 0, 0, 0.6)) : Qt.rgba(0, 0, 0, 0.6)
                 Text {
                     id: cuenta
                     anchors.centerIn: parent
                     readonly property int r: parent.m ? parent.m.restante_s : 0
-                    text: "−" + Math.floor(r / 60) + ":" + String(r % 60).padStart(2, "0")
+                    text: "−" + Theme.mmss(r)
                     color: "white"; font.pixelSize: 16; font.weight: Font.DemiBold; font.family: Theme.mono
                 }
             }

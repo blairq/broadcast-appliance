@@ -266,17 +266,29 @@ std::string EventosListaViewModel::crear(const std::string& nombre, const std::s
     return c;
 }
 
-bool EventosListaViewModel::borrar(const std::string& carpeta, std::string* err) {
-    if (!store_.borrar(carpeta, err)) return false;
-    fichas_.erase(std::remove_if(fichas_.begin(), fichas_.end(), [&](const evento::Ficha& f) { return f.carpeta == carpeta; }),
-                  fichas_.end());
-    const bool eraEnCurso = enCurso_ == carpeta;
-    if (eraEnCurso) enCurso_.clear();
-    armarUi();
-    emit listaChanged();
-    if (eraEnCurso) emit enCursoChanged();
-    releer();
-    return true;
+void EventosListaViewModel::borrar(const std::string& carpeta, std::function<void(const std::string& error)> listo) {
+    QPointer<EventosListaViewModel> yo(this);
+    fondo_.start([yo, store = store_, carpeta, listo = std::move(listo)]() {
+        std::string err;
+        const bool ok = store.borrar(carpeta, &err);
+        QMetaObject::invokeMethod(
+            yo,
+            [yo, carpeta, ok, err, listo]() {
+                if (!yo) return;
+                if (ok) {
+                    auto& f = yo->fichas_;
+                    f.erase(std::remove_if(f.begin(), f.end(), [&](const evento::Ficha& x) { return x.carpeta == carpeta; }), f.end());
+                    const bool eraEnCurso = yo->enCurso_ == carpeta;
+                    if (eraEnCurso) yo->enCurso_.clear();
+                    yo->armarUi();
+                    emit yo->listaChanged();
+                    if (eraEnCurso) emit yo->enCursoChanged();
+                    yo->releer();
+                }
+                if (listo) listo(ok ? std::string() : err);
+            },
+            Qt::QueuedConnection);
+    });
 }
 
 bool EventosListaViewModel::guardarDatos(const std::string& carpeta, const evento::DatosDelEvento& d, std::string* err) {

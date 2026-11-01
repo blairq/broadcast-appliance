@@ -2,6 +2,9 @@
 // src/app/ui/QrViewModel.cpp — ver QrViewModel.hpp
 // ============================================================================
 #include "ui/QrViewModel.hpp"
+#include "persist/ColaEscritura.hpp"
+
+#include <QBuffer>
 #include "arranque/ArchivoConfig.hpp"
 #include "i18n/I18n.hpp"
 
@@ -266,6 +269,9 @@ struct QrViewModel::Impl {
         }
         biblioteca[a] = out;
     }
+
+    /// Lo agrega (o reemplaza, por su id) en la biblioteca de `a` y lo escribe.
+    void guardarEnBiblioteca(const QString& a, const QVariantMap& m);
 
     void guardarArchivo(const QString& a) const {
         const auto p = archivoDe(a);
@@ -557,36 +563,78 @@ void QrViewModel::setEstilo(const QString& clave, const QVariant& valor) {
 
 // --- La biblioteca ------------------------------------------------------------
 
+void QrViewModel::Impl::guardarEnBiblioteca(const QString& a, const QVariantMap& m) {
+    QVariantList lista = biblioteca.value(a);
+    bool reemplazado = false;
+    for (QVariant& v : lista) {
+        if (v.toMap().value("id").toString() != m.value("id").toString()) continue;
+        v = m;
+        reemplazado = true;
+        break;
+    }
+    if (!reemplazado) lista.append(m);
+    biblioteca[a] = lista;
+    guardarArchivo(a);
+    diag::registro().linea(diag::Nivel::Info, "qr", 0,
+                           ba::i18n::llenar(ba::i18n::traducir("qr", "guardado «%1» (%2, %3)"),
+                                            {m.value("nombre").toString().toStdString(),
+                                             m.value("tipo").toString().toStdString(), a.toStdString()}));
+}
+
 bool QrViewModel::guardar(const QString& nombre) {
     const QString n = limpiarNombre(nombre.isEmpty() ? d_->nombre : nombre);
     if (n.isEmpty()) return sinError(tr("Ponele un nombre."));
     if (d_->ambito == "evento" && !sinEvento().isEmpty()) return sinError(sinEvento());
-    QVariantList lista = d_->biblioteca.value(d_->ambito);
     QVariantMap m;
     m["id"] = d_->abierto.isEmpty() ? nuevoId() : d_->abierto;
     m["nombre"] = n;
     m["tipo"] = d_->tipo;
     m["datos"] = d_->datos;
     m["estilo"] = d_->estilo;
-    bool reemplazado = false;
-    for (QVariant& v : lista) {
-        if (v.toMap().value("id").toString() != m["id"].toString()) continue;
-        v = m;
-        reemplazado = true;
-        break;
-    }
-    if (!reemplazado) lista.append(m);
-    d_->biblioteca[d_->ambito] = lista;
-    d_->guardarArchivo(d_->ambito);
+    d_->guardarEnBiblioteca(d_->ambito, m);
     d_->abierto = m["id"].toString();
     d_->nombre = n;
     d_->sucio = false;
-    diag::registro().linea(diag::Nivel::Info, "qr", 0,
-                           ba::i18n::llenar(ba::i18n::traducir("qr", "guardado «%1» (%2, %3)"),
-                                            {n.toStdString(), d_->tipo.toStdString(), d_->ambito.toStdString()}));
     emit bibliotecaCambio();
     emit editorCambio();
     return true;
+}
+
+QString QrViewModel::guardarCodigo(const QString& ambito, const QString& id, const QString& nombre,
+                                   const QString& tipo, const QVariantMap& datos, const QVariantMap& estilo,
+                                   QString* idOut) {
+    const QString a = ambito == "evento" ? "evento" : "global";
+    const QString n = limpiarNombre(nombre);
+    if (n.isEmpty()) return tr("Ponele un nombre.");
+    if (tipoPorId(tipo) == nullptr) return tr("No hay códigos de tipo «%1».").arg(tipo);
+    if (a == "evento" && !sinEvento().isEmpty()) return sinEvento();
+    QVariantMap m{{"id", id.isEmpty() ? nuevoId() : id}, {"datos", QVariantMap{}}, {"estilo", estiloDeFabrica()}};
+    if (!id.isEmpty()) {
+        bool esta = false;
+        for (const QVariant& v : d_->biblioteca.value(a))
+            if (v.toMap().value("id").toString() == id) {
+                m = v.toMap();
+                esta = true;
+                break;
+            }
+        if (!esta) return tr("No lo encuentro.");
+    }
+    QVariantMap md = m.value("datos").toMap();
+    for (auto it = datos.begin(); it != datos.end(); ++it)
+        md[it.key()] = it.value().toString();
+    QVariantMap me = m.value("estilo").toMap();
+    for (auto it = estilo.begin(); it != estilo.end(); ++it)
+        me[it.key()] = it.value();
+    m["nombre"] = n;
+    m["tipo"] = tipo;
+    m["datos"] = md;
+    m["estilo"] = me;
+    d_->guardarEnBiblioteca(a, m);
+    if (idOut != nullptr) *idOut = m["id"].toString();
+    emit bibliotecaCambio();
+    // El borrador del operador manda: solo se recarga el que está abierto sin cambios.
+    if (a == d_->ambito && d_->abierto == m["id"].toString() && !d_->sucio) abrir(d_->abierto);
+    return {};
 }
 
 void QrViewModel::borrar(const QString& id) {
@@ -792,6 +840,7 @@ QString QrViewModel::escribir(const QString& svgTexto, const QString& nombre, co
     QDir().mkpath(dir);
     const QString base = limpiarNombre(nombre.isEmpty() ? "codigo-qr" : nombre);
     const QString ruta = dir + "/" + base + (formato == "png" ? ".png" : ".svg");
+    // El escritor único, por su cola (entero o nada, fuera de la interfaz).
     if (formato == "png") {
         QImage img(px, px, QImage::Format_ARGB32);
         img.fill(Qt::transparent);
@@ -799,11 +848,13 @@ QString QrViewModel::escribir(const QString& svgTexto, const QString& nombre, co
         QSvgRenderer r(svgTexto.toUtf8());
         r.render(&p);
         p.end();
-        return img.save(ruta) ? ruta : QString();
+        QByteArray png;
+        QBuffer b(&png);
+        if (!b.open(QIODevice::WriteOnly) || !img.save(&b, "PNG")) return {};
+        ba::persist::cola().escribir(ruta.toStdWString(), png.toStdString());
+        return ruta;
     }
-    QFile f(ruta);
-    if (!f.open(QIODevice::WriteOnly | QIODevice::Truncate)) return {};
-    f.write(svgTexto.toUtf8());
+    ba::persist::cola().escribir(ruta.toStdWString(), svgTexto.toUtf8().toStdString());
     return ruta;
 }
 

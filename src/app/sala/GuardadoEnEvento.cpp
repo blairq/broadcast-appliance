@@ -38,6 +38,7 @@ GuardadoEnEvento::GuardadoEnEvento(ConferenceClient& sala, std::string que, std:
 }
 
 std::string GuardadoEnEvento::etiquetaDe(const std::filesystem::path& carpeta) {
+    if (carpeta.empty()) return {};
     const std::string ruta = carpeta.lexically_normal().generic_string();
     return ba::crypto::sha256Hex(ruta.data(), ruta.size()).substr(0, 16);
 }
@@ -52,7 +53,7 @@ void GuardadoEnEvento::eventoCambio() {
             ba::persist::cola().escribir(deEste_ / (que_ + ".json"), foto_.dump(1, ' ', false, nlohmann::json::error_handler_t::replace));
     }
     deEste_ = carpeta;
-    etiqueta_ = carpeta.empty() ? std::string() : etiquetaDe(carpeta);
+    etiqueta_ = etiquetaDe(carpeta);
     foto_ = nullptr;
     if (carpeta.empty()) return; // sin evento no hay dónde guardar: la sala sigue con lo suyo
     const int n = ++lectura_;
