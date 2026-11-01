@@ -16,10 +16,12 @@
 //   - la configuración: registro/Totems (registro.json en la carpeta del evento
 //     abierto) y el token de cada url en el almacén de secretos, como los links
 //     de la sesión remota (security/CredentialStore);
-//   - el guion: registro/Conversacion (puro, con test), uno por conexión;
-//   - el ritmo: registro/RitmoTotem (puro, con test), uno por conexión: cuándo se cierra
-//     un turno, cuándo vuelve a escuchar, las esperas, el silencio. El tic (200 ms, solo
-//     con conexiones) le pregunta con la hora y hace lo que decide;
+//   - lo vivo: registro/ConexionesTotem (puro, con test) lleva las conexiones y la
+//     conversación de cada una —el guion (registro/Conversacion), el ritmo
+//     (registro/RitmoTotem: cuándo se cierra un turno, cuándo vuelve a escuchar, las
+//     esperas, el silencio), la cara, el documento, la atención remota— y su tic, que
+//     corre solo mientras alguna conexión está activa. Esta clase es la configuración, la
+//     vista y lo de afuera que el modelo pide (sus Puertos, en el .cpp);
 //   - el oído: agent::Voz::abrirOido (el reconocedor del dictado), con la voz
 //     que sube por WebRTC a BA.Audio.Registro.<k> (OperatorFeed::escucharRegistro);
 //   - la boca: audio/Habla con «la voz del atendedor» (la de AtencionViewModel),
@@ -51,6 +53,8 @@
 #include <QVariantMap>
 
 #include <array>
+#include <atomic>
+#include <cstdint>
 #include <filesystem>
 #include <map>
 #include <memory>
@@ -67,7 +71,8 @@
 
 namespace ba::registro {
 class Conversacion;
-class AgenteTotem;
+class ConexionesTotem;
+class Entendedor;
 } // namespace ba::registro
 
 namespace ba::app {
@@ -235,10 +240,27 @@ class TotemsViewModel : public QObject {
     void notify(const QString& texto, const QString& tipo);
 
    private:
-    struct Conexion;
     struct Secreto {
         std::string token, sal;
     };
+    /// Lo de afuera de una conexión, que el modelo no ve: el oído y la toma de audio, lo que lee
+    /// el hilo de GStreamer y el de la síntesis (por eso atómico y compartido: sobrevive a la
+    /// conexión) y el último cuadro mirado de la cámara.
+    struct Medios {
+        int canal = 0;
+        int toma = 0;
+        bool oido = false;
+        /// Mientras habla el asistente: al oído le llegan ceros (si no, se transcribiría a sí mismo).
+        std::shared_ptr<std::atomic<bool>> callado = std::make_shared<std::atomic<bool>>(false);
+        /// El oído sigue oyendo mientras habla el asistente (Nemotron y «puede interrumpir»).
+        std::shared_ptr<std::atomic<bool>> oye;
+        /// Lo que la síntesis entregue tarde (de antes de atenderla o de una interrupción) no sale.
+        std::shared_ptr<std::atomic<bool>> mudo = std::make_shared<std::atomic<bool>>(false);
+        std::uint64_t ultimoCuadro = 0;    ///< el número del último cuadro a la cara (uno nuevo o nada)
+        std::uint64_t ultimoCuadroDoc = 0; ///< y al lector de documentos
+    };
+    /// Lo que registro/ConexionesTotem le pide al mundo (ver el .cpp).
+    struct Puertos;
 
     void recargar();
     std::string guardarYPublicar();
@@ -249,57 +271,17 @@ class TotemsViewModel : public QObject {
     std::string origen() const;
     /// Mandarle a una conexión (o a todas las de un tótem, con `porTotem`).
     void enviar(const QString& a, const nlohmann::json& msg, bool porTotem = false);
-    void mandarPantalla(Conexion& c);
-    QVariantMap filaDe(const Conexion& c) const;
 
-    void alEvento(const nlohmann::json& ev);
-    Conexion& conexion(const QString& conn, const QString& totem);
-    void soltar(const QString& conn);
-    void abrirAudio(Conexion& c);
-    void cerrarAudio(Conexion& c);
+    // El audio y lo que termina una conversación (los Puertos del modelo).
     void cargarVoz();
-    void mirarCara(Conexion& c);
-    void abrirOido(Conexion& c);
-    void alCara(const QString& conn, const QByteArray& jpeg, const QString& personaId, const QString& nombre,
-                bool hayCara, bool sirve, const QString& sugerencia);
-    void empezar(Conexion& c, const QString& personaId, const QString& nombre);
-    void alOido(const QString& conn, const QString& texto);
-    void alToque(Conexion& c, const nlohmann::json& ev);
-    /// Hace lo que dice la conversación: decir, mostrar, pedir, guardar, terminar, y
-    /// `foto`: buscar una toma de frente en la cámara cuando termine de decirlo.
-    void aplicar(Conexion& c, const std::string& decir, bool campos, const std::string& pedir, bool guardar,
-                 bool terminar, bool foto = false);
-    void decir(Conexion& c, const std::string& texto);
-    /// El paso del documento: busca el código en el último cuadro de la cámara (más
-    /// seguido que la cara) y, si lo lee, se lo pasa a la conversación.
-    void mirarDocumento(Conexion& c);
-    /// El código que leyó la página (BarcodeDetector) o la foto entera que mandó (respaldo).
-    void alCodigoDePagina(Conexion& c, const nlohmann::json& ev);
-    void alCuadroDePagina(Conexion& c);
-    /// Lo leído (de la cámara, del navegador o de la foto), al paso «documento» de la conexión.
-    void alLeerDocumento(const QString& conn, LectorDocumentos::Resultado r);
-    /// Lo que leyó el modelo propio del dorso (la zona de lectura mecánica).
-    void alLeerDorso(const QString& conn, LectorDocumentos::Resultado r);
-    void guardarRegistro(Conexion& c);
-    void tic();
+    void cerrarMedios(const std::string& conn, Medios& m);
+    /// Al padrón (y, si la cara no se conocía, el alta en la libreta con su `foto`).
+    void guardarRegistro(const std::string& conn, const QString& totem, const QString& nombre, const QString& personaId,
+                         const nlohmann::json& datos, const QByteArray& foto);
 
     // La atención remota (región propia al final de TotemsViewModel.cpp).
-    struct Atiende {
-        QString aconn, nombre, ip, lugar;
-    };
     void conectarAtencion();
-    bool alEventoAtencion(const nlohmann::json& ev);
     void publicarAtencion();
-    /// El asistente se calla en el acto (lo que estaba diciendo y lo que faltaba sintetizar).
-    void callarAsistente(Conexion& c);
-    /// La persona habló mientras el asistente hablaba (solo con Nemotron y la
-    /// opción «interrumpir» de la pestaña Agentes): se corta la voz en el acto y se la escucha.
-    void interrumpido(const QString& conn);
-    /// Deja de estar atendida: la pantalla del tótem y el gateway (su voz ya no baja ahí).
-    void liberarAtencion(Conexion& c);
-    nlohmann::json conversacionesJson() const;
-    /// Las conversaciones a las páginas de atención ("" = a todas).
-    void enviarAtencion(const QString& aconn = {});
 
     // El modelo que entiende (región propia al final de TotemsViewModel.cpp).
     /// Si los tótems lo van a usar con el modelo local, que el llama-server vaya cargando.
@@ -307,14 +289,9 @@ class TotemsViewModel : public QObject {
     void soltarModelo();
     /// El servidor y el prompt del rol «registro». false y `falta` si no hay.
     bool fuenteAgente(agent::FuenteMirada& f, std::string& prompt, std::string& falta) const;
-    /// Uno nuevo para la conversación de `c` (o ninguno: el guion solo).
-    void crearAgente(Conexion& c, bool avisar = true);
-    /// Lo oído, al modelo. false = lo contesta el guion (como sin modelo).
-    /// Lo juntado del turno va al modelo (o al guion).
-    void cerrarTurno(Conexion& c);
-    bool alOidoAgente(Conexion& c, const std::string& texto);
-    /// Solo la voz (sin la pantalla): de a una frase, mientras el modelo sigue escribiendo.
-    void hablar(Conexion& c, const std::string& texto);
+    /// Uno nuevo para la conversación `conv` de `conn` (o ninguno: el guion solo).
+    std::unique_ptr<registro::Entendedor> crearEntendedor(const std::string& conn, const std::string& totem,
+                                                          registro::Conversacion& conv, bool avisar);
 
     AppRuntime& rt_;
     StudioViewModel& vm_;
@@ -333,16 +310,19 @@ class TotemsViewModel : public QObject {
     registro::Totems totems_;
     mutable std::map<std::string, Secreto> secretos_;
 
-    std::map<QString, std::unique_ptr<Conexion>> conns_;
+    /// Lo que el modelo le pide al mundo; vive más que el modelo (declarado antes).
+    std::unique_ptr<Puertos> puertos_;
+    /// Las conexiones en vivo y sus conversaciones (el modelo; registro/ConexionesTotem).
+    std::unique_ptr<registro::ConexionesTotem> vivo_;
+    std::map<std::string, Medios> medios_; ///< por conexión
     std::array<std::unique_ptr<VozAlLobby>, ba::ipc::kCanalesRegistro + 1> voces_; ///< por canal (1..n; el 0 no se usa)
     std::unique_ptr<audio::Habla> habla_;
     QString vozCargada_;
     bool vozLista_ = false;
     bool cargandoVoz_ = false;
-    QTimer tic_;
+    QTimer tic_; ///< el reloj del modelo: corre solo mientras lo pide (conexiones activas)
     std::unique_ptr<LectorDocumentos> lector_;
     // La atención remota.
-    std::map<QString, Atiende> atienden_;
     QTimer atencionTimer_; ///< junta los cambios: a las páginas de atención, a lo sumo cada 150 ms
     // El modelo que entiende.
     agent::Roles* roles_ = nullptr;

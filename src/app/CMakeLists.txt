@@ -594,6 +594,12 @@ endif()
     target_link_libraries(test_pantallas_catalogo PRIVATE ba_core Qt6::Core Qt6::Gui)
     set_target_properties(test_pantallas_catalogo PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_pantallas_catalogo COMMAND test_pantallas_catalogo)
+    # Las pantallas de la red (Chromecast) y lo que muestran: lo guardado, la búsqueda, el
+    # restaurado de lo fijado, los carruseles, las URLs y los canales de escena, sin red.
+    add_executable(test_pantallas_destinos tests/test_pantallas_destinos.cpp pantallas/Destinos.cpp)
+    target_include_directories(test_pantallas_destinos PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    target_link_libraries(test_pantallas_destinos PRIVATE nlohmann_json::nlohmann_json ba_core)
+    add_test(NAME test_pantallas_destinos COMMAND test_pantallas_destinos)
     # Los instrumentos de video (forma de onda, vectorscopio, legalidad), sin GPU.
     add_executable(test_scopes tests/test_scopes.cpp video/Scopes.cpp)
     target_include_directories(test_scopes PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
@@ -1111,6 +1117,21 @@ endif()
     add_executable(test_registro_ritmo tests/test_registro_ritmo.cpp registro/RitmoTotem.cpp)
     target_include_directories(test_registro_ritmo PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
     add_test(NAME test_registro_ritmo COMMAND test_registro_ritmo)
+    # Las conexiones en vivo (la conversación de cada una, su tic y la atención), con Puertos de mentira.
+    add_executable(test_registro_conexiones tests/test_registro_conexiones.cpp registro/ConexionesTotem.cpp
+                   registro/RitmoTotem.cpp registro/Conversacion.cpp registro/Totems.cpp)
+    target_include_directories(test_registro_conexiones PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    target_link_libraries(test_registro_conexiones PRIVATE nlohmann_json::nlohmann_json ba_core)
+    add_test(NAME test_registro_conexiones COMMAND test_registro_conexiones)
+    # Quién es cada cara (las reglas de Personas), con una libreta en memoria. La libreta es
+    # de ba_core solo con el reconocimiento (BA_HAVE_ROSTROS).
+    get_target_property(_ba_core_defs ba_core INTERFACE_COMPILE_DEFINITIONS)
+    if(_ba_core_defs MATCHES "BA_HAVE_ROSTROS")
+        add_executable(test_rostros_quien_es tests/test_rostros_quien_es.cpp rostros/QuienEs.cpp)
+        target_include_directories(test_rostros_quien_es PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+        target_link_libraries(test_rostros_quien_es PRIVATE nlohmann_json::nlohmann_json ba_core)
+        add_test(NAME test_rostros_quien_es COMMAND test_rostros_quien_es)
+    endif()
     # La conversación atendida por una persona (la atención remota del registro).
     add_executable(test_registro_atencion tests/test_registro_atencion.cpp registro/Conversacion.cpp registro/Totems.cpp)
     target_include_directories(test_registro_atencion PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")

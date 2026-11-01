@@ -14,8 +14,8 @@
 // Entradas: la cara vista (conocida o no), lo que se le oyó, lo que tipeó en la
 // pantalla (el respaldo táctil), un silencio largo y «cancelar». Salidas, en
 // una `Respuesta`: qué decir, si cambiaron los campos, qué campo se pide,
-// guardar y terminar. No sabe de audio, ni de red, ni de Qt: ui/TotemsViewModel
-// lo conecta con el oído (agent::Voz), la boca (audio/Habla) y el gateway.
+// guardar y terminar. No sabe de audio, ni de red, ni de Qt: registro/ConexionesTotem
+// la lleva y ui/TotemsViewModel la conecta con el oído (agent::Voz), la boca (audio/Habla) y el gateway.
 //
 // LO DIFÍCIL ES ENTENDER, no preguntar. La voz a texto devuelve «jorge punto
 // ortega arroba gmail punto com», «once cuatro cinco seis…» o «dale»: de eso
