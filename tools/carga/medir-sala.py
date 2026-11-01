@@ -448,17 +448,22 @@ def main():
                 fin_t = m["s"] + a.regimen  # no se estabilizó: se mide igual (y se dice)
                 estable_t = -1
             time.sleep(max(0.0, 0.5 - (time.time() - t)))
-        # La grilla al final, con la sala llena.
-        try:
-            mcp.llamar("ui_show_page", {"page": "sala"})
-            time.sleep(2)
-            res = mcp.llamar("ventana_captura", {"ancho": 1600})
-            for c in res.get("content", []):
-                if c.get("type") == "image":
-                    ext = ".png" if "png" in c.get("mimeType", "") else ".jpg"
-                    (sal / ("grilla" + ext)).write_bytes(base64.b64decode(c["data"]))
-        except Exception as ex:
-            (sal / "grilla-error.txt").write_text(str(ex))
+        # La grilla al final, con la sala llena: el programa (la fuente «Grilla de personas» al
+        # aire) y la página de la sala. Las herramientas guardan la imagen y dicen dónde.
+        for nombre, herr, args in (("programa", "foto_programa", {}), ("sala", "ventana_captura", {"ancho": 1600})):
+            try:
+                if herr == "ventana_captura":
+                    mcp.llamar("ui_show_page", {"page": "sala"})
+                    time.sleep(2)
+                res = mcp.llamar(herr, args)
+                for c in res.get("content", []):
+                    if c.get("type") == "image":
+                        (sal / f"{nombre}.jpg").write_bytes(base64.b64decode(c["data"]))
+                    mm = re.search(r"(/[^\n]+?\.(?:jpg|png))", c.get("text", "") or "")
+                    if mm and Path(mm.group(1)).exists():
+                        (sal / f"{nombre}{Path(mm.group(1)).suffix}").write_bytes(Path(mm.group(1)).read_bytes())
+            except Exception as ex:
+                (sal / f"{nombre}-error.txt").write_text(str(ex))
     finally:
         if hin.poll() is None:
             hin.send_signal(signal.SIGTERM)
