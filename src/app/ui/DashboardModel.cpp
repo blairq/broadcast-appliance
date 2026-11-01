@@ -341,11 +341,13 @@ void DashboardModel::resetLayout() {
 
 void DashboardModel::load() {
     const QJsonObject o = config::leerQObjeto(file_);
-    const QJsonArray cards = o.value("cards").toArray();
-    if (cards.isEmpty()) {
+    // Sin disposición guardada (archivo nuevo o roto): la de fábrica. Una lista vacía SÍ es una
+    // disposición: el operador apagó todas las tarjetas y así tiene que volver.
+    if (!o.value("cards").isArray()) {
         defaults();
         return;
     }
+    const QJsonArray cards = o.value("cards").toArray();
     for (const auto& v : cards) {
         const QJsonObject c = v.toObject();
         Card card{nextId_++, c.value("kind").toString(),

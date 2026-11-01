@@ -77,6 +77,23 @@ int main(int argc, char** argv) {
     CHECK(found);
     CHECK(again.background() == QStringList({"program", "guest:1"}));
 
+    // 4) Prender y apagar tarjetas se recuerda al reabrir, incluso con todas apagadas
+    //    (una lista vacía es una elección, no un archivo sin disposición).
+    const auto tipos = [](const DashboardModel& d) {
+        QStringList t;
+        for (int i = 0; i < d.rowCount(); ++i) t << d.data(d.index(i), DashboardModel::KindRole).toString();
+        return t;
+    };
+    QStringList antes = tipos(again);
+    again.alternarTarjeta(antes.first());
+    CHECK(tipos(DashboardModel(file)) == tipos(again));
+    for (const QString& k : tipos(again)) again.alternarTarjeta(k);
+    CHECK(again.rowCount() == 0);
+    DashboardModel vacio(file);
+    CHECK(vacio.rowCount() == 0);
+    vacio.alternarTarjeta(antes.first());
+    CHECK(tipos(DashboardModel(file)) == QStringList({antes.first()}));
+
     if (g_failures == 0) {
         std::printf("test_dashboard_model: OK\n");
         return 0;
