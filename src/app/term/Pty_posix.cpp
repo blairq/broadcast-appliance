@@ -4,6 +4,8 @@
 
 #include "term/Pty.hpp"
 
+#include "platform/Huerfanos.hpp"
+
 #include <QProcessEnvironment>
 #include <QSocketNotifier>
 #include <QTimer>
@@ -25,6 +27,12 @@
 #endif
 
 namespace ba::app::term {
+
+namespace {
+/// Su nombre en la lista de los hijos de la app (platform/Huerfanos): si la app muere sin
+/// cerrarlo, el barrido se lo lleva con lo que lanzó (los MCP de un agente).
+std::string anotacion(pid_t pid) { return "terminal-" + std::to_string(pid); }
+} // namespace
 
 struct Pty::Impl {
     int master = -1;
@@ -93,6 +101,7 @@ bool Pty::start(const Options& opt, QString* error) {
     ::fcntl(master, F_SETFD, FD_CLOEXEC);
     d_->master = master;
     d_->pid = pid;
+    ba::platform::huerfanos::anotar(anotacion(pid), pid, opt.program.toStdString());
     d_->exited = false;
     d_->pendiente.clear();
     if (d_->reintento == nullptr) {
@@ -121,6 +130,7 @@ bool Pty::start(const Options& opt, QString* error) {
             int code = -1;
             if (::waitpid(d_->pid, &status, 0) == d_->pid)
                 code = WIFEXITED(status) ? WEXITSTATUS(status) : 128 + WTERMSIG(status);
+            ba::platform::huerfanos::quitar(anotacion(d_->pid));
             if (d_->reintento != nullptr) d_->reintento->stop();
             d_->pendiente.clear();
             ::close(d_->master);
@@ -184,24 +194,32 @@ void Pty::terminate() {
     }
     if (d_->reintento != nullptr) d_->reintento->stop();
     d_->pendiente.clear();
+    // Lo que lanzó, ANTES de cortarlo: lo que se desprendió de su sesión (opencode lanza
+    // así sus MCP) ni recibe el SIGHUP ni se encuentra después (pasa a ser de launchd/init).
+    const std::vector<std::int64_t> arbol = ba::platform::huerfanos::descendientes(pid);
+    ba::platform::huerfanos::quitar(anotacion(pid));
     ::close(d_->master); // SIGHUP a la sesion del hijo
     d_->master = -1;
     ::kill(-pid, SIGHUP);
     ::kill(pid, SIGTERM);
     int status = 0;
-    for (int i = 0; i < 30; ++i) {
-        if (::waitpid(pid, &status, WNOHANG) == pid) {
-            d_->pid = -1;
-            emit finished(WIFEXITED(status) ? WEXITSTATUS(status) : 128 + WTERMSIG(status));
-            return;
-        }
-        ::usleep(20000);
+    int code = 137;
+    bool salio = false;
+    for (int i = 0; i < 30 && !salio; ++i) {
+        salio = ::waitpid(pid, &status, WNOHANG) == pid;
+        if (salio)
+            code = WIFEXITED(status) ? WEXITSTATUS(status) : 128 + WTERMSIG(status);
+        else
+            ::usleep(20000);
     }
-    ::kill(-pid, SIGKILL);
-    ::kill(pid, SIGKILL);
-    ::waitpid(pid, &status, 0);
+    if (!salio) {
+        ::kill(-pid, SIGKILL);
+        ::kill(pid, SIGKILL);
+        ::waitpid(pid, &status, 0);
+    }
+    ba::platform::huerfanos::terminar(arbol, 500); // los que lanzó y siguen andando
     d_->pid = -1;
-    emit finished(137);
+    emit finished(code);
 }
 
 bool Pty::running() const { return d_->pid > 0; }

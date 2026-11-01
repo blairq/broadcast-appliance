@@ -122,7 +122,7 @@ json AlertEngine::types() {
          {"params", {{"privateOnly", QT_TRANSLATE_NOOP("alertas", "solo los mensajes privados al operador (por defecto false)")}}},
          {"cooldownSec", 0}},
         {{"type", "stream_health"},
-         {"summary", QT_TRANSLATE_NOOP("alertas", "La transmision pierde cuadros (o se corta).")},
+         {"summary", QT_TRANSLATE_NOOP("alertas", "La transmision pierde cuadros (o se corta sola).")},
          {"params",
           {{"droppedPct", QT_TRANSLATE_NOOP("alertas", "porcentaje de cuadros perdidos (por defecto 2)")}, {"windowSec", QT_TRANSLATE_NOOP("alertas", "ventana (30)")}}},
          {"cooldownSec", 60}},
@@ -671,8 +671,10 @@ void AlertEngine::evaluate(json& rule, State& st, std::int64_t now) {
         }
     } else if (type == "stream_health" && in_.status) {
         const auto s = in_.status();
-        if (st.seen["streaming"] == "1" && !s.streaming)
-            fire(rule, st, ba::i18n::traducir("alertas", "La transmision se detuvo (si no la cortaste vos, revisar la conexion)."),
+        // Se detuvo y SIGUE PEDIDA: se cortó sola. La que paró alguien (el operador, el MCP,
+        // la línea) ya no está pedida y no es noticia.
+        if (st.seen["streaming"] == "1" && !s.streaming && s.transmisionPedida)
+            fire(rule, st, ba::i18n::traducir("alertas", "La transmisión se detuvo sola: nadie la paró (revisar la conexión)."),
                  json::object(), now);
         st.seen["streaming"] = s.streaming ? "1" : "0";
         if (!s.streaming) {
@@ -698,9 +700,9 @@ void AlertEngine::evaluate(json& rule, State& st, std::int64_t now) {
         }
     } else if (type == "stream_down" && in_.status) {
         // DISTINTO de `stream_health`, que avisa por cuadros perdidos y
-        // tambien cuando la transmision para —incluso si la paraste vos—. Este
-        // es el que sirve para ENGANCHARLE UNA ACCION: se dispara solo cuando
-        // la salida se cayo sola y no consigue volver.
+        // cuando la transmision para sola. Este es el que sirve para
+        // ENGANCHARLE UNA ACCION: se dispara solo cuando la salida se cayo
+        // sola y no consigue volver.
         //
         // El motor reintenta por su cuenta (motor/Salidas), asi que un corte de dos segundos no
         // es noticia: lo que importa es que LLEVE UN RATO sin lograrlo, o que
@@ -721,7 +723,8 @@ void AlertEngine::evaluate(json& rule, State& st, std::int64_t now) {
             return;
         }
         st.since.erase("r0");
-        if (reintentabaAntes && !s.streaming && cooled("down")) {
+        // Dejó de reintentar porque alguien la paró mientras reintentaba: eso no es rendirse.
+        if (reintentabaAntes && !s.streaming && s.transmisionPedida && cooled("down")) {
             mark("down");
             fire(rule, st, ba::i18n::traducir("alertas", "La transmision se dio por vencida: dejo de reintentar y esta fuera del aire."),
                  json::object(), now);

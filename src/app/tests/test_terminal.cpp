@@ -10,14 +10,22 @@
 //      vacio (ver el bloque del final: es una regresion con nombre y apellido).
 
 #include <QCoreApplication>
+#include <QDir>
 #include <QElapsedTimer>
 #include <QFile>
 #include <QGuiApplication>
+#include <QRegularExpression>
+#include <QTemporaryDir>
 #include <QThread>
 
 #include <cstdio>
 #include <functional>
+#include <string>
 
+#include <unistd.h>
+
+#include "platform/Huerfanos.hpp"
+#include "platform/Paths.hpp"
 #include "term/TerminalSession.hpp"
 
 using ba::app::term::Cell;
@@ -56,8 +64,43 @@ Pty::Options sh(const QString& script) {
 } // namespace
 
 int main(int argc, char** argv) {
+    // Ayudante: lanza un nieto desprendido (su propia sesión, como los MCP que lanza
+    // opencode), dice su pid y espera.
+    if (argc > 1 && std::string(argv[1]) == "--desprendido") {
+        if (::fork() == 0) {
+            ::setsid(); // dice su pid ya desprendido
+            std::printf("NIETO=%d\n", static_cast<int>(::getpid()));
+            std::fflush(stdout);
+            for (;;) ::pause();
+        }
+        for (;;) ::pause();
+    }
     QGuiApplication app(argc, argv);
     std::printf("== test_terminal ==\n");
+    // Las terminales quedan anotadas en <datos>/Runtime/hijos (platform/Huerfanos): acá.
+    QTemporaryDir datos;
+    qputenv(ba::platform::kDataRootEnv, datos.path().toLocal8Bit());
+
+    // --- 0) cerrarla se lleva lo que lanzó, aunque se haya desprendido de su sesión ----------
+    {
+        TerminalSession s;
+        s.resize(80, 24);
+        Pty::Options o;
+        o.program = QCoreApplication::applicationFilePath();
+        o.args = {"--desprendido"};
+        CHECK(s.start(o), "arranca el que desprende");
+        CHECK(waitFor([&] { return screenText(s).contains("NIETO="); }), "dice el pid de su nieto");
+        const QString t = screenText(s);
+        const int i = t.indexOf("NIETO=") + 6;
+        const pid_t nieto = static_cast<pid_t>(t.mid(i, t.indexOf(QRegularExpression("\\D"), i) - i).toLongLong());
+        const QDir hijos(datos.path() + "/Runtime/hijos");
+        const auto anotadas = [&hijos]() { return hijos.entryList({"terminal-*.json"}, QDir::Files).size(); };
+        CHECK(anotadas() == 1, "la terminal queda anotada");
+        CHECK(nieto > 1 && ba::platform::huerfanos::vivo(nieto), "el nieto anda");
+        s.stop();
+        CHECK(waitFor([&] { return !ba::platform::huerfanos::vivo(nieto); }, 3000), "stop: el desprendido también se va");
+        CHECK(anotadas() == 0, "stop: ya no está anotada");
+    }
 
     // --- 1) salida con colores y codigo de salida ---------------------------------------------
     {

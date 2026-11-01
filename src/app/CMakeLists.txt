@@ -906,7 +906,7 @@ endif()
         add_executable(test_terminal tests/test_terminal.cpp term/TerminalSession.cpp term/Pty_posix.cpp term/Pty.hpp
                                      term/TerminalSession.hpp)
         target_include_directories(test_terminal PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
-        target_link_libraries(test_terminal PRIVATE ba_vterm Qt6::Core Qt6::Gui)
+        target_link_libraries(test_terminal PRIVATE ba_vterm ba_core Qt6::Core Qt6::Gui)
         if(NOT APPLE)
             target_link_libraries(test_terminal PRIVATE util)
         endif()
@@ -1096,6 +1096,14 @@ endif()
     add_executable(test_calidad_calor tests/test_calidad_calor.cpp sala/CalidadPorCalor.cpp)
     target_include_directories(test_calidad_calor PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
     add_test(NAME test_calidad_calor COMMAND test_calidad_calor)
+
+    # Quién mira el programa de cada salida: el retorno se le pide al motor solo al cambiar,
+    # con la gracia vencida por un reloj de una vez (sin sondeo).
+    add_executable(test_quien_mira tests/test_quien_mira.cpp sala/QuienMira.cpp sala/QuienMira.hpp)
+    target_include_directories(test_quien_mira PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    target_link_libraries(test_quien_mira PRIVATE Qt6::Core)
+    set_target_properties(test_quien_mira PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
+    add_test(NAME test_quien_mira COMMAND test_quien_mira)
 
     # Qué cámaras de remotos están al aire o armadas (la capa alta), de una foto del motor falsa.
     add_executable(test_capas_remotos tests/test_capas_remotos.cpp sala/CapasNecesarias.cpp)
@@ -1547,7 +1555,7 @@ endif()
     add_test(NAME test_seguir_escenas COMMAND test_seguir_escenas)
     # Roles y despachador de agentes de un tiro, con un motor falso (script).
     add_executable(test_despachador tests/test_despachador.cpp agent/Despachador.cpp agent/Despachador.hpp
-                   agent/Roles.cpp)
+                   agent/Roles.cpp agent/HijosDeLaApp.cpp)
     target_include_directories(test_despachador PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
     target_link_libraries(test_despachador PRIVATE ba_core Qt6::Core)
     set_target_properties(test_despachador PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")

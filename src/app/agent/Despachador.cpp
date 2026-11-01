@@ -13,6 +13,7 @@
 #include <QProcessEnvironment>
 #include <QTimer>
 
+#include "agent/HijosDeLaApp.hpp"
 #include "agent/Roles.hpp"
 #include "diag/Registro.hpp"
 #include "i18n/I18n.hpp"
@@ -105,10 +106,15 @@ std::string lineaDeEvento(const json& ev) {
 Despachador::Despachador(Roles& roles, Motores motores, QObject* parent)
     : QObject(parent), roles_(roles), motores_(std::move(motores)) {}
 
+namespace {
+/// Su nombre en la lista de los hijos de la app (agent/HijosDeLaApp).
+QString nombreHijo(const std::string& id) { return QString::fromStdString("agente-" + id); }
+} // namespace
+
 Despachador::~Despachador() {
     for (auto& c : corridas_)
         if (c->proc != nullptr) {
-            c->proc->kill();
+            hijos::matar(*c->proc, nombreHijo(c->id)); // con lo que lanzó (los MCP de opencode)
             c->proc->waitForFinished(1500);
         }
 }
@@ -314,6 +320,7 @@ void Despachador::lanzarAhora(Corrida& c) {
             cc->stderrTail = cc->stderrTail.substr(cc->stderrTail.size() - 2000);
     });
     connect(c.proc, &QProcess::finished, this, [this, id](int code, QProcess::ExitStatus st) {
+        hijos::olvidar(nombreHijo(id));
         Corrida* cc = porId(id);
         if (cc == nullptr) return;
         leerSalida(*cc);
@@ -347,7 +354,7 @@ void Despachador::lanzarAhora(Corrida& c) {
         Corrida* cc = porId(id);
         if (cc == nullptr || cc->proc == nullptr) return;
         cc->error = tr("se paso del tope de %1 minutos").arg(kTopeMinutos()).toStdString();
-        cc->proc->kill();
+        hijos::matar(*cc->proc, nombreHijo(id));
     });
     c.tope->start(kTopeMinutos() * 60 * 1000);
     c.estado = "corriendo";
@@ -376,8 +383,11 @@ void Despachador::lanzarAhora(Corrida& c) {
     const QString idProc = QString::fromStdString(c.id);
     connect(c.proc, &QProcess::started, this, [this, idProc]() {
         Corrida* cc = porId(idProc.toStdString());
-        if (cc != nullptr && cc->proc != nullptr) cc->proc->closeWriteChannel();
+        if (cc == nullptr || cc->proc == nullptr) return;
+        cc->proc->closeWriteChannel();
+        hijos::anotar(*cc->proc, nombreHijo(cc->id)); // si la app muere sin pararlo, se lo barre
     });
+    hijos::preparar(*c.proc); // su grupo: pararlo se lleva lo que lance
     c.proc->start();
     emit cambio();
 }
@@ -732,7 +742,7 @@ void Despachador::detener(const QString& id) {
     }
     if (c->proc == nullptr) return;
     c->estado = "detenida";
-    c->proc->kill();
+    hijos::matar(*c->proc, nombreHijo(c->id));
 }
 
 QVariantMap Despachador::detallesQml() const {

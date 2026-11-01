@@ -151,6 +151,9 @@ class Supervisor {
     void reemplazarOtraVersion(Hijo& h);
     /// Runtime/ de los datos (al-aire.json, ultima-caida.json).
     std::filesystem::path runtimeDir() const;
+    /// Los hijos de la app (OpenCode, sus MCP, los agentes) que quedaron andando sin ella
+    /// (la app murió o hubo que matarla): al arrancar y al cerrar (platform/Huerfanos).
+    void barrerHuerfanos(const std::string& cuando);
     void handleCrash(Hijo& h);
     /// Deja escrita la causa de la caída (Runtime/ultima-caida.json y caidas.jsonl).
     void anotarCaida(Hijo& h, const std::string& causa, std::optional<int> code, const Volcado* volcado = nullptr);
