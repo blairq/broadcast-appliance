@@ -39,6 +39,9 @@
 #include "ui/ConferenceViewModel.hpp"
 #include "ui/AtencionViewModel.hpp"
 #include "ui/StudioViewModel.hpp"
+#include "ui/CapturaError.hpp"
+
+using ::ba::app::errorDe;
 
 namespace ba::app::mcp {
 
@@ -508,7 +511,7 @@ void McpService::registerRoomTools() {
                     e = r.value("error").toString();
                     reiniciarAhora = r.value("reiniciarAhora").toBool();
                 } else if (tipo == "token") e = acc->borrarToken();
-                else if (tipo == "api_key") e = borrar ? acc->borrarApiKey() : acc->guardarApiKey(clave);
+                else if (tipo == "api_key") e = borrar ? acc->borrarApiKey() : errorDe([&] { acc->guardarApiKey(clave); });
                 else if (tipo == "cloudflare") e = borrar ? acc->borrarTokenCloudflare() : acc->guardarTokenCloudflare(clave);
                 else return done(ToolResult::error(ba::i18n::traducir("mcp", "tipo: \"token\", \"api_key\" o \"cloudflare\"")));
                 if (!e.isEmpty()) return done(ToolResult::error(e.toStdString()));
@@ -712,7 +715,12 @@ void McpService::registerRoomTools() {
                 if (!a.contains("via"))
                     return done(ToolResult().data({{"conexion", aJson(acc->conexion())}, {"formas", aJson(acc->formasDeConectar())}}));
                 const QString via = QString::fromStdString(a["via"].get<std::string>());
-                const QString e = via == "desconectar" ? acc->desconectar() : acc->conectar(via);
+                const QString e = errorDe([&] {
+                    if (via == "desconectar")
+                        acc->desconectar();
+                    else
+                        acc->conectar(via);
+                });
                 if (!e.isEmpty()) return done(ToolResult::error(e.toStdString()));
                 done(ToolResult::ok(via == "desconectar" ? ba::i18n::traducir("mcp", "La conferencia vuelve a ser solo de la red local (se reinicia).")
                                                          : ba::i18n::llenar(ba::i18n::traducir("mcp", "Conectando por %1 (la conferencia se reinicia). "

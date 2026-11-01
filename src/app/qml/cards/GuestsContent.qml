@@ -18,9 +18,8 @@ Item {
     // Mientras se ve, el estado del túnel se consulta cada 5 s.
     Suscripcion { objetivo: tarjeta.acceso; activa: tarjeta.visible }
     function conectar(id) {
-        const e = acceso.conectar(id)
-        Studio.notify(e !== "" ? e : qsTr("Conectando la conferencia a internet… (la conferencia se reinicia: los invitados se reconectan solos)"),
-                      e !== "" ? "error" : "info")
+        if (acceso.conectar(id))
+            Studio.notify(qsTr("Conectando la conferencia a internet… (la conferencia se reinicia: los invitados se reconectan solos)"), "info")
     }
     DialogoQrSala { id: qrDlg }
 
@@ -89,8 +88,8 @@ Item {
                             text: qsTr("Los invitados y los integrantes que entraron desde afuera se cortan, y nadie de afuera puede volver a entrar hasta que la conectes de nuevo. La conferencia se reinicia (los de la red local se reconectan solos)."),
                             accept: qsTr("Desconectar"), reject: qsTr("Cancelar"), espera: 3,
                             action: function() {
-                                const e = tarjeta.acceso.desconectar()
-                                Studio.notify(e !== "" ? e : qsTr("La conferencia vuelve a ser solo de la red local (se reinicia)"), e !== "" ? "error" : "info")
+                                if (tarjeta.acceso.desconectar())
+                                    Studio.notify(qsTr("La conferencia vuelve a ser solo de la red local (se reinicia)"), "info")
                             }
                         })
                     } else {

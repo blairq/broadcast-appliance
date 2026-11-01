@@ -29,6 +29,7 @@
 #include <string>
 
 #include <nlohmann/json.hpp>
+#include "ui/CapturaError.hpp"
 
 namespace ba::app::control {
 class BusEventos;
@@ -42,6 +43,11 @@ class SesionRemota;
 
 class Votaciones : public QObject {
     Q_OBJECT
+    /// El error de una acción de la interfaz (las Q_INVOKABLE void): a quien mira.
+    void avisarError(const QString& e) {
+        if (!e.isEmpty() && !::ba::app::CapturaError::tomar(e)) emit notify(e, "error");
+    }
+    void avisarError(const std::string& e) { avisarError(QString::fromStdString(e)); }
    public:
     using json = nlohmann::json;
     using Listo = std::function<void(const std::string& error)>;
@@ -72,9 +78,13 @@ class Votaciones : public QObject {
     json enCurso() const;
 
     // --- Para la interfaz ------------------------------------------------------------
-    Q_INVOKABLE QString abrirEnCelularesUi(const QString& tema, const QString& menu, int segundos);
+    Q_INVOKABLE void abrirEnCelularesUi(const QString& tema, const QString& menu, int segundos);
     Q_INVOKABLE void cerrarEnCelularesUi() { cerrarEnCelulares(); }
     Q_INVOKABLE void pausarEnCelularesUi(bool pausa) { pausarEnCelulares(pausa); }
+
+   signals:
+    /// Para el operador (ya traducido): los errores de las acciones de la interfaz.
+    void notify(const QString& texto, const QString& tipo);
 
    private:
     /// La de la central, también en los celulares.

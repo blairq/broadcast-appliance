@@ -1193,9 +1193,9 @@ std::string AgentViewModel::configurarControlSistema(const json& cambios, json* 
     return e;
 }
 
-QString AgentViewModel::setControlSistema(const QVariantMap& cambios) {
-    return QString::fromStdString(
-        configurarControlSistema(json::parse(QJsonDocument(QJsonObject::fromVariantMap(cambios)).toJson().toStdString(), nullptr, false)));
+void AgentViewModel::setControlSistema(const QVariantMap& cambios) {
+    avisarError(QString::fromStdString(
+        configurarControlSistema(json::parse(QJsonDocument(QJsonObject::fromVariantMap(cambios)).toJson().toStdString(), nullptr, false))));
 }
 
 QString AgentViewModel::runtimeDe(const QString& proveedor) {
@@ -2151,13 +2151,13 @@ QVariantList AgentViewModel::alertTypesUi() const {
         .toVariantList();
 }
 
-QString AgentViewModel::createAlertUi(const QVariantMap& spec) {
+bool AgentViewModel::createAlertUi(const QVariantMap& spec) {
     const json j = json::parse(QJsonDocument(QJsonObject::fromVariantMap(spec)).toJson(QJsonDocument::Compact).toStdString(),
                                nullptr, false);
-    if (!j.is_object()) return tr("no se entiende el disparador");
+    if (!j.is_object()) return sinError(tr("no se entiende el disparador"));
     const json r = alerts_.create(j);
     emit alertsChanged();
-    return QString::fromStdString(r.value("error", std::string()));
+    return sinError(QString::fromStdString(r.value("error", std::string())));
 }
 
 void AgentViewModel::onAlert(const json& ev) {
@@ -2362,12 +2362,12 @@ QVariantMap AgentViewModel::borrarVersionesViejas(const QString& runtime) {
     return {{"ok", true}, {"bytes", bytes}, {"borradas", borradas}};
 }
 
-QString AgentViewModel::reinstalar(const QString& runtime, bool deCero) {
+void AgentViewModel::reinstalar(const QString& runtime, bool deCero) {
     const QString ocupado = ocupadoParaLimpiar();
-    if (!ocupado.isEmpty()) return ocupado;
+    if (!ocupado.isEmpty()) return avisarError(ocupado);
     bool conocido = false;
     for (const char* rt : kMotores) conocido = conocido || runtime == rt;
-    if (!conocido) return tr("Motor desconocido: %1").arg(runtime);
+    if (!conocido) return avisarError(tr("Motor desconocido: %1").arg(runtime));
     const fs::path root = ba::platform::dataRoot(); // de la máquina
     std::error_code ec;
     fs::remove_all(root / "Agentes" / runtime.toStdString(), ec);
@@ -2381,9 +2381,8 @@ QString AgentViewModel::reinstalar(const QString& runtime, bool deCero) {
     // Se vuelve a bajar el que usa el asistente; otro motor se baja cuando se lo elija.
     if (runtimeOf(provider_) == runtime) {
         install();
-        return {};
+        return;
     }
-    return {};
 }
 
 } // namespace ba::app::agent

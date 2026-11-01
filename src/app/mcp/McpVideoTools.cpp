@@ -31,6 +31,9 @@
 #include <QPointer>
 
 #include <cctype>
+#include "ui/CapturaError.hpp"
+
+using ::ba::app::errorDe;
 
 namespace ba::app::mcp {
 
@@ -1970,7 +1973,7 @@ void McpService::registerVideoTools() {
                         m.value("ruta", std::string()) == pedido)
                         archivo = m.value("archivo", std::string());
                 if (archivo.empty()) return done(ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "no hay un modelo «%1» (superres_estado los lista)"), {pedido})));
-                const QString e = srp->borrarModelo(QString::fromStdString(archivo));
+                const QString e = errorDe([&] { srp->borrarModelo(QString::fromStdString(archivo)); });
                 if (!e.isEmpty()) return done(ToolResult::error(e.toStdString()));
                 done(ToolResult().text(ba::i18n::llenar(ba::i18n::traducir("mcp", "Borrado «%1»."), {archivo})));
             };

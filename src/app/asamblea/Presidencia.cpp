@@ -27,6 +27,9 @@
 #include <algorithm>
 #include <set>
 #include <vector>
+#include "ui/CapturaError.hpp"
+
+using ::ba::app::errorDe;
 
 namespace ba::app::asamblea {
 
@@ -288,7 +291,7 @@ void Presidencia::accionConsola(const std::string& consola, const json& m) {
     } else if (t == "expulsar") {
         error = p_.sesion.expulsar(id, quien, m.value("motivo", std::string()));
     } else if (t == "dar_palabra") {
-        error = p_.bancas.alAire(QString::fromStdString(id), "armar", m.value("segundos", -1)).toStdString();
+        error = errorDe([&] { p_.bancas.alAire(QString::fromStdString(id), "armar", m.value("segundos", -1)); }).toStdString();
     } else if (t == "terminar") {
         p_.bancas.terminar();
     } else if (t == "debate" && p_.debate) {
@@ -308,7 +311,7 @@ void Presidencia::accionConsola(const std::string& consola, const json& m) {
     } else if (t == "quitar_fila") {
         p_.bancas.quitar(QString::fromStdString(id));
     } else if (t == "siguiente") {
-        error = p_.bancas.siguiente("armar").toStdString();
+        error = errorDe([&] { p_.bancas.siguiente("armar"); }).toStdString();
     } else if (t == "sumar_tiempo") {
         p_.bancas.sumarTiempo(m.value("segundos", 60));
     } else if (t == "tiempo") {

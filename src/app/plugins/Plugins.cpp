@@ -50,6 +50,9 @@
 #include <fstream>
 #include <sstream>
 #include <thread>
+#include "ui/CapturaError.hpp"
+
+using ::ba::app::errorDe;
 
 namespace fs = std::filesystem;
 
@@ -1378,7 +1381,7 @@ void Plugins::declararPtz(const std::string& id, const json& d) {
     const QString entrada = q(d.value("entrada", std::string()));
     camaras_->sincronizar();
     const QString e =
-        camaras_->configurar(entrada, "plugin", QVariantMap{{"plugin", q(id)}, {"entrada", entrada}});
+        errorDe([&] { camaras_->configurar(entrada, "plugin", QVariantMap{{"plugin", q(id)}, {"entrada", entrada}}); });
     if (!e.isEmpty()) {
         ba::diag::registro().linea(ba::diag::Nivel::Aviso, "plugins", 0,
                                    ba::i18n::llenar(ba::i18n::traducir("plugins", "%1: PTZ de «%2»: %3"), {id, entrada.toStdString(), e.toStdString()}));
@@ -1755,9 +1758,9 @@ void Plugins::prender(const QString& id, bool activo) {
     });
 }
 
-QString Plugins::aprobarUi(const QString& id) {
+void Plugins::aprobarUi(const QString& id) {
     const json r = aprobar(id.toStdString(), "persona");
-    return r.contains("error") ? q(r.value("error", std::string())) : QString();
+    avisarError(r.contains("error") ? q(r.value("error", std::string())) : QString());
 }
 
 QString Plugins::desaprobarUi(const QString& id) { return q(desaprobar(id.toStdString())); }
@@ -1778,11 +1781,11 @@ void Plugins::probarUi(const QString& id) {
 
 QString Plugins::registroUi(const QString& id) const { return q(registro(id.toStdString(), 200)); }
 
-QString Plugins::copiarEjemplo(const QString& ejemplo, const QString& id) {
-    return q(desdeEjemplo(ejemplo.toStdString(), id.toStdString()));
+bool Plugins::copiarEjemplo(const QString& ejemplo, const QString& id) {
+    return sinError(q(desdeEjemplo(ejemplo.toStdString(), id.toStdString())));
 }
 
-QString Plugins::borrarUi(const QString& id) { return q(borrar(id.toStdString())); }
+bool Plugins::borrarUi(const QString& id) { return sinError(q(borrar(id.toStdString()))); }
 
 QString Plugins::configTexto(const QString& id) const {
     return q(leerJson(carpetaDe(id.toStdString()) / "plugin.json").value("config", json::object()).dump(2, ' ', false, nlohmann::json::error_handler_t::replace));
@@ -1991,21 +1994,21 @@ QVariantMap Plugins::valoresQml() const {
     return out;
 }
 
-QString Plugins::panelUi(const QString& id, const QString& clave, const QVariant& valor) {
-    return q(ponerValor(id.toStdString(), clave.toStdString(), dejson(valor)));
+void Plugins::panelUi(const QString& id, const QString& clave, const QVariant& valor) {
+    avisarError(q(ponerValor(id.toStdString(), clave.toStdString(), dejson(valor))));
 }
 
-QString Plugins::tarjetaUi(const QString& id, const QString& tarjeta, const QString& destino, bool audio) {
+bool Plugins::tarjetaUi(const QString& id, const QString& tarjeta, const QString& destino, bool audio) {
     json hecho;
     if (audio)
-        return q(ponerFiltroAudio(id.toStdString(), tarjeta.toStdString(), destino.toStdString(), json::object(), &hecho));
+        return sinError(q(ponerFiltroAudio(id.toStdString(), tarjeta.toStdString(), destino.toStdString(), json::object(), &hecho)));
     // La de video la pone el grafo (en el dueño del motor): si no se pudo, llega como aviso.
     QPointer<Plugins> yo(this);
     ponerTarjeta(id.toStdString(), tarjeta.toStdString(), destino.toStdString(), json::object(),
                  [yo](const std::string& e, const json&) {
                      if (yo && !e.empty()) emit yo->aviso(QString::fromStdString(e), false);
                  });
-    return {};
+    return true;
 }
 
 void Plugins::buscarEquipos() {

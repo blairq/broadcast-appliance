@@ -42,6 +42,9 @@
 #include "ui/StudioViewModel.hpp"
 #if defined(BA_HAVE_VOZ)
 #include "audio/Habla.hpp"
+#include "ui/CapturaError.hpp"
+
+using ::ba::app::errorDe;
 #endif
 
 namespace ba::app {
@@ -555,7 +558,7 @@ void AtencionViewModel::alFotoIntegrante(const QString& id) {
                                     Q_UNUSED(error);
                                     return;
                                 }
-                                if (yo->vm_.cuerpo().guardar({{"id", id}, {"persona_id", ficha}}).isEmpty())
+                                if (errorDe([&] { yo->vm_.cuerpo().guardar({{"id", id}, {"persona_id", ficha}}); }).isEmpty())
                                     emit yo->notify(tr("Anoté a «%1» en Personas con la cara de su cámara y lo vinculé a "
                                                        "su banca: la próxima vez se lo reconoce.")
                                                         .arg(nombre),

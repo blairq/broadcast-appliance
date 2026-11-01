@@ -41,8 +41,8 @@ Rectangle {
     function colorDriver(e) {
         return e === "anda" ? Theme.ok : e === "cuarentena" ? Theme.live : e === "falla" || e === "probando" ? Theme.amber : Theme.textFaint
     }
-    // Al entrar se buscan de nuevo los de la máquina (la red y el USB, a pedido).
-    onVisibleChanged: if (visible) Studio.inputs.refresh()
+    // Mientras se ve, la lista de la máquina (al entrar se busca de nuevo: la red y el USB).
+    Suscripcion { objetivo: Studio.inputs; que: "dispositivos"; activa: page.visible }
 
     /// Los tipos a los que se les pone nombre (Conocidos::seRecuerda).
     function conNombre(t) { return ["camara_local", "microfono", "salida_audio", "ndi", "camara_red"].indexOf(t) >= 0 }
@@ -289,8 +289,7 @@ Rectangle {
                                 id: guardarNombre
                                 compact: true; text: qsTr("Guardar"); active: true
                                 onClicked: {
-                                    const e = page.dd.renombrar(page.sel, nombreCampo.text)
-                                    page.msgNombre = e !== "" ? "✕ " + e : qsTr("✓ Guardado")
+                                    page.msgNombre = page.dd.renombrar(page.sel, nombreCampo.text) ? qsTr("✓ Guardado") : ""
                                 }
                             }
                         }
@@ -314,8 +313,7 @@ Rectangle {
                                 id: guardarNota
                                 compact: true; text: qsTr("Guardar")
                                 onClicked: {
-                                    const e = page.dd.configurar(page.sel, { nota: notaCampo.text })
-                                    page.msgNombre = e !== "" ? "✕ " + e : qsTr("✓ Guardado")
+                                    page.msgNombre = page.dd.configurar(page.sel, { nota: notaCampo.text }) ? qsTr("✓ Guardado") : ""
                                 }
                             }
                         }
@@ -337,8 +335,7 @@ Rectangle {
                                     return 0
                                 }
                                 onActivated: (i) => {
-                                    const e = page.dd.configurar(page.sel, { modo: model[i].modo })
-                                    page.msgNombre = e !== "" ? "✕ " + e : qsTr("✓ Guardado")
+                                    page.msgNombre = page.dd.configurar(page.sel, { modo: model[i].modo }) ? qsTr("✓ Guardado") : ""
                                 }
                             }
                         }
@@ -367,7 +364,7 @@ Rectangle {
                                     text: qsTr("Se borran su nombre y su configuración de esta máquina. Si se vuelve a enchufar, aparece con el nombre del sistema."),
                                     accept: qsTr("Olvidar"),
                                     reject: qsTr("Cancelar"),
-                                    action: function() { const e = dd.olvidar(id); if (e !== "") Studio.notify(e, "error") }
+                                    action: function() { dd.olvidar(id) }
                                 })
                             }
                         }

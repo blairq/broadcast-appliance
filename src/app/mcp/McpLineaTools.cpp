@@ -25,6 +25,9 @@
 
 #include <QJsonDocument>
 #include <QJsonObject>
+#include "ui/CapturaError.hpp"
+
+using ::ba::app::errorDe;
 
 namespace ba::app::mcp {
 namespace {
@@ -485,7 +488,7 @@ void registerLineaTools(McpCore& core, EventoViewModel& ev, LineaFuentes fuentes
             const std::string formato = a.value("formato", std::string("csv"));
             const std::string archivo = a.value("archivo", std::string());
             if (!archivo.empty()) {
-                const QString e = ev.informeVm().exportarEscaleta(QString::fromStdString(formato), QString::fromStdString(archivo));
+                const QString e = errorDe([&] { ev.informeVm().exportarEscaleta(QString::fromStdString(formato), QString::fromStdString(archivo)); });
                 if (!e.isEmpty()) return done(ToolResult::error(e.toStdString()));
             }
             done(ToolResult().data({{"formato", formato}, {"texto", ev.informeVm().lineaExportar(formato)}, {"archivo", archivo}}));
@@ -555,7 +558,7 @@ void registerLineaTools(McpCore& core, EventoViewModel& ev, LineaFuentes fuentes
                     return done(ToolResult::error(traducir("mcp", "Grabar se elige antes de arrancar el ensayo.")));
                 ev.corridaVm().setGrabarTiempos(accion == "grabar");
             } else if (accion == "aplicar") {
-                if (const QString e = ev.corridaVm().aplicarTiemposGrabados(); !e.isEmpty()) return done(ToolResult::error(e.toStdString()));
+                if (const QString e = errorDe([&] { ev.corridaVm().aplicarTiemposGrabados(); }); !e.isEmpty()) return done(ToolResult::error(e.toStdString()));
             } else if (accion == "descartar") {
                 ev.corridaVm().descartarTiemposGrabados();
             }

@@ -74,8 +74,7 @@ Item {
             GlassButton {
                 compact: true; text: qsTr("Guardar reglas")
                 onClicked: {
-                    const e = Studio.quorum.setReglaUi({ miembros: qMiembros.value, minimo: "mitad_mas_uno", mayoria: qMayoria.model[qMayoria.currentIndex].v })
-                    if (e !== "") Studio.notify(e, "error")
+                    Studio.quorum.setReglaUi({ miembros: qMiembros.value, minimo: "mitad_mas_uno", mayoria: qMayoria.model[qMayoria.currentIndex].v })
                 }
                 ToolTip.visible: hovered; ToolTip.delay: 400
                 ToolTip.text: qsTr("Quórum: la mitad más uno de los miembros. La mayoría es la de fábrica para el resultado oficial.")

@@ -33,3 +33,9 @@ def test_pin_del_dia_en_el_flanco():
     studio = (RAIZ / "src/app/ui/StudioViewModel.cpp").read_text(encoding="utf-8")
     assert re.search(r"alSubir\(\s*corrida,\s*&CorridaViewModel::correChanged", studio), "falta el flanco tipado"
     assert "guionCorriendo()" in studio and "alEmpezarElVivo()" in studio
+
+
+def test_vinculo_evento_nombre_tipado():
+    # {evento.nombre} sale del nombre del evento abierto, leído con la llamada tipada.
+    studio = (RAIZ / "src/app/ui/StudioViewModel.cpp").read_text(encoding="utf-8")
+    assert re.search(r'ctx\["evento"\]\s*=\s*QJsonObject\{\{"nombre",\s*evento_->eventoAbierto\(\)\.nombre\(\)\}\}', studio)

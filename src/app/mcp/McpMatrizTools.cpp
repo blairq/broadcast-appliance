@@ -19,6 +19,9 @@
 #include "audio/AudioViewModel.hpp"
 #include "audio/Matriz.hpp"
 #include "audio/Mezclador.hpp"
+#include "ui/CapturaError.hpp"
+
+using ::ba::app::errorDe;
 #endif
 
 namespace ba::app::mcp {
@@ -69,8 +72,8 @@ void McpService::registerMatrizTools() {
                           {{"entrada", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "una de mezclador_estado.entradas")}}},
                            {"cual", {{"type", "string"}, {"enum", {"espectro", "fase", "osciloscopio", "latencia", "perfil"}}}}}}};
         t.run = [mz](const json& a, Done done) {
-            const QString e = mz->abrirAnalisisLsp(QString::fromStdString(a["entrada"].get<std::string>()),
-                                                   QString::fromStdString(a["cual"].get<std::string>()));
+            const QString e = errorDe([&] { mz->abrirAnalisisLsp(QString::fromStdString(a["entrada"].get<std::string>()),
+                                                   QString::fromStdString(a["cual"].get<std::string>())); });
             if (!e.isEmpty()) return done(ToolResult::error(e.toStdString()));
             done(ToolResult::ok(ba::i18n::traducir("mcp", "Abierto: la interfaz de LSP está en una ventana aparte.")));
         };
@@ -204,8 +207,8 @@ void McpService::registerMatrizTools() {
                          {"required", {"bus", "nombre"}},
                          {"properties", {{"bus", {{"type", "string"}}}, {"nombre", {{"type", "string"}}}}}};
         t.run = [m, err](const json& a, Done done) {
-            const QString e = m->renombrar(QString::fromStdString(a.value("bus", std::string())),
-                                           QString::fromStdString(a.value("nombre", std::string())));
+            const QString e = errorDe([&] { m->renombrar(QString::fromStdString(a.value("bus", std::string())),
+                                           QString::fromStdString(a.value("nombre", std::string()))); });
             if (!e.isEmpty()) return done(err(e));
             done(ToolResult::ok(ba::i18n::traducir("mcp", "Renombrado.")));
         };

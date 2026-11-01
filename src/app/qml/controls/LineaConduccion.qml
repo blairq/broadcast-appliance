@@ -23,7 +23,6 @@ ColumnLayout {
     signal pedirInforme()
     spacing: 8
 
-    function hacer(error) { if (error !== "") Studio.notify(error, "error") }
     function arrancar() {
         // La revisión previa la hace el view model; si hay algo grave, se pregunta.
         const graves = cond.corridaVm.arrancarRevisando(false)
@@ -120,7 +119,7 @@ ColumnLayout {
                         active: !modelData.disparada
                         activeColor: Theme.colorDeTipo(modelData.tipo)
                         opacity: modelData.disparada ? 0.5 : 1
-                        onClicked: cond.hacer(cond.lv.adlib(modelData.id))
+                        onClicked: cond.lv.adlib(modelData.id)
                     }
                 }
             }
@@ -257,7 +256,7 @@ ColumnLayout {
                         }
                         GlassButton {
                             text: qsTr("Aplicar"); compact: true
-                            onClicked: cond.hacer(cond.lv.productor.aplicar(prop.modelData.salida, op.modelData.id))
+                            onClicked: cond.lv.productor.aplicar(prop.modelData.salida, op.modelData.id)
                             ToolTip.visible: hovered; ToolTip.delay: 400
                             ToolTip.text: qsTr("Cambia la línea (queda una revisión para deshacer)")
                         }
@@ -288,7 +287,7 @@ ColumnLayout {
             }
             GlassButton {
                 text: qsTr("Reenganchar"); compact: true
-                onClicked: cond.hacer(cond.corridaVm.reenganchar(cond.lv.salida))
+                onClicked: cond.corridaVm.reenganchar(cond.lv.salida)
                 ToolTip.visible: hovered; ToolTip.delay: 400
                 ToolTip.text: qsTr("Vuelve a la escena del paso al aire y la salida sigue con la línea")
             }
@@ -312,11 +311,11 @@ ColumnLayout {
             }
             GlassButton {
                 text: qsTr("Mover igual"); compact: true
-                onClicked: cond.hacer(cond.corridaVm.decidirPtz(ptz.modelData.pieza, "mover"))
+                onClicked: cond.corridaVm.decidirPtz(ptz.modelData.pieza, "mover")
             }
             GlassButton {
                 text: qsTr("No mover"); compact: true
-                onClicked: cond.hacer(cond.corridaVm.decidirPtz(ptz.modelData.pieza, "saltar"))
+                onClicked: cond.corridaVm.decidirPtz(ptz.modelData.pieza, "saltar")
             }
         }
     }
@@ -330,7 +329,7 @@ ColumnLayout {
             text: cond.parado ? qsTr("Arrancar") : qsTr("GO")
             active: true
             activeColor: cond.parado ? Theme.accent : Theme.live
-            onClicked: cond.parado ? cond.arrancar() : cond.hacer(cond.lv.go())
+            onClicked: cond.parado ? cond.arrancar() : cond.lv.go()
             ToolTip.visible: hovered; ToolTip.delay: 400
             ToolTip.text: cond.parado ? qsTr("Arranca la línea (revisa antes)") : qsTr("Entra el próximo (Espacio o F12)")
         }
@@ -338,28 +337,28 @@ ColumnLayout {
             text: "HOLD"; compact: true
             enabled: !cond.parado
             active: !!cond.c.hold
-            onClicked: cond.hacer(cond.lv.hold())
+            onClicked: cond.lv.hold()
             ToolTip.visible: hovered; ToolTip.delay: 400
             ToolTip.text: qsTr("Que este paso no pase solo al siguiente (H). Otra vez lo suelta.")
         }
         GlassButton {
             text: qsTr("Saltar"); compact: true
             enabled: !cond.parado && !!cond.prox
-            onClicked: cond.hacer(cond.lv.saltar())
+            onClicked: cond.lv.saltar()
             ToolTip.visible: hovered; ToolTip.delay: 400
             ToolTip.text: qsTr("Saltea el próximo (Mayús+F9)")
         }
         GlassButton {
             icon: "◀"; compact: true
             enabled: !cond.parado
-            onClicked: cond.hacer(cond.lv.anterior())
+            onClicked: cond.lv.anterior()
             ToolTip.visible: hovered; ToolTip.delay: 400
             ToolTip.text: qsTr("El próximo, uno para atrás, sin tocar el aire (F9)")
         }
         GlassButton {
             icon: "▶"; compact: true
             enabled: !cond.parado
-            onClicked: cond.hacer(cond.lv.siguiente())
+            onClicked: cond.lv.siguiente()
             ToolTip.visible: hovered; ToolTip.delay: 400
             ToolTip.text: qsTr("El próximo, uno para adelante, sin tocar el aire (F10)")
         }
@@ -380,7 +379,7 @@ ColumnLayout {
                     delegate: MenuItem {
                         required property var modelData
                         text: modelData.texto
-                        onTriggered: cond.hacer(cond.lv.insertar(modelData.id, false))
+                        onTriggered: cond.lv.insertar(modelData.id, false)
                     }
                     onObjectAdded: (i, o) => insertarMenu.insertItem(i, o)
                     onObjectRemoved: (i, o) => insertarMenu.removeItem(o)
@@ -390,7 +389,7 @@ ColumnLayout {
         GlassButton {
             text: qsTr("Repetir"); compact: true
             enabled: !!cond.aire
-            onClicked: cond.hacer(cond.lv.repetir())
+            onClicked: cond.lv.repetir()
             ToolTip.visible: hovered; ToolTip.delay: 400
             ToolTip.text: qsTr("Vuelve a entrar el paso al aire")
         }
@@ -461,7 +460,7 @@ ColumnLayout {
                 TapHandler {
                     id: tap
                     enabled: !cond.parado
-                    onTapped: cond.hacer(cond.lv.adlib(modelData.id))
+                    onTapped: cond.lv.adlib(modelData.id)
                 }
             }
         }
@@ -546,7 +545,7 @@ ColumnLayout {
                 GlassButton {
                     text: qsTr("Guardar los tiempos"); compact: true
                     active: true
-                    onClicked: cond.hacer(cond.corridaVm.aplicarTiemposGrabados())
+                    onClicked: cond.corridaVm.aplicarTiemposGrabados()
                     ToolTip.visible: hovered; ToolTip.delay: 400
                     ToolTip.text: qsTr("Quedan como duraciones previstas (con una revisión para deshacer)")
                 }

@@ -34,6 +34,7 @@
 #include <string>
 #include <thread>
 #include <vector>
+#include "ui/CapturaError.hpp"
 
 struct ba_medicion;
 
@@ -47,6 +48,11 @@ struct Api;
 
 class Calibracion : public QObject {
     Q_OBJECT
+    /// El error de una acción de la interfaz (las Q_INVOKABLE void): a quien mira.
+    void avisarError(const QString& e) {
+        if (!e.isEmpty() && !::ba::app::CapturaError::tomar(e)) emit notify(e, "error");
+    }
+    void avisarError(const std::string& e) { avisarError(QString::fromStdString(e)); }
     /// La sesión abierta (vacía si no hay): {id, nombre, sala, objetivo, parlantes,
     /// microfonos, puntos, mediciones (sin las curvas), aplicado}.
     Q_PROPERTY(QVariantMap sesion READ sesion NOTIFY sesionCambio)
@@ -110,38 +116,38 @@ class Calibracion : public QObject {
     void setAlAire(std::function<bool()> f) { alAire_ = std::move(f); }
 
     // Todas devuelven "" si anduvo o el motivo; las que crean algo, el id en `id`.
-    Q_INVOKABLE QString nueva(const QString& nombre, double largo, double ancho, double alto);
-    Q_INVOKABLE QString abrir(const QString& id);
-    Q_INVOKABLE QString setSala(double largo, double ancho, double alto);
+    Q_INVOKABLE void nueva(const QString& nombre, double largo, double ancho, double alto);
+    Q_INVOKABLE void abrir(const QString& id);
+    Q_INVOKABLE void setSala(double largo, double ancho, double alto);
     /// La curva objetivo: pendiente en dB/octava (0 = plana; -0,8 de fábrica).
-    Q_INVOKABLE QString setObjetivo(double pendiente);
-    Q_INVOKABLE QString agregarParlante(const QString& nombre, const QString& dispositivo, int canal, double x,
+    Q_INVOKABLE void setObjetivo(double pendiente);
+    Q_INVOKABLE void agregarParlante(const QString& nombre, const QString& dispositivo, int canal, double x,
                                         double y);
     /// tipo: plano, modelo (con `modelo`: sm58, sm57…), archivo (con `archivo`).
-    Q_INVOKABLE QString agregarMicrofono(const QString& nombre, const QString& dispositivo, int canal,
+    Q_INVOKABLE void agregarMicrofono(const QString& nombre, const QString& dispositivo, int canal,
                                          const QString& tipo, const QString& modelo, const QString& archivo);
-    Q_INVOKABLE QString setCalibracionMicrofono(const QString& id, const QString& tipo, const QString& modelo,
+    Q_INVOKABLE void setCalibracionMicrofono(const QString& id, const QString& tipo, const QString& modelo,
                                                 const QString& archivo);
     /// tipo: escucha (la zona de público), cerca (a ~1 m de un parlante), pared, microfono (donde está uno de la mesa).
-    Q_INVOKABLE QString agregarPunto(const QString& nombre, const QString& tipo, double x, double y);
+    Q_INVOKABLE void agregarPunto(const QString& nombre, const QString& tipo, double x, double y);
     /// Mover un parlante, micrófono o punto en el croquis (metros).
-    Q_INVOKABLE QString mover(const QString& id, double x, double y);
-    Q_INVOKABLE QString quitar(const QString& id);
+    Q_INVOKABLE void mover(const QString& id, double x, double y);
+    Q_INVOKABLE void quitar(const QString& id);
     /// Mide `parlante` con `microfono` puesto en `punto`. etapa: antes, verificacion
     /// o sustitucion. Asíncrona: termina con medicionTerminada.
-    Q_INVOKABLE QString medir(const QString& parlante, const QString& punto, const QString& microfono,
+    Q_INVOKABLE void medir(const QString& parlante, const QString& punto, const QString& microfono,
                               const QString& etapa, double duracionS, double nivelDb);
     Q_INVOKABLE void cancelar();
     /// La corrección de `microfono` por sustitución: la misma posición medida con
     /// un micrófono de referencia (medicion `conReferencia`) y con él (`conMicrofono`).
-    Q_INVOKABLE QString calibrarPorSustitucion(const QString& microfono, const QString& conReferencia,
+    Q_INVOKABLE void calibrarPorSustitucion(const QString& microfono, const QString& conReferencia,
                                                const QString& conMicrofono);
     /// Pone la propuesta de `parlante` en un EQ paramétrico de LSP («eq-sala») en el
     /// rack de `fuente` (la que alimenta ese parlante).
-    Q_INVOKABLE QString aplicar(const QString& parlante, const QString& fuente);
+    Q_INVOKABLE void aplicar(const QString& parlante, const QString& fuente);
     /// Saca el EQ de sala del rack de `fuente`.
-    Q_INVOKABLE QString revertir(const QString& fuente);
-    Q_INVOKABLE QString borrarMedicion(const QString& id);
+    Q_INVOKABLE void revertir(const QString& fuente);
+    Q_INVOKABLE void borrarMedicion(const QString& id);
     Q_INVOKABLE void refrescarDispositivos();
     /// Una medición entera (para dibujarla).
     QVariantMap irVistas() const;
@@ -164,6 +170,8 @@ class Calibracion : public QObject {
                                 std::vector<float>* ir);
 
    signals:
+    /// Para el operador (ya traducido): los errores de las acciones de la interfaz.
+    void notify(const QString& texto, const QString& tipo);
     void sesionCambio();
     void estadoCambio();
     void analisisCambio();

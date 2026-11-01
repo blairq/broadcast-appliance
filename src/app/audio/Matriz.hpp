@@ -72,6 +72,7 @@
 #include <nlohmann/json.hpp>
 
 #include "comun/UsoPorVistas.hpp"
+#include "ui/CapturaError.hpp"
 
 namespace ba::app {
 class AppRuntime;
@@ -85,6 +86,11 @@ class EquipoAudio;
 
 class Matriz : public QObject {
     Q_OBJECT
+    /// El error de una acción de la interfaz (las Q_INVOKABLE void): a quien mira.
+    void avisarError(const QString& e) {
+        if (!e.isEmpty() && !::ba::app::CapturaError::tomar(e)) emit aviso(e);
+    }
+    void avisarError(const std::string& e) { avisarError(QString::fromStdString(e)); }
     /// [{nombre, virtual: bool}]
     Q_PROPERTY(QVariantList filas READ filas NOTIFY cambio)
     /// [{id, nombre, tipo: pista|salida|entrada, indice, uso, dispositivo, salida, fuente}]
@@ -159,7 +165,7 @@ class Matriz : public QObject {
     Q_INVOKABLE QString agregarSalidaVirtual(const QString& nombre, const QString& dispositivo);
     Q_INVOKABLE QString agregarEntradaVirtual(const QString& nombre);
     Q_INVOKABLE QString quitarBus(const QString& id);
-    Q_INVOKABLE QString renombrar(const QString& id, const QString& nombre);
+    Q_INVOKABLE void renombrar(const QString& id, const QString& nombre);
     Q_INVOKABLE QString setDispositivo(const QString& id, const QString& dispositivo);
     /// De qué salida del programa sigue el mute de cada fuente una salida virtual ("" = la
     /// por omisión): con varias salidas, la de cada una.

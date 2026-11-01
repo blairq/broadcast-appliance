@@ -35,8 +35,7 @@ Popup {
     background: Rectangle { color: Theme.panel; radius: Theme.radiusSmall; border.color: Theme.glassBorder }
 
     function poner(cambios, ok) {
-        const e = vg.configurarProgramadorUi(cambios)
-        if (e !== "") Studio.notify(e, "error"); else if (ok) Studio.notify(ok, "info")
+        if (vg.configurarProgramadorUi(cambios) && ok) Studio.notify(ok, "info")
     }
     function nombreAcelerador(a) {
         return ({ "neural-engine": "Neural Engine", gpu: "GPU", cpu: qsTr("Procesador"), cuda: "NVIDIA (CUDA/TensorRT)", dml: "DirectML", vulkan: "Vulkan (ncnn)",

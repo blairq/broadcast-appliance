@@ -25,8 +25,7 @@ ScrollView {
     signal pedirAsistente(string texto)
 
     function guardar(campos) {
-        const e = pw.webVm.setWebSitio(campos)
-        if (e !== "") Studio.notify(e, "error")
+        pw.webVm.setWebSitio(campos)
     }
 
     ColumnLayout {
@@ -212,8 +211,7 @@ ScrollView {
                             MouseArea {
                                 anchors.fill: parent; cursorShape: Qt.PointingHandCursor
                                 onClicked: {
-                                    const e = Studio.temaEvento.cambiar({ colores: { acento: parent.modelData } })
-                                    if (e !== "") Studio.notify(e, "error")
+                                    Studio.temaEvento.cambiar({ colores: { acento: parent.modelData } })
                                 }
                             }
                         }

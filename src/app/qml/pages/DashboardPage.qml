@@ -76,10 +76,10 @@ Item {
         Item { Layout.fillWidth: true }
         // Al aire = sale algo (Studio.aire.alAire), igual que el cartel de arriba de las otras páginas.
         StatusPill { text: Studio.aire.reconnecting ? qsTr("RECONECTANDO")
-                           : Studio.aire.transmitiendo ? (Studio.aire.streaming ? qsTr("AL AIRE  %1").arg(Studio.aire.streamTime) : qsTr("AL AIRE"))
+                           : Studio.aire.transmitiendo ? (Studio.aire.streaming ? qsTr("AL AIRE  %1").arg(Theme.cronometro(Studio.aire.transmiteDesdeMs, Reloj.ahora)) : qsTr("AL AIRE"))
                            : Studio.aire.alAire ? qsTr("AL AIRE · GRABANDO") : qsTr("FUERA DEL AIRE")
                      dot: Studio.aire.reconnecting ? Theme.amber : Theme.live; on: Studio.aire.alAire || Studio.aire.reconnecting; pulse: true }
-        StatusPill { text: Studio.aire.recording ? "REC  " + Studio.aire.recordTime : "REC"; dot: Theme.accent; on: Studio.aire.recording; pulse: true }
+        StatusPill { text: Studio.aire.recording ? "REC  " + Theme.cronometro(Studio.aire.grabaDesdeMs, Reloj.ahora) : "REC"; dot: Theme.accent; on: Studio.aire.recording; pulse: true }
         // Se mide por «CPU 100%» y no por su propio texto: si no, al pasar de
         // una cifra a dos se ensancha y encoge varias veces por segundo,
         // moviendo todas las pildoras de al lado.

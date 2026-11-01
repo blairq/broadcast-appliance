@@ -662,12 +662,12 @@ void PantallasViewModel::buscar() {
     }).detach();
 }
 
-QString PantallasViewModel::agregar(const QString& nombre, const QString& host, int puerto) {
+void PantallasViewModel::agregar(const QString& nombre, const QString& host, int puerto) {
     const QString h = host.trimmed();
-    if (h.isEmpty()) return tr("Poné la dirección IP del televisor.");
+    if (h.isEmpty()) return avisarError(tr("Poné la dirección IP del televisor."));
     const QString n = nombre.trimmed().isEmpty() ? h : nombre.trimmed();
     const QString id = "manual:" + h;
-    if (d_->porId(id) != nullptr) return tr("Ya está en la lista.");
+    if (d_->porId(id) != nullptr) return avisarError(tr("Ya está en la lista."));
     Destino d;
     d.id = id;
     d.nombre = n;
@@ -678,45 +678,42 @@ QString PantallasViewModel::agregar(const QString& nombre, const QString& host, 
     d_->guardar();
     emit cambio();
     refrescar(id); // que diga enseguida si contesta o no
-    return {};
 }
 
-QString PantallasViewModel::olvidar(const QString& id) {
+void PantallasViewModel::olvidar(const QString& id) {
     const auto it =
         std::find_if(d_->destinos.begin(), d_->destinos.end(), [&](const Destino& d) { return d.id == id; });
-    if (it == d_->destinos.end()) return tr("No la encuentro.");
-    if (it->trabajando) return tr("Esperá a que termine lo que está haciendo.");
+    if (it == d_->destinos.end()) return avisarError(tr("No la encuentro."));
+    if (it->trabajando) return avisarError(tr("Esperá a que termine lo que está haciendo."));
     d_->destinos.erase(it);
     d_->guardar();
     emit cambio();
-    return {};
 }
 
-QString PantallasViewModel::renombrar(const QString& id, const QString& nombre) {
+void PantallasViewModel::renombrar(const QString& id, const QString& nombre) {
     Destino* d = d_->porId(id);
-    if (d == nullptr) return tr("No la encuentro.");
+    if (d == nullptr) return avisarError(tr("No la encuentro."));
     const QString n = nombre.trimmed();
-    if (n.isEmpty()) return tr("Ponele un nombre.");
+    if (n.isEmpty()) return avisarError(tr("Ponele un nombre."));
     d->nombre = n;
     // Que la próxima búsqueda no le pise el nombre. NO la marca como «a mano»:
     // eso haría que se guardara su IP, y las IP cambian.
     d->nombrePropio = true;
     d_->guardar();
     emit cambio();
-    return {};
 }
 
-QString PantallasViewModel::fijar(const QString& id, const QString& tipo, const QVariantMap& datos) {
+void PantallasViewModel::fijar(const QString& id, const QString& tipo, const QVariantMap& datos) {
     Destino* d = d_->porId(id);
-    if (d == nullptr) return tr("No la encuentro.");
+    if (d == nullptr) return avisarError(tr("No la encuentro."));
     // Un carrusel también se puede dejar fijo, y es el caso principal: «el
     // televisor del hall siempre con esto».
     if (tipo.startsWith("carrusel:")) {
-        if (d_->carrusel(tipo.mid(9)) == nullptr) return tr("No encuentro ese carrusel.");
+        if (d_->carrusel(tipo.mid(9)) == nullptr) return avisarError(tr("No encuentro ese carrusel."));
     } else {
         const Contenido* c = contenidoPorId(tipo);
-        if (c == nullptr) return tr("No sé mostrar «%1».").arg(tipo);
-        if (!c->disponible) return tp(c->porque);
+        if (c == nullptr) return avisarError(tr("No sé mostrar «%1».").arg(tipo));
+        if (!c->disponible) return avisarError(tp(c->porque));
     }
     d->fijadoTipo = tipo;
     d->fijadoDatos = datos;
@@ -729,26 +726,24 @@ QString PantallasViewModel::fijar(const QString& id, const QString& tipo, const 
     return mostrar(id, tipo, datos);
 }
 
-QString PantallasViewModel::fijarLoQueMuestra(const QString& id) {
+void PantallasViewModel::fijarLoQueMuestra(const QString& id) {
     Destino* d = d_->porId(id);
-    if (d == nullptr) return tr("No la encuentro.");
-    if (d->contenido.isEmpty()) return tr("Esta pantalla no está mostrando nada nuestro: mandale algo primero.");
+    if (d == nullptr) return avisarError(tr("No la encuentro."));
+    if (d->contenido.isEmpty()) return avisarError(tr("Esta pantalla no está mostrando nada nuestro: mandale algo primero."));
     d->fijadoTipo = d->contenido;
     d->fijadoDatos = d->ultimosDatos;
     d->fallos = 0;
     d_->guardar();
     emit cambio();
-    return {};
 }
 
-QString PantallasViewModel::desfijar(const QString& id) {
+void PantallasViewModel::desfijar(const QString& id) {
     Destino* d = d_->porId(id);
-    if (d == nullptr) return tr("No la encuentro.");
+    if (d == nullptr) return avisarError(tr("No la encuentro."));
     d->fijadoTipo.clear();
     d->fijadoDatos.clear();
     d_->guardar();
     emit cambio();
-    return {};
 }
 
 // --- Carruseles -----------------------------------------------------------------------
@@ -827,18 +822,18 @@ QString PantallasViewModel::carruselTransicion(const QString& id, const QString&
     return {};
 }
 
-QString PantallasViewModel::pasoAgregar(const QString& carrusel, const QString& tipo,
+bool PantallasViewModel::pasoAgregar(const QString& carrusel, const QString& tipo,
                                         const QVariantMap& datos, int segundos) {
     Carrusel* c = d_->carrusel(carrusel);
-    if (c == nullptr) return tr("No encuentro ese carrusel.");
+    if (c == nullptr) return sinError(tr("No encuentro ese carrusel."));
     const Contenido* con = contenidoPorId(tipo);
-    if (con == nullptr) return tr("No sé mostrar «%1».").arg(tipo);
+    if (con == nullptr) return sinError(tr("No sé mostrar «%1».").arg(tipo));
     // Lo que va en vivo entra con un permiso de UN SOLO USO que acuña el
     // gateway al mandarlo: un paso de carrusel es una URL fija y no lo tiene.
     if (tipo == "programa" || tipo == "escena")
-        return tr("Lo que va en vivo (el programa o una escena) no entra en un carrusel: mandalo directo a la "
-                  "pantalla.");
-    if (!con->disponible) return tp(con->porque);
+        return sinError(tr("Lo que va en vivo (el programa o una escena) no entra en un carrusel: mandalo directo a la "
+                  "pantalla."));
+    if (!con->disponible) return sinError(tp(con->porque));
     Paso p;
     p.tipo = tipo;
     p.datos = datos;
@@ -847,18 +842,17 @@ QString PantallasViewModel::pasoAgregar(const QString& carrusel, const QString& 
     d_->guardar();
     publicarCarrusel(carrusel);
     emit carruselesCambio();
-    return {};
+    return true;
 }
 
-QString PantallasViewModel::pasoQuitar(const QString& carrusel, int indice) {
+void PantallasViewModel::pasoQuitar(const QString& carrusel, int indice) {
     Carrusel* c = d_->carrusel(carrusel);
-    if (c == nullptr) return tr("No encuentro ese carrusel.");
-    if (indice < 0 || indice >= static_cast<int>(c->pasos.size())) return tr("Ese paso no está.");
+    if (c == nullptr) return avisarError(tr("No encuentro ese carrusel."));
+    if (indice < 0 || indice >= static_cast<int>(c->pasos.size())) return avisarError(tr("Ese paso no está."));
     c->pasos.erase(c->pasos.begin() + indice);
     d_->guardar();
     publicarCarrusel(carrusel);
     emit carruselesCambio();
-    return {};
 }
 
 QString PantallasViewModel::pasoMover(const QString& carrusel, int indice, int aIndice) {
@@ -933,20 +927,20 @@ void PantallasViewModel::publicarTally(const QString& aire, const QString& armad
                              transmitiendo, grabando);
 }
 
-QString PantallasViewModel::mostrarCarrusel(const QString& idPantalla, const QString& carrusel) {
+void PantallasViewModel::mostrarCarrusel(const QString& idPantalla, const QString& carrusel) {
     Destino* d = d_->porId(idPantalla);
-    if (d == nullptr) return tr("No encuentro esa pantalla.");
+    if (d == nullptr) return avisarError(tr("No encuentro esa pantalla."));
     const Carrusel* c = d_->carrusel(carrusel);
-    if (c == nullptr) return tr("No encuentro ese carrusel.");
-    if (c->pasos.empty()) return tr("Ese carrusel no tiene ningún paso todavía.");
-    if (d->trabajando) return tr("Esperá: está ocupada con lo anterior.");
-    if (d->puedeMostrar == 0) return tr("%1 no sabe mostrar páginas web.").arg(d->nombre);
+    if (c == nullptr) return avisarError(tr("No encuentro ese carrusel."));
+    if (c->pasos.empty()) return avisarError(tr("Ese carrusel no tiene ningún paso todavía."));
+    if (d->trabajando) return avisarError(tr("Esperá: está ocupada con lo anterior."));
+    if (d->puedeMostrar == 0) return avisarError(tr("%1 no sabe mostrar páginas web.").arg(d->nombre));
     // Primero la lista (con las URLs que ESTE televisor puede alcanzar), y
     // después se lo manda: si fuera al revés, abriría una lista que no está.
     publicar(carrusel, idPantalla);
     const QString ip = ipParaAlcanzar(d_->misIps, d->host);
     if (ip.isEmpty() || d_->puertoWeb <= 0)
-        return tr("Todavía no sé con qué dirección me ve el televisor: probá de nuevo en unos segundos.");
+        return avisarError(tr("Todavía no sé con qué dirección me ve el televisor: probá de nuevo en unos segundos."));
     const QString url = "http://" + ip + ":" + QString::number(d_->puertoWeb) +
                         "/pantalla/carrusel/?id=" + QString::fromUtf8(QUrl::toPercentEncoding(carrusel));
     anotar(diag::Nivel::Info, ba::i18n::llenar(ba::i18n::traducir("pantallas", "a «%1»: carrusel «%2» -> %3"), {d->nombre.toStdString(), c->nombre.toStdString(), url.toStdString()}));
@@ -954,7 +948,6 @@ QString PantallasViewModel::mostrarCarrusel(const QString& idPantalla, const QSt
     d->canalEscena = -1;
     revisarCanales();
     mandarUrl(idPantalla, url, "carrusel:" + carrusel, tr("Carrusel — %1").arg(c->nombre));
-    return {};
 }
 
 // --- El canal de control ---------------------------------------------------------------
@@ -1087,20 +1080,20 @@ void PantallasViewModel::refrescar(const QString& id) {
     }).detach();
 }
 
-QString PantallasViewModel::mostrar(const QString& id, const QString& tipo, const QVariantMap& datos) {
+void PantallasViewModel::mostrar(const QString& id, const QString& tipo, const QVariantMap& datos) {
     Destino* d = d_->porId(id);
-    if (d == nullptr) return tr("No encuentro esa pantalla.");
-    if (d->trabajando) return tr("Esperá: está ocupada con lo anterior.");
+    if (d == nullptr) return avisarError(tr("No encuentro esa pantalla."));
+    if (d->trabajando) return avisarError(tr("Esperá: está ocupada con lo anterior."));
     const Contenido* c = contenidoPorId(tipo);
-    if (c == nullptr) return tr("No sé mostrar «%1».").arg(tipo);
-    if (!c->disponible) return tp(c->porque);
+    if (c == nullptr) return avisarError(tr("No sé mostrar «%1».").arg(tipo));
+    if (!c->disponible) return avisarError(tp(c->porque));
     // Si ya se preguntó y el aparato no sabe abrir páginas, se dice ANTES de
     // abrirle un canal y pisarle lo que esté pasando. (Un parlante sin
     // pantalla contesta el protocolo igual, pero no tiene dónde mostrar.)
     if (d->puedeMostrar == 0)
-        return tr("%1 no sabe mostrar páginas web: contesta el protocolo, pero no tiene dónde "
+        return avisarError(tr("%1 no sabe mostrar páginas web: contesta el protocolo, pero no tiene dónde "
                   "mostrarlas (¿es un parlante?).")
-            .arg(d->nombre);
+            .arg(d->nombre));
     if (tipo != "escena") {
         d->canalEscena = -1;
         revisarCanales();
@@ -1110,7 +1103,7 @@ QString PantallasViewModel::mostrar(const QString& id, const QString& tipo, cons
     // recien despues manda, porque una pantalla con el QR equivocado manda a
     // toda la sala a un lugar que no existe.
     if (tipo == "votacion" && datos.value("clavePublico").toString().isEmpty()) {
-        if (d_->sala == nullptr) return tr("El servidor no está corriendo: sin él no hay urna que mostrar.");
+        if (d_->sala == nullptr) return avisarError(tr("El servidor no está corriendo: sin él no hay urna que mostrar."));
         d->trabajando = true;
         emit cambio();
         d_->sala->enlaces().publico(false, [this, id, datos](const sala::Enlace& e) mutable {
@@ -1128,10 +1121,10 @@ QString PantallasViewModel::mostrar(const QString& id, const QString& tipo, cons
             datos["entrada"] = QString::fromStdString(e.url);
             mostrar(id, "votacion", datos);
         });
-        return {};
+        return;
     }
     if (tipo == "programa") {
-        if (d_->sala == nullptr) return tr("El servidor no está corriendo: sin él no hay programa que mandar.");
+        if (d_->sala == nullptr) return avisarError(tr("El servidor no está corriendo: sin él no hay programa que mandar."));
         d->trabajando = true;
         emit cambio();
         const QString nombre = d->nombre;
@@ -1149,14 +1142,14 @@ QString PantallasViewModel::mostrar(const QString& id, const QString& tipo, cons
             }
             mandarUrl(id, QString::fromStdString(e.url), "programa", tr("Lo que sale al aire"));
         });
-        return {};
+        return;
     }
-    if (tipo == "escena") return mostrarEscena(id, datos.value("escena").toString().trimmed());
+    if (tipo == "escena") return avisarError(mostrarEscena(id, datos.value("escena").toString().trimmed()));
     const QString url = urlDe(tipo, datos, id);
     if (url.isEmpty())
-        return tipo == "url" ? tr("Poné una dirección.")
+        return avisarError(tipo == "url" ? tr("Poné una dirección.")
                              : tr("Todavía no sé con qué dirección me ve el televisor: probá de nuevo en unos "
-                                  "segundos, o fijate que el servidor esté corriendo.");
+                                  "segundos, o fijate que el servidor esté corriendo."));
 
     // Lo legible, para la lista: qué le mandamos, no la URL entera.
     QString que = tp(c->titulo);
@@ -1171,7 +1164,6 @@ QString PantallasViewModel::mostrar(const QString& id, const QString& tipo, cons
     d->ultimosDatos = datos;
     anotar(diag::Nivel::Info, ba::i18n::llenar(ba::i18n::traducir("pantallas", "a «%1» (%2): %3 -> %4"), {d->nombre.toStdString(), d->host.toStdString(), que.toStdString(), url.toStdString()}));
     mandarUrl(id, url, tipo, que);
-    return {};
 }
 
 namespace {

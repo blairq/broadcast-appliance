@@ -1351,6 +1351,19 @@ endif()
     target_link_libraries(test_flanco PRIVATE Qt6::Core)
     set_target_properties(test_flanco PROPERTIES BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_flanco COMMAND test_flanco)
+    # El nombre del evento abierto: el del vínculo {evento.nombre} de los gráficos.
+    add_executable(test_evento_abierto tests/test_evento_abierto.cpp ui/EventoAbierto.cpp evento/EventoStore.cpp
+                   evento/Evento.cpp evento/Linea.cpp evento/LineaEdicion.cpp evento/Condicion.cpp)
+    target_include_directories(test_evento_abierto PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    target_link_libraries(test_evento_abierto PRIVATE ba_core Qt6::Core nlohmann_json::nlohmann_json)
+    set_target_properties(test_evento_abierto PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
+    add_test(NAME test_evento_abierto COMMAND test_evento_abierto)
+    # Un solo contrato de errores: las acciones avisan; el MCP y las pruebas los capturan.
+    add_executable(test_captura_error tests/test_captura_error.cpp ui/CapturaError.hpp)
+    target_include_directories(test_captura_error PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    target_link_libraries(test_captura_error PRIVATE Qt6::Core)
+    set_target_properties(test_captura_error PROPERTIES BUILD_RPATH "${BA_QT_PREFIX}/lib")
+    add_test(NAME test_captura_error COMMAND test_captura_error)
     # El control web (dashboard /control/): emparejar, perfiles, llamar, confirmar y mirar
     # contra un McpCore de prueba (docs/planes/PLAN-WEB-CONTROL.md §2).
     add_executable(test_control_web tests/test_control_web.cpp control/ControlWeb.cpp control/ControlWeb.hpp

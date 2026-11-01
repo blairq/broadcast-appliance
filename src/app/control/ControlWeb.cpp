@@ -858,8 +858,8 @@ void ControlWeb::salidasCambiaron() {
 
 QVariantList ControlWeb::salidasUi() const { return aQv(g_.salidas ? g_.salidas() : json::array()).toList(); }
 
-QString ControlWeb::salidaUi(const QString& aparato, const QString& salida) {
-    return QString::fromStdString(setSalida(aparato.toStdString(), salida.toStdString()));
+void ControlWeb::salidaUi(const QString& aparato, const QString& salida) {
+    avisarError(QString::fromStdString(setSalida(aparato.toStdString(), salida.toStdString())));
 }
 
 QVariantList ControlWeb::aparatosUi() const {
@@ -883,9 +883,9 @@ QVariantList ControlWeb::solicitudesUi() const {
     return out;
 }
 
-QString ControlWeb::aprobarUi(const QString& sol, bool aprobar, const QString& categorias) {
+void ControlWeb::aprobarUi(const QString& sol, bool aprobar, const QString& categorias) {
     const json r = resolverSolicitud(sol.toStdString(), aprobar, categorias.trimmed().isEmpty() ? json() : perfilDeTexto(categorias), true);
-    return QString::fromStdString(textoDe(r, "error"));
+    avisarError(QString::fromStdString(textoDe(r, "error")));
 }
 
 QString ControlWeb::perfilUi(const QString& aparato, const QString& categorias) {

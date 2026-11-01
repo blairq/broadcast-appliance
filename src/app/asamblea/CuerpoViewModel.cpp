@@ -143,7 +143,7 @@ void CuerpoViewModel::setNombre(const QString& n) {
     c_->setNombre(n.trimmed().toStdString());
 }
 
-QString CuerpoViewModel::guardar(const QVariantMap& campos) {
+void CuerpoViewModel::guardar(const QVariantMap& campos) {
     nlohmann::json j = deMapa(campos);
     // La cámara y el preset vienen sueltos de la tabla.
     if (j.contains("camara")) {
@@ -154,12 +154,11 @@ QString CuerpoViewModel::guardar(const QVariantMap& campos) {
     if (j.contains("microfono") && j["microfono"].is_string())
         j["microfono"] = {{"fuente", j["microfono"].get<std::string>()}};
     std::string err;
-    if (c_->guardar(j, &err).empty()) return QString::fromStdString(err);
-    return {};
+    if (c_->guardar(j, &err).empty()) return avisarError(QString::fromStdString(err));
 }
 
-QString CuerpoViewModel::setToma(const QString& banca, const QString& camara, const QString& posicion) {
-    return QString::fromStdString(c_->setToma(banca.toStdString(), camara.toStdString(), posicion.toStdString()));
+void CuerpoViewModel::setToma(const QString& banca, const QString& camara, const QString& posicion) {
+    avisarError(QString::fromStdString(c_->setToma(banca.toStdString(), camara.toStdString(), posicion.toStdString())));
 }
 
 bool CuerpoViewModel::borrar(const QString& id) {

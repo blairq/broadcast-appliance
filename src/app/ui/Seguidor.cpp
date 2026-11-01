@@ -115,11 +115,11 @@ void Seguidor::analizar(const QString& entrada) {
 #endif
 }
 
-QString Seguidor::seguir(const QString& entrada, const QVariantMap& objetivo) {
+void Seguidor::seguir(const QString& entrada, const QVariantMap& objetivo) {
 #if BA_HAVE_ROSTROS
-    if (!personas_ || !camaras_ || !grafos_) return tr("El seguimiento no está disponible");
+    if (!personas_ || !camaras_ || !grafos_) return avisarError(tr("El seguimiento no está disponible"));
     if (camaras_->modoActivo(entrada).isEmpty())
-        return tr("«%1» no tiene PTZ: prendé el digital o configurá su motor").arg(entrada);
+        return avisarError(tr("«%1» no tiene PTZ: prendé el digital o configurá su motor").arg(entrada));
     QString obj;
     if (!objetivo.value("id").toString().isEmpty())
         obj = "persona:" + objetivo.value("id").toString();
@@ -147,15 +147,15 @@ QString Seguidor::seguir(const QString& entrada, const QVariantMap& objetivo) {
         return g.configurarSeguir(e, o);
     });
     emit cambio();
-    return {};
+    return;
 #else
     Q_UNUSED(entrada);
     Q_UNUSED(objetivo);
-    return tr("Este programa se armó sin reconocimiento de rostros");
+    return avisarError(tr("Este programa se armó sin reconocimiento de rostros"));
 #endif
 }
 
-QString Seguidor::seguirPunto(const QString& entrada, double u, double v) {
+void Seguidor::seguirPunto(const QString& entrada, double u, double v) {
     // De lo que se VE (después del PTZ digital) a la toma entera.
     double x = u, y = v;
     if (camaras_) {
@@ -164,7 +164,7 @@ QString Seguidor::seguirPunto(const QString& entrada, double u, double v) {
         x = p.value("x", 0.5).toDouble() - 0.5 / z + u / z;
         y = p.value("y", 0.5).toDouble() - 0.5 / z + v / z;
     }
-    return seguir(entrada, QVariantMap{{"x", std::clamp(x, 0.0, 1.0)}, {"y", std::clamp(y, 0.0, 1.0)}});
+    seguir(entrada, QVariantMap{{"x", std::clamp(x, 0.0, 1.0)}, {"y", std::clamp(y, 0.0, 1.0)}});
 }
 
 void Seguidor::dejar(const QString& entrada) {

@@ -54,6 +54,7 @@
 #include <nlohmann/json.hpp>
 
 #include "comun/UsoPorVistas.hpp"
+#include "ui/CapturaError.hpp"
 
 namespace ba::app {
 
@@ -62,6 +63,17 @@ class EventoViewModel;
 
 class PrompterViewModel : public QObject {
     Q_OBJECT
+    /// El error de una acción de la interfaz (las Q_INVOKABLE void): a quien mira.
+    void avisarError(const QString& e) {
+        if (!e.isEmpty() && !::ba::app::CapturaError::tomar(e)) emit notify(e, "error");
+    }
+    void avisarError(const std::string& e) { avisarError(QString::fromStdString(e)); }
+    /// Para las acciones que dicen si se hicieron: el error a quien mira y true si no hubo.
+    bool sinError(const QString& e) {
+        avisarError(e);
+        return e.isEmpty();
+    }
+    bool sinError(const std::string& e) { return sinError(QString::fromStdString(e)); }
     // --- Documentos ----------------------------------------------------------
     /// Las carpetas que hay dentro de Discursos/ ("" es la raíz), ordenadas.
     Q_PROPERTY(QStringList carpetas READ carpetas NOTIFY documentosCambio)
@@ -147,33 +159,33 @@ class PrompterViewModel : public QObject {
     /// Escribe en el editor (no toca el disco).
     Q_INVOKABLE void editar(const QString& texto);
     /// Guarda lo del editor. Devuelve el error, o vacío si salió bien.
-    Q_INVOKABLE QString guardar();
+    Q_INVOKABLE bool guardar();
     /// Escribe un documento POR SU RUTA (crea las carpetas que falten y lo
     /// pisa si existía). `crear` es otra cosa: toma un nombre suelto para la
     /// carpeta que se está mirando, y le saca las barras.
     Q_INVOKABLE QString escribirDoc(const QString& rel, const QString& texto);
     /// Crea un documento vacío en la carpeta que se está mirando y lo abre.
-    Q_INVOKABLE QString crear(const QString& nombre);
-    Q_INVOKABLE QString crearCarpeta(const QString& nombre);
-    Q_INVOKABLE QString renombrar(const QString& rel, const QString& nombre);
+    Q_INVOKABLE void crear(const QString& nombre);
+    Q_INVOKABLE void crearCarpeta(const QString& nombre);
+    Q_INVOKABLE void renombrar(const QString& rel, const QString& nombre);
     /// Mueve un documento a otra carpeta ("" es la raíz).
-    Q_INVOKABLE QString mover(const QString& rel, const QString& aCarpeta);
-    Q_INVOKABLE QString borrar(const QString& rel);
+    Q_INVOKABLE void mover(const QString& rel, const QString& aCarpeta);
+    Q_INVOKABLE void borrar(const QString& rel);
 
     // --- Cuál -----------------------------------------------------------------
     /// Uno nuevo con ese nombre (queda elegido): {id} o {error}.
     Q_INVOKABLE QVariantMap agregarPrompter(const QString& nombre);
-    /// Lo saca (el principal no). "" o el error.
-    Q_INVOKABLE QString quitarPrompter(const QString& id);
-    Q_INVOKABLE QString renombrarPrompter(const QString& id, const QString& nombre);
+    /// Lo saca (el principal no). El error va por la señal del modelo.
+    Q_INVOKABLE void quitarPrompter(const QString& id);
+    Q_INVOKABLE void renombrarPrompter(const QString& id, const QString& nombre);
     /// ¿Existe en el evento?
     bool hayPrompter(const QString& id) const;
 
     // --- El teleprompter -----------------------------------------------------
     /// Manda un documento al teleprompter elegido. Queda LISTO pero parado.
-    Q_INVOKABLE QString cargar(const QString& rel);
+    Q_INVOKABLE bool cargar(const QString& rel);
     /// Manda lo que hay en el editor, sin pasar por el disco (para probar).
-    Q_INVOKABLE QString cargarDelEditor();
+    Q_INVOKABLE bool cargarDelEditor();
     Q_INVOKABLE void arrancar(bool si);
     Q_INVOKABLE void setPpm(int ppm);
     Q_INVOKABLE void setTamano(int t);

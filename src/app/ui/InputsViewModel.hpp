@@ -146,7 +146,9 @@ class InputsViewModel : public QObject {
     QVariantList audioInputs_;
     dispositivos::Dispositivos* dd_ = nullptr;
     int stamp_ = 0;
+    /// "" la página de entradas (con las miniaturas); "dispositivos" solo la lista de la máquina.
     UsoPorVistas vistas_{this, [this](const QString&) { alCambiarVistas(); }};
+    bool buscando_ = false; ///< ya se buscó para los que miran ahora
     void alCambiarVistas();
     std::set<std::string> held_;
     QTimer tick_;

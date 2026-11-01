@@ -42,6 +42,7 @@
 #include "evento/Corrida.hpp"
 #include "evento/Evento.hpp"
 #include "evento/LineaEdicion.hpp"
+#include "ui/CapturaError.hpp"
 
 namespace ba::app {
 class AppRuntime;
@@ -76,6 +77,11 @@ class Playlist;
 
 class CorridaViewModel : public QObject {
     Q_OBJECT
+    /// El error de una acción de la interfaz (las Q_INVOKABLE void): a quien mira.
+    void avisarError(const QString& e) {
+        if (!e.isEmpty() && !::ba::app::CapturaError::tomar(e)) emit notify(e, "error");
+    }
+    void avisarError(const std::string& e) { avisarError(QString::fromStdString(e)); }
     /// "parado" | "corriendo" | "pausado" | "terminado"
     Q_PROPERTY(QString estado READ estado NOTIFY correChanged)
     Q_PROPERTY(bool ensayo READ ensayo WRITE setEnsayo NOTIFY correChanged)
@@ -85,11 +91,10 @@ class CorridaViewModel : public QObject {
     Q_PROPERTY(bool guionCorriendo READ guionCorriendo NOTIFY correChanged)
     Q_PROPERTY(QVariantMap actual READ actual NOTIFY correChanged)
     Q_PROPERTY(QVariantMap siguiente READ siguiente NOTIFY correChanged)
-    /// {desvioSeg, enCueSeg, restanteSeg, cueNro, cuesTotal, …}: el reloj, que cambia cada
-    /// segundo (aparte para no redibujar el guion entero).
-    Q_PROPERTY(QVariantMap reloj READ reloj NOTIFY relojChanged)
-    /// El aviso «entra solo en 0:05» (los últimos 5 s); 0 = no hay aviso.
-    Q_PROPERTY(int entraSoloEnSeg READ entraSoloEnSeg NOTIFY relojChanged)
+    /// Lo que el reloj necesita y no cambia mientras nada cambie (el cue, la pausa, lo
+    /// previsto): con la hora, `relojEn` da el reloj. La vista lo calcula con el Reloj de las
+    /// vistas (un solo reloj para toda la interfaz); el modelo avisa solo los cambios de estado.
+    Q_PROPERTY(QVariantMap marcasReloj READ marcasReloj NOTIFY relojChanged)
     /// HOLD: el paso al aire no se va solo aunque se cumpla su duración.
     Q_PROPERTY(bool hold READ hold WRITE setHold NOTIFY correChanged)
     /// Tras un corte de luz: {activa, pideDescripcion, descripcion, resumen}.
@@ -137,7 +142,13 @@ class CorridaViewModel : public QObject {
     bool guionCorriendo() const;
     QVariantMap actual() const;
     QVariantMap siguiente() const;
+    /// {desvioSeg, enCueSeg, restanteSeg, cueNro, cuesTotal, …} ahora (el MCP y el bus), más
+    /// lo del avance automático (entraSoloEnSeg, hold, retoma).
     QVariantMap reloj() const;
+    QVariantMap marcasReloj() const;
+    /// El reloj con las marcas y la hora (ms): una sola cuenta para la vista, el MCP y el bus.
+    /// Lo pausado no cuenta (lo resuelve el modelo en las marcas).
+    Q_INVOKABLE static QVariantMap relojEn(const QVariantMap& marcas, double ahoraMs);
     int entraSoloEnSeg() const;
     bool hold() const;
     QVariantMap retoma() const;
@@ -196,7 +207,7 @@ class CorridaViewModel : public QObject {
     /// «Seguir como estaba»: suelta el HOLD del corte sin cambiar nada.
     Q_INVOKABLE void seguirComoEstaba();
     /// Lo grabado pasa a la línea (con su revisión para deshacer). "" o por qué no.
-    Q_INVOKABLE QString aplicarTiemposGrabados();
+    Q_INVOKABLE void aplicarTiemposGrabados();
     Q_INVOKABLE void descartarTiemposGrabados();
     Q_INVOKABLE void pulsar(const QString& clave) { avisar(lineaPulso(clave.toStdString())); }
     Q_INVOKABLE void reenganchar(const QString& salida) { avisar(lineaReenganchar(salida.toStdString())); }
@@ -353,7 +364,7 @@ class CorridaViewModel : public QObject {
     bool grabar_ = false;
     nlohmann::json grabado_;
     QVariantList bitacora_;
-    QTimer reloj_;
+    QTimer reloj_; ///< cada segundo, corriendo: el estado vivo al documento de aire (escribirVivo)
     int revision_ = -1; ///< la última de Respaldos/linea-<n>.json (-1: sin leer todavía)
 
     std::map<std::string, std::vector<std::pair<std::uint64_t, int>>> alAvanzar_; ///< por salida

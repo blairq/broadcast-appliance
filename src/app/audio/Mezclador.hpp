@@ -33,6 +33,7 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include "ui/CapturaError.hpp"
 
 namespace ba::app {
 class AppRuntime;
@@ -47,6 +48,11 @@ class RackManager;
 
 class Mezclador : public QObject {
     Q_OBJECT
+    /// El error de una acción de la interfaz (las Q_INVOKABLE void): a quien mira.
+    void avisarError(const QString& e) {
+        if (!e.isEmpty() && !::ba::app::CapturaError::tomar(e)) emit notify(e, "error");
+    }
+    void avisarError(const std::string& e) { avisarError(QString::fromStdString(e)); }
     /// Las entradas con audio, en orden: [{nombre}].
     Q_PROPERTY(QStringList entradas READ entradas NOTIFY listasCambio)
     /// Las salidas (columnas de la matriz): [{id, nombre, tipo}] (tipo: pista, escucha, fisica, salida, entrada).
@@ -105,7 +111,7 @@ class Mezclador : public QObject {
     QVariantList analisisLsp() const;
     /// Abre sobre la entrada el analizador de LSP `cual` (espectro, fase,
     /// osciloscopio, latencia, perfil) con su interfaz. "" si salió; si no, el motivo.
-    Q_INVOKABLE QString abrirAnalisisLsp(const QString& entrada, const QString& cual);
+    Q_INVOKABLE void abrirAnalisisLsp(const QString& entrada, const QString& cual);
     void setRacks(RackManager* r);
     QString pestana() const { return pestana_; }
     void setPestana(const QString& p);
@@ -124,6 +130,8 @@ class Mezclador : public QObject {
     void medirYa();
 
    signals:
+    /// Para el operador (ya traducido): los errores de las acciones de la interfaz.
+    void notify(const QString& texto, const QString& tipo);
     void listasCambio();
     void tirasCambio();
     void loudnessCambio();

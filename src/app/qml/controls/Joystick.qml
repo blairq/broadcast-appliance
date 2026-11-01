@@ -56,7 +56,7 @@ Rectangle {
             pad.px = Math.abs(dx) < 0.08 ? 0 : dx
             pad.py = Math.abs(dy) < 0.08 ? 0 : dy
         }
-        onPressed: (m) => { leer(m); pad.aviso(pad.cc.mover(pad.entrada, pad.px * pad.velocidad, pad.py * pad.velocidad, 0)) }
+        onPressed: (m) => { leer(m); pad.cc.mover(pad.entrada, pad.px * pad.velocidad, pad.py * pad.velocidad, 0) }
         onPositionChanged: (m) => leer(m)
         onReleased: { pad.px = 0; pad.py = 0; pad.cc.parar(pad.entrada) }
         onCanceled: { pad.px = 0; pad.py = 0; pad.cc.parar(pad.entrada) }

@@ -361,13 +361,12 @@ QString rutaLocal(const QString& r) {
 }
 } // namespace
 
-QString InformeEventoViewModel::exportarEscaleta(const QString& formato, const QString& rutaOUrl) {
-    if (!ab_.hay()) return QCoreApplication::translate("EventoViewModel", "No hay un evento abierto.");
+void InformeEventoViewModel::exportarEscaleta(const QString& formato, const QString& rutaOUrl) {
+    if (!ab_.hay()) return avisarError(QCoreApplication::translate("EventoViewModel", "No hay un evento abierto."));
     const QString ruta = rutaLocal(rutaOUrl);
     QFile f(ruta);
-    if (!f.open(QIODevice::WriteOnly | QIODevice::Truncate)) return QCoreApplication::translate("EventoViewModel", "No se pudo escribir «%1».").arg(ruta);
+    if (!f.open(QIODevice::WriteOnly | QIODevice::Truncate)) return avisarError(QCoreApplication::translate("EventoViewModel", "No se pudo escribir «%1».").arg(ruta));
     f.write(QByteArray::fromStdString(lineaExportar(formato.toStdString())));
-    return {};
 }
 
 QVariantMap InformeEventoViewModel::importarEscaleta(const QString& rutaOUrl, bool probar) {

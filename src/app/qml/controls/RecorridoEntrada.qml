@@ -59,7 +59,7 @@ Rectangle {
                 icon: "▶"
                 active: true
                 enabled: !r.midiendo
-                onClicked: { const e = r.tm.analizarEntradaUi(r.entrada, 5); if (e) Studio.notify(e, "error") }
+                onClicked: { r.tm.analizarEntradaUi(r.entrada, 5) }
             }
             GlassButton { compact: true; text: "✕"; onClicked: r.cerrar() }
         }

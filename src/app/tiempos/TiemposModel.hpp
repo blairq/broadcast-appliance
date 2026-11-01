@@ -23,11 +23,17 @@
 #include <map>
 #include <string>
 #include <thread>
+#include "ui/CapturaError.hpp"
 
 namespace ba::app::tiempos {
 
 class TiemposModel : public QObject {
     Q_OBJECT
+    /// El error de una acción de la interfaz (las Q_INVOKABLE void): a quien mira.
+    void avisarError(const QString& e) {
+        if (!e.isEmpty() && !::ba::app::CapturaError::tomar(e)) emit notify(e, "error");
+    }
+    void avisarError(const std::string& e) { avisarError(QString::fromStdString(e)); }
     Q_PROPERTY(QVariantMap mapa READ mapa NOTIFY cambio)
     /// Alguna vista lo usa (usar): mide 5 veces por segundo.
     Q_PROPERTY(bool activo READ activo NOTIFY activoCambio)
@@ -110,10 +116,10 @@ class TiemposModel : public QObject {
     /// `entradas` vacío = todas las del motor.
     QString analizar(int segundos, std::function<void(const nlohmann::json&)> listo = {},
                      std::vector<std::string> entradas = {});
-    Q_INVOKABLE QString analizarUi(int segundos) { return analizar(segundos); }
+    Q_INVOKABLE void analizarUi(int segundos) { avisarError(analizar(segundos)); }
     /// Analizar solo una entrada (tocando su tarjeta).
-    Q_INVOKABLE QString analizarEntradaUi(const QString& entrada, int segundos) {
-        return analizar(segundos, {}, {entrada.toStdString()});
+    Q_INVOKABLE void analizarEntradaUi(const QString& entrada, int segundos) {
+        avisarError(analizar(segundos, {}, {entrada.toStdString()}));
     }
     /// El último análisis por elemento de una entrada, para leerlo (el MCP): {entrada, t_ms,
     /// hace_s, segundos, rearmada, resumen, hallazgos, tarjetas: [{id, titulo, ms,
@@ -129,6 +135,8 @@ class TiemposModel : public QObject {
     static constexpr int kHistoriaLargaS = 30 * 60;
 
    signals:
+    /// Para el operador (ya traducido): los errores de las acciones de la interfaz.
+    void notify(const QString& texto, const QString& tipo);
     void cambio();
     void activoCambio();
     void analisisCambio();

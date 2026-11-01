@@ -63,6 +63,7 @@
 #include "ui/ListModels.hpp"
 #include "ui/MediosViewModel.hpp"
 #include "ui/OperatorMessages.hpp"
+#include "pantallas/Monitores.hpp"
 #include "ui/PantallasViewModel.hpp"
 #include "ui/PdfEscena.hpp"
 #include "ui/PersonasViewModel.hpp"
@@ -341,6 +342,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, VentanillaMotor& ventanilla, QO
     marca("qr");
     // El tema del evento abierto: lo publica al gateway para todas las páginas web.
     temaEvento_ = std::make_unique<TemaEventoViewModel>(*evento_, *conference_);
+    connect(temaEvento_.get(), &TemaEventoViewModel::notify, this, &StudioViewModel::notify);
     // Las claves de las superficies (los QR del público, el teleprompter…) son del evento.
     clavesEvento_ = std::make_unique<sala::ClavesEvento>(conference_->client(),
                                                          [this]() { return evento_->eventoAbierto().dir(); });
@@ -524,6 +526,10 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, VentanillaMotor& ventanilla, QO
         // Cada disparo, al bus (lo ve el control web).
         alarmas_->setPublicar([this](const std::string& tema, const nlohmann::json& d) { bus_->publicar(tema, d, true); });
         bus_->setMediciones(control::BusEventos::medicionesDeFabrica());
+        // La transmisión y la grabación, al bus cuando cambian (y cada segundo mientras salen).
+        for (auto senal : {&EstadoAireViewModel::aireChanged, &EstadoAireViewModel::estadisticasChanged, &EstadoAireViewModel::segundo})
+            connect(aire_.get(), senal, this, &StudioViewModel::publicarAire);
+        publicarAire();
         // La bitácora del evento en curso y el histórico (ui/BitacoraEvento).
         if (evento_) {
             bitacoraEvento_ = std::make_unique<BitacoraEvento>(rt_, ventanilla_, *evento_, *bus_);
@@ -572,6 +578,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, VentanillaMotor& ventanilla, QO
             });
         });
         notificador_ = std::make_unique<agent::Notificador>(rt.dataRoot());
+        connect(notificador_.get(), &agent::Notificador::notify, this, &StudioViewModel::notify);
         // La interfaz trabada con aire: la detecta el latido en su hilo y la lleva
         // AvisoFueraDeUi en el suyo (esta vista, la que se traba, no interviene).
         avisoFueraDeUi_ = std::make_unique<AvisoFueraDeUi>(rt.dataRoot());
@@ -656,6 +663,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, VentanillaMotor& ventanilla, QO
         .tablero = dashboard_.get(),
         .pantallas = pantallas_.get(),
         .totems = [this]() { return totems_ ? totems_->paraElegir() : QVariantList{}; }});
+    connect(&escritorio_->monitoresModelo(), &MonitoresModel::notify, this, &StudioViewModel::notify);
     connect(this, &StudioViewModel::escenasCambiaron, escritorio_.get(), &EscritorioViewModel::refrescarCatalogo);
     marca("ventanas");
     escritorio_->refrescarCatalogo();
@@ -679,6 +687,8 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, VentanillaMotor& ventanilla, QO
     configuraciones()->setAlAire([this]() { return alAire(); });
     // Los plugins de Python: en los datos (Plugins/), con el Python del programa.
     plugins_ = std::make_unique<plugins::Plugins>(rt, &imagen_->videoVm(), &imagen_->camaras(), &asistente_->mensajes());
+    // Lo que avisa (también los errores de sus acciones): al operador, con la página abierta o no.
+    connect(plugins_.get(), &plugins::Plugins::aviso, this, [this](const QString& t, bool ok) { emit notify(t, ok ? "info" : "error"); });
     // Las cámaras para elegir en la configuración de un plugin: las de Entradas.
     plugins_->setOpcionesDispositivo([this] { return inputs_->devices(); });
     // Plugins <-> bus de eventos: lo que publican va al bus (plugin/<id>/<canal>)
@@ -741,18 +751,21 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, VentanillaMotor& ventanilla, QO
     connect(control_.get(), &ControlViewModel::dskCambio, this, &StudioViewModel::publicarTally);
     control_->dsk().setSalida(salidas_->activaId());
     linea_ = std::make_unique<LineaViewModel>(*evento_, rt_, ventanilla_, frames_.get(), &control_->acciones(), bus_.get());
+    connect(linea_.get(), &LineaViewModel::notify, this, &StudioViewModel::notify);
     // La grilla de personas (fuentes ba_grilla): la gente de la sala y de la asamblea,
     // repartida en las grillas; el mosaico lo pinta el gateway (BA.Grilla.<k>).
     grillasPersonas_ = std::make_unique<escenas::ControlGrillas>(
         escenas::ControlGrillas::Partes{conference_->client(), ventanilla_, asamblea_->sesionRemota(),
                                         &asamblea_->cuerpo().cuerpo()},
         this);
+    connect(grillasPersonas_.get(), &escenas::ControlGrillas::notify, this, &StudioViewModel::notify);
     marca("plugins");
     // Los equipos (red, esta máquina, USB): un catálogo con acciones declaradas, y
     // el registro de los dispositivos de audio y video con el nombre del operador
     // (de la MÁQUINA, no del evento: <datos>/Config/dispositivos.json).
     dispositivos_ = std::make_unique<dispositivos::Dispositivos>(ba::platform::dataRoot() / "Config" /
                                                                  "dispositivos.json");
+    connect(dispositivos_.get(), &dispositivos::Dispositivos::notify, this, &StudioViewModel::notify);
     marca("dispositivos");
     dispositivos::registrarTodo(*dispositivos_, {&imagen_->red(), plugins_.get(), &imagen_->videoVm(), &imagen_->camaras(),
                                                  &asistente_->mensajes(), &rt, inputs_.get()});
@@ -812,6 +825,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, VentanillaMotor& ventanilla, QO
         // La API remota, el Satellite, el control web y los pedidos de cada aparato.
         control_->alimentarEnlaces(f);
         enlaces_ = std::make_unique<EnlacesViewModel>(std::move(f));
+        connect(enlaces_.get(), &EnlacesViewModel::notify, this, &StudioViewModel::notify);
         auto* e = enlaces_.get();
         const auto avisar = [e]() { e->avisarCambio(); };
         sala_->avisarA(*e);
@@ -1353,6 +1367,20 @@ QObject* StudioViewModel::ccQml() const { return asistente_->ccQml(); }
 
 QObject* StudioViewModel::busQml() const { return bus_.get(); }
 
+void StudioViewModel::publicarAire() {
+    if (!bus_) return;
+    // Cuando cambia el aire o sus estadísticas, y una vez por segundo mientras algo sale
+    // (EstadoAire::segundo: los tiempos y los kbps).
+    const EstadoAireViewModel& a = *aire_;
+    bus_->publicar("salida/stream", {{"activo", a.streaming()},
+                                     {"reconectando", a.reconnecting()},
+                                     {"problema", a.outputProblem().toStdString()},
+                                     {"kbps", a.streamKbps()},
+                                     {"tiempo", a.streamTime().toStdString()},
+                                     {"descartados", a.droppedFrames()}});
+    bus_->publicar("salida/grabacion", {{"activo", a.recording()}, {"tiempo", a.recordTime().toStdString()}});
+}
+
 void StudioViewModel::publicarEventos() {
     if (!bus_) return;
     // Volviendo de una caída (cuánto tardó el aire en volver) y el modo en vivo que cambia.
@@ -1362,25 +1390,8 @@ void StudioViewModel::publicarEventos() {
     // T-bar, las capas y la mezcla de cada una), al bus y al multiview.
     const EstadoAireViewModel& a = *aire_;
     salidas_->publicarEnBus(*bus_, *mixer_, control_->dsk(), a.streaming(), a.recording());
-    // Los tiempos cambian cada segundo: se publican una vez por segundo.
+    // (La transmisión y la grabación las publica publicarAire, cuando EstadoAire avisa.)
     const bool segundo = busTicks_ % 10 == 0;
-    nlohmann::json stream{{"activo", a.streaming()},
-                          {"reconectando", a.reconnecting()},
-                          {"problema", a.outputProblem().toStdString()}};
-    nlohmann::json grab{{"activo", a.recording()}};
-    if (segundo || !a.streaming()) {
-        stream["kbps"] = a.streamKbps();
-        stream["tiempo"] = a.streamTime().toStdString();
-        stream["descartados"] = a.droppedFrames();
-    } else if (const auto u = bus_->ultimo("salida/stream"); u.is_object()) {
-        for (const char* k : {"kbps", "tiempo", "descartados"})
-            if (u["valor"].contains(k)) stream[k] = u["valor"][k];
-    }
-    if (segundo || !a.recording()) grab["tiempo"] = a.recordTime().toStdString();
-    else if (const auto u = bus_->ultimo("salida/grabacion"); u.is_object() && u["valor"].contains("tiempo"))
-        grab["tiempo"] = u["valor"]["tiempo"];
-    bus_->publicar("salida/stream", stream);
-    bus_->publicar("salida/grabacion", grab);
     // Niveles: solo si se movieron 1 dB o más (o cambió el volumen o el mudo). El fader y
     // el mudo de la por omisión (el mezclador muestra el de la activa: no es lo mismo).
     for (int i = 0; i < mixer_->rowCount(); ++i)

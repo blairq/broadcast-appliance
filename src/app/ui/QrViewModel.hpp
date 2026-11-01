@@ -29,6 +29,7 @@
 #include <QString>
 #include <QVariantList>
 #include <QVariantMap>
+#include "ui/CapturaError.hpp"
 
 namespace ba::app {
 
@@ -38,6 +39,20 @@ class EventoViewModel;
 
 class QrViewModel : public QObject {
     Q_OBJECT
+    /// Los QR que se pueden poner en una fuente o una pantalla: [{value, label}] (los del
+    /// aparato, los tótems y la biblioteca). Cambian con la biblioteca.
+    Q_PROPERTY(QVariantList paraElegir READ paraElegir NOTIFY bibliotecaCambio)
+    /// El error de una acción de la interfaz (las Q_INVOKABLE void): a quien mira.
+    void avisarError(const QString& e) {
+        if (!e.isEmpty() && !::ba::app::CapturaError::tomar(e)) emit notify(e, "error");
+    }
+    void avisarError(const std::string& e) { avisarError(QString::fromStdString(e)); }
+    /// Para las acciones que dicen si se hicieron: el error a quien mira y true si no hubo.
+    bool sinError(const QString& e) {
+        avisarError(e);
+        return e.isEmpty();
+    }
+    bool sinError(const std::string& e) { return sinError(QString::fromStdString(e)); }
     /// Los códigos guardados del ámbito que se está mirando:
     /// [{id, nombre, tipo, tipoTitulo, resumen}].
     Q_PROPERTY(QVariantList codigos READ codigos NOTIFY bibliotecaCambio)
@@ -97,10 +112,10 @@ class QrViewModel : public QObject {
     /// Empieza uno nuevo (no lo guarda hasta que se le ponga nombre).
     Q_INVOKABLE void nuevo(const QString& tipo);
     Q_INVOKABLE void abrir(const QString& id);
-    Q_INVOKABLE QString guardar(const QString& nombre);
-    Q_INVOKABLE QString borrar(const QString& id);
+    Q_INVOKABLE bool guardar(const QString& nombre);
+    Q_INVOKABLE void borrar(const QString& id);
     /// Lo copia al otro ámbito (del evento a la biblioteca general o al revés).
-    Q_INVOKABLE QString copiarA(const QString& id, const QString& ambito);
+    Q_INVOKABLE void copiarA(const QString& id, const QString& ambito);
 
     // --- El editor ------------------------------------------------------------
     Q_INVOKABLE void setTipo(const QString& tipo);
@@ -143,7 +158,7 @@ class QrViewModel : public QObject {
     // «aparato:sala», «aparato:prompter», «aparato:rotulos»; después los guardados (su id).
     /// Y los de los tótems de registro del evento («registro:<id>»).
     /// [{value, label}] en ese orden.
-    Q_INVOKABLE QVariantList paraElegir() const;
+    QVariantList paraElegir() const;
     /// De dónde salen los tótems de registro: [{id, nombre, url}] (lo pone StudioViewModel).
     void setTotems(std::function<QVariantList()> f);
     /// Lo de `paraProyectar` para lo elegido (un id o «aparato:x»). Un QR del aparato que

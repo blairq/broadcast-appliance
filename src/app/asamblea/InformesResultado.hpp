@@ -21,11 +21,23 @@
 #include <filesystem>
 #include <functional>
 #include <string>
+#include "ui/CapturaError.hpp"
 
 namespace ba::app::asamblea {
 
 class InformesResultado : public QObject {
     Q_OBJECT
+    /// El error de una acción de la interfaz (las Q_INVOKABLE void): a quien mira.
+    void avisarError(const QString& e) {
+        if (!e.isEmpty() && !::ba::app::CapturaError::tomar(e)) emit notify(e, "error");
+    }
+    void avisarError(const std::string& e) { avisarError(QString::fromStdString(e)); }
+    /// Para las acciones que dicen si se hicieron: el error a quien mira y true si no hubo.
+    bool sinError(const QString& e) {
+        avisarError(e);
+        return e.isEmpty();
+    }
+    bool sinError(const std::string& e) { return sinError(QString::fromStdString(e)); }
     /// [{id, nombre}]
     Q_PROPERTY(QVariantList plantillas READ plantillasUi NOTIFY cambio)
     /// [{campo, que}]: lo que se puede poner en una plantilla.
@@ -61,13 +73,15 @@ class InformesResultado : public QObject {
     Q_INVOKABLE QString textoUi(const QString& id) const { return QString::fromStdString(texto(id.toStdString())); }
     /// {id} o {error}.
     Q_INVOKABLE QVariantMap crearUi(const QString& nombre);
-    Q_INVOKABLE QString guardarUi(const QString& id, const QString& texto, const QString& nombre);
-    Q_INVOKABLE QString quitarUi(const QString& id) { return QString::fromStdString(quitar(id.toStdString())); }
+    Q_INVOKABLE bool guardarUi(const QString& id, const QString& texto, const QString& nombre);
+    Q_INVOKABLE void quitarUi(const QString& id) { avisarError(QString::fromStdString(quitar(id.toStdString()))); }
     Q_INVOKABLE QString vistaUi(const QString& id) const { return QString::fromStdString(vista(id.toStdString())); }
     /// {archivo} o {error}.
     Q_INVOKABLE QVariantMap generarUi(const QString& id);
 
    signals:
+    /// Para el operador (ya traducido): los errores de las acciones de la interfaz.
+    void notify(const QString& texto, const QString& tipo);
     void cambio();
 
    private:

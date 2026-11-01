@@ -112,6 +112,9 @@
 #include <string>
 #include <thread>
 #include <vector>
+#include "ui/CapturaError.hpp"
+
+using ::ba::app::errorDe;
 
 using ba::app::PlanoControl;
 using namespace ba::app::mcp;
@@ -1364,7 +1367,7 @@ int main(int argc, char** argv) {
         CHECK(!dsk.mostrar(3, true, false).empty() && !dsk.mostrar(2, false, false).empty() && !dsk.mostrar(9, true, false).empty(),
               "C: vacía, fija sin confirmar o fuera de rango: el error en el acto");
         // La interfaz sube la 1 y se traba; mientras, una herramienta sube la 2 en «sala».
-        CHECK(dsk.mostrarUi(1, true, false).isEmpty(), "C: subir se pide");
+        CHECK(errorDe([&] { dsk.mostrarUi(1, true, false); }).isEmpty(), "C: subir se pide");
         std::string rC;
         double msC = -1;
         std::thread cliente([&]() {

@@ -410,12 +410,12 @@ QString TotemsViewModel::urlPantalla(const QString& id) const {
     return QString::fromStdString(origen() + "/registro/?pantalla=1#r=" + t->id + "&t=" + s.token);
 }
 
-QString TotemsViewModel::renovar(const QString& id) {
-    if (totems_.porId(id.toStdString()) == nullptr) return {};
+void TotemsViewModel::renovar(const QString& id) {
+    if (totems_.porId(id.toStdString()) == nullptr) return;
     secreto(id.toStdString(), true);
     publicar(); // el gateway olvida el viejo y corta a quien entró con él
     emit cambio();
-    return url(id);
+    avisarError(url(id));
 }
 
 void TotemsViewModel::publicar() {
@@ -564,9 +564,9 @@ QString TotemsViewModel::crear(const QString& nombre) {
     return QString::fromStdString(id);
 }
 
-QString TotemsViewModel::cambiar(const QString& id, const QVariantMap& cambios) {
+void TotemsViewModel::cambiar(const QString& id, const QVariantMap& cambios) {
     const json j = aJson(QVariant(cambios));
-    return QString::fromStdString(cambiarJson(id, j.is_object() ? j : json::object()));
+    avisarError(QString::fromStdString(cambiarJson(id, j.is_object() ? j : json::object())));
 }
 
 bool TotemsViewModel::borrar(const QString& id) {
@@ -582,9 +582,9 @@ namespace {
 json camposDe(const registro::Totem& t) { return t.aJson()["campos"]; }
 } // namespace
 
-QString TotemsViewModel::agregarCampo(const QString& id, const QString& tipo) {
+void TotemsViewModel::agregarCampo(const QString& id, const QString& tipo) {
     const registro::Totem* t = totems_.porId(id.toStdString());
-    if (t == nullptr) return tr("No hay ese tótem.");
+    if (t == nullptr) return avisarError(tr("No hay ese tótem."));
     registro::Campo c;
     registro::tipoDeNombre(tipo.toStdString(), c.tipo);
     // Lo ve el público en la pantalla del tótem: en el idioma del evento.
@@ -606,36 +606,36 @@ QString TotemsViewModel::agregarCampo(const QString& id, const QString& tipo) {
     }
     json cs = camposDe(*t);
     cs.push_back(c.aJson());
-    return QString::fromStdString(cambiarJson(id, {{"campos", cs}}));
+    avisarError(QString::fromStdString(cambiarJson(id, {{"campos", cs}})));
 }
 
-QString TotemsViewModel::quitarCampo(const QString& id, int indice) {
+void TotemsViewModel::quitarCampo(const QString& id, int indice) {
     const registro::Totem* t = totems_.porId(id.toStdString());
-    if (t == nullptr || indice < 0 || indice >= static_cast<int>(t->campos.size())) return tr("No hay ese campo.");
+    if (t == nullptr || indice < 0 || indice >= static_cast<int>(t->campos.size())) return avisarError(tr("No hay ese campo."));
     json cs = camposDe(*t);
     cs.erase(static_cast<std::size_t>(indice));
-    return QString::fromStdString(cambiarJson(id, {{"campos", cs}}));
+    avisarError(QString::fromStdString(cambiarJson(id, {{"campos", cs}})));
 }
 
-QString TotemsViewModel::moverCampo(const QString& id, int desde, int hasta) {
+void TotemsViewModel::moverCampo(const QString& id, int desde, int hasta) {
     const registro::Totem* t = totems_.porId(id.toStdString());
     const int n = t != nullptr ? static_cast<int>(t->campos.size()) : 0;
-    if (desde < 0 || desde >= n || hasta < 0 || hasta >= n) return tr("No hay ese campo.");
-    if (desde == hasta) return {};
+    if (desde < 0 || desde >= n || hasta < 0 || hasta >= n) return avisarError(tr("No hay ese campo."));
+    if (desde == hasta) return;
     json cs = camposDe(*t);
     json c = cs[static_cast<std::size_t>(desde)];
     cs.erase(static_cast<std::size_t>(desde));
     cs.insert(cs.begin() + hasta, c);
-    return QString::fromStdString(cambiarJson(id, {{"campos", cs}}));
+    avisarError(QString::fromStdString(cambiarJson(id, {{"campos", cs}})));
 }
 
-QString TotemsViewModel::cambiarCampo(const QString& id, int indice, const QVariantMap& cambios) {
+void TotemsViewModel::cambiarCampo(const QString& id, int indice, const QVariantMap& cambios) {
     const registro::Totem* t = totems_.porId(id.toStdString());
-    if (t == nullptr || indice < 0 || indice >= static_cast<int>(t->campos.size())) return tr("No hay ese campo.");
+    if (t == nullptr || indice < 0 || indice >= static_cast<int>(t->campos.size())) return avisarError(tr("No hay ese campo."));
     json cs = camposDe(*t);
     const json c = aJson(QVariant(cambios));
     for (auto it = c.begin(); c.is_object() && it != c.end(); ++it) cs[static_cast<std::size_t>(indice)][it.key()] = it.value();
-    return QString::fromStdString(cambiarJson(id, {{"campos", cs}}));
+    avisarError(QString::fromStdString(cambiarJson(id, {{"campos", cs}})));
 }
 
 // --- Lo vivo ---------------------------------------------------------------------------
@@ -1545,12 +1545,12 @@ QString TotemsViewModel::urlAtencion() const {
     return QString::fromStdString(origen() + "/registro-atiende/#t=" + s.token);
 }
 
-QString TotemsViewModel::renovarAtencion() {
-    if (!hayEvento()) return {};
+void TotemsViewModel::renovarAtencion() {
+    if (!hayEvento()) return;
     secreto(kSecretoAtencion, true);
     publicarAtencion(); // el gateway olvida el viejo y corta a quien entró con él
     emit cambio();
-    return urlAtencion();
+    avisarError(urlAtencion());
 }
 
 void TotemsViewModel::publicarAtencion() {
@@ -1764,14 +1764,14 @@ std::string TotemsViewModel::ponerDatoConn(const QString& conn, const QString& c
     return {};
 }
 
-QString TotemsViewModel::atender(const QString& conn) { return QString::fromStdString(atenderConn(conn, {}, {})); }
+void TotemsViewModel::atender(const QString& conn) { return avisarError(QString::fromStdString(atenderConn(conn, {}, {}))); }
 
-QString TotemsViewModel::terminarAtencion(const QString& conn, const QString& como) {
-    return QString::fromStdString(terminarConn(conn, como, {}));
+void TotemsViewModel::terminarAtencion(const QString& conn, const QString& como) {
+    avisarError(QString::fromStdString(terminarConn(conn, como, {})));
 }
 
-QString TotemsViewModel::ponerDato(const QString& conn, const QString& clave, const QString& valor) {
-    return QString::fromStdString(ponerDatoConn(conn, clave, valor, {}));
+void TotemsViewModel::ponerDato(const QString& conn, const QString& clave, const QString& valor) {
+    avisarError(QString::fromStdString(ponerDatoConn(conn, clave, valor, {})));
 }
 
 bool TotemsViewModel::alEventoAtencion(const json& ev) {

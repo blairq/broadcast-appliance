@@ -29,6 +29,7 @@
 #include <QUrl>
 #include <QVariantList>
 #include <QVariantMap>
+#include "ui/CapturaError.hpp"
 
 namespace ba::app {
 
@@ -39,6 +40,11 @@ class Emisor;
 
 class GraficoViewModel : public QObject {
     Q_OBJECT
+    /// El error de una acción de la interfaz (las Q_INVOKABLE void): a quien mira.
+    void avisarError(const QString& e) {
+        if (!e.isEmpty() && !::ba::app::CapturaError::tomar(e)) emit notify(e, "error");
+    }
+    void avisarError(const std::string& e) { avisarError(QString::fromStdString(e)); }
     Q_PROPERTY(bool disponible READ disponible CONSTANT)
     Q_PROPERTY(QVariantList graficos READ graficos NOTIFY listaChanged)
     Q_PROPERTY(QString abierto READ abierto NOTIFY abiertoChanged)
@@ -115,7 +121,7 @@ class GraficoViewModel : public QObject {
 
     Q_INVOKABLE void refrescar();
     Q_INVOKABLE bool abrir(const QString& nombre);
-    Q_INVOKABLE QString crear(const QString& nombre, bool declarativo);
+    Q_INVOKABLE void crear(const QString& nombre, bool declarativo);
     Q_INVOKABLE bool guardar();
     /// Cambia el valor de un parámetro y redibuja.
     Q_INVOKABLE void setValor(const QString& clave, const QVariant& valor);
@@ -129,7 +135,7 @@ class GraficoViewModel : public QObject {
     Q_INVOKABLE void quitarMedio(const QString& archivo);
 
     /// Lo saca al aire en esa fuente de escena.
-    Q_INVOKABLE QString mostrarEnEscena(qulonglong fuente, bool repetir);
+    Q_INVOKABLE void mostrarEnEscena(qulonglong fuente, bool repetir);
     Q_INVOKABLE QString ocultarDeEscena(qulonglong fuente);
 
    signals:

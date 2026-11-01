@@ -906,6 +906,8 @@ class StudioViewModel : public QObject {
     std::unique_ptr<EmisionViewModel> emision_; ///< grabar, transmitir y lo que los rodea (ui/EmisionViewModel)
     /// Publica en el bus lo que cambió (cada vuelta del reloj, 10 Hz).
     void publicarEventos();
+    /// La transmisión y la grabación de la por omisión, al bus (salida/stream, salida/grabacion).
+    void publicarAire();
     int busTicks_ = 0;
     /// Usa conference_ (su cliente), la sesión remota y el cuerpo (asamblea_) y el motor: va
     /// después (se destruye antes).

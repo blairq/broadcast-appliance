@@ -522,9 +522,7 @@ ColumnLayout {
         function abrir(integrante) { ptt.i = integrante; ptt.hablando = false; open() }
         function poner(on) {
             if (!ptt.i || on === ptt.hablando) return
-            const e = Studio.asamblea.hablarARemoto(ptt.i.id, on)
-            if (e !== "") { rec.aviso = e; ptt.hablando = false; return }
-            ptt.hablando = on
+            ptt.hablando = Studio.asamblea.hablarARemoto(ptt.i.id, on) ? on : false
         }
         onClosed: poner(false)
         modal: true
@@ -581,11 +579,11 @@ ColumnLayout {
         MenuItem { text: qsTr("Toma de la banca (cámara y posición)…")
                    onTriggered: tomaBanca.abrir(menu.l) }
         MenuItem { text: qsTr("Apuntar la cámara"); enabled: !!(menu.l && menu.l.toma)
-                   onTriggered: rec.aviso = Studio.bancas.enfocar("banca " + menu.l.banca, false) }
+                   onTriggered: Studio.bancas.enfocar("banca " + menu.l.banca, false) }
         MenuItem { text: qsTr("Al aire (arma su cámara)"); enabled: menu.i !== null
-                   onTriggered: { const e = Studio.bancas.alAire(menu.l.banca, "armar"); rec.aviso = e !== "" ? e : Studio.bancas.ultimoAviso() } }
+                   onTriggered: { Studio.bancas.alAire(menu.l.banca, "armar"); rec.aviso = Studio.bancas.ultimoAviso() } }
         MenuItem { text: qsTr("Sumar a la fila"); enabled: menu.i !== null
-                   onTriggered: rec.aviso = Studio.bancas.agregar(menu.l.banca) }
+                   onTriggered: Studio.bancas.agregar(menu.l.banca) }
         MenuItem { text: qsTr("Sacar de la fila"); enabled: menu.i !== null && !!menu.l && menu.l.turno > 0
                    onTriggered: Studio.bancas.quitar(menu.l.banca) }
         MenuItem { text: qsTr("Terminar (cierra su micrófono)")
@@ -621,8 +619,7 @@ ColumnLayout {
                 posicion: tomaBanca.l && tomaBanca.l.toma ? tomaBanca.l.toma.posicion : ""
                 anchoCamara: 170; anchoPosicion: 160
                 onElegido: (c, p) => {
-                    const e = Studio.cuerpo.setToma(tomaBanca.l.banca, c, p)
-                    if (e !== "") rec.aviso = e
+                    Studio.cuerpo.setToma(tomaBanca.l.banca, c, p)
                 }
             }
             GlassButton { Layout.alignment: Qt.AlignRight; compact: true; text: qsTr("Listo"); onClicked: tomaBanca.close() }

@@ -547,8 +547,8 @@ ApplicationWindow {
             StatusPill {
                 height: 16
                 text: Studio.aire.reconnecting ? qsTr("RECONECTANDO")
-                      : Studio.aire.transmitiendo ? (Studio.aire.streaming ? qsTr("AL AIRE  %1").arg(Studio.aire.streamTime) : qsTr("AL AIRE"))
-                      : Studio.aire.alAire ? (Studio.aire.recording ? qsTr("AL AIRE · GRABANDO  %1").arg(Studio.aire.recordTime) : qsTr("AL AIRE · GRABANDO"))
+                      : Studio.aire.transmitiendo ? (Studio.aire.streaming ? qsTr("AL AIRE  %1").arg(Theme.cronometro(Studio.aire.transmiteDesdeMs, Reloj.ahora)) : qsTr("AL AIRE"))
+                      : Studio.aire.alAire ? (Studio.aire.recording ? qsTr("AL AIRE · GRABANDO  %1").arg(Theme.cronometro(Studio.aire.grabaDesdeMs, Reloj.ahora)) : qsTr("AL AIRE · GRABANDO"))
                       : qsTr("FUERA DEL AIRE")
                 dot: Studio.aire.reconnecting ? Theme.amber : Theme.live
                 on: Studio.aire.alAire || Studio.aire.reconnecting
@@ -559,7 +559,7 @@ ApplicationWindow {
                               : qsTr("No sale nada (ni transmisión ni grabación): se puede mover y tocar todo sin avisos de aire.")
                 MouseArea { id: pillMa; anchors.fill: parent; hoverEnabled: true; acceptedButtons: Qt.NoButton }
             }
-            StatusPill { height: 16; visible: Studio.aire.recording && Studio.aire.transmitiendo; text: qsTr("REC  %1").arg(Studio.aire.recordTime); dot: Theme.accent; pulse: true }
+            StatusPill { height: 16; visible: Studio.aire.recording && Studio.aire.transmitiendo; text: qsTr("REC  %1").arg(Theme.cronometro(Studio.aire.grabaDesdeMs, Reloj.ahora)); dot: Theme.accent; pulse: true }
             // En las otras páginas, solo si algo de la IA no anda.
             PastillaIA { height: 16; visible: total > 0 }
         }
@@ -638,8 +638,7 @@ ApplicationWindow {
             sequence: modelData.tecla
             context: Qt.ApplicationShortcut
             onActivated: {
-                const e = Studio.acciones.teclaUi(modelData.tecla)
-                if (e !== "") Studio.notify(e, "error")
+                Studio.acciones.teclaUi(modelData.tecla)
             }
         }
     }

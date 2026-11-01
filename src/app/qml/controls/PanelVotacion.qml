@@ -347,8 +347,7 @@ Item {
                     Layout.preferredWidth: 380
                     text: modelData.nombre
                     onClicked: {
-                        const err = Studio.pantallas.mostrar(modelData.id, "votacion", {})
-                        if (err) Studio.notify(err, "error")
+                        Studio.pantallas.mostrar(modelData.id, "votacion", {})
                         proyectarDlg.close()
                     }
                 }
@@ -419,9 +418,9 @@ Item {
                     compact: true; text: qsTr("Cargar"); active: true
                     onClicked: {
                         const may = ofMayoria.model[ofMayoria.currentIndex].v
-                        const e = ofCsv.text.trim() !== "" ? Studio.quorum.cargarCsvUi(ofAsunto.text, ofCsv.text, may)
-                                                           : Studio.quorum.cargarOficialUi(ofAsunto.text, ofAf.value, ofNe.value, ofAb.value, may)
-                        if (e !== "") Studio.notify(e, "error"); else { oficial.close(); ofCsv.text = ""; ofAsunto.text = "" }
+                        const hecho = ofCsv.text.trim() !== "" ? Studio.quorum.cargarCsvUi(ofAsunto.text, ofCsv.text, may)
+                                                               : Studio.quorum.cargarOficialUi(ofAsunto.text, ofAf.value, ofNe.value, ofAb.value, may)
+                        if (hecho) { oficial.close(); ofCsv.text = ""; ofAsunto.text = "" }
                     }
                 }
                 Item { Layout.fillWidth: true }

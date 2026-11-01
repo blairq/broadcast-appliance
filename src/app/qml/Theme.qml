@@ -75,6 +75,14 @@ QtObject {
         return (neg ? "-" : "") + (h > 0 ? h + ":" + String(m).padStart(2, "0") : m) + ":" + s
     }
 
+    /// Lo que lleva algo desde `desdeMs` a `ahora` (ms) en «hh:mm:ss» (grabar, transmitir); «00:00:00»
+    /// si no empezó. `ahora` es Reloj.ahora: un solo reloj para toda la interfaz.
+    function cronometro(desdeMs, ahora) {
+        const s = desdeMs > 0 ? Math.max(0, Math.floor((ahora - desdeMs) / 1000)) : 0
+        const dos = (n) => String(n).padStart(2, "0")
+        return dos(Math.floor(s / 3600)) + ":" + dos(Math.floor(s / 60) % 60) + ":" + dos(s % 60)
+    }
+
     // (El reloj de los oradores lo da el modelo: sala::OradoresSala, textoTiempo y sus roles.)
 
     /// Un tamaño de archivo legible (en base 1000, como lo muestra el sistema): «850 B»,

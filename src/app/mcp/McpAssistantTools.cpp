@@ -15,6 +15,9 @@
 #include "mcp/McpService.hpp"
 #include "mcp/McpToolsCommon.hpp"
 #include "ui/StudioViewModel.hpp"
+#include "ui/CapturaError.hpp"
+
+using ::ba::app::errorDe;
 
 namespace ba::app::mcp {
 
@@ -98,7 +101,7 @@ void McpService::registerAssistantTools() {
             }
             if (accion == "reinstalar" || accion == "de_cero") {
                 if (motor.isEmpty()) return done(ToolResult::error(ba::i18n::traducir("mcp", "Decí qué `motor` reinstalar.")));
-                const QString e = ag->reinstalar(motor, accion == "de_cero");
+                const QString e = errorDe([&] { ag->reinstalar(motor, accion == "de_cero"); });
                 if (!e.isEmpty()) return done(ToolResult::error(e.toStdString()));
                 return done(ToolResult::ok(ba::i18n::llenar(
                     accion == "de_cero"

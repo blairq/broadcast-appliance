@@ -52,6 +52,9 @@
 #include "ui/HistoricoConsulta.hpp"
 #include "ui/HistoricoViewModel.hpp"
 #include "ui/StudioViewModel.hpp"
+#include "ui/CapturaError.hpp"
+
+using ::ba::app::errorDe;
 
 namespace ba::app::mcp {
 namespace {
@@ -241,7 +244,7 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
                         if (it.value().is_string()) v[QString::fromStdString(it.key())] = QString::fromStdString(it.value().get<std::string>());
                     c["vivos"] = v;
                 }
-                const QString e = ev.webVm().setWebSitio(c);
+                const QString e = errorDe([&] { ev.webVm().setWebSitio(c); });
                 return done(e.isEmpty() ? ToolResult().data(qvToJson(ev.webVm().web().value("sitio"))) : ToolResult::error(e.toStdString()));
             }
             if (acc == "aviso") {

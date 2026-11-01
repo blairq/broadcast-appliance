@@ -15,6 +15,7 @@
 #include <QVariantMap>
 
 #include <nlohmann/json.hpp>
+#include "ui/CapturaError.hpp"
 
 namespace ba::app {
 
@@ -24,6 +25,11 @@ class PadronViewModel;
 
 class InformeEventoViewModel : public QObject {
     Q_OBJECT
+    /// El error de una acción de la interfaz (las Q_INVOKABLE void): a quien mira.
+    void avisarError(const QString& e) {
+        if (!e.isEmpty() && !::ba::app::CapturaError::tomar(e)) emit notify(e, "error");
+    }
+    void avisarError(const std::string& e) { avisarError(QString::fromStdString(e)); }
     /// Lo que realmente pasó (ver `informe()`): cambia con la corrida y con la línea.
     Q_PROPERTY(QVariantMap informe READ informe NOTIFY informeCambio)
    public:
@@ -51,8 +57,8 @@ class InformeEventoViewModel : public QObject {
     /// no aplica. {ok, error?, diff, pronostico, ops, avisos, bloques}.
     nlohmann::json lineaImportar(const std::string& formato, const std::string& texto, bool probar,
                                  const std::string& nombreBloque = {});
-    /// Lo mismo desde la página (un archivo): "" o el error; el resultado de importar.
-    Q_INVOKABLE QString exportarEscaleta(const QString& formato, const QString& ruta);
+    /// Lo mismo desde la página (un archivo): El error va por la señal del modelo; el resultado de importar.
+    Q_INVOKABLE void exportarEscaleta(const QString& formato, const QString& ruta);
     Q_INVOKABLE QVariantMap importarEscaleta(const QString& ruta, bool probar);
 
    signals:

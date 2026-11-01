@@ -32,8 +32,7 @@ Item {
     /// Qué archivo se está eligiendo: logo | logoClaro | favicon | fuente.
     property string eligiendo: "logo"
 
-    function hecho(error) { if (error !== "") Studio.notify(error, "error") }
-    function cambiar(campos) { hecho(raiz.te.cambiar(campos)) }
+    function cambiar(campos) { raiz.te.cambiar(campos) }
     function colores(clave, valor) { const c = {}; c[clave] = valor; raiz.cambiar({ colores: c }) }
 
     FileDialog {
@@ -46,10 +45,10 @@ Item {
                 // La familia: la que esté escrita o, si no, el nombre del archivo.
                 const nombre = familiaNueva.text.trim() !== "" ? familiaNueva.text.trim()
                              : decodeURIComponent(selectedFile.toString().split("/").pop().replace(/\.[^.]+$/, ""))
-                raiz.hecho(raiz.te.subirFuente(selectedFile.toString(), nombre, "400", "normal"))
+                raiz.te.subirFuente(selectedFile.toString(), nombre, "400", "normal")
                 familiaNueva.text = ""
             } else {
-                raiz.hecho(raiz.te.subirLogo(selectedFile.toString(), raiz.eligiendo))
+                raiz.te.subirLogo(selectedFile.toString(), raiz.eligiendo)
             }
         }
     }
@@ -258,7 +257,7 @@ Item {
                     }
                     GlassButton {
                         compact: true; text: qsTr("Quitar"); visible: !!raiz.marca[parent.modelData.cual]
-                        onClicked: raiz.hecho(raiz.te.quitar(parent.modelData.cual))
+                        onClicked: raiz.te.quitar(parent.modelData.cual)
                     }
                 }
             }
@@ -306,7 +305,7 @@ Item {
                 GlassButton { compact: true; text: qsTr("Agregar fuente…"); onClicked: { raiz.eligiendo = "fuente"; elegir.open() } }
                 GlassButton {
                     compact: true; text: qsTr("Quitar las fuentes"); visible: (raiz.tipo.archivos || []).length > 0
-                    onClicked: raiz.hecho(raiz.te.quitar("fuentes"))
+                    onClicked: raiz.te.quitar("fuentes")
                 }
             }
             RowLayout {
@@ -380,7 +379,7 @@ Item {
                 compact: true
                 text: qsTr("Restablecer")
                 visible: raiz.te && raiz.te.existe && !raiz.te.delSitio
-                onClicked: raiz.hecho(raiz.te.restablecer())
+                onClicked: raiz.te.restablecer()
             }
         }
     }

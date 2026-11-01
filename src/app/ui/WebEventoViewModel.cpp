@@ -123,8 +123,8 @@ QVariantMap WebEventoViewModel::generarWeb(bool sobrescribir) {
     return {{"escritas", esc}, {"salteadas", sal}, {"carpeta", carpetaWebAbs()}};
 }
 
-QString WebEventoViewModel::setWebSitio(const QVariantMap& campos) {
-    if (!ab_.hay()) return QCoreApplication::translate("EventoViewModel", "No hay ningún evento abierto.");
+void WebEventoViewModel::setWebSitio(const QVariantMap& campos) {
+    if (!ab_.hay()) return avisarError(QCoreApplication::translate("EventoViewModel", "No hay ningún evento abierto."));
     const std::filesystem::path dir = carpetaWebAbs().toStdWString();
     evento::SitioWeb s = evento::SitioWeb::leer(dir, ab_.evento());
     if (campos.contains("titulo")) s.titulo = campos.value("titulo").toString().toStdString();
@@ -147,12 +147,11 @@ QString WebEventoViewModel::setWebSitio(const QVariantMap& campos) {
     if (campos.contains("subdominio")) {
         const std::string sub = evento::subdominioDe(campos.value("subdominio").toString().toStdString());
         if (sub.empty() && !campos.value("subdominio").toString().trimmed().isEmpty())
-            return QCoreApplication::translate("EventoViewModel", "El subdominio va solo con letras minúsculas y números.");
+            return avisarError(QCoreApplication::translate("EventoViewModel", "El subdominio va solo con letras minúsculas y números."));
         s.subdominio = sub;
     }
-    if (!s.guardar(dir)) return QCoreApplication::translate("EventoViewModel", "No se pudo guardar sitio.json.");
+    if (!s.guardar(dir)) return avisarError(QCoreApplication::translate("EventoViewModel", "No se pudo guardar sitio.json."));
     cambio();
-    return {};
 }
 
 QString WebEventoViewModel::leerPaginaWeb(const QString& pagina) const {

@@ -453,8 +453,7 @@ Rectangle {
                                                                   : qsTr("Se borra el programa y se vuelve a bajar cuando se lo elija. El login y los chats quedan."),
                                             accept: qsTr("Reinstalar"), reject: qsTr("Cancelar"),
                                             action: function() {
-                                                const e = ag.reinstalar(modelData.runtime, false)
-                                                if (e !== "") ApplicationWindow.window.toast(e, "error")
+                                                ag.reinstalar(modelData.runtime, false)
                                             }
                                         })
                                     }
@@ -466,8 +465,7 @@ Rectangle {
                                             text: qsTr("Se borra el programa y el perfil entero: chats, ajustes y el LOGIN (hay que volver a entrar). Las claves de API pegadas quedan."),
                                             accept: qsTr("Borrar todo"), reject: qsTr("Cancelar"),
                                             action: function() {
-                                                const e = ag.reinstalar(modelData.runtime, true)
-                                                if (e !== "") ApplicationWindow.window.toast(e, "error")
+                                                ag.reinstalar(modelData.runtime, true)
                                             }
                                         })
                                     }

@@ -36,6 +36,7 @@
 #include <memory>
 #include <set>
 #include <string>
+#include "ui/CapturaError.hpp"
 
 class QTcpServer;
 class QTcpSocket;
@@ -46,6 +47,11 @@ class Botonera;
 
 class SatelliteServidor : public QObject {
     Q_OBJECT
+    /// El error de una acción de la interfaz (las Q_INVOKABLE void): a quien mira.
+    void avisarError(const QString& e) {
+        if (!e.isEmpty() && !::ba::app::CapturaError::tomar(e)) emit notify(e, "error");
+    }
+    void avisarError(const std::string& e) { avisarError(QString::fromStdString(e)); }
     Q_PROPERTY(bool activo READ activo NOTIFY cambio)
     Q_PROPERTY(int puerto READ puerto NOTIFY cambio)
     Q_PROPERTY(QStringList ipPermitidas READ ipPermitidas NOTIFY cambio)
@@ -68,8 +74,8 @@ class SatelliteServidor : public QObject {
     QVariantList clientesUi() const;
     json estado() const;
 
-    /// Prende o apaga, cambia el puerto. "" o el error.
-    Q_INVOKABLE QString configurar(bool activo, int puerto);
+    /// Prende o apaga, cambia el puerto. El error va por la señal del modelo.
+    Q_INVOKABLE void configurar(bool activo, int puerto);
     /// Una persona permite (o saca) una IP.
     Q_INVOKABLE void permitir(const QString& ip, bool si);
     /// Una persona rechaza el pedido de una IP: sale de pendientes y no vuelve a
@@ -85,6 +91,8 @@ class SatelliteServidor : public QObject {
     static std::map<std::string, std::string> argumentos(const std::string& linea, std::string* comando);
 
    signals:
+    /// Para el operador (ya traducido): los errores de las acciones de la interfaz.
+    void notify(const QString& texto, const QString& tipo);
     void cambio();
 
    private:

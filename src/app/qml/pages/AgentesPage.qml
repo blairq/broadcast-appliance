@@ -204,9 +204,7 @@ Rectangle {
                                 id: mandar
                                 compact: true; text: qsTr("Mandar"); active: true
                                 onClicked: {
-                                    const err = page.d.encargarDesdeUi(fila.modelData.id, encargoTexto.text)
-                                    if (err !== "") Studio.notify(err, "error")
-                                    else { encargoTexto.text = ""; encargo.visible = false }
+                                    if (page.d.encargarDesdeUi(fila.modelData.id, encargoTexto.text)) { encargoTexto.text = ""; encargo.visible = false }
                                 }
                             }
                         }

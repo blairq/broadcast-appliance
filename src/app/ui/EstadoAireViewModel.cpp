@@ -93,8 +93,7 @@ void EstadoAireViewModel::alCambiar(unsigned partes) {
                         x.grabaDesdeMs, x.transmiteDesdeMs);
     };
     if (aire(n) != aire(a)) {
-        emit aireChanged();
-        emit tiemposChanged(); // empezó o terminó: el reloj vuelve a 00:00:00 ya, no al segundo
+        emit aireChanged(); // con las marcas de inicio: el reloj de la vista vuelve a 00:00:00 ya
     }
     const auto estadisticas = [](const FotoMotor::EstadoAire& x) {
         return std::tie(x.fps, x.codificador, x.descartados, x.cuadros);
@@ -116,7 +115,6 @@ void EstadoAireViewModel::alSegundo() {
             avisarEstadisticas();
         }
     }
-    emit tiemposChanged();
     emit segundo();
 }
 

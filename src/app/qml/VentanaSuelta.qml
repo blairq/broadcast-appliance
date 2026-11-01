@@ -206,8 +206,7 @@ Window {
         alCerrar: () => w.close()
         alFijar: (monitorId) => {
             if (monitorId === "") return
-            const err = Studio.pantallasConectadas.asignar(monitorId, w.cosas, true)
-            if (err !== "") { Studio.notify(err, "warn"); return }
+            if (!Studio.pantallasConectadas.asignar(monitorId, w.cosas, true)) return
             Studio.notify(qsTr("«%1» quedó fijo en ese monitor (Salidas → Pantallas).").arg(w.titulo), "ok")
             w.close()
         }

@@ -53,7 +53,7 @@ Item {
         const i = t.elegida >= 0 && t.elegida < t.caras.length ? t.elegida : (t.caras.length === 1 ? 0 : -1)
         if (i < 0) { t.avisar(t.caras.length === 0 ? qsTr("Primero «Analizar rostros» (o no hay caras en cuadro)") : qsTr("Elegí a quién seguir: tocá su recuadro o elegilo en la lista")); return }
         const c = t.caras[i]
-        t.avisar(t.sg.seguir(t.entrada, c.id ? { id: c.id, nombre: c.nombre } : { x: c.x + c.ancho / 2, y: c.y + c.alto / 2 }))
+        t.sg.seguir(t.entrada, c.id ? { id: c.id, nombre: c.nombre } : { x: c.x + c.ancho / 2, y: c.y + c.alto / 2 })
     }
     Connections {
         target: t.sg
@@ -164,7 +164,7 @@ Item {
                         required property var modelData
                         Layout.fillWidth: true
                         text: modelData.t
-                        onPresionado: t.avisar(t.cc.mover(t.entrada, 0, 0, modelData.v * t.velocidad))
+                        onPresionado: t.cc.mover(t.entrada, 0, 0, modelData.v * t.velocidad)
                         onSoltado: t.cc.parar(t.entrada)
                     }
                 }
@@ -177,7 +177,7 @@ Item {
                     compact: true
                     visible: t.caps.home === true
                     text: qsTr("Inicio")
-                    onClicked: t.avisar(t.cc.home(t.entrada))
+                    onClicked: t.cc.home(t.entrada)
                 }
             }
         }

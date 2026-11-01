@@ -118,6 +118,7 @@ void AsistenteViewModel::armarAsistentes() {
         .encargar = [this](const QString& t) { if (agent_) agent_->encargar(t); },
         .faltaAsistente = [this]() { return agent_ ? agent_->faltaParaEncargo() : QString("El asistente no está disponible."); },
         .paginas = []() { return RielConfig::idsDePaginas(); }});
+    connect(manuales_.get(), &ManualesViewModel::notify, this, &AsistenteViewModel::notify);
     connect(despachador_.get(), &agent::Despachador::notify, this, &AsistenteViewModel::notify);
     // Las alertas las recibe el de automatización: él se las ofrece primero a los roles
     // (una sola vez por alerta; el del evento ya no las mira).
@@ -233,6 +234,7 @@ void AsistenteViewModel::armarTextos() {
         p_.ventanilla.pedir("cc_608", [&rt = p_.rt, t = t.toStdString(), s]() { rt.engine().enviarCaption(t, s); });
         return 0;
     });
+    connect(cc_.get(), &agent::SubtitulosCC::notify, this, &AsistenteViewModel::notify);
     // «Traducción automática» rotulada mientras sale una traducción (pantalla o CC).
     rotuloApagar_.setSingleShot(true);
     connect(&rotuloApagar_, &QTimer::timeout, this, [this]() {
@@ -247,6 +249,7 @@ void AsistenteViewModel::armarTextos() {
     voces_->setVozSistema([v = voz_.get()]() { return v != nullptr ? v->vozElegida() : QString(); });
     // La traducción en vivo: de una salida de texto a otra, en otro idioma.
     traductor_ = std::make_unique<agent::Traductor>(p_.rt.dataRoot(), *modelos_, *flujos_);
+    connect(traductor_.get(), &agent::Traductor::notify, this, &AsistenteViewModel::notify);
     // Lo que no anda de la IA, junto (la pastilla «IA» y ia_estado).
     estadoIA_ = std::make_unique<agent::EstadoIA>(agent_.get(), modelos_.get(), voz_.get(), vozPrompter_.get(), traductor_.get());
 }

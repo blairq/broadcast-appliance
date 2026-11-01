@@ -713,8 +713,8 @@ QStringList Despachador::modelosDe(const QString& proveedor) const {
     return motores_.modelosDe ? motores_.modelosDe(proveedor) : QStringList();
 }
 
-QString Despachador::encargarDesdeUi(const QString& rol, const QString& texto) {
-    return encargarDesdeUiConId(rol, texto).value("error").toString();
+bool Despachador::encargarDesdeUi(const QString& rol, const QString& texto) {
+    return sinError(encargarDesdeUiConId(rol, texto).value("error").toString());
 }
 
 QVariantMap Despachador::encargarDesdeUiConId(const QString& rol, const QString& texto) {

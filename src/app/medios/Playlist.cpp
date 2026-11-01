@@ -231,24 +231,24 @@ json Playlist::estado() const {
 QVariantList Playlist::itemsUi() const { return aQv(items_).toList(); }
 QVariantMap Playlist::estadoUi() const { return aQv(estado()).toMap(); }
 
-QString Playlist::agregarUi(const QString& archivo) {
+void Playlist::agregarUi(const QString& archivo) {
     json nuevos = items_;
     nuevos.push_back({{"archivo", archivo.toStdString()}});
-    return qs(setItems(nuevos));
+    avisarError(qs(setItems(nuevos)));
 }
 
-QString Playlist::agregarVariosUi(const QStringList& archivos) {
+bool Playlist::agregarVariosUi(const QStringList& archivos) {
     json nuevos = items_;
     for (const QString& a : archivos) nuevos.push_back({{"archivo", a.toStdString()}});
-    return qs(setItems(nuevos));
+    return sinError(qs(setItems(nuevos)));
 }
 
-QString Playlist::quitarUi(int indice) {
-    if (indice < 0 || indice >= static_cast<int>(items_.size())) return tr("no hay ese ítem");
+void Playlist::quitarUi(int indice) {
+    if (indice < 0 || indice >= static_cast<int>(items_.size())) return avisarError(tr("no hay ese ítem"));
     json nuevos = items_;
     nuevos.erase(nuevos.begin() + indice);
     if (indice_ == indice) control("stop");
-    return qs(setItems(nuevos));
+    avisarError(qs(setItems(nuevos)));
 }
 
 QString Playlist::moverUi(int indice, int destino) {
@@ -261,7 +261,7 @@ QString Playlist::moverUi(int indice, int destino) {
     return qs(setItems(nuevos));
 }
 
-QString Playlist::controlUi(const QString& accion, int indice) { return qs(control(accion.toStdString(), indice)); }
+void Playlist::controlUi(const QString& accion, int indice) { return avisarError(qs(control(accion.toStdString(), indice))); }
 
 std::string Playlist::armar() {
     if (const std::string e = asegurarEscena(); !e.empty()) return e;

@@ -914,16 +914,17 @@ QStringList Traductor::salidasDisponibles() const {
     return out;
 }
 
-QString Traductor::agregarUi(const QString& desde, const QString& a, const QString& nombre, const QString& de) {
-    return q(agregar(desde.toStdString(), de.toStdString(), a.toStdString(), nombre.toStdString(), json::object(),
-                     nullptr)); // "" = el idioma del evento
+bool Traductor::agregarUi(const QString& desde, const QString& a, const QString& nombre, const QString& de) {
+    avisarError(q(agregar(desde.toStdString(), de.toStdString(), a.toStdString(), nombre.toStdString(), json::object(),
+                     nullptr))); // "" = el idioma del evento
+    return true;
 }
-QString Traductor::ajustarUi(const QString& id, const QVariantMap& cambios) {
-    return q(ajustar(id.toStdString(), dejson(cambios)));
+void Traductor::ajustarUi(const QString& id, const QVariantMap& cambios) {
+    avisarError(q(ajustar(id.toStdString(), dejson(cambios))));
 }
-QString Traductor::quitarUi(const QString& id) { return q(quitar(id.toStdString())); }
-QString Traductor::bajarUi(const QString& de, const QString& a) {
-    return q(bajar(de.toStdString(), a.toStdString())); // "" = el idioma del evento
+void Traductor::quitarUi(const QString& id) { return avisarError(q(quitar(id.toStdString()))); }
+void Traductor::bajarUi(const QString& de, const QString& a) {
+    avisarError(q(bajar(de.toStdString(), a.toStdString()))); // "" = el idioma del evento
 }
 
 void Traductor::probarUi(const QString& texto, const QString& a, const QString& de) {
@@ -939,12 +940,12 @@ void Traductor::probarUi(const QString& texto, const QString& a, const QString& 
     });
 }
 
-QString Traductor::glosarioAgregarUi(const QVariantMap& entrada) {
-    return q(glosarioAgregar(dejson(entrada)));
+bool Traductor::glosarioAgregarUi(const QVariantMap& entrada) {
+    return sinError(q(glosarioAgregar(dejson(entrada))));
 }
-QString Traductor::glosarioQuitarUi(const QString& es) { return q(glosarioQuitar(es.toStdString())); }
-QString Traductor::glosarioGrupoUi(const QString& grupo, bool activo) {
-    return q(glosarioGrupo(grupo.toStdString(), activo));
+void Traductor::glosarioQuitarUi(const QString& es) { return avisarError(q(glosarioQuitar(es.toStdString()))); }
+void Traductor::glosarioGrupoUi(const QString& grupo, bool activo) {
+    avisarError(q(glosarioGrupo(grupo.toStdString(), activo)));
 }
 
 } // namespace ba::app::agent

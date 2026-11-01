@@ -136,9 +136,9 @@ void LineaProductor::setUmbralSeg(int s) {
     emit activoChanged();
 }
 
-QString LineaProductor::aplicar(const QString& salida, const QString& opcion) {
+void LineaProductor::aplicar(const QString& salida, const QString& opcion) {
     const auto it = propuestas_.find(salida.toStdString());
-    if (it == propuestas_.end()) return tr("Ya no hay una propuesta para esa salida.");
+    if (it == propuestas_.end()) return avisarError(tr("Ya no hay una propuesta para esa salida."));
     const std::string id = opcion.toStdString();
     json ops;
     for (const json& o : it->second.value("opciones", json::array()))
@@ -146,12 +146,11 @@ QString LineaProductor::aplicar(const QString& salida, const QString& opcion) {
     for (const json& h : it->second.value("hardStarts", json::array()))
         for (const json& o : h.value("opciones", json::array()))
             if (o.value("id", std::string()) == id) ops = o.value("ops", json::array());
-    if (!ops.is_array() || ops.empty()) return tr("No hay una opción «%1».").arg(opcion);
+    if (!ops.is_array() || ops.empty()) return avisarError(tr("No hay una opción «%1».").arg(opcion));
     const json r = ev_.corridaVm().lineaEditar(ops, false);
-    if (!r.value("ok", false)) return QString::fromStdString(r.value("error", std::string()));
+    if (!r.value("ok", false)) return avisarError(QString::fromStdString(r.value("error", std::string())));
     const std::string s = it->first; // sacar() lo borra: no pasarle la clave del mismo elemento
     sacar(s);
-    return {};
 }
 
 void LineaProductor::descartar(const QString& salida) { sacar(salida.toStdString()); }

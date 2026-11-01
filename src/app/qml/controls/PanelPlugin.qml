@@ -23,8 +23,7 @@ ColumnLayout {
     spacing: 8
 
     function poner(clave, valor) {
-        const e = pl.panelUi(pluginId, clave, valor)
-        if (e !== "") Studio.notify(e, "error")
+        pl.panelUi(pluginId, clave, valor)
     }
     function num(v, d) { return typeof v === "number" ? v : (v !== undefined && v !== null && v !== "" && !isNaN(Number(v)) ? Number(v) : d) }
     function mostrar(v, c) {

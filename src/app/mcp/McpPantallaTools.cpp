@@ -23,6 +23,9 @@
 #include "ui/PantallasViewModel.hpp"
 #include "ui/QrViewModel.hpp"
 #include "ui/StudioViewModel.hpp"
+#include "ui/CapturaError.hpp"
+
+using ::ba::app::errorDe;
 
 namespace ba::app::mcp {
 namespace {
@@ -174,7 +177,7 @@ void McpService::registerPantallaTools() {
                     return;
                 }
                 const QString err =
-                    p->mostrarCarrusel(id, QString::fromStdString(a["carrusel"].get<std::string>()));
+                    errorDe([&] { p->mostrarCarrusel(id, QString::fromStdString(a["carrusel"].get<std::string>())); });
                 done(err.isEmpty() ? ToolResult::ok(ba::i18n::traducir("mcp", "Mandado. Tarda un par de segundos."))
                                    : ToolResult::error(err.toStdString()));
                 return;
@@ -202,7 +205,7 @@ void McpService::registerPantallaTools() {
                 datos["estilo"] = guardado.value("estilo");
                 if (!datos.contains("pie")) datos["pie"] = guardado.value("nombre");
             }
-            const QString err = p->mostrar(id, tipo, datos);
+            const QString err = errorDe([&] { p->mostrar(id, tipo, datos); });
             if (!err.isEmpty()) {
                 done(ToolResult::error(err.toStdString()));
                 return;
@@ -251,7 +254,7 @@ void McpService::registerPantallaTools() {
                 return;
             }
             if (a.value("quitar", false)) {
-                const QString err = p->desfijar(id);
+                const QString err = errorDe([&] { p->desfijar(id); });
                 done(err.isEmpty() ? ToolResult::ok(ba::i18n::traducir("mcp", "Ya no tiene nada fijo."))
                                    : ToolResult::error(err.toStdString()));
                 return;
@@ -272,7 +275,7 @@ void McpService::registerPantallaTools() {
             for (const char* k : {"texto", "pie", "url", "fuente", "escena"})
                 if (a.contains(k) && a[k].is_string())
                     datos[k] = QString::fromStdString(a[k].get<std::string>());
-            const QString err = p->fijar(id, tipo, datos);
+            const QString err = errorDe([&] { p->fijar(id, tipo, datos); });
             done(err.isEmpty()
                      ? ToolResult::ok(ba::i18n::traducir("mcp", "Fijado, y mandado ahora. Va a volver solo cada vez que el aparato "
                                       "aparezca."))
@@ -293,7 +296,7 @@ void McpService::registerPantallaTools() {
         t.run = [p](const json& a, Done done) {
             const QString id = idDePantalla(*p, QString::fromStdString(a["pantalla"].get<std::string>()));
             if (id.isEmpty()) return done(ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "No conozco la pantalla '%1'."), {a["pantalla"].get<std::string>()})));
-            const QString err = p->olvidar(id);
+            const QString err = errorDe([&] { p->olvidar(id); });
             done(err.isEmpty() ? ToolResult::ok(ba::i18n::traducir("mcp", "Olvidada.")) : ToolResult::error(err.toStdString()));
         };
         core_.addTool(std::move(t));
@@ -318,7 +321,7 @@ void McpService::registerPantallaTools() {
                 done(ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "No conozco la pantalla '%1'."), {a["pantalla"].get<std::string>()})));
                 return;
             }
-            const QString err = p->renombrar(id, QString::fromStdString(a["nombre"].get<std::string>()));
+            const QString err = errorDe([&] { p->renombrar(id, QString::fromStdString(a["nombre"].get<std::string>())); });
             done(err.isEmpty() ? ToolResult::ok(ba::i18n::traducir("mcp", "Listo.")) : ToolResult::error(err.toStdString()));
         };
         core_.addTool(std::move(t));
@@ -337,8 +340,8 @@ void McpService::registerPantallaTools() {
                           {{"host", {{"type", "string"}, {"description", "192.168.1.50"}}},
                            {"nombre", {{"type", "string"}}}}}};
         t.run = [p](const json& a, Done done) {
-            const QString err = p->agregar(QString::fromStdString(a.value("nombre", "")),
-                                           QString::fromStdString(a["host"].get<std::string>()), 0);
+            const QString err = errorDe([&] { p->agregar(QString::fromStdString(a.value("nombre", "")),
+                                           QString::fromStdString(a["host"].get<std::string>()), 0); });
             done(err.isEmpty() ? ToolResult::ok(ba::i18n::traducir("mcp", "Agregada. pantalla_listar dice si contesta."))
                                : ToolResult::error(err.toStdString()));
         };
@@ -456,8 +459,8 @@ void McpService::registerPantallaTools() {
                     if (paso.contains(k) && paso[k].is_string())
                         datos[k] = QString::fromStdString(paso[k].get<std::string>());
                 const QString err =
-                    p->pasoAgregar(id, QString::fromStdString(paso["tipo"].get<std::string>()), datos,
-                                   paso.value("segundos", 15));
+                    errorDe([&] { p->pasoAgregar(id, QString::fromStdString(paso["tipo"].get<std::string>()), datos,
+                                   paso.value("segundos", 15)); });
                 if (!err.isEmpty()) problemas += err.toStdString() + " ";
             }
             json r{{"id", id.toStdString()}};
@@ -709,7 +712,7 @@ void McpService::registerPantallaTools() {
                     if (c.is_string()) cosas << QString::fromStdString(c.get<std::string>());
             const bool completa =
                 a.value("pantallaCompleta", mon->monitor(id).value("pantallaCompleta", true).toBool());
-            const QString err = mon->asignar(id, cosas, completa);
+            const QString err = errorDe([&] { mon->asignar(id, cosas, completa); });
             if (!err.isEmpty()) return done(ToolResult::error(err.toStdString()));
             const QVariantMap m = mon->monitor(id);
             done(ToolResult::ok(ba::i18n::llenar(m.value("conectado").toBool() ? ba::i18n::traducir("mcp", "«%1» muestra %2.")
@@ -736,7 +739,7 @@ void McpService::registerPantallaTools() {
             const QString id = mon->resolver(QString::fromStdString(a.value("monitor", std::string())));
             if (id.isEmpty())
                 return done(ToolResult::error(ba::i18n::traducir("mcp", "No conozco ese monitor. monitor_listar dice cuales hay.")));
-            const QString err = mon->quitar(id);
+            const QString err = errorDe([&] { mon->quitar(id); });
             done(err.isEmpty() ? ToolResult::ok(ba::i18n::traducir("mcp", "Listo: ese monitor ya no muestra nada."))
                                : ToolResult::error(err.toStdString()));
         };

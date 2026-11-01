@@ -14,6 +14,9 @@
 #include <cstdio>
 #include <filesystem>
 #include <fstream>
+#include "ui/CapturaError.hpp"
+
+using ::ba::app::errorDe;
 
 using namespace ba::app::dispositivos;
 namespace fs = std::filesystem;
@@ -161,20 +164,20 @@ int main(int argc, char** argv) {
               "sin nombre propio, el del sistema");
         CHECK(m.value("valor").toString() == "UID-1", "el valor es el id del sistema (no el índice)");
 
-        CHECK(d.renombrar("local:audio:UID-1", "Mic del atril").isEmpty(), "renombrar desde el registro");
+        CHECK(errorDe([&] { d.renombrar("local:audio:UID-1", "Mic del atril"); }).isEmpty(), "renombrar desde el registro");
         CHECK(avisos > 0, "renombrar avisa (la vista se entera)");
         const QVariantMap m2 = d.equipo("local:audio:UID-1");
         CHECK(m2.value("nombre").toString() == "Mic del atril" && m2.value("nombre_propio").toBool() &&
                   m2.value("tecnico").toString() == "MacBook Pro Microphone",
               "con el nombre del operador y el técnico al lado");
-        CHECK(!d.renombrar("local:usb:1:2", "Mi hub").isEmpty(), "a un USB no se le pone nombre");
+        CHECK(!errorDe([&] { d.renombrar("local:usb:1:2", "Mi hub"); }).isEmpty(), "a un USB no se le pone nombre");
         CHECK(d.equipos("", "MacBook").size() == 1, "se busca también por el nombre técnico");
         CHECK(d.porValor("microfono", "UID-1").value("nombre").toString() == "Mic del atril", "porValor (conectado)");
 
         d.correr("local:audio:UID-1", "probar", {}, [](QVariantMap) {});
         CHECK(recibido == "Mic del atril", "las acciones reciben el nombre del operador");
-        CHECK(!d.olvidar("local:audio:UID-1").isEmpty(), "uno conectado no se olvida");
-        CHECK(d.configurar("local:video:CAM-A", {{"nota", "fondo"}}).isEmpty() &&
+        CHECK(!errorDe([&] { d.olvidar("local:audio:UID-1"); }).isEmpty(), "uno conectado no se olvida");
+        CHECK(errorDe([&] { d.configurar("local:video:CAM-A", {{"nota", "fondo"}}); }).isEmpty() &&
                   d.equipo("local:video:CAM-A").value("config").toMap().value("nota").toString() == "fondo",
               "configurar desde el registro");
     }
@@ -211,7 +214,7 @@ int main(int argc, char** argv) {
 
         hay = {camara("CAM-A", "FaceTime HD Camera")};
         d.escanear("local", [](QVariantMap) {});
-        CHECK(d.olvidar("local:audio:UID-1").isEmpty() && d.equipo("local:audio:UID-1").isEmpty(),
+        CHECK(errorDe([&] { d.olvidar("local:audio:UID-1"); }).isEmpty() && d.equipo("local:audio:UID-1").isEmpty(),
               "un ausente se puede olvidar");
     }
 

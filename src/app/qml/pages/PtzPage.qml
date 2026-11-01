@@ -232,14 +232,14 @@ Rectangle {
                                         u = vista.u(cuadro.x + cuadro.width / 2); v = vista.v(cuadro.y + cuadro.height / 2)
                                         an = cuadro.width / vista.iw; al = cuadro.height / vista.ih
                                     }
-                                    page.siNoAlAire(function() { page.avisar(page.cc.apuntar(page.sel, u, v, an, al)) })
+                                    page.siNoAlAire(function() { page.cc.apuntar(page.sel, u, v, an, al) })
                                 }
-                                onDoubleClicked: if (page.mueveDigital) page.siNoAlAire(function() { page.avisar(page.cc.encuadre(page.sel, 0.5, 0.5, 1, 0.8)) })
+                                onDoubleClicked: if (page.mueveDigital) page.siNoAlAire(function() { page.cc.encuadre(page.sel, 0.5, 0.5, 1, 0.8) })
                                 onWheel: (w) => {
                                     if (!page.mueveDigital) return
                                     const z = page.pos.zoom || 1
-                                    page.avisar(page.cc.encuadre(page.sel, page.pos.x || 0.5, page.pos.y || 0.5,
-                                                                 Math.max(1, Math.min(8, z * (w.angleDelta.y > 0 ? 1.15 : 1 / 1.15))), 0.15))
+                                    page.cc.encuadre(page.sel, page.pos.x || 0.5, page.pos.y || 0.5,
+                                                                 Math.max(1, Math.min(8, z * (w.angleDelta.y > 0 ? 1.15 : 1 / 1.15))), 0.15)
                                 }
                             }
                         }
@@ -262,14 +262,14 @@ Rectangle {
                                 }
                                 MouseArea {
                                     anchors.fill: parent
-                                    onClicked: (m) => page.avisar(page.cc.encuadre(page.sel, m.x / width, m.y / height, mapa.zoomActual, 0.6))
-                                    onWheel: (w) => page.avisar(page.cc.encuadre(page.sel, page.pos.x || 0.5, page.pos.y || 0.5,
-                                                                                 Math.max(1, Math.min(8, mapa.zoomActual * (w.angleDelta.y > 0 ? 1.15 : 1 / 1.15))), 0.15))
+                                    onClicked: (m) => page.cc.encuadre(page.sel, m.x / width, m.y / height, mapa.zoomActual, 0.6)
+                                    onWheel: (w) => page.cc.encuadre(page.sel, page.pos.x || 0.5, page.pos.y || 0.5,
+                                                                                 Math.max(1, Math.min(8, mapa.zoomActual * (w.angleDelta.y > 0 ? 1.15 : 1 / 1.15))), 0.15)
                                 }
                             }
                             Text { text: qsTr("Zoom %1×  ·  clic: centrar, rueda: zoom").arg(page.pos.zoom ? page.pos.zoom.toFixed(2) : "1.00")
                                    color: Theme.textFaint; font.pixelSize: 10; Layout.preferredWidth: 200; wrapMode: Text.WordWrap }
-                            GlassButton { compact: true; text: qsTr("Cuadro completo"); onClicked: page.avisar(page.cc.encuadre(page.sel, 0.5, 0.5, 1, 0.8)) }
+                            GlassButton { compact: true; text: qsTr("Cuadro completo"); onClicked: page.cc.encuadre(page.sel, 0.5, 0.5, 1, 0.8) }
                         }
                     }
                 }
@@ -365,9 +365,9 @@ Rectangle {
                             spacing: 8
                             Text { text: qsTr("El joystick mueve:"); color: Theme.textDim; font.pixelSize: 12 }
                             GlassButton { compact: true; text: qsTr("La cámara (óptico)"); active: !page.mueveDigital
-                                          onClicked: page.avisar(page.cc.setModo(page.sel, "optico")) }
+                                          onClicked: page.cc.setModo(page.sel, "optico") }
                             GlassButton { compact: true; text: qsTr("El recorte (digital)"); active: page.mueveDigital
-                                          onClicked: page.avisar(page.cc.setModo(page.sel, "digital")) }
+                                          onClicked: page.cc.setModo(page.sel, "digital") }
                         }
                         RowLayout {
                             spacing: 24
@@ -391,7 +391,7 @@ Rectangle {
                                             required property var modelData
                                             implicitHeight: 34
                                             text: modelData.t
-                                            onPresionado: page.avisar(page.cc.mover(page.sel, 0, 0, modelData.v * page.velocidad))
+                                            onPresionado: page.cc.mover(page.sel, 0, 0, modelData.v * page.velocidad)
                                             onSoltado: page.cc.parar(page.sel)
                                         }
                                     }
@@ -406,14 +406,14 @@ Rectangle {
                                             required property var modelData
                                             implicitHeight: 34
                                             text: modelData.t
-                                            onPresionado: page.avisar(page.cc.enfocar(page.sel, modelData.v * 0.5))
+                                            onPresionado: page.cc.enfocar(page.sel, modelData.v * 0.5)
                                             onSoltado: page.cc.enfocar(page.sel, 0)
                                         }
                                     }
                                     GlassButton { compact: true; text: qsTr("Auto"); visible: page.cam !== null && page.cam.capacidades.autoFoco === true
-                                                  onClicked: page.avisar(page.cc.autoFoco(page.sel, true)) }
+                                                  onClicked: page.cc.autoFoco(page.sel, true) }
                                     GlassButton { compact: true; text: qsTr("Manual"); visible: page.cam !== null && page.cam.capacidades.autoFoco === true
-                                                  onClicked: page.avisar(page.cc.autoFoco(page.sel, false)) }
+                                                  onClicked: page.cc.autoFoco(page.sel, false) }
                                 }
                                 RowLayout {
                                     spacing: 6
@@ -423,7 +423,7 @@ Rectangle {
                                     Text { text: Math.round(page.velocidad * 100) + "%"; color: Theme.textFaint; font.pixelSize: 11 }
                                 }
                                 GlassButton { compact: true; text: page.mueveDigital ? qsTr("⌂ Cuadro completo") : qsTr("⌂ Home")
-                                              visible: page.caps.home === true; onClicked: page.avisar(page.cc.home(page.sel)) }
+                                              visible: page.caps.home === true; onClicked: page.cc.home(page.sel) }
                             }
                         }
 
@@ -503,7 +503,7 @@ Rectangle {
                                                                    page.avisar(r.ok ? (r.aviso || "") : r.error) }) }
                                         GlassButton { compact: true; text: qsTr("Foto"); visible: !filaPos.editando
                                                       ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: qsTr("Vuelve a sacar la foto con lo que se ve ahora")
-                                                      onClicked: page.avisar(page.cc.capturarMiniatura(page.sel, filaPos.modelData.id)) }
+                                                      onClicked: page.cc.capturarMiniatura(page.sel, filaPos.modelData.id) }
                                         GlassButton { compact: true; text: qsTr("Regrabar"); visible: !filaPos.editando
                                                       onClicked: { const r = page.cc.editarPosicion(page.sel, filaPos.modelData.id, {regrabar: true})
                                                                    page.avisar(r.ok ? (r.aviso || "") : r.error) } }
@@ -524,7 +524,7 @@ Rectangle {
                                                               title: qsTr("¿Borrar la posición «%1»?").arg(nombre),
                                                               text: qsTr("Se borra de la lista y se libera su memoria en la cámara."),
                                                               accept: qsTr("Borrar"), reject: qsTr("Cancelar"),
-                                                              action: function() { page.avisar(cc.borrarPosicion(entrada, id)) }
+                                                              action: function() { cc.borrarPosicion(entrada, id) }
                                                           })
                                                       } }
                                     }
@@ -646,7 +646,7 @@ Rectangle {
                                     const campos = panelHw.definicion().campos
                                     for (let i = 0; i < campos.length; ++i)
                                         if (campos[i].tipo === "choice" && v[campos[i].clave] === undefined) v[campos[i].clave] = campos[i].opciones[0].valor
-                                    page.avisar(page.cc.configurar(page.sel, panelHw.backend, v))
+                                    page.cc.configurar(page.sel, panelHw.backend, v)
                                 }
                             }
                             GlassButton {
@@ -695,7 +695,7 @@ Rectangle {
                                        text: qsTr("Recorte y zoom en la GPU, en cualquier cámara. Sin zoom no cuesta nada.") }
                             }
                             Toggle { checked: page.cam ? page.cam.digital : false
-                                     onToggled: (w) => page.avisar(page.cc.setDigital(page.sel, w)) }
+                                     onToggled: (w) => page.cc.setDigital(page.sel, w) }
                         }
                         RowLayout {
                             Layout.fillWidth: true
@@ -714,7 +714,7 @@ Rectangle {
                                 textRole: "t"
                                 valueRole: "v"
                                 currentIndex: page.cam ? ["general", "si", "no"].indexOf(page.cam.mejora) : 0
-                                onActivated: page.avisar(page.cc.setMejora(page.sel, currentValue))
+                                onActivated: page.cc.setMejora(page.sel, currentValue)
                             }
                         }
                     }

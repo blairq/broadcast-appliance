@@ -27,6 +27,7 @@
 #include <functional>
 #include <string>
 #include <vector>
+#include "ui/CapturaError.hpp"
 
 namespace ba::app::asamblea {
 
@@ -34,6 +35,11 @@ class Cuerpo;
 
 class Bancas : public QObject {
     Q_OBJECT
+    /// El error de una acción de la interfaz (las Q_INVOKABLE void): a quien mira.
+    void avisarError(const QString& e) {
+        if (!e.isEmpty() && !::ba::app::CapturaError::tomar(e)) emit notify(e, "error");
+    }
+    void avisarError(const std::string& e) { avisarError(QString::fromStdString(e)); }
     Q_PROPERTY(QVariantMap estado READ estado NOTIFY cambio)
    public:
     /// Lo que Bancas necesita del resto de la app.
@@ -68,18 +74,18 @@ class Bancas : public QObject {
     QVariantMap estado() const;
     nlohmann::json estadoJson() const;
 
-    /// Suma a la fila (por banca, id o nombre). "" o el error.
-    Q_INVOKABLE QString agregar(const QString& clave);
+    /// Suma a la fila (por banca, id o nombre). El error va por la señal del modelo.
+    Q_INVOKABLE void agregar(const QString& clave);
     Q_INVOKABLE void quitar(const QString& clave);
     /// La pone al aire: `modo` "armar" (de fábrica) o "directo". Devuelve "" o el
     /// error; los avisos (cámara al aire, sin preset) van en `aviso`.
-    Q_INVOKABLE QString alAire(const QString& clave, const QString& modo = "armar", int segundos = -1);
+    Q_INVOKABLE void alAire(const QString& clave, const QString& modo = "armar", int segundos = -1);
     /// Saca a la del aire (cierra su micrófono y para el reloj).
     Q_INVOKABLE void terminar();
     /// Solo la cámara: lleva la PTZ al preset de la banca (para tenerla lista),
     /// sin armar ni abrir micrófonos. No mueve la cámara que está al aire.
-    /// "" o el error.
-    Q_INVOKABLE QString apuntar(const QString& clave);
+    /// El error va por la señal del modelo.
+    Q_INVOKABLE void apuntar(const QString& clave);
     /// Para el debate: deja lista la toma de la banca. Si la fuente de banca la
     /// encuadra sola (digital), no mueve nada; si es motorizada, la mueve (si no
     /// está al aire). "" o el error.
@@ -87,8 +93,8 @@ class Bancas : public QObject {
     /// ENFOCAR: lleva la cámara a lo que se pida, de palabra: «banca 10», «10»,
     /// «Pepito López» (o solo «López», sin tildes) o el nombre de una posición de
     /// cualquier cámara («Presidencia»). Solo apunta (no da la palabra). Con la
-    /// cámara al aire no se mueve salvo `forzar`. "" o el error.
-    Q_INVOKABLE QString enfocar(const QString& que, bool forzar = false);
+    /// cámara al aire no se mueve salvo `forzar`. El error va por la señal del modelo.
+    Q_INVOKABLE void enfocar(const QString& que, bool forzar = false);
     /// Si el último `enfocar` no movió la cámara porque estaba al aire (para no
     /// reconocerlo por el texto del error, que va traducido).
     bool enfocarFrenoPorAire() const { return frenoPorAire_; }
@@ -97,7 +103,7 @@ class Bancas : public QObject {
     nlohmann::json resolver(const std::string& que) const;
 
     /// La primera de la fila al aire.
-    Q_INVOKABLE QString siguiente(const QString& modo = "armar");
+    Q_INVOKABLE void siguiente(const QString& modo = "armar");
     /// El tiempo de cada uno al darle la palabra (de fábrica, 3 minutos). Se guarda.
     Q_INVOKABLE void setAsignado(int segundos);
     /// Le suma (o resta) tiempo al que habla.
@@ -112,6 +118,8 @@ class Bancas : public QObject {
     nlohmann::json oradorParaZocalo() const;
 
    signals:
+    /// Para el operador (ya traducido): los errores de las acciones de la interfaz.
+    void notify(const QString& texto, const QString& tipo);
     void cambio();
 
    private:

@@ -32,6 +32,7 @@
 #include <memory>
 
 #include "ui/ListModels.hpp" // JsonListModel
+#include "ui/CapturaError.hpp"
 
 namespace ba::app::sala {
 class ControlSala;
@@ -51,6 +52,11 @@ class VentanillaMotor;
 
 class ConferenceViewModel : public QObject {
     Q_OBJECT
+    /// El error de una acción de la interfaz (las Q_INVOKABLE void): a quien mira.
+    void avisarError(const QString& e) {
+        if (!e.isEmpty() && !::ba::app::CapturaError::tomar(e)) emit notify(e, "error");
+    }
+    void avisarError(const std::string& e) { avisarError(QString::fromStdString(e)); }
     Q_PROPERTY(bool online READ online NOTIFY onlineChanged)
     /// El proxy por nombre (T61): lo último que dijo la sala (GET /api/v1/proxy) más la configuración.
     Q_PROPERTY(QVariantMap proxy READ proxy NOTIFY proxyChanged)
@@ -205,8 +211,8 @@ class ConferenceViewModel : public QObject {
     /// tiempo para hablar (sala::OradoresSala::leerTiempo: «2:30», «90», «3m», «+1:00»…).
     Q_INVOKABLE void guardarFicha(const QString& id, const QString& name, const QString& info,
                                   const QString& contact, const QString& tiempo);
-    /// El tiempo general por orador, escrito (ver guardarFicha). "" o el error.
-    Q_INVOKABLE QString setTiempoGeneral(const QString& texto);
+    /// El tiempo general por orador, escrito (ver guardarFicha). El error va por la señal del modelo.
+    Q_INVOKABLE void setTiempoGeneral(const QString& texto);
     /// Una vista empieza o deja de mirar lo que la sala no avisa y hay que pedirle: "proxy"
     /// (cada 5 s) o "bloqueos" (los de PIN, cada 3 s). La cuenta es por vista
     /// (comun/UsoPorVistas); sin nadie mirando no se pregunta.

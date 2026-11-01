@@ -493,7 +493,7 @@ Rectangle {
                         Menu {
                             id: qrMenu
                             property var opciones: []
-                            onAboutToShow: opciones = Studio.qr.paraElegir()
+                            onAboutToShow: opciones = Studio.qr.paraElegir
                             ItemsDeMenu {
                                 menu: qrMenu
                                 model: qrMenu.opciones

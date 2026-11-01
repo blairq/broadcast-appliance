@@ -130,8 +130,7 @@ ColumnLayout {
                 if (f.combo.currentIndex <= 0) continue
                 l.push({ nombre: f.campo.text.trim(), fuente: f.combo.currentIndex === 1 ? "programa" : f.combo.currentText })
             }
-            const e = cr.s.setVistasUi(l)
-            if (e !== "") Studio.notify(e, "error")
+            cr.s.setVistasUi(l)
         }
         Text { color: Theme.textDim; font.pixelSize: 12; text: qsTr("Su cámara +") }
         component CanalVista: RowLayout {
@@ -405,8 +404,7 @@ ColumnLayout {
         property string nombre: ""
         standardButtons: Dialog.Save | Dialog.Cancel
         onAccepted: {
-            const e = cr.s.setDatosUi(datosDlg.id, {email: campoEmail.text.trim(), telefono: campoTel.text.trim(), nota: campoNota.text.trim()})
-            if (e) Studio.notify(e, "error")
+            cr.s.setDatosUi(datosDlg.id, {email: campoEmail.text.trim(), telefono: campoTel.text.trim(), nota: campoNota.text.trim()})
         }
         GridLayout {
             columns: 2

@@ -38,7 +38,7 @@ ColumnLayout {
     }
     // Digital: el encuadre se da en coordenadas de la toma entera.
     readonly property real zoom: v.t.pos.zoom || 1
-    function encuadrar(x, y, z, seg) { v.t.avisar(v.t.cc.encuadre(v.t.entrada, x, y, Math.max(1, Math.min(8, z)), seg)) }
+    function encuadrar(x, y, z, seg) { v.t.cc.encuadre(v.t.entrada, x, y, Math.max(1, Math.min(8, z)), seg) }
 
     // --- Arriba: cámara, qué se mueve, foto, configuración --------------------------------
     RowLayout {
@@ -124,17 +124,17 @@ ColumnLayout {
             }
             onClic: (x, y) => v.conPermiso(function() {
                 if (v.t.mueveDigital) v.encuadrar(x, y, v.zoom, 0.3)
-                else v.t.avisar(v.t.cc.apuntar(v.t.entrada, x, y, 0, 0))
+                else v.t.cc.apuntar(v.t.entrada, x, y, 0, 0)
             })
             onCuadro: (x, y, w, h) => v.conPermiso(function() {
                 if (v.t.mueveDigital) v.encuadrar(x, y, 1 / Math.max(w, h), 0.4)
-                else v.t.avisar(v.t.cc.apuntar(v.t.entrada, x, y, w, h))
+                else v.t.cc.apuntar(v.t.entrada, x, y, w, h)
             })
             onMovido: (x, y) => { if (v.t.mueveDigital) { arrastre.x = x; arrastre.y = y; if (!arrastre.running) arrastre.start() } }
             onSoltado: { arrastre.stop(); if (v.t.mueveDigital) v.encuadrar(arrastre.x, arrastre.y, v.zoom, 0) }
             onRueda: (s) => {
                 if (v.t.mueveDigital) v.encuadrar(v.t.pos.x || 0.5, v.t.pos.y || 0.5, v.zoom * (s > 0 ? 1.15 : 1 / 1.15), 0.15)
-                else { v.t.avisar(v.t.cc.mover(v.t.entrada, 0, 0, s * v.t.velocidad)); pararZoom.restart() }
+                else { v.t.cc.mover(v.t.entrada, 0, 0, s * v.t.velocidad); pararZoom.restart() }
             }
             onDobleClic: if (v.t.mueveDigital) v.conPermiso(function() { v.encuadrar(0.5, 0.5, 1, 0.8) })
             // Mientras se arrastra el recuadro, el encuadre lo sigue (como mucho 30 veces por segundo).
@@ -168,12 +168,12 @@ ColumnLayout {
                        : v.fotoInfo.conMemoria ? qsTr("se movió: al tocar, vuelve a donde se sacó y apunta")
                                                : qsTr("se movió y no tiene memoria para volver: sacá otra")
                 onClic: (x, y) => v.conPermiso(function() {
-                    v.t.avisar(v.t.mueveDigital ? v.t.cc.apuntar(v.t.entrada, x, y, 0, 0)
-                                                : v.t.cc.apuntarEnFoto(v.t.entrada, x, y, 0, 0))
+                    v.t.mueveDigital ? v.t.cc.apuntar(v.t.entrada, x, y, 0, 0)
+                                                : v.t.cc.apuntarEnFoto(v.t.entrada, x, y, 0, 0)
                 })
                 onCuadro: (x, y, w, h) => v.conPermiso(function() {
-                    v.t.avisar(v.t.mueveDigital ? v.t.cc.apuntar(v.t.entrada, x, y, w, h)
-                                                : v.t.cc.apuntarEnFoto(v.t.entrada, x, y, w, h))
+                    v.t.mueveDigital ? v.t.cc.apuntar(v.t.entrada, x, y, w, h)
+                                                : v.t.cc.apuntarEnFoto(v.t.entrada, x, y, w, h)
                 })
             }
 
@@ -196,7 +196,7 @@ ColumnLayout {
                             Layout.fillWidth: true
                             implicitHeight: 28
                             text: modelData.t
-                            onPresionado: v.t.avisar(v.t.cc.mover(v.t.entrada, 0, 0, modelData.v * v.t.velocidad))
+                            onPresionado: v.t.cc.mover(v.t.entrada, 0, 0, modelData.v * v.t.velocidad)
                             onSoltado: v.t.cc.parar(v.t.entrada)
                         }
                     }
@@ -209,7 +209,7 @@ ColumnLayout {
                         compact: true
                         visible: v.t.caps.home === true
                         text: qsTr("Inicio")
-                        onClicked: v.conPermiso(function() { v.t.avisar(v.t.cc.home(v.t.entrada)) })
+                        onClicked: v.conPermiso(function() { v.t.cc.home(v.t.entrada) })
                     }
                 }
             }
@@ -317,7 +317,7 @@ ColumnLayout {
                                     ApplicationWindow.window.confirm({ title: qsTr("¿Borrar «%1»?").arg(p.nombre),
                                         text: qsTr("Se borra el punto prefijado (y su memoria en la cámara)."),
                                         accept: qsTr("Borrar"), reject: qsTr("Cancelar"),
-                                        action: function() { v.t.avisar(v.t.cc.borrarPosicion(v.t.entrada, p.id)) } })
+                                        action: function() { v.t.cc.borrarPosicion(v.t.entrada, p.id) } })
                                     return
                                 }
                                 const c = {}

@@ -48,6 +48,7 @@
 #include <nlohmann/json.hpp>
 
 #include "agent/Lanzamiento.hpp"
+#include "ui/CapturaError.hpp"
 
 class QProcess;
 class QTimer;
@@ -58,6 +59,17 @@ class Roles;
 
 class Despachador : public QObject {
     Q_OBJECT
+    /// El error de una acción de la interfaz (las Q_INVOKABLE void): a quien mira.
+    void avisarError(const QString& e) {
+        if (!e.isEmpty() && !::ba::app::CapturaError::tomar(e)) emit notify(e, "error");
+    }
+    void avisarError(const std::string& e) { avisarError(QString::fromStdString(e)); }
+    /// Para las acciones que dicen si se hicieron: el error a quien mira y true si no hubo.
+    bool sinError(const QString& e) {
+        avisarError(e);
+        return e.isEmpty();
+    }
+    bool sinError(const std::string& e) { return sinError(QString::fromStdString(e)); }
     /// Los roles con su estado (ver Roles::aJson) mas `corriendo` y `enCola`.
     Q_PROPERTY(QVariantList roles READ rolesQml NOTIFY cambio)
     /// Las ultimas corridas, la mas nueva primero (sin los pasos: corrida(id)).
@@ -121,7 +133,7 @@ class Despachador : public QObject {
     QVariantMap modelosQml() const;
     QVariantMap detallesQml() const;
     /// Devuelve el error (vacio si se encolo).
-    Q_INVOKABLE QString encargarDesdeUi(const QString& rol, const QString& texto);
+    Q_INVOKABLE bool encargarDesdeUi(const QString& rol, const QString& texto);
     /// Lo mismo, para la vista que después sigue esa corrida: {error, id}
     /// (id vacío si no se encoló). Así no tiene que adivinar cuál es.
     Q_INVOKABLE QVariantMap encargarDesdeUiConId(const QString& rol, const QString& texto);

@@ -48,6 +48,7 @@
 #include <map>
 #include <memory>
 #include <string>
+#include "ui/CapturaError.hpp"
 
 namespace ba::app {
 class AppRuntime;
@@ -64,6 +65,11 @@ struct Posicion;
 
 class ControlCamaras : public QObject {
     Q_OBJECT
+    /// El error de una acción de la interfaz (las Q_INVOKABLE void): a quien mira.
+    void avisarError(const QString& e) {
+        if (!e.isEmpty() && !::ba::app::CapturaError::tomar(e)) emit aviso(e);
+    }
+    void avisarError(const std::string& e) { avisarError(QString::fromStdString(e)); }
     /// [{entrada, tipoEntrada, backend, conf, tieneClave, digital, mejora,
     ///   mejoraActiva, modo, capacidades, capacidadesDigital, listo, estado,
     ///   posiciones, red (la cámara de red de la entrada: Red::camaraDeEntrada; {} si no es)}]
@@ -121,18 +127,18 @@ class ControlCamaras : public QObject {
     /// `modo`: "" (movimiento común) o "seguir_suave" (ptz/Interlock.hpp).
     Q_INVOKABLE QString chequearMovimiento(const QString& entrada, bool forzar = false,
                                            const QString& modo = QString()) const;
-    Q_INVOKABLE QString mover(const QString& entrada, double pan, double tilt, double zoom);
-    Q_INVOKABLE QString parar(const QString& entrada);
-    Q_INVOKABLE QString enfocar(const QString& entrada, double velocidad);
-    Q_INVOKABLE QString autoFoco(const QString& entrada, bool automatico);
+    Q_INVOKABLE void mover(const QString& entrada, double pan, double tilt, double zoom);
+    Q_INVOKABLE void parar(const QString& entrada);
+    Q_INVOKABLE void enfocar(const QString& entrada, double velocidad);
+    Q_INVOKABLE void autoFoco(const QString& entrada, bool automatico);
     /// El preset `numero` es la POSICIÓN de ese número (Posiciones): ir a ella, o
     /// regrabarla (si no hay, se crea «Preset N»). Sin posición con ese número, ir
     /// usa el preset propio de la cámara, si tiene.
-    Q_INVOKABLE QString irPreset(const QString& entrada, int numero);
-    Q_INVOKABLE QString guardarPreset(const QString& entrada, int numero);
-    Q_INVOKABLE QString home(const QString& entrada);
+    Q_INVOKABLE void irPreset(const QString& entrada, int numero);
+    Q_INVOKABLE void guardarPreset(const QString& entrada, int numero);
+    Q_INVOKABLE void home(const QString& entrada);
     /// Encuadre digital directo: centro (x, y 0..1) y zoom (1..8).
-    Q_INVOKABLE QString encuadre(const QString& entrada, double x, double y, double zoom, double segundos);
+    Q_INVOKABLE void encuadre(const QString& entrada, double x, double y, double zoom, double segundos);
     /// Apuntar con el mouse sobre la imagen de la entrada (lo que se ve, ya
     /// recortado): (u, v) 0..1 es el punto que va al centro; con un cuadro
     /// (ancho, alto 0..1 de la imagen), además se acerca hasta que el cuadro
@@ -140,16 +146,16 @@ class ControlCamaras : public QObject {
     /// joystick: el digital, exacto; una cámara motorizada, aproximado (un
     /// pulso de movimiento y otro de zoom, porque los protocolos no dicen
     /// cuántos grados hay en el cuadro).
-    Q_INVOKABLE QString apuntar(const QString& entrada, double u, double v, double ancho, double alto);
+    Q_INVOKABLE void apuntar(const QString& entrada, double u, double v, double ancho, double alto);
     /// {x, y, zoom, moviendo} del PTZ digital (vacío si está apagado).
     QVariantMap posicion(const QString& entrada) const;
 
     // --- Configurar ------------------------------------------------------------
     /// backend: "ninguno" | "visca" | "onvif" | "panasonic"; conf: host,
     /// puerto, transporte, direccion, usuario, clave, perfil. Una clave vacía
-    /// deja la que estaba guardada. Devuelve "" o el error.
-    Q_INVOKABLE QString configurar(const QString& entrada, const QString& backend, const QVariantMap& conf);
-    Q_INVOKABLE QString setDigital(const QString& entrada, bool prendido);
+    /// deja la que estaba guardada. El error va por la señal del modelo.
+    Q_INVOKABLE void configurar(const QString& entrada, const QString& backend, const QVariantMap& conf);
+    Q_INVOKABLE void setDigital(const QString& entrada, bool prendido);
     /// Los PTZ que maneja un plugin: el plugin arrancó, se cayó o volvió.
     void refrescarPlugins();
     /// Qué mueve ahora el PTZ de la entrada: "optico", "digital" o "" (nada).
@@ -157,9 +163,9 @@ class ControlCamaras : public QObject {
     /// Todo lo que el protocolo dijo que la cámara puede, con las respuestas crudas.
     QVariantMap funcionesDe(const QString& entrada);
     /// "general" | "si" | "no".
-    Q_INVOKABLE QString setMejora(const QString& entrada, const QString& modo);
+    Q_INVOKABLE void setMejora(const QString& entrada, const QString& modo);
     /// Qué mueve el joystick cuando hay hardware: "optico" | "digital".
-    Q_INVOKABLE QString setModo(const QString& entrada, const QString& modo);
+    Q_INVOKABLE void setModo(const QString& entrada, const QString& modo);
     Q_INVOKABLE void buscarOnvif();
     /// Revisa entradas y filtros ya (también corre solo cada 1,5 s).
     Q_INVOKABLE void sincronizar();
@@ -180,7 +186,7 @@ class ControlCamaras : public QObject {
     Q_INVOKABLE QVariantMap editarPosicion(const QString& entrada, const QString& idONombre,
                                            const QVariantMap& cambios);
     /// Borra la posición (y libera su memoria en la cámara).
-    Q_INVOKABLE QString borrarPosicion(const QString& entrada, const QString& idONombre);
+    Q_INVOKABLE void borrarPosicion(const QString& entrada, const QString& idONombre);
     /// Va a la posición: la cámara a su memoria (con su velocidad) y el
     /// recorte a su encuadre, en `segundos` (-1 = los de la posición, o 1).
     /// {ok, error, aviso}.
@@ -200,9 +206,9 @@ class ControlCamaras : public QObject {
     void setDejarDeSeguir(std::function<void(const QString&)> fn) { dejarDeSeguir_ = std::move(fn); }
 
     /// Saca la foto de la posición: lo que muestra la entrada AHORA, 320 px de
-    /// ancho, en Miniaturas/ptz/. "" o el error. Se llama sola al crear o
+    /// ancho, en Miniaturas/ptz/. El error va por la señal del modelo. Se llama sola al crear o
     /// regrabar (un rato después, cuando el recorte ya llegó).
-    Q_INVOKABLE QString capturarMiniatura(const QString& entrada, const QString& idONombre);
+    Q_INVOKABLE void capturarMiniatura(const QString& entrada, const QString& idONombre);
 
     // --- La foto del panel PTZ (cámaras motorizadas) ----------------------------
     /// Saca una foto de lo que muestra la entrada y anota dónde está la cabeza
@@ -214,8 +220,8 @@ class ControlCamaras : public QObject {
     QVariantMap foto(const QString& entrada) const;
     /// Apunta al punto (u, v) de la FOTO (y, con ancho/alto, encuadra ese cuadro):
     /// si la cámara no se movió desde la foto, ya; si se movió, primero vuelve a
-    /// donde estaba (su memoria) y después apunta. "" o el error.
-    Q_INVOKABLE QString apuntarEnFoto(const QString& entrada, double u, double v, double ancho, double alto);
+    /// donde estaba (su memoria) y después apunta. El error va por la señal del modelo.
+    Q_INVOKABLE void apuntarEnFoto(const QString& entrada, double u, double v, double ancho, double alto);
 
     /// Para MCP: el estado de una entrada (o de todas), como json.
     QJsonObject estadoJson(const QString& entrada = {}) const;

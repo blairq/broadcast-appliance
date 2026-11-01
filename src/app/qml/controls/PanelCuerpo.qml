@@ -97,8 +97,7 @@ Popup {
                     c[campo] = valor
                     if (campo === "camara") c.posicion = ptz.posicion || ""
                     if (campo === "posicion") c.camara = ptz.camara || ""
-                    const e = pop.cu.guardar(c)
-                    if (e !== "") Studio.notify(e, "error")
+                    pop.cu.guardar(c)
                 }
                 component Celda: TextField {
                     property string campo
@@ -139,8 +138,7 @@ Popup {
                     posicion: fila.ptz.posicion || ""
                     anchoCamara: 110; anchoPosicion: 100
                     onElegido: (c, p) => {
-                        const e = pop.cu.guardar({ id: fila.modelData.id, camara: c, posicion: p })
-                        if (e !== "") Studio.notify(e, "error")
+                        pop.cu.guardar({ id: fila.modelData.id, camara: c, posicion: p })
                     }
                     ToolTip.visible: hovered && (fila.modelData.banca || "") === ""; ToolTip.text: qsTr("Primero su banca: la toma es de la banca")
                     property bool hovered: false

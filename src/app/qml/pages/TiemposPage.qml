@@ -278,7 +278,7 @@ Rectangle {
                         icon: "▶"
                         active: true
                         enabled: !(page.tm && page.tm.analisis.length && page.tm.analisis[0].estado === "midiendo")
-                        onClicked: { const e = page.tm.analizarUi(10); if (e) Studio.notify(e, "error") }
+                        onClicked: { page.tm.analizarUi(10) }
                     }
                     GlassButton {
                         Layout.fillWidth: true
@@ -488,8 +488,7 @@ Rectangle {
                             compact: true; icon: "🔍"; text: qsTr("Analizar por dentro (5 s)")
                             onClicked: {
                                 page.recorridoDe = barraElegida.entrada
-                                const e = page.tm.analizarEntradaUi(barraElegida.entrada, 5)
-                                if (e) Studio.notify(e, "error")
+                                page.tm.analizarEntradaUi(barraElegida.entrada, 5)
                             }
                         }
                         GlassButton {

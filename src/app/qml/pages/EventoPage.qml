@@ -1475,10 +1475,8 @@ Rectangle {
                         const m = nuevoEventoDlg.modo
                         const desde = m === "anterior" ? anterior.currentText : m === "plantilla" ? "plantilla:" + plantilla.currentValue : m
                         // En otro hilo (una copia puede tardar): el progreso arriba, el aviso al terminar.
-                        const e = nuevoEventoDlg.cf.nuevoEventoUi(nombreEv.text.trim(), desde, abrirlo.checked,
-                                                                  cpsEv.currentValue || "")
-                        if (e !== "") { Studio.notify(e, "error"); return }
-                        nuevoEventoDlg.close()
+                        if (nuevoEventoDlg.cf.nuevoEventoUi(nombreEv.text.trim(), desde, abrirlo.checked, cpsEv.currentValue || ""))
+                            nuevoEventoDlg.close()
                     }
                 }
             }
@@ -1611,7 +1609,7 @@ Rectangle {
                                 title: qsTr("¿Abrir «%1»?").arg(n),
                                 text: qsTr("La app se reinicia con ese evento (sus escenas, mezclador, medios y asamblea)."),
                                 accept: qsTr("Abrir"), reject: qsTr("Cancelar"),
-                                action: function() { const e = abrirEventoDlg.cf.cambiarUi(n); if (e !== "") Studio.notify(e, "error") } })
+                                action: function() { abrirEventoDlg.cf.cambiarUi(n) } })
                         }
                     }
                 }

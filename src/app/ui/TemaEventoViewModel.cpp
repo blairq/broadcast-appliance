@@ -144,9 +144,9 @@ QStringList TemaEventoViewModel::avisos() const {
 
 // --- Cambiar ----------------------------------------------------------------------------
 
-QString TemaEventoViewModel::cambiar(const QVariantMap& campos) {
-    return cambiarJson(json::parse(QJsonDocument::fromVariant(campos).toJson(QJsonDocument::Compact).toStdString(), nullptr,
-                                   false));
+void TemaEventoViewModel::cambiar(const QVariantMap& campos) {
+    avisarError(cambiarJson(json::parse(QJsonDocument::fromVariant(campos).toJson(QJsonDocument::Compact).toStdString(), nullptr,
+                                   false)));
 }
 
 QString TemaEventoViewModel::cambiarJson(const json& c) {
@@ -221,34 +221,34 @@ QString TemaEventoViewModel::guardar(evento::TemaEvento t) {
     return {};
 }
 
-QString TemaEventoViewModel::subirLogo(const QString& archivo, const QString& cual) {
-    if (!hayEvento()) return tr("No hay ningún evento abierto.");
-    if (cual != "logo" && cual != "logoClaro" && cual != "favicon") return tr("Es «logo», «logoClaro» o «favicon».");
+void TemaEventoViewModel::subirLogo(const QString& archivo, const QString& cual) {
+    if (!hayEvento()) return avisarError(tr("No hay ningún evento abierto."));
+    if (cual != "logo" && cual != "logoClaro" && cual != "favicon") return avisarError(tr("Es «logo», «logoClaro» o «favicon»."));
     const QString ruta = archivo.startsWith("file:") ? QUrl(archivo).toLocalFile() : archivo;
     const evento::RecursoCopiado r = evento::copiarRecurso(carpetaEvento_, fs::path(ruta.toStdWString()), "logo");
-    if (!r.error.empty()) return QString::fromStdString(ba::i18n::traducir("evento", r.error.c_str()));
+    if (!r.error.empty()) return avisarError(QString::fromStdString(ba::i18n::traducir("evento", r.error.c_str())));
     evento::TemaEvento t = tema_;
     (cual == "logo" ? t.marca.logo : cual == "logoClaro" ? t.marca.logoClaro : t.marca.favicon) = r.archivo;
-    return guardar(std::move(t));
+    avisarError(guardar(std::move(t)));
 }
 
-QString TemaEventoViewModel::subirFuente(const QString& archivo, const QString& familia, const QString& peso,
+void TemaEventoViewModel::subirFuente(const QString& archivo, const QString& familia, const QString& peso,
                                          const QString& estilo) {
-    if (!hayEvento()) return tr("No hay ningún evento abierto.");
+    if (!hayEvento()) return avisarError(tr("No hay ningún evento abierto."));
     const std::string fam = familia.trimmed().left(60).toStdString();
-    if (fam.empty()) return tr("Falta el nombre de la familia (cómo se llama la letra).");
+    if (fam.empty()) return avisarError(tr("Falta el nombre de la familia (cómo se llama la letra)."));
     const QString ruta = archivo.startsWith("file:") ? QUrl(archivo).toLocalFile() : archivo;
     const evento::RecursoCopiado r = evento::copiarRecurso(carpetaEvento_, fs::path(ruta.toStdWString()), "fuente");
-    if (!r.error.empty()) return QString::fromStdString(ba::i18n::traducir("evento", r.error.c_str()));
+    if (!r.error.empty()) return avisarError(QString::fromStdString(ba::i18n::traducir("evento", r.error.c_str())));
     evento::TemaEvento t = tema_;
     t.tipografia.archivos.push_back({fam, r.archivo, peso.trimmed().isEmpty() ? "400" : peso.trimmed().toStdString(),
                                      estilo == "italic" ? "italic" : "normal"});
     if (t.tipografia.texto.empty()) t.tipografia.texto = fam;
-    return guardar(std::move(t));
+    avisarError(guardar(std::move(t)));
 }
 
-QString TemaEventoViewModel::quitar(const QString& que) {
-    if (!hayEvento()) return tr("No hay ningún evento abierto.");
+void TemaEventoViewModel::quitar(const QString& que) {
+    if (!hayEvento()) return avisarError(tr("No hay ningún evento abierto."));
     evento::TemaEvento t = tema_;
     if (que == "logo") t.marca.logo.clear();
     else if (que == "logoClaro") t.marca.logoClaro.clear();
@@ -260,18 +260,17 @@ QString TemaEventoViewModel::quitar(const QString& que) {
             if (t.tipografia.titulos == f.familia) t.tipografia.titulos.clear();
         }
         t.tipografia.archivos.clear();
-    } else return tr("Es «logo», «logoClaro», «favicon» o «fuentes».");
-    return guardar(std::move(t));
+    } else return avisarError(tr("Es «logo», «logoClaro», «favicon» o «fuentes»."));
+    avisarError(guardar(std::move(t)));
 }
 
-QString TemaEventoViewModel::restablecer() {
-    if (!hayEvento()) return tr("No hay ningún evento abierto.");
+void TemaEventoViewModel::restablecer() {
+    if (!hayEvento()) return avisarError(tr("No hay ningún evento abierto."));
     std::error_code ec;
     fs::remove(carpetaEvento_ / "tema.json", ec);
-    if (ec) return tr("No se pudo borrar tema.json.");
+    if (ec) return avisarError(tr("No se pudo borrar tema.json."));
     evento::limpiarRecursos(carpetaEvento_, evento::TemaEvento{});
     recargar();
-    return {};
 }
 
 QVariantMap TemaEventoViewModel::migrarSitio() {

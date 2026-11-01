@@ -39,6 +39,7 @@
 #include <vector>
 
 #include <nlohmann/json.hpp>
+#include "ui/CapturaError.hpp"
 
 namespace ba::app {
 class VentanillaMotor;
@@ -52,6 +53,17 @@ namespace ba::app {
 
 class VideoViewModel : public QObject {
     Q_OBJECT
+    /// El error de una acción de la interfaz (las Q_INVOKABLE void): a quien mira.
+    void avisarError(const QString& e) {
+        if (!e.isEmpty() && !::ba::app::CapturaError::tomar(e)) emit notify(e, "error");
+    }
+    void avisarError(const std::string& e) { avisarError(QString::fromStdString(e)); }
+    /// Para las acciones que dicen si se hicieron: el error a quien mira y true si no hubo.
+    bool sinError(const QString& e) {
+        avisarError(e);
+        return e.isEmpty();
+    }
+    bool sinError(const std::string& e) { return sinError(QString::fromStdString(e)); }
     /// Las entradas de video que hay.
     Q_PROPERTY(QStringList entradas READ entradas NOTIFY cambio)
     /// Las entradas virtuales que se pueden crear: [{id, nombre, descripcion, pipeline}]
@@ -138,47 +150,47 @@ class VideoViewModel : public QObject {
     static QVariantList virtuales();
 
     // --- Lo que pide QML ("" siempre: el error llega por notify) ------------------------
-    Q_INVOKABLE QString agregar(const QString& tipo, const QString& despues);
-    Q_INVOKABLE QString agregarFiltro(const QString& filtroId, const QString& despues);
-    Q_INVOKABLE QString agregarModulo(const QString& elemento, const QString& despues);
-    Q_INVOKABLE QString agregarMezcla(const QString& elemento);
-    Q_INVOKABLE QString ajustarPad(const QString& id, const QString& puerto, const QString& clave, const QVariant& valor);
-    Q_INVOKABLE QString agregarSuperresUi(const QString& motor, const QString& modelo, const QString& despues);
-    Q_INVOKABLE QString crearVirtual(const QString& nombre, const QString& preset, const QString& escena);
-    Q_INVOKABLE QString quitar(const QString& id);
-    Q_INVOKABLE QString reubicar(const QString& id, const QString& despues);
-    Q_INVOKABLE QString correr(const QString& id, int paso);
-    Q_INVOKABLE QString conectar(const QString& desde, const QString& salida, const QString& hacia, const QString& entrada);
-    Q_INVOKABLE QString desconectar(const QString& desde, const QString& salida, const QString& hacia, const QString& entrada);
-    Q_INVOKABLE QString mover(const QString& id, int x, int y);
-    Q_INVOKABLE QString ajustar(const QString& id, const QVariantMap& params);
-    Q_INVOKABLE QString controlar(const QString& id);
-    Q_INVOKABLE QString agregarControlada(const QString& control, const QString& entrada);
-    Q_INVOKABLE QString soltarControl(const QString& id);
-    Q_INVOKABLE QString ajustarFiltro(const QString& id, const QString& clave, const QVariant& valor);
-    Q_INVOKABLE QString aEscena(const QString& id, const QString& escena);
-    Q_INVOKABLE QString limpiar();
-    Q_INVOKABLE QString ordenar();
-    Q_INVOKABLE QString configurarRelojUi(const QVariantMap& cambios);
+    Q_INVOKABLE void agregar(const QString& tipo, const QString& despues);
+    Q_INVOKABLE void agregarFiltro(const QString& filtroId, const QString& despues);
+    Q_INVOKABLE void agregarModulo(const QString& elemento, const QString& despues);
+    Q_INVOKABLE void agregarMezcla(const QString& elemento);
+    Q_INVOKABLE void ajustarPad(const QString& id, const QString& puerto, const QString& clave, const QVariant& valor);
+    Q_INVOKABLE void agregarSuperresUi(const QString& motor, const QString& modelo, const QString& despues);
+    Q_INVOKABLE bool crearVirtual(const QString& nombre, const QString& preset, const QString& escena);
+    Q_INVOKABLE void quitar(const QString& id);
+    Q_INVOKABLE void reubicar(const QString& id, const QString& despues);
+    Q_INVOKABLE void correr(const QString& id, int paso);
+    Q_INVOKABLE void conectar(const QString& desde, const QString& salida, const QString& hacia, const QString& entrada);
+    Q_INVOKABLE void desconectar(const QString& desde, const QString& salida, const QString& hacia, const QString& entrada);
+    Q_INVOKABLE void mover(const QString& id, int x, int y);
+    Q_INVOKABLE void ajustar(const QString& id, const QVariantMap& params);
+    Q_INVOKABLE void controlar(const QString& id);
+    Q_INVOKABLE void agregarControlada(const QString& control, const QString& entrada);
+    Q_INVOKABLE void soltarControl(const QString& id);
+    Q_INVOKABLE void ajustarFiltro(const QString& id, const QString& clave, const QVariant& valor);
+    Q_INVOKABLE void aEscena(const QString& id, const QString& escena);
+    Q_INVOKABLE void limpiar();
+    Q_INVOKABLE void ordenar();
+    Q_INVOKABLE bool configurarRelojUi(const QVariantMap& cambios);
     /// Mide (y con `aplicar` corrige) cuánto atrasa `b` de `a`: el resultado llega por `medicion`.
     Q_INVOKABLE void medirUi(const QString& a, const QString& b, bool aplicar);
-    Q_INVOKABLE QString desfaseUi(const QString& entrada, double ms);
-    Q_INVOKABLE QString superresUi(const QString& entrada, bool activa);
-    Q_INVOKABLE QString sincroniaUi(const QString& entrada, const QString& modo);
+    Q_INVOKABLE bool desfaseUi(const QString& entrada, double ms);
+    Q_INVOKABLE bool superresUi(const QString& entrada, bool activa);
+    Q_INVOKABLE bool sincroniaUi(const QString& entrada, const QString& modo);
     Q_INVOKABLE void ponerTopeEstudioUi(int tope);
-    Q_INVOKABLE QString claseSincroniaUi(const QString& entrada, const QString& clase);
-    Q_INVOKABLE QString bajarLatenciaUi();
-    Q_INVOKABLE QString automixerPonerUi(const QString& entrada, const QString& grupo);
-    Q_INVOKABLE QString automixerAjustesUi(const QString& grupo, const QVariantMap& ajustes);
-    Q_INVOKABLE QString configurarProgramadorUi(const QVariantMap& cambios);
-    Q_INVOKABLE QString agregarFiltroAudioUi(const QString& entrada, const QString& cual);
-    Q_INVOKABLE QString quitarFiltroAudioUi(const QString& entrada, int indice);
-    Q_INVOKABLE QString ponerFiltrosAudioUi(const QString& entrada, const QVariantList& filtros);
-    Q_INVOKABLE QString superresMotorUi(const QString& entrada, const QString& motor, const QString& modelo);
-    Q_INVOKABLE QString nuevaEntradaRed(const QString& nombre, const QString& uri, const QString& escena, int latenciaMs,
+    Q_INVOKABLE bool claseSincroniaUi(const QString& entrada, const QString& clase);
+    Q_INVOKABLE bool bajarLatenciaUi();
+    Q_INVOKABLE void automixerPonerUi(const QString& entrada, const QString& grupo);
+    Q_INVOKABLE void automixerAjustesUi(const QString& grupo, const QVariantMap& ajustes);
+    Q_INVOKABLE bool configurarProgramadorUi(const QVariantMap& cambios);
+    Q_INVOKABLE bool agregarFiltroAudioUi(const QString& entrada, const QString& cual);
+    Q_INVOKABLE bool quitarFiltroAudioUi(const QString& entrada, int indice);
+    Q_INVOKABLE bool ponerFiltrosAudioUi(const QString& entrada, const QVariantList& filtros);
+    Q_INVOKABLE void superresMotorUi(const QString& entrada, const QString& motor, const QString& modelo);
+    Q_INVOKABLE bool nuevaEntradaRed(const QString& nombre, const QString& uri, const QString& escena, int latenciaMs,
                                         bool normalizar);
-    Q_INVOKABLE QString presetPanoramicaUi(const QString& id, const QString& preset, double campo);
-    Q_INVOKABLE QString aplicarDisposicionUi(const QString& compositor, const QString& disposicion);
+    Q_INVOKABLE void presetPanoramicaUi(const QString& id, const QString& preset, double campo);
+    Q_INVOKABLE void aplicarDisposicionUi(const QString& compositor, const QString& disposicion);
     /// Que revise las entradas ya (no espera a la próxima revisión).
     Q_INVOKABLE void sincronizar();
 

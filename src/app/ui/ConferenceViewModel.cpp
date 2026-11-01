@@ -376,12 +376,11 @@ QVariantMap ConferenceViewModel::reloj(int asignadoS, double desdeMs, double aho
     return {{"restanteMs", r.restanteMs}, {"estado", QString::fromStdString(r.estado)}, {"texto", QString::fromStdString(r.texto)}};
 }
 
-QString ConferenceViewModel::setTiempoGeneral(const QString& texto) {
+void ConferenceViewModel::setTiempoGeneral(const QString& texto) {
     int s = 0;
     if (const std::string e = sala::OradoresSala::leerTiempo(ss(texto), speakerCfg().value("defaultSec").toInt(), s); !e.empty())
-        return frase(e);
+        return avisarError(frase(e));
     setSpeakerConfig({{"defaultSec", s}});
-    return {};
 }
 
 void ConferenceViewModel::requestBoardLink(const QString& target) {

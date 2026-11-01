@@ -90,6 +90,7 @@ AppViewModel::AppViewModel(Partes p, QObject* parent) : QObject(parent), p_(std:
         eventoNuevo_ = false;
         return reiniciarPrograma(aviso);
     });
+    connect(configuraciones_.get(), &Configuraciones::notify, this, &AppViewModel::notify);
     // Terminó un evento nuevo hecho aparte (una copia puede tardar): un solo aviso.
     connect(configuraciones_.get(), &Configuraciones::nuevoEventoListo, this,
             [this](const QString& nombre, const QString& error, bool abriendo) {

@@ -89,7 +89,7 @@ Rectangle {
                             text: conf.speakerCfg.defaultTexto || ""
                             font.pixelSize: 12
                             ToolTip.visible: hovered; ToolTip.text: qsTr("Tiempo general para cada orador (m:ss o minutos)")
-                            onEditingFinished: { const e = conf.setTiempoGeneral(text); if (e !== "") Studio.notify(e, "error") }
+                            onEditingFinished: { conf.setTiempoGeneral(text) }
                         }
                         ComboBox {
                             model: [qsTr("Uno a la vez"), qsTr("Varios")]

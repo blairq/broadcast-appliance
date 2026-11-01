@@ -117,8 +117,7 @@ Popup {
                         catch (e) { Studio.notify(qsTr("Los argumentos no son JSON válido"), "error"); return }
                         spec.actions = [{ tool: accionHerr.editText.trim(), arguments: args }]
                     }
-                    const e = ed.ag.createAlertUi(spec)
-                    if (e !== "") Studio.notify(e, "error"); else { Studio.notify(qsTr("Disparador creado"), "ok"); ed.close() }
+                    if (ed.ag.createAlertUi(spec)) { Studio.notify(qsTr("Disparador creado"), "ok"); ed.close() }
                 }
             }
             Item { Layout.fillWidth: true }

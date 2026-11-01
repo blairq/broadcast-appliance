@@ -48,6 +48,7 @@
 #include "evento/LineaVista.hpp"
 
 #include "comun/UsoPorVistas.hpp"
+#include "ui/CapturaError.hpp"
 
 namespace ba::app {
 
@@ -63,6 +64,11 @@ class BusEventos;
 
 class LineaViewModel : public QObject {
     Q_OBJECT
+    /// El error de una acción de la interfaz (las Q_INVOKABLE void): a quien mira.
+    void avisarError(const QString& e) {
+        if (!e.isEmpty() && !::ba::app::CapturaError::tomar(e)) emit notify(e, "error");
+    }
+    void avisarError(const std::string& e) { avisarError(QString::fromStdString(e)); }
     /// Alguien la mira (la página del guion, la tarjeta, su ventana): recalcula cada segundo y
     /// pide miniaturas. Lo dice cada vista con `usar` (en QML, `Suscripcion`).
     Q_PROPERTY(bool mirando READ mirando NOTIFY mirandoChanged)
@@ -134,19 +140,19 @@ class LineaViewModel : public QObject {
     QObject* productorQml() const;
 
     // --- Vivo (por la salida que se mira): "" o por qué no ------------------------------
-    Q_INVOKABLE QString go();
-    Q_INVOKABLE QString hold();
-    Q_INVOKABLE QString siguiente();
-    Q_INVOKABLE QString anterior();
-    Q_INVOKABLE QString saltar();
-    Q_INVOKABLE QString repetir();
-    Q_INVOKABLE QString irA(const QString& paso);
+    Q_INVOKABLE void go();
+    Q_INVOKABLE void hold();
+    Q_INVOKABLE void siguiente();
+    Q_INVOKABLE void anterior();
+    Q_INVOKABLE void saltar();
+    Q_INVOKABLE void repetir();
+    Q_INVOKABLE void irA(const QString& paso);
     /// Dispara un adlib: una pieza manual del paso al aire o un ítem del estante (un
     /// paso del estante va de próximo).
-    Q_INVOKABLE QString adlib(const QString& id);
-    Q_INVOKABLE QString insertar(const QString& item, bool alAire);
+    Q_INVOKABLE void adlib(const QString& id);
+    Q_INVOKABLE void insertar(const QString& item, bool alAire);
     /// Un atajo de `teclas` (go, hold, anterior, siguiente, saltar, salida:N, estante:<id>).
-    Q_INVOKABLE QString atajo(const QString& accion);
+    Q_INVOKABLE void atajo(const QString& accion);
 
     // --- La ventana de la Línea ------------------------------------------------------
     /// 1 = el bloque al aire, 2 = el evento entero, 3 = 5 min, 4 = 1 min.
@@ -160,19 +166,21 @@ class LineaViewModel : public QObject {
 
     // --- Editar el futuro (pendiente hasta confirmar): "" o por qué no ------------------
     /// Cambia el largo de un paso en `dx` (fracción del ancho).
-    Q_INVOKABLE QString estirar(const QString& paso, double dx);
+    Q_INVOKABLE void estirar(const QString& paso, double dx);
     /// Lleva un paso a donde se soltó (`x`, fracción del ancho): detrás del que arranca antes.
-    Q_INVOKABLE QString mover(const QString& paso, double x);
+    Q_INVOKABLE void mover(const QString& paso, double x);
     /// Corre una pieza dentro de su paso en `dx` (fracción del ancho).
-    Q_INVOKABLE QString moverPieza(const QString& pieza, double dx);
+    Q_INVOKABLE void moverPieza(const QString& pieza, double dx);
     /// La escaleta (arrastrar una fila): el paso va detrás de `detrasDe` en `bloque`
     /// (`detrasDe` vacío: al principio del bloque). Solo el futuro; queda pendiente.
-    Q_INVOKABLE QString reordenar(const QString& paso, const QString& bloque, const QString& detrasDe);
-    Q_INVOKABLE QString confirmar();
+    Q_INVOKABLE void reordenar(const QString& paso, const QString& bloque, const QString& detrasDe);
+    Q_INVOKABLE void confirmar();
     Q_INVOKABLE void descartar();
 
 
    signals:
+    /// Para el operador (ya traducido): los errores de las acciones de la interfaz.
+    void notify(const QString& texto, const QString& tipo);
     void mirandoChanged();
     void salidaChanged();
     // Cada parte de la vista con su aviso: la conducción (la hora, lo transcurrido) se

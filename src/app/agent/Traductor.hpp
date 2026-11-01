@@ -55,6 +55,7 @@
 #include <map>
 #include <memory>
 #include <set>
+#include "ui/CapturaError.hpp"
 
 class QTimer;
 
@@ -69,6 +70,17 @@ class FlujosTexto;
 
 class Traductor : public QObject {
     Q_OBJECT
+    /// El error de una acción de la interfaz (las Q_INVOKABLE void): a quien mira.
+    void avisarError(const QString& e) {
+        if (!e.isEmpty() && !::ba::app::CapturaError::tomar(e)) emit notify(e, "error");
+    }
+    void avisarError(const std::string& e) { avisarError(QString::fromStdString(e)); }
+    /// Para las acciones que dicen si se hicieron: el error a quien mira y true si no hubo.
+    bool sinError(const QString& e) {
+        avisarError(e);
+        return e.isEmpty();
+    }
+    bool sinError(const std::string& e) { return sinError(QString::fromStdString(e)); }
     /// [{id, desde, idioma_desde, a, nombre, activa, rotulo, archivo, estado, faltan, ultima}]
     Q_PROPERTY(QVariantList traducciones READ traduccionesQml NOTIFY cambio)
     /// [{codigo, nombre}]
@@ -173,22 +185,24 @@ class Traductor : public QObject {
     /// El idioma del evento abierto (lo pone quien sabe del evento: StudioViewModel).
     void setIdiomaEvento(const QString& codigo);
     /// `de` vacío = el idioma del evento.
-    Q_INVOKABLE QString agregarUi(const QString& desde, const QString& a, const QString& nombre,
+    Q_INVOKABLE bool agregarUi(const QString& desde, const QString& a, const QString& nombre,
                                   const QString& de = QString());
-    Q_INVOKABLE QString ajustarUi(const QString& id, const QVariantMap& cambios);
-    Q_INVOKABLE QString quitarUi(const QString& id);
-    Q_INVOKABLE QString bajarUi(const QString& de, const QString& a);
+    Q_INVOKABLE void ajustarUi(const QString& id, const QVariantMap& cambios);
+    Q_INVOKABLE void quitarUi(const QString& id);
+    Q_INVOKABLE void bajarUi(const QString& de, const QString& a);
     /// Prueba una frase: el resultado llega por `probado`.
     Q_INVOKABLE void probarUi(const QString& texto, const QString& a, const QString& de = QString());
-    Q_INVOKABLE QString glosarioAgregarUi(const QVariantMap& entrada);
-    Q_INVOKABLE QString glosarioQuitarUi(const QString& es);
-    Q_INVOKABLE QString glosarioGrupoUi(const QString& grupo, bool activo);
+    Q_INVOKABLE bool glosarioAgregarUi(const QVariantMap& entrada);
+    Q_INVOKABLE void glosarioQuitarUi(const QString& es);
+    Q_INVOKABLE void glosarioGrupoUi(const QString& grupo, bool activo);
     /// Escribe el CSV para revisión en Datos/Config/glosario-para-revision.csv y devuelve la ruta.
     Q_INVOKABLE QString glosarioExportarUi();
     /// Importa el CSV revisado (`url` de un FileDialog). "" o el error.
     Q_INVOKABLE QString glosarioImportarUi(const QUrl& url, const QString& revisadoPor);
 
    signals:
+    /// Para el operador (ya traducido): los errores de las acciones de la interfaz.
+    void notify(const QString& texto, const QString& tipo);
     void cambio();
     void glosarioCambio();
     void delEventoCambio();

@@ -22,11 +22,23 @@
 #include <filesystem>
 #include <functional>
 #include <string>
+#include "ui/CapturaError.hpp"
 
 namespace ba::app::asamblea {
 
 class Quorum : public QObject {
     Q_OBJECT
+    /// El error de una acción de la interfaz (las Q_INVOKABLE void): a quien mira.
+    void avisarError(const QString& e) {
+        if (!e.isEmpty() && !::ba::app::CapturaError::tomar(e)) emit notify(e, "error");
+    }
+    void avisarError(const std::string& e) { avisarError(QString::fromStdString(e)); }
+    /// Para las acciones que dicen si se hicieron: el error a quien mira y true si no hubo.
+    bool sinError(const QString& e) {
+        avisarError(e);
+        return e.isEmpty();
+    }
+    bool sinError(const std::string& e) { return sinError(QString::fromStdString(e)); }
     Q_PROPERTY(QVariantMap estado READ estadoUi NOTIFY cambio)
     Q_PROPERTY(QVariantList oficiales READ oficialesUi NOTIFY cambio)
    public:
@@ -57,13 +69,15 @@ class Quorum : public QObject {
 
     QVariantMap estadoUi() const;
     QVariantList oficialesUi() const;
-    Q_INVOKABLE QString setReglaUi(const QVariantMap& r);
-    /// Carga rápida desde la interfaz. "" o el error.
-    Q_INVOKABLE QString cargarOficialUi(const QString& asunto, int afirmativos, int negativos, int abstenciones,
+    Q_INVOKABLE void setReglaUi(const QVariantMap& r);
+    /// Carga rápida desde la interfaz. El error va por la señal del modelo (y dice si anduvo).
+    Q_INVOKABLE bool cargarOficialUi(const QString& asunto, int afirmativos, int negativos, int abstenciones,
                                         const QString& mayoria);
-    Q_INVOKABLE QString cargarCsvUi(const QString& asunto, const QString& csv, const QString& mayoria);
+    Q_INVOKABLE bool cargarCsvUi(const QString& asunto, const QString& csv, const QString& mayoria);
 
    signals:
+    /// Para el operador (ya traducido): los errores de las acciones de la interfaz.
+    void notify(const QString& texto, const QString& tipo);
     void cambio();
 
    private:

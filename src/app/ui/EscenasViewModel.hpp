@@ -38,6 +38,7 @@
 #include <string>
 
 #include "comun/UsoPorVistas.hpp"
+#include "ui/CapturaError.hpp"
 
 namespace ba::app {
 class AppRuntime;
@@ -55,6 +56,11 @@ namespace ba::app {
 
 class EscenasViewModel : public QObject {
     Q_OBJECT
+    /// El error de una acción de la interfaz (las Q_INVOKABLE void): a quien mira.
+    void avisarError(const QString& e) {
+        if (!e.isEmpty() && !::ba::app::CapturaError::tomar(e)) emit notify(e, "error");
+    }
+    void avisarError(const std::string& e) { avisarError(QString::fromStdString(e)); }
     /// El botón de cada escena del editor corta directo (si no, la arma en preview).
     Q_PROPERTY(bool corteDirectoEditor READ corteDirectoEditor WRITE setCorteDirectoEditor NOTIFY ajustesCambio)
     /// Las fuentes con AFV en la salida activa, para enlazar en la vista (afv() es una
@@ -151,7 +157,7 @@ class EscenasViewModel : public QObject {
     /// «Repetir»: guarda los últimos segundos y, cuando el clip está escrito, lo arma
     /// en la escena «Repetición» (lista para el take). "" (lo que pase después lo dice
     /// `notify`).
-    Q_INVOKABLE QString repetirUi();
+    Q_INVOKABLE void repetirUi();
     /// Lo mismo, para quien necesita el resultado (el MCP: replay_guardar): de la `salida`,
     /// armándolo solo con `armar`. `listo(archivo, error, armada)` en este hilo: error del
     /// motor o «no llegó a escribirse» con archivo vacío; con archivo, el error es el de armar.

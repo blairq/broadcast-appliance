@@ -45,11 +45,23 @@
 #include <memory>
 #include <mutex>
 #include <string>
+#include "ui/CapturaError.hpp"
 
 namespace ba::app {
 
 class Configuraciones : public QObject {
     Q_OBJECT
+    /// El error de una acción de la interfaz (las Q_INVOKABLE void): a quien mira.
+    void avisarError(const QString& e) {
+        if (!e.isEmpty() && !::ba::app::CapturaError::tomar(e)) emit notify(e, "error");
+    }
+    void avisarError(const std::string& e) { avisarError(QString::fromStdString(e)); }
+    /// Para las acciones que dicen si se hicieron: el error a quien mira y true si no hubo.
+    bool sinError(const QString& e) {
+        avisarError(e);
+        return e.isEmpty();
+    }
+    bool sinError(const std::string& e) { return sinError(QString::fromStdString(e)); }
     Q_PROPERTY(QVariantList lista READ listaUi NOTIFY cambio)
     Q_PROPERTY(QString activa READ activaUi NOTIFY cambio)
     Q_PROPERTY(QVariantList papelera READ papeleraUi NOTIFY cambio)
@@ -160,25 +172,25 @@ class Configuraciones : public QObject {
     QVariantList demosUi() const;
     Q_INVOKABLE QString crearUi(const QString& nombre, const QString& desde, const QString& descripcion);
     /// Evento nuevo y, si `abrir`, pasar a él (reinicia).
-    Q_INVOKABLE QString nuevoEventoUi(const QString& nombre, const QString& desde, bool abrir, const QString& cps = {});
-    Q_INVOKABLE QString marcarPlantillaUi(const QString& nombre, bool plantilla);
+    Q_INVOKABLE bool nuevoEventoUi(const QString& nombre, const QString& desde, bool abrir, const QString& cps = {});
+    Q_INVOKABLE void marcarPlantillaUi(const QString& nombre, bool plantilla);
     QVariantList plantillasUi() const;
     QVariantList plantillasAdminUi() const;
-    Q_INVOKABLE QString plantillaAjustarUi(const QString& id, const QVariantMap& cambios);
-    Q_INVOKABLE QString plantillaMoverUi(const QString& id, int delta);
+    Q_INVOKABLE void plantillaAjustarUi(const QString& id, const QVariantMap& cambios);
+    Q_INVOKABLE void plantillaMoverUi(const QString& id, int delta);
     /// La abre para editarla (reinicia con ella).
-    Q_INVOKABLE QString plantillaEditarUi(const QString& id);
-    Q_INVOKABLE QString plantillaRestablecerUi(const QString& id);
-    Q_INVOKABLE QString plantillaBorrarUi(const QString& id);
-    Q_INVOKABLE QString plantillaDesdeActualUi(const QString& nombre, const QString& escenario);
+    Q_INVOKABLE void plantillaEditarUi(const QString& id);
+    Q_INVOKABLE void plantillaRestablecerUi(const QString& id);
+    Q_INVOKABLE void plantillaBorrarUi(const QString& id);
+    Q_INVOKABLE void plantillaDesdeActualUi(const QString& nombre, const QString& escenario);
     /// Activa y reinicia.
-    Q_INVOKABLE QString cambiarUi(const QString& nombre);
-    Q_INVOKABLE QString renombrarUi(const QString& de, const QString& a);
+    Q_INVOKABLE void cambiarUi(const QString& nombre);
+    Q_INVOKABLE void renombrarUi(const QString& de, const QString& a);
     Q_INVOKABLE QString describirUi(const QString& nombre, const QString& descripcion);
-    Q_INVOKABLE QString borrarUi(const QString& nombre);
+    Q_INVOKABLE void borrarUi(const QString& nombre);
     QVariantList papeleraUi() const;
-    Q_INVOKABLE QString recuperarUi(const QString& id);
-    Q_INVOKABLE QString vaciarPapeleraUi(const QString& id);
+    Q_INVOKABLE void recuperarUi(const QString& id);
+    Q_INVOKABLE void vaciarPapeleraUi(const QString& id);
     /// Reinicia con la que esté anotada (después de activar por MCP).
     QString reiniciar() { return reiniciar_ ? reiniciar_() : tr("no se puede reiniciar desde acá"); }
 
@@ -186,6 +198,8 @@ class Configuraciones : public QObject {
     Q_INVOKABLE void medir();
 
    signals:
+    /// Para el operador (ya traducido): los errores de las acciones de la interfaz.
+    void notify(const QString& texto, const QString& tipo);
     void cambio();
     void copiaCambio();
     /// Terminó nuevoEventoAparte: `error` vacío si salió bien; `abriendo` si se reinicia con él.

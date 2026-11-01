@@ -21,6 +21,9 @@
 #include <QTimer>
 
 #include <memory>
+#include "ui/CapturaError.hpp"
+
+using ::ba::app::errorDe;
 #endif
 
 namespace ba::app::mcp {
@@ -190,8 +193,8 @@ void McpService::registerCalibracionTools() {
                            {"alto", {{"type", "number"}, {"description", QT_TRANSLATE_NOOP("mcp", "m")}}},
                            {"abrir", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "id de una sesión guardada")}}}}}};
         t.run = [c](const json& a, Done done) {
-            if (a.contains("abrir")) return done(resultado(c->abrir(qs(a, "abrir")), c, "abierta"));
-            done(resultado(c->nueva(qs(a, "nombre"), a.value("largo", 0.0), a.value("ancho", 0.0), a.value("alto", 0.0)), c,
+            if (a.contains("abrir")) return done(resultado(errorDe([&] { c->abrir(qs(a, "abrir")); }), c, "abierta"));
+            done(resultado(errorDe([&] { c->nueva(qs(a, "nombre"), a.value("largo", 0.0), a.value("ancho", 0.0), a.value("alto", 0.0)); }), c,
                            "creada"));
         };
         core_.addTool(std::move(t));
@@ -215,10 +218,10 @@ void McpService::registerCalibracionTools() {
             QString e;
             if (a.contains("largo") || a.contains("ancho") || a.contains("alto")) {
                 const json s = c->sesionJson(false).value("sala", json::object());
-                e = c->setSala(a.value("largo", s.value("largo", 0.0)), a.value("ancho", s.value("ancho", 0.0)),
-                               a.value("alto", s.value("alto", 0.0)));
+                e = errorDe([&] { c->setSala(a.value("largo", s.value("largo", 0.0)), a.value("ancho", s.value("ancho", 0.0)),
+                               a.value("alto", s.value("alto", 0.0))); });
             }
-            if (e.isEmpty() && a.contains("pendiente_db_oct")) e = c->setObjetivo(a["pendiente_db_oct"].get<double>());
+            if (e.isEmpty() && a.contains("pendiente_db_oct")) e = errorDe([&] { c->setObjetivo(a["pendiente_db_oct"].get<double>()); });
             done(resultado(e, c, "listo"));
         };
         core_.addTool(std::move(t));
@@ -254,12 +257,12 @@ void McpService::registerCalibracionTools() {
             const std::string que = a.value("que", "");
             QString e;
             if (que == "parlante")
-                e = c->agregarParlante(qs(a, "nombre"), qs(a, "dispositivo"), a.value("canal", 0), a.value("x", 0.5), a.value("y", 1.0));
+                e = errorDe([&] { c->agregarParlante(qs(a, "nombre"), qs(a, "dispositivo"), a.value("canal", 0), a.value("x", 0.5), a.value("y", 1.0)); });
             else if (que == "microfono")
-                e = c->agregarMicrofono(qs(a, "nombre"), qs(a, "dispositivo"), a.value("canal", 0), qs(a, "calibracion", "modelo"),
-                                        qs(a, "modelo"), qs(a, "archivo"));
+                e = errorDe([&] { c->agregarMicrofono(qs(a, "nombre"), qs(a, "dispositivo"), a.value("canal", 0), qs(a, "calibracion", "modelo"),
+                                        qs(a, "modelo"), qs(a, "archivo")); });
             else if (que == "punto")
-                e = c->agregarPunto(qs(a, "nombre"), qs(a, "tipo", "escucha"), a.value("x", 1.0), a.value("y", 1.0));
+                e = errorDe([&] { c->agregarPunto(qs(a, "nombre"), qs(a, "tipo", "escucha"), a.value("x", 1.0), a.value("y", 1.0)); });
             else
                 e = QString::fromStdString(ba::i18n::traducir("mcp", "que: parlante, microfono o punto"));
             done(resultado(e, c, "agregado"));
@@ -289,10 +292,10 @@ void McpService::registerCalibracionTools() {
         t.run = [c](const json& a, Done done) {
             const QString id = qs(a, "id");
             QString e;
-            if (a.value("borrar_medicion", false)) e = c->borrarMedicion(id);
-            else if (a.value("quitar", false)) e = c->quitar(id);
-            else if (a.contains("calibracion")) e = c->setCalibracionMicrofono(id, qs(a, "calibracion"), qs(a, "modelo"), qs(a, "archivo"));
-            else if (a.contains("x") && a.contains("y")) e = c->mover(id, a["x"].get<double>(), a["y"].get<double>());
+            if (a.value("borrar_medicion", false)) e = errorDe([&] { c->borrarMedicion(id); });
+            else if (a.value("quitar", false)) e = errorDe([&] { c->quitar(id); });
+            else if (a.contains("calibracion")) e = errorDe([&] { c->setCalibracionMicrofono(id, qs(a, "calibracion"), qs(a, "modelo"), qs(a, "archivo")); });
+            else if (a.contains("x") && a.contains("y")) e = errorDe([&] { c->mover(id, a["x"].get<double>(), a["y"].get<double>()); });
             else e = QString::fromStdString(ba::i18n::traducir("mcp", "falta qué cambiar (x/y, quitar, calibracion o borrar_medicion)"));
             done(resultado(e, c, "listo"));
         };
@@ -337,8 +340,8 @@ void McpService::registerCalibracionTools() {
                 compactar(m);
                 done(ToolResult().data(m));
             });
-            const QString e = c->medir(qs(a, "parlante"), qs(a, "punto"), qs(a, "microfono"), qs(a, "etapa", "antes"),
-                                       a.value("duracion_s", 4.0), a.value("nivel_db", -20.0));
+            const QString e = errorDe([&] { c->medir(qs(a, "parlante"), qs(a, "punto"), qs(a, "microfono"), qs(a, "etapa", "antes"),
+                                       a.value("duracion_s", 4.0), a.value("nivel_db", -20.0)); });
             if (!e.isEmpty()) {
                 QObject::disconnect(*con);
                 *hecho = true;
@@ -386,7 +389,7 @@ void McpService::registerCalibracionTools() {
                            {"con_referencia", {{"type", "string"}}},
                            {"con_microfono", {{"type", "string"}}}}}};
         t.run = [c](const json& a, Done done) {
-            done(resultado(c->calibrarPorSustitucion(qs(a, "microfono"), qs(a, "con_referencia"), qs(a, "con_microfono")), c,
+            done(resultado(errorDe([&] { c->calibrarPorSustitucion(qs(a, "microfono"), qs(a, "con_referencia"), qs(a, "con_microfono")); }), c,
                            "calibrado"));
         };
         core_.addTool(std::move(t));
@@ -411,8 +414,8 @@ void McpService::registerCalibracionTools() {
                            {"fuente", {{"type", "string"}}},
                            {"revertir", {{"type", "boolean"}}}}}};
         t.run = [c](const json& a, Done done) {
-            if (a.value("revertir", false)) return done(resultado(c->revertir(qs(a, "fuente")), c, "sacado"));
-            done(resultado(c->aplicar(qs(a, "parlante"), qs(a, "fuente")), c, "aplicado"));
+            if (a.value("revertir", false)) return done(resultado(errorDe([&] { c->revertir(qs(a, "fuente")); }), c, "sacado"));
+            done(resultado(errorDe([&] { c->aplicar(qs(a, "parlante"), qs(a, "fuente")); }), c, "aplicado"));
         };
         core_.addTool(std::move(t));
     }

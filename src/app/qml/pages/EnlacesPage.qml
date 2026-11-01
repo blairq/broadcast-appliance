@@ -198,8 +198,7 @@ Rectangle {
                                             Toggle {
                                                 checked: fila.s.activo
                                                 onToggled: (quiere) => {
-                                                    const e = page.en.activar(fila.s.id, quiere)
-                                                    if (e !== "") Studio.notify(e, "error")
+                                                    page.en.activar(fila.s.id, quiere)
                                                 }
                                             }
                                         }
@@ -281,8 +280,7 @@ Rectangle {
                                         perfilAyuda: fila.ap ? fila.ap.perfilAyuda : ""
                                         textoAprobar: fila.ap ? fila.ap.textoAprobar : qsTr("Aprobar")
                                         onResolver: (id, aprobar, perfil) => {
-                                            const e = page.en.resolver(fila.modelData.id, id, aprobar, perfil)
-                                            if (e !== "") Studio.notify(e, "error")
+                                            page.en.resolver(fila.modelData.id, id, aprobar, perfil)
                                         }
                                     }
                                     // Los aparatos ya emparejados del control web: perfil y quitar.

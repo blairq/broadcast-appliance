@@ -53,7 +53,6 @@ Popup {
             accept: qsTr("Mover igual"), reject: qsTr("Cancelar"), action: accion
         })
     }
-    function avisar(e) { if (e) Studio.notify(e, "error") }
     // La toma propia en curso (las de MCP corren aparte).
     property string esperando: ""
     function empezar(r) {
@@ -170,14 +169,14 @@ Popup {
                             u = vista.u(cuadro.x + cuadro.width / 2); v = vista.v(cuadro.y + cuadro.height / 2)
                             an = cuadro.width / vista.iw; al = cuadro.height / vista.ih
                         }
-                        dlg.siNoAlAire(function() { dlg.avisar(dlg.cc.apuntar(dlg.entrada, u, v, an, al)) })
+                        dlg.siNoAlAire(function() { dlg.cc.apuntar(dlg.entrada, u, v, an, al) })
                     }
-                    onDoubleClicked: if (dlg.digital) dlg.siNoAlAire(function() { dlg.avisar(dlg.cc.encuadre(dlg.entrada, 0.5, 0.5, 1, 0.8)) })
+                    onDoubleClicked: if (dlg.digital) dlg.siNoAlAire(function() { dlg.cc.encuadre(dlg.entrada, 0.5, 0.5, 1, 0.8) })
                     onWheel: (w) => {
                         if (dlg.digital) {
                             const z = dlg.pos.zoom || 1
-                            dlg.avisar(dlg.cc.encuadre(dlg.entrada, dlg.pos.x || 0.5, dlg.pos.y || 0.5,
-                                                       Math.max(1, Math.min(8, z * (w.angleDelta.y > 0 ? 1.15 : 1 / 1.15))), 0.15))
+                            dlg.cc.encuadre(dlg.entrada, dlg.pos.x || 0.5, dlg.pos.y || 0.5,
+                                                       Math.max(1, Math.min(8, z * (w.angleDelta.y > 0 ? 1.15 : 1 / 1.15))), 0.15)
                         } else {
                             dlg.cc.mover(dlg.entrada, 0, 0, w.angleDelta.y > 0 ? 0.5 : -0.5)
                             pararZoom.restart()

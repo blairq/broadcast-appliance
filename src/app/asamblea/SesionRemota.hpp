@@ -38,6 +38,7 @@
 #include <set>
 #include <string>
 #include <vector>
+#include "ui/CapturaError.hpp"
 
 namespace ba::app {
 class UsoPorVistas;
@@ -49,6 +50,11 @@ class Cuerpo;
 
 class SesionRemota : public QObject {
     Q_OBJECT
+    /// El error de una acción de la interfaz (las Q_INVOKABLE void): a quien mira.
+    void avisarError(const QString& e) {
+        if (!e.isEmpty() && !::ba::app::CapturaError::tomar(e)) emit aviso(e, "error");
+    }
+    void avisarError(const std::string& e) { avisarError(QString::fromStdString(e)); }
     /// [{id, nombre, banca, credencial, conectado, estado, lugar, ip, desde_ms, habilitado_por, bloqueado}]
     Q_PROPERTY(QVariantList participantes READ participantesUi NOTIFY cambio)
     /// Habilitados y conectados: los que cuentan como presentes por acá.
@@ -195,7 +201,7 @@ class SesionRemota : public QObject {
     Q_INVOKABLE QVariantMap generarUi(const QString& integrante, bool forzar = false);
     Q_INVOKABLE bool revocarUi(const QString& integrante);
     Q_INVOKABLE QVariantMap generarClaveUi(const QString& integrante, const QString& usuario);
-    Q_INVOKABLE QString setDatosUi(const QString& integrante, const QVariantMap& datos);
+    Q_INVOKABLE void setDatosUi(const QString& integrante, const QVariantMap& datos);
     Q_INVOKABLE QString habilitarUi(const QString& integrante, bool si);
     Q_INVOKABLE QString expulsarUi(const QString& integrante, const QString& motivo);
     QStringList presentesLista() const {
@@ -227,7 +233,7 @@ class SesionRemota : public QObject {
     /// mostrara el automático como texto, al guardar quedaría fijo y no seguiría a la escena.
     Q_PROPERTY(QVariantList vistasUi READ vistasUi NOTIFY cambio)
     QVariantList vistasUi() const;
-    Q_INVOKABLE QString setVistasUi(const QVariantList& vistas);
+    Q_INVOKABLE void setVistasUi(const QVariantList& vistas);
     void ponerFoto(const QString& integrante, const QByteArray& jpeg);
 
    signals:

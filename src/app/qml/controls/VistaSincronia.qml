@@ -27,7 +27,6 @@ Item {
     property string medicionTexto: ""
     property bool midiendo: false
 
-    function avisar(e, ok) { Studio.notify(e !== "" ? e : ok, e !== "" ? "error" : "info") }
     function colorGravedad(g) { return g === "error" ? Theme.live : g === "aviso" ? Theme.warn : Theme.textDim }
     function entradasTodas() { return pop.vg ? pop.vg.entradas : [] }
 
@@ -78,8 +77,8 @@ Item {
                 }
                 /// Cambia la clase: la latencia nueva llega con la vista (la entrada se rearma).
                 function cambiarClase(entrada, clase) {
-                    pop.avisar(pop.vg.claseSincroniaUi(entrada, clase),
-                               (clase === "sala" ? qsTr("«%1» se sincroniza con la sala") : qsTr("«%1» va con su propia demora")).arg(entrada))
+                    if (pop.vg.claseSincroniaUi(entrada, clase))
+                        Studio.notify((clase === "sala" ? qsTr("«%1» se sincroniza con la sala") : qsTr("«%1» va con su propia demora")).arg(entrada), "info")
                 }
 
                 // Una entrada: su barra contra la línea de la latencia del estudio, y su clase.
@@ -232,7 +231,7 @@ Item {
                                 visible: latPanel.lat.puede_bajarse === true
                                 text: qsTr("Bajar a %1").arg(Theme.ms(latPanel.lat.objetivo_ms))
                                 icon: "↓"; active: true
-                                onClicked: pop.avisar(pop.vg.bajarLatenciaUi(), qsTr("Latencia del estudio: %1").arg(Theme.ms(latPanel.lat.objetivo_ms)))
+                                onClicked: if (pop.vg.bajarLatenciaUi()) Studio.notify(qsTr("Latencia del estudio: %1").arg(Theme.ms(latPanel.lat.objetivo_ms)), "info")
                                 ToolTip.visible: hovered; ToolTip.delay: 300
                                 ToolTip.text: latPanel.lat.baja_sola ? qsTr("Baja a lo que piden las sincronizadas")
                                                                      : qsTr("Con algo al aire, bajarla es un salto en todas las salidas")
@@ -359,7 +358,7 @@ Item {
                                 if (tipo === "ntp" || tipo === "red") c.servidor = servidor.text
                                 if (tipo === "red") c.puerto = puertoReloj.value
                                 if (tipo === "ptp") c.dominio = dominio.value
-                                pop.avisar(pop.vg.configurarRelojUi(c), qsTr("Reloj del estudio: %1").arg(tipo))
+                                if (pop.vg.configurarRelojUi(c)) Studio.notify(qsTr("Reloj del estudio: %1").arg(tipo), "info")
                             }
                         }
                     }
@@ -367,8 +366,8 @@ Item {
                         spacing: 8
                         Toggle {
                             checked: (pop.reloj.publicar_puerto || 0) > 0
-                            onToggled: (w) => pop.avisar(pop.vg.configurarRelojUi({ publicar_puerto: w ? publicar.value : 0 }),
-                                                         w ? qsTr("Publicando el reloj en el puerto %1").arg(publicar.value) : qsTr("Ya no se publica el reloj"))
+                            onToggled: (w) => { if (pop.vg.configurarRelojUi({ publicar_puerto: w ? publicar.value : 0 }))
+                                                  Studio.notify(w ? qsTr("Publicando el reloj en el puerto %1").arg(publicar.value) : qsTr("Ya no se publica el reloj"), "info") }
                         }
                         Text { text: qsTr("Publicar el reloj de este aparato (para que otros lo usen) en el puerto"); color: Theme.textDim; font.pixelSize: 12 }
                         SpinBox { id: publicar; from: 1; to: 65535; editable: true; value: (pop.reloj.publicar_puerto || 0) > 0 ? pop.reloj.publicar_puerto : 8554 }
@@ -422,7 +421,7 @@ Item {
                                     value: fila.g.desfase_ms || 0
                                     ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: qsTr("Desfase (ms): positivo la atrasa")
                                 }
-                                GlassButton { compact: true; text: qsTr("Desfasar"); onClicked: pop.avisar(pop.vg.desfaseUi(fila.modelData.entrada, desf.value), qsTr("Desfase aplicado")) }
+                                GlassButton { compact: true; text: qsTr("Desfasar"); onClicked: if (pop.vg.desfaseUi(fila.modelData.entrada, desf.value)) Studio.notify(qsTr("Desfase aplicado"), "info") }
                                 // Cómo sale a horario: el colchón propio o el appsink de GStreamer
                                 // sincronizado con la latencia del estudio (audio y video juntos en los dos).
                                 ComboBox {
@@ -430,7 +429,7 @@ Item {
                                     model: [ { t: qsTr("Colchón"), v: "colchon" }, { t: "GStreamer", v: "gstreamer" } ]
                                     textRole: "t"
                                     currentIndex: fila.g.sincronia === "gstreamer" ? 1 : 0
-                                    onActivated: (i) => pop.avisar(pop.vg.sincroniaUi(fila.modelData.entrada, model[i].v), qsTr("Sincronía: %1").arg(model[i].t))
+                                    onActivated: (i) => { if (pop.vg.sincroniaUi(fila.modelData.entrada, model[i].v)) Studio.notify(qsTr("Sincronía: %1").arg(model[i].t), "info") }
                                     ToolTip.visible: hovered; ToolTip.delay: 400
                                     ToolTip.text: qsTr("Colchón: cola propia con la hora de captura (menos latencia con cámaras de hora inestable). " +
                                                        "GStreamer: appsink al reloj con la latencia del estudio") +
@@ -441,7 +440,7 @@ Item {
                                 Toggle {
                                     visible: pop.vg.haySuperres
                                     checked: fila.g.superres === true
-                                    onToggled: (w) => pop.avisar(pop.vg.superresUi(fila.modelData.entrada, w), w ? qsTr("Superresolución prendida") : qsTr("Superresolución apagada"))
+                                    onToggled: (w) => { if (pop.vg.superresUi(fila.modelData.entrada, w)) Studio.notify(w ? qsTr("Superresolución prendida") : qsTr("Superresolución apagada"), "info") }
                                     ToolTip.visible: hov.hovered; ToolTip.delay: 400
                                     ToolTip.text: qsTr("Duplica la resolución con la superresolución de Apple (para cámaras chicas: hasta el tamaño máximo que acepte el sistema, hoy 960x960; las más grandes pasan sin tocar)") +
                                                   (fila.g.superres_ms > 0 ? ". " + qsTr("Ahora: %1 ms por cuadro").arg(Number(fila.g.superres_ms).toFixed(1)) : "")
@@ -468,7 +467,7 @@ Item {
                                     const l = lista.slice(), j = i + d
                                     if (j < 0 || j >= l.length) return
                                     const x = l[i]; l[i] = l[j]; l[j] = x
-                                    pop.avisar(pop.vg.ponerFiltrosAudioUi(fila.modelData.entrada, l), qsTr("Orden cambiado"))
+                                    if (pop.vg.ponerFiltrosAudioUi(fila.modelData.entrada, l)) Studio.notify(qsTr("Orden cambiado"), "info")
                                 }
                                 Text { text: qsTr("Audio:"); color: Theme.textDim; font.pixelSize: 11; height: 26; verticalAlignment: Text.AlignVCenter }
                                 Repeater {
@@ -497,7 +496,7 @@ Item {
                                         GlassButton {
                                             compact: true; text: "✕"
                                             ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: qsTr("Sacar este filtro")
-                                            onClicked: pop.avisar(pop.vg.quitarFiltroAudioUi(fila.modelData.entrada, chip.index), qsTr("Filtro sacado"))
+                                            onClicked: if (pop.vg.quitarFiltroAudioUi(fila.modelData.entrada, chip.index)) Studio.notify(qsTr("Filtro sacado"), "info")
                                         }
                                     }
                                 }
@@ -514,7 +513,7 @@ Item {
                                     implicitWidth: 140
                                     onActivated: (i) => {
                                         const v = model[i].v
-                                        if (v) pop.avisar(pop.vg.agregarFiltroAudioUi(fila.modelData.entrada, v), qsTr("Filtro agregado (la demora se compensa sola)"))
+                                        if (v && pop.vg.agregarFiltroAudioUi(fila.modelData.entrada, v)) Studio.notify(qsTr("Filtro agregado (la demora se compensa sola)"), "info")
                                         currentIndex = 0
                                     }
                                 }
@@ -636,9 +635,10 @@ Item {
                             compact: true; text: qsTr("Agregar"); active: true
                             enabled: nNombre.text.trim() !== "" && nUri.text.trim() !== "" && nEscena.editText.trim() !== ""
                             onClicked: {
-                                const e = pop.vg.nuevaEntradaRed(nNombre.text, nUri.text, nEscena.editText, nLat.value, nNorm.checked)
-                                pop.avisar(e, qsTr("Entrada «%1» en «%2»").arg(nNombre.text).arg(nEscena.editText))
-                                if (e === "") { nNombre.text = ""; nUri.text = "" }
+                                if (pop.vg.nuevaEntradaRed(nNombre.text, nUri.text, nEscena.editText, nLat.value, nNorm.checked)) {
+                                    Studio.notify(qsTr("Entrada «%1» en «%2»").arg(nNombre.text).arg(nEscena.editText), "info")
+                                    nNombre.text = ""; nUri.text = ""
+                                }
                             }
                         }
                     }

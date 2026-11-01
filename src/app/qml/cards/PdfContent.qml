@@ -23,21 +23,20 @@ Item {
         for (const x of fuentes) if (x.nombre === elegida) return x
         return fuentes.length ? fuentes[0] : null
     }
-    function ok(e) { if (e !== "") Studio.notify(e, "error") }
 
     Keys.onPressed: (e) => {
         if (!tarjeta.f || Studio.focoEnTexto()) return
-        if (e.key === Qt.Key_Right || e.key === Qt.Key_PageDown || e.key === Qt.Key_Space) { tarjeta.ok(tarjeta.pe.paso(tarjeta.f.nombre, 1)); e.accepted = true }
-        else if (e.key === Qt.Key_Left || e.key === Qt.Key_PageUp) { tarjeta.ok(tarjeta.pe.paso(tarjeta.f.nombre, -1)); e.accepted = true }
-        else if (e.key === Qt.Key_Home) { tarjeta.ok(tarjeta.pe.irA(tarjeta.f.nombre, 1)); e.accepted = true }
-        else if (e.key === Qt.Key_End) { tarjeta.ok(tarjeta.pe.irA(tarjeta.f.nombre, 100000)); e.accepted = true }
+        if (e.key === Qt.Key_Right || e.key === Qt.Key_PageDown || e.key === Qt.Key_Space) { tarjeta.pe.paso(tarjeta.f.nombre, 1); e.accepted = true }
+        else if (e.key === Qt.Key_Left || e.key === Qt.Key_PageUp) { tarjeta.pe.paso(tarjeta.f.nombre, -1); e.accepted = true }
+        else if (e.key === Qt.Key_Home) { tarjeta.pe.irA(tarjeta.f.nombre, 1); e.accepted = true }
+        else if (e.key === Qt.Key_End) { tarjeta.pe.irA(tarjeta.f.nombre, 100000); e.accepted = true }
     }
 
     FileDialog {
         id: otro
         title: qsTr("Un PDF para mostrar")
         nameFilters: ["PDF (*.pdf)"]
-        onAccepted: tarjeta.ok(tarjeta.pe.elegirArchivo(tarjeta.f ? tarjeta.f.nombre : "", selectedFile.toString()))
+        onAccepted: tarjeta.pe.elegirArchivo(tarjeta.f ? tarjeta.f.nombre : "", selectedFile.toString())
     }
 
     // Sin fuente PDF: armar la escena.
@@ -112,8 +111,8 @@ Item {
                             Layout.fillWidth: true
                             spacing: 6
                             enabled: !!tarjeta.f && tarjeta.f.paginas > 0
-                            GlassButton { compact: true; text: "⏮"; onClicked: tarjeta.ok(tarjeta.pe.irA(tarjeta.f.nombre, 1)) }
-                            GlassButton { text: "◀"; onClicked: tarjeta.ok(tarjeta.pe.paso(tarjeta.f.nombre, -1)) }
+                            GlassButton { compact: true; text: "⏮"; onClicked: tarjeta.pe.irA(tarjeta.f.nombre, 1) }
+                            GlassButton { text: "◀"; onClicked: tarjeta.pe.paso(tarjeta.f.nombre, -1) }
                             Text {
                                 Layout.fillWidth: true
                                 horizontalAlignment: Text.AlignHCenter
@@ -121,8 +120,8 @@ Item {
                                 color: Theme.text
                                 font { family: Theme.mono; pixelSize: 16; weight: Font.DemiBold }
                             }
-                            GlassButton { text: "▶"; active: true; onClicked: tarjeta.ok(tarjeta.pe.paso(tarjeta.f.nombre, 1)) }
-                            GlassButton { compact: true; text: "⏭"; onClicked: tarjeta.ok(tarjeta.pe.irA(tarjeta.f.nombre, 100000)) }
+                            GlassButton { text: "▶"; active: true; onClicked: tarjeta.pe.paso(tarjeta.f.nombre, 1) }
+                            GlassButton { compact: true; text: "⏭"; onClicked: tarjeta.pe.irA(tarjeta.f.nombre, 100000) }
                         }
                     }
                 }
@@ -136,7 +135,7 @@ Item {
                         id: zoom
                         Layout.fillWidth: true
                         from: 1; to: 8; stepSize: 0.05
-                        onMoved: tarjeta.ok(tarjeta.pe.encuadre(tarjeta.f.nombre, value, -1, -1))
+                        onMoved: tarjeta.pe.encuadre(tarjeta.f.nombre, value, -1, -1)
                     }
                     // Sigue al modelo salvo mientras se arrastra (lo cambian también el MCP y la botonera).
                     Binding { target: zoom; property: "value"; value: tarjeta.f ? (tarjeta.f.zoom || 1) : 1; when: !zoom.pressed }
@@ -147,7 +146,7 @@ Item {
                     }
                     GlassButton {
                         compact: true; text: qsTr("Entera")
-                        onClicked: tarjeta.ok(tarjeta.pe.encuadre(tarjeta.f.nombre, 1, 0.5, 0.5))
+                        onClicked: tarjeta.pe.encuadre(tarjeta.f.nombre, 1, 0.5, 0.5)
                         ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: qsTr("La página entera, sin zoom")
                     }
                 }
@@ -199,7 +198,7 @@ Item {
                     onWheel: (w) => {
                         if (!tarjeta.f || !(tarjeta.f.paginas > 0)) return
                         const z = Math.max(1, Math.min(8, (tarjeta.f.zoom || 1) * (w.angleDelta.y > 0 ? 1.15 : 1 / 1.15)))
-                        tarjeta.ok(tarjeta.pe.encuadre(tarjeta.f.nombre, z, -1, -1))
+                        tarjeta.pe.encuadre(tarjeta.f.nombre, z, -1, -1)
                     }
                 }
             }
@@ -270,7 +269,7 @@ Item {
                     anchors.fill: parent
                     hoverEnabled: true
                     cursorShape: Qt.PointingHandCursor
-                    onClicked: { tarjeta.forceActiveFocus(); tarjeta.ok(tarjeta.pe.elegir(tarjeta.f ? tarjeta.f.nombre : "", modelData.id)) }
+                    onClicked: { tarjeta.forceActiveFocus(); tarjeta.pe.elegir(tarjeta.f ? tarjeta.f.nombre : "", modelData.id) }
                     ToolTip.visible: containsMouse; ToolTip.delay: 500; ToolTip.text: qsTr("Mostrar «%1» (desde la página 1)").arg(modelData.titulo)
                 }
             }

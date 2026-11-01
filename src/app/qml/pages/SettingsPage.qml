@@ -414,8 +414,7 @@ Rectangle {
                 }
                 function guardarSecreto(campo, esToken) {
                     if (!esToken) {
-                        const e = pg.ar.guardarApiKey(campo.text)
-                        if (e !== "") { Studio.notify(e, "error"); return }
+                        if (!pg.ar.guardarApiKey(campo.text)) return
                         campo.text = ""
                         Studio.notify(qsTr("API key guardada (cifrada)."), "ok")
                         return
@@ -834,8 +833,7 @@ Rectangle {
                 spacing: 12
                 readonly property var estado: Studio.agent.controlSistema
                 function cambiar(c) {
-                    const e = Studio.agent.setControlSistema(c)
-                    if (e !== "") Studio.notify(e, "error")
+                    Studio.agent.setControlSistema(c)
                 }
                 Text {
                     Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.textDim; font.pixelSize: 12
@@ -1456,8 +1454,7 @@ Rectangle {
                         model: nombres
                         currentIndex: Math.max(0, nombres.indexOf(Studio.voz.microfono))
                         onActivated: (i) => {
-                            const e = Studio.voz.setMicrofono(i === 0 ? "" : nombres[i])
-                            if (e !== "") Studio.notify(e, "error")
+                            Studio.voz.setMicrofono(i === 0 ? "" : nombres[i])
                         }
                     }
                 }

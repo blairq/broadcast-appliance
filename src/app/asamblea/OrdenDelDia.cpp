@@ -305,10 +305,10 @@ void OrdenDelDia::limpiar() {
 
 QVariantList OrdenDelDia::puntosUi() const { return aQv(puntos_).toList(); }
 QVariantMap OrdenDelDia::actualUi() const { return aQv(actual()).toMap(); }
-QString OrdenDelDia::cargarUi(const QString& texto) {
+bool OrdenDelDia::cargarUi(const QString& texto) {
     int n = 0;
     const std::string e = cargar(texto.toStdString(), &n);
-    return QString::fromStdString(e);
+    return sinError(QString::fromStdString(e));
 }
 QString OrdenDelDia::puntoUi(int n, const QString& estado, const QString& resultado) {
     return QString::fromStdString(punto(n, estado.toStdString(), resultado.toStdString()));

@@ -16,8 +16,7 @@ Flow {
     function tocar(c) {
         const subir = !c.visible
         const hacer = function(conf) {
-            const e = fila.dsk.mostrarUi(c.capa, subir, conf)
-            if (e !== "") Studio.notify(e, "error")
+            fila.dsk.mostrarUi(c.capa, subir, conf)
         }
         if (!subir && c.fijo)
             ApplicationWindow.window.confirm({
@@ -109,8 +108,7 @@ Flow {
                         const def = { nombre: nombreF.text, fijo: fijoF.checked,
                                       contenido: contenidoF.editText.split(",").map(s => s.trim()).filter(s => s !== ""),
                                       recuadro: posF.currentIndex === 0 ? {} : { posicion: posF.currentText, tamano: 0.28, margen: 0.03 } }
-                        const e = fila.dsk.definirUi(editor.capa.capa, def)
-                        if (e !== "") Studio.notify(e, "error"); else editor.close()
+                        if (fila.dsk.definirUi(editor.capa.capa, def)) editor.close()
                     }
                 }
                 GlassButton {
@@ -119,8 +117,7 @@ Flow {
                     ToolTip.text: qsTr("La primera fuente del contenido (la cámara del intérprete) en un recuadro abajo a la derecha, fija")
                     onClicked: {
                         const primera = contenidoF.editText.split(",").map(s => s.trim()).filter(s => s !== "")[0] || ""
-                        const e = fila.dsk.plantillaLsaUi(editor.capa.capa, primera)
-                        if (e !== "") Studio.notify(e, "error"); else editor.close()
+                        if (fila.dsk.plantillaLsaUi(editor.capa.capa, primera)) editor.close()
                     }
                 }
                 Item { Layout.fillWidth: true }

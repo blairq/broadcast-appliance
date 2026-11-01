@@ -35,7 +35,8 @@ Item {
     }
     readonly property var guionVm: Studio.evento.guionVm
     readonly property var corridaVm: Studio.evento.corridaVm
-    readonly property var reloj: corridaVm.reloj
+    // El reloj del guion: las marcas del modelo con la hora del Reloj de las vistas.
+    readonly property var reloj: corridaVm.relojEn(corridaVm.marcasReloj, visible ? Reloj.ahora : 0)
     readonly property bool corriendo: corridaVm.estado === "corriendo"
 
 
@@ -68,7 +69,7 @@ Item {
         }
         // --- Back-timing del guion: lo que falta del bloque y a qué hora se termina ---
         Text {
-            readonly property var r: Studio.evento.corridaVm.reloj
+            readonly property var r: tarjeta.reloj
             visible: !!(r && r.horaFinPrevista && r.restanteGuionSeg > 0)
             Layout.fillWidth: true; wrapMode: Text.WordWrap
             text: {
@@ -97,7 +98,7 @@ Item {
             GlassButton {
                 compact: true; text: qsTr("Siguiente punto ▶")
                 enabled: Studio.ordenDelDia.puntos.some(p => p.estado === "pendiente")
-                onClicked: { const e = Studio.ordenDelDia.siguienteUi(); if (e !== "") Studio.notify(e, "error") }
+                onClicked: { Studio.ordenDelDia.siguienteUi() }
             }
         }
 
@@ -182,13 +183,13 @@ Item {
             spacing: 14
             // Los de la salida que maneja la interfaz (con una sola, la de siempre).
             StatusPill {
-                text: Studio.salidas.aire.transmitiendo ? qsTr("AL AIRE · %1").arg(Studio.salidas.aire.tiempoTransmision) : qsTr("fuera del aire")
+                text: Studio.salidas.aire.transmitiendo ? qsTr("AL AIRE · %1").arg(Theme.cronometro(Studio.salidas.aire.transmiteDesdeMs || 0, Reloj.ahora)) : qsTr("fuera del aire")
                 dot: Studio.salidas.aire.transmitiendo ? Theme.live : Theme.textFaint
                 pulse: !!Studio.salidas.aire.transmitiendo
             }
             StatusPill {
                 visible: !!Studio.salidas.aire.grabando
-                text: qsTr("REC · %1").arg(Studio.salidas.aire.tiempoGrabacion)
+                text: qsTr("REC · %1").arg(Theme.cronometro(Studio.salidas.aire.grabaDesdeMs || 0, Reloj.ahora))
                 dot: Theme.live; pulse: true
             }
             Item { Layout.fillWidth: true }

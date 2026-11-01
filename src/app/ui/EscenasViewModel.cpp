@@ -408,12 +408,11 @@ void EscenasViewModel::esperarReplay(const std::string& antes, int ms, std::func
         });
 }
 
-QString EscenasViewModel::repetirUi() {
+void EscenasViewModel::repetirUi() {
     repetir({}, true, [this](const QString& archivo, const QString& e, bool) {
         if (archivo.isEmpty()) return emit notify(e, "error");
         emit notify(e.isEmpty() ? tr("Repetición armada: dale TAKE.") : e, e.isEmpty() ? "ok" : "error");
     });
-    return {};
 }
 
 void EscenasViewModel::repetir(const std::string& salida, bool armar,

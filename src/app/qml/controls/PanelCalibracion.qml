@@ -66,12 +66,11 @@ Item {
             if (puntos[i].tipo === "escucha" && !medido(puntos[i].id, etapa)) return puntos[i].id
         return ""
     }
-    function aviso(e) { if (e !== "") Studio.notify(e, "error") }
     // Clic derecho sobre algo del croquis: su menú (Quitar).
     function menuDe(o, medido) { menuCroquis.obj = o; menuCroquis.medido = medido; menuCroquis.popup() }
     // Quitar; si ya tiene mediciones, se pregunta (no entran más al análisis).
     function menuQuitar(o, medido) {
-        if (!medido) { aviso(cal.quitar(o.id)); if (punto === o.id) punto = ""; return }
+        if (!medido) { cal.quitar(o.id); if (punto === o.id) punto = ""; return }
         confirmarQuitar.obj = o
         confirmarQuitar.open()
     }
@@ -80,9 +79,9 @@ Item {
         return p && p.salida && p.salida.dispositivo === "sala-simulada"
     }
     function medir() {
-        if (punto === "") { aviso(qsTr("Elegí un punto en el croquis")); return }
+        if (punto === "") { Studio.notify(qsTr("Elegí un punto en el croquis"), "error"); return }
         if (!simulada() && !confirmado) { confirmar.open(); return }
-        aviso(cal.medir(parlante, punto, microfono, etapa, duracion, nivelDb))
+        cal.medir(parlante, punto, microfono, etapa, duracion, nivelDb)
     }
     function fmt(v, d) { return v === undefined || v === null || v < 0 ? "—" : Number(v).toFixed(d) }
 
@@ -267,7 +266,7 @@ Item {
                                 model: c.cal ? c.cal.sesiones : []
                                 textRole: "nombre"
                                 displayText: c.hay ? c.ses.nombre : qsTr("Elegí una guardada…")
-                                onActivated: (i) => c.aviso(c.cal.abrir(model[i].id))
+                                onActivated: (i) => c.cal.abrir(model[i].id)
                             }
                             GlassButton { compact: true; text: qsTr("Nueva"); onClicked: nuevaSesion.visible = !nuevaSesion.visible }
                         }
@@ -285,7 +284,7 @@ Item {
                             }
                             GlassButton {
                                 text: qsTr("Crear sesión")
-                                onClicked: { c.aviso(c.cal.nueva(nomSala.text, nL.real, nA.real, nH.real)); if (c.hay) nuevaSesion.visible = false }
+                                onClicked: { c.cal.nueva(nomSala.text, nL.real, nA.real, nH.real); if (c.hay) nuevaSesion.visible = false }
                             }
                         }
                         Nota {
@@ -313,7 +312,7 @@ Item {
                                            font { family: Theme.font; pixelSize: 12 } }
                                     Text { text: modelData.salida.canal < 0 ? qsTr("canal todos") : qsTr("canal %1").arg(modelData.salida.canal + 1); color: Theme.textFaint
                                            font { family: Theme.font; pixelSize: 10 } }
-                                    ToolButton { text: "✕"; onClicked: c.aviso(c.cal.quitar(modelData.id))
+                                    ToolButton { text: "✕"; onClicked: c.cal.quitar(modelData.id)
                                                  ToolTip.visible: hovered; ToolTip.text: qsTr("Quitar el parlante (sus mediciones quedan)") }
                                 }
                                 TapHandler { onTapped: c.parlante = modelData.id }
@@ -331,8 +330,8 @@ Item {
                                 Layout.columnSpan: 2
                                 text: qsTr("+ Parlante")
                                 compact: true
-                                onClicked: c.aviso(c.cal.agregarParlante(nomPar.text, salPar.currentValue, canPar.currentIndex === 2 ? -1 : canPar.currentIndex,
-                                                                         0.5, c.sala.ancho * (c.parlantes.length % 2 ? 0.75 : 0.25)))
+                                onClicked: c.cal.agregarParlante(nomPar.text, salPar.currentValue, canPar.currentIndex === 2 ? -1 : canPar.currentIndex,
+                                                                         0.5, c.sala.ancho * (c.parlantes.length % 2 ? 0.75 : 0.25))
                             }
                         }
 
@@ -356,7 +355,7 @@ Item {
                                         Text { text: "●"; color: "#22c55e"; font.pixelSize: 10 }
                                         Text { Layout.fillWidth: true; text: modelData.nombre; color: Theme.text; elide: Text.ElideRight
                                                font { family: Theme.font; pixelSize: 12 } }
-                                        ToolButton { text: "✕"; onClicked: c.aviso(c.cal.quitar(modelData.id)) }
+                                        ToolButton { text: "✕"; onClicked: c.cal.quitar(modelData.id) }
                                     }
                                     Text {
                                         Layout.fillWidth: true
@@ -400,8 +399,8 @@ Item {
                                 onClicked: {
                                     const arch = archMic.text.trim()
                                     const id = modMic.currentValue
-                                    c.aviso(c.cal.agregarMicrofono(nomMic.text, entMic.currentValue, canMic.value - 1,
-                                                                   arch !== "" ? "archivo" : (id === "plano" ? "plano" : "modelo"), id, arch))
+                                    c.cal.agregarMicrofono(nomMic.text, entMic.currentValue, canMic.value - 1,
+                                                                   arch !== "" ? "archivo" : (id === "plano" ? "plano" : "modelo"), id, arch)
                                 }
                             }
                         }
@@ -416,7 +415,7 @@ Item {
                                 Layout.fillWidth: true
                                 from: -2; to: 0; stepSize: 0.1
                                 value: c.ses.objetivo ? c.ses.objetivo.pendiente_db_oct : -0.8
-                                onPressedChanged: if (!pressed) c.aviso(c.cal.setObjetivo(value))
+                                onPressedChanged: if (!pressed) c.cal.setObjetivo(value)
                             }
                             Text { text: pend.value.toFixed(1) + " dB/oct"; color: Theme.textDim; font { family: Theme.font; pixelSize: 11 } }
                         }
@@ -512,7 +511,7 @@ Item {
                                     acceptedButtons: Qt.LeftButton
                                     onTapped: (ev) => {
                                         if (sala.cercaDeAlgo(ev.position.x, ev.position.y, 26)) return
-                                        c.aviso(c.cal.agregarPunto("", c.tipoPunto, ev.position.y / plano.esc, ev.position.x / plano.esc))
+                                        c.cal.agregarPunto("", c.tipoPunto, ev.position.y / plano.esc, ev.position.x / plano.esc)
                                     }
                                 }
                                 // Puntos.
@@ -558,7 +557,7 @@ Item {
                                         TapHandler { acceptedButtons: Qt.RightButton; onTapped: c.menuDe(pt.modelData, pt.hecho) }
                                         DragHandler {
                                             id: ptArr
-                                            onActiveChanged: if (!active) c.aviso(c.cal.mover(pt.modelData.id, (pt.y + pt.height / 2) / plano.esc, (pt.x + pt.width / 2) / plano.esc))
+                                            onActiveChanged: if (!active) c.cal.mover(pt.modelData.id, (pt.y + pt.height / 2) / plano.esc, (pt.x + pt.width / 2) / plano.esc)
                                         }
                                     }
                                 }
@@ -596,7 +595,7 @@ Item {
                                         TapHandler { acceptedButtons: Qt.RightButton; onTapped: c.menuDe(pa.modelData, false) }
                                         DragHandler {
                                             id: paArr
-                                            onActiveChanged: if (!active) c.aviso(c.cal.mover(pa.modelData.id, (pa.y + pa.height / 2) / plano.esc, (pa.x + pa.width / 2) / plano.esc))
+                                            onActiveChanged: if (!active) c.cal.mover(pa.modelData.id, (pa.y + pa.height / 2) / plano.esc, (pa.x + pa.width / 2) / plano.esc)
                                         }
                                     }
                                 }
@@ -954,8 +953,8 @@ Item {
                                 Nota { text: qsTr("En el rack de") }
                                 ComboBox { id: fuente; Layout.fillWidth: true; model: Studio.mezclador ? Studio.mezclador.entradas : []
                                            ToolTip.visible: hovered; ToolTip.text: qsTr("La entrada que alimenta este parlante (se le agrega un EQ de LSP «EQ de sala»)") }
-                                GlassButton { compact: true; text: qsTr("Aplicar"); active: true; onClicked: c.aviso(c.cal.aplicar(c.parlante, fuente.currentText)) }
-                                GlassButton { compact: true; text: qsTr("Revertir"); onClicked: c.aviso(c.cal.revertir(fuente.currentText)) }
+                                GlassButton { compact: true; text: qsTr("Aplicar"); active: true; onClicked: c.cal.aplicar(c.parlante, fuente.currentText) }
+                                GlassButton { compact: true; text: qsTr("Revertir"); onClicked: c.cal.revertir(fuente.currentText) }
                             }
                             Titulo { text: qsTr("VERIFICACIÓN"); Layout.topMargin: 6; visible: !!prop.v.veredicto }
                             Text {
@@ -1009,6 +1008,6 @@ Item {
         Label { width: confirmarQuitar.availableWidth; wrapMode: Text.WordWrap
                 text: qsTr("Ya tiene mediciones: dejan de entrar en el promedio y la propuesta (los archivos quedan en la carpeta de la sesión).") }
         standardButtons: Dialog.Ok | Dialog.Cancel
-        onAccepted: { c.aviso(c.cal.quitar(obj.id)); if (c.punto === obj.id) c.punto = "" }
+        onAccepted: { c.cal.quitar(obj.id); if (c.punto === obj.id) c.punto = "" }
     }
 }

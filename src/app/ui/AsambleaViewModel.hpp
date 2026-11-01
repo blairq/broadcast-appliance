@@ -42,6 +42,7 @@
 #include <functional>
 #include <memory>
 #include <string>
+#include "ui/CapturaError.hpp"
 
 namespace ba::app {
 class AppRuntime;
@@ -83,6 +84,17 @@ namespace ba::app {
 
 class AsambleaViewModel : public QObject {
     Q_OBJECT
+    /// El error de una acción de la interfaz (las Q_INVOKABLE void): a quien mira.
+    void avisarError(const QString& e) {
+        if (!e.isEmpty() && !::ba::app::CapturaError::tomar(e)) emit notify(e, "error");
+    }
+    void avisarError(const std::string& e) { avisarError(QString::fromStdString(e)); }
+    /// Para las acciones que dicen si se hicieron: el error a quien mira y true si no hubo.
+    bool sinError(const QString& e) {
+        avisarError(e);
+        return e.isEmpty();
+    }
+    bool sinError(const std::string& e) { return sinError(QString::fromStdString(e)); }
     /// La presidencia tiene el micrófono abierto en la central («Hablo yo»).
     Q_PROPERTY(bool presidenciaHabla READ presidenciaHabla NOTIFY presidenciaHablaChanged)
     /// El recinto, una fila por banca con todo lo que muestra ya cruzado (asamblea/RecintoModel).
@@ -130,8 +142,8 @@ class AsambleaViewModel : public QObject {
 
     bool presidenciaHabla() const;
     /// «Apretar para hablar» desde la app (asamblea::Presidencia): mientras `activo`, el
-    /// remoto oye la voz del operador en su celular. "" o el error.
-    Q_INVOKABLE QString hablarARemoto(const QString& integrante, bool activo);
+    /// remoto oye la voz del operador en su celular. El error va por la señal del modelo (y dice si anduvo).
+    Q_INVOKABLE bool hablarARemoto(const QString& integrante, bool activo);
     /// La presidencia calla a todos (asamblea::Presidencia); lo que falle se avisa.
     Q_INVOKABLE void silenciarTodos();
     /// «Hablo yo» (asamblea::Presidencia): calla a todos y abre el micrófono de la

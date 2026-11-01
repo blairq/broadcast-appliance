@@ -44,16 +44,13 @@ Item {
         if (!raiz.totem) return
         const c = {}
         c[clave] = valor
-        const e = raiz.tv.cambiar(raiz.elegido, c)
-        if (e !== "") Studio.notify(e, "error")
+        raiz.tv.cambiar(raiz.elegido, c)
     }
     function cambiarCampo(i, clave, valor) {
         const c = {}
         c[clave] = valor
-        const e = raiz.tv.cambiarCampo(raiz.elegido, i, c)
-        if (e !== "") Studio.notify(e, "error")
+        raiz.tv.cambiarCampo(raiz.elegido, i, c)
     }
-    function resultado(e) { if (e !== "") Studio.notify(e, "error") }
 
     // Sin evento no hay dónde guardar: se dice, en vez de una lista vacía.
     Text {
@@ -259,7 +256,7 @@ Item {
                                         visible: filaC.c.canal > 0
                                         GlassButton {
                                             compact: true; visible: !filaC.c.atendida; text: qsTr("Atender")
-                                            onClicked: raiz.resultado(raiz.tv.atender(filaC.conn))
+                                            onClicked: raiz.tv.atender(filaC.conn)
                                             ToolTip.visible: hovered
                                             ToolTip.text: qsTr("El asistente se calla; en el tótem dice «Te atiende una persona del equipo»")
                                         }
@@ -269,16 +266,16 @@ Item {
                                         }
                                         GlassButton {
                                             compact: true; visible: filaC.c.atendida === true; text: qsTr("Devolver")
-                                            onClicked: raiz.resultado(raiz.tv.terminarAtencion(filaC.conn, "asistente"))
+                                            onClicked: raiz.tv.terminarAtencion(filaC.conn, "asistente")
                                             ToolTip.visible: hovered; ToolTip.text: qsTr("Que siga el asistente, desde el próximo dato que falta")
                                         }
                                         GlassButton {
                                             compact: true; visible: filaC.c.atendida === true; text: qsTr("Guardar")
-                                            onClicked: raiz.resultado(raiz.tv.terminarAtencion(filaC.conn, "guardar"))
+                                            onClicked: raiz.tv.terminarAtencion(filaC.conn, "guardar")
                                         }
                                         GlassButton {
                                             compact: true; visible: filaC.c.atendida === true; text: qsTr("Cancelar")
-                                            onClicked: raiz.resultado(raiz.tv.terminarAtencion(filaC.conn, "cancelar"))
+                                            onClicked: raiz.tv.terminarAtencion(filaC.conn, "cancelar")
                                         }
                                     }
                                     Text {
@@ -481,7 +478,7 @@ Item {
                         }
                         GlassButton {
                             compact: true; text: qsTr("Agregar"); icon: "＋"
-                            onClicked: raiz.resultado(raiz.tv.agregarCampo(raiz.elegido, tipoNuevo.currentValue))
+                            onClicked: raiz.tv.agregarCampo(raiz.elegido, tipoNuevo.currentValue)
                         }
                     }
                     Text {
@@ -532,11 +529,11 @@ Item {
                                 RowLayout {
                                     spacing: 2
                                     GlassButton { compact: true; text: "↑"; enabled: filaCampo.index > 0
-                                                  onClicked: raiz.resultado(raiz.tv.moverCampo(raiz.elegido, filaCampo.index, filaCampo.index - 1)) }
+                                                  onClicked: raiz.tv.moverCampo(raiz.elegido, filaCampo.index, filaCampo.index - 1) }
                                     GlassButton { compact: true; text: "↓"; enabled: !!raiz.totem && filaCampo.index < raiz.totem.campos.length - 1
-                                                  onClicked: raiz.resultado(raiz.tv.moverCampo(raiz.elegido, filaCampo.index, filaCampo.index + 1)) }
+                                                  onClicked: raiz.tv.moverCampo(raiz.elegido, filaCampo.index, filaCampo.index + 1) }
                                     GlassButton { compact: true; text: "✕"
-                                                  onClicked: raiz.resultado(raiz.tv.quitarCampo(raiz.elegido, filaCampo.index)) }
+                                                  onClicked: raiz.tv.quitarCampo(raiz.elegido, filaCampo.index) }
                                 }
                                 TextField {
                                     Layout.columnSpan: 3
@@ -718,8 +715,7 @@ Item {
                     Layout.preferredWidth: 380
                     text: modelData.nombre
                     onClicked: {
-                        const err = Studio.pantallas.mostrar(modelData.id, "url", { url: raiz.tv.urlPantalla(raiz.elegido) })
-                        if (err) Studio.notify(err, "error")
+                        Studio.pantallas.mostrar(modelData.id, "url", { url: raiz.tv.urlPantalla(raiz.elegido) })
                         proyectarDlg.close()
                     }
                 }
@@ -780,7 +776,7 @@ Item {
                     TextField {
                         Layout.fillWidth: true
                         text: valor
-                        onEditingFinished: if (text !== valor) raiz.resultado(raiz.tv.ponerDato(datosDlg.conn, clave, text))
+                        onEditingFinished: if (text !== valor) raiz.tv.ponerDato(datosDlg.conn, clave, text)
                     }
                 }
             }
