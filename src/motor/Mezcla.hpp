@@ -1,7 +1,7 @@
 // ============================================================================
 // src/motor/Mezcla.hpp — un bus de audio del motor (audiomixer)
 //
-// Un pipeline propio por bus (PROGRAMA, una pista, un retorno…):
+// Un pipeline propio por bus (PROGRAMA, una pista, los retornos de una salida…):
 //
 //   intersrc <id>:audio ! volume (fader, mute) ! level ─┐
 //   intersrc <id>:audio ! volume ! level ───────────────┼─► audiomixer ! [balimitador] ! [ebur128level]
@@ -27,6 +27,11 @@
 //
 // Con `panorama` (los buses de la Matriz, F3-08) cada rama lleva además un
 // `audiopanorama` (balance): con el volumen, una ganancia por canal (ponerCanales).
+//
+// Con `retornos` el mezclador es `baretornos` (los mix-minus de todos los invitados
+// de una salida en un solo bus: ver src/gst-plugins/ipc/retornos.cpp) y no hay cola:
+//   intersrc <id>:audio ! volume ! identity ─► baretornos ! fakesink
+//                                (pad: escena y «oyente»)    └► BA.Audio.Return[.<salida>].<n>
 // ============================================================================
 #pragma once
 
@@ -65,6 +70,11 @@ class Mezcla {
         double anticipoLimitadorMs = -1;
         /// Una ganancia por canal en cada rama (ponerCanales): los buses de la Matriz.
         bool panorama = false;
+        /// Los retornos de los invitados de una salida (baretornos, plugin baipc): suma una
+        /// vez y escribe a cada invitado la suma sin su voz en su anillo (ponerAnillos,
+        /// ponerOyente). Cada retorno con su limitador (anticipoLimitadorMs); lo que sale
+        /// del bus (la suma entera) no va a ningún lado. Sin `limitador` ni `anillo`.
+        bool retornos = false;
     };
     Mezcla(Reloj& reloj, std::string nombre, Opciones op);
     Mezcla(Reloj& reloj, std::string nombre) : Mezcla(reloj, std::move(nombre), Opciones{}) {}
@@ -90,6 +100,11 @@ class Mezcla {
     /// Con `panorama`: la ganancia de cada canal (lineal, 0…8; la Matriz: nivel y pan). Es el
     /// fader (el mayor de los dos) y el balance (baja el otro): exacto para cualquier par.
     void ponerCanales(const std::string& id, double izq, double der);
+
+    /// Con `retornos`: la entrada `id` es la voz del invitado `n` (0 = de nadie): no está en su retorno.
+    void ponerOyente(const std::string& id, int n);
+    /// Con `retornos`: los que escribe, invitado → anillo. Los que siguen no se cortan.
+    void ponerAnillos(const std::map<int, std::string>& anillos);
 
     /// El volumen de todo el bus (lineal, 0…1) con un fundido de `ms` (el FTB baja el audio).
     void ponerMaster(double lineal, int ms);
@@ -120,12 +135,15 @@ class Mezcla {
         GstElement* pan = nullptr; ///< audiopanorama (con `panorama`)
         GstElement* nivel = nullptr;
         GstPad* pad = nullptr; ///< el del mezclador
+        int oyente = 0;        ///< con `retornos`: de qué invitado es la voz
         double fader = 1.0;
         bool mute = false;
         double escena = 1.0, escenaDesde = 1.0, escenaHacia = 1.0;
         std::int64_t fundidoDesdeNs = 0, fundidoNs = 0;
         double picoDb = -120, rmsDb = -120;
     };
+    /// Arma el pipeline con `desc` (el constructor).
+    void armar(const std::string& desc);
     void aplicarLatencia();
     void soltar(Rama& r);
 

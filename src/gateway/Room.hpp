@@ -278,6 +278,8 @@ class Room {
     bool participant(const std::string& id, Participant& out) const;
     /// Estado completo para los operadores.
     nlohmann::json snapshot() const;
+    /// El cupo de ahora (maxGuests: cambia en caliente con setCupo).
+    int cupo() const;
     const Cfg& cfg() const { return cfg_; }
 
     /// Purga desconectados vencidos. Llamar periodicamente (~1 s).

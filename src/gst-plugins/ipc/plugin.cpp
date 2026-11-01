@@ -9,8 +9,10 @@
 //                     remoto con la palabra…) que escribe el gateway
 //     bavideoanillo   fuente de video: lee un canal (BA.Guest.<n>,               video.cpp
 //                     BA.GuestShare.<n>, BA.Remoto.1) que escribe el gateway
-//     baanillosink    escribe audio en un anillo para el gateway (el programa    anillosink.cpp
-//                     y el mix-minus de cada invitado)
+//     baanillosink    escribe audio en un anillo para el gateway (el programa,   anillosink.cpp
+//                     el de cada salida)
+//     baretornos      el mix-minus de todos los invitados: suma una vez y        retornos.cpp
+//                     escribe a cada uno la suma sin su voz, en su anillo
 //
 //   Ejemplo:  gst-launch-1.0 baanillo canal=BA.Audio.Guest.1 ! audioconvert ! autoaudiosink
 // ============================================================================
@@ -21,10 +23,11 @@ extern "C" {
 gboolean ba_registrar_anillo(GstPlugin* p);
 gboolean ba_registrar_video_anillo(GstPlugin* p);
 gboolean ba_registrar_anillo_sink(GstPlugin* p);
+gboolean ba_registrar_retornos(GstPlugin* p);
 }
 
 static gboolean plugin_init(GstPlugin* p) {
-    return ba_registrar_anillo(p) && ba_registrar_video_anillo(p) && ba_registrar_anillo_sink(p);
+    return ba_registrar_anillo(p) && ba_registrar_video_anillo(p) && ba_registrar_anillo_sink(p) && ba_registrar_retornos(p);
 }
 
 #define PACKAGE "baipc"

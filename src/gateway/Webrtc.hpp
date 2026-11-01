@@ -89,6 +89,10 @@ struct SessionCallbacks {
     std::function<void(const uint8_t* pixels, size_t bytes, int w, int h)> onRemoteVideo;
     /// Llego video de su PANTALLA/VENTANA compartida (segundo track de video).
     std::function<void(const uint8_t* pixels, size_t bytes, int w, int h)> onRemoteScreen;
+    /// Terminó de juntar candidatos sin NINGÚN puerto local (el rango UDP está lleno):
+    /// no va a conectar nunca; el servidor se lo dice al invitado y al operador en vez
+    /// de dejarlo «conectando».
+    std::function<void()> onSinPuerto;
     /// Cambio de estado de la sesion (true = conectada, false = cerrada).
     std::function<void(bool connected)> onStateChange;
     /// Hay que pedirle al navegador que prenda o pause las capas de su camara (Capas.hpp):
@@ -255,9 +259,13 @@ class WebrtcHub {
     void* rtcFactory() const { return rtcFactory_; }
 
     /// Red de las sesiones NUEVAS: rango UDP fijo (firewall / redireccion del
-    /// tunel) y si se atiende tambien en 127.0.0.1 (lo usa el puente del tunel
-    /// WireGuard, que entrega los medios del invitado en loopback).
-    void setNetwork(uint16_t minPort, uint16_t maxPort, bool allowLoopback);
+    /// tunel), si se atiende tambien en 127.0.0.1 (lo usa el puente del tunel
+    /// WireGuard, que entrega los medios del invitado en loopback) y las interfaces
+    /// donde NO se abren puertos (las virtuales: net::redesRtc). Cada sesión abre un
+    /// puerto por red que usa: con las que no le sirven a nadie, el rango se gastaba
+    /// (cuatro por sesión en una Mac con máquinas virtuales). Una sola vez, antes de
+    /// la primera sesión.
+    void setNetwork(uint16_t minPort, uint16_t maxPort, bool allowLoopback, const std::vector<std::string>& ignorar = {});
 
     // --- Espectadores (relay de video codificado, ver arriba) ------------------
     /// Abre un espectador del video de la sesion `session` (camara, o pantalla

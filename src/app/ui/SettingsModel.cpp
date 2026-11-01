@@ -222,7 +222,7 @@ SettingsModel::SettingsModel(AppRuntime& rt, VentanillaMotor& ventanilla, QObjec
         {"guests.count", "Invitados", traducir("ajustes", "Cantidad de invitados"), "int", {}, 0, ba::ipc::kMaxInvitados, "",
          traducir("ajustes", "Lugares en el programa. Cada invitado es una conexión de video que hay que decodificar: mirá el panel «Uso de la conferencia» antes de subirlo mucho. Cambia en caliente (hasta %1), sin cortar a nadie.").arg(ba::ipc::kMaxInvitados),
          "live", 2},
-        {"guests.reserva", "Invitados", traducir("ajustes", "Lugares reservados"), "int", {}, 1, 16, "", traducir("ajustes", "Los lugares que la conferencia deja listos al arrancar (sus canales de video y audio). Ya no limita el cupo: los que faltan se crean cuando el cupo sube. Cambiarlo reinicia el gateway."), "gateway", 4},
+        {"guests.reserva", "Invitados", traducir("ajustes", "Lugares reservados"), "int", {}, 1, ba::ipc::kMaxInvitados, "", traducir("ajustes", "Los lugares que la conferencia deja listos al arrancar (sus canales de video y audio). Ya no limita el cupo: los que faltan se crean cuando el cupo sube. Cambiarlo reinicia el gateway."), "gateway", 4},
         {"guests.video", "Invitados", traducir("ajustes", "Video de invitados"), "bool", {}, 0, 0, "", "", "restart", true},
         {"guests.audio", "Invitados", traducir("ajustes", "Audio de invitados"), "bool", {}, 0, 0, "", "", "restart", true},
         {"guests.audioPreset", "Invitados", traducir("ajustes", "Procesamiento de voz"), "choice", choices({{"podium", traducir("ajustes", "Podio")},{"lavalier", traducir("ajustes", "Corbatero")},{"handheld", traducir("ajustes", "De mano")},{"", traducir("ajustes", "Sin procesar")}}), 0, 0, "", traducir("ajustes", "Channel strip nativo: HPF, EQ, de-esser, gate, compresor y limitador."), "restart", "podium"},
@@ -846,7 +846,7 @@ SettingsModel::Aplicado SettingsModel::aplicarEn(AppRuntime& rt, const Pedido& p
 
     bool restartB = false;
     // (Lo decidió la interfaz, que tiene la sala: ver aplicar.) El cupo SIEMPRE en caliente con la sala andando: el gateway crea los canales de
-    // los lugares nuevos (hasta 16) y, si al bajarlo hay gente en un lugar que se iría,
+    // los lugares nuevos (hasta ipc::kMaxInvitados) y, si al bajarlo hay gente en un lugar que se iría,
     // la sala lo rechaza (aviso) y no saca a nadie. Nunca reinicia la sala por el cupo:
     // eso cortaba a todos (pasó al bajar de 6 a 3 con 6 conectados).
     const bool cupoEnVivo = p.cupoEnVivo;
@@ -957,7 +957,11 @@ SettingsModel::Aplicado SettingsModel::aplicarEn(AppRuntime& rt, const Pedido& p
         // Por ajustarInvitados, como el cupo en caliente: crea el audio y las
         // entradas de video de los lugares nuevos (si no, «Invitado 5» no aparecía).
         if (!cupoEnVivo && i("guests.count") != c.guests) rt.ajustarInvitados(i("guests.count"));
-        g.guestsReserva = std::max(i("guests.reserva"), c.guests);
+        // Lo que pidió el operador, en su rango: el gateway deja listos al arrancar los
+        // que diga esto o el cupo, el mayor (Config::parseArgs). Antes se guardaba el mayor
+        // con el cupo de ANTES de aplicar: un cupo de 40 arrastraba la reserva fuera de su
+        // rango y bajarla costaba dos pasos.
+        g.guestsReserva = ba::ipc::reservaValida(i("guests.reserva"));
         restartB = !porQue.isEmpty();
     }
     LauncherSettings& l = rt.launcher();

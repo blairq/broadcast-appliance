@@ -20,12 +20,14 @@
 //   No hay estado mutable tras el parse, por lo que no necesita lock.
 //
 // Estrategia de errores:
-//   No lanza. parseArgs acota los valores a rangos validos (guests 1..kMaxGuests, puertos
+//   No lanza. parseArgs acota los valores a rangos validos (guests 1..kMaxInvitados, puertos
 //   1..65535, duracion >= 0). Un argumento desconocido se ignora (tolerante).
 // ============================================================================
 #pragma once
 
 #include <algorithm>
+
+#include "ipc/LugaresSala.hpp"
 
 #include <cstdint>
 #include <cstdlib>
@@ -45,17 +47,18 @@
 
 namespace ba::gateway {
 
-/// Rango de invitados soportado (spec §3.2, §8.2: 1 a 4 invitados).
+/// El cupo va de 1 al tope de la sala (ipc/LugaresSala: el mismo número para la app,
+/// el gateway al arrancar y en caliente, y el MCP).
 inline constexpr int kMinGuests = 1;
-// Tope de invitados en el programa. Cada uno es una conexion WebRTC que hay
-// que decodificar: el techo real lo pone la maquina (ver el panel de uso de la
-// sala), no este numero.
-inline constexpr int kMaxGuests = 16;
+/// El tope de puertos del rango UDP de WebRTC (rtcPortMin..rtcPortMax): con el túnel de
+/// WireGuard cada uno es un pcb de lwIP (MEMP_NUM_UDP_PCB, net/lwip-port/lwipopts.h).
+/// Alcanza para el tope de invitados con varias redes (PuertosRtc.hpp).
+inline constexpr int kTopeRangoRtc = 1000;
 
 /// Configuracion del gateway (CLI + rutas). Ver el header para el detalle.
 struct Config {
     // --- CLI ---------------------------------------------------------------
-    int guests = 2;                        // 1..kMaxGuests (default 2)
+    int guests = 2;                        // 1..kMaxInvitados (default 2)
     int guestsReserve = 0;                 // lugares con canales desde el arranque (el cupo sube igual hasta kMaxInvitados); 0 = guests
     uint16_t port = 8787;                  // puerto de señalización en 127.0.0.1
     uint16_t metricsPort = 9099;           // puerto de métricas de cloudflared (loopback)
@@ -294,8 +297,8 @@ struct Config {
             // Desconocidos: se ignoran (el gateway es tolerante).
         }
         if (guests < kMinGuests) guests = kMinGuests;
-        if (guests > kMaxGuests) guests = kMaxGuests;
-        guestsReserve = std::clamp(std::max(guestsReserve, guests), guests, kMaxGuests);
+        if (guests > ba::ipc::kMaxInvitados) guests = ba::ipc::kMaxInvitados;
+        guestsReserve = ba::ipc::lugaresIniciales(guests, guestsReserve);
         if (port == 0) port = 8787;
         if (metricsPort == 0) metricsPort = 9099;
         if (durationMs < 0) durationMs = 0;
@@ -316,7 +319,7 @@ struct Config {
         if (backstagePreviews < 0) backstagePreviews = 0;
         if (backstagePreviews > 8) backstagePreviews = 8; // A se suscribe a BA.Backstage.1..8
         if (rtcPortMax < rtcPortMin) rtcPortMax = rtcPortMin;
-        if (rtcPortMax - rtcPortMin > 150) rtcPortMax = static_cast<uint16_t>(rtcPortMin + 150);
+        if (rtcPortMax - rtcPortMin >= kTopeRangoRtc) rtcPortMax = static_cast<uint16_t>(rtcPortMin + kTopeRangoRtc - 1);
     }
 
     /// Deriva las rutas del layout a partir de la ubicacion del ejecutable

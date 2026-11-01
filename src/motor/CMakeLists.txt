@@ -80,6 +80,16 @@ if(BUILD_TESTING OR TRUE)
     add_test(NAME test_motor_retornos COMMAND test_motor_retornos)
     set_tests_properties(test_motor_retornos PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 120)
 
+    # Los retornos de muchos invitados (baretornos): sin su voz, lineal, sin cortes.
+    add_executable(test_motor_mixminus tests/test_motor_mixminus.cpp)
+    target_link_libraries(test_motor_mixminus PRIVATE ba_motor)
+    ba_gst_rpath(test_motor_mixminus "")
+    target_compile_definitions(test_motor_mixminus PRIVATE BA_TEST_GST_RAIZ="${BA_GST_FW}/Versions/1.0"
+        BA_TEST_GST_PLUGINS="${CMAKE_BINARY_DIR}/src/gst-plugins")
+    add_dependencies(test_motor_mixminus gstbaaudio gstbaipc)
+    add_test(NAME test_motor_mixminus COMMAND test_motor_mixminus)
+    set_tests_properties(test_motor_mixminus PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 120)
+
     # Los buses de oído (F2-01, F2-03): pulso sintético → anillo, lazo contra el sello.
     add_executable(test_lazo_latencia tests/test_lazo_latencia.cpp)
     target_link_libraries(test_lazo_latencia PRIVATE ba_motor)

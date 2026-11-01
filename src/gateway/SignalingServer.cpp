@@ -2457,6 +2457,17 @@ void SignalingServer::releaseSession(const std::string& pid, uint64_t gen, bool 
     if (WebrtcSession* s = hub_.session(idx)) s->close();
 }
 
+std::function<void()> SignalingServer::avisoSinPuerto(const std::string& pid, std::function<void(const json&)> enviar) {
+    return [this, pid, enviar = std::move(enviar)]() {
+        const int n = ++sinPuerto_;
+        log_.warn(llenar(traducir("gateway", "ws: %1 no consiguió ningún puerto UDP de WebRTC libre (van %2): el rango de "
+                                             "Configuración → Red de la conferencia no alcanza; no va a conectar"),
+                         {pid, std::to_string(n)}),
+                  -1);
+        if (enviar) enviar(json{{"type", "sinpuerto"}});
+    };
+}
+
 void SignalingServer::applyRoute(const std::string& pid, const MediaRoute& route) {
     if (route.kind == MediaRoute::Kind::None) {
         releaseSession(pid, 0, true);
@@ -2599,6 +2610,7 @@ void SignalingServer::handleOffer(const std::string& pid, uint64_t gen, const st
         cb.onCapas = [this, pid](bool alta, bool baja) {
             sendToGuest(pid, json{{"type", "capas"}, {"alta", alta}, {"baja", baja}});
         };
+        cb.onSinPuerto = avisoSinPuerto(pid, [this, pid](const json& m) { sendToGuest(pid, m); });
         sess->configure(cb, hub_.rtcFactory());
     }
     // La ruta se vuelve a leer con la sesión ya anotada: si lo admitieron mientras su oferta
@@ -2756,6 +2768,7 @@ bool SignalingServer::ofertaRemoto(const std::string& id, int canal, const std::
         }
         // Las dos capas de su cámara (Capas.hpp), por el canal de la sesión.
         cb.onCapas = [enviar](bool alta, bool baja) { enviar(json{{"type", "capas"}, {"alta", alta}, {"baja", baja}}); };
+        cb.onSinPuerto = avisoSinPuerto(pid, enviar);
         sess->configure(cb, hub_.rtcFactory());
     }
     if (pump_ != nullptr) pump_->setRoute(idx, MediaRoute::remoto(canal));
@@ -2851,6 +2864,7 @@ bool SignalingServer::ofertaVista(const std::string& id, const std::string& sdp,
                             : traducir("gateway", "sesión: vista de %1 (sesión %2) cerrada"),
                          {id, std::to_string(idx)}));
     };
+    cb.onSinPuerto = avisoSinPuerto(pid, enviar);
     sess->configure(cb, hub_.rtcFactory());
     if (pump_ != nullptr) pump_->setRoute(idx, rutaDeVista(vista, hablar));
     if (!sess->setRemoteOffer(sdp)) {
@@ -2923,6 +2937,7 @@ bool SignalingServer::ofertaAtencion(const std::string& id, const std::string& s
     };
     if (pump_ != nullptr)
         cb.onRemoteAudio = [this, idx](const float* s, size_t n, int rate) { pump_->forwardAudio(idx, s, n, rate); };
+    cb.onSinPuerto = avisoSinPuerto(pid, enviar);
     sess->configure(cb, hub_.rtcFactory());
     if (pump_ != nullptr) pump_->setRoute(idx, MediaRoute::atencion());
     if (!sess->setRemoteOffer(sdp)) {
@@ -2991,6 +3006,7 @@ bool SignalingServer::ofertaRegistroAtiende(const std::string& aconn, int canal,
     // Su micrófono: MediaPump lo usa solo con `habla` (lo baja a ese tótem; nunca a la mezcla).
     if (pump_ != nullptr)
         cb.onRemoteAudio = [this, idx](const float* s, size_t n, int rate) { pump_->forwardAudio(idx, s, n, rate); };
+    cb.onSinPuerto = avisoSinPuerto(pid, enviar);
     sess->configure(cb, hub_.rtcFactory());
     if (pump_ != nullptr) pump_->setRoute(idx, MediaRoute::registroAtiende(canal, habla));
     if (!sess->setRemoteOffer(sdp)) {
@@ -3069,6 +3085,7 @@ bool SignalingServer::ofertaRegistro(const std::string& conn, int canal, const s
         cb.onRemoteAudio = [this, idx](const float* s, size_t n, int rate) { pump_->forwardAudio(idx, s, n, rate); };
         cb.onRemoteVideo = [this, idx](const uint8_t* p, size_t b, int w, int h) { pump_->forwardVideo(idx, p, b, w, h); };
     }
+    cb.onSinPuerto = avisoSinPuerto(pid, enviar);
     sess->configure(cb, hub_.rtcFactory());
     if (pump_ != nullptr) pump_->setRoute(idx, MediaRoute::registro(canal));
     if (!sess->setRemoteOffer(sdp)) {

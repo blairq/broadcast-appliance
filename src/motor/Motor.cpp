@@ -9,6 +9,7 @@
 #include "GpuPerdida.hpp"
 #include "OrigenRed.hpp"
 #include "ipc/CanalesSalida.hpp"
+#include "ipc/LugaresSala.hpp"
 
 #include <gst/net/net.h>
 
@@ -240,7 +241,7 @@ std::string Motor::armarSalida(const std::string& id, Salida& s) {
             registrar(Nivel::Error, llenar(traducir("motor", "el video del PROGRAMA no arrancó: %1"), {s.programa->error()}));
     }
     // Sus mix-minus (los invitados de esta salida no se oyen a sí mismos: F2-02).
-    for (const auto& [n, r] : retornos_) armarRetorno(n, id, s);
+    armarRetornos(s);
     for (const auto& [cid, c] : canales_) aplicarEnSalida(s, cid, 0);
     // Su audio al gateway: la por omisión, el de siempre (lo que oyen los invitados en
     // modo «programa»); las demás, el suyo (el gateway lo manda con BA.Salida.<id>).
@@ -321,7 +322,7 @@ std::shared_future<void> Motor::desarmarSalida(Salida& s, bool aparte) {
                      programa = std::shared_ptr<Composicion>(std::move(s.programa)),
                      preview = std::shared_ptr<Composicion>(std::move(s.preview)),
                      mezcla = std::shared_ptr<Mezcla>(std::move(s.mezcla)),
-                     retornos = std::make_shared<std::map<int, std::unique_ptr<Mezcla>>>(std::move(s.retornos)),
+                     retornos = std::shared_ptr<Mezcla>(std::move(s.retornos)),
                      pistas = std::make_shared<std::map<int, std::unique_ptr<Mezcla>>>(std::move(s.pistas))]() mutable {
         for (GstElement* p : {toma ? toma->pipeline : nullptr, puente, puenteEmisor})
             if (p != nullptr) {
@@ -435,8 +436,7 @@ void Motor::bucle() {
                 Tramo t("tic de los buses de audio");
                 for (auto& [sid, s] : salidas_) {
                     if (s.mezcla) s.mezcla->tic();
-                    for (auto& [n, m] : s.retornos)
-                        if (m) m->tic();
+                    if (s.retornos) s.retornos->tic();
                     for (auto& [n, p] : s.pistas) p->tic();
                 }
                 if (directo_) directo_->tic();
@@ -583,10 +583,7 @@ void Motor::aplicarEnSalida(Salida& s, const std::string& id, int fundidoMs) {
     const bool alPrograma = (c.pistas & 1u) != 0;
     if (s.mezcla) enBus(*s.mezcla, id, c, k, alPrograma, fundidoMs);
     // Sus mix-minus: lo mismo que su bus, menos la voz de cada invitado.
-    for (auto& [n, m] : s.retornos) {
-        auto r = retornos_.find(n);
-        if (m && r != retornos_.end()) enBus(*m, id, c, k, alPrograma && r->second.oye(id), fundidoMs);
-    }
+    enRetornos(s, id, c, k, fundidoMs);
     // Sus pistas 2-6: con su mando, como su bus (la grabación de cada salida lleva las suyas).
     for (int n = 2; n <= 6; ++n) {
         const bool va = (c.pistas & (1u << (n - 1))) != 0;
@@ -701,8 +698,7 @@ std::string Motor::quitarEntradaYa(const std::string& id) {
     if (it == canales_.end()) return llenar(traducir("motor", "no hay una entrada «%1»"), {id});
     for (auto& [sid, s] : salidas_) {
         if (s.mezcla) s.mezcla->quitar(id);
-        for (auto& [n, m] : s.retornos)
-            if (m) m->quitar(id);
+        if (s.retornos) s.retornos->quitar(id);
         for (auto& [n, p] : s.pistas) p->quitar(id);
         s.mandos.erase(id);
     }
@@ -1603,48 +1599,71 @@ std::int64_t Motor::latenciaPfl(const Entrada& e) const {
     return std::max(latenciaOidoNs(), std::min(propia, reloj_->latencia() + margenMezclaNs()));
 }
 
-bool Motor::armarRetorno(int n, const std::string& sid, Salida& s) {
-    s.retornos.erase(n);
-    auto r = retornos_.find(n);
-    if (r == retornos_.end() || r->second.modo == "apagado" || cfg_.prefijoAnillos.empty() || !s.mezcla) return true;
-    // Un bus de oído (F2-01): el invitado que conversa oye ya, no junto con el video.
-    // Con limitador: lo que oye el invitado tampoco satura.
-    const bool po = sid == porOmision_;
-    Mezcla::Opciones op;
-    op.limitador = true;
-    op.anticipoLimitadorMs = 1.0;
-    op.medidores = false;
-    op.latenciaFijaNs = latenciaOidoNs();
-    op.anillo = anillo(ba::ipc::sufijoRetorno(po ? std::string() : sid, n));
-    auto m = std::make_unique<Mezcla>(*reloj_, "retorno" + std::to_string(n) + (po ? std::string() : ":" + sid), op);
-    const bool anda = m->anda();
-    for (const auto& [id, c] : canales_) {
-        auto k = s.mandos.find(id);
-        enBus(*m, id, c, k != s.mandos.end() ? k->second : Mando{}, (c.pistas & 1u) != 0 && r->second.oye(id), 0);
+int Motor::oyenteDe(const std::string& id) const {
+    for (const auto& [n, r] : retornos_)
+        if (!r.oye(id)) return n;
+    return 0;
+}
+
+void Motor::enRetornos(Salida& s, const std::string& id, const Canal& c, const Mando& k, int fundidoMs) {
+    if (!s.retornos) return;
+    // Cada entrada del programa entra UNA vez; la de un invitado en mix_minus, marcada:
+    // su retorno es la suma menos ella.
+    enBus(*s.retornos, id, c, k, (c.pistas & 1u) != 0, fundidoMs);
+    s.retornos->ponerOyente(id, oyenteDe(id));
+}
+
+bool Motor::armarRetornos(Salida& s) {
+    std::map<int, std::string> anillos;
+    const bool po = s.id == porOmision_;
+    for (const auto& [n, r] : retornos_) anillos[n] = anillo(ba::ipc::sufijoRetorno(po ? std::string() : s.id, n));
+    if (anillos.empty() || cfg_.prefijoAnillos.empty() || !s.mezcla) {
+        s.retornos.reset(); // sin anillos: el gateway le apaga el retorno a cada uno
+        return true;
     }
-    s.retornos[n] = std::move(m);
-    return anda;
+    if (!s.retornos) {
+        // Un bus de oído (F2-01): el invitado que conversa oye ya, no junto con el video.
+        // Con limitador en cada retorno: lo que oye el invitado tampoco satura.
+        Mezcla::Opciones op;
+        op.retornos = true;
+        op.anticipoLimitadorMs = 1.0;
+        op.medidores = false;
+        op.latenciaFijaNs = latenciaOidoNs();
+        s.retornos = std::make_unique<Mezcla>(*reloj_, "retornos" + (po ? std::string() : ":" + s.id), op);
+        if (!s.retornos->anda()) {
+            s.retornos.reset();
+            return false;
+        }
+        for (const auto& [id, c] : canales_) {
+            auto k = s.mandos.find(id);
+            enRetornos(s, id, c, k != s.mandos.end() ? k->second : Mando{}, 0);
+        }
+    } else {
+        for (const auto& [id, c] : canales_) s.retornos->ponerOyente(id, oyenteDe(id));
+    }
+    s.retornos->ponerAnillos(anillos);
+    return true;
 }
 
 std::string Motor::retornoYa(int n, const std::string& modo, const std::string& propia) {
     BA_CON_CANDADO(mu_);
-    if (n < 1 || n > 64) return traducir("motor", "invitado fuera de rango (1…64)");
+    if (n < 1 || n > ba::ipc::kMaxInvitados)
+        return llenar(traducir("motor", "invitado fuera de rango (1…%1)"), {std::to_string(ba::ipc::kMaxInvitados)});
     if (modo != "programa" && modo != "mix_minus" && modo != "apagado") return traducir("motor", "modo: programa, mix_minus o apagado");
     if (modo == "apagado") {
         retornos_.erase(n);
-        for (auto& [sid, s] : salidas_) s.retornos.erase(n);
-        return {};
+    } else {
+        Retorno& r = retornos_[n];
+        if (r.modo == modo && r.propia == propia) {
+            bool todos = true; // ya está, en todas las salidas que andan
+            for (const auto& [sid, s] : salidas_) todos = todos && (!s.mezcla || s.retornos);
+            if (todos) return {};
+        }
+        r.modo = modo;
+        r.propia = propia;
     }
-    Retorno& r = retornos_[n];
-    if (r.modo == modo && r.propia == propia) {
-        bool todos = true; // ya está, en todas las salidas que andan
-        for (const auto& [sid, s] : salidas_) todos = todos && (!s.mezcla || s.retornos.count(n) > 0);
-        if (todos) return {};
-    }
-    r.modo = modo;
-    r.propia = propia;
     bool anda = true;
-    for (auto& [sid, s] : salidas_) anda = armarRetorno(n, sid, s) && anda;
+    for (auto& [sid, s] : salidas_) anda = armarRetornos(s) && anda;
     return anda ? std::string() : traducir("motor", "el retorno no arrancó");
 }
 
@@ -1806,7 +1825,7 @@ std::shared_ptr<const std::vector<Motor::NivelAudio>> Motor::niveles() const {
 
 void Motor::publicarNiveles() {
     auto v = std::make_shared<std::vector<NivelAudio>>();
-    v->reserve(canales_.size() + (retornos_.size() + 6) * salidas_.size());
+    v->reserve(canales_.size() + 6 * salidas_.size());
     for (const auto& [id, c] : canales_) {
         if (!c.entrada || !c.entrada->daAudio()) continue;
         NivelAudio n;
@@ -1831,8 +1850,6 @@ void Motor::publicarNiveles() {
     for (const auto& [sid, s] : salidas_)
         for (const auto& [num, m] : s.pistas) deBus(m->nombre(), m.get());
     for (const auto& [id, b] : matriz_) deBus("matriz:" + id, b.mezcla.get());
-    for (const auto& [sid, s] : salidas_)
-        for (const auto& [num, m] : s.retornos) deBus(m ? m->nombre() : std::string(), m.get());
     std::shared_ptr<const std::vector<NivelAudio>> listo = std::move(v);
     std::lock_guard<std::mutex> l(nivelesM_);
     niveles_ = listo;
@@ -1934,11 +1951,10 @@ json Motor::estadoYa() const {
     for (const auto& [n, r] : retornos_) {
         json porSalida = json::object();
         for (const auto& [sid, s] : salidas_) {
-            auto m = s.retornos.find(n);
-            const bool anda = m != s.retornos.end() && m->second && m->second->anda();
+            const bool anda = s.retornos && s.retornos->anda();
             porSalida[sid] = {{"anda", anda},
                               {"canal", ba::ipc::sufijoRetorno(sid == porOmision_ ? std::string() : sid, n)},
-                              {"latencia_ms", anda ? static_cast<double>(m->second->latenciaSalidaNs()) / 1e6 : 0.0}};
+                              {"latencia_ms", anda ? static_cast<double>(s.retornos->latenciaSalidaNs()) / 1e6 : 0.0}};
         }
         ret[std::to_string(n)] = {{"modo", r.modo}, {"propia", r.propia},
                                   {"anda", porSalida[porOmision_].value("anda", false)}, {"salidas", porSalida}};

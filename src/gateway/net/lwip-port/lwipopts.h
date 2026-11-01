@@ -43,7 +43,7 @@
 #define MEM_ALIGNMENT 8
 #define MEM_SIZE (8 * 1024 * 1024)
 #define MEMP_NUM_PBUF 512
-#define MEMP_NUM_UDP_PCB 160 /* rango de puertos WebRTC + extras */
+#define MEMP_NUM_UDP_PCB 1010 /* rango de puertos WebRTC (kTopeRangoRtc, Config.hpp) + extras */
 #define MEMP_NUM_TCP_PCB 128
 #define MEMP_NUM_TCP_PCB_LISTEN 8
 #define MEMP_NUM_TCP_SEG 1024

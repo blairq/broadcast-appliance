@@ -10,7 +10,7 @@
 #   audio/     baaudio: baautomixer (mesa redonda por grupo), balimitador (limitador true peak del máster),
 #              baderiva (la placa al reloj del estudio).
 #   ipc/       baipc: baanillo y bavideoanillo (el audio y el video de los invitados que deja el gateway en memoria compartida)
-#              y baanillosink (el programa y los mix-minus que el motor le escribe al gateway).
+#              y baanillosink/baretornos (el programa y los mix-minus que el motor le escribe al gateway).
 #   plugin/    baplugins: baplugin (tarjeta de un plugin de Python) y bapluginsrc (su entrada).
 #   rostros/   barostros (+ barostrosgl, barostrosd3d12): caras en la cadena de una entrada.
 #   captura/   bacaptura (Mac): bacapturaventana, la ventana de una aplicación (ScreenCaptureKit).
@@ -69,7 +69,8 @@ if(WIN32)
 else()
     set(BA_IPC_RITMO "${CMAKE_SOURCE_DIR}/src/core/platform/Ritmo_posix.cpp")
 endif()
-add_library(gstbaipc MODULE ipc/plugin.cpp ipc/anillo.cpp ipc/anillosink.cpp ipc/video.cpp "${CMAKE_SOURCE_DIR}/src/core/ipc/SharedAudioRing.cpp"
+add_library(gstbaipc MODULE ipc/plugin.cpp ipc/anillo.cpp ipc/anillosink.cpp ipc/retornos.cpp ipc/video.cpp
+    "${CMAKE_SOURCE_DIR}/src/core/ipc/SharedAudioRing.cpp" "${CMAKE_SOURCE_DIR}/src/core/dsp/LimitadorTP.cpp"
     "${CMAKE_SOURCE_DIR}/src/core/ipc/SharedMemoryRegion.cpp" "${CMAKE_SOURCE_DIR}/src/core/ipc/SpoutTransport.cpp"
     "${CMAKE_SOURCE_DIR}/src/core/ipc/Timbre.cpp" "${BA_IPC_RITMO}")
 target_include_directories(gstbaipc PRIVATE "${CMAKE_SOURCE_DIR}/src/core" "${CMAKE_SOURCE_DIR}/src/core/ipc")

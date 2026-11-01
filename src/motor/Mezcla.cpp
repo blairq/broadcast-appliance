@@ -71,6 +71,15 @@ std::string nombreSeguro(const std::string& id) {
 Mezcla::Mezcla(Reloj& reloj, std::string nombre, Opciones op)
     : reloj_(reloj), nombre_(std::move(nombre)), medidores_(op.medidores), latenciaFijaNs_(op.latenciaFijaNs), panorama_(op.panorama) {
     std::string salida;
+    if (op.retornos) {
+        // Los retornos: el mezclador escribe cada anillo; lo que sale (la suma) se tira.
+        const std::string desc =
+            "baretornos name=mx force-live=true start-time-selection=first output-buffer-duration=10000000" +
+            (op.anticipoLimitadorMs > 0 ? " lookahead-ms=" + std::to_string(std::lround(op.anticipoLimitadorMs)) : std::string()) +
+            " ! audio/x-raw,format=F32LE,layout=interleaved,rate=48000,channels=2 ! fakesink name=sale sync=false async=false";
+        armar(desc);
+        return;
+    }
     if (op.limitador) {
         if (hayFabrica("balimitador"))
             salida += "balimitador name=lim" +
@@ -81,12 +90,14 @@ Mezcla::Mezcla(Reloj& reloj, std::string nombre, Opciones op)
     }
     if (op.loudness && hayFabrica("ebur128level"))
         salida += "ebur128level name=loud interval=100000000 post-messages=true ! ";
-    const std::string desc =
-        "audiomixer name=mx force-live=true start-time-selection=first output-buffer-duration=10000000 ! "
-        "audio/x-raw,format=F32LE,layout=interleaved,rate=48000,channels=2 ! volume name=master ! " + salida +
-        "level name=nivel interval=50000000 post-messages=true peak-ttl=300000000 ! " +
-        (op.anillo.empty() ? "intersink name=sale producer-name=" + entreComillas(productor()) + " sync=false"
-                           : "baanillosink name=sale canal=" + entreComillas(op.anillo));
+    armar("audiomixer name=mx force-live=true start-time-selection=first output-buffer-duration=10000000 ! "
+          "audio/x-raw,format=F32LE,layout=interleaved,rate=48000,channels=2 ! volume name=master ! " + salida +
+          "level name=nivel interval=50000000 post-messages=true peak-ttl=300000000 ! " +
+          (op.anillo.empty() ? "intersink name=sale producer-name=" + entreComillas(productor()) + " sync=false"
+                             : "baanillosink name=sale canal=" + entreComillas(op.anillo)));
+}
+
+void Mezcla::armar(const std::string& desc) {
     GError* e = nullptr;
     pipeline_ = gst_parse_launch(desc.c_str(), &e);
     if (e != nullptr) {
@@ -105,7 +116,7 @@ Mezcla::Mezcla(Reloj& reloj, std::string nombre, Opciones op)
     // La edad de lo que sale (lo que pasa de verdad, no la latencia fijada).
     if (GstElement* sale = gst_bin_get_by_name(GST_BIN(pipeline_), "sale")) {
         edadSalida_.ponerEnEntrada(sale, reloj_);
-        // Un bus de oído que escribe a tiempo real (el anillo de un retorno): sin los 20 ms
+        // Un bus de oído que sale a tiempo real (a un anillo, a la escucha): sin los 20 ms
         // que el sink suma de fábrica «por si lo de atrás tarda» (processing-deadline). Lo
         // de atrás es sumar, el limitador y el medidor: no llega a 1 ms.
         if (latenciaFijaNs_ >= 0 && g_object_class_find_property(G_OBJECT_GET_CLASS(sale), "processing-deadline") != nullptr)
@@ -283,6 +294,26 @@ void Mezcla::ponerEscena(const std::string& id, double ganancia, int ms) {
         r.escena = r.escenaHacia;
         g_object_set(r.pad, "volume", r.escena, nullptr);
     }
+}
+
+void Mezcla::ponerOyente(const std::string& id, int n) {
+    std::lock_guard<std::mutex> l(mu_);
+    auto it = ramas_.find(id);
+    if (it == ramas_.end() || it->second.oyente == n) return;
+    if (g_object_class_find_property(G_OBJECT_GET_CLASS(it->second.pad), "oyente") == nullptr) return; // no es de retornos
+    it->second.oyente = n;
+    g_object_set(it->second.pad, "oyente", n, nullptr);
+}
+
+void Mezcla::ponerAnillos(const std::map<int, std::string>& anillos) {
+    std::lock_guard<std::mutex> l(mu_);
+    if (mezclador_ == nullptr || g_object_class_find_property(G_OBJECT_GET_CLASS(mezclador_), "anillos") == nullptr) return;
+    std::string s;
+    for (const auto& [n, canal] : anillos) s += (s.empty() ? "" : ";") + std::to_string(n) + "=" + canal;
+    gchar* antes = nullptr;
+    g_object_get(mezclador_, "anillos", &antes, nullptr);
+    if (antes == nullptr || s != antes) g_object_set(mezclador_, "anillos", s.c_str(), nullptr);
+    g_free(antes);
 }
 
 void Mezcla::ponerMaster(double lineal, int ms) {

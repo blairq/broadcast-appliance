@@ -310,6 +310,11 @@
       case "busy":
         toast(t("La conferencia no tiene lugar para tu video en este momento"), "bad");
         break;
+      case "sinpuerto":
+        // El gateway no consiguió un puerto de red para esta conexión: no va a
+        // conectar; mejor decirlo que quedar «conectando».
+        toast(t("La conferencia se quedó sin puertos de red para tu conexión: avisale al operador"), "bad");
+        break;
       case "talk":
         $("talk-badge").textContent = t("● Te está hablando");
         $("talk-badge").classList.toggle("hidden", !msg.on);

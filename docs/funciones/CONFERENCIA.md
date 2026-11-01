@@ -198,6 +198,23 @@ Puesta en marcha (página Sala → **Configurar servidor WireGuard…**):
 La clave privada de este equipo vive cifrada en `Credenciales/wireguard-key.cred`
 o en `BA_WG_PRIVATE_KEY`; la PSK opcional, en `BA_WG_PSK`.
 
+### Cuántos puertos UDP hacen falta
+
+Cada conexión (un invitado, uno del lobby, una vista) abre un puerto del rango de
+WebRTC (Configuración → Red de la conferencia, de fábrica 40000-40099) por **cada red
+de la máquina**: una por interfaz y familia (IPv4, IPv6). Las interfaces virtuales
+(el puente de las máquinas virtuales de la Mac, Docker, Hyper-V, VPN como Tailscale)
+no le sirven a ningún invitado y no se usan (`red.rtcVirtuales` las vuelve a sumar);
+las de enlace local tampoco. Con una red cableada o wifi con IPv4 e IPv6 son dos por
+conexión: 100 puertos alcanzan para 50 conexiones. El rango puede tener hasta 1000
+puertos (`kTopeRangoRtc`).
+
+El gateway anota al arrancar cuántas entran («WebRTC: puertos UDP …: entran N
+sesiones») y el panel **Uso de la conferencia** avisa en rojo si no alcanzan para la
+sala llena (el cupo y el lobby) o si una conexión se quedó sin puerto. A ese invitado
+se le dice («la conferencia se quedó sin puertos de red…») en vez de dejarlo
+«conectando».
+
 ## Seguridad
 
 - API de control solo en loopback; token por arranque en un archivo 0600.

@@ -6,7 +6,7 @@
 // (room_set, settings_set) y todos pasan por acá.
 //
 //   - Se pide a la sala en caliente (el gateway crea los canales de los lugares
-//     nuevos, hasta 16). Si al bajarlo hay gente en un lugar que se iría, la sala
+//     nuevos, hasta kMax). Si al bajarlo hay gente en un lugar que se iría, la sala
 //     lo rechaza y no cambia nada: nunca saca a nadie ni se reinicia.
 //   - Aceptado (o con la sala sin contestar: queda guardado y rige cuando
 //     arranque), AppRuntime ajusta las entradas de los invitados.
@@ -41,7 +41,7 @@ class CupoSala {
     /// Cuando el cupo cambió (n nuevo): lo que depende de él fuera del modelo.
     void alCambiar(std::function<void(int)> f) { cambio_ = std::move(f); }
 
-    /// Pide el cupo `n` (1 a 16). Devuelve el error inmediato o ""; el resultado
+    /// Pide el cupo `n` (1 a kMax). Devuelve el error inmediato o ""; el resultado
     /// de la sala llega después a `listo` y a los observadores.
     std::string cambiar(int n, Listo listo = {});
 

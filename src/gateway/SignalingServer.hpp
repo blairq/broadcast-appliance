@@ -350,6 +350,8 @@ class SignalingServer {
     static void guardarPinDeHoy(const std::string& pin);
     /// Clave del tablero de oradores (ver Claves).
     std::string boardToken() const { return claves().tablero; }
+    /// Las sesiones que no consiguieron puerto desde el arranque (el rango UDP no alcanzó).
+    int sinPuerto() const { return sinPuerto_.load(); }
 
    private:
     // --- Conexiones ---------------------------------------------------------
@@ -478,6 +480,11 @@ class SignalingServer {
     std::thread statsThread_; ///< cada 2 s: estadisticas de cada conexion -> Room
     /// Cierra la sesion de `pid` (si `anyGen` o si sigue siendo de `gen`).
     void releaseSession(const std::string& pid, uint64_t gen, bool anyGen);
+    /// Lo que hace una sesión que no consiguió puerto (SessionCallbacks::onSinPuerto): lo
+    /// anota (registro, sinPuerto()) y se lo dice a quien la pidió ({type:"sinpuerto"}),
+    /// que si no quedaba «conectando» para siempre.
+    std::function<void()> avisoSinPuerto(const std::string& pid, std::function<void(const nlohmann::json&)> enviar);
+    std::atomic<int> sinPuerto_{0};
     /// La sala cambio la ruta de `pid`: se aplica a su sesion o, si todavia no
     /// publica, se le avisa que puede hacerlo.
     void applyRoute(const std::string& pid, const MediaRoute& route);

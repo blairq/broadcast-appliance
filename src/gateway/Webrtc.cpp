@@ -86,6 +86,9 @@
 #include "api/video_codecs/video_decoder_factory_template_libvpx_vp9_adapter.h"
 #include "api/video_codecs/video_decoder_factory_template_open_h264_adapter.h"
 #include "api/video_codecs/video_encoder_factory_template.h"
+#include "p2p/base/basic_packet_socket_factory.h"
+#include "p2p/client/basic_port_allocator.h"
+#include "rtc_base/network.h"
 #ifdef __APPLE__
 #include "CodecsMac.hpp"
 #endif
@@ -751,10 +754,31 @@ std::vector<std::pair<std::string, int>> videoPayloadTypes(const std::string& sd
 struct RtcHubState {
     uint16_t minPort = 0;
     uint16_t maxPort = 0;
+    bool loopback = false; ///< también 127.0.0.1 (setNetwork: el túnel de WireGuard)
     std::unique_ptr<rtc::Thread> network;
     std::unique_ptr<rtc::Thread> worker;
     std::unique_ptr<rtc::Thread> signaling;
     rtc::scoped_refptr<webrtc::PeerConnectionFactoryInterface> factory;
+    // Las redes de las sesiones (setNetwork): la lista de interfaces de la máquina SIN las
+    // que se ignoran, compartida por todas las PeerConnection (cada una con su asignador).
+    // Las crea y las suelta el hilo de señalización (como las de la factory).
+    std::unique_ptr<rtc::BasicNetworkManager> redes;
+    std::unique_ptr<rtc::BasicPacketSocketFactory> sockets;
+
+    /// La red de una PeerConnection nueva: sin las de enlace local, y con el asignador de
+    /// puertos propio (el rango va en él: la config de la PC no se aplica a uno inyectado).
+    void configurarRed(webrtc::PeerConnectionInterface::RTCConfiguration& config, webrtc::PeerConnectionDependencies& deps) {
+        config.disable_link_local_networks = true;
+        if (minPort != 0) {
+            config.port_allocator_config.min_port = minPort;
+            config.port_allocator_config.max_port = maxPort;
+        }
+        if (!redes) return;
+        auto a = std::make_unique<cricket::BasicPortAllocator>(redes.get(), sockets.get());
+        if (minPort != 0) a->SetPortRange(minPort, maxPort);
+        a->SetNetworkIgnoreMask(loopback ? 0 : rtc::kDefaultNetworkIgnoreMask);
+        deps.allocator = std::move(a);
+    }
     // Relay: un Feed por (sesion, camara/pantalla) y los espectadores.
     std::mutex feedsM;
     // clave: sesion * 2 + (pantalla ? 1 : 0); -sesion, la capa baja de su camara (solo cuenta)
@@ -807,6 +831,7 @@ struct WebrtcSession::Impl : public webrtc::PeerConnectionObserver {
     std::vector<std::pair<rtc::scoped_refptr<webrtc::VideoTrackInterface>, RemoteVideoSink*>> videoAttached;
     std::vector<std::pair<rtc::scoped_refptr<webrtc::AudioTrackInterface>, RemoteAudioSink*>> audioAttached;
     std::atomic<bool> connected{false};
+    std::atomic<int> candidatos{0}; ///< los locales que juntó la PC de ahora (0 al terminar: sin puerto)
     std::atomic<uint64_t> localAudioBlocks{0};
     std::atomic<uint64_t> localVideoFrames{0};
     // Estadisticas de la conexion (las arma el callback de GetStats).
@@ -915,13 +940,11 @@ struct WebrtcSession::Impl : public webrtc::PeerConnectionObserver {
         config.bundle_policy = webrtc::PeerConnectionInterface::kBundlePolicyMaxBundle;
         config.rtcp_mux_policy = webrtc::PeerConnectionInterface::kRtcpMuxPolicyRequire;
         config.media_config.enable_dscp = ba::ajustes::siNo("red.dscp", true); // F4-06
-        if (hub->minPort != 0) {
-            config.port_allocator_config.min_port = hub->minPort;
-            config.port_allocator_config.max_port = hub->maxPort;
-        }
         // Sin STUN/TURN: B atiende en la LAN (candidatos host) y, con el tunel,
         // en su IP publica. El medio no pasa por Cloudflare (spec §8.4).
         webrtc::PeerConnectionDependencies deps(this);
+        hub->configurarRed(config, deps);
+        candidatos = 0;
         auto res = hub->factory->CreatePeerConnectionOrError(config, std::move(deps));
         if (!res.ok()) return false;
         pc = res.MoveValue();
@@ -1078,9 +1101,14 @@ struct WebrtcSession::Impl : public webrtc::PeerConnectionObserver {
     // --- PeerConnectionObserver ------------------------------------------------
     void OnSignalingChange(webrtc::PeerConnectionInterface::SignalingState) override {}
     void OnDataChannel(rtc::scoped_refptr<webrtc::DataChannelInterface>) override {}
-    void OnIceGatheringChange(webrtc::PeerConnectionInterface::IceGatheringState) override {}
+    void OnIceGatheringChange(webrtc::PeerConnectionInterface::IceGatheringState s) override {
+        // Terminó de juntar sin un solo candidato: no consiguió puerto en ninguna red.
+        if (s == webrtc::PeerConnectionInterface::kIceGatheringComplete && candidatos.load() == 0 && cb.onSinPuerto)
+            cb.onSinPuerto();
+    }
 
     void OnIceCandidate(const webrtc::IceCandidateInterface* c) override {
+        if (c != nullptr) ++candidatos;
         if (c == nullptr || !cb.onLocalIce) return;
         std::string line;
         if (!c->ToString(&line)) return;
@@ -1321,6 +1349,7 @@ WebrtcHub::WebrtcHub(int guests, int videoW, int videoH, int audioRate, int audi
             webrtc::PeerConnectionFactoryInterface::Options opts;
             opts.network_ignore_mask = 0;
             st->factory->SetOptions(opts);
+            st->loopback = true;
         }
         rtcFactory_ = st;
     } else {
@@ -1352,6 +1381,10 @@ WebrtcHub::~WebrtcHub() {
             st->feeds.clear(); // sueltan proxies de libwebrtc: con los threads vivos
         }
         st->factory = nullptr;
+        st->signaling->BlockingCall([st]() {
+            st->redes.reset();
+            st->sockets.reset();
+        });
         st->signaling->Stop();
         st->worker->Stop();
         st->network->Stop();
@@ -1362,12 +1395,19 @@ WebrtcHub::~WebrtcHub() {
 #endif
 }
 
-void WebrtcHub::setNetwork(uint16_t minPort, uint16_t maxPort, bool allowLoopback) {
+void WebrtcHub::setNetwork(uint16_t minPort, uint16_t maxPort, bool allowLoopback, const std::vector<std::string>& ignorar) {
 #if BA_GATEWAY_HAVE_WEBRTC
     auto* st = static_cast<RtcHubState*>(rtcFactory_);
     if (st == nullptr) return;
     st->minPort = minPort;
     st->maxPort = maxPort;
+    st->loopback = st->loopback || allowLoopback;
+    if (!ignorar.empty() && !st->redes)
+        st->signaling->BlockingCall([st, &ignorar]() {
+            st->redes = std::make_unique<rtc::BasicNetworkManager>(st->network->socketserver());
+            st->redes->set_network_ignore_list(ignorar); // antes de que empiece a enumerar
+            st->sockets = std::make_unique<rtc::BasicPacketSocketFactory>(st->network->socketserver());
+        });
     if (allowLoopback) {
         webrtc::PeerConnectionFactoryInterface::Options opts;
         opts.network_ignore_mask = 0;
@@ -1377,6 +1417,7 @@ void WebrtcHub::setNetwork(uint16_t minPort, uint16_t maxPort, bool allowLoopbac
     (void)minPort;
     (void)maxPort;
     (void)allowLoopback;
+    (void)ignorar;
 #endif
 }
 
@@ -1420,11 +1461,8 @@ int WebrtcHub::openViewer(int session, bool screen, const std::string& offerSdp,
     config.bundle_policy = webrtc::PeerConnectionInterface::kBundlePolicyMaxBundle;
     config.rtcp_mux_policy = webrtc::PeerConnectionInterface::kRtcpMuxPolicyRequire;
     config.media_config.enable_dscp = ba::ajustes::siNo("red.dscp", true); // F4-06
-    if (st->minPort != 0) {
-        config.port_allocator_config.min_port = st->minPort;
-        config.port_allocator_config.max_port = st->maxPort;
-    }
     webrtc::PeerConnectionDependencies deps(v.get());
+    st->configurarRed(config, deps);
     auto res = st->factory->CreatePeerConnectionOrError(config, std::move(deps));
     if (!res.ok()) return 0;
     v->pc = res.MoveValue();

@@ -22,6 +22,7 @@
 
 #include "i18n/I18n.hpp"
 #include "arranque/AppRuntime.hpp"
+#include "ipc/LugaresSala.hpp"
 #include "sala/CupoSala.hpp"
 #include "sala/ControlSala.hpp"
 #include "sala/EnlacesSala.hpp"
@@ -161,14 +162,14 @@ void McpService::registerRoomTools() {
         t.clase = Clase::Escritura;
         t.description =
             QT_TRANSLATE_NOOP("mcp", "Lobby de admision (true = cada invitado espera que lo hagas pasar), conferencia cerrada (nadie "
-            "nuevo puede entrar) y `cupo`: cuántos invitados en el programa (1 a 16), SIN reiniciar la conferencia: los "
+            "nuevo puede entrar) y `cupo`: cuántos invitados en el programa (de 1 al `maximum` del esquema), SIN reiniciar la conferencia: los "
             "lugares nuevos se crean andando (no saca a nadie: si un lugar que se iría está ocupado, no lo baja).");
         t.inputSchema = {
             {"type", "object"},
             {"properties",
              {{"lobby", {{"type", "boolean"}}},
               {"locked", {{"type", "boolean"}}},
-              {"cupo", {{"type", "integer"}, {"minimum", 1}, {"maximum", 16}}}}}};
+              {"cupo", {{"type", "integer"}, {"minimum", 1}, {"maximum", ba::ipc::kMaxInvitados}}}}}};
         t.run = [&control, contestar, &vm = vm_](const json& a, Done done) {
             // El cupo es una operación del modelo (sala::CupoSala), la misma que usa la GUI.
             if (a.contains("cupo") && !a.contains("lobby") && !a.contains("locked")) {

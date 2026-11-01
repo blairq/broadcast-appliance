@@ -315,6 +315,11 @@ int Room::admit(const std::string& id, int64_t nowMs) {
     return kOk;
 }
 
+int Room::cupo() const {
+    std::lock_guard<std::mutex> lock(m_);
+    return cfg_.maxGuests;
+}
+
 int Room::setCupo(int n) {
     Out out;
     {

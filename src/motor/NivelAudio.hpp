@@ -11,7 +11,7 @@
 namespace ba::motor {
 
 /// Una entrada con audio (lo que entrega, después de su rack) o un bus (programa,
-/// pista<n>, retorno<n>, matriz:<id>): por canal, pico y RMS en dB (-100 = nada).
+/// pista<n>, matriz:<id>): por canal, pico y RMS en dB (-100 = nada).
 struct NivelAudio {
     std::string id;
     bool bus = false;

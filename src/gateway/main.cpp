@@ -96,6 +96,7 @@
 #include "Grillas.hpp"
 #include "MediaPump.hpp"
 #include "net/NetUtil.hpp"
+#include "PuertosRtc.hpp"
 #include "turn/Ice.hpp"
 #include "turn/Servidor.hpp"
 #include "net/TlsTerminator.hpp"
@@ -596,7 +597,7 @@ int main(int argc, char** argv) {
     pumpCfg.backstageVideoNames.push_back({});
     for (int k = 1; k <= cfg.backstagePreviews; ++k)
         pumpCfg.backstageVideoNames.push_back(toWide("BA.Backstage." + std::to_string(k)));
-    pumpCfg.lugaresIniciales = std::max(cfg.guests, cfg.guestsReserve);
+    pumpCfg.lugaresIniciales = cfg.guestsReserve; // ya es el mayor del cupo y la reserva (ipc::lugaresIniciales)
     pumpCfg.audioRate = cfg.audioRate;
     pumpCfg.audioChannels = cfg.audioChannels;
     pumpCfg.programW = cfg.videoW;
@@ -709,8 +710,20 @@ int main(int argc, char** argv) {
     namespace net = ba::gateway::net;
     const auto logLine = [&log](const std::string& l) { log.info(l); };
     // Rango UDP fijo (reglas de firewall y redireccion del tunel). Con tunel,
-    // WebRTC atiende tambien en 127.0.0.1: ahi entrega el puente del tunel.
-    hub.setNetwork(cfg.rtcPortMin, cfg.rtcPortMax, cfg.wgEnabled);
+    // WebRTC atiende tambien en 127.0.0.1: ahi entrega el puente del tunel. Sin las
+    // interfaces virtuales (no le sirven a ningún invitado y cada una gasta un puerto
+    // por sesión), salvo que se pidan (red.rtcVirtuales).
+    const net::RedesRtc redesRtc = net::redesRtc(net::direccionesLocales(), ba::ajustes::siNo("red.rtcVirtuales", false));
+    hub.setNetwork(cfg.rtcPortMin, cfg.rtcPortMax, cfg.wgEnabled, redesRtc.ignorar);
+    const int puertosPorSesion = std::max(1, redesRtc.redes) + (cfg.wgEnabled ? 1 : 0);
+    {
+        std::string ignoradas;
+        for (const auto& n : redesRtc.ignorar) ignoradas += (ignoradas.empty() ? "" : ", ") + n;
+        const PuertosRtc p = puertosRtc(cfg.rtcPortMin, cfg.rtcPortMax, puertosPorSesion, cfg.guests, cfg.lobbySlots);
+        log.info(llenar(traducir("gateway", "WebRTC: puertos UDP %1-%2, %3 por sesión (redes de la máquina; sin las virtuales: %4): entran %5 sesiones"),
+                        {std::to_string(cfg.rtcPortMin), std::to_string(cfg.rtcPortMax), std::to_string(puertosPorSesion),
+                         ignoradas.empty() ? "-" : ignoradas, std::to_string(p.entran)}));
+    }
     std::string publicIp;
     std::string publicHost;
     if (cfg.wgEnabled && !cfg.wgPublicAddress.empty()) {
@@ -1308,6 +1321,7 @@ int main(int argc, char** argv) {
     // --- Bucle de vida: beat(0) cada 250 ms hasta duracion o senal.
     const auto start = std::chrono::steady_clock::now();
     const auto beatPeriod = std::chrono::milliseconds(250);
+    bool puertosAlcanzan = true; // el último aviso del rango UDP (ver el uso de la sala)
     health.beat(kHealthSlot); // primer latido inmediato
 
     // --- Canal de control (spec §4.1): el launcher pide el cierre ordenado
@@ -1400,6 +1414,20 @@ int main(int argc, char** argv) {
         // los anillos y canales que lee (F0-02: la app los muestra en sistema_recursos).
         nlohmann::json uso = processUsage(&hub);
         uso["transporte"] = pump.transporte();
+        // ¿El rango UDP alcanza para la sala llena? Se avisa al cambiar (el cupo sube en caliente).
+        {
+            const PuertosRtc p = puertosRtc(cfg.rtcPortMin, cfg.rtcPortMax, puertosPorSesion, room.cupo(), cfg.lobbySlots);
+            if (p.alcanza != puertosAlcanzan) {
+                puertosAlcanzan = p.alcanza;
+                if (!p.alcanza)
+                    log.warn(llenar(traducir("gateway", "WebRTC: los puertos UDP %1-%2 alcanzan para %3 sesiones (%4 por sesión) y la "
+                                                        "sala llena necesita %5: agrandá el rango en Configuración → Red de la conferencia"),
+                                    {std::to_string(cfg.rtcPortMin), std::to_string(cfg.rtcPortMax), std::to_string(p.entran),
+                                     std::to_string(p.porSesion), std::to_string(p.necesarias)}),
+                             -1);
+            }
+            uso["puertosRtc"] = aJson(p, cfg.rtcPortMin, cfg.rtcPortMax, server.sinPuerto());
+        }
         room.setUsage(uso);
         // Y qué invitado al aire se quedó sin retorno (su mix-minus no está abierto).
         room.setSinRetorno(pump.lugaresSinRetorno());

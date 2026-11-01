@@ -445,7 +445,7 @@ GatewaySettings loadGatewaySettings(const fs::path& path) {
     if (exists) ba::persist::migrar(j, kEsquemaGateway, {}, path.filename().string());
     GatewaySettings s;
     s.guests = get(j, "guests", s.guests);
-    s.guestsReserva = get(j, "guestsReserva", s.guestsReserva);
+    s.guestsReserva = ba::ipc::reservaValida(get(j, "guestsReserva", s.guestsReserva));
     s.port = get(j, "port", s.port);
     s.bindAddress = get<std::string>(j, "bindAddress", s.bindAddress);
     s.urlHost = get<std::string>(j, "urlHost", s.urlHost);
@@ -510,7 +510,7 @@ bool saveGatewaySettings(const fs::path& path, const GatewaySettings& s, std::st
     if (!previo.is_object()) previo = json::object();
     json wgPrevio = previo.value("wireguard", json::object());
     json nuevo = json{{"guests", s.guests},
-                          {"guestsReserva", std::max(s.guestsReserva, s.guests)},
+                          {"guestsReserva", ba::ipc::reservaValida(s.guestsReserva)},
                           {"port", s.port},
                           {"bindAddress", s.bindAddress},
                           {"urlHost", s.urlHost},

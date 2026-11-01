@@ -11,8 +11,9 @@
 //               su ruteo (la Matriz). Una tanda por salida (pista<n> la por
 //               omisión, pista<n>:<id> las demás), con el mando de ESA salida.
 //               Se arman cuando alguien las usa.
-//   retornoN    lo que oye el invitado N en mix_minus (todo menos su voz), uno
-//               por salida: retornoN de la por omisión, retornoN:<id> de las demás.
+//   retornos    lo que oye cada invitado (todo menos su voz en mix_minus), un bus
+//               por salida que escribe el anillo de cada uno (baretornos: suma una
+//               vez y le resta a cada uno su voz; N invitados = N ramas, no N×N).
 //   directo     la sala sin demora, para la escucha «directo».
 //   seleccion   las entradas marcadas para la escucha (el PFL de la app).
 //   afl         una entrada sola con el fader de una salida (la escucha «afl»).
@@ -37,7 +38,11 @@
 // el invitado n en la salida X oye la mezcla de X (sus faders, su escena al aire) en
 // BA.Audio.Return.<n> (la por omisión) o BA.Audio.Return.<X>.<n> (ipc/CanalesSalida.hpp).
 // El motor no sabe en qué salida está cada invitado (lo decide la sala): arma el de
-// todas, y el gateway lee el de la salida que le toca a cada uno.
+// todas, y el gateway lee el de la salida que le toca a cada uno. Los de una salida
+// salen de UN bus (`Salida::retornos`, baretornos): cada entrada entra una vez, la
+// voz de cada invitado lleva su «oyente» y cada anillo es la suma menos esa voz, en
+// el mismo bloque (exacta y sin demora). Entrar o salir un invitado agrega o saca un
+// anillo y una rama: los demás no se cortan.
 //   - mix_minus:  oye el programa SIN su propia voz (de fábrica).
 //   - programa:   oye el programa entero, con su voz (lo pidió y usa auriculares).
 //   - apagado:    no oye nada: sin anillo.
@@ -385,9 +390,10 @@ class Motor {
         /// pista<n> → BA.Audio.Emisor.<id>.pista<n>: las que graba su emisor (pistasAlEmisor),
         /// con la latencia con que se armó cada una.
         std::map<int, std::pair<GstElement*, std::int64_t>> puentesPistas;
-        /// El mix-minus de cada invitado en esta salida (buses de oído): retorno<n>[:<id>]
-        /// → BA.Audio.Return[.<id>].<n>. Uno por cada retorno de `retornos_` que no está apagado.
-        std::map<int, std::unique_ptr<Mezcla>> retornos;
+        /// El mix-minus de los invitados en esta salida (un bus de oído: retornos[:<id>]),
+        /// que escribe BA.Audio.Return[.<id>].<n> de cada retorno de `retornos_` (no hay
+        /// apagados ahí). nullptr sin ninguno.
+        std::unique_ptr<Mezcla> retornos;
         /// Sus pistas 2-6 (pista<n>[:<id>]), con su mando: se arman cuando alguien las usa.
         std::map<int, std::unique_ptr<Mezcla>> pistas;
         // El loudness (ponerLoudness): queda acá para que un bus rearmado lo vuelva a tener.
@@ -437,9 +443,14 @@ class Motor {
     nlohmann::json estadoYa() const;
     /// La pista n (2…6) de la salida; con `crear`, la arma si no está.
     Mezcla* pista(Salida& s, int n, bool crear);
-    /// El retorno del invitado n en la salida `sid` (lo arma de nuevo con lo que pide
-    /// retornos_[n]; si está apagado, lo saca). false si no arrancó.
-    bool armarRetorno(int n, const std::string& sid, Salida& s);
+    /// Los retornos de la salida con lo que pide `retornos_`: arma su bus si hace falta
+    /// (con todas las entradas) o lo saca sin ninguno, y le dice qué anillos escribe y de
+    /// quién es cada voz. Lo que sigue igual no se toca. false si el bus no arrancó.
+    bool armarRetornos(Salida& s);
+    /// La entrada en el bus de retornos de la salida (con su mando y de quién es la voz).
+    void enRetornos(Salida& s, const std::string& id, const Canal& c, const Mando& k, int fundidoMs);
+    /// El invitado cuya voz es la entrada `id` en mix_minus (0 = de nadie).
+    int oyenteDe(const std::string& id) const;
     /// Un bus de oído (latencia fija corta: ver DOS CLASES DE BUSES) sin medidores.
     std::unique_ptr<Mezcla> busDeOido(const std::string& nombre, std::string anillo = "");
     /// La salida cuyo mando usa la escucha de oído (directo, afl, seleccion).

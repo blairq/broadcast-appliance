@@ -868,6 +868,20 @@ Rectangle {
                                 dot: Theme.amber
                             }
                         }
+                        // El rango UDP de WebRTC: cada conexión gasta un puerto por red; las
+                        // que no entran no conectan (src/gateway/PuertosRtc.hpp).
+                        Text {
+                            readonly property var p: usoCol.u.puertosRtc
+                            Layout.fillWidth: true
+                            visible: p !== undefined && (!p.alcanza || p.sinPuerto > 0)
+                            wrapMode: Text.WordWrap
+                            color: Theme.live
+                            font.pixelSize: 11
+                            text: !visible ? ""
+                                  : !p.alcanza ? qsTr("Los puertos UDP %1–%2 alcanzan para %3 conexiones (%4 por conexión) y la conferencia llena necesita %5: agrandá el rango en Configuración → Red de la conferencia.")
+                                                 .arg(p.min).arg(p.max).arg(p.entran).arg(p.porSesion).arg(p.necesarias)
+                                  : qsTr("%n conexión se quedó sin puerto UDP: agrandá el rango en Configuración → Red de la conferencia.", "", p.sinPuerto)
+                        }
                         RowLayout {
                             Layout.fillWidth: true
                             Text { text: qsTr("Procesador del gateway"); color: Theme.textDim; font.pixelSize: 12; Layout.fillWidth: true }
