@@ -1709,7 +1709,7 @@ const auto tomadoM = canalM.tomarPrograma("");
                   antes->configuracion.gateway->room == "Sala",
               "R: la copia que tenía la interfaz no cambió debajo de sus pies");
         CHECK(!llegadas.empty() && llegadas.front() == "foto" &&
-                  std::count(llegadas.begin(), llegadas.end(), std::string("respuesta Configuracion guardada.")) == 1 &&
+                  std::count(llegadas.begin(), llegadas.end(), std::string("respuesta Configuración guardada.")) == 1 &&
                   std::count(llegadas.begin(), llegadas.end(), std::string("respuesta microfono")) == 1,
               "R: el resumen vuelve después de la foto (el formulario recarga con lo nuevo)");
     }

@@ -322,7 +322,7 @@ int main(int argc, char** argv) {
             d = true;
             e2 = e;
         });
-        CHECK(waitFor([&] { return d; }) && !t2.loggedIn() && e2.contains("conecta la cuenta"),
+        CHECK(waitFor([&] { return d; }) && !t2.loggedIn() && e2.contains("conectá la cuenta"),
               "refresh invalido: desconectado");
     }
     done = false;

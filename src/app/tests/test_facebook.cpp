@@ -349,7 +349,7 @@ int main(int argc, char** argv) {
         ok = o;
         err = e;
     });
-    CHECK(waitFor([&] { return done; }) && !ok && !fb.loggedIn() && err.contains("conecta la cuenta"),
+    CHECK(waitFor([&] { return done; }) && !ok && !fb.loggedIn() && err.contains("conectá la cuenta"),
           "token invalido: desconectado");
     invalid = false;
     fb.saveClient("123456789012345", "0123456789abcdef0123", port, err);

@@ -283,7 +283,7 @@ int main(int argc, char** argv) {
         ambiente = "MOTOR_FALLA";
         const std::string id = d.encargar("tecnico", "falla", "operador");
         CHECK(esperar([&]() { return d.corrida(id)["estado"] == "error"; }), "codigo 3 -> error");
-        CHECK(d.corrida(id)["error"].get<std::string>().find("codigo 3") != std::string::npos,
+        CHECK(d.corrida(id)["error"].get<std::string>().find("código 3") != std::string::npos,
               "el error dice el codigo");
         CHECK(d.corrida(id)["herramientas"] == 1, "lo que alcanzo a hacer queda");
         CHECK(errores >= 1, "avisa a la interfaz");

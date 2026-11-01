@@ -23722,7 +23722,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpRostroTools.cpp",
-        "linea": 493
+        "linea": 492
       },
       "roles": [
         "asistente",
@@ -27039,7 +27039,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpRostroTools.cpp",
-        "linea": 110
+        "linea": 111
       },
       "roles": [
         "asistente",
@@ -27082,7 +27082,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpRostroTools.cpp",
-        "linea": 548
+        "linea": 547
       },
       "roles": [
         "asistente",
@@ -27191,7 +27191,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpRostroTools.cpp",
-        "linea": 453
+        "linea": 452
       },
       "roles": [
         "asistente",
@@ -27286,7 +27286,7 @@
       "nombre": "rostro_lobby",
       "titulo": "Quién es cada uno de los que están esperando",
       "categoria": "rostros",
-      "descripcion": "Solo IDENTIFICA, no deja entrar a nadie. Para cada posicion del lobby: a quien reconoce, si su camara sirve para guardarle la cara, y que pedirle si no.",
+      "descripcion": "Solo IDENTIFICA, no deja entrar a nadie. Para cada posición del lobby: a quién reconoce, si su cámara sirve para guardarle la cara, y qué pedirle si no.",
       "esquema": {
         "type": "object",
         "properties": {}
@@ -27302,7 +27302,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpRostroTools.cpp",
-        "linea": 613
+        "linea": 612
       },
       "roles": [
         "asistente",
@@ -27330,7 +27330,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpRostroTools.cpp",
-        "linea": 428
+        "linea": 427
       },
       "roles": [
         "asistente",
@@ -27378,7 +27378,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpRostroTools.cpp",
-        "linea": 356
+        "linea": 355
       },
       "roles": [
         "asistente",

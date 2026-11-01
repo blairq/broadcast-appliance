@@ -421,7 +421,7 @@ int main(int argc, char** argv) {
             d3 = true;
             e3 = e;
         });
-        CHECK(waitFor([&] { return d3; }) && !y3.loggedIn() && e3.contains("conecta la cuenta"),
+        CHECK(waitFor([&] { return d3; }) && !y3.loggedIn() && e3.contains("conectá la cuenta"),
               "refresh revocado: queda desconectado con explicacion");
     }
     done = false;
