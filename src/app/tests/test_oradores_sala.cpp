@@ -9,13 +9,6 @@
 #include <string>
 
 #include "sala/OradoresSala.hpp"
-#include "sala/ParticipantesSala.hpp"
-
-// Sin sala: los pedidos no salen (acá solo se prueba lo que no habla con ella).
-namespace ba::app::sala {
-void pedir(ConferenceClient&, const std::string&, const std::string&, const nlohmann::json&, Listo) {}
-std::string rutaDe(const std::string& id, const std::string& accion) { return id + "/" + accion; }
-} // namespace ba::app::sala
 
 using ba::app::sala::OradoresSala;
 

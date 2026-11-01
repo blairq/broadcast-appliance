@@ -1327,7 +1327,7 @@ endif()
     add_test(NAME test_uso_por_vistas COMMAND test_uso_por_vistas)
     # Los oradores: la regla del reloj, el texto, la lectura de tiempos y la fila (lo que
     # comparten la interfaz y el MCP; sala::OradoresSala, sin sala).
-    add_executable(test_oradores_sala tests/test_oradores_sala.cpp sala/OradoresSala.cpp sala/OradoresSala.hpp)
+    add_executable(test_oradores_sala tests/test_oradores_sala.cpp sala/OradoresSalaReglas.cpp sala/OradoresSala.hpp)
     target_include_directories(test_oradores_sala PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
     target_link_libraries(test_oradores_sala PRIVATE ba_core Qt6::Core)
     set_target_properties(test_oradores_sala PROPERTIES BUILD_RPATH "${BA_QT_PREFIX}/lib")
