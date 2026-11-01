@@ -140,3 +140,6 @@ como etiqueta, se traducen.
 | edad (transporte) / anillo | 帧龄 / 环形缓冲 | |
 | térmica | 温度 | 正常/偏热/严重/危急 |
 | placa (slate) / placa de audio / placa de video | 垫片画面 / 音频接口 / GPU | |
+| ventanilla (del motor: por donde la interfaz le pide al motor y lee su foto) | 引擎接口 | término técnico; no 受理窗口 ni otra metáfora de ventanilla |
+| foto (del motor) | 快照 | |
+| aparato registrado / revocar | 已登记的设备 / 撤销 | |

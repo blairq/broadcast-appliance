@@ -115,9 +115,12 @@ como etiqueta, se traducen.
 | Castellano | Français | Note |
 |---|---|---|
 | línea (de tiempo) | timeline | |
-| escaleta | déroulé | recorrido aussi «déroulé» : si ça gêne, «rundown» |
+| escaleta | déroulé | solo la escaleta: un término, una traducción |
+| Conducción (la página / pestaña que corre la línea en vivo) | Conduite | no «déroulé» (es la escaleta) |
+| recorrido (lo que pasó, recorrido.jsonl) | parcours | no «déroulé» (es la escaleta) |
 | paso / pieza / estante | étape / élément / réserve | |
 | armada / reenganchar / relleno | prête / raccrocher / remplissage | |
 | placa (écran / codec / audio / watchdog) | carton / GPU / interface audio / carte mère | selon le contexte |
 | bajada (gateway) | flux descendant | |
 | Dirección (page) | Régie | Dirección (réseau) = Adresse |
+| aparato registrado / revocar | appareil enregistré / révoquer | |
