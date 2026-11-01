@@ -163,26 +163,26 @@ Panel {
                         GlassButton {
                             compact: true; text: qsTr("Poner"); active: true
                             enabled: que.currentValue !== undefined && que.currentValue !== ""
-                            onClicked: sec.chequear(sec.m.asignar(fila.monitorId, [que.currentValue], fila.pantallaCompleta))
+                            onClicked: sec.m.asignar(fila.monitorId, [que.currentValue], fila.pantallaCompleta)
                             ToolTip.visible: hovered; ToolTip.text: qsTr("Que este monitor muestre solo esto")
                         }
                         GlassButton {
                             compact: true; text: qsTr("Sumar"); icon: "+"
                             enabled: fila.cosas.length > 0 && que.currentValue !== undefined && fila.cosas.indexOf(que.currentValue) < 0
-                            onClicked: sec.chequear(sec.m.asignar(fila.monitorId, Array.from(fila.cosas).concat([que.currentValue]), fila.pantallaCompleta))
+                            onClicked: sec.m.asignar(fila.monitorId, Array.from(fila.cosas).concat([que.currentValue]), fila.pantallaCompleta)
                             ToolTip.visible: hovered; ToolTip.text: qsTr("Agregarlo a lo que ya muestra: van en grilla")
                         }
                         Text { anchors.verticalCenter: parent.verticalCenter; text: qsTr("Pantalla completa"); color: Theme.textDim; font.pixelSize: 11 }
                         Toggle {
                             anchors.verticalCenter: parent.verticalCenter
                             checked: fila.pantallaCompleta
-                            onToggled: (quiere) => sec.chequear(sec.m.setPantallaCompleta(fila.monitorId, quiere))
+                            onToggled: (quiere) => sec.m.setPantallaCompleta(fila.monitorId, quiere)
                         }
                         GlassButton {
                             compact: true
                             visible: fila.cosas.length > 0
                             text: fila.conectado ? qsTr("Quitar") : qsTr("Olvidar")
-                            onClicked: sec.chequear(fila.conectado ? sec.m.quitar(fila.monitorId) : sec.m.olvidar(fila.monitorId))
+                            onClicked: fila.conectado ? sec.m.quitar(fila.monitorId) : sec.m.olvidar(fila.monitorId)
                         }
                     }
                 }
@@ -196,5 +196,4 @@ Panel {
         }
     }
 
-    function chequear(err) { if (err && err !== "") Studio.notify(err, "error") }
 }

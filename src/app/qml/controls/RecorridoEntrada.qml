@@ -59,7 +59,7 @@ Rectangle {
                 icon: "▶"
                 active: true
                 enabled: !r.midiendo
-                onClicked: { const e = r.tm.analizarEntradaUi(r.entrada, 5); if (e) Studio.notify(e, "error") }
+                onClicked: { r.tm.analizarEntradaUi(r.entrada, 5) }
             }
             GlassButton { compact: true; text: "✕"; onClicked: r.cerrar() }
         }
@@ -92,7 +92,7 @@ Rectangle {
                 const partes = [qsTr("%n elemento", "", r.elementos.length), qsTr("%1 en total").arg(Theme.ms(s.total_ms))]
                 partes.push(!s.cruces ? qsTr("sin cruces de memoria") : qsTr("%n cruce de memoria", "", s.cruces))
                 if (r.pl.rearmada) partes.push("<font color='" + Theme.amber + "'>" + qsTr("la entrada se rearmó en medio del análisis") + "</font>")
-                if (r.pl.t_ms) partes.push(qsTr("hace %1 s").arg(Math.max(0, Math.round((Date.now() - r.pl.t_ms) / 1000))))
+                if (r.pl.t_ms) partes.push(qsTr("hace %1 s").arg(Math.max(0, Math.round(((r.visible ? Reloj.ahora : 0) - r.pl.t_ms) / 1000))))
                 return partes.join(" · ")
             }
             color: Theme.textDim; font.pixelSize: 10

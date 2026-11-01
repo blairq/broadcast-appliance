@@ -8,6 +8,7 @@
 #include "agent/FlujosTexto.hpp"
 #include "agent/Notificador.hpp"
 #include "agent/ServidorModeloLocal.hpp"
+#include "agent/Traductor.hpp"
 #include "agent/Voz.hpp"
 #include "arranque/AppRuntime.hpp"
 #include "arranque/Configuraciones.hpp"
@@ -53,6 +54,7 @@
 #include "ui/DocumentosViewModel.hpp"
 #include "ui/EventoViewModel.hpp"
 #include "ui/ExtensionesModel.hpp"
+#include "ui/Flanco.hpp"
 #include "ui/FrameService.hpp"
 #include "ui/FuenteQrPintor.hpp"
 #include "ui/GraficoViewModel.hpp"
@@ -62,6 +64,7 @@
 #include "ui/ListModels.hpp"
 #include "ui/MediosViewModel.hpp"
 #include "ui/OperatorMessages.hpp"
+#include "pantallas/Monitores.hpp"
 #include "ui/PantallasViewModel.hpp"
 #include "ui/PdfEscena.hpp"
 #include "ui/PersonasViewModel.hpp"
@@ -303,10 +306,18 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, VentanillaMotor& ventanilla, QO
         marca("evento");
     }
     connect(evento_.get(), &EventoViewModel::notify, this, &StudioViewModel::notify);
+    // T47: al arrancar una sesión en vivo (el guion corre de verdad), la sala cambia de PIN
+    // si cambió el día (el PIN es uno por día: el mismo día, el mismo PIN). En el flanco,
+    // con el aviso de la corrida.
+    {
+        CorridaViewModel* corrida = &evento_->corridaVm();
+        alSubir(corrida, &CorridaViewModel::correChanged, sala_.get(), [corrida]() { return corrida->guionCorriendo(); },
+                [s = sala_.get()]() { s->alEmpezarElVivo(); });
+    }
     // El modelo del disco mide también el de los eventos (lo muestra el histórico).
     emision_->setRaizEventos(evento_->raizEventos());
     // Las placas salen en el idioma del evento: al abrir otro o cambiarle el idioma.
-    connect(evento_.get(), &EventoViewModel::guionChanged, salidas_.get(), &SalidasViewModel::revisarTextosPlaca);
+    connect(&evento_->guionVm(), &GuionViewModel::guionChanged, salidas_.get(), &SalidasViewModel::revisarTextosPlaca);
     // Un evento con página web y dirección propia: al ponerlo en curso, la dirección
     // pública pasa a ser su subdominio (con la API key de pinggy). Reinicia la sala:
     // al aire no se toca (se avisa).
@@ -332,20 +343,21 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, VentanillaMotor& ventanilla, QO
     marca("qr");
     // El tema del evento abierto: lo publica al gateway para todas las páginas web.
     temaEvento_ = std::make_unique<TemaEventoViewModel>(*evento_, *conference_);
+    connect(temaEvento_.get(), &TemaEventoViewModel::notify, this, &StudioViewModel::notify);
     // Las claves de las superficies (los QR del público, el teleprompter…) son del evento.
     clavesEvento_ = std::make_unique<sala::ClavesEvento>(conference_->client(),
-                                                         [this]() { return evento_->carpetaAbierta(); });
-    connect(evento_.get(), &EventoViewModel::carpetaAbiertaChanged, clavesEvento_.get(), &sala::ClavesEvento::eventoCambio);
+                                                         [this]() { return evento_->eventoAbierto().dir(); });
+    connect(&evento_->eventoAbierto(), &EventoAbierto::abiertoCambio, clavesEvento_.get(), &sala::ClavesEvento::eventoCambio);
     // La urna y las preguntas del público son del evento (sobreviven a la sala y no se mezclan).
     urnaEvento_ = std::make_unique<sala::GuardadoEnEvento>(conference_->client(), "votacion",
-                                                           [this]() { return evento_->carpetaAbierta(); });
+                                                           [this]() { return evento_->eventoAbierto().dir(); });
     preguntasEvento_ = std::make_unique<sala::GuardadoEnEvento>(conference_->client(), "preguntas",
-                                                                [this]() { return evento_->carpetaAbierta(); });
-    connect(evento_.get(), &EventoViewModel::carpetaAbiertaChanged, urnaEvento_.get(), &sala::GuardadoEnEvento::eventoCambio);
-    connect(evento_.get(), &EventoViewModel::carpetaAbiertaChanged, preguntasEvento_.get(), &sala::GuardadoEnEvento::eventoCambio);
+                                                                [this]() { return evento_->eventoAbierto().dir(); });
+    connect(&evento_->eventoAbierto(), &EventoAbierto::abiertoCambio, urnaEvento_.get(), &sala::GuardadoEnEvento::eventoCambio);
+    connect(&evento_->eventoAbierto(), &EventoAbierto::abiertoCambio, preguntasEvento_.get(), &sala::GuardadoEnEvento::eventoCambio);
     // Cómo se ve la página del público, también del evento.
-    conference_->paginaPublico().setCarpetaEvento([this]() { return evento_->carpetaAbierta(); });
-    connect(evento_.get(), &EventoViewModel::carpetaAbiertaChanged, this, [this]() { conference_->paginaPublico().eventoCambio(); });
+    conference_->paginaPublico().setCarpetaEvento([this]() { return evento_->eventoAbierto().dir(); });
+    connect(&evento_->eventoAbierto(), &EventoAbierto::abiertoCambio, this, [this]() { conference_->paginaPublico().eventoCambio(); });
     // Despues de `frames_`: mira los mismos videos que el resto de la interfaz.
     personas_ = std::make_unique<PersonasViewModel>(rt, *this);
     marca("personas");
@@ -400,12 +412,12 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, VentanillaMotor& ventanilla, QO
     marca("vinculos");
     vinculos_->setContexto([this]() { return contextoDeVinculos(); });
     rotulador_->setVinculos(vinculos_.get());
-    evento_->setVinculos(vinculos_.get());
+    evento_->corridaVm().setVinculos(vinculos_.get());
     evento_->setCarruseles(carruseles_.get());
     // La línea de tiempo: el conmutador de cada salida y lo que mandan sus piezas (L6/L7).
     // Se pide cada vez: varios de estos se crean más abajo.
-    evento_->setSistema([this]() {
-        return EventoViewModel::Sistema{&salidas_->conmutadores(),
+    evento_->corridaVm().setSistema([this]() {
+        return CorridaViewModel::Sistema{&salidas_->conmutadores(),
                                         bus_.get(),
                                         control_ ? &control_->dsk() : nullptr,
                                         imagen_ ? &imagen_->camaras() : nullptr,
@@ -448,15 +460,15 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, VentanillaMotor& ventanilla, QO
     marca("cuentas");
     connect(cuentas_.get(), &CuentasViewModel::notify, this, &StudioViewModel::notify);
     // «Dónde verlo en vivo» de la página web del evento: lo que saben las cuentas.
-    evento_->setPlataformas([this]() { return cuentas_->paraLaWeb(); });
+    evento_->webVm().setPlataformas([this]() { return cuentas_->paraLaWeb(); });
     // Las preguntas del público para la página del evento (solo las moderadas). Mientras el
     // evento tiene página, la cola se consulta (como si la página Público estuviera abierta).
-    evento_->setPublico([this]() { return publico_->preguntasParaLaWeb(); }, [this]() { return personasConectadas(); });
-    connect(publico_.get(), &PublicoViewModel::cambio, evento_.get(), &EventoViewModel::publicarWeb);
+    evento_->webVm().setPublico([this]() { return publico_->preguntasParaLaWeb(); }, [this]() { return personasConectadas(); });
+    connect(publico_.get(), &PublicoViewModel::cambio, &evento_->webVm(), &WebEventoViewModel::publicarWeb);
     // Lo que sabe el resto del sistema y es público, para la página del evento. Cada cosa
     // puede no existir (la asamblea se arma después, o no hay): la página no muestra lo que
     // no viene.
-    evento_->setSala([this]() {
+    evento_->webVm().setSala([this]() {
         nlohmann::json sala = nlohmann::json::object();
         sala["aire"] = {{"transmitiendo", aire_->streaming()}, {"grabando", aire_->recording()}};
         // Lo de la asamblea (oradores, orden del día, quórum, el cuerpo y el recinto).
@@ -464,13 +476,13 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, VentanillaMotor& ventanilla, QO
         if (nlohmann::json v = publico_->votacionParaLaWeb(); !v.is_null()) sala["votacion"] = std::move(v);
         return sala;
     });
-    connect(evento_.get(), &EventoViewModel::webChanged, this, [this]() {
-        const bool hay = evento_->web().value("hay").toBool();
+    connect(&evento_->webVm(), &WebEventoViewModel::webChanged, this, [this]() {
+        const bool hay = evento_->webVm().web().value("hay").toBool();
         if (hay == publicoPorWeb_) return;
         publicoPorWeb_ = hay;
         publico_->usar(evento_.get(), hay);
     });
-    connect(cuentas_.get(), &CuentasViewModel::webCambio, evento_.get(), &EventoViewModel::publicarWeb);
+    connect(cuentas_.get(), &CuentasViewModel::webCambio, &evento_->webVm(), &WebEventoViewModel::publicarWeb);
     // La app misma: el modo en vivo, la versión y el reinicio, los eventos, la caída de la
     // que se vuelve y lo que se corta al cerrar (ui/AppViewModel).
     app_ = std::make_unique<AppViewModel>(AppViewModel::Partes{
@@ -515,6 +527,10 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, VentanillaMotor& ventanilla, QO
         // Cada disparo, al bus (lo ve el control web).
         alarmas_->setPublicar([this](const std::string& tema, const nlohmann::json& d) { bus_->publicar(tema, d, true); });
         bus_->setMediciones(control::BusEventos::medicionesDeFabrica());
+        // La transmisión y la grabación, al bus cuando cambian (y cada segundo mientras salen).
+        for (auto senal : {&EstadoAireViewModel::aireChanged, &EstadoAireViewModel::estadisticasChanged, &EstadoAireViewModel::segundo})
+            connect(aire_.get(), senal, this, &StudioViewModel::publicarAire);
+        publicarAire();
         // La bitácora del evento en curso y el histórico (ui/BitacoraEvento).
         if (evento_) {
             bitacoraEvento_ = std::make_unique<BitacoraEvento>(rt_, ventanilla_, *evento_, *bus_);
@@ -529,7 +545,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, VentanillaMotor& ventanilla, QO
                 ventanilla_.pedir("carpeta_evento", [&rt = rt_, c = evento_->carpetaEvento()]() { rt.setCarpetaDelEvento(c); });
             };
             ponerCarpeta();
-            connect(evento_.get(), &EventoViewModel::enCursoChanged, this, ponerCarpeta);
+            connect(&evento_->listaVm(), &EventosListaViewModel::enCursoChanged, this, ponerCarpeta);
         } else {
             ventanilla_.pedir("retomar_grabaciones", [&rt = rt_]() { rt.retomarGrabaciones(); });
         }
@@ -538,20 +554,21 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, VentanillaMotor& ventanilla, QO
         if (evento_) {
             const auto publicarCue = [this]() {
                 if (!bus_ || !evento_) return;
-                const QVariantMap a = evento_->actual(), s = evento_->siguiente(), r = evento_->reloj();
-                const auto titulo = [](const QVariantMap& c) {
-                    const QString t = c.value("texto").toString();
-                    return (t.isEmpty() ? c.value("tipo").toString() : t).toStdString();
+                const CorridaViewModel& c = evento_->corridaVm();
+                const QVariantMap a = c.actual(), s = c.siguiente(), r = c.reloj();
+                const auto titulo = [](const QVariantMap& m) {
+                    const QString t = m.value("texto").toString();
+                    return (t.isEmpty() ? m.value("tipo").toString() : t).toStdString();
                 };
-                bus_->publicar("evento/cue", {{"estado", evento_->estado().toStdString()},
+                bus_->publicar("evento/cue", {{"estado", c.estado().toStdString()},
                                              {"texto", a.isEmpty() ? std::string() : titulo(a)},
                                              {"siguiente", s.isEmpty() ? std::string() : titulo(s)},
                                              {"numero", r.value("cueNro").toInt()},
                                              {"total", r.value("cuesTotal").toInt()},
-                                             {"hold", evento_->hold()}},
+                                             {"hold", c.hold()}},
                                true);
             };
-            connect(evento_.get(), &EventoViewModel::correChanged, this, publicarCue);
+            connect(&evento_->corridaVm(), &CorridaViewModel::correChanged, this, publicarCue);
             publicarCue();
         }
         // El vivo a mano (GUI o MCP: AppRuntime::salirAlAireManual). El servidor sí
@@ -562,6 +579,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, VentanillaMotor& ventanilla, QO
             });
         });
         notificador_ = std::make_unique<agent::Notificador>(rt.dataRoot());
+        connect(notificador_.get(), &agent::Notificador::notify, this, &StudioViewModel::notify);
         // La interfaz trabada con aire: la detecta el latido en su hilo y la lleva
         // AvisoFueraDeUi en el suyo (esta vista, la que se traba, no interviene).
         avisoFueraDeUi_ = std::make_unique<AvisoFueraDeUi>(rt.dataRoot());
@@ -583,6 +601,14 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, VentanillaMotor& ventanilla, QO
             .dsk = [this]() { return control_ ? &control_->dsk() : nullptr; },
             .cuerpo = [this]() { return asamblea_ ? &asamblea_->cuerpo().cuerpo() : nullptr; }});
         connect(asistente_.get(), &AsistenteViewModel::notify, this, &StudioViewModel::notify);
+        // El traductor sabe a qué idiomas se traduce en el evento abierto: su idioma, del guion.
+        if (agent::Traductor* t = asistente_->traductor(); t != nullptr && evento_) {
+            const auto idioma = [t, ev = evento_.get()]() {
+                t->setIdiomaEvento(QString::fromStdString(ev->eventoAbierto().evento().idioma));
+            };
+            connect(&evento_->guionVm(), &GuionViewModel::guionChanged, t, idioma);
+            idioma();
+        }
         marca("asistente");
         // «Priorizar programa» por calor (F4-05; la superresolución la atiende Imagen y los
         // invitados, la sala): los modelos locales que no atienden se sueltan (el
@@ -600,7 +626,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, VentanillaMotor& ventanilla, QO
     }
     // La documentación del evento (docs/): cada cambio republica la web del evento.
     documentos_ = std::make_unique<DocumentosViewModel>([&rt]() { return rt.dataRoot(); });
-    if (evento_) connect(documentos_.get(), &DocumentosViewModel::cambio, evento_.get(), &EventoViewModel::publicarWeb);
+    if (evento_) connect(documentos_.get(), &DocumentosViewModel::cambio, &evento_->webVm(), &WebEventoViewModel::publicarWeb);
     connect(documentos_.get(), &DocumentosViewModel::notify, this, &StudioViewModel::notify);
     // Los PDF en las escenas: la lista para elegir es la documentación del evento.
     pdfEscena_ = std::make_unique<PdfEscena>(rt, ventanilla_);
@@ -638,6 +664,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, VentanillaMotor& ventanilla, QO
         .tablero = dashboard_.get(),
         .pantallas = pantallas_.get(),
         .totems = [this]() { return totems_ ? totems_->paraElegir() : QVariantList{}; }});
+    connect(&escritorio_->monitoresModelo(), &MonitoresModel::notify, this, &StudioViewModel::notify);
     connect(this, &StudioViewModel::escenasCambiaron, escritorio_.get(), &EscritorioViewModel::refrescarCatalogo);
     marca("ventanas");
     escritorio_->refrescarCatalogo();
@@ -655,12 +682,14 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, VentanillaMotor& ventanilla, QO
     connect(respaldo_.get(), &escenas::RespaldoEntradas::respaldosCambio, this, &StudioViewModel::leerRespaldos);
     leerRespaldos();
     // Lo que la revisión previa del evento mira del aparato.
-    evento_->setChequeosAparato([this]() { return imagen_->chequeosDelAparato(streamKeyAvailable()); });
+    evento_->guionVm().setChequeosAparato([this]() { return imagen_->chequeosDelAparato(streamKeyAvailable()); });
     // Abrir otro evento reinicia la app: no con algo al aire (la regla es de Configuraciones,
     // para la página y el MCP; lo que está al aire lo sabe la foto del motor).
     configuraciones()->setAlAire([this]() { return alAire(); });
     // Los plugins de Python: en los datos (Plugins/), con el Python del programa.
     plugins_ = std::make_unique<plugins::Plugins>(rt, &imagen_->videoVm(), &imagen_->camaras(), &asistente_->mensajes());
+    // Lo que avisa (también los errores de sus acciones): al operador, con la página abierta o no.
+    connect(plugins_.get(), &plugins::Plugins::aviso, this, [this](const QString& t, bool ok) { emit notify(t, ok ? "info" : "error"); });
     // Las cámaras para elegir en la configuración de un plugin: las de Entradas.
     plugins_->setOpcionesDispositivo([this] { return inputs_->devices(); });
     // Plugins <-> bus de eventos: lo que publican va al bus (plugin/<id>/<canal>)
@@ -723,18 +752,21 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, VentanillaMotor& ventanilla, QO
     connect(control_.get(), &ControlViewModel::dskCambio, this, &StudioViewModel::publicarTally);
     control_->dsk().setSalida(salidas_->activaId());
     linea_ = std::make_unique<LineaViewModel>(*evento_, rt_, ventanilla_, frames_.get(), &control_->acciones(), bus_.get());
+    connect(linea_.get(), &LineaViewModel::notify, this, &StudioViewModel::notify);
     // La grilla de personas (fuentes ba_grilla): la gente de la sala y de la asamblea,
     // repartida en las grillas; el mosaico lo pinta el gateway (BA.Grilla.<k>).
     grillasPersonas_ = std::make_unique<escenas::ControlGrillas>(
         escenas::ControlGrillas::Partes{conference_->client(), ventanilla_, asamblea_->sesionRemota(),
                                         &asamblea_->cuerpo().cuerpo()},
         this);
+    connect(grillasPersonas_.get(), &escenas::ControlGrillas::notify, this, &StudioViewModel::notify);
     marca("plugins");
     // Los equipos (red, esta máquina, USB): un catálogo con acciones declaradas, y
     // el registro de los dispositivos de audio y video con el nombre del operador
     // (de la MÁQUINA, no del evento: <datos>/Config/dispositivos.json).
     dispositivos_ = std::make_unique<dispositivos::Dispositivos>(ba::platform::dataRoot() / "Config" /
                                                                  "dispositivos.json");
+    connect(dispositivos_.get(), &dispositivos::Dispositivos::notify, this, &StudioViewModel::notify);
     marca("dispositivos");
     dispositivos::registrarTodo(*dispositivos_, {&imagen_->red(), plugins_.get(), &imagen_->videoVm(), &imagen_->camaras(),
                                                  &asistente_->mensajes(), &rt, inputs_.get()});
@@ -789,20 +821,21 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, VentanillaMotor& ventanilla, QO
         sala_->alimentarEnlaces(f);
         f.webEvento = [this]() -> QVariantMap {
             if (!evento_) return {};
-            return {{"hay", evento_->web().value("hay").toBool()}, {"evento", evento_->abierto()}};
+            return {{"hay", evento_->webVm().web().value("hay").toBool()}, {"evento", evento_->eventoAbierto().carpeta()}};
         };
         f.baWeb = [this]() { return conference_->baWeb(); };
         // La API remota, el Satellite, el control web y los pedidos de cada aparato.
         control_->alimentarEnlaces(f);
         enlaces_ = std::make_unique<EnlacesViewModel>(std::move(f));
+        connect(enlaces_.get(), &EnlacesViewModel::notify, this, &StudioViewModel::notify);
         auto* e = enlaces_.get();
         const auto avisar = [e]() { e->avisarCambio(); };
         sala_->avisarA(*e);
         control_->avisarA(*e);
         connect(conference_.get(), &ConferenceViewModel::baWebChanged, e, avisar);
         if (evento_) {
-            connect(evento_.get(), &EventoViewModel::webChanged, e, avisar);
-            connect(evento_.get(), &EventoViewModel::guionChanged, e, avisar);
+            connect(&evento_->webVm(), &WebEventoViewModel::webChanged, e, avisar);
+            connect(&evento_->guionVm(), &GuionViewModel::guionChanged, e, avisar);
         }
     }
     // La atención a quien se conecta (Sala y Asamblea): con todo lo que usa ya armado.
@@ -866,7 +899,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, VentanillaMotor& ventanilla, QO
     // La política del supervisor la cambia también el MCP (en el hilo de control): avisa
     // y la vista se entera por la propiedad, sin releerla con un reloj.
     rt_.latido().alCambiarPolitica(
-        [this]() { QMetaObject::invokeMethod(this, [this]() { emit latidoPoliticaCambio(); }, Qt::QueuedConnection); });
+        [this]() { QMetaObject::invokeMethod(this, [this]() { revisarLatido(); }, Qt::QueuedConnection); });
 }
 
 StudioViewModel::~StudioViewModel() {
@@ -948,6 +981,8 @@ void StudioViewModel::onTick() {
     // La interfaz volvió de una traba: cuánto duró (el aire no se cortó).
     if (const std::uint64_t ms = rt_.latido().tomarTrabaTerminada(); ms > 0)
         emit notify(tr("La interfaz estuvo trabada %1 s; el aire siguió").arg(ms / 1000.0, 0, 'f', 1), "warn");
+    // El latido (si el motor saca cuadros, la última traba, la política): para la salud.
+    if (vigiaTicks_ % 10 == 0) revisarLatido();
     // (Lo que sale de la por omisión lo dice aire_, de la foto: avisa cuando cambia.)
     // Los vúmetros del programa: del canal de niveles (el mayor desde la vuelta anterior; lo
     // suma el dueño en cada vuelta de su reloj), sin el motor.
@@ -1132,8 +1167,9 @@ QJsonObject StudioViewModel::contextoDeVinculos() const {
     // orador, ese es el orador según el guion, que puede no ser el mismo que
     // el de la sala (alguien que habla desde el estudio, sin conectarse).
     if (evento_ != nullptr) {
-        const QVariantMap actual = evento_->property("actual").toMap();
-        const QVariantMap sig = evento_->property("siguiente").toMap();
+        const CorridaViewModel& corrida = evento_->corridaVm();
+        const QVariantMap actual = corrida.actual();
+        const QVariantMap sig = corrida.siguiente();
         QJsonObject guion{{"bloque", actual.value("bloqueNombre").toString()},
                           {"cue", actual.value("texto").toString()},
                           {"tipo", actual.value("tipo").toString()},
@@ -1142,7 +1178,7 @@ QJsonObject StudioViewModel::contextoDeVinculos() const {
         if (actual.value("tipo").toString() == "orador")
             guion["orador"] = datos.value("participante").toString();
         ctx["guion"] = guion;
-        ctx["evento"] = QJsonObject{{"nombre", evento_->property("nombre").toString()}};
+        ctx["evento"] = QJsonObject{{"nombre", evento_->eventoAbierto().nombre()}};
     }
     // La hora ({hora}, {hora_s}) la pone Vinculos: su reloj sigue sin la interfaz.
     // El punto en tratamiento, el orador presencial (manda sobre el de la sala), el
@@ -1263,24 +1299,24 @@ void StudioViewModel::reflejarSalidaActiva() {
     emit nivelesChanged();
 }
 
-QVariantMap StudioViewModel::latidoUi() const {
-    // Las trabas largas (LatidoAire, desde otro hilo) y las demoras del bucle (VigiaBucle).
-    nlohmann::json j = rt_.latido().estado();
-    j["bucle_ui"] = ba::diag::VigiaBucle::interfaz().informe();
-    QJsonObject o = QJsonDocument::fromJson(QByteArray::fromStdString(j.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))).object();
-    o["frames_poll"] = frames_->medidas(); // lo que tarda FrameService::poll en este hilo (F3-11)
-    return o.toVariantMap();
+void StudioViewModel::revisarLatido() {
+    // Las trabas largas y la política (LatidoAire, de su hilo): con la interfaz viva casi no
+    // cambia, así que se avisa solo cuando cambia (la vista no lo mira con un reloj).
+    const nlohmann::json j = rt_.latido().estado();
+    const QVariantMap m =
+        QJsonDocument::fromJson(QByteArray::fromStdString(j.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace)))
+            .object()
+            .toVariantMap();
+    if (m == latido_) return;
+    latido_ = m;
+    emit latidoChanged();
 }
 
-QVariantMap StudioViewModel::latidoPolitica() const {
-    const nlohmann::json j = rt_.latido().estado().value("politica", nlohmann::json::object());
-    return QJsonDocument::fromJson(QByteArray::fromStdString(j.dump())).object().toVariantMap();
-}
-
-QString StudioViewModel::latidoPoliticaUi(const QVariantMap& cambios) {
+void StudioViewModel::latidoPoliticaUi(const QVariantMap& cambios) {
     const auto j = nlohmann::json::parse(QJsonDocument(QJsonObject::fromVariantMap(cambios)).toJson().toStdString(),
                                          nullptr, false);
-    return QString::fromStdString(rt_.latido().ponerPolitica(j));
+    if (const std::string e = rt_.latido().ponerPolitica(j); !e.empty()) emit notify(QString::fromStdString(e), "error");
+    revisarLatido();
 }
 
 QObject* StudioViewModel::alarmasQml() const {
@@ -1341,41 +1377,31 @@ QObject* StudioViewModel::ccQml() const { return asistente_->ccQml(); }
 
 QObject* StudioViewModel::busQml() const { return bus_.get(); }
 
+void StudioViewModel::publicarAire() {
+    if (!bus_) return;
+    // Cuando cambia el aire o sus estadísticas, y una vez por segundo mientras algo sale
+    // (EstadoAire::segundo: los tiempos y los kbps).
+    const EstadoAireViewModel& a = *aire_;
+    bus_->publicar("salida/stream", {{"activo", a.streaming()},
+                                     {"reconectando", a.reconnecting()},
+                                     {"problema", a.outputProblem().toStdString()},
+                                     {"kbps", a.streamKbps()},
+                                     {"tiempo", a.streamTime().toStdString()},
+                                     {"descartados", a.droppedFrames()}});
+    bus_->publicar("salida/grabacion", {{"activo", a.recording()}, {"tiempo", a.recordTime().toStdString()}});
+}
+
 void StudioViewModel::publicarEventos() {
     if (!bus_) return;
     // Volviendo de una caída (cuánto tardó el aire en volver) y el modo en vivo que cambia.
     app_->vigilar(*bus_);
-    // T47: al arrancar una sesión en vivo (el guion corre), la sala cambia de PIN
-    // si cambió el día (el PIN es uno por día: el mismo día, el mismo PIN).
-    {
-        const bool ev = evento_ != nullptr && evento_->property("enVivo").toBool();
-        if (ev && !eventoEnVivo_) sala_->alEmpezarElVivo();
-        eventoEnVivo_ = ev;
-    }
     ++busTicks_;
     // Lo que está al aire de cada salida (la escena, la armada, el tally, los medios, la
     // T-bar, las capas y la mezcla de cada una), al bus y al multiview.
     const EstadoAireViewModel& a = *aire_;
     salidas_->publicarEnBus(*bus_, *mixer_, control_->dsk(), a.streaming(), a.recording());
-    // Los tiempos cambian cada segundo: se publican una vez por segundo.
+    // (La transmisión y la grabación las publica publicarAire, cuando EstadoAire avisa.)
     const bool segundo = busTicks_ % 10 == 0;
-    nlohmann::json stream{{"activo", a.streaming()},
-                          {"reconectando", a.reconnecting()},
-                          {"problema", a.outputProblem().toStdString()}};
-    nlohmann::json grab{{"activo", a.recording()}};
-    if (segundo || !a.streaming()) {
-        stream["kbps"] = a.streamKbps();
-        stream["tiempo"] = a.streamTime().toStdString();
-        stream["descartados"] = a.droppedFrames();
-    } else if (const auto u = bus_->ultimo("salida/stream"); u.is_object()) {
-        for (const char* k : {"kbps", "tiempo", "descartados"})
-            if (u["valor"].contains(k)) stream[k] = u["valor"][k];
-    }
-    if (segundo || !a.recording()) grab["tiempo"] = a.recordTime().toStdString();
-    else if (const auto u = bus_->ultimo("salida/grabacion"); u.is_object() && u["valor"].contains("tiempo"))
-        grab["tiempo"] = u["valor"]["tiempo"];
-    bus_->publicar("salida/stream", stream);
-    bus_->publicar("salida/grabacion", grab);
     // Niveles: solo si se movieron 1 dB o más (o cambió el volumen o el mudo). El fader y
     // el mudo de la por omisión (el mezclador muestra el de la activa: no es lo mismo).
     for (int i = 0; i < mixer_->rowCount(); ++i)
@@ -1408,7 +1434,6 @@ QObject* StudioViewModel::carasBotoneraQml() const { return control_->carasBoton
 QObject* StudioViewModel::dskQml() const { return control_->dskQml(); }
 QObject* StudioViewModel::grillasQml() const { return grillasPersonas_.get(); }
 QObject* StudioViewModel::accionesQml() const { return control_->accionesQml(); }
-double StudioViewModel::picoDe(const QString& fuente) const { return mixer_ ? mixer_->picoDe(fuente.toStdString()) : -100.0; }
 QObject* StudioViewModel::notificadorQml() const { return notificador_.get(); }
 QObject* StudioViewModel::accesoRemotoQml() const { return sala_->accesoRemotoQml(); }
 QObject* StudioViewModel::seguirMicrofonoQml() const { return asamblea_->seguirMicrofonoQml(); }

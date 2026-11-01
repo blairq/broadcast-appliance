@@ -46,6 +46,7 @@
 #include <set>
 #include <string>
 #include <vector>
+#include "ui/CapturaError.hpp"
 
 namespace ba::app {
 class AppRuntime;
@@ -60,8 +61,22 @@ namespace ba::app::plugins {
 
 class Plugins : public QObject {
     Q_OBJECT
+    /// El error de una acción de la interfaz (las Q_INVOKABLE void): a quien mira.
+    void avisarError(const QString& e) {
+        if (!e.isEmpty() && !::ba::app::CapturaError::tomar(e)) emit aviso(e, false);
+    }
+    void avisarError(const std::string& e) { avisarError(QString::fromStdString(e)); }
+    /// Para las acciones que dicen si se hicieron: el error a quien mira y true si no hubo.
+    bool sinError(const QString& e) {
+        avisarError(e);
+        return e.isEmpty();
+    }
+    bool sinError(const std::string& e) { return sinError(QString::fromStdString(e)); }
     // --- Para la interfaz (pages/PluginsPage.qml) ---------------------------------
     Q_PROPERTY(QVariantList lista READ listaQml NOTIFY cambio)
+    /// Lo que muestra el panel de cada plugin que corre: {id: {clave: valor}} (cambia por
+    /// `valoresCambio`, que puede ser 10 veces por segundo).
+    Q_PROPERTY(QVariantMap valores READ valoresQml NOTIFY valoresCambio)
     // Los ejemplos vienen con el programa: no cambian mientras corre. Con NOTIFY cambio,
     // cada aviso de un plugin (decenas al arrancar) rearmaba el combo de «Nuevo desde un
     // ejemplo» y perdía lo elegido.
@@ -211,15 +226,15 @@ class Plugins : public QObject {
     bool hayPython() const;
     Q_INVOKABLE void prender(const QString& id, bool activo);
     Q_INVOKABLE void reiniciarUi(const QString& id);
-    /// Aprobar para el aire (lo hace una PERSONA desde la GUI; por MCP no se puede). "" o el error.
-    Q_INVOKABLE QString aprobarUi(const QString& id);
+    /// Aprobar para el aire (lo hace una PERSONA desde la GUI; por MCP no se puede). El error va por la señal del modelo.
+    Q_INVOKABLE void aprobarUi(const QString& id);
     Q_INVOKABLE QString desaprobarUi(const QString& id);
     /// {vigente, cambiaron: [archivos], ms} del plugin `id` ({} si no está aprobado).
     Q_INVOKABLE QVariantMap aprobacionUi(const QString& id) const;
     Q_INVOKABLE void probarUi(const QString& id);
     Q_INVOKABLE QString registroUi(const QString& id) const;
-    Q_INVOKABLE QString copiarEjemplo(const QString& ejemplo, const QString& id);
-    Q_INVOKABLE QString borrarUi(const QString& id);
+    Q_INVOKABLE bool copiarEjemplo(const QString& ejemplo, const QString& id);
+    Q_INVOKABLE bool borrarUi(const QString& id);
     Q_INVOKABLE QString configTexto(const QString& id) const;
     /// Guarda `config` (JSON) en plugin.json y se la pasa al plugin si corre.
     Q_INVOKABLE QString guardarConfig(const QString& id, const QString& texto);
@@ -242,7 +257,7 @@ class Plugins : public QObject {
     /// Lo mismo con lo escrito en el formulario del control (cada control de la lista trae
     /// sus `campos`, con el tipo del ejemplo que declara): se valida y se convierte acá.
     Q_INVOKABLE void controlCamposUi(const QString& id, const QString& control, const QVariantMap& escrito);
-    Q_INVOKABLE QString tarjetaUi(const QString& id, const QString& tarjeta, const QString& destino,
+    Q_INVOKABLE bool tarjetaUi(const QString& id, const QString& tarjeta, const QString& destino,
                                   bool audio);
     Q_INVOKABLE void buscarEquipos();
     Q_INVOKABLE void abrirCarpeta(const QString& id) const;
@@ -252,9 +267,9 @@ class Plugins : public QObject {
     Q_INVOKABLE void importarUi(const QUrl& archivo);
     /// Guarda una clave del plugin, cifrada (Credenciales/plugin-<id>-<clave>). "" o el error.
     Q_INVOKABLE QString guardarSecreto(const QString& id, const QString& nombre, const QString& valor);
-    /// El panel: los valores de ahora (cambian por `valoresCambio(id)`) y mover un control.
-    Q_INVOKABLE QVariantMap valoresUi(const QString& id) const;
-    Q_INVOKABLE QString panelUi(const QString& id, const QString& clave, const QVariant& valor);
+    /// El panel: los valores de ahora (`valores`) y mover un control.
+    QVariantMap valoresQml() const;
+    Q_INVOKABLE void panelUi(const QString& id, const QString& clave, const QVariant& valor);
 
    signals:
     void cambio();

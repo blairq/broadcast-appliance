@@ -44,6 +44,9 @@
 #if defined(BA_HAVE_GST)
 #include <gst/gst.h>
 #include <gst/pbutils/pbutils.h>
+#include "ui/CapturaError.hpp"
+
+using ::ba::app::errorDe;
 #endif
 
 namespace ba::app::red {
@@ -988,7 +991,7 @@ void Red::agregar(const std::string& ip, const json& op, Agregado listo) {
         QVariantMap conf{{"host", QString::fromStdString(ip)}, {"usuario", u}, {"clave", c}};
         const std::string pp = fi.value("ptz", json::object()).value("perfil", std::string());
         if (!pp.empty()) conf["perfil"] = QString::fromStdString(pp);
-        const QString e = camaras_->configurar(QString::fromStdString(entrada), "onvif", conf);
+        const QString e = errorDe([&] { camaras_->configurar(QString::fromStdString(entrada), "onvif", conf); });
         if (!e.isEmpty()) return fallar(e.toStdString());
         return listo({}, json{{"entrada", entrada}, {"ptz", ba::i18n::traducir("red", "ONVIF configurado")}});
     }
@@ -1063,7 +1066,7 @@ void Red::agregar(const std::string& ip, const json& op, Agregado listo) {
                 QVariantMap conf{{"host", QString::fromStdString(ip)}, {"usuario", usuario}, {"clave", pass}};
                 const std::string pp = fi["ptz"].value("perfil", std::string());
                 if (!pp.empty()) conf["perfil"] = QString::fromStdString(pp);
-                const QString e2 = yo->camaras_->configurar(QString::fromStdString(nombre), "onvif", conf);
+                const QString e2 = errorDe([&] { yo->camaras_->configurar(QString::fromStdString(nombre), "onvif", conf); });
                 h["ptz"] = e2.isEmpty()
                                ? json(ba::i18n::traducir("red", "ONVIF configurado"))
                                : json(ba::i18n::llenar(ba::i18n::traducir("red", "no se pudo configurar: %1"), {e2.toStdString()}));

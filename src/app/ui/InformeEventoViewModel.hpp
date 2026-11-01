@@ -15,6 +15,7 @@
 #include <QVariantMap>
 
 #include <nlohmann/json.hpp>
+#include "ui/CapturaError.hpp"
 
 namespace ba::app {
 
@@ -24,12 +25,19 @@ class PadronViewModel;
 
 class InformeEventoViewModel : public QObject {
     Q_OBJECT
+    /// El error de una acción de la interfaz (las Q_INVOKABLE void): a quien mira.
+    void avisarError(const QString& e) {
+        if (!e.isEmpty() && !::ba::app::CapturaError::tomar(e)) emit notify(e, "error");
+    }
+    void avisarError(const std::string& e) { avisarError(QString::fromStdString(e)); }
+    /// Lo que realmente pasó (ver `informe()`): cambia con la corrida y con la línea.
+    Q_PROPERTY(QVariantMap informe READ informe NOTIFY informeCambio)
    public:
     InformeEventoViewModel(EventoAbierto& abierto, CorridaViewModel& corrida, PadronViewModel& padron, QObject* parent = nullptr);
 
     /// Lo que realmente pasó: por bloque y por paso, cuánto estaba previsto y cuánto duró.
     /// Vacío si no se corrió. {evento, ensayo, previstoSeg, realSeg, desvioSeg, cues, bloques: […]}
-    Q_INVOKABLE QVariantMap informe() const;
+    QVariantMap informe() const;
     /// Lo guarda en la carpeta del evento, con la fecha en el nombre. El archivo, o vacío.
     Q_INVOKABLE QString guardarInforme();
     /// Los capítulos de la grabación, uno por bloque, medidos desde que arrancó a grabar
@@ -49,12 +57,13 @@ class InformeEventoViewModel : public QObject {
     /// no aplica. {ok, error?, diff, pronostico, ops, avisos, bloques}.
     nlohmann::json lineaImportar(const std::string& formato, const std::string& texto, bool probar,
                                  const std::string& nombreBloque = {});
-    /// Lo mismo desde la página (un archivo): "" o el error; el resultado de importar.
-    Q_INVOKABLE QString exportarEscaleta(const QString& formato, const QString& ruta);
+    /// Lo mismo desde la página (un archivo): El error va por la señal del modelo; el resultado de importar.
+    Q_INVOKABLE void exportarEscaleta(const QString& formato, const QString& ruta);
     Q_INVOKABLE QVariantMap importarEscaleta(const QString& ruta, bool probar);
 
    signals:
     void notify(const QString& texto, const QString& tipo);
+    void informeCambio();
 
    private:
     EventoAbierto& ab_;

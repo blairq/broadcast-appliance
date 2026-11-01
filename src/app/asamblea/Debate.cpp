@@ -63,9 +63,9 @@ std::string Debate::configurar(const json& c) {
     return {};
 }
 
-QString Debate::configurarUi(const QVariantMap& cambios) {
-    return QString::fromStdString(
-        configurar(json::parse(QJsonDocument::fromVariant(cambios).toJson(QJsonDocument::Compact).toStdString(), nullptr, false)));
+void Debate::configurarUi(const QVariantMap& cambios) {
+    avisarError(QString::fromStdString(
+        configurar(json::parse(QJsonDocument::fromVariant(cambios).toJson(QJsonDocument::Compact).toStdString(), nullptr, false))));
 }
 
 json Debate::lado(const std::string& id) const {
@@ -238,8 +238,8 @@ void Debate::terminar() {
     emit cambio();
 }
 
-QString Debate::iniciarUi(const QString& a, const QString& b, const QString& t) {
-    return QString::fromStdString(iniciar(a.toStdString(), b.toStdString(), t.toStdString()));
+void Debate::iniciarUi(const QString& a, const QString& b, const QString& t) {
+    avisarError(QString::fromStdString(iniciar(a.toStdString(), b.toStdString(), t.toStdString())));
 }
 
 } // namespace ba::app::asamblea

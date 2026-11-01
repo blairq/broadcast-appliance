@@ -123,19 +123,18 @@ QString ManualesViewModel::encargo() const {
     return t;
 }
 
-QString ManualesViewModel::generar() {
+void ManualesViewModel::generar() {
     if (p_.enVivo && p_.enVivo())
-        return tr("Se está transmitiendo o grabando: los manuales se generan cuando termine (el asistente abre otro evento y "
-                  "reinicia el programa).");
+        return avisarError(tr("Se está transmitiendo o grabando: los manuales se generan cuando termine (el asistente abre otro evento y "
+                  "reinicia el programa)."));
     const QString e = encargo();
-    if (e.isEmpty()) return tr("Falta el encargo de los manuales (prompts/manuales.md) en la instalación.");
-    if (!p_.encargar) return tr("El asistente no está disponible.");
+    if (e.isEmpty()) return avisarError(tr("Falta el encargo de los manuales (prompts/manuales.md) en la instalación."));
+    if (!p_.encargar) return avisarError(tr("El asistente no está disponible."));
     if (p_.faltaAsistente)
-        if (const QString falta = p_.faltaAsistente(); !falta.isEmpty()) return falta;
+        if (const QString falta = p_.faltaAsistente(); !falta.isEmpty()) return avisarError(falta);
     QDir().mkpath(carpeta() + "/capturas");
     refrescar();
     p_.encargar(e);
-    return {};
 }
 
 void ManualesViewModel::abrir(const QString& archivo) const {

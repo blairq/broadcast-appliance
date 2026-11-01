@@ -112,7 +112,7 @@ class InputsViewModel : public QObject {
     Q_INVOKABLE void remove(const QString& name);
     /// Una vista (Entradas, PTZ) empieza o deja de mostrar las miniaturas vivas: se
     /// actualizan mientras haya alguna (cuenta por vista: cerrar una no le apaga a la otra).
-    Q_INVOKABLE void usar(QObject* vista, bool si) { vistas_.usar(vista, si); }
+    Q_INVOKABLE void usar(QObject* vista, bool si, const QString& que = {}) { vistas_.usar(vista, si, que); }
 
    signals:
     void changed();
@@ -146,7 +146,9 @@ class InputsViewModel : public QObject {
     QVariantList audioInputs_;
     dispositivos::Dispositivos* dd_ = nullptr;
     int stamp_ = 0;
+    /// "" la página de entradas (con las miniaturas); "dispositivos" solo la lista de la máquina.
     UsoPorVistas vistas_{this, [this](const QString&) { alCambiarVistas(); }};
+    bool buscando_ = false; ///< ya se buscó para los que miran ahora
     void alCambiarVistas();
     std::set<std::string> held_;
     QTimer tick_;

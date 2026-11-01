@@ -20,6 +20,9 @@
 #include "ui/QrViewModel.hpp"
 #include "sala/Direcciones.hpp"
 #include "ui/StudioViewModel.hpp"
+#include "ui/CapturaError.hpp"
+
+using ::ba::app::errorDe;
 
 namespace ba::app::mcp {
 namespace {
@@ -263,7 +266,7 @@ void McpService::registerQrTools() {
                            {"ambito", {{"type", "string"}, {"enum", {"global", "evento"}}}}}}};
         t.run = [q](const json& a, Done done) {
             if (a.contains("ambito")) q->setAmbito(QString::fromStdString(a["ambito"].get<std::string>()));
-            const QString err = q->borrar(QString::fromStdString(a["id"].get<std::string>()));
+            const QString err = errorDe([&] { q->borrar(QString::fromStdString(a["id"].get<std::string>())); });
             done(err.isEmpty() ? ToolResult::ok(ba::i18n::traducir("mcp", "Borrado.")) : ToolResult::error(err.toStdString()));
         };
         core_.addTool(std::move(t));
@@ -394,7 +397,7 @@ void McpService::registerQrTools() {
                 if (vmp->alAire())
                     return done(ToolResult::error(ba::i18n::traducir("mcp", "Se está transmitiendo o grabando: el túnel no se toca hasta que termine "
                                                   "(reinicia la conferencia). Si hace falta, lo hace el operador desde la app.")));
-            const QString err = e->activar(QString::fromStdString(a.value("id", std::string())), a.value("activo", false));
+            const QString err = errorDe([&] { e->activar(QString::fromStdString(a.value("id", std::string())), a.value("activo", false)); });
             if (!err.isEmpty()) return done(ToolResult::error(err.toStdString()));
             done(ToolResult::ok(a.value("activo", false) ? ba::i18n::traducir("mcp", "Prendido.")
                                                          : ba::i18n::traducir("mcp", "Apagado.")));

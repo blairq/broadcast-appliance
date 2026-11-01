@@ -17,6 +17,9 @@
 #include "ui/Discursos.hpp"
 #include "ui/PrompterViewModel.hpp"
 #include "ui/StudioViewModel.hpp"
+#include "ui/CapturaError.hpp"
+
+using ::ba::app::errorDe;
 
 namespace ba::app::mcp {
 namespace {
@@ -97,11 +100,11 @@ void McpService::registerPrompterTools() {
                 if (r.contains("error")) return done(ToolResult::error(r.value("error").toString().toStdString()));
             }
             if (a.contains("quitar"))
-                if (const QString e = p->quitarPrompter(QString::fromStdString(a.value("quitar", std::string()))); !e.isEmpty())
+                if (const QString e = errorDe([&] { p->quitarPrompter(QString::fromStdString(a.value("quitar", std::string()))); }); !e.isEmpty())
                     return done(ToolResult::error(e.toStdString()));
             if (a.contains("renombrar"))
-                if (const QString e = p->renombrarPrompter(QString::fromStdString(a["renombrar"].value("id", std::string())),
-                                                           QString::fromStdString(a["renombrar"].value("nombre", std::string())));
+                if (const QString e = errorDe([&] { p->renombrarPrompter(QString::fromStdString(a["renombrar"].value("id", std::string())),
+                                                           QString::fromStdString(a["renombrar"].value("nombre", std::string()))); });
                     !e.isEmpty())
                     return done(ToolResult::error(e.toStdString()));
             if (a.contains("elegir"))
@@ -259,10 +262,10 @@ void McpService::registerPrompterTools() {
             const QString rel = QString::fromStdString(a.value("rel", std::string()));
             const QString nombre = QString::fromStdString(a.value("nombre", std::string()));
             QString err;
-            if (acc == "carpeta") err = p->crearCarpeta(nombre);
-            else if (acc == "renombrar") err = p->renombrar(rel, nombre);
-            else if (acc == "mover") err = p->mover(rel, QString::fromStdString(a.value("carpeta", std::string())));
-            else if (acc == "borrar") err = p->borrar(rel);
+            if (acc == "carpeta") err = errorDe([&] { p->crearCarpeta(nombre); });
+            else if (acc == "renombrar") err = errorDe([&] { p->renombrar(rel, nombre); });
+            else if (acc == "mover") err = errorDe([&] { p->mover(rel, QString::fromStdString(a.value("carpeta", std::string()))); });
+            else if (acc == "borrar") err = errorDe([&] { p->borrar(rel); });
             else err = QString::fromStdString(ba::i18n::traducir("mcp", "accion: carpeta, renombrar, mover o borrar"));
             done(err.isEmpty() ? ToolResult::ok(ba::i18n::traducir("mcp", "Listo.")) : ToolResult::error(err.toStdString()));
         };
@@ -281,7 +284,7 @@ void McpService::registerPrompterTools() {
                          {"properties", {{"rel", {{"type", "string"}}}, {"prompter", argPrompter()}}}};
         t.run = [p](const json& a, Done done) {
             if (const std::string e = elegir(*p, a); !e.empty()) return done(ToolResult::error(e));
-            const QString err = p->cargar(QString::fromStdString(a["rel"].get<std::string>()));
+            const QString err = errorDe([&] { p->cargar(QString::fromStdString(a["rel"].get<std::string>())); });
             if (!err.isEmpty()) {
                 done(ToolResult::error(err.toStdString()));
                 return;

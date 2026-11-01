@@ -200,6 +200,7 @@ std::string Vocabulario::corregir(const std::string& texto, json* hechos) {
                     if (hechos != nullptr) hechos->push_back(r);
                     reemplazos_.push_back(r);
                     while (reemplazos_.size() > 50) reemplazos_.pop_front();
+                    avisar();
                 }
             }
             out.push_back(pre + mejor->termino + post);
@@ -236,6 +237,7 @@ std::string Vocabulario::agregar(const std::string& termino, const std::vector<s
     if (!cambiado) ts.push_back(nuevo);
     guardar();
     reindexar();
+    avisar();
     return {};
 }
 
@@ -255,6 +257,7 @@ bool Vocabulario::quitar(const std::string& termino) {
     if (hecho) {
         guardar();
         reindexar();
+        avisar();
     }
     return hecho;
 }
@@ -265,6 +268,7 @@ void Vocabulario::activarGrupo(const std::string& grupo, bool activo) {
     datos_["grupos"][grupo]["activo"] = activo;
     guardar();
     reindexar();
+    avisar();
 }
 
 void Vocabulario::ponerGrupo(const std::string& grupo, const std::vector<std::string>& terminos) {
@@ -275,6 +279,7 @@ void Vocabulario::ponerGrupo(const std::string& grupo, const std::vector<std::st
     datos_["grupos"][grupo] = {{"activo", activo}, {"terminos", t}};
     guardar();
     reindexar();
+    avisar();
 }
 
 int Vocabulario::cargarCuerpo(const asamblea::Cuerpo& cuerpo) {
@@ -291,6 +296,11 @@ int Vocabulario::cargarCuerpo(const asamblea::Cuerpo& cuerpo) {
     nombres.erase(std::unique(nombres.begin(), nombres.end()), nombres.end());
     ponerGrupo("cuerpo", nombres);
     return static_cast<int>(nombres.size());
+}
+
+void Vocabulario::alCambiar(std::function<void()> f) {
+    std::lock_guard<std::mutex> l(mu_);
+    alCambiar_ = std::move(f);
 }
 
 json Vocabulario::ultimosReemplazos() const {

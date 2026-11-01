@@ -22,6 +22,7 @@
 // ============================================================================
 #pragma once
 
+#include <cstdint>
 #include <memory>
 
 #include <QObject>
@@ -92,12 +93,12 @@ class RegistroViewModel : public QObject {
     QStringList apagados() const;
     QString culpable() const;
 
-    /// Vuelve a leer ahora.
+    /// Vuelve a leer ahora (los archivos, en el fondo: llega con `cambio`).
     Q_INVOKABLE void refrescar();
     /// Una vista del Registro se abre (true) o se cierra (false), por vista. Sin
-    /// ninguna a la vista no se relee nada: los logs pesan megas y leerlos cada 2 s
-    /// en el hilo principal le robaba tiempo a todo lo demás.
-    Q_INVOKABLE void usar(QObject* vista, bool si) { vistas_.usar(vista, si); }
+    /// ninguna a la vista no se relee nada. Los archivos (pesan megas) se leen en un hilo
+    /// aparte; lo de este proceso llega por aviso del registro, sin mirar con un reloj.
+    Q_INVOKABLE void usar(QObject* vista, bool si, const QString& que = {}) { vistas_.usar(vista, si, que); }
     /// Todo lo que se está viendo, como texto, para pegarlo en un mensaje.
     Q_INVOKABLE QString comoTexto() const;
     /// Escribe una línea en el registro desde la interfaz. Sirve para dejar
@@ -119,6 +120,11 @@ class RegistroViewModel : public QObject {
    private:
     UsoPorVistas vistas_{this, [this](const QString&) { alCambiarVistas(); }};
     void alCambiarVistas();
+    /// Seguir la cola: lo de este proceso por aviso del registro; lo de los otros (el
+    /// gateway, el launcher), mirando los archivos cada tanto en el fondo.
+    void seguir(bool si);
+    /// Llegó lo leído en el fondo (de la lectura `gen`).
+    void llego(std::uint64_t gen, QVariantList lineas, QStringList modulos);
     struct Impl;
     std::unique_ptr<Impl> d_;
 };

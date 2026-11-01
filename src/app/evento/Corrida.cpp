@@ -261,6 +261,16 @@ std::vector<Accion> Corrida::arrancar(int64_t ahora) {
     return go(salidaPorOmision(), ahora);
 }
 
+std::vector<Accion> Corrida::goDelGuion(const std::string& salida, const std::string& pasoSig, const std::string& piezaSig,
+                                       int64_t ahora) {
+    if (estado_ == EstadoCorrida::Corriendo || estado_ == EstadoCorrida::Pausada) {
+        const Instancia* a = alAire(salida);
+        if (a != nullptr && !piezaSig.empty() && pasoSig == a->paso && !disparada(salida, piezaSig))
+            return adlib(salida, piezaSig, ahora);
+    }
+    return go(salida, ahora);
+}
+
 std::vector<Accion> Corrida::go(const std::string& salida, int64_t ahora) {
     std::vector<Accion> acc;
     if (estado_ == EstadoCorrida::Parada) return arrancar(ahora);

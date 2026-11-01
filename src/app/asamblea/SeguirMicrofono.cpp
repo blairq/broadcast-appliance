@@ -12,6 +12,9 @@
 #include <QJsonObject>
 
 #include <fstream>
+#include "ui/CapturaError.hpp"
+
+using ::ba::app::errorDe;
 
 namespace ba::app::asamblea {
 
@@ -84,7 +87,7 @@ std::string SeguirMicrofono::configurar(const json& c) {
 
 std::string SeguirMicrofono::aceptar() {
     if (!propuesta_.is_object()) return ba::i18n::traducir("asamblea", "no hay ninguna propuesta");
-    const QString e = bancas_.alAire(QString::fromStdString(propuesta_.value("banca", std::string())), "armar");
+    const QString e = errorDe([&] { bancas_.alAire(QString::fromStdString(propuesta_.value("banca", std::string())), "armar"); });
     if (!e.isEmpty()) return e.toStdString();
     descartada_ = propuesta_.value("fuente", std::string());
     propuesta_ = nullptr;
@@ -204,10 +207,10 @@ QVariantMap SeguirMicrofono::estadoUi() const {
     return QJsonDocument::fromJson(QByteArray::fromStdString(estado().dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))).object().toVariantMap();
 }
 
-QString SeguirMicrofono::configurarUi(const QVariantMap& c) {
+void SeguirMicrofono::configurarUi(const QVariantMap& c) {
     const json j = json::parse(QJsonDocument(QJsonObject::fromVariantMap(c)).toJson(QJsonDocument::Compact).toStdString(),
                                nullptr, false);
-    return QString::fromStdString(configurar(j));
+    avisarError(QString::fromStdString(configurar(j)));
 }
 
 } // namespace ba::app::asamblea

@@ -31,6 +31,7 @@
 #include <filesystem>
 #include <functional>
 #include <string>
+#include "ui/CapturaError.hpp"
 
 namespace ba::app::asamblea {
 
@@ -38,6 +39,11 @@ class Cuerpo;
 
 class Debate : public QObject {
     Q_OBJECT
+    /// El error de una acción de la interfaz (las Q_INVOKABLE void): a quien mira.
+    void avisarError(const QString& e) {
+        if (!e.isEmpty() && !::ba::app::CapturaError::tomar(e)) emit aviso(e, "error");
+    }
+    void avisarError(const std::string& e) { avisarError(QString::fromStdString(e)); }
     Q_PROPERTY(QVariantMap estado READ estado NOTIFY cambio)
    public:
     using json = nlohmann::json;
@@ -98,11 +104,11 @@ class Debate : public QObject {
     std::string configurar(const json& cambios);
     json config() const { return config_; }
 
-    Q_INVOKABLE QString iniciarUi(const QString& a, const QString& b, const QString& turno);
-    Q_INVOKABLE QString turnoUi(const QString& t) { return QString::fromStdString(turno(t.toStdString())); }
+    Q_INVOKABLE void iniciarUi(const QString& a, const QString& b, const QString& turno);
+    Q_INVOKABLE void turnoUi(const QString& t) { avisarError(QString::fromStdString(turno(t.toStdString()))); }
     Q_INVOKABLE void sumarUi(int s) { sumar(s); }
     Q_INVOKABLE void terminarUi() { terminar(); }
-    Q_INVOKABLE QString configurarUi(const QVariantMap& cambios);
+    Q_INVOKABLE void configurarUi(const QVariantMap& cambios);
 
    signals:
     void cambio();

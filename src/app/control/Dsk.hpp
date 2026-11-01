@@ -35,6 +35,7 @@
 #include <functional>
 #include <string>
 #include <vector>
+#include "ui/CapturaError.hpp"
 
 namespace ba::app {
 class VentanillaMotor;
@@ -100,6 +101,17 @@ class CapasDsk {
 
 class Dsk : public QObject {
     Q_OBJECT
+    /// El error de una acción de la interfaz (las Q_INVOKABLE void): a quien mira.
+    void avisarError(const QString& e) {
+        if (!e.isEmpty() && !::ba::app::CapturaError::tomar(e)) emit notify(e, "error");
+    }
+    void avisarError(const std::string& e) { avisarError(QString::fromStdString(e)); }
+    /// Para las acciones que dicen si se hicieron: el error a quien mira y true si no hubo.
+    bool sinError(const QString& e) {
+        avisarError(e);
+        return e.isEmpty();
+    }
+    bool sinError(const std::string& e) { return sinError(QString::fromStdString(e)); }
     Q_PROPERTY(QVariantList capas READ capasUi NOTIFY cambio)
    public:
     using json = nlohmann::json;
@@ -121,12 +133,14 @@ class Dsk : public QObject {
     void setAlCambiar(std::function<void(const json&)> fn) { alCambiar_ = std::move(fn); }
 
     QVariantList capasUi() const;
-    Q_INVOKABLE QString definirUi(int capa, const QVariantMap& def);
-    Q_INVOKABLE QString mostrarUi(int capa, bool visible, bool confirmada);
-    Q_INVOKABLE QString plantillaLsaUi(int capa, const QString& entrada);
+    Q_INVOKABLE bool definirUi(int capa, const QVariantMap& def);
+    Q_INVOKABLE void mostrarUi(int capa, bool visible, bool confirmada);
+    Q_INVOKABLE bool plantillaLsaUi(int capa, const QString& entrada);
     Q_INVOKABLE bool fija(int capa) const;
 
    signals:
+    /// Para el operador (ya traducido): los errores de las acciones de la interfaz.
+    void notify(const QString& texto, const QString& tipo);
     void cambio();
     /// Lo pedido no se pudo (lo dijo el dueño, ya traducido).
     void fallo(const QString& texto);

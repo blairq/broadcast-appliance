@@ -107,6 +107,10 @@ class ScenesModel : public QAbstractListModel {
 class SourcesModel : public QAbstractListModel {
     Q_OBJECT
     Q_PROPERTY(QString scene READ scene WRITE setScene NOTIFY sceneChanged)
+    /// Transparencia, borde difuso y sombra de cada fuente de esta escena (ver
+    /// EfectosCapa::aJson): {nombre: {...}}. Lo pedido se ve ya; avisa con cada cambio (la
+    /// foto, el MCP, otra vista o lo que se acaba de pedir).
+    Q_PROPERTY(QVariantMap efectosDe READ efectosDe NOTIFY efectosCambio)
    public:
     enum Roles {
         NameRole = Qt::UserRole + 1,
@@ -136,9 +140,11 @@ class SourcesModel : public QAbstractListModel {
     Q_INVOKABLE bool remove(const QString& name);
     Q_INVOKABLE bool setRect(const QString& name, double x, double y, double w, double h);
     /// Transparencia, borde difuso y sombra de la fuente en esta escena (ver EfectosCapa::aJson).
-    Q_INVOKABLE QVariantMap efectos(const QString& name) const;
-    /// Cambia solo lo que traiga `cambios` (las mismas claves; la sombra, anidada).
-    Q_INVOKABLE bool setEfectos(const QString& name, const QVariantMap& cambios);
+    QVariantMap efectos(const QString& name) const;
+    QVariantMap efectosDe() const;
+    /// Cambia solo lo que traiga `cambios` (las mismas claves; la sombra, anidada). Lo que no
+    /// vale, a `error`.
+    Q_INVOKABLE void setEfectos(const QString& name, const QVariantMap& cambios);
     /// Agrega una fuente nueva de tipo `typeId` con nombre unico derivado de
     /// `baseName`. :returns: el nombre final ("" si no se pudo pedir; si falla después,
     /// avisa `error`).
@@ -272,8 +278,6 @@ class MixerModel : public QAbstractListModel {
     /// {pico_db, volumen_db, mudo} de la fila en la mezcla de `salida` (redondeados: lo que
     /// publica el BusEventos en audio/nivel/<fuente> y audio/<salida>/nivel/<fuente>).
     nlohmann::json nivelEn(int fila, const std::string& salida) const;
-    /// El pico (dBFS, con caída suave) de una fuente por nombre; -100 si no es de audio.
-    double picoDe(const std::string& nombre) const;
     /// La mezcla de qué salida muestra y mueve (volumen y mute de cada tira; PLAN-SALIDAS:
     /// cada salida tiene la suya), y el VCA de sus grupos. "" = la por omisión. Lo demás
     /// (picos, retardo, qué grupos hay) es de la fuente: igual en todas.

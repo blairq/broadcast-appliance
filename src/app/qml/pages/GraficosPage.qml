@@ -582,8 +582,7 @@ Rectangle {
                                     GlassButton {
                                         text: qsTr("Al aire"); compact: true
                                         onClicked: {
-                                            const e = page.g.mostrarEnEscena(modelData.id, false)
-                                            if (e !== "") page.g.notify(e, "error")
+                                            page.g.mostrarEnEscena(modelData.id, false)
                                         }
                                     }
                                     GlassButton {
@@ -611,8 +610,7 @@ Rectangle {
         property bool declarativo: true
         function abrir(decl) { declarativo = decl; nombreCampo.text = ""; open() }
         onAccepted: {
-            const e = page.g.crear(nombreCampo.text.trim(), declarativo)
-            if (e !== "") page.g.notify(e, "error")
+            page.g.crear(nombreCampo.text.trim(), declarativo)
         }
         ColumnLayout {
             anchors.fill: parent

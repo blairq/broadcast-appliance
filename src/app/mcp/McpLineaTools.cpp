@@ -25,6 +25,9 @@
 
 #include <QJsonDocument>
 #include <QJsonObject>
+#include "ui/CapturaError.hpp"
+
+using ::ba::app::errorDe;
 
 namespace ba::app::mcp {
 namespace {
@@ -36,14 +39,14 @@ using ba::i18n::traducir;
 int64_t horaDe(EventoViewModel& ev, const json& a, const char* clave) {
     if (!a.contains(clave) || a[clave].is_null()) return 0;
     if (a[clave].is_number_integer()) return a[clave].get<int64_t>();
-    if (a[clave].is_string()) return ev.horaHoyMs(a[clave].get<std::string>());
+    if (a[clave].is_string()) return ev.corridaVm().horaHoyMs(a[clave].get<std::string>());
     return -1;
 }
 
 /// Lo que devuelven las de vivo: el error, o el estado de la línea después.
 void responderVivo(EventoViewModel& ev, const std::string& error, Done& done) {
     if (!error.empty()) return done(ToolResult::error(error));
-    done(ToolResult().data(ev.lineaEstado()));
+    done(ToolResult().data(ev.corridaVm().lineaEstado()));
 }
 
 /// La copia sin argumentos (la que se pide casi siempre), hecha ya al registrarla (recién
@@ -53,8 +56,8 @@ void responderVivo(EventoViewModel& ev, const std::string& error, Done& done) {
 void sembrarCopia(EventoViewModel& ev, const std::shared_ptr<CopiaDeLaInterfaz>& copia) {
     copia->copiarYa();
     const auto alDia = [copia]() { copia->copiarYa(); };
-    QObject::connect(&ev, &EventoViewModel::correChanged, &ev, alDia);
-    QObject::connect(&ev, &EventoViewModel::guionChanged, &ev, alDia);
+    QObject::connect(&ev.corridaVm(), &CorridaViewModel::correChanged, &ev, alDia);
+    QObject::connect(&ev.guionVm(), &GuionViewModel::guionChanged, &ev, alDia);
 }
 
 } // namespace
@@ -95,10 +98,10 @@ void registerLineaTools(McpCore& core, EventoViewModel& ev, LineaFuentes fuentes
         // El pronóstico lo arma la línea en la interfaz: se lee una copia (al día con ella
         // libre; trabada, la última de estos argumentos con su edad).
         const auto copia = copiarDeLaInterfaz(core, t, [&ev, &core](const json& a) -> LeidoEnLaInterfaz {
-            if (ev.abierto().isEmpty()) return {{}, traducir("mcp", "No hay un evento abierto (guion_abrir).")};
+            if (ev.guionVm().abierto().isEmpty()) return {{}, traducir("mcp", "No hay un evento abierto (guion_abrir).")};
             const int64_t desde = horaDe(ev, a, "desde"), hasta = horaDe(ev, a, "hasta");
             if (desde < 0 || hasta < 0) return {{}, traducir("mcp", "`desde` y `hasta` van como \"HH:MM\" o en ms.")};
-            json v = ev.lineaVer(core.salidaDe(a), desde, hasta, a.value("nivel", std::string("pasos")));
+            json v = ev.corridaVm().lineaVer(core.salidaDe(a), desde, hasta, a.value("nivel", std::string("pasos")));
             if (v.is_null()) return {{}, traducir("mcp", "No hay esa salida en la línea.")};
             return {std::move(v), {}};
         });
@@ -123,8 +126,8 @@ void registerLineaTools(McpCore& core, EventoViewModel& ev, LineaFuentes fuentes
             "Ver linea_retomar y linea_soltar.");
         // El estado de la corrida es de la interfaz (EventoViewModel): una copia.
         const auto copia = copiarDeLaInterfaz(core, t, [&ev](const json&) -> LeidoEnLaInterfaz {
-            if (ev.abierto().isEmpty()) return {{}, traducir("mcp", "No hay un evento abierto (guion_abrir).")};
-            return {ev.lineaEstado(), {}};
+            if (ev.guionVm().abierto().isEmpty()) return {{}, traducir("mcp", "No hay un evento abierto (guion_abrir).")};
+            return {ev.corridaVm().lineaEstado(), {}};
         });
         sembrarCopia(ev, copia);
         core.addTool(std::move(t));
@@ -143,8 +146,8 @@ void registerLineaTools(McpCore& core, EventoViewModel& ev, LineaFuentes fuentes
             "capítulos y el acta. Lo del ensayo no se anota. `ultimos`: solo los últimos N.");
         t.inputSchema = {{"type", "object"}, {"properties", {{"ultimos", {{"type", "integer"}, {"minimum", 0}}}}}};
         t.run = [&ev](const json& a, Done done) {
-            if (ev.abierto().isEmpty()) return done(ToolResult::error(traducir("mcp", "No hay un evento abierto (guion_abrir).")));
-            done(ToolResult().data(ev.lineaRecorrido(a.value("ultimos", 0))));
+            if (ev.guionVm().abierto().isEmpty()) return done(ToolResult::error(traducir("mcp", "No hay un evento abierto (guion_abrir).")));
+            done(ToolResult().data(ev.corridaVm().lineaRecorrido(a.value("ultimos", 0))));
         };
         core.addTool(std::move(t));
     }
@@ -160,8 +163,8 @@ void registerLineaTools(McpCore& core, EventoViewModel& ev, LineaFuentes fuentes
         t.details = QT_TRANSLATE_NOOP("mcp", "Cada reparo dice dónde (`bloque`, `paso`, `pieza`) y si es `grave`. Complementa a "
                                     "evento_revisar, que mira además los archivos y el aparato.");
         t.run = [&ev](const json&, Done done) {
-            if (ev.abierto().isEmpty()) return done(ToolResult::error(traducir("mcp", "No hay un evento abierto (guion_abrir).")));
-            done(ToolResult().data(ev.lineaRevisar()));
+            if (ev.guionVm().abierto().isEmpty()) return done(ToolResult::error(traducir("mcp", "No hay un evento abierto (guion_abrir).")));
+            done(ToolResult().data(ev.corridaVm().lineaRevisar()));
         };
         core.addTool(std::move(t));
     }
@@ -227,7 +230,7 @@ void registerLineaTools(McpCore& core, EventoViewModel& ev, LineaFuentes fuentes
             R"({"probar": true, "ops": [{"op": "cambiar", "id": "c8", "campos": {"inicio": {"modo": "hora", "hora": "20:30", "politica": "esperar"}}}]})",
             R"({"ops": [{"op": "quitar", "id": "c5"}]})"};
         t.run = [&ev](const json& a, Done done) {
-            const json r = ev.lineaEditar(a.value("ops", json::array()), a.value("probar", false));
+            const json r = ev.corridaVm().lineaEditar(a.value("ops", json::array()), a.value("probar", false));
             if (!r.value("ok", false)) return done(ToolResult::error(r.value("error", std::string())));
             done(ToolResult().data(r));
         };
@@ -242,7 +245,7 @@ void registerLineaTools(McpCore& core, EventoViewModel& ev, LineaFuentes fuentes
         t.description = QT_TRANSLATE_NOOP("mcp", "Vuelve la línea a como estaba antes del último linea_editar aplicado (la última "
                                         "revisión de Respaldos/).");
         t.run = [&ev](const json&, Done done) {
-            const json r = ev.lineaDeshacer();
+            const json r = ev.corridaVm().lineaDeshacer();
             if (!r.value("ok", false)) return done(ToolResult::error(r.value("error", std::string())));
             done(ToolResult().data(r));
         };
@@ -276,7 +279,7 @@ void registerLineaTools(McpCore& core, EventoViewModel& ev, LineaFuentes fuentes
                                                                       "(sin esto, el fin planeado)")}}}}}};
         t.examples = {R"({"hasta": "21:00"})", R"({})"};
         t.run = [&ev, &core](const json& a, Done done) {
-            if (ev.abierto().isEmpty()) return done(ToolResult::error(traducir("mcp", "No hay un evento abierto (guion_abrir).")));
+            if (ev.guionVm().abierto().isEmpty()) return done(ToolResult::error(traducir("mcp", "No hay un evento abierto (guion_abrir).")));
             const int64_t hasta = horaDe(ev, a, "hasta");
             if (hasta < 0) return done(ToolResult::error(traducir("mcp", "`hasta` va como \"HH:MM\" o en ms.")));
             done(ToolResult().data(LineaProductor::ajusteProbado(ev, core.salidaDe(a), hasta)));
@@ -392,52 +395,52 @@ void registerLineaTools(McpCore& core, EventoViewModel& ev, LineaFuentes fuentes
          traducir("mcp", "Entra el próximo paso de la salida (con su escena por el PVW y TAKE). Sin correr, "
                          "arranca con la revisión previa (con problemas graves no: evento_correr con forzar). Sin próximo, la salida termina. Tras un corte, además suelta el HOLD tal cual. "
                          "SALE AL AIRE."),
-         json::object(), [&ev, sal](const json& a) { return ev.lineaGo(sal(a)); });
+         json::object(), [&ev, sal](const json& a) { return ev.corridaVm().lineaGo(sal(a)); });
     vivo("linea_hold", Clase::Escritura, nullptr, traducir("mcp", "HOLD del paso al aire"),
          traducir("mcp", "Congela el avance automático del paso al aire (la cuenta sigue en «+» y el pronóstico "
                          "empuja). Con `hold` true/false lo fija; sin eso, alterna. Soltarlo tras un corte es "
                          "seguir como estaba."),
          json{{"hold", {{"type", "boolean"}}}},
          [&ev, sal](const json& a) {
-             return ev.lineaHold(sal(a), a.contains("hold") && a["hold"].is_boolean() ? std::optional<bool>(a["hold"].get<bool>())
+             return ev.corridaVm().lineaHold(sal(a), a.contains("hold") && a["hold"].is_boolean() ? std::optional<bool>(a["hold"].get<bool>())
                                                                                        : std::nullopt);
          });
     vivo("linea_siguiente", Clase::Escritura, nullptr, traducir("mcp", "Mover el próximo para adelante"),
          traducir("mcp", "Mueve el próximo un paso para adelante (F10) sin tocar el aire; los del medio quedan "
                          "salteados. `pasos`: cuántos (1 por defecto)."),
          json{{"pasos", {{"type", "integer"}, {"minimum", 1}}}},
-         [&ev, sal](const json& a) { return ev.lineaMoverProximo(sal(a), a.value("pasos", 1)); });
+         [&ev, sal](const json& a) { return ev.corridaVm().lineaMoverProximo(sal(a), a.value("pasos", 1)); });
     vivo("linea_anterior", Clase::Escritura, nullptr, traducir("mcp", "Mover el próximo para atrás"),
          traducir("mcp", "Mueve el próximo un paso para atrás (F9) sin tocar el aire: sirve para volver a "
                          "pasar por algo. `pasos`: cuántos (1 por defecto)."),
          json{{"pasos", {{"type", "integer"}, {"minimum", 1}}}},
-         [&ev, sal](const json& a) { return ev.lineaMoverProximo(sal(a), -a.value("pasos", 1)); });
+         [&ev, sal](const json& a) { return ev.corridaVm().lineaMoverProximo(sal(a), -a.value("pasos", 1)); });
     vivo("linea_saltar", Clase::Escritura, nullptr, traducir("mcp", "Saltear el próximo paso"),
          traducir("mcp", "Marca el próximo como salteado: no entra y el pronóstico corre lo que sigue."),
-         json::object(), [&ev, sal](const json& a) { return ev.lineaSaltar(sal(a)); });
+         json::object(), [&ev, sal](const json& a) { return ev.corridaVm().lineaSaltar(sal(a)); });
     vivo("linea_ir", Clase::Aire, QT_TRANSLATE_NOOP("mcp", "entra otro paso de la línea de tiempo"),
          traducir("mcp", "Ir a un paso"),
          traducir("mcp", "Entra ese paso ya, con el estado que tendría el aire ahí: repone la música y los "
                          "gráficos de vida larga que corresponden y saca los que no van (lo del asistente se "
                          "pregunta). SALE AL AIRE."),
-         json{{"paso", {{"type", "string"}}}}, [&ev, sal](const json& a) { return ev.lineaIr(sal(a), a.value("paso", std::string())); },
+         json{{"paso", {{"type", "string"}}}}, [&ev, sal](const json& a) { return ev.corridaVm().lineaIr(sal(a), a.value("paso", std::string())); },
          {"paso"});
     vivo("linea_repetir", Clase::Aire, QT_TRANSLATE_NOOP("mcp", "vuelve a entrar el paso al aire"),
          traducir("mcp", "Repetir el paso al aire"),
          traducir("mcp", "Vuelve a entrar el paso al aire, con sus piezas. SALE AL AIRE."), json::object(),
-         [&ev, sal](const json& a) { return ev.lineaRepetir(sal(a)); });
+         [&ev, sal](const json& a) { return ev.corridaVm().lineaRepetir(sal(a)); });
     vivo("linea_insertar", Clase::Aire, QT_TRANSLATE_NOOP("mcp", "mete un paso del estante en la línea (al aire, si se pide)"),
          traducir("mcp", "Insertar un paso del estante"),
          traducir("mcp", "Un paso del estante (`item`, su id) va de próximo; con `alAire` entra ya. Lo planeado no "
                          "se toca: va una copia, anotada como insertada."),
          json{{"item", {{"type", "string"}}}, {"alAire", {{"type", "boolean"}}}},
-         [&ev, sal](const json& a) { return ev.lineaInsertar(sal(a), a.value("item", std::string()), a.value("alAire", false)); },
+         [&ev, sal](const json& a) { return ev.corridaVm().lineaInsertar(sal(a), a.value("item", std::string()), a.value("alAire", false)); },
          {"item"});
     vivo("linea_adlib", Clase::Aire, QT_TRANSLATE_NOOP("mcp", "dispara una pieza de la línea (escena, gráfico, música)"),
          traducir("mcp", "Disparar una pieza a mano"),
          traducir("mcp", "Dispara ya una pieza: un adlib del paso al aire (o una que todavía no llegó a su "
                          "hora), o una pieza del estante (por el id del ítem o de su pieza). SALE AL AIRE."),
-         json{{"pieza", {{"type", "string"}}}}, [&ev, sal](const json& a) { return ev.lineaAdlib(sal(a), a.value("pieza", std::string())); },
+         json{{"pieza", {{"type", "string"}}}}, [&ev, sal](const json& a) { return ev.corridaVm().lineaAdlib(sal(a), a.value("pieza", std::string())); },
          {"pieza"});
 
     vivo("linea_pulso", Clase::Aire, QT_TRANSLATE_NOOP("mcp", "un pulso puede hacer entrar un paso (un disparador o un paso «cuando»)"),
@@ -445,20 +448,20 @@ void registerLineaTools(McpCore& core, EventoViewModel& ev, LineaFuentes fuentes
          traducir("mcp", "Un pulso para las condiciones de la línea: «tecla:F5», «botonera:<id>» o «web:<botón>». Vale solo en "
                          "ese instante: dispara los disparadores y los pasos o piezas «cuando» que lo esperan. Los que "
                          "espera la línea están en linea_ver (`pulsos`). Las teclas, la botonera y la web lo mandan solas."),
-         json{{"clave", {{"type", "string"}}}}, [&ev](const json& a) { return ev.lineaPulso(a.value("clave", std::string())); },
+         json{{"clave", {{"type", "string"}}}}, [&ev](const json& a) { return ev.corridaVm().lineaPulso(a.value("clave", std::string())); },
          {"clave"});
     vivo("linea_reenganchar", Clase::Aire, QT_TRANSLATE_NOOP("mcp", "vuelve a poner al aire la escena del paso"),
          traducir("mcp", "Reenganchar la salida a la línea"),
          traducir("mcp", "Alguien cambió la escena a mano fuera de la línea (la salida aparece `aMano` en linea_estado): "
                          "vuelve a la escena del paso al aire y la salida sigue con la línea. SALE AL AIRE."),
-         json::object(), [&ev, sal](const json& a) { return ev.lineaReenganchar(sal(a)); });
+         json::object(), [&ev, sal](const json& a) { return ev.corridaVm().lineaReenganchar(sal(a)); });
     vivo("linea_ptz", Clase::Aire, QT_TRANSLATE_NOOP("mcp", "puede mover una cámara que está al aire"),
          traducir("mcp", "Decidir una PTZ que espera"),
          traducir("mcp", "Una pieza PTZ espera porque su cámara está al aire en alguna salida (`ptzPendientes` en "
                          "linea_estado): «mover» la mueve igual, ya (SE VE AL AIRE); «esperar» la deja para cuando se "
                          "libere (lo de siempre); «saltar» no la mueve."),
          json{{"pieza", {{"type", "string"}}}, {"decision", {{"type", "string"}, {"enum", {"mover", "esperar", "saltar"}}}}},
-         [&ev](const json& a) { return ev.lineaPtz(a.value("pieza", std::string()), a.value("decision", std::string())); },
+         [&ev](const json& a) { return ev.corridaVm().lineaPtz(a.value("pieza", std::string()), a.value("decision", std::string())); },
          {"pieza", "decision"});
 
     // --- L10: la escaleta para afuera y desde afuera, y grabar la línea -------------------
@@ -481,14 +484,14 @@ void registerLineaTools(McpCore& core, EventoViewModel& ev, LineaFuentes fuentes
                            {"archivo", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "ruta donde escribirla (opcional)")}}}}}};
         t.examples = {R"({"formato": "csv"})", R"({"formato": "mos", "archivo": "/tmp/escaleta.xml"})"};
         t.run = [&ev](const json& a, Done done) {
-            if (ev.abierto().isEmpty()) return done(ToolResult::error(traducir("mcp", "No hay un evento abierto (guion_abrir).")));
+            if (ev.guionVm().abierto().isEmpty()) return done(ToolResult::error(traducir("mcp", "No hay un evento abierto (guion_abrir).")));
             const std::string formato = a.value("formato", std::string("csv"));
             const std::string archivo = a.value("archivo", std::string());
             if (!archivo.empty()) {
-                const QString e = ev.exportarEscaleta(QString::fromStdString(formato), QString::fromStdString(archivo));
+                const QString e = errorDe([&] { ev.informeVm().exportarEscaleta(QString::fromStdString(formato), QString::fromStdString(archivo)); });
                 if (!e.isEmpty()) return done(ToolResult::error(e.toStdString()));
             }
-            done(ToolResult().data({{"formato", formato}, {"texto", ev.lineaExportar(formato)}, {"archivo", archivo}}));
+            done(ToolResult().data({{"formato", formato}, {"texto", ev.informeVm().lineaExportar(formato)}, {"archivo", archivo}}));
         };
         core.addTool(std::move(t));
     }
@@ -516,15 +519,15 @@ void registerLineaTools(McpCore& core, EventoViewModel& ev, LineaFuentes fuentes
         t.examples = {R"({"texto": "bloque,nombre,duracion,escena\nApertura,Bienvenida,1:30,Cam 1\n"})",
                       R"({"archivo": "/Users/ana/Escaleta.csv", "probar": false})"};
         t.run = [&ev](const json& a, Done done) {
-            if (ev.abierto().isEmpty()) return done(ToolResult::error(traducir("mcp", "No hay un evento abierto (guion_abrir).")));
+            if (ev.guionVm().abierto().isEmpty()) return done(ToolResult::error(traducir("mcp", "No hay un evento abierto (guion_abrir).")));
             const bool probar = a.value("probar", true);
             const std::string archivo = a.value("archivo", std::string());
             if (!archivo.empty()) {
-                const QVariantMap r = ev.importarEscaleta(QString::fromStdString(archivo), probar);
+                const QVariantMap r = ev.informeVm().importarEscaleta(QString::fromStdString(archivo), probar);
                 if (!r.value("ok").toBool()) return done(ToolResult::error(r.value("error").toString().toStdString()));
                 return done(ToolResult().data(json::parse(QJsonDocument(QJsonObject::fromVariantMap(r)).toJson().toStdString())));
             }
-            const json r = ev.lineaImportar(a.value("formato", std::string()), a.value("texto", std::string()), probar,
+            const json r = ev.informeVm().lineaImportar(a.value("formato", std::string()), a.value("texto", std::string()), probar,
                                             a.value("nombreBloque", std::string()));
             if (!r.value("ok", false)) return done(ToolResult::error(r.value("error", std::string())));
             done(ToolResult().data(r));
@@ -547,21 +550,21 @@ void registerLineaTools(McpCore& core, EventoViewModel& ev, LineaFuentes fuentes
                          {"required", {"accion"}},
                          {"properties", {{"accion", {{"type", "string"}, {"enum", {"grabar", "no_grabar", "ver", "aplicar", "descartar"}}}}}}};
         t.run = [&ev](const json& a, Done done) {
-            if (ev.abierto().isEmpty()) return done(ToolResult::error(traducir("mcp", "No hay un evento abierto (guion_abrir).")));
+            if (ev.guionVm().abierto().isEmpty()) return done(ToolResult::error(traducir("mcp", "No hay un evento abierto (guion_abrir).")));
             const std::string accion = a.value("accion", std::string("ver"));
             if (accion == "grabar" || accion == "no_grabar") {
-                const std::string e = ev.lineaEstado().value("estado", std::string());
+                const std::string e = ev.corridaVm().lineaEstado().value("estado", std::string());
                 if (e == "corriendo" || e == "pausada")
                     return done(ToolResult::error(traducir("mcp", "Grabar se elige antes de arrancar el ensayo.")));
-                ev.setGrabarTiempos(accion == "grabar");
+                ev.corridaVm().setGrabarTiempos(accion == "grabar");
             } else if (accion == "aplicar") {
-                if (const QString e = ev.aplicarTiemposGrabados(); !e.isEmpty()) return done(ToolResult::error(e.toStdString()));
+                if (const QString e = errorDe([&] { ev.corridaVm().aplicarTiemposGrabados(); }); !e.isEmpty()) return done(ToolResult::error(e.toStdString()));
             } else if (accion == "descartar") {
-                ev.descartarTiemposGrabados();
+                ev.corridaVm().descartarTiemposGrabados();
             }
-            json r = ev.lineaTiemposGrabados();
-            r["grabando"] = ev.grabarTiempos();
-            r["ensayo"] = ev.ensayo();
+            json r = ev.corridaVm().lineaTiemposGrabados();
+            r["grabando"] = ev.corridaVm().grabarTiempos();
+            r["ensayo"] = ev.corridaVm().ensayo();
             done(ToolResult().data(r));
         };
         core.addTool(std::move(t));
@@ -590,7 +593,7 @@ void registerLineaTools(McpCore& core, EventoViewModel& ev, LineaFuentes fuentes
                            {"simular", {{"type", "boolean"}, {"description", QT_TRANSLATE_NOOP("mcp", "simular un corte ahora (para probar)")}}}}}};
         t.examples = {R"({"descripcion": "El orador sigue hablando, vamos 5 minutos atrasados"})", R"({"simular": true})"};
         t.run = [&ev](const json& a, Done done) {
-            responderVivo(ev, ev.lineaRetomar(a.value("descripcion", std::string()), a.value("simular", false)), done);
+            responderVivo(ev, ev.corridaVm().lineaRetomar(a.value("descripcion", std::string()), a.value("simular", false)), done);
         };
         core.addTool(std::move(t));
     }
@@ -600,7 +603,7 @@ void registerLineaTools(McpCore& core, EventoViewModel& ev, LineaFuentes fuentes
                          "queda en el recorrido). Lo que se pasó de su hora entra en el acto. Solo cuando la "
                          "persona lo confirmó."),
          json{{"decision", {{"type", "string"}}}},
-         [&ev](const json& a) { return ev.lineaSoltar(a.value("decision", std::string())); });
+         [&ev](const json& a) { return ev.corridaVm().lineaSoltar(a.value("decision", std::string())); });
 }
 
 } // namespace ba::app::mcp

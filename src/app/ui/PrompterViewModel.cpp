@@ -107,7 +107,7 @@ PrompterViewModel::PrompterViewModel(EventoViewModel* evento, ConferenceViewMode
     }
     if (evento != nullptr) {
         // Al abrir o cerrar un evento, los discursos son otros.
-        connect(evento, &EventoViewModel::guionChanged, this, [this]() { refrescar(); });
+        connect(&evento->guionVm(), &GuionViewModel::guionChanged, this, [this]() { refrescar(); });
     }
     refrescar();
 }
@@ -161,21 +161,19 @@ QVariantMap PrompterViewModel::agregarPrompter(const QString& nombre) {
     return {{"id", QString::fromStdString(id)}};
 }
 
-QString PrompterViewModel::quitarPrompter(const QString& id) {
+void PrompterViewModel::quitarPrompter(const QString& id) {
     const std::string err = d_->lista.quitar(id.toStdString());
-    if (!err.empty()) return QString::fromStdString(err);
+    if (!err.empty()) return avisarError(QString::fromStdString(err));
     // Y del gateway: su texto y su página dejan de existir.
     if (d_->sala != nullptr) d_->sala->teleprompter().para(id.toStdString()).quitar();
     if (d_->elegido == id) setElegido(sala::ListaPrompters::kPrincipal);
     emit promptersCambio();
-    return {};
 }
 
-QString PrompterViewModel::renombrarPrompter(const QString& id, const QString& nombre) {
+void PrompterViewModel::renombrarPrompter(const QString& id, const QString& nombre) {
     const std::string err = d_->lista.renombrar(id.toStdString(), nombre.toStdString());
-    if (!err.empty()) return QString::fromStdString(err);
+    if (!err.empty()) return avisarError(QString::fromStdString(err));
     emit promptersCambio();
-    return {};
 }
 
 // --- Documentos ---------------------------------------------------------------------
@@ -203,7 +201,7 @@ const Discursos& PrompterViewModel::discursos() const { return d_->docs; }
 
 QString PrompterViewModel::sinEvento() const {
     if (d_->evento == nullptr) return tr("El guion del evento no está disponible.");
-    if (d_->evento->carpetaDeDiscursos().isEmpty())
+    if (d_->evento->guionVm().carpetaDeDiscursos().isEmpty())
         return tr("Los discursos viven en la carpeta del evento. Abrí o creá un evento en la pestaña Guion "
                   "y volvé: son los mismos archivos que usa el cue «teleprompter».");
     return {};
@@ -211,7 +209,7 @@ QString PrompterViewModel::sinEvento() const {
 
 void PrompterViewModel::refrescar() {
     // La raíz puede haber cambiado (otro evento abierto, o ninguno).
-    d_->docs.setRaiz(d_->evento == nullptr ? QString() : d_->evento->carpetaDeDiscursos());
+    d_->docs.setRaiz(d_->evento == nullptr ? QString() : d_->evento->guionVm().carpetaDeDiscursos());
     if (d_->docs.listo()) QDir(d_->docs.raiz()).mkpath(".");
     // Los teleprompters con nombre son del evento: <evento>/prompters.json (al lado de Discursos/).
     const QString archivo = d_->docs.listo() ? QDir(d_->docs.raiz()).absoluteFilePath("../prompters.json") : QString();
@@ -253,14 +251,14 @@ void PrompterViewModel::editar(const QString& texto) {
     emit editorCambio();
 }
 
-QString PrompterViewModel::guardar() {
-    if (d_->abierto.isEmpty()) return tr("No hay ningún documento abierto.");
+bool PrompterViewModel::guardar() {
+    if (d_->abierto.isEmpty()) return sinError(tr("No hay ningún documento abierto."));
     const QString err = d_->docs.escribir(d_->abierto, d_->texto);
-    if (!err.isEmpty()) return err;
+    if (!err.isEmpty()) return sinError(err);
     d_->enDisco = d_->texto;
     emit editorCambio();
     refrescar();
-    return {};
+    return true;
 }
 
 QString PrompterViewModel::escribirDoc(const QString& rel, const QString& texto) {
@@ -278,53 +276,49 @@ QString PrompterViewModel::escribirDoc(const QString& rel, const QString& texto)
     return {};
 }
 
-QString PrompterViewModel::crear(const QString& nombre) {
-    if (!d_->docs.listo()) return sinEvento();
+void PrompterViewModel::crear(const QString& nombre) {
+    if (!d_->docs.listo()) return avisarError(sinEvento());
     QString rel;
     const QString err = d_->docs.crear(d_->carpeta, nombre, &rel);
-    if (!err.isEmpty()) return err;
+    if (!err.isEmpty()) return avisarError(err);
     refrescar();
     abrir(rel);
-    return {};
 }
 
-QString PrompterViewModel::crearCarpeta(const QString& nombre) {
-    if (!d_->docs.listo()) return sinEvento();
+void PrompterViewModel::crearCarpeta(const QString& nombre) {
+    if (!d_->docs.listo()) return avisarError(sinEvento());
     QString rel;
     const QString err = d_->docs.crearCarpeta(d_->carpeta, nombre, &rel);
-    if (!err.isEmpty()) return err;
+    if (!err.isEmpty()) return avisarError(err);
     d_->carpeta = rel; // se entra en la que se acaba de crear
     refrescar();
-    return {};
 }
 
-QString PrompterViewModel::renombrar(const QString& rel, const QString& nombre) {
+void PrompterViewModel::renombrar(const QString& rel, const QString& nombre) {
     QString nuevo;
     const QString err = d_->docs.renombrar(rel, nombre, &nuevo);
-    if (!err.isEmpty()) return err;
+    if (!err.isEmpty()) return avisarError(err);
     if (d_->abierto == rel) {
         d_->abierto = nuevo;
         emit editorCambio();
     }
     refrescar();
-    return {};
 }
 
-QString PrompterViewModel::mover(const QString& rel, const QString& aCarpeta) {
+void PrompterViewModel::mover(const QString& rel, const QString& aCarpeta) {
     QString nuevo;
     const QString err = d_->docs.mover(rel, aCarpeta, &nuevo);
-    if (!err.isEmpty()) return err;
+    if (!err.isEmpty()) return avisarError(err);
     if (d_->abierto == rel) {
         d_->abierto = nuevo;
         emit editorCambio();
     }
     refrescar();
-    return {};
 }
 
-QString PrompterViewModel::borrar(const QString& rel) {
+void PrompterViewModel::borrar(const QString& rel) {
     const QString err = d_->docs.borrar(rel);
-    if (!err.isEmpty()) return err;
+    if (!err.isEmpty()) return avisarError(err);
     if (d_->abierto == rel) {
         d_->abierto.clear();
         d_->texto.clear();
@@ -332,7 +326,6 @@ QString PrompterViewModel::borrar(const QString& rel) {
         emit editorCambio();
     }
     refrescar();
-    return {};
 }
 
 // --- El teleprompter ----------------------------------------------------------------
@@ -509,15 +502,15 @@ void PrompterViewModel::consultar(std::function<void(bool)> cuando) {
 // manda y se espera a que el estado vuelva con el cambio. Si el gateway no
 // está, no pasa nada y la pantalla lo dice (`enLinea`).
 
-QString PrompterViewModel::cargar(const QString& rel) {
-    if (d_->sala == nullptr) return tr("El servidor no está disponible.");
-    return QString::fromStdString(d_->tp().cargarDiscurso(d_->docs, rel.toStdString()));
+bool PrompterViewModel::cargar(const QString& rel) {
+    if (d_->sala == nullptr) return sinError(tr("El servidor no está disponible."));
+    return sinError(QString::fromStdString(d_->tp().cargarDiscurso(d_->docs, rel.toStdString())));
 }
 
-QString PrompterViewModel::cargarDelEditor() {
-    if (d_->abierto.isEmpty()) return tr("No hay ningún documento abierto.");
+bool PrompterViewModel::cargarDelEditor() {
+    if (d_->abierto.isEmpty()) return sinError(tr("No hay ningún documento abierto."));
     if (d_->sala != nullptr) d_->tp().cargarTexto(d_->abierto.toStdString(), d_->texto.toStdString());
-    return {};
+    return true;
 }
 
 void PrompterViewModel::arrancar(bool si) {

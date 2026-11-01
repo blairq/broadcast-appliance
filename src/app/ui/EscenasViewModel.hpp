@@ -37,6 +37,9 @@
 #include <memory>
 #include <string>
 
+#include "comun/UsoPorVistas.hpp"
+#include "ui/CapturaError.hpp"
+
 namespace ba::app {
 class AppRuntime;
 class ListaObjetos;
@@ -53,6 +56,11 @@ namespace ba::app {
 
 class EscenasViewModel : public QObject {
     Q_OBJECT
+    /// El error de una acción de la interfaz (las Q_INVOKABLE void): a quien mira.
+    void avisarError(const QString& e) {
+        if (!e.isEmpty() && !::ba::app::CapturaError::tomar(e)) emit notify(e, "error");
+    }
+    void avisarError(const std::string& e) { avisarError(QString::fromStdString(e)); }
     /// El botón de cada escena del editor corta directo (si no, la arma en preview).
     Q_PROPERTY(bool corteDirectoEditor READ corteDirectoEditor WRITE setCorteDirectoEditor NOTIFY ajustesCambio)
     /// Las fuentes con AFV en la salida activa, para enlazar en la vista (afv() es una
@@ -104,20 +112,19 @@ class EscenasViewModel : public QObject {
     Q_INVOKABLE void addScene(const QString& name);
     Q_INVOKABLE void removeScene(const QString& name);
     Q_INVOKABLE void renameScene(const QString& from, const QString& to);
-    /// Copia una escena entera con sus fuentes. Devuelve el nombre que le
-    /// va a quedar (le agrega un numero si el que se pidio ya existia), o vacio si
-    /// no se puede pedir; si después falla, lo dice `notify`.
-    Q_INVOKABLE QString copyScene(const QString& from, const QString& to = {});
+    /// Copia una escena entera con sus fuentes (sin `to`, le propone un nombre libre). La
+    /// copia queda elegida en el editor; si falla, lo dice `notify`.
+    Q_INVOKABLE void copyScene(const QString& from, const QString& to = {});
     Q_INVOKABLE void setSceneProtected(const QString& name, bool protegida);
-    Q_INVOKABLE bool sceneProtected(const QString& name) const;
     /// Mueve la escena a una carpeta ("" la saca). Solo ordena la lista.
     Q_INVOKABLE void setSceneFolder(const QString& name, const QString& folder);
     /// Reordena: deja `name` justo antes de `before` (vacio = al final), en la
     /// carpeta de `before`.
     Q_INVOKABLE void moveScene(const QString& name, const QString& before);
-    /// Escena que muestra el lienzo del editor ("" = ninguna). Se renderiza
-    /// aunque no este al aire, asi una escena vacia se ve vacia.
-    Q_INVOKABLE void setScenePreview(const QString& name);
+    /// Una vista del editor (la página Escenas, en la ventana o suelta) muestra la escena
+    /// `que` en su lienzo: se renderiza aunque no esté al aire (así una escena vacía se ve
+    /// vacía), mientras alguna la mire (cuenta por vista: cerrar una no apaga a la otra).
+    Q_INVOKABLE void usar(QObject* vista, bool si, const QString& que = {}) { vistasEditor_.usar(vista, si, que); }
 
     // --- Bus de preview y TAKE ------------------------------------------------
     // Una mesa de switcher tiene DOS buses: lo que esta al aire (programa) y lo
@@ -150,7 +157,7 @@ class EscenasViewModel : public QObject {
     /// «Repetir»: guarda los últimos segundos y, cuando el clip está escrito, lo arma
     /// en la escena «Repetición» (lista para el take). "" (lo que pase después lo dice
     /// `notify`).
-    Q_INVOKABLE QString repetirUi();
+    Q_INVOKABLE void repetirUi();
     /// Lo mismo, para quien necesita el resultado (el MCP: replay_guardar): de la `salida`,
     /// armándolo solo con `armar`. `listo(archivo, error, armada)` en este hilo: error del
     /// motor o «no llegó a escribirse» con archivo vacío; con archivo, el error es el de armar.
@@ -191,6 +198,8 @@ class EscenasViewModel : public QObject {
 
     /// Rearma las filas del árbol (con las carpetas plegadas).
     void armarArbol();
+    /// La escena del lienzo del editor: la que miran las vistas (la elegida, si la miran).
+    void vistaDelEditor();
 
     Partes p_;
     std::unique_ptr<escenas::AjustesEscenas> ajustes_; ///< Config/escenas.json (modelo)
@@ -199,6 +208,8 @@ class EscenasViewModel : public QObject {
     QVariantMap transicionesAntes_;
     std::unique_ptr<ListaObjetos> arbol_;
     QSet<QString> plegadas_; ///< las carpetas plegadas del árbol (estado de la vista)
+    UsoPorVistas vistasEditor_{this, [this](const QString&) { vistaDelEditor(); }};
+    QString vistaEditor_; ///< la que se pidió al motor ("" = ninguna)
 };
 
 } // namespace ba::app

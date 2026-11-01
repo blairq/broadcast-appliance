@@ -17,6 +17,9 @@
 #include "ui/StudioViewModel.hpp"
 
 #include <algorithm>
+#include "ui/CapturaError.hpp"
+
+using ::ba::app::errorDe;
 
 namespace ba::app::mcp {
 
@@ -271,12 +274,12 @@ void McpService::registerDocumentosTools() {
         t.run = [pe](const json& a, Done done) {
             const QString f = QString::fromStdString(a.value("fuente", std::string()));
             QString e;
-            if (a.contains("documento")) e = pe->elegir(f, QString::fromStdString(a.value("documento", std::string())));
-            else if (a.contains("archivo")) e = pe->elegirArchivo(f, QString::fromStdString(a.value("archivo", std::string())));
-            if (e.isEmpty() && a.contains("pagina")) e = pe->irA(f, a.value("pagina", 1));
-            if (e.isEmpty() && a.contains("paso")) e = pe->paso(f, a.value("paso", 1));
+            if (a.contains("documento")) e = errorDe([&] { pe->elegir(f, QString::fromStdString(a.value("documento", std::string()))); });
+            else if (a.contains("archivo")) e = errorDe([&] { pe->elegirArchivo(f, QString::fromStdString(a.value("archivo", std::string()))); });
+            if (e.isEmpty() && a.contains("pagina")) e = errorDe([&] { pe->irA(f, a.value("pagina", 1)); });
+            if (e.isEmpty() && a.contains("paso")) e = errorDe([&] { pe->paso(f, a.value("paso", 1)); });
             if (e.isEmpty() && (a.contains("zoom") || a.contains("x") || a.contains("y")))
-                e = pe->encuadre(f, a.value("zoom", -1.0), a.value("x", -1.0), a.value("y", -1.0));
+                e = errorDe([&] { pe->encuadre(f, a.value("zoom", -1.0), a.value("x", -1.0), a.value("y", -1.0)); });
             if (!e.isEmpty()) return done(ToolResult::error(e.toStdString()));
             done(ToolResult().data(pe->estado()));
         };

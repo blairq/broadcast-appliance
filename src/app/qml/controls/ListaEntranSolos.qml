@@ -16,9 +16,10 @@ import BA
 ColumnLayout {
     id: les
     spacing: 8
-    readonly property var ev: Studio.evento
-    readonly property bool hayEvento: !!ev && ev.abierto !== ""
-    readonly property var conFicha: hayEvento ? ev.padron.filter(a => a.personaId) : []
+    readonly property var guionVm: Studio.evento.guionVm
+    readonly property var padronVm: Studio.evento.padronVm
+    readonly property bool hayEvento: guionVm.abierto !== ""
+    readonly property var conFicha: hayEvento ? padronVm.padron.filter(a => a.personaId) : []
     readonly property int solos: conFicha.filter(a => a.dejarPasarSolo).length
 
     // La lista cambia cada vez que alguien llega (se acredita): se actualiza
@@ -55,7 +56,7 @@ ColumnLayout {
             spacing: 8
             Toggle {
                 checked: solo
-                onToggled: (wanted) => Studio.evento.cambiarAsistente(id, { dejarPasarSolo: wanted })
+                onToggled: (wanted) => Studio.evento.padronVm.cambiarAsistente(id, { dejarPasarSolo: wanted })
             }
             Text { Layout.fillWidth: true; text: nombre || qsTr("(sin nombre)"); color: Theme.text; font.pixelSize: 13
                    elide: Text.ElideRight }
@@ -88,7 +89,7 @@ ColumnLayout {
             enabled: sumar.currentIndex >= 0
             onClicked: {
                 const p = sumar.opciones[sumar.currentIndex]
-                const id = Studio.evento.anotar({ personaId: p.id, nombre: p.nombre, dejarPasarSolo: true,
+                const id = Studio.evento.padronVm.anotar({ personaId: p.id, nombre: p.nombre, dejarPasarSolo: true,
                                                   papel: "panelista", estado: "confirmo" })
                 if (id === "") Studio.notify(qsTr("No se pudo sumar a «%1» al padrón.").arg(p.nombre), "error")
                 sumar.currentIndex = -1

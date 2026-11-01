@@ -63,6 +63,7 @@
 #include <QString>
 #include <QVariantList>
 #include <QVariantMap>
+#include "ui/CapturaError.hpp"
 
 namespace ba::app {
 
@@ -72,6 +73,17 @@ class ConferenceViewModel;
 
 class PantallasViewModel : public QObject {
     Q_OBJECT
+    /// El error de una acción de la interfaz (las Q_INVOKABLE void): a quien mira.
+    void avisarError(const QString& e) {
+        if (!e.isEmpty() && !::ba::app::CapturaError::tomar(e)) emit notify(e, "error");
+    }
+    void avisarError(const std::string& e) { avisarError(QString::fromStdString(e)); }
+    /// Para las acciones que dicen si se hicieron: el error a quien mira y true si no hubo.
+    bool sinError(const QString& e) {
+        avisarError(e);
+        return e.isEmpty();
+    }
+    bool sinError(const std::string& e) { return sinError(QString::fromStdString(e)); }
     /// Los destinos: [{id, nombre, modelo, host, puerto, fija, estado,
     /// contenido, que, error, volumen, vistaHace}].
     Q_PROPERTY(QVariantList pantallas READ pantallas NOTIFY cambio)
@@ -102,27 +114,26 @@ class PantallasViewModel : public QObject {
     Q_INVOKABLE void buscar();
     /// Agrega una a mano (cuando el mDNS no llega, que pasa entre VLANs).
     /// Devuelve el error, o vacío.
-    Q_INVOKABLE QString agregar(const QString& nombre, const QString& host, int puerto);
+    Q_INVOKABLE void agregar(const QString& nombre, const QString& host, int puerto);
     /// La saca de la lista. Si estaba mostrando algo, no se la toca: sacarla
     /// de la lista es olvidarla, no apagarla.
-    Q_INVOKABLE QString olvidar(const QString& id);
+    Q_INVOKABLE void olvidar(const QString& id);
     /// Le cambia el nombre. El que pone el operador gana sobre el que anuncia
     /// el aparato: "TV del hall" dice más que "Percee TV".
-    Q_INVOKABLE QString renombrar(const QString& id, const QString& nombre);
+    Q_INVOKABLE void renombrar(const QString& id, const QString& nombre);
     /// Fija lo que esta pantalla tiene que mostrar SIEMPRE. Se le manda ahora
     /// y cada vez que el aparato vuelva a aparecer.
-    Q_INVOKABLE QString fijar(const QString& id, const QString& tipo, const QVariantMap& datos);
+    Q_INVOKABLE void fijar(const QString& id, const QString& tipo, const QVariantMap& datos);
     /// Fija lo que ya está mostrando (el caso común: se probó y quedó bien).
-    Q_INVOKABLE QString fijarLoQueMuestra(const QString& id);
+    Q_INVOKABLE void fijarLoQueMuestra(const QString& id);
     /// Deja de tener algo fijo. No apaga lo que esté mostrando.
-    Q_INVOKABLE QString desfijar(const QString& id);
+    Q_INVOKABLE void desfijar(const QString& id);
     /// Le manda un contenido. `datos` son los campos de ese tipo.
-    Q_INVOKABLE QString mostrar(const QString& id, const QString& tipo, const QVariantMap& datos);
+    Q_INVOKABLE void mostrar(const QString& id, const QString& tipo, const QVariantMap& datos);
     /// Deja de mostrar (vuelve a su fondo de pantalla).
     Q_INVOKABLE void parar(const QString& id);
     /// Vuelve a preguntarle cómo está.
     Q_INVOKABLE void refrescar(const QString& id);
-    Q_INVOKABLE void setVolumen(const QString& id, double nivel);
     Q_INVOKABLE void silenciar(const QString& id, bool si);
     /// La URL que se le mandaría: para mostrarla en la interfaz y para probar
     /// desde un navegador sin tener el televisor a mano.
@@ -135,13 +146,13 @@ class PantallasViewModel : public QObject {
     Q_INVOKABLE QString carruselRenombrar(const QString& id, const QString& nombre);
     Q_INVOKABLE QString carruselTransicion(const QString& id, const QString& transicion);
     /// Agrega un paso al final.
-    Q_INVOKABLE QString pasoAgregar(const QString& carrusel, const QString& tipo, const QVariantMap& datos,
+    Q_INVOKABLE bool pasoAgregar(const QString& carrusel, const QString& tipo, const QVariantMap& datos,
                                     int segundos);
-    Q_INVOKABLE QString pasoQuitar(const QString& carrusel, int indice);
+    Q_INVOKABLE void pasoQuitar(const QString& carrusel, int indice);
     Q_INVOKABLE QString pasoMover(const QString& carrusel, int indice, int aIndice);
     Q_INVOKABLE QString pasoSegundos(const QString& carrusel, int indice, int segundos);
     /// Lo manda a una pantalla (y lo publica en el gateway si hace falta).
-    Q_INVOKABLE QString mostrarCarrusel(const QString& idPantalla, const QString& carrusel);
+    Q_INVOKABLE void mostrarCarrusel(const QString& idPantalla, const QString& carrusel);
     /// Vuelve a publicar la lista: el televisor la toma sin reiniciarse.
     Q_INVOKABLE void publicarCarrusel(const QString& id);
 

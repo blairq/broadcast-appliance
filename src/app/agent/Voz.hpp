@@ -70,6 +70,7 @@
 #include <set>
 #include <string>
 #include <vector>
+#include "ui/CapturaError.hpp"
 
 namespace ba::app {
 class AppRuntime;
@@ -90,6 +91,11 @@ class ModelosLocales;
 
 class Voz : public QObject {
     Q_OBJECT
+    /// El error de una acción de la interfaz (las Q_INVOKABLE void): a quien mira.
+    void avisarError(const QString& e) {
+        if (!e.isEmpty() && !::ba::app::CapturaError::tomar(e)) emit notify(e, "error");
+    }
+    void avisarError(const std::string& e) { avisarError(QString::fromStdString(e)); }
     /// Si esta compilación trae el motor de voz (sherpa-onnx).
     Q_PROPERTY(bool disponible READ disponible CONSTANT)
     /// Modelos cargados: se puede hablar.
@@ -162,8 +168,8 @@ class Voz : public QObject {
 
     QVariantMap cortes() const;
     QVariantList oido() const { return oido_; }
-    /// Cambia los cortes (y los guarda). "" o el error.
-    Q_INVOKABLE QString setCortes(double pausa, double maximo, double umbral);
+    /// Cambia los cortes (y los guarda). El error va por la señal del modelo.
+    Q_INVOKABLE void setCortes(double pausa, double maximo, double umbral);
     Q_INVOKABLE void apretar();
     Q_INVOKABLE void soltar();
     Q_INVOKABLE void cancelar();
@@ -194,8 +200,8 @@ class Voz : public QObject {
     /// Si el dictado tiene de dónde escuchar: el micrófono del operador, o una fuente
     /// con «Voz a texto» en modo dictado (EstadoIA avisa si no).
     bool dictadoConMicrofono() const;
-    /// Elegir el micrófono del operador entre las fuentes con audio. Devuelve el error o "".
-    Q_INVOKABLE QString setMicrofono(const QString& fuente);
+    /// Elegir el micrófono del operador entre las fuentes con audio. El error va por la señal del modelo.
+    Q_INVOKABLE void setMicrofono(const QString& fuente);
     QVariantList fuentesTexto() const;
     /// Poner o quitar voz a texto en una fuente: modo "dictado", "continuo" o "" (quitar).
     Q_INVOKABLE QString setTexto(const QString& fuente, const QString& modo);
@@ -227,10 +233,10 @@ class Voz : public QObject {
     /// (sin el margen de siempre); los que están oyendo siguen.
     void porCalor(bool on);
     /// El motor de un consumidor ("parakeet" o "nemotron"): lo cambia, lo guarda
-    /// y pasa sus oídos abiertos al motor nuevo. "" o el error.
-    Q_INVOKABLE QString elegirReconocedor(const QString& consumidor, const QString& motor);
+    /// y pasa sus oídos abiertos al motor nuevo. El error va por la señal del modelo.
+    Q_INVOKABLE void elegirReconocedor(const QString& consumidor, const QString& motor);
     /// Que la persona pueda interrumpir al asistente hablando (el tótem, con Nemotron).
-    Q_INVOKABLE QString setInterrumpir(const QString& consumidor, bool on);
+    Q_INVOKABLE void setInterrumpir(const QString& consumidor, bool on);
     /// Lo mismo que `reconocedores`, en JSON (el MCP).
     nlohmann::json reconocedoresJson() const;
     void cerrarOido(const QString& clave);

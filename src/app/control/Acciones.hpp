@@ -37,6 +37,7 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include "ui/CapturaError.hpp"
 
 namespace ba::app::control {
 
@@ -44,6 +45,11 @@ class AtajosGlobales;
 
 class Acciones : public QObject {
     Q_OBJECT
+    /// El error de una acción de la interfaz (las Q_INVOKABLE void): a quien mira.
+    void avisarError(const QString& e) {
+        if (!e.isEmpty() && !::ba::app::CapturaError::tomar(e)) emit notify(e, "error");
+    }
+    void avisarError(const std::string& e) { avisarError(QString::fromStdString(e)); }
     Q_PROPERTY(QVariantList atajos READ atajosUi NOTIFY cambio)
     Q_PROPERTY(bool globalesDisponibles READ globalesDisponibles CONSTANT)
     /// La salida que manejan los atajos ("" = la por omisión).
@@ -95,17 +101,19 @@ class Acciones : public QObject {
 
     QVariantList atajosUi() const;
     Q_INVOKABLE QVariantList catalogoUi() const;
-    Q_INVOKABLE QString ejecutarUi(const QString& id);
+    Q_INVOKABLE void ejecutarUi(const QString& id);
     /// Tocaron la tecla de un atajo: su acción y el pulso «tecla:<tecla>» para la línea.
     /// "" o el error.
     std::string tecla(const std::string& tecla);
-    Q_INVOKABLE QString teclaUi(const QString& t) { return QString::fromStdString(tecla(t.toStdString())); }
-    Q_INVOKABLE QString asignarUi(const QString& tecla, const QString& accion, bool global);
+    Q_INVOKABLE void teclaUi(const QString& t) { avisarError(QString::fromStdString(tecla(t.toStdString()))); }
+    Q_INVOKABLE void asignarUi(const QString& tecla, const QString& accion, bool global);
     Q_INVOKABLE bool quitarUi(const QString& tecla);
     /// El atajo de una acción («Ctrl+T»), para los tooltips. "" si no tiene.
     Q_INVOKABLE QString atajoDe(const QString& accion) const;
 
    signals:
+    /// Para el operador (ya traducido): los errores de las acciones de la interfaz.
+    void notify(const QString& texto, const QString& tipo);
     void cambio();
     void salidaCambio();
 

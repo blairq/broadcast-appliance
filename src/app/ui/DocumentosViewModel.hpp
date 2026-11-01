@@ -21,11 +21,23 @@
 #include <filesystem>
 #include <functional>
 #include <string>
+#include "ui/CapturaError.hpp"
 
 namespace ba::app {
 
 class DocumentosViewModel : public QObject {
     Q_OBJECT
+    /// El error de una acción de la interfaz (las Q_INVOKABLE void): a quien mira.
+    void avisarError(const QString& e) {
+        if (!e.isEmpty() && !::ba::app::CapturaError::tomar(e)) emit notify(e, "error");
+    }
+    void avisarError(const std::string& e) { avisarError(QString::fromStdString(e)); }
+    /// Para las acciones que dicen si se hicieron: el error a quien mira y true si no hubo.
+    bool sinError(const QString& e) {
+        avisarError(e);
+        return e.isEmpty();
+    }
+    bool sinError(const std::string& e) { return sinError(QString::fromStdString(e)); }
     /// [{id, archivo, titulo, descripcion, paginas, bytes, publico, puntos, secciones, miniatura, url_miniatura}]
     Q_PROPERTY(QVariantList lista READ listaUi NOTIFY cambio)
 
@@ -57,9 +69,9 @@ class DocumentosViewModel : public QObject {
 
     /// Desde la interfaz: varios archivos (rutas o URL file://). Devuelve los errores ("" si
     /// ninguno); los que hay que convertir avisan después (notify).
-    Q_INVOKABLE QString agregarUi(const QStringList& archivos);
-    Q_INVOKABLE QString editarUi(const QString& id, const QVariantMap& cambios);
-    Q_INVOKABLE QString quitarUi(const QString& id);
+    Q_INVOKABLE void agregarUi(const QStringList& archivos);
+    Q_INVOKABLE void editarUi(const QString& id, const QVariantMap& cambios);
+    Q_INVOKABLE bool quitarUi(const QString& id);
     /// Lo abre con el programa del sistema (el visor de PDF).
     Q_INVOKABLE void abrirUi(const QString& id);
     Q_INVOKABLE void abrirCarpetaUi();

@@ -20,6 +20,7 @@
 #include <QVariantMap>
 
 #include <nlohmann/json.hpp>
+#include "ui/CapturaError.hpp"
 
 namespace ba::app {
 
@@ -32,6 +33,11 @@ class PadronViewModel;
 
 class WebEventoViewModel : public QObject {
     Q_OBJECT
+    /// El error de una acción de la interfaz (las Q_INVOKABLE void): a quien mira.
+    void avisarError(const QString& e) {
+        if (!e.isEmpty() && !::ba::app::CapturaError::tomar(e)) emit notify(e, "error");
+    }
+    void avisarError(const std::string& e) { avisarError(QString::fromStdString(e)); }
     /// {hay, carpeta, paginas:[{pagina, nombre, existe}], sitio:{titulo, bajada, color, fondo,
     /// subdominio, barra, direccion_al_iniciar}, aviso}.
     Q_PROPERTY(QVariantMap web READ web NOTIFY webChanged)
@@ -51,8 +57,8 @@ class WebEventoViewModel : public QObject {
     QVariantMap web() const { return web_; }
     /// Genera el sitio en Web/. No pisa lo que ya existe salvo `sobrescribir`. {escritas, salteadas, error}.
     Q_INVOKABLE QVariantMap generarWeb(bool sobrescribir = false);
-    /// Cambia sitio.json (título, bajada, color, fondo, subdominio, barra…). "" o el error.
-    Q_INVOKABLE QString setWebSitio(const QVariantMap& campos);
+    /// Cambia sitio.json (título, bajada, color, fondo, subdominio, barra…). El error va por la señal del modelo.
+    Q_INVOKABLE void setWebSitio(const QVariantMap& campos);
     /// Una página por nombre («portada», «cierre», el id/nombre/número de una sección, o un
     /// .html/.css propio). Leer es del MCP (evento_web).
     QString leerPaginaWeb(const QString& pagina) const;

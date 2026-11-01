@@ -84,7 +84,7 @@ Rectangle {
                             text: conf.speakerCfg.defaultTexto || ""
                             font.pixelSize: 12
                             ToolTip.visible: hovered; ToolTip.text: qsTr("Tiempo general para cada orador (m:ss o minutos)")
-                            onEditingFinished: { const e = conf.setTiempoGeneral(text); if (e !== "") Studio.notify(e, "error") }
+                            onEditingFinished: { conf.setTiempoGeneral(text) }
                         }
                         ComboBox {
                             model: [qsTr("Uno a la vez"), qsTr("Varios")]
@@ -670,34 +670,33 @@ Rectangle {
                             Layout.fillHeight: true
                             clip: true
                             spacing: 6
-                            // Se nombra `chatRev` para que esto se vuelva a
-                            // pedir cuando llega un mensaje: QML no re-evalúa
-                            // una función porque cambie un modelo que no mira.
-                            model: { conf.chatRev; return conf.chatCon(page.hiloChat) }
+                            // El hilo elegido, filtrado del chat de la sala: lo nuevo entra solo.
+                            model: ChatHilo { fuente: conf.chat; hilo: page.hiloChat }
                             onCountChanged: Qt.callLater(positionViewAtEnd)
                             delegate: Item {
                                 id: msg
-                                required property var modelData
-                                readonly property string fromName: modelData.fromName
-                                readonly property string to: modelData.to
-                                readonly property string text: modelData.text
-                                readonly property bool mine: modelData.mine === true
-                                                             || modelData.fromId === "host"
+                                required property var fromName
+                                required property var fromId
+                                required property var to
+                                required property var text
+                                required property var voz
+                                required property var mine
+                                readonly property bool mio: mine === true || fromId === "host"
                                 width: ListView.view.width
                                 height: bubble.height
                                 Rectangle {
                                     id: bubble
-                                    anchors.right: msg.mine ? parent.right : undefined
+                                    anchors.right: msg.mio ? parent.right : undefined
                                     width: Math.min(parent.width * 0.8, msgCol.implicitWidth + 22)
                                     height: msgCol.implicitHeight + 14
                                     radius: 12
-                                    color: msg.mine ? Qt.rgba(1, 0.42, 0.17, 0.22) : Qt.rgba(1, 1, 1, 0.07)
+                                    color: msg.mio ? Qt.rgba(1, 0.42, 0.17, 0.22) : Qt.rgba(1, 1, 1, 0.07)
                                     Column {
                                         id: msgCol
                                         anchors { left: parent.left; top: parent.top; margins: 7; leftMargin: 11 }
                                         width: Math.min(implicitWidth, chatList.width * 0.8 - 22)
                                         // 🎙: lo DIJO hablando (la atención hablada lo pasó a texto).
-                                        Text { text: (msg.modelData.voz === true ? "🎙 " : "") + (msg.mine ? qsTr("Vos") : msg.fromName) + (msg.to === "all" ? "" : msg.to === "host" ? " → " + qsTr("operador") : " → " + conf.nameOf(msg.to))
+                                        Text { text: (msg.voz === true ? "🎙 " : "") + (msg.mio ? qsTr("Vos") : msg.fromName) + (msg.to === "all" ? "" : msg.to === "host" ? " → " + qsTr("operador") : " → " + conf.nameOf(msg.to))
                                                color: Theme.textFaint; font.pixelSize: 10 }
                                         Text { text: msg.text; color: Theme.text; font.pixelSize: 13; wrapMode: Text.Wrap
                                                width: Math.min(implicitWidth, chatList.width * 0.8 - 22) }

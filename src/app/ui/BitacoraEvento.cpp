@@ -212,7 +212,7 @@ void BitacoraEvento::cerrarEnHistorico(const std::string& carpeta) {
     if (!evento_) return;
     const auto dir = evento_->carpetaEvento(carpeta);
     if (dir.empty()) return;
-    const evento::DatosDelEvento d = evento_->datosEvento(carpeta);
+    const evento::DatosDelEvento d = evento_->listaVm().datos(carpeta);
     // Hasta cuándo: si ya terminó (el cierre que quedó pendiente de un día que
     // cambió con la app cerrada), su fin; si no, ahora.
     const qint64 ahora = d.terminadoMs != 0 && d.estado == "terminado" ? d.terminadoMs : QDateTime::currentMSecsSinceEpoch();
@@ -257,7 +257,7 @@ void BitacoraEvento::cerrarEnHistorico(const std::string& carpeta) {
 void BitacoraEvento::armar() {
     bitacora_ = std::make_unique<evento::Bitacora>();
     bitacora_->setLimpiador([](const nlohmann::json& j) { return mcp::Traza::limpio(j); });
-    const nlohmann::json aj = evento_->ajustesHistorico();
+    const nlohmann::json aj = evento_->listaVm().ajustesHistorico();
     const nlohmann::json reg = aj.value("registrar", nlohmann::json::object());
     for (const std::string& c : evento::Bitacora::categorias())
         bitacora_->setRegistrar(c, !reg.is_object() || reg.value(c, true));
@@ -283,7 +283,7 @@ void BitacoraEvento::armar() {
     });
     bitacora_->setArchivo(evento_->archivoBitacora());
     bitacora_->anotar("evento", "app", ba::i18n::traducir("historico", "la app arranca"),
-                      {{"evento", evento_->enCurso().value("carpeta").toString().toStdString()}});
+                      {{"evento", evento_->listaVm().enCurso().value("carpeta").toString().toStdString()}});
     // La configuración: lo que cambió con la app cerrada se ve al arrancar
     // (contra la última foto del evento), y después, cada 10 s.
     fotos_ = std::make_unique<evento::FotosConfig>(rt_.dataRoot() / "Config", evento_->raizEventos() / ".objetos");
@@ -294,11 +294,11 @@ void BitacoraEvento::armar() {
     // sellos, lo recibe ahora (su foto de cierre es la última que tuvo).
     {
         const qint64 semana = QDateTime::currentMSecsSinceEpoch() - 7LL * 24 * 3600 * 1000;
-        const std::string enCursoAhora = evento_->enCurso().value("carpeta").toString().toStdString();
-        for (const QVariant& v : evento_->eventos()) {
+        const std::string enCursoAhora = evento_->listaVm().enCurso().value("carpeta").toString().toStdString();
+        for (const QVariant& v : evento_->listaVm().eventos()) {
             const std::string c = v.toMap().value("carpeta").toString().toStdString();
             if (c.empty() || c == enCursoAhora) continue;
-            const auto d = evento_->datosEvento(c);
+            const auto d = evento_->listaVm().datos(c);
             const auto dir = evento_->carpetaEvento(c);
             std::error_code ec;
             if (d.estado != "terminado" || d.terminadoMs < semana || dir.empty() ||
@@ -407,9 +407,9 @@ void BitacoraEvento::armar() {
         b->anotar("bus", tema, {}, valor);
     });
     // Cambia el evento en curso: lo que sigue va a su carpeta.
-    auto anterior = std::make_shared<std::string>(evento_->enCurso().value("carpeta").toString().toStdString());
-    connect(evento_, &EventoViewModel::enCursoChanged, this, [this, anterior]() {
-        const std::string ahora = evento_->enCurso().value("carpeta").toString().toStdString();
+    auto anterior = std::make_shared<std::string>(evento_->listaVm().enCurso().value("carpeta").toString().toStdString());
+    connect(&evento_->listaVm(), &EventosListaViewModel::enCursoChanged, this, [this, anterior]() {
+        const std::string ahora = evento_->listaVm().enCurso().value("carpeta").toString().toStdString();
         if (ahora == *anterior) return;
         if (!anterior->empty()) {
             revisarConfig(*anterior, "cierre");

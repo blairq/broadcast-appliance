@@ -18,6 +18,8 @@
 #include <nlohmann/json.hpp>
 
 #include <filesystem>
+#include <map>
+#include <mutex>
 #include <string>
 
 namespace ba::app::video {
@@ -71,6 +73,11 @@ class CatalogoGst {
 
    private:
     void iniciar();
+    /// Lo que se puede ajustar de un módulo (o de un pad, con `plantilla`), con los valores
+    /// de fábrica: se pregunta a GStreamer una vez por módulo (crear el elemento cuesta).
+    nlohmann::json descripcion(const std::string& elemento, const std::string& plantilla) const;
+    mutable std::mutex descMu_;
+    mutable std::map<std::string, nlohmann::json> descripciones_;
 
     bool disponible_ = false;
     mutable nlohmann::json modulos_;

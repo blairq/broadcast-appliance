@@ -24,6 +24,7 @@
 #include <filesystem>
 #include <functional>
 #include <string>
+#include "ui/CapturaError.hpp"
 
 namespace ba::app::control {
 class BusEventos;
@@ -33,6 +34,17 @@ namespace ba::app::asamblea {
 
 class OrdenDelDia : public QObject {
     Q_OBJECT
+    /// El error de una acción de la interfaz (las Q_INVOKABLE void): a quien mira.
+    void avisarError(const QString& e) {
+        if (!e.isEmpty() && !::ba::app::CapturaError::tomar(e)) emit notify(e, "error");
+    }
+    void avisarError(const std::string& e) { avisarError(QString::fromStdString(e)); }
+    /// Para las acciones que dicen si se hicieron: el error a quien mira y true si no hubo.
+    bool sinError(const QString& e) {
+        avisarError(e);
+        return e.isEmpty();
+    }
+    bool sinError(const std::string& e) { return sinError(QString::fromStdString(e)); }
     Q_PROPERTY(QVariantList puntos READ puntosUi NOTIFY cambio)
     Q_PROPERTY(QVariantMap actual READ actualUi NOTIFY cambio)
    public:
@@ -62,12 +74,14 @@ class OrdenDelDia : public QObject {
 
     QVariantList puntosUi() const;
     QVariantMap actualUi() const;
-    Q_INVOKABLE QString cargarUi(const QString& texto);
+    Q_INVOKABLE bool cargarUi(const QString& texto);
     Q_INVOKABLE QString puntoUi(int n, const QString& estado, const QString& resultado = {});
-    Q_INVOKABLE QString siguienteUi() { return QString::fromStdString(siguiente()); }
+    Q_INVOKABLE void siguienteUi() { avisarError(QString::fromStdString(siguiente())); }
     Q_INVOKABLE void limpiarUi() { limpiar(); }
 
    signals:
+    /// Para el operador (ya traducido): los errores de las acciones de la interfaz.
+    void notify(const QString& texto, const QString& tipo);
     void cambio();
 
    private:

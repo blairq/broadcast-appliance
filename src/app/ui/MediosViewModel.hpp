@@ -142,7 +142,7 @@ class MediosViewModel : public QObject {
 
     /// Abre o cierra una carpeta del arbol.
     Q_INVOKABLE void plegar(const QString& relativa);
-    Q_INVOKABLE void abrirHasta(const QString& relativa);
+    void abrirHasta(const QString& relativa);
 
     /// Elegir. `modo`: "solo" (reemplaza), "sumar" (ctrl), "hasta" (shift, desde
     /// la ultima elegida). Son los tres gestos que cualquiera espera de una

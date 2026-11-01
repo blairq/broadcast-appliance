@@ -106,8 +106,7 @@ Item {
     function texto(db) { return db <= -99 ? "−∞" : (db > 0 ? "+" : "") + db.toFixed(1) }
     function abrirLsp(entrada, cual) {
         if (cual === "perfil") { confirmarPerfil.entrada = entrada; confirmarPerfil.open(); return }
-        const e = mz.abrirAnalisisLsp(entrada, cual)
-        if (e !== "") Studio.notify(e, "error")
+        mz.abrirAnalisisLsp(entrada, cual)
     }
     function mostrarEnMatriz(fila, bus) {
         m.mz.matrizAbierta = true
@@ -133,7 +132,7 @@ Item {
             text: qsTr("Abre el Profiler sobre «%1», escuchando al costado: lo que él emite no va al aire. Para medir, en el rack de la entrada conectá su salida a una tarjeta Salida (el parlante); el barrido de 20 Hz a 20 kHz puede sonar fuerte. Nada sale hasta que aprietes «Medir» en su interfaz.").arg(confirmarPerfil.entrada)
         }
         standardButtons: Dialog.Ok | Dialog.Cancel
-        onAccepted: { const e = m.mz.abrirAnalisisLsp(entrada, "perfil"); if (e !== "") Studio.notify(e, "error") }
+        onAccepted: { m.mz.abrirAnalisisLsp(entrada, "perfil") }
     }
 
     // --- Una tira de entrada ---------------------------------------------------------
@@ -232,13 +231,13 @@ Item {
                 Boton { texto: "PFL"; on: Studio.mezcla.pfl === t.nombre && Studio.mezcla.pflModo === "pfl"
                         colorOn: Theme.canalPfl; textoOn: "#1a1a1a"
                         ayuda: qsTr("Escucharla sola en los auriculares, antes del fader (lo que entrega la entrada). Lo que ya iba ahí vuelve al soltarla")
-                        alTocar: () => { const e = Studio.mezcla.pflUi(t.nombre); if (e !== "") Studio.notify(e, "error") } }
+                        alTocar: () => { Studio.mezcla.pflUi(t.nombre) } }
                 Boton { texto: "AFL"; on: Studio.mezcla.pfl === t.nombre && Studio.mezcla.pflModo === "afl"
                         colorOn: Theme.canalPfl; textoOn: "#1a1a1a"
                         ayuda: Studio.salidas.varias
                                ? qsTr("Escucharla sola en los auriculares con el fader y el mute de «%1». Lo que ya iba ahí vuelve al soltarla").arg(Studio.salidas.activaDatos.nombre || "")
                                : qsTr("Escucharla sola en los auriculares con su fader y su mute. Lo que ya iba ahí vuelve al soltarla")
-                        alTocar: () => { const e = Studio.mezcla.aflUi(t.nombre); if (e !== "") Studio.notify(e, "error") } }
+                        alTocar: () => { Studio.mezcla.aflUi(t.nombre) } }
             }
             // Sincronizar con el video (sincro labios): el retardo del canal.
             Boton {

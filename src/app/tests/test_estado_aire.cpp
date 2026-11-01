@@ -63,9 +63,8 @@ int main(int argc, char** argv) {
     comprobar(aire.recordTime() == "01:02:03", "el tiempo de una grabación que ya andaba es el de verdad");
     comprobar(aire.recordStartMs() == f.estado.grabaDesdeMs, "recordStartMs sale de la foto");
 
-    int aireN = 0, tiemposN = 0, estadisticasN = 0, avisos = 0;
+    int aireN = 0, estadisticasN = 0, avisos = 0;
     QObject::connect(&aire, &EstadoAireViewModel::aireChanged, [&]() { ++aireN; });
-    QObject::connect(&aire, &EstadoAireViewModel::tiemposChanged, [&]() { ++tiemposN; });
     QObject::connect(&aire, &EstadoAireViewModel::estadisticasChanged, [&]() { ++estadisticasN; });
     QObject::connect(&aire, &EstadoAireViewModel::notify, [&](const QString&, const QString&) { ++avisos; });
 
@@ -84,13 +83,12 @@ int main(int argc, char** argv) {
     comprobar(estadisticasN == 2, "lo que quedó pendiente sale al cumplirse el segundo");
 
     // Termina la grabación (pedida): aire y tiempos ya, y el aviso corto.
-    const int tiemposAntes = tiemposN;
     f.estado.graba = false;
     f.estado.haySalida = false;
     f.estado.grabaDesdeMs = 0;
     publicar(v, f, FotoMotor::Estado);
     comprobar(aireN == 1, "terminar avisa aireChanged una vez");
-    comprobar(tiemposN > tiemposAntes, "y los tiempos de una (vuelven a 00:00:00)");
+    comprobar(aire.grabaDesdeMs() == 0, "y la marca de inicio se va con el mismo aviso (la vista vuelve a 00:00:00)");
     comprobar(aire.recordTime() == "00:00:00", "sin grabar, el reloj en cero");
     comprobar(avisos == 1, "«Grabación detenida»");
 

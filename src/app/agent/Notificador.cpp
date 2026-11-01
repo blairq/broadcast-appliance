@@ -235,11 +235,11 @@ void Notificador::enviarSmtp(const json& n, const std::string& clave, const std:
 
 QVariantList Notificador::listaUi() const { return aQv(lista()).toList(); }
 
-QString Notificador::agregarUi(const QVariantMap& def, const QString& clave) {
+bool Notificador::agregarUi(const QVariantMap& def, const QString& clave) {
     const json d = json::parse(QJsonDocument(QJsonObject::fromVariantMap(def)).toJson(QJsonDocument::Compact).toStdString(),
                                nullptr, false);
     const json r = agregar(d, clave.toStdString());
-    return QString::fromStdString(r.value("error", std::string()));
+    return sinError(QString::fromStdString(r.value("error", std::string())));
 }
 
 void Notificador::probarUi(const QString& id) {

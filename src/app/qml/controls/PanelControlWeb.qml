@@ -57,8 +57,7 @@ ColumnLayout {
                     currentIndex: Math.max(0, raiz.cw.salidas.findIndex(s => s.id === ap.modelData.salida || (!ap.modelData.salida && s.por_omision)))
                     onActivated: (i) => {
                         const s = raiz.cw.salidas[i]
-                        const e = raiz.cw.salidaUi(ap.modelData.id, s.por_omision ? "" : s.id)
-                        if (e !== "") Studio.notify(e, "error")
+                        raiz.cw.salidaUi(ap.modelData.id, s.por_omision ? "" : s.id)
                     }
                 }
                 Text { text: qsTr("Perfil"); color: Theme.textDim; font.pixelSize: 12 }

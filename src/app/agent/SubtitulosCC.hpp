@@ -21,6 +21,7 @@
 #include <filesystem>
 #include <functional>
 #include <memory>
+#include "ui/CapturaError.hpp"
 
 class QNetworkAccessManager;
 
@@ -30,6 +31,11 @@ class FlujosTexto;
 
 class SubtitulosCC : public QObject {
     Q_OBJECT
+    /// El error de una acción de la interfaz (las Q_INVOKABLE void): a quien mira.
+    void avisarError(const QString& e) {
+        if (!e.isEmpty() && !::ba::app::CapturaError::tomar(e)) emit notify(e, "error");
+    }
+    void avisarError(const std::string& e) { avisarError(QString::fromStdString(e)); }
     /// Lo de estado(), para enlazarse (cambia con `cambio`).
     Q_PROPERTY(QVariantMap estadoCc READ estado NOTIFY cambio)
    public:
@@ -40,13 +46,15 @@ class SubtitulosCC : public QObject {
 
     /// {activo, flujo, metodo, url_youtube(tiene), enviadas, ultimas[]}.
     QVariantMap estado() const;
-    /// {flujo, metodo: 608|youtube_http|ambos, url?}. "" o el error.
-    Q_INVOKABLE QString activar(const QVariantMap& cfg);
+    /// {flujo, metodo: 608|youtube_http|ambos, url?}. El error va por la señal del modelo.
+    Q_INVOKABLE void activar(const QVariantMap& cfg);
     Q_INVOKABLE void desactivar();
-    /// Manda un texto de prueba por lo configurado. "" o el error.
-    Q_INVOKABLE QString probar(const QString& texto);
+    /// Manda un texto de prueba por lo configurado. El error va por la señal del modelo.
+    Q_INVOKABLE void probar(const QString& texto);
 
    signals:
+    /// Para el operador (ya traducido): los errores de las acciones de la interfaz.
+    void notify(const QString& texto, const QString& tipo);
     void cambio();
 
    private:

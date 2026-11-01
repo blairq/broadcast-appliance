@@ -53,7 +53,6 @@ Popup {
             accept: qsTr("Mover igual"), reject: qsTr("Cancelar"), action: accion
         })
     }
-    function avisar(e) { if (e) Studio.notify(e, "error") }
     // La toma propia en curso (las de MCP corren aparte).
     property string esperando: ""
     function empezar(r) {
@@ -134,17 +133,17 @@ Popup {
                     width: Math.min(vista.iw, vista.ih); height: width
                     color: "transparent"; border { color: Qt.rgba(1, 1, 1, 0.5); width: 1 }
                 }
-                onClic: (u, v) => dlg.siNoAlAire(function() { dlg.avisar(dlg.cc.apuntar(dlg.entrada, u, v, 0, 0)) })
-                onCuadro: (u, v, an, al) => dlg.siNoAlAire(function() { dlg.avisar(dlg.cc.apuntar(dlg.entrada, u, v, an, al)) })
-                onDobleClic: if (dlg.digital) dlg.siNoAlAire(function() { dlg.avisar(dlg.cc.encuadre(dlg.entrada, 0.5, 0.5, 1, 0.8)) })
+                onClic: (u, v) => dlg.siNoAlAire(function() { dlg.cc.apuntar(dlg.entrada, u, v, 0, 0) })
+                onCuadro: (u, v, an, al) => dlg.siNoAlAire(function() { dlg.cc.apuntar(dlg.entrada, u, v, an, al) })
+                onDobleClic: if (dlg.digital) dlg.siNoAlAire(function() { dlg.cc.encuadre(dlg.entrada, 0.5, 0.5, 1, 0.8) })
                 onRueda: (sentido) => {
                     if (dlg.digital) {
                         const z = dlg.pos.zoom || 1
-                        dlg.avisar(dlg.cc.encuadre(dlg.entrada, dlg.pos.x || 0.5, dlg.pos.y || 0.5,
-                                                   Math.max(1, Math.min(8, z * (sentido > 0 ? 1.15 : 1 / 1.15))), 0.15))
+                        dlg.cc.encuadre(dlg.entrada, dlg.pos.x || 0.5, dlg.pos.y || 0.5,
+                                        Math.max(1, Math.min(8, z * (sentido > 0 ? 1.15 : 1 / 1.15))), 0.15)
                     } else {
                         // Óptico: un empujón de zoom que se frena solo (como la ventana del PTZ).
-                        dlg.avisar(dlg.cc.mover(dlg.entrada, 0, 0, sentido * 0.5))
+                        dlg.cc.mover(dlg.entrada, 0, 0, sentido * 0.5)
                         pararZoom.restart()
                     }
                 }

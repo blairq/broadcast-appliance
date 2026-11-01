@@ -23,6 +23,7 @@
 #include <string>
 
 #include "evento/LineaProductor.hpp"
+#include "ui/CapturaError.hpp"
 
 namespace ba::app {
 
@@ -33,6 +34,11 @@ class BusEventos;
 
 class LineaProductor : public QObject {
     Q_OBJECT
+    /// El error de una acción de la interfaz (las Q_INVOKABLE void): a quien mira.
+    void avisarError(const QString& e) {
+        if (!e.isEmpty() && !::ba::app::CapturaError::tomar(e)) emit aviso(e);
+    }
+    void avisarError(const std::string& e) { avisarError(QString::fromStdString(e)); }
     /// [{salida, overSeg, texto, opciones: [{id, tipo, texto, ganaSeg, resultado}]}]
     Q_PROPERTY(QVariantList propuestas READ propuestasUi NOTIFY propuestasChanged)
     /// Vigila o no (por omisión, sí).
@@ -55,8 +61,8 @@ class LineaProductor : public QObject {
     void setUmbralSeg(int s);
 
     /// Una persona eligió la opción `opcion` de la propuesta de `salida`: se aplica
-    /// (linea_editar, queda la revisión para deshacer). "" o el error.
-    Q_INVOKABLE QString aplicar(const QString& salida, const QString& opcion);
+    /// (linea_editar, queda la revisión para deshacer). El error va por la señal del modelo.
+    Q_INVOKABLE void aplicar(const QString& salida, const QString& opcion);
     /// La persona la descarta (vuelve a proponer si el over crece un escalón).
     Q_INVOKABLE void descartar(const QString& salida);
 

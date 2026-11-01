@@ -12,6 +12,9 @@
 #include "mcp/McpCore.hpp"
 #include "mcp/McpToolsCommon.hpp"
 #include "ui/TemaEventoViewModel.hpp"
+#include "ui/CapturaError.hpp"
+
+using ::ba::app::errorDe;
 
 namespace ba::app::mcp {
 
@@ -93,15 +96,15 @@ void registerTemaTools(McpCore& core, TemaEventoViewModel& tema) {
             return listo(tema.cambiarJson(c));
         }
         if (acc == "logo")
-            return listo(tema.subirLogo(QString::fromStdString(a.value("archivo", std::string())),
-                                        QString::fromStdString(a.value("cual", std::string("logo")))));
+            return listo(errorDe([&] { tema.subirLogo(QString::fromStdString(a.value("archivo", std::string())),
+                                        QString::fromStdString(a.value("cual", std::string("logo")))); }));
         if (acc == "fuente")
-            return listo(tema.subirFuente(QString::fromStdString(a.value("archivo", std::string())),
+            return listo(errorDe([&] { tema.subirFuente(QString::fromStdString(a.value("archivo", std::string())),
                                           QString::fromStdString(a.value("familia", std::string())),
                                           QString::fromStdString(a.value("peso", std::string("400"))),
-                                          QString::fromStdString(a.value("estilo", std::string("normal")))));
-        if (acc == "quitar") return listo(tema.quitar(QString::fromStdString(a.value("que", std::string()))));
-        if (acc == "restablecer") return listo(tema.restablecer());
+                                          QString::fromStdString(a.value("estilo", std::string("normal")))); }));
+        if (acc == "quitar") return listo(errorDe([&] { tema.quitar(QString::fromStdString(a.value("que", std::string()))); }));
+        if (acc == "restablecer") return listo(errorDe([&] { tema.restablecer(); }));
         if (acc == "migrar_sitio") {
             const QVariantMap r = tema.migrarSitio();
             if (r.contains("error")) return done(ToolResult::error(r.value("error").toString().toStdString()));

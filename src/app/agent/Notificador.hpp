@@ -24,11 +24,23 @@
 #include <functional>
 #include <mutex>
 #include <string>
+#include "ui/CapturaError.hpp"
 
 namespace ba::app::agent {
 
 class Notificador : public QObject {
     Q_OBJECT
+    /// El error de una acción de la interfaz (las Q_INVOKABLE void): a quien mira.
+    void avisarError(const QString& e) {
+        if (!e.isEmpty() && !::ba::app::CapturaError::tomar(e)) emit notify(e, "error");
+    }
+    void avisarError(const std::string& e) { avisarError(QString::fromStdString(e)); }
+    /// Para las acciones que dicen si se hicieron: el error a quien mira y true si no hubo.
+    bool sinError(const QString& e) {
+        avisarError(e);
+        return e.isEmpty();
+    }
+    bool sinError(const std::string& e) { return sinError(QString::fromStdString(e)); }
     Q_PROPERTY(QVariantList lista READ listaUi NOTIFY cambio)
    public:
     using json = nlohmann::json;
@@ -44,12 +56,14 @@ class Notificador : public QObject {
     void enviar(const std::string& id, const std::string& titulo, const std::string& texto, Listo listo);
 
     QVariantList listaUi() const;
-    Q_INVOKABLE QString agregarUi(const QVariantMap& def, const QString& secreto);
+    Q_INVOKABLE bool agregarUi(const QVariantMap& def, const QString& secreto);
     Q_INVOKABLE bool borrarUi(const QString& id) { return borrar(id.toStdString()); }
     /// Manda uno de prueba; el resultado llega por `probado`.
     Q_INVOKABLE void probarUi(const QString& id);
 
    signals:
+    /// Para el operador (ya traducido): los errores de las acciones de la interfaz.
+    void notify(const QString& texto, const QString& tipo);
     void cambio();
     void probado(const QString& id, bool ok, const QString& detalle);
 

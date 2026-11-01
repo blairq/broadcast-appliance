@@ -179,7 +179,7 @@ Rectangle {
                         ComboBox {
                             id: plantillaBox
                             Layout.fillWidth: true
-                            model: [{ id: "", nombre: qsTr("Vacío") }].concat(page.bot.plantillasUi())
+                            model: [{ id: "", nombre: qsTr("Vacío") }].concat(page.bot.plantillas)
                             textRole: "nombre"
                         }
                         GlassButton {
@@ -230,8 +230,7 @@ Rectangle {
                             compact: true; text: qsTr("Grilla")
                             ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: qsTr("Cambiar columnas y filas de esta página a las de arriba")
                             onClicked: {
-                                const e = page.bot.editarPaginaUi(page.perfilId, page.paginaId, { columnas: pagCols.value, filas: pagFilas.value })
-                                if (e !== "") Studio.notify(e, "error")
+                                page.bot.editarPaginaUi(page.perfilId, page.paginaId, { columnas: pagCols.value, filas: pagFilas.value })
                             }
                         }
                         GlassButton {
@@ -268,8 +267,7 @@ Rectangle {
                             textRole: "nombre"
                             currentIndex: Math.max(0, model.findIndex(s => s.id === (page.perfilActual() ? page.perfilActual().salida : "")))
                             onActivated: (i) => {
-                                const e = page.bot.editarPerfilUi(page.perfilId, { salida: model[i].id })
-                                if (e !== "") Studio.notify(e, "error")
+                                page.bot.editarPerfilUi(page.perfilId, { salida: model[i].id })
                             }
                         }
                     }
@@ -278,8 +276,8 @@ Rectangle {
                             compact: true; text: qsTr("Guardar permisos")
                             onClicked: {
                                 const l = permisos.text.split(",").map(s => s.trim()).filter(s => s !== "")
-                                const e = page.bot.editarPerfilUi(page.perfilId, { herramientas_permitidas: l, puede_editar: puedeEditar.checked })
-                                Studio.notify(e === "" ? qsTr("Permisos guardados") : e, e === "" ? "ok" : "error")
+                                if (page.bot.editarPerfilUi(page.perfilId, { herramientas_permitidas: l, puede_editar: puedeEditar.checked }))
+                                    Studio.notify(qsTr("Permisos guardados"), "ok")
                             }
                         }
                         GlassButton {
@@ -401,7 +399,7 @@ Rectangle {
                     property string modo: "celda"   // celda | perfil (importar/exportar)
                     property string caraRef: ""      // estilo.imagen: «medio:<id>», «ptz:…», «cuerpo:…»
                     property bool alTocar: false     // la acción pone la cara al aire (lo decide el modelo)
-                    readonly property var caraInfo: caraRef.startsWith("medio:") ? Studio.carasBotonera.info(caraRef.substring(6)) : ({})
+                    readonly property var caraInfo: caraRef.startsWith("medio:") ? (Studio.carasBotonera.caras[caraRef.substring(6)] || ({})) : ({})
                     // La celda elegida tal como la guarda el modelo (Botonera::formularioCelda).
                     function cargar(f) {
                         editor.modo = "celda"
@@ -676,8 +674,7 @@ Rectangle {
                                 text: Studio.satellite.activo ? qsTr("Apagar") : qsTr("Prender")
                                 active: !Studio.satellite.activo
                                 onClicked: {
-                                    const e = Studio.satellite.configurar(!Studio.satellite.activo, satPuerto.value)
-                                    if (e !== "") Studio.notify(e, "error")
+                                    Studio.satellite.configurar(!Studio.satellite.activo, satPuerto.value)
                                 }
                             }
                         }
@@ -726,10 +723,8 @@ Rectangle {
                     Layout.fillWidth: true
                     padding: 14
                     implicitHeight: apiCol.implicitHeight + 2 * padding
-                    property var api: Studio.control.apiRemotaUi()
+                    readonly property var api: Studio.control.apiRemota
                     property var nuevo: ({})
-                    function refrescar() { apiPanel.api = Studio.control.apiRemotaUi() }
-                    Connections { target: page.bot; function onDispositivosCambio() { apiPanel.refrescar() } }
                     ColumnLayout {
                         id: apiCol
                         anchors.fill: parent
@@ -745,12 +740,11 @@ Rectangle {
                                 onClicked: {
                                     const r = Studio.control.crearAccesoHttpUi(page.bot.perfiles[apiPerfil.currentIndex].id, "Companion (HTTP)")
                                     if (r.error) Studio.notify(r.error, "error"); else apiPanel.nuevo = r
-                                    apiPanel.refrescar()
                                 }
                             }
                             GlassButton {
                                 compact: true; text: apiPanel.api.activo ? qsTr("Apagar") : qsTr("Prender"); active: !apiPanel.api.activo
-                                onClicked: { Studio.control.setApiRemotaUi(!apiPanel.api.activo); apiPanel.refrescar() }
+                                onClicked: Studio.control.setApiRemotaUi(!apiPanel.api.activo)
                             }
                         }
                         Text {
@@ -834,8 +828,7 @@ Rectangle {
                                 textRole: "nombre"
                                 currentIndex: page.bot.perfiles.findIndex(p => p.id === modelData.perfil)
                                 onActivated: (i) => {
-                                    const e = page.bot.asignarUi(modelData.id, page.bot.perfiles[i].id, "")
-                                    if (e !== "") Studio.notify(e, "error")
+                                    page.bot.asignarUi(modelData.id, page.bot.perfiles[i].id, "")
                                 }
                             }
                             // La salida que maneja el aparato (la del perfil si no eligió otra).
@@ -846,8 +839,7 @@ Rectangle {
                                 textRole: "nombre"
                                 currentIndex: Math.max(0, model.findIndex(s => s.id === (modelData.salida || "")))
                                 onActivated: (i) => {
-                                    const e = page.bot.elegirSalidaUi(modelData.id, model[i].id)
-                                    if (e !== "") Studio.notify(e, "error")
+                                    page.bot.elegirSalidaUi(modelData.id, model[i].id)
                                 }
                             }
                             GlassButton {
@@ -943,8 +935,7 @@ Rectangle {
                             if (t === "") return
                             ev.accepted = true
                             atajosTab.capturando = ""
-                            const e = Studio.acciones.asignarUi(t, modelData.id, globalF.checked)
-                            if (e !== "") Studio.notify(e, "error")
+                            Studio.acciones.asignarUi(t, modelData.id, globalF.checked)
                         }
                     }
                     CheckBox {
@@ -953,13 +944,12 @@ Rectangle {
                         enabled: Studio.acciones.globalesDisponibles
                         checked: !!(parent.atajo && parent.atajo.global)
                         onToggled: if (parent.atajo) {
-                            const e = Studio.acciones.asignarUi(parent.atajo.tecla, modelData.id, checked)
-                            if (e !== "") Studio.notify(e, "error")
+                            Studio.acciones.asignarUi(parent.atajo.tecla, modelData.id, checked)
                         }
                     }
                     GlassButton { compact: true; text: qsTr("Asignar"); onClicked: atajosTab.capturando = modelData.id }
                     GlassButton { compact: true; text: "✕"; enabled: !!parent.atajo; onClicked: Studio.acciones.quitarUi(modelData.id) }
-                    GlassButton { compact: true; text: "▶"; onClicked: { const e = Studio.acciones.ejecutarUi(modelData.id); if (e !== "") Studio.notify(e, "error") } }
+                    GlassButton { compact: true; text: "▶"; onClicked: { Studio.acciones.ejecutarUi(modelData.id) } }
                 }
             }
         }

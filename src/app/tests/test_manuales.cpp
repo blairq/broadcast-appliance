@@ -8,6 +8,9 @@
 
 #include "i18n/I18n.hpp"
 #include "ui/ManualesViewModel.hpp"
+#include "ui/CapturaError.hpp"
+
+using ::ba::app::errorDe;
 
 using ba::app::ManualesViewModel;
 
@@ -44,9 +47,9 @@ int main(int argc, char** argv) {
     m.setAlcance(19);
     CHECK(m.encargo().contains("| 19 ("), "el alcance elegido");
     enVivo = true;
-    CHECK(!m.generar().isEmpty() && encargado.isEmpty(), "en vivo no se genera");
+    CHECK(!errorDe([&] { m.generar(); }).isEmpty() && encargado.isEmpty(), "en vivo no se genera");
     enVivo = false;
-    CHECK(m.generar().isEmpty() && encargado == m.encargo() && QDir(m.carpeta() + "/capturas").exists(),
+    CHECK(errorDe([&] { m.generar(); }).isEmpty() && encargado == m.encargo() && QDir(m.carpeta() + "/capturas").exists(),
           "sin aire: se lo encarga al asistente y prepara la carpeta");
     std::printf(g_fallas ? "\n%d fallas\n" : "\ntodo ok\n", g_fallas);
     return g_fallas ? 1 : 0;

@@ -33,11 +33,6 @@ Rectangle {
 
     function avisar(txt, tipo) { Studio.notify(txt, tipo || "error") }
     /// Los errores de los ViewModel vuelven como string: vacío es que salió bien.
-    function chequear(err, bien) {
-        if (err && err !== "") avisar(err)
-        else if (bien) avisar(bien, "ok")
-        return !err || err === ""
-    }
 
     ColumnLayout {
         anchors { fill: parent; leftMargin: page.leftInset; margins: 20 }
@@ -126,7 +121,7 @@ Rectangle {
                     title: qsTr("¿Quitar este teleprompter?"),
                     text: qsTr("Su página deja de existir y las tablets que lo miran se quedan sin texto. Los discursos no se borran."),
                     accept: qsTr("Quitar"), reject: qsTr("Cancelar"),
-                    action: () => page.chequear(page.p.quitarPrompter(page.p.elegido))
+                    action: () => page.p.quitarPrompter(page.p.elegido)
                 })
             }
         }
@@ -228,8 +223,7 @@ Rectangle {
                                 GlassButton {
                                     compact: true; text: qsTr("Cargar")
                                     visible: raton.containsMouse || doc.modelData.cargado
-                                    onClicked: page.chequear(page.p.cargar(doc.modelData.rel),
-                                                             qsTr("«%1» está en el teleprompter").arg(doc.modelData.nombre))
+                                    onClicked: if (page.p.cargar(doc.modelData.rel)) page.avisar(qsTr("«%1» está en el teleprompter").arg(doc.modelData.nombre), "info")
                                     ToolTip.visible: hovered
                                     ToolTip.text: qsTr("Lo manda al teleprompter. Queda listo, pero parado.")
                                 }
@@ -250,7 +244,7 @@ Rectangle {
                                         delegate: MenuItem {
                                             required property string modelData
                                             text: modelData === "" ? qsTr("%1 (raíz)").arg("Discursos/") : modelData
-                                            onTriggered: page.chequear(page.p.mover(doc.modelData.rel, modelData))
+                                            onTriggered: page.p.mover(doc.modelData.rel, modelData)
                                         }
                                     }
                                 }
@@ -301,13 +295,13 @@ Rectangle {
                         GlassButton {
                             compact: true; text: qsTr("Guardar"); icon: "↓"
                             enabled: page.p.sucio
-                            onClicked: page.chequear(page.p.guardar(), qsTr("Guardado"))
+                            onClicked: if (page.p.guardar()) page.avisar(qsTr("Guardado"), "info")
                         }
                         GlassButton {
                             compact: true; text: qsTr("Mandar al prompter"); icon: "▤"
                             active: true
                             enabled: page.p.abierto !== ""
-                            onClicked: page.chequear(page.p.cargarDelEditor(), qsTr("Mandado, y parado"))
+                            onClicked: if (page.p.cargarDelEditor()) page.avisar(qsTr("Mandado, y parado"), "info")
                             ToolTip.visible: hovered
                             ToolTip.text: qsTr("Manda lo que ves acá, sin guardarlo primero. Queda listo, pero parado.")
                         }
@@ -567,7 +561,7 @@ Rectangle {
         title: qsTr("Discurso nuevo")
         standardButtons: Dialog.Ok | Dialog.Cancel
         onOpened: { nombreDoc.text = ""; nombreDoc.forceActiveFocus() }
-        onAccepted: page.chequear(page.p.crear(nombreDoc.text))
+        onAccepted: page.p.crear(nombreDoc.text)
         ColumnLayout {
             TextField {
                 id: nombreDoc
@@ -590,7 +584,7 @@ Rectangle {
         title: qsTr("Carpeta nueva")
         standardButtons: Dialog.Ok | Dialog.Cancel
         onOpened: { nombreCarpeta.text = ""; nombreCarpeta.forceActiveFocus() }
-        onAccepted: page.chequear(page.p.crearCarpeta(nombreCarpeta.text))
+        onAccepted: page.p.crearCarpeta(nombreCarpeta.text)
         TextField {
             id: nombreCarpeta
             width: 320
@@ -614,7 +608,7 @@ Rectangle {
                 const r = page.p.agregarPrompter(nombreP.text)
                 if (r.error) page.avisar(r.error)
             } else {
-                page.chequear(page.p.renombrarPrompter(page.p.elegido, nombreP.text))
+                page.p.renombrarPrompter(page.p.elegido, nombreP.text)
             }
         }
         TextField {
@@ -634,7 +628,7 @@ Rectangle {
         standardButtons: Dialog.Ok | Dialog.Cancel
         property string rel: ""
         onOpened: { nombreNuevo.text = rel.split("/").pop(); nombreNuevo.forceActiveFocus() }
-        onAccepted: page.chequear(page.p.renombrar(rel, nombreNuevo.text))
+        onAccepted: page.p.renombrar(rel, nombreNuevo.text)
         TextField {
             id: nombreNuevo
             width: 320
@@ -650,7 +644,7 @@ Rectangle {
         title: qsTr("¿Borrar el discurso?")
         standardButtons: Dialog.Yes | Dialog.No
         property string rel: ""
-        onAccepted: page.chequear(page.p.borrar(rel))
+        onAccepted: page.p.borrar(rel)
         Text {
             width: 320
             wrapMode: Text.WordWrap
@@ -670,7 +664,7 @@ Rectangle {
         standardButtons: Dialog.Save | Dialog.Discard | Dialog.Cancel
         property string proximo: ""
         function abrirOtro(rel) { proximo = rel; open() }
-        onAccepted: { if (page.chequear(page.p.guardar())) page.p.abrir(proximo) }
+        onAccepted: { if (page.p.guardar()) page.p.abrir(proximo) }
         onDiscarded: { page.p.abrir(proximo); close() }
         Text {
             width: 340

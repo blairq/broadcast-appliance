@@ -58,7 +58,7 @@ class ResolucionModel : public QObject {
     QVariantMap niveles() const { return niveles_; }
     QVariantMap planes() const { return planesUi_; }
     /// Una vista empieza (true) o deja (false) de mirar: mientras alguien mira se recalcula cada 2 s.
-    Q_INVOKABLE void usar(QObject* vista, bool si) { mirando_.usar(vista, si); }
+    Q_INVOKABLE void usar(QObject* vista, bool si, const QString& que = {}) { mirando_.usar(vista, si, que); }
     /// Lo recalcula ahora y devuelve {entradas: {nombre: plan}, niveles}.
     nlohmann::json recalcular();
     /// El plan de una entrada (recalculado ahora). null si no existe.

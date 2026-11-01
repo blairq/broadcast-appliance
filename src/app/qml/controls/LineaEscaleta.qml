@@ -35,16 +35,14 @@ Item {
     }
     function irA(p) {
         if (!esc.lv) return
-        const e = esc.lv.irA(p.id)
-        if (e !== "") Studio.notify(e, "error")
+        esc.lv.irA(p.id)
     }
-    function hacer(e) { if (e !== "") Studio.notify(e, "error") }
     /// Se puede arrastrar lo que viene (lo emitido y lo que está al aire, no).
     function arrastrable(p) { return p.editable !== false && (p.estado === "proximo" || p.estado === "futuro" || p.estado === "salteado") }
     /// Se suelta detrás de `q` (un paso) o, con `bloque` y sin `q`, al principio del bloque.
     function soltar(paso, q, bloque) {
         if (!esc.lv || !paso || (q && q.id === paso)) return
-        esc.hacer(esc.lv.reordenar(paso, q ? q.bloque : bloque, q ? q.id : ""))
+        esc.lv.reordenar(paso, q ? q.bloque : bloque, q ? q.id : "")
     }
 
     // Lo que se arrastra (una copia de la fila, que sigue al puntero).
@@ -79,7 +77,7 @@ Item {
         nameFilters: [qsTr("Escaletas (*.csv *.xml *.mos)"), qsTr("Todos (*)")]
         onAccepted: {
             // Primero se prueba: la persona ve cuánto entra y confirma.
-            const r = Studio.evento.importarEscaleta(selectedFile, true)
+            const r = Studio.evento.informeVm.importarEscaleta(selectedFile, true)
             if (!r.ok) { Studio.notify(r.error, "error"); return }
             const pasos = (r.diff || []).filter(d => d.tipo === "paso" && d.que === "agregado").length
             ApplicationWindow.window.confirm({
@@ -88,7 +86,7 @@ Item {
                       + ((r.avisos || []).length > 0 ? "\n\n" + r.avisos.join("\n") : ""),
                 accept: qsTr("Importar"), reject: qsTr("Cancelar"),
                 action: function() {
-                    const r2 = Studio.evento.importarEscaleta(importarDlg.selectedFile, false)
+                    const r2 = Studio.evento.informeVm.importarEscaleta(importarDlg.selectedFile, false)
                     if (!r2.ok) Studio.notify(r2.error, "error")
                 }
             })
@@ -101,9 +99,7 @@ Item {
         fileMode: FileDialog.SaveFile
         nameFilters: formato === "mos" ? [qsTr("MOS (*.xml)")] : [qsTr("CSV (*.csv)")]
         onAccepted: {
-            const e = Studio.evento.exportarEscaleta(formato, selectedFile)
-            if (e !== "") Studio.notify(e, "error")
-            else Studio.notify(qsTr("Escaleta exportada"), "info")
+            Studio.evento.informeVm.exportarEscaleta(formato, selectedFile)
         }
     }
 
@@ -142,7 +138,7 @@ Item {
             compact: true
             visible: esc.lv && esc.lv.pendientes.length > 0
             text: qsTr("Confirmar"); active: true
-            onClicked: esc.hacer(esc.lv.confirmar())
+            onClicked: esc.lv.confirmar()
             ToolTip.visible: hovered; ToolTip.delay: 400
             ToolTip.text: qsTr("Aplica los cambios a la línea (queda una revisión para deshacer)")
         }

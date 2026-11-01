@@ -161,8 +161,8 @@ void Votaciones::seguirCentral() {
     }
 }
 
-QString Votaciones::abrirEnCelularesUi(const QString& tema, const QString& menu, int segundos) {
-    return QString::fromStdString(abrirEnCelulares(tema.toStdString(), menu.toStdString(), segundos));
+void Votaciones::abrirEnCelularesUi(const QString& tema, const QString& menu, int segundos) {
+    avisarError(QString::fromStdString(abrirEnCelulares(tema.toStdString(), menu.toStdString(), segundos)));
 }
 
 } // namespace ba::app::asamblea

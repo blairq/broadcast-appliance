@@ -750,9 +750,9 @@ QVariantList SesionRemota::vistasUi() const {
     return aQv(out).toList();
 }
 
-QString SesionRemota::setVistasUi(const QVariantList& vistas) {
+void SesionRemota::setVistasUi(const QVariantList& vistas) {
     const json j = json::parse(QJsonDocument::fromVariant(vistas).toJson(QJsonDocument::Compact).toStdString(), nullptr, false);
-    return QString::fromStdString(setVistas(j));
+    avisarError(QString::fromStdString(setVistas(j)));
 }
 
 json SesionRemota::vistas() const {
@@ -1054,10 +1054,10 @@ QVariantMap SesionRemota::generarClaveUi(const QString& id, const QString& usuar
     return aQv(generarClave(id.toStdString(), usuario.toStdString())).toMap();
 }
 
-QString SesionRemota::setDatosUi(const QString& id, const QVariantMap& datos) {
+void SesionRemota::setDatosUi(const QString& id, const QVariantMap& datos) {
     const json d = json::parse(QJsonDocument(QJsonObject::fromVariantMap(datos)).toJson(QJsonDocument::Compact).toStdString(),
                                nullptr, false);
-    return QString::fromStdString(setDatos(id.toStdString(), d.is_object() ? d : json::object()));
+    avisarError(QString::fromStdString(setDatos(id.toStdString(), d.is_object() ? d : json::object())));
 }
 
 QString SesionRemota::habilitarUi(const QString& id, bool si) {

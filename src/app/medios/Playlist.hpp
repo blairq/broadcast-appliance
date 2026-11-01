@@ -31,6 +31,7 @@
 #include <filesystem>
 #include <functional>
 #include <string>
+#include "ui/CapturaError.hpp"
 
 namespace ba::app {
 class AppRuntime;
@@ -40,6 +41,17 @@ namespace ba::app::medios {
 
 class Playlist : public QObject {
     Q_OBJECT
+    /// El error de una acción de la interfaz (las Q_INVOKABLE void): a quien mira.
+    void avisarError(const QString& e) {
+        if (!e.isEmpty() && !::ba::app::CapturaError::tomar(e)) emit notify(e, "error");
+    }
+    void avisarError(const std::string& e) { avisarError(QString::fromStdString(e)); }
+    /// Para las acciones que dicen si se hicieron: el error a quien mira y true si no hubo.
+    bool sinError(const QString& e) {
+        avisarError(e);
+        return e.isEmpty();
+    }
+    bool sinError(const std::string& e) { return sinError(QString::fromStdString(e)); }
     /// [{archivo, nombre, in_s, out_s}]
     Q_PROPERTY(QVariantList items READ itemsUi NOTIFY cambio)
     /// {indice, reproduciendo, auto_next, loop, restante_s, duracion_s}
@@ -68,12 +80,12 @@ class Playlist : public QObject {
 
     QVariantList itemsUi() const;
     QVariantMap estadoUi() const;
-    Q_INVOKABLE QString agregarUi(const QString& archivo);
+    Q_INVOKABLE void agregarUi(const QString& archivo);
     /// Varios de una vez (todos o ninguno: si uno no sirve, no se suma nada).
-    Q_INVOKABLE QString agregarVariosUi(const QStringList& archivos);
-    Q_INVOKABLE QString quitarUi(int indice);
+    Q_INVOKABLE bool agregarVariosUi(const QStringList& archivos);
+    Q_INVOKABLE void quitarUi(int indice);
     Q_INVOKABLE QString moverUi(int indice, int destino);
-    Q_INVOKABLE QString controlUi(const QString& accion, int indice = -1);
+    Q_INVOKABLE void controlUi(const QString& accion, int indice = -1);
     Q_INVOKABLE void autoNextUi(bool on) { setAutoNext(on); }
     Q_INVOKABLE void loopUi(bool on) { setLoop(on); }
     Q_INVOKABLE void armarUi();
