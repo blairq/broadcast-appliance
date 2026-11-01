@@ -381,13 +381,13 @@
 
   // Los errores de la sala por su código estable (la frase puede cambiar; el código no).
   const ERRORES = {
-    cerrada: 'la votacion no esta abierta',
-    opcion: 'esa opcion no existe',
-    sin_codigo: 'falta el codigo: en una votacion formal hay que identificarse',
-    codigo_invalido: 'ese codigo no figura entre los que pueden votar',
-    sin_telefono: 'no se de que telefono viene',
-    sellado: 'tu voto ya esta contado',
-    vacia: 'la pregunta esta vacia',
+    cerrada: 'la votación no está abierta',
+    opcion: 'esa opción no existe',
+    sin_codigo: 'falta el código: en una votación formal hay que identificarse',
+    codigo_invalido: 'ese código no figura entre los que pueden votar',
+    sin_telefono: 'no sé de qué teléfono viene',
+    sellado: 'tu voto ya está contado',
+    vacia: 'la pregunta está vacía',
   };
   function textoDeError(j) { return t(ERRORES[j.error_codigo] || j.error || ''); }
 

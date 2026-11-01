@@ -52,13 +52,13 @@ QVariantMap InformeEventoViewModel::capitulos(qint64 recInicioMs) const {
     const auto fallo = [](const QString& motivo) {
         return QVariantMap{{"ok", false}, {"motivo", motivo}, {"capitulos", QVariantList{}}};
     };
-    if (corrida_.corrida() == nullptr) return fallo(QCoreApplication::translate("EventoViewModel", "El guion no se corrio en esta sesion: no hay de donde sacar los tiempos."));
+    if (corrida_.corrida() == nullptr) return fallo(QCoreApplication::translate("EventoViewModel", "El guion no se corrió en esta sesión: no hay de dónde sacar los tiempos."));
     const std::string salida = corrida_.salidaPorOmision();
     const auto& pasos = corrida_.corrida()->instancias();
-    if (pasos.empty()) return fallo(QCoreApplication::translate("EventoViewModel", "El guion no avanzo ningun cue todavia."));
+    if (pasos.empty()) return fallo(QCoreApplication::translate("EventoViewModel", "El guion no avanzó ningún cue todavía."));
     if (recInicioMs <= 0)
-        return fallo(QCoreApplication::translate("EventoViewModel", "No se cuando arranco la grabacion. Los capitulos se miden desde ahi, no desde "
-                        "el arranque del evento: si el guion empezo antes, todas las marcas estarian "
+        return fallo(QCoreApplication::translate("EventoViewModel", "No sé cuándo arrancó la grabación. Los capítulos se miden desde ahí, no desde "
+                        "el arranque del evento: si el guion empezó antes, todas las marcas estarían "
                         "corridas."));
 
     QVariantList caps;
@@ -82,7 +82,7 @@ QVariantMap InformeEventoViewModel::capitulos(qint64 recInicioMs) const {
         const QString nombre = b->nombre.empty() ? QCoreApplication::translate("EventoViewModel", "Bloque %1").arg(bloqueIdx + 1) : QString::fromStdString(b->nombre);
         caps.append(QVariantMap{{"seg", seg}, {"marca", marcaDe(seg)}, {"titulo", nombre}});
     }
-    if (caps.isEmpty()) return fallo(QCoreApplication::translate("EventoViewModel", "Todos los bloques empezaron antes de que arrancara la grabacion."));
+    if (caps.isEmpty()) return fallo(QCoreApplication::translate("EventoViewModel", "Todos los bloques empezaron antes de que arrancara la grabación."));
 
     // YouTube pide que el PRIMERO sea 0:00. Si el guion arranco despues de
     // apretar grabar (lo normal: se graba el ambiente antes), se antepone uno

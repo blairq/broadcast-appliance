@@ -228,7 +228,7 @@ RestoreResult validateFile(const std::string& path, StateDoc& out) {
         return RestoreResult{RestoreResult::Status::ChecksumMismatch,
                              ba::i18n::llenar(ba::i18n::traducir("persist", "checksum no coincide en %1 (esperado %2)"), {path, hdr.shaHex})};
     }
-    return RestoreResult{RestoreResult::Status::Corrupt, ba::i18n::llenar(ba::i18n::traducir("persist", "cuerpo no es un StateDoc JSON valido: %1"), {path})};
+    return RestoreResult{RestoreResult::Status::Corrupt, ba::i18n::llenar(ba::i18n::traducir("persist", "cuerpo no es un StateDoc JSON válido: %1"), {path})};
 }
 
 } // namespace
@@ -273,7 +273,7 @@ RestoreResult Restore::recover(const std::string& dir, StateDoc& out) {
     }
 
     if (!found) {
-        return RestoreResult{RestoreResult::Status::Missing, ba::i18n::llenar(ba::i18n::traducir("persist", "ningun snapshot bueno en %1"), {dir})};
+        return RestoreResult{RestoreResult::Status::Missing, ba::i18n::llenar(ba::i18n::traducir("persist", "ningún snapshot bueno en %1"), {dir})};
     }
     return RestoreResult{RestoreResult::Status::Ok,
                          ba::i18n::llenar(ba::i18n::traducir("persist", "recuperado seq=%1 en %2"), {std::to_string(bestSeq), dir})};

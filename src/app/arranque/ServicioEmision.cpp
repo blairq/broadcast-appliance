@@ -130,7 +130,7 @@ bool ServicioEmision::startRecording(const std::string& salida, AlResultado list
         pedidos_.devolver(id, true, orden, antesPedido);
         AppRuntime::errorDelHilo() = rt_.engine_.lastError();
         std::printf("ba-app: %s\n",
-                    ba::i18n::llenar(ba::i18n::traducir("grabacion", "la grabacion no arranco: %1"), {AppRuntime::errorDelHilo()}).c_str());
+                    ba::i18n::llenar(ba::i18n::traducir("grabacion", "la grabación no arrancó: %1"), {AppRuntime::errorDelHilo()}).c_str());
         return false;
     }
     std::printf("ba-app: %s\n", ba::i18n::llenar(ba::i18n::traducir("grabacion", "grabando en %1"), {rec.directory}).c_str());
@@ -168,7 +168,7 @@ bool ServicioEmision::stopSourceRecording(const std::string& source) {
         return false;
     }
     ba::diag::registro().linea(ba::diag::Nivel::Info, "grabacion", 0,
-                               ba::i18n::llenar(ba::i18n::traducir("grabacion", "para la grabacion aparte de \"%1\""), {source}));
+                               ba::i18n::llenar(ba::i18n::traducir("grabacion", "para la grabación aparte de \"%1\""), {source}));
     rt_.avisar(Cambio::Salidas);
     return true;
 }
@@ -283,7 +283,7 @@ bool ServicioEmision::startStreaming(const std::string& server, const std::strin
         }
     }
     if (sc.server.empty()) {
-        AppRuntime::errorDelHilo() = ba::i18n::traducir("salidas", "no hay servidor de transmision configurado");
+        AppRuntime::errorDelHilo() = ba::i18n::traducir("salidas", "no hay servidor de transmisión configurado");
         return false;
     }
     const EngineStatus antes = rt_.engine_.status();
@@ -293,7 +293,7 @@ bool ServicioEmision::startStreaming(const std::string& server, const std::strin
         pedidos_.devolver(id, false, orden, antesPedido);
         AppRuntime::errorDelHilo() = rt_.engine_.lastError();
         std::printf("ba-app: %s\n",
-                    ba::i18n::llenar(ba::i18n::traducir("salidas", "la transmision no arranco: %1"), {AppRuntime::errorDelHilo()}).c_str());
+                    ba::i18n::llenar(ba::i18n::traducir("salidas", "la transmisión no arrancó: %1"), {AppRuntime::errorDelHilo()}).c_str());
         return false;
     }
     std::printf("ba-app: %s\n", ba::i18n::llenar(ba::i18n::traducir("salidas", "transmitiendo a %1"), {sc.server}).c_str());

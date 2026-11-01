@@ -63,7 +63,7 @@ json ultimaPublicada(const std::string& runtime, const json& base, std::string* 
         std::string v = rv.body;
         v.erase(std::remove_if(v.begin(), v.end(), [](unsigned char c) { return std::isspace(c); }), v.end());
         if (rv.status != 200 || !pareceVersion(v))
-            return fallo(ba::i18n::traducir("actualizacion", "no se pudo leer la ultima version de Claude Code"));
+            return fallo(ba::i18n::traducir("actualizacion", "no se pudo leer la última versión de Claude Code"));
         const auto rm = getJson(raiz + "/" + v + "/manifest.json");
         const json m = json::parse(rm.body, nullptr, false);
         if (rm.status != 200 || !m.is_object())
@@ -95,7 +95,7 @@ json ultimaPublicada(const std::string& runtime, const json& base, std::string* 
         // (@opencode/cli-<plataforma>), cada uno con su integridad SHA-512.
         const auto r = getJson("https://registry.npmjs.org/@opencode/cli/latest");
         const json j = json::parse(r.body, nullptr, false);
-        if (r.status != 200 || !j.is_object()) return fallo(ba::i18n::traducir("actualizacion", "no se pudo leer la ultima version de opencode"));
+        if (r.status != 200 || !j.is_object()) return fallo(ba::i18n::traducir("actualizacion", "no se pudo leer la última versión de opencode"));
         const std::string v = j.value("version", std::string());
         if (!pareceVersion(v)) return fallo(ba::i18n::traducir("actualizacion", "version de opencode no reconocida"));
         json nuevas = json::object();

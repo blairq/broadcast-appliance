@@ -258,7 +258,7 @@ void TwitchViewModel::goLive(TwitchClient::Done done) {
     if (cuentas::transmitiendo(ventanilla_))
         return done(false, {},
                     streamingHere_ ? tr("Ya se esta transmitiendo a Twitch.")
-                                   : tr("La app ya esta transmitiendo: corta esa transmision primero."));
+                                   : tr("La app ya está transmitiendo: cortá esa transmisión primero."));
     track(true);
     QPointer<TwitchViewModel> self(this);
     client_->ingest([self, done](bool ok, const QJsonObject& ing, const QString& e) {
@@ -294,7 +294,7 @@ void TwitchViewModel::alSalir(const QJsonObject& ing, const std::string& error, 
 
 void TwitchViewModel::stopLive() {
     stopLive([this](bool, const QJsonObject&, const QString&) {
-        emit notify(tr("Transmision a Twitch cortada."), "info");
+        emit notify(tr("Transmisión a Twitch cortada."), "info");
     });
 }
 

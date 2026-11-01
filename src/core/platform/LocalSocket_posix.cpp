@@ -156,7 +156,7 @@ LocalStream& LocalStream::operator=(LocalStream&& other) noexcept {
 bool LocalStream::connect(const std::string& name, int timeoutMs, LocalStream& out, std::string* err) {
     out.close();
     if (!validName(name)) {
-        setErr(err, ba::i18n::llenar(ba::i18n::traducir("ipc", "nombre de canal invalido: '%1'"), {name}));
+        setErr(err, ba::i18n::llenar(ba::i18n::traducir("ipc", "nombre de canal inválido: '%1'"), {name}));
         return false;
     }
     const std::string path = socketPath(name);
@@ -294,7 +294,7 @@ LocalServer& LocalServer::operator=(LocalServer&& other) noexcept {
 bool LocalServer::listen(const std::string& name, LocalServer& out, std::string* err) {
     out.close();
     if (!validName(name)) {
-        setErr(err, ba::i18n::llenar(ba::i18n::traducir("ipc", "nombre de canal invalido: '%1'"), {name}));
+        setErr(err, ba::i18n::llenar(ba::i18n::traducir("ipc", "nombre de canal inválido: '%1'"), {name}));
         return false;
     }
     const std::string path = socketPath(name);
@@ -345,7 +345,7 @@ bool LocalServer::listen(const std::string& name, LocalServer& out, std::string*
 bool LocalServer::accept(int timeoutMs, LocalStream& out, std::string* err) {
     out.close();
     if (fd_ < 0) {
-        setErr(err, ba::i18n::traducir("ipc", "el servidor no esta escuchando"));
+        setErr(err, ba::i18n::traducir("ipc", "el servidor no está escuchando"));
         return false;
     }
     const int r = pollFor(fd_, POLLIN, timeoutMs);
@@ -373,7 +373,7 @@ bool LocalServer::accept(int timeoutMs, LocalStream& out, std::string* err) {
     }
     if (!peerIsSameUser(fd)) {
         ::close(fd);
-        setErr(err, ba::i18n::traducir("ipc", "conexion rechazada: el cliente no es del mismo usuario"));
+        setErr(err, ba::i18n::traducir("ipc", "conexión rechazada: el cliente no es del mismo usuario"));
         return false;
     }
     out.fd_ = fd;

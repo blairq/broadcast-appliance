@@ -39,7 +39,7 @@ void Store::releer() {
         // Se dice, no se hace pasar por una biblioteca vacia: si no, un archivo
         // roto se ve igual que «todavia no armaste ninguno» y el operador
         // rearma todo sin saber que lo suyo sigue ahi.
-        error_ = ba::i18n::llenar(ba::i18n::traducir("carrusel", "la biblioteca de carruseles esta rota (JSON invalido): %1"),
+        error_ = ba::i18n::llenar(ba::i18n::traducir("carrusel", "la biblioteca de carruseles está rota (JSON inválido): %1"),
                                   {archivo_.string()});
         return;
     }

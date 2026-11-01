@@ -725,7 +725,7 @@ int main(int argc, char** argv) {
             publicIp = buf;
             freeaddrinfo(res);
         } else {
-            log.warn(llenar(traducir("gateway", "tunel: no se pudo resolver la direccion publica %1"), {publicHost}), -1);
+            log.warn(llenar(traducir("gateway", "túnel: no se pudo resolver la dirección pública %1"), {publicHost}), -1);
         }
         server.setPublicAddress(publicIp);
     }
@@ -772,7 +772,7 @@ int main(int argc, char** argv) {
             tls->atendidoAfuera(cfg.httpsPort);
             httpsPorBaWeb = true;
         } else if (!tls->start()) {
-            log.warn(traducir("gateway", "https: no arranco; los invitados solo tienen http (sin camara fuera de localhost)"),
+            log.warn(traducir("gateway", "https: no arrancó; los invitados solo tienen http (sin cámara fuera de localhost)"),
                      -1);
             tls.reset();
         }
@@ -815,11 +815,11 @@ int main(int argc, char** argv) {
         uint32_t tunnelIp = 0;
         int prefix = 24;
         if (!loadOrCreateWgKey(wc.privateKey, keyOrigin)) {
-            log.error(traducir("gateway", "tunel: sin clave privada WireGuard; tunel deshabilitado"), -1);
+            log.error(traducir("gateway", "túnel: sin clave privada WireGuard; túnel deshabilitado"), -1);
         } else if (!net::fromBase64(wc.peerPublicKey, cfg.wgServerPublicKey)) {
-            log.error(traducir("gateway", "tunel: falta la clave publica del servidor (wireguard.serverPublicKey)"), -1);
+            log.error(traducir("gateway", "túnel: falta la clave pública del servidor (wireguard.serverPublicKey)"), -1);
         } else if (!net::parseCidr(cfg.wgAddress, tunnelIp, prefix)) {
-            log.error(llenar(traducir("gateway", "tunel: direccion invalida (wireguard.address = %1)"), {cfg.wgAddress}), -1);
+            log.error(llenar(traducir("gateway", "túnel: dirección inválida (wireguard.address = %1)"), {cfg.wgAddress}), -1);
         } else {
             if (const char* psk = std::getenv("BA_WG_PSK"); psk != nullptr && *psk != '\0') {
                 net::fromBase64(wc.presharedKey, psk);
@@ -836,16 +836,16 @@ int main(int argc, char** argv) {
             if (tls) ipstack->forwardTcp(cfg.wgHttpsPort, tls->port(), true);
             ipstack->forwardUdpRange(cfg.rtcPortMin, cfg.rtcPortMax);
             if (wg->start() && ipstack->start()) {
-                log.info(llenar(traducir("gateway", "tunel: WireGuard hacia %1 como %2 (clave %3; publica %4)"),
+                log.info(llenar(traducir("gateway", "túnel: WireGuard hacia %1 como %2 (clave %3; pública %4)"),
                                 {cfg.wgEndpoint, cfg.wgAddress, keyOrigin, wgPublicKey}));
             } else {
-                log.error(traducir("gateway", "tunel: no arranco WireGuard/pila IP"), -1);
+                log.error(traducir("gateway", "túnel: no arrancó WireGuard/pila IP"), -1);
                 ipstack.reset();
                 wg.reset();
             }
         }
 #else
-        log.error(traducir("gateway", "tunel: este build no trae lwIP (make deps-lwip); tunel deshabilitado"), -1);
+        log.error(traducir("gateway", "túnel: este build no trae lwIP (make deps-lwip); túnel deshabilitado"), -1);
 #endif
     }
 
@@ -857,7 +857,7 @@ int main(int argc, char** argv) {
         uint32_t ourIp = 0;
         int prefix = 24;
         if (wgPublicKey.empty() || !net::parseCidr(cfg.wgAddress, ourIp, prefix)) {
-            out["error"] = traducir("gateway", "sin clave o direccion del tunel");
+            out["error"] = traducir("gateway", "sin clave o dirección del túnel");
             return out;
         }
         net::Key32 sPriv{};
@@ -891,12 +891,12 @@ int main(int argc, char** argv) {
         };
         std::string conf;
         // Los comentarios del archivo los lee quien instala el servidor: en el idioma del operador.
-        conf += "# " + traducir("gateway", "/etc/wireguard/wg0.conf -- servidor con IP publica para Broadcast Appliance") +
+        conf += "# " + traducir("gateway", "/etc/wireguard/wg0.conf -- servidor con IP pública para Broadcast Appliance") +
                 "\n";
         conf += "# " + traducir("gateway", "Instalar: apt install wireguard iptables   Activar: systemctl enable --now "
                                            "wg-quick@wg0") +
                 "\n";
-        conf += "# " + llenar(traducir("gateway", "'%1' es la interfaz publica del servidor: cambiala si se llama distinto."),
+        conf += "# " + llenar(traducir("gateway", "'%1' es la interfaz pública del servidor: cambiala si se llama distinto."),
                               {iface}) +
                 "\n";
         conf += "# " + llenar(traducir("gateway", "Abrir en el firewall del proveedor: UDP %1, TCP %2, UDP %3."),
@@ -1017,7 +1017,7 @@ int main(int argc, char** argv) {
     if (httpsPorBaWeb && tls && !(baWeb && baWeb->atiendeLan())) {
         log.warn(traducir("gateway", "https: ba-web no lo atiende; arranca el terminador propio"), -1);
         if (!tls->start()) {
-            log.warn(traducir("gateway", "https: no arranco; los invitados solo tienen http (sin camara fuera de localhost)"),
+            log.warn(traducir("gateway", "https: no arrancó; los invitados solo tienen http (sin cámara fuera de localhost)"),
                      -1);
             tls.reset();
         }
@@ -1176,7 +1176,7 @@ int main(int argc, char** argv) {
     // Token del tunel: por entorno (BA_TUNNEL_TOKEN). Por linea de comandos
     // queda visible en la lista de procesos, igual que el PIN.
     if (!cfg.tunnelToken.empty()) {
-        log.warn(llenar(traducir("gateway", "tunel: --tunnel-token es visible en la lista de procesos; preferir %1"),
+        log.warn(llenar(traducir("gateway", "túnel: --tunnel-token es visible en la lista de procesos; preferir %1"),
                         {kEnvTunnelToken}),
                  -1);
     } else {
@@ -1195,7 +1195,7 @@ int main(int argc, char** argv) {
 
     // --- Arranque de los componentes (degradacion elegante).
     if (!server.start()) {
-        log.error(traducir("gateway", "senalizacion no arranco; el gateway sigue sin tunel web"), -1);
+        log.error(traducir("gateway", "señalización no arrancó; el gateway sigue sin túnel web"), -1);
     }
     // La puerta de la sala, HTTPS (ver SignalingServer.hpp, 1c): en la red → la escucha
     // de 127.0.0.1 que atiende todo menos la entrada de invitados.
@@ -1293,7 +1293,7 @@ int main(int argc, char** argv) {
     grillas.start(ba::ajustes::entero("grilla.cps", 25));
     if (pinggy) {
         if (server.tunnelPort() == 0)
-            log.error(llenar(traducir("gateway", "pinggy: sin la escucha del tunel (127.0.0.1:%1); no se lanza"),
+            log.error(llenar(traducir("gateway", "pinggy: sin la escucha del túnel (127.0.0.1:%1); no se lanza"),
                              {std::to_string(cfg.pinggyPuertoTunel)}),
                       -1);
         else
@@ -1302,7 +1302,7 @@ int main(int argc, char** argv) {
     if (cfg.tunnel) {
         cloudflared.start();
     } else {
-        log.info(traducir("gateway", "tunel: desactivado por configuracion (solo acceso local)"));
+        log.info(traducir("gateway", "túnel: desactivado por configuración (solo acceso local)"));
     }
 
     // --- Bucle de vida: beat(0) cada 250 ms hasta duracion o senal.

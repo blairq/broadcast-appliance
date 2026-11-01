@@ -185,7 +185,7 @@ UpdateResult runUpdate(const UpdateOptions& opt) {
     if (opt.rollback) {
         incoming = previous;
         if (!fs::is_directory(previous, ec)) {
-            r.message = traducir("actualizacion", "No hay una version anterior guardada para volver atras.");
+            r.message = traducir("actualizacion", "No hay una versión anterior guardada para volver atrás.");
             return r;
         }
         for (const auto& e : fs::directory_iterator(previous, ec))
@@ -194,14 +194,14 @@ UpdateResult runUpdate(const UpdateOptions& opt) {
         // 2) Validar la version nueva.
         const fs::path src = fs::weakly_canonical(opt.source);
         if (!fs::exists(src / kLauncherName) || !fs::exists(src / kAppRel)) {
-            r.message = llenar(traducir("actualizacion", "Esa carpeta no parece una version de Broadcast Appliance "
+            r.message = llenar(traducir("actualizacion", "Esa carpeta no parece una versión de Broadcast Appliance "
                                                          "(falta %1 o %2)."),
                                {kLauncherName, kAppRel});
             return r;
         }
         const auto rel = src.lexically_relative(root);
         if (src == root || (!rel.empty() && *rel.begin() != "..")) {
-            r.message = traducir("actualizacion", "La version nueva tiene que estar FUERA de la carpeta del sistema.");
+            r.message = traducir("actualizacion", "La versión nueva tiene que estar FUERA de la carpeta del sistema.");
             return r;
         }
         for (const auto& e : fs::directory_iterator(src, ec)) {
@@ -218,7 +218,7 @@ UpdateResult runUpdate(const UpdateOptions& opt) {
             if (!copyTree(src / n, incoming / n, err)) {
                 fs::remove_all(incoming, ec);
                 r.message =
-                    llenar(traducir("actualizacion", "No se pudo copiar la version nueva (%1). No se instalo nada."), {err});
+                    llenar(traducir("actualizacion", "No se pudo copiar la versión nueva (%1). No se instaló nada."), {err});
                 return r;
             }
         }
@@ -232,8 +232,8 @@ UpdateResult runUpdate(const UpdateOptions& opt) {
     const IntegrityReport integridad = Integrity::verify(incoming.wstring());
     if (!integridad.ok) {
         if (!opt.rollback) fs::remove_all(incoming, ec);
-        r.message = llenar(traducir("actualizacion", "La version nueva esta danada (%1 archivos faltan, %2 no "
-                                                     "coinciden con manifest.json). No se instalo nada."),
+        r.message = llenar(traducir("actualizacion", "La versión nueva está dañada (%1 archivos faltan, %2 no "
+                                                     "coinciden con manifest.json). No se instaló nada."),
                            {std::to_string(integridad.missing), std::to_string(integridad.mismatch)});
         return r;
     }
@@ -243,7 +243,7 @@ UpdateResult runUpdate(const UpdateOptions& opt) {
     // De la carpeta de DATOS (en macOS no es la del programa: antes se respaldaba nada).
     if (!backupData(datos, r.backup, err)) {
         if (!opt.rollback) fs::remove_all(incoming, ec);
-        r.message = llenar(traducir("actualizacion", "No se pudo respaldar Credenciales/ y Config/ (%1). No se instalo nada."),
+        r.message = llenar(traducir("actualizacion", "No se pudo respaldar Credenciales/ y Config/ (%1). No se instaló nada."),
                            {err});
         return r;
     }
@@ -253,7 +253,7 @@ UpdateResult runUpdate(const UpdateOptions& opt) {
     if (opt.rollback) fs::remove_all(stash, ec);
     if (!swapIn(root, incoming, stash, names, err)) {
         r.message =
-            llenar(traducir("actualizacion", "No se pudo reemplazar el programa (%1). Quedo la version anterior."), {err});
+            llenar(traducir("actualizacion", "No se pudo reemplazar el programa (%1). Quedó la versión anterior."), {err});
         return r;
     }
     if (opt.rollback) {
@@ -274,7 +274,7 @@ UpdateResult runUpdate(const UpdateOptions& opt) {
 
     r.ok = true;
     r.replaced = names;
-    r.message = llenar(opt.rollback ? traducir("actualizacion", "Se volvio a la version anterior (%1 elementos del "
+    r.message = llenar(opt.rollback ? traducir("actualizacion", "Se volvió a la versión anterior (%1 elementos del "
                                                                 "programa). Datos intactos; respaldo en %2.")
                                     : traducir("actualizacion", "Actualizado (%1 elementos del programa). Datos "
                                                                 "intactos; respaldo en %2."),

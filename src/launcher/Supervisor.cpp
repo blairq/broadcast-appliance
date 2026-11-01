@@ -168,7 +168,7 @@ int Supervisor::run() {
 
 void Supervisor::applyExecRoot(const std::filesystem::path& execRoot) {
     if (execRoot.empty() || execRoot == cfg_.root) {
-        BA_LOG_INFO("shadow", 0, traducir("shadow", "ejecutando desde la raiz original"));
+        BA_LOG_INFO("shadow", 0, traducir("shadow", "ejecutando desde la raíz original"));
         return;
     }
     // Reapunta los hijos a la copia conservando su ruta relativa (bin/64bit/..).
@@ -478,7 +478,7 @@ void Supervisor::handleCrash(Hijo& h) {
         // log: se espera bastante y se reintenta por si el entorno cambia
         // (alguien inicia la sesion grafica).
         BA_LOG_ERROR("sup", *code,
-                     llenar(traducir("sup", "%1 no puede funcionar en este entorno (ver su log: p. ej. sin sesion "
+                     llenar(traducir("sup", "%1 no puede funcionar en este entorno (ver su log: p. ej. sin sesión "
                                             "grafica); reintento en %2 s"),
                             {h.nombre, std::to_string(kEnvironmentRetryMs() / 1000)}));
         h.relanzador.agendar(nowMs(), kEnvironmentRetryMs());
@@ -494,7 +494,7 @@ void Supervisor::handleCrash(Hijo& h) {
         startChild(h);
         return;
     }
-    BA_LOG_WARN("sup", code.value_or(-1), llenar(traducir("sup", "%1 termino inesperadamente; reiniciando con backoff"), {h.nombre}));
+    BA_LOG_WARN("sup", code.value_or(-1), llenar(traducir("sup", "%1 terminó inesperadamente; reiniciando con backoff"), {h.nombre}));
     // Si avisó la caída, la causa sale del volcado (qué excepción y en qué módulo).
     const std::optional<Volcado> v = volcados_->tomarCaida(h.nombre);
     anotarCaida(h, v ? v->causa : causaDeCodigo(code), code, v ? &*v : nullptr);
@@ -588,7 +588,7 @@ void Supervisor::watchdogLoop() {
     std::vector<Visto> vistos(hijos_.size());
     while (!shuttingDown_) {
         if (stopRequested_.load()) {
-            BA_LOG_INFO("sup", 0, traducir("sup", "cierre pedido (señal/sesion)"));
+            BA_LOG_INFO("sup", 0, traducir("sup", "cierre pedido (señal/sesión)"));
             orderedShutdown();
             break;
         }
@@ -607,7 +607,7 @@ void Supervisor::watchdogLoop() {
 
         // A salio con codigo 0: cierre ordenado del operador, no es un fallo.
         if (a.caido && app().proceso.exitCode() == 0) {
-            BA_LOG_INFO("sup", 0, traducir("sup", "A salio limpiamente (codigo 0); cierre ordenado"));
+            BA_LOG_INFO("sup", 0, traducir("sup", "A salió limpiamente (código 0); cierre ordenado"));
             orderedShutdown();
             break;
         }
@@ -707,15 +707,15 @@ void Supervisor::stopChild(Hijo& h) {
                 salio = c.waitExit(500);
         }
         if (salio) {
-            BA_LOG_INFO("sup", 0, llenar(traducir("sup", "%1 cerro por el canal de control"), {h.nombre}));
+            BA_LOG_INFO("sup", 0, llenar(traducir("sup", "%1 cerró por el canal de control"), {h.nombre}));
             return;
         }
     }
     if (c.terminate() && c.waitExit(kTerminateMs())) {
-        BA_LOG_INFO("sup", 0, llenar(traducir("sup", "%1 cerro tras la señal de terminacion"), {h.nombre}));
+        BA_LOG_INFO("sup", 0, llenar(traducir("sup", "%1 cerró tras la señal de terminación"), {h.nombre}));
         return;
     }
-    BA_LOG_WARN("sup", 0, llenar(traducir("sup", "%1 no cerro a tiempo; se fuerza"), {h.nombre}));
+    BA_LOG_WARN("sup", 0, llenar(traducir("sup", "%1 no cerró a tiempo; se fuerza"), {h.nombre}));
     c.kill();
     c.waitExit(kTerminateMs());
 }
@@ -727,7 +727,7 @@ void Supervisor::orderedShutdown() {
     shuttingDown_ = true;
     // A primero, los emisores después (cortan la emisión, cierran sus archivos y dejan
     // su estado «cerrado»: al volver no retoman ese pedido) y B al final.
-    BA_LOG_INFO("sup", 0, traducir("sup", "cierre ordenado: A primero (corta la emision), despues los emisores y B"));
+    BA_LOG_INFO("sup", 0, traducir("sup", "cierre ordenado: A primero (corta la emisión), después los emisores y B"));
     stopChild(app());
     for (auto it = hijos_.rbegin() + 1; it != hijos_.rend(); ++it) stopChild(**it);
     for (auto& h : hijos_) {

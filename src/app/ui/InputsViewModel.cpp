@@ -127,7 +127,7 @@ void InputsViewModel::searchNdi() {
 
 QString InputsViewModel::addNdi(const QString& ndiName, const QString& name, const QString& scene, Listo listo) {
 #if defined(BA_HAVE_NDI)
-    if (ndiName.isEmpty()) return tr("Elegi una fuente NDI.");
+    if (ndiName.isEmpty()) return tr("Elegí una fuente NDI.");
     QString nm = name.trimmed();
     if (nm.isEmpty()) {
         nm = "NDI " + ndiName;
@@ -402,7 +402,7 @@ QVariantList InputsViewModel::modes(const QString& device) const {
 
 QString InputsViewModel::addHardware(const QString& device, const QString& name, const QString& scene,
                                      const QVariantMap& mode, Listo listo) {
-    if (device.isEmpty()) return tr("Elegi una camara.");
+    if (device.isEmpty()) return tr("Elegí una cámara.");
     json opts = json::object();
     if (!mode.value("modo").toString().isEmpty()) opts["modo"] = mode.value("modo").toString().toStdString(); // vacío: automático
     QString nm = name.trimmed();
@@ -428,7 +428,7 @@ QString InputsViewModel::addNetwork(const QString& url, const QString& name, con
                                     bool lowLatency, Listo listo) {
     const std::string u = url.trimmed().toStdString();
     if (inputs::networkScheme(u).empty())
-        return tr("La direccion tiene que empezar con rtsp://, rtmp://, srt://, http(s)://, udp:// o rtp://.");
+        return tr("La dirección tiene que empezar con rtsp://, rtmp://, srt://, http(s)://, udp:// o rtp://.");
     const std::string nm =
         name.trimmed().isEmpty() ? tr("Red %1").arg(QString::fromStdString(inputs::redactUrl(u).substr(0, 40))).toStdString()
                                  : name.trimmed().toStdString();

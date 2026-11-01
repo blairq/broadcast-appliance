@@ -394,7 +394,7 @@ bool EscenasYFuentes::removeScene(const std::string& name) {
     const std::string id = idDe(name);
     auto it = std::find_if(scenes_.begin(), scenes_.end(), [&](const EscenaApp& e) { return e.id == id; });
     if (it == scenes_.end() || scenes_.size() == 1) {
-        m_.setError(ba::i18n::traducir("emision", "removeScene: no existe o es la unica escena"));
+        m_.setError(ba::i18n::traducir("emision", "removeScene: no existe o es la única escena"));
         return false;
     }
     // Las salidas que la tienen al aire pasan a otra con un corte.
@@ -948,7 +948,7 @@ bool EscenasYFuentes::updateSourceSettings(const std::string& name, const std::s
     if (it == sources_.end()) return false;
     const json nuevos = json::parse(settingsJson, nullptr, false);
     if (!nuevos.is_object()) {
-        m_.setError(ba::i18n::traducir("emision", "settings no son JSON valido"));
+        m_.setError(ba::i18n::traducir("emision", "settings no son JSON válido"));
         return false;
     }
     // Como OBS: lo nuevo se suma a lo que había.

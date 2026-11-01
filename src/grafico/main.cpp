@@ -256,7 +256,7 @@ int main(int argc, char** argv) {
     reg.abrir(ba::platform::dataRoot() / "Logs", "graficos.log");
     // El idioma del operador (el de la máquina): los errores y el registro.
     ba::i18n::usar(ba::i18n::idiomaDeLaMaquina(ba::platform::dataRoot()));
-    reg.info(ba::i18n::traducir("graficos", "renderizador de graficos listo"));
+    reg.info(ba::i18n::traducir("graficos", "renderizador de gráficos listo"));
     // Los qWarning (un medio que no se pudo leer, avisos de Qt Quick) también al
     // registro: el stderr de este proceso no lo lee nadie.
     qInstallMessageHandler([](QtMsgType tipo, const QMessageLogContext&, const QString& m) {

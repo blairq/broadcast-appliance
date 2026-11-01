@@ -75,11 +75,11 @@ json readJson(const fs::path& path, bool& exists) {
         backup += ".corrupto";
         ba::persist::cola().escribir(backup, bytes);
         if (pj.is_object()) {
-            std::printf("ba-app: %s\n", ba::i18n::llenar(ba::i18n::traducir("config", "%1 no es JSON valido; se cargo la generacion anterior (%2)"), {path.string(), prev.string()}).c_str());
+            std::printf("ba-app: %s\n", ba::i18n::llenar(ba::i18n::traducir("config", "%1 no es JSON válido; se cargó la generación anterior (%2)"), {path.string(), prev.string()}).c_str());
             configRecuperada() = path.filename().string();
             return pj;
         }
-        std::printf("ba-app: %s\n", ba::i18n::llenar(ba::i18n::traducir("config", "%1 no es JSON valido; se usan valores por defecto (copia en %2)"), {path.string(), backup.string()}).c_str());
+        std::printf("ba-app: %s\n", ba::i18n::llenar(ba::i18n::traducir("config", "%1 no es JSON válido; se usan valores por defecto (copia en %2)"), {path.string(), backup.string()}).c_str());
         return json::object();
     }
     return j;
@@ -214,7 +214,7 @@ AppConfig loadAppConfig(const fs::path& path, const fs::path& dataRoot) {
     if (!exists) {
         std::string err;
         if (saveAppConfig(path, c, dataRoot, &err)) {
-            std::printf("ba-app: %s\n", ba::i18n::llenar(ba::i18n::traducir("config", "configuracion por defecto escrita en %1"), {path.string()}).c_str());
+            std::printf("ba-app: %s\n", ba::i18n::llenar(ba::i18n::traducir("config", "configuración por defecto escrita en %1"), {path.string()}).c_str());
         }
         return c;
     }

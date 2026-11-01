@@ -268,12 +268,12 @@ SignalingServer::~SignalingServer() { stop(); }
 
 bool SignalingServer::start() {
     if (!http::socketInit()) {
-        log_.error(traducir("gateway", "senalizacion: fallo la inicializacion de sockets"), -1);
+        log_.error(traducir("gateway", "señalización: falló la inicialización de sockets"), -1);
         return false;
     }
     listenFd_ = http::makeListen(cfg_.bindAddress, cfg_.port);
     if (listenFd_ < 0) {
-        log_.error(llenar(traducir("gateway", "senalizacion: no se pudo bind %1:%2 (puerto en uso o direccion invalida?)"),
+        log_.error(llenar(traducir("gateway", "señalización: no se pudo bind %1:%2 (¿puerto en uso o dirección inválida?)"),
                           {cfg_.bindAddress, std::to_string(cfg_.port)}),
                    -1);
         http::socketCleanup();
@@ -340,7 +340,7 @@ bool SignalingServer::start() {
                 }
         }
     });
-    log_.info(llenar(traducir("gateway", "senalizacion: escuchando en %1:%2 (webroot=%3)"),
+    log_.info(llenar(traducir("gateway", "señalización: escuchando en %1:%2 (webroot=%3)"),
                      {cfg_.bindAddress, std::to_string(guestBoundPort_), cfg_.webroot}));
 
     // API de control: SIEMPRE loopback. Exponerla por el tunel o la red local
@@ -393,13 +393,13 @@ bool SignalingServer::start() {
     if (cfg_.tunel) {
         tunnelListenFd_ = http::makeListen("127.0.0.1", cfg_.tunnelPort);
         if (tunnelListenFd_ < 0) {
-            log_.error(llenar(traducir("gateway", "tunel: no se pudo abrir 127.0.0.1:%1 (pinggy queda sin destino)"),
+            log_.error(llenar(traducir("gateway", "túnel: no se pudo abrir 127.0.0.1:%1 (pinggy queda sin destino)"),
                               {std::to_string(cfg_.tunnelPort)}),
                        -1);
         } else {
             tunnelBoundPort_ = http::localPort(tunnelListenFd_);
             tunnelAcceptThread_ = std::thread(&SignalingServer::acceptLoop, this, tunnelListenFd_, Escucha::Tunel);
-            log_.info(llenar(traducir("gateway", "tunel: escucha de pinggy en 127.0.0.1:%1 (todo externo)"),
+            log_.info(llenar(traducir("gateway", "túnel: escucha de pinggy en 127.0.0.1:%1 (todo externo)"),
                              {std::to_string(tunnelBoundPort_)}));
         }
     }
@@ -748,12 +748,12 @@ void SignalingServer::stop() {
     }
     const int leftover = activeConns_.load(std::memory_order_relaxed);
     if (leftover > 0) {
-        log_.warn(llenar(traducir("gateway", "senalizacion: %1 conexiones sin cerrar tras %2 ms"),
+        log_.warn(llenar(traducir("gateway", "señalización: %1 conexiones sin cerrar tras %2 ms"),
                          {std::to_string(leftover), std::to_string(kDrainTimeoutMs)}),
                   -1);
     }
     http::socketCleanup();
-    log_.info(traducir("gateway", "senalizacion: detenida"));
+    log_.info(traducir("gateway", "señalización: detenida"));
 }
 
 bool SignalingServer::running() const { return listenFd_ >= 0; }
@@ -809,8 +809,8 @@ void SignalingServer::avisarRechazo(Escucha escucha, bool porIp) {
     }
     const int callados = rechazosCallados_[e].exchange(0, std::memory_order_relaxed);
     const std::string texto =
-        porIp ? traducir("gateway", "senalizacion: conexion rechazada en %1, esa IP ya tiene %2 (y %3 rechazos mas sin anotar)")
-              : traducir("gateway", "senalizacion: conexion rechazada en %1, tope de %2 conexiones (y %3 rechazos mas sin anotar)");
+        porIp ? traducir("gateway", "señalización: conexión rechazada en %1, esa IP ya tiene %2 (y %3 rechazos más sin anotar)")
+              : traducir("gateway", "señalización: conexión rechazada en %1, tope de %2 conexiones (y %3 rechazos más sin anotar)");
     log_.warn(llenar(texto, {kNombres[e], std::to_string(porIp ? kMaxPorIp() : cupoDe(escucha)), std::to_string(callados)}),
               -1);
 }
@@ -869,7 +869,7 @@ void SignalingServer::acceptLoop(long long listenFd, Escucha escucha) {
             try {
                 handleConnection(fd, clientIp, escucha, directa ? clientIp : 0, sobrecupo);
             } catch (const std::exception& e) {
-                log_.warn(llenar(traducir("gateway", "conexion: excepcion %1"), {e.what()}), -1);
+                log_.warn(llenar(traducir("gateway", "conexión: excepción %1"), {e.what()}), -1);
             }
         }).detach();
     }
@@ -1676,7 +1676,7 @@ void SignalingServer::handleGuestHttp(long long fd, const std::string& method, c
             c = static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
         if (codigo.empty()) {
             http::sendResponse(fd, 400, "application/json",
-                               json{{"ok", false}, {"error", QT_TRANSLATE_NOOP("web/comun", "sin codigo")}}.dump());
+                               json{{"ok", false}, {"error", QT_TRANSLATE_NOOP("web/comun", "sin código")}}.dump());
             return;
         }
         {
@@ -1742,7 +1742,7 @@ void SignalingServer::handleGuestHttp(long long fd, const std::string& method, c
             if (id.empty()) {
                 http::sendResponse(fd, 400, "application/json",
                                    json{{"ok", false},
-                                        {"error", QT_TRANSLATE_NOOP("web/comun", "la pregunta esta vacia")},
+                                        {"error", QT_TRANSLATE_NOOP("web/comun", "la pregunta está vacía")},
                                         {"error_codigo", "vacia"}}
                                        .dump());
                 return;
@@ -1862,7 +1862,7 @@ void SignalingServer::apiUpload(long long fd, const std::string& headers, const 
         return;
     }
     if (res.err != ShareStore::kOk) {
-        log_.warn(llenar(traducir("gateway", "archivos: subida fallida de %1 (codigo %2)"), {who.name, std::to_string(res.err)}),
+        log_.warn(llenar(traducir("gateway", "archivos: subida fallida de %1 (código %2)"), {who.name, std::to_string(res.err)}),
                   -1);
         http::sendResponse(fd, res.err == ShareStore::kTooLarge ? 413 : 400, "application/json",
                            R"({"ok":false,"error":"io"})");
@@ -2323,7 +2323,7 @@ std::string SignalingServer::wsOpen(long long fd, const std::string& query, cons
     const std::string room = arg("room").empty() ? cfg_.room : arg("room");
     // Se CANJEA el token (un solo uso): un replay dentro del TTL se rechaza.
     if (const int vcode = auth_.redeem(arg("token"), room); vcode != 0) {
-        log_.warn(llenar(traducir("gateway", "ws: token invalido (code=%1)"), {std::to_string(vcode)}), vcode);
+        log_.warn(llenar(traducir("gateway", "ws: token inválido (code=%1)"), {std::to_string(vcode)}), vcode);
         canal::rechazar(fd, QT_TRANSLATE_NOOP("web/comun", "El ingreso venció. Volvé a intentarlo."), "token");
         return {};
     }
@@ -2534,8 +2534,8 @@ void SignalingServer::handleOffer(const std::string& pid, uint64_t gen, const st
             sendToGuest(pid, json{{"type", "ice"}, {"candidate", cand.is_object() ? cand : json(c)}});
         };
         cb.onStateChange = [this, pid, idx](bool up) {
-            log_.info(llenar(up ? traducir("gateway", "ws: medios de %1 (sesion %2) conectados")
-                                : traducir("gateway", "ws: medios de %1 (sesion %2) cerrados"),
+            log_.info(llenar(up ? traducir("gateway", "ws: medios de %1 (sesión %2) conectados")
+                                : traducir("gateway", "ws: medios de %1 (sesión %2) cerrados"),
                              {pid, std::to_string(idx)}));
             room_.setMediaUp(pid, up);
         };
@@ -2573,7 +2573,7 @@ void SignalingServer::handleOffer(const std::string& pid, uint64_t gen, const st
     }
     // Un re-offer (p. ej. al sumar la pantalla compartida) reusa la sesion.
     if (!sess->setRemoteOffer(sdp)) {
-        log_.warn(llenar(traducir("gateway", "ws: setRemoteOffer fallo (sesion %1)"), {std::to_string(idx)}), -1);
+        log_.warn(llenar(traducir("gateway", "ws: setRemoteOffer falló (sesión %1)"), {std::to_string(idx)}), -1);
         return;
     }
     // Se anota TAMBIEN cuando sale bien. Antes solo se anotaba el fracaso, asi
@@ -2581,12 +2581,12 @@ void SignalingServer::handleOffer(const std::string& pid, uint64_t gen, const st
     // igual en el registro: nada. Un televisor en "conectando" no se podia
     // distinguir de uno al que no se le leyo el mensaje.
     if (fresh)
-        log_.info(llenar(pantalla ? traducir("gateway", "ws: offer de %1 aceptado (sesion %2, pantalla, sesion nueva)")
-                                  : traducir("gateway", "ws: offer de %1 aceptado (sesion %2, invitado, sesion nueva)"),
+        log_.info(llenar(pantalla ? traducir("gateway", "ws: offer de %1 aceptado (sesión %2, pantalla, sesión nueva)")
+                                  : traducir("gateway", "ws: offer de %1 aceptado (sesión %2, invitado, sesión nueva)"),
                          {pid, std::to_string(idx)}));
     else
-        log_.info(llenar(pantalla ? traducir("gateway", "ws: offer de %1 aceptado (sesion %2, pantalla)")
-                                  : traducir("gateway", "ws: offer de %1 aceptado (sesion %2, invitado)"),
+        log_.info(llenar(pantalla ? traducir("gateway", "ws: offer de %1 aceptado (sesión %2, pantalla)")
+                                  : traducir("gateway", "ws: offer de %1 aceptado (sesión %2, invitado)"),
                          {pid, std::to_string(idx)}));
     // Conexión nueva = codificador nuevo en su navegador: la calidad de la grilla se le vuelve a decir.
     if (fresh && !pantalla) enviarCalidadGrilla(pid, true);
@@ -2619,7 +2619,7 @@ void SignalingServer::rutaRemoto(const std::string& id, int canal) {
         if (WebrtcSession* s = hub_.session(otraSesion)) s->close();
     }
     if (pump_ != nullptr) pump_->setRoute(idx, MediaRoute::remoto(canal));
-    log_.info(llenar(traducir("gateway", "sesion: el remoto %1 pasa al canal %2 sin reconectar"), {id, std::to_string(canal)}));
+    log_.info(llenar(traducir("gateway", "sesión: el remoto %1 pasa al canal %2 sin reconectar"), {id, std::to_string(canal)}));
     revisarCapas(pid);
 }
 
@@ -2662,7 +2662,7 @@ bool SignalingServer::ofertaRemoto(const std::string& id, int canal, const std::
     }
     WebrtcSession* sess = hub_.session(idx);
     if (sess == nullptr) {
-        log_.warn(llenar(traducir("gateway", "sesion: sin sesiones WebRTC libres para el remoto %1"), {id}), -1);
+        log_.warn(llenar(traducir("gateway", "sesión: sin sesiones WebRTC libres para el remoto %1"), {id}), -1);
         return false;
     }
     if (fresh) {
@@ -2694,8 +2694,8 @@ bool SignalingServer::ofertaRemoto(const std::string& id, int canal, const std::
             enviar(json{{"type", "medios-ice"}, {"candidate", cand.is_object() ? cand : json(c)}});
         };
         cb.onStateChange = [this, id, idx](bool up) {
-            log_.info(llenar(up ? traducir("gateway", "sesion: medios del remoto %1 (sesion %2) conectados")
-                                : traducir("gateway", "sesion: medios del remoto %1 (sesion %2) cerrados"),
+            log_.info(llenar(up ? traducir("gateway", "sesión: medios del remoto %1 (sesión %2) conectados")
+                                : traducir("gateway", "sesión: medios del remoto %1 (sesión %2) cerrados"),
                              {id, std::to_string(idx)}));
             broadcastToHosts("sesion", json{{"tipo", "medios"}, {"id", id}, {"conectado", up}});
         };
@@ -2722,10 +2722,10 @@ bool SignalingServer::ofertaRemoto(const std::string& id, int canal, const std::
         sess->setCapas(midAlta, midBaja);
     }
     if (!sess->setRemoteOffer(sdp)) {
-        log_.warn(llenar(traducir("gateway", "sesion: setRemoteOffer del remoto %1 falló"), {id}), -1);
+        log_.warn(llenar(traducir("gateway", "sesión: setRemoteOffer del remoto %1 falló"), {id}), -1);
         return false;
     }
-    log_.info(llenar(traducir("gateway", "sesion: oferta del remoto %1 aceptada (sesion %2)"), {id, std::to_string(idx)}));
+    log_.info(llenar(traducir("gateway", "sesión: oferta del remoto %1 aceptada (sesión %2)"), {id, std::to_string(idx)}));
     revisarCapas(pid);
     return true;
 }
@@ -2754,7 +2754,7 @@ void SignalingServer::ponerSalidas(const json& lista) {
 bool SignalingServer::ofertaVista(const std::string& id, const std::string& sdp, const SesionBorde::Vista& vista,
                                   bool hablar, std::function<void(const json&)> enviar) {
     if (!soloRecibe(sdp)) {
-        log_.warn(llenar(traducir("gateway", "sesion: la vista de %1 quiso mandar medios; se ignora"), {id}), -1);
+        log_.warn(llenar(traducir("gateway", "sesión: la vista de %1 quiso mandar medios; se ignora"), {id}), -1);
         return false;
     }
     const std::string pid = "vista:" + id;
@@ -2773,7 +2773,7 @@ bool SignalingServer::ofertaVista(const std::string& id, const std::string& sdp,
     }
     WebrtcSession* sess = hub_.session(idx);
     if (sess == nullptr) {
-        log_.warn(llenar(traducir("gateway", "sesion: sin sesiones WebRTC libres para la vista de %1 (vistasRemotas)"), {id}),
+        log_.warn(llenar(traducir("gateway", "sesión: sin sesiones WebRTC libres para la vista de %1 (vistasRemotas)"), {id}),
                   -1);
         return false;
     }
@@ -2805,14 +2805,14 @@ bool SignalingServer::ofertaVista(const std::string& id, const std::string& sdp,
         enviar(json{{"type", "vista-ice"}, {"candidate", cand.is_object() ? cand : json(c)}});
     };
     cb.onStateChange = [this, id, idx](bool up) {
-        log_.info(llenar(up ? traducir("gateway", "sesion: vista de %1 (sesion %2) conectada")
-                            : traducir("gateway", "sesion: vista de %1 (sesion %2) cerrada"),
+        log_.info(llenar(up ? traducir("gateway", "sesión: vista de %1 (sesión %2) conectada")
+                            : traducir("gateway", "sesión: vista de %1 (sesión %2) cerrada"),
                          {id, std::to_string(idx)}));
     };
     sess->configure(cb, hub_.rtcFactory());
     if (pump_ != nullptr) pump_->setRoute(idx, rutaDeVista(vista, hablar));
     if (!sess->setRemoteOffer(sdp)) {
-        log_.warn(llenar(traducir("gateway", "sesion: setRemoteOffer de la vista de %1 falló"), {id}), -1);
+        log_.warn(llenar(traducir("gateway", "sesión: setRemoteOffer de la vista de %1 falló"), {id}), -1);
         releaseSession(pid, 0, true);
         return false;
     }
@@ -2844,7 +2844,7 @@ bool SignalingServer::ofertaAtencion(const std::string& id, const std::string& s
     }
     WebrtcSession* sess = hub_.session(idx);
     if (sess == nullptr) {
-        log_.warn(llenar(traducir("gateway", "sesion: sin sesiones WebRTC libres para atender hablando a %1"), {id}), -1);
+        log_.warn(llenar(traducir("gateway", "sesión: sin sesiones WebRTC libres para atender hablando a %1"), {id}), -1);
         return false;
     }
     SessionCallbacks cb;
@@ -2875,8 +2875,8 @@ bool SignalingServer::ofertaAtencion(const std::string& id, const std::string& s
         enviar(json{{"type", "atiende-ice"}, {"candidate", cand.is_object() ? cand : json(c)}});
     };
     cb.onStateChange = [this, id, idx](bool up) {
-        log_.info(llenar(up ? traducir("gateway", "sesion: atención hablada de %1 (sesion %2) conectada")
-                            : traducir("gateway", "sesion: atención hablada de %1 (sesion %2) cerrada"),
+        log_.info(llenar(up ? traducir("gateway", "sesión: atención hablada de %1 (sesión %2) conectada")
+                            : traducir("gateway", "sesión: atención hablada de %1 (sesión %2) cerrada"),
                          {id, std::to_string(idx)}));
     };
     if (pump_ != nullptr)
@@ -2884,7 +2884,7 @@ bool SignalingServer::ofertaAtencion(const std::string& id, const std::string& s
     sess->configure(cb, hub_.rtcFactory());
     if (pump_ != nullptr) pump_->setRoute(idx, MediaRoute::atencion());
     if (!sess->setRemoteOffer(sdp)) {
-        log_.warn(llenar(traducir("gateway", "sesion: setRemoteOffer de la atención de %1 falló"), {id}), -1);
+        log_.warn(llenar(traducir("gateway", "sesión: setRemoteOffer de la atención de %1 falló"), {id}), -1);
         releaseSession(pid, 0, true);
         return false;
     }
@@ -2942,8 +2942,8 @@ bool SignalingServer::ofertaRegistroAtiende(const std::string& aconn, int canal,
         enviar(json{{"type", "ice"}, {"candidate", cand.is_object() ? cand : json(c)}});
     };
     cb.onStateChange = [this, aconn, idx](bool up) {
-        log_.info(llenar(up ? traducir("gateway", "registro: atención remota %1 (sesion %2) conectada")
-                            : traducir("gateway", "registro: atención remota %1 (sesion %2) cerrada"),
+        log_.info(llenar(up ? traducir("gateway", "registro: atención remota %1 (sesión %2) conectada")
+                            : traducir("gateway", "registro: atención remota %1 (sesión %2) cerrada"),
                          {aconn, std::to_string(idx)}));
     };
     // Su micrófono: MediaPump lo usa solo con `habla` (lo baja a ese tótem; nunca a la mezcla).
@@ -3010,8 +3010,8 @@ bool SignalingServer::ofertaRegistro(const std::string& conn, int canal, const s
         enviar(json{{"type", "ice"}, {"candidate", cand.is_object() ? cand : json(c)}});
     };
     cb.onStateChange = [this, conn, idx, pid](bool up) {
-        log_.info(llenar(up ? traducir("gateway", "registro: audio de %1 (sesion %2) conectado")
-                            : traducir("gateway", "registro: audio de %1 (sesion %2) cerrado"),
+        log_.info(llenar(up ? traducir("gateway", "registro: audio de %1 (sesión %2) conectado")
+                            : traducir("gateway", "registro: audio de %1 (sesión %2) cerrado"),
                          {conn, std::to_string(idx)}));
         // Solo si la sesión sigue siendo de esta conversación: la de una oferta vieja (o
         // la que se soltó con el canal, que el borde ya dio por caída) no avisa nada.
@@ -3047,7 +3047,7 @@ void SignalingServer::wsLoop(long long fd, const std::string& pid, uint64_t gen)
         try {
             handleWsMessage(pid, gen, msg);
         } catch (const std::exception& e) {
-            log_.warn(llenar(traducir("gateway", "ws: mensaje invalido de %1 (%2)"), {pid, e.what()}), -1);
+            log_.warn(llenar(traducir("gateway", "ws: mensaje inválido de %1 (%2)"), {pid, e.what()}), -1);
             return true;
         }
         return msg.value("type", json()) != "bye";

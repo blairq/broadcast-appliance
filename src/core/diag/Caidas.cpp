@@ -104,13 +104,13 @@ struct Esc {
 
 const char* nombreDeSenal(int sig) {
     switch (sig) {
-        case SIGSEGV: return "SIGSEGV (acceso a memoria invalida)";
-        case SIGABRT: return "SIGABRT (abort: una comprobacion interna fallo)";
+        case SIGSEGV: return "SIGSEGV (acceso a memoria inválida)";
+        case SIGABRT: return "SIGABRT (abort: una comprobación interna falló)";
         case SIGBUS: return "SIGBUS (acceso mal alineado o archivo mapeado que se corto)";
-        case SIGILL: return "SIGILL (instruccion invalida)";
+        case SIGILL: return "SIGILL (instrucción inválida)";
         case SIGFPE: return "SIGFPE (division por cero u overflow)";
-        case SIGQUIT: return "SIGQUIT (el launcher pidio las pilas: dejo de latir)";
-        default: return "senal desconocida";
+        case SIGQUIT: return "SIGQUIT (el launcher pidió las pilas: dejó de latir)";
+        default: return "señal desconocida";
     }
 }
 

@@ -190,7 +190,7 @@ bool TlsTerminator::cargarCertificado() {
                  mbedtls_pk_parse_key(&d.key, reinterpret_cast<const unsigned char*>(keyPem.data()),
                                       keyPem.size(), nullptr, 0, &Impl::rng, &d) == 0;
         if (loaded && log_) log_(traducir("gateway", "https: certificado propio (Credenciales/tls-propio)"));
-        if (!loaded && log_) log_(traducir("gateway", "https: el certificado propio es invalido; se usa uno autofirmado"));
+        if (!loaded && log_) log_(traducir("gateway", "https: el certificado propio es inválido; se usa uno autofirmado"));
         if (loaded) {
             d.crtPem = crtPem;
             d.keyPem = keyPem;
@@ -344,7 +344,7 @@ bool TlsTerminator::start() {
     if (!wsa_) {
         WSADATA wsa{};
         if (WSAStartup(MAKEWORD(2, 2), &wsa) != 0) {
-            if (log_) log_(traducir("gateway", "https: no arranco Winsock (WSAStartup)"));
+            if (log_) log_(traducir("gateway", "https: no arrancó Winsock (WSAStartup)"));
             return false;
         }
         wsa_ = true;
@@ -379,11 +379,11 @@ bool TlsTerminator::start() {
 #ifdef _WIN32
         const int code = WSAGetLastError();
         const std::string why =
-            code == WSAEADDRINUSE ? traducir("gateway", "el puerto ya esta en uso")
+            code == WSAEADDRINUSE ? traducir("gateway", "el puerto ya está en uso")
                                   : llenar(traducir("gateway", "error %1"), {std::to_string(code)});
 #else
         const int code = errno;
-        const std::string why = code == EADDRINUSE ? traducir("gateway", "el puerto ya esta en uso") : std::strerror(code);
+        const std::string why = code == EADDRINUSE ? traducir("gateway", "el puerto ya está en uso") : std::strerror(code);
 #endif
         closeSock(static_cast<long long>(s));
         if (log_)

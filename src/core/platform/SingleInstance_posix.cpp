@@ -45,7 +45,7 @@ bool SingleInstance::acquire(const std::string& name, SingleInstance& out, std::
     out.release();
 #if defined(__linux__)
     if (name.empty() || name.size() > 64 || name.find('/') != std::string::npos) {
-        if (err != nullptr) *err = ba::i18n::llenar(ba::i18n::traducir("ipc", "nombre de lock invalido: '%1'"), {name});
+        if (err != nullptr) *err = ba::i18n::llenar(ba::i18n::traducir("ipc", "nombre de lock inválido: '%1'"), {name});
         return false;
     }
     const std::string abs =

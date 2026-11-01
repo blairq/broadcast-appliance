@@ -161,7 +161,7 @@ SettingsModel::SettingsModel(AppRuntime& rt, VentanillaMotor& ventanilla, QObjec
     : QAbstractListModel(parent), rt_(rt), v_(&ventanilla), idiomaAlArrancar_(guardada().launcher.idioma) {
     // Codificadores: los alias que se ofrecen (cuál hay de verdad en esta máquina lo
     // decide el motor al armar cada salida: motor/Salidas.cpp, elegirCodificador).
-    QVariantList encoders = choices({{"auto", traducir("ajustes", "Automatico (hardware si hay)")},
+    QVariantList encoders = choices({{"auto", traducir("ajustes", "Automático (hardware si hay)")},
                                      {"vaapi", "VAAPI (AMD / Intel, Linux)"},
                                      {"nvenc", "NVENC (NVIDIA)"},
                                      {"qsv", "Quick Sync (Intel)"},
@@ -278,7 +278,7 @@ SettingsModel::SettingsModel(AppRuntime& rt, VentanillaMotor& ventanilla, QObjec
         // --- Asistente de IA (MCP) -------------------------------------------------
         {"mcp.enabled", "Asistente (MCP)", traducir("ajustes", "Servidor MCP"), "bool", {}, 0, 0, "", traducir("ajustes", "Permite que un asistente de IA (Claude u otro cliente MCP) maneje y vea toda la app. Solo en esta máquina y con token (cifrado en Credenciales/; bin/64bit/ba-mcp --token lo muestra)."), "restart", true},
         {"mcp.port", "Asistente (MCP)", traducir("ajustes", "Puerto MCP"), "int", {}, 1024, 65535, "", traducir("ajustes", "http://127.0.0.1:<puerto>/mcp. Para clientes que lanzan un proceso: bin/64bit/ba-mcp."), "restart", 8790},
-        {"mcp.approval", "Asistente (MCP)", traducir("ajustes", "Aprobar acciones del asistente"), "choice", choices({{"invitados", traducir("ajustes", "Si leyó mensajes/datos de invitados o del público (recomendado)")},{"siempre", traducir("ajustes", "Siempre")},{"nunca", traducir("ajustes", "Nunca: aprobación automática (bajo tu responsabilidad)")}}), 0, 0, "", traducir("ajustes", "Salvaguarda determinista: cuando el asistente leyo algo escrito por invitados o por el publico (chat, nombres, archivos, su video), toda accion que modifica algo espera tu click de aprobacion en la barra de abajo. Asi un invitado no puede hacer que el asistente cambie nada. Con «Nunca» se aprueba todo solo: un invitado podria escribir en el chat algo que el asistente termine haciendo. Solo se cambia desde aca (el asistente no puede)."), "live", "invitados"},
+        {"mcp.approval", "Asistente (MCP)", traducir("ajustes", "Aprobar acciones del asistente"), "choice", choices({{"invitados", traducir("ajustes", "Si leyó mensajes/datos de invitados o del público (recomendado)")},{"siempre", traducir("ajustes", "Siempre")},{"nunca", traducir("ajustes", "Nunca: aprobación automática (bajo tu responsabilidad)")}}), 0, 0, "", traducir("ajustes", "Salvaguarda determinista: cuando el asistente leyó algo escrito por invitados o por el público (chat, nombres, archivos, su video), toda acción que modifica algo espera tu clic de aprobación en la barra de abajo. Así un invitado no puede hacer que el asistente cambie nada. Con «Nunca» se aprueba todo solo: un invitado podría escribir en el chat algo que el asistente termine haciendo. Solo se cambia desde acá (el asistente no puede)."), "live", "invitados"},
         {"mcp.aprobacionMin", "Asistente (MCP)", traducir("ajustes", "Una aprobación espera hasta"), "int", {}, 1, 240, "min", traducir("ajustes", "Lo que el asistente pide aprobar se rechaza solo si nadie contesta en este tiempo."), "live", 10},
         // --- Modelos locales (el chat sin internet) ----------------------------------
         {"modelo.contexto", "Modelos locales", traducir("ajustes", "Memoria de la charla (contexto)"), "int", {}, 2048, 262144, traducir("ajustes", "tokens"), traducir("ajustes", "Contexto del modelo local de chat (pestaña Asistente, «modelo local»). Más, recuerda más de la charla y usa más memoria de la placa. Rige al volver a arrancarlo."), "live", 32768},
@@ -972,14 +972,14 @@ SettingsModel::Aplicado SettingsModel::aplicarEn(AppRuntime& rt, const Pedido& p
     l.idioma = s("launcher.idioma");
     if (changed("launcher.") || changed("guests.video") || changed("guests.audio") ||
         changed("guests.audioPreset")) {
-        notes << traducir("ajustes", "Algunos cambios rigen desde el proximo arranque.");
+        notes << traducir("ajustes", "Algunos cambios rigen desde el próximo arranque.");
     }
 
     if (!rt.save()) {
         a.fallo = true;
         notes << traducir("ajustes", "ERROR al guardar: %1").arg(qs(rt.lastError()));
     } else {
-        notes << traducir("ajustes", "Configuracion guardada.");
+        notes << traducir("ajustes", "Configuración guardada.");
     }
     if (restartB) {
         // Aparte: esperar que el gateway se cierre trababa a quien lo pedía unos segundos

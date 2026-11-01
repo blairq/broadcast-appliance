@@ -282,7 +282,7 @@ void WgDevice::tick(int64_t now) {
         if (now - hs_.startedMs >= kRekeyAttemptMs) {
             hs_.active = false;
             queue_.clear();
-            if (log_) log_(ba::i18n::traducir("gateway", "wireguard: el peer no responde; se reintenta con el proximo trafico"));
+            if (log_) log_(ba::i18n::traducir("gateway", "wireguard: el peer no responde; se reintenta con el próximo tráfico"));
         } else {
             sendInitiationLocked(now);
         }
@@ -572,7 +572,7 @@ void WgDevice::handleResponse(const uint8_t* d, size_t n, uint32_t ip, uint16_t 
     epPort_ = port;
     stats_.handshakes++;
     stats_.lastHandshakeMs = wallMs();
-    if (log_) log_(ba::i18n::traducir("gateway", "wireguard: sesion establecida"));
+    if (log_) log_(ba::i18n::traducir("gateway", "wireguard: sesión establecida"));
     // El respondedor confirma la sesion con el primer dato: si no hay nada
     // encolado, un keepalive.
     if (queue_.empty()) {
@@ -588,7 +588,7 @@ void WgDevice::handleCookie(const uint8_t* d, size_t n) {
     if (!xaeadDecrypt(ck, cookieKeyPeer_, d + 8, d + 32, 32, lastMac1_.data(), 16)) return;
     std::memcpy(cookie_.data(), ck, 16);
     cookieMs_ = monoMs();
-    if (log_) log_(ba::i18n::traducir("gateway", "wireguard: el servidor pidio cookie (bajo carga); se reintenta con MAC2"));
+    if (log_) log_(ba::i18n::traducir("gateway", "wireguard: el servidor pidió cookie (bajo carga); se reintenta con MAC2"));
 }
 
 void WgDevice::handleData(const uint8_t* d, size_t n, uint32_t ip, uint16_t port, int64_t now) {

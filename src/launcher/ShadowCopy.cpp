@@ -237,7 +237,7 @@ std::wstring ShadowCopy::prepare(const std::wstring& root, const std::wstring& v
     if (!tempBase(tempBaseStr)) {
         BA_LOG_ERROR("shadow", 1,
                      ba::i18n::traducir("shadow", "no se pudo obtener la carpeta temporal; ejecutar desde "
-                                                  "la raiz (fail-safe)"));
+                                                  "la raíz (fail-safe)"));
         return root;
     }
 
@@ -258,7 +258,7 @@ std::wstring ShadowCopy::prepare(const std::wstring& root, const std::wstring& v
         if (ec) {
             BA_LOG_ERROR("shadow", 2,
                          ba::i18n::llenar(ba::i18n::traducir("shadow", "no se pudo limpiar la copia sombra a medias: %1; "
-                                                                       "ejecutar desde la raiz"),
+                                                                       "ejecutar desde la raíz"),
                                           {shadowRoot.string()}));
             return root;
         }
@@ -269,7 +269,7 @@ std::wstring ShadowCopy::prepare(const std::wstring& root, const std::wstring& v
     for (const char* sub : kArboles) {
         if (!copyTree(rootPath / sub, shadowRoot / sub)) {
             BA_LOG_ERROR("shadow", 3,
-                         ba::i18n::llenar(ba::i18n::traducir("shadow", "fallo al copiar %1 hacia %2; ejecutar desde la raiz"),
+                         ba::i18n::llenar(ba::i18n::traducir("shadow", "falló al copiar %1 hacia %2; ejecutar desde la raíz"),
                                           {std::string(sub), shadowRoot.string()}));
             return root;
         }
@@ -279,7 +279,7 @@ std::wstring ShadowCopy::prepare(const std::wstring& root, const std::wstring& v
     if (!writeMarker(shadowRoot, versionHash)) {
         BA_LOG_ERROR("shadow", 4,
                      ba::i18n::llenar(ba::i18n::traducir("shadow", "no se pudo escribir el marker .shadow_ok en %1; "
-                                                                   "ejecutar desde la raiz"),
+                                                                   "ejecutar desde la raíz"),
                                       {shadowRoot.string()}));
         return root;
     }

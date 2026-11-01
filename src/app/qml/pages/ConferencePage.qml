@@ -395,7 +395,7 @@ Rectangle {
                     RowLayout {
                         anchors { right: parent.right; top: parent.top; topMargin: -34 }
                         spacing: 8
-                        StatusPill { text: conf.online ? qsTr("Conferencia %1").arg(conf.room) : qsTr("Conferencia sin conexion"); dot: conf.online ? Theme.ok : Theme.live; pulse: !conf.online }
+                        StatusPill { text: conf.online ? qsTr("Conferencia %1").arg(conf.room) : qsTr("Conferencia sin conexión"); dot: conf.online ? Theme.ok : Theme.live; pulse: !conf.online }
                         StatusPill { visible: conf.online; text: qsTr("%1/%2 lugares").arg(conf.maxGuests - conf.slotsFree).arg(conf.maxGuests); dot: conf.slotsFree > 0 ? Theme.ok : Theme.amber }
                         // Reinicia SOLO la sala (el gateway): relee su configuración (IP,
                         // puertos, túnel) sin cerrar el programa.
@@ -1134,7 +1134,7 @@ Rectangle {
                             }
                             StatusPill {
                                 readonly property var w: direct.wg
-                                text: !w.enabled ? qsTr("Tunel apagado") : (w.up ? qsTr("Tunel conectado") : qsTr("Tunel sin conexion"))
+                                text: !w.enabled ? qsTr("Tunel apagado") : (w.up ? qsTr("Tunel conectado") : qsTr("Túnel sin conexión"))
                                 dot: !w.enabled ? Theme.textFaint : (w.up ? Theme.ok : Theme.live)
                                 pulse: !!w.enabled && !w.up
                             }
@@ -1142,7 +1142,7 @@ Rectangle {
                         Text {
                             Layout.fillWidth: true
                             readonly property var w: direct.wg
-                            text: w.enabled ? qsTr("Publico: %1  ·  servidor %2").arg(w.publicAddress || "—").arg(w.endpoint || "—")
+                            text: w.enabled ? qsTr("Público: %1  ·  servidor %2").arg(w.publicAddress || "—").arg(w.endpoint || "—")
                                             : qsTr("Los invitados entran por Cloudflare o por la red local.")
                             color: Theme.textDim; font.pixelSize: 11; elide: Text.ElideRight
                         }
@@ -1300,7 +1300,7 @@ Rectangle {
                 Layout.fillWidth: true
                 wrapMode: Text.Wrap
                 color: Theme.textDim; font.pixelSize: 12
-                text: qsTr("Un servidor con IP publica (un VPS con Linux) le da a esta conferencia su propia direccion en internet: los invitados entran directo, sin Cloudflare. Este equipo se conecta por WireGuard en espacio de usuario: no necesita permisos de administrador ni drivers.")
+                text: qsTr("Un servidor con IP pública (un VPS con Linux) le da a esta conferencia su propia dirección en internet: los invitados entran directo, sin Cloudflare. Este equipo se conecta por WireGuard en espacio de usuario: no necesita permisos de administrador ni drivers.")
             }
             GridLayout {
                 columns: 2
@@ -1308,12 +1308,12 @@ Rectangle {
                 Layout.fillWidth: true
                 Text { text: qsTr("Servidor (host:puerto)"); color: Theme.text; font.pixelSize: 12 }
                 TextField { id: wgEndpoint; Layout.fillWidth: true; placeholderText: "vps.midominio.com:51820" }
-                Text { text: qsTr("IP o dominio publico"); color: Theme.text; font.pixelSize: 12 }
+                Text { text: qsTr("IP o dominio público"); color: Theme.text; font.pixelSize: 12 }
                 TextField { id: wgPublic; Layout.fillWidth: true; placeholderText: qsTr("(el mismo host si se deja vacio)") }
                 Text { text: qsTr("Interfaz publica del servidor"); color: Theme.text; font.pixelSize: 12 }
                 TextField { id: wgIface; Layout.fillWidth: true; text: "eth0" }
             }
-            GlassButton { text: qsTr("Generar configuracion"); active: true; compact: true
+            GlassButton { text: qsTr("Generar configuración"); active: true; compact: true
                           onClicked: conf.configureDirectAccess(wgEndpoint.text, wgPublic.text, wgIface.text) }
             Text { visible: wgDlg.error !== ""; text: wgDlg.error; color: Theme.live; font.pixelSize: 12 }
             Text {
@@ -1329,7 +1329,7 @@ Rectangle {
                 Layout.preferredHeight: 260
                 TextArea { readOnly: true; text: wgDlg.config; font.family: Theme.mono; font.pixelSize: 11; wrapMode: TextEdit.NoWrap; selectByMouse: true }
             }
-            GlassButton { visible: wgDlg.config !== ""; text: qsTr("Copiar configuracion"); compact: true; onClicked: Studio.copiar(wgDlg.config) }
+            GlassButton { visible: wgDlg.config !== ""; text: qsTr("Copiar configuración"); compact: true; onClicked: Studio.copiar(wgDlg.config) }
         }
     }
 

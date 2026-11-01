@@ -54,7 +54,7 @@ std::vector<ModuleType> build() {
         t.params = {
             {"umbral_db", "Curve threshold", QT_TRANSLATE_NOOP("modulos", "Por debajo de este nivel (dBFS) cierra.")},
             {"zona_db", "Curve zone size", QT_TRANSLATE_NOOP("modulos", "Transicion abierta-cerrada (dB, negativo).")},
-            {"reduccion_db", "Reduction", QT_TRANSLATE_NOOP("modulos", "Cuanto atenua cerrada (dB, negativo; -inf = silencio).")},
+            {"reduccion_db", "Reduction", QT_TRANSLATE_NOOP("modulos", "Cuánto atenúa cerrada (dB, negativo; -inf = silencio).")},
             {"ataque_ms", "Attack", QT_TRANSLATE_NOOP("modulos", "Tiempo de apertura (ms).")},
             {"liberacion_ms", "Release", QT_TRANSLATE_NOOP("modulos", "Tiempo de cierre (ms).")},
             {"sosten_ms", "Hold time", QT_TRANSLATE_NOOP("modulos", "Espera antes de cerrar (ms).")},
@@ -81,8 +81,8 @@ std::vector<ModuleType> build() {
         t.aliases = {"compressor", "comp"};
         t.pluginId = "in.lsp-plug.compressor_stereo";
         t.title = QT_TRANSLATE_NOOP("modulos", "Compresor");
-        t.help = QT_TRANSLATE_NOOP("modulos", "Reduce la dinamica: lo que pasa el umbral se atenua segun el ratio. Voz: ratio 2-4, ataque "
-                 "5-20 ms, liberacion 80-200 ms, 3-6 dB de reduccion en las partes fuertes.");
+        t.help = QT_TRANSLATE_NOOP("modulos", "Reduce la dinámica: lo que pasa el umbral se atenúa según el ratio. Voz: ratio 2-4, ataque "
+                 "5-20 ms, liberación 80-200 ms, 3-6 dB de reducción en las partes fuertes.");
         t.params = {{"umbral_db", "Attack threshold", QT_TRANSLATE_NOOP("modulos", "Umbral (dBFS).")},
                     {"ratio", "Ratio", QT_TRANSLATE_NOOP("modulos", "Relacion de compresion (1..100).")},
                     {"rodilla_db", "Knee", QT_TRANSLATE_NOOP("modulos", "Rodilla (dB, negativo = mas suave).")},
@@ -110,11 +110,11 @@ std::vector<ModuleType> build() {
         t.pluginId = "in.lsp-plug.deesser_stereo";
         t.title = QT_TRANSLATE_NOOP("modulos", "De-esser");
         t.help =
-            QT_TRANSLATE_NOOP("modulos", "Atenua las sibilancias (s, ch). La deteccion arranca en `deteccion_hz` (4-8 kHz segun la voz); "
-            "`escuchar` deja oir solo lo que detecta para ajustar.");
+            QT_TRANSLATE_NOOP("modulos", "Atenúa las sibilancias (s, ch). La detección arranca en `deteccion_hz` (4-8 kHz según la voz); "
+            "`escuchar` deja oír solo lo que detecta para ajustar.");
         t.params = {
             {"umbral_db", "Threshold", QT_TRANSLATE_NOOP("modulos", "Umbral de la sibilancia detectada (dBFS).")},
-            {"ratio", "Ratio", QT_TRANSLATE_NOOP("modulos", "Cuanto la atenua.")},
+            {"ratio", "Ratio", QT_TRANSLATE_NOOP("modulos", "Cuánto la atenúa.")},
             {"rodilla_db", "Knee", QT_TRANSLATE_NOOP("modulos", "Rodilla (dB).")},
             {"ataque_ms", "Attack time", QT_TRANSLATE_NOOP("modulos", "Ataque (ms).")},
             {"liberacion_ms", "Release time", QT_TRANSLATE_NOOP("modulos", "Liberacion (ms).")},
@@ -181,7 +181,7 @@ std::vector<ModuleType> build() {
         t.aliases = {"limiter", "techo"};
         t.pluginId = "in.lsp-plug.limiter_stereo";
         t.title = QT_TRANSLATE_NOOP("modulos", "Limitador");
-        t.help = QT_TRANSLATE_NOOP("modulos", "Techo que la señal no pasa (al final de la cadena). Transmision: -1 dBFS.");
+        t.help = QT_TRANSLATE_NOOP("modulos", "Techo que la señal no pasa (al final de la cadena). Transmisión: -1 dBFS.");
         t.params = {{"umbral_db", "Threshold", QT_TRANSLATE_NOOP("modulos", "Techo (dBFS).")},
                     {"lookahead_ms", "Lookahead", QT_TRANSLATE_NOOP("modulos", "Anticipacion (ms).")},
                     {"ataque_ms", "Attack time", QT_TRANSLATE_NOOP("modulos", "Ataque (ms).")},
@@ -260,7 +260,7 @@ std::string setParam(ClapInstance& inst, const ParamInfo& p, const json& v) {
     } else if (v.is_string()) {
         text = v.get<std::string>();
     } else {
-        return ba::i18n::traducir("modulos", "valor invalido");
+        return ba::i18n::traducir("modulos", "valor inválido");
     }
     // Listas (tipo de filtro, modo...): por el texto de cada opcion.
     if ((p.isEnum() || p.stepped()) && !isNumberText(text) && p.max - p.min <= 64) {
@@ -272,7 +272,7 @@ std::string setParam(ClapInstance& inst, const ParamInfo& p, const json& v) {
         std::string opts;
         for (double k = p.min; k <= p.max + 1e-9; k += 1)
             opts += (opts.empty() ? "" : ", ") + inst.valueText(p.id, k);
-        return ba::i18n::llenar(ba::i18n::traducir("modulos", "opcion desconocida '%1' (validas: %2)"), {text, opts});
+        return ba::i18n::llenar(ba::i18n::traducir("modulos", "opción desconocida '%1' (válidas: %2)"), {text, opts});
     }
     if (text == "on" || text == "true") return inst.setValue(p.id, p.max) ? "" : ba::i18n::traducir("modulos", "cola llena");
     if (text == "off" || text == "false") return inst.setValue(p.id, p.min) ? "" : ba::i18n::traducir("modulos", "cola llena");

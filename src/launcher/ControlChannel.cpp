@@ -30,7 +30,7 @@ bool ControlChannel::requestShutdown(const std::string& channel, int timeoutMs) 
     msg.correlacion = orden.id();
     if (!ep.sendRequest(msg)) {
         BA_LOG_WARN("control", 0,
-                    ba::i18n::llenar(ba::i18n::traducir("control", "fallo el envio del shutdown por '%1'"), {channel}));
+                    ba::i18n::llenar(ba::i18n::traducir("control", "falló el envío del shutdown por '%1'"), {channel}));
         return false;
     }
     BA_LOG_INFO("control", 0, ba::i18n::llenar(ba::i18n::traducir("control", "shutdown enviado por '%1'"), {channel}));

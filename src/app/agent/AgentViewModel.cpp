@@ -216,9 +216,9 @@ const std::vector<Provider>& providerTable() {
          "modelo-propio-api-key",
          "BA_MODELO_PROPIO_KEY",
          "",
-         QT_TRANSLATE_NOOP("asistente", "Tu propio servidor. Configurale la direccion (baseURL), que modelo pedirle y los "
-         "parametros extra que entienda, y pega su clave. Lo maneja opencode: este aparato no le "
-         "habla al modelo, le arma la configuracion."),
+         QT_TRANSLATE_NOOP("asistente", "Tu propio servidor. Configurale la dirección (baseURL), qué modelo pedirle y los "
+         "parámetros extra que entienda, y pegá su clave. Lo maneja opencode: este aparato no le "
+         "habla al modelo, le arma la configuración."),
          {}},
     };
     return t;
@@ -266,7 +266,7 @@ AgentViewModel::AgentViewModel(AppRuntime& rt, VentanillaMotor& ventanilla, Aler
     connect(session_.get(), &term::TerminalSession::finished, this, [this](int code) {
         const bool expected = expectedStop_;
         expectedStop_ = false;
-        if (!expected && code != 0) setError(tr("El agente termino (codigo %1).").arg(code));
+        if (!expected && code != 0) setError(tr("El agente terminó (código %1).").arg(code));
         pararServidorLocal(); // el chat del modelo local terminó: su llama-server también
     });
     // Las alertas: solo el de automatización (el del evento ya no las recibe).
@@ -650,7 +650,7 @@ void AgentViewModel::checkUpdate() {
             if (platformPin(nueva).empty()) {
                 latest_.erase(runtime);
                 emit latestChanged();
-                setError(tr("La version nueva no se publico con hash para esta plataforma (%1): no se ofrece.")
+                setError(tr("La versión nueva no se publicó con hash para esta plataforma (%1): no se ofrece.")
                              .arg(platformKey()));
                 return;
             }
@@ -659,7 +659,7 @@ void AgentViewModel::checkUpdate() {
             if (newerAvailable())
                 emit notify(tr("Hay una version nueva: %1.").arg(v), "ok");
             else
-                emit notify(tr("Esta al dia (la ultima publicada es %1).").arg(v), "ok");
+                emit notify(tr("Está al día (la última publicada es %1).").arg(v), "ok");
         });
     });
 }
@@ -1811,7 +1811,7 @@ term::Pty::Options AgentViewModel::launchOptionsHeadless(const Lanzamiento& l, Q
     if (runtime == "antigravity") {
         // Antigravity tiene modo no interactivo (-p, --output-format stream-json), pero no
         // está probado con el MCP ni con su salida: hasta entonces, los roles no lo usan.
-        if (error != nullptr) *error = tr("Los roles automaticos todavia no pueden usar Gemini (Antigravity).");
+        if (error != nullptr) *error = tr("Los roles automáticos todavía no pueden usar Gemini (Antigravity).");
         return {};
     }
     if (runtime.isEmpty()) {
@@ -1856,7 +1856,7 @@ void AgentViewModel::start() {
     }
     if (!mcpReady()) {
         setError(
-            tr("El servidor MCP esta apagado: activalo en Configuracion -> Asistente (MCP) y reinicia la app."));
+            tr("El servidor MCP está apagado: activalo en Configuración -> Asistente (MCP) y reiniciá la app."));
         return;
     }
     // El chat del modelo local: primero su llama-server (cargar el modelo tarda);
@@ -2231,8 +2231,8 @@ void AgentViewModel::flushAlerts() {
     const QString msg =
         "[AVISO AUTOMATICO de Broadcast Appliance] " +
         QString::fromStdString(ba::i18n::llenar(
-            ba::i18n::traducir("asistente", "%1 — Atendelo segun lo acordado (si no hay nada acordado, revisa con "
-                                            "las herramientas, contame que paso y propone que hacer)."),
+            ba::i18n::traducir("asistente", "%1 — Atendelo según lo acordado (si no hay nada acordado, revisá con "
+                                            "las herramientas, contame qué pasó y proponé qué hacer)."),
             {pendingAlerts_.join(" | ").toStdString()}));
     pendingAlerts_.clear();
     session_->submit(msg);

@@ -1374,7 +1374,7 @@ json AudioRack::save() const {
 
 bool AudioRack::load(const json& j, std::string* error) {
     if (!j.is_object() || !j.contains("nodos")) {
-        if (error != nullptr) *error = ba::i18n::traducir("rack", "rack invalido");
+        if (error != nullptr) *error = ba::i18n::traducir("rack", "rack inválido");
         return false;
     }
     // Todo nuevo: se vacia (fuera del audio primero) y se arma de cero.

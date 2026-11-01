@@ -1673,7 +1673,7 @@ const auto tomadoM = canalM.tomarPrograma("");
                 d.la.idioma = "pt";
                 d.sucia |= FotoMotor::Configuracion;
                 aplicadaMs = msDesde(desde);
-                return std::string("Configuracion guardada.");
+                return std::string("Configuración guardada.");
             },
             [&](const std::string& r) { llegadas.push_back("respuesta " + r); });
         v.pedir(

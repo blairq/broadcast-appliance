@@ -63,13 +63,13 @@ bool CloudflaredSupervisor::start() {
     // Sin token no hay tunel posible: lanzarlo igual solo generaba un bucle de
     // reinicios. El gateway queda accesible en la red local.
     if (tunnelToken_.empty()) {
-        log_.info(traducir("gateway", "cloudflared: sin token de tunel (Configuración → Cloudflare o BA_TUNNEL_TOKEN); "
-                                      "sin tunel, solo acceso local"));
+        log_.info(traducir("gateway", "cloudflared: sin token de túnel (Configuración → Cloudflare o BA_TUNNEL_TOKEN); "
+                                      "sin túnel, solo acceso local"));
         return false;
     }
     std::error_code ec;
     if (!std::filesystem::exists(cloudflaredPath_, ec)) {
-        log_.warn(llenar(traducir("gateway", "cloudflared: no esta el binario (%1); sin tunel. `make deps-cloudflared`"),
+        log_.warn(llenar(traducir("gateway", "cloudflared: no está el binario (%1); sin túnel. `make deps-cloudflared`"),
                          {cloudflaredPath_}),
                   -1);
         return false;
@@ -199,7 +199,7 @@ void CloudflaredSupervisor::runLoop() {
             if (probeFailures == 0 && !loggedUp_) {
                 loggedUp_ = true;
                 rel_.vigilar(ahoraMono(), true, 0); // arriba de verdad: las caídas se olvidan
-                log_.info(traducir("gateway", "cloudflared: tunel arriba (metrics ok)"));
+                log_.info(traducir("gateway", "cloudflared: túnel arriba (metrics ok)"));
             }
             continue;
         }
@@ -207,7 +207,7 @@ void CloudflaredSupervisor::runLoop() {
         // Token invalido: reintentar no lo arregla (el log se llenaba de
         // reinicios para siempre). Se avisa una vez y se deja de supervisar.
         if (!alive && outputSinceSpawn().find("token is not valid") != std::string::npos) {
-            log_.error(traducir("gateway", "cloudflared: el token del tunel (BA_TUNNEL_TOKEN) no es valido; tunel "
+            log_.error(traducir("gateway", "cloudflared: el token del túnel (BA_TUNNEL_TOKEN) no es válido; túnel "
                                            "desactivado hasta corregirlo y reiniciar el gateway"),
                        -1);
             kill();

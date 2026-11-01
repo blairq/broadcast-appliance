@@ -208,7 +208,7 @@ QString findGoogleClientJson(QString* why) {
     }
     if (!best.exists()) {
         if (why != nullptr)
-            *why = QCoreApplication::translate("cuentas", "No hay ningun client_secret_….json de tipo «App de "
+            *why = QCoreApplication::translate("cuentas", "No hay ningún client_secret_….json de tipo «App de "
                                                           "escritorio» en Descargas (%1).")
                        .arg(dirs.join(", "));
         return {};

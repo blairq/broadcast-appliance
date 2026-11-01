@@ -210,7 +210,7 @@ int runLauncher(const std::vector<std::string>& args) {
                          ba::i18n::llenar(ba::i18n::traducir("launcher", "emisor aparte pedido pero no está %1: la app codifica"),
                                           {cfg.emisorExe.string()}));
     }
-    BA_LOG_INFO("launcher", 0, ba::i18n::llenar(ba::i18n::traducir("launcher", "raiz del bundle: %1"), {root.string()}));
+    BA_LOG_INFO("launcher", 0, ba::i18n::llenar(ba::i18n::traducir("launcher", "raíz del bundle: %1"), {root.string()}));
 
     // Mientras el programa esté abierto, la máquina no se duerme (ni la pantalla del
     // multiview se apaga): el lanzador vive lo mismo que el programa (platform/Energia).

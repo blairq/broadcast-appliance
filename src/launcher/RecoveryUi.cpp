@@ -100,25 +100,25 @@ std::wstring buildStatus(const Incident& inc) {
         s += "\n\n";
         if (inc.childADown) {
             s += inc.appCodeValid
-                     ? llenar(traducir("recuperacion", "• Proceso A (aplicacion): CAIDO (codigo de salida %1)."),
+                     ? llenar(traducir("recuperacion", "• Proceso A (aplicación): CAÍDO (código de salida %1)."),
                               {std::to_string(inc.appExitCode)})
-                     : traducir("recuperacion", "• Proceso A (aplicacion): CAIDO.");
+                     : traducir("recuperacion", "• Proceso A (aplicación): CAÍDO.");
             s += "\n";
         }
         if (inc.childBDown) {
             s += inc.gwCodeValid
-                     ? llenar(traducir("recuperacion", "• Proceso B (gateway): CAIDO (codigo de salida %1)."),
+                     ? llenar(traducir("recuperacion", "• Proceso B (gateway): CAÍDO (código de salida %1)."),
                               {std::to_string(inc.gatewayExitCode)})
-                     : traducir("recuperacion", "• Proceso B (gateway): CAIDO.");
+                     : traducir("recuperacion", "• Proceso B (gateway): CAÍDO.");
             s += "\n";
         }
     } else if (inc.showIntegrity) {
         s += traducir("recuperacion", "Se detectaron problemas de integridad en el disco.");
     } else {
-        s += traducir("recuperacion", "El supervisor requiere una accion del operador.");
+        s += traducir("recuperacion", "El supervisor requiere una acción del operador.");
     }
     s += "\n\n";
-    s += traducir("recuperacion", "Elija una accion:");
+    s += traducir("recuperacion", "Elija una acción:");
     return aWide(s);
 }
 
@@ -200,7 +200,7 @@ RecoveryAction RecoveryUi::present(const Incident& inc) {
         const DWORD err = GetLastError();
         if (err != ERROR_CLASS_ALREADY_EXISTS) {
             BA_LOG_ERROR("recovery", static_cast<int>(err),
-                         ba::i18n::traducir("recovery", "RegisterClassW fallo; sin UI de recuperacion"));
+                         ba::i18n::traducir("recovery", "RegisterClassW falló; sin UI de recuperación"));
             return RecoveryAction::Dismissed;
         }
         // ERROR_CLASS_ALREADY_EXISTS: present() se volvio a invocar en el mismo
@@ -246,7 +246,7 @@ RecoveryAction RecoveryUi::present(const Incident& inc) {
     if (hwnd == nullptr) {
         const DWORD err = GetLastError();
         BA_LOG_ERROR("recovery", static_cast<int>(err),
-                     ba::i18n::traducir("recovery", "CreateWindowExW fallo; sin UI de recuperacion"));
+                     ba::i18n::traducir("recovery", "CreateWindowExW falló; sin UI de recuperación"));
         return RecoveryAction::Dismissed;
     }
 
@@ -303,7 +303,7 @@ RecoveryAction RecoveryUi::present(const Incident& inc) {
     if (hRetry == nullptr || hForce == nullptr || hExit == nullptr) {
         const DWORD err = GetLastError();
         BA_LOG_ERROR("recovery", static_cast<int>(err),
-                     ba::i18n::traducir("recovery", "no se pudo crear un boton de accion"));
+                     ba::i18n::traducir("recovery", "no se pudo crear un botón de acción"));
         DestroyWindow(hwnd);
         return RecoveryAction::Dismissed;
     }
@@ -313,7 +313,7 @@ RecoveryAction RecoveryUi::present(const Incident& inc) {
     ShowWindow(hwnd, SW_SHOW);
     UpdateWindow(hwnd);
     BA_LOG_INFO("recovery", 0,
-                ba::i18n::llenar(ba::i18n::traducir("recovery", "UI de recuperacion mostrada: %1"), {toUtf8(status)}));
+                ba::i18n::llenar(ba::i18n::traducir("recovery", "UI de recuperación mostrada: %1"), {toUtf8(status)}));
 
     MSG msg{};
     while (GetMessageW(&msg, nullptr, 0, 0) > 0) {
@@ -333,7 +333,7 @@ RecoveryAction RecoveryUi::present(const Incident& inc) {
     // Sin GUI fuera de Windows: se loguea el incidente y se devuelve Retry
     // (continuar), de modo que el Supervisor siga su flujo normal.
     using ba::i18n::traducir;
-    std::string ctx = traducir("recovery", "UI de recuperacion (sin GUI en esta plataforma)");
+    std::string ctx = traducir("recovery", "UI de recuperación (sin GUI en esta plataforma)");
     if (inc.childADown) {
         ctx += "; " + traducir("recovery", "A caido");
     }
@@ -358,8 +358,8 @@ RecoveryAction RecoveryUi::present(const Incident& inc) {
         return safe;
     };
     std::string msg = traducir("recuperacion", "Broadcast Appliance tuvo un problema.");
-    if (inc.childADown) msg += "\\n" + traducir("recuperacion", "La interfaz/motor (A) se cerro.");
-    if (inc.childBDown) msg += "\\n" + traducir("recuperacion", "La sala de invitados (B) se cerro.");
+    if (inc.childADown) msg += "\\n" + traducir("recuperacion", "La interfaz/motor (A) se cerró.");
+    if (inc.childBDown) msg += "\\n" + traducir("recuperacion", "La sala de invitados (B) se cerró.");
     if (inc.showIntegrity && !inc.integrity.ok)
         msg += "\\n" + traducir("recuperacion", "Hay archivos del programa con fallas de integridad.");
     const std::string safe = sinComillas(msg);

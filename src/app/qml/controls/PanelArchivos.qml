@@ -531,7 +531,7 @@ Item {
                 id: nombreCarpeta
                 Layout.preferredWidth: dlgCarpeta.availableWidth
                 color: Theme.text
-                placeholderText: qsTr("Sponsors, Camara 2, Apertura…")
+                placeholderText: qsTr("Sponsors, Cámara 2, Apertura…")
                 onAccepted: dlgCarpeta.accept()
             }
         }

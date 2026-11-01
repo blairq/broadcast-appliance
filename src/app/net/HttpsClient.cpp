@@ -162,7 +162,7 @@ class Conn {
             if (flags != 0) {
                 char info[256] = {0};
                 mbedtls_x509_crt_verify_info(info, sizeof(info), "", flags);
-                err = ba::i18n::llenar(ba::i18n::traducir("red", "certificado de %1 no valido: %2"), {u.host, info});
+                err = ba::i18n::llenar(ba::i18n::traducir("red", "certificado de %1 no válido: %2"), {u.host, info});
             } else {
                 err = ba::i18n::llenar(ba::i18n::traducir("red", "TLS con %1 fallo: %2"), {u.host, tlsError(h)});
             }
@@ -384,7 +384,7 @@ HttpResponse HttpsClient::request(const HttpRequest& req) {
     size_t pos = headers.find("\r\n");
     const std::string status = headers.substr(0, pos);
     if (std::sscanf(status.c_str(), "HTTP/%*d.%*d %d", &res.status) != 1) {
-        res.error = ba::i18n::traducir("red", "respuesta HTTP invalida");
+        res.error = ba::i18n::traducir("red", "respuesta HTTP inválida");
         return res;
     }
     while (pos != std::string::npos) {

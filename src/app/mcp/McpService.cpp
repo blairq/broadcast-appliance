@@ -2294,8 +2294,8 @@ void McpService::registerTools() {
             QT_TRANSLATE_NOOP("mcp", "Manda una fuente de audio al monitor del operador para escucharla. NO cambia lo que sale "
             "al aire: lo que estaba saliendo sigue saliendo igual.");
         t.details =
-            QT_TRANSLATE_NOOP("mcp", "Es el PFL de una consola: antes de abrir un microfono se lo escucha para ver si esta ahi, "
-            "si zumba, si el invitado ya volvio. Sin esto habia que ponerlo al aire para enterarse.\n\n"
+            QT_TRANSLATE_NOOP("mcp", "Es el PFL de una consola: antes de abrir un micrófono se lo escucha para ver si está ahí, "
+            "si zumba, si el invitado ya volvió. Sin esto había que ponerlo al aire para enterarse.\n\n"
             "Hay UN solo a la vez: escuchar una reemplaza a la anterior. Sin argumentos se apaga. "
             "`modo` \"pfl\" (de fábrica) es lo que entrega la entrada, antes del fader; \"afl\", con el "
             "fader y el mute de `salida` (la por omisión si no se dice). Mientras dura suena SOLO esa: "
@@ -2304,10 +2304,10 @@ void McpService::registerTools() {
             "`salida_escucha` elige de qué salida son el fader y el mute de la escucha fija (vacío = la "
             "por omisión); se puede mandar solo, sin `name`.\n\n"
             "OJO: una fuente SILENCIADA (`audio_set muted`) no suena ni por el monitor —el silencio es "
-            "antes de todo—. Para probar un microfono cerrado hay que quitarle el silencio "
+            "antes de todo—. Para probar un micrófono cerrado hay que quitarle el silencio "
             "y bajarle el volumen, no silenciarlo.\n\n"
             "Que se oiga depende de que el equipo tenga un monitor de audio configurado; sin monitor "
-            "esto no falla pero tampoco suena. `audio_sources` dice cual se esta escuchando.");
+            "esto no falla pero tampoco suena. `audio_sources` dice cuál se está escuchando.");
         t.inputSchema = {
             {"type", "object"},
             {"properties",

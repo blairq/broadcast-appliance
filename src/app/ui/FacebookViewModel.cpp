@@ -192,7 +192,7 @@ void FacebookViewModel::goLive(const QString& title, const QString& description,
 
 void FacebookViewModel::goLive(const QJsonObject& p, FacebookClient::Done done) {
     if (cuentas::transmitiendo(ventanilla_))
-        return done(false, {}, tr("La app ya esta transmitiendo: corta esa transmision primero."));
+        return done(false, {}, tr("La app ya está transmitiendo: cortá esa transmisión primero."));
     track(true);
     QPointer<FacebookViewModel> self(this);
     client_->createLive(p, [self, done](bool ok, const QJsonObject& d, const QString& e) {
@@ -229,7 +229,7 @@ void FacebookViewModel::alSalir(const QJsonObject& d, const QJsonObject& ing, co
 void FacebookViewModel::publishLive(const QString& id) {
     publicarVivo(id, [this](bool ok, const QJsonObject&, const QString& e) {
         if (!ok) return setError(e);
-        emit notify(tr("Vivo publicado en la Pagina."), "ok");
+        emit notify(tr("Vivo publicado en la Página."), "ok");
     });
 }
 

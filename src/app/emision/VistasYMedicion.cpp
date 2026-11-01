@@ -76,7 +76,7 @@ void VistasYMedicion::soltarVistasDeEscena() {
 
 bool VistasYMedicion::enablePreview(int width, int height) {
     if (!m_.started_ || width <= 0 || height <= 0) {
-        m_.setError(ba::i18n::traducir("emision", "enablePreview sin startup o con tamaño invalido"));
+        m_.setError(ba::i18n::traducir("emision", "enablePreview sin startup o con tamaño inválido"));
         return false;
     }
     if (previewActive_) return true;

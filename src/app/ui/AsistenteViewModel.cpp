@@ -195,18 +195,18 @@ void AsistenteViewModel::armarMensajes() {
                 note = op + (st == "saved"
                                  ? QCoreApplication::translate(
                                        "asistente",
-                                       "guardo usuario y clave de las camaras %1 (las que dejo sin clave, no). "
+                                       "guardó usuario y clave de las cámaras %1 (las que dejó sin clave, no). "
                                        "Siguiente paso: camara_ficha de cada una.")
                                        .arg(pl.mid(8))
-                                 : QCoreApplication::translate("asistente", "cerro el formulario de las camaras %1 sin guardar.")
+                                 : QCoreApplication::translate("asistente", "cerró el formulario de las cámaras %1 sin guardar.")
                                        .arg(pl.mid(8)));
             else if (pl.startsWith("camara:"))
                 note = op + (st == "saved"
                                  ? QCoreApplication::translate(
                                        "asistente",
-                                       "guardo usuario y clave de la camara %1. Siguiente paso: camara_ficha {\"ip\": \"%1\"}.")
+                                       "guardó usuario y clave de la cámara %1. Siguiente paso: camara_ficha {\"ip\": \"%1\"}.")
                                        .arg(pl.mid(7))
-                                 : QCoreApplication::translate("asistente", "cerro el formulario de la camara %1 sin guardar.")
+                                 : QCoreApplication::translate("asistente", "cerró el formulario de la cámara %1 sin guardar.")
                                        .arg(pl.mid(7)));
             else
                 note = op + (st == "saved"

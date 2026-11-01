@@ -175,7 +175,7 @@ void SystemViewModel::refresh() {
 
 QString SystemViewModel::checkUpdate(const QString& folder) const {
     const QString src = QDir::cleanPath(localPath(folder));
-    if (src.isEmpty()) return tr("Elegi la carpeta de la version nueva.");
+    if (src.isEmpty()) return tr("Elegí la carpeta de la versión nueva.");
     if (!QFileInfo::exists(src + "/" + kLauncher) || !QFileInfo::exists(src + "/" + kApp))
         return tr("Esa carpeta no es una version de Broadcast Appliance (tiene que tener %1 y %2).")
             .arg(kLauncher, kApp);

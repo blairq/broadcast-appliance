@@ -627,7 +627,7 @@ void ProxyNombres::bucle() {
                     socklen_t l = sizeof(err);
                     getsockopt(static_cast<SockT>(c.back), SOL_SOCKET, SO_ERROR, reinterpret_cast<char*>(&err), &l);
                     if (err != 0 || (re & POLLERR)) {
-                        const std::string cuerpo = traducir("gateway", "el servicio no esta andando") + "\n";
+                        const std::string cuerpo = traducir("gateway", "el servicio no está andando") + "\n";
                         c.haciaAfuera = "HTTP/1.1 502 Bad Gateway\r\nContent-Length: " + std::to_string(cuerpo.size()) +
                                         "\r\nConnection: close\r\n\r\n" + cuerpo;
                         c.estado = Conn::Estado::Cerrando;

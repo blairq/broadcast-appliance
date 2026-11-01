@@ -331,7 +331,7 @@ bool BroadcastEngine::resetVideo(const VideoConfig& video, const std::function<V
     const TurnoMotor::Guarda turno(turno_);
     if (!started_) return false;
     if (outputsActive() && !conElMotorApagado) {
-        setError(ba::i18n::traducir("emision", "no se puede cambiar la resolucion con salidas activas"));
+        setError(ba::i18n::traducir("emision", "no se puede cambiar la resolución con salidas activas"));
         return false;
     }
     // El lienzo es de todo el motor: se arma uno nuevo con todo lo que había.

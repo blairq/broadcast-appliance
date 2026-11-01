@@ -45,7 +45,7 @@ Item {
         }
 
         OutputRow {
-            label: Studio.aire.streaming ? qsTr("AL AIRE") : qsTr("TRANSMISION")
+            label: Studio.aire.streaming ? qsTr("AL AIRE") : qsTr("TRANSMISIÓN")
             time: Theme.cronometro(Studio.aire.transmiteDesdeMs, Reloj.ahora)
             detail: Studio.aire.streaming ? Studio.aire.streamKbps + " kbps" : (Studio.streamServer || qsTr("sin servidor"))
             on: Studio.aire.streaming
@@ -231,7 +231,7 @@ Item {
             font.pixelSize: 10
         }
         OutputRow {
-            label: Studio.aire.recording ? qsTr("GRABANDO") : qsTr("GRABACION")
+            label: Studio.aire.recording ? qsTr("GRABANDO") : qsTr("GRABACIÓN")
             time: Theme.cronometro(Studio.aire.grabaDesdeMs, Reloj.ahora)
             detail: ""
             on: Studio.aire.recording

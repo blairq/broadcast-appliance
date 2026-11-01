@@ -191,7 +191,7 @@ QString OperatorMessages::submitCredential(int id, const QVariantMap& values) {
 QString OperatorMessages::sendReply(int id, const QString& text) {
     const json m = get(id);
     if (m.is_null() || m.value("status", "") != "open") return tr("Ese mensaje ya no esta.");
-    if (text.trimmed().isEmpty()) return tr("Escribi la respuesta.");
+    if (text.trimmed().isEmpty()) return tr("Escribí la respuesta.");
     const QString to = qs(m, "to").isEmpty() ? qs(m, "participantId") : qs(m, "to");
     if (!sendChat_) return tr("El chat de la conferencia no esta disponible.");
     const QString err = sendChat_(to.isEmpty() ? "all" : to, text.trimmed());

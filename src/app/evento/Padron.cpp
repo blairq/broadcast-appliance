@@ -423,7 +423,7 @@ Padron cargarPadron(const fs::path& carpeta, bool* ok, std::string* err) {
     if (j.is_discarded()) {
         if (ok != nullptr) *ok = false;
         if (err != nullptr)
-            *err = ba::i18n::llenar(ba::i18n::traducir("evento", "el padron esta roto (JSON invalido): %1"), {archivo.string()});
+            *err = ba::i18n::llenar(ba::i18n::traducir("evento", "el padrón está roto (JSON inválido): %1"), {archivo.string()});
         return {};
     }
     return Padron::deJson(j);

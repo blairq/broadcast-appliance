@@ -977,7 +977,7 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
         // omisión). La pantalla los repite al entrar por /ws.
         const std::string salida = q.count("salida") ? http::urlDecode(q.at("salida")) : std::string();
         if (!salida.empty() && !ba::ipc::idDeSalidaValido(salida)) {
-            sendJson(fd, 200, json{{"ok", false}, {"message", traducir("gateway", "salida invalida")}});
+            sendJson(fd, 200, json{{"ok", false}, {"message", traducir("gateway", "salida inválida")}});
             return;
         }
         std::string canal;
@@ -985,7 +985,7 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
             canal = http::urlDecode(q.at("canal"));
             if (canal.empty() || canal.size() > 2 ||
                 !std::all_of(canal.begin(), canal.end(), [](unsigned char c) { return std::isdigit(c) != 0; })) {
-                sendJson(fd, 200, json{{"ok", false}, {"message", traducir("gateway", "canal de escena invalido")}});
+                sendJson(fd, 200, json{{"ok", false}, {"message", traducir("gateway", "canal de escena inválido")}});
                 return;
             }
         }

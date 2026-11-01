@@ -230,7 +230,7 @@ void SesionBorde::anotarPinMal(const std::string& id) {
         }
     }
     if (seBloqueo) {
-        log_.warn(llenar(traducir("gateway", "sesion: %1 bloqueado 15 min por PIN errado"), {id}), -1);
+        log_.warn(llenar(traducir("gateway", "sesión: %1 bloqueado 15 min por PIN errado"), {id}), -1);
         alApp_({{"tipo", "bloqueo"}, {"id", id}, {"minutos", kBloqueoMs() / 60000}});
     }
 }
@@ -288,8 +288,8 @@ bool SesionBorde::atender(long long fd, const std::string& method, const std::st
     if (ip.empty() || ip.size() > 45) ip = borde::ipTexto(clientIp);
     const std::string lugar = !tunel && borde::ipLocal(clientIp) ? "sala" : "afuera";
     if (!origenValido(headers)) {
-        log_.warn(llenar(traducir("gateway", "sesion: origen ajeno desde %1"), {ip}), -1);
-        http::sendResponse(fd, 403, "text/plain", traducir("gateway", "origen invalido") + "\n");
+        log_.warn(llenar(traducir("gateway", "sesión: origen ajeno desde %1"), {ip}), -1);
+        http::sendResponse(fd, 403, "text/plain", traducir("gateway", "origen inválido") + "\n");
         return true;
     }
     if (pagina || paginaConsola) {
@@ -305,7 +305,7 @@ bool SesionBorde::atender(long long fd, const std::string& method, const std::st
     {
         std::lock_guard<std::mutex> l(mu_);
         if (static_cast<int>(conns_.size()) >= kMaxConexiones())
-            return http::sendResponse(fd, 503, "text/plain", traducir("gateway", "sesion llena") + "\n"), true;
+            return http::sendResponse(fd, 503, "text/plain", traducir("gateway", "sesión llena") + "\n"), true;
     }
     if (!canal::aceptar(fd, headers)) return true;
     wsLoop(fd, ip, lugar, wsConsola);
@@ -355,7 +355,7 @@ void SesionBorde::wsLoop(long long fd, const std::string& ip, const std::string&
             c->aparato = cual;
         } else {
             if (!intentoPermitido(ip)) {
-                log_.warn(llenar(traducir("gateway", "sesion: demasiados intentos desde %1"), {ip}), -1);
+                log_.warn(llenar(traducir("gateway", "sesión: demasiados intentos desde %1"), {ip}), -1);
                 return rechazar(QT_TRANSLATE_NOOP("web/comun", "Demasiados intentos desde esta conexión. Esperá 10 minutos."));
             }
             bool pinMal = false;
@@ -426,7 +426,7 @@ void SesionBorde::wsLoop(long long fd, const std::string& ip, const std::string&
               {"banca", datos.value("banca", std::string())}, {"lugar", c->lugar}};
     if (!tokenAparato.empty()) bien["aparato"] = tokenAparato;
     c->enviar(bien);
-    log_.info(llenar(traducir("gateway", "sesion: %1 conectado desde %2"), {c->id, c->ip}));
+    log_.info(llenar(traducir("gateway", "sesión: %1 conectado desde %2"), {c->id, c->ip}));
     alApp_({{"tipo", "conexion"}, {"id", c->id}, {"conectado", true}, {"ip", c->ip}, {"lugar", c->lugar},
             {"aparato", c->aparato}});
     // Volvió el que tiene la palabra (se le cortó la red, recargó la página): se le
@@ -537,7 +537,7 @@ void SesionBorde::wsLoop(long long fd, const std::string& ip, const std::string&
             } else {
                 const std::string sdp = m.value("sdp", std::string());
                 if (!subeSoloAudio(sdp)) {
-                    log_.warn(llenar(traducir("gateway", "sesion: la atención de %1 quiso mandar algo más que audio; se ignora"),
+                    log_.warn(llenar(traducir("gateway", "sesión: la atención de %1 quiso mandar algo más que audio; se ignora"),
                                      {c->id}),
                               -1);
                     noSePudo(QT_TRANSLATE_NOOP("web/comun", "La página ofreció algo más que el micrófono."));
@@ -626,7 +626,7 @@ void SesionBorde::wsLoop(long long fd, const std::string& ip, const std::string&
         alApp_({{"tipo", "entrada"}, {"id", c->id}, {"msg", limpio}});
         return true;
     });
-    if (fin == canal::Fin::Exceso) log_.warn(llenar(traducir("gateway", "sesion: %1 manda demasiado; se corta"), {c->id}), -1);
+    if (fin == canal::Fin::Exceso) log_.warn(llenar(traducir("gateway", "sesión: %1 manda demasiado; se corta"), {c->id}), -1);
     bool eraLaActual = false;
     {
         std::lock_guard<std::mutex> l(mu_);
@@ -659,7 +659,7 @@ void SesionBorde::wsLoop(long long fd, const std::string& ip, const std::string&
     }
     if (eraLaActual) {
         alApp_({{"tipo", "conexion"}, {"id", c->id}, {"conectado", false}, {"ip", c->ip}});
-        log_.info(llenar(traducir("gateway", "sesion: %1 desconectado"), {c->id}));
+        log_.info(llenar(traducir("gateway", "sesión: %1 desconectado"), {c->id}));
     }
 }
 
@@ -842,8 +842,8 @@ std::string SesionBorde::ponerAtiende(const std::string& id, bool on) {
     }
     if (!anterior.empty()) avisarAtiende(anterior, false);
     avisarAtiende(id, on);
-    log_.info(on ? llenar(traducir("gateway", "sesion: atención hablada para %1"), {id})
-                 : llenar(traducir("gateway", "sesion: atención hablada apagada para %1"), {id}));
+    log_.info(on ? llenar(traducir("gateway", "sesión: atención hablada para %1"), {id})
+                 : llenar(traducir("gateway", "sesión: atención hablada apagada para %1"), {id}));
     return {};
 }
 
@@ -1019,7 +1019,7 @@ void SesionBorde::ponerMedios(const std::vector<std::string>& ids, const std::st
         quienes += (quienes.empty() ? "" : ", ") +
                    (canal == kCanalSiguiente ? llenar(traducir("gateway", "%1 (el siguiente, sin canal)"), {id})
                                              : llenar(traducir("gateway", "%1 (canal %2)"), {id, std::to_string(canal)}));
-    log_.info(llenar(traducir("gateway", "sesion: medios a la sala: %1"),
+    log_.info(llenar(traducir("gateway", "sesión: medios a la sala: %1"),
                      {quienes.empty() ? traducir("gateway", "nadie") : quienes}));
 }
 

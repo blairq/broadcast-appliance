@@ -304,7 +304,7 @@ void YouTubeViewModel::goLive(const QString& broadcastId, YouTubeClient::Done do
         return done(false, {},
                     broadcastId == liveBroadcastId_
                         ? tr("Ya se esta transmitiendo a este evento.")
-                        : tr("La app ya esta transmitiendo: corta esa transmision primero."));
+                        : tr("La app ya está transmitiendo: cortá esa transmisión primero."));
     }
     track(true);
     QPointer<YouTubeViewModel> self(this);
@@ -505,7 +505,7 @@ void YouTubeViewModel::pollChat() {
                      if (self->liveChatId_.isEmpty()) {
                          self->chatInFlight_ = false;
                          emit self->notify(
-                             tr("YouTube: ese evento no tiene chat (todavia no empezo o esta deshabilitado)."),
+                             tr("YouTube: ese evento no tiene chat (todavía no empezó o está deshabilitado)."),
                              "warn");
                          self->chatTimer_.start(ba::ajustes::sAMs("chat.sinChatS", 20));
                          return;

@@ -503,13 +503,13 @@ bool AppRuntime::save() {
             if (std::filesystem::exists(cfg_.configPath, ec) && !std::filesystem::exists(backup, ec)) {
                 std::filesystem::copy_file(cfg_.configPath, backup, ec);
                 std::printf("ba-app: %s\n",
-                            ba::i18n::llenar(ba::i18n::traducir("config", "modo seguro: copia de la configuracion en %1"),
+                            ba::i18n::llenar(ba::i18n::traducir("config", "modo seguro: copia de la configuración en %1"),
                                              {backup.string()})
                                 .c_str());
             }
         }
         ba::diag::registro().linea(ba::diag::Nivel::Aviso, "config", 0,
-                                   ba::i18n::traducir("config", "modo seguro: NO se guarda la configuracion. Lo que cambies "
+                                   ba::i18n::traducir("config", "modo seguro: NO se guarda la configuración. Lo que cambies "
                                                                 "ahora vale solo hasta que se cierre."));
         return true;
     }

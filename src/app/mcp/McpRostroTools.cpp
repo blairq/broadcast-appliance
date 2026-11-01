@@ -613,29 +613,29 @@ void McpService::registerRostroTools() {
         t.title = ba::i18n::traducir("mcp", "Quién es cada uno de los que están esperando");
         t.category = "rostros";
         t.clase = Clase::Lectura;
-        t.description = QT_TRANSLATE_NOOP("mcp", "Solo IDENTIFICA, no deja entrar a nadie. Para cada posicion del lobby: a quien "
-                        "reconoce, si su camara sirve para guardarle la cara, y que pedirle si no.");
+        t.description = QT_TRANSLATE_NOOP("mcp", "Solo IDENTIFICA, no deja entrar a nadie. Para cada posición del lobby: a quién "
+                        "reconoce, si su cámara sirve para guardarle la cara, y qué pedirle si no.");
         t.details =
             QT_TRANSLATE_NOOP("mcp", "EL LOBBY ES EL MOMENTO. La gente llega antes de entrar y se queda quieta frente a su "
-            "camara esperando: es el unico rato en que hay tiempo de saber quien es sin que nada de "
+            "cámara esperando: es el único rato en que hay tiempo de saber quién es sin que nada de "
             "esto salga al aire.\n\n"
             "El lazo del alta asistida de alguien que espera:\n\n"
-            "  1. `rostro_lobby` -> mira `sugerencia` y `sirve` de su posicion\n"
-            "  2. si `sirve` es false, deciselo por `chat_send {to: <su id>}` con esas palabras\n"
+            "  1. `rostro_lobby` -> mirá `sugerencia` y `sirve` de su posición\n"
+            "  2. si `sirve` es false, decíselo por `chat_send {to: <su id>}` con esas palabras\n"
             "  3. cuando `sirve` es true y no tiene `id`, `rostro_guardar {nombre, feed: \"lobby:N\"}`\n"
-            "     —el nombre lo escribio el al entrar: `room_status` lo trae—\n"
+            "     —el nombre lo escribió él al entrar: `room_status` lo trae—\n"
             "  4. si ya tiene `id`, `rostro_sumar {id, feed: \"lobby:N\"}` para que lo reconozca mejor\n"
             "  5. `participant_admit` cuando lo quieras adentro\n\n"
             "`uid` es la persona (el mismo que usan `room_status`, `chat_send` y "
-            "`participant_admit`), y `feed` es su camara: sirve tal cual en `rostro_calidad`, "
+            "`participant_admit`), y `feed` es su cámara: sirve tal cual en `rostro_calidad`, "
             "`rostro_sumar`, `rostro_guardar` y `capture_feed`.\n\n"
-            "`parecido` por debajo de 0.45 sale sin `id`: es «no se», no «no es nadie». Si viene "
+            "`parecido` por debajo de 0.45 sale sin `id`: es «no sé», no «no es nadie». Si viene "
             "cerca del corte (0.40, 0.43) casi seguro ES alguien de la libreta y lo que falta es "
-            "una cara mejor: mira `sugerencia`, pediselo por `chat_send`, y cuando `sirve` sea "
-            "true volve a preguntar.\n\n"
-            "Para que esto conteste algo hace falta que el reconocimiento del lobby este prendido: "
+            "una cara mejor: mirá `sugerencia`, pedíselo por `chat_send`, y cuando `sirve` sea "
+            "true volvé a preguntar.\n\n"
+            "Para que esto conteste algo hace falta que el reconocimiento del lobby esté prendido: "
             "`rostro_autoalta {activo: true, feed: \"lobby\"}`, o el interruptor «Reconocer a los que "
-            "llegan» en la página Conferencia. Sin eso nadie esta mirando esas camaras.");
+            "llegan» en la página Conferencia. Sin eso nadie está mirando esas cámaras.");
         t.run = [pvDe, preparar](const json&, Done done) {
             if (const std::string e = preparar(); !e.empty()) return done(ToolResult::error(e));
             PersonasViewModel* pv = pvDe();

@@ -66,7 +66,7 @@ Calidad calidadDe(const QImage& img, const ba::rostros::Cara& c) {
         k = QT_TRANSLATE_NOOP("caras", "Pedile que se ponga entero en el cuadro: la cara sale cortada por el borde.");
         p = QT_TRANSLATE_NOOP("caras-publico", "Ponete entero en el cuadro: la cara sale cortada.");
     } else if (q.altoPx < kAltoMinimo()) {
-        k = QT_TRANSLATE_NOOP("caras", "Pedile que se acerque a la camara: la cara se ve demasiado chica.");
+        k = QT_TRANSLATE_NOOP("caras", "Pedile que se acerque a la cámara: la cara se ve demasiado chica.");
         p = QT_TRANSLATE_NOOP("caras-publico", "Acercate un poco a la cámara.");
     } else if (q.luz < kLuzMinima()) {
         k = QT_TRANSLATE_NOOP("caras", "Hay poca luz sobre la cara. Pedile que se ponga de frente a una "
@@ -77,7 +77,7 @@ Calidad calidadDe(const QImage& img, const ba::rostros::Cara& c) {
                                        "la ventana o que la deje a su espalda.");
         p = QT_TRANSLATE_NOOP("caras-publico", "Hay mucha luz atrás: corrite un poco de la ventana.");
     } else if (std::abs(q.giro) > kGiroMaximo()) {
-        k = QT_TRANSLATE_NOOP("caras", "Pedile que mire de frente a la camara: la cara esta girada.");
+        k = QT_TRANSLATE_NOOP("caras", "Pedile que mire de frente a la cámara: la cara está girada.");
         p = QT_TRANSLATE_NOOP("caras-publico", "Mirá de frente a la cámara.");
     } else if (q.nitidez < kNitidezMinima()) {
         k = QT_TRANSLATE_NOOP("caras", "La imagen sale borrosa. Pedile que se quede quieto un momento o "
@@ -85,7 +85,7 @@ Calidad calidadDe(const QImage& img, const ba::rostros::Cara& c) {
         p = QT_TRANSLATE_NOOP("caras-publico", "Quedate quieto un momento.");
     } else {
         q.sirve = true;
-        k = QT_TRANSLATE_NOOP("caras", "Asi sirve.");
+        k = QT_TRANSLATE_NOOP("caras", "Así sirve.");
         p = QT_TRANSLATE_NOOP("caras-publico", "Así está bien.");
     }
     q.sugerencia = ba::i18n::traducir("caras", k);

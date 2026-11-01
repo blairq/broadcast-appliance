@@ -145,40 +145,40 @@ void Votacion::setMostrarEnVivo(bool si) {
 
 std::string Votacion::votar(const std::string& quien, const std::string& codigo, int opcion) {
     std::lock_guard<std::mutex> g(m_);
-    if (!abierta_) return QT_TRANSLATE_NOOP("web/comun", "la votacion no esta abierta");
+    if (!abierta_) return QT_TRANSLATE_NOOP("web/comun", "la votación no está abierta");
     if (opcion < 0 || static_cast<std::size_t>(opcion) >= opciones_.size())
-        return QT_TRANSLATE_NOOP("web/comun", "esa opcion no existe");
+        return QT_TRANSLATE_NOOP("web/comun", "esa opción no existe");
 
     std::string clave;
     if (modo_ == Modo::Formal) {
         // El navegador NO alcanza: se borra el sitio y se vota de nuevo. Lo que
         // identifica es el codigo, y solo valen los que mando A desde el
         // padron.
-        if (codigo.empty()) return QT_TRANSLATE_NOOP("web/comun", "falta el codigo: en una votacion formal hay que identificarse");
+        if (codigo.empty()) return QT_TRANSLATE_NOOP("web/comun", "falta el código: en una votación formal hay que identificarse");
         clave = marca(codigo);
         if (habilitados_.find(clave) == habilitados_.end())
-            return QT_TRANSLATE_NOOP("web/comun", "ese codigo no figura entre los que pueden votar");
+            return QT_TRANSLATE_NOOP("web/comun", "ese código no figura entre los que pueden votar");
     } else {
-        if (quien.empty()) return QT_TRANSLATE_NOOP("web/comun", "no se de que telefono viene");
+        if (quien.empty()) return QT_TRANSLATE_NOOP("web/comun", "no sé de qué teléfono viene");
         clave = quien;
     }
     // Volver a votar CAMBIA el voto: alguien que se equivoco de boton tiene que
     // poder arreglarlo, y cerrar la urna es lo que lo vuelve definitivo. Salvo uno
     // sellado (ver restaurar): cuenta, pero no se sabe cuál era para sacarlo.
     if (const auto it = votos_.find(clave); it != votos_.end() && it->second < 0)
-        return QT_TRANSLATE_NOOP("web/comun", "tu voto ya esta contado");
+        return QT_TRANSLATE_NOOP("web/comun", "tu voto ya está contado");
     votos_[clave] = opcion;
     return {};
 }
 
 const char* Votacion::codigoDeMotivo(const std::string& m) {
     static const std::pair<const char*, const char*> tabla[] = {
-        {"la votacion no esta abierta", "cerrada"},
-        {"esa opcion no existe", "opcion"},
-        {"falta el codigo: en una votacion formal hay que identificarse", "sin_codigo"},
-        {"ese codigo no figura entre los que pueden votar", "codigo_invalido"},
-        {"no se de que telefono viene", "sin_telefono"},
-        {"tu voto ya esta contado", "sellado"}};
+        {"la votación no está abierta", "cerrada"},
+        {"esa opción no existe", "opcion"},
+        {"falta el código: en una votación formal hay que identificarse", "sin_codigo"},
+        {"ese código no figura entre los que pueden votar", "codigo_invalido"},
+        {"no sé de qué teléfono viene", "sin_telefono"},
+        {"tu voto ya está contado", "sellado"}};
     for (const auto& [motivo, codigo] : tabla)
         if (m == motivo) return codigo;
     return m.empty() ? "" : "otro";

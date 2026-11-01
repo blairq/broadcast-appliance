@@ -259,12 +259,12 @@ void ControlSala::setNivelLog(const std::string& nivel, Listo listo) {
 std::string ControlSala::accesoDirecto(const std::string& endpoint, const std::string& direccionPublica,
                                        const std::string& interfaz, Listo listo, Reiniciada reiniciada) {
     const std::string ep = recortado(endpoint);
-    if (ep.empty()) return ba::i18n::traducir("sala", "Falta la direccion del servidor (host:puerto)");
+    if (ep.empty()) return ba::i18n::traducir("sala", "Falta la dirección del servidor (host:puerto)");
     const std::string iface = recortado(interfaz);
     pedir(sala_, "POST", "/api/v1/network/server-config", {{"endpoint", ep}, {"interface", iface.empty() ? "eth0" : iface}},
           [this, ep, direccionPublica, listo, reiniciada](const std::string& err, const nlohmann::json& r) {
               if (!err.empty()) {
-                  if (listo) listo(ba::i18n::llenar(ba::i18n::traducir("sala", "El gateway no pudo generar la configuracion: %1"), {err}), r);
+                  if (listo) listo(ba::i18n::llenar(ba::i18n::traducir("sala", "El gateway no pudo generar la configuración: %1"), {err}), r);
                   return;
               }
               // Este equipo queda apuntando a ese servidor, con el túnel prendido (lo

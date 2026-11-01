@@ -315,7 +315,7 @@ bool RegistroBorde::atenderAtiende(long long fd, const std::string& method, cons
     const std::string lugar = !tunel && borde::ipLocal(clientIp) ? "sala" : "afuera";
     if (!SesionBorde::origenValido(headers)) {
         log_.warn(llenar(traducir("gateway", "registro: origen ajeno en la atención remota desde %1"), {ip}), -1);
-        http::sendResponse(fd, 403, "text/plain", traducir("gateway", "origen invalido") + "\n");
+        http::sendResponse(fd, 403, "text/plain", traducir("gateway", "origen inválido") + "\n");
         return true;
     }
     if (pagina) {

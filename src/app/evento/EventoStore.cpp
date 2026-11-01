@@ -381,7 +381,7 @@ Evento EventoStore::cargar(const std::string& carpeta, bool* ok, std::string* er
         // El archivo esta ahi pero roto. No se devuelve un evento vacio como
         // si nada: el operador tiene que enterarse ANTES de empezar a editar
         // encima, porque el respaldo del guardado siguiente seria el roto.
-        ponerErr(err, ba::i18n::traducir("evento", "el guion esta dañado (JSON invalido): mira en Respaldos/"));
+        ponerErr(err, ba::i18n::traducir("evento", "el guion está dañado (JSON inválido): mirá en Respaldos/"));
         return {};
     }
     if (ok != nullptr) *ok = true;
@@ -415,7 +415,7 @@ bool EventoStore::guardar(const std::string& carpeta, const Evento& e, std::stri
 
 bool EventoStore::borrar(const std::string& carpeta, std::string* err) const {
     if (!rutaValida(carpeta)) {
-        ponerErr(err, ba::i18n::traducir("evento", "nombre de carpeta invalido"));
+        ponerErr(err, ba::i18n::traducir("evento", "nombre de carpeta inválido"));
         return false;
     }
     std::error_code ec;

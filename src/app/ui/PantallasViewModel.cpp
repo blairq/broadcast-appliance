@@ -515,7 +515,7 @@ void PantallasViewModel::publicar(const QString& id, const QString& hostDestino)
         pasos.push_back({url, p.segundos, con == nullptr ? p.tipo : pt::texto(con->titulo)});
     }
     if (pasos.empty()) return;
-    anotar(diag::Nivel::Info, ba::i18n::llenar(ba::i18n::traducir("pantallas", "publico el carrusel «%1» (%2 pasos)"), {c->nombre, std::to_string(pasos.size())}));
+    anotar(diag::Nivel::Info, ba::i18n::llenar(ba::i18n::traducir("pantallas", "publicó el carrusel «%1» (%2 pasos)"), {c->nombre, std::to_string(pasos.size())}));
     d_->salaPantallas->publicarCarrusel(c->id, c->nombre, c->transicion, pasos);
 }
 

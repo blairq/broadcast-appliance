@@ -459,20 +459,20 @@ ApplicationWindow {
         case 0: return qsTr("Estoy en el Dashboard, mirando el programa y las salidas.")
         case 1: return qsTr("Estoy en Escenas y fuentes. La escena al aire es «%1».").arg(Studio.currentScene)
         case 2: return qsTr("Estoy en la Conferencia (lobby, invitados y chat).")
-        case 3: return qsTr("Estoy en la pagina de YouTube (cuenta, videos y vivos).")
-        case 4: return qsTr("Estoy en la pagina de Twitch.")
-        case 5: return qsTr("Estoy en la pagina de Facebook.")
-        case 6: return qsTr("Estoy en Configuracion.")
-        case 8: return qsTr("Estoy en Entradas de video (camaras, capturadoras y red).")
+        case 3: return qsTr("Estoy en la página de YouTube (cuenta, videos y vivos).")
+        case 4: return qsTr("Estoy en la página de Twitch.")
+        case 5: return qsTr("Estoy en la página de Facebook.")
+        case 6: return qsTr("Estoy en Configuración.")
+        case 8: return qsTr("Estoy en Entradas de video (cámaras, capturadoras y red).")
         case 9: return qsTr("Estoy en Audio, en el patchbay de modulos por fuente.")
         case 10: return Studio.evento.guionVm.abierto
                         ? qsTr("Estoy en el Guion del evento «%1».").arg(Studio.evento.guionVm.abierto)
-                        : qsTr("Estoy en el Guion del evento, sin ningun evento abierto.")
+                        : qsTr("Estoy en el Guion del evento, sin ningún evento abierto.")
         case 11: return Studio.grafico.abierto !== ""
                         ? (Studio.grafico.declarativo
-                           ? qsTr("Estoy en el editor de Graficos, editando «%1» (declarativo: se edita su descripcion en grafico.json).").arg(Studio.grafico.abierto)
-                           : qsTr("Estoy en el editor de Graficos, editando «%1» (QML escrito a mano).").arg(Studio.grafico.abierto))
-                        : qsTr("Estoy en el editor de Graficos, sin ninguno abierto.")
+                           ? qsTr("Estoy en el editor de Gráficos, editando «%1» (declarativo: se edita su descripción en grafico.json).").arg(Studio.grafico.abierto)
+                           : qsTr("Estoy en el editor de Gráficos, editando «%1» (QML escrito a mano).").arg(Studio.grafico.abierto))
+                        : qsTr("Estoy en el editor de Gráficos, sin ninguno abierto.")
         case 12: return qsTr("Estoy en Rotulos. La escena al aire es «%1».").arg(Studio.rotulador.escena)
         case 13: return qsTr("Estoy en el visor del Registro.")
         }
@@ -483,7 +483,7 @@ ApplicationWindow {
     // estando ahi. Son los que antes vivian adentro de cada pagina.
     function sugerenciasDePagina(i) {
         switch (i) {
-        case 0: return [ { t: qsTr("¿Como venimos?"), p: qsTr("Deci en dos lineas como esta todo ahora: aire, grabacion, conferencia y alertas.") },
+        case 0: return [ { t: qsTr("¿Como venimos?"), p: qsTr("Decí en dos líneas cómo está todo ahora: aire, grabación, conferencia y alertas.") },
                          { t: qsTr("Revisar antes de salir"), p: qsTr("Revisa todo lo que conviene mirar antes de salir al aire y deci que esta mal.") } ]
         case 1: return [ { t: qsTr("Escena nueva"), p: qsTr("Arma una escena nueva parecida a la que esta al aire y deci como te quedo.") },
                          { t: qsTr("¿Que hay en esta escena?"), p: qsTr("Deci que fuentes tiene la escena al aire y para que sirve cada una.") } ]
@@ -492,14 +492,14 @@ ApplicationWindow {
         case 9: return [ { t: qsTr("Se escucha mal"), p: qsTr("Mira los niveles de audio y deci que fuente esta mal y que le harias.") } ]
         case 10: return [ { t: qsTr("Revisar el guion"), p: qsTr("Revisa el guion y deci que le falta a cada cue para poder correrlo.") },
                           { t: qsTr("¿Como vamos de tiempo?"), p: qsTr("Deci como vamos de tiempo contra lo previsto.") } ]
-        case 11: return [ { t: qsTr("Que entre mas rapido"), p: qsTr("Hace que entre mas rapido, alrededor de 300 ms.") },
+        case 11: return [ { t: qsTr("Que entre más rápido"), p: qsTr("Hace que entre más rápido, alrededor de 300 ms.") },
                           { t: qsTr("Mas chico"), p: qsTr("Achicalo un 20 % sin que el texto quede apretado.") },
                           { t: qsTr("Probar un nombre largo"), p: qsTr("Probalo con un nombre bien largo y fijate si se sale de la caja.") },
-                          { t: qsTr("Proponer botones"), p: qsTr("Propone los botones («acciones») de este grafico y escribilos en su grafico.json: cada uno con titulo corto, icono de un caracter y prompt redactado como se lo pediria el operador en vivo.") } ]
+                          { t: qsTr("Proponer botones"), p: qsTr("Proponé los botones («acciones») de este gráfico y escribilos en su grafico.json: cada uno con título corto, ícono de un carácter y prompt redactado como se lo pediría el operador en vivo.") } ]
         case 12: return [ { t: qsTr("Poner al que habla"), p: qsTr("Pone en el zocalo de esta escena el nombre y el cargo del que esta al aire, y sacalo al aire.") },
                           { t: qsTr("Que se mantenga solo"), p: qsTr("Ata este rotulo al orador que este al aire, para que se actualice solo cuando cambie.") } ]
         case 13: return [ { t: qsTr("¿Que se rompio?"), p: qsTr("Mira el registro y deci que fallo, cuando y por que. Empeza por los avisos y errores.") },
-                          { t: qsTr("Mas detalle"), p: qsTr("Baja el nivel de registro a depuracion asi queda mas detalle de lo que viene.") } ]
+                          { t: qsTr("Mas detalle"), p: qsTr("Bajá el nivel de registro a depuración así queda más detalle de lo que viene.") } ]
         }
         return []
     }

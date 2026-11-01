@@ -142,7 +142,7 @@ bool LocalStream::connect(const std::string& name, int timeoutMs, LocalStream& o
     out.close();
     if (!validName(name)) {
         if (err != nullptr) {
-            *err = "nombre de canal invalido: '" + name + "'";
+            *err = "nombre de canal inválido: '" + name + "'";
         }
         return false;
     }
@@ -300,7 +300,7 @@ bool LocalServer::listen(const std::string& name, LocalServer& out, std::string*
     out.close();
     if (!validName(name)) {
         if (err != nullptr) {
-            *err = "nombre de canal invalido: '" + name + "'";
+            *err = "nombre de canal inválido: '" + name + "'";
         }
         return false;
     }
@@ -323,7 +323,7 @@ bool LocalServer::accept(int timeoutMs, LocalStream& out, std::string* err) {
     out.close();
     if (pending_ == nullptr) {
         if (err != nullptr) {
-            *err = "el servidor no esta escuchando";
+            *err = "el servidor no está escuchando";
         }
         return false;
     }

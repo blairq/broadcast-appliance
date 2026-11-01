@@ -91,7 +91,7 @@ bool servir(long long fd, const std::string& webroot, const std::string& rel, co
     const auto destino = std::filesystem::weakly_canonical(std::filesystem::path(webroot) / http::urlDecode(rel), ec);
     const std::string r = raiz.generic_string(), d = destino.generic_string();
     if (ec || d.size() < r.size() || d.compare(0, r.size(), r) != 0 || (d.size() > r.size() && d[r.size()] != '/'))
-        return http::sendResponse(fd, 400, "text/plain", traducir("gateway", "ruta invalida") + "\n"), true;
+        return http::sendResponse(fd, 400, "text/plain", traducir("gateway", "ruta inválida") + "\n"), true;
     std::ifstream f(destino, std::ios::binary);
     if (!f || std::filesystem::is_directory(destino, ec))
         return http::sendResponse(fd, 404, "text/plain", traducir("gateway", "no encontrado") + "\n"), true;

@@ -115,8 +115,8 @@ const std::vector<Tipo>& catalogo() {
         // que estan en la sala, asi que va con la clave adentro. Pedirle a
         // doscientas personas que tipeen una clave es perder a la mitad.
         {"publico",
-         QT_TRANSLATE_NOOP("qr", "Preguntas del publico"),
-         QT_TRANSLATE_NOOP("qr", "La pagina para preguntar y votar desde la butaca, con su clave."),
+         QT_TRANSLATE_NOOP("qr", "Preguntas del público"),
+         QT_TRANSLATE_NOOP("qr", "La página para preguntar y votar desde la butaca, con su clave."),
          {},
          true},
     };

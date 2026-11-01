@@ -85,7 +85,7 @@ const Fila kFamilias[] = {
      //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
      QT_TRANSLATE_NOOP("mcp-etiquetas", "ecualizador eq graves medios agudos tono suena metalico suena apagado retumba "
                                    "sacar frecuencia molesta brillo cuerpo")},
-    {"graph_equalizer", QT_TRANSLATE_NOOP("asistente", "Ecualizador de barras, mas rapido de tocar."),
+    {"graph_equalizer", QT_TRANSLATE_NOOP("asistente", "Ecualizador de barras, más rápido de tocar."),
      //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
      QT_TRANSLATE_NOOP("mcp-etiquetas", "ecualizador de barras graves medios agudos rapido")},
     {"filter", QT_TRANSLATE_NOOP("asistente", "Un filtro solo: saca lo de abajo o lo de arriba."),
@@ -145,7 +145,7 @@ const Fila kFamilias[] = {
     {"phase_detector", QT_TRANSLATE_NOOP("asistente", "Dice si dos fuentes estan en fase."),
      //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
      QT_TRANSLATE_NOOP("mcp-etiquetas", "fase invertida se cancelan dos microfonos fuera de fase")},
-    {"latency_meter", QT_TRANSLATE_NOOP("asistente", "Mide cuanto retrasa una cadena."),
+    {"latency_meter", QT_TRANSLATE_NOOP("asistente", "Mide cuánto retrasa una cadena."),
      //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
      QT_TRANSLATE_NOOP("mcp-etiquetas", "medir latencia cuanto retrasa demora")},
     {"profiler", QT_TRANSLATE_NOOP("asistente", "Mide como responde un sistema de audio."),

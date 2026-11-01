@@ -244,7 +244,7 @@ bool crearCarpeta(const QString& raiz, const QString& padreRel, const QString& n
     // Un nombre con barra crearia dos carpetas de una y el operador vería una
     // sola: mejor decirlo que adivinar cual quiso.
     if (limpio.isEmpty() || limpio.contains('/') || limpio.contains('\\') || limpio.startsWith('.')) {
-        if (error) *error = QCoreApplication::translate("medios", "nombre de carpeta no valido");
+        if (error) *error = QCoreApplication::translate("medios", "nombre de carpeta no válido");
         return false;
     }
     const QString padre = resolverAdentro(raiz, padreRel);
@@ -253,7 +253,7 @@ bool crearCarpeta(const QString& raiz, const QString& padreRel, const QString& n
         return false;
     }
     if (QFileInfo::exists(padre + "/" + limpio)) {
-        if (error) *error = QCoreApplication::translate("medios", "ya hay algo llamado «%1» ahi").arg(limpio);
+        if (error) *error = QCoreApplication::translate("medios", "ya hay algo llamado «%1» ahí").arg(limpio);
         return false;
     }
     if (!QDir(padre).mkdir(limpio)) {
@@ -268,12 +268,12 @@ bool renombrar(const QString& raiz, const QString& queRel, const QString& nombre
     if (!aptoParaTocar(raiz, queRel, error, abs)) return false;
     const QString limpio = nombre.trimmed();
     if (limpio.isEmpty() || limpio.contains('/') || limpio.contains('\\') || limpio.startsWith('.')) {
-        if (error) *error = QCoreApplication::translate("medios", "nombre no valido");
+        if (error) *error = QCoreApplication::translate("medios", "nombre no válido");
         return false;
     }
     const QString dir = QFileInfo(abs).dir().absolutePath();
     if (QFileInfo::exists(dir + "/" + limpio) && dir + "/" + limpio != abs) {
-        if (error) *error = QCoreApplication::translate("medios", "ya hay algo llamado «%1» ahi").arg(limpio);
+        if (error) *error = QCoreApplication::translate("medios", "ya hay algo llamado «%1» ahí").arg(limpio);
         return false;
     }
     if (!QDir().rename(abs, dir + "/" + limpio)) {

@@ -533,13 +533,13 @@ void GuionViewModel::revisar() {
                 const std::string g = c.datos.value("grafico", std::string());
                 if (!g.empty() && !graficos_->nombres().contains(QString::fromStdString(g)))
                     reparos_.push_back({static_cast<int>(bi), static_cast<int>(ci), true,
-                                        QCoreApplication::translate("EventoViewModel", "no existe un grafico llamado \"%1\"").arg(qs(g)).toStdString()});
+                                        QCoreApplication::translate("EventoViewModel", "no existe un gráfico llamado \"%1\"").arg(qs(g)).toStdString()});
                 // La fuente se marca SIN gravedad: es normal escribir el guion
                 // antes de armar las escenas, y se arregla agregando la fuente.
                 const std::string f = c.datos.value("fuente", std::string());
                 if (!f.empty() && graficos_->fuentePorNombre(QString::fromStdString(f)) == 0)
                     reparos_.push_back({static_cast<int>(bi), static_cast<int>(ci), false,
-                                        QCoreApplication::translate("EventoViewModel", "todavia no hay ninguna fuente de grafico llamada \"%1\": agregala a la "
+                                        QCoreApplication::translate("EventoViewModel", "todavía no hay ninguna fuente de gráfico llamada \"%1\": agregala a la "
                                            "escena donde tiene que verse")
                                             .arg(qs(f))
                                             .toStdString()});

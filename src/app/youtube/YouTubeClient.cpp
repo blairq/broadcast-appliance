@@ -214,14 +214,14 @@ QString YouTubeClient::explain(int status, const QByteArray& body) {
         {"liveStreamingNotEnabled", QT_TR_NOOP("Tu canal no tiene habilitadas las transmisiones en vivo. Habilitalas "
                                                "en youtube.com/features (tarda hasta 24 h la primera vez).")},
         {"insufficientPermissions", QT_TR_NOOP("El permiso otorgado no alcanza: desconecta y volve a conectar la cuenta.")},
-        {"forbidden", QT_TR_NOOP("YouTube no permite esa operacion con esta cuenta.")},
-        {"invalid_grant", QT_TR_NOOP("La sesion de YouTube vencio o fue revocada: conecta la cuenta de nuevo.")},
-        {"invalid_client", QT_TR_NOOP("El cliente OAuth no es valido (ID o secreto): revisa la configuracion.")},
+        {"forbidden", QT_TR_NOOP("YouTube no permite esa operación con esta cuenta.")},
+        {"invalid_grant", QT_TR_NOOP("La sesión de YouTube venció o fue revocada: conectá la cuenta de nuevo.")},
+        {"invalid_client", QT_TR_NOOP("El cliente OAuth no es válido (ID o secreto): revisá la configuración.")},
         {"redirectUriMismatch", QT_TR_NOOP("El cliente OAuth debe ser de tipo \"App de escritorio\".")},
         {"invalidTransition", QT_TR_NOOP("El evento no puede pasar a ese estado ahora (¿el stream esta llegando?).")},
         {"redundantTransition", QT_TR_NOOP("El evento ya esta en ese estado.")},
         {"errorStreamInactive",
-         QT_TR_NOOP("YouTube todavia no recibe video: empeza a transmitir desde la app y espera unos segundos.")},
+         QT_TR_NOOP("YouTube todavía no recibe video: empezá a transmitir desde la app y esperá unos segundos.")},
         {"videoNotFound", QT_TR_NOOP("No existe ese video (o no es de este canal).")},
         {"liveBroadcastNotFound", QT_TR_NOOP("No existe ese evento en vivo.")},
         {"uploadLimitExceeded", QT_TR_NOOP("Llegaste al limite de subidas de YouTube por hoy.")},
@@ -320,7 +320,7 @@ void YouTubeClient::api(const QString& method, const QString& path, const QUrlQu
                     done(true, parse(rb), {});
                 } else {
                     done(false, parse(rb),
-                         nerr.isEmpty() ? explain(status, rb) : tr("Sin conexion con YouTube: %1").arg(nerr));
+                         nerr.isEmpty() ? explain(status, rb) : tr("Sin conexión con YouTube: %1").arg(nerr));
                 }
             });
         });
@@ -406,7 +406,7 @@ void YouTubeClient::login(Done done) {
                     return;
                 }
                 if (q.hasQueryItem("error")) {
-                    page(tr("Cancelado"), tr("No se dio permiso. Podes cerrar esta pestaña."), false);
+                    page(tr("Cancelado"), tr("No se dio permiso. Podés cerrar esta pestaña."), false);
                     finishLogin(false,
                                 q.queryItemValue("error") == "access_denied"
                                     ? tr("Cancelaste el permiso (o tu cuenta no esta como usuario de prueba "
@@ -415,7 +415,7 @@ void YouTubeClient::login(Done done) {
                     return;
                 }
                 page(tr("¡Listo!"),
-                     tr("Broadcast Appliance ya puede usar tu cuenta de YouTube. Podes cerrar esta pestaña."),
+                     tr("Broadcast Appliance ya puede usar tu cuenta de YouTube. Podés cerrar esta pestaña."),
                      true);
                 exchangeCode(q.queryItemValue("code", QUrl::FullyDecoded),
                              [this](bool ok, const QJsonObject&, const QString& e) { finishLogin(ok, e); });
@@ -451,7 +451,7 @@ void YouTubeClient::exchangeCode(const QString& code, Done done) {
                                                                   "myaccount.google.com/permissions y "
                                                                   "volve a conectar.")
                                                              : explain(status, body))
-                               : tr("Sin conexion con Google: %1").arg(err));
+                               : tr("Sin conexión con Google: %1").arg(err));
             return;
         }
         refreshToken_ = o.value("refresh_token").toString();
@@ -646,7 +646,7 @@ void YouTubeClient::uploadVideo(const QString& path, const QJsonObject& meta, Do
             if (!self) return;
             if (status != 200 || location.isEmpty())
                 return done(false, {},
-                            nerr.isEmpty() ? explain(status, rb) : tr("Sin conexion con YouTube: %1").arg(nerr));
+                            nerr.isEmpty() ? explain(status, rb) : tr("Sin conexión con YouTube: %1").arg(nerr));
             // 2) El archivo, en streaming, con progreso.
             auto put = std::make_shared<Req>();
             put->http.method = "PUT";
@@ -735,7 +735,7 @@ void YouTubeClient::createBroadcast(const QJsonObject& p, Done done) {
         p.value("scheduledStart")
             .toString(QDateTime::currentDateTimeUtc().addSecs(60).toString(Qt::ISODateWithMs));
     const QJsonObject broadcast{
-        {"snippet", QJsonObject{{"title", p.value("title").toString(QString::fromStdString(ba::i18n::traducirEvento("transmision", "Transmision en vivo")))},
+        {"snippet", QJsonObject{{"title", p.value("title").toString(QString::fromStdString(ba::i18n::traducirEvento("transmision", "Transmisión en vivo")))},
                                 {"description", p.value("description").toString()},
                                 {"scheduledStartTime", start}}},
         {"status", QJsonObject{{"privacyStatus", p.value("privacy").toString("private")},

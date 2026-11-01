@@ -122,7 +122,7 @@ std::string Cue::queLeFalta() const {
             return {};
         case Tipo::Orador:
             if (!tieneTexto(datos, "participante")) return ba::i18n::traducir("evento", "no dice quien habla");
-            if (duracionSeg <= 0) return ba::i18n::traducir("evento", "no dice cuanto tiempo tiene para hablar");
+            if (duracionSeg <= 0) return ba::i18n::traducir("evento", "no dice cuánto tiempo tiene para hablar");
             return {};
         case Tipo::Grafico: {
             const std::string accion = datos.value("accion", std::string("mostrar"));
@@ -136,7 +136,7 @@ std::string Cue::queLeFalta() const {
             // fuente no esta en ninguna escena y no lo ve nadie.
             if (!tieneTexto(datos, "fuente")) return ba::i18n::traducir("evento", "no dice en que fuente de escena se ve");
             if (accion == "ocultar") return {};
-            if (!tieneTexto(datos, "grafico")) return ba::i18n::traducir("evento", "no dice que grafico sacar al aire");
+            if (!tieneTexto(datos, "grafico")) return ba::i18n::traducir("evento", "no dice qué gráfico sacar al aire");
             return {};
         }
         case Tipo::Carrusel:
@@ -152,11 +152,11 @@ std::string Cue::queLeFalta() const {
             if (!tieneTexto(datos, "fuente")) return ba::i18n::traducir("evento", "no dice sobre que fuente de audio actuar");
             const std::string a = datos.value("accion", std::string());
             if (a != "silenciar" && a != "activar" && a != "volumen")
-                return ba::i18n::llenar(ba::i18n::traducir("evento", "la accion \"%1\" no existe (silenciar, activar o volumen)"), {a});
+                return ba::i18n::llenar(ba::i18n::traducir("evento", "la acción \"%1\" no existe (silenciar, activar o volumen)"), {a});
             return {};
         }
         case Tipo::Pausa:
-            if (duracionSeg <= 0) return ba::i18n::traducir("evento", "una pausa sin duracion no espera nada");
+            if (duracionSeg <= 0) return ba::i18n::traducir("evento", "una pausa sin duración no espera nada");
             return {};
         case Tipo::Espera:
         case Tipo::Nota:
@@ -338,17 +338,17 @@ bool horaValida(const std::string& s) {
 std::vector<Reparo> revisar(const Evento& e) {
     std::vector<Reparo> rs;
     if (e.bloques.empty()) {
-        rs.push_back({-1, -1, true, ba::i18n::traducir("evento", "el evento no tiene ningun bloque")});
+        rs.push_back({-1, -1, true, ba::i18n::traducir("evento", "el evento no tiene ningún bloque")});
         return rs;
     }
     if (e.duracionSeg() == 0)
-        rs.push_back({-1, -1, false, ba::i18n::traducir("evento", "ningun cue tiene duracion prevista: no se puede calcular el desvio")});
+        rs.push_back({-1, -1, false, ba::i18n::traducir("evento", "ningún cue tiene duración prevista: no se puede calcular el desvío")});
     // Un formato mal escrito es GRAVE y no un aviso: una fecha que no se
     // entiende no se ignora sola, se lee mal. "03/09" es el 3 de septiembre
     // para uno y el 9 de marzo para otro.
     if (!e.fecha.empty() && !fechaValida(e.fecha))
         rs.push_back({-1, -1, true,
-                      ba::i18n::llenar(ba::i18n::traducir("evento", "la fecha no es un dia valido en formato YYYY-MM-DD: %1"), {e.fecha})});
+                      ba::i18n::llenar(ba::i18n::traducir("evento", "la fecha no es un día válido en formato YYYY-MM-DD: %1"), {e.fecha})});
     if (!e.inicio.empty() && !horaValida(e.inicio))
         rs.push_back({-1, -1, true,
                       ba::i18n::llenar(ba::i18n::traducir("evento", "la hora de arranque no esta en formato HH:MM: %1"), {e.inicio})});

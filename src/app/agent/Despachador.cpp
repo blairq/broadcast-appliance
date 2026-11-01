@@ -183,7 +183,7 @@ std::string Despachador::encargar(const std::string& rolId, const std::string& t
         return {};
     }
     if (!rol->activo) {
-        if (error != nullptr) *error = tr("el rol `%1` esta apagado (pagina Agentes)").arg(QString::fromStdString(rolId)).toStdString();
+        if (error != nullptr) *error = tr("el rol `%1` está apagado (página Agentes)").arg(QString::fromStdString(rolId)).toStdString();
         return {};
     }
     // Un rol que usa la app por dentro (el tótem de registro) no corre como agente de consola.
@@ -333,8 +333,8 @@ void Despachador::lanzarAhora(Corrida& c) {
         } else if (st != QProcess::NormalExit || code != 0) {
             const std::string e =
                 cc->stderrTail.empty()
-                    ? tr("el agente termino con codigo %1").arg(code).toStdString()
-                    : tr("el agente termino con codigo %1: %2")
+                    ? tr("el agente terminó con código %1").arg(code).toStdString()
+                    : tr("el agente terminó con código %1: %2")
                           .arg(code)
                           .arg(QString::fromStdString(recortar(cc->stderrTail, 300)))
                           .toStdString();

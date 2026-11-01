@@ -604,8 +604,8 @@ void MediaPump::retornoAudioThread(std::wstring nombre, std::string salida, Cola
             reader = SharedAudioRing{};
             open = false;
             log_.info(salida.empty()
-                          ? traducir("gateway", "retorno audio: A cambio o se cerro; reabriendo")
-                          : llenar(traducir("gateway", "salida %1: retorno de audio: A cambio o se cerro; reabriendo"), {salida}));
+                          ? traducir("gateway", "retorno audio: A cambió o se cerró; reabriendo")
+                          : llenar(traducir("gateway", "salida %1: retorno de audio: A cambió o se cerró; reabriendo"), {salida}));
             continue;
         }
         leerPendientes(reader, block, medida, [&](const PoppedBlock& blk, size_t n) {
@@ -880,7 +880,7 @@ void MediaPump::videoBajadaThread(std::wstring nombre, std::string etiqueta,
             outW = 0;
             outH = 0;
             espera.vaciar();
-            log_.info(llenar(traducir("gateway", "%1: A cambio o se cerro; resuscribiendo"), {etiqueta}));
+            log_.info(llenar(traducir("gateway", "%1: A cambió o se cerró; resuscribiendo"), {etiqueta}));
             continue;
         }
         if (!audio.empty()) {
@@ -991,7 +991,7 @@ void MediaPump::bajarVoz(const std::wstring& nombre, const std::string& abierta,
 }
 
 void MediaPump::operatorAudioThread() {
-    bajarVoz(cfg_.operatorAudioName, traducir("gateway", "operador: microfono (BA.Audio.Operator) abierto"),
+    bajarVoz(cfg_.operatorAudioName, traducir("gateway", "operador: micrófono (BA.Audio.Operator) abierto"),
              [this](const PoppedBlock& blk, size_t n) {
                  // La voz del operador SOLO a quien le esta hablando: el resto del
                  // lobby no escucha conversaciones ajenas.
@@ -1094,7 +1094,7 @@ void MediaPump::operatorVideoThread() {
                 srcH = receiver.height();
                 src.assign(receiver.frameBytes(), 0);
                 medida.reabierto();
-                log_.info(llenar(traducir("gateway", "operador: camara (BA.Operator) suscrita (%1x%2)"),
+                log_.info(llenar(traducir("gateway", "operador: cámara (BA.Operator) suscrita (%1x%2)"),
                                  {std::to_string(srcW), std::to_string(srcH)}));
             }
         }
