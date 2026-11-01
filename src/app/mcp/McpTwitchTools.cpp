@@ -208,12 +208,11 @@ void McpService::registerTwitchTools() {
             json changes = a;
             if (changes.empty()) return tw->client().channel(reply(done));
             tw->client().updateChannel(toQt(changes),
-                                       [tw, done](bool ok, const QJsonObject&, const QString& e) {
+                                       tw->conRefresco([tw, done](bool ok, const QJsonObject&, const QString& e) {
                                            if (!ok)
                                                return done(ToolResult::error("Twitch: " + e.toStdString()));
-                                           tw->refresh();
                                            tw->client().channel(reply(done, ba::i18n::traducir("mcp", "Canal actualizado.")));
-                                       });
+                                       }));
         };
         core_.addTool(std::move(t));
     }
@@ -304,10 +303,7 @@ void McpService::registerTwitchTools() {
             QStringList ids;
             for (const auto& id : a["ids"])
                 ids << QString::fromStdString(id.get<std::string>());
-            tw->client().deleteVideos(ids, [tw, done](bool ok, const QJsonObject& d, const QString& e) {
-                if (ok) tw->refresh();
-                reply(done, ba::i18n::traducir("mcp", "Videos borrados."))(ok, d, e);
-            });
+            tw->client().deleteVideos(ids, tw->conRefresco(reply(done, ba::i18n::traducir("mcp", "Videos borrados."))));
         };
         core_.addTool(std::move(t));
     }

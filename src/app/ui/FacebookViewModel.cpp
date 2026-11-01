@@ -109,6 +109,13 @@ QString FacebookViewModel::saveClient(const QString& appId, const QString& secre
 
 void FacebookViewModel::clearClient() { client_->clearClient(); }
 
+FacebookClient::Done FacebookViewModel::conRefresco(FacebookClient::Done listo) {
+    return [this, listo = std::move(listo)](bool ok, const QJsonObject& d, const QString& e) {
+        if (ok) refresh();
+        if (listo) listo(ok, d, e);
+    };
+}
+
 void FacebookViewModel::login() { login(FacebookClient::Done{}); }
 
 void FacebookViewModel::login(FacebookClient::Done listo) {

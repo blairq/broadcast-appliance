@@ -113,6 +113,13 @@ void YouTubeViewModel::clearClient() {
     broadcasts_->setItems({});
 }
 
+YouTubeClient::Done YouTubeViewModel::conRefresco(YouTubeClient::Done listo) {
+    return [this, listo = std::move(listo)](bool ok, const QJsonObject& d, const QString& e) {
+        if (ok) refresh();
+        if (listo) listo(ok, d, e);
+    };
+}
+
 void YouTubeViewModel::login() { login(YouTubeClient::Done{}); }
 
 void YouTubeViewModel::login(YouTubeClient::Done listo) {

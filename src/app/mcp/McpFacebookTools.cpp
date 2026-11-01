@@ -263,10 +263,7 @@ void McpService::registerFacebookTools() {
         t.run = [fb, needPage](const json& a, Done done) {
             if (needPage(done)) return;
             fb->client().publishLive(QString::fromStdString(a["id"]),
-                                     [fb, done](bool ok, const QJsonObject& d, const QString& e) {
-                                         if (ok) fb->refresh();
-                                         reply(done, ba::i18n::traducir("mcp", "Vivo publicado."))(ok, d, e);
-                                     });
+                                     fb->conRefresco(reply(done, ba::i18n::traducir("mcp", "Vivo publicado."))));
         };
         core_.addTool(std::move(t));
     }
@@ -328,12 +325,7 @@ void McpService::registerFacebookTools() {
         t.run = [fb, needPage](const json& a, Done done) {
             if (needPage(done)) return;
             const QString id = QString::fromStdString(a["id"]);
-            const auto after = [fb, done](const std::string& text) {
-                return [fb, done, text](bool ok, const QJsonObject& d, const QString& e) {
-                    if (ok) fb->refresh();
-                    reply(done, text)(ok, d, e);
-                };
-            };
+            const auto after = [fb, done](const std::string& text) { return fb->conRefresco(reply(done, text)); };
             if (a.value("delete", false)) return fb->client().deleteObject(id, after(ba::i18n::traducir("mcp", "Borrado.")));
             json changes = a;
             changes.erase("id");

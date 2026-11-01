@@ -137,6 +137,13 @@ QString TwitchViewModel::saveClient(const QString& id, const QString& secret) {
 
 void TwitchViewModel::clearClient() { client_->clearClient(); }
 
+TwitchClient::Done TwitchViewModel::conRefresco(TwitchClient::Done listo) {
+    return [this, listo = std::move(listo)](bool ok, const QJsonObject& d, const QString& e) {
+        if (ok) refresh();
+        if (listo) listo(ok, d, e);
+    };
+}
+
 void TwitchViewModel::login() { login(TwitchClient::Done{}); }
 
 void TwitchViewModel::login(TwitchClient::Done listo) {
