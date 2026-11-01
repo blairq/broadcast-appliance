@@ -338,8 +338,7 @@ Rectangle {
                                     visible: page.carruselActual() !== null
                                     text: page.carruselActual()
                                         ? qsTr("%n paso · la vuelta entera dura %1", "", page.carruselActual().pasos.length)
-                                          .arg(Math.floor(page.carruselActual().vueltaSeg / 60) + ":" +
-                                               String(page.carruselActual().vueltaSeg % 60).padStart(2, "0"))
+                                          .arg(Theme.mmss(page.carruselActual().vueltaSeg))
                                         : ""
                                     color: Theme.textDim; font.pixelSize: 11
                                 }

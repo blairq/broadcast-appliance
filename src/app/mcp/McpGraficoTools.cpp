@@ -462,7 +462,7 @@ void McpService::registerGraficoTools() {
     {
         Tool t;
         t.name = "rotulo_vinculos";
-        t.title = ba::i18n::traducir("mcp", "Rotulos que se escriben solos");
+        t.title = ba::i18n::traducir("mcp", "Rótulos que se escriben solos");
         t.category = "graficos";
         t.clase = Clase::Lectura;
         t.description = QT_TRANSLATE_NOOP("mcp", "Los vinculos que hay y, sobre todo, los ORIGENES que se pueden usar.");
@@ -485,7 +485,7 @@ void McpService::registerGraficoTools() {
     {
         Tool t;
         t.name = "rotulo_vincular";
-        t.title = ba::i18n::traducir("mcp", "Que un rotulo se escriba solo");
+        t.title = ba::i18n::traducir("mcp", "Que un rótulo se escriba solo");
         t.category = "graficos";
         t.clase = Clase::Escritura;
         t.description = QT_TRANSLATE_NOOP("mcp", "Pone el nombre y el cargo de quien habla en pantalla, y lo mantiene al dia solo. "
@@ -541,7 +541,7 @@ void McpService::registerGraficoTools() {
     {
         Tool t;
         t.name = "rotulo_desvincular";
-        t.title = ba::i18n::traducir("mcp", "Sacar o apagar un vinculo");
+        t.title = ba::i18n::traducir("mcp", "Sacar o apagar un vínculo");
         t.category = "graficos";
         t.clase = Clase::Escritura;
         t.description = QT_TRANSLATE_NOOP("mcp", "Quita un vínculo de rótulo (`id`, de rotulo_vinculos) o, con `activo`, lo apaga o lo prende sin borrarlo.");

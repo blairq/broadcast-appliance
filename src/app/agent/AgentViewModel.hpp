@@ -254,7 +254,9 @@ class AgentViewModel : public QObject {
     Q_INVOKABLE void setAlertSilenciada(const QString& id, bool silenciada);
     /// Los tipos de disparador con sus parámetros (para el editor).
     Q_INVOKABLE QVariantList alertTypesUi() const;
-    /// Crea un disparador desde el editor ({type, name, params, sonido, reconocer, notificar, actions}). "" o el error.
+    /// Crea un disparador desde el editor ({type, name, params, sonido, reconocer, notificar,
+    /// accion: {herramienta, argumentos}}), con los parámetros y los argumentos como los
+    /// escribió el operador (acá se convierten y se valida el JSON). "" o el error.
     Q_INVOKABLE QString createAlertUi(const QVariantMap& spec);
     Q_INVOKABLE void openAgentsFolder() const;
     /// Control del sistema (agent/ControlSistema::estado): {habilitado, preguntar, permisos{},

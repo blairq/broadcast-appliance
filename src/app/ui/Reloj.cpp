@@ -12,9 +12,9 @@ namespace ba::app {
 
 Reloj::Reloj(QObject* parent) : QObject(parent) {
     segundo_.setInterval(1000);
-    cuarto_.setInterval(250);
+    fino_.setInterval(125); // 8 por segundo: las caras animadas de la Botonera
     connect(&segundo_, &QTimer::timeout, this, &Reloj::ahoraCambio);
-    connect(&cuarto_, &QTimer::timeout, this, &Reloj::ahoraFinoCambio);
+    connect(&fino_, &QTimer::timeout, this, &Reloj::ahoraFinoCambio);
 }
 
 double Reloj::ahora() const {
@@ -62,8 +62,8 @@ void Reloj::revisar() {
     } else if (lectores_ == 0 && segundo_.isActive()) {
         segundo_.stop();
     }
-    if (lectoresFinos_ > 0 && !cuarto_.isActive()) cuarto_.start();
-    else if (lectoresFinos_ == 0 && cuarto_.isActive()) cuarto_.stop();
+    if (lectoresFinos_ > 0 && !fino_.isActive()) fino_.start();
+    else if (lectoresFinos_ == 0 && fino_.isActive()) fino_.stop();
 }
 
 } // namespace ba::app

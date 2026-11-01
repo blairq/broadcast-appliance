@@ -6,6 +6,8 @@
 
 #include "i18n/I18n.hpp"
 
+#include <QJsonArray>
+
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
@@ -65,6 +67,31 @@ std::string OradoresSala::leerTiempo(const std::string& textoEntero, int actual,
     segundos = signo == 0 ? s : actual + signo * s;
     if (segundos <= 0) return ba::i18n::traducir("sala", "el tiempo tiene que ser de más de cero segundos");
     return {};
+}
+
+std::string OradoresSala::leerTiempoJson(const nlohmann::json& valor, int actual, int& segundos) {
+    if (valor.is_number_integer()) {
+        // Un número de un programa son segundos: 120 son dos minutos, no dos horas.
+        const long long s = valor.get<long long>();
+        if (s <= 0) return ba::i18n::traducir("sala", "el tiempo tiene que ser de más de cero segundos");
+        if (s > 24 * 3600) return ba::i18n::traducir("sala", "no se entiende el tiempo: minutos («3»), «m:ss» («0:45») o segundos («45s»); con + o - suma o resta");
+        segundos = static_cast<int>(s);
+        return {};
+    }
+    if (!valor.is_string())
+        return ba::i18n::traducir("sala", "no se entiende el tiempo: minutos («3»), «m:ss» («0:45») o segundos («45s»); con + o - suma o resta");
+    return leerTiempo(valor.get<std::string>(), actual, segundos);
+}
+
+int OradoresSala::tiempoActual(const QJsonObject& foto, const std::string& id) {
+    const QString qid = QString::fromStdString(id);
+    for (const QJsonValue& v : id.empty() ? QJsonArray() : foto.value("participants").toArray())
+        if (v.toObject().value("id").toString() == qid) {
+            const int propio = v.toObject().value("allottedSec").toInt();
+            if (propio > 0) return propio;
+            break;
+        }
+    return foto.value("speakers").toObject().value("defaultSec").toInt();
 }
 
 nlohmann::json OradoresSala::fila(const nlohmann::json& foto) {

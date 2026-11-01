@@ -148,10 +148,10 @@ Item {
                 ColumnLayout {
                     spacing: 0
                     Text { text: ld.l.i > -70 ? Number(ld.l.i).toFixed(1) : "—"; font { pixelSize: 20; weight: Font.DemiBold }
-                           color: ld.l.estado_integrado === "aviso" ? Theme.colorDeEstado("aviso") : Theme.text }
+                           color: Theme.colorDeEstado(ld.l.estado_integrado, Theme.text) }
                     Text { text: "LUFS I"; color: Theme.textFaint; font.pixelSize: 9 }
                     Text { text: "TP " + (ld.l.tp > -100 ? Number(ld.l.tp).toFixed(1) : "—"); font.pixelSize: 11
-                           color: ld.l.estado_tp === "excedido" ? Theme.colorDeEstado("excedido") : Theme.textDim }
+                           color: Theme.colorDeEstado(ld.l.estado_tp, Theme.textDim) }
                     Text { text: "LRA " + Number(ld.l.lra || 0).toFixed(1); color: Theme.textDim; font.pixelSize: 11 }
                     Text { visible: ld.ob.lufs !== undefined; text: qsTr("obj. %1 / %2").arg(ld.ob.lufs).arg(ld.ob.tp); color: Theme.textFaint; font.pixelSize: 9 }
                     Text { visible: (ld.l.gr_db || 0) < -0.1; text: "LIM " + Number(ld.l.gr_db).toFixed(1); color: Theme.amber; font.pixelSize: 10 }

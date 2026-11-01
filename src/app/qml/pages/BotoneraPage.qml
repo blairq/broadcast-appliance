@@ -87,18 +87,12 @@ Rectangle {
             if (r.error && !r.url) Studio.notify(r.error, "error")
         }
     }
-    // Las caras animadas (video corto) de la grilla, a 8 cuadros/s.
+    // Las caras animadas (video corto) de la grilla, con la hora fina del Reloj (8 por
+    // segundo): solo la leen las animadas y mientras se ven.
     function urlCuadro(cara, ahora) {
         const n = Math.max(1, cara.cuadros || 1)
         const i = n > 1 ? Math.floor(ahora * (cara.fps || 8) / 1000) % n : 0
         return Studio.carasBotonera.raizUrl + cara.id + "/" + String(i).padStart(4, "0") + ".jpg"
-    }
-    Timer {
-        id: animReloj
-        property double ahora: Date.now()
-        interval: 125; repeat: true
-        running: page.visible && page.pestana === "editor" && (page.render.celdas || []).some(c => c.cara && c.cara.cuadros > 1)
-        onTriggered: ahora = Date.now()
     }
 
     ColumnLayout {
@@ -357,7 +351,7 @@ Rectangle {
                             // corto, del disco, en el cuadro de este momento) o la data: URL de la celda.
                             readonly property var cara: modelData.cara || null
                             Image { anchors.fill: parent; anchors.margins: parent.border.width
-                                    source: parent.cara ? page.urlCuadro(parent.cara, animReloj.ahora) : (modelData.imagen || "")
+                                    source: parent.cara ? page.urlCuadro(parent.cara, parent.cara.cuadros > 1 && page.visible && page.pestana === "editor" ? Reloj.ahoraFino : 0) : (modelData.imagen || "")
                                     visible: !!parent.cara || !!modelData.imagen; fillMode: Image.PreserveAspectCrop; opacity: 0.55 }
                             Rectangle {
                                 visible: !!modelData.insignia

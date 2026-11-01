@@ -145,7 +145,7 @@ void McpService::registerAccountTools() {
         Tool t;
         t.name = "account_open";
         t.mediated = true; // lo decide una persona con un click
-        t.title = ba::i18n::traducir("mcp", "Abrir la pagina de un paso");
+        t.title = ba::i18n::traducir("mcp", "Abrir la página de un paso");
         t.category = "cuentas";
         t.clase = Clase::Escritura;
         t.openWorld = true;
@@ -232,7 +232,7 @@ void McpService::registerAccountTools() {
     {
         Tool t;
         t.name = "account_check";
-        t.title = ba::i18n::traducir("mcp", "Probar la conexion");
+        t.title = ba::i18n::traducir("mcp", "Probar la conexión");
         t.category = "cuentas";
         t.clase = Clase::Lectura;
         t.openWorld = true;

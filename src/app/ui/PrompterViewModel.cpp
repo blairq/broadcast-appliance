@@ -195,10 +195,11 @@ QString PrompterViewModel::texto() const { return d_->texto; }
 bool PrompterViewModel::sucio() const { return !d_->abierto.isEmpty() && d_->texto != d_->enDisco; }
 int PrompterViewModel::palabras() const { return Discursos::contarPalabras(d_->texto); }
 
-int PrompterViewModel::duracionSeg() const {
-    const int ppm = d_->estado.value("ppm", Discursos::kPpm).toInt();
-    return ppm > 0 ? static_cast<int>(palabras() * 60.0 / ppm) : 0;
-}
+int PrompterViewModel::duracionSeg() const { return Discursos::duracionSeg(palabras(), ppm()); }
+
+int PrompterViewModel::ppm() const { return d_->estado.value("ppm", Discursos::kPpm).toInt(); }
+
+const Discursos& PrompterViewModel::discursos() const { return d_->docs; }
 
 QString PrompterViewModel::sinEvento() const {
     if (d_->evento == nullptr) return tr("El guion del evento no está disponible.");

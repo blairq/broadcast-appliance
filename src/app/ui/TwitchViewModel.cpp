@@ -137,12 +137,26 @@ QString TwitchViewModel::saveClient(const QString& id, const QString& secret) {
 
 void TwitchViewModel::clearClient() { client_->clearClient(); }
 
-void TwitchViewModel::login() {
+TwitchClient::Done TwitchViewModel::conRefresco(TwitchClient::Done listo) {
+    return [this, listo = std::move(listo)](bool ok, const QJsonObject& d, const QString& e) {
+        if (ok) refresh();
+        if (listo) listo(ok, d, e);
+    };
+}
+
+void TwitchViewModel::login() { login(TwitchClient::Done{}); }
+
+void TwitchViewModel::login(TwitchClient::Done listo) {
     setError({});
-    client_->login([this](bool ok, const QJsonObject& u, const QString& e) {
-        if (!ok) return setError(e);
+    client_->login([this, listo](bool ok, const QJsonObject& u, const QString& e) {
+        if (!ok) {
+            setError(e);
+            if (listo) listo(false, u, e);
+            return;
+        }
         emit notify(tr("Conectado a Twitch: %1").arg(u.value("display_name").toString()), "ok");
         refresh();
+        if (listo) listo(true, u, {});
     });
 }
 

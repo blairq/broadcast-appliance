@@ -3,6 +3,8 @@
 // ============================================================================
 #include "ui/Discursos.hpp"
 
+#include "medios/Medios.hpp"
+
 #include <QDateTime>
 #include <QDir>
 #include <QDirIterator>
@@ -95,7 +97,7 @@ QVariantList Discursos::listar(const QString& carpeta) const {
         out.append(QVariantMap{{"nombre", fi.fileName()},
                                {"rel", base.relativeFilePath(fi.absoluteFilePath())},
                                {"palabras", palabras},
-                               {"duracionSeg", static_cast<int>(palabras * 60.0 / kPpm)},
+                               {"duracionSeg", duracionSeg(palabras)},
                                {"modificado", fi.lastModified().toString("dd/MM HH:mm")}});
     }
     return out;
@@ -187,7 +189,10 @@ QString Discursos::mover(const QString& rel, const QString& aCarpeta, QString* r
 QString Discursos::borrar(const QString& rel) {
     const QString abs = ruta(rel);
     if (abs.isEmpty() || !QFile::exists(abs)) return tr("No encuentro ese discurso.");
-    if (!QFile::remove(abs)) return tr("No pude borrarlo.");
+    const QString papelera = QDir::cleanPath(QDir(raiz_).absoluteFilePath("../Papelera/Discursos"));
+    if (!QDir().mkpath(papelera)) return tr("No pude borrarlo.");
+    const QString destino = papelera + "/" + medios::nombreLibre(papelera, QFileInfo(abs).fileName());
+    if (!QFile::rename(abs, destino)) return tr("No pude borrarlo.");
     return {};
 }
 

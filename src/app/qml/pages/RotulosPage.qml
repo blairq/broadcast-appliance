@@ -352,13 +352,12 @@ Rectangle {
         property bool conClave: true
         property string url: ""
         property string clave: ""
-        property var modulos: []
         property string mensaje: ""
         property bool cargando: false
 
         function mostrar(t, k) {
             target = t; conClave = k
-            url = ""; modulos = []; mensaje = ""; cargando = true
+            url = ""; mensaje = ""; cargando = true
             open()
             page.r.pedirQr(t, k)
         }
@@ -368,10 +367,8 @@ Rectangle {
             function onQrListo(url, modulos, mensaje, clave) {
                 qrDlg.cargando = false
                 qrDlg.url = url
-                qrDlg.modulos = modulos
                 qrDlg.mensaje = mensaje
                 qrDlg.clave = clave
-                qrCanvas.requestPaint()
             }
         }
 
@@ -383,24 +380,11 @@ Rectangle {
                 Layout.preferredHeight: 300
                 radius: 12
                 color: qrDlg.url !== "" ? "white" : Qt.rgba(1, 1, 1, 0.05)
-                Canvas {
-                    id: qrCanvas
+                ImagenQr {
                     anchors.fill: parent
                     anchors.margins: 12
                     visible: qrDlg.url !== ""
-                    onPaint: {
-                        const ctx = getContext("2d")
-                        ctx.reset()
-                        const filas = qrDlg.modulos
-                        if (!filas || filas.length === 0) return
-                        const n = filas.length + 8 // zona silenciosa de 4 módulos
-                        const cell = Math.floor(Math.min(width, height) / n)
-                        const off = Math.floor((Math.min(width, height) - cell * n) / 2) + 4 * cell
-                        ctx.fillStyle = "#000000"
-                        for (let y = 0; y < filas.length; ++y)
-                            for (let x = 0; x < filas[y].length; ++x)
-                                if (filas[y][x] === "1") ctx.fillRect(off + x * cell, off + y * cell, cell, cell)
-                    }
+                    texto: qrDlg.url
                 }
                 Text {
                     anchors.fill: parent

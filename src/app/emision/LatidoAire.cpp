@@ -176,7 +176,14 @@ std::string LatidoAire::ponerPolitica(const json& c) {
         }
     }
     guardar();
+    std::lock_guard<std::mutex> l(cambioMu_);
+    if (alCambiar_) alCambiar_();
     return {};
+}
+
+void LatidoAire::alCambiarPolitica(std::function<void()> f) {
+    std::lock_guard<std::mutex> l(cambioMu_);
+    alCambiar_ = std::move(f);
 }
 
 void LatidoAire::guardar() const {

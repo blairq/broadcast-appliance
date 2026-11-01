@@ -75,7 +75,7 @@ void McpService::registerQrTools() {
     {
         Tool t;
         t.name = "qr_listar";
-        t.title = ba::i18n::traducir("mcp", "Los codigos guardados, y que se puede generar");
+        t.title = ba::i18n::traducir("mcp", "Los códigos guardados, y qué se puede generar");
         t.category = "qr";
         t.clase = Clase::Lectura;
         t.description = QT_TRANSLATE_NOOP("mcp", "Los codigos de la biblioteca (del aparato y del evento), los TIPOS que se pueden "
@@ -164,7 +164,7 @@ void McpService::registerQrTools() {
     {
         Tool t;
         t.name = "qr_generar";
-        t.title = ba::i18n::traducir("mcp", "Generar un codigo (sin guardarlo)");
+        t.title = ba::i18n::traducir("mcp", "Generar un código (sin guardarlo)");
         t.category = "qr";
         t.clase = Clase::Lectura;
         t.description = QT_TRANSLATE_NOOP("mcp", "Arma el codigo y devuelve QUE DICE y su SVG, sin tocar la biblioteca ni lo que el "
@@ -207,7 +207,7 @@ void McpService::registerQrTools() {
     {
         Tool t;
         t.name = "qr_guardar";
-        t.title = ba::i18n::traducir("mcp", "Guardar un codigo en la biblioteca");
+        t.title = ba::i18n::traducir("mcp", "Guardar un código en la biblioteca");
         t.category = "qr";
         t.clase = Clase::Escritura;
         t.description = QT_TRANSLATE_NOOP("mcp", "Lo deja guardado para usarlo despues. `ambito`: \"global\" (del aparato, sirve "
@@ -224,36 +224,33 @@ void McpService::registerQrTools() {
               {"estilo", {{"type", "object"}, {"properties", esquemaEstilo()}}},
               {"id", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "para reemplazar uno que ya existe")}}}}}};
         t.run = [q](const json& a, Done done) {
-            // Se arma en el editor y se guarda: el operador ve aparecer lo que
-            // el asistente hizo, en la pantalla, sin refrescar nada.
-            q->setAmbito(QString::fromStdString(a.value("ambito", "global")));
-            if (a.contains("id"))
-                q->abrir(QString::fromStdString(a["id"].get<std::string>()));
-            else
-                q->nuevo(QString::fromStdString(a["tipo"].get<std::string>()));
-            q->setTipo(QString::fromStdString(a["tipo"].get<std::string>()));
-            // Con nombre: el temporal de `value()` muere antes del bucle.
+            // Directo a la biblioteca, no por el editor: el operador puede tener
+            // un código a medio diseñar y eso no se pisa. La lista se entera sola
+            // (bibliotecaCambio) y, si ese código está abierto sin cambios, se recarga.
+            QVariantMap datos;
             const json jd = a.value("datos", json::object());
             for (const auto& [k, v] : jd.items())
-                if (v.is_string()) q->setDato(QString::fromStdString(k), QString::fromStdString(v));
-            const QVariantMap est = aMapa(a.value("estilo", json::object()));
-            for (auto it = est.begin(); it != est.end(); ++it)
-                q->setEstilo(it.key(), it.value());
-            const QString err = q->guardar(QString::fromStdString(a["nombre"].get<std::string>()));
+                if (v.is_string()) datos[QString::fromStdString(k)] = QString::fromStdString(v.get<std::string>());
+            const QString tipo = QString::fromStdString(a["tipo"].get<std::string>());
+            QString id;
+            const QString err = q->guardarCodigo(QString::fromStdString(a.value("ambito", "global")),
+                                                 QString::fromStdString(a.value("id", std::string())),
+                                                 QString::fromStdString(a["nombre"].get<std::string>()), tipo, datos,
+                                                 aMapa(a.value("estilo", json::object())), &id);
             if (!err.isEmpty()) {
                 done(ToolResult::error(err.toStdString()));
                 return;
             }
             done(ToolResult::ok(ba::i18n::llenar(ba::i18n::traducir("mcp", "Guardado como «%1»."),
                                                  {a["nombre"].get<std::string>()}))
-                     .data(json{{"id", q->abierto().toStdString()}, {"dice", q->contenido().toStdString()}}));
+                     .data(json{{"id", id.toStdString()}, {"dice", q->paraProyectar(id).value("texto").toString().toStdString()}}));
         };
         core_.addTool(std::move(t));
     }
     {
         Tool t;
         t.name = "qr_borrar";
-        t.title = ba::i18n::traducir("mcp", "Borrar un codigo guardado");
+        t.title = ba::i18n::traducir("mcp", "Borrar un código guardado");
         t.category = "qr";
         t.clase = Clase::Escritura;
         t.destructive = true;
@@ -274,7 +271,7 @@ void McpService::registerQrTools() {
     {
         Tool t;
         t.name = "qr_exportar";
-        t.title = ba::i18n::traducir("mcp", "Dejar un codigo en un archivo");
+        t.title = ba::i18n::traducir("mcp", "Dejar un código en un archivo");
         t.category = "qr";
         t.clase = Clase::Escritura;
         t.description = QT_TRANSLATE_NOOP("mcp", "Escribe el codigo en Exportado/, como PNG (para pegar en algo) o SVG (para "

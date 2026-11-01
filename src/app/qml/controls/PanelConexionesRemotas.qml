@@ -303,7 +303,7 @@ ColumnLayout {
         standardButtons: Dialog.Close
         title: qsTr("Acceso de %1").arg(datos.nombre || "")
         property var datos: ({})
-        function mostrar(r) { datos = r; open(); lienzo.requestPaint() }
+        function mostrar(r) { datos = r; open() }
         ColumnLayout {
             spacing: 10
             Text { Layout.preferredWidth: 420; wrapMode: Text.WordWrap; font.pixelSize: 12
@@ -317,22 +317,9 @@ ColumnLayout {
             Rectangle {
                 Layout.alignment: Qt.AlignHCenter
                 Layout.preferredWidth: 260; Layout.preferredHeight: 260; radius: 10; color: "white"
-                Canvas {
-                    id: lienzo
+                ImagenQr {
                     anchors { fill: parent; margins: 10 }
-                    onPaint: {
-                        const ctx = getContext("2d")
-                        ctx.reset()
-                        const filas = credencial.datos.qr
-                        if (!filas || filas.length === 0) return
-                        const n = filas.length + 8
-                        const cell = Math.floor(Math.min(width, height) / n)
-                        const off = Math.floor((Math.min(width, height) - cell * n) / 2) + 4 * cell
-                        ctx.fillStyle = "#000000"
-                        for (let y = 0; y < filas.length; ++y)
-                            for (let x = 0; x < filas[y].length; ++x)
-                                if (filas[y][x] === "1") ctx.fillRect(off + x * cell, off + y * cell, cell, cell)
-                    }
+                    texto: credencial.datos.qr_texto || ""
                 }
             }
             Text { visible: !!credencial.datos.link_remoto; color: Theme.textDim; font.pixelSize: 11

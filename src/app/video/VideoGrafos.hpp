@@ -118,7 +118,6 @@ class VideoGrafos : public QObject {
 
     // --- Editar (la interfaz; la entrada elegida). "" o el error. -------------
     QString agregar(const QString& tipo, const QString& despues);
-    QString agregarFiltro(const QString& filtroId, const QString& despues);
     /// Un módulo de GStreamer como tarjeta (`elemento`, p. ej. "videobalance").
     QString agregarModulo(const QString& elemento, const QString& despues);
     /// Un módulo de GStreamer de VARIAS entradas (compositor, smpte, glmosaic…) como
@@ -287,10 +286,11 @@ class VideoGrafos : public QObject {
     /// `otraConEseNombre`: si falló porque ya hay otra fuente (de otro tipo) con su nombre.
     std::string ponerEnEscena(const std::string& id, const std::string& escena, bool* otraConEseNombre = nullptr);
     bool esEntrada(const std::string& nombre) const;
+    /// El nombre legible de un filtro de OBS ("" si no existe). Lo usa todavía el MCP
+    /// (video_agregar con tipo "obs", de los grafos viejos): la interfaz ya no los agrega.
+    static std::string nombreFiltro(const std::string& filtroId);
     /// El grafo (solo para leer: títulos y a qué entrada pertenece cada tarjeta).
     const GrafoVideo& grafoVideo() const { return grafo_; }
-    /// El nombre legible de un filtro de OBS ("" si no existe).
-    static std::string nombreFiltro(const std::string& filtroId);
     /// El catálogo de GStreamer (vacío, con el motivo, hasta que está listo).
     const CatalogoGst& gst() const;
     /// Agrega una Mezcla de GStreamer con el módulo `elemento` (de varias entradas: sus

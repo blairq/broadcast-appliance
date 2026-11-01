@@ -173,7 +173,7 @@ void McpService::registerUiTools() {
     {
         Tool t;
         t.name = "ui_show_page";
-        t.title = ba::i18n::traducir("mcp", "Mostrar una pagina");
+        t.title = ba::i18n::traducir("mcp", "Mostrar una página");
         t.category = "interfaz";
         t.clase = Clase::Ui;
         t.description = QT_TRANSLATE_NOOP("mcp", "Cambia la pagina que ve el operador. Las que hay salen del catalogo de la "
@@ -276,7 +276,7 @@ void McpService::registerUiTools() {
     {
         Tool t;
         t.name = "ui_page_window";
-        t.title = ba::i18n::traducir("mcp", "Sacar una pagina a su ventana");
+        t.title = ba::i18n::traducir("mcp", "Sacar una página a su ventana");
         t.category = "interfaz";
         t.clase = Clase::Ui;
         t.description = QT_TRANSLATE_NOOP("mcp", "Abre una pagina en su PROPIA ventana, para mandarla a otro monitor.");
@@ -539,7 +539,7 @@ void McpService::registerUiTools() {
     {
         Tool t;
         t.name = "output_window";
-        t.title = ba::i18n::traducir("mcp", "Ventanas sueltas (video, paneles, paginas)");
+        t.title = ba::i18n::traducir("mcp", "Ventanas sueltas (video, paneles, páginas)");
         t.category = "interfaz";
         t.clase = Clase::Ui;
         t.description =
@@ -758,7 +758,7 @@ void McpService::registerUiTools() {
     {
         Tool t;
         t.name = "app_quit";
-        t.title = ba::i18n::traducir("mcp", "Cerrar la aplicacion");
+        t.title = ba::i18n::traducir("mcp", "Cerrar la aplicación");
         t.category = "sistema";
         t.clase = Clase::Aire;
         t.porQueAire = QT_TRANSLATE_NOOP("mcp", "cierra el programa");

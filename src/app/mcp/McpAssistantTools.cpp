@@ -5,8 +5,6 @@
 // un pedido al agente de la pestaña (p. ej. desde otro cliente MCP).
 // ============================================================================
 
-#include <QTimer>
-
 #include <memory>
 
 #include "agent/AgentViewModel.hpp"
@@ -200,16 +198,15 @@ void McpService::registerAssistantTools() {
             if (!a.value("wait", false))
                 return done(ToolResult::ok(
                     ba::i18n::llenar(ba::i18n::traducir("mcp", "Instalando: %1"), {ag->installText().toStdString()})));
-            auto* timer = new QTimer(ag);
-            auto elapsed = std::make_shared<int>(0);
-            QObject::connect(timer, &QTimer::timeout, ag, [ag, timer, elapsed, done]() {
-                *elapsed += 500;
-                if (ag->installing() && *elapsed < 15 * 60 * 1000) return;
-                timer->deleteLater();
-                done(ag->installed() ? ToolResult::ok(ba::i18n::traducir("mcp", "Instalado."))
-                                     : ToolResult::error(ag->installText().toStdString()));
-            });
-            timer->start(500);
+            // El modelo avisa (installChanged): se espera esa señal, no se la sondea.
+            esperarHasta(
+                ag, &agent::AgentViewModel::installChanged,
+                [ag]() -> std::optional<ToolResult> {
+                    if (ag->installing()) return std::nullopt;
+                    return ag->installed() ? ToolResult::ok(ba::i18n::traducir("mcp", "Instalado."))
+                                           : ToolResult::error(ag->installText().toStdString());
+                },
+                15 * 60 * 1000, [ag]() { return ToolResult::error(ag->installText().toStdString()); }, done);
         };
         core_.addTool(std::move(t));
     }
@@ -234,17 +231,20 @@ void McpService::registerAssistantTools() {
             // Arrancar puede tardar (el servidor compartido de OpenCode, cargar el modelo
             // local): se espera a que corra de verdad o falle, hasta 30 s.
             const bool arranca = act != "stop";
-            auto* timer = new QTimer(ag);
-            auto pasado = std::make_shared<int>(0);
-            QObject::connect(timer, &QTimer::timeout, ag, [ag, timer, pasado, done, arranca]() {
-                *pasado += 300;
+            // Avisa al correr o al fallar (runningChanged, errorChanged): se esperan esas señales.
+            const auto mirar = [ag, arranca]() -> std::optional<ToolResult> {
                 const bool fallo = !ag->lastError().isEmpty() && !ag->running();
-                if (arranca && !ag->running() && !fallo && *pasado < 30000) return;
-                timer->deleteLater();
-                if (fallo) return done(ToolResult::error(ag->lastError().toStdString()));
-                done(ToolResult::ok(ag->running() ? ba::i18n::traducir("mcp", "Corriendo.") : ba::i18n::traducir("mcp", "Detenido.")));
-            });
-            timer->start(300);
+                if (fallo) return ToolResult::error(ag->lastError().toStdString());
+                if (arranca != ag->running()) return std::nullopt; // todavía no arrancó (o no paró)
+                return ToolResult::ok(ag->running() ? ba::i18n::traducir("mcp", "Corriendo.") : ba::i18n::traducir("mcp", "Detenido."));
+            };
+            esperarHasta(
+                ag, std::make_tuple(&agent::AgentViewModel::runningChanged, &agent::AgentViewModel::errorChanged), mirar,
+                30000,
+                [ag]() {
+                    return ToolResult::ok(ag->running() ? ba::i18n::traducir("mcp", "Corriendo.") : ba::i18n::traducir("mcp", "Detenido."));
+                },
+                done);
         };
         core_.addTool(std::move(t));
     }

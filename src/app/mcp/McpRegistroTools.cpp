@@ -156,7 +156,7 @@ void McpService::registerRegistroTools() {
     {
         Tool t;
         t.name = "log_marcar";
-        t.hilo = Hilo::Foto; // el registro es de cualquier hilo
+        t.hilo = Hilo::SinInterfaz; // escribe en el registro (de cualquier hilo): no es una lectura de la foto
         t.title = ba::i18n::traducir("mcp", "Dejar una marca");
         t.category = "registro";
         t.clase = Clase::Escritura;

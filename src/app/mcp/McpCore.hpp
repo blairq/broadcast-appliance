@@ -45,6 +45,7 @@
 
 #include "mcp/McpIndice.hpp"
 
+#include <algorithm>
 #include <atomic>
 #include <deque>
 #include <mutex>
@@ -116,10 +117,14 @@ enum class Hilo {
     Interfaz,   ///< toca objetos de la interfaz o del motor; con tope si llama otro hilo
     Control,    ///< la cola del plano de control (en orden; no espera a la interfaz; con el turno)
     Foto,       ///< solo lee cosas seguras entre hilos: un hilo del pool
+    /// Ni interfaz ni motor, pero escribe (un archivo del sistema, una marca en el
+    /// registro) o tarda (buscar en la red, comparar históricos): su propio pool, para no
+    /// dejar sin hilo a las de la foto, que son las que se piden cuando algo anda mal.
+    SinInterfaz,
 };
 /// "lectura" | "escritura" | "aire" | "ui" (los nombres de mcp.json; no se traducen).
 const char* nombreClase(Clase c);
-/// "interfaz" | "control" | "foto".
+/// "interfaz" | "control" | "foto" | "sin_interfaz".
 const char* nombreHilo(Hilo h);
 
 /// LA DESCRIPCION VA EN EL ORIGINAL. `description`, `details` y las `description` de
@@ -168,10 +173,19 @@ struct Tool {
     /// de la herramienta (el pool, en room_status): una carrera y una regla que el
     /// inventario no veía.
     bool untrustedConGente = false;
-    /// Borra algo SOLO con este argumento booleano en true (`delete` de
-    /// youtube_live_update): addTool pone `destructive` (la anotación de MCP dice «puede
-    /// borrar») y la tarjeta de aprobación se pone crítica solo cuando viene (esDestructiva).
-    const char* destructivaSi = nullptr;
+    /// Borra algo SOLO con ciertos argumentos: addTool pone `destructive` (la anotación
+    /// de MCP dice «puede borrar») y la tarjeta de aprobación se pone crítica solo cuando
+    /// vienen (esDestructiva). Dos formas:
+    ///   t.destructivaSi = "delete";                 // ese booleano en true
+    ///   t.destructivaSi = {"accion", {"borrar"}};   // ese texto con uno de esos valores
+    struct DestructivaSi {
+        const char* clave = nullptr;
+        std::vector<std::string> valores; ///< vacío: `clave` es un booleano
+        DestructivaSi() = default;
+        DestructivaSi(const char* c) : clave(c) {} // NOLINT(google-explicit-constructor): t.destructivaSi = "x"
+        DestructivaSi(const char* c, std::vector<std::string> v) : clave(c), valores(std::move(v)) {}
+    };
+    DestructivaSi destructivaSi;
     /// Su efecto lo decide una persona con un click (preguntar al operador,
     /// sugerir respuestas): no necesita aprobacion aunque la sesion este contaminada.
     bool mediated = false;
@@ -378,12 +392,15 @@ class McpCore {
     json taintInfo(const std::string& session) const;
     /// true si la herramienta modifica algo (ni solo lectura ni mediada por una persona).
     static bool mutating(const Tool& t) { return !t.readOnly && !t.mediated; }
-    /// Si ESTA llamada borra: `destructive`, salvo las que solo borran con su
-    /// `destructivaSi` en true.
+    /// Si ESTA llamada borra: `destructive`, salvo las que solo borran con los
+    /// argumentos de su `destructivaSi`.
     static bool esDestructiva(const Tool& t, const json& args) {
-        if (t.destructivaSi == nullptr) return t.destructive;
-        const auto it = args.is_object() ? args.find(t.destructivaSi) : args.end();
-        return it != args.end() && it->is_boolean() && it->get<bool>();
+        const Tool::DestructivaSi& si = t.destructivaSi;
+        if (si.clave == nullptr) return t.destructive;
+        const auto it = args.is_object() ? args.find(si.clave) : args.end();
+        if (it == args.end()) return false;
+        if (si.valores.empty()) return it->is_boolean() && it->get<bool>();
+        return it->is_string() && std::find(si.valores.begin(), si.valores.end(), it->get<std::string>()) != si.valores.end();
     }
     /// ¿Hay alguien en la sala? Desde CUALQUIER hilo (Tool::untrustedConGente): la app
     /// lo da con un valor que pone la interfaz cuando cambia la sala.
@@ -477,6 +494,7 @@ class McpCore {
         std::function<void(Tarea)> interfaz;          ///< encola en el hilo de la interfaz
         std::function<void(Tarea)> control;           ///< encola en el hilo de control
         std::function<void(Tarea)> foto;              ///< a un hilo del pool
+        std::function<void(Tarea)> sinInterfaz;       ///< a un hilo del otro pool (sin él, al de la foto)
         std::function<void(int ms, Tarea)> despues;   ///< en el hilo de control, dentro de `ms`
         std::function<bool()> enInterfaz;             ///< ¿el que llama es el hilo de la interfaz?
         std::function<bool()> enControl;              ///< ¿y el de control?

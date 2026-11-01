@@ -11,12 +11,10 @@
 #include <QBuffer>
 #include <QDateTime>
 #include <QDir>
-#include <QDirIterator>
 #include <QFileInfo>
 #include <QImage>
 #include <QImageReader>
 #include <QMetaObject>
-#include <QRegularExpression>
 
 #include <algorithm>
 
@@ -33,33 +31,23 @@ namespace ba::app::mcp {
 
 namespace {
 
-const QStringList kImages{"png", "jpg", "jpeg", "gif", "bmp", "tga", "webp", "psd", "svg"};
-const QStringList kVideos{"mp4", "mkv", "mov", "webm", "avi", "flv", "ts", "m4v", "mpg", "mpeg", "wmv"};
-const QStringList kAudios{"mp3", "wav", "ogg", "flac", "m4a", "aac", "opus", "wma"};
-const QStringList kFolders{"Media", "Shares", "Recordings"};
-
-QString kindOf(const QString& file) {
-    const QString ext = QFileInfo(file).suffix().toLower();
-    if (kImages.contains(ext)) return "image";
-    if (kVideos.contains(ext)) return "video";
-    if (kAudios.contains(ext)) return "audio";
+/// El tipo como lo nombran las herramientas («image», «video», «audio», «document»): el de
+/// medios::tipoDe, el MISMO criterio que la pestaña Medios. "" lo que no se sabe mostrar.
+QString tipoMcp(medios::Tipo t) {
+    switch (t) {
+        case medios::Tipo::Imagen: return "image";
+        case medios::Tipo::Video: return "video";
+        case medios::Tipo::Audio: return "audio";
+        case medios::Tipo::Documento: return "document";
+        case medios::Tipo::Desconocido: break;
+    }
     return {};
 }
 
-/// Sin tildes y en minusculas (buscar "logo camion" encuentra "Logo_Camión.png").
-QString fold(const QString& s) {
-    QString out = s.normalized(QString::NormalizationForm_D).toLower();
-    out.remove(QRegularExpression("[\\x{0300}-\\x{036f}]"));
-    out.replace(QRegularExpression("[_\\-.]+"), " ");
-    return out;
-}
-
-/// Ruta dentro de la carpeta del sistema (relativa o absoluta) -> absoluta, o
-/// vacio si sale de la carpeta.
-QString resolveInside(const QString& root, const QString& p) {
-    const QString abs = QDir::cleanPath(QDir(root).absoluteFilePath(p));
-    const QString r = QDir::cleanPath(root);
-    return (abs == r || abs.startsWith(r + "/")) ? abs : QString();
+/// Lo que se puede poner en una escena (imagen, video o audio): "" si no.
+QString kindOf(const QString& file) {
+    const medios::Tipo t = medios::tipoDe(file);
+    return t == medios::Tipo::Documento ? QString() : tipoMcp(t);
 }
 
 } // namespace
@@ -99,7 +87,7 @@ void McpService::registerMediaTools() {
                 // `archivo` también vale (es como lo devuelve la playlist).
                 const std::string ruta = x.value("path", x.value("archivo", std::string()));
                 if (ruta.empty()) return done(ToolResult::error(ba::i18n::traducir("mcp", "a un ítem le falta `path`")));
-                const QString abs = resolveInside(root, QString::fromStdString(ruta));
+                const QString abs = medios::resolverAdentro(root, QString::fromStdString(ruta));
                 if (abs.isEmpty())
                     return done(ToolResult::error(
                         ba::i18n::llenar(ba::i18n::traducir("mcp", "«%1» no está en las carpetas de medios"), {ruta})));
@@ -145,29 +133,25 @@ void McpService::registerMediaTools() {
         };
         core_.addTool(std::move(t));
     }
+    // Los archivos y la búsqueda son los de medios:: (los mismos de la pestaña Medios): el
+    // asistente encuentra lo mismo que la página.
     const auto scan = [root](const QString& folder, const QString& kind) {
-        std::vector<QFileInfo> out;
-        const QStringList folders = folder.isEmpty() || folder == "all" ? kFolders : QStringList{folder};
-        for (const QString& f : folders) {
-            QDirIterator it(root + "/" + f, QDir::Files | QDir::NoDotAndDotDot, QDirIterator::Subdirectories);
-            while (it.hasNext()) {
-                const QFileInfo fi(it.next());
-                const QString k = kindOf(fi.fileName());
-                if (k.isEmpty() || (!kind.isEmpty() && kind != "any" && kind != k)) continue;
-                out.push_back(fi);
-                if (out.size() > 20000) return out;
-            }
-        }
-        return out;
+        QVector<medios::Archivo> todos =
+            medios::listar(root, folder.isEmpty() || folder == "all" ? QString() : folder);
+        if (!kind.isEmpty() && kind != "any")
+            todos.erase(std::remove_if(todos.begin(), todos.end(),
+                                       [&kind](const medios::Archivo& x) { return tipoMcp(x.tipo) != kind; }),
+                        todos.end());
+        return todos;
     };
-    const auto describe = [root](const QFileInfo& fi) {
-        json e{{"path", QDir(root).relativeFilePath(fi.absoluteFilePath()).toStdString()},
-               {"name", fi.fileName().toStdString()},
-               {"type", kindOf(fi.fileName()).toStdString()},
-               {"sizeBytes", fi.size()},
-               {"modified", fi.lastModified().toString(Qt::ISODate).toStdString()}};
-        if (kindOf(fi.fileName()) == "image") {
-            const QSize s = QImageReader(fi.absoluteFilePath()).size();
+    const auto describe = [](const medios::Archivo& x) {
+        json e{{"path", x.relativa.toStdString()},
+               {"name", x.nombre.toStdString()},
+               {"type", tipoMcp(x.tipo).toStdString()},
+               {"sizeBytes", x.bytes},
+               {"modified", QDateTime::fromMSecsSinceEpoch(x.modificadoMs).toString(Qt::ISODate).toStdString()}};
+        if (x.tipo == medios::Tipo::Imagen) {
+            const QSize s = QImageReader(x.ruta).size();
             if (s.isValid()) {
                 e["width"] = s.width();
                 e["height"] = s.height();
@@ -200,13 +184,13 @@ void McpService::registerMediaTools() {
         t.run = [scan, describe, root](const json& a, Done done) {
             auto files = scan(QString::fromStdString(a.value("folder", std::string("Media"))),
                               QString::fromStdString(a.value("type", std::string("any"))));
-            std::sort(files.begin(), files.end(), [](const QFileInfo& x, const QFileInfo& y) {
-                return x.lastModified() > y.lastModified();
+            std::sort(files.begin(), files.end(), [](const medios::Archivo& x, const medios::Archivo& y) {
+                return x.modificadoMs > y.modificadoMs;
             });
             json out = json::array();
-            for (const auto& fi : files) {
+            for (const auto& x : files) {
                 if (static_cast<int>(out.size()) >= a.value("limit", 100)) break;
-                out.push_back(describe(fi));
+                out.push_back(describe(x));
             }
             ToolResult r;
             r.data(json{{"root", root.toStdString()}, {"total", files.size()}, {"files", out}});
@@ -239,32 +223,25 @@ void McpService::registerMediaTools() {
         // Archivos de la carpeta de datos: en el pool (F3-03), aunque la interfaz no ande.
         t.hilo = Hilo::Foto;
         t.run = [scan, describe](const json& a, Done done) {
-            const QStringList words = fold(QString::fromStdString(a["query"])).split(' ', Qt::SkipEmptyParts);
-            std::vector<std::pair<int, QFileInfo>> hits;
-            for (const auto& fi : scan("all", QString::fromStdString(a.value("type", std::string("any"))))) {
-                const QString name = fold(fi.completeBaseName());
-                const QString path = fold(fi.absolutePath());
+            // Lo que encuentra el buscador de la pestaña (todas las palabras, sin tildes);
+            // acá además se ordena: primero las del nombre.
+            const QString consulta = QString::fromStdString(a["query"]);
+            const QStringList words = medios::aplanar(consulta).split(' ', Qt::SkipEmptyParts);
+            std::vector<std::pair<int, medios::Archivo>> hits;
+            for (const auto& x : medios::filtrar(scan("all", QString::fromStdString(a.value("type", std::string("any")))), consulta)) {
+                const QString name = medios::aplanar(QFileInfo(x.nombre).completeBaseName());
                 int score = 0;
-                for (const QString& w : words) {
-                    if (name.contains(w))
-                        score += name.split(' ').contains(w) ? 3 : 2;
-                    else if (path.contains(w))
-                        score += 1;
-                    else {
-                        score = -1;
-                        break;
-                    }
-                }
-                if (score > 0) hits.emplace_back(score, fi);
+                for (const QString& w : words)
+                    score += name.contains(w) ? (name.split(' ').contains(w) ? 3 : 2) : 1;
+                hits.emplace_back(score, x);
             }
             std::sort(hits.begin(), hits.end(), [](const auto& x, const auto& y) {
-                return x.first != y.first ? x.first > y.first
-                                          : x.second.lastModified() > y.second.lastModified();
+                return x.first != y.first ? x.first > y.first : x.second.modificadoMs > y.second.modificadoMs;
             });
             json out = json::array();
-            for (const auto& [score, fi] : hits) {
+            for (const auto& [score, x] : hits) {
                 if (static_cast<int>(out.size()) >= a.value("limit", 20)) break;
-                json e = describe(fi);
+                json e = describe(x);
                 e["score"] = score;
                 out.push_back(e);
             }
@@ -295,7 +272,7 @@ void McpService::registerMediaTools() {
         // Solo lee el archivo de la carpeta de datos: en el pool.
         t.hilo = Hilo::Foto;
         t.run = [root, &core = core_, raiz = rt_.dataRoot()](const json& a, Done done) {
-            const QString abs = resolveInside(root, QString::fromStdString(a["path"]));
+            const QString abs = medios::resolverAdentro(root, QString::fromStdString(a["path"]));
             if (abs.isEmpty() || !QFileInfo::exists(abs))
                 return done(ToolResult::error(ba::i18n::traducir(
                     "mcp", "No existe ese archivo dentro de la carpeta del sistema (usa media_find).")));
@@ -347,7 +324,7 @@ void McpService::registerMediaTools() {
         // El archivo y el motor (la escena, la fuente): en el dueño (F3-03).
         t.hilo = Hilo::Control;
         t.run = [&rt, root](const json& a, Done done) {
-            const QString abs = resolveInside(root, QString::fromStdString(a["path"]));
+            const QString abs = medios::resolverAdentro(root, QString::fromStdString(a["path"]));
             if (abs.isEmpty() || !QFileInfo::exists(abs))
                 return done(ToolResult::error(ba::i18n::traducir(
                     "mcp", "No existe ese archivo dentro de la carpeta del sistema (usa media_find).")));
@@ -385,7 +362,7 @@ void McpService::registerMediaTools() {
     {
         Tool t;
         t.name = "media_carpetas";
-        t.title = ba::i18n::traducir("mcp", "Como estan ordenados los medios");
+        t.title = ba::i18n::traducir("mcp", "Cómo están ordenados los medios");
         t.category = "medios";
         t.clase = Clase::Lectura;
         t.description =
@@ -415,6 +392,7 @@ void McpService::registerMediaTools() {
         t.title = ba::i18n::traducir("mcp", "Mover, renombrar, crear carpetas y borrar");
         t.category = "medios";
         t.clase = Clase::Escritura;
+        t.destructivaSi = {"accion", {"borrar"}}; // a la papelera
         t.description =
             QT_TRANSLATE_NOOP("mcp", "Acomoda los archivos: `mover` (a otra carpeta), `renombrar`, `carpeta` (crear una) y "
             "`borrar`.\n\n"

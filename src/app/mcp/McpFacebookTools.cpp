@@ -146,9 +146,9 @@ void McpService::registerFacebookTools() {
                     ba::i18n::traducir("mcp", "Se abrio el navegador: la persona elige la cuenta y las Paginas y acepta. "
                     "Despues, facebook_status.")));
             }
-            fb->client().login([fb, done](bool ok, const QJsonObject& d, const QString& e) {
+            // El login del modelo (relee la cuenta y avisa a la página), con la respuesta.
+            fb->login([fb, done](bool ok, const QJsonObject& d, const QString& e) {
                 if (!ok) return done(ToolResult::error(e.toStdString()));
-                fb->refresh();
                 done(ToolResult().data(
                     json{{"connected", toJson(d)}, {"pages", toJson(fb->client().pages())}}));
             });
@@ -172,7 +172,7 @@ void McpService::registerFacebookTools() {
     {
         Tool t;
         t.name = "facebook_pages";
-        t.title = ba::i18n::traducir("mcp", "Paginas de la cuenta");
+        t.title = ba::i18n::traducir("mcp", "Páginas de la cuenta");
         t.category = "facebook";
         t.clase = Clase::Escritura;
         t.description =
@@ -204,7 +204,7 @@ void McpService::registerFacebookTools() {
     {
         Tool t;
         t.name = "facebook_live_list";
-        t.title = ba::i18n::traducir("mcp", "Vivos de la Pagina");
+        t.title = ba::i18n::traducir("mcp", "Vivos de la Página");
         t.category = "facebook";
         t.clase = Clase::Lectura;
         t.description =
@@ -263,10 +263,7 @@ void McpService::registerFacebookTools() {
         t.run = [fb, needPage](const json& a, Done done) {
             if (needPage(done)) return;
             fb->client().publishLive(QString::fromStdString(a["id"]),
-                                     [fb, done](bool ok, const QJsonObject& d, const QString& e) {
-                                         if (ok) fb->refresh();
-                                         reply(done, ba::i18n::traducir("mcp", "Vivo publicado."))(ok, d, e);
-                                     });
+                                     fb->conRefresco(reply(done, ba::i18n::traducir("mcp", "Vivo publicado."))));
         };
         core_.addTool(std::move(t));
     }
@@ -293,7 +290,7 @@ void McpService::registerFacebookTools() {
     {
         Tool t;
         t.name = "facebook_videos";
-        t.title = ba::i18n::traducir("mcp", "Videos de la Pagina");
+        t.title = ba::i18n::traducir("mcp", "Videos de la Página");
         t.category = "facebook";
         t.clase = Clase::Lectura;
         t.description = QT_TRANSLATE_NOOP("mcp", "Videos de la Pagina (mas nuevos primero): id, titulo, descripcion, enlace, "
@@ -328,12 +325,7 @@ void McpService::registerFacebookTools() {
         t.run = [fb, needPage](const json& a, Done done) {
             if (needPage(done)) return;
             const QString id = QString::fromStdString(a["id"]);
-            const auto after = [fb, done](const std::string& text) {
-                return [fb, done, text](bool ok, const QJsonObject& d, const QString& e) {
-                    if (ok) fb->refresh();
-                    reply(done, text)(ok, d, e);
-                };
-            };
+            const auto after = [fb, done](const std::string& text) { return fb->conRefresco(reply(done, text)); };
             if (a.value("delete", false)) return fb->client().deleteObject(id, after(ba::i18n::traducir("mcp", "Borrado.")));
             json changes = a;
             changes.erase("id");
@@ -347,7 +339,7 @@ void McpService::registerFacebookTools() {
     {
         Tool t;
         t.name = "facebook_video_upload";
-        t.title = ba::i18n::traducir("mcp", "Subir un video a la Pagina");
+        t.title = ba::i18n::traducir("mcp", "Subir un video a la Página");
         t.category = "facebook";
         t.clase = Clase::Escritura;
         t.description =

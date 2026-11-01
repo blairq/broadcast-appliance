@@ -47,6 +47,7 @@ const std::vector<EsquemaConfig>& esquemasConfig() {
         {"audio-matriz.json"},
         {"audio-plantillas.json", 2, {mapaEn("plantillas")}},
         {"audio-racks.json", 2, {mapaEn("racks")}},
+        {"audio-vigia.json"},
         {"botonera-dispositivos.json"},
         {"botonera-satellite.json"},
         {"botonera.json"},

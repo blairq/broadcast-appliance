@@ -605,7 +605,7 @@ void McpService::registerImageTools() {
     {
         Tool t;
         t.name = "imagen_preguntar";
-        t.title = ba::i18n::traducir("mcp", "Que se ve: se lo pregunta a un agente que mira");
+        t.title = ba::i18n::traducir("mcp", "Qué se ve: se lo pregunta a un agente que mira");
         t.category = "imagenes";
         t.clase = Clase::Lectura;
         t.description =

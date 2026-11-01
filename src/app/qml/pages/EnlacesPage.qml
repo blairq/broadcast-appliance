@@ -30,9 +30,6 @@ Rectangle {
 
     Component.onCompleted: page.en.refrescar()
 
-    function colorLed(led) {
-        return led === "ok" ? Theme.ok : led === "aviso" ? Theme.warn : led === "error" ? Theme.live : Theme.textFaint
-    }
     function irA(id) { ApplicationWindow.window.showPage(Studio.riel.paginaDeId(id)) }
     function verQr(url, nombre, remoto) {
         Studio.mostrarQr(url, nombre, remoto ? qsTr("Desde cualquier lugar (por el túnel).") : qsTr("Desde la red local de la sala."),
@@ -144,7 +141,7 @@ Rectangle {
                                             Layout.alignment: Qt.AlignTop
                                             Layout.topMargin: 4
                                             width: 12; height: 12; radius: 6
-                                            color: page.colorLed(fila.s.led)
+                                            color: Theme.colorDeEstado(fila.s.led)
                                             border.color: Qt.rgba(0, 0, 0, 0.4)
                                             SequentialAnimation on opacity {
                                                 running: fila.s.led === "aviso"
@@ -168,7 +165,7 @@ Rectangle {
                                             Text {
                                                 Layout.fillWidth: true
                                                 text: fila.s.estado
-                                                color: page.colorLed(fila.s.led)
+                                                color: Theme.colorDeEstado(fila.s.led)
                                                 font.pixelSize: 12
                                                 wrapMode: Text.WordWrap
                                             }
@@ -234,12 +231,9 @@ Rectangle {
                                                 visible: enl.hay
                                                 width: 34; height: 34; radius: 4
                                                 color: "white"
-                                                Image {
+                                                ImagenQr {
                                                     anchors { fill: parent; margins: 2 }
-                                                    source: enl.hay ? "image://qr/texto/" + encodeURIComponent(enl.modelData.url) : ""
-                                                    sourceSize: Qt.size(68, 68)
-                                                    smooth: false
-                                                    cache: false
+                                                    texto: enl.hay ? enl.modelData.url : ""
                                                 }
                                                 MouseArea {
                                                     anchors.fill: parent
