@@ -75,13 +75,16 @@ ApplicationWindow {
     // destruya el motor de QML: si no, el motor se iba con páginas a medio crear
     // («There are still N items in the process of being created at engine destruction»).
     // Pasa sobre todo si se cierra apenas arrancó (la precarga recién empieza).
+    // Se TERMINA de crear (pasar a sincrónico completa lo que estaba a medias) en vez de
+    // apagar el Loader: apagarlo destruye objetos a medio construir, y un menú con submenú
+    // a medio armar tiraba la app al soltar el submenú (QQuickMenuPrivate::setParentMenu).
     Connections {
         target: Qt.application
         function onAboutToQuit() {
             precarga.stop()
             for (let i = 0; i < paginasCreadas.count; ++i) {
                 const l = paginasCreadas.itemAt(i)
-                if (l && l.status === Loader.Loading) l.active = false
+                if (l && l.status === Loader.Loading) l.asynchronous = false
             }
         }
     }
