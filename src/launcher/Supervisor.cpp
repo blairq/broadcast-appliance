@@ -94,10 +94,8 @@ void Supervisor::requestStop() { stopRequested_.store(true); }
 
 bool Supervisor::inStartupGrace(const Hijo& h) const {
     if (h.lanzadoMs == 0) return false;
-    const std::uint64_t pasado = nowMs() - h.lanzadoMs;
-    if (pasado < cfg_.graciaArranqueMs) return true;
     const bool latio = health_.read(h.slot).lastBeatQpc != h.latidoAlLanzar;
-    return !latio && pasado < kPrimerLatidoMs();
+    return h.vigia.enGracia(nowMs() - h.lanzadoMs, latio, kPrimerLatidoMs());
 }
 
 int Supervisor::run() {
@@ -251,6 +249,12 @@ void Supervisor::armarHijos() {
         h->slot = slot;
         h->canalControl = std::move(canal);
         h->log = std::move(log);
+        if (rol == Rol::Emisor) {
+            h->vigia = vigiaEmisor();
+        } else {
+            h->vigia.cuelgueMs = cfg_.cuelgueMs;
+            h->vigia.graciaArranqueMs = cfg_.graciaArranqueMs;
+        }
         hijos_.push_back(std::move(h));
         return hijos_.back().get();
     };
@@ -585,7 +589,7 @@ void Supervisor::watchdogLoop() {
             v.fuera = h.relanzador.agendado();
             v.caido = !v.fuera && !h.proceso.alive();
             v.colgado = !v.fuera && !v.caido && !inStartupGrace(h) &&
-                        health_.isStale(h.slot, ba::ipc::HealthBlock::nowQpc(), cfg_.cuelgueMs * 1000000ULL);
+                        health_.isStale(h.slot, ba::ipc::HealthBlock::nowQpc(), h.vigia.cuelgueMs * 1000000ULL);
         }
         const Visto a = vistos.back();  // A
         const Visto b = vistos.front(); // B
@@ -688,7 +692,7 @@ void Supervisor::stopChild(Hijo& h) {
         if (!salio && h.rol == Rol::Emisor) {
             const std::uint64_t hasta = nowMs() + static_cast<std::uint64_t>(ba::ajustes::entero("emisor.cierreMaxS", 600)) * 1000;
             while (!salio && nowMs() < hasta &&
-                   !health_.isStale(h.slot, ba::ipc::HealthBlock::nowQpc(), cfg_.cuelgueMs * 1000000ULL))
+                   !health_.isStale(h.slot, ba::ipc::HealthBlock::nowQpc(), h.vigia.cuelgueMs * 1000000ULL))
                 salio = c.waitExit(500);
         }
         if (salio) {

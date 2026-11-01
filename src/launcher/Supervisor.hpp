@@ -120,6 +120,7 @@ class Supervisor {
         std::string log;             ///< el archivo en Logs/ con su salida
         ChildProcess proceso;
         Relanzador relanzador;       ///< el backoff agendado (Politica.hpp)
+        VigiaLatido vigia;           ///< gracia de arranque y cuelgue (Politica.hpp: el emisor, más corto)
         /// Momento del ultimo lanzamiento (ms monotonicos): durante la gracia de
         /// arranque no se evalua el heartbeat (el proceso todavia no late).
         std::uint64_t lanzadoMs = 0;

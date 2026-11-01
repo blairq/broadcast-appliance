@@ -34,4 +34,9 @@ if(BUILD_TESTING OR TRUE)
     add_dependencies(test_emisor gstbaipc)
     add_test(NAME test_emisor COMMAND test_emisor)
     set_tests_properties(test_emisor PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 120)
+
+    # El latido de servicio (LatidoServicio.hpp): del bucle, no del proceso. Sin relojes.
+    add_executable(test_latido_servicio tests/test_latido_servicio.cpp)
+    target_include_directories(test_latido_servicio PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    add_test(NAME test_latido_servicio COMMAND test_latido_servicio)
 endif()
