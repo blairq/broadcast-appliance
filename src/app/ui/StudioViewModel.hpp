@@ -230,6 +230,7 @@ class StudioViewModel : public QObject {
     Q_PROPERTY(QObject* app READ appQml CONSTANT)
     /// Las entradas de video que se quedaron sin señal (el multiview las marca).
     Q_PROPERTY(QStringList sinSenal READ sinSenal NOTIFY senalChanged)
+    Q_PROPERTY(QVariantMap latido READ latido NOTIFY latidoChanged)
     /// Qué hacer si cada entrada se cae al aire: {entrada: {escena, al_perder_aire, ms}}.
     Q_PROPERTY(QVariantMap respaldos READ respaldos NOTIFY respaldosChanged)
     /// El área de la asamblea (ui/AsambleaViewModel): presidenciaHabla y los mandos del operador.
@@ -474,14 +475,16 @@ class StudioViewModel : public QObject {
     EstadoAireViewModel& aire() { return *aire_; }
     const EstadoAireViewModel& aire() const { return *aire_; }
     QObject* aireQml() const;
-    /// El latido del supervisor: {motor_vivo, ui_viva, ui_trabada_ms, ultima_traba_ms, politica}.
-    Q_INVOKABLE QVariantMap latidoUi() const;
+    /// El latido del supervisor: {motor_vivo, ui_viva, ui_trabada_ms, ultima_traba_ms, politica}
+    /// (LatidoAire::estado). Avisa `latidoChanged` cuando cambia (lo mira el vigía).
+    QVariantMap latido() const { return latido_; }
     /// Preferencias chicas de la interfaz (anchos de paneles, lo último elegido),
     /// en Config/interfaz.json: portable, al lado de la app, nunca en el sistema.
     Q_INVOKABLE QVariant uiValor(const QString& clave, const QVariant& porDefecto = {}) const;
     Q_INVOKABLE void uiGuardar(const QString& clave, const QVariant& valor);
-    /// Cambia la política del supervisor ({espera_ui_s, matar_si_ui_trabada_sin_aire}). "" o el error.
-    Q_INVOKABLE QString latidoPoliticaUi(const QVariantMap& cambios);
+    /// Cambia la política del supervisor ({espera_ui_s, matar_si_ui_trabada_sin_aire}); el
+    /// error, a `notify`.
+    Q_INVOKABLE void latidoPoliticaUi(const QVariantMap& cambios);
     /// El foco del teclado está en un campo de texto (las teclas T/Enter no son TAKE).
     Q_INVOKABLE bool focoEnTexto() const;
     /// Sale algo (transmisión, grabación o señal limpia): BroadcastEngine::haySalida.
@@ -566,8 +569,6 @@ class StudioViewModel : public QObject {
     /// El área de la emisión (los mandos de grabar y transmitir, la salud de los destinos).
     EmisionViewModel& emision() { return *emision_; }
     QObject* emisionQml() const;
-    /// El pico de audio de una fuente (para el vúmetro de cada celda del multiview).
-    Q_INVOKABLE double picoDe(const QString& fuente) const;
     std::filesystem::path datosRaiz() const;
     /// Capítulos de la grabación en curso por punto del orden del día (texto para YouTube).
     Q_INVOKABLE QString capitulosPuntosUi() const;
@@ -775,6 +776,7 @@ class StudioViewModel : public QObject {
     void refreshModels();
 
    signals:
+    void latidoChanged();
     /// Lo de la configuración que muestran la raíz y las tarjetas (streamServer, la clave,
     /// room, guests): sale de la parte Ajustes de la foto.
     void ajustesChanged();
@@ -890,7 +892,6 @@ class StudioViewModel : public QObject {
     std::unique_ptr<AvisoFueraDeUi> avisoFueraDeUi_;
     /// Los conectados que se cortan al cerrar: sala + sesión remota.
     int personasConectadas() const;
-    bool eventoEnVivo_ = false;
     /// Las salidas: el conmutador de escenas de cada una, el FTB y la placa, la activa
     /// (ui/SalidasViewModel). Lo que usa sus conmutadores (el respaldo de entradas) va
     /// más abajo.
@@ -917,6 +918,9 @@ class StudioViewModel : public QObject {
     void refrescarAvisos();
     std::unique_ptr<config::InterfazConfig> interfaz_;        ///< Config/interfaz.json (modelo)
     unsigned vigiaTicks_ = 0;
+    QVariantMap latido_; ///< lo último del latido (se avisa solo si cambia)
+    /// Lee el latido (de otro hilo, atómico) y avisa si cambió.
+    void revisarLatido();
     std::unique_ptr<escenas::RespaldoEntradas> respaldo_; ///< usa los grafos de video y el conmutador de la por omisión (del dueño)
     QStringList sinSenal_; ///< lo último que avisó el respaldo (vive en el dueño)
     QVariantMap respaldos_; ///< los respaldos guardados (leerRespaldos)

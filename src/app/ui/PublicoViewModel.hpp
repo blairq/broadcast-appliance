@@ -65,7 +65,7 @@ class PublicoViewModel : public QObject {
     QVariantMap enlace() const;
     bool activo() const { return mirando_.alguien(); }
     /// Una vista (o la web del evento) empieza o deja de mirar: se consulta mientras haya alguna.
-    Q_INVOKABLE void usar(QObject* vista, bool si) { mirando_.usar(vista, si); }
+    Q_INVOKABLE void usar(QObject* vista, bool si, const QString& que = {}) { mirando_.usar(vista, si, que); }
     bool enLinea() const;
     /// Para la página web del evento, SOLO las moderadas (la que se responde, las
     /// elegidas, las respondidas, hasta 40); nunca las nuevas sin revisar ni las
@@ -94,10 +94,6 @@ class PublicoViewModel : public QObject {
     Q_INVOKABLE void mostrarEnVivo(bool si);
     /// Pide el enlace de la página del público (llega por `enlaceCambio`).
     Q_INVOKABLE void pedirEnlace(bool remoto = false);
-    /// Cambia cómo se ve la página del público: {titulo?, cuando?, fondo?}
-    /// (fondo = ruta de una imagen; "" lo saca). Las reglas (2 MB…) son del
-    /// modelo (sala::PaginaPublico), las mismas que usa el MCP (publico_pagina).
-    Q_INVOKABLE void cambiarPagina(const QVariantMap& cambios);
 
    signals:
     void cambio();

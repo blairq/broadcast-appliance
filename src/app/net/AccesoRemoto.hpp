@@ -81,7 +81,7 @@ class AccesoRemoto : public QObject {
     bool siguiendo() const { return vistas_.alguien(); }
     /// Una vista (la tarjeta de invitados, Configuración) empieza o deja de mirar el
     /// estado: se consulta mientras haya alguna (cerrar una no le apaga a la otra).
-    Q_INVOKABLE void usar(QObject* vista, bool si) { vistas_.usar(vista, si); }
+    Q_INVOKABLE void usar(QObject* vista, bool si, const QString& que = {}) { vistas_.usar(vista, si, que); }
     QVariantMap dns() const { return dns_; }
     QVariantMap panel() const { return panel_; }
     QVariantMap prueba() const { return prueba_; }

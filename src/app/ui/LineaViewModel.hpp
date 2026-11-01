@@ -171,8 +171,6 @@ class LineaViewModel : public QObject {
     Q_INVOKABLE QString confirmar();
     Q_INVOKABLE void descartar();
 
-    /// Una caja con foto entra (o sale) de la pantalla: solo se fotografía lo que se ve.
-    Q_INVOKABLE void mirarFoto(const QString& escena, bool mirar);
 
    signals:
     void mirandoChanged();
@@ -220,10 +218,12 @@ class LineaViewModel : public QObject {
 
     void setMirando(bool on);
     void setMirandoLinea(bool on);
-    /// Quiénes miran: "" la ven, "multipista" ven la Línea multipista.
-    UsoPorVistas miran_{this, [this](const QString&) {
+    /// Quiénes miran: "" la ven, "multipista" ven la Línea multipista, "foto:<escena>" una
+    /// caja con la foto de esa escena a la vista (solo se fotografía lo que se ve).
+    UsoPorVistas miran_{this, [this](const QString& que) {
         setMirando(miran_.alguien());
         setMirandoLinea(miran_.activo("multipista"));
+        if (que.startsWith(QStringLiteral("foto:")) && miran_.activo(que)) pedirRecalculo(); // sin foto: que la saque ya
     }};
     bool mirando_ = false;
     bool mirandoLinea_ = false;
@@ -249,7 +249,6 @@ class LineaViewModel : public QObject {
     // Las miniaturas: las vistas vivas pedidas (escena → la última vez que hicieron
     // falta), las cajas con foto a la vista (cuántas) y cuándo se sacó cada foto.
     std::map<std::string, int64_t> vivas_;
-    std::map<std::string, int> fotosVisibles_;
     std::map<std::string, int64_t> fotoMs_;
     bool fotoEnCurso_ = false;
     // «Con gráficos»: cada gráfico dibujado una vez por (gráfico, fuente, valores), la firma de

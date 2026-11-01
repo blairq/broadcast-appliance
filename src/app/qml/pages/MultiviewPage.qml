@@ -23,7 +23,7 @@ Rectangle {
     }
     readonly property var colores: ["#202024", "#000000", "#ffffff", "#5a5a64", "#16a34a", "#2563eb",
                                     "#dc2626", "#eab308", "#ea580c", "#9333ea", "#0891b2"]
-    function nombre(k) { return k.startsWith("entrada:") ? qsTr("Entrada · %1").arg(k.slice(8)) : Studio.frames.label(k) }
+    function nombre(k) { return k.startsWith("entrada:") ? qsTr("Entrada · %1").arg(k.slice(8)) : (Studio.frames.rotulos[k] || k) }
     function poner(clave, valor) { const c = {}; c[clave] = valor; Studio.multivistas.cambiar(c) }
     function alternar(k) {
         const f = page.fuentes.slice(); const i = f.indexOf(k)

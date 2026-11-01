@@ -159,7 +159,7 @@ Item {
                     model: Studio.frames.keys
                     delegate: MenuItem {
                         required property string modelData
-                        text: Studio.frames.label(modelData)
+                        text: (Studio.frames.rotulos[modelData] || modelData)
                         checkable: true
                         checked: !bgLayer.esMultiview && Studio.dashboard.background.indexOf(modelData) >= 0
                         onTriggered: {

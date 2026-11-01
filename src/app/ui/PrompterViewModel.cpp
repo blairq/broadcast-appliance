@@ -107,7 +107,7 @@ PrompterViewModel::PrompterViewModel(EventoViewModel* evento, ConferenceViewMode
     }
     if (evento != nullptr) {
         // Al abrir o cerrar un evento, los discursos son otros.
-        connect(evento, &EventoViewModel::guionChanged, this, [this]() { refrescar(); });
+        connect(&evento->guionVm(), &GuionViewModel::guionChanged, this, [this]() { refrescar(); });
     }
     refrescar();
 }
@@ -202,7 +202,7 @@ int PrompterViewModel::duracionSeg() const {
 
 QString PrompterViewModel::sinEvento() const {
     if (d_->evento == nullptr) return tr("El guion del evento no está disponible.");
-    if (d_->evento->carpetaDeDiscursos().isEmpty())
+    if (d_->evento->guionVm().carpetaDeDiscursos().isEmpty())
         return tr("Los discursos viven en la carpeta del evento. Abrí o creá un evento en la pestaña Guion "
                   "y volvé: son los mismos archivos que usa el cue «teleprompter».");
     return {};
@@ -210,7 +210,7 @@ QString PrompterViewModel::sinEvento() const {
 
 void PrompterViewModel::refrescar() {
     // La raíz puede haber cambiado (otro evento abierto, o ninguno).
-    d_->docs.setRaiz(d_->evento == nullptr ? QString() : d_->evento->carpetaDeDiscursos());
+    d_->docs.setRaiz(d_->evento == nullptr ? QString() : d_->evento->guionVm().carpetaDeDiscursos());
     if (d_->docs.listo()) QDir(d_->docs.raiz()).mkpath(".");
     // Los teleprompters con nombre son del evento: <evento>/prompters.json (al lado de Discursos/).
     const QString archivo = d_->docs.listo() ? QDir(d_->docs.raiz()).absoluteFilePath("../prompters.json") : QString();

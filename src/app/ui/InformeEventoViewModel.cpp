@@ -29,7 +29,12 @@ int64_t ahoraMs() { return QDateTime::currentMSecsSinceEpoch(); }
 
 InformeEventoViewModel::InformeEventoViewModel(EventoAbierto& abierto, CorridaViewModel& corrida, PadronViewModel& padron,
                                                QObject* parent)
-    : QObject(parent), ab_(abierto), corrida_(corrida), padron_(padron) {}
+    : QObject(parent), ab_(abierto), corrida_(corrida), padron_(padron) {
+    // Sale de lo que emitió la corrida y de la línea (los bloques, lo previsto).
+    connect(&corrida_, &CorridaViewModel::correChanged, this, &InformeEventoViewModel::informeCambio);
+    connect(&ab_, &EventoAbierto::lineaCambio, this, &InformeEventoViewModel::informeCambio);
+    connect(&ab_, &EventoAbierto::abiertoCambio, this, &InformeEventoViewModel::informeCambio);
+}
 
 namespace {
 

@@ -1984,7 +1984,12 @@ void Plugins::guardarValores() {
     valoresSucios_.clear();
 }
 
-QVariantMap Plugins::valoresUi(const QString& id) const { return qv(valoresDe(id.toStdString())).toMap(); }
+QVariantMap Plugins::valoresQml() const {
+    // Los que ya se leyeron (los de los plugins que arrancaron): sin ir al disco acá.
+    QVariantMap out;
+    for (const auto& [id, v] : valores_) out.insert(q(id), qv(v));
+    return out;
+}
 
 QString Plugins::panelUi(const QString& id, const QString& clave, const QVariant& valor) {
     return q(ponerValor(id.toStdString(), clave.toStdString(), dejson(valor)));

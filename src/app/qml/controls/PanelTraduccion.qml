@@ -23,9 +23,9 @@ ColumnLayout {
     }
     function avisar(e, ok) { if (e !== "") Studio.notify(e, "error"); else if (ok) Studio.notify(ok, "info") }
     // Se traduce desde el idioma del evento (el del guion; "" = el del operador): los destinos
-    // son los que tienen paquete desde ese idioma. Se rehace cuando cambia el guion.
-    readonly property string idiomaEvento: Studio.evento && Studio.evento.guion ? (Studio.evento.guion.idioma || "") : ""
-    readonly property var delEvento: tr ? tr.idiomasDelEvento(idiomaEvento) : ({ destinos: [] })
+    // son los que tienen paquete desde ese idioma (Traductor::delEvento: avisa cuando cambia
+    // el idioma del evento o se baja un paquete).
+    readonly property var delEvento: tr ? tr.delEvento : ({ destinos: [] })
     readonly property var destinos: delEvento.destinos || []
     // Las columnas del glosario: los idiomas además del de su clave (ver Traductor::idiomasGlosario).
     readonly property var idiomasGlosario: tr ? tr.idiomasGlosario : []
@@ -310,8 +310,8 @@ ColumnLayout {
         }
         CheckBox {
             text: qsTr("Rotular «Traducción automática» mientras sale una traducción (capa DSK 4)")
-            checked: Studio.asistente.rotuloTraduccionActivo()
-            onToggled: Studio.asistente.setRotuloTraduccion(checked)
+            checked: Studio.asistente.rotuloTraduccion
+            onToggled: Studio.asistente.rotuloTraduccion = checked
         }
     }
 
@@ -515,9 +515,15 @@ ColumnLayout {
         id: vocSec
         Layout.fillWidth: true
         spacing: 6
-        property var v: Studio.asistente.vocabularioUi()
+        readonly property var v: Studio.asistente.vocabulario
         property string grupo: "operador"
-        function refrescar() { v = Studio.asistente.vocabularioUi() }
+        // Lo que se pidió agregar: los campos se vacían cuando el término aparece (si no se
+        // pudo, el porqué llega por notify y los campos quedan para corregirlo).
+        property string agregando: ""
+        onVChanged: {
+            const ts = ((v.grupos || {})[grupo] || {}).terminos || []
+            if (agregando !== "" && ts.some(t => t.termino === agregando)) { vocTerm.text = ""; vocVar.text = ""; agregando = "" }
+        }
         readonly property var grupos: Object.keys((v && v.grupos) || {})
         RowLayout {
             Text {
@@ -529,7 +535,7 @@ ColumnLayout {
             }
             GlassButton {
                 compact: true; text: qsTr("Importar del Cuerpo")
-                onClicked: { Studio.asistente.vocabularioDelCuerpoUi(); vocSec.refrescar() }
+                onClicked: Studio.asistente.vocabularioDelCuerpoUi()
             }
         }
         Text {
@@ -555,7 +561,7 @@ ColumnLayout {
                 readonly property bool on: !!(((vocSec.v.grupos || {})[vocSec.grupo] || {}).activo)
                 compact: true
                 text: (on ? qsTr("Apagar «%1»") : qsTr("Prender «%1»")).arg(vocSec.grupo)
-                onClicked: { Studio.asistente.vocabularioGrupoUi(vocSec.grupo, !on); vocSec.refrescar() }
+                onClicked: Studio.asistente.vocabularioGrupoUi(vocSec.grupo, !on)
             }
         }
         Flow {
@@ -566,7 +572,7 @@ ColumnLayout {
                     required property var modelData
                     compact: true
                     text: modelData.termino + ((modelData.variantes || []).length ? " ←" + modelData.variantes.join(", ") : "") + "  ✕"
-                    onClicked: { Studio.asistente.vocabularioQuitarUi(modelData.termino); vocSec.refrescar() }
+                    onClicked: Studio.asistente.vocabularioQuitarUi(modelData.termino)
                     ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: qsTr("Sacar este término")
                 }
             }
@@ -578,8 +584,8 @@ ColumnLayout {
             GlassButton {
                 compact: true; text: qsTr("Agregar a %1").arg(vocSec.grupo)
                 onClicked: {
-                    const r = Studio.asistente.vocabularioAgregarUi(vocTerm.text, vocVar.text, vocSec.grupo)
-                    if (r !== "") Studio.notify(r, "error"); else { vocTerm.text = ""; vocVar.text = ""; vocSec.refrescar() }
+                    vocSec.agregando = vocTerm.text.trim()
+                    Studio.asistente.vocabularioAgregarUi(vocTerm.text, vocVar.text, vocSec.grupo)
                 }
             }
         }

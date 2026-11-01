@@ -278,6 +278,10 @@ void ControlViewModel::armarBotonera() {
         },
         p_.rt.dataRoot());
     botonera_ = std::make_unique<control::Botonera>(p_.rt.dataRoot(), p_.bus, std::move(g));
+    // La API remota cambia con sus accesos y al prenderla (la botonera avisa dispositivosCambio)
+    // y con la dirección de la sala (la puerta HTTP).
+    connect(botonera_.get(), &control::Botonera::dispositivosCambio, this, &ControlViewModel::apiRemotaCambio);
+    connect(&p_.direcciones, &sala::Direcciones::cambio, this, &ControlViewModel::apiRemotaCambio);
 }
 
 QObject* ControlViewModel::botoneraQml() const { return deCpp(botonera_.get()); }

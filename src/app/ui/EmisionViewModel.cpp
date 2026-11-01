@@ -360,19 +360,8 @@ void EmisionViewModel::limpiaActivarUi(bool activar, const QString& destino) {
 
 QVariantMap EmisionViewModel::grabacionUi() const { return mapaDe(p_.ventanilla.foto().grabacion); }
 
-QVariantMap EmisionViewModel::loudnessUi(const QString& salida) const {
-    const FotoMotor& f = p_.ventanilla.foto();
-    const std::string id = salida.isEmpty() ? std::string(BroadcastEngine::kSalidaPorOmision) : salida.toStdString();
-    return mapaDe(f.loudness.value(id, nlohmann::json::object()));
-}
-
 void EmisionViewModel::resetLoudnessUi(const QString& salida) {
     p_.ventanilla.pedir("loudness_reiniciar", [&rt = p_.rt, s = salida.toStdString()]() { rt.engine().loudness(s).reiniciar(); });
-}
-
-void EmisionViewModel::objetivoLoudnessUi(const QVariantMap& o, const QString& salida) {
-    const auto j = nlohmann::json::parse(QJsonDocument(QJsonObject::fromVariantMap(o)).toJson().toStdString(), nullptr, false);
-    pedir("loudness_objetivo", [&ob = *objetivoLoudness_, j, s = salida.toStdString()](AppRuntime&) { return ob.poner(j, s); });
 }
 
 QVariantMap EmisionViewModel::retornos() const { return mapaDe(p_.ventanilla.foto().retornos); }

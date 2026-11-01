@@ -572,10 +572,10 @@ void AtencionViewModel::alFotoIntegrante(const QString& id) {
         auto* ev = static_cast<EventoViewModel*>(yo->vm_.evento());
         // Entra solo SI el padrón del evento lo dice: la misma lista que deja
         // pasar sola a la gente del lobby de la sala. Y se avisa siempre.
-        if (esEl && ev != nullptr && ev->puedeEntrarSolo(personaId)) {
+        if (esEl && ev != nullptr && ev->padronVm().puedeEntrarSolo(personaId)) {
             if (asamblea::SesionRemota* s = yo->vm_.sesionRemota();
                 s != nullptr && s->habilitar(id.toStdString(), true, "reconocimiento").empty()) {
-                ev->acreditarPorPersona(personaId, "rostro");
+                ev->padronVm().acreditarPorPersona(personaId, "rostro");
                 emit yo->notify(tr("«%1» quedó habilitado solo: la cámara lo reconoció y el padrón del evento lo deja "
                                    "entrar solo.")
                                     .arg(nombre),

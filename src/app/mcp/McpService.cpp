@@ -803,7 +803,7 @@ void McpService::applySecurity() {
     // El guion del evento llama herramientas (p. ej. el cue Pantalla): lo corre
     // el operador, así que cuenta como una persona.
     if (auto* ev = static_cast<EventoViewModel*>(vm_.evento()))
-        ev->setHerramienta([this](const std::string& h, const json& args, std::function<void(bool, const std::string&)> fin) {
+        ev->corridaVm().setHerramienta([this](const std::string& h, const json& args, std::function<void(bool, const std::string&)> fin) {
             core_.callTool({{"name", h}, {"arguments", args}},
                            [fin](const json& r) {
                                std::string texto;

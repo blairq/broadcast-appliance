@@ -97,6 +97,11 @@ class VideoViewModel : public QObject {
     Q_PROPERTY(QVariantList modulosGst READ modulosGst NOTIFY gstListo)
     Q_PROPERTY(QVariantList modulosAudio READ modulosAudio NOTIFY gstListo)
     Q_PROPERTY(QString versionGst READ versionGst NOTIFY gstListo)
+    /// Los controles de cada tarjeta de GStreamer y de cada pad de una Mezcla (como
+    /// PropertiesModel: [{name, label, kind, value, min, max, step, options, suffix, help}]):
+    /// {id: {props: [...], pads: {puerto: [...]}}}. Cambia con lo que dice la vista (lo
+    /// cambie la página o el MCP).
+    Q_PROPERTY(QVariantMap formularios READ formularios NOTIFY formulariosCambio)
 
    public:
     /// `grafos` vive en el dueño: solo se lo nombra dentro de las órdenes (corren allá).
@@ -126,11 +131,7 @@ class VideoViewModel : public QObject {
     QVariantList modulosGst() const;
     QVariantList modulosAudio() const;
     QString versionGst() const;
-    /// Los controles de una tarjeta de GStreamer (como PropertiesModel): [{name, label,
-    /// kind, value, min, max, step, options, suffix, help}].
-    Q_INVOKABLE QVariantList propiedades(const QString& id) const;
-    /// Los del pad `puerto` de una Mezcla de GStreamer.
-    Q_INVOKABLE QVariantList propiedadesPad(const QString& id, const QString& puerto) const;
+    QVariantMap formularios() const { return formularios_; }
     /// Los de un módulo, para el detalle del catálogo (con estos valores puestos).
     Q_INVOKABLE QVariantList propiedadesModulo(const QString& elemento) const;
     Q_INVOKABLE QVariantList propiedadesModuloCon(const QString& elemento, const QVariantMap& valores) const;
@@ -223,6 +224,7 @@ class VideoViewModel : public QObject {
     void filtrosAudioCambio();
     void escenasCambio();
     void haySuperresCambio();
+    void formulariosCambio();
     void gstListo();
     /// El resultado de medirUi.
     void medicion(const QVariantMap& resultado);
@@ -235,6 +237,8 @@ class VideoViewModel : public QObject {
     /// Llegó una foto: relee la vista si cambió la parte Video.
     void alCambiar(unsigned partes);
     void releer();
+    /// Los controles de cada formulario de la vista (ver `formularios`).
+    QVariantMap armarFormularios(const nlohmann::json& formularios) const;
     /// Pedir con la entrada elegida (las ediciones de la página sin entrada explícita).
     QString pedirEnLaElegida(const char* que, std::function<QString(video::VideoGrafos&)> orden);
     QString pedirQ(const char* que, std::function<QString(video::VideoGrafos&)> orden);
@@ -245,7 +249,7 @@ class VideoViewModel : public QObject {
     QString entrada_, vista_ = QStringLiteral("racks");
     QStringList entradas_, escenas_;
     QVariantList entradasInfo_, estadoRed_, diagnostico_;
-    QVariantMap grafo_, estudio_, eventos_, programador_, reloj_, latencia_, automixer_, filtrosAudio_;
+    QVariantMap grafo_, estudio_, eventos_, programador_, reloj_, latencia_, automixer_, filtrosAudio_, formularios_;
     bool haySuperres_ = false;
     /// Lo que se mostró la última vez (para avisar solo lo que cambió).
     nlohmann::json antes_ = nlohmann::json::object();

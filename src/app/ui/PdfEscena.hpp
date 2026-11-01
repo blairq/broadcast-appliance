@@ -69,7 +69,7 @@ class PdfEscena : public QObject {
     /// Lo mismo, con lo que vuelva ("" o el error) en `listo` (el MCP).
     void crearEscena(const QString& nombre, std::function<void(const QString&)> listo);
     /// La documentación cambió (agregaron o quitaron un PDF).
-    Q_INVOKABLE void refrescarDocumentos();
+    void refrescarDocumentos();
 
    signals:
     void cambio();

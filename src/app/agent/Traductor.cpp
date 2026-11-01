@@ -135,6 +135,14 @@ Traductor::Traductor(fs::path dataRoot, ModelosLocales& modelos, FlujosTexto& fl
     connect(&modelos_, &ModelosLocales::descargaCambio, this, [this]() {
         if (!modelos_.descargando()) emit cambio();
     });
+    // Un paquete nuevo (o uno que se borra) cambia a qué idiomas se puede traducir.
+    connect(this, &Traductor::cambio, this, &Traductor::delEventoCambio);
+}
+
+void Traductor::setIdiomaEvento(const QString& codigo) {
+    if (codigo == idiomaEvento_) return;
+    idiomaEvento_ = codigo;
+    emit delEventoCambio();
 }
 
 Traductor::~Traductor() {

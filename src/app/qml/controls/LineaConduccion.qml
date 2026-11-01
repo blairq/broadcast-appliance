@@ -14,7 +14,7 @@ import BA
 ColumnLayout {
     id: cond
     readonly property var lv: Studio.linea
-    readonly property var ev: Studio.evento
+    readonly property var corridaVm: Studio.evento.corridaVm
     readonly property var c: lv ? lv.conduccion : ({})
     readonly property var aire: c.alAire || null
     readonly property var prox: c.proximo || null
@@ -26,13 +26,13 @@ ColumnLayout {
     function hacer(error) { if (error !== "") Studio.notify(error, "error") }
     function arrancar() {
         // La revisión previa la hace el view model; si hay algo grave, se pregunta.
-        const graves = cond.ev.arrancarRevisando(false)
+        const graves = cond.corridaVm.arrancarRevisando(false)
         if (graves === 0) return
         ApplicationWindow.window.confirm({
             title: qsTr("¿Correr el guion igual?"),
             text: qsTr("La revisión encontró %n problema grave. Mirá «Revisión» antes de salir.", "", graves),
             accept: qsTr("Correr igual"), reject: qsTr("Revisar"),
-            action: function() { cond.ev.arrancarRevisando(true) }
+            action: function() { cond.corridaVm.arrancarRevisando(true) }
         })
     }
 
@@ -40,7 +40,7 @@ ColumnLayout {
         Layout.fillWidth: true
         horizontalAlignment: Text.AlignHCenter
         visible: cond.parado
-        text: cond.ev.estado === "terminado" ? qsTr("La línea terminó") : qsTr("La línea no está corriendo")
+        text: cond.corridaVm.estado === "terminado" ? qsTr("La línea terminó") : qsTr("La línea no está corriendo")
         color: Theme.textFaint
         font.pixelSize: 13
     }
@@ -288,7 +288,7 @@ ColumnLayout {
             }
             GlassButton {
                 text: qsTr("Reenganchar"); compact: true
-                onClicked: cond.hacer(cond.ev.reenganchar(cond.lv.salida))
+                onClicked: cond.hacer(cond.corridaVm.reenganchar(cond.lv.salida))
                 ToolTip.visible: hovered; ToolTip.delay: 400
                 ToolTip.text: qsTr("Vuelve a la escena del paso al aire y la salida sigue con la línea")
             }
@@ -312,11 +312,11 @@ ColumnLayout {
             }
             GlassButton {
                 text: qsTr("Mover igual"); compact: true
-                onClicked: cond.hacer(cond.ev.decidirPtz(ptz.modelData.pieza, "mover"))
+                onClicked: cond.hacer(cond.corridaVm.decidirPtz(ptz.modelData.pieza, "mover"))
             }
             GlassButton {
                 text: qsTr("No mover"); compact: true
-                onClicked: cond.hacer(cond.ev.decidirPtz(ptz.modelData.pieza, "saltar"))
+                onClicked: cond.hacer(cond.corridaVm.decidirPtz(ptz.modelData.pieza, "saltar"))
             }
         }
     }
@@ -396,20 +396,20 @@ ColumnLayout {
         }
         Item { Layout.fillWidth: true }
         GlassButton {
-            icon: cond.ev.estado === "pausado" ? "▶" : "❚❚"; compact: true
+            icon: cond.corridaVm.estado === "pausado" ? "▶" : "❚❚"; compact: true
             visible: !cond.parado
-            onClicked: cond.ev.estado === "pausado" ? cond.ev.reanudar() : cond.ev.pausar()
+            onClicked: cond.corridaVm.estado === "pausado" ? cond.corridaVm.reanudar() : cond.corridaVm.pausar()
             ToolTip.visible: hovered; ToolTip.delay: 400
             ToolTip.text: qsTr("Pausa general: nada avanza solo y no cuenta como desvío")
         }
         GlassButton {
             icon: "■"; compact: true
             visible: !cond.parado
-            onClicked: cond.ev.parar()
+            onClicked: cond.corridaVm.parar()
         }
         GlassButton {
             icon: "▤"; compact: true
-            visible: cond.ev.estado !== "parado"
+            visible: cond.corridaVm.estado !== "parado"
             onClicked: cond.pedirInforme()
             ToolTip.visible: hovered; ToolTip.delay: 400
             ToolTip.text: qsTr("Ver cuánto duró de verdad cada bloque")
@@ -472,16 +472,16 @@ ColumnLayout {
         Layout.fillWidth: true
         spacing: 8
         Toggle {
-            checked: cond.ev.ensayo
-            enabled: cond.ev.estado === "parado"
-            onToggled: (w) => cond.ev.ensayo = w
+            checked: cond.corridaVm.ensayo
+            enabled: cond.corridaVm.estado === "parado"
+            onToggled: (w) => cond.corridaVm.ensayo = w
         }
         Text {
             Layout.fillWidth: true
             wrapMode: Text.WordWrap
-            text: cond.ev.ensayo ? qsTr("Ensayo: recorre el guion sin tocar lo que sale al aire")
+            text: cond.corridaVm.ensayo ? qsTr("Ensayo: recorre el guion sin tocar lo que sale al aire")
                                  : qsTr("Ensayo apagado: los cues salen al aire de verdad")
-            color: cond.ev.ensayo ? Theme.amber : Theme.textDim
+            color: cond.corridaVm.ensayo ? Theme.amber : Theme.textDim
             font.pixelSize: 11
         }
     }
@@ -491,23 +491,23 @@ ColumnLayout {
         Layout.fillWidth: true
         spacing: 8
         Toggle {
-            checked: cond.ev.grabarTiempos
-            enabled: cond.ev.estado === "parado" || cond.ev.estado === "terminado"
-            onToggled: (w) => cond.ev.grabarTiempos = w
+            checked: cond.corridaVm.grabarTiempos
+            enabled: cond.corridaVm.estado === "parado" || cond.corridaVm.estado === "terminado"
+            onToggled: (w) => cond.corridaVm.grabarTiempos = w
         }
         Text {
             Layout.fillWidth: true
             wrapMode: Text.WordWrap
-            text: cond.ev.grabarTiempos ? qsTr("Grabando: cada paso entra con GO y lo que dure queda como su duración")
+            text: cond.corridaVm.grabarTiempos ? qsTr("Grabando: cada paso entra con GO y lo que dure queda como su duración")
                                         : qsTr("Grabar los tiempos en el ensayo")
-            color: cond.ev.grabarTiempos ? Theme.amber : Theme.textDim
+            color: cond.corridaVm.grabarTiempos ? Theme.amber : Theme.textDim
             font.pixelSize: 11
         }
     }
     // Lo que grabó el ensayo: una persona lo guarda o lo descarta.
     Rectangle {
         id: grab
-        readonly property var g: cond.ev.tiemposGrabados || ({})
+        readonly property var g: cond.corridaVm.tiemposGrabados || ({})
         Layout.fillWidth: true
         Layout.preferredHeight: grabCol.implicitHeight + 12
         visible: !!(g.pasos && g.pasos.length > 0)
@@ -541,12 +541,12 @@ ColumnLayout {
                 Item { Layout.fillWidth: true }
                 GlassButton {
                     text: qsTr("Descartar"); compact: true
-                    onClicked: cond.ev.descartarTiemposGrabados()
+                    onClicked: cond.corridaVm.descartarTiemposGrabados()
                 }
                 GlassButton {
                     text: qsTr("Guardar los tiempos"); compact: true
                     active: true
-                    onClicked: cond.hacer(cond.ev.aplicarTiemposGrabados())
+                    onClicked: cond.hacer(cond.corridaVm.aplicarTiemposGrabados())
                     ToolTip.visible: hovered; ToolTip.delay: 400
                     ToolTip.text: qsTr("Quedan como duraciones previstas (con una revisión para deshacer)")
                 }

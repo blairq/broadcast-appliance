@@ -1011,7 +1011,7 @@ void McpService::registerRoomTools() {
             auto vistos = std::make_shared<std::set<std::string>>();
             for (const auto& m : leer())
                 if (m.is_object()) vistos->insert(m.value("uid", ""));
-            // El chat avisa cuando cambia (chatRevChanged): se mira ahí, no cada 400 ms
+            // El chat avisa cuando cambia (chatCambio): se mira ahí, no cada 400 ms
             // serializando la lista entera.
             const auto nuevosDe = [leer, vistos, id]() {
                 json nuevos = json::array();
@@ -1022,7 +1022,7 @@ void McpService::registerRoomTools() {
                 return nuevos;
             };
             esperarHasta(
-                conf, &ConferenceViewModel::chatRevChanged,
+                conf, &ConferenceViewModel::chatCambio,
                 [nuevosDe]() -> std::optional<ToolResult> {
                     const json nuevos = nuevosDe();
                     if (nuevos.empty()) return std::nullopt;

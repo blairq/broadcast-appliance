@@ -88,11 +88,10 @@ Rectangle {
     // la conferencia o en la sesion remota eso corta todo, asi que se advierte y se pide una
     // confirmacion explicita. Lo que se corta lo dice Studio (Main.qml usa lo mismo).
     readonly property bool onAir: Studio.app.impactoDeCerrar.hay
-    function onAirWarning(what) { return Studio.app.avisoDeCerrar(what) }
     function confirmUpdate(folder) {
         ApplicationWindow.window.confirm({
             title: qsTr("¿Actualizar ahora?"),
-            text: page.onAirWarning("actualizar"),
+            text: Studio.app.impactoDeCerrar.avisoActualizar,
             accept: qsTr("Actualizar igual"),
             reject: qsTr("Cancelar"),
             action: function() { page.updateError = sys.startUpdate(folder) }
@@ -103,7 +102,7 @@ Rectangle {
         ApplicationWindow.window.confirm({
             title: qsTr("¿Volver a la versión anterior?"),
             text: page.onAir ? qsTr("%1 Después se restaura el programa anterior y la aplicación vuelve a abrir sola. %2")
-                                   .arg(page.onAirWarning("volver")).arg(data)
+                                   .arg(Studio.app.impactoDeCerrar.avisoVolver).arg(data)
                              : qsTr("La aplicación se cierra, se restaura el programa anterior y vuelve a abrir sola. %1").arg(data),
             accept: qsTr("Volver a la anterior"),
             reject: qsTr("Cancelar"),
@@ -1995,7 +1994,7 @@ Rectangle {
                 visible: page.onAir
                 color: Theme.live
                 font { pixelSize: 15; weight: Font.DemiBold }
-                text: page.onAirWarning("actualizar")
+                text: Studio.app.impactoDeCerrar.avisoActualizar
             }
             Label {
                 width: parent.width

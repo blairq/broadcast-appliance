@@ -104,7 +104,7 @@ SalaViewModel::SalaViewModel(Partes p, QObject* parent) : QObject(parent), p_(st
     // La votación es del modelo (con el padrón del evento abierto); el público y el MCP la usan.
     votacion_ = std::make_unique<sala::VotacionSala>(cli, [this]() {
         EventoViewModel* ev = p_.evento ? p_.evento() : nullptr;
-        return ev ? ev->votantes() : std::nullopt;
+        return ev ? ev->padronVm().votantes() : std::nullopt;
     });
     // Las preguntas, ídem; un mensaje del chat se busca en el chat que junta las plataformas.
     preguntas_ = std::make_unique<sala::PreguntasSala>(

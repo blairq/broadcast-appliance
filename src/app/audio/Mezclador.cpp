@@ -74,7 +74,7 @@ void Mezclador::setRacks(RackManager* r) {
     calibracion_->setRacks(r);
 }
 
-void Mezclador::usar(QObject* vista, bool si) { usos_.usar(vista, si); }
+void Mezclador::usar(QObject* vista, bool si, const QString& que) { usos_.usar(vista, si, que); }
 
 void Mezclador::rehacerListas() {
     QStringList entradas;

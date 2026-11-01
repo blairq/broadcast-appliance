@@ -97,7 +97,7 @@ class ControlCamaras : public QObject {
     QVariantMap fotos() const;
     /// Una vista empieza o deja de mirar el encuadre de `entrada` (la cuenta es por vista:
     /// comun/UsoPorVistas; en QML, `Suscripcion { objetivo: Studio.camaras; que: entrada }`).
-    Q_INVOKABLE void usar(QObject* vista, bool si, const QString& entrada);
+    Q_INVOKABLE void usar(QObject* vista, bool si, const QString& entrada = {});
     /// De dónde salen los datos de la cámara de red de una entrada (red::Red, que se arma
     /// después); `revisarRed()` cuando cambian.
     void setDatosDeRed(std::function<QVariantMap(const QString&)> fn) {
@@ -167,7 +167,7 @@ class ControlCamaras : public QObject {
     // --- Posiciones con nombre (ptz/Posiciones) --------------------------------
     /// [{id, nombre, comentario, definicion, digital{x,y,zoom}, camara{backend,memoria|token},
     /// velocidad?, segundos?, miniatura?, miniatura_ruta?, miniatura_url?, creada, modificada}]
-    Q_INVOKABLE QVariantList posiciones(const QString& entrada) const;
+    QVariantList posiciones(const QString& entrada) const;
     /// Registra donde está ahora la cámara (cabeza y/o recorte) con ese
     /// nombre. {ok, error, aviso, id}.
     /// `numero`: su número de preset (0 = el primero libre).

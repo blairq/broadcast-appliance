@@ -222,7 +222,7 @@ void EscenasViewModel::addScene(const QString& name) {
     });
 }
 
-QString EscenasViewModel::copyScene(const QString& from, const QString& to) {
+void EscenasViewModel::copyScene(const QString& from, const QString& to) {
     // Sin nombre, se propone uno libre: copiar tiene que ser un clic, no un
     // dialogo. Se renombra despues, que es cuando uno ya sabe como llamarla.
     QString destino = to;
@@ -242,10 +242,11 @@ QString EscenasViewModel::copyScene(const QString& from, const QString& to) {
         },
         [this, destino](const std::pair<bool, std::string>& r) {
             if (!r.first) return emit notify(qs(r.second), "error");
+            // La copia queda elegida en el editor (como al renombrar).
+            p_.fuentes.setScene(destino);
             emit notify(r.second.empty() ? tr("Escena copiada: %1").arg(destino) : tr("Escena copiada, pero %1").arg(qs(r.second)),
                         r.second.empty() ? "ok" : "warn");
         });
-    return destino;
 }
 
 void EscenasViewModel::setSceneProtected(const QString& name, bool protegida) {
@@ -262,11 +263,6 @@ void EscenasViewModel::setSceneProtected(const QString& name, bool protegida) {
                                   : tr("«%1» ya no está protegida").arg(name),
                         "ok");
         });
-}
-
-bool EscenasViewModel::sceneProtected(const QString& name) const {
-    const FotoMotor::Escena* e = p_.ventanilla.foto().escena(name.toStdString());
-    return e != nullptr && e->protegida;
 }
 
 QStringList EscenasViewModel::protegidas() const {
@@ -329,9 +325,16 @@ void EscenasViewModel::renameScene(const QString& from, const QString& to) {
         });
 }
 
-void EscenasViewModel::setScenePreview(const QString& name) {
+void EscenasViewModel::vistaDelEditor() {
+    // El motor tiene UN lienzo del editor: la escena elegida si alguna vista la mira; si no,
+    // la que miren (todas las vistas del editor siguen la misma elegida).
+    const QSet<QString> miradas = vistasEditor_.usados();
+    QString n;
+    if (!miradas.isEmpty()) n = miradas.contains(p_.fuentes.scene()) ? p_.fuentes.scene() : *miradas.cbegin();
+    if (n == vistaEditor_) return;
+    vistaEditor_ = n;
     // 960 px de ancho alcanza para el lienzo del editor y no castiga la GPU.
-    p_.ventanilla.pedir("escena_vista_editor", [&rt = p_.rt, n = name.toStdString()]() { rt.engine().enableScenePreview(n, 960); });
+    p_.ventanilla.pedir("escena_vista_editor", [&rt = p_.rt, e = n.toStdString()]() { rt.engine().enableScenePreview(e, 960); });
 }
 
 void EscenasViewModel::takeScene(const QString& name) {

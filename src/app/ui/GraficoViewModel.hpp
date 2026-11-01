@@ -121,7 +121,7 @@ class GraficoViewModel : public QObject {
     Q_INVOKABLE void setValor(const QString& clave, const QVariant& valor);
 
     /// Vuelve a dibujar la vista previa con lo que hay en el editor.
-    Q_INVOKABLE void redibujar();
+    void redibujar();
 
     /// Agrega un GIF, una imagen, una carpeta de PNG o un video (con alfa) al
     /// gráfico abierto. El resultado llega por `notify`.

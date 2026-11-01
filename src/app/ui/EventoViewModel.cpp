@@ -25,19 +25,7 @@ EventoViewModel::EventoViewModel(AppRuntime& rt, VentanillaMotor& ventanilla, Co
     web_ = new WebEventoViewModel(*ab_, *corrida_, *padron_, *lista_, rt, sala, this);
     informe_ = new InformeEventoViewModel(*ab_, *corrida_, *padron_, this);
 
-    // Lo de cada pieza, con los avisos de siempre (la QML y el C++ que usan Studio.evento).
-    connect(lista_, &EventosListaViewModel::listaChanged, this, &EventoViewModel::listaChanged);
-    connect(lista_, &EventosListaViewModel::enCursoChanged, this, &EventoViewModel::enCursoChanged);
-    connect(lista_, &EventosListaViewModel::automaticoChanged, this, &EventoViewModel::enCursoChanged);
-    connect(guion_, &GuionViewModel::guionChanged, this, &EventoViewModel::guionChanged);
-    connect(guion_, &GuionViewModel::sucioChanged, this, &EventoViewModel::sucioChanged);
-    connect(guion_, &GuionViewModel::reparosChanged, this, &EventoViewModel::reparosChanged);
-    connect(guion_, &GuionViewModel::chequeoChanged, this, &EventoViewModel::chequeoChanged);
-    connect(padron_, &PadronViewModel::padronChanged, this, &EventoViewModel::padronChanged);
-    connect(corrida_, &CorridaViewModel::correChanged, this, &EventoViewModel::correChanged);
-    connect(corrida_, &CorridaViewModel::relojChanged, this, &EventoViewModel::relojChanged);
-    connect(corrida_, &CorridaViewModel::bitacoraChanged, this, &EventoViewModel::bitacoraChanged);
-    connect(web_, &WebEventoViewModel::webChanged, this, &EventoViewModel::webChanged);
+    // Los avisos de todas las piezas, juntos.
     for (QObject* o : std::initializer_list<QObject*>{lista_, guion_, padron_, corrida_, web_, informe_})
         connect(o, SIGNAL(notify(QString, QString)), this, SIGNAL(notify(QString, QString)));
 
@@ -92,8 +80,6 @@ void EventoViewModel::setCarruseles(CarruselViewModel* c) {
     guion_->setCarruseles(c);
     corrida_->setCarruseles(c);
 }
-
-void EventoViewModel::setSistema(std::function<Sistema()> f) { corrida_->setSistema(std::move(f)); }
 
 // --- Abrir, cerrar, crear, borrar -------------------------------------------------------------
 
@@ -177,15 +163,6 @@ bool EventoViewModel::iniciarEvento(const QString& carpeta) {
     return true;
 }
 
-bool EventoViewModel::terminarEvento() {
-    std::string err;
-    if (!lista_->terminar(&err)) {
-        emit notify(QString::fromStdString(err), "error");
-        return false;
-    }
-    return true;
-}
-
 QString EventoViewModel::moverEvento(const QString& carpeta, const QString& aCarpeta) {
     if (carpeta == ab_->carpeta() && ab_->sucio()) guion_->guardar();
     std::string err;
@@ -196,47 +173,6 @@ QString EventoViewModel::moverEvento(const QString& carpeta, const QString& aCar
     }
     if (ab_->carpeta() == carpeta) ab_->renombrar(QString::fromStdString(nueva));
     return QString::fromStdString(nueva);
-}
-
-QString EventoViewModel::crearCarpeta(const QString& ruta) {
-    std::string err;
-    const std::string c = lista_->crearCarpeta(ruta.toStdString(), &err);
-    if (c.empty()) {
-        emit notify(tr("No se pudo crear la carpeta: %1").arg(QString::fromStdString(err)), "error");
-        return {};
-    }
-    return QString::fromStdString(c);
-}
-
-QVariantMap EventoViewModel::datosDe(const QString& carpeta) const {
-    const evento::DatosDelEvento d = lista_->datos(carpeta.toStdString());
-    QStringList etiquetas;
-    for (const auto& e : d.etiquetas) etiquetas << QString::fromStdString(e);
-    return QVariantMap{{"estado", QString::fromStdString(d.estado)},
-                       {"iniciadoMs", static_cast<qint64>(d.iniciadoMs)},
-                       {"terminadoMs", static_cast<qint64>(d.terminadoMs)},
-                       {"lugar", QString::fromStdString(d.lugar)},
-                       {"etiquetas", etiquetas},
-                       {"notas", QString::fromStdString(d.notas)},
-                       {"automatico", d.automatico},
-                       {"dia", QString::fromStdString(d.dia)}};
-}
-
-bool EventoViewModel::cambiarDatos(const QString& carpeta, const QVariantMap& campos) {
-    evento::DatosDelEvento d = lista_->datos(carpeta.toStdString());
-    if (campos.contains("lugar")) d.lugar = campos.value("lugar").toString().toStdString();
-    if (campos.contains("notas")) d.notas = campos.value("notas").toString().toStdString();
-    if (campos.contains("etiquetas")) {
-        d.etiquetas.clear();
-        for (const QString& e : campos.value("etiquetas").toStringList())
-            if (!e.trimmed().isEmpty()) d.etiquetas.push_back(e.trimmed().toStdString());
-    }
-    std::string err;
-    if (!lista_->guardarDatos(carpeta.toStdString(), d, &err)) {
-        emit notify(tr("No se pudo guardar la ficha: %1").arg(QString::fromStdString(err)), "error");
-        return false;
-    }
-    return true;
 }
 
 std::filesystem::path EventoViewModel::carpetaEvento(const std::string& carpeta) const {
@@ -251,11 +187,5 @@ std::filesystem::path EventoViewModel::archivoBitacoraDe(const std::string& carp
 }
 
 std::filesystem::path EventoViewModel::carpetaConfig() const { return rt_.dataRoot() / "Config"; }
-
-bool EventoViewModel::setAutoAceptar(std::vector<evento::Invitado> lista) {
-    if (!ab_->hay()) return false;
-    ab_->editar().autoAceptar = std::move(lista);
-    return guion_->guardar();
-}
 
 } // namespace ba::app

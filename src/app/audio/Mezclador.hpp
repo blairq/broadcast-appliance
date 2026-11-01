@@ -87,7 +87,7 @@ class Mezclador : public QObject {
 
     /// Una vista (la ventana, la tarjeta) empieza o deja de usarlo. Mientras haya
     /// alguna, mide a 30 Hz; si se destruye sin avisar, se la saca sola.
-    Q_INVOKABLE void usar(QObject* vista, bool si);
+    Q_INVOKABLE void usar(QObject* vista, bool si, const QString& que = {});
     QVariantMap tiras() const { return tiras_; }
     /// El estado de una tira (lo de `tiras`).
     QVariantMap tira(const QString& nombre) const;

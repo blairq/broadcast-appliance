@@ -83,6 +83,9 @@ class Traductor : public QObject {
     /// listo | arrancando | apagado | error: …
     Q_PROPERTY(QString motor READ motor NOTIFY cambio)
     Q_PROPERTY(QString archivoGlosario READ archivoGlosarioTexto CONSTANT)
+    /// Desde y hacia qué idiomas se traduce en el evento abierto (idiomasDelEvento con su
+    /// idioma): cambia con el idioma del evento y con los paquetes que se bajan.
+    Q_PROPERTY(QVariantMap delEvento READ delEvento NOTIFY delEventoCambio)
 
    public:
     using json = nlohmann::json;
@@ -164,9 +167,11 @@ class Traductor : public QObject {
     /// Desde y hacia qué idiomas se traduce en un evento de `idiomaEvento` (el código de
     /// ba::i18n del evento, "" = el del operador): {evento, origen, nombre, destinos:
     /// [{codigo, nombre, pasos}], ejemplo (una frase para probar, en ese idioma), error si
-    /// no hay}. La interfaz le pasa el idioma del
-    /// guion para que se rehaga cuando cambia.
-    Q_INVOKABLE QVariantMap idiomasDelEvento(const QString& idiomaEvento) const;
+    /// no hay}.
+    QVariantMap idiomasDelEvento(const QString& idiomaEvento) const;
+    QVariantMap delEvento() const { return idiomasDelEvento(idiomaEvento_); }
+    /// El idioma del evento abierto (lo pone quien sabe del evento: StudioViewModel).
+    void setIdiomaEvento(const QString& codigo);
     /// `de` vacío = el idioma del evento.
     Q_INVOKABLE QString agregarUi(const QString& desde, const QString& a, const QString& nombre,
                                   const QString& de = QString());
@@ -186,6 +191,7 @@ class Traductor : public QObject {
    signals:
     void cambio();
     void glosarioCambio();
+    void delEventoCambio();
     void probado(const QString& a, const QString& texto, bool ok);
 
    private:
@@ -224,6 +230,7 @@ class Traductor : public QObject {
     std::unique_ptr<plugins::Hijo> hijo_;
     QByteArray pendiente_;
     QString motor_ = "apagado";
+    QString idiomaEvento_; ///< el del evento abierto ("" = el del operador)
     std::deque<Pedido> cola_;
     std::map<long long, Listo> enCurso_;
     long long n_ = 0;

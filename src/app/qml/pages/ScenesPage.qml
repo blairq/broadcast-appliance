@@ -28,10 +28,9 @@ Rectangle {
     // que se pliega, y sus escenas) lo arma el modelo: Studio.escenas.arbol.
 
     // El motor renderiza la escena que se edita solo mientras esta pagina esta
-    // a la vista: fuera de aca no se gasta GPU en ella.
-    onEditSceneChanged: if (visible) Studio.escenas.setScenePreview(editScene)
-    onVisibleChanged: Studio.escenas.setScenePreview(visible ? editScene : "")
-    Component.onCompleted: if (visible) Studio.escenas.setScenePreview(editScene)
+    // a la vista: fuera de aca no se gasta GPU en ella. La cuenta es por vista (la
+    // página en la ventana y suelta a la vez: cerrar una no le apaga el lienzo a la otra).
+    Suscripcion { objetivo: Studio.escenas; que: page.editScene; activa: page.visible && page.editScene !== "" }
 
     onSelectedChanged: Studio.properties.sourceName = selected
 
@@ -233,10 +232,8 @@ Rectangle {
                         // La forma barata de armar escenas parecidas: se hace
                         // UNA bien y las demás salen de copiarla. El nombre lo
                         // propone solo; renombrar es un clic más.
-                        onClicked: {
-                            const nueva = Studio.escenas.copyScene(page.editScene, "")
-                            if (nueva !== "") page.editScene = nueva
-                        }
+                        // La copia queda elegida (lo hace el view model al terminar).
+                        onClicked: Studio.escenas.copyScene(page.editScene, "")
                         ToolTip.visible: hovered; ToolTip.delay: 400
                         ToolTip.text: qsTr("Una escena nueva con todas las fuentes de «%1»").arg(page.editScene)
                     }

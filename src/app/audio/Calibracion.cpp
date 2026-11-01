@@ -619,7 +619,23 @@ json Calibracion::medicionJson(const std::string& id) const {
     return m != nullptr && m->contains("parlante") ? *m : json();
 }
 
-QVariantMap Calibracion::medicion(const QString& id) const { return aMapa(medicionJson(id.toStdString())); }
+QVariantMap Calibracion::irVistas() const {
+    json r = json::object();
+    if (s_.is_object())
+        for (const json& m : s_.value("mediciones", json::array()))
+            if (m.contains("ir_vista")) r[m.value("id", std::string())] = m["ir_vista"];
+    return aMapa(r);
+}
+
+QVariantMap Calibracion::curvasPorParlante() const {
+    QVariantMap out;
+    if (s_.is_object())
+        for (const json& p : s_.value("parlantes", json::array())) {
+            const QString id = QString::fromStdString(p.value("id", std::string()));
+            if (!id.isEmpty()) out.insert(id, curvas(id));
+        }
+    return out;
+}
 
 QVariantMap Calibracion::curvas(const QString& parlante) const {
     json r = json::object();

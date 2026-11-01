@@ -137,7 +137,7 @@ class Matriz : public QObject {
     /// Una vista empieza o deja de mostrar los medidores (los mide mientras haya
     /// alguna: la matriz de la página Audio escondida no le apaga los medidores a la
     /// del Mezclador). Si la vista se destruye sin avisar, se la saca sola.
-    Q_INVOKABLE void usar(QObject* vista, bool si);
+    Q_INVOKABLE void usar(QObject* vista, bool si, const QString& que = {});
     Q_INVOKABLE void refrescar();
     /// Prender o apagar un cruce. Devuelve el error o "".
     Q_INVOKABLE QString alternar(const QString& fuente, const QString& bus);

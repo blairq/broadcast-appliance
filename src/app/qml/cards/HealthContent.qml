@@ -152,8 +152,7 @@ Item {
                 // El latido del supervisor: si la interfaz se traba, el motor sigue y el aire no se corta.
                 Text { text: qsTr("Interfaz"); color: Theme.textFaint; font.pixelSize: 11 }
                 Text {
-                    property var l: ({})
-                    Timer { interval: 1000; running: parent.visible; repeat: true; triggeredOnStart: true; onTriggered: parent.l = Studio.latidoUi() }
+                    readonly property var l: Studio.latido
                     text: {
                         if (l.ui_viva === false) return qsTr("trabada %1 s (el aire sigue)").arg(Math.round((l.ui_trabada_ms || 0) / 1000))
                         const partes = [qsTr("viva")]
@@ -208,8 +207,8 @@ Item {
                     spacing: 6
                     SpinBox {
                         from: 10; to: 3600; stepSize: 10; editable: true
-                        value: { const p = (Studio.latidoUi().politica || {}); return p.espera_ui_s || 60 }
-                        onValueModified: { const e = Studio.latidoPoliticaUi({ espera_ui_s: value }); if (e !== "") Studio.notify(e, "error") }
+                        value: (Studio.latido.politica || {}).espera_ui_s || 60
+                        onValueModified: Studio.latidoPoliticaUi({ espera_ui_s: value })
                         ToolTip.visible: hovered; ToolTip.delay: 400
                         ToolTip.text: qsTr("Con la interfaz trabada y el motor andando, cuánto esperar antes de relanzar la app (solo si no hay transmisión ni grabación)")
                     }

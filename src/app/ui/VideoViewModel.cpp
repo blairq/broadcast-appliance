@@ -198,6 +198,14 @@ void VideoViewModel::releer() {
     poner("filtros_audio", filtrosAudio_, aVariant(x.value("filtros_audio", json::object())).toMap(), &VideoViewModel::filtrosAudioCambio);
     poner("escenas", escenas_, listaDeTextos(x.value("escenas", json::array())), &VideoViewModel::escenasCambio);
     poner("hay_superres", haySuperres_, x.value("hay_superres", false), &VideoViewModel::haySuperresCambio);
+    // Los formularios: solo si cambiaron (la introspección de cada módulo la guarda el catálogo).
+    if (difiere("formularios")) {
+        QVariantMap f = armarFormularios(x.value("formularios", json::object()));
+        if (f != formularios_) {
+            formularios_ = std::move(f);
+            avisar.push_back(&VideoViewModel::formulariosCambio);
+        }
+    }
     const bool eventos = difiere("eventos");
     antes_ = x;
     if (estructura) {
@@ -250,14 +258,19 @@ QString VideoViewModel::versionGst() const {
     return c->disponible() ? q(c->version()) : tr("Sin GStreamer: %1").arg(q(c->error()));
 }
 
-QVariantList VideoViewModel::propiedades(const QString& id) const {
-    // De la vista: el elemento y los valores con que corre (un controlador, los de su molde).
-    return video::VideoGrafos::controlesDe(*gst(), v().value("formularios", json::object()).value(id.toStdString(), json()));
-}
-
-QVariantList VideoViewModel::propiedadesPad(const QString& id, const QString& puerto) const {
-    return video::VideoGrafos::controlesDe(*gst(), v().value("formularios", json::object()).value(id.toStdString(), json()),
-                                           puerto.toStdString());
+QVariantMap VideoViewModel::armarFormularios(const json& formularios) const {
+    // De la vista: el elemento y los valores con que corre cada tarjeta (un controlador, los
+    // de su molde) y los de cada pad de una Mezcla.
+    QVariantMap out;
+    if (!formularios.is_object()) return out;
+    const auto c = gst();
+    for (auto it = formularios.begin(); it != formularios.end(); ++it) {
+        QVariantMap pads;
+        if (const auto pf = it->find("pads"); pf != it->end() && pf->is_object())
+            for (auto p = pf->begin(); p != pf->end(); ++p) pads.insert(q(p.key()), video::VideoGrafos::controlesDe(*c, *it, p.key()));
+        out.insert(q(it.key()), QVariantMap{{"props", video::VideoGrafos::controlesDe(*c, *it)}, {"pads", pads}});
+    }
+    return out;
 }
 
 QVariantList VideoViewModel::propiedadesModulo(const QString& elemento) const {

@@ -475,36 +475,6 @@ void CorridaViewModel::arrancar() {
     despachar(corrida_->arrancar(ahoraMs()));
 }
 
-void CorridaViewModel::setHold(bool on) {
-    if (!corriendo()) return;
-    // Tras un corte, soltar el HOLD es seguir como estaba.
-    if (!on && corrida_->retomando()) {
-        seguirComoEstaba();
-        return;
-    }
-    if (hold() == on || !corrida_->setHold(salidaPorOmision(), on, ahoraMs())) return;
-    anotar(on ? QCoreApplication::translate("EventoViewModel", "HOLD: este paso no se va solo") : QCoreApplication::translate("EventoViewModel", "HOLD suelto: el paso vuelve a irse solo"), "info");
-    despachar(corrida_->alDia(ahoraMs()));
-}
-
-void CorridaViewModel::avanzar() {
-    if (!corriendo()) {
-        arrancar();
-        return;
-    }
-    // Lo que en el v1 era el cue siguiente: si es una pieza del paso al aire que no
-    // salió todavía (un adlib, o una que no llegó a su hora), se dispara ya; si no, GO.
-    const std::string s = salidaPorOmision();
-    const evento::linea::Instancia* a = corrida_->alAire(s);
-    const auto [nb, nc] = cueSiguienteDe(cursor_.bloque, cursor_.cue);
-    const auto* r = proy().ref(nb, nc);
-    if (a && r && r->paso == a->paso && !r->pieza.empty() && !corrida_->disparada(s, r->pieza)) {
-        despachar(corrida_->adlib(s, r->pieza, ahoraMs()));
-        return;
-    }
-    despachar(corrida_->go(s, ahoraMs()));
-}
-
 void CorridaViewModel::retroceder() {
     if (!corriendo() || !cursor_.valido()) return;
     const auto [pb, pc] = cueAnteriorDe(cursor_.bloque, cursor_.cue);
@@ -884,7 +854,14 @@ std::string CorridaViewModel::lineaGo(const std::string& salida) {
                 .toStdString();
         return corriendo() ? std::string() : QCoreApplication::translate("EventoViewModel", "No se pudo arrancar: la línea no tiene pasos.").toStdString();
     }
-    despachar(corrida_->go(s, ahoraMs()));
+    // La pieza que sigue en el guion de cues (el cursor es el de la salida por omisión): si
+    // es del paso al aire y no salió, el GO la dispara (evento::linea::Corrida::goDelGuion).
+    std::string pasoSig, piezaSig;
+    if (s == salidaPorOmision()) {
+        const auto [nb, nc] = cueSiguienteDe(cursor_.bloque, cursor_.cue);
+        if (const auto* r = proy().ref(nb, nc)) pasoSig = r->paso, piezaSig = r->pieza;
+    }
+    despachar(corrida_->goDelGuion(s, pasoSig, piezaSig, ahoraMs()));
     return {};
 }
 
@@ -893,10 +870,12 @@ std::string CorridaViewModel::lineaHold(const std::string& salida, std::optional
     const std::string s = salida.empty() ? salidaPorOmision() : salida;
     if (std::string e = errorDeSalida(linea(), s); !e.empty()) return e;
     const bool v = on ? *on : !corrida_->hold(s);
+    // Tras un corte, soltar el HOLD es seguir como estaba.
     if (!v && corrida_->retomando()) {
         seguirComoEstaba();
         return {};
     }
+    if (corrida_->hold(s) == v) return {};
     if (!corrida_->setHold(s, v, ahoraMs())) return QCoreApplication::translate("EventoViewModel", "No hay ningún paso al aire en esa salida.").toStdString();
     anotar(v ? QCoreApplication::translate("EventoViewModel", "HOLD: este paso no se va solo") : QCoreApplication::translate("EventoViewModel", "HOLD suelto: el paso vuelve a irse solo"), "info");
     despachar(corrida_->alDia(ahoraMs()));

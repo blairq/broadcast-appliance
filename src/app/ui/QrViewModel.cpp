@@ -222,9 +222,9 @@ struct QrViewModel::Impl {
 
     std::filesystem::path archivoDe(const QString& a) const {
         if (a == "evento") {
-            if (evento == nullptr || evento->carpetaDeDiscursos().isEmpty()) return {};
+            if (evento == nullptr || evento->guionVm().carpetaDeDiscursos().isEmpty()) return {};
             // Al lado de Discursos/, dentro del evento.
-            return std::filesystem::path(evento->carpetaDeDiscursos().toStdString()).parent_path() / "QR" /
+            return std::filesystem::path(evento->guionVm().carpetaDeDiscursos().toStdString()).parent_path() / "QR" /
                    "qr.json";
         }
         return rt->dataRoot() / "Config" / "qr.json";
@@ -308,7 +308,7 @@ QrViewModel::QrViewModel(AppRuntime& rt, EventoViewModel* evento, ConferenceView
     d_->evento = evento;
     d_->sala = sala;
     refrescar();
-    if (evento != nullptr) connect(evento, &EventoViewModel::guionChanged, this, [this]() { refrescar(); });
+    if (evento != nullptr) connect(&evento->guionVm(), &GuionViewModel::guionChanged, this, [this]() { refrescar(); });
     resolver();
 }
 
@@ -356,7 +356,7 @@ void QrViewModel::setAmbito(const QString& a) {
 }
 
 QString QrViewModel::sinEvento() const {
-    if (d_->evento == nullptr || d_->evento->carpetaDeDiscursos().isEmpty())
+    if (d_->evento == nullptr || d_->evento->guionVm().carpetaDeDiscursos().isEmpty())
         return tr("No hay ningún evento abierto: los códigos del evento se guardan en su carpeta.");
     return {};
 }

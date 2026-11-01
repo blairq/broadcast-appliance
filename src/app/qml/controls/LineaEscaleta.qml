@@ -79,7 +79,7 @@ Item {
         nameFilters: [qsTr("Escaletas (*.csv *.xml *.mos)"), qsTr("Todos (*)")]
         onAccepted: {
             // Primero se prueba: la persona ve cuánto entra y confirma.
-            const r = Studio.evento.importarEscaleta(selectedFile, true)
+            const r = Studio.evento.informeVm.importarEscaleta(selectedFile, true)
             if (!r.ok) { Studio.notify(r.error, "error"); return }
             const pasos = (r.diff || []).filter(d => d.tipo === "paso" && d.que === "agregado").length
             ApplicationWindow.window.confirm({
@@ -88,7 +88,7 @@ Item {
                       + ((r.avisos || []).length > 0 ? "\n\n" + r.avisos.join("\n") : ""),
                 accept: qsTr("Importar"), reject: qsTr("Cancelar"),
                 action: function() {
-                    const r2 = Studio.evento.importarEscaleta(importarDlg.selectedFile, false)
+                    const r2 = Studio.evento.informeVm.importarEscaleta(importarDlg.selectedFile, false)
                     if (!r2.ok) Studio.notify(r2.error, "error")
                 }
             })
@@ -101,7 +101,7 @@ Item {
         fileMode: FileDialog.SaveFile
         nameFilters: formato === "mos" ? [qsTr("MOS (*.xml)")] : [qsTr("CSV (*.csv)")]
         onAccepted: {
-            const e = Studio.evento.exportarEscaleta(formato, selectedFile)
+            const e = Studio.evento.informeVm.exportarEscaleta(formato, selectedFile)
             if (e !== "") Studio.notify(e, "error")
             else Studio.notify(qsTr("Escaleta exportada"), "info")
         }

@@ -67,7 +67,7 @@ AsambleaViewModel::AsambleaViewModel(Partes p, QObject* parent) : QObject(parent
     dcn_ = std::make_unique<asamblea::ConferenciaDcn>(p_.plugins, p_.bus, p_.rt.dataRoot());
     // Los presentes del quórum salen del padrón (o de la asistencia de la central): cada
     // vez que cambian, el quórum avisa, así se recalcula mientras se marca quién está.
-    if (p_.evento) connect(p_.evento, &EventoViewModel::padronChanged, quorum_.get(), &asamblea::Quorum::cambio);
+    if (p_.evento) connect(&p_.evento->padronVm(), &PadronViewModel::padronChanged, quorum_.get(), &asamblea::Quorum::cambio);
     connect(dcn_.get(), &asamblea::ConferenciaDcn::cambio, quorum_.get(), &asamblea::Quorum::cambio);
     armarInformes();
     // Las votaciones (central, celulares, Quórum) son del modelo.
@@ -325,14 +325,14 @@ void AsambleaViewModel::armarSesion() {
             }
         const int virt = sesionRemota_ ? sesionRemota_->presentes() : 0;
         if (p_.evento == nullptr) return virt;
-        const QVariantMap r = p_.evento->property("resumenPadron").toMap();
+        const QVariantMap r = p_.evento->padronVm().resumenPadron();
         return (r.value("conVoto").toInt() > 0 ? r.value("votoPresente").toInt() : r.value("presentes").toInt()) + virt;
     }, [this]() {
         // Mientras no se fije a mano, los miembros son los del padrón con voto.
-        return p_.evento ? p_.evento->property("resumenPadron").toMap().value("conVoto").toInt() : 0;
+        return p_.evento ? p_.evento->padronVm().resumenPadron().value("conVoto").toInt() : 0;
     });
     if (p_.evento == nullptr) return;
-    p_.evento->setAnexoActa([this]() {
+    p_.evento->informeVm().setAnexoActa([this]() {
         QString t = QString::fromStdString(quorum_->anexoActa() + ordenDia_->anexoActa(remotosPalabra()));
         if (sesionRemota_) {
             const std::string sr = sesionRemota_->anexoActa();
@@ -380,15 +380,15 @@ void AsambleaViewModel::armarInformes() {
             json d = json::object();
             d["cuerpo"] = cuerpo_ ? cuerpo_->cuerpo().nombre() : std::string();
             if (p_.evento) {
-                const QVariantMap g = p_.evento->guion();
+                const QVariantMap g = p_.evento->guionVm().guion();
                 d["evento"] = g.value("nombre").toString().toStdString();
                 d["fecha"] = g.value("fecha").toString().toStdString();
                 d["hora"] = g.value("inicio").toString().toStdString();
-                const QVariantMap r = p_.evento->resumenPadron();
+                const QVariantMap r = p_.evento->padronVm().resumenPadron();
                 d["padron"] = {{"presentes", r.value("presentes").toInt()}, {"total", r.value("total").toInt()},
                                {"con_voto", r.value("conVoto").toInt()}, {"voto_presentes", r.value("votoPresente").toInt()}};
                 json presentes = json::array();
-                for (const QVariant& v : p_.evento->padron()) {
+                for (const QVariant& v : p_.evento->padronVm().padron()) {
                     const QVariantMap a = v.toMap();
                     const qint64 llego = a.value("llegoMs").toLongLong();
                     if (llego <= 0 && a.value("estado").toString() != "llego") continue;

@@ -54,34 +54,31 @@ class ConferenceViewModel : public QObject {
     Q_PROPERTY(bool online READ online NOTIFY onlineChanged)
     /// El proxy por nombre (T61): lo último que dijo la sala (GET /api/v1/proxy) más la configuración.
     Q_PROPERTY(QVariantMap proxy READ proxy NOTIFY proxyChanged)
-    Q_PROPERTY(QString room READ room NOTIFY roomChanged)
-    Q_PROPERTY(QString pin READ pin NOTIFY roomChanged)
+    Q_PROPERTY(QString room READ room NOTIFY salaChanged)
+    Q_PROPERTY(QString pin READ pin NOTIFY salaChanged)
     /// Los bloqueos por PIN mal ({global, ips, intentosPorIp, bloqueoS}): se piden con pinBloqueos().
     Q_PROPERTY(QVariantMap bloqueosPin READ bloqueosPin NOTIFY bloqueosPinChanged)
-    Q_PROPERTY(QString guestUrl READ guestUrl NOTIFY roomChanged)
-    Q_PROPERTY(bool lobby READ lobby NOTIFY roomChanged)
-    Q_PROPERTY(bool locked READ locked NOTIFY roomChanged)
-    Q_PROPERTY(int maxGuests READ maxGuests NOTIFY roomChanged)
-    Q_PROPERTY(int slotsFree READ slotsFree NOTIFY roomChanged)
+    Q_PROPERTY(QString guestUrl READ guestUrl NOTIFY salaChanged)
+    Q_PROPERTY(bool lobby READ lobby NOTIFY salaChanged)
+    Q_PROPERTY(bool locked READ locked NOTIFY salaChanged)
+    Q_PROPERTY(int maxGuests READ maxGuests NOTIFY salaChanged)
+    Q_PROPERTY(int slotsFree READ slotsFree NOTIFY salaChanged)
     /// Todos los conectados a la sala: lobby, programa y fila de oradores. Es lo
     /// que se pierde si la app se cierra (guardias de cierre y de actualizacion).
-    Q_PROPERTY(int peopleConnected READ peopleConnected NOTIFY roomChanged)
+    Q_PROPERTY(int peopleConnected READ peopleConnected NOTIFY participantesChanged)
     /// Nombre del invitado de cada slot (indice slot-1; vacio = libre).
-    Q_PROPERTY(QStringList slotNames READ slotNames NOTIFY roomChanged)
+    Q_PROPERTY(QStringList slotNames READ slotNames NOTIFY participantesChanged)
     /// Por slot (indice slot-1): true si el invitado de ese lugar esta adentro y NO recibe
     /// retorno (su mix-minus no esta abierto en el gateway: lo publica en su participante).
-    Q_PROPERTY(QVariantList slotsSinRetorno READ slotsSinRetorno NOTIFY roomChanged)
+    Q_PROPERTY(QVariantList slotsSinRetorno READ slotsSinRetorno NOTIFY participantesChanged)
     /// Quién está en cada lugar de invitado: {"<slot>": participante (con su red)}.
-    Q_PROPERTY(QVariantMap participantesPorSlot READ participantesPorSlot NOTIFY roomChanged)
+    Q_PROPERTY(QVariantMap participantesPorSlot READ participantesPorSlot NOTIFY participantesChanged)
     /// Destinos del chat: [{label, value}] ("all" + cada participante).
-    Q_PROPERTY(QVariantList chatTargets READ chatTargets NOTIFY roomChanged)
-    /// Sube con cada mensaje. Es para que la vista sepa que tiene que volver a
-    /// pedir el hilo: `chatCon()` es una funcion, y QML no re-evalua una
-    /// funcion porque cambie un modelo que no esta mirando.
-    Q_PROPERTY(int chatRev READ chatRev NOTIFY chatRevChanged)
+    Q_PROPERTY(QVariantList chatTargets READ chatTargets NOTIFY participantesChanged)
     /// Los hilos privados abiertos: [{uid, nombre}]. El chat de la sala no
-    /// esta aca: ese es el de siempre y va primero.
-    Q_PROPERTY(QVariantList chatHilos READ chatHilos NOTIFY chatRevChanged)
+    /// esta aca: ese es el de siempre y va primero. (Los mensajes de un hilo: el
+    /// modelo `chat` filtrado con ui/ChatHilo.)
+    Q_PROPERTY(QVariantList chatHilos READ chatHilos NOTIFY chatCambio)
     /// Con que aparece el operador ante el LOBBY (fuentes por nombre).
     Q_PROPERTY(QString operatorVideo READ operatorVideo NOTIFY operatorChanged)
     Q_PROPERTY(QString operatorAudio READ operatorAudio NOTIFY operatorChanged)
@@ -92,16 +89,16 @@ class ConferenceViewModel : public QObject {
     Q_PROPERTY(QVariantMap network READ network NOTIFY networkChanged)
     /// Uso de la sala: cuanta gente hay, cuantos mandan video y cuanto le
     /// cuesta al gateway (cpuPct, memMb, nucleos). Para ver si nos pasamos.
-    Q_PROPERTY(QVariantMap usage READ usage NOTIFY roomChanged)
+    Q_PROPERTY(QVariantMap usage READ usage NOTIFY usoChanged)
     Q_PROPERTY(QObject* waiting READ waiting CONSTANT)
     Q_PROPERTY(QObject* inside READ inside CONSTANT)
     Q_PROPERTY(QObject* shares READ shares CONSTANT)
     Q_PROPERTY(QObject* chat READ chat CONSTANT)
     // --- Modo oradores ---------------------------------------------------------
     /// Configuracion: {enabled, defaultSec, defaultTexto ("m:ss"), carousel, graceSec, multi, defaultSlot}.
-    Q_PROPERTY(QVariantMap speakerCfg READ speakerCfg NOTIFY roomChanged)
+    Q_PROPERTY(QVariantMap speakerCfg READ speakerCfg NOTIFY oradoresCfgChanged)
     Q_PROPERTY(bool autoIntake READ autoIntake NOTIFY autoIntakeChanged)
-    Q_PROPERTY(bool speakerMode READ speakerMode NOTIFY roomChanged)
+    Q_PROPERTY(bool speakerMode READ speakerMode NOTIFY oradoresCfgChanged)
     /// Fila de oradores en orden (tarjetas): uid, name, info, contact, speaker
     /// ("queued"|"onair"|"done"), position, allottedSec, onAirSinceMs, usedMs,
     /// connected, slot, avatar (su foto: image://personas/…, o vacío), backstageSlot (preview de
@@ -117,7 +114,7 @@ class ConferenceViewModel : public QObject {
     Q_PROPERTY(QString peorEstado READ peorEstado NOTIFY onAirCambio)
     /// Reloj de la sala - reloj local (ms): los relojes se calculan con
     /// Date.now() + clockOffset.
-    Q_PROPERTY(double clockOffset READ clockOffset NOTIFY roomChanged)
+    Q_PROPERTY(double clockOffset READ clockOffset NOTIFY usoChanged)
    public:
     /// Lo del motor (las fuentes, con qué aparece el operador, lo guardado de la sala) se lee
     /// de la foto de `ventanilla` y se pide por ella (F3-03).
@@ -169,7 +166,6 @@ class ConferenceViewModel : public QObject {
     Q_INVOKABLE void speakerNext();
     /// Lugar en la fila (0 = primero).
     Q_INVOKABLE void speakerMove(const QString& id, int index);
-    Q_INVOKABLE void speakerTime(const QString& id, int sec);
     /// Mete a alguien de la sala a la fila de oradores (o lo devuelve a ella).
     Q_INVOKABLE void speakerRequeue(const QString& id);
     /// Presentador fijo: se queda al aire mientras rotan los oradores.
@@ -214,7 +210,7 @@ class ConferenceViewModel : public QObject {
     /// Una vista empieza o deja de mirar lo que la sala no avisa y hay que pedirle: "proxy"
     /// (cada 5 s) o "bloqueos" (los de PIN, cada 3 s). La cuenta es por vista
     /// (comun/UsoPorVistas); sin nadie mirando no se pregunta.
-    Q_INVOKABLE void usar(QObject* vista, bool si, const QString& que);
+    Q_INVOKABLE void usar(QObject* vista, bool si, const QString& que = {});
     /// La regla del reloj de quien habla (sala::OradoresSala::reloj), para un reloj que no
     /// es de la sala (las bancas del recinto): {restanteMs, estado, texto}. Pura: no lee
     /// estado; la hora la pone quien la llama (el Reloj).
@@ -272,8 +268,6 @@ class ConferenceViewModel : public QObject {
     /// que llega es privada, y mezclada en el chat de la sala se lee como si
     /// fuera para todos —y peor: contestarle ahi manda a toda la sala lo que
     /// era para uno—.
-    Q_INVOKABLE QVariantList chatCon(const QString& uid) const;
-    int chatRev() const { return chatRev_; }
     QVariantList chatHilos() const;
     /// QR de ingreso al lobby: "local" (red local) o "remote" (Cloudflare).
     /// Responde con qrReady.
@@ -287,10 +281,17 @@ class ConferenceViewModel : public QObject {
     void proxyChanged();
     void pruebaLista(const QString& id, const QVariantMap& resultado);
     void onlineChanged();
+    /// Llegó una foto de la sala (para el C++ que mira todo junto; la QML se enlaza a los
+    /// avisos por grupo, que salen solo si cambió lo suyo).
     void roomChanged();
+    void salaChanged();          ///< room, pin, guestUrl, lobby, locked, maxGuests, slotsFree
+    void participantesChanged(); ///< peopleConnected, slotNames, slotsSinRetorno, participantesPorSlot, chatTargets
+    void usoChanged();           ///< usage, clockOffset
+    void oradoresCfgChanged();   ///< speakerCfg, speakerMode
     void onAirCambio();
     void autoIntakeChanged();
-    void chatRevChanged();
+    /// Llegó o se fue un mensaje del chat (los hilos y quien espera, chat_esperar).
+    void chatCambio();
     void operatorChanged();
     void networkChanged();
     /// `modules`: filas de '0'/'1'. Sin url -> `message` explica que falta.
@@ -319,7 +320,6 @@ class ConferenceViewModel : public QObject {
     QVariantMap proxy_;
     QVariantMap bloqueosPin_;
 
-    int chatRev_ = 0;
 
     std::function<QString(const QString&, const QString&, bool)> intakeSink_;
 
@@ -362,6 +362,7 @@ class ConferenceViewModel : public QObject {
     QVariantMap network_;
     QStringList slotNames_;
     QVariantList slotsSinRetorno_;
+    QVariantList firmaSala_, firmaParticipantes_, firmaUso_, firmaOradoresCfg_; ///< lo último avisado de cada grupo
     qint64 lastSeq_ = 0;
     bool firstSnapshot_ = true;
     qint64 avisoSinSalaMs_ = 0; ///< cuándo se avisó que la sala no responde (uno cada 30 s, no uno por pedido)

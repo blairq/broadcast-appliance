@@ -154,7 +154,7 @@ ApplicationWindow {
         if (quitting) return
         confirm({
             title: qsTr("¿Cerrar Broadcast Appliance?"),
-            text: Studio.app.impactoDeCerrar.hay ? Studio.app.avisoDeCerrar("")
+            text: Studio.app.impactoDeCerrar.hay ? Studio.app.impactoDeCerrar.aviso
                   : qsTr("Se cierran la conferencia, las salidas y los asistentes."),
             accept: qsTr("Cerrar"),
             reject: qsTr("Cancelar"),
@@ -448,7 +448,7 @@ ApplicationWindow {
     function contextoDePagina(i) {
         // Tras un corte de luz la línea de tiempo vuelve en HOLD y pregunta qué está
         // pasando: lo que se dicte o escriba acá es esa respuesta, esté donde esté.
-        const r = Studio.evento.retoma
+        const r = Studio.evento.corridaVm.retoma
         const corte = r && r.activa
             ? qsTr("Volvió la luz en medio del evento y la línea de tiempo está en HOLD: lo que te cuento es qué está pasando. Pasalo con linea_retomar, proponé cómo seguir (linea_editar o linea_ajustar con probar) y soltá con linea_soltar cuando lo confirme. ")
             : ""
@@ -465,8 +465,8 @@ ApplicationWindow {
         case 6: return qsTr("Estoy en Configuracion.")
         case 8: return qsTr("Estoy en Entradas de video (camaras, capturadoras y red).")
         case 9: return qsTr("Estoy en Audio, en el patchbay de modulos por fuente.")
-        case 10: return Studio.evento.abierto
-                        ? qsTr("Estoy en el Guion del evento «%1».").arg(Studio.evento.abierto)
+        case 10: return Studio.evento.guionVm.abierto
+                        ? qsTr("Estoy en el Guion del evento «%1».").arg(Studio.evento.guionVm.abierto)
                         : qsTr("Estoy en el Guion del evento, sin ningun evento abierto.")
         case 11: return Studio.grafico.abierto !== ""
                         ? (Studio.grafico.declarativo

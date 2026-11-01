@@ -33,9 +33,10 @@ Item {
             e.accepted = true
         }
     }
-    readonly property var ev: Studio.evento
-    readonly property var reloj: ev ? ev.reloj : ({})
-    readonly property bool corriendo: ev && ev.estado === "corriendo"
+    readonly property var guionVm: Studio.evento.guionVm
+    readonly property var corridaVm: Studio.evento.corridaVm
+    readonly property var reloj: corridaVm.reloj
+    readonly property bool corriendo: corridaVm.estado === "corriendo"
 
 
     QrControlEscenas { id: qrEscenas; parent: Overlay.overlay }
@@ -67,7 +68,7 @@ Item {
         }
         // --- Back-timing del guion: lo que falta del bloque y a qué hora se termina ---
         Text {
-            readonly property var r: Studio.evento ? Studio.evento.reloj : ({})
+            readonly property var r: Studio.evento.corridaVm.reloj
             visible: !!(r && r.horaFinPrevista && r.restanteGuionSeg > 0)
             Layout.fillWidth: true; wrapMode: Text.WordWrap
             text: {
@@ -212,9 +213,9 @@ Item {
         ColumnLayout {
             Layout.fillWidth: true
             Layout.fillHeight: true
-            visible: !!tarjeta.ev && tarjeta.ev.abierto !== ""
+            visible: tarjeta.guionVm.abierto !== ""
             spacing: 4
-            readonly property string estado: tarjeta.ev ? tarjeta.ev.estado : "parado"
+            readonly property string estado: tarjeta.corridaVm.estado
             readonly property bool enMarcha: estado === "corriendo" || estado === "pausado"
 
             RowLayout {
@@ -223,17 +224,17 @@ Item {
                 GlassButton {
                     compact: true; text: "◀"
                     enabled: parent.parent.enMarcha
-                    onClicked: tarjeta.ev.retroceder()
+                    onClicked: tarjeta.corridaVm.retroceder()
                     ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: qsTr("Volver al cue anterior")
                 }
                 GlassButton {
                     Layout.fillWidth: true
                     active: true
-                    text: parent.parent.enMarcha ? qsTr("Siguiente cue ▶") : (tarjeta.ev && tarjeta.ev.ensayo ? qsTr("Arrancar el ensayo") : qsTr("Arrancar el guion"))
+                    text: parent.parent.enMarcha ? qsTr("Siguiente cue ▶") : (tarjeta.corridaVm.ensayo ? qsTr("Arrancar el ensayo") : qsTr("Arrancar el guion"))
                     onClicked: {
-                        if (parent.parent.enMarcha) { tarjeta.ev.avanzar(); return }
+                        if (parent.parent.enMarcha) { tarjeta.corridaVm.go(); return }
                         // Con la revisión: si encontró algo grave no arranca y avisa.
-                        const graves = tarjeta.ev.arrancarRevisando(false)
+                        const graves = tarjeta.corridaVm.arrancarRevisando(false)
                         if (graves > 0) Studio.notify(qsTr("La revisión encontró %n problema grave: miralos en Guion del evento (ahí se puede arrancar igual).", "", graves), "error")
                     }
                 }
@@ -241,14 +242,14 @@ Item {
                     compact: true
                     enabled: parent.parent.enMarcha
                     text: parent.parent.estado === "pausado" ? "⏵" : "⏸"
-                    onClicked: parent.parent.estado === "pausado" ? tarjeta.ev.reanudar() : tarjeta.ev.pausar()
+                    onClicked: parent.parent.estado === "pausado" ? tarjeta.corridaVm.reanudar() : tarjeta.corridaVm.pausar()
                     ToolTip.visible: hovered; ToolTip.delay: 400
                     ToolTip.text: parent.parent.estado === "pausado" ? qsTr("Seguir (lo pausado no cuenta como atraso)") : qsTr("Pausar el guion")
                 }
                 GlassButton {
                     compact: true; text: "■"
                     enabled: parent.parent.enMarcha
-                    onClicked: tarjeta.ev.parar()
+                    onClicked: tarjeta.corridaVm.parar()
                     ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: qsTr("Terminar el guion (queda el informe de tiempos)")
                 }
             }
@@ -288,7 +289,7 @@ Item {
                 visible: parent.enMarcha
                 Text {
                     Layout.fillWidth: true
-                    text: (tarjeta.ev.actual.texto || "—")
+                    text: (tarjeta.corridaVm.actual.texto || "—")
                     color: Theme.text; elide: Text.ElideRight
                     font { family: Theme.font; pixelSize: 15; weight: Font.DemiBold }
                 }
@@ -300,7 +301,7 @@ Item {
             }
             // Un cue con vista web (el teleprompter): abrirla para ver si carga y avanza.
             GlassButton {
-                readonly property string url: parent.enMarcha && tarjeta.ev.actual.tipo ? tarjeta.ev.enlaceDeCue(tarjeta.ev.actual.tipo, tarjeta.ev.actual.datos || ({})) : ""
+                readonly property string url: parent.enMarcha && tarjeta.corridaVm.actual.tipo ? tarjeta.guionVm.enlaceDeCue(tarjeta.corridaVm.actual.tipo, tarjeta.corridaVm.actual.datos || ({})) : ""
                 visible: url !== ""
                 compact: true
                 text: qsTr("Ver el teleprompter ↗")
@@ -310,23 +311,23 @@ Item {
             Text {
                 Layout.fillWidth: true
                 visible: parent.enMarcha
-                text: qsTr("sigue: %1   ·   cue %2 de %3").arg(tarjeta.ev.siguiente.texto || "—").arg(tarjeta.reloj.cueNro || 0).arg(tarjeta.reloj.cuesTotal || 0)
+                text: qsTr("sigue: %1   ·   cue %2 de %3").arg(tarjeta.corridaVm.siguiente.texto || "—").arg(tarjeta.reloj.cueNro || 0).arg(tarjeta.reloj.cuesTotal || 0)
                 color: Theme.textDim; elide: Text.ElideRight; font.pixelSize: 12
             }
             RowLayout {
                 Layout.fillWidth: true
                 spacing: 6
                 Toggle {
-                    checked: !!tarjeta.ev && tarjeta.ev.ensayo
+                    checked: tarjeta.corridaVm.ensayo
                     enabled: parent.parent.estado === "parado" || parent.parent.estado === "terminado"
-                    onToggled: (w) => tarjeta.ev.ensayo = w
+                    onToggled: (w) => tarjeta.corridaVm.ensayo = w
                 }
                 Text {
                     Layout.fillWidth: true
                     elide: Text.ElideRight
-                    text: tarjeta.ev && tarjeta.ev.ensayo ? qsTr("Ensayo: recorre el guion sin sacar nada al aire")
+                    text: tarjeta.corridaVm.ensayo ? qsTr("Ensayo: recorre el guion sin sacar nada al aire")
                                                           : qsTr("Ensayo apagado: los cues salen al aire de verdad")
-                    color: tarjeta.ev && tarjeta.ev.ensayo ? Theme.amber : Theme.textFaint
+                    color: tarjeta.corridaVm.ensayo ? Theme.amber : Theme.textFaint
                     font.pixelSize: 11
                 }
                 Text {
@@ -341,7 +342,7 @@ Item {
         }
         Text {
             Layout.fillWidth: true
-            visible: !tarjeta.ev || tarjeta.ev.abierto === ""
+            visible: tarjeta.guionVm.abierto === ""
             text: qsTr("Sin guion abierto. Abrí uno en Guion del evento para manejarlo y ver los tiempos acá.")
             color: Theme.textFaint; font.pixelSize: 11; wrapMode: Text.WordWrap
         }

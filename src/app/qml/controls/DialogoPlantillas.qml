@@ -13,17 +13,15 @@ import BA
 Dialog {
     id: dlg
     readonly property var cf: Studio.configuraciones
-    property var lista: []
-    function refrescar() { dlg.lista = dlg.cf ? dlg.cf.plantillasAdminUi() : [] }
-    function ok(e) { if (e !== "") Studio.notify(e, "error"); refrescar() }
+    // Del modelo (avisa al ajustar, mover, ocultar o crear una); solo con el diálogo abierto.
+    readonly property var lista: dlg.visible && dlg.cf ? dlg.cf.plantillasAdmin : []
+    function ok(e) { if (e !== "") Studio.notify(e, "error") }
 
     anchors.centerIn: parent
     width: Math.min(parent ? parent.width - 60 : 900, 900)
     height: Math.min(parent ? parent.height - 60 : 720, 720)
     modal: true
     title: qsTr("Plantillas de evento")
-    onAboutToShow: refrescar()
-    Connections { target: dlg.cf; function onCambio() { dlg.refrescar() } }
 
     ColumnLayout {
         anchors.fill: parent
@@ -137,7 +135,7 @@ Dialog {
             ComboBox {
                 id: nuevaEsc
                 Layout.preferredWidth: 220
-                model: [{ titulo: qsTr("Sin tipo"), id: "" }].concat(Studio.evento ? Studio.evento.escenarios : [])
+                model: [{ titulo: qsTr("Sin tipo"), id: "" }].concat(Studio.evento ? Studio.evento.guionVm.escenarios : [])
                 textRole: "titulo"
                 valueRole: "id"
                 ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: qsTr("El tipo de evento (su guía, para el asistente)")

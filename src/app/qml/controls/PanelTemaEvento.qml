@@ -115,7 +115,7 @@ Item {
                         spacing: 4
                         Text {
                             Layout.fillWidth: true
-                            text: raiz.marca.nombre || (Studio.evento.guion ? Studio.evento.guion.nombre : "") || qsTr("El evento")
+                            text: raiz.marca.nombre || (Studio.evento.guionVm.guion ? Studio.evento.guionVm.guion.nombre : "") || qsTr("El evento")
                             color: raiz.col.texto || "#f4f4f5"
                             font { pixelSize: 18; weight: Font.DemiBold; family: raiz.tipo.titulos || raiz.tipo.texto || Qt.application.font.family }
                             elide: Text.ElideRight

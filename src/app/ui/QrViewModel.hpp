@@ -118,7 +118,7 @@ class QrViewModel : public QObject {
     /// ruta donde quedó, o vacío y el motivo en la señal `notify`.
     Q_INVOKABLE QString exportar(const QString& formato, int px = 1024);
     /// El SVG de lo que está en el editor (para copiarlo, o para pruebas).
-    Q_INVOKABLE QString svgActual() const;
+    QString svgActual() const;
     /// El SVG de un código guardado, por su id.
     QString svgDe(const QString& id) const;
     /// El texto que iría adentro de un código de ese tipo con esos datos, sin

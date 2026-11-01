@@ -477,7 +477,7 @@ void registerPreguntaTools(McpCore& core, StudioViewModel& vm, AppRuntime& rt) {
         t.inputSchema = {{"type", "object"}, {"properties", {{"soloVer", {{"type", "boolean"}}}}}};
         t.run = [salaDe, &vm](const json& a, Done done) {
             auto* ev = static_cast<EventoViewModel*>(vm.evento());
-            if (ev == nullptr || ev->abierto().isEmpty())
+            if (ev == nullptr || ev->guionVm().abierto().isEmpty())
                 return done(ToolResult::error(
                     ba::i18n::traducir("mcp", "No hay evento abierto: el acta es de un evento. Abri uno con `guion_abrir`.")));
             ConferenceViewModel* conf = salaDe();
@@ -491,12 +491,12 @@ void registerPreguntaTools(McpCore& core, StudioViewModel& vm, AppRuntime& rt) {
                 true, [ev, done, soloVer, &vm](const std::string& err, const json& rj) {
                     const QJsonObject r = QJsonDocument::fromJson(QByteArray::fromStdString(rj.dump(-1, ' ', false, json::error_handler_t::replace))).object();
                     const QJsonArray votaciones = err.empty() ? r.value("historial").toArray() : QJsonArray{};
-                    const QString texto = ev->acta(votaciones);
+                    const QString texto = ev->informeVm().acta(votaciones);
                     QString archivo;
-                    if (!soloVer) archivo = ev->guardarActa(texto);
+                    if (!soloVer) archivo = ev->informeVm().guardarActa(texto);
                     ToolResult res;
                     res.text(texto.toStdString());
-                    json out{{"hash", EventoViewModel::hashActa(texto).toStdString()},
+                    json out{{"hash", InformeEventoViewModel::hashActa(texto).toStdString()},
                              {"acta", texto.toStdString()},
                              {"votaciones", votaciones.size()},
                              {"tiempos_palabra", vm.ordenDelDia().tiemposPalabra(vm.asamblea().remotosPalabra())}};

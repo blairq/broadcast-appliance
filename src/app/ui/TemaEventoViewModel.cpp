@@ -49,9 +49,9 @@ bool nivelValido(const std::string& n) { return n == "nada" || n == "acento" || 
 TemaEventoViewModel::TemaEventoViewModel(EventoViewModel& evento, ConferenceViewModel& sala, QObject* parent)
     : QObject(parent), evento_(evento), sala_(sala) {
     // El evento abierto: guionChanged avisa también cuando se abre otro (ver `abierto`).
-    connect(&evento_, &EventoViewModel::guionChanged, this, &TemaEventoViewModel::seguirEvento);
+    connect(&evento_.guionVm(), &GuionViewModel::guionChanged, this, &TemaEventoViewModel::seguirEvento);
     // Los colores del sitio mandan mientras el tema no fije los suyos (paraPublicar).
-    connect(&evento_, &EventoViewModel::webChanged, this, &TemaEventoViewModel::recargar);
+    connect(&evento_.webVm(), &WebEventoViewModel::webChanged, this, &TemaEventoViewModel::recargar);
     // Una sala nueva (o que arranca de nuevo) no se acuerda del tema: se lo vuelve a dar.
     sala_.client().registrarRepublicador("tema-evento", this, [this]() {
         mandado_.clear();
@@ -61,7 +61,7 @@ TemaEventoViewModel::TemaEventoViewModel(EventoViewModel& evento, ConferenceView
 }
 
 void TemaEventoViewModel::seguirEvento() {
-    const fs::path p = evento_.carpetaAbierta();
+    const fs::path p = evento_.eventoAbierto().dir();
     if (p == carpetaEvento_ && !p.empty()) return;
     carpetaEvento_ = p;
     recargar();

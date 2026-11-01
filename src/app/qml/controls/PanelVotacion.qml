@@ -21,7 +21,7 @@ Item {
     readonly property var pub: Studio.publico
     /// Lo pone en true VentanaSuelta (ver PanelPreguntas).
     property bool enVentana: false
-    readonly property var ev: Studio.evento
+    readonly property var padronVm: Studio.evento.padronVm
     readonly property var v: pub.votacion
     readonly property bool hay: v && v.hubo === true
     readonly property bool abierta: hay && v.abierta === true
@@ -283,7 +283,7 @@ Item {
                     Layout.fillWidth: true
                     wrapMode: Text.WordWrap
                     // Los números los calcula el padrón (modelo): con voto y presentes, con voto en total.
-                    readonly property var resumen: raiz.ev ? raiz.ev.resumenPadron : ({})
+                    readonly property var resumen: raiz.padronVm.resumenPadron
                     color: modo.currentValue === "formal" && !(resumen.votoPresente > 0)
                            ? Theme.live : Theme.textDim
                     font.pixelSize: 12
@@ -304,7 +304,7 @@ Item {
                         text: modo.currentValue === "formal" ? qsTr("Abrir la votación") : qsTr("Abrir la encuesta")
                         active: true
                         enabled: campoPregunta.text.trim() !== "" &&
-                                 (modo.currentValue === "encuesta" || (raiz.ev && raiz.ev.resumenPadron.votoPresente > 0))
+                                 (modo.currentValue === "encuesta" || raiz.padronVm.resumenPadron.votoPresente > 0)
                         onClicked: {
                             const ops = campoOpciones.text.split(",").map((s) => s.trim())
                                                                     .filter((s) => s !== "")

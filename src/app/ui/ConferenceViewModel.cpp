@@ -76,7 +76,7 @@ ConferenceViewModel::ConferenceViewModel(AppRuntime& rt, VentanillaMotor& ventan
       shares_(std::make_unique<JsonListModel>(
           QStringList{"uid", "name", "kind", "mime", "bytes", "participantName", "path", "atMs", "url"})),
       chat_(std::make_unique<JsonListModel>(
-          QStringList{"uid", "fromId", "fromName", "to", "text", "atMs", "mine"})),
+          QStringList{"uid", "fromId", "fromName", "to", "text", "atMs", "mine", "voz"})),
       speakers_(std::make_unique<JsonListModel>(
           QStringList{"uid", "name", "info", "contact", "speaker", "position", "allottedSec", "onAirSinceMs",
                       "usedMs", "connected", "slot", "avatar", "backstageSlot", "presenter", "restanteMs",
@@ -307,9 +307,6 @@ void ConferenceViewModel::speakerNext() {
     });
 }
 void ConferenceViewModel::speakerMove(const QString& id, int index) { oradores_->mover(ss(id), index); }
-void ConferenceViewModel::speakerTime(const QString& id, int sec) {
-    if (const std::string e = oradores_->tiempo(ss(id), sec); !e.empty()) emit notify(frase(e), "error");
-}
 void ConferenceViewModel::speakerRequeue(const QString& id) { oradores_->aLaFila(ss(id)); }
 QVariantMap ConferenceViewModel::usage() const {
     const QJsonObject s = client_->snapshot();
@@ -509,8 +506,7 @@ void ConferenceViewModel::onSnapshot() {
     const qint64 lastInSnap = history.isEmpty() ? 0 : history.last().toObject().value("seq").toInteger();
     if (lastInSnap < lastSeq_) {
         chat_->setItems({});
-        ++chatRev_;
-        emit chatRevChanged();
+        emit chatCambio();
         lastSeq_ = 0;
     }
     for (const QJsonValue& v : history)
@@ -521,6 +517,17 @@ void ConferenceViewModel::onSnapshot() {
     }
     rebuildSpeakers();
     firstSnapshot_ = false;
+    // Cada grupo avisa solo si cambió lo suyo: la foto llega seguido y casi siempre igual.
+    const auto avisar = [this](QVariantList& antes, QVariantList ahora, void (ConferenceViewModel::*senal)()) {
+        if (ahora == antes) return;
+        antes = std::move(ahora);
+        emit(this->*senal)();
+    };
+    avisar(firmaSala_, {room(), pin(), guestUrl(), lobby(), locked(), maxGuests(), slotsFree()}, &ConferenceViewModel::salaChanged);
+    avisar(firmaParticipantes_, {peopleConnected(), this->slotNames(), slotsSinRetorno(), participantesPorSlot(), chatTargets()},
+           &ConferenceViewModel::participantesChanged);
+    avisar(firmaUso_, {usage(), clockOffset()}, &ConferenceViewModel::usoChanged);
+    avisar(firmaOradoresCfg_, {speakerCfg(), speakerMode()}, &ConferenceViewModel::oradoresCfgChanged);
     emit roomChanged();
 }
 
@@ -540,8 +547,7 @@ void ConferenceViewModel::onChatMsg(const QJsonObject& msg, bool live) {
     const QJsonObject m = mensajeDelChat(msg);
     const bool mine = m.value("mine").toBool();
     chat_->append(m);
-    ++chatRev_;
-    emit chatRevChanged();
+    emit chatCambio();
     if (live && !mine)
         emit notify(m.value("fromName").toString() + ": " + m.value("text").toString(), "info");
 }
@@ -565,8 +571,7 @@ void ConferenceViewModel::agregarDichoPorVoz(const QString& id, const QString& t
     m.insert("mine", false);
     m.insert("atMs", static_cast<double>(QDateTime::currentMSecsSinceEpoch()));
     chat_->append(m);
-    ++chatRev_;
-    emit chatRevChanged();
+    emit chatCambio();
 }
 
 void ConferenceViewModel::agregarDichoAlAtendido(const QString& id, const QString& nombre, const QString& texto) {
@@ -585,8 +590,7 @@ void ConferenceViewModel::agregarDichoAlAtendido(const QString& id, const QStrin
     m.insert("mine", true);
     m.insert("atMs", static_cast<double>(QDateTime::currentMSecsSinceEpoch()));
     chat_->append(m);
-    ++chatRev_;
-    emit chatRevChanged();
+    emit chatCambio();
 }
 
 QString ConferenceViewModel::nameOf(const QString& id) const {
@@ -818,22 +822,6 @@ void ConferenceViewModel::takeShare(const QString& id) {
         if (!t.error.empty()) return emit yo->notify(qs(t.error), "error");
         emit yo->notify(tr("«%1» agregado a la escena %2").arg(qs(t.nombre), qs(t.escena)), "ok");
     });
-}
-
-QVariantList ConferenceViewModel::chatCon(const QString& uid) const {
-    QVariantList out;
-    for (const QJsonValue& v : chat_->items()) {
-        const QJsonObject o = v.toObject();
-        const QString para = o.value("to").toString();
-        const QString de = o.value("fromId").toString();
-        const bool esDeLaSala = para == "all";
-        // El hilo privado con alguien son las dos direcciones: lo que le
-        // mandamos y lo que contesto. Si solo se mirara `to`, sus respuestas
-        // (que vienen dirigidas al operador) caerian fuera del hilo.
-        const bool esSuyo = !esDeLaSala && (para == uid || de == uid);
-        if (uid.isEmpty() ? esDeLaSala : esSuyo) out.append(v.toObject().toVariantMap());
-    }
-    return out;
 }
 
 QVariantList ConferenceViewModel::chatHilos() const {

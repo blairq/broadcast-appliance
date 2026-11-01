@@ -204,6 +204,11 @@ bool EventosListaViewModel::iniciar(const std::string& carpeta, std::string* err
     return true;
 }
 
+void EventosListaViewModel::terminarEnCurso() {
+    std::string err;
+    if (!terminar(&err)) emit notify(QString::fromStdString(err), "error");
+}
+
 bool EventosListaViewModel::terminar(std::string* err) {
     if (!store_.terminar(ahoraMs(), err)) return false;
     enCurso_.clear();

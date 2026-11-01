@@ -112,7 +112,7 @@ class InputsViewModel : public QObject {
     Q_INVOKABLE void remove(const QString& name);
     /// Una vista (Entradas, PTZ) empieza o deja de mostrar las miniaturas vivas: se
     /// actualizan mientras haya alguna (cuenta por vista: cerrar una no le apaga a la otra).
-    Q_INVOKABLE void usar(QObject* vista, bool si) { vistas_.usar(vista, si); }
+    Q_INVOKABLE void usar(QObject* vista, bool si, const QString& que = {}) { vistas_.usar(vista, si, que); }
 
    signals:
     void changed();

@@ -1023,7 +1023,7 @@ void Matriz::setActiva(bool on) {
     timer_.stop();
 }
 
-void Matriz::usar(QObject* vista, bool si) { vistas_.usar(vista, si); }
+void Matriz::usar(QObject* vista, bool si, const QString& que) { vistas_.usar(vista, si, que); }
 
 void Matriz::leerMedidores() {
     const FotoMotor* fo = foto();

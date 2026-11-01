@@ -647,7 +647,7 @@ Rectangle {
                         FormularioPropiedades {
                             Layout.fillWidth: true
                             vacio: ""
-                            props: page.nodo && (page.tipoEf === "obs" || page.tipoEf === "gst" || page.tipoEf === "mezcla") ? page.vg.propiedades(page.sel) : []
+                            props: page.nodo && (page.tipoEf === "obs" || page.tipoEf === "gst" || page.tipoEf === "mezcla") ? ((page.vg.formularios[page.sel] || {}).props || []) : []
                             onCambio: (nombre, valor) => typeof valor === "number" ? page.ajustarFiltro(page.sel, nombre, valor)
                                                                                  : page.avisar(page.vg.ajustarFiltro(page.sel, nombre, valor))
                         }
@@ -1212,7 +1212,7 @@ Rectangle {
                                     Layout.fillWidth: true
                                     spacing: 2
                                     // Las propiedades de este pad (de la introspección del módulo), con sus valores.
-                                    readonly property var props: page.nodo ? page.vg.propiedadesPad(page.sel, modelData) : []
+                                    readonly property var props: page.nodo ? (((page.vg.formularios[page.sel] || {}).pads || {})[modelData] || []) : []
                                     Text { text: mezclaPanel.origen(padCol.modelData) + "  (" + padCol.modelData + ")"; color: Theme.text; font { pixelSize: 12; weight: Font.DemiBold } }
                                     // Las posiciones y tamaños vienen con rangos enormes: hasta el doble del lienzo alcanza.
                                     FormularioPropiedades {

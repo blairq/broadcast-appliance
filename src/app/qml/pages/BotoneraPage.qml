@@ -732,10 +732,8 @@ Rectangle {
                     Layout.fillWidth: true
                     padding: 14
                     implicitHeight: apiCol.implicitHeight + 2 * padding
-                    property var api: Studio.control.apiRemotaUi()
+                    readonly property var api: Studio.control.apiRemota
                     property var nuevo: ({})
-                    function refrescar() { apiPanel.api = Studio.control.apiRemotaUi() }
-                    Connections { target: page.bot; function onDispositivosCambio() { apiPanel.refrescar() } }
                     ColumnLayout {
                         id: apiCol
                         anchors.fill: parent
@@ -751,12 +749,11 @@ Rectangle {
                                 onClicked: {
                                     const r = Studio.control.crearAccesoHttpUi(page.bot.perfiles[apiPerfil.currentIndex].id, "Companion (HTTP)")
                                     if (r.error) Studio.notify(r.error, "error"); else apiPanel.nuevo = r
-                                    apiPanel.refrescar()
                                 }
                             }
                             GlassButton {
                                 compact: true; text: apiPanel.api.activo ? qsTr("Apagar") : qsTr("Prender"); active: !apiPanel.api.activo
-                                onClicked: { Studio.control.setApiRemotaUi(!apiPanel.api.activo); apiPanel.refrescar() }
+                                onClicked: Studio.control.setApiRemotaUi(!apiPanel.api.activo)
                             }
                         }
                         Text {

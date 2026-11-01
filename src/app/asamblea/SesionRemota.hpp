@@ -207,7 +207,7 @@ class SesionRemota : public QObject {
     /// 3 s para los conectados, mientras alguna vista las usa (usar(vista, si, "fotos"));
     /// llega con ponerFoto y queda en ui/FotosPersonas («integrante:<id>»: en QML,
     /// Fotos.urls).
-    Q_INVOKABLE void usar(QObject* vista, bool si, const QString& que);
+    Q_INVOKABLE void usar(QObject* vista, bool si, const QString& que = {});
     /// Una sola, ya (la atención, para comparar la cara): llega igual, con ponerFoto.
     void pedirFoto(const QString& integrante) { emit fotoPedida(integrante); }
     QVariantMap votacionUi() const;

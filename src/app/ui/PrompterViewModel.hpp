@@ -191,7 +191,7 @@ class PrompterViewModel : public QObject {
     /// Una vista empieza o deja de mirar (cuenta por vista: la página y su ventana a la
     /// vez): al empezar se trae el estado una vez (lo demás llega solo) y, mientras alguna
     /// mira y corre, se mueve la barra.
-    Q_INVOKABLE void usar(QObject* vista, bool si) { vistas_.usar(vista, si); }
+    Q_INVOKABLE void usar(QObject* vista, bool si, const QString& que = {}) { vistas_.usar(vista, si, que); }
     /// Una consulta suelta, para quien no está mirando la página: por MCP el
     /// estado tiene que estar fresco aunque el operador esté en otra pantalla.
     /// `cuando` corre con la respuesta ya aplicada (o con el fallo).

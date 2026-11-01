@@ -62,6 +62,9 @@ class Plugins : public QObject {
     Q_OBJECT
     // --- Para la interfaz (pages/PluginsPage.qml) ---------------------------------
     Q_PROPERTY(QVariantList lista READ listaQml NOTIFY cambio)
+    /// Lo que muestra el panel de cada plugin que corre: {id: {clave: valor}} (cambia por
+    /// `valoresCambio`, que puede ser 10 veces por segundo).
+    Q_PROPERTY(QVariantMap valores READ valoresQml NOTIFY valoresCambio)
     // Los ejemplos vienen con el programa: no cambian mientras corre. Con NOTIFY cambio,
     // cada aviso de un plugin (decenas al arrancar) rearmaba el combo de «Nuevo desde un
     // ejemplo» y perdía lo elegido.
@@ -252,8 +255,8 @@ class Plugins : public QObject {
     Q_INVOKABLE void importarUi(const QUrl& archivo);
     /// Guarda una clave del plugin, cifrada (Credenciales/plugin-<id>-<clave>). "" o el error.
     Q_INVOKABLE QString guardarSecreto(const QString& id, const QString& nombre, const QString& valor);
-    /// El panel: los valores de ahora (cambian por `valoresCambio(id)`) y mover un control.
-    Q_INVOKABLE QVariantMap valoresUi(const QString& id) const;
+    /// El panel: los valores de ahora (`valores`) y mover un control.
+    QVariantMap valoresQml() const;
     Q_INVOKABLE QString panelUi(const QString& id, const QString& clave, const QVariant& valor);
 
    signals:

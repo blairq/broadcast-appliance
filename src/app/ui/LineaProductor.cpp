@@ -55,16 +55,16 @@ LineaProductor::LineaProductor(EventoViewModel& ev, control::BusEventos& bus, QO
 LineaProductor::~LineaProductor() { bus_.desuscribir(oyente_); }
 
 json LineaProductor::ajusteProbado(EventoViewModel& ev, const std::string& salida, int64_t hastaMs) {
-    json r = ev.lineaAjustar(salida, hastaMs);
+    json r = ev.corridaVm().lineaAjustar(salida, hastaMs);
     // Siempre probado: cada opción con cómo quedaría (se propone; la persona elige).
     const auto resultado = [&ev](const json& ops) -> json {
-        const json p = ev.lineaEditar(ops, true);
+        const json p = ev.corridaVm().lineaEditar(ops, true);
         if (!p.value("ok", false)) return {{"error", p.value("error", std::string())}};
         const json v = p.value("pronostico", json::object());
         return {{"fin", v.value("fin", json())}, {"overUnderSeg", v.value("overUnderSeg", json())},
                 {"reparos", p.value("reparos", json::array()).size()}};
     };
-    if (r.contains("ops") && !r["ops"].empty()) r["pronostico"] = ev.lineaEditar(r["ops"], true).value("pronostico", json());
+    if (r.contains("ops") && !r["ops"].empty()) r["pronostico"] = ev.corridaVm().lineaEditar(r["ops"], true).value("pronostico", json());
     for (json& o : r["opciones"]) o["resultado"] = resultado(o["ops"]);
     for (json& h : r["hardStarts"])
         for (json& o : h["opciones"]) o["resultado"] = resultado(o["ops"]);
@@ -147,7 +147,7 @@ QString LineaProductor::aplicar(const QString& salida, const QString& opcion) {
         for (const json& o : h.value("opciones", json::array()))
             if (o.value("id", std::string()) == id) ops = o.value("ops", json::array());
     if (!ops.is_array() || ops.empty()) return tr("No hay una opción «%1».").arg(opcion);
-    const json r = ev_.lineaEditar(ops, false);
+    const json r = ev_.corridaVm().lineaEditar(ops, false);
     if (!r.value("ok", false)) return QString::fromStdString(r.value("error", std::string()));
     const std::string s = it->first; // sacar() lo borra: no pasarle la clave del mismo elemento
     sacar(s);

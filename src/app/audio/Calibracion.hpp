@@ -50,6 +50,11 @@ class Calibracion : public QObject {
     /// La sesión abierta (vacía si no hay): {id, nombre, sala, objetivo, parlantes,
     /// microfonos, puntos, mediciones (sin las curvas), aplicado}.
     Q_PROPERTY(QVariantMap sesion READ sesion NOTIFY sesionCambio)
+    /// La respuesta impulsiva para ver (los primeros 100 ms) de cada medición: {id: [...]}
+    /// (la sesión va sin las curvas).
+    Q_PROPERTY(QVariantMap irVistas READ irVistas NOTIFY sesionCambio)
+    /// Las curvas de cada parlante ({parlante: curvas(parlante)}): cambian con el análisis.
+    Q_PROPERTY(QVariantMap curvasPorParlante READ curvasPorParlante NOTIFY analisisCambio)
     /// Las sesiones guardadas: [{id, nombre, fecha, mediciones}].
     Q_PROPERTY(QVariantList sesiones READ sesiones NOTIFY sesionCambio)
     /// "", "midiendo" o "analizando".
@@ -139,10 +144,11 @@ class Calibracion : public QObject {
     Q_INVOKABLE QString borrarMedicion(const QString& id);
     Q_INVOKABLE void refrescarDispositivos();
     /// Una medición entera (para dibujarla).
-    Q_INVOKABLE QVariantMap medicion(const QString& id) const;
+    QVariantMap irVistas() const;
     /// Lo que se dibuja de un parlante: {puntos: [{punto, nombre, curva}], promedio,
     /// objetivo, previsto, despues, filtros, modos}.
-    Q_INVOKABLE QVariantMap curvas(const QString& parlante) const;
+    QVariantMap curvas(const QString& parlante) const;
+    QVariantMap curvasPorParlante() const;
 
     // Para el MCP.
     json sesionJson(bool conCurvas) const;

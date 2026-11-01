@@ -68,10 +68,11 @@ Item {
 
     function avisar(e) { t.error = e || "" }
 
-    // La imagen en vivo se pide solo afuera del tablero (renderizarla cuesta). Con el
-    // PTZ digital, también la toma entera (antes del recorte), para manejarlo encima.
-    Suscripcion { objetivo: Studio.frames; que: "entrada:" + t.entrada; activa: t.enVentana && t.entrada !== "" }
-    Suscripcion { objetivo: Studio.frames; que: "entrada-entera:" + t.entrada; activa: t.enVentana && t.mueveDigital && t.entrada !== "" }
+    // La imagen en vivo se pide solo afuera del tablero y con la ventana a la vista
+    // (renderizarla cuesta). Con el PTZ digital, también la toma entera (antes del
+    // recorte), para manejarlo encima.
+    Suscripcion { objetivo: Studio.frames; que: "entrada:" + t.entrada; activa: t.enVentana && t.visible && t.entrada !== "" }
+    Suscripcion { objetivo: Studio.frames; que: "entrada-entera:" + t.entrada; activa: t.enVentana && t.visible && t.mueveDigital && t.entrada !== "" }
     Suscripcion { objetivo: t.cc; que: t.entrada; activa: t.visible && t.cam !== null && t.cam.digital }
 
     // En su ventana: el panel completo (imágenes, puntos a la vista, configuración).

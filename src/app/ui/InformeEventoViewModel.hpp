@@ -24,12 +24,14 @@ class PadronViewModel;
 
 class InformeEventoViewModel : public QObject {
     Q_OBJECT
+    /// Lo que realmente pasó (ver `informe()`): cambia con la corrida y con la línea.
+    Q_PROPERTY(QVariantMap informe READ informe NOTIFY informeCambio)
    public:
     InformeEventoViewModel(EventoAbierto& abierto, CorridaViewModel& corrida, PadronViewModel& padron, QObject* parent = nullptr);
 
     /// Lo que realmente pasó: por bloque y por paso, cuánto estaba previsto y cuánto duró.
     /// Vacío si no se corrió. {evento, ensayo, previstoSeg, realSeg, desvioSeg, cues, bloques: […]}
-    Q_INVOKABLE QVariantMap informe() const;
+    QVariantMap informe() const;
     /// Lo guarda en la carpeta del evento, con la fecha en el nombre. El archivo, o vacío.
     Q_INVOKABLE QString guardarInforme();
     /// Los capítulos de la grabación, uno por bloque, medidos desde que arrancó a grabar
@@ -55,6 +57,7 @@ class InformeEventoViewModel : public QObject {
 
    signals:
     void notify(const QString& texto, const QString& tipo);
+    void informeCambio();
 
    private:
     EventoAbierto& ab_;

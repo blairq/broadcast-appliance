@@ -233,7 +233,9 @@ GuionViewModel::GuionViewModel(EventoAbierto& abierto, AppRuntime& rt, Ventanill
         if ((p & (FotoMotor::Escenas | FotoMotor::Sala)) != 0) cambioOpciones();
     });
     if (graficos_ != nullptr) connect(graficos_, &graficos::Emisor::catalogoCambio, this, &GuionViewModel::cambioOpciones);
-    if (sala_ != nullptr) connect(&sala_->client(), &ConferenceClient::snapshotChanged, this, &GuionViewModel::cambioOpciones);
+    // De la sala, los participantes (los oradores para elegir): solo cuando cambian, no con
+    // cada foto.
+    if (sala_ != nullptr) connect(sala_, &ConferenceViewModel::participantesChanged, this, &GuionViewModel::cambioOpciones);
     leerCarpetas();
 }
 

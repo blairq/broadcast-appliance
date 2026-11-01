@@ -37,12 +37,10 @@ Item {
     readonly property string vista: cal ? cal.vista : "respuesta" // del modelo (mezclador_pestana)
     property string tipoPunto: "escucha"
     property bool confirmado: false     // ya se avisó que suena (por sesión)
-    property var curvas: ({})
-
-    onParlanteChanged: releerCurvas()
+    // Las del parlante elegido, del modelo (cambian con el análisis).
+    readonly property var curvas: cal && parlante !== "" ? (cal.curvasPorParlante[parlante] || ({})) : ({})
     Connections {
         target: c.cal
-        function onAnalisisCambio() { c.releerCurvas() }
         function onSesionCambio() {
             if (c.parlante === "" || !c.buscar(c.parlantes, c.parlante)) c.parlante = c.parlantes.length ? c.parlantes[0].id : ""
             if (c.microfono === "" || !c.buscar(c.microfonos, c.microfono)) c.microfono = c.microfonos.length ? c.microfonos[0].id : ""
@@ -54,8 +52,6 @@ Item {
             if (sig !== "") c.punto = sig
         }
     }
-    Component.onCompleted: releerCurvas()
-    function releerCurvas() { curvas = cal && parlante !== "" ? cal.curvas(parlante) : ({}) }
     function buscar(lista, id) { for (let i = 0; i < lista.length; ++i) if (lista[i].id === id) return lista[i]; return null }
     function nombreDe(lista, id) { const o = buscar(lista, id); return o ? o.nombre : "—" }
     function medido(pt, et) {
@@ -770,12 +766,12 @@ Item {
                         // La del parlante y el punto elegidos (la más nueva de la etapa); si no hay, la última.
                         readonly property var u: {
                             if (!c.cal) return ({})
-                            let id = ""
+                            let elegida = null
                             for (let i = 0; i < c.mediciones.length; ++i) {
                                 const m = c.mediciones[i]
-                                if (m.parlante === c.parlante && m.punto === c.punto && (m.etapa || "antes") === c.etapa) id = m.id
+                                if (m.parlante === c.parlante && m.punto === c.punto && (m.etapa || "antes") === c.etapa) elegida = m
                             }
-                            return id !== "" ? c.cal.medicion(id) : c.cal.ultima
+                            return elegida !== null ? elegida : c.cal.ultima
                         }
                         Text {
                             Layout.fillWidth: true
@@ -791,7 +787,7 @@ Item {
                             id: cvIr
                             Layout.fillWidth: true
                             Layout.fillHeight: true
-                            property var d: parent.u.ir_vista || []
+                            property var d: parent.u.ir_vista || (c.cal ? c.cal.irVistas[parent.u.id] : null) || []
                             onDChanged: requestPaint()
                             onWidthChanged: requestPaint()
                             onPaint: {

@@ -168,7 +168,7 @@ Item {
                     anchors { left: parent.left; top: parent.top; margins: 6 }
                     radius: 4; height: 18; width: progTxt.implicitWidth + 12
                     color: parent.tono !== "" ? parent.tono : "transparent"
-                    Text { id: progTxt; anchors.centerIn: parent; text: Studio.frames.label(modelData); color: "white"
+                    Text { id: progTxt; anchors.centerIn: parent; text: (Studio.frames.rotulos[modelData] || modelData.replace(/^(entrada|escena):/, "")); color: "white"
                            font { pixelSize: 11; weight: Font.DemiBold } }
                 }
             }
@@ -220,7 +220,7 @@ Item {
                 anchors { left: parent.left; bottom: parent.bottom; margins: 8 }
                 radius: 8; height: lbl.implicitHeight + 8; width: lbl.implicitWidth + 16; z: 3
                 color: Qt.rgba(0, 0, 0, 0.55)
-                Text { id: lbl; anchors.centerIn: parent; text: Studio.frames.label(modelData); color: "white"
+                Text { id: lbl; anchors.centerIn: parent; text: (Studio.frames.rotulos[modelData] || modelData.replace(/^(entrada|escena):/, "")); color: "white"
                        font.pixelSize: Math.max(9, wall.tamEtiqueta * wall.escala) }
             }
         }

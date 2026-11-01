@@ -100,6 +100,13 @@ class Corrida {
     /// la corrida, si ya no hay nada al aire en ninguna). En una retoma, además
     /// suelta el HOLD del corte: «con GO se suelta tal cual estaba».
     std::vector<Accion> go(const std::string& salida, int64_t ahora);
+    /// EL GO de quien conduce (uno solo: la página, la vista de la línea y el MCP). Lo que
+    /// en el v1 era «el cue siguiente»: si la pieza que sigue en el guion (`pasoSig` y
+    /// `piezaSig`, del cursor) es del paso al aire y no salió todavía (un adlib, o una que
+    /// no llegó a su hora), se dispara ya; si no, GO. Parada, arranca (la revisión previa
+    /// la hace quien conduce, antes).
+    std::vector<Accion> goDelGuion(const std::string& salida, const std::string& pasoSig, const std::string& piezaSig,
+                                   int64_t ahora);
     /// HOLD del paso al aire: no se va solo (la cuenta sigue y empuja). false si no hay paso.
     bool setHold(const std::string& salida, bool on, int64_t ahora);
     /// En HOLD: el del paso o el del corte.

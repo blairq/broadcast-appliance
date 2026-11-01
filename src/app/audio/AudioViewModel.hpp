@@ -65,10 +65,9 @@ class AudioViewModel : public QObject {
     double gridStep() const;
 
     /// Una vista (la página Audio) empieza o deja de mostrarlo: los medidores corren
-    /// mientras haya alguna (cuenta por vista).
-    Q_INVOKABLE void usar(QObject* vista, bool si) { vistas_.usar(vista, si); }
-    /// Lo mismo para una parte que cuesta más: "estudio" o "grabacion".
-    Q_INVOKABLE void usar(QObject* vista, bool si, const QString& que) { vistas_.usar(vista, si, que); }
+    /// mientras haya alguna (cuenta por vista). `que`: una parte que cuesta más, "estudio" o
+    /// "grabacion" (cada una con su cuenta).
+    Q_INVOKABLE void usar(QObject* vista, bool si, const QString& que = {}) { vistas_.usar(vista, si, que); }
     Q_INVOKABLE void refresh();
     /// Cambiaron las fuentes o las entradas de audio (lo avisa el runtime, lo
     /// haya pedido quien sea): la lista se rehace si quedó distinta.

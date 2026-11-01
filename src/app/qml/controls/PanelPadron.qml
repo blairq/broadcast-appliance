@@ -16,10 +16,11 @@ import "."
 Item {
     id: raiz
 
-    readonly property var ev: Studio.evento
+    readonly property var guionVm: Studio.evento.guionVm
+    readonly property var padronVm: Studio.evento.padronVm
     /// Lo pone en true VentanaSuelta (ver PanelPreguntas).
     property bool enVentana: false
-    readonly property var r: ev.resumenPadron
+    readonly property var r: padronVm.resumenPadron
     // El papel y el canal se guardan con su clave (en español); acá, la etiqueta.
     readonly property var papeles: [ { t: qsTr("público"), v: "publico" }, { t: qsTr("orador"), v: "orador" },
                                      { t: qsTr("panelista"), v: "panelista" }, { t: qsTr("prensa"), v: "prensa" },
@@ -125,7 +126,7 @@ Item {
                 anchors.fill: parent
                 clip: true
                 spacing: 4
-                model: raiz.ev.padron
+                model: raiz.padronVm.padron
                 ScrollBar.vertical: ScrollBar {}
 
                 delegate: Rectangle {
@@ -176,8 +177,8 @@ Item {
                             compact: true
                             text: fila.modelData.estado === "llego" ? qsTr("Se fue") : qsTr("Llegó")
                             onClicked: fila.modelData.estado === "llego"
-                                       ? raiz.ev.despedir(fila.modelData.id)
-                                       : raiz.ev.acreditar(fila.modelData.id, "mostrador")
+                                       ? raiz.padronVm.despedir(fila.modelData.id)
+                                       : raiz.padronVm.acreditar(fila.modelData.id, "mostrador")
                         }
                         GlassButton {
                             compact: true
@@ -187,7 +188,7 @@ Item {
                                 text: qsTr("Se saca a «%1» de la lista de este evento. No toca su ficha de rostro.")
                                       .arg(fila.modelData.nombre || qsTr("esta persona")),
                                 accept: qsTr("Sacar"), reject: qsTr("Dejarlo"),
-                                action: () => raiz.ev.quitarAsistente(fila.modelData.id)
+                                action: () => raiz.padronVm.quitarAsistente(fila.modelData.id)
                             })
                         }
                     }
@@ -202,7 +203,7 @@ Item {
                 wrapMode: Text.WordWrap
                 color: Theme.textFaint
                 font.pixelSize: 12
-                text: raiz.ev.abierto === ""
+                text: raiz.guionVm.abierto === ""
                       ? qsTr("El padrón vive en el evento: abrí uno primero.")
                       : qsTr("Todavía no hay nadie anotado. Sin padrón no hay quórum, y sin quórum lo " +
                              "que se decida no vale.")
@@ -218,7 +219,7 @@ Item {
         title: qsTr("Anotar a alguien")
         standardButtons: Dialog.Ok | Dialog.Cancel
         onAboutToShow: { aNombre.text = ""; aNota.text = ""; aVota.checked = false }
-        onAccepted: raiz.ev.anotar({
+        onAccepted: raiz.padronVm.anotar({
             nombre: aNombre.text.trim(),
             papel: aPapel.currentValue,
             canal: aCanal.currentValue,

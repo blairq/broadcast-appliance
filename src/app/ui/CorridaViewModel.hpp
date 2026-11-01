@@ -172,17 +172,20 @@ class CorridaViewModel : public QObject {
     void limpiarBitacora();
 
     // --- Correr --------------------------------------------------------------------------
-    Q_INVOKABLE void arrancar();
+    // LAS ÓRDENES TIENEN UN SOLO NÚCLEO: las `linea*` de abajo (devuelven "" o por qué
+    // no), con las reglas del vivo. La página las llama por estas (el error, a `notify`) y
+    // el MCP directo (el error, a su respuesta): nadie repite las reglas.
     /// Arrancar con la revisión previa: si encontró problemas graves y no se pide `forzar`,
     /// NO arranca y devuelve cuántos son. 0 = arrancó.
     Q_INVOKABLE int arrancarRevisando(bool forzar);
-    Q_INVOKABLE void avanzar();
+    /// GO (lineaGo): la pieza pendiente del paso al aire o el paso que sigue; parada, arranca
+    /// con la revisión previa.
+    Q_INVOKABLE void go(const QString& salida = {}) { avisar(lineaGo(salida.toStdString())); }
     Q_INVOKABLE void retroceder();
     Q_INVOKABLE void irA(int bloque, int cue);
     Q_INVOKABLE void pausar();
     Q_INVOKABLE void reanudar();
-    void setHold(bool on);
-    Q_INVOKABLE void alternarHold() { setHold(!hold()); }
+    void setHold(bool on) { avisar(lineaHold({}, on)); }
     Q_INVOKABLE void parar();
     /// Ensayo acelerado: recorre el guion ENTERO de una, sin esperar las duraciones y sin
     /// tocar nada, y dice de cada cue si se podría ejecutar.
@@ -195,10 +198,10 @@ class CorridaViewModel : public QObject {
     /// Lo grabado pasa a la línea (con su revisión para deshacer). "" o por qué no.
     Q_INVOKABLE QString aplicarTiemposGrabados();
     Q_INVOKABLE void descartarTiemposGrabados();
-    Q_INVOKABLE QString pulsar(const QString& clave) { return QString::fromStdString(lineaPulso(clave.toStdString())); }
-    Q_INVOKABLE QString reenganchar(const QString& salida) { return QString::fromStdString(lineaReenganchar(salida.toStdString())); }
-    Q_INVOKABLE QString decidirPtz(const QString& pieza, const QString& decision) {
-        return QString::fromStdString(lineaPtz(pieza.toStdString(), decision.toStdString()));
+    Q_INVOKABLE void pulsar(const QString& clave) { avisar(lineaPulso(clave.toStdString())); }
+    Q_INVOKABLE void reenganchar(const QString& salida) { avisar(lineaReenganchar(salida.toStdString())); }
+    Q_INVOKABLE void decidirPtz(const QString& pieza, const QString& decision) {
+        avisar(lineaPtz(pieza.toStdString(), decision.toStdString()));
     }
 
     /// Se abre otro evento (o se cierra): para lo que corría y olvida la corrida.
@@ -253,6 +256,12 @@ class CorridaViewModel : public QObject {
     void notify(const QString& texto, const QString& tipo);
 
    private:
+    /// El error de una orden, a quien mira (la página): "" no dice nada.
+    void avisar(const std::string& error) {
+        if (!error.empty()) emit notify(QString::fromStdString(error), "error");
+    }
+    void arrancar();
+
     // El cursor del guion de cues: el cue que se ve «al aire» (el último disparado del paso).
     struct Cursor {
         int bloque = -1;

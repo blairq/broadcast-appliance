@@ -254,7 +254,7 @@ class Botonera : public QObject {
     QVariantMap paginas() const { return paginas_; }
     /// Una vista del escritorio empieza o deja de mirar la página `que` («<perfil>/<página>»;
     /// la cuenta es por vista: comun/UsoPorVistas).
-    Q_INVOKABLE void usar(QObject* vista, bool si, const QString& que);
+    Q_INVOKABLE void usar(QObject* vista, bool si, const QString& que = {});
     /// `salida`: la que manejan sus aparatos ("" = la por omisión).
     Q_INVOKABLE QString crearPerfilUi(const QString& nombre, const QString& plantilla, const QString& salida = {});
     /// Le suma a la primera página del perfil la fila del guion («◀ Cue», el cue actual,

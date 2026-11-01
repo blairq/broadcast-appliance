@@ -1400,36 +1400,6 @@ void PantallasViewModel::parar(const QString& id) {
     }).detach();
 }
 
-void PantallasViewModel::setVolumen(const QString& id, double nivel) {
-    Destino* d = d_->porId(id);
-    if (d == nullptr || d->trabajando) return;
-    d->trabajando = true;
-    const QString host = d->host;
-    const int puerto = d->puerto;
-    // Se sale por la interfaz que lo tiene en su red, aunque la tabla de
-    // rutas prefiera un túnel (ver ipEnLaRedDe). Vacío = que elija el sistema.
-    // La CONEXION la rutea el sistema, como siempre. Atarla a una interfaz la
-    // rompia: «el aparato rechazo la conexion segura». Es OTRA COSA que la
-    // URL —esa si lleva la direccion de la red del aparato (ipEnLaRedDe)—:
-    // una es como le hablamos nosotros, la otra es como nos encuentra el.
-    const QString desde;
-    std::thread([this, puerta = d_->puerta, id, host, puerto, desde, nivel]() {
-        ba::platform::nombrarHilo("tv-volumen");
-        const pt::Estado r =
-            pt::volumen(host.toStdString(), puerto, nivel, -1, kTimeoutMs(), desde.toStdString());
-        alHiloPrincipal(puerta, [this, id, r]() {
-            Destino* d = d_->porId(id);
-            if (d == nullptr) return;
-            d->trabajando = false;
-            if (r.ok) {
-                d->volumen = r.volumen;
-                d->silenciado = r.silenciado;
-            }
-            emit cambio();
-        });
-    }).detach();
-}
-
 void PantallasViewModel::silenciar(const QString& id, bool si) {
     Destino* d = d_->porId(id);
     if (d == nullptr || d->trabajando) return;

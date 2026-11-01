@@ -22,11 +22,13 @@
 
 #include <QByteArray>
 #include <QObject>
+#include <QTimer>
 #include <QString>
 #include <QVariantList>
 #include <QVariantMap>
 
 #if BA_HAVE_ROSTROS
+#include "comun/UsoPorVistas.hpp"
 #include "ui/Reconocedor.hpp"
 #endif
 
@@ -161,9 +163,11 @@ class PersonasViewModel : public QObject {
     /// `nuevaFoto` reemplaza la foto de la ficha por la de ahora.
     Q_INVOKABLE void sumarCara(const QString& id, const QString& feed, bool nuevaFoto = false);
 
-    /// Pide mirar quién hay en `feed`. La respuesta llega en `vistos`, más
-    /// tarde: el reconocimiento no corre en el hilo de la interfaz.
-    Q_INVOKABLE void mirar(const QString& feed);
+    /// Una vista mira `que` (una clave de video): mientras alguna la mire, el modelo pregunta
+    /// quién hay una vez por segundo (la respuesta llega en `vistos`, más tarde: el
+    /// reconocimiento no corre en el hilo de la interfaz) y una cámara del estudio tiene su
+    /// tarjeta «Rostros». Cuenta por vista (Suscripcion).
+    Q_INVOKABLE void usar(QObject* vista, bool si, const QString& que = {}) { mirando_.usar(vista, si, que); }
     /// Prende o apaga el anotado automático mirando `fuente`, de una vez (la cámara y el
     /// interruptor juntos: con dos escrituras sueltas, si la segunda no podía, la primera
     /// quedaba hecha). Si no se puede prender, no cambia nada y lo dice `notify`.
@@ -222,6 +226,13 @@ class PersonasViewModel : public QObject {
     void notify(const QString& texto, const QString& tipo);
 
    private:
+    /// Pregunta quién hay en `feed` (una vuelta de lo que miran las vistas).
+    void mirar(const QString& feed);
+    /// Cambió lo que miran las vistas: arranca o para la vuelta de cada segundo.
+    void alCambiarMirados();
+    void mirarAhora();
+    UsoPorVistas mirando_{this, [this](const QString&) { alCambiarMirados(); }};
+    QTimer mirada_; ///< cada segundo mientras alguna vista mira (alcanza para confirmar a quién se ve)
     /// Pone o saca las tarjetas «Rostros» en las cámaras del estudio que se
     /// usan (anotado, puerta, la que mira la página). Ver VideoGrafos.
     void sincronizarRostros();

@@ -122,7 +122,6 @@ class PantallasViewModel : public QObject {
     Q_INVOKABLE void parar(const QString& id);
     /// Vuelve a preguntarle cómo está.
     Q_INVOKABLE void refrescar(const QString& id);
-    Q_INVOKABLE void setVolumen(const QString& id, double nivel);
     Q_INVOKABLE void silenciar(const QString& id, bool si);
     /// La URL que se le mandaría: para mostrarla en la interfaz y para probar
     /// desde un navegador sin tener el televisor a mano.

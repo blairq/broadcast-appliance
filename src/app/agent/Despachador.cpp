@@ -735,9 +735,20 @@ void Despachador::detener(const QString& id) {
     c->proc->kill();
 }
 
-QVariantMap Despachador::corridaQml(const QString& id) const {
-    const json j = corrida(id.toStdString());
-    return j.is_null() ? QVariantMap() : aMapa(j);
+QVariantMap Despachador::detallesQml() const {
+    json r = json::object();
+    for (const auto& c : corridas_) r[c->id] = {{"encargo", c->encargo}, {"pasos", c->pasos}, {"resultado", c->resultado}};
+    return aMapa(r);
+}
+
+QVariantMap Despachador::modelosQml() const {
+    QVariantMap out;
+    for (const QVariant& p : proveedores()) {
+        const QVariantMap m = p.toMap();
+        const QString id = m.value("id").toString();
+        if (!id.isEmpty()) out.insert(id, modelosDe(id));
+    }
+    return out;
 }
 
 } // namespace ba::app::agent

@@ -212,8 +212,8 @@ TotemsViewModel::TotemsViewModel(AppRuntime& rt, StudioViewModel& vm, agent::Voz
     connect(this, &TotemsViewModel::vivoCambio, this, [this] { filasConexiones_.poner(conexiones()); });
     connect(this, &TotemsViewModel::registradosCambio, this, [this] { filasRegistrados_.poner(registrados()); });
     if (EventoViewModel* ev = eventoDe(vm_)) {
-        connect(ev, &EventoViewModel::guionChanged, this, &TotemsViewModel::recargar);
-        connect(ev, &EventoViewModel::padronChanged, this, &TotemsViewModel::registradosCambio);
+        connect(&ev->guionVm(), &GuionViewModel::guionChanged, this, &TotemsViewModel::recargar);
+        connect(&ev->padronVm(), &PadronViewModel::padronChanged, this, &TotemsViewModel::registradosCambio);
     }
     if (ConferenceClient* c = clienteDe(vm_)) {
         connect(c, &ConferenceClient::registroEvento, this, [this](const QJsonObject& o) {
@@ -308,10 +308,10 @@ ba::i18n::En TotemsViewModel::idiomaDelEvento() const {
 
 void TotemsViewModel::recargar() {
     EventoViewModel* ev = eventoDe(vm_);
-    const std::filesystem::path carpeta = ev != nullptr ? ev->carpetaAbierta() : std::filesystem::path();
-    const std::string nombre = ev != nullptr ? ev->guionAbierto().nombre : std::string();
+    const std::filesystem::path carpeta = ev != nullptr ? ev->eventoAbierto().dir() : std::filesystem::path();
+    const std::string nombre = ev != nullptr ? ev->eventoAbierto().evento().nombre : std::string();
     // El idioma del evento: en el que hablan y entienden los tótems ("" = el del operador).
-    const std::string idioma = ev != nullptr ? ev->guionAbierto().idioma : std::string();
+    const std::string idioma = ev != nullptr ? ev->eventoAbierto().evento().idioma : std::string();
     if (carpeta == carpeta_) {
         // El mismo evento: quizá cambió de nombre (va en el saludo y el título) o de idioma (lo
         // que ya se conversa sigue en el suyo; lo nuevo, en el nuevo).
@@ -943,7 +943,7 @@ void TotemsViewModel::empezar(Conexion& c, const QString& personaId, const QStri
     registro::Conversacion::Cara cara;
     cara.personaId = personaId.toStdString();
     cara.nombre = nombre.toStdString();
-    cara.yaRegistrado = !personaId.isEmpty() && ev != nullptr && ev->registradoPorTotem(personaId);
+    cara.yaRegistrado = !personaId.isEmpty() && ev != nullptr && ev->padronVm().registradoPorTotem(personaId);
     c.agente.reset(); // el de la conversación anterior
     c.conv = std::make_unique<registro::Conversacion>(*t, eventoNombre_, eventoIdioma_);
     // El dorso se ofrece solo si hay con qué leerlo (el modelo propio del operador).
@@ -1162,7 +1162,7 @@ void TotemsViewModel::guardarRegistro(Conexion& c) {
     const QString personaId = QString::fromStdString(c.conv->cara().personaId);
     PersonasViewModel* pv = personasDe(vm_);
     const auto anotar = [this, ev, nombre, totem, datos](const QString& persona) {
-        const QString id = ev->registrarDesdeTotem(persona, nombre, totem, datos);
+        const QString id = ev->padronVm().registrarDesdeTotem(persona, nombre, totem, datos);
         if (id.isEmpty()) {
             emit notify(tr("Alguien se registró en un tótem pero no hay un evento abierto: no quedó anotado."), "warn");
             return;
@@ -1463,7 +1463,7 @@ QVariantList TotemsViewModel::registrados() const {
     QVariantList out;
     EventoViewModel* ev = eventoDe(vm_);
     if (ev == nullptr) return out;
-    for (const QVariant& v : ev->padron()) {
+    for (const QVariant& v : ev->padronVm().padron()) {
         QVariantMap m = v.toMap();
         const QString reg = m.value("registro").toString();
         if (reg.isEmpty() && m.value("porDonde").toString() != "registro") continue;

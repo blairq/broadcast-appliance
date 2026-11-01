@@ -292,7 +292,13 @@ QVariantMap AppViewModel::impactoDeCerrar() const {
     const FotoMotor::EstadoAire& aire = p_.ventanilla.foto().estado;
     const bool tx = aire.transmite, rec = aire.graba;
     const int n = p_.personas();
-    return {{"transmitiendo", tx}, {"grabando", rec}, {"personas", n}, {"hay", tx || rec || n > 0}};
+    return {{"transmitiendo", tx},
+            {"grabando", rec},
+            {"personas", n},
+            {"hay", tx || rec || n > 0},
+            {"aviso", avisoDeCerrar({})},
+            {"avisoActualizar", avisoDeCerrar(QStringLiteral("actualizar"))},
+            {"avisoVolver", avisoDeCerrar(QStringLiteral("volver"))}};
 }
 
 QString AppViewModel::avisoDeCerrar(const QString& accion) const {
@@ -317,16 +323,13 @@ QString AppViewModel::avisoDeCerrar(const QString& accion) const {
         return tr("%1. Si cerrás, %2.").arg(que, enumerar(corta));
     }
     // Actualizar, volver atrás…: «Estás AL AIRE: actualizar cierra la aplicación y …».
-    // `accion` es una clave ("actualizar", "volver"); por compatibilidad también el texto
-    // que mandaba la página («volver a la versión anterior»). Otra cosa va tal cual.
+    // `accion` es una clave ("actualizar", "volver").
     const QString que = tx ? tr("Estás AL AIRE") : rec ? tr("Estás GRABANDO") : tr("Hay gente conectada");
     if (tx) corta << tr("corta la emisión");
     if (rec) corta << tr("corta la grabación");
     if (n > 0) corta << (corta.isEmpty() ? tr("la desconecta") : tr("desconecta a quienes están conectados"));
     if (accion == "actualizar") return tr("%1: actualizar cierra la aplicación y %2.").arg(que, enumerar(corta));
-    if (accion == "volver" || accion == "volver a la versión anterior")
-        return tr("%1: volver a la versión anterior cierra la aplicación y %2.").arg(que, enumerar(corta));
-    return tr("%1: %2 cierra la aplicación y %3.").arg(que, accion, enumerar(corta));
+    return tr("%1: volver a la versión anterior cierra la aplicación y %2.").arg(que, enumerar(corta));
 }
 
 QString AppViewModel::reiniciarPrograma(const QString& aviso) {
