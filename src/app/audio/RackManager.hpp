@@ -200,6 +200,10 @@ class RackManager : public QObject {
     void saveNow();
     /// Restaura los racks guardados de las fuentes que existan.
     void restore();
+    /// El vigía de los módulos (AudioRack::ponerVigia: umbral_pct, bloques), guardado en
+    /// Config/audio-vigia.json para que vuelva al reiniciar. De cualquier hilo: son dos
+    /// atómicos y la cola de escritura. Devuelve lo que quedó.
+    nlohmann::json ponerVigia(const nlohmann::json& v);
     /// «Restablecer interfaz LSP»: cierra las ventanas LSP abiertas y vuelve la
     /// configuración global de LSP (la de su menú: zoom, escala del host,
     /// letra, zoom por plugin) a lo de fábrica, con una copia del archivo.

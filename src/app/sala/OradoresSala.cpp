@@ -53,10 +53,18 @@ std::string OradoresSala::tiempo(const std::string& id, int segundos, Listo list
     return {};
 }
 
-std::string OradoresSala::tiempo(const std::string& id, const std::string& texto, int actual, Listo listo) {
+std::string OradoresSala::tiempo(const std::string& id, const nlohmann::json& valor, Listo listo, int* segundos) {
     int s = 0;
-    if (std::string e = leerTiempo(texto, actual, s); !e.empty()) return e;
+    if (std::string e = leerTiempoJson(valor, tiempoActual(sala_.snapshot(), id), s); !e.empty()) return e;
+    if (segundos != nullptr) *segundos = s;
     return tiempo(id, s, std::move(listo));
+}
+
+std::string OradoresSala::tiempoGeneral(const nlohmann::json& valor, Listo listo, int* segundos) {
+    int s = 0;
+    if (std::string e = leerTiempoJson(valor, tiempoActual(sala_.snapshot(), {}), s); !e.empty()) return e;
+    if (segundos != nullptr) *segundos = s;
+    return configurar({{"defaultSec", s}}, std::move(listo));
 }
 
 void OradoresSala::aLaFila(const std::string& id, Listo listo) {

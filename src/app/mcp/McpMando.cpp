@@ -128,7 +128,7 @@ void registrarHerramientasDeAire(McpCore& core, MandoDeAire mando) {
         t.name = "scene_preview";
         t.porSalida = true;
         t.hilo = Hilo::Control;
-        t.title = ba::i18n::traducir("mcp", "Armar la proxima escena (sin sacarla al aire)");
+        t.title = ba::i18n::traducir("mcp", "Armar la próxima escena (sin sacarla al aire)");
         t.category = "escenas";
         t.clase = Clase::Escritura;
         t.description =
@@ -178,7 +178,7 @@ void registrarHerramientasDeAire(McpCore& core, MandoDeAire mando) {
         t.name = "transicion_manual";
         t.porSalida = true;
         t.hilo = Hilo::Control;
-        t.title = ba::i18n::traducir("mcp", "T-bar: transicion a mano");
+        t.title = ba::i18n::traducir("mcp", "T-bar: transición a mano");
         t.category = "escenas";
         t.clase = Clase::Aire;
         t.porQueAire = QT_TRANSLATE_NOOP("mcp", "lleva la transición a mano (T-bar)");
@@ -287,7 +287,7 @@ void registrarHerramientasDeAire(McpCore& core, MandoDeAire mando) {
         t.name = "stream_stop";
         t.porSalida = true;
         t.hilo = Hilo::Control;
-        t.title = ba::i18n::traducir("mcp", "Cortar la transmision");
+        t.title = ba::i18n::traducir("mcp", "Cortar la transmisión");
         t.category = "salidas";
         t.clase = Clase::Aire;
         t.porQueAire = QT_TRANSLATE_NOOP("mcp", "corta la transmisión");
@@ -365,7 +365,7 @@ void registrarHerramientasDeAire(McpCore& core, MandoDeAire mando) {
         t.porSalida = true;
         t.hilo = Hilo::Control;
         t.destructive = true;
-        t.title = ba::i18n::traducir("mcp", "Detener grabacion");
+        t.title = ba::i18n::traducir("mcp", "Detener grabación");
         t.category = "salidas";
         t.clase = Clase::Aire;
         t.porQueAire = QT_TRANSLATE_NOOP("mcp", "corta la grabación");

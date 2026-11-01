@@ -944,6 +944,8 @@ def verificar(inventario=RAIZ / "docs/mcp.json"):
 # demás, un view model, la copia de la sala o una pantalla.
 _DE_LA_INTERFAZ = [
     (re.compile(r"\bvm_?\s*(\.|->)"), "usa el StudioViewModel (`vm`)"),
+    # Pasado de argumento (`conmutadorDe(core_, vm, a)`): lo usa la función, en este hilo.
+    (re.compile(r"[(,]\s*\*?vmp?_?\s*[,)]"), "le pasa el StudioViewModel (`vm`) a una función"),
     (re.compile(r"\bvmp\s*->"), "usa el StudioViewModel (`vmp`)"),
     (re.compile(r"\b\w+ViewModel\b"), "usa un view model"),
     (re.compile(r"\broomSnapshot\s*\("), "lee la copia de la sala de la interfaz (roomSnapshot)"),
@@ -955,7 +957,16 @@ _AVISOS_INTERFAZ = [
     (re.compile(r"\bwaitFor\w+\s*\("), "espera bloqueando (waitFor…)"),
     (re.compile(r"\bremove_all\s*\("), "borra carpetas enteras (remove_all)"),
     (re.compile(r"\b(recursive_)?directory_iterator\b"), "recorre carpetas (directory_iterator)"),
+    (re.compile(r"\bQDirIterator\b"), "recorre carpetas (QDirIterator)"),
+    (re.compile(r"\bQFile::remove\b|\bstd::filesystem::remove\b|\bfs::remove\b"), "borra archivos (remove)"),
+    (re.compile(r"\bstd::ifstream\b|\bstd::ofstream\b"), "lee o escribe archivos (fstream)"),
 ]
+# Lo que se toma AL REGISTRAR, en la lista de capturas de `run` (`[&voc = vm.vocabulario()]`):
+# se evalúa en la interfaz, pero lo capturado se usa en el hilo de la herramienta.
+_CAPTURA_DE_LA_INTERFAZ = re.compile(r"=\s*\*?\s*(vm_?\s*(\.|->)|vmp\s*->|\w+ViewModel\b)")
+# Lo que borra: booleanos con estos nombres (o `borrar_…`) y estos valores de un enum.
+_BOOLEANOS_QUE_BORRAN = ("delete", "clear", "borrar", "limpiar")
+_VALORES_QUE_BORRAN = {"borrar", "vaciar", "limpiar", "delete", "clear", "eliminar", "remove", "purgar"}
 # Los casos legítimos: (herramienta, regla) -> por qué. La regla es el texto de arriba.
 EXCEPCIONES_CUERPO = {
     # Modelos del DUEÑO que se alcanzan por el StudioViewModel (se arman en la interfaz y se
@@ -963,6 +974,19 @@ EXCEPCIONES_CUERPO = {
     ("video_legalizar", "usa el StudioViewModel (`vm`)"): "vm.videoGrafos() es del dueño (VideoGrafos adoptado)",
     ("audio_loudness_objetivo", "usa el StudioViewModel (`vm`)"): "vm.objetivoLoudness() es un modelo del dueño",
     ("escena_transicion", "usa el StudioViewModel (`vm`)"): "vm.conmutador() es del dueño (adoptado por la ventanilla)",
+    # conmutadorDe(core_, vm, a) solo saca vm.conmutador(), del dueño (como escena_transicion).
+    ("audio_afv", "le pasa el StudioViewModel (`vm`) a una función"): "conmutadorDe: vm.conmutador() es del dueño",
+    ("scene_define", "le pasa el StudioViewModel (`vm`) a una función"): "conmutadorDe: vm.conmutador() es del dueño",
+    ("scene_list", "le pasa el StudioViewModel (`vm`) a una función"): "conmutadorDe: vm.conmutador() es del dueño",
+    # Lo capturado al registrar que NO es de la interfaz (se alcanza por el StudioViewModel).
+    ("aire_placas_listar", "captura algo de la interfaz"): "SeguridadAire no tiene estado propio: es del motor",
+    ("dsk_capas_ver", "captura algo de la interfaz"): "CapasDsk es del dueño del motor (control/Dsk.hpp)",
+    ("dsk_definir", "captura algo de la interfaz"): "CapasDsk es del dueño del motor (control/Dsk.hpp)",
+    ("dsk_mostrar", "captura algo de la interfaz"): "CapasDsk es del dueño del motor (control/Dsk.hpp)",
+    ("media_restante", "captura algo de la interfaz"): "BusEventos::ultimo lee bajo su candado",
+    ("voz_vocabulario", "captura algo de la interfaz"): "Vocabulario es de cualquier hilo (todo bajo su mutex)",
+    ("voz_vocabulario_probar", "captura algo de la interfaz"): "Vocabulario es de cualquier hilo (todo bajo su mutex)",
+    ("web_tema", "captura algo de la interfaz"): "vm.runtime() es el AppRuntime, no la vista",
     ("web_tema", "usa un view model"): "ControlViewModel::guardarTemaWeb es estática: no toca la vista",
     ("aire_placas_listar", "usa un view model"): "SalidasViewModel::textosDePlaca es estática: no toca la vista",
     # Sin el registro de dispositivos (la consola, sin interfaz) se cae al motor: no hay carrera.
@@ -970,7 +994,54 @@ EXCEPCIONES_CUERPO = {
     ("video_devices", "entra directo al motor (rt.engine())"): "solo sin registro (consola): sin interfaz",
     ("system_hardware", "entra directo al motor (rt.engine())"): "solo sin registro (consola): sin interfaz",
     ("config_generaciones", "recorre carpetas (directory_iterator)"): "Config/ sin subcarpetas: unas decenas de archivos",
+    ("pdf_convertir", "borra archivos (remove)"): "el PDF temporal, ya copiado a docs/ (un archivo)",
+    # Lo que «borra» y no son datos de nadie.
+    ("diag_falla", "`limpiar` borra"): "saca las fallas programadas del banco de caos (solo --test)",
 }
+
+
+def _capturas_run(texto):
+    """La lista de capturas de la lambda de `run` (`[&voc = vm.vocabulario()]`), o ""."""
+    i = texto.find(".run =")
+    a = texto.find("[", i) if i >= 0 else -1
+    if a < 0:
+        return ""
+    prof = 0
+    for j in range(a, len(texto)):
+        prof += {"[": 1, "]": -1}.get(texto[j], 0)
+        if prof == 0:
+            return texto[a:j + 1]
+    return ""
+
+
+def _que_borra(esquema):
+    """[(clave, valor o None)] de lo que en el esquema pide borrar: un booleano que se llama
+    delete/clear/borrar/limpiar o empieza con `borrar_` (valor None), o un valor de un enum
+    que dice borrar, vaciar…"""
+    props = esquema.get("properties", {}) if isinstance(esquema, dict) else {}
+    out = []
+    if not isinstance(props, dict):
+        return out
+    for clave, p in props.items():
+        if not isinstance(p, dict):
+            continue
+        if p.get("type") == "boolean" and (clave in _BOOLEANOS_QUE_BORRAN or clave.startswith("borrar_")):
+            out.append((clave, None))
+        enum = p.get("enum")
+        if enum is None and isinstance(p.get("items"), dict):
+            enum = p["items"].get("enum")
+        out += [(clave, v) for v in enum or [] if isinstance(v, str) and v in _VALORES_QUE_BORRAN]
+    return out
+
+
+def _cubre(c, clave, valor):
+    """¿La marca de la herramienta cubre que (`clave`, `valor`) borra? `destructiva` entera
+    lo cubre todo; `destructivaSi` solo su clave (y sus valores)."""
+    si = c.get("destructivaSi")
+    if not si:
+        return bool(c["destructiva"])
+    si_clave, si_valores = (si, []) if isinstance(si, str) else (si[0], si[1] if len(si) > 1 else [])
+    return si_clave == clave and (valor is None and not si_valores or valor in si_valores)
 
 
 def _cuerpo_run(texto):
@@ -992,10 +1063,11 @@ def _cuerpo_run(texto):
     return cuerpo
 
 
-def _en_el_dueno(cuerpo, pos):
-    """¿`pos` cae adentro de un `pedir(…)` / `despuesEnDueno(…)` / `enDueno(…)`? Eso corre en
-    el dueño del motor (VentanillaMotor::pedir), no en la interfaz."""
-    for m in re.finditer(r"\b(pedir|despuesEnDueno|enDueno)\s*\(", cuerpo[:pos]):
+def _en_el_dueno(cuerpo, pos, pool=False):
+    """¿`pos` cae adentro de un `pedir(…)` / `despuesEnDueno(…)` / `enDueno(…)`? Eso corre en el
+    dueño del motor (VentanillaMotor::pedir), no en la interfaz. Con `pool`, también `enPool(…)`
+    (el pool aparte: sirve para el disco y las esperas, no para el motor)."""
+    for m in re.finditer(r"\b(pedir|despuesEnDueno|enDueno" + (r"|enPool" if pool else "") + r")\s*\(", cuerpo[:pos]):
         prof = 0
         for ch in cuerpo[m.end() - 1:pos]:
             prof += {"(": 1, ")": -1}.get(ch, 0)
@@ -1015,18 +1087,21 @@ def revisar_cuerpos(cod=None):
             continue
         cuerpo = _cuerpo_run(c["_cuerpo"])
         donde = f"{n} ({c['archivo']}:{c['linea']})"
-        if c["hilo"] in ("foto", "control"):
+        if c["hilo"] in ("foto", "control", "sin_interfaz"):
             for pat, motivo in _DE_LA_INTERFAZ:
                 if pat.search(cuerpo) and (n, motivo) not in EXCEPCIONES_CUERPO:
                     errores.append(f"{donde}: hilo {c['hilo']} y {motivo}")
+            capturas = _capturas_run(c["_cuerpo"])
+            if _CAPTURA_DE_LA_INTERFAZ.search(capturas) and (n, "captura algo de la interfaz") not in EXCEPCIONES_CUERPO:
+                errores.append(f"{donde}: hilo {c['hilo']} y captura algo de la interfaz al registrar ({capturas})")
         else:
             for pat, motivo in _AVISOS_INTERFAZ:
-                if any(not _en_el_dueno(cuerpo, m.start()) for m in pat.finditer(cuerpo)) and \
+                pool = "motor" not in motivo
+                if any(not _en_el_dueno(cuerpo, m.start(), pool) for m in pat.finditer(cuerpo)) and \
                         (n, motivo) not in EXCEPCIONES_CUERPO:
                     avisos.append(f"{donde}: en la interfaz y {motivo}")
-        props = c["esquema"].get("properties", {}) if isinstance(c["esquema"], dict) else {}
-        for clave in ("delete", "clear", "borrar"):
-            if isinstance(props, dict) and isinstance(props.get(clave), dict) and \
-                    props[clave].get("type") == "boolean" and not c["destructiva"]:
-                avisos.append(f"{donde}: `{clave}` booleano y no es destructiva (destructivaSi)")
+        for clave, valor in _que_borra(c["esquema"]):
+            que = f"`{clave}`" if valor is None else f"`{clave}`={valor}"
+            if not _cubre(c, clave, valor) and (n, f"{que} borra") not in EXCEPCIONES_CUERPO:
+                avisos.append(f"{donde}: {que} borra y no está marcada (destructive o destructivaSi)")
     return errores, avisos

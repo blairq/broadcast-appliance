@@ -214,19 +214,6 @@ bool aptoParaTocar(const QString& raiz, const QString& queRel, QString* error, Q
     return true;
 }
 
-/// Un nombre libre en `dir`. Numera en vez de pisar.
-QString libre(const QString& dir, const QString& nombre) {
-    if (!QFileInfo::exists(dir + "/" + nombre)) return nombre;
-    const QFileInfo fi(nombre);
-    const QString base = fi.completeBaseName();
-    const QString ext = fi.suffix().isEmpty() ? QString() : "." + fi.suffix();
-    for (int i = 2; i < 1000; ++i) {
-        const QString n = base + " (" + QString::number(i) + ")" + ext;
-        if (!QFileInfo::exists(dir + "/" + n)) return n;
-    }
-    return nombre;
-}
-
 } // namespace
 
 bool mover(const QString& raiz, const QString& queRel, const QString& destinoRel, QString* error) {
@@ -244,7 +231,7 @@ bool mover(const QString& raiz, const QString& queRel, const QString& destinoRel
         return false;
     }
     if (QFileInfo(abs).dir().absolutePath() == dest) return true; // ya estaba ahi
-    const QString destino = dest + "/" + libre(dest, QFileInfo(abs).fileName());
+    const QString destino = dest + "/" + nombreLibre(dest, QFileInfo(abs).fileName());
     if (!QDir().rename(abs, destino)) {
         if (error) *error = QCoreApplication::translate("medios", "no se pudo mover (¿permisos?)");
         return false;
@@ -304,11 +291,23 @@ bool aPapelera(const QString& raiz, const QString& queRel, QString* error) {
         if (error) *error = QCoreApplication::translate("medios", "no se pudo crear la papelera");
         return false;
     }
-    if (!QDir().rename(abs, papelera + "/" + libre(papelera, QFileInfo(abs).fileName()))) {
+    if (!QDir().rename(abs, papelera + "/" + nombreLibre(papelera, QFileInfo(abs).fileName()))) {
         if (error) *error = QCoreApplication::translate("medios", "no se pudo mover a la papelera (¿permisos?)");
         return false;
     }
     return true;
+}
+
+QString nombreLibre(const QString& dir, const QString& nombre) {
+    if (!QFileInfo::exists(dir + "/" + nombre)) return nombre;
+    const QFileInfo fi(nombre);
+    const QString base = fi.completeBaseName();
+    const QString ext = fi.suffix().isEmpty() ? QString() : "." + fi.suffix();
+    for (int i = 2; i < 1000; ++i) {
+        const QString n = base + " (" + QString::number(i) + ")" + ext;
+        if (!QFileInfo::exists(dir + "/" + n)) return n;
+    }
+    return nombre;
 }
 
 } // namespace ba::app::medios

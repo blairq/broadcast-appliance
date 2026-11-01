@@ -860,9 +860,14 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, VentanillaMotor& ventanilla, QO
                                                             {g.nombre, e.toStdString()}));
             }
     });
+    // La política del supervisor la cambia también el MCP (en el hilo de control): avisa
+    // y la vista se entera por la propiedad, sin releerla con un reloj.
+    rt_.latido().alCambiarPolitica(
+        [this]() { QMetaObject::invokeMethod(this, [this]() { emit latidoPoliticaCambio(); }, Qt::QueuedConnection); });
 }
 
 StudioViewModel::~StudioViewModel() {
+    rt_.latido().alCambiarPolitica(nullptr); // espera al aviso en curso: después no queda nadie que lo llame
     videoParaVigia_.store(nullptr); // el vigía sigue un rato; el grafo se va con la imagen
     rt_.alFallarMotor(nullptr);
     rt_.dejarDeObservar(observadorRt_); // el runtime vive más que la vista
@@ -1262,6 +1267,11 @@ QVariantMap StudioViewModel::latidoUi() const {
     QJsonObject o = QJsonDocument::fromJson(QByteArray::fromStdString(j.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))).object();
     o["frames_poll"] = frames_->medidas(); // lo que tarda FrameService::poll en este hilo (F3-11)
     return o.toVariantMap();
+}
+
+QVariantMap StudioViewModel::latidoPolitica() const {
+    const nlohmann::json j = rt_.latido().estado().value("politica", nlohmann::json::object());
+    return QJsonDocument::fromJson(QByteArray::fromStdString(j.dump())).object().toVariantMap();
 }
 
 QString StudioViewModel::latidoPoliticaUi(const QVariantMap& cambios) {

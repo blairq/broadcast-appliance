@@ -551,7 +551,7 @@ void registrarHerramientasDeFoto(McpCore& core, FuentesDeFoto f) {
     {
         Tool t;
         t.name = "eventos_ultimo";
-        t.title = ba::i18n::traducir("mcp", "Ultimo valor de un tema");
+        t.title = ba::i18n::traducir("mcp", "Último valor de un tema");
         t.category = "botonera";
         t.clase = Clase::Lectura;
         t.description = QT_TRANSLATE_NOOP("mcp", "El ultimo valor publicado en `tema` (eventos_temas), con la hora.");

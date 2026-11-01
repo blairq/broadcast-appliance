@@ -9,7 +9,9 @@
 // preguntada a B), modo_vivo_estado y supervisor_caidas (la foto de AppViewModel y el
 // archivo del supervisor), system_info (archivos) y notificador_listar (con su candado).
 // Son las que se piden cuando algo anda mal, que es justo cuando la interfaz puede estar
-// trabada.
+// trabada. Lo que tampoco toca la interfaz pero ESCRIBE (log_marcar, audio_rack_vigia,
+// inicio_con_el_equipo) o TARDA (ndi_sources, evento_config) no es de la foto: va en
+// Hilo::SinInterfaz, con su propio pool, y no le quita hilos a estas.
 //
 // Las fuentes vienen de afuera (FuentesDeFoto): McpService las arma con el runtime y
 // la interfaz, y al lado de cada una dice de dónde sale y por qué se puede leer desde

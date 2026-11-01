@@ -20,14 +20,19 @@
 
 #include <nlohmann/json.hpp>
 
+#include <functional>
 #include <string>
 
 namespace ba::app::inicio {
 
 /// ¿Está prendido (y apunta a esta copia)?
 bool activo();
-/// Lo prende o lo apaga. "" o el error.
+/// Lo prende o lo apaga. "" o el error. Avisa a `alCambiar` (salga bien o no).
 std::string poner(bool activo);
+/// Quién se entera de que se tocó (la página de Sistema): lo prende la página, el MCP
+/// (inicio_con_el_equipo, fuera de la interfaz) o revisar(). Se llama desde el hilo que
+/// lo tocó; nullptr = nadie (espera al aviso en curso).
+void alCambiar(std::function<void()> f);
 /// En cada arranque: si está prendido pero apunta a otra ruta, la corrige.
 void revisar();
 /// {activo, ruta, notas: [lo que falta del equipo para volver solo tras un corte]}

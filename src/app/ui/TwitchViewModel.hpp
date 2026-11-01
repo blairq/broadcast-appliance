@@ -72,6 +72,12 @@ class TwitchViewModel : public QObject {
     Q_INVOKABLE QString saveClient(const QString& id, const QString& secret = {});
     Q_INVOKABLE void clearClient();
     Q_INVOKABLE void login();
+    /// El mismo login, con la respuesta (el MCP con `wait`): conectada (o el error), la
+    /// cuenta ya releída. Lo que ve la página es lo mismo que con login().
+    void login(TwitchClient::Done listo);
+    /// Para una escritura hecha con el cliente (el MCP): si sale bien, la página se
+    /// relee (refresh) antes de contestar. Una sola regla para todas las escrituras.
+    TwitchClient::Done conRefresco(TwitchClient::Done listo);
     Q_INVOKABLE void cancelLogin();
     Q_INVOKABLE void logout();
     Q_INVOKABLE void refresh();

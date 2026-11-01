@@ -89,7 +89,7 @@ void McpService::registerInputTools() {
     {
         Tool t;
         t.name = "video_input_add";
-        t.title = ba::i18n::traducir("mcp", "Agregar una camara o capturadora");
+        t.title = ba::i18n::traducir("mcp", "Agregar una cámara o capturadora");
         t.category = "entradas";
         t.clase = Clase::Escritura;
         t.description =
@@ -136,7 +136,7 @@ void McpService::registerInputTools() {
     {
         Tool t;
         t.name = "network_input_add";
-        t.title = ba::i18n::traducir("mcp", "Agregar una camara o señal de red");
+        t.title = ba::i18n::traducir("mcp", "Agregar una cámara o señal de red");
         t.category = "entradas";
         t.clase = Clase::Escritura;
         t.openWorld = true;
@@ -218,8 +218,9 @@ void McpService::registerInputTools() {
             {"type", "object"},
             {"properties",
              {{"seconds", {{"type", "integer"}, {"minimum", 1}, {"maximum", 15}, {"default", 4}}}}}};
-        // Busca en la red 4 a 15 s, sin tocar nada de la app: en el pool (en la interfaz la trababa).
-        t.hilo = Hilo::Foto;
+        // Busca en la red 4 a 15 s, sin tocar nada de la app: en su pool aparte (en la interfaz
+        // la trababa; en el de la foto, cuatro búsquedas dejaban sin hilo a status y help).
+        t.hilo = Hilo::SinInterfaz;
         t.run = [](const json& a, Done done) {
             json out = json::array();
             for (const auto& f : ndi::discover(a.value("seconds", 4) * 1000))
