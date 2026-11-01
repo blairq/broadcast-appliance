@@ -46,6 +46,18 @@ if [ -z "${DOCKER:-}" ]; then
 fi
 d() { $DOCKER "$@"; }
 
+# Colima: si está instalada y apagada, se prende para compilar y se APAGA al terminar
+# (bien o mal). La VM reserva mucha memoria: dejarla prendida tras un armado ayudó a
+# agotar la memoria de la Mac en una prueba de carga (kernel panic del 2026-11-01).
+# Si ya estaba prendida, se la deja como estaba. COLIMA_DEJAR=1 no la apaga.
+if command -v colima >/dev/null 2>&1 && ! colima status >/dev/null 2>&1; then
+    log "prendiendo colima para compilar (se apaga al terminar)"
+    colima start >/dev/null 2>&1 || morir "no se pudo prender colima"
+    if [ "${COLIMA_DEJAR:-0}" != 1 ]; then
+        trap 'log "apagando colima"; colima stop >/dev/null 2>&1 || true' EXIT
+    fi
+fi
+
 cd "$ROOT"
 [ -z "$(git status --porcelain --untracked-files=no)" ] || morir "hay cambios sin commitear: se compila un commit, no el arbol de trabajo"
 SHA="$(git rev-parse HEAD)"
