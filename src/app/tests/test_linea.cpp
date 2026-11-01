@@ -15,7 +15,8 @@
 //  12. Editar en lote (todo o nada, lo emitido protegido) y el diff.
 //  13. La vista compacta (linea_ver) y el ajuste simple (linea_ajustar).
 //  14. La corrida: GO, lo que entra solo, el aviso, HOLD, pausa, saltar, ir a con
-//      reposición, adlibs, insertar del estante y la retoma tras un corte.
+//      reposición, adlibs, insertar del estante y la retoma tras un corte. El GO de quien
+//      conduce (goDelGuion): la pieza pendiente del paso al aire antes que el paso que sigue.
 //  15. Condiciones (L7): leer, evaluar, la hora, el seguimiento y la revisión.
 //  16. La corrida con lo de afuera: «cuando», «mientras», piezas «cuando», pulsos y
 //      disparadores (en el flanco), el adlib del paso que vive su paso.
@@ -1188,6 +1189,23 @@ void testCorrida() {
     CHECK(c.sacarRecorrido().empty(), "y se saca una vez");
 }
 
+// El GO de quien conduce (la página, la vista de la línea y el MCP: uno solo).
+void testGoDelGuion() {
+    Corrida c(lineaCorrida(), entrada(T0));
+    auto acc = c.goDelGuion("principal", "p1", "zN", T0);
+    CHECK(c.estado() == EstadoCorrida::Corriendo && c.alAire("principal")->paso == "p1", "parada, el GO arranca");
+    acc = c.goDelGuion("principal", "p1", "zN", T0 + S);
+    CHECK(hay(acc, Accion::Que::Pieza, "zN") && c.alAire("principal")->paso == "p1",
+          "la pieza que sigue es del paso al aire y no salió: se dispara (no entra el paso que sigue)");
+    acc = c.goDelGuion("principal", "p1", "zN", T0 + 2 * S);
+    CHECK(hay(acc, Accion::Que::EntraPaso, "p2") && c.alAire("principal")->paso == "p2", "ya salió: GO");
+    acc = c.goDelGuion("principal", "p3", "zE3", T0 + 3 * S);
+    CHECK(hay(acc, Accion::Que::EntraPaso, "p3") && !hay(acc, Accion::Que::Pieza, "zN"),
+          "la que sigue es de otro paso: GO (no se dispara suelta)");
+    acc = c.goDelGuion("principal", "", "", T0 + 4 * S);
+    CHECK(c.estado() == EstadoCorrida::Terminada, "sin próximo, el GO termina");
+}
+
 void testCorridaHoldYPausa() {
     Linea l = tresPasos();
     l.bloques[0].pasos[0].continuar = Continuar::Sigue;
@@ -1757,6 +1775,7 @@ int main() {
     testEditar();
     testVistaYAjuste();
     testCorrida();
+    testGoDelGuion();
     testCorridaHoldYPausa();
     testCorridaSaltosEIr();
     testCorridaAdlibEInsertar();

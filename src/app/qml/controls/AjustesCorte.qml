@@ -18,8 +18,7 @@ ColumnLayout {
     spacing: 8
 
     function poner(pausa, maximo, umbral) {
-        const e = vz.setCortes(pausa, maximo, umbral)
-        if (e !== "") Studio.notify(e, "error")
+        vz.setCortes(pausa, maximo, umbral)
     }
     function dos(x) { return Number(x).toFixed(2).replace(".", ",") }
 

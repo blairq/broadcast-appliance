@@ -281,9 +281,15 @@ QVariantMap SourcesModel::efectos(const QString& name) const {
         .toVariantMap();
 }
 
-bool SourcesModel::setEfectos(const QString& name, const QVariantMap& cambios) {
+QVariantMap SourcesModel::efectosDe() const {
+    QVariantMap out;
+    for (const std::string& n : names_) out.insert(qs(n), efectos(qs(n)));
+    return out;
+}
+
+void SourcesModel::setEfectos(const QString& name, const QVariantMap& cambios) {
     const std::string n = name.toStdString();
-    if (rowOf(n) < 0) return false;
+    if (rowOf(n) < 0) return;
     // Lo que tiene ahora (lo pedido o la foto) con los cambios: la validación es del modelo
     // de la capa (EfectosCapa) y no necesita el motor.
     EfectosCapa ef;
@@ -294,14 +300,13 @@ bool SourcesModel::setEfectos(const QString& name, const QVariantMap& cambios) {
     std::string err;
     if (!ef.aplicar(nlohmann::json::parse(j.toStdString(), nullptr, false), &err)) {
         emit error(qs(err));
-        return false;
+        return;
     }
     pendientes_[n].efectos = ef.aJson();
     emit efectosCambio();
     pedir("fuente_efectos", n, [escena = scene_.toStdString(), n, ef](AppRuntime& rt) {
         return rt.setSourceEfectos(escena, n, ef) ? std::string() : rt.lastError();
     });
-    return true;
 }
 
 std::string SourcesModel::nombreLibre(const std::string& pedido) const {
@@ -702,12 +707,6 @@ QVariantMap MixerModel::picos() const {
     QVariantMap out;
     for (std::size_t i = 0; i < names_.size() && i < peaks_.size(); ++i) out[qs(names_[i])] = peaks_[i];
     return out;
-}
-
-double MixerModel::picoDe(const std::string& nombre) const {
-    for (std::size_t i = 0; i < names_.size(); ++i)
-        if (names_[i] == nombre) return peaks_[i];
-    return -100.0;
 }
 
 QVariantMap MixerModel::canal(int fila) const {

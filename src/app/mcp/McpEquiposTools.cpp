@@ -22,6 +22,10 @@
 
 #include <QJsonDocument>
 #include <QPointer>
+#include <QTimer>
+#include "ui/CapturaError.hpp"
+
+using ::ba::app::errorDe;
 
 namespace ba::app::mcp {
 
@@ -192,7 +196,7 @@ void McpService::registerEquiposTools() {
         t.run = [d](const json& a, Done done) {
             if (!d) return done(ToolResult::error(ba::i18n::traducir("mcp", "los equipos no están disponibles")));
             const QString id = QString::fromStdString(a.value("id", std::string()));
-            const QString err = d->renombrar(id, QString::fromStdString(a.value("nombre", std::string())));
+            const QString err = errorDe([&] { d->renombrar(id, QString::fromStdString(a.value("nombre", std::string()))); });
             if (!err.isEmpty()) return done(ToolResult::error(err.toStdString()));
             done(ToolResult().data(corto(d->equipo(id))));
         };
@@ -216,7 +220,7 @@ void McpService::registerEquiposTools() {
         t.run = [d](const json& a, Done done) {
             if (!d) return done(ToolResult::error(ba::i18n::traducir("mcp", "los equipos no están disponibles")));
             const QString id = QString::fromStdString(a.value("id", std::string()));
-            const QString err = d->configurar(id, aV(a.value("config", json::object())).toMap());
+            const QString err = errorDe([&] { d->configurar(id, aV(a.value("config", json::object())).toMap()); });
             if (!err.isEmpty()) return done(ToolResult::error(err.toStdString()));
             done(ToolResult().data(corto(d->equipo(id))));
         };
@@ -234,7 +238,7 @@ void McpService::registerEquiposTools() {
         t.inputSchema = {{"type", "object"}, {"required", {"id"}}, {"properties", {{"id", id}}}};
         t.run = [d](const json& a, Done done) {
             if (!d) return done(ToolResult::error(ba::i18n::traducir("mcp", "los equipos no están disponibles")));
-            const QString err = d->olvidar(QString::fromStdString(a.value("id", std::string())));
+            const QString err = errorDe([&] { d->olvidar(QString::fromStdString(a.value("id", std::string()))); });
             if (!err.isEmpty()) return done(ToolResult::error(err.toStdString()));
             done(ToolResult::ok(ba::i18n::traducir("mcp", "Olvidado.")));
         };

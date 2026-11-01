@@ -46,21 +46,20 @@ QVariantMap SubtitulosCC::estado() const {
             {"url_youtube", !url_.isEmpty()}, {"enviadas", enviadas_}, {"ultimas", u}};
 }
 
-QString SubtitulosCC::activar(const QVariantMap& cfg) {
+void SubtitulosCC::activar(const QVariantMap& cfg) {
     const QString metodo = cfg.value("metodo", metodo_).toString();
     if (metodo != "608" && metodo != "youtube_http" && metodo != "ambos")
-        return tr("metodo: 608, youtube_http o ambos");
+        return avisarError(tr("metodo: 608, youtube_http o ambos"));
     const QString url = cfg.value("url", url_).toString();
     if ((metodo == "youtube_http" || metodo == "ambos") && !url.startsWith("http"))
-        return tr("falta la URL de subtítulos del evento (YouTube Studio > el vivo > Subtítulos > «HTTP POST»)");
+        return avisarError(tr("falta la URL de subtítulos del evento (YouTube Studio > el vivo > Subtítulos > «HTTP POST»)"));
     flujo_ = cfg.value("flujo", flujo_).toString();
-    if (flujo_.isEmpty()) return tr("falta `flujo`: la salida de texto (texto_flujos)");
+    if (flujo_.isEmpty()) return avisarError(tr("falta `flujo`: la salida de texto (texto_flujos)"));
     metodo_ = metodo;
     url_ = url;
     activo_ = true;
     guardar();
     emit cambio();
-    return {};
 }
 
 void SubtitulosCC::desactivar() {
@@ -100,18 +99,17 @@ void SubtitulosCC::mandar(const QString& texto) {
     emit cambio();
 }
 
-QString SubtitulosCC::probar(const QString& texto) {
+void SubtitulosCC::probar(const QString& texto) {
     if (metodo_ != "youtube_http" && enviar608_ && metodo_ != "ambos") {
         // 608: si no hay ninguna salida transmitiendo, se avisa.
         if (enviar608_(texto, 3.0) == 0)
-            return tr("no hay ninguna transmisión activa para recibir los subtítulos 608");
+            return avisarError(tr("no hay ninguna transmisión activa para recibir los subtítulos 608"));
         ++enviadas_;
         ultimas_.push_back(texto);
         emit cambio();
-        return {};
+        return;
     }
     mandar(texto);
-    return {};
 }
 
 } // namespace ba::app::agent

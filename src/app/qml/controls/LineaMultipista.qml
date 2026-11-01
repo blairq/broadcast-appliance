@@ -28,7 +28,6 @@ Item {
     property bool globalesAbiertas: true
     readonly property int etiquetas: 92 // la columna con el nombre de cada carril
 
-    function hacer(error) { if (error !== "") Studio.notify(error, "error") }
 
     Shortcut { sequence: "1"; enabled: mp.activa; onActivated: mp.lv.zoom(1) }
     Shortcut { sequence: "2"; enabled: mp.activa; onActivated: mp.lv.zoom(2) }
@@ -79,7 +78,7 @@ Item {
                 compact: true
                 visible: mp.lv && mp.lv.pendientes.length > 0
                 text: qsTr("Confirmar"); active: true
-                onClicked: mp.hacer(mp.lv.confirmar())
+                onClicked: mp.lv.confirmar()
                 ToolTip.visible: hovered; ToolTip.delay: 400
                 ToolTip.text: qsTr("Aplica los cambios a la línea (queda una revisión para deshacer)")
             }
@@ -391,7 +390,7 @@ Item {
                                     }
                                     TapHandler {
                                         enabled: caja.p.estado === "alAire" && !modelData.disparada
-                                        onTapped: c.raiz.hacer(c.raiz.lv.adlib(modelData.id))
+                                        onTapped: c.raiz.lv.adlib(modelData.id)
                                     }
                                 }
                             }
@@ -405,7 +404,7 @@ Item {
                     target: null
                     xAxis.enabled: true
                     yAxis.enabled: false
-                    onActiveChanged: if (!active) c.raiz.hacer(c.raiz.lv.mover(caja.p.paso, (caja.x0 + activeTranslation.x) / area.width))
+                    onActiveChanged: if (!active) c.raiz.lv.mover(caja.p.paso, (caja.x0 + activeTranslation.x) / area.width)
                 }
                 // El borde derecho: el largo.
                 Rectangle {
@@ -418,7 +417,7 @@ Item {
                         id: borde
                         target: null
                         yAxis.enabled: false
-                        onActiveChanged: if (!active) c.raiz.hacer(c.raiz.lv.estirar(caja.p.paso, activeTranslation.x / area.width))
+                        onActiveChanged: if (!active) c.raiz.lv.estirar(caja.p.paso, activeTranslation.x / area.width)
                     }
                 }
                 HoverHandler { id: cajaHover; cursorShape: caja.arrastrable ? Qt.OpenHandCursor : Qt.ArrowCursor }
@@ -427,7 +426,7 @@ Item {
                 ToolTip.text: caja.p.nombre + " · " + (caja.p.frente || "") + (caja.p.escena ? " · " + caja.p.escena : "")
                               + (caja.p.porque ? "\n" + caja.p.porque : "")
                               + (caja.p.conflicto ? "\n" + qsTr("Conflicto con otra salida (cámara o gráfico compartido)") : "")
-                TapHandler { onDoubleTapped: c.raiz.hacer(c.raiz.lv.irA(caja.p.paso)) }
+                TapHandler { onDoubleTapped: c.raiz.lv.irA(caja.p.paso) }
             }
         }
 
@@ -463,7 +462,7 @@ Item {
                     enabled: bp.arrastrable
                     target: null
                     yAxis.enabled: false
-                    onActiveChanged: if (!active) c.raiz.hacer(c.raiz.lv.moverPieza(bp.pz.id, activeTranslation.x / area.width))
+                    onActiveChanged: if (!active) c.raiz.lv.moverPieza(bp.pz.id, activeTranslation.x / area.width)
                 }
                 HoverHandler { id: bpHover }
                 ToolTip.visible: bpHover.hovered && !mueve.active

@@ -41,6 +41,9 @@
 #include <algorithm>
 #include <map>
 #include <set>
+#include "ui/CapturaError.hpp"
+
+using ::ba::app::errorDe;
 
 namespace ba::app {
 
@@ -61,17 +64,19 @@ QObject* deCpp(QObject* o) {
 
 AsambleaViewModel::AsambleaViewModel(Partes p, QObject* parent) : QObject(parent), p_(std::move(p)) {
     cuerpo_ = std::make_unique<asamblea::CuerpoViewModel>(p_.rt.dataRoot());
+    connect(cuerpo_.get(), &asamblea::CuerpoViewModel::notify, this, &AsambleaViewModel::notify);
     armarBancas();
     armarSesion();
     // La central de conferencia (plugin bosch-dcn): su estado sale del bus.
     dcn_ = std::make_unique<asamblea::ConferenciaDcn>(p_.plugins, p_.bus, p_.rt.dataRoot());
     // Los presentes del quórum salen del padrón (o de la asistencia de la central): cada
     // vez que cambian, el quórum avisa, así se recalcula mientras se marca quién está.
-    if (p_.evento) connect(p_.evento, &EventoViewModel::padronChanged, quorum_.get(), &asamblea::Quorum::cambio);
+    if (p_.evento) connect(&p_.evento->padronVm(), &PadronViewModel::padronChanged, quorum_.get(), &asamblea::Quorum::cambio);
     connect(dcn_.get(), &asamblea::ConferenciaDcn::cambio, quorum_.get(), &asamblea::Quorum::cambio);
     armarInformes();
     // Las votaciones (central, celulares, Quórum) son del modelo.
     votaciones_ = std::make_unique<asamblea::Votaciones>(*sesionRemota_, *dcn_, *quorum_, p_.bus, this);
+    connect(votaciones_.get(), &asamblea::Votaciones::notify, this, &AsambleaViewModel::notify);
     // El Cuerpo cambió (nombres, fotos, unidades de la central): al bus, así se
     // redibuja la botonera y el plugin de la central relee su mapa.
     connect(cuerpo_.get(), &asamblea::CuerpoViewModel::cambio, this, [this]() {
@@ -223,6 +228,7 @@ void AsambleaViewModel::armarBancas() {
         return out;
     };
     bancas_ = std::make_unique<asamblea::Bancas>(cuerpo_->cuerpo(), g);
+    connect(bancas_.get(), &asamblea::Bancas::notify, this, &AsambleaViewModel::notify);
     // El debate entre dos: reusa lo de la fila (micrófonos, cámaras, escenas, remotos).
     asamblea::Debate::Ganchos gd;
     gd.esRemoto = g.esRemoto;
@@ -281,7 +287,7 @@ void AsambleaViewModel::armarBancas() {
     connect(debate_.get(), &asamblea::Debate::aviso, this, [this](const QString& t, const QString& n) { emit notify(t, n); });
     // La foto de cada integrante, capturada con la cámara de su banca.
     asamblea::CuerpoViewModel::Ganchos gc;
-    gc.apuntar = [this](const QString& banca) { return bancas_->apuntar(banca); };
+    gc.apuntar = [this](const QString& banca) { return errorDe([&] { bancas_->apuntar(banca); }); };
     gc.capturar = [this](const QString& camara, std::function<void(QImage)> listo) {
         // Sin esperar el cuadro (capturarAparte, pedida al dueño): vuelve a este hilo cuando llega.
         p_.ventanilla.pedir("asamblea_foto", [&rt = p_.rt, c = camara.toStdString(), listo = std::move(listo)]() mutable {
@@ -295,7 +301,9 @@ void AsambleaViewModel::armarBancas() {
     };
     cuerpo_->setGanchos(std::move(gc));
     seguirMic_ = std::make_unique<asamblea::SeguirMicrofono>(p_.rt.dataRoot(), p_.bus, cuerpo_->cuerpo(), *bancas_);
+    connect(seguirMic_.get(), &asamblea::SeguirMicrofono::notify, this, &AsambleaViewModel::notify);
     ordenDia_ = std::make_unique<asamblea::OrdenDelDia>(p_.rt.dataRoot(), p_.bus);
+    connect(ordenDia_.get(), &asamblea::OrdenDelDia::notify, this, &AsambleaViewModel::notify);
 }
 
 void AsambleaViewModel::armarSesion() {
@@ -325,14 +333,15 @@ void AsambleaViewModel::armarSesion() {
             }
         const int virt = sesionRemota_ ? sesionRemota_->presentes() : 0;
         if (p_.evento == nullptr) return virt;
-        const QVariantMap r = p_.evento->property("resumenPadron").toMap();
+        const QVariantMap r = p_.evento->padronVm().resumenPadron();
         return (r.value("conVoto").toInt() > 0 ? r.value("votoPresente").toInt() : r.value("presentes").toInt()) + virt;
     }, [this]() {
         // Mientras no se fije a mano, los miembros son los del padrón con voto.
-        return p_.evento ? p_.evento->property("resumenPadron").toMap().value("conVoto").toInt() : 0;
+        return p_.evento ? p_.evento->padronVm().resumenPadron().value("conVoto").toInt() : 0;
     });
+    connect(quorum_.get(), &asamblea::Quorum::notify, this, &AsambleaViewModel::notify);
     if (p_.evento == nullptr) return;
-    p_.evento->setAnexoActa([this]() {
+    p_.evento->informeVm().setAnexoActa([this]() {
         QString t = QString::fromStdString(quorum_->anexoActa() + ordenDia_->anexoActa(remotosPalabra()));
         if (sesionRemota_) {
             const std::string sr = sesionRemota_->anexoActa();
@@ -380,15 +389,15 @@ void AsambleaViewModel::armarInformes() {
             json d = json::object();
             d["cuerpo"] = cuerpo_ ? cuerpo_->cuerpo().nombre() : std::string();
             if (p_.evento) {
-                const QVariantMap g = p_.evento->guion();
+                const QVariantMap g = p_.evento->guionVm().guion();
                 d["evento"] = g.value("nombre").toString().toStdString();
                 d["fecha"] = g.value("fecha").toString().toStdString();
                 d["hora"] = g.value("inicio").toString().toStdString();
-                const QVariantMap r = p_.evento->resumenPadron();
+                const QVariantMap r = p_.evento->padronVm().resumenPadron();
                 d["padron"] = {{"presentes", r.value("presentes").toInt()}, {"total", r.value("total").toInt()},
                                {"con_voto", r.value("conVoto").toInt()}, {"voto_presentes", r.value("votoPresente").toInt()}};
                 json presentes = json::array();
-                for (const QVariant& v : p_.evento->padron()) {
+                for (const QVariant& v : p_.evento->padronVm().padron()) {
                     const QVariantMap a = v.toMap();
                     const qint64 llego = a.value("llegoMs").toLongLong();
                     if (llego <= 0 && a.value("estado").toString() != "llego") continue;
@@ -437,6 +446,7 @@ void AsambleaViewModel::armarInformes() {
         },
         [this]() { return p_.evento ? p_.evento->carpetaEvento() : std::filesystem::path(); },
         [](const QString& md, const QString& titulo, const QString& destino) { return APdf::texto(md, "markdown", titulo, destino); });
+    connect(informes_.get(), &asamblea::InformesResultado::notify, this, &AsambleaViewModel::notify);
 }
 
 QObject* AsambleaViewModel::cuerpoQml() const { return deCpp(cuerpo_.get()); }
@@ -453,9 +463,9 @@ QObject* AsambleaViewModel::quorumQml() const { return deCpp(quorum_.get()); }
 
 bool AsambleaViewModel::presidenciaHabla() const { return presidencia_ && presidencia_->presidenciaHabla(); }
 
-QString AsambleaViewModel::hablarARemoto(const QString& integrante, bool activo) {
-    if (!presidencia_) return tr("La sesión remota no está andando.");
-    return QString::fromStdString(presidencia_->hablarARemoto(integrante.toStdString(), activo));
+bool AsambleaViewModel::hablarARemoto(const QString& integrante, bool activo) {
+    if (!presidencia_) return sinError(tr("La sesión remota no está andando."));
+    return sinError(QString::fromStdString(presidencia_->hablarARemoto(integrante.toStdString(), activo)));
 }
 
 void AsambleaViewModel::silenciarTodos() {

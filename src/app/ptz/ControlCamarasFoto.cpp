@@ -40,6 +40,9 @@
 #include <algorithm>
 #include <fstream>
 #include <cmath>
+#include "ui/CapturaError.hpp"
+
+using ::ba::app::errorDe;
 
 namespace ba::app::ptz {
 
@@ -124,21 +127,21 @@ QVariantMap ControlCamaras::foto(const QString& entrada) const {
             {"cuando", c.foto.cuando}};
 }
 
-QString ControlCamaras::apuntarEnFoto(const QString& entrada, double u, double v, double ancho, double alto) {
+void ControlCamaras::apuntarEnFoto(const QString& entrada, double u, double v, double ancho, double alto) {
     QString error;
     Camara* c = camara(entrada, &error);
-    if (c == nullptr) return error;
-    if (c->foto.archivo.isEmpty()) return QCoreApplication::translate("ptz", "Primero sacá una foto");
+    if (c == nullptr) return avisarError(error);
+    if (c->foto.archivo.isEmpty()) return avisarError(QCoreApplication::translate("ptz", "Primero sacá una foto"));
     // Quieta desde la foto: la foto ES lo que ve; se apunta ya.
     if (c->movimientos == c->foto.movimientos) {
-        const QString e = apuntar(entrada, u, v, ancho, alto);
+        apuntar(entrada, u, v, ancho, alto);
         c->foto.movimientos = -1; // ya no mira lo de la foto
-        return e;
+        return;
     }
     if (c->foto.idMemoria.isEmpty())
-        return QCoreApplication::translate("ptz", "La cámara se movió desde la foto y no tiene una memoria para volver: sacá otra foto.");
+        return avisarError(QCoreApplication::translate("ptz", "La cámara se movió desde la foto y no tiene una memoria para volver: sacá otra foto."));
     const QVariantMap r = irAPosicion(entrada, c->foto.idMemoria, -1);
-    if (!r.value("ok").toBool()) return r.value("error").toString();
+    if (!r.value("ok").toBool()) return avisarError(r.value("error").toString());
     // Cuando llegó (la cabeza no avisa: se espera lo que tarda una típica), se apunta.
     // Si en el medio se la movió de otra forma, eso gana.
     const int marca = c->movimientos;
@@ -147,11 +150,10 @@ QString ControlCamaras::apuntarEnFoto(const QString& entrada, double u, double v
         if (!yo) return;
         Camara* c = yo->camara(entrada, nullptr);
         if (c == nullptr || c->movimientos != marca) return;
-        const QString e = yo->apuntar(entrada, u, v, ancho, alto);
+        const QString e = errorDe([&] { yo->apuntar(entrada, u, v, ancho, alto); });
         c->foto.movimientos = -1;
         if (!e.isEmpty()) emit yo->aviso(e);
     });
-    return {};
 }
 
 

@@ -6,8 +6,8 @@
 // el del bucle y no el redondeo de Qt) y un filtro de eventos en la aplicación
 // que anota cada evento que el hilo de la interfaz despacha (la clase del
 // destino y el tipo: sin armar textos, son miles por segundo). La herramienta
-// MCP en curso la anota McpCore. Lo que mide sale en `sistema_recursos` y en
-// Studio.latidoUi() (`bucle_ui`).
+// MCP en curso la anota McpCore. Lo que mide sale en `sistema_recursos` (`bucle_ui`) y
+// en Recursos.
 // ============================================================================
 #pragma once
 

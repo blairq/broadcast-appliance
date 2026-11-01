@@ -61,19 +61,16 @@ LineaViewModel::LineaViewModel(EventoViewModel& evento, AppRuntime& rt, Ventanil
                                control::Acciones* acciones, control::BusEventos* bus, QObject* parent)
     : QObject(parent), ev_(evento), rt_(rt), ventanilla_(ventanilla), frames_(frames), acciones_(acciones), bus_(bus) {
     // Todo lo que avisa el evento termina en UN recálculo (en la próxima vuelta del bucle).
-    for (auto senal : {&EventoViewModel::guionChanged, &EventoViewModel::correChanged, &EventoViewModel::relojChanged,
-                       &EventoViewModel::sucioChanged})
-        connect(&ev_, senal, this, &LineaViewModel::pedirRecalculo);
+    connect(&ev_.guionVm(), &GuionViewModel::guionChanged, this, &LineaViewModel::pedirRecalculo);
+    connect(&ev_.guionVm(), &GuionViewModel::sucioChanged, this, &LineaViewModel::pedirRecalculo);
+    connect(&ev_.corridaVm(), &CorridaViewModel::correChanged, this, &LineaViewModel::pedirRecalculo);
     // Lo que no cambia con el evento: la línea de «ahora», la edad de las fotos.
     segundo_.setInterval(1000);
-    // Corriendo, el evento ya avisa cada segundo (relojChanged): este es para cuando no corre.
-    connect(&segundo_, &QTimer::timeout, this, [this]() {
-        if (!corriendo()) recalcular();
-    });
+    connect(&segundo_, &QTimer::timeout, this, &LineaViewModel::recalcular);
     if (acciones_) {
         // El estante en la Botonera: un adlib por ítem («linea_adlib:<id>»).
         acciones_->ganchos().estante = [this]() {
-            const ln::Linea& l = ev_.corridaLinea() ? ev_.corridaLinea()->linea() : ev_.linea();
+            const ln::Linea& l = ev_.corridaVm().corrida() ? ev_.corridaVm().corrida()->linea() : ev_.eventoAbierto().linea();
             return ln::estante(l);
         };
         // Los atajos de Botonera → Atajos también son pulsos («tecla:F5»).
@@ -131,13 +128,13 @@ void LineaViewModel::setMirandoLinea(bool on) {
 
 QStringList LineaViewModel::salidas() const {
     QStringList out;
-    for (const std::string& s : ev_.linea().salidasEfectivas()) out << QString::fromStdString(s);
+    for (const std::string& s : ev_.eventoAbierto().linea().salidasEfectivas()) out << QString::fromStdString(s);
     return out;
 }
 
 std::string LineaViewModel::salidaEfectiva() const {
-    const auto ss = ev_.linea().salidasEfectivas();
-    return std::find(ss.begin(), ss.end(), salida_) != ss.end() ? salida_ : ev_.salidaPorOmision();
+    const auto ss = ev_.eventoAbierto().linea().salidasEfectivas();
+    return std::find(ss.begin(), ss.end(), salida_) != ss.end() ? salida_ : ev_.corridaVm().salidaPorOmision();
 }
 
 void LineaViewModel::setSalida(const QString& s) {
@@ -149,10 +146,10 @@ void LineaViewModel::setSalida(const QString& s) {
     pedirRecalculo();
 }
 
-QString LineaViewModel::estado() const { return ev_.estado(); }
+QString LineaViewModel::estado() const { return ev_.corridaVm().estado(); }
 
 bool LineaViewModel::corriendo() const {
-    const QString e = ev_.estado();
+    const QString e = ev_.corridaVm().estado();
     return e == "corriendo" || e == "pausado";
 }
 
@@ -166,7 +163,7 @@ void LineaViewModel::pedirRecalculo() {
 
 bool LineaViewModel::intocable(const std::string& paso, std::string* porque) const {
     // Como linea_editar: en vivo, lo emitido (y lo que está al aire) no se toca.
-    const ln::Corrida* c = ev_.corridaLinea();
+    const ln::Corrida* c = ev_.corridaVm().corrida();
     if (c == nullptr || !corriendo()) return false;
     for (const ln::Instancia& i : c->instancias()) {
         if (i.paso != paso) continue;
@@ -182,16 +179,16 @@ bool LineaViewModel::intocable(const std::string& paso, std::string* porque) con
 void LineaViewModel::recalcular() {
     recalculoPedido_ = false;
     const int64_t t = ahoraMs();
-    const json estado = ev_.lineaEstado();
+    const json estado = ev_.corridaVm().lineaEstado();
     publicarBus(estado);
-    const QString est = ev_.estado();
+    const QString est = ev_.corridaVm().estado();
     const bool cambioEstado = est != estado_;
     estado_ = est;
     if (cambioEstado) emit estadoChanged();
     if (!mirando_) return;
 
-    const ln::Corrida* c = ev_.corridaLinea();
-    const ln::Linea& plan = ev_.linea();
+    const ln::Corrida* c = ev_.corridaVm().corrida();
+    const ln::Linea& plan = ev_.eventoAbierto().linea();
     // Lo pendiente sobre el plan: si ya no se puede aplicar (cambió lo de abajo), se descarta.
     ln::Edicion ed;
     const bool hayPendientes = !pendientes_.empty();
@@ -216,7 +213,7 @@ void LineaViewModel::recalcular() {
         lineaVista_ = vista.linea();
         real = conEdicion ? c->resolver(t) : resolucionVista_;
     } else {
-        ln::Entrada e = ev_.entradaLinea(false);
+        ln::Entrada e = ev_.corridaVm().entradaBase(false);
         e.ahoraMs = t;
         lineaVista_ = conEdicion ? ed.linea : plan;
         resolucionVista_ = ln::resolver(lineaVista_, e);
@@ -238,7 +235,7 @@ void LineaViewModel::recalcular() {
     ctx.editable = [this](const std::string& paso, std::string& porque) { return !intocable(paso, &porque); };
     if (conEdicion)
         for (const json& d : ln::diferencias(plan, ed.linea)) ctx.pendientes.insert(d.value("id", std::string()));
-    ctx.hora = [this](int64_t ms) { return ev_.horaDe(ms); };
+    ctx.hora = [this](int64_t ms) { return ev_.corridaVm().horaDe(ms); };
     ctx.miniatura = [s](const std::string& escena, ln::FuenteMini f) -> json {
         // Las claves de FrameService: el programa y el PVW de la salida, o la vista chica.
         std::string clave;
@@ -269,7 +266,7 @@ void LineaViewModel::recalcular() {
     ln::ContextoVista ctxReal = ctx;
     ctxReal.pendientes.clear();
     json cond = ln::conduccion(lineaReal, real, ctxReal, sal);
-    cond["hora"] = ev_.horaDe(t);
+    cond["hora"] = ev_.corridaVm().horaDe(t);
     for (const char* k : {"transcurridoSeg", "pausadaSeg", "arranque"})
         if (estado.contains(k)) cond[k] = estado[k];
     // Las PTZ que esperan que su cámara salga del aire (de la línea entera: las
@@ -308,7 +305,7 @@ void LineaViewModel::recalcular() {
                 foco = std::max(t, sr->pasos.front().frenteMs); // sin correr: desde que arranca
         ventana_.desdeMs = foco - zoomMs_ / 3;
         ventana_.hastaMs = ventana_.desdeMs + zoomMs_;
-        const json mp = ln::multipista(lineaVista_, resolucionVista_, ctx, ventana_, ev_.entradaLinea(c != nullptr).medianocheMs);
+        const json mp = ln::multipista(lineaVista_, resolucionVista_, ctx, ventana_, ev_.corridaVm().entradaBase(c != nullptr).medianocheMs);
         if (mp != multipistaJ_) {
             multipistaJ_ = mp;
             multipista_ = aQv(mp).toMap();
@@ -374,8 +371,7 @@ void LineaViewModel::miniaturas(const std::map<std::string, ln::FuenteMini>& pre
     if (fotoEnCurso_) return;
     for (const auto& [escena, f] : presupuesto) {
         if (f != ln::FuenteMini::Foto) continue;
-        const auto v = fotosVisibles_.find(escena);
-        if (v == fotosVisibles_.end() || v->second <= 0) continue;
+        if (!miran_.activo(QStringLiteral("foto:") + QString::fromStdString(escena))) continue;
         const auto ya = fotoMs_.find(escena);
         if (ya != fotoMs_.end() && ahora - ya->second < kFotoCadaMs) continue;
         tomarFoto(escena);
@@ -406,13 +402,6 @@ void LineaViewModel::tomarFoto(const std::string& escena) {
                 Qt::QueuedConnection);
         });
     });
-}
-
-void LineaViewModel::mirarFoto(const QString& escena, bool mirar) {
-    if (escena.isEmpty()) return;
-    int& n = fotosVisibles_[escena.toStdString()];
-    n = std::max(0, n + (mirar ? 1 : -1));
-    if (mirar && n == 1) pedirRecalculo(); // si no tiene foto, que la saque ya
 }
 
 // --- Las miniaturas «con gráficos» (L10) ------------------------------------------------------
@@ -578,8 +567,13 @@ void LineaViewModel::rehacerTeclas() {
     emit teclasChanged();
 }
 
-QString LineaViewModel::atajo(const QString& accion) {
-    if (accion == "go") return go();
+void LineaViewModel::atajo(const QString& accion) {
+    // Arrancar es otra cosa (con la revisión previa, el botón «Arrancar»): un Espacio
+    // suelto no saca la línea al aire.
+    if (accion == "go") {
+        if (!corriendo()) return avisarError(tr("La línea no está corriendo: arrancala con «Arrancar»."));
+        return go();
+    }
     if (accion == "hold") return hold();
     if (accion == "anterior") return anterior();
     if (accion == "siguiente") return siguiente();
@@ -587,22 +581,22 @@ QString LineaViewModel::atajo(const QString& accion) {
     if (accion.startsWith("salida:")) {
         const QStringList ss = salidas();
         const int i = accion.mid(7).toInt() - 1;
-        if (i < 0 || i >= ss.size()) return tr("La línea no tiene una salida %1.").arg(i + 1);
+        if (i < 0 || i >= ss.size()) return avisarError(tr("La línea no tiene una salida %1.").arg(i + 1));
         setSalida(ss[i]);
-        return {};
+        return;
     }
     if (accion.startsWith("estante:")) return adlib(accion.mid(8));
     if (accion.startsWith("pulso:")) {
         pulsar("tecla:" + accion.mid(6).toStdString());
-        return {};
+        return;
     }
-    return tr("No hay un atajo «%1».").arg(accion);
+    avisarError(tr("No hay un atajo «%1».").arg(accion));
 }
 
 void LineaViewModel::pulsar(const std::string& clave) {
     // Por el bus, como la botonera: lo atiende la línea (y lo puede mirar un plugin).
     if (bus_ != nullptr) bus_->publicar("linea/pulso", clave, true);
-    else ev_.lineaPulso(clave);
+    else ev_.corridaVm().lineaPulso(clave);
 }
 
 // --- Vivo -------------------------------------------------------------------------------------
@@ -612,27 +606,20 @@ QString LineaViewModel::resultado(const std::string& error) {
     return QString::fromStdString(error);
 }
 
-QString LineaViewModel::go() {
-    // Arrancar es otra cosa (con la revisión previa): un Espacio suelto no saca la línea al aire.
-    if (!corriendo()) return tr("La línea no está corriendo: arrancala con «Arrancar».");
-    return resultado(ev_.lineaGo(salidaEfectiva()));
-}
-QString LineaViewModel::hold() { return resultado(ev_.lineaHold(salidaEfectiva(), std::nullopt)); }
-QString LineaViewModel::siguiente() { return resultado(ev_.lineaMoverProximo(salidaEfectiva(), 1)); }
-QString LineaViewModel::anterior() { return resultado(ev_.lineaMoverProximo(salidaEfectiva(), -1)); }
-QString LineaViewModel::saltar() { return resultado(ev_.lineaSaltar(salidaEfectiva())); }
-QString LineaViewModel::repetir() { return resultado(ev_.lineaRepetir(salidaEfectiva())); }
-QString LineaViewModel::irA(const QString& paso) { return resultado(ev_.lineaIr(salidaEfectiva(), paso.toStdString())); }
-QString LineaViewModel::insertar(const QString& item, bool alAire) {
-    return resultado(ev_.lineaInsertar(salidaEfectiva(), item.toStdString(), alAire));
+void LineaViewModel::go() { return avisarError(resultado(ev_.corridaVm().lineaGo(salidaEfectiva()))); }
+void LineaViewModel::hold() { return avisarError(resultado(ev_.corridaVm().lineaHold(salidaEfectiva(), std::nullopt))); }
+void LineaViewModel::siguiente() { return avisarError(resultado(ev_.corridaVm().lineaMoverProximo(salidaEfectiva(), 1))); }
+void LineaViewModel::anterior() { return avisarError(resultado(ev_.corridaVm().lineaMoverProximo(salidaEfectiva(), -1))); }
+void LineaViewModel::saltar() { return avisarError(resultado(ev_.corridaVm().lineaSaltar(salidaEfectiva()))); }
+void LineaViewModel::repetir() { return avisarError(resultado(ev_.corridaVm().lineaRepetir(salidaEfectiva()))); }
+void LineaViewModel::irA(const QString& paso) { return avisarError(resultado(ev_.corridaVm().lineaIr(salidaEfectiva(), paso.toStdString()))); }
+void LineaViewModel::insertar(const QString& item, bool alAire) {
+    avisarError(resultado(ev_.corridaVm().lineaInsertar(salidaEfectiva(), item.toStdString(), alAire)));
 }
 
-QString LineaViewModel::adlib(const QString& id) {
-    // Un paso del estante no se «dispara»: va de próximo.
-    const ln::Linea& l = ev_.corridaLinea() ? ev_.corridaLinea()->linea() : ev_.linea();
-    for (const ln::ItemEstante& it : l.estante)
-        if (it.id == id.toStdString() && it.paso) return insertar(id, false);
-    return resultado(ev_.lineaAdlib(salidaEfectiva(), id.toStdString()));
+void LineaViewModel::adlib(const QString& id) {
+    // Un paso del estante va de próximo: lo decide la corrida (lineaAdlib).
+    avisarError(resultado(ev_.corridaVm().lineaAdlib(salidaEfectiva(), id.toStdString())));
 }
 
 // --- La ventana ---------------------------------------------------------------------------
@@ -680,12 +667,12 @@ void LineaViewModel::alAhora() {
 QString LineaViewModel::sumarPendiente(const json& op) {
     json ops = pendientes_;
     ops.push_back(op);
-    const ln::Edicion ed = ln::editar(ev_.linea(), ops, [this](const std::string& p) { return intocable(p, nullptr); });
+    const ln::Edicion ed = ln::editar(ev_.eventoAbierto().linea(), ops, [this](const std::string& p) { return intocable(p, nullptr); });
     if (!ed.ok) return QString::fromStdString(ed.error);
     pendientes_ = std::move(ops);
     // En palabras: lo que cambió contra el plan (no la lista de operaciones).
     QVariantList ui;
-    for (const json& d : ln::diferencias(ev_.linea(), ed.linea)) {
+    for (const json& d : ln::diferencias(ev_.eventoAbierto().linea(), ed.linea)) {
         const std::string que = d.value("que", std::string()), id = d.value("id", std::string());
         const ln::Paso* p = ed.linea.paso(id);
         const QString nombre = QString::fromStdString(p ? p->nombre : id);
@@ -701,68 +688,67 @@ QString LineaViewModel::sumarPendiente(const json& op) {
     return {};
 }
 
-QString LineaViewModel::estirar(const QString& paso, double dx) {
+void LineaViewModel::estirar(const QString& paso, double dx) {
     const ln::Paso* p = lineaVista_.paso(paso.toStdString());
-    if (p == nullptr) return tr("No hay un paso «%1».").arg(paso);
+    if (p == nullptr) return avisarError(tr("No hay un paso «%1».").arg(paso));
     std::string porque;
-    if (intocable(p->id, &porque)) return QString::fromStdString(porque);
+    if (intocable(p->id, &porque)) return avisarError(QString::fromStdString(porque));
     const int64_t ms = p->duracionPlanMs() + ventana_.ms(dx) - ventana_.desdeMs;
     const int seg = static_cast<int>(std::max<int64_t>(1000, ms) / 1000);
     json campos{{"duracionPrevistaSeg", seg}};
     // Un paso abierto sigue abierto: solo cambia lo que se prevé.
     if (p->fin.modo == ln::ModoFin::Duracion) campos["fin"] = {{"duracion", seg}};
-    return sumarPendiente({{"op", "cambiar"}, {"id", p->id}, {"campos", campos}});
+    avisarError(sumarPendiente({{"op", "cambiar"}, {"id", p->id}, {"campos", campos}}));
 }
 
-QString LineaViewModel::mover(const QString& paso, double x) {
+void LineaViewModel::mover(const QString& paso, double x) {
     const std::string id = paso.toStdString();
     std::string porque;
-    if (intocable(id, &porque)) return QString::fromStdString(porque);
+    if (intocable(id, &porque)) return avisarError(QString::fromStdString(porque));
     const ln::SalidaResuelta* sr = resolucionVista_.salida(salidaEfectiva());
-    if (sr == nullptr || lineaVista_.paso(id) == nullptr) return tr("No hay un paso «%1».").arg(paso);
+    if (sr == nullptr || lineaVista_.paso(id) == nullptr) return avisarError(tr("No hay un paso «%1».").arg(paso));
     const int64_t ms = ventana_.ms(x);
     // Detrás del último que arranca antes de donde se soltó (sin contarse a sí mismo).
     const ln::PasoResuelto* detras = nullptr;
     for (const ln::PasoResuelto& pr : sr->pasos)
         if (pr.paso != id && pr.estado != ln::EstadoPaso::Salteado && pr.frenteMs <= ms) detras = &pr;
     if (detras == nullptr) {
-        if (sr->pasos.empty()) return {};
+        if (sr->pasos.empty()) return;
         // Antes de todo: al principio del primer bloque.
-        return sumarPendiente({{"op", "mover"}, {"id", id}, {"bloque", sr->pasos.front().bloque}, {"despuesDe", ""}});
+        return avisarError(sumarPendiente({{"op", "mover"}, {"id", id}, {"bloque", sr->pasos.front().bloque}, {"despuesDe", ""}}));
     }
-    return sumarPendiente({{"op", "mover"}, {"id", id}, {"bloque", detras->bloque}, {"despuesDe", detras->paso}});
+    avisarError(sumarPendiente({{"op", "mover"}, {"id", id}, {"bloque", detras->bloque}, {"despuesDe", detras->paso}}));
 }
 
-QString LineaViewModel::moverPieza(const QString& pieza, double dx) {
+void LineaViewModel::moverPieza(const QString& pieza, double dx) {
     const std::string id = pieza.toStdString();
     for (const ln::Bloque& b : lineaVista_.bloques)
         for (const ln::Paso& p : b.pasos)
             for (const ln::Pieza& z : p.piezas) {
                 if (z.id != id) continue;
                 std::string porque;
-                if (intocable(p.id, &porque)) return QString::fromStdString(porque);
+                if (intocable(p.id, &porque)) return avisarError(QString::fromStdString(porque));
                 if (z.desde.modo != ln::Ancla::Modo::Ms)
-                    return tr("«%1» no entra a una hora del paso: se mueve desde su ficha.").arg(QString::fromStdString(z.texto.empty() ? z.id : z.texto));
+                    return avisarError(tr("«%1» no entra a una hora del paso: se mueve desde su ficha.").arg(QString::fromStdString(z.texto.empty() ? z.id : z.texto)));
                 const int64_t ms = std::clamp<int64_t>(z.desde.ms + ventana_.ms(dx) - ventana_.desdeMs, 0, p.duracionPlanMs());
-                return sumarPendiente({{"op", "cambiar"}, {"id", id}, {"campos", {{"desde", {{"ms", ms}}}}}});
+                return avisarError(sumarPendiente({{"op", "cambiar"}, {"id", id}, {"campos", {{"desde", {{"ms", ms}}}}}}));
             }
-    return tr("No hay una pieza «%1».").arg(pieza);
+    avisarError(tr("No hay una pieza «%1».").arg(pieza));
 }
 
-QString LineaViewModel::reordenar(const QString& paso, const QString& bloque, const QString& detrasDe) {
+void LineaViewModel::reordenar(const QString& paso, const QString& bloque, const QString& detrasDe) {
     const std::string id = paso.toStdString();
-    if (id == detrasDe.toStdString()) return {};
+    if (id == detrasDe.toStdString()) return;
     std::string porque;
-    if (intocable(id, &porque)) return QString::fromStdString(porque);
-    return sumarPendiente({{"op", "mover"}, {"id", id}, {"bloque", bloque.toStdString()}, {"despuesDe", detrasDe.toStdString()}});
+    if (intocable(id, &porque)) return avisarError(QString::fromStdString(porque));
+    avisarError(sumarPendiente({{"op", "mover"}, {"id", id}, {"bloque", bloque.toStdString()}, {"despuesDe", detrasDe.toStdString()}}));
 }
 
-QString LineaViewModel::confirmar() {
-    if (pendientes_.empty()) return {};
-    const json r = ev_.lineaEditar(pendientes_, false);
-    if (!r.value("ok", false)) return QString::fromStdString(r.value("error", std::string()));
+void LineaViewModel::confirmar() {
+    if (pendientes_.empty()) return;
+    const json r = ev_.corridaVm().lineaEditar(pendientes_, false);
+    if (!r.value("ok", false)) return avisarError(QString::fromStdString(r.value("error", std::string())));
     descartar();
-    return {};
 }
 
 void LineaViewModel::descartar() {

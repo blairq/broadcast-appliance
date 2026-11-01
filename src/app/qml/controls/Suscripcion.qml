@@ -19,10 +19,8 @@ QtObject {
 
     property var _objetivo: null
     property string _que: ""
-    function _usar(o, q, si) {
-        if (q === "") o.usar(s, si)
-        else o.usar(s, si, q)
-    }
+    // Todos los modelos tienen `usar(vista, si, que = "")` (UsoPorVistas): siempre con los tres.
+    function _usar(o, q, si) { o.usar(s, si, q) }
     function _aplicar() {
         const o = s.activa ? s.objetivo : null
         if (o === s._objetivo && s.que === s._que) return

@@ -12,7 +12,6 @@ Rectangle {
     id: page
     color: Theme.bg
     property real leftInset: 92
-    onVisibleChanged: if (visible && Studio.manuales) Studio.manuales.refrescar()
 
     ColumnLayout {
         anchors { fill: parent; leftMargin: page.leftInset; margins: 20 }
@@ -97,7 +96,7 @@ Rectangle {
                                       .arg(man.modeloActual !== "" ? man.modeloActual : qsTr("sin modelo elegido"))
                                       + (man.ag.running ? "" : "\n\n" + qsTr("El asistente no está corriendo: lo arranco y se lo paso cuando esté listo.")),
                                 accept: qsTr("Generar"), reject: qsTr("Cancelar"),
-                                action: () => { const e = man.m.generar(); if (e !== "") Studio.notify(e, "error") }
+                                action: () => { man.m.generar() }
                             })
                         }
                     }

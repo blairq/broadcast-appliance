@@ -88,11 +88,10 @@ Rectangle {
     // la conferencia o en la sesion remota eso corta todo, asi que se advierte y se pide una
     // confirmacion explicita. Lo que se corta lo dice Studio (Main.qml usa lo mismo).
     readonly property bool onAir: Studio.app.impactoDeCerrar.hay
-    function onAirWarning(what) { return Studio.app.avisoDeCerrar(what) }
     function confirmUpdate(folder) {
         ApplicationWindow.window.confirm({
             title: qsTr("¿Actualizar ahora?"),
-            text: page.onAirWarning("actualizar"),
+            text: Studio.app.impactoDeCerrar.avisoActualizar,
             accept: qsTr("Actualizar igual"),
             reject: qsTr("Cancelar"),
             action: function() { page.updateError = sys.startUpdate(folder) }
@@ -103,7 +102,7 @@ Rectangle {
         ApplicationWindow.window.confirm({
             title: qsTr("¿Volver a la versión anterior?"),
             text: page.onAir ? qsTr("%1 Después se restaura el programa anterior y la aplicación vuelve a abrir sola. %2")
-                                   .arg(page.onAirWarning("volver")).arg(data)
+                                   .arg(Studio.app.impactoDeCerrar.avisoVolver).arg(data)
                              : qsTr("La aplicación se cierra, se restaura el programa anterior y vuelve a abrir sola. %1").arg(data),
             accept: qsTr("Volver a la anterior"),
             reject: qsTr("Cancelar"),
@@ -399,8 +398,7 @@ Rectangle {
                 }
                 function guardarSecreto(campo, esToken) {
                     if (!esToken) {
-                        const e = pg.ar.guardarApiKey(campo.text)
-                        if (e !== "") { Studio.notify(e, "error"); return }
+                        if (!pg.ar.guardarApiKey(campo.text)) return
                         campo.text = ""
                         Studio.notify(qsTr("API key guardada (cifrada)."), "ok")
                         return
@@ -819,8 +817,7 @@ Rectangle {
                 spacing: 12
                 readonly property var estado: Studio.agent.controlSistema
                 function cambiar(c) {
-                    const e = Studio.agent.setControlSistema(c)
-                    if (e !== "") Studio.notify(e, "error")
+                    Studio.agent.setControlSistema(c)
                 }
                 Text {
                     Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.textDim; font.pixelSize: 12
@@ -1441,8 +1438,7 @@ Rectangle {
                         model: nombres
                         currentIndex: Math.max(0, nombres.indexOf(Studio.voz.microfono))
                         onActivated: (i) => {
-                            const e = Studio.voz.setMicrofono(i === 0 ? "" : nombres[i])
-                            if (e !== "") Studio.notify(e, "error")
+                            Studio.voz.setMicrofono(i === 0 ? "" : nombres[i])
                         }
                     }
                 }
@@ -1979,7 +1975,7 @@ Rectangle {
                 visible: page.onAir
                 color: Theme.live
                 font { pixelSize: 15; weight: Font.DemiBold }
-                text: page.onAirWarning("actualizar")
+                text: Studio.app.impactoDeCerrar.avisoActualizar
             }
             Label {
                 width: parent.width

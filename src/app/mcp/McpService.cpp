@@ -109,6 +109,9 @@
 #include "ui/SettingsModel.hpp"
 #include "ui/StudioViewModel.hpp"
 #include "platform/Hilo.hpp"
+#include "ui/CapturaError.hpp"
+
+using ::ba::app::errorDe;
 
 namespace ba::app::mcp {
 
@@ -803,7 +806,7 @@ void McpService::applySecurity() {
     // El guion del evento llama herramientas (p. ej. el cue Pantalla): lo corre
     // el operador, así que cuenta como una persona.
     if (auto* ev = static_cast<EventoViewModel*>(vm_.evento()))
-        ev->setHerramienta([this](const std::string& h, const json& args, std::function<void(bool, const std::string&)> fin) {
+        ev->corridaVm().setHerramienta([this](const std::string& h, const json& args, std::function<void(bool, const std::string&)> fin) {
             core_.callTool({{"name", h}, {"arguments", args}},
                            [fin](const json& r) {
                                std::string texto;
@@ -2637,7 +2640,7 @@ void McpService::registerTools() {
             QVariantMap m{{"flujo", QString::fromStdString(a.value("flujo", std::string()))},
                           {"metodo", QString::fromStdString(a.value("metodo", std::string("608")))}};
             if (a.contains("url")) m["url"] = QString::fromStdString(a.value("url", std::string()));
-            const QString e = vm.cc().activar(m);
+            const QString e = errorDe([&] { vm.cc().activar(m); });
             if (!e.isEmpty()) return done(ToolResult::error(e.toStdString()));
             done(ToolResult().data(qvToJson(vm.cc().estado())));
         };
@@ -2666,7 +2669,7 @@ void McpService::registerTools() {
         t.description = QT_TRANSLATE_NOOP("mcp", "Manda un `texto` de prueba por lo configurado (608 necesita una transmision activa).");
         t.inputSchema = {{"type", "object"}, {"required", {"texto"}}, {"properties", {{"texto", {{"type", "string"}}}}}};
         t.run = [&vm](const json& a, Done done) {
-            const QString e = vm.cc().probar(QString::fromStdString(a.value("texto", std::string())));
+            const QString e = errorDe([&] { vm.cc().probar(QString::fromStdString(a.value("texto", std::string()))); });
             if (!e.isEmpty()) return done(ToolResult::error(e.toStdString()));
             done(ToolResult::ok(ba::i18n::traducir("mcp", "Mandado.")));
         };
@@ -2810,7 +2813,7 @@ void McpService::registerTools() {
                          {"properties", {{"agregar", {{"type", "string"}}}, {"quitar", {{"type", "string"}}}}}};
         t.run = [&vm](const json& a, Done done) {
             if (a.contains("agregar")) {
-                const QString e = vm.bancas().agregar(QString::fromStdString(a.value("agregar", std::string())));
+                const QString e = errorDe([&] { vm.bancas().agregar(QString::fromStdString(a.value("agregar", std::string()))); });
                 if (!e.isEmpty()) return done(ToolResult::error(e.toStdString()));
             }
             if (a.contains("quitar")) vm.bancas().quitar(QString::fromStdString(a.value("quitar", std::string())));
@@ -2841,8 +2844,12 @@ void McpService::registerTools() {
         t.run = [&vm](const json& a, Done done) {
             if (a.contains("asignado_s")) vm.bancas().setAsignado(a.value("asignado_s", 180));
             const QString modo = QString::fromStdString(a.value("modo", std::string("armar")));
-            const QString e = a.contains("banca") ? vm.bancas().alAire(QString::fromStdString(a.value("banca", std::string())), modo)
-                                                  : vm.bancas().siguiente(modo);
+            const QString e = errorDe([&] {
+                if (a.contains("banca"))
+                    vm.bancas().alAire(QString::fromStdString(a.value("banca", std::string())), modo);
+                else
+                    vm.bancas().siguiente(modo);
+            });
             if (!e.isEmpty()) return done(ToolResult::error(e.toStdString()));
             json r = vm.bancas().estadoJson();
             done(ToolResult().text(r.value("aviso", std::string()).empty()
@@ -3324,7 +3331,7 @@ void McpService::registerTools() {
                            {"prioridad", {{"type", {"integer", "string"}}}}}}};
         t.run = [&vm](const json& a, Done done) {
             QVariantMap m = QJsonDocument::fromJson(QByteArray::fromStdString(a.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))).object().toVariantMap();
-            const QString e = vm.cuerpo().guardar(m);
+            const QString e = errorDe([&] { vm.cuerpo().guardar(m); });
             if (!e.isEmpty()) return done(ToolResult::error(e.toStdString()));
             done(ToolResult().data(vm.cuerpo().cuerpo().buscar(a.value("banca", a.value("nombre", a.value("id", std::string()))))));
         };
@@ -3490,7 +3497,7 @@ void McpService::registerTools() {
                         "para pedirlo de palabra (banca, persona o posición): enfocar.");
         t.inputSchema = {{"type", "object"}, {"required", {"banca"}}, {"properties", {{"banca", {{"type", "string"}}}}}};
         t.run = [&vm](const json& a, Done done) {
-            const QString e = vm.bancas().apuntar(QString::fromStdString(a.value("banca", std::string())));
+            const QString e = errorDe([&] { vm.bancas().apuntar(QString::fromStdString(a.value("banca", std::string()))); });
             if (!e.isEmpty()) return done(ToolResult::error(e.toStdString()));
             done(ToolResult::ok(ba::i18n::llenar(ba::i18n::traducir("mcp", "Cámara en camino a la banca %1."), {a.value("banca", std::string())})));
         };
@@ -3531,7 +3538,7 @@ void McpService::registerTools() {
                 }
                 return done(ToolResult().data(r));
             }
-            const QString e = vm.bancas().enfocar(QString::fromStdString(que), a.value("forzar", false));
+            const QString e = errorDe([&] { vm.bancas().enfocar(QString::fromStdString(que), a.value("forzar", false)); });
             if (!e.isEmpty()) {
                 ToolResult err = ToolResult::error(e.toStdString());
                 err.structured = json{{"camara_al_aire", vm.bancas().enfocarFrenoPorAire()}, {"entendido", r}};

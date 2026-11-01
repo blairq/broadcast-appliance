@@ -51,6 +51,7 @@
 
 #include "agent/Lanzamiento.hpp"
 #include "term/TerminalSession.hpp"
+#include "ui/CapturaError.hpp"
 
 class QProcess;
 
@@ -65,6 +66,17 @@ class AlertEngine;
 
 class AgentViewModel : public QObject {
     Q_OBJECT
+    /// El error de una acción de la interfaz (las Q_INVOKABLE void): a quien mira.
+    void avisarError(const QString& e) {
+        if (!e.isEmpty() && !::ba::app::CapturaError::tomar(e)) emit notify(e, "error");
+    }
+    void avisarError(const std::string& e) { avisarError(QString::fromStdString(e)); }
+    /// Para las acciones que dicen si se hicieron: el error a quien mira y true si no hubo.
+    bool sinError(const QString& e) {
+        avisarError(e);
+        return e.isEmpty();
+    }
+    bool sinError(const std::string& e) { return sinError(QString::fromStdString(e)); }
     /// Control del sistema (ver controlSistema()).
     Q_PROPERTY(QVariantMap controlSistema READ controlSistema NOTIFY controlSistemaCambio)
     /// La seguridad en vivo: {hay_aire, herramientas: [las de aire]}. Cambia con lo que sale
@@ -256,16 +268,17 @@ class AgentViewModel : public QObject {
     Q_INVOKABLE QVariantList alertTypesUi() const;
     /// Crea un disparador desde el editor ({type, name, params, sonido, reconocer, notificar,
     /// accion: {herramienta, argumentos}}), con los parámetros y los argumentos como los
-    /// escribió el operador (acá se convierten y se valida el JSON). "" o el error.
-    Q_INVOKABLE QString createAlertUi(const QVariantMap& spec);
+    /// escribió el operador (acá se convierten y se valida el JSON). El error va por la señal
+    /// del modelo (y dice si anduvo).
+    Q_INVOKABLE bool createAlertUi(const QVariantMap& spec);
     Q_INVOKABLE void openAgentsFolder() const;
     /// Control del sistema (agent/ControlSistema::estado): {habilitado, preguntar, permisos{},
     /// capacidades[], sistema, soportado}. Cambia al configurarlo (desde acá o el MCP).
     QVariantMap controlSistema() const;
     /// Lo mismo que setControlSistema, para el MCP (control_configurar). "" o el error.
     std::string configurarControlSistema(const nlohmann::json& cambios, nlohmann::json* resultado = nullptr);
-    /// Aplica {habilitado?, preguntar?, permisos?{}} y guarda. "" o el error.
-    Q_INVOKABLE QString setControlSistema(const QVariantMap& cambios);
+    /// Aplica {habilitado?, preguntar?, permisos?{}} y guarda. El error va por la señal del modelo.
+    Q_INVOKABLE void setControlSistema(const QVariantMap& cambios);
 
     // --- Limpieza -----------------------------------------------------------------
     QVariantList limpieza() const { return limpieza_; }
@@ -279,7 +292,7 @@ class AgentViewModel : public QObject {
     /// Si algo falla: borra el programa del motor y lo vuelve a bajar. Con
     /// `deCero`, además el perfil entero (chats, ajustes y el LOGIN: hay que volver
     /// a entrar; las claves de API pegadas quedan). "" si arrancó, o el motivo.
-    Q_INVOKABLE QString reinstalar(const QString& runtime, bool deCero);
+    Q_INVOKABLE void reinstalar(const QString& runtime, bool deCero);
     /// Cuántos encargos de roles corren (para no borrar debajo de ellos). Lo pone la app.
     void setCorridasEnCurso(std::function<int()> fn) { corridasEnCurso_ = std::move(fn); }
 

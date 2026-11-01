@@ -397,10 +397,63 @@ json CatalogoGst::interior(const std::string& elemento) const {
 #endif
 }
 
+namespace {
+/// La descripción de fábrica con los valores `actuales` puestos.
+json conValores(json desc, const json& actuales) {
+    for (json& r : desc) {
+        const std::string nombre = r.value("nombre", std::string());
+        r["valor"] = actuales.is_object() && actuales.contains(nombre) ? actuales[nombre] : r["defecto"];
+    }
+    return desc;
+}
+} // namespace
+
 json CatalogoGst::propiedades(const std::string& elemento, const json& actuales) const {
+    return conValores(descripcion(elemento, {}), actuales);
+}
+
+json CatalogoGst::propiedadesPad(const std::string& elemento, const std::string& plantilla, const json& actuales) const {
+    if (plantilla.empty()) return json::array();
+    return conValores(descripcion(elemento, plantilla), actuales);
+}
+
+json CatalogoGst::descripcion(const std::string& elemento, const std::string& plantilla) const {
+    const std::string clave = elemento + '\n' + plantilla;
+    {
+        std::lock_guard<std::mutex> l(descMu_);
+        if (const auto it = descripciones_.find(clave); it != descripciones_.end()) return it->second;
+    }
     json out = json::array();
 #if defined(BA_HAVE_GST)
     if (!disponible_) return out;
+    if (!plantilla.empty()) {
+        // Sin crear pads: la clase del pad sale de la plantilla del elemento (los valores de
+        // fábrica, de la especificación de cada propiedad).
+        GstElement* e = gst_element_factory_make(elemento.c_str(), nullptr);
+        if (e == nullptr) return out;
+        GstPadTemplate* t = gst_element_get_pad_template(e, plantilla.c_str());
+        const GType tipo = t != nullptr && GST_PAD_TEMPLATE_GTYPE(t) != G_TYPE_NONE ? GST_PAD_TEMPLATE_GTYPE(t) : GST_TYPE_PAD;
+        auto* clase = static_cast<GObjectClass*>(g_type_class_ref(tipo));
+        guint n = 0;
+        GParamSpec** ps = g_object_class_list_properties(clase, &n);
+        for (guint i = 0; i < n; ++i) {
+            GParamSpec* p = ps[i];
+            // Las de cualquier pad (caps, dirección, plantilla, offset) y la maquinaria del
+            // agregador (emit-signals) no son del módulo.
+            if (p->owner_type == GST_TYPE_PAD || p->owner_type == GST_TYPE_OBJECT || p->owner_type == G_TYPE_OBJECT) continue;
+            const std::string nombre = g_param_spec_get_name(p);
+            if (!(p->flags & G_PARAM_WRITABLE) || (p->flags & G_PARAM_CONSTRUCT_ONLY) || nombre == "emit-signals") continue;
+            json r = describirPropiedad(p, g_param_spec_get_default_value(p));
+            if (r.is_null()) continue;
+            out.push_back(std::move(r));
+        }
+        g_free(ps);
+        g_type_class_unref(clase);
+        gst_object_unref(e);
+        std::lock_guard<std::mutex> l(descMu_);
+        descripciones_[clave] = out;
+        return out;
+    }
     GstElement* e = gst_element_factory_make(elemento.c_str(), nullptr);
     if (e == nullptr) return out;
     guint n = 0;
@@ -419,50 +472,15 @@ json CatalogoGst::propiedades(const std::string& elemento, const json& actuales)
         json r = describirPropiedad(p, &v);
         g_value_unset(&v);
         if (r.is_null()) continue; // caps, objetos, punteros: no tienen formulario
-        r["valor"] = actuales.is_object() && actuales.contains(nombre) ? actuales[nombre] : r["defecto"];
         out.push_back(std::move(r));
     }
     g_free(ps);
     gst_object_unref(e);
-#else
-    (void)elemento;
-    (void)actuales;
-#endif
-    return out;
-}
-
-json CatalogoGst::propiedadesPad(const std::string& elemento, const std::string& plantilla, const json& actuales) const {
-    json out = json::array();
-#if defined(BA_HAVE_GST)
-    if (!disponible_ || plantilla.empty()) return out;
-    // Sin crear pads: la clase del pad sale de la plantilla del elemento (los valores de
-    // fábrica, de la especificación de cada propiedad).
-    GstElement* e = gst_element_factory_make(elemento.c_str(), nullptr);
-    if (e == nullptr) return out;
-    GstPadTemplate* t = gst_element_get_pad_template(e, plantilla.c_str());
-    const GType tipo = t != nullptr && GST_PAD_TEMPLATE_GTYPE(t) != G_TYPE_NONE ? GST_PAD_TEMPLATE_GTYPE(t) : GST_TYPE_PAD;
-    auto* clase = static_cast<GObjectClass*>(g_type_class_ref(tipo));
-    guint n = 0;
-    GParamSpec** ps = g_object_class_list_properties(clase, &n);
-    for (guint i = 0; i < n; ++i) {
-        GParamSpec* p = ps[i];
-        // Las de cualquier pad (caps, dirección, plantilla, offset) y la maquinaria del
-        // agregador (emit-signals) no son del módulo.
-        if (p->owner_type == GST_TYPE_PAD || p->owner_type == GST_TYPE_OBJECT || p->owner_type == G_TYPE_OBJECT) continue;
-        const std::string nombre = g_param_spec_get_name(p);
-        if (!(p->flags & G_PARAM_WRITABLE) || (p->flags & G_PARAM_CONSTRUCT_ONLY) || nombre == "emit-signals") continue;
-        json r = describirPropiedad(p, g_param_spec_get_default_value(p));
-        if (r.is_null()) continue;
-        r["valor"] = actuales.is_object() && actuales.contains(nombre) ? actuales[nombre] : r["defecto"];
-        out.push_back(std::move(r));
-    }
-    g_free(ps);
-    g_type_class_unref(clase);
-    gst_object_unref(e);
+    std::lock_guard<std::mutex> l(descMu_);
+    descripciones_[clave] = out;
 #else
     (void)elemento;
     (void)plantilla;
-    (void)actuales;
 #endif
     return out;
 }

@@ -355,7 +355,7 @@ void InputsViewModel::rebuildInputs() {
 
 void InputsViewModel::syncHolds() {
     std::set<std::string> want;
-    if (vistas_.alguien())
+    if (vistas_.activo()) // la página de entradas (las miniaturas); «dispositivos» no las necesita
         for (const QVariant& v : inputs_)
             want.insert(v.toMap().value("name").toString().toStdString());
     // Mantenerlas «mostrándose» (las miniaturas vivas) se le pide al dueño del motor.
@@ -372,12 +372,15 @@ void InputsViewModel::syncHolds() {
 }
 
 void InputsViewModel::alCambiarVistas() {
-    if (vistas_.alguien()) {
-        refresh();
+    // Alguien empieza a mirar (la página de entradas, o «dispositivos»: Equipos, las
+    // entradas de audio): se busca de nuevo lo de la máquina. Las miniaturas, solo para la
+    // página de entradas.
+    if (vistas_.alguien() && !buscando_) refresh();
+    buscando_ = vistas_.alguien();
+    if (vistas_.activo())
         tick_.start();
-    } else {
+    else
         tick_.stop();
-    }
     syncHolds();
 }
 

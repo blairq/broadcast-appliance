@@ -118,9 +118,13 @@ SuperRes::SuperRes(fs::path dataRoot, VideoViewModel* video, QObject* parent)
     connect(this, &SuperRes::cambio, this, [this]() {
         archivos_.reset();
         emit pluginsCambio();
+        armarVariantes();
     });
+    // El tamaño de cada cámara llega con las entradas (y cambia si se cambia el modo).
+    if (video_ != nullptr) connect(video_, &VideoViewModel::cambio, this, &SuperRes::armarVariantes);
     std::error_code ec;
     fs::create_directories(carpetaModelos(), ec);
+    armarVariantes();
     trabajo_ = {{"corriendo", false}};
     // Un ONNX Runtime con GPU (NVIDIA: CUDA/TensorRT; AMD en Linux:
     // ROCm/MIGraphX) bajado a Datos/Herramientas/onnxruntime-gpu: baonnxsr lo
@@ -1134,15 +1138,15 @@ QVariantList SuperRes::leerPluginsElemento() const {
     return qv(out).toList();
 }
 
-QString SuperRes::borrarModelo(const QString& archivo) {
+bool SuperRes::borrarModelo(const QString& archivo) {
     const fs::path p = carpetaModelos() / archivo.toStdString();
-    if (p.parent_path() != carpetaModelos() || p.extension() != ".onnx") return "no";
+    if (p.parent_path() != carpetaModelos() || p.extension() != ".onnx") return sinError(QStringLiteral("no"));
     std::error_code ec;
     fs::remove(p, ec);
     fs::remove(p.string() + ".json", ec);
     fs::remove(p.string() + ".pt", ec);
     emit cambio();
-    return ec ? QString::fromStdString(ec.message()) : QString();
+    return sinError(ec ? QString::fromStdString(ec.message()) : QString());
 }
 
 // --- Variantes: la red compilada para un tamaño fijo -----------------------------------
@@ -1258,18 +1262,33 @@ std::string SuperRes::editarVariante(const std::string& plugin, const std::strin
     return {};
 }
 
-QVariantList SuperRes::variantesUi(const QString& plugin) const { return qv(variantes(plugin.toStdString())).toList(); }
-
-QString SuperRes::crearVarianteUi(const QString& plugin, int ancho, int alto, const QString& para,
-                                  const QString& motores) {
-    return q(crearVariantes(plugin.toStdString(), {std::to_string(ancho) + "x" + std::to_string(alto)}, {},
-                            motores.toStdString(), para.toStdString(), {}, false));
+void SuperRes::armarVariantes() {
+    QVariantMap m;
+    for (const QVariant& v : pluginsUi()) {
+        const QVariantMap p = v.toMap();
+        if (p.value("tipo").toString() != "red" || !p.value("instalado").toBool()) continue;
+        const QString id = p.value("id").toString();
+        m.insert(id, QVariantMap{{"lista", variantesUi(id)}, {"faltan", tamanosSinVarianteUi(id)}});
+    }
+    if (m == variantesUi_) return;
+    variantesUi_ = std::move(m);
+    emit variantesCambio();
 }
 
-QString SuperRes::crearFaltantesUi(const QString& plugin) {
+QVariantList SuperRes::variantesUi(const QString& plugin) const { return qv(variantes(plugin.toStdString())).toList(); }
+
+bool SuperRes::crearVarianteUi(const QString& plugin, int ancho, int alto, const QString& para,
+                                  const QString& motores) {
+    avisarError(q(crearVariantes(plugin.toStdString(), {std::to_string(ancho) + "x" + std::to_string(alto)}, {},
+                            motores.toStdString(), para.toStdString(), {}, false)));
+    return true;
+}
+
+bool SuperRes::crearFaltantesUi(const QString& plugin) {
     const auto t = tamanosSinVariante(plugin.toStdString());
-    if (t.empty()) return tr("todas las cámaras del estudio ya tienen su variante");
-    return q(crearVariantes(plugin.toStdString(), t, {}, {}, {}, {}, false));
+    if (t.empty()) return sinError(tr("todas las cámaras del estudio ya tienen su variante"));
+    avisarError(q(crearVariantes(plugin.toStdString(), t, {}, {}, {}, {}, false)));
+    return true;
 }
 
 QStringList SuperRes::tamanosSinVarianteUi(const QString& plugin) const {
@@ -1278,10 +1297,11 @@ QStringList SuperRes::tamanosSinVarianteUi(const QString& plugin) const {
     return out;
 }
 
-QString SuperRes::editarVarianteUi(const QString& plugin, const QString& id, const QString& para,
+bool SuperRes::editarVarianteUi(const QString& plugin, const QString& id, const QString& para,
                                    const QString& descripcion) {
-    return q(editarVariante(plugin.toStdString(), id.toStdString(),
-                            json{{"para", para.toStdString()}, {"descripcion", descripcion.toStdString()}}));
+    avisarError(q(editarVariante(plugin.toStdString(), id.toStdString(),
+                            json{{"para", para.toStdString()}, {"descripcion", descripcion.toStdString()}})));
+    return true;
 }
 
 } // namespace ba::app::video

@@ -89,8 +89,7 @@ Popup {
         // Uno nuevo va sin id: lo pone el modelo (uno que no esté); el JSON de los
         // parámetros también lo valida él (VideoGrafos::filtrosAudio).
         if (indice >= 0) { f.id = l[indice].id; l[indice] = f } else l.push(f)
-        const e = vg.ponerFiltrosAudioUi(entrada, l)
-        if (e !== "") { Studio.notify(e, "error"); return }
+        if (!vg.ponerFiltrosAudioUi(entrada, l)) return
         Studio.notify(qsTr("Filtro de audio guardado (la demora se compensa sola)"), "info")
         guardado()
         close()

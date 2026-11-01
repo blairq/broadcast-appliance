@@ -30,7 +30,12 @@ int64_t ahoraMs() { return QDateTime::currentMSecsSinceEpoch(); }
 
 InformeEventoViewModel::InformeEventoViewModel(EventoAbierto& abierto, CorridaViewModel& corrida, PadronViewModel& padron,
                                                QObject* parent)
-    : QObject(parent), ab_(abierto), corrida_(corrida), padron_(padron) {}
+    : QObject(parent), ab_(abierto), corrida_(corrida), padron_(padron) {
+    // Sale de lo que emitió la corrida y de la línea (los bloques, lo previsto).
+    connect(&corrida_, &CorridaViewModel::correChanged, this, &InformeEventoViewModel::informeCambio);
+    connect(&ab_, &EventoAbierto::lineaCambio, this, &InformeEventoViewModel::informeCambio);
+    connect(&ab_, &EventoAbierto::abiertoCambio, this, &InformeEventoViewModel::informeCambio);
+}
 
 namespace {
 
@@ -353,13 +358,12 @@ QString rutaLocal(const QString& r) {
 }
 } // namespace
 
-QString InformeEventoViewModel::exportarEscaleta(const QString& formato, const QString& rutaOUrl) {
-    if (!ab_.hay()) return QCoreApplication::translate("EventoViewModel", "No hay un evento abierto.");
+void InformeEventoViewModel::exportarEscaleta(const QString& formato, const QString& rutaOUrl) {
+    if (!ab_.hay()) return avisarError(QCoreApplication::translate("EventoViewModel", "No hay un evento abierto."));
     const QString ruta = rutaLocal(rutaOUrl);
-    if (ruta.isEmpty()) return QCoreApplication::translate("EventoViewModel", "No se pudo escribir «%1».").arg(ruta);
+    if (ruta.isEmpty()) return avisarError(QCoreApplication::translate("EventoViewModel", "No se pudo escribir «%1».").arg(ruta));
     // El escritor único, por su cola (fuera de la interfaz).
     ba::persist::cola().escribir(ruta.toStdWString(), lineaExportar(formato.toStdString()));
-    return {};
 }
 
 QVariantMap InformeEventoViewModel::importarEscaleta(const QString& rutaOUrl, bool probar) {

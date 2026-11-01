@@ -63,7 +63,7 @@ Rectangle {
     readonly property var paleta: ["#4fd8ff", "#ffb347", "#c38bff", "#35c46b", "#ff6b9a", "#f5e663", "#7aa2ff", "#ff7a45"]
     property string modoLinea: "superpuestas"
     property bool lineaAcumulado: false
-    property int ventanaS: 60
+    readonly property int ventanaS: page.tm ? page.tm.ventanaLineaS : 60
     property bool pausada: false
     property real finPausa: 0
     property var datosPausa: []
@@ -79,16 +79,13 @@ Rectangle {
         for (const s of (page.mapa.salidas || [])) if (s.id === id) return s.titulo
         return id
     }
-    /// Las series con sus datos (renovados con cada vuelta del modelo, salvo en pausa).
-    readonly property var seriesVivas: {
-        page.vuelta
-        return page.serie.map((id, i) => ({ id: id, titulo: page.tituloDe(id), color: page.paleta[i % page.paleta.length],
-                                           datos: page.tm ? page.tm.historia(id, page.ventanaS) : [] }))
-    }
+    /// Las series con sus datos (las da el modelo con cada vuelta: serieLinea), salvo en pausa.
+    readonly property var seriesVivas: (page.tm ? page.tm.serieLinea : []).map((x, i) => ({
+        id: x.id, titulo: page.tituloDe(x.id), color: page.paleta[i % page.paleta.length], datos: x.datos }))
     function pausar() {
         page.datosPausa = page.seriesVivas
         page.eventosPausa = page.tm ? page.tm.eventos : []
-        page.finPausa = Date.now()
+        page.finPausa = page.tm ? page.tm.finMs : 0
         page.pausada = true
     }
 
@@ -196,9 +193,8 @@ Rectangle {
         c[page.elegido] = true
         return c
     }
-    // La historia de cada tarjeta, renovada con cada vuelta del modelo.
-    property int vuelta: 0
-    Connections { target: page.tm; function onCambio() { page.vuelta++ } }
+    // La historia de cada tarjeta (los últimos 60 s), del modelo: se renueva con cada vuelta.
+    readonly property var historias: page.tm ? page.tm.historias : ({})
 
 
     // --- Fondo: la profundidad -----------------------------------------------------------
@@ -282,7 +278,7 @@ Rectangle {
                         icon: "▶"
                         active: true
                         enabled: !(page.tm && page.tm.analisis.length && page.tm.analisis[0].estado === "midiendo")
-                        onClicked: { const e = page.tm.analizarUi(10); if (e) Studio.notify(e, "error") }
+                        onClicked: { page.tm.analizarUi(10) }
                     }
                     GlassButton {
                         Layout.fillWidth: true
@@ -439,7 +435,7 @@ Rectangle {
                                 x: (page.acomodo.pos[modelData.id] || Qt.point(0, 0)).x
                                 y: (page.acomodo.pos[modelData.id] || Qt.point(0, 0)).y
                                 resaltada: !!page.camino[modelData.id]
-                                historia: { page.vuelta; return page.tm ? page.tm.historia(modelData.id) : [] }
+                                historia: page.historias[modelData.id] || []
                                 // Un click la elige (o la suelta); lo que se hace con ella, en la barra de arriba.
                                 onElegida: (id) => {
                                     page.elegido = page.elegido === id ? "" : id
@@ -492,8 +488,7 @@ Rectangle {
                             compact: true; icon: "🔍"; text: qsTr("Analizar por dentro (5 s)")
                             onClicked: {
                                 page.recorridoDe = barraElegida.entrada
-                                const e = page.tm.analizarEntradaUi(barraElegida.entrada, 5)
-                                if (e) Studio.notify(e, "error")
+                                page.tm.analizarEntradaUi(barraElegida.entrada, 5)
                             }
                         }
                         GlassButton {
@@ -682,7 +677,7 @@ Rectangle {
                             compact: true
                             text: modelData.t
                             active: page.ventanaS === modelData.s
-                            onClicked: page.ventanaS = modelData.s
+                            onClicked: page.tm.ventanaLineaS = modelData.s
                         }
                     }
                     GlassButton {
@@ -702,7 +697,7 @@ Rectangle {
                     modo: page.modoLinea
                     verAcumulado: page.lineaAcumulado
                     ventanaMs: page.ventanaS * 1000
-                    fin: page.pausada ? page.finPausa : (page.vuelta, Date.now())
+                    fin: page.pausada ? page.finPausa : (page.tm ? page.tm.finMs : 0)
                     eventos: page.pausada ? page.eventosPausa : (page.tm ? page.tm.eventos : [])
                     referencia: (page.mapa.estudio || {}).latencia_ms || 0
                     onPedirNota: (t) => { nota.t = t; nota.open() }
@@ -764,7 +759,7 @@ Rectangle {
                                 }
                                 Text {
                                     anchors.verticalCenter: parent.verticalCenter
-                                    text: "#" + an.modelData.id + " · " + an.modelData.segundos + " s · " + qsTr("hace %1").arg(Theme.hace((Date.now() - an.modelData.desde_ms) / 1000))
+                                    text: "#" + an.modelData.id + " · " + an.modelData.segundos + " s · " + qsTr("hace %1").arg(Theme.hace((Reloj.ahora - an.modelData.desde_ms) / 1000))
                                     color: Theme.textDim; font.pixelSize: 10
                                 }
                             }

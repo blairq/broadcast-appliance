@@ -38,6 +38,7 @@
 
 #include <functional>
 #include <memory>
+#include "ui/CapturaError.hpp"
 
 namespace ba::app {
 class AppRuntime;
@@ -79,6 +80,11 @@ namespace ba::app {
 
 class ImagenViewModel : public QObject {
     Q_OBJECT
+    /// El error de una acción de la interfaz (las Q_INVOKABLE void): a quien mira.
+    void avisarError(const QString& e) {
+        if (!e.isEmpty() && !::ba::app::CapturaError::tomar(e)) emit notify(e, "error");
+    }
+    void avisarError(const std::string& e) { avisarError(QString::fromStdString(e)); }
     /// La red eléctrica del país del sistema contra el lienzo (F2-17): {hz (50, 60; 0 = no
     /// se sabe), aviso ("" si el lienzo no parpadea con esa red), cadencias: [{valor (el de
     /// video.fps: "25", "30000/1001"), texto ("25", "29,97")}] (las que no parpadean)}. Se
@@ -137,8 +143,8 @@ class ImagenViewModel : public QObject {
     /// si todavía no llegó (ui/ScopeVista lo vuelve a pedir).
     bool cuadroScope(const QString& fuente, QImage& img, std::uint64_t& serie, QString& error) const;
     QString legalizador() const;
-    /// Legalizar para TV: no | pal | ntsc | rango. "" o el error.
-    Q_INVOKABLE QString legalizarUi(const QString& modo);
+    /// Legalizar para TV: no | pal | ntsc | rango. El error va por la señal del modelo.
+    Q_INVOKABLE void legalizarUi(const QString& modo);
 
    signals:
     /// Para el operador (ya traducido).

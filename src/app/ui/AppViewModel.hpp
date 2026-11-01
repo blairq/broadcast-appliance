@@ -16,8 +16,8 @@
 // Lo que sale lo lee de la foto del motor (la parte Estado: si se transmite y se graba) y
 // avisa solo cuando cambia lo suyo (vivoCambio, impactoCambio), no con cada pastilla.
 //
-// En QML: Studio.app (modoVivo, paginasBloqueadas, caidaReciente, impactoDeCerrar,
-// avisoDeCerrar, reinicio, reiniciarPrograma); Studio.system y Studio.configuraciones
+// En QML: Studio.app (modoVivo, paginasBloqueadas, caidaReciente, impactoDeCerrar
+// con sus avisos, reinicio, reiniciarPrograma); Studio.system y Studio.configuraciones
 // siguen en la raíz.
 // ============================================================================
 #pragma once
@@ -111,12 +111,12 @@ class AppViewModel : public QObject {
     /// desde cualquier hilo.
     static nlohmann::json caidas(int n);
 
-    /// {transmitiendo, grabando, personas, hay}. `personas`: los de la sala (lobby,
-    /// programa, fila de oradores) y los integrantes de la sesión remota.
+    /// {transmitiendo, grabando, personas, hay, aviso, avisoActualizar, avisoVolver}.
+    /// `personas`: los de la sala (lobby, programa, fila de oradores) y los integrantes de
+    /// la sesión remota. Los avisos son el texto para confirmar cerrar la ventana,
+    /// actualizar o volver a la versión anterior ("" si no se corta nada): van acá para que
+    /// cambien con el motivo (de grabar a transmitir) aunque `hay` siga igual.
     QVariantMap impactoDeCerrar() const;
-    /// El aviso para confirmar: `accion` vacía = cerrar la ventana; si no, lo que
-    /// cierra la app (p. ej. "actualizar"). "" si no se corta nada.
-    Q_INVOKABLE QString avisoDeCerrar(const QString& accion = {}) const;
     QVariantMap reinicio() const { return reinicio_; }
     /// Cierra la app y la vuelve a abrir por el launcher (con los mismos --test/--debug y
     /// la conversación del asistente): cambiar de evento, de idioma. "" o el error.
@@ -138,6 +138,9 @@ class AppViewModel : public QObject {
     void notify(const QString& texto, const QString& nivel);
 
    private:
+    /// El aviso para confirmar: `accion` vacía = cerrar la ventana; si no, lo que cierra la
+    /// app ("actualizar", "volver"). "" si no se corta nada.
+    QString avisoDeCerrar(const QString& accion) const;
     void leerCaida();
     /// Copia a la foto lo que cambió (lo conectan vivoCambio y caidaChanged).
     void publicarFoto();

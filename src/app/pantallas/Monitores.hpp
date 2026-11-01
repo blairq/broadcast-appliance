@@ -41,6 +41,7 @@
 #include <filesystem>
 #include <functional>
 #include <vector>
+#include "ui/CapturaError.hpp"
 
 namespace ba::app {
 
@@ -72,6 +73,17 @@ struct FilaMonitor {
 
 class MonitoresModel : public ListaConClave<FilaMonitor> {
     Q_OBJECT
+    /// El error de una acción de la interfaz (las Q_INVOKABLE void): a quien mira.
+    void avisarError(const QString& e) {
+        if (!e.isEmpty() && !::ba::app::CapturaError::tomar(e)) emit notify(e, "error");
+    }
+    void avisarError(const std::string& e) { avisarError(QString::fromStdString(e)); }
+    /// Para las acciones que dicen si se hicieron: el error a quien mira y true si no hubo.
+    bool sinError(const QString& e) {
+        avisarError(e);
+        return e.isEmpty();
+    }
+    bool sinError(const std::string& e) { return sinError(QString::fromStdString(e)); }
     /// Solo los que tienen que tener ventana AHORA (conectados y con algo
     /// asignado): es el modelo del Instantiator de Main.qml.
     Q_PROPERTY(QObject* activos READ activos CONSTANT)
@@ -128,12 +140,12 @@ class MonitoresModel : public ListaConClave<FilaMonitor> {
     /// Pone en el monitor `id` estas cosas del catálogo (una, o varias en
     /// grilla). Devuelve el error, o vacío. El monitor puede no estar
     /// conectado (se lo recuerda y se espera).
-    Q_INVOKABLE QString asignar(const QString& id, const QStringList& cosas, bool pantallaCompleta);
-    Q_INVOKABLE QString setPantallaCompleta(const QString& id, bool si);
+    Q_INVOKABLE bool asignar(const QString& id, const QStringList& cosas, bool pantallaCompleta);
+    Q_INVOKABLE void setPantallaCompleta(const QString& id, bool si);
     /// Deja el monitor sin nada (su ventana se cierra). No lo olvida si no está.
-    Q_INVOKABLE QString quitar(const QString& id);
+    Q_INVOKABLE void quitar(const QString& id);
     /// Olvida un monitor que no está (deja de esperarlo).
-    Q_INVOKABLE QString olvidar(const QString& id);
+    Q_INVOKABLE void olvidar(const QString& id);
     /// La fila de ese monitor como mapa (los nombres de los roles), o vacío.
     Q_INVOKABLE QVariantMap monitor(const QString& id) const;
     /// Un monitor por id, por su número de orden («2»), por su nombre o por el
@@ -145,6 +157,8 @@ class MonitoresModel : public ListaConClave<FilaMonitor> {
     QVariantList conectadosEnOrden() const;
 
    signals:
+    /// Para el operador (ya traducido): los errores de las acciones de la interfaz.
+    void notify(const QString& texto, const QString& tipo);
     void cambio();
 
    private:

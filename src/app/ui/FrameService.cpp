@@ -158,10 +158,26 @@ class FrameService::Canales {
     std::thread hilo_; // el último: arranca con todo lo de arriba ya construido
 };
 
+namespace {
+QStringList clavesConNombre(const QStringList& claves, const std::vector<QString>& canales, const QJsonArray& salidas) {
+    QStringList out = claves;
+    for (const QString& c : canales) out << c;
+    for (const auto& v : salidas) out << "program:" + v.toObject().value("id").toString() << "armada:" + v.toObject().value("id").toString();
+    return out;
+}
+} // namespace
+
 FrameService::FrameService(BroadcastEngine& engine, Encargar encargar, int guests, QObject* parent)
     : QObject(parent), engine_(engine), encargar_(std::move(encargar)), pollUs_(3600, -1) {
     slots_["program"];
     slots_["scene"];
+    // Los nombres de las claves, con cada cambio de claves, nombres o salidas (antes que las
+    // vistas: esta conexión es la primera).
+    connect(this, &FrameService::keysChanged, this, [this]() {
+        QVariantMap m;
+        for (const QString& k : clavesConNombre(keys(), canalesPedidos_, salidas_)) m.insert(k, label(k));
+        rotulos_ = m;
+    });
     setGuests(guests);
     canales_ = std::make_unique<Canales>();
 }
@@ -194,7 +210,7 @@ QString FrameService::label(const QString& key) const {
         const QString n = slot >= 1 && slot <= names_.size() ? names_.at(slot - 1) : QString();
         return n.isEmpty() ? fallback : n;
     };
-    if (key == "program") return "Programa";
+    if (key == "program") return tr("Programa");
     if (key == "armada") return tr("Armada (preview)");
     if (key.startsWith("program:") || key.startsWith("armada:")) {
         const QString id = key.section(':', 1);

@@ -19,11 +19,17 @@
 #include <QVariantList>
 
 #include <functional>
+#include "ui/CapturaError.hpp"
 
 namespace ba::app {
 
 class ManualesViewModel : public QObject {
     Q_OBJECT
+    /// El error de una acción de la interfaz (las Q_INVOKABLE void): a quien mira.
+    void avisarError(const QString& e) {
+        if (!e.isEmpty() && !::ba::app::CapturaError::tomar(e)) emit notify(e, "error");
+    }
+    void avisarError(const std::string& e) { avisarError(QString::fromStdString(e)); }
     /// El idioma en que se generan: el de la interfaz ({codigo, nombre}).
     Q_PROPERTY(QString idioma READ idioma CONSTANT)
     Q_PROPERTY(QString nombreIdioma READ nombreIdioma CONSTANT)
@@ -70,12 +76,15 @@ class ManualesViewModel : public QObject {
     /// El encargo completo (el prompt en inglés con los campos llenos).
     Q_INVOKABLE QString encargo() const;
     /// Se lo pasa al asistente de evento (lo arranca si hace falta). "" o por qué no.
-    Q_INVOKABLE QString generar();
-    Q_INVOKABLE void refrescar();
+    Q_INVOKABLE void generar();
+    /// Relee la carpeta (lo hace solo al arrancar y cuando cambia: la vigila).
+    void refrescar();
     Q_INVOKABLE void abrir(const QString& archivo) const;
     Q_INVOKABLE void abrirCarpeta() const;
 
    signals:
+    /// Para el operador (ya traducido): los errores de las acciones de la interfaz.
+    void notify(const QString& texto, const QString& tipo);
     void cambio();
     void opcionesCambio();
 

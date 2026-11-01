@@ -82,6 +82,9 @@ class EventosListaViewModel : public QObject {
     void asegurarEnCurso();
     bool iniciar(const std::string& carpeta, std::string* err);
     bool terminar(std::string* err);
+    /// Termina el que está en curso (la página; el error, a `notify`). Con el automático
+    /// prendido, el del día vuelve a quedar en curso.
+    Q_INVOKABLE void terminarEnCurso();
     std::string mover(const std::string& carpeta, const std::string& aCarpeta, std::string* err);
     std::string crearCarpeta(const std::string& ruta, std::string* err);
     std::string crear(const std::string& nombre, const std::string& enCarpeta, std::string* err);

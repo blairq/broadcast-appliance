@@ -218,21 +218,4 @@ void PublicoViewModel::pedirEnlace(bool remoto) {
     });
 }
 
-void PublicoViewModel::cambiarPagina(const QVariantMap& cambios) {
-    if (sala_ == nullptr) return;
-    const auto campo = [&cambios](const char* k) {
-        return cambios.contains(k) ? std::optional<std::string>(cambios.value(k).toString().toStdString())
-                                   : std::nullopt;
-    };
-    QPointer<PublicoViewModel> yo(this);
-    const std::string e = sala_->paginaPublico().cambiar(campo("titulo"), campo("cuando"), campo("fondo"),
-                                                         [yo](const std::string& err, const nlohmann::json&) {
-                                                             if (!yo) return;
-                                                             if (!err.empty())
-                                                                 return emit yo->notify(tr("No pude cambiar la página: %1").arg(QString::fromStdString(err)), "error");
-                                                             emit yo->notify(tr("Página del público actualizada."), "ok");
-                                                         });
-    if (!e.empty()) emit notify(QString::fromStdString(e), "error");
-}
-
 } // namespace ba::app

@@ -24,11 +24,6 @@ Rectangle {
             if (q.tipos[i].id === q.actual.tipo) return q.tipos[i]
         return null
     }
-    function chequear(err, bien) {
-        if (err && err !== "") Studio.notify(err, "error")
-        else if (bien) Studio.notify(bien, "ok")
-        return !err || err === ""
-    }
 
     ColumnLayout {
         anchors { fill: parent; leftMargin: page.leftInset; margins: 20 }
@@ -159,10 +154,10 @@ Rectangle {
                                 id: menu
                                 MenuItem {
                                     text: page.q.ambito === "global" ? qsTr("Copiar al evento") : qsTr("Copiar al aparato")
-                                    onTriggered: page.chequear(page.q.copiarA(fila.modelData.id,
-                                        page.q.ambito === "global" ? "evento" : "global"))
+                                    onTriggered: page.q.copiarA(fila.modelData.id,
+                                        page.q.ambito === "global" ? "evento" : "global")
                                 }
-                                MenuItem { text: qsTr("Borrar"); onTriggered: page.chequear(page.q.borrar(fila.modelData.id)) }
+                                MenuItem { text: qsTr("Borrar"); onTriggered: page.q.borrar(fila.modelData.id) }
                             }
                         }
                         Text {
@@ -202,11 +197,11 @@ Rectangle {
                             placeholderText: qsTr("Nombre para guardarlo (WiFi de la sala)")
                             text: page.q.actual.nombre
                             color: Theme.text; font.pixelSize: 12
-                            onAccepted: page.chequear(page.q.guardar(text), qsTr("Guardado"))
+                            onAccepted: if (page.q.guardar(text)) Studio.notify(qsTr("Guardado"), "info")
                         }
                         GlassButton {
                             compact: true; text: qsTr("Guardar"); icon: "↓"; active: page.q.sucio
-                            onClicked: page.chequear(page.q.guardar(nombre.text), qsTr("Guardado"))
+                            onClicked: if (page.q.guardar(nombre.text)) Studio.notify(qsTr("Guardado"), "info")
                         }
                         GlassButton { compact: true; text: qsTr("Nuevo"); icon: "+"; onClicked: { page.q.nuevo("enlace"); nombre.text = "" } }
                     }

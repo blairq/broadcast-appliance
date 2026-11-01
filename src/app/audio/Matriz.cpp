@@ -740,18 +740,18 @@ QString Matriz::quitarBus(const QString& idQ) {
     return tr("No existe el bus.");
 }
 
-QString Matriz::renombrar(const QString& idQ, const QString& nombreQ) {
+void Matriz::renombrar(const QString& idQ, const QString& nombreQ) {
     const std::string id = idQ.toStdString(), nombre = nombreQ.trimmed().toStdString();
-    if (nombre.empty()) return tr("Falta el nombre.");
+    if (nombre.empty()) return avisarError(tr("Falta el nombre."));
     if (id.rfind("pista", 0) == 0) {
         const int i = std::atoi(id.c_str() + 5) - 1;
-        if (i < 0 || i >= kPistas) return tr("No existe esa pista.");
+        if (i < 0 || i >= kPistas) return avisarError(tr("No existe esa pista."));
         pistas_[i] = nombre;
     } else {
         Bus* b = buscar(id);
-        if (b == nullptr) return tr("No existe el bus.");
+        if (b == nullptr) return avisarError(tr("No existe el bus."));
         if (b->tipo == "entrada") {
-            if (existe(nombre)) return tr("Ya hay una fuente con ese nombre.");
+            if (existe(nombre)) return avisarError(tr("Ya hay una fuente con ese nombre."));
             // Los envíos que salen de esta entrada cambian de nombre con ella.
             std::map<std::pair<std::string, std::string>, Envio> nuevos;
             for (auto& [k, e] : envios_)
@@ -765,7 +765,6 @@ QString Matriz::renombrar(const QString& idQ, const QString& nombreQ) {
     }
     refrescar();
     guardar();
-    return {};
 }
 
 QString Matriz::setDispositivo(const QString& idQ, const QString& dispositivo) {
@@ -1023,7 +1022,7 @@ void Matriz::setActiva(bool on) {
     timer_.stop();
 }
 
-void Matriz::usar(QObject* vista, bool si) { vistas_.usar(vista, si); }
+void Matriz::usar(QObject* vista, bool si, const QString& que) { vistas_.usar(vista, si, que); }
 
 void Matriz::leerMedidores() {
     const FotoMotor* fo = foto();

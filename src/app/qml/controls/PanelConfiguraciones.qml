@@ -12,7 +12,6 @@ ColumnLayout {
     id: pc
     spacing: 10
     readonly property var cf: Studio.configuraciones
-    function avisar(e) { if (e) Studio.notify(e, "error") }
 
     Text { text: qsTr("Eventos"); color: Theme.text; font { pixelSize: 15; weight: Font.DemiBold } }
     Text {
@@ -51,11 +50,11 @@ ColumnLayout {
                                   title: qsTr("¿Abrir «%1»?").arg(modelData.nombre),
                                   text: qsTr("La app se reinicia con ese evento: se corta lo que esté andando (transmisión, grabación, conferencia)."),
                                   accept: qsTr("Abrir"), reject: qsTr("Cancelar"),
-                                  action: function() { pc.avisar(pc.cf.cambiarUi(modelData.nombre)) } }) }
+                                  action: function() { pc.cf.cambiarUi(modelData.nombre) } }) }
                 GlassButton { compact: true; text: qsTr("Duplicar")
                               onClicked: { nuevo.desde = modelData.activa ? "actual" : modelData.nombre; nombreNuevo.text = qsTr("%1 (copia)").arg(modelData.nombre) } }
                 GlassButton { compact: true; text: modelData.plantilla ? qsTr("Quitar de plantillas") : qsTr("Plantilla")
-                              onClicked: pc.avisar(pc.cf.marcarPlantillaUi(modelData.nombre, !modelData.plantilla))
+                              onClicked: pc.cf.marcarPlantillaUi(modelData.nombre, !modelData.plantilla)
                               ToolTip.visible: hovered; ToolTip.delay: 400
                               ToolTip.text: qsTr("Que aparezca en «Evento nuevo › desde una plantilla»") }
                 GlassButton { compact: true; text: qsTr("Renombrar…"); visible: !modelData.activa
@@ -66,7 +65,7 @@ ColumnLayout {
                                   text: qsTr("Va a la papelera con todo lo suyo: se puede recuperar desde «Papelera», abajo, durante un mes.") +
                                         (modelData.plantilla ? "\n\n" + qsTr("Es una plantilla: deja de aparecer en «Evento nuevo › desde una plantilla».") : ""),
                                   accept: qsTr("Borrar"), reject: qsTr("Cancelar"),
-                                  action: function() { pc.avisar(pc.cf.borrarUi(modelData.nombre)) } }) }
+                                  action: function() { pc.cf.borrarUi(modelData.nombre) } }) }
             }
         }
     }
@@ -94,9 +93,7 @@ ColumnLayout {
         GlassButton {
             text: qsTr("Crear"); active: true; enabled: nombreNuevo.text.trim() !== ""
             onClicked: {
-                const e = pc.cf.nuevoEventoUi(nombreNuevo.text.trim(), nuevo.desde, false)
-                if (e !== "") { pc.avisar(e); return }
-                nombreNuevo.text = ""
+                if (pc.cf.nuevoEventoUi(nombreNuevo.text.trim(), nuevo.desde, false)) nombreNuevo.text = ""
             }
         }
         Item { Layout.fillWidth: true }
@@ -135,7 +132,7 @@ ColumnLayout {
                     text: papelera.ocupa > 0 ? qsTr("Se borra todo de verdad (%1): ya no se puede recuperar.").arg(Theme.tamano(papelera.ocupa))
                                               : qsTr("Se borra todo de verdad: ya no se puede recuperar."),
                     accept: qsTr("Vaciar"), reject: qsTr("Cancelar"),
-                    action: function() { pc.avisar(pc.cf.vaciarPapeleraUi("")) } })
+                    action: function() { pc.cf.vaciarPapeleraUi("") } })
             }
             Text { color: Theme.textFaint; font.pixelSize: 11; text: qsTr("lo que lleva más de un mes se borra solo") }
         }
@@ -149,7 +146,7 @@ ColumnLayout {
                        text: modelData.nombre + (modelData.borrado_ms > 1 ? qsTr("  · borrado el %1").arg(
                              new Date(modelData.borrado_ms).toLocaleString(Qt.locale(), "d/M/yyyy HH:mm")) : qsTr("  · a medio borrar")) +
                              (modelData.bytes ? " · " + Theme.tamano(modelData.bytes) : "") }
-                GlassButton { compact: true; text: qsTr("Recuperar"); visible: modelData.borrado_ms !== 1; onClicked: pc.avisar(pc.cf.recuperarUi(modelData.id)) }
+                GlassButton { compact: true; text: qsTr("Recuperar"); visible: modelData.borrado_ms !== 1; onClicked: pc.cf.recuperarUi(modelData.id) }
             }
         }
     }
@@ -162,6 +159,6 @@ ColumnLayout {
         anchors.centerIn: Overlay.overlay
         standardButtons: Dialog.Ok | Dialog.Cancel
         TextField { id: renombrarCampo; width: 280; color: Theme.text }
-        onAccepted: pc.avisar(pc.cf.renombrarUi(de, renombrarCampo.text.trim()))
+        onAccepted: pc.cf.renombrarUi(de, renombrarCampo.text.trim())
     }
 }

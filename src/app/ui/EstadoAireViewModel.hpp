@@ -9,7 +9,7 @@
 //
 //   aireChanged          qué sale y desde cuándo (recording, streaming, alAire,
 //                        transmitiendo, reconnecting, outputProblem, recordStartMs)
-//   tiemposChanged       recordTime, streamTime: una vez por segundo y solo mientras algo sale
+//                        (con grabaDesdeMs y transmiteDesdeMs: el tiempo lo cuenta la vista)
 //   estadisticasChanged  fps, encoder, droppedFrames, totalFrames, streamKbps: a lo sumo una
 //                        vez por segundo (el motor los mueve en cada vuelta)
 //
@@ -48,8 +48,10 @@ class EstadoAireViewModel : public QObject {
     Q_PROPERTY(bool reconnecting READ reconnecting NOTIFY aireChanged)
     /// Por qué se cortó, en castellano. Vacío si no hubo problema.
     Q_PROPERTY(QString outputProblem READ outputProblem NOTIFY aireChanged)
-    Q_PROPERTY(QString recordTime READ recordTime NOTIFY tiemposChanged)
-    Q_PROPERTY(QString streamTime READ streamTime NOTIFY tiemposChanged)
+    /// Desde cuándo graba y transmite (ms de pared; 0 = no): la vista cuenta el tiempo con el
+    /// Reloj de las vistas (Theme.cronometro). La marca la pone el dueño en la foto.
+    Q_PROPERTY(double grabaDesdeMs READ grabaDesdeMs NOTIFY aireChanged)
+    Q_PROPERTY(double transmiteDesdeMs READ transmiteDesdeMs NOTIFY aireChanged)
     Q_PROPERTY(double fps READ fps NOTIFY estadisticasChanged)
     Q_PROPERTY(QString encoder READ encoder NOTIFY estadisticasChanged)
     Q_PROPERTY(int droppedFrames READ droppedFrames NOTIFY estadisticasChanged)
@@ -73,8 +75,11 @@ class EstadoAireViewModel : public QObject {
     bool transmitiendo() const { return e().hayTransmision; }
     bool reconnecting() const { return e().reconectando; }
     QString outputProblem() const { return QString::fromStdString(e().problema); }
+    /// «hh:mm:ss» de ahora (el bus y el MCP; la vista cuenta con la marca).
     QString recordTime() const;
     QString streamTime() const;
+    double grabaDesdeMs() const { return static_cast<double>(recordStartMs()); }
+    double transmiteDesdeMs() const { return e().transmite ? static_cast<double>(e().transmiteDesdeMs) : 0.0; }
     double fps() const { return e().fps; }
     QString encoder() const { return QString::fromStdString(e().codificador); }
     int droppedFrames() const { return e().descartados; }
@@ -90,7 +95,6 @@ class EstadoAireViewModel : public QObject {
 
    signals:
     void aireChanged();
-    void tiemposChanged();
     void estadisticasChanged();
     /// Una vez por segundo mientras alguna salida graba o transmite (los relojes de las demás
     /// salidas siguen a este, ver SalidasViewModel).

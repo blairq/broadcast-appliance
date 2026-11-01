@@ -65,7 +65,7 @@ Item {
                 Text { text: qsTr("Fila: %1").arg((root.bst.cola || []).map(x => x.banca + " " + x.nombre).join(" · "))
                        color: Theme.textDim; font.pixelSize: 12; elide: Text.ElideRight; Layout.fillWidth: true }
                 GlassButton { text: qsTr("Siguiente ▶ (armar)"); compact: true
-                              onClicked: { const e = root.ba.siguiente("armar"); if (e !== "") Studio.notify(e, "error") } }
+                              onClicked: { root.ba.siguiente("armar") } }
             }
             // Seguir al micrófono: cuando se abre el de una banca, se propone (o se arma sola).
             RowLayout {
@@ -121,7 +121,7 @@ Item {
                     }
                     GlassButton {
                         compact: true; text: qsTr("Armar"); active: true
-                        onClicked: { const e = Studio.seguirMicrofono.aceptarUi(); if (e !== "") Studio.notify(e, "error") }
+                        onClicked: { Studio.seguirMicrofono.aceptarUi() }
                     }
                     GlassButton { compact: true; text: "✕"; onClicked: Studio.seguirMicrofono.descartarUi() }
                 }
@@ -149,8 +149,8 @@ Item {
                                font.pixelSize: 9; elide: Text.ElideRight }
                     }
                     TapHandler {
-                        onTapped: { const e = root.ba.agregar(modelData.id); if (e !== "") Studio.notify(e, "error") }
-                        onDoubleTapped: { const e = root.ba.alAire(modelData.id, "armar"); if (e !== "") Studio.notify(e, "error") }
+                        onTapped: { root.ba.agregar(modelData.id) }
+                        onDoubleTapped: { root.ba.alAire(modelData.id, "armar") }
                     }
                     ToolTip.visible: bancaHov.hovered; ToolTip.delay: 400
                     ToolTip.text: modelData.nombre + (modelData.cargo_oficial ? " · " + modelData.cargo_oficial : "") +

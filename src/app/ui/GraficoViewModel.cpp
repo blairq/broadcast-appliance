@@ -302,13 +302,12 @@ void GraficoViewModel::alCambiarEnDisco() {
     redibujar();
 }
 
-QString GraficoViewModel::crear(const QString& nombre, bool declarativo) {
+void GraficoViewModel::crear(const QString& nombre, bool declarativo) {
     QString creado;
     const QString err = d_->catalogo().crear(nombre, declarativo, &creado);
-    if (!err.isEmpty()) return err;
+    if (!err.isEmpty()) return avisarError(err);
     emit listaChanged();
     abrir(creado);
-    return {};
 }
 
 bool GraficoViewModel::guardar() {
@@ -401,12 +400,12 @@ void GraficoViewModel::quitarMedio(const QString& archivo) {
     if (!err.isEmpty()) emit notify(err, "error");
 }
 
-QString GraficoViewModel::mostrarEnEscena(qulonglong fuente, bool repetir) {
+void GraficoViewModel::mostrarEnEscena(qulonglong fuente, bool repetir) {
     // De un plugin: lo que sale es lo guardado (no hay texto en el editor).
     if (!d_->plugin().isEmpty()) {
         const QString e = d_->em.mostrar(d_->abierto, d_->valores, fuente, d_->duracionMs, repetir);
         if (e.isEmpty()) emit escenaChanged();
-        return e;
+        return avisarError(e);
     }
     // Sale al aire lo que hay EN EL EDITOR, no lo que está guardado: probar un
     // cambio sin guardarlo es media razón de ser del editor. Por eso se arma
@@ -414,10 +413,10 @@ QString GraficoViewModel::mostrarEnEscena(qulonglong fuente, bool repetir) {
     // dibujarlo entero y reproducirlo.
     QString err;
     const QJsonObject p = d_->pedido(&err);
-    if (!err.isEmpty()) return err;
+    if (!err.isEmpty()) return avisarError(err);
     const QString e = d_->em.reproducir(p, d_->abierto, d_->valores, fuente, d_->duracionMs, repetir);
     if (e.isEmpty()) emit escenaChanged();
-    return e;
+    avisarError(e);
 }
 
 QString GraficoViewModel::ocultarDeEscena(qulonglong fuente) {

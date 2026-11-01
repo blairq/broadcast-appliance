@@ -105,8 +105,7 @@ Popup {
                     const spec = { type: ed.tipo.type, params: ed.valores, sonido: sonido.currentValue, reconocer: reconocer.checked, notificar: notificar,
                                    accion: { herramienta: accionHerr.editText, argumentos: accionArgs.text } }
                     if (nombre.text.trim() !== "") spec.name = nombre.text.trim()
-                    const e = ed.ag.createAlertUi(spec)
-                    if (e !== "") Studio.notify(e, "error"); else { Studio.notify(qsTr("Disparador creado"), "ok"); ed.close() }
+                    if (ed.ag.createAlertUi(spec)) { Studio.notify(qsTr("Disparador creado"), "ok"); ed.close() }
                 }
             }
             Item { Layout.fillWidth: true }

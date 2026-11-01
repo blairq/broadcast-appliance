@@ -26,6 +26,7 @@
 #include <nlohmann/json.hpp>
 
 #include "evento/TemaEvento.hpp"
+#include "ui/CapturaError.hpp"
 
 namespace ba::app {
 
@@ -34,6 +35,11 @@ class EventoViewModel;
 
 class TemaEventoViewModel : public QObject {
     Q_OBJECT
+    /// El error de una acción de la interfaz (las Q_INVOKABLE void): a quien mira.
+    void avisarError(const QString& e) {
+        if (!e.isEmpty() && !::ba::app::CapturaError::tomar(e)) emit notify(e, "error");
+    }
+    void avisarError(const std::string& e) { avisarError(QString::fromStdString(e)); }
     /// Hay un evento abierto (sin evento no hay tema que editar).
     Q_PROPERTY(bool hayEvento READ hayEvento NOTIFY cambio)
     /// El evento tiene tema propio (tema.json) o el que sale de su sitio; sin ninguno, las
@@ -69,19 +75,19 @@ class TemaEventoViewModel : public QObject {
 
     /// Cambia lo que venga (las mismas claves que `tema`; lo que no viene queda): colores
     /// "#rrggbb" o "" (se calcula), modo "", "claro" u "oscuro", radio -1…32, alcance
-    /// nada|acento|todo, tipografia{texto, titulos}, marca{nombre}. Devuelve el error o "".
-    Q_INVOKABLE QString cambiar(const QVariantMap& campos);
+    /// nada|acento|todo, tipografia{texto, titulos}, marca{nombre}. El error va por la señal del modelo.
+    Q_INVOKABLE void cambiar(const QVariantMap& campos);
     /// Copia a Tema/ un logo (svg, png o webp) y lo pone de `cual`: logo | logoClaro | favicon.
-    /// `archivo`: ruta o file://. Devuelve el error o "".
-    Q_INVOKABLE QString subirLogo(const QString& archivo, const QString& cual);
+    /// `archivo`: ruta o file://. El error va por la señal del modelo.
+    Q_INVOKABLE void subirLogo(const QString& archivo, const QString& cual);
     /// Copia una fuente (woff2, woff, ttf, otf) y la suma a la tipografía con esa familia
-    /// (y, si no había, la pone como letra del texto). Devuelve el error o "".
-    Q_INVOKABLE QString subirFuente(const QString& archivo, const QString& familia, const QString& peso = "400",
+    /// (y, si no había, la pone como letra del texto). El error va por la señal del modelo.
+    Q_INVOKABLE void subirFuente(const QString& archivo, const QString& familia, const QString& peso = "400",
                                     const QString& estilo = "normal");
     /// Saca algo: logo | logoClaro | favicon | fuentes. Borra de Tema/ lo que ya no se usa.
-    Q_INVOKABLE QString quitar(const QString& que);
+    Q_INVOKABLE void quitar(const QString& que);
     /// Borra tema.json: vuelve al de los colores del sitio (o a ninguno).
-    Q_INVOKABLE QString restablecer();
+    Q_INVOKABLE void restablecer();
     /// Pasa el sitio ya generado (Web/) al tema común (ver evento::migrarSitio). Devuelve
     /// {cambiados: [...]} o {error}.
     Q_INVOKABLE QVariantMap migrarSitio();
@@ -92,6 +98,8 @@ class TemaEventoViewModel : public QObject {
     QString cambiarJson(const nlohmann::json& campos);
 
    signals:
+    /// Para el operador (ya traducido): los errores de las acciones de la interfaz.
+    void notify(const QString& texto, const QString& tipo);
     void cambio();
 
    private:

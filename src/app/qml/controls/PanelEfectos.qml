@@ -1,5 +1,5 @@
 // Transparencia, borde difuso y sombra (o resplandor) de un elemento de la
-// escena (SourcesModel::efectos / setEfectos; EfectosCapa en el motor). Todo
+// escena (SourcesModel::efectosDe / setEfectos; EfectosCapa en el motor). Todo
 // cambia en vivo mientras se arrastra: el motor actualiza la capa en el lugar.
 // Medidas en píxeles del lienzo; el ángulo, hacia dónde cae la sombra.
 import QtQuick
@@ -10,23 +10,13 @@ import BA
 ColumnLayout {
     id: p
     property string fuente: ""
-    property var ef: ({})
+    // Del modelo (avisa con la foto, el MCP, otra vista o lo que se acaba de pedir).
+    readonly property var ef: p.fuente ? (Studio.sources.efectosDe[p.fuente] || ({})) : ({})
     readonly property var sombra: ef.sombra || ({})
     spacing: 6
 
-    function leer() { p.ef = p.fuente ? Studio.sources.efectos(p.fuente) : ({}) }
-    function poner(cambios) {
-        if (!p.fuente) return
-        if (Studio.sources.setEfectos(p.fuente, cambios)) leer()
-    }
+    function poner(cambios) { if (p.fuente) Studio.sources.setEfectos(p.fuente, cambios) }
     function ponerSombra(cambios) { poner({ sombra: cambios }) }
-    onFuenteChanged: leer()
-    Component.onCompleted: leer()
-    Connections {
-        target: Studio.sources
-        function onModelReset() { p.leer() }   // otra escena
-        function onEfectosCambio() { p.leer() } // lo cambió el MCP, otra vista o lo que se acaba de pedir
-    }
 
     // Una fila «título · barra · valor» que aplica mientras se arrastra.
     component Fila: RowLayout {

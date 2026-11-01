@@ -99,8 +99,7 @@ ColumnLayout {
                         const d = { tipo: tipo.currentText, nombre: nombreN.text, chat_id: chat.text, servidor: servidor.text,
                                     puerto: puerto.value, usuario: usuario.text, de: de.text, para: para.text }
                         if (alta.editando) d.id = alta.editando.id
-                        const e = pn.n.agregarUi(d, secreto.text)
-                        if (e !== "") Studio.notify(e, "error"); else alta.close()
+                        if (pn.n.agregarUi(d, secreto.text)) alta.close()
                     }
                 }
                 Item { Layout.fillWidth: true }

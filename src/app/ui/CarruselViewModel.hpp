@@ -24,6 +24,7 @@
 #include <QObject>
 #include <QStringList>
 #include <QVariantList>
+#include "ui/CapturaError.hpp"
 
 namespace ba::carrusel {
 class Store;
@@ -38,6 +39,11 @@ class VentanillaMotor;
 
 class CarruselViewModel : public QObject {
     Q_OBJECT
+    /// El error de una acción de la interfaz (las Q_INVOKABLE void): a quien mira.
+    void avisarError(const QString& e) {
+        if (!e.isEmpty() && !::ba::app::CapturaError::tomar(e)) emit notify(e, "error");
+    }
+    void avisarError(const std::string& e) { avisarError(QString::fromStdString(e)); }
     /// Todos los de la biblioteca: [{nombre, laminas, tapa}]. `tapa` es la URL
     /// de la primera lámina, que es como se reconoce un carrusel de un vistazo.
     Q_PROPERTY(QVariantList carruseles READ carruseles NOTIFY cambio)
@@ -128,8 +134,8 @@ class CarruselViewModel : public QObject {
     /// carruseles a pantalla completa en una escena se tapaban). No cambia el que se está
     /// editando en la pestaña; la tarjeta de control pasa a manejar este. Es lo que hace el
     /// cue «carrusel» del guion: fija carrusel y lámina, así lo que se haya movido a mano
-    /// vuelve a donde dice el guion. "" o el error.
-    Q_INVOKABLE QString mostrar(const QString& nombre, int numero);
+    /// vuelve a donde dice el guion. El error va por la señal del modelo.
+    Q_INVOKABLE void mostrar(const QString& nombre, int numero);
     /// Los nombres de los carruseles de la biblioteca.
     QStringList nombres() const;
     /// Las láminas de un carrusel cualquiera, para elegir una: [{numero (desde 1), titulo}].

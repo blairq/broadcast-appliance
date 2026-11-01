@@ -115,8 +115,7 @@ ColumnLayout {
                     compact: true; active: editor.text !== editor.guardado || nombre.text !== inf.nombreDe(inf.elegida)
                     text: qsTr("Guardar")
                     onClicked: {
-                        const e = inf.m.guardarUi(inf.elegida, editor.text, nombre.text)
-                        if (e !== "") Studio.notify(e, "error"); else editor.guardado = editor.text
+                        if (inf.m.guardarUi(inf.elegida, editor.text, nombre.text)) editor.guardado = editor.text
                     }
                 }
                 GlassButton {
@@ -129,7 +128,7 @@ ColumnLayout {
                     onClicked: ApplicationWindow.window.confirm({
                         title: qsTr("¿Quitar la plantilla «%1»?").arg(inf.nombreDe(inf.elegida)),
                         text: qsTr("Los informes ya generados quedan."), accept: qsTr("Quitar"), reject: qsTr("Cancelar"),
-                        action: () => { const e = inf.m.quitarUi(inf.elegida); if (e !== "") Studio.notify(e, "error") }
+                        action: () => { inf.m.quitarUi(inf.elegida) }
                     })
                 }
                 Item { Layout.fillWidth: true }

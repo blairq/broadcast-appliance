@@ -43,6 +43,9 @@
 #include "ui/StudioViewModel.hpp"
 #if defined(BA_HAVE_VOZ)
 #include "audio/Habla.hpp"
+#include "ui/CapturaError.hpp"
+
+using ::ba::app::errorDe;
 #endif
 
 namespace ba::app {
@@ -557,7 +560,7 @@ void AtencionViewModel::alFotoIntegrante(const QString& id) {
                                     Q_UNUSED(error);
                                     return;
                                 }
-                                if (yo->vm_.cuerpo().guardar({{"id", id}, {"persona_id", ficha}}).isEmpty())
+                                if (errorDe([&] { yo->vm_.cuerpo().guardar({{"id", id}, {"persona_id", ficha}}); }).isEmpty())
                                     emit yo->notify(tr("Anoté a «%1» en Personas con la cara de su cámara y lo vinculé a "
                                                        "su banca: la próxima vez se lo reconoce.")
                                                         .arg(nombre),
@@ -574,10 +577,10 @@ void AtencionViewModel::alFotoIntegrante(const QString& id) {
         auto* ev = static_cast<EventoViewModel*>(yo->vm_.evento());
         // Entra solo SI el padrón del evento lo dice: la misma lista que deja
         // pasar sola a la gente del lobby de la sala. Y se avisa siempre.
-        if (esEl && ev != nullptr && ev->puedeEntrarSolo(personaId)) {
+        if (esEl && ev != nullptr && ev->padronVm().puedeEntrarSolo(personaId)) {
             if (asamblea::SesionRemota* s = yo->vm_.sesionRemota();
                 s != nullptr && s->habilitar(id.toStdString(), true, "reconocimiento").empty()) {
-                ev->acreditarPorPersona(personaId, "rostro");
+                ev->padronVm().acreditarPorPersona(personaId, "rostro");
                 emit yo->notify(tr("«%1» quedó habilitado solo: la cámara lo reconoció y el padrón del evento lo deja "
                                    "entrar solo.")
                                     .arg(nombre),
