@@ -224,9 +224,10 @@ void ConduccionLinea::despachar(const std::vector<Accion>& acc) {
     // Terminó el ensayo que graba: los tiempos quedan para que una persona los confirme.
     if (!corriendo() && grabar_ && corrida_ && grabado_.is_null()) {
         grabado_ = evento::linea::tiemposGrabados(linea(), corrida_->instancias());
-        if (!grabado_["ops"].empty())
+        // El número en una variable: con comillas adentro de la llamada, lupdate no ve el texto.
+        if (const int pasos = static_cast<int>(grabado_["ops"].size()); pasos > 0)
             emit notify(QCoreApplication::translate("EventoViewModel", "El ensayo grabó los tiempos de %n paso: confirmalos para que queden como duraciones previstas", "",
-                           static_cast<int>(grabado_["ops"].size())),
+                           pasos),
                         "info");
     }
     avisarPresentador();
