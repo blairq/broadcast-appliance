@@ -1189,6 +1189,46 @@ void testCorrida() {
     CHECK(c.sacarRecorrido().empty(), "y se saca una vez");
 }
 
+// Las reglas de la conducción (lo que lee la vista, el MCP y la web): las salidas, el
+// cursor del guion de cues, el reloj con sus pausas y lo público.
+void testConduccion() {
+    CHECK(errorDeSalida(lineaCorrida(), "principal").empty(), "una salida que existe");
+    CHECK(errorDeSalida(lineaCorrida(), "otra").find("principal") != std::string::npos, "una que no: dice cuáles hay");
+
+    ba::evento::Evento ev;
+    ev.bloques.resize(3);
+    ev.bloques[0].cues.resize(2);
+    ev.bloques[2].cues.resize(1); // el bloque 1, vacío
+    for (auto& b : ev.bloques)
+        for (auto& c : b.cues) c.duracionSeg = 60;
+    CHECK(cueSiguiente(ev, -1, -1) == std::make_pair(0, 0), "sin cursor: el primero");
+    CHECK(cueSiguiente(ev, 0, 0) == std::make_pair(0, 1), "el que sigue en el bloque");
+    CHECK(cueSiguiente(ev, 0, 1) == std::make_pair(2, 0), "salta el bloque vacío");
+    CHECK(cueSiguiente(ev, 2, 0) == std::make_pair(-1, -1), "al final, nada");
+    CHECK(cueAnterior(ev, 2, 0) == std::make_pair(0, 1), "el anterior salta el vacío");
+    CHECK(cueAnterior(ev, 0, 0) == std::make_pair(-1, -1), "antes del primero, nada");
+
+    Corrida c(lineaCorrida(), entrada(T0));
+    c.arrancar(T0);
+    CursorGuion k{0, 1, T0 + 10 * S, c.pausadoMs(T0 + 10 * S)};
+    MarcasReloj m = marcasReloj(ev, c, k, true, T0 + 40 * S);
+    CHECK(m.cueNro == 2 && m.cuesTotal == 3 && m.totalPrevistoSeg == 180, "12 de 34: el cue y el total");
+    CHECK(m.despuesSeg == 60 && m.despuesBloqueSeg == 0 && m.previstoSeg == 60, "lo que sigue, del guion y del bloque");
+    CHECK(m.enCueMs == 30 * S && m.transcurridoMs == 40 * S && m.sigue, "lo que lleva");
+    Reloj r = relojEn(m, T0 + 50 * S);
+    CHECK(r.enCueSeg == 40 && r.restanteSeg == 20 && r.restanteGuionSeg == 80 && r.desvioSeg == -10,
+          "el reloj con la hora: lleva 40 del cue, faltan 20, vamos 10 s adelantados");
+    c.pausar(T0 + 50 * S);
+    m = marcasReloj(ev, c, k, true, T0 + 80 * S);
+    r = relojEn(m, T0 + 90 * S);
+    CHECK(!m.sigue && r.enCueSeg == 40, "en pausa, lo pausado no cuenta");
+
+    Publico p = publico(ev, &c, k, false, T0 + 90 * S);
+    CHECK(p.estado == "pausa" && p.bloque == 0 && p.restanteActualSeg == 20, "lo público: la sección y lo que le falta");
+    CHECK(publico(ev, &c, k, true, T0).estado == "proximo", "un ensayo no se publica");
+    CHECK(publico(ev, nullptr, k, false, T0).bloque == -1, "sin corrida: próximo");
+}
+
 // El GO de quien conduce (la página, la vista de la línea y el MCP: uno solo).
 void testGoDelGuion() {
     Corrida c(lineaCorrida(), entrada(T0));
@@ -1775,6 +1815,7 @@ int main() {
     testEditar();
     testVistaYAjuste();
     testCorrida();
+    testConduccion();
     testGoDelGuion();
     testCorridaHoldYPausa();
     testCorridaSaltosEIr();
