@@ -4,7 +4,7 @@
 // El motor arranca en el hilo de la interfaz (AppRuntime::start) y mientras
 // tanto nada se dibuja: el cartel de carga (GuiMode) se queda quieto. Cada
 // etapa avisa acá qué está haciendo y el cartel lo muestra. Sin interfaz
-// (--no-ui) nadie escucha y no cuesta nada. Sin Qt a propósito: OperateMode
+// (--no-ui) nadie escucha y no cuesta nada. Sin Qt a propósito: AppRuntime
 // también se compila sin él.
 // ============================================================================
 #pragma once

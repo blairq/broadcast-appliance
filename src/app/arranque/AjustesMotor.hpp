@@ -2,7 +2,7 @@
 // src/app/arranque/AjustesMotor.hpp — los ajustes de Configuración que van al motor
 //
 // Un solo lugar para pasarle al motor (en caliente) lo que se ajusta en la
-// página: lo llaman el arranque (OperateMode) y Configuración al aplicar.
+// página: lo llaman el arranque (AppRuntime::start) y Configuración al aplicar.
 // ============================================================================
 #pragma once
 

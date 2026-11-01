@@ -8,7 +8,7 @@ namespace ba::app {
 
 /// Arranca AppRuntime y la ventana del operador; vuelve al cerrarla.
 ///
-/// Acepta las mismas opciones que el modo consola (ver OperateMode.hpp).
+/// Acepta las mismas opciones que el modo consola (ver ModoConsola.hpp).
 /// :returns: 0 en cierre ordenado; el codigo de AppRuntime::start si no
 ///           arranca.
 int runGui(int argc, char** argv);
