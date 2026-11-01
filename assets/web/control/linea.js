@@ -13,15 +13,6 @@
   "use strict";
   const { el, boton, texto, sincronizar } = BA.tj;
 
-  // «3:20», «1:02:05»; con signo, «+0:42» (pasado) o «−0:42».
-  function mmss(seg, signo) {
-    if (seg === null || seg === undefined || Number.isNaN(seg)) return "—";
-    const a = Math.abs(Math.round(seg));
-    const h = Math.floor(a / 3600), m = Math.floor((a % 3600) / 60), s = a % 60;
-    const t2 = (h ? h + ":" + String(m).padStart(2, "0") : String(m)) + ":" + String(s).padStart(2, "0");
-    return signo ? (seg > 0 ? "+" : seg < 0 ? "−" : "") + t2 : t2;
-  }
-
   // Lo de la salida del aparato: el estado (de linea_estado) y la vista (linea_ver).
   function deLaSalida(datos) {
     const est = (datos && datos.linea_estado) || {};
@@ -266,5 +257,5 @@
     });
   }
 
-  BA.linea = { mmss, deLaSalida, pasosDe, conduccion, escaleta, estante, propuesta, pulsos, miniaturas, pagina };
+  BA.linea = { deLaSalida, pasosDe, conduccion, escaleta, estante, propuesta, pulsos, miniaturas, pagina };
 })();

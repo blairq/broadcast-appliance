@@ -5,7 +5,6 @@
 // página y el navegador del integrante (WebRTC); el gateway solo pasa la señalización.
 "use strict";
 
-const $ = (id) => document.getElementById(id);
 // Los textos, en el idioma del evento. Lo que se pinta espera a que estén.
 // (los componentes de neuro.js se traducen solos con el evento ba-idioma)
 const listo = BAi18n.iniciar({ contexto: "web/presidencia", preferir: "evento" });
@@ -14,38 +13,25 @@ const frag = new URLSearchParams(location.hash.slice(1));
 const consola = frag.get("c") || "";
 const token = frag.get("t") || "";
 
-let ws = null;
+let canal = null;            // el canal web (comun/canal.js)
 let pin = "";
 // El token de este aparato (comun/aparato.js): con él no se vuelve a pedir el PIN.
 let aparato = consola ? BAAparato.leer("presidencia", consola) : "";
 let est = null;              // el último estado
-let desfase = 0;             // reloj de la app - reloj de acá
-let reintento = 1000;
 let cortado = false;
 let adentro = false;         // ya entró una vez (para el cartel de «reconectando»)
-let pingTimer = null;
 const caras = new Map();     // id -> dataURL (la última foto)
 const pedidasCuerpo = new Set();
 let debateA = null, debateB = null; // {id, nombre} elegidos en el recinto antes de empezar
 
 // --- Utilidades ---------------------------------------------------------------------
-function el(tag, cls, texto) {
-  const e = document.createElement(tag);
-  if (cls) e.className = cls;
-  if (texto !== undefined) e.textContent = texto;
-  return e;
-}
-function mandar(o) { if (ws && ws.readyState === 1) ws.send(JSON.stringify(o)); }
+const mandar = (o) => !!canal && canal.mandar(o);
 function avisar(texto, error) {
   const a = $("aviso");
   a.textContent = texto;
   a.className = "aviso" + (error ? " error" : "");
   clearTimeout(avisar.t);
   avisar.t = setTimeout(() => a.classList.add("oculto"), 4000);
-}
-function mmss(s) {
-  const a = Math.abs(Math.round(s));
-  return (s < 0 ? "-" : "") + Math.floor(a / 60) + ":" + String(a % 60).padStart(2, "0");
 }
 function iniciales(n) { return (n || "").split(" ").filter(Boolean).map((p) => p[0]).slice(0, 2).join("").toUpperCase(); }
 function remotoDe(id) { return est && est.remotos ? est.remotos.find((r) => r.id === id) : null; }
@@ -95,28 +81,29 @@ function pedirPin(texto) {
   }
 }
 
+// El canal (comun/canal.js): vuelve solo si se corta; sin PIN ni aparato registrado no
+// hay con qué entrar.
 function conectar() {
-  const proto = location.protocol === "https:" ? "wss:" : "ws:";
-  ws = new WebSocket(proto + "//" + location.host + "/ws?presidencia=1");
-  ws.onopen = () => ws.send(JSON.stringify(aparato ? { type: "auth", c: consola, t: token, aparato }
-    : { type: "auth", c: consola, t: token, pin, registrar: true, nombre: BAAparato.nombre() }));
-  ws.onmessage = (ev) => { let m; try { m = JSON.parse(ev.data); } catch (e) { return; } recibir(m); };
-  ws.onclose = () => {
-    $("conexion").className = "punto-con apagado";
-    $("sinConexion").classList.toggle("oculto", !adentro || cortado);
-    if (cortado || (!pin && !aparato)) return;
-    setTimeout(conectar, reintento);
-    reintento = Math.min(reintento * 2, 15000);
-  };
+  if (canal) { canal.reabrir(); return; }
+  canal = BAWs.abrir({
+    rol: "presidencia",
+    auth: () => (aparato ? { c: consola, t: token, aparato }
+      : pin ? { c: consola, t: token, pin, registrar: true, nombre: BAAparato.nombre() } : null),
+    alEntrar: recibir,
+    alMensaje: recibir,
+    alRechazo: recibir,
+    alCaer: () => {
+      $("conexion").className = "punto-con apagado";
+      $("sinConexion").classList.toggle("oculto", !adentro || cortado);
+    },
+  });
 }
 
 function recibir(m) {
   switch (m.type) {
     case "auth":
       if (!m.ok) {
-        // La sala recién arrancó y todavía no sabe de las credenciales: se vuelve a probar.
-        if (m.error_codigo === "esperar") { setTimeout(conectar, BAAparato.ESPERA_MS); return; }
-        cortado = true;
+        // («esperar»: la sala recién arrancó; el canal vuelve a probar solo.)
         if (m.error_codigo === "aparato") {
           // Lo revocaron (o se renovó el link): recién ahora, el PIN.
           BAAparato.olvidar("presidencia", consola);
@@ -131,7 +118,6 @@ function recibir(m) {
         BAAparato.guardar("presidencia", consola, aparato);
         pin = ""; // ya no hace falta: el aparato quedó registrado
       }
-      reintento = 1000;
       adentro = true;
       $("conexion").className = "punto-con vivo";
       $("sinConexion").classList.add("oculto");
@@ -139,13 +125,11 @@ function recibir(m) {
       $("consola").classList.remove("oculto");
       mandar({ type: "hola" });
       setTimeout(pedirFotosVivas, 500); // la ronda inicial, con el estado ya llegado
-      // Uno solo: al reconectar se volvía a sumar otro intervalo cada vez.
-      if (!pingTimer) pingTimer = setInterval(() => mandar({ type: "ping" }), 20000);
       despierta();
       break;
     case "estado":
       est = m;
-      desfase = (m.ahora_ms || Date.now()) - Date.now();
+      BAReloj.tomar(m);
       pintar();
       break;
     case "cast":
@@ -172,6 +156,7 @@ function recibir(m) {
       break;
     case "cortado":
       cortado = true;
+      canal.cerrar();
       $("sinConexion").textContent = t(m.motivo) || t("Se cerró la consola.");
       $("sinConexion").classList.remove("oculto");
       avisar(t(m.motivo) || t("Se cerró la consola."), true);
@@ -381,9 +366,9 @@ function pintarOrador() {
   $("nombreOrador").textContent = a.nombre;
   $("detalleOrador").textContent = llenar(t("Banca %1"), a.banca || "—") + " · " + (a.remoto ? t("desde el navegador") : t("en la sala"));
   const pintarReloj = () => {
-    const usado = ((Date.now() + desfase) - f.desde_ms) / 1000;
+    const usado = (BAReloj.ahora() - f.desde_ms) / 1000;
     const rest = (f.asignado_s || 0) - usado;
-    $("restante").textContent = mmss(rest);
+    $("restante").textContent = (rest < 0 ? "-" : "") + mmss(rest);
     const frac = Math.max(0, Math.min(1, rest / Math.max(1, f.asignado_s)));
     $("arco").style.strokeDashoffset = String(326.7 * (1 - frac));
     const an = document.querySelector(".anillo");
@@ -472,7 +457,7 @@ function pintarVotacion() {
   }
   clearInterval(votTimer);
   if (abierta && v.hasta_ms) {
-    const r = () => { $("votReloj").textContent = mmss(Math.max(0, (v.hasta_ms - (Date.now() + desfase)) / 1000)); };
+    const r = () => { $("votReloj").textContent = mmss(Math.max(0, (v.hasta_ms - BAReloj.ahora()) / 1000)); };
     r(); votTimer = setInterval(r, 250);
   } else $("votReloj").textContent = "";
   // Los próximos temas: un toque los pone como tema.
@@ -675,7 +660,7 @@ document.addEventListener("pointermove", (ev) => {
 
 // --- El reloj de arriba ----------------------------------------------------------------------------
 setInterval(() => {
-  const d = new Date(Date.now() + desfase);
+  const d = new Date(BAReloj.ahora());
   $("reloj").textContent = String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0");
 }, 1000);
 

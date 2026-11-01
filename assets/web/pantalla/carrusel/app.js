@@ -13,7 +13,6 @@
 (async () => {
   "use strict";
 
-  const $ = (id) => document.getElementById(id);
   const q = new URLSearchParams(location.search);
   const id = q.get("id") || "";
   // Cada cuánto se pregunta si la lista cambió.

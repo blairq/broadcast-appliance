@@ -210,7 +210,8 @@ televisor solo con el programa se congelaba a los 10 s.
   completa. El enlace va por **HTTP y al puerto 8787** (no al de HTTPS): un
   televisor no tiene dónde aceptar nuestro certificado propio.
 
-  **Una pantalla no es un invitado.** Entra por `/ws?pantalla=1` y queda
+  **Una pantalla no es un invitado.** Entra por `/ws?pantalla` (el token en el
+  primer mensaje: docs/arquitectura/06-canal-web.md) y queda
   *fuera* de la sala: no tiene nombre, no aparece en la lista, no pasa por el
   lobby, no ocupa un lugar de invitado y no puede escribir en el chat.
 

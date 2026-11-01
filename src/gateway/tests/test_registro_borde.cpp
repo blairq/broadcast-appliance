@@ -348,7 +348,7 @@ int main() {
             for (ssize_t n; (n = ::read(sv[1], buf, sizeof buf)) > 0;) todo.append(buf, static_cast<size_t>(n));
             ::close(sv[0]);
             ::close(sv[1]);
-            CHECK(todo.find("\"type\":\"error\"") != std::string::npos && cuantos("conexion") == 0 && cuantos("intento") == 1,
+            CHECK(todo.find("\"ok\":false") != std::string::npos && cuantos("conexion") == 0 && cuantos("intento") == 1,
                   "ws: token malo -> error, y la app solo ve el intento");
         }
         {
@@ -371,9 +371,9 @@ int main() {
             };
             CHECK(leerHasta(" 101 "), "ws: 101 Switching Protocols");
             mandar({{"type", "auth"}, {"r", "hall"}, {"t", token}});
-            CHECK(leerHasta("\"type\":\"hola\"") && leido.find("\"nombre\":\"Hall\"") != std::string::npos &&
+            CHECK(leerHasta("\"ok\":true") && leido.find("\"nombre\":\"Hall\"") != std::string::npos &&
                       leido.find("\"conn\":\"c") != std::string::npos,
-                  "ws: token bueno -> hola con el nombre y el conn");
+                  "ws: token bueno -> auth ok con el nombre y el conn");
             CHECK(esperar([&] { return cuantos("conexion") == 1; }), "ws: la app se entera de la conexión");
             json con;
             {

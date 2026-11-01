@@ -1,31 +1,18 @@
 // ============================================================================
-// Teleprompter — la tablet del orador y el control del celular.
-//
-// COMO SE MUEVE EL TEXTO. El servidor no manda la posicion cuadro a cuadro:
-// manda DESDE DONDE (`posicion`, en palabras), A QUE VELOCIDAD (`ppm`) y DESDE
-// CUANDO (`desdeMs`). Cada vista calcula sola donde va, en su propio
-// requestAnimationFrame. Asi un hipo de la red no se ve como un tiron en el
-// renglon que alguien esta leyendo en vivo, y si la red se corta del todo, el
-// texto sigue andando solo.
-//
-// EL RELOJ. `ahoraMs` del servidor viene en cada respuesta: con el se calcula
-// el desfase contra el reloj del aparato, porque una tablet con la hora
-// corrida arrancaria el texto en cualquier lado.
+// Teleprompter — la tablet del orador y el control del celular. Cómo se mueve
+// el texto (desde dónde, a qué velocidad, desde cuándo, con el reloj de la
+// sala): comun/prompter-vista.js, la misma vista que el panel del invitado.
 //
 // NO PREGUNTA. El estado llega por el canal de control (comun/canal.js) cuando
 // cambia: entero (con el texto) al conectarse y cuando se carga un discurso, y
 // sin el texto en lo demas. El mismo canal es lo que le dice al operador que
 // esta tablet esta prendida.
-//
-// LA POSICION VA EN PALABRAS, no en pixeles: la tablet y el celular tienen
-// pantallas distintas y tienen que hablar del mismo lugar del texto.
 // ============================================================================
 (async () => {
   "use strict";
   // Los textos, en el idioma del evento.
   await BAi18n.iniciar({ contexto: "web/prompter", preferir: "evento" });
 
-  const $ = (id) => document.getElementById(id);
   const esControl = location.hash.includes("control");
   // CUAL TELEPROMPTER. Hay varios, cada uno con su texto: /prompter/ es el
   // principal y /prompter/<id>/ cada uno de los otros. La pagina es la misma.
@@ -50,36 +37,10 @@
   const claveNombre = "ba-prompter-nombre" + (prompterId ? "-" + prompterId : "");
   let miNombre = guardado(claveNombre);
 
-  const estado = {
-    texto: "",
-    titulo: "",
-    palabras: 0,
-    parrafos: [],
-    posicion: 0,
-    ppm: 140,
-    corriendo: false,
-    desdeMs: 0,
-    tamano: 5,
-    espejo: false,
-    aviso: "",
-    presentador: null, // lo de la línea de tiempo: {alAire: {nombre, hastaMs?}, proximo?, hold}
-    version: -1,
-    desfaseMs: 0, // reloj del servidor menos el de este aparato
-  };
-
-  // La posicion AHORA: lo ultimo que dijo el servidor mas lo que corrio desde
-  // entonces. Es la unica cuenta que importa en todo el archivo.
-  function posicionAhora() {
-    if (!estado.corriendo) return estado.posicion;
-    const ahora = Date.now() + estado.desfaseMs;
-    const minutos = (ahora - estado.desdeMs) / 60000;
-    return Math.min(estado.palabras, estado.posicion + minutos * estado.ppm);
-  }
-
-  function mmss(seg) {
-    const s = Math.max(0, Math.round(seg));
-    return Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0");
-  }
+  // El texto, cómo corre y lo demás (comun/prompter-vista.js).
+  const vista_ = BAPrompterVista.crear({ lienzo: $("lienzo"), texto: $("texto") });
+  const estado = vista_.e;
+  const posicionAhora = vista_.posicion;
 
   // --- Conversacion con el servidor ----------------------------------------
   // Una vez al abrir (por si el canal tarda): lo demas llega por el canal.
@@ -109,90 +70,19 @@
 
   function aplicar(d) {
     if (!d || typeof d !== "object") return;
-    // Sin `texto`: es un cambio de lo demas (el texto es el que ya esta).
-    const conTexto = typeof d.texto === "string";
-    const textoNuevo = conTexto && d.texto !== estado.texto;
-    estado.desfaseMs = (d.ahoraMs || Date.now()) - Date.now();
-    if (conTexto) estado.texto = d.texto;
-    estado.titulo = d.titulo || "";
-    estado.palabras = d.palabras || 0;
-    estado.parrafos = d.parrafos || [];
-    estado.posicion = d.posicion || 0;
-    estado.ppm = d.ppm || 140;
-    estado.corriendo = !!d.corriendo;
-    estado.desdeMs = d.desdeMs || 0;
-    estado.tamano = d.tamano || 5;
-    estado.espejo = !!d.espejo;
-    estado.aviso = d.aviso || "";
-    estado.presentador = d.presentador || null;
-    estado.duracionSeg = d.duracionSeg || 0;
-    estado.version = d.version;
-    if (textoNuevo) armarTexto();
+    if (vista_.aplicar(d)) {
+      $("vacio").classList.toggle("hidden", !!estado.texto);
+      $("lienzo").classList.toggle("hidden", !estado.texto);
+    }
     pintar();
   }
 
   // --- Vista del orador ------------------------------------------------------
-  let spans = [];
-
-  // El texto se parte en palabras una sola vez: mover 3000 spans por cuadro es
-  // caro, pero crearlos en cada cuadro es imposible.
-  function armarTexto() {
-    const cont = $("texto");
-    if (!cont) return;
-    cont.textContent = "";
-    spans = [];
-    if (!estado.texto) {
-      $("vacio").classList.remove("hidden");
-      $("lienzo").classList.add("hidden");
-      return;
-    }
-    $("vacio").classList.add("hidden");
-    $("lienzo").classList.remove("hidden");
-
-    // Se recorre el texto conservando los espacios y los saltos de linea tal
-    // cual: el orador escribio los renglones donde queria respirar.
-    const partes = estado.texto.split(/(\s+)/);
-    for (const p of partes) {
-      if (p === "") continue;
-      if (/^\s+$/.test(p)) {
-        cont.appendChild(document.createTextNode(p));
-      } else {
-        const s = document.createElement("span");
-        s.textContent = p;
-        cont.appendChild(s);
-        spans.push(s);
-      }
-    }
-  }
-
-  let ultimoMarcado = -1;
-
   function dibujarOrador() {
-    if (!spans.length) return;
-    const pos = posicionAhora();
-    const i = Math.min(spans.length - 1, Math.max(0, Math.floor(pos)));
-
-    // Marcar lo leido es caro si se hace palabra por palabra en cada cuadro:
-    // solo se tocan las que cambiaron desde el cuadro anterior.
-    if (i !== ultimoMarcado) {
-      const desde = Math.min(i, ultimoMarcado < 0 ? 0 : ultimoMarcado);
-      const hasta = Math.max(i, ultimoMarcado < 0 ? spans.length - 1 : ultimoMarcado);
-      for (let k = desde; k <= hasta && k < spans.length; k++) {
-        spans[k].className = k < i ? "leido" : (k === i ? "aqui" : "");
-      }
-      ultimoMarcado = i;
-    }
-
-    // El desplazamiento: la palabra actual tiene que quedar en la guia.
-    const lienzo = $("lienzo");
-    const objetivoY = lienzo.clientHeight * 0.38;
-    const palabra = spans[i];
-    const y = palabra.offsetTop + palabra.offsetHeight / 2;
-    $("texto").style.transform = "translateY(" + (objetivoY - y) + "px)";
-
+    if (!estado.texto) return;
+    vista_.dibujar();
     // Lo que falta, a la velocidad de ahora.
-    const faltan = Math.max(0, estado.palabras - pos);
-    $("reloj").textContent = estado.ppm > 0 ? mmss((faltan / estado.ppm) * 60) : "";
+    $("reloj").textContent = estado.ppm > 0 ? mmss(vista_.faltaSeg()) : "";
   }
 
   // Lo del presentador: cuánto le queda al momento al aire (con el reloj del servidor)
@@ -206,7 +96,7 @@
     if (p && p.alAire) {
       ahora = p.alAire.nombre || "";
       if (p.alAire.hastaMs) {
-        const seg = (p.alAire.hastaMs - (Date.now() + estado.desfaseMs)) / 1000;
+        const seg = (p.alAire.hastaMs - BAReloj.ahora()) / 1000;
         pasado = seg < 0;
         queda = (pasado ? "+" : "") + mmss(Math.abs(seg));
       }
@@ -228,7 +118,6 @@
     const av = $("aviso");
     av.textContent = estado.aviso;
     av.classList.toggle("hidden", !estado.aviso);
-    ultimoMarcado = -1; // que el proximo cuadro repinte todo
   }
 
   // --- Control ---------------------------------------------------------------
@@ -251,8 +140,7 @@
     const pos = posicionAhora();
     $("c-barra").value = Math.round((pos / estado.palabras) * 1000);
     $("c-pos").textContent = BAi18n.llenar(t("palabra %1 de %2"), Math.floor(pos), estado.palabras);
-    const faltan = Math.max(0, estado.palabras - pos);
-    $("c-falta").textContent = estado.ppm > 0 ? BAi18n.llenar(t("faltan %1"), mmss((faltan / estado.ppm) * 60)) : "";
+    $("c-falta").textContent = estado.ppm > 0 ? BAi18n.llenar(t("faltan %1"), mmss(vista_.faltaSeg())) : "";
   }
 
   function pintar() {

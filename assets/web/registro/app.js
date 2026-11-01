@@ -5,7 +5,6 @@
 // conexión) y mostrar en grande lo que llega. La cara se reconoce en la app, sobre ese video.
 "use strict";
 
-const $ = (id) => document.getElementById(id);
 const frag = new URLSearchParams(location.hash.slice(1));
 const busqueda = new URLSearchParams(location.search);
 const totem = frag.get("r") || "";
@@ -14,10 +13,10 @@ const token = frag.get("t") || "";
 const kiosco = busqueda.get("kiosco") === "1";
 let soloPantalla = busqueda.get("pantalla") === "1";
 
-let ws = null;
-let reintento = 1000;
+let cws = null;          // el canal web (comun/canal.js)
+const enviar = (o) => !!cws && cws.mandar(o);
+const listo = () => !!cws && cws.listo();
 let terminado = false;   // cortado o enlace inválido: no se reconecta
-let timerPing = 0;
 let medios = null;       // la cámara y el micrófono
 let empezado = false;    // ya hay cámara y micrófono (la persona tocó, o el kiosco arrancó solo)
 let canal = 0;           // el canal (1..8) que dio el gateway; 0 = ninguno
@@ -49,7 +48,7 @@ function cortar(texto) {
   pararMedios();
   $("cortadoTexto").textContent = texto;
   mostrar("cortado");
-  if (ws) { try { ws.close(); } catch (e) {} }
+  if (cws) cws.cerrar();
 }
 
 // --- La pantalla que solo muestra: el QR de esta misma página para el celular ----------
@@ -130,8 +129,8 @@ function pararMedios() {
 // --- El canal de audio ------------------------------------------------------------------
 function pedirCanal() {
   clearTimeout(timerCanal);
-  if (!empezado || canal || !ws || ws.readyState !== 1) return;
-  ws.send(JSON.stringify({ type: "canal" }));
+  if (!empezado || canal || !listo()) return;
+  enviar({ type: "canal" });
 }
 
 function tomarCanal(k) {
@@ -147,14 +146,14 @@ function tomarCanal(k) {
   iniciarAudio();
   if (empezarConCanal) {
     empezarConCanal = false;
-    ws.send(JSON.stringify({ type: "empezar" }));
+    enviar({ type: "empezar" });
   }
 }
 
 function soltarCanal() {
   clearTimeout(timerCanal);
   cerrarAudio();
-  if (canal && ws && ws.readyState === 1) ws.send(JSON.stringify({ type: "soltar" }));
+  if (canal) enviar({ type: "soltar" });
   canal = 0;
 }
 
@@ -164,7 +163,7 @@ function soltarCanal() {
 async function iniciarAudio() {
   cerrarAudio();
   if (window.BAIce) await BAIce.listo();
-  if (!ws || ws.readyState !== 1 || !medios || !canal) return;
+  if (!listo() || !medios || !canal) return;
   const pista = medios.getAudioTracks()[0];
   if (!pista) return;
   const p = new RTCPeerConnection(window.BAIce ? BAIce.config() : { iceServers: [] });
@@ -178,15 +177,15 @@ async function iniciarAudio() {
     oir();
   };
   p.onicecandidate = (ev) => {
-    if (ev.candidate && ws && ws.readyState === 1) ws.send(JSON.stringify({ type: "ice", candidate: ev.candidate }));
+    if (ev.candidate) enviar({ type: "ice", candidate: ev.candidate });
   };
   p.onconnectionstatechange = () => {
     if (p.connectionState === "failed" && pc === p) setTimeout(() => { if (pc === p && canal) iniciarAudio(); }, 2000);
   };
   const oferta = await p.createOffer();
   await p.setLocalDescription(oferta);
-  if (pc !== p || !ws || ws.readyState !== 1) return;
-  ws.send(JSON.stringify({ type: "oferta", sdp: oferta.sdp }));
+  if (pc !== p || !listo()) return;
+  enviar({ type: "oferta", sdp: oferta.sdp });
 }
 
 function cerrarAudio() {
@@ -241,14 +240,14 @@ function pararLector() {
 let leyendo = false;
 async function leerAca() {
   const v = $("propia");
-  if (leyendo || !v.videoWidth || !ws || ws.readyState !== 1) return;
+  if (leyendo || !v.videoWidth || !listo()) return;
   leyendo = true;
   try {
     for (const b of await detector.detect(v)) {
       const formato = kFormatos[b.format];
       if (!formato || !b.rawValue || b.rawValue === ultimoCodigo) continue;
       ultimoCodigo = b.rawValue;
-      ws.send(JSON.stringify({ type: "codigo", formato, texto: b.rawValue }));
+      enviar({ type: "codigo", formato, texto: b.rawValue });
     }
   } catch (e) { /* un cuadro que no se pudo leer: el próximo */ }
   leyendo = false;
@@ -256,7 +255,7 @@ async function leerAca() {
 
 function mandarCuadro() {
   const v = $("propia");
-  if (!v.videoWidth || !ws || ws.readyState !== 1 || !canal) return;
+  if (!v.videoWidth || !listo() || !canal) return;
   const c = document.createElement("canvas");
   c.width = v.videoWidth;
   c.height = v.videoHeight;
@@ -266,7 +265,7 @@ function mandarCuadro() {
     const r = new FileReader();
     r.onload = () => {
       const b64 = String(r.result).split(",")[1] || "";
-      if (ws && ws.readyState === 1) ws.send(JSON.stringify({ type: "cuadro", jpeg: b64 }));
+      enviar({ type: "cuadro", jpeg: b64 });
     };
     r.readAsDataURL(blob);
   }, "image/jpeg", 0.92);
@@ -335,10 +334,10 @@ function ponerPedido(m) {
 }
 
 function mandarEscrito(valor) {
-  if (!pedido || !ws || ws.readyState !== 1) return;
+  if (!pedido || !listo()) return;
   const v = String(valor).trim();
   if (!v) return;
-  ws.send(JSON.stringify({ type: "escrito", clave: pedido.clave, valor: v }));
+  enviar({ type: "escrito", clave: pedido.clave, valor: v });
   $("cajaValor").value = "";
 }
 
@@ -372,42 +371,32 @@ function volverAEsperar() {
   mostrar("registro");
 }
 
-// --- El WebSocket ----------------------------------------------------------------------------
+// --- El canal (comun/canal.js) -----------------------------------------------------------------
+// Vuelve solo si se corta (el gateway soltó el canal de audio con la conexión: al volver se pide otro).
 function conectar() {
-  const proto = location.protocol === "https:" ? "wss:" : "ws:";
-  ws = new WebSocket(proto + "//" + location.host + "/ws?registro=1");
-  ws.onopen = () => ws.send(JSON.stringify({ type: "auth", r: totem, t: token }));
-  ws.onmessage = (ev) => {
-    let m;
-    try { m = JSON.parse(ev.data); } catch (e) { return; }
-    recibir(m);
-  };
-  ws.onclose = () => {
-    conexion(false);
-    clearInterval(timerPing);
-    clearTimeout(timerCanal);
-    cerrarAudio();
-    canal = 0; // el gateway lo soltó con la conexión: al volver se pide otro
-    if (terminado) return;
-    setTimeout(conectar, reintento);
-    reintento = Math.min(reintento * 2, 15000);
-  };
+  cws = BAWs.abrir({
+    rol: "registro",
+    auth: () => ({ r: totem, t: token }),
+    alEntrar: recibir,
+    alMensaje: recibir,
+    alRechazo: (m) => cortar(t(m.error) || t("Este enlace de registro no es válido.")),
+    alCaer: () => {
+      conexion(false);
+      clearTimeout(timerCanal);
+      cerrarAudio();
+      canal = 0;
+    },
+  });
 }
 
 function recibir(m) {
   switch (m.type) {
-    case "hola":
-      reintento = 1000;
+    case "auth":
       conexion(true);
       if (!titulo && m.nombre) { titulo = m.nombre; $("titulo").textContent = titulo; }
-      clearInterval(timerPing);
-      timerPing = setInterval(() => ws && ws.readyState === 1 && ws.send('{"type":"ping"}'), 20000);
       if (soloPantalla) mostrarQr();
       else if (empezado) { mostrar("registro"); pedirCanal(); } // volvió la conexión en el medio
       else { mostrar("inicio"); if (kiosco) empezar(); }
-      break;
-    case "error":
-      cortar(t(m.error) || t("Este enlace de registro no es válido."));
       break;
     case "cortado":
       cortar(t(m.motivo) || t("Se cerró esta pantalla de registro."));
@@ -460,8 +449,6 @@ function recibir(m) {
     case "atiende":
       ponerAtiende(!!m.activo, m.nombre);
       break;
-    case "pong":
-      break;
   }
 }
 
@@ -487,12 +474,12 @@ function ponerAtiende(activo, quien) {
 $("empezar").addEventListener("click", empezar);
 $("oir").addEventListener("click", oir);
 $("arrancar").addEventListener("click", () => {
-  if (!ws || ws.readyState !== 1) return;
+  if (!listo()) return;
   if (!canal) { empezarConCanal = true; pedirCanal(); return; }
-  ws.send(JSON.stringify({ type: "empezar" }));
+  enviar({ type: "empezar" });
 });
 $("cancelar").addEventListener("click", () => {
-  if (ws && ws.readyState === 1) ws.send(JSON.stringify({ type: "cancelar" }));
+  enviar({ type: "cancelar" });
 });
 $("caja").addEventListener("submit", (ev) => { ev.preventDefault(); mandarEscrito($("cajaValor").value); });
 $("si").addEventListener("click", () => mandarEscrito("sí"));

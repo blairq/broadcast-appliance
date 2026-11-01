@@ -217,18 +217,6 @@ std::string makeClientFrame(int opcode, bool fin, const std::string& payload) {
     return out;
 }
 
-/// Codifica un JSON con el framing del proyecto (prefijo LE de 4 bytes).
-std::string encodeBaFrame(const std::string& jsonStr) {
-    std::string out;
-    const uint32_t len = static_cast<uint32_t>(jsonStr.size());
-    out.push_back(static_cast<char>(len & 0xFF));
-    out.push_back(static_cast<char>((len >> 8) & 0xFF));
-    out.push_back(static_cast<char>((len >> 16) & 0xFF));
-    out.push_back(static_cast<char>((len >> 24) & 0xFF));
-    out += jsonStr;
-    return out;
-}
-
 /// Peticion HTTP completa con cabeceras extra (cada una terminada en \r\n).
 std::string httpReq(uint16_t port, const std::string& method, const std::string& path,
                     const std::string& extra, const std::string& body = {}) {
@@ -246,8 +234,8 @@ std::string bodyOf(const std::string& resp) {
 
 json jsonBody(const std::string& resp) { return json::parse(bodyOf(resp), nullptr, false); }
 
-/// Lee UN mensaje del servidor por el WebSocket (frame sin mascara con el
-/// encoding Frame adentro). null si no llega nada en el timeout del socket.
+/// Lee UN mensaje del servidor por el WebSocket (texto JSON, docs/arquitectura/06-canal-web.md).
+/// null si no llega nada en el timeout del socket.
 json readWsMsg(TestFd fd) {
     uint8_t h[2];
     auto readN = [&](uint8_t* out, size_t n) {
@@ -277,8 +265,8 @@ json readWsMsg(TestFd fd) {
         std::string payload(static_cast<size_t>(len), '\0');
         if (len > 0 && !readN(reinterpret_cast<uint8_t*>(&payload[0]), payload.size())) return nullptr;
         if (op == 0x8) return json{{"type", "__close"}};
-        if (op != 0x2 || payload.size() < 4) continue;
-        return json::parse(payload.substr(4), nullptr, false);
+        if (op != 0x1) continue;
+        return json::parse(payload, nullptr, false);
     }
 }
 
@@ -293,15 +281,16 @@ json waitWsType(TestFd fd, const std::string& type) {
 }
 
 void sendWsJson(TestFd fd, const json& j) {
-    sendAllTest(fd, makeClientFrame(0x2, true, encodeBaFrame(j.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))));
+    sendAllTest(fd, makeClientFrame(0x1, true, j.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace)));
 }
 
-/// Abre el WebSocket de sala con `query` (token nuevo o resume) y devuelve el
-/// descriptor tras el 101.
-TestFd openWsQuery(uint16_t port, const std::string& query) {
+/// Abre el WebSocket de sala (`rol`: "" invitado, "pantalla", "superficie"), dice el primer
+/// mensaje con `auth` y devuelve el descriptor si la sala contestó {"type":"auth","ok":true}.
+/// `respuesta` (opcional) se queda con lo que contestó.
+TestFd openWs(uint16_t port, const std::string& rol, json auth, json* respuesta = nullptr) {
     TestFd fd = connectLoopback(port);
     if (fd == kFdInvalid) return kFdInvalid;
-    const std::string req = "GET /ws?" + query +
+    const std::string req = "GET /ws" + (rol.empty() ? std::string() : "?" + rol) +
                             " HTTP/1.1\r\n"
                             "Host: 127.0.0.1\r\n"
                             "Upgrade: websocket\r\n"
@@ -321,6 +310,15 @@ TestFd openWsQuery(uint16_t port, const std::string& query) {
         closeTestFd(fd);
         return kFdInvalid;
     }
+    auth["v"] = 1;
+    auth["type"] = "auth";
+    sendWsJson(fd, auth);
+    const json r = readWsMsg(fd);
+    if (respuesta) *respuesta = r;
+    if (!r.is_object() || r.value("type", "") != "auth" || !r.value("ok", false)) {
+        closeTestFd(fd);
+        return kFdInvalid;
+    }
     return fd;
 }
 
@@ -336,7 +334,7 @@ Guest joinGuest(uint16_t port, const std::string& name) {
     const std::string tok =
         extractToken(httpPost(port, "/api/join", "{\"room\":\"sala-test\",\"pin\":\"9182\"}"));
     if (tok.empty()) return g;
-    g.fd = openWsQuery(port, "token=" + tok + "&room=sala-test&name=" + name);
+    g.fd = openWs(port, "", {{"token", tok}, {"room", "sala-test"}, {"name", name}});
     if (g.fd == kFdInvalid) return g;
     const json hello = waitWsType(g.fd, "hello");
     if (hello.is_object()) {
@@ -467,12 +465,11 @@ int main() {
         CHECK(statusLine(bad).find("401") != std::string::npos, "join con PIN incorrecto responde 401");
     }
 
-    // --- 3) upgrade, accept del RFC 6455 y anti-replay ----------------------
+    // --- 3) upgrade, accept del RFC 6455, el primer mensaje y anti-replay -------
     const std::string kKey = "dGhlIHNhbXBsZSBub25jZQ==";
     const std::string kExpectedAccept = "s3pPLMBiTxaQ9kYGzzhZRbK+xOo=";
     {
-        const std::string req = "GET /ws?token=" + token +
-                                "&room=sala-test&name=Prueba HTTP/1.1\r\n"
+        const std::string req = "GET /ws HTTP/1.1\r\n"
                                 "hOsT: 127.0.0.1\r\n"
                                 "uPgRaDe: WebSocket\r\n"
                                 "CONNECTION: Upgrade\r\n"
@@ -482,9 +479,15 @@ int main() {
         CHECK(statusLine(r).find("101") != std::string::npos,
               "upgrade con cabeceras en cualquier capitalizacion");
         CHECK(r.find(kExpectedAccept) != std::string::npos, "Sec-WebSocket-Accept correcto");
-        const std::string again = roundTrip(port, req);
-        CHECK(statusLine(again).find("401") != std::string::npos,
-              "reusar el token es rechazado (anti-replay)");
+        json resp;
+        TestFd fd = openWs(port, "", {{"token", token}, {"room", "sala-test"}, {"name", "Prueba"}}, &resp);
+        CHECK(fd != kFdInvalid, "el token en el primer mensaje entra");
+        closeTestFd(fd);
+        CHECK(openWs(port, "", {{"token", token}, {"room", "sala-test"}, {"name", "Prueba"}}, &resp) == kFdInvalid &&
+                  resp.value("error_codigo", "") == "token",
+              "reusar el token es rechazado (anti-replay), con error_codigo «token»");
+        CHECK(openWs(port, "", {{"v", 2}, {"token", "x"}}, &resp) == kFdInvalid,
+              "otra versión del contrato no entra");
         // "Prueba" quedo en el lobby (desconectado, dentro del plazo de
         // reenganche): se lo rechaza para que no ocupe la fila de los casos
         // que siguen.
@@ -553,9 +556,9 @@ int main() {
         std::string sdp = "v=0\\r\\no=- 0 0 IN IP4 127.0.0.1\\r\\n";
         for (int i = 0; i < 40; ++i)
             sdp += "a=relleno-de-prueba-para-alargar-el-sdp-" + std::to_string(i) + "\\r\\n";
-        const std::string framed = encodeBaFrame("{\"type\":\"offer\",\"sdp\":\"" + sdp + "\"}");
+        const std::string framed = "{\"type\":\"offer\",\"sdp\":\"" + sdp + "\"}";
         const size_t third = framed.size() / 3;
-        bool sent = sendAllTest(ana.fd, makeClientFrame(0x2, false, framed.substr(0, third)));
+        bool sent = sendAllTest(ana.fd, makeClientFrame(0x1, false, framed.substr(0, third)));
         sent = sent && sendAllTest(ana.fd, makeClientFrame(0x0, false, framed.substr(third, third)));
         sent = sent && sendAllTest(ana.fd, makeClientFrame(0x0, true, framed.substr(2 * third)));
         CHECK(sent, "se enviaron los tres fragmentos");
@@ -651,9 +654,11 @@ int main() {
         const json snap = jsonBody(httpReq(aport, "GET", "/api/v1/room", bearer));
         CHECK(findP(snap, caro.id).value("connected", true) == false, "Caro figura desconectada");
         CHECK(findP(snap, caro.id).value("slot", 0) == 2, "pero conserva su slot");
-        CHECK(openWsQuery(port, "resume=" + caro.id + "&key=mala") == kFdInvalid,
-              "reenganche con clave mala -> 401");
-        caro.fd = openWsQuery(port, "resume=" + caro.id + "&key=" + caro.key);
+        json resp;
+        CHECK(openWs(port, "", {{"resume", caro.id}, {"key", "mala"}}, &resp) == kFdInvalid &&
+                  resp.value("error_codigo", "") == "sesion",
+              "reenganche con clave mala -> error_codigo «sesion»");
+        caro.fd = openWs(port, "", {{"resume", caro.id}, {"key", caro.key}});
         CHECK(caro.fd != kFdInvalid, "reenganche con su clave");
         CHECK(waitWsType(caro.fd, "hello").value("resumed", false), "hello de reenganche");
         CHECK(waitWsType(caro.fd, "admitted").value("slot", 0) == 2, "vuelve a su slot");
@@ -851,9 +856,8 @@ int main() {
         const std::string pinNow = jsonBody(httpReq(aport, "GET", "/api/v1/room", bearer)).value("pin", "");
         const std::string tok =
             extractToken(httpPost(port, "/api/join", R"({"room":"sala-test","pin":")" + pinNow + R"("})"));
-        TestFd fd =
-            openWsQuery(port, "token=" + tok + "&room=sala-test&name=Oradora&info=Vecina%20del%20barrio" +
-                                  "&contact=%2B54%2011%205555");
+        TestFd fd = openWs(port, "", {{"token", tok}, {"room", "sala-test"}, {"name", "Oradora"},
+                                      {"info", "Vecina del barrio"}, {"contact", "+54 11 5555"}});
         CHECK(fd != kFdInvalid, "la oradora entra");
         const json hello = waitWsType(fd, "hello");
         const std::string id = hello.value("id", ""), key = hello.value("key", "");

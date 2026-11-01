@@ -4,14 +4,13 @@
    Lee GET /api/v1/board (cabecera X-BA-Clave) al abrir y después le llega
    cada cambio por el canal de control (comun/canal.js, con la clave en su
    primer mensaje); los relojes corren localmente, corregidos con el reloj de
-   la sala (serverNowMs). La clave viene en el fragmento del enlace (#k=...),
+   la sala (comun/reloj.js). La clave viene en el fragmento del enlace (#k=...),
    se guarda en el navegador y se borra de la barra de direcciones.
    ========================================================================== */
 
 (async function () {
   "use strict";
 
-  const $ = (id) => document.getElementById(id);
   const llenar = (s, ...v) => BAi18n.llenar(s, ...v);
   const KEY = "ba.board.key";
   const hash = new URLSearchParams(location.hash.replace(/^#/, ""));
@@ -27,23 +26,12 @@
   // el invitado, sin re-codificar). Sin video, la foto.
   const live = window.BALive ? BALive.create({ endpoint: "/api/v1/board/view", headers: { "X-BA-Clave": key } }) : null;
   let liveIds = new Set();
-  let offset = 0; // reloj de la sala - reloj local
   let lastOk = 0;
   let conectado = false; // el canal de control (lo que cambia llega por ahí)
 
-  const fmt = (ms) => {
-    const neg = ms < 0, t = Math.floor(Math.abs(ms) / 1000);
-    const h = Math.floor(t / 3600), m = Math.floor((t % 3600) / 60), s = t % 60;
-    const body = h > 0 ? h + ":" + String(m).padStart(2, "0") + ":" + String(s).padStart(2, "0") : m + ":" + String(s).padStart(2, "0");
-    return (neg ? "+" : "") + body;
-  };
-  const now = () => Date.now() + offset;
-  function el(tag, cls, text) {
-    const e = document.createElement(tag);
-    if (cls) e.className = cls;
-    if (text !== undefined) e.textContent = text;
-    return e;
-  }
+  // «+0:42» pasado de tiempo (los ms, truncados a segundos).
+  const fmt = (ms) => (ms < 0 ? "+" : "") + mmss(Math.floor(Math.abs(ms) / 1000));
+  const now = BAReloj.ahora;
   // Las fotos con la clave en la cabecera (nunca en la dirección: queda en los registros):
   // se bajan con fetch y se muestran desde la memoria; una nueva cada 5 s como mucho.
   const avatares = new Map(); // id -> {stamp, url}
@@ -86,7 +74,7 @@
   }
   function aplicar(b) {
     board = b;
-    offset = board.serverNowMs - Date.now();
+    BAReloj.tomar(board);
     lastOk = Date.now();
     $("blocked").classList.add("hidden");
     render();

@@ -262,7 +262,8 @@ manda además `audio-error` y `cortado`. La página manda `soltar` al recibir
 ### La atención remota
 
 Página (`/registro-atiende/`, `Web/registro-atiende`): `GET /ws?registro_atiende=1`,
-primer mensaje `{type:"auth", t, nombre}` → `{type:"hola", aconn, nombre}`. Después
+primer mensaje `{v:1, type:"auth", t, nombre}` → `{type:"auth", ok:true, aconn, nombre}`
+(el canal web: docs/arquitectura/06-canal-web.md). Después
 `{type:"mirar", conn}` → `{type:"mirando", conn, canal, habla}` (también cuando la
 conversación toma o suelta su canal); `{type:"oferta", sdp}` (un audio y a lo sumo un
 video) → `respuesta` / `ice`; `{type:"atender" | "devolver" | "guardar" | "cancelar",

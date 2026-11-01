@@ -111,7 +111,7 @@
          Aparece solo si hay un discurso cargado y le toca hablar. -->
     <div class="orador hidden" id="orador-panel">
       <div class="orador-aviso hidden" id="orador-aviso"></div>
-      <div class="orador-texto" id="orador-texto"></div>
+      <div class="orador-texto" id="orador-lienzo"><div class="orador-linea" id="orador-texto"></div></div>
       <div class="orador-pie" id="orador-pie"></div>
     </div>
     <div class="stage">
@@ -165,6 +165,10 @@
   <div id="toasts" class="toasts" aria-live="polite"></div>
 
   <script src="/comun/i18n.js"></script>
+  <script src="/comun/dom.js"></script>
+  <script src="/comun/reloj.js"></script>
+  <script src="/comun/canal.js"></script>
+  <script src="/comun/prompter-vista.js"></script>
   <script src="../comun/retardo.js"></script>
   <script src="../comun/ice.js"></script>
   <script src="app.js"></script>

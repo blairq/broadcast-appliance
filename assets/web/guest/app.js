@@ -4,17 +4,16 @@
    Flujo:
      1. join(): POST /api/join {room, pin} -> token de un solo uso.
      2. Dispositivos: getUserMedia (max 720p30), opcional.
-     3. WebSocket /ws?token=&room=&name= -> la sala responde "hello" con un id
-        y una CLAVE propia del participante, y lo deja en el LOBBY ("lobby",
-        con su posicion) hasta que el operador lo admite ("admitted").
+     3. El canal web (comun/canal.js, docs/arquitectura/06-canal-web.md): /ws con el token,
+        la sala y el nombre en el primer mensaje -> la sala responde "hello" con
+        un id y una CLAVE propia del participante, y lo deja en el LOBBY
+        ("lobby", con su posicion) hasta que el operador lo admite ("admitted").
      4. Admitido: RTCPeerConnection (el invitado es el OFFERER) con camara +
         micro; compartir pantalla/ventana agrega un segundo track de video y
         renegocia. Archivos: POST /api/v1/files con la clave (X-BA-Key).
-     5. Reconexion: /ws?resume=<id>&key=<clave>. Id y clave viven en
-        sessionStorage, asi una recarga de la pagina vuelve al mismo lugar.
-
-   Framing: los mensajes viajan como frames BINARIOS WS con el encoding Frame
-   del proyecto (4 bytes LE + JSON, spec §4.1).
+     5. Reconexion: el canal vuelve solo, con {resume: <id>, key: <clave>} en el
+        primer mensaje. Id y clave viven en sessionStorage, asi una recarga de la
+        pagina vuelve al mismo lugar.
    ========================================================================== */
 
 (async function () {
@@ -22,30 +21,26 @@
   const llenar = (s, ...v) => BAi18n.llenar(s, ...v);
 
   const MAX_W = 1280, MAX_H = 720, FPS = 30;
-  const RECONNECT_BASE_MS = 1000, RECONNECT_MAX_MS = 15000;
   const SESSION_KEY = "ba.guest.session";
   const LINK_KEY = "ba.guest.link"; // sala y PIN del enlace: sobreviven a una recarga
-  const PING_MS = 5000, PING_DEAD_MS = 12000; // latido del WebSocket
   const MEDIA_GRACE_MS = 5000;                // medios caidos antes de rearmar la conexion
 
   const state = {
     token: null, room: null, name: "",
     id: null, key: null,
-    ws: null, wsOpened: false, pc: null,
+    canal: null, pc: null,
     localStream: null, screenStream: null, screenSender: null,
     audioCtx: null, analyser: null, levelRaf: 0,
     admitted: false, slot: 0,
     mic: true, cam: true, hand: false,
     maxUploadBytes: 0,
-    reconnectDelay: RECONNECT_BASE_MS, reconnectTimer: 0, resumeFailures: 0,
-    lastRx: 0, pongSeen: false, pingTimer: 0, mediaTimer: 0, wakeLock: null,
+    mediaTimer: 0, wakeLock: null,
     left: false, chatOpen: false, chatAuto: false, unread: 0,
     info: "", contact: "",
-    speaker: null, clockOffset: 0, speakerAt: 0, speakerTimer: 0, avatarTimer: 0,
+    speaker: null, speakerAt: 0, speakerTimer: 0, avatarTimer: 0,
   };
 
   // --- DOM ----------------------------------------------------------------
-  const $ = (id) => document.getElementById(id);
   const screens = ["join", "check", "lobby", "room", "end"];
   function show(name) {
     for (const s of screens) $("screen-" + s).classList.toggle("hidden", s !== name);
@@ -65,23 +60,10 @@
   const BUFFER_MS = Math.max(
       0, parseInt(new URLSearchParams(location.search).get("buffer") || "0", 10) || 0);
 
-  // --- Framing ------------------------------------------------------------
-  function encodeFrame(obj) {
-    const json = new TextEncoder().encode(JSON.stringify(obj));
-    const buf = new Uint8Array(4 + json.length);
-    new DataView(buf.buffer).setUint32(0, json.length, true);
-    buf.set(json, 4);
-    return buf;
-  }
-  function decodeFrame(u8) {
-    if (u8.length < 4) return null;
-    const len = new DataView(u8.buffer, u8.byteOffset, u8.byteLength).getUint32(0, true);
-    if (u8.length < 4 + len) return null;
-    try { return JSON.parse(new TextDecoder().decode(u8.subarray(4, 4 + len))); } catch (e) { return null; }
-  }
   function send(obj) {
-    if (state.ws && state.ws.readyState === WebSocket.OPEN) state.ws.send(encodeFrame(obj));
+    if (state.canal) state.canal.mandar(obj);
   }
+  const conectado = () => !!state.canal && state.canal.listo();
 
   // --- Sesion persistente (sobrevive a una recarga) -----------------------
   function saveSession() {
@@ -243,7 +225,7 @@
     $("local-preview").srcObject = stream;
     $("self-video").srcObject = stream;
     // Si la conexion ya estaba armada sin medios, se rearma con ellos.
-    if (state.pc && state.ws && state.ws.readyState === WebSocket.OPEN) startPeer();
+    if (state.pc && conectado()) startPeer();
     try {
       state.audioCtx = state.audioCtx || new (window.AudioContext || window.webkitAudioContext)();
       const src = state.audioCtx.createMediaStreamSource(stream);
@@ -270,107 +252,25 @@
     cancelAnimationFrame(state.levelRaf);
   }
 
-  // --- 3) WebSocket de sala -----------------------------------------------
+  // --- 3) El canal de sala (comun/canal.js) ----------------------------------
+  // Vuelve solo si se corta (con su id y su clave, al mismo lugar), con espera
+  // creciente y apenas vuelve la red o la pestaña al frente.
   function connect() {
-    clearTimeout(state.reconnectTimer);
-    const proto = location.protocol === "https:" ? "wss" : "ws";
-    const q = state.id && state.key
-      ? `resume=${encodeURIComponent(state.id)}&key=${encodeURIComponent(state.key)}`
-      : `token=${encodeURIComponent(state.token)}&room=${encodeURIComponent(state.room)}&name=${encodeURIComponent(state.name)}` +
-        `&info=${encodeURIComponent(state.info)}&contact=${encodeURIComponent(state.contact)}`;
-    const ws = new WebSocket(`${proto}://${location.host}/ws?${q}`);
-    ws.binaryType = "arraybuffer";
-    state.ws = ws;
-    state.wsOpened = false;
-    ws.onopen = () => {
-      state.wsOpened = true;
-      state.resumeFailures = 0;
-      state.reconnectDelay = RECONNECT_BASE_MS;
-      setConn("ok", t("Conectado"));
-      startPing(ws);
-      keepAwake();
-    };
-    ws.onmessage = (ev) => {
-      state.lastRx = Date.now();
-      if (ev.data instanceof ArrayBuffer) {
-        const msg = decodeFrame(new Uint8Array(ev.data));
-        if (msg) onMessage(msg);
-      }
-    };
-    let closed = false;
-    ws.onclose = async () => {
-      if (state.ws !== ws || closed) return; // el latido puede forzar este camino antes que el navegador
-      closed = true;
-      clearInterval(state.pingTimer);
-      teardownPeer();
-      if (state.left) return;
-      const opened = state.wsOpened;
-      if (!state.id) {
-        end(t("No se pudo entrar"), t("El ingreso venció. Volvé a intentarlo."));
-        return;
-      }
-      setConn("bad", t("Reconectando…"));
-      if (!opened) {
-        // El navegador no distingue "el servidor rechazo el reenganche" de "no
-        // hay red". Solo cuenta como rechazo si el servidor SI responde: sin
-        // red (cambio de wifi a datos) se sigue intentando sin perder el lugar.
-        if (await serverReachable()) {
-          if (state.ws !== ws || state.left) return;
-          if (++state.resumeFailures >= 2) {
-            clearSession();
-            end(t("Tu lugar en la conferencia venció"), t("Pasó demasiado tiempo desconectado. Volvé a entrar."));
-            return;
-          }
-        }
-        if (state.ws !== ws || state.left) return;
-      }
-      state.reconnectTimer = setTimeout(connect, state.reconnectDelay);
-      state.reconnectDelay = Math.min(state.reconnectDelay * 2, RECONNECT_MAX_MS);
-    };
-  }
-
-  async function serverReachable() {
-    if (navigator.onLine === false) return false;
-    const ctl = new AbortController();
-    const t = setTimeout(() => ctl.abort(), 4000);
-    try {
-      await fetch("/healthz", { cache: "no-store", signal: ctl.signal });
-      return true; // cualquier respuesta HTTP: el servidor esta
-    } catch (e) {
-      return false;
-    } finally {
-      clearTimeout(t);
-    }
-  }
-
-  // Latido: un TCP medio abierto (cambio de red) no dispara onclose. Si el
-  // servidor no contesta nada en PING_DEAD_MS, el socket se da por muerto.
-  function startPing(ws) {
-    clearInterval(state.pingTimer);
-    state.lastRx = Date.now();
-    state.pingTimer = setInterval(() => {
-      if (state.ws !== ws) return clearInterval(state.pingTimer);
-      // Solo se exige respuesta a un servidor que ya contesto un latido (uno
-      // anterior a este cambio no lo hace y no hay que cortarle).
-      if (state.pongSeen && Date.now() - state.lastRx > PING_DEAD_MS) {
-        clearInterval(state.pingTimer);
-        try { ws.close(); } catch (e) {}
-        // close() puede tardar en avisar con la red caida: se fuerza el camino.
-        setTimeout(() => { if (state.ws === ws && ws.onclose) ws.onclose(); }, 1500);
-        return;
-      }
-      send({ type: "ping" });
-    }, PING_MS);
-  }
-
-  // Vuelve la red o la pestaña al frente: reintentar YA, sin esperar el backoff.
-  function reconnectNow() {
-    if (state.left || !state.id) return;
-    const ws = state.ws;
-    if (ws && ws.readyState === WebSocket.OPEN) { send({ type: "ping" }); return; }
-    if (ws && ws.readyState === WebSocket.CONNECTING) return;
-    state.reconnectDelay = RECONNECT_BASE_MS;
-    connect();
+    if (state.canal) { state.canal.reabrir(); return; }
+    state.canal = BAWs.abrir({
+      auth: () => (state.id && state.key
+        ? { resume: state.id, key: state.key }
+        : { token: state.token, room: state.room, name: state.name, info: state.info, contact: state.contact }),
+      alEntrar: () => { setConn("ok", t("Conectado")); keepAwake(); },
+      alMensaje: onMessage,
+      alCaer: () => { teardownPeer(); if (!state.left) setConn("bad", t("Reconectando…")); },
+      alRechazo: (m) => {
+        if (state.left) return;
+        clearSession();
+        if (m.error_codigo === "sesion") end(t("Tu lugar en la conferencia venció"), t("Pasó demasiado tiempo desconectado. Volvé a entrar."));
+        else end(t("No se pudo entrar"), t("El ingreso venció. Volvé a intentarlo."));
+      },
+    });
   }
 
   // Pantalla encendida mientras se esta en el lobby o en la sala: un celular
@@ -447,14 +347,11 @@
         break;
       case "prompter":
         // El teleprompter principal cambió (la sala lo avisa: no se pregunta cada segundo).
-        if (prompter.timer !== 0) aplicarPrompter(msg.estado);
+        if (siguePrompter) aplicarPrompter(msg.estado);
         break;
       case "profile":
         state.name = msg.name || state.name;
         $("self-label").textContent = state.name;
-        break;
-      case "pong":
-        state.pongSeen = true; // latido: ya conto como recibido
         break;
       case "rejected": {
         state.left = true;
@@ -608,7 +505,7 @@
       // nueva (el servidor acepta una oferta fresca del mismo participante).
       state.mediaTimer = setTimeout(() => {
         if (state.pc !== pc || state.left) return;
-        if (state.ws && state.ws.readyState === WebSocket.OPEN) startPeer();
+        if (conectado()) startPeer();
       }, cs === "failed" ? 0 : MEDIA_GRACE_MS);
     };
     // Tambien renegocia al sumar/quitar la pantalla compartida.
@@ -670,7 +567,7 @@
     }
     if (state.localStream) state.localStream.getTracks().forEach((t) => t.stop());
     setLocalStream(stream);
-    if (!state.pc && state.ws && state.ws.readyState === WebSocket.OPEN) startPeer();
+    if (!state.pc && conectado()) startPeer();
     return true;
   }
   async function setMic(on) {
@@ -808,51 +705,32 @@
   // frente. El estado sale del mismo teleprompter que ve la tablet
   // (GET /api/prompter es publico: es lo que va a decir en voz alta).
   //
-  // El servidor manda desde donde y a que velocidad; aca se calcula la
-  // posicion igual que en la tablet, asi el texto no salta con la red.
-  const prompter = { texto: "", palabras: [], pos: 0, ppm: 140, corriendo: false,
-                     desdeMs: 0, desfaseMs: 0, aviso: "", version: -1, timer: 0 };
-
-  function prompterPos() {
-    if (!prompter.corriendo) return prompter.pos;
-    const ahora = Date.now() + prompter.desfaseMs;
-    return Math.min(prompter.palabras.length,
-                    prompter.pos + ((ahora - prompter.desdeMs) / 60000) * prompter.ppm);
-  }
+  // La vista es la misma de la tablet (comun/prompter-vista.js): el texto corre
+  // solo con el reloj de la sala, asi no salta con la red.
+  const prompter = BAPrompterVista.crear({ lienzo: $("orador-lienzo"), texto: $("orador-texto"), guia: 0.3 });
+  let siguePrompter = false, pintadoRaf = 0;
 
   function pintarOrador() {
     const panel = $("orador-panel");
     // Solo cuando le toca a esta persona y hay algo que leer. En la fila no:
     // le taparia el programa que esta mirando.
+    const e = prompter.e;
     const suTurno = state.speakerState === "onair";
-    if (!suTurno || prompter.palabras.length === 0) {
-      panel.classList.add("hidden");
-      return;
-    }
-    panel.classList.remove("hidden");
-
+    panel.classList.toggle("hidden", !suTurno || !e.texto);
     const av = $("orador-aviso");
-    av.textContent = prompter.aviso;
-    av.classList.toggle("hidden", !prompter.aviso);
-
-    // Una ventana de palabras alrededor de donde va: en un celular no entra
-    // el discurso entero y desplazar todo el texto seria caro.
-    const i = Math.floor(prompterPos());
-    const desde = Math.max(0, i - 4);
-    const hasta = Math.min(prompter.palabras.length, i + 45);
-    const cont = $("orador-texto");
-    cont.textContent = "";
-    for (let k = desde; k < hasta; k++) {
-      const s = document.createElement("span");
-      s.textContent = prompter.palabras[k] + " ";
-      if (k < i) s.className = "leido";
-      else if (k === i) s.className = "aqui";
-      cont.appendChild(s);
-    }
-    const faltan = Math.max(0, prompter.palabras.length - prompterPos());
-    $("orador-pie").textContent = prompter.corriendo
-      ? llenar(t("Quedan %1 de lectura"), fmtClock((faltan / prompter.ppm) * 60000))
+    av.textContent = e.aviso;
+    av.classList.toggle("hidden", !e.aviso);
+    $("orador-pie").textContent = e.corriendo
+      ? llenar(t("Quedan %1 de lectura"), mmss(prompter.faltaSeg()))
       : t("El texto está parado: lo arranca el operador");
+    // Mientras se ve, el texto corre cuadro a cuadro (como en la tablet).
+    if (!panel.classList.contains("hidden") && !pintadoRaf)
+      pintadoRaf = requestAnimationFrame(function cuadro() {
+        pintadoRaf = 0;
+        if (panel.classList.contains("hidden")) return;
+        prompter.dibujar();
+        pintadoRaf = requestAnimationFrame(cuadro);
+      });
   }
 
   async function leerPrompter() {
@@ -863,36 +741,27 @@
 
   function aplicarPrompter(d) {
     if (!d || typeof d !== "object") return;
-    prompter.desfaseMs = (d.ahoraMs || Date.now()) - Date.now();
-    // Sin `texto`: es un cambio de lo demás (el texto es el que ya está).
-    if (typeof d.texto === "string" && d.texto !== prompter.texto) {
-      prompter.texto = d.texto;
-      prompter.palabras = prompter.texto.split(/\s+/).filter((w) => w !== "");
-    }
-    prompter.pos = d.posicion || 0;
-    prompter.ppm = d.ppm || 140;
-    prompter.corriendo = !!d.corriendo;
-    prompter.desdeMs = d.desdeMs || 0;
-    if (d.aviso !== prompter.aviso && d.aviso) toast(d.aviso, "ok");
-    prompter.aviso = d.aviso || "";
+    const antes = prompter.e.aviso;
+    prompter.aplicar(d);
+    if (prompter.e.aviso && prompter.e.aviso !== antes) toast(prompter.e.aviso, "ok");
   }
 
   /// Solo mientras esta en modo oradores: al resto de la sala el teleprompter no
   /// le importa. Se lee una vez; lo que cambia lo avisa la sala por el WebSocket.
   function seguirPrompter(on) {
     if (!on) {
-      prompter.timer = 0;
+      siguePrompter = false;
       $("orador-panel").classList.add("hidden");
       return;
     }
-    prompter.timer = 1;
-    leerPrompter().then(pintarOrador);
+    if (!siguePrompter) leerPrompter().then(pintarOrador);
+    siguePrompter = true;
   }
 
   function onSpeaker(msg) {
     state.speaker = msg;
     state.speakerAt = Date.now();
-    if (msg.serverNowMs) state.clockOffset = msg.serverNowMs - state.speakerAt;
+    BAReloj.tomar(msg);
     const prev = state.speakerState;
     state.speakerState = msg.state;
     if (msg.state === "onair" && prev !== "onair") toast(t("¡Estás al aire!"), "ok");
@@ -903,15 +772,11 @@
     seguirPrompter(msg.state === "onair" || msg.state === "queued");
   }
 
-  function fmtClock(ms) {
-    const neg = ms < 0;
-    const s = Math.floor(Math.abs(ms) / 1000);
-    const txt = Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0");
-    return (neg ? "+" : "") + txt;
-  }
+  // El reloj del turno: «+0:42» pasado de tiempo (los ms, truncados a segundos).
+  const fmtClock = (ms) => (ms < 0 ? "+" : "") + mmss(Math.floor(Math.abs(ms) / 1000));
 
   function renderSpeaker() {
-    if (prompter.timer) pintarOrador();
+    if (siguePrompter) pintarOrador();
     const m = state.speaker;
     const bar = $("speaker-bar");
     const visible = !!m && (m.state === "queued" || m.state === "onair" || m.state === "done") && state.admitted;
@@ -919,7 +784,7 @@
     if (!visible) { clearInterval(state.speakerTimer); return; }
     bar.classList.remove("queued", "onair", "warn", "over", "done");
     if (m.state === "onair") {
-      const now = Date.now() + state.clockOffset;
+      const now = BAReloj.ahora();
       // Al entrar al aire la cuenta arranca; se pasa de cero, sigue en negativo.
       const left = m.allottedSec * 1000 - (now - m.startedMs);
       bar.classList.add("onair");
@@ -1013,15 +878,15 @@
   function leave() {
     state.left = true;
     send({ type: "bye" });
-    try { if (state.ws) state.ws.close(); } catch (e) {}
+    if (state.canal) state.canal.cerrar();
     teardownPeer();
     clearSession();
     end(t("Saliste de la conferencia"), t("Gracias por participar."));
   }
 
   function end(title, text) {
-    clearTimeout(state.reconnectTimer);
-    clearInterval(state.pingTimer);
+    state.left = true;
+    if (state.canal) state.canal.cerrar();
     releaseAwake();
     const u = $("btn-unmute-remote");
     if (u) u.remove();
@@ -1069,12 +934,7 @@
   // Dentro de la sala, salir pide confirmacion: un toque sin querer obliga a
   // volver a pasar por el lobby en pleno vivo.
   $("btn-leave").addEventListener("click", () => { if (window.confirm(t("¿Salir de la conferencia?"))) leave(); });
-  window.addEventListener("online", reconnectNow);
-  document.addEventListener("visibilitychange", () => {
-    if (document.visibilityState !== "visible") return;
-    reconnectNow();
-    keepAwake();
-  });
+  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") keepAwake(); });
   $("btn-again").addEventListener("click", () => { state.left = false; show("join"); });
   $("chat-form").addEventListener("submit", (e) => {
     e.preventDefault();

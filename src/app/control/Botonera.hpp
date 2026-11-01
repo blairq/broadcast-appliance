@@ -53,6 +53,7 @@
 
 #include <nlohmann/json.hpp>
 
+#include <algorithm>
 #include <deque>
 #include <filesystem>
 #include <functional>
@@ -231,7 +232,11 @@ class Botonera : public QObject {
                    const std::string& ip);
     /// ¿Esa solicitud ya llegó (espera a una persona)? Para no tratarla dos veces cuando se
     /// la va a buscar al gateway (BotoneraGateway::sincronizar).
-    bool tieneSolicitud(const std::string& solicitud) const { return solicitudes_.count(solicitud) > 0; }
+    /// También las ya resueltas: el gateway todavía la puede listar como pendiente (no llegó el
+    /// «resolver») y volver a tratarla gastaría el código de nuevo y la daría por inválida.
+    bool tieneSolicitud(const std::string& solicitud) const {
+        return solicitudes_.count(solicitud) > 0 || std::find(resueltas_.begin(), resueltas_.end(), solicitud) != resueltas_.end();
+    }
     /// Aprueba (genera el token y devuelve {dispositivo, token}) o rechaza. `perfil`
     /// (id), si no va vacío, reemplaza al del código: la persona que aprueba elige
     /// con qué perfil entra el aparato.
@@ -395,6 +400,7 @@ class Botonera : public QObject {
         std::int64_t ms = 0;
     };
     std::map<std::string, Solicitud> solicitudes_;
+    std::deque<std::string> resueltas_; ///< las últimas resueltas (ver tieneSolicitud)
     std::deque<json> auditoria_;
     QTimer refresco_;
     std::unique_ptr<UsoPorVistas> usoPaginas_;

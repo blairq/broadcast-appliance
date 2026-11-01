@@ -47,6 +47,8 @@
 
 #include <nlohmann/json.hpp>
 
+#include "Canal.hpp"
+
 namespace ba::gateway {
 
 class Log;
@@ -75,11 +77,9 @@ class BotoneraBorde {
     static bool origenValido(const std::string& headers);
 
    private:
-    struct Conn {
-        long long fd = -1;
+    struct Conn : canal::Salida {
         std::string dispositivo;
         std::string ip;
-        std::mutex sendLock;
     };
     struct Credencial {
         std::string hash, sal;
@@ -92,7 +92,6 @@ class BotoneraBorde {
         std::int64_t ms = 0;
     };
     void wsLoop(long long fd, const std::string& headers, std::uint32_t clientIp);
-    void enviar(const std::shared_ptr<Conn>& c, const nlohmann::json& msg);
     bool servir(long long fd, const std::string& rel);
     bool servirCara(long long fd, const std::string& rel);
     bool emparejarPermitido(std::uint32_t ip);

@@ -7,7 +7,6 @@
   const texto = q.get("texto") || "";
   const pie = q.get("pie") || "";
 
-  const $ = (id) => document.getElementById(id);
 
   if (tipo === "qr") {
     // El QR lo dibuja el servidor (ya tiene con qué): así esta página no

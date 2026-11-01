@@ -13,6 +13,7 @@
 #include "diag/Metricas.hpp"
 #include "i18n/I18n.hpp"
 #include "SignalingServer.hpp"
+#include "Canal.hpp"
 #include "security/Comparar.hpp"
 #include "ajustes/Ajustes.hpp"
 
@@ -64,7 +65,6 @@
 namespace ba::gateway {
 
 using json = nlohmann::json;
-using ba::ipc::Frame;
 using ba::i18n::llenar;
 using ba::i18n::traducir;
 
@@ -1034,12 +1034,17 @@ void SignalingServer::handleConnection(long long fd, std::uint32_t clientIp, Esc
     for (auto& ch : upgrade)
         ch = static_cast<char>(::tolower(static_cast<unsigned char>(ch)));
     if (upgrade == "websocket" && path == "/ws") {
-        const std::string pid = wsOpen(fd, headers, query, clientIp);
+        // El canal web (docs/arquitectura/06-canal-web.md): el 101 y, a los 15 s como mucho, el primer
+        // mensaje con lo que el rol necesita para entrar.
+        if (!canal::aceptar(fd, headers)) return;
+        const json primero = canal::primerMensaje(fd, 15000);
+        if (primero.is_null()) return;
+        const std::string pid = wsOpen(fd, query, primero, clientIp);
         if (pid.empty()) return;
         const uint64_t gen = registerConn(pid, fd);
         // Una superficie que entra recibe enseguida lo que muestra (el tally, el texto
         // del teleprompter): no pregunta, se le avisa (ver saludarSuperficie).
-        if (pid.rfind("superficie:", 0) == 0 && claveDeSuperficie(superficies_.tipoDe(pid)).empty()) saludarSuperficie(pid);
+        if (pid.rfind("superficie:", 0) == 0) saludarSuperficie(pid);
         // La pantalla no espera nada de la sala: se le dice ya que arme su
         // PeerConnection (un invitado espera a tener lugar).
         if (esPantalla(pid))
@@ -2180,29 +2185,37 @@ bool SignalingServer::soloRecibe(const std::string& sdp) {
     return !enSeccion || direccionVista;
 }
 
-std::string SignalingServer::wsOpen(long long fd, const std::string& headers, const std::string& query,
-                                    std::uint32_t clientIp) {
-    const std::string wsKey = http::getHeader(headers, "Sec-WebSocket-Key");
-    if (wsKey.empty()) {
-        http::sendResponse(fd, 400, "text/plain", traducir("gateway", "falta Sec-WebSocket-Key") + "\n");
-        return {};
-    }
+std::string SignalingServer::wsOpen(long long fd, const std::string& query, const json& primero, std::uint32_t clientIp) {
+    // El rol va en la dirección (?superficie, ?pantalla; sin nada, un invitado); todo lo
+    // demás (el token, la clave, el id) en el primer mensaje: nada secreto en la dirección,
+    // que queda en los registros (docs/arquitectura/06-canal-web.md).
     const auto q = http::parseQuery(query);
-    const auto arg = [&](const char* k) { return q.count(k) ? http::urlDecode(q.at(k)) : std::string(); };
+    const auto arg = [&](const char* k) -> std::string {
+        if (!primero.contains(k)) return {};
+        const json& v = primero[k];
+        if (v.is_string()) return v.get<std::string>();
+        if (v.is_number_integer()) return std::to_string(v.get<long long>());
+        return {};
+    };
+    const auto bien = [&] { http::writeWsFrame(fd, 0x1, canal::texto(json{{"type", "auth"}, {"ok", true}})); };
 
     // UNA SUPERFICIE del aparato (una pantalla, un carrusel, el teleprompter,
-    // los rotulos). Entra sin token: lo que hace por este canal es DECIR que
-    // esta viva y que muestra, y recibir ordenes de que mostrar. No lee ni
-    // toca nada de la sala. Lo que se protege en este aparato es cambiar
-    // cosas, y eso sigue pasando por donde pasaba.
-    if (!arg("superficie").empty()) {
-        const std::string accept =
-            http::base64(http::sha1(wsKey + "258EAFA5-E914-47DA-95CA-C5AB0DC85B11").data(), 20);
-        const std::string ok = "HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\n"
-                               "Connection: Upgrade\r\nSec-WebSocket-Accept: " +
-                               accept + "\r\n\r\n";
-        if (!http::sendAll(fd, ok.data(), ok.size())) return {};
-        http::setSocketTimeout(fd, 0);
+    // los rotulos). Lo que hace por este canal es DECIR que esta viva y que
+    // muestra, y recibir ordenes de que mostrar. No lee ni toca nada de la sala.
+    // Las que muestran algo reservado (los rótulos, la corrección, el tablero)
+    // dicen la clave del evento (`k`).
+    if (q.count("superficie")) {
+        const std::string tipo = arg("tipo");
+        if (tipo.empty() || tipo.size() > 32) {
+            canal::rechazar(fd, QT_TRANSLATE_NOOP("web/comun", "Mensaje inválido."), "mensaje");
+            return {};
+        }
+        if (const std::string k = claveDeSuperficie(tipo); !k.empty() && !ba::security::igualesEnTiempoConstante(arg("k"), k)) {
+            // Se cambió de evento (esta página ya no vale) o la sala todavía no tiene las
+            // claves del evento: la página vuelve a probar sola, con espera creciente.
+            canal::rechazar(fd, QT_TRANSLATE_NOOP("web/comun", "La clave de esta página no es la del evento abierto."), "clave_mal");
+            return {};
+        }
         // El id lo elige la pagina y lo guarda: asi recargarse no la hace
         // aparecer como una superficie nueva.
         std::string id = arg("id");
@@ -2215,18 +2228,17 @@ std::string SignalingServer::wsOpen(long long fd, const std::string& headers, co
         // Lo que la página dice de sí (el teleprompter: cuál, qué vista y su nombre).
         json extra = json::object();
         for (const char* k : {"p", "vista", "nombre"})
-            if (!arg(k).empty()) extra[k] = arg(k);
-        // Las que muestran algo reservado dicen su clave en el primer mensaje («clave»):
-        // hasta entonces no reciben nada (ver claveDeSuperficie).
-        superficies_.conectar(pid, arg("superficie"), id, clientIp, extra, claveDeSuperficie(arg("superficie")).empty());
-        log_.info(llenar(traducir("gateway", "ws: superficie %1 (%2) conectada"), {arg("superficie"), id}));
+            if (!arg(k).empty()) extra[k] = arg(k).substr(0, 64);
+        bien();
+        superficies_.conectar(pid, tipo, id, clientIp, extra);
+        log_.info(llenar(traducir("gateway", "ws: superficie %1 (%2) conectada"), {tipo, id}));
         return pid;
     }
 
     // Una PANTALLA entra por su propia puerta: mismo token, pero no se
     // conecta a la sala. Se resuelve antes que nada para que ninguna de las
     // ramas de invitado la toque.
-    if (arg("pantalla") == "1") {
+    if (q.count("pantalla")) {
         // Dos formas de entrar: token de ingreso (la primera vez) o reenganche
         // con la clave que se le dio en el "hello". El token es de UN SOLO
         // USO, asi que sin el reenganche una pantalla que pierde la conexion
@@ -2247,30 +2259,26 @@ std::string SignalingServer::wsOpen(long long fd, const std::string& headers, co
         const std::string salida = canal < 0 && ba::ipc::idDeSalidaValido(arg("salida")) ? arg("salida") : std::string();
         if (vuelve) {
             if (!reengancharPantalla(arg("resume"), arg("key"), canal, salida)) {
-                http::sendResponse(fd, 401, "text/plain", traducir("gateway", "reenganche invalido") + "\n");
+                canal::rechazar(fd, QT_TRANSLATE_NOOP("web/comun", "Esta pantalla ya no tiene lugar: se vuelve a abrir desde la app."),
+                                "sesion");
                 return {};
             }
         } else {
             const std::string room = arg("room").empty() ? cfg_.room : arg("room");
             if (auth_.redeem(arg("token"), room) != 0) {
-                http::sendResponse(fd, 401, "text/plain", traducir("gateway", "token invalido") + "\n");
+                canal::rechazar(fd, QT_TRANSLATE_NOOP("web/comun", "El enlace de esta pantalla ya se usó o venció."), "token");
                 return {};
             }
         }
-        const std::string ok =
-            "HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n"
-            "Sec-WebSocket-Accept: " +
-            http::base64(http::sha1(wsKey + "258EAFA5-E914-47DA-95CA-C5AB0DC85B11").data(), 20) + "\r\n\r\n";
-        if (!http::sendAll(fd, ok.data(), ok.size())) return {};
-        http::setSocketTimeout(fd, 0);
         std::string id = arg("resume"), clave;
         if (!vuelve) {
             id = altaPantalla(clave, canal, salida);
             if (id.empty()) {
-                http::writeWsFrame(fd, 0x8, "");
+                canal::rechazar(fd, QT_TRANSLATE_NOOP("web/comun", "No hay lugar para otra pantalla."), "lleno");
                 return {};
             }
         }
+        bien();
         if (canal >= 0)
             log_.info(llenar(vuelve ? traducir("gateway", "ws: pantalla %1 volvio (solo mira, escena del canal %2)")
                                     : traducir("gateway", "ws: pantalla %1 conectada (solo mira, escena del canal %2)"),
@@ -2286,46 +2294,18 @@ std::string SignalingServer::wsOpen(long long fd, const std::string& headers, co
         return id;
     }
 
-    // Dos formas de entrar: token nuevo (entra al lobby) o reenganche con la
-    // clave que la sala le dio al participante en su "hello".
-    std::string pid;
-    bool resumed = false;
+    // Un INVITADO. Dos formas de entrar: token nuevo (entra al lobby) o reenganche
+    // con la clave que la sala le dio al participante en su "hello".
     if (!arg("resume").empty()) {
-        pid = arg("resume");
-        resumed = true;
-        // La validacion de la clave la hace la sala despues del 101 (para
-        // poder avisar el motivo); aca solo se verifica que exista.
+        const std::string pid = arg("resume");
         Room::Participant p;
-        if (!room_.participant(pid, p) || p.key != arg("key")) {
-            http::sendResponse(fd, 401, "text/plain", traducir("gateway", "sesion vencida") + "\n");
+        if (!room_.participant(pid, p) || !ba::security::igualesEnTiempoConstante(arg("key"), p.key)) {
+            canal::rechazar(fd, QT_TRANSLATE_NOOP("web/comun", "Pasó demasiado tiempo desconectado. Volvé a entrar."), "sesion");
             return {};
         }
-    } else {
-        const std::string room = arg("room").empty() ? cfg_.room : arg("room");
-        // Se CANJEA el token (un solo uso): un replay dentro del TTL se rechaza.
-        const int vcode = auth_.redeem(arg("token"), room);
-        if (vcode != 0) {
-            log_.warn(llenar(traducir("gateway", "ws: token invalido (code=%1)"), {std::to_string(vcode)}), vcode);
-            http::sendResponse(fd, 401, "text/plain", traducir("gateway", "token invalido") + "\n");
-            return {};
-        }
-    }
-
-    const std::string accept =
-        http::base64(http::sha1(wsKey + "258EAFA5-E914-47DA-95CA-C5AB0DC85B11").data(), 20);
-    const std::string resp = "HTTP/1.1 101 Switching Protocols\r\n"
-                             "Upgrade: websocket\r\n"
-                             "Connection: Upgrade\r\n"
-                             "Sec-WebSocket-Accept: " +
-                             accept + "\r\n\r\n";
-    if (!http::sendAll(fd, resp.data(), resp.size())) return {};
-    // Promovida: sin timeout (un invitado puede estar callado minutos). El
-    // desbloqueo al cerrar lo da stop()/dropGuest con shutdown().
-    http::setSocketTimeout(fd, 0);
-
-    if (resumed) {
         // Se registra ANTES de reenganchar para que el "hello" le llegue.
         const uint64_t gen = registerConn(pid, fd);
+        sendToGuest(pid, json{{"type", "auth"}, {"ok", true}});
         if (room_.resume(pid, arg("key"), nowMs()) != Room::kOk) {
             unregisterConn(pid, gen);
             http::writeWsFrame(fd, 0x8, "");
@@ -2336,6 +2316,13 @@ std::string SignalingServer::wsOpen(long long fd, const std::string& headers, co
             "ba_invitados_reconexiones_total", QT_TRANSLATE_NOOP("metricas", "Invitados que se cortaron y volvieron a su lugar")); // F4-01
         reconexiones.sumar();
         return pid;
+    }
+    const std::string room = arg("room").empty() ? cfg_.room : arg("room");
+    // Se CANJEA el token (un solo uso): un replay dentro del TTL se rechaza.
+    if (const int vcode = auth_.redeem(arg("token"), room); vcode != 0) {
+        log_.warn(llenar(traducir("gateway", "ws: token invalido (code=%1)"), {std::to_string(vcode)}), vcode);
+        canal::rechazar(fd, QT_TRANSLATE_NOOP("web/comun", "El ingreso venció. Volvé a intentarlo."), "token");
+        return {};
     }
 
     // Alta: el id se elige ACA para registrar la conexion antes de entrar a
@@ -2348,6 +2335,7 @@ std::string SignalingServer::wsOpen(long long fd, const std::string& headers, co
     }
     const std::string newId = "p" + hex.substr(0, 12);
     const uint64_t gen = registerConn(newId, fd);
+    sendToGuest(newId, json{{"type", "auth"}, {"ok", true}});
     const Room::Joined j =
         room_.connect(arg("name"), ipText(clientIp), nowMs(), newId, arg("info"), arg("contact"));
     if (j.err != Room::kOk) {
@@ -2355,8 +2343,7 @@ std::string SignalingServer::wsOpen(long long fd, const std::string& headers, co
         const char* why = j.err == Room::kLocked      ? "locked"
                           : j.err == Room::kLobbyFull ? "lobby_full"
                                                       : "error";
-        const auto frame = Frame::encodeFrame(json{{"type", "rejected"}, {"reason", why}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
-        http::writeWsFrame(fd, 0x2, std::string(frame.begin(), frame.end()));
+        http::writeWsFrame(fd, 0x1, canal::texto(json{{"type", "rejected"}, {"reason", why}}));
         http::writeWsFrame(fd, 0x8, "");
         return {};
     }
@@ -2371,6 +2358,7 @@ uint64_t SignalingServer::registerConn(const std::string& pid, long long fd) {
     auto conn = std::make_shared<WsConn>();
     conn->fd = fd;
     conn->gen = ++nextGen_;
+    canal::anotar(conn);
     if (it != conns_.end()) {
         // Reenganche con una conexion vieja todavia abierta: se la corta.
         http::shutdownFd(it->second->fd);
@@ -2389,8 +2377,7 @@ bool SignalingServer::unregisterConn(const std::string& pid, uint64_t gen) {
         conns_.erase(it);
     }
     // Nadie mas escribe en este fd: el thread de conexion lo va a cerrar.
-    std::lock_guard<std::mutex> lock(conn->sendLock);
-    conn->fd = -1;
+    conn->soltar();
     return true;
 }
 
@@ -2401,21 +2388,11 @@ std::shared_ptr<SignalingServer::WsConn> SignalingServer::connFor(const std::str
 }
 
 void SignalingServer::sendToGuest(const std::string& pid, const json& msg) {
-    const auto conn = connFor(pid);
-    if (!conn) return;
-    const auto frame = Frame::encodeFrame(msg.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
-    std::lock_guard<std::mutex> lock(conn->sendLock);
-    if (conn->fd >= 0) http::writeWsFrame(conn->fd, 0x2, std::string(frame.begin(), frame.end()));
+    if (const auto conn = connFor(pid)) conn->enviar(msg);
 }
 
 void SignalingServer::dropGuest(const std::string& pid) {
-    const auto conn = connFor(pid);
-    if (!conn) return;
-    std::lock_guard<std::mutex> lock(conn->sendLock);
-    if (conn->fd >= 0) {
-        http::writeWsFrame(conn->fd, 0x8, "");
-        http::shutdownFd(conn->fd);
-    }
+    if (const auto conn = connFor(pid)) conn->cortar();
 }
 
 void SignalingServer::releaseSession(const std::string& pid, uint64_t gen, bool anyGen) {
@@ -2989,38 +2966,20 @@ bool SignalingServer::ofertaRegistro(const std::string& conn, int canal, const s
 }
 
 void SignalingServer::wsLoop(long long fd, const std::string& pid, uint64_t gen) {
-    std::string payload;
-    int opcode = 0;
-    while (!stop_.load(std::memory_order_relaxed)) {
-        if (!http::readWsFrame(fd, payload, opcode)) break; // EOF/error
-        if (opcode == 0x8) break;                           // close
-        if (opcode == 0x9) {                                // ping -> pong
-            const auto conn = connFor(pid);
-            if (conn) {
-                std::lock_guard<std::mutex> lock(conn->sendLock);
-                if (conn->fd >= 0) http::writeWsFrame(conn->fd, 0xA, payload);
-            }
-            continue;
-        }
-        if (opcode != 0x1 && opcode != 0x2) continue;
-
-        std::string jsonStr;
-        size_t consumed = 0;
-        if (!Frame::decodeFrame(reinterpret_cast<const uint8_t*>(payload.data()), payload.size(), jsonStr,
-                                consumed)) {
-            log_.warn(llenar(traducir("gateway", "ws: frame corrupto (%1)"), {pid}), -1);
-            continue;
-        }
-        const json msg = json::parse(jsonStr, nullptr, false);
-        if (!msg.is_object()) continue;
+    const auto conn = connFor(pid);
+    if (!conn || conn->fd != fd) return;
+    // Un invitado callado mucho tiempo (la pestaña escondida late una vez por minuto) no
+    // es uno caído: dos minutos sin nada, sí (TCP medio abierto tras un cambio de red).
+    canal::leer(*conn, {120000, 1 << 20, 0}, [&](const json& msg) {
+        if (stop_.load(std::memory_order_relaxed)) return false;
         try {
             handleWsMessage(pid, gen, msg);
         } catch (const std::exception& e) {
             log_.warn(llenar(traducir("gateway", "ws: mensaje invalido de %1 (%2)"), {pid, e.what()}), -1);
-            continue;
+            return true;
         }
-        if (msg.value("type", json()) == "bye") break;
-    }
+        return msg.value("type", json()) != "bye";
+    });
 }
 
 bool SignalingServer::claveValida(const std::string& headers, const std::string& comoAntes, const std::string& esperada) {
@@ -3070,10 +3029,11 @@ std::string SignalingServer::ponerClaves(const json& c) {
         std::lock_guard<std::mutex> l(clavesM_);
         claves_ = n;
     }
-    // Las que ya habían dicho la clave de antes (un celular del evento anterior) dejan de
-    // valer: tienen que decir la nueva. La página vuelve a probar con la que tiene.
+    // Las que entraron con la clave de antes (un celular del evento anterior) dejan de
+    // valer: se les corta el canal y, al volver, tienen que decir la nueva (la página
+    // vuelve a probar sola con la que tiene, con espera creciente).
     for (const std::string& tipo : cambiaron)
-        for (const std::string& pid : superficies_.desautorizar(tipo)) sendToGuest(pid, json{{"type", "clave_mal"}});
+        for (const std::string& pid : superficies_.conexionesDe(tipo)) dropGuest(pid);
     if (sinEvento) {
         votacion_.restaurar(json());
         preguntas_.restaurar(json());
@@ -3189,7 +3149,7 @@ void SignalingServer::empujarASuperficies(const std::string& que) {
     // La pantalla de la votación es una «pantalla» con vista=votacion.
     if (que == "votacion") {
         for (const Superficies::Conectada& c : superficies_.conectadas("pantalla"))
-            if (c.autorizada && c.extra.value("vista", std::string()) == "votacion") sendToGuest(c.pid, msg);
+            if (c.extra.value("vista", std::string()) == "votacion") sendToGuest(c.pid, msg);
         return;
     }
     for (const std::string& pid : superficies_.conexionesDe(que)) sendToGuest(pid, msg);
@@ -3238,18 +3198,6 @@ void SignalingServer::handleWsMessage(const std::string& pid, uint64_t gen, cons
                     ba::diag::registro().linea(ba::diag::Nivel::Info, kLogComponent, 101,
                                                llenar(traducir("gateway", "pantalla %1: %2"), {pid.substr(11), msg.value("que", "").substr(0, 200)}));
                 superficies_.dice(pid, msg.value("que", ""));
-            } else if (type == "ping") {
-                sendToGuest(pid, json{{"type", "pong"}});
-            } else if (type == "clave") {
-                // Una superficie reservada (los rótulos, la corrección) dice su clave.
-                const std::string tipo = superficies_.tipoDe(pid);
-                const std::string k = claveDeSuperficie(tipo);
-                if (!k.empty() && ba::security::igualesEnTiempoConstante(msg.value("k", ""), k)) {
-                    superficies_.autorizar(pid);
-                    saludarSuperficie(pid);
-                } else if (!k.empty()) {
-                    sendToGuest(pid, json{{"type", "clave_mal"}});
-                }
             } else if (type == "nombre" && superficies_.tipoDe(pid) == "prompter") {
                 // El nombre del aparato («Atril 1»), escrito en la página.
                 superficies_.ponerExtra(pid, "nombre", msg.value("nombre", ""));
@@ -3260,7 +3208,7 @@ void SignalingServer::handleWsMessage(const std::string& pid, uint64_t gen, cons
         }
         // Una pantalla solo negocia su video y late. Nada de chat, ni ficha,
         // ni estado de medios, ni mano levantada: esas cosas ni se miran.
-        if (esPantalla(pid) && type != "offer" && type != "ice" && type != "ping") {
+        if (esPantalla(pid) && type != "offer" && type != "ice") {
             log_.warn(llenar(traducir("gateway", "ws: la pantalla %1 mando '%2'; se descarta"), {pid, type}), -1);
             return;
         }
@@ -3295,10 +3243,6 @@ void SignalingServer::handleWsMessage(const std::string& pid, uint64_t gen, cons
             if (msg.contains("info") && msg["info"].is_string()) f["info"] = msg["info"];
             if (msg.contains("contact") && msg["contact"].is_string()) f["contact"] = msg["contact"];
             room_.setProfile(pid, f);
-        } else if (type == "ping") {
-            // Latido de la app del invitado: sin respuesta, el cliente da el
-            // socket por muerto (TCP medio abierto tras un cambio de red).
-            sendToGuest(pid, json{{"type", "pong"}});
         } else if (type == "bye") {
             room_.leave(pid);
         }

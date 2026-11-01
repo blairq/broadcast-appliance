@@ -3,6 +3,7 @@
 // ============================================================================
 
 #include "Registro.hpp"
+#include "Canal.hpp"
 #include "Borde.hpp"
 #include "security/Comparar.hpp"
 
@@ -139,6 +140,7 @@ std::string RegistroBorde::alta(const std::string& id, const std::string& ip, co
     c->ip = ip;
     c->lugar = lugar;
     c->desdeMs = ahoraMs();
+    if (fd >= 0) canal::anotar(c);
     {
         std::lock_guard<std::mutex> l(mu_);
         if (static_cast<int>(conns_.size()) >= kMaxConexiones()) return {};
@@ -161,10 +163,7 @@ void RegistroBorde::baja(const std::string& conn) {
         conns_.erase(it);
         cuadros_.erase(conn);
     }
-    {
-        std::lock_guard<std::mutex> l(c->sendLock);
-        c->fd = -1;
-    }
+    c->soltar();
     log_.info(llenar(traducir("gateway", "registro: %1 (tótem %2) desconectado"), {conn, c->id}));
     alApp_({{"tipo", "conexion"}, {"conn", conn}, {"id", c->id}, {"conectado", false}});
     reubicarAtienden(conn); // quienes la miraban por web se quedan sin imagen
@@ -337,54 +336,34 @@ bool RegistroBorde::atender(long long fd, const std::string& method, const std::
         if (rel.empty()) rel = "index.html";
         return SesionBorde::servir(fd, rel, webroot_);
     }
-    const std::string key = http::getHeader(headers, "Sec-WebSocket-Key");
-    if (key.empty()) return http::sendResponse(fd, 400, "text/plain", traducir("gateway", "falta Sec-WebSocket-Key") + "\n"), true;
     {
         std::lock_guard<std::mutex> l(mu_);
         if (static_cast<int>(conns_.size()) >= kMaxConexiones())
             return http::sendResponse(fd, 503, "text/plain", traducir("gateway", "registro lleno") + "\n"), true;
     }
-    const std::string accept = http::base64(http::sha1(key + "258EAFA5-E914-47DA-95CA-C5AB0DC85B11").data(), 20);
-    const std::string ok = "HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n"
-                           "Sec-WebSocket-Accept: " + accept + "\r\n\r\n";
-    if (!http::sendAll(fd, ok.data(), ok.size())) return true;
-    http::setSocketTimeout(fd, 0);
+    if (!canal::aceptar(fd, headers)) return true;
     wsLoop(fd, ip, lugar);
     return true;
 }
 
-void RegistroBorde::enviar(const std::shared_ptr<Conn>& c, const json& msg) {
-    std::lock_guard<std::mutex> l(c->sendLock);
-    if (c->fd >= 0) http::writeWsFrame(c->fd, 0x1, volcar(msg));
-}
-
 void RegistroBorde::enviarA(const std::string& conn, const json& msg) {
-    if (auto c = buscar(conn)) enviar(c, msg);
+    if (auto c = buscar(conn)) c->enviar(msg);
 }
 
 void RegistroBorde::cortarConn(const std::string& conn, const std::string& motivo) {
     auto c = buscar(conn);
     if (!c) return;
-    enviar(c, {{"type", "cortado"}, {"motivo", motivo}});
-    std::lock_guard<std::mutex> l(c->sendLock);
-    if (c->fd >= 0) http::shutdownFd(c->fd); // su lazo sale y hace la baja
+    c->enviar({{"type", "cortado"}, {"motivo", motivo}});
+    c->cortar(); // su lazo sale y hace la baja
 }
 
 void RegistroBorde::wsLoop(long long fd, const std::string& ip, const std::string& lugar) {
     // 1. Autenticación: el primer mensaje, a los 15 s como mucho.
     std::string conn, id;
     {
-        if (http::waitReadable(fd, kAuthMs()) <= 0) return;
-        std::string payload;
-        int op = 0;
-        if (!http::readWsFrame(fd, payload, op) || op != 0x1) return;
-        const json m = json::parse(payload, nullptr, false);
-        const auto rechazar = [&](const std::string& error) {
-            http::writeWsFrame(fd, 0x1, volcar({{"type", "error"}, {"error", error}}));
-            http::writeWsFrame(fd, 0x8, "");
-        };
-        if (!m.is_object() || m.value("type", std::string()) != "auth")
-            return rechazar(QT_TRANSLATE_NOOP("web/comun", "Mensaje inválido."));
+        const json m = canal::primerMensaje(fd, kAuthMs());
+        if (m.is_null()) return;
+        const auto rechazar = [&](const std::string& error, const std::string& codigo = {}) { canal::rechazar(fd, error, codigo); };
         if (!intentoPermitido(ip)) {
             log_.warn(llenar(traducir("gateway", "registro: demasiados intentos fallidos desde %1"), {ip}), -1);
             return rechazar(QT_TRANSLATE_NOOP("web/comun", "Demasiados intentos desde esta conexión. Esperá 10 minutos."));
@@ -394,48 +373,25 @@ void RegistroBorde::wsLoop(long long fd, const std::string& ip, const std::strin
         if (!autenticar(id, m.value("t", std::string()), nombre)) {
             anotarIntentoFallido(ip);
             alApp_({{"tipo", "intento"}, {"id", idValido(id) ? id : std::string()}, {"ip", ip}});
-            return rechazar(QT_TRANSLATE_NOOP("web/comun", "Este enlace de registro no es válido (o lo cambiaron). Pedí el nuevo."));
+            return rechazar(QT_TRANSLATE_NOOP("web/comun", "Este enlace de registro no es válido (o lo cambiaron). Pedí el nuevo."),
+                            "token");
         }
         conn = alta(id, ip, lugar, fd);
-        if (conn.empty()) return rechazar(QT_TRANSLATE_NOOP("web/comun", "Hay demasiadas conexiones ahora. Probá en un rato."));
-        enviarA(conn, {{"type", "hola"}, {"nombre", nombre}, {"conn", conn}});
+        if (conn.empty()) return rechazar(QT_TRANSLATE_NOOP("web/comun", "Hay demasiadas conexiones ahora. Probá en un rato."), "esperar");
+        enviarA(conn, {{"type", "auth"}, {"ok", true}, {"nombre", nombre}, {"conn", conn}});
     }
     const auto c = buscar(conn);
     if (!c) return;
     // 2. El lazo.
-    std::vector<std::int64_t> ventana;
-    while (true) {
-        const int r = http::waitReadable(fd, kLatidoMs());
-        if (r <= 0) break; // sin latido: se da por caído
-        std::string payload;
-        int op = 0;
-        if (!http::readWsFrame(fd, payload, op)) break;
-        if (op == 0x8) break;
-        if (op == 0x9) {
-            std::lock_guard<std::mutex> l(c->sendLock);
-            http::writeWsFrame(fd, 0xA, payload);
-            continue;
-        }
-        if (op != 0x1 || payload.size() > kMaxMensaje) continue;
-        const std::int64_t ahora = ahoraMs();
-        ventana.erase(std::remove_if(ventana.begin(), ventana.end(), [&](std::int64_t t) { return ahora - t > 1000; }),
-                      ventana.end());
-        if (static_cast<int>(ventana.size()) >= kMensajesPorSegundo()) {
-            log_.warn(llenar(traducir("gateway", "registro: %1 manda demasiado; se corta"), {conn}), -1);
-            break;
-        }
-        ventana.push_back(ahora);
-        const json m = json::parse(payload, nullptr, false);
-        if (!m.is_object()) continue;
+    const canal::Fin fin = canal::leer(*c, {kLatidoMs(), kMaxMensaje, kMensajesPorSegundo()}, [&](const json& m) {
         const std::string t = m.value("type", std::string());
-        if (t == "ping") {
-            enviar(c, {{"type", "pong"}});
-        } else if (t == "canal") {
+        const std::int64_t ahora = ahoraMs();
+        if (t == "canal") {
             const int k = tomarCanal(conn);
             if (k > 0)
-                enviar(c, {{"type", "canal"}, {"canal", k}});
+                c->enviar({{"type", "canal"}, {"canal", k}});
             else
-                enviar(c, {{"type", "canal"}, {"canal", 0}, {"error", "lleno"}});
+                c->enviar({{"type", "canal"}, {"canal", 0}, {"error", "lleno"}});
         } else if (t == "soltar") {
             soltarCanal(conn);
         } else if (t == "oferta") {
@@ -444,19 +400,19 @@ void RegistroBorde::wsLoop(long long fd, const std::string& ip, const std::strin
             const int k = canalDe(conn);
             const std::string sdp = m.value("sdp", std::string());
             if (k == 0) {
-                enviar(c, {{"type", "audio-error"}, {"error", QT_TRANSLATE_NOOP("web/comun", "Todavía no hay un canal de audio para vos.")}});
+                c->enviar({{"type", "audio-error"}, {"error", QT_TRANSLATE_NOOP("web/comun", "Todavía no hay un canal de audio para vos.")}});
             } else if (!ofertaValida(sdp)) {
                 log_.warn(llenar(traducir("gateway", "registro: %1 quiso mandar algo más que el micrófono y la cámara; se ignora"),
                                  {conn}),
                           -1);
-                enviar(c, {{"type", "audio-error"},
+                c->enviar({{"type", "audio-error"},
                            {"error", QT_TRANSLATE_NOOP("web/comun", "La página ofreció algo más que el micrófono y la cámara.")}});
             } else {
                 std::weak_ptr<Conn> w = c;
                 if (!medios_.oferta || !medios_.oferta(conn, k, sdp, [this, w](const json& resp) {
-                        if (auto cc = w.lock()) enviar(cc, resp);
+                        if (auto cc = w.lock()) cc->enviar(resp);
                     }))
-                    enviar(c, {{"type", "audio-error"}, {"error", QT_TRANSLATE_NOOP("web/comun", "No hay lugar para escucharte ahora.")}});
+                    c->enviar({{"type", "audio-error"}, {"error", QT_TRANSLATE_NOOP("web/comun", "No hay lugar para escucharte ahora.")}});
             }
         } else if (t == "codigo") {
             // Lo que leyó el navegador mismo (BarcodeDetector) mientras se le pide el documento.
@@ -465,20 +421,22 @@ void RegistroBorde::wsLoop(long long fd, const std::string& ip, const std::strin
             const std::string formato = m.value("formato", std::string());
             const std::string texto = m.value("texto", std::string());
             if (canalDe(conn) == 0 || !kFormatosCodigo.count(formato) || texto.empty() || texto.size() > kMaxTextoCodigo)
-                continue;
+                return true;
             alApp_({{"tipo", "codigo"}, {"conn", conn}, {"id", id}, {"formato", formato}, {"texto", texto}});
         } else if (t == "cuadro") {
             if (ponerCuadro(conn, http::deBase64(m.value("jpeg", std::string())), ahora))
                 alApp_({{"tipo", "cuadro"}, {"conn", conn}, {"id", id}});
         } else if (t == "ice") {
-            if (canalDe(conn) == 0 || !medios_.ice) continue;
+            if (canalDe(conn) == 0 || !medios_.ice) return true;
             const json& cand = m.contains("candidate") ? m["candidate"] : json();
             medios_.ice(conn, cand.is_string() ? cand.get<std::string>() : volcar(cand));
         } else {
             const json tq = toque(conn, id, m);
             if (!tq.is_null()) alApp_(tq);
         }
-    }
+        return true;
+    });
+    if (fin == canal::Fin::Exceso) log_.warn(llenar(traducir("gateway", "registro: %1 manda demasiado; se corta"), {conn}), -1);
     baja(conn);
 }
 
@@ -529,7 +487,7 @@ bool RegistroBorde::admin(long long fd, const std::string& method, const std::st
         std::size_t entregado = 0;
         for (const auto& conn : a)
             if (auto c = buscar(conn)) {
-                enviar(c, r["msg"]);
+                c->enviar(r["msg"]);
                 ++entregado;
             }
         http::sendResponse(fd, 200, "application/json", volcar({{"ok", true}, {"entregado", entregado}}));
@@ -553,13 +511,11 @@ void RegistroBorde::cerrar() {
         for (const auto& [conn, c] : conns_) a.push_back(c);
     }
     for (const auto& c : a) {
-        std::lock_guard<std::mutex> l(c->sendLock);
-        if (c->fd >= 0) http::shutdownFd(c->fd);
+        c->cortar();
     }
     for (const auto& aconn : atiendenTodas())
         if (auto x = buscarAtiende(aconn)) {
-            std::lock_guard<std::mutex> l(x->sendLock);
-            if (x->fd >= 0) http::shutdownFd(x->fd);
+            x->cortar();
         }
 }
 

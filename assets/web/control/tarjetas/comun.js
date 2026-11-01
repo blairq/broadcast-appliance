@@ -9,12 +9,6 @@
   const BA = (window.BA = window.BA || {});
 
   // --- Utilidades ------------------------------------------------------------------------
-  const el = (tag, cls, texto) => {
-    const e = document.createElement(tag);
-    if (cls) e.className = cls;
-    if (texto !== undefined) e.textContent = texto;
-    return e;
-  };
   const boton = (texto, accion, attrs = {}) => {
     const b = el("ba-boton", attrs.clase || "", texto);
     for (const [k, v] of Object.entries(attrs)) if (k !== "clase") v === true ? b.setAttribute(k, "") : v !== false && b.setAttribute(k, v);

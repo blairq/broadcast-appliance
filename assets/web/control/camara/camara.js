@@ -3,8 +3,6 @@
 (() => {
   "use strict";
   const { el, texto, sincronizar } = BA.tj;
-  const $ = (id) => document.getElementById(id);
-  const mmss = BA.linea.mmss;
   let pedida = new URLSearchParams(location.search).get("camara") || "";
   let ultimo = null;
 

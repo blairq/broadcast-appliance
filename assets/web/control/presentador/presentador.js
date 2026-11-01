@@ -3,8 +3,6 @@
 (() => {
   "use strict";
   const { texto } = BA.tj;
-  const $ = (id) => document.getElementById(id);
-  const mmss = BA.linea.mmss;
   BA.linea.pagina({
     temas: ["linea"],
     armar() {},

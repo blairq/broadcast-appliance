@@ -25,7 +25,6 @@ let clave = claveDelEnlace();
 let ultimo = "";          // firma del estado dibujado, para no redibujar al pedo
 const escrito = {};       // lo que se está escribiendo, por fuente y campo
 
-const $ = (id) => document.getElementById(id);
 
 function mostrarPin(msg) {
   $("pin").classList.remove("hidden");

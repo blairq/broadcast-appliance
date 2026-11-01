@@ -387,7 +387,7 @@ int main() {
         };
         CHECK(leerHasta(" 101 "), "ws: 101");
         mandar({{"type", "auth"}, {"t", token}, {"nombre", "Laura"}});
-        CHECK(leerHasta("\"type\":\"hola\"") && leido.find("\"nombre\":\"Laura\"") != std::string::npos,
+        CHECK(leerHasta("\"ok\":true") && leido.find("\"nombre\":\"Laura\"") != std::string::npos,
               "ws: entra con su nombre");
         const auto atiende = w.atiendenTodas();
         CHECK(atiende.size() == 1, "ws: queda anotada");
@@ -435,7 +435,7 @@ int main() {
         for (ssize_t n; (n = ::read(sv2[1], buf, sizeof buf)) > 0;) todo.append(buf, static_cast<size_t>(n));
         ::close(sv2[0]);
         ::close(sv2[1]);
-        CHECK(todo.find("\"type\":\"error\"") != std::string::npos && cuantos("intento") == 1,
+        CHECK(todo.find("\"ok\":false") != std::string::npos && cuantos("intento") == 1,
               "ws: token malo -> error y el intento a la app");
     }
 #endif

@@ -20,12 +20,6 @@
   "use strict";
   const BA = (window.BA = window.BA || {});
   const CLAVE_TOKEN = "ba-control-token";
-  const el = (tag, cls, texto) => {
-    const e = document.createElement(tag);
-    if (cls) e.className = cls;
-    if (texto !== undefined) e.textContent = texto;
-    return e;
-  };
   const leer = (k) => { try { return localStorage.getItem(k); } catch (_) { return null; } };
   const guardar = (k, v) => { try { v === null ? localStorage.removeItem(k) : localStorage.setItem(k, v); } catch (_) {} };
 
@@ -147,7 +141,7 @@
   }
 
   // --- La conexión ---------------------------------------------------------------------------
-  let ws = null, autenticado = false, espera = 1000, siguienteId = 1, latido = 0, op = {};
+  let canal = null, autenticado = false, siguienteId = 1, op = {};
   const pendientes = new Map(); // id → {resolver, rechazar, herramienta, args}
   const temasMirados = new Set();
   let herramientasNuevas = [], ultimoAuth = null;
@@ -161,30 +155,28 @@
     c.textContent = viva ? t("Conectado") : t("Reconectando…");
   }
 
+  // El canal (comun/canal.js): vuelve solo si se corta. El «auth» bien lo contesta la app
+  // (con el perfil y las herramientas) cuando se entera.
+  const mandar = (m) => !!canal && canal.mandar(m);
   function conectar() {
-    const token = leer(CLAVE_TOKEN);
-    if (!token) {
+    if (!leer(CLAVE_TOKEN)) {
       mensaje(t("Este aparato no está emparejado"), t("Abrí la página desde el QR de la app (Servicios → Control) para emparejarlo."), false);
       return;
     }
-    ws = new WebSocket((location.protocol === "https:" ? "wss://" : "ws://") + location.host + "/ws?control");
-    ws.onopen = () => {
-      espera = 1000;
-      ws.send(JSON.stringify({ type: "auth", token }));
-      // El gateway corta a los 30 s sin nada: un ping cada 20.
-      clearInterval(latido);
-      latido = setInterval(() => { if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: "ping" })); }, 20000);
-    };
-    ws.onmessage = (ev) => { let m; try { m = JSON.parse(ev.data); } catch (_) { return; } recibir(m); };
-    ws.onclose = () => {
-      clearInterval(latido);
-      autenticado = false;
-      estadoConexion(false);
-      for (const [, p] of pendientes) p.rechazar(new Error(t("se cortó la conexión")));
-      pendientes.clear();
-      setTimeout(conectar, espera);
-      espera = Math.min(15000, espera * 1.6);
-    };
+    if (canal) { canal.reabrir(); return; }
+    canal = BAWs.abrir({
+      rol: "control",
+      auth: () => (leer(CLAVE_TOKEN) ? { token: leer(CLAVE_TOKEN) } : null),
+      alEntrar: recibir,
+      alMensaje: recibir,
+      alRechazo: recibir,
+      alCaer: () => {
+        autenticado = false;
+        estadoConexion(false);
+        for (const [, p] of pendientes) p.rechazar(new Error(t("se cortó la conexión")));
+        pendientes.clear();
+      },
+    });
   }
 
   function salidaNueva(m) {
@@ -198,17 +190,17 @@
     C.herramientas = herramientasNuevas;
     herramientasNuevas = [];
     if (op.alListo) op.alListo(ultimoAuth);
-    if (temasMirados.size) ws.send(JSON.stringify({ type: "mirar", temas: [...temasMirados] }));
+    if (temasMirados.size) mandar({ type: "mirar", temas: [...temasMirados] });
   }
 
   function recibir(m) {
     switch (m.type) {
       case "auth":
         if (!m.ok) {
-          guardar(CLAVE_TOKEN, null);
+          // Un token que no vale se olvida; «demasiados intentos» no (vale en 10 minutos).
+          if (m.error_codigo !== "intentos") guardar(CLAVE_TOKEN, null);
           mensaje(t("Este aparato ya no está habilitado"), t(m.error) || t("Lo quitaron en la app. Emparejalo de nuevo desde el QR."), true);
-          ws.onclose = null;
-          ws.close();
+          canal.cerrar();
           return;
         }
         autenticado = true;
@@ -250,7 +242,7 @@
         if (!p) return;
         pedirConfirmacion(m.texto || t("Esto cambia lo que está al aire.")).then((si) => {
           if (!si) { pendientes.delete(m.id); p.rechazar(new Error("cancelado")); return; }
-          ws.send(JSON.stringify({ type: "llamar", id: m.id, herramienta: p.herramienta, args: p.args, confirmado: true }));
+          mandar({ type: "llamar", id: m.id, herramienta: p.herramienta, args: p.args, confirmado: true });
         });
         break;
       }
@@ -265,10 +257,10 @@
 
   // --- Lo que usan las páginas --------------------------------------------------------------
   C.llamar = (herramienta, args = {}) => new Promise((resolver, rechazar) => {
-    if (!ws || ws.readyState !== WebSocket.OPEN || !autenticado) { rechazar(new Error(t("sin conexión con la app"))); return; }
+    if (!autenticado) { rechazar(new Error(t("sin conexión con la app"))); return; }
     const id = siguienteId++;
     pendientes.set(id, { resolver, rechazar, herramienta, args });
-    ws.send(JSON.stringify({ type: "llamar", id, herramienta, args }));
+    mandar({ type: "llamar", id, herramienta, args });
   });
   // Lo mismo, avisando si falla (para los botones).
   C.hacer = (herramienta, args) =>
@@ -278,10 +270,10 @@
   C.mirar = (temas) => {
     let nuevos = false;
     for (const x of temas) if (!temasMirados.has(x)) { temasMirados.add(x); nuevos = true; }
-    if (nuevos && autenticado) ws.send(JSON.stringify({ type: "mirar", temas: [...temasMirados] }));
+    if (nuevos && autenticado) mandar({ type: "mirar", temas: [...temasMirados] });
   };
   // Lo que el aparato quiere recordar: va a SU registro en la app.
-  C.preferencias = (datos) => { if (ws && ws.readyState === WebSocket.OPEN && autenticado) ws.send(JSON.stringify({ type: "preferencias", datos })); };
+  C.preferencias = (datos) => { if (autenticado) mandar({ type: "preferencias", datos }); };
   // La salida que maneja: {id, nombre, color, por_omision} (la por omisión si no eligió).
   C.salidaActual = () => {
     const l = C.salidas;
@@ -289,9 +281,9 @@
   };
   // Pasar a manejar otra salida (id o nombre; la app contesta con {type: "salida"}).
   C.elegirSalida = (id) => {
-    if (!ws || ws.readyState !== WebSocket.OPEN || !autenticado) return;
+    if (!autenticado) return;
     const x = C.salidas.find((y) => y.id === id || y.nombre === id);
-    ws.send(JSON.stringify({ type: "salida", salida: x && x.por_omision ? "" : (x ? x.id : id) }));
+    mandar({ type: "salida", salida: x && x.por_omision ? "" : (x ? x.id : id) });
   };
 
   BA.conexion = {

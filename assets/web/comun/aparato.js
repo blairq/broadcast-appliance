@@ -14,16 +14,14 @@
 //   BAAparato.guardar("presidencia", id, tok)  después de un {auth, ok, aparato}
 //   BAAparato.olvidar("presidencia", id)       la sala dijo error_codigo «aparato»
 //   BAAparato.nombre()                         cómo se ve este aparato en la lista de la app
-//   BAAparato.ESPERA_MS                        cuánto esperar ante error_codigo «esperar»
 //
 // Una sala recién arrancada que todavía no recibió las credenciales de la app no dice
-// «mal»: dice «esperar» (error_codigo), y la página vuelve a probar sola.
+// «mal»: dice «esperar» (error_codigo), y el canal (comun/canal.js) vuelve a probar solo.
 // ============================================================================
 (() => {
   "use strict";
   const clave = (superficie, id) => "ba-aparato:" + superficie + ":" + id;
   window.BAAparato = {
-    ESPERA_MS: 2000,
     leer(superficie, id) {
       try { return localStorage.getItem(clave(superficie, id)) || ""; } catch (e) { return ""; }
     },

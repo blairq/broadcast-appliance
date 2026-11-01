@@ -95,6 +95,8 @@
 
 #include <nlohmann/json.hpp>
 
+#include "Canal.hpp"
+
 namespace ba::gateway {
 
 class Log;
@@ -198,12 +200,10 @@ class SesionBorde {
     void anotarPinMal(const std::string& id);
 
    private:
-    struct Conn {
-        long long fd = -1;
+    struct Conn : canal::Salida {
         std::string id, ip;
         std::string lugar; // "sala" (red local) o "afuera" (túnel o IP pública)
         std::string aparato; ///< el id del aparato registrado con el que entró ("" = ninguno)
-        std::mutex sendLock;
     };
     struct Aparato {
         std::string id, sal, hash; ///< hash = hashConSal(sal + ":aparato:" + token)
@@ -225,7 +225,6 @@ class SesionBorde {
     /// ¿Ese aparato de `id` sigue valiendo (en su credencial o pendiente)? Con mu_ tomado.
     bool aparatoVale(const std::string& id, const std::string& aparato) const;
     void wsLoop(long long fd, const std::string& ip, const std::string& lugar, bool consola);
-    void enviar(const std::shared_ptr<Conn>& c, const nlohmann::json& msg);
     bool intentoPermitido(const std::string& ip);
 
     std::string webroot_;

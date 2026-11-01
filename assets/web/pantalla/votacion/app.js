@@ -9,7 +9,6 @@
   // porque es el único que sabe con qué IP lo van a alcanzar los teléfonos.
   const entrada = q.get("entrada") || "";
 
-  const $ = (id) => document.getElementById(id);
   if (entrada) $("qr").src = "../qr.svg?texto=" + encodeURIComponent(entrada);
   else $("como").classList.add("oculto");
 

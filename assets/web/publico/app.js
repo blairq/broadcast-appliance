@@ -54,7 +54,6 @@
     return h.toString(16).padStart(8, '0');
   }
 
-  const $ = (id) => document.getElementById(id);
   const estado = $('estado');
   const aviso = $('aviso');
 
