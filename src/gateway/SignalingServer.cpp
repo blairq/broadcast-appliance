@@ -177,9 +177,9 @@ SignalingServer::SignalingServer(const Cfg& cfg, TokenAuth& auth, WebrtcHub& hub
     // mismo WebRTC que los invitados (una sesión del pool, ruta «Remoto»).
     {
         SesionBorde::Medios m;
-        m.oferta = [this](const std::string& id, int canal, const std::string& sdp, std::function<void(const json&)> enviar) {
-            return ofertaRemoto(id, canal, sdp, std::move(enviar));
-        };
+        m.oferta = [this](const std::string& id, int canal, const std::string& sdp, std::function<void(const json&)> enviar,
+                          const json& capas) { return ofertaRemoto(id, canal, sdp, std::move(enviar), capas); };
+        m.ruta = [this](const std::string& id, int canal) { rutaRemoto(id, canal); };
         m.ice = [this](const std::string& id, const std::string& cand) {
             int idx = 0;
             {
@@ -324,6 +324,7 @@ bool SignalingServer::start() {
             const int64_t ahora = std::chrono::duration_cast<std::chrono::milliseconds>(
                                       std::chrono::steady_clock::now().time_since_epoch())
                                       .count();
+            for (const auto& [pid, idx] : sesiones) revisarCapas(pid); // p. ej. un espectador que se fue sin avisar
             for (const auto& [pid, idx] : sesiones)
                 if (WebrtcSession* s = hub_.session(idx)) {
                     const nlohmann::json j = nlohmann::json::parse(s->estadisticas(), nullptr, false);
@@ -2043,6 +2044,7 @@ void SignalingServer::apiView(long long fd, const std::string& body, bool board)
         std::lock_guard<std::mutex> lock(viewersLock_);
         viewerOwners_[viewer] = board;
     }
+    if (!screen) revisarCapas(pid); // se le reenvía la alta: que llegue
     http::sendResponse(fd, 200, "application/json",
                        json{{"ok", true}, {"viewer", viewer}, {"sdp", publicSdp(answer)}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
 }
@@ -2066,6 +2068,7 @@ void SignalingServer::apiViewAction(long long fd, const std::string& method, con
     }
     if (method == "DELETE" && action.empty()) {
         hub_.closeViewer(viewer);
+        revisarCapasTodas(); // sin ese espectador quizá ya no hace falta la alta
     } else if (method == "POST" && action == "keyframe") {
         hub_.requestKeyFrame(viewer);
     } else {
@@ -2426,6 +2429,7 @@ void SignalingServer::applyRoute(const std::string& pid, const MediaRoute& route
     if (idx > 0) {
         if (pump_ != nullptr) pump_->setRoute(idx, route);
         enviarCalidadGrilla(pid); // al aire, la calidad de siempre; en la fila, la de su lugar en la grilla
+        revisarCapas(pid);        // y la capa: alta si va al aire, baja en un cuadrito
         return;
     }
     // Todavia sin sesion: ya puede publicar (entro al lobby con lugar de
@@ -2444,7 +2448,21 @@ std::string SignalingServer::publicCandidate(const std::string& line) const {
     return line.substr(0, at) + " " + publicAddress_ + " " + line.substr(at + loop.size());
 }
 
-void SignalingServer::handleOffer(const std::string& pid, uint64_t gen, const std::string& sdp) {
+namespace {
+/// Los mids de las dos capas que declaró el navegador ({alta, baja}); vacíos si no hay.
+std::pair<std::string, std::string> midsDeCapas(const json& capas) {
+    if (!capas.is_object()) return {};
+    const auto mid = [&](const char* k) {
+        const json& v = capas.contains(k) ? capas[k] : json();
+        return v.is_string() && v.get<std::string>().size() <= 16 ? v.get<std::string>() : std::string();
+    };
+    std::string a = mid("alta"), b = mid("baja");
+    if (a.empty() || b.empty() || a == b) return {};
+    return {a, b};
+}
+} // namespace
+
+void SignalingServer::handleOffer(const std::string& pid, uint64_t gen, const std::string& sdp, const json& capas) {
     // Una pantalla no tiene ruta en la sala: la suya es backstage SIN preview,
     // o sea que recibe el programa y lo que mandara no va a ningun lado.
     const bool pantalla = esPantalla(pid);
@@ -2454,7 +2472,7 @@ void SignalingServer::handleOffer(const std::string& pid, uint64_t gen, const st
         dropGuest(pid);
         return;
     }
-    const MediaRoute route = pantalla ? rutaDePantalla(pid) : room_.routeOf(pid);
+    MediaRoute route = pantalla ? rutaDePantalla(pid) : room_.routeOf(pid);
     if (route.kind == MediaRoute::Kind::None) {
         log_.warn(llenar(traducir("gateway", "ws: offer de %1 sin ruta de medios (sin lugar); se ignora"), {pid}), -1);
         return;
@@ -2535,9 +2553,24 @@ void SignalingServer::handleOffer(const std::string& pid, uint64_t gen, const st
                 pump_->forwardScreen(idx, p, b, w, h);
             };
         }
+        // Las dos capas de su cámara: la sala le dice cuál prender (Capas.hpp).
+        cb.onCapas = [this, pid](bool alta, bool baja) {
+            sendToGuest(pid, json{{"type", "capas"}, {"alta", alta}, {"baja", baja}});
+        };
         sess->configure(cb, hub_.rtcFactory());
     }
+    // La ruta se vuelve a leer con la sesión ya anotada: si lo admitieron mientras su oferta
+    // venía en camino, applyRoute no encontró sesión (solo le dijo «publish») y la ruta
+    // leída arriba es la vieja (el lobby): sus medios quedaban en BA.Lobby.<k> estando adentro.
+    if (!pantalla) {
+        const MediaRoute ahora = room_.routeOf(pid);
+        if (ahora.kind != MediaRoute::Kind::None) route = ahora;
+    }
     if (pump_ != nullptr) pump_->setRoute(idx, route);
+    if (!pantalla) {
+        const auto [midAlta, midBaja] = midsDeCapas(capas);
+        sess->setCapas(midAlta, midBaja);
+    }
     // Un re-offer (p. ej. al sumar la pantalla compartida) reusa la sesion.
     if (!sess->setRemoteOffer(sdp)) {
         log_.warn(llenar(traducir("gateway", "ws: setRemoteOffer fallo (sesion %1)"), {std::to_string(idx)}), -1);
@@ -2557,20 +2590,52 @@ void SignalingServer::handleOffer(const std::string& pid, uint64_t gen, const st
                          {pid, std::to_string(idx)}));
     // Conexión nueva = codificador nuevo en su navegador: la calidad de la grilla se le vuelve a decir.
     if (fresh && !pantalla) enviarCalidadGrilla(pid, true);
+    if (!pantalla) revisarCapas(pid);
+}
+
+void SignalingServer::rutaRemoto(const std::string& id, int canal) {
+    const std::string pid = "remoto:" + id;
+    int idx = 0;
+    int otraSesion = 0;
+    {
+        std::lock_guard<std::mutex> lock(sessLock_);
+        const auto it = sessionOf_.find(pid);
+        if (it == sessionOf_.end()) return; // todavía sin WebRTC: entra con su oferta
+        idx = it->second;
+        // Un remoto por canal: si otro tenía este canal, se le saca la sesión.
+        std::string otro;
+        for (const auto& [p, i] : sessionOf_)
+            if (canal >= 1 && p.rfind("remoto:", 0) == 0 && p != pid && pump_ != nullptr &&
+                pump_->route(i).kind == MediaRoute::Kind::Remoto && pump_->route(i).index == canal)
+                otro = p;
+        if (!otro.empty()) {
+            otraSesion = sessionOf_[otro];
+            sessionOwner_.erase(otraSesion);
+            sessionOf_.erase(otro);
+        }
+    }
+    if (otraSesion > 0) {
+        if (pump_ != nullptr) pump_->setRoute(otraSesion, MediaRoute{});
+        if (WebrtcSession* s = hub_.session(otraSesion)) s->close();
+    }
+    if (pump_ != nullptr) pump_->setRoute(idx, MediaRoute::remoto(canal));
+    log_.info(llenar(traducir("gateway", "sesion: el remoto %1 pasa al canal %2 sin reconectar"), {id, std::to_string(canal)}));
+    revisarCapas(pid);
 }
 
 bool SignalingServer::ofertaRemoto(const std::string& id, int canal, const std::string& sdp,
-                                   std::function<void(const json&)> enviar) {
+                                   std::function<void(const json&)> enviar, const json& capas) {
     const std::string pid = "remoto:" + id;
     int idx = 0;
     bool fresh = false;
     {
         std::lock_guard<std::mutex> lock(sessLock_);
-        // Un remoto por canal: si otro tenía este canal, se le saca la sesión.
+        // Un remoto por canal: si otro tenía este canal, se le saca la sesión (el canal 0,
+        // el del siguiente, no es un canal: no saca a nadie).
         std::string otro;
         for (const auto& [p, i] : sessionOf_)
-            if (p.rfind("remoto:", 0) == 0 && p != pid && pump_ != nullptr && pump_->route(i).kind == MediaRoute::Kind::Remoto &&
-                pump_->route(i).index == canal)
+            if (canal >= 1 && p.rfind("remoto:", 0) == 0 && p != pid && pump_ != nullptr &&
+                pump_->route(i).kind == MediaRoute::Kind::Remoto && pump_->route(i).index == canal)
                 otro = p;
         if (!otro.empty()) {
             const int vi = sessionOf_[otro];
@@ -2647,14 +2712,21 @@ bool SignalingServer::ofertaRemoto(const std::string& id, int canal, const std::
             // Lo que comparte (pantalla u otra cámara): el segundo video de la misma conexión.
             cb.onRemoteScreen = [this, idx](const uint8_t* p, size_t b, int w, int h) { pump_->forwardScreen(idx, p, b, w, h); };
         }
+        // Las dos capas de su cámara (Capas.hpp), por el canal de la sesión.
+        cb.onCapas = [enviar](bool alta, bool baja) { enviar(json{{"type", "capas"}, {"alta", alta}, {"baja", baja}}); };
         sess->configure(cb, hub_.rtcFactory());
     }
     if (pump_ != nullptr) pump_->setRoute(idx, MediaRoute::remoto(canal));
+    {
+        const auto [midAlta, midBaja] = midsDeCapas(capas);
+        sess->setCapas(midAlta, midBaja);
+    }
     if (!sess->setRemoteOffer(sdp)) {
         log_.warn(llenar(traducir("gateway", "sesion: setRemoteOffer del remoto %1 falló"), {id}), -1);
         return false;
     }
     log_.info(llenar(traducir("gateway", "sesion: oferta del remoto %1 aceptada (sesion %2)"), {id, std::to_string(idx)}));
+    revisarCapas(pid);
     return true;
 }
 
@@ -3221,7 +3293,7 @@ void SignalingServer::handleWsMessage(const std::string& pid, uint64_t gen, cons
             } else if (s.is_object()) {
                 sdp = s.value("sdp", "");
             }
-            handleOffer(pid, gen, sdp);
+            handleOffer(pid, gen, sdp, msg.contains("capas") ? msg["capas"] : json());
         } else if (type == "ice") {
             int idx = 0;
             {
@@ -3353,6 +3425,7 @@ void SignalingServer::setGrillas(Grillas* g) {
                 altoGrilla_.erase(pid);
         }
         enviarCalidadGrilla(pid);
+        revisarCapas(pid);
     });
     // Las fotos de la asamblea (una cada 1-3 s): las que están en una grilla se abren allá.
     sesion_->setAlFoto([this](const std::string& id, const std::string& jpeg) {
@@ -3360,6 +3433,47 @@ void SignalingServer::setGrillas(Grillas* g) {
     });
     // Y a la app, que la pide solo si alguna vista la muestra (evento de estado: uno por integrante).
     sesion_->setAlFotoNueva([this](const std::string& id) { broadcastToHosts("foto", json{{"id", id}}); });
+}
+
+void SignalingServer::revisarCapas(const std::string& pid) {
+    int idx = 0;
+    {
+        std::lock_guard<std::mutex> lock(sessLock_);
+        const auto it = sessionOf_.find(pid);
+        if (it != sessionOf_.end()) idx = it->second;
+    }
+    WebrtcSession* s = idx > 0 ? hub_.session(idx) : nullptr;
+    if (s == nullptr || pump_ == nullptr || !s->conCapas()) return; // un navegador de antes: una sola cámara
+    NecesidadCapa n;
+    n.ruta = pump_->route(idx);
+    {
+        std::lock_guard<std::mutex> l(calidadMu_);
+        if (const auto it = altoGrilla_.find(pid); it != altoGrilla_.end()) n.altoGrilla = it->second;
+    }
+    // Su entrada en la app: el invitado del lugar n del programa, o el canal k de los remotos.
+    const std::string entrada = n.ruta.kind == MediaRoute::Kind::Program  ? "guest:" + std::to_string(n.ruta.index)
+                                : n.ruta.kind == MediaRoute::Kind::Remoto ? "remoto:" + std::to_string(n.ruta.index)
+                                                                          : std::string();
+    {
+        std::lock_guard<std::mutex> l(capasMu_);
+        n.appDijo = capasApp_;
+        n.alAire = !entrada.empty() && capasAire_.count(entrada) > 0;
+        n.siguiente = !entrada.empty() && capasSiguiente_.count(entrada) > 0;
+    }
+    n.espectadores = hub_.espectadoresDe(idx);
+    const Capa c = capaNecesaria(n);
+    if (c != s->capaPedida())
+        log_.info(llenar(traducir("gateway", "capas: a %1 se le pide la %2"), {pid, nombreCapa(c)}));
+    s->pedirCapa(c);
+}
+
+void SignalingServer::revisarCapasTodas() {
+    std::vector<std::string> pids;
+    {
+        std::lock_guard<std::mutex> lock(sessLock_);
+        for (const auto& [pid, idx] : sessionOf_) pids.push_back(pid);
+    }
+    for (const std::string& pid : pids) revisarCapas(pid);
 }
 
 void SignalingServer::enviarCalidadGrilla(const std::string& pid, bool forzar) {

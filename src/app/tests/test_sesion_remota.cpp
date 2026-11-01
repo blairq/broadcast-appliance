@@ -148,9 +148,11 @@ int main(int argc, char** argv) {
     s.cerrarVotacion();
 
     // La palabra: si se le corta y vuelve («hola»), la sigue teniendo con lo que le queda.
-    std::vector<QString> medios;
-    QObject::connect(&s, &asamblea::SesionRemota::mediosA,
-                     [&](const QStringList& ids) { medios.push_back(ids.join(",")); });
+    std::vector<QString> medios, siguientes;
+    QObject::connect(&s, &asamblea::SesionRemota::mediosA, [&](const QStringList& ids, const QString& sig) {
+        medios.push_back(ids.join(","));
+        siguientes.push_back(sig);
+    });
     s.darPalabra(juan, true, 120);
     CHECK(!medios.empty() && medios.back().toStdString() == juan, "con la palabra, sus medios van a la sala");
     enviados.clear();
@@ -174,6 +176,17 @@ int main(int argc, char** argv) {
     CHECK(medios.back().toStdString() == ana, "sale uno: queda el otro");
     s.darPalabra(ana, false, 0);
     CHECK(medios.back().isEmpty(), "sin la palabra, nadie manda medios");
+    // El siguiente de la fila (remoto, habilitado): su cámara se precarga en la sala.
+    s.evento({{"tipo", "conexion"}, {"id", ana}, {"conectado", true}, {"lugar", "afuera"}});
+    s.habilitar(ana, true, "presidencia");
+    s.fila({ana}, "");
+    CHECK(!siguientes.empty() && siguientes.back().toStdString() == ana, "la siguiente de la fila precarga su cámara");
+    CHECK(s.siguiente() == ana, "y se la puede preguntar (para reenviarla si la sala vuelve)");
+    s.darPalabra(ana, true, 60);
+    CHECK(medios.back().toStdString() == ana && siguientes.back().isEmpty(), "con la palabra deja de ser la siguiente");
+    s.darPalabra(ana, false, 0);
+    s.fila({}, "");
+    CHECK(siguientes.back().isEmpty() && s.siguiente().empty(), "fila vacía: nadie se precarga");
     s.evento({{"tipo", "entrada"}, {"id", juan}, {"msg", {{"type", "voto"}, {"votacion", 4}, {"opcion", "afirmativo"}}}});
     CHECK(!enviados.back().value("ok", true), "cerrada: no se vota más");
 

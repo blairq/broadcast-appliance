@@ -54,6 +54,7 @@ class BusEventos;
 }
 namespace ba::app::sala {
 class CalidadPorCalor;
+class CapasRemotos;
 class ConfigSala;
 class CupoSala;
 class Direcciones;
@@ -151,6 +152,7 @@ class SalaViewModel : public QObject {
     std::unique_ptr<sala::SeguridadSala> seguridad_;
     std::unique_ptr<AccesoRemoto> accesoRemoto_;
     std::unique_ptr<sala::CalidadPorCalor> calidadPorCalor_;
+    std::unique_ptr<sala::CapasRemotos> capasRemotos_;
     QHash<QString, QString> infoAprobada_; ///< participante -> cargo aprobado por el operador
     std::function<QString(const QString&, const QString&, bool)> intakeSink_;
 };

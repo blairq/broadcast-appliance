@@ -424,10 +424,18 @@ class SignalingServer {
     std::string wsOpen(long long fd, const std::string& query, const nlohmann::json& primero, std::uint32_t clientIp);
     void wsLoop(long long fd, const std::string& pid, uint64_t gen);
     void handleWsMessage(const std::string& pid, uint64_t gen, const nlohmann::json& msg);
-    void handleOffer(const std::string& pid, uint64_t gen, const std::string& sdp);
+    /// `capas`: {alta, baja}, el mid de cada capa de su cámara (Capas.hpp); vacío = una sola.
+    void handleOffer(const std::string& pid, uint64_t gen, const std::string& sdp,
+                     const nlohmann::json& capas = nlohmann::json());
     /// R3: la oferta del celular de un integrante remoto con la palabra -> ruta Remoto 1.
+    /// Canal 0: el siguiente de la fila (su cámara ya viaja, pero no va a ningún canal).
     bool ofertaRemoto(const std::string& id, int canal, const std::string& sdp,
-                      std::function<void(const nlohmann::json&)> enviar);
+                      std::function<void(const nlohmann::json&)> enviar,
+                      const nlohmann::json& capas = nlohmann::json());
+    /// El remoto `id` (ya con su WebRTC) pasa al canal `canal` (0 = el siguiente, sin canal)
+    /// sin renegociar: el siguiente que recibe la palabra sale enseguida, con la alta ya
+    /// llegando. Si otro tenía ese canal, se le saca.
+    void rutaRemoto(const std::string& id, int canal);
     /// Lo que mira un integrante en su celular (sesión del pool que solo recibe, pid «vista:<id>»).
     bool ofertaVista(const std::string& id, const std::string& sdp, const SesionBorde::Vista& vista, bool hablar,
                      std::function<void(const nlohmann::json&)> enviar);
@@ -671,6 +679,14 @@ class SignalingServer {
     std::map<std::string, int> altoGrilla_;           // pid -> alto en píxeles (0 = en ninguna)
     std::map<std::string, std::string> calidadPedida_; // pid -> "180p" | "360p" | "libre"
     void enviarCalidadGrilla(const std::string& pid, bool forzar = false);
+    // Las capas de la cámara (Capas.hpp): qué entradas de remotos tiene la app al aire y
+    // armadas ("guest:<n>", "remoto:<k>"), como las manda por POST /api/v1/capas.
+    std::mutex capasMu_;
+    bool capasApp_ = false; ///< la app ya dijo algo (antes, el programa va en alta)
+    std::set<std::string> capasAire_, capasSiguiente_;
+    /// La capa que necesita la sala de `pid` (si manda dos) y se la pide a su sesión.
+    void revisarCapas(const std::string& pid);
+    void revisarCapasTodas();
     // T44: las frases que esperan al corrector (las manda la app) y desde cuándo.
     std::mutex correccionMu_;
     nlohmann::json correccionPend_ = nlohmann::json::array();

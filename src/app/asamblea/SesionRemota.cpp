@@ -652,10 +652,12 @@ std::vector<std::string> SesionRemota::conPalabraTodos() const {
     return v;
 }
 
+std::string SesionRemota::siguiente() const { return tienePalabra(siguiente_) ? std::string() : siguiente_; }
+
 void SesionRemota::emitirMedios() {
     QStringList l;
     for (const Palabra& p : palabras_) l << QString::fromStdString(p.id);
-    emit mediosA(l);
+    emit mediosA(l, QString::fromStdString(siguiente()));
 }
 
 void SesionRemota::darPalabra(const std::string& id, bool palabra, int segundos) {
@@ -691,6 +693,19 @@ void SesionRemota::darPalabra(const std::string& id, bool palabra, int segundos)
 }
 
 void SesionRemota::fila(const std::vector<std::string>& cola, const std::string& alAire) {
+    // El siguiente remoto de la fila: su cámara se precarga en la sala (mediosA).
+    std::string sig;
+    for (const std::string& id : cola) {
+        const auto it = estado_.find(id);
+        if (id != alAire && it != estado_.end() && it->second.conectado && it->second.habilitado && !tienePalabra(id)) {
+            sig = id;
+            break;
+        }
+    }
+    if (sig != siguiente_) {
+        siguiente_ = sig;
+        emitirMedios();
+    }
     // A cada remoto conectado, su turno (0 = no está en la fila); solo si cambió.
     for (const auto& [id, e] : estado_) {
         if (!e.conectado) continue;

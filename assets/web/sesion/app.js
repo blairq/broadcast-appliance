@@ -205,13 +205,14 @@ function mostrarResultado(m) {
 let local = null;       // la cámara y el micrófono propios
 async function prenderCamara() {
   try {
+    // Hasta 720p: es la capa alta hacia la sala; la baja (comun/capas.js) sale de la misma pista.
     local = await navigator.mediaDevices.getUserMedia({
-      video: { width: 640, height: 360 },
+      video: { width: { ideal: 1280 }, height: { ideal: 720 } },
       audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
     });
   } catch (e) {
     // Sin micrófono (o sin permiso): por lo menos la cámara.
-    try { local = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 360 }, audio: false }); }
+    try { local = await navigator.mediaDevices.getUserMedia({ video: { width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false }); }
     catch (e2) { local = null; }
   }
   if (local) {
@@ -246,7 +247,17 @@ async function rtc(m) {
     if (pc) pc.close();
     pc = new RTCPeerConnection(window.BAIce ? BAIce.config() : { iceServers: [] }); // desde afuera, por el TURN de la caja
     conexiones.set(de, pc);
-    if (local) for (const t of local.getTracks()) pc.addTrack(t, local);
+    if (local) for (const t of local.getTracks()) {
+      const s = pc.addTrack(t, local);
+      // A la consola, como siempre, hasta 360p (la cámara ahora es de 720p por la capa alta).
+      const alto = t.kind === "video" && t.getSettings ? t.getSettings().height || 0 : 0;
+      if (alto > 360) {
+        const p = s.getParameters();
+        if (!p.encodings || !p.encodings.length) p.encodings = [{}];
+        p.encodings[0].scaleResolutionDownBy = alto / 360;
+        s.setParameters(p).catch(() => {});
+      }
+    }
     pc.ontrack = (ev) => { $("presidencia").srcObject = ev.streams[0] || new MediaStream([ev.track]); };
     pc.onicecandidate = (ev) => {
       if (ev.candidate) mandar({ type: "rtc", a: de, candidato: ev.candidate });
@@ -269,7 +280,12 @@ async function rtc(m) {
 // --- A la sala (R3): con la palabra, el micrófono y la cámara van a la app ----------
 // El gateway lo recibe como una entrada más («Remoto con la palabra»): suena en la sala
 // y en la transmisión, con los filtros del rack. Solo manda (no recibe nada por acá).
+// La cámara va en dos calidades (comun/capas.js): la sala elige cuál viaja. Al siguiente
+// de la fila la sala le abre esto ANTES (`previo`): su cámara ya llega, pero no va a
+// ningún lado hasta que le dan la palabra, y entonces sale sin reconectar.
 let pcSala = null;
+let capasSala = null; // las dos calidades de la cámara (BACapas)
+let salaPrevia = false;
 
 async function iniciarSala() {
   cerrarSala();
@@ -278,26 +294,36 @@ async function iniciarSala() {
   if (!local || !listo()) return;
   const pc = new RTCPeerConnection(window.BAIce ? BAIce.config() : { iceServers: [] });
   pcSala = pc;
-  for (const t of local.getTracks()) pc.addTransceiver(t, { direction: "sendonly", streams: [local] });
+  for (const t of local.getAudioTracks()) pc.addTransceiver(t, { direction: "sendonly", streams: [local] });
+  const [v] = local.getVideoTracks();
+  capasSala = v ? BACapas.publicar(pc, v, local, false) : null;
   pc.onicecandidate = (ev) => {
     if (ev.candidate) mandar({ type: "medios-ice", candidate: ev.candidate });
   };
-  pintarCompartir();
+  pintarSala();
   pc.onconnectionstatechange = () => {
-    $("aSala").classList.toggle("oculto", pc.connectionState !== "connected");
+    pintarSala();
+    if (pc.connectionState === "connected" && capasSala && pcSala === pc) capasSala.reponer();
     if (pc.connectionState === "failed" && pcSala === pc) setTimeout(() => { if (pcSala === pc) iniciarSala(); }, 2000);
   };
   const oferta = await pc.createOffer();
   await pc.setLocalDescription(oferta);
-  mandar({ type: "medios-oferta", sdp: oferta.sdp });
+  mandar({ type: "medios-oferta", sdp: oferta.sdp, capas: capasSala ? capasSala.mids() : undefined });
+}
+
+// «Se te escucha en la sala» y compartir: solo con la palabra (no siendo el siguiente).
+function pintarSala() {
+  $("aSala").classList.toggle("oculto", !pcSala || salaPrevia || pcSala.connectionState !== "connected");
+  pintarCompartir();
 }
 
 function cerrarSala() {
   dejarDeCompartir(false);
   if (pcSala) { try { pcSala.close(); } catch (e) {} }
   pcSala = null;
-  $("aSala").classList.add("oculto");
-  pintarCompartir();
+  capasSala = null;
+  salaPrevia = false;
+  pintarSala();
 }
 
 // --- Lo atiende el asistente hablando, mientras espera ---------------------------------------
@@ -380,7 +406,7 @@ navigator.mediaDevices && navigator.mediaDevices.enumerateDevices &&
   navigator.mediaDevices.enumerateDevices().then((l) => { camaras = l.filter((d) => d.kind === "videoinput").length; pintarCompartir(); }).catch(() => {});
 
 function pintarCompartir() {
-  const puede = !!pcSala;
+  const puede = !!pcSala && !salaPrevia;
   $("compartir").classList.toggle("oculto", !puede);
   const pantalla = !!(navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia);
   $("compartirPantalla").classList.toggle("oculto", !puede || !!contenido || !pantalla);
@@ -392,7 +418,7 @@ async function renegociar() {
   if (!pcSala || !listo()) return;
   const oferta = await pcSala.createOffer();
   await pcSala.setLocalDescription(oferta);
-  mandar({ type: "medios-oferta", sdp: oferta.sdp });
+  mandar({ type: "medios-oferta", sdp: oferta.sdp, capas: capasSala ? capasSala.mids() : undefined });
 }
 
 async function compartir(cual) {
@@ -622,8 +648,17 @@ function recibir(m) {
       rtc(m);
       break;
     case "medios":
-      if (m.activo) iniciarSala(); else cerrarSala();
+      if (m.activo) {
+        salaPrevia = !!m.previo;
+        // El siguiente que recibe la palabra ya tiene su conexión: no se rearma.
+        const viva = pcSala && pcSala.connectionState !== "failed" && pcSala.connectionState !== "closed";
+        if (viva) pintarSala(); else iniciarSala();
+      } else cerrarSala();
       if (m.error) error(t(m.error));
+      break;
+    case "capas":
+      // Qué calidad de la cámara viaja: la sala elige (alta con la palabra o por salir).
+      if (capasSala) capasSala.pedido(m);
       break;
     case "atiende":
       if (m.on && estado !== "habilitado") iniciarAtencion(); else cerrarAtencion();

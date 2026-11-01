@@ -136,7 +136,7 @@ class Presidencia : public QObject {
     /// Las vistas del celular: el programa o las escenas (toma sus canales mientras haya
     /// alguien conectado). `forzar`: aunque no cambió nada.
     void aplicarVistas(bool forzar = false);
-    void mandarMedios(const QStringList& ids);
+    void mandarMedios(const QStringList& ids, const QString& siguiente);
     void avisarPunto(const json& p);
 
     Partes p_;
@@ -145,6 +145,7 @@ class Presidencia : public QObject {
     QTimer consolaTimer_;
     std::string firmaVistas_;
     QStringList mediosPendientes_;
+    QString siguientePendiente_; ///< el siguiente de la fila (su cámara se precarga)
     bool mediosProgramados_ = false;
     /// Arranca en la hora de arranque: siempre mayor que el de la corrida anterior (el gateway
     /// sigue andando y descarta las listas con número menor al último).

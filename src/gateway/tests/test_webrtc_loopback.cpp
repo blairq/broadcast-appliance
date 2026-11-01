@@ -20,6 +20,12 @@
 //      CAMARA del invitado (rojo, 640x360: no es el retorno gris de B) y otra
 //      su PANTALLA (1280 de ancho), con los cuadros reenviados codificados
 //      (keyframe pedido aguas arriba al abrir). Cerrar el espectador lo saca.
+//   6. La camara en DOS capas (Capas.hpp): la misma pista en dos transceptores
+//      (alta 640x360, baja 320x180); B elige cual sale y le pide al navegador que
+//      prenda o pause cada una (onCapas). Al pasar de la baja a la alta no hay
+//      corte (la baja sale hasta que llega la alta) y despues la baja se pausa.
+//   7. Por que dos transceptores: ante una oferta con simulcast (a=rid +
+//      a=simulcast) libwebrtc contesta SIN a=simulcast (no lo recibe).
 //
 // Necesita al menos una interfaz de red (se permite loopback). Sin conexion en
 // el plazo, SKIP (77): en un CI sin red no se puede probar RTP.
@@ -45,6 +51,7 @@
 #include "api/media_stream_interface.h"
 #include "api/notifier.h"
 #include "api/peer_connection_interface.h"
+#include "api/rtp_transceiver_interface.h"
 #include "api/task_queue/default_task_queue_factory.h"
 #include "api/video/i420_buffer.h"
 #include "api/video_codecs/video_decoder_factory_template.h"
@@ -225,7 +232,7 @@ int main() {
 #endif
 
     // --- Lado B: el hub y una sesion, como en el gateway ------------------------
-    WebrtcHub hub(1, 640, 360, 48000, 2);
+    WebrtcHub hub(2, 640, 360, 48000, 2);
     CHECK(hub.rtcFactory() != nullptr, "factory de libwebrtc creada");
     auto* sess = hub.session(1);
 
@@ -468,6 +475,202 @@ int main() {
     CHECK(hub.viewerCount() == 0, "al irse el participante se cierran sus espectadores");
     camView.pc->Close();
     screenView.pc->Close();
+
+    // --- Dos capas de la camara (Capas.hpp) ---------------------------------------
+    {
+        auto* s2 = hub.session(2);
+        std::mutex m2;
+        std::string answer2;
+        std::vector<std::string> ice2;
+        std::atomic<bool> up2{false};
+        std::atomic<int> frames2{0}, w2{0};
+        std::atomic<int64_t> primeraAltaMs{0};
+        std::vector<std::pair<bool, bool>> pedidos;
+        SessionCallbacks cb2;
+        cb2.onLocalAnswer = [&](const std::string& a) {
+            std::lock_guard<std::mutex> l(m2);
+            answer2 = a;
+        };
+        cb2.onLocalIce = [&](const std::string& c) {
+            std::lock_guard<std::mutex> l(m2);
+            ice2.push_back(c);
+        };
+        cb2.onStateChange = [&](bool up) { up2 = up; };
+        cb2.onRemoteVideo = [&](const uint8_t*, size_t, int w, int) {
+            if (w == 640 && w2.load() != 640 && primeraAltaMs.load() == 0) primeraAltaMs = rtc::TimeMillis();
+            w2 = w;
+            frames2++;
+        };
+        Browser b2;
+        rtc::scoped_refptr<webrtc::RtpSenderInterface> senderAlta, senderBaja;
+        // El navegador obedece: prende o pausa cada capa (encodings[0].active).
+        const auto obedecer = [&](bool alta, bool baja) {
+            for (auto [snd, on] : {std::make_pair(senderAlta, alta), std::make_pair(senderBaja, baja)}) {
+                if (!snd) continue;
+                webrtc::RtpParameters par = snd->GetParameters();
+                if (par.encodings.empty()) continue;
+                par.encodings[0].active = on;
+                snd->SetParameters(par);
+            }
+        };
+        cb2.onCapas = [&](bool alta, bool baja) {
+            {
+                std::lock_guard<std::mutex> l(m2);
+                pedidos.emplace_back(alta, baja);
+            }
+            obedecer(alta, baja);
+        };
+        CHECK(s2->configure(cb2, hub.rtcFactory()), "dos capas: sesion configurada");
+        b2.sendIce = [&](const std::string& c) { s2->addRemoteIce(c); };
+        auto r2 = bf->CreatePeerConnectionOrError(cfg, webrtc::PeerConnectionDependencies(&b2));
+        b2.pc = r2.MoveValue();
+        auto cam2 = rtc::make_ref_counted<ColorSource>(81, 90, 240);
+        auto pista = bf->CreateVideoTrack(cam2, "cam2");
+        b2.pc->AddTrack(bf->CreateAudioTrack("mic2", mic.get()), {"guest2"});
+        webrtc::RtpTransceiverInit alta;
+        alta.direction = webrtc::RtpTransceiverDirection::kSendOnly;
+        alta.stream_ids = {"guest2"};
+        webrtc::RtpEncodingParameters ea;
+        ea.max_bitrate_bps = 1500000;
+        alta.send_encodings = {ea};
+        webrtc::RtpTransceiverInit baja = alta;
+        webrtc::RtpEncodingParameters eb;
+        eb.max_bitrate_bps = 150000;
+        eb.scale_resolution_down_by = 2.0;
+        eb.max_framerate = 15;
+        baja.send_encodings = {eb};
+        auto ta = b2.pc->AddTransceiver(pista, alta);
+        auto tb = b2.pc->AddTransceiver(pista, baja); // la MISMA pista
+        CHECK(ta.ok() && tb.ok(), "la misma pista en dos transceptores");
+        senderAlta = ta.value()->sender();
+        senderBaja = tb.value()->sender();
+        std::string oferta;
+        std::atomic<bool> lista{false};
+        auto pc2 = b2.pc;
+        pc2->CreateOffer(rtc::make_ref_counted<CsdObs<std::function<void(webrtc::SessionDescriptionInterface*)>>>(
+                             [&, pc2](webrtc::SessionDescriptionInterface* d) {
+                                 d->ToString(&oferta);
+                                 pc2->SetLocalDescription(rtc::make_ref_counted<SetObs>().get(), d);
+                                 lista = true;
+                             })
+                             .get(),
+                         {});
+        waitFor([&]() { return lista.load(); }, 5000);
+        waitFor([&]() { return ta.value()->mid().has_value() && tb.value()->mid().has_value(); }, 2000);
+        // Lo que el navegador manda en {type:"offer", sdp, capas:{alta, baja}}.
+        s2->setCapas(ta.value()->mid().value_or(""), tb.value()->mid().value_or(""));
+        CHECK(s2->conCapas(), "B sabe cual es cada capa");
+        CHECK(s2->setRemoteOffer(oferta), "B acepta la oferta de dos capas");
+        CHECK(waitFor([&]() {
+                  std::lock_guard<std::mutex> l(m2);
+                  return !answer2.empty();
+              }, 5000),
+              "y contesta");
+        {
+            std::lock_guard<std::mutex> l(m2);
+            webrtc::SdpParseError err;
+            auto ans = webrtc::CreateSessionDescription(webrtc::SdpType::kAnswer, answer2, &err);
+            pc2->SetRemoteDescription(rtc::make_ref_counted<SetObs>().get(), ans.release());
+        }
+        s2->pedirCapa(ba::gateway::Capa::Baja); // en una miniatura
+        std::atomic<bool> fin2{false};
+        std::thread aux([&]() {
+            size_t enviados = 0;
+            while (!fin2) {
+                cam2->push(640, 360);
+                std::vector<std::string> pend;
+                {
+                    std::lock_guard<std::mutex> l(m2);
+                    pend.assign(ice2.begin() + static_cast<long>(enviados), ice2.end());
+                    enviados = ice2.size();
+                }
+                for (const auto& c : pend) {
+                    const json j = json::parse(c);
+                    webrtc::SdpParseError err;
+                    std::unique_ptr<webrtc::IceCandidateInterface> ic(webrtc::CreateIceCandidate(
+                        j["sdpMid"].get<std::string>(), j["sdpMLineIndex"].get<int>(), j["candidate"].get<std::string>(), &err));
+                    if (ic) pc2->AddIceCandidate(std::move(ic), [](webrtc::RTCError) {});
+                }
+                std::this_thread::sleep_for(std::chrono::milliseconds(33));
+            }
+        });
+        CHECK(waitFor([&]() { return up2.load(); }, 15000), "dos capas: conectado");
+        CHECK(waitFor([&]() { return frames2.load() > 10; }, 10000), "llega la camara");
+        CHECK(w2 == 320, "en una miniatura sale la baja (320 de ancho)");
+        {
+            std::lock_guard<std::mutex> l(m2);
+            CHECK(!pedidos.empty() && pedidos.front() == std::make_pair(false, true), "y al navegador se le pidio solo la baja");
+        }
+        CHECK(s2->capaSale() == ba::gateway::Capa::Baja, "sale la baja");
+        // Pasa al aire: alta, sin negro en el medio.
+        const int64_t t0 = rtc::TimeMillis();
+        s2->pedirCapa(ba::gateway::Capa::Alta);
+        CHECK(waitFor([&]() { return w2.load() == 640; }, 5000), "al aire sale la alta (640 de ancho)");
+        const int64_t demora = primeraAltaMs.load() > 0 ? primeraAltaMs.load() - t0 : -1;
+        std::printf("   de la baja a la alta: %lld ms\n", static_cast<long long>(demora));
+        CHECK(demora >= 0 && demora < 1000, "la alta llega en menos de 1 s");
+        {
+            std::lock_guard<std::mutex> l(m2);
+            CHECK(pedidos.size() >= 3 && pedidos[1] == std::make_pair(true, true),
+                  "mientras tanto, las dos prendidas (la baja sigue saliendo)");
+            CHECK(pedidos.back() == std::make_pair(true, false), "llegada la alta, la baja se pausa");
+        }
+        CHECK(s2->capaSale() == ba::gateway::Capa::Alta, "sale la alta");
+        const int antes = frames2.load();
+        CHECK(waitFor([&]() { return frames2.load() > antes + 10; }, 5000) && w2 == 640, "y sigue llegando, solo la alta");
+        s2->pedirCapa(ba::gateway::Capa::Nada);
+        {
+            std::lock_guard<std::mutex> l(m2);
+            CHECK(pedidos.back() == std::make_pair(false, false), "nadie lo mira: las dos pausadas");
+        }
+        fin2 = true;
+        aux.join();
+        pc2->Close();
+        s2->close();
+
+        // Simulcast con rid: libwebrtc (B) no lo recibe. El answer sale sin a=simulcast y
+        // el navegador mandaria solo la primera capa: por eso dos transceptores.
+        CHECK(s2->configure(cb2, hub.rtcFactory()), "sesion nueva para la prueba de simulcast");
+        Browser b3;
+        auto r3 = bf->CreatePeerConnectionOrError(cfg, webrtc::PeerConnectionDependencies(&b3));
+        b3.pc = r3.MoveValue();
+        webrtc::RtpTransceiverInit sim = alta;
+        webrtc::RtpEncodingParameters l1, l2;
+        l1.rid = "b";
+        l1.scale_resolution_down_by = 2.0;
+        l2.rid = "a";
+        sim.send_encodings = {l1, l2};
+        b3.pc->AddTransceiver(bf->CreateVideoTrack(cam2, "cam3"), sim);
+        std::string ofertaSim;
+        std::atomic<bool> lista3{false};
+        auto pc3 = b3.pc;
+        pc3->CreateOffer(rtc::make_ref_counted<CsdObs<std::function<void(webrtc::SessionDescriptionInterface*)>>>(
+                             [&, pc3](webrtc::SessionDescriptionInterface* d) {
+                                 d->ToString(&ofertaSim);
+                                 pc3->SetLocalDescription(rtc::make_ref_counted<SetObs>().get(), d);
+                                 lista3 = true;
+                             })
+                             .get(),
+                         {});
+        waitFor([&]() { return lista3.load(); }, 5000);
+        CHECK(ofertaSim.find("a=simulcast:send") != std::string::npos, "la oferta pide simulcast");
+        {
+            std::lock_guard<std::mutex> l(m2);
+            answer2.clear();
+        }
+        s2->setRemoteOffer(ofertaSim);
+        waitFor([&]() {
+            std::lock_guard<std::mutex> l(m2);
+            return !answer2.empty();
+        }, 5000);
+        {
+            std::lock_guard<std::mutex> l(m2);
+            CHECK(!answer2.empty() && answer2.find("a=simulcast") == std::string::npos,
+                  "B contesta sin a=simulcast: no recibe simulcast (por eso dos transceptores)");
+        }
+        pc3->Close();
+        s2->close();
+    }
 
     stop = true;
     feeder.join();

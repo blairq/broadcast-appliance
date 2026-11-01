@@ -9,10 +9,12 @@
 //   - Cada offer (el primero y los re-offers al sumar/quitar la pantalla
 //     compartida) se contesta: SRD -> CreateAnswer -> SLD -> onLocalAnswer.
 //     Los candidatos ICE van por goteo (trickle) en ambos sentidos.
-//   - Recepcion: OnTrack engancha sinks. El PRIMER track de video es la
-//     camara (onRemoteVideo); cualquier otro, la pantalla (onRemoteScreen). El
-//     audio llega como int16 al sink del track remoto y sale como float32
-//     estereo (onRemoteAudio).
+//   - Recepcion: OnTrack engancha sinks. Con dos capas (Capas.hpp: el navegador
+//     dice el mid de la alta y el de la baja al ofrecer), cada capa tiene su sink
+//     y solo la que SALE (SelectorCapas) llega a onRemoteVideo; sin capas (un
+//     navegador de antes), el PRIMER track de video es la camara. Cualquier otro
+//     video es la pantalla (onRemoteScreen). El audio llega como int16 al sink
+//     del track remoto y sale como float32 estereo (onRemoteAudio).
 //   - Audio remoto: libwebrtc solo decodifica el audio recibido cuando alguien
 //     "tira" de la reproduccion. B no tiene parlantes: PullAdm es un modulo de
 //     audio sin dispositivo que tira del mix cada 10 ms en su propio thread.
@@ -106,6 +108,66 @@ namespace ba::gateway {
 
 using json = nlohmann::json;
 
+namespace {
+/// Las dos capas de la camara de una sesion (Capas.hpp), igual en los dos backends. Los
+/// cuadros llegan por los hilos de libwebrtc y los pedidos por el del servidor: candado.
+struct EstadoCapas {
+    mutable std::mutex mu;
+    SelectorCapas sel;
+    std::string midAlta, midBaja;
+
+    bool conLocked() const { return !midAlta.empty() && !midBaja.empty(); }
+    bool con() const {
+        std::lock_guard<std::mutex> l(mu);
+        return conLocked();
+    }
+    /// Conexion nueva (configure): el navegador arranca con las dos prendidas.
+    void reiniciar() {
+        std::lock_guard<std::mutex> l(mu);
+        sel.reiniciar();
+        midAlta.clear();
+        midBaja.clear();
+    }
+    /// Los mids que declaró el navegador. Otros que los de antes (o los primeros): es otro
+    /// juego de capas, que arranca con las dos prendidas.
+    void ponerMids(const std::string& alta, const std::string& baja) {
+        std::lock_guard<std::mutex> l(mu);
+        if (alta == midAlta && baja == midBaja) return;
+        midAlta = alta;
+        midBaja = baja;
+        sel.reiniciar();
+    }
+    /// La capa de un transceptor por su mid (Nada: no es una capa, o no hay capas).
+    Capa deMid(const std::string& mid) const {
+        std::lock_guard<std::mutex> l(mu);
+        if (!conLocked() || mid.empty()) return Capa::Nada;
+        return mid == midAlta ? Capa::Alta : mid == midBaja ? Capa::Baja : Capa::Nada;
+    }
+    /// true (con `a`) si hay que decirle al navegador qué capas prender.
+    bool pedir(Capa c, CapasActivas& a) {
+        std::lock_guard<std::mutex> l(mu);
+        if (!conLocked()) return false; // una sola cámara: no hay nada que elegir
+        const bool cambio = sel.pedir(c);
+        a = sel.activas();
+        return cambio;
+    }
+    bool llego(Capa c, bool& pasa, CapasActivas& a) {
+        std::lock_guard<std::mutex> l(mu);
+        const bool cambio = sel.llego(c, pasa);
+        a = sel.activas();
+        return cambio;
+    }
+    Capa sale() const {
+        std::lock_guard<std::mutex> l(mu);
+        return sel.sale();
+    }
+    Capa pedida() const {
+        std::lock_guard<std::mutex> l(mu);
+        return sel.pedida();
+    }
+};
+} // namespace
+
 #if !BA_GATEWAY_HAVE_WEBRTC
 // ============================================================================
 // Backend NULL
@@ -118,10 +180,12 @@ struct WebrtcSession::Impl {
     bool closed = false;
     std::atomic<uint64_t> localAudioBlocks{0};
     std::atomic<uint64_t> localVideoFrames{0};
+    EstadoCapas capas;
 
     bool configure(const SessionCallbacks& c) {
         cb = c;
         configured = true;
+        capas.reiniciar();
         // configure() se llama de nuevo en cada reconexion: se limpia el estado
         // para que la sesion no quede muerta tras el primer cierre.
         closed = false;
@@ -307,9 +371,11 @@ class LocalAudioSource : public webrtc::Notifier<webrtc::AudioSourceInterface> {
 class RemoteVideoSink : public rtc::VideoSinkInterface<webrtc::VideoFrame> {
    public:
     using Fn = std::function<void(const uint8_t*, size_t, int, int)>;
-    explicit RemoteVideoSink(Fn fn) : fn_(std::move(fn)) {}
+    /// `pasa`: si este cuadro va a `fn` (una capa que no sale se descarta ANTES de
+    /// convertirla). Vacío = todos.
+    explicit RemoteVideoSink(Fn fn, std::function<bool()> pasa = {}) : fn_(std::move(fn)), pasa_(std::move(pasa)) {}
     void OnFrame(const webrtc::VideoFrame& frame) override {
-        if (!fn_) return;
+        if (!fn_ || (pasa_ && !pasa_())) return;
         rtc::scoped_refptr<webrtc::I420BufferInterface> i420 = frame.video_frame_buffer()->ToI420();
         if (!i420) return;
         if (frame.rotation() != webrtc::kVideoRotation_0) {
@@ -325,6 +391,7 @@ class RemoteVideoSink : public rtc::VideoSinkInterface<webrtc::VideoFrame> {
 
    private:
     Fn fn_;
+    std::function<bool()> pasa_;
     std::vector<uint8_t> bgra_;
 };
 
@@ -690,7 +757,8 @@ struct RtcHubState {
     rtc::scoped_refptr<webrtc::PeerConnectionFactoryInterface> factory;
     // Relay: un Feed por (sesion, camara/pantalla) y los espectadores.
     std::mutex feedsM;
-    std::map<int, std::shared_ptr<Feed>> feeds; // clave: sesion * 2 + (pantalla ? 1 : 0)
+    // clave: sesion * 2 + (pantalla ? 1 : 0); -sesion, la capa baja de su camara (solo cuenta)
+    std::map<int, std::shared_ptr<Feed>> feeds;
     std::mutex viewersM;
     std::map<int, std::unique_ptr<ViewerPc>> viewers;
     int nextViewer = 1;
@@ -733,6 +801,7 @@ struct WebrtcSession::Impl : public webrtc::PeerConnectionObserver {
     rtc::scoped_refptr<LocalAudioSource> audioSource;
     bool tracksAdded = false;
     std::string cameraMid;
+    EstadoCapas capas;
     std::vector<std::unique_ptr<RemoteVideoSink>> videoSinks;
     std::vector<std::unique_ptr<RemoteAudioSink>> audioSinks;
     std::vector<std::pair<rtc::scoped_refptr<webrtc::VideoTrackInterface>, RemoteVideoSink*>> videoAttached;
@@ -860,6 +929,7 @@ struct WebrtcSession::Impl : public webrtc::PeerConnectionObserver {
         audioSource = rtc::make_ref_counted<LocalAudioSource>();
         tracksAdded = false;
         cameraMid.clear();
+        capas.reiniciar();
         return true;
     }
 
@@ -997,6 +1067,7 @@ struct WebrtcSession::Impl : public webrtc::PeerConnectionObserver {
         if (hub != nullptr) {
             hub->feed(slot * 2)->clearSource();
             hub->feed(slot * 2 + 1)->clearSource();
+            hub->feed(-slot)->clearSource();
         }
         p->Close(); // sincronico: despues no llegan mas callbacks de esta PC
         videoSinks.clear();
@@ -1032,14 +1103,28 @@ struct WebrtcSession::Impl : public webrtc::PeerConnectionObserver {
         if (!track) return;
         if (track->kind() == webrtc::MediaStreamTrackInterface::kVideoKind) {
             const std::string mid = t->mid().value_or("");
-            if (cameraMid.empty()) cameraMid = mid;
-            const bool camera = mid == cameraMid;
-            auto sink = std::make_unique<RemoteVideoSink>(camera ? cb.onRemoteVideo : cb.onRemoteScreen);
+            // Con dos capas, cada una es su propia recepcion y solo la que sale pasa
+            // (convertida) a onRemoteVideo; sin capas, el primer video es la camara.
+            const Capa capa = capas.deMid(mid);
+            const bool dosCapas = capas.con();
+            if (!dosCapas && cameraMid.empty()) cameraMid = mid;
+            const bool camera = capa != Capa::Nada || (!dosCapas && mid == cameraMid);
+            std::function<bool()> pasa;
+            if (capa != Capa::Nada)
+                pasa = [this, capa]() {
+                    bool va = false;
+                    CapasActivas a;
+                    if (capas.llego(capa, va, a) && cb.onCapas) cb.onCapas(a.alta, a.baja);
+                    return va;
+                };
+            auto sink = std::make_unique<RemoteVideoSink>(camera ? cb.onRemoteVideo : cb.onRemoteScreen, std::move(pasa));
             auto* video = static_cast<webrtc::VideoTrackInterface*>(track.get());
             // Relay a espectadores: los cuadros codificados pasan por el Feed de
-            // esta sesion antes del decodificador.
+            // esta sesion antes del decodificador. A los espectadores se les reenvia
+            // la capa alta; la baja pasa por un Feed propio que solo cuenta los bytes
+            // (lo que entra a la sala).
             if (hub != nullptr) {
-                std::shared_ptr<Feed> feed = hub->feed(slot * 2 + (camera ? 0 : 1));
+                std::shared_ptr<Feed> feed = hub->feed(capa == Capa::Baja ? -slot : slot * 2 + (camera ? 0 : 1));
                 feed->setSource(rtc::scoped_refptr<webrtc::VideoTrackSourceInterface>(video->GetSource()),
                                 hub->worker.get());
                 t->receiver()->SetDepacketizerToDecoderFrameTransformer(
@@ -1140,6 +1225,17 @@ bool WebrtcSession::setRemoteOffer(const std::string& sdp) {
     return impl_ != nullptr && impl_->setRemoteOffer(sdp);
 }
 bool WebrtcSession::addRemoteIce(const std::string& c) { return impl_ != nullptr && impl_->addRemoteIce(c); }
+void WebrtcSession::setCapas(const std::string& midAlta, const std::string& midBaja) {
+    if (impl_ != nullptr) impl_->capas.ponerMids(midAlta, midBaja);
+}
+void WebrtcSession::pedirCapa(Capa c) {
+    if (impl_ == nullptr) return;
+    CapasActivas a;
+    if (impl_->capas.pedir(c, a) && impl_->cb.onCapas) impl_->cb.onCapas(a.alta, a.baja);
+}
+bool WebrtcSession::conCapas() const { return impl_ != nullptr && impl_->capas.con(); }
+Capa WebrtcSession::capaSale() const { return impl_ != nullptr ? impl_->capas.sale() : Capa::Nada; }
+Capa WebrtcSession::capaPedida() const { return impl_ != nullptr ? impl_->capas.pedida() : Capa::Nada; }
 void WebrtcSession::pushLocalAudio(const float* s, size_t n, int rate) {
     if (impl_ != nullptr) impl_->pushLocalAudio(s, n, rate);
 }
@@ -1161,7 +1257,17 @@ void WebrtcSession::close() {
     if (impl_ != nullptr) impl_->close();
 }
 int WebrtcSession::slot() const { return impl_ != nullptr ? impl_->slot : 0; }
-std::string WebrtcSession::estadisticas() { return impl_ != nullptr ? impl_->estadisticas() : std::string("{}"); }
+std::string WebrtcSession::estadisticas() {
+    if (impl_ == nullptr) return "{}";
+    std::string s = impl_->estadisticas();
+    if (!impl_->capas.con()) return s;
+    // Con dos capas: cuál sale y cuál pidió la sala (para ver que lo que se pide llega).
+    json j = json::parse(s, nullptr, false);
+    if (!j.is_object()) j = json::object();
+    j["capa"] = nombreCapa(impl_->capas.sale());
+    j["capa_pedida"] = nombreCapa(impl_->capas.pedida());
+    return j.dump(-1, ' ', false, json::error_handler_t::replace);
+}
 uint64_t WebrtcSession::localAudioBlocks() const {
     return impl_ != nullptr ? impl_->localAudioBlocks.load() : 0;
 }
@@ -1455,6 +1561,14 @@ int WebrtcHub::viewerCount() const {
     std::lock_guard<std::mutex> lock(st->viewersM);
     return static_cast<int>(st->viewers.size());
 }
+
+int WebrtcHub::espectadoresDe(int session) const {
+    auto* st = static_cast<RtcHubState*>(rtcFactory_);
+    if (st == nullptr) return 0;
+    std::lock_guard<std::mutex> lock(st->viewersM);
+    return static_cast<int>(std::count_if(st->viewers.begin(), st->viewers.end(),
+                                          [session](const auto& v) { return v.second->feedKey == session * 2; }));
+}
 #else
 // Backend NULL: sin RTP no hay nada que reenviar.
 int WebrtcHub::openViewer(int, bool, const std::string&, std::string&) { return 0; }
@@ -1465,6 +1579,7 @@ void WebrtcHub::reapViewers() {}
 WebrtcHub::Trafico WebrtcHub::trafico() const { return {}; }
 
 int WebrtcHub::viewerCount() const { return 0; }
+int WebrtcHub::espectadoresDe(int) const { return 0; }
 #endif
 
 } // namespace ba::gateway

@@ -348,7 +348,8 @@ void Presidencia::sincronizar() {
     // Si el gateway se reinició no sabe quién tiene la palabra: se le vuelve a decir.
     json ids = json::array();
     for (const auto& i : p_.sesion.conPalabraTodos()) ids.push_back(i);
-    sala::pedir(p_.sala, "POST", "/api/v1/sesion/medios", {{"ids", ids}, {"seq", ++mediosSeq_}}, sinRespuesta);
+    sala::pedir(p_.sala, "POST", "/api/v1/sesion/medios",
+                {{"ids", ids}, {"siguiente", p_.sesion.siguiente()}, {"seq", ++mediosSeq_}}, sinRespuesta);
     // Los orígenes de los links los pone StudioViewModel desde sala/Direcciones.
 }
 
@@ -362,18 +363,20 @@ void Presidencia::buscarAparatos() {
     });
 }
 
-void Presidencia::mandarMedios(const QStringList& ids) {
+void Presidencia::mandarMedios(const QStringList& ids, const QString& siguiente) {
     // Quiénes mandan medios a la sala: va solo la lista final de cada tanda (un debate
     // da la palabra a dos seguidos) y con número, así una que llega tarde no pisa
     // a la nueva (los POST viajan en paralelo y llegaban al revés).
     mediosPendientes_ = ids;
+    siguientePendiente_ = siguiente;
     if (mediosProgramados_) return;
     mediosProgramados_ = true;
     QTimer::singleShot(0, this, [this]() {
         mediosProgramados_ = false;
         json l = json::array();
         for (const QString& i : mediosPendientes_) l.push_back(i.toStdString());
-        sala::pedir(p_.sala, "POST", "/api/v1/sesion/medios", {{"ids", l}, {"seq", ++mediosSeq_}}, sinRespuesta);
+        sala::pedir(p_.sala, "POST", "/api/v1/sesion/medios",
+                    {{"ids", l}, {"siguiente", siguientePendiente_.toStdString()}, {"seq", ++mediosSeq_}}, sinRespuesta);
     });
 }
 

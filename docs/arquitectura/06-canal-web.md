@@ -115,7 +115,74 @@ igual: el token del aparato va en el primer mensaje (`aparato`).
 | `comun/reloj.js` | `BAReloj`: el desfase con el reloj de la sala; lee `t_srv_ms`, `ahoraMs`, `ahora_ms` o `serverNowMs` (no se renombran en el servidor) |
 | `comun/dom.js` | `$`, `el`, `mmss` |
 | `comun/vigia-video.js` | `BAVigia`: video congelado, con un solo umbral (pedir cuadro a los 2 y 6 s, rearmar a los 10 s) |
+| `comun/capas.js` | `BACapas`: la cámara en dos calidades, la sala elige cuál viaja (§7) |
 | `comun/prompter-vista.js` | `BAPrompterVista`: la vista del teleprompter (la tablet y el panel del invitado) |
 
 Las páginas del evento (`assets/web/evento/vivo.js`, `marco.js`) no los usan: las cargan
 las páginas del sitio de cada evento, que no traen `/comun/`.
+
+## 7. La cámara en dos calidades (capas)
+
+El invitado de la conferencia (`/ws`) y el integrante de la asamblea que manda medios
+(`/ws?sesion=1`, `medios-oferta`) publican la cámara **dos veces** en la misma
+conexión WebRTC, con la **misma pista**: la capa **alta** (hasta 720p, ~1,5 Mbps) y la
+**baja** (~180p, 15 cps, ~150 kbps). La pantalla compartida sigue siendo otro video
+aparte, sin capas. **La que pide es la sala**: según dónde se ve a esa persona le dice
+al navegador qué capa prender; lo pausado no se codifica ni viaja. El cliente es
+`comun/capas.js` (`BACapas`); el porqué, en `src/gateway/Capas.hpp`.
+
+**Por qué no simulcast con `rid`:** el gateway es libwebrtc M123 como answerer y no
+recibe simulcast: contesta sin `a=simulcast` y el navegador manda solo la primera capa
+(lo verifica `test_webrtc_loopback`). Con dos transceptores cada capa es una recepción
+normal.
+
+### Lo que manda el cliente
+
+1. Arma los transceptores en este orden: audio; **alta** (la primera de video:
+   `sendrecv` en el invitado, porque por ahí le baja el retorno; `sendonly` en la
+   sesión); **baja** (`sendonly`). Las dos con la misma pista de cámara y una sola
+   encoding cada una (`sendEncodings: [{…}]`).
+2. En la oferta dice qué `mid` es cada capa:
+   - invitado: `{"type":"offer", "sdp": …, "capas": {"alta": "1", "baja": "2"}}`
+   - integrante: `{"type":"medios-oferta", "sdp": …, "capas": {"alta": "1", "baja": "2"}}`
+
+   Una renegociación (sumar la pantalla) repite `capas` con los mismos mids. Sin
+   `capas` la sala trata la oferta como de antes: el primer video es la cámara y no le
+   pide nada.
+3. Arranca con **las dos prendidas** hasta que la sala diga otra cosa.
+
+### Lo que manda la sala
+
+- `{"type":"capas", "alta": true|false, "baja": true|false}`: qué capas tener prendidas.
+  El cliente pone `encodings[0].active` en el sender de cada capa (`setParameters`, de a
+  uno). Si llega antes de que la conexión esté negociada, lo vuelve a poner al conectar.
+- Al cambiar de capa, la sala manda primero las dos en `true` y, cuando le llegó el
+  primer cuadro de la nueva, la vieja en `false`: lo que se ve no se corta.
+- `{"type":"medios", "activo": true, "previo": true}` (solo la sesión): sos el siguiente
+  de la fila. Se abre la conexión y la cámara viaja (la sala pide la alta para tenerla
+  lista) pero no va a ningún canal ni a la mezcla. Al darle la palabra llega
+  `{"type":"medios", "activo": true, "previo": false}`: **no se renegocia**, la misma
+  conexión pasa al aire.
+- Los topes de siempre siguen y son **sobre la capa alta**: `{"type":"request","what":
+  "calidad-720p" | "calidad-360p" | "calidad-max"}` (el operador, por la red) y
+  `"calidad-grilla-180p" | "calidad-grilla-360p" | "calidad-grilla-libre"` (el lugar en
+  una grilla). Vale el menor de los dos. La baja no se toca.
+
+### Cuál pide la sala (`capaNecesaria`)
+
+| Dónde está | Capa |
+|---|---|
+| Invitado en el programa, su entrada al aire o en la escena armada de alguna salida (lo dice la app por `POST /api/v1/capas`) | alta |
+| Invitado en el programa, no al aire (vista chica, multiview) | baja |
+| Invitado en el programa con una app que todavía no dijo nada | alta |
+| Integrante con la palabra (canal 1 o 2) o el siguiente de la fila | alta |
+| Lobby, fila de oradores con vista previa | baja |
+| Fila sin vista previa, pantallas, atención hablada | nada |
+| En una grilla de personas | al menos baja (cuadrito ≤ 200 px) o alta (más grande) |
+| Lo mira una vista web (tablero, presidencia: se le reenvía la alta) | alta |
+
+Un **probador de carga** que quiera comportarse como un cliente real tiene que: mandar
+las dos capas con `capas` en la oferta, obedecer cada `{"type":"capas"}` (prender o
+pausar sus encodings) y, en la sesión, no renegociar con `previo:false`. La sala anota
+cada pedido en su registro («capas: a <pid> se le pide la alta») y las estadísticas de
+la sesión traen `capa` (la que sale) y `capa_pedida`.

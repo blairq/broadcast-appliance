@@ -101,6 +101,10 @@ struct FotoMotor {
         bool visible = true;
         Lugar lugar;
         nlohmann::json efectos = nlohmann::json::object(); ///< EfectosCapa::aJson
+        /// La cámara de un remoto que muestra: "guest:<n>" (el invitado del lugar n) o
+        /// "remoto:<k>" (el integrante con la palabra del canal k); "" si no es una. Con eso
+        /// la sala sabe a quién pedirle la capa alta (sala/CapasRemotos).
+        std::string remota;
         bool operator==(const Fuente&) const = default;
     };
     struct Escena {

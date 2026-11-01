@@ -1091,6 +1091,12 @@ endif()
     target_include_directories(test_calidad_calor PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
     add_test(NAME test_calidad_calor COMMAND test_calidad_calor)
 
+    # Qué cámaras de remotos están al aire o armadas (la capa alta), de una foto del motor falsa.
+    add_executable(test_capas_remotos tests/test_capas_remotos.cpp sala/CapasNecesarias.cpp)
+    target_include_directories(test_capas_remotos PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    target_link_libraries(test_capas_remotos PRIVATE nlohmann_json::nlohmann_json Qt6::Core)
+    add_test(NAME test_capas_remotos COMMAND test_capas_remotos)
+
     # El registro por tótem: la configuración (registro.json) y el guion hablado con sus normalizadores.
     add_executable(test_registro_totems tests/test_registro_totems.cpp registro/Totems.cpp)
     target_include_directories(test_registro_totems PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")

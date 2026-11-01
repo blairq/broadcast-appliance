@@ -213,6 +213,15 @@ Cada fase con su GUI, sus herramientas MCP y su prueba sin equipo (clientes simu
   - mostrar contenido mientras habla: pantalla (compu) u otra cámara (celular) → «Remoto con la palabra — contenido»;
   - silenciar a todos y «hablo yo» de la presidencia (también los remotos; lo mismo al apretar prioridad en la unidad);
   - debate entre dos (sala-sala, sala-remoto, remoto-remoto) con escena por tipo y turnos (`debate_*`).
+- **Dos calidades de la cámara (2026-11-01, parte de R5):**
+  - el que manda medios publica la cámara en alta (720p) y baja (180p) y la sala elige cuál
+    viaja (contrato en docs/arquitectura/06-canal-web.md §7, por qué en src/gateway/Capas.hpp);
+  - el **siguiente de la fila** (remoto, habilitado) abre su WebRTC antes de tener la palabra
+    (`previo`): su alta ya llega y, al darle la palabra, sale sin reconectar;
+  - lo mismo para los invitados de la conferencia: alta al aire o armados, baja en las
+    miniaturas.
+  - Las caras del recinto y del muro siguen siendo **fotos** (no video en baja): con 4096
+    remotos el pool de sesiones no alcanza; queda para el SFU.
 - **Falta:**
   - **R5:** escala hasta 4096, regulador de video y TURN. Sin TURN, el video directo y el WebRTC
     andan en la red de la sala, pero no siempre desde afuera.

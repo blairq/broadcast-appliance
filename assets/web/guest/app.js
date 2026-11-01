@@ -9,7 +9,8 @@
         un id y una CLAVE propia del participante, y lo deja en el LOBBY
         ("lobby", con su posicion) hasta que el operador lo admite ("admitted").
      4. Admitido: RTCPeerConnection (el invitado es el OFFERER) con camara +
-        micro; compartir pantalla/ventana agrega un segundo track de video y
+        micro. La camara va en DOS calidades (comun/capas.js: la sala elige
+        cual viaja); compartir pantalla/ventana agrega otro video aparte y
         renegocia. Archivos: POST /api/v1/files con la clave (X-BA-Key).
      5. Reconexion: el canal vuelve solo, con {resume: <id>, key: <clave>} en el
         primer mensaje. Id y clave viven en sessionStorage, asi una recarga de la
@@ -30,6 +31,7 @@
     id: null, key: null,
     canal: null, pc: null,
     localStream: null, screenStream: null, screenSender: null,
+    capas: null, // las dos calidades de la camara (BACapas)
     audioCtx: null, analyser: null, levelRaf: 0,
     admitted: false, slot: 0,
     mic: true, cam: true, hand: false,
@@ -381,6 +383,10 @@
       case "answer":
         if (state.pc) state.pc.setRemoteDescription({ type: "answer", sdp: msg.sdp }).catch(() => {});
         break;
+      case "capas":
+        // Qué calidad de la cámara viaja: la sala elige según dónde se lo ve.
+        if (state.capas) state.capas.pedido(msg);
+        break;
       case "ice":
         if (state.pc && msg.candidate) {
           const c = typeof msg.candidate === "string" ? { candidate: msg.candidate, sdpMLineIndex: 0 } : msg.candidate;
@@ -401,13 +407,12 @@
     else if (what.startsWith("calidad-")) { state.calidadOperador = what.slice(8); aplicarCalidad(true); }
   }
 
-  // La calidad de la cámara la bajan dos: el operador cuando la red no da
-  // (calidad-360p/720p, con aviso) y la sala cuando la persona ocupa un cuadrito
-  // en una grilla de personas (calidad-grilla-180p/360p/libre, sin aviso: es
-  // solo cuánto se la ve). Vale la MENOR de las dos: la grilla nunca le devuelve
-  // a alguien la calidad que el operador le sacó por la red, ni al revés.
-  // Menos resolución, cuadros y bitrate: decodificar 50 caras en la sala es lo
-  // que cuesta, no mostrarlas.
+  // El tope de la calidad ALTA de la cámara lo bajan dos: el operador cuando la
+  // red no da (calidad-360p/720p, con aviso) y la sala cuando la persona ocupa un
+  // cuadrito en una grilla de personas (calidad-grilla-180p/360p/libre, sin aviso:
+  // es solo cuánto se la ve). Vale la MENOR de las dos: la grilla nunca le devuelve
+  // a alguien la calidad que el operador le sacó por la red, ni al revés. La capa
+  // BAJA (comun/capas.js) ya es el piso: el tope no la toca.
   const NIVELES = {
     "180p": { alto: 180, bitrate: 250000, cps: 15 },
     "360p": { alto: 360, bitrate: 500000, cps: 0 },
@@ -419,29 +424,10 @@
     return a ? state.calidadOperador : b ? state.calidadGrilla : "";
   }
   async function aplicarCalidad(avisar) {
-    if (!state.pc) return;
-    const sender = state.pc.getSenders().find(s => s.track && s.track.kind === "video" && s !== state.screenSender);
-    if (!sender) return;
-    const p = sender.getParameters();
-    if (!p.encodings || !p.encodings.length) p.encodings = [{}];
-    const alto = (sender.track.getSettings && sender.track.getSettings().height) || 720;
-    const nivel = nivelEfectivo();
-    const n = NIVELES[nivel];
-    if (n) {
-      p.encodings[0].scaleResolutionDownBy = Math.max(1, alto / n.alto);
-      p.encodings[0].maxBitrate = n.bitrate;
-      if (n.cps) p.encodings[0].maxFramerate = n.cps;
-      else delete p.encodings[0].maxFramerate;
-    } else {
-      delete p.encodings[0].maxBitrate;
-      delete p.encodings[0].maxFramerate;
-      p.encodings[0].scaleResolutionDownBy = 1;
-    }
-    try {
-      await sender.setParameters(p);
-      if (avisar && NIVELES[state.calidadOperador])
-        toast(llenar(t("Tu conexión está justa: el operador bajó la calidad de tu cámara a %1."), state.calidadOperador));
-    } catch (e) { /* el navegador no lo admite (o todavía no negoció): sigue como estaba */ }
+    if (!state.capas) return;
+    await state.capas.topar(NIVELES[nivelEfectivo()] || null);
+    if (avisar && NIVELES[state.calidadOperador])
+      toast(llenar(t("Tu conexión está justa: el operador bajó la calidad de tu cámara a %1."), state.calidadOperador));
   }
 
   function sendMedia() {
@@ -454,7 +440,16 @@
     // En la LAN, directo; desde afuera, por el TURN de la caja (../comun/ice.js).
     const pc = new RTCPeerConnection(window.BAIce ? BAIce.config() : { iceServers: [] });
     state.pc = pc;
-    if (state.localStream) for (const t of state.localStream.getTracks()) pc.addTrack(t, state.localStream);
+    state.capas = null;
+    if (state.localStream) {
+      for (const t of state.localStream.getAudioTracks()) pc.addTrack(t, state.localStream);
+      // La cámara en dos calidades; la alta también recibe (por ahí baja el retorno).
+      const [v] = state.localStream.getVideoTracks();
+      if (v) {
+        state.capas = BACapas.publicar(pc, v, state.localStream, true);
+        if (state.calidadGrilla || state.calidadOperador) aplicarCalidad(false);
+      }
+    }
     if (state.screenStream) {
       const [t] = state.screenStream.getVideoTracks();
       if (t) state.screenSender = pc.addTrack(t, state.screenStream);
@@ -496,7 +491,7 @@
       if (cs === "connected") {
         setConn("ok", t("Conectado"));
         // Conexión nueva: el codificador arranca de fábrica; lo pedido se vuelve a poner.
-        if (state.calidadGrilla || state.calidadOperador) aplicarCalidad(false);
+        if (state.capas) state.capas.reponer();
         return;
       }
       if (cs !== "failed" && cs !== "disconnected") return;
@@ -513,7 +508,8 @@
       try {
         const offer = await pc.createOffer();
         await pc.setLocalDescription(offer);
-        send({ type: "offer", sdp: offer.sdp });
+        // Con las dos calidades, qué transceptor es cada una (la sala elige cuál viaja).
+        send({ type: "offer", sdp: offer.sdp, capas: state.capas ? state.capas.mids() : undefined });
       } catch (e) { /* se reintenta al reconectar */ }
     };
   }

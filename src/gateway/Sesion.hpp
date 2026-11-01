@@ -27,10 +27,14 @@
 //   POST /api/v1/sesion/cortar       {id, motivo}
 //   GET  /api/v1/sesion/estado       conexiones vivas
 //   GET  /api/v1/sesion/foto?id=     la última foto de su cámara (image/jpeg)
-//   POST /api/v1/sesion/medios       {ids: [a, b]} (o {id | ""}): quiénes mandan audio y video a la
-//        sala (R3), hasta dos a la vez (un debate): el primero va al canal 1 (BA.Remoto.1…), el
-//        segundo al 2. Al que entra se le dice {type:"medios", activo:true} y su celular ofrece
-//        ({type:"medios-oferta", sdp}, {type:"medios-ice", candidate}); al que sale, false.
+//   POST /api/v1/sesion/medios       {ids: [a, b], siguiente?} (o {id | ""}): quiénes mandan audio y
+//        video a la sala (R3), hasta dos a la vez (un debate): el primero va al canal 1
+//        (BA.Remoto.1…), el segundo al 2. Al que entra se le dice {type:"medios", activo:true} y su
+//        celular ofrece ({type:"medios-oferta", sdp, capas}, {type:"medios-ice", candidate}); al
+//        que sale, false. `siguiente`: el próximo de la fila (Capas.hpp): abre su WebRTC desde
+//        ya ({type:"medios", activo:true, previo:true}) con la capa alta llegando, pero no va a
+//        ningún canal (ni su audio a la mezcla) hasta que le dan la palabra: ahí pasa a su
+//        canal sin reconectar ({type:"medios", activo:true, previo:false}).
 //   POST /api/v1/sesion/vistas       {vistas:[{id, nombre, canal, salida?}]}: los canales que el
 //        integrante puede mirar en su celular (canal -1 = el programa, k = BA.Escena.<k>; con
 //        `salida`, esa salida en vez del programa); se les manda {type:"vistas", lista:[{id,
@@ -127,10 +131,13 @@ class SesionBorde {
     /// WebRTC del gateway. Lo arma SignalingServer (que tiene el hub y el pump).
     struct Medios {
         /// Una oferta del integrante `id`: `enviar` le contesta (respuesta e ICE). false si no se pudo.
-        /// `canal`: 1 o 2 (BA.Remoto.<canal>).
+        /// `canal`: 1 o 2 (BA.Remoto.<canal>), 0 = el siguiente (no va a ningún canal). `capas`:
+        /// {alta, baja}, los mids de las dos capas de su cámara (Capas.hpp).
         std::function<bool(const std::string& id, int canal, const std::string& sdp,
-                           std::function<void(const nlohmann::json&)> enviar)>
+                           std::function<void(const nlohmann::json&)> enviar, const nlohmann::json& capas)>
             oferta;
+        /// El que ya manda (con su WebRTC armado) pasa a otro canal (0 = el siguiente).
+        std::function<void(const std::string& id, int canal)> ruta;
         std::function<void(const std::string& id, const std::string& candidato)> ice;
         std::function<void(const std::string& id, int canal)> cerrar;
         // Lo que mira en su celular (un WebRTC que solo recibe), ver Vista. `hablar`: le
@@ -240,8 +247,12 @@ class SesionBorde {
     std::function<void(const std::string&)> alFotoNueva_;
     std::map<std::string, std::int64_t> avisoFotoMs_; ///< la última vez que se avisó la foto de cada uno (con mu_)
     static constexpr int kCanalesRemotos = 2;
-    std::map<std::string, int> mediosDe_; ///< quiénes mandan audio y video a la sala, y por qué canal (1..2)
-    void ponerMedios(const std::vector<std::string>& ids);
+    /// El canal del siguiente de la fila: manda su cámara (la alta, precargada) pero no va a
+    /// ningún canal ni a la mezcla hasta que tenga la palabra.
+    static constexpr int kCanalSiguiente = 0;
+    /// Quiénes mandan audio y video a la sala, y por qué canal (1..2, o kCanalSiguiente).
+    std::map<std::string, int> mediosDe_;
+    void ponerMedios(const std::vector<std::string>& ids, const std::string& siguiente = {});
     long long ultimoSeqMedios_ = 0; ///< el número de la última lista de medios (la app los numera)
     nlohmann::json vistas_ = nlohmann::json::array(); ///< [{id, nombre, canal, salida}]
     nlohmann::json salidas_ = nlohmann::json::array(); ///< [{id, nombre, color, porOmision}]

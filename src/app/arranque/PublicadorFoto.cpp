@@ -9,6 +9,7 @@
 #include "arranque/ServicioEmision.hpp"
 
 #include "diag/Registro.hpp"
+#include "emision/InputSpecs.hpp"
 #include "emision/SalidasConfig.hpp"
 #include "i18n/I18n.hpp"
 
@@ -127,7 +128,13 @@ void PublicadorFoto::armarFoto(FotoMotor& f, unsigned p) {
                 // El lugar es el guardado (en fracciones del lienzo), como lo mueve el editor.
                 if (sc != nullptr)
                     for (const SourceSpec& s : sc->sources)
-                        if (s.name == fu) x.lugar = {s.rect.x, s.rect.y, s.rect.w, s.rect.h};
+                        if (s.name == fu) {
+                            x.lugar = {s.rect.x, s.rect.y, s.rect.w, s.rect.h};
+                            // La cámara de un remoto (no su pantalla ni su contenido).
+                            const auto [lugar, canal] = inputs::lugarDeInvitado(s);
+                            if (lugar > 0 && (canal == "guest" || canal == "remoto"))
+                                x.remota = canal + ":" + std::to_string(lugar);
+                        }
                 x.efectos = eng.sourceEfectos(n, fu).aJson();
                 e.fuentes.push_back(std::move(x));
             }

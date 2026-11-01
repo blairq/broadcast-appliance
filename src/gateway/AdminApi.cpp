@@ -911,6 +911,28 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
         sendJson(fd, 200, json{{"ok", true}});
         return;
     }
+    // LAS CAPAS DE LA CÁMARA (Capas.hpp): qué entradas de remotos tiene la app al aire y
+    // armadas, en cualquier salida ({aire: ["guest:2", "remoto:1"], siguiente: [...]}). Con
+    // eso la sala le pide a cada navegador la capa alta o la baja. Si B se reinicia, A se
+    // lo vuelve a dar (republicador «capas»).
+    if (path == "/api/v1/capas" && method == "POST") {
+        const auto lista = [&](const char* k) {
+            std::set<std::string> out;
+            if (req.is_object() && req.contains(k) && req[k].is_array())
+                for (const json& x : req[k])
+                    if (x.is_string() && x.get<std::string>().size() <= 32) out.insert(x.get<std::string>());
+            return out;
+        };
+        {
+            std::lock_guard<std::mutex> l(capasMu_);
+            capasApp_ = true;
+            capasAire_ = lista("aire");
+            capasSiguiente_ = lista("siguiente");
+        }
+        revisarCapasTodas();
+        sendJson(fd, 200, json{{"ok", true}});
+        return;
+    }
     if (path == "/api/v1/superficies" && method == "GET") {
         sendJson(fd, 200, json{{"ok", true}, {"superficies", superficies_.vivas()}});
         return;

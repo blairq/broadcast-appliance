@@ -66,6 +66,7 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include "Capas.hpp"
 #include "ajustes/Ajustes.hpp"
 
 namespace ba::gateway {
@@ -83,12 +84,16 @@ struct SessionCallbacks {
     /// intercalado a `rate` Hz (el mono del navegador se duplica); `n` es la
     /// cantidad de floats.
     std::function<void(const float* samples, size_t n, int rate)> onRemoteAudio;
-    /// Llego video de la CAMARA del invitado (primer track de video). BGRA.
+    /// Llego video de la CAMARA del invitado (primer track de video; con dos capas, la que
+    /// sale: ver setCapas). BGRA.
     std::function<void(const uint8_t* pixels, size_t bytes, int w, int h)> onRemoteVideo;
     /// Llego video de su PANTALLA/VENTANA compartida (segundo track de video).
     std::function<void(const uint8_t* pixels, size_t bytes, int w, int h)> onRemoteScreen;
     /// Cambio de estado de la sesion (true = conectada, false = cerrada).
     std::function<void(bool connected)> onStateChange;
+    /// Hay que pedirle al navegador que prenda o pause las capas de su camara (Capas.hpp):
+    /// el servidor se lo manda por el canal ({type:"capas", alta, baja}). Solo con dos capas.
+    std::function<void(bool alta, bool baja)> onCapas;
 };
 
 /// Un cuadro de video para mandar (F2-13): el BGRA que llega de A convertido UNA vez al
@@ -156,6 +161,19 @@ class WebrtcSession {
     /// :param sdp: seccion sdp del offer.
     /// :returns: true si se genero el answer (disparara onLocalAnswer).
     bool setRemoteOffer(const std::string& sdp);
+
+    /// Las dos capas de la camara (Capas.hpp): el `mid` de cada transceptor, como lo dijo el
+    /// navegador al ofrecer. Va ANTES de setRemoteOffer. Vacios = una sola camara (el
+    /// primer video), como un navegador de antes.
+    void setCapas(const std::string& midAlta, const std::string& midBaja);
+    /// La capa que la sala necesita de esta camara. Si cambia lo que el navegador tiene que
+    /// mandar, llama a onCapas (sin parpadeo: ver SelectorCapas).
+    void pedirCapa(Capa c);
+    /// Si la camara llega en dos capas (setCapas con los dos mids).
+    bool conCapas() const;
+    /// La capa que va hoy a la salida y la pedida (diagnostico, estadisticas).
+    Capa capaSale() const;
+    Capa capaPedida() const;
 
     /// Agrega un candidato ICE remoto del invitado.
     ///
@@ -258,6 +276,8 @@ class WebrtcHub {
     /// 20 s) se cierran. Llamar seguido (barato).
     void reapViewers();
     int viewerCount() const;
+    /// Espectadores de la CAMARA de la sesion `session` (los que piden la capa alta).
+    int espectadoresDe(int session) const;
 
     /// Bytes de video acumulados desde que arranco el gateway: los que mandan
     /// los invitados y los que se reenvian a los espectadores.

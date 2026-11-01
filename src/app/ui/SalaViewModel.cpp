@@ -6,6 +6,8 @@
 #include "control/BusEventos.hpp"
 #include "net/AccesoRemoto.hpp"
 #include "sala/CalidadPorCalor.hpp"
+#include "sala/CapasRemotos.hpp"
+#include "emision/VentanillaMotor.hpp"
 #include "sala/ConfigSala.hpp"
 #include "sala/CupoSala.hpp"
 #include "sala/ParticipantesSala.hpp"
@@ -77,6 +79,13 @@ SalaViewModel::SalaViewModel(Partes p, QObject* parent) : QObject(parent), p_(st
         });
     p_.recursos.alDegradar("invitados", [this](bool apagar) { return calidadPorCalor_->bajar(apagar); });
     connect(&p_.conferencia, &ConferenceViewModel::roomChanged, this, [this]() { calidadPorCalor_->revisar(); });
+    // Qué cámaras de remotos están al aire o armadas: la sala les pide la capa alta (las
+    // demás, la baja). Sigue a la foto del motor (escenas y salidas).
+    capasRemotos_ = std::make_unique<sala::CapasRemotos>(cli);
+    capasRemotos_->actualizar(p_.ventanilla.foto());
+    connect(&p_.ventanilla, &VentanillaMotor::cambio, this, [this](unsigned partes) {
+        if ((partes & (FotoMotor::Escenas | FotoMotor::Salidas)) != 0) capasRemotos_->actualizar(p_.ventanilla.foto());
+    });
     accesoRemoto_->setDirecciones(direcciones_.get());
     accesoRemoto_->setEnVivo(p_.enVivo);
     // «Configurar todo con la API key»: los cambios de Configuración → Pinggy van por un

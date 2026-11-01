@@ -23,6 +23,7 @@ CLASIFICACION = {
     # AdminApi.cpp
     "/api/v1/acreditaciones": "lectura",
     "/api/v1/board-link": "lectura",
+    "/api/v1/capas": "capas",
     "/api/v1/carruseles": "carruseles",
     "/api/v1/cast-link": "lectura",
     "/api/v1/chat": "orden",

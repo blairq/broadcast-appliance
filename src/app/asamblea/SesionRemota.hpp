@@ -145,6 +145,8 @@ class SesionRemota : public QObject {
     bool tienePalabra(const std::string& id) const;
     /// Los que tienen la palabra, en orden: el primero va al canal 1 (BA.Remoto.1), el segundo al 2.
     std::vector<std::string> conPalabraTodos() const;
+    /// El próximo remoto de la fila que no tiene la palabra ("" = ninguno): ver mediosA.
+    std::string siguiente() const;
     /// «Apretar para hablar» desde la consola: le avisa al integrante que la presidencia
     /// le habla (su navegador contesta la conexión directa de la consola).
     void ptt(const std::string& integrante, bool activo, const std::string& consola);
@@ -278,8 +280,10 @@ class SesionRemota : public QObject {
     /// Se conectó o se fue una consola (para mandarle el estado).
     void consolaConexion(const QString& consola, bool conectada);
     /// R3: quién manda audio y video a la sala (el remoto con la palabra; "" = nadie).
-    /// Quiénes mandan audio y video a la sala (hasta dos), en orden de canal.
-    void mediosA(const QStringList& integrantes);
+    /// Quiénes mandan audio y video a la sala (hasta dos), en orden de canal. `siguiente`: el
+    /// próximo remoto de la fila (conectado, habilitado, sin la palabra): su cámara se
+    /// precarga en la sala (la capa alta, src/gateway/Capas.hpp) sin ir al aire ("" = nadie).
+    void mediosA(const QStringList& integrantes, const QString& siguiente);
     /// Volvió a entrar (o recargó la página): lo que no es de acá (el debate) se le reenvía.
     void volvio(const QString& integrante);
 
@@ -321,6 +325,7 @@ class SesionRemota : public QObject {
         long long desdeMs = 0;
     };
     std::vector<Palabra> palabras_; ///< hasta dos (un debate); el resto, uno
+    std::string siguiente_;         ///< el primero de la fila que es remoto (habilitado y conectado)
     void emitirMedios();
     json vistas_ = json::array();
     json consolas_ = json::object();          // id -> {nombre, sal, hash_token, hash_pin, creado_ms}
