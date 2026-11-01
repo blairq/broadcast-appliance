@@ -18,6 +18,7 @@
 #include "ajustes/Ajustes.hpp"
 #include "i18n/I18n.hpp"
 #include "sala/ControlSala.hpp"
+#include "ui/ConferenceClient.hpp"
 #include "sala/EnlacesSala.hpp"
 #include "ui/ConferenceViewModel.hpp"
 #include "ui/EventoAbierto.hpp"
@@ -88,10 +89,15 @@ QVariantMap aMapa(const evento::Asistente& a) {
 
 PadronViewModel::PadronViewModel(EventoAbierto& abierto, ConferenceViewModel* sala, QObject* parent)
     : QObject(parent), ab_(abierto), sala_(sala) {
-    // Cada dos segundos: el que escanea en la puerta espera mirando el
-    // teléfono, y diez segundos ahí parado se sienten eternos.
-    buzon_.setInterval(ba::ajustes::entero("evento.buzonMs", 2000));
-    connect(&buzon_, &QTimer::timeout, this, &PadronViewModel::recogerAcreditaciones);
+    // El que escanea en la puerta espera mirando el teléfono: la sala avisa cada
+    // acreditación y se la va a buscar ya (nadie pregunta cada dos segundos). Al volver
+    // la sala, por si quedó alguna de cuando no se la oía.
+    if (sala_ != nullptr) {
+        connect(&sala_->client(), &ConferenceClient::acreditacionEvento, this, &PadronViewModel::recogerAcreditaciones);
+        connect(&sala_->client(), &ConferenceClient::onlineChanged, this, [this](bool on) {
+            if (on) recogerAcreditaciones();
+        });
+    }
 }
 
 QVariantList PadronViewModel::padron() const {
@@ -114,7 +120,6 @@ std::optional<evento::Padron::Votantes> PadronViewModel::votantes() const {
 
 void PadronViewModel::cargar() {
     if (!ab_.hay()) {
-        buzon_.stop();
         padron_ = {};
         emit padronChanged();
         return;
@@ -126,10 +131,8 @@ void PadronViewModel::cargar() {
     bool ok = false;
     padron_ = evento::cargarPadron(ab_.dir(), &ok, &err);
     if (!ok) emit notify(QCoreApplication::translate("EventoViewModel", "El padron de este evento no se pudo leer: %1").arg(qs(err)), "error");
-    // TODO(G): cuando el gateway avise por su canal de eventos (SSE) quién escaneó su
-    // invitación, esto deja de preguntar cada 2 s y escucha ese aviso.
-    buzon_.start();
     emit padronChanged();
+    recogerAcreditaciones(); // las que esperaban en la sala (las demás llegan solas)
 }
 
 bool PadronViewModel::guardarAhora() {

@@ -3,6 +3,8 @@
 // ============================================================================
 
 #include "Botonera.hpp"
+#include "Borde.hpp"
+#include "security/Comparar.hpp"
 
 #include <algorithm>
 #include <chrono>
@@ -41,37 +43,6 @@ std::int64_t ahoraMs() {
         .count();
 }
 
-std::string ipTexto(std::uint32_t ip) {
-    const auto* b = reinterpret_cast<const unsigned char*>(&ip);
-    return std::to_string(b[0]) + "." + std::to_string(b[1]) + "." + std::to_string(b[2]) + "." + std::to_string(b[3]);
-}
-
-bool igualesTiempoConstante(const std::string& a, const std::string& b) {
-    if (a.size() != b.size()) return false;
-    unsigned char d = 0;
-    for (std::size_t i = 0; i < a.size(); ++i) d |= static_cast<unsigned char>(a[i] ^ b[i]);
-    return d == 0;
-}
-
-std::string minus(std::string s) {
-    for (auto& c : s) c = static_cast<char>(::tolower(static_cast<unsigned char>(c)));
-    return s;
-}
-
-const char* tipoDe(const std::string& rel) {
-    const auto termina = [&](const char* e) {
-        const std::string x(e);
-        return rel.size() >= x.size() && rel.compare(rel.size() - x.size(), x.size(), x) == 0;
-    };
-    if (termina(".html")) return "text/html; charset=utf-8";
-    if (termina(".js")) return "text/javascript; charset=utf-8";
-    if (termina(".css")) return "text/css; charset=utf-8";
-    if (termina(".json") || termina(".webmanifest")) return "application/manifest+json";
-    if (termina(".svg")) return "image/svg+xml";
-    if (termina(".png")) return "image/png";
-    return "application/octet-stream";
-}
-
 inline int kMaxConexiones() { return ba::ajustes::entero("botoneraWeb.maxConexiones", 32); }
 inline int kMensajesPorSegundo() { return ba::ajustes::entero("botoneraWeb.mensajesPorSegundo", 60); }
 inline int kLatidoMs() { return ba::ajustes::sAMs("botoneraWeb.latidoS", 30); }
@@ -85,58 +56,20 @@ const std::set<std::string> kTipos{"hola",      "presionar", "soltar", "valor", 
 BotoneraBorde::BotoneraBorde(std::string webroot, Log& log, Evento alApp)
     : webroot_(std::move(webroot)), log_(log), alApp_(std::move(alApp)) {}
 
-std::string BotoneraBorde::sha256Hex(const std::string& s) {
-    unsigned char out[32];
-    mbedtls_sha256(reinterpret_cast<const unsigned char*>(s.data()), s.size(), out, 0);
-    static const char* h = "0123456789abcdef";
-    std::string r;
-    for (unsigned char c : out) {
-        r += h[c >> 4];
-        r += h[c & 15];
-    }
-    return r;
-}
-
-bool BotoneraBorde::ipLocal(std::uint32_t ip) {
-    const auto* b = reinterpret_cast<const unsigned char*>(&ip);
-    return b[0] == 10 || b[0] == 127 || (b[0] == 172 && b[1] >= 16 && b[1] <= 31) || (b[0] == 192 && b[1] == 168) ||
-           (b[0] == 169 && b[1] == 254);
-}
-
 bool BotoneraBorde::origenValido(const std::string& headers) {
     // Lo que viene por Cloudflare no es la red local.
     if (!http::getHeader(headers, "CF-Connecting-IP").empty() || !http::getHeader(headers, "CF-Ray").empty())
         return false;
-    const std::string origin = http::getHeader(headers, "Origin");
-    if (origin.empty()) return true; // no es un navegador de otra página (curl, app nativa)
-    const std::string host = minus(http::getHeader(headers, "Host"));
-    std::string o = minus(origin);
-    const auto p = o.find("://");
-    if (p == std::string::npos) return false;
-    o = o.substr(p + 3);
-    return !host.empty() && o == host;
+    return borde::mismoOrigen(headers);
 }
 
 bool BotoneraBorde::servir(long long fd, const std::string& rel) {
-    std::error_code ec;
-    const auto raiz = std::filesystem::weakly_canonical(webroot_, ec);
-    if (ec || webroot_.empty()) return http::sendResponse(fd, 404, "text/plain", traducir("gateway", "no encontrado") + "\n"), true;
-    const auto destino = std::filesystem::weakly_canonical(std::filesystem::path(webroot_) / http::urlDecode(rel), ec);
-    const std::string r = raiz.generic_string(), d = destino.generic_string();
-    if (ec || d.size() < r.size() || d.compare(0, r.size(), r) != 0 || (d.size() > r.size() && d[r.size()] != '/'))
-        return http::sendResponse(fd, 400, "text/plain", traducir("gateway", "ruta invalida") + "\n"), true;
-    std::ifstream f(destino, std::ios::binary);
-    if (!f || std::filesystem::is_directory(destino, ec))
-        return http::sendResponse(fd, 404, "text/plain", traducir("gateway", "no encontrado") + "\n"), true;
-    std::ostringstream ss;
-    ss << f.rdbuf();
     // CSP estricta: solo lo nuestro, nada en línea, sin marcos ajenos.
-    http::sendResponse(fd, 200, tipoDe(rel), ss.str(),
-                       "Cache-Control: no-cache\r\n"
-                       "Content-Security-Policy: default-src 'self'; connect-src 'self' ws: wss:; img-src 'self' data:; "
-                       "frame-ancestors 'none'; base-uri 'none'; form-action 'none'\r\n"
-                       "X-Content-Type-Options: nosniff\r\nReferrer-Policy: no-referrer\r\n");
-    return true;
+    return borde::servir(fd, webroot_, rel,
+                         "Cache-Control: no-cache\r\n"
+                         "Content-Security-Policy: default-src 'self'; connect-src 'self' ws: wss:; img-src 'self' data:; "
+                         "frame-ancestors 'none'; base-uri 'none'; form-action 'none'\r\n"
+                         "X-Content-Type-Options: nosniff\r\nReferrer-Policy: no-referrer\r\n");
 }
 
 bool BotoneraBorde::servirCara(long long fd, const std::string& rel) {
@@ -181,7 +114,7 @@ std::string BotoneraBorde::autenticar(const std::string& token, bool soloHttp) c
     std::string encontrado;
     // Se recorren todas (sin cortar) para no revelar cuál coincidió por el tiempo.
     for (const auto& [id, c] : credenciales_)
-        if (igualesTiempoConstante(sha256Hex(c.sal + token), c.hash) && (!soloHttp || c.http)) encontrado = id;
+        if (ba::security::igualesEnTiempoConstante(borde::hashConSal(c.sal + token), c.hash) && (!soloHttp || c.http)) encontrado = id;
     return encontrado;
 }
 
@@ -227,7 +160,7 @@ bool BotoneraBorde::apiRemota(long long fd, const std::string& method, const std
             http::sendResponse(fd, 429, "application/json", json{{"error", traducir("gateway", "demasiados intentos; esperá 10 minutos")}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
             return true;
         }
-        log_.warn(llenar(traducir("gateway", "botonera: API remota sin token válido desde %1"), {ipTexto(clientIp)}), -1);
+        log_.warn(llenar(traducir("gateway", "botonera: API remota sin token válido desde %1"), {borde::ipTexto(clientIp)}), -1);
         http::sendResponse(fd, 401, "application/json", json{{"error", traducir("gateway", "token inválido o API remota apagada")}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace),
                            "WWW-Authenticate: Bearer\r\n");
         return true;
@@ -239,7 +172,7 @@ bool BotoneraBorde::apiRemota(long long fd, const std::string& method, const std
             {"x", x},
             {"y", y},
             {"accion", accion},
-            {"ip", ipTexto(clientIp)}});
+            {"ip", borde::ipTexto(clientIp)}});
     http::sendResponse(fd, 202, "application/json", json{{"ok", true}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
     return true;
 }
@@ -254,9 +187,9 @@ bool BotoneraBorde::atender(long long fd, const std::string& method, const std::
     if (!ws && !pagina && !api && !remota) return false;
     // Por el túnel de pinggy llega desde 127.0.0.1 (o con la IP real en PROXY v1,
     // que podría ser cualquiera): la marca de la escucha manda, no la IP.
-    if (externo || !ipLocal(clientIp) || !origenValido(headers)) {
+    if (externo || !borde::ipLocal(clientIp) || !origenValido(headers)) {
         log_.warn(llenar(traducir("gateway", "botonera: rechazado %1 %2 (fuera de la red local u origen ajeno)"),
-                         {ipTexto(clientIp), path}),
+                         {borde::ipTexto(clientIp), path}),
                   -1);
         http::sendResponse(fd, 403, "text/plain", traducir("gateway", "solo desde la red local") + "\n");
         return true;
@@ -293,14 +226,14 @@ bool BotoneraBorde::atender(long long fd, const std::string& method, const std::
             for (auto it = solicitudes_.begin(); it != solicitudes_.end();)
                 it = ahora - it->second.ms > kSolicitudMs() ? solicitudes_.erase(it) : std::next(it);
             Solicitud s;
-            s.ip = ipTexto(clientIp);
+            s.ip = borde::ipTexto(clientIp);
             s.ms = ahora;
             solicitudes_[sol] = s;
         }
         // La app valida el código (lo emitió ella) y le pregunta a una persona.
         std::string nombre = r.value("nombre", std::string("Tablet"));
         if (nombre.size() > 60) nombre.resize(60);
-        alApp_({{"tipo", "solicitud"}, {"solicitud", sol}, {"codigo", codigo}, {"nombre", nombre}, {"ip", ipTexto(clientIp)}});
+        alApp_({{"tipo", "solicitud"}, {"solicitud", sol}, {"codigo", codigo}, {"nombre", nombre}, {"ip", borde::ipTexto(clientIp)}});
         http::sendResponse(fd, 200, "application/json", json{{"solicitud", sol}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
         return true;
     }
@@ -311,7 +244,7 @@ bool BotoneraBorde::atender(long long fd, const std::string& method, const std::
         {
             std::lock_guard<std::mutex> l(mu_);
             auto it = solicitudes_.find(sol);
-            if (it != solicitudes_.end() && it->second.ip == ipTexto(clientIp)) {
+            if (it != solicitudes_.end() && it->second.ip == borde::ipTexto(clientIp)) {
                 out = {{"estado", it->second.estado}};
                 if (!it->second.error.empty()) out["error"] = it->second.error;
                 if (it->second.estado == "aprobada") {
@@ -359,7 +292,7 @@ void BotoneraBorde::wsLoop(long long fd, const std::string& headers, std::uint32
     http::setSocketTimeout(fd, 0);
     auto c = std::make_shared<Conn>();
     c->fd = fd;
-    c->ip = ipTexto(clientIp);
+    c->ip = borde::ipTexto(clientIp);
     // 1. Autenticación: el primer mensaje, a los 10 s como mucho.
     {
         if (http::waitReadable(fd, kAuthMs()) <= 0) return;

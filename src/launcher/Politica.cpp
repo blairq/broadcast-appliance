@@ -20,35 +20,6 @@ int esperaRelanzarS(int consecutivas) {
     return std::max(5, ba::ajustes::entero("launcher.relanzarMaxS", 10));
 }
 
-std::uint64_t Relanzador::caida(std::uint64_t ahoraMs) {
-    const std::uint64_t espera = static_cast<std::uint64_t>(esperaRelanzarS(consecutivas_)) * 1000;
-    ++consecutivas_;
-    agendar(ahoraMs, espera);
-    return espera;
-}
-
-void Relanzador::agendar(std::uint64_t ahoraMs, std::uint64_t esperaMs) {
-    relanzarEn_ = ahoraMs + esperaMs;
-    lanzadoEn_.reset();
-}
-
-void Relanzador::lanzado(std::uint64_t ahoraMs) {
-    relanzarEn_.reset();
-    lanzadoEn_ = ahoraMs;
-}
-
-bool Relanzador::vigilar(std::uint64_t ahoraMs, bool lateFresco, std::uint64_t estableMs) {
-    if (consecutivas_ == 0 || !lanzadoEn_ || !lateFresco || ahoraMs - *lanzadoEn_ < estableMs) return false;
-    consecutivas_ = 0;
-    return true;
-}
-
-void Relanzador::olvidar() {
-    consecutivas_ = 0;
-    relanzarEn_.reset();
-    lanzadoEn_.reset();
-}
-
 Readopcion decidirReadopcion(bool vivoYLate, std::uint32_t versionPublicada, std::uint32_t versionEsperada,
                              bool hayAire) {
     if (!vivoYLate) return Readopcion::Lanzar;

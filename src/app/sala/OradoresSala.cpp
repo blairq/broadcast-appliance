@@ -5,12 +5,18 @@
 #include "i18n/I18n.hpp"
 
 #include "sala/ParticipantesSala.hpp"
+#include "ui/ConferenceClient.hpp"
 
 #include <algorithm>
 
 namespace ba::app::sala {
 
-OradoresSala::OradoresSala(ConferenceClient& sala) : sala_(sala) {}
+OradoresSala::OradoresSala(ConferenceClient& sala) : sala_(sala) {
+    // El modo oradores lo eligió el operador andando: una sala reiniciada no lo sabe.
+    sala_.registrarRepublicador("oradores", &vida_, [this]() {
+        if (!pedido_.empty()) pedir(sala_, "POST", "/api/v1/speakers", pedido_, {});
+    });
+}
 
 std::string OradoresSala::configurar(const nlohmann::json& cambios, Listo listo) {
     if (!cambios.is_object()) return ba::i18n::traducir("sala", "configuración inválida");
@@ -24,6 +30,7 @@ std::string OradoresSala::configurar(const nlohmann::json& cambios, Listo listo)
         const std::string c = b["carousel"].is_string() ? b["carousel"].get<std::string>() : "";
         if (c != "manual" && c != "chain" && c != "time") return ba::i18n::traducir("sala", "carrusel: manual, chain o time");
     }
+    pedido_.update(b);
     pedir(sala_, "POST", "/api/v1/speakers", b, std::move(listo));
     return {};
 }

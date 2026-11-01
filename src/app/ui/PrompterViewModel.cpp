@@ -16,6 +16,8 @@
 #include <QJsonValue>
 #include <QTimer>
 
+#include <map>
+
 #include "sala/EnlacesSala.hpp"
 #include "sala/ListaPrompters.hpp"
 #include "sala/Teleprompter.hpp"
@@ -27,10 +29,15 @@
 namespace ba::app {
 namespace {
 
-/// Cada cuánto se le pregunta el estado al gateway MIENTRAS la página está a
-/// la vista. Medio segundo es lo mismo que usan la tablet y el control: el
-/// texto se mueve parejo en las tres pantallas.
-constexpr int kRefrescoMs = 500;
+/// Cada cuánto se mueve la barra de avance mientras corre y la página se ve (es
+/// la cuenta de acá, con el reloj del gateway: no se le pregunta nada).
+constexpr int kAvanceMs = 250;
+
+/// El estado de un teleprompter vacío (un gateway que recién arrancó): no borra lo
+/// que A sabe de él (ver tomarDelGateway).
+bool vacio(const nlohmann::json& e) {
+    return e.value("palabras", 0) == 0 && e.value("titulo", std::string()).empty();
+}
 
 } // namespace
 
@@ -60,15 +67,44 @@ struct PrompterViewModel::Impl {
     QVariantList conectados;
     QString clave;
     bool enLinea = false;
-    QTimer reloj;
+    /// Lo que A sabe de cada teleprompter (lo último del gateway, con el texto que se
+    /// cargó): de esto se republica.
+    std::map<std::string, nlohmann::json> dueno;
+    qint64 desfaseMs = 0; ///< reloj del gateway menos el de acá
+    QTimer reloj; ///< la barra de avance (solo corriendo y a la vista)
 };
 
 PrompterViewModel::PrompterViewModel(EventoViewModel* evento, ConferenceViewModel* sala, QObject* parent)
     : QObject(parent), d_(std::make_unique<Impl>()) {
     d_->evento = evento;
     d_->sala = sala;
-    d_->reloj.setInterval(kRefrescoMs);
-    connect(&d_->reloj, &QTimer::timeout, this, [this]() { consultar(); });
+    d_->reloj.setInterval(kAvanceMs);
+    connect(&d_->reloj, &QTimer::timeout, this, &PrompterViewModel::avanceCambio);
+    if (sala != nullptr) {
+        ConferenceClient& c = sala->client();
+        connect(&c, &ConferenceClient::prompterEvento, this, [this](const QJsonObject& o) {
+            const nlohmann::json ev =
+                nlohmann::json::parse(QJsonDocument(o).toJson(QJsonDocument::Compact).toStdString(), nullptr, false);
+            if (!ev.is_object()) return;
+            const std::string id = ev.value("prompter", std::string());
+            if (ev.value("quitado", false)) {
+                d_->dueno.erase(id);
+                return;
+            }
+            const nlohmann::json cl = ev.value("clientes", nlohmann::json::array());
+            tomarDelGateway(id, ev.value("estado", nlohmann::json::object()), &cl);
+        });
+        // Al volver (el mismo gateway): lo que cambió mientras no se oía se pregunta una vez.
+        connect(&c, &ConferenceClient::onlineChanged, this, [this](bool on) {
+            if (on) {
+                consultar();
+            } else if (d_->enLinea) {
+                d_->enLinea = false;
+                emit estadoCambio();
+            }
+        });
+        c.registrarRepublicador("prompter", this, [this]() { republicar(); });
+    }
     if (evento != nullptr) {
         // Al abrir o cerrar un evento, los discursos son otros.
         connect(evento, &EventoViewModel::guionChanged, this, [this]() { refrescar(); });
@@ -318,14 +354,12 @@ int PrompterViewModel::controles() const { return static_cast<int>(d_->conectado
 double PrompterViewModel::avance() const {
     const double total = d_->estado.value("palabras", 0).toDouble();
     if (total <= 0) return 0;
-    // La posición que manda el gateway es de cuando contestó; mientras corre
-    // hay que sumarle lo que avanzó desde entonces, o la barra iría a tirones
-    // de medio segundo.
+    // La posición que manda el gateway es desde `desdeMs`; mientras corre se le
+    // suma lo que avanzó hasta ahora (con el reloj del gateway).
     double pos = d_->estado.value("posicion", 0).toDouble();
     if (d_->estado.value("corriendo", false).toBool()) {
-        const double minutos =
-            (d_->estado.value("ahoraMs", 0).toLongLong() - d_->estado.value("desdeMs", 0).toLongLong()) /
-            60000.0;
+        const qint64 ahora = QDateTime::currentMSecsSinceEpoch() + d_->desfaseMs;
+        const double minutos = (ahora - d_->estado.value("desdeMs", 0).toLongLong()) / 60000.0;
         pos += minutos * d_->estado.value("ppm", Discursos::kPpm).toDouble();
     }
     return std::clamp(pos / total, 0.0, 1.0);
@@ -339,11 +373,86 @@ int PrompterViewModel::faltaSeg() const {
 }
 
 void PrompterViewModel::alCambiarVistas() {
-    if (vistas_.alguien()) {
-        if (!d_->reloj.isActive()) d_->reloj.start();
-        consultar(); // que la página no arranque en blanco medio segundo
-    } else {
-        d_->reloj.stop();
+    if (vistas_.alguien()) consultar(); // lo de ahora; lo que cambie después llega solo
+    mirarReloj();
+}
+
+void PrompterViewModel::mirarReloj() {
+    const bool mover = vistas_.alguien() && d_->estado.value("corriendo", false).toBool();
+    if (mover && !d_->reloj.isActive()) d_->reloj.start();
+    else if (!mover) d_->reloj.stop();
+}
+
+void PrompterViewModel::tomarDelGateway(const std::string& id, const nlohmann::json& e, const nlohmann::json* clientes) {
+    if (!e.is_object()) return;
+    // Lo que A sabe: un gateway vacío (recién arrancado, antes de que se le republique)
+    // no lo borra; lo demás lo pisa, y el texto queda si esta vez no vino.
+    if (!vacio(e)) {
+        nlohmann::json& d = d_->dueno[id];
+        if (!d.is_object()) d = nlohmann::json::object();
+        for (const auto& [k, v] : e.items()) d[k] = v;
+    }
+    // La lista de la página (qué tiene cada uno y quién lo mira).
+    int oradores = 0, controles = 0;
+    if (clientes != nullptr)
+        for (const auto& c : *clientes) (c.value("vista", std::string()) == "orador" ? oradores : controles)++;
+    bool esta = false;
+    for (auto& g : d_->enGateway)
+        if (g.value("id", std::string()) == id) {
+            esta = true;
+            for (const char* k : {"titulo", "palabras", "corriendo", "duracionSeg"}) g[k] = e.value(k, nlohmann::json());
+            if (clientes != nullptr) {
+                g["oradores"] = oradores;
+                g["controles"] = controles;
+            }
+        }
+    if (!esta)
+        d_->enGateway.push_back({{"id", id},
+                                 {"titulo", e.value("titulo", std::string())},
+                                 {"palabras", e.value("palabras", 0)},
+                                 {"corriendo", e.value("corriendo", false)},
+                                 {"duracionSeg", e.value("duracionSeg", 0)},
+                                 {"oradores", oradores},
+                                 {"controles", controles}});
+    emit promptersCambio();
+    if (d_->elegido.toStdString() != id) return;
+    const QJsonObject r = QJsonDocument::fromJson(QByteArray::fromStdString(
+                                                      e.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace)))
+                              .object();
+    d_->estado = r.toVariantMap();
+    // El texto no lo mira nadie desde acá (la página muestra el título y el avance).
+    d_->estado.remove("texto");
+    if (e.contains("ahoraMs")) d_->desfaseMs = e.value("ahoraMs", qint64{0}) - QDateTime::currentMSecsSinceEpoch();
+    if (clientes != nullptr) {
+        d_->conectados.clear();
+        for (const auto& c : *clientes) d_->conectados.append(aQv(c).toMap());
+    }
+    d_->enLinea = true;
+    emit estadoCambio();
+    emit avanceCambio();
+    mirarReloj();
+}
+
+void PrompterViewModel::republicar() {
+    if (d_->sala == nullptr) return;
+    const qint64 ahora = QDateTime::currentMSecsSinceEpoch() + d_->desfaseMs;
+    for (const auto& [id, e] : d_->dueno) {
+        const std::string texto = e.value("texto", std::string());
+        if (texto.empty()) continue;
+        // Donde va AHORA (si corría, siguió corriendo en la tablet mientras tanto).
+        double pos = e.value("posicion", 0.0);
+        const bool corre = e.value("corriendo", false);
+        if (corre) pos += (ahora - e.value("desdeMs", qint64{0})) / 60000.0 * e.value("ppm", Discursos::kPpm);
+        nlohmann::json orden{{"prompter", id},
+                             {"titulo", e.value("titulo", std::string())},
+                             {"texto", texto},
+                             {"posicion", std::clamp(pos, 0.0, e.value("palabras", 0.0))},
+                             {"ppm", e.value("ppm", Discursos::kPpm)},
+                             {"tamano", e.value("tamano", 5)},
+                             {"espejo", e.value("espejo", false)},
+                             {"corriendo", corre}};
+        if (e.contains("presentador") && e["presentador"].is_object()) orden["presentador"] = e["presentador"];
+        sala::pedir(d_->sala->client(), "POST", "/api/v1/prompter", orden, {});
     }
 }
 
@@ -361,6 +470,16 @@ void PrompterViewModel::consultar(std::function<void(bool)> cuando) {
             yo->d_->enGateway = l;
             emit yo->promptersCambio();
         }
+        // Los que tienen algo cargado y A no conoce (la app se reinició y el gateway
+        // no): se traen enteros, para poder devolvérselos si el que se reinicia es él.
+        for (const auto& g : l) {
+            const std::string id = g.value("id", std::string());
+            if (g.value("titulo", std::string()).empty() || yo->d_->dueno.count(id) || QString::fromStdString(id) == yo->d_->elegido)
+                continue;
+            yo->d_->sala->teleprompter().para(id).ver([yo, id](const std::string& e, const nlohmann::json& r) {
+                if (yo && e.empty()) yo->tomarDelGateway(id, r, nullptr);
+            });
+        }
     });
     const QString pedido = d_->elegido;
     d_->tp().ver([yo, cuando, pedido](const std::string& err, const nlohmann::json& j) {
@@ -372,23 +491,14 @@ void PrompterViewModel::consultar(std::function<void(bool)> cuando) {
             return;
         }
         const bool ok = err.empty();
-        const QJsonObject r = QJsonDocument::fromJson(QByteArray::fromStdString(
-                                                          j.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace)))
-                                  .object();
-        const bool antes = d_->enLinea;
-        d_->enLinea = ok;
         if (ok) {
-            d_->estado = r.toVariantMap();
-            d_->clave = r.value("clave").toString();
-            d_->conectados.clear();
-            for (const QJsonValue& v : r.value("clientes").toArray())
-                d_->conectados.append(v.toObject().toVariantMap());
-            // El texto entero viene en cada respuesta y no lo mira nadie desde
-            // acá: la página muestra el título y el avance. Sacarlo del mapa
-            // ahorra copiarlo a QML dos veces por segundo.
-            d_->estado.remove("texto");
+            d_->clave = QString::fromStdString(j.value("clave", std::string()));
+            const nlohmann::json cl = j.value("clientes", nlohmann::json::array());
+            yo->tomarDelGateway(pedido.toStdString(), j, &cl);
+        } else if (d_->enLinea) {
+            d_->enLinea = false;
+            emit yo->estadoCambio();
         }
-        if (ok || antes) emit yo->estadoCambio();
         if (cuando) cuando(ok);
     });
 }

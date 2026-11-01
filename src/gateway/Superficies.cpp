@@ -76,15 +76,41 @@ json Superficies::vivas() const {
     return out;
 }
 
-void Superficies::conectar(const std::string& pid, const std::string& tipo, const std::string& id) {
+void Superficies::conectar(const std::string& pid, const std::string& tipo, const std::string& id, std::uint32_t ip,
+                           const json& extra, bool autorizada) {
     if (pid.empty()) return;
     {
         std::lock_guard<std::mutex> lock(m_);
-        canal_[pid] = Conectada{pid, corto(tipo, 32), ""};
+        Conectada c{pid, corto(tipo, 32), "", ip != 0 ? ipTexto(ip) : std::string(), ahoraMs(), json::object(), autorizada};
+        if (extra.is_object())
+            for (const auto& [k, v] : extra.items())
+                if (c.extra.size() < 8 && v.is_string()) c.extra[corto(k, 16)] = corto(v.get<std::string>(), 64);
+        canal_[pid] = std::move(c);
     }
     // Una conectada también late: así aparece en la lista de vivas sin tener
     // que mirar dos lugares distintos.
-    latido(tipo, id.empty() ? pid : id, "", 0);
+    latido(tipo, id.empty() ? pid : id, "", ip);
+}
+
+void Superficies::autorizar(const std::string& pid) {
+    std::lock_guard<std::mutex> lock(m_);
+    const auto it = canal_.find(pid);
+    if (it != canal_.end()) it->second.autorizada = true;
+}
+
+void Superficies::ponerExtra(const std::string& pid, const std::string& clave, const std::string& valor) {
+    std::lock_guard<std::mutex> lock(m_);
+    const auto it = canal_.find(pid);
+    if (it != canal_.end() && (it->second.extra.contains(clave) || it->second.extra.size() < 8))
+        it->second.extra[corto(clave, 16)] = corto(valor, 64);
+}
+
+std::vector<Superficies::Conectada> Superficies::conectadas(const std::string& tipo) const {
+    std::lock_guard<std::mutex> lock(m_);
+    std::vector<Conectada> out;
+    for (const auto& [pid, c] : canal_)
+        if (c.tipo == tipo) out.push_back(c);
+    return out;
 }
 
 void Superficies::desconectar(const std::string& pid) {
@@ -109,8 +135,14 @@ std::vector<std::string> Superficies::conexionesDe(const std::string& tipo) cons
     std::lock_guard<std::mutex> lock(m_);
     std::vector<std::string> out;
     for (const auto& [pid, c] : canal_)
-        if (tipo.empty() || c.tipo == tipo) out.push_back(pid);
+        if ((tipo.empty() || c.tipo == tipo) && c.autorizada) out.push_back(pid);
     return out;
+}
+
+std::string Superficies::tipoDe(const std::string& pid) const {
+    std::lock_guard<std::mutex> lock(m_);
+    const auto it = canal_.find(pid);
+    return it == canal_.end() ? std::string() : it->second.tipo;
 }
 
 } // namespace ba::gateway

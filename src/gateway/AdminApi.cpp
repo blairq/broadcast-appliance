@@ -33,6 +33,7 @@
 //   GET    /api/v1/qr?target=local|remote[&pin=1]  URL de ingreso (+PIN) + matriz del QR
 //   POST   /api/v1/network/server-config   {endpoint, publicAddress?} -> wg0.conf del servidor
 //   POST   /api/v1/room                    {lobby?, locked?, intake?}
+//   POST   /api/v1/claves                  {prompter?, correccion?, rotulos?, publico?, tablero?} (del evento)
 //   PUT    /api/v1/config/ajustes          {valores: {clave: valor}}  los avanzados «live» (en caliente)
 //   PUT    /api/v1/config/sala             {lobby?, pinIntentos?, pinBloqueoS?, maxUploadMB?}  (en caliente)
 //   POST   /api/v1/pin                     {pin?}  (vacio = generar)
@@ -73,6 +74,7 @@
 #include <filesystem>
 #include <fstream>
 #include <map>
+#include <set>
 #include <system_error>
 
 #include "HttpIo.hpp"
@@ -82,6 +84,7 @@
 #include "Log.hpp"
 #include "qrcodegen.hpp"
 #include "Room.hpp"
+#include "security/Comparar.hpp"
 #include "security/CredentialStore.hpp"
 #include "security/SecretsStore.hpp"
 #include "ShareStore.hpp"
@@ -89,6 +92,7 @@
 #include "MediaPump.hpp"
 #include "Grillas.hpp"
 #include "ipc/CanalesSalida.hpp"
+#include "ipc/ProtocoloSala.hpp"
 
 #include "diag/Registro.hpp"
 #include "ajustes/Ajustes.hpp"
@@ -133,13 +137,19 @@ int64_t nowMsA() {
         .count();
 }
 
-/// Comparacion en tiempo constante (no filtra el prefijo correcto por timing).
-bool sameSecret(const std::string& a, const std::string& b) {
-    if (a.size() != b.size() || a.empty()) return false;
-    unsigned char diff = 0;
-    for (size_t i = 0; i < a.size(); ++i)
-        diff |= static_cast<unsigned char>(a[i] ^ b[i]);
-    return diff == 0;
+/// El QR de `url` en `out` («url», «size» y «modules»: filas de '0'/'1'): cada vista lo
+/// dibuja con la matriz, sin depender de ninguna biblioteca.
+void conQr(json& out, const std::string& url) {
+    const qrcodegen::QrCode qr = qrcodegen::QrCode::encodeText(url.c_str(), qrcodegen::QrCode::Ecc::MEDIUM);
+    json rows = json::array();
+    for (int y = 0; y < qr.getSize(); ++y) {
+        std::string row;
+        for (int x = 0; x < qr.getSize(); ++x) row.push_back(qr.getModule(x, y) ? '1' : '0');
+        rows.push_back(row);
+    }
+    out["url"] = url;
+    out["size"] = qr.getSize();
+    out["modules"] = rows;
 }
 
 void sendJson(long long fd, int code, const json& j) {
@@ -230,10 +240,24 @@ void SignalingServer::aplicarConfig(long long fd, const std::string& seccion, co
     sendJson(fd, 404, json{{"ok", false}, {"error", llenar(traducir("gateway", "sección desconocida: %1"), {seccion})}});
 }
 
+json SignalingServer::enlaceConQr(const std::string& servicio, const std::string& target, const std::string& ruta) const {
+    json o = origenDe(servicio, target);
+    if (!o.contains("origen")) {
+        // 200 con ok=false: falta configuración, no es una falla de la API; la vista
+        // muestra `message` en el lugar del QR.
+        o["ok"] = false;
+        return o;
+    }
+    json out{{"ok", true}, {"target", target}};
+    if (o.contains("warning")) out["message"] = o["warning"];
+    conQr(out, o["origen"].get<std::string>() + ruta);
+    return out;
+}
+
 bool SignalingServer::adminAuthorized(const std::string& headers, const std::string& method) const {
     const std::string auth = http::getHeader(headers, "Authorization");
     (void)method;
-    return auth.rfind("Bearer ", 0) == 0 && sameSecret(auth.substr(7), cfg_.adminToken);
+    return auth.rfind("Bearer ", 0) == 0 && ba::security::igualesEnTiempoConstante(auth.substr(7), cfg_.adminToken);
 }
 
 std::string SignalingServer::changePin(const std::string& pin) {
@@ -364,6 +388,17 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
         sendJson(fd, 200, json{{"ok", true}, {"lista", salidas_}});
         return;
     }
+    // Las claves de las superficies son del evento: la app las guarda y las da (ver
+    // SignalingServer::Claves). Sin esto, el QR del público impreso moría con la sala.
+    if (path == "/api/v1/claves" && method == "POST") {
+        if (const std::string mal = ponerClaves(req); !mal.empty()) {
+            sendJson(fd, 400, json{{"ok", false}, {"error", "clave"}, {"cual", mal}});
+            return;
+        }
+        log_.info(traducir("gateway", "control: claves de las superficies del evento puestas"));
+        sendJson(fd, 200, json{{"ok", true}});
+        return;
+    }
     if (path == "/api/v1/room") {
         if (method == "GET") {
             sendJson(fd, 200, room_.snapshot());
@@ -445,19 +480,9 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
             out["url"] = url;
         }
         out["withPin"] = withPin;
-        const qrcodegen::QrCode qr =
-            qrcodegen::QrCode::encodeText(url.c_str(), qrcodegen::QrCode::Ecc::MEDIUM);
-        json rows = json::array();
-        for (int y = 0; y < qr.getSize(); ++y) {
-            std::string row;
-            for (int x = 0; x < qr.getSize(); ++x)
-                row.push_back(qr.getModule(x, y) ? '1' : '0');
-            rows.push_back(row);
-        }
+        conQr(out, url);
         out["ok"] = true;
         out["target"] = target;
-        out["size"] = qr.getSize();
-        out["modules"] = rows;
         sendJson(fd, 200, out);
         return;
     }
@@ -482,27 +507,9 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
         // Mismo origen que el ingreso de invitados (red local o dominio), con
         // la clave del tablero en el FRAGMENTO (no viaja en la URL pedida).
         const auto q = http::parseQuery(query);
-        const std::string target = q.count("target") ? http::urlDecode(q.at("target")) : "local";
-        json out = origenDe("tablero", target);
-        if (!out.contains("origen")) {
-            out["ok"] = false;
-            sendJson(fd, 200, out);
-            return;
-        }
-        std::string origin = out["origen"].get<std::string>();
-        const std::string url = origin + "/board/#k=" + boardToken();
-        const qrcodegen::QrCode qr =
-            qrcodegen::QrCode::encodeText(url.c_str(), qrcodegen::QrCode::Ecc::MEDIUM);
-        json rows = json::array();
-        for (int y = 0; y < qr.getSize(); ++y) {
-            std::string row;
-            for (int x = 0; x < qr.getSize(); ++x)
-                row.push_back(qr.getModule(x, y) ? '1' : '0');
-            rows.push_back(row);
-        }
-        sendJson(
-            fd, 200,
-            json{{"ok", true}, {"target", target}, {"url", url}, {"size", qr.getSize()}, {"modules", rows}});
+        sendJson(fd, 200,
+                 enlaceConQr("tablero", q.count("target") ? http::urlDecode(q.at("target")) : "local",
+                             "/board/#k=" + claves().tablero));
         return;
     }
     // --- Teleprompter -------------------------------------------------------
@@ -514,6 +521,7 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
         if (method == "POST") {
             const std::string id = req.value("quitar", std::string());
             if (!prompters_.quitar(id)) return sendErr(fd, 400, "prompter");
+            broadcastToHosts("prompter", json{{"prompter", Prompters::idValido(id)}, {"quitado", true}});
             sendJson(fd, 200, json{{"ok", true}, {"prompters", prompters_.lista()}});
             return;
         }
@@ -526,6 +534,7 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
         // «*»: a todos (lo del presentador de la línea de tiempo va a cada atril).
         if (method == "POST" && id == "*") {
             prompters_.comandarTodos(req);
+            for (const json& p : prompters_.lista()) avisarPrompter(p.value("id", std::string()), false, true);
             sendJson(fd, 200, json{{"ok", true}});
             return;
         }
@@ -534,8 +543,8 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
         // A ve siempre la clave del control: la necesita para armar el enlace
         // que le manda al operador. Por la superficie de invitados no sale.
         const auto conClave = [this, &prompter, &id](json e) {
-            e["clave"] = cfg_.prompterKey;
-            e["clientes"] = prompter->clientes();
+            e["clave"] = prompterKey();
+            e["clientes"] = clientesPrompter(Prompters::idValido(id), *prompter);
             e["prompter"] = Prompters::idValido(id);
             return e;
         };
@@ -550,6 +559,7 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
             }
             if (req.value("panico", false)) prompter->pararEnSeco();
             prompter->comandar(req);
+            avisarPrompter(id, req.contains("texto"), true);
             sendJson(fd, 200, conClave(prompter->estado()));
             return;
         }
@@ -560,12 +570,15 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
     if (path == "/api/v1/rotulos") {
         if (method == "GET") {
             json e = rotulador_.estado();
-            e["clave"] = cfg_.rotulosKey;
+            e["clave"] = claves().rotulos;
             sendJson(fd, 200, e);
             return;
         }
         if (method == "POST") {
-            if (req.contains("estado")) rotulador_.publicar(req["estado"]);
+            if (req.contains("estado")) {
+                rotulador_.publicar(req["estado"]);
+                empujarASuperficies("rotulos"); // los celulares no preguntan: se les avisa
+            }
             json out{{"ok", true}};
             // `tomar` en el mismo pedido: A publica y se lleva los encargos de
             // una, que es un viaje por segundo en vez de dos.
@@ -576,50 +589,37 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
     }
     if (path == "/api/v1/rotulos-link" && method == "GET") {
         const auto q = http::parseQuery(query);
-        const std::string target = q.count("target") ? http::urlDecode(q.at("target")) : "local";
-        json out = origenDe("rotulos", target);
-        if (!out.contains("origen")) {
-            out["ok"] = false;
-            sendJson(fd, 200, out);
-            return;
-        }
-        std::string origin = out["origen"].get<std::string>();
         // La clave va en el FRAGMENTO: no viaja en la peticion ni queda en los
         // registros de ningun servidor por el que pase el enlace. `conClave=0`
         // la deja afuera: el QR entra a la pagina y la clave se la dice el
         // operador aparte, que es lo que se quiere si el QR va a quedar pegado
         // en una pared.
         const bool conClave = !q.count("conClave") || http::urlDecode(q.at("conClave")) != "0";
-        const std::string url = origin + "/rotulos/" + (conClave ? "#k=" + cfg_.rotulosKey : std::string());
-        const qrcodegen::QrCode qr =
-            qrcodegen::QrCode::encodeText(url.c_str(), qrcodegen::QrCode::Ecc::MEDIUM);
-        json rows = json::array();
-        for (int y = 0; y < qr.getSize(); ++y) {
-            std::string row;
-            for (int x = 0; x < qr.getSize(); ++x)
-                row.push_back(qr.getModule(x, y) ? '1' : '0');
-            rows.push_back(row);
+        const std::string clave = claves().rotulos;
+        json out = enlaceConQr("rotulos", q.count("target") ? http::urlDecode(q.at("target")) : "local",
+                               "/rotulos/" + (conClave ? "#k=" + clave : std::string()));
+        if (out.value("ok", false)) {
+            out["conClave"] = conClave;
+            out["clave"] = clave;
         }
-        sendJson(fd, 200,
-                 json{{"ok", true},
-                      {"target", target},
-                      {"url", url},
-                      {"conClave", conClave},
-                      {"clave", cfg_.rotulosKey},
-                      {"size", qr.getSize()},
-                      {"modules", rows}});
+        sendJson(fd, 200, out);
         return;
     }
 
     // --- Las preguntas del publico -------------------------------------------
     if (path == "/api/v1/preguntas") {
         if (method == "GET") {
-            sendJson(fd, 200,
-                     json{{"ok", true},
-                          {"preguntas", preguntas_.lista()},
-                          {"recuento", preguntas_.recuento()},
-                          {"proxima", preguntas_.proxima()},
-                          {"clave", cfg_.publicoKey}});
+            json out{{"ok", true},
+                     {"preguntas", preguntas_.lista()},
+                     {"recuento", preguntas_.recuento()},
+                     {"proxima", preguntas_.proxima()},
+                     {"clave", claves().publico}};
+            if (http::parseQuery(query).count("foto")) {
+                out["foto"] = preguntas_.foto();
+                std::lock_guard<std::mutex> l(publicoM_);
+                out["evento"] = eventoPreguntas_;
+            }
+            sendJson(fd, 200, out);
             return;
         }
         if (method == "POST") {
@@ -642,6 +642,15 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
             } else if (accion == "vaciar") {
                 preguntas_.vaciar();
                 ok = true;
+            } else if (accion == "restaurar") {
+                // La app (que las guarda en el evento) las devuelve: a una sala que se
+                // reinició, o al abrir otro evento (las de ese).
+                preguntas_.restaurar(req.value("foto", json::object()));
+                {
+                    std::lock_guard<std::mutex> l(publicoM_);
+                    eventoPreguntas_ = req.value("evento", std::string());
+                }
+                ok = true;
             } else if (accion == "preguntar") {
                 // Para meter en la cola lo que llego por otro lado (el chat de
                 // la sala, o el de YouTube): una sola cola para todos, que es
@@ -654,6 +663,7 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
                 sendErr(fd, 400, "accion");
                 return;
             }
+            if (ok) avisarPreguntas();
             sendJson(fd, 200,
                      json{{"ok", ok},
                           {"preguntas", preguntas_.lista()},
@@ -712,6 +722,12 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
         if (method == "GET") {
             const auto q = http::parseQuery(query);
             json out{{"ok", true}, {"votacion", votacion_.estado()}};
+            // Lo que la app guarda y de qué evento es (ver sala::UrnaEvento).
+            if (q.count("foto")) {
+                out["foto"] = votacion_.foto();
+                std::lock_guard<std::mutex> l(publicoM_);
+                out["evento"] = eventoVotacion_;
+            }
             // El historial solo cuando se pide: en una asamblea larga son
             // muchas, y quien mira «como va» no las quiere todas.
             if (q.count("historial")) out["historial"] = votacion_.historial();
@@ -722,16 +738,31 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
             const std::string accion = req.value("accion", std::string());
             if (accion == "cerrar") {
                 const bool ok = votacion_.cerrar();
+                avisarVotacion();
                 sendJson(fd, 200, json{{"ok", ok}, {"votacion", votacion_.estado()}});
                 return;
             }
             if (accion == "olvidar_historial") {
                 votacion_.olvidarHistorial();
+                avisarVotacion();
                 sendJson(fd, 200, json{{"ok", true}});
                 return;
             }
             if (accion == "en_vivo") {
                 votacion_.setMostrarEnVivo(req.value("si", false));
+                avisarVotacion();
+                sendJson(fd, 200, json{{"ok", true}, {"votacion", votacion_.estado()}});
+                return;
+            }
+            if (accion == "restaurar") {
+                // La urna es de A (ver Votacion.hpp): se la devuelve a una sala que se
+                // reinició, o al abrir otro evento (la de ese).
+                votacion_.restaurar(req.value("foto", json::object()));
+                {
+                    std::lock_guard<std::mutex> l(publicoM_);
+                    eventoVotacion_ = req.value("evento", std::string());
+                }
+                avisarVotacion();
                 sendJson(fd, 200, json{{"ok", true}, {"votacion", votacion_.estado()}});
                 return;
             }
@@ -756,11 +787,18 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
             const bool ok = votacion_.abrir(req.value("pregunta", std::string()), opciones, modo,
                                             req.value("secreta", false), habilitados, req.value("podian", 0),
                                             nowMsAdmin());
+            // Las reglas (cuántas opciones, el padrón) son de la app (sala::VotacionSala):
+            // esto solo es la urna que no acepta lo que no puede contar.
             if (!ok) {
-                sendErr(fd, 400, traducir("gateway", "hace falta una pregunta y al menos dos opciones").c_str());
+                sendErr(fd, 400, "votacion");
                 return;
             }
             votacion_.setMostrarEnVivo(req.value("enVivo", false));
+            {
+                std::lock_guard<std::mutex> l(publicoM_);
+                eventoVotacion_ = req.value("evento", eventoVotacion_);
+            }
+            avisarVotacion();
             sendJson(fd, 200, json{{"ok", true}, {"votacion", votacion_.estado()}});
             return;
         }
@@ -768,36 +806,18 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
 
     if (path == "/api/v1/publico-link" && method == "GET") {
         const auto q = http::parseQuery(query);
-        const std::string target = q.count("target") ? http::urlDecode(q.at("target")) : "local";
-        json out = origenDe("publico", target);
-        if (!out.contains("origen")) {
-            out["ok"] = false;
-            sendJson(fd, 200, out);
-            return;
-        }
-        std::string origin = out["origen"].get<std::string>();
         // Con la clave adentro casi siempre: este QR se proyecta en una
         // pantalla o se imprime en el programa, y pedirle a doscientas personas
         // que tipeen una clave es perder a la mitad.
         const bool conClave = !q.count("conClave") || http::urlDecode(q.at("conClave")) != "0";
-        const std::string url = origin + "/publico/" + (conClave ? "#k=" + cfg_.publicoKey : std::string());
-        const qrcodegen::QrCode qr =
-            qrcodegen::QrCode::encodeText(url.c_str(), qrcodegen::QrCode::Ecc::MEDIUM);
-        json rows = json::array();
-        for (int y = 0; y < qr.getSize(); ++y) {
-            std::string row;
-            for (int x = 0; x < qr.getSize(); ++x)
-                row.push_back(qr.getModule(x, y) ? '1' : '0');
-            rows.push_back(row);
+        const std::string clave = claves().publico;
+        json out = enlaceConQr("publico", q.count("target") ? http::urlDecode(q.at("target")) : "local",
+                               "/publico/" + (conClave ? "#k=" + clave : std::string()));
+        if (out.value("ok", false)) {
+            out["conClave"] = conClave;
+            out["clave"] = clave;
         }
-        sendJson(fd, 200,
-                 json{{"ok", true},
-                      {"target", target},
-                      {"url", url},
-                      {"conClave", conClave},
-                      {"clave", cfg_.publicoKey},
-                      {"size", qr.getSize()},
-                      {"modules", rows}});
+        sendJson(fd, 200, out);
         return;
     }
     // Lo que no es letra, numero o guion va porcentado: el nombre lo escribe
@@ -834,18 +854,21 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
         return;
     }
     // EL TALLY lo publica A en cada cambio de escena. El gateway no sabe de
-    // escenas ni quiere saber: guarda lo que le dan y lo sirve en
-    // /pantalla/tally.json.
+    // escenas ni quiere saber: guarda lo que le dan, se lo manda a las pantallas
+    // de tally por su canal (y a la que entra, ver saludarSuperficie) y lo sirve
+    // en /pantalla/tally.json (para quien lo lea de afuera). Si B se reinicia, A
+    // se lo vuelve a dar (republicador «tally»).
     if (path == "/api/v1/tally" && method == "POST") {
         {
             std::lock_guard<std::mutex> lock(tallyLock_);
             tally_ = req.is_object() ? req : json::object();
         }
-        // Y se les avisa a las pantallas de tally que hay algo nuevo, para que
-        // no tengan que preguntar cada medio segundo: un tally que llega tarde
-        // es peor que no tenerlo, porque alguien se confia.
+        // Y se les manda a las pantallas de tally, entero: que no tengan que
+        // preguntar. Un tally que llega tarde es peor que no tenerlo, porque
+        // alguien se confia.
+        const json aviso{{"type", "tally"}, {"tally", req}};
         for (const std::string& pid : superficies_.conexionesDe("tally"))
-            sendToGuest(pid, json{{"type", "tally"}});
+            sendToGuest(pid, aviso);
         sendJson(fd, 200, json{{"ok", true}});
         return;
     }
@@ -937,38 +960,21 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
             correccionMs_ = std::chrono::duration_cast<std::chrono::milliseconds>(
                                 std::chrono::system_clock::now().time_since_epoch()).count();
         }
+        empujarASuperficies("correccion"); // el puesto no pregunta: se le avisa
         sendJson(fd, 200, json{{"ok", true}});
         return;
     }
     if (path == "/api/v1/correccion-link" && method == "GET") {
         const auto q = http::parseQuery(query);
-        const std::string target = q.count("target") ? http::urlDecode(q.at("target")) : "local";
-        json out = origenDe("correccion", target);
-        if (!out.contains("origen")) {
-            out["ok"] = false;
-            sendJson(fd, 200, out);
-            return;
-        }
-        const std::string aviso = out.value("warning", std::string());
-        const std::string origin = out["origen"].get<std::string>();
-        const std::string url = origin + "/correccion/#k=" + cfg_.correccionKey;
-        const qrcodegen::QrCode qr = qrcodegen::QrCode::encodeText(url.c_str(), qrcodegen::QrCode::Ecc::MEDIUM);
-        json rows = json::array();
-        for (int y = 0; y < qr.getSize(); ++y) {
-            std::string row;
-            for (int x = 0; x < qr.getSize(); ++x) row.push_back(qr.getModule(x, y) ? '1' : '0');
-            rows.push_back(row);
-        }
-        json resp{{"ok", true}, {"url", url}, {"size", qr.getSize()}, {"modules", rows}};
-        if (!aviso.empty()) resp["message"] = aviso;
-        sendJson(fd, 200, resp);
+        sendJson(fd, 200,
+                 enlaceConQr("correccion", q.count("target") ? http::urlDecode(q.at("target")) : "local",
+                             "/correccion/#k=" + claves().correccion));
         return;
     }
     if (path == "/api/v1/prompter-link" && method == "GET") {
         // El enlace del control, con la clave en el FRAGMENTO para que no
         // viaje en la URL pedida ni quede en los registros del servidor.
         const auto q = http::parseQuery(query);
-        const std::string target = q.count("target") ? http::urlDecode(q.at("target")) : "local";
         const bool control = !q.count("vista") || http::urlDecode(q.at("vista")) == "control";
         // La clave puede ir DENTRO del enlace (se entra sin tipear) o no: un QR
         // pegado en una pared no deberia llevarla.
@@ -977,33 +983,16 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
         const std::string pid = Prompters::idValido(q.count("p") ? http::urlDecode(q.at("p")) : std::string());
         if (pid.empty()) return sendErr(fd, 400, "prompter");
         const std::string carpeta = pid == Prompters::kPrincipal ? std::string() : pid + "/";
-        json out = origenDe("prompter", target);
-        if (!out.contains("origen")) {
-            out["ok"] = false;
-            sendJson(fd, 200, out);
-            return;
-        }
-        std::string origin = out["origen"].get<std::string>();
+        const std::string clave = claves().prompter;
         // La tablet del orador no lleva clave nunca: solo lee.
-        const std::string url = origin + "/prompter/" + carpeta +
-                                (control ? (conClave ? "#control&k=" + cfg_.prompterKey : "#control") : "");
-        const qrcodegen::QrCode qr =
-            qrcodegen::QrCode::encodeText(url.c_str(), qrcodegen::QrCode::Ecc::MEDIUM);
-        json rows = json::array();
-        for (int y = 0; y < qr.getSize(); ++y) {
-            std::string row;
-            for (int x = 0; x < qr.getSize(); ++x)
-                row.push_back(qr.getModule(x, y) ? '1' : '0');
-            rows.push_back(row);
+        json out = enlaceConQr("prompter", q.count("target") ? http::urlDecode(q.at("target")) : "local",
+                               "/prompter/" + carpeta + (control ? (conClave ? "#control&k=" + clave : "#control") : ""));
+        if (out.value("ok", false)) {
+            out["vista"] = control ? "control" : "orador";
+            out["conClave"] = control && conClave;
+            out["clave"] = clave;
         }
-        sendJson(fd, 200,
-                 json{{"ok", true},
-                      {"vista", control ? "control" : "orador"},
-                      {"conClave", control && conClave},
-                      {"clave", cfg_.prompterKey},
-                      {"url", url},
-                      {"size", qr.getSize()},
-                      {"modules", rows}});
+        sendJson(fd, 200, out);
         return;
     }
 
@@ -1061,6 +1050,7 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
             sendErr(fd, 400, "tema");
             return;
         }
+        avisarTema();
         sendJson(fd, 200, json{{"ok", true}, {"tema", temaWeb()}});
         return;
     }
@@ -1068,6 +1058,7 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
     if (path == "/api/v1/tema-evento" && method == "POST") {
         json r = setTemaEvento(req);
         r["ok"] = true;
+        avisarTema();
         sendJson(fd, 200, r);
         return;
     }
@@ -1076,7 +1067,7 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
         return;
     }
     if (path == "/api/v1/events" && method == "GET") {
-        adminEvents(fd);
+        adminEvents(fd, headers);
         return;
     }
     if (path == "/api/v1/pin" && method == "POST") {
@@ -1225,7 +1216,79 @@ void SignalingServer::adminShareContent(long long fd, const std::string& id) {
     }
 }
 
-void SignalingServer::adminEvents(long long fd) {
+namespace {
+
+/// Cuántos eventos de un solo disparo se guardan para reenviar (ver SseConn). Un corte de
+/// la app de unos segundos junta pocos; esto alcanza para un reinicio de la app entero.
+constexpr std::size_t kGuardadosSse = 1024;
+/// Lo más que se le junta a una conexión sin poder escribirle: pasado esto se la corta.
+constexpr std::size_t kTopeColaSse = 8u * 1024u * 1024u;
+/// El latido del flujo (la app corta si no oye nada en room.salaMuertaS).
+constexpr auto kLatidoSse = std::chrono::seconds(15);
+
+/// Last-Event-ID «<epoch>:<n>» -> (epoch, n). n = 0 si no se entiende.
+std::pair<std::string, std::uint64_t> idDeEvento(const std::string& v) {
+    const auto dos = v.find(':');
+    if (dos == std::string::npos) return {};
+    try {
+        return {v.substr(0, dos), std::stoull(v.substr(dos + 1))};
+    } catch (...) {
+        return {};
+    }
+}
+
+} // namespace
+
+void SignalingServer::avisarTema() {
+    // Las páginas con canal no preguntan por el tema cada 15 s: se les avisa que lo relean.
+    const json aviso{{"type", "tema"}};
+    for (const std::string& pid : superficies_.conexionesDe("")) sendToGuest(pid, aviso);
+}
+
+void SignalingServer::avisarVotacion() {
+    empujarASuperficies("votacion"); // la pantalla de la votación
+    std::string evento;
+    {
+        std::lock_guard<std::mutex> l(publicoM_);
+        evento = eventoVotacion_;
+    }
+    broadcastToHosts("votacion", json{{"votacion", votacion_.estado()}, {"foto", votacion_.foto()}, {"evento", evento}});
+}
+
+void SignalingServer::avisarPreguntas() {
+    std::string evento;
+    {
+        std::lock_guard<std::mutex> l(publicoM_);
+        evento = eventoPreguntas_;
+    }
+    broadcastToHosts("preguntas", json{{"preguntas", preguntas_.lista()},
+                                       {"recuento", preguntas_.recuento()},
+                                       {"proxima", preguntas_.proxima()},
+                                       {"foto", preguntas_.foto()},
+                                       {"evento", evento}});
+}
+
+bool SignalingServer::eventoDeEstado(const std::string& event) {
+    // Lo que dice CÓMO ESTÁ algo (la foto al reconectar, o el próximo aviso, lo cubre):
+    // reenviarlo viejo después de la foto la pisaría con algo más viejo.
+    static const std::set<std::string> kEstado{"room",        "programa", "direcciones", "hablan", "prompter",
+                                               "superficies", "red",      "web",         "votacion", "preguntas"};
+    return kEstado.count(event) > 0;
+}
+
+void SignalingServer::encolarSse(SseConn& c, std::uint64_t seq, const std::string& texto) {
+    {
+        std::lock_guard<std::mutex> l(c.m);
+        if (c.cortar || seq <= c.ultimo) return;
+        c.cola.push_back(texto);
+        c.bytes += texto.size();
+        c.ultimo = seq;
+        if (c.bytes > kTopeColaSse) c.cortar = true;
+    }
+    c.cv.notify_one();
+}
+
+void SignalingServer::adminEvents(long long fd, const std::string& headers) {
     const std::string head = "HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\n"
                              "Cache-Control: no-store\r\nConnection: keep-alive\r\n\r\n";
     if (!http::sendAll(fd, head.data(), head.size())) return;
@@ -1235,52 +1298,83 @@ void SignalingServer::adminEvents(long long fd) {
 
     auto conn = std::make_shared<SseConn>();
     conn->fd = fd;
+    const auto [epochPedido, desde] = idDeEvento(http::getHeader(headers, "Last-Event-ID"));
     {
-        // Primero el estado completo; despues, cambios. Se registra con el
-        // envio del snapshot bajo su lock para que ningun evento se adelante.
-        std::lock_guard<std::mutex> sendLock(conn->sendLock);
-        {
-            std::lock_guard<std::mutex> lock(sseLock_);
-            sse_.push_back(conn);
-        }
-        const std::string first = "retry: 2000\n\nevent: room\ndata: " + room_.snapshot().dump(-1, ' ', false, nlohmann::json::error_handler_t::replace) + "\n\n";
-        http::sendAll(fd, first.data(), first.size());
+        // Primero la foto; después, si la app viene de esta misma sala y la cola corta
+        // tiene todo lo que se perdió, los eventos de un solo disparo que no le llegaron;
+        // después, lo nuevo. Todo con sseLock_: ningún evento se cuela en el medio.
+        std::lock_guard<std::mutex> lock(sseLock_);
+        const bool reanudado = !epochPedido.empty() && epochPedido == epoch_ && desde <= sseSeq_ && descartadoHasta_ <= desde;
+        json foto = room_.snapshot();
+        foto["epoch"] = epoch_;
+        foto["protocolo"] = ba::ipc::kProtocoloSala;
+        foto["reanudado"] = reanudado;
+        conn->cola.push_back("retry: 2000\nid: " + epoch_ + ":" + std::to_string(sseSeq_) + "\nevent: room\ndata: " +
+                             foto.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace) + "\n\n");
+        if (reanudado)
+            for (const EventoGuardado& g : guardados_)
+                if (g.seq > desde) conn->cola.push_back(g.texto);
+        conn->ultimo = sseSeq_;
+        sse_.push_back(conn);
     }
+    empujarASuperficies("rotulos"); // la app volvió: los celulares de rótulos lo ven
 
-    // El cliente no manda nada: se espera su cierre, con un latido cada 15 s
-    // que ademas detecta conexiones muertas (el envio falla).
+    // Este hilo es el que le escribe a la app (ver SseConn): saca de la cola y escribe;
+    // sin nada, un latido cada 15 s que además detecta conexiones muertas. El cliente no
+    // manda nada: lo que llega es su cierre.
+    auto ultimoEnvio = std::chrono::steady_clock::now();
     while (!stop_.load(std::memory_order_relaxed)) {
-        const int r = http::waitReadable(fd, 15000);
+        std::deque<std::string> lote;
+        bool cortar = false;
+        {
+            std::unique_lock<std::mutex> l(conn->m);
+            conn->cv.wait_for(l, std::chrono::seconds(1), [&]() { return !conn->cola.empty() || conn->cortar; });
+            lote.swap(conn->cola);
+            conn->bytes = 0;
+            cortar = conn->cortar;
+        }
+        if (cortar) {
+            log_.warn(traducir("gateway", "control: la app no lee sus eventos; se le corta el flujo (vuelve a entrar con la foto)"),
+                      -1);
+            break;
+        }
+        bool ok = true;
+        for (const std::string& m : lote)
+            if (!(ok = http::sendAll(fd, m.data(), m.size()))) break;
+        if (!ok) break;
+        const auto ahora = std::chrono::steady_clock::now();
+        if (!lote.empty()) {
+            ultimoEnvio = ahora;
+        } else if (ahora - ultimoEnvio >= kLatidoSse) {
+            if (!http::sendAll(fd, ": ping\n\n", 8)) break;
+            ultimoEnvio = ahora;
+        }
+        const int r = http::waitReadable(fd, 0);
         if (r < 0) break;
         if (r > 0) {
             uint8_t sink[256];
             if (http::recvSome(fd, sink, sizeof(sink)) <= 0) break;
-            continue;
         }
-        std::lock_guard<std::mutex> lock(conn->sendLock);
-        if (!http::sendAll(fd, ": ping\n\n", 8)) break;
     }
     {
         std::lock_guard<std::mutex> lock(sseLock_);
         sse_.erase(std::remove(sse_.begin(), sse_.end(), conn), sse_.end());
     }
-    std::lock_guard<std::mutex> lock(conn->sendLock);
-    conn->fd = -1;
+    empujarASuperficies("rotulos"); // y se fue: «la app no responde»
 }
 
 void SignalingServer::broadcastToHosts(const std::string& event, const json& data) {
-    std::vector<std::shared_ptr<SseConn>> conns;
-    {
-        std::lock_guard<std::mutex> lock(sseLock_);
-        conns = sse_;
-    }
-    if (conns.empty()) return;
-    const std::string msg = "event: " + event + "\ndata: " + data.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace) + "\n\n";
-    for (const auto& c : conns) {
-        std::lock_guard<std::mutex> lock(c->sendLock);
-        if (c->fd >= 0 && !http::sendAll(c->fd, msg.data(), msg.size())) {
-            http::shutdownFd(c->fd); // su thread lo da de baja
-        }
+    const std::string cuerpo = data.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
+    const bool estado = eventoDeEstado(event);
+    std::lock_guard<std::mutex> lock(sseLock_);
+    const std::uint64_t seq = ++sseSeq_;
+    std::string msg = "id: " + epoch_ + ":" + std::to_string(seq) + "\nevent: " + event + "\ndata: " + cuerpo + "\n\n";
+    for (const auto& c : sse_) encolarSse(*c, seq, msg);
+    if (estado) return;
+    guardados_.push_back({seq, std::move(msg)});
+    while (guardados_.size() > kGuardadosSse) {
+        descartadoHasta_ = guardados_.front().seq;
+        guardados_.pop_front();
     }
 }
 

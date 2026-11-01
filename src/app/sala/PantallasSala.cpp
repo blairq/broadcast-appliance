@@ -2,9 +2,17 @@
 
 #include "sala/PantallasSala.hpp"
 
+#include "ui/ConferenceClient.hpp"
+
 namespace ba::app::sala {
 
-PantallasSala::PantallasSala(ConferenceClient& sala) : sala_(sala) {}
+PantallasSala::PantallasSala(ConferenceClient& sala) : sala_(sala) {
+    // El tally lo publica A en cada cambio; una sala reiniciada no lo sabe hasta el
+    // próximo corte, y una pantalla de tally que no sabe dice «SIN SEÑAL».
+    sala_.registrarRepublicador("tally", &vida_, [this]() {
+        if (!tally_.empty()) pedir(sala_, "POST", "/api/v1/tally", tally_, {});
+    });
+}
 
 void PantallasSala::publicarCarrusel(const std::string& id, const std::string& nombre, const std::string& transicion,
                                      const std::vector<PasoCarrusel>& pasos) {
@@ -23,14 +31,13 @@ void PantallasSala::borrarCarrusel(const std::string& id) {
 void PantallasSala::tally(const std::string& aire, const std::string& armada,
                           const std::vector<std::string>& fuentesAire, const std::vector<std::string>& fuentesArmadas,
                           bool transmitiendo, bool grabando) {
-    pedir(sala_, "POST", "/api/v1/tally",
-          {{"aire", aire},
-           {"armada", armada},
-           {"fuentesAire", fuentesAire},
-           {"fuentesArmadas", fuentesArmadas},
-           {"transmitiendo", transmitiendo},
-           {"grabando", grabando}},
-          {});
+    tally_ = {{"aire", aire},
+              {"armada", armada},
+              {"fuentesAire", fuentesAire},
+              {"fuentesArmadas", fuentesArmadas},
+              {"transmitiendo", transmitiendo},
+              {"grabando", grabando}};
+    pedir(sala_, "POST", "/api/v1/tally", tally_, {});
 }
 
 void PantallasSala::superficies(Listo listo) { pedir(sala_, "GET", "/api/v1/superficies", {}, std::move(listo)); }

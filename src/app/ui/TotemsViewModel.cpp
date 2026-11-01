@@ -221,9 +221,11 @@ TotemsViewModel::TotemsViewModel(AppRuntime& rt, StudioViewModel& vm, agent::Voz
             if (ev.is_object()) alEvento(ev);
         });
         // El gateway volvió (o se reinició): no sabe de los tótems ni de nada vivo.
+        c->registrarRepublicador("totems", this, [this]() { publicar(); });
+        // Sin gateway no hay nadie conectado; al volver (el mismo o uno nuevo) se le
+        // pregunta quién está.
         connect(c, &ConferenceClient::onlineChanged, this, [this](bool on) {
             if (on) {
-                publicar();
                 reconocerConexiones();
             } else {
                 std::vector<QString> todas;

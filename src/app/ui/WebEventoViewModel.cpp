@@ -2,6 +2,7 @@
 // src/app/ui/WebEventoViewModel.cpp — ver WebEventoViewModel.hpp
 // ============================================================================
 #include "ui/WebEventoViewModel.hpp"
+#include "ui/ConferenceClient.hpp"
 
 #include <QDateTime>
 #include <QDir>
@@ -46,11 +47,8 @@ WebEventoViewModel::WebEventoViewModel(EventoAbierto& abierto, CorridaViewModel&
         publicarWeb();
     });
     connect(&corrida_, &CorridaViewModel::correChanged, this, &WebEventoViewModel::publicarWeb);
-    // TODO(G): cuando el gateway avise que volvió a arrancar (su «epoch»), eso llama a
-    // salaReiniciada() y este reenvío se va: lo que no cambió no hace falta mandarlo.
-    reenvio_.setInterval(ba::ajustes::sAMs("evento.webReenvioS", 10));
-    connect(&reenvio_, &QTimer::timeout, this, &WebEventoViewModel::salaReiniciada);
-    reenvio_.start();
+    // Una sala que arrancó de nuevo (otro «epoch») no sabe lo del evento: se le vuelve a dar.
+    if (sala_ != nullptr) sala_->client().registrarRepublicador("evento-web", this, [this]() { salaReiniciada(); });
     leerSitio();
 }
 

@@ -290,6 +290,43 @@ std::size_t Preguntas::limpiar() {
     return antes - ps_.size();
 }
 
+json Preguntas::foto() const {
+    std::lock_guard<std::mutex> g(m_);
+    json ps = json::array();
+    for (const Pregunta& p : ps_) ps.push_back(aJson(p));
+    json vs = json::array();
+    for (const auto& [quien, id] : votos_) vs.push_back(json::array({quien, id}));
+    return json{{"preguntas", ps}, {"votos", vs}, {"siguienteTurno", siguienteTurno_}, {"n", n_}};
+}
+
+void Preguntas::restaurar(const json& f) {
+    std::lock_guard<std::mutex> g(m_);
+    ps_.clear();
+    votos_.clear();
+    siguienteTurno_ = 0;
+    n_ = 0;
+    if (!f.is_object()) return;
+    for (const json& j : f.value("preguntas", json::array())) {
+        if (!j.is_object() || ps_.size() >= kMax) continue;
+        Pregunta p;
+        p.id = j.value("id", std::string());
+        p.texto = recortar(j.value("texto", std::string()), kMaxTexto);
+        if (p.id.empty() || p.texto.empty()) continue;
+        p.nombre = recortar(j.value("nombre", std::string()), kMaxNombre);
+        p.deDonde = j.value("deDonde", std::string("publico"));
+        estadoDeNombre(j.value("estado", std::string("nueva")), p.estado);
+        p.cuandoMs = j.value("cuandoMs", std::int64_t{0});
+        p.votos = std::max(0, j.value("votos", 0));
+        p.turno = std::max(0, j.value("turno", 0));
+        ps_.push_back(std::move(p));
+    }
+    for (const json& v : f.value("votos", json::array()))
+        if (v.is_array() && v.size() == 2 && v[0].is_string() && v[1].is_string())
+            votos_.emplace_back(v[0].get<std::string>(), v[1].get<std::string>());
+    siguienteTurno_ = std::max(0, f.value("siguienteTurno", 0));
+    n_ = std::max<std::int64_t>(0, f.value("n", std::int64_t{0}));
+}
+
 void Preguntas::vaciar() {
     std::lock_guard<std::mutex> g(m_);
     ps_.clear();

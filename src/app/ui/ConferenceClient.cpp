@@ -17,6 +17,9 @@
 #include <QTcpSocket>
 
 #include "diag/Correlacion.hpp"
+#include "diag/Registro.hpp"
+#include "i18n/I18n.hpp"
+#include "ipc/ProtocoloSala.hpp"
 
 #include "platform/Paths.hpp"
 
@@ -35,6 +38,10 @@ ConferenceClient::ConferenceClient(QObject* parent) : QObject(parent) {
     watchdog_.setSingleShot(true);
     connect(&watchdog_, &QTimer::timeout, this, [this]() {
         if (sse_ != nullptr) sse_->abort(); // onEventsClosed reprograma
+    });
+    // Las salidas del aparato: una B reiniciada arranca sin lista (todo a BA.Program).
+    registrarRepublicador("salidas", this, [this]() {
+        if (!salidas_.isEmpty()) post("/api/v1/salidas", QJsonObject{{"lista", salidas_}});
     });
     connectEvents();
 }
@@ -103,6 +110,8 @@ void ConferenceClient::connectEvents() {
     QNetworkRequest req(QUrl(QString("http://127.0.0.1:%1/api/v1/events").arg(port_)));
     req.setRawHeader("Authorization", "Bearer " + token_.toUtf8());
     req.setRawHeader("Accept", "text/event-stream");
+    // Lo último que llegó: B reenvía lo de un solo disparo que se perdió en el corte.
+    if (!ultimoId_.isEmpty()) req.setRawHeader("Last-Event-ID", ultimoId_);
     req.setAttribute(QNetworkRequest::CacheLoadControlAttribute, QNetworkRequest::AlwaysNetwork);
     buf_.clear();
     sse_ = nam_.get(req);
@@ -123,7 +132,9 @@ void ConferenceClient::onEventsData() {
         QByteArray event = "message";
         QByteArray data;
         for (const QByteArray& line : block.split('\n')) {
-            if (line.startsWith("event:")) {
+            if (line.startsWith("id:")) {
+                ultimoId_ = line.mid(3).trimmed();
+            } else if (line.startsWith("event:")) {
                 event = line.mid(6).trimmed();
             } else if (line.startsWith("data:")) {
                 if (!data.isEmpty()) data += '\n';
@@ -138,9 +149,25 @@ void ConferenceClient::dispatch(const QByteArray& event, const QByteArray& data)
     const QJsonObject obj = QJsonDocument::fromJson(data).object();
     if (event == "room") {
         backoffMs_ = 1000;
+        // El primero de cada conexión dice de qué arranque es la B y si pudo reenviar lo
+        // perdido; los que siguen son solo la foto.
+        bool nueva = false;
+        if (obj.contains("epoch")) {
+            const QString epoch = obj.value("epoch").toString();
+            nueva = epoch != epoch_ || !obj.value("reanudado").toBool();
+            epoch_ = epoch;
+            const int protocolo = obj.value("protocolo").toInt(1);
+            if (protocolo != ba::ipc::kProtocoloSala)
+                ba::diag::registro().linea(
+                    ba::diag::Nivel::Aviso, "sala", 0,
+                    ba::i18n::llenar(ba::i18n::traducir("sala", "la conferencia habla la versión %1 del contrato y el programa la %2 "
+                                                                "(¿un paquete mezclado?)"),
+                                     {std::to_string(protocolo), std::to_string(ba::ipc::kProtocoloSala)}));
+        }
         setOnline(true);
         snap_ = obj;
         emit snapshotChanged();
+        if (nueva) republicarTodo();
     } else if (event == "chat") {
         emit chatReceived(obj);
     } else if (event == "botonera") {
@@ -157,6 +184,20 @@ void ConferenceClient::dispatch(const QByteArray& event, const QByteArray& data)
         emit hablanEvento(obj);
     } else if (event == "registro") {
         emit registroEvento(obj);
+    } else if (event == "prompter") {
+        emit prompterEvento(obj);
+    } else if (event == "rotulos") {
+        emit rotulosEvento(obj);
+    } else if (event == "web") {
+        emit webEvento(obj);
+    } else if (event == "acreditacion") {
+        emit acreditacionEvento();
+    } else if (event == "red") {
+        emit redEvento(obj);
+    } else if (event == "avatar") {
+        emit avatarEvento(obj.value("id").toString());
+    } else if (event == "votacion" || event == "preguntas") {
+        emit estadoEvento(QString::fromUtf8(event), obj);
     } else if (event == "programa") {
         miranPrograma_ = obj.value("mirando").toInt(-1);
         miranSalidas_ = obj.value("salidas").toObject();
@@ -181,11 +222,59 @@ void ConferenceClient::scheduleReconnect() {
 void ConferenceClient::setOnline(bool on) {
     if (online_ == on) return;
     online_ = on;
-    if (on && !salidas_.isEmpty()) post("/api/v1/salidas", QJsonObject{{"lista", salidas_}});
     emit onlineChanged(on);
 }
 
-void ConferenceClient::ponerSalidas(const QJsonArray& lista) {
+void ConferenceClient::registrarRepublicador(const QString& nombre, QObject* dueno, std::function<void()> fn) {
+    auto it = std::find_if(republicadores_.begin(), republicadores_.end(),
+                           [&](const Republicador& r) { return r.nombre == nombre; });
+    if (it != republicadores_.end()) {
+        it->dueno = dueno;
+        it->crudo = dueno;
+        it->fn = fn;
+    } else {
+        republicadores_.push_back({nombre, dueno, dueno, fn});
+    }
+    if (dueno != nullptr && dueno != this)
+        connect(dueno, &QObject::destroyed, this, [this, nombre, dueno]() {
+            std::erase_if(republicadores_, [&](const Republicador& r) { return r.nombre == nombre && r.crudo == dueno; });
+        });
+    // Con B ya en línea, se le dice ahora; en la vuelta siguiente del bucle: quien se
+    // registra suele estar todavía armándose (en su constructor).
+    if (online_) {
+        QPointer<QObject> d(dueno);
+        QMetaObject::invokeMethod(
+            this,
+            [this, d, fn = std::move(fn)]() {
+                if (d && online_) fn();
+            },
+            Qt::QueuedConnection);
+    }
+}
+
+QStringList ConferenceClient::republicadores() const {
+    QStringList out;
+    for (const Republicador& r : republicadores_)
+        if (r.dueno) out << r.nombre;
+    return out;
+}
+
+void ConferenceClient::republicarTodo() {
+    // Copia: un republicador puede registrar otro (o morir) mientras se recorre.
+    const std::vector<Republicador> todos = republicadores_;
+    QStringList nombres;
+    for (const Republicador& r : todos) {
+        if (!r.dueno || !r.fn) continue;
+        nombres << r.nombre;
+        r.fn();
+    }
+    ba::diag::registro().linea(ba::diag::Nivel::Info, "sala", 0,
+                               ba::i18n::llenar(ba::i18n::traducir("sala", "conferencia nueva (%1): se le vuelve a decir %2"),
+                                                {epoch_.toStdString(), nombres.join(", ").toStdString()}));
+    emit salaNueva();
+}
+
+void ConferenceClient::ponerSalidas(const QJsonArray& lista) { // (republicador «salidas»)
     if (lista == salidas_) return;
     salidas_ = lista;
     if (online_) post("/api/v1/salidas", QJsonObject{{"lista", salidas_}});

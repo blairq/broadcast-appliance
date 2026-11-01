@@ -19,6 +19,7 @@
 #include <nlohmann/json.hpp>
 
 #include "Botonera.hpp"
+#include "Borde.hpp"
 #include "ColaVoz.hpp"
 #include "HttpIo.hpp"
 #include "Log.hpp"
@@ -55,10 +56,10 @@ int g_fallas = 0;
     } while (0)
 
 json totem(const std::string& id, const std::string& sal, const std::string& token) {
-    return {{"id", id}, {"nombre", id}, {"sal", sal}, {"hash_token", BotoneraBorde::sha256Hex(sal + token)}};
+    return {{"id", id}, {"nombre", id}, {"sal", sal}, {"hash_token", ba::gateway::borde::hashConSal(sal + token)}};
 }
 json credencial(const std::string& sal, const std::string& token) {
-    return {{"sal", sal}, {"hash_token", BotoneraBorde::sha256Hex(sal + token)}};
+    return {{"sal", sal}, {"hash_token", ba::gateway::borde::hashConSal(sal + token)}};
 }
 
 struct Respuesta {

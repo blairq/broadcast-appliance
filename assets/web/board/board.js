@@ -1,10 +1,11 @@
 /* ============================================================================
    Web/board/board.js — Tablero de oradores (solo lectura)
 
-   Lee GET /api/v1/board (cabecera X-BA-Board) cada segundo y lo dibuja; los
-   relojes corren localmente entre lecturas, corregidos con el reloj de la
-   sala (serverNowMs). La clave viene en el fragmento del enlace (#k=...), se
-   guarda en el navegador y se borra de la barra de direcciones.
+   Lee GET /api/v1/board (cabecera X-BA-Board) al abrir y después le llega
+   cada cambio por el canal de control (comun/canal.js, con la clave en su
+   primer mensaje); los relojes corren localmente, corregidos con el reloj de
+   la sala (serverNowMs). La clave viene en el fragmento del enlace (#k=...),
+   se guarda en el navegador y se borra de la barra de direcciones.
    ========================================================================== */
 
 (async function () {
@@ -28,6 +29,7 @@
   let liveIds = new Set();
   let offset = 0; // reloj de la sala - reloj local
   let lastOk = 0;
+  let conectado = false; // el canal de control (lo que cambia llega por ahí)
 
   const fmt = (ms) => {
     const neg = ms < 0, t = Math.floor(Math.abs(ms) / 1000);
@@ -62,12 +64,15 @@
       const r = await fetch("/api/v1/board", { headers: { "X-BA-Board": key }, cache: "no-store" });
       if (r.status === 401) return blocked(t("La clave del tablero cambió (se reinició la sala). Escaneá el QR de nuevo."));
       if (!r.ok) throw new Error(String(r.status));
-      board = await r.json();
-      offset = board.serverNowMs - Date.now();
-      lastOk = Date.now();
-      $("blocked").classList.add("hidden");
-      render();
+      aplicar(await r.json());
     } catch (e) { /* sin conexion: el punto se pone rojo */ }
+  }
+  function aplicar(b) {
+    board = b;
+    offset = board.serverNowMs - Date.now();
+    lastOk = Date.now();
+    $("blocked").classList.add("hidden");
+    render();
   }
   function blocked(text) {
     $("blocked-text").textContent = text;
@@ -146,7 +151,7 @@
 
   function tick() {
     $("now").textContent = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
-    $("dot").classList.toggle("off", Date.now() - lastOk > 3000);
+    $("dot").classList.toggle("off", !conectado);
     if (!board) return;
     for (const h of document.querySelectorAll(".hero")) {
       const p = board.order.find((x) => x.id === h.dataset.id);
@@ -161,7 +166,15 @@
 
   // Los textos, en el idioma del evento.
   await BAi18n.iniciar({ contexto: "web/board", preferir: "evento" });
-  setInterval(poll, 1000);
   setInterval(tick, 250);
   poll();
+  if (key)
+    window.BACanal.abrir({
+      tipo: "tablero",
+      clave: key,
+      que: () => (board && board.order ? board.order.length : 0) + "",
+      onAviso: (m) => { if (m.type === "tablero") aplicar(m.board); },
+      onClaveMal: () => blocked(t("La clave del tablero cambió (se reinició la sala). Escaneá el QR de nuevo.")),
+      onEstado: (on) => { conectado = on; if (on) poll(); },
+    });
 })();

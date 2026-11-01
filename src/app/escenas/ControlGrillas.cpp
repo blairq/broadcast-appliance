@@ -59,9 +59,14 @@ ControlGrillas::ControlGrillas(Partes p, QObject* parent) : QObject(parent), p_(
         pedir();
     });
     // El gateway se reinició (o recién arrancó): no sabe nada; se le manda todo de nuevo.
-    connect(&p_.sala, &ConferenceClient::onlineChanged, this, [this, pedir](bool on) {
+    p_.sala.registrarRepublicador("grillas", this, [this, pedir]() {
         ultimoPedido_ = json();
-        if (!on) hablan_.clear();
+        pedir();
+    });
+    // Sin gateway, nadie habla (lo dice él cuando vuelve).
+    connect(&p_.sala, &ConferenceClient::onlineChanged, this, [this, pedir](bool on) {
+        if (on) return;
+        hablan_.clear();
         pedir();
     });
     if (p_.sesion) connect(p_.sesion, &asamblea::SesionRemota::cambio, this, pedir);

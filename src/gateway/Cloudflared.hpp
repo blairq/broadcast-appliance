@@ -38,7 +38,9 @@
 #include <string>
 #include <thread>
 
+#include "ajustes/Ajustes.hpp"
 #include "platform/Process.hpp"
+#include "platform/Relanzador.hpp"
 
 namespace ba::gateway {
 
@@ -80,7 +82,8 @@ class CloudflaredSupervisor {
     void kill();
     bool processAlive();
     bool probeMetrics() const;
-    void sleepBackoff();
+    /// Cuenta la caída y espera lo que toca (platform/Relanzador.hpp). :returns: la espera.
+    std::uint64_t esperarRelanzar();
     /// Lo que cloudflared escribio desde el ultimo arranque (hasta 8 KB).
     std::string outputSinceSpawn() const;
 
@@ -93,7 +96,11 @@ class CloudflaredSupervisor {
     std::atomic<bool> stop_{false};
     std::atomic<bool> alive_{false};
     std::atomic<int> restartCount_{0};
-    int backoffMs_ = 1000;
+    /// Duplicando de 1 s al tope (gateway.tunelReintentoMaxS); se olvida con el túnel
+    /// confirmado arriba (un token inválido que arranca y muere no se relanza cada 2 s).
+    ba::platform::Relanzador rel_{ba::platform::PoliticaRelanzar{
+        .esperaMs = ba::platform::PoliticaRelanzar::duplicando(
+            1000, []() { return static_cast<std::uint64_t>(ba::ajustes::sAMs("gateway.tunelReintentoMaxS", 30)); })}};
 
     std::thread thread_;
     bool started_ = false;

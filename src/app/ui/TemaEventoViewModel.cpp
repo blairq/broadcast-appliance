@@ -13,6 +13,7 @@
 #include "i18n/I18n.hpp"
 #include "sala/Pedido.hpp"
 #include "tema/TemaWeb.hpp"
+#include "ui/ConferenceClient.hpp"
 #include "ui/ConferenceViewModel.hpp"
 #include "ui/EventoViewModel.hpp"
 #include "ui/QrViewModel.hpp"
@@ -51,9 +52,8 @@ TemaEventoViewModel::TemaEventoViewModel(EventoViewModel& evento, ConferenceView
     connect(&evento_, &EventoViewModel::guionChanged, this, &TemaEventoViewModel::seguirEvento);
     // Los colores del sitio mandan mientras el tema no fije los suyos (paraPublicar).
     connect(&evento_, &EventoViewModel::webChanged, this, &TemaEventoViewModel::recargar);
-    // La sala vuelve (o arranca de nuevo): no se acuerda del tema, se lo vuelve a dar.
-    connect(&sala_, &ConferenceViewModel::onlineChanged, this, [this]() {
-        if (!sala_.online()) return;
+    // Una sala nueva (o que arranca de nuevo) no se acuerda del tema: se lo vuelve a dar.
+    sala_.client().registrarRepublicador("tema-evento", this, [this]() {
         mandado_.clear();
         publicar();
     });
@@ -102,7 +102,7 @@ void TemaEventoViewModel::ponerPorOmision() {
 }
 
 void TemaEventoViewModel::publicar() {
-    if (!sala_.online()) return; // al volver la sala (onlineChanged) se manda
+    if (!sala_.online()) return; // al volver la sala (republicador «tema-evento») se manda
     const json cuerpo{{"tema", tema_.existe ? tema_.paraPublicar(carpetaEvento_) : json::object()},
                       {"carpeta", hayEvento() ? utf8(evento::carpetaTema(carpetaEvento_)) : std::string()}};
     const std::string d = cuerpo.dump();

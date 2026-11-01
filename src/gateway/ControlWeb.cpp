@@ -3,6 +3,8 @@
 // ============================================================================
 
 #include "ControlWeb.hpp"
+#include "Borde.hpp"
+#include "security/Comparar.hpp"
 
 #include <algorithm>
 #include <chrono>
@@ -11,7 +13,6 @@
 #include <set>
 #include <sstream>
 
-#include "Botonera.hpp" // ipLocal y sha256Hex: los mismos criterios que la botonera
 #include "HttpIo.hpp"
 #include "Log.hpp"
 #include "ajustes/Ajustes.hpp"
@@ -38,42 +39,7 @@ std::int64_t ahoraMs() {
         .count();
 }
 
-std::string ipTexto(std::uint32_t ip) {
-    const auto* b = reinterpret_cast<const unsigned char*>(&ip);
-    return std::to_string(b[0]) + "." + std::to_string(b[1]) + "." + std::to_string(b[2]) + "." + std::to_string(b[3]);
-}
-
-bool igualesTiempoConstante(const std::string& a, const std::string& b) {
-    if (a.size() != b.size()) return false;
-    unsigned char d = 0;
-    for (std::size_t i = 0; i < a.size(); ++i) d |= static_cast<unsigned char>(a[i] ^ b[i]);
-    return d == 0;
-}
-
-std::string minus(std::string s) {
-    for (auto& c : s) c = static_cast<char>(::tolower(static_cast<unsigned char>(c)));
-    return s;
-}
-
 std::string volcar(const json& j) { return j.dump(-1, ' ', false, json::error_handler_t::replace); }
-
-const char* tipoDe(const std::string& rel) {
-    const auto termina = [&](const char* e) {
-        const std::string x(e);
-        return rel.size() >= x.size() && rel.compare(rel.size() - x.size(), x.size(), x) == 0;
-    };
-    if (termina(".html")) return "text/html; charset=utf-8";
-    if (termina(".js") || termina(".mjs")) return "text/javascript; charset=utf-8";
-    if (termina(".css")) return "text/css; charset=utf-8";
-    if (termina(".json")) return "application/json";
-    if (termina(".webmanifest")) return "application/manifest+json";
-    if (termina(".svg")) return "image/svg+xml";
-    if (termina(".png")) return "image/png";
-    if (termina(".jpg") || termina(".jpeg")) return "image/jpeg";
-    if (termina(".woff2")) return "font/woff2";
-    if (termina(".ico")) return "image/x-icon";
-    return "application/octet-stream";
-}
 
 inline int kMaxConexiones() { return ba::ajustes::entero("controlWeb.maxConexiones", 32); }
 inline int kMensajesPorSegundo() { return ba::ajustes::entero("controlWeb.mensajesPorSegundo", 60); }
@@ -90,21 +56,12 @@ ControlWebBorde::ControlWebBorde(std::string webroot, Log& log, Evento alApp)
     : webroot_(std::move(webroot)), log_(log), alApp_(std::move(alApp)) {}
 
 bool ControlWebBorde::deAfuera(std::uint32_t ip, const std::string& headers, bool externo) {
-    if (externo || !BotoneraBorde::ipLocal(ip)) return true;
+    if (externo || !borde::ipLocal(ip)) return true;
     // Lo que viene por Cloudflare no es la red local aunque llegue desde 127.0.0.1.
     return !http::getHeader(headers, "CF-Connecting-IP").empty() || !http::getHeader(headers, "CF-Ray").empty();
 }
 
-bool ControlWebBorde::mismoOrigen(const std::string& headers) {
-    const std::string origin = http::getHeader(headers, "Origin");
-    if (origin.empty()) return true; // no es un navegador de otra página (curl, app nativa)
-    const std::string host = minus(http::getHeader(headers, "Host"));
-    std::string o = minus(origin);
-    const auto p = o.find("://");
-    if (p == std::string::npos) return false;
-    o = o.substr(p + 3);
-    return !host.empty() && o == host;
-}
+bool ControlWebBorde::mismoOrigen(const std::string& headers) { return borde::mismoOrigen(headers); }
 
 bool ControlWebBorde::tunelHabilitado() const {
     std::lock_guard<std::mutex> l(mu_);
@@ -117,27 +74,14 @@ int ControlWebBorde::conectados() const {
 }
 
 bool ControlWebBorde::servir(long long fd, const std::string& rel) {
-    std::error_code ec;
-    const auto raiz = std::filesystem::weakly_canonical(webroot_, ec);
-    if (ec || webroot_.empty()) return http::sendResponse(fd, 404, "text/plain", traducir("gateway", "no encontrado") + "\n"), true;
-    const auto destino = std::filesystem::weakly_canonical(std::filesystem::path(webroot_) / http::urlDecode(rel), ec);
-    const std::string r = raiz.generic_string(), d = destino.generic_string();
-    if (ec || d.size() < r.size() || d.compare(0, r.size(), r) != 0 || (d.size() > r.size() && d[r.size()] != '/'))
-        return http::sendResponse(fd, 400, "text/plain", traducir("gateway", "ruta invalida") + "\n"), true;
-    std::ifstream f(destino, std::ios::binary);
-    if (!f || std::filesystem::is_directory(destino, ec))
-        return http::sendResponse(fd, 404, "text/plain", traducir("gateway", "no encontrado") + "\n"), true;
-    std::ostringstream ss;
-    ss << f.rdbuf();
     // CSP estricta: solo lo nuestro (más /comun/, que es el mismo origen), nada en
     // línea, sin marcos ajenos. Las tarjetas que se abren en una pestaña nueva son
     // del mismo origen; el video va por WebRTC (connect-src ws/wss para la señalización).
-    http::sendResponse(fd, 200, tipoDe(rel), ss.str(),
-                       "Cache-Control: no-cache\r\n"
-                       "Content-Security-Policy: default-src 'self'; connect-src 'self' ws: wss:; img-src 'self' data: blob:; "
-                       "media-src 'self' blob:; frame-ancestors 'self'; base-uri 'none'; form-action 'none'\r\n"
-                       "X-Content-Type-Options: nosniff\r\nReferrer-Policy: no-referrer\r\n");
-    return true;
+    return borde::servir(fd, webroot_, rel,
+                         "Cache-Control: no-cache\r\n"
+                         "Content-Security-Policy: default-src 'self'; connect-src 'self' ws: wss:; img-src 'self' data: blob:; "
+                         "media-src 'self' blob:; frame-ancestors 'self'; base-uri 'none'; form-action 'none'\r\n"
+                         "X-Content-Type-Options: nosniff\r\nReferrer-Policy: no-referrer\r\n");
 }
 
 bool ControlWebBorde::intentoPermitido(std::uint32_t ip) {
@@ -164,11 +108,11 @@ std::string ControlWebBorde::autenticar(const std::string& token, const std::str
     std::string encontrado;
     // Se recorren todas (sin cortar) para no revelar cuál coincidió por el tiempo.
     for (const auto& [id, c] : credenciales_)
-        if (igualesTiempoConstante(BotoneraBorde::sha256Hex(c.sal + token), c.hash)) encontrado = id;
+        if (ba::security::igualesEnTiempoConstante(borde::hashConSal(c.sal + token), c.hash)) encontrado = id;
     if (encontrado.empty() || !remoto) return encontrado;
     // Desde afuera: el túnel habilitado a propósito y el PIN, además del token.
     if (!tunel_ || tunelHashPin_.size() != 64 || pin.empty()) return {};
-    return igualesTiempoConstante(BotoneraBorde::sha256Hex(tunelSal_ + pin), tunelHashPin_) ? encontrado
+    return ba::security::igualesEnTiempoConstante(borde::hashConSal(tunelSal_ + pin), tunelHashPin_) ? encontrado
                                                                                             : std::string();
 }
 
@@ -205,8 +149,8 @@ bool ControlWebBorde::atender(long long fd, const std::string& method, const std
     if (!mismoOrigen(headers) || (remoto && (api || !tunelHabilitado()))) {
         log_.warn(remoto ? llenar(traducir("gateway", "control web: rechazado %1 %2 (de afuera, sin el acceso por el túnel "
                                                       "habilitado)"),
-                                  {ipTexto(clientIp), path})
-                         : llenar(traducir("gateway", "control web: rechazado %1 %2 (origen ajeno)"), {ipTexto(clientIp), path}),
+                                  {borde::ipTexto(clientIp), path})
+                         : llenar(traducir("gateway", "control web: rechazado %1 %2 (origen ajeno)"), {borde::ipTexto(clientIp), path}),
                   -1);
         http::sendResponse(fd, 403, "text/plain", traducir("gateway", "solo desde la red local") + "\n");
         return true;
@@ -249,14 +193,14 @@ bool ControlWebBorde::atender(long long fd, const std::string& method, const std
             for (auto it = solicitudes_.begin(); it != solicitudes_.end();)
                 it = ahora - it->second.ms > kSolicitudMs() ? solicitudes_.erase(it) : std::next(it);
             Solicitud s;
-            s.ip = ipTexto(clientIp);
+            s.ip = borde::ipTexto(clientIp);
             s.ms = ahora;
             solicitudes_[sol] = s;
         }
         // La app valida el código (lo emitió ella) y le pregunta a una persona.
         std::string nombre = r.value("nombre", std::string("Navegador"));
         if (nombre.size() > 60) nombre.resize(60);
-        alApp_({{"tipo", "solicitud"}, {"solicitud", sol}, {"codigo", codigo}, {"nombre", nombre}, {"ip", ipTexto(clientIp)}});
+        alApp_({{"tipo", "solicitud"}, {"solicitud", sol}, {"codigo", codigo}, {"nombre", nombre}, {"ip", borde::ipTexto(clientIp)}});
         http::sendResponse(fd, 200, "application/json", volcar({{"solicitud", sol}}), "Cache-Control: no-store\r\n");
         return true;
     }
@@ -267,7 +211,7 @@ bool ControlWebBorde::atender(long long fd, const std::string& method, const std
         {
             std::lock_guard<std::mutex> l(mu_);
             auto it = solicitudes_.find(sol);
-            if (it != solicitudes_.end() && it->second.ip == ipTexto(clientIp)) {
+            if (it != solicitudes_.end() && it->second.ip == borde::ipTexto(clientIp)) {
                 out = {{"estado", it->second.estado}};
                 if (!it->second.error.empty()) out["error"] = it->second.error;
                 if (it->second.estado == "aprobada") {
@@ -321,7 +265,7 @@ void ControlWebBorde::wsLoop(long long fd, const std::string& headers, std::uint
     http::setSocketTimeout(fd, 0);
     auto c = std::make_shared<Conn>();
     c->fd = fd;
-    c->ip = ipTexto(clientIp);
+    c->ip = borde::ipTexto(clientIp);
     c->remoto = remoto;
     // 1. Autenticación: el primer mensaje, a los 10 s como mucho.
     {

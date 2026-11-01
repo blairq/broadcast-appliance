@@ -3,12 +3,13 @@
 // ============================================================================
 
 #include "Registro.hpp"
+#include "Borde.hpp"
+#include "security/Comparar.hpp"
 
 #include <algorithm>
 #include <chrono>
 #include <set>
 
-#include "Botonera.hpp" // sha256Hex, ipLocal
 #include "HttpIo.hpp"
 #include "Log.hpp"
 #include "MediaRoute.hpp"
@@ -37,18 +38,6 @@ std::int64_t ahoraMs() {
         .count();
 }
 
-std::string ipTexto(std::uint32_t ip) {
-    const auto* b = reinterpret_cast<const unsigned char*>(&ip);
-    return std::to_string(b[0]) + "." + std::to_string(b[1]) + "." + std::to_string(b[2]) + "." + std::to_string(b[3]);
-}
-
-bool igualesTiempoConstante(const std::string& a, const std::string& b) {
-    if (a.size() != b.size()) return false;
-    unsigned char d = 0;
-    for (std::size_t i = 0; i < a.size(); ++i) d |= static_cast<unsigned char>(a[i] ^ b[i]);
-    return d == 0;
-}
-
 bool esHex64(const std::string& s) {
     return s.size() == 64 && std::all_of(s.begin(), s.end(), [](char c) {
                return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f');
@@ -58,11 +47,14 @@ bool esHex64(const std::string& s) {
 std::string volcar(const json& j) { return j.dump(-1, ' ', false, json::error_handler_t::replace); }
 
 // Las mismas perillas que la sesión remota (son las mismas defensas, y así se
-// ajustan juntas desde Configuración → Avanzado).
+// ajustan juntas desde Configuración → Avanzado), salvo los intentos por IP.
 inline int kMensajesPorSegundo() { return ba::ajustes::entero("sesion.mensajesPorSegundo", 20); }
 inline int kLatidoMs() { return ba::ajustes::sAMs("sesion.latidoS", 30); }
 inline int kAuthMs() { return ba::ajustes::sAMs("sesion.authS", 15); }
-inline int kIntentosPorIp() { return ba::ajustes::entero("sesion.intentosPorIp", 10); } // fallidos, cada 10 minutos
+// Los intentos fallidos por IP (cada 10 minutos) son de esta superficie: antes se leía el de
+// la sesión remota. Mientras no se cambie el propio vale el de la sesión, que es lo que regía
+// (si alguien lo había ajustado, se conserva).
+inline int kIntentosPorIp() { return ba::ajustes::entero("registro.intentosPorIp", ba::ajustes::entero("sesion.intentosPorIp", 10)); }
 // Conexiones a la vez entre todos los tótems: cada una es un hilo y un socket. Una
 // TV con su QR y la gente que lo escanea en la entrada no se acercan a esto.
 // El mensaje más grande que manda la página: una foto entera de la cámara mientras muestra
@@ -116,7 +108,7 @@ bool RegistroBorde::autenticar(const std::string& id, const std::string& token, 
     std::lock_guard<std::mutex> l(mu_);
     const auto it = totems_.find(id);
     if (it == totems_.end()) return false;
-    if (!igualesTiempoConstante(BotoneraBorde::sha256Hex(it->second.sal + token), it->second.hashToken)) return false;
+    if (!ba::security::igualesEnTiempoConstante(borde::hashConSal(it->second.sal + token), it->second.hashToken)) return false;
     nombre = it->second.nombre;
     return true;
 }
@@ -331,8 +323,8 @@ bool RegistroBorde::atender(long long fd, const std::string& method, const std::
     // vale (la pone cualquiera): la de la conexión, que ya trae la real (PROXY v1).
     std::string ip = externo ? std::string() : http::getHeader(headers, "CF-Connecting-IP");
     const bool tunel = externo || !ip.empty();
-    if (ip.empty() || ip.size() > 45) ip = ipTexto(clientIp);
-    const std::string lugar = !tunel && BotoneraBorde::ipLocal(clientIp) ? "sala" : "afuera";
+    if (ip.empty() || ip.size() > 45) ip = borde::ipTexto(clientIp);
+    const std::string lugar = !tunel && borde::ipLocal(clientIp) ? "sala" : "afuera";
     if (!SesionBorde::origenValido(headers)) {
         log_.warn(llenar(traducir("gateway", "registro: origen ajeno desde %1"), {ip}), -1);
         http::sendResponse(fd, 403, "text/plain", traducir("gateway", "origen invalido") + "\n");

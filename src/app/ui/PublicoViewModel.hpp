@@ -112,13 +112,14 @@ class PublicoViewModel : public QObject {
     ConferenceViewModel* sala_ = nullptr;
     sala::VotacionSala* votacionSala_ = nullptr;
     sala::PreguntasSala* preguntasSala_ = nullptr;
-    QTimer reloj_;
     QVariantList preguntas_;
     QVariantMap recuento_;
     QVariantMap votacion_;
     QVariantMap enlace_;
     bool enLinea_ = false;
-    /// Quiénes lo están mirando (por vista, no un booleano: ver arriba).
+    /// Quiénes lo están mirando (por vista, no un booleano: ver arriba). Lo que cambia
+    /// llega solo (eventos «preguntas» y «votacion» de la sala); al empezar a mirar, y al
+    /// volver la sala, se pregunta una vez.
     UsoPorVistas mirando_{this, [this](const QString&) { alCambiarMirada(); }};
     void alCambiarMirada();
 };

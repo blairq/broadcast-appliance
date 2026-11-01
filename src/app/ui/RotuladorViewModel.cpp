@@ -30,11 +30,11 @@ struct RotuladorViewModel::Impl {
     graficos::Emisor& em;
     ConferenceViewModel* sala = nullptr;
     graficos::Vinculos* vin = nullptr;
-    /// El ida y vuelta con el buzon de B: publica lo que hay y se lleva lo que
-    /// encargaron desde los celulares. Un viaje por segundo, en los dos
-    /// sentidos a la vez (ver Rotulador.hpp en el gateway).
+    /// El ida y vuelta con el buzon de B (ver Rotulador.hpp en el gateway): lo que
+    /// hay se publica cuando cambia (juntado: `sincro`), y lo que encargaron desde
+    /// los celulares se va a buscar cuando B avisa. Nadie pregunta cada segundo.
     QTimer sincro;
-    QString ultimoPublicado;
+    std::string ultimoPublicado;
     /// Lo que se está escribiendo, por fuente. Sobrevive a un cambio de escena
     /// y vuelta: el operador escribió el nombre, se fue a otra escena y al
     /// volver lo encuentra donde lo dejó.
@@ -59,9 +59,31 @@ RotuladorViewModel::RotuladorViewModel(VentanillaMotor& ventanilla, graficos::Em
                                        QObject* parent)
     : QObject(parent), d_(std::make_unique<Impl>(ventanilla, emisor, sala)) {
     connect(&emisor, &graficos::Emisor::cambio, this, &RotuladorViewModel::cambio);
-    d_->sincro.setInterval(1000);
+    d_->sincro.setSingleShot(true);
+    d_->sincro.setInterval(150);
     connect(&d_->sincro, &QTimer::timeout, this, [this]() { sincronizar(); });
-    if (sala != nullptr) d_->sincro.start();
+    if (sala == nullptr) return;
+    // Lo que el celular muestra cambia con las fuentes, los gráficos y la escena al aire.
+    const auto pronto = [this]() {
+        if (!d_->sincro.isActive()) d_->sincro.start();
+    };
+    connect(this, &RotuladorViewModel::cambio, this, pronto);
+    connect(&ventanilla, &VentanillaMotor::cambio, this, [pronto](unsigned partes) {
+        if ((partes & (FotoMotor::Escenas | FotoMotor::Salidas)) != 0) pronto();
+    });
+    ConferenceClient& c = sala->client();
+    // A una sala nueva, lo que hay (y que ella no sabe).
+    c.registrarRepublicador("rotulos", this, [this]() {
+        d_->ultimoPublicado.clear();
+        sincronizar();
+    });
+    // Un encargo del celular: la sala avisa y se lo va a buscar. Al volver la sala,
+    // por si quedó alguno de cuando no se la oía.
+    connect(&c, &ConferenceClient::rotulosEvento, this, [this]() { tomarEncargos(); });
+    connect(&c, &ConferenceClient::onlineChanged, this, [this](bool on) {
+        if (on) tomarEncargos();
+    });
+    pronto();
 }
 
 RotuladorViewModel::~RotuladorViewModel() = default;
@@ -239,22 +261,30 @@ void RotuladorViewModel::sincronizar() {
                               {"valores", QJsonObject::fromVariantMap(m.value("valores").toMap())}});
     }
     const QJsonObject estado{{"escena", escena()}, {"fuentes", fs}};
-
-    // El estado se manda SIEMPRE, aunque no haya cambiado: es tambien el
-    // latido con el que el celular sabe que la app sigue viva (ver `viva` en
-    // Rotulador.hpp). Lo que se evita es redibujar de mas del otro lado, y de
-    // eso se ocupa la pagina con su propia firma.
+    // Solo si cambió (que la app sigue viva el celular lo sabe por la sala: ver `viva`
+    // en Rotulador.hpp).
+    const std::string texto = QJsonDocument(estado).toJson(QJsonDocument::Compact).toStdString();
+    if (texto == d_->ultimoPublicado) return;
+    d_->ultimoPublicado = texto;
     QPointer<RotuladorViewModel> yo(this);
-    d_->sala->control().publicarRotulos(
-        nlohmann::json::parse(QJsonDocument(estado).toJson(QJsonDocument::Compact).toStdString(), nullptr, false),
-        [yo](const std::string& err, const nlohmann::json& r) {
-            if (!yo || !err.empty()) return;
-            const nlohmann::json es = r.value("encargos", nlohmann::json::array());
-            if (!es.is_array() || es.empty()) return;
-            for (const nlohmann::json& e : es)
-                yo->atender(QJsonDocument::fromJson(QByteArray::fromStdString(e.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))).object());
-            emit yo->cambio();
-        });
+    d_->sala->control().publicarRotulos(nlohmann::json::parse(texto, nullptr, false),
+                                        [yo, texto](const std::string& err, const nlohmann::json&) {
+                                            if (yo && !err.empty() && yo->d_->ultimoPublicado == texto)
+                                                yo->d_->ultimoPublicado.clear(); // la próxima vez, de nuevo
+                                        });
+}
+
+void RotuladorViewModel::tomarEncargos() {
+    if (d_->sala == nullptr || !d_->sala->client().online()) return;
+    QPointer<RotuladorViewModel> yo(this);
+    d_->sala->control().tomarRotulos([yo](const std::string& err, const nlohmann::json& r) {
+        if (!yo || !err.empty()) return;
+        const nlohmann::json es = r.value("encargos", nlohmann::json::array());
+        if (!es.is_array() || es.empty()) return;
+        for (const nlohmann::json& e : es)
+            yo->atender(QJsonDocument::fromJson(QByteArray::fromStdString(e.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))).object());
+        emit yo->cambio();
+    });
 }
 
 void RotuladorViewModel::atender(const QJsonObject& e) {

@@ -153,7 +153,7 @@
     decir(t('Mandando…'));
     try {
       const j = await mandar({ texto, nombre: $('nombre').value.trim() });
-      if (!j.ok) { decir(t(j.error) || t('No se pudo mandar.'), 'mal'); return; }
+      if (!j.ok) { decir(textoDeError(j) || t('No se pudo mandar.'), 'mal'); return; }
       $('texto').value = '';
       decir(t('Mandada. Vas a ver acá si la eligen.'), 'bien');
       if (j.preguntas) pintar(j.preguntas);
@@ -294,6 +294,18 @@
     });
   }
 
+  // Los errores de la sala por su código estable (la frase puede cambiar; el código no).
+  const ERRORES = {
+    cerrada: 'la votacion no esta abierta',
+    opcion: 'esa opcion no existe',
+    sin_codigo: 'falta el codigo: en una votacion formal hay que identificarse',
+    codigo_invalido: 'ese codigo no figura entre los que pueden votar',
+    sin_telefono: 'no se de que telefono viene',
+    sellado: 'tu voto ya esta contado',
+    vacia: 'la pregunta esta vacia',
+  };
+  function textoDeError(j) { return t(ERRORES[j.error_codigo] || j.error || ''); }
+
   function decirUrna(texto, clase) {
     $('urnaAviso').textContent = texto;
     $('urnaAviso').className = 'aviso' + (clase ? ' ' + clase : '');
@@ -308,7 +320,7 @@
       });
       const j = await r.json();
       if (j.votacion) pintarUrna(j.votacion);
-      if (!j.ok && j.error) decirUrna(t(j.error), 'mal');
+      if (!j.ok && j.error) decirUrna(textoDeError(j), 'mal');
     } catch (_) {
       decirUrna(t('No se pudo votar: revisá la conexión.'), 'mal');
     }
@@ -316,9 +328,9 @@
 
   async function traerUrna() {
     try {
-      const r = await fetch('/api/votacion?k=' + encodeURIComponent(clave) +
-                            '&yo=' + encodeURIComponent(yo) +
-                            '&codigo=' + encodeURIComponent(codigo), { cache: 'no-store' });
+      // El código de votante en una cabecera: en la dirección queda en los registros.
+      const r = await fetch('/api/votacion?k=' + encodeURIComponent(clave) + '&yo=' + encodeURIComponent(yo),
+                            { cache: 'no-store', headers: codigo ? { 'X-BA-Codigo': codigo } : {} });
       const j = await r.json();
       if (j.votacion) pintarUrna(j.votacion);
     } catch (_) { /* se deja lo que ya está en pantalla */ }

@@ -22,13 +22,27 @@
 //     onMostrar: (url) => {...},    // el operador me cambió el contenido
 //     onRecargar: () => location.reload(),
 //     onAviso: (m) => {...},        // cualquier otro mensaje del servidor
+//     onEstado: (conectado) => {...}, // el canal se abrió o se cayó (opcional)
+//     extra: { p: "atril" },        // más datos para la sala, en la dirección (opcional)
+//     idClave: "prompter-control",  // con qué se recuerda el id (opcional; si no, el tipo)
+//     clave: "…",                   // la de las superficies reservadas (rótulos, corrección):
+//                                   // va en el primer mensaje, nunca en la dirección
+//     onClaveMal: () => {...},      // la sala no la aceptó
 //   });
+//
+// EL CANAL ES LA PRESENCIA Y EL AVISO. Lo que la página muestra le llega por acá
+// cuando cambia (el tally, el texto del teleprompter): no hace falta preguntar
+// cada tanto. Un canal mudo no es un canal vivo: cada 15 s se le manda un «ping»
+// y, si en 40 s no llegó nada, se lo da por caído y se reconecta (un televisor
+// que perdió la red sin enterarse se quedaría esperando para siempre).
 // ============================================================================
 (() => {
   "use strict";
 
   const LATIDO_MS = 5000;
   const ESPERA_MAX_MS = 30000;
+  const PING_MS = 15000;
+  const MUDO_MS = 40000;
 
   /// Un id estable entre recargas: si no, cada recarga aparecería como una
   /// superficie nueva y la lista del operador se llenaría de fantasmas.
@@ -49,10 +63,19 @@
   }
 
   window.BACanal = {
+    /// Cuántos canales hay abiertos en la página (comun/tema.js no pregunta si hay uno).
+    abiertos: 0,
     abrir(opciones) {
       const tipo = opciones.tipo || "pantalla";
-      const id = miId(tipo);
-      const st = { ws: null, intentos: 0, latido: null, cerrado: false };
+      // `idClave`: dos páginas del mismo tipo en el mismo aparato (el control y la
+      // vista del teleprompter) necesitan ids distintos.
+      const id = miId(opciones.idClave || tipo);
+      const st = { ws: null, intentos: 0, latido: null, ping: null, oido: 0, cerrado: false, conectado: false };
+      const estado = (on) => {
+        if (st.conectado === on) return;
+        st.conectado = on;
+        if (opciones.onEstado) opciones.onEstado(on);
+      };
 
       const mandar = (m) => {
         if (st.ws && st.ws.readyState === WebSocket.OPEN) st.ws.send(window.BATrama.encode(m));
@@ -67,8 +90,10 @@
       const conectar = () => {
         if (st.cerrado) return;
         const proto = location.protocol === "https:" ? "wss" : "ws";
-        const url = `${proto}://${location.host}/ws?superficie=${encodeURIComponent(tipo)}` +
-                    `&id=${encodeURIComponent(id)}`;
+        let url = `${proto}://${location.host}/ws?superficie=${encodeURIComponent(tipo)}` +
+                  `&id=${encodeURIComponent(id)}`;
+        for (const [k, v] of Object.entries(opciones.extra || {}))
+          if (v !== undefined && v !== null && v !== "") url += `&${encodeURIComponent(k)}=${encodeURIComponent(v)}`;
         let ws;
         try { ws = new WebSocket(url); } catch (e) { reintentar(); return; }
         ws.binaryType = "arraybuffer";
@@ -76,17 +101,31 @@
 
         ws.onopen = () => {
           st.intentos = 0;
+          st.oido = Date.now();
+          window.BACanal.abiertos++;
+          estado(true);
+          if (opciones.clave) mandar({ type: "clave", k: opciones.clave });
           late();
           clearInterval(st.latido);
           st.latido = setInterval(late, LATIDO_MS);
+          clearInterval(st.ping);
+          st.ping = setInterval(() => {
+            if (Date.now() - st.oido > MUDO_MS) { try { ws.close(); } catch (e) {} return; }
+            mandar({ type: "ping" });
+          }, PING_MS);
         };
 
         ws.onmessage = (ev) => {
+          st.oido = Date.now();
           const m = window.BATrama.decode(ev.data);
-          if (!m) return;
+          if (!m || m.type === "pong") return;
+          // Para los que no abren el canal pero escuchan (comun/tema.js: «tema»).
+          document.dispatchEvent(new CustomEvent("ba-canal", { detail: m }));
           if (m.type === "mostrar" && m.url && opciones.onMostrar) {
             opciones.onMostrar(m.url);
             late(); // que el operador vea el cambio enseguida
+          } else if (m.type === "clave_mal") {
+            if (opciones.onClaveMal) opciones.onClaveMal();
           } else if (m.type === "recargar") {
             if (opciones.onRecargar) opciones.onRecargar();
             else location.reload();
@@ -100,6 +139,9 @@
 
         ws.onclose = () => {
           clearInterval(st.latido);
+          clearInterval(st.ping);
+          if (st.conectado) window.BACanal.abiertos--;
+          estado(false);
           reintentar();
         };
         ws.onerror = () => { try { ws.close(); } catch (e) {} };
@@ -116,7 +158,12 @@
       // Al volver de estar escondida, avisa enseguida en vez de esperar.
       document.addEventListener("visibilitychange", () => { if (!document.hidden) late(); });
       conectar();
-      return { late, cerrar() { st.cerrado = true; try { st.ws.close(); } catch (e) {} } };
+      return {
+        late,
+        mandar,
+        conectado: () => st.conectado,
+        cerrar() { st.cerrado = true; try { st.ws.close(); } catch (e) {} },
+      };
     },
   };
 })();

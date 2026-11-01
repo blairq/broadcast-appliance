@@ -487,5 +487,5 @@ ba_revisar_requisitos()
 # venv de desarrollo (make pytest); sin venv, no se registran.
 if(EXISTS "${CMAKE_SOURCE_DIR}/.venv/bin/python")
     add_test(NAME test_codigo_py COMMAND "${CMAKE_SOURCE_DIR}/.venv/bin/python" -m pytest -q
-             tests/test_escritor_unico.py tests/test_temporales.py tests/test_i18n.py tests/test_caos_comparar.py WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}")
+             tests/test_escritor_unico.py tests/test_temporales.py tests/test_i18n.py tests/test_caos_comparar.py tests/test_republicadores.py WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}")
 endif()
