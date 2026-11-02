@@ -599,6 +599,9 @@ class DecodificadorMf : public webrtc::VideoDecoder {
     }
 
     int32_t fallo(const char* que, HRESULT hr) {
+        static std::atomic<bool> dicho{false};
+        if (!hw_ && !dicho.exchange(true))
+            aviso(std::string("video: el decodificador H.264 por software falla (") + que + " " + hex(hr) + ")");
         // Con la placa, varios errores seguidos: se rehace por software (un cuadro clave
         // lo pide libwebrtc al ver el error).
         if (hw_ && ++errores_ >= 3) {
