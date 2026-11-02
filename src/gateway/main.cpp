@@ -616,6 +616,10 @@ int main(int argc, char** argv) {
     roomCfg.name = cfg.room;
     roomCfg.maxGuests = cfg.guests;
     roomCfg.reserva = kMaxInvitados; // el cupo sube en caliente hasta el tope
+    // Los que esperan a la vez (lobby, o la sala llena): tantos como el tope. Con 16 (el de
+    // Room), una sala grande que abre con el lobby prendido rechazaba al 17.º («lobby_full»).
+    // Esperar no abre WebRTC (las cámaras del lobby son lobbySlots): es su WebSocket.
+    roomCfg.maxWaiting = kMaxInvitados;
     roomCfg.lobby = cfg.lobby;
     roomCfg.lobbySlots = cfg.lobbySlots;
     roomCfg.backstageSlots = cfg.backstagePreviews;
