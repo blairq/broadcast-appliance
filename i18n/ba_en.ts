@@ -41169,7 +41169,22 @@ Choose something else in Outputs → Screens.</translation>
         <translation>Each conference connection opens one UDP port per network on the machine. Virtual ones (virtual machines, Docker, VPNs such as Tailscale) are of no use to any guest and waste the range: by default they are not used. Turn it on only if guests connect through a VPN.</translation>
     </message>
     <message>
-        <location line="+34"/>
+        <location line="+18"/>
+        <source>Interfaz trabada: sacar las pilas a los</source>
+        <translation>Frozen interface: capture the stacks after</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Mientras la interfaz sigue trabada, las pilas de todos los hilos van a Logs/dumps (A-…-traba-….pila o .dmp) y el registro dice dónde estaba. En Windows el volcado congela el proceso un instante. 0: no se sacan.</source>
+        <translation>While the interface is still frozen, the stacks of all threads go to Logs/dumps (A-…-traba-….pila or .dmp) and the log says where it was. On Windows the dump freezes the process for an instant. 0: not captured.</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Interfaz trabada: pilas como mucho cada</source>
+        <translation>Frozen interface: stacks at most every</translation>
+    </message>
+    <message>
+        <location line="+17"/>
         <source>Emisor aparte (prueba)</source>
         <translation>Separate emitter (test)</translation>
     </message>
@@ -41244,7 +41259,7 @@ Choose something else in Outputs → Screens.</translation>
         <translation>isn&apos;t one of the options</translation>
     </message>
     <message>
-        <location line="-216"/>
+        <location line="-218"/>
         <source>Mensajes de chat que se guardan</source>
         <translation>Chat messages kept</translation>
     </message>
@@ -42225,7 +42240,7 @@ Choose something else in Outputs → Screens.</translation>
         <translation>The alert; what happens next is set in the health card.</translation>
     </message>
     <message>
-        <location line="+1"/>
+        <location line="+3"/>
         <source>Cartel «volvimos de una caída»</source>
         <translation>“Recovered from a crash” banner</translation>
     </message>
@@ -46558,7 +46573,7 @@ Data (from %2): %3</translation>
 <context>
     <name>caidas</name>
     <message>
-        <location filename="../src/core/diag/CaidaCompartida.hpp" line="+67"/>
+        <location filename="../src/core/diag/CaidaCompartida.hpp" line="+87"/>
         <source>violación de acceso</source>
         <translation>access violation</translation>
     </message>
@@ -46608,7 +46623,7 @@ Data (from %2): %3</translation>
         <translation>exception</translation>
     </message>
     <message>
-        <location filename="../src/launcher/Volcados.cpp" line="+107"/>
+        <location filename="../src/launcher/Volcados.cpp" line="+116"/>
         <source>terminó sin código</source>
         <translation>ended without a code</translation>
     </message>
@@ -46666,13 +46681,13 @@ Data (from %2): %3</translation>
         <location line="+5"/>
         <location filename="../src/launcher/Volcados.cpp" line="-5"/>
         <location line="+131"/>
-        <location line="+185"/>
+        <location line="+257"/>
         <source>se colgó (dejó de latir)</source>
         <translation>hung (heartbeat stopped)</translation>
     </message>
     <message>
-        <location filename="../src/launcher/Volcados.cpp" line="-189"/>
-        <location line="+195"/>
+        <location filename="../src/launcher/Volcados.cpp" line="-261"/>
+        <location line="+267"/>
         <source>%1 en %2</source>
         <translation>%1 in %2</translation>
     </message>
@@ -48256,9 +48271,39 @@ Data (from %2): %3</translation>
 <context>
     <name>diag</name>
     <message>
-        <location filename="../src/core/diag/VigiaBucle.cpp" line="+138"/>
+        <location filename="../src/core/diag/VigiaBucle.cpp" line="+172"/>
         <source>el bucle de la interfaz se demoró %1 ms (corría: %2)</source>
         <translation>the UI loop was delayed %1 ms (running: %2)</translation>
+    </message>
+    <message>
+        <location filename="../src/core/diag/VigiaTraba.cpp" line="+189"/>
+        <source>la interfaz lleva %1 ms trabada y no se pudieron sacar las pilas: %2</source>
+        <translation>the interface has been frozen for %1 ms and the stacks could not be captured: %2</translation>
+    </message>
+    <message>
+        <location line="+25"/>
+        <source>la interfaz lleva %1 ms trabada: las pilas de todos los hilos quedaron en %2</source>
+        <translation>the interface has been frozen for %1 ms: the stacks of all threads were saved to %2</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source> · la interfaz: %1</source>
+        <translation> · interface: %1</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source> · el render de Qt: %1</source>
+        <translation> · Qt render: %1</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source> · corría: %1</source>
+        <translation> · running: %1</translation>
+    </message>
+    <message>
+        <location line="+17"/>
+        <source>la traba de la interfaz duró unos %1 ms (pilas en %2)</source>
+        <translation>the interface freeze lasted about %1 ms (stacks in %2)</translation>
     </message>
 </context>
 <context>
@@ -49124,7 +49169,7 @@ Data (from %2): %3</translation>
 <context>
     <name>dump</name>
     <message>
-        <location filename="../src/launcher/Volcados.cpp" line="-210"/>
+        <location filename="../src/launcher/Volcados.cpp" line="-282"/>
         <source>no se pudo abrir el proceso (%1)</source>
         <translation>couldn&apos;t open the process (%1)</translation>
     </message>
@@ -49134,7 +49179,7 @@ Data (from %2): %3</translation>
         <translation>MiniDumpWriteDump failed (%1)</translation>
     </message>
     <message>
-        <location line="+37"/>
+        <location line="+100"/>
         <source>no se pudo crear el canal de caídas de %1</source>
         <translation>couldn&apos;t create the crash channel for %1</translation>
     </message>

@@ -39694,7 +39694,22 @@ Choisissez autre chose dans Sorties → Écrans.</translation>
         <translation>Chaque connexion de la conférence ouvre un port UDP par réseau de la machine. Les réseaux virtuels (machines virtuelles, Docker, VPN comme Tailscale) ne servent à aucun invité et consomment la plage : par défaut, ils ne sont pas utilisés. Activez cette option seulement si les invités arrivent par un VPN.</translation>
     </message>
     <message>
-        <location line="+34"/>
+        <location line="+18"/>
+        <source>Interfaz trabada: sacar las pilas a los</source>
+        <translation>Interface figée : capturer les piles après</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Mientras la interfaz sigue trabada, las pilas de todos los hilos van a Logs/dumps (A-…-traba-….pila o .dmp) y el registro dice dónde estaba. En Windows el volcado congela el proceso un instante. 0: no se sacan.</source>
+        <translation>Tant que l&apos;interface reste figée, les piles de tous les threads vont dans Logs/dumps (A-…-traba-….pila ou .dmp) et le journal indique où elle en était. Sous Windows, le vidage fige le processus un instant. 0 : pas de capture.</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Interfaz trabada: pilas como mucho cada</source>
+        <translation>Interface figée : piles au plus toutes les</translation>
+    </message>
+    <message>
+        <location line="+17"/>
         <source>Emisor aparte (prueba)</source>
         <translation>Émetteur séparé (test)</translation>
     </message>
@@ -39769,7 +39784,7 @@ Choisissez autre chose dans Sorties → Écrans.</translation>
         <translation>n&apos;est pas une des options</translation>
     </message>
     <message>
-        <location line="-216"/>
+        <location line="-218"/>
         <source>Mensajes de chat que se guardan</source>
         <translation>Messages de chat conservés</translation>
     </message>
@@ -40750,7 +40765,7 @@ Choisissez autre chose dans Sorties → Écrans.</translation>
         <translation>L&apos;alerte&#xa0;; la suite se règle dans la carte de santé.</translation>
     </message>
     <message>
-        <location line="+1"/>
+        <location line="+3"/>
         <source>Cartel «volvimos de una caída»</source>
         <translation>Bandeau «&#xa0;reprise après un plantage&#xa0;»</translation>
     </message>
@@ -46558,7 +46573,7 @@ Données (de %2)&#xa0;: %3</translation>
 <context>
     <name>caidas</name>
     <message>
-        <location filename="../src/core/diag/CaidaCompartida.hpp" line="+67"/>
+        <location filename="../src/core/diag/CaidaCompartida.hpp" line="+87"/>
         <source>violación de acceso</source>
         <translation>violation d&apos;accès</translation>
     </message>
@@ -46608,7 +46623,7 @@ Données (de %2)&#xa0;: %3</translation>
         <translation>exception</translation>
     </message>
     <message>
-        <location filename="../src/launcher/Volcados.cpp" line="+107"/>
+        <location filename="../src/launcher/Volcados.cpp" line="+116"/>
         <source>terminó sin código</source>
         <translation>terminé sans code</translation>
     </message>
@@ -46666,13 +46681,13 @@ Données (de %2)&#xa0;: %3</translation>
         <location line="+5"/>
         <location filename="../src/launcher/Volcados.cpp" line="-5"/>
         <location line="+131"/>
-        <location line="+185"/>
+        <location line="+257"/>
         <source>se colgó (dejó de latir)</source>
         <translation>s&apos;est figé (plus de battement)</translation>
     </message>
     <message>
-        <location filename="../src/launcher/Volcados.cpp" line="-189"/>
-        <location line="+195"/>
+        <location filename="../src/launcher/Volcados.cpp" line="-261"/>
+        <location line="+267"/>
         <source>%1 en %2</source>
         <translation>%1 dans %2</translation>
     </message>
@@ -48256,9 +48271,39 @@ Données (de %2)&#xa0;: %3</translation>
 <context>
     <name>diag</name>
     <message>
-        <location filename="../src/core/diag/VigiaBucle.cpp" line="+138"/>
+        <location filename="../src/core/diag/VigiaBucle.cpp" line="+172"/>
         <source>el bucle de la interfaz se demoró %1 ms (corría: %2)</source>
         <translation>la boucle de l&apos;interface a pris %1 ms (en cours&#xa0;: %2)</translation>
+    </message>
+    <message>
+        <location filename="../src/core/diag/VigiaTraba.cpp" line="+189"/>
+        <source>la interfaz lleva %1 ms trabada y no se pudieron sacar las pilas: %2</source>
+        <translation>l&apos;interface est figée depuis %1 ms et les piles n&apos;ont pas pu être capturées : %2</translation>
+    </message>
+    <message>
+        <location line="+25"/>
+        <source>la interfaz lleva %1 ms trabada: las pilas de todos los hilos quedaron en %2</source>
+        <translation>l&apos;interface est figée depuis %1 ms : les piles de tous les threads sont dans %2</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source> · la interfaz: %1</source>
+        <translation> · interface : %1</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source> · el render de Qt: %1</source>
+        <translation> · rendu Qt : %1</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source> · corría: %1</source>
+        <translation> · en cours : %1</translation>
+    </message>
+    <message>
+        <location line="+17"/>
+        <source>la traba de la interfaz duró unos %1 ms (pilas en %2)</source>
+        <translation>le blocage de l&apos;interface a duré environ %1 ms (piles dans %2)</translation>
     </message>
 </context>
 <context>
@@ -49124,7 +49169,7 @@ Données (de %2)&#xa0;: %3</translation>
 <context>
     <name>dump</name>
     <message>
-        <location filename="../src/launcher/Volcados.cpp" line="-210"/>
+        <location filename="../src/launcher/Volcados.cpp" line="-282"/>
         <source>no se pudo abrir el proceso (%1)</source>
         <translation>impossible d&apos;ouvrir le processus (%1)</translation>
     </message>
@@ -49134,7 +49179,7 @@ Données (de %2)&#xa0;: %3</translation>
         <translation>MiniDumpWriteDump a échoué (%1)</translation>
     </message>
     <message>
-        <location line="+37"/>
+        <location line="+100"/>
         <source>no se pudo crear el canal de caídas de %1</source>
         <translation>impossible de créer le canal de plantages de %1</translation>
     </message>
