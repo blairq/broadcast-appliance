@@ -31,6 +31,8 @@ class MedidorCeldas {
     void sacar();
     /// Un cuadro a mano (la vista del programa), desde cualquier hilo.
     void cuadro(const std::uint8_t* px, int w, int h, int stride, std::uint64_t indice = 0);
+    /// Cambió la disposición (AnalisisCeldas::cambiar), ahora; desde cualquier hilo.
+    void cambiar(const std::vector<AnalisisCeldas::Celda>& celdas);
     /// AnalisisCeldas::resumen.
     nlohmann::json resumen() const;
 

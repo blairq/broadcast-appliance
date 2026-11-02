@@ -11,7 +11,8 @@
 // (p50/p95/máx: el ritmo, lo que se ve como «no fluido») y los huecos (intervalos de más
 // de 1,5 veces el período de lo que manda su capa). Del mosaico entero: los cuadros que
 // llegaron, sus intervalos y los que el emisor publicó y no se leyeron (el número de
-// cuadro del canal, si viene: GST_BUFFER_OFFSET en bavideoanillocomun).
+// cuadro del canal, si viene: GST_BUFFER_OFFSET en bavideoanillocomun). Si la disposición
+// cambia en el medio (cambiar), cada celda que cambió de lugar o de capa se mide por tramos.
 //
 // Puro (sin GStreamer): lo usa MedidorCeldas (una sonda en un pad) y la vista del
 // programa (Motor::verAvisar). No toma candados: quien lo usa desde dos hilos lo protege.
@@ -45,7 +46,49 @@ class AnalisisCeldas {
 
     explicit AnalisisCeldas(std::vector<Celda> celdas = {}) : celdas_(std::move(celdas)), estado_(celdas_.size()) {}
 
+    /// Los tramos medidos (cada celda, y otra vez cada vez que cambió de lugar o de capa).
     const std::vector<Celda>& celdas() const { return celdas_; }
+
+    /// Lo que se espera después de un cambio antes de medir el tramo nuevo: la animación del
+    /// lugar (transicion_ms), el cuadro clave y el fundido de la baja a la HD.
+    static constexpr std::int64_t kAsentarNs = 1'000'000'000LL;
+    /// Un tramo cortado por un cambio que midió menos que esto no entra en el resumen.
+    static constexpr double kTramoMinimoS = 2.0;
+
+    /// La disposición cambió a `tNs` (la app mandó otra): la celda que cambió de lugar o de
+    /// capa (o se fue) cierra su tramo; la que cambió o llegó abre uno nuevo, que se mide
+    /// desde kAsentarNs después. Antes, una celda medida con la capa del principio pasaba en
+    /// el medio de la baja (15) a la alta (30) y daba «alta a 18 cps».
+    void cambiar(const std::vector<Celda>& nuevas, std::int64_t tNs) {
+        const auto igual = [](const Celda& a, const Celda& b) {
+            constexpr double eps = 1e-4;
+            return a.capa == b.capa && std::abs(a.x - b.x) < eps && std::abs(a.y - b.y) < eps && std::abs(a.w - b.w) < eps &&
+                   std::abs(a.h - b.h) < eps;
+        };
+        std::vector<bool> sigue(nuevas.size(), false);
+        for (std::size_t i = 0; i < celdas_.size(); ++i) {
+            Estado& e = estado_[i];
+            if (e.hastaNs >= 0) continue; // ya cerrado
+            bool queda = false;
+            for (std::size_t j = 0; j < nuevas.size(); ++j)
+                if (!sigue[j] && nuevas[j].id == celdas_[i].id && igual(nuevas[j], celdas_[i])) {
+                    sigue[j] = queda = true;
+                    break;
+                }
+            if (!queda) {
+                e.hastaNs = tNs;
+                e.cortado = true;
+            }
+        }
+        for (std::size_t j = 0; j < nuevas.size(); ++j) {
+            if (sigue[j]) continue;
+            celdas_.push_back(nuevas[j]);
+            Estado e;
+            e.desdeNs = tNs + kAsentarNs;
+            e.cortado = true;
+            estado_.push_back(std::move(e));
+        }
+    }
 
     /// La firma de la zona (fracciones) de un cuadro de 4 bytes por píxel. Pública para las pruebas.
     static std::uint64_t firma(const std::uint8_t* px, int w, int h, int stride, double x, double y, double cw, double ch) {
@@ -85,6 +128,9 @@ class AnalisisCeldas {
         for (std::size_t i = 0; i < celdas_.size(); ++i) {
             const Celda& c = celdas_[i];
             Estado& e = estado_[i];
+            if (tNs < e.desdeNs || (e.hastaNs >= 0 && tNs >= e.hastaNs)) continue; // fuera de su tramo
+            if (!e.vista) e.primerNs = tNs;
+            e.ultimoNs = tNs;
             const std::uint64_t f = firma(px, w, h, stride, c.x, c.y, c.w, c.h);
             if (e.vista && f == e.firma) {
                 ++e.repetidos;
@@ -130,12 +176,18 @@ class AnalisisCeldas {
                  {"repetidos", repetidosCanal_}};
         json celdas = json::array();
         std::vector<double> cps;
-        int debajo = 0, conRef = 0;
+        int debajo = 0, conRef = 0, cortos = 0;
         for (std::size_t i = 0; i < celdas_.size(); ++i) {
             const Celda& c = celdas_[i];
             const Estado& e = estado_[i];
-            // Los cuadros nuevos sobre el tiempo entre el primero que se vio y el último.
-            const double f = seg > 0 ? static_cast<double>(e.nuevos) / seg : 0.0;
+            // Los cuadros nuevos sobre el tiempo entre el primero que se vio y el último (el
+            // del mosaico; el de su tramo si un cambio lo cortó).
+            const double segTramo = e.cortado ? (e.vista ? static_cast<double>(e.ultimoNs - e.primerNs) / 1e9 : 0.0) : seg;
+            if (e.cortado && segTramo < kTramoMinimoS) {
+                ++cortos;
+                continue;
+            }
+            const double f = segTramo > 0 ? static_cast<double>(e.nuevos) / segTramo : 0.0;
             cps.push_back(f);
             int huecos = 0;
             if (c.referenciaCps > 0)
@@ -149,13 +201,15 @@ class AnalisisCeldas {
             json x{{"id", c.id},           {"capa", c.capa},        {"referencia_cps", c.referenciaCps},
                    {"cps", r2(f)},         {"nuevos", e.nuevos},     {"repetidos", e.repetidos},
                    {"intervalo_ms", ms(e.intervalos)}, {"huecos", huecos}, {"por_debajo", bajo}};
+            if (e.cortado) x["segundos"] = r2(segTramo); // un tramo: la celda cambió en el medio
             celdas.push_back(std::move(x));
         }
-        out["celdas"] = std::move(celdas);
-        out["resumen"] = {{"celdas", celdas_.size()},
+        out["resumen"] = {{"celdas", celdas.size()},
+                          {"tramos_cortos", cortos},
                           {"cps_p50", cps.empty() ? 0.0 : r2(percentil(cps, 0.5))},
                           {"cps_p5", cps.empty() ? 0.0 : r2(percentil(cps, 0.05))},
                           {"por_debajo_pct", conRef > 0 ? std::round(1000.0 * debajo / conRef) / 10 : 0.0}};
+        out["celdas"] = std::move(celdas);
         return out;
     }
 
@@ -166,6 +220,10 @@ class AnalisisCeldas {
         std::int64_t cambioNs = 0;
         std::uint64_t nuevos = 0, repetidos = 0;
         std::vector<double> intervalos; ///< ms entre un cuadro nuevo y el anterior
+        // El tramo (cambiar): se mide desde `desdeNs` hasta `hastaNs` (−1: abierto).
+        std::int64_t desdeNs = 0, hastaNs = -1;
+        std::int64_t primerNs = 0, ultimoNs = 0; ///< el primer y el último cuadro del tramo
+        bool cortado = false; ///< un cambio lo abrió o lo cerró (cuenta su propio tiempo)
     };
     std::vector<Celda> celdas_;
     std::vector<Estado> estado_;

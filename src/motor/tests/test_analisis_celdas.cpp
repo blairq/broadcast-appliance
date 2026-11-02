@@ -4,7 +4,8 @@
 //     cambia uno sí y uno no, a la mitad; una quieta, a 0;
 //   - los intervalos entre cuadros nuevos y los huecos (contra lo que manda su capa);
 //   - el rótulo de abajo de la celda (que no cambia con la cara) no cuenta;
-//   - los cuadros que el emisor publicó y no se leyeron (saltos del número de cuadro).
+//   - los cuadros que el emisor publicó y no se leyeron (saltos del número de cuadro);
+//   - los tramos: la celda que cambia de capa o de lugar en el medio se mide por tramo.
 
 #include "AnalisisCeldas.hpp"
 
@@ -92,6 +93,40 @@ int main() {
         AnalisisCeldas a({{"x", "", 0, 0, 1, 1, 0}});
         const auto r = a.resumen();
         check(r["cuadros"] == 0 && r["celdas"][0]["cps"] == 0.0 && r["celdas"][0]["intervalo_ms"].is_null(), "sin cuadros: ceros");
+    }
+    {
+        // Tramos: «x» va en la baja (15) 5 s y pasa a la alta (30) 10 s; «y» no cambia (15);
+        // «z» se va a los 1,5 s. Cada tramo se mide aparte (el nuevo, desde 1 s después del
+        // cambio); el de menos de 2 s no entra. Antes «x» daba un promedio (≈ 23) contra 30.
+        const AnalisisCeldas::Celda xBaja{"x", "baja", 0.0, 0.0, 0.5, 0.5, 15}, xAlta{"x", "alta", 0.0, 0.0, 0.5, 0.5, 30};
+        const AnalisisCeldas::Celda y{"y", "baja", 0.5, 0.0, 0.5, 0.5, 15}, z{"z", "baja", 0.0, 0.5, 0.5, 0.5, 15};
+        AnalisisCeldas a({xBaja, y, z});
+        std::vector<std::uint8_t> px(static_cast<std::size_t>(W) * H * 4, 0);
+        const std::int64_t periodo = 33'333'333;
+        for (int n = 0; n <= 450; ++n) {
+            const std::int64_t t = n * periodo;
+            if (n == 45) a.cambiar({xBaja, y}, t);   // se va «z»
+            if (n == 150) a.cambiar({xAlta, y}, t);  // «x» pasa a la alta
+            pintar(px, 0, 0, 100, 50, static_cast<std::uint8_t>(n < 150 ? n / 2 : n)); // x: 15 y después 30
+            pintar(px, 100, 0, 100, 50, static_cast<std::uint8_t>(n / 2));             // y: 15
+            pintar(px, 0, 50, 100, 50, static_cast<std::uint8_t>(n / 2));              // z: 15
+            a.cuadro(px.data(), W, H, W * 4, t);
+        }
+        const auto r = a.resumen();
+        std::printf("%s\n", r["celdas"].dump().c_str());
+        const auto& c = r["celdas"];
+        check(c.size() == 3 && r["resumen"]["tramos_cortos"] == 1, "tres tramos (x baja, y, x alta); el de «z» es corto");
+        bool xb = false, xa = false, yy = false;
+        for (const auto& t : c) {
+            const double cps = t["cps"].get<double>();
+            if (t["id"] == "x" && t["capa"] == "baja") xb = std::abs(cps - 15.0) < 0.5 && !t["por_debajo"].get<bool>();
+            if (t["id"] == "x" && t["capa"] == "alta")
+                xa = std::abs(cps - 30.0) < 0.5 && !t["por_debajo"].get<bool>() && std::abs(t["segundos"].get<double>() - 9.0) < 0.1;
+            if (t["id"] == "y") yy = std::abs(cps - 15.0) < 0.5 && !t.contains("segundos");
+        }
+        check(xb, "«x» en la baja: 15");
+        check(xa, "«x» en la alta: 30, medida 9 s (desde 1 s después del cambio)");
+        check(yy, "«y», sin cambios: 15 sobre toda la medición");
     }
     std::printf("%s\n", fallos == 0 ? "TODO OK" : "HAY FALLAS");
     return fallos == 0 ? 0 : 1;

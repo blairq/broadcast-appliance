@@ -85,6 +85,12 @@ void MedidorCeldas::cuadro(const std::uint8_t* px, int w, int h, int stride, std
     d_->a.cuadro(px, w, h, stride, t, indice);
 }
 
+void MedidorCeldas::cambiar(const std::vector<AnalisisCeldas::Celda>& celdas) {
+    const std::int64_t t = ahoraNs();
+    std::lock_guard<std::mutex> l(d_->mu);
+    d_->a.cambiar(celdas, t);
+}
+
 nlohmann::json MedidorCeldas::resumen() const {
     std::lock_guard<std::mutex> l(d_->mu);
     return d_->a.resumen();

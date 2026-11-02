@@ -51,6 +51,33 @@ QJsonArray aQtLista(const json& j) {
     return QJsonDocument::fromJson(QByteArray::fromStdString(j.dump(-1, ' ', false, json::error_handler_t::replace))).array();
 }
 
+/// Las celdas de una grilla del pedido al gateway, en fracciones de su lienzo, con lo que
+/// manda la capa de cada una (gateway/Capas.hpp: la baja, 15 cps; la alta, la cámara, 30).
+std::vector<motor::AnalisisCeldas::Celda> celdasAMedir(const json& g) {
+    std::vector<motor::AnalisisCeldas::Celda> out;
+    const double W = g.value("ancho", 0.0), H = g.value("alto", 0.0);
+    if (W <= 0 || H <= 0) return out;
+    for (const auto& c : g.value("celdas", json::array())) {
+        const std::string capa = c.value("capa", std::string());
+        const double ref = capa == "baja" ? 15.0 : capa == "alta" ? 30.0 : 0.0;
+        out.push_back({c.value("persona", std::string()), capa, c.value("x", 0.0) / W, c.value("y", 0.0) / H,
+                       c.value("w", 0.0) / W, c.value("h", 0.0) / H, ref});
+    }
+    return out;
+}
+
+/// Las mismas, donde está la grilla en el programa (`programa_rect`).
+std::vector<motor::AnalisisCeldas::Celda> enPrograma(std::vector<motor::AnalisisCeldas::Celda> celdas, double px, double py,
+                                                     double pw, double ph) {
+    for (auto& c : celdas) {
+        c.x = px + c.x * pw;
+        c.y = py + c.y * ph;
+        c.w *= pw;
+        c.h *= ph;
+    }
+    return celdas;
+}
+
 const char* nombreOrigen(grilla::Origen o) {
     return o == grilla::Origen::Sala ? "sala" : o == grilla::Origen::Asamblea ? "asamblea" : "ambas";
 }
@@ -470,6 +497,7 @@ void ControlGrillas::recalcular() {
     const json pedido = grilla::pedidoGateway(cfgs, res);
     if (pedido == ultimoPedido_ || !p_.sala.online()) return;
     ultimoPedido_ = pedido;
+    avisarMedicion(pedido);
     p_.sala.post("/api/v1/grillas", aQt(pedido), [this](bool ok, const QJsonObject&) {
         if (!ok) ultimoPedido_ = json(); // la próxima vuelta lo vuelve a mandar
     });
@@ -482,6 +510,18 @@ ControlGrillas::~ControlGrillas() {
     }
     medirCv_.notify_all();
     if (hiloMedir_.joinable()) hiloMedir_.join();
+}
+
+void ControlGrillas::avisarMedicion(const json& pedido) {
+    std::lock_guard<std::mutex> l(medirMu_);
+    if (midiendoGrillas_.empty()) return;
+    for (const Midiendo& m : midiendoGrillas_) {
+        std::vector<motor::AnalisisCeldas::Celda> celdas; // la grilla que no viene se apagó: sin celdas
+        for (const auto& g : pedido.value("grillas", json::array()))
+            if (g.value("canal", 0) == m.canal) celdas = celdasAMedir(g);
+        if (m.entrada) m.entrada->cambiar(celdas);
+        if (m.programa) m.programa->cambiar(enPrograma(celdas, m.px, m.py, m.pw, m.ph));
+    }
 }
 
 std::string ControlGrillas::medir(int segundos, const json& opciones, std::function<void(const json&)> listo) {
@@ -501,7 +541,7 @@ std::string ControlGrillas::medir(int segundos, const json& opciones, std::funct
         int canal = 0;
         bool alAire = false;
         std::vector<motor::AnalisisCeldas::Celda> celdas;
-        std::unique_ptr<motor::MedidorCeldas> entrada;
+        std::shared_ptr<motor::MedidorCeldas> entrada; ///< lo comparte avisarMedicion
         std::shared_ptr<motor::MedidorCeldas> programa; ///< lo comparte el aviso de la vista
         std::string error;
     };
@@ -516,15 +556,8 @@ std::string ControlGrillas::medir(int segundos, const json& opciones, std::funct
         if (f == fuenteDe.end() || f->second.first.empty()) continue;
         x.fuente = f->second.first;
         x.alAire = f->second.second;
-        const double W = g.value("ancho", 0.0), H = g.value("alto", 0.0);
-        if (W <= 0 || H <= 0) continue;
-        for (const auto& c : g.value("celdas", json::array())) {
-            const std::string capa = c.value("capa", std::string());
-            // Lo que manda cada capa (gateway/Capas.hpp): la baja, 15 cps; la alta, la cámara (30).
-            const double ref = capa == "baja" ? 15.0 : capa == "alta" ? 30.0 : 0.0;
-            x.celdas.push_back({c.value("persona", std::string()), capa, c.value("x", 0.0) / W, c.value("y", 0.0) / H,
-                                c.value("w", 0.0) / W, c.value("h", 0.0) / H, ref});
-        }
+        if (g.value("ancho", 0.0) <= 0 || g.value("alto", 0.0) <= 0) continue;
+        x.celdas = celdasAMedir(g);
         grillas->push_back(std::move(x));
     }
     if (grillas->empty()) return ba::i18n::traducir("escenas", "no hay ninguna grilla de personas andando");
@@ -557,7 +590,7 @@ std::string ControlGrillas::medir(int segundos, const json& opciones, std::funct
         json vueltas0;
         for (Grilla& g : *grillas) {
             // En la entrada: apenas sale del lector común (ba_origen, memoria de sistema).
-            g.entrada = std::make_unique<motor::MedidorCeldas>(g.celdas);
+            g.entrada = std::make_shared<motor::MedidorCeldas>(g.celdas);
             if (GstElement* p = mot->pipelineDeEntrada(g.fuente)) {
                 if (anillo == nullptr) {
                     anillo = gst_bin_get_by_name(GST_BIN(p), "ba_anillo");
@@ -578,14 +611,7 @@ std::string ControlGrillas::medir(int segundos, const json& opciones, std::funct
             }
             // En el programa: la primera que está al aire, donde diga programa_rect.
             if (g.alAire && !conVista) {
-                std::vector<motor::AnalisisCeldas::Celda> enPrograma = g.celdas;
-                for (auto& c : enPrograma) {
-                    c.x = px + c.x * pw;
-                    c.y = py + c.y * ph;
-                    c.w *= pw;
-                    c.h *= ph;
-                }
-                g.programa = std::make_shared<motor::MedidorCeldas>(std::move(enPrograma));
+                g.programa = std::make_shared<motor::MedidorCeldas>(enPrograma(g.celdas, px, py, pw, ph));
                 if (mot->verPedir(kVista, 960, 540).empty()) {
                     conVista = true;
                     mot->verAvisar(kVista, [m = g.programa](const motor::Cuadro& c) {
@@ -596,7 +622,10 @@ std::string ControlGrillas::medir(int segundos, const json& opciones, std::funct
         }
         {
             std::unique_lock<std::mutex> l(medirMu_);
+            // Mientras mide, otra disposición corta los tramos de las celdas que cambian.
+            for (const Grilla& g : *grillas) midiendoGrillas_.push_back({g.canal, g.entrada, g.programa, px, py, pw, ph});
             medirCv_.wait_for(l, std::chrono::seconds(segundos), [this] { return cortarMedir_; });
+            midiendoGrillas_.clear();
         }
         if (conVista) {
             mot->verAvisar(kVista, nullptr);

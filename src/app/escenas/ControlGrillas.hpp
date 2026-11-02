@@ -55,6 +55,7 @@
 #include <cstdint>
 #include <functional>
 #include <map>
+#include <memory>
 #include <mutex>
 #include <set>
 #include <string>
@@ -70,6 +71,9 @@ class VentanillaMotor;
 namespace ba::app::asamblea {
 class Cuerpo;
 class SesionRemota;
+}
+namespace ba::motor {
+class MedidorCeldas;
 }
 
 namespace ba::app::escenas {
@@ -199,6 +203,15 @@ class ControlGrillas : public QObject {
     std::condition_variable medirCv_;
     bool midiendo_ = false;  ///< bajo medirMu_
     bool cortarMedir_ = false; ///< bajo medirMu_: se va (el destructor)
+    /// Lo que se está midiendo, por canal: si la app manda otra disposición en el medio, cada
+    /// medidor corta los tramos de las celdas que cambiaron (avisarMedicion).
+    struct Midiendo {
+        int canal = 0;
+        std::shared_ptr<ba::motor::MedidorCeldas> entrada, programa;
+        double px = 0, py = 0, pw = 1, ph = 1; ///< dónde está la grilla en el programa
+    };
+    std::vector<Midiendo> midiendoGrillas_; ///< bajo medirMu_
+    void avisarMedicion(const json& pedido);
     QTimer reloj_;  ///< el programa y las fuentes cambian por muchos caminos: se mira seguido
     QTimer pronto_; ///< junta varios avisos seguidos en una sola vuelta
 };
