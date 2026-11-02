@@ -16,8 +16,10 @@
 // ============================================================================
 #pragma once
 
+#include <cstdint>
 #include <string>
 #include <string_view>
+#include <vector>
 
 namespace ba::platform {
 
@@ -26,5 +28,14 @@ void nombrarHilo(std::string_view nombre);
 
 /// El nombre del hilo que llama ("" si no tiene o el sistema no lo dice).
 std::string nombreDelHilo();
+
+struct HiloDeProceso {
+    std::uint64_t id = 0;
+    std::string nombre;
+};
+/// Los hilos del proceso `pid` con su nombre (GetThreadDescription). Solo
+/// Windows (lo usa el volcado de una traba: el minidump no siempre trae los
+/// nombres); en macOS y Linux, vacío: allá las pilas ya los traen.
+std::vector<HiloDeProceso> hilosDelProceso(std::uint32_t pid);
 
 } // namespace ba::platform

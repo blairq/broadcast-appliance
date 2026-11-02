@@ -34,6 +34,10 @@
 // ============================================================================
 #pragma once
 
+#include <cstdint>
+#include <filesystem>
+#include <string>
+
 namespace ba::diag {
 
 /// Instala el manejador. Idempotente.
@@ -47,5 +51,42 @@ namespace ba::diag {
 ///
 /// :param quien: nombre del proceso, para que la linea diga cual se cayo.
 void instalarManejadorDeCaidas(const char* quien);
+
+/// El id del hilo que llama, como lo escriben las pilas: el `thread_id` de Mach
+/// (pthread_threadid_np) en macOS, el tid en Linux, GetCurrentThreadId en Windows.
+std::uint64_t idDelHilo();
+
+/// Lo que dejó una captura de pilas en vivo (capturarPilas).
+struct CapturaPilas {
+    std::filesystem::path archivo; ///< el .pila (POSIX) o el .dmp (Windows); vacío si no se pudo
+    std::filesystem::path json;    ///< el .json de al lado
+    std::string error;             ///< por qué no (vacío si salió)
+    bool porLauncher = false;      ///< Windows: lo escribió el launcher (desde afuera)
+};
+
+/// LAS PILAS DE TODOS LOS HILOS SIN CAERSE (la traba de la interfaz). Se llama
+/// desde un hilo vigía, nunca desde el que está trabado. El proceso sigue: nada
+/// se mata ni se relanza.
+///
+///   - macOS: cada hilo se congela un instante con Mach y se le sigue la cadena
+///     de punteros de marco (lo mismo que en una caída); Linux: una señal propia
+///     a cada hilo. Va a `<dir>/<base>.pila` (el formato de siempre, con
+///     «motivo <motivo>» y «interfaz <id>» en la cabecera) y su .json.
+///   - Windows: se le pide al launcher por el canal de caídas (CaidaCompartida)
+///     un minidump chico (las pilas y los hilos con su nombre, sin excepción)
+///     que escribe DESDE AFUERA; sin launcher, se vuelca solo. `<dir>/<base>.dmp`.
+///
+/// :param base: el nombre sin extensión («A-20261102-101500-traba-2000»).
+/// :param hiloInterfaz: idDelHilo() del de la interfaz (queda marcado).
+/// :param extra: lo que va además al .json (lo que corría, el umbral…), en JSON.
+CapturaPilas capturarPilas(const std::filesystem::path& dir, const std::string& base, const std::string& motivo,
+                           std::uint64_t hiloInterfaz, const std::string& extraJson = "{}");
+
+/// De las pilas de una captura (el texto del .pila), qué hacía el hilo `id`, en
+/// una línea: «esperando al hilo de render de Qt (sincronización del scene
+/// graph)», «en un bucle nativo del sistema (…)», «en código propio: …» o el
+/// módulo y la función de arriba. Vacío si ese hilo no está.
+std::string resumirPila(const std::string& texto, std::uint64_t id);
+
 
 } // namespace ba::diag

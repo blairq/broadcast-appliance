@@ -12,6 +12,7 @@
 
 #include <algorithm>
 #include <atomic>
+#include <cctype>
 #include <chrono>
 #include <cstdio>
 #include <cstring>
@@ -31,6 +32,8 @@
 #include <windows.h>
 #include <dbghelp.h>
 #include <psapi.h>
+
+#include "platform/Hilo.hpp"
 #else
 #include <csignal>
 #include <cxxabi.h>
@@ -84,13 +87,19 @@ namespace {
     return out;
 }
 
-/// Se quedan los últimos `n` volcados de `nombre` (con su .json).
+/// Se quedan los últimos `n` volcados de `nombre` (con su .json). Los de las trabas
+/// («-traba-», capturas en vivo: diag::capturarPilas) se cuentan aparte: muchas
+/// trabas no se llevan los volcados de una caída.
 [[maybe_unused]] void podar(const std::filesystem::path& dir, const std::string& nombre, std::size_t n,
-                            const char* extension = ".dmp") {
+                            const char* extension = ".dmp", bool trabas = false) {
     std::error_code ec;
     std::vector<std::filesystem::path> dmps;
-    for (const auto& e : std::filesystem::directory_iterator(dir, ec))
-        if (e.path().extension() == extension && e.path().filename().string().rfind(nombre + "-", 0) == 0) dmps.push_back(e.path());
+    for (const auto& e : std::filesystem::directory_iterator(dir, ec)) {
+        const std::string f = e.path().filename().string();
+        if (e.path().extension() == extension && f.rfind(nombre + "-", 0) == 0 &&
+            (f.find("-traba-") != std::string::npos) == trabas)
+            dmps.push_back(e.path());
+    }
     std::sort(dmps.begin(), dmps.end()); // por nombre = por hora
     for (std::size_t i = 0; i + n < dmps.size(); ++i) {
         std::filesystem::remove(dmps[i], ec);
@@ -274,6 +283,69 @@ Volcado escribir(const std::filesystem::path& dir, const std::string& nombre, st
     return v;
 }
 
+/// La captura en vivo que pidió el hijo (la interfaz trabada: diag::capturarPilas).
+/// No es una caída: un volcado chico (las pilas), los hilos con su nombre y lo que
+/// mandó el hijo en `extra`; el proceso sigue. Devuelve la ruta (UTF-8) o «error: …».
+std::string escribirTraba(const std::filesystem::path& dir, const std::string& nombre, std::uint32_t pid,
+                          const std::filesystem::path& log, const caida::Pedido& p) {
+    std::error_code ec;
+    std::filesystem::create_directories(dir, ec);
+    std::string base(p.base, strnlen(p.base, sizeof p.base));
+    // El nombre lo eligió el hijo: solo letras, números y guiones (que no salga de la carpeta).
+    base.erase(std::remove_if(base.begin(), base.end(),
+                              [](char c) { return !(std::isalnum(static_cast<unsigned char>(c)) || c == '-' || c == '_'); }),
+               base.end());
+    if (base.empty()) base = nombre + "-" + horaLocal("%Y%m%d-%H%M%S") + "-traba";
+    const std::filesystem::path dmp = dir / (base + ".dmp");
+    const std::filesystem::path js = dir / (base + ".json");
+    nlohmann::json j{{"componente", nombre == "A" ? "app" : nombre == "B" ? "gateway" : nombre},
+                     {"pid", pid},
+                     {"tipo", "traba"},
+                     {"motivo", std::string(p.tipo, strnlen(p.tipo, sizeof p.tipo))},
+                     {"hora", horaLocal("%Y-%m-%dT%H:%M:%S")},
+                     {"volcado", dmp.filename().string()},
+                     {"hilo_interfaz", p.hilo}};
+    std::string error;
+    HANDLE proc = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ | PROCESS_DUP_HANDLE, FALSE, pid);
+    if (proc == nullptr) {
+        error = "OpenProcess " + std::to_string(GetLastError());
+    } else {
+        const auto t0 = std::chrono::steady_clock::now();
+        HANDLE f = CreateFileW(dmp.wstring().c_str(), GENERIC_WRITE, 0, nullptr, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
+        bool ok = false;
+        if (f != INVALID_HANDLE_VALUE && miniDump() != nullptr) {
+            ok = miniDump()(proc, pid, f, static_cast<MINIDUMP_TYPE>(caida::kTipoVolcadoTraba), nullptr, nullptr, nullptr) != FALSE;
+            if (!ok) error = "MiniDumpWriteDump " + std::to_string(GetLastError());
+        } else {
+            error = "CreateFile " + std::to_string(GetLastError());
+        }
+        if (f != INVALID_HANDLE_VALUE) CloseHandle(f);
+        CloseHandle(proc);
+        j["volcado_ms"] = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - t0).count();
+        if (!ok) std::filesystem::remove(dmp, ec);
+    }
+    nlohmann::json hilos = nlohmann::json::array();
+    for (const auto& h : ba::platform::hilosDelProceso(pid)) hilos.push_back({{"id", h.id}, {"nombre", h.nombre}});
+    j["hilos"] = std::move(hilos);
+    const nlohmann::json extra = nlohmann::json::parse(std::string(p.extra, strnlen(p.extra, sizeof p.extra)), nullptr, false);
+    if (extra.is_object())
+        for (auto it = extra.begin(); it != extra.end(); ++it)
+            if (!j.contains(it.key())) j[it.key()] = it.value();
+    if (!error.empty()) j["error"] = error;
+    j["ultimas_lineas"] = ultimasLineas(log, 40);
+    ba::persist::escribir(js, j.dump(1, ' ', false, nlohmann::json::error_handler_t::replace));
+    podar(dir, nombre, 10, ".dmp", true);
+    BA_LOG_WARN("dump", 0, nombre + ": traba (" + std::string(p.tipo, strnlen(p.tipo, sizeof p.tipo)) + ") → " +
+                               (error.empty() ? dmp.filename().string() : error));
+    if (!error.empty()) return "error: " + error;
+    // UTF-8 de la ruta (puede tener tildes: «BroadcastAppliance Datos»).
+    const std::wstring w = dmp.wstring();
+    const int n = WideCharToMultiByte(CP_UTF8, 0, w.c_str(), -1, nullptr, 0, nullptr, nullptr);
+    std::string u(static_cast<std::size_t>(n > 1 ? n - 1 : 0), '\0');
+    if (n > 1) WideCharToMultiByte(CP_UTF8, 0, w.c_str(), -1, u.data(), n, nullptr, nullptr);
+    return u;
+}
+
 } // namespace
 
 Volcados::Volcados(std::filesystem::path logsDir) : dir_(std::move(logsDir) / "dumps") {}
@@ -309,6 +381,15 @@ std::map<std::string, std::string> Volcados::canalPara(const std::string& nombre
                 {
                     std::lock_guard<std::mutex> lc(c->mu);
                     log = c->log;
+                }
+                if (p.codigo == caida::kCodigoTraba) {
+                    // Una captura en vivo (la interfaz trabada): no es una caída, el hijo sigue.
+                    const std::string r = escribirTraba(dir, c->nombre, c->pid.load(), log, p);
+                    std::memset(c->pedido->respuesta, 0, sizeof c->pedido->respuesta);
+                    std::memcpy(c->pedido->respuesta, r.data(), std::min(r.size(), sizeof c->pedido->respuesta - 1));
+                    c->pedido->magic = 0;
+                    SetEvent(c->hecho);
+                    continue;
                 }
                 Volcado v = escribir(dir, c->nombre, c->pid.load(), log, &p);
                 {
