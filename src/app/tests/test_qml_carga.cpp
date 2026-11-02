@@ -35,6 +35,7 @@ class VideoItemFalso : public QQuickItem {
     Q_PROPERTY(FillMode fillMode MEMBER fillMode_ NOTIFY cambio)
     Q_PROPERTY(bool hasFrame READ hasFrame NOTIFY cambio)
     Q_PROPERTY(QSize frameSize READ frameSize NOTIFY cambio)
+    Q_PROPERTY(bool enVista MEMBER enVista_ NOTIFY cambio)
    public:
     enum FillMode { Fit, Cover };
     Q_ENUM(FillMode)
@@ -46,6 +47,7 @@ class VideoItemFalso : public QQuickItem {
    private:
     QString source_;
     FillMode fillMode_ = Fit;
+    bool enVista_ = true;
 };
 
 class TerminalFalsa : public QQuickItem {
