@@ -620,6 +620,7 @@ std::string Motor::agregarEntradaYa(const std::string& id, const json& ajustes, 
     }
     if (!opciones.value("audio", true)) c.pistas = 0;
     c.entrada = std::make_shared<Entrada>(*reloj_, cfg_.lienzo, id, ajustes.is_object() ? ajustes : json::object());
+    aplicarLugar(*c.entrada); // la de un lugar vacío se arma en reposo
     indexarDeApp(id, c.entrada);
     canales_[id] = std::move(c);
     for (auto& [sid, s] : salidas_) s.mandos[id] = k;
@@ -641,6 +642,7 @@ std::string Motor::actualizarEntradaYa(const std::string& id, const json& ajuste
             auto e = canales_.find(id);
             if (e == canales_.end()) return std::string();
             indexarDeApp(id, e->second.entrada); // pudo dejar de ser (o pasar a ser) de la app
+            aplicarLugar(*e->second.entrada);    // pudo pasar a leer otro canal
             aplicar(id, 0);                      // pudo pasar a tener (o dejar de tener) audio
             return std::string();
         });
@@ -2404,6 +2406,21 @@ std::string Motor::quitarMatrizBusYa(const std::string& id) {
     }
     matriz_.erase(it);
     return {};
+}
+
+void Motor::ponerLugares(const std::map<std::string, bool>& canales) {
+    orden("ponerLugares", [=, this]() {
+        BA_CON_CANDADO(mu_);
+        lugares_ = canales;
+        for (auto& [id, c] : canales_) aplicarLugar(*c.entrada);
+        return std::string();
+    });
+}
+
+void Motor::aplicarLugar(Entrada& e) const {
+    const std::string canal = e.canalAnillo();
+    const auto it = canal.empty() ? lugares_.end() : lugares_.find(canal);
+    e.ponerSinGente(it != lugares_.end() && !it->second);
 }
 
 void Motor::escuchaNivel(double lineal) {

@@ -168,7 +168,13 @@ void Mezcla::agregar(const std::string& id) {
     // Único en el pipeline: limpio, «Mic 1» y «Mic-1» quedaban iguales (y el segundo no entraba).
     const std::string n = nombreSeguro(id) + "_" + std::to_string(++serieRamas_);
     Rama r;
-    r.src = gst_element_factory_make("intersrc", ("src_" + n).c_str());
+    // SIN UN HILO POR RAMA: batoma recibe el audio de la entrada en el mismo hilo que lo
+    // trajo (baentrega, al final de la cadena de la entrada: el lector común de los anillos,
+    // el de la placa…) y lo deja en el pad del mezclador. Un intersrc era un hilo (su cola)
+    // y una despertada más por bloque y por rama: con 40 invitados en el programa y en los
+    // retornos, 80 hilos. Sin baipc, el intersrc de siempre.
+    const std::string deMezcla = productorMezcla(id);
+    r.src = gst_element_factory_make(deMezcla.empty() ? "intersrc" : "batoma", ("src_" + n).c_str());
     r.vol = gst_element_factory_make("volume", ("vol_" + n).c_str());
     r.nivel = gst_element_factory_make(medidores_ ? "level" : "identity", ("nivel_" + n).c_str());
     // El balance: «simple» baja un canal y deja el otro (con el volumen, cualquier par).
@@ -180,11 +186,15 @@ void Mezcla::agregar(const std::string& id) {
         registrar(Nivel::Error, llenar(traducir("motor", "mezcla %1: %2"), {nombre_, error_}));
         return;
     }
-    g_object_set(r.src, "producer-name", (id + ":audio").c_str(), nullptr);
-    // La cola no agrega demora: lo que no entra se tira (una entrada trabada no
-    // traba el bus). Es la del intersrc (tira lo viejo): una queue atrás era un
-    // hilo más por rama. 1,5 s: lo que sumaban las dos.
-    g_object_set(r.src, "max-time", static_cast<guint64>(ajustes::msANs("audio.colaFuenteMs", 1500)), "max-buffers", static_cast<guint64>(0), nullptr);
+    if (!deMezcla.empty()) {
+        g_object_set(r.src, "producer-name", deMezcla.c_str(), nullptr);
+    } else {
+        g_object_set(r.src, "producer-name", (id + ":audio").c_str(), nullptr);
+        // La cola no agrega demora: lo que no entra se tira (una entrada trabada no
+        // traba el bus). Es la del intersrc (tira lo viejo): una queue atrás era un
+        // hilo más por rama. 1,5 s: lo que sumaban las dos.
+        g_object_set(r.src, "max-time", static_cast<guint64>(ajustes::msANs("audio.colaFuenteMs", 1500)), "max-buffers", static_cast<guint64>(0), nullptr);
+    }
     if (medidores_)
         g_object_set(r.nivel, "interval", static_cast<guint64>(ajustes::msANs("audio.medidorMs", 50)), "post-messages", TRUE, "peak-ttl",
                      static_cast<guint64>(ajustes::msANs("audio.picoMs", 300)), nullptr);

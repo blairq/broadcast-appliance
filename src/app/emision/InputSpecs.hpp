@@ -70,6 +70,13 @@ SourceSpec audioInputSpec(const std::string& device, const std::string& name);
 /// ¿Es un micrófono del equipo? (el de GStreamer o uno viejo de antes).
 bool esMicrofono(const std::string& type, const nlohmann::json& settings);
 
+/// Los canales que escribe el gateway para el lugar `slot` de invitado: la cámara
+/// (BA.Guest.<n>), la pantalla compartida (BA.GuestShare.<n>) y el audio (BA.Audio.Guest.<n>).
+struct CanalesLugar {
+    std::string camara, pantalla, audio;
+};
+CanalesLugar canalesDeLugar(int slot);
+
 /// Los ajustes de un `ba_gst_fuente` con el audio que el gateway deja en un
 /// anillo de memoria compartida (`baanillo`): `canal` guest (el invitado
 /// `slot`) o remoto (el integrante remoto con la palabra).

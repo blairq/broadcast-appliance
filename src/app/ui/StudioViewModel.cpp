@@ -30,6 +30,7 @@
 #include "emision/VentanillaMotor.hpp"
 #include "escenas/Conmutador.hpp"
 #include "escenas/ControlGrillas.hpp"
+#include "sala/LugaresConGente.hpp"
 #include "escenas/RespaldoEntradas.hpp"
 #include "graficos/Emisor.hpp"
 #include "graficos/GraficoSource.hpp"
@@ -771,6 +772,8 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, VentanillaMotor& ventanilla, QO
                                         &asamblea_->cuerpo().cuerpo()},
         this);
     connect(grillasPersonas_.get(), &escenas::ControlGrillas::notify, this, &StudioViewModel::notify);
+    // Los lugares vacíos del cupo: sus entradas, en reposo en el motor hasta que llega alguien.
+    lugaresConGente_ = std::make_unique<sala::LugaresConGente>(conference_->client(), ventanilla_, rt_, this);
     marca("plugins");
     // Los equipos (red, esta máquina, USB): un catálogo con acciones declaradas, y
     // el registro de los dispositivos de audio y video con el nombre del operador

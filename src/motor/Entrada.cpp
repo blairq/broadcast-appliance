@@ -213,6 +213,14 @@ std::string argb(const json& v, const char* def) {
     return b;
 }
 
+/// El canal de `desc` si es SOLO `elemento canal=<canal>` (un anillo leído tal cual); si no, "".
+std::string anilloSolo(const std::string& desc, const std::string& elemento) {
+    const std::string pre = elemento + " canal=";
+    if (desc.rfind(pre, 0) != 0) return {};
+    const std::string c = desc.substr(pre.size());
+    return c.empty() || c.find_first_of(" \t!\"'") != std::string::npos ? std::string() : c;
+}
+
 std::string conComillas(const std::string& v) {
     std::string r = "\"";
     for (char c : v) {
@@ -429,6 +437,8 @@ void Entrada::ponerEnUso(bool si) {
 
 void Entrada::ponerEnUsoYa() {
     const bool si = enUso_.load();
+    ponerCpsDelAnillo();
+    aplicarReposoYa(); // una de un lugar vacío que se empieza (o deja) de mostrar
     if (!si) {
         if (sinUsoDesdeUs_ == 0) sinUsoDesdeUs_ = g_get_monotonic_time();
         return;
@@ -449,6 +459,64 @@ void Entrada::ponerEnUsoYa() {
                                                   {id_, std::to_string((g_get_monotonic_time() - t0) / 1000)}));
             },
             [this]() { rotularPlaca(); });
+    }
+}
+
+std::string Entrada::canalAnillo() const {
+    std::lock_guard<std::mutex> l(canalesM_);
+    return !canalVideo_.empty() ? canalVideo_ : canalAudio_;
+}
+
+void Entrada::ponerSinGente(bool si) {
+    if (sinGente_.exchange(si) == si) return;
+    // Lo llama el bucle del motor: con la entrada ocupada no se espera, lo hace tic.
+    std::unique_lock<std::timed_mutex> l(mu_, std::try_to_lock);
+    if (!l.owns_lock()) {
+        reposoPendiente_ = true;
+        return;
+    }
+    aplicarReposoYa();
+}
+
+void Entrada::aplicarReposoYa() {
+    if (pipeline_ == nullptr || quiereDormir() == dormida_.load() || reposoEncargado_.exchange(true)) return;
+    // Cambiar de estado espera a GStreamer: al trabajador, como armar.
+    trabajar([this]() {
+        reposoEncargado_ = false;
+        cambiarReposo();
+    });
+}
+
+void Entrada::cambiarReposo() {
+    const bool dormir = quiereDormir();
+    if (pipeline_ == nullptr || dormir == dormida_.load()) return;
+    const std::int64_t t0 = g_get_monotonic_time();
+    // READY: sin hilos de streaming ni trabajo (el lector común la suelta); el pipeline,
+    // las negociaciones de la GPU y los ajustes quedan armados. PLAYING: con el reloj y el
+    // base_time del estudio de siempre (Reloj::adoptar), la hora vale tal cual.
+    gst_element_set_state(pipeline_, dormir ? GST_STATE_READY : GST_STATE_PLAYING);
+    dormida_ = dormir;
+    const std::string ms = std::to_string((g_get_monotonic_time() - t0) / 1000);
+    if (dormir) {
+        despiertaNs_ = 0;
+        registrar(Nivel::Info, llenar(traducir("motor", "%1: en reposo (no hay nadie en su lugar) en %2 ms"), {id_, ms}));
+        return;
+    }
+    {
+        std::lock_guard<std::mutex> lm(medMu_);
+        datosAlDespertar_ = cuadros_ + bloques_;
+    }
+    despiertaNs_ = ahoraNs();
+    datosDesdeNs_ = despiertaNs_; // el vigía de «no llegan datos» cuenta desde ahora
+    registrar(Nivel::Info, llenar(traducir("motor", "%1: llegó alguien a su lugar: anda en %2 ms"), {id_, ms}));
+}
+
+void Entrada::ponerCpsDelAnillo() {
+    if (pipeline_ == nullptr || !anilloComunV_) return;
+    if (GstElement* a = gst_bin_get_by_name(GST_BIN(pipeline_), "ba_anillo")) {
+        // Sin usar pasa 2 por segundo (la sonda de ba_origen): los demás ni se copian.
+        g_object_set(a, "cps-max", enUso_.load() ? 0 : 2, nullptr);
+        gst_object_unref(a);
     }
 }
 
@@ -604,6 +672,18 @@ void Entrada::leer(const json& a) {
     for (auto& f : leerFiltros(comoJson(a.value("filtros_audio", json()))))
         filtrosA_.push_back(std::move(f));
     nombresUnicos(filtrosA_); // las dos listas de audio, juntas
+    // LOS ANILLOS, SIN UN HILO CADA UNO: un canal leído tal cual (la cámara, la pantalla y
+    // el audio de cada lugar, el remoto, la grilla) lo lee el lector común de su medio
+    // (baipc: bavideoanillocomun, baanillocomun; un hilo para todo el video y uno para todo
+    // el audio, en vez de un hilo y una cola por canal). Ver armar: sin la cola de atrás.
+    std::string canalV = anilloSolo(descripcion_, "bavideoanillo"), canalA = anilloSolo(descripcionAudio_, "baanillo");
+    anilloComunV_ = !canalV.empty() && hayFabrica("bavideoanillocomun");
+    anilloComunA_ = !canalA.empty() && hayFabrica("baanillocomun");
+    if (anilloComunV_) descripcion_ = "bavideoanillocomun name=ba_anillo canal=" + canalV;
+    if (anilloComunA_) descripcionAudio_ = "baanillocomun canal=" + canalA;
+    std::lock_guard<std::mutex> lc(canalesM_);
+    canalVideo_ = std::move(canalV);
+    canalAudio_ = std::move(canalA);
 }
 
 bool Entrada::daVideo() const {
@@ -717,6 +797,7 @@ nlohmann::json Entrada::analizarTerminar() {
 }
 
 void Entrada::desarmar() {
+    dormida_ = false; // sin pipeline no hay reposo (armar lo vuelve a decidir)
     // Un análisis en curso: las sondas se sacan ANTES de destruir el pipeline.
     if (sondas_) {
         analisisCortado_ = sondas_->terminar();
@@ -939,9 +1020,14 @@ void Entrada::armar() {
     const auto salida = [&](const char* tipo) {
         std::string r = ritmo;
         if (!r.empty()) r.replace(r.find("%s"), 2, tipo);
+        const bool audio = std::string(tipo) == "a";
+        // El audio, además, a los mezcladores por baentrega (sin un hilo por rama: ver
+        // Mezcla::agregar); el intersink queda para lo demás (la escucha, las tomas, el ISO).
+        if (const std::string mezcla = productorMezcla(id_); audio && !mezcla.empty())
+            r += "tee name=ba_ta allow-not-linked=true ba_ta. ! baentrega name=ba_ea producer-name=" + entreComillas(mezcla) +
+                 " ba_ta. ! ";
         return r + "intersink name=ba_i" + std::string(tipo) + " producer-name=" +
-               entreComillas(std::string(tipo) == "v" ? productorCrudoVideo() : productorAudio()) +
-               " sync=false event-types=\"<>\"";
+               entreComillas(audio ? productorAudio() : productorCrudoVideo()) + " sync=false event-types=\"<>\"";
     };
     std::string completo;
     if (!uri_.empty() && !medio_ && origen_red::esDeRed(uri_)) {
@@ -982,10 +1068,12 @@ void Entrada::armar() {
     } else {
         // Lo estático termina en un imagefreeze, que ya tiene su hilo: sin cola.
         if (!origenV.empty())
-            completo = origenV + (estatica_ ? " ! identity name=ba_origen ! " : " ! queue name=ba_origen ! ") + antes + capsVideo +
-                       " ! " + salida("v");
+            // El anillo común tampoco lleva cola: su cadena corre en el hilo del lector
+            // (los filtros de video, detrás de su propia cola: ver arriba).
+            completo = origenV + (estatica_ || anilloComunV_ ? " ! identity name=ba_origen ! " : " ! queue name=ba_origen ! ") + antes +
+                       capsVideo + " ! " + salida("v");
         if (!descripcionAudio_.empty() && conAudio_)
-            completo += std::string(completo.empty() ? "" : " ") + descripcionAudio_ + " ! queue ! " + cadenaA +
+            completo += std::string(completo.empty() ? "" : " ") + descripcionAudio_ + (anilloComunA_ ? " ! " : " ! queue ! ") + cadenaA +
                         "audioconvert ! audioresample ! " + kAudio + " ! " + salida("a");
     }
     // La rama de la toma entera, si la rama de video quedó armada con su tee.
@@ -1150,7 +1238,11 @@ void Entrada::armar() {
     pipeline_ = p;
     latencia_.olvidar(); // lo que respondía la cadena anterior ya no vale
     corregirOffset();
-    if (gst_element_set_state(p, GST_STATE_PLAYING) == GST_STATE_CHANGE_FAILURE) {
+    ponerCpsDelAnillo();
+    // Un lugar vacío queda armado y en reposo (READY) hasta que llega alguien (cambiarReposo).
+    dormida_ = quiereDormir();
+    despiertaNs_ = 0;
+    if (gst_element_set_state(p, dormida_ ? GST_STATE_READY : GST_STATE_PLAYING) == GST_STATE_CHANGE_FAILURE) {
         error_ = traducir("motor", "el pipeline no arrancó");
         desarmar();
         if (medio_) estadoMedio_ = "error";
@@ -1248,8 +1340,12 @@ void Entrada::corregirOffset() {
     if (pipeline_ == nullptr) return;
     const gint64 desf = desfaseMs_ * static_cast<gint64>(GST_MSECOND);
     const GstClockTime base = gst_element_get_base_time(pipeline_);
-    for (const char* n : {"ba_iv", "ba_ia"})
-        if (GstElement* e = gst_bin_get_by_name(GST_BIN(pipeline_), n)) {
+    for (const char* n : {"ba_iv", "ba_ia"}) {
+        // El audio con su derivación a los mezcladores (ba_ta → baentrega): antes del tee,
+        // así las dos salidas llevan el mismo offset.
+        GstElement* e = std::string(n) == "ba_ia" ? gst_bin_get_by_name(GST_BIN(pipeline_), "ba_ta") : nullptr;
+        if (e == nullptr) e = gst_bin_get_by_name(GST_BIN(pipeline_), n);
+        if (e != nullptr) {
             // En el pad de SALIDA del elemento anterior: ahí GStreamer reenvía los
             // eventos fijos (el segmento) con el offset nuevo enseguida; en el de
             // entrada de intersink recién valía con el próximo segmento (y tras una
@@ -1268,6 +1364,7 @@ void Entrada::corregirOffset() {
             }
             gst_object_unref(e);
         }
+    }
     baseAplicada_ = base;
 }
 
@@ -1599,6 +1696,27 @@ void Entrada::tic() {
             trabajar([this]() { armar(); });
         }
         return;
+    }
+    if (reposoPendiente_.exchange(false)) aplicarReposoYa();
+    if (dormida_.load()) {
+        // En reposo: nada que vigilar (no llegan datos a propósito); los mensajes, afuera.
+        GstBus* bus = gst_element_get_bus(pipeline_);
+        while (GstMessage* m = gst_bus_pop(bus)) gst_message_unref(m);
+        gst_object_unref(bus);
+        return;
+    }
+    if (despiertaNs_ != 0) {
+        // Lo que tarda en llegar el primer dato desde que despertó (el costo del reposo al conectar).
+        std::uint64_t datos = 0;
+        {
+            std::lock_guard<std::mutex> lm(medMu_);
+            datos = cuadros_ + bloques_;
+        }
+        if (datos != datosAlDespertar_) {
+            registrar(Nivel::Info, llenar(traducir("motor", "%1: primer dato a los %2 ms de despertar"),
+                                          {id_, std::to_string((ahoraNs() - despiertaNs_) / 1'000'000)}));
+            despiertaNs_ = 0;
+        }
     }
     {
         Tramo t("tic: vigilar datos");
@@ -1969,7 +2087,10 @@ json Entrada::estadoYa() const {
            {"desfase_video_ms", desfaseVideoMs_},
            {"placa", conPlaca_},
            {"placa_armada", salidaV_ != nullptr},
-           {"en_placa", enPlacaSinLock()}};
+           {"en_placa", enPlacaSinLock()},
+           // Lugar vacío: armada y en READY hasta que llegue alguien (ponerSinGente).
+           {"sin_gente", sinGente_.load()},
+           {"en_reposo", dormida_.load()}};
     {
         std::lock_guard<std::mutex> lm(medMu_);
         j["cuadros"] = cuadros_;

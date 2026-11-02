@@ -3,11 +3,13 @@
 //
 // Un pipeline propio por bus (PROGRAMA, una pista, los retornos de una salida…):
 //
-//   intersrc <id>:audio ! volume (fader, mute) ! level ─┐
-//   intersrc <id>:audio ! volume ! level ───────────────┼─► audiomixer ! [balimitador] ! [ebur128level]
-//   …                                                    ┘     ! level ! intersink bus:<nombre>
-//                                             (pad: ganancia de escena con fundido)
-//   (sin queue por rama: la cola es la del intersrc, que tira lo viejo)
+//   batoma <id>:mezcla ! volume (fader, mute) ! level ─┐
+//   batoma <id>:mezcla ! volume ! level ───────────────┼─► audiomixer ! [balimitador] ! [ebur128level]
+//   …                                                   ┘     ! level ! intersink bus:<nombre>
+//                                            (pad: ganancia de escena con fundido)
+//   (sin hilo por rama: batoma recibe el audio en el hilo de la entrada —su baentrega—
+//   y lo deja en el pad del mezclador; ver src/gst-plugins/ipc/entrega.cpp. Sin baipc,
+//   `intersrc <id>:audio`, con su cola que tira lo viejo.)
 //
 // El PROGRAMA lleva el limitador del máster (balimitador, −1 dBTP de fábrica) y
 // el medidor de loudness (ebur128level: momentáneo, corto, integrado, LRA y true
@@ -30,7 +32,7 @@
 //
 // Con `retornos` el mezclador es `baretornos` (los mix-minus de todos los invitados
 // de una salida en un solo bus: ver src/gst-plugins/ipc/retornos.cpp) y no hay cola:
-//   intersrc <id>:audio ! volume ! identity ─► baretornos ! fakesink
+//   batoma <id>:mezcla ! volume ! identity ─► baretornos ! fakesink
 //                                (pad: escena y «oyente»)    └► BA.Audio.Return[.<salida>].<n>
 // ============================================================================
 #pragma once
