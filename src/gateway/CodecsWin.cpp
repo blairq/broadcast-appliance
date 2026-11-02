@@ -61,6 +61,7 @@
 #include <utility>
 #include <vector>
 
+#include "ajustes/Ajustes.hpp"
 #include "diag/Registro.hpp"
 #include "platform/Hilo.hpp"
 
@@ -338,7 +339,8 @@ class DecodificadorMf : public webrtc::VideoDecoder {
             anchoIni_ = r.Width();
             altoIni_ = r.Height();
         }
-        if (hallazgo().decodificaHw) {
+        // `gateway.decodificarConPlaca` apagado: el mismo decodificador por software (para comparar).
+        if (hallazgo().decodificaHw && ba::ajustes::siNo("gateway.decodificarConPlaca", true)) {
             if (iniciar(true)) return true;
             ++gCaidasDec;
             if (!gAvisoDec.exchange(true))
@@ -412,6 +414,9 @@ class DecodificadorMf : public webrtc::VideoDecoder {
         ComPtr<ICodecAPI> api;
         mft_.As(&api);
         ponerBool(api.Get(), CODECAPI_AVLowLatencyMode, true);
+        // También con la placa: sin esto abre dos hilos por decodificador (msmpeg2vdec) que,
+        // con 20 flujos, eran 40 hilos y un núcleo entero solo en armar los pedidos al DXVA.
+        ponerU32(api.Get(), CODECAPI_AVDecNumWorkerThreads, static_cast<ULONG>(hilos_));
         if (hw) {
             UINT32 consciente = 0;
             if (!at || FAILED(at->GetUINT32(MF_SA_D3D11_AWARE, &consciente)) || !consciente) return false;
@@ -423,8 +428,6 @@ class DecodificadorMf : public webrtc::VideoDecoder {
                 return false;
             }
             hw_ = true;
-        } else {
-            ponerU32(api.Get(), CODECAPI_AVDecNumWorkerThreads, static_cast<ULONG>(hilos_));
         }
         ComPtr<IMFMediaType> in;
         MFCreateMediaType(&in);
