@@ -24,6 +24,8 @@ Rectangle {
     readonly property string traduccionSection: "Traducción"
     readonly property string controlSection: "Control del sistema"
     readonly property string pinggySection: "Pinggy"
+    /// ¿Cuántos invitados aguanta? (controls/PanelCapacidad, docs/funciones/CAPACIDAD.md)
+    readonly property string capacidadSection: "Capacidad"
     /// Los avanzados de la sección Pinggy (los del TURN), al final de su página.
     readonly property var clavesAvanzadasPinggy: ["turn.maxAsignaciones", "turn.maxConexiones", "turn.vidaMaxS", "turn.nonceS", "turn.colaTcpKB", "turn.credencialS"]
     /// El orden de la lista de la izquierda. Las secciones del esquema
@@ -42,7 +44,7 @@ Rectangle {
         // ajustes siguen, para volver a mostrarlos sumalos acá ("Cloudflare", "Túnel propio (WireGuard)").
         { titulo: qsTr("Acceso desde internet"), secciones: [page.pinggySection] },
         { titulo: qsTr("Asistente"), secciones: ["Asistente (MCP)", page.vozSection, page.modelosSection, page.controlSection] },
-        { titulo: qsTr("Sistema"), secciones: [page.aparienciaSection, "Plugins y descargas", "Dispositivos y drivers", page.systemSection] }
+        { titulo: qsTr("Sistema"), secciones: [page.aparienciaSection, "Plugins y descargas", "Dispositivos y drivers", page.capacidadSection, page.systemSection] }
     ]
     /// Los ajustes avanzados (antes fijos en el código): escondidos salvo que se pidan;
     /// una sección que solo tiene avanzados (Audio, Plugins y descargas) los muestra siempre.
@@ -50,7 +52,8 @@ Rectangle {
 
     /// Las que tienen vista propia (el formulario del esquema, si tienen campos, va adentro).
     readonly property var propias: [page.systemSection, page.aparienciaSection, page.modelosSection,
-                                    page.vozSection, page.traduccionSection, page.controlSection, page.pinggySection]
+                                    page.vozSection, page.traduccionSection, page.controlSection, page.pinggySection,
+                                    page.capacidadSection]
     /// Las que tienen ajustes que reinician el servidor (gateway) al aplicar, y ofrecen reiniciarlo a mano.
     readonly property var deLaSala: ["Invitados", "Conferencia", "Red de la conferencia", "Cloudflare", "Túnel propio (WireGuard)", "Pinggy",
                                      "Sesión remota", "Botonera y superficies", "Teleprompter", "Pantallas", "Página del evento"]
@@ -315,6 +318,11 @@ Rectangle {
                 anchors.fill: parent
                 active: page.section === page.pinggySection
                 sourceComponent: pinggyComp
+            }
+            Loader {
+                anchors.fill: parent
+                active: page.section === page.capacidadSection
+                sourceComponent: Component { PanelCapacidad {} }
             }
         }
     }

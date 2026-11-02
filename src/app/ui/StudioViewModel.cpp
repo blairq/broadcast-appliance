@@ -1287,7 +1287,8 @@ void StudioViewModel::setSeccionConfig(const QString& pedida) {
                                                 {"Barra de navegacion", "Apariencia"},
                                                 {"Audio y voz", "Voz del sistema"},
                                                 {"Voz del operador", "Voz del sistema"},
-                                                {"pinggy", "Pinggy"}};
+                                                {"pinggy", "Pinggy"},
+                                                {"capacidad", "Capacidad"}};
     const QString s = kAntes.value(pedida, pedida);
     if (s == seccionConfig_) return;
     seccionConfig_ = s;

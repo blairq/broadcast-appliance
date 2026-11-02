@@ -845,6 +845,16 @@ const Fila kPropias[] = {
     //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
     {"prueba_sala_informe", QT_TRANSLATE_NOOP("mcp-etiquetas", "informe resultado de la prueba de sala simulacro como salio")},
     //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
+    {"capacidad_arrancar", QT_TRANSLATE_NOOP("mcp-etiquetas", "capacidad cuantos invitados aguanta la maquina cuantos usuarios soporta prueba de carga rampa hinchada cpu memoria ancho de banda conexion a internet otro equipo remoto")},
+    //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
+    {"capacidad_recibir", QT_TRANSLATE_NOOP("mcp-etiquetas", "dejar que otro equipo me pruebe recibir prueba de capacidad codigo credencial remoto")},
+    //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
+    {"capacidad_estado", QT_TRANSLATE_NOOP("mcp-etiquetas", "como va la prueba de capacidad escalon invitados cpu memoria grilla audio")},
+    //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
+    {"capacidad_cancelar", QT_TRANSLATE_NOOP("mcp-etiquetas", "cancelar cortar parar prueba de capacidad limpiar")},
+    //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
+    {"capacidad_ultimo", QT_TRANSLATE_NOOP("mcp-etiquetas", "resultado de la prueba de capacidad cuantos aguanta historial ultima medicion de la conexion")},
+    //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
     {"enlace_medir", QT_TRANSLATE_NOOP("mcp-etiquetas", "medir velocidad del enlace internet subida bajada ancho de banda speedtest test de velocidad tunel wireguard starlink latencia ping jitter perdida")},
     //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
     {"enlace_cancelar", QT_TRANSLATE_NOOP("mcp-etiquetas", "cancelar cortar parar medicion del enlace test de velocidad")},

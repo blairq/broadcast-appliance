@@ -63,6 +63,7 @@ constexpr const char* kSecciones[] = {
     QT_TRANSLATE_NOOP("ajustes", "Modelos locales"),
     QT_TRANSLATE_NOOP("ajustes", "Apariencia"),
     QT_TRANSLATE_NOOP("ajustes", "Sistema y datos"),
+    QT_TRANSLATE_NOOP("ajustes", "Capacidad"),
     QT_TRANSLATE_NOOP("ajustes", "Audio"),
     QT_TRANSLATE_NOOP("ajustes", "Botonera y superficies"),
     QT_TRANSLATE_NOOP("ajustes", "Caras"),
