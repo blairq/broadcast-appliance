@@ -699,7 +699,10 @@ def resumir_fps(fps):
                 continue
             y = {"mosaico_cps": m.get("cps"), "llegada_ms": m.get("llegada_ms"), "perdidos": m.get("perdidos"),
                  "celdas": (m.get("resumen") or {}).get("celdas"), "cps_p50": (m.get("resumen") or {}).get("cps_p50"),
-                 "cps_p5": (m.get("resumen") or {}).get("cps_p5"), "por_debajo_pct": (m.get("resumen") or {}).get("por_debajo_pct")}
+                 "cps_p5": (m.get("resumen") or {}).get("cps_p5"), "por_debajo_pct": (m.get("resumen") or {}).get("por_debajo_pct"),
+                 # Las celdas que cambiaron de lugar o de capa mientras se medía (AnalisisCeldas::cambiar)
+                 # se miden por tramos; los de menos de 2 s no entran.
+                 "tramos_cortos": (m.get("resumen") or {}).get("tramos_cortos")}
             capas = {}
             for c in m.get("celdas", []):
                 capas.setdefault(c.get("capa") or "?", []).append(c)
