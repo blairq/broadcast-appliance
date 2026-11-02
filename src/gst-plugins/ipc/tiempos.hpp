@@ -10,6 +10,7 @@
 //               mezcladores y el intersink: todo corre en el hilo común)
 //   cola        lo que espera un bloque en la cola de su batoma (de la entrega al repartidor)
 //   toma        lo que espera gst_pad_push en el pad de un mezclador (el repartidor)
+//   espera      lo que un mezclador espera a sus entradas (esperarEntradas, en su hilo)
 // ============================================================================
 #pragma once
 
@@ -46,7 +47,7 @@ inline bool activos() {
     return si;
 }
 
-inline Tramo vuelta{"vuelta"}, anillo{"anillo"}, cadena{"cadena"}, cola{"cola"}, toma{"toma"};
+inline Tramo vuelta{"vuelta"}, anillo{"anillo"}, cadena{"cadena"}, cola{"cola"}, toma{"toma"}, espera{"espera"};
 
 inline std::uint64_t ahora() {
     return static_cast<std::uint64_t>(
@@ -62,7 +63,7 @@ inline void volcarCada5s() {
     if (t - ultimo < 5'000'000'000ULL) return;
     ultimo = t;
     std::fprintf(stderr, "[tiempos del audio]\n");
-    for (Tramo* x : {&vuelta, &anillo, &cadena, &cola, &toma}) x->volcar();
+    for (Tramo* x : {&vuelta, &anillo, &cadena, &cola, &toma, &espera}) x->volcar();
 }
 
 } // namespace ba::ipc_gst::tiempos

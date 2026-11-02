@@ -41,6 +41,15 @@
 // La cola de cada toma tiene tope (kTopeCola): lo adelantado más que eso se tira
 // (`adelantados`); lo de un segmento viejo (cambió el desplazamiento de la entrada) se
 // tira al llegar lo del nuevo. Lo que llega tarde se cuenta en `tarde`.
+//
+// EL MEZCLADOR NO SE DESPIERTA CON CADA BLOQUE (2026-11-02). El agregador en vivo espera al
+// reloj, y cada buffer que llega a cualquiera de sus pads lo despierta (SRC_BROADCAST en
+// gstaggregator.c) para mirar TODOS sus pads: con 40 invitados, 40 despertadas y 40 × 40
+// candados por vuelta y por mezclador (44 mil cambios de contexto/s en la app). Los
+// mezcladores del motor (bamezcla, baretornos) esperan en cambio a sus entradas con
+// esperarEntradas (comun.hpp): cuando piden más datos, se quedan acá hasta que el
+// repartidor de su pipeline termine una pasada con todo (una despertada por vuelta) o
+// hasta su misma hora límite. Lo que el repartidor empuja mientras tanto no los despierta.
 // ============================================================================
 
 #include "comun.hpp"
@@ -151,28 +160,64 @@ GstElement* agregadorDe(GstPad* desde) {
     return nullptr;
 }
 
+/// Lo que se mira de un agregador para decidir los turnos (adelantado.hpp), una vez por
+/// pasada del repartidor y no por bloque: gst_aggregator_get_latency toma el candado del
+/// agregador (el que usa su hilo para esperar) y g_object_get busca las propiedades por
+/// nombre; con 40 tomas eran 40 veces por vuelta del mezclador. La hora sí se lee con cada
+/// bloque (un push puede esperar una vuelta del agregador).
+struct VistaAgregador {
+    GstElement* agregador = nullptr; ///< sin referencia: solo para reconocerlo en la pasada
+    GstClock* reloj = nullptr;       ///< con referencia (nullptr: no está en vivo o sin reloj)
+    std::uint64_t latencia = 0, tope = 0, base = 0;
+};
+
+/// Las vistas de una pasada (se sueltan al terminarla).
+struct Vistas {
+    std::vector<VistaAgregador> v;
+    void soltar() {
+        for (VistaAgregador& x : v)
+            if (x.reloj != nullptr) gst_object_unref(x.reloj);
+        v.clear();
+    }
+    ~Vistas() { soltar(); }
+
+    const VistaAgregador& de(GstElement* agg) {
+        for (const VistaAgregador& x : v)
+            if (x.agregador == agg) return x;
+        VistaAgregador x;
+        x.agregador = agg;
+        const GstClockTime lat = gst_aggregator_get_latency(GST_AGGREGATOR(agg));
+        GstClock* reloj = gst_element_get_clock(agg);
+        if (reloj != nullptr && GST_CLOCK_TIME_IS_VALID(lat)) {
+            guint64 latencia = 0, minima = 0;
+            g_object_get(agg, "latency", &latencia, "min-upstream-latency", &minima, nullptr);
+            x.reloj = reloj;
+            x.latencia = lat;
+            x.tope = latencia + minima;
+            x.base = gst_element_get_base_time(agg);
+        } else if (reloj != nullptr) {
+            gst_object_unref(reloj);
+        }
+        v.push_back(x);
+        return v.back();
+    }
+};
+
 /// Cuándo le toca a un bloque que termina en `fin` (adelantado.hpp). Con el candado de la toma.
-ba::ipc_gst::Turno turnoDe(Toma& t, GstClockTime fin, GstClockTime bloque) {
+ba::ipc_gst::Turno turnoDe(Toma& t, GstClockTime fin, GstClockTime bloque, Vistas& vistas) {
     if (!t.buscado) {
         t.buscado = true;
         t.agregador = agregadorDe(t.pad);
     }
     if (t.agregador == nullptr || !GST_CLOCK_TIME_IS_VALID(fin)) return ba::ipc_gst::Turno::Ya;
-    const GstClockTime lat = gst_aggregator_get_latency(GST_AGGREGATOR(t.agregador));
-    GstClock* reloj = gst_element_get_clock(t.agregador);
-    if (!GST_CLOCK_TIME_IS_VALID(lat) || reloj == nullptr) { // no está en vivo (o sin reloj): no espera a nadie
-        if (reloj != nullptr) gst_object_unref(reloj);
-        return ba::ipc_gst::Turno::Ya;
-    }
-    const GstClockTime t0 = gst_clock_get_time(reloj), base = gst_element_get_base_time(t.agregador);
-    gst_object_unref(reloj);
-    guint64 latencia = 0, minima = 0;
-    g_object_get(t.agregador, "latency", &latencia, "min-upstream-latency", &minima, nullptr);
+    const VistaAgregador& v = vistas.de(t.agregador);
+    if (v.reloj == nullptr) return ba::ipc_gst::Turno::Ya; // no está en vivo (o sin reloj): no espera a nadie
+    const GstClockTime t0 = gst_clock_get_time(v.reloj);
     ba::ipc_gst::PadAgregador p;
     p.ultimoFin = GST_CLOCK_TIME_IS_VALID(t.ultimoFin) ? t.ultimoFin : 0;
-    p.latencia = lat;
-    p.tope = latencia + minima;
-    p.ahora = t0 > base ? t0 - base : 0;
+    p.latencia = v.latencia;
+    p.tope = v.tope;
+    p.ahora = t0 > v.base ? t0 - v.base : 0;
     // Esperar a la próxima vuelta del agregador es lo de siempre (lo fresco queda en el
     // borde): una vuelta de holgura. Lo que no entra en eso espera en su cola.
     return ba::ipc_gst::turno(p, fin, bloque);
@@ -203,10 +248,15 @@ std::shared_ptr<Productor> productor(const std::string& nombre) {
     return p;
 }
 
+/// En el hilo de un repartidor: la pasada le mandó un evento (stream-start, caps, segmento) a
+/// algún pad. El agregador lo atiende antes que los buffers: si está esperando a sus
+/// entradas (esperarEntradas), que deje de esperar.
+thread_local bool tl_evento = false;
+
 /// Empuja el primero de la cola de `t` si le toca (lo que falte de eventos antes). ¿Hizo
 /// algo (lo empujó o lo tiró)? Con el candado de la toma mientras empuja: si el pad está
 /// lleno, gst_pad_push espera a la próxima vuelta de SU agregador.
-bool repartirUno(Toma& t) {
+bool repartirUno(Toma& t, Vistas& vistas) {
     std::lock_guard<std::mutex> l(t.mu);
     Pendiente x;
     {
@@ -229,14 +279,17 @@ bool repartirUno(Toma& t) {
         g_free(id);
         gst_event_set_group_id(ss, gst_util_group_id_next());
         gst_pad_push_event(t.pad, ss);
+        tl_evento = true;
     }
     if (x.caps != nullptr && (t.eventos || t.caps == nullptr || !gst_caps_is_equal(t.caps, x.caps))) {
         if (t.caps != nullptr) gst_caps_unref(t.caps);
         t.caps = gst_caps_ref(x.caps);
         gst_pad_push_event(t.pad, gst_event_new_caps(x.caps));
+        tl_evento = true;
     }
     if (t.eventos || t.segmentoVisto != x.serie) {
         gst_pad_push_event(t.pad, gst_event_new_segment(&x.seg));
+        tl_evento = true;
         t.segmentoVisto = x.serie;
     }
     t.eventos = false;
@@ -245,7 +298,7 @@ bool repartirUno(Toma& t) {
     const GstClockTime rt =
         GST_BUFFER_PTS_IS_VALID(b) ? gst_segment_to_running_time(&x.seg, GST_FORMAT_TIME, GST_BUFFER_PTS(b)) : GST_CLOCK_TIME_NONE;
     const GstClockTime fin = GST_CLOCK_TIME_IS_VALID(rt) ? rt + dur : GST_CLOCK_TIME_NONE;
-    const ba::ipc_gst::Turno turno = turnoDe(t, fin, dur);
+    const ba::ipc_gst::Turno turno = turnoDe(t, fin, dur, vistas);
     if (turno == ba::ipc_gst::Turno::Despues) { // adelantado: espera en su cola
         x.soltar();
         return false;
@@ -284,6 +337,25 @@ struct Repartidor {
     bool hay = false;                         ///< bajo mu: algo nuevo en alguna cola
     bool fin = false;                         ///< bajo mu: sin tomas, el hilo termina
 
+    /// El mezclador que espera a sus entradas (esperarEntradas): una pasada que empujó algo
+    /// lo despierta UNA vez (no cada push, como su espera de siempre).
+    std::mutex muMezclador;
+    std::condition_variable cvMezclador;
+    std::uint64_t pasadas = 0;  ///< bajo muMezclador
+    std::uint64_t conEvento = 0; ///< bajo muMezclador: la última pasada que mandó un evento
+    std::uint64_t eventoVisto = 0; ///< bajo muMezclador: hasta dónde los vio el mezclador al esperar
+    int esperando = 0;          ///< bajo muMezclador
+
+    void avisarMezclador(bool evento) {
+        {
+            std::lock_guard<std::mutex> l(muMezclador);
+            ++pasadas;
+            if (evento) conEvento = pasadas;
+            if (esperando == 0) return;
+        }
+        cvMezclador.notify_all();
+    }
+
     void avisar() {
         {
             std::lock_guard<std::mutex> l(mu);
@@ -296,6 +368,7 @@ struct Repartidor {
         ba::platform::nombrarHilo("mezcla-reparto");
         ba::ipc_gst::prioridadDeAudio();
         std::vector<std::shared_ptr<Toma>> lista;
+        Vistas vistas;
         for (;;) {
             {
                 std::unique_lock<std::mutex> l(mu);
@@ -308,8 +381,12 @@ struct Repartidor {
             // De a un bloque por toma y por pasada: ninguna se queda con el repartidor.
             for (bool algo = true; algo;) {
                 algo = false;
-                for (const auto& t : lista) algo = repartirUno(*t) || algo;
+                vistas.soltar(); // la latencia de cada agregador, de nuevo en cada pasada
+                tl_evento = false;
+                for (const auto& t : lista) algo = repartirUno(*t, vistas) || algo;
+                if (algo || tl_evento) avisarMezclador(tl_evento);
             }
+            vistas.soltar();
             lista.clear();
         }
     }
@@ -404,7 +481,80 @@ std::shared_ptr<Repartidor> dejar(Toma& t, GstBuffer* b, GstCaps* caps, const Gs
 
 } // namespace
 
+namespace {
+
+/// ¿Todas las entradas de `agg` tienen un bloque? (lo que mira el agregador antes de su espera)
+bool todasConDatos(GstAggregator* agg) {
+    thread_local std::vector<GstPad*> pads;
+    pads.clear();
+    GST_OBJECT_LOCK(agg);
+    for (GList* l = GST_ELEMENT(agg)->sinkpads; l != nullptr; l = l->next) pads.push_back(GST_PAD(gst_object_ref(l->data)));
+    GST_OBJECT_UNLOCK(agg);
+    bool todas = true;
+    for (GstPad* p : pads) {
+        // Sin el candado del agregador: has_buffer recorta el bloque (el clip del agregador).
+        if (todas && !gst_aggregator_pad_has_buffer(GST_AGGREGATOR_PAD(p)) && !gst_aggregator_pad_is_eos(GST_AGGREGATOR_PAD(p)))
+            todas = false;
+        gst_object_unref(p);
+    }
+    pads.clear();
+    return todas;
+}
+
+/// Lo más que se espera de una vez (por si la hora del agregador se fue lejos): nunca traba
+/// un cambio de estado más que esto.
+constexpr auto kTopeEspera = std::chrono::milliseconds(100);
+
+} // namespace
+
 namespace ba::ipc_gst {
+
+void esperarEntradas(GstAggregator* agg) {
+    std::shared_ptr<Repartidor> rep;
+    {
+        std::lock_guard<std::mutex> l(g_mu);
+        auto it = g_repartidores.find(raizDe(GST_ELEMENT(agg)));
+        if (it == g_repartidores.end()) return; // sin batomas: la espera de siempre
+        rep = it->second;
+    }
+    GstAggregatorClass* k = GST_AGGREGATOR_GET_CLASS(agg);
+    const GstClockTime lat = gst_aggregator_get_latency(agg);
+    const GstClockTime prox = k->get_next_time != nullptr ? k->get_next_time(agg) : GST_CLOCK_TIME_NONE;
+    if (!GST_CLOCK_TIME_IS_VALID(lat) || !GST_CLOCK_TIME_IS_VALID(prox)) return; // no está en vivo: espera él
+    GstClock* reloj = gst_element_get_clock(GST_ELEMENT(agg));
+    if (reloj == nullptr) return;
+    // La misma hora límite que su espera: lo que no llegue para entonces no entra (y la
+    // salida no se demora ni un poco más que antes).
+    const GstClockTime limite = gst_element_get_base_time(GST_ELEMENT(agg)) + prox + lat;
+    namespace ti = tiempos;
+    const std::uint64_t t0 = ti::activos() ? ti::ahora() : 0;
+    const auto tope = std::chrono::steady_clock::now() + kTopeEspera;
+    for (;;) {
+        std::uint64_t visto = 0;
+        bool evento = false;
+        {
+            // Los eventos desde la última vez que esperó (pudieron llegar mientras sumaba).
+            std::lock_guard<std::mutex> l(rep->muMezclador);
+            visto = rep->pasadas;
+            evento = rep->conEvento > rep->eventoVisto;
+            rep->eventoVisto = rep->conEvento;
+        }
+        // Un evento en algún pad (una entrada que llega, otras caps, otro segmento): el
+        // agregador lo atiende antes que los buffers y has_buffer no lo ve. Que lo atienda ya.
+        if (evento || GST_PAD_IS_FLUSHING(agg->srcpad) || todasConDatos(agg)) break;
+        const GstClockTime ahora = gst_clock_get_time(reloj);
+        if (ahora >= limite) break;
+        const auto hasta = std::min(std::chrono::steady_clock::now() + std::chrono::nanoseconds(limite - ahora), tope);
+        std::unique_lock<std::mutex> l(rep->muMezclador);
+        ++rep->esperando;
+        const bool hubo = rep->cvMezclador.wait_until(l, hasta, [&] { return rep->pasadas != visto; });
+        --rep->esperando;
+        if (!hubo && std::chrono::steady_clock::now() >= tope) break;
+    }
+    gst_object_unref(reloj);
+    if (t0 != 0) ti::espera.anotar(ti::ahora() - t0);
+}
+
 void diferirAvisos(bool si) { tl_diferir = si; }
 void despertarPendientes() {
     for (const auto& r : tl_pendientes) r->avisar();

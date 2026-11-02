@@ -40,6 +40,7 @@
 // ============================================================================
 #pragma once
 
+#include <gst/base/gstaggregator.h>
 #include <gst/gst.h>
 
 #include <atomic>
@@ -92,5 +93,15 @@ void prioridadDeAudio();
 /// despertarPendientes (el lector común, durante su vuelta). Están en entrega.cpp.
 void diferirAvisos(bool si);
 void despertarPendientes();
+
+/// En el hilo de un agregador en vivo con batomas (baretornos), cuando pide más datos y no
+/// venció su espera (aggregate devolvió NEED_DATA): espera a que todas sus entradas tengan
+/// un bloque, o a su hora límite (la misma que su espera), sin que cada bloque empujado lo
+/// despierte. Su espera de siempre (gst_aggregator_wait_and_check) se despierta con CADA
+/// buffer que llega a cualquiera de sus pads y recorre todos sus pads: con 40 invitados,
+/// 40 despertadas (y 40 × 40 candados) por vuelta. Acá lo despierta el repartidor de su
+/// pipeline una vez por pasada; los buffers que llegan mientras tanto no lo despiertan (no
+/// está esperando al reloj). En entrega.cpp.
+void esperarEntradas(GstAggregator* agg);
 
 } // namespace ba::ipc_gst

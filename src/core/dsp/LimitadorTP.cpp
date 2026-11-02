@@ -7,6 +7,7 @@
 #include <array>
 #include <cmath>
 #include <numbers>
+#include <utility>
 
 namespace ba::dsp {
 
@@ -50,14 +51,31 @@ const std::array<std::array<float, kTapsPorFase>, kFases>& coeficientes() {
     return c;
 }
 
+/// La mayor ganancia posible del interpolador: |y| ≤ esto × el mayor |x| de su historia.
+double gananciaMaxima() {
+    static const double g = [] {
+        const auto& c = coeficientes();
+        double m = 0;
+        for (const auto& fase : c) {
+            double s = 0;
+            for (float x : fase) s += std::fabs(static_cast<double>(x));
+            m = std::max(m, s);
+        }
+        return m * (1 + 1e-9); // el redondeo de la suma (en double) no la puede pasar
+    }();
+    return g;
+}
+
 double interpolarMax(const std::vector<float>& h, std::size_t pos) {
-    // h es circular de kTapsPorFase; pos apunta a la muestra más nueva.
+    // h guarda la historia dos veces seguidas (2 × kTapsPorFase): la más nueva en pos y en
+    // pos + kTapsPorFase. Las 12 de cada fase se leen contiguas, de la más nueva para atrás
+    // (lo mismo, en el mismo orden, que la cuenta circular).
     const auto& c = coeficientes();
+    const float* x = h.data() + pos + kTapsPorFase;
     double m = 0;
     for (int f = 0; f < kFases; ++f) {
         double y = 0;
-        for (int t = 0; t < kTapsPorFase; ++t)
-            y += c[f][t] * h[(pos + kTapsPorFase - t) % kTapsPorFase];
+        for (int t = 0; t < kTapsPorFase; ++t) y += c[f][t] * x[-t];
         m = std::max(m, std::fabs(y));
     }
     return m;
@@ -88,7 +106,7 @@ void LimitadorTP::ponerLiberacion(double ms) {
 
 void LimitadorTP::rearmar() {
     lookahead_ = std::max<std::size_t>(1, static_cast<std::size_t>(std::lround(lookaheadMs_ * 1e-3 * frecuencia_)));
-    hist_.assign(static_cast<std::size_t>(canales_), std::vector<float>(kTapsPorFase, 0.0f));
+    hist_.assign(static_cast<std::size_t>(canales_), std::vector<float>(2 * kTapsPorFase, 0.0f));
     histPos_ = 0;
     demoraBuf_.assign(lookahead_ * static_cast<std::size_t>(canales_), 0.0f);
     demoraPos_ = 0;
@@ -96,39 +114,90 @@ void LimitadorTP::rearmar() {
     hBuf_.assign(lookahead_, 1.0f);
     hPos_ = 0;
     hSuma_ = static_cast<double>(lookahead_);
+    unos_ = lookahead_;
     n_ = 0;
     g_ = 1.0;
     ponerTecho(techoDb_);
     ponerLiberacion(liberacionMs_);
 }
 
-double LimitadorTP::picoVerdadero(const float* frame) {
+void LimitadorTP::guardarHistoria(const float* frame) {
     histPos_ = (histPos_ + 1) % kTapsPorFase;
+    for (int c = 0; c < canales_; ++c) {
+        std::vector<float>& h = hist_[static_cast<std::size_t>(c)];
+        h[histPos_] = h[histPos_ + kTapsPorFase] = frame[c];
+    }
+}
+
+double LimitadorTP::picoVerdadero(const float* frame) {
+    guardarHistoria(frame);
     double m = 0;
     for (int c = 0; c < canales_; ++c) {
-        hist_[static_cast<std::size_t>(c)][histPos_] = frame[c];
         m = std::max(m, std::fabs(static_cast<double>(frame[c])));
         m = std::max(m, interpolarMax(hist_[static_cast<std::size_t>(c)], histPos_));
     }
     return m;
 }
 
-void LimitadorTP::procesar(float* datos, std::size_t frames) {
-    if (canales_ <= 0) return;
+bool LimitadorTP::bajoElTecho(const float* datos, std::size_t frames, double techo) const {
+    // Cada pico del bloque sale de 12 muestras: las del bloque y las de antes (la historia).
+    float m = 0;
+    for (const auto& h : hist_)
+        for (float x : h) m = std::max(m, std::fabs(x));
+    const std::size_t n = frames * static_cast<std::size_t>(canales_);
+    for (std::size_t i = 0; i < n; ++i) m = std::max(m, std::fabs(datos[i]));
+    return static_cast<double>(m) * gananciaMaxima() <= techo; // NaN: false (por el camino de siempre)
+}
+
+bool LimitadorTP::quieto() const {
+    return g_ >= 1.0 - 1e-9 && unos_ >= lookahead_ && minimos_.size() <= 1 && (minimos_.empty() || minimos_.front().second == 1.0f);
+}
+
+void LimitadorTP::soloDemorar(float* datos, std::size_t frames) {
+    // Lo mismo que el bucle con g = 1 en cada muestra: la ventana queda en 1 (una sola
+    // entrada en el mínimo, la suma en L) y sale la muestra de hace L tal cual. (g_ estaba
+    // a menos de 1e-9 de 1: lo que cambia es menos que el redondeo del float.)
     const auto ch = static_cast<std::size_t>(canales_);
-    // Un poco por debajo del techo: el interpolador no es perfecto y la ganancia
-    // varía dentro de un pico.
-    const double techo = techoLin_ * 0.995;
+    // La historia del interpolador, antes de que la demora pise el bloque: solo cuentan
+    // las últimas 12, cada una en el lugar que le habría tocado.
+    const std::size_t k = std::min<std::size_t>(frames, kTapsPorFase);
+    histPos_ = (histPos_ + frames - k) % kTapsPorFase;
+    for (std::size_t j = frames - k; j < frames; ++j) guardarHistoria(datos + j * ch);
     for (std::size_t i = 0; i < frames; ++i) {
         float* fr = datos + i * ch;
-        // 1. La ganancia que necesita esta muestra (por su true peak).
-        const double p = picoVerdadero(fr);
-        const float g = static_cast<float>(activo_ && p > techo ? techo / p : 1.0);
+        float* d = &demoraBuf_[demoraPos_ * ch];
+        for (std::size_t c = 0; c < ch; ++c) std::swap(d[c], fr[c]);
+        if (++demoraPos_ == lookahead_) demoraPos_ = 0;
+    }
+    n_ += frames;
+    hPos_ = (hPos_ + frames) % lookahead_;
+    unos_ += frames;
+    minimos_.clear();
+    minimos_.emplace_back(n_ - 1, 1.0f);
+    hSuma_ = static_cast<double>(lookahead_);
+    g_ = 1.0;
+}
+
+template <bool conPico>
+void LimitadorTP::procesarCon(float* datos, std::size_t frames, double techo) {
+    const auto ch = static_cast<std::size_t>(canales_);
+    for (std::size_t i = 0; i < frames; ++i) {
+        float* fr = datos + i * ch;
+        // 1. La ganancia que necesita esta muestra (por su true peak). Sin pico: el bloque
+        // entero está bajo el techo (bajoElTecho), la ganancia es 1.
+        float g = 1.0f;
+        if constexpr (conPico) {
+            const double p = picoVerdadero(fr);
+            g = static_cast<float>(activo_ && p > techo ? techo / p : 1.0);
+        } else {
+            guardarHistoria(fr);
+        }
         // 2. Mínimo de las últimas L+1.
         while (!minimos_.empty() && minimos_.back().second >= g) minimos_.pop_back();
         minimos_.emplace_back(n_, g);
         while (minimos_.front().first + lookahead_ < n_) minimos_.pop_front();
         const float h = minimos_.front().second;
+        unos_ = h == 1.0f ? unos_ + 1 : 0;
         // 3. Promedio de las últimas L.
         hSuma_ += h - hBuf_[hPos_];
         hBuf_[hPos_] = h;
@@ -151,6 +220,20 @@ void LimitadorTP::procesar(float* datos, std::size_t frames) {
             for (float x : hBuf_) hSuma_ += x;
         }
     }
+}
+
+void LimitadorTP::procesar(float* datos, std::size_t frames) {
+    if (canales_ <= 0 || frames == 0) return;
+    // Un poco por debajo del techo: el interpolador no es perfecto y la ganancia
+    // varía dentro de un pico.
+    const double techo = techoLin_ * 0.995;
+    const bool sinPicos = !activo_ || bajoElTecho(datos, frames, techo);
+    if (sinPicos && quieto())
+        soloDemorar(datos, frames);
+    else if (sinPicos)
+        procesarCon<false>(datos, frames, techo);
+    else
+        procesarCon<true>(datos, frames, techo);
     redActual_ = g_ < 1.0 ? 20.0 * std::log10(std::max(g_, 1e-6)) : 0.0;
     redMax_ = std::min(redMax_, redActual_);
 }
@@ -165,7 +248,7 @@ double LimitadorTP::reduccionMaxDb() {
 
 void LimitadorTP::MedidorTP::preparar(int canales) {
     canales_ = std::max(1, canales);
-    hist_.assign(static_cast<std::size_t>(canales_), std::vector<float>(kTapsPorFase, 0.0f));
+    hist_.assign(static_cast<std::size_t>(canales_), std::vector<float>(2 * kTapsPorFase, 0.0f));
     pos_ = 0;
 }
 
@@ -175,7 +258,8 @@ double LimitadorTP::MedidorTP::medir(const float* datos, std::size_t frames) {
         pos_ = (pos_ + 1) % kTapsPorFase;
         for (int c = 0; c < canales_; ++c) {
             const float x = datos[i * static_cast<std::size_t>(canales_) + static_cast<std::size_t>(c)];
-            hist_[static_cast<std::size_t>(c)][pos_] = x;
+            std::vector<float>& h = hist_[static_cast<std::size_t>(c)];
+            h[pos_] = h[pos_ + kTapsPorFase] = x;
             m = std::max(m, std::fabs(static_cast<double>(x)));
             m = std::max(m, interpolarMax(hist_[static_cast<std::size_t>(c)], pos_));
         }
