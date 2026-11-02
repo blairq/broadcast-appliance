@@ -73,6 +73,35 @@ void GeneradorHinchada::parar() {
     procs_.clear();
 }
 
+bool GeneradorHinchada::preparado() const { return grabado_.isEmpty() || QFileInfo(grabado_).size() > 0; }
+
+QString GeneradorHinchada::preparar() {
+    if (!disponible()) return tr("el probador (hinchada) no viene en este programa");
+    if (preparado()) {
+        emit preparacionTerminada(true, {});
+        return {};
+    }
+    parando_ = false;
+    QDir().mkpath(QFileInfo(grabado_).absolutePath());
+    auto* proc = new QProcess(this);
+    procs_.emplace_back(proc);
+    proc->setStandardOutputFile(QFileInfo(grabado_).absolutePath() + "/grabar-consola.txt");
+    proc->setStandardErrorFile(QFileInfo(grabado_).absolutePath() + "/grabar-consola.txt", QIODevice::Append);
+    QPointer<GeneradorHinchada> yo(this);
+    connect(proc, &QProcess::finished, this, [yo, proc](int codigo, QProcess::ExitStatus) {
+        proc->deleteLater();
+        if (!yo || yo->parando_) return;
+        const bool ok = codigo == 0 && yo->preparado();
+        emit yo->preparacionTerminada(ok, ok ? QString() : tr("hinchada no pudo grabar su video de prueba (código %1)").arg(codigo));
+    });
+    connect(proc, &QProcess::errorOccurred, this, [yo](QProcess::ProcessError e) {
+        if (!yo || e != QProcess::FailedToStart || yo->parando_) return;
+        emit yo->preparacionTerminada(false, tr("no arrancó hinchada"));
+    });
+    proc->start(exe_, {"grabar", "--grabado", grabado_});
+    return {};
+}
+
 std::vector<std::uint32_t> GeneradorHinchada::pids() const {
     std::vector<std::uint32_t> out;
     for (const QPointer<QProcess>& p : procs_)

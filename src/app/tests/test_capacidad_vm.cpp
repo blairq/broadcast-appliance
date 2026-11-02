@@ -54,6 +54,13 @@ class GeneradorFalso : public sala::GeneradorCarga {
     }
     std::vector<std::uint32_t> pids() const override { return anda ? std::vector<std::uint32_t>{4242} : std::vector<std::uint32_t>{}; }
     bool andando() const override { return anda; }
+    bool listo = true;
+    int preparaciones = 0;
+    bool preparado() const override { return listo; }
+    QString preparar() override {
+        ++preparaciones;
+        return {};
+    }
     int total() const {
         int n = 0;
         for (const Lote& l : lotes) n += l.cantidad;
@@ -224,6 +231,25 @@ int main(int argc, char** argv) {
         CHECK(vm.historial().size() >= 1 && vm.historial()[0].toMap().value("tipo") == "local", "va al historial");
         CHECK(!vm.chequeoPrevio(80).isEmpty(), "el chequeo previo avisa si el evento tiene más lugar que lo que aguanta");
         CHECK(vm.ultimoDeEstaMaquina().is_object(), "el último de esta máquina");
+    }
+    // --- La primera vez: hinchada graba su video antes de la rampa ---------------------------
+    {
+        Mundo w;
+        CapacidadViewModel vm(partes(w, tmp.path()));
+        w.gen->listo = false;
+        CHECK(vm.probarEsteEquipo(40).isEmpty(), "arranca aunque falte el video de prueba");
+        CHECK(w.gen->preparaciones == 1 && w.gen->lotes.empty() && !w.credencialAbierta, "primero lo prepara: nadie entra todavía");
+        CHECK(vm.progreso().value("fase").toString() == "preparando", "y lo dice");
+        for (int i = 0; i < 30; ++i) {
+            w.reloj += 1000;
+            vm.tic();
+        }
+        CHECK(vm.pasos().isEmpty() && w.gen->lotes.empty(), "mientras prepara no se juzga nada");
+        w.gen->listo = true;
+        emit w.gen->preparacionTerminada(true, {});
+        CHECK(w.gen->lotes.size() == 1 && w.credencialAbierta, "preparado: abre la prueba y entra el primer lote");
+        vm.cancelar();
+        CHECK(!vm.ocupado() && !w.credencialAbierta, "y se puede cancelar");
     }
     // --- Se degrada por CPU ---------------------------------------------------------------
     {

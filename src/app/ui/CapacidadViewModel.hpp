@@ -144,6 +144,7 @@ class CapacidadViewModel : public QObject {
     static constexpr int kRecibirMaxMin = 60;
     static constexpr int kEsperaPinggyS = 90;
     static constexpr int kSinRemotoS = 15; ///< el otro equipo sin contestar: se corta
+    static constexpr int kPrepararMaxS = 15 * 60; ///< hinchada grabando su video de prueba (la primera vez)
 
     explicit CapacidadViewModel(Partes p, QObject* parent = nullptr);
     ~CapacidadViewModel() override;
@@ -226,6 +227,9 @@ class CapacidadViewModel : public QObject {
     // La rampa (local y remoto).
     void abrirCredencial(std::function<void(bool, const QString& error)> listo);
     void empezarRampa();
+    void prepararGenerador();
+    void seguirLocal();
+    void seguirRemoto();
     void empezarEscalon();
     void cerrarEscalon(const std::string& claveGuardia = {}, const std::string& motivoGuardia = {});
     void ticRampa(double uiMs);
@@ -263,7 +267,7 @@ class CapacidadViewModel : public QObject {
     std::vector<int> plan_;
     std::size_t indice_ = 0;
     int nAnterior_ = 0;
-    QString fase_; ///< abriendo | entrando | asentando | midiendo
+    QString fase_; ///< preparando | abriendo | entrando | asentando | midiendo
     int64_t inicioMs_ = 0, escalonDesde_ = 0, faseDesde_ = 0;
     std::vector<sala::capacidad::Muestra> delEscalon_, regimen_;
     std::vector<sala::capacidad::Paso> pasos_;

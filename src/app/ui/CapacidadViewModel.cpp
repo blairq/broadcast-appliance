@@ -80,6 +80,19 @@ CapacidadViewModel::CapacidadViewModel(Partes p, QObject* parent) : QObject(pare
     tic_.setInterval(1000);
     connect(&tic_, &QTimer::timeout, this, &CapacidadViewModel::tic);
     if (p_.generador) {
+        connect(p_.generador.get(), &sala::GeneradorCarga::preparacionTerminada, this, [this](bool ok, const QString& error) {
+            if (fase_ != QLatin1String("preparando")) return;
+            if (estado_ != QLatin1String("local") && estado_ != QLatin1String("remoto")) return;
+            if (!ok) {
+                terminarRampa(error.isEmpty() ? traducir("capacidad", "no se pudo preparar el video de prueba de hinchada") : error.toStdString(),
+                              true, false);
+                return;
+            }
+            fase_ = QStringLiteral("abriendo");
+            faseDesde_ = ahora();
+            if (estado_ == QLatin1String("local")) seguirLocal();
+            else seguirRemoto();
+        });
         connect(p_.generador.get(), &sala::GeneradorCarga::seCayo, this, [this](int codigo) {
             if (estado_ != QLatin1String("local") && estado_ != QLatin1String("remoto")) return;
             terminarRampa(llenar(traducir("capacidad", "el probador (hinchada) se cortó solo (código %1): ver consola.txt"),
@@ -165,6 +178,15 @@ QString CapacidadViewModel::probarEsteEquipo(int tope) {
     huella_.clear();
     setEstado(QStringLiteral("local"));
     empezarRampa();
+    emit notify(tr("Prueba de capacidad: entran invitados de prueba por escalones hasta %n (cada escalón, 2 minutos como mucho).", "", tope),
+                "ok");
+    if (!p_.generador->preparado()) prepararGenerador();
+    else seguirLocal();
+    return {};
+}
+
+void CapacidadViewModel::seguirLocal() {
+    const int tope = plan_.empty() ? 0 : plan_.back();
     QPointer<CapacidadViewModel> yo(this);
     abrirCredencial([yo, tope](bool ok, const QString& error) {
         if (!yo || yo->estado_ != QLatin1String("local")) return;
@@ -191,9 +213,6 @@ QString CapacidadViewModel::probarEsteEquipo(int tope) {
             yo->empezarEscalon();
         });
     });
-    emit notify(tr("Prueba de capacidad: entran invitados de prueba por escalones hasta %n (cada escalón, 2 minutos como mucho).", "", tope),
-                "ok");
-    return {};
 }
 
 QString CapacidadViewModel::probarRemoto(const QString& codigo, int tope) {
@@ -220,6 +239,14 @@ QString CapacidadViewModel::probarRemoto(const QString& codigo, int tope) {
     plan_ = cap::escalones(tope);
     setEstado(QStringLiteral("remoto"));
     empezarRampa();
+    emit notify(tr("Prueba de capacidad del otro equipo (%1): los invitados de prueba salen de esta máquina.").arg(maquinaMedida_), "ok");
+    if (!p_.generador->preparado()) prepararGenerador();
+    else seguirRemoto();
+    return {};
+}
+
+void CapacidadViewModel::seguirRemoto() {
+    const int tope = plan_.empty() ? 0 : plan_.back();
     // Primero: ¿el otro contesta y cuánto cupo abrió?
     QPointer<CapacidadViewModel> yo(this);
     p_.pedirRemota(this, url_, credencial_, huella_, [yo, tope](const json& r) {
@@ -238,8 +265,15 @@ QString CapacidadViewModel::probarRemoto(const QString& codigo, int tope) {
         }
         yo->empezarEscalon();
     });
-    emit notify(tr("Prueba de capacidad del otro equipo (%1): los invitados de prueba salen de esta máquina.").arg(maquinaMedida_), "ok");
-    return {};
+}
+
+void CapacidadViewModel::prepararGenerador() {
+    // La primera vez, hinchada graba su video de prueba (unos minutos): sin eso los del
+    // primer escalón no entrarían a tiempo y el resultado mentiría.
+    fase_ = QStringLiteral("preparando");
+    faseDesde_ = ahora();
+    publicarProgreso();
+    if (const QString e = p_.generador->preparar(); !e.isEmpty()) terminarRampa(e.toStdString(), true, false);
 }
 
 void CapacidadViewModel::empezarRampa() {
@@ -413,6 +447,13 @@ void CapacidadViewModel::tic() {
 }
 
 void CapacidadViewModel::ticRampa(double uiMs) {
+    if (fase_ == QLatin1String("preparando")) {
+        if (ahora() - faseDesde_ > kPrepararMaxS * 1000LL)
+            terminarRampa(traducir("capacidad", "hinchada tardó demasiado en preparar su video de prueba"), true, false);
+        else
+            publicarProgreso();
+        return;
+    }
     if (fase_ == QLatin1String("abriendo")) {
         if (ahora() - faseDesde_ > 30000) terminarRampa(traducir("capacidad", "no se pudo abrir la prueba a tiempo"), true, false);
         return;
@@ -512,7 +553,8 @@ void CapacidadViewModel::publicarProgreso() {
     const int n = indice_ < plan_.size() ? plan_[indice_] : 0;
     const int64_t t = ahora();
     QString texto;
-    if (fase_ == QLatin1String("abriendo")) texto = tr("Abriendo la prueba…");
+    if (fase_ == QLatin1String("preparando")) texto = tr("Preparando el video de prueba (solo la primera vez, unos minutos)…");
+    else if (fase_ == QLatin1String("abriendo")) texto = tr("Abriendo la prueba…");
     else if (fase_ == QLatin1String("entrando")) texto = tr("Entrando: %n invitados de prueba", "", n);
     else if (fase_ == QLatin1String("asentando")) texto = tr("Se acomodan los %n…", "", n);
     else if (fase_ == QLatin1String("midiendo")) texto = tr("Midiendo con %n invitados", "", n);

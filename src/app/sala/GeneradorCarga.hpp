@@ -47,8 +47,13 @@ class GeneradorCarga : public QObject {
     /// Los procesos andando (para medir su CPU).
     virtual std::vector<std::uint32_t> pids() const = 0;
     virtual bool andando() const = 0;
+    /// ¿Listo para generar? (hinchada: su video grabado ya está; la primera vez, no).
+    virtual bool preparado() const { return true; }
+    /// Lo prepara (en el fondo; avisa con preparacionTerminada). "" o por qué no arrancó.
+    virtual QString preparar() { return {}; }
 
    signals:
+    void preparacionTerminada(bool ok, const QString& error);
     /// Un lote se fue solo (no por parar()): `codigo` de salida.
     void seCayo(int codigo);
 };
@@ -66,6 +71,8 @@ class GeneradorHinchada final : public GeneradorCarga {
     void parar() override;
     std::vector<std::uint32_t> pids() const override;
     bool andando() const override;
+    bool preparado() const override;
+    QString preparar() override;
 
    private:
     QString exe_, grabado_;
