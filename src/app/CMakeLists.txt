@@ -1649,6 +1649,12 @@ endif()
     target_compile_definitions(test_qml_carga PRIVATE BA_QML_DIR="${CMAKE_CURRENT_SOURCE_DIR}/qml")
     set_target_properties(test_qml_carga PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_qml_carga COMMAND test_qml_carga)
+    # La lista genérica de la vista avisa solo las filas y los roles que cambiaron.
+    add_executable(test_json_list_model tests/test_json_list_model.cpp ui/JsonListModel.cpp)
+    target_include_directories(test_json_list_model PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    target_link_libraries(test_json_list_model PRIVATE Qt6::Core)
+    set_target_properties(test_json_list_model PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
+    add_test(NAME test_json_list_model COMMAND test_json_list_model)
     # El selector de herramientas de la Botonera: busca y filtra por sección.
     add_executable(test_selector_herramientas tests/test_selector_herramientas.cpp ui/ListaObjetos.cpp ui/FiltroCatalogo.cpp)
     target_include_directories(test_selector_herramientas PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
