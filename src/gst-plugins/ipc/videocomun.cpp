@@ -110,6 +110,9 @@ class LecturaVideo : public ba::ipc_gst::Lectura {
         // La hora: la que le puso el gateway, en el reloj del pipeline.
         GST_BUFFER_PTS(b) = ba::ipc_gst::horaDeQpc(e, meta.qpc);
         GST_BUFFER_DURATION(b) = GST_CLOCK_TIME_NONE;
+        // El número de publicación del cuadro en el canal: quien mide ve los que el emisor
+        // publicó y no se leyeron (motor/MedidorCeldas: la grilla de personas).
+        GST_BUFFER_OFFSET(b) = rx.ultimoPublicado();
         salida.empujar(e, b, caps);
     }
 };
@@ -128,7 +131,7 @@ struct _BaVideoAnilloComun {
 
 G_DEFINE_TYPE(BaVideoAnilloComun, ba_video_anillo_comun, GST_TYPE_ELEMENT)
 
-enum { PROP_0, PROP_CANAL, PROP_CPS_MAX };
+enum { PROP_0, PROP_CANAL, PROP_CPS_MAX, PROP_VUELTAS };
 
 static GstStaticPadTemplate srcTpl = GST_STATIC_PAD_TEMPLATE(
     "src", GST_PAD_SRC, GST_PAD_ALWAYS,
@@ -186,6 +189,13 @@ static void leerPropiedad(GObject* o, guint id, GValue* v, GParamSpec* ps) {
             break;
         }
         case PROP_CPS_MAX: g_value_set_int(v, l->cpsMax.load()); break;
+        case PROP_VUELTAS: {
+            const ba::ipc_gst::Vueltas x = ba::ipc_gst::vueltas(ba::ipc_gst::Medio::Video);
+            g_value_take_boxed(v, gst_structure_new("vueltas", "n", G_TYPE_UINT64, x.n, "ns", G_TYPE_UINT64, x.ns, "tarde",
+                                                    G_TYPE_UINT64, x.tarde, "muy-tarde", G_TYPE_UINT64, x.muyTarde,
+                                                    "max-ns", G_TYPE_UINT64, x.maxNs, nullptr));
+            break;
+        }
         default: G_OBJECT_WARN_INVALID_PROPERTY_ID(o, id, ps);
     }
 }
@@ -216,6 +226,11 @@ static void ba_video_anillo_comun_class_init(BaVideoAnilloComunClass* k) {
         go, PROP_CPS_MAX,
         g_param_spec_int("cps-max", "Cuadros por segundo como mucho", "0 = todos los que lleguen", 0, 240, 0,
                          static_cast<GParamFlags>(G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS | GST_PARAM_MUTABLE_PLAYING)));
+    g_object_class_install_property(
+        go, PROP_VUELTAS,
+        g_param_spec_boxed("vueltas", "Vueltas del lector común del video",
+                           "Desde que arrancó: n, ns (la suma), tarde (más que su período), muy-tarde (más de 2,4 períodos), max-ns",
+                           GST_TYPE_STRUCTURE, static_cast<GParamFlags>(G_PARAM_READABLE | G_PARAM_STATIC_STRINGS)));
     gst_element_class_set_static_metadata(ge, "Canal de video (lector común)", "Source/Video",
                                           "El video de un canal de memoria compartida, leído por el hilo común de los canales",
                                           "Broadcast Appliance");
