@@ -7,6 +7,7 @@
 
 #include <algorithm>
 #include <chrono>
+#include <condition_variable>
 #include <cstring>
 #include <future>
 
@@ -164,6 +165,13 @@ struct IpStack::Impl {
     std::map<UdpFlowKey, UdpFlow> udpFlows;
     std::vector<std::unique_ptr<Bridge>> bridges;
     std::vector<std::shared_ptr<ClientConn>> clients;
+    /// Los UDP propios (udpAbrir): el pcb y a quién darle lo que llega.
+    struct UdpPropio {
+        udp_pcb* pcb = nullptr;
+        LlegadaFn alLlegar;
+    };
+    std::map<int, std::unique_ptr<UdpPropio>> udpPropios; ///< solo el hilo de la pila
+    std::atomic<int> proximoUdp{1};
 
     std::mutex qLock;
     std::deque<std::vector<uint8_t>> inbound;
@@ -652,6 +660,9 @@ void IpStack::stop() {
     for (auto& [p, pcb] : d.udpPcbs)
         udp_remove(pcb);
     d.udpPcbs.clear();
+    for (auto& [id, u] : d.udpPropios)
+        if (u->pcb != nullptr) udp_remove(u->pcb);
+    d.udpPropios.clear();
     for (auto& f : d.tcpFwds) {
         if (f->listen != nullptr) tcp_close(f->listen);
         f->listen = nullptr;
@@ -745,6 +756,117 @@ std::optional<std::string> IpStack::udpRequest(uint32_t ip, uint16_t port, const
         r->pcb = nullptr;
     });
     return out;
+}
+
+// --- UDP propio por el túnel (el medidor del enlace) ------------------------------------
+
+int IpStack::udpAbrir(uint32_t ip, uint16_t port, LlegadaFn alLlegar) {
+    Impl* d = impl_.get();
+    if (!d->thread.joinable()) return 0;
+    const int id = d->proximoUdp++;
+    auto listo = std::make_shared<std::promise<bool>>();
+    auto fut = listo->get_future();
+    d->post([d, id, ip, port, listo, cb = std::move(alLlegar)]() mutable {
+        auto u = std::make_unique<Impl::UdpPropio>();
+        u->alLlegar = std::move(cb);
+        u->pcb = udp_new_ip_type(IPADDR_TYPE_V4);
+        ip_addr_t dst;
+        IP_ADDR4(&dst, (ip >> 24) & 255, (ip >> 16) & 255, (ip >> 8) & 255, ip & 255);
+        if (u->pcb == nullptr || udp_bind(u->pcb, IP_ADDR_ANY, 0) != ERR_OK || udp_connect(u->pcb, &dst, port) != ERR_OK) {
+            if (u->pcb != nullptr) udp_remove(u->pcb);
+            listo->set_value(false);
+            return;
+        }
+        udp_recv(
+            u->pcb,
+            [](void* arg, udp_pcb*, pbuf* p, const ip_addr_t*, u16_t) {
+                auto* up = static_cast<Impl::UdpPropio*>(arg);
+                if (p->tot_len <= 2048) {
+                    uint8_t buf[2048];
+                    pbuf_copy_partial(p, buf, p->tot_len, 0);
+                    if (up->alLlegar) up->alLlegar(buf, p->tot_len);
+                }
+                pbuf_free(p);
+            },
+            u.get());
+        d->udpPropios[id] = std::move(u);
+        listo->set_value(true);
+    });
+    if (fut.wait_for(std::chrono::seconds(2)) != std::future_status::ready || !fut.get()) {
+        udpCerrar(id);
+        return 0;
+    }
+    return id;
+}
+
+void IpStack::udpEnviar(int id, std::vector<std::string>&& lote) {
+    Impl* d = impl_.get();
+    d->post([d, id, l = std::move(lote)]() {
+        const auto it = d->udpPropios.find(id);
+        if (it == d->udpPropios.end() || it->second->pcb == nullptr) return;
+        for (const std::string& s : l) {
+            pbuf* p = pbuf_alloc(PBUF_TRANSPORT, static_cast<u16_t>(s.size()), PBUF_RAM);
+            if (p == nullptr) continue; // sin memoria: se pierde (como en la red)
+            std::memcpy(p->payload, s.data(), s.size());
+            udp_send(it->second->pcb, p);
+            pbuf_free(p);
+        }
+    });
+}
+
+void IpStack::udpCerrar(int id) {
+    Impl* d = impl_.get();
+    d->post([d, id]() {
+        const auto it = d->udpPropios.find(id);
+        if (it == d->udpPropios.end()) return;
+        if (it->second->pcb != nullptr) udp_remove(it->second->pcb);
+        d->udpPropios.erase(it);
+    });
+}
+
+namespace {
+/// El transporte del medidor por el túnel: lo que llega se anota con la hora en el hilo
+/// de la pila y espera en una cola a que el medidor lo lea.
+class TransporteTunel : public enlace::Transporte {
+   public:
+    struct Cola {
+        std::mutex m;
+        std::condition_variable cv;
+        std::vector<enlace::Datagrama> v;
+    };
+    TransporteTunel(IpStack& pila, int id, std::shared_ptr<Cola> cola) : pila_(pila), id_(id), cola_(std::move(cola)) {}
+    ~TransporteTunel() override { pila_.udpCerrar(id_); }
+    bool enviar(std::vector<std::string>&& lote) override {
+        pila_.udpEnviar(id_, std::move(lote));
+        return true;
+    }
+    std::vector<enlace::Datagrama> recibir(int esperaMs) override {
+        std::unique_lock<std::mutex> l(cola_->m);
+        if (cola_->v.empty()) cola_->cv.wait_for(l, std::chrono::milliseconds(esperaMs), [this] { return !cola_->v.empty(); });
+        std::vector<enlace::Datagrama> out;
+        out.swap(cola_->v);
+        return out;
+    }
+
+   private:
+    IpStack& pila_;
+    int id_;
+    std::shared_ptr<Cola> cola_;
+};
+} // namespace
+
+std::unique_ptr<enlace::Transporte> IpStack::transporteUdp(uint32_t ip, uint16_t port) {
+    auto cola = std::make_shared<TransporteTunel::Cola>();
+    const int id = udpAbrir(ip, port, [cola](const uint8_t* d, size_t n) {
+        const int64_t t = enlace::ahoraUs();
+        {
+            std::lock_guard<std::mutex> l(cola->m);
+            if (cola->v.size() < 65536) cola->v.push_back({std::string(reinterpret_cast<const char*>(d), n), t});
+        }
+        cola->cv.notify_one();
+    });
+    if (id == 0) return nullptr;
+    return std::make_unique<TransporteTunel>(*this, id, cola);
 }
 
 } // namespace ba::gateway::net

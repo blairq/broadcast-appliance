@@ -103,6 +103,7 @@
 #include "proxy/GestorProxy.hpp"
 #include "net/WgCrypto.hpp"
 #include "net/WgDevice.hpp"
+#include "net/EnlaceServicio.hpp"
 #if BA_HAVE_LWIP
 #include "net/IpStack.hpp"
 #endif
@@ -933,6 +934,53 @@ int main(int argc, char** argv) {
         return out;
     });
 
+    // --- Medición del enlace por el túnel (docs/funciones/ENLACE.md) -------------
+    // Del otro lado del túnel (la IP .1 de la red de WireGuard) corre nuestro eco
+    // (tools/vps/ba-enlace-eco.py); el medidor le habla por la pila IP del túnel, el
+    // mismo camino que los invitados. BA_ENLACE_ECO=ip:puerto lo apunta a un eco por la
+    // red común (pruebas, sin túnel).
+    std::unique_ptr<net::enlace::Servicio> enlace;
+    {
+        uint32_t ourIp = 0;
+        int prefix = 24;
+        const bool hayRed = net::parseCidr(cfg.wgAddress, ourIp, prefix);
+        const uint32_t mask = prefix <= 0 ? 0u : 0xFFFFFFFFu << (32 - prefix);
+        const uint32_t ecoIp = (ourIp & mask) | 1u;
+        const auto ipTexto = [](uint32_t v) {
+            return std::to_string(v >> 24) + "." + std::to_string((v >> 16) & 255) + "." +
+                   std::to_string((v >> 8) & 255) + "." + std::to_string(v & 255);
+        };
+        const std::string ecoTexto = ipTexto(ecoIp);
+        net::enlace::Servicio::AbrirFn abrir;
+        std::string eco = ecoTexto + ":" + std::to_string(net::enlace::kPuerto);
+        if (const char* e = std::getenv("BA_ENLACE_ECO"); e != nullptr && *e != '\0') {
+            std::string host;
+            uint16_t puerto = net::enlace::kPuerto;
+            net::splitHostPort(e, host, puerto, net::enlace::kPuerto);
+            eco = host + ":" + std::to_string(puerto);
+            abrir = [host, puerto]() -> std::unique_ptr<net::enlace::Transporte> {
+                auto t = std::make_unique<net::enlace::TransporteSocket>(host, puerto);
+                if (!t->ok()) return nullptr;
+                return t;
+            };
+        }
+#if BA_HAVE_LWIP
+        else if (ipstack && hayRed) {
+            net::IpStack* pila = ipstack.get();
+            abrir = [pila, ecoIp]() { return pila->transporteUdp(ecoIp, net::enlace::kPuerto); };
+        }
+#endif
+        enlace = std::make_unique<net::enlace::Servicio>(
+            abrir, eco, [&server](const nlohmann::json& e) { server.avisarApp("enlace", e); });
+        const std::string red = ipTexto(ourIp & mask) + "/" + std::to_string(prefix);
+        server.setEnlace(enlace.get(), [hayRed, ecoTexto, red, eco]() -> nlohmann::json {
+            if (!hayRed) return {{"ok", false}, {"error", traducir("gateway", "sin dirección del túnel")}};
+            return {{"ok", true},
+                    {"eco", eco},
+                    {"script", net::enlace::instaladorEco(ecoTexto, red, net::enlace::kPuerto)}};
+        });
+    }
+
     // --- TURN de la caja (docs/planes/PINGGY.md, P3) ---------------------------
     // >>> ENGANCHE DEL TURN: aca se construye y arranca el servidor TURN
     // (ba::gateway::turn::Servidor, src/gateway/turn/) en 127.0.0.1:turnPuertoLocal,
@@ -1443,6 +1491,8 @@ int main(int argc, char** argv) {
     log.info(traducir("gateway", "parando: deteniendo componentes..."));
 
     // --- Shutdown ordenado: senalizacion → pump → cloudflared → Terminated.
+    // La medición del enlace usa la pila del túnel: se corta antes.
+    if (enlace) enlace->parar();
 #if BA_HAVE_LWIP
     if (ipstack) ipstack->stop();
 #endif

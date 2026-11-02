@@ -962,6 +962,9 @@ Rectangle {
                     }
                 }
 
+                // El enlace por el túnel: cuánto anda y cuánto necesita el evento.
+                PanelEnlace { Layout.fillWidth: true }
+
                 // La prueba de sala: el simulacro con participantes de prueba antes del evento.
                 PanelPruebaSala { Layout.fillWidth: true }
 

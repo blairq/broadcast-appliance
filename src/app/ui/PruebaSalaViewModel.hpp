@@ -50,6 +50,7 @@
 
 namespace ba::app {
 class ConferenceClient;
+class EnlaceViewModel;
 class EventoViewModel;
 class RecursosViewModel;
 namespace sala {
@@ -79,6 +80,9 @@ class PruebaSalaViewModel : public QObject {
     Q_PROPERTY(QVariantMap ultimoInforme READ ultimoInforme NOTIFY informeChanged)
     /// La máquina: {memLibreMb, carga, hilosApp, puede ("" o por qué no)} (revisarMaquina).
     Q_PROPERTY(QVariantMap maquina READ maquina NOTIFY maquinaChanged)
+    /// El enlace para los N de la prueba (EnlaceViewModel::necesidadPara, con la última
+    /// medición): {veredicto, motivos, necesita, entranConMargen…, medido (bool)}.
+    Q_PROPERTY(QVariantMap enlace READ enlace NOTIFY enlaceChanged)
 
    public:
     struct Partes {
@@ -86,6 +90,7 @@ class PruebaSalaViewModel : public QObject {
         sala::CupoSala& cupo;
         RecursosViewModel& recursos;
         EventoViewModel& evento;
+        EnlaceViewModel& enlace;
         std::filesystem::path dataRoot;
     };
     /// La credencial vive esto y se renueva cada kRenovarS mientras dura la prueba.
@@ -106,6 +111,7 @@ class PruebaSalaViewModel : public QObject {
     QVariantMap vivo() const { return vivo_; }
     QVariantMap ultimoInforme() const { return ultimo_; }
     QVariantMap maquina() const { return maquina_; }
+    QVariantMap enlace() const { return enlace_; }
 
     /// Arranca la prueba con `n` participantes durante `minutos`. `conHinchada`: lanza el
     /// probador del programa; si no, espera carga externa. `hablan`: cuántos hablan a la
@@ -116,7 +122,8 @@ class PruebaSalaViewModel : public QObject {
     Q_INVOKABLE void parar();
     /// «Entrada directa para todos». Devuelve "" o por qué no (sin prueba).
     Q_INVOKABLE QString setEntradaDirecta(bool on);
-    /// Mide la máquina ahora y dice si se podría arrancar con `n` (actualiza `maquina`).
+    /// Mide la máquina ahora y dice si se podría arrancar con `n` (actualiza `maquina` y
+    /// la cuenta del enlace para `n`, `enlace`).
     Q_INVOKABLE void revisarMaquina(int n = 10, bool conHinchada = true);
 
     /// Todo junto, para el MCP: estado, generador, entrada directa, acceso (sin la
@@ -131,6 +138,7 @@ class PruebaSalaViewModel : public QObject {
     void vivoChanged();
     void informeChanged();
     void maquinaChanged();
+    void enlaceChanged();
     void notify(const QString& texto, const QString& nivel);
 
    private:
@@ -150,7 +158,9 @@ class PruebaSalaViewModel : public QObject {
     QString generador_;
     bool directa_ = false;
     QString credencial_, url_;
-    QVariantMap vivo_, ultimo_, maquina_;
+    QVariantMap vivo_, ultimo_, maquina_, enlace_;
+    int nRevisado_ = 10; ///< el N de la última revisión (para rehacer la cuenta del enlace)
+    void cuentaEnlace(int n);
     nlohmann::json ultimoJson_ = nlohmann::json::object();
     sala::prueba::Umbrales umbrales_;
     sala::prueba::Informe informe_;

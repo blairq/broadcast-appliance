@@ -32,6 +32,11 @@ CLASIFICACION = {
     "/api/v1/correccion-link": "lectura",
     "/api/v1/correccion/pendientes": "correccion",
     "/api/v1/direcciones": "lectura",
+    # La medición del enlace: una corrida de una vez (si B se reinicia, se corta y se vuelve a pedir).
+    "/api/v1/enlace": "lectura",
+    "/api/v1/enlace/cancelar": "orden",
+    "/api/v1/enlace/instalador": "lectura",
+    "/api/v1/enlace/medir": "orden",
     "/api/v1/evento-web": "evento-web",
     "/api/v1/events": "lectura",
     "/api/v1/log-nivel": "orden",  # el nivel del registro de B, para mirar algo ahora

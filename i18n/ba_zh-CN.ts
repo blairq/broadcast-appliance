@@ -5111,12 +5111,12 @@ Recorrer la tira no cambia lo que se ve.</source>
     </message>
     <message>
         <location line="+4"/>
-        <location line="+1206"/>
+        <location line="+1209"/>
         <source>Tiempo</source>
         <translation>时间</translation>
     </message>
     <message>
-        <location line="-1200"/>
+        <location line="-1203"/>
         <source>Tiempo general para cada orador (m:ss o minutos)</source>
         <translation>每位发言人的总时间（m:ss 或分钟）</translation>
     </message>
@@ -5356,18 +5356,18 @@ Recorrer la tira no cambia lo que se ve.</source>
     </message>
     <message>
         <location line="+1"/>
-        <location line="+700"/>
+        <location line="+703"/>
         <source>Reiniciar</source>
         <translation>重启</translation>
     </message>
     <message>
-        <location line="-700"/>
-        <location line="+700"/>
+        <location line="-703"/>
+        <location line="+703"/>
         <source>Cancelar</source>
         <translation>取消</translation>
     </message>
     <message>
-        <location line="-697"/>
+        <location line="-700"/>
         <source>La conferencia se está reiniciando.</source>
         <translation>会议正在重启。</translation>
     </message>
@@ -5617,12 +5617,12 @@ Compartí el enlace y el PIN (panel Acceso).</source>
     </message>
     <message>
         <location line="+6"/>
-        <location line="+188"/>
+        <location line="+191"/>
         <source>Invitar con QR</source>
         <translation>用二维码邀请</translation>
     </message>
     <message>
-        <location line="-183"/>
+        <location line="-186"/>
         <source>PIN copiado: %1</source>
         <translation>PIN 已复制：%1</translation>
     </message>
@@ -5716,7 +5716,7 @@ Compartí el enlace y el PIN (panel Acceso).</source>
         <translation>内存 %1 MB · %2 核。每位开启摄像机的嘉宾都是一路需要解码的视频。</translation>
     </message>
     <message>
-        <location line="+16"/>
+        <location line="+19"/>
         <source>Grillas de personas</source>
         <translation>人物网格</translation>
     </message>
@@ -8197,6 +8197,68 @@ Se prende desde el Registro.</source>
         <location line="+52"/>
         <source>esa fuente de gráfico ya no está</source>
         <translation>该图形来源已不存在</translation>
+    </message>
+</context>
+<context>
+    <name>EnlaceViewModel</name>
+    <message numerus="yes">
+        <location filename="../src/app/ui/EnlaceViewModel.cpp" line="+104"/>
+        <source>Hay %n invitados conectados: la medición carga el enlace y se les puede cortar la imagen unos segundos.</source>
+        <translation>
+            <numerusform>已连接 %n 位嘉宾：测量会占用链路，他们的画面可能会卡顿几秒。</numerusform>
+        </translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Hay algo al aire: la medición carga el enlace y puede cortar la salida unos segundos.</source>
+        <translation>有内容正在播出：测量会占用链路，可能使输出中断几秒。</translation>
+    </message>
+    <message>
+        <location line="+32"/>
+        <source>No arrancó la medición del enlace: %1</source>
+        <translation>链路测量未能启动：%1</translation>
+    </message>
+    <message>
+        <location line="+15"/>
+        <source>La conferencia no contestó.</source>
+        <translation>会议没有响应。</translation>
+    </message>
+    <message>
+        <location line="+39"/>
+        <source>Medición del enlace cancelada.</source>
+        <translation>链路测量已取消。</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>La medición del enlace no se pudo hacer: %1</source>
+        <translation>无法测量链路：%1</translation>
+    </message>
+    <message numerus="yes">
+        <location line="+8"/>
+        <source>Subida %1 Mbps, bajada %2 Mbps, RTT %3 ms: para %n invitados %4 (entran hasta %5 con margen).</source>
+        <translation>
+            <numerusform>上行 %1 Mbps，下行 %2 Mbps，RTT %3 ms：%n 位嘉宾%4（留有余量时最多 %5 位）。</numerusform>
+        </translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>entra</source>
+        <translation>够用</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>está justo</source>
+        <translation>勉强够用</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>no entra</source>
+        <translation>不够用</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Enlace medido por el túnel (subida, bajada, demora)</source>
+        <translation>已通过隧道测量链路（上行、下行、延迟）</translation>
     </message>
 </context>
 <context>
@@ -20514,6 +20576,150 @@ Agregale imágenes desde la pestaña Archivos.</source>
     </message>
 </context>
 <context>
+    <name>PanelEnlace</name>
+    <message>
+        <location filename="../src/app/qml/controls/PanelEnlace.qml" line="+18"/>
+        <source>Enlace (por el túnel)</source>
+        <translation>链路（经隧道）</translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>Entra</source>
+        <translation>够用</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Justo</source>
+        <translation>勉强</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>No entra</source>
+        <translation>不够用</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Sin medir</source>
+        <translation>未测量</translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>Medir el enlace ahora</source>
+        <translation>立即测量链路</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>%1 Se mide suave (hasta 5 Mbps): alcanza para la demora y la pérdida, no para la velocidad máxima. ¿Mido igual?</source>
+        <translation>%1 将以低强度测量（最高 5 Mbps）：足以测出延迟和丢包，但测不出最高速度。仍要测量吗？</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Medir</source>
+        <translation>测量</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <location line="+121"/>
+        <source>Cancelar</source>
+        <translation>取消</translation>
+    </message>
+    <message>
+        <location line="-106"/>
+        <source>La conferencia no está andando.</source>
+        <translation>会议未在运行。</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Sin túnel WireGuard: la medición va por el túnel hasta el servidor propio (Acceso directo por un servidor propio…).</source>
+        <translation>没有 WireGuard 隧道：测量要经隧道到达自有服务器（通过自有服务器直接访问…）。</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Los invitados entran por el túnel y el retorno sale una vez por cada uno: lo que manda es la subida de este lugar. Se mide hasta el eco del servidor (%1).</source>
+        <translation>嘉宾经隧道接入，返送画面要为每位嘉宾各发一份：关键是本场地的上行。测量到服务器的回声端（%1）。</translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>Invitados</source>
+        <translation>嘉宾</translation>
+    </message>
+    <message>
+        <location line="+13"/>
+        <source>Hace falta: subida %1 · bajada %2 (%3 en alta; con WireGuard %4 / %5)</source>
+        <translation>需要：上行 %1 · 下行 %2（%3 路高清；含 WireGuard 为 %4 / %5）</translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <source>Con lo medido entran hasta %1 invitados con margen (%2 justo).</source>
+        <translation>按测量结果，留有余量时最多 %1 位嘉宾（勉强 %2 位）。</translation>
+    </message>
+    <message>
+        <location line="+21"/>
+        <source>Subida (sin pérdida / máx.)</source>
+        <translation>上行（无丢包 / 最大）</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Bajada (sin pérdida / máx.)</source>
+        <translation>下行（无丢包 / 最大）</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Demora en reposo / con carga</source>
+        <translation>空闲 / 负载时延迟</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Jitter / pérdida</source>
+        <translation>抖动 / 丢包</translation>
+    </message>
+    <message>
+        <location line="+22"/>
+        <source>Demora en reposo…</source>
+        <translation>空闲延迟…</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Subida: %1…</source>
+        <translation>上行：%1…</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Bajada: %1…</source>
+        <translation>下行：%1…</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Buscando el eco del servidor…</source>
+        <translation>正在寻找服务器回声端…</translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <source>Medir el enlace</source>
+        <translation>测量链路</translation>
+    </message>
+    <message>
+        <location line="+13"/>
+        <source>Instalar el eco en el servidor…</source>
+        <translation>在服务器上安装回声端…</translation>
+    </message>
+    <message>
+        <location line="+14"/>
+        <source>Eco del medidor en el servidor</source>
+        <translation>服务器上的测量回声端</translation>
+    </message>
+    <message>
+        <location line="+15"/>
+        <source>En el servidor del túnel, como root, pegá esto en una terminal: instala (o actualiza) el eco del medidor como servicio (ba-enlace-eco, UDP 51821, solo por el túnel). Se puede repetir sin problema.</source>
+        <translation>在隧道服务器上以 root 身份把这段粘贴到终端：它会把测量回声端安装（或更新）为服务（ba-enlace-eco，UDP 51821，仅限隧道）。可以放心重复执行。</translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <source>Copiar</source>
+        <translation>复制</translation>
+    </message>
+</context>
+<context>
     <name>PanelEventoWeb</name>
     <message>
         <location filename="../src/app/qml/controls/PanelEventoWeb.qml" line="+37"/>
@@ -22232,8 +22438,44 @@ Agregale imágenes desde la pestaña Archivos.</source>
         <source>Memoria disponible %1 MB · carga %2 · %3 hilos</source>
         <translation>可用内存 %1 MB · 负载 %2 · %3 个线程</translation>
     </message>
+    <message numerus="yes">
+        <location line="+14"/>
+        <source>Enlace: alcanza para %n invitados (última medición).</source>
+        <translation>
+            <numerusform>链路：足够 %n 位嘉宾（最近一次测量）。</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location line="+1"/>
+        <source>Enlace: justo para %n invitados.</source>
+        <translation>
+            <numerusform>链路：%n 位嘉宾勉强够用。</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location line="+1"/>
+        <source>Enlace: NO alcanza para %n invitados (entran %1 con margen).</source>
+        <translation>
+            <numerusform>链路：%n 位嘉宾不够用（留有余量时可容纳 %1 位）。</numerusform>
+        </translation>
+    </message>
     <message>
-        <location line="+8"/>
+        <location line="+1"/>
+        <source>Enlace sin medir: medilo antes del evento real.</source>
+        <translation>链路未测量：请在正式活动前测量。</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Midiendo…</source>
+        <translation>正在测量…</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Medir el enlace</source>
+        <translation>测量链路</translation>
+    </message>
+    <message>
+        <location line="+13"/>
         <source>Revisar la máquina</source>
         <translation>检查机器</translation>
     </message>
@@ -26852,8 +27094,20 @@ De frente, de costado, con anteojos y sin: así se la reconoce en el día real.<
 </context>
 <context>
     <name>PruebaSalaViewModel</name>
+    <message numerus="yes">
+        <location filename="../src/app/ui/PruebaSalaViewModel.cpp" line="+167"/>
+        <source>Ojo: según la última medición, el enlace no alcanza para %n invitados por el túnel.</source>
+        <translation>
+            <numerusform>注意：根据最近一次测量，经隧道的链路不够 %n 位嘉宾使用。</numerusform>
+        </translation>
+    </message>
     <message>
-        <location filename="../src/app/ui/PruebaSalaViewModel.cpp" line="+196"/>
+        <location line="+2"/>
+        <source>El enlace no está medido: medilo antes del evento real (tarjeta «Enlace»).</source>
+        <translation>链路尚未测量：请在正式活动前测量（“链路”卡片）。</translation>
+    </message>
+    <message>
+        <location line="+48"/>
         <source>Prueba de sala abierta: conectá el generador externo con la credencial de prueba.</source>
         <translation>会场测试已开启：请用测试凭据连接外部生成器。</translation>
     </message>
@@ -26880,7 +27134,7 @@ De frente, de costado, con anteojos y sin: así se la reconoce en el día real.<
         <translation>直接进入已关闭：恢复等候室。</translation>
     </message>
     <message>
-        <location line="+48"/>
+        <location line="+55"/>
         <source>Prueba de sala (simulacro con participantes de prueba)</source>
         <translation>会场测试（使用测试参与者的演练）</translation>
     </message>
@@ -32669,7 +32923,7 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
 <context>
     <name>StudioViewModel</name>
     <message>
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="+134"/>
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="+135"/>
         <source>%1 (no se pudo: %2)</source>
         <translation>%1（失败：%2）</translation>
     </message>
@@ -32719,7 +32973,7 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
         <translation>活动磁盘已用 %1 %（剩余 %2 GB）</translation>
     </message>
     <message>
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="+270"/>
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="+291"/>
         <source>La interfaz estuvo trabada %1 s; el aire siguió</source>
         <translation>界面卡顿了 %1 秒；播出未中断</translation>
     </message>
@@ -42911,7 +43165,7 @@ Elegí otra cosa en Salidas → Pantallas.</source>
     </message>
     <message>
         <location line="-57"/>
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="-835"/>
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="-856"/>
         <source>arranque: %1 tardó %2 ms</source>
         <translation>启动：%1 耗时 %2 毫秒</translation>
     </message>
@@ -51899,7 +52153,7 @@ Datos (de %2): %3</source>
 <context>
     <name>gateway</name>
     <message>
-        <location filename="../src/gateway/AdminApi.cpp" line="+196"/>
+        <location filename="../src/gateway/AdminApi.cpp" line="+201"/>
         <source>no es un ajuste de la conferencia</source>
         <translation>不是会议的设置项</translation>
     </message>
@@ -51964,7 +52218,14 @@ Datos (de %2): %3</source>
         <translation>代理已关闭</translation>
     </message>
     <message>
-        <location line="+513"/>
+        <location line="+14"/>
+        <location line="+11"/>
+        <location filename="../src/gateway/net/EnlaceServicio.cpp" line="+70"/>
+        <source>no hay túnel WireGuard configurado</source>
+        <translation>未配置 WireGuard 隧道</translation>
+    </message>
+    <message>
+        <location line="+510"/>
         <source>salida inválida</source>
         <translation>无效的输出</translation>
     </message>
@@ -53219,7 +53480,7 @@ Datos (de %2): %3</source>
     </message>
     <message>
         <location line="+2"/>
-        <location filename="../src/gateway/main.cpp" line="+757"/>
+        <location filename="../src/gateway/main.cpp" line="+758"/>
         <location line="+2"/>
         <source>(ninguna)</source>
         <translation>（无）</translation>
@@ -53443,12 +53704,12 @@ Datos (de %2): %3</source>
     </message>
     <message>
         <location line="+47"/>
-        <location line="+245"/>
+        <location line="+292"/>
         <source>https: no arrancó; los invitados solo tienen http (sin cámara fuera de localhost)</source>
         <translation>https：未启动；嘉宾只能使用 http（localhost 以外无法使用摄像头）</translation>
     </message>
     <message>
-        <location line="-202"/>
+        <location line="-249"/>
         <source>túnel: sin clave privada WireGuard; túnel deshabilitado</source>
         <translation>隧道：没有 WireGuard 私钥；隧道已禁用</translation>
     </message>
@@ -53493,7 +53754,12 @@ Datos (de %2): %3</source>
         <translation>「%1」是服务器的公网接口：如果名称不同请修改。</translation>
     </message>
     <message>
-        <location line="+280"/>
+        <location line="+64"/>
+        <source>sin dirección del túnel</source>
+        <translation>没有隧道地址</translation>
+    </message>
+    <message>
+        <location line="+263"/>
         <source>túnel: --tunnel-token es visible en la lista de procesos; preferir %1</source>
         <translation>隧道：--tunnel-token 在进程列表中可见；建议使用 %1</translation>
     </message>
@@ -53513,7 +53779,7 @@ Datos (de %2): %3</source>
         <translation>隧道：已在配置中停用（仅限本地访问）</translation>
     </message>
     <message>
-        <location line="-565"/>
+        <location line="-612"/>
         <source>red: IP de la máquina %1; en el QR: %2</source>
         <translation>网络：本机 IP %1；二维码中：%2</translation>
     </message>
@@ -53543,7 +53809,7 @@ Datos (de %2): %3</source>
         <translation>Broadcast Appliance（本设备）</translation>
     </message>
     <message>
-        <location line="+47"/>
+        <location line="+94"/>
         <source>turn: escuchando en el puerto %1 (TCP y UDP)</source>
         <translation>turn：正在监听端口 %1（TCP 和 UDP）</translation>
     </message>
@@ -53618,12 +53884,12 @@ Datos (de %2): %3</source>
         <translation>正在停止：关闭各组件...</translation>
     </message>
     <message>
-        <location line="+22"/>
+        <location line="+24"/>
         <source>cierre ordenado: BA.Health slot 0 = Terminated; exito</source>
         <translation>有序关闭：BA.Health slot 0 = Terminated；成功</translation>
     </message>
     <message>
-        <location filename="../src/gateway/net/IpStack.cpp" line="+627"/>
+        <location filename="../src/gateway/net/IpStack.cpp" line="+635"/>
         <source>pila IP: %1/%2 sobre WireGuard (%3 reenvios TCP, UDP %4-%5)</source>
         <translation>IP 协议栈：%1/%2 基于 WireGuard（%3 个 TCP 转发，UDP %4-%5）</translation>
     </message>
@@ -53898,6 +54164,26 @@ Datos (de %2): %3</source>
         <source>turn: no se pudo escuchar en %1:%2 (UDP)</source>
         <translation>turn：无法监听 %1:%2（UDP）</translation>
     </message>
+    <message>
+        <location filename="../src/gateway/net/EnlaceMedidor.cpp" line="+407"/>
+        <source>el servidor del túnel no contesta: falta instalar el medidor (ba-enlace-eco) en el VPS o el túnel no está conectado</source>
+        <translation>隧道服务器没有响应：VPS 上未安装测量回声端（ba-enlace-eco），或隧道未连接</translation>
+    </message>
+    <message>
+        <location filename="../src/gateway/net/EnlaceServicio.cpp" line="+5"/>
+        <source>ya hay una medición del enlace en curso</source>
+        <translation>已有链路测量在进行</translation>
+    </message>
+    <message>
+        <location line="+32"/>
+        <source>no se pudo abrir el UDP por el túnel</source>
+        <translation>无法经隧道打开 UDP</translation>
+    </message>
+    <message>
+        <location line="+46"/>
+        <source>Broadcast Appliance: instala o actualiza el eco del medidor del enlace en este servidor (pegar como root; se puede repetir).</source>
+        <translation>Broadcast Appliance：在本服务器上安装或更新链路测量回声端（以 root 粘贴；可重复执行）。</translation>
+    </message>
 </context>
 <context>
     <name>grabacion</name>
@@ -54139,7 +54425,7 @@ Datos (de %2): %3</source>
         <translation>否</translation>
     </message>
     <message>
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="+869"/>
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="+890"/>
         <source>«%1» no arrancó al abrir: %2</source>
         <translation>「%1」打开时未启动：%2</translation>
     </message>
@@ -58152,7 +58438,7 @@ LO QUE HAY QUE SABER AL PRENDERLO: la salvaguarda de aprobaciones (`mcp.approval
         <translation>叠加在所有输出内容之上的垫片画面（&quot;休会&quot;、&quot;马上回来&quot;、&quot;默哀一分钟&quot;…），含 `texto`、可选的 `imagen`（路径）和淡入淡出 `ms`（600）。不依赖场景。在播时开启，如果由自动流程发起则需确认；关闭则不需要。应用崩溃后仍会保留。每个输出有自己的垫片画面（`salida`）。</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpService.cpp" line="+1326"/>
+        <location filename="../src/app/mcp/McpService.cpp" line="+1327"/>
         <source>El supervisor relanza la app si deja de latir. El latido sale de la interfaz Y de un hilo que mira los cuadros del motor: si la interfaz se traba y el motor sigue, el aire NO se corta. Con la interfaz trabada más de `espera_ui_s` (10 a 3600, de fábrica 60) y `matar_si_ui_trabada_sin_aire` (de fábrica true), se relanza solo si no hay transmisión ni grabación. La interfaz trabada CON aire es una alarma que sale sin la interfaz, al control web y a los notificadores de `notificar` («todos», de fábrica, o una lista de ids de notificador_listar; [] = ninguno). Sin argumentos, la muestra (con el estado: motor_vivo, ui_viva, ui_trabada_ms, ultima_traba_ms).</source>
         <translation>如果应用停止心跳，守护程序会重新启动它。心跳来自界面，「以及」一个监视引擎帧的线程：如果界面卡住而引擎仍在运行，播出「不会」中断。界面卡住超过 `espera_ui_s`（10 到 3600，默认 60）且 `matar_si_ui_trabada_sin_aire`（默认 true）时，只有在没有推流和录制的情况下才会重启。「有」播出时界面卡住会产生一个不经界面发出的警报，发送到网页控制端以及 `notificar` 中的通知器（「todos」为默认，或 notificador_listar 中的 id 列表；[] = 无）。无参数时显示当前设置（含状态：motor_vivo、ui_viva、ui_trabada_ms、ultima_traba_ms）。</translation>
     </message>
@@ -61329,7 +61615,7 @@ Sos el rol `%1`: este es TODO tu juego. Lo que no esta aca no lo podes hacer vos
     </message>
     <message>
         <location line="+2"/>
-        <location filename="../src/app/mcp/McpService.cpp" line="-2315"/>
+        <location filename="../src/app/mcp/McpService.cpp" line="-2316"/>
         <source>La herramienta fallo: %1</source>
         <translation>工具执行失败：%1</translation>
     </message>
@@ -64911,7 +65197,7 @@ Con este repertorio se arma un gráfico SIN escribir código: es lo que conviene
     </message>
     <message>
         <location line="+1"/>
-        <location filename="../src/app/mcp/McpService.cpp" line="+717"/>
+        <location filename="../src/app/mcp/McpService.cpp" line="+718"/>
         <source>Escenas</source>
         <translation>场景</translation>
     </message>
@@ -72083,7 +72369,7 @@ Llegando a 500 fichas se apaga solo y lo dice. Sin `activo` solo informa como es
         <translation>等待摄像头中看不到任何人。</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpService.cpp" line="-4149"/>
+        <location filename="../src/app/mcp/McpService.cpp" line="-4150"/>
         <source>OJO: REINICIA EL MOTOR. Por unos segundos se corta TODO lo que sale (el programa, la sala, las pantallas, lo que ven los invitados) y las cámaras se vuelven a abrir. Con una transmisión o una grabación andando no se aplica. No lo uses para arreglar una cámara: decíselo antes al operador y pedile que confirme.</source>
         <translation>注意：会重启引擎。所有输出（节目、会场、屏幕、嘉宾看到的画面）会中断几秒，摄像机会重新打开。有推流或录制进行时不会应用。不要用它来修复摄像机：事先告诉操作员并请其确认。</translation>
     </message>
@@ -72143,7 +72429,7 @@ Llegando a 500 fichas se apaga solo y lo dice. Sin `activo` solo informa como es
         <translation>未知预设「%1」。有效值：full、left、right、top、bottom、center、top-left、top-right、bottom-left、bottom-right、pip-tl、pip-tr、pip-bl、pip-br、lower-third、third-1..3、grid-&lt;n&gt;-&lt;i&gt;（例如 grid-4-2），或 {x,y,w,h}。</translation>
     </message>
     <message>
-        <location line="+290"/>
+        <location line="+291"/>
         <source>«%1» YA ENTRO sola (estaba en la lista de auto-aceptar del evento): no le pidas los datos de cero, mostrale los que ya tenemos para que confirme. </source>
         <translation>「%1」已自动进入（在活动的自动准入名单中）：不要从头索取信息，向其展示已有的信息请其确认。 </translation>
     </message>
@@ -78760,6 +79046,71 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <source>Todavía no terminó ninguna prueba de sala en esta sesión.</source>
         <translation>本次会话中尚无已结束的会场测试。</translation>
     </message>
+    <message>
+        <location filename="../src/app/mcp/McpEnlaceTools.cpp" line="+23"/>
+        <source>Medir el enlace por el túnel</source>
+        <translation>经隧道测量链路</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Mide el enlace por el túnel WireGuard hasta el eco del servidor (el camino real de los invitados): RTT en reposo, subida y bajada UDP en escalones (2, 5, 10, 20… Mbps hasta `tope_kbps`, de fábrica 100 Mbps; para cuando el enlace se llena) con el RTT, el jitter y la pérdida con carga. Con `tasa_kbps`, una sola tasa fija. Tarda ~15-30 s; seguila con enlace_estado.</source>
+        <translation>经 WireGuard 隧道测量到服务器回声端的链路（嘉宾的真实路径）：空闲 RTT，UDP 上行和下行分级测试（2、5、10、20… Mbps，直到 `tope_kbps`，默认 100 Mbps；链路占满即停止），并给出负载下的 RTT、抖动和丢包。使用 `tasa_kbps` 时只测一个固定速率。约需 15-30 秒；用 enlace_estado 跟进。</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Necesita el túnel WireGuard y el eco instalado en el servidor (si no contesta, enlace_estado lo dice; el instalador está en la tarjeta «Enlace» de la página Sala). La medición CARGA el enlace: con invitados conectados o algo al aire no arranca sin `confirmar` (preguntale al operador) y entonces mide suave (hasta 5 Mbps). Con una prueba de sala corriendo, no. Al terminar, el resultado va a la lista de chequeo del evento abierto (ítem «enlace»).</source>
+        <translation>需要 WireGuard 隧道，并在服务器上安装回声端（若无响应，enlace_estado 会说明；安装程序在“会场”页面的“链路”卡片里）。测量会占用链路：有嘉宾连线或有内容播出时，没有 `confirmar` 不会开始（请先询问操作员），确认后以低强度测量（最高 5 Mbps）。会场测试进行中时不能测量。结束后，结果写入当前活动的检查清单（项目“enlace”）。</translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>el operador aceptó medir con invitados o al aire</source>
+        <translation>操作员已同意在有嘉宾或播出时测量</translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>Midiendo el enlace. Seguilo con enlace_estado.</source>
+        <translation>正在测量链路。用 enlace_estado 跟进。</translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>Cancelar la medición del enlace</source>
+        <translation>取消链路测量</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Corta la medición del enlace que esté corriendo.</source>
+        <translation>停止正在进行的链路测量。</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>No hay una medición del enlace en curso.</source>
+        <translation>没有正在进行的链路测量。</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Cancelando la medición del enlace.</source>
+        <translation>正在取消链路测量。</translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>Cómo está el enlace</source>
+        <translation>链路状态</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>El estado de la medición del enlace (sin túnel, libre o midiendo, con la fase y el avance), lo parcial mientras mide, la última medición (reposo, subida y bajada con sus escalones; si fue cancelada, también la última buena, con la que se hace la cuenta), el riesgo de medir ahora y la cuenta para el cupo de la sala (enlace_necesita).</source>
+        <translation>链路测量的状态（无隧道、空闲或测量中，含阶段和进度）、测量中的阶段结果、最近一次测量（空闲、上行和下行及各级结果；若已取消，也给出最近一次成功的测量，估算以它为准）、现在测量的风险，以及按会场容量的估算（enlace_necesita）。</translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <source>Cuánto enlace necesita el evento</source>
+        <translation>活动需要多少链路带宽</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Cuánta subida y bajada hacen falta para `invitados` (de fábrica, el cupo de la sala) con la grilla como está («alta definición hasta N»), adentro del túnel y con los encabezados de WireGuard, y contra la última medición: veredicto (entra | justo | no_entra | sin_medir), por qué y hasta cuántos invitados entran con margen.</source>
+        <translation>在当前网格设置（“高清最多 N 人”）下，`invitados`（默认为会场容量）需要多少上行和下行带宽（隧道内及含 WireGuard 头部），并与最近一次测量比较：结论（entra | justo | no_entra | sin_medir）、原因，以及留有余量时最多可容纳多少位嘉宾。</translation>
+    </message>
 </context>
 <context>
     <name>mcp-etiquetas</name>
@@ -81193,6 +81544,30 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
     </message>
     <message>
         <location line="+2"/>
+        <source>medir velocidad del enlace internet subida bajada ancho de banda speedtest test de velocidad tunel wireguard starlink latencia ping jitter perdida</source>
+        <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
+        <translation>测量 链路 网速 互联网 上行 下行 带宽 speedtest 测速 隧道 wireguard starlink 延迟 ping 抖动 丢包</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>cancelar cortar parar medicion del enlace test de velocidad</source>
+        <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
+        <translation>取消 停止 中断 链路测量 测速</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>como esta el enlace velocidad de internet resultado de la medicion subida bajada latencia tunel</source>
+        <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
+        <translation>链路状态 网速 测量结果 上行 下行 延迟 隧道</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>cuanto internet hace falta alcanza el enlace cuantos invitados entran subida necesaria starlink</source>
+        <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
+        <translation>需要多少网速 链路够不够 能容纳多少嘉宾 所需上行 starlink</translation>
+    </message>
+    <message>
+        <location line="+2"/>
         <source>pin clave codigo de acceso contrasena de la sala de la conferencia</source>
         <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
         <translation>pin 密码 访问码 会场密码 会议密码</translation>
@@ -82066,7 +82441,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>主持人 主持 主持者 东道主 主播</translation>
     </message>
     <message>
-        <location line="-660"/>
+        <location line="-668"/>
         <source>revocar tablet token botonera companion http acceso sacarle el acceso</source>
         <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
         <translation>撤销 平板 令牌 控制面板 companion http 访问 收回访问权限</translation>
@@ -82084,7 +82459,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>开机自动启动 断电 自动恢复 自启动 开机时启动应用 随系统启动</translation>
     </message>
     <message>
-        <location line="+247"/>
+        <location line="+255"/>
         <source>go take entra el siguiente paso adelante dale revision previa antes de salir</source>
         <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
         <translation>go take 进入 下一个 下一步 前进 走 播出前检查</translation>
@@ -84780,7 +85155,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>断开后回到原位的嘉宾</translation>
     </message>
     <message>
-        <location filename="../src/gateway/main.cpp" line="-125"/>
+        <location filename="../src/gateway/main.cpp" line="-127"/>
         <source>Edad de lo leído de A (p50 de la última ventana), ms</source>
         <translation>从 A 读取的数据帧龄（最近窗口 p50），ms</translation>
     </message>
@@ -90439,7 +90814,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>会议使用协议版本 %1，而程序使用 %2（安装包混用了？）</translation>
     </message>
     <message>
-        <location line="+95"/>
+        <location line="+96"/>
         <source>conferencia nueva (%1): se le vuelve a decir %2</source>
         <translation>新的会议（%1）：重新告知 %2</translation>
     </message>
@@ -90514,17 +90889,33 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>；结束原因：%1</translation>
     </message>
     <message>
-        <location filename="../src/app/ui/PruebaSalaViewModel.cpp" line="-296"/>
+        <location filename="../src/app/ui/PruebaSalaViewModel.cpp" line="-309"/>
         <source>ya hay una prueba de sala en curso</source>
         <translation>已有会场测试正在进行</translation>
     </message>
     <message>
-        <location line="+1"/>
+        <location filename="../src/app/ui/EnlaceViewModel.cpp" line="-101"/>
+        <location filename="../src/app/ui/PruebaSalaViewModel.cpp" line="+1"/>
         <source>la conferencia no está andando</source>
         <translation>会议未在运行</translation>
     </message>
     <message>
+        <location line="+1"/>
+        <source>no hay túnel WireGuard configurado: la medición va por el túnel hasta el servidor</source>
+        <translation>未配置 WireGuard 隧道：测量需经隧道到达服务器</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>ya hay una medición del enlace en curso</source>
+        <translation>已有链路测量在进行</translation>
+    </message>
+    <message>
         <location line="+2"/>
+        <source>hay una prueba de sala corriendo: medí el enlace antes o después</source>
+        <translation>会场测试正在进行：请在测试之前或之后测量链路</translation>
+    </message>
+    <message>
+        <location filename="../src/app/ui/PruebaSalaViewModel.cpp" line="+2"/>
         <source>abrí el evento que querés probar: el informe va a su lista de chequeo</source>
         <translation>请打开要测试的活动：报告会写入其检查清单</translation>
     </message>
@@ -90539,7 +90930,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>本程序未附带压测器（hinchada）：请使用外部生成器</translation>
     </message>
     <message>
-        <location line="+26"/>
+        <location line="+32"/>
         <source>la conferencia no abrió la prueba</source>
         <translation>会议未能开启测试</translation>
     </message>
@@ -90587,6 +90978,46 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <location line="+21"/>
         <source>a mano</source>
         <translation>手动</translation>
+    </message>
+    <message>
+        <location filename="../src/app/sala/EnlaceNecesita.cpp" line="+54"/>
+        <source>subida</source>
+        <translation>上行</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>bajada</source>
+        <translation>下行</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>%1: %2 Mbps medidos para %3 Mbps que hacen falta (sin margen)</source>
+        <translation>%1：测得 %2 Mbps，需要 %3 Mbps（没有余量）</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>%1: se midió hasta %2 Mbps sin llenar el enlace y hacen falta %3 Mbps: medí con un tope más alto</source>
+        <translation>%1：只测到 %2 Mbps（链路未占满），而需要 %3 Mbps：请用更高的上限再测</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>%1: %2 Mbps medidos y hacen falta %3 Mbps</source>
+        <translation>%1：测得 %2 Mbps，需要 %3 Mbps</translation>
+    </message>
+    <message>
+        <location line="+69"/>
+        <source>pierde %1 % de los paquetes con carga</source>
+        <translation>负载时丢包 %1 %</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>jitter de %1 ms</source>
+        <translation>抖动 %1 ms</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>con el enlace cargado la demora sube de %1 a %2 ms</source>
+        <translation>链路负载时延迟从 %1 ms 升到 %2 ms</translation>
     </message>
 </context>
 <context>

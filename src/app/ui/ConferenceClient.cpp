@@ -278,7 +278,8 @@ void ConferenceClient::dispatch(const QByteArray& event, const QJsonObject& obj)
         emit avatarEvento(obj.value("id").toString());
     } else if (event == "foto") {
         emit fotoSesionEvento(obj.value("id").toString());
-    } else if (event == "votacion" || event == "preguntas" || event == "prueba-sala" || event == "prueba-sala-hd") {
+    } else if (event == "votacion" || event == "preguntas" || event == "prueba-sala" || event == "prueba-sala-hd" ||
+               event == "enlace") {
         emit estadoEvento(QString::fromUtf8(event), obj);
     } else if (event == "programa") {
         emit programaEvento(obj);

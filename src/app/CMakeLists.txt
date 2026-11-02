@@ -1396,6 +1396,13 @@ endif()
     target_link_libraries(test_prueba_sala_reglas PRIVATE ba_core Qt6::Core)
     set_target_properties(test_prueba_sala_reglas PROPERTIES BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_prueba_sala_reglas COMMAND test_prueba_sala_reglas)
+    # El enlace: cuánto necesita el evento (contra las mediciones de la prueba de sala) y el
+    # veredicto con lo medido por el túnel (sala::enlace, sin la sala).
+    add_executable(test_enlace_necesita tests/test_enlace_necesita.cpp sala/EnlaceNecesita.cpp)
+    target_include_directories(test_enlace_necesita PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    target_link_libraries(test_enlace_necesita PRIVATE ba_core Qt6::Core)
+    set_target_properties(test_enlace_necesita PROPERTIES BUILD_RPATH "${BA_QT_PREFIX}/lib")
+    add_test(NAME test_enlace_necesita COMMAND test_enlace_necesita)
     # El Reloj de las vistas (corre solo con lectores) y las fotos de los conectados.
     add_executable(test_reloj_vistas tests/test_reloj_vistas.cpp ui/Reloj.cpp ui/Reloj.hpp ui/FotosPersonas.cpp
                    ui/FotosPersonas.hpp)

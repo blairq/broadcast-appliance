@@ -5159,12 +5159,12 @@ Recorrer la tira no cambia lo que se ve.</source>
     </message>
     <message>
         <location line="+4"/>
-        <location line="+1206"/>
+        <location line="+1209"/>
         <source>Tiempo</source>
         <translation>Время</translation>
     </message>
     <message>
-        <location line="-1200"/>
+        <location line="-1203"/>
         <source>Tiempo general para cada orador (m:ss o minutos)</source>
         <translation>Общее время для каждого выступающего (м:сс или минуты)</translation>
     </message>
@@ -5408,18 +5408,18 @@ Recorrer la tira no cambia lo que se ve.</source>
     </message>
     <message>
         <location line="+1"/>
-        <location line="+700"/>
+        <location line="+703"/>
         <source>Reiniciar</source>
         <translation>Перезапустить</translation>
     </message>
     <message>
-        <location line="-700"/>
-        <location line="+700"/>
+        <location line="-703"/>
+        <location line="+703"/>
         <source>Cancelar</source>
         <translation>Отмена</translation>
     </message>
     <message>
-        <location line="-697"/>
+        <location line="-700"/>
         <source>La conferencia se está reiniciando.</source>
         <translation>Конференция перезапускается.</translation>
     </message>
@@ -5669,12 +5669,12 @@ Compartí el enlace y el PIN (panel Acceso).</source>
     </message>
     <message>
         <location line="+6"/>
-        <location line="+188"/>
+        <location line="+191"/>
         <source>Invitar con QR</source>
         <translation>Пригласить по QR</translation>
     </message>
     <message>
-        <location line="-183"/>
+        <location line="-186"/>
         <source>PIN copiado: %1</source>
         <translation>PIN скопирован: %1</translation>
     </message>
@@ -5772,7 +5772,7 @@ Compartí el enlace y el PIN (panel Acceso).</source>
         <translation>Память %1 МБ · ядер: %2. Каждый гость с камерой — это ещё одно видео для декодирования.</translation>
     </message>
     <message>
-        <location line="+16"/>
+        <location line="+19"/>
         <source>Grillas de personas</source>
         <translation>Сетки людей</translation>
     </message>
@@ -8261,6 +8261,72 @@ Se prende desde el Registro.</source>
         <location line="+52"/>
         <source>esa fuente de gráfico ya no está</source>
         <translation>этого источника графики больше нет</translation>
+    </message>
+</context>
+<context>
+    <name>EnlaceViewModel</name>
+    <message numerus="yes">
+        <location filename="../src/app/ui/EnlaceViewModel.cpp" line="+104"/>
+        <source>Hay %n invitados conectados: la medición carga el enlace y se les puede cortar la imagen unos segundos.</source>
+        <translation>
+            <numerusform>Подключён %n гость: измерение нагружает канал, и его изображение может замереть на несколько секунд.</numerusform>
+            <numerusform>Подключены %n гостя: измерение нагружает канал, и их изображение может замереть на несколько секунд.</numerusform>
+            <numerusform>Подключено %n гостей: измерение нагружает канал, и их изображение может замереть на несколько секунд.</numerusform>
+        </translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Hay algo al aire: la medición carga el enlace y puede cortar la salida unos segundos.</source>
+        <translation>Что-то в эфире: измерение нагружает канал и может прервать выход на несколько секунд.</translation>
+    </message>
+    <message>
+        <location line="+32"/>
+        <source>No arrancó la medición del enlace: %1</source>
+        <translation>Измерение канала не запустилось: %1</translation>
+    </message>
+    <message>
+        <location line="+15"/>
+        <source>La conferencia no contestó.</source>
+        <translation>Конференция не ответила.</translation>
+    </message>
+    <message>
+        <location line="+39"/>
+        <source>Medición del enlace cancelada.</source>
+        <translation>Измерение канала отменено.</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>La medición del enlace no se pudo hacer: %1</source>
+        <translation>Не удалось измерить канал: %1</translation>
+    </message>
+    <message numerus="yes">
+        <location line="+8"/>
+        <source>Subida %1 Mbps, bajada %2 Mbps, RTT %3 ms: para %n invitados %4 (entran hasta %5 con margen).</source>
+        <translation>
+            <numerusform>Отдача %1 Мбит/с, приём %2 Мбит/с, RTT %3 мс: для %n гостя — %4 (с запасом помещается до %5).</numerusform>
+            <numerusform>Отдача %1 Мбит/с, приём %2 Мбит/с, RTT %3 мс: для %n гостей — %4 (с запасом помещается до %5).</numerusform>
+            <numerusform>Отдача %1 Мбит/с, приём %2 Мбит/с, RTT %3 мс: для %n гостей — %4 (с запасом помещается до %5).</numerusform>
+        </translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>entra</source>
+        <translation>хватает</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>está justo</source>
+        <translation>впритык</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>no entra</source>
+        <translation>не хватает</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Enlace medido por el túnel (subida, bajada, demora)</source>
+        <translation>Канал измерен через туннель (отдача, приём, задержка)</translation>
     </message>
 </context>
 <context>
@@ -20684,6 +20750,150 @@ Agregale imágenes desde la pestaña Archivos.</source>
     </message>
 </context>
 <context>
+    <name>PanelEnlace</name>
+    <message>
+        <location filename="../src/app/qml/controls/PanelEnlace.qml" line="+18"/>
+        <source>Enlace (por el túnel)</source>
+        <translation>Канал (через туннель)</translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>Entra</source>
+        <translation>Хватает</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Justo</source>
+        <translation>Впритык</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>No entra</source>
+        <translation>Не хватает</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Sin medir</source>
+        <translation>Не измерено</translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>Medir el enlace ahora</source>
+        <translation>Измерить канал сейчас</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>%1 Se mide suave (hasta 5 Mbps): alcanza para la demora y la pérdida, no para la velocidad máxima. ¿Mido igual?</source>
+        <translation>%1 Измерение щадящее (до 5 Мбит/с): хватит для задержки и потерь, но не для максимальной скорости. Всё равно измерить?</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Medir</source>
+        <translation>Измерить</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <location line="+121"/>
+        <source>Cancelar</source>
+        <translation>Отмена</translation>
+    </message>
+    <message>
+        <location line="-106"/>
+        <source>La conferencia no está andando.</source>
+        <translation>Конференция не запущена.</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Sin túnel WireGuard: la medición va por el túnel hasta el servidor propio (Acceso directo por un servidor propio…).</source>
+        <translation>Нет туннеля WireGuard: измерение идёт через туннель до собственного сервера (Прямой доступ через собственный сервер…).</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Los invitados entran por el túnel y el retorno sale una vez por cada uno: lo que manda es la subida de este lugar. Se mide hasta el eco del servidor (%1).</source>
+        <translation>Гости входят через туннель, а обратный канал уходит каждому отдельно: решает отдача этой площадки. Измеряется до эха сервера (%1).</translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>Invitados</source>
+        <translation>Гости</translation>
+    </message>
+    <message>
+        <location line="+13"/>
+        <source>Hace falta: subida %1 · bajada %2 (%3 en alta; con WireGuard %4 / %5)</source>
+        <translation>Нужно: отдача %1 · приём %2 (%3 в высоком качестве; с WireGuard %4 / %5)</translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <source>Con lo medido entran hasta %1 invitados con margen (%2 justo).</source>
+        <translation>По измерению с запасом помещается до %1 гостей (впритык — %2).</translation>
+    </message>
+    <message>
+        <location line="+21"/>
+        <source>Subida (sin pérdida / máx.)</source>
+        <translation>Отдача (без потерь / макс.)</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Bajada (sin pérdida / máx.)</source>
+        <translation>Приём (без потерь / макс.)</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Demora en reposo / con carga</source>
+        <translation>Задержка в покое / под нагрузкой</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Jitter / pérdida</source>
+        <translation>Джиттер / потери</translation>
+    </message>
+    <message>
+        <location line="+22"/>
+        <source>Demora en reposo…</source>
+        <translation>Задержка в покое…</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Subida: %1…</source>
+        <translation>Отдача: %1…</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Bajada: %1…</source>
+        <translation>Приём: %1…</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Buscando el eco del servidor…</source>
+        <translation>Ищем эхо сервера…</translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <source>Medir el enlace</source>
+        <translation>Измерить канал</translation>
+    </message>
+    <message>
+        <location line="+13"/>
+        <source>Instalar el eco en el servidor…</source>
+        <translation>Установить эхо на сервер…</translation>
+    </message>
+    <message>
+        <location line="+14"/>
+        <source>Eco del medidor en el servidor</source>
+        <translation>Эхо измерителя на сервере</translation>
+    </message>
+    <message>
+        <location line="+15"/>
+        <source>En el servidor del túnel, como root, pegá esto en una terminal: instala (o actualiza) el eco del medidor como servicio (ba-enlace-eco, UDP 51821, solo por el túnel). Se puede repetir sin problema.</source>
+        <translation>На сервере туннеля от root вставьте это в терминал: команда установит (или обновит) эхо измерителя как службу (ba-enlace-eco, UDP 51821, только через туннель). Повторять можно без опаски.</translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <source>Copiar</source>
+        <translation>Копировать</translation>
+    </message>
+</context>
+<context>
     <name>PanelEventoWeb</name>
     <message>
         <location filename="../src/app/qml/controls/PanelEventoWeb.qml" line="+37"/>
@@ -22416,8 +22626,50 @@ Agregale imágenes desde la pestaña Archivos.</source>
         <source>Memoria disponible %1 MB · carga %2 · %3 hilos</source>
         <translation>Доступно памяти %1 МБ · нагрузка %2 · потоков %3</translation>
     </message>
+    <message numerus="yes">
+        <location line="+14"/>
+        <source>Enlace: alcanza para %n invitados (última medición).</source>
+        <translation>
+            <numerusform>Канал: хватает на %n гостя (последнее измерение).</numerusform>
+            <numerusform>Канал: хватает на %n гостей (последнее измерение).</numerusform>
+            <numerusform>Канал: хватает на %n гостей (последнее измерение).</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location line="+1"/>
+        <source>Enlace: justo para %n invitados.</source>
+        <translation>
+            <numerusform>Канал: впритык для %n гостя.</numerusform>
+            <numerusform>Канал: впритык для %n гостей.</numerusform>
+            <numerusform>Канал: впритык для %n гостей.</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location line="+1"/>
+        <source>Enlace: NO alcanza para %n invitados (entran %1 con margen).</source>
+        <translation>
+            <numerusform>Канал: НЕ хватает на %n гостя (с запасом помещается %1).</numerusform>
+            <numerusform>Канал: НЕ хватает на %n гостей (с запасом помещается %1).</numerusform>
+            <numerusform>Канал: НЕ хватает на %n гостей (с запасом помещается %1).</numerusform>
+        </translation>
+    </message>
     <message>
-        <location line="+8"/>
+        <location line="+1"/>
+        <source>Enlace sin medir: medilo antes del evento real.</source>
+        <translation>Канал не измерен: измерьте его до настоящего мероприятия.</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Midiendo…</source>
+        <translation>Измеряем…</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Medir el enlace</source>
+        <translation>Измерить канал</translation>
+    </message>
+    <message>
+        <location line="+13"/>
         <source>Revisar la máquina</source>
         <translation>Проверить компьютер</translation>
     </message>
@@ -27080,8 +27332,22 @@ De frente, de costado, con anteojos y sin: así se la reconoce en el día real.<
 </context>
 <context>
     <name>PruebaSalaViewModel</name>
+    <message numerus="yes">
+        <location filename="../src/app/ui/PruebaSalaViewModel.cpp" line="+167"/>
+        <source>Ojo: según la última medición, el enlace no alcanza para %n invitados por el túnel.</source>
+        <translation>
+            <numerusform>Внимание: по последнему измерению канала не хватит на %n гостя через туннель.</numerusform>
+            <numerusform>Внимание: по последнему измерению канала не хватит на %n гостей через туннель.</numerusform>
+            <numerusform>Внимание: по последнему измерению канала не хватит на %n гостей через туннель.</numerusform>
+        </translation>
+    </message>
     <message>
-        <location filename="../src/app/ui/PruebaSalaViewModel.cpp" line="+196"/>
+        <location line="+2"/>
+        <source>El enlace no está medido: medilo antes del evento real (tarjeta «Enlace»).</source>
+        <translation>Канал не измерен: измерьте его до настоящего мероприятия (карточка «Канал»).</translation>
+    </message>
+    <message>
+        <location line="+48"/>
         <source>Prueba de sala abierta: conectá el generador externo con la credencial de prueba.</source>
         <translation>Тест зала открыт: подключите внешний генератор с тестовым ключом.</translation>
     </message>
@@ -27110,7 +27376,7 @@ De frente, de costado, con anteojos y sin: así se la reconoce en el día real.<
         <translation>Прямой вход выключен: лобби снова работает.</translation>
     </message>
     <message>
-        <location line="+48"/>
+        <location line="+55"/>
         <source>Prueba de sala (simulacro con participantes de prueba)</source>
         <translation>Тест зала (учения с тестовыми участниками)</translation>
     </message>
@@ -32935,7 +33201,7 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
 <context>
     <name>StudioViewModel</name>
     <message>
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="+134"/>
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="+135"/>
         <source>%1 (no se pudo: %2)</source>
         <translation>%1 (не удалось: %2)</translation>
     </message>
@@ -32985,7 +33251,7 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
         <translation>Диск мероприятий заполнен на %1 % (осталось %2 ГБ)</translation>
     </message>
     <message>
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="+270"/>
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="+291"/>
         <source>La interfaz estuvo trabada %1 s; el aire siguió</source>
         <translation>Интерфейс завис на %1 с; эфир продолжался</translation>
     </message>
@@ -43211,7 +43477,7 @@ Elegí otra cosa en Salidas → Pantallas.</source>
     </message>
     <message>
         <location line="-57"/>
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="-835"/>
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="-856"/>
         <source>arranque: %1 tardó %2 ms</source>
         <translation>запуск: %1 занял %2 мс</translation>
     </message>
@@ -52207,7 +52473,7 @@ Datos (de %2): %3</source>
 <context>
     <name>gateway</name>
     <message>
-        <location filename="../src/gateway/AdminApi.cpp" line="+196"/>
+        <location filename="../src/gateway/AdminApi.cpp" line="+201"/>
         <source>no es un ajuste de la conferencia</source>
         <translation>это не настройка конференции</translation>
     </message>
@@ -52272,7 +52538,14 @@ Datos (de %2): %3</source>
         <translation>прокси выключен</translation>
     </message>
     <message>
-        <location line="+513"/>
+        <location line="+14"/>
+        <location line="+11"/>
+        <location filename="../src/gateway/net/EnlaceServicio.cpp" line="+70"/>
+        <source>no hay túnel WireGuard configurado</source>
+        <translation>туннель WireGuard не настроен</translation>
+    </message>
+    <message>
+        <location line="+510"/>
         <source>salida inválida</source>
         <translation>неверный выход</translation>
     </message>
@@ -53527,7 +53800,7 @@ Datos (de %2): %3</source>
     </message>
     <message>
         <location line="+2"/>
-        <location filename="../src/gateway/main.cpp" line="+757"/>
+        <location filename="../src/gateway/main.cpp" line="+758"/>
         <location line="+2"/>
         <source>(ninguna)</source>
         <translation>(нет)</translation>
@@ -53751,12 +54024,12 @@ Datos (de %2): %3</source>
     </message>
     <message>
         <location line="+47"/>
-        <location line="+245"/>
+        <location line="+292"/>
         <source>https: no arrancó; los invitados solo tienen http (sin cámara fuera de localhost)</source>
         <translation>https: не запустился; у гостей только http (без камеры вне localhost)</translation>
     </message>
     <message>
-        <location line="-202"/>
+        <location line="-249"/>
         <source>túnel: sin clave privada WireGuard; túnel deshabilitado</source>
         <translation>туннель: нет закрытого ключа WireGuard; туннель отключён</translation>
     </message>
@@ -53801,7 +54074,12 @@ Datos (de %2): %3</source>
         <translation>&apos;%1&apos; — публичный интерфейс сервера: измените, если он называется иначе.</translation>
     </message>
     <message>
-        <location line="+280"/>
+        <location line="+64"/>
+        <source>sin dirección del túnel</source>
+        <translation>нет адреса туннеля</translation>
+    </message>
+    <message>
+        <location line="+263"/>
         <source>túnel: --tunnel-token es visible en la lista de procesos; preferir %1</source>
         <translation>туннель: --tunnel-token виден в списке процессов; лучше использовать %1</translation>
     </message>
@@ -53821,7 +54099,7 @@ Datos (de %2): %3</source>
         <translation>туннель: отключён в конфигурации (только локальный доступ)</translation>
     </message>
     <message>
-        <location line="-565"/>
+        <location line="-612"/>
         <source>red: IP de la máquina %1; en el QR: %2</source>
         <translation>сеть: IP компьютера %1; в QR: %2</translation>
     </message>
@@ -53851,7 +54129,7 @@ Datos (de %2): %3</source>
         <translation>Broadcast Appliance (это устройство)</translation>
     </message>
     <message>
-        <location line="+47"/>
+        <location line="+94"/>
         <source>turn: escuchando en el puerto %1 (TCP y UDP)</source>
         <translation>turn: слушает на порту %1 (TCP и UDP)</translation>
     </message>
@@ -53926,12 +54204,12 @@ Datos (de %2): %3</source>
         <translation>остановка: компоненты останавливаются...</translation>
     </message>
     <message>
-        <location line="+22"/>
+        <location line="+24"/>
         <source>cierre ordenado: BA.Health slot 0 = Terminated; exito</source>
         <translation>штатное завершение: BA.Health slot 0 = Terminated; успех</translation>
     </message>
     <message>
-        <location filename="../src/gateway/net/IpStack.cpp" line="+627"/>
+        <location filename="../src/gateway/net/IpStack.cpp" line="+635"/>
         <source>pila IP: %1/%2 sobre WireGuard (%3 reenvios TCP, UDP %4-%5)</source>
         <translation>IP-стек: %1/%2 поверх WireGuard (%3 TCP-переадресаций, UDP %4-%5)</translation>
     </message>
@@ -54206,6 +54484,26 @@ Datos (de %2): %3</source>
         <source>turn: no se pudo escuchar en %1:%2 (UDP)</source>
         <translation>turn: не удалось слушать на %1:%2 (UDP)</translation>
     </message>
+    <message>
+        <location filename="../src/gateway/net/EnlaceMedidor.cpp" line="+407"/>
+        <source>el servidor del túnel no contesta: falta instalar el medidor (ba-enlace-eco) en el VPS o el túnel no está conectado</source>
+        <translation>сервер туннеля не отвечает: на VPS не установлен измеритель (ba-enlace-eco) или туннель не подключён</translation>
+    </message>
+    <message>
+        <location filename="../src/gateway/net/EnlaceServicio.cpp" line="+5"/>
+        <source>ya hay una medición del enlace en curso</source>
+        <translation>измерение канала уже идёт</translation>
+    </message>
+    <message>
+        <location line="+32"/>
+        <source>no se pudo abrir el UDP por el túnel</source>
+        <translation>не удалось открыть UDP через туннель</translation>
+    </message>
+    <message>
+        <location line="+46"/>
+        <source>Broadcast Appliance: instala o actualiza el eco del medidor del enlace en este servidor (pegar como root; se puede repetir).</source>
+        <translation>Broadcast Appliance: устанавливает или обновляет эхо измерителя канала на этом сервере (вставлять от root; можно повторять).</translation>
+    </message>
 </context>
 <context>
     <name>grabacion</name>
@@ -54447,7 +54745,7 @@ Datos (de %2): %3</source>
         <translation>нет</translation>
     </message>
     <message>
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="+869"/>
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="+890"/>
         <source>«%1» no arrancó al abrir: %2</source>
         <translation>«%1» не запустился при открытии: %2</translation>
     </message>
@@ -58460,7 +58758,7 @@ LO QUE HAY QUE SABER AL PRENDERLO: la salvaguarda de aprobaciones (`mcp.approval
         <translation>Заставка поверх всего, что выходит («Перерыв», «Скоро вернёмся», «Минута молчания»…), с `texto`, необязательной `imagen` (путь) и `ms` наплыва (600). Не зависит от сцен. Включение в эфире запрашивает подтверждение, если его запрашивает что-то автоматическое; выключение — нет. Переживает падение приложения. У каждого выхода своя заставка (`salida`).</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpService.cpp" line="+1326"/>
+        <location filename="../src/app/mcp/McpService.cpp" line="+1327"/>
         <source>El supervisor relanza la app si deja de latir. El latido sale de la interfaz Y de un hilo que mira los cuadros del motor: si la interfaz se traba y el motor sigue, el aire NO se corta. Con la interfaz trabada más de `espera_ui_s` (10 a 3600, de fábrica 60) y `matar_si_ui_trabada_sin_aire` (de fábrica true), se relanza solo si no hay transmisión ni grabación. La interfaz trabada CON aire es una alarma que sale sin la interfaz, al control web y a los notificadores de `notificar` («todos», de fábrica, o una lista de ids de notificador_listar; [] = ninguno). Sin argumentos, la muestra (con el estado: motor_vivo, ui_viva, ui_trabada_ms, ultima_traba_ms).</source>
         <translation>Сторожевой процесс перезапускает приложение, если пропадает пульс. Пульс идёт от интерфейса И от потока, следящего за кадрами движка: если интерфейс завис, а движок работает, эфир НЕ прерывается. Если интерфейс завис дольше `espera_ui_s` (от 10 до 3600, по умолчанию 60) и включено `matar_si_ui_trabada_sin_aire` (по умолчанию true), перезапуск происходит, только если нет ни трансляции, ни записи. Зависший интерфейс ПРИ эфире — это тревога, которая уходит без интерфейса: в веб-управление и уведомителям из `notificar` («todos» по умолчанию или список id из notificador_listar; [] = никому). Без аргументов показывает настройку (с состоянием: motor_vivo, ui_viva, ui_trabada_ms, ultima_traba_ms).</translation>
     </message>
@@ -61641,7 +61939,7 @@ Sos el rol `%1`: este es TODO tu juego. Lo que no esta aca no lo podes hacer vos
     </message>
     <message>
         <location line="+2"/>
-        <location filename="../src/app/mcp/McpService.cpp" line="-2315"/>
+        <location filename="../src/app/mcp/McpService.cpp" line="-2316"/>
         <source>La herramienta fallo: %1</source>
         <translation>Инструмент не сработал: %1</translation>
     </message>
@@ -65231,7 +65529,7 @@ Con este repertorio se arma un gráfico SIN escribir código: es lo que conviene
     </message>
     <message>
         <location line="+1"/>
-        <location filename="../src/app/mcp/McpService.cpp" line="+717"/>
+        <location filename="../src/app/mcp/McpService.cpp" line="+718"/>
         <source>Escenas</source>
         <translation>Сцены</translation>
     </message>
@@ -72423,7 +72721,7 @@ Llegando a 500 fichas se apaga solo y lo dice. Sin `activo` solo informa como es
         <translation>На камерах ожидания никого не видно.</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpService.cpp" line="-4149"/>
+        <location filename="../src/app/mcp/McpService.cpp" line="-4150"/>
         <source>OJO: REINICIA EL MOTOR. Por unos segundos se corta TODO lo que sale (el programa, la sala, las pantallas, lo que ven los invitados) y las cámaras se vuelven a abrir. Con una transmisión o una grabación andando no se aplica. No lo uses para arreglar una cámara: decíselo antes al operador y pedile que confirme.</source>
         <translation>ВНИМАНИЕ: ПЕРЕЗАПУСКАЕТ ДВИЖОК. На несколько секунд обрывается ВСЁ, что выходит (программа, зал, экраны, то, что видят гости), и камеры открываются заново. Во время трансляции или записи не применяется. Не используйте это, чтобы починить камеру: сначала скажите оператору и попросите подтвердить.</translation>
     </message>
@@ -72483,7 +72781,7 @@ Llegando a 500 fichas se apaga solo y lo dice. Sin `activo` solo informa como es
         <translation>неизвестный пресет &apos;%1&apos;. Допустимые: full, left, right, top, bottom, center, top-left, top-right, bottom-left, bottom-right, pip-tl, pip-tr, pip-bl, pip-br, lower-third, third-1..3, grid-&lt;n&gt;-&lt;i&gt; (напр. grid-4-2) или {x,y,w,h}.</translation>
     </message>
     <message>
-        <location line="+290"/>
+        <location line="+291"/>
         <source>«%1» YA ENTRO sola (estaba en la lista de auto-aceptar del evento): no le pidas los datos de cero, mostrale los que ya tenemos para que confirme. </source>
         <translation>«%1» УЖЕ ВОШЁЛ сам (был в списке автоприёма мероприятия): не спрашивайте данные с нуля, покажите те, что у нас уже есть, чтобы он подтвердил. </translation>
     </message>
@@ -79104,6 +79402,71 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <source>Todavía no terminó ninguna prueba de sala en esta sesión.</source>
         <translation>В этом сеансе ещё не завершился ни один тест зала.</translation>
     </message>
+    <message>
+        <location filename="../src/app/mcp/McpEnlaceTools.cpp" line="+23"/>
+        <source>Medir el enlace por el túnel</source>
+        <translation>Измерить канал через туннель</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Mide el enlace por el túnel WireGuard hasta el eco del servidor (el camino real de los invitados): RTT en reposo, subida y bajada UDP en escalones (2, 5, 10, 20… Mbps hasta `tope_kbps`, de fábrica 100 Mbps; para cuando el enlace se llena) con el RTT, el jitter y la pérdida con carga. Con `tasa_kbps`, una sola tasa fija. Tarda ~15-30 s; seguila con enlace_estado.</source>
+        <translation>Измеряет канал через туннель WireGuard до эха сервера (реальный путь гостей): RTT в покое, отдачу и приём по UDP ступенями (2, 5, 10, 20… Мбит/с до `tope_kbps`, по умолчанию 100 Мбит/с; останавливается, когда канал заполнен) с RTT, джиттером и потерями под нагрузкой. С `tasa_kbps` — одна фиксированная скорость. Занимает ~15-30 с; следите через enlace_estado.</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Necesita el túnel WireGuard y el eco instalado en el servidor (si no contesta, enlace_estado lo dice; el instalador está en la tarjeta «Enlace» de la página Sala). La medición CARGA el enlace: con invitados conectados o algo al aire no arranca sin `confirmar` (preguntale al operador) y entonces mide suave (hasta 5 Mbps). Con una prueba de sala corriendo, no. Al terminar, el resultado va a la lista de chequeo del evento abierto (ítem «enlace»).</source>
+        <translation>Нужны туннель WireGuard и эхо, установленное на сервере (если оно не отвечает, это покажет enlace_estado; установщик — в карточке «Канал» на странице Зал). Измерение НАГРУЖАЕТ канал: при подключённых гостях или эфире оно не запускается без `confirmar` (спросите оператора) и тогда измеряет щадяще (до 5 Мбит/с). Во время проверки зала — нельзя. По окончании результат попадает в чек-лист открытого мероприятия (пункт «enlace»).</translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>el operador aceptó medir con invitados o al aire</source>
+        <translation>оператор согласился измерять при гостях или в эфире</translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>Midiendo el enlace. Seguilo con enlace_estado.</source>
+        <translation>Канал измеряется. Следите через enlace_estado.</translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>Cancelar la medición del enlace</source>
+        <translation>Отменить измерение канала</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Corta la medición del enlace que esté corriendo.</source>
+        <translation>Останавливает идущее измерение канала.</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>No hay una medición del enlace en curso.</source>
+        <translation>Измерение канала не идёт.</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Cancelando la medición del enlace.</source>
+        <translation>Отменяем измерение канала.</translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>Cómo está el enlace</source>
+        <translation>Состояние канала</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>El estado de la medición del enlace (sin túnel, libre o midiendo, con la fase y el avance), lo parcial mientras mide, la última medición (reposo, subida y bajada con sus escalones; si fue cancelada, también la última buena, con la que se hace la cuenta), el riesgo de medir ahora y la cuenta para el cupo de la sala (enlace_necesita).</source>
+        <translation>Состояние измерения канала (нет туннеля, свободно или идёт измерение, с фазой и ходом), промежуточные данные во время измерения, последнее измерение (покой, отдача и приём со ступенями; если оно отменено — также последнее удачное, по которому идёт расчёт), риск измерять сейчас и расчёт для вместимости зала (enlace_necesita).</translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <source>Cuánto enlace necesita el evento</source>
+        <translation>Какой канал нужен мероприятию</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Cuánta subida y bajada hacen falta para `invitados` (de fábrica, el cupo de la sala) con la grilla como está («alta definición hasta N»), adentro del túnel y con los encabezados de WireGuard, y contra la última medición: veredicto (entra | justo | no_entra | sin_medir), por qué y hasta cuántos invitados entran con margen.</source>
+        <translation>Сколько отдачи и приёма нужно для `invitados` (по умолчанию — вместимость зала) при текущей сетке («высокое качество до N»), внутри туннеля и с заголовками WireGuard, и в сравнении с последним измерением: вердикт (entra | justo | no_entra | sin_medir), почему и сколько гостей помещается с запасом.</translation>
+    </message>
 </context>
 <context>
     <name>mcp-etiquetas</name>
@@ -81537,6 +81900,30 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
     </message>
     <message>
         <location line="+2"/>
+        <source>medir velocidad del enlace internet subida bajada ancho de banda speedtest test de velocidad tunel wireguard starlink latencia ping jitter perdida</source>
+        <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
+        <translation>измерить скорость канала интернет отдача приём пропускная способность speedtest тест скорости туннель wireguard starlink задержка пинг джиттер потери</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>cancelar cortar parar medicion del enlace test de velocidad</source>
+        <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
+        <translation>отменить остановить прервать измерение канала тест скорости</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>como esta el enlace velocidad de internet resultado de la medicion subida bajada latencia tunel</source>
+        <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
+        <translation>состояние канала скорость интернета результат измерения отдача приём задержка туннель</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>cuanto internet hace falta alcanza el enlace cuantos invitados entran subida necesaria starlink</source>
+        <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
+        <translation>сколько нужно интернета хватит ли канала сколько гостей поместится нужная отдача starlink</translation>
+    </message>
+    <message>
+        <location line="+2"/>
         <source>pin clave codigo de acceso contrasena de la sala de la conferencia</source>
         <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
         <translation>pin пароль код доступа пароль комнаты пароль конференции</translation>
@@ -82410,7 +82797,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>ведущий модератор хозяин вечера конферансье</translation>
     </message>
     <message>
-        <location line="-660"/>
+        <location line="-668"/>
         <source>revocar tablet token botonera companion http acceso sacarle el acceso</source>
         <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
         <translation>отозвать планшет токен пульт companion http доступ лишить доступа</translation>
@@ -82428,7 +82815,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>запускаться само при включении отключение электричества возвращаться само автозапуск запускать приложение при включении компьютера запуск вместе с системой</translation>
     </message>
     <message>
-        <location line="+247"/>
+        <location line="+255"/>
         <source>go take entra el siguiente paso adelante dale revision previa antes de salir</source>
         <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
         <translation>go take выходит следующий шаг вперёд давай проверка перед выходом</translation>
@@ -85124,7 +85511,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>Гости, которые отключились и вернулись на своё место</translation>
     </message>
     <message>
-        <location filename="../src/gateway/main.cpp" line="-125"/>
+        <location filename="../src/gateway/main.cpp" line="-127"/>
         <source>Edad de lo leído de A (p50 de la última ventana), ms</source>
         <translation>Возраст прочитанного из A (p50 последнего окна), мс</translation>
     </message>
@@ -90785,7 +91172,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>конференция говорит на версии %1 контракта, а программа — на %2 (смешанный пакет?)</translation>
     </message>
     <message>
-        <location line="+95"/>
+        <location line="+96"/>
         <source>conferencia nueva (%1): se le vuelve a decir %2</source>
         <translation>новая конференция (%1): ей снова сообщается %2</translation>
     </message>
@@ -90860,17 +91247,33 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>; завершён: %1</translation>
     </message>
     <message>
-        <location filename="../src/app/ui/PruebaSalaViewModel.cpp" line="-296"/>
+        <location filename="../src/app/ui/PruebaSalaViewModel.cpp" line="-309"/>
         <source>ya hay una prueba de sala en curso</source>
         <translation>тест зала уже идёт</translation>
     </message>
     <message>
-        <location line="+1"/>
+        <location filename="../src/app/ui/EnlaceViewModel.cpp" line="-101"/>
+        <location filename="../src/app/ui/PruebaSalaViewModel.cpp" line="+1"/>
         <source>la conferencia no está andando</source>
         <translation>конференция не работает</translation>
     </message>
     <message>
+        <location line="+1"/>
+        <source>no hay túnel WireGuard configurado: la medición va por el túnel hasta el servidor</source>
+        <translation>туннель WireGuard не настроен: измерение идёт через туннель до сервера</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>ya hay una medición del enlace en curso</source>
+        <translation>измерение канала уже идёт</translation>
+    </message>
+    <message>
         <location line="+2"/>
+        <source>hay una prueba de sala corriendo: medí el enlace antes o después</source>
+        <translation>идёт проверка зала: измерьте канал до или после неё</translation>
+    </message>
+    <message>
+        <location filename="../src/app/ui/PruebaSalaViewModel.cpp" line="+2"/>
         <source>abrí el evento que querés probar: el informe va a su lista de chequeo</source>
         <translation>откройте мероприятие, которое хотите проверить: отчёт попадёт в его контрольный список</translation>
     </message>
@@ -90885,7 +91288,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>нагрузчика (hinchada) нет в этой программе: используйте внешний генератор</translation>
     </message>
     <message>
-        <location line="+26"/>
+        <location line="+32"/>
         <source>la conferencia no abrió la prueba</source>
         <translation>конференция не открыла тест</translation>
     </message>
@@ -90933,6 +91336,46 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <location line="+21"/>
         <source>a mano</source>
         <translation>вручную</translation>
+    </message>
+    <message>
+        <location filename="../src/app/sala/EnlaceNecesita.cpp" line="+54"/>
+        <source>subida</source>
+        <translation>отдача</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>bajada</source>
+        <translation>приём</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>%1: %2 Mbps medidos para %3 Mbps que hacen falta (sin margen)</source>
+        <translation>%1: измерено %2 Мбит/с при нужных %3 Мбит/с (без запаса)</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>%1: se midió hasta %2 Mbps sin llenar el enlace y hacen falta %3 Mbps: medí con un tope más alto</source>
+        <translation>%1: измерено до %2 Мбит/с без заполнения канала, а нужно %3 Мбит/с: измерьте с более высоким пределом</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>%1: %2 Mbps medidos y hacen falta %3 Mbps</source>
+        <translation>%1: измерено %2 Мбит/с, а нужно %3 Мбит/с</translation>
+    </message>
+    <message>
+        <location line="+69"/>
+        <source>pierde %1 % de los paquetes con carga</source>
+        <translation>теряет %1 % пакетов под нагрузкой</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>jitter de %1 ms</source>
+        <translation>джиттер %1 мс</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>con el enlace cargado la demora sube de %1 a %2 ms</source>
+        <translation>под нагрузкой задержка растёт с %1 до %2 мс</translation>
     </message>
 </context>
 <context>

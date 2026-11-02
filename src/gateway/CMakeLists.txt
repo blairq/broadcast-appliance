@@ -51,6 +51,14 @@ else()
 endif()
 
 target_link_libraries(ba-gateway PRIVATE ba_core mbedcrypto)
+
+# El eco del medidor del enlace (tools/vps/ba-enlace-eco.py) viaja adentro del gateway: el
+# instalador para el VPS (GET /api/v1/enlace/instalador) lleva el archivo de este mismo build.
+include("${CMAKE_SOURCE_DIR}/cmake/BaEcoEnlace.cmake")
+set(BA_GW_GENERADO "${CMAKE_CURRENT_BINARY_DIR}/generado")
+ba_eco_enlace("${CMAKE_SOURCE_DIR}" "${BA_GW_GENERADO}")
+set(BA_ECO_ENLACE_PY "${CMAKE_SOURCE_DIR}/tools/vps/ba-enlace-eco.py")
+target_include_directories(ba-gateway PRIVATE "${BA_GW_GENERADO}")
 # El cliente HTTPS propio (mbedtls, sin Qt) de la app: lo usa el cliente ACME del proxy (T61).
 set(BA_GW_HTTPS "${CMAKE_SOURCE_DIR}/src/app/net/HttpsClient.cpp")
 target_sources(ba-gateway PRIVATE "${BA_GW_HTTPS}")
@@ -278,7 +286,7 @@ foreach(test_source ${BA_GATEWAY_TESTS})
     get_filename_component(test_name ${test_source} NAME_WE)
     add_executable(${test_name} ${test_source} ${BA_GATEWAY_LIB_SOURCES} "${BA_QRCODEGEN_DIR}/qrcodegen.cpp")
     target_include_directories(${test_name} PRIVATE "${BA_QRCODEGEN_DIR}")
-    target_include_directories(${test_name} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_SOURCE_DIR}/src/core/tests")
+    target_include_directories(${test_name} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_SOURCE_DIR}/src/core/tests" "${BA_GW_GENERADO}")
     # Tests de LOGICA: siempre con el backend NULL (el SDP de prueba no es un
     # SDP real). Los medios reales los prueba test_webrtc_loopback.
     target_compile_definitions(${test_name} PRIVATE
@@ -287,7 +295,9 @@ foreach(test_source ${BA_GATEWAY_TESTS})
         # de verdad); BA_FUENTES en el entorno manda (src/core/tests/RutasPrueba.h).
         BA_PRUEBA_FUENTES="${CMAKE_SOURCE_DIR}"
         # Par WireGuard de referencia (Python) para la interoperabilidad.
-        BA_TEST_WG_PEER="${CMAKE_CURRENT_SOURCE_DIR}/tests/wg_reference_peer.py")
+        BA_TEST_WG_PEER="${CMAKE_CURRENT_SOURCE_DIR}/tests/wg_reference_peer.py"
+        # El eco del medidor del enlace (el del VPS) para la interoperabilidad.
+        BA_TEST_ECO_ENLACE="${BA_ECO_ENLACE_PY}")
     target_link_libraries(${test_name} PRIVATE ba_core mbedcrypto)
     if(BA_HAVE_LWIP)
         target_link_libraries(${test_name} PRIVATE ba_lwip)
@@ -302,7 +312,7 @@ foreach(test_source ${BA_GATEWAY_TESTS})
 endforeach()
 # Los que miden tiempo real (ritmo, latencia, plazos): solos. Con ocho tests más
 # compitiendo por la CPU, el período medido se va y fallan sin que nada esté mal.
-foreach(t test_retorno_ritmo test_retorno_video test_cupos test_pinggy)
+foreach(t test_retorno_ritmo test_retorno_video test_cupos test_pinggy test_enlace test_ipstack)
     if(TEST ${t})
         set_tests_properties(${t} PROPERTIES RUN_SERIAL TRUE)
     endif()
@@ -312,7 +322,7 @@ endforeach()
 if(BA_GATEWAY_WEBRTC AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_webrtc_loopback.cpp")
     add_executable(test_webrtc_loopback tests/test_webrtc_loopback.cpp ${BA_GATEWAY_LIB_SOURCES}
                    "${BA_QRCODEGEN_DIR}/qrcodegen.cpp")
-    target_include_directories(test_webrtc_loopback PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}" "${BA_QRCODEGEN_DIR}")
+    target_include_directories(test_webrtc_loopback PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}" "${BA_QRCODEGEN_DIR}" "${BA_GW_GENERADO}")
     target_link_libraries(test_webrtc_loopback PRIVATE ba_core mbedcrypto ba_webrtc_win ws2_32)
     if(BA_HAVE_LWIP)
         target_link_libraries(test_webrtc_loopback PRIVATE ba_lwip)
@@ -325,7 +335,7 @@ endif()
 if(BA_GATEWAY_WEBRTC_MAC AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_webrtc_loopback.cpp")
     add_executable(test_webrtc_loopback tests/test_webrtc_loopback.cpp ${BA_GATEWAY_LIB_SOURCES}
                    "${BA_QRCODEGEN_DIR}/qrcodegen.cpp")
-    target_include_directories(test_webrtc_loopback PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}" "${BA_QRCODEGEN_DIR}")
+    target_include_directories(test_webrtc_loopback PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}" "${BA_QRCODEGEN_DIR}" "${BA_GW_GENERADO}")
     target_link_libraries(test_webrtc_loopback PRIVATE ba_core mbedcrypto ba_webrtc_mac)
     if(BA_HAVE_LWIP)
         target_link_libraries(test_webrtc_loopback PRIVATE ba_lwip)

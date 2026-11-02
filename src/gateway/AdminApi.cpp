@@ -32,6 +32,10 @@
 //   GET    /api/v1/rotulos-link?target=local|remote&conClave=0|1  enlace + QR para el celular
 //   GET    /api/v1/qr?target=local|remote[&pin=1]  URL de ingreso (+PIN) + matriz del QR
 //   POST   /api/v1/network/server-config   {endpoint, publicAddress?} -> wg0.conf del servidor
+//   GET    /api/v1/enlace                  la medición del enlace por el túnel (net/EnlaceServicio.hpp)
+//   POST   /api/v1/enlace/medir            {subida?, bajada?, topeSubidaKbps?, topeBajadaKbps?, tasaKbps?, segundos?}
+//   POST   /api/v1/enlace/cancelar         corta la que esté corriendo
+//   GET    /api/v1/enlace/instalador       {ok, script, eco}: lo que se pega en el VPS para el eco
 //   POST   /api/v1/room                    {lobby?, locked?, intake?}
 //   GET    /api/v1/prueba-sala             la prueba de sala (PruebaSala.hpp), con la credencial
 //   POST   /api/v1/prueba-sala             {duracionS, directa?} la abre/renueva · {directa} el interruptor
@@ -86,6 +90,7 @@
 #include "diag/Correlacion.hpp"
 #include "diag/Metricas.hpp"
 #include "proxy/GestorProxy.hpp"
+#include "net/EnlaceServicio.hpp"
 #include "Log.hpp"
 #include "qrcodegen.hpp"
 #include "Room.hpp"
@@ -505,6 +510,28 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
         }
         proxy_->renovar(req.value("host", std::string()));
         sendJson(fd, 200, json{{"ok", true}});
+        return;
+    }
+    // La medición del enlace por el túnel (EnlaceServicio): el estado avanza por el evento «enlace».
+    if (path == "/api/v1/enlace" && method == "GET") {
+        sendJson(fd, 200, enlace_ != nullptr ? enlace_->estado() : json{{"estado", "sin_tunel"}, {"hayTunel", false}});
+        return;
+    }
+    if (path == "/api/v1/enlace/medir" && method == "POST") {
+        const json r = enlace_ != nullptr ? enlace_->medir(req)
+                                          : json{{"ok", false}, {"error", traducir("gateway", "no hay túnel WireGuard configurado")}};
+        sendJson(fd, r.value("ok", false) ? 200 : 409, r);
+        return;
+    }
+    if (path == "/api/v1/enlace/cancelar" && method == "POST") {
+        if (enlace_ != nullptr) enlace_->cancelar();
+        sendJson(fd, 200, json{{"ok", true}});
+        return;
+    }
+    if (path == "/api/v1/enlace/instalador" && method == "GET") {
+        const json r = enlaceInstalador_ ? enlaceInstalador_()
+                                         : json{{"ok", false}, {"error", traducir("gateway", "no hay túnel WireGuard configurado")}};
+        sendJson(fd, r.value("ok", false) ? 200 : 409, r);
         return;
     }
     if (path == "/api/v1/network/server-config" && method == "POST") {
@@ -1385,7 +1412,7 @@ bool SignalingServer::eventoDeEstado(const std::string& event) {
     // Lo que dice CÓMO ESTÁ algo, entero: no va a la cola de un solo disparo (ver estados_).
     static const std::set<std::string> kEstado{"room", "programa", "direcciones", "hablan",    "prompter",
                                                "red",  "web",      "votacion",    "preguntas", "foto",
-                                               "prueba-sala"};
+                                               "prueba-sala", "enlace"};
     return kEstado.count(event) > 0;
 }
 

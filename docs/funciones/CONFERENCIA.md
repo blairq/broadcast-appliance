@@ -283,6 +283,11 @@ Puesta en marcha (página Sala → **Configurar servidor WireGuard…**):
 La clave privada de este equipo vive cifrada en `Credenciales/wireguard-key.cred`
 o en `BA_WG_PRIVATE_KEY`; la PSK opcional, en `BA_WG_PSK`.
 
+**Cuánto anda el túnel**: la tarjeta **Sala → Enlace** mide subida, bajada, demora, jitter
+y pérdida por el túnel contra un eco nuestro en el servidor (`ba-enlace-eco`, UDP 51821
+por wg0; el instalador está en la misma tarjeta) y dice si entran los invitados del
+evento: [ENLACE.md](ENLACE.md).
+
 ### Cuántos puertos UDP hacen falta
 
 Cada conexión (un invitado, uno del lobby, una vista) abre un puerto del rango de

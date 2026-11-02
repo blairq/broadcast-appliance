@@ -845,6 +845,14 @@ const Fila kPropias[] = {
     //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
     {"prueba_sala_informe", QT_TRANSLATE_NOOP("mcp-etiquetas", "informe resultado de la prueba de sala simulacro como salio")},
     //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
+    {"enlace_medir", QT_TRANSLATE_NOOP("mcp-etiquetas", "medir velocidad del enlace internet subida bajada ancho de banda speedtest test de velocidad tunel wireguard starlink latencia ping jitter perdida")},
+    //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
+    {"enlace_cancelar", QT_TRANSLATE_NOOP("mcp-etiquetas", "cancelar cortar parar medicion del enlace test de velocidad")},
+    //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
+    {"enlace_estado", QT_TRANSLATE_NOOP("mcp-etiquetas", "como esta el enlace velocidad de internet resultado de la medicion subida bajada latencia tunel")},
+    //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
+    {"enlace_necesita", QT_TRANSLATE_NOOP("mcp-etiquetas", "cuanto internet hace falta alcanza el enlace cuantos invitados entran subida necesaria starlink")},
+    //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
     {"room_pin", QT_TRANSLATE_NOOP("mcp-etiquetas", "pin clave codigo de acceso contrasena de la sala de la conferencia")},
     //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
     {"room_link", QT_TRANSLATE_NOOP("mcp-etiquetas", "enlace invitacion link para entrar compartir acceso url de la sala url de la conferencia")},

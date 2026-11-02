@@ -15,6 +15,9 @@
 //      contados e integros.
 //   3. UDP por el tunel al puerto P, eco del servicio local (NAT por flujo).
 //   4. Ping ICMP a la IP del tunel lo contesta lwIP (no hace falta servicio).
+//   5. El medidor del enlace (net/EnlaceMedidor) por el tunel, con el UDP propio de
+//      la pila (IpStack::transporteUdp), contra el eco de verdad
+//      (tools/vps/ba-enlace-eco.py) detras del reenvio UDP. Sin python3: SKIP.
 // Solo POSIX (el test se relanza a si mismo como proceso hijo).
 
 #include <atomic>
@@ -26,6 +29,7 @@
 #include <thread>
 #include <vector>
 
+#include "net/EnlaceMedidor.hpp"
 #include "net/IpStack.hpp"
 #include "net/WgCrypto.hpp"
 #include "net/WgDevice.hpp"
@@ -35,6 +39,7 @@
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
+#include <signal.h>
 #include <sys/wait.h>
 #include <unistd.h>
 #endif
@@ -105,8 +110,8 @@ void udpService(int fd, std::atomic<bool>& stop) {
 }
 
 int remote(int argc, char** argv) {
-    // argv: --remote <wgPort> <remotePriv> <gatewayPub> <udpPort>
-    if (argc < 6) return 2;
+    // argv: --remote <wgPort> <remotePriv> <gatewayPub> <udpPort> <ecoPort|0>
+    if (argc < 7) return 2;
     WgConfig c;
     fromBase64(c.privateKey, argv[3]);
     fromBase64(c.peerPublicKey, argv[4]);
@@ -155,6 +160,32 @@ int remote(int argc, char** argv) {
     // 3) UDP
     const auto u = ip.udpRequest(kGatewayIp, udpPort, "hola-udp", 5000);
     CHECK(u && *u == "eco:hola-udp", "UDP por el tunel con eco del servicio local (NAT por flujo)");
+
+    // 5) El medidor del enlace por el tunel
+    const uint16_t ecoPort = static_cast<uint16_t>(std::atoi(argv[6]));
+    if (ecoPort == 0) {
+        std::printf("SKIP medidor del enlace: falta python3\n");
+    } else {
+        auto t = ip.transporteUdp(kGatewayIp, ecoPort);
+        CHECK(t != nullptr, "UDP propio por el tunel (transporte del medidor)");
+        if (t) {
+            std::atomic<bool> cancelar{false};
+            enlace::Medidor m(*t, {}, cancelar);
+            enlace::Pedido p;
+            // BA_TEST_ENLACE_TOPE=<kbps>: a mano, cuánto da el túnel propio (WireGuard + lwIP).
+            const char* tope = std::getenv("BA_TEST_ENLACE_TOPE");
+            p.topeSubidaKbps = tope != nullptr ? std::atoi(tope) : 10000;
+            p.topeBajadaKbps = p.topeSubidaKbps;
+            p.escalonMs = 600;
+            p.reposoMs = 600;
+            const nlohmann::json r = m.correr(p);
+            std::printf("   %s\n", r.dump().substr(0, tope != nullptr ? 4000 : 300).c_str());
+            CHECK(r.value("ok", false), "el medidor del enlace termina por el tunel");
+            CHECK(r["reposo"].value("rttMs", -1.0) >= 0, "RTT por el tunel");
+            CHECK(r["subida"].value("capacidadKbps", 0.0) > 5000 && r["bajada"].value("capacidadKbps", 0.0) > 5000,
+                  "subida y bajada por el tunel (rampa hasta 10 Mbps)");
+        }
+    }
 
     ip.stop();
     wg.stop();
@@ -227,12 +258,27 @@ int main(int argc, char** argv) {
     socklen_t al = sizeof(a);
     getsockname(lt, reinterpret_cast<sockaddr*>(&a), &al);
     const uint16_t tcpPort = ntohs(a.sin_port);
+    // El servicio UDP en X y el eco del medidor en X+1 (el reenvio es un rango): se
+    // busca un X cuyo siguiente este libre.
     const int lu = socket(AF_INET, SOCK_DGRAM, 0);
-    a.sin_port = 0;
-    bind(lu, reinterpret_cast<sockaddr*>(&a), sizeof(a));
-    al = sizeof(a);
-    getsockname(lu, reinterpret_cast<sockaddr*>(&a), &al);
-    const uint16_t udpPort = ntohs(a.sin_port);
+    uint16_t udpPort = 0;
+    for (int intento = 0; intento < 50 && udpPort == 0; ++intento) {
+        const auto x = static_cast<uint16_t>(42000 + (getpid() * 7 + intento * 131) % 20000);
+        const int prueba = socket(AF_INET, SOCK_DGRAM, 0);
+        sockaddr_in b = a;
+        b.sin_port = htons(static_cast<uint16_t>(x + 1));
+        const bool siguienteLibre = bind(prueba, reinterpret_cast<sockaddr*>(&b), sizeof(b)) == 0;
+        close(prueba);
+        a.sin_port = htons(x);
+        if (siguienteLibre && bind(lu, reinterpret_cast<sockaddr*>(&a), sizeof(a)) == 0) udpPort = x;
+    }
+    if (udpPort == 0) {
+        a.sin_port = 0;
+        bind(lu, reinterpret_cast<sockaddr*>(&a), sizeof(a));
+        al = sizeof(a);
+        getsockname(lu, reinterpret_cast<sockaddr*>(&a), &al);
+        udpPort = ntohs(a.sin_port);
+    }
     std::thread ts([&] { tcpService(lt, stop); });
     std::thread us([&] { udpService(lu, stop); });
 
@@ -245,7 +291,27 @@ int main(int argc, char** argv) {
     sc.tunnelIp = kGatewayIp;
     IpStack ip(wg, sc, [](const std::string& l) { std::printf("   %s\n", l.c_str()); });
     ip.forwardTcp(80, tcpPort, true);
-    ip.forwardUdpRange(udpPort, udpPort);
+    // El eco del medidor del enlace (el del VPS) en X+1, si hay python3 y el puerto quedo libre.
+    uint16_t ecoPort = 0;
+    pid_t eco = -1;
+    if (std::system("python3 -c \"import sys\" >/dev/null 2>&1") == 0) {
+        const int prueba = socket(AF_INET, SOCK_DGRAM, 0);
+        sockaddr_in b = a;
+        b.sin_port = htons(static_cast<uint16_t>(udpPort + 1));
+        const bool libre = bind(prueba, reinterpret_cast<sockaddr*>(&b), sizeof(b)) == 0;
+        close(prueba);
+        if (libre) {
+            ecoPort = static_cast<uint16_t>(udpPort + 1);
+            eco = fork();
+            if (eco == 0) {
+                const std::string ep = std::to_string(ecoPort);
+                execlp("python3", "python3", BA_TEST_ECO_ENLACE, "--direccion", "127.0.0.1", "--puerto", ep.c_str(),
+                       "--red", "127.0.0.0/8", "--durante-s", "120", static_cast<char*>(nullptr));
+                _exit(127);
+            }
+        }
+    }
+    ip.forwardUdpRange(udpPort, ecoPort != 0 ? ecoPort : udpPort);
     CHECK(wg.start(), "WireGuard del gateway");
     CHECK(ip.start(), "pila IP del gateway");
 
@@ -257,7 +323,8 @@ int main(int argc, char** argv) {
         const std::string rp = toBase64(rPriv);
         const std::string gp = toBase64(gPub);
         const std::string up = std::to_string(udpPort);
-        execl(self.c_str(), argv[0], "--remote", port.c_str(), rp.c_str(), gp.c_str(), up.c_str(),
+        const std::string ep = std::to_string(ecoPort);
+        execl(self.c_str(), argv[0], "--remote", port.c_str(), rp.c_str(), gp.c_str(), up.c_str(), ep.c_str(),
               static_cast<char*>(nullptr));
         _exit(127);
     }
@@ -268,6 +335,10 @@ int main(int argc, char** argv) {
     const auto st = ip.stats();
     CHECK(st.packetsIn > 100 && st.packetsOut > 100, "trafico real por la pila del gateway");
 
+    if (eco > 0) {
+        kill(eco, SIGTERM);
+        waitpid(eco, nullptr, 0);
+    }
     stop = true;
     shutdown(lt, SHUT_RDWR);
     close(lt);

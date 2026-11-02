@@ -110,6 +110,10 @@ endif()
 list(APPEND GW_SOURCES "${BA_SRC}/third_party/qrcodegen/qrcodegen.cpp")
 add_library(ba_gateway_rtc STATIC ${GW_SOURCES})
 target_compile_definitions(ba_gateway_rtc PUBLIC ${BA_LWIP_DEF})
+# El eco del medidor del enlace (para el instalador del VPS): cmake/BaEcoEnlace.cmake.
+include("${BA_SRC}/cmake/BaEcoEnlace.cmake")
+ba_eco_enlace("${BA_SRC}" "${CMAKE_CURRENT_BINARY_DIR}/generado")
+target_include_directories(ba_gateway_rtc PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/generado")
 target_include_directories(ba_gateway_rtc PUBLIC
     "${BA_SRC}/src/gateway"
     "${BA_SRC}/third_party/qrcodegen"
