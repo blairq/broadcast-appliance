@@ -1713,6 +1713,8 @@ const Fila kPropias[] = {
     //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
     {"grilla_personas_devolver", QT_TRANSLATE_NOOP("mcp-etiquetas", "devolver volver a automatico soltar desfijar que vuelva a la grilla")},
     //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
+    {"grilla_personas_destacar", QT_TRANSLATE_NOOP("mcp-etiquetas", "destacar orador agrandar poner grande al que habla elegir quien habla resaltar foco")},
+    //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
     {"ui_abrir_panel", QT_TRANSLATE_NOOP("mcp-etiquetas", "abrir panel dialogo ventana superresolucion entrada virtual catalogo modulos mostrar")},
     //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
     {"superres_laboratorio", QT_TRANSLATE_NOOP("mcp-etiquetas", "superresolucion laboratorio bibliotecas python pytorch paquetes bajar instalar borrar espacio directml")},

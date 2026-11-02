@@ -16,9 +16,14 @@
 #include "ui/ConferenceClient.hpp"
 
 #include <QDateTime>
+#include <QFont>
+#include <QFontMetrics>
+#include <QGuiApplication>
+#include <QImage>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QPainter>
 
 #include <algorithm>
 #include <optional>
@@ -45,6 +50,47 @@ const char* nombreOrden(grilla::Orden o) {
     return o == grilla::Orden::Habla ? "habla" : o == grilla::Orden::Prioridad ? "prioridad" : "llegada";
 }
 
+const char* nombreAlHablar(grilla::AlHablar a) {
+    switch (a) {
+        case grilla::AlHablar::Nada: return "nada";
+        case grilla::AlHablar::Destacar: return "destacar";
+        case grilla::AlHablar::Superponer: return "superponer";
+        case grilla::AlHablar::Escena: return "escena";
+        case grilla::AlHablar::Resaltar: break;
+    }
+    return "resaltar";
+}
+
+/// Un rótulo como máscara A8 (el texto en blanco sobre nada: el alfa es la tinta). El
+/// nombre en negrita y, abajo, el cargo más chico. Alto fijo: el gateway lo escala al de
+/// cada celda. Con la letra de la interfaz (cualquier escritura: la de cada idioma).
+QImage dibujarRotulo(const QString& nombre, const QString& cargo) {
+    constexpr int kNombre = 40, kCargo = 28, kMargen = 4, kMaxAncho = 1200;
+    QFont fn = QGuiApplication::font();
+    fn.setPixelSize(kNombre);
+    fn.setBold(true);
+    QFont fc = QGuiApplication::font();
+    fc.setPixelSize(kCargo);
+    const QFontMetrics mn(fn), mc(fc);
+    const int altoN = mn.height(), altoC = cargo.isEmpty() ? 0 : mc.height();
+    const int ancho = std::min(kMaxAncho, std::max(mn.horizontalAdvance(nombre), cargo.isEmpty() ? 0 : mc.horizontalAdvance(cargo)) + 2 * kMargen);
+    QImage img(std::max(1, ancho), altoN + altoC, QImage::Format_ARGB32_Premultiplied);
+    img.fill(Qt::transparent);
+    QPainter p(&img);
+    p.setRenderHint(QPainter::TextAntialiasing);
+    p.setPen(Qt::white);
+    p.setFont(fn);
+    p.drawText(QRect(kMargen, 0, ancho - 2 * kMargen, altoN), Qt::AlignLeft | Qt::AlignVCenter,
+               mn.elidedText(nombre, Qt::ElideRight, ancho - 2 * kMargen));
+    if (!cargo.isEmpty()) {
+        p.setFont(fc);
+        p.drawText(QRect(kMargen, altoN, ancho - 2 * kMargen, altoC), Qt::AlignLeft | Qt::AlignVCenter,
+                   mc.elidedText(cargo, Qt::ElideRight, ancho - 2 * kMargen));
+    }
+    p.end();
+    return img;
+}
+
 } // namespace
 
 ControlGrillas::ControlGrillas(Partes p, QObject* parent) : QObject(parent), p_(p) {
@@ -56,17 +102,25 @@ ControlGrillas::ControlGrillas(Partes p, QObject* parent) : QObject(parent), p_(
     connect(&p_.sala, &ConferenceClient::hablanEvento, this, [this, pedir](const QJsonObject& ev) {
         hablan_.clear();
         for (const QJsonValue& v : ev.value("ids").toArray()) hablan_.insert(v.toString().toStdString());
+        // Desde cuándo habla cada uno sin parar (la voz sostenida del orador).
+        const std::int64_t ahora = ahoraMs();
+        for (const std::string& k : hablan_) hablaDesde_.try_emplace(k, ahora);
+        for (auto it = hablaDesde_.begin(); it != hablaDesde_.end();)
+            it = hablan_.count(it->first) ? std::next(it) : hablaDesde_.erase(it);
         pedir();
     });
     // El gateway se reinició (o recién arrancó): no sabe nada; se le manda todo de nuevo.
     p_.sala.registrarRepublicador("grillas", this, [this, pedir]() {
         ultimoPedido_ = json();
+        rotulosEnviados_.clear();
         pedir();
     });
     // Sin gateway, nadie habla (lo dice él cuando vuelve).
     connect(&p_.sala, &ConferenceClient::onlineChanged, this, [this, pedir](bool on) {
         if (on) return;
         hablan_.clear();
+        hablaDesde_.clear();
+        rotulosEnviados_.clear();
         pedir();
     });
     if (p_.sesion) connect(p_.sesion, &asamblea::SesionRemota::cambio, this, pedir);
@@ -167,8 +221,26 @@ std::vector<grilla::Persona> ControlGrillas::gente(std::int64_t ahora, const std
         if (h) voz_[clave] = ahora;
         return h;
     };
+    const auto desde = [&](const std::string& clave) {
+        const auto it = hablaDesde_.find(clave);
+        return it != hablaDesde_.end() ? it->second : std::int64_t(0);
+    };
+    // El siguiente orador de la conferencia (modo oradores): el primero de la fila que espera.
+    const QJsonObject snap = p_.sala.snapshot();
+    std::string siguienteSala;
+    {
+        std::map<QString, QJsonObject> porId;
+        for (const QJsonValue& v : snap.value("participants").toArray()) porId[v.toObject().value("id").toString()] = v.toObject();
+        for (const QJsonValue& v : snap.value("order").toArray()) {
+            const auto it = porId.find(v.toString());
+            if (it == porId.end() || it->second.value("speaker").toString() != "queued" || !it->second.value("connected").toBool())
+                continue;
+            siguienteSala = "sala:" + v.toString().toStdString();
+            break;
+        }
+    }
     // La Sala: los admitidos conectados (al aire o en la fila de oradores).
-    for (const QJsonValue& v : p_.sala.snapshot().value("participants").toArray()) {
+    for (const QJsonValue& v : snap.value("participants").toArray()) {
         const QJsonObject o = v.toObject();
         if (o.value("state").toString() != "admitted" || !o.value("connected").toBool()) continue;
         grilla::Persona p;
@@ -183,11 +255,16 @@ std::vector<grilla::Persona> ControlGrillas::gente(std::int64_t ahora, const std
         p.alAire = slot > 0 && slotsAlAire.count(slot) > 0;
         p.hablando = hablaAhora(p.clave);
         p.vozMs = voz_.count(p.clave) ? voz_[p.clave] : 0;
+        p.hablaDesdeMs = p.hablando ? desde(p.clave) : 0;
+        p.cargo = o.value("info").toString().toStdString();
+        p.orador = o.value("speaker").toString() == "onair";
+        p.siguiente = p.clave == siguienteSala;
         out.push_back(std::move(p));
     }
     // La Asamblea: los integrantes habilitados en la sesión remota.
     if (p_.sesion) {
         const std::vector<std::string> palabra = p_.sesion->conPalabraTodos();
+        const std::string siguiente = p_.sesion->siguiente();
         for (const json& i : p_.sesion->participantes()) {
             if (i.value("estado", std::string()) != "habilitado") continue;
             const std::string id = i.value("id", std::string());
@@ -199,6 +276,14 @@ std::vector<grilla::Persona> ControlGrillas::gente(std::int64_t ahora, const std
             if (p_.cuerpo) {
                 const json c = p_.cuerpo->buscar(id);
                 if (c.is_object() && c.contains("prioridad") && c["prioridad"].is_number()) p.prioridad = c["prioridad"].get<int>();
+                // El rótulo: su cargo y su banca (lo que haya).
+                if (c.is_object()) {
+                    const std::string cargo = c.value("cargo_oficial", std::string()), banca = c.value("banca", std::string());
+                    p.cargo = cargo;
+                    if (!banca.empty())
+                        p.cargo += (cargo.empty() ? std::string() : std::string(" · ")) +
+                                   ba::i18n::llenar(ba::i18n::traducir("escenas", "banca %1"), {banca});
+                }
             }
             p.conCamara = true; // manda fotos de su cámara (el gateway muestra la silueta hasta la primera)
             const auto it = std::find(palabra.begin(), palabra.end(), id);
@@ -209,6 +294,9 @@ std::vector<grilla::Persona> ControlGrillas::gente(std::int64_t ahora, const std
             p.hablando = hablaAhora(p.clave) || conPalabra;
             if (conPalabra) voz_[p.clave] = ahora;
             p.vozMs = voz_.count(p.clave) ? voz_[p.clave] : 0;
+            p.hablaDesdeMs = hablan_.count(p.clave) ? desde(p.clave) : 0;
+            p.palabra = conPalabra;
+            p.siguiente = !siguiente.empty() && siguiente == id;
             out.push_back(std::move(p));
         }
     }
@@ -227,7 +315,7 @@ void ControlGrillas::recalcular() {
     for (const auto& c : cfgs) existen.insert(c.fuente);
     manual_.olvidarFuentesSalvo(existen);
     const std::vector<grilla::Persona> g = gente(ahora, seVe);
-    const std::vector<grilla::Resultado> res = rep_.calcular(cfgs, g, manual_);
+    const std::vector<grilla::Resultado> res = rep_.calcular(cfgs, g, manual_, ahora);
 
     // El estado (para la vista y el MCP).
     std::map<std::string, const grilla::Persona*> porClave;
@@ -243,7 +331,8 @@ void ControlGrillas::recalcular() {
             personas.push_back({{"clave", k},
                                 {"nombre", it != porClave.end() ? it->second->nombre : k},
                                 {"fijo", manual_.fijo(c.fuente, k)},
-                                {"hablando", it != porClave.end() && it->second->hablando}});
+                                {"hablando", it != porClave.end() && it->second->hablando},
+                                {"orador", k == res[i].orador}});
             enGrillas[k].push_back(c.fuente);
             if (c.alAire) enGrillaAlAire.insert(k);
         }
@@ -263,7 +352,12 @@ void ControlGrillas::recalcular() {
                {"al_aire", c.alAire},
                {"personas", personas},
                {"fuera", fuera},
-               {"mas", res[i].mas}};
+               {"mas", res[i].mas},
+               // Cuando alguien habla: cómo, quién es el orador, el que se precarga y si se eligió a mano.
+               {"al_hablar", c.soloOrador ? "solo_orador" : nombreAlHablar(c.alHablar)},
+               {"orador", res[i].orador},
+               {"siguiente", res[i].siguiente},
+               {"orador_a_mano", !manual_.destacado(c.fuente).empty()}};
         if (c.canal == 0)
             x["aviso"] = ba::i18n::llenar(ba::i18n::traducir("escenas", "sin canal: hay más de %1 grillas"),
                                           {std::to_string(grilla::kMaxGrillas)});
@@ -290,7 +384,8 @@ void ControlGrillas::recalcular() {
         emit cambio();
     }
 
-    // Al gateway, solo si cambió (y otra vez si no lo tomó).
+    // Al gateway, solo si cambió (y otra vez si no lo tomó). Los rótulos nuevos, antes.
+    if (p_.sala.online()) mandarRotulos(grilla::rotulosDe(cfgs, res, g));
     const json pedido = grilla::pedidoGateway(cfgs, res);
     if (pedido == ultimoPedido_ || !p_.sala.online()) return;
     ultimoPedido_ = pedido;
@@ -359,6 +454,57 @@ std::string ControlGrillas::mover(const std::string& clave, const std::string& d
     };
     if (grupoDe(desde) != grupoDe(hacia)) manual_.sacar(desde, clave);
     manual_.fijar(hacia, clave);
+    recalcular();
+    return {};
+}
+
+void ControlGrillas::mandarRotulos(const std::map<std::string, std::pair<std::string, std::string>>& rotulos) {
+    // Los que ya no se usan, el gateway los olvida al aplicar: acá también (si vuelven, se mandan de nuevo).
+    for (auto it = rotulosEnviados_.begin(); it != rotulosEnviados_.end();)
+        it = rotulos.count(*it) ? std::next(it) : rotulosEnviados_.erase(it);
+    // De a tandas: el cuerpo de un POST al gateway no pasa de 1 MB.
+    constexpr std::size_t kTanda = 600 * 1024;
+    json tanda = json::array();
+    std::vector<std::string> ids;
+    std::size_t bytes = 0;
+    const auto mandar = [this](json lista, std::vector<std::string> enTanda) {
+        if (lista.empty()) return;
+        p_.sala.post("/api/v1/grillas/rotulos", aQt(json{{"rotulos", std::move(lista)}}),
+                     [this, enTanda = std::move(enTanda)](bool ok, const QJsonObject&) {
+                         if (ok) return;
+                         for (const std::string& id : enTanda) rotulosEnviados_.erase(id); // la próxima vuelta, otra vez
+                     });
+    };
+    for (const auto& [id, texto] : rotulos) {
+        if (rotulosEnviados_.count(id)) continue;
+        const QImage img = dibujarRotulo(QString::fromStdString(texto.first), QString::fromStdString(texto.second));
+        QByteArray a8;
+        a8.resize(img.width() * img.height());
+        for (int y = 0; y < img.height(); ++y) {
+            const auto* fila = reinterpret_cast<const QRgb*>(img.constScanLine(y));
+            for (int x = 0; x < img.width(); ++x) a8[y * img.width() + x] = static_cast<char>(qAlpha(fila[x]));
+        }
+        const QByteArray b64 = a8.toBase64();
+        if (bytes + static_cast<std::size_t>(b64.size()) > kTanda && !tanda.empty()) {
+            mandar(std::move(tanda), std::move(ids));
+            tanda = json::array();
+            ids.clear();
+            bytes = 0;
+        }
+        tanda.push_back({{"id", id}, {"w", img.width()}, {"h", img.height()}, {"a8", b64.toStdString()}});
+        ids.push_back(id);
+        bytes += static_cast<std::size_t>(b64.size());
+        rotulosEnviados_.insert(id);
+    }
+    mandar(std::move(tanda), std::move(ids));
+}
+
+std::string ControlGrillas::destacar(const std::string& fuente, const std::string& clave) {
+    if (std::string e = validarMano(fuente, clave); !e.empty()) return e;
+    if (clave.empty())
+        manual_.destacados.erase(fuente);
+    else
+        manual_.destacados[fuente] = clave;
     recalcular();
     return {};
 }

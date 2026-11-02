@@ -5,7 +5,7 @@
 // Tocando una cara: fijarla en esa grilla (va siempre, primero, aunque los
 // filtros digan otra cosa), soltarla, sacarla (de esa grilla y de su grupo) o
 // moverla a otra. Los sacados se muestran abajo para devolverlos. Lo mismo por
-// MCP: grilla_personas_fijar / _sacar / _mover / _devolver.
+// MCP: grilla_personas_fijar / _sacar / _mover / _devolver / _destacar (el orador a mano).
 //
 // La gente entra, sale y habla todo el tiempo: las listas se actualizan EN SU
 // LUGAR, por clave (ListaConClave), para que no salten mientras se las mira.
@@ -56,8 +56,9 @@ ColumnLayout {
             ListaConClave {
                 id: caras
                 clave: "clave"
-                roles: ["nombre", "fijo", "hablando"]
-                lista: fila.personas.map(p => ({ clave: p.clave, nombre: p.nombre || p.clave, fijo: !!p.fijo, hablando: !!p.hablando }))
+                roles: ["nombre", "fijo", "hablando", "orador"]
+                lista: fila.personas.map(p => ({ clave: p.clave, nombre: p.nombre || p.clave, fijo: !!p.fijo, hablando: !!p.hablando,
+                                                 orador: !!p.orador }))
             }
             ListaConClave {
                 id: sacados
@@ -118,6 +119,7 @@ ColumnLayout {
                         required property string nombre
                         required property bool fijo
                         required property bool hablando
+                        required property bool orador
                         implicitWidth: filaCara.implicitWidth + 16
                         implicitHeight: 26
                         radius: 13
@@ -129,6 +131,7 @@ ColumnLayout {
                             anchors.centerIn: parent
                             spacing: 4
                             Text { visible: cara.fijo; text: "📌"; font.pixelSize: 10 }
+                            Text { visible: cara.orador; text: "🎙"; font.pixelSize: 10 }
                             Text { text: cara.nombre; color: Theme.text; font.pixelSize: 12
                                    elide: Text.ElideRight; Layout.maximumWidth: 180 }
                         }
@@ -137,7 +140,8 @@ ColumnLayout {
                             anchors.fill: parent
                             hoverEnabled: true
                             cursorShape: Qt.PointingHandCursor
-                            onClicked: menuCara.abrir(fila.fuente, cara.clave, cara.nombre, cara.fijo)
+                            onClicked: menuCara.abrir(fila.fuente, cara.clave, cara.nombre, cara.fijo, cara.orador,
+                                                      !!fila.datos.orador_a_mano)
                         }
                     }
                 }
@@ -205,8 +209,10 @@ ColumnLayout {
         property string clave: ""
         property string nombre: ""
         property bool fijo: false
+        property bool orador: false
+        property bool aMano: false
         readonly property var otras: vg.todas.map(g => g.fuente).filter(f => f !== menuCara.fuente)
-        function abrir(f, c, n, fi) { fuente = f; clave = c; nombre = n; fijo = fi; popup() }
+        function abrir(f, c, n, fi, o, m) { fuente = f; clave = c; nombre = n; fijo = fi; orador = o; aMano = m; popup() }
         MenuItem { enabled: false; text: menuCara.nombre }
         MenuSeparator {}
         MenuItem {
@@ -217,6 +223,12 @@ ColumnLayout {
         MenuItem {
             text: qsTr("Sacar de esta grilla")
             onTriggered: vg.ctl.sacarQml(menuCara.fuente, menuCara.clave)
+        }
+        MenuItem {
+            // El orador a mano: gana al disparo, en el acto (y se le pide la cámara en alta).
+            text: menuCara.orador && menuCara.aMano ? qsTr("Dejar de destacar (que lo decida el disparo)")
+                                                    : qsTr("Destacar como orador")
+            onTriggered: vg.ctl.destacarQml(menuCara.fuente, menuCara.orador && menuCara.aMano ? "" : menuCara.clave)
         }
         Menu {
             id: menuMover

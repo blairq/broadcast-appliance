@@ -16,8 +16,15 @@
 //   - las grillas: las fuentes ba_grilla con sus ajustes. A cada una le asigna su
 //     canal BA.Grilla.<k> (el primero libre) y lo guarda en sus ajustes;
 //   - lo que el operador decidió a mano (grilla::Manual): fijar a alguien en una
-//     grilla, sacarlo, moverlo de una a otra, devolverlo a lo automático. Vive en
-//     memoria: las claves son de la conexión de cada uno.
+//     grilla, sacarlo, moverlo de una a otra, devolverlo a lo automático, elegir el
+//     orador («cuando alguien habla» con disparo a mano). Vive en memoria: las claves
+//     son de la conexión de cada uno;
+//   - para el orador: quién tiene la palabra y quién es el siguiente (asamblea), el
+//     orador al aire y el siguiente de la fila (conferencia, modo oradores) y desde
+//     cuándo habla cada uno sin parar (voz sostenida);
+//   - los NOMBRES: el gateway no tiene fuentes, así que cada rótulo (nombre y cargo o
+//     banca) se dibuja acá con Qt como una máscara A8 y se le manda una vez
+//     (POST /api/v1/grillas/rotulos, de a tandas de menos de 1 MB).
 // La lógica (reparto, lugares estables, disposición) es grilla::Repartidor; acá
 // solo se juntan los datos y se manda el resultado cuando cambia. Lo del motor (la
 // escena al aire, las capas DSK, las escenas y los ajustes de cada fuente) sale de la
@@ -106,6 +113,10 @@ class ControlGrillas : public QObject {
         avisarError(QString::fromStdString(mover(clave.toStdString(), desde.toStdString(), hacia.toStdString())));
     }
     Q_INVOKABLE void devolverQml(const QString& fuente, const QString& clave) { avisarError(QString::fromStdString(devolver(fuente.toStdString(), clave.toStdString()))); }
+    /// El orador de `fuente` a mano (gana a cualquier disparo, en el acto); clave "" = que
+    /// vuelva a decidirlo el disparo.
+    std::string destacar(const std::string& fuente, const std::string& clave);
+    Q_INVOKABLE void destacarQml(const QString& fuente, const QString& clave) { avisarError(QString::fromStdString(destacar(fuente.toStdString(), clave.toStdString()))); }
 
    signals:
     /// Para el operador (ya traducido): los errores de las acciones de la interfaz.
@@ -123,12 +134,16 @@ class ControlGrillas : public QObject {
     std::vector<grilla::Config> configs(const std::vector<std::string>& seVe);
     /// Valida que haya una grilla `fuente` (y, si `clave` no está vacía, que esa persona esté conectada).
     std::string validarMano(const std::string& fuente, const std::string& clave) const;
+    /// Dibuja y manda al gateway los rótulos que todavía no tiene.
+    void mandarRotulos(const std::map<std::string, std::pair<std::string, std::string>>& rotulos);
 
     Partes p_;
     grilla::Repartidor rep_;
     grilla::Manual manual_;
     std::set<std::string> hablan_;            ///< lo que dijo el gateway
     std::map<std::string, std::int64_t> voz_; ///< clave → la última vez que habló
+    std::map<std::string, std::int64_t> hablaDesde_; ///< clave → desde cuándo habla sin parar
+    std::set<std::string> rotulosEnviados_;        ///< los que el gateway ya tiene (o se le están mandando)
     json ultimoPedido_;                       ///< lo último que se le mandó al gateway
     json estado_ = json::object();
     QTimer reloj_;  ///< el programa y las fuentes cambian por muchos caminos: se mira seguido

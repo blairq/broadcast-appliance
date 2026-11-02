@@ -27,7 +27,16 @@ void McpService::registerGrillaTools() {
         "(las grillas con el mismo grupo se reparten la gente sin repetir; \"\" = sola), orden_en_grupo (la primera "
         "manda el orden y el modo), reparto (en_orden: llena la primera hasta su tope; parejo: la misma cantidad en "
         "cada una), ancho, alto, proporcion (16:9|4:3|1:1|3:4|9:16|llenar), separacion, margen, transicion_ms, fondo "
-        "y color_resaltar (\"#AARRGGBB\").");
+        "y color_resaltar (\"#AARRGGBB\"). Cuando alguien habla: al_hablar (resaltar: nadie se mueve, borde y un leve "
+        "agrandado | destacar: el orador grande y los demás en una franja, en el mismo orden | superponer: el orador "
+        "encima en un hueco que le deja la grilla | escena: la grilla no cambia y otra grilla con muestra=orador lo "
+        "muestra solo | nada), disparo (voz: voz sostenida voz_ms | palabra: la palabra de la asamblea | orador: el "
+        "orador al aire de la conferencia | manual: grilla_personas_destacar), voz_ms, minimo_ms (el orador no "
+        "cambia antes: histéresis), precarga (el siguiente ya pide la capa alta), destacar_lugar (centro|izquierda), "
+        "destacar_tamano (% del lienzo), franja (abajo|costado), superponer_tamano, superponer_completa, fundido_ms (de "
+        "la baja a la HD). Nombres: nombres (no|nombre|nombre_cargo), nombre_tamano (% del alto de la celda), "
+        "nombre_color, nombre_fondo, nombre_lugar (abajo|arriba). muestra (todos|orador) y sigue (la grilla cuyo "
+        "orador muestra; \"\" = la primera que tenga): la escena del orador.");
     {
         Tool t;
         t.name = "grilla_personas_estado";
@@ -139,6 +148,19 @@ void McpService::registerGrillaTools() {
           {R"({"fuente": "Grilla", "clave": "asamblea:12"})"},
           [txt](escenas::ControlGrillas& g, const json& a) { return g.devolver(txt(a, "fuente"), txt(a, "clave")); },
           [txt](const json& a) { return ba::i18n::llenar(ba::i18n::traducir("mcp", "Listo: «%1» vuelve a lo automático en «%2»."), {txt(a, "clave"), txt(a, "fuente")}); });
+    aMano("grilla_personas_destacar", ba::i18n::traducir("mcp", "Elegir a mano el orador de una grilla de personas"),
+          ba::i18n::traducir("mcp", "Hace orador de una grilla a una persona, en el acto y aunque el disparo diga otra cosa: se la muestra "
+          "como diga «al_hablar» (destacada, resaltada, superpuesta o en la escena del orador) y se le pide su cámara en "
+          "alta (entra con un fundido desde la baja). Con clave vacía, el orador lo vuelve a decidir el disparo."),
+          {{"fuente", esquemaFuente},
+           {"clave", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "la persona (sala:<id> o asamblea:<id>); vacía = que lo decida el disparo")}}}},
+          {"fuente"}, {R"({"fuente": "Grilla", "clave": "asamblea:12"})", R"({"fuente": "Grilla", "clave": ""})"},
+          [txt](escenas::ControlGrillas& g, const json& a) { return g.destacar(txt(a, "fuente"), txt(a, "clave")); },
+          [txt](const json& a) {
+              return txt(a, "clave").empty()
+                         ? ba::i18n::llenar(ba::i18n::traducir("mcp", "Listo: el orador de «%1» lo vuelve a decidir el disparo."), {txt(a, "fuente")})
+                         : ba::i18n::llenar(ba::i18n::traducir("mcp", "Listo: «%1» es el orador de «%2»."), {txt(a, "clave"), txt(a, "fuente")});
+          });
 }
 
 } // namespace ba::app::mcp

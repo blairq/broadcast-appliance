@@ -92,8 +92,86 @@ void registrarTipo() {
                              {"llenar", traducir("escenas", "Llenar el lugar")}}));
         out.push_back({"separacion", traducir("escenas", "Separación"), "int", 0, 200, 1, "px"});
         out.push_back({"margen", traducir("escenas", "Margen"), "int", 0, 500, 1, "px"});
-        out.push_back({"resaltar", traducir("escenas", "Resaltar a quien habla"), "bool"});
+
+        // --- Cuando alguien habla ---------------------------------------------------------
+        const bool soloOrador = a.value("muestra", std::string("todos")) == "orador";
+        out.push_back({"_habla", traducir("escenas", "Cuando alguien habla"), "header"});
+        out.push_back(lista("muestra", traducir("escenas", "Qué muestra"),
+                            {{"todos", traducir("escenas", "A todos")},
+                             {"orador", traducir("escenas", "Solo al orador de otra grilla (la escena del orador)")}},
+                            traducir("escenas", "«Solo al orador»: para armar la escena del orador (grande y con su nombre) que el operador "
+                            "o la línea de tiempo ponen al aire, mientras la grilla completa sigue en otra salida.")));
+        if (soloOrador) {
+            P sigue{"sigue", traducir("escenas", "De qué grilla"), "text"};
+            sigue.ayuda = traducir("escenas", "El nombre de la grilla cuyo orador muestra. Vacío = la primera que tenga orador.");
+            out.push_back(sigue);
+        } else {
+            const std::string modo = a.value("al_hablar", std::string("resaltar"));
+            out.push_back(lista("al_hablar", traducir("escenas", "Cómo se lo muestra"),
+                                {{"resaltar", traducir("escenas", "Resaltar en su lugar")},
+                                 {"destacar", traducir("escenas", "Destacar (grande, los demás en una franja)")},
+                                 {"superponer", traducir("escenas", "Superponer sin tapar")},
+                                 {"escena", traducir("escenas", "Cortar a la escena del orador")},
+                                 {"nada", traducir("escenas", "Nada (solo el borde)")}},
+                                traducir("escenas", "Resaltar: nadie se mueve; borde y un leve agrandado. Destacar: el orador a un lugar "
+                                "grande y los demás a una franja, en el mismo orden. Superponer: el orador encima, en un hueco "
+                                "que le deja la grilla (nadie queda tapado). Escena: esta grilla no cambia; otra grilla con «Solo "
+                                "al orador» lo muestra en su escena. Al orador se le pide su cámara en alta.")));
+            if (modo != "nada") {
+                out.push_back(lista("disparo", traducir("escenas", "Quién es el orador"),
+                                    {{"voz", traducir("escenas", "El que habla (voz sostenida)")},
+                                     {"palabra", traducir("escenas", "El que tiene la palabra (Asamblea)")},
+                                     {"orador", traducir("escenas", "El orador al aire (Conferencia)")},
+                                     {"manual", traducir("escenas", "A mano")}},
+                                    traducir("escenas", "A mano: desde la vista de la grilla o grilla_personas_destacar (también sirve "
+                                    "con los otros: lo elegido a mano gana).")));
+                if (a.value("disparo", std::string("voz")) == "voz") {
+                    P voz{"voz_ms", traducir("escenas", "Voz sostenida"), "int", 0, 10000, 100, "ms"};
+                    voz.ayuda = traducir("escenas", "Cuánto tiene que hablar sin parar para pasar a orador.");
+                    out.push_back(voz);
+                }
+                P minimo{"minimo_ms", traducir("escenas", "Tiempo mínimo en pantalla"), "int", 0, 60000, 500, "ms"};
+                minimo.ayuda = traducir("escenas", "El orador no cambia antes de esto: que no salte con cada tos.");
+                out.push_back(minimo);
+                P pre{"precarga", traducir("escenas", "Precargar al siguiente"), "bool"};
+                pre.ayuda = traducir("escenas", "El siguiente de la fila (o el que empezó a hablar) ya pide su cámara en alta.");
+                out.push_back(pre);
+            }
+            if (modo == "destacar") {
+                out.push_back(lista("destacar_lugar", traducir("escenas", "Lugar del orador"),
+                                    {{"centro", traducir("escenas", "Al centro")}, {"izquierda", traducir("escenas", "A la izquierda")}}));
+                out.push_back(lista("franja", traducir("escenas", "Los demás"),
+                                    {{"abajo", traducir("escenas", "En una franja abajo")}, {"costado", traducir("escenas", "Al costado")}}));
+                out.push_back({"destacar_tamano", traducir("escenas", "Tamaño del orador"), "int", 40, 90, 5, "%"});
+            }
+            if (modo == "superponer") {
+                out.push_back({"superponer_completa", traducir("escenas", "A pantalla completa"), "bool"});
+                if (!a.value("superponer_completa", false))
+                    out.push_back({"superponer_tamano", traducir("escenas", "Tamaño del hueco"), "int", 30, 90, 5, "%"});
+            }
+        }
+        {
+            P fu{"fundido_ms", traducir("escenas", "Fundido a la alta definición"), "int", 0, 2000, 50, "ms"};
+            fu.ayuda = traducir("escenas", "Al pasar a grande se pide la cámara en alta: mientras no llega se sigue viendo la baja y, "
+                         "cuando llega, se funde de una a la otra (nunca negro).");
+            out.push_back(fu);
+        }
+        out.push_back({"resaltar", traducir("escenas", "Borde a quien habla"), "bool"});
         out.push_back({"color_resaltar", traducir("escenas", "Color del resaltado"), "color"});
+
+        // --- Nombres ------------------------------------------------------------------------
+        out.push_back({"_nombres", traducir("escenas", "Nombres"), "header"});
+        out.push_back(lista("nombres", traducir("escenas", "Nombre en cada celda"),
+                            {{"no", traducir("escenas", "Sin nombre")},
+                             {"nombre", traducir("escenas", "El nombre")},
+                             {"nombre_cargo", traducir("escenas", "El nombre y el cargo o la banca")}}));
+        if (a.value("nombres", std::string("no")) != "no") {
+            out.push_back({"nombre_tamano", traducir("escenas", "Alto del rótulo"), "int", 5, 40, 1, "%"});
+            out.push_back(lista("nombre_lugar", traducir("escenas", "Dónde"),
+                                {{"abajo", traducir("escenas", "Abajo")}, {"arriba", traducir("escenas", "Arriba")}}));
+            out.push_back({"nombre_color", traducir("escenas", "Color del texto"), "color"});
+            out.push_back({"nombre_fondo", traducir("escenas", "Fondo del rótulo"), "color"});
+        }
         {
             P fondo{"fondo", traducir("escenas", "Fondo"), "color"};
             fondo.ayuda = traducir("escenas", "De fábrica, transparente: se ve la escena entre las celdas.");
