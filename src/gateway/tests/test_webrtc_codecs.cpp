@@ -5,21 +5,37 @@
 // en Windows) se codifican 90 cuadros 720p que se mueven y se decodifican de nuevo:
 //   1. El primero sale clave y con SPS/PPS (si no, el navegador no arranca).
 //   2. Cambio de bitrate en caliente (como el retorno compartido) y cuadro clave a pedido.
-//   3. Se decodifica todo y la imagen vuelve parecida (luminancia media).
+//   3. Se decodifica todo y la imagen vuelve parecida (luminancia media y PSNR de cada
+//      cuadro: una referencia equivocada da basura). En Windows, directo por D3D11 y por
+//      el MFT.
 //   4. Dice si fue por hardware y cuánto tardó cada cuadro (la prueba de humo de la placa).
+//   5. Windows, con BA_BANCO_DECODIFICADORES=N: N decodificadores a 30 cps durante 10 s
+//      (D3D11 y MFT): CPU del proceso e hilos.
 // Sin H.264 en la plataforma (Linux) da SKIP (77).
 // ============================================================================
 
 #include <algorithm>
+#include <atomic>
 #include <chrono>
 #include <cmath>
 #include <condition_variable>
 #include <cstdint>
 #include <cstdio>
+#include <cstdlib>
 #include <memory>
 #include <mutex>
 #include <thread>
 #include <vector>
+
+#ifdef _WIN32
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <windows.h>
+#include <tlhelp32.h>
+#endif
+
+#include "ajustes/Ajustes.hpp"
 
 #include "api/environment/environment_factory.h"
 #include "api/video/encoded_image.h"
@@ -99,22 +115,71 @@ struct Salidas : webrtc::EncodedImageCallback {
     }
 };
 
+/// PSNR de la luminancia contra el original (cada 2 filas y columnas: alcanza para ver una
+/// referencia equivocada, que da basura).
+double psnrY(const webrtc::I420BufferInterface& b, const webrtc::I420BufferInterface& o) {
+    double se = 0;
+    int n = 0;
+    for (int y = 0; y < b.height(); y += 2)
+        for (int x = 0; x < b.width(); x += 2) {
+            const double d = static_cast<double>(b.DataY()[y * b.StrideY() + x]) - o.DataY()[y * o.StrideY() + x];
+            se += d * d;
+            ++n;
+        }
+    const double mse = se / std::max(1, n);
+    return mse <= 0.0001 ? 99.0 : 10.0 * std::log10(255.0 * 255.0 / mse);
+}
+
 struct Decodificados : webrtc::DecodedImageCallback {
     std::mutex m;
     std::condition_variable cv;
+    bool comparar = true; ///< en el banco no: solo se cuentan
     int n = 0, ancho = 0, alto = 0;
     std::vector<std::pair<uint32_t, double>> medias; // sello RTP, luminancia media
+    double peorPsnr = 99.0;
     int32_t Decoded(webrtc::VideoFrame& f) override {
+        if (!comparar) {
+            std::lock_guard<std::mutex> l(m);
+            ++n;
+            return 0;
+        }
         auto i420 = f.video_frame_buffer()->ToI420();
+        double psnr = 99.0;
+        const int k = static_cast<int>((f.timestamp() - 90000) / 3000);
+        if (i420 && k >= 0 && k < kCuadros && i420->width() == kW && i420->height() == kH) psnr = psnrY(*i420, *cuadro(k));
         std::lock_guard<std::mutex> l(m);
         ++n;
         ancho = f.width();
         alto = f.height();
+        peorPsnr = std::min(peorPsnr, psnr);
         if (i420) medias.emplace_back(f.timestamp(), mediaY(*i420));
         cv.notify_all();
         return 0;
     }
 };
+
+#ifdef _WIN32
+/// CPU del proceso (ms de núcleo) y sus hilos.
+double cpuProcesoMs() {
+    FILETIME a, b, k, u;
+    if (!GetProcessTimes(GetCurrentProcess(), &a, &b, &k, &u)) return 0;
+    const auto ms = [](const FILETIME& f) {
+        return static_cast<double>((static_cast<uint64_t>(f.dwHighDateTime) << 32) | f.dwLowDateTime) / 10000.0;
+    };
+    return ms(k) + ms(u);
+}
+int hilosProceso() {
+    HANDLE s = CreateToolhelp32Snapshot(TH32CS_SNAPTHREAD, 0);
+    if (s == INVALID_HANDLE_VALUE) return 0;
+    THREADENTRY32 t{};
+    t.dwSize = sizeof(t);
+    int n = 0;
+    for (BOOL ok = Thread32First(s, &t); ok; ok = Thread32Next(s, &t))
+        if (t.th32OwnerProcessID == GetCurrentProcessId()) ++n;
+    CloseHandle(s);
+    return n;
+}
+#endif
 
 } // namespace
 
@@ -227,45 +292,115 @@ int main() {
     CHECK(claveTarde, "el cuadro clave a pedido sale");
 
     // --- Decodificar ----------------------------------------------------------------------
-    auto dec = decs->Create(webrtc::CreateEnvironment(), h264);
-    CHECK(dec != nullptr, "hay decodificador H.264");
-    if (!dec) return 1;
     webrtc::VideoDecoder::Settings ds;
     ds.set_codec_type(webrtc::kVideoCodecH264);
     ds.set_number_of_cores(8);
     ds.set_max_render_resolution({kW, kH});
-    t0 = ahoraMs();
-    CHECK(dec->Configure(ds), "Configure del decodificador");
-    std::printf("  iniciar el decodificador: %.0f ms\n", ahoraMs() - t0);
-    Decodificados decodificados;
-    dec->RegisterDecodeCompleteCallback(&decodificados);
-    t0 = ahoraMs();
-    int errores = 0;
-    for (const auto& i : imgs)
-        if (dec->Decode(i, false, 0) != WEBRTC_VIDEO_CODEC_OK) ++errores;
-    {
-        std::unique_lock<std::mutex> l(decodificados.m);
-        decodificados.cv.wait_for(l, std::chrono::seconds(3),
-                                  [&] { return decodificados.n >= static_cast<int>(imgs.size()) - 2; });
+    const auto decodificar = [&](const char* modo) {
+        std::printf("-- decodificar (%s)\n", modo);
+        auto dec = decs->Create(webrtc::CreateEnvironment(), h264);
+        CHECK(dec != nullptr, "hay decodificador H.264");
+        if (!dec) return;
+        double t = ahoraMs();
+        CHECK(dec->Configure(ds), "Configure del decodificador");
+        std::printf("  iniciar el decodificador: %.0f ms\n", ahoraMs() - t);
+        Decodificados decodificados;
+        dec->RegisterDecodeCompleteCallback(&decodificados);
+        t = ahoraMs();
+        int errores = 0;
+        for (const auto& i : imgs)
+            if (dec->Decode(i, false, 0) != WEBRTC_VIDEO_CODEC_OK) ++errores;
+        {
+            std::unique_lock<std::mutex> l(decodificados.m);
+            decodificados.cv.wait_for(l, std::chrono::seconds(3),
+                                      [&] { return decodificados.n >= static_cast<int>(imgs.size()) - 2; });
+        }
+        const double tDec = ahoraMs() - t;
+        const auto di = dec->GetDecoderInfo();
+        std::printf("  decodificador: %s (%s)\n", di.implementation_name.c_str(),
+                    di.is_hardware_accelerated ? "hardware" : "software");
+        std::printf("  %d cuadros decodificados en %.0f ms (%.2f ms por cuadro, con la comparación), %d errores, %dx%d\n",
+                    decodificados.n, tDec, decodificados.n ? tDec / decodificados.n : 0.0, errores, decodificados.ancho,
+                    decodificados.alto);
+        CHECK(errores == 0, "decodifica sin errores");
+        CHECK(decodificados.n >= static_cast<int>(imgs.size()) - 2, "salen (casi) todos los decodificados");
+        CHECK(decodificados.ancho == kW && decodificados.alto == kH, "el tamaño vuelve igual (sin el relleno de 1088/736)");
+        double peor = 0;
+        for (const auto& [ts, m] : decodificados.medias) {
+            const int k = static_cast<int>((ts - 90000) / 3000);
+            if (k < 0 || k >= kCuadros) continue;
+            peor = std::max(peor, std::fabs(m - mediaY(*cuadro(k))));
+        }
+        std::printf("  diferencia de luminancia media, la peor: %.1f; PSNR de la luminancia, el peor cuadro: %.1f dB\n", peor,
+                    decodificados.peorPsnr);
+        CHECK(!decodificados.medias.empty() && peor < 12.0, "la imagen vuelve parecida (y con su sello RTP)");
+        CHECK(decodificados.peorPsnr > 25.0, "cada cuadro vuelve bien (PSNR > 25 dB: las referencias están bien)");
+        dec->Release();
+    };
+#ifdef _WIN32
+    // Directo por D3D11 (de fábrica) y por el MFT de Windows.
+    for (const char* modo : {"d3d11", "mft"}) {
+        ba::ajustes::poner("gateway.decodificadorPlaca", modo);
+        decodificar(modo);
     }
-    const double tDec = ahoraMs() - t0;
-    const auto di = dec->GetDecoderInfo();
-    std::printf("  decodificador: %s (%s)\n", di.implementation_name.c_str(), di.is_hardware_accelerated ? "hardware" : "software");
-    std::printf("  %d cuadros decodificados en %.0f ms (%.2f ms por cuadro), %d errores, %dx%d\n", decodificados.n, tDec,
-                decodificados.n ? tDec / decodificados.n : 0.0, errores, decodificados.ancho, decodificados.alto);
-    CHECK(errores == 0, "decodifica sin errores");
-    CHECK(decodificados.n >= static_cast<int>(imgs.size()) - 2, "salen (casi) todos los decodificados");
-    CHECK(decodificados.ancho == kW && decodificados.alto == kH, "el tamaño vuelve igual (sin el relleno de 1088/736)");
-    double peor = 0;
-    for (const auto& [ts, m] : decodificados.medias) {
-        const int k = static_cast<int>((ts - 90000) / 3000);
-        if (k < 0 || k >= kCuadros) continue;
-        peor = std::max(peor, std::fabs(m - mediaY(*cuadro(k))));
+    // El banco (BA_BANCO_DECODIFICADORES=N): N decodificadores a la vez, cada uno en su hilo y
+    // a 30 cuadros por segundo durante 10 s, como N invitados en 720p. CPU del proceso e hilos.
+    if (const char* e = std::getenv("BA_BANCO_DECODIFICADORES")) {
+        const int n = std::clamp(std::atoi(e), 1, 200);
+        for (const char* modo : {"d3d11", "mft"}) {
+            ba::ajustes::poner("gateway.decodificadorPlaca", modo);
+            const int hilos0 = hilosProceso();
+            std::vector<std::unique_ptr<webrtc::VideoDecoder>> ds_;
+            std::vector<std::unique_ptr<Decodificados>> cbs;
+            for (int i = 0; i < n; ++i) {
+                auto d = decs->Create(webrtc::CreateEnvironment(), h264);
+                if (!d || !d->Configure(ds)) break;
+                cbs.push_back(std::make_unique<Decodificados>());
+                cbs.back()->comparar = false;
+                d->RegisterDecodeCompleteCallback(cbs.back().get());
+                ds_.push_back(std::move(d));
+            }
+            std::atomic<int> hilosMax{0};
+            const double cpu0 = cpuProcesoMs(), t0b = ahoraMs();
+            std::vector<std::thread> hs;
+            for (size_t i = 0; i < ds_.size(); ++i)
+                hs.emplace_back([&, i] {
+                    const double inicio = ahoraMs();
+                    for (int k = 0; ahoraMs() - inicio < 10000; ++k) {
+                        // Vuelta a la clave del principio al terminar los cuadros.
+                        ds_[i]->Decode(imgs[static_cast<size_t>(k) % imgs.size()], false, 0);
+                        const double prox = inicio + (k + 1) * 33.333;
+                        const double falta = prox - ahoraMs();
+                        if (falta > 0) std::this_thread::sleep_for(std::chrono::microseconds(static_cast<int64_t>(falta * 1000)));
+                    }
+                });
+            std::thread vigia([&] {
+                while (ahoraMs() - t0b < 9500) {
+                    hilosMax = std::max(hilosMax.load(), hilosProceso());
+                    std::this_thread::sleep_for(std::chrono::milliseconds(500));
+                }
+            });
+            for (auto& h : hs)
+                h.join();
+            vigia.join();
+            const double seg = (ahoraMs() - t0b) / 1000.0;
+            const double cpu = (cpuProcesoMs() - cpu0) / 10.0 / seg;
+            int salieron = 0;
+            for (auto& c : cbs)
+                salieron += c->n;
+            std::printf("BANCO %s: %zu decodificadores 720p30, %.1f s: CPU %.1f %% de un núcleo (%.2f %% por decodificador), "
+                        "%.1f cuadros/s por decodificador, hilos %d -> %d (máx)\n",
+                        modo, ds_.size(), seg, cpu, ds_.empty() ? 0.0 : cpu / static_cast<double>(ds_.size()),
+                        ds_.empty() ? 0.0 : salieron / seg / static_cast<double>(ds_.size()), hilos0, hilosMax.load());
+            for (auto& d : ds_)
+                d->Release();
+        }
     }
-    std::printf("  diferencia de luminancia media, la peor: %.1f\n", peor);
-    CHECK(!decodificados.medias.empty() && peor < 12.0, "la imagen vuelve parecida (y con su sello RTP)");
+    ba::ajustes::poner("gateway.decodificadorPlaca", nullptr);
+#else
+    decodificar("plataforma");
+#endif
     std::printf("estado al final: %s\n", codecs::estado().dump().c_str());
-    dec->Release();
     std::printf(g_fallos == 0 ? "OK\n" : "FALLOS: %d\n", g_fallos);
     return g_fallos == 0 ? 0 : 1;
 }
