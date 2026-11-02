@@ -252,9 +252,9 @@
     <message numerus="yes">
         <location line="+23"/>
         <source>%n conexión se quedó sin puerto UDP: agrandá el rango en Configuración → Red de la conferencia.</source>
-        <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+        <translation>
+            <numerusform>%n conexión se quedó sin puerto UDP: agrandá el rango en Configuración → Red de la conferencia.</numerusform>
+            <numerusform>%n conexiones se quedaron sin puerto UDP: agrandá el rango en Configuración → Red de la conferencia.</numerusform>
         </translation>
     </message>
     <message numerus="yes">
