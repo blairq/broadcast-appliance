@@ -974,6 +974,21 @@ struct WebrtcSession::Impl : public webrtc::PeerConnectionObserver {
         retornoEstado->capaAlto = 0;
         retornoEstado->objetivoBps = 0;
         retornoEstado->fuente = 0;
+        // El sondeo de la red de ESTA conexión (RetornoRtc.hpp): sube el tope de su estimación
+        // y libwebrtc sondea hasta ahí. Por el hilo de señalización (el de la PC), sin esperar.
+        {
+            rtc::scoped_refptr<webrtc::PeerConnectionInterface> p = pc;
+            rtc::Thread* sig = hub->signaling.get();
+            retornoEstado->ponerSondeo([p, sig](std::int64_t desde, std::int64_t hasta) {
+                sig->PostTask([p, desde, hasta]() {
+                    webrtc::BitrateSettings b;
+                    b.max_bitrate_bps = static_cast<int>(desde);
+                    p->SetBitrate(b);
+                    b.max_bitrate_bps = static_cast<int>(hasta);
+                    p->SetBitrate(b);
+                });
+            });
+        }
         return true;
     }
 
@@ -1134,6 +1149,7 @@ struct WebrtcSession::Impl : public webrtc::PeerConnectionObserver {
             pc = nullptr;
         }
         if (!p) return;
+        retornoEstado->ponerSondeo(nullptr); // suelta la PC
         for (auto& [t, s] : videoAttached)
             t->RemoveSink(s);
         for (auto& [t, s] : audioAttached)
@@ -1399,6 +1415,7 @@ std::string WebrtcSession::estadisticas() {
                         {"tope", r.topeAlto.load(std::memory_order_relaxed)},
                         {"fuente", r.fuente.load(std::memory_order_relaxed) == 1 ? "compartido" : "propio"},
                         {"cambios", r.cambiosCapa.load(std::memory_order_relaxed)},
+                        {"sondeos", r.sondeos.load(std::memory_order_relaxed)},
                         {"cuadros", r.cuadrosCompartidos.load(std::memory_order_relaxed) +
                                         r.cuadrosPropios.load(std::memory_order_relaxed)}};
     }

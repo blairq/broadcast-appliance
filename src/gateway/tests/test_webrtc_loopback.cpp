@@ -346,6 +346,10 @@ int main() {
                 cam->push(640, 360);
                 if (screen) screen->push(1280, 720);
                 if (compartido) {
+                    // Algo que se mueve (una franja que baja): con una imagen quieta el codificador
+                    // casi no manda nada y el retorno no se parece a un programa.
+                    const size_t fila = static_cast<size_t>((tick / 3) % 704) * 1280 * 4;
+                    std::memset(ret720.data() + fila, (tick * 7) & 0xff, 1280 * 4 * 16);
                     const auto c = flujo.emitir(ba::gateway::CuadroSaliente::desdeBgra(ret720.data(), 1280, 720));
                     sess->pushLocalVideo(c);
                     hub.session(2)->pushLocalVideo(c); // sin conectar no hace nada

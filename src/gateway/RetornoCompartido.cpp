@@ -205,6 +205,12 @@ constexpr size_t kColaCapa = 2;
 /// los más viejos que esto se dan por descartados.
 constexpr size_t kPendientesCapa = 8;
 constexpr int kCuadrosPorSegundo = 30;
+/// El sondeo de la red para subir de capa: el primero a los 2 s de querer subir, después cada
+/// 3 s mientras sirva; si no sirvió (sigue en la misma capa), cada vez el doble, hasta 30 s.
+constexpr std::int64_t kPrimerSondeoMs = 3000;
+constexpr std::int64_t kMaxEsperaSondeoMs = 30000;
+/// Lo que se suma al sondear por el resto de la conexión (el audio y los encabezados).
+constexpr std::int64_t kOtrosBps = 100000;
 
 std::int64_t ahoraMs() {
     return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch())
@@ -711,6 +717,10 @@ struct Paso : std::enable_shared_from_this<Paso> {
     bool esperaClave = true;      ///< hasta un cuadro clave de lo que sale, no se entrega nada
     SelectorRetorno sel;
     std::uint64_t secuencia = 0;     ///< una por cuadro que pide libwebrtc
+    // El sondeo para subir (RetornoRtc.hpp, EstadoSesion::sondear).
+    std::int64_t proximoSondeoMs = 0;
+    std::int64_t esperaSondeoMs = kPrimerSondeoMs;
+    int capaAlSondear = -1;
     std::uint64_t ultimaEntregada = 0;
 
     // El propio (cuadros sin flujo): un codificador de verdad como antes.
@@ -903,6 +913,8 @@ class EncoderPaso : public webrtc::VideoEncoder {
         Flujo* flujo = e->flujo.get();
         const std::int64_t ahora = ahoraMs();
         auto espera = std::make_shared<Espera>();
+        std::int64_t sondeoDesde = 0, sondeoHasta = 0;
+        std::shared_ptr<EstadoSesion> estado;
         {
             std::lock_guard<std::mutex> l(p_->m);
             p_->estado = b.estado();
@@ -917,7 +929,31 @@ class EncoderPaso : public webrtc::VideoEncoder {
                 p_->sale = nullptr;
                 p_->esperaClave = true;
             }
-            const int idx = p_->sel.elegir(kbps, p_->objetivoBps.load(std::memory_order_relaxed), tope, ahora);
+            const std::int64_t objetivo = p_->objetivoBps.load(std::memory_order_relaxed);
+            const int idx = p_->sel.elegir(kbps, objetivo, tope, ahora);
+            // ¿Quiere subir y su objetivo no alcanza? Una conexión que manda una capa de bitrate
+            // fijo no hace crecer su estimación sola (libwebrtc no la sube mucho más allá de lo
+            // que se manda): hay que sondear la red.
+            if (idx > tope && objetivo > 0) {
+                const std::int64_t quiere = static_cast<std::int64_t>(1.15 * 1000.0 * kbps[static_cast<size_t>(idx - 1)]);
+                if (objetivo >= quiere) {
+                    p_->proximoSondeoMs = 0; // entra: el selector sube solo
+                } else if (p_->proximoSondeoMs == 0) {
+                    p_->proximoSondeoMs = ahora + 2000;
+                } else if (ahora >= p_->proximoSondeoMs) {
+                    // Si el sondeo anterior no sirvió (sigue en la misma capa), se espacia.
+                    if (p_->capaAlSondear >= 0 && idx >= p_->capaAlSondear)
+                        p_->esperaSondeoMs = std::min(p_->esperaSondeoMs * 2, kMaxEsperaSondeoMs);
+                    else
+                        p_->esperaSondeoMs = kPrimerSondeoMs;
+                    p_->capaAlSondear = idx;
+                    p_->proximoSondeoMs = ahora + p_->esperaSondeoMs;
+                    sondeoDesde = std::max<std::int64_t>(objetivo, 100000);
+                    sondeoHasta = static_cast<std::int64_t>(1.15 * static_cast<double>(quiere)) + kOtrosBps;
+                }
+            } else {
+                p_->proximoSondeoMs = 0;
+            }
             Capa* deseada = flujo->capa(p_->formato, p_->claveFormato, idx);
             if (deseada == nullptr) return WEBRTC_VIDEO_CODEC_OK; // el flujo se está cerrando
             // Si la capa que sale ya no es de las que hay (la fuente se achicó), se suelta.
@@ -936,7 +972,9 @@ class EncoderPaso : public webrtc::VideoEncoder {
             espera->ts = frame.timestamp();
             espera->renderMs = frame.render_time_ms();
             espera->sec = ++p_->secuencia;
+            estado = p_->estado;
         }
+        if (sondeoHasta > sondeoDesde && estado) estado->sondear(sondeoDesde, sondeoHasta);
         espera->arrancar(); // fuera del candado: puede decidir ya
         return WEBRTC_VIDEO_CODEC_OK;
     }

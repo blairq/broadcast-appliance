@@ -10,7 +10,9 @@
 
 #include <atomic>
 #include <cstdint>
+#include <functional>
 #include <memory>
+#include <mutex>
 #include <string>
 
 #include <nlohmann/json.hpp>
@@ -34,6 +36,32 @@ struct EstadoSesion {
     std::atomic<std::uint64_t> cambiosCapa{0};
     std::atomic<std::uint64_t> cuadrosCompartidos{0};
     std::atomic<std::uint64_t> cuadrosPropios{0};
+    std::atomic<std::uint64_t> sondeos{0};
+
+    /// Sondear la red de la conexión: que el control de congestión pruebe si entra `hastaBps`
+    /// (sube el tope de su estimación de `desdeBps` a `hastaBps`, y libwebrtc sondea al subir
+    /// el tope). Lo pone la sesión con su PeerConnection; lo llama el codificador de paso
+    /// cuando quiere subir de capa y su objetivo no alcanza (una conexión que manda una capa
+    /// de bitrate fijo no hace crecer su estimación sola).
+    void sondear(std::int64_t desdeBps, std::int64_t hastaBps) {
+        std::function<void(std::int64_t, std::int64_t)> f;
+        {
+            std::lock_guard<std::mutex> l(m);
+            f = sondeo;
+        }
+        if (f) {
+            sondeos.fetch_add(1, std::memory_order_relaxed);
+            f(desdeBps, hastaBps);
+        }
+    }
+    void ponerSondeo(std::function<void(std::int64_t, std::int64_t)> f) {
+        std::lock_guard<std::mutex> l(m);
+        sondeo = std::move(f);
+    }
+
+   private:
+    std::mutex m;
+    std::function<void(std::int64_t, std::int64_t)> sondeo;
 };
 
 /// El cuadro que cada sesión le pasa a su fuente de video: NATIVO, para que libwebrtc lo
