@@ -54,9 +54,9 @@ struct Productor {
     std::vector<std::shared_ptr<Toma>> tomas; ///< bajo mu
     GstCaps* caps = nullptr;                  ///< bajo mu
     GstSegment segmento{};                    ///< bajo mu
-    std::uint64_t serieSegmento = 0;          ///< bajo mu (0: todavía ninguno)
+    std::uint64_t serieSegmento = 0;          ///< bajo mu: crece con cada segmento (nunca vuelve atrás)
+    bool conSegmento = false;                 ///< bajo mu: el pipeline de la entrega ya mandó uno
     std::atomic<GstClockTime> latencia{0};
-    std::atomic<bool> vivo{true};
 };
 
 std::mutex g_mu;
@@ -151,7 +151,7 @@ static gboolean entregaParar(GstBaseSink* bs) {
         std::lock_guard<std::mutex> l(p->mu);
         if (p->caps != nullptr) gst_caps_unref(p->caps);
         p->caps = nullptr;
-        p->serieSegmento = 0;
+        p->conSegmento = false; // al volver a andar manda uno nuevo (y la serie sigue: las tomas lo reenvían)
     }
     return TRUE;
 }
@@ -171,6 +171,7 @@ static gboolean entregaEvento(GstBaseSink* bs, GstEvent* ev) {
             std::lock_guard<std::mutex> l(p->mu);
             gst_segment_copy_into(s, &p->segmento);
             ++p->serieSegmento;
+            p->conSegmento = true;
         }
     }
     // EOS, flush y lo demás no pasan a los mezcladores (como intersink event-types="<>").
@@ -190,7 +191,7 @@ static GstFlowReturn entregaRender(GstBaseSink* bs, GstBuffer* b) {
         tomas = p->tomas;
         caps = p->caps != nullptr ? gst_caps_ref(p->caps) : nullptr;
         gst_segment_copy_into(&p->segmento, &seg);
-        serie = p->serieSegmento;
+        serie = p->conSegmento ? p->serieSegmento : 0;
     }
     if (serie != 0)
         for (const auto& t : tomas) empujarA(*t, b, caps, seg, serie);
