@@ -2626,9 +2626,10 @@ void SignalingServer::handleOffer(const std::string& pid, uint64_t gen, const st
                 pump_->forwardAudio(idx, s, n, rate);
                 if (grillas_ != nullptr) grillas_->audio(persona, s, n, 2, Grillas::reloj());
             };
-            cb.onRemoteVideo = [this, idx, persona = "sala:" + pid](const uint8_t* p, size_t b, int w, int h) {
-                pump_->forwardVideo(idx, p, b, w, h);
-                if (grillas_ != nullptr) grillas_->cuadro(persona, p, w, h, Grillas::reloj());
+            cb.onRemoteVideo = [this, idx](const uint8_t* p, size_t b, int w, int h) { pump_->forwardVideo(idx, p, b, w, h); };
+            // La grilla lo achica desde el I420 del decodificador (PlanosYuv.hpp).
+            cb.onRemoteVideoYuv = [this, persona = "sala:" + pid](const PlanosYuv& c) {
+                if (grillas_ != nullptr) grillas_->cuadro(persona, c, Grillas::reloj());
             };
             // De la baja a la HD (Fundido.hpp): su canal y su retrato funden.
             cb.onFundido = [this, idx, pid, persona = "sala:" + pid](int ms) { alLlegarHd(pid, persona, idx, ms); };
@@ -2808,9 +2809,10 @@ bool SignalingServer::ofertaRemoto(const std::string& id, int canal, const std::
                 pump_->forwardAudio(idx, s, n, rate);
                 if (grillas_ != nullptr) grillas_->audio(persona, s, n, 2, Grillas::reloj());
             };
-            cb.onRemoteVideo = [this, idx, persona = "asamblea:" + id](const uint8_t* p, size_t b, int w, int h) {
-                pump_->forwardVideo(idx, p, b, w, h);
-                if (grillas_ != nullptr) grillas_->cuadro(persona, p, w, h, Grillas::reloj());
+            cb.onRemoteVideo = [this, idx](const uint8_t* p, size_t b, int w, int h) { pump_->forwardVideo(idx, p, b, w, h); };
+            // La grilla lo achica desde el I420 del decodificador (PlanosYuv.hpp).
+            cb.onRemoteVideoYuv = [this, persona = "asamblea:" + id](const PlanosYuv& c) {
+                if (grillas_ != nullptr) grillas_->cuadro(persona, c, Grillas::reloj());
             };
             // Se le dio la palabra: la HD llega después de la baja y entra con un fundido.
             cb.onFundido = [this, idx, pid, persona = "asamblea:" + id](int ms) { alLlegarHd(pid, persona, idx, ms); };

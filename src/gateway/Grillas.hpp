@@ -85,6 +85,7 @@
 #include "Capas.hpp"
 #include "Fundido.hpp"
 #include "MediaRoute.hpp"
+#include "PlanosYuv.hpp"
 
 namespace ba::ipc {
 class SpoutSender;
@@ -124,8 +125,10 @@ class Grillas {
     Grillas(const Grillas&) = delete;
     Grillas& operator=(const Grillas&) = delete;
 
-    /// El hilo que pinta. `cps`: cuadros por segundo de las grillas.
-    void start(int cps = 25);
+    /// El hilo que pinta. `cps`: cuadros por segundo de las grillas si no se sabe el ritmo
+    /// del lienzo de la app. `lienzo`: el canal que publica la app a ese ritmo (BA.Program):
+    /// se pinta a su ritmo y a mitad de camino entre dos de sus cuadros (ver proximoPintado).
+    void start(int cps = 30, std::wstring lienzo = {});
     void stop();
 
     /// Rutas /api/v1/grillas. true si la tomó.
@@ -137,6 +140,8 @@ class Grillas {
     // --- Lo que llega de cada persona -------------------------------------------
     /// Un cuadro BGRA de la cámara de `persona` (solo se guarda si está en una grilla).
     void cuadro(const std::string& persona, const std::uint8_t* bgra, int w, int h, std::int64_t ahoraMs);
+    /// El mismo, en I420 del decodificador: se achica en I420 y se convierte lo chico.
+    void cuadro(const std::string& persona, const PlanosYuv& c, std::int64_t ahoraMs);
     /// La foto (JPEG) de un integrante de la asamblea. Si tiene video en vivo, lo gana el video.
     void foto(const std::string& persona, const std::string& jpeg, std::int64_t ahoraMs);
     /// Audio float intercalado (`canales`) de `persona`: para saber quién habla.
@@ -182,6 +187,18 @@ class Grillas {
     static std::int64_t reloj();
     /// La curva de la animación (0..1 → 0..1, suave al salir y al llegar).
     static float suavizar(float t);
+    /// Cuándo pintar el próximo mosaico (ns del reloj monotónico). Con el ritmo del lienzo
+    /// (`envioNs`: su último cuadro, `periodoNs`: cada cuánto publica; los dos de la cabecera
+    /// de su canal): a mitad de camino entre dos cuadros del lienzo, el primero después de
+    /// `ahoraNs`. Pintar a otro ritmo (25 contra 30) o en la misma fase que el lienzo bate:
+    /// el lienzo toma a veces uno nuevo y a veces repite (intervalos de 50 y 83 ms). Sin el
+    /// lienzo (no publica, o hace más de 1 s), al ritmo propio: `propioNs` (lo previsto),
+    /// nunca antes de ahora (sin ráfaga para alcanzar). Con uno anterior (`anteriorNs`), un
+    /// período después corrido de a poco hacia esa mitad (lazo de fase): el lienzo tiembla
+    /// (sale más o menos tarde según cuánto tarde en armarse) y seguir cada temblor era pintar
+    /// a intervalos desparejos, dos en un cuadro del lienzo y uno perdido.
+    static std::uint64_t proximoPintado(std::uint64_t ahoraNs, std::uint64_t envioNs, std::uint64_t periodoNs,
+                                        std::uint64_t propioNs, std::uint64_t anteriorNs = 0);
 
    private:
     struct Retrato {
@@ -192,6 +209,7 @@ class Grillas {
         std::int64_t ms = 0;          ///< cuándo llegó el último
         std::int64_t vivoMs = 0;      ///< el último cuadro de video (no foto)
         std::uint64_t seq = 0;
+        std::vector<std::uint8_t> repuesto; ///< donde se achica el próximo (fuera del candado)
         Fundido fundido;              ///< de la baja a la HD (ver fundir)
         int fundidoPendienteMs = 0;   ///< > 0: el próximo cuadro en vivo arranca el fundido
     };
@@ -249,6 +267,13 @@ class Grillas {
 
     std::shared_ptr<Retrato> retrato(const std::string& persona) const;
     void guardar(Retrato& r, const std::uint8_t* bgra, int w, int h, std::int64_t ahoraMs, bool vivo);
+    /// Lo común de guardar: `llenar(px, tw, th)` deja en `px` el cuadro de `w`x`h` achicado a
+    /// `tw`x`th` en BGRA (fuera del candado del retrato).
+    void guardarCon(Retrato& r, int w, int h, std::int64_t ahoraMs, bool vivo,
+                    const std::function<void(std::uint8_t* px, int tw, int th)>& llenar);
+    /// Si el cuadro de `persona` que llega ahora se usa (está en una grilla y no llega a más
+    /// del doble del ritmo del pintor). nullptr si no.
+    std::shared_ptr<Retrato> retratoParaCuadro(const std::string& persona, std::int64_t ahoraMs) const;
     static Rect animado(const Anim& a, int durMs, std::int64_t ahoraMs);
     /// Pinta el rótulo `r` en la celda `c` (con el estilo de la grilla).
     static void pintarRotulo(std::uint8_t* lienzo, int W, int H, const Grillas::Rect& celda, const Rotulo& r,
@@ -278,7 +303,10 @@ class Grillas {
     std::vector<std::uint8_t> tmpFundido_; // lo que se va, recortado a la celda (con mu_)
     std::atomic<bool> parar_{false};
     std::thread hilo_;
-    int cps_ = 25;
+    int cps_ = 30;
+    std::wstring lienzo_;
+    /// Cada cuánto se pinta ahora (ns): el del lienzo o el propio (cuadro() lo mira).
+    std::atomic<std::uint64_t> periodoPintarNs_{1'000'000'000ULL / 30};
 };
 
 } // namespace ba::gateway

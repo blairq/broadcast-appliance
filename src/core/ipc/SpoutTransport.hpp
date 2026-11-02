@@ -346,6 +346,9 @@ class SpoutReceiver {
     std::chrono::steady_clock::time_point proximaMirada(std::chrono::steady_clock::duration pasoQuieto) const;
     /// Cada cuánto publica el productor (ns; 0 = todavía no se sabe).
     std::uint64_t periodoNs() const;
+    /// Cuándo publicó el último cuadro (su reloj monotónico, ipc/Mirada.hpp; 0 = nunca). Se
+    /// puede mirar sin leer: quien sigue el ritmo del productor sin tomarle los cuadros.
+    std::uint64_t ultimoEnvioNs() const;
     /// El número de publicación del último cuadro que se recibió (cuenta de a uno en el
     /// productor: un salto son cuadros publicados que este lector no llegó a leer).
     std::uint64_t ultimoPublicado() const { return lastSeenPub_; }

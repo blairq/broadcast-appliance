@@ -399,8 +399,9 @@ class RemoteVideoSink : public rtc::VideoSinkInterface<webrtc::VideoFrame> {
     /// `pasa`: adónde va este cuadro: a `fn` (kSale), a `anterior` (kAnterior: la capa que
     /// se va durante el fundido) o a ningún lado (una capa que no sale se descarta ANTES de
     /// convertirla). Vacío = todos a `fn`.
-    explicit RemoteVideoSink(Fn fn, std::function<int()> pasa = {}, Fn anterior = {})
-        : fn_(std::move(fn)), pasa_(std::move(pasa)), anterior_(std::move(anterior)) {}
+    using FnYuv = std::function<void(const PlanosYuv&)>;
+    explicit RemoteVideoSink(Fn fn, std::function<int()> pasa = {}, Fn anterior = {}, FnYuv yuv = {})
+        : fn_(std::move(fn)), pasa_(std::move(pasa)), anterior_(std::move(anterior)), yuv_(std::move(yuv)) {}
     void OnFrame(const webrtc::VideoFrame& frame) override {
         if (!fn_) return;
         const int destino = pasa_ ? pasa_() : kSale;
@@ -416,6 +417,9 @@ class RemoteVideoSink : public rtc::VideoSinkInterface<webrtc::VideoFrame> {
         bgra_.resize(static_cast<size_t>(w) * h * 4);
         libyuv::I420ToARGB(i420->DataY(), i420->StrideY(), i420->DataU(), i420->StrideU(), i420->DataV(),
                            i420->StrideV(), bgra_.data(), w * 4, w, h);
+        if (destino == kSale && yuv_)
+            yuv_(PlanosYuv{i420->DataY(), i420->DataU(), i420->DataV(), i420->StrideY(), i420->StrideU(), i420->StrideV(), w, h,
+                           bgra_.data()});
         fn(bgra_.data(), bgra_.size(), w, h);
     }
 
@@ -423,6 +427,7 @@ class RemoteVideoSink : public rtc::VideoSinkInterface<webrtc::VideoFrame> {
     Fn fn_;
     std::function<int()> pasa_;
     Fn anterior_;
+    FnYuv yuv_;
     std::vector<uint8_t> bgra_;
 };
 
@@ -877,6 +882,9 @@ struct WebrtcSession::Impl : public webrtc::PeerConnectionObserver {
     uint64_t prevIn = 0, prevOut = 0, prevPkts = 0;
     int64_t prevLost = 0;
     int64_t prevMs = 0;
+    // El búfer de NetEq del audio que llega (la suma de los flujos de audio de la conexión).
+    double prevJbDemora = 0, prevJbObjetivo = 0;
+    uint64_t prevJbEmitidos = 0;
 
     class StatsCb : public webrtc::RTCStatsCollectorCallback {
        public:
@@ -886,6 +894,8 @@ struct WebrtcSession::Impl : public webrtc::PeerConnectionObserver {
             int64_t lost = 0;
             double jitterMax = 0, rtt = -1;
             uint32_t perdidos = 0, alto = 0, ancho = 0;
+            double jbDemora = 0, jbObjetivo = 0;
+            uint64_t jbEmitidos = 0, jbDescartados = 0;
             nlohmann::json salida;
             for (const webrtc::RTCStats& st : *report) {
                 if (st.type() == webrtc::RTCInboundRtpStreamStats::kType) {
@@ -894,6 +904,12 @@ struct WebrtcSession::Impl : public webrtc::PeerConnectionObserver {
                     pkts += r.packets_received.value_or(0);
                     lost += r.packets_lost.value_or(0);
                     jitterMax = std::max(jitterMax, r.jitter.value_or(0.0));
+                    if (r.kind.value_or("") == "audio") {
+                        jbDemora += r.jitter_buffer_delay.value_or(0.0);
+                        jbObjetivo += r.jitter_buffer_target_delay.value_or(0.0);
+                        jbEmitidos += r.jitter_buffer_emitted_count.value_or(0);
+                        jbDescartados += r.packets_discarded.value_or(0);
+                    }
                     if (r.kind.value_or("") == "video") {
                         perdidos += r.frames_dropped.value_or(0);
                         alto = std::max(alto, r.frame_height.value_or(0));
@@ -932,6 +948,15 @@ struct WebrtcSession::Impl : public webrtc::PeerConnectionObserver {
             impl_->prevPkts = pkts;
             impl_->prevLost = lost;
             impl_->prevMs = ahora;
+            // Cuánto espera el audio que llega en el búfer de NetEq (y cuánto quiere esperar),
+            // de media en la ventana: lo que se demora la voz del invitado antes de la mezcla.
+            const uint64_t dEmitidos = jbEmitidos >= impl_->prevJbEmitidos ? jbEmitidos - impl_->prevJbEmitidos : 0;
+            const double jbMs = dEmitidos > 0 ? (jbDemora - impl_->prevJbDemora) * 1000.0 / static_cast<double>(dEmitidos) : -1;
+            const double jbObjMs =
+                dEmitidos > 0 ? (jbObjetivo - impl_->prevJbObjetivo) * 1000.0 / static_cast<double>(dEmitidos) : -1;
+            impl_->prevJbDemora = jbDemora;
+            impl_->prevJbObjetivo = jbObjetivo;
+            impl_->prevJbEmitidos = jbEmitidos;
             const double jit = jitterMax * 1000.0, rttMs = rtt >= 0 ? rtt * 1000.0 : -1;
             // El semáforo de red del invitado (Configuración → avanzado de la sala).
             namespace aj = ba::ajustes;
@@ -948,6 +973,9 @@ struct WebrtcSession::Impl : public webrtc::PeerConnectionObserver {
                              {"cuadros_perdidos", perdidos},   {"alto", alto},
                              {"ancho", ancho},                 {"semaforo", sem}};
             if (!salida.is_null()) j["salida"] = salida;
+            if (jbMs >= 0)
+                j["audio_bufer"] = {{"ms", std::lround(jbMs)}, {"objetivo_ms", std::lround(jbObjMs)},
+                                    {"descartados", jbDescartados}};
             impl_->statsJson = j.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
         }
 
@@ -1239,7 +1267,8 @@ struct WebrtcSession::Impl : public webrtc::PeerConnectionObserver {
                     return va ? RemoteVideoSink::kSale : anterior ? RemoteVideoSink::kAnterior : RemoteVideoSink::kNo;
                 };
             auto sink = std::make_unique<RemoteVideoSink>(camera ? cb.onRemoteVideo : cb.onRemoteScreen, std::move(pasa),
-                                                          camera ? cb.onRemoteVideoAnterior : RemoteVideoSink::Fn());
+                                                          camera ? cb.onRemoteVideoAnterior : RemoteVideoSink::Fn(),
+                                                          camera ? cb.onRemoteVideoYuv : RemoteVideoSink::FnYuv());
             auto* video = static_cast<webrtc::VideoTrackInterface*>(track.get());
             // Relay a espectadores: los cuadros codificados pasan por el Feed de
             // esta sesion antes del decodificador. A los espectadores se les reenvia
