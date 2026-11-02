@@ -188,6 +188,12 @@ class SharedAudioRing {
     /// pop() de mas (ante underrun pop() entrega silencio, no "nada").
     uint64_t pendientes() const;
 
+    /// Lado LECTOR: tira lo que el escritor dejó y nadie leyó (readIndex <- writeIndex);
+    /// devuelve cuántos bloques. Para un lector que recién abre el anillo de una entrada en
+    /// vivo: lo que el gateway escribió antes (hasta la capacidad entera, viejo: con el anillo
+    /// lleno el escritor tira lo NUEVO) llegaba tarde a los mezcladores y no entraba.
+    uint64_t descartarPendientes();
+
     /// Bloques que el escritor descarto porque el lector no llegaba (overrunCount).
     uint64_t descartados() const;
 

@@ -95,6 +95,7 @@ static GstFlowReturn crear(GstPushSrc* ps, GstBuffer** out) {
                 ok = !canal.empty() && ba::ipc::SharedAudioRing::openReader(w.c_str(), *a->ring).ok &&
                      a->ring->header()->channels == ar::kDefaultChannels;
                 if (!ok) *a->ring = ba::ipc::SharedAudioRing{};
+                else a->ring->descartarPendientes(); // desde ahora: lo de antes de abrirlo llegaría tarde
             }
             if (!ok) {
                 if (!ba::ipc_gst::esperar(a->parar, 100)) return GST_FLOW_FLUSHING;

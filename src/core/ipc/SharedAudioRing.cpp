@@ -68,6 +68,16 @@ uint64_t SharedAudioRing::pendientes() const {
     return write > read ? std::min(write - read, capacityBlocks()) : 0;
 }
 
+uint64_t SharedAudioRing::descartarPendientes() {
+    if (region_.data() == nullptr || isWriter_) return 0;
+    auto* h = hdr();
+    const uint64_t write = AtomicRef<uint64_t>(h->writeIndex).load(std::memory_order_acquire);
+    const uint64_t read = AtomicRef<uint64_t>(h->readIndex).load(std::memory_order_relaxed);
+    if (write <= read) return 0;
+    AtomicRef<uint64_t>(h->readIndex).store(write, std::memory_order_release);
+    return write - read;
+}
+
 uint64_t SharedAudioRing::descartados() const {
     if (region_.data() == nullptr) return 0;
     return AtomicRef<uint64_t>(hdr()->overrunCount).load(std::memory_order_relaxed);

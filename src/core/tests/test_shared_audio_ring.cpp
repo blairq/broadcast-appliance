@@ -269,6 +269,38 @@ static void testWriterRestart() {
     CHECK(ring2.header()->writerPid == 444, "writerPid actualizado a 444");
 }
 
+// --- Un lector que abre tarde: desde ahora --------------------------------
+
+static void testDescartarPendientes() {
+    std::printf("== testDescartarPendientes ==\n");
+    constexpr uint64_t capBlocks = 16;
+    constexpr uint32_t channels = 2;
+    const size_t blockFloats = audio_ring::kBlockFrames * channels;
+    SharedAudioRing ring;
+    Status s = SharedAudioRing::init(L"BA.Test.Descartar", channels, capBlocks, 555, 1, ring);
+    CHECK(s.ok, "init(descartar)");
+    if (!s.ok) return;
+    std::vector<float> block(blockFloats);
+    // El escritor llena el anillo (y tira lo que no cabe) antes de que nadie lea.
+    for (uint64_t i = 0; i < capBlocks + 5; ++i) {
+        fillSentinel(block.data(), blockFloats, 3000 + i);
+        ring.push(block.data(), nowNs());
+    }
+    SharedAudioRing reader;
+    s = SharedAudioRing::openReader(L"BA.Test.Descartar", reader);
+    CHECK(s.ok, "openReader(descartar)");
+    if (!s.ok) return;
+    CHECK(reader.pendientes() == capBlocks, "lo viejo espera en el anillo");
+    CHECK(reader.descartarPendientes() == capBlocks, "se tira entero");
+    CHECK(reader.pendientes() == 0 && ring.descartarPendientes() == 0, "nada pendiente (y el escritor no tira nada)");
+    fillSentinel(block.data(), blockFloats, 4000);
+    CHECK(ring.push(block.data(), nowNs()), "el escritor vuelve a tener lugar");
+    std::vector<float> outBlk(blockFloats);
+    PoppedBlock pb;
+    CHECK(reader.pop(outBlk.data(), pb) && !pb.isSilence && matchSentinel(pb.samples, blockFloats, 4000),
+          "lo primero que se lee es lo nuevo");
+}
+
 // --- Contadores deterministas ---------------------------------------------
 
 static void testCounters() {
@@ -371,6 +403,7 @@ int main() {
     testConcurrency();
     testWraparound();
     testWriterRestart();
+    testDescartarPendientes();
     testCounters();
     testAlRitmo();
 

@@ -72,6 +72,10 @@ class LecturaAnillo : public ba::ipc_gst::Lectura {
             abierto = true;
             abiertoCanal = canal;
             bloque.assign(ring.blockFloats(), 0.0f);
+            // Desde ahora: lo que el gateway escribió antes de abrirlo (hasta el anillo entero,
+            // viejo) llegaba tarde a los mezcladores al entrar cada invitado ("llega tarde (K
+            // bloques); no entra").
+            ring.descartarPendientes();
         }
         const GstClockTime dur = gst_util_uint64_scale(ar::kBlockFrames, GST_SECOND, ar::kSampleRate);
         ba::ipc::PoppedBlock meta;
