@@ -30367,7 +30367,7 @@ La que sale queda armada, para volver.</source>
 <context>
     <name>ScenesPage</name>
     <message>
-        <location filename="../src/app/qml/pages/ScenesPage.qml" line="+46"/>
+        <location filename="../src/app/qml/pages/ScenesPage.qml" line="+49"/>
         <source>Escenas</source>
         <translation>场景</translation>
     </message>
@@ -30420,12 +30420,12 @@ La que sale queda armada, para volver.</source>
         <location line="+0"/>
         <location line="+123"/>
         <location line="+154"/>
-        <location line="+205"/>
+        <location line="+214"/>
         <source>Cancelar</source>
         <translation>取消</translation>
     </message>
     <message>
-        <location line="-411"/>
+        <location line="-420"/>
         <source>Escena</source>
         <translation>场景</translation>
     </message>
@@ -30557,8 +30557,15 @@ Para la escena base de la que salen las demás.</source>
         <source>Agregar fuente</source>
         <translation>添加来源</translation>
     </message>
+    <message numerus="yes">
+        <location line="+22"/>
+        <source>Otro invitado… (de %n)</source>
+        <translation>
+            <numerusform>其他嘉宾…（共 %n 位）</numerusform>
+        </translation>
+    </message>
     <message>
-        <location line="+25"/>
+        <location line="+12"/>
         <source>Invitado %1 — pantalla</source>
         <translation>嘉宾 %1 — 屏幕</translation>
     </message>
@@ -30661,6 +30668,21 @@ Para la escena base de la que salen las demás.</source>
     </message>
     <message>
         <location line="+22"/>
+        <source>Agregar invitado</source>
+        <translation>添加嘉宾</translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <source>Lugar</source>
+        <translation>位置</translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>Su pantalla (no la cámara)</source>
+        <translation>其屏幕（不是摄像头）</translation>
+    </message>
+    <message>
+        <location line="+8"/>
         <source>Renombrar escena</source>
         <translation>重命名场景</translation>
     </message>
@@ -52881,7 +52903,7 @@ Datos (de %2): %3</source>
         <translation>MediaPump：已停止</translation>
     </message>
     <message>
-        <location line="+12"/>
+        <location line="+14"/>
         <source>video out: %1 listo (%2x%3)</source>
         <translation>视频输出：%1 已就绪（%2x%3）</translation>
     </message>
@@ -52936,12 +52958,12 @@ Datos (de %2): %3</source>
         <translation>操作员：摄像头（BA.Operator）已订阅（%1x%2）</translation>
     </message>
     <message>
-        <location line="-893"/>
+        <location line="-895"/>
         <source>retorno video</source>
         <translation>视频返送</translation>
     </message>
     <message>
-        <location line="+152"/>
+        <location line="+154"/>
         <source>salida %1: nadie la mira, se suelta su bajada</source>
         <translation>输出 %1：无人观看，释放其下行</translation>
     </message>
@@ -53032,7 +53054,7 @@ Datos (de %2): %3</source>
         <translation>测试期间未收到其麦克风的音频（是否已静音？）</translation>
     </message>
     <message>
-        <location line="+177"/>
+        <location line="+178"/>
         <source>sube %1: %2 fps (%3x%4)</source>
         <translation>上行 %1：%2 fps（%3x%4）</translation>
     </message>
@@ -53588,7 +53610,7 @@ Datos (de %2): %3</source>
     </message>
     <message>
         <location line="+2"/>
-        <location filename="../src/gateway/main.cpp" line="+759"/>
+        <location filename="../src/gateway/main.cpp" line="+763"/>
         <location line="+2"/>
         <source>(ninguna)</source>
         <translation>（无）</translation>
@@ -53741,7 +53763,7 @@ Datos (de %2): %3</source>
         <translation>全部</translation>
     </message>
     <message>
-        <location filename="../src/gateway/main.cpp" line="-517"/>
+        <location filename="../src/gateway/main.cpp" line="-521"/>
         <source>%1 (nueva)</source>
         <translation>%1（新）</translation>
     </message>
@@ -53796,7 +53818,7 @@ Datos (de %2): %3</source>
         <translation>auth：无法生成 PIN；会议保持关闭，直到执行 ChangePin</translation>
     </message>
     <message>
-        <location line="+111"/>
+        <location line="+115"/>
         <source>control: sin entropia para el token de la API; la sala queda sin control</source>
         <translation>控制：没有用于 API 令牌的熵；会场将没有控制</translation>
     </message>
@@ -79077,7 +79099,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>accion：ver、cambiar、logo、fuente、quitar、restablecer 或 migrar_sitio</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpPruebaSalaTools.cpp" line="+23"/>
+        <location filename="../src/app/mcp/McpPruebaSalaTools.cpp" line="+24"/>
         <source>Arrancar una prueba de sala</source>
         <translation>开始会场测试</translation>
     </message>
@@ -79182,7 +79204,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>本次会话中尚无已结束的会场测试。</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpEnlaceTools.cpp" line="+23"/>
+        <location filename="../src/app/mcp/McpEnlaceTools.cpp" line="+24"/>
         <source>Medir el enlace por el túnel</source>
         <translation>经隧道测量链路</translation>
     </message>

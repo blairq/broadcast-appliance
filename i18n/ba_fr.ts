@@ -30496,7 +30496,7 @@ Celle qui sort reste prête, pour revenir.</translation>
 <context>
     <name>ScenesPage</name>
     <message>
-        <location filename="../src/app/qml/pages/ScenesPage.qml" line="+46"/>
+        <location filename="../src/app/qml/pages/ScenesPage.qml" line="+49"/>
         <source>Escenas</source>
         <translation>Scènes</translation>
     </message>
@@ -30549,12 +30549,12 @@ Celle qui sort reste prête, pour revenir.</translation>
         <location line="+0"/>
         <location line="+123"/>
         <location line="+154"/>
-        <location line="+205"/>
+        <location line="+214"/>
         <source>Cancelar</source>
         <translation>Annuler</translation>
     </message>
     <message>
-        <location line="-411"/>
+        <location line="-420"/>
         <source>Escena</source>
         <translation>Scène</translation>
     </message>
@@ -30686,8 +30686,16 @@ Pour la scène de base dont dérivent les autres.</translation>
         <source>Agregar fuente</source>
         <translation>Ajouter une source</translation>
     </message>
+    <message numerus="yes">
+        <location line="+22"/>
+        <source>Otro invitado… (de %n)</source>
+        <translation>
+            <numerusform>Autre invité… (sur %n)</numerusform>
+            <numerusform>Autre invité… (sur %n)</numerusform>
+        </translation>
+    </message>
     <message>
-        <location line="+25"/>
+        <location line="+12"/>
         <source>Invitado %1 — pantalla</source>
         <translation>Invité %1 — écran</translation>
     </message>
@@ -30791,6 +30799,21 @@ Pour la scène de base dont dérivent les autres.</translation>
     </message>
     <message>
         <location line="+22"/>
+        <source>Agregar invitado</source>
+        <translation>Ajouter un invité</translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <source>Lugar</source>
+        <translation>Place</translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>Su pantalla (no la cámara)</source>
+        <translation>Son écran (pas la caméra)</translation>
+    </message>
+    <message>
+        <location line="+8"/>
         <source>Renombrar escena</source>
         <translation>Renommer la scène</translation>
     </message>
@@ -53041,7 +53064,7 @@ Données (de %2)&#xa0;: %3</translation>
         <translation>MediaPump&#xa0;: arrêté</translation>
     </message>
     <message>
-        <location line="+12"/>
+        <location line="+14"/>
         <source>video out: %1 listo (%2x%3)</source>
         <translation>video out&#xa0;: %1 prêt (%2x%3)</translation>
     </message>
@@ -53096,12 +53119,12 @@ Données (de %2)&#xa0;: %3</translation>
         <translation>opérateur&#xa0;: caméra (BA.Operator) abonnée (%1x%2)</translation>
     </message>
     <message>
-        <location line="-893"/>
+        <location line="-895"/>
         <source>retorno video</source>
         <translation>retour vidéo</translation>
     </message>
     <message>
-        <location line="+152"/>
+        <location line="+154"/>
         <source>salida %1: nadie la mira, se suelta su bajada</source>
         <translation>sortie %1&#xa0;: personne ne la regarde, son flux descendant est libéré</translation>
     </message>
@@ -53192,7 +53215,7 @@ Données (de %2)&#xa0;: %3</translation>
         <translation>aucun audio n&apos;est arrivé de son micro pendant le test (est-il coupé&#xa0;?)</translation>
     </message>
     <message>
-        <location line="+177"/>
+        <location line="+178"/>
         <source>sube %1: %2 fps (%3x%4)</source>
         <translation>montée %1&#xa0;: %2 fps (%3x%4)</translation>
     </message>
@@ -53748,7 +53771,7 @@ Données (de %2)&#xa0;: %3</translation>
     </message>
     <message>
         <location line="+2"/>
-        <location filename="../src/gateway/main.cpp" line="+759"/>
+        <location filename="../src/gateway/main.cpp" line="+763"/>
         <location line="+2"/>
         <source>(ninguna)</source>
         <translation>(aucune)</translation>
@@ -53901,7 +53924,7 @@ Données (de %2)&#xa0;: %3</translation>
         <translation>tous</translation>
     </message>
     <message>
-        <location filename="../src/gateway/main.cpp" line="-517"/>
+        <location filename="../src/gateway/main.cpp" line="-521"/>
         <source>%1 (nueva)</source>
         <translation>%1 (nouvelle)</translation>
     </message>
@@ -53956,7 +53979,7 @@ Données (de %2)&#xa0;: %3</translation>
         <translation>auth&#xa0;: impossible de générer un PIN&#xa0;; la conférence reste fermée jusqu&apos;à un ChangePin</translation>
     </message>
     <message>
-        <location line="+111"/>
+        <location line="+115"/>
         <source>control: sin entropia para el token de la API; la sala queda sin control</source>
         <translation>contrôle&#xa0;: pas d&apos;entropie pour le jeton de l&apos;API&#xa0;; la salle reste sans contrôle</translation>
     </message>
@@ -79255,7 +79278,7 @@ PROPOSEZ, N&apos;APPLIQUEZ PAS&#xa0;: montrez à la personne ce qui change et ap
         <translation>accion&#xa0;: ver, cambiar, logo, fuente, quitar, restablecer ou migrar_sitio</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpPruebaSalaTools.cpp" line="+23"/>
+        <location filename="../src/app/mcp/McpPruebaSalaTools.cpp" line="+24"/>
         <source>Arrancar una prueba de sala</source>
         <translation>Démarrer un test de salle</translation>
     </message>
@@ -79360,7 +79383,7 @@ PROPOSEZ, N&apos;APPLIQUEZ PAS&#xa0;: montrez à la personne ce qui change et ap
         <translation>Aucun test de salle n&apos;est encore terminé dans cette session.</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpEnlaceTools.cpp" line="+23"/>
+        <location filename="../src/app/mcp/McpEnlaceTools.cpp" line="+24"/>
         <source>Medir el enlace por el túnel</source>
         <translation>Mesurer la liaison par le tunnel</translation>
     </message>

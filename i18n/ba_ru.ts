@@ -30625,7 +30625,7 @@ La que sale queda armada, para volver.</source>
 <context>
     <name>ScenesPage</name>
     <message>
-        <location filename="../src/app/qml/pages/ScenesPage.qml" line="+46"/>
+        <location filename="../src/app/qml/pages/ScenesPage.qml" line="+49"/>
         <source>Escenas</source>
         <translation>Сцены</translation>
     </message>
@@ -30678,12 +30678,12 @@ La que sale queda armada, para volver.</source>
         <location line="+0"/>
         <location line="+123"/>
         <location line="+154"/>
-        <location line="+205"/>
+        <location line="+214"/>
         <source>Cancelar</source>
         <translation>Отмена</translation>
     </message>
     <message>
-        <location line="-411"/>
+        <location line="-420"/>
         <source>Escena</source>
         <translation>Сцена</translation>
     </message>
@@ -30815,8 +30815,17 @@ Para la escena base de la que salen las demás.</source>
         <source>Agregar fuente</source>
         <translation>Добавить источник</translation>
     </message>
+    <message numerus="yes">
+        <location line="+22"/>
+        <source>Otro invitado… (de %n)</source>
+        <translation>
+            <numerusform>Другой гость… (из %n)</numerusform>
+            <numerusform>Другой гость… (из %n)</numerusform>
+            <numerusform>Другой гость… (из %n)</numerusform>
+        </translation>
+    </message>
     <message>
-        <location line="+25"/>
+        <location line="+12"/>
         <source>Invitado %1 — pantalla</source>
         <translation>Гость %1 — экран</translation>
     </message>
@@ -30921,6 +30930,21 @@ Para la escena base de la que salen las demás.</source>
     </message>
     <message>
         <location line="+22"/>
+        <source>Agregar invitado</source>
+        <translation>Добавить гостя</translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <source>Lugar</source>
+        <translation>Место</translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>Su pantalla (no la cámara)</source>
+        <translation>Его экран (не камера)</translation>
+    </message>
+    <message>
+        <location line="+8"/>
         <source>Renombrar escena</source>
         <translation>Переименовать сцену</translation>
     </message>
@@ -53201,7 +53225,7 @@ Datos (de %2): %3</source>
         <translation>MediaPump: остановлен</translation>
     </message>
     <message>
-        <location line="+12"/>
+        <location line="+14"/>
         <source>video out: %1 listo (%2x%3)</source>
         <translation>video out: %1 готов (%2x%3)</translation>
     </message>
@@ -53256,12 +53280,12 @@ Datos (de %2): %3</source>
         <translation>оператор: камера (BA.Operator) подписана (%1x%2)</translation>
     </message>
     <message>
-        <location line="-893"/>
+        <location line="-895"/>
         <source>retorno video</source>
         <translation>контроль видео</translation>
     </message>
     <message>
-        <location line="+152"/>
+        <location line="+154"/>
         <source>salida %1: nadie la mira, se suelta su bajada</source>
         <translation>выход %1: никто его не смотрит, приём освобождается</translation>
     </message>
@@ -53352,7 +53376,7 @@ Datos (de %2): %3</source>
         <translation>во время проверки с его микрофона не пришёл звук (звук отключён?)</translation>
     </message>
     <message>
-        <location line="+177"/>
+        <location line="+178"/>
         <source>sube %1: %2 fps (%3x%4)</source>
         <translation>отправка %1: %2 fps (%3x%4)</translation>
     </message>
@@ -53908,7 +53932,7 @@ Datos (de %2): %3</source>
     </message>
     <message>
         <location line="+2"/>
-        <location filename="../src/gateway/main.cpp" line="+759"/>
+        <location filename="../src/gateway/main.cpp" line="+763"/>
         <location line="+2"/>
         <source>(ninguna)</source>
         <translation>(нет)</translation>
@@ -54061,7 +54085,7 @@ Datos (de %2): %3</source>
         <translation>все</translation>
     </message>
     <message>
-        <location filename="../src/gateway/main.cpp" line="-517"/>
+        <location filename="../src/gateway/main.cpp" line="-521"/>
         <source>%1 (nueva)</source>
         <translation>%1 (новый)</translation>
     </message>
@@ -54116,7 +54140,7 @@ Datos (de %2): %3</source>
         <translation>auth: не удалось сгенерировать PIN; конференция закрыта до ChangePin</translation>
     </message>
     <message>
-        <location line="+111"/>
+        <location line="+115"/>
         <source>control: sin entropia para el token de la API; la sala queda sin control</source>
         <translation>управление: нет энтропии для токена API; комната без управления</translation>
     </message>
@@ -79433,7 +79457,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>accion: ver, cambiar, logo, fuente, quitar, restablecer или migrar_sitio</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpPruebaSalaTools.cpp" line="+23"/>
+        <location filename="../src/app/mcp/McpPruebaSalaTools.cpp" line="+24"/>
         <source>Arrancar una prueba de sala</source>
         <translation>Запустить тест зала</translation>
     </message>
@@ -79538,7 +79562,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>В этом сеансе ещё не завершился ни один тест зала.</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpEnlaceTools.cpp" line="+23"/>
+        <location filename="../src/app/mcp/McpEnlaceTools.cpp" line="+24"/>
         <source>Medir el enlace por el túnel</source>
         <translation>Измерить канал через туннель</translation>
     </message>
