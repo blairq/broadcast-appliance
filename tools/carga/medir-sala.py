@@ -619,12 +619,11 @@ def main():
             def uno(nombre, pid, contadores):
                 trazas[(nombre, contadores)] = xt.grabar(pid, a.xctrace, str(sal / "xctrace"), nombre, contadores)
 
+            # De a una: dos grabaciones a la vez no pueden (kperf es de una sola sesión).
             for contadores in ([False, True] if a.contadores else [False]):
-                hs = [threading.Thread(target=uno, args=(n, ps[n][0]["pid"], contadores)) for n in ("ba-gateway", "ba-app") if ps.get(n)]
-                for h in hs:
-                    h.start()
-                for h in hs:
-                    h.join()
+                for n in ("ba-gateway", "ba-app"):
+                    if ps.get(n):
+                        uno(n, ps[n][0]["pid"], contadores)
             for (nombre, contadores), t in trazas.items():
                 try:
                     pid = ps[nombre][0]["pid"]
@@ -659,7 +658,11 @@ def main():
                     extras["palabra"] = {"error": "no hay grilla de personas o nadie con cámara"}
                     return
                 for k in range(a.palabra):
-                    p = gente[(k * 7 + 3) % len(gente)]
+                    # Uno que esté en la BAJA (si ya tiene la HD no hay nada que medir); si no hay, cualquiera.
+                    g = m3.datos("grilla_personas_estado")
+                    bajas = [x for gr in (g.get("grillas") or []) for x in (gr.get("personas") or []) if x.get("capa") == "baja"]
+                    cand = bajas or gente
+                    p = cand[(k * 7 + 3) % len(cand)]
                     clave = p.get("clave") or p.get("persona") or p.get("id")
                     m3.llamar("grilla_personas_destacar", {"fuente": fuentes[0], "clave": clave})
                     hechos.append({"t": time.time(), "clave": clave})
@@ -792,7 +795,7 @@ def main():
                     if all(abs(c - med) <= max(10.0, 0.1 * med) for c in cpus):
                         estable_t = m["s"] - 5
                         # Lo que se mide en régimen tiene que entrar en el régimen.
-                        fin_t = m["s"] + max(a.regimen, a.medir_grilla_s + 5, a.xctrace * (2 if a.contadores else 1) + 10,
+                        fin_t = m["s"] + max(a.regimen, a.medir_grilla_s + 5, a.xctrace * 2 * (2 if a.contadores else 1) + 20,
                                              a.etw + 10, a.palabra * 8 + 10)
                         if a.medir_grilla_s > 0:
                             hilo_fps = threading.Thread(target=medir_grilla, daemon=True)
