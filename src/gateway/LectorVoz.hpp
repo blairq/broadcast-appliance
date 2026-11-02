@@ -15,9 +15,8 @@
 // kReintento y se duerme entre medio, no de a 50 ms. Parar (`sigue` en false) se nota en
 // a lo sumo kVigia (1 s) con el anillo abierto, como las bajadas de video.
 //
-// El retorno del programa NO usa esto: lee el mix-minus de cada lugar en la misma vuelta
-// que el programa (RetornoLugar.hpp) y despertarse con el toque del programa lo leería
-// antes de que el motor escriba el del lugar (otro hilo): un bloque de colchón más.
+// El retorno del programa NO usa esto: lee el programa y los mix-minus de todos los lugares
+// en el mismo hilo, cada uno a su ritmo (RetornoLugar.hpp), y un solo timbre no los cubre.
 // ============================================================================
 #pragma once
 

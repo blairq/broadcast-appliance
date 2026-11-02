@@ -527,6 +527,23 @@ constexpr std::uint64_t kBloqueNs = std::uint64_t{audio_ring::kBlockFrames} * 1'
 
 } // namespace
 
+namespace {
+
+/// Lo del IFB de un bloque: la voz del operador (si hay) y cuánto baja el programa debajo.
+struct PasoIfb {
+    bool baja = false;
+    bool hayVoz = false;
+    std::vector<float> voz;
+    std::vector<float> ganancia;
+};
+
+/// Cuántos pasos del IFB se guardan para las vueltas de los lugares (40 ms): van al ritmo
+/// del programa y se consumen al de los lugares, que es el mismo; si nadie los consume, se
+/// tiran los viejos.
+constexpr std::size_t kPasosIfbLugares = 4;
+
+} // namespace
+
 void MediaPump::retornoAudioThread(std::wstring nombre, std::string salida, ColaIfb* ifb, LugaresAbiertos* abiertos,
                                    const std::atomic<bool>* parar) {
     ba::platform::tiempoRealAudio(kMiradaAudioMs); // el retorno a los invitados tiene plazo
@@ -544,27 +561,111 @@ void MediaPump::retornoAudioThread(std::wstring nombre, std::string salida, Cola
             slotNames[s] = salida.empty() ? cfg_.returnSlotNames[s] : ba::ipc::nombreRetorno(salida, static_cast<int>(s));
     const std::string deSalida = salida.empty() ? std::string() : llenar(traducir("gateway", " (salida %1)"), {salida});
     Ducking ducking(cfg_.audioRate);
-    std::vector<float> ganancia;
     std::vector<SharedAudioRing> slotReaders(nSlots);
     std::vector<bool> slotOpen(nSlots, false);
-    std::vector<std::vector<float>> slotBlock(nSlots);
     std::vector<std::unique_ptr<MedidaTransporte>> slotMedida(nSlots);
     std::vector<std::chrono::steady_clock::time_point> slotVentana(nSlots);
-    std::vector<float> silencio;
-    std::vector<const float*> deSlot(nSlots, nullptr);
+    std::vector<float> silencio(retorno::VueltasLugares::kFloats, 0.0f);
+    // Los que van por su lugar: al ritmo de los mix-minus (RetornoLugar.hpp), no del programa.
+    retorno::VueltasLugares vueltas;
+    std::vector<retorno::VueltasLugares::Lugar> lugares(nSlots);
+    std::vector<const float*> deLugar;
+    // En la cadencia del programa, los lugares abiertos no se sirven y los cerrados son
+    // «retorno apagado»: todos nullptr (fuente() da silencio a los cerrados).
+    const std::vector<const float*> sinLugar(nSlots, nullptr);
     MedidaTransporte medida(salida.empty() ? "BA.Audio.ContentForReturn" : "BA.Audio.Salida." + salida, "audio",
                             kBloqueNs);
     auto ventana = std::chrono::steady_clock::now();
     ba::platform::Ritmo ritmo{std::chrono::milliseconds(kMiradaAudioMs)};
     auto lastSlotRetry = std::chrono::steady_clock::now() - std::chrono::seconds(1);
     // Los que oyen lo mismo se codifican una vez (AudioCompartido.hpp): el agrupador decide
-    // bloque a bloque y cada grupo es un flujo Opus del hub.
-    AgrupadorRetorno agrupador;
-    std::vector<AudioCompartido> grupos(AgrupadorRetorno::kGrupos + 1);
-    for (int g = 1; g <= AgrupadorRetorno::kGrupos; ++g)
-        grupos[static_cast<size_t>(g)] = hub_.audioCompartido("retorno:" + salida + ":" + std::to_string(g));
-    std::vector<AgrupadorRetorno::Entrada> entradas;
-    uint64_t bloqueDe[AgrupadorRetorno::kGrupos + 1] = {};
+    // bloque a bloque y cada grupo es un flujo Opus del hub. Uno por cadencia: los bloques
+    // de los lugares y los del programa no salen juntos.
+    struct Cadencia {
+        AgrupadorRetorno agrupador;
+        std::vector<AudioCompartido> grupos;
+        std::vector<AgrupadorRetorno::Entrada> entradas;
+        uint64_t bloqueDe[AgrupadorRetorno::kGrupos + 1] = {};
+    };
+    Cadencia porLugar, porPrograma;
+    porLugar.grupos.resize(AgrupadorRetorno::kGrupos + 1);
+    porPrograma.grupos.resize(AgrupadorRetorno::kGrupos + 1);
+    for (int g = 1; g <= AgrupadorRetorno::kGrupos; ++g) {
+        porLugar.grupos[static_cast<size_t>(g)] = hub_.audioCompartido("retorno:" + salida + ":" + std::to_string(g));
+        porPrograma.grupos[static_cast<size_t>(g)] = hub_.audioCompartido("programa:" + salida + ":" + std::to_string(g));
+    }
+    // Las rutas de esta salida: una foto por despertada con algo que repartir (no un
+    // candado por sesión y bloque).
+    std::vector<std::pair<int, MediaRoute>> rutas;
+    bool hayFoto = false;
+    PasoIfb pasoPrograma;
+    std::deque<PasoIfb> pasosLugares;
+    const PasoIfb sinIfb;
+    std::vector<float> mezcla;
+
+    // Reparte un bloque a las sesiones de una cadencia: `fuenteDe(ruta)` es lo que oye cada
+    // una (nullptr: no es de esta cadencia).
+    const auto repartir = [&](Cadencia& c, const PasoIfb& paso, size_t n, auto&& fuenteDe) {
+        if (!hayFoto) {
+            hayFoto = true;
+            std::lock_guard<std::mutex> lock(routesLock_);
+            rutas.clear();
+            for (size_t s = 1; s < routes_.size(); ++s)
+                if (routes_[s].oyeSalida(salida)) rutas.emplace_back(static_cast<int>(s), routes_[s]);
+        }
+        const int prueba = pruebaSesion_.load();
+        c.entradas.clear();
+        for (const auto& [s, r] : rutas) {
+            // Con el retorno apagado (silencio) igual le llega la voz del operador si le habla.
+            const float* fuente = fuenteDe(r);
+            if (fuente == nullptr) continue;
+            const bool ifbAca = r.talk && paso.baja; // le hablan (o el programa todavía vuelve)
+            if (ifbAca || s == prueba) {
+                mezcla.assign(fuente, fuente + n);
+                if (ifbAca) // el programa baja para que la voz se entienda
+                    for (size_t i = 0; i < n; ++i)
+                        mezcla[i] = std::clamp(mezcla[i] * paso.ganancia[i / 2] + (paso.hayVoz ? paso.voz[i] : 0.0f),
+                                               -1.0f, 1.0f);
+                if (s == prueba) {
+                    // Tono de 1 kHz a -12 dBFS, prendido según un código seudoaleatorio de
+                    // 16 tramos de 250 ms (no periódico: un ruido que se repite —un pitido
+                    // cada segundo— no se confunde con el eco).
+                    const std::int64_t desde = pruebaDesdeNs_.load();
+                    const std::int64_t ahoraNs = std::chrono::duration_cast<std::chrono::nanoseconds>(
+                                                     std::chrono::steady_clock::now().time_since_epoch()).count();
+                    const bool on = codigoPrueba((ahoraNs - desde) / 250'000'000LL);
+                    const double pasoFase = 2.0 * 3.14159265358979 * 1000.0 / cfg_.audioRate;
+                    for (size_t i = 0; i + 1 < n; i += 2) {
+                        const float t = on ? 0.25f * static_cast<float>(std::sin(pruebaFase_)) : 0.0f;
+                        pruebaFase_ += pasoFase;
+                        mezcla[i] = std::clamp(mezcla[i] * 0.3f + t, -1.0f, 1.0f);
+                        mezcla[i + 1] = std::clamp(mezcla[i + 1] * 0.3f + t, -1.0f, 1.0f);
+                    }
+                    if (pruebaFase_ > 1e6) pruebaFase_ = std::fmod(pruebaFase_, 2.0 * 3.14159265358979);
+                }
+                // Lo suyo (IFB, prueba) va solo y ya: `mezcla` se reusa con el próximo.
+                if (WebrtcSession* sess = hub_.session(s)) sess->pushLocalAudio(mezcla.data(), n, cfg_.audioRate);
+                continue;
+            }
+            c.entradas.push_back({s, fuente, true});
+        }
+        // Los demás: los que oyen lo mismo, por su grupo (una codificación por grupo).
+        c.agrupador.agrupar(c.entradas, n);
+        for (int g = 1; g <= AgrupadorRetorno::kGrupos; ++g) {
+            const float* pcm = c.agrupador.pcmDe(g);
+            c.bloqueDe[g] = pcm != nullptr ? c.grupos[static_cast<size_t>(g)].codificar(pcm, n, cfg_.audioRate) : 0;
+        }
+        for (size_t i = 0; i < c.entradas.size(); ++i) {
+            WebrtcSession* sess = hub_.session(c.entradas[i].sesion);
+            if (sess == nullptr) continue;
+            const int g = c.agrupador.grupo(i);
+            if (g != 0 && c.bloqueDe[g] != 0)
+                sess->pushLocalAudio(c.entradas[i].pcm, n, cfg_.audioRate, c.grupos[static_cast<size_t>(g)], c.bloqueDe[g]);
+            else
+                sess->pushLocalAudio(c.entradas[i].pcm, n, cfg_.audioRate);
+        }
+    };
+
     while (sigue(parar)) {
         {
             const auto now = std::chrono::steady_clock::now();
@@ -574,6 +675,7 @@ void MediaPump::retornoAudioThread(std::wstring nombre, std::string salida, Cola
                     if (slotOpen[s] && slotReaders[s].stale()) {
                         slotReaders[s] = SharedAudioRing{};
                         slotOpen[s] = false;
+                        vueltas.reiniciar(s);
                         (*abiertos)[s].store(false);
                         log_.warn(llenar(traducir("gateway", "retorno mix-minus del slot %1%2 cerrado: ese invitado queda "
                                                              "sin retorno hasta que vuelva"),
@@ -582,6 +684,7 @@ void MediaPump::retornoAudioThread(std::wstring nombre, std::string salida, Cola
                     if (!slotOpen[s] && !slotNames[s].empty() &&
                         SharedAudioRing::openReader(slotNames[s].c_str(), slotReaders[s]).ok) {
                         slotOpen[s] = true;
+                        vueltas.reiniciar(s);
                         (*abiertos)[s].store(true);
                         if (!slotMedida[s])
                             slotMedida[s] = std::make_unique<MedidaTransporte>(
@@ -591,6 +694,7 @@ void MediaPump::retornoAudioThread(std::wstring nombre, std::string salida, Cola
                         log_.info(llenar(traducir("gateway", "retorno mix-minus del slot %1%2 abierto"),
                                          {std::to_string(s), deSalida}));
                     }
+                    lugares[s] = {slotOpen[s] ? &slotReaders[s] : nullptr, slotMedida[s].get()};
                 }
             }
         }
@@ -617,83 +721,52 @@ void MediaPump::retornoAudioThread(std::wstring nombre, std::string salida, Cola
                           : llenar(traducir("gateway", "salida %1: retorno de audio: A cambió o se cerró; reabriendo"), {salida}));
             continue;
         }
+        hayFoto = false;
+        // Al ritmo del programa: el IFB (la voz del operador se consume una vez, acá) y los
+        // que oyen el programa o tienen el retorno apagado.
+        ducking.ponerProfundidadDb(ba::ajustes::numero("room.ifbProfundidadDb", -15.0));
         leerPendientes(reader, block, medida, [&](const PoppedBlock& blk, size_t n) {
-            const std::uint64_t ahoraQpc = HealthBlock::nowQpc();
-            // El bloque de cada lugar con mix-minus: uno por bloque del programa (RetornoLugar.hpp).
-            if (silencio.size() < n) silencio.assign(n, 0.0f);
-            for (size_t s = 1; s < nSlots; ++s)
-                deSlot[s] = slotOpen[s] ? retorno::bloqueDelLugar(slotReaders[s], slotBlock[s], silencio.data(), n,
-                                                                   *slotMedida[s], ahoraQpc)
-                                        : nullptr;
             // IFB: la voz del operador de este bloque (silencio si no hay), una vez para todos,
             // y cuánto baja el programa debajo de ella (Ducking.hpp: con rampa, sin bombeo).
-            std::vector<float> voz;
-            bool hayVoz = false;
+            pasoPrograma.hayVoz = false;
             {
                 std::lock_guard<std::mutex> l(ifb->lock);
                 if (!ifb->voz.empty()) {
-                    voz.assign(n, 0.0f);
+                    pasoPrograma.voz.assign(n, 0.0f);
                     const size_t k = std::min(n, ifb->voz.size());
-                    std::copy(ifb->voz.begin(), ifb->voz.begin() + static_cast<long>(k), voz.begin());
+                    std::copy(ifb->voz.begin(), ifb->voz.begin() + static_cast<long>(k), pasoPrograma.voz.begin());
                     ifb->voz.erase(ifb->voz.begin(), ifb->voz.begin() + static_cast<long>(k));
-                    hayVoz = true;
+                    pasoPrograma.hayVoz = true;
                 }
             }
-            ducking.ponerProfundidadDb(ba::ajustes::numero("room.ifbProfundidadDb", -15.0));
-            const bool bajaPrograma = ducking.procesar(hayVoz ? voz.data() : nullptr, n, ganancia);
-            const int prueba = pruebaSesion_.load();
-            std::vector<float> mezcla;
-            entradas.clear();
-            for (int s : sessionsWhere([&salida](const MediaRoute& r) { return r.oyeSalida(salida); })) {
-                const MediaRoute r = route(s);
-                // Con el retorno apagado (silencio) igual le llega la voz del operador si le habla.
-                const float* fuente = retorno::fuente(r, blk.samples, deSlot, silencio.data());
-                const bool ifbAca = r.talk && bajaPrograma; // le hablan (o el programa todavía vuelve)
-                if (ifbAca || s == prueba) {
-                    mezcla.assign(fuente, fuente + n);
-                    if (ifbAca) // el programa baja para que la voz se entienda
-                        for (size_t i = 0; i < n; ++i)
-                            mezcla[i] = std::clamp(mezcla[i] * ganancia[i / 2] + (hayVoz ? voz[i] : 0.0f), -1.0f, 1.0f);
-                    if (s == prueba) {
-                        // Tono de 1 kHz a -12 dBFS, prendido según un código seudoaleatorio de
-                        // 16 tramos de 250 ms (no periódico: un ruido que se repite —un pitido
-                        // cada segundo— no se confunde con el eco).
-                        const std::int64_t desde = pruebaDesdeNs_.load();
-                        const std::int64_t ahoraNs = std::chrono::duration_cast<std::chrono::nanoseconds>(
-                                                         std::chrono::steady_clock::now().time_since_epoch()).count();
-                        const bool on = codigoPrueba((ahoraNs - desde) / 250'000'000LL);
-                        const double paso = 2.0 * 3.14159265358979 * 1000.0 / cfg_.audioRate;
-                        for (size_t i = 0; i + 1 < n; i += 2) {
-                            const float t = on ? 0.25f * static_cast<float>(std::sin(pruebaFase_)) : 0.0f;
-                            pruebaFase_ += paso;
-                            mezcla[i] = std::clamp(mezcla[i] * 0.3f + t, -1.0f, 1.0f);
-                            mezcla[i + 1] = std::clamp(mezcla[i + 1] * 0.3f + t, -1.0f, 1.0f);
-                        }
-                        if (pruebaFase_ > 1e6) pruebaFase_ = std::fmod(pruebaFase_, 2.0 * 3.14159265358979);
-                    }
-                    fuente = mezcla.data();
-                    // Lo suyo (IFB, prueba) va solo y ya: `mezcla` se reusa con el próximo.
-                    if (WebrtcSession* sess = hub_.session(s)) sess->pushLocalAudio(fuente, n, cfg_.audioRate);
-                    continue;
-                }
-                entradas.push_back({s, fuente, true});
-            }
-            // Los demás: los que oyen lo mismo, por su grupo (una codificación por grupo).
-            agrupador.agrupar(entradas, n);
-            for (int g = 1; g <= AgrupadorRetorno::kGrupos; ++g) {
-                const float* pcm = agrupador.pcmDe(g);
-                bloqueDe[g] = pcm != nullptr ? grupos[static_cast<size_t>(g)].codificar(pcm, n, cfg_.audioRate) : 0;
-            }
-            for (size_t i = 0; i < entradas.size(); ++i) {
-                WebrtcSession* sess = hub_.session(entradas[i].sesion);
-                if (sess == nullptr) continue;
-                const int g = agrupador.grupo(i);
-                if (g != 0 && bloqueDe[g] != 0)
-                    sess->pushLocalAudio(entradas[i].pcm, n, cfg_.audioRate, grupos[static_cast<size_t>(g)], bloqueDe[g]);
-                else
-                    sess->pushLocalAudio(entradas[i].pcm, n, cfg_.audioRate);
-            }
+            pasoPrograma.baja =
+                ducking.procesar(pasoPrograma.hayVoz ? pasoPrograma.voz.data() : nullptr, n, pasoPrograma.ganancia);
+            // Lo mismo, para los que van por su lugar (en su vuelta).
+            if (pasosLugares.size() >= kPasosIfbLugares) pasosLugares.pop_front();
+            pasosLugares.push_back(pasoPrograma);
+            if (silencio.size() < n) silencio.assign(n, 0.0f);
+            repartir(porPrograma, pasoPrograma, n, [&](const MediaRoute& r) -> const float* {
+                return retorno::vaPorSuLugar(r, slotOpen) ? nullptr
+                                                          : retorno::fuente(r, blk.samples, sinLugar, silencio.data());
+            });
         });
+        // Al ritmo de los lugares: cada invitado al aire, su mix-minus apenas llega.
+        vueltas.mirar(lugares);
+        const auto ahora = std::chrono::steady_clock::now();
+        while (vueltas.proxima(lugares, silencio.data(), deLugar, ahora, HealthBlock::nowQpc())) {
+            const PasoIfb* paso = &sinIfb;
+            PasoIfb guardado;
+            if (!pasosLugares.empty()) {
+                guardado = std::move(pasosLugares.front());
+                pasosLugares.pop_front();
+                if (guardado.ganancia.size() * 2 >= retorno::VueltasLugares::kFloats &&
+                    (!guardado.hayVoz || guardado.voz.size() >= retorno::VueltasLugares::kFloats))
+                    paso = &guardado;
+            }
+            repartir(porLugar, *paso, retorno::VueltasLugares::kFloats, [&](const MediaRoute& r) -> const float* {
+                return retorno::vaPorSuLugar(r, slotOpen) ? deLugar[static_cast<size_t>(r.index)] : nullptr;
+            });
+        }
         cerrarVentana(medida, ventana, true);
         for (size_t s = 1; s < nSlots; ++s)
             if (slotOpen[s]) cerrarVentana(*slotMedida[s], slotVentana[s], true);

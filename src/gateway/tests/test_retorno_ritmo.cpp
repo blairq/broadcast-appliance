@@ -6,9 +6,15 @@
 //      salteados y la edad p50/p99.
 //   2. Al ritmo (F0-01, F0-03): un escritor sintético a 100 bloques/s (programa y un
 //      mix-minus, como el motor) y un lector que mira cada 2 ms con platform::Ritmo:
-//      overrun = 0, ocupación ≤ 3 bloques, a lo sumo un hueco del lugar (el que arma el
-//      colchón). Dura 3 s; BA_RETORNO_RITMO_S=60 es la prueba larga del plan. Imprime el
-//      período real del escritor (p99): en Windows, sin el temporizador fino, ~15,6 ms.
+//      overrun = 0, ocupación ≤ 3 bloques, ningún hueco del lugar. Dura 3 s;
+//      BA_RETORNO_RITMO_S=60 es la prueba larga del plan. Imprime el período real del
+//      escritor (p99): en Windows, sin el temporizador fino, ~15,6 ms.
+//   2b. Las vueltas de los lugares (RetornoLugar.hpp, 2026-11-02), con la hora a mano:
+//      ráfagas de los mix-minus y un programa que llega tarde o de a varios (lo que con
+//      40 invitados dejaba 5-50 faltantes cada 10 s): ningún faltante, cada vuelta el mismo
+//      instante en todos los lugares; un lugar que llega tarde una vez pierde ese bloque y
+//      sigue alineado; uno que dejó de escribir no frena a los demás; uno siempre tarde va
+//      corrido, no mudo.
 //   3. Sin su voz (F0-04): el programa lleva música + la voz del invitado 1 y su mix-minus
 //      solo la música, con huecos. Lo que recibe el invitado 1 no se correlaciona con su
 //      voz, ni con huecos ni con el lugar cerrado (retorno apagado: silencio); la fila, que
@@ -154,18 +160,28 @@ void testAlRitmo(int segundos) {
 
     // El lector: el hilo del retorno, mirando cada 2 ms.
     MedidaTransporte mProg("prog", "audio", 10 * kMs), mLugar("lugar", "audio", 10 * kMs);
-    std::vector<float> buf, bufLugar, silencio(kFloats, 0.0f);
+    std::vector<float> buf, silencio(kFloats, 0.0f);
     ba::platform::Ritmo ritmo{std::chrono::milliseconds(2)};
-    std::uint64_t leidos = 0;
-    while (!listo.load() || programa.pendientes() > 0) {
-        leerPendientes(programa, buf, mProg, [&](const PoppedBlock&, std::size_t n) {
-            retorno::bloqueDelLugar(lugar, bufLugar, silencio.data(), n, mLugar, HealthBlock::nowQpc());
+    std::uint64_t leidos = 0, vueltasLugar = 0;
+    retorno::VueltasLugares vueltas;
+    const std::vector<retorno::VueltasLugares::Lugar> lugares{{}, {&lugar, &mLugar}};
+    std::vector<const float*> deLugar;
+    const auto repartir = [] { // repartir a las sesiones cuesta algo: medio milisegundo por bloque
+        const auto hasta = std::chrono::steady_clock::now() + std::chrono::microseconds(500);
+        while (std::chrono::steady_clock::now() < hasta) {
+        }
+    };
+    while (!listo.load() || programa.pendientes() > 0 || lugar.pendientes() > 0) {
+        leerPendientes(programa, buf, mProg, [&](const PoppedBlock&, std::size_t) {
             ++leidos;
-            // Repartir a las sesiones cuesta algo: medio milisegundo por bloque.
-            const auto hasta = std::chrono::steady_clock::now() + std::chrono::microseconds(500);
-            while (std::chrono::steady_clock::now() < hasta) {
-            }
+            repartir();
         });
+        vueltas.mirar(lugares);
+        while (vueltas.proxima(lugares, silencio.data(), deLugar, std::chrono::steady_clock::now(),
+                               HealthBlock::nowQpc())) {
+            ++vueltasLugar;
+            repartir();
+        }
         ritmo.esperar();
     }
     escritor.join();
@@ -185,10 +201,172 @@ void testAlRitmo(int segundos) {
     CHECK(lugar.descartados() == 0, "overrun = 0 en el lugar");
     CHECK(leidos == static_cast<std::uint64_t>(bloques), "se leyeron todos los bloques del programa");
     CHECK(fp.ocupacionMax <= 3, "la ocupación del programa queda en el nivel de operación (≤ 3 bloques)");
-    CHECK(fl.ocupacionMax <= retorno::kColchonLugar + 1, "el lugar no junta más que su colchón");
-    // El lugar se escribe junto con el programa: a lo sumo el primer hueco (el que arma el
-    // colchón) y alguno si el planificador separa las dos escrituras justo en la mirada.
-    CHECK(fl.faltantesTotal <= static_cast<std::uint64_t>(1 + segundos / 10), "casi sin huecos del lugar");
+    CHECK(fl.ocupacionMax <= 3, "el lugar no junta más de 3 bloques");
+    CHECK(fl.faltantesTotal == 0, "no falta ningún bloque del lugar");
+    CHECK(vueltasLugar == static_cast<std::uint64_t>(bloques), "una vuelta por bloque del lugar");
+}
+
+// --- 2b. Las vueltas de los lugares --------------------------------------------------
+
+/// Tres lugares escritos como baretornos (uno atrás del otro, con el mismo sello) y leídos con
+/// la hora a mano. `bloqueDe[s][k]` en cada bloque: de qué lugar y qué instante es.
+struct BancoLugares {
+    static constexpr int kLugares = 3;
+    SharedAudioRing esc[kLugares + 1], lec[kLugares + 1];
+    MedidaTransporte medida[kLugares + 1] = {{"l0", "audio", 10 * kMs}, {"l1", "audio", 10 * kMs},
+                                             {"l2", "audio", 10 * kMs}, {"l3", "audio", 10 * kMs}};
+    std::vector<retorno::VueltasLugares::Lugar> lugares;
+    retorno::VueltasLugares vueltas;
+    std::vector<float> silencio = std::vector<float>(kFloats, 0.0f);
+    std::vector<const float*> deLugar;
+    std::chrono::steady_clock::time_point t = std::chrono::steady_clock::now();
+    std::uint64_t q0 = 1'000'000 * kMs;
+    int vueltasTotal = 0, desalineadas = 0;
+    int entregados[kLugares + 1] = {}, silencios[kLugares + 1] = {};
+    int ultimoK[kLugares + 1] = {-1, -1, -1, -1};
+    int desordenados = 0;
+
+    explicit BancoLugares(const char* caso) {
+        const uint32_t pid = static_cast<uint32_t>(ba_getpid());
+        lugares.resize(kLugares + 1);
+        for (int s = 1; s <= kLugares; ++s) {
+            const std::wstring n = nombre((std::string("Vueltas") + caso + std::to_string(s)).c_str());
+            CHECK(SharedAudioRing::init(n.c_str(), 2, 16, pid, 1, esc[s]).ok, "anillo del lugar");
+            CHECK(SharedAudioRing::openReader(n.c_str(), lec[s]).ok, "lector del lugar");
+            lugares[static_cast<std::size_t>(s)] = {&lec[s], &medida[s]};
+        }
+    }
+    /// Escribe el bloque `k` del lugar `s`: la muestra 0 dice el lugar y la 1 el instante.
+    void escribir(int s, int k) {
+        std::vector<float> b(kFloats, 0.0f);
+        b[0] = static_cast<float>(s);
+        b[1] = static_cast<float>(k);
+        esc[s].push(b.data(), q0 + static_cast<std::uint64_t>(k) * 10 * kMs);
+    }
+    void escribirTodos(int k) {
+        for (int s = 1; s <= kLugares; ++s) escribir(s, k);
+    }
+    /// Pasa `ms` y mira (como una despertada del hilo).
+    void mirar(int ms) {
+        t += std::chrono::milliseconds(ms);
+        vueltas.mirar(lugares);
+        while (vueltas.proxima(lugares, silencio.data(), deLugar, t, q0)) {
+            ++vueltasTotal;
+            int k = -1;
+            bool mal = false;
+            for (int s = 1; s <= kLugares; ++s) {
+                const float* b = deLugar[static_cast<std::size_t>(s)];
+                if (b == nullptr) continue;
+                if (b == silencio.data()) {
+                    ++silencios[s];
+                    continue;
+                }
+                ++entregados[s];
+                if (static_cast<int>(b[0]) != s) mal = true;
+                const int kb = static_cast<int>(b[1]);
+                if (kb <= ultimoK[s]) ++desordenados;
+                ultimoK[s] = kb;
+                if (k >= 0 && kb != k) mal = true;
+                k = kb;
+            }
+            if (mal) ++desalineadas;
+        }
+    }
+    std::uint64_t faltantes(int s) { return medida[s].cerrar(1).faltantesTotal; }
+};
+
+void testVueltas() {
+    {
+        // Ráfagas de los lugares (el mezclador se atrasó y se pone al día) y un programa que no
+        // importa: 200 bloques en ráfagas de 1 a 12, mirando cada 2 ms.
+        BancoLugares b("Rafaga");
+        int k = 0;
+        std::uint32_t semilla = 7;
+        while (k < 200) {
+            semilla = semilla * 1664525u + 1013904223u;
+            const int rafaga = 1 + static_cast<int>((semilla >> 16) % 12);
+            for (int i = 0; i < rafaga && k < 200; ++i) b.escribirTodos(k++);
+            for (int i = 0; i < rafaga * 5; ++i) b.mirar(2);
+        }
+        b.mirar(10);
+        std::printf("vueltas, rafagas: %d vueltas, %d desalineadas, entregados %d/%d/%d, faltantes %llu\n",
+                    b.vueltasTotal, b.desalineadas, b.entregados[1], b.entregados[2], b.entregados[3],
+                    (unsigned long long)b.faltantes(1));
+        CHECK(b.vueltasTotal == 200 && b.desalineadas == 0 && b.desordenados == 0, "ráfagas: una vuelta por instante, alineada");
+        for (int s = 1; s <= BancoLugares::kLugares; ++s) {
+            CHECK(b.entregados[s] == 200 && b.silencios[s] == 0, "ráfagas: nada se tira ni se rellena");
+            CHECK(b.faltantes(s) == 0, "ráfagas: ningún faltante");
+        }
+    }
+    {
+        // Escritos a medias en la mirada: los lugares 1 y 2 ya, el 3 un instante después. Se
+        // lo espera (menos de kEspera) y sale todo junto.
+        BancoLugares b("Medias");
+        for (int k = 0; k < 50; ++k) {
+            b.escribir(1, k);
+            b.escribir(2, k);
+            b.mirar(1);
+            b.escribir(3, k);
+            b.mirar(1);
+            b.mirar(8);
+        }
+        CHECK(b.vueltasTotal == 50 && b.desalineadas == 0, "a medias: se espera al que falta");
+        CHECK(b.silencios[3] == 0 && b.faltantes(3) == 0, "a medias: sin huecos");
+    }
+    {
+        // El lugar 2 llega tarde UNA vez (más que kEspera): ese bloque va en silencio, el que
+        // llegó tarde se tira y sigue alineado con los demás.
+        BancoLugares b("Tarde");
+        for (int k = 0; k < 50; ++k) {
+            b.escribir(1, k);
+            b.escribir(3, k);
+            if (k != 20) b.escribir(2, k);
+            b.mirar(1);
+            b.mirar(5);
+            if (k == 20) b.escribir(2, k); // 5 ms tarde: su vuelta ya salió
+            b.mirar(4);
+        }
+        b.mirar(10);
+        std::printf("vueltas, tarde: %d vueltas, %d desalineadas, lugar 2: %d entregados, %d silencios, %llu faltantes\n",
+                    b.vueltasTotal, b.desalineadas, b.entregados[2], b.silencios[2], (unsigned long long)b.faltantes(2));
+        CHECK(b.vueltasTotal == 50 && b.desalineadas == 0, "tarde: alineado");
+        CHECK(b.entregados[2] == 49 && b.silencios[2] == 1 && b.faltantes(2) == 1, "tarde: un bloque, contado");
+        CHECK(b.entregados[1] == 50 && b.faltantes(1) == 0, "tarde: los demás, enteros");
+    }
+    {
+        // El lugar 3 deja de escribir (el invitado se fue y la app todavía no cerró el anillo):
+        // los demás no esperan más que kSinEsperar vueltas.
+        BancoLugares b("Muerto");
+        int demoradas = 0;
+        for (int k = 0; k < 50; ++k) {
+            b.escribir(1, k);
+            b.escribir(2, k);
+            if (k < 10) b.escribir(3, k);
+            const int antes = b.vueltasTotal;
+            b.mirar(1);
+            if (b.vueltasTotal == antes) ++demoradas;
+            b.mirar(9);
+        }
+        std::printf("vueltas, lugar callado: %d vueltas, %d demoradas\n", b.vueltasTotal, demoradas);
+        CHECK(b.vueltasTotal == 50 && b.desalineadas == 0, "callado: sigue saliendo todo");
+        CHECK(demoradas <= retorno::VueltasLugares::kSinEsperar, "callado: se lo espera a lo sumo kSinEsperar vueltas");
+        CHECK(b.entregados[1] == 50 && b.faltantes(1) == 0, "callado: los demás, enteros");
+    }
+    {
+        // El lugar 2 siempre tarde: después de kSinEsperar va corrido un bloque, no mudo.
+        BancoLugares b("Corrido");
+        for (int k = 0; k < 50; ++k) {
+            b.escribir(1, k);
+            b.escribir(3, k);
+            b.mirar(1);
+            b.mirar(5);
+            b.escribir(2, k);
+            b.mirar(4);
+        }
+        std::printf("vueltas, siempre tarde: lugar 2: %d entregados, %d silencios\n", b.entregados[2], b.silencios[2]);
+        CHECK(b.entregados[2] >= 50 - 2 * retorno::VueltasLugares::kSinEsperar - 2, "siempre tarde: corrido, no mudo");
+        CHECK(b.entregados[1] == 50 && b.silencios[1] == 0, "siempre tarde: los demás, enteros");
+    }
 }
 
 // --- 3. Sin su voz -----------------------------------------------------------------------
@@ -232,13 +410,19 @@ void sinSuVoz(bool lugarAbierto) {
     MediaRoute fila;
     fila.kind = MediaRoute::Kind::Backstage;
     std::vector<float> vozMono, alInvitado, aLaFila; // canal izquierdo
-    std::vector<float> bp(kFloats), bl(kFloats), buf, bufLugar, silencio(kFloats, 0.0f);
-    std::vector<const float*> deLugar(3, nullptr);
+    std::vector<float> bp(kFloats), bl(kFloats), buf, silencio(kFloats, 0.0f);
+    const std::vector<const float*> sinLugar(3, nullptr); // la cadencia del programa
+    const std::vector<bool> abiertos{false, lugarAbierto, false};
+    std::vector<const float*> deLugar;
     MedidaTransporte mLugar("lugar", "audio", 10 * kMs);
+    retorno::VueltasLugares vueltas;
+    const std::vector<retorno::VueltasLugares::Lugar> lugares{
+        {}, {lugarAbierto ? &lugar : nullptr, &mLugar}, {}};
     std::uint32_t semilla = 12345;
     double fase = 0;
     int huecos = 0;
     const int kBloques = 300;
+    const std::uint64_t q0 = HealthBlock::nowQpc();
     for (int k = 0; k < kBloques; ++k) {
         // La voz: ruido seudoaleatorio; la música: un seno de 440 Hz.
         for (std::size_t i = 0; i < audio_ring::kBlockFrames; ++i) {
@@ -250,21 +434,25 @@ void sinSuVoz(bool lugarAbierto) {
             bl[2 * i] = bl[2 * i + 1] = musica;
             vozMono.push_back(voz);
         }
-        const std::uint64_t qpc = HealthBlock::nowQpc();
+        const std::uint64_t qpc = q0 + static_cast<std::uint64_t>(k) * 10 * kMs; // la hora del medio
         escPrograma.push(bp.data(), qpc);
         if (k % 7 == 3) ++huecos; // el mix-minus de este bloque no llega
         else escLugar.push(bl.data(), qpc);
-        leerPendientes(programa, buf, [&](const PoppedBlock& blk, std::size_t n) {
-            deLugar[1] = lugarAbierto ? retorno::bloqueDelLugar(lugar, bufLugar, silencio.data(), n, mLugar,
-                                                                HealthBlock::nowQpc())
-                                      : nullptr;
-            const float* inv = retorno::fuente(invitado, blk.samples, deLugar, silencio.data());
-            const float* fil = retorno::fuente(fila, blk.samples, deLugar, silencio.data());
-            for (std::size_t i = 0; i < n; i += 2) {
-                alInvitado.push_back(inv[i]);
-                aLaFila.push_back(fil[i]);
+        // Cada uno a su ritmo, como el hilo del retorno: lo que oye cada uno sale de su cadencia.
+        leerPendientes(programa, buf, [&](const PoppedBlock& blk, std::size_t) {
+            for (const MediaRoute* r : {&invitado, static_cast<const MediaRoute*>(&fila)}) {
+                if (retorno::vaPorSuLugar(*r, abiertos)) continue;
+                const float* f = retorno::fuente(*r, blk.samples, sinLugar, silencio.data());
+                for (std::size_t i = 0; i < kFloats; i += 2) (r == &fila ? aLaFila : alInvitado).push_back(f[i]);
             }
         });
+        while (vueltas.proxima(lugares, silencio.data(), deLugar, std::chrono::steady_clock::now(),
+                               HealthBlock::nowQpc())) {
+            CHECK(retorno::vaPorSuLugar(invitado, abiertos) && !retorno::vaPorSuLugar(fila, abiertos),
+                  "por su lugar va solo el invitado con el lugar abierto");
+            const float* f = retorno::fuente(invitado, nullptr, deLugar, silencio.data());
+            for (std::size_t i = 0; i < kFloats; i += 2) alInvitado.push_back(f[i]);
+        }
     }
     const double cInvitado = peorCorrelacion(alInvitado, vozMono);
     const double cFila = std::fabs(correlacion(aLaFila, vozMono, 0));
@@ -504,6 +692,7 @@ int main() {
     int segundos = 3;
     if (const char* e = std::getenv("BA_RETORNO_RITMO_S")) segundos = std::clamp(std::atoi(e), 1, 3600);
     testAlRitmo(segundos);
+    testVueltas();
     sinSuVoz(true);
     sinSuVoz(false);
     salaPublica();
