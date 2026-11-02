@@ -116,3 +116,25 @@ Respuesta (`application/json`, `Cache-Control: no-store`):
 mitad del `ttl`. Si falla, 404 o gateway viejo → `{iceServers: []}`. Lo usan:
 `guest`, `sesion` (las tres conexiones), `presidencia`, `board` y `cast`. La
 consola del operador (`admin`, solo 127.0.0.1) no.
+
+## Probar sin pinggy (`--test --turn-prueba`)
+
+El TURN solo arranca con pinggy y «TURN por el túnel». Para medir el camino del TURN en
+una máquina sola: `open BroadcastAppliance.app --args --test --gw-arg=--turn-prueba`. El
+launcher le pasa `--test` al gateway y `--turn-prueba` (que sin `--test` no vale) lo
+arranca en la red local por TCP y UDP, sin túnel público; `/api/ice` da el TURN por la IP
+de la caja y `tools/carga/medir-sala.py --camino turn-udp` (hinchada `--turn udp`) entra por
+ahí. Un cambio de evento relanza el gateway sin el argumento: cambiar de evento primero y
+abrir la app después.
+
+## Ráfaga: 40 entrando a la vez (2026-11-02)
+
+Por el TURN entraban 21-22 de 40 (la .177) y 14 de 40 (la Mac); por el camino directo,
+todos. No era el TURN (`test_turn` hace la ráfaga de 40 y la aguanta): era el gateway. Las
+PeerConnection compartían la lista de redes de libwebrtc, que a cada sesión que empieza le
+avisa «cambiaron las redes» a TODAS; las que todavía no conectaron (por el TURN tardan más
+que directo) volvían a juntar un puerto UDP nuevo por red sin soltar los anteriores, y el
+rango (`rtcPortMin/Max`, 100) se acababa: las últimas quedaban solo con IPv6, sin un par de
+ICE posible con el relay IPv4 del invitado, «conectando» para siempre. Ahora cada conexión
+ve la lista por su `RedesDeSesion` (`src/gateway/RedesSesionRtc.hpp`, `test_webrtc_redes`):
+un aviso por sesión y otro solo si la lista cambia de verdad.
