@@ -738,7 +738,7 @@ def main():
                     ge = mcp.datos("gateway_estado")
                     m["gateway"] = {"fronteras": (ge.get("fronteras") or {}).get("fronteras"), "turn": ge.get("turn"),
                                     # Los códecs y si van por la placa (lo agrega el agente de códecs, si está).
-                                    "codecs": ge.get("codecs") or (ge.get("uso") or {}).get("codecs")}
+                                    "codecs": (ge.get("uso") or {}).get("codecsVideo")}
                 except Exception as ex:
                     m["gateway"] = {"error": str(ex)}
             if t - ultimo_fp >= 10 and not remoto:
@@ -752,6 +752,19 @@ def main():
                     m["sala"] = {"personas": len(ps_sala), "con_medios": sum(1 for p in ps_sala if p.get("mediaUp")),
                                  "adentro": sum(1 for p in ps_sala if p.get("state") == "admitted"),
                                  "uso": sala.get("uso", {})}
+                    # El códec de cada sesión (room_status → red.entrada/salida): cuántas en cada uno y
+                    # si el gateway decodifica por la placa.
+                    cods = {}
+                    for p in ps_sala:
+                        rd = p.get("red") if isinstance(p.get("red"), dict) else {}
+                        en, sa = rd.get("entrada") or {}, rd.get("salida") or {}
+                        if en.get("codec"):
+                            k = f"sube {en['codec']} ({'placa' if en.get('hardware') else 'software'}: {en.get('decodificador') or '?'})"
+                            cods[k] = cods.get(k, 0) + 1
+                        if sa.get("codec"):
+                            k = f"retorno {sa['codec']}"
+                            cods[k] = cods.get(k, 0) + 1
+                    m["sala"]["codecs"] = cods
                 except Exception as ex:
                     m["sala"] = {"error": str(ex)}
             if t - ultimo_app >= 5:
@@ -1176,6 +1189,9 @@ def resumir_f0(r, a, muestras, lineas, extras, hdir, remoto, estable_t, app_info
     cod = [((m.get("gateway") or {}).get("codecs")) for m in reg if (m.get("gateway") or {}).get("codecs")]
     if cod:
         r["codecs_gateway"] = cod[-1]
+    ses = [(m.get("sala") or {}).get("codecs") for m in reg if (m.get("sala") or {}).get("codecs")]
+    if ses:
+        r["codecs_por_sesion"] = ses[-1]
     # Los hilos por nombre: en Windows de muestrear-win.ps1 (cada muestra); en la Mac de xctrace.
     hil = {}
     if a.remoto:
@@ -1387,6 +1403,8 @@ def en_texto_f0(r):
             l.append(f"- {k}: {v}")
     if r.get("codecs_gateway"):
         l.append(f"- códecs del gateway (placa o software): {r['codecs_gateway']}")
+    if r.get("codecs_por_sesion"):
+        l.append(f"- códec por sesión (room_status): {r['codecs_por_sesion']}")
     for k in ("demora", "rafaga", "palabra", "transmision"):
         if r.get(k):
             l.append(f"- {k}: {json.dumps(r[k], ensure_ascii=False)[:1500]}")
