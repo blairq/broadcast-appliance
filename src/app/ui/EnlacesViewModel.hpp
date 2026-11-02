@@ -156,6 +156,8 @@ class EnlacesViewModel : public QObject {
     void pedir(const std::string& id, bool remoto);
     /// Vuelve a leer los pedidos de cada servicio; avisa si cambiaron.
     void releerAprobaciones();
+    /// Avisa `cambio` y se guarda lo que vio la vista (para no avisar de nuevo lo mismo).
+    void avisar();
 
     Fuentes f_;
     /// Lo que contestó la sala: id → {local, remoto, nota}.
@@ -163,6 +165,7 @@ class EnlacesViewModel : public QObject {
     bool tuvoTunel_ = false;
     bool tuvoSala_ = false;
     QVariantMap aprobaciones_;
+    QVariantList avisados_; ///< los servicios del último `cambio`
 };
 
 } // namespace ba::app

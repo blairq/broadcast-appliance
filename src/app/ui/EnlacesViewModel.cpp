@@ -303,7 +303,7 @@ void EnlacesViewModel::pedir(const std::string& id, bool remoto) {
         const char* campo = remoto ? "remoto" : "local";
         u[campo] = r.ok ? QVariant(QString::fromStdString(r.url)) : QVariant();
         if (!remoto) u["nota"] = QString::fromStdString(r.mensaje);
-        emit yo->cambio();
+        yo->avisar();
     };
     if (id == "invitados") e->ingreso(remoto, false, listo);
     else if (id == "tablero") e->tablero(remoto, listo);
@@ -327,6 +327,11 @@ void EnlacesViewModel::refrescar() {
     tuvoTunel_ = tunel;
     tuvoSala_ = f_.salaEnLinea && f_.salaEnLinea();
     releerAprobaciones();
+    avisar();
+}
+
+void EnlacesViewModel::avisar() {
+    avisados_ = servicios();
     emit cambio();
 }
 
@@ -338,7 +343,10 @@ void EnlacesViewModel::avisarCambio() {
         return;
     }
     releerAprobaciones();
-    emit cambio();
+    // La foto de la sala llega varias veces por segundo y casi nunca cambia un enlace: solo
+    // si cambió (cada aviso rehacía la lista de la vista).
+    if (servicios() == avisados_) return;
+    avisar();
 }
 
 void EnlacesViewModel::activar(const QString& id, bool activo) {
@@ -352,7 +360,7 @@ void EnlacesViewModel::activar(const QString& id, bool activo) {
         err = s == nullptr ? tr("No hay un servicio «%1».").arg(id)
                            : tr("«%1» no se prende ni se apaga desde acá.").arg(te(s->nombre));
     }
-    emit cambio();
+    avisar();
     avisarError(err);
 }
 
