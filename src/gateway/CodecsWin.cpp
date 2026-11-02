@@ -270,6 +270,15 @@ void ponerBool(ICodecAPI* api, const GUID& g, bool v) {
     (void)api->SetValue(&g, &x);
 }
 
+/// El bitrate del codificador: medio y máximo iguales (CBR) y un búfer de medio segundo, para
+/// que un cambio en caliente se note enseguida (con el búfer de fábrica, ~1 s o más, el AMD
+/// tardaba en bajar).
+void ponerTasa(ICodecAPI* api, uint32_t kbps) {
+    ponerU32(api, CODECAPI_AVEncCommonMeanBitRate, kbps * 1000u);
+    ponerU32(api, CODECAPI_AVEncCommonMaxBitRate, kbps * 1000u);
+    ponerU32(api, CODECAPI_AVEncCommonBufferSize, kbps * 1000u / 2u);
+}
+
 ComPtr<IMFSample> muestraConBytes(const uint8_t* datos, size_t n) {
     ComPtr<IMFMediaBuffer> buf;
     if (FAILED(MFCreateMemoryBuffer(static_cast<DWORD>(n), &buf))) return nullptr;
@@ -880,7 +889,7 @@ class CodificadorMf : public webrtc::VideoEncoder {
             return;
         }
         kbps_ = kbps;
-        ponerU32(n_->api.Get(), CODECAPI_AVEncCommonMeanBitRate, kbps_ * 1000u);
+        ponerTasa(n_->api.Get(), kbps_);
     }
 
     EncoderInfo GetEncoderInfo() const override {
@@ -928,7 +937,7 @@ class CodificadorMf : public webrtc::VideoEncoder {
         // Antes de los tipos: algunos (el de software) fijan el control de tasa al poner la salida.
         ponerU32(api, CODECAPI_AVEncCommonRateControlMode, eAVEncCommonRateControlMode_CBR);
         ponerBool(api, CODECAPI_AVLowLatencyMode, true);
-        ponerU32(api, CODECAPI_AVEncCommonMeanBitRate, kbps_ * 1000u);
+        ponerTasa(api, kbps_);
 
         ComPtr<IMFMediaType> out;
         MFCreateMediaType(&out);
@@ -981,7 +990,7 @@ class CodificadorMf : public webrtc::VideoEncoder {
         ponerU32(api, CODECAPI_AVEncMPVDefaultBPictureCount, 0);
         ponerU32(api, CODECAPI_AVEncMPVGOPSize, fps_ * 60);
         ponerU32(api, CODECAPI_AVEncCommonRateControlMode, eAVEncCommonRateControlMode_CBR);
-        ponerU32(api, CODECAPI_AVEncCommonMeanBitRate, kbps_ * 1000u);
+        ponerTasa(api, kbps_);
         ponerBool(api, CODECAPI_AVLowLatencyMode, true);
 
         MFT_OUTPUT_STREAM_INFO si{};
