@@ -18,6 +18,13 @@
 //     puede bajar más, nunca pasar.
 //   - Sin señal sobre el techo, la ganancia es 1: pasa tal cual (con la demora).
 //
+// Costo (2026-11-02: cada retorno de cada invitado tiene el suyo; con 40 eran la mitad
+// del audio de la app): el sobremuestreo es lo caro (48 productos por muestra y canal).
+// Un bloque cuyo mayor valor, multiplicado por la mayor ganancia posible del
+// interpolador (la suma de los |coeficientes| de una fase), no llega al techo no puede
+// tener un pico que lo pase: ahí no se interpola (el resultado es el mismo). Y si además
+// el limitador está quieto (ganancia 1, nada que liberar) el bloque solo se demora.
+//
 // Demora: L = lookahead × frecuencia (muestras). Quien lo use tiene que
 // declararla (el elemento de GStreamer la suma en la consulta LATENCY).
 // ============================================================================
@@ -67,11 +74,21 @@ class LimitadorTP {
    private:
     void rearmar();
     double picoVerdadero(const float* frame);
+    void guardarHistoria(const float* frame);
+    /// ¿Ningún pico del bloque puede pasar `techo`? (sin interpolar: la cota de arriba)
+    bool bajoElTecho(const float* datos, std::size_t frames, double techo) const;
+    /// El limitador está quieto: ganancia 1 y nada en la ventana por debajo de 1.
+    bool quieto() const;
+    /// Un bloque sin nada que limitar con el limitador quieto: solo la demora.
+    void soloDemorar(float* datos, std::size_t frames);
+    template <bool conPico>
+    void procesarCon(float* datos, std::size_t frames, double techo);
 
     int canales_ = 0, frecuencia_ = 48000;
     double techoDb_ = -1.0, techoLin_ = 0.891, lookaheadMs_ = 5.0, liberacionMs_ = 100.0;
     std::size_t lookahead_ = 240;
-    // Sobremuestreo: historia por canal (12 muestras) para el FIR polifásico.
+    // Sobremuestreo: historia por canal (12 muestras, guardadas dos veces seguidas: el
+    // FIR lee 12 contiguas sin dar la vuelta) para el FIR polifásico.
     std::vector<std::vector<float>> hist_;
     std::size_t histPos_ = 0;
     // La demora del audio: L cuadros intercalados.
@@ -83,6 +100,7 @@ class LimitadorTP {
     std::vector<float> hBuf_;
     std::size_t hPos_ = 0;
     double hSuma_ = 0;
+    std::uint64_t unos_ = 0; ///< las últimas h seguidas que valieron 1 (≥ L: hBuf_ todo en 1)
     std::uint64_t n_ = 0;
     double g_ = 1.0, coefLib_ = 0.0;
     bool activo_ = true;

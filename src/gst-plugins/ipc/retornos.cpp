@@ -22,6 +22,9 @@
 //   - Por su salida (src) sale la suma entera (el programa de oído, con todas las
 //     voces): sirve para medir; el motor la tira (fakesink).
 //
+// Cuando pide más datos espera a sus entradas sin despertarse con cada bloque
+// (esperarEntradas, comun.hpp); bamezcla (abajo) es lo mismo sin los retornos.
+//
 // Escribe al anillo cuando el mezclador termina el bloque (en vivo: cuando llegaron
 // todas o venció la espera, min-upstream-latency), sin la espera del sink: el retorno
 // llega igual o antes que con un baanillosink atrás.
@@ -31,6 +34,7 @@
 //   (y `oyente`=1 en r.sink_0, desde el código: gst-launch no pone propiedades de pads pedidos)
 // ============================================================================
 
+#include "comun.hpp"
 #include "escritor.hpp"
 
 #include "dsp/LimitadorTP.hpp"
@@ -280,6 +284,14 @@ static GstFlowReturn terminar(GstAggregator* agg, GstBuffer* buf) {
     return GST_AGGREGATOR_CLASS(ba_retornos_parent_class)->finish_buffer(agg, buf);
 }
 
+/// Lo del agregador; si pide más datos (sin que venza su espera), espera a sus entradas
+/// sin que cada push lo despierte (comun.hpp: esperarEntradas).
+static GstFlowReturn agregar(GstAggregator* agg, gboolean vencio) {
+    const GstFlowReturn r = GST_AGGREGATOR_CLASS(ba_retornos_parent_class)->aggregate(agg, vencio);
+    if (r == GST_AGGREGATOR_FLOW_NEED_DATA && !vencio) ba::ipc_gst::esperarEntradas(agg);
+    return r;
+}
+
 static void finalizar(GObject* o) {
     auto* r = BA_RETORNOS(o);
     delete r->retornos;
@@ -317,6 +329,7 @@ static void ba_retornos_class_init(BaRetornosClass* k) {
                                           "Suma una vez y escribe a cada invitado la suma sin su voz en su anillo del gateway",
                                           "Broadcast Appliance");
     ag->finish_buffer = terminar;
+    ag->aggregate = agregar;
     aa->create_output_buffer = crearSalida;
     aa->aggregate_one_buffer = sumarUna;
 }
@@ -332,6 +345,70 @@ static void ba_retornos_init(BaRetornos* r) {
     r->cuadros = 0;
 }
 
+// --- bamezcla: el mismo mezclador sin los retornos (el programa y los demás buses) ---
+//
+// Suma sus entradas con la ganancia de cada pad (`volume`, como el pad de audiomixer) y
+// espera a sus entradas como baretornos (esperarEntradas): con las batomas de muchos
+// invitados, el audiomixer se despertaba con cada bloque de cada uno.
+
+G_BEGIN_DECLS
+#define BA_TYPE_MEZCLA (ba_mezcla_get_type())
+G_DECLARE_FINAL_TYPE(BaMezcla, ba_mezcla, BA, MEZCLA, GstAudioAggregator)
+G_END_DECLS
+
+struct _BaMezcla {
+    GstAudioAggregator parent;
+};
+
+G_DEFINE_TYPE(BaMezcla, ba_mezcla, GST_TYPE_AUDIO_AGGREGATOR)
+
+static gboolean mezclaSumar(GstAudioAggregator*, GstAudioAggregatorPad* apad, GstBuffer* entra, guint desde, GstBuffer* sale,
+                            guint hasta, guint cuadros) {
+    auto* p = BA_RETORNOS_PAD(apad);
+    GST_OBJECT_LOCK(p);
+    const float vol = static_cast<float>(p->volumen);
+    GST_OBJECT_UNLOCK(p);
+    if (vol <= 0.0f) return FALSE;
+    GstMapInfo mi, mo;
+    if (!gst_buffer_map(entra, &mi, GST_MAP_READ)) return FALSE;
+    if (!gst_buffer_map(sale, &mo, GST_MAP_READWRITE)) {
+        gst_buffer_unmap(entra, &mi);
+        return FALSE;
+    }
+    const float* x = reinterpret_cast<const float*>(mi.data) + static_cast<std::size_t>(desde) * kCanales;
+    float* s = reinterpret_cast<float*>(mo.data) + static_cast<std::size_t>(hasta) * kCanales;
+    const std::size_t n = static_cast<std::size_t>(cuadros) * kCanales;
+    if (vol == 1.0f)
+        for (std::size_t i = 0; i < n; ++i) s[i] += x[i];
+    else
+        for (std::size_t i = 0; i < n; ++i) s[i] += vol * x[i];
+    gst_buffer_unmap(sale, &mo);
+    gst_buffer_unmap(entra, &mi);
+    return TRUE;
+}
+
+static GstFlowReturn mezclaAgregar(GstAggregator* agg, gboolean vencio) {
+    const GstFlowReturn r = GST_AGGREGATOR_CLASS(ba_mezcla_parent_class)->aggregate(agg, vencio);
+    if (r == GST_AGGREGATOR_FLOW_NEED_DATA && !vencio) ba::ipc_gst::esperarEntradas(agg);
+    return r;
+}
+
+static void ba_mezcla_class_init(BaMezclaClass* k) {
+    auto* ag = GST_AGGREGATOR_CLASS(k);
+    auto* aa = GST_AUDIO_AGGREGATOR_CLASS(k);
+    gst_element_class_add_static_pad_template_with_gtype(GST_ELEMENT_CLASS(k), &kSale, GST_TYPE_AUDIO_AGGREGATOR_PAD);
+    gst_element_class_add_static_pad_template_with_gtype(GST_ELEMENT_CLASS(k), &kEntra, BA_TYPE_RETORNOS_PAD);
+    gst_element_class_set_static_metadata(GST_ELEMENT_CLASS(k), "Mezclador de los buses", "Generic/Audio",
+                                          "Suma sus entradas (con la ganancia de cada pad) y espera a las batomas sin despertarse "
+                                          "con cada bloque",
+                                          "Broadcast Appliance");
+    ag->aggregate = mezclaAgregar;
+    aa->aggregate_one_buffer = mezclaSumar;
+}
+
+static void ba_mezcla_init(BaMezcla*) {}
+
 extern "C" gboolean ba_registrar_retornos(GstPlugin* p) {
-    return gst_element_register(p, "baretornos", GST_RANK_NONE, BA_TYPE_RETORNOS);
+    return gst_element_register(p, "baretornos", GST_RANK_NONE, BA_TYPE_RETORNOS) &&
+           gst_element_register(p, "bamezcla", GST_RANK_NONE, BA_TYPE_MEZCLA);
 }
