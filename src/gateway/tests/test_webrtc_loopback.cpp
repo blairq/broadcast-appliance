@@ -28,6 +28,13 @@
 //      corte (la baja sale hasta que llega la alta) y despues la baja se pausa.
 //   7. Por que dos transceptores: ante una oferta con simulcast (a=rid +
 //      a=simulcast) libwebrtc contesta SIN a=simulcast (no lo recibe).
+//   8. Retorno compartido (RetornoCompartido.hpp): el video que B manda sale de un
+//      FlujoRetorno, codificado UNA vez por capa. El invitado pasa del codificador
+//      propio al compartido sin corte; sube a la capa de 720p cuando su red lo deja
+//      (el control de congestión sondea); con el tope del operador baja a 180p y al
+//      sacarlo vuelve; un segundo invitado recibe un cuadro clave enseguida y los dos
+//      reciben la MISMA codificación (la capa codifica un cuadro por emisión, no uno
+//      por invitado).
 //
 // Necesita al menos una interfaz de red (se permite loopback). Sin conexion en
 // el plazo, SKIP (77): en un CI sin red no se puede probar RTP.
@@ -138,11 +145,17 @@ class ToneSource : public webrtc::Notifier<webrtc::AudioSourceInterface> {
     double phase_ = 0;
 };
 
-/// Cuenta frames que recibe el "navegador" del retorno.
+/// Cuenta frames que recibe el "navegador" del retorno (decodificados) y su tamaño.
 class CountingSink : public rtc::VideoSinkInterface<webrtc::VideoFrame> {
    public:
-    void OnFrame(const webrtc::VideoFrame&) override { frames++; }
-    std::atomic<int> frames{0};
+    void OnFrame(const webrtc::VideoFrame& f) override {
+        w = f.width();
+        h = f.height();
+        if (frames.load() == 0) primeroMs = rtc::TimeMillis();
+        frames++;
+    }
+    std::atomic<int> frames{0}, w{0}, h{0};
+    std::atomic<int64_t> primeroMs{0};
 };
 
 /// Sonda de un espectador: cuenta cuadros y guarda tamaño y color central.
@@ -318,8 +331,12 @@ int main() {
 
     std::atomic<bool> stop{false};
     rtc::scoped_refptr<ColorSource> screen;
+    // 8. El retorno compartido: con `compartido`, el mismo cuadro 720p emitido UNA vez a las dos sesiones.
+    const ba::gateway::FlujoRetorno flujo = hub.flujoRetorno("prueba");
+    std::atomic<bool> compartido{false};
     std::thread feeder([&]() {
         int tick = 0;
+        std::vector<uint8_t> ret720(1280 * 720 * 4, 0x60);
         std::vector<uint8_t> ret(640 * 360 * 4, 0x80);
         std::vector<float> retAudio(960, 0.1f);
         while (!stop) {
@@ -328,7 +345,13 @@ int main() {
             if (tick % 3 == 0) {
                 cam->push(640, 360);
                 if (screen) screen->push(1280, 720);
-                sess->pushLocalVideo(ret.data(), ret.size(), 640, 360);
+                if (compartido) {
+                    const auto c = flujo.emitir(ba::gateway::CuadroSaliente::desdeBgra(ret720.data(), 1280, 720));
+                    sess->pushLocalVideo(c);
+                    hub.session(2)->pushLocalVideo(c); // sin conectar no hace nada
+                } else {
+                    sess->pushLocalVideo(ret.data(), ret.size(), 640, 360);
+                }
             }
             ++tick;
             std::this_thread::sleep_for(std::chrono::milliseconds(10));
@@ -672,6 +695,144 @@ int main() {
         }
         pc3->Close();
         s2->close();
+    }
+
+    // --- 8. Retorno compartido ----------------------------------------------------
+    {
+        const auto capaDe = [&](int alto) {
+            // {cuadros, en_uso} de la capa de `alto` del flujo «prueba».
+            std::pair<long long, bool> out{-1, false};
+            for (const auto& f : hub.retornoCompartido())
+                if (f.value("nombre", "") == "prueba")
+                    for (const auto& c : f["capas"])
+                        if (c.value("alto", 0) == alto) out = {c.value("cuadros", 0LL), c.value("en_uso", false)};
+            return out;
+        };
+        const auto emisiones = [&]() {
+            for (const auto& f : hub.retornoCompartido())
+                if (f.value("nombre", "") == "prueba") return f.value("emisiones", 0LL);
+            return 0LL;
+        };
+        const int antes = browser.returnSink.frames.load();
+        compartido = true;
+        CHECK(waitFor([&]() { return browser.returnSink.frames.load() > antes + 10 && browser.returnSink.w.load() != 640; },
+                      10000),
+              "compartido: el invitado pasa al retorno compartido sin corte (cuadros del flujo)");
+        const json est = json::parse(sess->estadisticas(), nullptr, false);
+        std::printf("   estadisticas: %s\n", est.dump().c_str());
+        CHECK(est.contains("retorno") && est["retorno"].value("fuente", "") == "compartido", "y lo informa");
+        CHECK(waitFor([&]() { return browser.returnSink.h.load() == 720; }, 25000),
+              "su red aguanta: sube a la capa de 720p (control de congestión + sondeo)");
+        std::printf("   capa: %dx%d\n", browser.returnSink.w.load(), browser.returnSink.h.load());
+
+        // El tope del operador (calidad-*): a 180p ya, y al sacarlo vuelve.
+        sess->setTopeRetorno(180);
+        CHECK(waitFor([&]() { return browser.returnSink.h.load() == 180; }, 5000), "tope 180: baja a la capa de 180p");
+        const int a180 = browser.returnSink.frames.load();
+        CHECK(waitFor([&]() { return browser.returnSink.frames.load() > a180 + 20; }, 5000) &&
+                  browser.returnSink.h.load() == 180,
+              "y sigue llegando en 180p");
+        sess->setTopeRetorno(0);
+        CHECK(waitFor([&]() { return browser.returnSink.h.load() == 720; }, 15000), "sin tope: vuelve a 720p");
+
+        // Un segundo invitado: cuadro clave enseguida, la misma codificación.
+        auto* s4 = hub.session(2);
+        std::mutex m4;
+        std::string answer4;
+        std::vector<std::string> ice4;
+        std::atomic<bool> up4{false};
+        std::atomic<int64_t> up4Ms{0};
+        SessionCallbacks cb4;
+        cb4.onLocalAnswer = [&](const std::string& a) {
+            std::lock_guard<std::mutex> l(m4);
+            answer4 = a;
+        };
+        cb4.onLocalIce = [&](const std::string& c) {
+            std::lock_guard<std::mutex> l(m4);
+            ice4.push_back(c);
+        };
+        cb4.onStateChange = [&](bool up) {
+            if (up && up4Ms.load() == 0) up4Ms = rtc::TimeMillis();
+            up4 = up;
+        };
+        CHECK(s4->configure(cb4, hub.rtcFactory()), "compartido: segunda sesion");
+        Browser b4;
+        b4.sendIce = [&](const std::string& c) { s4->addRemoteIce(c); };
+        auto r4 = bf->CreatePeerConnectionOrError(cfg, webrtc::PeerConnectionDependencies(&b4));
+        b4.pc = r4.MoveValue();
+        auto cam4 = rtc::make_ref_counted<ColorSource>(81, 90, 240);
+        b4.pc->AddTrack(bf->CreateVideoTrack(cam4, "cam4"), {"guest4"});
+        std::string oferta4;
+        std::atomic<bool> lista4{false};
+        auto pc4 = b4.pc;
+        pc4->CreateOffer(rtc::make_ref_counted<CsdObs<std::function<void(webrtc::SessionDescriptionInterface*)>>>(
+                             [&, pc4](webrtc::SessionDescriptionInterface* d) {
+                                 d->ToString(&oferta4);
+                                 pc4->SetLocalDescription(rtc::make_ref_counted<SetObs>().get(), d);
+                                 lista4 = true;
+                             })
+                             .get(),
+                         {});
+        waitFor([&]() { return lista4.load(); }, 5000);
+        CHECK(s4->setRemoteOffer(oferta4), "B acepta la oferta del segundo");
+        CHECK(waitFor([&]() {
+                  std::lock_guard<std::mutex> l(m4);
+                  return !answer4.empty();
+              }, 5000),
+              "y contesta");
+        {
+            std::lock_guard<std::mutex> l(m4);
+            webrtc::SdpParseError err;
+            auto ans = webrtc::CreateSessionDescription(webrtc::SdpType::kAnswer, answer4, &err);
+            pc4->SetRemoteDescription(rtc::make_ref_counted<SetObs>().get(), ans.release());
+        }
+        std::atomic<bool> fin4{false};
+        std::thread aux4([&]() {
+            size_t enviados = 0;
+            while (!fin4) {
+                cam4->push(320, 180);
+                std::vector<std::string> pend;
+                {
+                    std::lock_guard<std::mutex> l(m4);
+                    pend.assign(ice4.begin() + static_cast<long>(enviados), ice4.end());
+                    enviados = ice4.size();
+                }
+                for (const auto& c : pend) {
+                    const json j = json::parse(c);
+                    webrtc::SdpParseError err;
+                    std::unique_ptr<webrtc::IceCandidateInterface> ic(webrtc::CreateIceCandidate(
+                        j["sdpMid"].get<std::string>(), j["sdpMLineIndex"].get<int>(), j["candidate"].get<std::string>(), &err));
+                    if (ic) pc4->AddIceCandidate(std::move(ic), [](webrtc::RTCError) {});
+                }
+                std::this_thread::sleep_for(std::chrono::milliseconds(33));
+            }
+        });
+        CHECK(waitFor([&]() { return up4.load(); }, 15000), "compartido: el segundo conecta");
+        CHECK(waitFor([&]() { return b4.returnSink.frames.load() > 10; }, 10000), "y recibe el retorno (decodificado)");
+        const long long alPrimero = b4.returnSink.primeroMs.load() - up4Ms.load();
+        std::printf("   segundo invitado: primer cuadro a %lld ms de conectar\n", alPrimero);
+        CHECK(alPrimero >= 0 && alPrimero < 1500, "con un cuadro clave enseguida (< 1,5 s)");
+        CHECK(waitFor([&]() { return b4.returnSink.h.load() == 720; }, 25000), "el segundo tambien llega a 720p");
+
+        // Los dos en 720p: la capa codifica UN cuadro por emisión, no uno por invitado.
+        const auto c0 = capaDe(720);
+        const long long e0 = emisiones();
+        const int f1 = browser.returnSink.frames.load(), f2 = b4.returnSink.frames.load();
+        std::this_thread::sleep_for(std::chrono::seconds(3));
+        const auto c1 = capaDe(720);
+        const long long e1 = emisiones();
+        const int g1 = browser.returnSink.frames.load() - f1, g2 = b4.returnSink.frames.load() - f2;
+        std::printf("   3 s: %lld emisiones, %lld cuadros codificados en 720p, recibidos %d y %d\n", e1 - e0,
+                    c1.first - c0.first, g1, g2);
+        CHECK(c1.second && c1.first - c0.first > 0 && c1.first - c0.first <= e1 - e0,
+              "una codificación por emisión para los dos");
+        CHECK(g1 > 30 && g2 > 30, "y los dos la reciben");
+
+        fin4 = true;
+        aux4.join();
+        pc4->Close();
+        s4->close();
+        compartido = false;
     }
 
     stop = true;

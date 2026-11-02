@@ -13,6 +13,7 @@
 #include "diag/Metricas.hpp"
 #include "i18n/I18n.hpp"
 #include "SignalingServer.hpp"
+#include "RetornoCompartido.hpp"
 #include "Canal.hpp"
 #include "security/Comparar.hpp"
 #include "ajustes/Ajustes.hpp"
@@ -2612,6 +2613,10 @@ void SignalingServer::handleOffer(const std::string& pid, uint64_t gen, const st
         };
         cb.onSinPuerto = avisoSinPuerto(pid, [this, pid](const json& m) { sendToGuest(pid, m); });
         sess->configure(cb, hub_.rtcFactory());
+        // El tope de su video de retorno, si el operador le puso uno (sobrevive a reconectar).
+        std::lock_guard<std::mutex> l(sessLock_);
+        const auto t = topeRetorno_.find(pid);
+        if (t != topeRetorno_.end()) sess->setTopeRetorno(t->second);
     }
     // La ruta se vuelve a leer con la sesión ya anotada: si lo admitieron mientras su oferta
     // venía en camino, applyRoute no encontró sesión (solo le dijo «publish») y la ruta
@@ -2645,6 +2650,17 @@ void SignalingServer::handleOffer(const std::string& pid, uint64_t gen, const st
     // Conexión nueva = codificador nuevo en su navegador: la calidad de la grilla se le vuelve a decir.
     if (fresh && !pantalla) enviarCalidadGrilla(pid, true);
     if (!pantalla) revisarCapas(pid);
+}
+
+void SignalingServer::aplicarTopeRetorno(const std::string& pid, const std::string& pedido) {
+    const int tope = topeDePedido(pedido);
+    if (tope < 0) return;
+    std::lock_guard<std::mutex> l(sessLock_);
+    if (tope == 0) topeRetorno_.erase(pid);
+    else topeRetorno_[pid] = tope;
+    const auto it = sessionOf_.find(pid);
+    if (it == sessionOf_.end()) return;
+    if (WebrtcSession* s = hub_.session(it->second)) s->setTopeRetorno(tope);
 }
 
 void SignalingServer::rutaRemoto(const std::string& id, int canal) {

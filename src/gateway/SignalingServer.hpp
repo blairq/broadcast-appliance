@@ -477,6 +477,11 @@ class SignalingServer {
     std::map<int, SessionOwner> sessionOwner_; // idx -> dueño
     std::map<std::string, int> sessionOf_;     // pid -> idx
     std::mutex sessLock_;
+    /// El tope del video de retorno que puso el operador a cada uno (calidad-720p/360p; sin
+    /// entrada = sin tope), bajo sessLock_: se vuelve a poner en cada conexión nueva.
+    std::map<std::string, int> topeRetorno_;
+    /// Un pedido del operador a `pid`: si es de calidad, también topea su retorno.
+    void aplicarTopeRetorno(const std::string& pid, const std::string& pedido);
     std::thread statsThread_; ///< cada 2 s: estadisticas de cada conexion -> Room
     /// Cierra la sesion de `pid` (si `anyGen` o si sigue siendo de `gen`).
     void releaseSession(const std::string& pid, uint64_t gen, bool anyGen);

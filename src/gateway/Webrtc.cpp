@@ -20,7 +20,10 @@
 //     audio sin dispositivo que tira del mix cada 10 ms en su propio thread.
 //   - Envio: fuentes locales alimentadas por el MediaPump (BGRA -> I420 con
 //     libyuv UNA vez por cuadro, compartido por las sesiones: CuadroSaliente;
-//     audio float32 -> int16).
+//     audio float32 -> int16). El VIDEO se codifica una vez por flujo y capa,
+//     no por sesión: el codificador de cada sesión es de paso y entrega lo que
+//     codificó su flujo (RetornoCompartido.hpp). El audio sigue siendo de cada
+//     una (su mix-minus).
 //   - Espectadores (relay): cada receptor de video de un invitado lleva un
 //     TapTransformer entre el depacketizador y el decodificador: copia los
 //     bytes CODIFICADOS del cuadro al Feed de esa sesion y deja pasar el
@@ -39,6 +42,8 @@
 // ============================================================================
 
 #include "Webrtc.hpp"
+#include "RetornoCompartido.hpp"
+#include "RetornoRtc.hpp"
 #include "ajustes/Ajustes.hpp"
 #include "platform/Hilo.hpp"
 #include "platform/TiempoReal.hpp"
@@ -103,6 +108,7 @@
 #include "rtc_base/ssl_adapter.h"
 #include "rtc_base/thread.h"
 #include "rtc_base/time_utils.h"
+#include "system_wrappers/include/field_trial.h"
 #include "third_party/libyuv/include/libyuv/convert.h"
 #include "third_party/libyuv/include/libyuv/convert_argb.h"
 #endif
@@ -184,11 +190,13 @@ struct WebrtcSession::Impl {
     std::atomic<uint64_t> localAudioBlocks{0};
     std::atomic<uint64_t> localVideoFrames{0};
     EstadoCapas capas;
+    std::atomic<int> topeRetorno{0};
 
     bool configure(const SessionCallbacks& c) {
         cb = c;
         configured = true;
         capas.reiniciar();
+        topeRetorno = 0;
         // configure() se llama de nuevo en cada reconexion: se limpia el estado
         // para que la sesion no quede muerta tras el primer cierre.
         closed = false;
@@ -320,8 +328,8 @@ class PullAdm : public webrtc::webrtc_impl::AudioDeviceModuleDefault<webrtc::Aud
     std::thread thread_;
 };
 
-/// Fuente de video de retorno: un cuadro ya en I420 (CuadroSaliente, el mismo buffer para
-/// todas las sesiones) -> sinks.
+/// Fuente de video de retorno: un BufferRetorno (el I420 de CuadroSaliente, el mismo para
+/// todas las sesiones, y su emisión del flujo) -> sinks -> el codificador de paso.
 class LocalVideoSource : public rtc::AdaptedVideoTrackSource {
    public:
     void AddFrame(const rtc::scoped_refptr<webrtc::VideoFrameBuffer>& i420) {
@@ -752,6 +760,11 @@ std::vector<std::pair<std::string, int>> videoPayloadTypes(const std::string& sd
 
 /// Estado compartido de la factory (lo guarda el hub como void*).
 struct RtcHubState {
+    /// Los codificadores de verdad (VP8; H.264 de VideoToolbox en la Mac): los usan los flujos
+    /// del retorno compartido. Las PeerConnection ven una fábrica de PASO sobre esta.
+    std::shared_ptr<webrtc::VideoEncoderFactory> codificadores;
+    std::mutex flujosM;
+    std::map<std::string, std::shared_ptr<retorno::Flujo>> flujos;
     uint16_t minPort = 0;
     uint16_t maxPort = 0;
     bool loopback = false; ///< también 127.0.0.1 (setNetwork: el túnel de WireGuard)
@@ -822,6 +835,8 @@ struct WebrtcSession::Impl : public webrtc::PeerConnectionObserver {
     RtcHubState* hub = nullptr;
     rtc::scoped_refptr<webrtc::PeerConnectionInterface> pc;
     rtc::scoped_refptr<LocalVideoSource> videoSource;
+    /// Lo que la sesión le dice a su codificador de paso (el tope) y lo que él cuenta.
+    const std::shared_ptr<retorno::EstadoSesion> retornoEstado = std::make_shared<retorno::EstadoSesion>();
     rtc::scoped_refptr<LocalAudioSource> audioSource;
     bool tracksAdded = false;
     std::string cameraMid;
@@ -953,6 +968,12 @@ struct WebrtcSession::Impl : public webrtc::PeerConnectionObserver {
         tracksAdded = false;
         cameraMid.clear();
         capas.reiniciar();
+        // Conexión nueva: el tope lo vuelve a poner el servidor (setTopeRetorno). El objeto
+        // es el mismo (los hilos del MediaPump lo leen sin candado).
+        retornoEstado->topeAlto = 0;
+        retornoEstado->capaAlto = 0;
+        retornoEstado->objetivoBps = 0;
+        retornoEstado->fuente = 0;
         return true;
     }
 
@@ -964,28 +985,59 @@ struct WebrtcSession::Impl : public webrtc::PeerConnectionObserver {
         auto v = hub->factory->CreateVideoTrack(videoSource, "ba-return-video");
         auto a = hub->factory->CreateAudioTrack("ba-return-audio", audioSource.get());
         pc->AddTrack(a, {"ba-return"});
-        pc->AddTrack(v, {"ba-return"});
+        auto sender = pc->AddTrack(v, {"ba-return"});
+        if (sender.ok()) preferirCodec(sender.value());
     }
 
-    /// SEGUIR EL RELOJ aunque se pierdan cuadros. En VP8 común cada cuadro depende del
-    /// anterior: un paquete perdido en el wifi y el que mira se queda clavado hasta
-    /// recuperarlo (o hasta un cuadro completo), y después va atrás. Con capas
-    /// temporales (L1T3) dos de cada tres cuadros no son referencia de nadie: si se
-    /// pierde uno de esos, se saltea y la imagen sigue en hora; solo una pérdida en la
-    /// capa base hace esperar. Va DESPUÉS de negociar (el H.264 de VideoToolbox no
-    /// tiene capas: queda como está).
-    static void seguirElReloj(const rtc::scoped_refptr<webrtc::PeerConnectionInterface>& p) {
+    /// El códec del video (ajuste `retorno.codec`): «auto» prefiere H.264 si hay codificador
+    /// por hardware (VideoToolbox en la Mac) y el navegador lo ofreció; «h264» lo prefiere
+    /// siempre que se ofrezca; «vp8», lo que ofrezca el navegador (VP8 primero, como siempre).
+    /// Va antes del answer: el orden del answer es el que usan los dos lados. Es la MISMA
+    /// m-line que la cámara del invitado (sendrecv), así que su cámara también sube en ese
+    /// códec (en el navegador, H.264 suele ir por hardware también).
+    void preferirCodec(const rtc::scoped_refptr<webrtc::RtpSenderInterface>& sender) {
+        std::string modo = ba::ajustes::texto("retorno.codec", "auto");
+#ifndef __APPLE__
+        if (modo == "auto") modo = "vp8"; // sin VideoToolbox, H.264 sería por software
+#endif
+        if (modo != "auto" && modo != "h264") return;
+        rtc::scoped_refptr<webrtc::RtpTransceiverInterface> tr;
+        for (const auto& t : pc->GetTransceivers())
+            if (t->sender() == sender) tr = t;
+        if (!tr) return;
+        const auto envio = hub->factory->GetRtpSenderCapabilities(cricket::MEDIA_TYPE_VIDEO).codecs;
+        const auto recibe = hub->factory->GetRtpReceiverCapabilities(cricket::MEDIA_TYPE_VIDEO).codecs;
+        std::vector<webrtc::RtpCodecCapability> h264, resto;
+        for (const auto& c : recibe) {
+            const bool tambienEnvia = std::any_of(envio.begin(), envio.end(), [&](const webrtc::RtpCodecCapability& e) {
+                return e.name == c.name && e.parameters == c.parameters;
+            });
+            if (!tambienEnvia) continue;
+            if (upper(c.name) == "H264") {
+                const auto pm = c.parameters.find("packetization-mode");
+                // packetization-mode=1 primero (el de los navegadores).
+                if (pm != c.parameters.end() && pm->second == "1") h264.insert(h264.begin(), c);
+                else h264.push_back(c);
+            } else {
+                resto.push_back(c);
+            }
+        }
+        if (h264.empty()) return;
+        h264.insert(h264.end(), resto.begin(), resto.end());
+        tr->SetCodecPreferences(h264); // si el navegador no ofreció H.264, queda lo que ofreció
+    }
+
+    /// El video de retorno lo codifica su flujo (RetornoCompartido.hpp), con capas temporales
+    /// L1T3 en VP8 (una pérdida en el wifi saltea un cuadro en vez de clavar la imagen). Lo
+    /// que libwebrtc adaptaría por sesión (bajar resolución o cuadros por CPU o por red) acá
+    /// no tiene sentido: la red de cada uno se atiende eligiendo la capa. Va DESPUÉS de
+    /// negociar (antes no hay encodings).
+    static void retornoSinAdaptar(const rtc::scoped_refptr<webrtc::PeerConnectionInterface>& p) {
         for (const auto& sender : p->GetSenders()) {
             if (sender->media_type() != cricket::MEDIA_TYPE_VIDEO) continue;
             webrtc::RtpParameters par = sender->GetParameters();
-            // Sin mirar el codec: a esta altura GetParameters todavía no lo informa
-            // (codecs vacío). Si el codec no tiene capas (H.264 de VideoToolbox),
-            // SetParameters lo rechaza y queda como estaba.
             if (par.encodings.empty()) continue;
-            par.encodings.front().scalability_mode = "L1T3";
-            // Ante poco ancho de banda, menos cuadros antes que menos nitidez: lo que se
-            // ve en una pantalla de sala es texto y gráficos.
-            par.degradation_preference = webrtc::DegradationPreference::BALANCED;
+            par.degradation_preference = webrtc::DegradationPreference::DISABLED;
             sender->SetParameters(par);
         }
     }
@@ -1018,7 +1070,7 @@ struct WebrtcSession::Impl : public webrtc::PeerConnectionObserver {
             }
             std::string answer;
             p->local_description()->ToString(&answer);
-            seguirElReloj(p);
+            retornoSinAdaptar(p);
             prioridadDeRed(p);
             if (self->cb.onLocalAnswer) self->cb.onLocalAnswer(answer);
         };
@@ -1067,9 +1119,10 @@ struct WebrtcSession::Impl : public webrtc::PeerConnectionObserver {
         localAudioBlocks.fetch_add(1, std::memory_order_relaxed);
     }
 
-    void pushLocalVideo(const rtc::scoped_refptr<webrtc::VideoFrameBuffer>& i420) {
+    void pushLocalVideo(const rtc::scoped_refptr<webrtc::I420BufferInterface>& i420,
+                        const std::shared_ptr<retorno::Emision>& emision) {
         if (!connected.load(std::memory_order_relaxed) || !videoSource) return;
-        videoSource->AddFrame(i420);
+        videoSource->AddFrame(rtc::make_ref_counted<retorno::BufferRetorno>(i420, emision, retornoEstado));
         localVideoFrames.fetch_add(1, std::memory_order_relaxed);
     }
 
@@ -1185,8 +1238,28 @@ struct CuadroSaliente::Impl {
     int ancho = 0, alto = 0;
 #if BA_GATEWAY_HAVE_WEBRTC
     rtc::scoped_refptr<webrtc::I420Buffer> i420;
+    std::shared_ptr<retorno::Emision> emision; ///< de qué flujo es (FlujoRetorno::emitir)
 #endif
 };
+
+struct FlujoRetorno::Impl {
+#if BA_GATEWAY_HAVE_WEBRTC
+    std::shared_ptr<retorno::Flujo> flujo;
+#endif
+};
+
+CuadroSaliente FlujoRetorno::emitir(const CuadroSaliente& c) const {
+#if BA_GATEWAY_HAVE_WEBRTC
+    if (!impl_ || !impl_->flujo || c.vacio() || !c.impl_->i420) return c;
+    auto impl = std::make_shared<CuadroSaliente::Impl>(*c.impl_);
+    impl->emision = retorno::emitir(impl_->flujo, impl->i420);
+    CuadroSaliente out;
+    out.impl_ = std::move(impl);
+    return out;
+#else
+    return c;
+#endif
+}
 
 CuadroSaliente CuadroSaliente::desdeBgra(const uint8_t* bgra, int ancho, int alto, int stride) {
     CuadroSaliente c;
@@ -1275,7 +1348,7 @@ void WebrtcSession::pushLocalVideo(const uint8_t* p, size_t bytes, int w, int h)
 void WebrtcSession::pushLocalVideo(const CuadroSaliente& c) {
     if (impl_ == nullptr || c.vacio()) return;
 #if BA_GATEWAY_HAVE_WEBRTC
-    impl_->pushLocalVideo(c.impl_->i420);
+    impl_->pushLocalVideo(c.impl_->i420, c.impl_->emision);
 #else
     impl_->pushLocalVideo();
 #endif
@@ -1285,15 +1358,51 @@ void WebrtcSession::close() {
     if (impl_ != nullptr) impl_->close();
 }
 int WebrtcSession::slot() const { return impl_ != nullptr ? impl_->slot : 0; }
+void WebrtcSession::setTopeRetorno(int alto) {
+    if (impl_ == nullptr) return;
+#if BA_GATEWAY_HAVE_WEBRTC
+    impl_->retornoEstado->topeAlto.store(std::max(0, alto), std::memory_order_relaxed);
+#else
+    impl_->topeRetorno.store(std::max(0, alto), std::memory_order_relaxed);
+#endif
+}
+int WebrtcSession::topeRetorno() const {
+    if (impl_ == nullptr) return 0;
+#if BA_GATEWAY_HAVE_WEBRTC
+    return impl_->retornoEstado->topeAlto.load(std::memory_order_relaxed);
+#else
+    return impl_->topeRetorno.load(std::memory_order_relaxed);
+#endif
+}
 std::string WebrtcSession::estadisticas() {
     if (impl_ == nullptr) return "{}";
     std::string s = impl_->estadisticas();
-    if (!impl_->capas.con()) return s;
-    // Con dos capas: cuál sale y cuál pidió la sala (para ver que lo que se pide llega).
+#if BA_GATEWAY_HAVE_WEBRTC
+    const bool conRetorno = impl_->retornoEstado->fuente.load(std::memory_order_relaxed) != 0;
+#else
+    const bool conRetorno = false;
+#endif
+    if (!impl_->capas.con() && !conRetorno) return s;
     json j = json::parse(s, nullptr, false);
     if (!j.is_object()) j = json::object();
-    j["capa"] = nombreCapa(impl_->capas.sale());
-    j["capa_pedida"] = nombreCapa(impl_->capas.pedida());
+    if (impl_->capas.con()) {
+        // Con dos capas: cuál sale y cuál pidió la sala (para ver que lo que se pide llega).
+        j["capa"] = nombreCapa(impl_->capas.sale());
+        j["capa_pedida"] = nombreCapa(impl_->capas.pedida());
+    }
+#if BA_GATEWAY_HAVE_WEBRTC
+    if (conRetorno) {
+        // El video de retorno que le sale (RetornoCompartido.hpp): qué capa, por qué objetivo.
+        const retorno::EstadoSesion& r = *impl_->retornoEstado;
+        j["retorno"] = {{"capa", r.capaAlto.load(std::memory_order_relaxed)},
+                        {"objetivo_kbps", r.objetivoBps.load(std::memory_order_relaxed) / 1000},
+                        {"tope", r.topeAlto.load(std::memory_order_relaxed)},
+                        {"fuente", r.fuente.load(std::memory_order_relaxed) == 1 ? "compartido" : "propio"},
+                        {"cambios", r.cambiosCapa.load(std::memory_order_relaxed)},
+                        {"cuadros", r.cuadrosCompartidos.load(std::memory_order_relaxed) +
+                                        r.cuadrosPropios.load(std::memory_order_relaxed)}};
+    }
+#endif
     return j.dump(-1, ' ', false, json::error_handler_t::replace);
 }
 uint64_t WebrtcSession::localAudioBlocks() const {
@@ -1314,7 +1423,26 @@ WebrtcHub::WebrtcHub(int guests, int videoW, int videoH, int audioRate, int audi
 #if BA_GATEWAY_HAVE_WEBRTC
     rtc::LogMessage::LogToDebug(rtc::LS_ERROR);
     rtc::InitializeSSL();
+    // Sondeo en ALR (RetornoCompartido.hpp): con el retorno compartido cada conexión manda
+    // una capa de bitrate FIJO, y el control de congestión no sube su estimación mucho más
+    // allá de lo que se manda (1,5×). Sin sondear, una conexión que bajó a 360p no vuelve a
+    // 720p nunca. Con esto libwebrtc sondea (cada 5 s, al doble de lo estimado) mientras la
+    // conexión manda menos de lo que podría. Los otros números son los de siempre (ritmo
+    // 2,5×, cola 2 s, umbrales del detector de ALR por omisión). Una sola vez por proceso,
+    // antes de la fábrica.
+    if (ba::ajustes::siNo("retorno.sondeoAlr", true)) {
+        static const char kPruebas[] = "WebRTC-StrictPacingAndProbing/2.5,2000,65,80,50,0/";
+        webrtc::field_trial::InitFieldTrialsFromString(kPruebas);
+    }
     auto* st = new RtcHubState();
+#ifdef __APPLE__
+    // H.264 por VideoToolbox además de VP8/VP9/AV1 (ver CodecsMac.mm).
+    st->codificadores = codificadoresMac();
+#else
+    st->codificadores = std::make_unique<webrtc::VideoEncoderFactoryTemplate<
+        webrtc::LibvpxVp8EncoderTemplateAdapter, webrtc::LibvpxVp9EncoderTemplateAdapter,
+        webrtc::OpenH264EncoderTemplateAdapter, webrtc::LibaomAv1EncoderTemplateAdapter>>();
+#endif
     st->network = rtc::Thread::CreateWithSocketServer();
     st->worker = rtc::Thread::Create();
     st->signaling = rtc::Thread::Create();
@@ -1330,13 +1458,11 @@ WebrtcHub::WebrtcHub(int guests, int videoW, int videoH, int audioRate, int audi
     st->factory = webrtc::CreatePeerConnectionFactory(
         st->network.get(), st->worker.get(), st->signaling.get(), adm,
         webrtc::CreateBuiltinAudioEncoderFactory(), webrtc::CreateBuiltinAudioDecoderFactory(),
+        // Cada sesión codifica de PASO: entrega lo que codificó su flujo (RetornoCompartido).
+        retorno::fabricaDePaso(st->codificadores),
 #ifdef __APPLE__
-        // H.264 por VideoToolbox además de VP8/VP9/AV1 (ver CodecsMac.mm).
-        codificadoresMac(), decodificadoresMac(),
+        decodificadoresMac(),
 #else
-        std::make_unique<webrtc::VideoEncoderFactoryTemplate<
-            webrtc::LibvpxVp8EncoderTemplateAdapter, webrtc::LibvpxVp9EncoderTemplateAdapter,
-            webrtc::OpenH264EncoderTemplateAdapter, webrtc::LibaomAv1EncoderTemplateAdapter>>(),
         std::make_unique<webrtc::VideoDecoderFactoryTemplate<
             webrtc::LibvpxVp8DecoderTemplateAdapter, webrtc::LibvpxVp9DecoderTemplateAdapter,
             webrtc::OpenH264DecoderTemplateAdapter, webrtc::Dav1dDecoderTemplateAdapter>>(),
@@ -1379,6 +1505,12 @@ WebrtcHub::~WebrtcHub() {
         {
             std::lock_guard<std::mutex> lock(st->feedsM);
             st->feeds.clear(); // sueltan proxies de libwebrtc: con los threads vivos
+        }
+        {
+            // Los hilos de los codificadores compartidos, antes que la fábrica.
+            std::lock_guard<std::mutex> lock(st->flujosM);
+            for (auto& [n, f] : st->flujos) retorno::parar(*f);
+            st->flujos.clear();
         }
         st->factory = nullptr;
         st->signaling->BlockingCall([st]() {
@@ -1424,6 +1556,33 @@ void WebrtcHub::setNetwork(uint16_t minPort, uint16_t maxPort, bool allowLoopbac
 WebrtcSession* WebrtcHub::session(int idx) {
     if (idx < 1 || idx > guests_) return nullptr;
     return &sessions_[static_cast<size_t>(idx)];
+}
+
+FlujoRetorno WebrtcHub::flujoRetorno(const std::string& nombre) {
+    FlujoRetorno out;
+#if BA_GATEWAY_HAVE_WEBRTC
+    auto* st = static_cast<RtcHubState*>(rtcFactory_);
+    if (st == nullptr || !st->codificadores) return out;
+    std::lock_guard<std::mutex> lock(st->flujosM);
+    auto& f = st->flujos[nombre];
+    if (!f) f = retorno::crearFlujo(nombre, st->codificadores);
+    out.impl_ = std::make_shared<FlujoRetorno::Impl>();
+    out.impl_->flujo = f;
+#else
+    (void)nombre;
+#endif
+    return out;
+}
+
+nlohmann::json WebrtcHub::retornoCompartido() const {
+    nlohmann::json out = nlohmann::json::array();
+#if BA_GATEWAY_HAVE_WEBRTC
+    auto* st = static_cast<RtcHubState*>(rtcFactory_);
+    if (st == nullptr) return out;
+    std::lock_guard<std::mutex> lock(st->flujosM);
+    for (const auto& [n, f] : st->flujos) out.push_back(retorno::estado(*f));
+#endif
+    return out;
 }
 
 void WebrtcHub::closeAll() {

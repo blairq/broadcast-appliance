@@ -28,7 +28,8 @@
 // armada en el preview, el siguiente de la fila) se le pide la alta de antemano.
 //
 // El tope que pone el operador por la red (`calidad-720p`/`calidad-360p`) y el de la grilla
-// (`calidad-grilla-*`) siguen como estaban: los aplica el navegador a la capa ALTA.
+// (`calidad-grilla-*`) siguen como estaban: los aplica el navegador a la capa ALTA. El del
+// operador topea además el VIDEO DE RETORNO que recibe esa persona (RetornoCompartido.hpp).
 //
 // Navegador viejo (sin `capas` en su oferta): una sola cámara, como siempre; no se le pide nada.
 // ============================================================================

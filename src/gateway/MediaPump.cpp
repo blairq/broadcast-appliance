@@ -837,6 +837,9 @@ void MediaPump::videoBajadaThread(std::wstring nombre, std::string etiqueta,
     SharedAudioRing anilloAudio;
     auto anilloMirado = std::chrono::steady_clock::now() - std::chrono::seconds(1);
     labios::EdadAudio edadAudio;
+    // Cada cuadro se codifica una vez por capa para todas las sesiones (RetornoCompartido.hpp):
+    // quien conversa y quien mira reciben la MISMA emisión, a distinto momento.
+    const FlujoRetorno flujo = hub_.flujoRetorno(angosto(nombre));
     const auto conversan = [&para](const MediaRoute& r) { return para(r) && r.conversa(); };
     const auto miran = [&para](const MediaRoute& r) { return para(r) && !r.conversa(); };
     const auto empujar = [this](const std::vector<int>& a, const CuadroSaliente& c) {
@@ -918,12 +921,12 @@ void MediaPump::videoBajadaThread(std::wstring nombre, std::string etiqueta,
                     CuadroSaliente c;
                     const int dw = std::min(outW, w), dh = std::min(outH, h);
                     if (dw == w && dh == h) {
-                        c = CuadroSaliente::desdeBgra(src.data(), w, h);
+                        c = flujo.emitir(CuadroSaliente::desdeBgra(src.data(), w, h));
                     } else {
                         scaled.resize(static_cast<size_t>(dw) * static_cast<size_t>(dh) * 4u);
                         scaleBgra(src.data(), w, h, scaled.data(), dw, dh);
                         copias_.escalados.fetch_add(scaled.size(), std::memory_order_relaxed);
-                        c = CuadroSaliente::desdeBgra(scaled.data(), dw, dh);
+                        c = flujo.emitir(CuadroSaliente::desdeBgra(scaled.data(), dw, dh));
                     }
                     // Quien conversa, ya (T4); quien mira, a la hora de su audio (F2-11).
                     empujar(ya, c);
@@ -1077,6 +1080,7 @@ void MediaPump::operatorVideoThread() {
     std::vector<uint8_t> plate(scaled.size());
     drawWaitPlate(plate.data(), cfg_.guestVideoW, cfg_.guestVideoH);
     const CuadroSaliente placa = CuadroSaliente::desdeBgra(plate.data(), cfg_.guestVideoW, cfg_.guestVideoH); // una vez
+    const FlujoRetorno flujo = hub_.flujoRetorno("BA.Operator"); // todo el lobby ve lo mismo
     const auto lobbySessions = [this]() {
         return sessionsWhere([](const MediaRoute& r) { return r.kind == MediaRoute::Kind::Lobby; });
     };
@@ -1112,7 +1116,8 @@ void MediaPump::operatorVideoThread() {
                 if (!targets.empty()) {
                     fitBgra(src.data(), srcW, srcH, scaled.data(), cfg_.guestVideoW, cfg_.guestVideoH);
                     // Una conversión para todo el lobby (CuadroSaliente, F2-13).
-                    const CuadroSaliente c = CuadroSaliente::desdeBgra(scaled.data(), cfg_.guestVideoW, cfg_.guestVideoH);
+                    const CuadroSaliente c =
+                        flujo.emitir(CuadroSaliente::desdeBgra(scaled.data(), cfg_.guestVideoW, cfg_.guestVideoH));
                     for (int s : targets) {
                         if (WebrtcSession* sess = hub_.session(s)) sess->pushLocalVideo(c);
                     }
@@ -1123,8 +1128,11 @@ void MediaPump::operatorVideoThread() {
         // 5 fps, para que el invitado vea que esta conectado.
         if (now - lastFrame > std::chrono::seconds(1) && now - lastPlate >= std::chrono::milliseconds(200)) {
             lastPlate = now;
-            for (int s : lobbySessions()) {
-                if (WebrtcSession* sess = hub_.session(s)) sess->pushLocalVideo(placa);
+            const auto lobby = lobbySessions();
+            // La misma placa cada vez, pero cada vez es un cuadro nuevo para el codificador.
+            const CuadroSaliente c = lobby.empty() ? CuadroSaliente{} : flujo.emitir(placa);
+            for (int s : lobby) {
+                if (WebrtcSession* sess = hub_.session(s)) sess->pushLocalVideo(c);
             }
         }
         if (sub) cerrarVentana(medida, ventana, true);
@@ -1308,7 +1316,9 @@ void MediaPump::forwardVideo(int session, const uint8_t* pixels, size_t bytes, i
         m.videoNs = ahora;
         m.video.resize(static_cast<size_t>(cfg_.guestVideoW) * cfg_.guestVideoH * 4u);
         fitBgra(pixels, w, h, m.video.data(), cfg_.guestVideoW, cfg_.guestVideoH);
-        const CuadroSaliente c = CuadroSaliente::desdeBgra(m.video.data(), cfg_.guestVideoW, cfg_.guestVideoH);
+        // Los que atienden este tótem ven lo mismo: un flujo por canal (RetornoCompartido.hpp).
+        const CuadroSaliente c = hub_.flujoRetorno("BA.Registro." + std::to_string(k))
+                                     .emitir(CuadroSaliente::desdeBgra(m.video.data(), cfg_.guestVideoW, cfg_.guestVideoH));
         for (int s : miran)
             if (WebrtcSession* sess = hub_.session(s)) sess->pushLocalVideo(c);
     }

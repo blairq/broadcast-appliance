@@ -163,7 +163,8 @@ if(APPLE AND EXISTS "${BA_WEBRTC_ROOT}/lib/libwebrtc.a" AND EXISTS "${BA_WEBRTC_
         "-framework QuartzCore" "-framework CoreServices" "-framework Security"
         "-framework SystemConfiguration")
     # libwebrtc esta compilado sin RTTI.
-    set_source_files_properties("${CMAKE_CURRENT_SOURCE_DIR}/Webrtc.cpp" PROPERTIES COMPILE_OPTIONS "-fno-rtti")
+    set_source_files_properties("${CMAKE_CURRENT_SOURCE_DIR}/Webrtc.cpp" "${CMAKE_CURRENT_SOURCE_DIR}/RetornoCompartido.cpp"
+                                PROPERTIES COMPILE_OPTIONS "-fno-rtti")
     # H.264 por VideoToolbox (el SDK de Objective-C): ver CodecsMac.mm. Va en la
     # interfaz para que lo tenga todo el que use libwebrtc (gateway y su prueba).
     target_sources(ba_webrtc_mac INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}/CodecsMac.mm")

@@ -1414,6 +1414,7 @@ int main(int argc, char** argv) {
         // los anillos y canales que lee (F0-02: la app los muestra en sistema_recursos).
         nlohmann::json uso = processUsage(&hub);
         uso["transporte"] = pump.transporte();
+        uso["retornoVideo"] = hub.retornoCompartido(); // el video de retorno, una vez por capa
         // ¿El rango UDP alcanza para la sala llena? Se avisa al cambiar (el cupo sube en caliente).
         {
             const PuertosRtc p = puertosRtc(cfg.rtcPortMin, cfg.rtcPortMax, puertosPorSesion, room.cupo(), cfg.lobbySlots);

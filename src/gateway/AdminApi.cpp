@@ -1215,7 +1215,10 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
                 sendJson(fd, r.is_object() && !r.contains("error") ? 200 : 409, r);
             }
         } else if (action == "request") {
-            sendRoomResult(fd, room_.request(id, req.value("what", "")));
+            const std::string what = req.value("what", "");
+            const int r = room_.request(id, what);
+            if (r == Room::kOk) aplicarTopeRetorno(id, what); // calidad-*: también su video de retorno
+            sendRoomResult(fd, r);
         } else if (action == "onair") {
             sendRoomResult(fd, room_.setOnAir(id, req.value("on", true), nowMsA()));
         } else if (action == "move") {

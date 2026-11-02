@@ -124,7 +124,8 @@ else()
 endif()
 # libwebrtc esta compilado sin RTTI: las clases que heredan de sus interfaces
 # (observadores, fuentes, sinks) no pueden pedir typeinfo de sus bases.
-set_source_files_properties("${BA_SRC}/src/gateway/Webrtc.cpp" PROPERTIES COMPILE_OPTIONS "-fno-rtti")
+set_source_files_properties("${BA_SRC}/src/gateway/Webrtc.cpp" "${BA_SRC}/src/gateway/RetornoCompartido.cpp"
+                            PROPERTIES COMPILE_OPTIONS "-fno-rtti")
 # libwebrtc.a al FINAL: aporta la libc++ que usan todos los de arriba.
 target_link_libraries(ba_gateway_rtc PUBLIC ba_core_cr ${BA_LWIP_LIB} "${WRTC}/lib/libwebrtc.a" Threads::Threads ${CMAKE_DL_LIBS})
 if(NOT APPLE)

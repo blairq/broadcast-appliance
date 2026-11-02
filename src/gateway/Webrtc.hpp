@@ -67,6 +67,7 @@
 #include <string>
 #include <vector>
 #include "Capas.hpp"
+#include <nlohmann/json.hpp>
 #include "ajustes/Ajustes.hpp"
 
 namespace ba::gateway {
@@ -121,8 +122,29 @@ class CuadroSaliente {
 
    private:
     friend class WebrtcSession;
+    friend class FlujoRetorno;
     struct Impl;
     std::shared_ptr<const Impl> impl_;
+};
+
+/// Lo que baja como video a varias sesiones (el programa, una salida, la cámara del operador
+/// al lobby, un tótem a quien lo atiende): cada cuadro que se reparte se EMITE y se codifica
+/// una vez por capa de calidad, no una vez por sesión (RetornoCompartido.hpp). Lo da el hub
+/// (WebrtcHub::flujoRetorno); copiarlo es contar una referencia más.
+class FlujoRetorno {
+   public:
+    FlujoRetorno() = default;
+    /// El cuadro `c` como emisión de este flujo: lo que se le pasa a pushLocalVideo de cada
+    /// sesión que lo recibe (la misma para todas, aunque a unas les llegue más tarde). Cada
+    /// llamada es una emisión nueva: un cuadro que se repite (la placa) se emite cada vez.
+    /// Sin flujo (o en el backend NULL), el mismo cuadro: cada sesión lo codifica sola.
+    CuadroSaliente emitir(const CuadroSaliente& c) const;
+    bool vacio() const { return !impl_; }
+
+   private:
+    friend class WebrtcHub;
+    struct Impl;
+    std::shared_ptr<Impl> impl_;
 };
 
 /// Una PeerConnection por invitado (B es el answerer del offer del invitado).
@@ -203,6 +225,11 @@ class WebrtcSession {
     /// Inyecta un cuadro ya convertido (el mismo para todas las sesiones que lo reciben).
     void pushLocalVideo(const CuadroSaliente& cuadro);
 
+    /// El tope del retorno que puso el operador (`calidad-720p` -> 720, `calidad-360p` -> 360,
+    /// 0 = sin tope): la capa más alta del retorno compartido que puede recibir.
+    void setTopeRetorno(int alto);
+    int topeRetorno() const;
+
     /// Indica si la sesion esta conectada (offer procesado / PC establecida).
     bool connected() const;
 
@@ -213,8 +240,9 @@ class WebrtcSession {
 
     /// Pide las estadisticas de la conexion (GetStats, asincronico) y devuelve
     /// las ultimas que llegaron: {kbps_in, kbps_out, perdida_pct, jitter_ms,
-    /// rtt_ms, cuadros_perdidos, alto, ancho, semaforo: verde|ambar|rojo}
-    /// (JSON; "{}" si todavia no hay).
+    /// rtt_ms, cuadros_perdidos, alto, ancho, semaforo: verde|ambar|rojo, retorno: {capa
+    /// (alto de la capa del retorno que le sale), objetivo_kbps (su control de congestión),
+    /// tope, fuente: compartido|propio, cambios}} (JSON; "{}" si todavia no hay).
     std::string estadisticas();
 
     /// Diagnosticos: bloques de audio / frames de video de retorno inyectados.
@@ -246,6 +274,12 @@ class WebrtcHub {
 
     /// Devuelve la sesion `idx` (1..sessions()). Fuera de rango: nullptr.
     WebrtcSession* session(int idx);
+
+    /// El flujo del retorno compartido llamado `nombre` (el mismo para el mismo nombre: una
+    /// bajada que se levanta de nuevo sigue con sus codificadores). Vacío sin backend real.
+    FlujoRetorno flujoRetorno(const std::string& nombre);
+    /// Cómo anda el retorno compartido: [{nombre, emisiones, capas: [...]}] (RetornoRtc.hpp).
+    nlohmann::json retornoCompartido() const;
 
     /// Tamaño del pool de sesiones.
     int sessions() const { return guests_; }
