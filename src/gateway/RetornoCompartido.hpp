@@ -24,7 +24,8 @@
 //     uno cada `retorno.claveMinMs` (AgregadorClaves). Una conexión nueva, o que cambia de
 //     capa o de flujo, espera un cuadro clave de lo nuevo y mientras tanto sigue con lo viejo
 //     (sin corte).
-//   - El AUDIO de retorno sigue siendo por invitado (su mix-minus): esto es solo el video.
+//   - El AUDIO de retorno es el mix-minus de cada invitado; los que oyen lo mismo comparten
+//     su codificación (AudioCompartido.hpp). Esto es solo el video.
 //
 // Lo que queda distinto por invitado: QUÉ flujo mira (su ruta: programa, otra salida, lobby,
 // tótem) y CUÁNDO le sale cada cuadro (al que conversa, ya; al que solo mira, a la hora de su

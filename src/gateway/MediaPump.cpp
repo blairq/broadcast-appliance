@@ -6,6 +6,7 @@
 // ============================================================================
 
 #include "MediaPump.hpp"
+#include "AudioCompartido.hpp"
 
 #include <algorithm>
 #include <chrono>
@@ -556,6 +557,14 @@ void MediaPump::retornoAudioThread(std::wstring nombre, std::string salida, Cola
     auto ventana = std::chrono::steady_clock::now();
     ba::platform::Ritmo ritmo{std::chrono::milliseconds(kMiradaAudioMs)};
     auto lastSlotRetry = std::chrono::steady_clock::now() - std::chrono::seconds(1);
+    // Los que oyen lo mismo se codifican una vez (AudioCompartido.hpp): el agrupador decide
+    // bloque a bloque y cada grupo es un flujo Opus del hub.
+    AgrupadorRetorno agrupador;
+    std::vector<AudioCompartido> grupos(AgrupadorRetorno::kGrupos + 1);
+    for (int g = 1; g <= AgrupadorRetorno::kGrupos; ++g)
+        grupos[static_cast<size_t>(g)] = hub_.audioCompartido("retorno:" + salida + ":" + std::to_string(g));
+    std::vector<AgrupadorRetorno::Entrada> entradas;
+    uint64_t bloqueDe[AgrupadorRetorno::kGrupos + 1] = {};
     while (sigue(parar)) {
         {
             const auto now = std::chrono::steady_clock::now();
@@ -634,6 +643,7 @@ void MediaPump::retornoAudioThread(std::wstring nombre, std::string salida, Cola
             const bool bajaPrograma = ducking.procesar(hayVoz ? voz.data() : nullptr, n, ganancia);
             const int prueba = pruebaSesion_.load();
             std::vector<float> mezcla;
+            entradas.clear();
             for (int s : sessionsWhere([&salida](const MediaRoute& r) { return r.oyeSalida(salida); })) {
                 const MediaRoute r = route(s);
                 // Con el retorno apagado (silencio) igual le llega la voz del operador si le habla.
@@ -662,8 +672,26 @@ void MediaPump::retornoAudioThread(std::wstring nombre, std::string salida, Cola
                         if (pruebaFase_ > 1e6) pruebaFase_ = std::fmod(pruebaFase_, 2.0 * 3.14159265358979);
                     }
                     fuente = mezcla.data();
+                    // Lo suyo (IFB, prueba) va solo y ya: `mezcla` se reusa con el próximo.
+                    if (WebrtcSession* sess = hub_.session(s)) sess->pushLocalAudio(fuente, n, cfg_.audioRate);
+                    continue;
                 }
-                if (WebrtcSession* sess = hub_.session(s)) sess->pushLocalAudio(fuente, n, cfg_.audioRate);
+                entradas.push_back({s, fuente, true});
+            }
+            // Los demás: los que oyen lo mismo, por su grupo (una codificación por grupo).
+            agrupador.agrupar(entradas, n);
+            for (int g = 1; g <= AgrupadorRetorno::kGrupos; ++g) {
+                const float* pcm = agrupador.pcmDe(g);
+                bloqueDe[g] = pcm != nullptr ? grupos[static_cast<size_t>(g)].codificar(pcm, n, cfg_.audioRate) : 0;
+            }
+            for (size_t i = 0; i < entradas.size(); ++i) {
+                WebrtcSession* sess = hub_.session(entradas[i].sesion);
+                if (sess == nullptr) continue;
+                const int g = agrupador.grupo(i);
+                if (g != 0 && bloqueDe[g] != 0)
+                    sess->pushLocalAudio(entradas[i].pcm, n, cfg_.audioRate, grupos[static_cast<size_t>(g)], bloqueDe[g]);
+                else
+                    sess->pushLocalAudio(entradas[i].pcm, n, cfg_.audioRate);
             }
         });
         cerrarVentana(medida, ventana, true);
