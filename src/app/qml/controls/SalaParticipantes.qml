@@ -131,6 +131,14 @@ Item {
                 radius: celda.chica ? 10 : 14
                 color: "#000000"
                 clip: true
+                // Tocarla (o el botón derecho) abre sus acciones donde se tocó. Va debajo de
+                // todo: los botones de arriba se quedan con sus toques.
+                MouseArea {
+                    anchors.fill: parent
+                    acceptedButtons: Qt.LeftButton | Qt.RightButton
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: (ev) => sala.abrirAcciones(celda, caja, ev.x, ev.y)
+                }
                 border.color: sala.elegido === celda.uid ? Theme.accent : celda.presenter ? "#a78bfa" : celda.hand ? Theme.amber : Theme.glassBorder
                 border.width: sala.elegido === celda.uid || celda.presenter || celda.hand ? 2 : 1
                 // El video que B publica para ese lugar (lo mismo que ve el motor). Chica,
@@ -198,11 +206,6 @@ Item {
                     }
                 }
                 HoverHandler { id: hov }
-                // Tocarla (o el botón derecho) abre sus acciones donde se tocó.
-                TapHandler {
-                    acceptedButtons: Qt.LeftButton | Qt.RightButton
-                    onTapped: (ev) => sala.abrirAcciones(celda, caja, ev.position.x, ev.position.y)
-                }
             }
         }
     }
@@ -243,9 +246,11 @@ Item {
             color: sala.elegido === uid ? Qt.rgba(1, 0.42, 0.17, 0.12) : filaHov.hovered ? Qt.rgba(1, 1, 1, 0.07) : Qt.rgba(1, 1, 1, 0.03)
             border.color: sala.elegido === uid ? Theme.accent : presenter ? "#a78bfa" : hand ? Theme.amber : Theme.glassBorder
             HoverHandler { id: filaHov }
-            TapHandler {
+            // El botón derecho sobre la fila abre sus acciones (debajo de los botones).
+            MouseArea {
+                anchors.fill: parent
                 acceptedButtons: Qt.RightButton
-                onTapped: (ev) => sala.abrirAcciones(fila, fila, ev.position.x, ev.position.y)
+                onClicked: (ev) => sala.abrirAcciones(fila, fila, ev.x, ev.y)
             }
             RowLayout {
                 anchors { fill: parent; leftMargin: 6; rightMargin: 8 }

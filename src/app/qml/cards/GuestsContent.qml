@@ -147,6 +147,14 @@ Item {
                     radius: lugar.chica ? 10 : 12
                     color: "#000000"
                     clip: true
+                    // Tocarla abre sus acciones donde se tocó (debajo de todo: el «⋯» y los
+                    // avisos se quedan con lo suyo).
+                    MouseArea {
+                        anchors.fill: parent
+                        acceptedButtons: Qt.LeftButton | Qt.RightButton
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: (ev) => acciones.abrir(lugar, caja, ev.x, ev.y)
+                    }
                     border.color: lugar.elegido ? Theme.accent : Theme.glassBorder
                     border.width: lugar.elegido ? 2 : 1
                     VideoItem {
@@ -197,10 +205,6 @@ Item {
                         ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: qsTr("Calidad, retorno, ISO y cargo")
                     }
                     HoverHandler { id: hov }
-                    TapHandler {
-                        acceptedButtons: Qt.LeftButton | Qt.RightButton
-                        onTapped: (ev) => acciones.abrir(lugar, caja, ev.position.x, ev.position.y)
-                    }
                 }
             }
         }
