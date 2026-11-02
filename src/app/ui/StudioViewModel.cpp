@@ -259,6 +259,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, VentanillaMotor& ventanilla, QO
     props_ = std::make_unique<PropertiesModel>(rt, ventanilla_);
     marca("props");
     conference_ = std::make_unique<ConferenceViewModel>(rt, ventanilla_);
+    conference_->setLugares(ventanilla_.foto().ajustes.invitados);
     // Lo que se maneja de la sala en caliente: el cupo, la configuración, las direcciones,
     // la votación, las preguntas, el PIN y el túnel (ui/SalaViewModel).
     sala_ = std::make_unique<SalaViewModel>(SalaViewModel::Partes{
@@ -274,7 +275,10 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, VentanillaMotor& ventanilla, QO
             return asamblea_ ? asamblea_->cuerpo().cuerpo().buscar(nombre) : nlohmann::json::object();
         }});
     connect(sala_.get(), &SalaViewModel::notify, this, &StudioViewModel::notify);
-    connect(sala_.get(), &SalaViewModel::cupoCambio, this, [this](int n) { frames_->setGuests(n); });
+    connect(sala_.get(), &SalaViewModel::cupoCambio, this, [this](int n) {
+        frames_->setGuests(n);
+        conference_->setLugares(n);
+    });
     // Grabar, transmitir y lo que los rodea: destinos, señal limpia, ISO, disco, loudness,
     // retornos y la salud de cada destino (ui/EmisionViewModel).
     emision_ = std::make_unique<EmisionViewModel>(EmisionViewModel::Partes{
@@ -1361,6 +1365,7 @@ void StudioViewModel::alCambiarFoto(unsigned partes) {
         emit sceneChanged();
         emit ajustesChanged();
         frames_->setGuests(ventanilla_.foto().ajustes.invitados);
+        conference_->setLugares(ventanilla_.foto().ajustes.invitados);
     }
     if ((partes & FotoMotor::Escenas) != 0) {
         emit escenasCambiaron(); // el árbol por carpetas se rearma (barato)

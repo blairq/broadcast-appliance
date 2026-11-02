@@ -82,7 +82,11 @@ ConferenceViewModel::ConferenceViewModel(AppRuntime& rt, VentanillaMotor& ventan
           QStringList{"uid", "name", "info", "contact", "speaker", "position", "allottedSec", "onAirSinceMs",
                       "usedMs", "connected", "slot", "avatar", "backstageSlot", "presenter", "restanteMs",
                       "estadoTiempo", "textoTiempo", "textoAsignado", "textoUsado"})) {
-    connect(client_.get(), &ConferenceClient::onlineChanged, this, [this]() { emit onlineChanged(); });
+    lugares_ = std::make_unique<JsonListModel>(QStringList{"slot", "nombre", "pid", "info", "sinRetorno", "semaforo", "red"});
+    connect(client_.get(), &ConferenceClient::onlineChanged, this, [this]() {
+        rehacerLugares(); // sin la sala, nadie en ningún lugar
+        emit onlineChanged();
+    });
     connect(client_.get(), &ConferenceClient::snapshotChanged, this, &ConferenceViewModel::onSnapshot);
     connect(client_.get(), &ConferenceClient::chatReceived, this,
             [this](const QJsonObject& m) { onChatMsg(m, true); });
@@ -404,18 +408,13 @@ void ConferenceViewModel::onSnapshot() {
     QJsonArray inside;
     QStringList nowWaiting;
     QStringList slotNames;
-    QVariantList sinRetorno;
-    for (int i = 0; i < s.value("maxGuests").toInt(); ++i) {
-        slotNames << QString();
-        sinRetorno << false;
-    }
+    for (int i = 0; i < s.value("maxGuests").toInt(); ++i) slotNames << QString();
     for (const QJsonValue& v : s.value("participants").toArray()) {
         QJsonObject p = v.toObject();
         p.insert("uid", p.value("id")); // "id" no puede ser un rol en QML
         const int slot = p.value("slot").toInt();
         if (p.value("state").toString() == "admitted" && slot >= 1 && slot <= slotNames.size()) {
             slotNames[slot - 1] = p.value("name").toString();
-            sinRetorno[slot - 1] = p.value("retorno").toString() == "apagado";
         }
         if (p.value("state").toString() == "waiting") {
             waiting.append(p);
@@ -467,7 +466,7 @@ void ConferenceViewModel::onSnapshot() {
         it = nowWaiting.contains(*it) ? std::next(it) : intakeDone_.erase(it);
     knownWaiting_ = nowWaiting;
     slotNames_ = slotNames;
-    slotsSinRetorno_ = sinRetorno;
+    rehacerLugares();
     // Adentro, ordenados por slot (coincide con "Invitado N" de las fuentes).
     QList<QJsonObject> sorted;
     for (const QJsonValue& v : inside)
@@ -531,7 +530,7 @@ void ConferenceViewModel::onSnapshot() {
         emit(this->*senal)();
     };
     avisar(firmaSala_, {room(), pin(), guestUrl(), lobby(), locked(), maxGuests(), slotsFree()}, &ConferenceViewModel::salaChanged);
-    avisar(firmaParticipantes_, {peopleConnected(), this->slotNames(), slotsSinRetorno(), participantesPorSlot(), chatTargets()},
+    avisar(firmaParticipantes_, {peopleConnected(), this->slotNames(), chatTargets()},
            &ConferenceViewModel::participantesChanged);
     avisar(firmaUso_, {usage(), clockOffset()}, &ConferenceViewModel::usoChanged);
     avisar(firmaOradoresCfg_, {speakerCfg(), speakerMode()}, &ConferenceViewModel::oradoresCfgChanged);
@@ -686,13 +685,36 @@ QVariantMap ConferenceViewModel::participanteEnSlot(int slot) const {
     return {};
 }
 
-QVariantMap ConferenceViewModel::participantesPorSlot() const {
-    QVariantMap out;
-    for (const QJsonValue& v : client_->snapshot().value("participants").toArray()) {
-        const QJsonObject p = v.toObject();
-        if (const int slot = p.value("slot").toInt(); slot > 0) out[QString::number(slot)] = p.toVariantMap();
+QObject* ConferenceViewModel::lugares() const { return lugares_.get(); }
+
+void ConferenceViewModel::setLugares(int n) {
+    if (n == nLugares_) return;
+    nLugares_ = n;
+    rehacerLugares();
+}
+
+void ConferenceViewModel::rehacerLugares() {
+    QList<QJsonObject> filas;
+    for (int k = 1; k <= nLugares_; ++k) filas << QJsonObject{{"slot", k}, {"nombre", ""}, {"pid", ""}, {"info", ""},
+                                                              {"sinRetorno", false}, {"semaforo", ""}, {"red", QJsonObject{}}};
+    if (online()) {
+        for (const QJsonValue& v : client_->snapshot().value("participants").toArray()) {
+            const QJsonObject p = v.toObject();
+            const int slot = p.value("slot").toInt();
+            if (p.value("state").toString() != "admitted" || slot < 1 || slot > nLugares_) continue;
+            QJsonObject& f = filas[slot - 1];
+            const QJsonObject red = p.value("red").toObject();
+            f["nombre"] = p.value("name").toString();
+            f["pid"] = p.value("id").toString();
+            f["info"] = p.value("info").toString();
+            f["sinRetorno"] = p.value("retorno").toString() == "apagado";
+            f["semaforo"] = red.value("semaforo").toString();
+            f["red"] = red;
+        }
     }
-    return out;
+    QJsonArray items;
+    for (const QJsonObject& f : filas) items.append(f);
+    lugares_->setItems(items); // avisa solo las filas y los roles que cambiaron
 }
 
 QStringList ConferenceViewModel::slotNames() const {
@@ -700,10 +722,6 @@ QStringList ConferenceViewModel::slotNames() const {
     return slotNames_;
 }
 
-QVariantList ConferenceViewModel::slotsSinRetorno() const {
-    if (!online()) return {};
-    return slotsSinRetorno_;
-}
 
 QString ConferenceViewModel::operatorVideo() const { return QString::fromStdString(ventanilla_.foto().sala.operadorVideo); }
 QString ConferenceViewModel::operatorAudio() const { return QString::fromStdString(ventanilla_.foto().sala.operadorAudio); }

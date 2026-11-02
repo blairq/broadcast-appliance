@@ -79,11 +79,11 @@ class ConferenceViewModel : public QObject {
     Q_PROPERTY(int peopleConnected READ peopleConnected NOTIFY participantesChanged)
     /// Nombre del invitado de cada slot (indice slot-1; vacio = libre).
     Q_PROPERTY(QStringList slotNames READ slotNames NOTIFY participantesChanged)
-    /// Por slot (indice slot-1): true si el invitado de ese lugar esta adentro y NO recibe
-    /// retorno (su mix-minus no esta abierto en el gateway: lo publica en su participante).
-    Q_PROPERTY(QVariantList slotsSinRetorno READ slotsSinRetorno NOTIFY participantesChanged)
-    /// Quién está en cada lugar de invitado: {"<slot>": participante (con su red)}.
-    Q_PROPERTY(QVariantMap participantesPorSlot READ participantesPorSlot NOTIFY participantesChanged)
+    /// Los lugares de invitado (1..invitados, uno por fila): slot, nombre, pid (el participante;
+    /// vacío = libre), info, sinRetorno (adentro y su mix-minus no está abierto en el gateway),
+    /// semaforo (verde | ambar | rojo | "") y red {kbps_in, perdida_pct, jitter_ms, rtt_ms, alto}.
+    /// Cada fila avisa solo el rol que le cambió: la red cambia en cada foto y no despierta lo demás.
+    Q_PROPERTY(QObject* lugares READ lugares CONSTANT)
     /// Destinos del chat: [{label, value}] ("all" + cada participante).
     Q_PROPERTY(QVariantList chatTargets READ chatTargets NOTIFY participantesChanged)
     /// Los hilos privados abiertos: [{uid, nombre}]. El chat de la sala no
@@ -142,7 +142,9 @@ class ConferenceViewModel : public QObject {
     int slotsFree() const;
     int peopleConnected() const;
     QStringList slotNames() const;
-    QVariantList slotsSinRetorno() const;
+    QObject* lugares() const;
+    /// Cuántos lugares de invitado muestra la interfaz (los ajustes: el cupo).
+    void setLugares(int n);
     QVariantList chatTargets() const;
     QString operatorVideo() const;
     QString operatorAudio() const;
@@ -256,7 +258,6 @@ class ConferenceViewModel : public QObject {
     Q_INVOKABLE void request(const QString& id, const QString& what);
     /// El participante en el slot (1..invitados): {id, name, red{kbps_in, perdida_pct, jitter_ms, rtt_ms, semaforo}…}; {} si no hay.
     QVariantMap participanteEnSlot(int slot) const;
-    QVariantMap participantesPorSlot() const;
     /// `to`: "all" o el id de un participante.
     Q_INVOKABLE void sendChat(const QString& to, const QString& text);
     Q_INVOKABLE void setLobby(bool on);
@@ -297,7 +298,7 @@ class ConferenceViewModel : public QObject {
     /// avisos por grupo, que salen solo si cambió lo suyo).
     void roomChanged();
     void salaChanged();          ///< room, pin, guestUrl, lobby, locked, maxGuests, slotsFree
-    void participantesChanged(); ///< peopleConnected, slotNames, slotsSinRetorno, participantesPorSlot, chatTargets
+    void participantesChanged(); ///< peopleConnected, slotNames, chatTargets
     void usoChanged();           ///< usage, clockOffset
     void oradoresCfgChanged();   ///< speakerCfg, speakerMode
     void onAirCambio();
@@ -376,7 +377,9 @@ class ConferenceViewModel : public QObject {
     QStringList knownWaiting_;
     QVariantMap network_;
     QStringList slotNames_;
-    QVariantList slotsSinRetorno_;
+    std::unique_ptr<JsonListModel> lugares_;
+    int nLugares_ = 0;
+    void rehacerLugares();
     QVariantList firmaSala_, firmaParticipantes_, firmaUso_, firmaOradoresCfg_; ///< lo último avisado de cada grupo
     qint64 lastSeq_ = 0;
     bool firstSnapshot_ = true;

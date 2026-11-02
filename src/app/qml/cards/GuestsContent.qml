@@ -124,9 +124,18 @@ Item {
             columns: Math.max(1, Math.min(Studio.guests, 2))
             columnSpacing: 8; rowSpacing: 8
             Repeater {
-                model: Studio.guests
+                // Un lugar por fila (ConferenceViewModel::lugares): cada uno se entera solo de lo
+                // suyo, y la red (que cambia en cada foto de la sala) no despierta lo demás.
+                model: Studio.conference.lugares
                 delegate: Rectangle {
+                    id: lugar
                     required property int index
+                    required property string nombre
+                    required property string pid
+                    required property string info
+                    required property bool sinRetorno
+                    required property string semaforo
+                    required property var red
                     Layout.fillWidth: true
                     Layout.fillHeight: true
                     radius: 12
@@ -137,12 +146,12 @@ Item {
                         anchors { left: parent.left; bottom: parent.bottom; margins: 6 }
                         radius: 8; height: 20; width: gl.implicitWidth + 14
                         color: Qt.rgba(0, 0, 0, 0.55)
-                        Text { id: gl; anchors.centerIn: parent; text: Studio.conference.slotNames[index] || qsTr("Invitado %1").arg(index + 1); color: Theme.text; font.pixelSize: 10 }
+                        Text { id: gl; anchors.centerIn: parent; text: lugar.nombre || qsTr("Invitado %1").arg(index + 1); color: Theme.text; font.pixelSize: 10 }
                     }
                     // Sin retorno: su mezcla sin su voz no llega al gateway, y el programa entero no
                     // se le manda (se oiría a sí mismo con demora). Lo publica la sala.
                     Rectangle {
-                        visible: !!Studio.conference.slotsSinRetorno[index]
+                        visible: lugar.sinRetorno
                         anchors { left: parent.left; top: parent.top; margins: 6 }
                         radius: 8; height: 20; width: sinRet.implicitWidth + 14
                         color: Theme.live
@@ -154,34 +163,33 @@ Item {
                     // La red de este invitado: semáforo con las cifras y bajar su calidad.
                     Rectangle {
                         id: semaforo
-                        readonly property var p: Studio.conference.participantesPorSlot[String(index + 1)] || null
-                        readonly property var red: (p && p.red) || ({})
-                        visible: !!(p && p.id)
+                        visible: lugar.pid !== ""
                         anchors { right: parent.right; top: parent.top; margins: 6 }
                         width: 14; height: 14; radius: 7
-                        color: red.semaforo === "rojo" ? Theme.live : red.semaforo === "ambar" ? Theme.amber : red.semaforo === "verde" ? Theme.ok : Theme.textFaint
+                        color: lugar.semaforo === "rojo" ? Theme.live : lugar.semaforo === "ambar" ? Theme.amber : lugar.semaforo === "verde" ? Theme.ok : Theme.textFaint
                         border.color: "white"; border.width: 1
                         ToolTip.visible: semHov.hovered
-                        ToolTip.text: qsTr("Red: %1 kbps · pérdida %2 % · jitter %3 ms · RTT %4 ms")
-                                          .arg(red.kbps_in || 0).arg(red.perdida_pct || 0).arg(red.jitter_ms || 0).arg(red.rtt_ms || 0)
-                                      + (red.alto ? " · " + red.alto + "p" : "")
+                        // Las cifras, solo mientras se las mira (cambian en cada foto).
+                        ToolTip.text: !semHov.hovered ? "" : qsTr("Red: %1 kbps · pérdida %2 % · jitter %3 ms · RTT %4 ms")
+                                          .arg(lugar.red.kbps_in || 0).arg(lugar.red.perdida_pct || 0).arg(lugar.red.jitter_ms || 0).arg(lugar.red.rtt_ms || 0)
+                                      + (lugar.red.alto ? " · " + lugar.red.alto + "p" : "")
                         HoverHandler { id: semHov }
                         TapHandler { onTapped: calidadMenu.popup() }
                         Menu {
                             id: calidadMenu
-                            MenuItem { text: qsTr("Bajar a %1").arg("720p"); onTriggered: Studio.conference.request(semaforo.p.id, "calidad-720p") }
-                            MenuItem { text: qsTr("Bajar a %1").arg("360p"); onTriggered: Studio.conference.request(semaforo.p.id, "calidad-360p") }
-                            MenuItem { text: qsTr("Calidad completa"); onTriggered: Studio.conference.request(semaforo.p.id, "calidad-max") }
+                            MenuItem { text: qsTr("Bajar a %1").arg("720p"); onTriggered: Studio.conference.request(lugar.pid, "calidad-720p") }
+                            MenuItem { text: qsTr("Bajar a %1").arg("360p"); onTriggered: Studio.conference.request(lugar.pid, "calidad-360p") }
+                            MenuItem { text: qsTr("Calidad completa"); onTriggered: Studio.conference.request(lugar.pid, "calidad-max") }
                             MenuSeparator {}
                             MenuItem {
                                 text: qsTr("Grabar aparte (ISO)")
-                                onTriggered: Studio.emision.isoInvitadoUi(semaforo.p.id)
+                                onTriggered: Studio.emision.isoInvitadoUi(lugar.pid)
                             }
                             MenuSeparator {}
                             MenuItem {
-                                text: qsTr("Aprobar su cargo para el zócalo: «%1»").arg((semaforo.p && semaforo.p.info) || "—")
-                                enabled: !!(semaforo.p && semaforo.p.info)
-                                onTriggered: { const e = Studio.sala.aprobarInfoInvitado(semaforo.p.id, ""); Studio.notify(e !== "" ? e : qsTr("Cargo aprobado para el zócalo"), e !== "" ? "error" : "info") }
+                                text: qsTr("Aprobar su cargo para el zócalo: «%1»").arg(lugar.info || "—")
+                                enabled: lugar.info !== ""
+                                onTriggered: { const e = Studio.sala.aprobarInfoInvitado(lugar.pid, ""); Studio.notify(e !== "" ? e : qsTr("Cargo aprobado para el zócalo"), e !== "" ? "error" : "info") }
                             }
                         }
                     }
