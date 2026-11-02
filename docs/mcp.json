@@ -8,10 +8,10 @@
     "«hay acople» llegue a audio_set sin que nadie nombre la herramienta."
   ],
   "fuente": "codigo",
-  "cuantas": 817,
+  "cuantas": 818,
   "por_clase": {
     "lectura": 269,
-    "escritura": 482,
+    "escritura": 483,
     "aire": 50,
     "ui": 16
   },
@@ -543,6 +543,7 @@
         "crear_fuente",
         "escena_fuentes_ver",
         "grilla_personas_ajustar",
+        "grilla_personas_destacar",
         "grilla_personas_devolver",
         "grilla_personas_estado",
         "grilla_personas_fijar",
@@ -17397,7 +17398,7 @@
       "nombre": "grilla_personas_ajustar",
       "titulo": "Cambiar los ajustes de una grilla de personas",
       "categoria": "fuentes",
-      "descripcion": "Cambia los ajustes de una fuente «Grilla de personas» (los mismos de la ventana Propiedades). Solo los que vienen; se validan todos antes de tocar nada. origen (sala|asamblea|ambas), orden (llegada|habla|prioridad), tope (celdas con el «+N», 0 = sin tope), solo_con_camara, sin_al_aire (sin los que ya están al aire en otra fuente o en otra grilla que se ve, contando las escenas de las capas DSK), resaltar (a quien habla), grupo (las grillas con el mismo grupo se reparten la gente sin repetir; \"\" = sola), orden_en_grupo (la primera manda el orden y el modo), reparto (en_orden: llena la primera hasta su tope; parejo: la misma cantidad en cada una), ancho, alto, proporcion (16:9|4:3|1:1|3:4|9:16|llenar), separacion, margen, transicion_ms, fondo y color_resaltar (\"#AARRGGBB\").",
+      "descripcion": "Cambia los ajustes de una fuente «Grilla de personas» (los mismos de la ventana Propiedades). Solo los que vienen; se validan todos antes de tocar nada. origen (sala|asamblea|ambas), orden (llegada|habla|prioridad), tope (celdas con el «+N», 0 = sin tope), solo_con_camara, sin_al_aire (sin los que ya están al aire en otra fuente o en otra grilla que se ve, contando las escenas de las capas DSK), resaltar (a quien habla), grupo (las grillas con el mismo grupo se reparten la gente sin repetir; \"\" = sola), orden_en_grupo (la primera manda el orden y el modo), reparto (en_orden: llena la primera hasta su tope; parejo: la misma cantidad en cada una), ancho, alto, proporcion (16:9|4:3|1:1|3:4|9:16|llenar), separacion, margen, transicion_ms, fondo y color_resaltar (\"#AARRGGBB\"). Cuando alguien habla: al_hablar (resaltar: nadie se mueve, borde y un leve agrandado | destacar: el orador grande y los demás en una franja, en el mismo orden | superponer: el orador encima en un hueco que le deja la grilla | escena: la grilla no cambia y otra grilla con muestra=orador lo muestra solo | nada), disparo (voz: voz sostenida voz_ms | palabra: la palabra de la asamblea | orador: el orador al aire de la conferencia | manual: grilla_personas_destacar), voz_ms, minimo_ms (el orador no cambia antes: histéresis), precarga (el siguiente ya pide la capa alta), destacar_lugar (centro|izquierda), destacar_tamano (% del lienzo), franja (abajo|costado), superponer_tamano, superponer_completa, fundido_ms (de la baja a la HD). Nombres: nombres (no|nombre|nombre_cargo), nombre_tamano (% del alto de la celda), nombre_color, nombre_fondo, nombre_lugar (abajo|arriba). muestra (todos|orador) y sigue (la grilla cuyo orador muestra; \"\" = la primera que tenga): la escena del orador.",
       "esquema": {
         "type": "object",
         "required": [
@@ -17426,7 +17427,47 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpGrillaTools.cpp",
-        "linea": 60
+        "linea": 69
+      },
+      "roles": [
+        "asistente",
+        "escenografo",
+        "tecnico"
+      ]
+    },
+    {
+      "nombre": "grilla_personas_destacar",
+      "titulo": "Elegir a mano el orador de una grilla de personas",
+      "categoria": "fuentes",
+      "descripcion": "Hace orador de una grilla a una persona, en el acto y aunque el disparo diga otra cosa: se la muestra como diga «al_hablar» (destacada, resaltada, superpuesta o en la escena del orador) y se le pide su cámara en alta (entra con un fundido desde la baja). Con clave vacía, el orador lo vuelve a decidir el disparo.",
+      "esquema": {
+        "type": "object",
+        "required": [
+          "fuente"
+        ],
+        "properties": {
+          "fuente": {
+            "type": "string",
+            "description": "el nombre de la fuente ba_grilla"
+          },
+          "clave": {
+            "type": "string",
+            "description": "la persona (sala:<id> o asamblea:<id>); vacía = que lo decida el disparo"
+          }
+        }
+      },
+      "clase": "escritura",
+      "hilo": "interfaz",
+      "soloLectura": false,
+      "destructiva": false,
+      "idempotente": true,
+      "etiquetas": {
+        "propias": "destacar orador agrandar poner grande al que habla elegir quien habla resaltar foco",
+        "porPrefijo": "grilla mosaico galeria cuadricula personas gente conectados invitados integrantes caras todos a la vez reparto"
+      },
+      "donde": {
+        "archivo": "src/app/mcp/McpGrillaTools.cpp",
+        "linea": 151
       },
       "roles": [
         "asistente",
@@ -17467,7 +17508,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpGrillaTools.cpp",
-        "linea": 135
+        "linea": 144
       },
       "roles": [
         "asistente",
@@ -17495,7 +17536,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpGrillaTools.cpp",
-        "linea": 33
+        "linea": 42
       },
       "roles": [
         "asistente",
@@ -17537,7 +17578,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpGrillaTools.cpp",
-        "linea": 112
+        "linea": 121
       },
       "roles": [
         "asistente",
@@ -17583,7 +17624,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpGrillaTools.cpp",
-        "linea": 126
+        "linea": 135
       },
       "roles": [
         "asistente",
@@ -17624,7 +17665,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpGrillaTools.cpp",
-        "linea": 119
+        "linea": 128
       },
       "roles": [
         "asistente",
