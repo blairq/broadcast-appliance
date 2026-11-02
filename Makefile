@@ -55,7 +55,7 @@ endif
 PY        ?= .venv/bin/python
 PIP       ?= .venv/bin/pip
 
-.PHONY: test-rapido test-completo deps-win-todo deps-linux-todo dist-win-zip dist-linux-tar app-macos-rapida modelo-mac deps-mlx-swift-lm publicar subir dist-linux-docker dist-win-docker publicar-macos publicar-linux publicar-win app-macos dmg-macos check-macos-tools deps-macos deps-lsp-macos deps-lspdsp-win deps-lspdsp-linux deps-lspdsp-macos macos release-macos dist-macos deps-lsp-win deps-clap deps-ndi-src deps-terceros-linux deps-linux test-win deps-win deps-win-toolchain deps-webrtc-win release-win dist-win dist-linux deps-lwip deps-cacert help dev build prod test test-unit pytest test-all lint docs release win deps-cloudflared-host deps-qt-host deps-pinggy deps-pinggy-win \
+.PHONY: deps-hinchada test-rapido test-completo deps-win-todo deps-linux-todo dist-win-zip dist-linux-tar app-macos-rapida modelo-mac deps-mlx-swift-lm publicar subir dist-linux-docker dist-win-docker publicar-macos publicar-linux publicar-win app-macos dmg-macos check-macos-tools deps-macos deps-lsp-macos deps-lspdsp-win deps-lspdsp-linux deps-lspdsp-macos macos release-macos dist-macos deps-lsp-win deps-clap deps-ndi-src deps-terceros-linux deps-linux test-win deps-win deps-win-toolchain deps-webrtc-win release-win dist-win dist-linux deps-lwip deps-cacert help dev build prod test test-unit pytest test-all lint docs release win deps-cloudflared-host deps-qt-host deps-pinggy deps-pinggy-win \
         clean clean-all \
         deps deps-descargas deps-qt deps-webrtc deps-spout deps-cloudflared deps-vcredist \
         deps-lsp deps-status deps-clean deps-craft deps-craft-linux deps-craft-win deps-craft-mac deps-fuentes-texto \
@@ -325,7 +325,7 @@ deps-win:
 deps-win-todo: deps-win-toolchain deps-qt deps-qt-host deps-ndi-src deps-webrtc-win \
           deps-src deps-lwip deps-cacert deps-libvterm deps-fonts deps-cloudflared deps-pinggy-win deps-clap deps-lsp-win deps-lspdsp-win \
           deps-craft-win deps-fuentes-texto deps-herramientas-win deps-gstreamer-win deps-gstreamer-win-pdb deps-python-win deps-gst-python-win \
-          deps-rostros deps-onnxruntime-win deps-sherpa-onnx-win deps-ncnn-win deps-llamacpp-win deps-chrome-headless-win
+          deps-rostros deps-onnxruntime-win deps-sherpa-onnx-win deps-ncnn-win deps-llamacpp-win deps-chrome-headless-win deps-hinchada
 
 # Plugins LSP (CLAP) para Windows: compilados desde fuente (tools/deps/lsp-win.sh).
 deps-lsp-win: deps-win-toolchain
@@ -405,7 +405,7 @@ deps-linux:
 
 deps-linux-todo: deps-terceros-linux deps-qt-host deps-src deps-lwip deps-cacert deps-libvterm deps-fonts deps-cloudflared-host deps-pinggy \
             deps-clap deps-lsp deps-lspdsp-linux deps-craft-linux deps-fuentes-texto deps-sherpa-onnx deps-herramientas deps-gstreamer-linux deps-python \
-            deps-llamacpp-linux deps-chrome-headless-linux
+            deps-llamacpp-linux deps-chrome-headless-linux deps-hinchada
 	$(MAKE) deps-webrtc BA_WEBRTC_TARGET=linux
 
 # --- macOS arm64 (Apple Silicon), nativo -------------------------------------
@@ -431,7 +431,7 @@ check-macos-tools:
 # deps-ndi-src: el fuente de libmicrodns (buscar televisores por mDNS); en
 # Linux viene compilada con las de terceros (deps-terceros-linux).
 deps-macos: check-macos-tools deps-qt-host deps-src deps-lwip deps-cacert deps-libvterm deps-fonts deps-chrome-headless \
-            deps-cloudflared-host deps-pinggy deps-clap deps-ndi-src deps-craft-mac deps-fuentes-texto deps-sherpa-onnx deps-gstreamer-macos deps-python deps-gst-python-mac deps-herramientas
+            deps-cloudflared-host deps-pinggy deps-clap deps-ndi-src deps-craft-mac deps-fuentes-texto deps-sherpa-onnx deps-gstreamer-macos deps-python deps-gst-python-mac deps-herramientas deps-hinchada
 	$(MAKE) deps-webrtc BA_WEBRTC_TARGET=macos
 	@# LSP (modulos del rack de audio) es opcional en macOS mientras se valida:
 	@# sin el, el rack funciona con el analizador y el generador.
@@ -1164,6 +1164,24 @@ deps-pinggy:
 
 deps-pinggy-win:
 	tools/deps/pinggy.sh windows-x86_64
+
+# hinchada: el probador de carga WebRTC (prueba de sala, docs/funciones/PRUEBA-SALA.md).
+# Es un proyecto hermano (../hinchada, o HINCHADA_DIR): se toman sus paquetes ya armados
+# (`make -C ../hinchada paquete`) y quedan en extern/hinchada/<plataforma>; el bundle lo
+# lleva en bin/64bit/hinchada/. La Mac copia la carpeta del paquete; Linux y Windows, sus .tar.gz.
+HINCHADA_DIR ?= $(abspath $(CURDIR)/../hinchada)
+deps-hinchada:
+	@test -d "$(HINCHADA_DIR)/dist" || { echo "[deps] ERROR hinchada: no está $(HINCHADA_DIR)/dist ('make -C $(HINCHADA_DIR) paquete' o HINCHADA_DIR=…)" >&2; exit 1; }
+	@mkdir -p "$(EXTERNS_DIR)/hinchada"
+	@if [ -d "$(HINCHADA_DIR)/dist/hinchada-macos-arm64" ]; then \
+	  rm -rf "$(EXTERNS_DIR)/hinchada/macos-arm64" && cp -R "$(HINCHADA_DIR)/dist/hinchada-macos-arm64" "$(EXTERNS_DIR)/hinchada/macos-arm64" && \
+	  echo "[deps] hinchada macos-arm64: $$(cat "$(EXTERNS_DIR)/hinchada/macos-arm64/VERSION" 2>/dev/null)"; fi
+	@for p in linux-x86_64 windows-x86_64; do \
+	  t="$(HINCHADA_DIR)/dist/hinchada-$$p.tar.gz"; \
+	  if [ -f "$$t" ]; then rm -rf "$(EXTERNS_DIR)/hinchada/$$p" "$(EXTERNS_DIR)/hinchada/hinchada-$$p" && \
+	    tar -xzf "$$t" -C "$(EXTERNS_DIR)/hinchada" && mv "$(EXTERNS_DIR)/hinchada/hinchada-$$p" "$(EXTERNS_DIR)/hinchada/$$p" && \
+	    echo "[deps] hinchada $$p: $$(cat "$(EXTERNS_DIR)/hinchada/$$p/VERSION" 2>/dev/null)"; fi; \
+	done
 
 # cloudflared del host (Linux amd64/arm64 o macOS arm64), verificado por
 # SHA-256. En macOS el asset es un .tgz con el binario adentro.

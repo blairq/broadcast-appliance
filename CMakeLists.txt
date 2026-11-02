@@ -414,6 +414,27 @@ else()
     ba_falta("Túnel de Cloudflare (cloudflared)" "falta el binario ('make deps-cloudflared-host')")
 endif()
 
+# hinchada: el probador de carga de la prueba de sala (docs/funciones/PRUEBA-SALA.md).
+# `make deps-hinchada` lo deja en extern/hinchada/<plataforma> (o -DBA_HINCHADA_DIR=).
+if(APPLE)
+    set(_ba_hinchada_plat macos-arm64)
+    set(_ba_hinchada_exe hinchada)
+elseif(WIN32)
+    set(_ba_hinchada_plat windows-x86_64)
+    set(_ba_hinchada_exe hinchada.exe)
+else()
+    set(_ba_hinchada_plat linux-x86_64)
+    set(_ba_hinchada_exe hinchada)
+endif()
+set(BA_HINCHADA_DIR "${CMAKE_SOURCE_DIR}/extern/hinchada/${_ba_hinchada_plat}" CACHE PATH "El paquete de hinchada (prueba de sala)")
+if(EXISTS "${BA_HINCHADA_DIR}/${_ba_hinchada_exe}")
+    install(PROGRAMS "${BA_HINCHADA_DIR}/${_ba_hinchada_exe}" DESTINATION bin/64bit/hinchada COMPONENT bundle)
+    install(FILES "${BA_HINCHADA_DIR}/cacert.pem" "${BA_HINCHADA_DIR}/README.md" DESTINATION bin/64bit/hinchada COMPONENT bundle OPTIONAL)
+    message(STATUS "ba-bundle: hinchada incluido (${BA_HINCHADA_DIR})")
+else()
+    ba_falta("Prueba de sala con el probador propio (hinchada)" "falta el paquete ('make deps-hinchada')")
+endif()
+
 # chrome-headless-shell (Chrome for Testing, sin ventana): las fotos de las páginas web
 # del aparato (web_captura: los manuales, y el asistente para ver lo que edita). Lo baja
 # `make deps-chrome-headless` (tools/deps/chrome-headless.sh). En Linux trae en lib/ las

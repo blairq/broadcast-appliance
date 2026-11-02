@@ -833,6 +833,18 @@ const Fila kPropias[] = {
     //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
     {"room_set", QT_TRANSLATE_NOOP("mcp-etiquetas", "configurar sala configurar conferencia cupo cerrar abrir limite")},
     //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
+    {"prueba_sala_arrancar", QT_TRANSLATE_NOOP("mcp-etiquetas", "prueba de sala simulacro prueba de carga ensayo con gente participantes de prueba hinchada aguanta la maquina la red")},
+    //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
+    {"prueba_sala_parar", QT_TRANSLATE_NOOP("mcp-etiquetas", "terminar parar cortar prueba de sala simulacro limpiar participantes de prueba")},
+    //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
+    {"prueba_sala_entrada_directa", QT_TRANSLATE_NOOP("mcp-etiquetas", "entrada directa para todos sin lobby dejar entrar a todos prueba de sala")},
+    //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
+    {"prueba_sala_estado", QT_TRANSLATE_NOOP("mcp-etiquetas", "como va la prueba de sala simulacro ancho de banda cpu conectados fallidos cortes")},
+    //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
+    {"prueba_sala_revisar", QT_TRANSLATE_NOOP("mcp-etiquetas", "aguanta la maquina memoria disponible carga guardia antes de la prueba de sala")},
+    //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
+    {"prueba_sala_informe", QT_TRANSLATE_NOOP("mcp-etiquetas", "informe resultado de la prueba de sala simulacro como salio")},
+    //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
     {"room_pin", QT_TRANSLATE_NOOP("mcp-etiquetas", "pin clave codigo de acceso contrasena de la sala de la conferencia")},
     //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
     {"room_link", QT_TRANSLATE_NOOP("mcp-etiquetas", "enlace invitacion link para entrar compartir acceso url de la sala url de la conferencia")},
