@@ -13,7 +13,7 @@
 #   hilos        "ba-gateway:<pid>" → {nombre: [cpu_pct, csw_s, n]}: cada hilo por su NOMBRE
 #                (GetThreadDescription, el que pone ba::platform::nombrarHilo; los dígitos van
 #                como «#» y `n` dice cuántos hilos tienen ese nombre); CPU en % de un núcleo y
-#                cambios de contexto/s (Win32_PerfRawData_PerfProc_Thread)
+#                cambios de contexto/s (NtQuerySystemInformation: rápido; WMI tardaba 15-20 s)
 #   nucleos      por núcleo lógico (Processor Information): [ocupado_pct, dpc_pct, irq_pct,
 #                interrupciones_s, dpcs_s, mhz] (mhz: la frecuencia efectiva, ActualFrequency)
 # La PRIMERA línea es {"t", "rss": […], "adaptadores": […]}: a qué núcleos manda la placa de
@@ -46,6 +46,49 @@ public static class BaHilos {
             return s ?? "";
         } finally { CloseHandle(h); }
     }
+
+    // Los hilos de los procesos pedidos, de UNA llamada a NtQuerySystemInformation
+    // (SystemProcessInformation, lo que usa el Administrador de tareas): tiempo de CPU (100 ns) y
+    // cambios de contexto acumulados por hilo. WMI (Win32_PerfRawData_PerfProc_Thread) tardaba
+    // 15-20 s por muestra con 300 hilos en el gateway y gastaba ~85 % de un núcleo en WmiPrvSE.
+    public class Hilo { public int IDProcess; public uint IDThread; public long PercentProcessorTime; public long ContextSwitchesPerSec; public long Timestamp_Sys100NS; }
+    [DllImport("ntdll.dll")] static extern int NtQuerySystemInformation(int clase, IntPtr buf, int largo, out int necesita);
+    public static Hilo[] Hilos(int[] pids) {
+        var quiero = new System.Collections.Generic.HashSet<long>();
+        foreach (var x in pids) quiero.Add(x);
+        int largo = 1 << 22; IntPtr buf = IntPtr.Zero;
+        try {
+            for (;;) {
+                buf = Marshal.AllocHGlobal(largo);
+                int nec;
+                int st = NtQuerySystemInformation(5, buf, largo, out nec); // SystemProcessInformation
+                if (st == 0) break;
+                Marshal.FreeHGlobal(buf); buf = IntPtr.Zero;
+                if ((uint)st != 0xC0000004u) return new Hilo[0];           // STATUS_INFO_LENGTH_MISMATCH: más grande
+                largo = Math.Max(largo * 2, nec + (1 << 20));
+            }
+            long ahora = DateTime.UtcNow.Ticks;
+            var out_ = new System.Collections.Generic.List<Hilo>();
+            int off = 0;
+            for (;;) {
+                IntPtr p = IntPtr.Add(buf, off);
+                int sig = Marshal.ReadInt32(p, 0);
+                int nh = Marshal.ReadInt32(p, 4);
+                long pid = Marshal.ReadInt64(p, 80);                         // UniqueProcessId (x64)
+                if (quiero.Contains(pid)) {
+                    for (int i = 0; i < nh; i++) {
+                        IntPtr h = IntPtr.Add(p, 0x100 + i * 0x50);           // SYSTEM_THREAD_INFORMATION (x64)
+                        out_.Add(new Hilo { IDProcess = (int)pid, IDThread = (uint)Marshal.ReadInt64(h, 48),
+                            PercentProcessorTime = Marshal.ReadInt64(h, 0) + Marshal.ReadInt64(h, 8),
+                            ContextSwitchesPerSec = (uint)Marshal.ReadInt32(h, 64), Timestamp_Sys100NS = ahora });
+                    }
+                }
+                if (sig == 0) break;
+                off += sig;
+            }
+            return out_.ToArray();
+        } finally { if (buf != IntPtr.Zero) Marshal.FreeHGlobal(buf); }
+    }
 }
 "@
 $NombresHilo = @{}
@@ -66,9 +109,9 @@ function Leer {
         Select-Object Name, IDProcess, PercentProcessorTime, Timestamp_Sys100NS, ThreadCount, WorkingSet, PrivateBytes)
     $s.hilos = @{}
     $s.porHilo = @{}
+    $todos = [BaHilos]::Hilos([int[]]@($s.procs | ForEach-Object { [int]$_.IDProcess }))
     foreach ($p in $s.procs) {
-        $hs = @(Get-CimInstance Win32_PerfRawData_PerfProc_Thread -Filter "IDProcess = $($p.IDProcess)" |
-            Select-Object IDThread, PercentProcessorTime, ContextSwitchesPerSec, Timestamp_Sys100NS)
+        $hs = @($todos | Where-Object { $_.IDProcess -eq [int]$p.IDProcess })
         $s.hilos[[int]$p.IDProcess] = ($hs | Measure-Object ContextSwitchesPerSec -Sum).Sum
         $s.porHilo[[int]$p.IDProcess] = $hs
     }
