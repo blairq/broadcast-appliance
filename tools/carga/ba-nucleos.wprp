@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  tools/carga/ba-nucleos.wprp — perfil de WPR (Windows Performance Recorder) para etw-win.ps1
+
+  Solo lo que hace falta para la tabla «núcleo lógico → hilos que corrieron ahí → % del
+  tiempo» y las interrupciones: procesos e hilos (con sus nombres), DPC e ISR (las interrupciones de la placa
+  de red y las demás) y el muestreo de CPU (1 ms). SIN pilas: así 20 s en régimen son unos
+  cientos de MB y no varios GB.
+  Uso: wpr -start C:\ba-pruebas\ba-nucleos.wprp!BA.Nucleos -filemode   …   wpr -stop salida.etl
+-->
+<WindowsPerformanceRecorder Version="1.0" Author="BroadcastAppliance" Comments="F0 de PLAN-GATEWAY-FRAGMENTOS">
+  <Profiles>
+    <SystemCollector Id="SC_BA" Name="NT Kernel Logger">
+      <BufferSize Value="1024"/>
+      <Buffers Value="512"/>
+    </SystemCollector>
+    <SystemProvider Id="SP_BA">
+      <Keywords>
+        <Keyword Value="ProcessThread"/>
+        <Keyword Value="DPC"/>
+        <Keyword Value="Interrupt"/>
+        <Keyword Value="SampledProfile"/>
+      </Keywords>
+    </SystemProvider>
+    <Profile Id="BA.Nucleos.Verbose.File" Name="BA.Nucleos" Description="Núcleos, hilos, DPC e ISR (sin pilas)" LoggingMode="File" DetailLevel="Verbose">
+      <Collectors>
+        <SystemCollectorId Value="SC_BA">
+          <SystemProviderId Value="SP_BA"/>
+        </SystemCollectorId>
+      </Collectors>
+    </Profile>
+  </Profiles>
+</WindowsPerformanceRecorder>

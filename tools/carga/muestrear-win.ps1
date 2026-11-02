@@ -10,6 +10,14 @@
 #   red          entra_mbps / sale_mbps de los adaptadores (sin los virtuales ni el loopback)
 #   memoria      disponible_mb, comprometida_mb
 #   cpu_maquina  user/sys/idle de toda la máquina (como top)
+#   hilos        "ba-gateway:<pid>" → {nombre: [cpu_pct, csw_s, n]}: cada hilo por su NOMBRE
+#                (GetThreadDescription, el que pone ba::platform::nombrarHilo; los dígitos van
+#                como «#» y `n` dice cuántos hilos tienen ese nombre); CPU en % de un núcleo y
+#                cambios de contexto/s (Win32_PerfRawData_PerfProc_Thread)
+#   nucleos      por núcleo lógico (Processor Information): [ocupado_pct, dpc_pct, irq_pct,
+#                interrupciones_s, dpcs_s, mhz] (mhz: la frecuencia efectiva, ActualFrequency)
+# La PRIMERA línea es {"t", "rss": […], "adaptadores": […]}: a qué núcleos manda la placa de
+# red sus colas (Get-NetAdapterRss) y la velocidad de cada adaptador.
 # Todo por WMI con las clases «Raw» (los contadores de rendimiento tienen nombres en castellano;
 # WMI no) y las diferencias las saca este script. Lo lanza medir-sala.py por ssh:
 #   ssh windows powershell -NoProfile -ExecutionPolicy Bypass -File C:\ba-pruebas\muestrear-win.ps1 -Segundos 300
@@ -18,6 +26,38 @@ $ErrorActionPreference = "SilentlyContinue"
 $Nombres = @($Nombres | ForEach-Object { $_ -split "," } | Where-Object { $_ })  # por -File llega "a,b" entero
 [Console]::OutputEncoding = [Text.Encoding]::UTF8
 
+# Los nombres de los hilos (GetThreadDescription, Windows 10 1607+): se cachean por id de hilo.
+Add-Type -TypeDefinition @"
+using System;
+using System.Runtime.InteropServices;
+public static class BaHilos {
+    [DllImport("kernel32.dll")] static extern IntPtr OpenThread(uint acceso, bool hereda, uint tid);
+    [DllImport("kernel32.dll")] static extern bool CloseHandle(IntPtr h);
+    [DllImport("kernel32.dll")] static extern int GetThreadDescription(IntPtr h, out IntPtr texto);
+    [DllImport("kernel32.dll")] static extern IntPtr LocalFree(IntPtr p);
+    public static string Nombre(uint tid) {
+        IntPtr h = OpenThread(0x0800, false, tid); // THREAD_QUERY_LIMITED_INFORMATION
+        if (h == IntPtr.Zero) return "";
+        try {
+            IntPtr p;
+            if (GetThreadDescription(h, out p) < 0 || p == IntPtr.Zero) return "";
+            string s = Marshal.PtrToStringUni(p);
+            LocalFree(p);
+            return s ?? "";
+        } finally { CloseHandle(h); }
+    }
+}
+"@
+$NombresHilo = @{}
+function NombreHilo([uint32]$tid) {
+    if (-not $NombresHilo.ContainsKey($tid)) {
+        $n = [BaHilos]::Nombre($tid)
+        if (-not $n) { $n = "(sin nombre)" }
+        $NombresHilo[$tid] = ($n -replace "\d+", "#")
+    }
+    return $NombresHilo[$tid]
+}
+
 function EsNuestro([string]$n) { foreach ($x in $Nombres) { if ($n -eq $x -or $n -like "$x#*") { return $true } }; return $false }
 
 function Leer {
@@ -25,11 +65,16 @@ function Leer {
     $s.procs = @(Get-CimInstance Win32_PerfRawData_PerfProc_Process | Where-Object { EsNuestro $_.Name } |
         Select-Object Name, IDProcess, PercentProcessorTime, Timestamp_Sys100NS, ThreadCount, WorkingSet, PrivateBytes)
     $s.hilos = @{}
+    $s.porHilo = @{}
     foreach ($p in $s.procs) {
-        $base = ($p.Name -split "#")[0]
-        $s.hilos[[int]$p.IDProcess] = (Get-CimInstance Win32_PerfRawData_PerfProc_Thread -Filter "IDProcess = $($p.IDProcess)" |
-            Measure-Object ContextSwitchesPerSec -Sum).Sum
+        $hs = @(Get-CimInstance Win32_PerfRawData_PerfProc_Thread -Filter "IDProcess = $($p.IDProcess)" |
+            Select-Object IDThread, PercentProcessorTime, ContextSwitchesPerSec, Timestamp_Sys100NS)
+        $s.hilos[[int]$p.IDProcess] = ($hs | Measure-Object ContextSwitchesPerSec -Sum).Sum
+        $s.porHilo[[int]$p.IDProcess] = $hs
     }
+    $s.nucleos = @(Get-CimInstance Win32_PerfRawData_Counters_ProcessorInformation | Where-Object { $_.Name -notmatch "_Total" } |
+        Select-Object Name, PercentProcessorTime, PercentDPCTime, PercentInterruptTime, InterruptsPersec, DPCsQueuedPersec,
+            ActualFrequency, ActualFrequency_Base, Timestamp_Sys100NS)
     $s.gpu = @(Get-CimInstance Win32_PerfRawData_GPUPerformanceCounters_GPUEngine | Select-Object Name, RunningTime)
     $s.gpumem = @(Get-CimInstance Win32_PerfRawData_GPUPerformanceCounters_GPUProcessMemory | Select-Object Name, DedicatedUsage, SharedUsage)
     $s.red = @(Get-CimInstance Win32_PerfRawData_Tcpip_NetworkInterface | Where-Object { $_.Name -notmatch "isatap|Loopback|Teredo|WAN Miniport|Virtual|vEthernet" } |
@@ -43,6 +88,17 @@ function Leer {
 function PidDe([string]$n) { if ($n -match "pid_(\d+)_") { return [int]$Matches[1] }; return -1 }
 function TipoDe([string]$n) { if ($n -match "engtype_(.+)$") { return $Matches[1] }; return "?" }
 function MotorDe([string]$n) { if ($n -match "(luid_.*_eng_\d+)") { return $Matches[1] }; return $n }
+
+# Una vez al empezar: la placa de red (RSS: qué núcleos atienden sus colas) y los adaptadores.
+$rss = @(Get-NetAdapterRss | Select-Object Name, InterfaceDescription, Enabled, NumberOfReceiveQueues, Profile,
+    BaseProcessorNumber, MaxProcessorNumber, MaxProcessors,
+    @{ n = "Procesadores"; e = { ($_.RssProcessorArray | ForEach-Object { "$($_.ProcessorGroup):$($_.ProcessorNumber)" }) -join " " } })
+$adap = @(Get-NetAdapter | Where-Object Status -eq "Up" | Select-Object Name, InterfaceDescription, LinkSpeed)
+# Algunas placas (la I225-V de la .177) no salen en Get-NetAdapterRss: lo de RSS en sus propiedades avanzadas.
+$rssAv = @(Get-NetAdapterAdvancedProperty -Name ($adap | ForEach-Object Name) -ErrorAction SilentlyContinue |
+    Where-Object { $_.RegistryKeyword -match "RSS|Rss|Interrupt|Moderation" } | Select-Object Name, DisplayName, DisplayValue)
+[Console]::Out.WriteLine((@{ t = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds() / 1000.0; rss = $rss; rss_avanzado = $rssAv; adaptadores = $adap } | ConvertTo-Json -Compress -Depth 5))
+[Console]::Out.Flush()
 
 $ant = Leer
 $fin = (Get-Date).AddSeconds($Segundos)
@@ -64,6 +120,44 @@ while ((Get-Date) -lt $fin) {
         $o.procesos["${base}:$($p.IDProcess)"] = [ordered]@{ pid = [int]$p.IDProcess; cpu_pct = $cpu; rss_mb = [math]::Round($p.WorkingSet / 1MB);
             privados_mb = [math]::Round($p.PrivateBytes / 1MB); hilos = [int]$p.ThreadCount; csw_s = $csw }
     }
+    # Cada hilo por su nombre: CPU (% de un núcleo) y cambios de contexto/s, sumados por nombre.
+    $o.hilos = [ordered]@{}
+    foreach ($p in $act.procs) {
+        $id = [int]$p.IDProcess
+        if (-not $ant.porHilo.ContainsKey($id)) { continue }
+        $prevH = @{}; foreach ($h in $ant.porHilo[$id]) { $prevH[[uint32]$h.IDThread] = $h }
+        $porNombre = @{}
+        foreach ($h in $act.porHilo[$id]) {
+            $q = $prevH[[uint32]$h.IDThread]
+            if (-not $q) { continue }
+            $dth = [math]::Max(1, $h.Timestamp_Sys100NS - $q.Timestamp_Sys100NS)
+            $cpuH = [math]::Max(0, ($h.PercentProcessorTime - $q.PercentProcessorTime) / $dth * 100)
+            $cswH = [math]::Max(0, ($h.ContextSwitchesPerSec - $q.ContextSwitchesPerSec) / ($dth / 1e7))
+            $nom = NombreHilo ([uint32]$h.IDThread)
+            if (-not $porNombre.ContainsKey($nom)) { $porNombre[$nom] = @(0.0, 0.0, 0) }
+            $porNombre[$nom][0] += $cpuH; $porNombre[$nom][1] += $cswH; $porNombre[$nom][2] += 1
+        }
+        $base = ($p.Name -split "#")[0]
+        $m = [ordered]@{}
+        foreach ($k in $porNombre.Keys) { $v = $porNombre[$k]; $m[$k] = @([math]::Round($v[0], 1), [math]::Round($v[1]), $v[2]) }
+        $o.hilos["${base}:$id"] = $m
+    }
+    # Cada núcleo lógico: ocupado, DPC e interrupciones (% del núcleo), interrupciones/s, DPC/s y MHz.
+    $prevN = @{}; foreach ($n in $ant.nucleos) { $prevN[$n.Name] = $n }
+    $nuc = @()
+    foreach ($n in ($act.nucleos | Sort-Object { $gc = $_.Name -split ","; [int]$gc[0] * 1000 + [int]$gc[1] })) {
+        $q = $prevN[$n.Name]
+        if (-not $q) { continue }
+        $dtn = [math]::Max(1, $n.Timestamp_Sys100NS - $q.Timestamp_Sys100NS)
+        $seg = $dtn / 1e7
+        $libre = ($n.PercentProcessorTime - $q.PercentProcessorTime) / $dtn * 100  # contador invertido: el ocioso
+        $fb = $n.ActualFrequency_Base - $q.ActualFrequency_Base
+        $mhz = $null; if ($fb -gt 0) { $mhz = [math]::Round(($n.ActualFrequency - $q.ActualFrequency) / $fb) }
+        $nuc += , @([math]::Round([math]::Max(0, 100 - $libre), 1), [math]::Round(($n.PercentDPCTime - $q.PercentDPCTime) / $dtn * 100, 2),
+            [math]::Round(($n.PercentInterruptTime - $q.PercentInterruptTime) / $dtn * 100, 2),
+            [math]::Round(($n.InterruptsPersec - $q.InterruptsPersec) / $seg), [math]::Round(($n.DPCsQueuedPersec - $q.DPCsQueuedPersec) / $seg), $mhz)
+    }
+    $o.nucleos = $nuc
     # GPU: por motor (la suma de lo nuestro y la de todos), y por tipo el motor más ocupado.
     $prev = @{}; foreach ($g in $ant.gpu) { $prev[$g.Name] = $g.RunningTime }
     $porMotor = @{}; $porMotorTodos = @{}
