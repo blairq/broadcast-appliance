@@ -227,6 +227,39 @@ Hecho (2026-11-02, adelantado por pedido del usuario: «en Windows quiero H.264 
 - Falta: el pozo de decodificación de D hilos (punto 1, segunda mitad) y achicar en el
   mismo hilo (punto 2).
 
+Hecho (2026-11-02, por la campaña de la .177: con 40, 647 hilos y 45 mil cambios de
+contexto/s; más de la mitad de las colas de libwebrtc de un hilo cada una):
+
+- **Sin suavizado previo al render** (`set_prerenderer_smoothing(false)` en la config de
+  cada PeerConnection): se va `IncomingVideoStream` (un hilo por stream; con 10 en 720p,
+  107 % de un núcleo en la .177). El cuadro sale del decodificador derecho al sink; la
+  grilla ya tiene su cola de 4 cuadros.
+- **Colas compartidas** (`src/gateway/rtc/ColasCompartidas.*`, el pozo del punto 1): un
+  `TaskQueueFactory` propio en `PeerConnectionFactoryDependencies` (la fábrica se arma con
+  `EnableMedia` + `CreateModularPeerConnectionFactory`). Dos grupos: «dec» para las
+  `DecodingQueue` (`gateway.hilosColas`; 0 = núcleos de un bloque de caché, entre 2 y 6:
+  3 en esta M1 Pro, 6 en el 5900X) y «rtc» con 2 hilos para lo liviano (`AudioEncoder`,
+  `EncoderQueue`: µs por tarea). Una cola programada no despierta a nadie; diferidas con un
+  hilo vigía. `gateway.hilosColas = -1` vuelve a un hilo por cola. Contadores
+  `cola.<nombre>` y `colas.<grupo>` en las fronteras. `test_colas_compartidas`.
+- Medido en la Mac (`mediciones-carga/2026-11-02-colas/`, directo, grabado, habla 1,
+  decodificar todo, régimen 45 s). En macOS las colas de fábrica ya eran de GCD (hilos
+  compartidos), así que acá la ganancia es chica; la grande se espera en Windows, donde
+  cada cola era un hilo:
+
+  | | 10 antes | 10 después | 40 antes | 40 después |
+  |---|---|---|---|---|
+  | CPU del gateway p50 | 80 % | 81 % | 103 % | 99 % |
+  | Hilos (máx.) | 68 | 63 | 108 | 100 |
+  | Cambios de contexto/s p50 | 11,9 mil | 10,6 mil | 25,9 mil | 24,3 mil |
+  | Mosaico / celdas (cps p50) | 29,8 / 29,1 | 30,0 / 29,3 | 29,8 / 15 (baja) | 29,9 / 15 (baja) |
+  | Perdidos | 0 | 0 | 0 | 0 |
+  | Edad del audio p50 | 13,1 ms | 12,3 ms | 11,3 ms | 11,3 ms |
+
+  Con 40: «rtc» corre 7,6 mil tareas/s con 733 despertadas/s (antes, una por tarea) y
+  espera media de 0,1-0,2 ms; «dec», 617 decodificaciones/s (0,45 ms c/u, con el sink),
+  espera media 0,28 ms, máx. 13,6 ms. Falta medir en la .177.
+
 Linux con VA-API (sin hacer: no hay placa para probar). Sería igual que Windows con
 otras piezas: un `CodecsLinux.cpp` con decodificador y codificador H.264 sobre libva
 (`vaCreateConfig` con `VAProfileH264ConstrainedBaseline`/`VAEntrypointVLD` para
