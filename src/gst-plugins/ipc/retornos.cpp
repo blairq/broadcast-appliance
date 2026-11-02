@@ -22,7 +22,7 @@
 //   - Por su salida (src) sale la suma entera (el programa de oído, con todas las
 //     voces): sirve para medir; el motor la tira (fakesink).
 //
-// Cuando pide más datos espera a sus entradas sin despertarse con cada bloque
+// Entre bloque y bloque espera a sus entradas sin despertarse con cada una
 // (esperarEntradas, comun.hpp); bamezcla (abajo) es lo mismo sin los retornos.
 //
 // Escribe al anillo cuando el mezclador termina el bloque (en vivo: cuando llegaron
@@ -284,12 +284,18 @@ static GstFlowReturn terminar(GstAggregator* agg, GstBuffer* buf) {
     return GST_AGGREGATOR_CLASS(ba_retornos_parent_class)->finish_buffer(agg, buf);
 }
 
-/// Lo del agregador; si pide más datos (sin que venza su espera), espera a sus entradas
-/// sin que cada push lo despierte (comun.hpp: esperarEntradas).
-static GstFlowReturn agregar(GstAggregator* agg, gboolean vencio) {
-    const GstFlowReturn r = GST_AGGREGATOR_CLASS(ba_retornos_parent_class)->aggregate(agg, vencio);
-    if (r == GST_AGGREGATOR_FLOW_NEED_DATA && !vencio) ba::ipc_gst::esperarEntradas(agg);
+/// Lo del agregador y, después, la espera de sus entradas para lo que sigue, sin que cada
+/// push lo despierte (comun.hpp: esperarEntradas). TAMBIÉN después de sacar un bloque: si
+/// no, la vuelta siguiente espera al reloj en gst_aggregator_wait_and_check, y ahí cada
+/// buffer que llega a cualquier pad la despierta (40 invitados: 40 despertadas por vuelta).
+static GstFlowReturn agregarYEsperar(GstAggregatorClass* padre, GstAggregator* agg, gboolean vencio) {
+    const GstFlowReturn r = padre->aggregate(agg, vencio);
+    if (r == GST_FLOW_OK || r == GST_AGGREGATOR_FLOW_NEED_DATA) ba::ipc_gst::esperarEntradas(agg);
     return r;
+}
+
+static GstFlowReturn agregar(GstAggregator* agg, gboolean vencio) {
+    return agregarYEsperar(GST_AGGREGATOR_CLASS(ba_retornos_parent_class), agg, vencio);
 }
 
 static void finalizar(GObject* o) {
@@ -388,9 +394,7 @@ static gboolean mezclaSumar(GstAudioAggregator*, GstAudioAggregatorPad* apad, Gs
 }
 
 static GstFlowReturn mezclaAgregar(GstAggregator* agg, gboolean vencio) {
-    const GstFlowReturn r = GST_AGGREGATOR_CLASS(ba_mezcla_parent_class)->aggregate(agg, vencio);
-    if (r == GST_AGGREGATOR_FLOW_NEED_DATA && !vencio) ba::ipc_gst::esperarEntradas(agg);
-    return r;
+    return agregarYEsperar(GST_AGGREGATOR_CLASS(ba_mezcla_parent_class), agg, vencio);
 }
 
 static void ba_mezcla_class_init(BaMezclaClass* k) {
