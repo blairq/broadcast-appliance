@@ -25,6 +25,8 @@
 
 #include <nlohmann/json.hpp>
 
+#include "ipc/LugaresSala.hpp"
+
 namespace ba::app::sala::prueba {
 
 /// Cómo está la máquina (lo que mide MedidaMaquina). -1 = no se sabe.
@@ -42,7 +44,7 @@ struct Umbrales {
     int cortarHilos = 1200;         ///< se corta por encima (ba-app)
     double cortarCarga = 40;        ///< se corta por encima
     double mbPorParticipante = 80;  ///< lo que suma cada uno (app + gateway + el probador local)
-    int maxParticipantes = 64;      ///< el cupo más grande de la sala (ipc/LugaresSala)
+    int maxParticipantes = ba::ipc::kMaxInvitados; ///< el cupo más grande de la sala (ipc/LugaresSala)
 };
 
 /// "" si se puede arrancar con `n` participantes; si no, por qué (para el operador).

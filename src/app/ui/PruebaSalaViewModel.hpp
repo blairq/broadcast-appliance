@@ -60,6 +60,8 @@ class CupoSala;
 class PruebaSalaViewModel : public QObject {
     Q_OBJECT
     /// "apagada" | "corriendo" | "terminando"
+    /// El tope de participantes (el cupo más grande de la sala, ipc/LugaresSala).
+    Q_PROPERTY(int maxParticipantes READ maxParticipantes CONSTANT)
     Q_PROPERTY(QString estado READ estado NOTIFY estadoChanged)
     Q_PROPERTY(bool corriendo READ corriendo NOTIFY estadoChanged)
     /// «Entrada directa para todos»: cualquiera entra sin lobby (solo durante la prueba).
@@ -100,6 +102,7 @@ class PruebaSalaViewModel : public QObject {
     explicit PruebaSalaViewModel(Partes p, QObject* parent = nullptr);
     ~PruebaSalaViewModel() override;
 
+    int maxParticipantes() const { return ba::ipc::kMaxInvitados; }
     QString estado() const { return estado_; }
     bool corriendo() const { return estado_ == QLatin1String("corriendo"); }
     bool entradaDirecta() const { return directa_; }

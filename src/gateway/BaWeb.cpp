@@ -63,7 +63,7 @@ std::string WebSupervisor::armarConf(const Cfg& c, const std::string& aliasFile,
     // sin un hilo del gateway de por medio. Antes ba-web tenía 512 por worker contra 256 del
     // gateway por escucha. Una cuarta parte de cada escucha queda para lo que llega directo
     // (la red local por HTTP, el túnel si ba-web se cae y se relanza).
-    const int cupoEscucha = ba::ajustes::entero("room.maxConexiones", 256);
+    const int cupoEscucha = ba::ajustes::entero("room.maxConexiones", 1024);
     const int porIp = ba::ajustes::entero("room.maxConexionesPorIp", 32);
     const int alGateway = std::max(1, cupoEscucha * 3 / 4 / procesos);
     const int tunelesPorIp = std::max(1, porIp / procesos);

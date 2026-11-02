@@ -95,7 +95,7 @@ Windows, macOS and Linux.
   gates, limiters…), a mixing matrix, EBU R128 loudness, room
   calibration, automixer, PFL, AFV and lip sync.
 - **Conference.** Guests join by WebRTC from a link: a private lobby, chat,
-  speaker mode with timer, up to 64 guests.
+  speaker mode with timer, up to 512 guests.
 - **Assembly.** Members in the room and remote, the chamber with its seats,
   quorum, agenda with PDF result reports, debates and voting.
 - **Bosch DCN Next Generation (beta).** Drives the conference central unit

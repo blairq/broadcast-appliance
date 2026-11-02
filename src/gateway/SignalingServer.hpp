@@ -813,7 +813,7 @@ class SignalingServer {
     std::atomic<int> rechazosCallados_[static_cast<int>(Escucha::Cantidad)] = {};
     static int cupoDe(Escucha e) {
         return e == Escucha::Admin ? ba::ajustes::entero("room.maxConexionesAdmin", 32)
-                                   : ba::ajustes::entero("room.maxConexiones", 256);
+                                   : ba::ajustes::entero("room.maxConexiones", 1024);
     }
     static int kMaxPorIp() { return ba::ajustes::entero("room.maxConexionesPorIp", 32); }
     static int kHandshakeTimeoutMs() { return ba::ajustes::entero("room.handshakeMs", 15000); }

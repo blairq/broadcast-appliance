@@ -34,6 +34,8 @@ class EventoViewModel;
 
 class EnlaceViewModel : public QObject {
     Q_OBJECT
+    /// El tope de invitados (ipc/LugaresSala): hasta dónde va el «Invitados» del panel.
+    Q_PROPERTY(int maxInvitados READ maxInvitados CONSTANT)
     /// "sin_sala" | "sin_tunel" | "libre" | "midiendo"
     Q_PROPERTY(QString estado READ estado NOTIFY medicionChanged)
     Q_PROPERTY(bool midiendo READ midiendo NOTIFY medicionChanged)
@@ -68,6 +70,7 @@ class EnlaceViewModel : public QObject {
 
     explicit EnlaceViewModel(Partes p, QObject* parent = nullptr);
 
+    int maxInvitados() const { return ba::ipc::kMaxInvitados; }
     QString estado() const { return estado_; }
     bool midiendo() const { return estado_ == QLatin1String("midiendo"); }
     bool hayTunel() const { return hayTunel_; }

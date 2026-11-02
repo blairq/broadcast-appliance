@@ -66,8 +66,8 @@ entiende y cierra la conexión).
 
 | clave | respaldo | qué |
 |---|---|---|
-| `turn.maxAsignaciones` | 64 | asignaciones vivas a la vez |
-| `turn.maxConexiones` | 128 | conexiones TCP a la vez |
+| `turn.maxAsignaciones` | 640 | asignaciones vivas a la vez (una por conexión de video: el tope de invitados, 512, más el lobby y las vistas; antes 64) |
+| `turn.maxConexiones` | 1280 | conexiones TCP a la vez (antes 128) |
 | `turn.vidaMaxS` | 3600 | vida máxima de una asignación |
 | `turn.nonceS` | 600 | vida de un nonce |
 | `turn.colaTcpKB` | 1024 | cola hacia un cliente TCP antes de descartar medio |

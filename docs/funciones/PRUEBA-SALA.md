@@ -11,7 +11,7 @@ las dos usan el mismo modelo (`src/app/ui/PruebaSalaViewModel`).
 ## Cómo se usa
 
 1. Abrí el evento que vas a probar (el informe va a su lista de chequeo).
-2. Elegí cuántos participantes (1 a 64), cuántos minutos y cuántos hablan a la vez.
+2. Elegí cuántos participantes (1 a 512, el tope de la sala), cuántos minutos y cuántos hablan a la vez.
 3. **Revisar la máquina** dice si la guardia deja arrancar (memoria disponible, carga).
 4. El **enlace**: la tarjeta dice si la última medición del túnel alcanza para los N y
    ofrece medir ([ENLACE.md](ENLACE.md)). Con hinchada la carga no pasa por el enlace (es

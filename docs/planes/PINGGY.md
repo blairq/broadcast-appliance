@@ -78,7 +78,7 @@ URL de todos los servicios web, y para WebRTC configurar bien ICE»).
   (`Botonera.cpp:96`, `Sesion.cpp:225`) y lo demás se tomaría como red local. Nunca
   reenviar la API de control (8788) ni el MCP (8790).
 - **WebRTC**: hoy sin STUN/TURN (`Webrtc.cpp:822`), un puerto UDP por conexión del rango
-  40000-40099 y `iceServers: []` en los navegadores (`guest/app.js:522`,
+  40000-40099 (hoy 40000-41599) y `iceServers: []` en los navegadores (`guest/app.js:522`,
   `sesion/app.js:227/258/396`, `presidencia/consola.js:466`). Por pinggy eso no pasa.
   La forma limpia: **un TURN propio dentro de la caja** (127.0.0.1:3478) que relaya solo
   hacia la propia máquina, expuesto por un solo forwarding TLSTCP (`turns:<dominio>:443`,

@@ -10,6 +10,9 @@ Rectangle {
     color: Theme.bg
     property real leftInset: 92
     property string selected: ""
+    /// Los lugares de invitado que entran en el menú «Agregar fuente» (cámara y pantalla
+    /// de cada uno); los demás, por número.
+    readonly property int invitadosEnMenu: 16
     readonly property string editScene: Studio.sources.scene
 
     // ui_abrir_panel {page: "escenas", panel: "efectos", fuente}: elige la fuente y
@@ -462,11 +465,20 @@ Rectangle {
                                 }
                             }
                             MenuSeparator { id: sepInvitados; visible: Studio.sources.guestSlots > 0 }
-                            // Invitados de la sala (WebRTC): camara y pantalla de cada lugar.
+                            // Invitados de la sala (WebRTC): camara y pantalla de cada lugar. Los
+                            // primeros en el menú; con un cupo grande (hasta ipc::kMaxInvitados, 512)
+                            // el resto por número («Otro invitado…»): mil ítems no son un menú.
+                            MenuItem {
+                                id: otroInvitado
+                                visible: Studio.sources.guestSlots > page.invitadosEnMenu
+                                height: visible ? implicitHeight : 0
+                                text: qsTr("Otro invitado… (de %n)", "", Studio.sources.guestSlots)
+                                onTriggered: invitadoDlg.open()
+                            }
                             ItemsDeMenu {
                                 menu: addSrcMenu
                                 despuesDe: sepInvitados
-                                model: Studio.sources.guestSlots * 2
+                                model: Math.min(Studio.sources.guestSlots, page.invitadosEnMenu) * 2
                                 delegate: MenuItem {
                                     required property int index
                                     readonly property int slot: Math.floor(index / 2) + 1
@@ -662,6 +674,30 @@ Rectangle {
                 }
             }
         }
+    }
+
+    // Un invitado por número (el cupo grande no entra en el menú).
+    Dialog {
+        id: invitadoDlg
+        title: qsTr("Agregar invitado")
+        anchors.centerIn: parent
+        modal: true
+        standardButtons: Dialog.Ok | Dialog.Cancel
+        onOpened: invitadoNum.value = Math.min(invitadoNum.value, Math.max(1, Studio.sources.guestSlots))
+        ColumnLayout {
+            spacing: 8
+            RowLayout {
+                spacing: 8
+                Label { text: qsTr("Lugar") }
+                SpinBox { id: invitadoNum; from: 1; to: Math.max(1, Studio.sources.guestSlots); value: 1; editable: true }
+                Label {
+                    text: Studio.conference.slotNames[invitadoNum.value - 1] || ""
+                    color: Theme.textDim
+                }
+            }
+            CheckBox { id: invitadoPantalla; text: qsTr("Su pantalla (no la cámara)") }
+        }
+        onAccepted: { const n = Studio.sources.addGuest(invitadoNum.value, invitadoPantalla.checked); if (n) page.selected = n }
     }
 
     Dialog {

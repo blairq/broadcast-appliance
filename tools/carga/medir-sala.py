@@ -47,7 +47,7 @@ carga por la red (la red entre las dos es parte de la prueba). Lo que cambia:
   - app.log y gateway.log se traen por scp de --remoto-logs al final (desde donde estaban al empezar).
   - La guardia mira además la memoria disponible de la máquina remota.
   - Todos los invitados salen de UNA dirección IP: con más de 32 (room.maxConexionesPorIp, de
-    fábrica 32) el gateway rechaza el resto; subirlo en el evento de prueba (settings_set).
+    fábrica 32) el gateway rechaza el resto; --cupo lo sube (ver abajo).
 CAMINO (--camino): por dónde entran los invitados de hinchada.
   directo         WebRTC directo por UDP (lo de siempre)
   turn-udp        por el TURN de la caja con política relay (GET /api/ice, como un invitado que viene
@@ -69,8 +69,10 @@ OTRAS MEDICIONES
                         cambios de contexto, núcleos P/E). --contadores suma la plantilla CPU Counters
   --etw S               (Windows, --remoto) S s de WPR en régimen: núcleo lógico → hilos, DPC e ISR
                         (tools/carga/etw-win.ps1; consola de administrador)
-  Más de 32 invitados: con --cupo también sube room.maxConexionesPorIp (todos salen de una IP) y lo
-  vuelve a su valor al final (los dos cambios reinician la sala: se avisa).
+  Hasta 512 invitados (el tope de la sala). Con --cupo también sube lo que no alcance para N:
+  room.maxConexionesPorIp (todos salen de una IP), room.maxConexiones (la misma puerta), el rango
+  UDP de WebRTC (direct.rtcMax: 3 puertos por sesión) y, por TURN o pinggy, turn.maxAsignaciones y
+  turn.maxConexiones; al final los vuelve a su valor (los cambios reinician la sala: se avisa).
 Ejemplo (desde la Mac, con la app abierta en la PC y sin la app abierta acá):
   BA_MCP_URL=http://127.0.0.1:18790/mcp BA_MCP_TOKEN=… tools/carga/medir-sala.py \\
       --ba-mcp dist/BroadcastAppliance.app/Contents/Resources/bin/64bit/ba-mcp --remoto windows \\
@@ -483,6 +485,8 @@ def main():
     if a.duracion:
         a.regimen = segs_texto(a.duracion)
     turn_hinchada, por_pinggy = camino_a_turn(a.camino)
+    if not 1 <= a.participantes <= 512:
+        sys.exit("--participantes: de 1 a 512 (el tope de invitados de la sala, ipc::kMaxInvitados)")
     if a.remoto and not (os.environ.get("BA_MCP_URL") and os.environ.get("BA_MCP_TOKEN")):
         sys.exit("--remoto: faltan BA_MCP_URL y BA_MCP_TOKEN (ba-mcp habla con la app remota por HTTP)")
     sal = Path(a.salida).expanduser()
@@ -505,22 +509,39 @@ def main():
         mcp.llamar("settings_set", {"values": {"guests.count": a.participantes}})
         mcp.llamar("room_set", {"lobby": False})
         time.sleep(3)
-    # Más de 32: todos salen de UNA dirección (room.maxConexionesPorIp). Se sube y se vuelve al final.
-    por_ip0 = None
-    if a.cupo and a.participantes + 4 > 32:
-        try:
-            for s in (mcp.datos("settings_list", {"section": "Red de la conferencia"}).get("settings") or []):
-                if s.get("key") == "room.maxConexionesPorIp":
-                    por_ip0 = s.get("value")
-        except Exception:
-            pass
-        por_ip0 = por_ip0 if isinstance(por_ip0, int) else 32
-        if por_ip0 < a.participantes + 4:
-            print(f"aviso: room.maxConexionesPorIp {por_ip0} → {a.participantes + 8} (reinicia la sala; vuelve al final)", file=sys.stderr)
-            mcp.llamar("settings_set", {"values": {"room.maxConexionesPorIp": a.participantes + 8}})
+    # Los topes de la sala que la prueba puede pasar (hasta 512 invitados, ipc::kMaxInvitados):
+    # todos salen de UNA dirección (room.maxConexionesPorIp, de fábrica 32), entran por la
+    # misma puerta (room.maxConexiones), cada sesión ocupa puertos del rango UDP (hasta 3: dos
+    # redes y el túnel) y, por TURN, una asignación y una conexión. Lo que no alcanza se sube
+    # y vuelve al final (reinicia la sala: se avisa).
+    subidos = {}  # clave -> valor de antes
+    if a.cupo:
+        def ajustes_de(seccion):
+            try:
+                return {s.get("key"): s.get("value") for s in (mcp.datos("settings_list", {"section": seccion}).get("settings") or [])}
+            except Exception:
+                return {}
+        red = ajustes_de("Red de la conferencia")
+        n = a.participantes
+        necesarios = [("room.maxConexionesPorIp", red, 32, n + 8 if n + 4 > 32 else 0),
+                      ("room.maxConexiones", red, 1024, n + 32)]
+        rmin, rmax = red.get("direct.rtcMin"), red.get("direct.rtcMax")
+        if isinstance(rmin, int) and isinstance(rmax, int) and rmax - rmin + 1 < 3 * (n + 8):
+            necesarios.append(("direct.rtcMax", red, rmax, min(65535, rmin + min(2000, 3 * (n + 8)) - 1)))
+        if turn_hinchada or por_pinggy:
+            pg = ajustes_de("Pinggy")
+            necesarios += [("turn.maxAsignaciones", pg, 640, n + 16), ("turn.maxConexiones", pg, 1280, 2 * n + 16)]
+        cambios = {}
+        for clave, actuales, fabrica, hace_falta in necesarios:
+            v = actuales.get(clave)
+            v = v if isinstance(v, int) else fabrica
+            if hace_falta > v:
+                subidos[clave] = v
+                cambios[clave] = hace_falta
+                print(f"aviso: {clave} {v} → {hace_falta} (reinicia la sala; vuelve al final)", file=sys.stderr)
+        if cambios:
+            mcp.llamar("settings_set", {"values": cambios})
             time.sleep(12)
-        else:
-            por_ip0 = None
     pin = mcp.datos("room_status").get("pin", "")
     url = a.url
     if por_pinggy:
@@ -876,12 +897,12 @@ def main():
                     mcp.llamar(herr, args)
                 except Exception as ex:
                     print(f"{herr}:", ex, file=sys.stderr)
-        if por_ip0 is not None:
+        if subidos:
             try:
-                mcp.llamar("settings_set", {"values": {"room.maxConexionesPorIp": por_ip0}})
-                print(f"room.maxConexionesPorIp vuelve a {por_ip0} (reinicia la sala)", file=sys.stderr)
+                mcp.llamar("settings_set", {"values": subidos})
+                print("vuelven: " + ", ".join(f"{k} {v}" for k, v in subidos.items()) + " (reinicia la sala)", file=sys.stderr)
             except Exception as ex:
-                print("no pude volver room.maxConexionesPorIp:", ex, file=sys.stderr)
+                print("no pude volver los topes de la sala:", ex, file=sys.stderr)
         if a.cupo:
             try:
                 time.sleep(5)  # que se vayan

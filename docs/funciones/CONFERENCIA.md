@@ -277,7 +277,7 @@ drivers ni permisos de administrador) con una pila IP propia (lwIP):
 
 ```
 invitado ─► IP publica:443/80  ─┐ (DNAT en el servidor)
-invitado ─► IP publica:40000-40099/udp ─┤
+invitado ─► IP publica:40000-41599/udp ─┤
                                         ▼
                          WireGuard (UDP) ─► B: WgDevice + lwIP (10.99.0.2)
                                              TCP 80/443 → servidor / HTTPS (IP real por PROXY)
@@ -292,7 +292,8 @@ Puesta en marcha (página Sala → **Configurar servidor WireGuard…**):
    configurado y el gateway se reinicia.
 3. En el servidor: `apt install wireguard iptables`, guardar el archivo y
    `systemctl enable --now wg-quick@wg0`. Abrir en el firewall del proveedor:
-   UDP 51820, TCP 80/443 y UDP 40000-40099.
+   UDP 51820, TCP 80/443 y UDP 40000-41599 (el rango de WebRTC que diga Configuración →
+   Red de la conferencia; la configuración generada redirige ese mismo rango).
 
 La clave privada de este equipo vive cifrada en `Credenciales/wireguard-key.cred`
 o en `BA_WG_PRIVATE_KEY`; la PSK opcional, en `BA_WG_PSK`.
@@ -305,19 +306,52 @@ evento: [ENLACE.md](ENLACE.md).
 ### Cuántos puertos UDP hacen falta
 
 Cada conexión (un invitado, uno del lobby, una vista) abre un puerto del rango de
-WebRTC (Configuración → Red de la conferencia, de fábrica 40000-40099) por **cada red
-de la máquina**: una por interfaz y familia (IPv4, IPv6). Las interfaces virtuales
-(el puente de las máquinas virtuales de la Mac, Docker, Hyper-V, VPN como Tailscale)
-no le sirven a ningún invitado y no se usan (`red.rtcVirtuales` las vuelve a sumar);
-las de enlace local tampoco. Con una red cableada o wifi con IPv4 e IPv6 son dos por
-conexión: 100 puertos alcanzan para 50 conexiones. El rango puede tener hasta 1000
-puertos (`kTopeRangoRtc`).
+WebRTC (Configuración → Red de la conferencia, de fábrica 40000-41599) por **cada red
+de la máquina**: una por interfaz y familia (IPv4, IPv6), más una con el túnel de
+WireGuard. Las interfaces virtuales (el puente de las máquinas virtuales de la Mac,
+Docker, Hyper-V, VPN como Tailscale) no le sirven a ningún invitado y no se usan
+(`red.rtcVirtuales` las vuelve a sumar); las de enlace local tampoco. Con una red
+cableada o wifi con IPv4 e IPv6 son dos por conexión: los 1600 puertos de fábrica
+alcanzan para 800 conexiones, y con el túnel (tres por conexión) para 533: el tope de
+invitados (512, `ipc::kMaxInvitados`) más el lobby. El rango puede tener hasta 2000
+puertos (`kTopeRangoRtc`; con el túnel cada uno es un pcb de lwIP, `MEMP_NUM_UDP_PCB`).
+Hasta noviembre de 2026 el de fábrica era 40000-40099 (unas 50 conexiones): una
+configuración que lo tiene tal cual pasa sola al nuevo al leerse; uno elegido a mano
+se respeta. Si hay un firewall o una redirección en el router para el rango viejo,
+hay que ampliarla.
 
 El gateway anota al arrancar cuántas entran («WebRTC: puertos UDP …: entran N
 sesiones») y el panel **Uso de la conferencia** avisa en rojo si no alcanzan para la
 sala llena (el cupo y el lobby) o si una conexión se quedó sin puerto. A ese invitado
 se le dice («la conferencia se quedó sin puertos de red…») en vez de dejarlo
 «conectando».
+
+### Hasta cuántos invitados
+
+El cupo (Configuración → Invitados, de fábrica 2) va de 1 a **512**
+(`ipc::kMaxInvitados`, `src/core/ipc/LugaresSala.hpp`: un solo número para la app, el
+gateway y el MCP; hasta noviembre de 2026 era 64 y con 80 pedidos entraban 68). Lo que
+limita de ahí para abajo es la máquina, no una constante:
+
+- **Canales**: cada lugar con canales (los del cupo, creados al subirlo) son ~25 MB de
+  memoria compartida (cámara y pantalla a 1280×720 con tres cuadros, la vista chica y el
+  audio). En macOS y Linux las páginas se ocupan cuando se escriben; en Windows cuentan
+  contra la memoria virtual comprometida desde que se crean (512 lugares ≈ 12 GB). Un
+  canal que no se pudo crear se anota en gateway.log («no se pudo publicar … (se salta)»).
+- **Conexiones**: cada puerta del gateway acepta `room.maxConexiones` (de fábrica 1024,
+  antes 256; un hilo por conexión) y cada dirección IP `room.maxConexionesPorIp` (32:
+  con mucha gente detrás de un mismo NAT hay que subirlo).
+- **TURN** (los de afuera por pinggy): `turn.maxAsignaciones` 640 y `turn.maxConexiones`
+  1280 (antes 64 y 128).
+- **Puertos UDP**: el rango de fábrica alcanza para el tope (arriba).
+- **Lobby**: esperan a la vez hasta 512 (`maxWaiting`, antes 16: el 17.º recibía «lobby_full»);
+  esperar es solo el WebSocket (las cámaras del lobby son las 4 de `lobbySlots`).
+- **Interfaz**: «En la conferencia» y la lista de la sala son grillas y listas que solo
+  dibujan lo que se ve; el menú «Agregar fuente» lista los primeros 16 lugares y el resto
+  por número («Otro invitado…»).
+
+`tools/carga/medir-sala.py --cupo` sube lo que haga falta para N (hasta 512) y lo
+vuelve al final.
 
 ## Seguridad
 

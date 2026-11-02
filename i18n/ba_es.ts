@@ -1211,7 +1211,15 @@ No se borran del disco: si alguno estaba en una escena, se lo saca de ahí y lis
 <context>
     <name>ScenesPage</name>
     <message numerus="yes">
-        <location filename="../src/app/qml/pages/ScenesPage.qml" line="+534"/>
+        <location filename="../src/app/qml/pages/ScenesPage.qml" line="+475"/>
+        <source>Otro invitado… (de %n)</source>
+        <translation>
+            <numerusform>Otro invitado… (de %n)</numerusform>
+            <numerusform>Otro invitado… (de %n)</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location line="+71"/>
         <source>%n lámina</source>
         <translation>
             <numerusform>%n lámina</numerusform>

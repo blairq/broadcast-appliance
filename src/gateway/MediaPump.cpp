@@ -360,7 +360,9 @@ std::unique_ptr<MediaPump::VideoOut> MediaPump::crearVideo(const std::wstring& n
     out->w = w;
     out->h = h;
     out->nombre = narrow(n);
-    out->scratch.resize(static_cast<size_t>(w) * h * 4u);
+    // El scratch (el cuadro escalado) se reserva con el primer cuadro que lo necesita
+    // (publishVideo): con el tope de invitados (512) y tres canales por lugar, reservarlo
+    // acá eran ~4 GB de memoria en cero para lugares que quizás nunca tengan a nadie.
     if (!n.empty()) {
         if (out->sender.publish(n.c_str(), SlotConfig{w, h})) {
             log_.info(llenar(traducir("gateway", "video out: %1 listo (%2x%3)"),
@@ -1510,6 +1512,7 @@ void MediaPump::publishVideo(VideoOut& out, const uint8_t* pixels, int w, int h,
     int bw = out.w, bh = out.h;
     cajaDelCuadro(w, h, out.w, out.h, bw, bh);
     if (w != bw || h != bh) {
+        if (out.scratch.size() < static_cast<size_t>(out.w) * out.h * 4u) out.scratch.resize(static_cast<size_t>(out.w) * out.h * 4u);
         fitBgra(pixels, w, h, out.scratch.data(), bw, bh);
         frame = out.scratch.data();
     }

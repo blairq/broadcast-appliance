@@ -8,6 +8,7 @@
 // ============================================================================
 
 #include "i18n/I18n.hpp"
+#include "ipc/LugaresSala.hpp"
 #include "mcp/McpService.hpp"
 #include "mcp/McpToolsCommon.hpp"
 #include "ui/PruebaSalaViewModel.hpp"
@@ -39,7 +40,7 @@ void McpService::registerPruebaSalaTools() {
         t.inputSchema = {{"type", "object"},
                          {"required", {"participantes"}},
                          {"properties",
-                          {{"participantes", {{"type", "integer"}, {"minimum", 1}, {"maximum", 64}}},
+                          {{"participantes", {{"type", "integer"}, {"minimum", 1}, {"maximum", ba::ipc::kMaxInvitados}}},
                            {"minutos", {{"type", "integer"}, {"minimum", 1}, {"maximum", 120}, {"default", 5}}},
                            {"hinchada", {{"type", "boolean"}, {"description", QT_TRANSLATE_NOOP("mcp", "los genera esta máquina (de fábrica, si está)")}}},
                            {"hablan", {{"type", "integer"}, {"minimum", 0}, {"maximum", 10}, {"default", 2},
@@ -115,7 +116,7 @@ void McpService::registerPruebaSalaTools() {
                    "arrancar una prueba con `participantes` (`puede`: vacío = sí; si no, por qué).");
         t.inputSchema = {{"type", "object"},
                          {"properties",
-                          {{"participantes", {{"type", "integer"}, {"minimum", 1}, {"maximum", 64}}},
+                          {{"participantes", {{"type", "integer"}, {"minimum", 1}, {"maximum", ba::ipc::kMaxInvitados}}},
                            {"hinchada", {{"type", "boolean"}}}}}};
         t.run = [&ps](const json& a, Done done) {
             ps.revisarMaquina(a.value("participantes", 10), a.value("hinchada", ps.hinchadaDisponible()));

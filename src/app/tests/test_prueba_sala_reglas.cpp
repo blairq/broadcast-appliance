@@ -44,7 +44,7 @@ int main() {
     CHECK(!pr::puedeArrancar(medida(20000, 9, 300), u, 10, true).empty(), "no arranca con la máquina ocupada");
     CHECK(pr::puedeArrancar(medida(20000, -1, 300), u, 10, true).empty(), "sin carga medible (Windows) arranca igual");
     CHECK(!pr::puedeArrancar(medida(20000, 2, 300), u, 0, true).empty(), "sin participantes no");
-    CHECK(!pr::puedeArrancar(medida(20000, 2, 300), u, 65, true).empty(), "más que el cupo más grande no");
+    CHECK(!pr::puedeArrancar(medida(20000, 2, 300), u, ba::ipc::kMaxInvitados + 1, true).empty(), "más que el cupo más grande no");
     // 7000 MB - 40 × 80 = 3800 < 4500 (1,5 × el corte): los 40 no entran; 10 sí.
     CHECK(!pr::puedeArrancar(medida(7000, 2, 300), u, 40, true).empty(), "no arranca si los N bajarían la memoria al corte");
     CHECK(pr::puedeArrancar(medida(7000, 2, 300), u, 10, true).empty(), "con menos, sí");

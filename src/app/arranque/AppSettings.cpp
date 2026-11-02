@@ -477,6 +477,9 @@ GatewaySettings loadGatewaySettings(const fs::path& path) {
     s.httpsPort = get(j, "httpsPort", s.httpsPort);
     s.rtcPortMin = get(j, "rtcPortMin", s.rtcPortMin);
     s.rtcPortMax = get(j, "rtcPortMax", s.rtcPortMax);
+    // El rango por omisión de antes (40000-40099: ~50 sesiones) no lo eligió nadie: el nuevo,
+    // que alcanza para el tope de invitados (ipc/LugaresSala). Uno elegido a mano se respeta.
+    if (ba::ipc::rangoRtcDeAntes(s.rtcPortMin, s.rtcPortMax)) s.rtcPortMax = static_cast<std::uint16_t>(ba::ipc::kRtcPuertoMax);
     const json w = j.value("wireguard", json::object());
     s.wgEnabled = get(w, "enabled", s.wgEnabled);
     s.wgEndpoint = get<std::string>(w, "endpoint", s.wgEndpoint);
