@@ -16,9 +16,19 @@
 // conversión, el rack, la subida a la GPU) hasta su salida. Por eso solo lo usa una
 // cadena que no se traba (la del motor: termina en intersink/baentrega, sin esperar al
 // reloj; los filtros de video van detrás de una cola). Una cadena armada a mano con
-// bavideoanillo/baanillo sigue con su hilo propio. Lo que sí podía trabar: el pad de un
-// mezclador lleno (lo de una entrada adelantada), que hacía esperar a gst_pad_push; batoma
-// no lo empuja (adelantado.hpp). Y cada lectura entrega como mucho un anillo por vuelta.
+// bavideoanillo/baanillo sigue con su hilo propio. Cada lectura entrega como mucho un
+// anillo por vuelta.
+//
+// NUNCA ESPERA A UN MEZCLADOR. El pad de un agregador en vivo hace esperar a gst_pad_push
+// hasta su próxima vuelta cuando guarda más que su espera, y en un bus de oído (20 ms) eso
+// es lo de siempre: con el lector empujando hasta los pads de los mezcladores, cada bloque
+// de cada invitado esperaba una vuelta de un mezclador, el lector se atrasaba, los anillos
+// se llenaban (y el gateway tiraba lo NUEVO) y la vuelta llegaba a 400 ms con 10 invitados
+// y a más de 1 s con 40 (2026-11-02: el audio de cada invitado llegaba a la mezcla con
+// 1,1 s). baentrega solo deja el bloque en la cola de cada batoma; lo empuja el repartidor
+// de cada mezclador (entrega.cpp), que puede esperar a SU agregador sin atrasar a nadie.
+// Para no despertarlo con cada bloque, durante una vuelta los avisos se juntan
+// (diferirAvisos) y salen todos al final (despertarPendientes).
 //
 // Concurrencia: cada Lectura tiene su candado; el hilo lo toma para leerla y empujar.
 // quitar() (al salir de PLAYING) la saca de la lista y la apaga SIN esperar: el hilo
@@ -74,5 +84,13 @@ void registrar(Medio m, const std::shared_ptr<Lectura>& l);
 void quitar(Medio m, const std::shared_ptr<Lectura>& l);
 /// Al bajar a READY o al destruirla: espera a que el hilo la suelte; después no la toca.
 inline void esperar(Lectura& l) { std::lock_guard<std::mutex> g(l.mu); }
+
+/// La prioridad de un hilo que mueve audio en vivo (el lector común, los repartidores).
+void prioridadDeAudio();
+
+/// En este hilo, los avisos a los repartidores de los mezcladores se juntan hasta
+/// despertarPendientes (el lector común, durante su vuelta). Están en entrega.cpp.
+void diferirAvisos(bool si);
+void despertarPendientes();
 
 } // namespace ba::ipc_gst

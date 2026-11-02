@@ -9,8 +9,8 @@
 //     la fuente y su cola, y uno por rama del mezclador);
 //   - una cadena que pasa a READY (el lugar vacío) y vuelve a PLAYING sigue dando audio;
 //   - bajar el mezclador a NULL con todo andando no traba (ni a las cadenas ni al hilo común);
-//   - una cadena con sus horas adelantadas 3 s no deja sin datos a las demás (batoma no le
-//     empuja lo adelantado al mezclador: adelantado.hpp).
+//   - una cadena con sus horas adelantadas 3 s no deja sin datos a las demás (lo adelantado
+//     espera en la cola de su batoma, no en el pad del mezclador: adelantado.hpp, entrega.cpp).
 
 #include "adelantado.hpp"
 #include "ipc/SharedAudioRing.hpp"
@@ -168,6 +168,18 @@ int main() {
         CHECK(llegaAdelantado(pad(10'060), 40 * ms), "más que la holgura: adelantado");
         CHECK(llegaAdelantado(pad(13'010), 40 * ms), "3 s adelantado: no entra");
         CHECK(!llegaAdelantado(PadAgregador{10 * ms, 50 * ms, 100 * ms, 0}, 40 * ms), "recién arrancado (horas chicas): entra");
+        // El turno de cada bloque en el repartidor: un bus de oído (20 de latencia y de tope),
+        // son las 10 000, bloques de 10 (holgura de uno).
+        using ba::ipc_gst::Turno;
+        using ba::ipc_gst::turno;
+        const auto oido = [](std::uint64_t ultimoFin) { return PadAgregador{ultimoFin * ms, 20 * ms, 20 * ms, 10'000 * ms}; };
+        CHECK(turno(oido(9'990), 10'000 * ms, 10 * ms) == Turno::Ya, "lo fresco (termina ahora): entra");
+        CHECK(turno(oido(10'000), 10'010 * ms, 10 * ms) == Turno::Ya, "en el borde (el pad lleno hasta ahora): una vuelta, entra");
+        CHECK(turno(oido(9'960), 9'970 * ms, 10 * ms) == Turno::Ya, "30 ms viejo (la espera y la holgura): todavía entra");
+        CHECK(turno(oido(9'950), 9'960 * ms, 10 * ms) == Turno::Tarde, "40 ms viejo: el bus de oído ya pasó, se tira");
+        CHECK(turno(oido(10'300), 10'310 * ms, 10 * ms) == Turno::Despues, "300 ms adelantado (una demora propia): espera en su cola");
+        CHECK(turno(oido(0), 10'310 * ms, 10 * ms) == Turno::Ya, "el primero de todos entra (el pad vacío no hace esperar)");
+        CHECK(turno(PadAgregador{0, 20 * ms, 20 * ms, 5 * ms}, 10 * ms, 10 * ms) == Turno::Ya, "recién arrancado: entra");
     }
 #if defined(BA_TEST_GST_PLUGINS)
     g_setenv("GST_PLUGIN_PATH", BA_TEST_GST_PLUGINS, TRUE);
@@ -293,10 +305,11 @@ int main() {
         std::printf("una adelantada 3 s: la otra dio %d bloques en 2 s; adelantados %llu (la adelantada) y %llu (la otra)\n", vistos,
                     static_cast<unsigned long long>(adelantados1), static_cast<unsigned long long>(adelantados2));
         CHECK(vistos >= 160, "la otra entrada sigue dando un bloque cada 10 ms");
-        CHECK(adelantados1 > 100, "lo de la adelantada no entra al mezclador");
+        // Espera en su cola (~1,3 s) y lo que pasa de ahí se tira: 3 s adelantada no entra nunca.
+        CHECK(adelantados1 > 50, "lo de la adelantada no entra al mezclador");
         CHECK(adelantados2 == 0, "lo de la otra entra entero");
-        // Vuelve a su hora: entra de nuevo, una vez que el mezclador usó lo adelantado que ya
-        // tenía guardado (hasta entonces, empujarle haría esperar: se sigue sin empujar).
+        // Vuelve a su hora: entra de nuevo (lo encolado con el segmento de antes se tira), una
+        // vez que el mezclador usó lo adelantado que ya tenía guardado.
         gst_pad_set_offset(antes, 0);
         nivel(dos, 3.5);
         guint64 a1 = 0, b1 = 0;

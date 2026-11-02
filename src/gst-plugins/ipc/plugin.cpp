@@ -15,8 +15,8 @@
 //                     escribe a cada uno la suma sin su voz, en su anillo
 //     baanillocomun   baanillo y bavideoanillo SIN hilo propio: los lee UN       anillocomun.cpp
 //     bavideoanillocomun  hilo común por medio (comun.hpp); los usa el motor     videocomun.cpp
-//     baentrega       el audio de una entrada a los mezcladores en el mismo      entrega.cpp
-//     batoma          hilo (sin la cola con hilo de intersrc): solo hacia un
+//     baentrega       el audio de una entrada a los mezcladores sin un hilo por  entrega.cpp
+//     batoma          rama (un repartidor por mezclador): solo hacia un
 //                     agregador en vivo
 //
 //   Ejemplo:  gst-launch-1.0 baanillo canal=BA.Audio.Guest.1 ! audioconvert ! autoaudiosink

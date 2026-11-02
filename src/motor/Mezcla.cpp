@@ -168,11 +168,11 @@ void Mezcla::agregar(const std::string& id) {
     // Único en el pipeline: limpio, «Mic 1» y «Mic-1» quedaban iguales (y el segundo no entraba).
     const std::string n = nombreSeguro(id) + "_" + std::to_string(++serieRamas_);
     Rama r;
-    // SIN UN HILO POR RAMA: batoma recibe el audio de la entrada en el mismo hilo que lo
-    // trajo (baentrega, al final de la cadena de la entrada: el lector común de los anillos,
-    // el de la placa…) y lo deja en el pad del mezclador. Un intersrc era un hilo (su cola)
-    // y una despertada más por bloque y por rama: con 40 invitados en el programa y en los
-    // retornos, 80 hilos. Sin baipc, el intersrc de siempre.
+    // SIN UN HILO POR RAMA: la entrada deja su audio en la cola de cada batoma (baentrega, al
+    // final de su cadena) y el repartidor de este bus (uno por pipeline) lo empuja al pad del
+    // mezclador. Un intersrc era un hilo (su cola) y una despertada más por bloque y por rama:
+    // con 40 invitados en el programa y en los retornos, 80 hilos. Sin baipc, el intersrc de
+    // siempre.
     const std::string deMezcla = productorMezcla(id);
     r.src = gst_element_factory_make(deMezcla.empty() ? "intersrc" : "batoma", ("src_" + n).c_str());
     r.vol = gst_element_factory_make("volume", ("vol_" + n).c_str());
@@ -380,19 +380,30 @@ void Mezcla::tic() {
         if (t >= 1.0) r.escena = r.escenaHacia;
         g_object_set(r.pad, "volume", r.escena, nullptr);
     }
-    // Lo que una entrada manda ADELANTADO no entra (batoma no lo empuja: trabaría el audio de
-    // todas, ver entrega.cpp). Se avisa, a lo sumo cada 30 s por rama.
+    // Lo que batoma tira (ver src/gst-plugins/ipc/entrega.cpp): lo que llega más adelantado
+    // que lo que espera su cola y lo que llega cuando el mezclador ya pasó su hora. Se avisa,
+    // a lo sumo cada 30 s por rama y por motivo.
+    const auto toca = [ahora](std::uint64_t n, std::uint64_t avisados, std::int64_t cuando) {
+        return n > avisados && (cuando == 0 || ahora - cuando > 30'000'000'000LL);
+    };
     for (auto& [id, r] : ramas_) {
         if (!r.deToma) continue;
-        guint64 n = 0;
-        g_object_get(r.src, "adelantados", &n, nullptr);
-        r.adelantados = n;
-        if (n > r.adelantadosAvisados && (r.avisoAdelantadoNs == 0 || ahora - r.avisoAdelantadoNs > 30'000'000'000LL)) {
+        guint64 adelantados = 0, tarde = 0;
+        g_object_get(r.src, "adelantados", &adelantados, "tarde", &tarde, nullptr);
+        r.adelantados = adelantados;
+        r.tarde = tarde;
+        if (toca(adelantados, r.adelantadosAvisados, r.avisoAdelantadoNs)) {
             registrar(Nivel::Aviso,
-                      llenar(traducir("motor", "mezcla %1: lo de %2 llega adelantado (%3 bloques); no entra, para no trabar a las demás entradas"),
-                             {nombre_, id, std::to_string(n - r.adelantadosAvisados)}));
+                      llenar(traducir("motor", "mezcla %1: lo de %2 llega más adelantado que lo que puede esperar (%3 bloques); no entra"),
+                             {nombre_, id, std::to_string(adelantados - r.adelantadosAvisados)}));
             r.avisoAdelantadoNs = ahora;
-            r.adelantadosAvisados = n;
+            r.adelantadosAvisados = adelantados;
+        }
+        if (toca(tarde, r.tardeAvisados, r.avisoTardeNs)) {
+            registrar(Nivel::Aviso, llenar(traducir("motor", "mezcla %1: lo de %2 llega tarde (%3 bloques); no entra"),
+                                           {nombre_, id, std::to_string(tarde - r.tardeAvisados)}));
+            r.avisoTardeNs = ahora;
+            r.tardeAvisados = tarde;
         }
     }
     // Los medidores y los avisos del bus.
@@ -480,7 +491,7 @@ json Mezcla::estado() const {
     json e = json::object();
     for (const auto& [id, r] : ramas_)
         e[id] = {{"nivel", r.fader}, {"mute", r.mute}, {"escena", r.escena}, {"pico_db", r.picoDb}, {"rms_db", r.rmsDb},
-                 {"adelantados", r.adelantados}};
+                 {"adelantados", r.adelantados}, {"tarde", r.tarde}};
     json lim = nullptr;
     if (limitador_ != nullptr) {
         gboolean activo = TRUE, agc = FALSE;

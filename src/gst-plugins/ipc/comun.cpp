@@ -3,6 +3,7 @@
 // ============================================================================
 
 #include "comun.hpp"
+#include "tiempos.hpp"
 
 #include "platform/Hilo.hpp"
 #include "platform/Ritmo.hpp"
@@ -51,11 +52,8 @@ class Lector {
    private:
     void bucle() {
         ba::platform::nombrarHilo(nombre_);
-#if defined(__APPLE__)
-        if (critico_) pthread_set_qos_class_self_np(QOS_CLASS_USER_INTERACTIVE, 0);
-#elif defined(_WIN32)
-        if (critico_) SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_HIGHEST);
-#endif
+        if (critico_) prioridadDeAudio();
+        diferirAvisos(true); // ver comun.hpp: los repartidores, una vez por vuelta
         // Una vuelta por período, sin correr para alcanzar las perdidas (cada vuelta lee
         // todo lo que haya: no se pierde nada por saltear una).
         ba::platform::Ritmo ritmo(periodo_);
@@ -65,9 +63,15 @@ class Lector {
                 std::lock_guard<std::mutex> g(mu_);
                 vuelta = lista_;
             }
+            const std::uint64_t t0 = tiempos::activos() ? tiempos::ahora() : 0;
             for (const auto& l : vuelta) {
                 std::lock_guard<std::mutex> ll(l->mu);
                 if (l->activa) l->leer();
+            }
+            despertarPendientes();
+            if (t0 != 0 && !vuelta.empty()) {
+                tiempos::vuelta.anotar(tiempos::ahora() - t0);
+                tiempos::volcarCada5s();
             }
             vuelta.clear(); // las que se quitaron se van acá, no en la próxima vuelta
             ritmo.esperar();
@@ -90,6 +94,14 @@ Lector& lector(Medio m) {
 }
 
 } // namespace
+
+void prioridadDeAudio() {
+#if defined(__APPLE__)
+    pthread_set_qos_class_self_np(QOS_CLASS_USER_INTERACTIVE, 0);
+#elif defined(_WIN32)
+    SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_HIGHEST);
+#endif
+}
 
 void registrar(Medio m, const std::shared_ptr<Lectura>& l) { lector(m).registrar(l); }
 void quitar(Medio m, const std::shared_ptr<Lectura>& l) { lector(m).quitar(l); }

@@ -85387,7 +85387,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <location filename="../src/motor/Composicion.cpp" line="+1171"/>
         <location filename="../src/motor/Entrada.cpp" line="+1660"/>
         <location line="+226"/>
-        <location filename="../src/motor/Mezcla.cpp" line="+437"/>
+        <location filename="../src/motor/Mezcla.cpp" line="+448"/>
         <location filename="../src/motor/OrigenRed.cpp" line="+233"/>
         <location filename="../src/motor/Salidas.cpp" line="+388"/>
         <location line="+309"/>
@@ -85819,7 +85819,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>在 CPU 上编码视频（非硬件）</translation>
     </message>
     <message>
-        <location filename="../src/motor/Mezcla.cpp" line="-348"/>
+        <location filename="../src/motor/Mezcla.cpp" line="-359"/>
         <source>mezcla %1: no está balimitador (plugin baaudio): sale sin limitador</source>
         <translation>混合 %1：缺少 balimitador（插件 baaudio）：输出不带限幅器</translation>
     </message>
@@ -85841,9 +85841,14 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>缺少 intersrc、queue、volume、audiopanorama 或 level</translation>
     </message>
     <message>
-        <location line="+207"/>
-        <source>mezcla %1: lo de %2 llega adelantado (%3 bloques); no entra, para no trabar a las demás entradas</source>
-        <translation>混合 %1：%2 提前到达（%3 个块）；不送入混合，以免阻塞其他输入</translation>
+        <location line="+212"/>
+        <source>mezcla %1: lo de %2 llega más adelantado que lo que puede esperar (%3 bloques); no entra</source>
+        <translation>混音 %1：%2 提前到达，超出可等待的范围（%3 个块）；不混入</translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>mezcla %1: lo de %2 llega tarde (%3 bloques); no entra</source>
+        <translation>混音 %1：%2 迟到（%3 个块）；不混入</translation>
     </message>
     <message>
         <location line="+46"/>

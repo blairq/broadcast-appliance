@@ -7,9 +7,10 @@
 //   batoma <id>:mezcla ! volume ! level ───────────────┼─► audiomixer ! [balimitador] ! [ebur128level]
 //   …                                                   ┘     ! level ! intersink bus:<nombre>
 //                                            (pad: ganancia de escena con fundido)
-//   (sin hilo por rama: batoma recibe el audio en el hilo de la entrada —su baentrega—
-//   y lo deja en el pad del mezclador; ver src/gst-plugins/ipc/entrega.cpp. Sin baipc,
-//   `intersrc <id>:audio`, con su cola que tira lo viejo.)
+//   (sin hilo por rama: la entrega de cada entrada deja el audio en la cola de su batoma,
+//   sin esperar, y UN repartidor por bus lo empuja a los pads del mezclador; ver
+//   src/gst-plugins/ipc/entrega.cpp. Sin baipc, `intersrc <id>:audio`, con su cola que
+//   tira lo viejo.)
 //
 // El PROGRAMA lleva el limitador del máster (balimitador, −1 dBTP de fábrica) y
 // el medidor de loudness (ebur128level: momentáneo, corto, integrado, LRA y true
@@ -143,10 +144,13 @@ class Mezcla {
         double escena = 1.0, escenaDesde = 1.0, escenaHacia = 1.0;
         std::int64_t fundidoDesdeNs = 0, fundidoNs = 0;
         double picoDb = -120, rmsDb = -120;
-        bool deToma = false;           ///< src es una batoma (sin hilo: lo empuja la entrada)
-        std::uint64_t adelantados = 0; ///< los bloques que batoma no empujó por llegar adelantados
+        bool deToma = false;           ///< src es una batoma (sin hilo: la empuja el repartidor del bus)
+        std::uint64_t adelantados = 0; ///< los bloques que batoma tiró por llegar más adelantados que su cola
         std::uint64_t adelantadosAvisados = 0;
         std::int64_t avisoAdelantadoNs = 0;
+        std::uint64_t tarde = 0; ///< los que batoma tiró porque el mezclador ya había pasado su hora
+        std::uint64_t tardeAvisados = 0;
+        std::int64_t avisoTardeNs = 0;
     };
     /// Arma el pipeline con `desc` (el constructor).
     void armar(const std::string& desc);

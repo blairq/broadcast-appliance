@@ -126,6 +126,16 @@ if(BUILD_TESTING OR TRUE)
     add_test(NAME test_lazo_latencia COMMAND test_lazo_latencia)
     set_tests_properties(test_lazo_latencia PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 120 RUN_SERIAL TRUE) # mide latencia en tiempo real: solo
 
+    # La voz de muchos invitados (anillos → lector común → mezcladores): el lazo con el reloj de pared.
+    add_executable(test_lazo_invitados tests/test_lazo_invitados.cpp)
+    target_link_libraries(test_lazo_invitados PRIVATE ba_motor)
+    ba_gst_rpath(test_lazo_invitados "")
+    target_compile_definitions(test_lazo_invitados PRIVATE BA_TEST_GST_RAIZ="${BA_GST_FW}/Versions/1.0"
+        BA_TEST_GST_PLUGINS="${CMAKE_BINARY_DIR}/src/gst-plugins")
+    add_dependencies(test_lazo_invitados gstbaaudio gstbaipc)
+    add_test(NAME test_lazo_invitados COMMAND test_lazo_invitados)
+    set_tests_properties(test_lazo_invitados PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 120 RUN_SERIAL TRUE) # mide latencia en tiempo real: solo
+
     add_executable(test_composicion tests/test_composicion.cpp)
     target_link_libraries(test_composicion PRIVATE ba_motor)
     ba_gst_rpath(test_composicion "")

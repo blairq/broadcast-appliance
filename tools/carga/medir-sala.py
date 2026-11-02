@@ -9,7 +9,8 @@ régimen (de fábrica 60 s). Escribe en --salida:
                    ba-gateway, ba-web, hinchada, WindowServer), memoria del sistema,
                    carga, GPU (ioreg), cambios de contexto y despertares (top), red por
                    proceso (nettop) y la sala (room_status por ba-mcp, cada 1 s)
-  app.jsonl        lo de adentro de la app cada 5 s: sistema_recursos y grilla_personas_estado
+  app.jsonl        lo de adentro de la app cada 5 s: sistema_recursos, grilla_personas_estado y
+                   estudio_latencia (la edad del audio de cada invitado)
   registro.txt     las líneas de app.log y gateway.log de la prueba
   grilla.jpg       la página de la sala al final (ventana_captura)
   hinchada/        lo de hinchada (muestras.jsonl, informe.json/.html, consola.txt)
@@ -409,8 +410,9 @@ def main():
                 try:
                     rec = mcp.datos("sistema_recursos")
                     gr = mcp.datos("grilla_personas_estado")
-                    app_info.append({"s": m["s"], "recursos": rec, "grilla": gr})
-                    fa.write(json.dumps({"s": m["s"], "recursos": rec, "grilla": sin_pin(gr)}, ensure_ascii=False) + "\n")
+                    lat = mcp.datos("estudio_latencia")  # la edad del audio de cada invitado
+                    app_info.append({"s": m["s"], "recursos": rec, "grilla": gr, "latencia": lat})
+                    fa.write(json.dumps({"s": m["s"], "recursos": rec, "grilla": sin_pin(gr), "latencia": lat}, ensure_ascii=False) + "\n")
                     fa.flush()
                 except Exception as ex:
                     fa.write(json.dumps({"s": m["s"], "error": str(ex)}) + "\n")
@@ -598,6 +600,15 @@ def resumir(a, muestras, app_info, lineas, corte, estable_t, ncpu, t0, hdir):
         r["gente_con_camara"] = sum(1 for x in (g.get("gente", []) if isinstance(g, dict) else []) if x.get("con_camara"))
         rec = app_info[-1].get("recursos", {})
         r["app_bucle_ui"] = rec.get("bucle_ui")
+        # El audio de los invitados (estudio_latencia, la última del régimen): lo viejo que llega
+        # a la mezcla (la edad real: con la demora propia sumada) y cuántos van con demora propia.
+        ents = [e for e in (app_info[-1].get("latencia") or {}).get("entradas", [])
+                if e.get("audio") and not e.get("video") and str(e.get("entrada", "")).startswith("Invitado")]
+        if ents:
+            r["audio_invitados"] = {"entradas": len(ents),
+                                    "edad_p50_ms": resumen_serie([e.get("edad_p50_ms", 0) for e in ents]),
+                                    "edad_p95_ms": resumen_serie([e.get("edad_p95_ms", 0) for e in ents]),
+                                    "con_demora_propia": sum(1 for e in ents if e.get("retraso_propio_ms", 0) > 0)}
     # Del registro: demoras y candados.
     app = lineas.get("app.log", [])
     r["registro_app"] = {"se_demoro": sum("se demoró" in l for l in app),
@@ -658,6 +669,7 @@ def en_texto(r):
     l.append(f"- red (Mbps): {r.get('red_mbps')}")
     l.append(f"- sala: {r.get('sala')}")
     l.append(f"- grilla: {r.get('grilla')}")
+    l.append(f"- audio de los invitados (edad al llegar a la mezcla, entre invitados): {r.get('audio_invitados')}")
     l.append(f"- registro de la app: {r.get('registro_app')}")
     l.append(f"- conectar: {r.get('conectar')}; hinchada (unirse, ms): {r.get('hinchada_union_ms')}")
     return "\n".join(l) + "\n"

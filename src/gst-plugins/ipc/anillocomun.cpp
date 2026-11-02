@@ -14,6 +14,7 @@
 #include "comun.hpp"
 #include "hora.hpp"
 #include "sinhilo.hpp"
+#include "tiempos.hpp"
 
 #include "ipc/SharedAudioRing.hpp"
 
@@ -96,7 +97,12 @@ class LecturaAnillo : public ba::ipc_gst::Lectura {
             GST_BUFFER_PTS(b) = pts;
             GST_BUFFER_DURATION(b) = dur;
             if (GST_CLOCK_TIME_IS_VALID(pts)) proxima = pts + dur;
-            if (salida.empujar(e, b, caps) != GST_FLOW_OK) break;
+            namespace ti = ba::ipc_gst::tiempos;
+            const std::uint64_t t0 = ti::activos() ? ti::ahora() : 0;
+            if (t0 != 0 && meta.qpc != 0 && meta.qpc <= t0) ti::anillo.anotar(t0 - meta.qpc);
+            const GstFlowReturn r = salida.empujar(e, b, caps);
+            if (t0 != 0) ti::cadena.anotar(ti::ahora() - t0);
+            if (r != GST_FLOW_OK) break;
         }
     }
 };

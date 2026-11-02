@@ -85593,7 +85593,7 @@ PROPONHA, NÃO APLIQUE: mostre à pessoa o que muda e aplique só se ela confirm
         <location filename="../src/motor/Composicion.cpp" line="+1171"/>
         <location filename="../src/motor/Entrada.cpp" line="+1660"/>
         <location line="+226"/>
-        <location filename="../src/motor/Mezcla.cpp" line="+437"/>
+        <location filename="../src/motor/Mezcla.cpp" line="+448"/>
         <location filename="../src/motor/OrigenRed.cpp" line="+233"/>
         <location filename="../src/motor/Salidas.cpp" line="+388"/>
         <location line="+309"/>
@@ -86025,7 +86025,7 @@ PROPONHA, NÃO APLIQUE: mostre à pessoa o que muda e aplique só se ela confirm
         <translation>codifica vídeo na CPU (não é de hardware)</translation>
     </message>
     <message>
-        <location filename="../src/motor/Mezcla.cpp" line="-348"/>
+        <location filename="../src/motor/Mezcla.cpp" line="-359"/>
         <source>mezcla %1: no está balimitador (plugin baaudio): sale sin limitador</source>
         <translation>mixagem %1: não existe balimitador (plugin baaudio): sai sem limitador</translation>
     </message>
@@ -86047,9 +86047,14 @@ PROPONHA, NÃO APLIQUE: mostre à pessoa o que muda e aplique só se ela confirm
         <translation>falta intersrc, queue, volume, audiopanorama ou level</translation>
     </message>
     <message>
-        <location line="+207"/>
-        <source>mezcla %1: lo de %2 llega adelantado (%3 bloques); no entra, para no trabar a las demás entradas</source>
-        <translation>mixagem %1: %2 chega adiantado (%3 blocos); não entra, para não travar as outras entradas</translation>
+        <location line="+212"/>
+        <source>mezcla %1: lo de %2 llega más adelantado que lo que puede esperar (%3 bloques); no entra</source>
+        <translation>mixagem %1: %2 chega mais adiantado do que pode esperar (%3 blocos); não entra</translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>mezcla %1: lo de %2 llega tarde (%3 bloques); no entra</source>
+        <translation>mixagem %1: %2 chega atrasado (%3 blocos); não entra</translation>
     </message>
     <message>
         <location line="+46"/>
