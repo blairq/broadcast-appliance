@@ -1313,10 +1313,14 @@ def resumir_f0(r, a, muestras, lineas, extras, hdir, remoto, estable_t, app_info
                        "primer_cuadro_ms": {k: (r.get("invitado") or {}).get(k) for k in ("primer_cuadro_ms_medio", "primer_cuadro_ms_max")}}
     # La palabra: cuánto tardó la HD en cada pedido (lo mide el gateway, en su registro).
     if a.palabra:
+        # «capas: llegó la HD de pX (N ms desde el pedido)»: solo las que llegan después del primer
+        # pedido de la palabra (al entrar la gente también llegan HD, y esas no cuentan).
         hd = []
+        desde = min((p["t"] for p in (extras.get("palabra_pedidos") or [])), default=None)
         for l in lineas.get("gateway.log", []):
-            x = re.search(r"HD\D+?(\d+) ms", l)
-            if x:
+            x = re.search(r"HD .*?\((\d+) ms", l)
+            h = hora_log(l)
+            if x and desde is not None and h is not None and h >= desde - 0.5:
                 hd.append(int(x.group(1)))
         r["palabra"] = {"pedidos": len(extras.get("palabra_pedidos") or []), "hd_ms": resumen_serie(hd), "medidas": len(hd),
                         "error": extras.get("palabra") or extras.get("palabra_error")}
