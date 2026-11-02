@@ -18,6 +18,7 @@ const char* nombreCapa(Capa c) {
 void SelectorCapas::reiniciar() {
     sale_ = Capa::Nada;
     activas_ = {};
+    retenerHasta_ = 0;
 }
 
 bool SelectorCapas::poner(CapasActivas a) {
@@ -27,27 +28,64 @@ bool SelectorCapas::poner(CapasActivas a) {
 }
 
 bool SelectorCapas::pedir(Capa c) {
+    if (c == pedida_ && retenerHasta_ != 0) return false; // lo mismo, en pleno fundido: que termine
     pedida_ = c;
+    retenerHasta_ = 0; // otro pedido: el fundido que hubiera ya no retiene nada
     if (c == Capa::Nada) {
         sale_ = Capa::Nada; // al volver se espera la que se pida, sin la vieja de por medio
         return poner({false, false});
     }
     // La que sale sigue prendida hasta que llegue la nueva (llego).
     const bool vieja = sale_ != Capa::Nada && sale_ != c;
-    return poner({c == Capa::Alta || (vieja && sale_ == Capa::Alta), c == Capa::Baja || (vieja && sale_ == Capa::Baja)});
+    // Se pide la alta y no sale nada todavía (conexión nueva): la baja también, que llega
+    // antes y se muestra hasta la HD (nunca negro). Solo si la baja no estaba ya pausada a
+    // propósito (después de «nada» se espera la que se pida, ver arriba).
+    const bool bajaMientras = c == Capa::Alta && sale_ == Capa::Nada && activas_.baja;
+    return poner({c == Capa::Alta || (vieja && sale_ == Capa::Alta),
+                  c == Capa::Baja || (vieja && sale_ == Capa::Baja) || bajaMientras});
 }
 
-bool SelectorCapas::llego(Capa c, bool& pasa) {
-    pasa = false;
+bool SelectorCapas::llego(Capa c, bool& pasa, std::int64_t ahoraMs) {
+    bool anterior = false, empieza = false;
+    return llego(c, pasa, anterior, empieza, ahoraMs);
+}
+
+bool SelectorCapas::llego(Capa c, bool& pasa, bool& anterior, bool& empieza, std::int64_t ahoraMs) {
+    pasa = anterior = empieza = false;
     if (c == Capa::Nada) return false;
+    // Terminó el fundido: la baja se pausa ahora (con cualquier cuadro que llegue).
+    bool cambio = false;
+    if (retenerHasta_ != 0 && ahoraMs >= retenerHasta_) {
+        retenerHasta_ = 0;
+        cambio = poner({sale_ == Capa::Alta, sale_ == Capa::Baja});
+    }
     if (c == sale_) {
         pasa = true;
-        return false;
+        return cambio;
     }
-    if (c != pedida_) return false; // la vieja, o una que el navegador todavía no pausó
+    if (c != pedida_) {
+        if (retenerHasta_ != 0 && c == Capa::Baja) {
+            anterior = true; // la que se va, durante el fundido
+            return cambio;
+        }
+        // Se pidió la alta y no salía nada: la baja sale mientras tanto (sin negro).
+        if (c == Capa::Baja && pedida_ == Capa::Alta && sale_ == Capa::Nada && activas_.baja) {
+            sale_ = Capa::Baja;
+            pasa = true;
+        }
+        return cambio; // la vieja, o una que el navegador todavía no pausó
+    }
+    const Capa antes = sale_;
     sale_ = c;
     pasa = true;
-    return poner({c == Capa::Alta, c == Capa::Baja});
+    if (c == Capa::Alta && antes == Capa::Baja && fundidoMs_ > 0) {
+        // De la baja a la HD: fundido; la baja sigue prendida hasta que termine.
+        empieza = true;
+        retenerHasta_ = ahoraMs + fundidoMs_;
+        if (retenerHasta_ == 0) retenerHasta_ = 1;
+        return poner({true, true}) || cambio;
+    }
+    return poner({c == Capa::Alta, c == Capa::Baja}) || cambio;
 }
 
 Capa capaNecesaria(const NecesidadCapa& n) {
@@ -61,7 +99,11 @@ Capa capaNecesaria(const NecesidadCapa& n) {
         case K::Registro: c = Capa::Alta; break; // la app reconoce la cara
         default: break;
     }
-    if (n.altoGrilla > 0) c = std::max(c, n.altoGrilla <= 200 ? Capa::Baja : Capa::Alta);
+    if (n.capaGrilla != Capa::Nada)
+        c = std::max(c, n.capaGrilla); // la grilla dijo (con histéresis, ver GrillaPersonas)
+    else if (n.altoGrilla > 0)
+        c = std::max(c, n.altoGrilla <= 200 ? Capa::Baja : Capa::Alta);
+    if (n.precarga) c = Capa::Alta;
     if (n.espectadores > 0) c = Capa::Alta;
     return c;
 }

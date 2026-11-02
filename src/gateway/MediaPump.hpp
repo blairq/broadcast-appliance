@@ -75,6 +75,7 @@
 #include "ipc/MedidaTransporte.hpp"
 #include "ipc/SharedAudioRing.hpp"
 #include "ipc/SpoutTransport.hpp"
+#include "Fundido.hpp"
 #include "MediaRoute.hpp"
 #include "Webrtc.hpp"
 
@@ -206,6 +207,12 @@ class MediaPump {
     void forwardAudio(int session, const float* samples, size_t n, int rate);
     void forwardVideo(int session, const uint8_t* pixels, size_t bytes, int w, int h);
     void forwardScreen(int session, const uint8_t* pixels, size_t bytes, int w, int h);
+    /// De la baja a la HD (Fundido.hpp): el próximo cuadro de la cámara de `session` es el
+    /// primero de la alta; su canal (el lugar del programa y su vista chica, o el remoto)
+    /// funde en `ms` desde lo último que mostró.
+    void fundirVideo(int session, int ms);
+    /// Un cuadro de la capa que se va durante ese fundido: refresca la imagen que se funde.
+    void forwardVideoAnterior(int session, const uint8_t* pixels, size_t bytes, int w, int h);
     /// El remoto del canal `canal` dejó de mandar (se le sacó la palabra o se fue):
     /// un cuadro negro en su video, para que la entrada no se quede con la cara del
     /// anterior (a los 3 s el motor pone «sin señal»).
@@ -242,7 +249,16 @@ class MediaPump {
         std::string nombre;
         uint64_t informeNs = 0;
         uint64_t cuadros = 0;
+        // El fundido de la baja a la HD (con `lock`). `ultimo`: copia del último cuadro
+        // mandado si es chico (la baja: 320x180 son 230 KB; los grandes no se copian).
+        Fundido fundido;
+        int fundidoPendienteMs = 0; ///< > 0: el próximo cuadro arranca el fundido
+        std::vector<uint8_t> ultimo, mezcla;
+        int ultimoW = 0, ultimoH = 0;
+        std::int64_t ultimoMs = 0;
     };
+    /// Los canales de video de la cámara de `session` según su ruta (para el fundido).
+    std::vector<VideoOut*> videosDeCamara(int session) const;
     /// Canal de audio B->A: ring + re-bloqueo a 10 ms + re-muestreo.
     struct AudioOut {
         ba::ipc::SharedAudioRing ring;

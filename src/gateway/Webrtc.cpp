@@ -160,11 +160,19 @@ struct EstadoCapas {
         a = sel.activas();
         return cambio;
     }
-    bool llego(Capa c, bool& pasa, CapasActivas& a) {
+    bool llego(Capa c, bool& pasa, bool& anterior, bool& empieza, int& fundidoMs, CapasActivas& a) {
         std::lock_guard<std::mutex> l(mu);
-        const bool cambio = sel.llego(c, pasa);
+        const auto ahora = std::chrono::duration_cast<std::chrono::milliseconds>(
+                               std::chrono::steady_clock::now().time_since_epoch())
+                               .count();
+        const bool cambio = sel.llego(c, pasa, anterior, empieza, ahora);
+        fundidoMs = sel.fundidoMs();
         a = sel.activas();
         return cambio;
+    }
+    void setFundidoMs(int ms) {
+        std::lock_guard<std::mutex> l(mu);
+        sel.setFundidoMs(ms);
     }
     Capa sale() const {
         std::lock_guard<std::mutex> l(mu);
@@ -382,11 +390,17 @@ class LocalAudioSource : public webrtc::Notifier<webrtc::AudioSourceInterface> {
 class RemoteVideoSink : public rtc::VideoSinkInterface<webrtc::VideoFrame> {
    public:
     using Fn = std::function<void(const uint8_t*, size_t, int, int)>;
-    /// `pasa`: si este cuadro va a `fn` (una capa que no sale se descarta ANTES de
-    /// convertirla). Vacío = todos.
-    explicit RemoteVideoSink(Fn fn, std::function<bool()> pasa = {}) : fn_(std::move(fn)), pasa_(std::move(pasa)) {}
+    static constexpr int kNo = 0, kSale = 1, kAnterior = 2;
+    /// `pasa`: adónde va este cuadro: a `fn` (kSale), a `anterior` (kAnterior: la capa que
+    /// se va durante el fundido) o a ningún lado (una capa que no sale se descarta ANTES de
+    /// convertirla). Vacío = todos a `fn`.
+    explicit RemoteVideoSink(Fn fn, std::function<int()> pasa = {}, Fn anterior = {})
+        : fn_(std::move(fn)), pasa_(std::move(pasa)), anterior_(std::move(anterior)) {}
     void OnFrame(const webrtc::VideoFrame& frame) override {
-        if (!fn_ || (pasa_ && !pasa_())) return;
+        if (!fn_) return;
+        const int destino = pasa_ ? pasa_() : kSale;
+        if (destino == kNo || (destino == kAnterior && !anterior_)) return;
+        const Fn& fn = destino == kSale ? fn_ : anterior_;
         rtc::scoped_refptr<webrtc::I420BufferInterface> i420 = frame.video_frame_buffer()->ToI420();
         if (!i420) return;
         if (frame.rotation() != webrtc::kVideoRotation_0) {
@@ -397,12 +411,13 @@ class RemoteVideoSink : public rtc::VideoSinkInterface<webrtc::VideoFrame> {
         bgra_.resize(static_cast<size_t>(w) * h * 4);
         libyuv::I420ToARGB(i420->DataY(), i420->StrideY(), i420->DataU(), i420->StrideU(), i420->DataV(),
                            i420->StrideV(), bgra_.data(), w * 4, w, h);
-        fn_(bgra_.data(), bgra_.size(), w, h);
+        fn(bgra_.data(), bgra_.size(), w, h);
     }
 
    private:
     Fn fn_;
-    std::function<bool()> pasa_;
+    std::function<int()> pasa_;
+    Fn anterior_;
     std::vector<uint8_t> bgra_;
 };
 
@@ -1206,15 +1221,18 @@ struct WebrtcSession::Impl : public webrtc::PeerConnectionObserver {
             const bool dosCapas = capas.con();
             if (!dosCapas && cameraMid.empty()) cameraMid = mid;
             const bool camera = capa != Capa::Nada || (!dosCapas && mid == cameraMid);
-            std::function<bool()> pasa;
+            std::function<int()> pasa;
             if (capa != Capa::Nada)
                 pasa = [this, capa]() {
-                    bool va = false;
+                    bool va = false, anterior = false, empieza = false;
+                    int ms = 0;
                     CapasActivas a;
-                    if (capas.llego(capa, va, a) && cb.onCapas) cb.onCapas(a.alta, a.baja);
-                    return va;
+                    if (capas.llego(capa, va, anterior, empieza, ms, a) && cb.onCapas) cb.onCapas(a.alta, a.baja);
+                    if (empieza && cb.onFundido) cb.onFundido(ms); // antes del primer cuadro HD
+                    return va ? RemoteVideoSink::kSale : anterior ? RemoteVideoSink::kAnterior : RemoteVideoSink::kNo;
                 };
-            auto sink = std::make_unique<RemoteVideoSink>(camera ? cb.onRemoteVideo : cb.onRemoteScreen, std::move(pasa));
+            auto sink = std::make_unique<RemoteVideoSink>(camera ? cb.onRemoteVideo : cb.onRemoteScreen, std::move(pasa),
+                                                          camera ? cb.onRemoteVideoAnterior : RemoteVideoSink::Fn());
             auto* video = static_cast<webrtc::VideoTrackInterface*>(track.get());
             // Relay a espectadores: los cuadros codificados pasan por el Feed de
             // esta sesion antes del decodificador. A los espectadores se les reenvia
@@ -1349,6 +1367,9 @@ void WebrtcSession::pedirCapa(Capa c) {
     if (impl_ == nullptr) return;
     CapasActivas a;
     if (impl_->capas.pedir(c, a) && impl_->cb.onCapas) impl_->cb.onCapas(a.alta, a.baja);
+}
+void WebrtcSession::setFundidoMs(int ms) {
+    if (impl_ != nullptr) impl_->capas.setFundidoMs(ms);
 }
 bool WebrtcSession::conCapas() const { return impl_ != nullptr && impl_->capas.con(); }
 Capa WebrtcSession::capaSale() const { return impl_ != nullptr ? impl_->capas.sale() : Capa::Nada; }

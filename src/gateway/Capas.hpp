@@ -27,6 +27,13 @@
 // nueva, y recién ahí se pausa la vieja (SelectorCapas). A la que va a salir al aire (la
 // armada en el preview, el siguiente de la fila) se le pide la alta de antemano.
 //
+// DE LA BAJA A LA HD, CON UN FUNDIDO (regla del usuario, Fundido.hpp): si se pide la alta
+// y todavía no salía nada (una conexión nueva: el integrante al que se le acaba de dar la
+// palabra), la baja —que llega antes: su cuadro clave es chico— sale mientras tanto; cuando
+// llega la alta, quien pinta funde de la baja a la HD en `fundidoMs` y la baja sigue prendida
+// ese tiempo (sus cuadros llegan como «anterior»: refrescan la imagen que se va). Recién
+// después se pausa. Al bajar (de la alta a la baja) no hay fundido: el lugar se achica.
+//
 // El tope que pone el operador por la red (`calidad-720p`/`calidad-360p`) y el de la grilla
 // (`calidad-grilla-*`) siguen como estaban: los aplica el navegador a la capa ALTA. El del
 // operador topea además el VIDEO DE RETORNO que recibe esa persona (RetornoCompartido.hpp).
@@ -65,10 +72,21 @@ class SelectorCapas {
     /// La sala necesita `c`. true si cambió lo que hay que pedirle al navegador (activas()).
     /// Si es otra capa que la que sale, quedan las dos prendidas hasta que llegue la nueva.
     bool pedir(Capa c);
-    /// Llegó un cuadro de la capa `c`. `pasa`: si va a la salida (la que sale, o la pedida
-    /// cuando llega por primera vez: desde ahí es la que sale). true si cambió activas()
-    /// (llegó la nueva: la vieja se pausa).
-    bool llego(Capa c, bool& pasa);
+    /// Llegó un cuadro de la capa `c` en `ahoraMs`. `pasa`: si va a la salida (la que sale,
+    /// o la pedida cuando llega por primera vez: desde ahí es la que sale). true si cambió
+    /// activas() (llegó la nueva: la vieja se pausa, o termina el fundido).
+    bool llego(Capa c, bool& pasa, std::int64_t ahoraMs = 0);
+    /// Lo mismo, y además `anterior`: es un cuadro de la capa que se va durante el fundido
+    /// (no sale, pero refresca la imagen que se funde). `empieza`: este cuadro (de la alta)
+    /// es el primero después de la baja: quien pinta arranca el fundido con lo último que
+    /// mostró.
+    bool llego(Capa c, bool& pasa, bool& anterior, bool& empieza, std::int64_t ahoraMs);
+    /// Cuánto dura el fundido de la baja a la alta (0 = sin fundido: la baja se pausa apenas
+    /// llega la alta, como antes).
+    void setFundidoMs(int ms) { fundidoMs_ = ms < 0 ? 0 : ms; }
+    int fundidoMs() const { return fundidoMs_; }
+    /// ¿Hay un fundido en curso (la baja retenida)?
+    bool fundiendo() const { return retenerHasta_ != 0; }
     CapasActivas activas() const { return activas_; }
     Capa pedida() const { return pedida_; }
     Capa sale() const { return sale_; }
@@ -78,6 +96,8 @@ class SelectorCapas {
     Capa pedida_ = Capa::Alta;
     Capa sale_ = Capa::Nada;
     CapasActivas activas_{};
+    int fundidoMs_ = 0;
+    std::int64_t retenerHasta_ = 0; ///< hasta cuándo sigue prendida la baja (0 = no se retiene)
 };
 
 /// Lo que se sabe de alguien para decidir su capa (SignalingServer lo junta).
@@ -85,6 +105,12 @@ struct NecesidadCapa {
     MediaRoute ruta;
     /// El alto del lugar más grande que ocupa en una grilla de personas (0 = en ninguna).
     int altoGrilla = 0;
+    /// La capa que pidió la grilla para esta persona (la decide la app con histéresis: el
+    /// que pasa a grande, alta; las miniaturas no cambian por achicarse un poco). Nada = la
+    /// app no dijo (una app de antes): vale el umbral por `altoGrilla`.
+    Capa capaGrilla = Capa::Nada;
+    /// La grilla la precarga (el siguiente en tomar la palabra): alta de antemano.
+    bool precarga = false;
     /// La app dijo qué está al aire (POST /api/v1/capas). Sin eso (una app vieja, o recién
     /// arrancada) el que está en el programa va en alta, como siempre.
     bool appDijo = false;
@@ -102,8 +128,9 @@ struct NecesidadCapa {
 ///   - remoto de la asamblea con la palabra (canal 1..2) o el siguiente (canal 0): alta;
 ///   - lobby y fila con vista previa: baja (un cuadrito del operador);
 ///   - en la fila sin vista previa, una pantalla, la atención: nada;
-///   - en una grilla: al menos la de su lugar (un cuadrito hasta 200 px de alto, baja; más
-///     grande, alta);
+///   - en una grilla: al menos la que pidió la grilla (capaGrilla); si no dijo, la de su
+///     lugar (un cuadrito hasta 200 px de alto, baja; más grande, alta);
+///   - precargado por una grilla (el siguiente orador): alta;
 ///   - si una vista web lo mira: alta (el reenvío es de la alta).
 Capa capaNecesaria(const NecesidadCapa& n);
 

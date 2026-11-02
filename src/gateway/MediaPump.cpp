@@ -1324,6 +1324,34 @@ void MediaPump::forwardVideo(int session, const uint8_t* pixels, size_t bytes, i
     }
 }
 
+std::vector<MediaPump::VideoOut*> MediaPump::videosDeCamara(int session) const {
+    std::vector<VideoOut*> out;
+    const MediaRoute r = route(session);
+    if (r.kind == MediaRoute::Kind::Program && r.index >= 1 && r.index <= kMaxInvitados) {
+        if (VideoOut* v = guestVideo_[static_cast<size_t>(r.index)].load(std::memory_order_acquire)) out.push_back(v);
+        if (VideoOut* u = guestUiVideo_[static_cast<size_t>(r.index)].load(std::memory_order_acquire)) out.push_back(u);
+    } else if (r.kind == MediaRoute::Kind::Remoto && r.index >= 1 && r.index < static_cast<int>(remotoVideo_.size())) {
+        out.push_back(remotoVideo_[static_cast<size_t>(r.index)].get());
+    }
+    return out;
+}
+
+void MediaPump::fundirVideo(int session, int ms) {
+    if (ms <= 0) return;
+    for (VideoOut* v : videosDeCamara(session)) {
+        std::lock_guard<std::mutex> lock(v->lock);
+        v->fundidoPendienteMs = ms;
+    }
+}
+
+void MediaPump::forwardVideoAnterior(int session, const uint8_t* pixels, size_t bytes, int w, int h) {
+    if (pixels == nullptr || w <= 0 || h <= 0 || bytes < static_cast<size_t>(w) * h * 4u) return;
+    for (VideoOut* v : videosDeCamara(session)) {
+        std::lock_guard<std::mutex> lock(v->lock);
+        v->fundido.anterior(pixels, w, h); // Fundido::aplicar lo escala al tamaño del cuadro nuevo
+    }
+}
+
 void MediaPump::forwardScreen(int session, const uint8_t* pixels, size_t bytes, int w, int h) {
     if (pixels == nullptr || w <= 0 || h <= 0 || bytes < static_cast<size_t>(w) * h * 4u) return;
     const MediaRoute r = route(session);
@@ -1383,6 +1411,32 @@ void MediaPump::publishVideo(VideoOut& out, const uint8_t* pixels, int w, int h,
     if (w != bw || h != bh) {
         fitBgra(pixels, w, h, out.scratch.data(), bw, bh);
         frame = out.scratch.data();
+    }
+    // De la baja a la HD (Fundido.hpp): el primer cuadro de la alta arranca el fundido
+    // desde el último de la baja; mientras dura, cada cuadro se mezcla con la que se va.
+    const std::int64_t ahoraMs = static_cast<std::int64_t>(monoNs() / 1'000'000ULL);
+    if (out.fundidoPendienteMs > 0) {
+        if (real && !out.ultimo.empty() && ahoraMs - out.ultimoMs < 2000) // uno viejo no: sería un salto
+            out.fundido.empezar(out.ultimo.data(), out.ultimoW, out.ultimoH, out.fundidoPendienteMs, ahoraMs);
+        out.fundidoPendienteMs = 0;
+    }
+    if (out.fundido.activo(ahoraMs)) {
+        out.mezcla.assign(frame, frame + static_cast<size_t>(bw) * bh * 4u);
+        out.fundido.aplicar(out.mezcla.data(), bw * 4, bw, bh, ahoraMs);
+        frame = out.mezcla.data();
+    } else if (!out.mezcla.empty()) {
+        out.mezcla.clear();
+        out.mezcla.shrink_to_fit();
+    }
+    // Lo último que salió, si es chico (la baja): con eso arranca el próximo fundido.
+    if (real && static_cast<size_t>(bw) * bh <= 640u * 360u) {
+        out.ultimo.assign(frame, frame + static_cast<size_t>(bw) * bh * 4u);
+        out.ultimoW = bw;
+        out.ultimoH = bh;
+        out.ultimoMs = ahoraMs;
+    } else if (real && !out.ultimo.empty()) {
+        out.ultimo.clear();
+        out.ultimo.shrink_to_fit();
     }
     const uint64_t now = HealthBlock::nowQpc();
     FrameMeta meta{now, now};

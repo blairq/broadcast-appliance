@@ -99,6 +99,13 @@ struct SessionCallbacks {
     /// Hay que pedirle al navegador que prenda o pause las capas de su camara (Capas.hpp):
     /// el servidor se lo manda por el canal ({type:"capas", alta, baja}). Solo con dos capas.
     std::function<void(bool alta, bool baja)> onCapas;
+    /// De la baja a la HD (Fundido.hpp): llegó el primer cuadro de la alta y va a salir por
+    /// onRemoteVideo justo después. Quien pinta arranca un fundido de `ms` con lo último que
+    /// mostró de la baja. Llamado desde el hilo del cuadro, antes de ese cuadro.
+    std::function<void(int ms)> onFundido;
+    /// Un cuadro de la capa que se va (la baja) durante el fundido: no sale, refresca la
+    /// imagen que se funde. BGRA.
+    std::function<void(const uint8_t* pixels, size_t bytes, int w, int h)> onRemoteVideoAnterior;
 };
 
 /// Un cuadro de video para mandar (F2-13): el BGRA que llega de A convertido UNA vez al
@@ -195,6 +202,8 @@ class WebrtcSession {
     /// La capa que la sala necesita de esta camara. Si cambia lo que el navegador tiene que
     /// mandar, llama a onCapas (sin parpadeo: ver SelectorCapas).
     void pedirCapa(Capa c);
+    /// Cuánto dura el fundido de la baja a la HD (Fundido.hpp); 0 = sin fundido.
+    void setFundidoMs(int ms);
     /// Si la camara llega en dos capas (setCapas con los dos mids).
     bool conCapas() const;
     /// La capa que va hoy a la salida y la pedida (diagnostico, estadisticas).
