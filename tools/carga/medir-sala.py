@@ -306,10 +306,10 @@ def footprint(pid):
 class Remoto(threading.Thread):
     """Las muestras de la máquina remota: muestrear-win.ps1 por ssh, una línea JSON por muestra."""
 
-    def __init__(self, host, script, segundos):
+    def __init__(self, host, script, segundos, cada=1.0):
         super().__init__(daemon=True)
         self.p = subprocess.Popen(["ssh", host, "powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", script,
-                                   "-Segundos", str(int(segundos))], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True)
+                                   "-Segundos", str(int(segundos)), "-Cada", str(cada)], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True)
         self.ultimo = {}
         self.placa = None
         self.mu = threading.Lock()
@@ -466,6 +466,9 @@ def main():
     ap.add_argument("--medir-grilla-s", type=int, default=20, help="segundos de grilla_personas_medir en régimen (0 = no)")
     ap.add_argument("--remoto", default=None, help="la app corre en este host (alias de ssh, Windows): ver MODO REMOTO")
     ap.add_argument("--remoto-dir", default="C:\\ba-pruebas", help="carpeta de trabajo en el host remoto (ahí va muestrear-win.ps1)")
+    ap.add_argument("--remoto-cada", type=float, default=1.0,
+                    help="segundos entre muestras de muestrear-win.ps1 (WMI por hilo cuesta ~85 %% de un núcleo en "
+                         "WmiPrvSE con 1 s y 300 hilos en el gateway: con 5 s cuesta la quinta parte)")
     ap.add_argument("--remoto-logs", default="C:\\ba-pruebas\\BroadcastAppliance\\Logs", help="la carpeta Logs de la app remota")
     ap.add_argument("--camino", default="directo", help="directo | turn-udp | turn-tcp | turn-mezcla:PCT | pinggy[:udp|tcp|mezcla:PCT]")
     ap.add_argument("--duracion", default=None, help="régimen largo (30m, 1h): resistencia, con tendencia por minuto")
@@ -566,7 +569,7 @@ def main():
             for n in ("etw-win.ps1", "ba-nucleos.wprp"):
                 subprocess.run(["scp", "-q", str(Path(__file__).with_name(n)), f"{a.remoto}:{(a.remoto_dir.rstrip(chr(92)) + chr(92) + n).replace(chr(92), '/')}"],
                                check=True)
-        remoto = Remoto(a.remoto, script, durante + 120)
+        remoto = Remoto(a.remoto, script, durante + 120, a.remoto_cada)
         remoto.start()
         # La primera muestra antes de lanzar hinchada: los hilos y la memoria «de inicio» son de la sala vacía.
         espera = time.time() + 30
