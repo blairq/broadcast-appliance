@@ -26,6 +26,7 @@
 #include <cstring>
 #include <string>
 #include <thread>
+#include <utility>
 #include <vector>
 
 #ifdef _WIN32
@@ -315,6 +316,160 @@ void vectoresRfc() {
 
 } // namespace
 
+// --- ráfaga: N invitados que entran A LA VEZ (hinchada --rafaga por el TURN) -------------
+// Cada etapa se manda para todos antes de leer ninguna respuesta (lo que hace libwebrtc con
+// 40 PeerConnection en un proceso): Allocate sin credencial (401), Allocate firmado,
+// CreatePermission + ChannelBind hacia el «gateway» (el eco) y ChannelData de ida y vuelta.
+// Los que van por UDP retransmiten como un cliente STUN (RFC 5389 §7.2.1) si no hay respuesta.
+struct EnRafaga {
+    bool tcp = false;
+    Fd fd = FD_INVALIDO;
+    std::string buf, nonce, realm, claveMI, usuario;
+    std::array<uint8_t, 12> tid{};
+    std::string pedido; // el último pedido (para retransmitir por UDP)
+    int codigo = 0;     // el de la última respuesta (0: ninguna)
+    uint16_t puertoRelay = 0;
+    int ecos = 0;
+};
+
+static bool rafaga(tu::Servidor& srv, const tu::Servidor::Config& cfg, uint16_t puertoEco, int nUdp, int nTcp) {
+    const uint16_t puertoTcp = srv.puertoTcp(), puertoUdp = srv.puertoUdp();
+    const tu::Credencial cred = tu::credencialEfimera(cfg.secreto, 600);
+    std::vector<EnRafaga> cs(size_t(nUdp + nTcp));
+    for (size_t i = 0; i < cs.size(); ++i) {
+        EnRafaga& c = cs[i];
+        c.tcp = int(i) >= nUdp;
+        c.usuario = cred.usuario;
+        c.fd = socket(AF_INET, c.tcp ? SOCK_STREAM : SOCK_DGRAM, c.tcp ? IPPROTO_TCP : IPPROTO_UDP);
+        sockaddr_in sa = sockDe(kLocal, c.tcp ? puertoTcp : puertoUdp);
+        if (connect(c.fd, reinterpret_cast<sockaddr*>(&sa), sizeof(sa)) != 0) return false;
+    }
+    // Un marco de `c` (STUN o ChannelData); "" si no hay nada todavía.
+    const auto marco = [](EnRafaga& c) -> std::string {
+        for (;;) {
+            if (!c.tcp && !c.buf.empty()) return std::exchange(c.buf, std::string());
+            if (c.tcp && c.buf.size() >= 4) {
+                const auto* p = reinterpret_cast<const uint8_t*>(c.buf.data());
+                size_t total = 0, util = 0;
+                if ((p[0] & 0xC0) == 0) total = util = st::largoStun(p, c.buf.size());
+                else {
+                    util = 4 + ((size_t(p[2]) << 8) | p[3]);
+                    total = (util + 3) & ~size_t(3);
+                }
+                if (total != 0 && c.buf.size() >= total) {
+                    std::string out = c.buf.substr(0, util);
+                    c.buf.erase(0, total);
+                    return out;
+                }
+            }
+            if (!legible(c.fd, 0)) return {};
+            char b[70000];
+            const auto r = ::recv(c.fd, b, int(sizeof(b)), 0);
+            if (r <= 0) return {};
+            c.buf.append(b, size_t(r));
+        }
+    };
+    // Una etapa: `armar` arma el pedido de cada uno; se manda a todos y se espera hasta
+    // `ms` que todos tengan respuesta (retransmitiendo por UDP cada 250 ms).
+    const auto etapa = [&](uint16_t metodo, const std::function<void(st::Constructor&)>& armar, bool firmar, int ms) {
+        static uint32_t n = 1;
+        for (EnRafaga& c : cs) {
+            for (int k = 0; k < 12; ++k) c.tid[size_t(k)] = uint8_t((n >> (8 * (k % 4))) + k);
+            ++n;
+            st::Constructor b(st::tipo(metodo, st::kPedido), c.tid);
+            armar(b);
+            if (firmar) {
+                b.agregar(st::kUsername, c.usuario);
+                b.agregar(st::kRealm, c.realm);
+                b.agregar(st::kNonce, c.nonce);
+                b.integridad(c.claveMI);
+            }
+            b.huella();
+            c.pedido = b.bytes();
+            c.codigo = 0;
+        }
+        for (EnRafaga& c : cs) ::send(c.fd, c.pedido.data(), int(c.pedido.size()), 0);
+        const auto fin = std::chrono::steady_clock::now() + std::chrono::milliseconds(ms);
+        auto otraVez = std::chrono::steady_clock::now() + std::chrono::milliseconds(250);
+        for (;;) {
+            bool faltan = false;
+            for (EnRafaga& c : cs) {
+                for (std::string f = marco(c); !f.empty(); f = marco(c)) {
+                    st::Mensaje m;
+                    if (!st::parsear(reinterpret_cast<const uint8_t*>(f.data()), f.size(), m) || m.tid != c.tid)
+                        continue;
+                    c.codigo = Cliente::codigo(m);
+                    if (c.codigo == 401 || c.codigo == 438) {
+                        c.realm = m.texto(st::kRealm);
+                        c.nonce = m.texto(st::kNonce);
+                        c.claveMI = st::claveLarga(c.usuario, c.realm, cred.clave);
+                    }
+                    uint32_t ip = 0;
+                    if (c.codigo == 200) m.direccionXor(st::kXorRelayedAddress, ip, c.puertoRelay);
+                }
+                faltan = faltan || c.codigo == 0;
+            }
+            if (!faltan || std::chrono::steady_clock::now() > fin) return !faltan;
+            if (std::chrono::steady_clock::now() > otraVez) {
+                for (EnRafaga& c : cs)
+                    if (!c.tcp && c.codigo == 0) ::send(c.fd, c.pedido.data(), int(c.pedido.size()), 0);
+                otraVez = std::chrono::steady_clock::now() + std::chrono::milliseconds(250);
+            }
+            std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        }
+    };
+    const auto transporteUdp = [](st::Constructor& b) {
+        const uint8_t udp[4] = {17, 0, 0, 0};
+        b.agregar(st::kRequestedTransport, udp, 4);
+    };
+    bool ok = etapa(st::kAllocate, transporteUdp, false, 3000);
+    int con401 = 0;
+    for (const EnRafaga& c : cs) con401 += c.codigo == 401 ? 1 : 0;
+    CHECK(ok && con401 == int(cs.size()), "ráfaga: el Allocate sin credencial le contesta 401 a todos");
+    ok = etapa(st::kAllocate, transporteUdp, true, 3000);
+    int asignados = 0;
+    for (const EnRafaga& c : cs) asignados += c.codigo == 200 && c.puertoRelay != 0 ? 1 : 0;
+    std::printf("ráfaga de %d (%d UDP, %d TCP): %d con relay\n", int(cs.size()), nUdp, nTcp, asignados);
+    CHECK(ok && asignados == int(cs.size()), "ráfaga: todos consiguen su relay");
+    ok = etapa(st::kCreatePermission,
+               [&](st::Constructor& b) { b.agregarDireccionXor(st::kXorPeerAddress, kLocal, puertoEco); }, true, 3000);
+    int permisos = 0;
+    for (const EnRafaga& c : cs) permisos += c.codigo == 200 ? 1 : 0;
+    CHECK(ok && permisos == int(cs.size()), "ráfaga: todos consiguen el permiso hacia el gateway");
+    ok = etapa(st::kChannelBind,
+               [&](st::Constructor& b) {
+                   const uint8_t v[4] = {0x40, 0x00, 0, 0};
+                   b.agregar(st::kChannelNumber, v, 4);
+                   b.agregarDireccionXor(st::kXorPeerAddress, kLocal, puertoEco);
+               },
+               true, 3000);
+    int canales = 0;
+    for (const EnRafaga& c : cs) canales += c.codigo == 200 ? 1 : 0;
+    CHECK(ok && canales == int(cs.size()), "ráfaga: todos atan su canal al gateway");
+    // ChannelData de todos a la vez, ida y vuelta por el eco (tres por cabeza: UDP puede perder).
+    for (int vuelta = 0; vuelta < 3; ++vuelta)
+        for (EnRafaga& c : cs) {
+            const std::string d = st::channelData(0x4000, reinterpret_cast<const uint8_t*>("medio"), 5, c.tcp);
+            ::send(c.fd, d.data(), int(d.size()), 0);
+        }
+    const auto fin = std::chrono::steady_clock::now() + std::chrono::milliseconds(2000);
+    int conEco = 0;
+    while (std::chrono::steady_clock::now() < fin && conEco < int(cs.size())) {
+        conEco = 0;
+        for (EnRafaga& c : cs) {
+            for (std::string f = marco(c); !f.empty(); f = marco(c))
+                if (f.size() == 9 && uint8_t(f[0]) == 0x40 && f.substr(4) == "medio") ++c.ecos;
+            conEco += c.ecos > 0 ? 1 : 0;
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(2));
+    }
+    std::printf("ráfaga: %d de %d con medio de ida y vuelta\n", conEco, int(cs.size()));
+    CHECK(conEco == int(cs.size()), "ráfaga: el medio va y vuelve para todos");
+    CHECK(srv.estado().value("asignaciones", 0) == int(cs.size()), "ráfaga: el estado cuenta todas las asignaciones");
+    for (EnRafaga& c : cs) cerrar(c.fd);
+    return true;
+}
+
 int main() {
 #ifdef _WIN32
     WSADATA wsa{};
@@ -563,6 +718,20 @@ int main() {
         tu::ExtremosIce vacio;
         json sin = json::parse(tu::respuestaIce(cfg, true, vacio, true, 900));
         CHECK(sin["politica"] == "all" && sin["iceServers"].empty(), "respuestaIce externa sin extremos: [] y all");
+    }
+
+    // 40 a la vez: por UDP (hinchada --turn udp) y la mezcla con 10 % por TCP.
+    for (const auto& [nUdp, nTcp] : {std::pair<int, int>{40, 0}, std::pair<int, int>{36, 4}}) {
+        tu::Servidor::Config cr = cfg;
+        cr.secreto = tu::secretoAleatorio();
+        cr.maxAsignaciones = 64;
+        tu::Servidor otro(cr);
+        if (!otro.start(&err)) {
+            CHECK(false, "ráfaga: no arrancó el TURN");
+            continue;
+        }
+        CHECK(rafaga(otro, cr, eco.puerto, nUdp, nTcp), "ráfaga: sockets");
+        otro.stop();
     }
 
     srv.stop();
