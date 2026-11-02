@@ -53,7 +53,7 @@ int main(int argc, char** argv) {
     QObject::connect(&m, &JsonListModel::countChanged, [&]() { ++cuentas; });
 
     m.setItems({fila("a", "Ana", 100), fila("b", "Beto", 200), fila("c", "Ceci", 300)});
-    CHECK(resets == 1 && cuentas == 1 && m.count() == 3, "la primera lista rehace el modelo");
+    CHECK(resets == 0 && cuentas == 1 && m.count() == 3, "la primera lista: se insertan sus filas");
 
     avisos.clear();
     m.setItems({fila("a", "Ana", 100), fila("b", "Beto", 200), fila("c", "Ceci", 300)});
@@ -91,20 +91,20 @@ int main(int argc, char** argv) {
 
     avisos.clear();
     m.setItems({fila("a", "Ana María", 110), fila("c", "Ceci", 330, "ambar")});
-    CHECK(resets == 1 && quitadas == 1 && cuentas == 2 && m.count() == 2 && avisos.empty(),
+    CHECK(resets == 0 && quitadas == 1 && cuentas == 2 && m.count() == 2 && avisos.empty(),
           "se fue uno: se quita esa fila (sin rehacer)");
     m.setItems({fila("c", "Ceci", 330, "ambar"), fila("a", "Ana María", 110)});
-    CHECK(resets == 1 && movidas == 1 && cuentas == 2 && nombres() == "Ceci,Ana María", "otro orden: se mueve (sin rehacer)");
+    CHECK(resets == 0 && movidas == 1 && cuentas == 2 && nombres() == "Ceci,Ana María", "otro orden: se mueve (sin rehacer)");
     m.setItems({fila("c", "Ceci", 330, "ambar"), fila("d", "Dani", 50), fila("a", "Ana María", 110)});
-    CHECK(resets == 1 && insertadas == 1 && cuentas == 3 && nombres() == "Ceci,Dani,Ana María",
+    CHECK(resets == 0 && insertadas == 1 && cuentas == 3 && nombres() == "Ceci,Dani,Ana María",
           "entra uno en el medio: se inserta solo esa fila");
     avisos.clear();
     m.setItems({fila("d", "Dani", 50, "rojo"), fila("e", "Eli", 10), fila("a", "Ana", 110)});
-    CHECK(resets == 1 && nombres() == "Dani,Eli,Ana", "se va uno, entra otro, cambia un orden y un nombre: queda igual a la lista");
+    CHECK(resets == 0 && nombres() == "Dani,Eli,Ana", "se va uno, entra otro, cambia un orden y un nombre: queda igual a la lista");
     CHECK(m.data(m.index(0), rolSemaforo).toString() == "rojo", "con los datos nuevos");
     // Ids repetidos (o sin id) y otra cantidad: se rehace.
     m.setItems({fila("x", "X", 1), fila("x", "X2", 1)});
-    CHECK(resets == 2 && m.count() == 2, "ids repetidos: se rehace");
+    CHECK(resets == 1 && m.count() == 2, "ids repetidos: se rehace");
     // 60 que entran de a uno: ni un reset.
     {
         JsonListModel sala(QStringList{"name"});
