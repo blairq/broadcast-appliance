@@ -57,10 +57,10 @@ class Servidor {
         std::string realm = "ba";
         std::string secreto; // por arranque, al azar (Ice.hpp: secretoAleatorio)
         std::vector<std::string> peersPermitidos; // IPv4 de la propia máquina (con 127.0.0.1)
-        uint16_t rtcMin = 40000, rtcMax = 40099;  // únicos puertos de peer admitidos
+        uint16_t rtcMin = 40000, rtcMax = 41599;  // únicos puertos de peer admitidos
         // Topes: 0 = el ajuste (ba::ajustes) con su respaldo.
-        int maxAsignaciones = 0; // turn.maxAsignaciones (64)
-        int maxConexiones = 0;   // turn.maxConexiones (128)
+        int maxAsignaciones = 0; // turn.maxAsignaciones (640)
+        int maxConexiones = 0;   // turn.maxConexiones (1280)
         int vidaMaxS = 0;        // turn.vidaMaxS (3600)
         int nonceS = 0;          // turn.nonceS (600)
     };

@@ -928,8 +928,8 @@ bool Servidor::start(std::string* err) {
     impl_ = std::make_unique<Impl>();
     Impl& s = *impl_;
     s.cfg = cfg_;
-    s.maxAsig = cfg_.maxAsignaciones > 0 ? cfg_.maxAsignaciones : ba::ajustes::entero("turn.maxAsignaciones", 64);
-    s.maxCon = cfg_.maxConexiones > 0 ? cfg_.maxConexiones : ba::ajustes::entero("turn.maxConexiones", 128);
+    s.maxAsig = cfg_.maxAsignaciones > 0 ? cfg_.maxAsignaciones : ba::ajustes::entero("turn.maxAsignaciones", 640);
+    s.maxCon = cfg_.maxConexiones > 0 ? cfg_.maxConexiones : ba::ajustes::entero("turn.maxConexiones", 1280);
     s.vidaMaxS = cfg_.vidaMaxS > 0 ? cfg_.vidaMaxS : ba::ajustes::entero("turn.vidaMaxS", 3600);
     s.vidaMaxS = std::max(s.vidaMaxS, kVidaDefS);
     s.nonceS = cfg_.nonceS > 0 ? cfg_.nonceS : ba::ajustes::entero("turn.nonceS", 600);
