@@ -8,8 +8,8 @@ de la tabla, algo cambió (driver, plan de energía, otra carga, una regresión)
 
 | Máquina | Sistema | Rol en la medición | Página |
 |---|---|---|---|
-| AMD Ryzen 9 5900X + Radeon RX 5700 XT, 32 GB | Windows 11 | la app (hinchada desde la Mac por la LAN) | [pc-ryzen9-5900x-rx5700xt.md](pc-ryzen9-5900x-rx5700xt.md) |
-| MacBook Pro M1 Pro (8 núcleos), 32 GB | macOS 26 | la app y hinchada en la misma máquina | referencia en la página de la PC (sección «Comparación con la Mac») |
+| AMD Ryzen 9 5900X + Radeon RX 5700 XT, 32 GB | Windows 11 | la app (hinchada desde la Mac por la LAN); campaña completa por camino (directo, TURN, pinggy), códecs, núcleos con ETW | [pc-ryzen9-5900x-rx5700xt.md](pc-ryzen9-5900x-rx5700xt.md) |
+| MacBook Pro M1 Pro (8 núcleos), 32 GB | macOS 26 | la app y hinchada en la misma máquina | referencia en la página de la PC (sección «Comparación con la Mac»); su ficha propia queda para cuando se retome su campaña |
 
 ## Cómo se mide
 

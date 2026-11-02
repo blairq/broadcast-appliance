@@ -1,10 +1,17 @@
 # PC Ryzen 9 5900X + Radeon RX 5700 XT (Windows 11)
 
-La PC de pruebas de Windows (`192.168.1.177`, `ssh windows`). Medida el **2026-11-02** con el
-paquete de Windows de master `87f4d0d8` (`BroadcastAppliance-2.1.0-windows-x64.zip`):
-la app corre en la PC y **hinchada genera los invitados desde la Mac por la LAN**
-(`tools/carga/medir-sala.py --remoto windows`). Las mediciones crudas están en
-`~/Proyectos/mediciones-carga/2026-11-02-pc177/carga-{10,20,30,40}` (fuera del repo).
+La PC de pruebas de Windows (`192.168.1.177`, `ssh windows`). Medida dos veces el **2026-11-02**:
+
+- **A la tarde (la vigente)**: campaña completa con el paquete de master `b792325d`
+  (H.264 por la placa en el gateway), por cada camino de entrada (directo, TURN por UDP, por
+  TCP y mezclado, y pinggy), códecs, ráfaga, grabar y transmitir, resistencia, 60 y 80
+  invitados y los núcleos con ETW. Crudas en
+  `~/Proyectos/mediciones-carga/2026-11-02-campana/pc177/` (fuera del repo).
+- A la mañana: master `87f4d0d8` (VP8 por software en el gateway), solo directo; queda al final
+  como referencia («Medición de la mañana»).
+
+La app corre en la PC y **hinchada genera los invitados desde la Mac por la LAN**
+(`tools/carga/medir-sala.py --remoto windows`).
 
 ## Ficha
 
@@ -22,18 +29,165 @@ la app corre en la PC y **hinchada genera los invitados desde la Mac por la LAN*
 ### Qué usa la app de esta máquina
 
 - **Motor de video (ba-app)**: GStreamer con **D3D12** en la Radeon (`d3d12upload ! d3d12convert`
-  y la composición en `D3D12Memory`). La GPU va al 8-10 % del motor 3D con 10 a 40 invitados
-  y ~0,5 GB de memoria dedicada: no es lo que limita.
-- **Video de los invitados (ba-gateway)**: libwebrtc decodifica y codifica **por software**
-  (libvpx VP8/VP9, OpenH264, dav1d): en Windows el gateway no usa la GPU ni el códec por
-  hardware (VCN) de la placa; en la Mac usa VideoToolbox. Por eso el gateway gasta acá
-  2-3 veces más CPU que en la Mac (ver la comparación).
-- Los motores `video_codec`/`video_decode` de la Radeon quedaron en 0 % durante toda la prueba
-  (sin grabación ni transmisión: los codificadores por hardware de salida no se midieron acá).
+  y la composición en `D3D12Memory`). La GPU va al 15-22 % del motor 3D con 10 a 80 invitados
+  y ~0,5-1 GB de memoria dedicada: no es lo que limita.
+- **Video de los invitados (ba-gateway)**, desde `b792325d`: el H.264 que suben los invitados se
+  decodifica con **Media Foundation + D3D11 (DXVA) en la Radeon** y el retorno se codifica con
+  el **MFT por hardware de AMD** (`AMDh264Encoder`); se ve en `room_status` («sube H264 (placa:
+  MediaFoundation (DXVA AMD Radeon RX 5700 XT))») y en `gateway_estado` (`codecsVideo`). El
+  motor «Video Codec» de la placa va al 4-5 % con 40 y al 13 % grabando y transmitiendo.
+  `gateway.decodificarConPlaca` apagado cae al H.264 por software de Windows (ver el problema
+  abajo: hoy no anda). VP8 sigue por software (libvpx).
 - La red de la prueba: la Mac está por **Wi-Fi 5** (802.11ac, 5 GHz/80 MHz, 866 Mbps de enlace,
-  -41 dBm) y la PC por cable a 1 Gbps; ping ~5 ms.
+  -41 dBm) y la PC por cable a 1 Gbps; ping ~5 ms. Internet de la casa (para pinggy):
+  195 Mbps de bajada y 42,8 Mbps de subida (`networkQuality`, RTT base 73 ms).
 
-## Cómo se comporta (lo esperado en este hardware)
+## Campaña de la tarde (master b792325d)
+
+Sala «prueba linea L0», grilla de personas al aire (`alta_hasta` 10), hinchada `--modo grabado
+--hablan 1 --decodificar todo` (H.264 42e01f por omisión), medición de 60 s de régimen (las de
+pinggy, 45 s). CPU en **% de un núcleo** (100 % = un hilo entero); «máquina» en % de los 24
+hilos. Los cambios de contexto son la suma de los hilos de cada proceso (`NtQuerySystemInformation`).
+
+### Por camino de entrada (A)
+
+| Camino · invitados | ba-app CPU | gateway CPU | gateway hilos | gateway cambios/s | grilla (mosaico / celda) | edad del audio | el invitado recibe | salida / entrada de la PC | máquina |
+|---|---|---|---|---|---|---|---|---|---|
+| directo · 10 | 172 % | **405 %** | 353 | 18,0k | 30 / 27,0 cps | 13,2 ms | 30,0 cps, RTT 4,6 ms | 17,9 / 15,8 Mbps | 38 % |
+| directo · 20 | 96 % | 128 % | 447 | 24,3k | 30 / 15,0 | 12,6 ms | 30,0 cps | 35,6 / 7,2 | 20 % |
+| directo · 30 | 115 % | 179 % | 551 | 35,5k | 30 / 15,0 | 13,9 ms | 30,0 cps | 53,0 / 9,8 | 24 % |
+| directo · 40 | 112 % | 220 % | 647 | 45,3k | 30 / 15,0 | 12,7 ms | 30,0 cps, RTT 6,0 ms | 70,1 / 11,8 | 23 % |
+| TURN UDP · 10 | 104 % | 307 % | 354 | 18,5k | 30 / 27,9 | 12,4 ms | 29,9 cps | 18,0 / 15,3 | 24 % |
+| TURN UDP · 20 | 96 % | 133 % | 448 | 25,9k | 30 / 15,0 | 12,2 ms | 30,0 cps | 35,9 / 6,2 | 16 % |
+| TURN UDP · 30 | 96 % | 184 % | 549 | 35,9k | 30 / 15,0 | 13,5 ms | 30,0 cps | 53,4 / 8,8 | 18 % |
+| TURN UDP · 40 | 129 % | 235 % | 647 | 46,6k | 30 / 15,0 | 13,4 ms | 29,9 cps, RTT 5,4 ms | 70,7 / 11,2 | 23 % |
+| TURN TCP · 10 | 144 % | 379 % | 353 | 18,2k | 30 / 29,5 | 13,4 ms | 29,9 cps | 19,0 / 15,5 | 30 % |
+| TURN TCP · 20 | 93 % | 141 % | 450 | 25,5k | 30 / 15,0 | 12,3 ms | 30,0 cps | 37,2 / 8,4 | 16 % |
+| TURN TCP · 30 | 102 % | 180 % | 549 | 36,5k | 30 / 15,0 | 14,6 ms | 30,0 cps | 55,7 / 11,6 | 19 % |
+| TURN TCP · 40 | 126 % | 242 % | 642 | 46,6k | 30 / 15,0 | 14,2 ms | 30,0 cps, RTT 6,2 ms | 73,9 / 14,7 | 23 % |
+| TURN mezcla 10 % TCP · 10 | 144 % | 342 % | 363 | 18,5k | 30 / 29,2 | 14,0 ms | 30,0 cps | 18,2 / 14,9 | 27 % |
+| TURN mezcla · 20 | 93 % | 130 % | 450 | 25,7k | 30 / 15,0 | 12,5 ms | 30,0 cps | 35,9 / 6,3 | 15 % |
+| TURN mezcla · 30 | 107 % | 187 % | 547 | 36,4k | 30 / 15,0 | 12,8 ms | 30,0 cps | 53,5 / 9,1 | 19 % |
+| TURN mezcla · 40 | 111 % | 231 % | 647 | 46,7k | 30 / 15,0 | 13,2 ms | 30,0 cps, RTT 5,8 ms | 71,0 / 11,4 | 22 % |
+
+- **El TURN cuesta poco**: con 40, el gateway pasa de 220 % (directo) a 231-242 % (+5-10 %);
+  el hilo `turn` gasta 24 % (UDP) a 29 % (TCP) de un núcleo. Los cambios de contexto suben 3 %.
+- Sin pérdidas, sin congelamientos y la grilla clavada a 30 cps en todos los caminos hasta 40.
+- **HD al dar la palabra** (`--palabra 5`, lo mide el gateway): p50 45-180 ms, p95 230-390 ms
+  en todos los caminos; ninguna pasó de 0,8 s.
+- **Demora de punta a punta** del audio (subida + estudio + retorno): 210-310 ms, pero el tramo
+  del retorno compara el reloj de la PC con el de la Mac (desfasados 90-240 ms y Windows
+  corrigiéndose en el medio de la serie): mirar solo la tendencia. Con los relojes de la misma
+  máquina (la Mac) la misma cuenta da ~80 ms.
+- **10 invitados sigue siendo el caso caro**: los diez en 720p30 y el gateway a 3-4 núcleos.
+  Con la placa decodificando, **más caro que con VP8 por software** (ver B).
+
+### Códec (B)
+
+| | ba-app | gateway | gateway hilos | cambios/s | celda en alta | nota |
+|---|---|---|---|---|---|---|
+| H.264 por la placa · 10 | 172 % | 405 % | 353 | 18,0k | 27,0 cps | decodificado → BGRA 3,5 ms por cuadro (#8) |
+| VP8 por software · 10 | 102 % | 305 % | 253 | 17,2k | 28,4 cps | 2,1 ms por cuadro; 21 congelamientos |
+| H.264 por software (placa apagada) · 10 | 55 % | 83 % | **634** | 17,5k | **0 cps** | **no llega ningún cuadro** |
+| H.264 por la placa · 40 | 112 % | 220 % | 647 | 45,3k | 15,0 cps | |
+| VP8 · 40 | 107 % | 203 % | 509 | 33,8k | 15,0 cps | 25 % menos cambios de contexto |
+| H.264 por software · 40 | 124 % | 187 % | **1457** | 42,4k | **0 cps** | idem |
+
+- Decodificar en la placa **no ahorra CPU en el gateway** con esta implementación: con 10 en
+  720p gasta un núcleo más que VP8 por software. Lo caro no es decodificar sino lo de alrededor:
+  `(sin nombre)` (hilos de Media Foundation/D3D11, 261 con 10) 170 %, `IncomingVideoStream`
+  107 %, `DecodingQueue` 48 %, y la frontera #8 (cuadro decodificado → BGRA + grilla + ba-app)
+  tarda 3,5 ms por cuadro contra 2,1 ms con VP8: bajar el NV12 de la placa, pasarlo a I420 y
+  después a BGRA.
+- `--codec vp8` de hinchada no da VP8 puro: 9 de 40 (5 de 10) siguen subiendo H.264
+  («H264 42e01f pm1 + VP8» en sus estadísticas).
+
+### Ráfaga, grabar y transmitir, resistencia, 60 y 80 (C-F)
+
+| | ba-app | gateway | gateway hilos | resultado |
+|---|---|---|---|---|
+| C · 40 en ráfaga, directo | 120 % | 221 % | 647 | **40/40** con medios en 2,0 s; primer cuadro del retorno 0,98 s |
+| C · 40 en ráfaga, TURN mezcla | 108 % | 208 % | 603 | **solo 22/40** conectan; el resto queda «conectando» |
+| C · 40 en ráfaga, TURN UDP | 125 % | 204 % | 602 | **solo 21/40** |
+| D · 40 grabando y transmitiendo (SRT local) | 120 % | 239 % | 647 | igual que sin grabar (+8 % app); «Video Codec» de la placa 13 % |
+| E · 40 durante 17 min (TURN mezcla) | 107 % | 242 % | 660 | estable: hilos planos desde el minuto 4, memoria del gateway 1,6→2,2→1,7 GB, audio 11 ms, 0 faltantes |
+| F · 60 (TURN mezcla) | 192 % | 396 % | 842 | 60/60, grilla 30 cps, 106 Mbps de salida, máquina 32 % |
+| F · 80 (TURN mezcla) | 200 % | 411 % | 964 | **entran 68**: el cupo tiene tope 64 (+4 de reserva, `kMaxInvitados`) |
+
+(E se pidió de 30 min y se cortó a los 17 por pedido del usuario; F-60/80 con
+`turn.maxAsignaciones` 96 y `direct.rtcMax` 40199, vueltos después a 64 y 40099.)
+
+### Pinggy (el camino de producción, por internet)
+
+La .177 no tiene cuenta de pinggy: se usó **pinggy gratis** (dirección al azar, se corta a los
+60 min). El medio sale de la Mac a internet, entra a pinggy y vuelve a la casa: la conexión de
+la casa lleva todo dos veces. 45 s de régimen cada una.
+
+| Pinggy · invitados | el invitado recibe | pérdida | RTT | congelamientos | retorno (resolución) | salida de la PC | punta a punta (audio) |
+|---|---|---|---|---|---|---|---|
+| UDP · 2 | 29,4 cps | 0,04 % | 147 ms | 0 | 360p/180p | 1,0 Mbps | 172 ms |
+| UDP · 5 | 28,6 cps | 0,32 % | 174 ms | 18 | 720p×3, 360p, 180p | 6,5 Mbps | 339 ms |
+| UDP · 10 | 28,1 cps | 0,37 % | 187 ms | 21 | 180p×10 | 5,2 Mbps | 388 ms |
+| UDP · 20 | 23,3 cps | 0,26 % | 236 ms | 18 | 180p×18 | 7,2 Mbps | 886 ms |
+| TCP · 2 (otra sesión de pinggy) | 29,8 cps | 0 | 525 ms | 3 | | 2,0 Mbps | 677 ms |
+| TCP · 5 | 27,9 cps | 0 | 561 ms | 8 | | 5,9 Mbps | 726 ms |
+| TCP · 10 | 16,5 cps | 0 | 1060 ms | 10 | 180p×10 | 3,6 Mbps | 2,25 s |
+| TCP · 20 | 27,3 cps | 0 | 244 ms | 4 | 180p×20 | 7,7 Mbps | 641 ms |
+| TCP · 30 | 20,2 cps (entran 28) | 0 | 361 ms | 1 | 180p×28 | 8,1 Mbps | 821 ms |
+| mezcla 10 % TCP · 10 | 28,0 cps | 0,12 % | 241 ms | 11 | 720p/360p/180p | 5,8 Mbps | 460 ms |
+| mezcla · 20 | 28,2 cps | 0,15 % | 206 ms | 11 | 180p×20 | 8,4 Mbps | 423 ms |
+
+- **Techo de pinggy gratis: ~7-8 Mbps** en cada sentido, por UDP o por TCP. Con 5 invitados
+  todavía anda; desde 10 el control de congestión del gateway baja el retorno de todos a
+  320×180 (~200-350 kbps cada uno) y la grilla recibe a 14-23 cps. Con 40 no se probó: harían
+  falta ~70 Mbps.
+- **No es la casa**: hay 42,8 Mbps de subida. Tampoco es hinchada (`--decodificar todo`
+  decodifica todo lo que recibe) ni la medición (la placa de red de la PC dice lo mismo). Es el
+  túnel: el RTT depende del servidor que toca en cada conexión (525-1060 ms en una sesión,
+  150-240 ms en otra), y por TCP la cola del túnel sube el RTT a ~1 s (TCP·10).
+- Para un evento real con más de ~5 invitados de afuera, pinggy gratis no alcanza: cuenta paga
+  (medir), WireGuard o un servidor propio.
+
+### Núcleos: «casi todo el trabajo en dos núcleos» (G)
+
+ETW de 20 s con 40 invitados (`--etw 20`), directo y por TURN mezcla, con el muestreo cada 5 s:
+
+| Núcleo lógico | Ocupado (directo / mezcla) | DPC | ISR | MHz | Hilos que más usan ese núcleo (directo) |
+|---|---|---|---|---|---|
+| 0 | 33 / 34 % | 0,8 % | 0,5 % | 4596 | muestreo (powershell) 7,6 %, ba-gateway/ba-rtc-net 4,6 % |
+| 1 | 48 / 44 % | **5,2 %** | **2,4 %** | 4595 | powershell 13,6 %, ba-rtc-net 6,5 %, ba-rtc-work 3,4 %, grillas 2,1 % |
+| 2 | 31 / 31 % | 0 | 0 | 4528 | ba-rtc-net 9,2 % |
+| 3 | 26 / 26 % | 0 | 0 | 4544 | ba-rtc-work 3,6 %, webrtc-playout 1,9 % |
+| 4 | 40 / 33 % | 0 | 0 | 4574 | powershell 9,7 %, ba-rtc-work 5,6 % |
+| 5 | 35 / 44 % | 0 | 0 | 4591 | powershell 11 % |
+| 6-11 | 14-25 % | 0 | 0 | 4380-4490 | ba-rtc-net, ba-rtc-work, webrtc-playout, grillas (1-4 % cada uno) |
+| 12-13 | 11-12 % | 0 | 0 | 4325-4341 | svchost, WmiPrvSE (<1,5 %) |
+| 14 | 19 / 14 % | 0 | 0 | 4365 | ba-app/interfaz 9,2 % |
+| 15-19 | 7-17 % | 0 | 0 | 4250-4350 | ba-app: anillos-video, motor-entradas, anillos-audio |
+| 20 | 23 / 22 % | 0 | 0 | 4449 | **ba-app/control 15,3 %** |
+| 21-23 | 6-14 % | 0 | 0 | 4240-4350 | ba-app y ba-rtc-net |
+
+- **Con la app y la carga de la prueba no hay dos núcleos saturados**: el más ocupado llega a
+  48 %. El gateway reparte sus hilos por los núcleos 0-11 (el primer CCD) y ba-app los suyos
+  por los 14-23 (el segundo, su afinidad de `Prioridad`). Ningún hilo pasa de medio núcleo:
+  `ba-rtc-net` 50 %, `(sin nombre)` 49 % (suma de ~320 hilos), `IncomingVideoStream` 32 %
+  (suma de 80), `ba-rtc-work` 27 %, `turn` 25 %, `ba-app/control` 20 %.
+- **Las dos que sí se vieron saturadas eran de la medición**: con el muestreo viejo
+  (`muestrear-win.ps1` por WMI cada 1 s) los núcleos lógicos **12 y 13** (los dos hilos de UN
+  núcleo físico) estaban al **88-90 %**, todo en `WmiPrvSE` (~1,1 núcleos): la consulta de
+  procesos e hilos por WMI con 300-650 hilos en el gateway. Es lo que muestra el Administrador
+  de tareas como «dos núcleos casi llenos». Arreglado en `tools/carga/muestrear-win.ps1`
+  (hilos con `NtQuerySystemInformation`, procesos con `Get-Process`): ahora 12-13 quedan al
+  10-12 %.
+- **La placa de red** (Intel I225-V, sin RSS: no aparece en `Get-NetAdapterRss`) manda todas sus
+  interrupciones a los núcleos **0 y 1** (vectores 113/114/146/163, ~110 mil por 20 s). El
+  núcleo 1 carga 5 % de DPC y 2,4 % de ISR con 70 Mbps: se nota pero no satura.
+- La frecuencia se queda en 4,2-4,6 GHz en todos los núcleos (más alta en el primer CCD, donde
+  trabaja el gateway): no hay estrangulamiento térmico.
+- El muestreo de la prueba todavía cuesta: el PowerShell de `muestrear-win.ps1` y `etw-win.ps1`
+  usa ~30 % de un núcleo, repartido entre 0, 1, 4 y 5.
+
+## Medición de la mañana (master 87f4d0d8, VP8 por software, solo directo)
 
 Sala de prueba «prueba linea L0» (la misma de las mediciones de la Mac): grilla de personas al
 aire con `alta_hasta` 10 (hasta 10 personas, todas en alta 720p30; con más, miniaturas en baja
@@ -82,14 +236,18 @@ subida pico 9,6 Mbps, bajada pico 67,5 Mbps; memoria disponible mínima 21,4 GB.
 
 ## Límites y recomendaciones
 
-- **Hasta 40 invitados con mucho margen**: la máquina entera no pasa del 31 % (p50) en
-  ningún escalón, sobran ~21 GB de memoria y la grilla y el audio no se degradan. No se
-  probó más de 40 (la Prueba de sala llega a 64); por la pendiente medida, 60 andarían en
-  ~3 núcleos de gateway y ~105 Mbps de salida, pero hay que medirlo antes de prometerlo.
+- **Hasta 60 invitados medidos con margen** (campaña de la tarde): con 60 por TURN, gateway
+  ~4 núcleos, ba-app ~2, la máquina entera al 32 % y la grilla a 30 cps sin pérdidas. **El cupo
+  no deja pasar de 64** (`kMaxInvitados`, más 4 de reserva: con 80 pedidos entraron 68). Ojo
+  con la memoria privada de ba-app: 3,5 GB con 40, 6,2 GB con 60, 6,9 GB con 68.
+- **Por TURN casi como directo** (+5-10 % de gateway con 40). **Por pinggy gratis, unos 5
+  invitados** (techo de ~7-8 Mbps del túnel; ver «Pinggy»).
+- **Entrar todos a la vez por el TURN falla** (C): en ráfaga solo conectan ~la mitad; entrando
+  de a uno cada 100 ms entran todos. Directo, la ráfaga de 40 entra entera en 2 s.
 - **La red manda antes que la CPU**: con 40, 70 Mbps de salida. Por cable a 1 Gbps sobra; por
   Wi-Fi o por un túnel/servidor propio, medir el enlace (tarjeta «Enlace») antes del evento.
-- **Ojo con `alta_hasta`**: subirlo (más gente en 720p30) cuesta ~0,3 núcleos de gateway por
-  invitado en alta en esta PC (decodificación por software).
+- **Ojo con `alta_hasta`**: subirlo (más gente en 720p30) cuesta ~0,3-0,4 núcleos de gateway por
+  invitado en alta en esta PC (con la placa decodificando, igual o más que por software).
 - **Tope de 32 conexiones por dirección IP** (`room.maxConexionesPorIp`, de fábrica 32): con un
   solo generador en otra máquina, el 33º invitado se rechaza («esa IP ya tiene 32») y reintenta
   sin parar. Para medir más de 32 desde una máquina, subirlo en el evento de prueba (se usó 64).
@@ -99,6 +257,9 @@ subida pico 9,6 Mbps, bajada pico 67,5 Mbps; memoria disponible mínima 21,4 GB.
   pero prenderlo es gratis para lo que corre en CPU (gateway).
 
 ## Comparación con la Mac
+
+De la medición de la mañana (VP8 por software en la PC). La campaña de la Mac de la tarde quedó
+pausada con solo directo 10-40 medido (`mediciones-carga/2026-11-02-campana/mac/`).
 
 MacBook Pro M1 Pro (8 núcleos), 32 GB, macOS 26, misma sala y mismo hinchada, pero **la app y
 hinchada en la misma Mac** (`mediciones-carga/2026-11-02-al-final`, la serie después de los arreglos de la grilla; los
@@ -141,9 +302,36 @@ La Conferencia con 40 y la Prueba de sala corriendo (columna derecha), y el pane
 
 > **Defecto visto en la captura de 40**: la lista «En la conferencia» encoge las filas hasta
 > dejarlas como rayas vacías en lugar de desplazarse (con 10 se ven bien). Anotado para
-> arreglar; no afecta la medición.
+> arreglar; no afecta la medición. Captura de la campaña de la tarde (40 por TURN UDP), la
+> ventana y la tarjeta sola:
+
+![Página Sala con 40 (tarde)](img/pc177-conferencia-40-1511.jpg)
+
+![«En la conferencia» con 40](img/pc177-conferencia-40-1511-tarjeta.jpg)
 
 ## Problemas encontrados en esta medición
+
+Campaña de la tarde:
+
+- **H.264 por software en Windows no entrega cuadros** (`gateway.decodificarConPlaca` apagado →
+  «MediaFoundation (software)»): la grilla recibe 0 cps de todas las celdas (113 repetidos, 0
+  nuevos) y el gateway crea hilos sin parar (634 con 10, 1457 con 40). Es la caída automática
+  cuando la placa falla: hoy dejaría a todos sin video. Con la placa anda bien.
+- **Ráfaga por TURN**: 40 a la vez por el TURN (UDP o mezcla) → 21-22 conectan, el resto queda
+  en «conectando» (la oferta se acepta pero los medios nunca conectan). El TURN acumuló
+  `rechazosPeer` 379 en la tarde. Directo no pasa.
+- **El muestreo de la prueba ensuciaba la medición**: WMI por hilo tardaba 15-20 s por muestra
+  (las primeras 7 mediciones se descartaron) y `WmiPrvSE` comía ~1,1 núcleos en los núcleos
+  12-13. Arreglado (`muestrear-win.ps1`); ver «Núcleos».
+- `room.maxConexionesPorIp` quedó en 48 tras una corrida (medir-sala no lo devolvió); se volvió a
+  32 a mano.
+- `ba-app/latencia-consulta` gasta 31 % de un núcleo con 40 (la consulta de `estudio_latencia`
+  de la prueba, cada 5 s): revisar si es solo de la medición.
+- El retorno a los invitados lo calcula hinchada contra el reloj de la Mac: los relojes difieren
+  90-240 ms y `w32tm /resync` corrigió la PC en el medio de la serie (la «demora de punta a
+  punta» saltó de ~300 a ~215 ms entre dos corridas iguales).
+
+Medición de la mañana:
 
 - Al cambiar de evento por MCP (`evento_cambiar`) justo después del primer arranque del paquete
   nuevo, el launcher dio a la app por **colgada** («dejó de latir») a los 10 s, sacó un volcado
@@ -170,13 +358,20 @@ La Conferencia con 40 y la Prueba de sala corriendo (columna derecha), y el pane
    ssh -f -N -L 18790:127.0.0.1:8790 windows
    export BA_MCP_URL=http://127.0.0.1:18790/mcp
    export BA_MCP_TOKEN=$(ssh windows 'C:\ba-pruebas\BroadcastAppliance\bin\64bit\ba-mcp.exe --token' | tr -d '\r\n')
-   for n in 10 20 30 40; do
+   for c in directo turn-udp turn-tcp turn-mezcla:10; do for n in 10 20 30 40; do
      tools/carga/medir-sala.py --ba-mcp dist/BroadcastAppliance.app/Contents/Resources/bin/64bit/ba-mcp \
+       --hinchada extern/hinchada/macos-arm64/hinchada \
        --remoto windows --url http://192.168.1.177:8787 --participantes $n --cupo --cupo-final 2 \
-       --regimen 60 --medir-grilla-s 20 --salida ~/Proyectos/mediciones-carga/<fecha>-pc177/carga-$n \
-       -- --modo grabado --hablan 1
-   done
+       --camino $c --regimen 45 --medir-grilla-s 15 --etw 20 --palabra 5 \
+       --salida ~/Proyectos/mediciones-carga/<fecha>-pc177/$c-$n \
+       -- --modo grabado --hablan 1 --decodificar todo
+   done; done
    ```
+
+   Los caminos por TURN y `pinggy[:udp|tcp|mezcla:PCT]` necesitan pinggy prendido en el evento
+   de prueba (`acceso_remoto_conectar`; el TURN solo arranca con pinggy) y, para UDP,
+   `pinggy.turnUdp`. Apagarlo al terminar. `--etw` necesita la sesión ssh como administrador.
+   Cada corrida, 2 minutos como mucho (pedido del usuario).
 
 4. Al terminar: volver al evento que estaba abierto, `app_quit`, que no quede `ba-*.exe` ni
    tareas `\ba-*` (`schtasks /Query`), y cerrar el túnel.
