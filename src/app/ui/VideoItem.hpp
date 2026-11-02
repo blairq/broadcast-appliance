@@ -5,6 +5,12 @@
 //
 // Solo presentacion: pide al FrameService la ultima imagen de su clave y la
 // sube como textura del scene graph (GPU). No sabe del motor ni de IPC.
+//
+// Lo que no se distingue no se paga: oculto, o más chico que kLadoMinimo en
+// algún lado (una grilla de 40 invitados en una tarjeta), no pide cuadros, no
+// los sube ni redibuja la ventana; al volverse visible o agrandarse los pide.
+// La textura es una sola por item y se reescribe en cada cuadro (sin crear y
+// soltar recursos de GPU por cuadro); se rehace solo si cambia el tamaño.
 // ============================================================================
 
 #pragma once
@@ -30,6 +36,9 @@ class VideoItem : public QQuickItem {
     enum FillMode { Fit, Cover };
     Q_ENUM(FillMode)
 
+    /// Por debajo de esto (px lógicos, el lado más corto) el video no se distingue: no se dibuja.
+    static constexpr qreal kLadoMinimo = 24;
+
     explicit VideoItem(QQuickItem* parent = nullptr);
 
     QString source() const { return source_; }
@@ -52,11 +61,17 @@ class VideoItem : public QQuickItem {
     QSGNode* updatePaintNode(QSGNode* old, UpdatePaintNodeData*) override;
     /// Al volverse visible trae el último cuadro (oculto no los copia ni los sube).
     void itemChange(ItemChange change, const ItemChangeData& value) override;
+    /// Al pasar de diminuto a visible (o al revés) pide los cuadros (o suelta la textura).
+    void geometryChange(const QRectF& nuevo, const QRectF& viejo) override;
 
    private slots:
     void refresh();
 
    private:
+    /// Demasiado chico para que el video se distinga (ver kLadoMinimo).
+    static bool diminuto(const QSizeF& s) { return s.width() < kLadoMinimo || s.height() < kLadoMinimo; }
+    bool diminuto() const { return diminuto(size()); }
+
     QString source_ = "program";
     FillMode fillMode_ = Fit;
     QImage image_;

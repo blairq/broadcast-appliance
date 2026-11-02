@@ -423,6 +423,9 @@ if(BA_APP_QT_OK)
 # no hace falta un ffmpeg del sistema, ni VLC, ni levantar otro proceso. Se
 # verifico con ldd: `libffmpegmediaplugin.so` no pide ningun libav*.
 target_link_libraries(ba-app PRIVATE Qt6::Gui Qt6::Quick Qt6::Qml Qt6::QuickControls2 Qt6::Network Qt6::Svg Qt6::Pdf Qt6::Multimedia)
+# QRhi (<rhi/qrhi.h>, semipúblico desde Qt 6.6): VideoItem sube cada cuadro a SU textura
+# (sin crear y soltar una por cuadro). Solo los encabezados, la biblioteca es la misma.
+target_link_libraries(ba-app PRIVATE Qt6::GuiPrivate)
 # WordCraft, DeckCraft y GridCraft (sus herramientas de línea de comandos,
 # tools/deps/craft.sh): pasan a PDF lo que trae la gente (el carrusel, la
 # documentación del evento) y, por su MCP, el asistente arma documentos,
