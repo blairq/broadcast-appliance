@@ -70,6 +70,7 @@ else()
     set(BA_IPC_RITMO "${CMAKE_SOURCE_DIR}/src/core/platform/Ritmo_posix.cpp")
 endif()
 add_library(gstbaipc MODULE ipc/plugin.cpp ipc/anillo.cpp ipc/anillosink.cpp ipc/retornos.cpp ipc/video.cpp
+    ipc/comun.cpp ipc/anillocomun.cpp ipc/videocomun.cpp ipc/entrega.cpp "${CMAKE_SOURCE_DIR}/src/core/platform/Hilo.cpp" "${CMAKE_SOURCE_DIR}/src/core/platform/Ritmo.cpp"
     "${CMAKE_SOURCE_DIR}/src/core/ipc/SharedAudioRing.cpp" "${CMAKE_SOURCE_DIR}/src/core/dsp/LimitadorTP.cpp"
     "${CMAKE_SOURCE_DIR}/src/core/ipc/SharedMemoryRegion.cpp" "${CMAKE_SOURCE_DIR}/src/core/ipc/SpoutTransport.cpp"
     "${CMAKE_SOURCE_DIR}/src/core/ipc/Timbre.cpp" "${BA_IPC_RITMO}")
