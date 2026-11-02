@@ -491,7 +491,7 @@ json Grillas::estado() const {
                 imagen = !r->px.empty();
                 iw = r->w;
                 ih = r->h;
-                fundiendo = r->fundido.alfa(ahoraMs()) < 1.0f;
+                fundiendo = !r->fundido.imagen().empty(); // en curso (se suelta al terminar, al pintar)
             }
             // imagen_ancho/alto: el retrato guardado (achicado al lugar): con la HD, el del
             // lugar; con la baja, a lo sumo 320x180. Así se ve desde afuera qué capa se pinta.

@@ -13,6 +13,12 @@
 //   8. La calidad que se le pide a cada uno según dónde se lo ve: al aire, la de
 //      siempre; en una grilla, la de su lugar; en la fila sin grilla, baja (y vuelve
 //      al pasar a un lugar o a una grilla).
+//   9. La capa de cada celda y los precargados: se juntan por persona (alta si alguna
+//      grilla la pide) y se avisa a quién le cambió.
+//  10. De la baja a la HD: con `fundir`, el primer cuadro en vivo arranca un fundido
+//      desde lo último que se veía; a mitad, mezcla; al final, solo la HD. Nunca negro.
+//  11. Los rótulos: se validan; la celda que nombra uno lo pinta en una banda abajo con
+//      el color pedido; los que nadie nombra se olvidan.
 // ============================================================================
 
 #include <cstdio>
@@ -21,6 +27,7 @@
 #include <vector>
 
 #include "Grillas.hpp"
+#include "HttpIo.hpp"
 #include "Log.hpp"
 
 using ba::gateway::Grillas;
@@ -186,6 +193,103 @@ int main() {
         CHECK(nivelCalidad(MediaRoute::backstage(2), 720) == "libre", "con vista previa y en un lugar grande: la de siempre");
         CHECK(nivelCalidad(MediaRoute::lobby(1, false), 0) == "libre", "en el lobby: la de siempre");
         CHECK(nivelCalidad(MediaRoute{}, 0) == "libre", "sin ruta: nada que bajar");
+    }
+    // 9. Capas y precarga.
+    {
+        using ba::gateway::Capa;
+        Grillas g(log);
+        std::vector<std::string> tocadas;
+        g.setAlCambiarCapa([&](const std::string& p) { tocadas.push_back(p); });
+        json a = celda("sala:a", 0, 0, 800, 450);
+        a["capa"] = "alta";
+        json b = celda("sala:b", 800, 0, 100, 56);
+        b["capa"] = "baja";
+        json b2 = celda("sala:b", 0, 0, 640, 360);
+        b2["capa"] = "alta";
+        const json pedido = {{"precarga", {"sala:c"}},
+                             {"fundido_ms", 250},
+                             {"grillas",
+                              {{{"canal", 1}, {"ancho", 1280}, {"alto", 720}, {"celdas", {a, b}}},
+                               {{"canal", 2}, {"ancho", 1280}, {"alto", 720}, {"celdas", {b2}}}}}};
+        CHECK(g.aplicar(pedido, 0).empty(), "aplica con capas");
+        CHECK(g.capaDe("sala:a") == Capa::Alta, "«a» en grande: alta");
+        CHECK(g.capaDe("sala:b") == Capa::Alta, "«b»: chica en una, grande en otra: alta (la mayor)");
+        CHECK(g.capaDe("sala:z") == Capa::Nada, "quien no está: nada dicho");
+        CHECK(g.precargada("sala:c") && !g.precargada("sala:a"), "«c» precargada (el siguiente)");
+        CHECK(g.fundidoMs() == 250, "el fundido que mandó la app");
+        CHECK(tocadas.size() == 3, "se avisa a los tres (a, b, c)");
+        tocadas.clear();
+        CHECK(g.aplicar(pedido, 100).empty() && tocadas.empty(), "lo mismo otra vez: nada que avisar");
+        const json sinC = {{"grillas", {{{"canal", 1}, {"ancho", 1280}, {"alto", 720}, {"celdas", {a, b}}}}}};
+        CHECK(g.aplicar(sinC, 200).empty(), "sin la segunda ni la precarga");
+        CHECK(g.capaDe("sala:b") == Capa::Baja && !g.precargada("sala:c"), "«b» vuelve a la baja; «c» ya no se precarga");
+        CHECK(tocadas.size() == 2, "se avisa a «b» y a «c»");
+    }
+    // 10. El fundido de la baja a la HD en el retrato.
+    {
+        Grillas g(log);
+        const json pedido = {{"grillas",
+                              {{{"canal", 1}, {"ancho", 320}, {"alto", 180}, {"transicion_ms", 0}, {"celdas", {celda("sala:a", 0, 0, 320, 180)}}}}}};
+        CHECK(g.aplicar(pedido, 0).empty(), "aplica");
+        const std::uint32_t rojo = 0xFFFF0000u, azul = 0xFF0000FFu;
+        const auto baja = liso(320, 180, rojo);
+        const auto alta = liso(1280, 720, azul);
+        g.cuadro("sala:a", baja.data(), 320, 180, 1000); // la baja
+        std::vector<std::uint8_t> l;
+        int w = 0, h = 0;
+        g.pintar(1, 1010, l, w, h);
+        CHECK(pixel(l, w, 160, 90) == rojo, "antes: la baja");
+        g.fundir("sala:a", 400);
+        g.cuadro("sala:a", alta.data(), 1280, 720, 1100); // el primer cuadro HD
+        g.pintar(1, 1100, l, w, h);
+        CHECK(pixel(l, w, 160, 90) == rojo, "al empezar el fundido se ve la baja (nada de salto)");
+        g.cuadroAnterior("sala:a", baja.data(), 320, 180); // la baja sigue llegando durante el fundido
+        g.pintar(1, 1300, l, w, h);
+        const std::uint32_t mitad = pixel(l, w, 160, 90);
+        const unsigned r = (mitad >> 16) & 0xFF, bl = mitad & 0xFF;
+        CHECK(r > 60 && r < 200 && bl > 60 && bl < 200 && (mitad >> 24) == 0xFF, "a mitad: la mezcla de las dos (y opaca: nunca negro)");
+        CHECK(g.estado()["grillas"][0]["celdas"][0]["fundiendo"] == true, "el estado dice que está fundiendo");
+        g.pintar(1, 1600, l, w, h);
+        CHECK(pixel(l, w, 160, 90) == azul, "al final, la HD");
+        CHECK(g.estado()["grillas"][0]["celdas"][0]["imagen_ancho"] == 320, "el retrato de la HD, achicado al lugar");
+        // Sin fundir: un cuadro HD entra de una (comportamiento de antes).
+        g.cuadro("sala:a", baja.data(), 320, 180, 2000);
+        g.cuadro("sala:a", alta.data(), 1280, 720, 2100);
+        g.pintar(1, 2100, l, w, h);
+        CHECK(pixel(l, w, 160, 90) == azul, "sin pedido de fundido, sin fundido");
+    }
+    // 11. Rótulos.
+    {
+        Grillas g(log);
+        CHECK(!g.rotulos(json::object()).empty(), "sin «rotulos»");
+        CHECK(!g.rotulos({{"rotulos", {{{"id", "r1"}, {"w", 4}, {"h", 2}, {"a8", "AAAA"}}}}}).empty(), "la máscara no mide w*h");
+        // 40x10 todo a 255 (base64 de 400 bytes 0xFF).
+        std::string unos(400, '\xFF');
+        const std::string b64 = ba::gateway::http::base64(reinterpret_cast<const std::uint8_t*>(unos.data()), unos.size());
+        CHECK(g.rotulos({{"rotulos", {{{"id", "r1"}, {"w", 40}, {"h", 10}, {"a8", b64}}}}}).empty(), "un rótulo");
+        CHECK(g.tieneRotulo("r1"), "guardado");
+        json c = celda("sala:a", 0, 0, 320, 180);
+        c["rotulo"] = "r1";
+        const json pedido = {{"grillas",
+                              {{{"canal", 1},
+                                {"ancho", 320},
+                                {"alto", 180},
+                                {"transicion_ms", 0},
+                                {"rotulos", {{"color", "#FF00FF00"}, {"fondo", "#FF000000"}, {"tamano", 0.2}}},
+                                {"celdas", {c}}}}}};
+        CHECK(g.aplicar(pedido, 0).empty(), "aplica con rótulo");
+        const auto px = liso(320, 180, 0xFFFF0000u);
+        g.cuadro("sala:a", px.data(), 320, 180, 0);
+        std::vector<std::uint8_t> l;
+        int w = 0, h = 0;
+        g.pintar(1, 10, l, w, h);
+        // La banda: los últimos 36 px (0,2 x 180), fondo negro y el texto (todo 255) en verde a la izquierda.
+        CHECK(pixel(l, w, 160, 40) == 0xFFFF0000u, "arriba, la cara");
+        CHECK(pixel(l, w, 300, 176) == 0xFF000000u, "la banda del rótulo, con su fondo");
+        CHECK(pixel(l, w, 20, 162) == 0xFF00FF00u, "y el nombre, del color pedido");
+        CHECK(g.estado()["grillas"][0]["celdas"][0]["rotulo_listo"] == true, "el estado dice que el rótulo está");
+        CHECK(g.aplicar({{"grillas", {{{"canal", 1}, {"ancho", 320}, {"alto", 180}}}}}, 100).empty() && !g.tieneRotulo("r1"),
+              "nadie lo nombra: se olvida");
     }
     if (g_fallos == 0) std::printf("test_grillas: OK\n");
     return g_fallos == 0 ? 0 : 1;
