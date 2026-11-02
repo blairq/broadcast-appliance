@@ -18,6 +18,10 @@
 #include "emision/InputSpecs.hpp"
 #include "ui/ConferenceClient.hpp"
 
+#include "MedidorCeldas.hpp" // motor
+#include "Motor.hpp"
+#include "platform/Hilo.hpp"
+
 #include <QDateTime>
 #include <QFont>
 #include <QFontMetrics>
@@ -27,6 +31,7 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QPainter>
+#include <QPointer>
 
 #include <algorithm>
 #include <optional>
@@ -463,6 +468,169 @@ void ControlGrillas::recalcular() {
     p_.sala.post("/api/v1/grillas", aQt(pedido), [this](bool ok, const QJsonObject&) {
         if (!ok) ultimoPedido_ = json(); // la próxima vuelta lo vuelve a mandar
     });
+}
+
+ControlGrillas::~ControlGrillas() {
+    {
+        std::lock_guard<std::mutex> l(medirMu_);
+        cortarMedir_ = true;
+    }
+    medirCv_.notify_all();
+    if (hiloMedir_.joinable()) hiloMedir_.join();
+}
+
+std::string ControlGrillas::medir(int segundos, const json& opciones, std::function<void(const json&)> listo) {
+    motor::Motor* mot = p_.rt != nullptr ? p_.rt->engine().motor() : nullptr;
+    if (mot == nullptr) return ba::i18n::traducir("escenas", "el motor todavía no arrancó");
+    {
+        std::lock_guard<std::mutex> l(medirMu_);
+        if (midiendo_) return ba::i18n::traducir("escenas", "ya hay una medición en curso");
+    }
+    segundos = std::clamp(segundos, 2, 120);
+    // Lo que se le mandó al gateway (dónde pinta a cada uno) y de qué fuente es cada canal.
+    std::map<int, std::pair<std::string, bool>> fuenteDe; // canal → {fuente, al aire}
+    for (const auto& g : estado_.value("grillas", json::array()))
+        fuenteDe[g.value("canal", 0)] = {g.value("fuente", std::string()), g.value("al_aire", false)};
+    struct Grilla {
+        std::string fuente;
+        int canal = 0;
+        bool alAire = false;
+        std::vector<motor::AnalisisCeldas::Celda> celdas;
+        std::unique_ptr<motor::MedidorCeldas> entrada;
+        std::shared_ptr<motor::MedidorCeldas> programa; ///< lo comparte el aviso de la vista
+        std::string error;
+    };
+    auto grillas = std::make_shared<std::vector<Grilla>>();
+    const json pr = opciones.value("programa_rect", json::array({0, 0, 1, 1}));
+    const double px = pr.is_array() && pr.size() == 4 ? pr[0].get<double>() : 0.0, py = pr.is_array() && pr.size() == 4 ? pr[1].get<double>() : 0.0;
+    const double pw = pr.is_array() && pr.size() == 4 ? pr[2].get<double>() : 1.0, ph = pr.is_array() && pr.size() == 4 ? pr[3].get<double>() : 1.0;
+    for (const auto& g : (ultimoPedido_.is_object() ? ultimoPedido_.value("grillas", json::array()) : json::array())) {
+        Grilla x;
+        x.canal = g.value("canal", 0);
+        const auto f = fuenteDe.find(x.canal);
+        if (f == fuenteDe.end() || f->second.first.empty()) continue;
+        x.fuente = f->second.first;
+        x.alAire = f->second.second;
+        const double W = g.value("ancho", 0.0), H = g.value("alto", 0.0);
+        if (W <= 0 || H <= 0) continue;
+        for (const auto& c : g.value("celdas", json::array())) {
+            const std::string capa = c.value("capa", std::string());
+            // Lo que manda cada capa (gateway/Capas.hpp): la baja, 15 cps; la alta, la cámara (30).
+            const double ref = capa == "baja" ? 15.0 : capa == "alta" ? 30.0 : 0.0;
+            x.celdas.push_back({c.value("persona", std::string()), capa, c.value("x", 0.0) / W, c.value("y", 0.0) / H,
+                                c.value("w", 0.0) / W, c.value("h", 0.0) / H, ref});
+        }
+        grillas->push_back(std::move(x));
+    }
+    if (grillas->empty()) return ba::i18n::traducir("escenas", "no hay ninguna grilla de personas andando");
+    {
+        std::lock_guard<std::mutex> l(medirMu_);
+        midiendo_ = true;
+    }
+    if (hiloMedir_.joinable()) hiloMedir_.join();
+    hiloMedir_ = std::thread([this, yo = QPointer<ControlGrillas>(this), mot, grillas, segundos, px, py, pw, ph,
+                              listo = std::move(listo)]() {
+        ba::platform::nombrarHilo("medir-grilla");
+        const std::string kVista = "programa@medir_grilla";
+        bool conVista = false;
+        // Las vueltas del lector común del video (gst-plugins/ipc/comun.hpp), antes y después.
+        GstElement* anillo = nullptr;
+        const auto vueltas = [&anillo]() {
+            json v;
+            GstStructure* st = nullptr;
+            if (anillo != nullptr && g_object_class_find_property(G_OBJECT_GET_CLASS(anillo), "vueltas") != nullptr)
+                g_object_get(anillo, "vueltas", &st, nullptr);
+            if (st == nullptr) return v;
+            for (const char* k : {"n", "ns", "tarde", "muy-tarde", "max-ns"}) {
+                guint64 x = 0;
+                gst_structure_get_uint64(st, k, &x);
+                v[k] = x;
+            }
+            gst_structure_free(st);
+            return v;
+        };
+        json vueltas0;
+        for (Grilla& g : *grillas) {
+            // En la entrada: apenas sale del lector común (ba_origen, memoria de sistema).
+            g.entrada = std::make_unique<motor::MedidorCeldas>(g.celdas);
+            if (GstElement* p = mot->pipelineDeEntrada(g.fuente)) {
+                if (anillo == nullptr) {
+                    anillo = gst_bin_get_by_name(GST_BIN(p), "ba_anillo");
+                    vueltas0 = vueltas();
+                }
+                if (GstElement* o = gst_bin_get_by_name(GST_BIN(p), "ba_origen")) {
+                    if (GstPad* pad = gst_element_get_static_pad(o, "src")) {
+                        g.entrada->poner(pad);
+                        gst_object_unref(pad);
+                    }
+                    gst_object_unref(o);
+                } else {
+                    g.error = ba::i18n::traducir("escenas", "la entrada de la grilla no lee el canal tal cual");
+                }
+                gst_object_unref(p);
+            } else {
+                g.error = ba::i18n::traducir("escenas", "la entrada de la grilla no está armada");
+            }
+            // En el programa: la primera que está al aire, donde diga programa_rect.
+            if (g.alAire && !conVista) {
+                std::vector<motor::AnalisisCeldas::Celda> enPrograma = g.celdas;
+                for (auto& c : enPrograma) {
+                    c.x = px + c.x * pw;
+                    c.y = py + c.y * ph;
+                    c.w *= pw;
+                    c.h *= ph;
+                }
+                g.programa = std::make_shared<motor::MedidorCeldas>(std::move(enPrograma));
+                if (mot->verPedir(kVista, 960, 540).empty()) {
+                    conVista = true;
+                    mot->verAvisar(kVista, [m = g.programa](const motor::Cuadro& c) {
+                        if (!c.nv12 && !c.bgra.empty()) m->cuadro(c.bgra.data(), c.ancho, c.alto, c.stride);
+                    });
+                }
+            }
+        }
+        {
+            std::unique_lock<std::mutex> l(medirMu_);
+            medirCv_.wait_for(l, std::chrono::seconds(segundos), [this] { return cortarMedir_; });
+        }
+        if (conVista) {
+            mot->verAvisar(kVista, nullptr);
+            mot->verSoltar(kVista);
+        }
+        json out = json::array();
+        for (Grilla& g : *grillas) {
+            if (g.entrada) g.entrada->sacar();
+            json x{{"fuente", g.fuente}, {"canal", g.canal}, {"al_aire", g.alAire}, {"entrada", g.entrada ? g.entrada->resumen() : json()}};
+            if (g.programa) x["programa"] = g.programa->resumen();
+            if (!g.error.empty()) x["error"] = g.error;
+            out.push_back(std::move(x));
+        }
+        json r{{"segundos", segundos}, {"grillas", out}};
+        if (const json v1 = vueltas(); v1.is_object() && vueltas0.is_object()) {
+            const auto d = [&](const char* k) { return v1.value(k, 0ULL) - vueltas0.value(k, 0ULL); };
+            const double n = static_cast<double>(d("n"));
+            r["lector_video"] = {{"vueltas", d("n")},
+                                 {"prom_ms", n > 0 ? std::round(static_cast<double>(d("ns")) / n / 1e4) / 100 : 0.0},
+                                 {"tarde", d("tarde")},
+                                 {"muy_tarde", d("muy-tarde")},
+                                 {"max_ms_desde_que_arranco", std::round(static_cast<double>(v1.value("max-ns", 0ULL)) / 1e4) / 100}};
+        }
+        if (anillo != nullptr) gst_object_unref(anillo);
+        {
+            std::lock_guard<std::mutex> l(medirMu_);
+            midiendo_ = false;
+            if (cortarMedir_) return;
+        }
+        QMetaObject::invokeMethod(
+            this,
+            [yo, r = std::move(r), listo]() {
+                if (!yo) return;
+                yo->ultimaMedicion_ = r;
+                if (listo) listo(r);
+            },
+            Qt::QueuedConnection);
+    });
+    return {};
 }
 
 QVariantList ControlGrillas::grillasUi() const {

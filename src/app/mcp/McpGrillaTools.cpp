@@ -96,6 +96,41 @@ void McpService::registerGrillaTools() {
         core_.addTool(std::move(t));
     }
 
+    {
+        Tool t;
+        t.name = "grilla_personas_medir";
+        t.title = ba::i18n::traducir("mcp", "Medir los cuadros por segundo de cada cara de la grilla");
+        t.category = "fuentes";
+        t.clase = Clase::Lectura;
+        t.untrustedOutput = true; // las claves de las personas
+        t.description = QT_TRANSLATE_NOOP("mcp", "Mide `segundos` (de fábrica 10, de 2 a 120) cuántos cuadros NUEVOS muestra cada celda de cada grilla de "
+                        "personas, desde los píxeles: `entrada` es el mosaico apenas lo lee la app (lo que pintó el gateway y "
+                        "llegó) y `programa`, la misma celda en el programa (si la grilla está al aire; `programa_rect` [x, y, w, h] "
+                        "en fracciones del lienzo dice dónde está, de fábrica el lienzo entero). Por celda: cps, intervalo_ms "
+                        "(p50/p95/max entre un cuadro nuevo y el anterior), huecos (intervalos de más de 1,5 períodos de su capa) "
+                        "y por_debajo (menos del 90 % de lo que manda su capa: baja 15 cps, alta 30). Del mosaico: cps, llegada_ms "
+                        "y perdidos (cuadros que el gateway publicó y la app no leyó). `resumen`: cps_p50, cps_p5, por_debajo_pct.");
+        t.inputSchema = {{"type", "object"},
+                         {"properties",
+                          {{"segundos", {{"type", "integer"}, {"minimum", 2}, {"maximum", 120}}},
+                           {"programa_rect", {{"type", "array"}, {"items", {{"type", "number"}}}, {"minItems", 4}, {"maxItems", 4},
+                                              {"description", QT_TRANSLATE_NOOP("mcp", "dónde está la grilla en el programa, en fracciones del lienzo")}}}}}};
+        t.examples = {R"({})", R"({"segundos": 20})"};
+        t.run = [vmp](const json& a, Done done) {
+            auto* g = vmp->grillasPersonas();
+            if (g == nullptr) return done(ToolResult::error(ba::i18n::traducir("mcp", "la grilla de personas todavía no arrancó")));
+            g->recalcular();
+            const std::string e = g->medir(a.value("segundos", 10), a, [done](const json& r) {
+                ToolResult res;
+                res.data(r);
+                res.untrusted = true;
+                done(res);
+            });
+            if (!e.empty()) done(ToolResult::error(e));
+        };
+        core_.addTool(std::move(t));
+    }
+
     // --- A mano: lo mismo que el menú de cada cara en la vista de las grillas ------------
     // (Propiedades de la fuente, Sala, Asamblea). Las claves salen de grilla_personas_estado.
     const json esquemaClave = {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "la persona: sala:<id> o asamblea:<id> (ver grilla_personas_estado)")}};

@@ -349,6 +349,9 @@ class SpoutReceiver {
     /// Cuándo publicó el último cuadro (su reloj monotónico, ipc/Mirada.hpp; 0 = nunca). Se
     /// puede mirar sin leer: quien sigue el ritmo del productor sin tomarle los cuadros.
     std::uint64_t ultimoEnvioNs() const;
+    /// El número de publicación del último cuadro que se recibió (cuenta de a uno en el
+    /// productor: un salto son cuadros publicados que este lector no llegó a leer).
+    std::uint64_t ultimoPublicado() const { return lastSeenPub_; }
 
     /// El timbre (F3-13). Sin cuadro nuevo:
     ///

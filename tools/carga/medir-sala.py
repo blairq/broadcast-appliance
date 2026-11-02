@@ -13,6 +13,9 @@ régimen (de fábrica 60 s). Escribe en --salida:
                    estudio_latencia (la edad del audio de cada invitado)
   registro.txt     las líneas de app.log y gateway.log de la prueba
   grilla.jpg       la página de la sala al final (ventana_captura)
+  grilla-fps.json  los cuadros NUEVOS por segundo de cada cara de la grilla (grilla_personas_medir,
+                   --medir-grilla-s segundos apenas se estabiliza): en la entrada de la app (lo que
+                   pintó el gateway y llegó) y en el programa (lo que se ve)
   hinchada/        lo de hinchada (muestras.jsonl, informe.json/.html, consola.txt)
   resumen.json/.md el resumen: estabilización, p50/p95/máx y picos, creación de hilos,
                    memoria, red, la app por dentro y el costo de conectar (por invitado)
@@ -316,6 +319,7 @@ def main():
     ap.add_argument("--max-carga", type=float, default=40)
     ap.add_argument("--sin-chequeo", action="store_true")
     ap.add_argument("--logs", default=None, help="carpeta Logs de los datos (app.log, gateway.log)")
+    ap.add_argument("--medir-grilla-s", type=int, default=20, help="segundos de grilla_personas_medir en régimen (0 = no)")
     ap.add_argument("hinchada_extra", nargs="*", help="opciones para hinchada (después de --)")
     a = ap.parse_args()
     sal = Path(a.salida).expanduser()
@@ -360,6 +364,22 @@ def main():
     hin = subprocess.Popen(cmd, stdout=open(hdir / "consola.txt", "w"), stderr=subprocess.STDOUT, env=env)
 
     muestras, app_info = [], []
+    # La medición de la grilla por celda: con su propio ba-mcp (la llamada espera los segundos
+    # que mide, y el bucle sigue pidiendo room_status por el otro).
+    fps_grilla = {}
+    hilo_fps = None
+
+    def medir_grilla():
+        m2 = None
+        try:
+            m2 = Mcp(a.ba_mcp)
+            fps_grilla["r"] = m2.datos("grilla_personas_medir", {"segundos": a.medir_grilla_s})
+        except Exception as ex:
+            fps_grilla["error"] = str(ex)
+        finally:
+            if m2:
+                m2.cerrar()
+
     corte = None
     anterior = {}
     ultimo_mcp = ultimo_app = ultimo_fp = 0
@@ -443,13 +463,20 @@ def main():
                     med = statistics.mean(cpus)
                     if all(abs(c - med) <= max(10.0, 0.1 * med) for c in cpus):
                         estable_t = m["s"] - 5
-                        fin_t = m["s"] + a.regimen
+                        fin_t = m["s"] + max(a.regimen, a.medir_grilla_s + 5)
+                        if a.medir_grilla_s > 0:
+                            hilo_fps = threading.Thread(target=medir_grilla, daemon=True)
+                            hilo_fps.start()
             if fin_t is not None and m["s"] >= fin_t:
                 break
             if estable_t is None and m["s"] > a.estabilizar_max + 30:
                 fin_t = m["s"] + a.regimen  # no se estabilizó: se mide igual (y se dice)
                 estable_t = -1
             time.sleep(max(0.0, 0.5 - (time.time() - t)))
+        if hilo_fps is not None:
+            hilo_fps.join(a.medir_grilla_s + 30)
+        if fps_grilla:
+            (sal / "grilla-fps.json").write_text(json.dumps(sin_pin(fps_grilla), ensure_ascii=False, indent=1))
         # La grilla al final, con la sala llena: el programa (la fuente «Grilla de personas» al
         # aire) y la página de la sala. Las herramientas guardan la imagen y dicen dónde.
         for nombre, herr, args in (("programa", "foto_programa", {}), ("sala", "ventana_captura", {"ancho": 1600})):
@@ -504,6 +531,7 @@ def main():
             r.write("\n".join(ls) + "\n")
 
     resumen = resumir(a, muestras, app_info, lineas, corte, estable_t, ncpu, t0, hdir)
+    resumen["grilla_fps"] = resumir_fps(fps_grilla)
     (sal / "resumen.json").write_text(json.dumps(resumen, ensure_ascii=False, indent=1))
     (sal / "resumen.md").write_text(en_texto(resumen))
     print(en_texto(resumen))
@@ -653,6 +681,39 @@ def resumir(a, muestras, app_info, lineas, corte, estable_t, ncpu, t0, hdir):
     return r
 
 
+def resumir_fps(fps):
+    """Lo de grilla_personas_medir por grilla y por lugar (entrada, programa): el mosaico, y
+    las celdas por capa (cps p50 y p5, % por debajo de lo que manda su capa, intervalo p95)."""
+    if not fps:
+        return None
+    if "error" in fps:
+        return {"error": fps["error"]}
+    out = []
+    for g in (fps.get("r") or {}).get("grillas", []):
+        x = {"fuente": g.get("fuente"), "al_aire": g.get("al_aire")}
+        if g.get("error"):
+            x["error"] = g["error"]
+        for lugar in ("entrada", "programa"):
+            m = g.get(lugar)
+            if not m:
+                continue
+            y = {"mosaico_cps": m.get("cps"), "llegada_ms": m.get("llegada_ms"), "perdidos": m.get("perdidos"),
+                 "celdas": (m.get("resumen") or {}).get("celdas"), "cps_p50": (m.get("resumen") or {}).get("cps_p50"),
+                 "cps_p5": (m.get("resumen") or {}).get("cps_p5"), "por_debajo_pct": (m.get("resumen") or {}).get("por_debajo_pct")}
+            capas = {}
+            for c in m.get("celdas", []):
+                capas.setdefault(c.get("capa") or "?", []).append(c)
+            y["por_capa"] = {k: {"n": len(v), "referencia_cps": v[0].get("referencia_cps"),
+                                 "cps_p50": pct([c.get("cps") for c in v], 50), "cps_p5": pct([c.get("cps") for c in v], 5),
+                                 "intervalo_p95_ms_p50": pct([(c.get("intervalo_ms") or {}).get("p95") for c in v], 50),
+                                 "intervalo_max_ms": max(((c.get("intervalo_ms") or {}).get("max") or 0 for c in v), default=None),
+                                 "por_debajo_pct": round(100 * sum(1 for c in v if c.get("por_debajo")) / len(v), 1)}
+                            for k, v in capas.items()}
+            x[lugar] = y
+        out.append(x)
+    return out
+
+
 def en_texto(r):
     l = [f"# Prueba de sala: {r['participantes']} invitados", ""]
     if r.get("corte"):
@@ -669,6 +730,17 @@ def en_texto(r):
     l.append(f"- red (Mbps): {r.get('red_mbps')}")
     l.append(f"- sala: {r.get('sala')}")
     l.append(f"- grilla: {r.get('grilla')}")
+    for g in r.get("grilla_fps") or []:
+        if not isinstance(g, dict):
+            continue
+        for lugar in ("entrada", "programa"):
+            y = g.get(lugar)
+            if y:
+                l.append(f"- grilla «{g.get('fuente')}» en la {lugar}: mosaico {y.get('mosaico_cps')} cps (perdidos {y.get('perdidos')}, "
+                         f"llegada {y.get('llegada_ms')}); por celda cps p50 {y.get('cps_p50')} p5 {y.get('cps_p5')}, "
+                         f"{y.get('por_debajo_pct')} % por debajo de su capa; por capa {y.get('por_capa')}")
+    if isinstance(r.get("grilla_fps"), dict):
+        l.append(f"- grilla por celda: {r['grilla_fps']}")
     l.append(f"- audio de los invitados (edad al llegar a la mezcla, entre invitados): {r.get('audio_invitados')}")
     l.append(f"- registro de la app: {r.get('registro_app')}")
     l.append(f"- conectar: {r.get('conectar')}; hinchada (unirse, ms): {r.get('hinchada_union_ms')}")

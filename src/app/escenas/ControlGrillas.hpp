@@ -51,11 +51,14 @@
 
 #include <nlohmann/json.hpp>
 
+#include <condition_variable>
 #include <cstdint>
 #include <functional>
 #include <map>
+#include <mutex>
 #include <set>
 #include <string>
+#include <thread>
 #include <vector>
 #include "ui/CapturaError.hpp"
 
@@ -99,6 +102,7 @@ class ControlGrillas : public QObject {
         std::function<void(const std::string& salida, const std::string& escena)> ponerAlAire;
     };
     explicit ControlGrillas(Partes p, QObject* parent = nullptr);
+    ~ControlGrillas() override;
 
     /// {grillas: [{fuente, canal, grupo, origen, orden, tope, al_aire, personas, fuera, mas}], gente: [...]}.
     json estado() const { return estado_; }
@@ -133,6 +137,20 @@ class ControlGrillas : public QObject {
     /// cargo. Lo que ya exista no se toca. No la pone al aire. "" o el error (lo que falle al
     /// crearla, después, va a notify). `escena`/`grilla`: los nombres que usa.
     std::string armarEscenaOrador(const std::string& fuente, std::string* escena = nullptr, std::string* grilla = nullptr);
+
+    /// CUÁNTOS CUADROS NUEVOS MUESTRA CADA CARA (motor/AnalisisCeldas.hpp): mide `segundos`
+    /// cada grilla que el gateway está pintando, celda por celda, en dos lugares:
+    ///   - `entrada`: el mosaico apenas lo lee la app (lo que mandó el gateway y llegó: los
+    ///     cuadros nuevos de cada persona, sus intervalos y los que el gateway publicó y no
+    ///     se leyeron);
+    ///   - `programa`: la misma celda en el programa (lo que se ve), si la grilla está al aire;
+    ///     `programa_rect` [x, y, w, h] (fracciones del lienzo) dice dónde está la grilla en el
+    ///     programa (de fábrica, el lienzo entero).
+    /// La referencia de cada celda es lo que manda su capa (baja: 15 cps; alta: 30). `listo`
+    /// se llama en el hilo de la interfaz con {grillas: [{fuente, canal, al_aire, entrada,
+    /// programa}]}; queda en ultimaMedicion(). "" o el error (una por vez).
+    std::string medir(int segundos, const json& opciones, std::function<void(const json&)> listo);
+    json ultimaMedicion() const { return ultimaMedicion_; }
 
    signals:
     /// Para el operador (ya traducido): los errores de las acciones de la interfaz y los
@@ -174,6 +192,12 @@ class ControlGrillas : public QObject {
     std::map<std::string, Propuesto> propuestos_; ///< fuente → lo que se le pidió al asistente (para avisar cuando pase)
     json ultimoPedido_;                       ///< lo último que se le mandó al gateway
     json estado_ = json::object();
+    json ultimaMedicion_;   ///< lo último que midió medir()
+    std::thread hiloMedir_; ///< la medición en curso (no en el hilo de la interfaz: toma candados de las entradas)
+    std::mutex medirMu_;
+    std::condition_variable medirCv_;
+    bool midiendo_ = false;  ///< bajo medirMu_
+    bool cortarMedir_ = false; ///< bajo medirMu_: se va (el destructor)
     QTimer reloj_;  ///< el programa y las fuentes cambian por muchos caminos: se mira seguido
     QTimer pronto_; ///< junta varios avisos seguidos en una sola vuelta
 };

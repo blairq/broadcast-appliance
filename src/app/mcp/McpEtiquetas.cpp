@@ -1723,6 +1723,8 @@ const Fila kPropias[] = {
     //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
     {"grilla_personas_estado", QT_TRANSLATE_NOOP("mcp-etiquetas", "quienes se ven en la grilla cuantos quedaron afuera mas n quien habla")},
     //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
+    {"grilla_personas_medir", QT_TRANSLATE_NOOP("mcp-etiquetas", "medir cuadros por segundo fps de cada cara fluido entrecortado se traba lento ritmo celdas")},
+    //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
     {"grilla_personas_ajustar", QT_TRANSLATE_NOOP("mcp-etiquetas", "cambiar tope orden prioridad grupo repartir entre escenas parejo llenar en orden solo con camara")},
     //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
     {"grilla_personas_fijar", QT_TRANSLATE_NOOP("mcp-etiquetas", "fijar dejar fijo siempre en la grilla que no salga poner a alguien en el mosaico")},

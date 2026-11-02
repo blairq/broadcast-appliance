@@ -43,6 +43,7 @@
 #include <gst/gst.h>
 
 #include <atomic>
+#include <cstdint>
 #include <memory>
 #include <mutex>
 
@@ -84,6 +85,15 @@ void registrar(Medio m, const std::shared_ptr<Lectura>& l);
 void quitar(Medio m, const std::shared_ptr<Lectura>& l);
 /// Al bajar a READY o al destruirla: espera a que el hilo la suelte; después no la toca.
 inline void esperar(Lectura& l) { std::lock_guard<std::mutex> g(l.mu); }
+
+/// Lo que llevan las vueltas de un lector desde que arrancó (para medir: la propiedad
+/// «vueltas» de bavideoanillocomun). tarde: las que duraron más que su período (lo que
+/// llegó en ese rato se lee en la próxima); muyTarde: más de 2,4 períodos (a 1/60 s, 40 ms:
+/// un canal de 25 cps pudo publicar dos cuadros y uno no se leyó).
+struct Vueltas {
+    std::uint64_t n = 0, ns = 0, tarde = 0, muyTarde = 0, maxNs = 0;
+};
+Vueltas vueltas(Medio m);
 
 /// La prioridad de un hilo que mueve audio en vivo (el lector común, los repartidores).
 void prioridadDeAudio();

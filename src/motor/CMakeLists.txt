@@ -6,7 +6,7 @@
 # y salidas. Ver docs/planes/PLAN-TODO-EN-UNO.md, bloque M.
 # ============================================================================
 
-add_library(ba_motor STATIC Piezas.cpp BancoSr.cpp Reloj.cpp OrigenRed.cpp Entrada.cpp Mezcla.cpp Escucha.cpp Composicion.cpp Salidas.cpp Vistas.cpp Motor.cpp Mapa.cpp Candado.cpp Capturas.cpp Sondas.cpp ModosVideo.cpp Edad.cpp Prioridad.cpp Fallas.cpp GpuPerdida.cpp)
+add_library(ba_motor STATIC Piezas.cpp BancoSr.cpp Reloj.cpp OrigenRed.cpp Entrada.cpp Mezcla.cpp Escucha.cpp Composicion.cpp Salidas.cpp Vistas.cpp Motor.cpp Mapa.cpp Candado.cpp Capturas.cpp Sondas.cpp ModosVideo.cpp Edad.cpp MedidorCeldas.cpp Prioridad.cpp Fallas.cpp GpuPerdida.cpp)
 target_include_directories(ba_motor PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
 target_link_libraries(ba_motor PUBLIC ba_core ba::gstreamer)
 # Capturas: las ventanas de cada sistema (ver Capturas.hpp).
@@ -57,6 +57,13 @@ if(BUILD_TESTING OR TRUE)
     target_include_directories(test_reglas_entrada PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
     add_test(NAME test_reglas_entrada COMMAND test_reglas_entrada)
     set_tests_properties(test_reglas_entrada PROPERTIES TIMEOUT 10)
+
+    # Cuántos cuadros nuevos muestra cada celda de un mosaico (la grilla de personas): puro.
+    add_executable(test_analisis_celdas tests/test_analisis_celdas.cpp)
+    target_include_directories(test_analisis_celdas PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    target_link_libraries(test_analisis_celdas PRIVATE nlohmann_json::nlohmann_json)
+    add_test(NAME test_analisis_celdas COMMAND test_analisis_celdas)
+    set_tests_properties(test_analisis_celdas PROPERTIES TIMEOUT 10)
 
     add_executable(test_latencia_estudio tests/test_latencia_estudio.cpp)
     target_link_libraries(test_latencia_estudio PRIVATE ba_motor)
