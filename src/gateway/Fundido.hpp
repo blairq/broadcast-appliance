@@ -53,6 +53,10 @@ class Fundido {
     void cortar();
     /// 0..1 de la imagen nueva (1 si no hay fundido): para las pruebas y el estado.
     float alfa(std::int64_t ahora) const;
+    /// La imagen que se va (para quien la recorta a su manera, como la grilla).
+    const std::vector<std::uint8_t>& imagen() const { return ant_; }
+    int ancho() const { return w_; }
+    int alto() const { return h_; }
 
    private:
     std::vector<std::uint8_t> ant_, escalado_;

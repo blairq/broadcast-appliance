@@ -120,6 +120,33 @@ Grillas::Rect encoger(const Grillas::Rect& r, float f) {
     return {r.x + r.w * (1 - f) / 2, r.y + r.h * (1 - f) / 2, r.w * f, r.h * f};
 }
 
+/// El recorte de una imagen (iw x ih) que llena una celda (cw x ch) sin barras: al ancho o
+/// al alto, y en vertical cargado hacia arriba, donde están las caras.
+void recorte(int iw, int ih, int cw, int ch, int& sx, int& sy, int& sw, int& sh) {
+    const float aspL = static_cast<float>(cw) / ch, aspR = static_cast<float>(iw) / ih;
+    sx = sy = 0;
+    sw = iw;
+    sh = ih;
+    if (aspR > aspL) {
+        sw = std::max(1, static_cast<int>(ih * aspL));
+        sx = (iw - sw) / 2;
+    } else {
+        sh = std::max(1, static_cast<int>(iw / aspL));
+        sy = static_cast<int>((ih - sh) * 0.3f);
+    }
+}
+
+/// Un color BGRA con opacidad extra `a` (0..255) sobre el píxel `p` (BGRA, con alfa).
+inline void sobre(std::uint8_t* p, std::uint32_t color, unsigned a) {
+    a = a * ((color >> 24) & 0xFF) / 255;
+    if (a == 0) return;
+    const unsigned na = 255 - a;
+    p[0] = static_cast<std::uint8_t>(((color & 0xFF) * a + p[0] * na) / 255);
+    p[1] = static_cast<std::uint8_t>((((color >> 8) & 0xFF) * a + p[1] * na) / 255);
+    p[2] = static_cast<std::uint8_t>((((color >> 16) & 0xFF) * a + p[2] * na) / 255);
+    p[3] = static_cast<std::uint8_t>(a + p[3] * na / 255);
+}
+
 std::uint32_t leerColor(const json& j, const char* k, std::uint32_t def) {
     std::uint32_t c = def;
     if (j.contains(k) && j[k].is_string() && Grillas::color(j[k].get<std::string>(), c)) return c;
@@ -168,6 +195,68 @@ void Grillas::setAlCambiarCalidad(std::function<void(const std::string&, int)> f
     alCalidad_ = std::move(fn);
 }
 
+void Grillas::setAlCambiarCapa(std::function<void(const std::string&)> fn) {
+    std::lock_guard<std::mutex> l(fnMu_);
+    alCapa_ = std::move(fn);
+}
+
+Capa Grillas::capaDe(const std::string& persona) const {
+    std::lock_guard<std::mutex> l(mu_);
+    const auto it = capas_.find(persona);
+    return it != capas_.end() ? it->second : Capa::Nada;
+}
+
+bool Grillas::precargada(const std::string& persona) const {
+    std::lock_guard<std::mutex> l(mu_);
+    return precarga_.count(persona) > 0;
+}
+
+bool Grillas::tieneRotulo(const std::string& id) const {
+    std::lock_guard<std::mutex> l(mu_);
+    return rotulos_.count(id) > 0;
+}
+
+std::string Grillas::rotulos(const json& pedido) {
+    if (!pedido.is_object() || !pedido.contains("rotulos") || !pedido["rotulos"].is_array())
+        return traducir("gateway", "falta «rotulos» (una lista)");
+    std::vector<std::pair<std::string, std::shared_ptr<Rotulo>>> nuevos;
+    for (const json& r : pedido["rotulos"]) {
+        if (!r.is_object()) return traducir("gateway", "cada rótulo es un objeto");
+        const std::string id = r.value("id", std::string());
+        const int w = r.value("w", 0), h = r.value("h", 0);
+        if (id.empty() || id.size() > 100) return traducir("gateway", "rótulo sin «id»");
+        if (w < 1 || h < 1 || w > 2048 || h > 512) return llenar(traducir("gateway", "rótulo «%1» de tamaño inválido"), {id});
+        const std::string a8 = http::deBase64(r.value("a8", std::string()));
+        if (a8.size() != static_cast<std::size_t>(w) * h)
+            return llenar(traducir("gateway", "rótulo «%1»: la máscara no mide w*h"), {id});
+        auto x = std::make_shared<Rotulo>();
+        x->w = w;
+        x->h = h;
+        x->a8.assign(a8.begin(), a8.end());
+        nuevos.emplace_back(id, std::move(x));
+    }
+    std::lock_guard<std::mutex> l(mu_);
+    for (auto& [id, x] : nuevos) rotulos_[id] = std::move(x);
+    for (auto& [k, g] : grillas_) g.sucia = true; // los que faltaban ya se pueden pintar
+    return {};
+}
+
+void Grillas::fundir(const std::string& persona, int ms) {
+    if (ms <= 0) return;
+    if (const auto r = retrato(persona)) {
+        std::lock_guard<std::mutex> l(r->m);
+        r->fundidoPendienteMs = ms;
+    }
+}
+
+void Grillas::cuadroAnterior(const std::string& persona, const std::uint8_t* bgra, int w, int h) {
+    if (bgra == nullptr || w <= 0 || h <= 0) return;
+    if (const auto r = retrato(persona)) {
+        std::lock_guard<std::mutex> l(r->m);
+        r->fundido.anterior(bgra, w, h); // la baja: chica, se guarda tal cual
+    }
+}
+
 int Grillas::altoDe(const std::string& persona) const {
     std::lock_guard<std::mutex> l(mu_);
     const auto it = altos_.find(persona);
@@ -209,6 +298,7 @@ std::string Grillas::aplicar(const json& pedido, std::int64_t ahora) {
     struct Nueva {
         int canal = 0, ancho = 0, alto = 0, transicion = 400;
         std::uint32_t fondo = 0, resaltar = 0xFF07C1FF;
+        EstiloRotulo estilo;
         std::vector<Celda> celdas;
         int mas = 0;
         Rect rMas;
@@ -228,6 +318,13 @@ std::string Grillas::aplicar(const json& pedido, std::int64_t ahora) {
         n.transicion = std::clamp(g.value("transicion_ms", 400), 0, 3000);
         n.fondo = leerColor(g, "fondo", 0);
         n.resaltar = leerColor(g, "resaltar_color", 0xFF07C1FF);
+        if (g.contains("rotulos") && g["rotulos"].is_object()) {
+            const json& e = g["rotulos"];
+            n.estilo.color = leerColor(e, "color", n.estilo.color);
+            n.estilo.fondo = leerColor(e, "fondo", n.estilo.fondo);
+            n.estilo.tamano = std::clamp(e.value("tamano", n.estilo.tamano), 0.03f, 0.5f);
+            n.estilo.arriba = e.value("lugar", std::string("abajo")) == "arriba";
+        }
         const json celdas = g.value("celdas", json::array());
         if (!celdas.is_array()) return traducir("gateway", "«celdas» es una lista");
         if (celdas.size() > static_cast<std::size_t>(kMaxCeldasGrilla))
@@ -243,6 +340,9 @@ std::string Grillas::aplicar(const json& pedido, std::int64_t ahora) {
             x.r = {c.value("x", 0.0f), c.value("y", 0.0f), c.value("w", 0.0f), c.value("h", 0.0f)};
             if (x.r.w <= 0 || x.r.h <= 0) return llenar(traducir("gateway", "celda de «%1» sin tamaño"), {x.persona});
             x.resaltar = c.value("resaltar", false);
+            const std::string capa = c.value("capa", std::string());
+            x.capa = capa == "alta" ? Capa::Alta : capa == "baja" ? Capa::Baja : Capa::Nada;
+            x.rotulo = c.value("rotulo", std::string());
             n.celdas.push_back(std::move(x));
         }
         if (g.contains("mas") && g["mas"].is_object()) {
@@ -252,8 +352,15 @@ std::string Grillas::aplicar(const json& pedido, std::int64_t ahora) {
         }
         nuevas[n.canal] = std::move(n);
     }
+    std::set<std::string> precarga;
+    if (pedido.contains("precarga") && pedido["precarga"].is_array())
+        for (const json& p : pedido["precarga"])
+            if (p.is_string() && !p.get<std::string>().empty()) precarga.insert(p.get<std::string>());
+    if (pedido.contains("fundido_ms") && pedido["fundido_ms"].is_number())
+        fundidoMs_ = std::clamp(pedido["fundido_ms"].get<int>(), 0, 3000);
 
     std::vector<std::pair<std::string, int>> calidad;
+    std::vector<std::string> capaCambio;
     {
         std::lock_guard<std::mutex> l(mu_);
         for (auto it = grillas_.begin(); it != grillas_.end();)
@@ -267,6 +374,7 @@ std::string Grillas::aplicar(const json& pedido, std::int64_t ahora) {
             g.fondo = n.fondo;
             g.resaltar = n.resaltar;
             g.transicionMs = n.transicion;
+            g.estiloRotulo = n.estilo;
             std::set<std::string> quedan;
             for (const Celda& c : n.celdas) {
                 quedan.insert(c.persona);
@@ -278,12 +386,14 @@ std::string Grillas::aplicar(const json& pedido, std::int64_t ahora) {
                     a->second.t0 = ahora;
                     a->second.sale = false;
                     a->second.resaltar = c.resaltar;
+                    a->second.rotulo = c.rotulo;
                 } else {
                     Anim x;
                     x.desde = encoger(c.r, 0.3f); // la que entra crece desde el centro de su lugar
                     x.hasta = c.r;
                     x.t0 = ahora;
                     x.resaltar = c.resaltar;
+                    x.rotulo = c.rotulo;
                     g.anim[c.persona] = x;
                 }
             }
@@ -295,6 +405,7 @@ std::string Grillas::aplicar(const json& pedido, std::int64_t ahora) {
                 a.t0 = ahora;
                 a.sale = true;
                 a.resaltar = false;
+                a.rotulo.clear();
             }
             if (g.transicionMs == 0)
                 for (auto it = g.anim.begin(); it != g.anim.end();) it = it->second.sale ? g.anim.erase(it) : std::next(it);
@@ -319,6 +430,31 @@ std::string Grillas::aplicar(const json& pedido, std::int64_t ahora) {
         for (const auto& [p, a] : altos_)
             if (altos.count(p) == 0) calidad.emplace_back(p, 0);
         altos_ = std::move(altos);
+        // La capa que piden (alta si alguna grilla la pide) y los precargados: a quien cambia
+        // se le vuelve a decidir la capa.
+        std::map<std::string, Capa> capas;
+        for (const auto& [k, g] : grillas_)
+            for (const Celda& c : g.celdas)
+                if (c.capa != Capa::Nada) capas[c.persona] = std::max(capas[c.persona], c.capa);
+        std::set<std::string> tocadas;
+        for (const auto& [p, c] : capas)
+            if (const auto it = capas_.find(p); it == capas_.end() || it->second != c) tocadas.insert(p);
+        for (const auto& [p, c] : capas_)
+            if (!capas.count(p)) tocadas.insert(p);
+        for (const auto& p : precarga)
+            if (!precarga_.count(p)) tocadas.insert(p);
+        for (const auto& p : precarga_)
+            if (!precarga.count(p)) tocadas.insert(p);
+        capas_ = std::move(capas);
+        precarga_ = std::move(precarga);
+        capaCambio.assign(tocadas.begin(), tocadas.end());
+        // Los rótulos que ninguna grilla nombra se olvidan (la app los vuelve a mandar si hace falta).
+        std::set<std::string> nombrados;
+        for (const auto& [k, g] : grillas_)
+            for (const Celda& c : g.celdas)
+                if (!c.rotulo.empty()) nombrados.insert(c.rotulo);
+        for (auto it = rotulos_.begin(); it != rotulos_.end();)
+            it = nombrados.count(it->first) ? std::next(it) : rotulos_.erase(it);
         std::lock_guard<std::mutex> lr(retratosMu_);
         for (const auto& [p, t] : tam) {
             auto& r = retratos_[p];
@@ -329,12 +465,16 @@ std::string Grillas::aplicar(const json& pedido, std::int64_t ahora) {
         }
     }
     std::function<void(const std::string&, int)> fn;
+    std::function<void(const std::string&)> fnCapa;
     {
         std::lock_guard<std::mutex> l(fnMu_);
         fn = alCalidad_;
+        fnCapa = alCapa_;
     }
     if (fn)
         for (const auto& [p, a] : calidad) fn(p, a);
+    if (fnCapa)
+        for (const auto& p : capaCambio) fnCapa(p);
     return {};
 }
 
@@ -344,13 +484,26 @@ json Grillas::estado() const {
     for (const auto& [k, g] : grillas_) {
         json celdas = json::array();
         for (const Celda& c : g.celdas) {
-            bool imagen = false;
+            bool imagen = false, fundiendo = false;
+            int iw = 0, ih = 0;
             if (auto r = retrato(c.persona)) {
                 std::lock_guard<std::mutex> lm(r->m);
                 imagen = !r->px.empty();
+                iw = r->w;
+                ih = r->h;
+                fundiendo = r->fundido.alfa(ahoraMs()) < 1.0f;
             }
-            celdas.push_back({{"persona", c.persona}, {"x", c.r.x}, {"y", c.r.y}, {"w", c.r.w}, {"h", c.r.h},
-                              {"resaltar", c.resaltar}, {"imagen", imagen}});
+            // imagen_ancho/alto: el retrato guardado (achicado al lugar): con la HD, el del
+            // lugar; con la baja, a lo sumo 320x180. Así se ve desde afuera qué capa se pinta.
+            json x{{"persona", c.persona}, {"x", c.r.x},       {"y", c.r.y},         {"w", c.r.w},
+                   {"h", c.r.h},           {"resaltar", c.resaltar}, {"imagen", imagen}, {"imagen_ancho", iw},
+                   {"imagen_alto", ih},    {"fundiendo", fundiendo}};
+            if (c.capa != Capa::Nada) x["capa"] = nombreCapa(c.capa);
+            if (!c.rotulo.empty()) {
+                x["rotulo"] = c.rotulo;
+                x["rotulo_listo"] = rotulos_.count(c.rotulo) > 0;
+            }
+            celdas.push_back(std::move(x));
         }
         out.push_back({{"canal", k},
                        {"ancho", g.ancho},
@@ -365,10 +518,26 @@ json Grillas::estado() const {
         std::lock_guard<std::mutex> lv(vozMu_);
         for (const auto& p : hablan_) hablan.push_back(p);
     }
-    return {{"grillas", out}, {"hablan", hablan}, {"cps", cps_}};
+    json precarga = json::array();
+    for (const auto& p : precarga_) precarga.push_back(p);
+    return {{"grillas", out},      {"hablan", hablan},
+            {"cps", cps_},         {"precarga", precarga},
+            {"fundido_ms", fundidoMs_.load()}, {"rotulos", rotulos_.size()}};
 }
 
 bool Grillas::admin(long long fd, const std::string& method, const std::string& path, const std::string& body) {
+    if (path == "/api/v1/grillas/rotulos") {
+        if (method != "POST") {
+            http::sendResponse(fd, 405, "application/json", R"({"ok":false,"error":"method"})");
+            return true;
+        }
+        const json req = json::parse(body.empty() ? "{}" : body, nullptr, false);
+        const std::string e = rotulos(req);
+        const json out = e.empty() ? json{{"ok", true}} : json{{"ok", false}, {"error", e}};
+        http::sendResponse(fd, e.empty() ? 200 : 400, "application/json",
+                           out.dump(-1, ' ', false, json::error_handler_t::replace));
+        return true;
+    }
     if (path != "/api/v1/grillas") return false;
     if (method == "GET") {
         http::sendResponse(fd, 200, "application/json", estado().dump(-1, ' ', false, json::error_handler_t::replace));
@@ -397,6 +566,12 @@ std::shared_ptr<Grillas::Retrato> Grillas::retrato(const std::string& persona) c
 
 void Grillas::guardar(Retrato& r, const std::uint8_t* bgra, int w, int h, std::int64_t ahora, bool vivo) {
     std::lock_guard<std::mutex> l(r.m);
+    // El primer cuadro de la alta: funde desde lo último que se vio (si es reciente: uno
+    // viejo sería un salto).
+    if (vivo && r.fundidoPendienteMs > 0) {
+        if (!r.px.empty() && ahora - r.ms < 2000) r.fundido.empezar(r.px.data(), r.w, r.h, r.fundidoPendienteMs, ahora);
+        r.fundidoPendienteMs = 0;
+    }
     // Achicado al lugar más grande que ocupa, cubriéndolo (el recorte se hace al pintar):
     // nunca se agranda, y lo que se guarda no pesa más de lo que se va a mostrar.
     float f = 1.0f;
@@ -517,6 +692,42 @@ void Grillas::dibujarMas(std::uint8_t* lienzo, int W, int H, const Rect& r, int 
     }
 }
 
+void Grillas::pintarRotulo(std::uint8_t* lienzo, int W, int H, const Rect& celda, const Rotulo& r, const EstiloRotulo& e) {
+    const Caja c = caja(celda, W, H);
+    if (c.w < 8 || c.h < 8 || r.w <= 0 || r.h <= 0 || r.a8.size() < static_cast<std::size_t>(r.w) * r.h) return;
+    // La banda: `tamano` del alto de la celda (no menos de 10 px: debajo no se lee nada) y
+    // el ancho de la celda; el texto adentro, con un margen, escalado para entrar.
+    const int bandaH = std::clamp(static_cast<int>(std::lround(c.h * e.tamano)), std::min(10, c.h), c.h);
+    const int margen = std::max(2, bandaH / 6);
+    const Caja banda{c.x, e.arriba ? c.y : c.y + c.h - bandaH, c.w, bandaH};
+    for (int y = banda.y; y < banda.y + banda.h; ++y) {
+        std::uint8_t* p = lienzo + (static_cast<std::size_t>(y) * W + banda.x) * 4;
+        for (int x = 0; x < banda.w; ++x) sobre(p + x * 4, e.fondo, 255);
+    }
+    const float esc = std::min(static_cast<float>(bandaH - 2 * margen) / r.h, static_cast<float>(c.w - 2 * margen) / r.w);
+    if (esc <= 0) return;
+    const int tw = std::max(1, static_cast<int>(r.w * esc)), th = std::max(1, static_cast<int>(r.h * esc));
+    const int x0 = banda.x + margen, y0 = banda.y + (bandaH - th) / 2;
+    // Bilineal sobre la máscara (chica: cientos de píxeles por rótulo).
+    for (int y = 0; y < th; ++y) {
+        const int py = y0 + y;
+        if (py < 0 || py >= H) continue;
+        const float fy = (y + 0.5f) / esc - 0.5f;
+        const int y1 = std::clamp(static_cast<int>(std::floor(fy)), 0, r.h - 1), y2 = std::min(y1 + 1, r.h - 1);
+        const float wy = std::clamp(fy - static_cast<float>(y1), 0.0f, 1.0f);
+        for (int x = 0; x < tw; ++x) {
+            const int px = x0 + x;
+            if (px < 0 || px >= W || px >= c.x + c.w) continue;
+            const float fx = (x + 0.5f) / esc - 0.5f;
+            const int x1 = std::clamp(static_cast<int>(std::floor(fx)), 0, r.w - 1), x2 = std::min(x1 + 1, r.w - 1);
+            const float wx = std::clamp(fx - static_cast<float>(x1), 0.0f, 1.0f);
+            const auto m = [&](int xx, int yy) { return static_cast<float>(r.a8[static_cast<std::size_t>(yy) * r.w + xx]); };
+            const float v = (m(x1, y1) * (1 - wx) + m(x2, y1) * wx) * (1 - wy) + (m(x1, y2) * (1 - wx) + m(x2, y2) * wx) * wy;
+            if (v >= 1.0f) sobre(lienzo + (static_cast<std::size_t>(py) * W + px) * 4, e.color, static_cast<unsigned>(v + 0.5f));
+        }
+    }
+}
+
 void Grillas::pintarLocked(Grilla& g, std::int64_t ahora) {
     const auto t1 = std::chrono::steady_clock::now();
     const int W = g.ancho, H = g.alto;
@@ -538,24 +749,30 @@ void Grillas::pintarLocked(Grilla& g, std::int64_t ahora) {
         if (const auto ret = retrato(persona)) {
             std::lock_guard<std::mutex> l(ret->m);
             if (!ret->px.empty()) {
-                // Recorte que llena el lugar (sin barras): al ancho o al alto, y en
-                // vertical cargado hacia arriba, donde están las caras.
-                const float aspL = static_cast<float>(c.w) / c.h, aspR = static_cast<float>(ret->w) / ret->h;
-                int sx = 0, sy = 0, sw = ret->w, sh = ret->h;
-                if (aspR > aspL) {
-                    sw = std::max(1, static_cast<int>(ret->h * aspL));
-                    sx = (ret->w - sw) / 2;
-                } else {
-                    sh = std::max(1, static_cast<int>(ret->w / aspL));
-                    sy = static_cast<int>((ret->h - sh) * 0.3f);
-                }
+                // Recorte que llena el lugar (sin barras).
+                int sx = 0, sy = 0, sw = 0, sh = 0;
+                recorte(ret->w, ret->h, c.w, c.h, sx, sy, sw, sh);
                 escalar(ret->px.data() + (static_cast<std::size_t>(sy) * ret->w + sx) * 4, ret->w * 4, sw, sh, destino,
                         W * 4, c.w, c.h);
+                // De la baja a la HD: lo que se va, encima, cada vez más transparente.
+                if (ret->fundido.activo(ahora) && !ret->fundido.imagen().empty()) {
+                    const int aw = ret->fundido.ancho(), ah = ret->fundido.alto();
+                    recorte(aw, ah, c.w, c.h, sx, sy, sw, sh);
+                    tmpFundido_.resize(static_cast<std::size_t>(c.w) * c.h * 4);
+                    escalar(ret->fundido.imagen().data() + (static_cast<std::size_t>(sy) * aw + sx) * 4, aw * 4, sw, sh,
+                            tmpFundido_.data(), c.w * 4, c.w, c.h);
+                    mezclarBgra(destino, W * 4, tmpFundido_.data(), c.w * 4, c.w, c.h, ret->fundido.alfa(ahora));
+                }
                 g.visto[persona] = ret->seq;
                 pintada = true;
             }
         }
         if (!pintada) silueta(g.lienzo.data(), W, c);
+        if (!a.rotulo.empty())
+            if (const auto rt = rotulos_.find(a.rotulo); rt != rotulos_.end() && rt->second)
+                pintarRotulo(g.lienzo.data(), W, H,
+                             {static_cast<float>(c.x), static_cast<float>(c.y), static_cast<float>(c.w), static_cast<float>(c.h)},
+                             *rt->second, g.estiloRotulo);
         if (a.resaltar) borde(g.lienzo.data(), W, c, std::max(3, c.h / 30), g.resaltar);
     };
     for (const auto& [p, a] : g.anim)
@@ -614,7 +831,7 @@ void Grillas::bucle() {
                         if (const auto r = retrato(c.persona)) {
                             std::lock_guard<std::mutex> lm(r->m);
                             const auto v = g.visto.find(c.persona);
-                            if (!r->px.empty() && (v == g.visto.end() || v->second != r->seq)) {
+                            if ((!r->px.empty() && (v == g.visto.end() || v->second != r->seq)) || r->fundido.activo(ahora)) {
                                 hace = true;
                                 break;
                             }

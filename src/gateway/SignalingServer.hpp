@@ -694,11 +694,15 @@ class SignalingServer {
     // Las capas de la cámara (Capas.hpp): qué entradas de remotos tiene la app al aire y
     // armadas ("guest:<n>", "remoto:<k>"), como las manda por POST /api/v1/capas.
     std::mutex capasMu_;
+    std::map<std::string, std::int64_t> pedidoAltaMs_; // pid → cuándo se le pidió la alta (con capasMu_)
     bool capasApp_ = false; ///< la app ya dijo algo (antes, el programa va en alta)
     std::set<std::string> capasAire_, capasSiguiente_;
     /// La capa que necesita la sala de `pid` (si manda dos) y se la pide a su sesión.
     void revisarCapas(const std::string& pid);
     void revisarCapasTodas();
+    /// Llegó el primer cuadro HD de `pid` (después de la baja): su canal y su retrato en las
+    /// grillas funden en `ms`, y se anota cuánto tardó desde el pedido (Fundido.hpp).
+    void alLlegarHd(const std::string& pid, const std::string& persona, int idx, int ms);
     // T44: las frases que esperan al corrector (las manda la app) y desde cuándo.
     std::mutex correccionMu_;
     nlohmann::json correccionPend_ = nlohmann::json::array();

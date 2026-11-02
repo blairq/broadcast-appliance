@@ -2603,6 +2603,12 @@ void SignalingServer::handleOffer(const std::string& pid, uint64_t gen, const st
                 pump_->forwardVideo(idx, p, b, w, h);
                 if (grillas_ != nullptr) grillas_->cuadro(persona, p, w, h, Grillas::reloj());
             };
+            // De la baja a la HD (Fundido.hpp): su canal y su retrato funden.
+            cb.onFundido = [this, idx, pid, persona = "sala:" + pid](int ms) { alLlegarHd(pid, persona, idx, ms); };
+            cb.onRemoteVideoAnterior = [this, idx, persona = "sala:" + pid](const uint8_t* p, size_t b, int w, int h) {
+                pump_->forwardVideoAnterior(idx, p, b, w, h);
+                if (grillas_ != nullptr) grillas_->cuadroAnterior(persona, p, w, h);
+            };
             cb.onRemoteScreen = [this, idx](const uint8_t* p, size_t b, int w, int h) {
                 pump_->forwardScreen(idx, p, b, w, h);
             };
@@ -2778,6 +2784,12 @@ bool SignalingServer::ofertaRemoto(const std::string& id, int canal, const std::
             cb.onRemoteVideo = [this, idx, persona = "asamblea:" + id](const uint8_t* p, size_t b, int w, int h) {
                 pump_->forwardVideo(idx, p, b, w, h);
                 if (grillas_ != nullptr) grillas_->cuadro(persona, p, w, h, Grillas::reloj());
+            };
+            // Se le dio la palabra: la HD llega después de la baja y entra con un fundido.
+            cb.onFundido = [this, idx, pid, persona = "asamblea:" + id](int ms) { alLlegarHd(pid, persona, idx, ms); };
+            cb.onRemoteVideoAnterior = [this, idx, persona = "asamblea:" + id](const uint8_t* p, size_t b, int w, int h) {
+                pump_->forwardVideoAnterior(idx, p, b, w, h);
+                if (grillas_ != nullptr) grillas_->cuadroAnterior(persona, p, w, h);
             };
             // Lo que comparte (pantalla u otra cámara): el segundo video de la misma conexión.
             cb.onRemoteScreen = [this, idx](const uint8_t* p, size_t b, int w, int h) { pump_->forwardScreen(idx, p, b, w, h); };
@@ -3502,6 +3514,12 @@ void SignalingServer::setGrillas(Grillas* g) {
         enviarCalidadGrilla(pid);
         revisarCapas(pid);
     });
+    // La capa que pide la grilla (con histéresis: solo el que pasa a grande sube) y los
+    // precargados (el siguiente orador): se le vuelve a decidir la capa.
+    g->setAlCambiarCapa([this](const std::string& persona) {
+        if (persona.rfind("sala:", 0) == 0) revisarCapas(persona.substr(5));
+        else if (persona.rfind("asamblea:", 0) == 0) revisarCapas("remoto:" + persona.substr(9));
+    });
     // Las fotos de la asamblea (una cada 1-3 s): las que están en una grilla se abren allá.
     sesion_->setAlFoto([this](const std::string& id, const std::string& jpeg) {
         if (grillas_ != nullptr) grillas_->foto("asamblea:" + id, jpeg, Grillas::reloj());
@@ -3525,6 +3543,15 @@ void SignalingServer::revisarCapas(const std::string& pid) {
         std::lock_guard<std::mutex> l(calidadMu_);
         if (const auto it = altoGrilla_.find(pid); it != altoGrilla_.end()) n.altoGrilla = it->second;
     }
+    // Lo que dicen las grillas de esta persona: su capa (con histéresis) y si la precargan.
+    if (grillas_ != nullptr) {
+        const std::string persona = pid.rfind("remoto:", 0) == 0 ? "asamblea:" + pid.substr(7) : "sala:" + pid;
+        n.capaGrilla = grillas_->capaDe(persona);
+        n.precarga = grillas_->precargada(persona);
+        s->setFundidoMs(grillas_->fundidoMs());
+    } else {
+        s->setFundidoMs(kFundidoMsDefecto);
+    }
     // Su entrada en la app: el invitado del lugar n del programa, o el canal k de los remotos.
     const std::string entrada = n.ruta.kind == MediaRoute::Kind::Program  ? "guest:" + std::to_string(n.ruta.index)
                                 : n.ruta.kind == MediaRoute::Kind::Remoto ? "remoto:" + std::to_string(n.ruta.index)
@@ -3537,9 +3564,32 @@ void SignalingServer::revisarCapas(const std::string& pid) {
     }
     n.espectadores = hub_.espectadoresDe(idx);
     const Capa c = capaNecesaria(n);
-    if (c != s->capaPedida())
+    if (c != s->capaPedida()) {
         log_.info(llenar(traducir("gateway", "capas: a %1 se le pide la %2"), {pid, nombreCapa(c)}));
+        // Desde cuándo se espera la HD (para medir cuánto tarda en llegar: alLlegarHd).
+        std::lock_guard<std::mutex> l(capasMu_);
+        if (c == Capa::Alta)
+            pedidoAltaMs_[pid] = Grillas::reloj();
+        else
+            pedidoAltaMs_.erase(pid);
+    }
     s->pedirCapa(c);
+}
+
+void SignalingServer::alLlegarHd(const std::string& pid, const std::string& persona, int idx, int ms) {
+    if (pump_ != nullptr) pump_->fundirVideo(idx, ms);
+    if (grillas_ != nullptr) grillas_->fundir(persona, ms);
+    // La medida de la prueba final: cuánto tardó la HD desde que se la pidió.
+    long long espera = -1;
+    {
+        std::lock_guard<std::mutex> l(capasMu_);
+        if (const auto it = pedidoAltaMs_.find(pid); it != pedidoAltaMs_.end()) {
+            espera = Grillas::reloj() - it->second;
+            pedidoAltaMs_.erase(it);
+        }
+    }
+    log_.info(llenar(traducir("gateway", "capas: llegó la HD de %1 (%2 ms desde el pedido); fundido de %3 ms"),
+                     {pid, espera >= 0 ? std::to_string(espera) : std::string("?"), std::to_string(ms)}));
 }
 
 void SignalingServer::revisarCapasTodas() {

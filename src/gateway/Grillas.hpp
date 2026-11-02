@@ -37,13 +37,30 @@
 // avisa a la app los cambios (alCambiarHablan → SSE «hablan»): la app ordena por
 // quién habla y resalta.
 //
+// CUANDO ALGUIEN HABLA (2026-11-01): cómo se lo muestra (resaltar en su lugar, destacar
+// con los demás en una franja, superponer dejándole el hueco, la escena del orador) lo
+// decide la app y llega acá como rectángulos, igual que siempre. Lo propio de este lado:
+//   - la CAPA de cada celda («capa»: alta|baja, con histéresis en la app: solo el que pasa
+//     a grande sube) y los PRECARGADOS (el siguiente orador: alta de antemano). Se los
+//     junta por persona (alta si alguna grilla la pide) y se avisa (alCambiarCapa);
+//   - el FUNDIDO de la baja a la HD (Fundido.hpp): cuando llega el primer cuadro de la alta
+//     (fundir), el retrato funde desde lo último que se vio de la baja en `fundido_ms`;
+//   - el NOMBRE de cada celda (y su cargo o banca): el gateway no tiene fuentes, así que
+//     la app dibuja cada rótulo (Qt, cualquier escritura) como una máscara A8 y la manda una
+//     vez (POST /api/v1/grillas/rotulos); las celdas la nombran por su id y acá se pinta con
+//     el color y el fondo de la grilla, escalada al alto de la celda.
+//
 // API de control (la llama SignalingServer::handleAdmin):
 //   GET  /api/v1/grillas  {grillas:[{canal, ancho, alto, celdas, mas, cps}], hablan:[…]}
-//   POST /api/v1/grillas  {grillas:[{canal, ancho, alto, fondo:"#AARRGGBB",
+//   POST /api/v1/grillas  {fundido_ms, precarga:[persona…],
+//                          grillas:[{canal, ancho, alto, fondo:"#AARRGGBB",
 //                          resaltar_color:"#RRGGBB", transicion_ms,
-//                          celdas:[{persona, x, y, w, h, resaltar}], mas:{n, x, y, w, h}}]}
+//                          rotulos:{color, fondo, tamano (0..1 del alto de la celda), lugar: abajo|arriba},
+//                          celdas:[{persona, x, y, w, h, resaltar, capa, rotulo}], mas:{n, x, y, w, h}}]}
 //        el estado ENTERO: las grillas que no vienen se apagan. `persona`:
 //        "sala:<id del participante>" | "asamblea:<id del integrante>".
+//   POST /api/v1/grillas/rotulos {rotulos:[{id, w, h, a8: base64 (w*h bytes)}]}: se suman a
+//        los que hay. Se olvidan los que ninguna grilla nombra (al aplicar).
 //
 // Threading: aplicar/estado desde la API; cuadro/foto/audio desde los hilos de
 // libwebrtc y de la sesión; un hilo propio pinta. Orden de candados:
@@ -65,6 +82,8 @@
 
 #include <nlohmann/json.hpp>
 
+#include "Capas.hpp"
+#include "Fundido.hpp"
 #include "MediaRoute.hpp"
 
 namespace ba::ipc {
@@ -130,6 +149,25 @@ class Grillas {
     void setAlCambiarCalidad(std::function<void(const std::string& persona, int alto)> fn);
     /// La altura más grande que ocupa ahora (0 = no está en ninguna grilla).
     int altoDe(const std::string& persona) const;
+    /// Cambió la capa que piden las grillas de `persona` (o si está precargada): el servidor
+    /// vuelve a decidir su capa (capaDe / precargada).
+    void setAlCambiarCapa(std::function<void(const std::string& persona)> fn);
+    /// La capa que piden las grillas para `persona` (Nada = ninguna dijo).
+    Capa capaDe(const std::string& persona) const;
+    /// ¿Alguna grilla la precarga (el siguiente orador)?
+    bool precargada(const std::string& persona) const;
+    /// Cuánto dura el fundido de la baja a la HD (lo manda la app; de fábrica kFundidoMsDefecto).
+    int fundidoMs() const { return fundidoMs_.load(); }
+
+    /// El próximo cuadro EN VIVO de `persona` es el primero de la alta: su retrato funde
+    /// desde lo último que se vio en `ms`.
+    void fundir(const std::string& persona, int ms);
+    /// Un cuadro de la capa que se va durante el fundido (refresca la imagen que se funde).
+    void cuadroAnterior(const std::string& persona, const std::uint8_t* bgra, int w, int h);
+    /// Los rótulos que manda la app ({rotulos:[{id, w, h, a8}]}): "" o el error.
+    std::string rotulos(const nlohmann::json& pedido);
+    /// ¿Ya tiene el rótulo `id`? (las pruebas y el estado)
+    bool tieneRotulo(const std::string& id) const;
 
     /// Pinta la grilla `canal` en el instante `ahoraMs` (lo usa el hilo y las pruebas).
     /// false si esa grilla no existe.
@@ -154,23 +192,40 @@ class Grillas {
         std::int64_t ms = 0;          ///< cuándo llegó el último
         std::int64_t vivoMs = 0;      ///< el último cuadro de video (no foto)
         std::uint64_t seq = 0;
+        Fundido fundido;              ///< de la baja a la HD (ver fundir)
+        int fundidoPendienteMs = 0;   ///< > 0: el próximo cuadro en vivo arranca el fundido
     };
     struct Celda {
         std::string persona;
         Rect r;
         bool resaltar = false;
+        Capa capa = Capa::Nada; ///< la que pide la app (Nada: no dijo)
+        std::string rotulo;     ///< el id de su rótulo ("" = sin nombre)
     };
     struct Anim {
         Rect desde, hasta;
         std::int64_t t0 = 0;
         bool sale = false;
         bool resaltar = false;
+        std::string rotulo;
+    };
+    /// La máscara de un nombre (A8, la dibuja la app).
+    struct Rotulo {
+        int w = 0, h = 0;
+        std::vector<std::uint8_t> a8;
+    };
+    struct EstiloRotulo {
+        std::uint32_t color = 0xFFFFFFFFu; ///< BGRA
+        std::uint32_t fondo = 0xA0000000u;
+        float tamano = 0.14f; ///< del alto de la celda
+        bool arriba = false;
     };
     struct Grilla {
         int canal = 0, ancho = 0, alto = 0;
         std::uint32_t fondo = 0;            // BGRA (alfa 0 = transparente)
         std::uint32_t resaltar = 0xFF07C1FF; // ámbar
         int transicionMs = 400;
+        EstiloRotulo estiloRotulo;
         std::vector<Celda> celdas;
         int mas = 0;
         Rect rMas;
@@ -195,6 +250,9 @@ class Grillas {
     std::shared_ptr<Retrato> retrato(const std::string& persona) const;
     void guardar(Retrato& r, const std::uint8_t* bgra, int w, int h, std::int64_t ahoraMs, bool vivo);
     static Rect animado(const Anim& a, int durMs, std::int64_t ahoraMs);
+    /// Pinta el rótulo `r` en la celda `c` (con el estilo de la grilla).
+    static void pintarRotulo(std::uint8_t* lienzo, int W, int H, const Grillas::Rect& celda, const Rotulo& r,
+                             const EstiloRotulo& e);
     void pintarLocked(Grilla& g, std::int64_t ahoraMs);
     void bucle();
     /// Saca los retratos que ninguna grilla usa ni anima (con mu_ tomado).
@@ -206,12 +264,18 @@ class Grillas {
     mutable std::mutex retratosMu_;
     std::map<std::string, std::shared_ptr<Retrato>> retratos_;
     std::map<std::string, int> altos_; // persona → alto del lugar más grande (con mu_)
+    std::map<std::string, Capa> capas_;  // persona → la capa que piden (con mu_)
+    std::set<std::string> precarga_;     // los precargados (con mu_)
+    std::map<std::string, std::shared_ptr<const Rotulo>> rotulos_; // id → máscara (con mu_)
+    std::atomic<int> fundidoMs_{kFundidoMsDefecto};
+    std::function<void(const std::string&)> alCapa_;
     mutable std::mutex vozMu_;
     std::map<std::string, Voz> voces_;
     std::set<std::string> hablan_;
     std::mutex fnMu_;
     std::function<void(const std::vector<std::string>&)> alHablan_;
     std::function<void(const std::string&, int)> alCalidad_;
+    std::vector<std::uint8_t> tmpFundido_; // lo que se va, recortado a la celda (con mu_)
     std::atomic<bool> parar_{false};
     std::thread hilo_;
     int cps_ = 25;
