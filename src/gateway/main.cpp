@@ -1469,6 +1469,7 @@ int main(int argc, char** argv) {
         uso["transporte"] = pump.transporte();
         uso["retornoVideo"] = hub.retornoCompartido(); // el video de retorno, una vez por capa
         uso["retornoAudio"] = hub.audioCompartidoEstado(); // el audio, una vez por lo que se oye
+        uso["codecsVideo"] = hub.codecsVideo(); // H.264 por la placa o no; decodificadores abiertos
         // ¿El rango UDP alcanza para la sala llena? Se avisa al cambiar (el cupo sube en caliente).
         {
             const PuertosRtc p = puertosRtc(cfg.rtcPortMin, cfg.rtcPortMax, puertosPorSesion, room.cupo(), cfg.lobbySlots);

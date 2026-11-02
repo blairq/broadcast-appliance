@@ -322,6 +322,9 @@ class WebrtcHub {
     nlohmann::json audioCompartidoEstado() const;
     /// Cómo anda el retorno compartido: [{nombre, emisiones, capas: [...]}] (RetornoRtc.hpp).
     nlohmann::json retornoCompartido() const;
+    /// Los códecs de video de esta máquina: qué elige «auto», si H.264 va por la placa y
+    /// los decodificadores abiertos por implementación (CodecsVideo.hpp). {} sin backend real.
+    nlohmann::json codecsVideo() const;
 
     /// Tamaño del pool de sesiones.
     int sessions() const { return guests_; }
