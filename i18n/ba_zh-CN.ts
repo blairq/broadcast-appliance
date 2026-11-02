@@ -1354,7 +1354,7 @@
 <context>
     <name>AlarmasViewModel</name>
     <message>
-        <location filename="../src/app/ui/AlarmasViewModel.cpp" line="+311"/>
+        <location filename="../src/app/ui/AlarmasViewModel.cpp" line="+333"/>
         <source>El aviso por «%1» no salió: %2</source>
         <translation>通过「%1」发送的通知未能发出：%2</translation>
     </message>
@@ -3480,7 +3480,7 @@ Esto lo abre en otra ventana, para tener las dos cosas a la vez.</source>
 <context>
     <name>Botonera</name>
     <message>
-        <location filename="../src/app/control/Botonera.cpp" line="+2188"/>
+        <location filename="../src/app/control/Botonera.cpp" line="+2199"/>
         <source>Los argumentos no son JSON válido (un objeto {…})</source>
         <translation>参数不是有效的 JSON（应为对象 {…}）</translation>
     </message>
@@ -5111,12 +5111,12 @@ Recorrer la tira no cambia lo que se ve.</source>
     </message>
     <message>
         <location line="+4"/>
-        <location line="+1180"/>
+        <location line="+1194"/>
         <source>Tiempo</source>
         <translation>时间</translation>
     </message>
     <message>
-        <location line="-1174"/>
+        <location line="-1188"/>
         <source>Tiempo general para cada orador (m:ss o minutos)</source>
         <translation>每位发言人的总时间（m:ss 或分钟）</translation>
     </message>
@@ -5350,18 +5350,18 @@ Recorrer la tira no cambia lo que se ve.</source>
     </message>
     <message>
         <location line="+1"/>
-        <location line="+680"/>
+        <location line="+694"/>
         <source>Reiniciar</source>
         <translation>重启</translation>
     </message>
     <message>
-        <location line="-680"/>
-        <location line="+680"/>
+        <location line="-694"/>
+        <location line="+694"/>
         <source>Cancelar</source>
         <translation>取消</translation>
     </message>
     <message>
-        <location line="-677"/>
+        <location line="-691"/>
         <source>La conferencia se está reiniciando.</source>
         <translation>会议正在重启。</translation>
     </message>
@@ -5611,12 +5611,12 @@ Compartí el enlace y el PIN (panel Acceso).</source>
     </message>
     <message>
         <location line="+6"/>
-        <location line="+171"/>
+        <location line="+185"/>
         <source>Invitar con QR</source>
         <translation>用二维码邀请</translation>
     </message>
     <message>
-        <location line="-166"/>
+        <location line="-180"/>
         <source>PIN copiado: %1</source>
         <translation>PIN 已复制：%1</translation>
     </message>
@@ -5663,7 +5663,19 @@ Compartí el enlace y el PIN (panel Acceso).</source>
         </translation>
     </message>
     <message>
-        <location line="+13"/>
+        <location line="+21"/>
+        <source>Los puertos UDP %1–%2 alcanzan para %3 conexiones (%4 por conexión) y la conferencia llena necesita %5: agrandá el rango en Configuración → Red de la conferencia.</source>
+        <translation>UDP 端口 %1–%2 够 %3 个连接使用（每个连接 %4 个），而满员的会议需要 %5 个：请在“设置 → 会议网络”中扩大范围。</translation>
+    </message>
+    <message numerus="yes">
+        <location line="+2"/>
+        <source>%n conexión se quedó sin puerto UDP: agrandá el rango en Configuración → Red de la conferencia.</source>
+        <translation>
+            <numerusform>有 %n 个连接没有分到 UDP 端口：请在“设置 → 会议网络”中扩大范围。</numerusform>
+        </translation>
+    </message>
+    <message>
+        <location line="+4"/>
         <source>Procesador del gateway</source>
         <translation>gateway 处理器</translation>
     </message>
@@ -10314,13 +10326,13 @@ Se prende desde el Registro.</source>
         <location line="+46"/>
         <location line="+41"/>
         <location line="+61"/>
-        <location line="+425"/>
+        <location line="+417"/>
         <location line="+49"/>
         <source>No hay un evento abierto (guion_abrir).</source>
         <translation>没有已打开的活动（guion_abrir）。</translation>
     </message>
     <message>
-        <location line="-582"/>
+        <location line="-574"/>
         <source>La línea cambió (la de antes quedó como revisión %1)</source>
         <translation>时间线已更改（之前的保存为修订版本 %1）</translation>
     </message>
@@ -10368,13 +10380,13 @@ Se prende desde el Registro.</source>
         <location line="+25"/>
         <location line="+10"/>
         <location line="+13"/>
-        <location line="+236"/>
+        <location line="+228"/>
         <location line="+7"/>
         <source>La línea no está corriendo.</source>
         <translation>时间线未在运行。</translation>
     </message>
     <message>
-        <location line="-297"/>
+        <location line="-289"/>
         <source>No hay a dónde mover el próximo.</source>
         <translation>没有可移动下一步的位置。</translation>
     </message>
@@ -10506,7 +10518,7 @@ Se prende desde el Registro.</source>
         <translation>「%1」· %2</translation>
     </message>
     <message>
-        <location line="+85"/>
+        <location line="+77"/>
         <source>A mano: «%1» en vez de la del paso (la línea sigue; «reenganchar» vuelve)</source>
         <translation>手动：用「%1」代替该步骤的场景（时间线继续；「接续」可恢复）</translation>
     </message>
@@ -10696,7 +10708,7 @@ Se prende desde el Registro.</source>
         <translation>无法读取「%1」。</translation>
     </message>
     <message>
-        <location filename="../src/app/ui/ConduccionLinea.cpp" line="-818"/>
+        <location filename="../src/app/ui/ConduccionLinea.cpp" line="-810"/>
         <source>Vuelve atrás</source>
         <translation>返回</translation>
     </message>
@@ -14299,7 +14311,7 @@ Se cambia en su código (sección Plugins, o pidiéndoselo al asistente). Acá s
         <translation>测试模式（--test）：助手执行操作时不请求批准，在播时也是如此</translation>
     </message>
     <message>
-        <location line="+81"/>
+        <location line="+84"/>
         <source>CONFIRMAR</source>
         <comment>palabra que se escribe para entrar a una página protegida</comment>
         <translation>确认</translation>
@@ -15662,7 +15674,7 @@ La matriz no cambia lo que entra: decide a qué salidas va (las columnas: el pro
 <context>
     <name>MezclaViewModel</name>
     <message>
-        <location filename="../src/app/ui/MezclaViewModel.cpp" line="+96"/>
+        <location filename="../src/app/ui/MezclaViewModel.cpp" line="+99"/>
         <source>grabación del programa</source>
         <translation>节目录制</translation>
     </message>
@@ -15706,7 +15718,7 @@ La matriz no cambia lo que entra: decide a qué salidas va (las columnas: el pro
 <context>
     <name>MixerContent</name>
     <message>
-        <location filename="../src/app/qml/cards/MixerContent.qml" line="+75"/>
+        <location filename="../src/app/qml/cards/MixerContent.qml" line="+78"/>
         <source>Audio ›</source>
         <translation>音频 ›</translation>
     </message>
@@ -25585,7 +25597,7 @@ De frente, de costado, con anteojos y sin: así se la reconoce en el día real.<
 <context>
     <name>Plugins</name>
     <message>
-        <location filename="../src/app/plugins/Plugins.cpp" line="+1796"/>
+        <location filename="../src/app/plugins/Plugins.cpp" line="+1805"/>
         <location line="+45"/>
         <source>No es un JSON válido (tiene que ser un objeto: { … })</source>
         <translation>不是有效的 JSON（必须是对象：{ … }）</translation>
@@ -29757,7 +29769,7 @@ Agregale una en Escenas y fuentes: ubicala donde querés que se vea el zócalo, 
 <context>
     <name>SalidasViewModel</name>
     <message numerus="yes">
-        <location filename="../src/app/ui/SalidasViewModel.cpp" line="+370"/>
+        <location filename="../src/app/ui/SalidasViewModel.cpp" line="+362"/>
         <source>Ya hay %n salida, que es el tope.</source>
         <translation>
             <numerusform>已有 %n 个输出，已达上限。</numerusform>
@@ -32456,7 +32468,7 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
 <context>
     <name>StudioViewModel</name>
     <message>
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="+130"/>
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="+132"/>
         <source>%1 (no se pudo: %2)</source>
         <translation>%1（失败：%2）</translation>
     </message>
@@ -32486,12 +32498,12 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
         <translation>自动字幕条未能播出：%1</translation>
     </message>
     <message>
-        <location line="+264"/>
+        <location line="+268"/>
         <source>no contestó</source>
         <translation>无响应</translation>
     </message>
     <message>
-        <location line="+78"/>
+        <location line="+80"/>
         <source>Conferencia reiniciada con la configuración nueva.</source>
         <translation>会议已使用新设置重启。</translation>
     </message>
@@ -32506,12 +32518,12 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
         <translation>活动磁盘已用 %1 %（剩余 %2 GB）</translation>
     </message>
     <message>
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="+186"/>
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="+265"/>
         <source>La interfaz estuvo trabada %1 s; el aire siguió</source>
         <translation>界面卡顿了 %1 秒；播出未中断</translation>
     </message>
     <message>
-        <location line="+244"/>
+        <location line="+219"/>
         <source>Guardado</source>
         <translation>已保存</translation>
     </message>
@@ -32521,7 +32533,7 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
         <translation>无法保存：%1</translation>
     </message>
     <message>
-        <location line="-315"/>
+        <location line="-321"/>
         <source>Se restauró lo que estaba al aire antes del corte (placa o negro)</source>
         <translation>已恢复中断前的播出内容（垫片画面或黑场）</translation>
     </message>
@@ -35928,7 +35940,7 @@ Escucha:
 <context>
     <name>VideoWall</name>
     <message>
-        <location filename="../src/app/qml/controls/VideoWall.qml" line="+131"/>
+        <location filename="../src/app/qml/controls/VideoWall.qml" line="+133"/>
         <source>SIN SEÑAL</source>
         <translation>无信号</translation>
     </message>
@@ -36038,7 +36050,7 @@ Elegí otra cosa en Salidas → Pantallas.</source>
         <translation>人物网格尚未启动。</translation>
     </message>
     <message>
-        <location line="+34"/>
+        <location line="+35"/>
         <source>Se ve en el programa</source>
         <translation>在节目中显示</translation>
     </message>
@@ -36049,12 +36061,12 @@ Elegí otra cosa en Salidas → Pantallas.</source>
     </message>
     <message>
         <location line="+15"/>
-        <location line="+87"/>
+        <location line="+90"/>
         <source>al aire</source>
         <translation>在播</translation>
     </message>
     <message numerus="yes">
-        <location line="-87"/>
+        <location line="-90"/>
         <source>%n persona</source>
         <translation>
             <numerusform>%n 人</numerusform>
@@ -36076,7 +36088,7 @@ Elegí otra cosa en Salidas → Pantallas.</source>
         <translation>暂无人员：会议中获准进入的人和大会中已放行的成员会按设置进入。</translation>
     </message>
     <message>
-        <location line="+42"/>
+        <location line="+45"/>
         <source>Sacados:</source>
         <translation>已移出：</translation>
     </message>
@@ -36106,7 +36118,7 @@ Elegí otra cosa en Salidas → Pantallas.</source>
         <translation>固定</translation>
     </message>
     <message>
-        <location line="+24"/>
+        <location line="+26"/>
         <source>Soltar (vuelve a lo automático)</source>
         <translation>释放（恢复自动）</translation>
     </message>
@@ -36119,6 +36131,16 @@ Elegí otra cosa en Salidas → Pantallas.</source>
         <location line="+5"/>
         <source>Sacar de esta grilla</source>
         <translation>从此网格移出</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Dejar de destacar (que lo decida el disparo)</source>
+        <translation>取消突出（交给触发条件决定）</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Destacar como orador</source>
+        <translation>突出显示为发言人</translation>
     </message>
     <message>
         <location line="+5"/>
@@ -38267,12 +38289,12 @@ Elegí otra cosa en Salidas → Pantallas.</source>
     </message>
     <message>
         <location line="-3"/>
-        <location line="+265"/>
+        <location line="+267"/>
         <source>no existe la escena «%1»</source>
         <translation>场景「%1」不存在</translation>
     </message>
     <message>
-        <location line="-254"/>
+        <location line="-256"/>
         <source>No hay ninguna escena armada: elegí una en el bus de preview.</source>
         <translation>没有已载入的场景：请在预览总线上选择一个。</translation>
     </message>
@@ -38282,7 +38304,7 @@ Elegí otra cosa en Salidas → Pantallas.</source>
         <translation>没有为 T-bar 载入的场景。</translation>
     </message>
     <message>
-        <location line="+240"/>
+        <location line="+242"/>
         <source>tipo: cut, fade, swipe, slide o fade_to_color (vacío = la global)</source>
         <translation>类型：cut、fade、swipe、slide 或 fade_to_color（留空 = 全局转场）</translation>
     </message>
@@ -38866,7 +38888,52 @@ Elegí otra cosa en Salidas → Pantallas.</source>
         <translation>默认情况下副本写入相同的已编码数据（可应对磁盘故障，不增加负载）。使用独立编码器还能应对编码器卡住，代价是多占用一个编码器会话。</translation>
     </message>
     <message>
-        <location line="+27"/>
+        <location line="+9"/>
+        <source>Video de retorno: calidades</source>
+        <translation>回传视频：画质档</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>El video que reciben los invitados se codifica una vez por calidad (alto:kbps, de la más alta a la más baja) y cada uno recibe la que su red aguanta.</source>
+        <translation>发给嘉宾的视频每个画质档只编码一次（高:kbps，从最高到最低），每位嘉宾拿到其网络承受得了的那一档。</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Video de retorno: cuadros completos cada al menos</source>
+        <translation>回传视频：完整画面至少间隔</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Los pedidos de cuadro completo de todos los invitados se juntan: a lo sumo uno cada este tiempo por calidad.</source>
+        <translation>所有嘉宾的完整画面请求会合并：每个画质档在这段时间内最多一次。</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Video de los invitados: códec preferido</source>
+        <translation>嘉宾视频：首选编解码器</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Automático (H.264 por hardware si se puede)</source>
+        <translation>自动（可行时使用硬件 H.264）</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>El de la cámara del invitado y el de su retorno. Con H.264 la Mac codifica y decodifica por hardware; si el navegador no lo ofrece, VP8.</source>
+        <translation>用于嘉宾的摄像头及其回传。使用 H.264 时，Mac 由硬件编码和解码；浏览器不支持则用 VP8。</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Video de retorno: sondear la red para subir de calidad</source>
+        <translation>回传视频：探测网络以提升画质</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Sin esto, un invitado que bajó de calidad por su red no vuelve a subir.</source>
+        <translation>不开启的话，因网络变差而降了画质的嘉宾不会再升回去。</translation>
+    </message>
+    <message>
+        <location line="+19"/>
         <source>Tótems: intentos por dirección</source>
         <translation>签到一体机：每个地址的尝试次数</translation>
     </message>
@@ -38986,7 +39053,17 @@ Elegí otra cosa en Salidas → Pantallas.</source>
         <translation>每会话每秒播出操作次数</translation>
     </message>
     <message>
-        <location line="+71"/>
+        <location line="+38"/>
+        <source>WebRTC: usar también las interfaces virtuales</source>
+        <translation>WebRTC：同时使用虚拟网络接口</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Cada conexión de la conferencia abre un puerto UDP por cada red de la máquina. Las virtuales (máquinas virtuales, Docker, VPN como Tailscale) no le sirven a ningún invitado y gastan el rango: de fábrica no se usan. Prendelo solo si los invitados llegan por una VPN.</source>
+        <translation>会议的每个连接会在本机每个网络上各开一个 UDP 端口。虚拟网络（虚拟机、Docker、Tailscale 之类的 VPN）对任何嘉宾都没用，还会占用端口范围：默认不使用。仅当嘉宾通过 VPN 接入时才开启。</translation>
+    </message>
+    <message>
+        <location line="+34"/>
         <source>Emisor aparte (prueba)</source>
         <translation>独立发送进程（测试）</translation>
     </message>
@@ -39061,7 +39138,7 @@ Elegí otra cosa en Salidas → Pantallas.</source>
         <translation>不是可选项之一</translation>
     </message>
     <message>
-        <location line="-209"/>
+        <location line="-214"/>
         <source>Mensajes de chat que se guardan</source>
         <translation>保留的聊天消息数</translation>
     </message>
@@ -39191,7 +39268,7 @@ Elegí otra cosa en Salidas → Pantallas.</source>
         <translation>操作员控制台、发言人看板和手机：每个都是一个连接。</translation>
     </message>
     <message>
-        <location line="+1"/>
+        <location line="+5"/>
         <source>Hablarle a un invitado: cuánto baja el programa</source>
         <translation>与嘉宾通话：节目音量降低多少</translation>
     </message>
@@ -39912,7 +39989,7 @@ Elegí otra cosa en Salidas → Pantallas.</source>
         <translation>嘉宾的音频按语音（EF）发送，视频按交互式视频（AF41）发送，与 SRT 输出相同：在启用 QoS 的共享网络中优先传输。不支持的网络会忽略此标记。</translation>
     </message>
     <message>
-        <location line="+1"/>
+        <location line="+2"/>
         <source>SRT: marcar la prioridad de los paquetes (DSCP)</source>
         <translation>SRT：标记数据包优先级（DSCP）</translation>
     </message>
@@ -41382,7 +41459,7 @@ Elegí otra cosa en Salidas → Pantallas.</source>
         <translation>从不：自动批准（风险自负）</translation>
     </message>
     <message>
-        <location line="+694"/>
+        <location line="+698"/>
         <source>Algunos cambios rigen desde el próximo arranque.</source>
         <translation>部分更改将在下次启动时生效。</translation>
     </message>
@@ -41392,7 +41469,7 @@ Elegí otra cosa en Salidas → Pantallas.</source>
         <translation>设置已保存。</translation>
     </message>
     <message>
-        <location line="-700"/>
+        <location line="-704"/>
         <source>Una aprobación espera hasta</source>
         <translation>批准最长等待</translation>
     </message>
@@ -41592,7 +41669,7 @@ Elegí otra cosa en Salidas → Pantallas.</source>
         <translation>Pinggy：缺少子域名或域名；在此期间使用随机地址。</translation>
     </message>
     <message>
-        <location line="+24"/>
+        <location line="+28"/>
         <source>ERROR al guardar: %1</source>
         <translation>保存出错：%1</translation>
     </message>
@@ -42633,7 +42710,7 @@ Elegí otra cosa en Salidas → Pantallas.</source>
     </message>
     <message>
         <location line="-57"/>
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="-758"/>
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="-812"/>
         <source>arranque: %1 tardó %2 ms</source>
         <translation>启动：%1 耗时 %2 毫秒</translation>
     </message>
@@ -43052,7 +43129,7 @@ Elegí otra cosa en Salidas → Pantallas.</source>
     </message>
     <message>
         <location line="+1"/>
-        <location filename="../src/app/asamblea/SeguirMicrofono.cpp" line="+137"/>
+        <location filename="../src/app/asamblea/SeguirMicrofono.cpp" line="+151"/>
         <source>Banca %1</source>
         <translation>席位 %1</translation>
     </message>
@@ -43596,7 +43673,7 @@ Elegí otra cosa en Salidas → Pantallas.</source>
         <translation>投票</translation>
     </message>
     <message>
-        <location filename="../src/app/asamblea/SeguirMicrofono.cpp" line="-71"/>
+        <location filename="../src/app/asamblea/SeguirMicrofono.cpp" line="-72"/>
         <source>modo: proponer o automatico</source>
         <translation>模式：proponer 或 automatico</translation>
     </message>
@@ -43606,7 +43683,7 @@ Elegí otra cosa en Salidas → Pantallas.</source>
         <translation>来源：niveles 或 conferencia</translation>
     </message>
     <message>
-        <location line="+18"/>
+        <location line="+19"/>
         <source>no hay ninguna propuesta</source>
         <translation>没有任何建议</translation>
     </message>
@@ -45145,7 +45222,7 @@ Datos (de %2): %3</source>
         <translation>物理输入「%1」与另一个来源冲突；不创建</translation>
     </message>
     <message>
-        <location filename="../src/app/audio/RackManager.cpp" line="+513"/>
+        <location filename="../src/app/audio/RackManager.cpp" line="+519"/>
         <source>Otras fuentes</source>
         <translation>其他来源</translation>
     </message>
@@ -45238,7 +45315,7 @@ Datos (de %2): %3</source>
 <context>
     <name>botonera</name>
     <message>
-        <location filename="../src/app/control/Botonera.cpp" line="-1663"/>
+        <location filename="../src/app/control/Botonera.cpp" line="-1674"/>
         <source>no hay una plantilla «%1» (botonera_plantillas)</source>
         <translation>没有模板「%1」（botonera_plantillas）</translation>
     </message>
@@ -45262,7 +45339,7 @@ Datos (de %2): %3</source>
     <message>
         <location line="+13"/>
         <location line="+62"/>
-        <location line="+948"/>
+        <location line="+959"/>
         <location line="+92"/>
         <location line="+107"/>
         <location line="+32"/>
@@ -45270,7 +45347,7 @@ Datos (de %2): %3</source>
         <translation>没有配置文件「%1」</translation>
     </message>
     <message>
-        <location line="-1235"/>
+        <location line="-1246"/>
         <source>herramientas_permitidas es una lista</source>
         <translation>herramientas_permitidas 必须是列表</translation>
     </message>
@@ -45400,12 +45477,12 @@ Datos (de %2): %3</source>
         <location line="+49"/>
         <location line="+101"/>
         <location line="+10"/>
-        <location line="+1098"/>
+        <location line="+1109"/>
         <source>no hay esa página (perfil «%1», página «%2»)</source>
         <translation>没有该页面（配置文件「%1」，页面「%2」）</translation>
     </message>
     <message>
-        <location line="-1252"/>
+        <location line="-1263"/>
         <source>la celda se sale de la grilla (%1×%2)</source>
         <translation>单元格超出网格（%1×%2）</translation>
     </message>
@@ -45726,7 +45803,7 @@ Datos (de %2): %3</source>
 （载入）</translation>
     </message>
     <message>
-        <location line="+158"/>
+        <location line="+159"/>
         <location filename="../src/app/control/SatelliteServidor.cpp" line="-3"/>
         <source>aparato desconocido</source>
         <translation>未知设备</translation>
@@ -45737,13 +45814,13 @@ Datos (de %2): %3</source>
         <translation>该设备未分配配置文件（「控制台」页面）</translation>
     </message>
     <message>
-        <location line="-1036"/>
-        <location line="+1098"/>
+        <location line="-1037"/>
+        <location line="+1109"/>
         <source>no hay un aparato «%1»</source>
         <translation>没有设备「%1」</translation>
     </message>
     <message>
-        <location line="-1084"/>
+        <location line="-1095"/>
         <source>No hay una salida «%1».</source>
         <translation>不存在输出「%1」。</translation>
     </message>
@@ -45753,7 +45830,7 @@ Datos (de %2): %3</source>
         <translation>未知的操作类型「%1」（herramienta、pagina、receta、secuencia、salida）</translation>
     </message>
     <message>
-        <location line="+871"/>
+        <location line="+882"/>
         <source>ese perfil no tiene la página «%1»</source>
         <translation>该配置文件没有页面「%1」</translation>
     </message>
@@ -47545,7 +47622,7 @@ Datos (de %2): %3</source>
 <context>
     <name>diag</name>
     <message>
-        <location filename="../src/core/diag/VigiaBucle.cpp" line="+120"/>
+        <location filename="../src/core/diag/VigiaBucle.cpp" line="+138"/>
         <source>el bucle de la interfaz se demoró %1 ms (corría: %2)</source>
         <translation>界面循环延迟了 %1 毫秒（正在运行：%2）</translation>
     </message>
@@ -49035,7 +49112,7 @@ Datos (de %2): %3</source>
         <translation>无法向「%1」的发送进程发出请求：%2</translation>
     </message>
     <message>
-        <location filename="../src/app/emision/InputSpecs.cpp" line="+256"/>
+        <location filename="../src/app/emision/InputSpecs.cpp" line="+260"/>
         <source>fuente &apos;%1&apos;: sin efecto en el motor: %2</source>
         <translation>来源 &apos;%1&apos;：在引擎中无效果：%2</translation>
     </message>
@@ -49739,12 +49816,37 @@ Datos (de %2): %3</source>
         <translation>无法裁切「%2」中的「%1」（裁切范围大于图像？）</translation>
     </message>
     <message>
-        <location filename="../src/app/escenas/ControlGrillas.cpp" line="+268"/>
+        <location filename="../src/app/escenas/ControlGrillas.cpp" line="+142"/>
+        <source>todavía no se pueden crear escenas</source>
+        <translation>暂时还不能创建场景</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>«%1» ya muestra solo al orador: es la de una escena del orador</source>
+        <translation>“%1”已经只显示发言人：它属于发言人场景</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Orador · %1</source>
+        <translation>发言人 · %1</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>%1 · orador</source>
+        <translation>%1 · 发言人</translation>
+    </message>
+    <message>
+        <location line="+191"/>
+        <source>banca %1</source>
+        <translation>席位 %1</translation>
+    </message>
+    <message>
+        <location line="+77"/>
         <source>sin canal: hay más de %1 grillas</source>
         <translation>没有通道：网格超过 %1 个</translation>
     </message>
     <message>
-        <location line="+45"/>
+        <location line="+46"/>
         <source>no hay una grilla de personas que se llame «%1» (crear_fuente con type ba_grilla)</source>
         <translation>没有名为「%1」的人员网格（用 crear_fuente，type 为 ba_grilla）</translation>
     </message>
@@ -49769,12 +49871,12 @@ Datos (de %2): %3</source>
         <translation>缺少对象（键）</translation>
     </message>
     <message>
-        <location filename="../src/app/escenas/FuenteGrilla.cpp" line="+35"/>
+        <location filename="../src/app/escenas/FuenteGrilla.cpp" line="+44"/>
         <source>Grilla de personas</source>
         <translation>人员网格</translation>
     </message>
     <message>
-        <location line="+15"/>
+        <location line="+18"/>
         <source>Quiénes</source>
         <translation>人员</translation>
     </message>
@@ -49944,9 +50046,204 @@ Datos (de %2): %3</source>
         <translation>边距</translation>
     </message>
     <message>
+        <location line="+4"/>
+        <source>Cuando alguien habla</source>
+        <translation>有人发言时</translation>
+    </message>
+    <message>
         <location line="+1"/>
-        <source>Resaltar a quien habla</source>
-        <translation>突出显示发言人</translation>
+        <source>Qué muestra</source>
+        <translation>显示内容</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>A todos</source>
+        <translation>所有人</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Solo al orador de otra grilla (la escena del orador)</source>
+        <translation>仅显示另一个网格的发言人（发言人场景）</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>«Solo al orador»: para armar la escena del orador (grande y con su nombre) que el operador o la línea de tiempo ponen al aire, mientras la grilla completa sigue en otra salida.</source>
+        <translation>“仅发言人”：用于搭建发言人场景（大画面并带姓名），由操作员或时间线切到播出，而完整网格继续留在另一个输出上。</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>De qué grilla</source>
+        <translation>来自哪个网格</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>El nombre de la grilla cuyo orador muestra. Vacío = la primera que tenga orador.</source>
+        <translation>要显示其发言人的网格名称。留空 = 第一个有发言人的网格。</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Cómo se lo muestra</source>
+        <translation>显示方式</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Resaltar en su lugar</source>
+        <translation>原位高亮</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Destacar (grande, los demás en una franja)</source>
+        <translation>突出（大画面，其余放在条带里）</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Superponer sin tapar</source>
+        <translation>叠加但不遮挡</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Cortar a la escena del orador</source>
+        <translation>切到发言人场景</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Nada (solo el borde)</source>
+        <translation>无（仅边框）</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Resaltar: nadie se mueve; borde y un leve agrandado. Destacar: el orador a un lugar grande y los demás a una franja, en el mismo orden. Superponer: el orador encima, en un hueco que le deja la grilla (nadie queda tapado). Escena: esta grilla no cambia; otra grilla con «Solo al orador» lo muestra en su escena. Al orador se le pide su cámara en alta.</source>
+        <translation>高亮：谁都不动；加边框并略微放大。突出：发言人移到大位置，其余移到条带，顺序不变。叠加：发言人叠在上面，放进网格为其留出的空位（不会遮住任何人）。场景：此网格不变；另一个设为“仅发言人”的网格在它的场景里显示发言人。会以高画质请求发言人的摄像头。</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Quién es el orador</source>
+        <translation>谁是发言人</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>El que habla (voz sostenida)</source>
+        <translation>正在说话的人（持续有声）</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>El que tiene la palabra (Asamblea)</source>
+        <translation>拥有发言权的人（大会）</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>El orador al aire (Conferencia)</source>
+        <translation>播出中的发言人（会议）</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>A mano</source>
+        <translation>手动</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>A mano: desde la vista de la grilla o grilla_personas_destacar (también sirve con los otros: lo elegido a mano gana).</source>
+        <translation>手动：在网格视图中操作，或使用 grilla_personas_destacar（也可与其他方式并用：手动选择优先）。</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Voz sostenida</source>
+        <translation>持续有声</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Cuánto tiene que hablar sin parar para pasar a orador.</source>
+        <translation>需要不间断说话多久才成为发言人。</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Tiempo mínimo en pantalla</source>
+        <translation>最短显示时间</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>El orador no cambia antes de esto: que no salte con cada tos.</source>
+        <translation>在此时间之前发言人不会更换：避免每咳一声就跳一下。</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Precargar al siguiente</source>
+        <translation>预加载下一位</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>El siguiente de la fila (o el que empezó a hablar) ya pide su cámara en alta.</source>
+        <translation>队列中的下一位（或刚开始说话的人）已提前以高画质请求其摄像头。</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Armar la escena del orador</source>
+        <translation>搭建发言人场景</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Crea (si no está) la escena «Orador · &lt;esta grilla&gt;» con una grilla que muestra solo al orador de esta, grande y con su nombre y cargo. Ponerla al aire queda en manos del operador o de la línea de tiempo.</source>
+        <translation>创建（若不存在）场景“发言人 · &lt;此网格&gt;”，其中的网格只显示此网格的发言人，大画面并带姓名和职务。是否切到播出由操作员或时间线决定。</translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>Lugar del orador</source>
+        <translation>发言人位置</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Al centro</source>
+        <translation>居中</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>A la izquierda</source>
+        <translation>靠左</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Los demás</source>
+        <translation>其他人</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>En una franja abajo</source>
+        <translation>放在下方条带中</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Al costado</source>
+        <translation>放在一侧</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Tamaño del orador</source>
+        <translation>发言人大小</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>A pantalla completa</source>
+        <translation>全屏</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Tamaño del hueco</source>
+        <translation>空位大小</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Fundido a la alta definición</source>
+        <translation>淡入淡出到高清</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Al pasar a grande se pide la cámara en alta: mientras no llega se sigue viendo la baja y, cuando llega, se funde de una a la otra (nunca negro).</source>
+        <translation>切换为大画面时会请求高画质摄像头：在其到达之前继续显示低画质，到达后两者之间淡入淡出（绝不黑屏）。</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Borde a quien habla</source>
+        <translation>给发言者加边框</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -49954,7 +50251,62 @@ Datos (de %2): %3</source>
         <translation>突出显示颜色</translation>
     </message>
     <message>
+        <location line="+3"/>
+        <source>Nombres</source>
+        <translation>姓名</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Nombre en cada celda</source>
+        <translation>每个单元格中的姓名</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Sin nombre</source>
+        <translation>不显示姓名</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>El nombre</source>
+        <translation>姓名</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>El nombre y el cargo o la banca</source>
+        <translation>姓名及职务或席位</translation>
+    </message>
+    <message>
         <location line="+2"/>
+        <source>Alto del rótulo</source>
+        <translation>标签高度</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Dónde</source>
+        <translation>位置</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Abajo</source>
+        <translation>下方</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Arriba</source>
+        <translation>上方</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Color del texto</source>
+        <translation>文字颜色</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Fondo del rótulo</source>
+        <translation>标签背景</translation>
+    </message>
+    <message>
+        <location line="+3"/>
         <source>Fondo</source>
         <translation>背景</translation>
     </message>
@@ -49984,7 +50336,7 @@ Datos (de %2): %3</source>
         <translation>尚无通道：网格超过 8 个，或会议尚未启动。</translation>
     </message>
     <message>
-        <location filename="../src/app/escenas/GrillaPersonas.cpp" line="+119"/>
+        <location filename="../src/app/escenas/GrillaPersonas.cpp" line="+165"/>
         <source>los ajustes van en un objeto</source>
         <translation>设置必须放在对象中</translation>
     </message>
@@ -50004,14 +50356,19 @@ Datos (de %2): %3</source>
         <translation>「%1」必须是 true 或 false</translation>
     </message>
     <message>
-        <location line="+8"/>
+        <location line="+11"/>
         <source>«%1» no es un ajuste de la grilla de personas</source>
         <translation>「%1」不是人员网格的设置</translation>
     </message>
     <message>
-        <location line="+11"/>
+        <location line="+17"/>
         <source>«grupo» es un texto (vacío = sola)</source>
         <translation>「grupo」是文本（留空 = 单独）</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>«sigue» es el nombre de otra grilla (vacío = la primera con orador)</source>
+        <translation>“sigue”是另一个网格的名称（留空 = 第一个有发言人的网格）</translation>
     </message>
 </context>
 <context>
@@ -51291,12 +51648,12 @@ Datos (de %2): %3</source>
         <translation>场景通道无效</translation>
     </message>
     <message>
-        <location line="+432"/>
+        <location line="+435"/>
         <source>control: la app no lee sus eventos; se le corta el flujo (vuelve a entrar con la foto)</source>
         <translation>control：应用未读取其事件；切断其数据流（之后凭快照重新接入）</translation>
     </message>
     <message>
-        <location line="-424"/>
+        <location line="-427"/>
         <source>La conferencia esta cerrada: abrila para poder mandarle el programa a una pantalla.</source>
         <translation>会议已关闭：请先打开会议，才能将节目发送到屏幕。</translation>
     </message>
@@ -51380,9 +51737,9 @@ Datos (de %2): %3</source>
         <location line="+7"/>
         <location filename="../src/gateway/Botonera.cpp" line="+91"/>
         <location line="+2"/>
-        <location filename="../src/gateway/SignalingServer.cpp" line="+684"/>
+        <location filename="../src/gateway/SignalingServer.cpp" line="+686"/>
         <location line="+9"/>
-        <location line="+312"/>
+        <location line="+353"/>
         <location line="+109"/>
         <location line="+11"/>
         <location line="+3"/>
@@ -51714,12 +52071,37 @@ Datos (de %2): %3</source>
         <translation>未知服务「%1」。</translation>
     </message>
     <message>
-        <location filename="../src/gateway/Grillas.cpp" line="+208"/>
+        <location filename="../src/gateway/Grillas.cpp" line="+221"/>
+        <source>falta «rotulos» (una lista)</source>
+        <translation>缺少“rotulos”（一个列表）</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>cada rótulo es un objeto</source>
+        <translation>每个标签都是一个对象</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>rótulo sin «id»</source>
+        <translation>标签缺少“id”</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>rótulo «%1» de tamaño inválido</source>
+        <translation>标签“%1”的尺寸无效</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>rótulo «%1»: la máscara no mide w*h</source>
+        <translation>标签“%1”：蒙版尺寸不是 w*h</translation>
+    </message>
+    <message>
+        <location line="+66"/>
         <source>falta «grillas» (una lista)</source>
         <translation>缺少「grillas」（列表）</translation>
     </message>
     <message>
-        <location line="+10"/>
+        <location line="+11"/>
         <source>cada grilla es un objeto</source>
         <translation>每个网格必须是对象</translation>
     </message>
@@ -51739,7 +52121,7 @@ Datos (de %2): %3</source>
         <translation>尺寸超出 16x16..3840x2160</translation>
     </message>
     <message>
-        <location line="+5"/>
+        <location line="+12"/>
         <source>«celdas» es una lista</source>
         <translation>「celdas」必须是列表</translation>
     </message>
@@ -51769,7 +52151,7 @@ Datos (de %2): %3</source>
         <translation>「%1」的单元格没有尺寸</translation>
     </message>
     <message>
-        <location line="+387"/>
+        <location line="+507"/>
         <source>grillas: BA.Grilla.%1 listo (%2x%3)</source>
         <translation>网格：BA.Grilla.%1 已就绪（%2x%3）</translation>
     </message>
@@ -51844,7 +52226,7 @@ Datos (de %2): %3</source>
         <translation>输出 %1：音频返送：A 已更改或已关闭；正在重新打开</translation>
     </message>
     <message>
-        <location line="+275"/>
+        <location line="+278"/>
         <source>%1: A cambió o se cerró; resuscribiendo</source>
         <translation>%1：A 已更改或关闭；重新订阅</translation>
     </message>
@@ -51854,12 +52236,12 @@ Datos (de %2): %3</source>
         <translation>操作员：麦克风（BA.Audio.Operator）已打开</translation>
     </message>
     <message>
-        <location line="+103"/>
+        <location line="+104"/>
         <source>operador: cámara (BA.Operator) suscrita (%1x%2)</source>
         <translation>操作员：摄像头（BA.Operator）已订阅（%1x%2）</translation>
     </message>
     <message>
-        <location line="-789"/>
+        <location line="-793"/>
         <source>retorno video</source>
         <translation>视频返送</translation>
     </message>
@@ -51914,7 +52296,7 @@ Datos (de %2): %3</source>
         <translation>传输 %1：已恢复正常</translation>
     </message>
     <message>
-        <location line="+110"/>
+        <location line="+113"/>
         <source>%1: suscrito (%2x%3) -&gt; %4x%5</source>
         <translation>%1：已订阅（%2x%3）-&gt; %4x%5</translation>
     </message>
@@ -51940,7 +52322,7 @@ Datos (de %2): %3</source>
         <translation>签到：通道 %1 的助手语音</translation>
     </message>
     <message>
-        <location line="+202"/>
+        <location line="+207"/>
         <source>la prueba es para los de adentro (programa o fila): en el lobby no recibe el retorno</source>
         <translation>测试仅适用于已在内部的人（节目或队列）：在等候室中收不到返送</translation>
     </message>
@@ -51955,7 +52337,7 @@ Datos (de %2): %3</source>
         <translation>测试期间未收到其麦克风的音频（是否已静音？）</translation>
     </message>
     <message>
-        <location line="+121"/>
+        <location line="+177"/>
         <source>sube %1: %2 fps (%3x%4)</source>
         <translation>上行 %1：%2 fps（%3x%4）</translation>
     </message>
@@ -52245,7 +52627,7 @@ Datos (de %2): %3</source>
         <translation>无人</translation>
     </message>
     <message>
-        <location filename="../src/gateway/SignalingServer.cpp" line="-1602"/>
+        <location filename="../src/gateway/SignalingServer.cpp" line="-1643"/>
         <source>pantalla %1 sale: %2</source>
         <translation>屏幕 %1 输出：%2</translation>
     </message>
@@ -52325,17 +52707,22 @@ Datos (de %2): %3</source>
         <translation>信令：在 %1 拒绝连接，已达 %2 个连接上限（另有 %3 次拒绝未记录）</translation>
     </message>
     <message>
-        <location line="+59"/>
+        <location line="+99"/>
         <source>conexión: excepción %1</source>
         <translation>连接：异常 %1</translation>
     </message>
     <message>
-        <location line="+993"/>
+        <location line="+994"/>
         <source>archivos: subida fallida de %1 (código %2)</source>
         <translation>文件：%1 上传失败（代码 %2）</translation>
     </message>
     <message>
-        <location line="+672"/>
+        <location line="+556"/>
+        <source>ws: %1 no consiguió ningún puerto UDP de WebRTC libre (van %2): el rango de Configuración → Red de la conferencia no alcanza; no va a conectar</source>
+        <translation>ws：%1 没有拿到任何空闲的 WebRTC UDP 端口（目前已用 %2 个）：“设置 → 会议网络”中的范围不够；它将无法连接</translation>
+    </message>
+    <message>
+        <location line="+127"/>
         <source>ws: medios de %1 (sesión %2) conectados</source>
         <translation>ws：%1 的媒体（会话 %2）已连接</translation>
     </message>
@@ -52345,7 +52732,7 @@ Datos (de %2): %3</source>
         <translation>ws：%1 的媒体（会话 %2）已关闭</translation>
     </message>
     <message>
-        <location line="+38"/>
+        <location line="+49"/>
         <source>ws: setRemoteOffer falló (sesión %1)</source>
         <translation>ws：setRemoteOffer 失败（会话 %1）</translation>
     </message>
@@ -52370,7 +52757,7 @@ Datos (de %2): %3</source>
         <translation>ws：已接受 %1 的 offer（会话 %2，嘉宾）</translation>
     </message>
     <message>
-        <location line="+33"/>
+        <location line="+44"/>
         <source>sesión: el remoto %1 pasa al canal %2 sin reconectar</source>
         <translation>会议：远程成员 %1 切换到通道 %2，无需重连</translation>
     </message>
@@ -52390,7 +52777,7 @@ Datos (de %2): %3</source>
         <translation>会议：远程成员 %1 的媒体（会话 %2）已关闭</translation>
     </message>
     <message>
-        <location line="+27"/>
+        <location line="+34"/>
         <source>sesión: setRemoteOffer del remoto %1 falló</source>
         <translation>会议：远程成员 %1 的 setRemoteOffer 失败</translation>
     </message>
@@ -52420,7 +52807,7 @@ Datos (de %2): %3</source>
         <translation>会议：%1 的视图（会话 %2）已关闭</translation>
     </message>
     <message>
-        <location line="+6"/>
+        <location line="+7"/>
         <source>sesión: setRemoteOffer de la vista de %1 falló</source>
         <translation>会议：%1 的视图的 setRemoteOffer 失败</translation>
     </message>
@@ -52440,7 +52827,7 @@ Datos (de %2): %3</source>
         <translation>会议：%1 的语音协助（会话 %2）已关闭</translation>
     </message>
     <message>
-        <location line="+8"/>
+        <location line="+9"/>
         <source>sesión: setRemoteOffer de la atención de %1 falló</source>
         <translation>会议：%1 的协助通道的 setRemoteOffer 失败</translation>
     </message>
@@ -52455,7 +52842,7 @@ Datos (de %2): %3</source>
         <translation>签到：远程协助 %1（会话 %2）已关闭</translation>
     </message>
     <message>
-        <location line="+67"/>
+        <location line="+68"/>
         <source>registro: audio de %1 (sesión %2) conectado</source>
         <translation>签到：%1 的音频（会话 %2）已连接</translation>
     </message>
@@ -52465,23 +52852,28 @@ Datos (de %2): %3</source>
         <translation>签到：%1 的音频（会话 %2）已关闭</translation>
     </message>
     <message>
-        <location line="+36"/>
+        <location line="+37"/>
         <source>ws: mensaje inválido de %1 (%2)</source>
         <translation>ws：来自 %1 的消息无效（%2）</translation>
     </message>
     <message>
-        <location line="+416"/>
+        <location line="+431"/>
         <source>capas: a %1 se le pide la %2</source>
         <translation>画质层：向 %1 请求 %2 层</translation>
     </message>
     <message>
-        <location line="-2897"/>
+        <location line="+23"/>
+        <source>capas: llegó la HD de %1 (%2 ms desde el pedido); fundido de %3 ms</source>
+        <translation>图层：%1 的高清画面已到达（请求后 %2 ms）；淡入淡出 %3 ms</translation>
+    </message>
+    <message>
+        <location line="-3020"/>
         <source>direcciones: red %1, afuera %2</source>
         <translation>地址：网络 %1，外部 %2</translation>
     </message>
     <message>
         <location line="+2"/>
-        <location filename="../src/gateway/main.cpp" line="+744"/>
+        <location filename="../src/gateway/main.cpp" line="+757"/>
         <location line="+2"/>
         <source>(ninguna)</source>
         <translation>（无）</translation>
@@ -52492,9 +52884,8 @@ Datos (de %2): %3</source>
         <translation>（否）</translation>
     </message>
     <message>
-        <location line="+274"/>
-        <location line="+9"/>
-        <location line="+85"/>
+        <location line="+266"/>
+        <location line="+143"/>
         <location line="+8"/>
         <source>servidor saturado</source>
         <translation>服务器过载</translation>
@@ -52575,7 +52966,7 @@ Datos (de %2): %3</source>
         <translation>ws：「%1」加入了会议（%2）</translation>
     </message>
     <message>
-        <location line="+117"/>
+        <location line="+128"/>
         <source>ws: la pantalla %1 ofrecio mandar medios; se corta</source>
         <translation>ws：屏幕 %1 试图发送媒体；已断开</translation>
     </message>
@@ -52590,17 +52981,17 @@ Datos (de %2): %3</source>
         <translation>ws：没有可供 %1 使用的空闲 WebRTC 会话</translation>
     </message>
     <message>
-        <location line="+250"/>
+        <location line="+279"/>
         <source>salidas: %1</source>
         <translation>输出：%1</translation>
     </message>
     <message>
-        <location line="+163"/>
+        <location line="+165"/>
         <source>registro: sin sesiones WebRTC libres para la atención remota %1</source>
         <translation>签到：没有可供远程协助 %1 使用的空闲 WebRTC 会话</translation>
     </message>
     <message>
-        <location line="+41"/>
+        <location line="+42"/>
         <source>registro: setRemoteOffer de la atención remota %1 falló</source>
         <translation>签到：远程协助 %1 的 setRemoteOffer 失败</translation>
     </message>
@@ -52610,7 +53001,7 @@ Datos (de %2): %3</source>
         <translation>签到：没有可供 %1 使用的空闲 WebRTC 会话</translation>
     </message>
     <message>
-        <location line="+51"/>
+        <location line="+52"/>
         <source>registro: setRemoteOffer de %1 falló</source>
         <translation>签到：%1 的 setRemoteOffer 失败</translation>
     </message>
@@ -52635,7 +53026,7 @@ Datos (de %2): %3</source>
         <translation>全部</translation>
     </message>
     <message>
-        <location filename="../src/gateway/main.cpp" line="-505"/>
+        <location filename="../src/gateway/main.cpp" line="-517"/>
         <source>%1 (nueva)</source>
         <translation>%1（新）</translation>
     </message>
@@ -52695,7 +53086,12 @@ Datos (de %2): %3</source>
         <translation>控制：没有用于 API 令牌的熵；会场将没有控制</translation>
     </message>
     <message>
-        <location line="+95"/>
+        <location line="+89"/>
+        <source>WebRTC: puertos UDP %1-%2, %3 por sesión (redes de la máquina; sin las virtuales: %4): entran %5 sesiones</source>
+        <translation>WebRTC：UDP 端口 %1-%2，每个会话 %3 个（本机网络；不含虚拟网络：%4）：可容纳 %5 个会话</translation>
+    </message>
+    <message>
+        <location line="+18"/>
         <source>túnel: no se pudo resolver la dirección pública %1</source>
         <translation>隧道：无法解析公网地址 %1</translation>
     </message>
@@ -52841,7 +53237,7 @@ Datos (de %2): %3</source>
         <translation>控制：无法发布 %1</translation>
     </message>
     <message>
-        <location line="+55"/>
+        <location line="+56"/>
         <source>control: escuchando en &apos;control.gateway&apos;</source>
         <translation>控制：正在监听「control.gateway」</translation>
     </message>
@@ -52867,6 +53263,11 @@ Datos (de %2): %3</source>
     </message>
     <message>
         <location line="+29"/>
+        <source>WebRTC: los puertos UDP %1-%2 alcanzan para %3 sesiones (%4 por sesión) y la sala llena necesita %5: agrandá el rango en Configuración → Red de la conferencia</source>
+        <translation>WebRTC：UDP 端口 %1-%2 够 %3 个会话使用（每个会话 %4 个），而满员的会议室需要 %5 个：请在“设置 → 会议网络”中扩大范围</translation>
+    </message>
+    <message>
+        <location line="+15"/>
         <source>parando: deteniendo componentes...</source>
         <translation>正在停止：关闭各组件...</translation>
     </message>
@@ -53392,7 +53793,7 @@ Datos (de %2): %3</source>
         <translation>否</translation>
     </message>
     <message>
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="+792"/>
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="+846"/>
         <source>«%1» no arrancó al abrir: %2</source>
         <translation>「%1」打开时未启动：%2</translation>
     </message>
@@ -57510,7 +57911,7 @@ LO QUE HAY QUE SABER AL PRENDERLO: la salvaguarda de aprobaciones (`mcp.approval
         <translation>停止录制</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpRoomTools.cpp" line="+346"/>
+        <location filename="../src/app/mcp/McpRoomTools.cpp" line="+347"/>
         <source>saca a un invitado de la conferencia</source>
         <translation>将嘉宾移出会议</translation>
     </message>
@@ -63965,11 +64366,11 @@ Con este repertorio se arma un gráfico SIN escribir código: es lo que conviene
     </message>
     <message>
         <location filename="../src/app/mcp/McpGrillaTools.cpp" line="+23"/>
-        <source>origen (sala|asamblea|ambas), orden (llegada|habla|prioridad), tope (celdas con el «+N», 0 = sin tope), solo_con_camara, sin_al_aire (sin los que ya están al aire en otra fuente o en otra grilla que se ve, contando las escenas de las capas DSK), resaltar (a quien habla), grupo (las grillas con el mismo grupo se reparten la gente sin repetir; &quot;&quot; = sola), orden_en_grupo (la primera manda el orden y el modo), reparto (en_orden: llena la primera hasta su tope; parejo: la misma cantidad en cada una), ancho, alto, proporcion (16:9|4:3|1:1|3:4|9:16|llenar), separacion, margen, transicion_ms, fondo y color_resaltar (&quot;#AARRGGBB&quot;).</source>
-        <translation>origen（sala|asamblea|ambas）、orden（llegada|habla|prioridad）、tope（带「+N」的单元格数，0 = 不限）、solo_con_camara、sin_al_aire（排除已在其他来源或其他可见网格中在播的人，包括 DSK 图层中的场景）、resaltar（发言人）、grupo（同组网格分配人员时不重复；&quot;&quot; = 单独）、orden_en_grupo（第一个决定排序和模式）、reparto（en_orden：先填满第一个；parejo：每个数量相同）、ancho、alto、proporcion（16:9|4:3|1:1|3:4|9:16|llenar）、separacion、margen、transicion_ms、fondo 和 color_resaltar（&quot;#AARRGGBB&quot;）。</translation>
+        <source>origen (sala|asamblea|ambas), orden (llegada|habla|prioridad), tope (celdas con el «+N», 0 = sin tope), solo_con_camara, sin_al_aire (sin los que ya están al aire en otra fuente o en otra grilla que se ve, contando las escenas de las capas DSK), resaltar (a quien habla), grupo (las grillas con el mismo grupo se reparten la gente sin repetir; &quot;&quot; = sola), orden_en_grupo (la primera manda el orden y el modo), reparto (en_orden: llena la primera hasta su tope; parejo: la misma cantidad en cada una), ancho, alto, proporcion (16:9|4:3|1:1|3:4|9:16|llenar), separacion, margen, transicion_ms, fondo y color_resaltar (&quot;#AARRGGBB&quot;). Cuando alguien habla: al_hablar (resaltar: nadie se mueve, borde y un leve agrandado | destacar: el orador grande y los demás en una franja, en el mismo orden | superponer: el orador encima en un hueco que le deja la grilla | escena: la grilla no cambia y otra grilla con muestra=orador lo muestra solo | nada), disparo (voz: voz sostenida voz_ms | palabra: la palabra de la asamblea | orador: el orador al aire de la conferencia | manual: grilla_personas_destacar), voz_ms, minimo_ms (el orador no cambia antes: histéresis), precarga (el siguiente ya pide la capa alta), destacar_lugar (centro|izquierda), destacar_tamano (% del lienzo), franja (abajo|costado), superponer_tamano, superponer_completa, fundido_ms (de la baja a la HD). Nombres: nombres (no|nombre|nombre_cargo), nombre_tamano (% del alto de la celda), nombre_color, nombre_fondo, nombre_lugar (abajo|arriba). muestra (todos|orador) y sigue (la grilla cuyo orador muestra; &quot;&quot; = la primera que tenga): la escena del orador.</source>
+        <translation>origen (sala|asamblea|ambas)、orden (llegada|habla|prioridad)、tope（带“+N”的单元格数，0 = 不限）、solo_con_camara、sin_al_aire（排除已在其他信号源或其他可见网格中播出的人，包括 DSK 图层的场景）、resaltar（高亮正在说话的人）、grupo（同组的网格分摊人员且不重复；&quot;&quot; = 独立）、orden_en_grupo（第一个网格决定顺序和模式）、reparto (en_orden：先填满第一个直到其上限；parejo：每个网格人数相同)、ancho、alto、proporcion (16:9|4:3|1:1|3:4|9:16|llenar)、separacion、margen、transicion_ms、fondo 和 color_resaltar (&quot;#AARRGGBB&quot;)。有人发言时：al_hablar (resaltar：谁都不动，加边框并略微放大 | destacar：发言人大画面，其余按原顺序放在条带里 | superponer：发言人叠在网格为其留出的空位上 | escena：网格不变，由另一个 muestra=orador 的网格单独显示发言人 | nada)、disparo (voz：持续有声 voz_ms | palabra：大会的发言权 | orador：会议中播出的发言人 | manual：grilla_personas_destacar)、voz_ms、minimo_ms（在此之前发言人不更换：滞回）、precarga（下一位已提前请求高画质层）、destacar_lugar (centro|izquierda)、destacar_tamano（占画布的 %）、franja (abajo|costado)、superponer_tamano、superponer_completa、fundido_ms（从低画质到高清）。姓名：nombres (no|nombre|nombre_cargo)、nombre_tamano（占单元格高度的 %）、nombre_color、nombre_fondo、nombre_lugar (abajo|arriba)。muestra (todos|orador) 和 sigue（显示其发言人的网格；&quot;&quot; = 第一个有发言人的网格）：发言人场景。</translation>
     </message>
     <message>
-        <location line="+11"/>
+        <location line="+20"/>
         <source>Qué muestra cada grilla de personas</source>
         <translation>每个人员网格显示什么</translation>
     </message>
@@ -63987,11 +64388,12 @@ Con este repertorio se arma un gráfico SIN escribir código: es lo que conviene
         <location line="+7"/>
         <location line="+27"/>
         <location line="+29"/>
+        <location line="+52"/>
         <source>la grilla de personas todavía no arrancó</source>
         <translation>人员网格尚未启动</translation>
     </message>
     <message>
-        <location line="-44"/>
+        <location line="-96"/>
         <source>Cambiar los ajustes de una grilla de personas</source>
         <translation>修改人员网格的设置</translation>
     </message>
@@ -64095,6 +64497,46 @@ Con este repertorio se arma un gráfico SIN escribir código: es lo que conviene
         <location line="+5"/>
         <source>Listo: «%1» vuelve a lo automático en «%2».</source>
         <translation>完成：「%1」在「%2」中恢复自动。</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Armar la escena del orador de una grilla de personas</source>
+        <translation>搭建人员网格的发言人场景</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Crea (si no está) la escena «Orador · &lt;grilla&gt;» con una grilla de personas que muestra solo al orador de esa grilla (muestra = orador), grande y con su nombre y cargo, en alta definición. Lo que ya existe no se toca. NO la pone al aire: eso lo hace el operador o la línea de tiempo, en la salida que quiera, mientras la grilla completa sigue en otra (al_hablar = escena).</source>
+        <translation>创建（若不存在）场景“发言人 · &lt;网格&gt;”，其中的人员网格只显示该网格的发言人（muestra = orador），大画面并带姓名和职务，高清。已有的内容不会被改动。不会把它切到播出：这由操作员或时间线在其选定的输出上完成，而完整网格继续留在另一个输出上（al_hablar = escena）。</translation>
+    </message>
+    <message>
+        <location line="+12"/>
+        <source>Listo: la escena «%1» con la grilla «%2» (solo el orador).</source>
+        <translation>完成：场景“%1”及网格“%2”（仅发言人）。</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Elegir a mano el orador de una grilla de personas</source>
+        <translation>手动指定人员网格的发言人</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Hace orador de una grilla a una persona, en el acto y aunque el disparo diga otra cosa: se la muestra como diga «al_hablar» (destacada, resaltada, superpuesta o en la escena del orador) y se le pide su cámara en alta (entra con un fundido desde la baja). Con clave vacía, el orador lo vuelve a decidir el disparo.</source>
+        <translation>立即让某人成为某个网格的发言人，即使触发条件另有结论：按“al_hablar”的设定显示他（突出、高亮、叠加或在发言人场景中），并以高画质请求其摄像头（从低画质淡入淡出过渡）。键留空时，发言人重新由触发条件决定。</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>la persona (sala:&lt;id&gt; o asamblea:&lt;id&gt;); vacía = que lo decida el disparo</source>
+        <translation>此人（sala:&lt;id&gt; 或 asamblea:&lt;id&gt;）；留空 = 交给触发条件决定</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Listo: el orador de «%1» lo vuelve a decidir el disparo.</source>
+        <translation>完成：“%1”的发言人重新由触发条件决定。</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Listo: «%1» es el orador de «%2».</source>
+        <translation>完成：“%1”是“%2”的发言人。</translation>
     </message>
     <message>
         <location filename="../src/app/mcp/McpHelp.cpp" line="-36"/>
@@ -67763,12 +68205,11 @@ Con `historial` vienen ademas TODAS las que se cerraron en este evento, que es l
     </message>
     <message>
         <location line="+5"/>
-        <location line="+239"/>
         <source>No pude hablar con el servidor (gateway): %1. Fijate `room_status`.</source>
         <translation>无法与服务器（网关）通信：%1。查看 `room_status`。</translation>
     </message>
     <message>
-        <location line="-231"/>
+        <location line="+8"/>
         <source>Votacion cerrada.</source>
         <translation>表决已结束。</translation>
     </message>
@@ -70023,8 +70464,8 @@ Despues de escribir una, `ext_listar` de nuevo: `problema` dice si le falta algo
     </message>
     <message>
         <location line="+4"/>
-        <source>Lobby de admision (true = cada invitado espera que lo hagas pasar), conferencia cerrada (nadie nuevo puede entrar) y `cupo`: cuántos invitados en el programa (1 a 16), SIN reiniciar la conferencia: los lugares nuevos se crean andando (no saca a nadie: si un lugar que se iría está ocupado, no lo baja).</source>
-        <translation>准入等候室（true = 每位嘉宾等您放行）、锁定会议（任何新人都不能进入）以及 `cupo`：节目中的嘉宾数（1 到 16），「无需」重启会议：新位置在运行中创建（不会踢出任何人：如果要移除的位置有人占用，则不移除）。</translation>
+        <source>Lobby de admision (true = cada invitado espera que lo hagas pasar), conferencia cerrada (nadie nuevo puede entrar) y `cupo`: cuántos invitados en el programa (de 1 al `maximum` del esquema), SIN reiniciar la conferencia: los lugares nuevos se crean andando (no saca a nadie: si un lugar que se iría está ocupado, no lo baja).</source>
+        <translation>准入大厅（true = 每位嘉宾等你放行）、关闭会议（新人不能再进入）以及 `cupo`：节目中的嘉宾人数（从 1 到架构中的 `maximum`），无需重启会议：新位置会即时创建（不会把任何人踢出：若将被撤掉的位置有人，就不会撤掉）。</translation>
     </message>
     <message numerus="yes">
         <location line="+15"/>
@@ -77450,7 +77891,7 @@ Con `probar` (por defecto true) devuelve el lote, el diff y el pronóstico SIN a
         <translation>显示结果但不应用（默认）</translation>
     </message>
     <message>
-        <location filename="../src/app/ui/ConduccionLinea.cpp" line="+312"/>
+        <location filename="../src/app/ui/ConduccionLinea.cpp" line="+304"/>
         <source>no hay una plantilla del escenario «%1» (evento_escenarios)</source>
         <translation>没有场景「%1」的模板（evento_escenarios）</translation>
     </message>
@@ -82586,6 +83027,18 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
     </message>
     <message>
         <location line="+2"/>
+        <source>escena del orador armar crear escena solo el que habla grande cortar al orador</source>
+        <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
+        <translation>发言人场景 搭建 创建 场景 只显示正在说话的人 大画面 切到发言人</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>destacar orador agrandar poner grande al que habla elegir quien habla resaltar foco</source>
+        <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
+        <translation>突出 发言人 放大 大画面 正在说话的人 指定谁发言 高亮 聚焦</translation>
+    </message>
+    <message>
+        <location line="+2"/>
         <source>abrir panel dialogo ventana superresolucion entrada virtual catalogo modulos mostrar</source>
         <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
         <translation>打开面板 对话框 窗口 超分辨率 虚拟输入 目录 模块 显示</translation>
@@ -83830,12 +84283,12 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>「优先保障节目」因过热关闭的项目</translation>
     </message>
     <message>
-        <location filename="../src/gateway/SignalingServer.cpp" line="-1084"/>
+        <location filename="../src/gateway/SignalingServer.cpp" line="-1128"/>
         <source>Invitados que se cortaron y volvieron a su lugar</source>
         <translation>断开后回到原位的嘉宾</translation>
     </message>
     <message>
-        <location filename="../src/gateway/main.cpp" line="-106"/>
+        <location filename="../src/gateway/main.cpp" line="-121"/>
         <source>Edad de lo leído de A (p50 de la última ventana), ms</source>
         <translation>从 A 读取的数据帧龄（最近窗口 p50），ms</translation>
     </message>
@@ -84440,9 +84893,9 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
     <message>
         <location line="+30"/>
         <location filename="../src/motor/Composicion.cpp" line="+1171"/>
-        <location filename="../src/motor/Entrada.cpp" line="+1543"/>
-        <location line="+205"/>
-        <location filename="../src/motor/Mezcla.cpp" line="+380"/>
+        <location filename="../src/motor/Entrada.cpp" line="+1640"/>
+        <location line="+226"/>
+        <location filename="../src/motor/Mezcla.cpp" line="+421"/>
         <location filename="../src/motor/OrigenRed.cpp" line="+233"/>
         <location filename="../src/motor/Salidas.cpp" line="+388"/>
         <location line="+309"/>
@@ -84453,7 +84906,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
     </message>
     <message>
         <location line="+8"/>
-        <location filename="../src/motor/Entrada.cpp" line="-594"/>
+        <location filename="../src/motor/Entrada.cpp" line="-620"/>
         <source>el pipeline no arrancó</source>
         <translation>pipeline 未启动</translation>
     </message>
@@ -84609,7 +85062,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>合成 %1（%2）：%3</translation>
     </message>
     <message>
-        <location filename="../src/motor/Entrada.cpp" line="-827"/>
+        <location filename="../src/motor/Entrada.cpp" line="-911"/>
         <source>%1: la placa no se pudo armar (%2): sin placa</source>
         <translation>%1：无法搭建垫片画面（%2）：无垫片画面</translation>
     </message>
@@ -84619,26 +85072,36 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>%1 — 无信号</translation>
     </message>
     <message>
-        <location line="+45"/>
+        <location line="+47"/>
         <source>%1: placa rearmada en %2 ms</source>
         <translation>%1：垫片画面在 %2 毫秒内重建</translation>
     </message>
     <message>
-        <location line="+268"/>
+        <location line="+44"/>
+        <source>%1: en reposo (no hay nadie en su lugar) en %2 ms</source>
+        <translation>%1：空闲（其位置上没有人），用时 %2 ms</translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <source>%1: llegó alguien a su lugar: anda en %2 ms</source>
+        <translation>%1：有人到了其位置：%2 ms 后开始运行</translation>
+    </message>
+    <message>
+        <location line="+285"/>
         <source>no hay un análisis en curso en esta entrada</source>
         <translation>此输入上没有正在进行的分析</translation>
     </message>
     <message>
-        <location line="+69"/>
-        <location line="+185"/>
-        <location line="+36"/>
+        <location line="+70"/>
+        <location line="+190"/>
+        <location line="+38"/>
         <location line="+110"/>
-        <location line="+1037"/>
+        <location line="+1082"/>
         <source>%1: %2</source>
         <translation>%1：%2</translation>
     </message>
     <message>
-        <location line="-1361"/>
+        <location line="-1413"/>
         <source>el micrófono %1: se espera a que se conecte</source>
         <translation>麦克风 %1：等待其连接</translation>
     </message>
@@ -84683,12 +85146,12 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>音频机架尚未就绪（应用未注册 barack）：就绪后添加</translation>
     </message>
     <message>
-        <location line="+68"/>
+        <location line="+75"/>
         <source>%1: cadena: %2</source>
         <translation>%1：链路：%2</translation>
     </message>
     <message>
-        <location line="+359"/>
+        <location line="+368"/>
         <source>%1: las horas de su video van y vienen (%2 ms, %3 ms): no se realinea por un minuto</source>
         <translation>%1：其视频的时间戳来回跳动（%2 毫秒，%3 毫秒）：一分钟内不重新对齐</translation>
     </message>
@@ -84743,7 +85206,12 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>%1（垫片画面）：%2</translation>
     </message>
     <message>
-        <location line="+71"/>
+        <location line="+77"/>
+        <source>%1: primer dato a los %2 ms de despertar</source>
+        <translation>%1：唤醒后 %2 ms 收到第一批数据</translation>
+    </message>
+    <message>
+        <location line="+15"/>
         <source>%1: la señal llega entrelazada: se desentrelaza en la GPU</source>
         <translation>%1：信号为隔行：在 GPU 上去隔行</translation>
     </message>
@@ -84779,7 +85247,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>操作：play、pausa、reiniciar 或 parar</translation>
     </message>
     <message>
-        <location line="+300"/>
+        <location line="+315"/>
         <source>la entrada no está andando</source>
         <translation>输入未运行</translation>
     </message>
@@ -84849,29 +85317,29 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>在 CPU 上编码视频（非硬件）</translation>
     </message>
     <message>
-        <location filename="../src/motor/Mezcla.cpp" line="-300"/>
+        <location filename="../src/motor/Mezcla.cpp" line="-332"/>
         <source>mezcla %1: no está balimitador (plugin baaudio): sale sin limitador</source>
         <translation>混合 %1：缺少 balimitador（插件 baaudio）：输出不带限幅器</translation>
     </message>
     <message>
-        <location line="+17"/>
+        <location line="+19"/>
         <location line="+20"/>
-        <location line="+52"/>
+        <location line="+58"/>
         <source>mezcla %1: %2</source>
         <translation>混合 %1：%2</translation>
     </message>
     <message>
-        <location line="-53"/>
+        <location line="-59"/>
         <source>el mezclador no arrancó</source>
         <translation>混音器未启动</translation>
     </message>
     <message>
-        <location line="+52"/>
+        <location line="+58"/>
         <source>falta intersrc, queue, volume, audiopanorama o level</source>
         <translation>缺少 intersrc、queue、volume、audiopanorama 或 level</translation>
     </message>
     <message>
-        <location line="+213"/>
+        <location line="+237"/>
         <source>mezcla %1 (%2): %3</source>
         <translation>混合 %1（%2）：%3</translation>
     </message>
@@ -84881,7 +85349,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>混合 %1（来自 %2 的警告）：%3</translation>
     </message>
     <message>
-        <location filename="../src/motor/Motor.cpp" line="+63"/>
+        <location filename="../src/motor/Motor.cpp" line="+64"/>
         <source>motor: %1 plugins de la composición cargados en %2 ms</source>
         <translation>引擎：合成插件在 %2 毫秒内加载了 %1 个</translation>
     </message>
@@ -84891,7 +85359,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>引擎：D3D12 阴影已预加载，用时 %1 毫秒</translation>
     </message>
     <message>
-        <location line="+141"/>
+        <location line="+143"/>
         <source>el bus PROGRAMA no arrancó: %1</source>
         <translation>节目总线未启动：%1</translation>
     </message>
@@ -84911,12 +85379,12 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>关闭时有 %1 条指令未执行</translation>
     </message>
     <message>
-        <location line="-112"/>
+        <location line="-114"/>
         <source>Principal</source>
         <translation>主输出</translation>
     </message>
     <message>
-        <location line="+178"/>
+        <location line="+180"/>
         <source>no hay una salida «%1»</source>
         <translation>不存在输出「%1」</translation>
     </message>
@@ -84961,12 +85429,12 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>工作室延迟：%1 毫秒（由「%2」决定）</translation>
     </message>
     <message>
-        <location line="+8"/>
+        <location line="+810"/>
         <source>tic de la entrada «%1»</source>
         <translation>输入「%1」的节拍</translation>
     </message>
     <message>
-        <location line="+180"/>
+        <location line="-630"/>
         <source>falta el id</source>
         <translation>缺少 id</translation>
     </message>
@@ -84981,28 +85449,28 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>已有输入「%1」</translation>
     </message>
     <message>
-        <location line="+27"/>
-        <location line="+34"/>
+        <location line="+28"/>
+        <location line="+35"/>
         <location line="+20"/>
         <location line="+8"/>
-        <location line="+23"/>
+        <location line="+22"/>
         <location line="+10"/>
         <location line="+19"/>
         <location line="+197"/>
-        <location line="+628"/>
-        <location line="+103"/>
+        <location line="+668"/>
+        <location line="+126"/>
         <location line="+23"/>
         <location line="+36"/>
         <source>no hay una entrada «%1»</source>
         <translation>没有输入「%1」</translation>
     </message>
     <message>
-        <location line="-1076"/>
+        <location line="-1138"/>
         <source>no se pudo publicar el reloj en el puerto %1</source>
         <translation>无法在端口 %1 上发布时钟</translation>
     </message>
     <message>
-        <location line="+92"/>
+        <location line="+91"/>
         <source>pista fuera de rango (1…6)</source>
         <translation>音轨超出范围（1…6）</translation>
     </message>
@@ -85023,13 +85491,13 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <location line="+50"/>
         <location line="+146"/>
         <location line="+2"/>
-        <location line="+214"/>
-        <location line="+922"/>
+        <location line="+254"/>
+        <location line="+957"/>
         <source>no hay una escena «%1»</source>
         <translation>没有场景「%1」</translation>
     </message>
     <message>
-        <location line="-1332"/>
+        <location line="-1407"/>
         <source>transición: corte, mezcla, empuje o cortina</source>
         <translation>转场：corte、mezcla、empuje 或 cortina</translation>
     </message>
@@ -85056,14 +85524,14 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
     </message>
     <message>
         <location line="+80"/>
-        <location line="+567"/>
+        <location line="+630"/>
         <source>el motor no está andando</source>
         <translation>引擎未运行</translation>
     </message>
     <message>
-        <location line="-22"/>
-        <source>invitado fuera de rango (1…64)</source>
-        <translation>嘉宾超出范围（1…64）</translation>
+        <location line="-21"/>
+        <source>invitado fuera de rango (1…%1)</source>
+        <translation>嘉宾超出范围（1…%1）</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -85071,7 +85539,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>模式：programa、mix_minus 或 apagado</translation>
     </message>
     <message>
-        <location line="+16"/>
+        <location line="+15"/>
         <source>el retorno no arrancó</source>
         <translation>返送未启动</translation>
     </message>
@@ -85092,7 +85560,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>节目没有限幅器（缺少 balimitador）</translation>
     </message>
     <message>
-        <location line="+92"/>
+        <location line="+102"/>
         <source>«%1» no está andando</source>
         <translation>「%1」未运行</translation>
     </message>
@@ -85108,7 +85576,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>「%1」上没有正在进行的分析</translation>
     </message>
     <message>
-        <location line="+207"/>
+        <location line="+209"/>
         <source>esperarCola desde el hilo de la interfaz: no tendría que esperar</source>
         <translation>从界面线程调用 esperarCola：不应等待</translation>
     </message>
@@ -85123,7 +85591,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>矩阵中有一条总线没有 id</translation>
     </message>
     <message>
-        <location line="+91"/>
+        <location line="+106"/>
         <source>no se pudo poner el limitador</source>
         <translation>无法设置限幅器</translation>
     </message>
@@ -86249,7 +86717,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>无法创建管道</translation>
     </message>
     <message>
-        <location filename="../src/app/plugins/Plugins.cpp" line="-2030"/>
+        <location filename="../src/app/plugins/Plugins.cpp" line="-2039"/>
         <source>%1
 …(cortado)</source>
         <translation>%1
@@ -86261,12 +86729,12 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <location line="+163"/>
         <location line="+30"/>
         <location line="+145"/>
-        <location line="+1262"/>
+        <location line="+1271"/>
         <source>no existe el plugin «%1»</source>
         <translation>插件「%1」不存在</translation>
     </message>
     <message>
-        <location line="-1789"/>
+        <location line="-1798"/>
         <source>«%1» no estaba aprobado</source>
         <translation>「%1」未被批准</translation>
     </message>
@@ -86407,7 +86875,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>20 秒内未完成启动（是否在 plugin.correr() 之前卡在等待某事？）</translation>
     </message>
     <message>
-        <location line="+50"/>
+        <location line="+51"/>
         <source>no se pudo arrancar Python</source>
         <translation>无法启动 Python</translation>
     </message>
@@ -86498,7 +86966,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>「%1」的 PTZ：%2</translation>
     </message>
     <message>
-        <location line="+76"/>
+        <location line="+84"/>
         <source>el plugin «%1» no está corriendo</source>
         <translation>插件「%1」未运行</translation>
     </message>
@@ -86833,7 +87301,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
 <context>
     <name>prompter</name>
     <message>
-        <location filename="../src/app/control/Botonera.cpp" line="-806"/>
+        <location filename="../src/app/control/Botonera.cpp" line="-817"/>
         <location filename="../src/app/ui/PrompterViewModel.cpp" line="-28"/>
         <source>Redondeá</source>
         <translation>请收尾</translation>
@@ -87530,14 +87998,14 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
 <context>
     <name>rack</name>
     <message>
-        <location filename="../src/app/audio/AudioRack.cpp" line="+382"/>
+        <location filename="../src/app/audio/AudioRack.cpp" line="+384"/>
         <location line="+303"/>
-        <location line="+816"/>
+        <location line="+854"/>
         <source>no existe el nodo %1</source>
         <translation>节点 %1 不存在</translation>
     </message>
     <message>
-        <location line="-1113"/>
+        <location line="-1151"/>
         <source>%1 no tiene salida de audio</source>
         <translation>%1 没有音频输出</translation>
     </message>
@@ -87572,12 +88040,12 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>该连线会形成回路</translation>
     </message>
     <message>
-        <location line="+279"/>
+        <location line="+352"/>
         <source>rack colgado (un módulo no volvió en 200 ms)</source>
         <translation>机架卡死（某个模块未在 200 毫秒内返回）</translation>
     </message>
     <message>
-        <location line="+343"/>
+        <location line="+308"/>
         <source>rack inválido</source>
         <translation>机架无效</translation>
     </message>
@@ -89192,7 +89660,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>名额范围为 1 到 %1</translation>
     </message>
     <message>
-        <location line="+19"/>
+        <location line="+22"/>
         <source>Cupo: %1</source>
         <translation>名额：%1</translation>
     </message>
@@ -89294,6 +89762,11 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <location line="+3"/>
         <source>Esa imagen pesa mas de 2 MB. La bajan todos los telefonos del salon: achicala antes.</source>
         <translation>该图片超过 2 MB。会场所有手机都要下载它：请先缩小。</translation>
+    </message>
+    <message>
+        <location line="+59"/>
+        <source>No pude hablar con el servidor (gateway): %1</source>
+        <translation>无法连接服务器（gateway）：%1</translation>
     </message>
     <message>
         <location filename="../src/app/sala/ParticipantesSala.cpp" line="+107"/>
@@ -93843,6 +94316,11 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <location line="+6"/>
         <source>La conferencia no tiene lugar para tu video en este momento</source>
         <translation>会议当前没有位置容纳您的视频</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>La conferencia se quedó sin puertos de red para tu conexión: avisale al operador</source>
+        <translation>会议的网络端口已用尽，无法为你的连接分配：请通知操作员</translation>
     </message>
     <message>
         <location line="+2"/>

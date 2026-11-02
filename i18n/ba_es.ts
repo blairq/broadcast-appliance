@@ -250,7 +250,15 @@
         </translation>
     </message>
     <message numerus="yes">
-        <location line="+204"/>
+        <location line="+23"/>
+        <source>%n conexión se quedó sin puerto UDP: agrandá el rango en Configuración → Red de la conferencia.</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location line="+195"/>
         <source>%n conexión</source>
         <translation>
             <numerusform>%n conexión</numerusform>
@@ -545,7 +553,7 @@
 <context>
     <name>Main</name>
     <message numerus="yes">
-        <location filename="../src/app/qml/Main.qml" line="+195"/>
+        <location filename="../src/app/qml/Main.qml" line="+198"/>
         <source>Alcanza para ~%n minutos de grabación a este bitrate. ¿Grabar igual?</source>
         <translation>
             <numerusform>Alcanza para ~%n minuto de grabación a este bitrate. ¿Grabar igual?</numerusform>
@@ -600,7 +608,7 @@
 <context>
     <name>MixerContent</name>
     <message numerus="yes">
-        <location filename="../src/app/qml/cards/MixerContent.qml" line="+300"/>
+        <location filename="../src/app/qml/cards/MixerContent.qml" line="+303"/>
         <source>Compactar %1: sin faders, una casilla por tira (%n tira)</source>
         <translation>
             <numerusform>Compactar %1: sin faders, una casilla por tira (%n tira)</numerusform>
@@ -1119,7 +1127,7 @@ No se borran del disco: si alguno estaba en una escena, se lo saca de ahí y lis
 <context>
     <name>SalidasViewModel</name>
     <message numerus="yes">
-        <location filename="../src/app/ui/SalidasViewModel.cpp" line="+370"/>
+        <location filename="../src/app/ui/SalidasViewModel.cpp" line="+362"/>
         <source>Ya hay %n salida, que es el tope.</source>
         <translation>
             <numerusform>Ya hay %n salida, que es el tope.</numerusform>
@@ -1334,7 +1342,7 @@ No se borran del disco: si alguno estaba en una escena, se lo saca de ahí y lis
 <context>
     <name>VistaGrillas</name>
     <message numerus="yes">
-        <location filename="../src/app/qml/controls/VistaGrillas.qml" line="+91"/>
+        <location filename="../src/app/qml/controls/VistaGrillas.qml" line="+92"/>
         <source>%n persona</source>
         <translation>
             <numerusform>%n persona</numerusform>
@@ -1528,7 +1536,7 @@ No se borran del disco: si alguno estaba en una escena, se lo saca de ahí y lis
         </translation>
     </message>
     <message numerus="yes">
-        <location filename="../src/app/mcp/McpRoomTools.cpp" line="+178"/>
+        <location filename="../src/app/mcp/McpRoomTools.cpp" line="+179"/>
         <source>Cupo: %n invitado, sin reiniciar la conferencia.</source>
         <translation>
             <numerusform>Cupo: %n invitado, sin reiniciar la conferencia.</numerusform>
@@ -1647,7 +1655,7 @@ No se borran del disco: si alguno estaba en una escena, se lo saca de ahí y lis
 <context>
     <name>web/guest</name>
     <message numerus="yes">
-        <location line="+112"/>
+        <location line="+114"/>
         <source>Hay %n persona antes que vos.</source>
         <translation>
             <numerusform>Hay %n persona antes que vos.</numerusform>
