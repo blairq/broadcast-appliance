@@ -300,8 +300,8 @@ Hecho (2026-11-02, adelantado por pedido del usuario: «en Windows quiero H.264 
   `codecsVideo.h264.caidas_*`. Sin ningún H.264 (Windows N): VP8 como antes.
 - Cada sesión dice en sus estadísticas `entrada` (códec, decodificador, hardware) y
   `salida.codec`, y una línea en el log cuando se sabe o cambia.
-- Falta: el pozo de decodificación de D hilos (punto 1, segunda mitad) y achicar en el
-  mismo hilo (punto 2).
+- Faltaba: el pozo de decodificación de D hilos (punto 1, segunda mitad: hecho abajo, colas
+  compartidas) y achicar en el mismo hilo (punto 2: escrito abajo, sin compilar).
 
 Hecho (2026-11-02, tarde): decodificar directo con la API de video de D3D11, sin el MFT.
 
@@ -373,6 +373,44 @@ contexto/s; más de la mitad de las colas de libwebrtc de un hilo cada una):
   espera media de 0,1-0,2 ms; «dec», 617 decodificaciones/s (0,45 ms c/u, con el sink),
   espera media 0,28 ms, máx. 13,6 ms. Falta medir en la .177.
 
+Escrito (2026-11-02, noche, sin compilar todavía: se compila y se mide todo junto con F1/F2):
+**achicar la celda en el mismo hilo que decodifica (#6) y el BGRA de ba-app solo si hace falta (#8)**.
+
+- Qué pasaba: el sink de cada cámara (`RemoteVideoSink`, Webrtc.cpp) convertía SIEMPRE el
+  cuadro entero a BGRA (3,5 ms un 720p en la .177, #8) aunque su ruta no lo publicara (con 40
+  en la grilla casi ninguno va a ba-app), y en Windows además bajaba el NV12 entero de la placa
+  y lo pasaba a I420 antes. La grilla ya achicaba en ese hilo, pero desde lo grande.
+- `src/gateway/DestinoCamara.{hpp,cpp}`: adónde va la cámara de una sesión. `quiereEntero()`
+  (`MediaPump::quiereCamara`: lo mismo que mira `forwardVideo`/`publishVideo`, con el tope de
+  cps de las miniaturas) y `pedirCelda`/`guardarCelda` (Grillas). Lo arma SignalingServer
+  (sala y asamblea) en `cb.camara`.
+- `Grillas::pedirCelda/guardarCelda/soltarCelda`: el hilo que decodificó recibe el búfer de la
+  celda (del tamaño del lugar más grande que ocupa la persona, cubriéndolo, nunca más que el
+  cuadro), lo llena como le convenga y lo devuelve: a `grillas` solo le llega lo chico. Se
+  mantiene la cola de 4 cuadros por persona, el balde y `elegir` (el ritmo).
+- `codecs::entregarCamara` (CodecsVideo.cpp): primero pregunta; si nadie lo usa, no convierte
+  nada (`uso.codecsVideo.entrega.salteados`). Solo la grilla: la celda del cuadro en la placa
+  (Windows), del I420 tal cual (software) o del buffer nativo achicado primero (`Scale()`: en la
+  Mac, `ObjCFrameBuffer::CropAndScale` achica el CVPixelBuffer NV12 con libyuv al pedir el
+  I420: nunca se arma el BGRA entero). ba-app: el BGRA entero y la celda de ahí.
+- Windows (`CodecsWin.cpp`, `DecodificadorD3d11`): el cuadro ya no se baja al decodificar; sale
+  un `BufferPlaca` (kNative) que lo baja recién si alguien pide `ToI420()`, y el decodificador
+  se anuncia como `CuadroEnPlaca` (thread_local, sin RTTI) mientras llama a `Decoded()`. La
+  celda se achica con `ID3D11VideoProcessor` (NV12 → BGRA del tamaño de la celda, BT.601
+  limitado → RGB completo, como libyuv) y se baja solo eso; el entero va de NV12 a BGRA directo
+  (sin el I420 del medio). Si alguien se quedó con el buffer después de `Decoded()`, se baja ahí
+  (la superficie se reusa en el próximo `Decode`). Sin procesador que sirva: avisa una vez y se
+  achica en el procesador. `gateway.celdaEnPlaca` (de fábrica sí) para comparar;
+  `codecsVideo.h264.celdas_en_placa` y `achica_en_placa` en el estado.
+- **Enganche en Webrtc.cpp (lo hace GW, F1/F2):** `SessionCallbacks::camara`
+  (`std::shared_ptr<DestinoCamara>`) y en `RemoteVideoSink::OnFrame`, antes de `ToI420`, si
+  sale y hay `camara`: `codecs::entregarCamara(frame, *camara_, bgra_); return;`.
+- Cómo se prueba: `test_grillas` 16 (pedido, tamaño, balde, soltar, DestinoCamara sin ba-app);
+  `test_webrtc_codecs` y `test_webrtc_loopback` siguen pasando (el loopback no usa `camara`);
+  en la .177 con 10 en 720p y 40 en la grilla: `uso.codecsVideo.entrega` (salteados, celdas
+  en placa/cpu, enteros), las fronteras #6/#8 (µs por pase y % de núcleo) y el mosaico (30 cps,
+  colores iguales a los de antes: comparar una captura con `gateway.celdaEnPlaca` apagado).
+
 Linux con VA-API (sin hacer: no hay placa para probar). Sería igual que Windows con
 otras piezas: un `CodecsLinux.cpp` con decodificador y codificador H.264 sobre libva
 (`vaCreateConfig` con `VAProfileH264ConstrainedBaseline`/`VAEntrypointVLD` para
@@ -395,6 +433,31 @@ bundle de ba-app) en un hilo del gateway.
 Criterio: menos cambios de contexto y la misma latencia en la .177; si no mejora, queda
 apagado por omisión (`gateway.afinidad`).
 
+Escrito (2026-11-02, noche, sin compilar todavía):
+
+- `src/core/platform/Nucleos.{hpp,cpp}`: la topología (`topologia`, `resumen`) y el reparto
+  puro (`repartir`: medios = el L3 más grande de los núcleos rápidos, el primero si son
+  iguales, como siempre; gateway = el más grande de los OTROS L3, sin los lógicos a evitar si
+  quedan 2 o más; en un híbrido o con un solo L3, el gateway nada). ba-app sigue igual
+  (`motor/Prioridad.cpp` llama a `armarGrupoMedios`/`alGrupoMedios`; los textos siguen en el
+  dominio «motor»).
+- Gateway: `main.cpp` arma el grupo antes de arrancar nada (`armarGrupoGateway`: Windows
+  `SetProcessDefaultCpuSets`, así los hilos de libwebrtc que no creamos también caen ahí;
+  Linux `sched_setaffinity` en el principal, que heredan los que se crean después) y escribe
+  «procesador: …; hilos del gateway: …». Los hilos calientes además llaman a
+  `ba::platform::nucleos::alGrupoGateway()`: grillas, retornos (`ba-retorno-N`), bajadas y audio
+  de retorno de MediaPump, WireGuard; **GW lo llama en sus hilos de red, trabajo, TURN y en
+  las colas compartidas**.
+- Las interrupciones (`gateway.afinidadEvitar`, «auto»): Linux suma `/proc/interrupts` de las
+  placas de red y evita las CPU con 20 % o más; Windows evita el 0 y el 1 (sin RSS, ahí caen
+  las DPC de la placa). «» = ninguno; «0,1», «0-3» = esos.
+- `gateway.afinidad` (de fábrica sí, para comparar apagado). En la .177 (dos CCD de 12): medios
+  de ba-app en uno, gateway en el otro.
+- Cómo se prueba: `test_nucleos` (5900X, evitar, un L3, híbrido, CCD desparejos, /proc/interrupts);
+  en la .177 la línea del log y, con `muestrear-win.ps1`, en qué núcleos corre cada hilo del
+  gateway; medir con `gateway.afinidad` prendido y apagado (cambios de contexto, edad del
+  audio, mosaico).
+
 ### F5 — WireGuard
 
 1. lwIP en el mismo hilo que recibe y descifra (#17): sin cola ni despertar por UDP
@@ -410,6 +473,37 @@ apagado por omisión (`gateway.afinidad`).
 
 Criterio (con `hinchada --wireguard`): con 40, el camino WireGuard cuesta como mucho un
 20 % más de CPU que el de pinggy, sin pérdidas.
+
+Escrito (2026-11-02, noche, sin compilar todavía):
+
+```
+VPS ─UDP─► [wireguard] poll → recvmmsg (tanda) → descifra la tanda → lwIP (mismo hilo)
+             ─► SumideroRtc::entregar(tanda) ─► sockets en memoria de GW (hilo de red Ri)
+vuelta: GW SendTo ─► IpStack::enviarDesdeRtc (cola, despierta si estaba vacía) ─► lwIP ─►
+             cifra en tanda ─► sendmmsg ─► VPS
+```
+
+- `WgDevice`: `cederBucle()` (la pila IP corre el bucle con `servir()`; `retomarBucle()` al
+  pararla), recibe en tanda (`recvmmsg` en Linux, `recvfrom` hasta vaciar en los demás), los
+  datos de la tanda se descifran juntos y se entregan en orden (los mensajes de handshake en
+  el medio cortan la tanda: el orden se respeta), cifra en tanda (`empezarTanda`/
+  `terminarTanda`, `sendmmsg` en Linux). Sin `std::vector` por paquete (búferes del
+  dispositivo). #16 preparado: `DescifradorParalelo` (cada `DescifradoWg` es independiente;
+  el anti-replay se marca al entregar), sin implementación.
+- `IpStack`: lwIP en el hilo de WireGuard (se llama «wireguard»): sin la cola `inbound` ni el
+  despertar por UDP local (#17); `poll`/`WSAPoll` en vez de `select`; despertador por eventfd
+  (Linux), pipe (macOS) o UDP local (Windows) solo para las tareas y la vuelta de WebRTC, y
+  solo si su cola estaba vacía.
+- En memoria (#18/#19): `SumideroRtc` + `IpStack::setSumidero` + `IpStack::enviarDesdeRtc`
+  (IpStack.hpp). **Lo enchufa GW** con su `PacketSocketFactory` en memoria (F1): una llamada
+  por tanda con todos los datagramas para los puertos de WebRTC; GW los reparte a los hilos de
+  red de cada grupo (en lote). Sin sumidero, o con `gateway.wgEnMemoria` apagado, el camino
+  de siempre (un socket local por invitado y `sendto`), que es lo que queda hasta que GW lo
+  enchufe. `IpStack::Stats` dice `enMemoria`, `aRtc` y `desdeRtc`.
+- Cómo se prueba: `test_ipstack` 6 (un sumidero de eco: ida y vuelta en memoria, 20 seguidos
+  con su respuesta, una llamada por tanda) y los 1-5 de siempre por el respaldo;
+  `test_wireguard` (el dispositivo con su hilo propio, ahora en tanda). Con carga:
+  `hinchada --wireguard` y las fronteras #17-#20.
 
 ## Cómo se mide (cada etapa)
 
