@@ -105,8 +105,13 @@ function EsNuestro([string]$n) { foreach ($x in $Nombres) { if ($n -eq $x -or $n
 
 function Leer {
     $s = @{ t = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds() / 1000.0 }
-    $s.procs = @(Get-CimInstance Win32_PerfRawData_PerfProc_Process | Where-Object { EsNuestro $_.Name } |
-        Select-Object Name, IDProcess, PercentProcessorTime, Timestamp_Sys100NS, ThreadCount, WorkingSet, PrivateBytes)
+    # Los procesos con Get-Process (NtQuerySystemInformation, en este proceso): la clase WMI
+    # Win32_PerfRawData_PerfProc_Process hace que WmiPrvSE arme los datos de TODOS los procesos e
+    # hilos en cada consulta (más de medio núcleo de WmiPrvSE por segundo de muestreo).
+    $ahora = [DateTime]::UtcNow.Ticks
+    $s.procs = @(Get-Process -Name $Nombres -ErrorAction SilentlyContinue | ForEach-Object {
+        [pscustomobject]@{ Name = $_.ProcessName; IDProcess = $_.Id; PercentProcessorTime = $_.TotalProcessorTime.Ticks;
+            Timestamp_Sys100NS = $ahora; ThreadCount = $_.Threads.Count; WorkingSet = $_.WorkingSet64; PrivateBytes = $_.PrivateMemorySize64 } })
     $s.hilos = @{}
     $s.porHilo = @{}
     $todos = [BaHilos]::Hilos([int[]]@($s.procs | ForEach-Object { [int]$_.IDProcess }))
