@@ -359,6 +359,53 @@ sala::enlace::Medicion idaYVuelta(double kbps, double rttReposoMs, double rttCar
     return m;
 }
 
+// --- Lo que se lee de la app -----------------------------------------------------------------
+
+double edadAudioInvitados(const json& latencia) {
+    std::vector<double> v;
+    if (!latencia.is_object()) return -1;
+    for (const json& e : latencia.value("entradas", json::array())) {
+        if (!e.is_object() || !e.value("audio", false) || e.value("video", false)) continue;
+        if (e.value("entrada", std::string()).rfind("Invitado", 0) != 0) continue;
+        const double edad = e.value("edad_p50_ms", -1.0);
+        if (edad >= 0) v.push_back(edad);
+    }
+    if (v.empty()) return -1;
+    std::sort(v.begin(), v.end());
+    return v[v.size() / 2];
+}
+
+double cpsDeMedicion(const json& medicion) {
+    double peor = -1;
+    if (!medicion.is_object()) return -1;
+    for (const json& g : medicion.value("grillas", json::array())) {
+        if (!g.is_object()) continue;
+        for (const char* k : {"entrada", "programa"}) {
+            const auto it = g.find(k);
+            if (it == g.end() || !it->is_object() || it->value("cuadros", 0) <= 1) continue;
+            const double cps = it->value("cps", -1.0);
+            if (cps >= 0) peor = peor < 0 ? cps : std::min(peor, cps);
+        }
+    }
+    return peor;
+}
+
+GenteSala genteDe(const json& participantes) {
+    GenteSala g;
+    if (!participantes.is_array()) return g;
+    for (const json& p : participantes) {
+        if (!p.is_object()) continue;
+        const bool conectado = p.value("connected", false);
+        if (p.value("prueba", false)) {
+            ++g.prueba;
+            if (conectado && p.value("mediaUp", false)) ++g.pruebaConVideo;
+        } else if (conectado) {
+            ++g.reales;
+        }
+    }
+    return g;
+}
+
 // --- El código del que recibe ----------------------------------------------------------------
 
 namespace {

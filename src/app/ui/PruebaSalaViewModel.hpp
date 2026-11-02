@@ -44,6 +44,7 @@
 #include <nlohmann/json.hpp>
 
 #include <filesystem>
+#include <functional>
 #include <memory>
 
 #include "sala/PruebaSalaReglas.hpp"
@@ -129,6 +130,9 @@ class PruebaSalaViewModel : public QObject {
     /// la cuenta del enlace para `n`, `enlace`).
     Q_INVOKABLE void revisarMaquina(int n = 10, bool conHinchada = true);
 
+    /// Otra prueba que ocupa la sala (la de capacidad): "" o qué está corriendo.
+    void setOtraPrueba(std::function<QString()> f) { otraPrueba_ = std::move(f); }
+
     /// Todo junto, para el MCP: estado, generador, entrada directa, acceso (sin la
     /// credencial si `conCredencial` es false), vivo, máquina y el último informe.
     nlohmann::json estadoJson(bool conCredencial) const;
@@ -157,6 +161,7 @@ class PruebaSalaViewModel : public QObject {
     static int64_t ahoraMs();
 
     Partes p_;
+    std::function<QString()> otraPrueba_;
     QString estado_ = QStringLiteral("apagada");
     QString generador_;
     bool directa_ = false;

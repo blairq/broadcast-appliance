@@ -161,6 +161,19 @@ std::string armarCodigo(const Codigo& c);
 /// false si no es un código de capacidad (o le falta la URL o la credencial).
 bool leerCodigo(const std::string& texto, Codigo& c);
 
+/// La edad del audio de los invitados (mediana de su edad p50) de lo que da la latencia del
+/// estudio (estudio_latencia: `entradas` con audio y sin video que empiezan con «Invitado»).
+/// -1 si no hay ninguno.
+double edadAudioInvitados(const nlohmann::json& latencia);
+/// Los cuadros por segundo de la grilla de lo que da grilla_personas_medir: el peor mosaico
+/// (la entrada y, si está al aire, el programa). -1 si no midió nada.
+double cpsDeMedicion(const nlohmann::json& medicion);
+/// De la foto de la sala: {entraron, conVideo} de los de prueba y cuántos reales hay conectados.
+struct GenteSala {
+    int prueba = 0, pruebaConVideo = 0, reales = 0;
+};
+GenteSala genteDe(const nlohmann::json& participantes);
+
 /// Lo que se guarda en el historial: un nombre de archivo para la fecha y la máquina.
 std::string nombreArchivo(int64_t inicioMs, const std::string& maquina, const std::string& tipo);
 /// Un nombre de máquina apto para archivo (sin barras ni espacios raros).

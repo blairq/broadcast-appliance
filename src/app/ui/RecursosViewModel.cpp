@@ -55,6 +55,26 @@ QString RecursosViewModel::titulo(const QString& clave) const {
     return clave;
 }
 
+void RecursosViewModel::medirTambien(const std::string& nombre, const std::vector<std::uint32_t>& pids) {
+    const auto it = aparte_.find(nombre);
+    if (pids.empty()) {
+        if (it == aparte_.end()) return;
+        aparte_.erase(it);
+    } else {
+        if (it != aparte_.end() && it->second == pids) return;
+        aparte_[nombre] = pids;
+    }
+    ponerProcesos();
+}
+
+void RecursosViewModel::ponerProcesos() {
+    std::vector<std::pair<std::string, std::uint32_t>> quienes;
+    if (gatewayPid_ != 0) quienes.emplace_back("gateway", gatewayPid_);
+    for (const auto& [nombre, pids] : aparte_)
+        for (std::uint32_t p : pids) quienes.emplace_back(nombre, p);
+    recursos_->procesos(std::move(quienes));
+}
+
 void RecursosViewModel::publicar() {
     // Los umbrales, de los ajustes avanzados (se leen en cada vuelta: cambiarlos no pide reiniciar).
     diag::Recursos::Umbrales u;
@@ -83,7 +103,7 @@ void RecursosViewModel::publicar() {
     // El gateway se relanza con otro pid: se sigue al que está.
     if (const std::uint32_t gw = rt_.gatewayPid(); gw != gatewayPid_) {
         gatewayPid_ = gw;
-        recursos_->procesos({{"gateway", gw}});
+        ponerProcesos();
     }
 
     const diag::Recursos::Muestra m = recursos_->ultima();
