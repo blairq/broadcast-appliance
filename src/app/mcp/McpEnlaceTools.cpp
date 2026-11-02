@@ -8,6 +8,7 @@
 // ============================================================================
 
 #include "i18n/I18n.hpp"
+#include "ipc/LugaresSala.hpp"
 #include "mcp/McpService.hpp"
 #include "mcp/McpToolsCommon.hpp"
 #include "ui/EnlaceViewModel.hpp"
@@ -85,7 +86,7 @@ void McpService::registerEnlaceTools() {
                    "WireGuard, y contra la última medición: veredicto (entra | justo | no_entra | sin_medir), por qué "
                    "y hasta cuántos invitados entran con margen.");
         t.inputSchema = {{"type", "object"},
-                         {"properties", {{"invitados", {{"type", "integer"}, {"minimum", 1}, {"maximum", 64}}}}}};
+                         {"properties", {{"invitados", {{"type", "integer"}, {"minimum", 1}, {"maximum", ba::ipc::kMaxInvitados}}}}}};
         t.run = [&en](const json& a, Done done) { done(ToolResult().data(en.necesidadPara(a.value("invitados", en.invitados())))); };
         core_.addTool(std::move(t));
     }

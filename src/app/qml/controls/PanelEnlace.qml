@@ -57,7 +57,7 @@ Panel {
             spacing: 8
             Text { text: qsTr("Invitados"); color: Theme.textDim; font.pixelSize: 12 }
             SpinBox {
-                from: 1; to: 64; editable: true
+                from: 1; to: panel.en.maxInvitados; editable: true
                 value: panel.en.invitados
                 onValueModified: panel.en.invitados = value
             }

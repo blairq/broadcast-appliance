@@ -43,7 +43,7 @@ Panel {
             Text { text: qsTr("Participantes"); color: Theme.textDim; font.pixelSize: 12 }
             SpinBox {
                 id: cuantos
-                from: 1; to: 64; value: 10; editable: true
+                from: 1; to: panel.ps.maxParticipantes; value: 10; editable: true
                 Layout.fillWidth: true
                 onValueModified: panel.ps.revisarMaquina(value, conHinchada.checked)
             }
