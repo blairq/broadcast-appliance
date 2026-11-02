@@ -150,6 +150,25 @@ integra sola. Si no mejora lo que promete, se frena y se revisa.
 
 Criterio: la tabla de fronteras con números medidos en vez de estimados.
 
+**Herramientas (hechas, 2026-11-02):**
+
+- `src/core/diag/Frontera.hpp`: contadores por frontera (atómicos relajados) en #1 #2 #3 #14
+  (TURN), #6 #7 (grilla), #8 (decodificado: la espera es desde que llegó el primer paquete
+  del cuadro), #10 (playout), #11 #12 #13 (retorno video y audio) y #17-#20 (WireGuard/
+  ipstack). #4 (red → trabajo de libwebrtc), #5, #9, #15 y #16 quedan adentro de libwebrtc o
+  de WgDevice sin enganche propio. Se ven en `gateway_estado` (MCP, GET /api/v1/gateway).
+- hinchada `--turn udp|tcp|mezcla:PCT` (y `--turn-host`); del retorno: cps, congelamientos,
+  tamaño, RTT, jitter, pérdida, NACK/PLI que pide, jitter buffer, primer cuadro, edad de lo que
+  se reproduce y el camino (`relay/udp`, `relay/tcp`…).
+- `tools/carga/medir-sala.py`: `--camino`, `--duracion`, `--rafaga`, `--palabra K`,
+  `--grabar-transmitir`, `--xctrace S [--contadores]` (Mac, `tools/carga/xctrace.py`),
+  `--etw S` (Windows, `tools/carga/etw-win.ps1` + `ba-nucleos.wprp`); `muestrear-win.ps1` da
+  los hilos por nombre, cada núcleo (ocupado, DPC, interrupciones, MHz) y la placa de red.
+- Lo que no hay: en la Mac, interrupciones por núcleo (piden sudo: powermetrics); IPC y
+  fallos de caché por evento (Mac: plantilla propia de Instruments; Windows: xperf del ADK o
+  AMD uProf, sin instalar); cambios de contexto por núcleo en Windows (tracerpt no decodifica
+  CSwitch: por hilo salen de WMI).
+
 ### F1 — Lo vertical de la red: TURN y red de WebRTC en el mismo hilo, sin el kernel
 
 1. `rtc::PacketSocketFactory` propio (`src/gateway/rtc/SocketsEnMemoria.*`): el puerto
