@@ -214,7 +214,7 @@ class Grillas {
     /// pintor van los dos a 30 pero sin la misma fase, y con el temblor de la red y del
     /// decodificador a veces llegaban dos entre una vuelta y la otra (uno se pisaba) y a
     /// veces ninguno (se repetía): 30 que llegan se veían a 24-27.
-    static constexpr int kCola = 3;
+    static constexpr int kCola = 4;
     struct Retrato {
         std::mutex m;
         Foto cola[kCola];             ///< los últimos, por seq % kCola

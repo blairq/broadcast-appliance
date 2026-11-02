@@ -623,14 +623,15 @@ std::shared_ptr<Grillas::Retrato> Grillas::retratoParaCuadro(const std::string& 
     if (!r) return nullptr; // no está en ninguna grilla: ni se toca
     {
         // Lo que llega mucho más rápido que el ritmo de las grillas (60 cps contra 30) se
-        // achicaría para no pintarse. Un balde: entra a 1,25 veces el ritmo del pintor en
-        // promedio, con ráfagas de hasta 2 (el temblor de una cámara a su ritmo: antes, el
-        // cuadro que llegaba a menos de medio período del anterior se tiraba, y con el temblor
-        // de la red una cámara a 30 perdía de a uno).
+        // achicaría para no pintarse. Un balde: entra a 1,5 veces el ritmo del pintor en
+        // promedio, con ráfagas de hasta kCola + 1. El decodificador entrega a ráfagas (con 10
+        // invitados, de a 3 o 4 después de un hueco): con ráfagas de 2 se tiraba el 3-5 % de
+        // una cámara a 30; antes, el que llegaba a menos de medio período del anterior se tiraba.
         std::lock_guard<std::mutex> l(r->m);
         const double periodoMs = static_cast<double>(periodoPintarNs_.load(std::memory_order_relaxed)) / 1e6;
-        if (r->creditoMs == 0 || ahora < r->creditoMs) r->credito = 2.0;
-        else r->credito = std::min(2.0, r->credito + 1.25 * static_cast<double>(ahora - r->creditoMs) / periodoMs);
+        constexpr double kRafaga = kCola + 1;
+        if (r->creditoMs == 0 || ahora < r->creditoMs) r->credito = kRafaga;
+        else r->credito = std::min(kRafaga, r->credito + 1.5 * static_cast<double>(ahora - r->creditoMs) / periodoMs);
         r->creditoMs = ahora;
         if (r->credito < 1.0) return nullptr;
         r->credito -= 1.0;
@@ -827,7 +828,11 @@ void Grillas::pintarLocked(Grilla& g, std::int64_t ahora) {
     for (auto it = g.anim.begin(); it != g.anim.end();)
         it = it->second.sale && ahora - it->second.t0 >= g.transicionMs ? g.anim.erase(it) : std::next(it);
     // Un cuadro guardado que llegó hace más de dos vueltas ya se lo perdió el pintor: si hay
-    // uno más nuevo, se saltea (lo que espera no pasa de dos cuadros).
+    // uno más nuevo, se saltea (lo que espera no pasa de dos cuadros). Es lo que cuesta
+    // ponerse al día después de una ráfaga (un cuadro clave que tarda en llegar y los de atrás
+    // que llegan juntos): con la cámara y el pintor al mismo ritmo, el atraso no baja solo.
+    // Medido con 10 invitados: con dos vueltas, ~41 ms de espera y 29 cps por cara; con tres,
+    // 29,4 cps pero ~74 ms.
     const auto atrasoMs = static_cast<std::int64_t>(2 * periodoPintarNs_.load(std::memory_order_relaxed) / 1'000'000ULL);
 
     const auto dibujar = [&](const std::string& persona, const Anim& a) {
