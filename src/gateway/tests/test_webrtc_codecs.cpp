@@ -343,6 +343,10 @@ int main() {
         ba::ajustes::poner("gateway.decodificadorPlaca", modo);
         decodificar(modo);
     }
+    // El respaldo sin la placa (gateway.decodificarConPlaca apagado).
+    ba::ajustes::poner("gateway.decodificarConPlaca", false);
+    decodificar("software");
+    ba::ajustes::poner("gateway.decodificarConPlaca", nullptr);
     // El banco (BA_BANCO_DECODIFICADORES=N): N decodificadores a la vez, cada uno en su hilo y
     // a 30 cuadros por segundo durante 10 s, como N invitados en 720p. CPU del proceso e hilos.
     if (const char* e = std::getenv("BA_BANCO_DECODIFICADORES")) {
