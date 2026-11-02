@@ -170,6 +170,7 @@ class ConferenceViewModel;
 class JsonListModel;
 class EventoViewModel;
 class TemaEventoViewModel;
+class PruebaSalaViewModel;
 namespace sala {
 class ClavesEvento;
 class GuardadoEnEvento;
@@ -265,6 +266,9 @@ class StudioViewModel : public QObject {
     Q_PROPERTY(QObject* botonera READ botoneraQml CONSTANT)
     /// Lo que usa la máquina (CPU, GPU, RAM, red) con su historia y su estado: ui/RecursosViewModel.
     Q_PROPERTY(QObject* recursos READ recursosQml CONSTANT)
+    /// La prueba de sala: el simulacro con participantes de prueba antes del evento
+    /// (ui/PruebaSalaViewModel).
+    Q_PROPERTY(QObject* pruebaSala READ pruebaSalaQml CONSTANT)
     /// El control web (dashboard /control/, /ws?control): aparatos, perfiles y solicitudes. control/ControlWeb.
     Q_PROPERTY(QObject* controlWeb READ controlWebQml CONSTANT)
     /// El área de las superficies de control (ui/ControlViewModel): el tema web,
@@ -543,6 +547,8 @@ class StudioViewModel : public QObject {
     /// El muestreador de recursos de la máquina (tarjeta «Sistema», sistema_recursos, alarmas).
     RecursosViewModel* recursos() const { return recursos_.get(); }
     QObject* recursosQml() const;
+    PruebaSalaViewModel& pruebaSala() { return *pruebaSala_; }
+    QObject* pruebaSalaQml() const;
     /// El corte de luz (F1-11): de dónde viene la energía y la política (arranque/EnergiaAire).
     EnergiaAire* energia() const { return energia_.get(); }
     /// La botonera con el gateway (emparejar tablets, credenciales): control/BotoneraGateway.
@@ -970,6 +976,9 @@ class StudioViewModel : public QObject {
     /// Los tótems de registro: usan la atención (su voz), Personas, el evento y
     /// la sala. Después de la atención, se destruyen antes.
     std::unique_ptr<TotemsViewModel> totems_;
+    /// La prueba de sala: usa la sala, el cupo, los recursos y el evento. Última: se
+    /// destruye antes que ellos (corta el probador y le avisa a la sala).
+    std::unique_ptr<PruebaSalaViewModel> pruebaSala_;
 };
 
 } // namespace ba::app

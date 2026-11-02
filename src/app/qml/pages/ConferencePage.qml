@@ -257,6 +257,7 @@ Rectangle {
                             required property bool talk
                             required property string info
                             required property string contact
+                            required property bool prueba
                             width: ListView.view.width
                             height: waitCol.implicitHeight + 20
                             radius: 14
@@ -334,7 +335,12 @@ Rectangle {
                                     ColumnLayout {
                                         spacing: 0
                                         Layout.fillWidth: true
-                                        Text { text: name; color: Theme.text; font.pixelSize: 14; font.weight: Font.DemiBold; elide: Text.ElideRight; Layout.fillWidth: true }
+                                        RowLayout {
+                                            spacing: 6
+                                            Layout.fillWidth: true
+                                            Text { text: name; color: Theme.text; font.pixelSize: 14; font.weight: Font.DemiBold; elide: Text.ElideRight; Layout.fillWidth: true }
+                                            StatusPill { visible: prueba; text: qsTr("prueba"); dot: Theme.amber }
+                                        }
                                         Text { text: (connected ? qsTr("espera hace %1") : qsTr("desconectado · %1")).arg(page.since(joinedMs)); color: Theme.textFaint; font.pixelSize: 11 }
                                     }
                                 }
@@ -446,6 +452,7 @@ Rectangle {
                             required property string info
                             required property string contact
                             required property bool talk
+                            required property bool prueba
                             width: grid.cellWidth
                             height: grid.cellHeight
                             Rectangle {
@@ -488,6 +495,8 @@ Rectangle {
                                         Rectangle { width: 22; height: 22; radius: 7; color: slot > 0 ? Theme.accent : Qt.rgba(1, 1, 1, 0.18)
                                             Text { anchors.centerIn: parent; text: slot > 0 ? slot : "–"; color: slot > 0 ? "#140a04" : "white"; font { pixelSize: 12; weight: Font.Bold } } }
                                         Text { text: name; color: "white"; font.pixelSize: 14; font.weight: Font.DemiBold; elide: Text.ElideRight; Layout.fillWidth: true }
+                                        // De la prueba de sala: fuera del padrón, la votación y el quórum.
+                                        StatusPill { visible: prueba; text: qsTr("prueba"); dot: Theme.amber }
                                         Text { visible: hand; text: "✋"; font.pixelSize: 16 }
                                         // Achicada, solo lo que avisa algo: el nombre tiene que leerse.
                                         StatusPill { visible: !barra.compacta || !mic; text: mic ? qsTr("mic") : qsTr("mic off"); dot: mic ? Theme.ok : Theme.live }
@@ -952,6 +961,9 @@ Rectangle {
                         }
                     }
                 }
+
+                // La prueba de sala: el simulacro con participantes de prueba antes del evento.
+                PanelPruebaSala { Layout.fillWidth: true }
 
                 // Quién de la sala se ve en cada grilla de personas (resumen; tocando una cara
                 // se la fija, saca o mueve). Solo si hay alguna grilla.

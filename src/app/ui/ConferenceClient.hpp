@@ -152,7 +152,7 @@ class ConferenceClient : public QObject {
     void prompterEvento(const QJsonObject& ev);
     /// Cambió algo que llega a la sala y guarda el evento (sala/GuardadoEnEvento):
     /// `nombre` "votacion" ({votacion, foto, evento}) o "preguntas" ({preguntas, recuento,
-    /// proxima, foto, evento}).
+    /// proxima, foto, evento}); "prueba-sala" ({activa, directa, motivo?…}) y "prueba-sala-hd" ({id, ms}).
     void estadoEvento(const QString& nombre, const QJsonObject& ev);
     /// Encargaron un rótulo desde un celular: hay que ir a buscarlo ({pendientes}).
     void rotulosEvento(const QJsonObject& ev);

@@ -47,6 +47,7 @@
 #include "sala/CupoSala.hpp"
 #include "ui/AlarmasViewModel.hpp"
 #include "ui/AtencionViewModel.hpp"
+#include "ui/PruebaSalaViewModel.hpp"
 #include "ui/BitacoraEvento.hpp"
 #include "ui/CapturaError.hpp"
 #include "ui/CarruselViewModel.hpp"
@@ -918,6 +919,11 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, VentanillaMotor& ventanilla, QO
     if (qr_) qr_->setTotems([this]() { return totems_ ? totems_->paraElegir() : QVariantList{}; });
     escritorio_->refrescarCatalogo();
     marca("totems");
+    // La prueba de sala (simulacro antes del evento): la sala, su cupo, los recursos y el evento.
+    pruebaSala_ = std::make_unique<PruebaSalaViewModel>(PruebaSalaViewModel::Partes{
+        conference_->client(), cupoSala(), *recursos_, *evento_, rt.dataRoot()});
+    connect(pruebaSala_.get(), &PruebaSalaViewModel::notify, this, &StudioViewModel::notify);
+    marca("prueba_sala");
     // Sin un reloj de la interfaz a 10 Hz: cada cosa por su aviso.
     //   - Los vúmetros (el programa y cada tira) y los niveles del bus: a 10 Hz SOLO con
     //     alguien mirando (una vista, o quien los pidió al bus) y algo que suene
@@ -1520,6 +1526,10 @@ void StudioViewModel::publicarSegundo() {
 }
 
 QObject* StudioViewModel::botoneraQml() const { return control_->botoneraQml(); }
+QObject* StudioViewModel::pruebaSalaQml() const {
+    QQmlEngine::setObjectOwnership(pruebaSala_.get(), QQmlEngine::CppOwnership);
+    return pruebaSala_.get();
+}
 QObject* StudioViewModel::recursosQml() const {
     if (recursos_) QQmlEngine::setObjectOwnership(recursos_.get(), QQmlEngine::CppOwnership);
     return recursos_.get();

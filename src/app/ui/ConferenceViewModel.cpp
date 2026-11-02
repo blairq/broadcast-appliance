@@ -70,10 +70,10 @@ QStringList filasDe(const sala::Enlace& e) {
 ConferenceViewModel::ConferenceViewModel(AppRuntime& rt, VentanillaMotor& ventanilla, QObject* parent)
     : QObject(parent), rt_(rt), ventanilla_(ventanilla), client_(std::make_unique<ConferenceClient>()),
       waiting_(std::make_unique<JsonListModel>(
-          QStringList{"uid", "name", "connected", "joinedMs", "lobbySlot", "talk", "info", "contact"})),
+          QStringList{"uid", "name", "connected", "joinedMs", "lobbySlot", "talk", "info", "contact", "prueba"})),
       inside_(std::make_unique<JsonListModel>(QStringList{"uid", "name", "slot", "connected", "mediaUp",
                                                           "mic", "cam", "screen", "hand", "admittedMs",
-                                                          "presenter", "speaker", "info", "contact", "talk"})),
+                                                          "presenter", "speaker", "info", "contact", "talk", "prueba"})),
       shares_(std::make_unique<JsonListModel>(
           QStringList{"uid", "name", "kind", "mime", "bytes", "participantName", "path", "atMs", "url"})),
       chat_(std::make_unique<JsonListModel>(
@@ -420,13 +420,15 @@ void ConferenceViewModel::onSnapshot() {
         if (p.value("state").toString() == "waiting") {
             waiting.append(p);
             nowWaiting << p.value("id").toString();
-            if (!knownWaiting_.contains(p.value("id").toString()) && !firstSnapshot_) {
+            // Los de la prueba de sala no se anuncian ni los atiende el asistente.
+            const bool dePrueba = p.value("prueba").toBool();
+            if (!dePrueba && !knownWaiting_.contains(p.value("id").toString()) && !firstSnapshot_) {
                 emit notify(tr("%1 espera en el lobby").arg(p.value("name").toString()), "info");
             }
             // Atencion automatica: se le encarga al asistente una sola vez por
             // persona (mientras siga esperando).
             const QString pid = p.value("id").toString();
-            if (autoIntake() && intakeSink_ && !intakeDone_.contains(pid)) {
+            if (!dePrueba && autoIntake() && intakeSink_ && !intakeDone_.contains(pid)) {
                 intakeDone_.insert(pid);
                 // UN MOMENTO ANTES DE ABORDARLO, a propósito. El
                 // reconocimiento de rostros necesita una vuelta para tener algo
