@@ -77,6 +77,7 @@
 #include "diag/Registro.hpp"
 #include "platform/Hilo.hpp"
 
+#include "CodecsVideo.hpp" // CuadroEnPlaca (F3)
 #include "H264Sintaxis.hpp"
 
 #include "api/video/encoded_image.h"
@@ -91,6 +92,8 @@
 #include "modules/video_coding/codecs/interface/common_constants.h"
 #include "modules/video_coding/include/video_codec_interface.h"
 #include "modules/video_coding/include/video_error_codes.h"
+#include "rtc_base/ref_counted_object.h"
+#include "third_party/libyuv/include/libyuv/convert_argb.h"
 #include "third_party/libyuv/include/libyuv/convert.h"
 #include "third_party/libyuv/include/libyuv/convert_from.h"
 
@@ -691,6 +694,8 @@ std::shared_ptr<DispositivoVideo> dispositivoVideo() {
 }
 
 std::atomic<int> gDecD3d{0};
+std::atomic<bool> gAvisoVp{false};      ///< F3: la placa no achica la grilla (avisado una vez)
+std::atomic<long long> gCeldasPlaca{0}; ///< F3: celdas de la grilla achicadas en la placa
 std::atomic<bool> gAvisoD3d{false};
 
 class DecodificadorD3d11 : public webrtc::VideoDecoder {
@@ -814,7 +819,7 @@ class DecodificadorD3d11 : public webrtc::VideoDecoder {
             return error("la placa no tomó el cuadro (" + hex(hrUltimo_) + ")");
         }
         dpb_.terminar(sup);
-        if (!entregar(img, sps)) return error("no se pudo leer el cuadro de la placa (" + hex(hrUltimo_) + ")");
+        if (!entregar(img, sps, sup)) return error("no se pudo leer el cuadro de la placa (" + hex(hrUltimo_) + ")");
         errores_ = 0;
         return WEBRTC_VIDEO_CODEC_OK;
     }
@@ -847,6 +852,7 @@ class DecodificadorD3d11 : public webrtc::VideoDecoder {
 
     void soltarPlaca() {
         if (decodificador_) --gDecD3d;
+        soltarProcesador(); // sus vistas apuntan a las superficies que se sueltan
         vistas_.clear();
         decodificador_.Reset();
         textura_.Reset();
@@ -1077,55 +1083,280 @@ class DecodificadorD3d11 : public webrtc::VideoDecoder {
             ok = false;
         }
         if (!ok) return false;
-        dev_->ctx->CopySubresourceRegion(paso_.Get(), 0, 0, 0, 0, textura_.Get(),
-                                         D3D11CalcSubresource(0, static_cast<UINT>(sup), 1), nullptr);
-        esperaCerca_ = false;
-        if (cerca_) {
-            ++valorCerca_;
-            if (SUCCEEDED(dev_->ctx4->Signal(cerca_.Get(), valorCerca_)) &&
-                SUCCEEDED(cerca_->SetEventOnCompletion(valorCerca_, evento_)))
-                esperaCerca_ = true;
-        }
         dev_->ctx->Flush();
         return true;
     }
 
-    /// Espera la copia (durmiendo, con la cerca), lee la textura de paso y la entrega en I420.
-    bool entregar(const webrtc::EncodedImage& img, const h264::Sps& sps) {
-        if (esperaCerca_ && WaitForSingleObject(evento_, 1000) != WAIT_OBJECT_0) {
+    // --- F3: el cuadro se queda en la placa hasta que alguien pida algo ---------------------
+    //
+    // Antes cada cuadro se copiaba a la textura de paso, se bajaba entero (NV12, 1,4 MB un
+    // 720p) y se pasaba a I420 aunque después nadie lo usara entero: la grilla lo achicaba a
+    // un cuadrito y a ba-app solo van los que están en una ruta. Ahora sale un BufferPlaca
+    // (kNative) que baja el cuadro recién cuando alguien pide el I420 (ToI420), y el
+    // decodificador se anuncia como CuadroEnPlaca (CodecsVideo.hpp) mientras llama a
+    // Decoded(): el sink de la cámara (codecs::entregarCamara) le pide la celda de la grilla
+    // achicada en la placa (ID3D11VideoProcessor: NV12 → BGRA del tamaño de la celda, de una)
+    // y baja solo eso, o el BGRA entero sin pasar por I420. La superficie es válida hasta el
+    // próximo Decode de este decodificador (en este mismo hilo); si alguien se quedó con el
+    // buffer después de Decoded(), se baja en ese momento (materializar).
+
+    /// El buffer del cuadro que se está entregando. Vive en la superficie `sup_` del arreglo.
+    class BufferPlaca : public webrtc::VideoFrameBuffer {
+       public:
+        BufferPlaca(DecodificadorD3d11* d, int w, int h) : dec_(d), w_(w), h_(h) {}
+        Type type() const override { return Type::kNative; }
+        int width() const override { return w_; }
+        int height() const override { return h_; }
+        rtc::scoped_refptr<webrtc::I420BufferInterface> ToI420() override {
+            std::lock_guard<std::mutex> l(m_);
+            if (!i420_ && dec_ != nullptr) i420_ = dec_->bajarI420();
+            return i420_;
+        }
+        /// El decodificador va a reusar la superficie: si alguien se quedó con este buffer,
+        /// se baja ahora; después ya no se toca la placa.
+        void desligar(bool materializar) {
+            std::lock_guard<std::mutex> l(m_);
+            if (materializar && !i420_ && dec_ != nullptr) i420_ = dec_->bajarI420();
+            dec_ = nullptr;
+        }
+
+       private:
+        std::mutex m_;
+        DecodificadorD3d11* dec_;
+        int w_, h_;
+        rtc::scoped_refptr<webrtc::I420BufferInterface> i420_;
+    };
+
+    /// El cuadro en la placa que ve entregarCamara mientras dura Decoded().
+    class EnPlaca : public codecs::CuadroEnPlaca {
+       public:
+        EnPlaca(DecodificadorD3d11& d, const webrtc::VideoFrameBuffer* b) : d_(d), b_(b) {}
+        const webrtc::VideoFrameBuffer* buffer() const override { return b_; }
+        bool celdaBgra(int tw, int th, uint8_t* dst, int paso) override { return d_.celdaBgra(tw, th, dst, paso); }
+        bool enteroBgra(uint8_t* dst, int paso) override { return d_.enteroBgra(dst, paso); }
+
+       private:
+        DecodificadorD3d11& d_;
+        const webrtc::VideoFrameBuffer* b_;
+    };
+
+    /// Pone la cerca detrás de lo encolado, larga el candado y espera (durmiendo). Sin cerca,
+    /// Map espera solo. false si la placa no terminó en 1 s.
+    bool esperarPlaca(std::unique_lock<std::mutex>& l) {
+        bool espera = false;
+        if (cerca_) {
+            ++valorCerca_;
+            espera = SUCCEEDED(dev_->ctx4->Signal(cerca_.Get(), valorCerca_)) &&
+                     SUCCEEDED(cerca_->SetEventOnCompletion(valorCerca_, evento_));
+        }
+        dev_->ctx->Flush();
+        l.unlock();
+        if (espera && WaitForSingleObject(evento_, 1000) != WAIT_OBJECT_0) {
             hrUltimo_ = HRESULT_FROM_WIN32(WAIT_TIMEOUT);
+            l.lock();
             return false;
         }
-        D3D11_MAPPED_SUBRESOURCE m{};
-        HRESULT hr;
-        {
-            std::lock_guard<std::mutex> l(dev_->m);
-            hr = dev_->ctx->Map(paso_.Get(), 0, D3D11_MAP_READ, 0, &m);
-        }
+        l.lock();
+        return true;
+    }
+
+    /// Copia la superficie del cuadro a la textura de paso, espera y la deja mapeada (con el
+    /// candado del dispositivo tomado en `l`). false si no se pudo.
+    bool mapearPaso(std::unique_lock<std::mutex>& l, D3D11_MAPPED_SUBRESOURCE& m) {
+        dev_->ctx->CopySubresourceRegion(paso_.Get(), 0, 0, 0, 0, textura_.Get(),
+                                         D3D11CalcSubresource(0, static_cast<UINT>(sup_), 1), nullptr);
+        if (!esperarPlaca(l)) return false;
+        const HRESULT hr = dev_->ctx->Map(paso_.Get(), 0, D3D11_MAP_READ, 0, &m);
         if (FAILED(hr)) {
             hrUltimo_ = hr;
             return false;
         }
-        const int w = sps.ancho(), h = sps.alto();
-        rtc::scoped_refptr<webrtc::I420Buffer> i420 = pozo_.CreateI420Buffer(w, h);
-        if (!i420) i420 = webrtc::I420Buffer::Create(w, h);
+        return true;
+    }
+
+    /// El cuadro entero bajado a I420 (lo de siempre; para quien pida ToI420).
+    rtc::scoped_refptr<webrtc::I420BufferInterface> bajarI420() {
+        std::unique_lock<std::mutex> l(dev_->m);
+        D3D11_MAPPED_SUBRESOURCE m{};
+        if (!mapearPaso(l, m)) return nullptr;
+        rtc::scoped_refptr<webrtc::I420Buffer> i420 = pozo_.CreateI420Buffer(w_, h_);
+        if (!i420) i420 = webrtc::I420Buffer::Create(w_, h_);
         const auto* base = static_cast<const uint8_t*>(m.pData);
         const ptrdiff_t paso = static_cast<ptrdiff_t>(m.RowPitch);
-        const uint8_t* y = base + static_cast<ptrdiff_t>(sps.crop_arr) * paso + sps.crop_izq;
-        const uint8_t* uv = base + static_cast<ptrdiff_t>(altoCod_) * paso + static_cast<ptrdiff_t>(sps.crop_arr / 2) * paso +
-                            (sps.crop_izq & ~1);
+        const uint8_t* y = base + static_cast<ptrdiff_t>(cropArr_) * paso + cropIzq_;
+        const uint8_t* uv = base + static_cast<ptrdiff_t>(altoCod_) * paso + static_cast<ptrdiff_t>(cropArr_ / 2) * paso + (cropIzq_ & ~1);
         libyuv::NV12ToI420(y, static_cast<int>(paso), uv, static_cast<int>(paso), i420->MutableDataY(), i420->StrideY(),
-                           i420->MutableDataU(), i420->StrideU(), i420->MutableDataV(), i420->StrideV(), w, h);
-        {
-            std::lock_guard<std::mutex> l(dev_->m);
-            dev_->ctx->Unmap(paso_.Get(), 0);
+                           i420->MutableDataU(), i420->StrideU(), i420->MutableDataV(), i420->StrideV(), w_, h_);
+        dev_->ctx->Unmap(paso_.Get(), 0);
+        return i420;
+    }
+
+    /// El cuadro entero en BGRA, del NV12 bajado directo (sin el I420 del medio).
+    bool enteroBgra(uint8_t* dst, int pasoDst) {
+        std::unique_lock<std::mutex> l(dev_->m);
+        D3D11_MAPPED_SUBRESOURCE m{};
+        if (!mapearPaso(l, m)) return false;
+        const auto* base = static_cast<const uint8_t*>(m.pData);
+        const ptrdiff_t paso = static_cast<ptrdiff_t>(m.RowPitch);
+        const uint8_t* y = base + static_cast<ptrdiff_t>(cropArr_) * paso + cropIzq_;
+        const uint8_t* uv = base + static_cast<ptrdiff_t>(altoCod_) * paso + static_cast<ptrdiff_t>(cropArr_ / 2) * paso + (cropIzq_ & ~1);
+        libyuv::NV12ToARGB(y, static_cast<int>(paso), uv, static_cast<int>(paso), dst, pasoDst, w_, h_);
+        dev_->ctx->Unmap(paso_.Get(), 0);
+        return true;
+    }
+
+    /// El procesador de video de la placa para achicar a `tw`x`th` (se rehace si cambia el
+    /// tamaño de la celda o del flujo). Con el candado del dispositivo tomado.
+    bool prepararProcesador(int tw, int th) {
+        if (vpRoto_) return false;
+        if (vp_ && vpW_ == tw && vpH_ == th && vpCodW_ == anchoCod_ && vpCodH_ == altoCod_) return true;
+        soltarProcesador();
+        D3D11_VIDEO_PROCESSOR_CONTENT_DESC cd{};
+        cd.InputFrameFormat = D3D11_VIDEO_FRAME_FORMAT_PROGRESSIVE;
+        cd.InputWidth = static_cast<UINT>(anchoCod_);
+        cd.InputHeight = static_cast<UINT>(altoCod_);
+        cd.OutputWidth = static_cast<UINT>(tw);
+        cd.OutputHeight = static_cast<UINT>(th);
+        cd.Usage = D3D11_VIDEO_USAGE_OPTIMAL_SPEED;
+        HRESULT hr = dev_->vdev->CreateVideoProcessorEnumerator(&cd, &vpEnum_);
+        UINT fmt = 0;
+        if (SUCCEEDED(hr)) hr = vpEnum_->CheckVideoProcessorFormat(DXGI_FORMAT_NV12, &fmt);
+        if (SUCCEEDED(hr) && !(fmt & D3D11_VIDEO_PROCESSOR_FORMAT_SUPPORT_INPUT)) hr = E_NOTIMPL;
+        if (SUCCEEDED(hr)) hr = vpEnum_->CheckVideoProcessorFormat(DXGI_FORMAT_B8G8R8A8_UNORM, &fmt);
+        if (SUCCEEDED(hr) && !(fmt & D3D11_VIDEO_PROCESSOR_FORMAT_SUPPORT_OUTPUT)) hr = E_NOTIMPL;
+        if (SUCCEEDED(hr)) hr = dev_->vdev->CreateVideoProcessor(vpEnum_.Get(), 0, &vp_);
+        D3D11_TEXTURE2D_DESC td{};
+        td.Width = static_cast<UINT>(tw);
+        td.Height = static_cast<UINT>(th);
+        td.MipLevels = 1;
+        td.ArraySize = 1;
+        td.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
+        td.SampleDesc.Count = 1;
+        td.Usage = D3D11_USAGE_DEFAULT;
+        td.BindFlags = D3D11_BIND_RENDER_TARGET;
+        D3D11_TEXTURE2D_DESC sd = td;
+        sd.Usage = D3D11_USAGE_STAGING;
+        sd.BindFlags = 0;
+        sd.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
+        if (SUCCEEDED(hr)) hr = dev_->dev->CreateTexture2D(&td, nullptr, &vpSalida_);
+        if (SUCCEEDED(hr)) hr = dev_->dev->CreateTexture2D(&sd, nullptr, &vpPaso_);
+        if (SUCCEEDED(hr)) {
+            D3D11_VIDEO_PROCESSOR_OUTPUT_VIEW_DESC od{};
+            od.ViewDimension = D3D11_VPOV_DIMENSION_TEXTURE2D;
+            hr = dev_->vdev->CreateVideoProcessorOutputView(vpSalida_.Get(), vpEnum_.Get(), &od, &vpVistaSalida_);
         }
-        webrtc::VideoFrame f = webrtc::VideoFrame::Builder()
-                                   .set_video_frame_buffer(i420)
-                                   .set_timestamp_rtp(img.RtpTimestamp())
-                                   .set_color_space(img.ColorSpace())
-                                   .build();
-        cb_->Decoded(f, absl::nullopt, absl::nullopt);
+        if (FAILED(hr)) {
+            hrUltimo_ = hr;
+            soltarProcesador();
+            // Sin procesador de video que sirva (o sin NV12 → BGRA): se achica en el procesador,
+            // avisado una vez. No se reintenta en cada cuadro.
+            vpRoto_ = true;
+            if (!gAvisoVp.exchange(true))
+                aviso("video: la placa no achica la grilla (" + hex(hr) + "): se achica en el procesador");
+            return false;
+        }
+        // Color: lo mismo que libyuv (BT.601 de rango limitado → RGB completo), así la celda
+        // achicada en la placa y la del procesador se ven iguales.
+        D3D11_VIDEO_PROCESSOR_COLOR_SPACE ent{};
+        ent.YCbCr_Matrix = 0; // BT.601
+        ent.Nominal_Range = D3D11_VIDEO_PROCESSOR_NOMINAL_RANGE_16_235;
+        dev_->vctx->VideoProcessorSetStreamColorSpace(vp_.Get(), 0, &ent);
+        D3D11_VIDEO_PROCESSOR_COLOR_SPACE sal{};
+        sal.RGB_Range = 0; // 0-255
+        dev_->vctx->VideoProcessorSetOutputColorSpace(vp_.Get(), &sal);
+        dev_->vctx->VideoProcessorSetStreamFrameFormat(vp_.Get(), 0, D3D11_VIDEO_FRAME_FORMAT_PROGRESSIVE);
+        dev_->vctx->VideoProcessorSetStreamAutoProcessingMode(vp_.Get(), 0, FALSE);
+        vpEntradas_.assign(static_cast<size_t>(superficies_), nullptr);
+        vpW_ = tw;
+        vpH_ = th;
+        vpCodW_ = anchoCod_;
+        vpCodH_ = altoCod_;
+        return true;
+    }
+
+    void soltarProcesador() {
+        vpEntradas_.clear();
+        vpVistaSalida_.Reset();
+        vpPaso_.Reset();
+        vpSalida_.Reset();
+        vp_.Reset();
+        vpEnum_.Reset();
+        vpW_ = vpH_ = vpCodW_ = vpCodH_ = 0;
+    }
+
+    /// La celda de la grilla achicada en la placa (NV12 → BGRA en un paso) y bajada sola.
+    bool celdaBgra(int tw, int th, uint8_t* dst, int pasoDst) {
+        if (tw <= 0 || th <= 0 || sup_ < 0) return false;
+        std::unique_lock<std::mutex> l(dev_->m);
+        if (!prepararProcesador(tw, th)) return false;
+        ComPtr<ID3D11VideoProcessorInputView>& ent = vpEntradas_[static_cast<size_t>(sup_)];
+        if (!ent) {
+            D3D11_VIDEO_PROCESSOR_INPUT_VIEW_DESC iv{};
+            iv.ViewDimension = D3D11_VPIV_DIMENSION_TEXTURE2D;
+            iv.Texture2D.ArraySlice = static_cast<UINT>(sup_);
+            const HRESULT hr = dev_->vdev->CreateVideoProcessorInputView(textura_.Get(), vpEnum_.Get(), &iv, &ent);
+            if (FAILED(hr)) {
+                hrUltimo_ = hr;
+                soltarProcesador();
+                vpRoto_ = true;
+                if (!gAvisoVp.exchange(true))
+                    aviso("video: la placa no deja leer sus superficies para achicar (" + hex(hr) + "): se achica en el procesador");
+                return false;
+            }
+        }
+        RECT origen{cropIzq_, cropArr_, cropIzq_ + w_, cropArr_ + h_};
+        RECT destino{0, 0, tw, th};
+        dev_->vctx->VideoProcessorSetStreamSourceRect(vp_.Get(), 0, TRUE, &origen);
+        dev_->vctx->VideoProcessorSetStreamDestRect(vp_.Get(), 0, TRUE, &destino);
+        dev_->vctx->VideoProcessorSetOutputTargetRect(vp_.Get(), TRUE, &destino);
+        D3D11_VIDEO_PROCESSOR_STREAM st{};
+        st.Enable = TRUE;
+        st.pInputSurface = ent.Get();
+        HRESULT hr = dev_->vctx->VideoProcessorBlt(vp_.Get(), vpVistaSalida_.Get(), 0, 1, &st);
+        if (FAILED(hr)) {
+            hrUltimo_ = hr;
+            return false;
+        }
+        dev_->ctx->CopyResource(vpPaso_.Get(), vpSalida_.Get());
+        if (!esperarPlaca(l)) return false;
+        D3D11_MAPPED_SUBRESOURCE m{};
+        hr = dev_->ctx->Map(vpPaso_.Get(), 0, D3D11_MAP_READ, 0, &m);
+        if (FAILED(hr)) {
+            hrUltimo_ = hr;
+            return false;
+        }
+        const auto* src = static_cast<const uint8_t*>(m.pData);
+        for (int y = 0; y < th; ++y)
+            std::memcpy(dst + static_cast<ptrdiff_t>(y) * pasoDst, src + static_cast<ptrdiff_t>(y) * m.RowPitch,
+                        static_cast<size_t>(tw) * 4);
+        dev_->ctx->Unmap(vpPaso_.Get(), 0);
+        ++gCeldasPlaca;
+        return true;
+    }
+
+    /// Entrega el cuadro de la superficie `sup` sin bajarlo: lo baja quien lo necesite.
+    bool entregar(const webrtc::EncodedImage& img, const h264::Sps& sps, int sup) {
+        sup_ = sup;
+        w_ = sps.ancho();
+        h_ = sps.alto();
+        cropIzq_ = sps.crop_izq;
+        cropArr_ = sps.crop_arr;
+        // RefCountedObject a mano (no make_ref_counted): hace falta HasOneRef() al final.
+        const rtc::scoped_refptr<rtc::RefCountedObject<BufferPlaca>> buf(new rtc::RefCountedObject<BufferPlaca>(this, w_, h_));
+        {
+            EnPlaca enPlaca(*this, buf.get());
+            codecs::AnuncioPlaca anuncio(&enPlaca);
+            webrtc::VideoFrame f = webrtc::VideoFrame::Builder()
+                                       .set_video_frame_buffer(buf)
+                                       .set_timestamp_rtp(img.RtpTimestamp())
+                                       .set_color_space(img.ColorSpace())
+                                       .build();
+            cb_->Decoded(f, absl::nullopt, absl::nullopt);
+        }
+        // Si alguien se quedó con el cuadro (una cola, otro sink), se baja ahora: la superficie
+        // se reusa en el próximo Decode.
+        buf->desligar(!buf->HasOneRef());
+        sup_ = -1;
         return true;
     }
 
@@ -1140,7 +1371,16 @@ class DecodificadorD3d11 : public webrtc::VideoDecoder {
     ComPtr<ID3D11Fence> cerca_;
     HANDLE evento_ = nullptr;
     UINT64 valorCerca_ = 0;
-    bool esperaCerca_ = false;
+    // F3: el cuadro que se está entregando (BufferPlaca, EnPlaca) y el procesador de video que achica la celda.
+    int sup_ = -1, w_ = 0, h_ = 0, cropIzq_ = 0, cropArr_ = 0;
+    ComPtr<ID3D11VideoProcessorEnumerator> vpEnum_;
+    ComPtr<ID3D11VideoProcessor> vp_;
+    ComPtr<ID3D11Texture2D> vpSalida_; ///< BGRA del tamaño de la celda (render target)
+    ComPtr<ID3D11Texture2D> vpPaso_;   ///< la de lectura de la celda (staging)
+    ComPtr<ID3D11VideoProcessorOutputView> vpVistaSalida_;
+    std::vector<ComPtr<ID3D11VideoProcessorInputView>> vpEntradas_; ///< una por superficie, al usarla
+    int vpW_ = 0, vpH_ = 0, vpCodW_ = 0, vpCodH_ = 0;
+    bool vpRoto_ = false; ///< la placa no achica: no se reintenta
     int superficies_ = 0, siguiente_ = 0, anchoCod_ = 0, altoCod_ = 0, errores_ = 0;
     HRESULT hrUltimo_ = S_OK;
     UINT informe_ = 0;
@@ -1714,6 +1954,8 @@ nlohmann::json estado() {
                               : ba::ajustes::texto("gateway.decodificadorPlaca", "d3d11") == "mft" ? "MediaFoundation DXVA"
                                                                                                    : "D3D11"},
             {"decodificadores_d3d11", gDecD3d.load()},
+            {"celdas_en_placa", gCeldasPlaca.load()},  // F3: la grilla achicada en la placa
+            {"achica_en_placa", !gAvisoVp.load()},     // false: la placa no pudo y se achica en el procesador
             {"codificador", h.codificaHw ? h.nombreCodHw : std::string("MediaFoundation (software)")},
             {"fabricante", h.fabricanteCodHw},
             {"placa", h.placa},

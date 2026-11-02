@@ -115,6 +115,9 @@ inline constexpr int kMaxCeldasGrilla = 64;
 std::string nivelCalidad(const MediaRoute& ruta, int altoGrilla);
 
 class Grillas {
+   private:
+    struct Retrato;
+
    public:
     /// Un rectángulo en píxeles del lienzo (float: la animación pasa por medios píxeles).
     struct Rect {
@@ -143,6 +146,34 @@ class Grillas {
     void cuadro(const std::string& persona, const std::uint8_t* bgra, int w, int h, std::int64_t ahoraMs);
     /// El mismo, en I420 del decodificador: se achica en I420 y se convierte lo chico.
     void cuadro(const std::string& persona, const PlanosYuv& c, std::int64_t ahoraMs);
+
+    /// F3 (#6 del plan, vertical): la celda que quiere la grilla de un cuadro de `w`x`h` de
+    /// `persona`. El hilo que DECODIFICÓ la llena (achicando como le convenga: en la placa
+    /// de video, desde el NV12, desde el I420…) y la devuelve con guardarCelda: a la grilla
+    /// solo le llega lo chico, y su hilo nada más compone. Si no vale(), este cuadro no va a
+    /// ninguna grilla (la persona no está en ninguna, o el cuadro llega más rápido de lo que
+    /// se pinta: el mismo balde de antes) y no hay que convertir nada. Se mantiene la cola de
+    /// kCola cuadros por persona y su ritmo (Retrato::elegir).
+    struct PedidoCelda {
+        int ancho = 0, alto = 0;       ///< a qué tamaño: el lugar más grande que ocupa, cubriéndolo (nunca más que el cuadro)
+        std::vector<std::uint8_t> bgra; ///< ancho*alto*4 bytes, filas de ancho*4: a llenar
+        bool vale() const { return retrato_ != nullptr; }
+
+       private:
+        friend class Grillas;
+        std::shared_ptr<Retrato> retrato_;
+        std::int64_t ms_ = 0;
+        bool vivo_ = true;
+    };
+    PedidoCelda pedirCelda(const std::string& persona, int w, int h, std::int64_t ahoraMs);
+    /// La celda ya llena entra a la cola de su persona (su búfer queda para el próximo pedido).
+    void guardarCelda(PedidoCelda&& p);
+    /// No se pudo llenar: se suelta sin guardar nada (el búfer vuelve al retrato).
+    void soltarCelda(PedidoCelda&& p);
+    /// Achica un I420 a BGRA de `tw`x`th` (lo que hace cuadro(PlanosYuv)): para el hilo que
+    /// decodifica. `tmp`: donde queda el I420 achicado (se reusa entre llamadas).
+    static void achicarYuv(const PlanosYuv& c, std::uint8_t* px, int tw, int th, std::vector<std::uint8_t>& tmp);
+
     /// La foto (JPEG) de un integrante de la asamblea. Si tiene video en vivo, lo gana el video.
     void foto(const std::string& persona, const std::string& jpeg, std::int64_t ahoraMs);
     /// Audio float intercalado (`canales`) de `persona`: para saber quién habla.
@@ -293,11 +324,11 @@ class Grillas {
     };
 
     std::shared_ptr<Retrato> retrato(const std::string& persona) const;
-    void guardar(Retrato& r, const std::uint8_t* bgra, int w, int h, std::int64_t ahoraMs, bool vivo);
-    /// Lo común de guardar: `llenar(px, tw, th)` deja en `px` el cuadro de `w`x`h` achicado a
-    /// `tw`x`th` en BGRA (fuera del candado del retrato).
-    void guardarCon(Retrato& r, int w, int h, std::int64_t ahoraMs, bool vivo,
-                    const std::function<void(std::uint8_t* px, int tw, int th)>& llenar);
+    void guardar(std::shared_ptr<Retrato> r, const std::uint8_t* bgra, int w, int h, std::int64_t ahoraMs, bool vivo);
+    /// El pedido de una celda para el retrato `r` (con su búfer de repuesto, fuera del candado
+    /// al llenarlo: el pintor toma el candado por cada celda y, con 20 o más personas,
+    /// esperar a que terminen de achicarse sus cuadros le hacía saltear vueltas).
+    static PedidoCelda pedirEn(std::shared_ptr<Retrato> r, int w, int h, std::int64_t ahoraMs, bool vivo);
     /// Si el cuadro de `persona` que llega ahora se usa (está en una grilla y no llega a más
     /// del doble del ritmo del pintor). nullptr si no.
     std::shared_ptr<Retrato> retratoParaCuadro(const std::string& persona, std::int64_t ahoraMs) const;

@@ -206,6 +206,10 @@ class MediaPump {
     /// Subida desde la sesion `session` (se rutea segun su MediaRoute).
     void forwardAudio(int session, const float* samples, size_t n, int rate);
     void forwardVideo(int session, const uint8_t* pixels, size_t bytes, int w, int h);
+    /// F3 (#8): ¿forwardVideo publicaría el cuadro de cámara de `session` que llega ahora?
+    /// (su ruta tiene un canal abierto y no está topado de cps). Si no, el hilo que decodifica
+    /// no lo convierte a BGRA (con 40 en la grilla, casi ninguno va a ba-app).
+    bool quiereCamara(int session) const;
     void forwardScreen(int session, const uint8_t* pixels, size_t bytes, int w, int h);
     /// De la baja a la HD (Fundido.hpp): el próximo cuadro de la cámara de `session` es el
     /// primero de la alta; su canal (el lugar del programa y su vista chica, o el remoto)

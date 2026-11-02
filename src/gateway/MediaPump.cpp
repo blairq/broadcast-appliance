@@ -1389,6 +1389,32 @@ std::string MediaPump::pruebaTecnica(int session, int ms) {
     return out.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
 }
 
+bool MediaPump::quiereCamara(int session) const {
+    const MediaRoute r = route(session);
+    // Lo mismo que mira forwardVideo y publishVideo antes de copiar.
+    const auto sirve = [](const VideoOut* v) {
+        if (v == nullptr || !v->sender.published()) return false;
+        if (v->minIntervalNs != 0 && monoNs() - v->lastNs.load(std::memory_order_relaxed) < v->minIntervalNs) return false;
+        return true;
+    };
+    const auto en = [&](const std::vector<std::unique_ptr<VideoOut>>& v) {
+        return r.index >= 1 && r.index < static_cast<int>(v.size()) && sirve(v[static_cast<size_t>(r.index)].get());
+    };
+    switch (r.kind) {
+    case MediaRoute::Kind::Program:
+        if (r.index < 1 || r.index > kMaxInvitados) return false;
+        return sirve(guestVideo_[static_cast<size_t>(r.index)].load(std::memory_order_acquire)) ||
+               sirve(guestUiVideo_[static_cast<size_t>(r.index)].load(std::memory_order_acquire));
+    case MediaRoute::Kind::Lobby: return en(lobbyVideo_);
+    case MediaRoute::Kind::Backstage: return en(backstageVideo_);
+    case MediaRoute::Kind::Remoto: return en(remotoVideo_);
+    case MediaRoute::Kind::Registro:
+        // El canal del tótem, o quien atiende por web mirando (forwardVideo le manda los mismos).
+        return r.index >= 1 && r.index < static_cast<int>(registroVideo_.size()) && registroVideo_[static_cast<size_t>(r.index)] != nullptr;
+    default: return false;
+    }
+}
+
 void MediaPump::forwardVideo(int session, const uint8_t* pixels, size_t bytes, int w, int h) {
     if (pixels == nullptr || w <= 0 || h <= 0 || bytes < static_cast<size_t>(w) * h * 4u) return;
     const MediaRoute r = route(session);

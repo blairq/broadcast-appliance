@@ -38,6 +38,7 @@
 #include "ipc/ProtocoloSala.hpp"
 #include "crypto/Sha256.hpp"
 #include "Log.hpp"
+#include "DestinoCamara.hpp"
 #include "Grillas.hpp"
 #include "MediaPump.hpp"
 #include "qr/Qr.hpp"
@@ -2631,6 +2632,9 @@ void SignalingServer::handleOffer(const std::string& pid, uint64_t gen, const st
             cb.onRemoteVideoYuv = [this, persona = "sala:" + pid](const PlanosYuv& c) {
                 if (grillas_ != nullptr) grillas_->cuadro(persona, c, Grillas::reloj());
             };
+            // F3 (#6 y #8 verticales): con esto el sink no usa los dos de arriba para la cámara:
+            // pregunta antes de convertir y a la grilla le da solo la celda (DestinoCamara.hpp).
+            cb.camara = std::make_shared<DestinoCamara>(pump_, idx, grillas_, "sala:" + pid);
             // De la baja a la HD (Fundido.hpp): su canal y su retrato funden.
             cb.onFundido = [this, idx, pid, persona = "sala:" + pid](int ms) { alLlegarHd(pid, persona, idx, ms); };
             cb.onRemoteVideoAnterior = [this, idx, persona = "sala:" + pid](const uint8_t* p, size_t b, int w, int h) {
@@ -2814,6 +2818,7 @@ bool SignalingServer::ofertaRemoto(const std::string& id, int canal, const std::
             cb.onRemoteVideoYuv = [this, persona = "asamblea:" + id](const PlanosYuv& c) {
                 if (grillas_ != nullptr) grillas_->cuadro(persona, c, Grillas::reloj());
             };
+            cb.camara = std::make_shared<DestinoCamara>(pump_, idx, grillas_, "asamblea:" + id); // F3 (DestinoCamara.hpp)
             // Se le dio la palabra: la HD llega después de la baja y entra con un fundido.
             cb.onFundido = [this, idx, pid, persona = "asamblea:" + id](int ms) { alLlegarHd(pid, persona, idx, ms); };
             cb.onRemoteVideoAnterior = [this, idx, persona = "asamblea:" + id](const uint8_t* p, size_t b, int w, int h) {

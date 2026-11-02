@@ -25,6 +25,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cstring>
 #include <map>
 #include <mutex>
 #include <set>
@@ -33,8 +34,19 @@
 #include <utility>
 #include <vector>
 
+#include <atomic>
+
+#include "DestinoCamara.hpp"
+#include "Grillas.hpp"
+#include "PlanosYuv.hpp"
 #include "ajustes/Ajustes.hpp"
+#include "diag/Frontera.hpp"
 #include "diag/Registro.hpp"
+
+#include "api/video/i420_buffer.h"
+#include "rtc_base/time_utils.h"
+#include "third_party/libyuv/include/libyuv/convert_argb.h"
+#include "third_party/libyuv/include/libyuv/scale_argb.h"
 
 #include "api/video_codecs/sdp_video_format.h"
 #include "api/video_codecs/video_decoder.h"
@@ -177,7 +189,148 @@ class Decodificadores : public webrtc::VideoDecoderFactory {
     std::unique_ptr<webrtc::VideoDecoderFactory> interna_;
 };
 
+// --- F3: entregar la cámara en el hilo que decodificó ------------------------------
+
+thread_local CuadroEnPlaca* tlPlaca = nullptr;
+
+/// Lo que pasó con cada cuadro (estado() → `entrega`).
+struct CuentaEntrega {
+    std::atomic<std::uint64_t> salteados{0};    ///< nadie lo usaba: no se convirtió nada
+    std::atomic<std::uint64_t> enteros{0};      ///< BGRA entero a ba-app
+    std::atomic<std::uint64_t> enterosPlaca{0}; ///< … bajado de la placa directo a BGRA
+    std::atomic<std::uint64_t> celdasPlaca{0};  ///< celda achicada en la placa
+    std::atomic<std::uint64_t> celdasCpu{0};    ///< celda achicada en el procesador
+    std::atomic<std::uint64_t> fallas{0};       ///< no se pudo leer el cuadro
+};
+CuentaEntrega& cuentaEntrega() {
+    static CuentaEntrega c;
+    return c;
+}
+
+/// Un I420 (con el BGRA entero si ya está) achicado a la celda.
+void celdaDesdeI420(const webrtc::I420BufferInterface& i, const std::uint8_t* bgra, Grillas::PedidoCelda& p) {
+    thread_local std::vector<std::uint8_t> tmp;
+    const PlanosYuv c{i.DataY(), i.DataU(), i.DataV(), i.StrideY(), i.StrideU(), i.StrideV(), i.width(), i.height(), bgra};
+    Grillas::achicarYuv(c, p.bgra.data(), p.ancho, p.alto, tmp);
+}
+
 } // namespace
+
+AnuncioPlaca::AnuncioPlaca(CuadroEnPlaca* c) : anterior_(tlPlaca) { tlPlaca = c; }
+AnuncioPlaca::~AnuncioPlaca() { tlPlaca = anterior_; }
+
+void entregarCamara(const webrtc::VideoFrame& frame, DestinoCamara& destino, std::vector<std::uint8_t>& bgra) {
+    // #8 del plan (y #6 adentro): lo que sale del decodificador, en su hilo. La espera es desde
+    // que llegó el primer paquete del cuadro (red → armar → decodificar).
+    static ba::diag::Frontera& fDecodificado =
+        ba::diag::frontera("video.decodificado", 8, "cuadro decodificado → BGRA + grilla + ba-app (hilo del decodificador)");
+    static ba::diag::Frontera& fCelda = ba::diag::frontera("grilla.cuadro", 6, "decodificador → retrato de la grilla (achicar)");
+    CuentaEntrega& cuenta = cuentaEntrega();
+    const rtc::scoped_refptr<webrtc::VideoFrameBuffer> buf = frame.video_frame_buffer();
+    if (!buf) return;
+    const bool rotado = frame.rotation() != webrtc::kVideoRotation_0;
+    const bool deCostado = frame.rotation() == webrtc::kVideoRotation_90 || frame.rotation() == webrtc::kVideoRotation_270;
+    const int w = deCostado ? buf->height() : buf->width();
+    const int h = deCostado ? buf->width() : buf->height();
+    if (w <= 0 || h <= 0) return;
+
+    // Primero preguntar: lo que nadie usa no se convierte.
+    const bool entero = destino.quiereEntero();
+    Grillas::PedidoCelda celda = destino.pedirCelda(w, h);
+    if (!entero && !celda.vale()) {
+        cuenta.salteados.fetch_add(1, std::memory_order_relaxed);
+        return;
+    }
+    ba::diag::MedirPase medir(fDecodificado, static_cast<std::uint64_t>(w) * h * 3 / 2);
+    if (!frame.packet_infos().empty()) {
+        const std::int64_t llego = frame.packet_infos().begin()->receive_time().us();
+        const std::int64_t esperaUs = rtc::TimeMicros() - llego;
+        if (llego > 0 && esperaUs > 0) medir.espera(static_cast<std::uint64_t>(esperaUs) * 1000);
+    }
+    // ¿Es el cuadro que el decodificador de este hilo dejó en la placa?
+    CuadroEnPlaca* placa = tlPlaca;
+    if (placa != nullptr && (placa->buffer() != buf.get() || rotado)) placa = nullptr;
+
+    // 1) Solo la grilla y el cuadro en la placa: se achica allá y se baja lo chico.
+    if (!entero && placa != nullptr && DestinoCamara::celdaEnPlaca()) {
+        ba::diag::MedirPase m6(fCelda, static_cast<std::uint64_t>(celda.ancho) * celda.alto * 4);
+        if (placa->celdaBgra(celda.ancho, celda.alto, celda.bgra.data(), celda.ancho * 4)) {
+            destino.guardarCelda(std::move(celda));
+            cuenta.celdasPlaca.fetch_add(1, std::memory_order_relaxed);
+            return;
+        }
+    }
+
+    // 2) ba-app lo publica: el BGRA entero (de la placa directo, o del I420) y la celda de ahí.
+    if (entero) {
+        bgra.resize(static_cast<std::size_t>(w) * h * 4);
+        rtc::scoped_refptr<webrtc::I420BufferInterface> i420;
+        bool listo = placa != nullptr && placa->enteroBgra(bgra.data(), w * 4);
+        if (listo) {
+            cuenta.enterosPlaca.fetch_add(1, std::memory_order_relaxed);
+        } else {
+            i420 = buf->ToI420();
+            if (i420 && rotado) i420 = webrtc::I420Buffer::Rotate(*i420, frame.rotation());
+            if (!i420) {
+                cuenta.fallas.fetch_add(1, std::memory_order_relaxed);
+                destino.soltarCelda(std::move(celda));
+                return;
+            }
+            libyuv::I420ToARGB(i420->DataY(), i420->StrideY(), i420->DataU(), i420->StrideU(), i420->DataV(), i420->StrideV(),
+                               bgra.data(), w * 4, w, h);
+        }
+        if (celda.vale()) {
+            ba::diag::MedirPase m6(fCelda, static_cast<std::uint64_t>(w) * h * 3 / 2);
+            if (i420)
+                celdaDesdeI420(*i420, bgra.data(), celda);
+            else if (celda.ancho == w && celda.alto == h)
+                std::memcpy(celda.bgra.data(), bgra.data(), bgra.size());
+            else
+                libyuv::ARGBScale(bgra.data(), w * 4, w, h, celda.bgra.data(), celda.ancho * 4, celda.ancho, celda.alto,
+                                  libyuv::kFilterBox);
+            destino.guardarCelda(std::move(celda));
+            cuenta.celdasCpu.fetch_add(1, std::memory_order_relaxed);
+        }
+        destino.entero(bgra.data(), w, h);
+        cuenta.enteros.fetch_add(1, std::memory_order_relaxed);
+        return;
+    }
+
+    // 3) Solo la celda, en el procesador: del I420 tal cual (lo del decodificador por
+    // software), o achicando el buffer nativo primero (la Mac: CVPixelBuffer NV12, que
+    // ObjCFrameBuffer::CropAndScale achica con libyuv al pedir el I420; Windows sin la placa
+    // a mano: NV12/I420 bajado). Nunca se convierte el cuadro entero a BGRA.
+    ba::diag::MedirPase m6(fCelda, static_cast<std::uint64_t>(w) * h * 3 / 2);
+    rtc::scoped_refptr<webrtc::I420BufferInterface> chico;
+    if (buf->type() == webrtc::VideoFrameBuffer::Type::kI420 && !rotado) {
+        celdaDesdeI420(*buf->GetI420(), nullptr, celda);
+        destino.guardarCelda(std::move(celda));
+        cuenta.celdasCpu.fetch_add(1, std::memory_order_relaxed);
+        return;
+    }
+    if (rotado) {
+        rtc::scoped_refptr<webrtc::I420BufferInterface> i420 = buf->ToI420();
+        if (i420) i420 = webrtc::I420Buffer::Rotate(*i420, frame.rotation());
+        if (!i420) {
+            cuenta.fallas.fetch_add(1, std::memory_order_relaxed);
+            destino.soltarCelda(std::move(celda));
+            return;
+        }
+        celdaDesdeI420(*i420, nullptr, celda);
+    } else {
+        const rtc::scoped_refptr<webrtc::VideoFrameBuffer> escalado = buf->Scale(celda.ancho, celda.alto);
+        chico = escalado ? escalado->ToI420() : nullptr;
+        if (!chico || chico->width() != celda.ancho || chico->height() != celda.alto) {
+            cuenta.fallas.fetch_add(1, std::memory_order_relaxed);
+            destino.soltarCelda(std::move(celda));
+            return;
+        }
+        libyuv::I420ToARGB(chico->DataY(), chico->StrideY(), chico->DataU(), chico->StrideU(), chico->DataV(), chico->StrideV(),
+                           celda.bgra.data(), celda.ancho * 4, celda.ancho, celda.alto);
+    }
+    destino.guardarCelda(std::move(celda));
+    cuenta.celdasCpu.fetch_add(1, std::memory_order_relaxed);
+}
 
 std::unique_ptr<webrtc::VideoEncoderFactory> codificadores() {
 #if defined(__APPLE__)
@@ -237,6 +390,11 @@ nlohmann::json estado() {
                                  {"activos", n}});
     }
     j["decodificadores"] = std::move(lista);
+    // F3: qué se hizo con cada cuadro de cámara (entregarCamara), desde que arrancó.
+    const CuentaEntrega& e = cuentaEntrega();
+    j["entrega"] = {{"salteados", e.salteados.load()},       {"enteros", e.enteros.load()},
+                    {"enteros_placa", e.enterosPlaca.load()}, {"celdas_placa", e.celdasPlaca.load()},
+                    {"celdas_cpu", e.celdasCpu.load()},       {"fallas", e.fallas.load()}};
     return j;
 }
 

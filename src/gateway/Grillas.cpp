@@ -575,53 +575,77 @@ std::shared_ptr<Grillas::Retrato> Grillas::retrato(const std::string& persona) c
     return it != retratos_.end() ? it->second : nullptr;
 }
 
-void Grillas::guardar(Retrato& r, const std::uint8_t* bgra, int w, int h, std::int64_t ahora, bool vivo) {
-    guardarCon(r, w, h, ahora, vivo, [&](std::uint8_t* px, int tw, int th) {
-        if (tw == w && th == h)
-            std::memcpy(px, bgra, static_cast<std::size_t>(tw) * th * 4);
-        else
-            escalar(bgra, w * 4, w, h, px, tw * 4, tw, th);
-    });
+void Grillas::guardar(std::shared_ptr<Retrato> r, const std::uint8_t* bgra, int w, int h, std::int64_t ahora, bool vivo) {
+    PedidoCelda p = pedirEn(std::move(r), w, h, ahora, vivo);
+    if (p.ancho == w && p.alto == h)
+        std::memcpy(p.bgra.data(), bgra, static_cast<std::size_t>(w) * h * 4);
+    else
+        escalar(bgra, w * 4, w, h, p.bgra.data(), p.ancho * 4, p.ancho, p.alto);
+    guardarCelda(std::move(p));
 }
 
-void Grillas::guardarCon(Retrato& r, int w, int h, std::int64_t ahora, bool vivo,
-                         const std::function<void(std::uint8_t*, int, int)>& llenar) {
-    // Se achica FUERA del candado del retrato: el pintor lo toma por cada celda y, con 20 o
-    // más personas, esperar a que terminen de achicarse sus cuadros le hacía saltear vueltas.
-    std::vector<std::uint8_t> px;
+Grillas::PedidoCelda Grillas::pedirEn(std::shared_ptr<Retrato> r, int w, int h, std::int64_t ahora, bool vivo) {
+    PedidoCelda p;
+    if (!r || w <= 0 || h <= 0) return p;
     int quiereW = 0, quiereH = 0;
     {
-        std::lock_guard<std::mutex> l(r.m);
-        px.swap(r.repuesto);
-        quiereW = r.quiereW;
-        quiereH = r.quiereH;
+        std::lock_guard<std::mutex> l(r->m);
+        p.bgra.swap(r->repuesto);
+        quiereW = r->quiereW;
+        quiereH = r->quiereH;
     }
     // Achicado al lugar más grande que ocupa, cubriéndolo (el recorte se hace al pintar):
     // nunca se agranda, y lo que se guarda no pesa más de lo que se va a mostrar.
     float f = 1.0f;
     if (quiereW > 0 && quiereH > 0)
         f = std::min(1.0f, std::max(static_cast<float>(quiereW) / w, static_cast<float>(quiereH) / h));
-    const int tw = std::max(1, static_cast<int>(std::lround(w * f)));
-    const int th = std::max(1, static_cast<int>(std::lround(h * f)));
-    px.resize(static_cast<std::size_t>(tw) * th * 4);
-    llenar(px.data(), tw, th);
+    p.ancho = std::max(1, static_cast<int>(std::lround(w * f)));
+    p.alto = std::max(1, static_cast<int>(std::lround(h * f)));
+    p.bgra.resize(static_cast<std::size_t>(p.ancho) * p.alto * 4);
+    p.retrato_ = std::move(r);
+    p.ms_ = ahora;
+    p.vivo_ = vivo;
+    return p;
+}
+
+Grillas::PedidoCelda Grillas::pedirCelda(const std::string& persona, int w, int h, std::int64_t ahora) {
+    if (w <= 0 || h <= 0) return {};
+    auto r = retratoParaCuadro(persona, ahora);
+    if (!r) return {};
+    return pedirEn(std::move(r), w, h, ahora, true);
+}
+
+void Grillas::soltarCelda(PedidoCelda&& p) {
+    if (!p.retrato_) return;
+    std::lock_guard<std::mutex> l(p.retrato_->m);
+    if (p.retrato_->repuesto.empty()) p.retrato_->repuesto.swap(p.bgra);
+    p.retrato_.reset();
+}
+
+void Grillas::guardarCelda(PedidoCelda&& p) {
+    if (!p.retrato_ || p.ancho <= 0 || p.alto <= 0 || p.bgra.size() < static_cast<std::size_t>(p.ancho) * p.alto * 4) {
+        soltarCelda(std::move(p));
+        return;
+    }
+    Retrato& r = *p.retrato_;
+    const std::int64_t ahora = p.ms_;
     std::lock_guard<std::mutex> l(r.m);
     // El primer cuadro de la alta: funde desde lo último que se vio (si es reciente: uno
     // viejo sería un salto).
-    if (vivo && r.fundidoPendienteMs > 0) {
+    if (p.vivo_ && r.fundidoPendienteMs > 0) {
         if (const Foto* u = r.ultimo(); u != nullptr && ahora - u->ms < 2000)
             r.fundido.empezar(u->px.data(), u->w, u->h, r.fundidoPendienteMs, ahora);
         r.fundidoPendienteMs = 0;
     }
     ++r.seq;
     Foto& nueva = r.cola[r.seq % kCola]; // pisa el más viejo
-    nueva.px.swap(px);
-    r.repuesto.swap(px); // el que se pisó queda para el próximo
-    nueva.w = tw;
-    nueva.h = th;
+    nueva.px.swap(p.bgra);
+    r.repuesto.swap(p.bgra); // el que se pisó queda para el próximo
+    nueva.w = p.ancho;
+    nueva.h = p.alto;
     nueva.ms = ahora;
     nueva.seq = r.seq;
-    if (vivo) r.vivoMs = ahora;
+    if (p.vivo_) r.vivoMs = ahora;
 }
 
 std::shared_ptr<Grillas::Retrato> Grillas::retratoParaCuadro(const std::string& persona, std::int64_t ahora) const {
@@ -647,62 +671,66 @@ std::shared_ptr<Grillas::Retrato> Grillas::retratoParaCuadro(const std::string& 
 
 void Grillas::cuadro(const std::string& persona, const std::uint8_t* bgra, int w, int h, std::int64_t ahora) {
     if (bgra == nullptr || w <= 0 || h <= 0) return;
-    if (const auto r = retratoParaCuadro(persona, ahora)) guardar(*r, bgra, w, h, ahora, true);
+    if (auto r = retratoParaCuadro(persona, ahora)) guardar(std::move(r), bgra, w, h, ahora, true);
+}
+
+void Grillas::achicarYuv(const PlanosYuv& c, std::uint8_t* px, int tw, int th, std::vector<std::uint8_t>& planos) {
+    const int cw = (tw + 1) / 2, ch = (th + 1) / 2;
+    // De la mitad al tamaño entero, del BGRA si ya está (PlanosYuv.hpp): a la mitad justa
+    // el «box» de BGRA también gana (73 us contra 97).
+    if (c.bgra != nullptr && (tw * 2 >= c.ancho || th * 2 >= c.alto)) {
+        if (tw == c.ancho && th == c.alto)
+            std::memcpy(px, c.bgra, static_cast<std::size_t>(tw) * th * 4);
+        else
+            escalar(c.bgra, c.ancho * 4, c.ancho, c.alto, px, tw * 4, tw, th);
+        return;
+    }
+#if BA_GATEWAY_HAVE_WEBRTC
+    if (tw == c.ancho && th == c.alto) {
+        libyuv::I420ToARGB(c.y, c.strideY, c.u, c.strideU, c.v, c.strideV, px, tw * 4, tw, th);
+        return;
+    }
+    planos.resize(static_cast<std::size_t>(tw) * th + 2 * static_cast<std::size_t>(cw) * ch);
+    std::uint8_t* y = planos.data();
+    std::uint8_t* u = y + static_cast<std::size_t>(tw) * th;
+    std::uint8_t* v = u + static_cast<std::size_t>(cw) * ch;
+    libyuv::I420Scale(c.y, c.strideY, c.u, c.strideU, c.v, c.strideV, c.ancho, c.alto, y, tw, u, cw, v, cw, tw, th,
+                      libyuv::kFilterBox);
+    libyuv::I420ToARGB(y, tw, u, cw, v, cw, px, tw * 4, tw, th);
+#else
+    // Sin libyuv (las pruebas): el más cercano, BT.601 de rango limitado.
+    (void)cw;
+    (void)ch;
+    (void)planos;
+    for (int yy = 0; yy < th; ++yy)
+        for (int xx = 0; xx < tw; ++xx) {
+            const int sx = xx * c.ancho / tw, sy = yy * c.alto / th;
+            const double Y = 1.164 * (c.y[sy * c.strideY + sx] - 16);
+            const double U = c.u[(sy / 2) * c.strideU + sx / 2] - 128, V = c.v[(sy / 2) * c.strideV + sx / 2] - 128;
+            const auto b = [](double x) { return static_cast<std::uint8_t>(std::clamp(x, 0.0, 255.0)); };
+            std::uint8_t* p = px + (static_cast<std::size_t>(yy) * tw + xx) * 4;
+            p[0] = b(Y + 2.018 * U);
+            p[1] = b(Y - 0.391 * U - 0.813 * V);
+            p[2] = b(Y + 1.596 * V);
+            p[3] = 255;
+        }
+#endif
 }
 
 void Grillas::cuadro(const std::string& persona, const PlanosYuv& c, std::int64_t ahora) {
     if (c.y == nullptr || c.u == nullptr || c.v == nullptr || c.ancho <= 0 || c.alto <= 0) return;
-    const auto r = retratoParaCuadro(persona, ahora);
-    if (!r) return;
+    PedidoCelda p = pedirCelda(persona, c.ancho, c.alto, ahora);
+    if (!p.vale()) return;
     // #6 del plan: el cuadro decodificado se achica a su retrato en el hilo que decodificó.
     static ba::diag::Frontera& fCelda = ba::diag::frontera("grilla.cuadro", 6, "decodificador → retrato de la grilla (achicar)");
     ba::diag::MedirPase medir(fCelda, static_cast<std::uint64_t>(c.ancho) * c.alto * 3 / 2);
-    std::vector<std::uint8_t> planos; // el I420 achicado (lo chico)
-    guardarCon(*r, c.ancho, c.alto, ahora, true, [&](std::uint8_t* px, int tw, int th) {
-        const int cw = (tw + 1) / 2, ch = (th + 1) / 2;
-        // De la mitad al tamaño entero, del BGRA si ya está (PlanosYuv.hpp): a la mitad justa
-        // el «box» de BGRA también gana (73 us contra 97).
-        if (c.bgra != nullptr && (tw * 2 >= c.ancho || th * 2 >= c.alto)) {
-            if (tw == c.ancho && th == c.alto)
-                std::memcpy(px, c.bgra, static_cast<std::size_t>(tw) * th * 4);
-            else
-                escalar(c.bgra, c.ancho * 4, c.ancho, c.alto, px, tw * 4, tw, th);
-            return;
-        }
-#if BA_GATEWAY_HAVE_WEBRTC
-        if (tw == c.ancho && th == c.alto) {
-            libyuv::I420ToARGB(c.y, c.strideY, c.u, c.strideU, c.v, c.strideV, px, tw * 4, tw, th);
-            return;
-        }
-        planos.resize(static_cast<std::size_t>(tw) * th + 2 * static_cast<std::size_t>(cw) * ch);
-        std::uint8_t* y = planos.data();
-        std::uint8_t* u = y + static_cast<std::size_t>(tw) * th;
-        std::uint8_t* v = u + static_cast<std::size_t>(cw) * ch;
-        libyuv::I420Scale(c.y, c.strideY, c.u, c.strideU, c.v, c.strideV, c.ancho, c.alto, y, tw, u, cw, v, cw, tw, th,
-                          libyuv::kFilterBox);
-        libyuv::I420ToARGB(y, tw, u, cw, v, cw, px, tw * 4, tw, th);
-#else
-        // Sin libyuv (las pruebas): el más cercano, BT.601 de rango limitado.
-        (void)cw;
-        (void)ch;
-        for (int yy = 0; yy < th; ++yy)
-            for (int xx = 0; xx < tw; ++xx) {
-                const int sx = xx * c.ancho / tw, sy = yy * c.alto / th;
-                const double Y = 1.164 * (c.y[sy * c.strideY + sx] - 16);
-                const double U = c.u[(sy / 2) * c.strideU + sx / 2] - 128, V = c.v[(sy / 2) * c.strideV + sx / 2] - 128;
-                const auto b = [](double x) { return static_cast<std::uint8_t>(std::clamp(x, 0.0, 255.0)); };
-                std::uint8_t* p = px + (static_cast<std::size_t>(yy) * tw + xx) * 4;
-                p[0] = b(Y + 2.018 * U);
-                p[1] = b(Y - 0.391 * U - 0.813 * V);
-                p[2] = b(Y + 1.596 * V);
-                p[3] = 255;
-            }
-#endif
-    });
+    thread_local std::vector<std::uint8_t> planos; // el I420 achicado (lo chico), uno por hilo que decodifica
+    achicarYuv(c, p.bgra.data(), p.ancho, p.alto, planos);
+    guardarCelda(std::move(p));
 }
 
 void Grillas::foto(const std::string& persona, const std::string& jpeg, std::int64_t ahora) {
-    const auto r = retrato(persona);
+    auto r = retrato(persona);
     if (!r || jpeg.size() < 4) return;
     {
         std::lock_guard<std::mutex> l(r->m);
@@ -714,7 +742,7 @@ void Grillas::foto(const std::string& persona, const std::string& jpeg, std::int
     if (libyuv::MJPGSize(datos, jpeg.size(), &w, &h) != 0 || w <= 0 || h <= 0 || w > 4096 || h > 4096) return;
     std::vector<std::uint8_t> px(static_cast<std::size_t>(w) * h * 4);
     if (libyuv::MJPGToARGB(datos, jpeg.size(), px.data(), w * 4, w, h, w, h) != 0) return;
-    guardar(*r, px.data(), w, h, ahora, false);
+    guardar(std::move(r), px.data(), w, h, ahora, false);
 #else
     (void)ahora; // sin libwebrtc no hay con qué abrir el JPEG: queda la silueta
 #endif

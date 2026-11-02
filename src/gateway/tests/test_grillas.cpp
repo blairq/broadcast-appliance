@@ -21,6 +21,8 @@
 //      el color pedido; los que nadie nombra se olvidan.
 //  15. Uno nuevo por vuelta: una cámara a 30 que tiembla se ve entera y en orden; una a
 //      60, a 30 sin atrasarse; una a 15, sus 15.
+//  16. F3: la celda que llena el hilo que decodificó (pedirCelda/guardarCelda/soltarCelda),
+//      del tamaño de su lugar, con el mismo balde; DestinoCamara sin ba-app.
 // ============================================================================
 
 #include <algorithm>
@@ -30,6 +32,7 @@
 #include <string>
 #include <vector>
 
+#include "DestinoCamara.hpp"
 #include "Grillas.hpp"
 #include "HttpIo.hpp"
 #include "Log.hpp"
@@ -437,6 +440,56 @@ int main() {
         CHECK(vistos >= 286 && fuera == 0 && atraso <= 4, "cámara a 60: uno nuevo por vuelta, sin atrasarse (dos vueltas a lo sumo)");
         probar(15, 12, vistos, fuera, atraso);
         CHECK(vistos >= 140 && vistos <= 146 && fuera == 0, "cámara a 15: sus 15");
+    }
+    // 16. F3: la celda la llena el hilo que decodificó (pedirCelda / guardarCelda) y por
+    // DestinoCamara (sin ba-app: no se pide el entero).
+    {
+        Grillas g(log);
+        CHECK(g.aplicar({{"grillas", {{{"canal", 1}, {"ancho", 320}, {"alto", 180}, {"transicion_ms", 0},
+                                       {"celdas", {celda("sala:a", 0, 0, 160, 90)}}}}}},
+                        1000)
+                  .empty(),
+              "aplica (celda)");
+        Grillas::PedidoCelda nadie = g.pedirCelda("sala:nadie", 1280, 720, 1000);
+        CHECK(!nadie.vale(), "quien no está en ninguna grilla: no se pide nada");
+        Grillas::PedidoCelda p = g.pedirCelda("sala:a", 1280, 720, 1000);
+        CHECK(p.vale(), "quien está: se pide");
+        CHECK(p.ancho == 160 && p.alto == 90, "al tamaño de su lugar (1280x720 → 160x90)");
+        CHECK(p.bgra.size() == static_cast<std::size_t>(160) * 90 * 4, "con su búfer");
+        const std::uint32_t azul = 0xFF0000FFu;
+        for (std::size_t i = 0; i < p.bgra.size(); i += 4) std::memcpy(p.bgra.data() + i, &azul, 4);
+        g.guardarCelda(std::move(p));
+        std::vector<std::uint8_t> l;
+        int w = 0, h = 0;
+        CHECK(g.pintar(1, 1000, l, w, h) && pixel(l, w, 80, 45) == azul, "la celda guardada se pinta");
+        const json e = g.estado();
+        CHECK(e["grillas"][0]["celdas"][0]["imagen_ancho"] == 160 && e["grillas"][0]["celdas"][0]["imagen_alto"] == 90,
+              "el retrato quedó del tamaño de la celda");
+        // Uno que se suelta (la placa no pudo): no cambia lo que se ve.
+        Grillas::PedidoCelda q = g.pedirCelda("sala:a", 1280, 720, 1040);
+        CHECK(q.vale(), "otro pedido");
+        g.soltarCelda(std::move(q));
+        CHECK(g.pintar(1, 1040, l, w, h) && pixel(l, w, 80, 45) == azul, "soltar no guarda nada");
+        // Más chico que su lugar: no se agranda.
+        Grillas::PedidoCelda c = g.pedirCelda("sala:a", 80, 45, 1080);
+        CHECK(c.vale() && c.ancho == 80 && c.alto == 45, "nunca se agranda");
+        g.soltarCelda(std::move(c));
+        // El balde: una ráfaga mucho más rápida que el pintor se corta (kCola + 1 seguidos, después no).
+        int pedidos = 0;
+        for (int i = 0; i < 20; ++i) {
+            Grillas::PedidoCelda r = g.pedirCelda("sala:a", 320, 180, 5000);
+            if (r.vale()) ++pedidos;
+            g.soltarCelda(std::move(r));
+        }
+        CHECK(pedidos >= 1 && pedidos <= 6, "lo que llega de golpe se corta como antes (el balde)");
+        // DestinoCamara sin ba-app: no quiere el entero, sí la celda.
+        ba::gateway::DestinoCamara d(nullptr, 1, &g, "sala:a");
+        CHECK(!d.quiereEntero(), "sin MediaPump: no se convierte el entero");
+        Grillas::PedidoCelda dc = d.pedirCelda(640, 360);
+        CHECK(dc.vale() && dc.ancho == 160 && dc.alto == 90, "DestinoCamara pide la celda de su persona");
+        d.soltarCelda(std::move(dc));
+        ba::gateway::DestinoCamara sinGrilla(nullptr, 1, nullptr, "sala:a");
+        CHECK(!sinGrilla.pedirCelda(640, 360).vale(), "sin grillas: nada");
     }
     if (g_fallos == 0) std::printf("test_grillas: OK\n");
     return g_fallos == 0 ? 0 : 1;
