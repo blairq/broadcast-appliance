@@ -7,6 +7,7 @@
 
 #include <algorithm>
 #include <chrono>
+#include <cstdio>
 
 namespace ba::diag {
 
@@ -42,9 +43,34 @@ void VigiaBucle::alAvisar(Avisar a) {
     avisar_ = std::move(a);
 }
 
+void VigiaBucle::fijarSiAtrasado(std::int64_t ahora) {
+    // El turno del temporizador está atrasado (la interfaz estuvo ocupada): lo que la
+    // ocupaba se fija AHORA, antes de que lo tape lo que se encoló mientras tanto. Al
+    // volver de una traba larga se despachan decenas de eventos atrasados ANTES que el
+    // temporizador (Windows los atiende primero): pisaban todo el anillo y el aviso
+    // decía «corría: ?».
+    if (culpableFijado_ || anteriorUs_ < 0 || ahora <= anteriorUs_ + periodoUs_ + umbralUs_) return;
+    culpableTarde_ = quien(anteriorUs_ + periodoUs_);
+    culpableFijado_ = true;
+}
+
+void VigiaBucle::fijarCulpable() {
+    const std::int64_t ahora = reloj_();
+    std::lock_guard<std::mutex> l(mu_);
+    fijarSiAtrasado(ahora);
+}
+
+std::string VigiaBucle::enCurso() const {
+    const std::int64_t ahora = reloj_();
+    std::lock_guard<std::mutex> l(mu_);
+    if (culpableFijado_) return culpableTarde_;
+    return quien(ahora);
+}
+
 void VigiaBucle::anotar(const char* que, int detalle) {
     const std::int64_t ahora = reloj_();
     std::lock_guard<std::mutex> l(mu_);
+    fijarSiAtrasado(ahora);
     Anotado& a = anotados_[anotadoPos_];
     anotadoPos_ = (anotadoPos_ + 1) % anotados_.size();
     a.us = ahora;
@@ -56,6 +82,7 @@ void VigiaBucle::anotar(const char* que, int detalle) {
 void VigiaBucle::anotar(const std::string& que) {
     const std::int64_t ahora = reloj_();
     std::lock_guard<std::mutex> l(mu_);
+    fijarSiAtrasado(ahora);
     Anotado& a = anotados_[anotadoPos_];
     anotadoPos_ = (anotadoPos_ + 1) % anotados_.size();
     a.us = ahora;
@@ -88,6 +115,11 @@ std::string VigiaBucle::quien(std::int64_t hasta) const {
         if ((a.que != nullptr || !a.texto.empty()) && a.us <= hasta && (mejor == nullptr || a.us > mejor->us)) mejor = &a;
     if (mejor == nullptr) return "?";
     if (!mejor->texto.empty()) return mejor->texto;
+    if (mejor->que == kNativo) {
+        char hex[16];
+        std::snprintf(hex, sizeof hex, "0x%04X", static_cast<unsigned>(mejor->detalle));
+        return std::string(mejor->que) + ", mensaje " + hex;
+    }
     // El tipo de evento de Qt va como número (QEvent::Type): nombrarlo en cada evento costaría.
     return mejor->detalle != 0 ? std::string(mejor->que) + ", evento " + std::to_string(mejor->detalle)
                                : std::string(mejor->que);
@@ -116,10 +148,12 @@ void VigiaBucle::tic() {
             minuto_[minutoPos_] = retraso;
             minutoPos_ = (minutoPos_ + 1) % minuto_.size();
         }
+        const bool fijado = culpableFijado_;
+        culpableFijado_ = false; // el turno llegó: lo fijado era de esta vuelta
         if (retraso <= umbralUs_) return;
 
         ++tarde_;
-        const std::string que = quien(tocaba);
+        const std::string que = fijado ? culpableTarde_ : quien(tocaba);
         ultimoTardeUs_ = retraso;
         ultimoTardeCuandoUs_ = ahora;
         ultimoTardeQue_ = que;

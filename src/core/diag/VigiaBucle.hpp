@@ -53,6 +53,26 @@ class VigiaBucle {
     void anotar(const char* que, int detalle = 0);
     /// Igual, con un texto que se copia (la herramienta MCP: «mcp scene_switch»).
     void anotar(const std::string& que);
+    /// Lo que corre AHORA en el bucle (lo último que empezó), o lo que se fijó al
+    /// atrasarse el turno. Lo pide el vigía de las trabas (diag/VigiaTraba) desde su hilo.
+    std::string enCurso() const;
+    /// Desde otro hilo (el vigía de las trabas): si el turno está atrasado, fija ya lo
+    /// que lo atrasa, para que el aviso de la vuelta lo nombre aunque al volver se
+    /// despachen muchos eventos encolados antes que el temporizador.
+    void fijarCulpable();
+
+    /// Lo que anota el que pone los avisos del scene graph de Qt (ui/VigiaInterfaz):
+    /// literales, comparados por puntero. Entre «pidió sincronizar» (hilo de la
+    /// interfaz) y «sincronizado» (hilo de render) la interfaz está PARADA esperando
+    /// al hilo de render: si la traba cae ahí, el aviso lo dice.
+    static constexpr const char* kQsgPidio =
+        "scene graph: la interfaz espera al hilo de render (que termine el cuadro anterior)";
+    static constexpr const char* kQsgSincronizando =
+        "scene graph: sincronizando (updatePaintNode de los ítems, con la interfaz parada)";
+    static constexpr const char* kQsgSincronizado = "scene graph: sincronizado (sigue la interfaz)";
+    /// Un mensaje nativo del sistema (Windows: el MSG; `detalle` = el número).
+    static constexpr const char* kNativo = "evento nativo del sistema";
+
     /// El hilo se despertó (el despachador de eventos salió de su espera). Atómico.
     void despertar() { despertares_.fetch_add(1, std::memory_order_relaxed); }
     /// Corrió un temporizador (`que`: «QTimer de X, cada N ms»): cuántas veces corrió cada uno.
@@ -92,6 +112,8 @@ class VigiaBucle {
     void anotarEn(Anotado a);
     /// Lo último que empezó en o antes de `hasta` (lo que tapó el turno).
     std::string quien(std::int64_t hasta) const;
+    /// Con mu_ tomado: si el turno ya está atrasado, fija el culpable.
+    void fijarSiAtrasado(std::int64_t ahora);
 
     Reloj reloj_;
     std::int64_t periodoUs_, umbralUs_;
@@ -109,6 +131,8 @@ class VigiaBucle {
     std::map<std::string, Culpable> culpables_;
     std::int64_t ultimoTardeUs_ = 0, ultimoTardeCuandoUs_ = -1;
     std::string ultimoTardeQue_;
+    std::string culpableTarde_;   ///< lo que atrasaba el turno, fijado al notarlo
+    bool culpableFijado_ = false; ///< hasta el próximo turno
     std::atomic<std::uint64_t> despertares_{0};
     std::map<std::string, std::uint64_t> temporizadores_; ///< con mu_ (a lo sumo kMaxCulpables)
 };
