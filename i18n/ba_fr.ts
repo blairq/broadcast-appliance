@@ -39543,6 +39543,16 @@ Choisissez autre chose dans Sorties → Écrans.</translation>
     </message>
     <message>
         <location line="+1"/>
+        <source>Video de los invitados: hilos para decodificar</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Cuántos hilos comparten todos los invitados para decodificar su video (0: automático, los núcleos de un bloque de caché, entre 2 y 6). Lo demás de la conferencia usa 2 hilos aparte. −1: un hilo por cada cola, como venía libwebrtc (para comparar).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
         <source>Video de los invitados: decodificar H.264 con la placa</source>
         <translation type="unfinished"></translation>
     </message>
@@ -39777,7 +39787,7 @@ Choisissez autre chose dans Sorties → Écrans.</translation>
         <translation>n&apos;est pas une des options</translation>
     </message>
     <message>
-        <location line="-219"/>
+        <location line="-220"/>
         <source>Mensajes de chat que se guardan</source>
         <translation>Messages de chat conservés</translation>
     </message>
@@ -39907,7 +39917,7 @@ Choisissez autre chose dans Sorties → Écrans.</translation>
         <translation>Console de l&apos;opérateur, tableau des intervenants et téléphones&#xa0;: chacun est une connexion.</translation>
     </message>
     <message>
-        <location line="+5"/>
+        <location line="+6"/>
         <source>Windows: el H.264 que suben los invitados se decodifica en la placa de video. Apagado (o sin placa), los invitados suben y reciben en VP8 por software.</source>
         <translation type="unfinished"></translation>
     </message>
@@ -50052,7 +50062,7 @@ Données (de %2)&#xa0;: %3</translation>
         <translation>hors du mode efficacité (EcoQoS)</translation>
     </message>
     <message>
-        <location filename="../src/launcher/main.cpp" line="+86"/>
+        <location filename="../src/launcher/main.cpp" line="+88"/>
         <source>Broadcast Appliance: estudio abierto</source>
         <translation>Broadcast Appliance&#xa0;: studio ouvert</translation>
     </message>
@@ -53972,12 +53982,12 @@ Données (de %2)&#xa0;: %3</translation>
     </message>
     <message>
         <location line="+47"/>
-        <location line="+292"/>
+        <location line="+296"/>
         <source>https: no arrancó; los invitados solo tienen http (sin cámara fuera de localhost)</source>
         <translation>https&#xa0;: n&apos;a pas démarré&#xa0;; les invités n&apos;ont que http (pas de caméra hors de localhost)</translation>
     </message>
     <message>
-        <location line="-249"/>
+        <location line="-253"/>
         <source>túnel: sin clave privada WireGuard; túnel deshabilitado</source>
         <translation>tunnel&#xa0;: pas de clé privée WireGuard&#xa0;; tunnel désactivé</translation>
     </message>
@@ -54027,7 +54037,12 @@ Données (de %2)&#xa0;: %3</translation>
         <translation>pas d&apos;adresse de tunnel</translation>
     </message>
     <message>
-        <location line="+283"/>
+        <location line="+26"/>
+        <source>turn: MODO PRUEBA (--turn-prueba): el TURN arranca sin pinggy, solo en la red local</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+261"/>
         <source>túnel: --tunnel-token es visible en la lista de procesos; preferir %1</source>
         <translation>tunnel&#xa0;: --tunnel-token est visible dans la liste des processus&#xa0;; préférez %1</translation>
     </message>
@@ -54047,7 +54062,7 @@ Données (de %2)&#xa0;: %3</translation>
         <translation>tunnel&#xa0;: désactivé par la configuration (accès local uniquement)</translation>
     </message>
     <message>
-        <location line="-633"/>
+        <location line="-637"/>
         <source>red: IP de la máquina %1; en el QR: %2</source>
         <translation>réseau&#xa0;: IP de la machine %1&#xa0;; dans le QR&#xa0;: %2</translation>
     </message>
@@ -54077,7 +54092,7 @@ Données (de %2)&#xa0;: %3</translation>
         <translation>Broadcast Appliance (cet appareil)</translation>
     </message>
     <message>
-        <location line="+94"/>
+        <location line="+98"/>
         <source>turn: escuchando en el puerto %1 (TCP y UDP)</source>
         <translation>turn&#xa0;: écoute sur le port %1 (TCP et UDP)</translation>
     </message>

@@ -39699,6 +39699,16 @@ Elegí otra cosa en Salidas → Pantallas.</source>
     </message>
     <message>
         <location line="+1"/>
+        <source>Video de los invitados: hilos para decodificar</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Cuántos hilos comparten todos los invitados para decodificar su video (0: automático, los núcleos de un bloque de caché, entre 2 y 6). Lo demás de la conferencia usa 2 hilos aparte. −1: un hilo por cada cola, como venía libwebrtc (para comparar).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
         <source>Video de los invitados: decodificar H.264 con la placa</source>
         <translation type="unfinished"></translation>
     </message>
@@ -39933,7 +39943,7 @@ Elegí otra cosa en Salidas → Pantallas.</source>
         <translation>не является одним из вариантов</translation>
     </message>
     <message>
-        <location line="-219"/>
+        <location line="-220"/>
         <source>Mensajes de chat que se guardan</source>
         <translation>Хранимых сообщений чата</translation>
     </message>
@@ -40063,7 +40073,7 @@ Elegí otra cosa en Salidas → Pantallas.</source>
         <translation>Консоль оператора, табло выступающих и телефоны: каждый — одно подключение.</translation>
     </message>
     <message>
-        <location line="+5"/>
+        <location line="+6"/>
         <source>Windows: el H.264 que suben los invitados se decodifica en la placa de video. Apagado (o sin placa), los invitados suben y reciben en VP8 por software.</source>
         <translation type="unfinished"></translation>
     </message>
@@ -50212,7 +50222,7 @@ Datos (de %2): %3</source>
         <translation>вне режима эффективности (EcoQoS)</translation>
     </message>
     <message>
-        <location filename="../src/launcher/main.cpp" line="+86"/>
+        <location filename="../src/launcher/main.cpp" line="+88"/>
         <source>Broadcast Appliance: estudio abierto</source>
         <translation>Broadcast Appliance: студия открыта</translation>
     </message>
@@ -54132,12 +54142,12 @@ Datos (de %2): %3</source>
     </message>
     <message>
         <location line="+47"/>
-        <location line="+292"/>
+        <location line="+296"/>
         <source>https: no arrancó; los invitados solo tienen http (sin cámara fuera de localhost)</source>
         <translation>https: не запустился; у гостей только http (без камеры вне localhost)</translation>
     </message>
     <message>
-        <location line="-249"/>
+        <location line="-253"/>
         <source>túnel: sin clave privada WireGuard; túnel deshabilitado</source>
         <translation>туннель: нет закрытого ключа WireGuard; туннель отключён</translation>
     </message>
@@ -54187,7 +54197,12 @@ Datos (de %2): %3</source>
         <translation>нет адреса туннеля</translation>
     </message>
     <message>
-        <location line="+283"/>
+        <location line="+26"/>
+        <source>turn: MODO PRUEBA (--turn-prueba): el TURN arranca sin pinggy, solo en la red local</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+261"/>
         <source>túnel: --tunnel-token es visible en la lista de procesos; preferir %1</source>
         <translation>туннель: --tunnel-token виден в списке процессов; лучше использовать %1</translation>
     </message>
@@ -54207,7 +54222,7 @@ Datos (de %2): %3</source>
         <translation>туннель: отключён в конфигурации (только локальный доступ)</translation>
     </message>
     <message>
-        <location line="-633"/>
+        <location line="-637"/>
         <source>red: IP de la máquina %1; en el QR: %2</source>
         <translation>сеть: IP компьютера %1; в QR: %2</translation>
     </message>
@@ -54237,7 +54252,7 @@ Datos (de %2): %3</source>
         <translation>Broadcast Appliance (это устройство)</translation>
     </message>
     <message>
-        <location line="+94"/>
+        <location line="+98"/>
         <source>turn: escuchando en el puerto %1 (TCP y UDP)</source>
         <translation>turn: слушает на порту %1 (TCP и UDP)</translation>
     </message>

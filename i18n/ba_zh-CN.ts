@@ -39387,6 +39387,16 @@ Elegí otra cosa en Salidas → Pantallas.</source>
     </message>
     <message>
         <location line="+1"/>
+        <source>Video de los invitados: hilos para decodificar</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Cuántos hilos comparten todos los invitados para decodificar su video (0: automático, los núcleos de un bloque de caché, entre 2 y 6). Lo demás de la conferencia usa 2 hilos aparte. −1: un hilo por cada cola, como venía libwebrtc (para comparar).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
         <source>Video de los invitados: decodificar H.264 con la placa</source>
         <translation type="unfinished"></translation>
     </message>
@@ -39621,7 +39631,7 @@ Elegí otra cosa en Salidas → Pantallas.</source>
         <translation>不是可选项之一</translation>
     </message>
     <message>
-        <location line="-219"/>
+        <location line="-220"/>
         <source>Mensajes de chat que se guardan</source>
         <translation>保留的聊天消息数</translation>
     </message>
@@ -39751,7 +39761,7 @@ Elegí otra cosa en Salidas → Pantallas.</source>
         <translation>操作员控制台、发言人看板和手机：每个都是一个连接。</translation>
     </message>
     <message>
-        <location line="+5"/>
+        <location line="+6"/>
         <source>Windows: el H.264 que suben los invitados se decodifica en la placa de video. Apagado (o sin placa), los invitados suben y reciben en VP8 por software.</source>
         <translation type="unfinished"></translation>
     </message>
@@ -49892,7 +49902,7 @@ Datos (de %2): %3</source>
         <translation>已退出效率模式（EcoQoS）</translation>
     </message>
     <message>
-        <location filename="../src/launcher/main.cpp" line="+86"/>
+        <location filename="../src/launcher/main.cpp" line="+88"/>
         <source>Broadcast Appliance: estudio abierto</source>
         <translation>Broadcast Appliance：工作室已打开</translation>
     </message>
@@ -53812,12 +53822,12 @@ Datos (de %2): %3</source>
     </message>
     <message>
         <location line="+47"/>
-        <location line="+292"/>
+        <location line="+296"/>
         <source>https: no arrancó; los invitados solo tienen http (sin cámara fuera de localhost)</source>
         <translation>https：未启动；嘉宾只能使用 http（localhost 以外无法使用摄像头）</translation>
     </message>
     <message>
-        <location line="-249"/>
+        <location line="-253"/>
         <source>túnel: sin clave privada WireGuard; túnel deshabilitado</source>
         <translation>隧道：没有 WireGuard 私钥；隧道已禁用</translation>
     </message>
@@ -53867,7 +53877,12 @@ Datos (de %2): %3</source>
         <translation>没有隧道地址</translation>
     </message>
     <message>
-        <location line="+283"/>
+        <location line="+26"/>
+        <source>turn: MODO PRUEBA (--turn-prueba): el TURN arranca sin pinggy, solo en la red local</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+261"/>
         <source>túnel: --tunnel-token es visible en la lista de procesos; preferir %1</source>
         <translation>隧道：--tunnel-token 在进程列表中可见；建议使用 %1</translation>
     </message>
@@ -53887,7 +53902,7 @@ Datos (de %2): %3</source>
         <translation>隧道：已在配置中停用（仅限本地访问）</translation>
     </message>
     <message>
-        <location line="-633"/>
+        <location line="-637"/>
         <source>red: IP de la máquina %1; en el QR: %2</source>
         <translation>网络：本机 IP %1；二维码中：%2</translation>
     </message>
@@ -53917,7 +53932,7 @@ Datos (de %2): %3</source>
         <translation>Broadcast Appliance（本设备）</translation>
     </message>
     <message>
-        <location line="+94"/>
+        <location line="+98"/>
         <source>turn: escuchando en el puerto %1 (TCP y UDP)</source>
         <translation>turn：正在监听端口 %1（TCP 和 UDP）</translation>
     </message>
