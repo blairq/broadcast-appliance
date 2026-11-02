@@ -114,6 +114,69 @@ como un **SFU**: toma los paquetes codificados tal como llegan del invitado
 - Señalización en un solo pedido HTTP (offer y answer con candidatos). Los
   espectadores caídos se cierran solos; tope de `kMaxViewers` (48).
 
+## Grilla de personas
+
+Una fuente de escena (**Escenas → Agregar → Grilla de personas**, tipo `ba_grilla`)
+muestra a la gente conectada —los admitidos de la Conferencia y los integrantes
+habilitados de la Asamblea— en un mosaico que crece y se acomoda solo. Quién va en
+cada grilla y dónde lo decide la app (`src/app/escenas/GrillaPersonas.hpp`); el
+mosaico lo pinta B (`src/gateway/Grillas.hpp`) en el canal `BA.Grilla.<k>`, y su
+registro dice cada 30 s «grillas: BA.Grilla.1 1920x1080, N personas, X ms por cuadro».
+Los ajustes están en las Propiedades de la fuente y en `grilla_personas_ajustar`.
+
+### Cuando alguien habla (`al_hablar`)
+
+| Opción | Qué pasa |
+|---|---|
+| **Resaltar en su lugar** (`resaltar`, de fábrica) | Nadie se mueve. Las celdas van al 94 % de su lugar y la del orador lo llena (un leve agrandado), con el borde del color de resaltar. |
+| **Destacar** (`destacar`) | El orador pasa a un lugar grande (`destacar_lugar`: centro o izquierda; `destacar_tamano`: % del lienzo) y los demás a una franja (`franja`: abajo o al costado). Los demás conservan **su orden** (se achican y se corren, no se mezclan); los que no entran, «+N». La animación dura `transicion_ms`. Al terminar, cada uno vuelve a su lugar. |
+| **Superponer sin tapar** (`superponer`) | El recuadro del orador va en el medio y la grilla le deja el hueco: los demás se acomodan alrededor, nadie queda tapado (`superponer_tamano`). Con `superponer_completa`, el orador a pantalla completa. Si no entran alrededor del hueco, se arma como «destacar» con la franja abajo. |
+| **Cortar a la escena del orador** (`escena`) | Esta grilla no cambia. Otra grilla con **Qué muestra = Solo al orador** (`muestra: orador`, `sigue`: el nombre de esta) muestra únicamente al orador, grande y con su nombre: se la pone en una escena propia («Orador»), que el operador o la línea de tiempo ponen al aire en la salida que quieran mientras la grilla completa sigue en otra (salidas múltiples). |
+| **Nada** (`nada`) | Como antes: solo el borde a quien habla (si «Borde a quien habla»). |
+
+**Quién es el orador** (`disparo`): el que habla con **voz sostenida** (`voz_ms`, de
+fábrica 1,5 s: una tos no alcanza), el que tiene **la palabra** en la Asamblea, el
+**orador al aire** de la Conferencia (modo oradores) o **a mano** (el menú de cada cara
+en la vista de la grilla: «Destacar como orador», o `grilla_personas_destacar`; lo
+elegido a mano gana a cualquier disparo, en el acto). **Tiempo mínimo en pantalla**
+(`minimo_ms`, 4 s): el orador no cambia antes (que no salte con cada tos); si se va, sí.
+Con voz, cuando nadie habla se queda el último que habló.
+
+### La cámara del orador: alta definición con un fundido
+
+Regla: **al darle la palabra se usa el video de alta definición que manda esa persona,
+con un fundido, y nunca negro ni salto.**
+
+1. Al orador (y al que está a punto de serlo, si **Precargar al siguiente**: el
+   siguiente de la fila de la Asamblea o de la Conferencia; con voz, el que empezó a
+   hablar y todavía no llegó a `voz_ms`) se le pide la **capa alta** de su cámara
+   (`docs/arquitectura/06-canal-web.md` §7).
+2. Mientras no llega el primer cuadro HD se sigue viendo la **baja**. En una conexión
+   nueva (el integrante al que se le acaba de dar la palabra) la baja llega primero y
+   sale mientras tanto.
+3. Cuando llega la HD, **fundido** de la baja a la HD en `fundido_ms` (de fábrica
+   300 ms), en la grilla y en el canal de la app (el lugar del programa o el remoto
+   con la palabra). La baja sigue prendida ese tiempo (sus cuadros refrescan lo que se
+   va) y **recién después se pausa**.
+4. Para no cargar de más: solo el que pasa a grande sube a la alta; las miniaturas no
+   cambian de capa por achicarse un poco (suben pasando 260 px de alto y bajan recién
+   por debajo de 180), y no sube más de una miniatura por vuelta (cada subida es un
+   cuadro clave). Las miniaturas van en la baja (180p a 15 cps); quien no está en
+   ninguna grilla ni al aire, en ninguna.
+
+B anota en su registro cada pedido («capas: a <pid> se le pide la alta») y cada llegada
+(«capas: llegó la HD de <pid> (N ms desde el pedido); fundido de M ms»).
+
+### Nombres
+
+**Nombre en cada celda** (`nombres`): sin nombre, el nombre, o el nombre y el cargo o
+la banca (Conferencia: el campo «info» de la ficha; Asamblea: `cargo_oficial` y `banca`
+del integrante). Estilo: alto del rótulo (`nombre_tamano`, % del alto de la celda),
+abajo o arriba (`nombre_lugar`), color del texto y del fondo (`nombre_color`,
+`nombre_fondo`). B no tiene letras: la app dibuja cada rótulo con la letra de la
+interfaz (cualquier escritura) como una máscara y se lo manda una vez
+(`POST /api/v1/grillas/rotulos`); B lo pinta escalado al alto de cada celda.
+
 ## API de control
 
 Siempre en `127.0.0.1:8788` (nunca por el túnel). Credenciales: `Bearer` con el
@@ -141,6 +204,8 @@ consola web (escrituras con `X-BA-Admin: 1`, defensa CSRF).
 | GET | `/api/v1/network` | HTTPS, túnel, IPs y enlaces |
 | POST | `/api/v1/network/server-config` | `{endpoint, interface?}` → `wg0.conf` del servidor |
 | POST | `/api/v1/login-code` · `/api/v1/login` | acceso de la consola web |
+| GET / POST | `/api/v1/grillas` | la grilla de personas: el estado entero (`{fundido_ms, precarga, grillas: [{canal, …, rotulos, celdas: [{persona, x, y, w, h, resaltar, capa, rotulo}]}]}`, ver `src/gateway/Grillas.hpp`) |
+| POST | `/api/v1/grillas/rotulos` | `{rotulos: [{id, w, h, a8}]}` las máscaras de los nombres |
 
 ## WebRTC real
 

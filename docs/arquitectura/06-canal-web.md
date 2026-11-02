@@ -166,6 +166,14 @@ lo apagan o lo sueltan también.
   uno). Si llega antes de que la conexión esté negociada, lo vuelve a poner al conectar.
 - Al cambiar de capa, la sala manda primero las dos en `true` y, cuando le llegó el
   primer cuadro de la nueva, la vieja en `false`: lo que se ve no se corta.
+- **De la baja a la HD, con un fundido** (regla del usuario: «al darle la palabra, el
+  video de alta definición: un fade in y listo»). Si se pide la alta y todavía no salía
+  nada (una conexión nueva), la sala deja las dos prendidas y la **baja sale mientras
+  tanto**. Cuando llega el primer cuadro de la alta, quien pinta (el canal de la app y la
+  grilla de personas) **funde** de la baja a la HD en `fundido_ms` (lo manda la app con
+  la grilla; de fábrica 300 ms) y la baja **sigue prendida ese tiempo**: recién al
+  terminar llega `{"type":"capas","alta":true,"baja":false}`. Al bajar de la alta a la
+  baja no hay fundido. Ver `src/gateway/Fundido.hpp` y `SelectorCapas`.
 - `{"type":"medios", "activo": true, "previo": true}` (solo la sesión): sos el siguiente
   de la fila. Se abre la conexión y la cámara viaja (la sala pide la alta para tenerla
   lista) pero no va a ningún canal ni a la mezcla. Al darle la palabra llega
@@ -186,11 +194,13 @@ lo apagan o lo sueltan también.
 | Integrante con la palabra (canal 1 o 2) o el siguiente de la fila | alta |
 | Lobby, fila de oradores con vista previa | baja |
 | Fila sin vista previa, pantallas, atención hablada | nada |
-| En una grilla de personas | al menos baja (cuadrito ≤ 200 px) o alta (más grande) |
+| En una grilla de personas | la que pide la grilla (`capa` de su celda: la app la decide con histéresis, el orador en alta); con una app que no la dice, baja (cuadrito ≤ 200 px) o alta (más grande) |
+| Precargado por una grilla (el siguiente orador) | alta |
 | Lo mira una vista web (tablero, presidencia: se le reenvía la alta) | alta |
 
 Un **probador de carga** que quiera comportarse como un cliente real tiene que: mandar
 las dos capas con `capas` en la oferta, obedecer cada `{"type":"capas"}` (prender o
 pausar sus encodings) y, en la sesión, no renegociar con `previo:false`. La sala anota
-cada pedido en su registro («capas: a <pid> se le pide la alta») y las estadísticas de
-la sesión traen `capa` (la que sale) y `capa_pedida`.
+cada pedido en su registro («capas: a <pid> se le pide la alta»), cada llegada de la HD
+(«capas: llegó la HD de <pid> (N ms desde el pedido); fundido de M ms») y las
+estadísticas de la sesión traen `capa` (la que sale) y `capa_pedida`.
