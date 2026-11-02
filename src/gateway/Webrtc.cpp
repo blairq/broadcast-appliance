@@ -414,11 +414,12 @@ class RemoteVideoSink : public rtc::VideoSinkInterface<webrtc::VideoFrame> {
         }
         const int w = i420->width();
         const int h = i420->height();
-        if (destino == kSale && yuv_)
-            yuv_(PlanosYuv{i420->DataY(), i420->DataU(), i420->DataV(), i420->StrideY(), i420->StrideU(), i420->StrideV(), w, h});
         bgra_.resize(static_cast<size_t>(w) * h * 4);
         libyuv::I420ToARGB(i420->DataY(), i420->StrideY(), i420->DataU(), i420->StrideU(), i420->DataV(),
                            i420->StrideV(), bgra_.data(), w * 4, w, h);
+        if (destino == kSale && yuv_)
+            yuv_(PlanosYuv{i420->DataY(), i420->DataU(), i420->DataV(), i420->StrideY(), i420->StrideU(), i420->StrideV(), w, h,
+                           bgra_.data()});
         fn(bgra_.data(), bgra_.size(), w, h);
     }
 

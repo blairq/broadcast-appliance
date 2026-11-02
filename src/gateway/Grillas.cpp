@@ -639,6 +639,15 @@ void Grillas::cuadro(const std::string& persona, const PlanosYuv& c, std::int64_
     std::vector<std::uint8_t> planos; // el I420 achicado (lo chico)
     guardarCon(*r, c.ancho, c.alto, ahora, true, [&](std::uint8_t* px, int tw, int th) {
         const int cw = (tw + 1) / 2, ch = (th + 1) / 2;
+        // De la mitad al tamaño entero, del BGRA si ya está (PlanosYuv.hpp): a la mitad justa
+        // el «box» de BGRA también gana (73 us contra 97).
+        if (c.bgra != nullptr && (tw * 2 >= c.ancho || th * 2 >= c.alto)) {
+            if (tw == c.ancho && th == c.alto)
+                std::memcpy(px, c.bgra, static_cast<std::size_t>(tw) * th * 4);
+            else
+                escalar(c.bgra, c.ancho * 4, c.ancho, c.alto, px, tw * 4, tw, th);
+            return;
+        }
 #if BA_GATEWAY_HAVE_WEBRTC
         if (tw == c.ancho && th == c.alto) {
             libyuv::I420ToARGB(c.y, c.strideY, c.u, c.strideU, c.v, c.strideV, px, tw * 4, tw, th);
