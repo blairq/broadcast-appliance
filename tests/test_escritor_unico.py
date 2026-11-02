@@ -49,6 +49,8 @@ DEUDA = {
     # y borra el archivo viejo pisándolo con ceros.
     "core/security/CredentialStore.cpp": 2,
     "gateway/ShareStore.cpp": 1,
+    # El .json de diagnóstico al lado de un volcado o de las pilas de una traba: no es estado.
+    "core/diag/Caidas.cpp": 1,
     "launcher/Integrity.cpp": 1,
     "launcher/ShadowCopy.cpp": 1,
     "launcher/Supervisor.cpp": 3,
