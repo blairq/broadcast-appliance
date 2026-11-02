@@ -5119,7 +5119,7 @@ Faire défiler la bande ne change pas ce qui est affiché.</translation>
         <translation>Test technique&#xa0;: %1</translation>
     </message>
     <message>
-        <location line="+45"/>
+        <location line="+50"/>
         <source>Oradores</source>
         <translation>Intervenants</translation>
     </message>
@@ -5135,12 +5135,12 @@ Faire défiler la bande ne change pas ce qui est affiché.</translation>
     </message>
     <message>
         <location line="+4"/>
-        <location line="+1209"/>
+        <location line="+1036"/>
         <source>Tiempo</source>
         <translation>Temps</translation>
     </message>
     <message>
-        <location line="-1203"/>
+        <location line="-1030"/>
         <source>Tiempo general para cada orador (m:ss o minutos)</source>
         <translation>Temps général pour chaque intervenant (m:ss ou minutes)</translation>
     </message>
@@ -5236,7 +5236,7 @@ Faire défiler la bande ne change pas ce qui est affiché.</translation>
     </message>
     <message numerus="yes">
         <location line="+0"/>
-        <location line="+647"/>
+        <location line="+474"/>
         <source>%n esperando</source>
         <translation>
             <numerusform>%n en attente</numerusform>
@@ -5244,7 +5244,7 @@ Faire défiler la bande ne change pas ce qui est affiché.</translation>
         </translation>
     </message>
     <message>
-        <location line="-645"/>
+        <location line="-472"/>
         <source>Admitir a todos</source>
         <translation>Tout admettre</translation>
     </message>
@@ -5285,12 +5285,11 @@ Faire défiler la bande ne change pas ce qui est affiché.</translation>
     </message>
     <message>
         <location line="+15"/>
-        <location line="+157"/>
         <source>prueba</source>
         <translation>test</translation>
     </message>
     <message>
-        <location line="-155"/>
+        <location line="+2"/>
         <source>espera hace %1</source>
         <translation>en attente depuis %1</translation>
     </message>
@@ -5321,12 +5320,11 @@ Faire défiler la bande ne change pas ce qui est affiché.</translation>
     </message>
     <message>
         <location line="+6"/>
-        <location line="+227"/>
         <source>Editar nombre, cargo y contacto</source>
         <translation>Modifier le nom, la fonction et le contact</translation>
     </message>
     <message>
-        <location line="-222"/>
+        <location line="+5"/>
         <source>✦ Que lo atienda</source>
         <translation>✦ Le faire prendre en charge</translation>
     </message>
@@ -5346,7 +5344,17 @@ Faire défiler la bande ne change pas ce qui est affiché.</translation>
         <translation>Dans la conférence</translation>
     </message>
     <message>
-        <location line="+4"/>
+        <location line="+11"/>
+        <source>Ver en grilla (videos)</source>
+        <translation>Vue en grille (vidéos)</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Ver en lista (una fila por persona)</source>
+        <translation>Vue en liste (une ligne par personne)</translation>
+    </message>
+    <message>
+        <location line="+3"/>
         <source>Conferencia %1</source>
         <translation>Conférence %1</translation>
     </message>
@@ -5382,205 +5390,23 @@ Faire défiler la bande ne change pas ce qui est affiché.</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location line="+703"/>
+        <location line="+515"/>
         <source>Reiniciar</source>
         <translation>Redémarrer</translation>
     </message>
     <message>
-        <location line="-703"/>
-        <location line="+703"/>
+        <location line="-515"/>
+        <location line="+515"/>
         <source>Cancelar</source>
         <translation>Annuler</translation>
     </message>
     <message>
-        <location line="-700"/>
+        <location line="-512"/>
         <source>La conferencia se está reiniciando.</source>
         <translation>La conférence redémarre.</translation>
     </message>
     <message>
-        <location line="+61"/>
-        <source>sin lugar en el programa</source>
-        <translation>pas de place dans le programme</translation>
-    </message>
-    <message>
-        <location line="+23"/>
-        <source>mic</source>
-        <translation>micro</translation>
-    </message>
-    <message>
-        <location line="+0"/>
-        <source>mic off</source>
-        <translation>micro coupé</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>cámara</source>
-        <translation>caméra</translation>
-    </message>
-    <message>
-        <location line="+0"/>
-        <source>cámara off</source>
-        <translation>caméra coupée</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>pantalla</source>
-        <translation>écran</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>PRESENTADOR</source>
-        <translation>PRÉSENTATEUR</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>ORADOR</source>
-        <translation>INTERVENANT</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>reconectando</source>
-        <translation>reconnexion</translation>
-    </message>
-    <message>
-        <location line="+0"/>
-        <source>en vivo</source>
-        <translation>en direct</translation>
-    </message>
-    <message>
-        <location line="+0"/>
-        <source>sin medios</source>
-        <translation>pas de médias</translation>
-    </message>
-    <message>
-        <location line="+25"/>
-        <location line="+81"/>
-        <source>Silenciar</source>
-        <translation>Couper le son</translation>
-    </message>
-    <message>
-        <location line="-81"/>
-        <location line="+81"/>
-        <source>Activar micrófono</source>
-        <translation>Activer le micro</translation>
-    </message>
-    <message>
-        <location line="-76"/>
-        <location line="+77"/>
-        <source>Apagar cámara</source>
-        <translation>Couper la caméra</translation>
-    </message>
-    <message>
-        <location line="-77"/>
-        <location line="+77"/>
-        <source>Encender cámara</source>
-        <translation>Activer la caméra</translation>
-    </message>
-    <message>
-        <location line="-71"/>
-        <location line="+56"/>
-        <source>🎙 Hablando…</source>
-        <translation>🎙 En train de parler…</translation>
-    </message>
-    <message>
-        <location line="-56"/>
-        <location line="+56"/>
-        <source>🎙 Hablarle</source>
-        <translation>🎙 Lui parler</translation>
-    </message>
-    <message>
-        <location line="-50"/>
-        <location line="+56"/>
-        <source>Mantené apretado para hablarle (le llega tu voz por su retorno; no sale al aire)</source>
-        <translation>Maintenez appuyé pour lui parler (votre voix lui parvient par son retour&#xa0;; elle ne passe pas à l&apos;antenne)</translation>
-    </message>
-    <message>
-        <location line="-53"/>
-        <location line="+63"/>
-        <source>Prueba técnica</source>
-        <translation>Test technique</translation>
-    </message>
-    <message>
-        <location line="-62"/>
-        <location line="+62"/>
-        <source>Probando a %1: un tono por su retorno durante 4 s…</source>
-        <translation>Test de %1&#xa0;: une tonalité sur son retour pendant 4 s…</translation>
-    </message>
-    <message>
-        <location line="-60"/>
-        <source>Le manda un tono por el retorno y mide si vuelve por su micrófono (eco), y mira su red</source>
-        <translation>Envoie une tonalité par son retour, mesure si elle revient par son micro (écho) et vérifie son réseau</translation>
-    </message>
-    <message>
-        <location line="+2"/>
-        <location line="+59"/>
-        <source>Cortar pantalla</source>
-        <translation>Arrêter le partage d&apos;écran</translation>
-    </message>
-    <message>
-        <location line="-58"/>
-        <location line="+59"/>
-        <source>Bajar mano</source>
-        <translation>Baisser la main</translation>
-    </message>
-    <message>
-        <location line="-54"/>
-        <location line="+55"/>
-        <source>→ Oradores</source>
-        <translation>→ Intervenants</translation>
-    </message>
-    <message>
-        <location line="-52"/>
-        <source>Lo pone en la fila de oradores (sale del aire hasta que le toque)</source>
-        <translation>Le place dans la file des intervenants (hors antenne jusqu&apos;à son tour)</translation>
-    </message>
-    <message>
-        <location line="+4"/>
-        <location line="+49"/>
-        <source>Quitar presentador</source>
-        <translation>Retirer le présentateur</translation>
-    </message>
-    <message>
-        <location line="-49"/>
-        <location line="+49"/>
-        <source>★ Presentador</source>
-        <translation>★ Présentateur</translation>
-    </message>
-    <message>
-        <location line="-44"/>
-        <source>Deja de ser presentador y sale del aire</source>
-        <translation>N&apos;est plus présentateur et quitte l&apos;antenne</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>Se queda al aire con su lugar mientras rotan los oradores</source>
-        <translation>Reste à l&apos;antenne à sa place pendant la rotation des intervenants</translation>
-    </message>
-    <message>
-        <location line="+3"/>
-        <location line="+41"/>
-        <source>✉ Mensaje</source>
-        <translation>✉ Message</translation>
-    </message>
-    <message>
-        <location line="-34"/>
-        <location line="+35"/>
-        <source>✎ Datos</source>
-        <translation>✎ Infos</translation>
-    </message>
-    <message>
-        <location line="-30"/>
-        <location line="+32"/>
-        <source>Sacar</source>
-        <translation>Retirer</translation>
-    </message>
-    <message>
-        <location line="-14"/>
-        <source>Controles ▾</source>
-        <translation>Commandes ▾</translation>
-    </message>
-    <message>
-        <location line="+27"/>
+        <location line="+30"/>
         <source>Todavía no entró nadie.
 Compartí el enlace y el PIN (panel Acceso).</source>
         <translation>Personne n&apos;est encore entré.
@@ -6149,7 +5975,7 @@ L&apos;ancien PIN ne permet plus d&apos;entrer.</translation>
 <context>
     <name>ConferenceViewModel</name>
     <message>
-        <location filename="../src/app/ui/ConferenceViewModel.cpp" line="+124"/>
+        <location filename="../src/app/ui/ConferenceViewModel.cpp" line="+125"/>
         <source>La conferencia respondio: %1</source>
         <translation>La conférence a répondu&#xa0;: %1</translation>
     </message>
@@ -6174,7 +6000,7 @@ L&apos;ancien PIN ne permet plus d&apos;entrer.</translation>
         <translation>Plus personne dans la file</translation>
     </message>
     <message>
-        <location line="+103"/>
+        <location line="+107"/>
         <source>%1 espera en el lobby</source>
         <translation>%1 attend dans la salle d&apos;attente</translation>
     </message>
@@ -12330,12 +12156,13 @@ Il se modifie dans son code (section Plugins, ou en le demandant à l&apos;assis
         <translation>Configurer pinggy…</translation>
     </message>
     <message>
-        <location line="+34"/>
+        <location line="+47"/>
+        <location line="+54"/>
         <source>Invitado %1</source>
         <translation>Invité %1</translation>
     </message>
     <message>
-        <location line="+9"/>
+        <location line="-44"/>
         <source>Retorno apagado</source>
         <translation>Retour coupé</translation>
     </message>
@@ -12345,12 +12172,17 @@ Il se modifie dans son code (section Plugins, ou en le demandant à l&apos;assis
         <translation>Cet invité n&apos;entend rien&#xa0;: son mix sans sa voix (mix-minus) n&apos;arrive pas à la conférence. On ne lui envoie pas le programme complet, car il s&apos;entendrait lui-même en retard.</translation>
     </message>
     <message>
-        <location line="+12"/>
+        <location line="+11"/>
         <source>Red: %1 kbps · pérdida %2 % · jitter %3 ms · RTT %4 ms</source>
         <translation>Réseau&#xa0;: %1 kbps · perte %2 % · gigue %3 ms · RTT %4 ms</translation>
     </message>
     <message>
-        <location line="+7"/>
+        <location line="+11"/>
+        <source>Calidad, retorno, ISO y cargo</source>
+        <translation>Qualité, retour, ISO et fonction</translation>
+    </message>
+    <message>
+        <location line="+27"/>
         <location line="+1"/>
         <source>Bajar a %1</source>
         <translation>Réduire à %1</translation>
@@ -12361,12 +12193,12 @@ Il se modifie dans son code (section Plugins, ou en le demandant à l&apos;assis
         <translation>Qualité maximale</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="+4"/>
         <source>Grabar aparte (ISO)</source>
         <translation>Enregistrer à part (ISO)</translation>
     </message>
     <message>
-        <location line="+5"/>
+        <location line="+6"/>
         <source>Aprobar su cargo para el zócalo: «%1»</source>
         <translation>Approuver sa fonction pour le synthé&#xa0;: «&#xa0;%1&#xa0;»</translation>
     </message>
@@ -12376,19 +12208,14 @@ Il se modifie dans son code (section Plugins, ou en le demandant à l&apos;assis
         <translation>Fonction approuvée pour le synthé</translation>
     </message>
     <message>
-        <location line="+10"/>
+        <location line="-19"/>
         <source>Oye: programa sin su voz</source>
         <translation>Entend&#xa0;: programme sans sa voix</translation>
     </message>
     <message>
-        <location line="+0"/>
+        <location line="+2"/>
         <source>Oye: programa entero</source>
         <translation>Entend&#xa0;: programme complet</translation>
-    </message>
-    <message>
-        <location line="+5"/>
-        <source>Sin su voz (mix-minus): no se escucha con retardo a sí mismo ni hace eco. Entero: solo si usa auriculares y lo pide.</source>
-        <translation>Sans sa voix (mix-minus)&#xa0;: il ne s&apos;entend pas en retard et il n&apos;y a pas d&apos;écho. Complet&#xa0;: seulement s&apos;il utilise un casque et le demande.</translation>
     </message>
 </context>
 <context>
@@ -30045,6 +29872,177 @@ Ajoutez-en une dans Scènes et sources&#xa0;: placez-la là où le synthé doit 
         <location line="+3"/>
         <source>Sin la clave adentro, el QR abre la página y pide la clave. Decísela vos: %1</source>
         <translation>Sans la clé incluse, le QR code ouvre la page et demande la clé. Communiquez-la vous-même&#xa0;: %1</translation>
+    </message>
+</context>
+<context>
+    <name>SalaParticipantes</name>
+    <message>
+        <location filename="../src/app/qml/controls/SalaParticipantes.qml" line="+61"/>
+        <source>De la prueba de sala: fuera del padrón, la votación y el quórum</source>
+        <translation>Du test de salle : hors du registre, du vote et du quorum</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Orador al aire</source>
+        <translation>Orateur à l&apos;antenne</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Presentador</source>
+        <translation>Présentateur</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Levantó la mano</source>
+        <translation>A levé la main</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Comparte pantalla</source>
+        <translation>Partage son écran</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Le estás hablando</source>
+        <translation>Vous lui parlez</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Micrófono apagado</source>
+        <translation>Micro coupé</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Cámara apagada</source>
+        <translation>Caméra coupée</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Retorno apagado: no escucha nada (su mezcla sin su voz no llega a la conferencia)</source>
+        <translation>Retour coupé : il n&apos;entend rien (son mix-minus n&apos;arrive pas à la conférence)</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Reconectando</source>
+        <translation>Reconnexion</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Conectado, sin medios todavía</source>
+        <translation>Connecté, pas encore de médias</translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <source>Red: mala</source>
+        <translation>Réseau : mauvais</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Red: con problemas</source>
+        <translation>Réseau : instable</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Red: bien</source>
+        <translation>Réseau : bon</translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>🎙 Hablando…</source>
+        <translation>🎙 En train de parler…</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>🎙 Hablarle</source>
+        <translation>🎙 Lui parler</translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>Mantené apretado para hablarle (le llega tu voz por su retorno; no sale al aire)</source>
+        <translation>Maintenez appuyé pour lui parler (votre voix lui parvient par son retour&#xa0;; elle ne passe pas à l&apos;antenne)</translation>
+    </message>
+    <message>
+        <location line="+57"/>
+        <source>sin lugar en el programa</source>
+        <translation>pas de place dans le programme</translation>
+    </message>
+    <message>
+        <location line="+45"/>
+        <location line="+95"/>
+        <source>Acciones</source>
+        <translation>Actions</translation>
+    </message>
+    <message>
+        <location line="-7"/>
+        <location line="+21"/>
+        <source>Silenciar</source>
+        <translation>Couper le son</translation>
+    </message>
+    <message>
+        <location line="-21"/>
+        <location line="+21"/>
+        <source>Activar micrófono</source>
+        <translation>Activer le micro</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Apagar cámara</source>
+        <translation>Couper la caméra</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Encender cámara</source>
+        <translation>Activer la caméra</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Prueba técnica</source>
+        <translation>Test technique</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Probando a %1: un tono por su retorno durante 4 s…</source>
+        <translation>Test de %1&#xa0;: une tonalité sur son retour pendant 4 s…</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Cortar pantalla</source>
+        <translation>Arrêter le partage d&apos;écran</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Bajar mano</source>
+        <translation>Baisser la main</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>→ Oradores</source>
+        <translation>→ Intervenants</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Quitar presentador</source>
+        <translation>Retirer le présentateur</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>★ Presentador</source>
+        <translation>★ Présentateur</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>✉ Mensaje</source>
+        <translation>✉ Message</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>✎ Datos</source>
+        <translation>✎ Infos</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Sacar</source>
+        <translation>Retirer</translation>
     </message>
 </context>
 <context>

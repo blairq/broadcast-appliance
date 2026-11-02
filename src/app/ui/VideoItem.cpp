@@ -115,15 +115,24 @@ void VideoItem::setFillMode(FillMode m) {
     update();
 }
 
+void VideoItem::setEnVista(bool si) {
+    if (si == enVista_) return;
+    enVista_ = si;
+    emit enVistaChanged();
+    // De vuelta en la vista: lo último que haya, sin esperar al próximo cuadro.
+    if (si) refresh();
+}
+
 void VideoItem::refresh() {
     if (service_ == nullptr) {
         return;
     }
     const bool had = !image_.isNull();
-    // Oculto (una página precargada que no se ve) o diminuto (no se distingue) no copia
-    // cuadros ni redibuja la ventana: al mostrarse o agrandarse los pide. El primero sí,
-    // por si alguien mira hasFrame para decidir si mostrarlo.
-    if (had && (!isVisible() || diminuto())) return;
+    // Oculto (una página precargada que no se ve), fuera de la vista desplazada o diminuto
+    // (no se distingue) no copia cuadros ni redibuja la ventana: al mostrarse, volver a la
+    // vista o agrandarse los pide. Sin leerlos (latest), FrameService deja de copiar ese
+    // canal. El primero sí, por si alguien mira hasFrame para decidir si mostrarlo.
+    if (had && (!isVisible() || !enVista_ || diminuto())) return;
     const QSize antes = image_.size();
     if (service_->latest(source_, image_, serial_)) {
         dirty_ = true;

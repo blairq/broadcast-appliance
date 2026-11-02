@@ -33,6 +33,11 @@ Rectangle {
     property real anchoDerAntes: 374
     readonly property bool derAngosta: anchoDer < 220
     property int genteAntes: 0
+    // Cómo se ve «En la conferencia»: "grilla" o "lista" (preferencia de la vista,
+    // Config/interfaz.json).
+    property string modoSala: "grilla"
+    function elegirModoSala(m) { modoSala = m; Studio.uiGuardar("conferencia.modo", m) }
+    Component.onCompleted: modoSala = String(Studio.uiValor("conferencia.modo", "grilla")) === "lista" ? "lista" : "grilla"
     function expandirDer() { anchoDer = anchoDerAntes >= 300 ? anchoDerAntes : 374 }
 
     // La hora para los "hace N min" (el Reloj corre solo mientras se mira).
@@ -401,6 +406,21 @@ Rectangle {
                     RowLayout {
                         anchors { right: parent.right; top: parent.top; topMargin: -34 }
                         spacing: 8
+                        // Grilla o lista (con muchos, la lista entra más gente). Se recuerda.
+                        Row {
+                            visible: grid.count > 1
+                            spacing: 2
+                            GlassButton {
+                                compact: true; icon: "▦"; active: page.modoSala !== "lista"
+                                onClicked: page.elegirModoSala("grilla")
+                                ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: qsTr("Ver en grilla (videos)")
+                            }
+                            GlassButton {
+                                compact: true; icon: "☰"; active: page.modoSala === "lista"
+                                onClicked: page.elegirModoSala("lista")
+                                ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: qsTr("Ver en lista (una fila por persona)")
+                            }
+                        }
                         StatusPill { text: conf.online ? qsTr("Conferencia %1").arg(conf.room) : qsTr("Conferencia sin conexión"); dot: conf.online ? Theme.ok : Theme.live; pulse: !conf.online }
                         StatusPill { visible: conf.online; text: qsTr("%1/%2 lugares").arg(conf.maxGuests - conf.slotsFree).arg(conf.maxGuests); dot: conf.slotsFree > 0 ? Theme.ok : Theme.amber }
                         // Reinicia SOLO la sala (el gateway): relee su configuración (IP,
@@ -420,9 +440,13 @@ Rectangle {
                             })
                         }
                     }
-                    GridView {
+                    // La gente adentro: grilla deslizable o lista (SalaParticipantes).
+                    SalaParticipantes {
                         id: grid
                         anchors.fill: parent
+                        modelo: conf.inside
+                        conf: page.conf
+                        modo: page.modoSala
                         onCountChanged: {
                             if (count > 1 && page.genteAntes <= 1 && !page.derAngosta) {
                                 page.anchoDerAntes = page.anchoDer
@@ -432,203 +456,11 @@ Rectangle {
                             }
                             page.genteAntes = count
                         }
-                        clip: true
-                        readonly property int cols: count <= 1 ? 1 : 2
-                        cellWidth: width / cols
-                        cellHeight: Math.min(height / Math.max(1, Math.ceil(count / cols)), cellWidth * 0.75)
-                        model: conf.inside
-                        delegate: Item {
-                            required property string uid
-                            required property string name
-                            required property int slot
-                            required property bool connected
-                            required property bool mediaUp
-                            required property bool mic
-                            required property bool cam
-                            required property bool screen
-                            required property bool hand
-                            required property bool presenter
-                            required property string speaker
-                            required property string info
-                            required property string contact
-                            required property bool talk
-                            required property bool prueba
-                            width: grid.cellWidth
-                            height: grid.cellHeight
-                            Rectangle {
-                                id: tarjeta
-                                anchors { fill: parent; margins: 6 }
-                                radius: 16
-                                color: "#000000"
-                                clip: true
-                                border.color: presenter ? "#a78bfa" : hand ? Theme.amber : Theme.glassBorder
-                                border.width: presenter || hand ? 2 : 1
-                                // El video que B publica para ese slot (lo mismo que ve el motor).
-                                // Sin lugar en el programa no hay video que mostrar
-                                // (esta en la sala igual: se lo ve y se lo maneja).
-                                VideoItem {
-                                    anchors.fill: parent
-                                    visible: slot > 0
-                                    source: "guest:" + slot
-                                    fillMode: VideoItem.Fit
-                                    opacity: connected ? 1 : 0.4
-                                }
-                                Text {
-                                    anchors.centerIn: parent
-                                    visible: slot <= 0
-                                    text: qsTr("sin lugar en el programa")
-                                    color: Theme.textFaint; font.pixelSize: 12
-                                }
-                                Rectangle {
-                                    anchors { left: parent.left; right: parent.right; bottom: parent.bottom }
-                                    height: 74
-                                    gradient: Gradient {
-                                        GradientStop { position: 0; color: "transparent" }
-                                        GradientStop { position: 1; color: Qt.rgba(0, 0, 0, 0.8) }
-                                    }
-                                }
-                                ColumnLayout {
-                                    anchors { left: parent.left; right: parent.right; bottom: parent.bottom; margins: 8 }
-                                    spacing: 6
-                                    RowLayout {
-                                        spacing: 8
-                                        Rectangle { width: 22; height: 22; radius: 7; color: slot > 0 ? Theme.accent : Qt.rgba(1, 1, 1, 0.18)
-                                            Text { anchors.centerIn: parent; text: slot > 0 ? slot : "–"; color: slot > 0 ? "#140a04" : "white"; font { pixelSize: 12; weight: Font.Bold } } }
-                                        Text { text: name; color: "white"; font.pixelSize: 14; font.weight: Font.DemiBold; elide: Text.ElideRight; Layout.fillWidth: true }
-                                        // De la prueba de sala: fuera del padrón, la votación y el quórum.
-                                        StatusPill { visible: prueba; text: qsTr("prueba"); dot: Theme.amber }
-                                        Text { visible: hand; text: "✋"; font.pixelSize: 16 }
-                                        // Achicada, solo lo que avisa algo: el nombre tiene que leerse.
-                                        StatusPill { visible: !barra.compacta || !mic; text: mic ? qsTr("mic") : qsTr("mic off"); dot: mic ? Theme.ok : Theme.live }
-                                        StatusPill { visible: !barra.compacta || !cam; text: cam ? qsTr("cámara") : qsTr("cámara off"); dot: cam ? Theme.ok : Theme.live }
-                                        StatusPill { visible: screen; text: qsTr("pantalla"); dot: Theme.accent }
-                                        StatusPill { visible: presenter; text: qsTr("PRESENTADOR"); dot: "#a78bfa" }
-                                        StatusPill { visible: speaker === "onair"; text: qsTr("ORADOR"); dot: Theme.live }
-                                        StatusPill { visible: !barra.compacta || !connected || !mediaUp; text: !connected ? qsTr("reconectando") : mediaUp ? qsTr("en vivo") : qsTr("sin medios"); dot: !connected ? Theme.live : mediaUp ? Theme.ok : Theme.amber }
-                                    }
-                                    // Los controles, en una barra oscura propia (antes iban sueltos
-                                    // sobre el video y no se veía que eran botones). Si no entran
-                                    // (la tarjeta se achica cuando entra más gente), quedan
-                                    // «Hablarle» (se mantiene apretado: no puede ir en un menú) y
-                                    // «Controles ▾» con todo lo demás.
-                                    Rectangle {
-                                        id: barra
-                                        Layout.fillWidth: true
-                                        readonly property bool compacta: flujo.implicitHeight > tarjeta.height * 0.42
-                                        implicitHeight: (compacta ? filaCompacta.implicitHeight : flujo.implicitHeight) + 12
-                                        radius: 10
-                                        clip: true
-                                        color: Qt.rgba(0.05, 0.05, 0.07, 0.92)
-                                        border.color: Qt.rgba(1, 1, 1, 0.12)
-                                        Flow {
-                                            id: flujo
-                                            anchors { left: parent.left; right: parent.right; top: parent.top; margins: 6 }
-                                            spacing: 6
-                                            // Se sigue midiendo aunque no se vea: de su alto sale `compacta`.
-                                            opacity: barra.compacta ? 0 : 1
-                                            enabled: !barra.compacta
-                                            GlassButton {
-                                                compact: true
-                                                text: mic ? qsTr("Silenciar") : qsTr("Activar micrófono")
-                                                onClicked: conf.request(uid, mic ? "mute-mic" : "unmute-mic")
-                                            }
-                                            GlassButton {
-                                                compact: true
-                                                text: cam ? qsTr("Apagar cámara") : qsTr("Encender cámara")
-                                                onClicked: conf.request(uid, cam ? "mute-cam" : "unmute-cam")
-                                            }
-                                            // IFB: mientras lo mantenés apretado le llega tu voz (mezclada con el
-                                            // retorno, el programa baja). No sale al aire.
-                                            GlassButton {
-                                                compact: true; text: talk ? qsTr("🎙 Hablando…") : qsTr("🎙 Hablarle")
-                                                active: talk; activeColor: Theme.ok
-                                                onPressed2: conf.talk(uid, true)
-                                                onReleased2: conf.talk(uid, false)
-                                                onCanceled2: conf.talk(uid, false)
-                                                ToolTip.visible: hovered && !pressed; ToolTip.delay: 400
-                                                ToolTip.text: qsTr("Mantené apretado para hablarle (le llega tu voz por su retorno; no sale al aire)")
-                                            }
-                                            GlassButton {
-                                                compact: true; text: qsTr("Prueba técnica")
-                                                onClicked: { conf.pruebaTecnica(uid); Studio.notify(qsTr("Probando a %1: un tono por su retorno durante 4 s…").arg(name), "info") }
-                                                ToolTip.visible: hovered; ToolTip.delay: 400
-                                                ToolTip.text: qsTr("Le manda un tono por el retorno y mide si vuelve por su micrófono (eco), y mira su red")
-                                            }
-                                            GlassButton { visible: screen; compact: true; text: qsTr("Cortar pantalla"); onClicked: conf.request(uid, "stop-screen") }
-                                            GlassButton { visible: hand; compact: true; text: qsTr("Bajar mano"); onClicked: conf.request(uid, "lower-hand") }
-                                            // Pasarlo a la fila de oradores o dejarlo de presentador
-                                            // fijo: la sala sigue siendo la misma para todos.
-                                            GlassButton {
-                                                visible: !presenter && speaker !== "queued"
-                                                compact: true; text: qsTr("→ Oradores")
-                                                onClicked: conf.speakerRequeue(uid)
-                                                ToolTip.visible: hovered; ToolTip.delay: 400
-                                                ToolTip.text: qsTr("Lo pone en la fila de oradores (sale del aire hasta que le toque)")
-                                            }
-                                            GlassButton {
-                                                compact: true
-                                                text: presenter ? qsTr("Quitar presentador") : qsTr("★ Presentador")
-                                                active: presenter
-                                                activeColor: "#a78bfa"
-                                                onClicked: conf.setPresenter(uid, !presenter)
-                                                ToolTip.visible: hovered; ToolTip.delay: 400
-                                                ToolTip.text: presenter ? qsTr("Deja de ser presentador y sale del aire")
-                                                                        : qsTr("Se queda al aire con su lugar mientras rotan los oradores")
-                                            }
-                                            GlassButton {
-                                                compact: true; text: qsTr("✉ Mensaje")
-                                                // Abre SU hilo. Si todavía no hay
-                                                // ninguno con esa persona, el tab
-                                                // aparece con el primer mensaje.
-                                                onClicked: { page.abrirHilo(uid); chatInput.forceActiveFocus() }
-                                            }
-                                            GlassButton {
-                                                compact: true; text: qsTr("✎ Datos")
-                                                onClicked: profDlg.editPerson(uid, name, info, contact)
-                                                ToolTip.visible: hovered; ToolTip.delay: 400
-                                                ToolTip.text: qsTr("Editar nombre, cargo y contacto")
-                                            }
-                                            GlassButton { compact: true; text: qsTr("Sacar"); onClicked: { kickDlg.who = uid; kickDlg.whoName = name; kickDlg.open() } }
-                                        }
-                                        RowLayout {
-                                            id: filaCompacta
-                                            visible: barra.compacta
-                                            anchors { left: parent.left; right: parent.right; top: parent.top; margins: 6 }
-                                            spacing: 6
-                                            GlassButton {
-                                                compact: true; text: talk ? qsTr("🎙 Hablando…") : qsTr("🎙 Hablarle")
-                                                active: talk; activeColor: Theme.ok
-                                                onPressed2: conf.talk(uid, true)
-                                                onReleased2: conf.talk(uid, false)
-                                                onCanceled2: conf.talk(uid, false)
-                                                ToolTip.visible: hovered && !pressed; ToolTip.delay: 400
-                                                ToolTip.text: qsTr("Mantené apretado para hablarle (le llega tu voz por su retorno; no sale al aire)")
-                                            }
-                                            GlassButton {
-                                                id: controlesBtn
-                                                compact: true; text: qsTr("Controles ▾")
-                                                onClicked: controlesMenu.popup(controlesBtn, 0, controlesBtn.height + 4)
-                                                Menu {
-                                                    id: controlesMenu
-                                                    MenuItem { text: mic ? qsTr("Silenciar") : qsTr("Activar micrófono"); onTriggered: conf.request(uid, mic ? "mute-mic" : "unmute-mic") }
-                                                    MenuItem { text: cam ? qsTr("Apagar cámara") : qsTr("Encender cámara"); onTriggered: conf.request(uid, cam ? "mute-cam" : "unmute-cam") }
-                                                    MenuItem { text: qsTr("Prueba técnica"); onTriggered: { conf.pruebaTecnica(uid); Studio.notify(qsTr("Probando a %1: un tono por su retorno durante 4 s…").arg(name), "info") } }
-                                                    MenuItem { visible: screen; height: visible ? implicitHeight : 0; text: qsTr("Cortar pantalla"); onTriggered: conf.request(uid, "stop-screen") }
-                                                    MenuItem { visible: hand; height: visible ? implicitHeight : 0; text: qsTr("Bajar mano"); onTriggered: conf.request(uid, "lower-hand") }
-                                                    MenuItem { visible: !presenter && speaker !== "queued"; height: visible ? implicitHeight : 0; text: qsTr("→ Oradores"); onTriggered: conf.speakerRequeue(uid) }
-                                                    MenuItem { text: presenter ? qsTr("Quitar presentador") : qsTr("★ Presentador"); onTriggered: conf.setPresenter(uid, !presenter) }
-                                                    MenuItem { text: qsTr("✉ Mensaje"); onTriggered: { page.abrirHilo(uid); chatInput.forceActiveFocus() } }
-                                                    MenuItem { text: qsTr("✎ Datos"); onTriggered: profDlg.editPerson(uid, name, info, contact) }
-                                                    MenuSeparator {}
-                                                    MenuItem { text: qsTr("Sacar"); onTriggered: { kickDlg.who = uid; kickDlg.whoName = name; kickDlg.open() } }
-                                                }
-                                            }
-                                            Item { Layout.fillWidth: true }
-                                        }
-                                    }
-                                }
-                            }
-                        }
+                        // Abre SU hilo. Si todavía no hay ninguno con esa persona, el tab
+                        // aparece con el primer mensaje.
+                        onMensaje: (uid) => { page.abrirHilo(uid); chatInput.forceActiveFocus() }
+                        onDatos: (uid, name, info, contact) => profDlg.editPerson(uid, name, info, contact)
+                        onSacar: (uid, name) => { kickDlg.who = uid; kickDlg.whoName = name; kickDlg.open() }
                         Text {
                             anchors.centerIn: parent
                             visible: grid.count === 0

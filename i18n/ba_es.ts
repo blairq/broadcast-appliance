@@ -225,8 +225,8 @@
 <context>
     <name>ConferencePage</name>
     <message numerus="yes">
-        <location filename="../src/app/qml/pages/ConferencePage.qml" line="+228"/>
-        <location line="+647"/>
+        <location filename="../src/app/qml/pages/ConferencePage.qml" line="+233"/>
+        <location line="+474"/>
         <source>%n esperando</source>
         <translation>
             <numerusform>%n esperando</numerusform>
@@ -234,7 +234,7 @@
         </translation>
     </message>
     <message numerus="yes">
-        <location line="-549"/>
+        <location line="-376"/>
         <source>Anotado sin nombre · %n cara</source>
         <translation>
             <numerusform>Anotado sin nombre · %n cara</numerusform>
@@ -242,7 +242,7 @@
         </translation>
     </message>
     <message numerus="yes">
-        <location line="+543"/>
+        <location line="+370"/>
         <source>%n con video</source>
         <translation>
             <numerusform>%n con video</numerusform>
