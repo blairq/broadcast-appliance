@@ -249,30 +249,49 @@ std::string firma(const webrtc::SdpAudioFormat& f) {
 Grupo::Grupo(std::uint16_t id, rtc::scoped_refptr<webrtc::AudioEncoderFactory> base)
     : id_(id), base_(std::move(base)) {}
 
-std::uint64_t Grupo::ultimo() const {
-    std::lock_guard<std::mutex> l(m_);
-    return seq_;
-}
+std::uint64_t Grupo::ultimo() const { return seq_.load(std::memory_order_acquire); }
 
 std::uint64_t Grupo::codificar(const float* pcm, std::size_t n, int rate) {
     // #13 del plan: el Opus compartido se codifica una vez por variante (hilo del retorno).
     static ba::diag::Frontera& fCodificar =
         ba::diag::frontera("retorno.audio_codificar", 13, "audio del retorno → Opus compartido (una vez por variante)");
     ba::diag::MedirPase medir(fCodificar, n * sizeof(float));
-    std::lock_guard<std::mutex> l(m_);
-    const std::uint64_t k = ++seq_;
-    for (auto it = variantes_.begin(); it != variantes_.end();) {
-        Variante& v = it->second;
-        if (k - v.pedida > kSinPedirBloques) {
-            it = variantes_.erase(it);
-            continue;
+    std::lock_guard<std::mutex> cod(codM_);
+    // 1) Con el candado exclusivo, un momento: el número del bloque y las variantes vivas.
+    std::vector<Variante*> vivas;
+    std::uint64_t k = 0;
+    {
+        std::unique_lock<std::shared_mutex> l(m_);
+        k = seq_.load(std::memory_order_relaxed) + 1;
+        for (auto it = variantes_.begin(); it != variantes_.end();) {
+            if (k - it->second.pedida.v.load(std::memory_order_relaxed) > kSinPedirBloques) {
+                it = variantes_.erase(it);
+                continue;
+            }
+            vivas.push_back(&it->second);
+            ++it;
         }
-        ++it;
+    }
+    // 2) Opus sin candado: solo este hilo toca enc, pcm, buf, ts y pendCod (y solo codificar
+    //    borra variantes, así que los punteros valen).
+    struct Hecho {
+        Variante* v = nullptr;
+        std::uint64_t pendiente = 0;
+        bool hayPaquete = false;
+        Paquete p;
+    };
+    std::vector<Hecho> hechos;
+    hechos.reserve(vivas.size());
+    for (Variante* vp : vivas) {
+        Variante& v = *vp;
+        Hecho h;
+        h.v = vp;
         const int canales = static_cast<int>(v.enc->NumChannels());
         const std::size_t cuadros = n / 2;
         if (pcm == nullptr || rate != v.enc->SampleRateHz() || cuadros * 100 != static_cast<std::size_t>(rate) ||
             canales < 1 || canales > 2) {
-            v.pendiente = 0; // no se puede: este bloque corta el paquete (nadie lo va a usar)
+            v.pendCod = 0; // no se puede: este bloque corta el paquete (nadie lo va a usar)
+            hechos.push_back(std::move(h));
             continue;
         }
         v.pcm.resize(cuadros * static_cast<std::size_t>(canales));
@@ -288,26 +307,49 @@ std::uint64_t Grupo::codificar(const float* pcm, std::size_t n, int rate) {
                 v.pcm[2 * i + 1] = a16(pcm[2 * i + 1]);
             }
         }
-        if (v.pendiente == 0) v.pendiente = k;
+        if (v.pendCod == 0) v.pendCod = k;
         const std::size_t porPaquete = std::max<std::size_t>(1, v.enc->Num10MsFramesInNextPacket());
         v.buf.Clear();
         const webrtc::AudioEncoder::EncodedInfo info = v.enc->Encode(v.ts, v.pcm, &v.buf);
         v.ts += static_cast<std::uint32_t>(cuadros);
-        if (k - v.pendiente + 1 < porPaquete) continue; // el paquete sigue a medias
-        Paquete p;
-        p.inicio = v.pendiente;
-        p.fin = k;
-        p.bytes.assign(v.buf.data(), v.buf.data() + v.buf.size());
-        p.info = info;
-        v.paquetes.push_back(std::move(p));
-        while (v.paquetes.size() > kPaquetesGuardados) v.paquetes.pop_front();
-        v.pendiente = 0;
+        if (k - v.pendCod + 1 < porPaquete) { // el paquete sigue a medias
+            h.pendiente = v.pendCod;
+            hechos.push_back(std::move(h));
+            continue;
+        }
+        h.hayPaquete = true;
+        h.p.inicio = v.pendCod;
+        h.p.fin = k;
+        h.p.bytes.assign(v.buf.data(), v.buf.data() + v.buf.size());
+        h.p.info = info;
+        v.pendCod = 0;
+        hechos.push_back(std::move(h));
+    }
+    // 3) Publicar todo junto (y recién ahí el número del bloque).
+    {
+        std::unique_lock<std::shared_mutex> l(m_);
+        for (Hecho& h : hechos) {
+            h.v->pendiente = h.pendiente;
+            if (!h.hayPaquete) continue;
+            h.v->paquetes.push_back(std::move(h.p));
+            while (h.v->paquetes.size() > kPaquetesGuardados) h.v->paquetes.pop_front();
+        }
+        seq_.store(k, std::memory_order_release);
     }
     return k;
 }
 
 void Grupo::pedir(const std::string& firma, const webrtc::SdpAudioFormat& formato, int pt) {
-    std::lock_guard<std::mutex> l(m_);
+    {
+        // Lo de siempre (la variante ya existe): solo anotar el bloque, sin esperar a nadie.
+        std::shared_lock<std::shared_mutex> l(m_);
+        auto it = variantes_.find(firma);
+        if (it != variantes_.end()) {
+            it->second.pedida.v.store(seq_.load(std::memory_order_acquire), std::memory_order_relaxed);
+            return;
+        }
+    }
+    std::unique_lock<std::shared_mutex> l(m_);
     auto it = variantes_.find(firma);
     if (it == variantes_.end()) {
         Variante v;
@@ -315,11 +357,11 @@ void Grupo::pedir(const std::string& firma, const webrtc::SdpAudioFormat& format
         if (!v.enc) return;
         it = variantes_.emplace(firma, std::move(v)).first;
     }
-    it->second.pedida = seq_;
+    it->second.pedida.v.store(seq_.load(std::memory_order_acquire), std::memory_order_relaxed);
 }
 
 bool Grupo::empieza(const std::string& firma, std::uint64_t k) const {
-    std::lock_guard<std::mutex> l(m_);
+    std::shared_lock<std::shared_mutex> l(m_);
     const auto it = variantes_.find(firma);
     if (it == variantes_.end() || k == 0) return false;
     const Variante& v = it->second;
@@ -328,7 +370,7 @@ bool Grupo::empieza(const std::string& firma, std::uint64_t k) const {
 }
 
 bool Grupo::enCurso(const std::string& firma, std::uint64_t k) const {
-    std::lock_guard<std::mutex> l(m_);
+    std::shared_lock<std::shared_mutex> l(m_);
     const auto it = variantes_.find(firma);
     if (it == variantes_.end()) return false;
     const Variante& v = it->second;
@@ -338,7 +380,7 @@ bool Grupo::enCurso(const std::string& firma, std::uint64_t k) const {
 
 bool Grupo::paquete(const std::string& firma, std::uint64_t k, std::uint64_t& inicio, rtc::Buffer& out,
                     webrtc::AudioEncoder::EncodedInfoLeaf& info) const {
-    std::lock_guard<std::mutex> l(m_);
+    std::shared_lock<std::shared_mutex> l(m_);
     const auto it = variantes_.find(firma);
     if (it == variantes_.end()) return false;
     for (const Paquete& p : it->second.paquetes)
@@ -369,7 +411,7 @@ std::shared_ptr<Grupo> Registro::grupo(const std::string& nombre) {
 }
 
 std::size_t Grupo::variantes() const {
-    std::lock_guard<std::mutex> l(m_);
+    std::shared_lock<std::shared_mutex> l(m_);
     return variantes_.size();
 }
 
