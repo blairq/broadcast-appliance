@@ -52,8 +52,9 @@ namespace ba::gateway {
 inline constexpr int kMinGuests = 1;
 /// El tope de puertos del rango UDP de WebRTC (rtcPortMin..rtcPortMax): con el túnel de
 /// WireGuard cada uno es un pcb de lwIP (MEMP_NUM_UDP_PCB, net/lwip-port/lwipopts.h).
-/// Alcanza para el tope de invitados con varias redes (PuertosRtc.hpp).
-inline constexpr int kTopeRangoRtc = 1000;
+/// Alcanza para el tope de invitados (512) con tres puertos por sesión (PuertosRtc.hpp);
+/// el rango por omisión es de 1600 (ipc/LugaresSala: kRtcPuertoMin..kRtcPuertoMax).
+inline constexpr int kTopeRangoRtc = 2000;
 
 /// Configuracion del gateway (CLI + rutas). Ver el header para el detalle.
 struct Config {
@@ -107,8 +108,8 @@ struct Config {
     uint16_t controlLanPort = 8792; // 8790 es el MCP de la app y 8791 el login de Facebook
     /// La entrada HTTP de la puerta de la sala (televisores, Companion). 0 = no.
     uint16_t puertaHttpPort = 8793;
-    uint16_t rtcPortMin = 40000; // rango UDP de WebRTC (reglas de firewall / tunel)
-    uint16_t rtcPortMax = 40099;
+    uint16_t rtcPortMin = ba::ipc::kRtcPuertoMin; // rango UDP de WebRTC (reglas de firewall / tunel)
+    uint16_t rtcPortMax = ba::ipc::kRtcPuertoMax; // 40000-41599: alcanza para el tope de invitados
     // WireGuard hacia un servidor con IP publica (tunel en espacio de usuario).
     bool wgEnabled = false;
     nlohmann::json proxy = nlohmann::json::object(); // T61: el proxy por nombre (ver proxy/GestorProxy.hpp)
@@ -203,6 +204,8 @@ struct Config {
         puertaHttpPort = j.value("puertaHttpPort", puertaHttpPort);
         rtcPortMin = j.value("rtcPortMin", rtcPortMin);
         rtcPortMax = j.value("rtcPortMax", rtcPortMax);
+        // El rango por omisión de antes (40000-40099, ~50 sesiones) no lo eligió nadie: el nuevo.
+        if (ba::ipc::rangoRtcDeAntes(rtcPortMin, rtcPortMax)) rtcPortMax = ba::ipc::kRtcPuertoMax;
         if (j.contains("wireguard") && j["wireguard"].is_object()) {
             const auto& w = j["wireguard"];
             wgEnabled = w.value("enabled", wgEnabled);
@@ -319,7 +322,8 @@ struct Config {
         if (backstagePreviews < 0) backstagePreviews = 0;
         if (backstagePreviews > 8) backstagePreviews = 8; // A se suscribe a BA.Backstage.1..8
         if (rtcPortMax < rtcPortMin) rtcPortMax = rtcPortMin;
-        if (rtcPortMax - rtcPortMin >= kTopeRangoRtc) rtcPortMax = static_cast<uint16_t>(rtcPortMin + kTopeRangoRtc - 1);
+        if (rtcPortMax - rtcPortMin >= kTopeRangoRtc)
+            rtcPortMax = static_cast<uint16_t>(std::min(65535, rtcPortMin + kTopeRangoRtc - 1));
     }
 
     /// Deriva las rutas del layout a partir de la ubicacion del ejecutable

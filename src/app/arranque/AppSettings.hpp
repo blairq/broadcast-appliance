@@ -27,6 +27,7 @@
 #include <vector>
 
 #include "emision/BroadcastEngine.hpp"
+#include "ipc/LugaresSala.hpp"
 
 namespace ba::app {
 
@@ -194,8 +195,8 @@ struct GatewaySettings {
     // --- Acceso directo (sin Cloudflare) --------------------------------------
     bool https = true; ///< HTTPS propio (camara/micro exigen pagina segura)
     std::uint16_t httpsPort = 8789;
-    std::uint16_t rtcPortMin = 40000; ///< rango UDP de WebRTC
-    std::uint16_t rtcPortMax = 40099;
+    std::uint16_t rtcPortMin = ba::ipc::kRtcPuertoMin; ///< rango UDP de WebRTC (40000-41599: el tope de invitados)
+    std::uint16_t rtcPortMax = ba::ipc::kRtcPuertoMax;
     bool wgEnabled = false;        ///< tunel WireGuard hacia un servidor con IP publica
     std::string wgEndpoint;        ///< host:puerto
     std::string wgServerPublicKey; ///< base64

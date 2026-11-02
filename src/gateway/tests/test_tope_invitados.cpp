@@ -64,7 +64,7 @@ int main() {
         CHECK(c.guestsReserve >= c.guests && c.guestsReserve <= ba::ipc::kMaxInvitados, "la reserva cubre el cupo, dentro del tope");
     }
     {
-        const Config c = conArgs({"--guests", "500", "--guests-reserve", "900"});
+        const Config c = conArgs({"--guests", "900", "--guests-reserve", "900"});
         CHECK(c.guests == ba::ipc::kMaxInvitados, "más que el tope: el tope");
         CHECK(c.guestsReserve == ba::ipc::kMaxInvitados, "la reserva tampoco pasa el tope");
     }
@@ -86,7 +86,7 @@ int main() {
     }
 
     // --- La reserva: lo que pidió el operador, en su rango ---
-    CHECK(ba::ipc::reservaValida(40) == 40 && ba::ipc::reservaValida(0) == 1 && ba::ipc::reservaValida(500) == ba::ipc::kMaxInvitados,
+    CHECK(ba::ipc::reservaValida(40) == 40 && ba::ipc::reservaValida(0) == 1 && ba::ipc::reservaValida(900) == ba::ipc::kMaxInvitados,
           "la reserva se guarda en su rango, sin arrastrarla con el cupo");
     CHECK(ba::ipc::lugaresIniciales(40, 4) == 40 && ba::ipc::lugaresIniciales(2, 8) == 8,
           "los lugares del arranque: el cupo o la reserva, el mayor");
@@ -133,7 +133,8 @@ int main() {
         CHECK(ahora.entran == 50 && ahora.alcanza, "con 2 redes: 50, alcanza para 40 + 4");
         const PuertosRtc tope = puertosRtc(40000, 40099, 2, ba::ipc::kMaxInvitados, 4);
         CHECK(!tope.alcanza, "el tope de invitados con 100 puertos no entra: se avisa");
-        CHECK(puertosRtc(40000, 40299, 2, ba::ipc::kMaxInvitados, 4).alcanza, "con 300 puertos sí");
+        CHECK(puertosRtc(ba::ipc::kRtcPuertoMin, ba::ipc::kRtcPuertoMax, 3, ba::ipc::kMaxInvitados, 8).alcanza,
+              "con el rango de fábrica (1600) sí, aun con tres por sesión");
         const nlohmann::json j = aJson(antes, 40000, 40099, 3);
         CHECK(j.value("alcanza", true) == false && j.value("sinPuerto", 0) == 3 && j.value("necesarias", 0) == 44,
               "el uso de la sala lo dice");
