@@ -15,6 +15,13 @@
 //   4. El hijo sigue cayéndose como siempre (WER, código de salida).
 //
 // Sin launcher (la app suelta, los tests), el hijo se vuelca a sí mismo.
+//
+// El mismo canal sirve para pedir una CAPTURA EN VIVO (la interfaz trabada,
+// diag::capturarPilas): `codigo` = kCodigoTraba, sin excepción. El launcher
+// escribe un volcado chico (las pilas y los hilos con su nombre) con el nombre
+// que va en `base`, contesta la ruta en `respuesta` y NO lo toma como caída: el
+// proceso sigue. Antes de pedir, el hijo apaga «hecho» (lo abre con permiso de
+// modificarlo).
 // ============================================================================
 #pragma once
 
@@ -30,11 +37,13 @@
 namespace ba::diag::caida {
 
 inline constexpr std::uint32_t kMagic = 0x41434142; // "BACA"
-inline constexpr std::uint32_t kVersion = 1;
+inline constexpr std::uint32_t kVersion = 2;
 
 /// Código propio para lo que no es una excepción de Windows (abort, terminate,
 /// llamada pura, parámetro inválido): va como ExceptionCode del registro armado.
 inline constexpr std::uint32_t kCodigoAbort = 0xE0000BAB;
+/// No es una caída: el pedido de una captura en vivo (la interfaz trabada).
+inline constexpr std::uint32_t kCodigoTraba = 0xE0000BAC;
 
 struct Pedido {
     std::uint32_t magic = 0;
@@ -44,7 +53,18 @@ struct Pedido {
     std::uint64_t punteros = 0;  ///< EXCEPTION_POINTERS* en el espacio del hijo
     std::uint64_t direccion = 0; ///< ExceptionAddress
     char tipo[48] = {};          ///< "excepción", "corrupción del heap", "abort"…
+    // --- v2: la captura en vivo (kCodigoTraba) ---
+    char base[96] = {};          ///< el nombre del volcado sin extensión («A-…-traba-2000»)
+    char extra[1024] = {};       ///< JSON con lo que va además al .json (lo que corría…)
+    char respuesta[520] = {};    ///< la ruta del .dmp que escribió el launcher (UTF-8), o «error: …»
 };
+
+/// Lo que se le pide a MiniDumpWriteDump para una captura en vivo: las pilas de
+/// todos los hilos (MiniDumpNormal) con su info y sus nombres, los módulos
+/// descargados. Chico y rápido: el proceso queda congelado mientras se escribe.
+///   WithUnloadedModules 0x20 | WithProcessThreadData 0x100 | WithThreadInfo 0x1000 |
+///   IgnoreInaccessibleMemory 0x20000
+inline constexpr std::uint32_t kTipoVolcadoTraba = 0x20 | 0x100 | 0x1000 | 0x20000;
 
 /// El canal: lo elige el launcher (por su pid y el hijo, «Local\\BA.Caida.<pid>.A»)
 /// y se lo pasa al hijo en esta variable. Así existe ANTES de que el hijo

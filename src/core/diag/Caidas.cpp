@@ -4,6 +4,44 @@
 #include "diag/Caidas.hpp"
 #include "diag/SalidaAsincrona.hpp"
 
+#include <nlohmann/json.hpp>
+
+#include <ctime>
+#include <fstream>
+#include <mutex>
+#include <sstream>
+#include <string>
+#include <vector>
+
+// Lo común a los tres sistemas de la captura en vivo (capturarPilas): fuera del
+// manejador de caídas, así que acá sí se puede pedir memoria.
+namespace ba::diag::captura {
+
+inline std::string horaLocal(const char* formato) {
+    const std::time_t ahora = std::time(nullptr);
+    std::tm tm{};
+#if defined(_WIN32)
+    localtime_s(&tm, &ahora);
+#else
+    localtime_r(&ahora, &tm);
+#endif
+    char b[40];
+    std::strftime(b, sizeof b, formato, &tm);
+    return b;
+}
+
+/// El .json de al lado: lo de siempre (tipo, hora, volcado…) más `extra` (un objeto JSON).
+inline void escribirJson(const std::filesystem::path& ruta, nlohmann::json j, const std::string& extra) {
+    const nlohmann::json e = nlohmann::json::parse(extra, nullptr, false);
+    if (e.is_object())
+        for (auto it = e.begin(); it != e.end(); ++it)
+            if (!j.contains(it.key())) j[it.key()] = it.value();
+    std::ofstream f(ruta, std::ios::binary | std::ios::trunc);
+    f << j.dump(1, ' ', false, nlohmann::json::error_handler_t::replace) << "\n";
+}
+
+} // namespace ba::diag::captura
+
 #if !defined(_WIN32)
 
 #include "diag/CaidaCompartida.hpp"
@@ -20,6 +58,7 @@
 #include <execinfo.h>
 #include <fcntl.h>
 #include <initializer_list>
+#include <pthread.h>
 #include <unistd.h>
 
 #if defined(__APPLE__)
@@ -199,6 +238,7 @@ void hilosRestantes(Esc& e) {
         std::uint64_t id = 0;
         nombreYId(th, nombre, sizeof nombre, &id);
         cabeceraHilo(e, "hilo", id, nombre);
+        e.vaciar(); // la cabecera escrita antes de congelarlo (el que escribe no espera a nadie)
         // Congelado SOLO mientras se le lee la pila; los nombres (dladdr) se buscan
         // después, ya despierto: si tenía el candado del cargador, lo suelta.
         thread_suspend(th);
@@ -243,7 +283,11 @@ void hilosRestantes(Esc& e) {
         thread_resume(th);
         for (int m = 0; m < k; ++m) marco(e, m, marcos[m]);
     }
-    // (La lista es memoria de Mach: se la deja, el proceso termina.)
+    // Los puertos y la lista se devuelven: la captura en vivo (capturarPilas) se
+    // repite con el proceso andando. Son llamadas al núcleo: también valen cayéndose.
+    for (mach_msg_type_number_t i = 0; i < n; ++i) mach_port_deallocate(mach_task_self(), hilos[i]);
+    vm_deallocate(mach_task_self(), reinterpret_cast<vm_address_t>(hilos), n * sizeof(thread_t));
+    mach_port_deallocate(mach_task_self(), yo);
 }
 
 /// Las imágenes cargadas con su UUID (lo que pide atos con los .dSYM del almacén).
@@ -525,12 +569,85 @@ void instalarManejadorDeCaidas(const char* quien) {
 #endif
 }
 
+std::uint64_t idDelHilo() {
+#if defined(__APPLE__)
+    std::uint64_t id = 0;
+    pthread_threadid_np(nullptr, &id);
+    return id;
+#else
+    return static_cast<std::uint64_t>(syscall(SYS_gettid));
+#endif
+}
+
+CapturaPilas capturarPilas(const std::filesystem::path& dir, const std::string& base, const std::string& motivo,
+                           std::uint64_t hiloInterfaz, const std::string& extraJson) {
+    // De a una: en Linux el pedido a cada hilo usa lugares fijos (g_pedidoA, g_marcosOtro).
+    static std::mutex mu;
+    std::lock_guard<std::mutex> l(mu);
+    CapturaPilas r;
+    std::error_code ec;
+    std::filesystem::create_directories(dir, ec);
+#if !defined(__APPLE__)
+    // Sin el manejador instalado (un test, una herramienta), la señal propia mataría
+    // al hilo que la recibe: se instala el que anota la pila.
+    static const bool listo = []() {
+        struct sigaction actual {};
+        sigaction(senalPila(), nullptr, &actual);
+        if (actual.sa_handler != alPedirPila) {
+            struct sigaction sp {};
+            sp.sa_handler = alPedirPila;
+            sp.sa_flags = SA_RESTART;
+            sigemptyset(&sp.sa_mask);
+            sigaction(senalPila(), &sp, nullptr);
+        }
+        void* calentar[4];
+        backtrace(calentar, 4); // la primera carga libgcc
+        return true;
+    }();
+    (void)listo;
+#endif
+    const std::filesystem::path pila = dir / (base + ".pila");
+    const int fd = open(pila.c_str(), O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC, 0644);
+    if (fd < 0) {
+        r.error = std::string("no se pudo abrir ") + pila.string() + ": " + std::strerror(errno);
+        return r;
+    }
+    {
+        Esc e(fd);
+        e.s("BA-PILAS 1\n");
+        e.s("proceso ").s(g_quien).s("\n");
+        e.s("pid ").dec(getpid()).s("\n");
+        e.s("senal 0 captura en vivo (el proceso sigue)\n");
+        e.s("motivo ").s(motivo.c_str()).s("\n");
+        e.s("interfaz ").dec(static_cast<long long>(hiloInterfaz)).s("\n");
+        e.vaciar();
+        hilosRestantes(e); // todos menos este (el vigía)
+        e.vaciar();
+        imagenes(e);
+        e.s("FIN\n");
+    }
+    close(fd);
+    r.archivo = pila;
+    r.json = dir / (base + ".json");
+    captura::escribirJson(r.json,
+                          {{"componente", g_quien},
+                           {"pid", getpid()},
+                           {"tipo", "traba"},
+                           {"motivo", motivo},
+                           {"hora", captura::horaLocal("%Y-%m-%dT%H:%M:%S")},
+                           {"volcado", pila.filename().string()},
+                           {"hilo_interfaz", hiloInterfaz}},
+                          extraJson);
+    return r;
+}
+
 } // namespace ba::diag
 
 
 #else // _WIN32
 
 #include "diag/CaidaCompartida.hpp"
+#include "platform/Hilo.hpp"
 #include "platform/Paths.hpp"
 
 #ifndef WIN32_LEAN_AND_MEAN
@@ -625,6 +742,7 @@ void reportar(EXCEPTION_POINTERS* ep, const char* tipo) {
         g_pedido->direccion = reinterpret_cast<std::uint64_t>(dir);
         strncpy_s(g_pedido->tipo, sizeof g_pedido->tipo, tipo, _TRUNCATE);
         g_pedido->version = caida::kVersion;
+        ResetEvent(g_hecho); // pudo quedar prendido de una captura en vivo (capturarPilas)
         MemoryBarrier();
         g_pedido->magic = caida::kMagic;
         SetEvent(g_pide);
@@ -684,7 +802,8 @@ void instalarManejadorDeCaidas(const char* quien) {
         if (HANDLE m = OpenFileMappingW(FILE_MAP_WRITE, FALSE, canal)) {
             g_pedido = static_cast<caida::Pedido*>(MapViewOfFile(m, FILE_MAP_WRITE, 0, 0, sizeof(caida::Pedido)));
             g_pide = OpenEventW(EVENT_MODIFY_STATE, FALSE, caida::nombrePide(canal).c_str());
-            g_hecho = OpenEventW(SYNCHRONIZE, FALSE, caida::nombreHecho(canal).c_str());
+            // Modificarlo también: antes de pedir una captura en vivo (capturarPilas) se apaga.
+            g_hecho = OpenEventW(SYNCHRONIZE | EVENT_MODIFY_STATE, FALSE, caida::nombreHecho(canal).c_str());
         }
         // Que no lo hereden los procesos que lance la app (plugins, herramientas).
         SetEnvironmentVariableW(var, nullptr);
@@ -705,6 +824,225 @@ void instalarManejadorDeCaidas(const char* quien) {
     _set_invalid_parameter_handler(parametroInvalido);
 }
 
+std::uint64_t idDelHilo() { return GetCurrentThreadId(); }
+
+namespace {
+std::string utf8(const std::wstring& w) {
+    if (w.empty()) return {};
+    const int n = WideCharToMultiByte(CP_UTF8, 0, w.c_str(), -1, nullptr, 0, nullptr, nullptr);
+    std::string out(static_cast<std::size_t>(n > 1 ? n - 1 : 0), '\0');
+    if (n > 1) WideCharToMultiByte(CP_UTF8, 0, w.c_str(), -1, out.data(), n, nullptr, nullptr);
+    return out;
+}
+std::wstring ancho(const std::string& s) {
+    if (s.empty()) return {};
+    const int n = MultiByteToWideChar(CP_UTF8, 0, s.data(), static_cast<int>(s.size()), nullptr, 0);
+    std::wstring w(static_cast<std::size_t>(n > 0 ? n : 0), L'\0');
+    if (n > 0) MultiByteToWideChar(CP_UTF8, 0, s.data(), static_cast<int>(s.size()), w.data(), n);
+    return w;
+}
+} // namespace
+
+CapturaPilas capturarPilas(const std::filesystem::path& dir, const std::string& base, const std::string& motivo,
+                           std::uint64_t hiloInterfaz, const std::string& extraJson) {
+    static std::mutex mu;
+    std::lock_guard<std::mutex> l(mu);
+    CapturaPilas r;
+    std::error_code ec;
+    std::filesystem::create_directories(dir, ec);
+    // 1) Con launcher: que lo escriba él, desde afuera (como el de un colgado, sin matar a nadie).
+    if (g_pedido != nullptr && g_pide != nullptr && g_hecho != nullptr && g_hiloCayendo.load() == 0) {
+        caida::Pedido& p = *g_pedido;
+        p.magic = 0;
+        p.hilo = static_cast<std::uint32_t>(hiloInterfaz);
+        p.codigo = caida::kCodigoTraba;
+        p.punteros = 0;
+        p.direccion = 0;
+        strncpy_s(p.tipo, sizeof p.tipo, motivo.c_str(), _TRUNCATE);
+        strncpy_s(p.base, sizeof p.base, base.c_str(), _TRUNCATE);
+        strncpy_s(p.extra, sizeof p.extra, extraJson.size() < sizeof p.extra ? extraJson.c_str() : "{}", _TRUNCATE);
+        p.respuesta[0] = 0;
+        p.version = caida::kVersion;
+        ResetEvent(g_hecho);
+        MemoryBarrier();
+        p.magic = caida::kMagic;
+        SetEvent(g_pide);
+        if (WaitForSingleObject(g_hecho, 20000) != WAIT_OBJECT_0) {
+            r.error = "el launcher no contestó en 20 s";
+            return r;
+        }
+        MemoryBarrier();
+        const std::string resp(p.respuesta, strnlen(p.respuesta, sizeof p.respuesta));
+        if (resp.empty() || resp.rfind("error:", 0) == 0) {
+            r.error = resp.empty() ? std::string("el launcher no escribió el volcado") : resp.substr(6);
+            return r;
+        }
+        r.archivo = std::filesystem::path(ancho(resp));
+        r.json = std::filesystem::path(r.archivo).replace_extension(".json");
+        r.porLauncher = true;
+        return r;
+    }
+    // 2) Sin launcher (la app suelta): se vuelca solo, desde este hilo (el vigía).
+    if (g_volcar == nullptr)
+        if (HMODULE d = LoadLibraryW(L"dbghelp.dll"))
+            g_volcar = reinterpret_cast<MiniDumpFn>(reinterpret_cast<void*>(GetProcAddress(d, "MiniDumpWriteDump")));
+    if (g_volcar == nullptr) {
+        r.error = "sin dbghelp";
+        return r;
+    }
+    const std::filesystem::path dmp = dir / (base + ".dmp");
+    HANDLE f = CreateFileW(dmp.wstring().c_str(), GENERIC_WRITE, 0, nullptr, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
+    if (f == INVALID_HANDLE_VALUE) {
+        r.error = "no se pudo crear " + utf8(dmp.wstring());
+        return r;
+    }
+    const auto t0 = GetTickCount64();
+    const BOOL ok = g_volcar(GetCurrentProcess(), GetCurrentProcessId(), f, static_cast<MINIDUMP_TYPE>(caida::kTipoVolcadoTraba),
+                             nullptr, nullptr, nullptr);
+    const auto ms = GetTickCount64() - t0;
+    CloseHandle(f);
+    if (!ok) {
+        r.error = "MiniDumpWriteDump falló (" + std::to_string(GetLastError()) + ")";
+        std::filesystem::remove(dmp, ec);
+        return r;
+    }
+    nlohmann::json hilos = nlohmann::json::array();
+    for (const auto& h : ba::platform::hilosDelProceso(GetCurrentProcessId())) hilos.push_back({{"id", h.id}, {"nombre", h.nombre}});
+    r.archivo = dmp;
+    r.json = dir / (base + ".json");
+    captura::escribirJson(r.json,
+                          {{"componente", g_quien},
+                           {"pid", GetCurrentProcessId()},
+                           {"tipo", "traba"},
+                           {"motivo", motivo},
+                           {"hora", captura::horaLocal("%Y-%m-%dT%H:%M:%S")},
+                           {"volcado", utf8(dmp.filename().wstring())},
+                           {"volcado_ms", ms},
+                           {"hilo_interfaz", hiloInterfaz},
+                           {"hilos", std::move(hilos)}},
+                          extraJson);
+    return r;
+}
+
 } // namespace ba::diag
 
 #endif
+
+// --- qué hacía un hilo, en una línea (de las pilas de una captura) ------------------------------
+
+#if !defined(_WIN32)
+#include <cxxabi.h>
+#endif
+
+namespace ba::diag {
+namespace {
+
+std::string desenredar(const std::string& s) {
+#if !defined(_WIN32)
+    int st = 0;
+    if (char* d = abi::__cxa_demangle(s.c_str(), nullptr, nullptr, &st); d != nullptr && st == 0) {
+        std::string out = d;
+        std::free(d);
+        return out;
+    }
+#endif
+    return s;
+}
+
+bool contiene(const std::string& s, const char* que) { return s.find(que) != std::string::npos; }
+
+bool delSistema(const std::string& m) {
+    return m.rfind("libsystem_", 0) == 0 || m.rfind("libc.", 0) == 0 || m.rfind("libc-", 0) == 0 ||
+           m.rfind("libpthread", 0) == 0 || m.rfind("ld-linux", 0) == 0 || m == "dyld" || m == "libdyld.dylib" ||
+           m == "?" || m.rfind("libobjc", 0) == 0;
+}
+
+bool propio(const std::string& modulo, const std::string& simbolo) {
+    return simbolo.rfind("ba::", 0) == 0 || contiene(simbolo, " ba::") || contiene(simbolo, "(ba::") ||
+           modulo.rfind("ba-", 0) == 0 || modulo.rfind("libba", 0) == 0 || modulo.rfind("BroadcastAppliance", 0) == 0;
+}
+
+/// La función sin argumentos (lo que va antes del primer «(»), para que la línea sea corta.
+std::string corto(const std::string& simbolo) {
+    const std::size_t p = simbolo.find('(');
+    return p == std::string::npos ? simbolo : simbolo.substr(0, p);
+}
+
+} // namespace
+
+std::string resumirPila(const std::string& texto, std::uint64_t id) {
+    struct Marco {
+        std::string modulo, simbolo;
+    };
+    std::vector<Marco> marcos;
+    bool enHilo = false, hallado = false;
+    std::istringstream in(texto);
+    std::string l;
+    const std::string buscado = std::to_string(id);
+    while (std::getline(in, l)) {
+        if (l.rfind("== ", 0) == 0) {
+            if (enHilo) break; // el que se buscaba terminó
+            // «== hilo <id> <nombre>» o «== cayo <id> <nombre>»
+            std::istringstream c(l.substr(3));
+            std::string que, num;
+            c >> que >> num;
+            enHilo = (que == "hilo" || que == "cayo") && num == buscado;
+            hallado = hallado || enHilo;
+            continue;
+        }
+        if (!enHilo || l.empty() || l[0] != '#') continue;
+        // «#03 0x1 modulo+0x2 simbolo+0x3»
+        std::istringstream m(l);
+        std::string num, dir, mod, sim;
+        m >> num >> dir >> mod >> sim;
+        Marco mc;
+        mc.modulo = mod.substr(0, mod.rfind('+'));
+        mc.simbolo = desenredar(sim.substr(0, sim.rfind('+')));
+        marcos.push_back(std::move(mc));
+    }
+    if (!hallado) return {};
+    if (marcos.empty()) return "sin pila (no contestó)";
+    // Lo que importa es lo de ARRIBA del bucle de eventos (main, exec y el despacho
+    // de abajo están siempre). Dos «QEventLoop::exec»: un bucle anidado (un diálogo).
+    std::size_t bucle = marcos.size();
+    int bucles = 0;
+    for (std::size_t i = 0; i < marcos.size(); ++i) {
+        const std::string& s = marcos[i].simbolo;
+        const bool esBucle = contiene(s, "QEventLoop::exec") || contiene(s, "QEventLoop::processEvents") ||
+                             contiene(s, "CFRunLoopRun") || contiene(s, "QEventDispatcher");
+        if (contiene(s, "QEventLoop::exec")) ++bucles;
+        if (esBucle && bucle == marcos.size()) bucle = i;
+    }
+    if (bucle == 0) return "en el bucle de eventos (sin nada de Qt ni propio arriba: ¿el sistema?) — " + marcos.front().modulo;
+    bool render = false, espera = false, modal = bucles >= 2;
+    for (std::size_t i = 0; i < bucle; ++i) {
+        const std::string& s = marcos[i].simbolo;
+        render = render || contiene(s, "QSGThreadedRenderLoop") || contiene(s, "QSGRenderThread") ||
+                 contiene(s, "QSGRenderLoop") || contiene(s, "QSGGuiThreadRenderLoop") ||
+                 contiene(s, "QQuickWindowPrivate::polishItems") || contiene(s, "QQuickWindowPrivate::sync") ||
+                 contiene(s, "QQuickWindowPrivate::renderSceneGraph") || contiene(s, "QRhi");
+        espera = espera || contiene(s, "QWaitCondition") || contiene(s, "cond_wait") || contiene(s, "cvwait") ||
+                 contiene(s, "futex") || contiene(s, "semaphore_wait");
+        modal = modal || contiene(s, "runModal") || contiene(s, "NSMenu") || contiene(s, "trackMouse") ||
+                contiene(s, "performWindowDrag") || contiene(s, "_NSTrack") || contiene(s, "QDialog::exec");
+    }
+    // La de más arriba que no es del sistema, y la primera propia (arriba del bucle).
+    const Marco* arriba = nullptr;
+    const Marco* nuestra = nullptr;
+    for (std::size_t i = 0; i < bucle; ++i) {
+        const Marco& m = marcos[i];
+        if (arriba == nullptr && !delSistema(m.modulo)) arriba = &m;
+        if (nuestra == nullptr && propio(m.modulo, m.simbolo)) nuestra = &m;
+    }
+    std::string donde;
+    if (nuestra != nullptr) donde = corto(nuestra->simbolo) + " (" + nuestra->modulo + ")";
+    else if (arriba != nullptr) donde = arriba->modulo + ": " + corto(arriba->simbolo);
+    else donde = marcos.front().modulo + ": " + corto(marcos.front().simbolo);
+    if (render && espera) return "esperando al hilo de render de Qt (sincronización del scene graph) — " + donde;
+    if (render) return "en el scene graph de Qt (polish, sync o dibujo en la interfaz) — " + donde;
+    if (modal) return "en un bucle anidado o modal (diálogo, menú, arrastre) — " + donde;
+    if (nuestra != nullptr) return "en código propio: " + donde;
+    return "en " + donde;
+}
+
+} // namespace ba::diag

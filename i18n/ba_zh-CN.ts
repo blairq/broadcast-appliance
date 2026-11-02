@@ -39536,7 +39536,22 @@ Elegí otra cosa en Salidas → Pantallas.</source>
         <translation>会议的每个连接会在本机每个网络上各开一个 UDP 端口。虚拟网络（虚拟机、Docker、Tailscale 之类的 VPN）对任何嘉宾都没用，还会占用端口范围：默认不使用。仅当嘉宾通过 VPN 接入时才开启。</translation>
     </message>
     <message>
-        <location line="+34"/>
+        <location line="+18"/>
+        <source>Interfaz trabada: sacar las pilas a los</source>
+        <translation>界面卡住：在此之后抓取调用栈</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Mientras la interfaz sigue trabada, las pilas de todos los hilos van a Logs/dumps (A-…-traba-….pila o .dmp) y el registro dice dónde estaba. En Windows el volcado congela el proceso un instante. 0: no se sacan.</source>
+        <translation>界面仍卡住时，所有线程的调用栈会保存到 Logs/dumps（A-…-traba-….pila 或 .dmp），日志会说明它卡在哪里。在 Windows 上转储会让进程冻结片刻。0：不抓取。</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Interfaz trabada: pilas como mucho cada</source>
+        <translation>界面卡住：调用栈最多每隔</translation>
+    </message>
+    <message>
+        <location line="+17"/>
         <source>Emisor aparte (prueba)</source>
         <translation>独立发送进程（测试）</translation>
     </message>
@@ -39611,7 +39626,7 @@ Elegí otra cosa en Salidas → Pantallas.</source>
         <translation>不是可选项之一</translation>
     </message>
     <message>
-        <location line="-216"/>
+        <location line="-218"/>
         <source>Mensajes de chat que se guardan</source>
         <translation>保留的聊天消息数</translation>
     </message>
@@ -40592,7 +40607,7 @@ Elegí otra cosa en Salidas → Pantallas.</source>
         <translation>仅为警告；之后的处理在健康状态卡片中设置。</translation>
     </message>
     <message>
-        <location line="+1"/>
+        <location line="+3"/>
         <source>Cartel «volvimos de una caída»</source>
         <translation>「已从崩溃中恢复」横幅</translation>
     </message>
@@ -46398,7 +46413,7 @@ Datos (de %2): %3</source>
 <context>
     <name>caidas</name>
     <message>
-        <location filename="../src/core/diag/CaidaCompartida.hpp" line="+67"/>
+        <location filename="../src/core/diag/CaidaCompartida.hpp" line="+87"/>
         <source>violación de acceso</source>
         <translation>访问冲突</translation>
     </message>
@@ -46448,7 +46463,7 @@ Datos (de %2): %3</source>
         <translation>异常</translation>
     </message>
     <message>
-        <location filename="../src/launcher/Volcados.cpp" line="+107"/>
+        <location filename="../src/launcher/Volcados.cpp" line="+116"/>
         <source>terminó sin código</source>
         <translation>退出时无代码</translation>
     </message>
@@ -46506,13 +46521,13 @@ Datos (de %2): %3</source>
         <location line="+5"/>
         <location filename="../src/launcher/Volcados.cpp" line="-5"/>
         <location line="+131"/>
-        <location line="+185"/>
+        <location line="+257"/>
         <source>se colgó (dejó de latir)</source>
         <translation>已挂起（心跳停止）</translation>
     </message>
     <message>
-        <location filename="../src/launcher/Volcados.cpp" line="-189"/>
-        <location line="+195"/>
+        <location filename="../src/launcher/Volcados.cpp" line="-261"/>
+        <location line="+267"/>
         <source>%1 en %2</source>
         <translation>%1，位于 %2</translation>
     </message>
@@ -48095,9 +48110,39 @@ Datos (de %2): %3</source>
 <context>
     <name>diag</name>
     <message>
-        <location filename="../src/core/diag/VigiaBucle.cpp" line="+138"/>
+        <location filename="../src/core/diag/VigiaBucle.cpp" line="+172"/>
         <source>el bucle de la interfaz se demoró %1 ms (corría: %2)</source>
         <translation>界面循环延迟了 %1 毫秒（正在运行：%2）</translation>
+    </message>
+    <message>
+        <location filename="../src/core/diag/VigiaTraba.cpp" line="+189"/>
+        <source>la interfaz lleva %1 ms trabada y no se pudieron sacar las pilas: %2</source>
+        <translation>界面已卡住 %1 毫秒，无法抓取调用栈：%2</translation>
+    </message>
+    <message>
+        <location line="+25"/>
+        <source>la interfaz lleva %1 ms trabada: las pilas de todos los hilos quedaron en %2</source>
+        <translation>界面已卡住 %1 毫秒：所有线程的调用栈已保存到 %2</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source> · la interfaz: %1</source>
+        <translation> · 界面：%1</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source> · el render de Qt: %1</source>
+        <translation> · Qt 渲染：%1</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source> · corría: %1</source>
+        <translation> · 正在运行：%1</translation>
+    </message>
+    <message>
+        <location line="+17"/>
+        <source>la traba de la interfaz duró unos %1 ms (pilas en %2)</source>
+        <translation>界面卡顿持续了约 %1 毫秒（调用栈在 %2）</translation>
     </message>
 </context>
 <context>
@@ -48962,7 +49007,7 @@ Datos (de %2): %3</source>
 <context>
     <name>dump</name>
     <message>
-        <location filename="../src/launcher/Volcados.cpp" line="-210"/>
+        <location filename="../src/launcher/Volcados.cpp" line="-282"/>
         <source>no se pudo abrir el proceso (%1)</source>
         <translation>无法打开进程（%1）</translation>
     </message>
@@ -48972,7 +49017,7 @@ Datos (de %2): %3</source>
         <translation>MiniDumpWriteDump 失败（%1）</translation>
     </message>
     <message>
-        <location line="+37"/>
+        <location line="+100"/>
         <source>no se pudo crear el canal de caídas de %1</source>
         <translation>无法为 %1 创建崩溃通道</translation>
     </message>

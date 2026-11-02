@@ -39848,7 +39848,22 @@ Elegí otra cosa en Salidas → Pantallas.</source>
         <translation>Каждое подключение конференции открывает по одному UDP-порту на каждую сеть компьютера. Виртуальные сети (виртуальные машины, Docker, VPN вроде Tailscale) никому из гостей не нужны и расходуют диапазон: по умолчанию они не используются. Включайте, только если гости подключаются через VPN.</translation>
     </message>
     <message>
-        <location line="+34"/>
+        <location line="+18"/>
+        <source>Interfaz trabada: sacar las pilas a los</source>
+        <translation>Интерфейс завис: снять стеки через</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Mientras la interfaz sigue trabada, las pilas de todos los hilos van a Logs/dumps (A-…-traba-….pila o .dmp) y el registro dice dónde estaba. En Windows el volcado congela el proceso un instante. 0: no se sacan.</source>
+        <translation>Пока интерфейс остаётся зависшим, стеки всех потоков сохраняются в Logs/dumps (A-…-traba-….pila или .dmp), а журнал сообщает, где он находился. В Windows дамп на мгновение замораживает процесс. 0: не снимать.</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Interfaz trabada: pilas como mucho cada</source>
+        <translation>Интерфейс завис: стеки не чаще чем раз в</translation>
+    </message>
+    <message>
+        <location line="+17"/>
         <source>Emisor aparte (prueba)</source>
         <translation>Отдельный передатчик (тест)</translation>
     </message>
@@ -39923,7 +39938,7 @@ Elegí otra cosa en Salidas → Pantallas.</source>
         <translation>не является одним из вариантов</translation>
     </message>
     <message>
-        <location line="-216"/>
+        <location line="-218"/>
         <source>Mensajes de chat que se guardan</source>
         <translation>Хранимых сообщений чата</translation>
     </message>
@@ -40904,7 +40919,7 @@ Elegí otra cosa en Salidas → Pantallas.</source>
         <translation>Предупреждение; что делать дальше, настраивается в карточке состояния.</translation>
     </message>
     <message>
-        <location line="+1"/>
+        <location line="+3"/>
         <source>Cartel «volvimos de una caída»</source>
         <translation>Баннер «восстановились после сбоя»</translation>
     </message>
@@ -46714,7 +46729,7 @@ Datos (de %2): %3</source>
 <context>
     <name>caidas</name>
     <message>
-        <location filename="../src/core/diag/CaidaCompartida.hpp" line="+67"/>
+        <location filename="../src/core/diag/CaidaCompartida.hpp" line="+87"/>
         <source>violación de acceso</source>
         <translation>нарушение доступа</translation>
     </message>
@@ -46764,7 +46779,7 @@ Datos (de %2): %3</source>
         <translation>исключение</translation>
     </message>
     <message>
-        <location filename="../src/launcher/Volcados.cpp" line="+107"/>
+        <location filename="../src/launcher/Volcados.cpp" line="+116"/>
         <source>terminó sin código</source>
         <translation>завершился без кода</translation>
     </message>
@@ -46822,13 +46837,13 @@ Datos (de %2): %3</source>
         <location line="+5"/>
         <location filename="../src/launcher/Volcados.cpp" line="-5"/>
         <location line="+131"/>
-        <location line="+185"/>
+        <location line="+257"/>
         <source>se colgó (dejó de latir)</source>
         <translation>завис (перестал подавать признаки жизни)</translation>
     </message>
     <message>
-        <location filename="../src/launcher/Volcados.cpp" line="-189"/>
-        <location line="+195"/>
+        <location filename="../src/launcher/Volcados.cpp" line="-261"/>
+        <location line="+267"/>
         <source>%1 en %2</source>
         <translation>%1 в %2</translation>
     </message>
@@ -48413,9 +48428,39 @@ Datos (de %2): %3</source>
 <context>
     <name>diag</name>
     <message>
-        <location filename="../src/core/diag/VigiaBucle.cpp" line="+138"/>
+        <location filename="../src/core/diag/VigiaBucle.cpp" line="+172"/>
         <source>el bucle de la interfaz se demoró %1 ms (corría: %2)</source>
         <translation>цикл интерфейса задержался на %1 мс (выполнялось: %2)</translation>
+    </message>
+    <message>
+        <location filename="../src/core/diag/VigiaTraba.cpp" line="+189"/>
+        <source>la interfaz lleva %1 ms trabada y no se pudieron sacar las pilas: %2</source>
+        <translation>интерфейс завис уже %1 мс, и снять стеки не удалось: %2</translation>
+    </message>
+    <message>
+        <location line="+25"/>
+        <source>la interfaz lleva %1 ms trabada: las pilas de todos los hilos quedaron en %2</source>
+        <translation>интерфейс завис уже %1 мс: стеки всех потоков сохранены в %2</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source> · la interfaz: %1</source>
+        <translation> · интерфейс: %1</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source> · el render de Qt: %1</source>
+        <translation> · рендер Qt: %1</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source> · corría: %1</source>
+        <translation> · выполнялось: %1</translation>
+    </message>
+    <message>
+        <location line="+17"/>
+        <source>la traba de la interfaz duró unos %1 ms (pilas en %2)</source>
+        <translation>зависание интерфейса длилось около %1 мс (стеки в %2)</translation>
     </message>
 </context>
 <context>
@@ -49282,7 +49327,7 @@ Datos (de %2): %3</source>
 <context>
     <name>dump</name>
     <message>
-        <location filename="../src/launcher/Volcados.cpp" line="-210"/>
+        <location filename="../src/launcher/Volcados.cpp" line="-282"/>
         <source>no se pudo abrir el proceso (%1)</source>
         <translation>не удалось открыть процесс (%1)</translation>
     </message>
@@ -49292,7 +49337,7 @@ Datos (de %2): %3</source>
         <translation>MiniDumpWriteDump не сработал (%1)</translation>
     </message>
     <message>
-        <location line="+37"/>
+        <location line="+100"/>
         <source>no se pudo crear el canal de caídas de %1</source>
         <translation>не удалось создать канал сбоев для %1</translation>
     </message>

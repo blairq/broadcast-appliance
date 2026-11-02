@@ -7,6 +7,7 @@
 
 #if defined(_WIN32)
 #include <windows.h>
+#include <tlhelp32.h>
 #else
 #include <pthread.h>
 #endif
@@ -52,12 +53,13 @@ void nombrarHilo(std::string_view nombre) {
 #endif
 }
 
-std::string nombreDelHilo() {
 #if defined(_WIN32)
+namespace {
+std::string descripcion(HANDLE hilo) {
     using Leer = HRESULT(WINAPI*)(HANDLE, PWSTR*);
     static const auto leer = deKernel32<Leer>("GetThreadDescription");
     PWSTR w = nullptr;
-    if (leer == nullptr || FAILED(leer(GetCurrentThread(), &w)) || w == nullptr) return {};
+    if (leer == nullptr || FAILED(leer(hilo, &w)) || w == nullptr) return {};
     std::string out;
     const int n = WideCharToMultiByte(CP_UTF8, 0, w, -1, nullptr, 0, nullptr, nullptr);
     if (n > 1) {
@@ -66,6 +68,37 @@ std::string nombreDelHilo() {
     }
     LocalFree(w);
     return out;
+}
+} // namespace
+#endif
+
+std::vector<HiloDeProceso> hilosDelProceso(std::uint32_t pid) {
+    std::vector<HiloDeProceso> out;
+#if defined(_WIN32)
+    HANDLE foto = CreateToolhelp32Snapshot(TH32CS_SNAPTHREAD, 0);
+    if (foto == INVALID_HANDLE_VALUE) return out;
+    THREADENTRY32 te{};
+    te.dwSize = sizeof te;
+    for (BOOL hay = Thread32First(foto, &te); hay; hay = Thread32Next(foto, &te)) {
+        if (te.th32OwnerProcessID != pid) continue;
+        HiloDeProceso h;
+        h.id = te.th32ThreadID;
+        if (HANDLE t = OpenThread(THREAD_QUERY_LIMITED_INFORMATION, FALSE, te.th32ThreadID)) {
+            h.nombre = descripcion(t);
+            CloseHandle(t);
+        }
+        out.push_back(std::move(h));
+    }
+    CloseHandle(foto);
+#else
+    (void)pid;
+#endif
+    return out;
+}
+
+std::string nombreDelHilo() {
+#if defined(_WIN32)
+    return descripcion(GetCurrentThread());
 #else
     char buf[64] = {0};
     if (pthread_getname_np(pthread_self(), buf, sizeof buf) != 0) return {};

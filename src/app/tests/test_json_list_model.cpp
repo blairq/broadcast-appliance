@@ -6,7 +6,10 @@
 //   - la misma lista no avisa nada;
 //   - un cambio en una clave que no es rol no avisa nada (pero se guarda);
 //   - un cambio en un rol avisa SOLO esa fila y ese rol;
-//   - si cambian los ids (o la cantidad), se rehace (reset + countChanged).
+//   - si cambian los ids (entra o se va uno, otro orden), se insertan, quitan y mueven
+//     SOLO esas filas (sin reset: con 60 invitados, rehacer era recrear 60 delegados
+//     con video por cada uno que entraba);
+//   - sin ids (o repetidos) y otra cantidad, se rehace.
 #include <QCoreApplication>
 
 #include "ui/JsonListModel.hpp"
@@ -50,7 +53,7 @@ int main(int argc, char** argv) {
     QObject::connect(&m, &JsonListModel::countChanged, [&]() { ++cuentas; });
 
     m.setItems({fila("a", "Ana", 100), fila("b", "Beto", 200), fila("c", "Ceci", 300)});
-    CHECK(resets == 1 && cuentas == 1 && m.count() == 3, "la primera lista rehace el modelo");
+    CHECK(resets == 0 && cuentas == 1 && m.count() == 3, "la primera lista: se insertan sus filas");
 
     avisos.clear();
     m.setItems({fila("a", "Ana", 100), fila("b", "Beto", 200), fila("c", "Ceci", 300)});
@@ -76,11 +79,46 @@ int main(int argc, char** argv) {
         CHECK(avisos[1].desde == 2 && avisos[1].roles == QList<int>{rolSemaforo}, "fila 2: el semáforo");
     }
 
+    int quitadas = 0, insertadas = 0, movidas = 0;
+    QObject::connect(&m, &QAbstractItemModel::rowsRemoved, [&](const QModelIndex&, int a, int b) { quitadas += b - a + 1; });
+    QObject::connect(&m, &QAbstractItemModel::rowsInserted, [&](const QModelIndex&, int a, int b) { insertadas += b - a + 1; });
+    QObject::connect(&m, &QAbstractItemModel::rowsMoved, [&]() { ++movidas; });
+    const auto nombres = [&m]() {
+        QStringList out;
+        for (int i = 0; i < m.count(); ++i) out << m.data(m.index(i), rolName).toString();
+        return out.join(",");
+    };
+
     avisos.clear();
     m.setItems({fila("a", "Ana María", 110), fila("c", "Ceci", 330, "ambar")});
-    CHECK(resets == 2 && cuentas == 2 && m.count() == 2 && avisos.empty(), "se fue uno: se rehace");
+    CHECK(resets == 0 && quitadas == 1 && cuentas == 2 && m.count() == 2 && avisos.empty(),
+          "se fue uno: se quita esa fila (sin rehacer)");
     m.setItems({fila("c", "Ceci", 330, "ambar"), fila("a", "Ana María", 110)});
-    CHECK(resets == 3 && cuentas == 3, "otro orden (otros ids): se rehace");
+    CHECK(resets == 0 && movidas == 1 && cuentas == 2 && nombres() == "Ceci,Ana María", "otro orden: se mueve (sin rehacer)");
+    m.setItems({fila("c", "Ceci", 330, "ambar"), fila("d", "Dani", 50), fila("a", "Ana María", 110)});
+    CHECK(resets == 0 && insertadas == 1 && cuentas == 3 && nombres() == "Ceci,Dani,Ana María",
+          "entra uno en el medio: se inserta solo esa fila");
+    avisos.clear();
+    m.setItems({fila("d", "Dani", 50, "rojo"), fila("e", "Eli", 10), fila("a", "Ana", 110)});
+    CHECK(resets == 0 && nombres() == "Dani,Eli,Ana", "se va uno, entra otro, cambia un orden y un nombre: queda igual a la lista");
+    CHECK(m.data(m.index(0), rolSemaforo).toString() == "rojo", "con los datos nuevos");
+    // Ids repetidos (o sin id) y otra cantidad: se rehace.
+    m.setItems({fila("x", "X", 1), fila("x", "X2", 1)});
+    CHECK(resets == 1 && m.count() == 2, "ids repetidos: se rehace");
+    // 60 que entran de a uno: ni un reset.
+    {
+        JsonListModel sala(QStringList{"name"});
+        int r = 0;
+        QObject::connect(&sala, &QAbstractItemModel::modelReset, [&]() { ++r; });
+        QJsonArray lista;
+        sala.setItems(lista);
+        r = 0;
+        for (int i = 0; i < 60; ++i) {
+            lista.append(QJsonObject{{"id", QString("p%1").arg(i)}, {"name", QString("Invitado %1").arg(i)}});
+            sala.setItems(lista);
+        }
+        CHECK(r == 0 && sala.count() == 60, "60 que entran de a uno: ningún reset");
+    }
 
     // Filas sin "id" (los lugares de invitado): misma cantidad = mismas filas, y avisa por rol.
     JsonListModel lugares(QStringList{"nombre", "red"});

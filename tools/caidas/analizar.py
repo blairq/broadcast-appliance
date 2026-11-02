@@ -6,6 +6,12 @@
 #   tools/caidas/analizar.py dist/caidas/…/X.dmp  uno (o varios, o una carpeta)
 #   tools/caidas/analizar.py Logs/dumps/A-…-caida.pila   macOS/Linux (F1-12)
 #   tools/caidas/analizar.py Runtime/caidas.jsonl        cuántas por módulo (qué aislar)
+#   tools/caidas/analizar.py Logs/dumps/A-…-traba-2000.pila  (o .dmp) la interfaz trabada
+#
+# Las TRABAS (A-<fecha>-traba-<ms>.{pila,dmp}, src/core/diag/VigiaTraba.hpp): la app
+# sigue andando; se capturaron las pilas mientras la interfaz estaba quieta. El informe
+# muestra primero la pila del hilo de la interfaz y la del hilo de render de Qt
+# (QSGRenderThread), después las demás agrupadas, y lo que corría según el vigía.
 #
 # En macOS y Linux no hay minidump: el manejador del proceso (src/core/diag/Caidas.cpp)
 # escribe las pilas de todos los hilos con su nombre (.pila) y las imágenes con su
@@ -108,6 +114,16 @@ class Minidump:
                 self.modulos.append(Modulo(base, tam, ts, ruta, rsds))
         self.modulos.sort(key=lambda m: m.base)
         self._bases = [m.base for m in self.modulos]
+        # ThreadNamesStream (24): los nombres de los hilos (SetThreadDescription), si dbghelp los puso.
+        self.nombres = {}
+        if 24 in streams:
+            _, r = streams[24]
+            c = struct.unpack_from("<I", self.d, r)[0]
+            for k in range(c):
+                tid, nrva = struct.unpack_from("<IQ", self.d, r + 4 + 12 * k)
+                if 0 < nrva < len(self.d) - 4:
+                    ln = struct.unpack_from("<I", self.d, nrva)[0]
+                    self.nombres[tid] = self.d[nrva + 4:nrva + 4 + ln].decode("utf-16-le", "replace")
         if 6 in streams:
             _, r = streams[6]
             tid = struct.unpack_from("<I", self.d, r)[0]
@@ -471,6 +487,46 @@ def nombre(md, d, sim, retorno):
 
 # --- el informe ---------------------------------------------------------------------------
 
+def es_render(nombre):
+    return "QSGRenderThread" in (nombre or "") or "qsgrender" in (nombre or "").lower()
+
+
+def titulo_hilo(tid, nombre, info):
+    """«LA INTERFAZ (hilo N «interfaz»)», «EL RENDER DE QT (…)» o «hilo N «nombre»»."""
+    base = "hilo %s%s" % (tid, (" «%s»" % nombre) if nombre else "")
+    if info.get("tipo") == "traba":
+        if str(tid) == str(info.get("hilo_interfaz")):
+            return "LA INTERFAZ (%s)" % base
+        if es_render(nombre):
+            return "EL RENDER DE QT (%s)" % base
+    return base
+
+
+def ordenar_traba(hilos, id_interfaz, nombre_de):
+    """La interfaz primero, después el render de Qt, después los demás como venían."""
+    def peso(h):
+        if str(h["id"]) == str(id_interfaz):
+            return 0
+        return 1 if es_render(nombre_de(h)) else 2
+    return sorted(hilos, key=peso)
+
+
+def resumen_traba(info):
+    out = ["La interfaz estaba trabada: %s ms al capturar%s (umbral %s ms; la captura tardó %s ms)." % (
+        info.get("trabada_ms", "?"),
+        ("; duró unos %s ms en total" % info["duracion_ms"]) if info.get("duracion_ms") else "",
+        info.get("umbral_ms", "?"), info.get("captura_ms", info.get("volcado_ms", "?")))]
+    if info.get("corria"):
+        out.append("Lo último que despachó el bucle de la interfaz: %s" % info["corria"])
+    if info.get("resumen_interfaz"):
+        out.append("La interfaz: %s" % info["resumen_interfaz"])
+    if info.get("resumen_render"):
+        out.append("El render de Qt: %s" % info["resumen_render"])
+    if info.get("error"):
+        out.append("Error al capturar: %s" % info["error"])
+    return out
+
+
 def analizar(ruta, extras, microsoft, todos):
     ruta = Path(ruta)
     md = Minidump(ruta)
@@ -486,6 +542,14 @@ def analizar(ruta, extras, microsoft, todos):
         out.append("%s de %s, %s — %s" % (info.get("tipo", "?"), info.get("componente", "?"), info.get("hora", "?"),
                                           info.get("causa", "")))
     exc = md.excepcion
+    traba = info.get("tipo") == "traba"
+    nombres = dict(md.nombres)
+    for h in info.get("hilos") or []:  # los que anotó el launcher (GetThreadDescription)
+        if h.get("nombre") and int(h.get("id", 0)) not in nombres:
+            nombres[int(h["id"])] = h["nombre"]
+    if traba:
+        out.extend(resumen_traba(info))
+        exc = None  # una captura en vivo no tiene excepción
     hilos_a_mostrar = []
     if exc:
         code = exc["codigo"]
@@ -497,9 +561,12 @@ def analizar(ruta, extras, microsoft, todos):
         if regs:
             hilos_a_mostrar.append(("el hilo que se cayó (%d)" % exc["hilo"], regs))
     if not exc or todos:
-        for h in md.hilos:
+        orden = md.hilos
+        if traba:
+            orden = ordenar_traba(md.hilos, info.get("hilo_interfaz"), lambda h: nombres.get(h["id"], ""))
+        for h in orden:
             if h["ctx"] and (not exc or h["id"] != exc["hilo"]):
-                hilos_a_mostrar.append(("hilo %d" % h["id"], h["ctx"]))
+                hilos_a_mostrar.append((titulo_hilo(h["id"], nombres.get(h["id"], ""), info), h["ctx"]))
     pilas = [(t, pila(md, r, extras, microsoft)) for t, r in hilos_a_mostrar]
     dirs = set()
     for _, ms in pilas:
@@ -512,6 +579,8 @@ def analizar(ruta, extras, microsoft, todos):
         for i, (d, esc) in enumerate(ms):
             texto.append("  #%-2d %s%s" % (i, nombre(md, d, sim, i > 0), "   (pila escaneada)" if esc else ""))
         clave = "\n".join(texto[:6])
+        if t.startswith(("LA INTERFAZ", "EL RENDER")):
+            clave = t  # los dos que importan, siempre aparte
         if clave in vistas and not exc:  # hilos iguales (esperando lo mismo): se agrupan
             vistas[clave][0].append(t)
             continue
@@ -632,9 +701,16 @@ def analizar_pila(ruta, todos):
         if info.get("modulo") or info.get("pieza"):
             out.append("Atribuida a: %s%s" % (info.get("modulo", "?"),
                                              " (pieza «%s»: la apaga el modo seguro)" % info["pieza"] if info.get("pieza") else ""))
-    out.append("Señal: %s, dirección %s" % (cab.get("senal", "?"), cab.get("direccion", "?")))
+    traba = info.get("tipo") == "traba" or "interfaz" in cab
+    if traba:
+        info.setdefault("tipo", "traba")
+        info.setdefault("hilo_interfaz", cab.get("interfaz"))
+        out.extend(resumen_traba(info))
+        hilos = ordenar_traba(hilos, info.get("hilo_interfaz"), lambda h: h["nombre"])
+    else:
+        out.append("Señal: %s, dirección %s" % (cab.get("senal", "?"), cab.get("direccion", "?")))
     sim = simbolizar_pila(hilos, imgs)
-    colgado = info.get("tipo") == "colgado"
+    colgado = info.get("tipo") == "colgado" or traba
     vistas = {}
     for h in hilos:
         if not (h["cayo"] or todos or colgado):
@@ -646,8 +722,10 @@ def analizar_pila(ruta, todos):
             lineas.append("  #%-2d %s%s" % (i, t, ("   [%s]" % s) if s else ""))
         if h.get("mudo"):
             lineas.append("  (no contestó: tenía la señal bloqueada)")
-        titulo = "%s %s «%s»" % ("el hilo que se cayó" if h["cayo"] else "hilo", h["id"], h["nombre"])
+        titulo = ("el hilo que se cayó %s «%s»" % (h["id"], h["nombre"])) if h["cayo"] else titulo_hilo(h["id"], h["nombre"], info)
         clave = "\n".join(l.split("[")[0] for l in lineas[:6])
+        if titulo.startswith(("LA INTERFAZ", "EL RENDER")):
+            clave = titulo  # los dos que importan, siempre aparte
         if clave in vistas and not h["cayo"]:  # hilos iguales (esperando lo mismo): se agrupan
             vistas[clave][0].append(titulo)
             continue
@@ -690,6 +768,16 @@ def resumen_caidas(ruta):
     return "\n".join(out)
 
 
+def decodificar(b):
+    """La salida de un comando de Windows: UTF-8 si lo es; si no, la página de códigos de la consola."""
+    for cod in ("utf-8", "cp850", "cp1252"):
+        try:
+            return b.decode(cod)
+        except UnicodeDecodeError:
+            continue
+    return b.decode("utf-8", "replace")
+
+
 def traer_de_la_pc(host, carpetas):
     """Copia los volcados nuevos (y su .json) de la PC a dist/caidas/<host>/."""
     destino = CAIDAS / host
@@ -698,8 +786,11 @@ def traer_de_la_pc(host, carpetas):
     for c in carpetas:
         r = subprocess.run(["ssh", host, 'powershell -NoProfile -Command "Get-ChildItem \'%s\' -File -ErrorAction '
                             'SilentlyContinue | Where-Object { $_.Extension -in \'.dmp\',\'.json\' } | ForEach-Object '
-                            '{ $_.Name + \'|\' + $_.Length }"' % c], capture_output=True, text=True, timeout=120)
-        for linea in r.stdout.splitlines():
+                            '{ $_.Name + \'|\' + $_.Length }"' % c], capture_output=True, timeout=120)
+        # PowerShell contesta en la página de códigos de la consola (cp850/cp1252), no en
+        # UTF-8: leído como texto, una tilde en un nombre (o en un error) cortaba todo con
+        # UnicodeDecodeError. Bytes, y se decodifica sin romperse.
+        for linea in decodificar(r.stdout).splitlines():
             if "|" not in linea:
                 continue
             nom, tam = linea.strip().rsplit("|", 1)
