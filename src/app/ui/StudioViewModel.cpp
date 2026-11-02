@@ -4,6 +4,7 @@
 
 #include "ui/StudioViewModel.hpp"
 
+#include "agent/AgentViewModel.hpp"
 #include "agent/Despachador.hpp"
 #include "agent/FlujosTexto.hpp"
 #include "agent/Notificador.hpp"
@@ -768,9 +769,27 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, VentanillaMotor& ventanilla, QO
     // La grilla de personas (fuentes ba_grilla): la gente de la sala y de la asamblea,
     // repartida en las grillas; el mosaico lo pinta el gateway (BA.Grilla.<k>).
     grillasPersonas_ = std::make_unique<escenas::ControlGrillas>(
-        escenas::ControlGrillas::Partes{conference_->client(), ventanilla_, asamblea_->sesionRemota(),
-                                        &asamblea_->cuerpo().cuerpo(), &rt_},
+        escenas::ControlGrillas::Partes{
+            conference_->client(), ventanilla_, asamblea_->sesionRemota(), &asamblea_->cuerpo().cuerpo(), &rt_,
+            // El pase automático a la escena del orador: como un corte de la interfaz, en el dueño.
+            [this](const std::string& salida, const std::string& escena) {
+                ventanilla_.pedir(
+                    this, "grilla_orador_al_aire",
+                    [&cs = conmutadores(), salida, escena]() {
+                        escenas::Conmutador* c = salida.empty() ? nullptr : cs.de(salida);
+                        return (c != nullptr ? *c : cs.porOmision()).poner(escena);
+                    },
+                    [this](const std::string& e) {
+                        if (!e.empty()) emit notify(QString::fromStdString(e), "error");
+                    });
+            }},
         this);
+    // Con el asistente: el de automatización recibe el pedido (si está andando; si no, el
+    // operador ya tiene el aviso y corta él).
+    connect(grillasPersonas_.get(), &escenas::ControlGrillas::paraElAsistente, this, [this](const QString& texto) {
+        agent::AgentViewModel& a = asistente_->agenteAutomatizacion();
+        if (a.running()) a.send(texto);
+    });
     connect(grillasPersonas_.get(), &escenas::ControlGrillas::notify, this, &StudioViewModel::notify);
     // Los lugares vacíos del cupo: sus entradas, en reposo en el motor hasta que llega alguien.
     lugaresConGente_ = std::make_unique<sala::LugaresConGente>(conference_->client(), ventanilla_, rt_, this);

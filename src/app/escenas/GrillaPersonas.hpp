@@ -57,18 +57,27 @@
 // grilla lo decide MaquinaOrador según el disparo («disparo»: la palabra de la asamblea,
 // el orador al aire de la conferencia, voz sostenida «voz_ms», o a mano), con un tiempo
 // mínimo en pantalla («minimo_ms»: que no salte con cada tos). Cómo se lo muestra:
-//   - resaltar: nadie se mueve; la celda del orador crece un poco (6 %, encima de las
-//     vecinas) con el borde del color de resaltar; las demás, exactamente como siempre;
+//   - sin cambios: la grilla no se toca (nadie se mueve ni crece); al orador solo se le pide
+//     su capa alta (y entra con el fundido);
+//   - resaltar: nadie se mueve; el orador lleva el borde del color de resaltar y, según
+//     «agrandar» (aparte del modo, de fábrica no): «encima» (su celda crece un 6 % sobre las
+//     vecinas, sin achicar a nadie) o «achicando» (todas al 94 % y la del orador llena su
+//     lugar);
 //   - destacar: el orador a un lugar grande (centro o izquierda, «destacar_tamano» % del
 //     lienzo) y los demás a una franja (abajo o al costado) en el MISMO orden de siempre
 //     (no se mezclan: se achican y se corren); los que no entran, «+N». El gateway anima
 //     el viaje (transicion_ms);
 //   - superponer: el orador encima, en un hueco que la grilla le deja en el medio (nadie
 //     queda tapado); con «superponer_completa», a pantalla completa;
-//   - escena: esta grilla no cambia; una grilla con «muestra» = orador (y «sigue» = esta)
-//     muestra solo al orador, grande y con su nombre: va en la escena del orador, que el
-//     operador o la línea de tiempo ponen al aire en la salida que quieran;
-//   - nada: como antes (el borde a quien habla, si «resaltar»).
+//   - escena: esta grilla no cambia (salvo «agrandar»); una grilla con «muestra» = orador (y
+//     «sigue» = esta) muestra solo al orador, grande y con su nombre: va en la escena del
+//     orador («escena_orador»). Cómo se pasa a esa escena («pasar_a_escena»): a mano (el
+//     operador corta), automático (al cambiar el orador, la app la pone al aire en
+//     «salida_orador», y vuelve a la de antes cuando ya no hay orador; el mínimo en pantalla
+//     y la histéresis son los del orador) o con el asistente (se le pide al de
+//     automatización, que corta si está autorizado, y SIEMPRE se le avisa al operador).
+//     La decisión es PaseEscenaOrador (pura);
+//   - nada: como antes (sin orador: solo el borde a quien habla, si «resaltar»).
 // LA CAPA: el orador pide la ALTA (y el gateway funde de la baja a la HD cuando llega,
 // src/gateway/Fundido.hpp); con «precarga», el siguiente (el siguiente de la fila de la
 // asamblea o de la conferencia; con voz, el que empezó a hablar y todavía no llegó a
@@ -107,7 +116,11 @@ enum class Origen { Sala, Asamblea, Ambas };
 enum class Orden { Llegada, Habla, Prioridad };
 enum class Reparto { EnOrden, Parejo };
 /// Cómo se muestra a quien habla (ver arriba).
-enum class AlHablar { Nada, Resaltar, Destacar, Superponer, Escena };
+enum class AlHablar { Nada, SinCambios, Resaltar, Destacar, Superponer, Escena };
+/// Agrandar al orador en su celda (resaltar y escena): no, encima de las vecinas, o achicando a las demás.
+enum class Agrandar { No, Encima, Achicando };
+/// Cómo se pasa a la escena del orador (al_hablar = escena).
+enum class PasarEscena { AMano, Automatico, Asistente };
 /// Qué decide quién es el orador.
 enum class Disparo { Voz, Palabra, Orador, Manual };
 enum class Nombres { No, Nombre, NombreCargo };
@@ -119,9 +132,11 @@ constexpr int kBajarAlta = 180;
 /// Una celda de la franja (destacar) o de la grilla con hueco no baja de esto de alto: si
 /// no entran todos así, el resto va al «+N».
 constexpr int kMinCelda = 40;
-/// En «resaltar», la celda del orador crece a esto de su lugar (centrada, sin salirse del
+/// Agrandar «encima»: la celda del orador crece a esto de su lugar (centrada, sin salirse del
 /// lienzo y dibujada encima de las vecinas); las demás quedan exactamente como siempre.
 constexpr double kResaltarOrador = 1.06;
+/// Agrandar «achicando»: las demás celdas van a esta fracción de su lugar (el orador, entero).
+constexpr double kResaltarResto = 0.94;
 
 struct Persona {
     std::string clave; ///< "sala:<id del participante>" | "asamblea:<id del integrante>"
@@ -172,6 +187,10 @@ struct Config {
     int superponerTamano = 60;      ///< % del lienzo que ocupa el hueco del orador
     bool superponerCompleta = false;
     int fundidoMs = 300; ///< de la baja a la HD
+    Agrandar agrandar = Agrandar::No; ///< resaltar y escena: agrandar al orador en su celda
+    PasarEscena pasarEscena = PasarEscena::AMano; ///< escena: cómo se pasa a la escena del orador
+    std::string salidaOrador; ///< escena: en qué salida se la pone al aire ("" = la principal)
+    std::string escenaOrador; ///< escena: el nombre de la escena del orador (lo pone «Armar la escena del orador»)
     // --- Nombres ---
     Nombres nombres = Nombres::No;
     int nombreTamano = 14;                  ///< % del alto de la celda
@@ -295,6 +314,26 @@ class CapasGrilla {
 
    private:
     std::map<std::string, bool> alta_;
+};
+
+/// Pasar a la escena del orador (al_hablar = escena) a mano, automático o con el asistente.
+/// Pura: con el orador de cada vuelta y lo que hay al aire en la salida, dice qué hacer. El
+/// mínimo en pantalla y la histéresis ya vienen en el orador (MaquinaOrador).
+class PaseEscenaOrador {
+   public:
+    struct Orden {
+        enum Tipo { Nada, Poner, Proponer } tipo = Nada;
+        std::string escena; ///< la que hay que poner (o proponer)
+        std::string orador; ///< el orador nuevo ("" = se vuelve porque ya no hay)
+        bool volver = false; ///< es la vuelta a la escena de antes
+    };
+    /// Una vuelta. `alAire`: lo que hay al aire en la salida ahora.
+    Orden paso(PasarEscena modo, const std::string& orador, const std::string& escenaOrador, const std::string& alAire);
+    const std::string& volverA() const { return volverA_; }
+
+   private:
+    std::string orador_;  ///< el de la vuelta anterior
+    std::string volverA_; ///< la escena que estaba antes del primer pase
 };
 
 /// El id del rótulo de una persona (el texto y la versión del dibujo): "" si no lleva.

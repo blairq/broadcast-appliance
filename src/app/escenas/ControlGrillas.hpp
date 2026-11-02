@@ -22,6 +22,11 @@
 //   - para el orador: quién tiene la palabra y quién es el siguiente (asamblea), el
 //     orador al aire y el siguiente de la fila (conferencia, modo oradores) y desde
 //     cuándo habla cada uno sin parar (voz sostenida);
+//   - la ESCENA DEL ORADOR (al_hablar = escena): la arma a pedido (armarEscenaOrador) y,
+//     según «pasar_a_escena», la pone al aire sola en su salida (automático, con
+//     Partes::ponerAlAire) o se lo pide al asistente de automatización (paraElAsistente)
+//     y le avisa SIEMPRE al operador (notify): «¿paso a …?» y, cuando el corte se ve en la
+//     foto, «pasé a …». La decisión es grilla::PaseEscenaOrador;
 //   - los NOMBRES: el gateway no tiene fuentes, así que cada rótulo (nombre y cargo o
 //     banca) se dibuja acá con Qt como una máscara A8 y se le manda una vez
 //     (POST /api/v1/grillas/rotulos, de a tandas de menos de 1 MB).
@@ -47,6 +52,7 @@
 #include <nlohmann/json.hpp>
 
 #include <cstdint>
+#include <functional>
 #include <map>
 #include <set>
 #include <string>
@@ -88,6 +94,9 @@ class ControlGrillas : public QObject {
         asamblea::SesionRemota* sesion = nullptr;
         const asamblea::Cuerpo* cuerpo = nullptr;
         AppRuntime* rt = nullptr; ///< para armar la escena del orador (en el hilo del dueño del motor)
+        /// Pone `escena` al aire en `salida` ("" = la principal), en el dueño del motor (con su
+        /// transición). Lo da StudioViewModel; sin esto, el pase automático solo avisa.
+        std::function<void(const std::string& salida, const std::string& escena)> ponerAlAire;
     };
     explicit ControlGrillas(Partes p, QObject* parent = nullptr);
 
@@ -126,8 +135,12 @@ class ControlGrillas : public QObject {
     std::string armarEscenaOrador(const std::string& fuente, std::string* escena = nullptr, std::string* grilla = nullptr);
 
    signals:
-    /// Para el operador (ya traducido): los errores de las acciones de la interfaz.
+    /// Para el operador (ya traducido): los errores de las acciones de la interfaz y los
+    /// avisos del pase a la escena del orador.
     void notify(const QString& texto, const QString& tipo);
+    /// Un pedido para el asistente de automatización (pasar a la escena del orador): lo
+    /// conecta StudioViewModel (solo si el asistente está andando).
+    void paraElAsistente(const QString& texto);
     void cambio();
 
    public slots:
@@ -141,6 +154,9 @@ class ControlGrillas : public QObject {
     std::vector<grilla::Config> configs(const std::vector<std::string>& seVe);
     /// Valida que haya una grilla `fuente` (y, si `clave` no está vacía, que esa persona esté conectada).
     std::string validarMano(const std::string& fuente, const std::string& clave) const;
+    /// El pase a la escena del orador de cada grilla con al_hablar = escena (una vuelta).
+    void pasarAEscenas(const std::vector<grilla::Config>& cfgs, const std::vector<grilla::Resultado>& res,
+                       const std::vector<grilla::Persona>& g);
     /// Dibuja y manda al gateway los rótulos que todavía no tiene.
     void mandarRotulos(const std::map<std::string, std::pair<std::string, std::string>>& rotulos);
 
@@ -151,6 +167,11 @@ class ControlGrillas : public QObject {
     std::map<std::string, std::int64_t> voz_; ///< clave → la última vez que habló
     std::map<std::string, std::int64_t> hablaDesde_; ///< clave → desde cuándo habla sin parar
     std::set<std::string> rotulosEnviados_;        ///< los que el gateway ya tiene (o se le están mandando)
+    std::map<std::string, grilla::PaseEscenaOrador> pases_; ///< fuente → su pase a la escena del orador
+    struct Propuesto {
+        std::string salida, escena, quien;
+    };
+    std::map<std::string, Propuesto> propuestos_; ///< fuente → lo que se le pidió al asistente (para avisar cuando pase)
     json ultimoPedido_;                       ///< lo último que se le mandó al gateway
     json estado_ = json::object();
     QTimer reloj_;  ///< el programa y las fuentes cambian por muchos caminos: se mira seguido

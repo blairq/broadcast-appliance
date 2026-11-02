@@ -120,12 +120,14 @@ void registrarTipo() {
         } else {
             const std::string modo = a.value("al_hablar", std::string("resaltar"));
             out.push_back(lista("al_hablar", traducir("escenas", "Cómo se lo muestra"),
-                                {{"resaltar", traducir("escenas", "Resaltar en su lugar")},
+                                {{"sin_cambios", traducir("escenas", "Sin cambios (solo la cámara en alta)")},
+                                 {"resaltar", traducir("escenas", "Resaltar en su lugar")},
                                  {"destacar", traducir("escenas", "Destacar (grande, los demás en una franja)")},
                                  {"superponer", traducir("escenas", "Superponer sin tapar")},
                                  {"escena", traducir("escenas", "Cortar a la escena del orador")},
-                                 {"nada", traducir("escenas", "Nada (solo el borde)")}},
-                                traducir("escenas", "Resaltar: nadie se mueve; borde y un leve agrandado. Destacar: el orador a un lugar "
+                                 {"nada", traducir("escenas", "Nada (sin orador: solo el borde a quien habla)")}},
+                                traducir("escenas", "Sin cambios: la grilla no se toca; al orador solo se le pide la cámara en alta (entra con "
+                                "un fundido). Resaltar: nadie se mueve; el orador con borde (y agrandado, si se elige abajo). Destacar: el orador a un lugar "
                                 "grande y los demás a una franja, en el mismo orden. Superponer: el orador encima, en un hueco "
                                 "que le deja la grilla (nadie queda tapado). Escena: esta grilla no cambia; otra grilla con «Solo "
                                 "al orador» lo muestra en su escena. Al orador se le pide su cámara en alta.")));
@@ -149,7 +151,28 @@ void registrarTipo() {
                 pre.ayuda = traducir("escenas", "El siguiente de la fila (o el que empezó a hablar) ya pide su cámara en alta.");
                 out.push_back(pre);
             }
+            if (modo == "resaltar" || modo == "escena")
+                out.push_back(lista("agrandar", traducir("escenas", "Agrandar al que habla"),
+                                    {{"no", traducir("escenas", "No")},
+                                     {"encima", traducir("escenas", "Encima (crece sobre su celda, sin achicar a nadie)")},
+                                     {"achicando", traducir("escenas", "Achicando a los demás (todas al 94 %, el orador llena su celda)")}}));
             if (modo == "escena") {
+                out.push_back(lista("pasar_a_escena", traducir("escenas", "Pasar a la escena del orador"),
+                                    {{"a_mano", traducir("escenas", "A mano (corta el operador)")},
+                                     {"automatico", traducir("escenas", "Automático (al cambiar el orador)")},
+                                     {"asistente", traducir("escenas", "Con el asistente (y siempre te avisa)")}},
+                                    traducir("escenas", "Automático: al cambiar el orador la app pone su escena al aire en la salida "
+                                    "elegida y, cuando ya no hay orador, vuelve a la de antes (con el tiempo mínimo del orador). Con "
+                                    "el asistente: se lo pide al de automatización, que corta si está autorizado; el operador "
+                                    "siempre recibe el aviso («¿paso a…?» y «pasé a…»).")));
+                if (a.value("pasar_a_escena", std::string("a_mano")) != "a_mano") {
+                    P salida{"salida_orador", traducir("escenas", "En qué salida"), "text"};
+                    salida.ayuda = traducir("escenas", "El id de la salida (ver Salidas). Vacío = la principal.");
+                    out.push_back(salida);
+                }
+                P esc{"escena_orador", traducir("escenas", "Escena del orador"), "text"};
+                esc.ayuda = traducir("escenas", "La pone «Armar la escena del orador»; se puede elegir otra.");
+                out.push_back(esc);
                 P boton{"armar_escena_orador", traducir("escenas", "Armar la escena del orador"), "button"};
                 boton.ayuda = traducir("escenas", "Crea (si no está) la escena «Orador · <esta grilla>» con una grilla que muestra "
                               "solo al orador de esta, grande y con su nombre y cargo. Ponerla al aire queda en manos del operador "

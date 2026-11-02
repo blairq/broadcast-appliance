@@ -98,6 +98,10 @@ json Config::defectos() {
                 {"superponer_tamano", 60},
                 {"superponer_completa", false},
                 {"fundido_ms", 300},
+                {"agrandar", "no"},             // resaltar y escena: no | encima | achicando
+                {"pasar_a_escena", "a_mano"},   // escena: a_mano | automatico | asistente
+                {"salida_orador", ""},          // escena: la salida ("" = la principal)
+                {"escena_orador", ""},          // escena: el nombre de la escena del orador
                 // Nombres en cada celda.
                 {"nombres", "no"},
                 {"nombre_tamano", 14},
@@ -134,8 +138,9 @@ Config Config::desdeAjustes(const std::string& fuente, const json& ajustesIn) {
     c.fondo = color(a, "fondo", "#00000000");
     c.colorResaltar = color(a, "color_resaltar", "#FFFFC107");
     const std::string ah = texto(a, "al_hablar", "resaltar");
-    c.alHablar = ah == "nada"         ? AlHablar::Nada
-                 : ah == "destacar"   ? AlHablar::Destacar
+    c.alHablar = ah == "nada"          ? AlHablar::Nada
+                 : ah == "sin_cambios" ? AlHablar::SinCambios
+                 : ah == "destacar"    ? AlHablar::Destacar
                  : ah == "superponer" ? AlHablar::Superponer
                  : ah == "escena"     ? AlHablar::Escena
                                       : AlHablar::Resaltar;
@@ -150,6 +155,12 @@ Config Config::desdeAjustes(const std::string& fuente, const json& ajustesIn) {
     c.superponerTamano = std::clamp(entero(a, "superponer_tamano", 60), 30, 90);
     c.superponerCompleta = siNo(a, "superponer_completa", false);
     c.fundidoMs = std::clamp(entero(a, "fundido_ms", 300), 0, 2000);
+    const std::string ag = texto(a, "agrandar", "no");
+    c.agrandar = ag == "encima" ? Agrandar::Encima : ag == "achicando" ? Agrandar::Achicando : Agrandar::No;
+    const std::string pe = texto(a, "pasar_a_escena", "a_mano");
+    c.pasarEscena = pe == "automatico" ? PasarEscena::Automatico : pe == "asistente" ? PasarEscena::Asistente : PasarEscena::AMano;
+    c.salidaOrador = texto(a, "salida_orador", "");
+    c.escenaOrador = texto(a, "escena_orador", "");
     const std::string no = texto(a, "nombres", "no");
     c.nombres = no == "nombre" ? Nombres::Nombre : no == "nombre_cargo" ? Nombres::NombreCargo : Nombres::No;
     c.nombreTamano = std::clamp(entero(a, "nombre_tamano", 14), 5, 40);
@@ -191,7 +202,7 @@ std::string Config::validar(const json& cambios) {
         "proporcion", "transicion_ms", "fondo", "color_resaltar",
         "al_hablar", "disparo", "voz_ms", "minimo_ms", "precarga", "destacar_lugar", "destacar_tamano", "franja",
         "superponer_tamano", "superponer_completa", "fundido_ms", "nombres", "nombre_tamano", "nombre_color",
-        "nombre_fondo", "nombre_lugar", "muestra", "sigue"};
+        "nombre_fondo", "nombre_lugar", "muestra", "sigue", "agrandar", "pasar_a_escena", "salida_orador", "escena_orador"};
     for (const auto& [k, v] : cambios.items())
         if (!kConocidos.count(k)) return ba::i18n::llenar(ba::i18n::traducir("escenas", "«%1» no es un ajuste de la grilla de personas"), {k});
     for (const std::string& e :
@@ -202,7 +213,8 @@ std::string Config::validar(const json& cambios) {
           numero("canal", 0, kMaxGrillas), numero("orden_en_grupo", -1000, 1000), numero("tope", 0, kMaxCeldas),
           numero("ancho", 64, 3840), numero("alto", 64, 2160), numero("separacion", 0, 200), numero("margen", 0, 500),
           numero("transicion_ms", 0, 3000), booleano("solo_con_camara"), booleano("sin_al_aire"), booleano("resaltar"),
-          enumera("al_hablar", {"nada", "resaltar", "destacar", "superponer", "escena"}),
+          enumera("al_hablar", {"nada", "sin_cambios", "resaltar", "destacar", "superponer", "escena"}),
+          enumera("agrandar", {"no", "encima", "achicando"}), enumera("pasar_a_escena", {"a_mano", "automatico", "asistente"}),
           enumera("disparo", {"voz", "palabra", "orador", "manual"}), numero("voz_ms", 0, 10000),
           numero("minimo_ms", 0, 60000), booleano("precarga"), enumera("destacar_lugar", {"centro", "izquierda"}),
           numero("destacar_tamano", 40, 90), enumera("franja", {"abajo", "costado"}), numero("superponer_tamano", 30, 90),
@@ -211,6 +223,9 @@ std::string Config::validar(const json& cambios) {
         if (!e.empty()) return e;
     if (cambios.contains("grupo") && !cambios["grupo"].is_string())
         return ba::i18n::traducir("escenas", "«grupo» es un texto (vacío = sola)");
+    for (const char* k : {"salida_orador", "escena_orador"})
+        if (cambios.contains(k) && !cambios[k].is_string())
+            return ba::i18n::llenar(ba::i18n::traducir("escenas", "«%1» es un texto"), {k});
     if (cambios.contains("sigue") && !cambios["sigue"].is_string())
         return ba::i18n::traducir("escenas", "«sigue» es el nombre de otra grilla (vacío = la primera con orador)");
     return {};
@@ -561,6 +576,35 @@ Disposicion disponerSuperponer(int n, const Config& c) {
 // Capas y rótulos
 // ---------------------------------------------------------------------------
 
+PaseEscenaOrador::Orden PaseEscenaOrador::paso(PasarEscena modo, const std::string& orador, const std::string& escenaOrador,
+                                                const std::string& alAire) {
+    Orden o;
+    if (orador == orador_) return o;
+    orador_ = orador;
+    if (modo == PasarEscena::AMano || escenaOrador.empty()) {
+        volverA_.clear();
+        return o;
+    }
+    const Orden::Tipo t = modo == PasarEscena::Asistente ? Orden::Proponer : Orden::Poner;
+    if (!orador.empty()) {
+        // Un orador (nuevo u otro): a su escena. Si ya está al aire, su grilla lo sigue sola.
+        if (alAire == escenaOrador) return o;
+        volverA_ = alAire;
+        o.tipo = t;
+        o.escena = escenaOrador;
+        o.orador = orador;
+        return o;
+    }
+    // Ya no hay orador: de vuelta a lo que estaba (si seguimos en la escena del orador).
+    if (alAire == escenaOrador && !volverA_.empty() && volverA_ != escenaOrador) {
+        o.tipo = t;
+        o.escena = volverA_;
+        o.volver = true;
+    }
+    volverA_.clear();
+    return o;
+}
+
 std::map<std::string, bool> CapasGrilla::decidir(const std::map<std::string, Pedido>& pedidos, int maxSubidas) {
     std::map<std::string, bool> out;
     // Los más grandes primero: si hay que esperar para subir, espera el más chico.
@@ -884,7 +928,8 @@ std::vector<Resultado> Repartidor::calcular(const std::vector<Config>& grillas, 
     for (const Config& c : grillas) modo[c.fuente] = c.soloOrador ? AlHablar::Destacar : c.alHablar;
     for (const auto& [f, r] : porFuente) {
         const AlHablar m = modo[f];
-        const bool grande = m == AlHablar::Resaltar || m == AlHablar::Destacar || m == AlHablar::Superponer;
+        const bool grande = m == AlHablar::SinCambios || m == AlHablar::Resaltar || m == AlHablar::Destacar ||
+                            m == AlHablar::Superponer;
         for (const Celda& x : r.celdas) {
             auto& p = pedidos[x.clave];
             p.alto = std::max(p.alto, x.r.h);
@@ -912,26 +957,32 @@ void Repartidor::disponerCeldas(const Config& c, Resultado& r, const std::map<st
         x.clave = k;
         x.r = rect;
         // El borde: a quien habla (como siempre) y al orador.
-        x.resaltar = c.resaltar && p != nullptr && (p->hablando || (k == r.orador && c.alHablar != AlHablar::Nada));
+        x.resaltar = c.resaltar && p != nullptr &&
+                     (p->hablando || (k == r.orador && c.alHablar != AlHablar::Nada && c.alHablar != AlHablar::SinCambios));
         if (p != nullptr) x.rotulo = idRotulo(c.nombres, p->nombre, p->cargo);
         return x;
     };
     const bool conGrande = !r.orador.empty() && (c.alHablar == AlHablar::Destacar || c.alHablar == AlHablar::Superponer);
     if (!conGrande) {
-        // La grilla de siempre (nadie se mueve); en «resaltar», el orador crece un poco y
-        // va al final de la lista (el gateway lo pinta encima de sus vecinas).
+        // La grilla de siempre (nadie se mueve). Agrandar (resaltar y escena, si se eligió):
+        // «encima», el orador crece un poco y va al final de la lista (el gateway lo pinta
+        // encima de sus vecinas); «achicando», las demás al 94 % y el orador entero.
         const int celdas = static_cast<int>(r.personas.size()) + (r.mas > 0 ? 1 : 0);
         const auto rects = disponer(celdas, c.ancho, c.alto, c.separacion, c.margen, c.aspecto);
+        const bool puede = (c.alHablar == AlHablar::Resaltar || c.alHablar == AlHablar::Escena) && c.agrandar != Agrandar::No;
         std::optional<Celda> delOrador;
         for (std::size_t j = 0; j < r.personas.size() && j < rects.size(); ++j) {
-            if (c.alHablar == AlHablar::Resaltar && r.personas[j] == r.orador) {
-                Rect g = achicar(rects[j], kResaltarOrador);
+            Rect rect = rects[j];
+            if (puede && c.agrandar == Agrandar::Encima && r.personas[j] == r.orador && !r.orador.empty()) {
+                Rect g = achicar(rect, kResaltarOrador);
                 g.x = std::clamp(g.x, 0, std::max(0, c.ancho - g.w));
                 g.y = std::clamp(g.y, 0, std::max(0, c.alto - g.h));
                 delOrador = celda(r.personas[j], g);
                 continue;
             }
-            r.celdas.push_back(celda(r.personas[j], rects[j]));
+            // «Achicando»: siempre (haya o no orador), así nadie se mueve cuando alguien empieza a hablar.
+            if (puede && c.agrandar == Agrandar::Achicando && r.personas[j] != r.orador) rect = achicar(rect, kResaltarResto);
+            r.celdas.push_back(celda(r.personas[j], rect));
         }
         if (delOrador) r.celdas.push_back(*delOrador);
         if (r.mas > 0 && !rects.empty()) r.rMas = rects.back();

@@ -25,6 +25,8 @@
 //      orador (una grilla que muestra solo al orador de otra).
 //  12. Capas con histéresis y de a una subida; el pedido al gateway (capa, rótulo,
 //      precarga, fundido) y los rótulos.
+//  13. Sin cambios (la grilla no se toca, el orador en alta), agrandar (no / encima /
+//      achicando) y el pase a la escena del orador (a mano, automático, con el asistente).
 // ============================================================================
 #include <algorithm>
 #include <cstdio>
@@ -589,6 +591,7 @@ void enLaGrilla() {
         Repartidor rep;
         std::vector<Config> gs{grilla("g", 8)};
         gs[0].vozMs = 1000;
+        gs[0].agrandar = Agrandar::Encima;
         auto v = gente(4);
         auto antes = rep.calcular(gs, v, {}, 1000);
         CHECK(antes[0].orador.empty(), "nadie habla: sin orador");
@@ -749,6 +752,93 @@ void capasYPedido() {
           "los de fábrica");
 }
 
+void sinCambiosAgrandarYPase() {
+    const auto plano = disponer(4, 1280, 720, 8, 0, 16.0 / 9);
+    const auto rects = [](const Resultado& r) {
+        std::map<std::string, Rect> m;
+        for (const auto& x : r.celdas) m[x.clave] = x.r;
+        return m;
+    };
+    auto v = gente(4);
+    v[1].palabra = true;
+    // Sin cambios: nadie se mueve ni crece, sin borde de orador, pero el orador en alta.
+    {
+        Repartidor rep;
+        std::vector<Config> gs{grilla("g", 8)};
+        gs[0].alHablar = AlHablar::SinCambios;
+        gs[0].disparo = Disparo::Palabra;
+        auto res = rep.calcular(gs, v, {}, 0);
+        auto m = rects(res[0]);
+        CHECK(res[0].orador == "sala:p1", "sin cambios: igual hay orador");
+        CHECK(m["sala:p0"] == plano[0] && m["sala:p1"] == plano[1] && m["sala:p3"] == plano[3], "sin cambios: la grilla de siempre");
+        bool alta = false, borde = false;
+        for (const auto& x : res[0].celdas)
+            if (x.clave == "sala:p1") {
+                alta = x.capa == "alta";
+                borde = x.resaltar;
+            }
+        CHECK(alta && !borde, "el orador en alta (para el fundido), sin borde de orador");
+    }
+    // Resaltar, agrandar «no» (de fábrica): la grilla de siempre, el orador con borde.
+    {
+        Repartidor rep;
+        std::vector<Config> gs{grilla("g", 8)};
+        gs[0].disparo = Disparo::Palabra;
+        CHECK(gs[0].agrandar == Agrandar::No, "de fábrica no se agranda");
+        auto m = rects(rep.calcular(gs, v, {}, 0)[0]);
+        CHECK(m["sala:p1"] == plano[1] && m["sala:p0"] == plano[0], "agrandar no: nadie cambia de tamaño");
+    }
+    // Agrandar «achicando»: las demás al 94 %, el orador entero; sin orador, todas al 94 % (nadie salta).
+    {
+        Repartidor rep;
+        std::vector<Config> gs{grilla("g", 8)};
+        gs[0].disparo = Disparo::Palabra;
+        gs[0].agrandar = Agrandar::Achicando;
+        auto m = rects(rep.calcular(gs, v, {}, 0)[0]);
+        CHECK(m["sala:p1"] == plano[1] && m["sala:p0"] == achicar(plano[0], kResaltarResto), "achicando: el orador llena su lugar");
+        auto w = v;
+        w[1].palabra = false;
+        auto n = rects(rep.calcular(gs, w, {}, 10000)[0]);
+        CHECK(n["sala:p1"] == achicar(plano[1], kResaltarResto) && n["sala:p0"] == m["sala:p0"], "sin orador: todas al 94 %, los demás quietos");
+    }
+    // El pase a la escena del orador.
+    {
+        PaseEscenaOrador p;
+        using O = PaseEscenaOrador::Orden;
+        CHECK(p.paso(PasarEscena::AMano, "sala:a", "Orador · G", "Principal").tipo == O::Nada, "a mano: la app no corta");
+        PaseEscenaOrador q;
+        auto o = q.paso(PasarEscena::Automatico, "sala:a", "Orador · G", "Principal");
+        CHECK(o.tipo == O::Poner && o.escena == "Orador · G" && o.orador == "sala:a" && !o.volver, "automático: a la escena del orador");
+        CHECK(q.paso(PasarEscena::Automatico, "sala:a", "Orador · G", "Orador · G").tipo == O::Nada, "el mismo orador: nada");
+        CHECK(q.paso(PasarEscena::Automatico, "sala:b", "Orador · G", "Orador · G").tipo == O::Nada,
+              "otro orador estando en su escena: nada (la grilla del orador lo sigue sola)");
+        o = q.paso(PasarEscena::Automatico, "", "Orador · G", "Orador · G");
+        CHECK(o.tipo == O::Poner && o.escena == "Principal" && o.volver, "sin orador: vuelve a la de antes");
+        CHECK(q.paso(PasarEscena::Automatico, "", "Orador · G", "Principal").tipo == O::Nada, "y no repite");
+        // El operador ya cortó a otra cosa: sin orador, no se la pisa.
+        q.paso(PasarEscena::Automatico, "sala:c", "Orador · G", "Principal");
+        CHECK(q.paso(PasarEscena::Automatico, "", "Orador · G", "Créditos").tipo == O::Nada, "si el operador cortó a otra, no se vuelve");
+        // Con el asistente: se propone (no se corta acá).
+        PaseEscenaOrador r;
+        o = r.paso(PasarEscena::Asistente, "sala:a", "Orador · G", "Principal");
+        CHECK(o.tipo == O::Proponer && o.escena == "Orador · G", "asistente: se propone");
+        o = r.paso(PasarEscena::Asistente, "", "Orador · G", "Orador · G");
+        CHECK(o.tipo == O::Proponer && o.volver && o.escena == "Principal", "asistente: propone volver");
+        PaseEscenaOrador s;
+        CHECK(s.paso(PasarEscena::Automatico, "sala:a", "", "Principal").tipo == O::Nada, "sin escena del orador armada: nada");
+    }
+    CHECK(Config::validar(json{{"al_hablar", "sin_cambios"}, {"agrandar", "achicando"}, {"pasar_a_escena", "asistente"},
+                               {"salida_orador", "s2"}, {"escena_orador", "Orador · G"}})
+              .empty(),
+          "ajustes de las opciones nuevas");
+    CHECK(!Config::validar(json{{"agrandar", "mucho"}}).empty() && !Config::validar(json{{"pasar_a_escena", "ya"}}).empty() &&
+              !Config::validar(json{{"escena_orador", 3}}).empty(),
+          "las opciones nuevas, mal");
+    const Config d = Config::desdeAjustes("g", Config::defectos());
+    CHECK(d.agrandar == Agrandar::No && d.pasarEscena == PasarEscena::AMano && d.salidaOrador.empty() && d.escenaOrador.empty(),
+          "de fábrica: sin agrandar, pase a mano");
+}
+
 } // namespace
 
 int main() {
@@ -765,6 +855,7 @@ int main() {
     disposicionesConGrande();
     enLaGrilla();
     capasYPedido();
+    sinCambiosAgrandarYPase();
     if (g_fallos == 0) std::printf("test_grilla_personas: OK\n");
     return g_fallos == 0 ? 0 : 1;
 }

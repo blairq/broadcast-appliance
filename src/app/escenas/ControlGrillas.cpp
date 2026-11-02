@@ -152,7 +152,10 @@ std::string ControlGrillas::armarEscenaOrador(const std::string& fuente, std::st
     const bool hayEscena = f.escena(escena) != nullptr;
     const auto fs = fuentes();
     const bool hayGrilla = std::find(fs.begin(), fs.end(), nombre) != fs.end();
-    if (hayEscena && hayGrilla) return {};
+    if (hayEscena && hayGrilla) {
+        if (a.value("escena_orador", std::string()) != escena) fuentes::cambiarAjustes(fuente, json{{"escena_orador", escena}});
+        return {};
+    }
     // La grilla del orador: del tamaño de la otra, todo el lienzo, sin separación ni margen.
     json ajustes = grilla::Config::defectos();
     ajustes["canal"] = 0; // se le asigna el primero libre
@@ -183,6 +186,8 @@ std::string ControlGrillas::armarEscenaOrador(const std::string& fuente, std::st
             avisarError(e);
             if (e.empty()) recalcular();
         });
+    // La grilla recuerda cuál es su escena del orador (el pase la usa).
+    if (a.value("escena_orador", std::string()) != escena) fuentes::cambiarAjustes(fuente, json{{"escena_orador", escena}});
     return {};
 }
 
@@ -369,6 +374,7 @@ void ControlGrillas::recalcular() {
     manual_.olvidarFuentesSalvo(existen);
     const std::vector<grilla::Persona> g = gente(ahora, seVe);
     const std::vector<grilla::Resultado> res = rep_.calcular(cfgs, g, manual_, ahora);
+    pasarAEscenas(cfgs, res, g);
 
     // El estado (para la vista y el MCP).
     std::map<std::string, const grilla::Persona*> porClave;
@@ -509,6 +515,57 @@ std::string ControlGrillas::mover(const std::string& clave, const std::string& d
     manual_.fijar(hacia, clave);
     recalcular();
     return {};
+}
+
+void ControlGrillas::pasarAEscenas(const std::vector<grilla::Config>& cfgs, const std::vector<grilla::Resultado>& res,
+                                   const std::vector<grilla::Persona>& g) {
+    const FotoMotor& f = p_.motor.foto();
+    std::set<std::string> vistas;
+    for (std::size_t i = 0; i < cfgs.size() && i < res.size(); ++i) {
+        const grilla::Config& c = cfgs[i];
+        if (c.soloOrador || c.alHablar != grilla::AlHablar::Escena) continue;
+        vistas.insert(c.fuente);
+        const FotoMotor::Salida* s = f.salida(c.salidaOrador);
+        if (s == nullptr) s = f.salida({});
+        const std::string alAire = s != nullptr ? s->alAire : std::string();
+        // Lo que se le pidió al asistente ya se ve: se le avisa al operador que pasó.
+        if (const auto it = propuestos_.find(c.fuente); it != propuestos_.end() && it->second.escena == alAire) {
+            emit notify(QString::fromStdString(ba::i18n::llenar(
+                            ba::i18n::traducir("escenas", "El asistente pasó a «%1» (%2)."), {it->second.escena, it->second.quien})),
+                        "info");
+            propuestos_.erase(it);
+        }
+        const grilla::PaseEscenaOrador::Orden o = pases_[c.fuente].paso(c.pasarEscena, res[i].orador, c.escenaOrador, alAire);
+        if (o.tipo == grilla::PaseEscenaOrador::Orden::Nada) continue;
+        std::string quien = o.orador;
+        for (const grilla::Persona& p : g)
+            if (p.clave == o.orador) quien = p.nombre;
+        if (o.tipo == grilla::PaseEscenaOrador::Orden::Poner) {
+            if (p_.ponerAlAire) p_.ponerAlAire(c.salidaOrador, o.escena);
+            emit notify(QString::fromStdString(
+                            o.volver ? ba::i18n::llenar(ba::i18n::traducir("escenas", "Ya no hay orador: volví a «%1»."), {o.escena})
+                                     : ba::i18n::llenar(ba::i18n::traducir("escenas", "Pasé a la escena del orador: %1."), {quien})),
+                        "info");
+            continue;
+        }
+        // Con el asistente: se le pide (si está andando él decide, según lo autorizado) y el
+        // operador SIEMPRE se entera.
+        const std::string salida = c.salidaOrador.empty() ? ba::i18n::traducir("escenas", "la principal") : c.salidaOrador;
+        emit paraElAsistente(QString::fromStdString(ba::i18n::llenar(
+            o.volver ? ba::i18n::traducir("escenas", "[GRILLA DE PERSONAS] Ya no hay orador en «%1». Si estás autorizado a "
+                                                     "cortar, volvé a la escena «%2» en la salida %3; si no, no hagas nada.")
+                     : ba::i18n::traducir("escenas", "[GRILLA DE PERSONAS] El orador de «%1» ahora es %4. Si estás autorizado a "
+                                                     "cortar, poné al aire la escena «%2» en la salida %3; si no, no hagas nada."),
+            {c.fuente, o.escena, salida, quien})));
+        emit notify(QString::fromStdString(
+                        o.volver ? ba::i18n::llenar(ba::i18n::traducir("escenas", "Ya no hay orador: ¿vuelvo a «%1»?"), {o.escena})
+                                 : ba::i18n::llenar(ba::i18n::traducir("escenas", "¿Paso a la escena del orador: %1?"), {quien})),
+                    "warn");
+        propuestos_[c.fuente] = {c.salidaOrador, o.escena, o.volver ? o.escena : quien};
+    }
+    for (auto it = pases_.begin(); it != pases_.end();) it = vistas.count(it->first) ? std::next(it) : pases_.erase(it);
+    for (auto it = propuestos_.begin(); it != propuestos_.end();)
+        it = vistas.count(it->first) ? std::next(it) : propuestos_.erase(it);
 }
 
 void ControlGrillas::mandarRotulos(const std::map<std::string, std::pair<std::string, std::string>>& rotulos) {
