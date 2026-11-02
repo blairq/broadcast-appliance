@@ -457,6 +457,11 @@ void ControlGrillas::recalcular() {
     json nuevo{{"grillas", grillas}, {"gente", gente}};
     if (nuevo != estado_) {
         estado_ = std::move(nuevo);
+        // Lo que lee la vista, armado UNA vez por cambio: QML vuelve a leer la propiedad en
+        // cada acceso a un elemento (vg.gente[i], .filter), y convertir el JSON entero en
+        // cada lectura eran 40 × 40 conversiones por aviso con 40 personas.
+        grillasQt_ = aQtLista(estado_.value("grillas", json::array())).toVariantList();
+        genteQt_ = aQtLista(estado_.value("gente", json::array())).toVariantList();
         emit cambio();
     }
 
@@ -633,12 +638,10 @@ std::string ControlGrillas::medir(int segundos, const json& opciones, std::funct
     return {};
 }
 
-QVariantList ControlGrillas::grillasUi() const {
-    // El estado tal cual: la vista y el MCP ven lo mismo.
-    return aQtLista(estado_.value("grillas", json::array())).toVariantList();
-}
+// El estado tal cual (la vista y el MCP ven lo mismo), ya convertido (ver recalcular).
+QVariantList ControlGrillas::grillasUi() const { return grillasQt_; }
 
-QVariantList ControlGrillas::genteUi() const { return aQtLista(estado_.value("gente", json::array())).toVariantList(); }
+QVariantList ControlGrillas::genteUi() const { return genteQt_; }
 
 std::string ControlGrillas::ajustar(const std::string& fuente, const json& cambios) {
     const auto fs = fuentes();

@@ -176,7 +176,9 @@ ColumnLayout {
                     // La lista se rehace cada vez que alguien entra o habla: lo elegido se
                     // recuerda por CLAVE, no por posición (que cambia debajo del dedo).
                     property string elegido: ""
-                    readonly property var opciones: vg.gente.filter(p => !fila.personas.some(x => x.clave === p.clave))
+                    // En el resumen (compacta) esta fila no se ve: no se arma (con la gente entrando
+                    // y hablando, rehacía el modelo del combo en cada aviso).
+                    readonly property var opciones: vg.compacta ? [] : vg.gente.filter(p => !fila.personas.some(x => x.clave === p.clave))
                                                     .map(p => ({ clave: p.clave, texto: (p.nombre || p.clave)
                                                                  + (p.origen === "asamblea" ? " " + qsTr("(asamblea)") : "")
                                                                  + (p.al_aire ? " · " + qsTr("al aire") : "") }))

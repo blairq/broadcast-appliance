@@ -192,6 +192,7 @@ class ControlGrillas : public QObject {
     std::map<std::string, Propuesto> propuestos_; ///< fuente → lo que se le pidió al asistente (para avisar cuando pase)
     json ultimoPedido_;                       ///< lo último que se le mandó al gateway
     json estado_ = json::object();
+    QVariantList grillasQt_, genteQt_; ///< estado_ para la vista (grillasUi, genteUi), armado al cambiar
     json ultimaMedicion_;   ///< lo último que midió medir()
     std::thread hiloMedir_; ///< la medición en curso (no en el hilo de la interfaz: toma candados de las entradas)
     std::mutex medirMu_;
