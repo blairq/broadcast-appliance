@@ -42,7 +42,11 @@ void McpService::registerGrillaTools() {
         ba::i18n::traducir("mcp", "alta_hasta (de fábrica 10; 0 = sin límite): con más personas que esto en la grilla, "
         "todas las miniaturas piden la cámara en baja definición, salvo el orador y el siguiente (precarga); con esto o "
         "menos, cada una según el tamaño de su celda. Vuelve a la regla por tamaño recién con una persona menos "
-        "(histéresis). grilla_personas_estado dice en cada grilla alta_hasta y en_baja, y en cada persona su capa (alta|baja).");
+        "(histéresis). grilla_personas_estado dice en cada grilla alta_hasta y en_baja, y en cada persona su capa (alta|baja).") + " " +
+        ba::i18n::traducir("mcp", "alta_max (de fábrica 4; 1 a 64): tope duro, nunca más personas que esto en alta a la vez, "
+        "sean cuantos sean los invitados. Si piden más, por prioridad: el orador (o los oradores), el presentador, el "
+        "siguiente (precarga), los fijados y el resto por tamaño; el que ya estaba en alta no lo pierde por uno nuevo del "
+        "mismo grupo. Con varias grillas manda el alta_max más chico. grilla_personas_estado lo dice en cada grilla.");
     {
         Tool t;
         t.name = "grilla_personas_estado";

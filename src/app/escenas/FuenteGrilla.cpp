@@ -205,6 +205,13 @@ void registrarTipo() {
                          "y el siguiente siguen en alta. Con esto o menos, cada una según su tamaño. 0 = sin límite.");
             out.push_back(alta);
         }
+        {
+            P tope{"alta_max", traducir("escenas", "Alta definición como mucho (personas a la vez)"), "int", 1, kMaxCeldas, 1};
+            tope.ayuda = traducir("escenas", "Nunca más que esto en alta definición a la vez, sean 5 o 40 invitados. Si piden más, "
+                         "van primero el orador (o los oradores), después el presentador, después el siguiente de la fila y "
+                         "después los fijados; el resto, en baja. De fábrica 4: un debate entre dos, el que espera y el presentador.");
+            out.push_back(tope);
+        }
         out.push_back({"resaltar", traducir("escenas", "Borde a quien habla"), "bool"});
         out.push_back({"color_resaltar", traducir("escenas", "Color del resaltado"), "color"});
 

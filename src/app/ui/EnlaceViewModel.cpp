@@ -62,6 +62,7 @@ en::Perfil EnlaceViewModel::perfil(int invitados) const {
     en::Perfil pf;
     pf.invitados = invitados;
     pf.altaHasta = p_.altaHasta ? p_.altaHasta() : 10;
+    pf.altaMax = p_.altaMax ? p_.altaMax() : 4;
     return pf;
 }
 

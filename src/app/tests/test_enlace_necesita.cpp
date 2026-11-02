@@ -33,6 +33,7 @@ en::Perfil perfil(int n, int alta) {
     en::Perfil p;
     p.invitados = n;
     p.altaHasta = alta;
+    p.altaMax = 0; // las mediciones de los coeficientes fueron sin tope
     return p;
 }
 en::Medicion medicion(double sube, double baja) {
@@ -59,6 +60,15 @@ int main() {
     CHECK(n20.enAlta == 2, "con más de alta_hasta, en alta solo el orador y el precargado");
     CHECK(en::necesita(perfil(20, 0)).enAlta == 20, "alta_hasta 0: todos en alta");
     CHECK(en::necesita(perfil(10, 10)).enAlta == 10, "justo alta_hasta: todos en alta");
+    {
+        en::Perfil t = perfil(10, 10);
+        t.altaMax = 4;
+        CHECK(en::necesita(t).enAlta == 4, "alta_max 4: con 10 todos «en alta por tamaño», solo 4");
+        t = perfil(40, 0);
+        t.altaMax = 4;
+        CHECK(en::necesita(t).enAlta == 4, "alta_max 4 y sin alta_hasta: 40 invitados, 4 en alta");
+        CHECK(en::necesita(en::Perfil{}).enAlta == 4, "de fábrica (10 invitados): 4 en alta");
+    }
     CHECK(std::fabs(n20.subidaEnlaceKbps - n20.subidaKbps * 1.05) < 1, "WireGuard suma 5 % en el enlace");
     CHECK(en::necesita(perfil(0, 10)).subidaKbps == 0, "sin invitados no hace falta nada");
 

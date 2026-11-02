@@ -8092,7 +8092,7 @@ Se prende desde el Registro.</source>
 <context>
     <name>EnlaceViewModel</name>
     <message numerus="yes">
-        <location filename="../src/app/ui/EnlaceViewModel.cpp" line="+104"/>
+        <location filename="../src/app/ui/EnlaceViewModel.cpp" line="+105"/>
         <source>Hay %n invitados conectados: la medición carga el enlace y se les puede cortar la imagen unos segundos.</source>
         <translation>
             <numerusform>Подключён %n гость: измерение нагружает канал, и его изображение может замереть на несколько секунд.</numerusform>
@@ -33249,7 +33249,7 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
         <translation>Диск мероприятий заполнен на %1 % (осталось %2 ГБ)</translation>
     </message>
     <message>
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="+291"/>
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="+302"/>
         <source>La interfaz estuvo trabada %1 s; el aire siguió</source>
         <translation>Интерфейс завис на %1 с; эфир продолжался</translation>
     </message>
@@ -43530,7 +43530,7 @@ Elegí otra cosa en Salidas → Pantallas.</source>
     </message>
     <message>
         <location line="-57"/>
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="-860"/>
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="-871"/>
         <source>arranque: %1 tardó %2 ms</source>
         <translation>запуск: %1 занял %2 мс</translation>
     </message>
@@ -50694,12 +50694,12 @@ Datos (de %2): %3</source>
         <translation>%1 · выступающий</translation>
     </message>
     <message>
-        <location line="+197"/>
+        <location line="+198"/>
         <source>banca %1</source>
         <translation>место %1</translation>
     </message>
     <message>
-        <location line="+85"/>
+        <location line="+87"/>
         <source>sin canal: hay más de %1 grillas</source>
         <translation>нет канала: сеток больше %1</translation>
     </message>
@@ -51244,6 +51244,16 @@ Datos (de %2): %3</source>
         <translation>Если в сетке больше людей, чем это число, все миниатюры идут в низкой чёткости (меньше данных по сети и меньше работы для машины), даже если ячейки большие; выступающий и следующий остаются в высокой. При этом числе или меньше — каждая по своему размеру. 0 = без ограничения.</translation>
     </message>
     <message>
+        <location line="+6"/>
+        <source>Alta definición como mucho (personas a la vez)</source>
+        <translation>Высокое качество не более (человек одновременно)</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Nunca más que esto en alta definición a la vez, sean 5 o 40 invitados. Si piden más, van primero el orador (o los oradores), después el presentador, después el siguiente de la fila y después los fijados; el resto, en baja. De fábrica 4: un debate entre dos, el que espera y el presentador.</source>
+        <translation>Никогда не больше стольких человек в высоком качестве одновременно, будь то 5 или 40 гостей. Если просят больше, сначала идёт выступающий (или выступающие), затем ведущий, затем следующий в очереди и затем закреплённые; остальные — в низком. По умолчанию 4: дебаты двоих, ожидающий и ведущий.</translation>
+    </message>
+    <message>
         <location line="+5"/>
         <source>Borde a quien habla</source>
         <translation>Рамка у говорящего</translation>
@@ -51339,7 +51349,7 @@ Datos (de %2): %3</source>
         <translation>Канала пока нет: сеток больше 8 или конференция не запущена.</translation>
     </message>
     <message>
-        <location filename="../src/app/escenas/GrillaPersonas.cpp" line="+178"/>
+        <location filename="../src/app/escenas/GrillaPersonas.cpp" line="+180"/>
         <source>los ajustes van en un objeto</source>
         <translation>настройки передаются объектом</translation>
     </message>
@@ -51364,7 +51374,7 @@ Datos (de %2): %3</source>
         <translation>«%1» не является настройкой сетки участников</translation>
     </message>
     <message>
-        <location line="+18"/>
+        <location line="+19"/>
         <source>«grupo» es un texto (vacío = sola)</source>
         <translation>«grupo» — это текст (пусто = отдельно)</translation>
     </message>
@@ -54853,7 +54863,7 @@ Datos (de %2): %3</source>
         <translation>нет</translation>
     </message>
     <message>
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="+894"/>
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="+905"/>
         <source>«%1» no arrancó al abrir: %2</source>
         <translation>«%1» не запустился при открытии: %2</translation>
     </message>
@@ -65445,6 +65455,11 @@ Con este repertorio se arma un gráfico SIN escribir código: es lo que conviene
         <location line="+19"/>
         <source>alta_hasta (de fábrica 10; 0 = sin límite): con más personas que esto en la grilla, todas las miniaturas piden la cámara en baja definición, salvo el orador y el siguiente (precarga); con esto o menos, cada una según el tamaño de su celda. Vuelve a la regla por tamaño recién con una persona menos (histéresis). grilla_personas_estado dice en cada grilla alta_hasta y en_baja, y en cada persona su capa (alta|baja).</source>
         <translation>alta_hasta (по умолчанию 10; 0 = без ограничения): если в сетке больше людей, чем это число, все миниатюры запрашивают камеру в низкой чёткости, кроме выступающего и следующего (предзагрузка); при этом числе или меньше — каждая по размеру своей ячейки. К правилу по размеру возвращается только при числе на одного меньше (гистерезис). grilla_personas_estado сообщает для каждой сетки alta_hasta и en_baja, а для каждого человека его capa (alta|baja).</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>alta_max (de fábrica 4; 1 a 64): tope duro, nunca más personas que esto en alta a la vez, sean cuantos sean los invitados. Si piden más, por prioridad: el orador (o los oradores), el presentador, el siguiente (precarga), los fijados y el resto por tamaño; el que ya estaba en alta no lo pierde por uno nuevo del mismo grupo. Con varias grillas manda el alta_max más chico. grilla_personas_estado lo dice en cada grilla.</source>
+        <translation>alta_max (по умолчанию 4; от 1 до 64): жёсткий предел, никогда не больше стольких человек в высоком качестве одновременно, сколько бы ни было гостей. Если просят больше, по приоритету: выступающий (или выступающие), ведущий, следующий (предзагрузка), закреплённые и остальные по размеру; тот, кто уже был в высоком, не уступает его новому из той же группы. При нескольких сетках действует наименьший alta_max. grilla_personas_estado сообщает его для каждой сетки.</translation>
     </message>
     <message>
         <location line="+7"/>
@@ -91510,7 +91525,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>%1: измерено %2 Мбит/с, а нужно %3 Мбит/с</translation>
     </message>
     <message>
-        <location line="+69"/>
+        <location line="+70"/>
         <source>pierde %1 % de los paquetes con carga</source>
         <translation>теряет %1 % пакетов под нагрузкой</translation>
     </message>

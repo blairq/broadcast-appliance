@@ -8060,7 +8060,7 @@ Turn it on from the Log.</translation>
 <context>
     <name>EnlaceViewModel</name>
     <message numerus="yes">
-        <location filename="../src/app/ui/EnlaceViewModel.cpp" line="+104"/>
+        <location filename="../src/app/ui/EnlaceViewModel.cpp" line="+105"/>
         <source>Hay %n invitados conectados: la medición carga el enlace y se les puede cortar la imagen unos segundos.</source>
         <translation>
             <numerusform>%n guest is connected: the measurement loads the link and their picture may freeze for a few seconds.</numerusform>
@@ -33110,7 +33110,7 @@ and it reopens on its own. Settings, credentials, recordings and files are NOT t
         <translation>The events disk is %1 % full (%2 GB left)</translation>
     </message>
     <message>
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="+291"/>
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="+302"/>
         <source>La interfaz estuvo trabada %1 s; el aire siguió</source>
         <translation>The interface froze for %1 s; the broadcast kept going</translation>
     </message>
@@ -43374,7 +43374,7 @@ Choose something else in Outputs → Screens.</translation>
     </message>
     <message>
         <location line="-57"/>
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="-860"/>
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="-871"/>
         <source>arranque: %1 tardó %2 ms</source>
         <translation>startup: %1 took %2 ms</translation>
     </message>
@@ -50534,12 +50534,12 @@ Data (from %2): %3</translation>
         <translation>%1 · speaker</translation>
     </message>
     <message>
-        <location line="+197"/>
+        <location line="+198"/>
         <source>banca %1</source>
         <translation>seat %1</translation>
     </message>
     <message>
-        <location line="+85"/>
+        <location line="+87"/>
         <source>sin canal: hay más de %1 grillas</source>
         <translation>no channel: there are more than %1 grids</translation>
     </message>
@@ -51084,6 +51084,16 @@ Data (from %2): %3</translation>
         <translation>With more people than this in the grid, every thumbnail goes in low definition (less data over the network and less work for the machine), even if the cells are large; the speaker and the next one stay in high. With this many or fewer, each one by its size. 0 = no limit.</translation>
     </message>
     <message>
+        <location line="+6"/>
+        <source>Alta definición como mucho (personas a la vez)</source>
+        <translation>High definition at most (people at once)</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Nunca más que esto en alta definición a la vez, sean 5 o 40 invitados. Si piden más, van primero el orador (o los oradores), después el presentador, después el siguiente de la fila y después los fijados; el resto, en baja. De fábrica 4: un debate entre dos, el que espera y el presentador.</source>
+        <translation>Never more than this in high definition at once, whether there are 5 or 40 guests. If more ask for it, the speaker (or speakers) go first, then the presenter, then the next in line and then the pinned ones; the rest, in low. Default 4: a debate between two, the one waiting and the presenter.</translation>
+    </message>
+    <message>
         <location line="+5"/>
         <source>Borde a quien habla</source>
         <translation>Border on whoever speaks</translation>
@@ -51179,7 +51189,7 @@ Data (from %2): %3</translation>
         <translation>No channel yet: there are more than 8 grids, or the conference hasn&apos;t started.</translation>
     </message>
     <message>
-        <location filename="../src/app/escenas/GrillaPersonas.cpp" line="+178"/>
+        <location filename="../src/app/escenas/GrillaPersonas.cpp" line="+180"/>
         <source>los ajustes van en un objeto</source>
         <translation>the settings go in an object</translation>
     </message>
@@ -51204,7 +51214,7 @@ Data (from %2): %3</translation>
         <translation>“%1” isn&apos;t a people grid setting</translation>
     </message>
     <message>
-        <location line="+18"/>
+        <location line="+19"/>
         <source>«grupo» es un texto (vacío = sola)</source>
         <translation>“grupo” is a text (empty = standalone)</translation>
     </message>
@@ -54683,7 +54693,7 @@ Data (from %2): %3</translation>
         <translation>each layer of “escena” must be an object</translation>
     </message>
     <message>
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="+894"/>
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="+905"/>
         <source>«%1» no arrancó al abrir: %2</source>
         <translation>“%1” didn&apos;t start on open: %2</translation>
     </message>
@@ -65239,6 +65249,11 @@ With this repertoire you build a graphic WITHOUT writing code: it is what you sh
         <location line="+19"/>
         <source>alta_hasta (de fábrica 10; 0 = sin límite): con más personas que esto en la grilla, todas las miniaturas piden la cámara en baja definición, salvo el orador y el siguiente (precarga); con esto o menos, cada una según el tamaño de su celda. Vuelve a la regla por tamaño recién con una persona menos (histéresis). grilla_personas_estado dice en cada grilla alta_hasta y en_baja, y en cada persona su capa (alta|baja).</source>
         <translation>alta_hasta (default 10; 0 = no limit): with more people than this in the grid, every thumbnail asks for the camera in low definition, except the speaker and the next one (preload); with this many or fewer, each one by the size of its cell. It goes back to the size rule only with one person fewer (hysteresis). grilla_personas_estado reports alta_hasta and en_baja for each grid, and the capa (alta|baja) of each person.</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>alta_max (de fábrica 4; 1 a 64): tope duro, nunca más personas que esto en alta a la vez, sean cuantos sean los invitados. Si piden más, por prioridad: el orador (o los oradores), el presentador, el siguiente (precarga), los fijados y el resto por tamaño; el que ya estaba en alta no lo pierde por uno nuevo del mismo grupo. Con varias grillas manda el alta_max más chico. grilla_personas_estado lo dice en cada grilla.</source>
+        <translation>alta_max (default 4; 1 to 64): hard cap, never more people than this in high at once, however many guests there are. If more ask for it, by priority: the speaker (or speakers), the presenter, the next one (preload), the pinned ones and the rest by size; whoever was already in high doesn't lose it to a newcomer of the same group. With several grids the smallest alta_max rules. grilla_personas_estado reports it for each grid.</translation>
     </message>
     <message>
         <location line="+7"/>
@@ -91331,7 +91346,7 @@ PROPOSE, DON&apos;T APPLY: show the person what changes and apply only if they c
         <translation>%1: %2 Mbps measured and %3 Mbps needed</translation>
     </message>
     <message>
-        <location line="+69"/>
+        <location line="+70"/>
         <source>pierde %1 % de los paquetes con carga</source>
         <translation>loses %1 % of packets under load</translation>
     </message>

@@ -8028,7 +8028,7 @@ Se prende desde el Registro.</source>
 <context>
     <name>EnlaceViewModel</name>
     <message numerus="yes">
-        <location filename="../src/app/ui/EnlaceViewModel.cpp" line="+104"/>
+        <location filename="../src/app/ui/EnlaceViewModel.cpp" line="+105"/>
         <source>Hay %n invitados conectados: la medición carga el enlace y se les puede cortar la imagen unos segundos.</source>
         <translation>
             <numerusform>已连接 %n 位嘉宾：测量会占用链路，他们的画面可能会卡顿几秒。</numerusform>
@@ -32971,7 +32971,7 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
         <translation>活动磁盘已用 %1 %（剩余 %2 GB）</translation>
     </message>
     <message>
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="+291"/>
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="+302"/>
         <source>La interfaz estuvo trabada %1 s; el aire siguió</source>
         <translation>界面卡顿了 %1 秒；播出未中断</translation>
     </message>
@@ -43218,7 +43218,7 @@ Elegí otra cosa en Salidas → Pantallas.</source>
     </message>
     <message>
         <location line="-57"/>
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="-860"/>
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="-871"/>
         <source>arranque: %1 tardó %2 ms</source>
         <translation>启动：%1 耗时 %2 毫秒</translation>
     </message>
@@ -50374,12 +50374,12 @@ Datos (de %2): %3</source>
         <translation>%1 · 发言人</translation>
     </message>
     <message>
-        <location line="+197"/>
+        <location line="+198"/>
         <source>banca %1</source>
         <translation>席位 %1</translation>
     </message>
     <message>
-        <location line="+85"/>
+        <location line="+87"/>
         <source>sin canal: hay más de %1 grillas</source>
         <translation>没有通道：网格超过 %1 个</translation>
     </message>
@@ -50924,6 +50924,16 @@ Datos (de %2): %3</source>
         <translation>网格中的人数超过此值时，所有缩略图都使用低清（网络数据更少，机器负担更小），即使单元格很大；发言人和下一位仍保持高清。人数等于或少于此值时，各自按尺寸决定。0 = 不限。</translation>
     </message>
     <message>
+        <location line="+6"/>
+        <source>Alta definición como mucho (personas a la vez)</source>
+        <translation>高清最多（同时人数）</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Nunca más que esto en alta definición a la vez, sean 5 o 40 invitados. Si piden más, van primero el orador (o los oradores), después el presentador, después el siguiente de la fila y después los fijados; el resto, en baja. De fábrica 4: un debate entre dos, el que espera y el presentador.</source>
+        <translation>无论有 5 位还是 40 位嘉宾，同时以高清显示的人数永远不超过此值。如果请求的人更多，依次优先：发言人（或多位发言人）、主持人、队列中的下一位、固定的人；其余用低清。默认 4：两人辩论、等待的一位和主持人。</translation>
+    </message>
+    <message>
         <location line="+5"/>
         <source>Borde a quien habla</source>
         <translation>给发言者加边框</translation>
@@ -51019,7 +51029,7 @@ Datos (de %2): %3</source>
         <translation>尚无通道：网格超过 8 个，或会议尚未启动。</translation>
     </message>
     <message>
-        <location filename="../src/app/escenas/GrillaPersonas.cpp" line="+178"/>
+        <location filename="../src/app/escenas/GrillaPersonas.cpp" line="+180"/>
         <source>los ajustes van en un objeto</source>
         <translation>设置必须放在对象中</translation>
     </message>
@@ -51044,7 +51054,7 @@ Datos (de %2): %3</source>
         <translation>「%1」不是人员网格的设置</translation>
     </message>
     <message>
-        <location line="+18"/>
+        <location line="+19"/>
         <source>«grupo» es un texto (vacío = sola)</source>
         <translation>「grupo」是文本（留空 = 单独）</translation>
     </message>
@@ -54533,7 +54543,7 @@ Datos (de %2): %3</source>
         <translation>否</translation>
     </message>
     <message>
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="+894"/>
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="+905"/>
         <source>«%1» no arrancó al abrir: %2</source>
         <translation>「%1」打开时未启动：%2</translation>
     </message>
@@ -65113,6 +65123,11 @@ Con este repertorio se arma un gráfico SIN escribir código: es lo que conviene
         <location line="+19"/>
         <source>alta_hasta (de fábrica 10; 0 = sin límite): con más personas que esto en la grilla, todas las miniaturas piden la cámara en baja definición, salvo el orador y el siguiente (precarga); con esto o menos, cada una según el tamaño de su celda. Vuelve a la regla por tamaño recién con una persona menos (histéresis). grilla_personas_estado dice en cada grilla alta_hasta y en_baja, y en cada persona su capa (alta|baja).</source>
         <translation>alta_hasta（默认 10；0 = 不限）：网格中的人数超过此值时，所有缩略图都以低清请求摄像头，发言人和下一位（预加载）除外；等于或少于此值时，各自按其单元格尺寸决定。只有在人数再少一人时才回到按尺寸的规则（迟滞）。grilla_personas_estado 会给出每个网格的 alta_hasta 和 en_baja，以及每个人的 capa（alta|baja）。</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>alta_max (de fábrica 4; 1 a 64): tope duro, nunca más personas que esto en alta a la vez, sean cuantos sean los invitados. Si piden más, por prioridad: el orador (o los oradores), el presentador, el siguiente (precarga), los fijados y el resto por tamaño; el que ya estaba en alta no lo pierde por uno nuevo del mismo grupo. Con varias grillas manda el alta_max más chico. grilla_personas_estado lo dice en cada grilla.</source>
+        <translation>alta_max（默认 4；1 到 64）：硬性上限，无论有多少嘉宾，同时处于高清的人数永远不超过此值。如果请求的人更多，按优先级：发言人（或多位发言人）、主持人、下一位（预加载）、固定的人，其余按大小；已经在高清的人不会被同组新来的人挤掉。有多个网格时以最小的 alta_max 为准。grilla_personas_estado 会报告每个网格的该值。</translation>
     </message>
     <message>
         <location line="+7"/>
@@ -91152,7 +91167,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>%1：测得 %2 Mbps，需要 %3 Mbps</translation>
     </message>
     <message>
-        <location line="+69"/>
+        <location line="+70"/>
         <source>pierde %1 % de los paquetes con carga</source>
         <translation>负载时丢包 %1 %</translation>
     </message>
