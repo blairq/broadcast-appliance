@@ -22,8 +22,8 @@
 //     libyuv UNA vez por cuadro, compartido por las sesiones: CuadroSaliente;
 //     audio float32 -> int16). El VIDEO se codifica una vez por flujo y capa,
 //     no por sesión: el codificador de cada sesión es de paso y entrega lo que
-//     codificó su flujo (RetornoCompartido.hpp). El audio sigue siendo de cada
-//     una (su mix-minus).
+//     codificó su flujo (RetornoCompartido.hpp). El audio es el mix-minus de cada
+//     una, pero los que oyen lo mismo se codifican una vez (AudioCompartido.hpp).
 //   - Espectadores (relay): cada receptor de video de un invitado lleva un
 //     TapTransformer entre el depacketizador y el decodificador: copia los
 //     bytes CODIFICADOS del cuadro al Feed de esa sesion y deja pasar el
@@ -42,6 +42,8 @@
 // ============================================================================
 
 #include "Webrtc.hpp"
+#include "AudioCompartido.hpp"
+#include "AudioCompartidoRtc.hpp"
 #include "RetornoCompartido.hpp"
 #include "RetornoRtc.hpp"
 #include "ajustes/Ajustes.hpp"
@@ -357,7 +359,9 @@ class LocalVideoSource : public rtc::AdaptedVideoTrackSource {
 /// Fuente de audio de retorno: float32 intercalado -> int16 -> sinks.
 class LocalAudioSource : public webrtc::Notifier<webrtc::AudioSourceInterface> {
    public:
-    void AddFrame(const float* samples, size_t n, int rate, int channels) {
+    /// `grupo` != 0: el bloque es el `bloque` de ese grupo de audio compartido y lleva su
+    /// marca (AudioCompartido.hpp) hasta el codificador de paso de la conexión.
+    void AddFrame(const float* samples, size_t n, int rate, int channels, uint16_t grupo = 0, uint64_t bloque = 0) {
         if (samples == nullptr || n == 0 || rate <= 0 || channels <= 0) return;
         const size_t frames = n / static_cast<size_t>(channels);
         pcm_.resize(n);
@@ -365,6 +369,7 @@ class LocalAudioSource : public webrtc::Notifier<webrtc::AudioSourceInterface> {
             const float v = samples[i] > 1.0f ? 1.0f : (samples[i] < -1.0f ? -1.0f : samples[i]);
             pcm_[i] = static_cast<int16_t>(v * 32767.0f);
         }
+        if (grupo != 0) marcarBloque(pcm_.data(), frames, channels, grupo, bloque);
         std::lock_guard<std::mutex> lock(m_);
         for (auto* s : sinks_)
             s->OnData(pcm_.data(), 16, rate, static_cast<size_t>(channels), frames);
@@ -778,6 +783,8 @@ struct RtcHubState {
     /// Los codificadores de verdad (VP8; H.264 de VideoToolbox en la Mac): los usan los flujos
     /// del retorno compartido. Las PeerConnection ven una fábrica de PASO sobre esta.
     std::shared_ptr<webrtc::VideoEncoderFactory> codificadores;
+    /// Los grupos del audio de retorno compartido (AudioCompartidoRtc.hpp).
+    std::shared_ptr<audioret::Registro> audioGrupos;
     std::mutex flujosM;
     std::map<std::string, std::shared_ptr<retorno::Flujo>> flujos;
     uint16_t minPort = 0;
@@ -1143,9 +1150,9 @@ struct WebrtcSession::Impl : public webrtc::PeerConnectionObserver {
         return true;
     }
 
-    void pushLocalAudio(const float* s, size_t n, int rate) {
+    void pushLocalAudio(const float* s, size_t n, int rate, uint16_t grupo = 0, uint64_t bloque = 0) {
         if (!connected.load(std::memory_order_relaxed) || !audioSource) return;
-        audioSource->AddFrame(s, n, rate, kAudioChannels);
+        audioSource->AddFrame(s, n, rate, kAudioChannels, grupo, bloque);
         localAudioBlocks.fetch_add(1, std::memory_order_relaxed);
     }
 
@@ -1282,6 +1289,23 @@ struct FlujoRetorno::Impl {
 #endif
 };
 
+struct AudioCompartido::Impl {
+#if BA_GATEWAY_HAVE_WEBRTC
+    std::shared_ptr<audioret::Grupo> grupo;
+#endif
+};
+
+uint64_t AudioCompartido::codificar(const float* pcm, size_t n, int rate) const {
+#if BA_GATEWAY_HAVE_WEBRTC
+    return impl_ && impl_->grupo ? impl_->grupo->codificar(pcm, n, rate) : 0;
+#else
+    (void)pcm;
+    (void)n;
+    (void)rate;
+    return 0;
+#endif
+}
+
 CuadroSaliente FlujoRetorno::emitir(const CuadroSaliente& c) const {
 #if BA_GATEWAY_HAVE_WEBRTC
     if (!impl_ || !impl_->flujo || c.vacio() || !c.impl_->i420) return c;
@@ -1376,6 +1400,17 @@ Capa WebrtcSession::capaSale() const { return impl_ != nullptr ? impl_->capas.sa
 Capa WebrtcSession::capaPedida() const { return impl_ != nullptr ? impl_->capas.pedida() : Capa::Nada; }
 void WebrtcSession::pushLocalAudio(const float* s, size_t n, int rate) {
     if (impl_ != nullptr) impl_->pushLocalAudio(s, n, rate);
+}
+void WebrtcSession::pushLocalAudio(const float* s, size_t n, int rate, const AudioCompartido& grupo, uint64_t bloque) {
+    if (impl_ == nullptr) return;
+#if BA_GATEWAY_HAVE_WEBRTC
+    const uint16_t id = grupo.impl_ && grupo.impl_->grupo && bloque != 0 ? grupo.impl_->grupo->id() : 0;
+    impl_->pushLocalAudio(s, n, rate, id, bloque);
+#else
+    (void)grupo;
+    (void)bloque;
+    impl_->pushLocalAudio(s, n, rate);
+#endif
 }
 void WebrtcSession::pushLocalVideo(const uint8_t* p, size_t bytes, int w, int h) {
     if (impl_ == nullptr || p == nullptr || w <= 0 || h <= 0 || bytes < static_cast<size_t>(w) * h * 4u) return;
@@ -1481,6 +1516,8 @@ WebrtcHub::WebrtcHub(int guests, int videoW, int videoH, int audioRate, int audi
         webrtc::LibvpxVp8EncoderTemplateAdapter, webrtc::LibvpxVp9EncoderTemplateAdapter,
         webrtc::OpenH264EncoderTemplateAdapter, webrtc::LibaomAv1EncoderTemplateAdapter>>();
 #endif
+    const rtc::scoped_refptr<webrtc::AudioEncoderFactory> audioBase = webrtc::CreateBuiltinAudioEncoderFactory();
+    st->audioGrupos = std::make_shared<audioret::Registro>(audioBase);
     st->network = rtc::Thread::CreateWithSocketServer();
     st->worker = rtc::Thread::Create();
     st->signaling = rtc::Thread::Create();
@@ -1495,7 +1532,9 @@ WebrtcHub::WebrtcHub(int guests, int videoW, int videoH, int audioRate, int audi
         []() { return rtc::scoped_refptr<webrtc::AudioDeviceModule>(rtc::make_ref_counted<PullAdm>()); });
     st->factory = webrtc::CreatePeerConnectionFactory(
         st->network.get(), st->worker.get(), st->signaling.get(), adm,
-        webrtc::CreateBuiltinAudioEncoderFactory(), webrtc::CreateBuiltinAudioDecoderFactory(),
+        // El Opus de cada sesión es de PASO: manda lo que codificó su grupo si oye lo mismo
+        // que otros (AudioCompartido.hpp); si no, codifica el suyo.
+        audioret::fabricaDePaso(audioBase, st->audioGrupos), webrtc::CreateBuiltinAudioDecoderFactory(),
         // Cada sesión codifica de PASO: entrega lo que codificó su flujo (RetornoCompartido).
         retorno::fabricaDePaso(st->codificadores),
 #ifdef __APPLE__
@@ -1610,6 +1649,27 @@ FlujoRetorno WebrtcHub::flujoRetorno(const std::string& nombre) {
     (void)nombre;
 #endif
     return out;
+}
+
+AudioCompartido WebrtcHub::audioCompartido(const std::string& nombre) {
+    AudioCompartido out;
+#if BA_GATEWAY_HAVE_WEBRTC
+    auto* st = static_cast<RtcHubState*>(rtcFactory_);
+    if (st == nullptr || !st->audioGrupos) return out;
+    out.impl_ = std::make_shared<AudioCompartido::Impl>();
+    out.impl_->grupo = st->audioGrupos->grupo(nombre);
+#else
+    (void)nombre;
+#endif
+    return out;
+}
+
+nlohmann::json WebrtcHub::audioCompartidoEstado() const {
+#if BA_GATEWAY_HAVE_WEBRTC
+    auto* st = static_cast<RtcHubState*>(rtcFactory_);
+    if (st != nullptr && st->audioGrupos) return st->audioGrupos->estado();
+#endif
+    return nlohmann::json::array();
 }
 
 nlohmann::json WebrtcHub::retornoCompartido() const {
