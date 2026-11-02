@@ -20,7 +20,9 @@
 //   - en régimen no se pierde nada: el retorno sale entero (un bloque cada 10 ms) y las
 //     batomas del programa no tiran ningún bloque (tarde ni adelantado).
 //
-// BA_LAZO_INVITADOS=40 para la prueba grande (de fábrica 12: ctest).
+// BA_LAZO_INVITADOS=40 para la prueba grande (de fábrica 12: ctest). BA_LAZO_CALLADOS=k: los
+// últimos k no mandan audio (para medir el mezclador cuando vence su espera; con eso, los
+// controles de «ningún invitado se va a su propia demora» pueden no cumplirse).
 
 #include "LectorAnillo.hpp"
 #include "Motor.hpp"
@@ -87,8 +89,12 @@ struct Gateway {
         std::vector<double> fase(canales.size(), 0.0);
         auto t = std::chrono::steady_clock::now();
         std::uint64_t proximoGolpe = 0;
+        // BA_LAZO_CALLADOS=k: los últimos k invitados no mandan nada (su audio no llega):
+        // el mezclador saca cada bloque al vencer su espera, sin ellos.
+        const std::size_t callados =
+            std::getenv("BA_LAZO_CALLADOS") != nullptr ? std::min<std::size_t>(rings.size() - 1, std::strtoul(std::getenv("BA_LAZO_CALLADOS"), nullptr, 10)) : 0;
         while (!fin) {
-            for (std::size_t i = 0; i < rings.size(); ++i) {
+            for (std::size_t i = 0; i < rings.size() - callados; ++i) {
                 bool golpe = false;
                 for (std::uint32_t k = 0; k < ar::kBlockFrames; ++k) {
                     float v = 0.005f * static_cast<float>(std::sin(fase[i])); // −46 dBFS: habla bajito
@@ -235,25 +241,34 @@ int main() {
     esperar(14000);
 
     // Lo que tiran las batomas de cada bus de las salidas, en régimen (antes y después de medir).
-    const auto tirados = [&motor]() {
+    // tarde: el mezclador ya había pasado; adelantados: más que lo que espera la cola.
+    std::uint64_t tarde = 0, adelantados = 0;
+    const auto tirados = [&motor, &tarde, &adelantados]() {
         std::uint64_t n = 0;
+        tarde = adelantados = 0;
         const json st = motor.estado();
         const json salidas = st.value("salidas", json::object());
         for (const auto& [sid, sal] : salidas.items()) {
             const json prog = sal.value("programa", json());
             if (!prog.is_object()) continue;
             const json entradas = prog.value("entradas", json::object());
-            for (const auto& [id, e] : entradas.items())
-                n += e.value("tarde", std::uint64_t{0}) + e.value("adelantados", std::uint64_t{0});
+            for (const auto& [id, e] : entradas.items()) {
+                tarde += e.value("tarde", std::uint64_t{0});
+                adelantados += e.value("adelantados", std::uint64_t{0});
+            }
+            n = tarde + adelantados;
         }
         return n;
     };
     const std::uint64_t tiradosAntes = tirados();
+    const std::uint64_t tardeAntes = tarde, adelantadosAntes = adelantados;
     const Lazo ret = medir(g, "retorno del invitado 2", pre + ba::ipc::sufijoRetorno("", 2), 9000);
     const Lazo prog = medir(g, "programa (ContentForReturn)", pre + "ContentForReturn", 9000);
 
     const std::uint64_t tiradosEnRegimen = tirados() - tiradosAntes;
-    std::printf("bloques tirados por las batomas del programa en régimen: %llu\n", static_cast<unsigned long long>(tiradosEnRegimen));
+    std::printf("bloques tirados por las batomas del programa en régimen: %llu (tarde %llu, adelantados %llu)\n",
+                static_cast<unsigned long long>(tiradosEnRegimen), static_cast<unsigned long long>(tarde - tardeAntes),
+                static_cast<unsigned long long>(adelantados - adelantadosAntes));
     const json st = motor.estado();
     std::printf("estudio: latencia %.0f ms\n", st["estudio"].value("latencia_ms", 0.0));
     double edadMax = 0, propioMax = 0;

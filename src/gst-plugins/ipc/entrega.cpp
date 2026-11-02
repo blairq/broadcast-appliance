@@ -47,9 +47,14 @@
 // gstaggregator.c) para mirar TODOS sus pads: con 40 invitados, 40 despertadas y 40 × 40
 // candados por vuelta y por mezclador (44 mil cambios de contexto/s en la app). Los
 // mezcladores del motor (bamezcla, baretornos) esperan en cambio a sus entradas con
-// esperarEntradas (comun.hpp): cuando piden más datos, se quedan acá hasta que el
-// repartidor de su pipeline termine una pasada con todo (una despertada por vuelta) o
-// hasta su misma hora límite. Lo que el repartidor empuja mientras tanto no los despierta.
+// esperarEntradas (comun.hpp): al terminar cada aggregate (sacaron un bloque o piden más
+// datos), se quedan acá hasta que el repartidor de su pipeline termine una pasada con todo
+// (una despertada por vuelta) o hasta su misma hora límite. Lo que el repartidor empuja
+// mientras tanto no los despierta. Hacerlo solo cuando pedían más datos no alcanzaba: con
+// los bloques de las entradas alineados a los del mezclador, o con una entrada que no
+// llega (vence la espera y el bloque sale igual), cada aggregate saca su bloque y la
+// vuelta siguiente esperaba otra vez al reloj (36 mil cambios de contexto/s con 40
+// invitados en la app; el repartidor y mx:src, 60 % del tiempo en candados).
 // ============================================================================
 
 #include "comun.hpp"
@@ -248,15 +253,13 @@ std::shared_ptr<Productor> productor(const std::string& nombre) {
     return p;
 }
 
-/// En el hilo de un repartidor: la pasada le mandó un evento (stream-start, caps, segmento) a
-/// algún pad. El agregador lo atiende antes que los buffers: si está esperando a sus
-/// entradas (esperarEntradas), que deje de esperar.
-thread_local bool tl_evento = false;
+/// Le avisa al mezclador de `r` que le llegó un evento (definida con Repartidor).
+void avisarEvento(Repartidor& r);
 
 /// Empuja el primero de la cola de `t` si le toca (lo que falte de eventos antes). ¿Hizo
 /// algo (lo empujó o lo tiró)? Con el candado de la toma mientras empuja: si el pad está
 /// lleno, gst_pad_push espera a la próxima vuelta de SU agregador.
-bool repartirUno(Toma& t, Vistas& vistas) {
+bool repartirUno(Toma& t, Vistas& vistas, Repartidor& rep) {
     std::lock_guard<std::mutex> l(t.mu);
     Pendiente x;
     {
@@ -273,26 +276,32 @@ bool repartirUno(Toma& t, Vistas& vistas) {
         gst_buffer_ref(x.b);
         if (x.caps != nullptr) gst_caps_ref(x.caps);
     }
+    bool evento = false;
     if (t.eventos) {
         gchar* id = gst_pad_create_stream_id(t.pad, t.e, nullptr);
         GstEvent* ss = gst_event_new_stream_start(id);
         g_free(id);
         gst_event_set_group_id(ss, gst_util_group_id_next());
         gst_pad_push_event(t.pad, ss);
-        tl_evento = true;
+        evento = true;
     }
     if (x.caps != nullptr && (t.eventos || t.caps == nullptr || !gst_caps_is_equal(t.caps, x.caps))) {
         if (t.caps != nullptr) gst_caps_unref(t.caps);
         t.caps = gst_caps_ref(x.caps);
         gst_pad_push_event(t.pad, gst_event_new_caps(x.caps));
-        tl_evento = true;
+        evento = true;
     }
     if (t.eventos || t.segmentoVisto != x.serie) {
         gst_pad_push_event(t.pad, gst_event_new_segment(&x.seg));
-        tl_evento = true;
+        evento = true;
         t.segmentoVisto = x.serie;
     }
     t.eventos = false;
+    // El agregador atiende los eventos antes que los buffers, y lo que viene atrás de unas
+    // caps nuevas (la consulta de ALLOCATION de volume/level, serializada) espera a que los
+    // atienda: si está esperando a sus entradas (esperarEntradas), que deje de esperar YA,
+    // no al final de la pasada (este mismo push lo trabaría hasta su hora límite).
+    if (evento) avisarEvento(rep);
     GstBuffer* b = x.b;
     const GstClockTime dur = GST_BUFFER_DURATION_IS_VALID(b) ? GST_BUFFER_DURATION(b) : 10 * GST_MSECOND;
     const GstClockTime rt =
@@ -379,18 +388,20 @@ struct Repartidor {
                 lista = tomas;
             }
             // De a un bloque por toma y por pasada: ninguna se queda con el repartidor.
+            // Una pasada empuja lo de todas y despierta al mezclador UNA vez, al final.
             for (bool algo = true; algo;) {
                 algo = false;
                 vistas.soltar(); // la latencia de cada agregador, de nuevo en cada pasada
-                tl_evento = false;
-                for (const auto& t : lista) algo = repartirUno(*t, vistas) || algo;
-                if (algo || tl_evento) avisarMezclador(tl_evento);
+                for (const auto& t : lista) algo = repartirUno(*t, vistas, *this) || algo;
+                if (algo) avisarMezclador(false);
             }
             vistas.soltar();
             lista.clear();
         }
     }
 };
+
+void avisarEvento(Repartidor& r) { r.avisarMezclador(true); }
 
 /// Los repartidores, por pipeline (bajo g_mu).
 std::map<GstObject*, std::shared_ptr<Repartidor>> g_repartidores;
