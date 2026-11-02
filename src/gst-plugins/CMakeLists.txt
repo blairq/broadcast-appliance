@@ -90,6 +90,19 @@ if(TRUE) # el test de baanillo (como el gateway: escribe el anillo)
     add_dependencies(test_baanillo gstbaipc)
     add_test(NAME test_baanillo COMMAND test_baanillo)
     set_tests_properties(test_baanillo PROPERTIES SKIP_RETURN_CODE 77)
+    # El lector común de los anillos y baentrega/batoma (sin un hilo por cadena ni por rama).
+    add_executable(test_anillocomun tests/test_anillocomun.cpp "${CMAKE_SOURCE_DIR}/src/core/ipc/SharedAudioRing.cpp"
+        "${CMAKE_SOURCE_DIR}/src/core/ipc/SharedMemoryRegion.cpp" "${CMAKE_SOURCE_DIR}/src/core/ipc/Timbre.cpp" "${BA_IPC_RITMO}")
+    target_compile_definitions(test_anillocomun PRIVATE BA_RITMO_SIN_ENERGIA)
+    target_include_directories(test_anillocomun PRIVATE "${CMAKE_SOURCE_DIR}/src/core" "${CMAKE_SOURCE_DIR}/src/core/ipc")
+    target_link_libraries(test_anillocomun PRIVATE ba::gstreamer)
+    if(DEFINED BA_GST_LIBDIR)
+        set_target_properties(test_anillocomun PROPERTIES BUILD_RPATH "${BA_GST_LIBDIR}")
+    endif()
+    target_compile_definitions(test_anillocomun PRIVATE BA_TEST_GST_PLUGINS="${CMAKE_CURRENT_BINARY_DIR}")
+    add_dependencies(test_anillocomun gstbaipc)
+    add_test(NAME test_anillocomun COMMAND test_anillocomun)
+    set_tests_properties(test_anillocomun PROPERTIES SKIP_RETURN_CODE 77)
     # El video del canal (como el gateway: publica BA.Guest.<n>): el tamaño del
     # canal en las caps, también después de que abajo pidan renegociar.
     add_executable(test_bavideoanillo tests/test_bavideoanillo.cpp "${CMAKE_SOURCE_DIR}/src/core/ipc/SpoutTransport.cpp"
