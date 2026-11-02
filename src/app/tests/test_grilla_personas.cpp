@@ -603,8 +603,11 @@ void enLaGrilla() {
             if (k != "sala:p2") quietos = quietos && r == previo[k];
         CHECK(quietos, "resaltar: los demás no se mueven ni cambian de tamaño");
         const Rect suya = ahora["sala:p2"], antesSuya = previo["sala:p2"];
-        CHECK(suya.w > antesSuya.w && suya.x < antesSuya.x && std::abs((suya.x + suya.w / 2) - (antesSuya.x + antesSuya.w / 2)) <= 1,
-              "el orador, un poco más grande y en su mismo lugar");
+        // Contiene su lugar (crece hacia adentro del lienzo si está en un borde).
+        CHECK(suya.w > antesSuya.w && suya.h > antesSuya.h && suya.x <= antesSuya.x && suya.y <= antesSuya.y &&
+                  suya.x + suya.w >= antesSuya.x + antesSuya.w && suya.y + suya.h >= antesSuya.y + antesSuya.h &&
+                  dentro(suya, 1280, 720),
+              "el orador, un poco más grande, sobre su mismo lugar y sin salirse del lienzo");
         CHECK(res[0].celdas.back().clave == "sala:p2", "el orador, al final (se pinta encima de las vecinas)");
         CHECK(antes[0].celdas[0].r == disponer(4, 1280, 720, 8, 0, 16.0 / 9)[0], "sin orador, la grilla de siempre (nada achicado)");
         bool resaltado = false;
