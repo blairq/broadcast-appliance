@@ -31,6 +31,9 @@
 //      baja menos el orador y el precargado; el borde con histéresis; el que deja de ser
 //      orador no se queda en alta por la histéresis del tamaño; el invitado del cupo en una
 //      celda chica, baja.
+//  15. Alta definición como mucho N a la vez («alta_max», de fábrica 4): con 5, 10 y 40
+//      invitados y 0, 1 o 2 oradores, presentador y precargado, nunca más de 4 en alta; la
+//      prioridad (orador, presentador, precargado, fijado, tamaño) y sin parpadeo en el borde.
 // ============================================================================
 #include <algorithm>
 #include <cstdio>
@@ -904,7 +907,7 @@ void altaHasta() {
     for (int i = 0; i < 12; ++i) res = rep.calcular(gs, diez, {}, 1000 + i);
     CHECK(!res[0].enBaja && res[0].celdas.size() == 10, "10 personas: por tamaño");
     CHECK(res[0].celdas.front().r.h > kSubirAlta, "las celdas de 10 son grandes");
-    CHECK(cuantasAlta(res[0]) == 10, "10 personas en celdas grandes: las 10 en alta (de a una por vuelta)");
+    CHECK(cuantasAlta(res[0]) == kAltaMaxDefecto, "10 personas en celdas grandes: en alta solo las del tope (alta_max)");
 
     res = rep.calcular(gs, v, {}, 2000);
     auto capas = capasDe(res[0]);
@@ -971,6 +974,133 @@ void altaHasta() {
     }
 }
 
+std::set<std::string> enAlta(const std::vector<Resultado>& res) {
+    std::set<std::string> s;
+    for (const auto& r : res)
+        for (const auto& x : r.celdas)
+            if (x.capa == "alta") s.insert(x.clave);
+    return s;
+}
+
+void altaMax() {
+    {
+        const Config d = Config::desdeAjustes("g", Config::defectos());
+        CHECK(d.altaMax == 4, "de fábrica, alta como mucho 4");
+        CHECK(Config::validar(json{{"alta_max", 1}}).empty() && Config::validar(json{{"alta_max", 64}}).empty(), "alta_max bueno");
+        CHECK(!Config::validar(json{{"alta_max", 0}}).empty() && !Config::validar(json{{"alta_max", "cuatro"}}).empty(),
+              "alta_max malo (sin «sin tope»)");
+        CHECK(Config::desdeAjustes("g", json{{"alta_max", 3}}).altaMax == 3, "se lee");
+        CHECK(Config::desdeAjustes("g", json{{"alta_max", 0}}).altaMax == 1, "fuera de rango: al borde");
+    }
+    // La prioridad, pura.
+    {
+        using P = CapasGrilla::Pedido;
+        const std::map<std::string, P> pedidos{
+            {"o1", {50, true}},  {"o2", {50, true}},
+            {"pres", {50, false, false, true}},
+            {"prec", {50, false, true}},
+            {"fijo", {300, false, false, false, true}},
+            {"t", {400, false}}};
+        CapasGrilla cg;
+        auto a = cg.decidir(pedidos, 1, 4);
+        CHECK(a["o1"] && a["o2"] && a["pres"] && a["prec"] && !a["fijo"] && !a["t"],
+              "tope 4: los dos oradores, el presentador y el precargado; el fijado y el grande, en baja");
+        CapasGrilla c3;
+        a = c3.decidir(pedidos, 1, 3);
+        CHECK(a["o1"] && a["o2"] && a["pres"] && !a["prec"], "tope 3: el precargado es el que se queda afuera");
+        CapasGrilla c6;
+        a = c6.decidir(pedidos, 1, 6);
+        CHECK(a["fijo"] && !a["t"], "tope 6: sube primero el fijado (aunque el otro sea más grande)");
+        a = c6.decidir(pedidos, 1, 6);
+        CHECK(a["fijo"] && a["t"], "y a la vuelta siguiente, el otro");
+        CapasGrilla c0;
+        a = c0.decidir({{"o", {50, true}}, {"pres", {10, false, false, true}}}, 1, 0);
+        CHECK(a["o"] && a["pres"], "el presentador pide la alta aunque su celda sea chica");
+    }
+    // Sin parpadeo en el borde del tope: los que ya están no los saca uno nuevo del mismo grupo.
+    {
+        using P = CapasGrilla::Pedido;
+        std::map<std::string, P> pedidos{{"a", {300, false}}, {"b", {300, false}}, {"c", {300, false}}, {"d", {300, false}}};
+        CapasGrilla cg;
+        for (int i = 0; i < 4; ++i) cg.decidir(pedidos, 1, 4);
+        pedidos["e"] = {500, false};
+        bool firme = true;
+        for (int i = 0; i < 10; ++i) {
+            auto a = cg.decidir(pedidos, 1, 4);
+            firme = firme && a["a"] && a["b"] && a["c"] && a["d"] && !a["e"];
+        }
+        CHECK(firme, "tope lleno: uno más grande que llega no saca a nadie (10 vueltas sin cambios)");
+        pedidos["x"] = {50, true};
+        auto a = cg.decidir(pedidos, 1, 4);
+        int n = 0;
+        for (const auto& [k, v] : a) n += v ? 1 : 0;
+        CHECK(a["x"] && n == 4 && !a["e"], "llega un orador: alta en el acto y sale uno por tamaño (siguen siendo 4)");
+        bool estable = true;
+        const auto antes = a;
+        for (int i = 0; i < 10; ++i) estable = estable && cg.decidir(pedidos, 1, 4) == antes;
+        CHECK(estable, "con el orador: 10 vueltas sin cambios");
+    }
+
+    // En la grilla de verdad: 5, 10, 40 invitados; 0, 1 o 2 oradores; presentador y precargado.
+    const auto config = [](const std::string& f, int canal) {
+        Config c = grilla(f, 0);
+        c.canal = canal;
+        c.ancho = 1920;
+        c.alto = 1080;
+        c.margen = 16;
+        c.aspecto = 0;
+        c.disparo = Disparo::Palabra;
+        c.minimoMs = 0;
+        return c;
+    };
+    for (int n : {5, 10, 40}) {
+        for (int oradores : {0, 1, 2}) {
+            std::vector<Config> gs{config("g", 1), config("h", 2)};
+            Repartidor rep;
+            auto v = gente(n);
+            v[0].presentador = true;
+            v[3].siguiente = true;
+            Manual manual;
+            if (oradores == 1) v[1].palabra = true;
+            if (oradores == 2) {
+                manual.destacados["g"] = "sala:p1";
+                manual.destacados["h"] = "sala:p2";
+            }
+            bool tope = true, siempre = true, firme = true;
+            std::set<std::string> ultimo;
+            for (int i = 0; i < 30; ++i) {
+                const auto res = rep.calcular(gs, v, manual, 1000 + i * 100);
+                const auto alta = enAlta(res);
+                tope = tope && alta.size() <= 4;
+                siempre = siempre && alta.count("sala:p0") && alta.count("sala:p3");
+                if (oradores >= 1) siempre = siempre && alta.count("sala:p1");
+                if (oradores == 2) siempre = siempre && alta.count("sala:p2") && alta.size() == 4;
+                if (i >= 10) firme = firme && alta == ultimo;
+                ultimo = alta;
+            }
+            const std::string caso = std::to_string(n) + " invitados, " + std::to_string(oradores) + " oradores";
+            CHECK(tope, ("nunca más de 4 en alta: " + caso).c_str());
+            CHECK(siempre, ("los oradores, el presentador y el precargado siempre en alta: " + caso).c_str());
+            CHECK(firme, ("sin parpadeo (sin cambios de capa con todo quieto): " + caso).c_str());
+            if (n == 40) CHECK(ultimo.size() == static_cast<std::size_t>(2 + oradores), ("con 40, nadie más por tamaño: " + caso).c_str());
+            if (n == 10 && oradores == 0) CHECK(ultimo.size() == 4, "10 en celdas grandes sin orador: el tope se llena (presentador, precargado y 2 por tamaño)");
+        }
+    }
+    // alta_max de dos grillas distintas: manda el más chico.
+    {
+        std::vector<Config> gs{config("g", 1), config("h", 2)};
+        gs[1].altaMax = 2;
+        Repartidor rep;
+        auto v = gente(10);
+        v[0].presentador = true;
+        v[1].palabra = true;
+        v[3].siguiente = true;
+        std::set<std::string> alta;
+        for (int i = 0; i < 10; ++i) alta = enAlta(rep.calcular(gs, v, {}, 1000 + i * 100));
+        CHECK(alta == std::set<std::string>({"sala:p1", "sala:p0"}), "alta_max 2 en una grilla: el orador y el presentador");
+    }
+}
+
 int main() {
     disposicion();
     filtrosYOrden();
@@ -987,6 +1117,7 @@ int main() {
     capasYPedido();
     sinCambiosAgrandarYPase();
     altaHasta();
+    altaMax();
     if (g_fallos == 0) std::printf("test_grilla_personas: OK\n");
     return g_fallos == 0 ? 0 : 1;
 }

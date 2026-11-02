@@ -99,6 +99,7 @@ json Config::defectos() {
                 {"superponer_completa", false},
                 {"fundido_ms", 300},
                 {"alta_hasta", kAltaHastaDefecto}, // más personas: todas las miniaturas en baja (0 = sin límite)
+                {"alta_max", kAltaMaxDefecto},     // nunca más que esto en alta a la vez (por prioridad)
                 {"agrandar", "no"},             // resaltar y escena: no | encima | achicando
                 {"pasar_a_escena", "a_mano"},   // escena: a_mano | automatico | asistente
                 {"salida_orador", ""},          // escena: la salida ("" = la principal)
@@ -157,6 +158,7 @@ Config Config::desdeAjustes(const std::string& fuente, const json& ajustesIn) {
     c.superponerCompleta = siNo(a, "superponer_completa", false);
     c.fundidoMs = std::clamp(entero(a, "fundido_ms", 300), 0, 2000);
     c.altaHasta = std::clamp(entero(a, "alta_hasta", kAltaHastaDefecto), 0, kMaxCeldas);
+    c.altaMax = std::clamp(entero(a, "alta_max", kAltaMaxDefecto), 1, kMaxCeldas);
     const std::string ag = texto(a, "agrandar", "no");
     c.agrandar = ag == "encima" ? Agrandar::Encima : ag == "achicando" ? Agrandar::Achicando : Agrandar::No;
     const std::string pe = texto(a, "pasar_a_escena", "a_mano");
@@ -205,7 +207,7 @@ std::string Config::validar(const json& cambios) {
         "al_hablar", "disparo", "voz_ms", "minimo_ms", "precarga", "destacar_lugar", "destacar_tamano", "franja",
         "superponer_tamano", "superponer_completa", "fundido_ms", "nombres", "nombre_tamano", "nombre_color",
         "nombre_fondo", "nombre_lugar", "muestra", "sigue", "agrandar", "pasar_a_escena", "salida_orador", "escena_orador",
-        "alta_hasta"};
+        "alta_hasta", "alta_max"};
     for (const auto& [k, v] : cambios.items())
         if (!kConocidos.count(k)) return ba::i18n::llenar(ba::i18n::traducir("escenas", "«%1» no es un ajuste de la grilla de personas"), {k});
     for (const std::string& e :
@@ -221,7 +223,8 @@ std::string Config::validar(const json& cambios) {
           enumera("disparo", {"voz", "palabra", "orador", "manual"}), numero("voz_ms", 0, 10000),
           numero("minimo_ms", 0, 60000), booleano("precarga"), enumera("destacar_lugar", {"centro", "izquierda"}),
           numero("destacar_tamano", 40, 90), enumera("franja", {"abajo", "costado"}), numero("superponer_tamano", 30, 90),
-          booleano("superponer_completa"), numero("fundido_ms", 0, 2000), numero("alta_hasta", 0, kMaxCeldas), enumera("nombres", {"no", "nombre", "nombre_cargo"}),
+          booleano("superponer_completa"), numero("fundido_ms", 0, 2000), numero("alta_hasta", 0, kMaxCeldas),
+          numero("alta_max", 1, kMaxCeldas), enumera("nombres", {"no", "nombre", "nombre_cargo"}),
           numero("nombre_tamano", 5, 40), enumera("nombre_lugar", {"abajo", "arriba"}), enumera("muestra", {"todos", "orador"})})
         if (!e.empty()) return e;
     if (cambios.contains("grupo") && !cambios["grupo"].is_string())
@@ -613,17 +616,30 @@ bool todasEnBaja(int personas, int altaHasta, bool antes) {
     return personas > (antes ? altaHasta - kMargenAltaHasta : altaHasta);
 }
 
-std::map<std::string, bool> CapasGrilla::decidir(const std::map<std::string, Pedido>& pedidos, int maxSubidas) {
+std::map<std::string, bool> CapasGrilla::decidir(const std::map<std::string, Pedido>& pedidos, int maxSubidas,
+                                                 int altaMax) {
     std::map<std::string, bool> out;
     std::map<std::string, Por> alta;
-    // Los más grandes primero: si hay que esperar para subir, espera el más chico.
+    // El orden de prioridad (para el tope): orador, presentador, precargado, fijado, el resto.
+    // En cada grupo, el que ya estaba en alta primero (sin parpadeo en el borde del tope) y
+    // después el más grande (si hay que esperar para subir, espera el más chico).
+    const auto grupo = [](const Pedido& p) { return p.orador ? 0 : p.presentador ? 1 : p.precarga ? 2 : p.fijo ? 3 : 4; };
     std::vector<std::pair<std::string, Pedido>> orden(pedidos.begin(), pedidos.end());
-    std::stable_sort(orden.begin(), orden.end(), [](const auto& a, const auto& b) { return a.second.alto > b.second.alto; });
+    std::stable_sort(orden.begin(), orden.end(), [&](const auto& a, const auto& b) {
+        const int ga = grupo(a.second), gb = grupo(b.second);
+        if (ga != gb) return ga < gb;
+        const bool ya = alta_.count(a.first) > 0, yb = alta_.count(b.first) > 0;
+        if (ya != yb) return ya;
+        return a.second.alto > b.second.alto;
+    });
     int subidas = 0;
+    const auto hayLugar = [&] { return altaMax <= 0 || static_cast<int>(alta.size()) < altaMax; };
     for (const auto& [k, p] : orden) {
         const auto it = alta_.find(k);
-        if (p.orador || p.precarga) {
-            alta[k] = Por::Orador; // el orador y el precargado: alta ya (no cuentan en el tope: son los que importan)
+        if (!hayLugar()) {
+            // El tope: el resto en baja, sea cual sea su razón.
+        } else if (p.orador || p.presentador || p.precarga) {
+            alta[k] = Por::Orador; // el orador, el presentador y el precargado: alta ya (sin esperar subidas)
         } else if (it != alta_.end() && it->second == Por::Tamano) {
             if (p.alto >= kBajarAlta) alta[k] = Por::Tamano; // ya en alta por su lugar: baja recién por debajo del umbral de bajada
         } else if (it != alta_.end()) {
@@ -932,9 +948,10 @@ std::vector<Resultado> Repartidor::calcular(const std::vector<Config>& grillas, 
                  ? std::next(it)
                  : oradores_.erase(it);
 
-    // La capa de cada uno: el orador y el precargado, alta; los demás según el lugar más
-    // grande donde se los ve, con histéresis y de a una subida por vuelta. En una grilla con
-    // más de «alta_hasta» personas las miniaturas no piden la alta por grandes que sean.
+    // La capa de cada uno: el orador, el presentador y el precargado, alta; los demás según
+    // el lugar más grande donde se los ve, con histéresis y de a una subida por vuelta. En una
+    // grilla con más de «alta_hasta» personas las miniaturas no piden la alta por grandes que
+    // sean. Y nunca más de «alta_max» en alta, por prioridad (CapasGrilla).
     std::map<std::string, CapasGrilla::Pedido> pedidos;
     std::set<std::string> enBaja;
     for (const Config& c : grillas) {
@@ -951,10 +968,17 @@ std::vector<Resultado> Repartidor::calcular(const std::vector<Config>& grillas, 
             if (!r.enBaja || orador) p.alto = std::max(p.alto, x.r.h);
             p.orador = p.orador || orador;
             p.precarga = p.precarga || x.clave == r.siguiente;
+            const auto pe = porClave.find(x.clave);
+            p.presentador = p.presentador || (pe != porClave.end() && pe->second->presentador);
+            p.fijo = p.fijo || manual.fijo(c.fuente, x.clave);
         }
     }
     enBaja_ = std::move(enBaja);
-    const std::map<std::string, bool> alta = capas_.decidir(pedidos);
+    // El tope duro: el «alta_max» más chico de las grillas (la capa es de la persona).
+    int altaMax = 0;
+    for (const Config& c : grillas)
+        if (c.altaMax > 0) altaMax = altaMax == 0 ? c.altaMax : std::min(altaMax, c.altaMax);
+    const std::map<std::string, bool> alta = capas_.decidir(pedidos, 1, altaMax);
     for (auto& [f, r] : porFuente)
         for (Celda& x : r.celdas)
             if (const auto it = alta.find(x.clave); it != alta.end()) x.capa = it->second ? "alta" : "baja";

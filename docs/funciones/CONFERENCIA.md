@@ -175,6 +175,20 @@ con un fundido, y nunca negro ni salto.**
    justo en el borde, vuelve a la regla por tamaño recién con N − 1 personas.
    `grilla_personas_estado` dice en cada grilla `alta_hasta` y `en_baja`, y en cada
    persona su `capa` (`alta` | `baja`).
+6. **Alta definición como mucho N a la vez** (`alta_max`, de fábrica 4, de 1 a 64): el
+   tope duro, sean 5, 10 o 40 invitados. De fábrica 4: un debate entre dos, el que queda
+   en espera y el presentador. Si piden la alta más personas que eso, se elige por
+   prioridad: el orador (o los oradores, si hay varias grillas con oradores distintos),
+   después el **presentador** de la conferencia (que ahora pide la alta por sí mismo en
+   cualquier celda), después el precargado (el siguiente de la fila), después los
+   **fijados** a mano que la piden por su lugar y al final el resto por tamaño. Dentro de
+   cada grupo, el que ya estaba en alta va antes que el que llega (nadie parpadea en el
+   borde del tope) y después el más grande. El fundido no cambia: al dar la palabra se
+   sigue viendo la baja hasta el primer cuadro HD y se funde. Con varias grillas manda el
+   `alta_max` más chico (la capa es de la persona, no de la celda).
+   `alta_hasta` y `alta_max` no se pisan: `alta_hasta` dice **cuándo** las miniaturas
+   pueden pedir la alta por su tamaño; `alta_max`, **cuántos** como mucho, por la razón
+   que sea. Los dos los aplica solo `CapasGrilla` (un solo dueño).
 
 La capa de cada persona tiene **un solo dueño** para lo que se ve en las grillas: la app
 (`CapasGrilla`, en `src/app/escenas/GrillaPersonas.hpp`) la manda en cada celda y B la

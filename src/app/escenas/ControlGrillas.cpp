@@ -344,7 +344,8 @@ std::vector<grilla::Persona> ControlGrillas::gente(std::int64_t ahora, const std
         p.deSala = true;
         const qint64 adm = static_cast<qint64>(o.value("admittedMs").toDouble());
         p.llegadaMs = adm > 0 ? adm : static_cast<qint64>(o.value("joinedMs").toDouble());
-        p.prioridad = o.value("presenter").toBool() ? 1 : 0;
+        p.presentador = o.value("presenter").toBool();
+        p.prioridad = p.presentador ? 1 : 0;
         p.conCamara = o.value("cam").toBool(true) && o.value("mediaUp").toBool();
         const int slot = o.value("slot").toInt();
         p.alAire = slot > 0 && slotsAlAire.count(slot) > 0;
@@ -452,6 +453,8 @@ void ControlGrillas::recalcular() {
                {"al_aire", c.alAire},
                // Alta definición hasta N personas: con más, todas las miniaturas en baja.
                {"alta_hasta", c.altaHasta},
+               // Nunca más que esto en alta a la vez (por prioridad: orador, presentador, siguiente…).
+               {"alta_max", c.altaMax},
                {"en_baja", res[i].enBaja},
                {"personas", personas},
                {"fuera", fuera},
