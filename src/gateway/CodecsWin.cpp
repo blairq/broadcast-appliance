@@ -1,17 +1,24 @@
 // ============================================================================
-// src/gateway/CodecsWin.cpp — H.264 por Media Foundation en Windows
+// src/gateway/CodecsWin.cpp — H.264 por la placa (D3D11) y Media Foundation en Windows
 //
 // Lo mismo que CodecsMac.mm con VideoToolbox: que la placa de video decodifique lo que
 // sube cada invitado y codifique el retorno, en vez del procesador (libvpx). El libwebrtc
 // que usamos (Shiguredo) viene SIN OpenH264, así que el H.264 en Windows sale todo de acá.
 //
-// Decodificar: el decodificador H.264 de Windows (CLSID_CMSH264DecoderMFT) con un
+// Decodificar con la placa: directo por la API de video de D3D11 (DecodificadorD3d11, más
+//   abajo: sin el MFT ni sus hilos; un dispositivo para todos). Si la placa o el flujo no
+//   sirven para eso, o con `gateway.decodificadorPlaca` = "mft", lo de abajo.
+//
+// Decodificar por el MFT: el decodificador H.264 de Windows (CLSID_CMSH264DecoderMFT) con un
 //   administrador de dispositivos D3D11: decodifica en la placa por DXVA (el motor «Video
 //   Decode» de la GPU; AMD, Intel o NVIDIA, la que haya). El cuadro sale en una textura
 //   NV12; Lock2D lo trae a memoria y libyuv lo pasa a I420 (el gateway lo necesita en RAM:
-//   la memoria compartida con ba-app y la grilla). Si la placa no decodifica H.264 o el
-//   DXVA no arranca, el mismo decodificador por software (con `gateway.hilosPorDecodificador`
-//   hilos), avisado una vez en el log.
+//   la memoria compartida con ba-app y la grilla).
+//
+// Sin la placa (o con `gateway.decodificarConPlaca` apagado) NO se recibe H.264: el mismo
+//   decodificador de Windows por software no entregaba ningún cuadro (ProcessOutput E_FAIL)
+//   y abría ~24 hilos por flujo. El H.264 no se ofrece para subir y, como la m-line va en los
+//   dos sentidos, todo va en VP8 (decodificaConPlaca()).
 //
 // Codificar (el retorno compartido, RetornoCompartido.cpp): el MFT por hardware que
 //   ofrezca la placa (MFTEnumEx con MFT_ENUM_FLAG_HARDWARE: «AMDh264Encoder», «Intel®
@@ -36,8 +43,10 @@
 #include <windows.h>
 // clang-format off
 #include <d3d11.h>
+#include <d3d11_4.h>
 #include <d3d10.h>
 #include <dxgi.h>
+#include <dxva.h>
 #include <mfapi.h>
 #include <mfidl.h>
 #include <mferror.h>
@@ -48,6 +57,7 @@
 // clang-format on
 
 #include <algorithm>
+#include <array>
 #include <atomic>
 #include <chrono>
 #include <condition_variable>
@@ -55,7 +65,9 @@
 #include <cstdlib>
 #include <cstring>
 #include <deque>
+#include <memory>
 #include <mutex>
+#include <optional>
 #include <string>
 #include <thread>
 #include <utility>
@@ -65,6 +77,8 @@
 #include "diag/Registro.hpp"
 #include "platform/Hilo.hpp"
 
+#include "H264Sintaxis.hpp"
+
 #include "api/video/encoded_image.h"
 #include "api/video/i420_buffer.h"
 #include "api/video/video_frame.h"
@@ -72,6 +86,7 @@
 #include "api/video_codecs/video_codec.h"
 #include "api/video_codecs/video_decoder.h"
 #include "api/video_codecs/video_encoder.h"
+#include "common_video/include/video_frame_buffer_pool.h"
 #include "modules/video_coding/codecs/h264/include/h264_globals.h"
 #include "modules/video_coding/codecs/interface/common_constants.h"
 #include "modules/video_coding/include/video_codec_interface.h"
@@ -140,21 +155,13 @@ struct Dispositivo {
     UINT token = 0;
 };
 
-bool crearDispositivo(Dispositivo& d, std::string* placa, bool* decodificaH264) {
-    D3D_FEATURE_LEVEL nivel{};
-    ComPtr<ID3D11DeviceContext> ctx;
-    HRESULT hr = D3D11CreateDevice(nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr,
-                                   D3D11_CREATE_DEVICE_VIDEO_SUPPORT | D3D11_CREATE_DEVICE_BGRA_SUPPORT, nullptr, 0,
-                                   D3D11_SDK_VERSION, &d.dev, &nivel, &ctx);
-    if (FAILED(hr)) return false;
-    // Varios decodificadores (cada uno en su hilo) comparten el dispositivo.
-    ComPtr<ID3D10Multithread> mt;
-    if (SUCCEEDED(d.dev.As(&mt))) mt->SetMultithreadProtected(TRUE);
+/// El nombre de la placa y si decodifica H.264 a NV12.
+void describirDispositivo(const ComPtr<ID3D11Device>& dev, std::string* placa, bool* decodificaH264) {
     if (placa != nullptr) {
         ComPtr<IDXGIDevice> dxgi;
         ComPtr<IDXGIAdapter> ad;
         DXGI_ADAPTER_DESC desc{};
-        if (SUCCEEDED(d.dev.As(&dxgi)) && SUCCEEDED(dxgi->GetAdapter(&ad)) && SUCCEEDED(ad->GetDesc(&desc))) {
+        if (SUCCEEDED(dev.As(&dxgi)) && SUCCEEDED(dxgi->GetAdapter(&ad)) && SUCCEEDED(ad->GetDesc(&desc))) {
             *placa = utf8(desc.Description);
             const std::string f = fabricanteDe(desc.VendorId);
             if (!f.empty() && placa->find(f) == std::string::npos) *placa = f + " " + *placa;
@@ -163,7 +170,7 @@ bool crearDispositivo(Dispositivo& d, std::string* placa, bool* decodificaH264) 
     if (decodificaH264 != nullptr) {
         *decodificaH264 = false;
         ComPtr<ID3D11VideoDevice> vd;
-        if (SUCCEEDED(d.dev.As(&vd))) {
+        if (SUCCEEDED(dev.As(&vd))) {
             const UINT n = vd->GetVideoDecoderProfileCount();
             for (UINT i = 0; i < n; ++i) {
                 GUID g{};
@@ -175,6 +182,19 @@ bool crearDispositivo(Dispositivo& d, std::string* placa, bool* decodificaH264) 
             }
         }
     }
+}
+
+/// Un dispositivo para el MFT (con su administrador DXGI).
+bool crearDispositivo(Dispositivo& d) {
+    D3D_FEATURE_LEVEL nivel{};
+    ComPtr<ID3D11DeviceContext> ctx;
+    HRESULT hr = D3D11CreateDevice(nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr,
+                                   D3D11_CREATE_DEVICE_VIDEO_SUPPORT | D3D11_CREATE_DEVICE_BGRA_SUPPORT, nullptr, 0,
+                                   D3D11_SDK_VERSION, &d.dev, &nivel, &ctx);
+    if (FAILED(hr)) return false;
+    // Varios decodificadores (cada uno en su hilo) comparten el dispositivo.
+    ComPtr<ID3D10Multithread> mt;
+    if (SUCCEEDED(d.dev.As(&mt))) mt->SetMultithreadProtected(TRUE);
     hr = MFCreateDXGIDeviceManager(&d.token, &d.mgr);
     if (FAILED(hr)) return false;
     return SUCCEEDED(d.mgr->ResetDevice(d.dev.Get(), d.token));
@@ -191,7 +211,7 @@ ComPtr<IMFDXGIDeviceManager> administradorD3d() {
     std::lock_guard<std::mutex> l(m);
     if (pozo.size() < static_cast<size_t>(kDispositivos)) {
         Dispositivo d;
-        if (crearDispositivo(d, nullptr, nullptr)) pozo.push_back(std::move(d));
+        if (crearDispositivo(d)) pozo.push_back(std::move(d));
     }
     if (pozo.empty()) return nullptr;
     return pozo[static_cast<size_t>(turno++ % static_cast<int>(pozo.size()))].mgr;
@@ -339,14 +359,13 @@ class DecodificadorMf : public webrtc::VideoDecoder {
             anchoIni_ = r.Width();
             altoIni_ = r.Height();
         }
-        // `gateway.decodificarConPlaca` apagado: el mismo decodificador por software (para comparar).
-        if (hallazgo().decodificaHw && ba::ajustes::siNo("gateway.decodificarConPlaca", true)) {
-            if (iniciar(true)) return true;
-            ++gCaidasDec;
-            if (!gAvisoDec.exchange(true))
-                aviso("video: el decodificador H.264 por la placa (DXVA) no arrancó: decodifica por software");
-        }
-        return iniciar(false);
+        // Solo con la placa: el MFT por software de Windows no sirve (ProcessOutput da E_FAIL
+        // en la .177 y abre ~24 hilos por flujo). Sin la placa, el H.264 no se ofrece para
+        // subir y los invitados van en VP8 (ver decodificaConPlaca()).
+        if (iniciar(true)) return true;
+        ++gCaidasDec;
+        if (!gAvisoDec.exchange(true)) aviso("video: el decodificador H.264 por la placa (DXVA) no arrancó");
+        return false;
     }
 
     int32_t Decode(const webrtc::EncodedImage& img, bool, int64_t) override {
@@ -587,14 +606,13 @@ class DecodificadorMf : public webrtc::VideoDecoder {
     }
 
     int32_t fallo(const char* que, HRESULT hr) {
-        // Con la placa, varios errores seguidos: se rehace por software (un cuadro clave
-        // lo pide libwebrtc al ver el error).
-        if (hw_ && ++errores_ >= 3) {
+        // Varios errores seguidos: se rehace (un cuadro clave lo pide libwebrtc al ver el error).
+        if (++errores_ >= 3) {
             ++gCaidasDec;
             if (!gAvisoDec.exchange(true))
                 aviso(std::string("video: el decodificador H.264 por la placa falla (") + que + " " + hex(hr) +
-                      "): se pasa a software");
-            iniciar(false);
+                      "): se rehace");
+            iniciar(true);
             errores_ = 0;
         }
         return WEBRTC_VIDEO_CODEC_ERROR;
@@ -611,6 +629,533 @@ class DecodificadorMf : public webrtc::VideoDecoder {
     DWORD tamSalida_ = 0;
     bool provee_ = false, hw_ = false, dxgiVisto_ = false;
     int errores_ = 0;
+};
+
+// ============================================================================
+// Decodificador por la API de video de D3D11 (sin el MFT)
+// ============================================================================
+//
+// El MFT de Windows (msmpeg2vdec) con DXVA, medido en la .177 con 10 invitados en 720p:
+// 405 % de un núcleo en el gateway contra 305 % de VP8 por software, con ~260 hilos sin
+// nombre y la lectura de la textura por Lock2D. Acá lo mismo sin esa maquinaria: el H.264
+// se lee en este hilo (H264Sintaxis: SPS/PPS/slice, POC y referencias), la placa decodifica
+// los slices (ID3D11VideoDecoder, formato «corto»: el driver lee la cabecera de cada
+// slice), y el cuadro se copia a una textura de paso PROPIA (una por decodificador, se
+// reusa) y se espera con una cerca (ID3D11Fence: el hilo duerme, no gira) antes de leerla.
+// Un solo dispositivo para todos (`gateway.dispositivosPlaca`, 1 de fábrica): lo que se
+// hace con su contexto bajo candado es encolar trabajo (µs).
+//
+// Los cuadros salen en el orden en que llegan (sin reordenar por POC): WebRTC no manda
+// cuadros B. Sin formato corto en la placa, con campos entrelazados, FMO, no 4:2:0 de 8
+// bits o errores que se repiten: el MFT de siempre (DecodificadorMf), avisado una vez.
+// `gateway.decodificadorPlaca` = "mft" vuelve al MFT para comparar.
+
+/// Un dispositivo D3D11 para la API de video (los decodificadores se reparten si hay más).
+struct DispositivoVideo {
+    ComPtr<ID3D11Device> dev;
+    ComPtr<ID3D11DeviceContext> ctx;
+    ComPtr<ID3D11VideoDevice> vdev;
+    ComPtr<ID3D11VideoContext> vctx;
+    ComPtr<ID3D11Device5> dev5; ///< cercas (Windows 10 1703+); sin esto, Map espera
+    ComPtr<ID3D11DeviceContext4> ctx4;
+    std::mutex m; ///< el contexto inmediato es uno solo
+};
+
+std::shared_ptr<DispositivoVideo> dispositivoVideo() {
+    static std::mutex m;
+    static std::vector<std::shared_ptr<DispositivoVideo>> pozo;
+    static int turno = 0;
+    static bool fallo = false;
+    const int cuantos = std::clamp(ba::ajustes::entero("gateway.dispositivosPlaca", 1), 1, 8);
+    std::lock_guard<std::mutex> l(m);
+    if (pozo.size() < static_cast<size_t>(cuantos) && !fallo) {
+        auto d = std::make_shared<DispositivoVideo>();
+        D3D_FEATURE_LEVEL nivel{};
+        const HRESULT hr = D3D11CreateDevice(nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr, D3D11_CREATE_DEVICE_VIDEO_SUPPORT,
+                                             nullptr, 0, D3D11_SDK_VERSION, &d->dev, &nivel, &d->ctx);
+        if (SUCCEEDED(hr) && SUCCEEDED(d->dev.As(&d->vdev)) && SUCCEEDED(d->ctx.As(&d->vctx))) {
+            ComPtr<ID3D10Multithread> mt;
+            if (SUCCEEDED(d->dev.As(&mt))) mt->SetMultithreadProtected(TRUE);
+            if (FAILED(d->dev.As(&d->dev5)) || FAILED(d->ctx.As(&d->ctx4))) {
+                d->dev5.Reset();
+                d->ctx4.Reset();
+            }
+            pozo.push_back(std::move(d));
+        } else {
+            fallo = true;
+            aviso("video: no se pudo abrir la placa para decodificar con D3D11 (" + hex(hr) + ")");
+        }
+    }
+    if (pozo.empty()) return nullptr;
+    return pozo[static_cast<size_t>(turno++ % static_cast<int>(pozo.size()))];
+}
+
+std::atomic<int> gDecD3d{0};
+std::atomic<bool> gAvisoD3d{false};
+
+class DecodificadorD3d11 : public webrtc::VideoDecoder {
+   public:
+    ~DecodificadorD3d11() override { Release(); }
+
+    bool Configure(const Settings& s) override {
+        comEnEsteHilo();
+        ajustes_ = s;
+        mft_.reset();
+        dev_ = dispositivoVideo();
+        if (!dev_) return cambiarAMft("sin dispositivo D3D11");
+        return true;
+    }
+
+    int32_t RegisterDecodeCompleteCallback(webrtc::DecodedImageCallback* cb) override {
+        cb_ = cb;
+        if (mft_) mft_->RegisterDecodeCompleteCallback(cb);
+        return WEBRTC_VIDEO_CODEC_OK;
+    }
+
+    int32_t Release() override {
+        if (mft_) mft_->Release();
+        soltarPlaca();
+        dpb_.reiniciar();
+        conReferencia_ = false;
+        return WEBRTC_VIDEO_CODEC_OK;
+    }
+
+    DecoderInfo GetDecoderInfo() const override {
+        if (mft_) return mft_->GetDecoderInfo();
+        DecoderInfo i;
+        i.implementation_name = "D3D11 (" + hallazgo().placa + ")";
+        i.is_hardware_accelerated = true;
+        return i;
+    }
+    const char* ImplementationName() const override { return mft_ ? mft_->ImplementationName() : "D3D11VA"; }
+
+    int32_t Decode(const webrtc::EncodedImage& img, bool faltan, int64_t render) override {
+        if (mft_) return mft_->Decode(img, faltan, render);
+        if (cb_ == nullptr || !dev_) return WEBRTC_VIDEO_CODEC_UNINITIALIZED;
+        if (img.data() == nullptr || img.size() == 0) return WEBRTC_VIDEO_CODEC_ERR_PARAMETER;
+        const uint8_t* d = img.data();
+        const std::vector<h264::Nal> nals = h264::partirAnnexB(d, img.size());
+        slices_.clear();
+        std::optional<h264::Slice> primero;
+        bool intra = true;
+        for (const h264::Nal& n : nals) {
+            if (n.largo < 2) continue;
+            const int tipo = d[n.inicio] & 0x1f;
+            const int refIdc = (d[n.inicio] >> 5) & 3;
+            if (tipo == 7) {
+                const std::vector<uint8_t> r = h264::aRbsp(d + n.inicio + 1, n.largo - 1);
+                if (auto s = h264::leerSps(r.data(), r.size())) {
+                    const size_t id = static_cast<size_t>(s->id);
+                    sps_[id] = std::make_unique<h264::Sps>(*s);
+                    spsPtr_[id] = sps_[id].get();
+                }
+            } else if (tipo == 8) {
+                const std::vector<uint8_t> r = h264::aRbsp(d + n.inicio + 1, n.largo - 1);
+                if (auto p = h264::leerPps(r.data(), r.size(), spsPtr_.data())) {
+                    const size_t id = static_cast<size_t>(p->id);
+                    pps_[id] = std::make_unique<h264::Pps>(*p);
+                    ppsPtr_[id] = pps_[id].get();
+                }
+            } else if (tipo == 1 || tipo == 5) {
+                // Del primer slice, la cabecera entera; de los otros, solo el tipo.
+                const size_t tope = primero ? std::min<size_t>(n.largo - 1, 24) : n.largo - 1;
+                const std::vector<uint8_t> r = h264::aRbsp(d + n.inicio + 1, tope);
+                if (!primero) {
+                    primero = h264::leerSlice(r.data(), r.size(), refIdc, tipo, spsPtr_.data(), ppsPtr_.data());
+                    if (!primero) return error("cabecera de slice ilegible");
+                    if (!primero->intra()) intra = false;
+                } else {
+                    h264::Bits b(r.data(), r.size());
+                    b.ue();
+                    const int st = static_cast<int>(b.ue()) % 5;
+                    if (st != 2 && st != 4) intra = false;
+                }
+                slices_.push_back(n);
+            } else if (tipo == 20 || tipo == 14 || tipo == 15) {
+                return pasarAlMft("H.264 escalable o multivista", img, faltan, render);
+            }
+        }
+        if (!primero) return WEBRTC_VIDEO_CODEC_OK; // solo parámetros
+        const h264::Pps& pps = *ppsPtr_[static_cast<size_t>(primero->pps_id)];
+        const h264::Sps& sps = *spsPtr_[static_cast<size_t>(pps.sps_id)];
+        if (!sps.frame_mbs_only || pps.num_slice_groups_minus1 > 0 || sps.chroma_format_idc != 1 ||
+            sps.bit_depth_luma_minus8 != 0 || sps.bit_depth_chroma_minus8 != 0)
+            return pasarAlMft("campos entrelazados, FMO o no 4:2:0 de 8 bits", img, faltan, render);
+        if (!decodificador_ || sps.anchoCodificado() != anchoCod_ || sps.altoCodificado() != altoCod_ ||
+            sps.max_num_ref_frames + 3 > superficies_) {
+            if (!primero->idr) return WEBRTC_VIDEO_CODEC_ERROR; // hasta la clave
+            if (!crearPlaca(sps))
+                return pasarAlMft("la placa no abre el decodificador " + std::to_string(sps.ancho()) + "x" +
+                                      std::to_string(sps.alto()) + ", " + hex(hrUltimo_),
+                                  img, faltan, render);
+        }
+        if (primero->idr) conReferencia_ = true;
+        if (!conReferencia_) return WEBRTC_VIDEO_CODEC_ERROR;
+
+        dpb_.empezar(sps, *primero);
+        int sup = -1;
+        for (int i = 0; i < superficies_; ++i) {
+            const int c = (siguiente_ + i) % superficies_;
+            if (!dpb_.usa(c)) {
+                sup = c;
+                break;
+            }
+        }
+        if (sup < 0) {
+            dpb_.reiniciar();
+            conReferencia_ = false;
+            return error("sin superficie libre");
+        }
+        siguiente_ = (sup + 1) % superficies_;
+        llenarParametros(sps, pps, *primero, intra, sup);
+        if (!enviar(d, sup)) {
+            dpb_.reiniciar();
+            conReferencia_ = false;
+            return error("la placa no tomó el cuadro (" + hex(hrUltimo_) + ")");
+        }
+        dpb_.terminar(sup);
+        if (!entregar(img, sps)) return error("no se pudo leer el cuadro de la placa (" + hex(hrUltimo_) + ")");
+        errores_ = 0;
+        return WEBRTC_VIDEO_CODEC_OK;
+    }
+
+   private:
+    int32_t error(const std::string& que) {
+        if (++errores_ >= 5) {
+            errores_ = 0;
+            cambiarAMft(que); // libwebrtc pide una clave al ver el error
+        }
+        return WEBRTC_VIDEO_CODEC_ERROR;
+    }
+
+    int32_t pasarAlMft(const std::string& porque, const webrtc::EncodedImage& img, bool faltan, int64_t render) {
+        if (!cambiarAMft(porque)) return WEBRTC_VIDEO_CODEC_ERROR;
+        return mft_->Decode(img, faltan, render);
+    }
+
+    bool cambiarAMft(const std::string& porque) {
+        ++gCaidasDec;
+        if (!gAvisoD3d.exchange(true))
+            aviso("video: el H.264 por D3D11 no sirve para este flujo (" + porque + "): va por el MFT");
+        soltarPlaca();
+        auto m = std::make_unique<DecodificadorMf>();
+        if (!m->Configure(ajustes_)) return false;
+        if (cb_ != nullptr) m->RegisterDecodeCompleteCallback(cb_);
+        mft_ = std::move(m);
+        return true;
+    }
+
+    void soltarPlaca() {
+        if (decodificador_) --gDecD3d;
+        vistas_.clear();
+        decodificador_.Reset();
+        textura_.Reset();
+        paso_.Reset();
+        cerca_.Reset();
+        if (evento_ != nullptr) {
+            CloseHandle(evento_);
+            evento_ = nullptr;
+        }
+        superficies_ = 0;
+        anchoCod_ = altoCod_ = 0;
+    }
+
+    bool crearPlaca(const h264::Sps& sps) {
+        soltarPlaca();
+        dpb_.reiniciar();
+        D3D11_VIDEO_DECODER_DESC desc{};
+        desc.Guid = kPerfilH264;
+        desc.SampleWidth = static_cast<UINT>(sps.anchoCodificado());
+        desc.SampleHeight = static_cast<UINT>(sps.altoCodificado());
+        desc.OutputFormat = DXGI_FORMAT_NV12;
+        UINT n = 0;
+        HRESULT hr = dev_->vdev->GetVideoDecoderConfigCount(&desc, &n);
+        if (FAILED(hr)) {
+            hrUltimo_ = hr;
+            return false;
+        }
+        D3D11_VIDEO_DECODER_CONFIG cfg{};
+        bool hay = false;
+        for (UINT i = 0; i < n && !hay; ++i) {
+            D3D11_VIDEO_DECODER_CONFIG c{};
+            if (SUCCEEDED(dev_->vdev->GetVideoDecoderConfig(&desc, i, &c)) && c.ConfigBitstreamRaw == 2) {
+                cfg = c;
+                hay = true;
+            }
+        }
+        if (!hay) {
+            hrUltimo_ = E_NOTIMPL; // solo slices «largos»: no se arman acá
+            return false;
+        }
+        const int cuantas = std::min(32, std::max(4, sps.max_num_ref_frames + 3));
+        D3D11_TEXTURE2D_DESC td{};
+        td.Width = desc.SampleWidth;
+        td.Height = desc.SampleHeight;
+        td.MipLevels = 1;
+        td.ArraySize = static_cast<UINT>(cuantas);
+        td.Format = DXGI_FORMAT_NV12;
+        td.SampleDesc.Count = 1;
+        td.Usage = D3D11_USAGE_DEFAULT;
+        td.BindFlags = D3D11_BIND_DECODER;
+        D3D11_TEXTURE2D_DESC sd = td;
+        sd.ArraySize = 1;
+        sd.Usage = D3D11_USAGE_STAGING;
+        sd.BindFlags = 0;
+        sd.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
+        if (FAILED(hr = dev_->vdev->CreateVideoDecoder(&desc, &cfg, &decodificador_)) ||
+            FAILED(hr = dev_->dev->CreateTexture2D(&td, nullptr, &textura_)) ||
+            FAILED(hr = dev_->dev->CreateTexture2D(&sd, nullptr, &paso_))) {
+            hrUltimo_ = hr;
+            decodificador_.Reset();
+            textura_.Reset();
+            paso_.Reset();
+            return false;
+        }
+        vistas_.resize(static_cast<size_t>(cuantas));
+        for (int i = 0; i < cuantas; ++i) {
+            D3D11_VIDEO_DECODER_OUTPUT_VIEW_DESC vd{};
+            vd.DecodeProfile = kPerfilH264;
+            vd.ViewDimension = D3D11_VDOV_DIMENSION_TEXTURE2D;
+            vd.Texture2D.ArraySlice = static_cast<UINT>(i);
+            hr = dev_->vdev->CreateVideoDecoderOutputView(textura_.Get(), &vd, &vistas_[static_cast<size_t>(i)]);
+            if (FAILED(hr)) {
+                hrUltimo_ = hr;
+                vistas_.clear();
+                decodificador_.Reset();
+                textura_.Reset();
+                paso_.Reset();
+                return false;
+            }
+        }
+        if (dev_->dev5 && SUCCEEDED(dev_->dev5->CreateFence(0, D3D11_FENCE_FLAG_NONE, IID_PPV_ARGS(&cerca_)))) {
+            evento_ = CreateEventW(nullptr, FALSE, FALSE, nullptr);
+            if (evento_ == nullptr) cerca_.Reset();
+        }
+        superficies_ = cuantas;
+        anchoCod_ = sps.anchoCodificado();
+        altoCod_ = sps.altoCodificado();
+        ++gDecD3d;
+        siguiente_ = 0;
+        conReferencia_ = false;
+        return true;
+    }
+
+    void llenarParametros(const h264::Sps& sps, const h264::Pps& pps, const h264::Slice& s, bool intra, int sup) {
+        DXVA_PicParams_H264& p = pp_;
+        std::memset(&p, 0, sizeof(p));
+        p.wFrameWidthInMbsMinus1 = static_cast<USHORT>(sps.ancho_mbs - 1);
+        p.wFrameHeightInMbsMinus1 = static_cast<USHORT>(sps.altoMbs() - 1);
+        p.CurrPic.Index7Bits = static_cast<UCHAR>(sup);
+        p.CurrPic.AssociatedFlag = 0;
+        p.num_ref_frames = static_cast<UCHAR>(sps.max_num_ref_frames);
+        // field_pic_flag 0, MbaffFrameFlag, residual_colour_transform_flag, sp_for_switch_flag 0,
+        // chroma_format_idc, RefPicFlag, constrained_intra_pred, weighted_pred, weighted_bipred_idc,
+        // MbsConsecutiveFlag 1, frame_mbs_only, transform_8x8_mode, MinLumaBipredSize8x8, IntraPicFlag.
+        p.wBitFields = static_cast<USHORT>(
+            ((sps.mb_adaptive_frame_field ? 1 : 0) << 1) | ((sps.separate_colour_plane ? 1 : 0) << 2) |
+            (sps.chroma_format_idc << 4) | ((s.nal_ref_idc != 0 ? 1 : 0) << 6) | ((pps.constrained_intra_pred ? 1 : 0) << 7) |
+            ((pps.weighted_pred ? 1 : 0) << 8) | (pps.weighted_bipred_idc << 9) | (1 << 11) |
+            ((sps.frame_mbs_only ? 1 : 0) << 12) | ((pps.transform_8x8_mode ? 1 : 0) << 13) |
+            ((sps.level_idc >= 31 ? 1 : 0) << 14) | ((intra ? 1 : 0) << 15));
+        p.bit_depth_luma_minus8 = static_cast<UCHAR>(sps.bit_depth_luma_minus8);
+        p.bit_depth_chroma_minus8 = static_cast<UCHAR>(sps.bit_depth_chroma_minus8);
+        p.Reserved16Bits = 3;
+        p.StatusReportFeedbackNumber = ++informe_;
+        for (auto& r : p.RefFrameList)
+            r.bPicEntry = 0xFF;
+        int i = 0;
+        for (const h264::Ref& r : dpb_.refs()) {
+            if (i >= 16 || s.idr) break; // una IDR no usa referencias (las viejas se sueltan al terminarla)
+            p.RefFrameList[i].Index7Bits = static_cast<UCHAR>(r.superficie);
+            p.RefFrameList[i].AssociatedFlag = r.largo ? 1 : 0;
+            p.FieldOrderCntList[i][0] = r.poc_arriba;
+            p.FieldOrderCntList[i][1] = r.poc_abajo;
+            p.FrameNumList[i] = static_cast<USHORT>(r.largo ? r.idx_largo : r.frame_num);
+            p.UsedForReferenceFlags |= 3u << (2 * i);
+            ++i;
+        }
+        p.CurrFieldOrderCnt[0] = dpb_.pocArriba();
+        p.CurrFieldOrderCnt[1] = dpb_.pocAbajo();
+        p.pic_init_qs_minus26 = static_cast<CHAR>(pps.pic_init_qs_minus26);
+        p.chroma_qp_index_offset = static_cast<CHAR>(pps.chroma_qp_index_offset);
+        p.second_chroma_qp_index_offset = static_cast<CHAR>(pps.second_chroma_qp_index_offset);
+        p.ContinuationFlag = 1;
+        p.pic_init_qp_minus26 = static_cast<CHAR>(pps.pic_init_qp_minus26);
+        p.num_ref_idx_l0_active_minus1 = static_cast<UCHAR>(pps.num_ref_idx_l0_default_minus1);
+        p.num_ref_idx_l1_active_minus1 = static_cast<UCHAR>(pps.num_ref_idx_l1_default_minus1);
+        p.frame_num = static_cast<USHORT>(s.frame_num);
+        p.log2_max_frame_num_minus4 = static_cast<UCHAR>(sps.log2_max_frame_num_minus4);
+        p.pic_order_cnt_type = static_cast<UCHAR>(sps.poc_type);
+        p.log2_max_pic_order_cnt_lsb_minus4 = static_cast<UCHAR>(sps.log2_max_poc_lsb_minus4);
+        p.delta_pic_order_always_zero_flag = sps.delta_pic_order_always_zero ? 1 : 0;
+        p.direct_8x8_inference_flag = sps.direct_8x8_inference ? 1 : 0;
+        p.entropy_coding_mode_flag = pps.entropy_coding_mode ? 1 : 0;
+        p.pic_order_present_flag = pps.bottom_field_pic_order_in_frame_present ? 1 : 0;
+        p.deblocking_filter_control_present_flag = pps.deblocking_filter_control_present ? 1 : 0;
+        p.redundant_pic_cnt_present_flag = pps.redundant_pic_cnt_present ? 1 : 0;
+        for (int k = 0; k < 6; ++k)
+            std::memcpy(qm_.bScalingLists4x4[k], pps.escalado.l4[static_cast<size_t>(k)].data(), 16);
+        std::memcpy(qm_.bScalingLists8x8[0], pps.escalado.l8[0].data(), 64);
+        std::memcpy(qm_.bScalingLists8x8[1], pps.escalado.l8[1].data(), 64);
+    }
+
+    /// Un búfer de la placa: lo pide, copia `n` bytes y lo devuelve.
+    bool copiarBufer(D3D11_VIDEO_DECODER_BUFFER_TYPE tipo, const void* datos, size_t n) {
+        UINT tam = 0;
+        void* p = nullptr;
+        const HRESULT hr = dev_->vctx->GetDecoderBuffer(decodificador_.Get(), tipo, &tam, &p);
+        if (FAILED(hr) || p == nullptr || tam < n) {
+            if (SUCCEEDED(hr)) dev_->vctx->ReleaseDecoderBuffer(decodificador_.Get(), tipo);
+            hrUltimo_ = FAILED(hr) ? hr : E_OUTOFMEMORY;
+            return false;
+        }
+        std::memcpy(p, datos, n);
+        dev_->vctx->ReleaseDecoderBuffer(decodificador_.Get(), tipo);
+        return true;
+    }
+
+    /// Manda el cuadro a la placa y, detrás, la copia a la textura de paso y la cerca.
+    bool enviar(const uint8_t* d, int sup) {
+        // Los slices con su código de arranque (00 00 01), relleno a 128 con ceros.
+        flujo_.clear();
+        cortos_.clear();
+        for (const h264::Nal& n : slices_) {
+            DXVA_Slice_H264_Short c{};
+            c.BSNALunitDataLocation = static_cast<UINT>(flujo_.size());
+            c.SliceBytesInBuffer = static_cast<UINT>(n.largo + 3);
+            c.wBadSliceChopping = 0;
+            flujo_.push_back(0);
+            flujo_.push_back(0);
+            flujo_.push_back(1);
+            flujo_.insert(flujo_.end(), d + n.inicio, d + n.inicio + n.largo);
+            cortos_.push_back(c);
+        }
+        const size_t relleno = (128 - (flujo_.size() & 127)) & 127;
+        flujo_.insert(flujo_.end(), relleno, 0);
+        cortos_.back().SliceBytesInBuffer += static_cast<UINT>(relleno);
+        const UINT mbs = static_cast<UINT>((pp_.wFrameWidthInMbsMinus1 + 1) * (pp_.wFrameHeightInMbsMinus1 + 1));
+
+        std::unique_lock<std::mutex> l(dev_->m);
+        HRESULT hr = E_PENDING;
+        for (int i = 0; i < 200; ++i) {
+            hr = dev_->vctx->DecoderBeginFrame(decodificador_.Get(), vistas_[static_cast<size_t>(sup)].Get(), 0, nullptr);
+            if (hr != E_PENDING && hr != DXGI_ERROR_WAS_STILL_DRAWING) break;
+            l.unlock();
+            Sleep(1);
+            l.lock();
+        }
+        if (FAILED(hr)) {
+            hrUltimo_ = hr;
+            return false;
+        }
+        bool ok = copiarBufer(D3D11_VIDEO_DECODER_BUFFER_PICTURE_PARAMETERS, &pp_, sizeof(pp_)) &&
+                  copiarBufer(D3D11_VIDEO_DECODER_BUFFER_INVERSE_QUANTIZATION_MATRIX, &qm_, sizeof(qm_)) &&
+                  copiarBufer(D3D11_VIDEO_DECODER_BUFFER_BITSTREAM, flujo_.data(), flujo_.size()) &&
+                  copiarBufer(D3D11_VIDEO_DECODER_BUFFER_SLICE_CONTROL, cortos_.data(),
+                              cortos_.size() * sizeof(DXVA_Slice_H264_Short));
+        if (ok) {
+            D3D11_VIDEO_DECODER_BUFFER_DESC b[4]{};
+            b[0].BufferType = D3D11_VIDEO_DECODER_BUFFER_PICTURE_PARAMETERS;
+            b[0].DataSize = sizeof(pp_);
+            b[1].BufferType = D3D11_VIDEO_DECODER_BUFFER_INVERSE_QUANTIZATION_MATRIX;
+            b[1].DataSize = sizeof(qm_);
+            b[2].BufferType = D3D11_VIDEO_DECODER_BUFFER_BITSTREAM;
+            b[2].DataSize = static_cast<UINT>(flujo_.size());
+            b[2].NumMBsInBuffer = mbs;
+            b[3].BufferType = D3D11_VIDEO_DECODER_BUFFER_SLICE_CONTROL;
+            b[3].DataSize = static_cast<UINT>(cortos_.size() * sizeof(DXVA_Slice_H264_Short));
+            b[3].NumMBsInBuffer = mbs;
+            hr = dev_->vctx->SubmitDecoderBuffers(decodificador_.Get(), 4, b);
+            if (FAILED(hr)) {
+                hrUltimo_ = hr;
+                ok = false;
+            }
+        }
+        hr = dev_->vctx->DecoderEndFrame(decodificador_.Get());
+        if (FAILED(hr) && ok) {
+            hrUltimo_ = hr;
+            ok = false;
+        }
+        if (!ok) return false;
+        dev_->ctx->CopySubresourceRegion(paso_.Get(), 0, 0, 0, 0, textura_.Get(),
+                                         D3D11CalcSubresource(0, static_cast<UINT>(sup), 1), nullptr);
+        esperaCerca_ = false;
+        if (cerca_) {
+            ++valorCerca_;
+            if (SUCCEEDED(dev_->ctx4->Signal(cerca_.Get(), valorCerca_)) &&
+                SUCCEEDED(cerca_->SetEventOnCompletion(valorCerca_, evento_)))
+                esperaCerca_ = true;
+        }
+        dev_->ctx->Flush();
+        return true;
+    }
+
+    /// Espera la copia (durmiendo, con la cerca), lee la textura de paso y la entrega en I420.
+    bool entregar(const webrtc::EncodedImage& img, const h264::Sps& sps) {
+        if (esperaCerca_ && WaitForSingleObject(evento_, 1000) != WAIT_OBJECT_0) {
+            hrUltimo_ = HRESULT_FROM_WIN32(WAIT_TIMEOUT);
+            return false;
+        }
+        D3D11_MAPPED_SUBRESOURCE m{};
+        HRESULT hr;
+        {
+            std::lock_guard<std::mutex> l(dev_->m);
+            hr = dev_->ctx->Map(paso_.Get(), 0, D3D11_MAP_READ, 0, &m);
+        }
+        if (FAILED(hr)) {
+            hrUltimo_ = hr;
+            return false;
+        }
+        const int w = sps.ancho(), h = sps.alto();
+        rtc::scoped_refptr<webrtc::I420Buffer> i420 = pozo_.CreateI420Buffer(w, h);
+        if (!i420) i420 = webrtc::I420Buffer::Create(w, h);
+        const auto* base = static_cast<const uint8_t*>(m.pData);
+        const ptrdiff_t paso = static_cast<ptrdiff_t>(m.RowPitch);
+        const uint8_t* y = base + static_cast<ptrdiff_t>(sps.crop_arr) * paso + sps.crop_izq;
+        const uint8_t* uv = base + static_cast<ptrdiff_t>(altoCod_) * paso + static_cast<ptrdiff_t>(sps.crop_arr / 2) * paso +
+                            (sps.crop_izq & ~1);
+        libyuv::NV12ToI420(y, static_cast<int>(paso), uv, static_cast<int>(paso), i420->MutableDataY(), i420->StrideY(),
+                           i420->MutableDataU(), i420->StrideU(), i420->MutableDataV(), i420->StrideV(), w, h);
+        {
+            std::lock_guard<std::mutex> l(dev_->m);
+            dev_->ctx->Unmap(paso_.Get(), 0);
+        }
+        webrtc::VideoFrame f = webrtc::VideoFrame::Builder()
+                                   .set_video_frame_buffer(i420)
+                                   .set_timestamp_rtp(img.RtpTimestamp())
+                                   .set_color_space(img.ColorSpace())
+                                   .build();
+        cb_->Decoded(f, absl::nullopt, absl::nullopt);
+        return true;
+    }
+
+    Settings ajustes_;
+    webrtc::DecodedImageCallback* cb_ = nullptr;
+    std::unique_ptr<DecodificadorMf> mft_; ///< la caída
+    std::shared_ptr<DispositivoVideo> dev_;
+    ComPtr<ID3D11VideoDecoder> decodificador_;
+    ComPtr<ID3D11Texture2D> textura_; ///< las superficies (un arreglo)
+    std::vector<ComPtr<ID3D11VideoDecoderOutputView>> vistas_;
+    ComPtr<ID3D11Texture2D> paso_; ///< la de lectura (staging): una, se lee antes del cuadro siguiente
+    ComPtr<ID3D11Fence> cerca_;
+    HANDLE evento_ = nullptr;
+    UINT64 valorCerca_ = 0;
+    bool esperaCerca_ = false;
+    int superficies_ = 0, siguiente_ = 0, anchoCod_ = 0, altoCod_ = 0, errores_ = 0;
+    HRESULT hrUltimo_ = S_OK;
+    UINT informe_ = 0;
+    bool conReferencia_ = false;
+    std::array<std::unique_ptr<h264::Sps>, 32> sps_{};
+    std::array<const h264::Sps*, 32> spsPtr_{};
+    std::array<std::unique_ptr<h264::Pps>, 256> pps_{};
+    std::array<const h264::Pps*, 256> ppsPtr_{};
+    h264::Dpb dpb_;
+    std::vector<h264::Nal> slices_;
+    std::vector<uint8_t> flujo_;
+    std::vector<DXVA_Slice_H264_Short> cortos_;
+    DXVA_PicParams_H264 pp_{};
+    DXVA_Qmatrix_H264 qm_{};
+    webrtc::VideoFrameBufferPool pozo_{false, 8};
 };
 
 // ============================================================================
@@ -1031,9 +1576,14 @@ const Hallazgo& hallazgo() {
         Hallazgo r;
         if (!mfIniciado()) return r;
         comEnEsteHilo();
-        Dispositivo d;
+        // Con el mismo dispositivo que después decodifica (dispositivoVideo): el driver de AMD
+        // abre ~25 hilos por dispositivo y no los suelta al cerrarlo; uno de prueba aparte
+        // eran 25 hilos de más (medido en la .177).
         bool dxva = false;
-        if (crearDispositivo(d, &r.placa, &dxva)) r.decodificaHw = dxva;
+        if (const auto dv = dispositivoVideo()) {
+            describirDispositivo(dv->dev, &r.placa, &dxva);
+            r.decodificaHw = dxva;
+        }
         {
             ComPtr<IMFTransform> dec;
             r.decodificador = SUCCEEDED(
@@ -1051,15 +1601,11 @@ const Hallazgo& hallazgo() {
         }
         const std::string placa = r.placa.empty() ? "sin placa" : r.placa;
         info("video: H.264 por Media Foundation — placa " + placa + "; decodifica " +
-             (r.decodificaHw ? "por la placa (DXVA)" : r.decodificador ? "por software" : "NO") + ", codifica " +
+             (r.decodificaHw && r.decodificador ? "por la placa" : "NO") + ", codifica " +
              (r.codificaHw ? "por la placa (" + r.nombreCodHw + (r.fabricanteCodHw.empty() ? "" : ", " + r.fabricanteCodHw) + ")"
                            : r.codificador ? "por software" : "NO"));
-        if (r.decodificador && r.codificador && (!r.decodificaHw || !r.codificaHw))
-            aviso("video: H.264 en parte por software (sin " +
-                  std::string(!r.decodificaHw && !r.codificaHw ? "decodificar ni codificar"
-                              : !r.decodificaHw                ? "decodificar"
-                                                               : "codificar") +
-                  " en la placa): más procesador por invitado");
+        if (!r.decodificaHw || !r.decodificador)
+            aviso("video: la placa no decodifica H.264: los invitados suben y reciben en VP8 (por software)");
         return r;
     }();
     return h;
@@ -1095,12 +1641,29 @@ class Codificadores : public webrtc::VideoEncoderFactory {
     std::unique_ptr<webrtc::VideoEncoderFactory> sw_;
 };
 
+/// ¿Se recibe H.264? Solo si la placa lo decodifica y `gateway.decodificarConPlaca` está
+/// prendido. Si no, el H.264 no se ofrece para subir: como la m-line de video va en los dos
+/// sentidos, el invitado y su retorno van en VP8 (libvpx, probado). El H.264 por software de
+/// Windows NO es respaldo: en la .177 no entregaba ningún cuadro (ProcessOutput E_FAIL) y
+/// abría ~24 hilos por flujo (634 con 10 invitados).
+bool decodificaConPlaca() {
+    return hallazgo().decodificador && hallazgo().decodificaHw && ba::ajustes::siNo("gateway.decodificarConPlaca", true);
+}
+
+/// La API de video de D3D11 (`gateway.decodificadorPlaca` "d3d11", de fábrica) o el MFT
+/// con DXVA ("mft").
+std::unique_ptr<webrtc::VideoDecoder> crearDecodificadorH264() {
+    if (!decodificaConPlaca()) return nullptr;
+    if (ba::ajustes::texto("gateway.decodificadorPlaca", "d3d11") != "mft") return std::make_unique<DecodificadorD3d11>();
+    return std::make_unique<DecodificadorMf>();
+}
+
 class Decodificadores : public webrtc::VideoDecoderFactory {
    public:
     explicit Decodificadores(std::unique_ptr<webrtc::VideoDecoderFactory> sw) : sw_(std::move(sw)) {}
     std::vector<webrtc::SdpVideoFormat> GetSupportedFormats() const override {
         std::vector<webrtc::SdpVideoFormat> r;
-        if (hallazgo().decodificador) r = formatosH264(true);
+        if (decodificaConPlaca()) r = formatosH264(true);
         for (auto& f : sw_->GetSupportedFormats())
             if (!esH264(f)) r.push_back(f);
         return r;
@@ -1108,18 +1671,18 @@ class Decodificadores : public webrtc::VideoDecoderFactory {
     CodecSupport QueryCodecSupport(const webrtc::SdpVideoFormat& f, bool escala) const override {
         if (esH264(f)) {
             CodecSupport c;
-            c.is_supported = hallazgo().decodificador && !escala;
+            c.is_supported = decodificaConPlaca() && !escala;
             c.is_power_efficient = hallazgo().decodificaHw;
             return c;
         }
         return sw_->QueryCodecSupport(f, escala);
     }
     std::unique_ptr<webrtc::VideoDecoder> Create(const webrtc::Environment& env, const webrtc::SdpVideoFormat& f) override {
-        if (esH264(f)) return hallazgo().decodificador ? std::make_unique<DecodificadorMf>() : nullptr;
+        if (esH264(f)) return crearDecodificadorH264();
         return sw_->Create(env, f);
     }
     std::unique_ptr<webrtc::VideoDecoder> CreateVideoDecoder(const webrtc::SdpVideoFormat& f) override {
-        if (esH264(f)) return hallazgo().decodificador ? std::make_unique<DecodificadorMf>() : nullptr;
+        if (esH264(f)) return crearDecodificadorH264();
         return sw_->CreateVideoDecoder(f);
     }
 
@@ -1139,14 +1702,18 @@ std::unique_ptr<webrtc::VideoDecoderFactory> decodificadores(std::unique_ptr<web
     return std::make_unique<Decodificadores>(std::move(software));
 }
 
-bool hayH264() { return hallazgo().decodificador && hallazgo().codificador; }
+bool hayH264() { return decodificaConPlaca() && hallazgo().codificador; }
 
 nlohmann::json estado() {
     const Hallazgo& h = hallazgo();
     const auto modo = [](bool hw, bool hay) { return hw ? "hardware" : hay ? "software" : "no"; };
-    return {{"decodifica", modo(h.decodificaHw, h.decodificador)},
+    const bool placa = decodificaConPlaca();
+    return {{"decodifica", placa ? "hardware" : "no"}, // sin placa: no se ofrece H.264, va VP8
             {"codifica", modo(h.codificaHw, h.codificador)},
-            {"decodificador", h.decodificaHw ? "MediaFoundation DXVA" : "MediaFoundation (software)"},
+            {"decodificador", !placa ? "ninguno (VP8)"
+                              : ba::ajustes::texto("gateway.decodificadorPlaca", "d3d11") == "mft" ? "MediaFoundation DXVA"
+                                                                                                   : "D3D11"},
+            {"decodificadores_d3d11", gDecD3d.load()},
             {"codificador", h.codificaHw ? h.nombreCodHw : std::string("MediaFoundation (software)")},
             {"fabricante", h.fabricanteCodHw},
             {"placa", h.placa},
