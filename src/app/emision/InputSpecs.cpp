@@ -91,9 +91,14 @@ bool esMicrofono(const std::string& type, const json& settings) {
     return type == kMicType && settings.is_object() && settings.contains("microfono");
 }
 
+CanalesLugar canalesDeLugar(int slot) {
+    const std::string n = std::to_string(slot);
+    return {"BA.Guest." + n, "BA.GuestShare." + n, "BA.Audio.Guest." + n};
+}
+
 std::string ajustesAudioAnillo(const std::string& canal, int slot) {
     const std::string c = canal == "remoto" ? "remoto" : "guest";
-    const std::string anillo = (c == "remoto" ? "BA.Audio.Remoto." : "BA.Audio.Guest.") + std::to_string(slot);
+    const std::string anillo = c == "remoto" ? "BA.Audio.Remoto." + std::to_string(slot) : canalesDeLugar(slot).audio;
     // estudio=false: el audio del invitado va con su propia demora, como su video
     // (bavideoanillo): los dos llevan la hora que les pone el gateway.
     return volcar(json{{"pipeline", ""},     {"pipeline_audio", "baanillo canal=" + anillo},
@@ -117,11 +122,10 @@ std::string tipoLogico(const std::string& type, const json& settings) {
 
 std::string ajustesVideoInvitado(int slot, const std::string& channel) {
     const std::string c = (channel == "share" || channel == "remoto" || channel == "remoto_contenido") ? channel : "guest";
-    const std::string canal = (c == "share"              ? "BA.GuestShare."
-                               : c == "remoto"           ? "BA.Remoto."
-                               : c == "remoto_contenido" ? "BA.RemotoContenido."
-                                                         : "BA.Guest.") +
-                              std::to_string(slot);
+    const std::string canal = c == "share"              ? canalesDeLugar(slot).pantalla
+                              : c == "remoto"           ? "BA.Remoto." + std::to_string(slot)
+                              : c == "remoto_contenido" ? "BA.RemotoContenido." + std::to_string(slot)
+                                                        : canalesDeLugar(slot).camara;
     // Sin normalizar (llega BGRA a los cuadros que lleguen: sin videorate ni
     // conversión) y fuera de la compensación del estudio, como su audio
     // (baanillo): los dos van por la hora que les pone el gateway.

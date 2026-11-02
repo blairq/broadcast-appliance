@@ -232,6 +232,13 @@ class Motor {
     /// modo: programa | mix_minus | apagado; `propia` = la entrada del invitado.
     std::string retorno(int n, const std::string& modo, const std::string& propia);
 
+    // --- Los lugares vacíos en reposo ---
+    /// Qué canales de anillo tienen a alguien: {"BA.Guest.3": true, "BA.GuestShare.3": false…}.
+    /// Una entrada que lee un canal de la lista sin nadie queda armada en READY (sin hilos ni
+    /// trabajo) y anda apenas llega alguien (Entrada::ponerSinGente); las de los canales que
+    /// no están en la lista, siempre andando. Reemplaza la lista anterior.
+    void ponerLugares(const std::map<std::string, bool>& canales);
+
     // --- La escucha ---
     /// modo: programa | directo | pfl | afl | seleccion | apagado; `id` = la entrada (pfl,
     /// afl) o la salida (programa; "" = la por omisión). `salida`: de qué salida son el
@@ -584,6 +591,9 @@ class Motor {
     Lienzo lienzoDe(const Escena& e, bool mini = false) const;
     void soltarEscenaYa(const std::string& nombre, bool mini = false);
     std::string retornoYa(int n, const std::string& modo, const std::string& propia);
+    std::map<std::string, bool> lugares_; ///< bajo mu_: ponerLugares
+    /// Le dice a la entrada si en su canal hay alguien (con mu_ tomado).
+    void aplicarLugar(Entrada& e) const;
     std::string escucharYa(const std::string& modo, const std::string& id, const std::string& salida);
     std::string ponerEscuchaYa(const std::string& id, bool on);
     void escuchaDispositivoYa(const std::string& id);

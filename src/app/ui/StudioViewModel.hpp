@@ -92,6 +92,7 @@ class BancoSuperRes;
 } // namespace ba::app::video
 namespace ba::app::sala {
 class CupoSala;
+class LugaresConGente;
 class ConfigSala;
 class Direcciones;
 class VotacionSala;
@@ -924,6 +925,7 @@ class StudioViewModel : public QObject {
     /// Usa conference_ (su cliente), la sesión remota y el cuerpo (asamblea_) y el motor: va
     /// después (se destruye antes).
     std::unique_ptr<escenas::ControlGrillas> grillasPersonas_;
+    std::unique_ptr<sala::LugaresConGente> lugaresConGente_; ///< los lugares vacíos, en reposo en el motor
     /// Quién mira el programa de cada salida: le pide al motor el retorno a los invitados.
     /// Lee la sala (conference_), la sesión remota (asamblea_) y las pantallas: va después.
     std::unique_ptr<sala::QuienMira> quienMira_;
