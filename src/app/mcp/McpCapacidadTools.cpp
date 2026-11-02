@@ -20,6 +20,14 @@
 
 namespace ba::app::mcp {
 
+namespace {
+// Literales (el inventario del MCP lee el esquema del código) atados a los de la app.
+constexpr auto kTopeInvitados = 512;
+static_assert(kTopeInvitados == ba::ipc::kMaxInvitados, "el tope de invitados de la sala");
+constexpr auto kRecibirMinutosMax = 60;
+static_assert(kRecibirMinutosMax == CapacidadViewModel::kRecibirMaxMin, "lo más que se recibe una prueba");
+} // namespace
+
 void McpService::registerCapacidadTools() {
     CapacidadViewModel& cv = vm_.capacidad();
     {
@@ -49,7 +57,7 @@ void McpService::registerCapacidadTools() {
                          {"required", {"prueba", "confirmar"}},
                          {"properties",
                           {{"prueba", {{"type", "string"}, {"enum", {"este_equipo", "remoto", "internet"}}}},
-                           {"tope", {{"type", "integer"}, {"minimum", 1}, {"maximum", ba::ipc::kMaxInvitados}, {"default", 80},
+                           {"tope", {{"type", "integer"}, {"minimum", 1}, {"maximum", kTopeInvitados}, {"default", 80},
                                      {"description", QT_TRANSLATE_NOOP("mcp", "hasta cuántos invitados sube la rampa")}}},
                            {"codigo", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "remoto: el código que muestra el otro equipo (BACAP1.…)")}}},
                            {"prender_pinggy", {{"type", "boolean"}, {"description", QT_TRANSLATE_NOOP("mcp", "internet: prender pinggy para medir si está apagado")}}},
@@ -87,8 +95,8 @@ void McpService::registerCapacidadTools() {
                          {"required", {"on"}},
                          {"properties",
                           {{"on", {{"type", "boolean"}}},
-                           {"cupo", {{"type", "integer"}, {"minimum", 1}, {"maximum", ba::ipc::kMaxInvitados}, {"default", 80}}},
-                           {"minutos", {{"type", "integer"}, {"minimum", 1}, {"maximum", CapacidadViewModel::kRecibirMaxMin}, {"default", 20}}}}}};
+                           {"cupo", {{"type", "integer"}, {"minimum", 1}, {"maximum", kTopeInvitados}, {"default", 80}}},
+                           {"minutos", {{"type", "integer"}, {"minimum", 1}, {"maximum", kRecibirMinutosMax}, {"default", 20}}}}}};
         t.run = [&cv](const json& a, Done done) {
             if (!a.value("on", false)) {
                 cv.dejarDeRecibir();
