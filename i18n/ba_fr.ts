@@ -6149,7 +6149,7 @@ L&apos;ancien PIN ne permet plus d&apos;entrer.</translation>
 <context>
     <name>ConferenceViewModel</name>
     <message>
-        <location filename="../src/app/ui/ConferenceViewModel.cpp" line="+120"/>
+        <location filename="../src/app/ui/ConferenceViewModel.cpp" line="+124"/>
         <source>La conferencia respondio: %1</source>
         <translation>La conférence a répondu&#xa0;: %1</translation>
     </message>
@@ -6174,14 +6174,14 @@ L&apos;ancien PIN ne permet plus d&apos;entrer.</translation>
         <translation>Plus personne dans la file</translation>
     </message>
     <message>
-        <location line="+108"/>
+        <location line="+103"/>
         <source>%1 espera en el lobby</source>
         <translation>%1 attend dans la salle d&apos;attente</translation>
     </message>
     <message>
         <location line="+216"/>
         <location line="+12"/>
-        <location line="+107"/>
+        <location line="+126"/>
         <source>No se pudo reiniciar la conferencia: %1. Si sigue, cerrá y volvé a abrir el programa.</source>
         <translation>Impossible de redémarrer la conférence&#xa0;: %1. Si le problème persiste, fermez et rouvrez le programme.</translation>
     </message>
@@ -8591,7 +8591,7 @@ Réactivez-la depuis le Journal.</translation>
         <translation>Éteint&#xa0;: les liens extérieurs ne fonctionnent pas</translation>
     </message>
     <message>
-        <location line="+76"/>
+        <location line="+84"/>
         <source>No hay un servicio «%1».</source>
         <translation>Il n&apos;y a pas de service «&#xa0;%1&#xa0;».</translation>
     </message>
@@ -12330,7 +12330,7 @@ Il se modifie dans son code (section Plugins, ou en le demandant à l&apos;assis
         <translation>Configurer pinggy…</translation>
     </message>
     <message>
-        <location line="+25"/>
+        <location line="+34"/>
         <source>Invitado %1</source>
         <translation>Invité %1</translation>
     </message>
@@ -12345,7 +12345,7 @@ Il se modifie dans son code (section Plugins, ou en le demandant à l&apos;assis
         <translation>Cet invité n&apos;entend rien&#xa0;: son mix sans sa voix (mix-minus) n&apos;arrive pas à la conférence. On ne lui envoie pas le programme complet, car il s&apos;entendrait lui-même en retard.</translation>
     </message>
     <message>
-        <location line="+13"/>
+        <location line="+12"/>
         <source>Red: %1 kbps · pérdida %2 % · jitter %3 ms · RTT %4 ms</source>
         <translation>Réseau&#xa0;: %1 kbps · perte %2 % · gigue %3 ms · RTT %4 ms</translation>
     </message>
@@ -15733,7 +15733,7 @@ La matrice ne change pas ce qui entre&#xa0;: elle décide vers quelles sorties c
 <context>
     <name>MesaAutomixer</name>
     <message>
-        <location filename="../src/app/qml/controls/MesaAutomixer.qml" line="+27"/>
+        <location filename="../src/app/qml/controls/MesaAutomixer.qml" line="+29"/>
         <source>Automixer de mesa redonda: los micrófonos de la misma mesa se reparten la ganancia. El que habla pasa al frente, los demás bajan y la suma no crece al abrir más.</source>
         <translation>Automixer de table ronde&#xa0;: les micros d&apos;une même table se partagent le gain. Celui qui parle passe devant, les autres baissent et la somme n&apos;augmente pas quand d&apos;autres s&apos;ouvrent.</translation>
     </message>
@@ -22259,7 +22259,7 @@ Ajoutez-y des images depuis l&apos;onglet Fichiers.</translation>
 <context>
     <name>PanelProgramador</name>
     <message>
-        <location filename="../src/app/qml/controls/PanelProgramador.qml" line="+41"/>
+        <location filename="../src/app/qml/controls/PanelProgramador.qml" line="+42"/>
         <source>Procesador</source>
         <translation>Processeur</translation>
     </message>
@@ -22761,7 +22761,7 @@ Ajoutez-y des images depuis l&apos;onglet Fichiers.</translation>
 <context>
     <name>PanelSuperres</name>
     <message>
-        <location filename="../src/app/qml/controls/PanelSuperres.qml" line="+32"/>
+        <location filename="../src/app/qml/controls/PanelSuperres.qml" line="+34"/>
         <source>Ninguna</source>
         <translation>Aucune</translation>
     </message>
@@ -33077,7 +33077,7 @@ puis elle se rouvre toute seule. Les paramètres, identifiants, enregistrements 
         <translation>Chaque événement a maintenant son propre dossier avec tout son contenu. Ont été séparés&#xa0;: %1 (ouvrez-les avec «&#xa0;Ouvrir un autre…&#xa0;» dans la page de l&apos;événement)</translation>
     </message>
     <message>
-        <location line="+153"/>
+        <location line="+157"/>
         <source>El video del gráfico no salió: %1</source>
         <translation>La vidéo du graphique n&apos;est pas passée&#xa0;: %1</translation>
     </message>
@@ -36532,7 +36532,7 @@ Escucha:
 <context>
     <name>VideoViewModel</name>
     <message>
-        <location filename="../src/app/ui/VideoViewModel.cpp" line="+146"/>
+        <location filename="../src/app/ui/VideoViewModel.cpp" line="+159"/>
         <source>Sin GStreamer: %1</source>
         <translation>Sans GStreamer&#xa0;: %1</translation>
     </message>
@@ -36666,12 +36666,12 @@ Choisissez autre chose dans Sorties → Écrans.</translation>
     </message>
     <message>
         <location line="+15"/>
-        <location line="+90"/>
+        <location line="+92"/>
         <source>al aire</source>
         <translation>à l&apos;antenne</translation>
     </message>
     <message numerus="yes">
-        <location line="-90"/>
+        <location line="-92"/>
         <source>%n persona</source>
         <translation>
             <numerusform>%n personne</numerusform>
@@ -36704,7 +36704,7 @@ Choisissez autre chose dans Sorties → Écrans.</translation>
         <translation>Remettre «&#xa0;%1&#xa0;» dans cette grille (retour à l&apos;automatique)</translation>
     </message>
     <message>
-        <location line="+18"/>
+        <location line="+20"/>
         <source>(asamblea)</source>
         <translation>(assemblée)</translation>
     </message>
@@ -36757,7 +36757,7 @@ Choisissez autre chose dans Sorties → Écrans.</translation>
 <context>
     <name>VistaSincronia</name>
     <message>
-        <location filename="../src/app/qml/controls/VistaSincronia.qml" line="+41"/>
+        <location filename="../src/app/qml/controls/VistaSincronia.qml" line="+43"/>
         <source>«%1» va %2 ms detrás de «%3»</source>
         <translation>«&#xa0;%1&#xa0;» a %2 ms de retard sur «&#xa0;%3&#xa0;»</translation>
     </message>
@@ -39535,6 +39535,26 @@ Choisissez autre chose dans Sorties → Écrans.</translation>
     </message>
     <message>
         <location line="+1"/>
+        <source>Video de los invitados: hilos por decodificador</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Cuántos hilos usa cada decodificador de video por software (VP8, VP9, AV1, o H.264 sin placa). Con muchos invitados, uno: el reparto está en que son muchos.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Video de los invitados: decodificar H.264 con la placa</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Windows: el H.264 que suben los invitados se decodifica en la placa de video (DXVA). Apagado, por software (para comparar o si la placa da problemas).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
         <source>Video de retorno: sondear la red para subir de calidad</source>
         <translation>Vidéo retour : sonder le réseau pour monter en qualité</translation>
     </message>
@@ -39749,7 +39769,7 @@ Choisissez autre chose dans Sorties → Écrans.</translation>
         <translation>n&apos;est pas une des options</translation>
     </message>
     <message>
-        <location line="-214"/>
+        <location line="-216"/>
         <source>Mensajes de chat que se guardan</source>
         <translation>Messages de chat conservés</translation>
     </message>
@@ -39879,7 +39899,7 @@ Choisissez autre chose dans Sorties → Écrans.</translation>
         <translation>Console de l&apos;opérateur, tableau des intervenants et téléphones&#xa0;: chacun est une connexion.</translation>
     </message>
     <message>
-        <location line="+5"/>
+        <location line="+7"/>
         <source>Hablarle a un invitado: cuánto baja el programa</source>
         <translation>Parler à un invité&#xa0;: baisse du programme</translation>
     </message>
@@ -43321,7 +43341,7 @@ Choisissez autre chose dans Sorties → Écrans.</translation>
     </message>
     <message>
         <location line="-57"/>
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="-856"/>
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="-860"/>
         <source>arranque: %1 tardó %2 ms</source>
         <translation>démarrage&#xa0;: %1 a pris %2 ms</translation>
     </message>
@@ -43641,7 +43661,7 @@ Choisissez autre chose dans Sorties → Écrans.</translation>
         <translation>mode sans échec&#xa0;: rien n&apos;est chargé depuis le disque pendant cette exécution</translation>
     </message>
     <message>
-        <location line="+211"/>
+        <location line="+215"/>
         <source>playlist tras el corte: %1</source>
         <translation>playlist après la coupure&#xa0;: %1</translation>
     </message>
@@ -50002,7 +50022,7 @@ Données (de %2)&#xa0;: %3</translation>
 <context>
     <name>enlaces</name>
     <message>
-        <location filename="../src/app/ui/EnlacesViewModel.cpp" line="-333"/>
+        <location filename="../src/app/ui/EnlacesViewModel.cpp" line="-341"/>
         <location line="+2"/>
         <location line="+2"/>
         <location line="+3"/>
@@ -50431,7 +50451,7 @@ Données (de %2)&#xa0;: %3</translation>
         <translation>impossible de recadrer «&#xa0;%1&#xa0;» dans «&#xa0;%2&#xa0;» (recadrage plus grand que l&apos;image&#xa0;?)</translation>
     </message>
     <message>
-        <location filename="../src/app/escenas/ControlGrillas.cpp" line="+146"/>
+        <location filename="../src/app/escenas/ControlGrillas.cpp" line="+178"/>
         <source>todavía no se pueden crear escenas</source>
         <translation>il n&apos;est pas encore possible de créer des scènes</translation>
     </message>
@@ -50461,7 +50481,32 @@ Données (de %2)&#xa0;: %3</translation>
         <translation>pas de canal&#xa0;: il y a plus de %1 grilles</translation>
     </message>
     <message>
-        <location line="+46"/>
+        <location line="+64"/>
+        <source>el motor todavía no arrancó</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>ya hay una medición en curso</source>
+        <translation type="unfinished">une mesure est déjà en cours</translation>
+    </message>
+    <message>
+        <location line="+31"/>
+        <source>no hay ninguna grilla de personas andando</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+43"/>
+        <source>la entrada de la grilla no lee el canal tal cual</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>la entrada de la grilla no está armada</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+69"/>
         <source>no hay una grilla de personas que se llame «%1» (crear_fuente con type ba_grilla)</source>
         <translation>aucune grille de personnes nommée «&#xa0;%1&#xa0;» (crear_fuente avec type ba_grilla)</translation>
     </message>
@@ -51972,7 +52017,7 @@ Données (de %2)&#xa0;: %3</translation>
 <context>
     <name>eventos</name>
     <message>
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="-252"/>
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="-256"/>
         <source>cada evento a su carpeta: %1</source>
         <translation>chaque événement dans son dossier&#xa0;: %1</translation>
     </message>
@@ -52395,12 +52440,12 @@ Données (de %2)&#xa0;: %3</translation>
         <translation>canal de scène invalide</translation>
     </message>
     <message>
-        <location line="+436"/>
+        <location line="+442"/>
         <source>control: la app no lee sus eventos; se le corta el flujo (vuelve a entrar con la foto)</source>
         <translation>contrôle&#xa0;: l&apos;application ne lit pas ses événements&#xa0;; flux coupé (elle revient avec l&apos;instantané)</translation>
     </message>
     <message>
-        <location line="-428"/>
+        <location line="-434"/>
         <source>La conferencia esta cerrada: abrila para poder mandarle el programa a una pantalla.</source>
         <translation>La conférence est fermée&#xa0;: ouvrez-la pour pouvoir envoyer le programme vers un écran.</translation>
     </message>
@@ -52415,7 +52460,7 @@ Données (de %2)&#xa0;: %3</translation>
         <translation>niveau inconnu</translation>
     </message>
     <message>
-        <location line="+126"/>
+        <location line="+132"/>
         <source>ese participante no está mandando medios</source>
         <translation>ce participant n&apos;envoie pas de médias</translation>
     </message>
@@ -52818,7 +52863,7 @@ Données (de %2)&#xa0;: %3</translation>
         <translation>Service «&#xa0;%1&#xa0;» inconnu.</translation>
     </message>
     <message>
-        <location filename="../src/gateway/Grillas.cpp" line="+221"/>
+        <location filename="../src/gateway/Grillas.cpp" line="+225"/>
         <source>falta «rotulos» (una lista)</source>
         <translation>« rotulos » manque (une liste)</translation>
     </message>
@@ -52898,7 +52943,7 @@ Données (de %2)&#xa0;: %3</translation>
         <translation>cellule de «&#xa0;%1&#xa0;» sans taille</translation>
     </message>
     <message>
-        <location line="+507"/>
+        <location line="+644"/>
         <source>grillas: BA.Grilla.%1 listo (%2x%3)</source>
         <translation>grilles&#xa0;: BA.Grilla.%1 prête (%2x%3)</translation>
     </message>
@@ -52913,7 +52958,7 @@ Données (de %2)&#xa0;: %3</translation>
         <translation>grilles&#xa0;: BA.Grilla.%1 %2x%3, %4 personnes (+%5), %6 ms par image</translation>
     </message>
     <message>
-        <location filename="../src/gateway/MediaPump.cpp" line="+313"/>
+        <location filename="../src/gateway/MediaPump.cpp" line="+314"/>
         <source>escena %1</source>
         <translation>scène %1</translation>
     </message>
@@ -52958,7 +53003,7 @@ Données (de %2)&#xa0;: %3</translation>
         <translation>MediaPump&#xa0;: places %1 -&gt; %2 (sans redémarrage)</translation>
     </message>
     <message>
-        <location line="+184"/>
+        <location line="+296"/>
         <source>retorno audio: BA.Audio.ContentForReturn abierto</source>
         <translation>retour audio&#xa0;: BA.Audio.ContentForReturn ouvert</translation>
     </message>
@@ -52973,7 +53018,7 @@ Données (de %2)&#xa0;: %3</translation>
         <translation>sortie %1&#xa0;: retour audio&#xa0;: A a changé ou s&apos;est fermé&#xa0;; réouverture</translation>
     </message>
     <message>
-        <location line="+278"/>
+        <location line="+266"/>
         <source>%1: A cambió o se cerró; resuscribiendo</source>
         <translation>%1&#xa0;: A a changé ou s&apos;est fermé&#xa0;; réabonnement</translation>
     </message>
@@ -52988,7 +53033,7 @@ Données (de %2)&#xa0;: %3</translation>
         <translation>opérateur&#xa0;: caméra (BA.Operator) abonnée (%1x%2)</translation>
     </message>
     <message>
-        <location line="-793"/>
+        <location line="-893"/>
         <source>retorno video</source>
         <translation>retour vidéo</translation>
     </message>
@@ -53008,27 +53053,27 @@ Données (de %2)&#xa0;: %3</translation>
         <translation>sortie %1&#xa0;: quelqu&apos;un la regarde, son flux descendant est relancé</translation>
     </message>
     <message>
-        <location line="+71"/>
+        <location line="+88"/>
         <source> (salida %1)</source>
         <translation> (sortie %1)</translation>
     </message>
     <message>
-        <location line="+25"/>
+        <location line="+118"/>
         <source>retorno mix-minus del slot %1%2 cerrado: ese invitado queda sin retorno hasta que vuelva</source>
         <translation>retour mix-minus du slot %1%2 fermé&#xa0;: cet invité reste sans retour jusqu&apos;à ce qu&apos;il revienne</translation>
     </message>
     <message>
-        <location line="+13"/>
+        <location line="+14"/>
         <source>retorno mix-minus del slot %1%2 abierto</source>
         <translation>retour mix-minus du slot %1%2 ouvert</translation>
     </message>
     <message>
-        <location line="+15"/>
+        <location line="+16"/>
         <source>salida %1: retorno de audio abierto</source>
         <translation>sortie %1&#xa0;: retour audio ouvert</translation>
     </message>
     <message>
-        <location line="+151"/>
+        <location line="+139"/>
         <source>transporte %1: en %2 s, %3 bloques descartados, %4 faltantes, hasta %5 sin leer, edad p50 %6 ms / p99 %7 ms</source>
         <translation>transport %1&#xa0;: en %2 s, %3 blocs rejetés, %4 manquants, jusqu&apos;à %5 non lus, âge p50 %6 ms / p99 %7 ms</translation>
     </message>
@@ -53479,7 +53524,7 @@ Données (de %2)&#xa0;: %3</translation>
         <translation>ws&#xa0;: médias de %1 (session %2) fermés</translation>
     </message>
     <message>
-        <location line="+49"/>
+        <location line="+50"/>
         <source>ws: setRemoteOffer falló (sesión %1)</source>
         <translation>ws&#xa0;: échec de setRemoteOffer (session %1)</translation>
     </message>
@@ -53524,7 +53569,7 @@ Données (de %2)&#xa0;: %3</translation>
         <translation>séance&#xa0;: médias du membre à distance %1 (session %2) fermés</translation>
     </message>
     <message>
-        <location line="+34"/>
+        <location line="+35"/>
         <source>sesión: setRemoteOffer del remoto %1 falló</source>
         <translation>séance&#xa0;: échec de setRemoteOffer du membre à distance %1</translation>
     </message>
@@ -53634,13 +53679,13 @@ Données (de %2)&#xa0;: %3</translation>
         <translation>test de salle : terminé (%1) ; identifiant révoqué, %2 participants de test retirés</translation>
     </message>
     <message>
-        <location line="-3100"/>
+        <location line="-3102"/>
         <source>direcciones: red %1, afuera %2</source>
         <translation>adresses&#xa0;: réseau %1, extérieur %2</translation>
     </message>
     <message>
         <location line="+2"/>
-        <location filename="../src/gateway/main.cpp" line="+758"/>
+        <location filename="../src/gateway/main.cpp" line="+759"/>
         <location line="+2"/>
         <source>(ninguna)</source>
         <translation>(aucune)</translation>
@@ -53748,7 +53793,7 @@ Données (de %2)&#xa0;: %3</translation>
         <translation>ws&#xa0;: aucune session WebRTC libre pour %1</translation>
     </message>
     <message>
-        <location line="+279"/>
+        <location line="+281"/>
         <source>salidas: %1</source>
         <translation>sorties&#xa0;: %1</translation>
     </message>
@@ -53919,7 +53964,7 @@ Données (de %2)&#xa0;: %3</translation>
         <translation>pas d&apos;adresse de tunnel</translation>
     </message>
     <message>
-        <location line="+263"/>
+        <location line="+283"/>
         <source>túnel: --tunnel-token es visible en la lista de procesos; preferir %1</source>
         <translation>tunnel&#xa0;: --tunnel-token est visible dans la liste des processus&#xa0;; préférez %1</translation>
     </message>
@@ -53929,7 +53974,7 @@ Données (de %2)&#xa0;: %3</translation>
         <translation>la signalisation n&apos;a pas démarré&#xa0;; la passerelle continue sans tunnel web</translation>
     </message>
     <message>
-        <location line="+98"/>
+        <location line="+99"/>
         <source>pinggy: sin la escucha del túnel (127.0.0.1:%1); no se lanza</source>
         <translation>pinggy&#xa0;: pas d&apos;écoute du tunnel (127.0.0.1:%1)&#xa0;; pas de lancement</translation>
     </message>
@@ -53939,7 +53984,7 @@ Données (de %2)&#xa0;: %3</translation>
         <translation>tunnel&#xa0;: désactivé par la configuration (accès local uniquement)</translation>
     </message>
     <message>
-        <location line="-612"/>
+        <location line="-633"/>
         <source>red: IP de la máquina %1; en el QR: %2</source>
         <translation>réseau&#xa0;: IP de la machine %1&#xa0;; dans le QR&#xa0;: %2</translation>
     </message>
@@ -53989,7 +54034,7 @@ Données (de %2)&#xa0;: %3</translation>
         <translation>https&#xa0;: ba-web ne le prend pas en charge&#xa0;; démarrage du terminateur intégré</translation>
     </message>
     <message>
-        <location line="+193"/>
+        <location line="+213"/>
         <source>puerta de la sala: https en %1:%2</source>
         <translation>porte de la salle&#xa0;: https sur %1:%2</translation>
     </message>
@@ -54009,7 +54054,7 @@ Données (de %2)&#xa0;: %3</translation>
         <translation>contrôle&#xa0;: impossible de publier %1</translation>
     </message>
     <message>
-        <location line="+56"/>
+        <location line="+57"/>
         <source>control: escuchando en &apos;control.gateway&apos;</source>
         <translation>contrôle&#xa0;: écoute sur «&#xa0;control.gateway&#xa0;»</translation>
     </message>
@@ -54034,7 +54079,7 @@ Données (de %2)&#xa0;: %3</translation>
         <translation>contrôle&#xa0;: arrêt demandé par le lanceur</translation>
     </message>
     <message>
-        <location line="+33"/>
+        <location line="+40"/>
         <source>WebRTC: los puertos UDP %1-%2 alcanzan para %3 sesiones (%4 por sesión) y la sala llena necesita %5: agrandá el rango en Configuración → Red de la conferencia</source>
         <translation>WebRTC : les ports UDP %1-%2 suffisent pour %3 sessions (%4 par session) et la salle pleine en demande %5 : élargissez la plage dans Configuration → Réseau de la conférence</translation>
     </message>
@@ -54049,7 +54094,7 @@ Données (de %2)&#xa0;: %3</translation>
         <translation>arrêt propre&#xa0;: BA.Health slot 0 = Terminated&#xa0;; succès</translation>
     </message>
     <message>
-        <location filename="../src/gateway/net/IpStack.cpp" line="+635"/>
+        <location filename="../src/gateway/net/IpStack.cpp" line="+656"/>
         <source>pila IP: %1/%2 sobre WireGuard (%3 reenvios TCP, UDP %4-%5)</source>
         <translation>pile IP&#xa0;: %1/%2 sur WireGuard (%3 redirections TCP, UDP %4-%5)</translation>
     </message>
@@ -54285,7 +54330,7 @@ Données (de %2)&#xa0;: %3</translation>
         <translation>le service ne tourne pas</translation>
     </message>
     <message>
-        <location filename="../src/gateway/turn/Servidor.cpp" line="+870"/>
+        <location filename="../src/gateway/turn/Servidor.cpp" line="+923"/>
         <source>turn: falta el secreto (16 bytes o más)</source>
         <translation>turn&#xa0;: secret manquant (16 octets ou plus)</translation>
     </message>
@@ -54585,7 +54630,7 @@ Données (de %2)&#xa0;: %3</translation>
         <translation>non</translation>
     </message>
     <message>
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="+890"/>
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="+894"/>
         <source>«%1» no arrancó al abrir: %2</source>
         <translation>«&#xa0;%1&#xa0;» n&apos;a pas démarré à l&apos;ouverture&#xa0;: %2</translation>
     </message>
@@ -58924,7 +58969,7 @@ CE QU&apos;IL FAUT SAVOIR EN L&apos;ACTIVANT&#xa0;: le garde-fou des approbation
         <translation>Demander au serveur de surveiller quelque chose (saturation, silence, fin d&apos;un morceau, temps de parole d&apos;un intervenant, salle d&apos;attente, chat, coupures, disque, minuteurs) et d&apos;alerter ou d&apos;agir seul. Évite de devoir vérifier régulièrement&#xa0;: l&apos;alerte arrive dans le chat de l&apos;assistant.</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpFoto.cpp" line="+461"/>
+        <location filename="../src/app/mcp/McpFoto.cpp" line="+479"/>
         <source>Notificadores</source>
         <translation>Notificateurs</translation>
     </message>
@@ -60261,7 +60306,7 @@ L&apos;`id` QU&apos;IL RENVOIE S&apos;UTILISE TEL QUEL dans `audio_module_add`. 
         <translation>La surface de contrôle (tablette par QR, Stream Deck, MIDI par plugin) et le bus d&apos;événements de l&apos;application (ce qui est à l&apos;antenne, sorties, niveaux, alarmes) pour les boutons, les plugins et les déclencheurs.</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpFoto.cpp" line="-152"/>
+        <location filename="../src/app/mcp/McpFoto.cpp" line="-170"/>
         <source>Temas del bus de eventos</source>
         <translation>Sujets du bus d&apos;événements</translation>
     </message>
@@ -60763,7 +60808,7 @@ L&apos;`id` QU&apos;IL RENVOIE S&apos;UTILISE TEL QUEL dans `audio_module_add`. 
         <translation>Exécute l&apos;`accion` (id issu de acciones_listar) comme si l&apos;on appuyait sur son raccourci, mais avec les autorisations et la protection d&apos;antenne du demandeur.</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpFoto.cpp" line="+67"/>
+        <location filename="../src/app/mcp/McpFoto.cpp" line="+85"/>
         <source>Modo en vivo</source>
         <translation>Mode direct</translation>
     </message>
@@ -65190,13 +65235,14 @@ Avec ce répertoire, on construit un graphique SANS écrire de code&#xa0;: c&apo
     <message>
         <location line="+7"/>
         <location line="+27"/>
-        <location line="+29"/>
+        <location line="+30"/>
+        <location line="+34"/>
         <location line="+52"/>
         <source>la grilla de personas todavía no arrancó</source>
         <translation>la grille de personnes n&apos;a pas encore démarré</translation>
     </message>
     <message>
-        <location line="-96"/>
+        <location line="-131"/>
         <source>Cambiar los ajustes de una grilla de personas</source>
         <translation>Modifier les réglages d&apos;une grille de personnes</translation>
     </message>
@@ -65207,12 +65253,12 @@ Avec ce répertoire, on construit un graphique SANS écrire de code&#xa0;: c&apo
     </message>
     <message>
         <location line="+5"/>
-        <location line="+17"/>
+        <location line="+52"/>
         <source>el nombre de la fuente ba_grilla</source>
         <translation>le nom de la source ba_grilla</translation>
     </message>
     <message>
-        <location line="-16"/>
+        <location line="-51"/>
         <source>los ajustes a cambiar</source>
         <translation>les réglages à modifier</translation>
     </message>
@@ -65222,7 +65268,22 @@ Avec ce répertoire, on construit un graphique SANS écrire de code&#xa0;: c&apo
         <translation>C&apos;est fait&#xa0;: «&#xa0;%1&#xa0;» a les nouveaux réglages.</translation>
     </message>
     <message>
-        <location line="+7"/>
+        <location line="+8"/>
+        <source>Medir los cuadros por segundo de cada cara de la grilla</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Mide `segundos` (de fábrica 10, de 2 a 120) cuántos cuadros NUEVOS muestra cada celda de cada grilla de personas, desde los píxeles: `entrada` es el mosaico apenas lo lee la app (lo que pintó el gateway y llegó) y `programa`, la misma celda en el programa (si la grilla está al aire; `programa_rect` [x, y, w, h] en fracciones del lienzo dice dónde está, de fábrica el lienzo entero). Por celda: cps, intervalo_ms (p50/p95/max entre un cuadro nuevo y el anterior), huecos (intervalos de más de 1,5 períodos de su capa) y por_debajo (menos del 90 % de lo que manda su capa: baja 15 cps, alta 30). Del mosaico: cps, llegada_ms y perdidos (cuadros que el gateway publicó y la app no leyó). `resumen`: cps_p50, cps_p5, por_debajo_pct.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <source>dónde está la grilla en el programa, en fracciones del lienzo</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+19"/>
         <source>la persona: sala:&lt;id&gt; o asamblea:&lt;id&gt; (ver grilla_personas_estado)</source>
         <translation>la personne&#xa0;: sala:&lt;id&gt; ou asamblea:&lt;id&gt; (voir grilla_personas_estado)</translation>
     </message>
@@ -71029,7 +71090,7 @@ Chaque étape suit le même chemin que si vous l&apos;appeliez vous-même&#xa0;:
         <translation>Ce qui s&apos;est passé dans les trois processus&#xa0;: le lire, le filtrer et décider de la quantité journalisée.</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpFoto.cpp" line="-242"/>
+        <location filename="../src/app/mcp/McpFoto.cpp" line="-260"/>
         <source>Leer el registro</source>
         <translation>Lire le journal</translation>
     </message>
@@ -71889,7 +71950,7 @@ S&apos;il n&apos;y a pas de place libre dans la conférence (`room_status` -&gt;
         <translation>C&apos;est l&apos;adresse du réseau local&#xa0;: pour quelqu&apos;un de l&apos;extérieur, room_link {&quot;target&quot;: &quot;remote&quot;}.</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpFoto.cpp" line="+21"/>
+        <location filename="../src/app/mcp/McpFoto.cpp" line="+39"/>
         <source>Red y acceso de invitados</source>
         <translation>Réseau et accès des invités</translation>
     </message>
@@ -71899,7 +71960,8 @@ S&apos;il n&apos;y a pas de place libre dans la conférence (`room_status` -&gt;
         <translation>Comment joindre l&apos;appareil par le RÉSEAU&#xa0;: HTTPS, tunnel WireGuard, IP locales, liens et ports WebRTC de la passerelle.</translation>
     </message>
     <message>
-        <location line="+5"/>
+        <location line="-10"/>
+        <location line="+15"/>
         <source>La conferencia no responde.</source>
         <translation>La conférence ne répond pas.</translation>
     </message>
@@ -72731,7 +72793,7 @@ N&apos;enregistre qu&apos;après avoir vu le même visage trois passages d&apos;
         <translation>La dernière mesure (chaque seconde) de l&apos;app et du gateway&#xa0;: CPU total en cœurs (1,0 = un cœur entier), mémoire, les threads les plus gourmands avec leur nom (ceux de GStreamer portent le nom de leur élément&#xa0;: on voit ainsi quelle partie de la vidéo consomme) et, sous Windows, le GPU du processus par moteur (3D, VideoDecode, VideoEncode, Copy). L&apos;historique est dans Logs/perfil-app.jsonl et Logs/perfil-gateway.jsonl&#xa0;; toutes les 10 s, un résumé va au journal (log_leer, composant perfil).</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpFoto.cpp" line="-403"/>
+        <location filename="../src/app/mcp/McpFoto.cpp" line="-421"/>
         <source>Estado general</source>
         <translation>État général</translation>
     </message>
@@ -76672,7 +76734,17 @@ Les fichiers&#xa0;: app.log (Processus A), gateway.log (Processus B), graficos.l
         <translation>Dernière valeur d&apos;un sujet</translation>
     </message>
     <message>
-        <location line="+110"/>
+        <location line="+55"/>
+        <source>El gateway por dentro (para medir)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>El servidor de la conferencia (gateway) por dentro, para medir la carga: `uso` (CPU, hilos, memoria, anillos, retorno), `fronteras` (cada pase entre hilos: pases/s, despertadas/s, pases por despertada, kB/s, trabajo por pase en µs, espera en la cola en µs, en ventanas de 1 s) y el TURN (asignaciones, conexiones, bytes). Lo usa tools/carga/medir-sala.py.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+70"/>
         <source>Carpeta del sistema, credenciales y respaldos</source>
         <translation>Dossier du système, identifiants et sauvegardes</translation>
     </message>
@@ -79002,7 +79074,7 @@ PROPOSEZ, N&apos;APPLIQUEZ PAS&#xa0;: montrez à la personne ce qui change et ap
         <translation>Id de la sortie (lettres, chiffres, - et _).</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpFoto.cpp" line="-409"/>
+        <location filename="../src/app/mcp/McpFoto.cpp" line="-427"/>
         <source>Las salidas del aparato</source>
         <translation>Les sorties de l&apos;appareil</translation>
     </message>
@@ -82548,6 +82620,12 @@ PROPOSEZ, N&apos;APPLIQUEZ PAS&#xa0;: montrez à la personne ce qui change et ap
     </message>
     <message>
         <location line="+3"/>
+        <source>gateway servidor de la conferencia por dentro hilos fronteras colas pases despertadas cambios de contexto medir carga rendimiento turn pinggy cpu del gateway</source>
+        <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
         <source>https certificado sitio no seguro conexion no segura aviso de seguridad wireguard tunel puertos webrtc ip local estado de la red revisar la red chequear la red mirar la red los remotos no pueden conectarse queda cargando el link</source>
         <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
         <translation>https certificat site non sécurisé connexion non sécurisée avertissement de sécurité wireguard tunnel ports webrtc ip locale état du réseau vérifier le réseau regarder le réseau les invités à distance n&apos;arrivent pas à se connecter le lien charge sans fin</translation>
@@ -82619,7 +82697,7 @@ PROPOSEZ, N&apos;APPLIQUEZ PAS&#xa0;: montrez à la personne ce qui change et ap
         <translation>présentateur animateur modérateur hôte</translation>
     </message>
     <message>
-        <location line="-668"/>
+        <location line="-671"/>
         <source>revocar tablet token botonera companion http acceso sacarle el acceso</source>
         <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
         <translation>révoquer tablette jeton surface de contrôle companion http accès retirer l&apos;accès</translation>
@@ -82643,7 +82721,7 @@ PROPOSEZ, N&apos;APPLIQUEZ PAS&#xa0;: montrez à la personne ce qui change et ap
         <translation>go take entre la suivante étape en avant vas-y vérification avant de sortir</translation>
     </message>
     <message>
-        <location line="+176"/>
+        <location line="+179"/>
         <source>configurar fila de oradores tiempos reglas activar el modo oradores minutos por orador tiempo general de cada orador margen carrusel</source>
         <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
         <translation>configurer la file des intervenants temps règles activer le mode intervenants minutes par intervenant temps général de chaque intervenant marge carrousel</translation>
@@ -84042,6 +84120,12 @@ PROPOSEZ, N&apos;APPLIQUEZ PAS&#xa0;: montrez à la personne ce qui change et ap
     </message>
     <message>
         <location line="+2"/>
+        <source>medir cuadros por segundo fps de cada cara fluido entrecortado se traba lento ritmo celdas</source>
+        <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
         <source>cambiar tope orden prioridad grupo repartir entre escenas parejo llenar en orden solo con camara</source>
         <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
         <translation>changer limite ordre priorité groupe répartir entre scènes équitablement remplir dans l&apos;ordre seulement avec caméra</translation>
@@ -85328,12 +85412,12 @@ PROPOSEZ, N&apos;APPLIQUEZ PAS&#xa0;: montrez à la personne ce qui change et ap
         <translation>Étapes de «&#xa0;donner la priorité au programme&#xa0;» désactivées à cause de la chaleur</translation>
     </message>
     <message>
-        <location filename="../src/gateway/SignalingServer.cpp" line="-1132"/>
+        <location filename="../src/gateway/SignalingServer.cpp" line="-1134"/>
         <source>Invitados que se cortaron y volvieron a su lugar</source>
         <translation>Invités coupés qui ont retrouvé leur place</translation>
     </message>
     <message>
-        <location filename="../src/gateway/main.cpp" line="-127"/>
+        <location filename="../src/gateway/main.cpp" line="-134"/>
         <source>Edad de lo leído de A (p50 de la última ventana), ms</source>
         <translation>Âge de ce qui est lu de A (p50 de la dernière fenêtre), ms</translation>
     </message>
@@ -85940,7 +86024,7 @@ PROPOSEZ, N&apos;APPLIQUEZ PAS&#xa0;: montrez à la personne ce qui change et ap
         <location filename="../src/motor/Composicion.cpp" line="+1171"/>
         <location filename="../src/motor/Entrada.cpp" line="+1660"/>
         <location line="+226"/>
-        <location filename="../src/motor/Mezcla.cpp" line="+448"/>
+        <location filename="../src/motor/Mezcla.cpp" line="+451"/>
         <location filename="../src/motor/OrigenRed.cpp" line="+233"/>
         <location filename="../src/motor/Salidas.cpp" line="+388"/>
         <location line="+309"/>
@@ -86372,12 +86456,12 @@ PROPOSEZ, N&apos;APPLIQUEZ PAS&#xa0;: montrez à la personne ce qui change et ap
         <translation>encode la vidéo sur le CPU (pas matériel)</translation>
     </message>
     <message>
-        <location filename="../src/motor/Mezcla.cpp" line="-359"/>
+        <location filename="../src/motor/Mezcla.cpp" line="-362"/>
         <source>mezcla %1: no está balimitador (plugin baaudio): sale sin limitador</source>
         <translation>mixage %1&#xa0;: balimitador absent (plugin baaudio)&#xa0;: sortie sans limiteur</translation>
     </message>
     <message>
-        <location line="+19"/>
+        <location line="+22"/>
         <location line="+20"/>
         <location line="+58"/>
         <source>mezcla %1: %2</source>
@@ -90328,7 +90412,7 @@ PROPOSEZ, N&apos;APPLIQUEZ PAS&#xa0;: montrez à la personne ce qui change et ap
         <translation>journal&#xa0;: le disque ne suivait pas&#xa0;; %1 octets de sortie ont été perdus</translation>
     </message>
     <message>
-        <location filename="../src/gateway/AdminApi.cpp" line="-119"/>
+        <location filename="../src/gateway/AdminApi.cpp" line="-125"/>
         <source>nivel cambiado a %1 desde la API de control</source>
         <translation>niveau passé à %1 depuis l&apos;API de contrôle</translation>
     </message>

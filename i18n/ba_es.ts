@@ -616,7 +616,7 @@
 <context>
     <name>MesaAutomixer</name>
     <message numerus="yes">
-        <location filename="../src/app/qml/controls/MesaAutomixer.qml" line="+94"/>
+        <location filename="../src/app/qml/controls/MesaAutomixer.qml" line="+96"/>
         <source>Mesa «%1» (%n micrófono)</source>
         <translation>
             <numerusform>Mesa «%1» (%n micrófono)</numerusform>
@@ -1426,7 +1426,7 @@ No se borran del disco: si alguno estaba en una escena, se lo saca de ahí y lis
 <context>
     <name>VistaSincronia</name>
     <message numerus="yes">
-        <location filename="../src/app/qml/controls/VistaSincronia.qml" line="+227"/>
+        <location filename="../src/app/qml/controls/VistaSincronia.qml" line="+229"/>
         <source>%n cuadro tarde en el último minuto</source>
         <translation>
             <numerusform>%n cuadro tarde en el último minuto</numerusform>
