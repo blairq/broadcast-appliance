@@ -17,7 +17,9 @@ namespace ba::app {
 /// Lista generica sobre un arreglo JSON de objetos con campo "id". Cada clave
 /// de `keys` es un rol de QML con el mismo nombre ("id" es palabra reservada
 /// en QML: las filas lo repiten como "uid"). Si los ids no cambiaron se
-/// actualiza en el lugar (sin rearmar los delegados: la vista no parpadea).
+/// actualiza en el lugar (sin rearmar los delegados: la vista no parpadea);
+/// si cambiaron y son únicos, se quitan, insertan y mueven solo esas filas.
+/// Sin ids (o repetidos) y con otra cantidad, se rehace entero.
 class JsonListModel : public QAbstractListModel {
     Q_OBJECT
     Q_PROPERTY(int count READ count NOTIFY countChanged)
@@ -39,6 +41,9 @@ class JsonListModel : public QAbstractListModel {
     void countChanged();
 
    private:
+    static QString idDe(const QJsonValue& fila);
+    static bool idsUnicos(const QJsonArray& filas);
+
     QStringList keys_;
     QJsonArray items_;
 };
