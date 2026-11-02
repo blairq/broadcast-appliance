@@ -29,6 +29,7 @@
 #include "RetornoCompartido.hpp"
 
 #include "ajustes/Ajustes.hpp"
+#include "diag/Registro.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -359,6 +360,8 @@ class Capa : public webrtc::EncodedImageCallback {
         std::lock_guard<std::mutex> l(m_);
         const double seg = std::max(0.001, (ahora - ventanaDesde_) / 1000.0);
         return {{"codec", clave_},
+                {"codificador", implementacion_},
+                {"hardware", hardware_},
                 {"indice", indice_},
                 {"alto", alto_},
                 {"ancho", ancho_},
@@ -483,6 +486,20 @@ class Capa : public webrtc::EncodedImageCallback {
             return false;
         }
         cod_->RegisterEncodeCompleteCallback(this);
+        {
+            // Con qué codifica (la placa o no): en el estado y, si cambió, una línea en el log.
+            const webrtc::VideoEncoder::EncoderInfo ei = cod_->GetEncoderInfo();
+            std::lock_guard<std::mutex> l(m_);
+            implementacion_ = ei.implementation_name;
+            hardware_ = ei.is_hardware_accelerated;
+        }
+        if (implementacion_ + (hardware_ ? "+" : "-") != anotado_) {
+            anotado_ = implementacion_ + (hardware_ ? "+" : "-");
+            ba::diag::registro().linea(ba::diag::Nivel::Info, "gateway", 0,
+                                       "video: retorno " + formato_.name + " capa " + std::to_string(indice_) + " (" +
+                                           std::to_string(w) + "x" + std::to_string(h) + ") codifica con " +
+                                           implementacion_ + (hardware_ ? " (hardware)" : " (software)"));
+        }
         webrtc::SimulcastRateAllocator reparto(c);
         const webrtc::VideoBitrateAllocation a =
             reparto.Allocate(webrtc::VideoBitrateAllocationParameters(static_cast<std::uint32_t>(kbps) * 1000u,
@@ -615,6 +632,9 @@ class Capa : public webrtc::EncodedImageCallback {
     bool hayTs_ = false;
     std::uint32_t ultimoTs_ = 0;
     std::thread hilo_;
+    std::string implementacion_; ///< el codificador de verdad (m_)
+    bool hardware_ = false;      ///< (m_)
+    std::string anotado_;        ///< lo último anotado en el log (solo el hilo de la capa)
 };
 
 } // namespace
