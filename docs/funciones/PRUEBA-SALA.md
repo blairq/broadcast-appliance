@@ -1,5 +1,9 @@
 # Prueba de sala (simulacro antes del evento real)
 
+> Para saber **cuántos invitados aguanta** la máquina, otro equipo o la conexión (una rampa
+> automática por escalones, sin tocar el evento), está la pestaña **Capacidad**:
+> [CAPACIDAD.md](CAPACIDAD.md). La prueba de sala es el simulacro de UN evento con N.
+
 Antes de un evento con mucha gente, el operador prueba si **la máquina y la red aguantan N
 personas**: entran participantes «de prueba» por el **camino real** de los invitados
 (`/api/join` + `/ws`, con video y voz), se mide todo y, al terminar, se van todos. Del

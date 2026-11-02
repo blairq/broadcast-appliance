@@ -221,7 +221,8 @@ consola web (escrituras con `X-BA-Admin: 1`, defensa CSRF).
 | GET | `/api/v1/room` | estado completo |
 | GET | `/api/v1/events` | SSE: `room` (estado) y `chat` |
 | POST | `/api/v1/room` | `{lobby?, locked?}` |
-| GET / POST / DELETE | `/api/v1/prueba-sala` | la prueba de sala: credencial de prueba, entrada directa, cierre (ver [PRUEBA-SALA.md](PRUEBA-SALA.md)) |
+| GET / POST / DELETE | `/api/v1/prueba-sala` | la prueba de sala: credencial de prueba, entrada directa, cierre (ver [PRUEBA-SALA.md](PRUEBA-SALA.md)); `{medida}` para el probador de capacidad remoto ([CAPACIDAD.md](CAPACIDAD.md)) |
+| POST / DELETE | `/api/v1/capacidad/red` | secreto para medir la conexión por el túnel ([CAPACIDAD.md](CAPACIDAD.md)) |
 | POST | `/api/v1/pin` | `{pin?}` (vacío = generar) |
 | POST | `/api/v1/participants/<id>/admit\|reject\|kick` | |
 | POST | `/api/v1/participants/<id>/talk` | `{on}` hablar en privado (lobby) |

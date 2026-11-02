@@ -226,6 +226,26 @@ int main() {
         const en::Juicio j = en::juzgar(pf, m);
         CHECK(j.entranConMargen > 0, "con 20 Mbps entran algunos invitados");
     }
+    // --- Lo que se lee de la app ---------------------------------------------------------------
+    {
+        const json lat = json::parse(R"({"entradas": [
+            {"entrada": "Invitado 1", "audio": true, "video": false, "edad_p50_ms": 12},
+            {"entrada": "Invitado 2", "audio": true, "video": false, "edad_p50_ms": 30},
+            {"entrada": "Invitado 3", "audio": true, "video": false, "edad_p50_ms": 14},
+            {"entrada": "Invitado 1", "audio": false, "video": true, "edad_p50_ms": 900},
+            {"entrada": "Cámara 1", "audio": true, "video": false, "edad_p50_ms": 500}]})");
+        CHECK(cap::edadAudioInvitados(lat) == 14, "la edad del audio: la mediana de los invitados (sin video ni cámaras)");
+        CHECK(cap::edadAudioInvitados(json::object()) == -1, "sin invitados: no se sabe");
+        const json med = json::parse(R"({"grillas": [
+            {"entrada": {"cuadros": 300, "cps": 29.8}, "programa": {"cuadros": 280, "cps": 27.5}},
+            {"entrada": {"cuadros": 0, "cps": 0}}]})");
+        CHECK(cap::cpsDeMedicion(med) == 27.5, "la grilla: el peor mosaico medido (sin los que no midieron)");
+        CHECK(cap::cpsDeMedicion(json::object()) == -1, "sin grilla: no se sabe");
+        const json ps = json::parse(R"([{"prueba": true, "connected": true, "mediaUp": true},
+            {"prueba": true, "connected": true, "mediaUp": false}, {"connected": true}, {"connected": false}])");
+        const cap::GenteSala g = cap::genteDe(ps);
+        CHECK(g.prueba == 2 && g.pruebaConVideo == 1 && g.reales == 1, "de prueba, con video y reales conectados");
+    }
     // --- El código del que recibe ----------------------------------------------------------------
     {
         cap::Codigo a;

@@ -13,6 +13,10 @@ de la tabla, algo cambió (driver, plan de energía, otra carga, una regresión)
 
 ## Cómo se mide
 
+Para el operador, la pestaña **Configuración → Sistema → Capacidad** hace una rampa
+automática y da un número ([CAPACIDAD.md](../funciones/CAPACIDAD.md)). Lo de abajo es la
+medición de laboratorio, con todo el detalle interno.
+
 Con la «Prueba de sala» por línea de comandos, `tools/carga/medir-sala.py` (ver su docstring):
 [hinchada](../funciones/PRUEBA-SALA.md) mete N invitados reales por WebRTC (video grabado
 720p/360p, voz sintética, uno hablando), se espera a que la sala se estabilice y se miden
