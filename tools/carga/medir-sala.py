@@ -46,6 +46,8 @@ carga por la red (la red entre las dos es parte de la prueba). Lo que cambia:
     su red (nettop: lo que cruza la LAN).
   - app.log y gateway.log se traen por scp de --remoto-logs al final (desde donde estaban al empezar).
   - La guardia mira además la memoria disponible de la máquina remota.
+  - Todos los invitados salen de UNA dirección IP: con más de 32 (room.maxConexionesPorIp, de
+    fábrica 32) el gateway rechaza el resto; subirlo en el evento de prueba (settings_set).
 Ejemplo (desde la Mac, con la app abierta en la PC y sin la app abierta acá):
   BA_MCP_URL=http://127.0.0.1:18790/mcp BA_MCP_TOKEN=… tools/carga/medir-sala.py \\
       --ba-mcp dist/BroadcastAppliance.app/Contents/Resources/bin/64bit/ba-mcp --remoto windows \\
@@ -431,6 +433,10 @@ def main():
         subprocess.run(["scp", "-q", str(Path(__file__).with_name("muestrear-win.ps1")), f"{a.remoto}:{script.replace(chr(92), '/')}"], check=True)
         remoto = Remoto(a.remoto, script, durante + 120)
         remoto.start()
+        # La primera muestra antes de lanzar hinchada: los hilos y la memoria «de inicio» son de la sala vacía.
+        espera = time.time() + 30
+        while not remoto.leer() and time.time() < espera:
+            time.sleep(0.5)
     # --vigilar mira procesos de esta máquina: en remoto lo hace muestrear-win.ps1.
     vigilar = [] if a.remoto else ["--vigilar", "ba-gateway,ba-app,ba-web"]
     cmd = [a.hinchada, "--servidor", "gateway", "--url", a.url, "--participantes", str(a.participantes),
@@ -687,7 +693,8 @@ def resumir(a, muestras, app_info, lineas, corte, estable_t, ncpu, t0, hdir):
     tot = [100 - (m["cpu_maquina"] or {}).get("idle", 100) if m.get("cpu_maquina") else None for m in muestras]
     r["cpu_maquina_pct"] = resumen_serie(tot, pico=80)
     if a.remoto:
-        claves = sorted({k for m in reg for k in (m.get("gpu") or {})})
+        # Los motores que no se usaron (todo en 0) no entran: en una Radeon son una docena.
+        claves = sorted({k for m in reg for k, v in (m.get("gpu") or {}).items() if v})
         r["gpu"] = {k: resumen_serie([(m.get("gpu") or {}).get(k) for m in reg]) for k in claves}
         r["gpu"]["nota"] = ("muestrear-win.ps1: GPU Engine por proceso (ba-*), el motor más ocupado de cada tipo; "
                             "total_3d_pct es de todos los procesos")
