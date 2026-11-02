@@ -49,6 +49,7 @@
 #include "ui/AtencionViewModel.hpp"
 #include "ui/PruebaSalaViewModel.hpp"
 #include "ui/EnlaceViewModel.hpp"
+#include "ui/CapacidadViewModel.hpp"
 #include "ui/BitacoraEvento.hpp"
 #include "ui/CapturaError.hpp"
 #include "ui/CarruselViewModel.hpp"
