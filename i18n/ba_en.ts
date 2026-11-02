@@ -50196,7 +50196,7 @@ Data (from %2): %3</translation>
         <translation>seat %1</translation>
     </message>
     <message>
-        <location line="+78"/>
+        <location line="+85"/>
         <source>sin canal: hay más de %1 grillas</source>
         <translation>no channel: there are more than %1 grids</translation>
     </message>
@@ -50706,7 +50706,17 @@ Data (from %2): %3</translation>
         <translation>When switching to large, the camera is requested in high quality: until it arrives the low one stays on screen and, once it does, it crossfades from one to the other (never black).</translation>
     </message>
     <message>
-        <location line="+4"/>
+        <location line="+5"/>
+        <source>Alta definición hasta (personas)</source>
+        <translation>High definition up to (people)</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Con más personas que esto en la grilla, todas las miniaturas van en baja definición (menos datos por la red y menos trabajo para la máquina), aunque las celdas sean grandes; el orador y el siguiente siguen en alta. Con esto o menos, cada una según su tamaño. 0 = sin límite.</source>
+        <translation>With more people than this in the grid, every thumbnail goes in low definition (less data over the network and less work for the machine), even if the cells are large; the speaker and the next one stay in high. With this many or fewer, each one by its size. 0 = no limit.</translation>
+    </message>
+    <message>
+        <location line="+5"/>
         <source>Borde a quien habla</source>
         <translation>Border on whoever speaks</translation>
     </message>
@@ -50801,7 +50811,7 @@ Data (from %2): %3</translation>
         <translation>No channel yet: there are more than 8 grids, or the conference hasn&apos;t started.</translation>
     </message>
     <message>
-        <location filename="../src/app/escenas/GrillaPersonas.cpp" line="+176"/>
+        <location filename="../src/app/escenas/GrillaPersonas.cpp" line="+178"/>
         <source>los ajustes van en un objeto</source>
         <translation>the settings go in an object</translation>
     </message>
@@ -50821,7 +50831,7 @@ Data (from %2): %3</translation>
         <translation>“%1” is true or false</translation>
     </message>
     <message>
-        <location line="+11"/>
+        <location line="+12"/>
         <source>«%1» no es un ajuste de la grilla de personas</source>
         <translation>“%1” isn&apos;t a people grid setting</translation>
     </message>
@@ -53327,7 +53337,7 @@ Data (from %2): %3</translation>
         <translation>ws: invalid message from %1 (%2)</translation>
     </message>
     <message>
-        <location line="+431"/>
+        <location line="+427"/>
         <source>capas: a %1 se le pide la %2</source>
         <translation>layers: asking %1 for the %2 layer</translation>
     </message>
@@ -53357,7 +53367,7 @@ Data (from %2): %3</translation>
         <translation>room test: ended (%1); credential revoked, %2 test participants removed</translation>
     </message>
     <message>
-        <location line="-3104"/>
+        <location line="-3100"/>
         <source>direcciones: red %1, afuera %2</source>
         <translation>addresses: network %1, outside %2</translation>
     </message>
@@ -64826,7 +64836,12 @@ With this repertoire you build a graphic WITHOUT writing code: it is what you sh
         <translation>origen (sala|asamblea|ambas), orden (llegada|habla|prioridad), tope (cells with the «+N», 0 = no limit), solo_con_camara, sin_al_aire (excluding those already on air in another source or in another visible grid, counting the scenes of the DSK layers), resaltar (whoever speaks), grupo (grids with the same group share the people without repeats; &quot;&quot; = alone), orden_en_grupo (the first one sets the order and the mode), reparto (en_orden: fills the first up to its limit; parejo: the same number in each), ancho, alto, proporcion (16:9|4:3|1:1|3:4|9:16|llenar), separacion, margen, transicion_ms, fondo and color_resaltar (&quot;#AARRGGBB&quot;). When someone speaks: al_hablar (sin_cambios: the grid is left alone, only the speaker&apos;s camera in high quality | resaltar: nobody moves, the speaker gets a border | destacar: the speaker large and the others in a strip, in the same order | superponer: the speaker on top in a gap the grid leaves | escena: the grid doesn&apos;t change and another grid with muestra=orador shows only them | nada: no speaker), agrandar (resaltar and escena: no | encima | achicando), pasar_a_escena (escena: a_mano | automatico | asistente: always notifies the operator), salida_orador (&quot;&quot; = the main one), escena_orador (created by grilla_personas_escena_orador), disparo (voz: sustained voice voz_ms | palabra: the assembly floor | orador: the conference&apos;s on-air speaker | manual: grilla_personas_destacar), voz_ms, minimo_ms (the speaker doesn&apos;t change before this: hysteresis), precarga (the next one already requests the high layer), destacar_lugar (centro|izquierda), destacar_tamano (% of the canvas), franja (abajo|costado), superponer_tamano, superponer_completa, fundido_ms (from low to HD). Names: nombres (no|nombre|nombre_cargo), nombre_tamano (% of the cell height), nombre_color, nombre_fondo, nombre_lugar (abajo|arriba). muestra (todos|orador) and sigue (the grid whose speaker it shows; &quot;&quot; = the first one that has one): the speaker scene.</translation>
     </message>
     <message>
-        <location line="+22"/>
+        <location line="+19"/>
+        <source>alta_hasta (de fábrica 10; 0 = sin límite): con más personas que esto en la grilla, todas las miniaturas piden la cámara en baja definición, salvo el orador y el siguiente (precarga); con esto o menos, cada una según el tamaño de su celda. Vuelve a la regla por tamaño recién con una persona menos (histéresis). grilla_personas_estado dice en cada grilla alta_hasta y en_baja, y en cada persona su capa (alta|baja).</source>
+        <translation>alta_hasta (default 10; 0 = no limit): with more people than this in the grid, every thumbnail asks for the camera in low definition, except the speaker and the next one (preload); with this many or fewer, each one by the size of its cell. It goes back to the size rule only with one person fewer (hysteresis). grilla_personas_estado reports alta_hasta and en_baja for each grid, and the capa (alta|baja) of each person.</translation>
+    </message>
+    <message>
+        <location line="+7"/>
         <source>Qué muestra cada grilla de personas</source>
         <translation>What each people grid shows</translation>
     </message>

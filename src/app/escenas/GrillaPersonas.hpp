@@ -83,7 +83,18 @@
 // asamblea o de la conferencia; con voz, el que empezó a hablar y todavía no llegó a
 // voz_ms) también. Las miniaturas no cambian de capa por achicarse un poco: CapasGrilla
 // sube a la alta pasando kSubirAlta píxeles de alto y baja recién por debajo de
-// kBajarAlta, y no sube más de una por vuelta (cada subida es un cuadro clave).
+// kBajarAlta, y no sube más de una por vuelta (cada subida es un cuadro clave). El que
+// estaba en alta por ser orador (o precargado) y deja de serlo vuelve a la regla por
+// tamaño SIN la histéresis: sigue en alta solo si su celda pasa kSubirAlta (si no, cada
+// orador que pasaba quedaba en alta para siempre: medido el 2026-11-01, uno más cada
+// ~6 s hasta tener a los 40 en alta). «Alta definición hasta N personas» («alta_hasta»,
+// de fábrica 10; 0 = sin límite): si la grilla muestra más de N, TODAS sus miniaturas en
+// baja (salvo el orador y el precargado), sea cual sea el tamaño; vuelve a la regla por
+// tamaño recién con N - kMargenAltaHasta o menos (que no salte con uno que entra y sale
+// justo en el borde; todasEnBaja). LA CAPA DE CADA PERSONA LA DECIDE SOLO ESTO (para la
+// grilla): el gateway toma lo que dice cada celda y no vuelve a decidir por tamaño; lo
+// único que suma es lo que se ve de esa persona fuera de la grilla (su lugar del programa
+// en la escena al aire o armada, sala/CapasRemotos) y las vistas web que la miran.
 // NOMBRES («nombres»: nombre, o nombre y cargo/banca): cada celda lleva el id de su rótulo
 // (idRotulo); lo dibuja la app (ControlGrillas) y lo pinta el gateway con el estilo de la
 // grilla (nombre_color, nombre_fondo, nombre_tamano, nombre_lugar).
@@ -129,6 +140,10 @@ enum class Nombres { No, Nombre, NombreCargo };
 constexpr int kSubirAlta = 260;
 /// …y vuelven a la baja recién por debajo de esto (histéresis).
 constexpr int kBajarAlta = 180;
+/// «Alta definición hasta N personas» de fábrica (más que esto: todas las miniaturas en baja).
+constexpr int kAltaHastaDefecto = 10;
+/// Con todas en baja, se vuelve a la regla por tamaño recién con N - esto o menos (histéresis).
+constexpr int kMargenAltaHasta = 1;
 /// Una celda de la franja (destacar) o de la grilla con hueco no baja de esto de alto: si
 /// no entran todos así, el resto va al «+N».
 constexpr int kMinCelda = 40;
@@ -187,6 +202,9 @@ struct Config {
     int superponerTamano = 60;      ///< % del lienzo que ocupa el hueco del orador
     bool superponerCompleta = false;
     int fundidoMs = 300; ///< de la baja a la HD
+    /// Más personas que esto en la grilla: todas las miniaturas en baja (salvo el orador y el
+    /// precargado). 0 = sin límite (solo la regla por tamaño).
+    int altaHasta = kAltaHastaDefecto;
     Agrandar agrandar = Agrandar::No; ///< resaltar y escena: agrandar al orador en su celda
     PasarEscena pasarEscena = PasarEscena::AMano; ///< escena: cómo se pasa a la escena del orador
     std::string salidaOrador; ///< escena: en qué salida se la pone al aire ("" = la principal)
@@ -266,6 +284,8 @@ struct Resultado {
     Rect rMas;
     std::string orador;    ///< el orador de esta grilla ("" = nadie)
     std::string siguiente; ///< el que se precarga ("" = nadie)
+    /// Muestra más de «alta_hasta» personas (con histéresis): todas sus miniaturas en baja.
+    bool enBaja = false;
 };
 
 /// Quién es el orador de una grilla, con su tiempo mínimo en pantalla. Pura: la prueba
@@ -302,18 +322,24 @@ Disposicion disponerSuperponer(int n, const Config& c);
 /// Un rectángulo escalado a `f` de su tamaño (achicado o agrandado), con el mismo centro.
 Rect achicar(const Rect& r, double f);
 
+/// ¿Todas las miniaturas de una grilla en baja? Con más de `altaHasta` personas, sí; si ya
+/// estaban (`antes`), siguen hasta bajar a altaHasta - kMargenAltaHasta. 0 = sin límite.
+bool todasEnBaja(int personas, int altaHasta, bool antes);
+
 /// La capa de cada uno con histéresis y sin muchos cuadros clave a la vez (ver arriba).
 class CapasGrilla {
    public:
     struct Pedido {
-        int alto = 0;          ///< el lugar más grande donde se lo ve
+        int alto = 0;          ///< el lugar más grande donde se lo ve (0 = solo en miniaturas en baja)
         bool orador = false;   ///< es el orador de alguna grilla: alta ya
+        bool precarga = false; ///< lo precarga alguna grilla (el siguiente): alta ya
     };
     /// clave → true si va en alta. `maxSubidas`: cuántas miniaturas pueden subir en esta vuelta.
     std::map<std::string, bool> decidir(const std::map<std::string, Pedido>& pedidos, int maxSubidas = 1);
 
    private:
-    std::map<std::string, bool> alta_;
+    enum class Por { Tamano, Orador }; ///< por qué está en alta
+    std::map<std::string, Por> alta_;  ///< los que están en alta
 };
 
 /// Pasar a la escena del orador (al_hablar = escena) a mano, automático o con el asistente.
@@ -363,6 +389,7 @@ class Repartidor {
 
     std::map<std::string, std::vector<std::string>> lugares_; // fuente → claves por lugar
     std::map<std::string, MaquinaOrador> oradores_;            // fuente → su orador
+    std::set<std::string> enBaja_;                             // las grillas con todas las miniaturas en baja
     CapasGrilla capas_;
 };
 

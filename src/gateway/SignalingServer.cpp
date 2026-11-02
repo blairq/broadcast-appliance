@@ -3566,10 +3566,6 @@ void SignalingServer::revisarCapas(const std::string& pid) {
     if (s == nullptr || pump_ == nullptr || !s->conCapas()) return; // un navegador de antes: una sola cámara
     NecesidadCapa n;
     n.ruta = pump_->route(idx);
-    {
-        std::lock_guard<std::mutex> l(calidadMu_);
-        if (const auto it = altoGrilla_.find(pid); it != altoGrilla_.end()) n.altoGrilla = it->second;
-    }
     // Lo que dicen las grillas de esta persona: su capa (con histéresis) y si la precargan.
     if (grillas_ != nullptr) {
         const std::string persona = pid.rfind("remoto:", 0) == 0 ? "asamblea:" + pid.substr(7) : "sala:" + pid;

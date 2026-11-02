@@ -164,7 +164,24 @@ con un fundido, y nunca negro ni salto.**
    cambian de capa por achicarse un poco (suben pasando 260 px de alto y bajan recién
    por debajo de 180), y no sube más de una miniatura por vuelta (cada subida es un
    cuadro clave). Las miniaturas van en la baja (180p a 15 cps); quien no está en
-   ninguna grilla ni al aire, en ninguna.
+   ninguna grilla ni al aire, en ninguna. El que deja de ser orador (o precargado)
+   **no** se queda en alta por esa histéresis: sigue en alta solo si su celda pasa los
+   260 px (antes cada orador que pasaba quedaba en alta en su celda de ~200 px; con 40
+   invitados terminaban los 40 en alta, 68 Mbps).
+5. **Alta definición hasta N personas** (`alta_hasta`, de fábrica 10; 0 = sin límite):
+   si la grilla muestra **más** de N personas, todas sus miniaturas van en baja,
+   sean del tamaño que sean; solo el orador y el precargado siguen en alta. Con N o
+   menos, la regla por tamaño del punto 4. Para que no salte con uno que entra y sale
+   justo en el borde, vuelve a la regla por tamaño recién con N − 1 personas.
+   `grilla_personas_estado` dice en cada grilla `alta_hasta` y `en_baja`, y en cada
+   persona su `capa` (`alta` | `baja`).
+
+La capa de cada persona tiene **un solo dueño** para lo que se ve en las grillas: la app
+(`CapasGrilla`, en `src/app/escenas/GrillaPersonas.hpp`) la manda en cada celda y B la
+respeta sin volver a decidir por el tamaño. B solo le suma lo que se ve de esa persona
+**fuera** de la grilla: su lugar del programa en la escena al aire o armada (el invitado
+del cupo que no está en ninguna de esas escenas no pide la alta por estar en el cupo) y
+las vistas web que la miran.
 
 B anota en su registro cada pedido («capas: a <pid> se le pide la alta») y cada llegada
 («capas: llegó la HD de <pid> (N ms desde el pedido); fundido de M ms»).

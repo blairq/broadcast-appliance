@@ -50196,7 +50196,7 @@ Dados (de %2): %3</translation>
         <translation>cadeira %1</translation>
     </message>
     <message>
-        <location line="+78"/>
+        <location line="+85"/>
         <source>sin canal: hay más de %1 grillas</source>
         <translation>sem canal: há mais de %1 grades</translation>
     </message>
@@ -50706,7 +50706,17 @@ Dados (de %2): %3</translation>
         <translation>Ao passar para grande, a câmera é pedida em alta: enquanto ela não chega, continua a baixa e, quando chega, há uma fusão de uma para a outra (nunca preto).</translation>
     </message>
     <message>
-        <location line="+4"/>
+        <location line="+5"/>
+        <source>Alta definición hasta (personas)</source>
+        <translation>Alta definição até (pessoas)</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Con más personas que esto en la grilla, todas las miniaturas van en baja definición (menos datos por la red y menos trabajo para la máquina), aunque las celdas sean grandes; el orador y el siguiente siguen en alta. Con esto o menos, cada una según su tamaño. 0 = sin límite.</source>
+        <translation>Com mais pessoas do que isso na grade, todas as miniaturas vão em baixa definição (menos dados pela rede e menos trabalho para a máquina), mesmo que as células sejam grandes; o orador e o próximo continuam em alta. Com isso ou menos, cada uma conforme o seu tamanho. 0 = sem limite.</translation>
+    </message>
+    <message>
+        <location line="+5"/>
         <source>Borde a quien habla</source>
         <translation>Borda em quem fala</translation>
     </message>
@@ -50801,7 +50811,7 @@ Dados (de %2): %3</translation>
         <translation>Ainda sem canal: há mais de 8 grades, ou a conferência não iniciou.</translation>
     </message>
     <message>
-        <location filename="../src/app/escenas/GrillaPersonas.cpp" line="+176"/>
+        <location filename="../src/app/escenas/GrillaPersonas.cpp" line="+178"/>
         <source>los ajustes van en un objeto</source>
         <translation>os ajustes vão em um objeto</translation>
     </message>
@@ -50821,7 +50831,7 @@ Dados (de %2): %3</translation>
         <translation>“%1” é true ou false</translation>
     </message>
     <message>
-        <location line="+11"/>
+        <location line="+12"/>
         <source>«%1» no es un ajuste de la grilla de personas</source>
         <translation>“%1” não é um ajuste da grade de pessoas</translation>
     </message>
@@ -53327,7 +53337,7 @@ Dados (de %2): %3</translation>
         <translation>ws: mensagem inválida de %1 (%2)</translation>
     </message>
     <message>
-        <location line="+431"/>
+        <location line="+427"/>
         <source>capas: a %1 se le pide la %2</source>
         <translation>camadas: pede-se a %1 a camada %2</translation>
     </message>
@@ -53357,7 +53367,7 @@ Dados (de %2): %3</translation>
         <translation>teste de sala: encerrado (%1); credencial revogada, %2 participantes de teste fora</translation>
     </message>
     <message>
-        <location line="-3104"/>
+        <location line="-3100"/>
         <source>direcciones: red %1, afuera %2</source>
         <translation>endereços: rede %1, fora %2</translation>
     </message>
@@ -64866,7 +64876,12 @@ Com este repertório monta-se um gráfico SEM escrever código: é o que convém
         <translation>origen (sala|asamblea|ambas), orden (llegada|habla|prioridad), tope (células com o «+N», 0 = sem limite), solo_con_camara, sin_al_aire (sem quem já está no ar em outra fonte ou em outra grade visível, contando as cenas das camadas DSK), resaltar (quem fala), grupo (as grades com o mesmo grupo dividem as pessoas sem repetir; &quot;&quot; = sozinha), orden_en_grupo (a primeira define a ordem e o modo), reparto (en_orden: enche a primeira até o limite; parejo: a mesma quantidade em cada uma), ancho, alto, proporcion (16:9|4:3|1:1|3:4|9:16|llenar), separacion, margen, transicion_ms, fondo e color_resaltar (&quot;#AARRGGBB&quot;). Quando alguém fala: al_hablar (sin_cambios: a grade não é tocada, só a câmera do orador em alta | resaltar: ninguém se mexe, o orador ganha borda | destacar: o orador grande e os demais em uma faixa, na mesma ordem | superponer: o orador por cima, em um vão que a grade deixa | escena: a grade não muda e outra grade com muestra=orador o mostra sozinho | nada: sem orador), agrandar (resaltar e escena: no | encima | achicando), pasar_a_escena (escena: a_mano | automatico | asistente: sempre avisa o operador), salida_orador (&quot;&quot; = a principal), escena_orador (criada por grilla_personas_escena_orador), disparo (voz: voz sustentada voz_ms | palabra: a palavra da assembleia | orador: o orador no ar da conferência | manual: grilla_personas_destacar), voz_ms, minimo_ms (o orador não muda antes disso: histerese), precarga (o próximo já pede a camada alta), destacar_lugar (centro|izquierda), destacar_tamano (% da tela), franja (abajo|costado), superponer_tamano, superponer_completa, fundido_ms (da baixa para a HD). Nomes: nombres (no|nombre|nombre_cargo), nombre_tamano (% da altura da célula), nombre_color, nombre_fondo, nombre_lugar (abajo|arriba). muestra (todos|orador) e sigue (a grade cujo orador mostra; &quot;&quot; = a primeira que tiver): a cena do orador.</translation>
     </message>
     <message>
-        <location line="+22"/>
+        <location line="+19"/>
+        <source>alta_hasta (de fábrica 10; 0 = sin límite): con más personas que esto en la grilla, todas las miniaturas piden la cámara en baja definición, salvo el orador y el siguiente (precarga); con esto o menos, cada una según el tamaño de su celda. Vuelve a la regla por tamaño recién con una persona menos (histéresis). grilla_personas_estado dice en cada grilla alta_hasta y en_baja, y en cada persona su capa (alta|baja).</source>
+        <translation>alta_hasta (padrão 10; 0 = sem limite): com mais pessoas do que isso na grade, todas as miniaturas pedem a câmera em baixa definição, exceto o orador e o próximo (pré-carga); com isso ou menos, cada uma conforme o tamanho da sua célula. Só volta à regra por tamanho com uma pessoa a menos (histerese). grilla_personas_estado informa em cada grade alta_hasta e en_baja, e em cada pessoa a sua capa (alta|baja).</translation>
+    </message>
+    <message>
+        <location line="+7"/>
         <source>Qué muestra cada grilla de personas</source>
         <translation>O que cada grade de pessoas mostra</translation>
     </message>

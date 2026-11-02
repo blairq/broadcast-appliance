@@ -99,10 +99,7 @@ Capa capaNecesaria(const NecesidadCapa& n) {
         case K::Registro: c = Capa::Alta; break; // la app reconoce la cara
         default: break;
     }
-    if (n.capaGrilla != Capa::Nada)
-        c = std::max(c, n.capaGrilla); // la grilla dijo (con histéresis, ver GrillaPersonas)
-    else if (n.altoGrilla > 0)
-        c = std::max(c, n.altoGrilla <= 200 ? Capa::Baja : Capa::Alta);
+    c = std::max(c, n.capaGrilla); // la grilla (la decide la app: GrillaPersonas, CapasGrilla)
     if (n.precarga) c = Capa::Alta;
     if (n.espectadores > 0) c = Capa::Alta;
     return c;

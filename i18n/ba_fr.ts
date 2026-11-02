@@ -50196,7 +50196,7 @@ Données (de %2)&#xa0;: %3</translation>
         <translation>siège %1</translation>
     </message>
     <message>
-        <location line="+78"/>
+        <location line="+85"/>
         <source>sin canal: hay más de %1 grillas</source>
         <translation>pas de canal&#xa0;: il y a plus de %1 grilles</translation>
     </message>
@@ -50706,7 +50706,17 @@ Données (de %2)&#xa0;: %3</translation>
         <translation>Au passage en grand, la caméra est demandée en haute définition : tant qu&apos;elle n&apos;arrive pas, la basse reste visible et, une fois arrivée, on passe de l&apos;une à l&apos;autre par un fondu (jamais de noir).</translation>
     </message>
     <message>
-        <location line="+4"/>
+        <location line="+5"/>
+        <source>Alta definición hasta (personas)</source>
+        <translation>Haute définition jusqu&apos;à (personnes)</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Con más personas que esto en la grilla, todas las miniaturas van en baja definición (menos datos por la red y menos trabajo para la máquina), aunque las celdas sean grandes; el orador y el siguiente siguen en alta. Con esto o menos, cada una según su tamaño. 0 = sin límite.</source>
+        <translation>Avec plus de personnes que cela dans la grille, toutes les vignettes passent en basse définition (moins de données sur le réseau et moins de travail pour la machine), même si les cellules sont grandes ; l&apos;orateur et le suivant restent en haute. Avec ce nombre ou moins, chacune selon sa taille. 0 = sans limite.</translation>
+    </message>
+    <message>
+        <location line="+5"/>
         <source>Borde a quien habla</source>
         <translation>Bordure sur celui qui parle</translation>
     </message>
@@ -50801,7 +50811,7 @@ Données (de %2)&#xa0;: %3</translation>
         <translation>Pas encore de canal&#xa0;: il y a plus de 8 grilles, ou la conférence n&apos;a pas démarré.</translation>
     </message>
     <message>
-        <location filename="../src/app/escenas/GrillaPersonas.cpp" line="+176"/>
+        <location filename="../src/app/escenas/GrillaPersonas.cpp" line="+178"/>
         <source>los ajustes van en un objeto</source>
         <translation>les réglages vont dans un objet</translation>
     </message>
@@ -50821,7 +50831,7 @@ Données (de %2)&#xa0;: %3</translation>
         <translation>«&#xa0;%1&#xa0;» vaut true ou false</translation>
     </message>
     <message>
-        <location line="+11"/>
+        <location line="+12"/>
         <source>«%1» no es un ajuste de la grilla de personas</source>
         <translation>«&#xa0;%1&#xa0;» n&apos;est pas un réglage de la grille de personnes</translation>
     </message>
@@ -53327,7 +53337,7 @@ Données (de %2)&#xa0;: %3</translation>
         <translation>ws&#xa0;: message invalide de %1 (%2)</translation>
     </message>
     <message>
-        <location line="+431"/>
+        <location line="+427"/>
         <source>capas: a %1 se le pide la %2</source>
         <translation>couches&#xa0;: on demande à %1 la couche %2</translation>
     </message>
@@ -53357,7 +53367,7 @@ Données (de %2)&#xa0;: %3</translation>
         <translation>test de salle : terminé (%1) ; identifiant révoqué, %2 participants de test retirés</translation>
     </message>
     <message>
-        <location line="-3104"/>
+        <location line="-3100"/>
         <source>direcciones: red %1, afuera %2</source>
         <translation>adresses&#xa0;: réseau %1, extérieur %2</translation>
     </message>
@@ -64866,7 +64876,12 @@ Avec ce répertoire, on construit un graphique SANS écrire de code&#xa0;: c&apo
         <translation>origen (sala|asamblea|ambas), orden (llegada|habla|prioridad), tope (cellules avec le « +N », 0 = sans limite), solo_con_camara, sin_al_aire (sans ceux qui sont déjà à l&apos;antenne dans une autre source ou dans une autre grille visible, en comptant les scènes des couches DSK), resaltar (celui qui parle), grupo (les grilles du même groupe se répartissent les gens sans répétition ; &quot;&quot; = seule), orden_en_grupo (la première impose l&apos;ordre et le mode), reparto (en_orden : remplit la première jusqu&apos;à sa limite ; parejo : le même nombre dans chacune), ancho, alto, proporcion (16:9|4:3|1:1|3:4|9:16|llenar), separacion, margen, transicion_ms, fondo et color_resaltar (&quot;#AARRGGBB&quot;). Quand quelqu&apos;un parle : al_hablar (sin_cambios : la grille n&apos;est pas touchée, seulement la caméra de l&apos;intervenant en haute définition | resaltar : personne ne bouge, l&apos;intervenant reçoit une bordure | destacar : l&apos;intervenant en grand et les autres dans un bandeau, dans le même ordre | superponer : l&apos;intervenant au-dessus dans un espace que la grille laisse | escena : la grille ne change pas et une autre grille avec muestra=orador le montre seul | nada : pas d&apos;intervenant), agrandar (resaltar et escena : no | encima | achicando), pasar_a_escena (escena : a_mano | automatico | asistente : prévient toujours l&apos;opérateur), salida_orador (&quot;&quot; = la principale), escena_orador (créée par grilla_personas_escena_orador), disparo (voz : voix soutenue voz_ms | palabra : la parole de l&apos;assemblée | orador : l&apos;intervenant à l&apos;antenne de la conférence | manual : grilla_personas_destacar), voz_ms, minimo_ms (l&apos;intervenant ne change pas avant : hystérésis), precarga (le suivant demande déjà la couche haute), destacar_lugar (centro|izquierda), destacar_tamano (% du canevas), franja (abajo|costado), superponer_tamano, superponer_completa, fundido_ms (de la basse à la HD). Noms : nombres (no|nombre|nombre_cargo), nombre_tamano (% de la hauteur de la cellule), nombre_color, nombre_fondo, nombre_lugar (abajo|arriba). muestra (todos|orador) et sigue (la grille dont elle montre l&apos;intervenant ; &quot;&quot; = la première qui en a un) : la scène de l&apos;intervenant.</translation>
     </message>
     <message>
-        <location line="+22"/>
+        <location line="+19"/>
+        <source>alta_hasta (de fábrica 10; 0 = sin límite): con más personas que esto en la grilla, todas las miniaturas piden la cámara en baja definición, salvo el orador y el siguiente (precarga); con esto o menos, cada una según el tamaño de su celda. Vuelve a la regla por tamaño recién con una persona menos (histéresis). grilla_personas_estado dice en cada grilla alta_hasta y en_baja, y en cada persona su capa (alta|baja).</source>
+        <translation>alta_hasta (10 par défaut ; 0 = sans limite) : avec plus de personnes que cela dans la grille, toutes les vignettes demandent la caméra en basse définition, sauf l&apos;orateur et le suivant (préchargement) ; avec ce nombre ou moins, chacune selon la taille de sa cellule. Elle ne revient à la règle de taille qu&apos;avec une personne de moins (hystérésis). grilla_personas_estado indique pour chaque grille alta_hasta et en_baja, et pour chaque personne sa capa (alta|baja).</translation>
+    </message>
+    <message>
+        <location line="+7"/>
         <source>Qué muestra cada grilla de personas</source>
         <translation>Ce que montre chaque grille de personnes</translation>
     </message>

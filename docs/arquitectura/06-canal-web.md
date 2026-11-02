@@ -194,7 +194,7 @@ lo apagan o lo sueltan también.
 | Integrante con la palabra (canal 1 o 2) o el siguiente de la fila | alta |
 | Lobby, fila de oradores con vista previa | baja |
 | Fila sin vista previa, pantallas, atención hablada | nada |
-| En una grilla de personas | la que pide la grilla (`capa` de su celda: la app la decide con histéresis, el orador en alta); con una app que no la dice, baja (cuadrito ≤ 200 px) o alta (más grande) |
+| En una grilla de personas | la que pide la grilla (`capa` de su celda): la decide solo la app (`CapasGrilla`), por el tamaño con histéresis, todas en baja pasadas las `alta_hasta` personas (de fábrica 10), el orador y el precargado en alta; el gateway no decide por el tamaño |
 | Precargado por una grilla (el siguiente orador) | alta |
 | Lo mira una vista web (tablero, presidencia: se le reenvía la alta) | alta |
 

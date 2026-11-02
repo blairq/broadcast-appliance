@@ -50042,7 +50042,7 @@ Datos (de %2): %3</source>
         <translation>席位 %1</translation>
     </message>
     <message>
-        <location line="+78"/>
+        <location line="+85"/>
         <source>sin canal: hay más de %1 grillas</source>
         <translation>没有通道：网格超过 %1 个</translation>
     </message>
@@ -50552,7 +50552,17 @@ Datos (de %2): %3</source>
         <translation>切换为大画面时会请求高画质摄像头：在其到达之前继续显示低画质，到达后两者之间淡入淡出（绝不黑屏）。</translation>
     </message>
     <message>
-        <location line="+4"/>
+        <location line="+5"/>
+        <source>Alta definición hasta (personas)</source>
+        <translation>高清人数上限</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Con más personas que esto en la grilla, todas las miniaturas van en baja definición (menos datos por la red y menos trabajo para la máquina), aunque las celdas sean grandes; el orador y el siguiente siguen en alta. Con esto o menos, cada una según su tamaño. 0 = sin límite.</source>
+        <translation>网格中的人数超过此值时，所有缩略图都使用低清（网络数据更少，机器负担更小），即使单元格很大；发言人和下一位仍保持高清。人数等于或少于此值时，各自按尺寸决定。0 = 不限。</translation>
+    </message>
+    <message>
+        <location line="+5"/>
         <source>Borde a quien habla</source>
         <translation>给发言者加边框</translation>
     </message>
@@ -50647,7 +50657,7 @@ Datos (de %2): %3</source>
         <translation>尚无通道：网格超过 8 个，或会议尚未启动。</translation>
     </message>
     <message>
-        <location filename="../src/app/escenas/GrillaPersonas.cpp" line="+176"/>
+        <location filename="../src/app/escenas/GrillaPersonas.cpp" line="+178"/>
         <source>los ajustes van en un objeto</source>
         <translation>设置必须放在对象中</translation>
     </message>
@@ -50667,7 +50677,7 @@ Datos (de %2): %3</source>
         <translation>「%1」必须是 true 或 false</translation>
     </message>
     <message>
-        <location line="+11"/>
+        <location line="+12"/>
         <source>«%1» no es un ajuste de la grilla de personas</source>
         <translation>「%1」不是人员网格的设置</translation>
     </message>
@@ -53173,7 +53183,7 @@ Datos (de %2): %3</source>
         <translation>ws：来自 %1 的消息无效（%2）</translation>
     </message>
     <message>
-        <location line="+431"/>
+        <location line="+427"/>
         <source>capas: a %1 se le pide la %2</source>
         <translation>画质层：向 %1 请求 %2 层</translation>
     </message>
@@ -53203,7 +53213,7 @@ Datos (de %2): %3</source>
         <translation>会场测试：已结束（%1）；凭据已撤销，已移出 %2 名测试参与者</translation>
     </message>
     <message>
-        <location line="-3104"/>
+        <location line="-3100"/>
         <source>direcciones: red %1, afuera %2</source>
         <translation>地址：网络 %1，外部 %2</translation>
     </message>
@@ -64706,7 +64716,12 @@ Con este repertorio se arma un gráfico SIN escribir código: es lo que conviene
         <translation>origen (sala|asamblea|ambas)、orden (llegada|habla|prioridad)、tope（带“+N”的单元格数，0 = 不限）、solo_con_camara、sin_al_aire（排除已在其他信号源或其他可见网格中播出的人，包括 DSK 图层的场景）、resaltar（高亮正在说话的人）、grupo（同组的网格分摊人员且不重复；&quot;&quot; = 独立）、orden_en_grupo（第一个网格决定顺序和模式）、reparto (en_orden：先填满第一个直到其上限；parejo：每个网格人数相同)、ancho、alto、proporcion (16:9|4:3|1:1|3:4|9:16|llenar)、separacion、margen、transicion_ms、fondo 和 color_resaltar (&quot;#AARRGGBB&quot;)。有人发言时：al_hablar (sin_cambios：网格保持原样，只以高画质请求发言人的摄像头 | resaltar：谁都不动，发言人加边框 | destacar：发言人大画面，其余按原顺序放在条带里 | superponer：发言人叠在网格为其留出的空位上 | escena：网格不变，由另一个 muestra=orador 的网格单独显示发言人 | nada：没有发言人)、agrandar (resaltar 和 escena：no | encima | achicando)、pasar_a_escena (escena：a_mano | automatico | asistente：总会通知操作员)、salida_orador (&quot;&quot; = 主输出)、escena_orador（由 grilla_personas_escena_orador 创建）、disparo (voz：持续有声 voz_ms | palabra：大会的发言权 | orador：会议中播出的发言人 | manual：grilla_personas_destacar)、voz_ms、minimo_ms（在此之前发言人不更换：滞回）、precarga（下一位已提前请求高画质层）、destacar_lugar (centro|izquierda)、destacar_tamano（占画布的 %）、franja (abajo|costado)、superponer_tamano、superponer_completa、fundido_ms（从低画质到高清）。姓名：nombres (no|nombre|nombre_cargo)、nombre_tamano（占单元格高度的 %）、nombre_color、nombre_fondo、nombre_lugar (abajo|arriba)。muestra (todos|orador) 和 sigue（显示其发言人的网格；&quot;&quot; = 第一个有发言人的网格）：发言人场景。</translation>
     </message>
     <message>
-        <location line="+22"/>
+        <location line="+19"/>
+        <source>alta_hasta (de fábrica 10; 0 = sin límite): con más personas que esto en la grilla, todas las miniaturas piden la cámara en baja definición, salvo el orador y el siguiente (precarga); con esto o menos, cada una según el tamaño de su celda. Vuelve a la regla por tamaño recién con una persona menos (histéresis). grilla_personas_estado dice en cada grilla alta_hasta y en_baja, y en cada persona su capa (alta|baja).</source>
+        <translation>alta_hasta（默认 10；0 = 不限）：网格中的人数超过此值时，所有缩略图都以低清请求摄像头，发言人和下一位（预加载）除外；等于或少于此值时，各自按其单元格尺寸决定。只有在人数再少一人时才回到按尺寸的规则（迟滞）。grilla_personas_estado 会给出每个网格的 alta_hasta 和 en_baja，以及每个人的 capa（alta|baja）。</translation>
+    </message>
+    <message>
+        <location line="+7"/>
         <source>Qué muestra cada grilla de personas</source>
         <translation>每个人员网格显示什么</translation>
     </message>

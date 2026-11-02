@@ -38,7 +38,11 @@ void McpService::registerGrillaTools() {
         "destacar_tamano (% del lienzo), franja (abajo|costado), superponer_tamano, superponer_completa, fundido_ms (de "
         "la baja a la HD). Nombres: nombres (no|nombre|nombre_cargo), nombre_tamano (% del alto de la celda), "
         "nombre_color, nombre_fondo, nombre_lugar (abajo|arriba). muestra (todos|orador) y sigue (la grilla cuyo "
-        "orador muestra; \"\" = la primera que tenga): la escena del orador.");
+        "orador muestra; \"\" = la primera que tenga): la escena del orador.") + " " +
+        ba::i18n::traducir("mcp", "alta_hasta (de fábrica 10; 0 = sin límite): con más personas que esto en la grilla, "
+        "todas las miniaturas piden la cámara en baja definición, salvo el orador y el siguiente (precarga); con esto o "
+        "menos, cada una según el tamaño de su celda. Vuelve a la regla por tamaño recién con una persona menos "
+        "(histéresis). grilla_personas_estado dice en cada grilla alta_hasta y en_baja, y en cada persona su capa (alta|baja).");
     {
         Tool t;
         t.name = "grilla_personas_estado";

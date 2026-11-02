@@ -98,6 +98,7 @@ json Config::defectos() {
                 {"superponer_tamano", 60},
                 {"superponer_completa", false},
                 {"fundido_ms", 300},
+                {"alta_hasta", kAltaHastaDefecto}, // más personas: todas las miniaturas en baja (0 = sin límite)
                 {"agrandar", "no"},             // resaltar y escena: no | encima | achicando
                 {"pasar_a_escena", "a_mano"},   // escena: a_mano | automatico | asistente
                 {"salida_orador", ""},          // escena: la salida ("" = la principal)
@@ -155,6 +156,7 @@ Config Config::desdeAjustes(const std::string& fuente, const json& ajustesIn) {
     c.superponerTamano = std::clamp(entero(a, "superponer_tamano", 60), 30, 90);
     c.superponerCompleta = siNo(a, "superponer_completa", false);
     c.fundidoMs = std::clamp(entero(a, "fundido_ms", 300), 0, 2000);
+    c.altaHasta = std::clamp(entero(a, "alta_hasta", kAltaHastaDefecto), 0, kMaxCeldas);
     const std::string ag = texto(a, "agrandar", "no");
     c.agrandar = ag == "encima" ? Agrandar::Encima : ag == "achicando" ? Agrandar::Achicando : Agrandar::No;
     const std::string pe = texto(a, "pasar_a_escena", "a_mano");
@@ -202,7 +204,8 @@ std::string Config::validar(const json& cambios) {
         "proporcion", "transicion_ms", "fondo", "color_resaltar",
         "al_hablar", "disparo", "voz_ms", "minimo_ms", "precarga", "destacar_lugar", "destacar_tamano", "franja",
         "superponer_tamano", "superponer_completa", "fundido_ms", "nombres", "nombre_tamano", "nombre_color",
-        "nombre_fondo", "nombre_lugar", "muestra", "sigue", "agrandar", "pasar_a_escena", "salida_orador", "escena_orador"};
+        "nombre_fondo", "nombre_lugar", "muestra", "sigue", "agrandar", "pasar_a_escena", "salida_orador", "escena_orador",
+        "alta_hasta"};
     for (const auto& [k, v] : cambios.items())
         if (!kConocidos.count(k)) return ba::i18n::llenar(ba::i18n::traducir("escenas", "«%1» no es un ajuste de la grilla de personas"), {k});
     for (const std::string& e :
@@ -218,7 +221,7 @@ std::string Config::validar(const json& cambios) {
           enumera("disparo", {"voz", "palabra", "orador", "manual"}), numero("voz_ms", 0, 10000),
           numero("minimo_ms", 0, 60000), booleano("precarga"), enumera("destacar_lugar", {"centro", "izquierda"}),
           numero("destacar_tamano", 40, 90), enumera("franja", {"abajo", "costado"}), numero("superponer_tamano", 30, 90),
-          booleano("superponer_completa"), numero("fundido_ms", 0, 2000), enumera("nombres", {"no", "nombre", "nombre_cargo"}),
+          booleano("superponer_completa"), numero("fundido_ms", 0, 2000), numero("alta_hasta", 0, kMaxCeldas), enumera("nombres", {"no", "nombre", "nombre_cargo"}),
           numero("nombre_tamano", 5, 40), enumera("nombre_lugar", {"abajo", "arriba"}), enumera("muestra", {"todos", "orador"})})
         if (!e.empty()) return e;
     if (cambios.contains("grupo") && !cambios["grupo"].is_string())
@@ -605,27 +608,35 @@ PaseEscenaOrador::Orden PaseEscenaOrador::paso(PasarEscena modo, const std::stri
     return o;
 }
 
+bool todasEnBaja(int personas, int altaHasta, bool antes) {
+    if (altaHasta <= 0) return false;
+    return personas > (antes ? altaHasta - kMargenAltaHasta : altaHasta);
+}
+
 std::map<std::string, bool> CapasGrilla::decidir(const std::map<std::string, Pedido>& pedidos, int maxSubidas) {
     std::map<std::string, bool> out;
+    std::map<std::string, Por> alta;
     // Los más grandes primero: si hay que esperar para subir, espera el más chico.
     std::vector<std::pair<std::string, Pedido>> orden(pedidos.begin(), pedidos.end());
     std::stable_sort(orden.begin(), orden.end(), [](const auto& a, const auto& b) { return a.second.alto > b.second.alto; });
     int subidas = 0;
     for (const auto& [k, p] : orden) {
         const auto it = alta_.find(k);
-        const bool antes = it != alta_.end() && it->second;
-        bool a = false;
-        if (p.orador) {
-            a = true; // el orador: alta ya (no cuenta en el tope: es el que importa)
-        } else if (antes) {
-            a = p.alto >= kBajarAlta; // ya en alta: baja recién por debajo del umbral de bajada
+        if (p.orador || p.precarga) {
+            alta[k] = Por::Orador; // el orador y el precargado: alta ya (no cuentan en el tope: son los que importan)
+        } else if (it != alta_.end() && it->second == Por::Tamano) {
+            if (p.alto >= kBajarAlta) alta[k] = Por::Tamano; // ya en alta por su lugar: baja recién por debajo del umbral de bajada
+        } else if (it != alta_.end()) {
+            // Estaba en alta por ser orador y ya no lo es: la regla por tamaño, sin histéresis
+            // (la alta no la ganó por su lugar). Si su lugar la pide, sigue sin cuadro clave nuevo.
+            if (p.alto > kSubirAlta) alta[k] = Por::Tamano;
         } else if (p.alto > kSubirAlta && subidas < maxSubidas) {
-            a = true;
+            alta[k] = Por::Tamano;
             ++subidas;
         }
-        out[k] = a;
+        out[k] = alta.count(k) > 0;
     }
-    alta_ = out;
+    alta_ = std::move(alta);
     return out;
 }
 
@@ -921,21 +932,28 @@ std::vector<Resultado> Repartidor::calcular(const std::vector<Config>& grillas, 
                  ? std::next(it)
                  : oradores_.erase(it);
 
-    // La capa de cada uno: el orador, alta; los demás según el lugar más grande donde se
-    // los ve, con histéresis y de a una subida por vuelta.
+    // La capa de cada uno: el orador y el precargado, alta; los demás según el lugar más
+    // grande donde se los ve, con histéresis y de a una subida por vuelta. En una grilla con
+    // más de «alta_hasta» personas las miniaturas no piden la alta por grandes que sean.
     std::map<std::string, CapasGrilla::Pedido> pedidos;
-    std::map<std::string, AlHablar> modo;
-    for (const Config& c : grillas) modo[c.fuente] = c.soloOrador ? AlHablar::Destacar : c.alHablar;
-    for (const auto& [f, r] : porFuente) {
-        const AlHablar m = modo[f];
+    std::set<std::string> enBaja;
+    for (const Config& c : grillas) {
+        Resultado& r = porFuente[c.fuente];
+        const AlHablar m = c.soloOrador ? AlHablar::Destacar : c.alHablar;
         const bool grande = m == AlHablar::SinCambios || m == AlHablar::Resaltar || m == AlHablar::Destacar ||
                             m == AlHablar::Superponer;
+        r.enBaja = !c.soloOrador &&
+                   todasEnBaja(static_cast<int>(r.personas.size()), c.altaHasta, enBaja_.count(c.fuente) > 0);
+        if (r.enBaja) enBaja.insert(c.fuente);
         for (const Celda& x : r.celdas) {
             auto& p = pedidos[x.clave];
-            p.alto = std::max(p.alto, x.r.h);
-            p.orador = p.orador || (grande && x.clave == r.orador);
+            const bool orador = grande && x.clave == r.orador;
+            if (!r.enBaja || orador) p.alto = std::max(p.alto, x.r.h);
+            p.orador = p.orador || orador;
+            p.precarga = p.precarga || x.clave == r.siguiente;
         }
     }
+    enBaja_ = std::move(enBaja);
     const std::map<std::string, bool> alta = capas_.decidir(pedidos);
     for (auto& [f, r] : porFuente)
         for (Celda& x : r.celdas)
