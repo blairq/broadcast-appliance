@@ -92,7 +92,7 @@ adentro de la carpeta, en Windows, macOS y Linux.
   ecualizadores, compuertas, limitadores…), matriz de mezcla, loudness EBU R128,
   calibración de sala, automezclador, PFL, AFV y sincronía con los labios.
 - **Conferencia.** Los invitados entran por WebRTC con un enlace: lobby
-  privado, chat, modo oradores con reloj, hasta 64 invitados.
+  privado, chat, modo oradores con reloj, hasta 512 invitados.
 - **Asamblea.** Integrantes presenciales y remotos, recinto con sus bancas,
   quórum, orden del día con informes en PDF, debates y votación.
 - **Bosch DCN Next Generation (beta).** Maneja la central de conferencia por su

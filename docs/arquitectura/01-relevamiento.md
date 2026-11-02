@@ -43,7 +43,7 @@ dato lleva su `archivo:línea` (rutas relativas a la raíz del repositorio).
 |---|---|---|---|---|
 | `BroadcastAppliance` (launcher, «proceso 0») | `src/launcher/` (`CMakeLists.txt:27`) | el usuario / inicio con el sistema | instancia única, integridad, lanza y vigila A y B, cierre ordenado, actualizador | memoria compartida `BA.Health`; canal de control por socket local (`ControlChannel`); variables de entorno |
 | `ba-app` (A) | `src/app/` (`CMakeLists.txt:303-305`) | launcher | interfaz Qt/QML, motor de GStreamer (`ba_motor`), salidas, MCP | `BA.Health` slot 1; memoria compartida con B; HTTP a la API de B (8788); MCP HTTP (8790) |
-| `ba-gateway` (B, «la sala») | `src/gateway/` (`CMakeLists.txt:46-50`) | launcher | WebRTC (libwebrtc M123), señalización HTTP/WS, API de la sala, túneles, TURN, WireGuard en espacio de usuario | `BA.Health` slot 0; memoria compartida con A; puertos 8785-8793, 40000-40099 |
+| `ba-gateway` (B, «la sala») | `src/gateway/` (`CMakeLists.txt:46-50`) | launcher | WebRTC (libwebrtc M123), señalización HTTP/WS, API de la sala, túneles, TURN, WireGuard en espacio de usuario | `BA.Health` slot 0; memoria compartida con A; puertos 8785-8793, 40000-41599 |
 | `ba-mcp` | `src/app/mcp/bridge/ba_mcp_main.cpp` (`src/app/CMakeLists.txt:584`) | un cliente MCP externo, o la app para sus agentes | puente MCP stdio ↔ HTTP `127.0.0.1:<puerto>/mcp` | stdin/stdout JSON-RPC por línea; lee `Runtime/mcp.json` en cada mensaje (`ba_mcp_main.cpp:14-20`) |
 | `ba-web` | `src/web/` (C, `CMakeLists.txt:13-16`) | gateway (`src/gateway/BaWeb.cpp:130`) | servidor HTTPS tipo nginx (master + workers) para la red local y el túnel | escuchas TCP; certificado por stdin (`src/gateway/main.cpp:986-1008`) |
 | `ba-pinggy` | `src/pinggy/main.cpp` | gateway (`src/gateway/Pinggy.cpp:271`) | túnel de pinggy.io en proceso aparte (OpenSSL separado de BoringSSL de libwebrtc) | stdout: un JSON por línea (`src/pinggy/main.cpp:1-20`) |
@@ -362,7 +362,7 @@ Tamaños calculados a 1920×1080 BGRA (el lienzo de fábrica, `src/app/emision/B
 
 Tamaño de un anillo de audio: 16 × 480 × 2 × 4 B = 61 440 B de datos (160 ms)
 (`SharedAudioRing.hpp:58-61`). Cupo de lugares: gateway 1-16 invitados
-(`src/gateway/Config.hpp:53-58`, `296-298`); en la app `kMaxInvitados = 64`
+(`src/gateway/Config.hpp:53-58`, `296-298`); en la app `kMaxInvitados = 64` (hoy 512)
 (`src/core/ipc/LugaresSala.hpp:18`).
 
 ### 3.3 Cadencias de sondeo entre procesos
@@ -392,7 +392,7 @@ Tamaño de un anillo de audio: 16 × 480 × 2 × 4 B = 61 440 B de datos (160 ms
 | 8792 | B | LAN | control LAN | `Config.hpp:104` |
 | 8793 | B | LAN | puerta HTTP | `Config.hpp:106` |
 | 9099 | cloudflared | 127.0.0.1 | métricas | `Config.hpp:61` |
-| 40000-40099 UDP | B | — | WebRTC (rango máximo 150 puertos) | `Config.hpp:107-108`, `319` |
+| 40000-41599 UDP (antes 40000-40099) | B | — | WebRTC (rango máximo 2000 puertos) | `Config.hpp:107-108`, `319` |
 | 51820 UDP | B | — | WireGuard (si está activo) | `src/gateway/main.cpp:837`, `887` |
 | 80/443 | servidor remoto | — | reenvío del túnel WireGuard | `Config.hpp:117-118` |
 
@@ -1234,7 +1234,7 @@ de tiempos, colas y reintentos:
 | `supervisor.sinAvanceMs` / `supervisor.uiTrabadaMs` | 1000 / 2000 ms | `LatidoAire.cpp:83`, `87` |
 | `launcher.*` | ver 1.3 | `Supervisor.cpp:52-77` |
 | `procesador.prioridad` / `procesador.mediosJuntos` | sí / sí | `Prioridad.cpp:321`, `333` |
-| `room.maxConexiones` (por escucha) / `room.maxConexionesPorIp` / `room.maxConexionesAdmin` | 256 / 32 / 32 | `src/gateway/SignalingServer.hpp` (`cupoDe`, F0-07) |
+| `room.maxConexiones` (por escucha) / `room.maxConexionesPorIp` / `room.maxConexionesAdmin` | 1024 (antes 256) / 32 / 32 | `src/gateway/SignalingServer.hpp` (`cupoDe`, F0-07) |
 | `room.handshakeMs` / `room.cabeceraMs` | 15000 / 5000 ms | `src/gateway/SignalingServer.hpp` |
 | `room.maxVisores` | 48 | `src/gateway/Webrtc.hpp:253` |
 | `room.visorCaidoS` / `room.visorNoConectaS` | 10 / 20 s | `Webrtc.cpp:1350-1351` |
@@ -1243,7 +1243,7 @@ de tiempos, colas y reintentos:
 | `gateway.tunelReintentoMaxS` | 30 s | `src/gateway/Pinggy.cpp:404` |
 | `grilla.cps` | 25 | `src/gateway/main.cpp:1295` |
 | `pantallas.max` / `pantallas.ttlHoras` | 32 / 12 h | `SignalingServer.hpp:506-507` |
-| `turn.maxAsignaciones` / `turn.maxConexiones` / `turn.colaTcpKB` | 64 / 128 / 1024 KB | `src/gateway/turn/Servidor.cpp:877-882` |
+| `turn.maxAsignaciones` / `turn.maxConexiones` / `turn.colaTcpKB` | 640 / 1280 / 1024 KB (antes 64 / 128) | `src/gateway/turn/Servidor.cpp:877-882` |
 | `superres.lentaMs` / `superres.tranquilaMin` | 2000 ms / 10 min | `src/app/video/VideoGrafos.cpp:2169-2170` |
 | `graficos.limiteS` | 20 s | `src/app/graficos/GraficoProceso.cpp:25` |
 | `plugins.arranqueS` / `plugins.pedidoMs` | 10 s / 10000 ms | `src/app/plugins/Hijo.cpp:97`; `Plugins.cpp:1447` |
