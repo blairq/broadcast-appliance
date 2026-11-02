@@ -143,6 +143,10 @@ class Mezcla {
         double escena = 1.0, escenaDesde = 1.0, escenaHacia = 1.0;
         std::int64_t fundidoDesdeNs = 0, fundidoNs = 0;
         double picoDb = -120, rmsDb = -120;
+        bool deToma = false;           ///< src es una batoma (sin hilo: lo empuja la entrada)
+        std::uint64_t adelantados = 0; ///< los bloques que batoma no empujó por llegar adelantados
+        std::uint64_t adelantadosAvisados = 0;
+        std::int64_t avisoAdelantadoNs = 0;
     };
     /// Arma el pipeline con `desc` (el constructor).
     void armar(const std::string& desc);

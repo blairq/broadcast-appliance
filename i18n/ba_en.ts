@@ -49968,7 +49968,7 @@ Data (from %2): %3</translation>
         <translation>couldn&apos;t crop &apos;%1&apos; in &apos;%2&apos; (crop larger than the image?)</translation>
     </message>
     <message>
-        <location filename="../src/app/escenas/ControlGrillas.cpp" line="+142"/>
+        <location filename="../src/app/escenas/ControlGrillas.cpp" line="+145"/>
         <source>todavía no se pueden crear escenas</source>
         <translation>scenes can&apos;t be created yet</translation>
     </message>
@@ -85178,9 +85178,9 @@ PROPOSE, DON&apos;T APPLY: show the person what changes and apply only if they c
     <message>
         <location line="+30"/>
         <location filename="../src/motor/Composicion.cpp" line="+1171"/>
-        <location filename="../src/motor/Entrada.cpp" line="+1640"/>
+        <location filename="../src/motor/Entrada.cpp" line="+1660"/>
         <location line="+226"/>
-        <location filename="../src/motor/Mezcla.cpp" line="+421"/>
+        <location filename="../src/motor/Mezcla.cpp" line="+437"/>
         <location filename="../src/motor/OrigenRed.cpp" line="+233"/>
         <location filename="../src/motor/Salidas.cpp" line="+388"/>
         <location line="+309"/>
@@ -85191,7 +85191,7 @@ PROPOSE, DON&apos;T APPLY: show the person what changes and apply only if they c
     </message>
     <message>
         <location line="+8"/>
-        <location filename="../src/motor/Entrada.cpp" line="-620"/>
+        <location filename="../src/motor/Entrada.cpp" line="-631"/>
         <source>el pipeline no arrancó</source>
         <translation>the pipeline did not start</translation>
     </message>
@@ -85347,7 +85347,7 @@ PROPOSE, DON&apos;T APPLY: show the person what changes and apply only if they c
         <translation>composition %1 (%2): %3</translation>
     </message>
     <message>
-        <location filename="../src/motor/Entrada.cpp" line="-911"/>
+        <location filename="../src/motor/Entrada.cpp" line="-920"/>
         <source>%1: la placa no se pudo armar (%2): sin placa</source>
         <translation>%1: the slate could not be built (%2): no slate</translation>
     </message>
@@ -85362,7 +85362,7 @@ PROPOSE, DON&apos;T APPLY: show the person what changes and apply only if they c
         <translation>%1: slate rebuilt in %2 ms</translation>
     </message>
     <message>
-        <location line="+44"/>
+        <location line="+54"/>
         <source>%1: en reposo (no hay nadie en su lugar) en %2 ms</source>
         <translation>%1: idle (nobody in their place) in %2 ms</translation>
     </message>
@@ -85381,12 +85381,12 @@ PROPOSE, DON&apos;T APPLY: show the person what changes and apply only if they c
         <location line="+190"/>
         <location line="+38"/>
         <location line="+110"/>
-        <location line="+1082"/>
+        <location line="+1092"/>
         <source>%1: %2</source>
         <translation>%1: %2</translation>
     </message>
     <message>
-        <location line="-1413"/>
+        <location line="-1423"/>
         <source>el micrófono %1: se espera a que se conecte</source>
         <translation>microphone %1: waiting for it to be connected</translation>
     </message>
@@ -85436,7 +85436,7 @@ PROPOSE, DON&apos;T APPLY: show the person what changes and apply only if they c
         <translation>%1: chain: %2</translation>
     </message>
     <message>
-        <location line="+368"/>
+        <location line="+367"/>
         <source>%1: las horas de su video van y vienen (%2 ms, %3 ms): no se realinea por un minuto</source>
         <translation>%1: its video timestamps jump back and forth (%2 ms, %3 ms): not realigning for one minute</translation>
     </message>
@@ -85446,7 +85446,7 @@ PROPOSE, DON&apos;T APPLY: show the person what changes and apply only if they c
         <translation>%1: its audio timestamps jump back and forth (%2 ms, %3 ms): not realigning for one minute</translation>
     </message>
     <message>
-        <location line="+10"/>
+        <location line="+12"/>
         <source>%1: su video trae sus propias horas (corridas %2 ms del estudio): se realinea</source>
         <translation>%1: its video carries its own timestamps (offset %2 ms from the studio): realigning</translation>
     </message>
@@ -85471,17 +85471,27 @@ PROPOSE, DON&apos;T APPLY: show the person what changes and apply only if they c
         <translation>%1: the camera clock is off by %2 ms; no longer using it (ntp-sync)</translation>
     </message>
     <message>
-        <location line="+23"/>
+        <location line="+25"/>
+        <source>%1: vuelve a llegar lo de su anillo</source>
+        <translation>%1: data from its ring is arriving again</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>%1: no llega nada de su anillo hace %2 s (si la persona se fue, lo dice el gateway): no se rearma</source>
+        <translation>%1: nothing has arrived from its ring for %2 s (if the person left, the gateway says so): not rebuilding</translation>
+    </message>
+    <message>
+        <location line="+5"/>
         <source>%1: no llegan datos hace %2 s sin error: se rearma</source>
         <translation>%1: no data for %2 s without an error: rebuilding</translation>
     </message>
     <message>
-        <location line="+2"/>
+        <location line="+1"/>
         <source>no llegaban datos (se rearma)</source>
         <translation>no data was arriving (rebuilding)</translation>
     </message>
     <message>
-        <location line="+54"/>
+        <location line="+53"/>
         <source>%1: placa en reposo (nadie la usa) en %2 ms</source>
         <translation>%1: slate idle (nobody uses it) in %2 ms</translation>
     </message>
@@ -85602,7 +85612,7 @@ PROPOSE, DON&apos;T APPLY: show the person what changes and apply only if they c
         <translation>encodes video on the CPU (not hardware)</translation>
     </message>
     <message>
-        <location filename="../src/motor/Mezcla.cpp" line="-332"/>
+        <location filename="../src/motor/Mezcla.cpp" line="-348"/>
         <source>mezcla %1: no está balimitador (plugin baaudio): sale sin limitador</source>
         <translation>mix %1: balimitador is missing (baaudio plugin): output without limiter</translation>
     </message>
@@ -85624,7 +85634,12 @@ PROPOSE, DON&apos;T APPLY: show the person what changes and apply only if they c
         <translation>intersrc, queue, volume, audiopanorama or level is missing</translation>
     </message>
     <message>
-        <location line="+237"/>
+        <location line="+207"/>
+        <source>mezcla %1: lo de %2 llega adelantado (%3 bloques); no entra, para no trabar a las demás entradas</source>
+        <translation>mix %1: %2 arrives ahead of time (%3 blocks); it is left out so the other inputs are not held up</translation>
+    </message>
+    <message>
+        <location line="+46"/>
         <source>mezcla %1 (%2): %3</source>
         <translation>mix %1 (%2): %3</translation>
     </message>

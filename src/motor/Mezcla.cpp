@@ -188,6 +188,7 @@ void Mezcla::agregar(const std::string& id) {
     }
     if (!deMezcla.empty()) {
         g_object_set(r.src, "producer-name", deMezcla.c_str(), nullptr);
+        r.deToma = g_object_class_find_property(G_OBJECT_GET_CLASS(r.src), "adelantados") != nullptr;
     } else {
         g_object_set(r.src, "producer-name", (id + ":audio").c_str(), nullptr);
         // La cola no agrega demora: lo que no entra se tira (una entrada trabada no
@@ -379,6 +380,21 @@ void Mezcla::tic() {
         if (t >= 1.0) r.escena = r.escenaHacia;
         g_object_set(r.pad, "volume", r.escena, nullptr);
     }
+    // Lo que una entrada manda ADELANTADO no entra (batoma no lo empuja: trabaría el audio de
+    // todas, ver entrega.cpp). Se avisa, a lo sumo cada 30 s por rama.
+    for (auto& [id, r] : ramas_) {
+        if (!r.deToma) continue;
+        guint64 n = 0;
+        g_object_get(r.src, "adelantados", &n, nullptr);
+        r.adelantados = n;
+        if (n > r.adelantadosAvisados && (r.avisoAdelantadoNs == 0 || ahora - r.avisoAdelantadoNs > 30'000'000'000LL)) {
+            registrar(Nivel::Aviso,
+                      llenar(traducir("motor", "mezcla %1: lo de %2 llega adelantado (%3 bloques); no entra, para no trabar a las demás entradas"),
+                             {nombre_, id, std::to_string(n - r.adelantadosAvisados)}));
+            r.avisoAdelantadoNs = ahora;
+            r.adelantadosAvisados = n;
+        }
+    }
     // Los medidores y los avisos del bus.
     GstBus* bus = gst_element_get_bus(pipeline_);
     while (GstMessage* m = gst_bus_pop(bus)) {
@@ -463,7 +479,8 @@ json Mezcla::estado() const {
     std::lock_guard<std::mutex> l(mu_);
     json e = json::object();
     for (const auto& [id, r] : ramas_)
-        e[id] = {{"nivel", r.fader}, {"mute", r.mute}, {"escena", r.escena}, {"pico_db", r.picoDb}, {"rms_db", r.rmsDb}};
+        e[id] = {{"nivel", r.fader}, {"mute", r.mute}, {"escena", r.escena}, {"pico_db", r.picoDb}, {"rms_db", r.rmsDb},
+                 {"adelantados", r.adelantados}};
     json lim = nullptr;
     if (limitador_ != nullptr) {
         gboolean activo = TRUE, agc = FALSE;

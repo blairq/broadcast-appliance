@@ -49968,7 +49968,7 @@ Dados (de %2): %3</translation>
         <translation>não foi possível recortar &apos;%1&apos; em &apos;%2&apos; (recorte maior que a imagem?)</translation>
     </message>
     <message>
-        <location filename="../src/app/escenas/ControlGrillas.cpp" line="+142"/>
+        <location filename="../src/app/escenas/ControlGrillas.cpp" line="+145"/>
         <source>todavía no se pueden crear escenas</source>
         <translation>ainda não é possível criar cenas</translation>
     </message>
@@ -85212,9 +85212,9 @@ PROPONHA, NÃO APLIQUE: mostre à pessoa o que muda e aplique só se ela confirm
     <message>
         <location line="+30"/>
         <location filename="../src/motor/Composicion.cpp" line="+1171"/>
-        <location filename="../src/motor/Entrada.cpp" line="+1640"/>
+        <location filename="../src/motor/Entrada.cpp" line="+1660"/>
         <location line="+226"/>
-        <location filename="../src/motor/Mezcla.cpp" line="+421"/>
+        <location filename="../src/motor/Mezcla.cpp" line="+437"/>
         <location filename="../src/motor/OrigenRed.cpp" line="+233"/>
         <location filename="../src/motor/Salidas.cpp" line="+388"/>
         <location line="+309"/>
@@ -85225,7 +85225,7 @@ PROPONHA, NÃO APLIQUE: mostre à pessoa o que muda e aplique só se ela confirm
     </message>
     <message>
         <location line="+8"/>
-        <location filename="../src/motor/Entrada.cpp" line="-620"/>
+        <location filename="../src/motor/Entrada.cpp" line="-631"/>
         <source>el pipeline no arrancó</source>
         <translation>o pipeline não iniciou</translation>
     </message>
@@ -85381,7 +85381,7 @@ PROPONHA, NÃO APLIQUE: mostre à pessoa o que muda e aplique só se ela confirm
         <translation>composição %1 (%2): %3</translation>
     </message>
     <message>
-        <location filename="../src/motor/Entrada.cpp" line="-911"/>
+        <location filename="../src/motor/Entrada.cpp" line="-920"/>
         <source>%1: la placa no se pudo armar (%2): sin placa</source>
         <translation>%1: a cartela não pôde ser montada (%2): sem cartela</translation>
     </message>
@@ -85396,7 +85396,7 @@ PROPONHA, NÃO APLIQUE: mostre à pessoa o que muda e aplique só se ela confirm
         <translation>%1: cartela remontada em %2 ms</translation>
     </message>
     <message>
-        <location line="+44"/>
+        <location line="+54"/>
         <source>%1: en reposo (no hay nadie en su lugar) en %2 ms</source>
         <translation>%1: em repouso (não há ninguém no seu lugar) em %2 ms</translation>
     </message>
@@ -85415,12 +85415,12 @@ PROPONHA, NÃO APLIQUE: mostre à pessoa o que muda e aplique só se ela confirm
         <location line="+190"/>
         <location line="+38"/>
         <location line="+110"/>
-        <location line="+1082"/>
+        <location line="+1092"/>
         <source>%1: %2</source>
         <translation>%1: %2</translation>
     </message>
     <message>
-        <location line="-1413"/>
+        <location line="-1423"/>
         <source>el micrófono %1: se espera a que se conecte</source>
         <translation>o microfone %1: aguarda-se que se conecte</translation>
     </message>
@@ -85470,7 +85470,7 @@ PROPONHA, NÃO APLIQUE: mostre à pessoa o que muda e aplique só se ela confirm
         <translation>%1: cadeia: %2</translation>
     </message>
     <message>
-        <location line="+368"/>
+        <location line="+367"/>
         <source>%1: las horas de su video van y vienen (%2 ms, %3 ms): no se realinea por un minuto</source>
         <translation>%1: os horários do vídeo vão e vêm (%2 ms, %3 ms): não se realinha por um minuto</translation>
     </message>
@@ -85480,7 +85480,7 @@ PROPONHA, NÃO APLIQUE: mostre à pessoa o que muda e aplique só se ela confirm
         <translation>%1: os horários do áudio vão e vêm (%2 ms, %3 ms): não se realinha por um minuto</translation>
     </message>
     <message>
-        <location line="+10"/>
+        <location line="+12"/>
         <source>%1: su video trae sus propias horas (corridas %2 ms del estudio): se realinea</source>
         <translation>%1: o vídeo traz seus próprios horários (deslocados %2 ms do estúdio): realinha-se</translation>
     </message>
@@ -85505,17 +85505,27 @@ PROPONHA, NÃO APLIQUE: mostre à pessoa o que muda e aplique só se ela confirm
         <translation>%1: o horário da câmera está deslocado %2 ms; deixa de ser usado (ntp-sync)</translation>
     </message>
     <message>
-        <location line="+23"/>
+        <location line="+25"/>
+        <source>%1: vuelve a llegar lo de su anillo</source>
+        <translation>%1: os dados do seu anel voltaram a chegar</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>%1: no llega nada de su anillo hace %2 s (si la persona se fue, lo dice el gateway): no se rearma</source>
+        <translation>%1: nada chega do seu anel há %2 s (se a pessoa saiu, o gateway informa): não é remontada</translation>
+    </message>
+    <message>
+        <location line="+5"/>
         <source>%1: no llegan datos hace %2 s sin error: se rearma</source>
         <translation>%1: não chegam dados há %2 s sem erro: é remontada</translation>
     </message>
     <message>
-        <location line="+2"/>
+        <location line="+1"/>
         <source>no llegaban datos (se rearma)</source>
         <translation>não chegavam dados (é remontada)</translation>
     </message>
     <message>
-        <location line="+54"/>
+        <location line="+53"/>
         <source>%1: placa en reposo (nadie la usa) en %2 ms</source>
         <translation>%1: cartela em repouso (ninguém a usa) em %2 ms</translation>
     </message>
@@ -85636,7 +85646,7 @@ PROPONHA, NÃO APLIQUE: mostre à pessoa o que muda e aplique só se ela confirm
         <translation>codifica vídeo na CPU (não é de hardware)</translation>
     </message>
     <message>
-        <location filename="../src/motor/Mezcla.cpp" line="-332"/>
+        <location filename="../src/motor/Mezcla.cpp" line="-348"/>
         <source>mezcla %1: no está balimitador (plugin baaudio): sale sin limitador</source>
         <translation>mixagem %1: não existe balimitador (plugin baaudio): sai sem limitador</translation>
     </message>
@@ -85658,7 +85668,12 @@ PROPONHA, NÃO APLIQUE: mostre à pessoa o que muda e aplique só se ela confirm
         <translation>falta intersrc, queue, volume, audiopanorama ou level</translation>
     </message>
     <message>
-        <location line="+237"/>
+        <location line="+207"/>
+        <source>mezcla %1: lo de %2 llega adelantado (%3 bloques); no entra, para no trabar a las demás entradas</source>
+        <translation>mixagem %1: %2 chega adiantado (%3 blocos); não entra, para não travar as outras entradas</translation>
+    </message>
+    <message>
+        <location line="+46"/>
         <source>mezcla %1 (%2): %3</source>
         <translation>mixagem %1 (%2): %3</translation>
     </message>

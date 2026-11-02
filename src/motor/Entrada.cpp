@@ -467,6 +467,16 @@ std::string Entrada::canalAnillo() const {
     return !canalVideo_.empty() ? canalVideo_ : canalAudio_;
 }
 
+bool Entrada::videoDeAnillo() const {
+    std::lock_guard<std::mutex> l(canalesM_);
+    return !canalVideo_.empty();
+}
+
+bool Entrada::audioDeAnillo() const {
+    std::lock_guard<std::mutex> l(canalesM_);
+    return !canalAudio_.empty();
+}
+
 void Entrada::ponerSinGente(bool si) {
     if (sinGente_.exchange(si) == si) return;
     // Lo llama el bucle del motor: con la entrada ocupada no se espera, lo hace tic.
@@ -507,7 +517,7 @@ void Entrada::cambiarReposo() {
         datosAlDespertar_ = cuadros_ + bloques_;
     }
     despiertaNs_ = ahoraNs();
-    datosDesdeNs_ = despiertaNs_; // el vigía de «no llegan datos» cuenta desde ahora
+    vigiaDatos_.empezar(datosAlDespertar_, despiertaNs_); // el vigía de «no llegan datos» cuenta desde ahora
     registrar(Nivel::Info, llenar(traducir("motor", "%1: llegó alguien a su lugar: anda en %2 ms"), {id_, ms}));
 }
 
@@ -1229,8 +1239,7 @@ void Entrada::armar() {
         edadesA_.clear();
         cuadros_ = bloques_ = 0;
         ultimoDatoNs_ = 0;
-        vistosDatos_ = 0;
-        datosDesdeNs_ = ahoraNs();
+        vigiaDatos_.empezar(0, ahoraNs());
         edadP50_ = edadP95_ = 0;
         edadVP50_ = edadVP95_ = edadAP50_ = edadAP95_ = std::numeric_limits<double>::quiet_NaN();
         sale_ = json::object();
@@ -1460,13 +1469,15 @@ void Entrada::medirLatencia() {
             r.ultimo = med;
             return true;
         };
-        if (estableV && std::fabs(medV) > 1000.0 && puede(realineoV_, medV, "video")) {
+        // Un anillo del gateway trae la hora del estudio: si llega vieja se leyó tarde, y
+        // correrla la adelantaba al mezclador (ReglasEntrada.hpp). Esa rama, nunca.
+        if (realinearHoras(videoDeAnillo(), estableV, medV) && puede(realineoV_, medV, "video")) {
             realineadoV_ += static_cast<std::int64_t>((medV - 10.0) * 1e6);
             registrar(Nivel::Info, llenar(traducir("motor", "%1: su video trae sus propias horas (corridas %2 ms del estudio): se realinea"),
                                           {id_, std::to_string(static_cast<int>(medV))}));
             corrigio = true;
         }
-        if (estableA && std::fabs(medA) > 1000.0 && puede(realineoA_, medA, "audio")) {
+        if (realinearHoras(audioDeAnillo(), estableA, medA) && puede(realineoA_, medA, "audio")) {
             realineadoA_ += static_cast<std::int64_t>((medA - 10.0) * 1e6);
             registrar(Nivel::Info, llenar(traducir("motor", "%1: su audio trae sus propias horas (corridas %2 ms del estudio): se realinea"),
                                           {id_, std::to_string(static_cast<int>(medA))}));
@@ -1562,17 +1573,26 @@ bool Entrada::vigilarDatos() {
         std::lock_guard<std::mutex> l(medMu_);
         datos = cuadros_ + bloques_;
     }
-    if (datos != vistosDatos_) {
-        if (datos > 0) reintentos_ = 0; // llegan datos: la espera vuelve a empezar
-        vistosDatos_ = datos;
-        datosDesdeNs_ = ahora;
-        return false;
+    // Un lugar de la conferencia (lo lee de un anillo del gateway) no se rearma: si la
+    // persona se fue lo dice el gateway (ReglasEntrada.hpp).
+    const std::uint64_t plazoNs = g_rearmarSinDatosNs.load();
+    const auto plazo = [plazoNs]() { return std::to_string(plazoNs / 1'000'000'000ULL); };
+    switch (vigiaDatos_.mirar(datos, ahora, plazoNs, videoDeAnillo() || audioDeAnillo())) {
+        case VigiaDatos::Que::Nada: return false;
+        case VigiaDatos::Que::Llegan: reintentos_ = 0; return false; // llegan datos: la espera vuelve a empezar
+        case VigiaDatos::Que::Vuelven:
+            reintentos_ = 0;
+            registrar(Nivel::Info, llenar(traducir("motor", "%1: vuelve a llegar lo de su anillo"), {id_}));
+            return false;
+        case VigiaDatos::Que::Avisar:
+            registrar(Nivel::Aviso,
+                      llenar(traducir("motor", "%1: no llega nada de su anillo hace %2 s (si la persona se fue, lo dice el gateway): no se rearma"),
+                             {id_, plazo()}));
+            return false;
+        case VigiaDatos::Que::Rearmar: break;
     }
-    if (vistosDatos_ == 0 || ahora - datosDesdeNs_ < g_rearmarSinDatosNs.load()) return false;
-    registrar(Nivel::Aviso, llenar(traducir("motor", "%1: no llegan datos hace %2 s sin error: se rearma"),
-                                   {id_, std::to_string(g_rearmarSinDatosNs.load() / 1'000'000'000ULL)}));
+    registrar(Nivel::Aviso, llenar(traducir("motor", "%1: no llegan datos hace %2 s sin error: se rearma"), {id_, plazo()}));
     error_ = traducir("motor", "no llegaban datos (se rearma)");
-    vistosDatos_ = 0;
     // Desarmar una cámara de red que no contesta puede tardar decenas de segundos:
     // al trabajador, no en el bucle del motor.
     trabajar([this]() {

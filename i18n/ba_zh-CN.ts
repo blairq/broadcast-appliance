@@ -49816,7 +49816,7 @@ Datos (de %2): %3</source>
         <translation>无法裁切「%2」中的「%1」（裁切范围大于图像？）</translation>
     </message>
     <message>
-        <location filename="../src/app/escenas/ControlGrillas.cpp" line="+142"/>
+        <location filename="../src/app/escenas/ControlGrillas.cpp" line="+145"/>
         <source>todavía no se pueden crear escenas</source>
         <translation>暂时还不能创建场景</translation>
     </message>
@@ -85008,9 +85008,9 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
     <message>
         <location line="+30"/>
         <location filename="../src/motor/Composicion.cpp" line="+1171"/>
-        <location filename="../src/motor/Entrada.cpp" line="+1640"/>
+        <location filename="../src/motor/Entrada.cpp" line="+1660"/>
         <location line="+226"/>
-        <location filename="../src/motor/Mezcla.cpp" line="+421"/>
+        <location filename="../src/motor/Mezcla.cpp" line="+437"/>
         <location filename="../src/motor/OrigenRed.cpp" line="+233"/>
         <location filename="../src/motor/Salidas.cpp" line="+388"/>
         <location line="+309"/>
@@ -85021,7 +85021,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
     </message>
     <message>
         <location line="+8"/>
-        <location filename="../src/motor/Entrada.cpp" line="-620"/>
+        <location filename="../src/motor/Entrada.cpp" line="-631"/>
         <source>el pipeline no arrancó</source>
         <translation>pipeline 未启动</translation>
     </message>
@@ -85177,7 +85177,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>合成 %1（%2）：%3</translation>
     </message>
     <message>
-        <location filename="../src/motor/Entrada.cpp" line="-911"/>
+        <location filename="../src/motor/Entrada.cpp" line="-920"/>
         <source>%1: la placa no se pudo armar (%2): sin placa</source>
         <translation>%1：无法搭建垫片画面（%2）：无垫片画面</translation>
     </message>
@@ -85192,7 +85192,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>%1：垫片画面在 %2 毫秒内重建</translation>
     </message>
     <message>
-        <location line="+44"/>
+        <location line="+54"/>
         <source>%1: en reposo (no hay nadie en su lugar) en %2 ms</source>
         <translation>%1：空闲（其位置上没有人），用时 %2 ms</translation>
     </message>
@@ -85211,12 +85211,12 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <location line="+190"/>
         <location line="+38"/>
         <location line="+110"/>
-        <location line="+1082"/>
+        <location line="+1092"/>
         <source>%1: %2</source>
         <translation>%1：%2</translation>
     </message>
     <message>
-        <location line="-1413"/>
+        <location line="-1423"/>
         <source>el micrófono %1: se espera a que se conecte</source>
         <translation>麦克风 %1：等待其连接</translation>
     </message>
@@ -85266,7 +85266,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>%1：链路：%2</translation>
     </message>
     <message>
-        <location line="+368"/>
+        <location line="+367"/>
         <source>%1: las horas de su video van y vienen (%2 ms, %3 ms): no se realinea por un minuto</source>
         <translation>%1：其视频的时间戳来回跳动（%2 毫秒，%3 毫秒）：一分钟内不重新对齐</translation>
     </message>
@@ -85276,7 +85276,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>%1：其音频的时间戳来回跳动（%2 毫秒，%3 毫秒）：一分钟内不重新对齐</translation>
     </message>
     <message>
-        <location line="+10"/>
+        <location line="+12"/>
         <source>%1: su video trae sus propias horas (corridas %2 ms del estudio): se realinea</source>
         <translation>%1：其视频带有自己的时间戳（与工作室偏差 %2 毫秒）：重新对齐</translation>
     </message>
@@ -85301,17 +85301,27 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>%1：摄像机时间偏差 %2 毫秒；停止使用（ntp-sync）</translation>
     </message>
     <message>
-        <location line="+23"/>
+        <location line="+25"/>
+        <source>%1: vuelve a llegar lo de su anillo</source>
+        <translation>%1：其环形缓冲区的数据重新到达</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>%1: no llega nada de su anillo hace %2 s (si la persona se fue, lo dice el gateway): no se rearma</source>
+        <translation>%1：其环形缓冲区已有 %2 秒没有任何数据（如果此人已离开，gateway 会告知）：不重建</translation>
+    </message>
+    <message>
+        <location line="+5"/>
         <source>%1: no llegan datos hace %2 s sin error: se rearma</source>
         <translation>%1：已有 %2 秒没有数据到达且无错误：正在重建</translation>
     </message>
     <message>
-        <location line="+2"/>
+        <location line="+1"/>
         <source>no llegaban datos (se rearma)</source>
         <translation>没有数据到达（正在重建）</translation>
     </message>
     <message>
-        <location line="+54"/>
+        <location line="+53"/>
         <source>%1: placa en reposo (nadie la usa) en %2 ms</source>
         <translation>%1：垫片画面休眠（无人使用），用时 %2 毫秒</translation>
     </message>
@@ -85432,7 +85442,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>在 CPU 上编码视频（非硬件）</translation>
     </message>
     <message>
-        <location filename="../src/motor/Mezcla.cpp" line="-332"/>
+        <location filename="../src/motor/Mezcla.cpp" line="-348"/>
         <source>mezcla %1: no está balimitador (plugin baaudio): sale sin limitador</source>
         <translation>混合 %1：缺少 balimitador（插件 baaudio）：输出不带限幅器</translation>
     </message>
@@ -85454,7 +85464,12 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>缺少 intersrc、queue、volume、audiopanorama 或 level</translation>
     </message>
     <message>
-        <location line="+237"/>
+        <location line="+207"/>
+        <source>mezcla %1: lo de %2 llega adelantado (%3 bloques); no entra, para no trabar a las demás entradas</source>
+        <translation>混合 %1：%2 提前到达（%3 个块）；不送入混合，以免阻塞其他输入</translation>
+    </message>
+    <message>
+        <location line="+46"/>
         <source>mezcla %1 (%2): %3</source>
         <translation>混合 %1（%2）：%3</translation>
     </message>

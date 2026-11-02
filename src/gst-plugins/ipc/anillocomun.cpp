@@ -74,8 +74,13 @@ class LecturaAnillo : public ba::ipc_gst::Lectura {
         }
         const GstClockTime dur = gst_util_uint64_scale(ar::kBlockFrames, GST_SECOND, ar::kSampleRate);
         ba::ipc::PoppedBlock meta;
-        // Todo lo que haya (de a un bloque); el silencio por falta de datos no se entrega.
-        while (ring.pop(bloque.data(), meta) && !meta.isSilence) {
+        // Lo que haya (de a un bloque), COMO MUCHO lo que cabe en el anillo: si la cadena de
+        // atrás se demora en cada bloque al ritmo en que el gateway escribe, vaciarlo no
+        // terminaba nunca y el hilo común se quedaba con esta entrada (las demás, sin datos:
+        // 2026-11-01). Lo que quede, en la próxima vuelta. El silencio por falta de datos no
+        // se entrega.
+        const std::uint64_t tope = ring.capacityBlocks();
+        for (std::uint64_t n = 0; n < tope && ring.pop(bloque.data(), meta) && !meta.isSilence; ++n) {
             // La hora: la del gateway (al escribir el bloque, que empezó un bloque antes),
             // contada por muestras mientras siga al día (como baanillo).
             const GstClockTime escrito = ba::ipc_gst::horaDeQpc(e, meta.qpc);

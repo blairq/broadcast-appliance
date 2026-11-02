@@ -8,8 +8,11 @@
 //   - con 24 cadenas andando, los hilos del proceso casi no crecen (antes: dos por cadena,
 //     la fuente y su cola, y uno por rama del mezclador);
 //   - una cadena que pasa a READY (el lugar vacío) y vuelve a PLAYING sigue dando audio;
-//   - bajar el mezclador a NULL con todo andando no traba (ni a las cadenas ni al hilo común).
+//   - bajar el mezclador a NULL con todo andando no traba (ni a las cadenas ni al hilo común);
+//   - una cadena con sus horas adelantadas 3 s no deja sin datos a las demás (batoma no le
+//     empuja lo adelantado al mezclador: adelantado.hpp).
 
+#include "adelantado.hpp"
 #include "ipc/SharedAudioRing.hpp"
 
 #include <gst/gst.h>
@@ -151,6 +154,21 @@ double nivel(GstElement* mezcla, double segundos, bool* error = nullptr) {
 } // namespace
 
 int main() {
+    {
+        // La regla pura (adelantado.hpp), en ms: el agregador con 100 de latencia y 100 de tope,
+        // son las 10 000, holgura de 40 (cuatro bloques).
+        using ba::ipc_gst::llegaAdelantado;
+        using ba::ipc_gst::PadAgregador;
+        constexpr std::uint64_t ms = 1'000'000;
+        const auto pad = [](std::uint64_t ultimoFin) { return PadAgregador{ultimoFin * ms, 100 * ms, 100 * ms, 10'000 * ms}; };
+        CHECK(!llegaAdelantado(pad(10'010), 40 * ms), "lo fresco, en el borde: espera una vuelta, entra");
+        CHECK(!llegaAdelantado(pad(9'900), 40 * ms), "lo que llega tarde (o un mezclador atrasado): entra");
+        CHECK(!llegaAdelantado(pad(9'910), 40 * ms), "con su demora propia (250 ms tarde, corrida 150): entra");
+        CHECK(!llegaAdelantado(pad(10'040), 40 * ms), "adelantado hasta la holgura: entra");
+        CHECK(llegaAdelantado(pad(10'060), 40 * ms), "más que la holgura: adelantado");
+        CHECK(llegaAdelantado(pad(13'010), 40 * ms), "3 s adelantado: no entra");
+        CHECK(!llegaAdelantado(PadAgregador{10 * ms, 50 * ms, 100 * ms, 0}, 40 * ms), "recién arrancado (horas chicas): entra");
+    }
 #if defined(BA_TEST_GST_PLUGINS)
     g_setenv("GST_PLUGIN_PATH", BA_TEST_GST_PLUGINS, TRUE);
 #endif
@@ -177,7 +195,7 @@ int main() {
     std::vector<GstElement*> entradas;
     for (int i = 0; i < kCadenas; ++i) {
         GstElement* p = lanzar("baanillocomun name=src canal=" + nombres[i] +
-                               " ! audioconvert ! audio/x-raw,format=F32LE,channels=2,rate=48000 ! baentrega producer-name=e" +
+                               " ! audioconvert ! audio/x-raw,format=F32LE,channels=2,rate=48000 ! baentrega name=ent producer-name=e" +
                                std::to_string(i + 1));
         if (p == nullptr) return 1;
         enHora(p, reloj, base);
@@ -241,6 +259,59 @@ int main() {
     CHECK(suma > uno + 20, "llegan todas las ramas");
     gst_element_set_state(todas, GST_STATE_NULL);
     gst_object_unref(todas);
+
+    // UNA ENTRADA ADELANTADA NO TRABA A LAS DEMÁS (2026-11-01): con las horas de una corridas
+    // segundos hacia adelante (un realineo, una demora propia), el pad del mezclador se
+    // llenaba, gst_pad_push esperaba adentro y el hilo común se quedaba con ella: las demás
+    // entradas, sin datos («no llegan datos hace 10 s: se rearma»). batoma no se lo empuja.
+    {
+        GstElement* dos = lanzar("batoma name=t1 producer-name=e1 ! mx. batoma name=t2 producer-name=e2 ! mx. "
+                                 "audiomixer name=mx force-live=true latency=50000000 start-time-selection=first ! "
+                                 "level interval=200000000 ! fakesink sync=false async=false");
+        if (dos == nullptr) return 1;
+        enHora(dos, reloj, base);
+        Medida otra;
+        GstElement* src2 = gst_bin_get_by_name(GST_BIN(entradas[1]), "src");
+        GstPad* pad2 = gst_element_get_static_pad(src2, "src");
+        const gulong sonda = gst_pad_add_probe(pad2, GST_PAD_PROBE_TYPE_BUFFER, contar, &otra, nullptr);
+        gst_element_set_state(dos, GST_STATE_PLAYING);
+        nivel(dos, 0.5);
+        // Las horas de la primera, 3 s hacia adelante (como Entrada::corregirOffset: en el pad
+        // de salida del elemento anterior a la entrega).
+        GstElement* ent1 = gst_bin_get_by_name(GST_BIN(entradas[0]), "ent");
+        GstPad* sinkEnt1 = gst_element_get_static_pad(ent1, "sink");
+        GstPad* antes = gst_pad_get_peer(sinkEnt1);
+        gst_pad_set_offset(antes, static_cast<gint64>(3 * GST_SECOND));
+        const int vistosAntes = otra.buffers;
+        nivel(dos, 2.0);
+        const int vistos = otra.buffers - vistosAntes;
+        GstElement* t1 = gst_bin_get_by_name(GST_BIN(dos), "t1");
+        GstElement* t2 = gst_bin_get_by_name(GST_BIN(dos), "t2");
+        guint64 adelantados1 = 0, adelantados2 = 0;
+        g_object_get(t1, "adelantados", &adelantados1, nullptr);
+        g_object_get(t2, "adelantados", &adelantados2, nullptr);
+        std::printf("una adelantada 3 s: la otra dio %d bloques en 2 s; adelantados %llu (la adelantada) y %llu (la otra)\n", vistos,
+                    static_cast<unsigned long long>(adelantados1), static_cast<unsigned long long>(adelantados2));
+        CHECK(vistos >= 160, "la otra entrada sigue dando un bloque cada 10 ms");
+        CHECK(adelantados1 > 100, "lo de la adelantada no entra al mezclador");
+        CHECK(adelantados2 == 0, "lo de la otra entra entero");
+        // Vuelve a su hora: entra de nuevo, una vez que el mezclador usó lo adelantado que ya
+        // tenía guardado (hasta entonces, empujarle haría esperar: se sigue sin empujar).
+        gst_pad_set_offset(antes, 0);
+        nivel(dos, 3.5);
+        guint64 a1 = 0, b1 = 0;
+        g_object_get(t1, "adelantados", &a1, nullptr);
+        nivel(dos, 1.0);
+        g_object_get(t1, "adelantados", &b1, nullptr);
+        std::printf("de vuelta a su hora: %llu adelantados más en 1 s\n", static_cast<unsigned long long>(b1 - a1));
+        CHECK(b1 == a1, "de vuelta a su hora, entra");
+        gst_pad_remove_probe(pad2, sonda);
+        for (GstObject* o : {GST_OBJECT(pad2), GST_OBJECT(src2), GST_OBJECT(antes), GST_OBJECT(sinkEnt1), GST_OBJECT(ent1),
+                             GST_OBJECT(t1), GST_OBJECT(t2)})
+            gst_object_unref(o);
+        gst_element_set_state(dos, GST_STATE_NULL);
+        gst_object_unref(dos);
+    }
 
     for (GstElement* p : entradas) {
         gst_element_set_state(p, GST_STATE_NULL);

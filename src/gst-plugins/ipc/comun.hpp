@@ -16,7 +16,9 @@
 // conversión, el rack, la subida a la GPU) hasta su salida. Por eso solo lo usa una
 // cadena que no se traba (la del motor: termina en intersink/baentrega, sin esperar al
 // reloj; los filtros de video van detrás de una cola). Una cadena armada a mano con
-// bavideoanillo/baanillo sigue con su hilo propio.
+// bavideoanillo/baanillo sigue con su hilo propio. Lo que sí podía trabar: el pad de un
+// mezclador lleno (lo de una entrada adelantada), que hacía esperar a gst_pad_push; batoma
+// no lo empuja (adelantado.hpp). Y cada lectura entrega como mucho un anillo por vuelta.
 //
 // Concurrencia: cada Lectura tiene su candado; el hilo lo toma para leerla y empujar.
 // quitar() (al salir de PLAYING) la saca de la lista y la apaga SIN esperar: el hilo

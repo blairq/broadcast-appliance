@@ -50120,7 +50120,7 @@ Datos (de %2): %3</source>
         <translation>не удалось обрезать &apos;%1&apos; в &apos;%2&apos; (обрезка больше изображения?)</translation>
     </message>
     <message>
-        <location filename="../src/app/escenas/ControlGrillas.cpp" line="+142"/>
+        <location filename="../src/app/escenas/ControlGrillas.cpp" line="+145"/>
         <source>todavía no se pueden crear escenas</source>
         <translation>сцены пока нельзя создавать</translation>
     </message>
@@ -85348,9 +85348,9 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
     <message>
         <location line="+30"/>
         <location filename="../src/motor/Composicion.cpp" line="+1171"/>
-        <location filename="../src/motor/Entrada.cpp" line="+1640"/>
+        <location filename="../src/motor/Entrada.cpp" line="+1660"/>
         <location line="+226"/>
-        <location filename="../src/motor/Mezcla.cpp" line="+421"/>
+        <location filename="../src/motor/Mezcla.cpp" line="+437"/>
         <location filename="../src/motor/OrigenRed.cpp" line="+233"/>
         <location filename="../src/motor/Salidas.cpp" line="+388"/>
         <location line="+309"/>
@@ -85361,7 +85361,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
     </message>
     <message>
         <location line="+8"/>
-        <location filename="../src/motor/Entrada.cpp" line="-620"/>
+        <location filename="../src/motor/Entrada.cpp" line="-631"/>
         <source>el pipeline no arrancó</source>
         <translation>конвейер не запустился</translation>
     </message>
@@ -85517,7 +85517,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>композиция %1 (%2): %3</translation>
     </message>
     <message>
-        <location filename="../src/motor/Entrada.cpp" line="-911"/>
+        <location filename="../src/motor/Entrada.cpp" line="-920"/>
         <source>%1: la placa no se pudo armar (%2): sin placa</source>
         <translation>%1: заставку не удалось собрать (%2): без заставки</translation>
     </message>
@@ -85532,7 +85532,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>%1: заставка пересобрана за %2 мс</translation>
     </message>
     <message>
-        <location line="+44"/>
+        <location line="+54"/>
         <source>%1: en reposo (no hay nadie en su lugar) en %2 ms</source>
         <translation>%1: в покое (на месте никого нет) через %2 мс</translation>
     </message>
@@ -85551,12 +85551,12 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <location line="+190"/>
         <location line="+38"/>
         <location line="+110"/>
-        <location line="+1082"/>
+        <location line="+1092"/>
         <source>%1: %2</source>
         <translation>%1: %2</translation>
     </message>
     <message>
-        <location line="-1413"/>
+        <location line="-1423"/>
         <source>el micrófono %1: se espera a que se conecte</source>
         <translation>микрофон %1: ожидание подключения</translation>
     </message>
@@ -85606,7 +85606,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>%1: цепочка: %2</translation>
     </message>
     <message>
-        <location line="+368"/>
+        <location line="+367"/>
         <source>%1: las horas de su video van y vienen (%2 ms, %3 ms): no se realinea por un minuto</source>
         <translation>%1: метки времени его видео скачут (%2 мс, %3 мс): переравнивание не выполняется в течение минуты</translation>
     </message>
@@ -85616,7 +85616,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>%1: метки времени его звука скачут (%2 мс, %3 мс): переравнивание не выполняется в течение минуты</translation>
     </message>
     <message>
-        <location line="+10"/>
+        <location line="+12"/>
         <source>%1: su video trae sus propias horas (corridas %2 ms del estudio): se realinea</source>
         <translation>%1: его видео несёт свои метки времени (сдвиг %2 мс от студии): переравнивается</translation>
     </message>
@@ -85641,17 +85641,27 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>%1: часы камеры сбиты на %2 мс; больше не используются (ntp-sync)</translation>
     </message>
     <message>
-        <location line="+23"/>
+        <location line="+25"/>
+        <source>%1: vuelve a llegar lo de su anillo</source>
+        <translation>%1: данные из её кольца снова поступают</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>%1: no llega nada de su anillo hace %2 s (si la persona se fue, lo dice el gateway): no se rearma</source>
+        <translation>%1: из её кольца ничего не поступает %2 с (если человек ушёл, об этом сообщит gateway): без пересборки</translation>
+    </message>
+    <message>
+        <location line="+5"/>
         <source>%1: no llegan datos hace %2 s sin error: se rearma</source>
         <translation>%1: данных нет %2 с без ошибки: пересборка</translation>
     </message>
     <message>
-        <location line="+2"/>
+        <location line="+1"/>
         <source>no llegaban datos (se rearma)</source>
         <translation>данные не приходили (пересборка)</translation>
     </message>
     <message>
-        <location line="+54"/>
+        <location line="+53"/>
         <source>%1: placa en reposo (nadie la usa) en %2 ms</source>
         <translation>%1: заставка в покое (никем не используется) за %2 мс</translation>
     </message>
@@ -85772,7 +85782,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>кодирует видео на CPU (не аппаратно)</translation>
     </message>
     <message>
-        <location filename="../src/motor/Mezcla.cpp" line="-332"/>
+        <location filename="../src/motor/Mezcla.cpp" line="-348"/>
         <source>mezcla %1: no está balimitador (plugin baaudio): sale sin limitador</source>
         <translation>микс %1: нет balimitador (плагин baaudio): выход без лимитера</translation>
     </message>
@@ -85794,7 +85804,12 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>не хватает intersrc, queue, volume, audiopanorama или level</translation>
     </message>
     <message>
-        <location line="+237"/>
+        <location line="+207"/>
+        <source>mezcla %1: lo de %2 llega adelantado (%3 bloques); no entra, para no trabar a las demás entradas</source>
+        <translation>микс %1: %2 приходит раньше времени (%3 блоков); не подаётся, чтобы не задерживать остальные входы</translation>
+    </message>
+    <message>
+        <location line="+46"/>
         <source>mezcla %1 (%2): %3</source>
         <translation>микс %1 (%2): %3</translation>
     </message>

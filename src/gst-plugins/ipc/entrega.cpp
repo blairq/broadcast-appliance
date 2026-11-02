@@ -21,10 +21,18 @@
 //
 // La latencia que declara batoma: la del pipeline del productor (la que le reparte su
 // pipeline a baentrega con el evento LATENCY), como un intersrc.
+//
+// NO TRABA AL QUE EMPUJA: el que empuja es el lector común de los anillos (el audio de
+// todos los invitados en un hilo). Si el pad del agregador ya guarda más de lo que el
+// agregador espera (lo de una entrada con sus horas adelantadas), gst_pad_push esperaría
+// adentro hasta que se consuma, y con él todas las entradas. batoma lo mira antes
+// (adelantado.hpp) y, si llega adelantado, no lo empuja: lo cuenta (`adelantados`) y sigue.
 // ============================================================================
 
 #include "comun.hpp"
+#include "adelantado.hpp"
 
+#include <gst/base/gstaggregator.h>
 #include <gst/base/gstbasesink.h>
 #include <gst/gst.h>
 
@@ -45,10 +53,80 @@ struct Toma {
     bool eventos = true;
     std::uint64_t segmentoVisto = 0;
     GstCaps* caps = nullptr;
+    /// Bajo mu: el agregador al que llega (buscado con el primer buffer después de
+    /// engancharse; nullptr si no termina en uno), con referencia.
+    GstElement* agregador = nullptr;
+    bool buscado = false;
+    GstClockTime ultimoFin = GST_CLOCK_TIME_NONE; ///< bajo mu: el fin de lo último entregado (tiempo de ejecución)
+    std::atomic<std::uint64_t> adelantados{0};    ///< los que no se le empujaron por llegar adelantados
+
+    void soltarDestino() {
+        if (agregador != nullptr) gst_object_unref(agregador);
+        agregador = nullptr;
+        buscado = false;
+        ultimoFin = GST_CLOCK_TIME_NONE;
+    }
     ~Toma() {
+        soltarDestino();
         if (caps != nullptr) gst_caps_unref(caps);
     }
 };
+
+/// El agregador al que llega lo que sale por `desde` (batoma → volume → level →
+/// audiomixer.sink_N): se siguen los pares por elementos de una sola salida hasta un pad de
+/// agregador. Con referencia; nullptr si no termina en uno.
+GstElement* agregadorDe(GstPad* desde) {
+    GstPad* par = gst_pad_get_peer(desde);
+    for (int i = 0; par != nullptr && i < 8; ++i) {
+        GstElement* el = gst_pad_get_parent_element(par);
+        const bool deAgregador = GST_IS_AGGREGATOR_PAD(par);
+        gst_object_unref(par);
+        par = nullptr;
+        if (el == nullptr) break;
+        if (deAgregador) return el;
+        GstPad* sale = nullptr;
+        GST_OBJECT_LOCK(el);
+        if (el->numsrcpads == 1) sale = GST_PAD(gst_object_ref(el->srcpads->data));
+        GST_OBJECT_UNLOCK(el);
+        gst_object_unref(el);
+        if (sale == nullptr) break;
+        par = gst_pad_get_peer(sale);
+        gst_object_unref(sale);
+    }
+    if (par != nullptr) gst_object_unref(par);
+    return nullptr;
+}
+
+/// ¿Empujar ahora haría esperar al que empuja más que una vuelta del agregador?
+/// (adelantado.hpp). Con el candado de la toma.
+bool llegaAdelantado(Toma& t, GstBuffer* b) {
+    if (!t.buscado) {
+        t.buscado = true;
+        t.agregador = agregadorDe(t.pad);
+    }
+    if (t.agregador == nullptr || !GST_CLOCK_TIME_IS_VALID(t.ultimoFin)) return false;
+    const GstClockTime lat = gst_aggregator_get_latency(GST_AGGREGATOR(t.agregador));
+    GstClock* reloj = gst_element_get_clock(t.agregador);
+    if (!GST_CLOCK_TIME_IS_VALID(lat) || reloj == nullptr) { // no está en vivo (o sin reloj): no espera a nadie
+        if (reloj != nullptr) gst_object_unref(reloj);
+        return false;
+    }
+    const GstClockTime t0 = gst_clock_get_time(reloj), base = gst_element_get_base_time(t.agregador);
+    gst_object_unref(reloj);
+    guint64 latencia = 0, minima = 0;
+    g_object_get(t.agregador, "latency", &latencia, "min-upstream-latency", &minima, nullptr);
+    ba::ipc_gst::PadAgregador p;
+    p.ultimoFin = t.ultimoFin;
+    p.latencia = lat;
+    p.tope = latencia + minima;
+    p.ahora = t0 > base ? t0 - base : 0;
+    // Esperar a la próxima vuelta del agregador es lo de siempre; para más adelante, no. La
+    // holgura (8 bloques) cubre además lo que las horas contadas por muestras pueden ir
+    // adelante de la del gateway (hasta 40 ms: anillocomun.cpp); visto con 4 bloques: un
+    // bloque de una entrada al día quedaba afuera con la máquina cargada.
+    const GstClockTime bloque = GST_BUFFER_DURATION_IS_VALID(b) ? GST_BUFFER_DURATION(b) : 10 * GST_MSECOND;
+    return ba::ipc_gst::llegaAdelantado(p, 8 * bloque);
+}
 
 struct Productor {
     std::mutex mu;
@@ -98,7 +176,15 @@ void empujarA(Toma& t, GstBuffer* b, GstCaps* caps, const GstSegment& seg, std::
         t.segmentoVisto = serie;
     }
     t.eventos = false;
+    if (llegaAdelantado(t, b)) {
+        ++t.adelantados; // de esta entrada; las demás siguen (ver la cabecera)
+        return;
+    }
+    const GstClockTime rt =
+        GST_BUFFER_PTS_IS_VALID(b) ? gst_segment_to_running_time(&seg, GST_FORMAT_TIME, GST_BUFFER_PTS(b)) : GST_CLOCK_TIME_NONE;
     gst_pad_push(t.pad, gst_buffer_ref(b));
+    t.ultimoFin = GST_CLOCK_TIME_IS_VALID(rt) ? rt + (GST_BUFFER_DURATION_IS_VALID(b) ? GST_BUFFER_DURATION(b) : 0)
+                                              : GST_CLOCK_TIME_NONE;
 }
 
 } // namespace
@@ -284,7 +370,7 @@ struct _BaToma {
 
 G_DEFINE_TYPE(BaToma, ba_toma, GST_TYPE_ELEMENT)
 
-enum { PROP_T_0, PROP_T_PRODUCTOR };
+enum { PROP_T_0, PROP_T_PRODUCTOR, PROP_T_ADELANTADOS };
 
 static GstStaticPadTemplate tomaTpl = GST_STATIC_PAD_TEMPLATE("src", GST_PAD_SRC, GST_PAD_ALWAYS, GST_STATIC_CAPS_ANY);
 
@@ -299,6 +385,7 @@ static void enganchar(BaToma* t) {
         std::lock_guard<std::mutex> l((*t->t)->mu);
         (*t->t)->e = GST_ELEMENT(t);
         (*t->t)->eventos = true;
+        (*t->t)->soltarDestino(); // se busca de nuevo con el primer buffer (el mezclador pudo cambiar)
     }
     std::lock_guard<std::mutex> l(p->mu);
     p->tomas.push_back(*t->t);
@@ -324,6 +411,7 @@ static void desenganchar(BaToma* t) {
 static void soltarToma(BaToma* t) {
     std::lock_guard<std::mutex> l((*t->t)->mu);
     (*t->t)->e = nullptr;
+    (*t->t)->soltarDestino();
 }
 
 static gboolean tomaConsulta(GstPad* pad, GstObject* padre, GstQuery* q) {
@@ -373,6 +461,10 @@ static void tomaPoner(GObject* o, guint id, const GValue* v, GParamSpec* ps) {
 
 static void tomaLeer(GObject* o, guint id, GValue* v, GParamSpec* ps) {
     auto* t = BA_TOMA(o);
+    if (id == PROP_T_ADELANTADOS) {
+        g_value_set_uint64(v, (*t->t)->adelantados.load());
+        return;
+    }
     if (id != PROP_T_PRODUCTOR) {
         G_OBJECT_WARN_INVALID_PROPERTY_ID(o, id, ps);
         return;
@@ -402,6 +494,11 @@ static void ba_toma_class_init(BaTomaClass* k) {
         go, PROP_T_PRODUCTOR,
         g_param_spec_string("producer-name", "Productor", "La baentrega de la que toma", "",
                             static_cast<GParamFlags>(G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS | GST_PARAM_MUTABLE_READY)));
+    g_object_class_install_property(
+        go, PROP_T_ADELANTADOS,
+        g_param_spec_uint64("adelantados", "Adelantados",
+                            "Bloques que no se le empujaron al agregador por llegar adelantados (habrían trabado al que empuja)", 0,
+                            G_MAXUINT64, 0, static_cast<GParamFlags>(G_PARAM_READABLE | G_PARAM_STATIC_STRINGS)));
     gst_element_class_set_static_metadata(ge, "Toma sin hilo", "Source/Generic",
                                           "Lo que entrega una baentrega, empujado por el hilo de ella (hacia un agregador en vivo)",
                                           "Broadcast Appliance");
