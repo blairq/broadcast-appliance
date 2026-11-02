@@ -207,6 +207,38 @@ no peores que F1; la .177 aguanta igual o mejor.
 
 Criterio: en la .177, menos de 120 hilos con 40 y la mitad de CPU con 10.
 
+Hecho (2026-11-02, adelantado por pedido del usuario: «en Windows quiero H.264 ya»):
+
+- `src/gateway/CodecsVideo.{hpp,cpp}`: las fábricas por plataforma. Todos los
+  decodificadores van envueltos: los de software con `gateway.hilosPorDecodificador`
+  hilos (1 por omisión; libwebrtc les pasaba todos los núcleos) y cada uno anotado (log
+  y `uso.codecsVideo` en `room_status`). «auto» de `retorno.codec` = H.264 en macOS y
+  Windows (42e01f, packetization-mode=1 primero), VP8 en Linux.
+- macOS: VideoToolbox para subir y bajar (ya estaba; ahora también lo elige «auto» con
+  hinchada, que manda H.264 por omisión).
+- Windows (`src/gateway/CodecsWin.{hpp,cpp}`, Media Foundation): decodifica con el
+  decodificador H.264 de Windows + D3D11 (DXVA, motor «Video Decode»), NV12→I420 con
+  libyuv; codifica el retorno con el MFT por hardware de la placa (asincrónico, CBR, sin
+  B, clave y bitrate en caliente). Sin placa o si no arranca: el H.264 por software de
+  Windows (el libwebrtc de Shiguredo no trae OpenH264), avisado en el log y en
+  `codecsVideo.h264.caidas_*`. Sin ningún H.264 (Windows N): VP8 como antes.
+- Cada sesión dice en sus estadísticas `entrada` (códec, decodificador, hardware) y
+  `salida.codec`, y una línea en el log cuando se sabe o cambia.
+- Falta: el pozo de decodificación de D hilos (punto 1, segunda mitad) y achicar en el
+  mismo hilo (punto 2).
+
+Linux con VA-API (sin hacer: no hay placa para probar). Sería igual que Windows con
+otras piezas: un `CodecsLinux.cpp` con decodificador y codificador H.264 sobre libva
+(`vaCreateConfig` con `VAProfileH264ConstrainedBaseline`/`VAEntrypointVLD` para
+decodificar y `VAEntrypointEncSlice`/`EncSliceLP` para codificar), superficies NV12
+leídas con `vaDeriveImage`/`vaMapBuffer` y pasadas a I420 con libyuv, el parseo de
+SPS/PPS/slices del lado nuestro (VA-API no parsea: se puede tomar el de
+`common_video/h264` de libwebrtc) y caída a VP8 si `vaInitialize` falla (Mesa sin
+`radeonsi`/`iHD`, o en una VM). libva y los drivers van en el bundle (portable), no del
+sistema; el driver se elige con `LIBVA_DRIVERS_PATH` al lado de `bin/64bit`. Más simple
+pero con otra dependencia grande: GStreamer `vah264dec`/`vah264enc` (ya viaja en el
+bundle de ba-app) en un hilo del gateway.
+
 ### F4 — Afinidad
 
 1. Llevar la topología de `src/motor/Prioridad.cpp` a `src/core/platform/Nucleos.*`.

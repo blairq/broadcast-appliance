@@ -48,6 +48,7 @@
 #include "RetornoRtc.hpp"
 #include "ajustes/Ajustes.hpp"
 #include "diag/Frontera.hpp"
+#include "diag/Registro.hpp"
 #include "platform/Hilo.hpp"
 #include "platform/TiempoReal.hpp"
 
@@ -88,22 +89,10 @@
 #include "api/video/video_frame.h"
 #include "api/video/video_frame_metadata.h"
 #include "api/video/video_sink_interface.h"
-#include "api/video_codecs/video_decoder_factory_template.h"
-#include "api/video_codecs/video_decoder_factory_template_dav1d_adapter.h"
-#include "api/video_codecs/video_decoder_factory_template_libvpx_vp8_adapter.h"
-#include "api/video_codecs/video_decoder_factory_template_libvpx_vp9_adapter.h"
-#include "api/video_codecs/video_decoder_factory_template_open_h264_adapter.h"
-#include "api/video_codecs/video_encoder_factory_template.h"
 #include "p2p/base/basic_packet_socket_factory.h"
 #include "p2p/client/basic_port_allocator.h"
 #include "rtc_base/network.h"
-#ifdef __APPLE__
-#include "CodecsMac.hpp"
-#endif
-#include "api/video_codecs/video_encoder_factory_template_libaom_av1_adapter.h"
-#include "api/video_codecs/video_encoder_factory_template_libvpx_vp8_adapter.h"
-#include "api/video_codecs/video_encoder_factory_template_libvpx_vp9_adapter.h"
-#include "api/video_codecs/video_encoder_factory_template_open_h264_adapter.h"
+#include "CodecsVideo.hpp"
 #include "media/base/adapted_video_track_source.h"
 #include "modules/audio_device/include/audio_device.h"
 #include "modules/audio_device/include/audio_device_default.h"
@@ -896,6 +885,7 @@ struct WebrtcSession::Impl : public webrtc::PeerConnectionObserver {
     // Estadisticas de la conexion (las arma el callback de GetStats).
     std::mutex statsMu;
     std::string statsJson = "{}";
+    std::string codecsAnotados; ///< lo último que se anotó en el log (códec que sube/baja)
     uint64_t prevIn = 0, prevOut = 0, prevPkts = 0;
     int64_t prevLost = 0;
     int64_t prevMs = 0;
@@ -914,6 +904,9 @@ struct WebrtcSession::Impl : public webrtc::PeerConnectionObserver {
             double jbDemora = 0, jbObjetivo = 0;
             uint64_t jbEmitidos = 0, jbDescartados = 0;
             nlohmann::json salida;
+            // El video que SUBE el invitado: en qué códec y quién lo decodifica (placa o no).
+            std::string codecEntraId, decodificador, codecSaleId;
+            bool decodificaHw = false;
             for (const webrtc::RTCStats& st : *report) {
                 if (st.type() == webrtc::RTCInboundRtpStreamStats::kType) {
                     const auto& r = st.cast_to<webrtc::RTCInboundRtpStreamStats>();
@@ -928,6 +921,11 @@ struct WebrtcSession::Impl : public webrtc::PeerConnectionObserver {
                         jbDescartados += r.packets_discarded.value_or(0);
                     }
                     if (r.kind.value_or("") == "video") {
+                        if (r.codec_id.has_value() && (codecEntraId.empty() || r.frames_decoded.value_or(0) > 0)) {
+                            codecEntraId = *r.codec_id;
+                            decodificador = r.decoder_implementation.value_or("");
+                            decodificaHw = r.power_efficient_decoder.value_or(false);
+                        }
                         perdidos += r.frames_dropped.value_or(0);
                         alto = std::max(alto, r.frame_height.value_or(0));
                         ancho = std::max(ancho, r.frame_width.value_or(0));
@@ -937,6 +935,7 @@ struct WebrtcSession::Impl : public webrtc::PeerConnectionObserver {
                     out += o.bytes_sent.value_or(0);
                     // Lo que SALE de video: con qué codificador, en qué capas y qué lo
                     // limita (para saber por qué una pantalla se ve como se ve).
+                    if (o.kind.value_or("") == "video" && o.codec_id.has_value()) codecSaleId = *o.codec_id;
                     if (o.kind.value_or("") == "video" && o.frame_height.has_value()) {
                         salida = {{"codificador", o.encoder_implementation.value_or("?")},
                                   {"capas", o.scalability_mode.value_or("")},
@@ -950,10 +949,30 @@ struct WebrtcSession::Impl : public webrtc::PeerConnectionObserver {
                         rtt = *c.current_round_trip_time;
                 }
             }
+            // «video/H264» → «H264».
+            const auto codecDe = [&](const std::string& id) -> std::string {
+                const webrtc::RTCStats* c = id.empty() ? nullptr : report->Get(id);
+                if (c == nullptr || c->type() != webrtc::RTCCodecStats::kType) return {};
+                const std::string mime = c->cast_to<webrtc::RTCCodecStats>().mime_type.value_or("");
+                const auto barra = mime.find('/');
+                return barra == std::string::npos ? mime : mime.substr(barra + 1);
+            };
+            const std::string codecEntra = codecDe(codecEntraId), codecSale = codecDe(codecSaleId);
             const int64_t ahora = std::chrono::duration_cast<std::chrono::milliseconds>(
                                       std::chrono::steady_clock::now().time_since_epoch())
                                       .count();
             std::lock_guard<std::mutex> l(impl_->statsMu);
+            // Una línea en el log por sesión cuando se sabe (o cambia) qué códec va en cada sentido.
+            const std::string resumen = codecEntra + "|" + decodificador + "|" + codecSale;
+            if ((!codecEntra.empty() || !codecSale.empty()) && resumen != impl_->codecsAnotados) {
+                impl_->codecsAnotados = resumen;
+                ba::diag::registro().linea(
+                    ba::diag::Nivel::Info, "gateway", 0,
+                    "video: sesión " + std::to_string(impl_->slot) + ": sube " + (codecEntra.empty() ? "-" : codecEntra) +
+                        (decodificador.empty() ? std::string()
+                                               : " (decodifica " + decodificador + (decodificaHw ? ", hardware)" : ", software)")) +
+                        ", baja " + (codecSale.empty() ? "-" : codecSale) + " (retorno compartido)");
+            }
             const double dt = impl_->prevMs > 0 ? (ahora - impl_->prevMs) / 1000.0 : 0.0;
             const double kin = dt > 0 && in >= impl_->prevIn ? (in - impl_->prevIn) * 8.0 / 1000.0 / dt : 0.0;
             const double kout = dt > 0 && out >= impl_->prevOut ? (out - impl_->prevOut) * 8.0 / 1000.0 / dt : 0.0;
@@ -989,7 +1008,12 @@ struct WebrtcSession::Impl : public webrtc::PeerConnectionObserver {
                              {"jitter_ms", std::lround(jit)}, {"rtt_ms", std::lround(rttMs)},
                              {"cuadros_perdidos", perdidos},   {"alto", alto},
                              {"ancho", ancho},                 {"semaforo", sem}};
-            if (!salida.is_null()) j["salida"] = salida;
+            if (!salida.is_null()) {
+                salida["codec"] = codecSale;
+                j["salida"] = salida;
+            }
+            if (!codecEntra.empty())
+                j["entrada"] = {{"codec", codecEntra}, {"decodificador", decodificador}, {"hardware", decodificaHw}};
             if (jbMs >= 0)
                 j["audio_bufer"] = {{"ms", std::lround(jbMs)}, {"objetivo_ms", std::lround(jbObjMs)},
                                     {"descartados", jbDescartados}};
@@ -1071,17 +1095,17 @@ struct WebrtcSession::Impl : public webrtc::PeerConnectionObserver {
         if (sender.ok()) preferirCodec(sender.value());
     }
 
-    /// El códec del video (ajuste `retorno.codec`): «auto» prefiere H.264 si hay codificador
-    /// por hardware (VideoToolbox en la Mac) y el navegador lo ofreció; «h264» lo prefiere
+    /// El códec del video (ajuste `retorno.codec`): «auto» prefiere H.264 en macOS
+    /// (VideoToolbox) y en Windows (Media Foundation: la placa o, si no, el H.264 por software
+    /// de Windows; ver CodecsWin.cpp) si el navegador lo ofreció, y VP8 en Linux; «h264» lo prefiere
     /// siempre que se ofrezca; «vp8», lo que ofrezca el navegador (VP8 primero, como siempre).
     /// Va antes del answer: el orden del answer es el que usan los dos lados. Es la MISMA
     /// m-line que la cámara del invitado (sendrecv), así que su cámara también sube en ese
     /// códec (en el navegador, H.264 suele ir por hardware también).
     void preferirCodec(const rtc::scoped_refptr<webrtc::RtpSenderInterface>& sender) {
         std::string modo = ba::ajustes::texto("retorno.codec", "auto");
-#ifndef __APPLE__
-        if (modo == "auto") modo = "vp8"; // sin VideoToolbox, H.264 sería por software
-#endif
+        // macOS y Windows: H.264 (VideoToolbox / Media Foundation); Linux: VP8 por software.
+        if (modo == "auto") modo = codecs::h264PorOmision() ? "h264" : "vp8";
         if (modo != "auto" && modo != "h264") return;
         rtc::scoped_refptr<webrtc::RtpTransceiverInterface> tr;
         for (const auto& t : pc->GetTransceivers())
@@ -1096,15 +1120,23 @@ struct WebrtcSession::Impl : public webrtc::PeerConnectionObserver {
             });
             if (!tambienEnvia) continue;
             if (upper(c.name) == "H264") {
-                const auto pm = c.parameters.find("packetization-mode");
-                // packetization-mode=1 primero (el de los navegadores).
-                if (pm != c.parameters.end() && pm->second == "1") h264.insert(h264.begin(), c);
-                else h264.push_back(c);
+                h264.push_back(c);
             } else {
                 resto.push_back(c);
             }
         }
         if (h264.empty()) return;
+        // Constrained baseline con packetization-mode=1 primero (el que decodifica cualquier
+        // navegador o televisor por hardware), después el resto con modo 1, al final el modo 0.
+        const auto orden = [](const webrtc::RtpCodecCapability& c) {
+            const auto pm = c.parameters.find("packetization-mode");
+            const auto pl = c.parameters.find("profile-level-id");
+            const bool modo1 = pm != c.parameters.end() && pm->second == "1";
+            const bool cb = pl != c.parameters.end() && pl->second.size() >= 4 && pl->second.compare(0, 4, "42e0") == 0;
+            return modo1 ? (cb ? 0 : 1) : 2;
+        };
+        std::stable_sort(h264.begin(), h264.end(),
+                         [&](const webrtc::RtpCodecCapability& a, const webrtc::RtpCodecCapability& b) { return orden(a) < orden(b); });
         h264.insert(h264.end(), resto.begin(), resto.end());
         tr->SetCodecPreferences(h264); // si el navegador no ofreció H.264, queda lo que ofreció
     }
@@ -1554,14 +1586,9 @@ WebrtcHub::WebrtcHub(int guests, int videoW, int videoH, int audioRate, int audi
         webrtc::field_trial::InitFieldTrialsFromString(kPruebas);
     }
     auto* st = new RtcHubState();
-#ifdef __APPLE__
-    // H.264 por VideoToolbox además de VP8/VP9/AV1 (ver CodecsMac.mm).
-    st->codificadores = codificadoresMac();
-#else
-    st->codificadores = std::make_unique<webrtc::VideoEncoderFactoryTemplate<
-        webrtc::LibvpxVp8EncoderTemplateAdapter, webrtc::LibvpxVp9EncoderTemplateAdapter,
-        webrtc::OpenH264EncoderTemplateAdapter, webrtc::LibaomAv1EncoderTemplateAdapter>>();
-#endif
+    // H.264 por la placa (VideoToolbox en la Mac, Media Foundation en Windows) además de
+    // VP8/VP9/AV1 (CodecsVideo.cpp).
+    st->codificadores = codecs::codificadores();
     const rtc::scoped_refptr<webrtc::AudioEncoderFactory> audioBase = webrtc::CreateBuiltinAudioEncoderFactory();
     st->audioGrupos = std::make_shared<audioret::Registro>(audioBase);
     st->network = rtc::Thread::CreateWithSocketServer();
@@ -1583,13 +1610,8 @@ WebrtcHub::WebrtcHub(int guests, int videoW, int videoH, int audioRate, int audi
         audioret::fabricaDePaso(audioBase, st->audioGrupos), webrtc::CreateBuiltinAudioDecoderFactory(),
         // Cada sesión codifica de PASO: entrega lo que codificó su flujo (RetornoCompartido).
         retorno::fabricaDePaso(st->codificadores),
-#ifdef __APPLE__
-        decodificadoresMac(),
-#else
-        std::make_unique<webrtc::VideoDecoderFactoryTemplate<
-            webrtc::LibvpxVp8DecoderTemplateAdapter, webrtc::LibvpxVp9DecoderTemplateAdapter,
-            webrtc::OpenH264DecoderTemplateAdapter, webrtc::Dav1dDecoderTemplateAdapter>>(),
-#endif
+        // Los de software con un hilo interno cada uno (`gateway.hilosPorDecodificador`).
+        codecs::decodificadores(),
         nullptr /* mixer por defecto */, nullptr /* sin APM: B no captura audio */);
     if (st->factory) {
         // Loopback solo para pruebas en una sola maquina (tests): en produccion
@@ -1727,6 +1749,13 @@ nlohmann::json WebrtcHub::retornoCompartido() const {
     for (const auto& [n, f] : st->flujos) out.push_back(retorno::estado(*f));
 #endif
     return out;
+}
+
+nlohmann::json WebrtcHub::codecsVideo() const {
+#if BA_GATEWAY_HAVE_WEBRTC
+    if (rtcFactory_ != nullptr) return codecs::estado();
+#endif
+    return nlohmann::json::object();
 }
 
 void WebrtcHub::closeAll() {

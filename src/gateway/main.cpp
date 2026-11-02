@@ -1490,8 +1490,8 @@ int main(int argc, char** argv) {
         uso["transporte"] = pump.transporte();
         uso["retornoVideo"] = hub.retornoCompartido(); // el video de retorno, una vez por capa
         uso["retornoAudio"] = hub.audioCompartidoEstado(); // el audio, una vez por lo que se oye
-        // Las fronteras entre hilos (F0 de PLAN-GATEWAY-FRAGMENTOS.md, diag/Frontera.hpp): pases,
-        // despertadas, bytes, trabajo y espera por segundo, en ventanas de 1 s.
+        uso["codecsVideo"] = hub.codecsVideo(); // H.264 por la placa o no; decodificadores abiertos
+        // Para gateway_estado (GET /api/v1/gateway): el último uso, con las fronteras aparte.
         {
             std::lock_guard<std::mutex> l(usoMu);
             usoUltimo = uso;
