@@ -13,9 +13,12 @@
 //   administrador de dispositivos D3D11: decodifica en la placa por DXVA (el motor «Video
 //   Decode» de la GPU; AMD, Intel o NVIDIA, la que haya). El cuadro sale en una textura
 //   NV12; Lock2D lo trae a memoria y libyuv lo pasa a I420 (el gateway lo necesita en RAM:
-//   la memoria compartida con ba-app y la grilla). Si la placa no decodifica H.264 o el
-//   DXVA no arranca, el mismo decodificador por software (con `gateway.hilosPorDecodificador`
-//   hilos), avisado una vez en el log.
+//   la memoria compartida con ba-app y la grilla).
+//
+// Sin la placa (o con `gateway.decodificarConPlaca` apagado) NO se recibe H.264: el mismo
+//   decodificador de Windows por software no entregaba ningún cuadro (ProcessOutput E_FAIL)
+//   y abría ~24 hilos por flujo. El H.264 no se ofrece para subir y, como la m-line va en los
+//   dos sentidos, todo va en VP8 (decodificaConPlaca()).
 //
 // Codificar (el retorno compartido, RetornoCompartido.cpp): el MFT por hardware que
 //   ofrezca la placa (MFTEnumEx con MFT_ENUM_FLAG_HARDWARE: «AMDh264Encoder», «Intel®
@@ -351,14 +354,13 @@ class DecodificadorMf : public webrtc::VideoDecoder {
             anchoIni_ = r.Width();
             altoIni_ = r.Height();
         }
-        // `gateway.decodificarConPlaca` apagado: el mismo decodificador por software (para comparar).
-        if (hallazgo().decodificaHw && ba::ajustes::siNo("gateway.decodificarConPlaca", true)) {
-            if (iniciar(true)) return true;
-            ++gCaidasDec;
-            if (!gAvisoDec.exchange(true))
-                aviso("video: el decodificador H.264 por la placa (DXVA) no arrancó: decodifica por software");
-        }
-        return iniciar(false);
+        // Solo con la placa: el MFT por software de Windows no sirve (ProcessOutput da E_FAIL
+        // en la .177 y abre ~24 hilos por flujo). Sin la placa, el H.264 no se ofrece para
+        // subir y los invitados van en VP8 (ver decodificaConPlaca()).
+        if (iniciar(true)) return true;
+        ++gCaidasDec;
+        if (!gAvisoDec.exchange(true)) aviso("video: el decodificador H.264 por la placa (DXVA) no arrancó");
+        return false;
     }
 
     int32_t Decode(const webrtc::EncodedImage& img, bool, int64_t) override {
@@ -599,17 +601,13 @@ class DecodificadorMf : public webrtc::VideoDecoder {
     }
 
     int32_t fallo(const char* que, HRESULT hr) {
-        static std::atomic<bool> dicho{false};
-        if (!hw_ && !dicho.exchange(true))
-            aviso(std::string("video: el decodificador H.264 por software falla (") + que + " " + hex(hr) + ")");
-        // Con la placa, varios errores seguidos: se rehace por software (un cuadro clave
-        // lo pide libwebrtc al ver el error).
-        if (hw_ && ++errores_ >= 3) {
+        // Varios errores seguidos: se rehace (un cuadro clave lo pide libwebrtc al ver el error).
+        if (++errores_ >= 3) {
             ++gCaidasDec;
             if (!gAvisoDec.exchange(true))
                 aviso(std::string("video: el decodificador H.264 por la placa falla (") + que + " " + hex(hr) +
-                      "): se pasa a software");
-            iniciar(false);
+                      "): se rehace");
+            iniciar(true);
             errores_ = 0;
         }
         return WEBRTC_VIDEO_CODEC_ERROR;
@@ -1593,15 +1591,11 @@ const Hallazgo& hallazgo() {
         }
         const std::string placa = r.placa.empty() ? "sin placa" : r.placa;
         info("video: H.264 por Media Foundation — placa " + placa + "; decodifica " +
-             (r.decodificaHw ? "por la placa (DXVA)" : r.decodificador ? "por software" : "NO") + ", codifica " +
+             (r.decodificaHw && r.decodificador ? "por la placa" : "NO") + ", codifica " +
              (r.codificaHw ? "por la placa (" + r.nombreCodHw + (r.fabricanteCodHw.empty() ? "" : ", " + r.fabricanteCodHw) + ")"
                            : r.codificador ? "por software" : "NO"));
-        if (r.decodificador && r.codificador && (!r.decodificaHw || !r.codificaHw))
-            aviso("video: H.264 en parte por software (sin " +
-                  std::string(!r.decodificaHw && !r.codificaHw ? "decodificar ni codificar"
-                              : !r.decodificaHw                ? "decodificar"
-                                                               : "codificar") +
-                  " en la placa): más procesador por invitado");
+        if (!r.decodificaHw || !r.decodificador)
+            aviso("video: la placa no decodifica H.264: los invitados suben y reciben en VP8 (por software)");
         return r;
     }();
     return h;
@@ -1637,14 +1631,20 @@ class Codificadores : public webrtc::VideoEncoderFactory {
     std::unique_ptr<webrtc::VideoEncoderFactory> sw_;
 };
 
-/// Con la placa: la API de video de D3D11 (`gateway.decodificadorPlaca` "d3d11", de fábrica)
-/// o el MFT ("mft"). Sin placa o con `gateway.decodificarConPlaca` apagado: el MFT, que cae
-/// a software.
+/// ¿Se recibe H.264? Solo si la placa lo decodifica y `gateway.decodificarConPlaca` está
+/// prendido. Si no, el H.264 no se ofrece para subir: como la m-line de video va en los dos
+/// sentidos, el invitado y su retorno van en VP8 (libvpx, probado). El H.264 por software de
+/// Windows NO es respaldo: en la .177 no entregaba ningún cuadro (ProcessOutput E_FAIL) y
+/// abría ~24 hilos por flujo (634 con 10 invitados).
+bool decodificaConPlaca() {
+    return hallazgo().decodificador && hallazgo().decodificaHw && ba::ajustes::siNo("gateway.decodificarConPlaca", true);
+}
+
+/// La API de video de D3D11 (`gateway.decodificadorPlaca` "d3d11", de fábrica) o el MFT
+/// con DXVA ("mft").
 std::unique_ptr<webrtc::VideoDecoder> crearDecodificadorH264() {
-    if (!hallazgo().decodificador) return nullptr;
-    if (hallazgo().decodificaHw && ba::ajustes::siNo("gateway.decodificarConPlaca", true) &&
-        ba::ajustes::texto("gateway.decodificadorPlaca", "d3d11") != "mft")
-        return std::make_unique<DecodificadorD3d11>();
+    if (!decodificaConPlaca()) return nullptr;
+    if (ba::ajustes::texto("gateway.decodificadorPlaca", "d3d11") != "mft") return std::make_unique<DecodificadorD3d11>();
     return std::make_unique<DecodificadorMf>();
 }
 
@@ -1653,7 +1653,7 @@ class Decodificadores : public webrtc::VideoDecoderFactory {
     explicit Decodificadores(std::unique_ptr<webrtc::VideoDecoderFactory> sw) : sw_(std::move(sw)) {}
     std::vector<webrtc::SdpVideoFormat> GetSupportedFormats() const override {
         std::vector<webrtc::SdpVideoFormat> r;
-        if (hallazgo().decodificador) r = formatosH264(true);
+        if (decodificaConPlaca()) r = formatosH264(true);
         for (auto& f : sw_->GetSupportedFormats())
             if (!esH264(f)) r.push_back(f);
         return r;
@@ -1661,7 +1661,7 @@ class Decodificadores : public webrtc::VideoDecoderFactory {
     CodecSupport QueryCodecSupport(const webrtc::SdpVideoFormat& f, bool escala) const override {
         if (esH264(f)) {
             CodecSupport c;
-            c.is_supported = hallazgo().decodificador && !escala;
+            c.is_supported = decodificaConPlaca() && !escala;
             c.is_power_efficient = hallazgo().decodificaHw;
             return c;
         }
@@ -1692,14 +1692,15 @@ std::unique_ptr<webrtc::VideoDecoderFactory> decodificadores(std::unique_ptr<web
     return std::make_unique<Decodificadores>(std::move(software));
 }
 
-bool hayH264() { return hallazgo().decodificador && hallazgo().codificador; }
+bool hayH264() { return decodificaConPlaca() && hallazgo().codificador; }
 
 nlohmann::json estado() {
     const Hallazgo& h = hallazgo();
     const auto modo = [](bool hw, bool hay) { return hw ? "hardware" : hay ? "software" : "no"; };
-    return {{"decodifica", modo(h.decodificaHw, h.decodificador)},
+    const bool placa = decodificaConPlaca();
+    return {{"decodifica", placa ? "hardware" : "no"}, // sin placa: no se ofrece H.264, va VP8
             {"codifica", modo(h.codificaHw, h.codificador)},
-            {"decodificador", !h.decodificaHw ? "MediaFoundation (software)"
+            {"decodificador", !placa ? "ninguno (VP8)"
                               : ba::ajustes::texto("gateway.decodificadorPlaca", "d3d11") == "mft" ? "MediaFoundation DXVA"
                                                                                                    : "D3D11"},
             {"decodificadores_d3d11", gDecD3d.load()},

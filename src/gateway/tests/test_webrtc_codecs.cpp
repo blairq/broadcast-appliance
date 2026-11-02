@@ -343,9 +343,19 @@ int main() {
         ba::ajustes::poner("gateway.decodificadorPlaca", modo);
         decodificar(modo);
     }
-    // El respaldo sin la placa (gateway.decodificarConPlaca apagado).
+    // Sin la placa (gateway.decodificarConPlaca apagado): el H.264 por software de Windows no
+    // sirve, así que no se ofrece H.264 para subir y «auto» va a VP8.
     ba::ajustes::poner("gateway.decodificarConPlaca", false);
-    decodificar("software");
+    {
+        bool ofreceH264 = false, ofreceVp8 = false;
+        for (const auto& f : decs->GetSupportedFormats()) {
+            if (f.name == "H264") ofreceH264 = true;
+            if (f.name == "VP8") ofreceVp8 = true;
+        }
+        CHECK(!ofreceH264 && ofreceVp8, "sin la placa: se recibe VP8 y no H.264");
+        CHECK(!codecs::h264PorOmision(), "sin la placa: «auto» elige VP8");
+        CHECK(decs->Create(webrtc::CreateEnvironment(), h264) == nullptr, "sin la placa: no hay decodificador H.264");
+    }
     ba::ajustes::poner("gateway.decodificarConPlaca", nullptr);
     // El banco (BA_BANCO_DECODIFICADORES=N): N decodificadores a la vez, cada uno en su hilo y
     // a 30 cuadros por segundo durante 10 s, como N invitados en 720p. CPU del proceso e hilos.
