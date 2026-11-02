@@ -68,24 +68,37 @@ void VideoViewModel::alCambiar(unsigned partes) {
 void VideoViewModel::releer() {
     const json& x = v();
     // Lo que redibuja el patchbay (entradas y grafos), aparte de lo que se mueve siempre.
-    const auto difiere = [&](const char* k) { return x.value(k, json()) != antes_.value(k, json()); };
+    // Sin copiar cada parte (llega seguido: la red, el reloj, la latencia).
+    const auto parte = [](const json& j, const char* k) -> const json& {
+        static const json nada;
+        const auto it = j.find(k);
+        return it != j.end() ? *it : nada;
+    };
+    const auto difiere = [&](const char* k) { return parte(x, k) != parte(antes_, k); };
     const bool estructura = difiere("entradas") || difiere("info") || difiere("grafos") || difiere("estudio");
     // Lo que se mueve: cada propiedad avisa sola (el reloj o la red no redibujan el automixer).
     std::vector<void (VideoViewModel::*)()> avisar;
-    const auto poner = [&](const char* k, auto& campo, auto nuevo, void (VideoViewModel::*senal)()) {
-        if (!difiere(k) || campo == nuevo) return;
+    // El valor nuevo se arma solo si esa parte cambió (convertir todo en cada foto era lo caro).
+    const auto poner = [&](const char* k, auto& campo, auto armar, void (VideoViewModel::*senal)()) {
+        if (!difiere(k)) return;
+        auto nuevo = armar();
+        if (campo == nuevo) return;
         campo = std::move(nuevo);
         avisar.push_back(senal);
     };
-    poner("red", estadoRed_, aVariant(x.value("red", json::array())).toList(), &VideoViewModel::redCambio);
-    poner("diagnostico", diagnostico_, aVariant(x.value("diagnostico", json::array())).toList(), &VideoViewModel::diagnosticoCambio);
-    poner("programador", programador_, aVariant(x.value("programador", json::object())).toMap(), &VideoViewModel::programadorCambio);
-    poner("reloj", reloj_, aVariant(x.value("reloj", json::object())).toMap(), &VideoViewModel::relojCambio);
-    poner("latencia", latencia_, aVariant(x.value("latencia", json::object())).toMap(), &VideoViewModel::latenciaCambio);
-    poner("automixer", automixer_, aVariant(x.value("automixer", json::object())).toMap(), &VideoViewModel::automixerCambio);
-    poner("filtros_audio", filtrosAudio_, aVariant(x.value("filtros_audio", json::object())).toMap(), &VideoViewModel::filtrosAudioCambio);
-    poner("escenas", escenas_, listaDeTextos(x.value("escenas", json::array())), &VideoViewModel::escenasCambio);
-    poner("hay_superres", haySuperres_, x.value("hay_superres", false), &VideoViewModel::haySuperresCambio);
+    poner("red", estadoRed_, [&] { return aVariant(x.value("red", json::array())).toList(); }, &VideoViewModel::redCambio);
+    poner("diagnostico", diagnostico_, [&] { return aVariant(x.value("diagnostico", json::array())).toList(); },
+          &VideoViewModel::diagnosticoCambio);
+    poner("programador", programador_, [&] { return aVariant(x.value("programador", json::object())).toMap(); },
+          &VideoViewModel::programadorCambio);
+    poner("reloj", reloj_, [&] { return aVariant(x.value("reloj", json::object())).toMap(); }, &VideoViewModel::relojCambio);
+    poner("latencia", latencia_, [&] { return aVariant(x.value("latencia", json::object())).toMap(); }, &VideoViewModel::latenciaCambio);
+    poner("automixer", automixer_, [&] { return aVariant(x.value("automixer", json::object())).toMap(); },
+          &VideoViewModel::automixerCambio);
+    poner("filtros_audio", filtrosAudio_, [&] { return aVariant(x.value("filtros_audio", json::object())).toMap(); },
+          &VideoViewModel::filtrosAudioCambio);
+    poner("escenas", escenas_, [&] { return listaDeTextos(x.value("escenas", json::array())); }, &VideoViewModel::escenasCambio);
+    poner("hay_superres", haySuperres_, [&] { return x.value("hay_superres", false); }, &VideoViewModel::haySuperresCambio);
     // Los formularios: solo si cambiaron (la introspección de cada módulo la guarda el catálogo).
     if (difiere("formularios")) {
         QVariantMap f = armarFormularios(x.value("formularios", json::object()));
