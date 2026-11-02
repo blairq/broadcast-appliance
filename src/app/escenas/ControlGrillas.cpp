@@ -75,7 +75,10 @@ QImage dibujarRotulo(const QString& nombre, const QString& cargo) {
     fc.setPixelSize(kCargo);
     const QFontMetrics mn(fn), mc(fc);
     const int altoN = mn.height(), altoC = cargo.isEmpty() ? 0 : mc.height();
-    const int ancho = std::min(kMaxAncho, std::max(mn.horizontalAdvance(nombre), cargo.isEmpty() ? 0 : mc.horizontalAdvance(cargo)) + 2 * kMargen);
+    // Con holgura: elidedText recorta con «…» si el ancho es justo el del texto (redondeo de
+    // la negrita): «carga-00…» en la prueba de sala del 2026-11-02. Solo se recorta pasando kMaxAncho.
+    const int ancho = std::min(kMaxAncho, std::max(mn.horizontalAdvance(nombre), cargo.isEmpty() ? 0 : mc.horizontalAdvance(cargo)) +
+                                              2 * kMargen + kNombre / 2);
     QImage img(std::max(1, ancho), altoN + altoC, QImage::Format_ARGB32_Premultiplied);
     img.fill(Qt::transparent);
     QPainter p(&img);
