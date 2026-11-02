@@ -154,6 +154,25 @@ class FlujoRetorno {
     std::shared_ptr<Impl> impl_;
 };
 
+/// El audio de retorno de un grupo que oye lo mismo (AudioCompartido.hpp): cada bloque se
+/// codifica UNA vez (por cada variante de Opus que negociaron sus conexiones) y cada conexión
+/// del grupo manda esos bytes. Lo da el hub (WebrtcHub::audioCompartido); copiarlo es contar
+/// una referencia más. Sin backend real no codifica nada.
+class AudioCompartido {
+   public:
+    AudioCompartido() = default;
+    /// Codifica el bloque del grupo (float32 estéreo intercalado, `n` floats, a `rate` Hz) y
+    /// devuelve su número: va con pushLocalAudio de cada sesión del grupo en este bloque.
+    uint64_t codificar(const float* pcm, size_t n, int rate) const;
+    bool vacio() const { return !impl_; }
+
+   private:
+    friend class WebrtcHub;
+    friend class WebrtcSession;
+    struct Impl;
+    std::shared_ptr<Impl> impl_;
+};
+
 /// Una PeerConnection por invitado (B es el answerer del offer del invitado).
 ///
 /// Move-only. El backend (real o NULL) se elige en compile-time por
@@ -223,6 +242,10 @@ class WebrtcSession {
     /// :param n: cantidad de floats.
     /// :param rate: sample rate.
     void pushLocalAudio(const float* samples, size_t n, int rate);
+    /// Lo mismo, con el bloque `bloque` del grupo `grupo` (AudioCompartido::codificar), que
+    /// suena como `samples`: la conexión manda lo que codificó el grupo en vez de codificar
+    /// (si puede: si no, codifica `samples` como siempre).
+    void pushLocalAudio(const float* samples, size_t n, int rate, const AudioCompartido& grupo, uint64_t bloque);
 
     /// Inyecta un frame de video de retorno en el track local de video.
     ///
@@ -287,6 +310,12 @@ class WebrtcHub {
     /// El flujo del retorno compartido llamado `nombre` (el mismo para el mismo nombre: una
     /// bajada que se levanta de nuevo sigue con sus codificadores). Vacío sin backend real.
     FlujoRetorno flujoRetorno(const std::string& nombre);
+    /// El grupo de audio de retorno llamado `nombre` (el mismo para el mismo nombre: su flujo
+    /// Opus sigue entre bloques). Vacío sin backend real.
+    AudioCompartido audioCompartido(const std::string& nombre);
+    /// Cómo anda el audio de retorno compartido: [{nombre, bloques, repartidos, variantes}]
+    /// (bloques codificados por el grupo; paquetes que salieron por conexiones en su lugar).
+    nlohmann::json audioCompartidoEstado() const;
     /// Cómo anda el retorno compartido: [{nombre, emisiones, capas: [...]}] (RetornoRtc.hpp).
     nlohmann::json retornoCompartido() const;
 
