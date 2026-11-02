@@ -10,13 +10,15 @@ ColumnLayout {
     property var vg: null
     readonly property var sr: Studio.superres
     readonly property var tr: sr ? sr.trabajo : ({})
-    // Las entradas de red y el programador: del grafo de video (la foto del motor).
-    readonly property var red: vg ? vg.estadoRed.filter(e => e.gstreamer !== undefined) : []
+    // Las entradas de red y el programador: del grafo de video (la foto del motor). Solo
+    // mientras se ve: cerrado (el panel vive en un Popup de Video, precargado) no se enlaza a
+    // estadoRed ni al programador, que cambian con cada foto y le rehacían los Repeater.
+    readonly property var red: vg && visible ? vg.estadoRed.filter(e => e.gstreamer !== undefined) : []
     // Lo que se lee de archivos (el runtime de GPU, los plugins propios): el modelo lo
     // vuelve a leer cuando algo cambia.
     readonly property var gpu: sr ? sr.runtimeGpu : ({})
     readonly property var propios: sr ? sr.pluginsElemento : []
-    readonly property var prog: vg ? vg.programador : ({})
+    readonly property var prog: vg && visible ? vg.programador : ({})
     /// El plugin con el que abrir la sección «Destilar» (lo pone la tarjeta).
     property string maestroPedido: ""
     spacing: 14

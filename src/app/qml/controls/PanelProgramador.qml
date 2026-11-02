@@ -10,7 +10,8 @@ import BA
 Popup {
     id: pop
     property var vg: null
-    readonly property var p: vg ? vg.programador : ({})
+    // Solo abierto: cerrado no se enlaza al programador (cambia con la foto y rehacía los Repeater).
+    readonly property var p: vg && pop.visible ? vg.programador : ({})
     readonly property var entradas: {
         const e = p.entradas || {}
         return Object.keys(e).sort().map(k => Object.assign({ entrada: k }, e[k]))

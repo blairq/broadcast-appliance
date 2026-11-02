@@ -10,7 +10,9 @@ Item {
     id: mesa
     readonly property var vg: Studio.video
     // La mesa en vivo: la arma el grafo de video (en el dueño del motor) y llega con su foto.
-    readonly property var datos: vg && vg.automixer.mesas ? vg.automixer : ({ mesas: [], microfonos: [] })
+    // Solo mientras se ve (Audio está precargada): la barra de cada micrófono cambia todo el
+    // tiempo y, oculta, le rehacía las listas igual.
+    readonly property var datos: vg && mesa.visible && vg.automixer.mesas ? vg.automixer : ({ mesas: [], microfonos: [] })
     property string msg: ""
     function mesaDe(nombre) {
         for (const m of datos.mesas)

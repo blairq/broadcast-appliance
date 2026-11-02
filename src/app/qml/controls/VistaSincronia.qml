@@ -22,8 +22,10 @@ Item {
     property real programaMs: -1
 
     readonly property var reloj: pop.vg ? pop.vg.reloj : ({})
-    readonly property var red: pop.vg ? pop.vg.estadoRed : []
-    readonly property var diag: pop.vg ? pop.vg.diagnostico : []
+    // La red, el diagnóstico y la latencia cambian con cada foto: solo mientras se ve (la
+    // pestaña queda armada después de abrirla una vez; oculta no rehace sus Repeater).
+    readonly property var red: pop.vg && pop.visible ? pop.vg.estadoRed : []
+    readonly property var diag: pop.vg && pop.visible ? pop.vg.diagnostico : []
     property string medicionTexto: ""
     property bool midiendo: false
 
@@ -61,7 +63,7 @@ Item {
                 Layout.fillWidth: true
                 padding: 16
                 implicitHeight: latCol.implicitHeight + 2 * padding
-                readonly property var lat: pop.vg && pop.vg.latencia.latencia_ms !== undefined
+                readonly property var lat: pop.vg && pop.visible && pop.vg.latencia.latencia_ms !== undefined
                                            ? pop.vg.latencia
                                            : ({ latencia_ms: 0, objetivo_ms: 0, margen_ms: 30, tope_ms: 0, automatico: true, tarde: [], entradas: [] })
                 // Las de video con señal (las de solo audio y las que no reciben nada, aparte: no suman a la vista).
