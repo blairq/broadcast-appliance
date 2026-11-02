@@ -658,8 +658,6 @@ struct DispositivoVideo {
     ComPtr<ID3D11VideoContext> vctx;
     ComPtr<ID3D11Device5> dev5; ///< cercas (Windows 10 1703+); sin esto, Map espera
     ComPtr<ID3D11DeviceContext4> ctx4;
-    ComPtr<IMFDXGIDeviceManager> mgr; ///< para darle el mismo dispositivo al codificador de la placa
-    UINT token = 0;
     std::mutex m; ///< el contexto inmediato es uno solo
 };
 
@@ -682,8 +680,6 @@ std::shared_ptr<DispositivoVideo> dispositivoVideo() {
                 d->dev5.Reset();
                 d->ctx4.Reset();
             }
-            if (FAILED(MFCreateDXGIDeviceManager(&d->token, &d->mgr)) || FAILED(d->mgr->ResetDevice(d->dev.Get(), d->token)))
-                d->mgr.Reset();
             pozo.push_back(std::move(d));
         } else {
             fallo = true;
@@ -1483,14 +1479,6 @@ class CodificadorMf : public webrtc::VideoEncoder {
                 n->asinc = true;
             }
             at->SetUINT32(MF_LOW_LATENCY, TRUE);
-            // El mismo dispositivo D3D11 que decodifica: sin esto el MFT de la placa abre el
-            // suyo (y el driver de AMD, ~25 hilos más). La entrada sigue en memoria.
-            UINT32 consciente = 0;
-            if (hw &&
-                SUCCEEDED(at->GetUINT32(MF_SA_D3D11_AWARE, &consciente)) && consciente) {
-                if (const auto dv = dispositivoVideo(); dv && dv->mgr)
-                    (void)n->mft->ProcessMessage(MFT_MESSAGE_SET_D3D_MANAGER, reinterpret_cast<ULONG_PTR>(dv->mgr.Get()));
-            }
         }
         n->mft.As(&n->api);
         ICodecAPI* api = n->api.Get();
