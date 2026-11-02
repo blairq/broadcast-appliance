@@ -173,6 +173,7 @@ if(APPLE AND EXISTS "${BA_WEBRTC_ROOT}/lib/libwebrtc.a" AND EXISTS "${BA_WEBRTC_
     # libwebrtc esta compilado sin RTTI.
     set_source_files_properties("${CMAKE_CURRENT_SOURCE_DIR}/Webrtc.cpp" "${CMAKE_CURRENT_SOURCE_DIR}/RetornoCompartido.cpp"
                                 "${CMAKE_CURRENT_SOURCE_DIR}/CodecsVideo.cpp"
+                                "${CMAKE_CURRENT_SOURCE_DIR}/rtc/ColasCompartidas.cpp"
                                 PROPERTIES COMPILE_OPTIONS "-fno-rtti")
     # H.264 por VideoToolbox (el SDK de Objective-C): ver CodecsMac.mm. Va en la
     # interfaz para que lo tenga todo el que use libwebrtc (gateway y su prueba).
@@ -219,6 +220,7 @@ elseif(BA_GATEWAY_WEBRTC)
     # interfaces no pueden pedir typeinfo de sus bases.
     set_source_files_properties("${CMAKE_CURRENT_SOURCE_DIR}/Webrtc.cpp" "${CMAKE_CURRENT_SOURCE_DIR}/CodecsVideo.cpp"
                                 "${CMAKE_CURRENT_SOURCE_DIR}/CodecsWin.cpp" PROPERTIES COMPILE_OPTIONS "/GR-")
+    set_source_files_properties("${CMAKE_CURRENT_SOURCE_DIR}/rtc/ColasCompartidas.cpp" PROPERTIES COMPILE_OPTIONS "/GR-")
     target_link_libraries(ba-gateway PRIVATE ba_webrtc_win)
 else()
     message(STATUS "ba-gateway (GCC): backend NULL para los tests de logica (BA_GATEWAY_HAVE_WEBRTC=0)")
@@ -270,6 +272,8 @@ file(GLOB_RECURSE BA_GATEWAY_TESTS CONFIGURE_DEPENDS
 # test_webrtc_*: necesitan libwebrtc de verdad; los compila el subproyecto
 # cmake/gateway-webrtc (clang + libc++ de Chromium), no este build.
 list(FILTER BA_GATEWAY_TESTS EXCLUDE REGEX ".*/test_webrtc_[^/]*\\.cpp$")
+# Las colas compartidas son de libwebrtc (TaskQueueBase): van con los de medios reales.
+list(FILTER BA_GATEWAY_TESTS EXCLUDE REGEX ".*/test_colas_compartidas\\.cpp$")
 
 # Sources del gateway para los tests: los del propio directorio (no
 # recursivo, para no meter los tests) sin main.cpp.
@@ -277,6 +281,7 @@ file(GLOB BA_GATEWAY_LIB_SOURCES CONFIGURE_DEPENDS
     "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/net/*.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/proxy/*.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/rtc/*.cpp"
 )
 list(FILTER BA_GATEWAY_LIB_SOURCES EXCLUDE REGEX ".*/tests/.*")
 list(FILTER BA_GATEWAY_LIB_SOURCES EXCLUDE REGEX ".*/main\\.cpp$")
@@ -325,7 +330,7 @@ endforeach()
 # Windows: los tests de medios reales (RTP/SRTP sobre UDP local; el Opus del retorno
 # compartido) tambien.
 if(BA_GATEWAY_WEBRTC)
-    foreach(t test_webrtc_loopback test_webrtc_audio_compartido test_webrtc_codecs test_webrtc_redes)
+    foreach(t test_webrtc_loopback test_webrtc_audio_compartido test_webrtc_codecs test_webrtc_redes test_colas_compartidas)
         if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/tests/${t}.cpp")
             add_executable(${t} tests/${t}.cpp ${BA_GATEWAY_LIB_SOURCES} "${BA_QRCODEGEN_DIR}/qrcodegen.cpp")
             target_include_directories(${t} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}" "${BA_QRCODEGEN_DIR}" "${BA_GW_GENERADO}")
@@ -341,7 +346,7 @@ if(BA_GATEWAY_WEBRTC)
     endforeach()
 endif()
 if(BA_GATEWAY_WEBRTC_MAC)
-    foreach(t test_webrtc_loopback test_webrtc_audio_compartido test_webrtc_codecs test_webrtc_redes)
+    foreach(t test_webrtc_loopback test_webrtc_audio_compartido test_webrtc_codecs test_webrtc_redes test_colas_compartidas)
         if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/tests/${t}.cpp")
             add_executable(${t} tests/${t}.cpp ${BA_GATEWAY_LIB_SOURCES} "${BA_QRCODEGEN_DIR}/qrcodegen.cpp")
             target_include_directories(${t} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}" "${BA_QRCODEGEN_DIR}" "${BA_GW_GENERADO}")

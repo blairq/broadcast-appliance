@@ -73,6 +73,7 @@
 #include "api/audio_codecs/builtin_audio_decoder_factory.h"
 #include "api/audio_codecs/builtin_audio_encoder_factory.h"
 #include "api/create_peerconnection_factory.h"
+#include "api/enable_media.h"
 #include "api/frame_transformer_interface.h"
 #include "api/jsep.h"
 #include "api/make_ref_counted.h"
@@ -85,7 +86,9 @@
 #include "api/stats/rtcstats_objects.h"
 #include "api/set_local_description_observer_interface.h"
 #include "api/set_remote_description_observer_interface.h"
+#include "api/rtc_event_log/rtc_event_log_factory.h"
 #include "api/task_queue/default_task_queue_factory.h"
+#include "api/transport/field_trial_based_config.h"
 #include "api/video/i420_buffer.h"
 #include "api/video/video_frame.h"
 #include "api/video/video_frame_metadata.h"
@@ -97,6 +100,8 @@
 #include "media/base/adapted_video_track_source.h"
 #include "modules/audio_device/include/audio_device.h"
 #include "modules/audio_device/include/audio_device_default.h"
+#include "modules/audio_processing/include/audio_processing.h"
+#include "rtc/ColasCompartidas.hpp"
 #include "rtc_base/logging.h"
 #include "rtc_base/ssl_adapter.h"
 #include "rtc_base/thread.h"
@@ -816,7 +821,14 @@ struct RtcHubState {
 
     /// La red de una PeerConnection nueva: sin las de enlace local, y con el asignador de
     /// puertos propio (el rango va en él: la config de la PC no se aplica a uno inyectado).
+    /// Y el video que llega sin suavizar.
     void configurarRed(webrtc::PeerConnectionInterface::RTCConfiguration& config, webrtc::PeerConnectionDependencies& deps) {
+        // Sin «suavizado previo al render» (IncomingVideoStream): libwebrtc retiene cada
+        // cuadro decodificado en una cola con su propio hilo hasta su hora de mostrarse. El
+        // gateway no muestra nada: la grilla (cola de 4 cuadros por persona) y ba-app llevan
+        // su propio ritmo. Medido en la .177: un hilo por stream y, con 10 en 720p, 107 % de
+        // un núcleo solo en eso. Así el cuadro sale del decodificador derecho al sink.
+        config.set_prerenderer_smoothing(false);
         config.disable_link_local_networks = true;
         if (minPort != 0) {
             config.port_allocator_config.min_port = minPort;
@@ -1606,16 +1618,37 @@ WebrtcHub::WebrtcHub(int guests, int videoW, int videoH, int audioRate, int audi
     // El ADM se crea en el worker (asi lo espera libwebrtc).
     rtc::scoped_refptr<webrtc::AudioDeviceModule> adm = st->worker->BlockingCall(
         []() { return rtc::scoped_refptr<webrtc::AudioDeviceModule>(rtc::make_ref_counted<PullAdm>()); });
-    st->factory = webrtc::CreatePeerConnectionFactory(
-        st->network.get(), st->worker.get(), st->signaling.get(), adm,
-        // El Opus de cada sesión es de PASO: manda lo que codificó su grupo si oye lo mismo
-        // que otros (AudioCompartido.hpp); si no, codifica el suyo.
-        audioret::fabricaDePaso(audioBase, st->audioGrupos), webrtc::CreateBuiltinAudioDecoderFactory(),
-        // Cada sesión codifica de PASO: entrega lo que codificó su flujo (RetornoCompartido).
-        retorno::fabricaDePaso(st->codificadores),
-        // Los de software con un hilo interno cada uno (`gateway.hilosPorDecodificador`).
-        codecs::decodificadores(),
-        nullptr /* mixer por defecto */, nullptr /* sin APM: B no captura audio */);
+    // Lo mismo que arma webrtc::CreatePeerConnectionFactory, salvo las colas de tareas: las
+    // de libwebrtc (una por stream) comparten dos grupos chicos de hilos en vez de un hilo
+    // cada una (rtc/ColasCompartidas.hpp, `gateway.hilosColas`).
+    webrtc::PeerConnectionFactoryDependencies deps;
+    deps.network_thread = st->network.get();
+    deps.worker_thread = st->worker.get();
+    deps.signaling_thread = st->signaling.get();
+    deps.socket_factory = st->network->socketserver();
+    // −1: las de libwebrtc (un hilo por cola), para comparar o si algo anda mal.
+    if (ba::ajustes::entero("gateway.hilosColas", 0) < 0) {
+        deps.task_queue_factory = webrtc::CreateDefaultTaskQueueFactory();
+        ba::diag::registro().linea(ba::diag::Nivel::Info, "gateway", 0, "colas de libwebrtc: un hilo por cola (gateway.hilosColas = -1)");
+    } else {
+        deps.task_queue_factory = colas::crearDeLosAjustes();
+    }
+    deps.event_log_factory = std::make_unique<webrtc::RtcEventLogFactory>();
+    deps.trials = std::make_unique<webrtc::FieldTrialBasedConfig>();
+    deps.adm = adm;
+    // El Opus de cada sesión es de PASO: manda lo que codificó su grupo si oye lo mismo
+    // que otros (AudioCompartido.hpp); si no, codifica el suyo.
+    deps.audio_encoder_factory = audioret::fabricaDePaso(audioBase, st->audioGrupos);
+    deps.audio_decoder_factory = webrtc::CreateBuiltinAudioDecoderFactory();
+    // Cada sesión codifica de PASO: entrega lo que codificó su flujo (RetornoCompartido).
+    deps.video_encoder_factory = retorno::fabricaDePaso(st->codificadores);
+    // Los de software con un hilo interno cada uno (`gateway.hilosPorDecodificador`).
+    deps.video_decoder_factory = codecs::decodificadores();
+    // El APM por omisión (lo que ponía CreatePeerConnectionFactory con nullptr) y el mixer
+    // por omisión (nullptr).
+    deps.audio_processing = webrtc::AudioProcessingBuilder().Create();
+    webrtc::EnableMedia(deps);
+    st->factory = webrtc::CreateModularPeerConnectionFactory(std::move(deps));
     if (st->factory) {
         // Loopback solo para pruebas en una sola maquina (tests): en produccion
         // un candidato 127.0.0.1 no le sirve a ningun invitado.
