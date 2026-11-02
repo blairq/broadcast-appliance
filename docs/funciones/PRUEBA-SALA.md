@@ -113,4 +113,7 @@ de prueba). El modelo es `src/gateway/PruebaSala` (`test_prueba_sala`).
 
 Viaja en `bin/64bit/hinchada/` si se la indica al configurar (`-DBA_HINCHADA_DIR=` o
 `make deps-hinchada`, que copia el paquete de `../hinchada/dist/hinchada-<plataforma>`).
-Sin ella, la prueba funciona con carga externa.
+Sin ella, la prueba funciona con carga externa. Hace falta un hinchada con `--modo grabado` y
+`--hablan` (el paquete de antes no los tiene: `make -C ../hinchada paquete` y otra vez
+`make deps-hinchada`; el paso lo revisa). El video grabado (`grabado.hgr`, ~100 MB) es uno
+solo para todas las configuraciones: `BroadcastAppliance Datos/Runtime/hinchada/`.

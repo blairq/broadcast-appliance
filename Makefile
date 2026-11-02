@@ -1173,6 +1173,10 @@ HINCHADA_DIR ?= $(abspath $(CURDIR)/../hinchada)
 deps-hinchada:
 	@test -d "$(HINCHADA_DIR)/dist" || { echo "[deps] ERROR hinchada: no está $(HINCHADA_DIR)/dist ('make -C $(HINCHADA_DIR) paquete' o HINCHADA_DIR=…)" >&2; exit 1; }
 	@mkdir -p "$(EXTERNS_DIR)/hinchada"
+	@# La prueba de sala usa --modo grabado y --hablan: un paquete viejo no los conoce.
+	@if [ -x "$(HINCHADA_DIR)/dist/hinchada-macos-arm64/hinchada" ] && [ "$$(uname -s)" = Darwin ] && \
+	   ! "$(HINCHADA_DIR)/dist/hinchada-macos-arm64/hinchada" ayuda 2>&1 | grep -q -- "--hablan"; then \
+	  echo "[deps] ERROR hinchada: el paquete es viejo (sin --hablan): 'make -C $(HINCHADA_DIR) paquete'" >&2; exit 1; fi
 	@if [ -d "$(HINCHADA_DIR)/dist/hinchada-macos-arm64" ]; then \
 	  rm -rf "$(EXTERNS_DIR)/hinchada/macos-arm64" && cp -R "$(HINCHADA_DIR)/dist/hinchada-macos-arm64" "$(EXTERNS_DIR)/hinchada/macos-arm64" && \
 	  echo "[deps] hinchada macos-arm64: $$(cat "$(EXTERNS_DIR)/hinchada/macos-arm64/VERSION" 2>/dev/null)"; fi

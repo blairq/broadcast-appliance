@@ -17,6 +17,7 @@
 #include "diag/Recursos.hpp"
 #include "i18n/I18n.hpp"
 #include "persist/ColaEscritura.hpp"
+#include "platform/Paths.hpp"
 #include "sala/CupoSala.hpp"
 #include "sala/MedidaMaquina.hpp"
 #include "ui/ConferenceClient.hpp"
@@ -208,7 +209,8 @@ void PruebaSalaViewModel::lanzarHinchada(int n, int minutos, int hablan) {
     const QString fecha = QDateTime::currentDateTime().toString("yyyyMMdd-HHmmss");
     salidaHinchada_ = QString::fromStdString((dirEvento / "Pruebas").string()) + "/hinchada-" + fecha;
     QDir().mkpath(salidaHinchada_);
-    const QString grabado = QString::fromStdString((p_.dataRoot / "Runtime" / "hinchada").string());
+    // El video grabado de hinchada (~100 MB) es uno para todas las configuraciones.
+    const QString grabado = QString::fromStdString((ba::platform::dataRoot() / "Runtime" / "hinchada").string());
     QDir().mkpath(grabado);
     auto* proc = new QProcess(this);
     hinchada_ = proc;
