@@ -28174,7 +28174,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpEnlaceTools.cpp",
-        "linea": 51
+        "linea": 52
       },
       "roles": [
         "asistente",
@@ -28202,7 +28202,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpEnlaceTools.cpp",
-        "linea": 65
+        "linea": 66
       },
       "roles": [
         "asistente",
@@ -28245,7 +28245,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpEnlaceTools.cpp",
-        "linea": 22
+        "linea": 23
       },
       "roles": [
         "asistente",
@@ -28264,7 +28264,7 @@
           "invitados": {
             "type": "integer",
             "minimum": 1,
-            "maximum": 64
+            "maximum": 512
           }
         }
       },
@@ -28279,13 +28279,16 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpEnlaceTools.cpp",
-        "linea": 78
+        "linea": 79
       },
       "roles": [
         "asistente",
         "recepcion",
         "vigilante"
-      ]
+      ],
+      "origen": {
+        "esquema": "inventario_anterior"
+      }
     },
     {
       "nombre": "gateway_estado",
@@ -29009,7 +29012,7 @@
           "participantes": {
             "type": "integer",
             "minimum": 1,
-            "maximum": 64
+            "maximum": 512
           },
           "minutos": {
             "type": "integer",
@@ -29041,13 +29044,16 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpPruebaSalaTools.cpp",
-        "linea": 22
+        "linea": 23
       },
       "roles": [
         "asistente",
         "recepcion",
         "vigilante"
-      ]
+      ],
+      "origen": {
+        "esquema": "inventario_anterior"
+      }
     },
     {
       "nombre": "prueba_sala_entrada_directa",
@@ -29076,7 +29082,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpPruebaSalaTools.cpp",
-        "linea": 75
+        "linea": 76
       },
       "roles": [
         "asistente",
@@ -29104,7 +29110,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpPruebaSalaTools.cpp",
-        "linea": 95
+        "linea": 96
       },
       "roles": [
         "asistente",
@@ -29132,7 +29138,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpPruebaSalaTools.cpp",
-        "linea": 128
+        "linea": 129
       },
       "roles": [
         "asistente",
@@ -29160,7 +29166,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpPruebaSalaTools.cpp",
-        "linea": 58
+        "linea": 59
       },
       "roles": [
         "asistente",
@@ -29179,7 +29185,7 @@
           "participantes": {
             "type": "integer",
             "minimum": 1,
-            "maximum": 64
+            "maximum": 512
           },
           "hinchada": {
             "type": "boolean"
@@ -29197,13 +29203,16 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpPruebaSalaTools.cpp",
-        "linea": 109
+        "linea": 110
       },
       "roles": [
         "asistente",
         "recepcion",
         "vigilante"
-      ]
+      ],
+      "origen": {
+        "esquema": "inventario_anterior"
+      }
     },
     {
       "nombre": "room_link",
@@ -29340,7 +29349,7 @@
           "cupo": {
             "type": "integer",
             "minimum": 1,
-            "maximum": 64
+            "maximum": 512
           }
         }
       },
