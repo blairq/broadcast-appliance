@@ -14,6 +14,17 @@
 //   7. A mano: fijar (primero, aunque los filtros digan otra cosa), sacar (de la
 //      grilla y su grupo), mover, devolver.
 //   8. Lo que se ve: escenas anidadas y capas, sin recorrer dos veces una vuelta.
+//   9. El orador (MaquinaOrador): voz sostenida (una tos no alcanza), tiempo mínimo en
+//      pantalla, el último que habló se queda, la palabra, a mano gana en el acto, el
+//      siguiente para precargar.
+//  10. Disposiciones con un lugar grande: destacar (franja abajo, al costado, a la
+//      izquierda; en orden; «+N» si no entran) y superponer (nadie tapado; pantalla
+//      completa).
+//  11. En la grilla: resaltar (nadie se mueve, el orador llena su lugar), destacar (el
+//      orden de los demás no cambia y la memoria de lugares tampoco), la escena del
+//      orador (una grilla que muestra solo al orador de otra).
+//  12. Capas con histéresis y de a una subida; el pedido al gateway (capa, rótulo,
+//      precarga, fundido) y los rótulos.
 // ============================================================================
 #include <algorithm>
 #include <cstdio>
@@ -451,6 +462,275 @@ void loQueSeVe() {
     CHECK(fuentesQueSeVen({}, itemsDe).empty(), "sin programa: nada");
 }
 
+Persona hablando(Persona p, std::int64_t desde) {
+    p.hablando = true;
+    p.hablaDesdeMs = desde;
+    return p;
+}
+
+std::vector<const Persona*> punteros(const std::vector<Persona>& v) {
+    std::vector<const Persona*> out;
+    for (const Persona& p : v) out.push_back(&p);
+    return out;
+}
+
+bool seTocan(const Rect& a, const Rect& b) {
+    return a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
+}
+
+void orador() {
+    Config c = grilla("g");
+    c.disparo = Disparo::Voz;
+    c.vozMs = 1000;
+    c.minimoMs = 3000;
+    MaquinaOrador m;
+    std::vector<Persona> v{sala("a", 0), sala("b", 0), sala("c", 0)};
+    v[0] = hablando(v[0], 10000);
+    CHECK(m.paso(c, punteros(v), "", 10500).empty(), "medio segundo de voz: todavía no");
+    CHECK(MaquinaOrador::siguiente(c, punteros(v), m.actual(), 10500) == "sala:a", "pero ya se precarga (que su alta vaya llegando)");
+    CHECK(m.paso(c, punteros(v), "", 11000) == "sala:a", "voz sostenida: orador");
+    v[0].hablando = false;
+    v[0].hablaDesdeMs = 0;
+    v[1] = hablando(v[1], 11500);
+    CHECK(m.paso(c, punteros(v), "", 12600) == "sala:a", "otro habla, pero «a» no cumplió su tiempo mínimo");
+    v[2] = hablando(v[2], 13500); // una tos
+    CHECK(m.paso(c, punteros(v), "", 13800) == "sala:a", "una tos no alcanza (y el mínimo sigue)");
+    v[2].hablando = false;
+    v[2].hablaDesdeMs = 0;
+    CHECK(m.paso(c, punteros(v), "", 14000) == "sala:b", "pasado el mínimo, el que habla");
+    v[1].hablando = false;
+    v[1].hablaDesdeMs = 0;
+    CHECK(m.paso(c, punteros(v), "", 30000) == "sala:b", "nadie habla: se queda el último (no vuelve a la grilla con cada silencio)");
+    CHECK(m.paso(c, punteros(v), "sala:c", 30010) == "sala:c", "a mano gana en el acto (aunque no pasó el mínimo)");
+    CHECK(m.paso(c, punteros(v), "", 30020) == "sala:c", "suelto a mano: el mínimo lo sostiene");
+    std::vector<Persona> sinC{v[0], v[1]};
+    CHECK(m.paso(c, punteros(sinC), "", 30030).empty(), "el orador se fue: nadie (sin esperar el mínimo)");
+
+    // La palabra (asamblea).
+    Config p = grilla("g");
+    p.disparo = Disparo::Palabra;
+    p.minimoMs = 3000;
+    MaquinaOrador mp;
+    std::vector<Persona> w{asamblea("p1", 0), asamblea("p2", 0), asamblea("p3", 0)};
+    w[0].palabra = true;
+    w[2].siguiente = true;
+    CHECK(mp.paso(p, punteros(w), "", 1000) == "asamblea:p1", "con la palabra: orador en el acto");
+    CHECK(MaquinaOrador::siguiente(p, punteros(w), mp.actual(), 1000) == "asamblea:p3", "el siguiente de la fila se precarga");
+    p.precarga = false;
+    CHECK(MaquinaOrador::siguiente(p, punteros(w), mp.actual(), 1000).empty(), "sin precarga, nadie");
+    w[0].palabra = false;
+    w[1].palabra = true;
+    CHECK(mp.paso(p, punteros(w), "", 2000) == "asamblea:p1", "la palabra pasó, pero el mínimo sostiene");
+    CHECK(mp.paso(p, punteros(w), "", 4000) == "asamblea:p2", "pasado el mínimo, el que tiene la palabra");
+    w[1].palabra = false;
+    CHECK(mp.paso(p, punteros(w), "", 8000).empty(), "sin palabra para nadie: vuelve a la grilla");
+}
+
+void disposicionesConGrande() {
+    Config c = grilla("g");
+    c.ancho = 1280;
+    c.alto = 720;
+    c.separacion = 8;
+    c.margen = 0;
+    c.destacarTamano = 70;
+    // Franja abajo, al centro.
+    Disposicion d = disponerDestacar(5, c);
+    CHECK(d.resto.size() == 5 && !d.hayMas, "cinco en la franja");
+    CHECK(std::abs(d.grande.x + d.grande.w / 2 - 640) <= 1 && d.grande.h <= 504 && d.grande.h >= 480, "el grande, centrado arriba");
+    bool ok = true;
+    for (std::size_t i = 0; i < d.resto.size(); ++i) {
+        ok = ok && dentro(d.resto[i], 1280, 720) && d.resto[i].y >= 504 && d.resto[i].h >= kMinCelda && !seTocan(d.resto[i], d.grande);
+        if (i > 0) ok = ok && d.resto[i].x > d.resto[i - 1].x; // en orden, de izquierda a derecha
+    }
+    CHECK(ok, "la franja: abajo, adentro, en orden, sin tocar al grande");
+    // Muchos: «+N».
+    d = disponerDestacar(80, c);
+    CHECK(d.hayMas && static_cast<int>(d.resto.size()) < 80 && d.rMas.w > 0, "no entran: «+N»");
+    ok = true;
+    for (const Rect& r : d.resto) ok = ok && r.h >= kMinCelda && dentro(r, 1280, 720);
+    CHECK(ok, "las que entran no bajan del mínimo");
+    // Al costado, al centro: la franja de la izquierda se llena primero.
+    c.franjaCostado = true;
+    d = disponerDestacar(4, c);
+    CHECK(d.resto.size() == 4 && d.resto[0].x + d.resto[0].w <= d.grande.x && d.resto[1].x + d.resto[1].w <= d.grande.x &&
+              d.resto[2].x >= d.grande.x + d.grande.w && d.resto[3].x >= d.grande.x + d.grande.w,
+          "al costado: dos a la izquierda (los primeros) y dos a la derecha");
+    // A la izquierda.
+    c.destacarIzquierda = true;
+    d = disponerDestacar(4, c);
+    ok = d.grande.x == 0;
+    for (const Rect& r : d.resto) ok = ok && r.x >= d.grande.x + d.grande.w;
+    CHECK(ok, "a la izquierda: el grande pegado al borde y la franja a la derecha");
+    CHECK(disponerDestacar(0, c).grande.w > 0, "solo el orador: el grande igual");
+
+    // Superponer: nadie tapado.
+    Config s = grilla("g");
+    s.ancho = 1280;
+    s.alto = 720;
+    s.superponerTamano = 60;
+    for (int n : {1, 4, 8, 12, 20, 30}) {
+        const Disposicion x = disponerSuperponer(n, s);
+        ok = static_cast<int>(x.resto.size()) + (x.hayMas ? 1 : 0) >= std::min(n, 1) && x.grande.w > 0;
+        for (const Rect& r : x.resto) ok = ok && !seTocan(r, x.grande) && dentro(r, 1280, 720);
+        for (std::size_t i = 1; i < x.resto.size(); ++i) ok = ok && !seTocan(x.resto[i], x.resto[i - 1]);
+        CHECK(ok, "superponer: el orador en su hueco, nadie tapado");
+    }
+    const Disposicion x12 = disponerSuperponer(12, s);
+    CHECK(x12.resto.size() == 12 && std::abs(x12.grande.x + x12.grande.w / 2 - 640) <= 8, "doce alrededor del hueco del medio");
+    s.superponerCompleta = true;
+    const Disposicion completa = disponerSuperponer(12, s);
+    CHECK(completa.grande.w == 1280 && completa.grande.h == 720 && completa.resto.empty(), "pantalla completa: el orador y nadie más");
+    CHECK(achicar(Rect{0, 0, 100, 50}, 0.5) == (Rect{25, 12, 50, 25}), "achicar al centro");
+}
+
+void enLaGrilla() {
+    // Resaltar: nadie se mueve; el orador llena su lugar.
+    {
+        Repartidor rep;
+        std::vector<Config> gs{grilla("g", 8)};
+        gs[0].vozMs = 1000;
+        auto v = gente(4);
+        auto antes = rep.calcular(gs, v, {}, 1000);
+        CHECK(antes[0].orador.empty(), "nadie habla: sin orador");
+        v[2] = hablando(v[2], 2000);
+        auto res = rep.calcular(gs, v, {}, 3500);
+        CHECK(res[0].orador == "sala:p2", "habló sostenido: orador");
+        bool quietos = true;
+        Rect suya, antesSuya;
+        for (std::size_t i = 0; i < res[0].celdas.size(); ++i) {
+            if (res[0].celdas[i].clave == "sala:p2") {
+                suya = res[0].celdas[i].r;
+                antesSuya = antes[0].celdas[i].r;
+            } else {
+                quietos = quietos && res[0].celdas[i].r == antes[0].celdas[i].r;
+            }
+        }
+        CHECK(quietos, "resaltar: los demás no se mueven");
+        CHECK(suya.w > antesSuya.w && suya.x < antesSuya.x && std::abs((suya.x + suya.w / 2) - (antesSuya.x + antesSuya.w / 2)) <= 1,
+              "el orador, un poco más grande y en su mismo lugar");
+        bool resaltado = false;
+        for (const auto& x : res[0].celdas) resaltado = resaltado || (x.clave == "sala:p2" && x.resaltar && x.capa == "alta");
+        CHECK(resaltado, "con borde y en alta");
+    }
+    // Destacar: el orden de los demás no cambia, y al volver cada uno está donde estaba.
+    {
+        Repartidor rep;
+        std::vector<Config> gs{grilla("g", 16)};
+        gs[0].alHablar = AlHablar::Destacar;
+        gs[0].disparo = Disparo::Palabra;
+        gs[0].minimoMs = 2000;
+        auto v = gente(6);
+        auto a = rep.calcular(gs, v, {}, 0);
+        v[3].palabra = true;
+        auto b = rep.calcular(gs, v, {}, 1000);
+        CHECK(b[0].orador == "sala:p3" && b[0].personas == a[0].personas, "destacar: la memoria de lugares no cambia");
+        std::map<std::string, Rect> r;
+        for (const auto& x : b[0].celdas) r[x.clave] = x.r;
+        CHECK(r["sala:p3"].w * r["sala:p3"].h > 4 * r["sala:p0"].w * r["sala:p0"].h, "el orador, grande");
+        CHECK(r["sala:p0"].x < r["sala:p1"].x && r["sala:p1"].x < r["sala:p2"].x && r["sala:p2"].x < r["sala:p4"].x &&
+                  r["sala:p4"].x < r["sala:p5"].x,
+              "los demás en la franja, en el mismo orden (no se mezclan)");
+        v[3].palabra = false;
+        auto c = rep.calcular(gs, v, {}, 1500);
+        CHECK(c[0].orador == "sala:p3", "sin la palabra, el mínimo lo sostiene");
+        auto d = rep.calcular(gs, v, {}, 3500);
+        bool igual = d[0].orador.empty() && d[0].celdas.size() == a[0].celdas.size();
+        for (std::size_t i = 0; igual && i < d[0].celdas.size(); ++i)
+            igual = d[0].celdas[i].clave == a[0].celdas[i].clave && d[0].celdas[i].r == achicar(a[0].celdas[i].r, 1.0);
+        CHECK(igual, "al terminar, cada uno vuelve a su lugar");
+    }
+    // El orador entra aunque no haya lugar (tope chico), sin desplazar a los fijados.
+    {
+        Repartidor rep;
+        std::vector<Config> gs{grilla("g", 3)};
+        gs[0].alHablar = AlHablar::Destacar;
+        gs[0].disparo = Disparo::Palabra;
+        auto v = gente(6);
+        v[5].palabra = true;
+        auto res = rep.calcular(gs, v, {}, 0);
+        const std::set<std::string> vis(res[0].personas.begin(), res[0].personas.end());
+        CHECK(vis.count("sala:p5") && res[0].orador == "sala:p5", "el orador entra aunque llegó último");
+    }
+    // La escena del orador: otra grilla muestra solo al orador de esta.
+    {
+        Repartidor rep;
+        std::vector<Config> gs{grilla("G", 8), grilla("O", 8)};
+        gs[0].alHablar = AlHablar::Escena;
+        gs[0].disparo = Disparo::Palabra;
+        gs[1].canal = 2;
+        gs[1].soloOrador = true;
+        gs[1].sigue = "G";
+        gs[1].nombres = Nombres::NombreCargo;
+        std::vector<Persona> v{asamblea("p1", 0), asamblea("p2", 10), asamblea("p3", 20)};
+        v[1].palabra = true;
+        v[1].nombre = "Ana Pérez";
+        v[1].cargo = "Consejera · banca 12";
+        auto res = rep.calcular(gs, v, {}, 0);
+        CHECK(res[0].personas.size() == 3 && res[0].orador == "asamblea:p2", "la grilla completa sigue completa");
+        CHECK(res[1].celdas.size() == 1 && res[1].celdas[0].clave == "asamblea:p2" && res[1].celdas[0].r.w == 1280,
+              "la del orador: solo él, grande");
+        CHECK(res[1].celdas[0].capa == "alta" && res[1].celdas[0].rotulo == idRotulo(Nombres::NombreCargo, "Ana Pérez", "Consejera · banca 12"),
+              "en alta y con su nombre y cargo");
+        v[1].palabra = false;
+        res = rep.calcular(gs, v, {}, 10000);
+        CHECK(res[1].celdas.empty(), "sin orador: vacía");
+    }
+}
+
+void capasYPedido() {
+    CapasGrilla cg;
+    auto a = cg.decidir({{"a", {300, false}}, {"b", {300, false}}, {"c", {100, false}}});
+    CHECK(a["a"] != a["b"] && !a["c"], "dos para subir: una por vuelta (un cuadro clave a la vez)");
+    a = cg.decidir({{"a", {300, false}}, {"b", {300, false}}, {"c", {100, false}}});
+    CHECK(a["a"] && a["b"], "a la vuelta siguiente, la otra");
+    a = cg.decidir({{"a", {200, false}}, {"b", {300, false}}});
+    CHECK(a["a"], "se achicó un poco (200): sigue en alta (histéresis)");
+    a = cg.decidir({{"a", {170, false}}, {"b", {300, false}}});
+    CHECK(!a["a"], "más chica que el umbral de bajada: baja");
+    a = cg.decidir({{"a", {250, false}}, {"b", {300, false}}});
+    CHECK(!a["a"], "250 no alcanza para volver a subir (hace falta pasar 260)");
+    a = cg.decidir({{"a", {50, true}}, {"b", {300, false}}});
+    CHECK(a["a"], "el orador: alta aunque su celda sea chica");
+
+    CHECK(idRotulo(Nombres::No, "Ana", "x").empty(), "sin nombres: sin rótulo");
+    CHECK(idRotulo(Nombres::Nombre, "Ana", "x") == idRotulo(Nombres::Nombre, "Ana", "y"), "solo el nombre: el cargo no cuenta");
+    CHECK(idRotulo(Nombres::NombreCargo, "Ana", "x") != idRotulo(Nombres::NombreCargo, "Ana", "y"), "con cargo: cuenta");
+    CHECK(idRotulo(Nombres::Nombre, "", "x").empty(), "sin nombre: nada");
+
+    Repartidor rep;
+    std::vector<Config> gs{grilla("g", 8)};
+    gs[0].canal = 3;
+    gs[0].nombres = Nombres::Nombre;
+    gs[0].disparo = Disparo::Palabra;
+    gs[0].fundidoMs = 250;
+    auto v = gente(3);
+    v[1].palabra = true;
+    v[2].siguiente = true;
+    auto res = rep.calcular(gs, v, {}, 0);
+    const json pedido = pedidoGateway(gs, res);
+    CHECK(pedido["fundido_ms"] == 250, "el fundido va al gateway");
+    CHECK(pedido["precarga"] == json::array({"sala:p2"}), "el siguiente, precargado");
+    const json& g0 = pedido["grillas"][0];
+    CHECK(g0["rotulos"]["tamano"].get<double>() > 0.1 && g0["rotulos"]["lugar"] == "abajo", "el estilo de los rótulos");
+    bool capaYRotulo = true;
+    for (const json& x : g0["celdas"]) capaYRotulo = capaYRotulo && x.contains("capa") && x.contains("rotulo");
+    CHECK(capaYRotulo, "cada celda con su capa y su rótulo");
+    const auto rot = rotulosDe(gs, res, v);
+    CHECK(rot.size() == 3 && rot.at(idRotulo(Nombres::Nombre, "p1", "")).first == "p1", "lo que dice cada rótulo");
+
+    // Los ajustes nuevos.
+    CHECK(Config::validar(json{{"al_hablar", "destacar"}, {"disparo", "palabra"}, {"franja", "costado"}, {"nombres", "nombre_cargo"},
+                               {"muestra", "orador"}, {"sigue", "Grilla"}, {"fundido_ms", 300}})
+              .empty(),
+          "ajustes nuevos buenos");
+    CHECK(!Config::validar(json{{"al_hablar", "bailar"}}).empty(), "al_hablar raro");
+    CHECK(!Config::validar(json{{"destacar_tamano", 99}}).empty(), "tamaño fuera de rango");
+    const Config d = Config::desdeAjustes("g", Config::defectos());
+    CHECK(d.alHablar == AlHablar::Resaltar && d.disparo == Disparo::Voz && d.precarga && d.nombres == Nombres::No &&
+              d.fundidoMs == 300 && d.nombreColor == "#FFFFFFFF" && d.nombreFondo == "#A0000000",
+          "los de fábrica");
+}
+
 } // namespace
 
 int main() {
@@ -463,6 +743,10 @@ int main() {
     alAireEnOtraGrilla();
     aMano();
     loQueSeVe();
+    orador();
+    disposicionesConGrande();
+    enLaGrilla();
+    capasYPedido();
     if (g_fallos == 0) std::printf("test_grilla_personas: OK\n");
     return g_fallos == 0 ? 0 : 1;
 }
