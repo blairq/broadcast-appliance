@@ -103,11 +103,11 @@ class SelectorCapas {
 /// Lo que se sabe de alguien para decidir su capa (SignalingServer lo junta).
 struct NecesidadCapa {
     MediaRoute ruta;
-    /// El alto del lugar más grande que ocupa en una grilla de personas (0 = en ninguna).
-    int altoGrilla = 0;
-    /// La capa que pidió la grilla para esta persona (la decide la app con histéresis: el
-    /// que pasa a grande, alta; las miniaturas no cambian por achicarse un poco). Nada = la
-    /// app no dijo (una app de antes): vale el umbral por `altoGrilla`.
+    /// La capa que pidió la grilla para esta persona (Nada = no está en ninguna grilla). La
+    /// decide SOLO la app (GrillaPersonas, CapasGrilla): por el tamaño de su celda con
+    /// histéresis, todas en baja pasadas las «alta_hasta» personas, el orador en alta. El
+    /// gateway no vuelve a decidir por el tamaño (antes lo hacía si la app no decía nada: dos
+    /// dueños de la misma decisión).
     Capa capaGrilla = Capa::Nada;
     /// La grilla la precarga (el siguiente en tomar la palabra): alta de antemano.
     bool precarga = false;
@@ -128,8 +128,7 @@ struct NecesidadCapa {
 ///   - remoto de la asamblea con la palabra (canal 1..2) o el siguiente (canal 0): alta;
 ///   - lobby y fila con vista previa: baja (un cuadrito del operador);
 ///   - en la fila sin vista previa, una pantalla, la atención: nada;
-///   - en una grilla: al menos la que pidió la grilla (capaGrilla); si no dijo, la de su
-///     lugar (un cuadrito hasta 200 px de alto, baja; más grande, alta);
+///   - en una grilla: al menos la que pidió la grilla (capaGrilla, la decide la app);
 ///   - precargado por una grilla (el siguiente orador): alta;
 ///   - si una vista web lo mira: alta (el reenvío es de la alta).
 Capa capaNecesaria(const NecesidadCapa& n);

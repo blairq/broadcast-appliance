@@ -390,11 +390,15 @@ void ControlGrillas::recalcular() {
         json personas = json::array();
         for (const std::string& k : res[i].personas) {
             const auto it = porClave.find(k);
+            std::string capa; // la que pide la grilla para su cámara (alta | baja)
+            for (const grilla::Celda& x : res[i].celdas)
+                if (x.clave == k) capa = x.capa;
             personas.push_back({{"clave", k},
                                 {"nombre", it != porClave.end() ? it->second->nombre : k},
                                 {"fijo", manual_.fijo(c.fuente, k)},
                                 {"hablando", it != porClave.end() && it->second->hablando},
-                                {"orador", k == res[i].orador}});
+                                {"orador", k == res[i].orador},
+                                {"capa", capa}});
             enGrillas[k].push_back(c.fuente);
             if (c.alAire) enGrillaAlAire.insert(k);
         }
@@ -412,6 +416,9 @@ void ControlGrillas::recalcular() {
                {"reparto", c.reparto == grilla::Reparto::Parejo ? "parejo" : "en_orden"},
                {"tope", c.tope},
                {"al_aire", c.alAire},
+               // Alta definición hasta N personas: con más, todas las miniaturas en baja.
+               {"alta_hasta", c.altaHasta},
+               {"en_baja", res[i].enBaja},
                {"personas", personas},
                {"fuera", fuera},
                {"mas", res[i].mas},

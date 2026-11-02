@@ -198,6 +198,13 @@ void registrarTipo() {
                          "cuando llega, se funde de una a la otra (nunca negro).");
             out.push_back(fu);
         }
+        {
+            P alta{"alta_hasta", traducir("escenas", "Alta definición hasta (personas)"), "int", 0, kMaxCeldas, 1};
+            alta.ayuda = traducir("escenas", "Con más personas que esto en la grilla, todas las miniaturas van en baja definición "
+                         "(menos datos por la red y menos trabajo para la máquina), aunque las celdas sean grandes; el orador "
+                         "y el siguiente siguen en alta. Con esto o menos, cada una según su tamaño. 0 = sin límite.");
+            out.push_back(alta);
+        }
         out.push_back({"resaltar", traducir("escenas", "Borde a quien habla"), "bool"});
         out.push_back({"color_resaltar", traducir("escenas", "Color del resaltado"), "color"});
 

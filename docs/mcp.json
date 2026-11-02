@@ -17399,7 +17399,7 @@
       "nombre": "grilla_personas_ajustar",
       "titulo": "Cambiar los ajustes de una grilla de personas",
       "categoria": "fuentes",
-      "descripcion": "Cambia los ajustes de una fuente «Grilla de personas» (los mismos de la ventana Propiedades). Solo los que vienen; se validan todos antes de tocar nada. origen (sala|asamblea|ambas), orden (llegada|habla|prioridad), tope (celdas con el «+N», 0 = sin tope), solo_con_camara, sin_al_aire (sin los que ya están al aire en otra fuente o en otra grilla que se ve, contando las escenas de las capas DSK), resaltar (a quien habla), grupo (las grillas con el mismo grupo se reparten la gente sin repetir; \"\" = sola), orden_en_grupo (la primera manda el orden y el modo), reparto (en_orden: llena la primera hasta su tope; parejo: la misma cantidad en cada una), ancho, alto, proporcion (16:9|4:3|1:1|3:4|9:16|llenar), separacion, margen, transicion_ms, fondo y color_resaltar (\"#AARRGGBB\"). Cuando alguien habla: al_hablar (sin_cambios: la grilla no se toca, solo la cámara del orador en alta | resaltar: nadie se mueve, el orador con borde | destacar: el orador grande y los demás en una franja, en el mismo orden | superponer: el orador encima en un hueco que le deja la grilla | escena: la grilla no cambia y otra grilla con muestra=orador lo muestra solo | nada: sin orador), agrandar (resaltar y escena: no | encima | achicando), pasar_a_escena (escena: a_mano | automatico | asistente: siempre avisa al operador), salida_orador (\"\" = la principal), escena_orador (la pone grilla_personas_escena_orador), disparo (voz: voz sostenida voz_ms | palabra: la palabra de la asamblea | orador: el orador al aire de la conferencia | manual: grilla_personas_destacar), voz_ms, minimo_ms (el orador no cambia antes: histéresis), precarga (el siguiente ya pide la capa alta), destacar_lugar (centro|izquierda), destacar_tamano (% del lienzo), franja (abajo|costado), superponer_tamano, superponer_completa, fundido_ms (de la baja a la HD). Nombres: nombres (no|nombre|nombre_cargo), nombre_tamano (% del alto de la celda), nombre_color, nombre_fondo, nombre_lugar (abajo|arriba). muestra (todos|orador) y sigue (la grilla cuyo orador muestra; \"\" = la primera que tenga): la escena del orador.",
+      "descripcion": "Cambia los ajustes de una fuente «Grilla de personas» (los mismos de la ventana Propiedades). Solo los que vienen; se validan todos antes de tocar nada. origen (sala|asamblea|ambas), orden (llegada|habla|prioridad), tope (celdas con el «+N», 0 = sin tope), solo_con_camara, sin_al_aire (sin los que ya están al aire en otra fuente o en otra grilla que se ve, contando las escenas de las capas DSK), resaltar (a quien habla), grupo (las grillas con el mismo grupo se reparten la gente sin repetir; \"\" = sola), orden_en_grupo (la primera manda el orden y el modo), reparto (en_orden: llena la primera hasta su tope; parejo: la misma cantidad en cada una), ancho, alto, proporcion (16:9|4:3|1:1|3:4|9:16|llenar), separacion, margen, transicion_ms, fondo y color_resaltar (\"#AARRGGBB\"). Cuando alguien habla: al_hablar (sin_cambios: la grilla no se toca, solo la cámara del orador en alta | resaltar: nadie se mueve, el orador con borde | destacar: el orador grande y los demás en una franja, en el mismo orden | superponer: el orador encima en un hueco que le deja la grilla | escena: la grilla no cambia y otra grilla con muestra=orador lo muestra solo | nada: sin orador), agrandar (resaltar y escena: no | encima | achicando), pasar_a_escena (escena: a_mano | automatico | asistente: siempre avisa al operador), salida_orador (\"\" = la principal), escena_orador (la pone grilla_personas_escena_orador), disparo (voz: voz sostenida voz_ms | palabra: la palabra de la asamblea | orador: el orador al aire de la conferencia | manual: grilla_personas_destacar), voz_ms, minimo_ms (el orador no cambia antes: histéresis), precarga (el siguiente ya pide la capa alta), destacar_lugar (centro|izquierda), destacar_tamano (% del lienzo), franja (abajo|costado), superponer_tamano, superponer_completa, fundido_ms (de la baja a la HD). Nombres: nombres (no|nombre|nombre_cargo), nombre_tamano (% del alto de la celda), nombre_color, nombre_fondo, nombre_lugar (abajo|arriba). muestra (todos|orador) y sigue (la grilla cuyo orador muestra; \"\" = la primera que tenga): la escena del orador. alta_hasta (de fábrica 10; 0 = sin límite): con más personas que esto en la grilla, todas las miniaturas piden la cámara en baja definición, salvo el orador y el siguiente (precarga); con esto o menos, cada una según el tamaño de su celda. Vuelve a la regla por tamaño recién con una persona menos (histéresis). grilla_personas_estado dice en cada grilla alta_hasta y en_baja, y en cada persona su capa (alta|baja).",
       "esquema": {
         "type": "object",
         "required": [
@@ -17428,7 +17428,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpGrillaTools.cpp",
-        "linea": 71
+        "linea": 75
       },
       "roles": [
         "asistente",
@@ -17468,7 +17468,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpGrillaTools.cpp",
-        "linea": 177
+        "linea": 181
       },
       "roles": [
         "asistente",
@@ -17509,7 +17509,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpGrillaTools.cpp",
-        "linea": 146
+        "linea": 150
       },
       "roles": [
         "asistente",
@@ -17545,7 +17545,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpGrillaTools.cpp",
-        "linea": 155
+        "linea": 159
       },
       "roles": [
         "asistente",
@@ -17573,7 +17573,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpGrillaTools.cpp",
-        "linea": 44
+        "linea": 48
       },
       "roles": [
         "asistente",
@@ -17615,7 +17615,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpGrillaTools.cpp",
-        "linea": 123
+        "linea": 127
       },
       "roles": [
         "asistente",
@@ -17661,7 +17661,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpGrillaTools.cpp",
-        "linea": 137
+        "linea": 141
       },
       "roles": [
         "asistente",
@@ -17702,7 +17702,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpGrillaTools.cpp",
-        "linea": 130
+        "linea": 134
       },
       "roles": [
         "asistente",

@@ -27,6 +27,10 @@
 //      precarga, fundido) y los rótulos.
 //  13. Sin cambios (la grilla no se toca, el orador en alta), agrandar (no / encima /
 //      achicando) y el pase a la escena del orador (a mano, automático, con el asistente).
+//  14. Alta definición hasta N personas: con N, cada una por su tamaño; con N + 1, todas en
+//      baja menos el orador y el precargado; el borde con histéresis; el que deja de ser
+//      orador no se queda en alta por la histéresis del tamaño; el invitado del cupo en una
+//      celda chica, baja.
 // ============================================================================
 #include <algorithm>
 #include <cstdio>
@@ -852,6 +856,121 @@ void sinCambiosAgrandarYPase() {
 
 } // namespace
 
+// Las capas de una vuelta: clave → "alta" | "baja".
+std::map<std::string, std::string> capasDe(const Resultado& r) {
+    std::map<std::string, std::string> m;
+    for (const auto& x : r.celdas) m[x.clave] = x.capa;
+    return m;
+}
+
+int cuantasAlta(const Resultado& r) {
+    int n = 0;
+    for (const auto& x : r.celdas) n += x.capa == "alta" ? 1 : 0;
+    return n;
+}
+
+void altaHasta() {
+    // La regla pura del umbral de cantidad.
+    CHECK(!todasEnBaja(10, 10, false), "10 de 10: por tamaño");
+    CHECK(todasEnBaja(11, 10, false), "11 de 10: todas en baja");
+    CHECK(todasEnBaja(10, 10, true), "vuelve a 10 desde 11: sigue en baja (histéresis, uno que sale y entra no la hace saltar)");
+    CHECK(!todasEnBaja(9, 10, true), "con 9 vuelve a la regla por tamaño");
+    CHECK(!todasEnBaja(64, 0, false) && !todasEnBaja(64, 0, true), "0 = sin límite");
+    {
+        const Config d = Config::desdeAjustes("g", Config::defectos());
+        CHECK(d.altaHasta == 10, "de fábrica, alta hasta 10 personas");
+        CHECK(Config::validar(json{{"alta_hasta", 0}}).empty() && Config::validar(json{{"alta_hasta", 20}}).empty(), "alta_hasta bueno");
+        CHECK(!Config::validar(json{{"alta_hasta", -1}}).empty() && !Config::validar(json{{"alta_hasta", "diez"}}).empty(),
+              "alta_hasta malo");
+        CHECK(Config::desdeAjustes("g", json{{"alta_hasta", 3}}).altaHasta == 3, "se lee");
+    }
+
+    // La grilla de la prueba de sala: 1920x1080, llenar, margen 16, separación 8, sin tope.
+    const auto config = [] {
+        Config c = grilla("g", 0);
+        c.ancho = 1920;
+        c.alto = 1080;
+        c.margen = 16;
+        c.aspecto = 0;
+        c.disparo = Disparo::Palabra;
+        return c;
+    };
+    std::vector<Config> gs{config()};
+    Repartidor rep;
+    auto v = gente(11);
+    v[3].palabra = true; // el orador
+    std::vector<Persona> diez(v.begin(), v.begin() + 10);
+    std::vector<Resultado> res;
+    for (int i = 0; i < 12; ++i) res = rep.calcular(gs, diez, {}, 1000 + i);
+    CHECK(!res[0].enBaja && res[0].celdas.size() == 10, "10 personas: por tamaño");
+    CHECK(res[0].celdas.front().r.h > kSubirAlta, "las celdas de 10 son grandes");
+    CHECK(cuantasAlta(res[0]) == 10, "10 personas en celdas grandes: las 10 en alta (de a una por vuelta)");
+
+    res = rep.calcular(gs, v, {}, 2000);
+    auto capas = capasDe(res[0]);
+    CHECK(res[0].enBaja, "11 personas: la grilla en baja");
+    CHECK(capas["sala:p3"] == "alta", "el orador sigue en alta");
+    CHECK(cuantasAlta(res[0]) == 1, "11 personas: todas en baja menos el orador");
+
+    // El borde: sale uno (quedan 10) y la grilla sigue en baja; vuelve a entrar, igual.
+    res = rep.calcular(gs, diez, {}, 3000);
+    CHECK(res[0].enBaja && cuantasAlta(res[0]) == 1, "vuelve a 10: sigue en baja (histéresis)");
+    res = rep.calcular(gs, v, {}, 3100);
+    CHECK(res[0].enBaja && cuantasAlta(res[0]) == 1, "y a 11: nada cambió");
+    std::vector<Persona> nueve(v.begin(), v.begin() + 9);
+    res = rep.calcular(gs, nueve, {}, 3200);
+    CHECK(!res[0].enBaja && cuantasAlta(res[0]) == 2, "9: por tamaño otra vez (sube de a una por vuelta)");
+
+    // El precargado (el siguiente) también en alta, aunque sean más de N.
+    {
+        Repartidor r2;
+        auto w = v;
+        w[5].siguiente = true;
+        const auto x = r2.calcular(gs, w, {}, 0);
+        const auto c = capasDe(x[0]);
+        CHECK(x[0].enBaja && c.at("sala:p3") == "alta" && c.at("sala:p5") == "alta" && cuantasAlta(x[0]) == 2,
+              "11 personas: el orador y el precargado en alta, el resto en baja");
+    }
+    // Sin límite (0): 20 personas en celdas de 256 px, la regla por tamaño de siempre.
+    {
+        Repartidor r2;
+        std::vector<Config> g0{config()};
+        g0[0].altaHasta = 0;
+        auto w = gente(20);
+        const auto x = r2.calcular(g0, w, {}, 0);
+        CHECK(!x[0].enBaja && x[0].celdas.front().r.h < kSubirAlta && cuantasAlta(x[0]) == 0,
+              "sin límite: 20 en celdas medianas no suben (hace falta pasar kSubirAlta)");
+    }
+    // El que deja de ser orador no se queda en alta por la histéresis del tamaño (medido el
+    // 2026-11-01: cada orador que pasaba quedaba en alta en su celda de ~200 px).
+    {
+        Repartidor r2;
+        std::vector<Config> g0{config()};
+        g0[0].altaHasta = 0; // solo la regla por tamaño
+        g0[0].minimoMs = 0;
+        auto w = gente(30);
+        w[0].palabra = true;
+        auto x = r2.calcular(g0, w, {}, 0);
+        const int h = x[0].celdas.front().r.h;
+        CHECK(h >= kBajarAlta && h <= kSubirAlta, "30 personas: celdas en la franja de la histéresis");
+        CHECK(capasDe(x[0])["sala:p0"] == "alta", "el orador, en alta");
+        w[0].palabra = false;
+        w[1].palabra = true;
+        x = r2.calcular(g0, w, {}, 10000);
+        auto c = capasDe(x[0]);
+        CHECK(c["sala:p1"] == "alta" && c["sala:p0"] == "baja", "el orador anterior vuelve a la baja (no ganó la alta por su lugar)");
+        CHECK(cuantasAlta(x[0]) == 1, "solo el orador en alta");
+    }
+    // Un invitado del cupo (en el programa, no al aire) en una celda chica de la grilla: baja.
+    // La grilla no mira el cupo: pide por lo que se ve de él (y el gateway lo respeta, test_capas).
+    {
+        Repartidor r2;
+        auto w = gente(30);
+        const auto x = r2.calcular(gs, w, {}, 0);
+        CHECK(capasDe(x[0])["sala:p0"] == "baja", "invitado del cupo en una celda chica: baja");
+    }
+}
+
 int main() {
     disposicion();
     filtrosYOrden();
@@ -867,6 +986,7 @@ int main() {
     enLaGrilla();
     capasYPedido();
     sinCambiosAgrandarYPase();
+    altaHasta();
     if (g_fallos == 0) std::printf("test_grilla_personas: OK\n");
     return g_fallos == 0 ? 0 : 1;
 }

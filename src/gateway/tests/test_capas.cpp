@@ -106,21 +106,21 @@ void necesidad() {
     CHECK(capaNecesaria(n) == Capa::Baja, "en la fila con vista previa: baja");
     n.ruta = MediaRoute::backstage(0);
     CHECK(capaNecesaria(n) == Capa::Nada, "en la fila sin vista previa ni grilla: nada");
-    n.altoGrilla = 90;
-    CHECK(capaNecesaria(n) == Capa::Baja, "en un cuadrito de una grilla: baja");
-    n.altoGrilla = 400;
-    CHECK(capaNecesaria(n) == Capa::Alta, "en un lugar grande de una grilla: alta");
-    n.altoGrilla = 0;
+    n.capaGrilla = Capa::Baja;
+    CHECK(capaNecesaria(n) == Capa::Baja, "en un cuadrito de una grilla: baja (lo dice la app)");
+    n.capaGrilla = Capa::Alta;
+    CHECK(capaNecesaria(n) == Capa::Alta, "en un lugar grande de una grilla: alta (lo dice la app)");
+    n.capaGrilla = Capa::Nada;
     n.espectadores = 1;
     CHECK(capaNecesaria(n) == Capa::Alta, "la mira una vista web: alta (se le reenvía esa)");
 
     n = {};
     n.ruta = MediaRoute::program(1);
     n.appDijo = true;
-    n.altoGrilla = 120;
-    CHECK(capaNecesaria(n) == Capa::Baja, "en el programa, no al aire, en un cuadrito: baja");
+    n.capaGrilla = Capa::Baja;
+    CHECK(capaNecesaria(n) == Capa::Baja, "en el programa (en el cupo), no al aire, en un cuadrito: baja");
     n.ruta = MediaRoute::atencion();
-    n.altoGrilla = 0;
+    n.capaGrilla = Capa::Nada;
     CHECK(capaNecesaria(n) == Capa::Nada, "la atención hablada no manda cámara");
 }
 
@@ -196,11 +196,9 @@ void fundido() {
     // Lo que pide la grilla.
     NecesidadCapa n;
     n.ruta = MediaRoute::backstage(0);
-    n.altoGrilla = 400;
     n.capaGrilla = Capa::Baja;
-    CHECK(capaNecesaria(n) == Capa::Baja, "la grilla dijo baja (miniatura que se agrandó un poco): manda la grilla");
+    CHECK(capaNecesaria(n) == Capa::Baja, "la grilla dijo baja (miniatura, o más de «alta_hasta» personas): manda la grilla");
     n.capaGrilla = Capa::Alta;
-    n.altoGrilla = 150;
     CHECK(capaNecesaria(n) == Capa::Alta, "la grilla dijo alta (el que pasa a grande)");
     n = {};
     n.ruta = MediaRoute::backstage(0);

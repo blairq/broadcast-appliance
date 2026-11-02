@@ -50120,7 +50120,7 @@ Datos (de %2): %3</source>
         <translation>не удалось обрезать &apos;%1&apos; в &apos;%2&apos; (обрезка больше изображения?)</translation>
     </message>
     <message>
-        <location filename="../src/app/escenas/ControlGrillas.cpp" line="+142"/>
+        <location filename="../src/app/escenas/ControlGrillas.cpp" line="+145"/>
         <source>todavía no se pueden crear escenas</source>
         <translation>сцены пока нельзя создавать</translation>
     </message>
@@ -50145,7 +50145,7 @@ Datos (de %2): %3</source>
         <translation>место %1</translation>
     </message>
     <message>
-        <location line="+78"/>
+        <location line="+85"/>
         <source>sin canal: hay más de %1 grillas</source>
         <translation>нет канала: сеток больше %1</translation>
     </message>
@@ -50655,7 +50655,17 @@ Datos (de %2): %3</source>
         <translation>При переходе на крупный план камера запрашивается в высоком качестве: пока она не пришла, остаётся низкое, а когда придёт, происходит плавный переход от одного к другому (никогда не чёрный экран).</translation>
     </message>
     <message>
-        <location line="+4"/>
+        <location line="+5"/>
+        <source>Alta definición hasta (personas)</source>
+        <translation>Высокая чёткость до (человек)</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Con más personas que esto en la grilla, todas las miniaturas van en baja definición (menos datos por la red y menos trabajo para la máquina), aunque las celdas sean grandes; el orador y el siguiente siguen en alta. Con esto o menos, cada una según su tamaño. 0 = sin límite.</source>
+        <translation>Если в сетке больше людей, чем это число, все миниатюры идут в низкой чёткости (меньше данных по сети и меньше работы для машины), даже если ячейки большие; выступающий и следующий остаются в высокой. При этом числе или меньше — каждая по своему размеру. 0 = без ограничения.</translation>
+    </message>
+    <message>
+        <location line="+5"/>
         <source>Borde a quien habla</source>
         <translation>Рамка у говорящего</translation>
     </message>
@@ -50750,7 +50760,7 @@ Datos (de %2): %3</source>
         <translation>Канала пока нет: сеток больше 8 или конференция не запущена.</translation>
     </message>
     <message>
-        <location filename="../src/app/escenas/GrillaPersonas.cpp" line="+176"/>
+        <location filename="../src/app/escenas/GrillaPersonas.cpp" line="+178"/>
         <source>los ajustes van en un objeto</source>
         <translation>настройки передаются объектом</translation>
     </message>
@@ -50770,7 +50780,7 @@ Datos (de %2): %3</source>
         <translation>«%1» — true или false</translation>
     </message>
     <message>
-        <location line="+11"/>
+        <location line="+12"/>
         <source>«%1» no es un ajuste de la grilla de personas</source>
         <translation>«%1» не является настройкой сетки участников</translation>
     </message>
@@ -53276,7 +53286,7 @@ Datos (de %2): %3</source>
         <translation>ws: неверное сообщение от %1 (%2)</translation>
     </message>
     <message>
-        <location line="+431"/>
+        <location line="+427"/>
         <source>capas: a %1 se le pide la %2</source>
         <translation>слои: у %1 запрашивается слой %2</translation>
     </message>
@@ -53286,7 +53296,7 @@ Datos (de %2): %3</source>
         <translation>слои: пришла HD для %1 (через %2 мс после запроса); плавный переход %3 мс</translation>
     </message>
     <message>
-        <location line="-3020"/>
+        <location line="-3016"/>
         <source>direcciones: red %1, afuera %2</source>
         <translation>адреса: сеть %1, извне %2</translation>
     </message>
@@ -64801,7 +64811,12 @@ Con este repertorio se arma un gráfico SIN escribir código: es lo que conviene
         <translation>origen (sala|asamblea|ambas), orden (llegada|habla|prioridad), tope (ячейки с «+N», 0 = без ограничения), solo_con_camara, sin_al_aire (без тех, кто уже в эфире в другом источнике или в другой видимой сетке, включая сцены слоёв DSK), resaltar (подсвечивать говорящего), grupo (сетки с одной группой делят людей без повторов; &quot;&quot; = одна), orden_en_grupo (первая задаёт порядок и режим), reparto (en_orden: заполняет первую до её предела; parejo: поровну в каждую), ancho, alto, proporcion (16:9|4:3|1:1|3:4|9:16|llenar), separacion, margen, transicion_ms, fondo и color_resaltar (&quot;#AARRGGBB&quot;). Когда кто-то говорит: al_hablar (sin_cambios: сетка не трогается, только камера выступающего в высоком качестве | resaltar: никто не двигается, у выступающего рамка | destacar: выступающий крупно, остальные в полосе, в прежнем порядке | superponer: выступающий сверху, в пустом месте, которое оставляет сетка | escena: сетка не меняется, а другая сетка с muestra=orador показывает только его | nada: нет выступающего), agrandar (resaltar и escena: no | encima | achicando), pasar_a_escena (escena: a_mano | automatico | asistente: всегда уведомляет оператора), salida_orador (&quot;&quot; = основной), escena_orador (создаётся через grilla_personas_escena_orador), disparo (voz: устойчивый голос voz_ms | palabra: слово в собрании | orador: выступающий в эфире конференции | manual: grilla_personas_destacar), voz_ms, minimo_ms (выступающий не меняется раньше: гистерезис), precarga (следующий уже запрашивает высокий слой), destacar_lugar (centro|izquierda), destacar_tamano (% от холста), franja (abajo|costado), superponer_tamano, superponer_completa, fundido_ms (от низкого к HD). Имена: nombres (no|nombre|nombre_cargo), nombre_tamano (% от высоты ячейки), nombre_color, nombre_fondo, nombre_lugar (abajo|arriba). muestra (todos|orador) и sigue (сетка, чьего выступающего она показывает; &quot;&quot; = первая, где он есть): сцена выступающего.</translation>
     </message>
     <message>
-        <location line="+22"/>
+        <location line="+19"/>
+        <source>alta_hasta (de fábrica 10; 0 = sin límite): con más personas que esto en la grilla, todas las miniaturas piden la cámara en baja definición, salvo el orador y el siguiente (precarga); con esto o menos, cada una según el tamaño de su celda. Vuelve a la regla por tamaño recién con una persona menos (histéresis). grilla_personas_estado dice en cada grilla alta_hasta y en_baja, y en cada persona su capa (alta|baja).</source>
+        <translation>alta_hasta (по умолчанию 10; 0 = без ограничения): если в сетке больше людей, чем это число, все миниатюры запрашивают камеру в низкой чёткости, кроме выступающего и следующего (предзагрузка); при этом числе или меньше — каждая по размеру своей ячейки. К правилу по размеру возвращается только при числе на одного меньше (гистерезис). grilla_personas_estado сообщает для каждой сетки alta_hasta и en_baja, а для каждого человека его capa (alta|baja).</translation>
+    </message>
+    <message>
+        <location line="+7"/>
         <source>Qué muestra cada grilla de personas</source>
         <translation>Что показывает каждая сетка участников</translation>
     </message>
