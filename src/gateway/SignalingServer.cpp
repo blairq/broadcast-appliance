@@ -36,6 +36,7 @@
 #include "ipc/CanalesSalida.hpp"
 #include "ipc/ControlProtocol.hpp"
 #include "ipc/ProtocoloSala.hpp"
+#include "ipc/LugaresSala.hpp"
 #include "crypto/Sha256.hpp"
 #include "Log.hpp"
 #include "Grillas.hpp"
@@ -786,7 +787,10 @@ void SignalingServer::closeActiveConns() {
 bool SignalingServer::tomarIp(std::uint32_t ip) {
     std::lock_guard<std::mutex> l(porIpLock_);
     int& n = porIp_[ip];
-    if (n >= kMaxPorIp()) {
+    // La máquina que genera los invitados de una prueba (entró con la credencial): todos
+    // salen de su IP, así que mientras dura la prueba no la frena el tope por IP.
+    const int tope = prueba_.ipDePrueba(ip, nowMs()) ? std::max(kMaxPorIp(), 4 * ba::ipc::kMaxInvitados) : kMaxPorIp();
+    if (n >= tope) {
         if (n == 0) porIp_.erase(ip);
         return false;
     }
@@ -1285,6 +1289,7 @@ void SignalingServer::handleGuestHttp(long long fd, const std::string& method, c
         apiJoin(fd, body, clientIp);
         return;
     }
+    if (atenderCapacidad(fd, method, path, query, headers, clientIp)) return;
     if (path == "/api/verify") {
         apiVerify(fd, query);
         return;
@@ -1861,6 +1866,8 @@ void SignalingServer::apiJoin(long long fd, const std::string& body, std::uint32
         }
         // Así el /ws lo reconoce: entra sin lobby y marcado «prueba».
         prueba_.anotarToken(token, nowMs(), nowMs() + static_cast<int64_t>(auth_.ttlSec()) * 1000);
+        // Y la máquina que los genera no queda frenada por el tope de conexiones por IP.
+        prueba_.anotarIp(clientIp);
         const json resp{{"ok", true},
                         {"token", token},
                         {"room", room},
@@ -3679,6 +3686,99 @@ json SignalingServer::cerrarPruebaSala(const std::string& motivo) {
 
 void SignalingServer::tickPruebaSala(int64_t ahora) {
     if (prueba_.vencida(ahora)) cerrarPruebaSala("vencida");
+    // El secreto de medir la conexión, vencido, se olvida.
+    std::lock_guard<std::mutex> l(medirRedMu_);
+    if (!medirRedSecreto_.empty() && ahora >= medirRedVenceMs_) {
+        medirRedSecreto_.clear();
+        medirRedVenceMs_ = 0;
+    }
+}
+
+void SignalingServer::medidaPruebaSala(const json& medida) { prueba_.ponerMedida(medida, nowMs()); }
+
+// --- La prueba de capacidad (docs/funciones/CAPACIDAD.md) -----------------------------------
+
+json SignalingServer::abrirMedirRed(int64_t duracionMs) {
+    if (duracionMs <= 0 || duracionMs > 180000) return json{{"ok", false}, {"error", "duracion"}};
+    std::string hex;
+    if (!ba::security::randomSecretHex(16, hex)) return json{{"ok", false}, {"error", "entropy"}};
+    std::lock_guard<std::mutex> l(medirRedMu_);
+    medirRedSecreto_ = hex;
+    medirRedVenceMs_ = nowMs() + duracionMs;
+    return json{{"ok", true}, {"secreto", hex}, {"venceMs", medirRedVenceMs_}};
+}
+
+void SignalingServer::cerrarMedirRed() {
+    std::lock_guard<std::mutex> l(medirRedMu_);
+    medirRedSecreto_.clear();
+    medirRedVenceMs_ = 0;
+}
+
+bool SignalingServer::atenderCapacidad(long long fd, const std::string& method, const std::string& path, const std::string& query,
+                                       const std::string& headers, std::uint32_t clientIp) {
+    // La medida de esta máquina para el probador de otro equipo: con la credencial de la
+    // prueba en una cabecera (nunca en la URL: queda en registros y en el historial).
+    if (path == "/api/prueba-sala/medida" && method == "GET") {
+        if (!ipAttemptAllowed(clientIp)) {
+            http::sendResponse(fd, 429, "application/json", R"({"ok":false,"error":"rate"})");
+            return true;
+        }
+        const std::string cred = http::getHeader(headers, "X-BA-Prueba");
+        if (cred.size() < 16 || !prueba_.credencialValida(cred, nowMs())) {
+            ipRecordFailure(clientIp);
+            http::sendResponse(fd, 401, "application/json", R"({"ok":false,"error":"credencial"})");
+            return true;
+        }
+        json r = prueba_.medida(nowMs());
+        if (r.is_null()) r = json{{"medida", nullptr}};
+        r["ok"] = true;
+        r["participantes"] = prueba_.estado(nowMs(), false).value("participantes", 0);
+        http::sendResponse(fd, 200, "application/json", r.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace),
+                           "Cache-Control: no-store\r\n");
+        return true;
+    }
+    // Relleno para medir la conexión «ida y vuelta» por el túnel (lo pide esta misma app a
+    // su dirección pública). Con el secreto de abrirMedirRed; sin él, nada.
+    if (path == "/api/capacidad/relleno" && method == "GET") {
+        if (!ipAttemptAllowed(clientIp)) {
+            http::sendResponse(fd, 429, "application/json", R"({"ok":false,"error":"rate"})");
+            return true;
+        }
+        const std::string sec = http::getHeader(headers, "X-BA-Medir");
+        bool vale = false;
+        {
+            std::lock_guard<std::mutex> l(medirRedMu_);
+            vale = !medirRedSecreto_.empty() && nowMs() < medirRedVenceMs_ && sec.size() == medirRedSecreto_.size() &&
+                   ba::security::igualesEnTiempoConstante(sec, medirRedSecreto_);
+        }
+        if (!vale) {
+            ipRecordFailure(clientIp);
+            http::sendResponse(fd, 401, "application/json", R"({"ok":false,"error":"secreto"})");
+            return true;
+        }
+        const auto q = http::parseQuery(query);
+        long long kb = q.count("kb") ? http::parseLong(q.at("kb"), 256) : 256;
+        kb = std::clamp(kb, 1LL, 4096LL);
+        // Bytes que no se comprimen (si algo del camino comprime, la medida no miente).
+        static const std::string kAzar = [] {
+            std::string b(1 << 16, '\0');
+            std::uint32_t x = 0x9e3779b9u;
+            for (char& c : b) {
+                x ^= x << 13;
+                x ^= x >> 17;
+                x ^= x << 5;
+                c = static_cast<char>(x & 0xff);
+            }
+            return b;
+        }();
+        const std::size_t total = static_cast<std::size_t>(kb) * 1024;
+        std::string cuerpo;
+        cuerpo.reserve(total);
+        while (cuerpo.size() < total) cuerpo.append(kAzar, 0, std::min(kAzar.size(), total - cuerpo.size()));
+        http::sendResponse(fd, 200, "application/octet-stream", cuerpo, "Cache-Control: no-store\r\n");
+        return true;
+    }
+    return false;
 }
 
 void SignalingServer::revisarCapasTodas() {

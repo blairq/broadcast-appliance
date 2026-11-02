@@ -40,6 +40,8 @@
 //   GET    /api/v1/prueba-sala             la prueba de sala (PruebaSala.hpp), con la credencial
 //   POST   /api/v1/prueba-sala             {duracionS, directa?} la abre/renueva · {directa} el interruptor
 //   DELETE /api/v1/prueba-sala · POST /api/v1/prueba-sala/cerrar {motivo}  la termina (echa a los de prueba)
+//   POST   /api/v1/prueba-sala             {medida} la de esta máquina, para el probador de capacidad remoto
+//   POST   /api/v1/capacidad/red           {duracionS} secreto para medir la conexión por el túnel · DELETE lo olvida
 //   POST   /api/v1/claves                  {prompter?, correccion?, rotulos?, publico?, tablero?} (del evento)
 //   PUT    /api/v1/config/ajustes          {valores: {clave: valor}}  los avanzados «live» (en caliente)
 //   PUT    /api/v1/config/sala             {lobby?, pinIntentos?, pinBloqueoS?, maxUploadMB?}  (en caliente)
@@ -473,6 +475,12 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
             return;
         }
         if (method == "POST") {
+            // La medida de esta máquina para el probador de capacidad de otro equipo.
+            if (req.contains("medida") && !req.contains("duracionS")) {
+                medidaPruebaSala(req["medida"]);
+                sendJson(fd, 200, json{{"ok", true}});
+                return;
+            }
             std::optional<bool> directa;
             if (req.contains("directa") && req["directa"].is_boolean()) directa = req["directa"].get<bool>();
             // Solo el interruptor (sin duración): la prueba tiene que estar abierta.
@@ -492,6 +500,19 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
         }
         if (method == "DELETE") {
             sendJson(fd, 200, cerrarPruebaSala("app"));
+            return;
+        }
+    }
+    // La prueba de capacidad: un secreto para medir la conexión «ida y vuelta» por el túnel.
+    if (path == "/api/v1/capacidad/red") {
+        if (method == "POST") {
+            const json r = abrirMedirRed(req.value("duracionS", 0LL) * 1000);
+            sendJson(fd, r.value("ok", false) ? 200 : 400, r);
+            return;
+        }
+        if (method == "DELETE") {
+            cerrarMedirRed();
+            sendJson(fd, 200, json{{"ok", true}});
             return;
         }
     }

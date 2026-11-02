@@ -380,6 +380,15 @@ class SignalingServer {
     nlohmann::json estadoPruebaSala() const;
     /// El tic (main, ~1 s): si venció, la cierra sola.
     void tickPruebaSala(int64_t nowMs);
+    /// La medida de esta máquina para el probador de capacidad remoto (la pone la app).
+    void medidaPruebaSala(const nlohmann::json& medida);
+
+    // --- La prueba de capacidad: la conexión a internet (docs/funciones/CAPACIDAD.md) ---
+    /// Un secreto para medir «ida y vuelta» por el túnel (pinggy): la app le pide relleno a
+    /// su propia dirección pública con este secreto en una cabecera. Vence en `duracionMs`
+    /// (como mucho 3 minutos). Devuelve {ok, secreto} o {ok:false, error}.
+    nlohmann::json abrirMedirRed(int64_t duracionMs);
+    void cerrarMedirRed();
 
    private:
     // --- Conexiones ---------------------------------------------------------
@@ -640,6 +649,14 @@ class SignalingServer {
     WebrtcHub& hub_;
     Room& room_;
     PruebaSala prueba_; ///< la prueba de sala: credencial, tokens, quiénes
+    /// La medición de la conexión de la prueba de capacidad (abrirMedirRed).
+    mutable std::mutex medirRedMu_;
+    std::string medirRedSecreto_;
+    int64_t medirRedVenceMs_ = 0;
+    /// GET /api/capacidad/relleno?kb=N (cabecera X-BA-Medir) y GET /api/prueba-sala/medida
+    /// (cabecera X-BA-Prueba): las dos rutas públicas de la prueba de capacidad.
+    bool atenderCapacidad(long long fd, const std::string& method, const std::string& path, const std::string& query,
+                          const std::string& headers, std::uint32_t clientIp);
     Prompters prompters_; ///< los teleprompters (Prompter.hpp: «principal» y los que se agreguen)
     /// Lo que rota en cada pantalla (lo publica A, lo lee /pantalla/carrusel/).
     Carruseles carruseles_;
