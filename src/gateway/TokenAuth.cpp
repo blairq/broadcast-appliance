@@ -50,6 +50,12 @@ std::string TokenAuth::issue(const std::string& room, const std::string& pin) {
     return svc_->issue(room, pin, ttlSec_);
 }
 
+std::string TokenAuth::issueConfiado(const std::string& room) {
+    std::lock_guard<std::mutex> lock(m_);
+    // El PIN vigente valida solo: el que pide ya se validó con la credencial de prueba.
+    return svc_->issue(room, *pin_, ttlSec_);
+}
+
 void TokenAuth::bloqueoGlobal(int& fallos, int& hasta) const {
     std::lock_guard<std::mutex> lock(m_);
     fallos = svc_->failures();

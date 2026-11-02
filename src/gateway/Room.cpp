@@ -110,7 +110,8 @@ std::string Room::cleanText(const std::string& raw) {
 // --- Invitado ---------------------------------------------------------------
 
 Room::Joined Room::connect(const std::string& name, const std::string& ip, int64_t nowMs,
-                           const std::string& presetId, const std::string& info, const std::string& contact) {
+                           const std::string& presetId, const std::string& info, const std::string& contact,
+                           bool prueba) {
     Joined res;
     Out out;
     {
@@ -144,6 +145,7 @@ Room::Joined Room::connect(const std::string& name, const std::string& ip, int64
         p.connected = true;
         p.joinedMs = nowMs;
         p.lastSeenMs = nowMs;
+        p.prueba = prueba;
         people_.push_back(p);
         res.id = p.id;
         res.key = p.key;
@@ -153,10 +155,11 @@ Room::Joined Room::connect(const std::string& name, const std::string& ip, int64
                                           {"key", p.key},
                                           {"name", p.name},
                                           {"room", cfg_.name},
-                                          {"lobby", cfg_.lobby}});
-        if (!cfg_.lobby) {
-            autoAdmitLocked(nowMs, out);
-        }
+                                          {"lobby", cfg_.lobby && !directa_ && !prueba}});
+        // Sin lobby (o con la entrada directa) pasan todos; con lobby, solo los de
+        // prueba (los reales siguen esperando a que los admitan). Sin lugar, espera
+        // como cualquiera: nunca saca a nadie.
+        entradaDirectaLocked(nowMs, out);
         assignLobbySlotsLocked(out);
         lobbyPositionsLocked(out);
         out.roomChanged = true;
@@ -184,8 +187,8 @@ int Room::resume(const std::string& id, const std::string& key, int64_t nowMs) {
                                            {"resumed", true}});
         if (p->state == State::Admitted) {
             out.guest.emplace_back(p->id, json{{"type", "admitted"}, {"slot", p->slot}});
-        } else if (!cfg_.lobby) {
-            autoAdmitLocked(nowMs, out);
+        } else {
+            entradaDirectaLocked(nowMs, out);
         }
         if (p->state == State::Waiting && p->lobbySlot > 0) {
             out.guest.emplace_back(p->id, json{{"type", "talk"}, {"on", p->talk}});
@@ -332,7 +335,7 @@ int Room::setCupo(int n) {
         cfg_.maxGuests = n;
         out.roomChanged = true;
         // Sin lobby, los que esperaban entran a los lugares nuevos.
-        if (!cfg_.lobby) autoAdmitLocked(lastNowMs_, out);
+        entradaDirectaLocked(lastNowMs_, out);
     }
     flush(out);
     return kOk;
@@ -479,6 +482,35 @@ void Room::setLobby(bool on, int64_t nowMs) {
         out.roomChanged = true;
     }
     flush(out);
+}
+
+void Room::setDirecta(bool on, int64_t nowMs) {
+    Out out;
+    {
+        std::lock_guard<std::mutex> lock(m_);
+        lastNowMs_ = nowMs;
+        if (directa_ == on) return;
+        directa_ = on;
+        if (on) {
+            autoAdmitLocked(nowMs, out);
+            lobbyPositionsLocked(out);
+        }
+        out.roomChanged = true;
+    }
+    flush(out);
+}
+
+bool Room::directa() const {
+    std::lock_guard<std::mutex> lock(m_);
+    return directa_;
+}
+
+std::vector<std::string> Room::idsDePrueba() const {
+    std::lock_guard<std::mutex> lock(m_);
+    std::vector<std::string> out;
+    for (const Participant& p : people_)
+        if (p.prueba) out.push_back(p.id);
+    return out;
 }
 
 void Room::setLocked(bool on) {
@@ -692,16 +724,21 @@ void Room::removeLocked(const std::string& id, Out& out) {
     assignBackstageSlotsLocked(out);
     out.roomChanged = true;
     // Sin lobby, el lugar que se libera lo toma el siguiente de la fila.
-    if (!cfg_.lobby) autoAdmitLocked(lastNowMs_, out);
+    entradaDirectaLocked(lastNowMs_, out);
     assignLobbySlotsLocked(out);
     lobbyPositionsLocked(out);
 }
 
-void Room::autoAdmitLocked(int64_t nowMs, Out& out) {
+void Room::entradaDirectaLocked(int64_t nowMs, Out& out) {
+    autoAdmitLocked(nowMs, out, cfg_.lobby && !directa_);
+}
+
+void Room::autoAdmitLocked(int64_t nowMs, Out& out, bool soloPrueba) {
     for (Participant& p : people_) {
         // Un desconectado no pasa: tomaria un slot que nadie usa. Entra
         // cuando se reengancha (resume) si todavia hay lugar.
         if (p.state != State::Waiting || !p.connected) continue;
+        if (soloPrueba && !p.prueba) continue;
         const int slot = spk_.enabled ? 0 : freeSlotLocked();
         if (slot == 0 && !spk_.enabled) break;
         admitLocked(p, slot, nowMs, out);
@@ -782,6 +819,7 @@ json Room::toJson(const Participant& p) {
                 {"cam", p.cam},
                 {"screen", p.screen},
                 {"hand", p.hand},
+                {"prueba", p.prueba},
                 {"joinedMs", p.joinedMs},
                 {"admittedMs", p.admittedMs},
                 {"info", p.info},
@@ -831,6 +869,7 @@ json Room::snapshotLocked() const {
         chat.push_back(toJson(c));
     return json{{"room", cfg_.name},
                 {"lobby", cfg_.lobby},
+                {"directa", directa_},
                 {"locked", locked_},
                 {"intake", intake_},
                 {"maxGuests", cfg_.maxGuests},

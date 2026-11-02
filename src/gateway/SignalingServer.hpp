@@ -90,6 +90,7 @@
 #include <map>
 #include <memory>
 #include <mutex>
+#include <optional>
 #include <set>
 #include <string>
 #include <thread>
@@ -106,6 +107,7 @@
 #include "Carruseles.hpp"
 #include "MediaRoute.hpp"
 #include "Preguntas.hpp"
+#include "PruebaSala.hpp"
 #include "Prompter.hpp"
 #include "Rotulador.hpp"
 #include "Superficies.hpp"
@@ -352,6 +354,20 @@ class SignalingServer {
     std::string boardToken() const { return claves().tablero; }
     /// Las sesiones que no consiguieron puerto desde el arranque (el rango UDP no alcanzó).
     int sinPuerto() const { return sinPuerto_.load(); }
+
+    // --- La prueba de sala (PruebaSala.hpp) ------------------------------------
+    /// La abre (o la renueva) por `duracionMs` con una credencial nueva; con
+    /// `directa`, prende la entrada directa para todos. Devuelve su estado (con la
+    /// credencial) o {ok:false, error}.
+    nlohmann::json abrirPruebaSala(int64_t duracionMs, std::optional<bool> directa);
+    /// Prende/apaga la entrada directa (solo con la prueba activa).
+    nlohmann::json directaPruebaSala(bool on);
+    /// La termina: revoca la credencial, echa a los de prueba, apaga la entrada
+    /// directa. `motivo` va al registro y al evento «prueba-sala» de la app.
+    nlohmann::json cerrarPruebaSala(const std::string& motivo);
+    nlohmann::json estadoPruebaSala() const;
+    /// El tic (main, ~1 s): si venció, la cierra sola.
+    void tickPruebaSala(int64_t nowMs);
 
    private:
     // --- Conexiones ---------------------------------------------------------
@@ -611,6 +627,7 @@ class SignalingServer {
     TokenAuth& auth_;
     WebrtcHub& hub_;
     Room& room_;
+    PruebaSala prueba_; ///< la prueba de sala: credencial, tokens, quiénes
     Prompters prompters_; ///< los teleprompters (Prompter.hpp: «principal» y los que se agreguen)
     /// Lo que rota en cada pantalla (lo publica A, lo lee /pantalla/carrusel/).
     Carruseles carruseles_;

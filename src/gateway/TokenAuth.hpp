@@ -76,6 +76,13 @@ class TokenAuth {
     ///           el lockout.
     std::string issue(const std::string& room, const std::string& pin);
 
+    /// Emite un token SIN PIN, para quien ya se validó por otro lado (la
+    /// credencial de la prueba de sala, PruebaSala.hpp). No toca el lockout.
+    ///
+    /// :param room: identificador de sala.
+    /// :returns: el token; vacío si el servicio no emite (bloqueo global).
+    std::string issueConfiado(const std::string& room);
+
     /// Verifica un token contra la sala.
     ///
     /// :param token: token emitido por issue().

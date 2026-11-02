@@ -91,6 +91,9 @@ class Room {
         bool cam = true;
         bool screen = false; ///< compartiendo pantalla/ventana
         bool hand = false;   ///< mano levantada
+        /// De la prueba de sala (PruebaSala.hpp): entró con la credencial de prueba,
+        /// sin lobby. Fuera del padrón, la votación y el quórum; se ve con «prueba».
+        bool prueba = false;
         // --- Ficha (la completa el invitado; el operador puede editarla) ---
         std::string info;       ///< cargo, tema...
         std::string contact;    ///< telefono/email: solo produccion (nunca otros invitados)
@@ -180,9 +183,11 @@ class Room {
     };
     /// Entra a la sala (WebSocket recien abierto con un token valido).
     /// `presetId`: id ya elegido por el servidor (vacio = lo genera la sala).
+    /// `prueba`: entra con la credencial de la prueba de sala: pasa directo (sin
+    /// lobby) si hay lugar, y queda marcado.
     Joined connect(const std::string& name, const std::string& ip, int64_t nowMs,
                    const std::string& presetId = {}, const std::string& info = {},
-                   const std::string& contact = {});
+                   const std::string& contact = {}, bool prueba = false);
     /// Reengancha a un participante desconectado (recarga, corte de red).
     int resume(const std::string& id, const std::string& key, int64_t nowMs);
     /// Se corto su conexion: conserva el lugar `graceMs`.
@@ -216,6 +221,13 @@ class Room {
     /// `to`: "all" o el id de un participante.
     int chatFromHost(const std::string& to, const std::string& text, int64_t nowMs);
     void setLobby(bool on, int64_t nowMs);
+    /// «Entrada directa para todos» (solo durante la prueba de sala): como el
+    /// lobby apagado, pero sin tocar la configuración; al apagarla vuelve el lobby
+    /// que estaba. Viaja en el snapshot como `directa`.
+    void setDirecta(bool on, int64_t nowMs);
+    bool directa() const;
+    /// Los ids de los participantes de prueba (los que están ahora).
+    std::vector<std::string> idsDePrueba() const;
     /// El cupo del programa, sin reiniciar (1..reserva). kFull si un lugar que se
     /// iría está ocupado; kBadState si está fuera de lo reservado.
     int setCupo(int n);
@@ -314,7 +326,11 @@ class Room {
     /// Quita un participante (libera su slot) y reordena el lobby.
     void removeLocked(const std::string& id, Out& out);
     /// Lobby apagado: hace pasar a los que esperan mientras haya slots.
-    void autoAdmitLocked(int64_t nowMs, Out& out);
+    /// `soloPrueba`: solo los de la prueba de sala (con el lobby prendido).
+    void autoAdmitLocked(int64_t nowMs, Out& out, bool soloPrueba = false);
+    /// Los que pueden pasar sin que los admitan: todos sin lobby o con la entrada
+    /// directa; si no, los de prueba.
+    void entradaDirectaLocked(int64_t nowMs, Out& out);
     /// Informa a cada uno de los que esperan su posicion en la fila.
     void lobbyPositionsLocked(Out& out);
     /// Reparte los lugares de preview del lobby entre los que esperan.
@@ -333,6 +349,7 @@ class Room {
     Cfg cfg_;
     Sinks sinks_;
     bool locked_ = false;
+    bool directa_ = false; ///< entrada directa para todos (prueba de sala)
     bool intake_ = false;
     std::string pin_;
     std::string guestUrl_;

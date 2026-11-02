@@ -1408,6 +1408,10 @@ int main(int argc, char** argv) {
         room.tick(std::chrono::duration_cast<std::chrono::milliseconds>(
                       std::chrono::system_clock::now().time_since_epoch())
                       .count());
+        // La prueba de sala vencida se cierra sola (credencial revocada, los de prueba afuera).
+        server.tickPruebaSala(std::chrono::duration_cast<std::chrono::milliseconds>(
+                                  std::chrono::system_clock::now().time_since_epoch())
+                                  .count());
         // Uso del propio proceso: es lo que se satura cuando hay muchos
         // invitados (cada uno es un video que hay que decodificar). Va en el
         // snapshot para que el operador lo vea en la pagina Sala. Con los contadores de

@@ -1832,12 +1832,17 @@ bool SignalingServer::serveStatic(long long fd, const std::string& root, const s
 }
 
 void SignalingServer::apiJoin(long long fd, const std::string& body, std::uint32_t clientIp) {
+    const json req = json::parse(body, nullptr, false);
+    // La credencial de la prueba de sala (PruebaSala.hpp): muchos participantes desde
+    // pocas IP (el probador), así que no pasa por el tope de intentos por IP. Es larga y
+    // aleatoria y vence sola: no hay qué adivinar.
+    const bool deUnaPrueba = req.is_object() && req.value("pin", std::string()).size() >= 16 &&
+                             prueba_.credencialValida(req.value("pin", std::string()), nowMs());
     // Rate-limit por IP ANTES de tocar el validador de PIN.
-    if (!ipAttemptAllowed(clientIp)) {
+    if (!deUnaPrueba && !ipAttemptAllowed(clientIp)) {
         http::sendResponse(fd, 429, "application/json", R"({"ok":false,"error":"rate"})");
         return;
     }
-    const json req = json::parse(body, nullptr, false);
     if (!req.is_object()) {
         http::sendResponse(fd, 400, "application/json", R"({"ok":false,"error":"json"})");
         return;
@@ -1846,6 +1851,24 @@ void SignalingServer::apiJoin(long long fd, const std::string& body, std::uint32
     const std::string pin = req.value("pin", "");
     if (room_.snapshot().value("locked", false)) {
         http::sendResponse(fd, 423, "application/json", R"({"ok":false,"error":"locked"})");
+        return;
+    }
+    if (deUnaPrueba) {
+        const std::string token = auth_.issueConfiado(room);
+        if (token.empty()) {
+            http::sendResponse(fd, 503, "application/json", R"({"ok":false,"error":"pin"})");
+            return;
+        }
+        // Así el /ws lo reconoce: entra sin lobby y marcado «prueba».
+        prueba_.anotarToken(token, nowMs(), nowMs() + static_cast<int64_t>(auth_.ttlSec()) * 1000);
+        const json resp{{"ok", true},
+                        {"token", token},
+                        {"room", room},
+                        {"maxGuests", cfg_.maxGuests},
+                        {"ttlSec", auth_.ttlSec()},
+                        {"maxUploadBytes", shares_.maxBytes()},
+                        {"prueba", true}};
+        http::sendResponse(fd, 200, "application/json", resp.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
         return;
     }
     const std::string token = auth_.issue(room, pin);
@@ -2380,11 +2403,15 @@ std::string SignalingServer::wsOpen(long long fd, const std::string& query, cons
         return {};
     }
     const std::string newId = "p" + hex.substr(0, 12);
+    // ¿Su token salió de la credencial de la prueba de sala? Entonces es «de prueba».
+    const bool dePrueba = prueba_.tomarToken(arg("token"), nowMs());
+    if (dePrueba) prueba_.anotarParticipante(newId);
     const uint64_t gen = registerConn(newId, fd);
     sendToGuest(newId, json{{"type", "auth"}, {"ok", true}});
     const Room::Joined j =
-        room_.connect(arg("name"), ipText(clientIp), nowMs(), newId, arg("info"), arg("contact"));
+        room_.connect(arg("name"), ipText(clientIp), nowMs(), newId, arg("info"), arg("contact"), dePrueba);
     if (j.err != Room::kOk) {
+        if (dePrueba) prueba_.olvidarParticipante(newId);
         unregisterConn(newId, gen);
         const char* why = j.err == Room::kLocked      ? "locked"
                           : j.err == Room::kLobbyFull ? "lobby_full"
@@ -3590,6 +3617,70 @@ void SignalingServer::alLlegarHd(const std::string& pid, const std::string& pers
     }
     log_.info(llenar(traducir("gateway", "capas: llegó la HD de %1 (%2 ms desde el pedido); fundido de %3 ms"),
                      {pid, espera >= 0 ? std::to_string(espera) : std::string("?"), std::to_string(ms)}));
+    // La prueba de sala mide cuánto tarda la HD de cada uno (su informe).
+    if (espera >= 0 && prueba_.esDePrueba(pid))
+        broadcastToHosts("prueba-sala-hd", json{{"id", pid}, {"ms", espera}});
+}
+
+// --- La prueba de sala --------------------------------------------------------------------
+
+json SignalingServer::estadoPruebaSala() const {
+    json j = prueba_.estado(nowMs(), true);
+    j["ok"] = true;
+    return j;
+}
+
+json SignalingServer::abrirPruebaSala(int64_t duracionMs, std::optional<bool> directa) {
+    std::string hex;
+    if (!ba::security::randomSecretHex(16, hex)) return json{{"ok", false}, {"error", "entropy"}};
+    const int64_t ahora = nowMs();
+    // Renovar conserva la credencial que ya tienen los participantes.
+    const json antes = prueba_.estado(ahora, true);
+    const bool yaEstaba = antes.value("activa", false);
+    const std::string credencial = yaEstaba ? antes.value("credencial", hex) : hex;
+    if (!prueba_.abrir(credencial, ahora, ahora + duracionMs)) return json{{"ok", false}, {"error", "duracion"}};
+    if (!yaEstaba)
+        log_.info(llenar(traducir("gateway", "prueba de sala: abierta por %1 s (credencial de prueba emitida)"),
+                         {std::to_string(duracionMs / 1000)}));
+    if (directa) {
+        prueba_.setDirecta(*directa, ahora);
+        room_.setDirecta(prueba_.directa(), ahora);
+    }
+    broadcastToHosts("prueba-sala", prueba_.estado(ahora, false));
+    return estadoPruebaSala();
+}
+
+json SignalingServer::directaPruebaSala(bool on) {
+    const int64_t ahora = nowMs();
+    if (!prueba_.setDirecta(on, ahora)) return json{{"ok", false}, {"error", "sin_prueba"}};
+    room_.setDirecta(on, ahora);
+    if (on)
+        log_.warn(traducir("gateway", "prueba de sala: ENTRADA DIRECTA PARA TODOS prendida (cualquiera entra sin lobby)"), 0);
+    else
+        log_.info(traducir("gateway", "prueba de sala: entrada directa apagada (vuelve el lobby)"));
+    broadcastToHosts("prueba-sala", prueba_.estado(ahora, false));
+    return estadoPruebaSala();
+}
+
+json SignalingServer::cerrarPruebaSala(const std::string& motivo) {
+    // Los de prueba que siguen en la sala (la sala manda: los marcados), más los que
+    // la prueba anotó y todavía no terminaron de entrar.
+    std::set<std::string> ids;
+    for (const std::string& id : prueba_.cerrar()) ids.insert(id);
+    for (const std::string& id : room_.idsDePrueba()) ids.insert(id);
+    room_.setDirecta(false, nowMs());
+    int echados = 0;
+    for (const std::string& id : ids)
+        if (room_.kick(id) == Room::kOk) ++echados;
+    log_.info(llenar(traducir("gateway", "prueba de sala: terminada (%1); credencial revocada, %2 participantes de prueba fuera"),
+                     {motivo, std::to_string(echados)}));
+    json j{{"ok", true}, {"activa", false}, {"directa", false}, {"echados", echados}, {"motivo", motivo}};
+    broadcastToHosts("prueba-sala", j);
+    return j;
+}
+
+void SignalingServer::tickPruebaSala(int64_t ahora) {
+    if (prueba_.vencida(ahora)) cerrarPruebaSala("vencida");
 }
 
 void SignalingServer::revisarCapasTodas() {

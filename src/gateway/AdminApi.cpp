@@ -33,6 +33,9 @@
 //   GET    /api/v1/qr?target=local|remote[&pin=1]  URL de ingreso (+PIN) + matriz del QR
 //   POST   /api/v1/network/server-config   {endpoint, publicAddress?} -> wg0.conf del servidor
 //   POST   /api/v1/room                    {lobby?, locked?, intake?}
+//   GET    /api/v1/prueba-sala             la prueba de sala (PruebaSala.hpp), con la credencial
+//   POST   /api/v1/prueba-sala             {duracionS, directa?} la abre/renueva · {directa} el interruptor
+//   DELETE /api/v1/prueba-sala · POST /api/v1/prueba-sala/cerrar {motivo}  la termina (echa a los de prueba)
 //   POST   /api/v1/claves                  {prompter?, correccion?, rotulos?, publico?, tablero?} (del evento)
 //   PUT    /api/v1/config/ajustes          {valores: {clave: valor}}  los avanzados «live» (en caliente)
 //   PUT    /api/v1/config/sala             {lobby?, pinIntentos?, pinBloqueoS?, maxUploadMB?}  (en caliente)
@@ -457,6 +460,39 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
             sendJson(fd, 200, json{{"ok", true}});
             return;
         }
+    }
+    // La prueba de sala (PruebaSala.hpp): la abre, la renueva y la cierra la app.
+    if (path == "/api/v1/prueba-sala") {
+        if (method == "GET") {
+            sendJson(fd, 200, estadoPruebaSala());
+            return;
+        }
+        if (method == "POST") {
+            std::optional<bool> directa;
+            if (req.contains("directa") && req["directa"].is_boolean()) directa = req["directa"].get<bool>();
+            // Solo el interruptor (sin duración): la prueba tiene que estar abierta.
+            if (!req.contains("duracionS")) {
+                if (!directa) {
+                    sendErr(fd, 400, "duracionS");
+                    return;
+                }
+                const json r = directaPruebaSala(*directa);
+                sendJson(fd, r.value("ok", false) ? 200 : 409, r);
+                return;
+            }
+            const int64_t dur = req.value("duracionS", 0LL) * 1000;
+            const json r = abrirPruebaSala(dur, directa);
+            sendJson(fd, r.value("ok", false) ? 200 : 400, r);
+            return;
+        }
+        if (method == "DELETE") {
+            sendJson(fd, 200, cerrarPruebaSala("app"));
+            return;
+        }
+    }
+    if (path == "/api/v1/prueba-sala/cerrar" && method == "POST") {
+        sendJson(fd, 200, cerrarPruebaSala(req.value("motivo", std::string("app"))));
+        return;
     }
     if (path == "/api/v1/proxy") {
         sendJson(fd, 200, proxy_ != nullptr ? proxy_->estado() : json{{"activo", false}, {"motivo", traducir("gateway", "apagado en la configuración")}});
@@ -1348,7 +1384,8 @@ void SignalingServer::avisarPreguntas() {
 bool SignalingServer::eventoDeEstado(const std::string& event) {
     // Lo que dice CÓMO ESTÁ algo, entero: no va a la cola de un solo disparo (ver estados_).
     static const std::set<std::string> kEstado{"room", "programa", "direcciones", "hablan",    "prompter",
-                                               "red",  "web",      "votacion",    "preguntas", "foto"};
+                                               "red",  "web",      "votacion",    "preguntas", "foto",
+                                               "prueba-sala"};
     return kEstado.count(event) > 0;
 }
 
