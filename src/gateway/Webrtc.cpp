@@ -47,6 +47,7 @@
 #include "RetornoCompartido.hpp"
 #include "RetornoRtc.hpp"
 #include "ajustes/Ajustes.hpp"
+#include "diag/Frontera.hpp"
 #include "platform/Hilo.hpp"
 #include "platform/TiempoReal.hpp"
 
@@ -316,9 +317,14 @@ class PullAdm : public webrtc::webrtc_impl::AudioDeviceModuleDefault<webrtc::Aud
     void loop() {
         std::vector<int16_t> buf(kFramesPer10Ms * kAudioChannels);
         auto next = std::chrono::steady_clock::now();
+        // #10 del plan: sacar el audio de todos cada 10 ms (NetEq de cada invitado).
+        static ba::diag::Frontera& fPlayout =
+            ba::diag::frontera("audio.playout", 10, "sacar el audio de todos cada 10 ms (webrtc-playout)");
         while (playing_.load()) {
             next += std::chrono::milliseconds(10);
+            fPlayout.despertada();
             {
+                ba::diag::MedirPase medir(fPlayout, buf.size() * sizeof(int16_t));
                 std::lock_guard<std::mutex> lock(m_);
                 if (transport_ != nullptr) {
                     size_t out = 0;
@@ -407,6 +413,17 @@ class RemoteVideoSink : public rtc::VideoSinkInterface<webrtc::VideoFrame> {
         const int destino = pasa_ ? pasa_() : kSale;
         if (destino == kNo || (destino == kAnterior && !anterior_)) return;
         const Fn& fn = destino == kSale ? fn_ : anterior_;
+        // #5/#8 del plan: lo que sale del decodificador, en su hilo (BGRA, retrato de la grilla,
+        // memoria compartida a ba-app). La espera es desde que llegó el primer paquete del
+        // cuadro (red → armar → decodificar).
+        static ba::diag::Frontera& fDecodificado =
+            ba::diag::frontera("video.decodificado", 8, "cuadro decodificado → BGRA + grilla + ba-app (hilo del decodificador)");
+        ba::diag::MedirPase medir(fDecodificado, static_cast<std::uint64_t>(frame.width()) * frame.height() * 3 / 2);
+        if (!frame.packet_infos().empty()) {
+            const std::int64_t llego = frame.packet_infos().begin()->receive_time().us();
+            const std::int64_t esperaUs = rtc::TimeMicros() - llego;
+            if (llego > 0 && esperaUs > 0) medir.espera(static_cast<std::uint64_t>(esperaUs) * 1000);
+        }
         rtc::scoped_refptr<webrtc::I420BufferInterface> i420 = frame.video_frame_buffer()->ToI420();
         if (!i420) return;
         if (frame.rotation() != webrtc::kVideoRotation_0) {

@@ -41,6 +41,7 @@
 // #ifdef _WIN32. No depende de Qt ni de libobs.
 // ============================================================================
 
+#include "diag/Frontera.hpp"
 #include "persist/Escritor.hpp"
 #include "i18n/I18n.hpp"
 #include <algorithm>
@@ -1149,6 +1150,26 @@ int main(int argc, char** argv) {
         return ba::gateway::turn::respuestaIce(turnCfg, turnSrv && turnSrv->activo(), x, externo);
     });
 
+    // GET /api/v1/gateway (MCP gateway_estado): para medir el gateway por dentro (F0 de
+    // docs/planes/PLAN-GATEWAY-FRAGMENTOS.md). El uso es el último del bucle principal; las
+    // fronteras entre hilos (diag/Frontera.hpp), en ventanas de 1 s.
+    std::mutex usoMu;
+    nlohmann::json usoUltimo = nlohmann::json::object();
+    server.setGatewayEstado([&]() {
+        nlohmann::json out;
+        {
+            std::lock_guard<std::mutex> l(usoMu);
+            out["uso"] = usoUltimo;
+        }
+        out["fronteras"] = ba::diag::fronterasJson(1000);
+        out["turn"] = turnSrv ? turnSrv->estado() : nlohmann::json{{"activo", false}};
+        if (pinggy) {
+            const PinggySupervisor::Estado st = pinggy->estado();
+            out["pinggy"] = {{"turnPublico", st.turnPublico}, {"turnTipo", st.turnTipo}, {"turnUdp", st.turnUdp}};
+        }
+        return out;
+    });
+
     server.setRemotoStatus([&]() {
         nlohmann::json pg = pinggy ? pinggy->estadoJson()
                                    : nlohmann::json{{"estado", "apagado"},
@@ -1469,6 +1490,12 @@ int main(int argc, char** argv) {
         uso["transporte"] = pump.transporte();
         uso["retornoVideo"] = hub.retornoCompartido(); // el video de retorno, una vez por capa
         uso["retornoAudio"] = hub.audioCompartidoEstado(); // el audio, una vez por lo que se oye
+        // Las fronteras entre hilos (F0 de PLAN-GATEWAY-FRAGMENTOS.md, diag/Frontera.hpp): pases,
+        // despertadas, bytes, trabajo y espera por segundo, en ventanas de 1 s.
+        {
+            std::lock_guard<std::mutex> l(usoMu);
+            usoUltimo = uso;
+        }
         // ¿El rango UDP alcanza para la sala llena? Se avisa al cambiar (el cupo sube en caliente).
         {
             const PuertosRtc p = puertosRtc(cfg.rtcPortMin, cfg.rtcPortMax, puertosPorSesion, room.cupo(), cfg.lobbySlots);

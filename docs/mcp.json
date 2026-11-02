@@ -8,9 +8,9 @@
     "«hay acople» llegue a audio_set sin que nadie nombre la herramienta."
   ],
   "fuente": "codigo",
-  "cuantas": 830,
+  "cuantas": 831,
   "por_clase": {
-    "lectura": 275,
+    "lectura": 276,
     "escritura": 489,
     "aire": 50,
     "ui": 16
@@ -919,6 +919,7 @@
         "enlace_estado",
         "enlace_medir",
         "enlace_necesita",
+        "gateway_estado",
         "gateway_restart",
         "invitado_info_aprobar",
         "invitado_prueba",
@@ -3821,7 +3822,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpFoto.cpp",
-        "linea": 679
+        "linea": 697
       },
       "roles": [
         "asistente"
@@ -8724,7 +8725,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpFoto.cpp",
-        "linea": 628
+        "linea": 646
       },
       "roles": [
         "asistente"
@@ -8756,7 +8757,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpFoto.cpp",
-        "linea": 640
+        "linea": 658
       },
       "roles": [
         "asistente"
@@ -28287,6 +28288,34 @@
       ]
     },
     {
+      "nombre": "gateway_estado",
+      "titulo": "El gateway por dentro (para medir)",
+      "categoria": "sala",
+      "descripcion": "El servidor de la conferencia (gateway) por dentro, para medir la carga: `uso` (CPU, hilos, memoria, anillos, retorno), `fronteras` (cada pase entre hilos: pases/s, despertadas/s, pases por despertada, kB/s, trabajo por pase en µs, espera en la cola en µs, en ventanas de 1 s) y el TURN (asignaciones, conexiones, bytes). Lo usa tools/carga/medir-sala.py.",
+      "esquema": {
+        "type": "object",
+        "properties": {}
+      },
+      "clase": "lectura",
+      "hilo": "foto",
+      "soloLectura": true,
+      "destructiva": false,
+      "idempotente": false,
+      "etiquetas": {
+        "propias": "gateway servidor de la conferencia por dentro hilos fronteras colas pases despertadas cambios de contexto medir carga rendimiento turn pinggy cpu del gateway",
+        "porPrefijo": ""
+      },
+      "donde": {
+        "archivo": "src/app/mcp/McpFoto.cpp",
+        "linea": 608
+      },
+      "roles": [
+        "asistente",
+        "recepcion",
+        "vigilante"
+      ]
+    },
+    {
       "nombre": "gateway_restart",
       "titulo": "Reiniciar la conferencia (gateway)",
       "categoria": "sala",
@@ -28490,7 +28519,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpFoto.cpp",
-        "linea": 608
+        "linea": 626
       },
       "roles": [
         "asistente",
@@ -31162,7 +31191,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpFoto.cpp",
-        "linea": 663
+        "linea": 681
       },
       "roles": [
         "asistente"

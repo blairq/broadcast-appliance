@@ -1132,6 +1132,9 @@ const Fila kPropias[] = {
     {"network_status", QT_TRANSLATE_NOOP("mcp-etiquetas", "se esta cortando se corta entrecortado se cae la transmision va lento red internet "
                        "conexion ancho de banda tunel calidad")},
     //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
+    {"gateway_estado", QT_TRANSLATE_NOOP("mcp-etiquetas", "gateway servidor de la conferencia por dentro hilos fronteras colas pases despertadas "
+                       "cambios de contexto medir carga rendimiento turn pinggy cpu del gateway")},
+    //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
     {"network_status", QT_TRANSLATE_NOOP("mcp-etiquetas", "https certificado sitio no seguro conexion no segura aviso de seguridad wireguard tunel puertos "
                        "webrtc ip local estado de la red revisar la red chequear la red mirar la red los remotos no pueden "
                        "conectarse queda cargando el link")},

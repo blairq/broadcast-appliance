@@ -605,6 +605,24 @@ void registrarHerramientasDeFoto(McpCore& core, FuentesDeFoto f) {
     }
     {
         Tool t;
+        t.name = "gateway_estado";
+        t.title = ba::i18n::traducir("mcp", "El gateway por dentro (para medir)");
+        t.category = "sala";
+        t.clase = Clase::Lectura;
+        t.description = QT_TRANSLATE_NOOP(
+            "mcp", "El servidor de la conferencia (gateway) por dentro, para medir la carga: `uso` (CPU, hilos, memoria, "
+                   "anillos, retorno), `fronteras` (cada pase entre hilos: pases/s, despertadas/s, pases por "
+                   "despertada, kB/s, trabajo por pase en µs, espera en la cola en µs, en ventanas de 1 s) y el "
+                   "TURN (asignaciones, conexiones, bytes). Lo usa tools/carga/medir-sala.py.");
+        t.hilo = Hilo::Foto;
+        t.run = [f](const json&, Done done) {
+            const std::optional<json> r = f.sala ? f.sala("/api/v1/gateway") : std::nullopt;
+            done(r ? ToolResult().data(*r) : ToolResult::error(ba::i18n::traducir("mcp", "La conferencia no responde.")));
+        };
+        core.addTool(std::move(t));
+    }
+    {
+        Tool t;
         t.name = "network_status";
         t.title = ba::i18n::traducir("mcp", "Red y acceso de invitados");
         t.category = "sala";

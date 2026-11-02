@@ -29,6 +29,7 @@
 #include "RetornoCompartido.hpp"
 
 #include "ajustes/Ajustes.hpp"
+#include "diag/Frontera.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -420,7 +421,17 @@ class Capa : public webrtc::EncodedImageCallback {
             }
             const std::int64_t ahora = ahoraMs();
             if (!enUso(ahora) && cod_) soltar(); // nadie la usa: el codificador se suelta
-            if (e) codificar(e, ahora);
+            if (e) {
+                // #11 del plan: ba-app → codificar el retorno (una capa, su hilo). La espera es
+                // desde la emisión (rtc::TimeMicros, el mismo reloj): lo que estuvo en la cola.
+                static ba::diag::Frontera& fCodificar =
+                    ba::diag::frontera("retorno.codificar", 11, "emisión del retorno → codificar la capa (ba-retorno-N)");
+                fCodificar.despertada();
+                ba::diag::MedirPase medir(fCodificar, e->i420 ? static_cast<std::uint64_t>(e->i420->width()) * e->i420->height() * 3 / 2 : 0);
+                const std::int64_t esperaUs = rtc::TimeMicros() - e->capturaUs;
+                if (esperaUs > 0) medir.espera(static_cast<std::uint64_t>(esperaUs) * 1000);
+                codificar(e, ahora);
+            }
         }
         soltar();
     }
@@ -789,7 +800,16 @@ struct Espera : std::enable_shared_from_this<Espera> {
         }
         if (r == nullptr) return; // ni la nueva trajo clave ni hay de la vieja: este no sale
         p->esperaClave = false;
-        p->entregar(r->img, r->info, ts, renderMs, sec);
+        {
+            // #12 del plan: el cuadro codificado (una vez por capa) a cada oyente; la espera,
+            // desde la emisión hasta que sale hacia la sesión.
+            static ba::diag::Frontera& fOyente =
+                ba::diag::frontera("retorno.video_a_oyente", 12, "retorno codificado → cada oyente (un pase por oyente)");
+            ba::diag::MedirPase medir(fOyente, r->img.size());
+            const std::int64_t esperaUs = rtc::TimeMicros() - e->capturaUs;
+            if (esperaUs > 0) medir.espera(static_cast<std::uint64_t>(esperaUs) * 1000);
+            p->entregar(r->img, r->info, ts, renderMs, sec);
+        }
         if (p->estado) {
             p->estado->capaAlto.store(static_cast<int>(r->img._encodedHeight), std::memory_order_relaxed);
             p->estado->cuadrosCompartidos.fetch_add(1, std::memory_order_relaxed);

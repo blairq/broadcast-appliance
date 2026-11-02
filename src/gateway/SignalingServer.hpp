@@ -347,6 +347,9 @@ class SignalingServer {
     /// Estado del acceso remoto para GET /api/remoto: {"pinggy":{...}, ...}.
     /// Sin proveedor: pinggy apagado.
     void setRemotoStatus(std::function<nlohmann::json()> fn) { remotoStatus_ = std::move(fn); }
+    /// GET /api/v1/gateway (MCP gateway_estado): el uso del proceso, las fronteras entre
+    /// hilos (diag/Frontera.hpp) y el TURN. Lo arma main.cpp.
+    void setGatewayEstado(std::function<nlohmann::json()> fn) { gatewayEstado_ = std::move(fn); }
     /// GET /api/ice: los iceServers para los navegadores (turn/Ice.hpp). Recibe si
     /// la conexión vino por el túnel (externa) y devuelve el cuerpo JSON.
     void setIce(std::function<std::string(bool externo)> fn) { ice_ = std::move(fn); }
@@ -756,6 +759,7 @@ class SignalingServer {
     std::int64_t direccionesSeq_ = 0;
     void recalcularDirecciones();
     std::function<nlohmann::json()> remotoStatus_;
+    std::function<nlohmann::json()> gatewayEstado_;
     std::function<std::string(bool externo)> ice_;
     std::map<std::string, std::string> avatars_; // pid -> JPEG (solo en memoria)
     std::mutex avatarsLock_;

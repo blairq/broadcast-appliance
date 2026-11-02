@@ -15,6 +15,7 @@
 #include <set>
 
 #include "ajustes/Ajustes.hpp"
+#include "diag/Frontera.hpp"
 #include "i18n/I18n.hpp"
 #include "net/WgCrypto.hpp" // randomBytes
 #include "turn/Ice.hpp"     // claveDeUsuario
@@ -229,6 +230,12 @@ struct Servidor::Impl {
     uint32_t ipEscucha = 0, ipRelay = 0, ipBindRelay = 0;
     std::set<uint32_t> permitidas;
     std::string secretoNonce;
+
+    // Las fronteras del TURN (PLAN-GATEWAY-FRAGMENTOS.md #1, #2, #3 y #14; diag/Frontera.hpp).
+    ba::diag::Frontera& fEntraUdp = ba::diag::frontera("turn.entra.udp", 1, "pinggy UDP → TURN (hilo turn)");
+    ba::diag::Frontera& fEntraTcp = ba::diag::frontera("turn.entra.tcp", 2, "pinggy TCP → TURN (hilo turn)");
+    ba::diag::Frontera& fHaciaRtc = ba::diag::frontera("turn.hacia_webrtc", 3, "TURN → red de WebRTC (sendto por el kernel)");
+    ba::diag::Frontera& fDesdeRtc = ba::diag::frontera("turn.desde_webrtc", 14, "red de WebRTC → TURN → cliente");
 
     std::map<uint64_t, Conexion> conexiones;
     uint64_t proxConexion = 1;
@@ -556,9 +563,11 @@ struct Servidor::Impl {
             return;
         }
         sockaddr_in sa = sockDe(ip, puerto);
+        const uint64_t t0 = ba::diag::relojNs();
         const auto r = ::sendto(a.relay, reinterpret_cast<const char*>(datos), int(n), 0,
                                 reinterpret_cast<sockaddr*>(&sa), sizeof(sa));
         if (r > 0) bytesHaciaPeers += uint64_t(r);
+        fHaciaRtc.pase(n, ba::diag::relojNs() - t0 + 1);
     }
 
     void sendIndicacion(const Cliente& cli, const st::Mensaje& m) {
@@ -644,6 +653,18 @@ struct Servidor::Impl {
     }
 
     void leerConexion(uint64_t id, Conexion& c) {
+        const uint64_t t0 = ba::diag::relojNs();
+        uint64_t marcos = 0, bytesMarcos = 0;
+        struct AlSalir {
+            ba::diag::Frontera& f;
+            const uint64_t& t0;
+            const uint64_t& marcos;
+            const uint64_t& bytes;
+            ~AlSalir() {
+                f.despertada();
+                f.lote(marcos, bytes, marcos ? ba::diag::relojNs() - t0 + 1 : 0);
+            }
+        } alSalir{fEntraTcp, t0, marcos, bytesMarcos};
         uint8_t buf[16384];
         for (;;) {
             const auto r = ::recv(c.fd, reinterpret_cast<char*>(buf), int(sizeof(buf)), 0);
@@ -676,11 +697,15 @@ struct Servidor::Impl {
                 total = st::largoStun(p + i, n - i);
                 if (n - i < total) break;
                 manejarStun(cli, p + i, total);
+                ++marcos;
+                bytesMarcos += total;
             } else if ((b0 & 0xC0) == 0x40) {
                 const size_t largo = leer16(p + i + 2);
                 total = (4 + largo + 3) & ~size_t(3); // con relleno, sobre TCP
                 if (n - i < total) break;
                 manejarChannelData(cli, p + i, 4 + largo);
+                ++marcos;
+                bytesMarcos += total;
             } else {
                 c.cerrar = true; // basura: no es STUN ni ChannelData
                 break;
@@ -693,6 +718,18 @@ struct Servidor::Impl {
     }
 
     void leerUdp() {
+        const uint64_t t0 = ba::diag::relojNs();
+        uint64_t paquetes = 0, bytes = 0;
+        struct AlSalir {
+            ba::diag::Frontera& f;
+            const uint64_t& t0;
+            const uint64_t& paquetes;
+            const uint64_t& bytes;
+            ~AlSalir() {
+                f.despertada();
+                f.lote(paquetes, bytes, paquetes ? ba::diag::relojNs() - t0 + 1 : 0);
+            }
+        } alSalir{fEntraUdp, t0, paquetes, bytes};
         uint8_t buf[65536];
         for (int k = 0; k < 256; ++k) {
             sockaddr_in sa{};
@@ -709,6 +746,8 @@ struct Servidor::Impl {
             cli.ip = ntohl(sa.sin_addr.s_addr);
             cli.puerto = ntohs(sa.sin_port);
             const size_t n = size_t(r);
+            ++paquetes;
+            bytes += n;
             if (n >= 4 && (buf[0] & 0xC0) == 0x40)
                 manejarChannelData(cli, buf, n);
             else if (st::pareceStun(buf, n) && st::largoStun(buf, n) == n)
@@ -717,6 +756,18 @@ struct Servidor::Impl {
     }
 
     void leerRelay(Asignacion& a) {
+        const uint64_t t0 = ba::diag::relojNs();
+        uint64_t paquetes = 0, bytes = 0;
+        struct AlSalir {
+            ba::diag::Frontera& f;
+            const uint64_t& t0;
+            const uint64_t& paquetes;
+            const uint64_t& bytes;
+            ~AlSalir() {
+                f.despertada();
+                f.lote(paquetes, bytes, paquetes ? ba::diag::relojNs() - t0 + 1 : 0);
+            }
+        } alSalir{fDesdeRtc, t0, paquetes, bytes};
         uint8_t buf[65536];
         for (int k = 0; k < 256; ++k) {
             sockaddr_in sa{};
@@ -737,6 +788,8 @@ struct Servidor::Impl {
                 continue;
             }
             bytesDesdePeers += uint64_t(r);
+            ++paquetes;
+            bytes += uint64_t(r);
             uint16_t canal = 0;
             for (const auto& [num, c] : a.canales)
                 if (c.ip == ip && c.puerto == puerto && c.vence >= ahoraMs()) {

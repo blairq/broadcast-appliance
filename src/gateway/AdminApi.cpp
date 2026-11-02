@@ -1158,6 +1158,12 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
             return;
         }
     }
+    // El estado del proceso para medir (MCP gateway_estado; PLAN-GATEWAY-FRAGMENTOS.md F0).
+    if (path == "/api/v1/gateway" && method == "GET") {
+        json out = gatewayEstado_ ? gatewayEstado_() : json::object();
+        sendJson(fd, 200, out.is_object() ? out : json::object());
+        return;
+    }
     // Acceso remoto (pinggy; docs/planes/PINGGY.md). La lee la app (Configuración
     // → Acceso remoto y el MCP). La forma de "pinggy" es fija: sin proveedor, apagado.
     if ((path == "/api/remoto" || path == "/api/v1/remoto") && method == "GET") {

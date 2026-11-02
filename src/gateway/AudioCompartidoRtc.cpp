@@ -6,6 +6,7 @@
 #if BA_GATEWAY_HAVE_WEBRTC
 
 #include "AudioCompartido.hpp"
+#include "diag/Frontera.hpp"
 
 #include "api/make_ref_counted.h"
 
@@ -254,6 +255,10 @@ std::uint64_t Grupo::ultimo() const {
 }
 
 std::uint64_t Grupo::codificar(const float* pcm, std::size_t n, int rate) {
+    // #13 del plan: el Opus compartido se codifica una vez por variante (hilo del retorno).
+    static ba::diag::Frontera& fCodificar =
+        ba::diag::frontera("retorno.audio_codificar", 13, "audio del retorno → Opus compartido (una vez por variante)");
+    ba::diag::MedirPase medir(fCodificar, n * sizeof(float));
     std::lock_guard<std::mutex> l(m_);
     const std::uint64_t k = ++seq_;
     for (auto it = variantes_.begin(); it != variantes_.end();) {
@@ -338,6 +343,10 @@ bool Grupo::paquete(const std::string& firma, std::uint64_t k, std::uint64_t& in
     if (it == variantes_.end()) return false;
     for (const Paquete& p : it->second.paquetes)
         if (p.fin == k) {
+            // #13 del plan: el paquete Opus del grupo a cada oyente (su codificador de paso).
+            static ba::diag::Frontera& fOyente =
+                ba::diag::frontera("retorno.audio_a_oyente", 13, "Opus compartido → cada oyente (un pase por oyente)");
+            fOyente.pase(p.bytes.size());
             inicio = p.inicio;
             out.AppendData(p.bytes.data(), p.bytes.size());
             info = p.info;

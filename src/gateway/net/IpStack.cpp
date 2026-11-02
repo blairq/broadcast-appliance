@@ -4,6 +4,7 @@
 
 #include "net/IpStack.hpp"
 #include "i18n/I18n.hpp"
+#include "diag/Frontera.hpp"
 
 #include <algorithm>
 #include <chrono>
@@ -175,6 +176,12 @@ struct IpStack::Impl {
 
     std::mutex qLock;
     std::deque<std::vector<uint8_t>> inbound;
+    uint64_t inboundDesdeNs = 0; // cuándo entró el más viejo de `inbound` (diag/Frontera, #17)
+    // Las fronteras de WireGuard (PLAN-GATEWAY-FRAGMENTOS.md #17-#20).
+    ba::diag::Frontera& fDesdeWg = ba::diag::frontera("wireguard.hacia_ipstack", 17, "wireguard → ipstack (cola + despertar por UDP local)");
+    ba::diag::Frontera& fHaciaRtc = ba::diag::frontera("ipstack.hacia_webrtc", 18, "ipstack → red de WebRTC (sendto por el kernel)");
+    ba::diag::Frontera& fDesdeRtc = ba::diag::frontera("ipstack.desde_webrtc", 19, "red de WebRTC → ipstack (select + recvfrom)");
+    ba::diag::Frontera& fHaciaWg = ba::diag::frontera("ipstack.hacia_wireguard", 20, "ipstack → cifrar → VPS (de a uno)");
     std::deque<std::function<void()>> tasks;
     long long wakeSock = -1;
     uint16_t wakePort = 0;
@@ -204,6 +211,7 @@ struct IpStack::Impl {
     // --- netif ----------------------------------------------------------------------
     static err_t netifOutput(netif* n, pbuf* p, const ip4_addr_t*) {
         auto* self = static_cast<Impl*>(n->state);
+        ba::diag::MedirPase medir(self->fHaciaWg, p->tot_len);
         std::vector<uint8_t> buf(p->tot_len);
         pbuf_copy_partial(p, buf.data(), p->tot_len, 0);
         self->wg.send(buf.data(), buf.size());
@@ -376,6 +384,7 @@ struct IpStack::Impl {
         pbuf_copy_partial(p, buf.data(), p->tot_len, 0);
         pbuf_free(p);
         const sockaddr_in to = loopback(tunnelPort);
+        ba::diag::MedirPase medir(self->fHaciaRtc, buf.size());
         sendto(static_cast<SockT>(it->second.sock), buf.data(), static_cast<int>(buf.size()), 0,
                reinterpret_cast<const sockaddr*>(&to), sizeof(to));
     }
@@ -386,6 +395,7 @@ struct IpStack::Impl {
             const int n =
                 static_cast<int>(recvfrom(static_cast<SockT>(f.sock), buf, sizeof(buf), 0, nullptr, nullptr));
             if (n <= 0) break;
+            fDesdeRtc.pase(static_cast<uint64_t>(n));
             f.lastMs = nowMs();
             auto pcbIt = udpPcbs.find(key.tunnelPort);
             if (pcbIt == udpPcbs.end()) break;
@@ -500,10 +510,20 @@ struct IpStack::Impl {
             // Paquetes que trajo el tunel y trabajo de otros threads.
             std::deque<std::vector<uint8_t>> in;
             std::deque<std::function<void()>> work;
+            uint64_t desdeNs = 0;
             {
                 std::lock_guard<std::mutex> lock(qLock);
                 in.swap(inbound);
                 work.swap(tasks);
+                desdeNs = inboundDesdeNs;
+                inboundDesdeNs = 0;
+            }
+            if (!in.empty()) {
+                uint64_t bytes = 0;
+                for (const auto& pkt : in) bytes += pkt.size();
+                const uint64_t ahora = ba::diag::relojNs();
+                fDesdeWg.despertada();
+                fDesdeWg.lote(in.size(), bytes, 0, desdeNs != 0 && ahora > desdeNs ? ahora - desdeNs : 0);
             }
             for (auto& pkt : in) {
                 pbuf* p = pbuf_alloc(PBUF_RAW, static_cast<u16_t>(pkt.size()), PBUF_POOL);
@@ -625,6 +645,7 @@ bool IpStack::start() {
         {
             std::lock_guard<std::mutex> lock(d.qLock);
             wasEmpty = d.inbound.empty();
+            if (wasEmpty) d.inboundDesdeNs = ba::diag::relojNs();
             if (d.inbound.size() < 8192) d.inbound.emplace_back(p, p + n);
         }
         if (wasEmpty) d.wake(); // un despertar por lote, no por paquete

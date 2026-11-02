@@ -12,6 +12,7 @@
 
 #include "HttpIo.hpp"
 #include "Log.hpp"
+#include "diag/Frontera.hpp"
 #include "i18n/I18n.hpp"
 #include "ipc/HealthBlock.hpp"
 #include "ipc/SpoutTransport.hpp"
@@ -648,6 +649,9 @@ void Grillas::cuadro(const std::string& persona, const PlanosYuv& c, std::int64_
     if (c.y == nullptr || c.u == nullptr || c.v == nullptr || c.ancho <= 0 || c.alto <= 0) return;
     const auto r = retratoParaCuadro(persona, ahora);
     if (!r) return;
+    // #6 del plan: el cuadro decodificado se achica a su retrato en el hilo que decodificó.
+    static ba::diag::Frontera& fCelda = ba::diag::frontera("grilla.cuadro", 6, "decodificador → retrato de la grilla (achicar)");
+    ba::diag::MedirPase medir(fCelda, static_cast<std::uint64_t>(c.ancho) * c.alto * 3 / 2);
     std::vector<std::uint8_t> planos; // el I420 achicado (lo chico)
     guardarCon(*r, c.ancho, c.alto, ahora, true, [&](std::uint8_t* px, int tw, int th) {
         const int cw = (tw + 1) / 2, ch = (th + 1) / 2;
@@ -949,8 +953,11 @@ void Grillas::bucle() {
     ba::ipc::SpoutReceiver lienzo;
     bool conLienzo = false;
     std::uint64_t intentoNs = 0;
+    // #7 del plan: los retratos al mosaico, una despertada por cuadro del lienzo.
+    static ba::diag::Frontera& fMosaico = ba::diag::frontera("grilla.mosaico", 7, "retratos → mosaico → BA.Grilla (hilo grillas)");
     while (!parar_.load()) {
         const std::int64_t ahora = ahoraMs();
+        fMosaico.despertada();
         {
             std::lock_guard<std::mutex> l(mu_);
             for (auto& [k, g] : grillas_) {
@@ -970,6 +977,7 @@ void Grillas::bucle() {
                             }
                         }
                 if (!hace) continue;
+                ba::diag::MedirPase medir(fMosaico, g.lienzo.size());
                 pintarLocked(g, ahora);
                 if (!g.sender || g.senderW != g.ancho || g.senderH != g.alto) {
                     // El canal tiene tamaño fijo: otro tamaño = canal nuevo (bavideoanillo
