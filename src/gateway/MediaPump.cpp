@@ -32,6 +32,7 @@
 #include "LectorVoz.hpp"
 #include "Log.hpp"
 #include "RetornoLugar.hpp"
+#include "platform/Nucleos.hpp"
 #include "platform/Ritmo.hpp"
 #include "platform/TiempoReal.hpp"
 #include "i18n/I18n.hpp"
@@ -548,6 +549,7 @@ constexpr std::size_t kPasosIfbLugares = 4;
 
 void MediaPump::retornoAudioThread(std::wstring nombre, std::string salida, ColaIfb* ifb, LugaresAbiertos* abiertos,
                                    const std::atomic<bool>* parar) {
+    ba::platform::nucleos::alGrupoGateway(); // F4: el bloque de caché del gateway
     ba::platform::tiempoRealAudio(kMiradaAudioMs); // el retorno a los invitados tiene plazo
     SharedAudioRing reader;
     bool open = false;
@@ -917,6 +919,7 @@ nlohmann::json MediaPump::copiasVideo() const {
 void MediaPump::videoBajadaThread(std::wstring nombre, std::string etiqueta,
                                   std::function<bool(const MediaRoute&)> para, std::wstring audio,
                                   const std::atomic<bool>* parar) {
+    ba::platform::nucleos::alGrupoGateway(); // F4: el bloque de caché del gateway
     SpoutReceiver receiver;
     bool sub = false;
     auto lastRetry = std::chrono::steady_clock::now() - std::chrono::seconds(1);

@@ -40,6 +40,7 @@
 #if BA_GATEWAY_HAVE_WEBRTC
 #include "RetornoRtc.hpp"
 #include "platform/Hilo.hpp"
+#include "platform/Nucleos.hpp"
 
 #include <chrono>
 #include <condition_variable>
@@ -301,6 +302,7 @@ class Capa : public webrtc::EncodedImageCallback {
         : formato_(std::move(formato)), clave_(std::move(clave)), indice_(indice), interna_(std::move(interna)) {
         hilo_ = std::thread([this, n = std::move(nombreFlujo)] {
             ba::platform::nombrarHilo("ba-retorno-" + std::to_string(indice_));
+            ba::platform::nucleos::alGrupoGateway(); // F4: el bloque de caché del gateway
             (void)n;
             bucle();
         });

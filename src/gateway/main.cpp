@@ -115,6 +115,7 @@
 #include "Webrtc.hpp"
 #include "platform/Energia.hpp"
 #include "platform/Hilo.hpp"
+#include "platform/Nucleos.hpp"
 
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
@@ -441,6 +442,18 @@ int main(int argc, char** argv) {
     log.info(llenar(traducir("gateway", "arranque: guests=%1 port=%2 room=%3 webroot=%4 webrtc=%5"),
                     {std::to_string(cfg.guests), std::to_string(cfg.port), cfg.room, cfg.webroot,
                      BA_GATEWAY_HAVE_WEBRTC ? "libwebrtc" : "NULL"}));
+    // F4 (PLAN-GATEWAY-FRAGMENTOS.md): los hilos del gateway en el bloque de caché que no usan
+    // los medios de ba-app, sin los núcleos de las interrupciones de la placa de red. Antes de
+    // arrancar nada: en Linux los hilos que se crean después heredan la afinidad del principal;
+    // en Windows es el grupo de omisión del proceso. Los hilos calientes además lo piden
+    // (nucleos::alGrupoGateway). Una línea como la de ba-app («procesador: …»).
+    {
+        const nlohmann::json topo = ba::platform::nucleos::topologia();
+        const std::string grupo = ba::ajustes::siNo("gateway.afinidad", true)
+                                      ? ba::platform::nucleos::armarGrupoGateway(ba::ajustes::texto("gateway.afinidadEvitar", "auto"))
+                                      : traducir("gateway", "apagado");
+        log.info(llenar(traducir("gateway", "procesador: %1; hilos del gateway: %2"), {ba::platform::nucleos::resumen(topo), grupo}));
+    }
 
     // Handler de senal para parada ordenada (SIGINT / Ctrl+C).
 #ifdef _WIN32

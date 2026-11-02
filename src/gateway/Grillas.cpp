@@ -17,6 +17,7 @@
 #include "ipc/HealthBlock.hpp"
 #include "ipc/SpoutTransport.hpp"
 #include "platform/Hilo.hpp"
+#include "platform/Nucleos.hpp"
 
 #if BA_GATEWAY_HAVE_WEBRTC
 #include "third_party/libyuv/include/libyuv/convert.h"
@@ -179,7 +180,11 @@ void Grillas::start(int cps, std::wstring lienzo) {
     lienzo_ = std::move(lienzo);
     periodoPintarNs_ = 1'000'000'000ULL / static_cast<std::uint64_t>(cps_);
     parar_ = false;
-    hilo_ = std::thread([this]() { ba::platform::nombrarHilo("grillas"); bucle(); });
+    hilo_ = std::thread([this]() {
+        ba::platform::nombrarHilo("grillas");
+        ba::platform::nucleos::alGrupoGateway(); // F4: el bloque de caché del gateway
+        bucle();
+    });
 }
 
 void Grillas::stop() {
