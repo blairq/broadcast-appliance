@@ -746,9 +746,14 @@ QString CapacidadViewModel::medirInternet(bool prenderPinggy) {
     } else {
         pinggyLoPrendi_ = prenderPinggy; // se usa al pasar a pinggy (si sigue apagado)
     }
-    progreso_ = QVariantMap{{"fase", faseInternet_}, {"texto", tr("Midiendo la conexión…")}};
-    emit progresoChanged();
-    tic_.start();
+    // (Si ya terminó —sin nada que medir o con todo a mano—, no queda nada en curso.)
+    if (estado_ == QLatin1String("internet")) {
+        if (progreso_.isEmpty()) {
+            progreso_ = QVariantMap{{"fase", faseInternet_}, {"texto", tr("Midiendo la conexión…")}};
+            emit progresoChanged();
+        }
+        tic_.start();
+    }
     return {};
 }
 

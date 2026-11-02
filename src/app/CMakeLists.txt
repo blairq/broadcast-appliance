@@ -1413,6 +1413,14 @@ endif()
     target_link_libraries(test_capacidad_reglas PRIVATE ba_core Qt6::Core)
     set_target_properties(test_capacidad_reglas PROPERTIES BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_capacidad_reglas COMMAND test_capacidad_reglas)
+    # El modelo de la pestaña Capacidad con una sala, un generador y una red de mentira.
+    add_executable(test_capacidad_vm tests/test_capacidad_vm.cpp ui/CapacidadViewModel.cpp ui/CapacidadViewModel.hpp
+                   sala/CapacidadReglas.cpp sala/EnlaceNecesita.cpp sala/PruebaSalaReglas.cpp sala/GeneradorCarga.cpp
+                   sala/GeneradorCarga.hpp)
+    target_include_directories(test_capacidad_vm PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    target_link_libraries(test_capacidad_vm PRIVATE ba_core Qt6::Core)
+    set_target_properties(test_capacidad_vm PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
+    add_test(NAME test_capacidad_vm COMMAND test_capacidad_vm)
     # El Reloj de las vistas (corre solo con lectores) y las fotos de los conectados.
     add_executable(test_reloj_vistas tests/test_reloj_vistas.cpp ui/Reloj.cpp ui/Reloj.hpp ui/FotosPersonas.cpp
                    ui/FotosPersonas.hpp)

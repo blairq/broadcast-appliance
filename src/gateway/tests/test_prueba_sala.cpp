@@ -146,6 +146,31 @@ void directa() {
     CHECK(room.snapshot().value("lobby", false), "el lobby configurado no se tocó");
 }
 
+// La prueba de capacidad desde otro equipo: la medida que deja la app y la IP del probador.
+void capacidad() {
+    PruebaSala p;
+    p.ponerMedida(nlohmann::json{{"cpuMaquina", 40}}, 1000);
+    CHECK(p.medida(1000).is_null(), "sin prueba no se guarda medida");
+    p.anotarIp(0x0100007f);
+    CHECK(!p.ipDePrueba(0x0100007f, 1000), "sin prueba no hay IP de prueba");
+    CHECK(p.abrir(kCred, 1000, 61000), "abre");
+    CHECK(p.medida(2000).is_null(), "abierta y todavía sin medida");
+    p.ponerMedida(nlohmann::json{{"cpuMaquina", 40}, {"cupo", 80}}, 2000);
+    const nlohmann::json m = p.medida(3500);
+    CHECK(m.is_object() && m["medida"].value("cupo", 0) == 80, "la medida para el probador");
+    CHECK(m.value("edadMs", 0) == 1500, "con su edad");
+    p.ponerMedida(nlohmann::json("no es un objeto"), 4000);
+    CHECK(p.medida(4000)["medida"].value("cupo", 0) == 80, "lo que no es un objeto no la pisa");
+    p.anotarIp(0x0a00000a);
+    CHECK(p.ipDePrueba(0x0a00000a, 5000), "la IP que entró con la credencial");
+    CHECK(!p.ipDePrueba(0x0b00000b, 5000), "otra no");
+    CHECK(!p.ipDePrueba(0x0a00000a, 61000), "vencida, ya no");
+    CHECK(p.medida(61000).is_null(), "vencida, sin medida");
+    p.cerrar();
+    CHECK(p.abrir(kCred, 70000, 130000), "otra prueba");
+    CHECK(p.medida(70000).is_null() && !p.ipDePrueba(0x0a00000a, 70000), "cerrar olvida la medida y las IP");
+}
+
 } // namespace
 
 int main() {
@@ -154,6 +179,7 @@ int main() {
     cerrarYRenovar();
     sala();
     directa();
+    capacidad();
     if (g_failures == 0) std::printf("test_prueba_sala: OK\n");
     return g_failures == 0 ? 0 : 1;
 }
