@@ -16,7 +16,11 @@ usan poca cantidad y qué cambios de contexto mucha».
 Mediciones: `mediciones-carga/2026-11-02-final-am-sr/`, `2026-11-02-al-final/`,
 `2026-11-02-pc177/`; ficha de la PC en [docs/hardware](../hardware/pc-ryzen9-5900x-rx5700xt.md).
 
-**Lo que todavía no medimos: el camino de producción.** Los invitados entran por los
+Campaña del 2026-11-02 en la .177 con H.264 por la placa (master `b792325d`, ver «Lo que dijo
+la campaña»): con 40 el gateway gasta 220 % directo y 231-242 % por TURN, con **647 hilos** y
+**45-47 mil cambios de contexto/s**; con 10 en 720p, 405 %.
+
+**Lo que todavía no medimos (antes de la campaña): el camino de producción.** Los invitados entran por los
 puertos TCP y UDP que abre pinggy, que llegan al TURN propio (`127.0.0.1:3478`,
 [TURN.md](../funciones/TURN.md)). hinchada entra directo a WebRTC por UDP y se saltea el
 TURN. Más adelante también se va a usar WireGuard ([CONFERENCIA.md](../funciones/CONFERENCIA.md)
@@ -52,32 +56,35 @@ siempre manda la frecuencia.
 
 ## Las fronteras, una por una
 
-Pases/s y tamaños son **estimaciones para 40 invitados**; los reales salen de los
-contadores de F0. «Hoy» dice cuántos hilos y pases por el kernel hay en esa frontera.
+Pases/s y tamaños son **estimaciones para 40 invitados**. La última columna es lo **medido** en
+la .177 (campaña del 2026-11-02, master `b792325d`, 40 por TURN mezcla:10 salvo que diga otra
+cosa; p50 del régimen de los contadores de F0: pases/s, despertadas/s, µs de trabajo por pase,
+% de un núcleo y espera). La Mac quedó sin medir por TURN (campaña pausada). «Hoy» dice cuántos
+hilos y pases por el kernel hay en esa frontera.
 
 ### Entrada por pinggy y el TURN (producción)
 
-| # | Frontera | Hoy | Pases/s | Tamaño | Trabajo por pase | V/H | Qué se hace |
-|---|---|---|---|---|---|---|---|
-| 1 | pinggy UDP → TURN | 1 hilo `turn` (`poll`) | ~4 mil | ~1,2 KB | µs (ChannelData) | **V** + lote | recibir de a tandas; el TURN corre en el hilo de red de su grupo (abajo) |
-| 2 | pinggy TCP → TURN | mismo hilo `turn` | ~4 mil | ~1,2 KB | µs (marcos STUN sobre TCP) | **V** | cada conexión TCP se entrega una sola vez al hilo de red de su grupo (como `accept` en nginx) |
-| 3 | TURN → red de WebRTC | `sendto` a `127.0.0.1:400xx`: **por el kernel**, otro hilo | ~4 mil | ~1,2 KB | µs | **V** | entrega en memoria: un `rtc::PacketSocketFactory` propio; el TURN y la red de WebRTC en el mismo hilo |
-| 4 | red → trabajo de WebRTC (RTP) | `ba-rtc-net` → `ba-rtc-work` | ~4 mil | ~1,2 KB | µs (descifrar SRTP, ordenar) | **H** + lote (o **V** si F0 lo muestra liviano) | libwebrtc separa red y trabajo; se mantiene la separación pero con grupos por capa y pase en lote |
-| 5 | trabajo → decodificador (cuadro codificado) | 1 cola de libwebrtc por invitado + hilos internos de libvpx/OpenH264 | ~700 | 1–30 KB | **ms** (720p por software: 3–5 ms) | **H** | pozo de decodificación de D hilos, repartido por costo (píxeles/s); cada decodificador con 1 hilo interno |
-| 6 | decodificador → celda de la grilla | hilo `grillas` achica todo | ~700 | 43 KB–1,4 MB | decenas de µs (achicar) | **V** | achicar en el hilo que decodificó; a `grillas` solo le llega la celda chica |
-| 7 | celdas → mosaico | `grillas` | 30 | 40 celdas chicas | copiar | **H** (ya está) | un hilo al ritmo del lienzo: una despertada por cuadro |
-| 8 | decodificador → ba-app (memoria compartida) | desde el hilo que decodifica | ~700 | el cuadro | copia | **V** (ya está) | otro proceso: inevitable; ya va directo |
-| 9 | audio: paquete → NetEq | hilo de trabajo | ~4 mil | ~100 B | µs | **V** (ya está) | queda en el hilo de trabajo del grupo |
-| 10 | audio: sacar a todos cada 10 ms | `webrtc-playout` | 100 | 40 × 10 ms | decodificar Opus | **H** (ya está) | una despertada por vuelta; uno por grupo al mismo reloj si F0 lo pide |
+| # | Frontera | Hoy | Pases/s | Tamaño | Trabajo por pase | V/H | Qué se hace | Medido PC (40) |
+|---|---|---|---|---|---|---|---|---|
+| 1 | pinggy UDP → TURN | 1 hilo `turn` (`poll`) | ~4 mil | ~1,2 KB | µs (ChannelData) | **V** + lote | recibir de a tandas; el TURN corre en el hilo de red de su grupo (abajo) | UDP 40: 4,0k/s, 6 pases por despertada, 12 µs, 5 % · mezcla 40: 3,6k/s, 4 % |
+| 2 | pinggy TCP → TURN | mismo hilo `turn` | ~4 mil | ~1,2 KB | µs (marcos STUN sobre TCP) | **V** | cada conexión TCP se entrega una sola vez al hilo de red de su grupo (como `accept` en nginx) | TCP 40: 4,0k/s, 1,1 pases por despertada (3,6k desp/s), 14 µs, 5,4 % · mezcla: 380/s |
+| 3 | TURN → red de WebRTC | `sendto` a `127.0.0.1:400xx`: **por el kernel**, otro hilo | ~4 mil | ~1,2 KB | µs | **V** | entrega en memoria: un `rtc::PacketSocketFactory` propio; el TURN y la red de WebRTC en el mismo hilo | 4,0k/s, 10 µs, 4 % |
+| 4 | red → trabajo de WebRTC (RTP) | `ba-rtc-net` → `ba-rtc-work` | ~4 mil | ~1,2 KB | µs (descifrar SRTP, ordenar) | **H** + lote (o **V** si F0 lo muestra liviano) | libwebrtc separa red y trabajo; se mantiene la separación pero con grupos por capa y pase en lote | sin contador; hilos con 40: `ba-rtc-net` 50 %, `ba-rtc-work` 25 % y 9,7k cambios/s |
+| 5 | trabajo → decodificador (cuadro codificado) | 1 cola de libwebrtc por invitado + hilos internos de libvpx/OpenH264 | ~700 | 1–30 KB | **ms** (720p por software: 3–5 ms) | **H** | pozo de decodificación de D hilos, repartido por costo (píxeles/s); cada decodificador con 1 hilo interno | sin contador; con 40: `IncomingVideoStream` ×80 16 %, `DecodingQueue` ×80 15 %, `(sin nombre)` ×320 49 %; con 10 en 720p: 107 %, 48 % y 170 % |
+| 6 | decodificador → celda de la grilla | hilo `grillas` achica todo | ~700 | 43 KB–1,4 MB | decenas de µs (achicar) | **V** | achicar en el hilo que decodificó; a `grillas` solo le llega la celda chica | 40: 620/s, 66-78 µs, 4-5 % · 10 en 720p: 300/s, 1,07 ms, 33 % |
+| 7 | celdas → mosaico | `grillas` | 30 | 40 celdas chicas | copiar | **H** (ya está) | un hilo al ritmo del lienzo: una despertada por cuadro | 40: 30/s, 3,3-4,3 ms, 10-13 % · 10: 7,3 ms, 22 % |
+| 8 | decodificador → ba-app (memoria compartida) | desde el hilo que decodifica | ~700 | el cuadro | copia | **V** (ya está) | otro proceso: inevitable; ya va directo | 40: 620/s, 0,41-0,47 ms, 25-29 %, espera 35 ms · 10 en 720p: 3,5 ms, **105 %**, espera 71 ms (VP8: 2,1 ms) |
+| 9 | audio: paquete → NetEq | hilo de trabajo | ~4 mil | ~100 B | µs | **V** (ya está) | queda en el hilo de trabajo del grupo | sin contador |
+| 10 | audio: sacar a todos cada 10 ms | `webrtc-playout` | 100 | 40 × 10 ms | decodificar Opus | **H** (ya está) | una despertada por vuelta; uno por grupo al mismo reloj si F0 lo pide | 100/s, 1,4-1,5 ms, 14-15 % (10: 0,8 ms) |
 
 ### Salida hacia los invitados (retornos)
 
-| # | Frontera | Hoy | Pases/s | Tamaño | Trabajo por pase | V/H | Qué se hace |
-|---|---|---|---|---|---|---|---|
-| 11 | ba-app → codificar retorno | `ba-retorno-N` por flujo | 30 por flujo | cuadro | **ms** (codificar) | **H** (ya está) | se mantiene; en Windows con la placa (F3) |
-| 12 | retorno codificado → cada oyente | uno por oyente al hilo de red | 30 × oyentes | KB | µs | **H** + lote | un pase por cuadro y por grupo de red, no uno por oyente |
-| 13 | Opus compartido → cada oyente | igual | 50 × oyentes | ~100 B | µs | **H** + lote | ídem |
-| 14 | red de WebRTC → TURN → pinggy | `sendto` por el kernel + hilo `turn` | ~4 mil | ~1,2 KB | µs | **V** | lo inverso de 3: en memoria, mismo hilo |
+| # | Frontera | Hoy | Pases/s | Tamaño | Trabajo por pase | V/H | Qué se hace | Medido PC (40) |
+|---|---|---|---|---|---|---|---|---|
+| 11 | ba-app → codificar retorno | `ba-retorno-N` por flujo | 30 por flujo | cuadro | **ms** (codificar) | **H** (ya está) | se mantiene; en Windows con la placa (F3) | 30/s, 0,9 ms, 2,8 % (placa AMD) |
+| 12 | retorno codificado → cada oyente | uno por oyente al hilo de red | 30 × oyentes | KB | µs | **H** + lote | un pase por cuadro y por grupo de red, no uno por oyente | 1,2k/s, 32 µs, 4 %, espera 5,8 ms |
+| 13 | Opus compartido → cada oyente | igual | 50 × oyentes | ~100 B | µs | **H** + lote | ídem | a oyentes 1,95k/s · Opus 100/s, 55 µs, 0,6 % · `AudioEncoder` ×40: **11,6k cambios/s** |
+| 14 | red de WebRTC → TURN → pinggy | `sendto` por el kernel + hilo `turn` | ~4 mil | ~1,2 KB | µs | **V** | lo inverso de 3: en memoria, mismo hilo | 11,3k/s, 6,1k despertadas/s, 10 µs, 11 % |
 
 ### Entrada por WireGuard (cuando se use)
 
@@ -89,14 +96,14 @@ VPS ─UDP─► [wireguard] select + descifra ChaCha20 ─(cola + despertar por
 vuelta: [ba-rtc-net] ─sendto─► socket del invitado ─► [ipstack] select ─► lwIP ─► cifra ─► VPS
 ```
 
-| # | Frontera | Hoy | Pases/s | Tamaño | Trabajo por pase | V/H | Qué se hace |
-|---|---|---|---|---|---|---|---|
-| 15 | VPS → `wireguard` (socket) | 1 hilo, `select`, vacía hasta 256 por vuelta | ~4 mil | ~1,3 KB | µs | **V** + lote | ya va en lote; pasar a `recvmmsg` en Linux |
-| 16 | descifrar ChaCha20-Poly1305 | en `wireguard`, de a uno | ~4 mil | ~1,3 KB | ~1–2 µs | **H** + lote (solo si F0 lo muestra cuello) | con un solo par (el VPS) todo cae en un hilo; si satura, descifrar tandas en paralelo y reordenar por el contador de WireGuard |
-| 17 | `wireguard` → `ipstack` | cola con candado + despertar por un UDP local (por el kernel); despierta solo si la cola estaba vacía | ~4 mil paquetes, menos despertadas | ~1,3 KB | µs | **V** | lwIP corre en el mismo hilo que descifra; sin cola ni despertar. Además, hoy copia cada paquete a un `std::vector` nuevo: reusar buffers |
-| 18 | `ipstack` → red de WebRTC | un socket local por invitado, `sendto`: **por el kernel** | ~4 mil | ~1,2 KB | µs | **V** | entrega en memoria con el mismo `PacketSocketFactory` del TURN (#3), en el hilo de red del grupo del invitado |
-| 19 | red de WebRTC → `ipstack` (vuelta) | `sendto` al socket del invitado; `ipstack` con `select` sobre todos | ~4 mil | ~1,2 KB | µs | **V** | lo inverso de 18, en memoria. `select` con un socket por invitado se cae del todo (en Windows el límite de `select` es chico): desaparece |
-| 20 | `ipstack` → cifrar → VPS | en `ipstack`, `wg.send` de a uno | ~4 mil | ~1,3 KB | ~1–2 µs | **V** + lote | cifrar y mandar en tanda por vuelta |
+| # | Frontera | Hoy | Pases/s | Tamaño | Trabajo por pase | V/H | Qué se hace | Medido PC (40) |
+|---|---|---|---|---|---|---|---|---|
+| 15 | VPS → `wireguard` (socket) | 1 hilo, `select`, vacía hasta 256 por vuelta | ~4 mil | ~1,3 KB | µs | **V** + lote | ya va en lote; pasar a `recvmmsg` en Linux | sin medir (WireGuard) |
+| 16 | descifrar ChaCha20-Poly1305 | en `wireguard`, de a uno | ~4 mil | ~1,3 KB | ~1–2 µs | **H** + lote (solo si F0 lo muestra cuello) | con un solo par (el VPS) todo cae en un hilo; si satura, descifrar tandas en paralelo y reordenar por el contador de WireGuard | sin medir (WireGuard) |
+| 17 | `wireguard` → `ipstack` | cola con candado + despertar por un UDP local (por el kernel); despierta solo si la cola estaba vacía | ~4 mil paquetes, menos despertadas | ~1,3 KB | µs | **V** | lwIP corre en el mismo hilo que descifra; sin cola ni despertar. Además, hoy copia cada paquete a un `std::vector` nuevo: reusar buffers | sin medir (WireGuard) |
+| 18 | `ipstack` → red de WebRTC | un socket local por invitado, `sendto`: **por el kernel** | ~4 mil | ~1,2 KB | µs | **V** | entrega en memoria con el mismo `PacketSocketFactory` del TURN (#3), en el hilo de red del grupo del invitado | sin medir (WireGuard) |
+| 19 | red de WebRTC → `ipstack` (vuelta) | `sendto` al socket del invitado; `ipstack` con `select` sobre todos | ~4 mil | ~1,2 KB | µs | **V** | lo inverso de 18, en memoria. `select` con un socket por invitado se cae del todo (en Windows el límite de `select` es chico): desaparece | sin medir (WireGuard) |
+| 20 | `ipstack` → cifrar → VPS | en `ipstack`, `wg.send` de a uno | ~4 mil | ~1,3 KB | ~1–2 µs | **V** + lote | cifrar y mandar en tanda por vuelta | sin medir (WireGuard) |
 
 Con un solo par todo llega por un socket: la capa WireGuard es un hilo **V** (recibir,
 descifrar, lwIP, entregar en memoria al grupo del invitado) y solo si satura se agrega
@@ -127,6 +134,75 @@ señalización: 1 hilo para toda la sala
   `gateway.hilosDecodificar`, `0` = automático según la máquina). Automático de partida:
   en el 5900X R=2, T=3, D=4; en la M1 Pro R=1, T=2, D=2 (decodifica la placa). Con
   R=T=1 queda casi como hoy pero sin el kernel en el medio: sirve para comparar.
+
+## Lo que dijo la campaña (2026-11-02, .177)
+
+Mediciones en `~/Proyectos/mediciones-carga/2026-11-02-campana/pc177/` y la ficha
+[pc-ryzen9-5900x-rx5700xt.md](../hardware/pc-ryzen9-5900x-rx5700xt.md). La Mac quedó pausada con
+solo directo 10-40 (sin TURN): sus columnas quedan para cuando se retome.
+
+**Qué hilo pesa más, por camino (40 invitados, % de un núcleo; cambios de contexto/s):**
+
+| Camino | 1.º | 2.º | 3.º | 4.º | Más cambios de contexto |
+|---|---|---|---|---|---|
+| directo | `(sin nombre)` ×322 51 % | `ba-rtc-net` 50 % | `ba-rtc-work` 25 % | `AudioEncoder` ×40 17 % | `AudioEncoder` 11,6k · `(sin nombre)` 9,9k · `ba-rtc-work` 9,7k · `EncoderQueue` 6,5k |
+| TURN UDP | `ba-rtc-net` 51 % | `(sin nombre)` 50 % | `ba-rtc-work` 26 % | **`turn` 24 %** | igual (+ `turn` 1,0k) |
+| TURN TCP | `ba-rtc-net` 53 % | `(sin nombre)` 49 % | **`turn` 29 %** | `ba-rtc-work` 27 % | igual |
+| TURN mezcla:10 | `ba-rtc-net` 49 % | `(sin nombre)` 49 % | `turn` 24 % | `ba-rtc-work` 24 % | igual |
+| 10 en 720p, directo | `(sin nombre)` ×261 170 % | **`IncomingVideoStream` ×20 107 %** | `DecodingQueue` ×20 48 % | `ba-rtc-net` 22 % | `(sin nombre)` 6,3k · `ba-rtc-work` 4,0k |
+| 60, TURN mezcla | `(sin nombre)` ×362 87 % | `ba-rtc-net` 77 % | `ba-rtc-work` 43 % | `turn` 41 % | `AudioEncoder` 17,7k · `(sin nombre)` 14,4k |
+
+Conclusiones para el rewrite:
+
+1. **Ningún hilo satura con 40**: el más cargado (`ba-rtc-net`) va a medio núcleo; con 60 llega
+   a 77 %. El primero en llegar a un núcleo entero será `ba-rtc-net` (~70 invitados): la capa
+   RED con R≥2 (F2) es necesaria antes de pasar de 60, no para 40.
+2. **El TURN es barato y es V**: #1/#3/#14 trabajan 10-14 µs por pase; el hilo `turn` entero
+   cuesta 24-29 % con 40. Por TCP casi cada paquete es una despertada (1,1 pases por
+   despertada contra 6 por UDP): justo lo que F1 saca metiendo los sockets del TURN en el hilo de
+   red. Meta realista de F1: ahorrar el `turn` (≈25 %) y los ~6k despertadas/s de #14, no más.
+   El costo de una frontera por el kernel acá es chico frente al de los hilos por invitado (3).
+3. **Los cambios de contexto no vienen de las fronteras de la tabla sino de las colas de
+   libwebrtc por invitado**: `AudioEncoder` (una por invitado, 11,6k/s con 40, 17,7k/s con 60),
+   `EncoderQueue` (6,5k/s), `DecodingQueue` (×2 por invitado, 4,1k/s) e `IncomingVideoStream`
+   (×2 por invitado, 2,7k/s). Son ~25k de los 46k cambios/s. Lo que más rinde: un
+   `TaskQueueFactory` propio que ponga esas colas sobre un pozo chico de hilos (H en lote, F3
+   punto 1 generalizado a audio y codificación), no solo la decodificación.
+4. **`IncomingVideoStream`** (el hilo por flujo entrante que entrega el cuadro decodificado al
+   sumidero, con su suavizado de render de libwebrtc): 107 % con 10 en 720p (los 20 hilos
+   juntos, ~5 % cada uno) y 16 % con 40. Ese «suavizado» (`IncomingVideoStream` + `VideoRenderFrames`)
+   espera la hora de render y despierta por cuadro; para la grilla no sirve (la grilla tiene su
+   reloj de 30 cps). **Evaluar apagarlo**: entregar el cuadro directo en el hilo que decodifica
+   (#6 y #8 en V). En el libwebrtc que usamos es una opción de la conexión:
+   `RTCConfiguration::set_prerenderer_smoothing(false)` (`media_config.video.enable_prerenderer_smoothing`,
+   `api/peer_connection_interface.h`); sin él no se crea `IncomingVideoStream`. Probarlo primero
+   (cambio de una línea) y medir la grilla: si sigue a 30 cps sin tirones, va. Ahorro esperado: el 107 % de 10
+   en 720p y 80 hilos con 40.
+5. **La placa no ahorró CPU en Windows** (B): con 10 en 720p el gateway gasta 405 % con
+   H.264 por DXVA contra 305 % con VP8 por software; el cuadro decodificado → BGRA cuesta 3,5 ms
+   (#8) contra 2,1 ms, y aparecen ~260 hilos `(sin nombre)` de Media Foundation/D3D11 (170 %).
+   Para F3: decodificar a una superficie compartida y achicar en la GPU (o leer NV12 una sola
+   vez y achicar en el mismo hilo, #6 V), y un solo dispositivo D3D11/MF para todos los
+   decodificadores en vez de uno por flujo.
+6. **Lo de en medio (#6 achicar, #8 copiar a ba-app) es V y ya pesa poco con 40** (0,07 y
+   0,4 ms por cuadro, 4 % y 25 %); con 10 en 720p pesa (1,1 y 3,5 ms). Achicar en el hilo que
+   decodificó (F3 punto 2) es la ganancia grande del caso de 10.
+7. **El audio de todos en un hilo (#10) aguanta**: 1,4-1,5 ms cada 10 ms con 40 (15 % de un
+   núcleo), 2,3 ms con 60 y 2,6 ms con 68 (26 %). Sigue H como está. #8 con 60 sube a 71 % de
+   un núcleo (repartido entre los hilos que decodifican) y #14 a 17k pases/s con 8k despertadas.
+8. **Techo de pinggy (gratis): ~7-8 Mbps**, unos 5 invitados con video; desde 10 el retorno
+   baja a 180p. El cuello es el túnel, no la CPU ni la casa (42,8 Mbps de subida). Para el
+   camino de producción con más gente: cuenta paga (medir su techo), WireGuard (F5) o un
+   servidor propio. Ningún cambio de hilos del gateway mueve ese techo.
+9. **Ráfaga por el TURN**: 40 a la vez → ~la mitad no conecta (directo entran todos). Hay que
+   mirarlo antes de F1/F2 (cola de asignaciones, permisos, `rechazosPeer`): es correctitud, no
+   rendimiento, y F1 toca justo ese código.
+10. **Núcleos (la pregunta del usuario)**: con 40 no hay dos núcleos saturados; el gateway queda
+    en el primer CCD (0-11) y ba-app en el segundo (14-23). Las interrupciones de la placa de
+    red (I225-V, sin RSS) van todas a los núcleos 0 y 1 (5 % de DPC en el 1). Los «dos núcleos
+    casi llenos» del Administrador de tareas eran de la medición (`WmiPrvSE` en los núcleos
+    lógicos 12-13 con el muestreo viejo por WMI). Para F4: dejar los núcleos 0-1 libres de hilos
+    calientes del gateway (son los de la placa de red) antes de fijar afinidad.
 
 ## Etapas
 
