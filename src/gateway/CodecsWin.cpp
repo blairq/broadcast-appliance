@@ -959,7 +959,7 @@ class DecodificadorD3d11 : public webrtc::VideoDecoder {
             r.bPicEntry = 0xFF;
         int i = 0;
         for (const h264::Ref& r : dpb_.refs()) {
-            if (i >= 16) break;
+            if (i >= 16 || s.idr) break; // una IDR no usa referencias (las viejas se sueltan al terminarla)
             p.RefFrameList[i].Index7Bits = static_cast<UCHAR>(r.superficie);
             p.RefFrameList[i].AssociatedFlag = r.largo ? 1 : 0;
             p.FieldOrderCntList[i][0] = r.poc_arriba;
