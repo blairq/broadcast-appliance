@@ -32468,7 +32468,7 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
 <context>
     <name>StudioViewModel</name>
     <message>
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="+132"/>
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="+133"/>
         <source>%1 (no se pudo: %2)</source>
         <translation>%1（失败：%2）</translation>
     </message>
@@ -32503,7 +32503,7 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
         <translation>无响应</translation>
     </message>
     <message>
-        <location line="+80"/>
+        <location line="+98"/>
         <source>Conferencia reiniciada con la configuración nueva.</source>
         <translation>会议已使用新设置重启。</translation>
     </message>
@@ -42710,7 +42710,7 @@ Elegí otra cosa en Salidas → Pantallas.</source>
     </message>
     <message>
         <location line="-57"/>
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="-812"/>
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="-830"/>
         <source>arranque: %1 tardó %2 ms</source>
         <translation>启动：%1 耗时 %2 毫秒</translation>
     </message>
@@ -49836,12 +49836,12 @@ Datos (de %2): %3</source>
         <translation>%1 · 发言人</translation>
     </message>
     <message>
-        <location line="+191"/>
+        <location line="+196"/>
         <source>banca %1</source>
         <translation>席位 %1</translation>
     </message>
     <message>
-        <location line="+77"/>
+        <location line="+78"/>
         <source>sin canal: hay más de %1 grillas</source>
         <translation>没有通道：网格超过 %1 个</translation>
     </message>
@@ -49869,6 +49869,46 @@ Datos (de %2): %3</source>
         <location line="+15"/>
         <source>falta a quién (la clave)</source>
         <translation>缺少对象（键）</translation>
+    </message>
+    <message>
+        <location line="+36"/>
+        <source>El asistente pasó a «%1» (%2).</source>
+        <translation>助手已切换到“%1”（%2）。</translation>
+    </message>
+    <message>
+        <location line="+12"/>
+        <source>Ya no hay orador: volví a «%1».</source>
+        <translation>已经没有发言人了：我切回了“%1”。</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Pasé a la escena del orador: %1.</source>
+        <translation>我切换到了发言人场景：%1。</translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>la principal</source>
+        <translation>主场景</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>[GRILLA DE PERSONAS] Ya no hay orador en «%1». Si estás autorizado a cortar, volvé a la escena «%2» en la salida %3; si no, no hagas nada.</source>
+        <translation>[GRILLA DE PERSONAS] “%1”已经没有发言人了。如果你有权切换，请在输出 %3 上切回场景“%2”；没有权限就什么都不要做。</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>[GRILLA DE PERSONAS] El orador de «%1» ahora es %4. Si estás autorizado a cortar, poné al aire la escena «%2» en la salida %3; si no, no hagas nada.</source>
+        <translation>[GRILLA DE PERSONAS] “%1”的发言人现在是 %4。如果你有权切换，请在输出 %3 上把场景“%2”切到播出；没有权限就什么都不要做。</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Ya no hay orador: ¿vuelvo a «%1»?</source>
+        <translation>已经没有发言人了：要切回“%1”吗？</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>¿Paso a la escena del orador: %1?</source>
+        <translation>要切换到发言人场景：%1 吗？</translation>
     </message>
     <message>
         <location filename="../src/app/escenas/FuenteGrilla.cpp" line="+44"/>
@@ -50087,6 +50127,11 @@ Datos (de %2): %3</source>
     </message>
     <message>
         <location line="+1"/>
+        <source>Sin cambios (solo la cámara en alta)</source>
+        <translation>不变（仅以高画质请求摄像头）</translation>
+    </message>
+    <message>
+        <location line="+1"/>
         <source>Resaltar en su lugar</source>
         <translation>原位高亮</translation>
     </message>
@@ -50107,16 +50152,16 @@ Datos (de %2): %3</source>
     </message>
     <message>
         <location line="+1"/>
-        <source>Nada (solo el borde)</source>
-        <translation>无（仅边框）</translation>
+        <source>Nada (sin orador: solo el borde a quien habla)</source>
+        <translation>无（没有发言人：仅给说话者加边框）</translation>
     </message>
     <message>
         <location line="+1"/>
-        <source>Resaltar: nadie se mueve; borde y un leve agrandado. Destacar: el orador a un lugar grande y los demás a una franja, en el mismo orden. Superponer: el orador encima, en un hueco que le deja la grilla (nadie queda tapado). Escena: esta grilla no cambia; otra grilla con «Solo al orador» lo muestra en su escena. Al orador se le pide su cámara en alta.</source>
-        <translation>高亮：谁都不动；加边框并略微放大。突出：发言人移到大位置，其余移到条带，顺序不变。叠加：发言人叠在上面，放进网格为其留出的空位（不会遮住任何人）。场景：此网格不变；另一个设为“仅发言人”的网格在它的场景里显示发言人。会以高画质请求发言人的摄像头。</translation>
+        <source>Sin cambios: la grilla no se toca; al orador solo se le pide la cámara en alta (entra con un fundido). Resaltar: nadie se mueve; el orador con borde (y agrandado, si se elige abajo). Destacar: el orador a un lugar grande y los demás a una franja, en el mismo orden. Superponer: el orador encima, en un hueco que le deja la grilla (nadie queda tapado). Escena: esta grilla no cambia; otra grilla con «Solo al orador» lo muestra en su escena. Al orador se le pide su cámara en alta.</source>
+        <translation>不变：网格保持原样；只为发言人以高画质请求摄像头（以淡入淡出方式进入）。高亮：谁都不动；发言人加边框（若在下方选择了，则同时放大）。突出：发言人移到大位置，其余移到条带，顺序不变。叠加：发言人叠在上面，放进网格为其留出的空位（不会遮住任何人）。场景：此网格不变；另一个设为“仅发言人”的网格在它的场景里显示发言人。会以高画质请求发言人的摄像头。</translation>
     </message>
     <message>
-        <location line="+5"/>
+        <location line="+6"/>
         <source>Quién es el orador</source>
         <translation>谁是发言人</translation>
     </message>
@@ -50177,6 +50222,71 @@ Datos (de %2): %3</source>
     </message>
     <message>
         <location line="+4"/>
+        <source>Agrandar al que habla</source>
+        <translation>放大正在说话的人</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>No</source>
+        <translation>否</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Encima (crece sobre su celda, sin achicar a nadie)</source>
+        <translation>叠在上面（在自己的单元格上放大，不缩小任何人）</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Achicando a los demás (todas al 94 %, el orador llena su celda)</source>
+        <translation>缩小其他人（全部缩到 94 %，发言人占满自己的单元格）</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Pasar a la escena del orador</source>
+        <translation>切换到发言人场景</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>A mano (corta el operador)</source>
+        <translation>手动（由操作员切换）</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Automático (al cambiar el orador)</source>
+        <translation>自动（发言人更换时）</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Con el asistente (y siempre te avisa)</source>
+        <translation>通过助手（并且总会通知你）</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Automático: al cambiar el orador la app pone su escena al aire en la salida elegida y, cuando ya no hay orador, vuelve a la de antes (con el tiempo mínimo del orador). Con el asistente: se lo pide al de automatización, que corta si está autorizado; el operador siempre recibe el aviso («¿paso a…?» y «pasé a…»).</source>
+        <translation>自动：发言人更换时，应用会在所选输出上把其场景切到播出；没有发言人时，切回之前的场景（遵循发言人的最短显示时间）。通过助手：向自动化助手提出请求，若其有权限就会切换；操作员总会收到通知（“要切换到……吗？”和“已切换到……”）。</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>En qué salida</source>
+        <translation>在哪个输出</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>El id de la salida (ver Salidas). Vacío = la principal.</source>
+        <translation>输出的 id（见“输出”）。留空 = 主输出。</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Escena del orador</source>
+        <translation>发言人场景</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>La pone «Armar la escena del orador»; se puede elegir otra.</source>
+        <translation>由“搭建发言人场景”创建；也可以选别的。</translation>
+    </message>
+    <message>
+        <location line="+2"/>
         <source>Armar la escena del orador</source>
         <translation>搭建发言人场景</translation>
     </message>
@@ -50336,7 +50446,7 @@ Datos (de %2): %3</source>
         <translation>尚无通道：网格超过 8 个，或会议尚未启动。</translation>
     </message>
     <message>
-        <location filename="../src/app/escenas/GrillaPersonas.cpp" line="+165"/>
+        <location filename="../src/app/escenas/GrillaPersonas.cpp" line="+176"/>
         <source>los ajustes van en un objeto</source>
         <translation>设置必须放在对象中</translation>
     </message>
@@ -50361,9 +50471,14 @@ Datos (de %2): %3</source>
         <translation>「%1」不是人员网格的设置</translation>
     </message>
     <message>
-        <location line="+17"/>
+        <location line="+18"/>
         <source>«grupo» es un texto (vacío = sola)</source>
         <translation>「grupo」是文本（留空 = 单独）</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>«%1» es un texto</source>
+        <translation>“%1”是文本</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -53793,7 +53908,7 @@ Datos (de %2): %3</source>
         <translation>否</translation>
     </message>
     <message>
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="+846"/>
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="+864"/>
         <source>«%1» no arrancó al abrir: %2</source>
         <translation>「%1」打开时未启动：%2</translation>
     </message>
@@ -64366,11 +64481,11 @@ Con este repertorio se arma un gráfico SIN escribir código: es lo que conviene
     </message>
     <message>
         <location filename="../src/app/mcp/McpGrillaTools.cpp" line="+23"/>
-        <source>origen (sala|asamblea|ambas), orden (llegada|habla|prioridad), tope (celdas con el «+N», 0 = sin tope), solo_con_camara, sin_al_aire (sin los que ya están al aire en otra fuente o en otra grilla que se ve, contando las escenas de las capas DSK), resaltar (a quien habla), grupo (las grillas con el mismo grupo se reparten la gente sin repetir; &quot;&quot; = sola), orden_en_grupo (la primera manda el orden y el modo), reparto (en_orden: llena la primera hasta su tope; parejo: la misma cantidad en cada una), ancho, alto, proporcion (16:9|4:3|1:1|3:4|9:16|llenar), separacion, margen, transicion_ms, fondo y color_resaltar (&quot;#AARRGGBB&quot;). Cuando alguien habla: al_hablar (resaltar: nadie se mueve, borde y un leve agrandado | destacar: el orador grande y los demás en una franja, en el mismo orden | superponer: el orador encima en un hueco que le deja la grilla | escena: la grilla no cambia y otra grilla con muestra=orador lo muestra solo | nada), disparo (voz: voz sostenida voz_ms | palabra: la palabra de la asamblea | orador: el orador al aire de la conferencia | manual: grilla_personas_destacar), voz_ms, minimo_ms (el orador no cambia antes: histéresis), precarga (el siguiente ya pide la capa alta), destacar_lugar (centro|izquierda), destacar_tamano (% del lienzo), franja (abajo|costado), superponer_tamano, superponer_completa, fundido_ms (de la baja a la HD). Nombres: nombres (no|nombre|nombre_cargo), nombre_tamano (% del alto de la celda), nombre_color, nombre_fondo, nombre_lugar (abajo|arriba). muestra (todos|orador) y sigue (la grilla cuyo orador muestra; &quot;&quot; = la primera que tenga): la escena del orador.</source>
-        <translation>origen (sala|asamblea|ambas)、orden (llegada|habla|prioridad)、tope（带“+N”的单元格数，0 = 不限）、solo_con_camara、sin_al_aire（排除已在其他信号源或其他可见网格中播出的人，包括 DSK 图层的场景）、resaltar（高亮正在说话的人）、grupo（同组的网格分摊人员且不重复；&quot;&quot; = 独立）、orden_en_grupo（第一个网格决定顺序和模式）、reparto (en_orden：先填满第一个直到其上限；parejo：每个网格人数相同)、ancho、alto、proporcion (16:9|4:3|1:1|3:4|9:16|llenar)、separacion、margen、transicion_ms、fondo 和 color_resaltar (&quot;#AARRGGBB&quot;)。有人发言时：al_hablar (resaltar：谁都不动，加边框并略微放大 | destacar：发言人大画面，其余按原顺序放在条带里 | superponer：发言人叠在网格为其留出的空位上 | escena：网格不变，由另一个 muestra=orador 的网格单独显示发言人 | nada)、disparo (voz：持续有声 voz_ms | palabra：大会的发言权 | orador：会议中播出的发言人 | manual：grilla_personas_destacar)、voz_ms、minimo_ms（在此之前发言人不更换：滞回）、precarga（下一位已提前请求高画质层）、destacar_lugar (centro|izquierda)、destacar_tamano（占画布的 %）、franja (abajo|costado)、superponer_tamano、superponer_completa、fundido_ms（从低画质到高清）。姓名：nombres (no|nombre|nombre_cargo)、nombre_tamano（占单元格高度的 %）、nombre_color、nombre_fondo、nombre_lugar (abajo|arriba)。muestra (todos|orador) 和 sigue（显示其发言人的网格；&quot;&quot; = 第一个有发言人的网格）：发言人场景。</translation>
+        <source>origen (sala|asamblea|ambas), orden (llegada|habla|prioridad), tope (celdas con el «+N», 0 = sin tope), solo_con_camara, sin_al_aire (sin los que ya están al aire en otra fuente o en otra grilla que se ve, contando las escenas de las capas DSK), resaltar (a quien habla), grupo (las grillas con el mismo grupo se reparten la gente sin repetir; &quot;&quot; = sola), orden_en_grupo (la primera manda el orden y el modo), reparto (en_orden: llena la primera hasta su tope; parejo: la misma cantidad en cada una), ancho, alto, proporcion (16:9|4:3|1:1|3:4|9:16|llenar), separacion, margen, transicion_ms, fondo y color_resaltar (&quot;#AARRGGBB&quot;). Cuando alguien habla: al_hablar (sin_cambios: la grilla no se toca, solo la cámara del orador en alta | resaltar: nadie se mueve, el orador con borde | destacar: el orador grande y los demás en una franja, en el mismo orden | superponer: el orador encima en un hueco que le deja la grilla | escena: la grilla no cambia y otra grilla con muestra=orador lo muestra solo | nada: sin orador), agrandar (resaltar y escena: no | encima | achicando), pasar_a_escena (escena: a_mano | automatico | asistente: siempre avisa al operador), salida_orador (&quot;&quot; = la principal), escena_orador (la pone grilla_personas_escena_orador), disparo (voz: voz sostenida voz_ms | palabra: la palabra de la asamblea | orador: el orador al aire de la conferencia | manual: grilla_personas_destacar), voz_ms, minimo_ms (el orador no cambia antes: histéresis), precarga (el siguiente ya pide la capa alta), destacar_lugar (centro|izquierda), destacar_tamano (% del lienzo), franja (abajo|costado), superponer_tamano, superponer_completa, fundido_ms (de la baja a la HD). Nombres: nombres (no|nombre|nombre_cargo), nombre_tamano (% del alto de la celda), nombre_color, nombre_fondo, nombre_lugar (abajo|arriba). muestra (todos|orador) y sigue (la grilla cuyo orador muestra; &quot;&quot; = la primera que tenga): la escena del orador.</source>
+        <translation>origen (sala|asamblea|ambas)、orden (llegada|habla|prioridad)、tope（带“+N”的单元格数，0 = 不限）、solo_con_camara、sin_al_aire（排除已在其他信号源或其他可见网格中播出的人，包括 DSK 图层的场景）、resaltar（高亮正在说话的人）、grupo（同组的网格分摊人员且不重复；&quot;&quot; = 独立）、orden_en_grupo（第一个网格决定顺序和模式）、reparto (en_orden：先填满第一个直到其上限；parejo：每个网格人数相同)、ancho、alto、proporcion (16:9|4:3|1:1|3:4|9:16|llenar)、separacion、margen、transicion_ms、fondo 和 color_resaltar (&quot;#AARRGGBB&quot;)。有人发言时：al_hablar (sin_cambios：网格保持原样，只以高画质请求发言人的摄像头 | resaltar：谁都不动，发言人加边框 | destacar：发言人大画面，其余按原顺序放在条带里 | superponer：发言人叠在网格为其留出的空位上 | escena：网格不变，由另一个 muestra=orador 的网格单独显示发言人 | nada：没有发言人)、agrandar (resaltar 和 escena：no | encima | achicando)、pasar_a_escena (escena：a_mano | automatico | asistente：总会通知操作员)、salida_orador (&quot;&quot; = 主输出)、escena_orador（由 grilla_personas_escena_orador 创建）、disparo (voz：持续有声 voz_ms | palabra：大会的发言权 | orador：会议中播出的发言人 | manual：grilla_personas_destacar)、voz_ms、minimo_ms（在此之前发言人不更换：滞回）、precarga（下一位已提前请求高画质层）、destacar_lugar (centro|izquierda)、destacar_tamano（占画布的 %）、franja (abajo|costado)、superponer_tamano、superponer_completa、fundido_ms（从低画质到高清）。姓名：nombres (no|nombre|nombre_cargo)、nombre_tamano（占单元格高度的 %）、nombre_color、nombre_fondo、nombre_lugar (abajo|arriba)。muestra (todos|orador) 和 sigue（显示其发言人的网格；&quot;&quot; = 第一个有发言人的网格）：发言人场景。</translation>
     </message>
     <message>
-        <location line="+20"/>
+        <location line="+22"/>
         <source>Qué muestra cada grilla de personas</source>
         <translation>每个人员网格显示什么</translation>
     </message>

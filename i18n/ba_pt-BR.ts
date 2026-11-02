@@ -32599,7 +32599,7 @@ e ele abre de novo sozinho. Configuração, credenciais, gravações e arquivos 
 <context>
     <name>StudioViewModel</name>
     <message>
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="+132"/>
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="+133"/>
         <source>%1 (no se pudo: %2)</source>
         <translation>%1 (não foi possível: %2)</translation>
     </message>
@@ -32634,7 +32634,7 @@ e ele abre de novo sozinho. Configuração, credenciais, gravações e arquivos 
         <translation>não respondeu</translation>
     </message>
     <message>
-        <location line="+80"/>
+        <location line="+98"/>
         <source>Conferencia reiniciada con la configuración nueva.</source>
         <translation>Conferência reiniciada com a configuração nova.</translation>
     </message>
@@ -42858,7 +42858,7 @@ Escolha outra coisa em Saídas → Telas.</translation>
     </message>
     <message>
         <location line="-57"/>
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="-812"/>
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="-830"/>
         <source>arranque: %1 tardó %2 ms</source>
         <translation>inicialização: %1 levou %2 ms</translation>
     </message>
@@ -49988,12 +49988,12 @@ Dados (de %2): %3</translation>
         <translation>%1 · orador</translation>
     </message>
     <message>
-        <location line="+191"/>
+        <location line="+196"/>
         <source>banca %1</source>
         <translation>cadeira %1</translation>
     </message>
     <message>
-        <location line="+77"/>
+        <location line="+78"/>
         <source>sin canal: hay más de %1 grillas</source>
         <translation>sem canal: há mais de %1 grades</translation>
     </message>
@@ -50021,6 +50021,46 @@ Dados (de %2): %3</translation>
         <location line="+15"/>
         <source>falta a quién (la clave)</source>
         <translation>falta quem (a chave)</translation>
+    </message>
+    <message>
+        <location line="+36"/>
+        <source>El asistente pasó a «%1» (%2).</source>
+        <translation>O assistente passou para «%1» (%2).</translation>
+    </message>
+    <message>
+        <location line="+12"/>
+        <source>Ya no hay orador: volví a «%1».</source>
+        <translation>Não há mais orador: voltei para «%1».</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Pasé a la escena del orador: %1.</source>
+        <translation>Passei para a cena do orador: %1.</translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>la principal</source>
+        <translation>a principal</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>[GRILLA DE PERSONAS] Ya no hay orador en «%1». Si estás autorizado a cortar, volvé a la escena «%2» en la salida %3; si no, no hagas nada.</source>
+        <translation>[GRILLA DE PERSONAS] Não há mais orador em «%1». Se você estiver autorizado a cortar, volte para a cena «%2» na saída %3; se não, não faça nada.</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>[GRILLA DE PERSONAS] El orador de «%1» ahora es %4. Si estás autorizado a cortar, poné al aire la escena «%2» en la salida %3; si no, no hagas nada.</source>
+        <translation>[GRILLA DE PERSONAS] O orador de «%1» agora é %4. Se você estiver autorizado a cortar, coloque no ar a cena «%2» na saída %3; se não, não faça nada.</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Ya no hay orador: ¿vuelvo a «%1»?</source>
+        <translation>Não há mais orador: volto para «%1»?</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>¿Paso a la escena del orador: %1?</source>
+        <translation>Passo para a cena do orador: %1?</translation>
     </message>
     <message>
         <location filename="../src/app/escenas/FuenteGrilla.cpp" line="+44"/>
@@ -50239,6 +50279,11 @@ Dados (de %2): %3</translation>
     </message>
     <message>
         <location line="+1"/>
+        <source>Sin cambios (solo la cámara en alta)</source>
+        <translation>Sem mudanças (só a câmera em alta)</translation>
+    </message>
+    <message>
+        <location line="+1"/>
         <source>Resaltar en su lugar</source>
         <translation>Realçar no lugar</translation>
     </message>
@@ -50259,16 +50304,16 @@ Dados (de %2): %3</translation>
     </message>
     <message>
         <location line="+1"/>
-        <source>Nada (solo el borde)</source>
-        <translation>Nada (só a borda)</translation>
+        <source>Nada (sin orador: solo el borde a quien habla)</source>
+        <translation>Nada (sem orador: só a borda em quem fala)</translation>
     </message>
     <message>
         <location line="+1"/>
-        <source>Resaltar: nadie se mueve; borde y un leve agrandado. Destacar: el orador a un lugar grande y los demás a una franja, en el mismo orden. Superponer: el orador encima, en un hueco que le deja la grilla (nadie queda tapado). Escena: esta grilla no cambia; otra grilla con «Solo al orador» lo muestra en su escena. Al orador se le pide su cámara en alta.</source>
-        <translation>Realçar: ninguém se mexe; borda e um leve aumento. Destacar: o orador vai para um lugar grande e os demais para uma faixa, na mesma ordem. Sobrepor: o orador por cima, em um vão que a grade deixa para ele (ninguém fica coberto). Cena: esta grade não muda; outra grade com «Só o orador» o mostra na sua cena. A câmera do orador é pedida em alta.</translation>
+        <source>Sin cambios: la grilla no se toca; al orador solo se le pide la cámara en alta (entra con un fundido). Resaltar: nadie se mueve; el orador con borde (y agrandado, si se elige abajo). Destacar: el orador a un lugar grande y los demás a una franja, en el mismo orden. Superponer: el orador encima, en un hueco que le deja la grilla (nadie queda tapado). Escena: esta grilla no cambia; otra grilla con «Solo al orador» lo muestra en su escena. Al orador se le pide su cámara en alta.</source>
+        <translation>Sem mudanças: a grade não é tocada; do orador só se pede a câmera em alta (entra com uma fusão). Realçar: ninguém se mexe; o orador ganha borda (e é aumentado, se escolhido abaixo). Destacar: o orador vai para um lugar grande e os demais para uma faixa, na mesma ordem. Sobrepor: o orador por cima, em um vão que a grade deixa para ele (ninguém fica coberto). Cena: esta grade não muda; outra grade com «Só o orador» o mostra na sua cena. A câmera do orador é pedida em alta.</translation>
     </message>
     <message>
-        <location line="+5"/>
+        <location line="+6"/>
         <source>Quién es el orador</source>
         <translation>Quem é o orador</translation>
     </message>
@@ -50329,6 +50374,71 @@ Dados (de %2): %3</translation>
     </message>
     <message>
         <location line="+4"/>
+        <source>Agrandar al que habla</source>
+        <translation>Aumentar quem fala</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>No</source>
+        <translation>Não</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Encima (crece sobre su celda, sin achicar a nadie)</source>
+        <translation>Por cima (cresce sobre a sua célula, sem diminuir ninguém)</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Achicando a los demás (todas al 94 %, el orador llena su celda)</source>
+        <translation>Diminuindo os demais (todas a 94 %, o orador preenche sua célula)</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Pasar a la escena del orador</source>
+        <translation>Passar para a cena do orador</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>A mano (corta el operador)</source>
+        <translation>Manual (o operador corta)</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Automático (al cambiar el orador)</source>
+        <translation>Automático (quando o orador muda)</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Con el asistente (y siempre te avisa)</source>
+        <translation>Com o assistente (e ele sempre avisa)</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Automático: al cambiar el orador la app pone su escena al aire en la salida elegida y, cuando ya no hay orador, vuelve a la de antes (con el tiempo mínimo del orador). Con el asistente: se lo pide al de automatización, que corta si está autorizado; el operador siempre recibe el aviso («¿paso a…?» y «pasé a…»).</source>
+        <translation>Automático: quando o orador muda, o app coloca a cena dele no ar na saída escolhida e, quando não há mais orador, volta para a anterior (com o tempo mínimo do orador). Com o assistente: o app pede ao assistente de automação, que corta se estiver autorizado; o operador sempre recebe o aviso («passo para…?» e «passei para…»).</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>En qué salida</source>
+        <translation>Em qual saída</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>El id de la salida (ver Salidas). Vacío = la principal.</source>
+        <translation>O id da saída (veja Saídas). Vazio = a principal.</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Escena del orador</source>
+        <translation>Cena do orador</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>La pone «Armar la escena del orador»; se puede elegir otra.</source>
+        <translation>É criada por «Montar a cena do orador»; dá para escolher outra.</translation>
+    </message>
+    <message>
+        <location line="+2"/>
         <source>Armar la escena del orador</source>
         <translation>Montar a cena do orador</translation>
     </message>
@@ -50488,7 +50598,7 @@ Dados (de %2): %3</translation>
         <translation>Ainda sem canal: há mais de 8 grades, ou a conferência não iniciou.</translation>
     </message>
     <message>
-        <location filename="../src/app/escenas/GrillaPersonas.cpp" line="+165"/>
+        <location filename="../src/app/escenas/GrillaPersonas.cpp" line="+176"/>
         <source>los ajustes van en un objeto</source>
         <translation>os ajustes vão em um objeto</translation>
     </message>
@@ -50513,9 +50623,14 @@ Dados (de %2): %3</translation>
         <translation>“%1” não é um ajuste da grade de pessoas</translation>
     </message>
     <message>
-        <location line="+17"/>
+        <location line="+18"/>
         <source>«grupo» es un texto (vacío = sola)</source>
         <translation>“grupo” é um texto (vazio = sozinha)</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>«%1» es un texto</source>
+        <translation>«%1» é um texto</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -53945,7 +54060,7 @@ Dados (de %2): %3</translation>
         <translation>não</translation>
     </message>
     <message>
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="+846"/>
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="+864"/>
         <source>«%1» no arrancó al abrir: %2</source>
         <translation>“%1” não iniciou ao abrir: %2</translation>
     </message>
@@ -64524,11 +64639,11 @@ Com este repertório monta-se um gráfico SEM escrever código: é o que convém
     </message>
     <message>
         <location filename="../src/app/mcp/McpGrillaTools.cpp" line="+23"/>
-        <source>origen (sala|asamblea|ambas), orden (llegada|habla|prioridad), tope (celdas con el «+N», 0 = sin tope), solo_con_camara, sin_al_aire (sin los que ya están al aire en otra fuente o en otra grilla que se ve, contando las escenas de las capas DSK), resaltar (a quien habla), grupo (las grillas con el mismo grupo se reparten la gente sin repetir; &quot;&quot; = sola), orden_en_grupo (la primera manda el orden y el modo), reparto (en_orden: llena la primera hasta su tope; parejo: la misma cantidad en cada una), ancho, alto, proporcion (16:9|4:3|1:1|3:4|9:16|llenar), separacion, margen, transicion_ms, fondo y color_resaltar (&quot;#AARRGGBB&quot;). Cuando alguien habla: al_hablar (resaltar: nadie se mueve, borde y un leve agrandado | destacar: el orador grande y los demás en una franja, en el mismo orden | superponer: el orador encima en un hueco que le deja la grilla | escena: la grilla no cambia y otra grilla con muestra=orador lo muestra solo | nada), disparo (voz: voz sostenida voz_ms | palabra: la palabra de la asamblea | orador: el orador al aire de la conferencia | manual: grilla_personas_destacar), voz_ms, minimo_ms (el orador no cambia antes: histéresis), precarga (el siguiente ya pide la capa alta), destacar_lugar (centro|izquierda), destacar_tamano (% del lienzo), franja (abajo|costado), superponer_tamano, superponer_completa, fundido_ms (de la baja a la HD). Nombres: nombres (no|nombre|nombre_cargo), nombre_tamano (% del alto de la celda), nombre_color, nombre_fondo, nombre_lugar (abajo|arriba). muestra (todos|orador) y sigue (la grilla cuyo orador muestra; &quot;&quot; = la primera que tenga): la escena del orador.</source>
-        <translation>origen (sala|asamblea|ambas), orden (llegada|habla|prioridad), tope (células com o «+N», 0 = sem limite), solo_con_camara, sin_al_aire (sem quem já está no ar em outra fonte ou em outra grade visível, contando as cenas das camadas DSK), resaltar (quem fala), grupo (as grades com o mesmo grupo dividem as pessoas sem repetir; &quot;&quot; = sozinha), orden_en_grupo (a primeira define a ordem e o modo), reparto (en_orden: enche a primeira até o limite; parejo: a mesma quantidade em cada uma), ancho, alto, proporcion (16:9|4:3|1:1|3:4|9:16|llenar), separacion, margen, transicion_ms, fondo e color_resaltar (&quot;#AARRGGBB&quot;). Quando alguém fala: al_hablar (resaltar: ninguém se mexe, borda e um leve aumento | destacar: o orador grande e os demais em uma faixa, na mesma ordem | superponer: o orador por cima, em um vão que a grade deixa | escena: a grade não muda e outra grade com muestra=orador o mostra sozinho | nada), disparo (voz: voz sustentada voz_ms | palabra: a palavra da assembleia | orador: o orador no ar da conferência | manual: grilla_personas_destacar), voz_ms, minimo_ms (o orador não muda antes disso: histerese), precarga (o próximo já pede a camada alta), destacar_lugar (centro|izquierda), destacar_tamano (% da tela), franja (abajo|costado), superponer_tamano, superponer_completa, fundido_ms (da baixa para a HD). Nomes: nombres (no|nombre|nombre_cargo), nombre_tamano (% da altura da célula), nombre_color, nombre_fondo, nombre_lugar (abajo|arriba). muestra (todos|orador) e sigue (a grade cujo orador mostra; &quot;&quot; = a primeira que tiver): a cena do orador.</translation>
+        <source>origen (sala|asamblea|ambas), orden (llegada|habla|prioridad), tope (celdas con el «+N», 0 = sin tope), solo_con_camara, sin_al_aire (sin los que ya están al aire en otra fuente o en otra grilla que se ve, contando las escenas de las capas DSK), resaltar (a quien habla), grupo (las grillas con el mismo grupo se reparten la gente sin repetir; &quot;&quot; = sola), orden_en_grupo (la primera manda el orden y el modo), reparto (en_orden: llena la primera hasta su tope; parejo: la misma cantidad en cada una), ancho, alto, proporcion (16:9|4:3|1:1|3:4|9:16|llenar), separacion, margen, transicion_ms, fondo y color_resaltar (&quot;#AARRGGBB&quot;). Cuando alguien habla: al_hablar (sin_cambios: la grilla no se toca, solo la cámara del orador en alta | resaltar: nadie se mueve, el orador con borde | destacar: el orador grande y los demás en una franja, en el mismo orden | superponer: el orador encima en un hueco que le deja la grilla | escena: la grilla no cambia y otra grilla con muestra=orador lo muestra solo | nada: sin orador), agrandar (resaltar y escena: no | encima | achicando), pasar_a_escena (escena: a_mano | automatico | asistente: siempre avisa al operador), salida_orador (&quot;&quot; = la principal), escena_orador (la pone grilla_personas_escena_orador), disparo (voz: voz sostenida voz_ms | palabra: la palabra de la asamblea | orador: el orador al aire de la conferencia | manual: grilla_personas_destacar), voz_ms, minimo_ms (el orador no cambia antes: histéresis), precarga (el siguiente ya pide la capa alta), destacar_lugar (centro|izquierda), destacar_tamano (% del lienzo), franja (abajo|costado), superponer_tamano, superponer_completa, fundido_ms (de la baja a la HD). Nombres: nombres (no|nombre|nombre_cargo), nombre_tamano (% del alto de la celda), nombre_color, nombre_fondo, nombre_lugar (abajo|arriba). muestra (todos|orador) y sigue (la grilla cuyo orador muestra; &quot;&quot; = la primera que tenga): la escena del orador.</source>
+        <translation>origen (sala|asamblea|ambas), orden (llegada|habla|prioridad), tope (células com o «+N», 0 = sem limite), solo_con_camara, sin_al_aire (sem quem já está no ar em outra fonte ou em outra grade visível, contando as cenas das camadas DSK), resaltar (quem fala), grupo (as grades com o mesmo grupo dividem as pessoas sem repetir; &quot;&quot; = sozinha), orden_en_grupo (a primeira define a ordem e o modo), reparto (en_orden: enche a primeira até o limite; parejo: a mesma quantidade em cada uma), ancho, alto, proporcion (16:9|4:3|1:1|3:4|9:16|llenar), separacion, margen, transicion_ms, fondo e color_resaltar (&quot;#AARRGGBB&quot;). Quando alguém fala: al_hablar (sin_cambios: a grade não é tocada, só a câmera do orador em alta | resaltar: ninguém se mexe, o orador ganha borda | destacar: o orador grande e os demais em uma faixa, na mesma ordem | superponer: o orador por cima, em um vão que a grade deixa | escena: a grade não muda e outra grade com muestra=orador o mostra sozinho | nada: sem orador), agrandar (resaltar e escena: no | encima | achicando), pasar_a_escena (escena: a_mano | automatico | asistente: sempre avisa o operador), salida_orador (&quot;&quot; = a principal), escena_orador (criada por grilla_personas_escena_orador), disparo (voz: voz sustentada voz_ms | palabra: a palavra da assembleia | orador: o orador no ar da conferência | manual: grilla_personas_destacar), voz_ms, minimo_ms (o orador não muda antes disso: histerese), precarga (o próximo já pede a camada alta), destacar_lugar (centro|izquierda), destacar_tamano (% da tela), franja (abajo|costado), superponer_tamano, superponer_completa, fundido_ms (da baixa para a HD). Nomes: nombres (no|nombre|nombre_cargo), nombre_tamano (% da altura da célula), nombre_color, nombre_fondo, nombre_lugar (abajo|arriba). muestra (todos|orador) e sigue (a grade cujo orador mostra; &quot;&quot; = a primeira que tiver): a cena do orador.</translation>
     </message>
     <message>
-        <location line="+20"/>
+        <location line="+22"/>
         <source>Qué muestra cada grilla de personas</source>
         <translation>O que cada grade de pessoas mostra</translation>
     </message>

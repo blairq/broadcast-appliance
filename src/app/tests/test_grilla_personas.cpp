@@ -754,10 +754,18 @@ void capasYPedido() {
 
 void sinCambiosAgrandarYPase() {
     const auto plano = disponer(4, 1280, 720, 8, 0, 16.0 / 9);
+    // Por lugar: la i-ésima persona de la grilla (el orden de los lugares; el orador entró
+    // primero porque tiene prioridad) → su rectángulo, con el nombre «L<i>».
     const auto rects = [](const Resultado& r) {
         std::map<std::string, Rect> m;
+        for (std::size_t i = 0; i < r.personas.size(); ++i)
+            for (const auto& x : r.celdas)
+                if (x.clave == r.personas[i]) m["L" + std::to_string(i)] = x.r;
         for (const auto& x : r.celdas) m[x.clave] = x.r;
         return m;
+    };
+    const auto lugarDe = [](const Resultado& r, const std::string& k) {
+        return static_cast<std::size_t>(std::find(r.personas.begin(), r.personas.end(), k) - r.personas.begin());
     };
     auto v = gente(4);
     v[1].palabra = true;
@@ -770,7 +778,7 @@ void sinCambiosAgrandarYPase() {
         auto res = rep.calcular(gs, v, {}, 0);
         auto m = rects(res[0]);
         CHECK(res[0].orador == "sala:p1", "sin cambios: igual hay orador");
-        CHECK(m["sala:p0"] == plano[0] && m["sala:p1"] == plano[1] && m["sala:p3"] == plano[3], "sin cambios: la grilla de siempre");
+        CHECK(m["L0"] == plano[0] && m["L1"] == plano[1] && m["L2"] == plano[2] && m["L3"] == plano[3], "sin cambios: la grilla de siempre");
         bool alta = false, borde = false;
         for (const auto& x : res[0].celdas)
             if (x.clave == "sala:p1") {
@@ -786,7 +794,7 @@ void sinCambiosAgrandarYPase() {
         gs[0].disparo = Disparo::Palabra;
         CHECK(gs[0].agrandar == Agrandar::No, "de fábrica no se agranda");
         auto m = rects(rep.calcular(gs, v, {}, 0)[0]);
-        CHECK(m["sala:p1"] == plano[1] && m["sala:p0"] == plano[0], "agrandar no: nadie cambia de tamaño");
+        CHECK(m["L0"] == plano[0] && m["L1"] == plano[1] && m["L3"] == plano[3], "agrandar no: nadie cambia de tamaño");
     }
     // Agrandar «achicando»: las demás al 94 %, el orador entero; sin orador, todas al 94 % (nadie salta).
     {
@@ -794,12 +802,15 @@ void sinCambiosAgrandarYPase() {
         std::vector<Config> gs{grilla("g", 8)};
         gs[0].disparo = Disparo::Palabra;
         gs[0].agrandar = Agrandar::Achicando;
-        auto m = rects(rep.calcular(gs, v, {}, 0)[0]);
-        CHECK(m["sala:p1"] == plano[1] && m["sala:p0"] == achicar(plano[0], kResaltarResto), "achicando: el orador llena su lugar");
+        const Resultado r0 = rep.calcular(gs, v, {}, 0)[0];
+        auto m = rects(r0);
+        const std::size_t lo = lugarDe(r0, "sala:p1"), l0 = lugarDe(r0, "sala:p0");
+        CHECK(lo < 4 && l0 < 4 && m["sala:p1"] == plano[lo] && m["sala:p0"] == achicar(plano[l0], kResaltarResto),
+              "achicando: el orador llena su lugar, los demás al 94 %");
         auto w = v;
         w[1].palabra = false;
         auto n = rects(rep.calcular(gs, w, {}, 10000)[0]);
-        CHECK(n["sala:p1"] == achicar(plano[1], kResaltarResto) && n["sala:p0"] == m["sala:p0"], "sin orador: todas al 94 %, los demás quietos");
+        CHECK(n["sala:p1"] == achicar(plano[lo], kResaltarResto) && n["sala:p0"] == m["sala:p0"], "sin orador: todas al 94 %, los demás quietos");
     }
     // El pase a la escena del orador.
     {

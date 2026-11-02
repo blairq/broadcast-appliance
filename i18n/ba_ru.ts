@@ -32730,7 +32730,7 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
 <context>
     <name>StudioViewModel</name>
     <message>
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="+132"/>
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="+133"/>
         <source>%1 (no se pudo: %2)</source>
         <translation>%1 (не удалось: %2)</translation>
     </message>
@@ -32765,7 +32765,7 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
         <translation>не ответил</translation>
     </message>
     <message>
-        <location line="+80"/>
+        <location line="+98"/>
         <source>Conferencia reiniciada con la configuración nueva.</source>
         <translation>Конференция перезапущена с новыми настройками.</translation>
     </message>
@@ -43006,7 +43006,7 @@ Elegí otra cosa en Salidas → Pantallas.</source>
     </message>
     <message>
         <location line="-57"/>
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="-812"/>
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="-830"/>
         <source>arranque: %1 tardó %2 ms</source>
         <translation>запуск: %1 занял %2 мс</translation>
     </message>
@@ -50140,12 +50140,12 @@ Datos (de %2): %3</source>
         <translation>%1 · выступающий</translation>
     </message>
     <message>
-        <location line="+191"/>
+        <location line="+196"/>
         <source>banca %1</source>
         <translation>место %1</translation>
     </message>
     <message>
-        <location line="+77"/>
+        <location line="+78"/>
         <source>sin canal: hay más de %1 grillas</source>
         <translation>нет канала: сеток больше %1</translation>
     </message>
@@ -50173,6 +50173,46 @@ Datos (de %2): %3</source>
         <location line="+15"/>
         <source>falta a quién (la clave)</source>
         <translation>не указано, кто (ключ)</translation>
+    </message>
+    <message>
+        <location line="+36"/>
+        <source>El asistente pasó a «%1» (%2).</source>
+        <translation>Ассистент перешёл на «%1» (%2).</translation>
+    </message>
+    <message>
+        <location line="+12"/>
+        <source>Ya no hay orador: volví a «%1».</source>
+        <translation>Выступающего больше нет: я вернулся на «%1».</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Pasé a la escena del orador: %1.</source>
+        <translation>Я перешёл на сцену выступающего: %1.</translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>la principal</source>
+        <translation>основной</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>[GRILLA DE PERSONAS] Ya no hay orador en «%1». Si estás autorizado a cortar, volvé a la escena «%2» en la salida %3; si no, no hagas nada.</source>
+        <translation>[GRILLA DE PERSONAS] В «%1» больше нет выступающего. Если у вас есть право переключать, вернитесь на сцену «%2» на выходе %3; если нет, ничего не делайте.</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>[GRILLA DE PERSONAS] El orador de «%1» ahora es %4. Si estás autorizado a cortar, poné al aire la escena «%2» en la salida %3; si no, no hagas nada.</source>
+        <translation>[GRILLA DE PERSONAS] Выступающий в «%1» теперь %4. Если у вас есть право переключать, выведите в эфир сцену «%2» на выходе %3; если нет, ничего не делайте.</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Ya no hay orador: ¿vuelvo a «%1»?</source>
+        <translation>Выступающего больше нет: вернуться на «%1»?</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>¿Paso a la escena del orador: %1?</source>
+        <translation>Перейти на сцену выступающего: %1?</translation>
     </message>
     <message>
         <location filename="../src/app/escenas/FuenteGrilla.cpp" line="+44"/>
@@ -50391,6 +50431,11 @@ Datos (de %2): %3</source>
     </message>
     <message>
         <location line="+1"/>
+        <source>Sin cambios (solo la cámara en alta)</source>
+        <translation>Без изменений (только камера в высоком качестве)</translation>
+    </message>
+    <message>
+        <location line="+1"/>
         <source>Resaltar en su lugar</source>
         <translation>Подсветить на месте</translation>
     </message>
@@ -50411,16 +50456,16 @@ Datos (de %2): %3</source>
     </message>
     <message>
         <location line="+1"/>
-        <source>Nada (solo el borde)</source>
-        <translation>Ничего (только рамка)</translation>
+        <source>Nada (sin orador: solo el borde a quien habla)</source>
+        <translation>Ничего (нет выступающего: только рамка у говорящего)</translation>
     </message>
     <message>
         <location line="+1"/>
-        <source>Resaltar: nadie se mueve; borde y un leve agrandado. Destacar: el orador a un lugar grande y los demás a una franja, en el mismo orden. Superponer: el orador encima, en un hueco que le deja la grilla (nadie queda tapado). Escena: esta grilla no cambia; otra grilla con «Solo al orador» lo muestra en su escena. Al orador se le pide su cámara en alta.</source>
-        <translation>Подсветить: никто не двигается; рамка и небольшое увеличение. Выделить: выступающий переходит на большое место, остальные — в полосу, в прежнем порядке. Наложить: выступающий сверху, в пустом месте, которое оставляет сетка (никто не закрыт). Сцена: эта сетка не меняется; другая сетка с «Только выступающий» показывает его в своей сцене. Камера выступающего запрашивается в высоком качестве.</translation>
+        <source>Sin cambios: la grilla no se toca; al orador solo se le pide la cámara en alta (entra con un fundido). Resaltar: nadie se mueve; el orador con borde (y agrandado, si se elige abajo). Destacar: el orador a un lugar grande y los demás a una franja, en el mismo orden. Superponer: el orador encima, en un hueco que le deja la grilla (nadie queda tapado). Escena: esta grilla no cambia; otra grilla con «Solo al orador» lo muestra en su escena. Al orador se le pide su cámara en alta.</source>
+        <translation>Без изменений: сетка не трогается; у выступающего только запрашивается камера в высоком качестве (появляется плавным переходом). Подсветить: никто не двигается; у выступающего рамка (и увеличение, если выбрано ниже). Выделить: выступающий переходит на большое место, остальные — в полосу, в прежнем порядке. Наложить: выступающий сверху, в пустом месте, которое оставляет сетка (никто не закрыт). Сцена: эта сетка не меняется; другая сетка с «Только выступающий» показывает его в своей сцене. Камера выступающего запрашивается в высоком качестве.</translation>
     </message>
     <message>
-        <location line="+5"/>
+        <location line="+6"/>
         <source>Quién es el orador</source>
         <translation>Кто выступающий</translation>
     </message>
@@ -50481,6 +50526,71 @@ Datos (de %2): %3</source>
     </message>
     <message>
         <location line="+4"/>
+        <source>Agrandar al que habla</source>
+        <translation>Увеличивать говорящего</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>No</source>
+        <translation>Нет</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Encima (crece sobre su celda, sin achicar a nadie)</source>
+        <translation>Поверх (растёт над своей ячейкой, никого не уменьшая)</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Achicando a los demás (todas al 94 %, el orador llena su celda)</source>
+        <translation>Уменьшая остальных (все до 94 %, выступающий занимает свою ячейку)</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Pasar a la escena del orador</source>
+        <translation>Переходить на сцену выступающего</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>A mano (corta el operador)</source>
+        <translation>Вручную (переключает оператор)</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Automático (al cambiar el orador)</source>
+        <translation>Автоматически (при смене выступающего)</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Con el asistente (y siempre te avisa)</source>
+        <translation>С ассистентом (и он всегда уведомляет)</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Automático: al cambiar el orador la app pone su escena al aire en la salida elegida y, cuando ya no hay orador, vuelve a la de antes (con el tiempo mínimo del orador). Con el asistente: se lo pide al de automatización, que corta si está autorizado; el operador siempre recibe el aviso («¿paso a…?» y «pasé a…»).</source>
+        <translation>Автоматически: при смене выступающего приложение выводит его сцену в эфир на выбранном выходе, а когда выступающего больше нет, возвращается к прежней (с минимальным временем выступающего). С ассистентом: просит об этом ассистента автоматизации, который переключает, если у него есть право; оператор всегда получает уведомление («перейти на…?» и «перешёл на…»).</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>En qué salida</source>
+        <translation>На каком выходе</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>El id de la salida (ver Salidas). Vacío = la principal.</source>
+        <translation>Идентификатор выхода (см. Выходы). Пусто = основной.</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Escena del orador</source>
+        <translation>Сцена выступающего</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>La pone «Armar la escena del orador»; se puede elegir otra.</source>
+        <translation>Её создаёт «Собрать сцену выступающего»; можно выбрать другую.</translation>
+    </message>
+    <message>
+        <location line="+2"/>
         <source>Armar la escena del orador</source>
         <translation>Собрать сцену выступающего</translation>
     </message>
@@ -50640,7 +50750,7 @@ Datos (de %2): %3</source>
         <translation>Канала пока нет: сеток больше 8 или конференция не запущена.</translation>
     </message>
     <message>
-        <location filename="../src/app/escenas/GrillaPersonas.cpp" line="+165"/>
+        <location filename="../src/app/escenas/GrillaPersonas.cpp" line="+176"/>
         <source>los ajustes van en un objeto</source>
         <translation>настройки передаются объектом</translation>
     </message>
@@ -50665,9 +50775,14 @@ Datos (de %2): %3</source>
         <translation>«%1» не является настройкой сетки участников</translation>
     </message>
     <message>
-        <location line="+17"/>
+        <location line="+18"/>
         <source>«grupo» es un texto (vacío = sola)</source>
         <translation>«grupo» — это текст (пусто = отдельно)</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>«%1» es un texto</source>
+        <translation>«%1» — это текст</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -54097,7 +54212,7 @@ Datos (de %2): %3</source>
         <translation>нет</translation>
     </message>
     <message>
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="+846"/>
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="+864"/>
         <source>«%1» no arrancó al abrir: %2</source>
         <translation>«%1» не запустился при открытии: %2</translation>
     </message>
@@ -64682,11 +64797,11 @@ Con este repertorio se arma un gráfico SIN escribir código: es lo que conviene
     </message>
     <message>
         <location filename="../src/app/mcp/McpGrillaTools.cpp" line="+23"/>
-        <source>origen (sala|asamblea|ambas), orden (llegada|habla|prioridad), tope (celdas con el «+N», 0 = sin tope), solo_con_camara, sin_al_aire (sin los que ya están al aire en otra fuente o en otra grilla que se ve, contando las escenas de las capas DSK), resaltar (a quien habla), grupo (las grillas con el mismo grupo se reparten la gente sin repetir; &quot;&quot; = sola), orden_en_grupo (la primera manda el orden y el modo), reparto (en_orden: llena la primera hasta su tope; parejo: la misma cantidad en cada una), ancho, alto, proporcion (16:9|4:3|1:1|3:4|9:16|llenar), separacion, margen, transicion_ms, fondo y color_resaltar (&quot;#AARRGGBB&quot;). Cuando alguien habla: al_hablar (resaltar: nadie se mueve, borde y un leve agrandado | destacar: el orador grande y los demás en una franja, en el mismo orden | superponer: el orador encima en un hueco que le deja la grilla | escena: la grilla no cambia y otra grilla con muestra=orador lo muestra solo | nada), disparo (voz: voz sostenida voz_ms | palabra: la palabra de la asamblea | orador: el orador al aire de la conferencia | manual: grilla_personas_destacar), voz_ms, minimo_ms (el orador no cambia antes: histéresis), precarga (el siguiente ya pide la capa alta), destacar_lugar (centro|izquierda), destacar_tamano (% del lienzo), franja (abajo|costado), superponer_tamano, superponer_completa, fundido_ms (de la baja a la HD). Nombres: nombres (no|nombre|nombre_cargo), nombre_tamano (% del alto de la celda), nombre_color, nombre_fondo, nombre_lugar (abajo|arriba). muestra (todos|orador) y sigue (la grilla cuyo orador muestra; &quot;&quot; = la primera que tenga): la escena del orador.</source>
-        <translation>origen (sala|asamblea|ambas), orden (llegada|habla|prioridad), tope (ячейки с «+N», 0 = без ограничения), solo_con_camara, sin_al_aire (без тех, кто уже в эфире в другом источнике или в другой видимой сетке, включая сцены слоёв DSK), resaltar (подсвечивать говорящего), grupo (сетки с одной группой делят людей без повторов; &quot;&quot; = одна), orden_en_grupo (первая задаёт порядок и режим), reparto (en_orden: заполняет первую до её предела; parejo: поровну в каждую), ancho, alto, proporcion (16:9|4:3|1:1|3:4|9:16|llenar), separacion, margen, transicion_ms, fondo и color_resaltar (&quot;#AARRGGBB&quot;). Когда кто-то говорит: al_hablar (resaltar: никто не двигается, рамка и небольшое увеличение | destacar: выступающий крупно, остальные в полосе, в прежнем порядке | superponer: выступающий сверху, в пустом месте, которое оставляет сетка | escena: сетка не меняется, а другая сетка с muestra=orador показывает только его | nada), disparo (voz: устойчивый голос voz_ms | palabra: слово в собрании | orador: выступающий в эфире конференции | manual: grilla_personas_destacar), voz_ms, minimo_ms (выступающий не меняется раньше: гистерезис), precarga (следующий уже запрашивает высокий слой), destacar_lugar (centro|izquierda), destacar_tamano (% от холста), franja (abajo|costado), superponer_tamano, superponer_completa, fundido_ms (от низкого к HD). Имена: nombres (no|nombre|nombre_cargo), nombre_tamano (% от высоты ячейки), nombre_color, nombre_fondo, nombre_lugar (abajo|arriba). muestra (todos|orador) и sigue (сетка, чьего выступающего она показывает; &quot;&quot; = первая, где он есть): сцена выступающего.</translation>
+        <source>origen (sala|asamblea|ambas), orden (llegada|habla|prioridad), tope (celdas con el «+N», 0 = sin tope), solo_con_camara, sin_al_aire (sin los que ya están al aire en otra fuente o en otra grilla que se ve, contando las escenas de las capas DSK), resaltar (a quien habla), grupo (las grillas con el mismo grupo se reparten la gente sin repetir; &quot;&quot; = sola), orden_en_grupo (la primera manda el orden y el modo), reparto (en_orden: llena la primera hasta su tope; parejo: la misma cantidad en cada una), ancho, alto, proporcion (16:9|4:3|1:1|3:4|9:16|llenar), separacion, margen, transicion_ms, fondo y color_resaltar (&quot;#AARRGGBB&quot;). Cuando alguien habla: al_hablar (sin_cambios: la grilla no se toca, solo la cámara del orador en alta | resaltar: nadie se mueve, el orador con borde | destacar: el orador grande y los demás en una franja, en el mismo orden | superponer: el orador encima en un hueco que le deja la grilla | escena: la grilla no cambia y otra grilla con muestra=orador lo muestra solo | nada: sin orador), agrandar (resaltar y escena: no | encima | achicando), pasar_a_escena (escena: a_mano | automatico | asistente: siempre avisa al operador), salida_orador (&quot;&quot; = la principal), escena_orador (la pone grilla_personas_escena_orador), disparo (voz: voz sostenida voz_ms | palabra: la palabra de la asamblea | orador: el orador al aire de la conferencia | manual: grilla_personas_destacar), voz_ms, minimo_ms (el orador no cambia antes: histéresis), precarga (el siguiente ya pide la capa alta), destacar_lugar (centro|izquierda), destacar_tamano (% del lienzo), franja (abajo|costado), superponer_tamano, superponer_completa, fundido_ms (de la baja a la HD). Nombres: nombres (no|nombre|nombre_cargo), nombre_tamano (% del alto de la celda), nombre_color, nombre_fondo, nombre_lugar (abajo|arriba). muestra (todos|orador) y sigue (la grilla cuyo orador muestra; &quot;&quot; = la primera que tenga): la escena del orador.</source>
+        <translation>origen (sala|asamblea|ambas), orden (llegada|habla|prioridad), tope (ячейки с «+N», 0 = без ограничения), solo_con_camara, sin_al_aire (без тех, кто уже в эфире в другом источнике или в другой видимой сетке, включая сцены слоёв DSK), resaltar (подсвечивать говорящего), grupo (сетки с одной группой делят людей без повторов; &quot;&quot; = одна), orden_en_grupo (первая задаёт порядок и режим), reparto (en_orden: заполняет первую до её предела; parejo: поровну в каждую), ancho, alto, proporcion (16:9|4:3|1:1|3:4|9:16|llenar), separacion, margen, transicion_ms, fondo и color_resaltar (&quot;#AARRGGBB&quot;). Когда кто-то говорит: al_hablar (sin_cambios: сетка не трогается, только камера выступающего в высоком качестве | resaltar: никто не двигается, у выступающего рамка | destacar: выступающий крупно, остальные в полосе, в прежнем порядке | superponer: выступающий сверху, в пустом месте, которое оставляет сетка | escena: сетка не меняется, а другая сетка с muestra=orador показывает только его | nada: нет выступающего), agrandar (resaltar и escena: no | encima | achicando), pasar_a_escena (escena: a_mano | automatico | asistente: всегда уведомляет оператора), salida_orador (&quot;&quot; = основной), escena_orador (создаётся через grilla_personas_escena_orador), disparo (voz: устойчивый голос voz_ms | palabra: слово в собрании | orador: выступающий в эфире конференции | manual: grilla_personas_destacar), voz_ms, minimo_ms (выступающий не меняется раньше: гистерезис), precarga (следующий уже запрашивает высокий слой), destacar_lugar (centro|izquierda), destacar_tamano (% от холста), franja (abajo|costado), superponer_tamano, superponer_completa, fundido_ms (от низкого к HD). Имена: nombres (no|nombre|nombre_cargo), nombre_tamano (% от высоты ячейки), nombre_color, nombre_fondo, nombre_lugar (abajo|arriba). muestra (todos|orador) и sigue (сетка, чьего выступающего она показывает; &quot;&quot; = первая, где он есть): сцена выступающего.</translation>
     </message>
     <message>
-        <location line="+20"/>
+        <location line="+22"/>
         <source>Qué muestra cada grilla de personas</source>
         <translation>Что показывает каждая сетка участников</translation>
     </message>
