@@ -65268,7 +65268,7 @@ With this repertoire you build a graphic WITHOUT writing code: it is what you sh
     <message>
         <location line="+4"/>
         <source>alta_max (de fábrica 4; 1 a 64): tope duro, nunca más personas que esto en alta a la vez, sean cuantos sean los invitados. Si piden más, por prioridad: el orador (o los oradores), el presentador, el siguiente (precarga), los fijados y el resto por tamaño; el que ya estaba en alta no lo pierde por uno nuevo del mismo grupo. Con varias grillas manda el alta_max más chico. grilla_personas_estado lo dice en cada grilla.</source>
-        <translation>alta_max (default 4; 1 to 64): hard cap, never more people than this in high at once, however many guests there are. If more ask for it, by priority: the speaker (or speakers), the presenter, the next one (preload), the pinned ones and the rest by size; whoever was already in high doesn't lose it to a newcomer of the same group. With several grids the smallest alta_max rules. grilla_personas_estado reports it for each grid.</translation>
+        <translation>alta_max (default 4; 1 to 64): hard cap, never more people than this in high at once, however many guests there are. If more ask for it, by priority: the speaker (or speakers), the presenter, the next one (preload), the pinned ones and the rest by size; whoever was already in high doesn&apos;t lose it to a newcomer of the same group. With several grids the smallest alta_max rules. grilla_personas_estado reports it for each grid.</translation>
     </message>
     <message>
         <location line="+7"/>

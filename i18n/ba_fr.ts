@@ -51101,7 +51101,7 @@ Données (de %2)&#xa0;: %3</translation>
     <message>
         <location line="+1"/>
         <source>Nunca más que esto en alta definición a la vez, sean 5 o 40 invitados. Si piden más, van primero el orador (o los oradores), después el presentador, después el siguiente de la fila y después los fijados; el resto, en baja. De fábrica 4: un debate entre dos, el que espera y el presentador.</source>
-        <translation>Jamais plus que ce nombre en haute définition à la fois, qu'il y ait 5 ou 40 invités. S'ils sont plus nombreux à la demander, passent d'abord l'orateur (ou les orateurs), puis le présentateur, puis le suivant dans la file et enfin les épinglés ; le reste, en basse. Par défaut 4 : un débat à deux, celui qui attend et le présentateur.</translation>
+        <translation>Jamais plus que ce nombre en haute définition à la fois, qu&apos;il y ait 5 ou 40 invités. S&apos;ils sont plus nombreux à la demander, passent d&apos;abord l&apos;orateur (ou les orateurs), puis le présentateur, puis le suivant dans la file et enfin les épinglés ; le reste, en basse. Par défaut 4 : un débat à deux, celui qui attend et le présentateur.</translation>
     </message>
     <message>
         <location line="+5"/>
@@ -65308,7 +65308,7 @@ Avec ce répertoire, on construit un graphique SANS écrire de code&#xa0;: c&apo
     <message>
         <location line="+4"/>
         <source>alta_max (de fábrica 4; 1 a 64): tope duro, nunca más personas que esto en alta a la vez, sean cuantos sean los invitados. Si piden más, por prioridad: el orador (o los oradores), el presentador, el siguiente (precarga), los fijados y el resto por tamaño; el que ya estaba en alta no lo pierde por uno nuevo del mismo grupo. Con varias grillas manda el alta_max más chico. grilla_personas_estado lo dice en cada grilla.</source>
-        <translation>alta_max (par défaut 4 ; de 1 à 64) : plafond strict, jamais plus de personnes que cela en haute à la fois, quel que soit le nombre d'invités. S'ils sont plus nombreux à la demander, par priorité : l'orateur (ou les orateurs), le présentateur, le suivant (préchargement), les épinglés et le reste selon la taille ; celui qui était déjà en haute ne la perd pas au profit d'un nouveau du même groupe. Avec plusieurs grilles, c'est le plus petit alta_max qui s'applique. grilla_personas_estado l'indique pour chaque grille.</translation>
+        <translation>alta_max (par défaut 4 ; de 1 à 64) : plafond strict, jamais plus de personnes que cela en haute à la fois, quel que soit le nombre d&apos;invités. S&apos;ils sont plus nombreux à la demander, par priorité : l&apos;orateur (ou les orateurs), le présentateur, le suivant (préchargement), les épinglés et le reste selon la taille ; celui qui était déjà en haute ne la perd pas au profit d&apos;un nouveau du même groupe. Avec plusieurs grilles, c&apos;est le plus petit alta_max qui s&apos;applique. grilla_personas_estado l&apos;indique pour chaque grille.</translation>
     </message>
     <message>
         <location line="+7"/>
