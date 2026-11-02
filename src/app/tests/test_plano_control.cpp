@@ -485,6 +485,7 @@ int main(int argc, char** argv) {
         if (ruta == "/api/v1/room")
             return json{{"room", "Sala"}, {"participants", json::array({{{"id", "p1"}, {"name", "Ana"}}})}, {"chat", json::array()}};
         if (ruta == "/api/v1/network") return json{{"https", true}};
+        if (ruta == "/api/v1/gateway") return json{{"uso", json::object()}, {"fronteras", json::array()}};
         return std::nullopt;
     };
     f.modoVivo = [&]() {
