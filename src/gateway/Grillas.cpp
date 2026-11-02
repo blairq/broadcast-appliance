@@ -491,9 +491,11 @@ json Grillas::estado() const {
             int iw = 0, ih = 0;
             if (auto r = retrato(c.persona)) {
                 std::lock_guard<std::mutex> lm(r->m);
-                imagen = !r->px.empty();
-                iw = r->w;
-                ih = r->h;
+                if (const Foto* u = r->ultimo(); u != nullptr && !u->px.empty()) {
+                    imagen = true;
+                    iw = u->w;
+                    ih = u->h;
+                }
                 fundiendo = !r->fundido.imagen().empty(); // en curso (se suelta al terminar, al pintar)
             }
             // imagen_ancho/alto: el retrato guardado (achicado al lugar): con la HD, el del
@@ -601,28 +603,37 @@ void Grillas::guardarCon(Retrato& r, int w, int h, std::int64_t ahora, bool vivo
     // El primer cuadro de la alta: funde desde lo último que se vio (si es reciente: uno
     // viejo sería un salto).
     if (vivo && r.fundidoPendienteMs > 0) {
-        if (!r.px.empty() && ahora - r.ms < 2000) r.fundido.empezar(r.px.data(), r.w, r.h, r.fundidoPendienteMs, ahora);
+        if (const Foto* u = r.ultimo(); u != nullptr && ahora - u->ms < 2000)
+            r.fundido.empezar(u->px.data(), u->w, u->h, r.fundidoPendienteMs, ahora);
         r.fundidoPendienteMs = 0;
     }
-    r.px.swap(px);
-    r.repuesto.swap(px); // el de antes queda para el próximo
-    r.w = tw;
-    r.h = th;
-    r.ms = ahora;
-    if (vivo) r.vivoMs = ahora;
     ++r.seq;
+    Foto& nueva = r.cola[r.seq % kCola]; // pisa el más viejo
+    nueva.px.swap(px);
+    r.repuesto.swap(px); // el que se pisó queda para el próximo
+    nueva.w = tw;
+    nueva.h = th;
+    nueva.ms = ahora;
+    nueva.seq = r.seq;
+    if (vivo) r.vivoMs = ahora;
 }
 
 std::shared_ptr<Grillas::Retrato> Grillas::retratoParaCuadro(const std::string& persona, std::int64_t ahora) const {
     auto r = retrato(persona);
     if (!r) return nullptr; // no está en ninguna grilla: ni se toca
     {
-        // Solo lo que llega a más del doble del ritmo de las grillas (60 cps contra 30): ése
-        // se achicaría dos veces para pintar una. Lo que llega a su ritmo pasa entero (con
-        // un tope cerca del ritmo, una cámara a 30 quedaba en 15-18 por el temblor).
+        // Lo que llega mucho más rápido que el ritmo de las grillas (60 cps contra 30) se
+        // achicaría para no pintarse. Un balde: entra a 1,25 veces el ritmo del pintor en
+        // promedio, con ráfagas de hasta 2 (el temblor de una cámara a su ritmo: antes, el
+        // cuadro que llegaba a menos de medio período del anterior se tiraba, y con el temblor
+        // de la red una cámara a 30 perdía de a uno).
         std::lock_guard<std::mutex> l(r->m);
-        const auto medio = static_cast<std::int64_t>(periodoPintarNs_.load(std::memory_order_relaxed) / 2'000'000ULL);
-        if (r->vivoMs != 0 && ahora - r->vivoMs < medio) return nullptr;
+        const double periodoMs = static_cast<double>(periodoPintarNs_.load(std::memory_order_relaxed)) / 1e6;
+        if (r->creditoMs == 0 || ahora < r->creditoMs) r->credito = 2.0;
+        else r->credito = std::min(2.0, r->credito + 1.25 * static_cast<double>(ahora - r->creditoMs) / periodoMs);
+        r->creditoMs = ahora;
+        if (r->credito < 1.0) return nullptr;
+        r->credito -= 1.0;
     }
     return r;
 }
@@ -815,6 +826,9 @@ void Grillas::pintarLocked(Grilla& g, std::int64_t ahora) {
     // Las que terminaron de salir se van.
     for (auto it = g.anim.begin(); it != g.anim.end();)
         it = it->second.sale && ahora - it->second.t0 >= g.transicionMs ? g.anim.erase(it) : std::next(it);
+    // Un cuadro guardado que llegó hace más de dos vueltas ya se lo perdió el pintor: si hay
+    // uno más nuevo, se saltea (lo que espera no pasa de dos cuadros).
+    const auto atrasoMs = static_cast<std::int64_t>(2 * periodoPintarNs_.load(std::memory_order_relaxed) / 1'000'000ULL);
 
     const auto dibujar = [&](const std::string& persona, const Anim& a) {
         const Rect r = animado(a, g.transicionMs, ahora);
@@ -824,12 +838,14 @@ void Grillas::pintarLocked(Grilla& g, std::int64_t ahora) {
         bool pintada = false;
         if (const auto ret = retrato(persona)) {
             std::lock_guard<std::mutex> l(ret->m);
-            if (!ret->px.empty()) {
+            const auto v = g.visto.find(persona);
+            const Foto* f = ret->elegir(v != g.visto.end() ? v->second : 0, ahora, atrasoMs);
+            if (f != nullptr && !f->px.empty()) {
                 // Recorte que llena el lugar (sin barras).
                 int sx = 0, sy = 0, sw = 0, sh = 0;
-                recorte(ret->w, ret->h, c.w, c.h, sx, sy, sw, sh);
-                escalar(ret->px.data() + (static_cast<std::size_t>(sy) * ret->w + sx) * 4, ret->w * 4, sw, sh, destino,
-                        W * 4, c.w, c.h);
+                recorte(f->w, f->h, c.w, c.h, sx, sy, sw, sh);
+                escalar(f->px.data() + (static_cast<std::size_t>(sy) * f->w + sx) * 4, f->w * 4, sw, sh, destino, W * 4,
+                        c.w, c.h);
                 // De la baja a la HD: lo que se va, encima, cada vez más transparente.
                 if (ret->fundido.activo(ahora) && !ret->fundido.imagen().empty()) {
                     const int aw = ret->fundido.ancho(), ah = ret->fundido.alto();
@@ -839,7 +855,7 @@ void Grillas::pintarLocked(Grilla& g, std::int64_t ahora) {
                             tmpFundido_.data(), c.w * 4, c.w, c.h);
                     mezclarBgra(destino, W * 4, tmpFundido_.data(), c.w * 4, c.w, c.h, ret->fundido.alfa(ahora));
                 }
-                g.visto[persona] = ret->seq;
+                g.visto[persona] = f->seq;
                 pintada = true;
             }
         }
@@ -943,7 +959,7 @@ void Grillas::bucle() {
                         if (const auto r = retrato(c.persona)) {
                             std::lock_guard<std::mutex> lm(r->m);
                             const auto v = g.visto.find(c.persona);
-                            if ((!r->px.empty() && (v == g.visto.end() || v->second != r->seq)) || r->fundido.activo(ahora)) {
+                            if ((r->seq != 0 && (v == g.visto.end() || v->second != r->seq)) || r->fundido.activo(ahora)) {
                                 hace = true;
                                 break;
                             }

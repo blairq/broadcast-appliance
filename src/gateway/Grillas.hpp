@@ -68,6 +68,7 @@
 // ============================================================================
 #pragma once
 
+#include <algorithm>
 #include <atomic>
 #include <cstddef>
 #include <cstdint>
@@ -201,17 +202,43 @@ class Grillas {
                                         std::uint64_t propioNs, std::uint64_t anteriorNs = 0);
 
    private:
-    struct Retrato {
-        std::mutex m;
+    /// Un cuadro guardado de una persona (ya achicado a su lugar).
+    struct Foto {
         std::vector<std::uint8_t> px;
         int w = 0, h = 0;
+        std::int64_t ms = 0;    ///< cuándo llegó
+        std::uint64_t seq = 0;  ///< su número (1, 2, …; 0 = vacío)
+    };
+    /// Cuántos cuadros guarda cada persona. El pintor muestra UNO NUEVO por vuelta (el
+    /// siguiente al que mostró, ver Retrato::elegir), no el último que llegó: la cámara y el
+    /// pintor van los dos a 30 pero sin la misma fase, y con el temblor de la red y del
+    /// decodificador a veces llegaban dos entre una vuelta y la otra (uno se pisaba) y a
+    /// veces ninguno (se repetía): 30 que llegan se veían a 24-27.
+    static constexpr int kCola = 3;
+    struct Retrato {
+        std::mutex m;
+        Foto cola[kCola];             ///< los últimos, por seq % kCola
+        std::uint64_t seq = 0;        ///< el último que llegó (0 = ninguno)
         int quiereW = 0, quiereH = 0; ///< el lugar más grande que ocupa (para achicar al guardar)
-        std::int64_t ms = 0;          ///< cuándo llegó el último
         std::int64_t vivoMs = 0;      ///< el último cuadro de video (no foto)
-        std::uint64_t seq = 0;
+        double credito = 0;           ///< para no achicar de más lo que llega muy rápido (retratoParaCuadro)
+        std::int64_t creditoMs = 0;
         std::vector<std::uint8_t> repuesto; ///< donde se achica el próximo (fuera del candado)
         Fundido fundido;              ///< de la baja a la HD (ver fundir)
         int fundidoPendienteMs = 0;   ///< > 0: el próximo cuadro en vivo arranca el fundido
+
+        /// El último que llegó (nullptr si ninguno). Con `m` tomado.
+        const Foto* ultimo() const { return seq == 0 ? nullptr : &cola[seq % kCola]; }
+        /// El que toca mostrar a quien ya mostró `visto`: el siguiente que tenga guardado,
+        /// salvo los que llegaron hace más de `atrasoMs` (el pintor se los perdió: si hay uno
+        /// más nuevo, se saltean). Sin nuevos, el último (se repite). Con `m` tomado.
+        const Foto* elegir(std::uint64_t visto, std::int64_t ahoraMs, std::int64_t atrasoMs) const {
+            if (seq == 0) return nullptr;
+            const std::uint64_t primero = seq >= static_cast<std::uint64_t>(kCola) ? seq - kCola + 1 : 1;
+            for (std::uint64_t s = std::max(visto + 1, primero); s < seq; ++s)
+                if (ahoraMs - cola[s % kCola].ms <= atrasoMs) return &cola[s % kCola];
+            return &cola[seq % kCola];
+        }
     };
     struct Celda {
         std::string persona;

@@ -19,8 +19,12 @@
 //      desde lo último que se veía; a mitad, mezcla; al final, solo la HD. Nunca negro.
 //  11. Los rótulos: se validan; la celda que nombra uno lo pinta en una banda abajo con
 //      el color pedido; los que nadie nombra se olvidan.
+//  15. Uno nuevo por vuelta: una cámara a 30 que tiembla se ve entera y en orden; una a
+//      60, a 30 sin atrasarse; una a 15, sus 15.
 // ============================================================================
 
+#include <algorithm>
+#include <cmath>
 #include <cstdio>
 #include <cstring>
 #include <string>
@@ -382,6 +386,57 @@ int main() {
         CHECK(Grillas::proximoPintado(envio + 2000 * ms, envio, p30, envio + 1990 * ms) == envio + 2000 * ms,
               "atrasado: ahora, sin ráfaga");
         CHECK(Grillas::proximoPintado(envio, 0, 0, envio + 5 * ms) == envio + 5 * ms, "sin lienzo: el ritmo propio");
+    }
+    // 15. Una cámara a 30 que tiembla contra un pintor a 30 en la misma fase: se ven TODOS
+    // sus cuadros, en orden (antes, con el último que llegó, unos se pisaban y otros se
+    // repetían: 30 que llegaban se veían a 24-27). Una a 60: se ve a 30, sin atrasarse.
+    {
+        const auto probar = [&](double cps, int temblorMs, int& vistos, int& fueraDeOrden, int& atrasoMax) {
+            Grillas g(log);
+            g.aplicar({{"grillas", {{{"canal", 1}, {"ancho", 64}, {"alto", 36}, {"transicion_ms", 0},
+                                      {"celdas", {celda("sala:a", 0, 0, 64, 36)}}}}}},
+                      0);
+            const double periodoCam = 1000.0 / cps, periodoPintor = 1000.0 / 30;
+            std::vector<std::uint8_t> l;
+            int w = 0, h = 0, k = 0, ultimo = -1;
+            std::uint32_t semilla = 12345;
+            vistos = fueraDeOrden = atrasoMax = 0;
+            for (int j = 0; j < 300; ++j) {
+                const double t = 1000 + j * periodoPintor;
+                // Los cuadros que llegaron hasta esta vuelta (cada uno con su temblor).
+                for (;;) {
+                    semilla = semilla * 1103515245u + 12345u;
+                    const int temblor = temblorMs > 0 ? static_cast<int>((semilla >> 8) % (2 * temblorMs + 1)) - temblorMs : 0;
+                    const double llega = 1000 + k * periodoCam + temblor;
+                    if (llega > t) break;
+                    // El número del cuadro en el canal rojo (0..255) y en el verde (de a 256).
+                    const auto px = liso(64, 36, 0xFF000000u | (static_cast<std::uint32_t>(k & 0xFF) << 16) |
+                                                     (static_cast<std::uint32_t>(k >> 8) << 8));
+                    g.cuadro("sala:a", px.data(), 64, 36, static_cast<std::int64_t>(std::lround(llega)));
+                    ++k;
+                }
+                g.pintar(1, static_cast<std::int64_t>(std::lround(t)), l, w, h);
+                const std::uint32_t p = pixel(l, w, 32, 18);
+                const int n = static_cast<int>(((p >> 16) & 0xFF) | (((p >> 8) & 0xFF) << 8));
+                if (j > 10) { // ya andando
+                    if (n != ultimo) ++vistos;
+                    if (n < ultimo) ++fueraDeOrden;
+                    atrasoMax = std::max(atrasoMax, k - 1 - n);
+                }
+                ultimo = n;
+            }
+        };
+        int vistos = 0, fuera = 0, atraso = 0;
+        probar(30, 12, vistos, fuera, atraso);
+        CHECK(vistos >= 286, "cámara a 30 que tiembla ±12 ms: se ven todos sus cuadros");
+        CHECK(fuera == 0, "cámara a 30: en orden");
+        CHECK(atraso <= 2, "cámara a 30: lo que espera no pasa de dos cuadros");
+        probar(30, 0, vistos, fuera, atraso);
+        CHECK(vistos >= 286 && atraso <= 1, "cámara a 30 pareja: todos, sin esperar");
+        probar(60, 4, vistos, fuera, atraso);
+        CHECK(vistos >= 286 && fuera == 0 && atraso <= 4, "cámara a 60: uno nuevo por vuelta, sin atrasarse (dos vueltas a lo sumo)");
+        probar(15, 12, vistos, fuera, atraso);
+        CHECK(vistos >= 140 && vistos <= 146 && fuera == 0, "cámara a 15: sus 15");
     }
     if (g_fallos == 0) std::printf("test_grillas: OK\n");
     return g_fallos == 0 ? 0 : 1;
