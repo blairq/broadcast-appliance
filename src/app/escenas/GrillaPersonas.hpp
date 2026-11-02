@@ -52,6 +52,32 @@
 //
 // La misma fuente en dos escenas es LA MISMA IMAGEN: para repartir gente entre
 // escenas se usan instancias distintas con el mismo grupo.
+//
+// CUANDO ALGUIEN HABLA (ajuste «al_hablar», 2026-11-01). Quién es «el orador» de cada
+// grilla lo decide MaquinaOrador según el disparo («disparo»: la palabra de la asamblea,
+// el orador al aire de la conferencia, voz sostenida «voz_ms», o a mano), con un tiempo
+// mínimo en pantalla («minimo_ms»: que no salte con cada tos). Cómo se lo muestra:
+//   - resaltar: nadie se mueve; las celdas van un poco más chicas que su lugar y la del
+//     orador lo llena (un leve agrandado), con el borde del color de resaltar;
+//   - destacar: el orador a un lugar grande (centro o izquierda, «destacar_tamano» % del
+//     lienzo) y los demás a una franja (abajo o al costado) en el MISMO orden de siempre
+//     (no se mezclan: se achican y se corren); los que no entran, «+N». El gateway anima
+//     el viaje (transicion_ms);
+//   - superponer: el orador encima, en un hueco que la grilla le deja en el medio (nadie
+//     queda tapado); con «superponer_completa», a pantalla completa;
+//   - escena: esta grilla no cambia; una grilla con «muestra» = orador (y «sigue» = esta)
+//     muestra solo al orador, grande y con su nombre: va en la escena del orador, que el
+//     operador o la línea de tiempo ponen al aire en la salida que quieran;
+//   - nada: como antes (el borde a quien habla, si «resaltar»).
+// LA CAPA: el orador pide la ALTA (y el gateway funde de la baja a la HD cuando llega,
+// src/gateway/Fundido.hpp); con «precarga», el siguiente (el siguiente de la fila de la
+// asamblea o de la conferencia; con voz, el que empezó a hablar y todavía no llegó a
+// voz_ms) también. Las miniaturas no cambian de capa por achicarse un poco: CapasGrilla
+// sube a la alta pasando kSubirAlta píxeles de alto y baja recién por debajo de
+// kBajarAlta, y no sube más de una por vuelta (cada subida es un cuadro clave).
+// NOMBRES («nombres»: nombre, o nombre y cargo/banca): cada celda lleva el id de su rótulo
+// (idRotulo); lo dibuja la app (ControlGrillas) y lo pinta el gateway con el estilo de la
+// grilla (nombre_color, nombre_fondo, nombre_tamano, nombre_lugar).
 // ============================================================================
 #pragma once
 
@@ -80,6 +106,21 @@ constexpr int kMaxCeldas = 64;
 enum class Origen { Sala, Asamblea, Ambas };
 enum class Orden { Llegada, Habla, Prioridad };
 enum class Reparto { EnOrden, Parejo };
+/// Cómo se muestra a quien habla (ver arriba).
+enum class AlHablar { Nada, Resaltar, Destacar, Superponer, Escena };
+/// Qué decide quién es el orador.
+enum class Disparo { Voz, Palabra, Orador, Manual };
+enum class Nombres { No, Nombre, NombreCargo };
+
+/// Las miniaturas pasan a la capa alta por encima de esto (alto en píxeles)…
+constexpr int kSubirAlta = 260;
+/// …y vuelven a la baja recién por debajo de esto (histéresis).
+constexpr int kBajarAlta = 180;
+/// Una celda de la franja (destacar) o de la grilla con hueco no baja de esto de alto: si
+/// no entran todos así, el resto va al «+N».
+constexpr int kMinCelda = 40;
+/// En «resaltar», el resto de las celdas va a esta fracción de su lugar (el orador, entero).
+constexpr double kResaltarResto = 0.94;
 
 struct Persona {
     std::string clave; ///< "sala:<id del participante>" | "asamblea:<id del integrante>"
@@ -91,6 +132,12 @@ struct Persona {
     bool hablando = false;
     std::int64_t vozMs = 0; ///< la última vez que habló (0 = todavía no)
     bool alAire = false;    ///< ya se ve en otra fuente del programa
+    std::string cargo;      ///< cargo, bloque o banca (el rótulo); "" = sin
+    /// Desde cuándo habla sin parar (0 = no habla): para la voz sostenida.
+    std::int64_t hablaDesdeMs = 0;
+    bool palabra = false;   ///< tiene la palabra (asamblea)
+    bool orador = false;    ///< es el orador al aire (conferencia, modo oradores)
+    bool siguiente = false; ///< es el siguiente de la fila (asamblea o conferencia): se precarga
 };
 
 struct Config {
@@ -112,6 +159,27 @@ struct Config {
     int transicionMs = 400;
     std::string fondo = "#00000000";         ///< "#AARRGGBB" (transparente de fábrica)
     std::string colorResaltar = "#FFFFC107"; ///< el borde de quien habla
+    // --- Cuando alguien habla ---
+    AlHablar alHablar = AlHablar::Resaltar;
+    Disparo disparo = Disparo::Voz;
+    int vozMs = 1500;    ///< voz sostenida: cuánto tiene que hablar para pasar a orador
+    int minimoMs = 4000; ///< el orador no cambia antes de esto (histéresis)
+    bool precarga = true;
+    bool destacarIzquierda = false; ///< destacar: el lugar grande a la izquierda (si no, al centro)
+    int destacarTamano = 70;        ///< % del lienzo (alto con la franja abajo; ancho al costado)
+    bool franjaCostado = false;     ///< destacar: la franja al costado (si no, abajo)
+    int superponerTamano = 60;      ///< % del lienzo que ocupa el hueco del orador
+    bool superponerCompleta = false;
+    int fundidoMs = 300; ///< de la baja a la HD
+    // --- Nombres ---
+    Nombres nombres = Nombres::No;
+    int nombreTamano = 14;                  ///< % del alto de la celda
+    std::string nombreColor = "#FFFFFFFF";  ///< "#AARRGGBB"
+    std::string nombreFondo = "#A0000000";
+    bool nombreArriba = false;
+    // --- Qué muestra ---
+    bool soloOrador = false; ///< muestra = orador: solo el orador de `sigue`, grande (la escena del orador)
+    std::string sigue;       ///< la grilla a la que sigue ("" = la primera que tenga orador)
     /// La fuente se ve en el programa (no es un ajuste: lo dice quien arma las
     /// configuraciones en cada vuelta, ver ControlGrillas).
     bool alAire = false;
@@ -133,6 +201,8 @@ struct Celda {
     std::string clave;
     Rect r;
     bool resaltar = false;
+    std::string capa;   ///< "alta" | "baja" ("" = no se dice)
+    std::string rotulo; ///< el id de su rótulo ("" = sin nombre)
 };
 
 /// Lo que decidió el operador a mano (ver arriba). Lo valida quien lo cambia
@@ -140,6 +210,7 @@ struct Celda {
 struct Manual {
     std::map<std::string, std::string> fijos;             ///< clave → la fuente donde está fijada
     std::set<std::pair<std::string, std::string>> fuera;  ///< (fuente, clave): sacada de esa grilla y su grupo
+    std::map<std::string, std::string> destacados;        ///< fuente → clave: el orador elegido a mano
 
     bool fijo(const std::string& fuente, const std::string& clave) const;
     bool sacado(const std::string& fuente, const std::string& clave) const { return fuera.count({fuente, clave}) > 0; }
@@ -151,7 +222,9 @@ struct Manual {
     void devolver(const std::string& fuente, const std::string& clave);
     /// Se olvida de lo que era de grillas que ya no existen.
     void olvidarFuentesSalvo(const std::set<std::string>& existen);
-    bool vacio() const { return fijos.empty() && fuera.empty(); }
+    bool vacio() const { return fijos.empty() && fuera.empty() && destacados.empty(); }
+    /// El orador a mano de `fuente` ("" = ninguno: lo decide el disparo).
+    std::string destacado(const std::string& fuente) const;
 };
 
 /// Lo que se ve de verdad desde `raices` (la escena del programa y lo que muestran
@@ -171,7 +244,60 @@ struct Resultado {
     int mas = 0;                       ///< los que quedaron afuera (el cuadro «+N»)
     std::vector<Celda> celdas;
     Rect rMas;
+    std::string orador;    ///< el orador de esta grilla ("" = nadie)
+    std::string siguiente; ///< el que se precarga ("" = nadie)
 };
+
+/// Quién es el orador de una grilla, con su tiempo mínimo en pantalla. Pura: la prueba
+/// test_grilla_personas con relojes de mentira.
+class MaquinaOrador {
+   public:
+    /// Una vuelta. `gente`: los que pueden ser orador en esta grilla; `manual`: el elegido a
+    /// mano ("" = ninguno; si está, gana siempre y en el acto).
+    const std::string& paso(const Config& c, const std::vector<const Persona*>& gente, const std::string& manual,
+                            std::int64_t ahoraMs);
+    const std::string& actual() const { return actual_; }
+    std::int64_t desdeMs() const { return desde_; }
+    /// El que se precarga según el disparo: el siguiente de la fila (palabra / orador) o, con
+    /// voz, el que empezó a hablar y todavía no llegó a voz_ms. "" = nadie.
+    static std::string siguiente(const Config& c, const std::vector<const Persona*>& gente, const std::string& actual,
+                                 std::int64_t ahoraMs);
+
+   private:
+    std::string actual_;
+    std::int64_t desde_ = 0;
+};
+
+/// Una disposición con un lugar grande (destacar, superponer).
+struct Disposicion {
+    Rect grande;
+    std::vector<Rect> resto; ///< en orden: los primeros `resto.size()` de los demás
+    bool hayMas = false;     ///< no entraron todos: la última celda es el «+N»
+    Rect rMas;
+};
+/// Destacar: el orador en el lugar grande y `n` más en la franja (abajo o al costado), en orden.
+Disposicion disponerDestacar(int n, const Config& c);
+/// Superponer: el orador en un hueco en el medio y `n` más alrededor (o a pantalla completa).
+Disposicion disponerSuperponer(int n, const Config& c);
+/// Un rectángulo achicado a `f` de su tamaño, con el mismo centro.
+Rect achicar(const Rect& r, double f);
+
+/// La capa de cada uno con histéresis y sin muchos cuadros clave a la vez (ver arriba).
+class CapasGrilla {
+   public:
+    struct Pedido {
+        int alto = 0;          ///< el lugar más grande donde se lo ve
+        bool orador = false;   ///< es el orador de alguna grilla: alta ya
+    };
+    /// clave → true si va en alta. `maxSubidas`: cuántas miniaturas pueden subir en esta vuelta.
+    std::map<std::string, bool> decidir(const std::map<std::string, Pedido>& pedidos, int maxSubidas = 1);
+
+   private:
+    std::map<std::string, bool> alta_;
+};
+
+/// El id del rótulo de una persona (el texto y la versión del dibujo): "" si no lleva.
+std::string idRotulo(Nombres n, const std::string& nombre, const std::string& cargo);
 
 /// ¿Esta grilla acepta a esta persona? (origen y filtros)
 bool acepta(const Config& c, const Persona& p);
@@ -187,16 +313,25 @@ class Repartidor {
    public:
     /// Una vuelta: todas las grillas y toda la gente → lo que muestra cada una (en el orden de `grillas`).
     std::vector<Resultado> calcular(const std::vector<Config>& grillas, const std::vector<Persona>& gente,
-                                    const Manual& manual = {});
+                                    const Manual& manual = {}, std::int64_t ahoraMs = 0);
     /// Olvidar los lugares (la próxima vuelta reparte desde cero).
     void olvidar() { lugares_.clear(); }
 
    private:
+    /// Las celdas de una grilla según «al_hablar» (personas en orden de lugar, sin el «+N» del reparto).
+    void disponerCeldas(const Config& c, Resultado& r, const std::map<std::string, const Persona*>& porClave) const;
+
     std::map<std::string, std::vector<std::string>> lugares_; // fuente → claves por lugar
+    std::map<std::string, MaquinaOrador> oradores_;            // fuente → su orador
+    CapasGrilla capas_;
 };
 
 /// El estado entero para el gateway (POST /api/v1/grillas), ver src/gateway/Grillas.hpp.
 json pedidoGateway(const std::vector<Config>& grillas, const std::vector<Resultado>& res);
+/// Lo que dice cada rótulo (para dibujarlo): id → {nombre, cargo}. Solo los de las celdas.
+std::map<std::string, std::pair<std::string, std::string>> rotulosDe(const std::vector<Config>& grillas,
+                                                                     const std::vector<Resultado>& res,
+                                                                     const std::vector<Persona>& gente);
 
 /// Color de OBS (entero 0xAABBGGRR, como guarda la ventana Propiedades) → "#AARRGGBB".
 std::string colorDeObs(std::uint32_t abgr);

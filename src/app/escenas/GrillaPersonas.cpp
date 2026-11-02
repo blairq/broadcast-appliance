@@ -85,7 +85,28 @@ json Config::defectos() {
                 {"proporcion", "16:9"},
                 {"transicion_ms", 400},
                 {"fondo", 0},                   // transparente (entero de OBS 0xAABBGGRR)
-                {"color_resaltar", 0xFF07C1FFu}}; // ámbar #FFC107
+                {"color_resaltar", 0xFF07C1FFu}, // ámbar #FFC107
+                // Cuando alguien habla (ver el .hpp).
+                {"al_hablar", "resaltar"},
+                {"disparo", "voz"},
+                {"voz_ms", 1500},
+                {"minimo_ms", 4000},
+                {"precarga", true},
+                {"destacar_lugar", "centro"},
+                {"destacar_tamano", 70},
+                {"franja", "abajo"},
+                {"superponer_tamano", 60},
+                {"superponer_completa", false},
+                {"fundido_ms", 300},
+                // Nombres en cada celda.
+                {"nombres", "no"},
+                {"nombre_tamano", 14},
+                {"nombre_color", 0xFFFFFFFFu}, // blanco
+                {"nombre_fondo", 0xA0000000u}, // negro al 63 %
+                {"nombre_lugar", "abajo"},
+                // Qué muestra: todos, o solo el orador de otra grilla (la escena del orador).
+                {"muestra", "todos"},
+                {"sigue", ""}};
 }
 
 Config Config::desdeAjustes(const std::string& fuente, const json& ajustesIn) {
@@ -112,6 +133,31 @@ Config Config::desdeAjustes(const std::string& fuente, const json& ajustesIn) {
     c.transicionMs = std::clamp(entero(a, "transicion_ms", 400), 0, 3000);
     c.fondo = color(a, "fondo", "#00000000");
     c.colorResaltar = color(a, "color_resaltar", "#FFFFC107");
+    const std::string ah = texto(a, "al_hablar", "resaltar");
+    c.alHablar = ah == "nada"         ? AlHablar::Nada
+                 : ah == "destacar"   ? AlHablar::Destacar
+                 : ah == "superponer" ? AlHablar::Superponer
+                 : ah == "escena"     ? AlHablar::Escena
+                                      : AlHablar::Resaltar;
+    const std::string di = texto(a, "disparo", "voz");
+    c.disparo = di == "palabra" ? Disparo::Palabra : di == "orador" ? Disparo::Orador : di == "manual" ? Disparo::Manual : Disparo::Voz;
+    c.vozMs = std::clamp(entero(a, "voz_ms", 1500), 0, 10000);
+    c.minimoMs = std::clamp(entero(a, "minimo_ms", 4000), 0, 60000);
+    c.precarga = siNo(a, "precarga", true);
+    c.destacarIzquierda = texto(a, "destacar_lugar", "centro") == "izquierda";
+    c.destacarTamano = std::clamp(entero(a, "destacar_tamano", 70), 40, 90);
+    c.franjaCostado = texto(a, "franja", "abajo") == "costado";
+    c.superponerTamano = std::clamp(entero(a, "superponer_tamano", 60), 30, 90);
+    c.superponerCompleta = siNo(a, "superponer_completa", false);
+    c.fundidoMs = std::clamp(entero(a, "fundido_ms", 300), 0, 2000);
+    const std::string no = texto(a, "nombres", "no");
+    c.nombres = no == "nombre" ? Nombres::Nombre : no == "nombre_cargo" ? Nombres::NombreCargo : Nombres::No;
+    c.nombreTamano = std::clamp(entero(a, "nombre_tamano", 14), 5, 40);
+    c.nombreColor = color(a, "nombre_color", "#FFFFFFFF");
+    c.nombreFondo = color(a, "nombre_fondo", "#A0000000");
+    c.nombreArriba = texto(a, "nombre_lugar", "abajo") == "arriba";
+    c.soloOrador = texto(a, "muestra", "todos") == "orador";
+    c.sigue = texto(a, "sigue", "");
     return c;
 }
 
@@ -142,7 +188,10 @@ std::string Config::validar(const json& cambios) {
     static const std::set<std::string> kConocidos = {
         "canal",      "origen", "grupo",      "orden_en_grupo", "reparto",       "tope",  "orden",
         "solo_con_camara", "sin_al_aire", "resaltar", "ancho", "alto", "separacion", "margen",
-        "proporcion", "transicion_ms", "fondo", "color_resaltar"};
+        "proporcion", "transicion_ms", "fondo", "color_resaltar",
+        "al_hablar", "disparo", "voz_ms", "minimo_ms", "precarga", "destacar_lugar", "destacar_tamano", "franja",
+        "superponer_tamano", "superponer_completa", "fundido_ms", "nombres", "nombre_tamano", "nombre_color",
+        "nombre_fondo", "nombre_lugar", "muestra", "sigue"};
     for (const auto& [k, v] : cambios.items())
         if (!kConocidos.count(k)) return ba::i18n::llenar(ba::i18n::traducir("escenas", "«%1» no es un ajuste de la grilla de personas"), {k});
     for (const std::string& e :
@@ -152,10 +201,18 @@ std::string Config::validar(const json& cambios) {
                                  kProporciones[5]}),
           numero("canal", 0, kMaxGrillas), numero("orden_en_grupo", -1000, 1000), numero("tope", 0, kMaxCeldas),
           numero("ancho", 64, 3840), numero("alto", 64, 2160), numero("separacion", 0, 200), numero("margen", 0, 500),
-          numero("transicion_ms", 0, 3000), booleano("solo_con_camara"), booleano("sin_al_aire"), booleano("resaltar")})
+          numero("transicion_ms", 0, 3000), booleano("solo_con_camara"), booleano("sin_al_aire"), booleano("resaltar"),
+          enumera("al_hablar", {"nada", "resaltar", "destacar", "superponer", "escena"}),
+          enumera("disparo", {"voz", "palabra", "orador", "manual"}), numero("voz_ms", 0, 10000),
+          numero("minimo_ms", 0, 60000), booleano("precarga"), enumera("destacar_lugar", {"centro", "izquierda"}),
+          numero("destacar_tamano", 40, 90), enumera("franja", {"abajo", "costado"}), numero("superponer_tamano", 30, 90),
+          booleano("superponer_completa"), numero("fundido_ms", 0, 2000), enumera("nombres", {"no", "nombre", "nombre_cargo"}),
+          numero("nombre_tamano", 5, 40), enumera("nombre_lugar", {"abajo", "arriba"}), enumera("muestra", {"todos", "orador"})})
         if (!e.empty()) return e;
     if (cambios.contains("grupo") && !cambios["grupo"].is_string())
         return ba::i18n::traducir("escenas", "«grupo» es un texto (vacío = sola)");
+    if (cambios.contains("sigue") && !cambios["sigue"].is_string())
+        return ba::i18n::traducir("escenas", "«sigue» es el nombre de otra grilla (vacío = la primera con orador)");
     return {};
 }
 
@@ -259,6 +316,287 @@ void Manual::olvidarFuentesSalvo(const std::set<std::string>& existen) {
         it = existen.count(it->second) ? std::next(it) : fijos.erase(it);
     for (auto it = fuera.begin(); it != fuera.end();)
         it = existen.count(it->first) ? std::next(it) : fuera.erase(it);
+    for (auto it = destacados.begin(); it != destacados.end();)
+        it = existen.count(it->first) ? std::next(it) : destacados.erase(it);
+}
+
+std::string Manual::destacado(const std::string& fuente) const {
+    const auto it = destacados.find(fuente);
+    return it != destacados.end() ? it->second : std::string();
+}
+
+// ---------------------------------------------------------------------------
+// El orador
+// ---------------------------------------------------------------------------
+
+const std::string& MaquinaOrador::paso(const Config& c, const std::vector<const Persona*>& gente, const std::string& manual,
+                                       std::int64_t ahora) {
+    const auto esta = [&](const std::string& k) {
+        return !k.empty() && std::any_of(gente.begin(), gente.end(), [&](const Persona* p) { return p->clave == k; });
+    };
+    const auto poner = [&](const std::string& k) {
+        if (k == actual_) return;
+        actual_ = k;
+        desde_ = ahora;
+    };
+    // A mano gana siempre, y en el acto: el operador sabe lo que hace.
+    if (esta(manual)) {
+        poner(manual);
+        return actual_;
+    }
+    // Quién quiere el disparo. Si el actual sigue cumpliendo, se queda (nadie le gana por
+    // llegar después).
+    std::string quiere;
+    const auto cumple = [&](const Persona& p) {
+        switch (c.disparo) {
+            case Disparo::Palabra: return p.palabra;
+            case Disparo::Orador: return p.orador;
+            case Disparo::Voz: return p.hablando && p.hablaDesdeMs > 0 && ahora - p.hablaDesdeMs >= c.vozMs;
+            case Disparo::Manual: return false;
+        }
+        return false;
+    };
+    for (const Persona* p : gente)
+        if (p->clave == actual_ && cumple(*p)) quiere = actual_;
+    if (quiere.empty()) {
+        const Persona* mejor = nullptr;
+        for (const Persona* p : gente) {
+            if (!cumple(*p)) continue;
+            // Con voz, el que lleva más tiempo hablando; si no, el primero (el orden de la gente).
+            if (mejor == nullptr || (c.disparo == Disparo::Voz && p->hablaDesdeMs < mejor->hablaDesdeMs)) mejor = p;
+        }
+        if (mejor != nullptr) quiere = mejor->clave;
+    }
+    // Con voz, cuando nadie habla se queda el último que habló (no se vuelve a la grilla
+    // con cada silencio); con la palabra o el orador, se va (ya no le toca).
+    if (quiere.empty() && c.disparo == Disparo::Voz && esta(actual_)) quiere = actual_;
+    if (quiere == actual_) return actual_;
+    // Histéresis: el que está no se va antes de su tiempo mínimo, salvo que ya no esté.
+    if (actual_.empty() || !esta(actual_) || ahora - desde_ >= c.minimoMs) poner(quiere);
+    return actual_;
+}
+
+std::string MaquinaOrador::siguiente(const Config& c, const std::vector<const Persona*>& gente, const std::string& actual,
+                                     std::int64_t ahora) {
+    if (!c.precarga) return {};
+    for (const Persona* p : gente) {
+        if (p->clave == actual) continue;
+        switch (c.disparo) {
+            case Disparo::Palabra:
+            case Disparo::Orador:
+                if (p->siguiente) return p->clave;
+                break;
+            case Disparo::Voz:
+                // Empezó a hablar y todavía no llegó: que su alta vaya llegando.
+                if (p->hablando && p->hablaDesdeMs > 0 && ahora - p->hablaDesdeMs < c.vozMs) return p->clave;
+                break;
+            case Disparo::Manual: break;
+        }
+    }
+    return {};
+}
+
+// ---------------------------------------------------------------------------
+// Disposiciones con un lugar grande
+// ---------------------------------------------------------------------------
+
+Rect achicar(const Rect& r, double f) {
+    const int w = static_cast<int>(std::lround(r.w * f)), h = static_cast<int>(std::lround(r.h * f));
+    return {r.x + (r.w - w) / 2, r.y + (r.h - h) / 2, w, h};
+}
+
+namespace {
+
+/// El rectángulo más grande con la proporción `aspecto` (0 = el que hay) adentro de `caja`,
+/// centrado (o pegado a la izquierda).
+Rect encajar(const Rect& caja, double aspecto, bool izquierda = false) {
+    if (caja.w <= 0 || caja.h <= 0) return {};
+    int w = caja.w, h = caja.h;
+    if (aspecto > 0) {
+        w = std::min(caja.w, static_cast<int>(std::floor(caja.h * aspecto)));
+        h = static_cast<int>(std::floor(w / aspecto));
+    }
+    return {izquierda ? caja.x : caja.x + (caja.w - w) / 2, caja.y + (caja.h - h) / 2, w, h};
+}
+
+/// `n` celdas en `caja` con disponer; true si cada una tiene al menos kMinCelda de alto.
+bool enCaja(int n, const Rect& caja, const Config& c, std::vector<Rect>& out) {
+    out = disponer(n, caja.w, caja.h, c.separacion, 0, c.aspecto);
+    for (Rect& r : out) {
+        r.x += caja.x;
+        r.y += caja.y;
+    }
+    return static_cast<int>(out.size()) == n && (n == 0 || out.front().h >= std::min(kMinCelda, caja.h));
+}
+
+/// Cuántos de `n` entran en las cajas (repartidos en orden: la primera se llena antes),
+/// con «+N» en la última si no entran todos.
+Disposicion enFranjas(int n, const std::vector<Rect>& cajas, const Config& c, Rect grande) {
+    Disposicion d;
+    d.grande = grande;
+    if (n <= 0 || cajas.empty()) return d;
+    const int k = static_cast<int>(cajas.size());
+    // Reparte `m` celdas entre las cajas: la primera lleva el redondeo hacia arriba.
+    const auto repartir = [&](int m, std::vector<Rect>& out) {
+        out.clear();
+        int resto = m;
+        for (int i = 0; i < k; ++i) {
+            const int aca = (resto + (k - i) - 1) / (k - i);
+            std::vector<Rect> r;
+            if (!enCaja(aca, cajas[static_cast<std::size_t>(i)], c, r)) return false;
+            out.insert(out.end(), r.begin(), r.end());
+            resto -= aca;
+        }
+        return true;
+    };
+    std::vector<Rect> todo;
+    if (repartir(n, todo)) {
+        d.resto = std::move(todo);
+        return d;
+    }
+    // No entran: la mayor cantidad m (con su «+N») que sí.
+    for (int m = n; m >= 1; --m)
+        if (repartir(m, todo)) {
+            d.hayMas = true;
+            d.rMas = todo.back();
+            todo.pop_back();
+            d.resto = std::move(todo);
+            return d;
+        }
+    return d; // ni uno: solo el grande
+}
+
+} // namespace
+
+Disposicion disponerDestacar(int n, const Config& c) {
+    const Rect lienzo{c.margen, c.margen, c.ancho - 2 * c.margen, c.alto - 2 * c.margen};
+    if (n <= 0) return {encajar(lienzo, c.aspecto, c.destacarIzquierda), {}, false, {}};
+    const double t = c.destacarTamano / 100.0;
+    const int sep = c.separacion;
+    if (!c.franjaCostado) {
+        // El grande arriba, la franja abajo (a lo ancho).
+        const int altoGrande = static_cast<int>(lienzo.h * t);
+        const Rect arriba{lienzo.x, lienzo.y, lienzo.w, altoGrande};
+        const Rect franja{lienzo.x, lienzo.y + altoGrande + sep, lienzo.w, lienzo.h - altoGrande - sep};
+        return enFranjas(n, {franja}, c, encajar(arriba, c.aspecto, c.destacarIzquierda));
+    }
+    const int anchoGrande = static_cast<int>(lienzo.w * t);
+    if (c.destacarIzquierda) {
+        // El grande a la izquierda, la franja a la derecha.
+        const Rect izq{lienzo.x, lienzo.y, anchoGrande, lienzo.h};
+        const Rect franja{lienzo.x + anchoGrande + sep, lienzo.y, lienzo.w - anchoGrande - sep, lienzo.h};
+        return enFranjas(n, {franja}, c, encajar(izq, c.aspecto, true));
+    }
+    // El grande al centro y una franja a cada lado: la de la izquierda se llena primero.
+    const int lado = (lienzo.w - anchoGrande - 2 * sep) / 2;
+    const Rect centro{lienzo.x + lado + sep, lienzo.y, anchoGrande, lienzo.h};
+    const Rect a{lienzo.x, lienzo.y, lado, lienzo.h}, b{lienzo.x + lado + 2 * sep + anchoGrande, lienzo.y, lado, lienzo.h};
+    return enFranjas(n, {a, b}, c, encajar(centro, c.aspecto));
+}
+
+Disposicion disponerSuperponer(int n, const Config& c) {
+    const Rect lienzo{c.margen, c.margen, c.ancho - 2 * c.margen, c.alto - 2 * c.margen};
+    Disposicion d;
+    if (n <= 0 || c.superponerCompleta) {
+        // A pantalla completa (o sin nadie más): el orador ocupa todo; los demás no se ven.
+        d.grande = c.superponerCompleta ? lienzo : encajar(lienzo, c.aspecto);
+        return d;
+    }
+    // Una grilla de cols x filas con un bloque de celdas libre en el medio (el hueco): los
+    // demás van en las celdas de alrededor, en orden de lectura, y nadie queda tapado. Se
+    // elige la que deja las celdas más grandes.
+    const double t = c.superponerTamano / 100.0;
+    const int sep = c.separacion;
+    double mejorArea = -1;
+    int mc = 0, mf = 0, mhc = 0, mhf = 0, mw = 0, mh = 0;
+    for (int cols = 3; cols <= 16; ++cols)
+        for (int filas = 3; filas <= 16; ++filas) {
+            int hc = std::max(1, static_cast<int>(std::lround(cols * t))), hf = std::max(1, static_cast<int>(std::lround(filas * t)));
+            if ((cols - hc) % 2 != 0) ++hc; // centrado: lo mismo a cada lado
+            if ((filas - hf) % 2 != 0) ++hf;
+            if (hc >= cols || hf >= filas) continue;
+            const int libres = cols * filas - hc * hf;
+            if (libres < n || libres > n + cols + filas) continue; // de sobra: otra más justa deja celdas más grandes
+            const double cw = static_cast<double>(lienzo.w - (cols - 1) * sep) / cols;
+            const double ch = static_cast<double>(lienzo.h - (filas - 1) * sep) / filas;
+            if (cw < 1 || ch < 1) continue;
+            double w = cw, h = ch;
+            if (c.aspecto > 0) {
+                w = std::min(cw, ch * c.aspecto);
+                h = w / c.aspecto;
+            }
+            if (h < kMinCelda) continue;
+            if (w * h > mejorArea + 0.5) {
+                mejorArea = w * h;
+                mc = cols;
+                mf = filas;
+                mhc = hc;
+                mhf = hf;
+                mw = static_cast<int>(std::floor(w));
+                mh = static_cast<int>(std::floor(h));
+            }
+        }
+    if (mejorArea < 0) {
+        // No entran alrededor de un hueco: como destacar con la franja abajo.
+        Config f = c;
+        f.franjaCostado = false;
+        f.destacarIzquierda = false;
+        f.destacarTamano = std::clamp(c.superponerTamano, 40, 90);
+        return disponerDestacar(n, f);
+    }
+    const int bloqueW = mc * mw + (mc - 1) * sep, bloqueH = mf * mh + (mf - 1) * sep;
+    const int x0 = lienzo.x + (lienzo.w - bloqueW) / 2, y0 = lienzo.y + (lienzo.h - bloqueH) / 2;
+    const int c0 = (mc - mhc) / 2, f0 = (mf - mhf) / 2;
+    for (int f = 0; f < mf && static_cast<int>(d.resto.size()) < n; ++f)
+        for (int k = 0; k < mc && static_cast<int>(d.resto.size()) < n; ++k) {
+            if (k >= c0 && k < c0 + mhc && f >= f0 && f < f0 + mhf) continue; // el hueco
+            d.resto.push_back({x0 + k * (mw + sep), y0 + f * (mh + sep), mw, mh});
+        }
+    const Rect hueco{x0 + c0 * (mw + sep), y0 + f0 * (mh + sep), mhc * mw + (mhc - 1) * sep, mhf * mh + (mhf - 1) * sep};
+    d.grande = encajar(hueco, c.aspecto);
+    return d;
+}
+
+// ---------------------------------------------------------------------------
+// Capas y rótulos
+// ---------------------------------------------------------------------------
+
+std::map<std::string, bool> CapasGrilla::decidir(const std::map<std::string, Pedido>& pedidos, int maxSubidas) {
+    std::map<std::string, bool> out;
+    // Los más grandes primero: si hay que esperar para subir, espera el más chico.
+    std::vector<std::pair<std::string, Pedido>> orden(pedidos.begin(), pedidos.end());
+    std::stable_sort(orden.begin(), orden.end(), [](const auto& a, const auto& b) { return a.second.alto > b.second.alto; });
+    int subidas = 0;
+    for (const auto& [k, p] : orden) {
+        const auto it = alta_.find(k);
+        const bool antes = it != alta_.end() && it->second;
+        bool a = false;
+        if (p.orador) {
+            a = true; // el orador: alta ya (no cuenta en el tope: es el que importa)
+        } else if (antes) {
+            a = p.alto >= kBajarAlta; // ya en alta: baja recién por debajo del umbral de bajada
+        } else if (p.alto > kSubirAlta && subidas < maxSubidas) {
+            a = true;
+            ++subidas;
+        }
+        out[k] = a;
+    }
+    alta_ = out;
+    return out;
+}
+
+std::string idRotulo(Nombres n, const std::string& nombre, const std::string& cargo) {
+    if (n == Nombres::No || nombre.empty()) return {};
+    // FNV-1a de 64 bits sobre el texto (y la versión del dibujo, por si cambia la letra).
+    const std::string texto = "r1\x1f" + nombre + "\x1f" + (n == Nombres::NombreCargo ? cargo : std::string());
+    std::uint64_t h = 1469598103934665603ULL;
+    for (unsigned char ch : texto) {
+        h ^= ch;
+        h *= 1099511628211ULL;
+    }
+    char out[24];
+    std::snprintf(out, sizeof out, "r%016llx", static_cast<unsigned long long>(h));
+    return out;
 }
 
 std::vector<std::string> fuentesQueSeVen(
@@ -283,13 +621,15 @@ std::vector<std::string> fuentesQueSeVen(
 // ---------------------------------------------------------------------------
 
 std::vector<Resultado> Repartidor::calcular(const std::vector<Config>& grillas, const std::vector<Persona>& gente,
-                                            const Manual& manual) {
+                                            const Manual& manual, std::int64_t ahora) {
     std::map<std::string, const Persona*> porClave;
     for (const Persona& p : gente) porClave[p.clave] = &p;
 
-    // Los grupos: las grillas con el mismo «grupo»; sin grupo, cada una sola.
+    // Los grupos: las grillas con el mismo «grupo»; sin grupo, cada una sola. Las que
+    // muestran solo al orador de otra no reparten: van al final.
     std::map<std::string, std::vector<const Config*>> grupos;
-    for (const Config& c : grillas) grupos[c.grupo.empty() ? "\x01" + c.fuente : "\x02" + c.grupo].push_back(&c);
+    for (const Config& c : grillas)
+        if (!c.soloOrador) grupos[c.grupo.empty() ? "\x01" + c.fuente : "\x02" + c.grupo].push_back(&c);
     // Los que tienen una grilla al aire, primero (ver «GRILLAS AL AIRE PRIMERO» en el .hpp);
     // entre ellos, el orden del mapa (estable de una vuelta a la otra).
     std::vector<std::vector<const Config*>*> orden;
@@ -339,9 +679,29 @@ std::vector<Resultado> Repartidor::calcular(const std::vector<Config>& grillas, 
                     cands.push_back(&p);
                     break;
                 }
+        // El orador de cada grilla (con su tiempo mínimo): entre los que esa grilla acepta.
+        std::set<std::string> oradoresGrupo;
+        std::vector<std::string> oradorDe(static_cast<std::size_t>(G)), siguienteDe(static_cast<std::size_t>(G));
+        for (int i = 0; i < G; ++i) {
+            const Config& gi = *gs[i];
+            if (gi.alHablar == AlHablar::Nada) {
+                oradores_.erase(gi.fuente);
+                continue;
+            }
+            std::vector<const Persona*> suyos;
+            for (const Persona* p : cands)
+                if (aceptaAca(i, *p)) suyos.push_back(p);
+            MaquinaOrador& m = oradores_[gi.fuente];
+            oradorDe[static_cast<std::size_t>(i)] = m.paso(gi, suyos, manual.destacado(gi.fuente), ahora);
+            siguienteDe[static_cast<std::size_t>(i)] = MaquinaOrador::siguiente(gi, suyos, m.actual(), ahora);
+            if (!m.actual().empty()) oradoresGrupo.insert(m.actual());
+        }
         std::sort(cands.begin(), cands.end(), [&](const Persona* a, const Persona* b) {
             const bool fa = fijaEn(a->clave) >= 0, fb = fijaEn(b->clave) >= 0;
             if (fa != fb) return fa;
+            // El orador entra aunque no haya lugar para todos (después de los fijados).
+            const bool oa = oradoresGrupo.count(a->clave) > 0, ob = oradoresGrupo.count(b->clave) > 0;
+            if (oa != ob) return oa;
             return antes(jefe.orden, *a, *b);
         });
 
@@ -466,13 +826,11 @@ std::vector<Resultado> Repartidor::calcular(const std::vector<Config>& grillas, 
             r.canal = gs[i]->canal;
             for (const auto& k : lugares[i]) r.personas.push_back(*k);
             if (i == G - 1 && desborda) r.mas = std::max(0, mas);
-            const int celdas = static_cast<int>(r.personas.size()) + (r.mas > 0 ? 1 : 0);
-            const auto rects = disponer(celdas, gs[i]->ancho, gs[i]->alto, gs[i]->separacion, gs[i]->margen, gs[i]->aspecto);
-            for (std::size_t j = 0; j < r.personas.size() && j < rects.size(); ++j) {
-                const Persona* p = porClave[r.personas[j]];
-                r.celdas.push_back({r.personas[j], rects[j], gs[i]->resaltar && p != nullptr && p->hablando});
-            }
-            if (r.mas > 0 && !rects.empty()) r.rMas = rects.back();
+            // El orador de esta grilla, si quedó en ella (en un grupo pudo tocarle a otra).
+            const std::string& o = oradorDe[static_cast<std::size_t>(i)];
+            if (!o.empty() && std::find(r.personas.begin(), r.personas.end(), o) != r.personas.end()) r.orador = o;
+            r.siguiente = siguienteDe[static_cast<std::size_t>(i)];
+            disponerCeldas(*gs[i], r, porClave);
             // Quien quedó en una grilla al aire ya se ve: los grupos que siguen lo cuentan así.
             if (gs[i]->alAire) enAire.insert(r.personas.begin(), r.personas.end());
             nuevos[r.fuente] = r.personas;
@@ -481,29 +839,165 @@ std::vector<Resultado> Repartidor::calcular(const std::vector<Config>& grillas, 
     }
     lugares_ = std::move(nuevos); // las grillas que ya no están se olvidan
 
+    // Las que muestran solo al orador de otra (la escena del orador): grande, con su nombre.
+    for (const Config& c : grillas) {
+        if (!c.soloOrador) continue;
+        Resultado r;
+        r.fuente = c.fuente;
+        r.canal = c.canal;
+        for (const Config& o : grillas) {
+            if (o.soloOrador || (!c.sigue.empty() && o.fuente != c.sigue)) continue;
+            const auto it = porFuente.find(o.fuente);
+            if (it == porFuente.end() || it->second.orador.empty()) continue;
+            r.orador = it->second.orador;
+            r.siguiente = it->second.siguiente;
+            break;
+        }
+        if (!r.orador.empty()) {
+            r.personas.push_back(r.orador);
+            const auto rects = disponer(1, c.ancho, c.alto, c.separacion, c.margen, c.aspecto);
+            Celda x;
+            x.clave = r.orador;
+            if (!rects.empty()) x.r = rects.front();
+            if (const auto p = porClave.find(r.orador); p != porClave.end())
+                x.rotulo = idRotulo(c.nombres, p->second->nombre, p->second->cargo);
+            r.celdas.push_back(std::move(x));
+        }
+        porFuente[r.fuente] = std::move(r);
+    }
+    // Las grillas que ya no existen (o que dejaron de tener orador) olvidan a su orador.
+    for (auto it = oradores_.begin(); it != oradores_.end();)
+        it = std::any_of(grillas.begin(), grillas.end(), [&](const Config& c) { return c.fuente == it->first; })
+                 ? std::next(it)
+                 : oradores_.erase(it);
+
+    // La capa de cada uno: el orador, alta; los demás según el lugar más grande donde se
+    // los ve, con histéresis y de a una subida por vuelta.
+    std::map<std::string, CapasGrilla::Pedido> pedidos;
+    std::map<std::string, AlHablar> modo;
+    for (const Config& c : grillas) modo[c.fuente] = c.soloOrador ? AlHablar::Destacar : c.alHablar;
+    for (const auto& [f, r] : porFuente) {
+        const AlHablar m = modo[f];
+        const bool grande = m == AlHablar::Resaltar || m == AlHablar::Destacar || m == AlHablar::Superponer;
+        for (const Celda& x : r.celdas) {
+            auto& p = pedidos[x.clave];
+            p.alto = std::max(p.alto, x.r.h);
+            p.orador = p.orador || (grande && x.clave == r.orador);
+        }
+    }
+    const std::map<std::string, bool> alta = capas_.decidir(pedidos);
+    for (auto& [f, r] : porFuente)
+        for (Celda& x : r.celdas)
+            if (const auto it = alta.find(x.clave); it != alta.end()) x.capa = it->second ? "alta" : "baja";
+
     std::vector<Resultado> out;
     for (const Config& c : grillas) out.push_back(porFuente[c.fuente]);
     return out;
 }
 
+void Repartidor::disponerCeldas(const Config& c, Resultado& r, const std::map<std::string, const Persona*>& porClave) const {
+    const auto persona = [&](const std::string& k) -> const Persona* {
+        const auto it = porClave.find(k);
+        return it != porClave.end() ? it->second : nullptr;
+    };
+    const auto celda = [&](const std::string& k, const Rect& rect) {
+        const Persona* p = persona(k);
+        Celda x;
+        x.clave = k;
+        x.r = rect;
+        // El borde: a quien habla (como siempre) y al orador.
+        x.resaltar = c.resaltar && p != nullptr && (p->hablando || (k == r.orador && c.alHablar != AlHablar::Nada));
+        if (p != nullptr) x.rotulo = idRotulo(c.nombres, p->nombre, p->cargo);
+        return x;
+    };
+    const bool conGrande = !r.orador.empty() && (c.alHablar == AlHablar::Destacar || c.alHablar == AlHablar::Superponer);
+    if (!conGrande) {
+        // La grilla de siempre (nadie se mueve); en «resaltar», todas un poco más chicas
+        // que su lugar y el orador lo llena.
+        const int celdas = static_cast<int>(r.personas.size()) + (r.mas > 0 ? 1 : 0);
+        const auto rects = disponer(celdas, c.ancho, c.alto, c.separacion, c.margen, c.aspecto);
+        for (std::size_t j = 0; j < r.personas.size() && j < rects.size(); ++j) {
+            Rect rect = rects[j];
+            if (c.alHablar == AlHablar::Resaltar && r.personas[j] != r.orador) rect = achicar(rect, kResaltarResto);
+            r.celdas.push_back(celda(r.personas[j], rect));
+        }
+        if (r.mas > 0 && !rects.empty()) r.rMas = rects.back();
+        return;
+    }
+    // El orador al lugar grande; los demás en el orden de siempre (los lugares estables).
+    std::vector<std::string> otros;
+    for (const std::string& k : r.personas)
+        if (k != r.orador) otros.push_back(k);
+    const int n = static_cast<int>(otros.size());
+    const int extra = r.mas; // los que ya no entraban en el reparto
+    const Disposicion d = c.alHablar == AlHablar::Destacar ? disponerDestacar(n + (extra > 0 ? 1 : 0), c)
+                                                           : disponerSuperponer(n + (extra > 0 ? 1 : 0), c);
+    r.celdas.push_back(celda(r.orador, d.grande));
+    if (c.alHablar == AlHablar::Superponer && c.superponerCompleta) {
+        r.mas = 0; // a pantalla completa: los demás no se ven (ni su «+N»)
+        return;
+    }
+    const int entran = std::min(n, static_cast<int>(d.resto.size()));
+    for (int j = 0; j < entran; ++j) r.celdas.push_back(celda(otros[static_cast<std::size_t>(j)], d.resto[static_cast<std::size_t>(j)]));
+    if (d.hayMas) {
+        r.mas = extra + (n - entran);
+        r.rMas = d.rMas;
+    } else if (extra > 0 && static_cast<int>(d.resto.size()) > n) {
+        r.rMas = d.resto[static_cast<std::size_t>(n)];
+    } else {
+        r.mas = extra + (n - entran);
+    }
+}
+
 json pedidoGateway(const std::vector<Config>& grillas, const std::vector<Resultado>& res) {
     json lista = json::array();
     std::set<int> canales;
+    std::set<std::string> precarga;
+    int fundido = -1;
     for (std::size_t i = 0; i < grillas.size() && i < res.size(); ++i) {
         const Config& c = grillas[i];
         const Resultado& r = res[i];
         if (c.canal < 1 || c.canal > kMaxGrillas || !canales.insert(c.canal).second) continue;
         json celdas = json::array();
-        for (const Celda& x : r.celdas)
-            celdas.push_back({{"persona", x.clave}, {"x", x.r.x}, {"y", x.r.y}, {"w", x.r.w}, {"h", x.r.h}, {"resaltar", x.resaltar}});
+        for (const Celda& x : r.celdas) {
+            json j{{"persona", x.clave}, {"x", x.r.x}, {"y", x.r.y}, {"w", x.r.w}, {"h", x.r.h}, {"resaltar", x.resaltar}};
+            if (!x.capa.empty()) j["capa"] = x.capa;
+            if (!x.rotulo.empty()) j["rotulo"] = x.rotulo;
+            celdas.push_back(std::move(j));
+        }
         json g{{"canal", c.canal},       {"ancho", c.ancho},
                {"alto", c.alto},         {"fondo", c.fondo},
                {"resaltar_color", c.colorResaltar}, {"transicion_ms", c.transicionMs},
                {"celdas", celdas}};
+        if (c.nombres != Nombres::No)
+            g["rotulos"] = {{"color", c.nombreColor},
+                            {"fondo", c.nombreFondo},
+                            {"tamano", c.nombreTamano / 100.0},
+                            {"lugar", c.nombreArriba ? "arriba" : "abajo"}};
         if (r.mas > 0) g["mas"] = {{"n", r.mas}, {"x", r.rMas.x}, {"y", r.rMas.y}, {"w", r.rMas.w}, {"h", r.rMas.h}};
         lista.push_back(std::move(g));
+        if (!r.siguiente.empty()) precarga.insert(r.siguiente);
+        fundido = std::max(fundido, c.fundidoMs);
     }
-    return {{"grillas", lista}};
+    json out{{"grillas", lista}, {"precarga", json(precarga)}};
+    if (fundido >= 0) out["fundido_ms"] = fundido;
+    return out;
+}
+
+std::map<std::string, std::pair<std::string, std::string>> rotulosDe(const std::vector<Config>& grillas,
+                                                                     const std::vector<Resultado>& res,
+                                                                     const std::vector<Persona>& gente) {
+    std::map<std::string, const Persona*> porClave;
+    for (const Persona& p : gente) porClave[p.clave] = &p;
+    std::map<std::string, std::pair<std::string, std::string>> out;
+    for (std::size_t i = 0; i < grillas.size() && i < res.size(); ++i)
+        for (const Celda& x : res[i].celdas) {
+            if (x.rotulo.empty() || out.count(x.rotulo)) continue;
+            const auto it = porClave.find(x.clave);
+            if (it == porClave.end()) continue;
+            out[x.rotulo] = {it->second->nombre, grillas[i].nombres == Nombres::NombreCargo ? it->second->cargo : std::string()};
+        }
+    return out;
 }
 
 } // namespace ba::app::grilla
