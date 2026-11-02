@@ -23,24 +23,31 @@ extern "C" {
 #include "lwip/udp.h"
 }
 
+#include "ajustes/Ajustes.hpp"
 #include "net/WgCrypto.hpp"
 #include "net/WgDevice.hpp"
 #include "platform/Hilo.hpp"
+#include "platform/Nucleos.hpp"
 
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
 #include <winsock2.h>
 #include <ws2tcpip.h>
 using SockT = SOCKET;
+using PollFd = WSAPOLLFD;
 #else
 #include <arpa/inet.h>
 #include <fcntl.h>
 #include <netinet/in.h>
 #include <netinet/tcp.h>
-#include <sys/select.h>
+#include <poll.h>
 #include <sys/socket.h>
 #include <unistd.h>
+#if defined(__linux__)
+#include <sys/eventfd.h>
+#endif
 using SockT = int;
+using PollFd = pollfd;
 #endif
 
 // --- Enganches que pide lwIP (NO_SYS) ------------------------------------------
@@ -103,6 +110,94 @@ sockaddr_in loopback(uint16_t port) {
     a.sin_port = htons(port);
     return a;
 }
+
+/// poll (WSAPoll en Windows): sin el tope de FD_SETSIZE de select (64 en Windows).
+int esperar(std::vector<PollFd>& v, int ms) {
+#ifdef _WIN32
+    return WSAPoll(v.data(), static_cast<ULONG>(v.size()), ms);
+#else
+    return ::poll(v.data(), static_cast<nfds_t>(v.size()), ms);
+#endif
+}
+
+PollFd pollDe(long long s, short eventos) {
+    PollFd p{};
+    p.fd = static_cast<SockT>(s);
+    p.events = eventos;
+    return p;
+}
+
+/// Para despertar al hilo de la pila desde otro: eventfd en Linux, un pipe en macOS y un
+/// UDP local en Windows (WSAPoll solo espera sockets). Se escribe solo si la cola estaba
+/// vacía: una despertada por tanda.
+struct Despertador {
+    long long lee = -1;
+    long long escribe = -1;
+    uint16_t puerto = 0; // Windows
+    bool abrir() {
+#if defined(_WIN32)
+        const SockT ws = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+        if (ws == INVALID_SOCKET) return false;
+        sockaddr_in a = loopback(0);
+        bind(ws, reinterpret_cast<const sockaddr*>(&a), sizeof(a));
+        socklen_t len = sizeof(a);
+        getsockname(ws, reinterpret_cast<sockaddr*>(&a), &len);
+        lee = escribe = static_cast<long long>(ws);
+        puerto = ntohs(a.sin_port);
+        setNonBlocking(lee);
+        return true;
+#elif defined(__linux__)
+        const int fd = eventfd(0, EFD_NONBLOCK | EFD_CLOEXEC);
+        if (fd < 0) return false;
+        lee = escribe = fd;
+        return true;
+#else
+        int fds[2] = {-1, -1};
+        if (pipe(fds) != 0) return false;
+        lee = fds[0];
+        escribe = fds[1];
+        setNonBlocking(lee);
+        setNonBlocking(escribe);
+        return true;
+#endif
+    }
+    void despertar() const {
+        if (escribe < 0) return;
+#if defined(_WIN32)
+        const sockaddr_in a = loopback(puerto);
+        const char b = 1;
+        sendto(static_cast<SockT>(escribe), &b, 1, 0, reinterpret_cast<const sockaddr*>(&a), sizeof(a));
+#elif defined(__linux__)
+        const uint64_t uno = 1;
+        (void)!write(static_cast<int>(escribe), &uno, sizeof uno);
+#else
+        const char b = 1;
+        (void)!write(static_cast<int>(escribe), &b, 1);
+#endif
+    }
+    void vaciar() const {
+        if (lee < 0) return;
+        char b[256];
+#if defined(_WIN32)
+        while (recv(static_cast<SockT>(lee), b, sizeof(b), 0) > 0) {
+        }
+#else
+        while (read(static_cast<int>(lee), b, sizeof(b)) > 0) {
+        }
+#endif
+    }
+    void cerrar() {
+#if defined(_WIN32)
+        closeSock(lee);
+#elif defined(__linux__)
+        if (lee >= 0) ::close(static_cast<int>(lee));
+#else
+        if (lee >= 0) ::close(static_cast<int>(lee));
+        if (escribe >= 0) ::close(static_cast<int>(escribe));
+#endif
+        lee = escribe = -1;
+    }
+};
 
 } // namespace
 
@@ -175,16 +270,36 @@ struct IpStack::Impl {
     std::atomic<int> proximoUdp{1};
 
     std::mutex qLock;
-    std::deque<std::vector<uint8_t>> inbound;
-    uint64_t inboundDesdeNs = 0; // cuándo entró el más viejo de `inbound` (diag/Frontera, #17)
     // Las fronteras de WireGuard (PLAN-GATEWAY-FRAGMENTOS.md #17-#20).
-    ba::diag::Frontera& fDesdeWg = ba::diag::frontera("wireguard.hacia_ipstack", 17, "wireguard → ipstack (cola + despertar por UDP local)");
-    ba::diag::Frontera& fHaciaRtc = ba::diag::frontera("ipstack.hacia_webrtc", 18, "ipstack → red de WebRTC (sendto por el kernel)");
-    ba::diag::Frontera& fDesdeRtc = ba::diag::frontera("ipstack.desde_webrtc", 19, "red de WebRTC → ipstack (select + recvfrom)");
-    ba::diag::Frontera& fHaciaWg = ba::diag::frontera("ipstack.hacia_wireguard", 20, "ipstack → cifrar → VPS (de a uno)");
+    ba::diag::Frontera& fDesdeWg = ba::diag::frontera("wireguard.hacia_ipstack", 17, "wireguard → lwIP (mismo hilo, sin cola)");
+    ba::diag::Frontera& fHaciaRtc = ba::diag::frontera("ipstack.hacia_webrtc", 18, "ipstack → red de WebRTC (en memoria por tanda, o sendto)");
+    ba::diag::Frontera& fDesdeRtc = ba::diag::frontera("ipstack.desde_webrtc", 19, "red de WebRTC → ipstack (en memoria, o poll + recvfrom)");
+    ba::diag::Frontera& fHaciaWg = ba::diag::frontera("ipstack.hacia_wireguard", 20, "ipstack → cifrar → VPS (en tanda)");
     std::deque<std::function<void()>> tasks;
-    long long wakeSock = -1;
-    uint16_t wakePort = 0;
+    Despertador despertador;
+    long long wgSock = -1; ///< el socket de WireGuard (el bucle es de este hilo: cederBucle)
+
+    // F5: la red de WebRTC en memoria.
+    bool enMemoriaAjuste = true; ///< gateway.wgEnMemoria (se lee al arrancar)
+    std::mutex sumideroMu;
+    std::shared_ptr<SumideroRtc> sumidero;      ///< con sumideroMu
+    std::shared_ptr<SumideroRtc> sumideroVuelta; ///< el de esta vuelta (solo el hilo de la pila)
+    /// Lo que va a WebRTC en esta vuelta: los datos uno detrás del otro (se reusa).
+    struct Pendiente {
+        uint32_t ip;
+        uint16_t puerto;
+        uint16_t puertoRtc;
+        size_t off, n;
+    };
+    std::vector<uint8_t> aRtcArena;
+    std::vector<Pendiente> aRtc;
+    std::vector<DatagramaTunel> aRtcLista;
+    /// Lo que vuelve de WebRTC (enviarDesdeRtc): lo llenan otros hilos con qLock; el hilo de
+    /// la pila lo cambia por el suyo (vacío, con lugar) y lo manda.
+    std::vector<uint8_t> desdeRtcArena, desdeRtcArenaPila;
+    std::vector<Pendiente> desdeRtc, desdeRtcPila;
+    std::vector<uint8_t> salidaWg; ///< netifOutput: un paquete en varios pbuf (se reusa)
+    std::vector<PollFd> fds;       ///< el poll de cada vuelta (se reusa)
 
     std::atomic<bool> stop{false};
     std::thread thread;
@@ -193,28 +308,91 @@ struct IpStack::Impl {
 
     Impl(WgDevice& w, Config c, LogFn l) : wg(w), cfg(c), log(std::move(l)) {}
 
-    void wake() {
-        if (wakeSock < 0) return;
-        const sockaddr_in a = loopback(wakePort);
-        const char b = 1;
-        sendto(static_cast<SockT>(wakeSock), &b, 1, 0, reinterpret_cast<const sockaddr*>(&a), sizeof(a));
-    }
+    void wake() { despertador.despertar(); }
 
     void post(std::function<void()> fn) {
+        bool estaba = false;
         {
             std::lock_guard<std::mutex> lock(qLock);
+            estaba = tasks.empty();
             tasks.push_back(std::move(fn));
         }
-        wake();
+        if (estaba) wake();
+    }
+
+    bool enMemoria() const { return enMemoriaAjuste && sumideroVuelta != nullptr; }
+
+    /// Un paquete IP que trajo el túnel: a lwIP ahora, en este hilo (#17).
+    void entrada(const uint8_t* d, size_t n) {
+        if (n == 0 || n > 0xFFFF) return;
+        fDesdeWg.pase(n);
+        pbuf* p = pbuf_alloc(PBUF_RAW, static_cast<u16_t>(n), PBUF_POOL);
+        if (p == nullptr) return;
+        pbuf_take(p, d, static_cast<u16_t>(n));
+        if (nif.input(p, &nif) != ERR_OK) pbuf_free(p);
+        ++entradasVuelta; // a stats al final de la vuelta (sin candado por paquete)
+    }
+    uint64_t entradasVuelta = 0;
+
+    /// Lo que juntó la vuelta para WebRTC, en una sola llamada al sumidero (#18).
+    void entregarARtc() {
+        if (aRtc.empty()) return;
+        if (sumideroVuelta) {
+            ba::diag::MedirPase medir(fHaciaRtc, aRtcArena.size());
+            medir.pases(aRtc.size());
+            fHaciaRtc.despertada();
+            aRtcLista.clear();
+            for (const Pendiente& x : aRtc) aRtcLista.push_back({x.ip, x.puerto, x.puertoRtc, aRtcArena.data() + x.off, x.n});
+            sumideroVuelta->entregar(aRtcLista.data(), aRtcLista.size());
+            std::lock_guard<std::mutex> lock(statsLock);
+            stats.aRtc += aRtc.size();
+        }
+        aRtc.clear();
+        aRtcArena.clear();
+    }
+
+    /// Lo que WebRTC mandó desde la vuelta anterior (#19): por lwIP, en este hilo.
+    void mandarDesdeRtc() {
+        {
+            std::lock_guard<std::mutex> lock(qLock);
+            if (desdeRtc.empty()) return;
+            desdeRtc.swap(desdeRtcPila);
+            desdeRtcArena.swap(desdeRtcArenaPila);
+        }
+        ba::diag::MedirPase medir(fDesdeRtc, desdeRtcArenaPila.size());
+        medir.pases(desdeRtcPila.size());
+        fDesdeRtc.despertada();
+        for (const Pendiente& x : desdeRtcPila) {
+            const auto pcb = udpPcbs.find(x.puertoRtc);
+            if (pcb == udpPcbs.end() || x.n > 0xFFFF) continue;
+            // Sin copiar: lwIP le pone la cabecera adelante y netifOutput lo cifra antes de volver.
+            pbuf* p = pbuf_alloc(PBUF_TRANSPORT, static_cast<u16_t>(x.n), PBUF_REF);
+            if (p == nullptr) continue;
+            p->payload = desdeRtcArenaPila.data() + x.off;
+            ip_addr_t dst;
+            IP_ADDR4(&dst, (x.ip >> 24) & 255, (x.ip >> 16) & 255, (x.ip >> 8) & 255, x.ip & 255);
+            udp_sendto(pcb->second, p, &dst, x.puerto);
+            pbuf_free(p);
+        }
+        {
+            std::lock_guard<std::mutex> lock(statsLock);
+            stats.desdeRtc += desdeRtcPila.size();
+        }
+        desdeRtcPila.clear();
+        desdeRtcArenaPila.clear();
     }
 
     // --- netif ----------------------------------------------------------------------
     static err_t netifOutput(netif* n, pbuf* p, const ip4_addr_t*) {
         auto* self = static_cast<Impl*>(n->state);
         ba::diag::MedirPase medir(self->fHaciaWg, p->tot_len);
-        std::vector<uint8_t> buf(p->tot_len);
-        pbuf_copy_partial(p, buf.data(), p->tot_len, 0);
-        self->wg.send(buf.data(), buf.size());
+        if (p->next == nullptr && p->len == p->tot_len) {
+            self->wg.send(static_cast<const uint8_t*>(p->payload), p->len); // de una, sin copiar
+        } else {
+            self->salidaWg.resize(p->tot_len);
+            pbuf_copy_partial(p, self->salidaWg.data(), p->tot_len, 0);
+            self->wg.send(self->salidaWg.data(), self->salidaWg.size());
+        }
         std::lock_guard<std::mutex> lock(self->statsLock);
         self->stats.packetsOut++;
         return ERR_OK;
@@ -365,6 +543,15 @@ struct IpStack::Impl {
         auto* self = static_cast<Impl*>(arg);
         const uint16_t tunnelPort = pcb->local_port;
         const UdpFlowKey key{lwip_ntohl(ip_2_ip4(addr)->addr), port, tunnelPort};
+        if (self->enMemoria()) {
+            // F5 (#18): se junta para la tanda; entregarARtc lo pasa entero al final de la vuelta.
+            const size_t off = self->aRtcArena.size();
+            self->aRtcArena.resize(off + p->tot_len);
+            pbuf_copy_partial(p, self->aRtcArena.data() + off, p->tot_len, 0);
+            self->aRtc.push_back({key.remoteIp, key.remotePort, tunnelPort, off, p->tot_len});
+            pbuf_free(p);
+            return;
+        }
         auto it = self->udpFlows.find(key);
         if (it == self->udpFlows.end()) {
             const SockT s = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
@@ -472,82 +659,80 @@ struct IpStack::Impl {
 
     // --- Bucle de la pila ----------------------------------------------------------------
     void loop() {
-        std::vector<uint8_t> scratch(2048);
+        // Índices en `fds`: 0 = WireGuard, 1 = despertador, después los puentes TCP y los
+        // flujos UDP por el kernel (solo sin sumidero), en el orden en que se agregaron.
+        std::vector<size_t> idxPuente;
+        std::vector<std::pair<UdpFlowKey, size_t>> idxFlujo;
         while (!stop.load()) {
-            fd_set rd;
-            fd_set wr;
-            FD_ZERO(&rd);
-            FD_ZERO(&wr);
-            // Windows avisa un connect() fallido en exceptfds, no en writefds.
-            fd_set ex;
-            FD_ZERO(&ex);
-            long long maxFd = wakeSock;
-            FD_SET(static_cast<SockT>(wakeSock), &rd);
-            for (auto& b : bridges) {
-                if (b->dead) continue;
-                if (b->connecting || !b->toSock.empty()) FD_SET(static_cast<SockT>(b->sock), &wr);
-                if (b->connecting) FD_SET(static_cast<SockT>(b->sock), &ex);
-                if (!b->connecting && b->pcb != nullptr && !b->sockEof && tcp_sndbuf(b->pcb) > 0) {
-                    FD_SET(static_cast<SockT>(b->sock), &rd);
-                }
-                maxFd = std::max(maxFd, b->sock);
+            fds.clear();
+            fds.push_back(pollDe(wgSock, POLLIN));
+            fds.push_back(pollDe(despertador.lee, POLLIN));
+            idxPuente.assign(bridges.size(), SIZE_MAX);
+            for (size_t i = 0; i < bridges.size(); ++i) {
+                const Bridge& b = *bridges[i];
+                if (b.dead) continue;
+                short ev = 0;
+                if (b.connecting || !b.toSock.empty()) ev |= POLLOUT;
+                if (!b.connecting && b.pcb != nullptr && !b.sockEof && tcp_sndbuf(b.pcb) > 0) ev |= POLLIN;
+                if (ev == 0 && !b.connecting) continue;
+                idxPuente[i] = fds.size();
+                fds.push_back(pollDe(b.sock, ev == 0 ? static_cast<short>(POLLOUT) : ev));
             }
+            idxFlujo.clear();
             for (auto& [k, f] : udpFlows) {
-                FD_SET(static_cast<SockT>(f.sock), &rd);
-                maxFd = std::max(maxFd, f.sock);
+                idxFlujo.emplace_back(k, fds.size());
+                fds.push_back(pollDe(f.sock, POLLIN));
             }
             u32_t sleep = sys_timeouts_sleeptime();
             if (sleep > 50) sleep = 50;
-            // tv_usec es long en Linux/Windows e int en macOS.
-            timeval tv{0, static_cast<decltype(timeval::tv_usec)>(sleep * 1000)};
-            select(static_cast<int>(maxFd) + 1, &rd, &wr, &ex, &tv);
+            esperar(fds, static_cast<int>(sleep));
+            const auto revents = [&](size_t i) -> short { return i < fds.size() ? fds[i].revents : static_cast<short>(0); };
 
-            if (FD_ISSET(static_cast<SockT>(wakeSock), &rd)) {
-                char b[256];
-                while (recv(static_cast<SockT>(wakeSock), b, sizeof(b), 0) > 0) {
-                }
+            if (revents(1) & POLLIN) despertador.vaciar();
+            {
+                std::lock_guard<std::mutex> lock(sumideroMu);
+                sumideroVuelta = sumidero;
             }
-            // Paquetes que trajo el tunel y trabajo de otros threads.
-            std::deque<std::vector<uint8_t>> in;
+            // Todo lo que se cifre en esta vuelta sale junto al final (#20).
+            wg.empezarTanda();
+            // #15-#17: WireGuard recibe en tanda y descifra, y cada paquete entra a lwIP
+            // ahora mismo (entrada), en este hilo.
+            const bool legible = (revents(0) & (POLLIN | POLLERR | POLLHUP)) != 0;
+            if (legible) fDesdeWg.despertada();
+            wg.servir(legible);
+            // #18: lo que llegó para WebRTC, de una.
+            entregarARtc();
+            // #19: lo que WebRTC mandó.
+            mandarDesdeRtc();
+            // Trabajo de otros hilos.
             std::deque<std::function<void()>> work;
-            uint64_t desdeNs = 0;
             {
                 std::lock_guard<std::mutex> lock(qLock);
-                in.swap(inbound);
                 work.swap(tasks);
-                desdeNs = inboundDesdeNs;
-                inboundDesdeNs = 0;
-            }
-            if (!in.empty()) {
-                uint64_t bytes = 0;
-                for (const auto& pkt : in) bytes += pkt.size();
-                const uint64_t ahora = ba::diag::relojNs();
-                fDesdeWg.despertada();
-                fDesdeWg.lote(in.size(), bytes, 0, desdeNs != 0 && ahora > desdeNs ? ahora - desdeNs : 0);
-            }
-            for (auto& pkt : in) {
-                pbuf* p = pbuf_alloc(PBUF_RAW, static_cast<u16_t>(pkt.size()), PBUF_POOL);
-                if (p == nullptr) continue;
-                pbuf_take(p, pkt.data(), static_cast<u16_t>(pkt.size()));
-                if (nif.input(p, &nif) != ERR_OK) pbuf_free(p);
             }
             for (auto& fn : work)
                 fn();
-            for (auto& b : bridges) {
-                const bool r = FD_ISSET(static_cast<SockT>(b->sock), &rd);
-                const bool w = FD_ISSET(static_cast<SockT>(b->sock), &wr);
-                const bool e = FD_ISSET(static_cast<SockT>(b->sock), &ex);
-                // Mientras conecta, solo vale lo que dijo select() (escribible, o
-                // la excepcion con la que Windows avisa que fallo; serviceBridge
-                // mira SO_ERROR): con datos pendientes (la cabecera PROXY) se daba
-                // por conectado un socket que no lo estaba. Linux devuelve EAGAIN
-                // y lo tapaba; macOS da ENOTCONN y el puente se caia.
-                const bool writable = b->connecting ? (w || e) : (w || !b->toSock.empty());
-                serviceBridge(*b, r || (!b->connecting && !b->sockEof), writable);
+            for (size_t i = 0; i < bridges.size(); ++i) {
+                Bridge& b = *bridges[i];
+                // Los que aceptó lwIP en esta vuelta no estaban en el poll: se atienden igual.
+                const size_t k = i < idxPuente.size() ? idxPuente[i] : SIZE_MAX;
+                const short re = k == SIZE_MAX ? static_cast<short>(0) : revents(k);
+                const bool r = (re & POLLIN) != 0;
+                const bool w = (re & POLLOUT) != 0;
+                // Un connect() fallido: Windows lo avisa con POLLERR/POLLHUP (serviceBridge mira
+                // SO_ERROR). Mientras conecta, solo vale lo que dijo poll(): con datos pendientes
+                // (la cabecera PROXY) se daba por conectado un socket que no lo estaba. Linux
+                // devuelve EAGAIN y lo tapaba; macOS da ENOTCONN y el puente se caia.
+                const bool e = (re & (POLLERR | POLLHUP)) != 0;
+                const bool writable = b.connecting ? (w || e) : (w || !b.toSock.empty());
+                serviceBridge(b, r || (!b.connecting && !b.sockEof), writable);
             }
             const int64_t now = nowMs();
+            // Por clave (en esta vuelta pudieron aparecer flujos nuevos y correr las posiciones).
+            for (const auto& [clave, i] : idxFlujo)
+                if (revents(i) & POLLIN)
+                    if (auto it = udpFlows.find(clave); it != udpFlows.end()) serviceUdpFlow(it->first, it->second);
             for (auto it = udpFlows.begin(); it != udpFlows.end();) {
-                if (FD_ISSET(static_cast<SockT>(it->second.sock), &rd)) serviceUdpFlow(it->first, it->second);
                 if (now - it->second.lastMs > kUdpIdleMs) {
                     closeSock(it->second.sock);
                     it = udpFlows.erase(it);
@@ -556,6 +741,8 @@ struct IpStack::Impl {
                 }
             }
             sys_check_timeouts();
+            // Lo que lwIP mandó por sus temporizadores o por los puentes también va en la tanda.
+            wg.terminarTanda();
             // Limpieza de puentes muertos.
             for (auto it = bridges.begin(); it != bridges.end();) {
                 Bridge& b = **it;
@@ -574,9 +761,11 @@ struct IpStack::Impl {
                                          [](const std::shared_ptr<ClientConn>& c) { return c->done; }),
                           clients.end());
             std::lock_guard<std::mutex> lock(statsLock);
-            stats.packetsIn += in.size();
+            stats.packetsIn += entradasVuelta;
+            entradasVuelta = 0;
             stats.tcpBridges = static_cast<int>(bridges.size());
             stats.udpFlows = static_cast<int>(udpFlows.size());
+            stats.enMemoria = enMemoria();
         }
     }
 };
@@ -603,15 +792,20 @@ void IpStack::forwardUdpRange(uint16_t first, uint16_t last) {
 bool IpStack::start() {
     if (g_inUse.exchange(true)) return false; // lwIP es global
     Impl& d = *impl_;
-    // Socket para despertar al thread de la pila.
-    const SockT ws = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
-    sockaddr_in a = loopback(0);
-    bind(ws, reinterpret_cast<const sockaddr*>(&a), sizeof(a));
-    socklen_t len = sizeof(a);
-    getsockname(ws, reinterpret_cast<sockaddr*>(&a), &len);
-    d.wakeSock = static_cast<long long>(ws);
-    d.wakePort = ntohs(a.sin_port);
-    setNonBlocking(d.wakeSock);
+    // Para despertar al hilo de la pila (tareas de otros hilos, la vuelta de WebRTC).
+    if (!d.despertador.abrir()) {
+        g_inUse = false;
+        return false;
+    }
+    // F5: el bucle de WireGuard pasa a este hilo (recibir, descifrar y lwIP juntos).
+    d.wgSock = d.wg.cederBucle();
+    if (d.wgSock < 0) {
+        d.wg.retomarBucle();
+        d.despertador.cerrar();
+        g_inUse = false;
+        return false;
+    }
+    d.enMemoriaAjuste = ba::ajustes::siNo("gateway.wgEnMemoria", true);
 
     lwip_init();
     ip4_addr_t ip;
@@ -640,18 +834,14 @@ bool IpStack::start() {
         d.udpPcbs[static_cast<uint16_t>(p)] = pcb;
     }
 
-    d.wg.setOnPacket([&d](const uint8_t* p, size_t n) {
-        bool wasEmpty = false;
-        {
-            std::lock_guard<std::mutex> lock(d.qLock);
-            wasEmpty = d.inbound.empty();
-            if (wasEmpty) d.inboundDesdeNs = ba::diag::relojNs();
-            if (d.inbound.size() < 8192) d.inbound.emplace_back(p, p + n);
-        }
-        if (wasEmpty) d.wake(); // un despertar por lote, no por paquete
-    });
+    // Se llama en este mismo hilo (WgDevice::servir desde el bucle de la pila): sin cola.
+    d.wg.setOnPacket([&d](const uint8_t* p, size_t n) { d.entrada(p, n); });
     d.stop = false;
-    d.thread = std::thread([&d] { ba::platform::nombrarHilo("ipstack"); d.loop(); });
+    d.thread = std::thread([&d] {
+        ba::platform::nombrarHilo("wireguard");
+        ba::platform::nucleos::alGrupoGateway(); // F4: el bloque de caché del gateway
+        d.loop();
+    });
     if (d.log) {
         d.log(ba::i18n::llenar(ba::i18n::traducir("gateway", "pila IP: %1/%2 sobre WireGuard (%3 reenvios TCP, UDP %4-%5)"),
                                {ipToString(d.cfg.tunnelIp), std::to_string(d.cfg.prefix), std::to_string(d.tcpFwds.size()),
@@ -663,10 +853,18 @@ bool IpStack::start() {
 void IpStack::stop() {
     Impl& d = *impl_;
     if (!d.thread.joinable()) return;
-    d.wg.setOnPacket({});
     d.stop = true;
     d.wake();
     d.thread.join();
+    // El bucle de WireGuard vuelve a su hilo propio, ya sin la pila.
+    d.wg.setOnPacket({});
+    d.wg.retomarBucle();
+    d.wgSock = -1;
+    {
+        std::lock_guard<std::mutex> lock(d.sumideroMu);
+        d.sumidero.reset();
+    }
+    d.sumideroVuelta.reset();
     for (auto& b : d.bridges) {
         if (b->pcb != nullptr) {
             tcp_arg(b->pcb, nullptr);
@@ -689,9 +887,36 @@ void IpStack::stop() {
         f->listen = nullptr;
     }
     netif_remove(&d.nif);
-    closeSock(d.wakeSock);
-    d.wakeSock = -1;
+    d.despertador.cerrar();
     g_inUse = false;
+}
+
+void IpStack::setSumidero(std::shared_ptr<SumideroRtc> s) {
+    Impl& d = *impl_;
+    const bool hay = s != nullptr;
+    {
+        std::lock_guard<std::mutex> lock(d.sumideroMu);
+        d.sumidero = std::move(s);
+    }
+    if (d.log)
+        d.log(hay ?ba::i18n::traducir("gateway", "pila IP: lo del túnel va a WebRTC en memoria")
+                         : ba::i18n::traducir("gateway", "pila IP: lo del túnel va a WebRTC por la red local"));
+}
+
+void IpStack::enviarDesdeRtc(uint16_t puertoRtc, uint32_t ipRemota, uint16_t puertoRemoto, const uint8_t* datos, size_t n) {
+    if (datos == nullptr || n == 0 || n > 0xFFFF) return;
+    Impl& d = *impl_;
+    bool estaba = false;
+    {
+        std::lock_guard<std::mutex> lock(d.qLock);
+        // Un tope: si la pila no da abasto, se pierde como en la red (no se acumula sin fin).
+        if (d.desdeRtcArena.size() > 8u * 1024 * 1024) return;
+        estaba = d.desdeRtc.empty();
+        const size_t off = d.desdeRtcArena.size();
+        d.desdeRtcArena.insert(d.desdeRtcArena.end(), datos, datos + n);
+        d.desdeRtc.push_back({ipRemota, puertoRemoto, puertoRtc, off, n});
+    }
+    if (estaba) d.wake(); // una despertada por tanda
 }
 
 IpStack::Stats IpStack::stats() const {

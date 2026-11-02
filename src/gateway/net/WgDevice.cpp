@@ -6,6 +6,7 @@
 #include "security/Comparar.hpp"
 #include "i18n/I18n.hpp"
 #include "platform/Hilo.hpp"
+#include "platform/Nucleos.hpp"
 
 #include <chrono>
 #include <cstring>
@@ -22,6 +23,7 @@ using SockT = SOCKET;
 #include <netinet/in.h>
 #include <sys/select.h>
 #include <sys/socket.h>
+#include <sys/uio.h>
 #include <unistd.h>
 using SockT = int;
 #endif
@@ -200,7 +202,12 @@ bool WgDevice::start() {
                               {cfg_.endpointHost}));
     }
     stop_ = false;
-    thread_ = std::thread([this] { ba::platform::nombrarHilo("wireguard"); loop(); });
+    lastResolve_ = monoMs();
+    thread_ = std::thread([this] {
+        ba::platform::nombrarHilo("wireguard");
+        ba::platform::nucleos::alGrupoGateway(); // F4: el bloque de caché del gateway
+        loop();
+    });
     if (log_)
         log_(ba::i18n::llenar(ba::i18n::traducir("gateway", "wireguard: escuchando UDP %1"), {std::to_string(localPort_)}));
     return true;
@@ -237,38 +244,178 @@ WgDevice::Stats WgDevice::stats() const {
 // --- Bucle ------------------------------------------------------------------
 
 void WgDevice::loop() {
-    std::vector<uint8_t> buf(65536);
-    int64_t lastResolve = monoMs();
     while (!stop_.load()) {
         fd_set rd;
         FD_ZERO(&rd);
         FD_SET(static_cast<SockT>(sock_), &rd);
         timeval tv{0, 50000};
         const int r = select(static_cast<int>(sock_) + 1, &rd, nullptr, nullptr, &tv);
-        const int64_t now = monoMs();
-        if (r > 0) {
-            // Se vacia TODO lo que haya: de a un datagrama por vuelta, una
-            // rafaga de TCP desborda el buffer del socket y se pierde.
-            for (int i = 0; i < 256; ++i) {
-                sockaddr_in from{};
-                socklen_t fl = sizeof(from);
-                const int n = static_cast<int>(
-                    recvfrom(static_cast<SockT>(sock_), reinterpret_cast<char*>(buf.data()),
-                             static_cast<int>(buf.size()), 0, reinterpret_cast<sockaddr*>(&from), &fl));
-                if (n <= 0) break;
-                handleDatagram(buf.data(), static_cast<size_t>(n), from.sin_addr.s_addr, ntohs(from.sin_port),
-                               now);
+        empezarTanda();
+        servir(r > 0);
+        terminarTanda();
+    }
+}
+
+long long WgDevice::cederBucle() {
+    if (thread_.joinable()) {
+        stop_ = true;
+        thread_.join();
+        stop_ = false;
+    }
+    externo_ = true;
+    return sock_;
+}
+
+void WgDevice::retomarBucle() {
+    if (!externo_) return;
+    externo_ = false;
+    if (sock_ >= 0 && !thread_.joinable()) {
+        stop_ = false;
+        thread_ = std::thread([this] {
+            ba::platform::nombrarHilo("wireguard");
+            ba::platform::nucleos::alGrupoGateway();
+            loop();
+        });
+    }
+}
+
+void WgDevice::setDescifradorParalelo(std::shared_ptr<DescifradorParalelo> d) {
+    std::lock_guard<std::mutex> lock(m_);
+    paralelo_ = std::move(d);
+}
+
+void DescifradoWg::descifrar() { ok = largo >= 16 && aeadDecrypt(plano, clave, contador, cifrado, largo, nullptr, 0); }
+
+int WgDevice::recibirTanda() {
+    if (rxBuf_.size() < kTanda * kRxMax) rxBuf_.resize(kTanda * kRxMax);
+    rx_.clear();
+#if defined(__linux__)
+    // #15: una llamada al sistema por tanda.
+    mmsghdr msgs[kTanda];
+    iovec iov[kTanda];
+    sockaddr_in from[kTanda];
+    std::memset(msgs, 0, sizeof msgs);
+    for (size_t i = 0; i < kTanda; ++i) {
+        iov[i].iov_base = rxBuf_.data() + i * kRxMax;
+        iov[i].iov_len = kRxMax;
+        msgs[i].msg_hdr.msg_iov = &iov[i];
+        msgs[i].msg_hdr.msg_iovlen = 1;
+        msgs[i].msg_hdr.msg_name = &from[i];
+        msgs[i].msg_hdr.msg_namelen = sizeof(from[i]);
+    }
+    const int n = recvmmsg(static_cast<SockT>(sock_), msgs, static_cast<unsigned>(kTanda), MSG_DONTWAIT, nullptr);
+    for (int i = 0; i < n; ++i) {
+        if (msgs[i].msg_len == 0 || (msgs[i].msg_hdr.msg_flags & MSG_TRUNC)) continue;
+        rx_.push_back({static_cast<size_t>(i) * kRxMax, msgs[i].msg_len, from[i].sin_addr.s_addr, ntohs(from[i].sin_port)});
+    }
+#else
+    for (size_t i = 0; i < kTanda; ++i) {
+        sockaddr_in from{};
+        socklen_t fl = sizeof(from);
+        const int n = static_cast<int>(recvfrom(static_cast<SockT>(sock_), reinterpret_cast<char*>(rxBuf_.data() + i * kRxMax),
+                                                static_cast<int>(kRxMax), 0, reinterpret_cast<sockaddr*>(&from), &fl));
+        if (n <= 0) break;
+        rx_.push_back({i * kRxMax, static_cast<size_t>(n), from.sin_addr.s_addr, ntohs(from.sin_port)});
+    }
+#endif
+    return static_cast<int>(rx_.size());
+}
+
+void WgDevice::servir(bool legible) {
+    const int64_t now = monoMs();
+    std::unique_lock<std::mutex> lock(m_);
+    if (legible && sock_ >= 0) {
+        // Se vacía todo lo que haya, de a tandas: de a un datagrama por vuelta, una ráfaga de
+        // TCP desborda el búfer del socket y se pierde. Tope de 8 tandas por vuelta (512):
+        // los temporizadores y lo demás del hilo también tienen que correr.
+        for (int vuelta = 0; vuelta < 8; ++vuelta) {
+            lock.unlock();
+            const int n = recibirTanda();
+            lock.lock();
+            for (int i = 0; i < n; ++i) {
+                const Rx& r = rx_[static_cast<size_t>(i)];
+                const uint8_t* d = rxBuf_.data() + r.off;
+                if (r.n < 4) continue;
+                stats_.rxBytes += r.n;
+                if (d[0] == 4) {
+                    prepararDatoLocked(d, r.n, r.ip, r.port, now);
+                    continue;
+                }
+                // Un mensaje de handshake cambia las sesiones: los datos que llegaron antes
+                // se entregan antes (el orden de la tanda se respeta).
+                procesarTandaLocked(lock, now);
+                switch (d[0]) {
+                    case 1: handleInitiation(d, r.n, r.ip, r.port, now); break;
+                    case 2: handleResponse(d, r.n, r.ip, r.port, now); break;
+                    case 3: handleCookie(d, r.n); break;
+                    default: break;
+                }
             }
-        }
-        {
-            std::lock_guard<std::mutex> lock(m_);
-            if (epIp_ == 0 && !cfg_.endpointHost.empty() && now - lastResolve > 5000) {
-                lastResolve = now;
-                resolveEndpoint();
-            }
-            tick(now);
+            procesarTandaLocked(lock, now);
+            if (n < static_cast<int>(kTanda)) break;
         }
     }
+    if (epIp_ == 0 && !cfg_.endpointHost.empty() && now - lastResolve_ > 5000) {
+        lastResolve_ = now;
+        resolveEndpoint();
+    }
+    tick(now);
+}
+
+void WgDevice::empezarTanda() {
+    std::lock_guard<std::mutex> lock(m_);
+    enTanda_ = true;
+}
+
+void WgDevice::terminarTanda() {
+    std::lock_guard<std::mutex> lock(m_);
+    enTanda_ = false;
+    enviarSalidaLocked();
+}
+
+void WgDevice::enviarSalidaLocked() {
+    if (salidaLargos_.empty()) return;
+    if (sock_ >= 0 && epIp_ != 0) {
+        sockaddr_in to{};
+        to.sin_family = AF_INET;
+        to.sin_addr.s_addr = epIp_;
+        to.sin_port = htons(epPort_);
+#if defined(__linux__)
+        // #20: una llamada al sistema por tanda.
+        mmsghdr msgs[kTanda];
+        iovec iov[kTanda];
+        size_t off = 0, i = 0;
+        while (i < salidaLargos_.size()) {
+            size_t k = 0;
+            for (; k < kTanda && i + k < salidaLargos_.size(); ++k) {
+                std::memset(&msgs[k], 0, sizeof(mmsghdr));
+                iov[k].iov_base = salida_.data() + off;
+                iov[k].iov_len = salidaLargos_[i + k];
+                off += salidaLargos_[i + k];
+                msgs[k].msg_hdr.msg_iov = &iov[k];
+                msgs[k].msg_hdr.msg_iovlen = 1;
+                msgs[k].msg_hdr.msg_name = &to;
+                msgs[k].msg_hdr.msg_namelen = sizeof(to);
+            }
+            size_t hecho = 0;
+            while (hecho < k) {
+                const int r = sendmmsg(static_cast<SockT>(sock_), msgs + hecho, static_cast<unsigned>(k - hecho), 0);
+                if (r <= 0) break; // lleno o error: lo que queda se pierde (como en la red)
+                hecho += static_cast<size_t>(r);
+            }
+            i += k;
+        }
+#else
+        size_t off = 0;
+        for (size_t n : salidaLargos_) {
+            sendto(static_cast<SockT>(sock_), reinterpret_cast<const char*>(salida_.data() + off), static_cast<int>(n), 0,
+                   reinterpret_cast<sockaddr*>(&to), sizeof(to));
+            off += n;
+        }
+#endif
+    }
+    salida_.clear();
+    salidaLargos_.clear();
 }
 
 void WgDevice::tick(int64_t now) {
@@ -308,6 +455,15 @@ void WgDevice::tick(int64_t now) {
 
 void WgDevice::sendRawLocked(const uint8_t* d, size_t n) {
     if (sock_ < 0 || epIp_ == 0) return;
+    if (enTanda_) {
+        // #20: se junta y sale con la tanda (terminarTanda).
+        salida_.insert(salida_.end(), d, d + n);
+        salidaLargos_.push_back(n);
+        lastSentMs_ = monoMs();
+        stats_.txBytes += n;
+        if (salidaLargos_.size() >= 4 * kTanda) enviarSalidaLocked();
+        return;
+    }
     sockaddr_in to{};
     to.sin_family = AF_INET;
     to.sin_addr.s_addr = epIp_;
@@ -388,9 +544,14 @@ bool WgDevice::sendDataLocked(const uint8_t* p, size_t n, int64_t now) {
     if (kp->initiator && !hs_.active && now - kp->createdMs >= kRekeyAfterMs) sendInitiationLocked(now);
 
     const size_t padded = (n + 15) & ~static_cast<size_t>(15);
-    std::vector<uint8_t> plain(padded, 0);
+    // Búferes que se reusan (con m_): sin un std::vector nuevo por paquete.
+    std::vector<uint8_t>& plain = planoEnvio_;
+    plain.resize(padded);
     if (n > 0) std::memcpy(plain.data(), p, n);
-    std::vector<uint8_t> msg(kDataHeader + padded + 16);
+    if (padded > n) std::memset(plain.data() + n, 0, padded - n);
+    std::vector<uint8_t>& msg = msgEnvio_;
+    msg.resize(kDataHeader + padded + 16);
+    std::memset(msg.data(), 0, kDataHeader);
     msg[0] = 4;
     put32(msg.data() + 4, kp->remoteIndex);
     const uint64_t counter = kp->sendCounter++;
@@ -426,24 +587,6 @@ WgDevice::Keypair* WgDevice::keypairFor(uint32_t idx) {
         if (kp != nullptr && kp->localIndex == idx) return kp;
     }
     return nullptr;
-}
-
-void WgDevice::handleDatagram(const uint8_t* d, size_t n, uint32_t ip, uint16_t port, int64_t now) {
-    if (n < 4) return;
-    std::unique_lock<std::mutex> lock(m_);
-    stats_.rxBytes += n;
-    switch (d[0]) {
-        case 1: handleInitiation(d, n, ip, port, now); break;
-        case 2: handleResponse(d, n, ip, port, now); break;
-        case 3: handleCookie(d, n); break;
-        case 4: {
-            // El paquete descifrado se entrega FUERA del lock: la pila IP puede
-            // querer contestar (send) desde el mismo callback.
-            handleData(d, n, ip, port, now);
-            break;
-        }
-        default: break;
-    }
 }
 
 void WgDevice::handleInitiation(const uint8_t* d, size_t n, uint32_t ip, uint16_t port, int64_t now) {
@@ -591,38 +734,85 @@ void WgDevice::handleCookie(const uint8_t* d, size_t n) {
     if (log_) log_(ba::i18n::traducir("gateway", "wireguard: el servidor pidió cookie (bajo carga); se reintenta con MAC2"));
 }
 
-void WgDevice::handleData(const uint8_t* d, size_t n, uint32_t ip, uint16_t port, int64_t now) {
+void WgDevice::prepararDatoLocked(const uint8_t* d, size_t n, uint32_t ip, uint16_t port, int64_t now) {
     if (n < kDataHeader + 16) return;
-    Keypair* kp = keypairFor(get32(d + 4));
+    const uint32_t idx = get32(d + 4);
+    Keypair* kp = keypairFor(idx);
     if (kp == nullptr || now - kp->createdMs >= kRejectAfterMs) return;
     const uint64_t counter = get64(d + 8);
-    if (!kp->replay.ok(counter)) return;
-    std::vector<uint8_t> plain(n - kDataHeader - 16);
-    if (!aeadDecrypt(plain.data(), kp->recvKey, counter, d + kDataHeader, n - kDataHeader, nullptr, 0))
-        return;
-    kp->replay.mark(counter);
-    // Respondedor: el primer dato con la sesion nueva la confirma.
-    if (kp == next_.get()) {
-        previous_ = std::move(current_);
-        current_ = std::move(next_);
-        flushQueueLocked(now);
+    if (!kp->replay.ok(counter)) return; // se vuelve a mirar al entregar (dos iguales en la tanda)
+    DescifradoWg x;
+    x.cifrado = d + kDataHeader;
+    x.largo = n - kDataHeader;
+    x.contador = counter;
+    x.clave = kp->recvKey;
+    descifrar_.push_back(x);
+    // El lugar del descifrado: el puntero se pone al procesar (planoTanda_ puede crecer).
+    DatoTanda t;
+    t.localIndex = idx;
+    t.ip = ip;
+    t.port = port;
+    t.planoOff = planoTanda_.size();
+    planoTanda_.resize(planoTanda_.size() + (n - kDataHeader - 16));
+    datos_.push_back(t);
+}
+
+void WgDevice::procesarTandaLocked(std::unique_lock<std::mutex>& lock, int64_t now) {
+    if (datos_.empty()) return;
+    for (size_t i = 0; i < descifrar_.size(); ++i) descifrar_[i].plano = planoTanda_.data() + datos_[i].planoOff;
+    // #16: en este hilo, o repartido (cada uno es independiente); el orden se mantiene abajo.
+    if (paralelo_) {
+        const std::shared_ptr<DescifradorParalelo> p = paralelo_;
+        lock.unlock();
+        p->descifrar(descifrar_.data(), descifrar_.size());
+        lock.lock();
+    } else {
+        for (DescifradoWg& x : descifrar_) x.descifrar();
     }
-    epIp_ = ip; // roaming
-    epPort_ = port;
-    lastRecvMs_ = now;
-    unansweredSinceMs_ = 0;
-    if (plain.empty()) return; // keepalive
-    lastDataRecvMs_ = now;
-    // Largo real del paquete IP (el resto es relleno a 16).
-    size_t len = plain.size();
-    if (len >= 20 && (plain[0] >> 4) == 4) {
-        const size_t total = (static_cast<size_t>(plain[2]) << 8) | plain[3];
-        if (total >= 20 && total <= len) len = total;
+    // Se entrega en el orden en que llegó. Las sesiones se buscan de nuevo por su índice (un
+    // dato puede confirmar la sesión nueva y soltar la vieja: nada de punteros guardados).
+    const PacketFn fn = onPacket_;
+    for (size_t i = 0; i < datos_.size(); ++i) {
+        DescifradoWg& x = descifrar_[i];
+        const DatoTanda& t = datos_[i];
+        if (!x.ok) {
+            wipe(x.clave.data(), 32);
+            continue;
+        }
+        wipe(x.clave.data(), 32);
+        Keypair* kp = keypairFor(t.localIndex);
+        if (kp == nullptr || !kp->replay.ok(x.contador)) continue;
+        kp->replay.mark(x.contador);
+        // Respondedor: el primer dato con la sesion nueva la confirma.
+        if (kp == next_.get()) {
+            previous_ = std::move(current_);
+            current_ = std::move(next_);
+            flushQueueLocked(now);
+        }
+        epIp_ = t.ip; // roaming
+        epPort_ = t.port;
+        lastRecvMs_ = now;
+        unansweredSinceMs_ = 0;
+        const size_t plano = x.largo - 16;
+        if (plano == 0) continue; // keepalive
+        lastDataRecvMs_ = now;
+        // Largo real del paquete IP (el resto es relleno a 16).
+        const uint8_t* p = x.plano;
+        size_t len = plano;
+        if (len >= 20 && (p[0] >> 4) == 4) {
+            const size_t total = (static_cast<size_t>(p[2]) << 8) | p[3];
+            if (total >= 20 && total <= len) len = total;
+        }
+        // FUERA del candado: la pila IP puede contestar (send) desde el mismo callback.
+        if (fn) {
+            lock.unlock();
+            fn(p, len);
+            lock.lock();
+        }
     }
-    PacketFn fn = onPacket_;
-    m_.unlock();
-    if (fn) fn(plain.data(), len);
-    m_.lock();
+    descifrar_.clear();
+    datos_.clear();
+    planoTanda_.clear();
 }
 
 } // namespace ba::gateway::net

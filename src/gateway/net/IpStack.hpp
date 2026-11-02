@@ -20,6 +20,19 @@
 // Threading: lwIP es global y NO es thread-safe: un unico thread (el de la
 // pila) la toca. Los demas le mandan trabajo por una cola. Una sola IpStack
 // por proceso.
+//
+// F5 (docs/planes/PLAN-GATEWAY-FRAGMENTOS.md, #15-#20): el hilo de la pila es TAMBIÉN el
+// de WireGuard (WgDevice::cederBucle): recibe en tanda, descifra y le pasa cada paquete a
+// lwIP ahí mismo, sin cola ni despertar por un UDP local en el medio (#17). Lo que lwIP
+// manda sale cifrado en tanda al final de cada vuelta (#20). Para la red de WebRTC hay dos
+// caminos:
+//   - EN MEMORIA (#18/#19, `gateway.wgEnMemoria`, de fábrica): con un SumideroRtc
+//     enchufado (lo pone el gateway: los sockets en memoria de rtc/, F1), lo que llega a
+//     un puerto del rango de WebRTC se le entrega en UNA llamada por vuelta (la tanda
+//     entera), y lo que WebRTC manda vuelve por enviarDesdeRtc (encola y despierta solo
+//     si la cola estaba vacía). Sin un socket por invitado ni select sobre todos.
+//   - POR EL KERNEL (el respaldo, mientras no haya sumidero o con el ajuste apagado): un
+//     socket local por invitado y sendto a 127.0.0.1, como antes.
 // ============================================================================
 #pragma once
 
@@ -41,6 +54,27 @@ namespace ba::gateway::net {
 
 class WgDevice;
 
+/// F5: un datagrama del túnel para (o desde) la red de WebRTC. Direcciones en orden de host.
+struct DatagramaTunel {
+    uint32_t ipRemota = 0;     ///< el invitado (su IP pública, tal como llega por el túnel)
+    uint16_t puertoRemoto = 0;
+    uint16_t puertoRtc = 0;    ///< el puerto del rango de WebRTC al que va
+    const uint8_t* datos = nullptr;
+    size_t largo = 0;
+};
+
+/// F5 (#18): adónde entrega IpStack lo que llega por el túnel a los puertos de WebRTC. Lo
+/// implementa el gateway con sus sockets en memoria (rtc/SocketsEnMemoria, F1): cada
+/// datagrama al socket del puerto `puertoRtc`, como si viniera de ipRemota:puertoRemoto, en
+/// el hilo de red del grupo de ese invitado (el pase entre hilos va en lote: una tanda por
+/// llamada). Se llama en el hilo de la pila (el de WireGuard); los punteros valen solo
+/// durante la llamada (hay que copiar). Que no se trabe.
+class SumideroRtc {
+   public:
+    virtual ~SumideroRtc() = default;
+    virtual void entregar(const DatagramaTunel* v, size_t n) = 0;
+};
+
 class IpStack {
    public:
     using LogFn = std::function<void(const std::string&)>;
@@ -55,7 +89,10 @@ class IpStack {
         uint64_t packetsIn = 0;
         uint64_t packetsOut = 0;
         int tcpBridges = 0; ///< conexiones TCP reenviadas vivas
-        int udpFlows = 0;   ///< flujos UDP (invitado x puerto) vivos
+        int udpFlows = 0;   ///< flujos UDP (invitado x puerto) vivos (solo por el kernel)
+        bool enMemoria = false;   ///< F5: hay sumidero y el ajuste lo deja
+        uint64_t aRtc = 0;        ///< datagramas entregados en memoria a WebRTC
+        uint64_t desdeRtc = 0;    ///< datagramas que volvieron de WebRTC en memoria
     };
 
     IpStack(WgDevice& wg, Config cfg, LogFn log = {});
@@ -71,6 +108,15 @@ class IpStack {
     void stop();
 
     Stats stats() const;
+
+    // --- F5: la red de WebRTC en memoria ---------------------------------------------------
+    /// Enchufa (o saca, con nullptr) el sumidero. Se puede llamar en cualquier momento y
+    /// desde cualquier hilo: vale desde la vuelta siguiente. Sin sumidero, por el kernel.
+    void setSumidero(std::shared_ptr<SumideroRtc> s);
+    /// La vuelta (#19): WebRTC manda desde su puerto `puertoRtc` a ipRemota:puertoRemoto
+    /// (orden de host). Thread-safe: copia, encola y despierta al hilo de la pila solo si la
+    /// cola estaba vacía (una despertada por tanda). Sale por lwIP y WireGuard en esa vuelta.
+    void enviarDesdeRtc(uint16_t puertoRtc, uint32_t ipRemota, uint16_t puertoRemoto, const uint8_t* d, size_t n);
 
     // --- Cliente (diagnostico y pruebas) ----------------------------------------
     /// Abre TCP a ip:port por el tunel, manda `request` y junta la respuesta

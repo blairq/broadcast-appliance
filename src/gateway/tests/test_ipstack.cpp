@@ -18,6 +18,9 @@
 //   5. El medidor del enlace (net/EnlaceMedidor) por el tunel, con el UDP propio de
 //      la pila (IpStack::transporteUdp), contra el eco de verdad
 //      (tools/vps/ba-enlace-eco.py) detras del reenvio UDP. Sin python3: SKIP.
+//   6. F5: con un SumideroRtc enchufado, lo que llega a los puertos de WebRTC se entrega
+//      en memoria (una llamada por tanda) y vuelve por enviarDesdeRtc, sin sockets locales;
+//      lwIP corre en el hilo de WireGuard (WgDevice::cederBucle).
 // Solo POSIX (el test se relanza a si mismo como proceso hijo).
 
 #include <atomic>
@@ -192,6 +195,57 @@ int remote(int argc, char** argv) {
     return g_failures == 0 ? 0 : 1;
 }
 
+/// 6) F5: la segunda vuelta del remoto, con el sumidero en memoria enchufado en el gateway:
+/// el UDP vuelve con «mem:» (lo contesta el sumidero por enviarDesdeRtc, sin sockets locales).
+///   argv: --remote-memoria <wgPort> <remotePriv> <gatewayPub> <udpPort>
+int remoteMemoria(int argc, char** argv) {
+    if (argc < 6) return 2;
+    WgConfig c;
+    fromBase64(c.privateKey, argv[3]);
+    fromBase64(c.peerPublicKey, argv[4]);
+    c.endpointHost = "127.0.0.1";
+    c.endpointPort = static_cast<uint16_t>(std::atoi(argv[2]));
+    c.persistentKeepaliveSec = 0;
+    const uint16_t udpPort = static_cast<uint16_t>(std::atoi(argv[5]));
+    WgDevice wg(c);
+    IpStack::Config sc;
+    sc.tunnelIp = kRemoteIp;
+    IpStack ip(wg, sc);
+    wg.start();
+    ip.start();
+    const auto u = ip.udpRequest(kGatewayIp, udpPort, "hola-mem", 5000);
+    CHECK(u && *u == "mem:hola-mem", "UDP por el tunel entregado en memoria (sumidero) y de vuelta por enviarDesdeRtc");
+    int bien = 0;
+    for (int i = 0; i < 20; ++i) {
+        const std::string m = "n" + std::to_string(i);
+        const auto r = ip.udpRequest(kGatewayIp, udpPort, m, 2000);
+        if (r && *r == "mem:" + m) ++bien;
+    }
+    CHECK(bien == 20, "20 seguidos, cada uno con su respuesta");
+    ip.stop();
+    wg.stop();
+    return g_failures == 0 ? 0 : 1;
+}
+
+/// El «WebRTC» de la prueba: contesta cada datagrama con «mem:» delante, en memoria.
+class EcoMemoria : public SumideroRtc {
+   public:
+    explicit EcoMemoria(IpStack& ip) : ip_(ip) {}
+    void entregar(const DatagramaTunel* v, size_t n) override {
+        tandas.fetch_add(1);
+        for (size_t i = 0; i < n; ++i) {
+            datagramas.fetch_add(1);
+            const std::string r = "mem:" + std::string(reinterpret_cast<const char*>(v[i].datos), v[i].largo);
+            ip_.enviarDesdeRtc(v[i].puertoRtc, v[i].ipRemota, v[i].puertoRemoto, reinterpret_cast<const uint8_t*>(r.data()),
+                               r.size());
+        }
+    }
+    std::atomic<int> tandas{0}, datagramas{0};
+
+   private:
+    IpStack& ip_;
+};
+
 /// Sonda manual: hace de SERVIDOR WireGuard (el "VPS") para un gateway real y,
 /// desde adentro del tunel, le pide /healthz y un /api/join.
 ///   test_ipstack --probe <puertoUDP> <privServidor_b64> <pubGateway_b64> <pin>
@@ -240,6 +294,7 @@ int main(int argc, char** argv) {
 #else
     if (argc > 1 && std::string(argv[1]) == "--remote") return remote(argc, argv);
     if (argc > 1 && std::string(argv[1]) == "--probe") return probe(argc, argv);
+    if (argc > 1 && std::string(argv[1]) == "--remote-memoria") return remoteMemoria(argc, argv);
     std::printf("== test_ipstack ==\n");
     Key32 gPriv{}, gPub{}, rPriv{}, rPub{};
     x25519Generate(gPriv, gPub);
@@ -334,6 +389,28 @@ int main(int argc, char** argv) {
     CHECK(rc == 0, "el proceso remoto paso todos sus casos");
     const auto st = ip.stats();
     CHECK(st.packetsIn > 100 && st.packetsOut > 100, "trafico real por la pila del gateway");
+    CHECK(!st.enMemoria && st.aRtc == 0, "sin sumidero: por el kernel (el respaldo)");
+
+    // 6) F5: con el sumidero enchufado, lo que llega a los puertos de WebRTC va en memoria.
+    auto ecoMem = std::make_shared<EcoMemoria>(ip);
+    ip.setSumidero(ecoMem);
+    const pid_t pid2 = fork();
+    if (pid2 == 0) {
+        const std::string port = std::to_string(wg.localPort());
+        const std::string rp = toBase64(rPriv);
+        const std::string gp = toBase64(gPub);
+        const std::string up = std::to_string(udpPort);
+        execl(self.c_str(), argv[0], "--remote-memoria", port.c_str(), rp.c_str(), gp.c_str(), up.c_str(),
+              static_cast<char*>(nullptr));
+        _exit(127);
+    }
+    waitpid(pid2, &status, 0);
+    CHECK(WIFEXITED(status) && WEXITSTATUS(status) == 0, "el remoto paso la entrega en memoria");
+    const auto st2 = ip.stats();
+    CHECK(st2.enMemoria, "la pila dice que entrega en memoria");
+    CHECK(ecoMem->datagramas.load() >= 21 && st2.aRtc >= 21 && st2.desdeRtc >= 21, "ida y vuelta en memoria, contadas");
+    CHECK(ecoMem->tandas.load() <= ecoMem->datagramas.load(), "una llamada al sumidero por tanda, no más");
+    ip.setSumidero(nullptr);
 
     if (eco > 0) {
         kill(eco, SIGTERM);
