@@ -818,7 +818,14 @@ struct RtcHubState {
 
     /// La red de una PeerConnection nueva: sin las de enlace local, y con el asignador de
     /// puertos propio (el rango va en él: la config de la PC no se aplica a uno inyectado).
+    /// Y el video que llega sin suavizar.
     void configurarRed(webrtc::PeerConnectionInterface::RTCConfiguration& config, webrtc::PeerConnectionDependencies& deps) {
+        // Sin «suavizado previo al render» (IncomingVideoStream): libwebrtc retiene cada
+        // cuadro decodificado en una cola con su propio hilo hasta su hora de mostrarse. El
+        // gateway no muestra nada: la grilla (cola de 4 cuadros por persona) y ba-app llevan
+        // su propio ritmo. Medido en la .177: un hilo por stream y, con 10 en 720p, 107 % de
+        // un núcleo solo en eso. Así el cuadro sale del decodificador derecho al sink.
+        config.set_prerenderer_smoothing(false);
         config.disable_link_local_networks = true;
         if (minPort != 0) {
             config.port_allocator_config.min_port = minPort;
