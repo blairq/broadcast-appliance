@@ -8,6 +8,7 @@
 | [`desarrollo/`](desarrollo/) | Para quien lo compila: macOS, compilación, tests, el mapa GPU/CPU del motor, la migración a GStreamer. |
 | [`planes/`](planes/) | Planes en curso, ideas, decisiones pendientes y el informe de experto con sus tareas. |
 | [`modelos/`](modelos/README.md) | El modelo local: el índice (qué leer según para qué), cómo se entrena hoy, el corpus, la voz y las tarjetas de los modelos publicados (`modelos/publicados/`). |
+| [`hardware/`](hardware/README.md) | Cómo se comporta el sistema en cada máquina medida: ficha, números esperados con 10-40 invitados, límites y cómo repetir la medición. |
 | [`historia/`](historia/README.md) | Lo que fue cierto en su momento y ya no: por qué el sistema quedó como quedó. |
 | [`bosch/`](bosch/README.md) | La central de conferencias Bosch DCN (Open Interface, DDI). |
 | [`lsp-matrix-mixer/`](lsp-matrix-mixer/PR.md) | Parches propios a LSP Plugins. |
