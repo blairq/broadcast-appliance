@@ -258,7 +258,7 @@
         </translation>
     </message>
     <message numerus="yes">
-        <location line="+198"/>
+        <location line="+201"/>
         <source>%n conexión</source>
         <translation>
             <numerusform>%n conexión</numerusform>
@@ -293,6 +293,25 @@
         <translation>
             <numerusform>%n driver anda</numerusform>
             <numerusform>%n drivers andan</numerusform>
+        </translation>
+    </message>
+</context>
+<context>
+    <name>EnlaceViewModel</name>
+    <message numerus="yes">
+        <location filename="../src/app/ui/EnlaceViewModel.cpp" line="+104"/>
+        <source>Hay %n invitados conectados: la medición carga el enlace y se les puede cortar la imagen unos segundos.</source>
+        <translation>
+            <numerusform>Hay %n invitado conectado: la medición carga el enlace y se le puede cortar la imagen unos segundos.</numerusform>
+            <numerusform>Hay %n invitados conectados: la medición carga el enlace y se les puede cortar la imagen unos segundos.</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location line="+102"/>
+        <source>Subida %1 Mbps, bajada %2 Mbps, RTT %3 ms: para %n invitados %4 (entran hasta %5 con margen).</source>
+        <translation>
+            <numerusform>Subida %1 Mbps, bajada %2 Mbps, RTT %3 ms: para %n invitado %4 (entran hasta %5 con margen).</numerusform>
+            <numerusform>Subida %1 Mbps, bajada %2 Mbps, RTT %3 ms: para %n invitados %4 (entran hasta %5 con margen).</numerusform>
         </translation>
     </message>
 </context>
@@ -861,7 +880,31 @@ No se borran del disco: si alguno estaba en una escena, se lo saca de ahí y lis
 <context>
     <name>PanelPruebaSala</name>
     <message numerus="yes">
-        <location filename="../src/app/qml/controls/PanelPruebaSala.qml" line="+106"/>
+        <location filename="../src/app/qml/controls/PanelPruebaSala.qml" line="+91"/>
+        <source>Enlace: alcanza para %n invitados (última medición).</source>
+        <translation>
+            <numerusform>Enlace: alcanza para %n invitado (última medición).</numerusform>
+            <numerusform>Enlace: alcanza para %n invitados (última medición).</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location line="+1"/>
+        <source>Enlace: justo para %n invitados.</source>
+        <translation>
+            <numerusform>Enlace: justo para %n invitado.</numerusform>
+            <numerusform>Enlace: justo para %n invitados.</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location line="+1"/>
+        <source>Enlace: NO alcanza para %n invitados (entran %1 con margen).</source>
+        <translation>
+            <numerusform>Enlace: NO alcanza para %n invitado (entran %1 con margen).</numerusform>
+            <numerusform>Enlace: NO alcanza para %n invitados (entran %1 con margen).</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location line="+40"/>
         <source>%n cortes</source>
         <translation>
             <numerusform>%n corte</numerusform>
@@ -1070,7 +1113,15 @@ No se borran del disco: si alguno estaba en una escena, se lo saca de ahí y lis
 <context>
     <name>PruebaSalaViewModel</name>
     <message numerus="yes">
-        <location filename="../src/app/ui/PruebaSalaViewModel.cpp" line="+250"/>
+        <location filename="../src/app/ui/PruebaSalaViewModel.cpp" line="+167"/>
+        <source>Ojo: según la última medición, el enlace no alcanza para %n invitados por el túnel.</source>
+        <translation>
+            <numerusform>Ojo: según la última medición, el enlace no alcanza para %n invitado por el túnel.</numerusform>
+            <numerusform>Ojo: según la última medición, el enlace no alcanza para %n invitados por el túnel.</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location line="+104"/>
         <source>Prueba de sala: entran %n participantes de prueba (la primera vez, el probador graba su video unos minutos).</source>
         <translation>
             <numerusform>Prueba de sala: entra %n participante de prueba (la primera vez, el probador graba su video unos minutos).</numerusform>

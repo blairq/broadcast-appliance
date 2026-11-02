@@ -171,6 +171,7 @@ class JsonListModel;
 class EventoViewModel;
 class TemaEventoViewModel;
 class PruebaSalaViewModel;
+class EnlaceViewModel;
 namespace sala {
 class ClavesEvento;
 class GuardadoEnEvento;
@@ -269,6 +270,8 @@ class StudioViewModel : public QObject {
     /// La prueba de sala: el simulacro con participantes de prueba antes del evento
     /// (ui/PruebaSalaViewModel).
     Q_PROPERTY(QObject* pruebaSala READ pruebaSalaQml CONSTANT)
+    /// La velocidad del enlace por el túnel y cuánto necesita el evento (ui/EnlaceViewModel).
+    Q_PROPERTY(QObject* enlace READ enlaceQml CONSTANT)
     /// El control web (dashboard /control/, /ws?control): aparatos, perfiles y solicitudes. control/ControlWeb.
     Q_PROPERTY(QObject* controlWeb READ controlWebQml CONSTANT)
     /// El área de las superficies de control (ui/ControlViewModel): el tema web,
@@ -549,6 +552,8 @@ class StudioViewModel : public QObject {
     QObject* recursosQml() const;
     PruebaSalaViewModel& pruebaSala() { return *pruebaSala_; }
     QObject* pruebaSalaQml() const;
+    EnlaceViewModel& enlace() { return *enlace_; }
+    QObject* enlaceQml() const;
     /// El corte de luz (F1-11): de dónde viene la energía y la política (arranque/EnergiaAire).
     EnergiaAire* energia() const { return energia_.get(); }
     /// La botonera con el gateway (emparejar tablets, credenciales): control/BotoneraGateway.
@@ -976,8 +981,11 @@ class StudioViewModel : public QObject {
     /// Los tótems de registro: usan la atención (su voz), Personas, el evento y
     /// la sala. Después de la atención, se destruyen antes.
     std::unique_ptr<TotemsViewModel> totems_;
-    /// La prueba de sala: usa la sala, el cupo, los recursos y el evento. Última: se
-    /// destruye antes que ellos (corta el probador y le avisa a la sala).
+    /// La medición del enlace: usa la sala, el evento, lo que está al aire y la grilla.
+    /// Antes que la prueba de sala (que la consulta): se destruye después.
+    std::unique_ptr<EnlaceViewModel> enlace_;
+    /// La prueba de sala: usa la sala, el cupo, los recursos, el evento y el enlace.
+    /// Última: se destruye antes que ellos (corta el probador y le avisa a la sala).
     std::unique_ptr<PruebaSalaViewModel> pruebaSala_;
 };
 

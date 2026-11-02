@@ -13,7 +13,10 @@ las dos usan el mismo modelo (`src/app/ui/PruebaSalaViewModel`).
 1. Abrí el evento que vas a probar (el informe va a su lista de chequeo).
 2. Elegí cuántos participantes (1 a 64), cuántos minutos y cuántos hablan a la vez.
 3. **Revisar la máquina** dice si la guardia deja arrancar (memoria disponible, carga).
-4. **Arrancar la prueba**:
+4. El **enlace**: la tarjeta dice si la última medición del túnel alcanza para los N y
+   ofrece medir ([ENLACE.md](ENLACE.md)). Con hinchada la carga no pasa por el enlace (es
+   esta máquina), así que no frena: avisa. El informe final lleva el enlace.
+5. **Arrancar la prueba**:
    - con **hinchada** (el probador de carga que viene en el programa, `bin/64bit/hinchada/`):
      esta máquina genera a los N. Cada uno manda un patrón con **su número** grande y una
      voz sintética (frases y respiros); nadie suena por los parlantes. La primera vez,
@@ -21,10 +24,10 @@ las dos usan el mismo modelo (`src/app/ui/PruebaSalaViewModel`).
    - **sin hinchada** (o desde otras máquinas): la tarjeta muestra la URL de la sala, la
      **credencial de prueba** y la línea de hinchada lista para copiar. Sirve cualquier
      generador que entre como un invitado usando la credencial como PIN.
-5. Mirá en vivo: cuántos entraron y con video, fallidos, cortes, subida/bajada, CPU de la
+6. Mirá en vivo: cuántos entraron y con video, fallidos, cortes, subida/bajada, CPU de la
    app y del gateway, memoria disponible y cuánto tarda la **HD al dar la palabra** (la
    grilla los muestra en baja; al darle la palabra a uno pasa a alta con el fundido).
-6. **Terminar la prueba** (o se termina sola: por tiempo, porque el probador terminó, por
+7. **Terminar la prueba** (o se termina sola: por tiempo, porque el probador terminó, por
    la guardia o porque la sala la cerró).
 
 ## Qué hace con los de prueba

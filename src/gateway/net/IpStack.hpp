@@ -35,6 +35,8 @@
 #include <thread>
 #include <vector>
 
+#include "net/EnlaceMedidor.hpp"
+
 namespace ba::gateway::net {
 
 class WgDevice;
@@ -78,6 +80,17 @@ class IpStack {
     /// Manda un datagrama y espera UNO de respuesta.
     std::optional<std::string> udpRequest(uint32_t ip, uint16_t port, const std::string& payload,
                                           int timeoutMs);
+
+    /// Un UDP propio por el túnel hacia ip:port (el medidor del enlace). Lo que llega va a
+    /// `alLlegar` en el hilo de la pila (que no se trabe). 0 si no se pudo abrir.
+    using LlegadaFn = std::function<void(const uint8_t* d, size_t n)>;
+    int udpAbrir(uint32_t ip, uint16_t port, LlegadaFn alLlegar);
+    /// Manda un lote por ese UDP (una sola vuelta por la cola de la pila).
+    void udpEnviar(int id, std::vector<std::string>&& lote);
+    /// Lo cierra: después de esto `alLlegar` ya no se llama.
+    void udpCerrar(int id);
+    /// El transporte del medidor del enlace por el túnel (Enlace.hpp); nullptr si no abrió.
+    std::unique_ptr<enlace::Transporte> transporteUdp(uint32_t ip, uint16_t port);
 
     static std::string ipToString(uint32_t hostOrderIp);
 

@@ -5135,12 +5135,12 @@ Faire défiler la bande ne change pas ce qui est affiché.</translation>
     </message>
     <message>
         <location line="+4"/>
-        <location line="+1206"/>
+        <location line="+1209"/>
         <source>Tiempo</source>
         <translation>Temps</translation>
     </message>
     <message>
-        <location line="-1200"/>
+        <location line="-1203"/>
         <source>Tiempo general para cada orador (m:ss o minutos)</source>
         <translation>Temps général pour chaque intervenant (m:ss ou minutes)</translation>
     </message>
@@ -5382,18 +5382,18 @@ Faire défiler la bande ne change pas ce qui est affiché.</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location line="+700"/>
+        <location line="+703"/>
         <source>Reiniciar</source>
         <translation>Redémarrer</translation>
     </message>
     <message>
-        <location line="-700"/>
-        <location line="+700"/>
+        <location line="-703"/>
+        <location line="+703"/>
         <source>Cancelar</source>
         <translation>Annuler</translation>
     </message>
     <message>
-        <location line="-697"/>
+        <location line="-700"/>
         <source>La conferencia se está reiniciando.</source>
         <translation>La conférence redémarre.</translation>
     </message>
@@ -5643,12 +5643,12 @@ Partagez le lien et le PIN (panneau Accès).</translation>
     </message>
     <message>
         <location line="+6"/>
-        <location line="+188"/>
+        <location line="+191"/>
         <source>Invitar con QR</source>
         <translation>Inviter par QR</translation>
     </message>
     <message>
-        <location line="-183"/>
+        <location line="-186"/>
         <source>PIN copiado: %1</source>
         <translation>PIN copié&#xa0;: %1</translation>
     </message>
@@ -5744,7 +5744,7 @@ Partagez le lien et le PIN (panneau Accès).</translation>
         <translation>Mémoire %1 Mo · %2 cœurs. Chaque invité avec caméra est une vidéo de plus à décoder.</translation>
     </message>
     <message>
-        <location line="+16"/>
+        <location line="+19"/>
         <source>Grillas de personas</source>
         <translation>Grilles de personnes</translation>
     </message>
@@ -8229,6 +8229,70 @@ Réactivez-la depuis le Journal.</translation>
         <location line="+52"/>
         <source>esa fuente de gráfico ya no está</source>
         <translation>cette source graphique n&apos;existe plus</translation>
+    </message>
+</context>
+<context>
+    <name>EnlaceViewModel</name>
+    <message numerus="yes">
+        <location filename="../src/app/ui/EnlaceViewModel.cpp" line="+104"/>
+        <source>Hay %n invitados conectados: la medición carga el enlace y se les puede cortar la imagen unos segundos.</source>
+        <translation>
+            <numerusform>%n invité est connecté : la mesure charge la liaison et son image peut se figer quelques secondes.</numerusform>
+            <numerusform>%n invités sont connectés : la mesure charge la liaison et leur image peut se figer quelques secondes.</numerusform>
+        </translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Hay algo al aire: la medición carga el enlace y puede cortar la salida unos segundos.</source>
+        <translation>Quelque chose est à l&apos;antenne : la mesure charge la liaison et peut couper la sortie quelques secondes.</translation>
+    </message>
+    <message>
+        <location line="+32"/>
+        <source>No arrancó la medición del enlace: %1</source>
+        <translation>La mesure de la liaison n&apos;a pas démarré : %1</translation>
+    </message>
+    <message>
+        <location line="+15"/>
+        <source>La conferencia no contestó.</source>
+        <translation>La conférence n&apos;a pas répondu.</translation>
+    </message>
+    <message>
+        <location line="+39"/>
+        <source>Medición del enlace cancelada.</source>
+        <translation>Mesure de la liaison annulée.</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>La medición del enlace no se pudo hacer: %1</source>
+        <translation>La liaison n&apos;a pas pu être mesurée : %1</translation>
+    </message>
+    <message numerus="yes">
+        <location line="+8"/>
+        <source>Subida %1 Mbps, bajada %2 Mbps, RTT %3 ms: para %n invitados %4 (entran hasta %5 con margen).</source>
+        <translation>
+            <numerusform>Envoi %1 Mbit/s, réception %2 Mbit/s, RTT %3 ms : pour %n invité, %4 (jusqu&apos;à %5 avec de la marge).</numerusform>
+            <numerusform>Envoi %1 Mbit/s, réception %2 Mbit/s, RTT %3 ms : pour %n invités, %4 (jusqu&apos;à %5 avec de la marge).</numerusform>
+        </translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>entra</source>
+        <translation>ça passe</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>está justo</source>
+        <translation>c&apos;est juste</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>no entra</source>
+        <translation>ça ne passe pas</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Enlace medido por el túnel (subida, bajada, demora)</source>
+        <translation>Liaison mesurée par le tunnel (envoi, réception, délai)</translation>
     </message>
 </context>
 <context>
@@ -20599,6 +20663,150 @@ Ajoutez-y des images depuis l&apos;onglet Fichiers.</translation>
     </message>
 </context>
 <context>
+    <name>PanelEnlace</name>
+    <message>
+        <location filename="../src/app/qml/controls/PanelEnlace.qml" line="+18"/>
+        <source>Enlace (por el túnel)</source>
+        <translation>Liaison (par le tunnel)</translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>Entra</source>
+        <translation>Ça passe</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Justo</source>
+        <translation>Juste</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>No entra</source>
+        <translation>Ça ne passe pas</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Sin medir</source>
+        <translation>Non mesuré</translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>Medir el enlace ahora</source>
+        <translation>Mesurer la liaison maintenant</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>%1 Se mide suave (hasta 5 Mbps): alcanza para la demora y la pérdida, no para la velocidad máxima. ¿Mido igual?</source>
+        <translation>%1 La mesure reste légère (jusqu&apos;à 5 Mbit/s) : suffisant pour le délai et les pertes, pas pour le débit maximal. Mesurer quand même ?</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Medir</source>
+        <translation>Mesurer</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <location line="+121"/>
+        <source>Cancelar</source>
+        <translation>Annuler</translation>
+    </message>
+    <message>
+        <location line="-106"/>
+        <source>La conferencia no está andando.</source>
+        <translation>La conférence n&apos;est pas lancée.</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Sin túnel WireGuard: la medición va por el túnel hasta el servidor propio (Acceso directo por un servidor propio…).</source>
+        <translation>Pas de tunnel WireGuard : la mesure passe par le tunnel jusqu&apos;à votre serveur (Accès direct par un serveur propre…).</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Los invitados entran por el túnel y el retorno sale una vez por cada uno: lo que manda es la subida de este lugar. Se mide hasta el eco del servidor (%1).</source>
+        <translation>Les invités entrent par le tunnel et le retour part une fois par invité : c&apos;est l&apos;envoi de ce lieu qui compte. La mesure va jusqu&apos;à l&apos;écho du serveur (%1).</translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>Invitados</source>
+        <translation>Invités</translation>
+    </message>
+    <message>
+        <location line="+13"/>
+        <source>Hace falta: subida %1 · bajada %2 (%3 en alta; con WireGuard %4 / %5)</source>
+        <translation>Nécessaire : envoi %1 · réception %2 (%3 en haute qualité ; avec WireGuard %4 / %5)</translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <source>Con lo medido entran hasta %1 invitados con margen (%2 justo).</source>
+        <translation>Avec la mesure, jusqu&apos;à %1 invités passent avec de la marge (%2 au plus juste).</translation>
+    </message>
+    <message>
+        <location line="+21"/>
+        <source>Subida (sin pérdida / máx.)</source>
+        <translation>Envoi (sans perte / max.)</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Bajada (sin pérdida / máx.)</source>
+        <translation>Réception (sans perte / max.)</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Demora en reposo / con carga</source>
+        <translation>Délai au repos / en charge</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Jitter / pérdida</source>
+        <translation>Gigue / pertes</translation>
+    </message>
+    <message>
+        <location line="+22"/>
+        <source>Demora en reposo…</source>
+        <translation>Délai au repos…</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Subida: %1…</source>
+        <translation>Envoi : %1…</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Bajada: %1…</source>
+        <translation>Réception : %1…</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Buscando el eco del servidor…</source>
+        <translation>Recherche de l&apos;écho du serveur…</translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <source>Medir el enlace</source>
+        <translation>Mesurer la liaison</translation>
+    </message>
+    <message>
+        <location line="+13"/>
+        <source>Instalar el eco en el servidor…</source>
+        <translation>Installer l&apos;écho sur le serveur…</translation>
+    </message>
+    <message>
+        <location line="+14"/>
+        <source>Eco del medidor en el servidor</source>
+        <translation>Écho de mesure sur le serveur</translation>
+    </message>
+    <message>
+        <location line="+15"/>
+        <source>En el servidor del túnel, como root, pegá esto en una terminal: instala (o actualiza) el eco del medidor como servicio (ba-enlace-eco, UDP 51821, solo por el túnel). Se puede repetir sin problema.</source>
+        <translation>Sur le serveur du tunnel, en root, collez ceci dans un terminal : cela installe (ou met à jour) l&apos;écho de mesure comme service (ba-enlace-eco, UDP 51821, uniquement par le tunnel). Vous pouvez le relancer sans problème.</translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <source>Copiar</source>
+        <translation>Copier</translation>
+    </message>
+</context>
+<context>
     <name>PanelEventoWeb</name>
     <message>
         <location filename="../src/app/qml/controls/PanelEventoWeb.qml" line="+37"/>
@@ -22324,8 +22532,47 @@ Ajoutez-y des images depuis l&apos;onglet Fichiers.</translation>
         <source>Memoria disponible %1 MB · carga %2 · %3 hilos</source>
         <translation>Mémoire disponible %1 Mo · charge %2 · %3 threads</translation>
     </message>
+    <message numerus="yes">
+        <location line="+14"/>
+        <source>Enlace: alcanza para %n invitados (última medición).</source>
+        <translation>
+            <numerusform>Liaison : suffisante pour %n invité (dernière mesure).</numerusform>
+            <numerusform>Liaison : suffisante pour %n invités (dernière mesure).</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location line="+1"/>
+        <source>Enlace: justo para %n invitados.</source>
+        <translation>
+            <numerusform>Liaison : juste pour %n invité.</numerusform>
+            <numerusform>Liaison : juste pour %n invités.</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location line="+1"/>
+        <source>Enlace: NO alcanza para %n invitados (entran %1 con margen).</source>
+        <translation>
+            <numerusform>Liaison : INSUFFISANTE pour %n invité (%1 passent avec de la marge).</numerusform>
+            <numerusform>Liaison : INSUFFISANTE pour %n invités (%1 passent avec de la marge).</numerusform>
+        </translation>
+    </message>
     <message>
-        <location line="+8"/>
+        <location line="+1"/>
+        <source>Enlace sin medir: medilo antes del evento real.</source>
+        <translation>Liaison non mesurée : mesurez-la avant l&apos;événement réel.</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Midiendo…</source>
+        <translation>Mesure en cours…</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Medir el enlace</source>
+        <translation>Mesurer la liaison</translation>
+    </message>
+    <message>
+        <location line="+13"/>
         <source>Revisar la máquina</source>
         <translation>Vérifier la machine</translation>
     </message>
@@ -26966,8 +27213,21 @@ De face, de profil, avec et sans lunettes&#xa0;: c&apos;est ainsi qu&apos;on la 
 </context>
 <context>
     <name>PruebaSalaViewModel</name>
+    <message numerus="yes">
+        <location filename="../src/app/ui/PruebaSalaViewModel.cpp" line="+167"/>
+        <source>Ojo: según la última medición, el enlace no alcanza para %n invitados por el túnel.</source>
+        <translation>
+            <numerusform>Attention : d&apos;après la dernière mesure, la liaison ne suffit pas pour %n invité par le tunnel.</numerusform>
+            <numerusform>Attention : d&apos;après la dernière mesure, la liaison ne suffit pas pour %n invités par le tunnel.</numerusform>
+        </translation>
+    </message>
     <message>
-        <location filename="../src/app/ui/PruebaSalaViewModel.cpp" line="+196"/>
+        <location line="+2"/>
+        <source>El enlace no está medido: medilo antes del evento real (tarjeta «Enlace»).</source>
+        <translation>La liaison n&apos;est pas mesurée : mesurez-la avant l&apos;événement réel (carte « Liaison »).</translation>
+    </message>
+    <message>
+        <location line="+48"/>
         <source>Prueba de sala abierta: conectá el generador externo con la credencial de prueba.</source>
         <translation>Test de salle ouvert : connectez le générateur externe avec l&apos;identifiant de test.</translation>
     </message>
@@ -26995,7 +27255,7 @@ De face, de profil, avec et sans lunettes&#xa0;: c&apos;est ainsi qu&apos;on la 
         <translation>Entrée directe désactivée : la salle d&apos;attente revient.</translation>
     </message>
     <message>
-        <location line="+48"/>
+        <location line="+55"/>
         <source>Prueba de sala (simulacro con participantes de prueba)</source>
         <translation>Test de salle (simulation avec des participants de test)</translation>
     </message>
@@ -32802,7 +33062,7 @@ puis elle se rouvre toute seule. Les paramètres, identifiants, enregistrements 
 <context>
     <name>StudioViewModel</name>
     <message>
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="+134"/>
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="+135"/>
         <source>%1 (no se pudo: %2)</source>
         <translation>%1 (échec&#xa0;: %2)</translation>
     </message>
@@ -32852,7 +33112,7 @@ puis elle se rouvre toute seule. Les paramètres, identifiants, enregistrements 
         <translation>Le disque des événements est plein à %1 % (il reste %2 Go)</translation>
     </message>
     <message>
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="+270"/>
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="+291"/>
         <source>La interfaz estuvo trabada %1 s; el aire siguió</source>
         <translation>L&apos;interface a été bloquée %1 s&#xa0;; l&apos;antenne a continué</translation>
     </message>
@@ -43061,7 +43321,7 @@ Choisissez autre chose dans Sorties → Écrans.</translation>
     </message>
     <message>
         <location line="-57"/>
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="-835"/>
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="-856"/>
         <source>arranque: %1 tardó %2 ms</source>
         <translation>démarrage&#xa0;: %1 a pris %2 ms</translation>
     </message>
@@ -52053,7 +52313,7 @@ Données (de %2)&#xa0;: %3</translation>
 <context>
     <name>gateway</name>
     <message>
-        <location filename="../src/gateway/AdminApi.cpp" line="+196"/>
+        <location filename="../src/gateway/AdminApi.cpp" line="+201"/>
         <source>no es un ajuste de la conferencia</source>
         <translation>ce n&apos;est pas un réglage de la conférence</translation>
     </message>
@@ -52118,7 +52378,14 @@ Données (de %2)&#xa0;: %3</translation>
         <translation>le proxy est désactivé</translation>
     </message>
     <message>
-        <location line="+513"/>
+        <location line="+14"/>
+        <location line="+11"/>
+        <location filename="../src/gateway/net/EnlaceServicio.cpp" line="+70"/>
+        <source>no hay túnel WireGuard configurado</source>
+        <translation>aucun tunnel WireGuard n&apos;est configuré</translation>
+    </message>
+    <message>
+        <location line="+510"/>
         <source>salida inválida</source>
         <translation>sortie invalide</translation>
     </message>
@@ -53373,7 +53640,7 @@ Données (de %2)&#xa0;: %3</translation>
     </message>
     <message>
         <location line="+2"/>
-        <location filename="../src/gateway/main.cpp" line="+757"/>
+        <location filename="../src/gateway/main.cpp" line="+758"/>
         <location line="+2"/>
         <source>(ninguna)</source>
         <translation>(aucune)</translation>
@@ -53597,12 +53864,12 @@ Données (de %2)&#xa0;: %3</translation>
     </message>
     <message>
         <location line="+47"/>
-        <location line="+245"/>
+        <location line="+292"/>
         <source>https: no arrancó; los invitados solo tienen http (sin cámara fuera de localhost)</source>
         <translation>https&#xa0;: n&apos;a pas démarré&#xa0;; les invités n&apos;ont que http (pas de caméra hors de localhost)</translation>
     </message>
     <message>
-        <location line="-202"/>
+        <location line="-249"/>
         <source>túnel: sin clave privada WireGuard; túnel deshabilitado</source>
         <translation>tunnel&#xa0;: pas de clé privée WireGuard&#xa0;; tunnel désactivé</translation>
     </message>
@@ -53647,7 +53914,12 @@ Données (de %2)&#xa0;: %3</translation>
         <translation>«&#xa0;%1&#xa0;» est l&apos;interface publique du serveur&#xa0;: changez-la si elle porte un autre nom.</translation>
     </message>
     <message>
-        <location line="+280"/>
+        <location line="+64"/>
+        <source>sin dirección del túnel</source>
+        <translation>pas d&apos;adresse de tunnel</translation>
+    </message>
+    <message>
+        <location line="+263"/>
         <source>túnel: --tunnel-token es visible en la lista de procesos; preferir %1</source>
         <translation>tunnel&#xa0;: --tunnel-token est visible dans la liste des processus&#xa0;; préférez %1</translation>
     </message>
@@ -53667,7 +53939,7 @@ Données (de %2)&#xa0;: %3</translation>
         <translation>tunnel&#xa0;: désactivé par la configuration (accès local uniquement)</translation>
     </message>
     <message>
-        <location line="-565"/>
+        <location line="-612"/>
         <source>red: IP de la máquina %1; en el QR: %2</source>
         <translation>réseau&#xa0;: IP de la machine %1&#xa0;; dans le QR&#xa0;: %2</translation>
     </message>
@@ -53697,7 +53969,7 @@ Données (de %2)&#xa0;: %3</translation>
         <translation>Broadcast Appliance (cet appareil)</translation>
     </message>
     <message>
-        <location line="+47"/>
+        <location line="+94"/>
         <source>turn: escuchando en el puerto %1 (TCP y UDP)</source>
         <translation>turn&#xa0;: écoute sur le port %1 (TCP et UDP)</translation>
     </message>
@@ -53772,12 +54044,12 @@ Données (de %2)&#xa0;: %3</translation>
         <translation>arrêt&#xa0;: arrêt des composants...</translation>
     </message>
     <message>
-        <location line="+22"/>
+        <location line="+24"/>
         <source>cierre ordenado: BA.Health slot 0 = Terminated; exito</source>
         <translation>arrêt propre&#xa0;: BA.Health slot 0 = Terminated&#xa0;; succès</translation>
     </message>
     <message>
-        <location filename="../src/gateway/net/IpStack.cpp" line="+627"/>
+        <location filename="../src/gateway/net/IpStack.cpp" line="+635"/>
         <source>pila IP: %1/%2 sobre WireGuard (%3 reenvios TCP, UDP %4-%5)</source>
         <translation>pile IP&#xa0;: %1/%2 sur WireGuard (%3 redirections TCP, UDP %4-%5)</translation>
     </message>
@@ -54052,6 +54324,26 @@ Données (de %2)&#xa0;: %3</translation>
         <source>turn: no se pudo escuchar en %1:%2 (UDP)</source>
         <translation>turn&#xa0;: impossible d&apos;écouter sur %1:%2 (UDP)</translation>
     </message>
+    <message>
+        <location filename="../src/gateway/net/EnlaceMedidor.cpp" line="+407"/>
+        <source>el servidor del túnel no contesta: falta instalar el medidor (ba-enlace-eco) en el VPS o el túnel no está conectado</source>
+        <translation>le serveur du tunnel ne répond pas : l&apos;écho de mesure (ba-enlace-eco) n&apos;est pas installé sur le VPS ou le tunnel n&apos;est pas connecté</translation>
+    </message>
+    <message>
+        <location filename="../src/gateway/net/EnlaceServicio.cpp" line="+5"/>
+        <source>ya hay una medición del enlace en curso</source>
+        <translation>une mesure de la liaison est déjà en cours</translation>
+    </message>
+    <message>
+        <location line="+32"/>
+        <source>no se pudo abrir el UDP por el túnel</source>
+        <translation>impossible d&apos;ouvrir l&apos;UDP par le tunnel</translation>
+    </message>
+    <message>
+        <location line="+46"/>
+        <source>Broadcast Appliance: instala o actualiza el eco del medidor del enlace en este servidor (pegar como root; se puede repetir).</source>
+        <translation>Broadcast Appliance : installe ou met à jour l&apos;écho de mesure de la liaison sur ce serveur (à coller en root ; peut être relancé).</translation>
+    </message>
 </context>
 <context>
     <name>grabacion</name>
@@ -54293,7 +54585,7 @@ Données (de %2)&#xa0;: %3</translation>
         <translation>non</translation>
     </message>
     <message>
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="+869"/>
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="+890"/>
         <source>«%1» no arrancó al abrir: %2</source>
         <translation>«&#xa0;%1&#xa0;» n&apos;a pas démarré à l&apos;ouverture&#xa0;: %2</translation>
     </message>
@@ -58306,7 +58598,7 @@ CE QU&apos;IL FAUT SAVOIR EN L&apos;ACTIVANT&#xa0;: le garde-fou des approbation
         <translation>Un carton par-dessus tout ce qui sort (&quot;Suspension de séance&quot;, &quot;Nous revenons tout de suite&quot;, &quot;Minute de silence&quot;…), avec `texto`, une `imagen` facultative (chemin) et `ms` de fondu (600). Ne dépend pas des scènes. L&apos;activer à l&apos;antenne demande confirmation si un automatisme le demande&#xa0;; le retirer, non. Survit à un plantage de l&apos;application. Chaque sortie a son carton (`salida`).</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpService.cpp" line="+1326"/>
+        <location filename="../src/app/mcp/McpService.cpp" line="+1327"/>
         <source>El supervisor relanza la app si deja de latir. El latido sale de la interfaz Y de un hilo que mira los cuadros del motor: si la interfaz se traba y el motor sigue, el aire NO se corta. Con la interfaz trabada más de `espera_ui_s` (10 a 3600, de fábrica 60) y `matar_si_ui_trabada_sin_aire` (de fábrica true), se relanza solo si no hay transmisión ni grabación. La interfaz trabada CON aire es una alarma que sale sin la interfaz, al control web y a los notificadores de `notificar` («todos», de fábrica, o una lista de ids de notificador_listar; [] = ninguno). Sin argumentos, la muestra (con el estado: motor_vivo, ui_viva, ui_trabada_ms, ultima_traba_ms).</source>
         <translation>Le chien de garde relance l&apos;application si elle cesse de battre. Le battement vient de l&apos;interface ET d&apos;un thread qui surveille les images du moteur&#xa0;: si l&apos;interface se bloque et que le moteur continue, l&apos;antenne n&apos;est PAS coupée. Avec l&apos;interface bloquée plus de `espera_ui_s` (10 à 3600, par défaut 60) et `matar_si_ui_trabada_sin_aire` (par défaut true), elle n&apos;est relancée que s&apos;il n&apos;y a ni diffusion ni enregistrement. L&apos;interface bloquée AVEC antenne est une alarme qui part sans l&apos;interface, vers la régie web et les notificateurs de `notificar` («&#xa0;todos&#xa0;», par défaut, ou une liste d&apos;ids de notificador_listar&#xa0;; [] = aucun). Sans arguments, l&apos;affiche (avec l&apos;état&#xa0;: motor_vivo, ui_viva, ui_trabada_ms, ultima_traba_ms).</translation>
     </message>
@@ -61485,7 +61777,7 @@ Vous êtes le rôle `%1`&#xa0;: voici TOUT votre jeu d&apos;outils. Ce qui n&apo
     </message>
     <message>
         <location line="+2"/>
-        <location filename="../src/app/mcp/McpService.cpp" line="-2315"/>
+        <location filename="../src/app/mcp/McpService.cpp" line="-2316"/>
         <source>La herramienta fallo: %1</source>
         <translation>L&apos;outil a échoué&#xa0;: %1</translation>
     </message>
@@ -65071,7 +65363,7 @@ Avec ce répertoire, on construit un graphique SANS écrire de code&#xa0;: c&apo
     </message>
     <message>
         <location line="+1"/>
-        <location filename="../src/app/mcp/McpService.cpp" line="+717"/>
+        <location filename="../src/app/mcp/McpService.cpp" line="+718"/>
         <source>Escenas</source>
         <translation>Scènes</translation>
     </message>
@@ -72253,7 +72545,7 @@ N&apos;enregistre qu&apos;après avoir vu le même visage trois passages d&apos;
         <translation>Personne n&apos;est visible sur les caméras d&apos;attente.</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpService.cpp" line="-4149"/>
+        <location filename="../src/app/mcp/McpService.cpp" line="-4150"/>
         <source>OJO: REINICIA EL MOTOR. Por unos segundos se corta TODO lo que sale (el programa, la sala, las pantallas, lo que ven los invitados) y las cámaras se vuelven a abrir. Con una transmisión o una grabación andando no se aplica. No lo uses para arreglar una cámara: decíselo antes al operador y pedile que confirme.</source>
         <translation>ATTENTION&#xa0;: REDÉMARRE LE MOTEUR. Pendant quelques secondes, TOUT ce qui sort est coupé (le programme, la salle, les écrans, ce que voient les invités) et les caméras sont rouvertes. Ne s&apos;applique pas pendant une diffusion ou un enregistrement. Ne l&apos;utilisez pas pour réparer une caméra&#xa0;: prévenez d&apos;abord l&apos;opérateur et demandez-lui de confirmer.</translation>
     </message>
@@ -72313,7 +72605,7 @@ N&apos;enregistre qu&apos;après avoir vu le même visage trois passages d&apos;
         <translation>preset inconnu &apos;%1&apos;. Valides&#xa0;: full, left, right, top, bottom, center, top-left, top-right, bottom-left, bottom-right, pip-tl, pip-tr, pip-bl, pip-br, lower-third, third-1..3, grid-&lt;n&gt;-&lt;i&gt; (ex. grid-4-2), ou {x,y,w,h}.</translation>
     </message>
     <message>
-        <location line="+290"/>
+        <location line="+291"/>
         <source>«%1» YA ENTRO sola (estaba en la lista de auto-aceptar del evento): no le pidas los datos de cero, mostrale los que ya tenemos para que confirme. </source>
         <translation>«&#xa0;%1&#xa0;» EST DÉJÀ ENTRÉ tout seul (il était sur la liste d&apos;admission automatique de l&apos;événement)&#xa0;: ne lui redemandez pas ses informations depuis zéro, montrez-lui celles que nous avons déjà pour qu&apos;il confirme. </translation>
     </message>
@@ -78932,6 +79224,71 @@ PROPOSEZ, N&apos;APPLIQUEZ PAS&#xa0;: montrez à la personne ce qui change et ap
         <source>Todavía no terminó ninguna prueba de sala en esta sesión.</source>
         <translation>Aucun test de salle n&apos;est encore terminé dans cette session.</translation>
     </message>
+    <message>
+        <location filename="../src/app/mcp/McpEnlaceTools.cpp" line="+23"/>
+        <source>Medir el enlace por el túnel</source>
+        <translation>Mesurer la liaison par le tunnel</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Mide el enlace por el túnel WireGuard hasta el eco del servidor (el camino real de los invitados): RTT en reposo, subida y bajada UDP en escalones (2, 5, 10, 20… Mbps hasta `tope_kbps`, de fábrica 100 Mbps; para cuando el enlace se llena) con el RTT, el jitter y la pérdida con carga. Con `tasa_kbps`, una sola tasa fija. Tarda ~15-30 s; seguila con enlace_estado.</source>
+        <translation>Mesure la liaison par le tunnel WireGuard jusqu&apos;à l&apos;écho du serveur (le vrai chemin des invités) : RTT au repos, envoi et réception UDP par paliers (2, 5, 10, 20… Mbit/s jusqu&apos;à `tope_kbps`, 100 Mbit/s par défaut ; s&apos;arrête quand la liaison sature) avec le RTT, la gigue et les pertes en charge. Avec `tasa_kbps`, un seul débit fixe. Dure ~15-30 s ; suivez-la avec enlace_estado.</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Necesita el túnel WireGuard y el eco instalado en el servidor (si no contesta, enlace_estado lo dice; el instalador está en la tarjeta «Enlace» de la página Sala). La medición CARGA el enlace: con invitados conectados o algo al aire no arranca sin `confirmar` (preguntale al operador) y entonces mide suave (hasta 5 Mbps). Con una prueba de sala corriendo, no. Al terminar, el resultado va a la lista de chequeo del evento abierto (ítem «enlace»).</source>
+        <translation>Nécessite le tunnel WireGuard et l&apos;écho installé sur le serveur (s&apos;il ne répond pas, enlace_estado le dit ; l&apos;installateur est dans la carte « Liaison » de la page Salle). La mesure CHARGE la liaison : avec des invités connectés ou quelque chose à l&apos;antenne, elle ne démarre pas sans `confirmar` (demandez à l&apos;opérateur) et mesure alors en douceur (jusqu&apos;à 5 Mbit/s). Pas pendant un test de salle. À la fin, le résultat va dans la liste de contrôle de l&apos;événement ouvert (élément « enlace »).</translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>el operador aceptó medir con invitados o al aire</source>
+        <translation>l&apos;opérateur a accepté de mesurer avec des invités ou à l&apos;antenne</translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>Midiendo el enlace. Seguilo con enlace_estado.</source>
+        <translation>Mesure de la liaison en cours. Suivez-la avec enlace_estado.</translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>Cancelar la medición del enlace</source>
+        <translation>Annuler la mesure de la liaison</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Corta la medición del enlace que esté corriendo.</source>
+        <translation>Arrête la mesure de la liaison en cours.</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>No hay una medición del enlace en curso.</source>
+        <translation>Aucune mesure de la liaison en cours.</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Cancelando la medición del enlace.</source>
+        <translation>Annulation de la mesure de la liaison.</translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>Cómo está el enlace</source>
+        <translation>État de la liaison</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>El estado de la medición del enlace (sin túnel, libre o midiendo, con la fase y el avance), lo parcial mientras mide, la última medición (reposo, subida y bajada con sus escalones; si fue cancelada, también la última buena, con la que se hace la cuenta), el riesgo de medir ahora y la cuenta para el cupo de la sala (enlace_necesita).</source>
+        <translation>L&apos;état de la mesure de la liaison (sans tunnel, libre ou en mesure, avec la phase et l&apos;avancement), les résultats partiels pendant la mesure, la dernière mesure (repos, envoi et réception avec leurs paliers ; si elle a été annulée, aussi la dernière bonne, qui sert au calcul), le risque de mesurer maintenant et le calcul pour la capacité de la salle (enlace_necesita).</translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <source>Cuánto enlace necesita el evento</source>
+        <translation>Quelle liaison il faut pour l&apos;événement</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Cuánta subida y bajada hacen falta para `invitados` (de fábrica, el cupo de la sala) con la grilla como está («alta definición hasta N»), adentro del túnel y con los encabezados de WireGuard, y contra la última medición: veredicto (entra | justo | no_entra | sin_medir), por qué y hasta cuántos invitados entran con margen.</source>
+        <translation>L&apos;envoi et la réception nécessaires pour `invitados` (par défaut, la capacité de la salle) avec la grille telle quelle (« haute définition jusqu&apos;à N »), dans le tunnel et avec les en-têtes WireGuard, et comparés à la dernière mesure : verdict (entra | justo | no_entra | sin_medir), pourquoi, et combien d&apos;invités passent avec de la marge.</translation>
+    </message>
 </context>
 <context>
     <name>mcp-etiquetas</name>
@@ -81365,6 +81722,30 @@ PROPOSEZ, N&apos;APPLIQUEZ PAS&#xa0;: montrez à la personne ce qui change et ap
     </message>
     <message>
         <location line="+2"/>
+        <source>medir velocidad del enlace internet subida bajada ancho de banda speedtest test de velocidad tunel wireguard starlink latencia ping jitter perdida</source>
+        <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
+        <translation>mesurer debit vitesse liaison internet envoi reception bande passante speedtest test de debit tunnel wireguard starlink latence ping gigue pertes</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>cancelar cortar parar medicion del enlace test de velocidad</source>
+        <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
+        <translation>annuler arreter couper mesure de la liaison test de debit</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>como esta el enlace velocidad de internet resultado de la medicion subida bajada latencia tunel</source>
+        <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
+        <translation>etat de la liaison debit internet resultat de la mesure envoi reception latence tunnel</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>cuanto internet hace falta alcanza el enlace cuantos invitados entran subida necesaria starlink</source>
+        <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
+        <translation>combien d internet faut il la liaison suffit elle combien d invites passent envoi necessaire starlink</translation>
+    </message>
+    <message>
+        <location line="+2"/>
         <source>pin clave codigo de acceso contrasena de la sala de la conferencia</source>
         <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
         <translation>pin code mot de passe code d&apos;accès de la salle de la conférence</translation>
@@ -82238,7 +82619,7 @@ PROPOSEZ, N&apos;APPLIQUEZ PAS&#xa0;: montrez à la personne ce qui change et ap
         <translation>présentateur animateur modérateur hôte</translation>
     </message>
     <message>
-        <location line="-660"/>
+        <location line="-668"/>
         <source>revocar tablet token botonera companion http acceso sacarle el acceso</source>
         <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
         <translation>révoquer tablette jeton surface de contrôle companion http accès retirer l&apos;accès</translation>
@@ -82256,7 +82637,7 @@ PROPOSEZ, N&apos;APPLIQUEZ PAS&#xa0;: montrez à la personne ce qui change et ap
         <translation>démarrer automatiquement à l&apos;allumage coupure de courant revenir tout seul démarrage automatique lancer l&apos;application au démarrage de la machine démarrer avec le système</translation>
     </message>
     <message>
-        <location line="+247"/>
+        <location line="+255"/>
         <source>go take entra el siguiente paso adelante dale revision previa antes de salir</source>
         <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
         <translation>go take entre la suivante étape en avant vas-y vérification avant de sortir</translation>
@@ -84952,7 +85333,7 @@ PROPOSEZ, N&apos;APPLIQUEZ PAS&#xa0;: montrez à la personne ce qui change et ap
         <translation>Invités coupés qui ont retrouvé leur place</translation>
     </message>
     <message>
-        <location filename="../src/gateway/main.cpp" line="-125"/>
+        <location filename="../src/gateway/main.cpp" line="-127"/>
         <source>Edad de lo leído de A (p50 de la última ventana), ms</source>
         <translation>Âge de ce qui est lu de A (p50 de la dernière fenêtre), ms</translation>
     </message>
@@ -90607,7 +90988,7 @@ PROPOSEZ, N&apos;APPLIQUEZ PAS&#xa0;: montrez à la personne ce qui change et ap
         <translation>la Conférence parle la version %1 du contrat et l&apos;application la %2 (paquet mélangé&#xa0;?)</translation>
     </message>
     <message>
-        <location line="+95"/>
+        <location line="+96"/>
         <source>conferencia nueva (%1): se le vuelve a decir %2</source>
         <translation>nouvelle Conférence (%1)&#xa0;: on lui redit %2</translation>
     </message>
@@ -90682,17 +91063,33 @@ PROPOSEZ, N&apos;APPLIQUEZ PAS&#xa0;: montrez à la personne ce qui change et ap
         <translation> ; fin : %1</translation>
     </message>
     <message>
-        <location filename="../src/app/ui/PruebaSalaViewModel.cpp" line="-296"/>
+        <location filename="../src/app/ui/PruebaSalaViewModel.cpp" line="-309"/>
         <source>ya hay una prueba de sala en curso</source>
         <translation>un test de salle est déjà en cours</translation>
     </message>
     <message>
-        <location line="+1"/>
+        <location filename="../src/app/ui/EnlaceViewModel.cpp" line="-101"/>
+        <location filename="../src/app/ui/PruebaSalaViewModel.cpp" line="+1"/>
         <source>la conferencia no está andando</source>
         <translation>la conférence ne tourne pas</translation>
     </message>
     <message>
+        <location line="+1"/>
+        <source>no hay túnel WireGuard configurado: la medición va por el túnel hasta el servidor</source>
+        <translation>aucun tunnel WireGuard n&apos;est configuré : la mesure passe par le tunnel jusqu&apos;au serveur</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>ya hay una medición del enlace en curso</source>
+        <translation>une mesure de la liaison est déjà en cours</translation>
+    </message>
+    <message>
         <location line="+2"/>
+        <source>hay una prueba de sala corriendo: medí el enlace antes o después</source>
+        <translation>un test de salle est en cours : mesurez la liaison avant ou après</translation>
+    </message>
+    <message>
+        <location filename="../src/app/ui/PruebaSalaViewModel.cpp" line="+2"/>
         <source>abrí el evento que querés probar: el informe va a su lista de chequeo</source>
         <translation>ouvrez l&apos;événement à tester : le rapport va dans sa liste de vérification</translation>
     </message>
@@ -90707,7 +91104,7 @@ PROPOSEZ, N&apos;APPLIQUEZ PAS&#xa0;: montrez à la personne ce qui change et ap
         <translation>le testeur (hinchada) n&apos;est pas fourni avec ce programme : utilisez un générateur externe</translation>
     </message>
     <message>
-        <location line="+26"/>
+        <location line="+32"/>
         <source>la conferencia no abrió la prueba</source>
         <translation>la conférence n&apos;a pas ouvert le test</translation>
     </message>
@@ -90755,6 +91152,46 @@ PROPOSEZ, N&apos;APPLIQUEZ PAS&#xa0;: montrez à la personne ce qui change et ap
         <location line="+21"/>
         <source>a mano</source>
         <translation>à la main</translation>
+    </message>
+    <message>
+        <location filename="../src/app/sala/EnlaceNecesita.cpp" line="+54"/>
+        <source>subida</source>
+        <translation>envoi</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>bajada</source>
+        <translation>réception</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>%1: %2 Mbps medidos para %3 Mbps que hacen falta (sin margen)</source>
+        <translation>%1 : %2 Mbit/s mesurés pour %3 Mbit/s nécessaires (sans marge)</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>%1: se midió hasta %2 Mbps sin llenar el enlace y hacen falta %3 Mbps: medí con un tope más alto</source>
+        <translation>%1 : mesuré jusqu&apos;à %2 Mbit/s sans saturer la liaison et il faut %3 Mbit/s : mesurez avec un plafond plus haut</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>%1: %2 Mbps medidos y hacen falta %3 Mbps</source>
+        <translation>%1 : %2 Mbit/s mesurés et il faut %3 Mbit/s</translation>
+    </message>
+    <message>
+        <location line="+69"/>
+        <source>pierde %1 % de los paquetes con carga</source>
+        <translation>perd %1 % des paquets en charge</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>jitter de %1 ms</source>
+        <translation>gigue de %1 ms</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>con el enlace cargado la demora sube de %1 a %2 ms</source>
+        <translation>en charge, le délai passe de %1 à %2 ms</translation>
     </message>
 </context>
 <context>

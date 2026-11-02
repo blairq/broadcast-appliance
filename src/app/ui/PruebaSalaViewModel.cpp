@@ -21,6 +21,7 @@
 #include "sala/CupoSala.hpp"
 #include "sala/MedidaMaquina.hpp"
 #include "ui/ConferenceClient.hpp"
+#include "ui/EnlaceViewModel.hpp"
 #include "ui/EventoViewModel.hpp"
 #include "ui/GuionViewModel.hpp"
 #include "ui/RecursosViewModel.hpp"
@@ -77,6 +78,19 @@ PruebaSalaViewModel::PruebaSalaViewModel(Partes p, QObject* parent) : QObject(pa
         if (on && colgadaPendiente_) limpiarColgada();
     });
     if (colgadaPendiente_ && p_.sala.online()) QTimer::singleShot(0, this, [this]() { limpiarColgada(); });
+    // El enlace: con otra medición (o la grilla cambió), la cuenta para los N de la prueba.
+    connect(&p_.enlace, &EnlaceViewModel::necesidadChanged, this, [this]() { cuentaEnlace(nRevisado_); });
+    cuentaEnlace(nRevisado_);
+}
+
+void PruebaSalaViewModel::cuentaEnlace(int n) {
+    nRevisado_ = n;
+    json j = p_.enlace.necesidadPara(n);
+    j["medido"] = p_.enlace.medido().subidaKbps >= 0;
+    const QVariantMap m = aMapa(j);
+    if (m == enlace_) return;
+    enlace_ = m;
+    emit enlaceChanged();
 }
 
 PruebaSalaViewModel::~PruebaSalaViewModel() {
@@ -127,6 +141,7 @@ void PruebaSalaViewModel::revisarMaquina(int n, bool conHinchada) {
                            {"hilosApp", m.hilosApp},
                            {"puede", qs(pr::puedeArrancar(m, umbrales_, n, conHinchada && hinchadaDisponible()))}};
     emit maquinaChanged();
+    cuentaEnlace(n);
 }
 
 // --- Arrancar -------------------------------------------------------------------------------
@@ -146,6 +161,12 @@ QString PruebaSalaViewModel::arrancar(int n, int minutos, bool conHinchada, int 
     revisarMaquina(n, conHinchada);
     if (!no.empty()) return qs(no);
 
+    // El enlace: los de afuera entran por el túnel. Si lo medido no alcanza, se avisa
+    // (no frena: con hinchada la carga es de esta máquina y no pasa por el enlace).
+    if (enlace_.value("veredicto").toString() == QLatin1String("no_entra"))
+        emit notify(tr("Ojo: según la última medición, el enlace no alcanza para %n invitados por el túnel.", "", n), "warn");
+    else if (enlace_.value("veredicto").toString() == QLatin1String("sin_medir"))
+        emit notify(tr("El enlace no está medido: medilo antes del evento real (tarjeta «Enlace»)."), "warn");
     generador_ = conHinchada ? QStringLiteral("hinchada") : QStringLiteral("externo");
     pedidos_ = n;
     minutos_ = minutos;
@@ -391,6 +412,13 @@ void PruebaSalaViewModel::terminar(const std::string& motivo, bool porGuardia) {
                            {"cortarHilos", yo->umbrales_.cortarHilos},
                            {"cortarCarga", yo->umbrales_.cortarCarga}};
         if (!yo->salidaHinchada_.isEmpty()) fin["hinchada"] = yo->salidaHinchada_.toStdString();
+        // El enlace (por el túnel) para esta cantidad: lo medido y la cuenta.
+        fin["enlace"] = yo->p_.enlace.necesidadPara(yo->pedidos_);
+        if (const json u = yo->p_.enlace.ultimaBuena(); u.is_object())
+            fin["enlace"]["medicion"] = {{"fecha", u.value("fecha", 0.0)},
+                                         {"reposo", u.value("reposo", json::object())},
+                                         {"subida", u.value("subida", json::object())},
+                                         {"bajada", u.value("bajada", json::object())}};
         const std::string nota = yo->informe_.nota();
         fin["nota"] = nota;
         const fs::path dir = yo->p_.evento.eventoAbierto().dir();
@@ -440,7 +468,8 @@ json PruebaSalaViewModel::estadoJson(bool conCredencial) const {
            {"hinchada_disponible", hinchadaDisponible()},
            {"url", url_.toStdString()},
            {"vivo", corriendo() ? informe_.vivo(ahoraMs()) : json::object()},
-           {"maquina", deQJson(QJsonObject::fromVariantMap(maquina_))}};
+           {"maquina", deQJson(QJsonObject::fromVariantMap(maquina_))},
+           {"enlace", deQJson(QJsonObject::fromVariantMap(enlace_))}};
     if (conCredencial && !credencial_.isEmpty()) {
         j["credencial"] = credencial_.toStdString();
         j["comando_externo"] = comandoExterno().toStdString();

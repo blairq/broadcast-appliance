@@ -48,6 +48,7 @@
 #include "ui/AlarmasViewModel.hpp"
 #include "ui/AtencionViewModel.hpp"
 #include "ui/PruebaSalaViewModel.hpp"
+#include "ui/EnlaceViewModel.hpp"
 #include "ui/BitacoraEvento.hpp"
 #include "ui/CapturaError.hpp"
 #include "ui/CarruselViewModel.hpp"
@@ -919,9 +920,30 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, VentanillaMotor& ventanilla, QO
     if (qr_) qr_->setTotems([this]() { return totems_ ? totems_->paraElegir() : QVariantList{}; });
     escritorio_->refrescarCatalogo();
     marca("totems");
-    // La prueba de sala (simulacro antes del evento): la sala, su cupo, los recursos y el evento.
+    // La medición del enlace por el túnel y cuánto necesita el evento (docs/funciones/ENLACE.md).
+    enlace_ = std::make_unique<EnlaceViewModel>(EnlaceViewModel::Partes{
+        conference_->client(), *evento_, [this]() { return alAire(); },
+        [this]() {
+            // «Alta definición hasta N»: la más chica de las grillas (0 = sin límite); sin
+            // grillas, la de fábrica.
+            int menor = -1;
+            bool sinLimite = false;
+            for (const auto& g : grillasPersonas_->estado().value("grillas", nlohmann::json::array())) {
+                const int a = g.value("alta_hasta", grilla::kAltaHastaDefecto);
+                if (a <= 0) sinLimite = true;
+                else menor = menor < 0 ? a : std::min(menor, a);
+            }
+            return menor > 0 ? menor : sinLimite ? 0 : grilla::kAltaHastaDefecto;
+        },
+        [this]() { return pruebaSala_ && pruebaSala_->corriendo(); }});
+    connect(enlace_.get(), &EnlaceViewModel::notify, this, &StudioViewModel::notify);
+    connect(aire_.get(), &EstadoAireViewModel::aireChanged, enlace_.get(), &EnlaceViewModel::revisar);
+    connect(grillasPersonas_.get(), &escenas::ControlGrillas::cambio, enlace_.get(), &EnlaceViewModel::revisar);
+    marca("enlace");
+    // La prueba de sala (simulacro antes del evento): la sala, su cupo, los recursos, el
+    // evento y el enlace.
     pruebaSala_ = std::make_unique<PruebaSalaViewModel>(PruebaSalaViewModel::Partes{
-        conference_->client(), cupoSala(), *recursos_, *evento_, rt.dataRoot()});
+        conference_->client(), cupoSala(), *recursos_, *evento_, *enlace_, rt.dataRoot()});
     connect(pruebaSala_.get(), &PruebaSalaViewModel::notify, this, &StudioViewModel::notify);
     marca("prueba_sala");
     // Sin un reloj de la interfaz a 10 Hz: cada cosa por su aviso.
@@ -1529,6 +1551,10 @@ QObject* StudioViewModel::botoneraQml() const { return control_->botoneraQml(); 
 QObject* StudioViewModel::pruebaSalaQml() const {
     QQmlEngine::setObjectOwnership(pruebaSala_.get(), QQmlEngine::CppOwnership);
     return pruebaSala_.get();
+}
+QObject* StudioViewModel::enlaceQml() const {
+    QQmlEngine::setObjectOwnership(enlace_.get(), QQmlEngine::CppOwnership);
+    return enlace_.get();
 }
 QObject* StudioViewModel::recursosQml() const {
     if (recursos_) QQmlEngine::setObjectOwnership(recursos_.get(), QQmlEngine::CppOwnership);

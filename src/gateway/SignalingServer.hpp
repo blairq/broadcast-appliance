@@ -121,6 +121,9 @@ namespace ba::gateway {
 class Log;
 class MediaPump;
 class Grillas;
+namespace net::enlace {
+class Servicio;
+}
 namespace proxy {
 class GestorProxy;
 }
@@ -334,6 +337,12 @@ class SignalingServer {
     /// Genera la configuracion del servidor WireGuard (/api/v1/network/server-config).
     void setServerConfigGenerator(std::function<nlohmann::json(const nlohmann::json&)> fn) {
         serverConfig_ = std::move(fn);
+    }
+    /// La medición del enlace por el túnel (net/EnlaceServicio.hpp): /api/v1/enlace*.
+    /// `instalador`: el script para instalar el eco en el VPS (vacío = sin túnel).
+    void setEnlace(net::enlace::Servicio* s, std::function<nlohmann::json()> instalador) {
+        enlace_ = s;
+        enlaceInstalador_ = std::move(instalador);
     }
     /// Estado del acceso remoto para GET /api/remoto: {"pinggy":{...}, ...}.
     /// Sin proveedor: pinggy apagado.
@@ -738,6 +747,8 @@ class SignalingServer {
     bool servirTema(long long fd, const std::string& method, const std::string& path, const std::string& query);
     std::function<nlohmann::json()> networkStatus_;
     std::function<nlohmann::json(const nlohmann::json&)> serverConfig_;
+    net::enlace::Servicio* enlace_ = nullptr;
+    std::function<nlohmann::json()> enlaceInstalador_;
     std::function<direcciones::Entradas()> direccionesEntradas_;
     std::function<void(const nlohmann::json&)> alCambiarDirecciones_;
     mutable std::mutex direccionesLock_;

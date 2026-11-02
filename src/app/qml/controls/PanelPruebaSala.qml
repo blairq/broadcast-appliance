@@ -77,6 +77,33 @@ Panel {
                   : qsTr("Memoria disponible %1 MB · carga %2 · %3 hilos").arg(Math.round(panel.m.memLibreMb))
                         .arg(panel.m.carga >= 0 ? panel.m.carga.toFixed(1) : "–").arg(panel.m.hilosApp)
         }
+        // El enlace (por el túnel) para los N: lo que dice la última medición.
+        RowLayout {
+            Layout.fillWidth: true
+            visible: !panel.ps.corriendo
+            spacing: 8
+            Text {
+                Layout.fillWidth: true
+                wrapMode: Text.WordWrap
+                font.pixelSize: 11
+                color: panel.ps.enlace.veredicto === "no_entra" ? Theme.live
+                       : panel.ps.enlace.veredicto === "justo" ? Theme.amber : Theme.textFaint
+                text: panel.ps.enlace.veredicto === "entra" ? qsTr("Enlace: alcanza para %n invitados (última medición).", "", cuantos.value)
+                      : panel.ps.enlace.veredicto === "justo" ? qsTr("Enlace: justo para %n invitados.", "", cuantos.value)
+                      : panel.ps.enlace.veredicto === "no_entra" ? qsTr("Enlace: NO alcanza para %n invitados (entran %1 con margen).", "", cuantos.value).arg(panel.ps.enlace.entranConMargen)
+                      : qsTr("Enlace sin medir: medilo antes del evento real.")
+            }
+            GlassButton {
+                visible: Studio.enlace.hayTunel
+                enabled: !Studio.enlace.midiendo
+                text: Studio.enlace.midiendo ? qsTr("Midiendo…") : qsTr("Medir el enlace")
+                compact: true
+                onClicked: {
+                    const e = Studio.enlace.medir(false)
+                    if (e) Studio.notify(e, "warn")
+                }
+            }
+        }
         RowLayout {
             Layout.fillWidth: true
             visible: !panel.ps.corriendo
