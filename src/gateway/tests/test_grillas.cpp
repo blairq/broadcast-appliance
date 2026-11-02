@@ -311,6 +311,33 @@ int main() {
             t = x + 5 * ms;
         }
         CHECK(intervalosMal == 0, "contra un lienzo a 30, cada 33,3 ms exactos (sin batido)");
+        // Un lienzo que tiembla (±8 ms, como el motor con carga): ni dos mosaicos en un mismo
+        // cuadro del lienzo ni de más; el ritmo medio, el del lienzo.
+        {
+            std::uint32_t semilla = 99;
+            std::vector<std::uint64_t> envios;
+            for (int k = 0; k < 400; ++k) {
+                semilla = semilla * 1664525u + 1013904223u;
+                const std::int64_t temblor = static_cast<std::int64_t>((semilla >> 8) % 17) - 8;
+                envios.push_back(envio + static_cast<std::uint64_t>(k) * p30 + static_cast<std::uint64_t>(temblor + 8) * ms);
+            }
+            std::uint64_t ahora = envio + 9 * ms, ant = 0;
+            int pintados = 0, cortos = 0;
+            while (ahora < envios.back()) {
+                std::uint64_t ultimo = 0;
+                for (std::uint64_t e : envios)
+                    if (e <= ahora) ultimo = e;
+                const std::uint64_t x = Grillas::proximoPintado(ahora, ultimo, p30, 0, ant);
+                if (ant != 0 && x - ant < p30 / 2) ++cortos;
+                ant = x;
+                ++pintados;
+                ahora = x + 4 * ms; // lo que tarda en pintar
+            }
+            const double porSegundo = pintados / ((envios.back() - envio) / 1e9);
+            std::printf("pintor contra un lienzo que tiembla: %.2f por segundo, %d a menos de medio período\n", porSegundo, cortos);
+            CHECK(cortos == 0, "lienzo que tiembla: nunca dos a menos de medio período");
+            CHECK(porSegundo > 28.5 && porSegundo < 30.5, "lienzo que tiembla: al ritmo del lienzo");
+        }
         CHECK(Grillas::proximoPintado(envio + 2000 * ms, envio, p30, envio + 2010 * ms) == envio + 2010 * ms,
               "lienzo quieto: el ritmo propio");
         CHECK(Grillas::proximoPintado(envio + 2000 * ms, envio, p30, envio + 1990 * ms) == envio + 2000 * ms,

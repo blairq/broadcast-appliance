@@ -829,13 +829,14 @@ void Grillas::limpiarRetratosLocked() {
 }
 
 std::uint64_t Grillas::proximoPintado(std::uint64_t ahoraNs, std::uint64_t envioNs, std::uint64_t periodoNs,
-                                      std::uint64_t propioNs) {
+                                      std::uint64_t propioNs, std::uint64_t anteriorNs) {
     constexpr std::uint64_t kSegundo = 1'000'000'000ULL;
     const bool conLienzo = envioNs != 0 && envioNs <= ahoraNs + kSegundo && ahoraNs < envioNs + kSegundo &&
                            periodoNs >= kSegundo / 61 && periodoNs <= kSegundo / 4;
     if (!conLienzo) return std::max(propioNs, ahoraNs);
     std::uint64_t t = envioNs + periodoNs / 2;
     if (t <= ahoraNs) t += ((ahoraNs - t) / periodoNs + 1) * periodoNs;
+    if (anteriorNs != 0 && t < anteriorNs + periodoNs / 2) t += periodoNs;
     return t;
 }
 
@@ -916,7 +917,7 @@ void Grillas::bucle() {
             conLienzo = lienzo.subscribe(lienzo_.c_str());
         }
         const std::uint64_t periodoLienzo = conLienzo ? lienzo.periodoNs() : 0;
-        proximo = proximoPintado(ya, conLienzo ? lienzo.ultimoEnvioNs() : 0, periodoLienzo, proximo + propio);
+        proximo = proximoPintado(ya, conLienzo ? lienzo.ultimoEnvioNs() : 0, periodoLienzo, proximo + propio, proximo);
         periodoPintarNs_.store(periodoLienzo >= 1'000'000'000ULL / 61 && periodoLienzo <= 1'000'000'000ULL / 4 ? periodoLienzo
                                                                                                                : propio,
                                std::memory_order_relaxed);

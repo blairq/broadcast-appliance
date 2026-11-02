@@ -190,9 +190,11 @@ class Grillas {
     /// `ahoraNs`. Pintar a otro ritmo (25 contra 30) o en la misma fase que el lienzo bate:
     /// el lienzo toma a veces uno nuevo y a veces repite (intervalos de 50 y 83 ms). Sin el
     /// lienzo (no publica, o hace más de 1 s), al ritmo propio: `propioNs` (lo previsto),
-    /// nunca antes de ahora (sin ráfaga para alcanzar).
+    /// nunca antes de ahora (sin ráfaga para alcanzar). Nunca a menos de medio período del
+    /// último pintado (`anteriorNs`): el lienzo tiembla y, si publica tarde, «su mitad de
+    /// camino» cae recién pintado (dos mosaicos en un cuadro del lienzo y uno se pierde).
     static std::uint64_t proximoPintado(std::uint64_t ahoraNs, std::uint64_t envioNs, std::uint64_t periodoNs,
-                                        std::uint64_t propioNs);
+                                        std::uint64_t propioNs, std::uint64_t anteriorNs = 0);
 
    private:
     struct Retrato {
