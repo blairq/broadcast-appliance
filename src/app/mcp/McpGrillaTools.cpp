@@ -148,6 +148,30 @@ void McpService::registerGrillaTools() {
           {R"({"fuente": "Grilla", "clave": "asamblea:12"})"},
           [txt](escenas::ControlGrillas& g, const json& a) { return g.devolver(txt(a, "fuente"), txt(a, "clave")); },
           [txt](const json& a) { return ba::i18n::llenar(ba::i18n::traducir("mcp", "Listo: «%1» vuelve a lo automático en «%2»."), {txt(a, "clave"), txt(a, "fuente")}); });
+    {
+        Tool t;
+        t.name = "grilla_personas_escena_orador";
+        t.title = ba::i18n::traducir("mcp", "Armar la escena del orador de una grilla de personas");
+        t.category = "fuentes";
+        t.clase = Clase::Escritura;
+        t.idempotent = true;
+        t.description = QT_TRANSLATE_NOOP("mcp", "Crea (si no está) la escena «Orador · <grilla>» con una grilla de personas que muestra solo "
+                        "al orador de esa grilla (muestra = orador), grande y con su nombre y cargo, en alta definición. Lo "
+                        "que ya existe no se toca. NO la pone al aire: eso lo hace el operador o la línea de tiempo, en la "
+                        "salida que quiera, mientras la grilla completa sigue en otra (al_hablar = escena).");
+        t.inputSchema = {{"type", "object"}, {"required", {"fuente"}}, {"properties", {{"fuente", esquemaFuente}}}};
+        t.examples = {R"({"fuente": "Grilla"})"};
+        t.run = [vmp](const json& a, Done done) {
+            auto* g = vmp->grillasPersonas();
+            if (g == nullptr) return done(ToolResult::error(ba::i18n::traducir("mcp", "la grilla de personas todavía no arrancó")));
+            std::string escena, grilla;
+            if (const std::string e = g->armarEscenaOrador(a.value("fuente", std::string()), &escena, &grilla); !e.empty())
+                return done(ToolResult::error(e));
+            done(ToolResult::ok(ba::i18n::llenar(ba::i18n::traducir("mcp", "Listo: la escena «%1» con la grilla «%2» (solo el orador)."),
+                                                 {escena, grilla})));
+        };
+        core_.addTool(std::move(t));
+    }
     aMano("grilla_personas_destacar", ba::i18n::traducir("mcp", "Elegir a mano el orador de una grilla de personas"),
           ba::i18n::traducir("mcp", "Hace orador de una grilla a una persona, en el acto y aunque el disparo diga otra cosa: se la muestra "
           "como diga «al_hablar» (destacada, resaltada, superpuesta o en la escena del orador) y se le pide su cámara en "

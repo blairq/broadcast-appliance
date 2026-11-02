@@ -769,7 +769,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, VentanillaMotor& ventanilla, QO
     // repartida en las grillas; el mosaico lo pinta el gateway (BA.Grilla.<k>).
     grillasPersonas_ = std::make_unique<escenas::ControlGrillas>(
         escenas::ControlGrillas::Partes{conference_->client(), ventanilla_, asamblea_->sesionRemota(),
-                                        &asamblea_->cuerpo().cuerpo()},
+                                        &asamblea_->cuerpo().cuerpo(), &rt_},
         this);
     connect(grillasPersonas_.get(), &escenas::ControlGrillas::notify, this, &StudioViewModel::notify);
     // Los lugares vacíos del cupo: sus entradas, en reposo en el motor hasta que llega alguien.

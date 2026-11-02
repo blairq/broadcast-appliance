@@ -16,6 +16,15 @@ using json = nlohmann::json;
 using ba::i18n::llenar;
 using ba::i18n::traducir;
 
+namespace {
+std::function<void(const std::string&)>& armarEscena() {
+    static std::function<void(const std::string&)> fn;
+    return fn;
+}
+} // namespace
+
+void ponerArmarEscenaOrador(std::function<void(const std::string&)> fn) { armarEscena() = std::move(fn); }
+
 json ajustesMotor(const json& ajustes) {
     const int canal = ajustes.is_object() ? ajustes.value("canal", 0) : 0;
     // Como el video de un invitado (InputSpecs::ajustesVideoInvitado): BGRA a los
@@ -37,6 +46,9 @@ void registrarTipo() {
     t.audio = false;
     t.defectos = Config::defectos();
     t.motor = [](const json& a, int, int) { return ajustesMotor(a); };
+    t.botones["armar_escena_orador"] = [](const std::string& fuente) {
+        if (armarEscena()) armarEscena()(fuente);
+    };
     t.props = [](const json& a) {
         using P = fuentes::Prop;
         std::vector<P> out;
@@ -136,6 +148,13 @@ void registrarTipo() {
                 P pre{"precarga", traducir("escenas", "Precargar al siguiente"), "bool"};
                 pre.ayuda = traducir("escenas", "El siguiente de la fila (o el que empezó a hablar) ya pide su cámara en alta.");
                 out.push_back(pre);
+            }
+            if (modo == "escena") {
+                P boton{"armar_escena_orador", traducir("escenas", "Armar la escena del orador"), "button"};
+                boton.ayuda = traducir("escenas", "Crea (si no está) la escena «Orador · <esta grilla>» con una grilla que muestra "
+                              "solo al orador de esta, grande y con su nombre y cargo. Ponerla al aire queda en manos del operador "
+                              "o de la línea de tiempo.");
+                out.push_back(boton);
             }
             if (modo == "destacar") {
                 out.push_back(lista("destacar_lugar", traducir("escenas", "Lugar del orador"),

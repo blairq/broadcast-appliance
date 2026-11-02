@@ -128,10 +128,10 @@ Los ajustes están en las Propiedades de la fuente y en `grilla_personas_ajustar
 
 | Opción | Qué pasa |
 |---|---|
-| **Resaltar en su lugar** (`resaltar`, de fábrica) | Nadie se mueve. Las celdas van al 94 % de su lugar y la del orador lo llena (un leve agrandado), con el borde del color de resaltar. |
+| **Resaltar en su lugar** (`resaltar`, de fábrica) | Nadie se mueve ni cambia de tamaño. La celda del orador crece un 6 % (centrada, encima de sus vecinas), con el borde del color de resaltar. |
 | **Destacar** (`destacar`) | El orador pasa a un lugar grande (`destacar_lugar`: centro o izquierda; `destacar_tamano`: % del lienzo) y los demás a una franja (`franja`: abajo o al costado). Los demás conservan **su orden** (se achican y se corren, no se mezclan); los que no entran, «+N». La animación dura `transicion_ms`. Al terminar, cada uno vuelve a su lugar. |
 | **Superponer sin tapar** (`superponer`) | El recuadro del orador va en el medio y la grilla le deja el hueco: los demás se acomodan alrededor, nadie queda tapado (`superponer_tamano`). Con `superponer_completa`, el orador a pantalla completa. Si no entran alrededor del hueco, se arma como «destacar» con la franja abajo. |
-| **Cortar a la escena del orador** (`escena`) | Esta grilla no cambia. Otra grilla con **Qué muestra = Solo al orador** (`muestra: orador`, `sigue`: el nombre de esta) muestra únicamente al orador, grande y con su nombre: se la pone en una escena propia («Orador»), que el operador o la línea de tiempo ponen al aire en la salida que quieran mientras la grilla completa sigue en otra (salidas múltiples). |
+| **Cortar a la escena del orador** (`escena`) | Esta grilla no cambia. El botón **Armar la escena del orador** (o `grilla_personas_escena_orador`) crea, si no está, la escena «Orador · <grilla>» con una grilla «<grilla> · orador» que muestra únicamente al orador (`muestra: orador`, `sigue`: esta), a todo el lienzo y con su nombre y cargo. El operador o la línea de tiempo la ponen al aire en la salida que quieran mientras la grilla completa sigue en otra (salidas múltiples): la app no corta sola. |
 | **Nada** (`nada`) | Como antes: solo el borde a quien habla (si «Borde a quien habla»). |
 
 **Quién es el orador** (`disparo`): el que habla con **voz sostenida** (`voz_ms`, de
@@ -140,7 +140,8 @@ fábrica 1,5 s: una tos no alcanza), el que tiene **la palabra** en la Asamblea,
 en la vista de la grilla: «Destacar como orador», o `grilla_personas_destacar`; lo
 elegido a mano gana a cualquier disparo, en el acto). **Tiempo mínimo en pantalla**
 (`minimo_ms`, 4 s): el orador no cambia antes (que no salte con cada tos); si se va, sí.
-Con voz, cuando nadie habla se queda el último que habló.
+Con voz, cuando nadie habla se queda el último que habló. En un grupo de grillas, el
+orador de una grilla queda en esa grilla (el reparto no se lo lleva a otra del grupo).
 
 ### La cámara del orador: alta definición con un fundido
 

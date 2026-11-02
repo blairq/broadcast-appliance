@@ -8,10 +8,10 @@
     "«hay acople» llegue a audio_set sin que nadie nombre la herramienta."
   ],
   "fuente": "codigo",
-  "cuantas": 818,
+  "cuantas": 819,
   "por_clase": {
     "lectura": 269,
-    "escritura": 483,
+    "escritura": 484,
     "aire": 50,
     "ui": 16
   },
@@ -545,6 +545,7 @@
         "grilla_personas_ajustar",
         "grilla_personas_destacar",
         "grilla_personas_devolver",
+        "grilla_personas_escena_orador",
         "grilla_personas_estado",
         "grilla_personas_fijar",
         "grilla_personas_mover",
@@ -17467,7 +17468,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpGrillaTools.cpp",
-        "linea": 151
+        "linea": 175
       },
       "roles": [
         "asistente",
@@ -17509,6 +17510,42 @@
       "donde": {
         "archivo": "src/app/mcp/McpGrillaTools.cpp",
         "linea": 144
+      },
+      "roles": [
+        "asistente",
+        "escenografo",
+        "tecnico"
+      ]
+    },
+    {
+      "nombre": "grilla_personas_escena_orador",
+      "titulo": "Armar la escena del orador de una grilla de personas",
+      "categoria": "fuentes",
+      "descripcion": "Crea (si no está) la escena «Orador · <grilla>» con una grilla de personas que muestra solo al orador de esa grilla (muestra = orador), grande y con su nombre y cargo, en alta definición. Lo que ya existe no se toca. NO la pone al aire: eso lo hace el operador o la línea de tiempo, en la salida que quiera, mientras la grilla completa sigue en otra (al_hablar = escena).",
+      "esquema": {
+        "type": "object",
+        "required": [
+          "fuente"
+        ],
+        "properties": {
+          "fuente": {
+            "type": "string",
+            "description": "el nombre de la fuente ba_grilla"
+          }
+        }
+      },
+      "clase": "escritura",
+      "hilo": "interfaz",
+      "soloLectura": false,
+      "destructiva": false,
+      "idempotente": true,
+      "etiquetas": {
+        "propias": "escena del orador armar crear escena solo el que habla grande cortar al orador",
+        "porPrefijo": "grilla mosaico galeria cuadricula personas gente conectados invitados integrantes caras todos a la vez reparto"
+      },
+      "donde": {
+        "archivo": "src/app/mcp/McpGrillaTools.cpp",
+        "linea": 153
       },
       "roles": [
         "asistente",

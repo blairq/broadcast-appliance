@@ -6,7 +6,9 @@
 
 #include "i18n/I18n.hpp"
 
+#include "arranque/AppRuntime.hpp"
 #include "asamblea/Cuerpo.hpp"
+#include "escenas/FuenteGrilla.hpp"
 #include "asamblea/SesionRemota.hpp"
 #include "emision/BroadcastEngine.hpp"
 #include "emision/FotoMotor.hpp"
@@ -131,6 +133,57 @@ ControlGrillas::ControlGrillas(Partes p, QObject* parent) : QObject(parent), p_(
     reloj_.setInterval(500);
     connect(&reloj_, &QTimer::timeout, this, &ControlGrillas::recalcular);
     reloj_.start();
+    // El botón «Armar la escena del orador» de las Propiedades.
+    grilla::ponerArmarEscenaOrador([this](const std::string& fuente) { avisarError(armarEscenaOrador(fuente)); });
+}
+
+std::string ControlGrillas::armarEscenaOrador(const std::string& fuente, std::string* escenaOut, std::string* grillaOut) {
+    if (std::string e = validarMano(fuente, ""); !e.empty()) return e;
+    if (p_.rt == nullptr) return ba::i18n::traducir("escenas", "todavía no se pueden crear escenas");
+    const json a = fuentes::conDefectos(grilla::kTipo, fuentes::ajustesDe(fuente));
+    if (a.value("muestra", std::string("todos")) == "orador")
+        return ba::i18n::llenar(ba::i18n::traducir("escenas", "«%1» ya muestra solo al orador: es la de una escena del orador"), {fuente});
+    const std::string escena = ba::i18n::llenar(ba::i18n::traducir("escenas", "Orador · %1"), {fuente});
+    const std::string nombre = ba::i18n::llenar(ba::i18n::traducir("escenas", "%1 · orador"), {fuente});
+    if (escenaOut) *escenaOut = escena;
+    if (grillaOut) *grillaOut = nombre;
+    // Lo que ya está no se toca (se puede apretar dos veces).
+    const FotoMotor& f = p_.motor.foto();
+    const bool hayEscena = f.escena(escena) != nullptr;
+    const auto fs = fuentes();
+    const bool hayGrilla = std::find(fs.begin(), fs.end(), nombre) != fs.end();
+    if (hayEscena && hayGrilla) return {};
+    // La grilla del orador: del tamaño de la otra, todo el lienzo, sin separación ni margen.
+    json ajustes = grilla::Config::defectos();
+    ajustes["canal"] = 0; // se le asigna el primero libre
+    ajustes["muestra"] = "orador";
+    ajustes["sigue"] = fuente;
+    ajustes["nombres"] = "nombre_cargo";
+    ajustes["nombre_tamano"] = 10;
+    ajustes["ancho"] = a.value("ancho", 1280);
+    ajustes["alto"] = a.value("alto", 720);
+    ajustes["separacion"] = 0;
+    ajustes["margen"] = 0;
+    ajustes["proporcion"] = "llenar";
+    ajustes["fundido_ms"] = a.value("fundido_ms", 300);
+    SourceSpec spec;
+    spec.id = grilla::kTipo;
+    spec.name = nombre;
+    spec.settingsJson = ajustes.dump(-1, ' ', false, json::error_handler_t::replace);
+    spec.rect = CanvasRect{0.0f, 0.0f, 1.0f, 1.0f};
+    p_.motor.pedir(
+        this, "grilla_escena_orador",
+        [rt = p_.rt, escena, spec, hayEscena, hayGrilla]() {
+            if (!hayEscena && !rt->addScene(escena)) return rt->lastError();
+            if (!hayGrilla && !rt->addSource(escena, spec)) return rt->lastError();
+            rt->save();
+            return std::string();
+        },
+        [this](const std::string& e) {
+            avisarError(e);
+            if (e.empty()) recalcular();
+        });
+    return {};
 }
 
 std::vector<std::string> ControlGrillas::fuentes() const {

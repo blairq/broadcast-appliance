@@ -652,11 +652,18 @@ std::vector<Resultado> Repartidor::calcular(const std::vector<Config>& grillas, 
 
         // Lo que se decidió a mano para este grupo: fijada en la grilla i (-1 = en ninguna de
         // este grupo) y sacada de alguna grilla del grupo.
+        // El orador de cada grilla (lo llena la máquina más abajo): en un grupo, va en la
+        // suya como si estuviera fijado ahí (si no, el reparto podía mandarlo a otra).
+        std::vector<std::string> oradorDe(static_cast<std::size_t>(G)), siguienteDe(static_cast<std::size_t>(G));
         const auto fijaEn = [&](const std::string& clave) {
             const auto it = manual.fijos.find(clave);
-            if (it == manual.fijos.end()) return -1;
+            if (it != manual.fijos.end()) {
+                for (int i = 0; i < G; ++i)
+                    if (gs[i]->fuente == it->second) return i;
+                return -1;
+            }
             for (int i = 0; i < G; ++i)
-                if (gs[i]->fuente == it->second) return i;
+                if (!clave.empty() && oradorDe[static_cast<std::size_t>(i)] == clave) return i;
             return -1;
         };
         const auto sacada = [&](const std::string& clave) {
@@ -681,7 +688,6 @@ std::vector<Resultado> Repartidor::calcular(const std::vector<Config>& grillas, 
                 }
         // El orador de cada grilla (con su tiempo mínimo): entre los que esa grilla acepta.
         std::set<std::string> oradoresGrupo;
-        std::vector<std::string> oradorDe(static_cast<std::size_t>(G)), siguienteDe(static_cast<std::size_t>(G));
         for (int i = 0; i < G; ++i) {
             const Config& gi = *gs[i];
             if (gi.alHablar == AlHablar::Nada) {
@@ -912,15 +918,22 @@ void Repartidor::disponerCeldas(const Config& c, Resultado& r, const std::map<st
     };
     const bool conGrande = !r.orador.empty() && (c.alHablar == AlHablar::Destacar || c.alHablar == AlHablar::Superponer);
     if (!conGrande) {
-        // La grilla de siempre (nadie se mueve); en «resaltar», todas un poco más chicas
-        // que su lugar y el orador lo llena.
+        // La grilla de siempre (nadie se mueve); en «resaltar», el orador crece un poco y
+        // va al final de la lista (el gateway lo pinta encima de sus vecinas).
         const int celdas = static_cast<int>(r.personas.size()) + (r.mas > 0 ? 1 : 0);
         const auto rects = disponer(celdas, c.ancho, c.alto, c.separacion, c.margen, c.aspecto);
+        std::optional<Celda> delOrador;
         for (std::size_t j = 0; j < r.personas.size() && j < rects.size(); ++j) {
-            Rect rect = rects[j];
-            if (c.alHablar == AlHablar::Resaltar && r.personas[j] != r.orador) rect = achicar(rect, kResaltarResto);
-            r.celdas.push_back(celda(r.personas[j], rect));
+            if (c.alHablar == AlHablar::Resaltar && r.personas[j] == r.orador) {
+                Rect g = achicar(rects[j], kResaltarOrador);
+                g.x = std::clamp(g.x, 0, std::max(0, c.ancho - g.w));
+                g.y = std::clamp(g.y, 0, std::max(0, c.alto - g.h));
+                delOrador = celda(r.personas[j], g);
+                continue;
+            }
+            r.celdas.push_back(celda(r.personas[j], rects[j]));
         }
+        if (delOrador) r.celdas.push_back(*delOrador);
         if (r.mas > 0 && !rects.empty()) r.rMas = rects.back();
         return;
     }

@@ -54,6 +54,7 @@
 #include "ui/CapturaError.hpp"
 
 namespace ba::app {
+class AppRuntime;
 class ConferenceClient;
 class VentanillaMotor;
 }
@@ -86,6 +87,7 @@ class ControlGrillas : public QObject {
         VentanillaMotor& motor; ///< la foto del motor (lo que se ve, las fuentes)
         asamblea::SesionRemota* sesion = nullptr;
         const asamblea::Cuerpo* cuerpo = nullptr;
+        AppRuntime* rt = nullptr; ///< para armar la escena del orador (en el hilo del dueño del motor)
     };
     explicit ControlGrillas(Partes p, QObject* parent = nullptr);
 
@@ -117,6 +119,11 @@ class ControlGrillas : public QObject {
     /// vuelva a decidirlo el disparo.
     std::string destacar(const std::string& fuente, const std::string& clave);
     Q_INVOKABLE void destacarQml(const QString& fuente, const QString& clave) { avisarError(QString::fromStdString(destacar(fuente.toStdString(), clave.toStdString()))); }
+    /// Arma la escena del orador de `fuente`: la escena «Orador · <fuente>» con una grilla
+    /// que muestra solo a su orador (muestra = orador, sigue = fuente), grande, con nombre y
+    /// cargo. Lo que ya exista no se toca. No la pone al aire. "" o el error (lo que falle al
+    /// crearla, después, va a notify). `escena`/`grilla`: los nombres que usa.
+    std::string armarEscenaOrador(const std::string& fuente, std::string* escena = nullptr, std::string* grilla = nullptr);
 
    signals:
     /// Para el operador (ya traducido): los errores de las acciones de la interfaz.

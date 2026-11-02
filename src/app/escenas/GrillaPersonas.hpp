@@ -57,8 +57,8 @@
 // grilla lo decide MaquinaOrador según el disparo («disparo»: la palabra de la asamblea,
 // el orador al aire de la conferencia, voz sostenida «voz_ms», o a mano), con un tiempo
 // mínimo en pantalla («minimo_ms»: que no salte con cada tos). Cómo se lo muestra:
-//   - resaltar: nadie se mueve; las celdas van un poco más chicas que su lugar y la del
-//     orador lo llena (un leve agrandado), con el borde del color de resaltar;
+//   - resaltar: nadie se mueve; la celda del orador crece un poco (6 %, encima de las
+//     vecinas) con el borde del color de resaltar; las demás, exactamente como siempre;
 //   - destacar: el orador a un lugar grande (centro o izquierda, «destacar_tamano» % del
 //     lienzo) y los demás a una franja (abajo o al costado) en el MISMO orden de siempre
 //     (no se mezclan: se achican y se corren); los que no entran, «+N». El gateway anima
@@ -119,8 +119,9 @@ constexpr int kBajarAlta = 180;
 /// Una celda de la franja (destacar) o de la grilla con hueco no baja de esto de alto: si
 /// no entran todos así, el resto va al «+N».
 constexpr int kMinCelda = 40;
-/// En «resaltar», el resto de las celdas va a esta fracción de su lugar (el orador, entero).
-constexpr double kResaltarResto = 0.94;
+/// En «resaltar», la celda del orador crece a esto de su lugar (centrada, sin salirse del
+/// lienzo y dibujada encima de las vecinas); las demás quedan exactamente como siempre.
+constexpr double kResaltarOrador = 1.06;
 
 struct Persona {
     std::string clave; ///< "sala:<id del participante>" | "asamblea:<id del integrante>"
@@ -279,7 +280,7 @@ struct Disposicion {
 Disposicion disponerDestacar(int n, const Config& c);
 /// Superponer: el orador en un hueco en el medio y `n` más alrededor (o a pantalla completa).
 Disposicion disponerSuperponer(int n, const Config& c);
-/// Un rectángulo achicado a `f` de su tamaño, con el mismo centro.
+/// Un rectángulo escalado a `f` de su tamaño (achicado o agrandado), con el mismo centro.
 Rect achicar(const Rect& r, double f);
 
 /// La capa de cada uno con histéresis y sin muchos cuadros clave a la vez (ver arriba).

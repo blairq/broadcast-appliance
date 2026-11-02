@@ -39,7 +39,7 @@ etiquetas de búsqueda, en qué archivo vive), y esta tabla. `test_mcp_registro`
 
 <!-- registro: lo genera tools/docs/mcp-inventario.py --desde-codigo; no se edita a mano -->
 
-**818 herramientas** en 56 categorías: 269 de lectura, 483 de escritura, 50 de aire y 16 de interfaz (la clase la declara cada una al registrarse; ver «Clases» más abajo).
+**819 herramientas** en 56 categorías: 269 de lectura, 484 de escritura, 50 de aire y 16 de interfaz (la clase la declara cada una al registrarse; ver «Clases» más abajo).
 
 | Categoría | Herramientas | Lectura | Escritura | Aire | Interfaz |
 |---|---:|---:|---:|---:|---:|
@@ -67,7 +67,7 @@ etiquetas de búsqueda, en qué archivo vive), y esta tabla. `test_mcp_registro`
 | Guion del evento (`evento`) | 40 | 16 | 24 | 0 | 0 |
 | Eventos (cada uno con todo lo suyo) (`eventos`) | 8 | 2 | 5 | 1 | 0 |
 | Facebook (`facebook`) | 13 | 3 | 10 | 0 | 0 |
-| Fuentes (`fuentes`) | 16 | 5 | 10 | 1 | 0 |
+| Fuentes (`fuentes`) | 17 | 5 | 11 | 1 | 0 |
 | Gráficos animados (`graficos`) | 13 | 6 | 7 | 0 | 0 |
 | Histórico (`historico`) | 6 | 1 | 5 | 0 | 0 |
 | Documentos de identidad (`identidad`) | 2 | 2 | 0 | 0 | 0 |

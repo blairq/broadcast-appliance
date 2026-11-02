@@ -10,11 +10,17 @@
 
 #include <nlohmann/json.hpp>
 
+#include <functional>
+#include <string>
+
 namespace ba::app::grilla {
 
 /// Registra el tipo (antes de cargar las escenas).
 void registrarTipo();
 /// Los ajustes de la entrada del motor para estos ajustes de la fuente.
 nlohmann::json ajustesMotor(const nlohmann::json& ajustes);
+/// Quién arma la escena del orador de una grilla (el botón de Propiedades): lo pone
+/// escenas::ControlGrillas al arrancar.
+void ponerArmarEscenaOrador(std::function<void(const std::string& fuente)> fn);
 
 } // namespace ba::app::grilla

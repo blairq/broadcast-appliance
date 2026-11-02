@@ -595,19 +595,18 @@ void enLaGrilla() {
         v[2] = hablando(v[2], 2000);
         auto res = rep.calcular(gs, v, {}, 3500);
         CHECK(res[0].orador == "sala:p2", "habló sostenido: orador");
-        bool quietos = true;
-        Rect suya, antesSuya;
-        for (std::size_t i = 0; i < res[0].celdas.size(); ++i) {
-            if (res[0].celdas[i].clave == "sala:p2") {
-                suya = res[0].celdas[i].r;
-                antesSuya = antes[0].celdas[i].r;
-            } else {
-                quietos = quietos && res[0].celdas[i].r == antes[0].celdas[i].r;
-            }
-        }
-        CHECK(quietos, "resaltar: los demás no se mueven");
+        std::map<std::string, Rect> ahora, previo;
+        for (const auto& x : res[0].celdas) ahora[x.clave] = x.r;
+        for (const auto& x : antes[0].celdas) previo[x.clave] = x.r;
+        bool quietos = ahora.size() == previo.size();
+        for (const auto& [k, r] : ahora)
+            if (k != "sala:p2") quietos = quietos && r == previo[k];
+        CHECK(quietos, "resaltar: los demás no se mueven ni cambian de tamaño");
+        const Rect suya = ahora["sala:p2"], antesSuya = previo["sala:p2"];
         CHECK(suya.w > antesSuya.w && suya.x < antesSuya.x && std::abs((suya.x + suya.w / 2) - (antesSuya.x + antesSuya.w / 2)) <= 1,
               "el orador, un poco más grande y en su mismo lugar");
+        CHECK(res[0].celdas.back().clave == "sala:p2", "el orador, al final (se pinta encima de las vecinas)");
+        CHECK(antes[0].celdas[0].r == disponer(4, 1280, 720, 8, 0, 16.0 / 9)[0], "sin orador, la grilla de siempre (nada achicado)");
         bool resaltado = false;
         for (const auto& x : res[0].celdas) resaltado = resaltado || (x.clave == "sala:p2" && x.resaltar && x.capa == "alta");
         CHECK(resaltado, "con borde y en alta");
@@ -650,6 +649,22 @@ void enLaGrilla() {
         auto res = rep.calcular(gs, v, {}, 0);
         const std::set<std::string> vis(res[0].personas.begin(), res[0].personas.end());
         CHECK(vis.count("sala:p5") && res[0].orador == "sala:p5", "el orador entra aunque llegó último");
+    }
+    // En un grupo, el orador de una grilla queda en ESA grilla (no se lo lleva el reparto).
+    {
+        Repartidor rep;
+        std::vector<Config> gs{grilla("A", 3, "g", 1), grilla("B", 3, "g", 2)};
+        gs[1].canal = 2;
+        gs[1].alHablar = AlHablar::Destacar;
+        gs[1].disparo = Disparo::Palabra;
+        gs[0].alHablar = AlHablar::Nada;
+        auto v = gente(5);
+        v[0].palabra = true; // llegó primero: el reparto «en orden» lo pondría en A
+        auto res = rep.calcular(gs, v, {}, 0);
+        CHECK(res[1].orador == "sala:p0", "B tiene su orador");
+        CHECK(std::find(res[1].personas.begin(), res[1].personas.end(), "sala:p0") != res[1].personas.end() &&
+                  std::find(res[0].personas.begin(), res[0].personas.end(), "sala:p0") == res[0].personas.end(),
+              "y está en B, no en A");
     }
     // La escena del orador: otra grilla muestra solo al orador de esta.
     {
