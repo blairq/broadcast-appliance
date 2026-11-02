@@ -113,9 +113,11 @@ void PruebaSalaViewModel::setEstado(const QString& e) {
 QString PruebaSalaViewModel::comandoExterno() const {
     if (credencial_.isEmpty() || url_.isEmpty()) return {};
     return QStringLiteral("HINCHADA_PIN=%1 hinchada --servidor gateway --url %2 --inseguro --participantes %3 "
-                          "--modo grabado --hablan 2 --durante 10m")
+                          "--modo grabado --hablan %4 --durante %5m")
         .arg(credencial_, url_)
-        .arg(pedidos_ > 0 ? pedidos_ : 10);
+        .arg(pedidos_ > 0 ? pedidos_ : 10)
+        .arg(hablan_ > 0 ? QString::number(hablan_) : QStringLiteral("ritmo"))
+        .arg(minutos_);
 }
 
 void PruebaSalaViewModel::revisarMaquina(int n, bool conHinchada) {
@@ -146,6 +148,8 @@ QString PruebaSalaViewModel::arrancar(int n, int minutos, bool conHinchada, int 
 
     generador_ = conHinchada ? QStringLiteral("hinchada") : QStringLiteral("externo");
     pedidos_ = n;
+    minutos_ = minutos;
+    hablan_ = hablan;
     inicioMs_ = ahoraMs();
     // Con hinchada: lo que dura más lo que tarda en entrar y, la primera vez, en grabar
     // el video de prueba (unos minutos). Afuera: lo que se pidió.
@@ -259,9 +263,27 @@ void PruebaSalaViewModel::tic() {
     const pr::Medida m = pr::medirMaquina();
     pr::Muestra mu;
     mu.t = ahora;
-    const QJsonObject uso = p_.sala.snapshot().value("uso").toObject();
-    if (uso.contains("kbpsEntrada")) mu.kbpsSubida = uso.value("kbpsEntrada").toDouble();
-    if (uso.contains("kbpsSalida")) mu.kbpsBajada = uso.value("kbpsSalida").toDouble();
+    // El ancho de banda: la suma de lo que dice la conexión de cada uno (GetStats: todo lo
+    // que sube y le baja, audio y retorno incluidos; se actualiza cada ~6 s). Sin eso, el
+    // contador de video del gateway (no cuenta el retorno compartido).
+    const QJsonObject snap = p_.sala.snapshot();
+    double sube = 0, baja = 0;
+    bool conRed = false;
+    for (const QJsonValue& v : snap.value("participants").toArray()) {
+        const QJsonObject red = v.toObject().value("red").toObject();
+        if (!v.toObject().value("connected").toBool() || !red.contains("kbps_in")) continue;
+        conRed = true;
+        sube += red.value("kbps_in").toDouble();
+        baja += red.value("kbps_out").toDouble();
+    }
+    const QJsonObject uso = snap.value("uso").toObject();
+    if (conRed) {
+        mu.kbpsSubida = sube;
+        mu.kbpsBajada = baja;
+    } else {
+        if (uso.contains("kbpsEntrada")) mu.kbpsSubida = uso.value("kbpsEntrada").toDouble();
+        if (uso.contains("kbpsSalida")) mu.kbpsBajada = uso.value("kbpsSalida").toDouble();
+    }
     const diag::Recursos::Muestra r = p_.recursos.muestreador().ultima();
     mu.cpuApp = cpuDe(r, "app");
     mu.cpuGateway = cpuDe(r, "gateway");

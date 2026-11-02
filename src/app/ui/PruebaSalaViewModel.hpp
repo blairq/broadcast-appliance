@@ -158,6 +158,7 @@ class PruebaSalaViewModel : public QObject {
     QPointer<QProcess> hinchada_;
     QString salidaHinchada_;
     int pedidos_ = 0;
+    int minutos_ = 10, hablan_ = 2; ///< los de la prueba (para la línea del generador externo)
     int cupoAntes_ = 0;      ///< el cupo de antes si se subió (0 = no se tocó)
     int64_t inicioMs_ = 0;
     int64_t topeMs_ = 0;     ///< cuándo se termina sola
