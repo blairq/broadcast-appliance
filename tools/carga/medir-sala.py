@@ -33,6 +33,23 @@ Ejemplo:
   tools/carga/medir-sala.py --ba-mcp dist/BroadcastAppliance.app/Contents/Resources/bin/64bit/ba-mcp \\
       --participantes 20 --cupo --cupo-final 2 --salida ~/mediciones/rama-20
 Sin sudo: el motor de video (VideoToolbox) no se ve sin powermetrics; la GPU es la de ioreg.
+
+MODO REMOTO (--remoto HOST): la app corre en OTRA máquina (Windows) y hinchada acá genera la
+carga por la red (la red entre las dos es parte de la prueba). Lo que cambia:
+  - ba-mcp habla con la app remota por HTTP: BA_MCP_URL y BA_MCP_TOKEN en el entorno (p. ej.
+    un túnel `ssh -f -N -L 18790:127.0.0.1:8790 windows`, BA_MCP_URL=http://127.0.0.1:18790/mcp y
+    el token de `ba-mcp.exe --token` allá, que cambia en cada arranque). El ba-mcp local sirve.
+  - --url es el gateway en la LAN (http://192.168.1.177:8787): «gateway.bind» allá en 0.0.0.0.
+  - Los procesos ba-app/ba-gateway/ba-web, la GPU (motores 3D/video por proceso), la red de los
+    adaptadores, la memoria y la CPU de la máquina se toman por ssh con tools/carga/muestrear-win.ps1
+    (se copia a --remoto-dir); acá se miden solo hinchada (cpu_generador: la CPU de esta máquina) y
+    su red (nettop: lo que cruza la LAN).
+  - app.log y gateway.log se traen por scp de --remoto-logs al final (desde donde estaban al empezar).
+  - La guardia mira además la memoria disponible de la máquina remota.
+Ejemplo (desde la Mac, con la app abierta en la PC y sin la app abierta acá):
+  BA_MCP_URL=http://127.0.0.1:18790/mcp BA_MCP_TOKEN=… tools/carga/medir-sala.py \\
+      --ba-mcp dist/BroadcastAppliance.app/Contents/Resources/bin/64bit/ba-mcp --remoto windows \\
+      --url http://192.168.1.177:8787 --participantes 20 --cupo --salida ~/mediciones/pc-20 -- --modo grabado --hablan 1
 """
 import argparse, base64, json, os, re, signal, statistics, subprocess, sys, threading, time
 from pathlib import Path
@@ -261,6 +278,45 @@ def footprint(pid):
     return round(float(m.group(1)) * f, 1)
 
 
+class Remoto(threading.Thread):
+    """Las muestras de la máquina remota: muestrear-win.ps1 por ssh, una línea JSON por muestra."""
+
+    def __init__(self, host, script, segundos):
+        super().__init__(daemon=True)
+        self.p = subprocess.Popen(["ssh", host, "powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", script,
+                                   "-Segundos", str(int(segundos))], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True)
+        self.ultimo = {}
+        self.mu = threading.Lock()
+
+    def run(self):
+        for l in self.p.stdout:
+            try:
+                o = json.loads(l)
+            except Exception:
+                continue
+            with self.mu:
+                self.ultimo = o
+
+    def leer(self):
+        with self.mu:
+            return dict(self.ultimo)
+
+    def parar(self):
+        try:
+            self.p.terminate()
+        except Exception:
+            pass
+
+
+def ssh_ps(host, comando, timeout=30):
+    """Un comando de PowerShell en el host remoto (la salida, o "" si falla)."""
+    try:
+        return subprocess.run(["ssh", host, "powershell", "-NoProfile", "-Command", comando], capture_output=True, text=True,
+                              timeout=timeout).stdout
+    except Exception:
+        return ""
+
+
 # --------------------------------------------------------------------------- guardia
 def chequear(min_libre):
     malos = []
@@ -320,11 +376,18 @@ def main():
     ap.add_argument("--sin-chequeo", action="store_true")
     ap.add_argument("--logs", default=None, help="carpeta Logs de los datos (app.log, gateway.log)")
     ap.add_argument("--medir-grilla-s", type=int, default=20, help="segundos de grilla_personas_medir en régimen (0 = no)")
+    ap.add_argument("--remoto", default=None, help="la app corre en este host (alias de ssh, Windows): ver MODO REMOTO")
+    ap.add_argument("--remoto-dir", default="C:\\ba-pruebas", help="carpeta de trabajo en el host remoto (ahí va muestrear-win.ps1)")
+    ap.add_argument("--remoto-logs", default="C:\\ba-pruebas\\BroadcastAppliance\\Logs", help="la carpeta Logs de la app remota")
     ap.add_argument("hinchada_extra", nargs="*", help="opciones para hinchada (después de --)")
     a = ap.parse_args()
+    if a.remoto and not (os.environ.get("BA_MCP_URL") and os.environ.get("BA_MCP_TOKEN")):
+        sys.exit("--remoto: faltan BA_MCP_URL y BA_MCP_TOKEN (ba-mcp habla con la app remota por HTTP)")
     sal = Path(a.salida).expanduser()
     sal.mkdir(parents=True, exist_ok=True)
     logs = Path(a.logs) if a.logs else Path(a.ba_mcp).resolve().parents[5] / "BroadcastAppliance Datos" / "Logs"
+    if a.remoto:
+        logs = sal / "logs-remotos"  # se traen al final
 
     if not a.sin_chequeo:
         malos = chequear(a.min_libre_mb)
@@ -345,6 +408,10 @@ def main():
     # Lo que ya está en los registros: se lee lo nuevo.
     marcas = {}
     for n in ("app.log", "gateway.log"):
+        if a.remoto:
+            t = ssh_ps(a.remoto, f"(Get-Item '{a.remoto_logs}\\{n}').Length").strip()
+            marcas[n] = int(t) if t.isdigit() else None
+            continue
         try:
             marcas[n] = (logs / n).stat().st_size
         except OSError:
@@ -358,8 +425,16 @@ def main():
     hdir.mkdir(exist_ok=True)
     env = dict(os.environ, HINCHADA_PIN=pin)
     durante = a.estabilizar_max + a.regimen + 10
+    remoto = None
+    if a.remoto:
+        script = a.remoto_dir.rstrip("\\") + "\\muestrear-win.ps1"
+        subprocess.run(["scp", "-q", str(Path(__file__).with_name("muestrear-win.ps1")), f"{a.remoto}:{script.replace(chr(92), '/')}"], check=True)
+        remoto = Remoto(a.remoto, script, durante + 120)
+        remoto.start()
+    # --vigilar mira procesos de esta máquina: en remoto lo hace muestrear-win.ps1.
+    vigilar = [] if a.remoto else ["--vigilar", "ba-gateway,ba-app,ba-web"]
     cmd = [a.hinchada, "--servidor", "gateway", "--url", a.url, "--participantes", str(a.participantes),
-           "--durante", f"{int(durante)}s", "--vigilar", "ba-gateway,ba-app,ba-web", "--salida", str(hdir), "--detalle"] + a.hinchada_extra
+           "--durante", f"{int(durante)}s"] + vigilar + ["--salida", str(hdir), "--detalle"] + a.hinchada_extra
     t0 = time.time()
     hin = subprocess.Popen(cmd, stdout=open(hdir / "consola.txt", "w"), stderr=subprocess.STDOUT, env=env)
 
@@ -393,6 +468,8 @@ def main():
             t = time.time()
             m = {"t": round(t, 2), "s": round(t - t0, 2)}
             ps = pids()
+            if remoto:
+                ps = {k: v for k, v in ps.items() if k == "hinchada"}  # lo de la app está en la otra máquina
             m["procesos"] = {}
             for nombre, lista in ps.items():
                 for p in lista:
@@ -412,7 +489,18 @@ def main():
             m["contexto"] = ctx
             m["cpu_maquina"] = total
             m["red"] = red.leer()
-            if t - ultimo_fp >= 10:
+            if remoto:
+                rm = remoto.leer()
+                for k, e in (rm.get("procesos") or {}).items():
+                    m["procesos"][k] = e
+                    m["contexto"][k] = {"csw": e.get("csw_s") or 0}
+                m["gpu"] = rm.get("gpu") or {}
+                m["cpu_generador"] = total  # la de esta máquina (hinchada)
+                m["cpu_maquina"] = rm.get("cpu_maquina")
+                m["memoria_remota"] = rm.get("memoria")
+                m["red_remota"] = rm.get("red")
+                m["remoto_t"] = rm.get("t")
+            if t - ultimo_fp >= 10 and not remoto:
                 ultimo_fp = t
                 m["footprint_mb"] = {k: footprint(e["pid"]) for k, e in m["procesos"].items() if k.startswith(("ba-app:", "ba-gateway:"))}
             if t - ultimo_mcp >= 1:
@@ -445,6 +533,8 @@ def main():
             motivo = None
             if m["memoria"]["disponible_mb"] < a.min_libre_mb:
                 motivo = f"memoria disponible {m['memoria']['disponible_mb']} MB"
+            elif (m.get("memoria_remota") or {}).get("disponible_mb", 1 << 30) < a.min_libre_mb:
+                motivo = f"memoria disponible en {a.remoto}: {m['memoria_remota']['disponible_mb']} MB"
             elif hil > a.max_hilos_app:
                 motivo = f"ba-app con {hil} hilos"
             elif m["carga"][0] > a.max_carga:
@@ -489,7 +579,11 @@ def main():
                     if c.get("type") == "image":
                         (sal / f"{nombre}.jpg").write_bytes(base64.b64decode(c["data"]))
                     mm = re.search(r"(/[^\n]+?\.(?:jpg|png))", c.get("text", "") or "")
-                    if mm and Path(mm.group(1)).exists():
+                    mr = re.search(r"([A-Za-z]:\\[^\n\"]+?\.(?:jpg|png))", c.get("text", "") or "")
+                    if a.remoto and mr and not (sal / f"{nombre}.jpg").exists():
+                        subprocess.run(["scp", "-q", f"{a.remoto}:{mr.group(1).replace(chr(92), '/')}",
+                                        str(sal / f"{nombre}{Path(mr.group(1).replace(chr(92), '/')).suffix}")], timeout=60)
+                    elif mm and Path(mm.group(1)).exists():
                         (sal / f"{nombre}{Path(mm.group(1)).suffix}").write_bytes(Path(mm.group(1)).read_bytes())
             except Exception as ex:
                 (sal / f"{nombre}-error.txt").write_text(str(ex))
@@ -502,6 +596,8 @@ def main():
                 hin.kill()
         top.parar()
         red.parar()
+        if remoto:
+            remoto.parar()
         f.close()
         fa.close()
         if a.cupo:
@@ -516,6 +612,10 @@ def main():
         mcp.cerrar()
 
     # Los registros de la prueba.
+    if a.remoto:
+        logs.mkdir(exist_ok=True)
+        for n in marcas:
+            subprocess.run(["scp", "-q", f"{a.remoto}:{(a.remoto_logs + chr(92) + n).replace(chr(92), '/')}", str(logs / n)], timeout=300)
     lineas = {}
     for n, desde in marcas.items():
         try:
@@ -530,7 +630,16 @@ def main():
             r.write(f"==== {n}\n")
             r.write("\n".join(ls) + "\n")
 
+    if a.remoto:
+        ncpu = int(ssh_ps(a.remoto, "(Get-CimInstance Win32_ComputerSystem).NumberOfLogicalProcessors").strip() or ncpu)
     resumen = resumir(a, muestras, app_info, lineas, corte, estable_t, ncpu, t0, hdir)
+    if a.remoto:
+        # Los registros traídos ocupan lugar y ya están en registro.txt (lo de la prueba).
+        for n in marcas:
+            try:
+                (logs / n).unlink()
+            except OSError:
+                pass
     resumen["grilla_fps"] = resumir_fps(fps_grilla)
     (sal / "resumen.json").write_text(json.dumps(resumen, ensure_ascii=False, indent=1))
     (sal / "resumen.md").write_text(en_texto(resumen))
@@ -546,7 +655,7 @@ def hora_log(l):
 
 
 def resumir(a, muestras, app_info, lineas, corte, estable_t, ncpu, t0, hdir):
-    r = {"participantes": a.participantes, "nucleos": ncpu, "corte": corte,
+    r = {"participantes": a.participantes, "nucleos": ncpu, "corte": corte, "remoto": a.remoto,
          "estable_s": estable_t if estable_t not in (None, -1) else None,
          "se_estabilizo": estable_t not in (None, -1)}
     # Cuándo todos tuvieron medios.
@@ -565,7 +674,9 @@ def resumir(a, muestras, app_info, lineas, corte, estable_t, ncpu, t0, hdir):
         rss = [sum(e["rss_mb"] for k, e in m["procesos"].items() if k.startswith(nombre + ":")) for m in reg]
         hil = [sum(e.get("hilos", 0) for k, e in m["procesos"].items() if k.startswith(nombre + ":")) for m in muestras]
         csw = [sum(v["csw"] for k, v in m["contexto"].items() if k.startswith(nombre)) for m in reg]
-        idw = [sum(v["idlew"] for k, v in m["contexto"].items() if k.startswith(nombre)) for m in reg]
+        idw = [sum(v["idlew"] for k, v in m["contexto"].items() if k.startswith(nombre) and "idlew" in v) for m in reg]
+        if not any("idlew" in v for m in reg for k, v in m["contexto"].items() if k.startswith(nombre)):
+            idw = []  # en remoto (Windows) no hay despertares
         procs[nombre] = {"cpu_pct_regimen": resumen_serie(cpu, pico=80 * ncpu),  # % de un núcleo: pico > 80 % de todos
                          "cpu_pct_toda": resumen_serie(todos),
                          "rss_mb_regimen": resumen_serie(rss),
@@ -575,8 +686,23 @@ def resumir(a, muestras, app_info, lineas, corte, estable_t, ncpu, t0, hdir):
     # Toda la máquina: picos > 80 % de los núcleos disponibles.
     tot = [100 - (m["cpu_maquina"] or {}).get("idle", 100) if m.get("cpu_maquina") else None for m in muestras]
     r["cpu_maquina_pct"] = resumen_serie(tot, pico=80)
-    r["gpu"] = {k: resumen_serie([m["gpu"].get(k) for m in reg]) for k in ("dispositivo_pct", "render_pct", "tiler_pct", "memoria_en_uso_mb")}
-    r["gpu"]["nota"] = "ioreg PerformanceStatistics; el motor de video (VideoToolbox) no se ve sin sudo (powermetrics)"
+    if a.remoto:
+        claves = sorted({k for m in reg for k in (m.get("gpu") or {})})
+        r["gpu"] = {k: resumen_serie([(m.get("gpu") or {}).get(k) for m in reg]) for k in claves}
+        r["gpu"]["nota"] = ("muestrear-win.ps1: GPU Engine por proceso (ba-*), el motor más ocupado de cada tipo; "
+                            "total_3d_pct es de todos los procesos")
+        gen = [100 - (m["cpu_generador"] or {}).get("idle", 100) if m.get("cpu_generador") else None for m in muestras]
+        r["cpu_generador_pct"] = resumen_serie(gen)
+        r["memoria_remota"] = {"disponible_mb_min": min(((m.get("memoria_remota") or {}).get("disponible_mb") for m in muestras
+                                                          if (m.get("memoria_remota") or {}).get("disponible_mb") is not None), default=None),
+                               "comprometida_mb_max": max(((m.get("memoria_remota") or {}).get("comprometida_mb") or 0 for m in muestras), default=None)}
+        r["red_remota_mbps"] = {"entra": resumen_serie([(m.get("red_remota") or {}).get("entra_mbps") for m in reg]),
+                                "sale": resumen_serie([(m.get("red_remota") or {}).get("sale_mbps") for m in reg])}
+        priv = [e.get("privados_mb") for m in muestras for k, e in m["procesos"].items() if k.startswith("ba-app:") and e.get("privados_mb")]
+        r["privados_app_mb_max"] = max(priv) if priv else None
+    else:
+        r["gpu"] = {k: resumen_serie([m["gpu"].get(k) for m in reg]) for k in ("dispositivo_pct", "render_pct", "tiler_pct", "memoria_en_uso_mb")}
+        r["gpu"]["nota"] = "ioreg PerformanceStatistics; el motor de video (VideoToolbox) no se ve sin sudo (powermetrics)"
     fps = [v for m in muestras for k, v in (m.get("footprint_mb") or {}).items() if k.startswith("ba-app:") and v]
     r["footprint_app_mb_max"] = max(fps) if fps else None
     r["memoria"] = {"disponible_mb_min": min((m["memoria"]["disponible_mb"] for m in muestras), default=None),
@@ -729,6 +855,9 @@ def en_texto(r):
                  f"cambios de contexto/s p50 {(p.get('cambios_contexto_s') or {}).get('p50')}; despertares/s p50 {(p.get('despertares_s') or {}).get('p50')}")
     l.append(f"- máquina: CPU {r.get('cpu_maquina_pct')}; GPU {json.dumps({k: v for k, v in r.get('gpu', {}).items() if k != 'nota'})}")
     l.append(f"- memoria: {r.get('memoria')}")
+    if r.get("remoto"):
+        l.append(f"- remoto {r['remoto']}: CPU de esta máquina (hinchada) {r.get('cpu_generador_pct')}; memoria remota {r.get('memoria_remota')}; "
+                 f"privados de ba-app máx {r.get('privados_app_mb_max')} MB; red de los adaptadores remotos (Mbps) {r.get('red_remota_mbps')}")
     l.append(f"- hilos de ba-app: {r.get('hilos_app')}; del gateway: {r.get('hilos_gateway')}")
     l.append(f"- red (Mbps): {r.get('red_mbps')}")
     l.append(f"- sala: {r.get('sala')}")
