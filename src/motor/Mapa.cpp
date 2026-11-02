@@ -120,10 +120,10 @@ json describirPipeline(GstElement* p) {
             ; // los bins genéricos no cuentan como trabajo
         const bool hw = clase.find("Hardware") != std::string::npos;
         const std::string nombre = nombreDe(e);
-        if (fabrica == "intersrc" || fabrica == "intersink") {
+        if (fabrica == "intersrc" || fabrica == "intersink" || fabrica == "batoma" || fabrica == "baentrega") {
             gchar* prod = nullptr;
             g_object_get(e, "producer-name", &prod, nullptr);
-            (fabrica == "intersrc" ? lee : escribe).insert(texto(prod));
+            (fabrica == "intersrc" || fabrica == "batoma" ? lee : escribe).insert(texto(prod));
             g_free(prod);
         }
         // Memoria de lo que entra y de lo que sale.
@@ -189,7 +189,7 @@ json describirPipeline(GstElement* p) {
             }
         if (enPassthrough) el["passthrough"] = true;
         const bool pasante = enPassthrough || fabrica == "queue" || fabrica == "capsfilter" || fabrica == "identity" || fabrica == "tee" ||
-                             fabrica == "intersrc" || fabrica == "intersink" || fabrica == "appsink" ||
+                             fabrica == "intersrc" || fabrica == "intersink" || fabrica == "batoma" || fabrica == "baentrega" || fabrica == "appsink" ||
                              fabrica == "appsrc" || fabrica == "fakesink" || fabrica == "fallbackswitch" ||
                              fabrica == "imagefreeze" || fabrica == "splitmuxsink" || GST_IS_BIN(e);
         const bool video = medio.rfind("video/x-raw", 0) == 0;

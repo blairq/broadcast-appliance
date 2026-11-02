@@ -93,6 +93,11 @@ void ponerPropiedades(GstElement* e, const Filtro& f, std::vector<std::string>* 
 /// Pone en vivo las propiedades que se pueden cambiar andando. true si todas.
 bool ponerEnVivo(GstElement* pipeline, const std::vector<Filtro>& v, const char* prefijo);
 bool hayFabrica(const std::string& elemento);
+/// El audio de la entrada `id` hacia los mezcladores: baentrega (Entrada) → batoma (Mezcla),
+/// en el mismo hilo, sin la cola con hilo de intersrc. Vacío si no está baipc (va por intersrc).
+inline std::string productorMezcla(const std::string& id) {
+    return hayFabrica("baentrega") && hayFabrica("batoma") ? id + ":mezcla" : std::string();
+}
 /// ¿La fábrica tiene esa propiedad? (sin crear el elemento)
 bool tienePropiedad(const std::string& fabrica, const std::string& prop);
 /// La memoria de placa que piden los pads de esa dirección de una fábrica que no acepta la

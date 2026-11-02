@@ -156,6 +156,14 @@ class Entrada {
     /// rato, desarma la placa (sus hilos); se rearma apenas alguien la usa.
     void ponerEnUso(bool si);
     bool enUso() const { return enUso_; }
+    /// LUGARES VACÍOS EN REPOSO: el canal de anillo que lee (el video si tiene, si no el
+    /// audio; "" si no lee un anillo tal cual). El motor le dice si en ese canal hay
+    /// alguien (Motor::ponerLugares): sin nadie, su pipeline queda armado en READY (sin
+    /// hilos ni trabajo) y pasa a PLAYING cuando llega alguien. Una de video que se está
+    /// mostrando sigue andando (la placa del lugar vacío se ve).
+    std::string canalAnillo() const;
+    void ponerSinGente(bool si);
+    bool enReposo() const { return dormida_.load(); }
     bool daAudio() const;
     /// El nivel del audio que entrega (después de su cadena), por canal y en dB:
     /// pico (lo más alto de 300 ms) y RMS (300 ms); -100 si hace más de 1 s que no llega.
@@ -225,6 +233,21 @@ class Entrada {
     std::atomic<int> ocupadas_{0};
     std::atomic<bool> usoPendiente_{false}; ///< ponerEnUso llegó con la entrada ocupada: lo hace tic
     void ponerEnUsoYa();                     ///< con mu_ tomado
+    // El reposo de un lugar vacío (ponerSinGente).
+    std::atomic<bool> sinGente_{false};
+    std::atomic<bool> reposoPendiente_{false}; ///< llegó con la entrada ocupada: lo hace tic
+    std::atomic<bool> reposoEncargado_{false}; ///< el cambio ya está pedido al trabajador
+    std::atomic<bool> dormida_{false};         ///< el pipeline está en READY por el reposo
+    std::uint64_t despiertaNs_ = 0, datosAlDespertar_ = 0; ///< para medir el primer dato al despertar
+    bool quiereDormir() const { return sinGente_.load() && !(daVideo() && enUso_.load()) && !medio_; }
+    void aplicarReposoYa(); ///< con mu_ tomado: encarga el cambio si hace falta
+    void cambiarReposo();   ///< en el trabajador
+    /// El lector común (bavideoanillocomun): pocos cuadros si nadie la mira.
+    void ponerCpsDelAnillo();
+    // Los anillos que lee el lector común (leer): sin la cola de atrás.
+    bool anilloComunV_ = false, anilloComunA_ = false;
+    mutable std::mutex canalesM_;
+    std::string canalVideo_, canalAudio_; ///< bajo canalesM_
     std::string controlMedioYa(const std::string& accion);
     void irAYa(std::int64_t ms);
     nlohmann::json estadoYa() const;
