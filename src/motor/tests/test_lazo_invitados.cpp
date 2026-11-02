@@ -16,7 +16,9 @@
 //     20 ms) + el bloque + lo que tarda el hilo común: decenas de ms, nunca cientos;
 //   - en el programa: lo de arriba + la latencia del estudio (la del bus del programa);
 //   - y ninguna entrada se va a «su propia demora»: la edad de su audio es la de la red
-//     del gateway, no la del motor.
+//     del gateway, no la del motor;
+//   - en régimen no se pierde nada: el retorno sale entero (un bloque cada 10 ms) y las
+//     batomas del programa no tiran ningún bloque (tarde ni adelantado).
 //
 // BA_LAZO_INVITADOS=40 para la prueba grande (de fábrica 12: ctest).
 
@@ -115,9 +117,11 @@ struct Gateway {
     }
 };
 
-/// Lee `canal` durante `ms`: la hora de lectura de cada golpe (QPC).
-std::vector<std::uint64_t> golpesLeidos(const std::string& canal, int ms) {
+/// Lee `canal` durante `ms`: la hora de lectura de cada golpe (QPC). En `bloques`, cuántos
+/// bloques leyó (sin contar los que había al abrirlo).
+std::vector<std::uint64_t> golpesLeidos(const std::string& canal, int ms, std::size_t& bloques) {
     std::vector<std::uint64_t> out;
+    bloques = 0;
     ba::ipc::SharedAudioRing r;
     const std::wstring w(canal.begin(), canal.end());
     const auto fin = std::chrono::steady_clock::now() + std::chrono::milliseconds(ms);
@@ -131,6 +135,7 @@ std::vector<std::uint64_t> golpesLeidos(const std::string& canal, int ms) {
     std::uint64_t callado = 0;
     while (std::chrono::steady_clock::now() < fin) {
         while (r.pendientes() > 0 && r.pop(buf.data(), b)) {
+            ++bloques;
             const std::uint64_t leido = ba::ipc::HealthBlock::nowQpc();
             for (std::size_t i = 0; i + 1 < buf.size(); i += 2) {
                 if (std::max(std::fabs(buf[i]), std::fabs(buf[i + 1])) >= 0.3f) {
@@ -166,17 +171,18 @@ std::vector<double> emparejar(Gateway& g, const std::vector<std::uint64_t>& leid
 struct Lazo {
     double p50 = -1, max = -1;
     std::size_t n = 0;
+    std::size_t bloques = 0; ///< los leídos del anillo de salida
 };
 Lazo medir(Gateway& g, const char* que, const std::string& canal, int ms) {
-    std::vector<double> v = emparejar(g, golpesLeidos(canal, ms));
     Lazo r;
+    std::vector<double> v = emparejar(g, golpesLeidos(canal, ms, r.bloques));
     r.n = v.size();
     if (!v.empty()) {
         std::sort(v.begin(), v.end());
         r.p50 = v[v.size() / 2];
         r.max = v.back();
     }
-    std::printf("%-26s %zu golpes, lazo p50 %.1f ms, máx %.1f ms\n", que, r.n, r.p50, r.max);
+    std::printf("%-26s %zu golpes, lazo p50 %.1f ms, máx %.1f ms; %zu bloques en %d ms\n", que, r.n, r.p50, r.max, r.bloques, ms);
     return r;
 }
 } // namespace
@@ -228,9 +234,26 @@ int main() {
     std::printf("%d invitados; esperando que midan su edad (~10 s)…\n", n);
     esperar(14000);
 
+    // Lo que tiran las batomas de cada bus de las salidas, en régimen (antes y después de medir).
+    const auto tirados = [&motor]() {
+        std::uint64_t n = 0;
+        const json st = motor.estado();
+        const json salidas = st.value("salidas", json::object());
+        for (const auto& [sid, sal] : salidas.items()) {
+            const json prog = sal.value("programa", json());
+            if (!prog.is_object()) continue;
+            const json entradas = prog.value("entradas", json::object());
+            for (const auto& [id, e] : entradas.items())
+                n += e.value("tarde", std::uint64_t{0}) + e.value("adelantados", std::uint64_t{0});
+        }
+        return n;
+    };
+    const std::uint64_t tiradosAntes = tirados();
     const Lazo ret = medir(g, "retorno del invitado 2", pre + ba::ipc::sufijoRetorno("", 2), 9000);
     const Lazo prog = medir(g, "programa (ContentForReturn)", pre + "ContentForReturn", 9000);
 
+    const std::uint64_t tiradosEnRegimen = tirados() - tiradosAntes;
+    std::printf("bloques tirados por las batomas del programa en régimen: %llu\n", static_cast<unsigned long long>(tiradosEnRegimen));
     const json st = motor.estado();
     std::printf("estudio: latencia %.0f ms\n", st["estudio"].value("latencia_ms", 0.0));
     double edadMax = 0, propioMax = 0;
@@ -259,6 +282,9 @@ int main() {
     CHECK(prog.p50 > 0 && prog.p50 <= tope + latEstudio + 40.0, "el programa: lo del oído más la latencia del estudio");
     CHECK(edadMax < 60.0, "la edad del audio de cada invitado es la del gateway (decenas de ms)");
     CHECK(conPropia == 0, "ningún invitado se va a su propia demora");
+    // 9 s de retorno: 900 bloques (con aire para lo que había al abrirlo y el borde).
+    CHECK(ret.bloques >= 880, "el retorno sale entero en régimen (un bloque cada 10 ms)");
+    CHECK(tiradosEnRegimen == 0, "en régimen las batomas del programa no tiran nada");
 
     motor.detener();
     g.fin = true;

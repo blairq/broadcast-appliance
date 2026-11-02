@@ -1,10 +1,10 @@
 // ============================================================================
-// src/motor/Mezcla.hpp — un bus de audio del motor (audiomixer)
+// src/motor/Mezcla.hpp — un bus de audio del motor (bamezcla de baipc; sin él, audiomixer)
 //
 // Un pipeline propio por bus (PROGRAMA, una pista, los retornos de una salida…):
 //
 //   batoma <id>:mezcla ! volume (fader, mute) ! level ─┐
-//   batoma <id>:mezcla ! volume ! level ───────────────┼─► audiomixer ! [balimitador] ! [ebur128level]
+//   batoma <id>:mezcla ! volume ! level ───────────────┼─► bamezcla ! [balimitador] ! [ebur128level]
 //   …                                                   ┘     ! level ! intersink bus:<nombre>
 //                                            (pad: ganancia de escena con fundido)
 //   (sin hilo por rama: la entrega de cada entrada deja el audio en la cola de su batoma,

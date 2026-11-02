@@ -13,6 +13,8 @@
 //                     el de cada salida)
 //     baretornos      el mix-minus de todos los invitados: suma una vez y        retornos.cpp
 //                     escribe a cada uno la suma sin su voz, en su anillo
+//     bamezcla        el mismo mezclador sin retornos (el programa, los buses):  retornos.cpp
+//                     espera a sus batomas sin despertarse con cada bloque
 //     baanillocomun   baanillo y bavideoanillo SIN hilo propio: los lee UN       anillocomun.cpp
 //     bavideoanillocomun  hilo común por medio (comun.hpp); los usa el motor     videocomun.cpp
 //     baentrega       el audio de una entrada a los mezcladores sin un hilo por  entrega.cpp

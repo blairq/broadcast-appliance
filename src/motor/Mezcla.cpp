@@ -90,7 +90,10 @@ Mezcla::Mezcla(Reloj& reloj, std::string nombre, Opciones op)
     }
     if (op.loudness && hayFabrica("ebur128level"))
         salida += "ebur128level name=loud interval=100000000 post-messages=true ! ";
-    armar("audiomixer name=mx force-live=true start-time-selection=first output-buffer-duration=10000000 ! "
+    // bamezcla (baipc): suma como audiomixer, pero con las batomas de muchas entradas no se
+    // despierta con cada bloque de cada una (src/gst-plugins/ipc/comun.hpp: esperarEntradas).
+    const char* mezclador = hayFabrica("bamezcla") ? "bamezcla" : "audiomixer";
+    armar(std::string(mezclador) + " name=mx force-live=true start-time-selection=first output-buffer-duration=10000000 ! "
           "audio/x-raw,format=F32LE,layout=interleaved,rate=48000,channels=2 ! volume name=master ! " + salida +
           "level name=nivel interval=50000000 post-messages=true peak-ttl=300000000 ! " +
           (op.anillo.empty() ? "intersink name=sale producer-name=" + entreComillas(productor()) + " sync=false"
