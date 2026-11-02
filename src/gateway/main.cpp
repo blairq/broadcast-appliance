@@ -1351,7 +1351,8 @@ int main(int argc, char** argv) {
         }
     }
     pump.start();
-    grillas.start(ba::ajustes::entero("grilla.cps", 25));
+    // Al ritmo del lienzo de la app (BA.Program); grilla.cps, mientras no publica.
+    grillas.start(ba::ajustes::entero("grilla.cps", 30), pumpCfg.programVideoName);
     if (pinggy) {
         if (server.tunnelPort() == 0)
             log.error(llenar(traducir("gateway", "pinggy: sin la escucha del túnel (127.0.0.1:%1); no se lanza"),

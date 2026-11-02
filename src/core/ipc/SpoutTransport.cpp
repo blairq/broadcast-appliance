@@ -481,6 +481,10 @@ std::uint64_t SpoutReceiver::periodoNs() const {
     return header_ != nullptr ? AtomicRef<std::uint64_t>(header_->periodoNs).load(std::memory_order_relaxed) : 0;
 }
 
+std::uint64_t SpoutReceiver::ultimoEnvioNs() const {
+    return header_ != nullptr ? AtomicRef<std::uint64_t>(header_->envioNs).load(std::memory_order_relaxed) : 0;
+}
+
 std::chrono::steady_clock::time_point SpoutReceiver::proximaMirada(std::chrono::steady_clock::duration pasoQuieto) const {
     const auto ahora = std::chrono::steady_clock::now();
     if (header_ == nullptr) return ahora + pasoQuieto;

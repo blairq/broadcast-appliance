@@ -171,9 +171,11 @@ Grillas::Grillas(Log& log) : log_(log) {}
 
 Grillas::~Grillas() { stop(); }
 
-void Grillas::start(int cps) {
+void Grillas::start(int cps, std::wstring lienzo) {
     if (hilo_.joinable()) return;
     cps_ = std::clamp(cps, 5, 60);
+    lienzo_ = std::move(lienzo);
+    periodoPintarNs_ = 1'000'000'000ULL / static_cast<std::uint64_t>(cps_);
     parar_ = false;
     hilo_ = std::thread([this]() { ba::platform::nombrarHilo("grillas"); bucle(); });
 }
@@ -565,6 +567,28 @@ std::shared_ptr<Grillas::Retrato> Grillas::retrato(const std::string& persona) c
 }
 
 void Grillas::guardar(Retrato& r, const std::uint8_t* bgra, int w, int h, std::int64_t ahora, bool vivo) {
+    // Se achica FUERA del candado del retrato: el pintor lo toma por cada celda y, con 20 o
+    // más personas, esperar a que terminen de achicarse sus cuadros le hacía saltear vueltas.
+    std::vector<std::uint8_t> px;
+    int quiereW = 0, quiereH = 0;
+    {
+        std::lock_guard<std::mutex> l(r.m);
+        px.swap(r.repuesto);
+        quiereW = r.quiereW;
+        quiereH = r.quiereH;
+    }
+    // Achicado al lugar más grande que ocupa, cubriéndolo (el recorte se hace al pintar):
+    // nunca se agranda, y lo que se guarda no pesa más de lo que se va a mostrar.
+    float f = 1.0f;
+    if (quiereW > 0 && quiereH > 0)
+        f = std::min(1.0f, std::max(static_cast<float>(quiereW) / w, static_cast<float>(quiereH) / h));
+    const int tw = std::max(1, static_cast<int>(std::lround(w * f)));
+    const int th = std::max(1, static_cast<int>(std::lround(h * f)));
+    px.resize(static_cast<std::size_t>(tw) * th * 4);
+    if (tw == w && th == h)
+        std::memcpy(px.data(), bgra, px.size());
+    else
+        escalar(bgra, w * 4, w, h, px.data(), tw * 4, tw, th);
     std::lock_guard<std::mutex> l(r.m);
     // El primer cuadro de la alta: funde desde lo último que se vio (si es reciente: uno
     // viejo sería un salto).
@@ -572,18 +596,8 @@ void Grillas::guardar(Retrato& r, const std::uint8_t* bgra, int w, int h, std::i
         if (!r.px.empty() && ahora - r.ms < 2000) r.fundido.empezar(r.px.data(), r.w, r.h, r.fundidoPendienteMs, ahora);
         r.fundidoPendienteMs = 0;
     }
-    // Achicado al lugar más grande que ocupa, cubriéndolo (el recorte se hace al pintar):
-    // nunca se agranda, y lo que se guarda no pesa más de lo que se va a mostrar.
-    float f = 1.0f;
-    if (r.quiereW > 0 && r.quiereH > 0)
-        f = std::min(1.0f, std::max(static_cast<float>(r.quiereW) / w, static_cast<float>(r.quiereH) / h));
-    const int tw = std::max(1, static_cast<int>(std::lround(w * f)));
-    const int th = std::max(1, static_cast<int>(std::lround(h * f)));
-    r.px.resize(static_cast<std::size_t>(tw) * th * 4);
-    if (tw == w && th == h)
-        std::memcpy(r.px.data(), bgra, r.px.size());
-    else
-        escalar(bgra, w * 4, w, h, r.px.data(), tw * 4, tw, th);
+    r.px.swap(px);
+    r.repuesto.swap(px); // el de antes queda para el próximo
     r.w = tw;
     r.h = th;
     r.ms = ahora;
@@ -596,10 +610,12 @@ void Grillas::cuadro(const std::string& persona, const std::uint8_t* bgra, int w
     const auto r = retrato(persona);
     if (!r) return; // no está en ninguna grilla: ni se toca
     {
-        // Al ritmo de las grillas: un celular a 30 cps no hace achicar 30 veces para
-        // pintar 25.
+        // Solo lo que llega a más del doble del ritmo de las grillas (60 cps contra 30): ése
+        // se achicaría dos veces para pintar una. Lo que llega a su ritmo pasa entero (con
+        // un tope cerca del ritmo, una cámara a 30 quedaba en 15-18 por el temblor).
         std::lock_guard<std::mutex> l(r->m);
-        if (r->vivoMs != 0 && ahora - r->vivoMs < 1000 / (cps_ + 5)) return;
+        const auto medio = static_cast<std::int64_t>(periodoPintarNs_.load(std::memory_order_relaxed) / 2'000'000ULL);
+        if (r->vivoMs != 0 && ahora - r->vivoMs < medio) return;
     }
     guardar(*r, bgra, w, h, ahora, true);
 }
@@ -812,10 +828,29 @@ void Grillas::limpiarRetratosLocked() {
         it = usados.count(it->first) ? std::next(it) : retratos_.erase(it);
 }
 
+std::uint64_t Grillas::proximoPintado(std::uint64_t ahoraNs, std::uint64_t envioNs, std::uint64_t periodoNs,
+                                      std::uint64_t propioNs) {
+    constexpr std::uint64_t kSegundo = 1'000'000'000ULL;
+    const bool conLienzo = envioNs != 0 && envioNs <= ahoraNs + kSegundo && ahoraNs < envioNs + kSegundo &&
+                           periodoNs >= kSegundo / 61 && periodoNs <= kSegundo / 4;
+    if (!conLienzo) return std::max(propioNs, ahoraNs);
+    std::uint64_t t = envioNs + periodoNs / 2;
+    if (t <= ahoraNs) t += ((ahoraNs - t) / periodoNs + 1) * periodoNs;
+    return t;
+}
+
 void Grillas::bucle() {
-    const auto periodo = std::chrono::microseconds(1000000 / cps_);
-    auto proximo = std::chrono::steady_clock::now();
+    using Reloj = std::chrono::steady_clock;
+    const auto ns = [](Reloj::time_point t) {
+        return static_cast<std::uint64_t>(std::chrono::duration_cast<std::chrono::nanoseconds>(t.time_since_epoch()).count());
+    };
+    const std::uint64_t propio = 1'000'000'000ULL / static_cast<std::uint64_t>(cps_);
+    std::uint64_t proximo = ns(Reloj::now());
     std::int64_t informeMs = ahoraMs();
+    // El lienzo de la app: solo su cabecera (cuándo publicó y cada cuánto), sin leerle cuadros.
+    ba::ipc::SpoutReceiver lienzo;
+    bool conLienzo = false;
+    std::uint64_t intentoNs = 0;
     while (!parar_.load()) {
         const std::int64_t ahora = ahoraMs();
         {
@@ -872,10 +907,20 @@ void Grillas::bucle() {
                 }
             }
         }
-        proximo += periodo;
-        const auto ya = std::chrono::steady_clock::now();
-        if (proximo < ya) proximo = ya; // atrasado (una pausa larga): sin ráfaga para alcanzar
-        std::this_thread::sleep_until(proximo);
+        const std::uint64_t ya = ns(Reloj::now());
+        // El lienzo se abre (o se reabre: la app se reinició) a lo sumo una vez por segundo.
+        if (!lienzo_.empty() && ya - intentoNs >= 1'000'000'000ULL &&
+            (!conLienzo || ya > lienzo.ultimoEnvioNs() + 1'000'000'000ULL)) {
+            intentoNs = ya;
+            lienzo = ba::ipc::SpoutReceiver{};
+            conLienzo = lienzo.subscribe(lienzo_.c_str());
+        }
+        const std::uint64_t periodoLienzo = conLienzo ? lienzo.periodoNs() : 0;
+        proximo = proximoPintado(ya, conLienzo ? lienzo.ultimoEnvioNs() : 0, periodoLienzo, proximo + propio);
+        periodoPintarNs_.store(periodoLienzo >= 1'000'000'000ULL / 61 && periodoLienzo <= 1'000'000'000ULL / 4 ? periodoLienzo
+                                                                                                               : propio,
+                               std::memory_order_relaxed);
+        std::this_thread::sleep_until(Reloj::time_point(std::chrono::duration_cast<Reloj::duration>(std::chrono::nanoseconds(proximo))));
     }
 }
 

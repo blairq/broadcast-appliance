@@ -124,8 +124,10 @@ class Grillas {
     Grillas(const Grillas&) = delete;
     Grillas& operator=(const Grillas&) = delete;
 
-    /// El hilo que pinta. `cps`: cuadros por segundo de las grillas.
-    void start(int cps = 25);
+    /// El hilo que pinta. `cps`: cuadros por segundo de las grillas si no se sabe el ritmo
+    /// del lienzo de la app. `lienzo`: el canal que publica la app a ese ritmo (BA.Program):
+    /// se pinta a su ritmo y a mitad de camino entre dos de sus cuadros (ver proximoPintado).
+    void start(int cps = 30, std::wstring lienzo = {});
     void stop();
 
     /// Rutas /api/v1/grillas. true si la tomó.
@@ -182,6 +184,15 @@ class Grillas {
     static std::int64_t reloj();
     /// La curva de la animación (0..1 → 0..1, suave al salir y al llegar).
     static float suavizar(float t);
+    /// Cuándo pintar el próximo mosaico (ns del reloj monotónico). Con el ritmo del lienzo
+    /// (`envioNs`: su último cuadro, `periodoNs`: cada cuánto publica; los dos de la cabecera
+    /// de su canal): a mitad de camino entre dos cuadros del lienzo, el primero después de
+    /// `ahoraNs`. Pintar a otro ritmo (25 contra 30) o en la misma fase que el lienzo bate:
+    /// el lienzo toma a veces uno nuevo y a veces repite (intervalos de 50 y 83 ms). Sin el
+    /// lienzo (no publica, o hace más de 1 s), al ritmo propio: `propioNs` (lo previsto),
+    /// nunca antes de ahora (sin ráfaga para alcanzar).
+    static std::uint64_t proximoPintado(std::uint64_t ahoraNs, std::uint64_t envioNs, std::uint64_t periodoNs,
+                                        std::uint64_t propioNs);
 
    private:
     struct Retrato {
@@ -192,6 +203,7 @@ class Grillas {
         std::int64_t ms = 0;          ///< cuándo llegó el último
         std::int64_t vivoMs = 0;      ///< el último cuadro de video (no foto)
         std::uint64_t seq = 0;
+        std::vector<std::uint8_t> repuesto; ///< donde se achica el próximo (fuera del candado)
         Fundido fundido;              ///< de la baja a la HD (ver fundir)
         int fundidoPendienteMs = 0;   ///< > 0: el próximo cuadro en vivo arranca el fundido
     };
@@ -278,7 +290,10 @@ class Grillas {
     std::vector<std::uint8_t> tmpFundido_; // lo que se va, recortado a la celda (con mu_)
     std::atomic<bool> parar_{false};
     std::thread hilo_;
-    int cps_ = 25;
+    int cps_ = 30;
+    std::wstring lienzo_;
+    /// Cada cuánto se pinta ahora (ns): el del lienzo o el propio (cuadro() lo mira).
+    std::atomic<std::uint64_t> periodoPintarNs_{1'000'000'000ULL / 30};
 };
 
 } // namespace ba::gateway

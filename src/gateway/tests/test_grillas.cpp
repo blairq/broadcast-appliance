@@ -291,6 +291,32 @@ int main() {
         CHECK(g.aplicar({{"grillas", {{{"canal", 1}, {"ancho", 320}, {"alto", 180}}}}}, 100).empty() && !g.tieneRotulo("r1"),
               "nadie lo nombra: se olvida");
     }
+    {
+        // 13. El ritmo del pintor: a mitad de camino entre dos cuadros del lienzo, al ritmo del
+        // lienzo; sin lienzo (o quieto más de 1 s), el propio, nunca antes de ahora.
+        using ba::gateway::Grillas;
+        constexpr std::uint64_t ms = 1'000'000ULL, p30 = 1'000'000'000ULL / 30;
+        const std::uint64_t envio = 1000 * 1000 * ms; // el lienzo publicó a los 1000 s
+        CHECK(Grillas::proximoPintado(envio + 1 * ms, envio, p30, 0) == envio + p30 / 2, "mitad de camino");
+        CHECK(Grillas::proximoPintado(envio + p30 / 2, envio, p30, 0) == envio + p30 / 2 + p30, "ya pasó: el siguiente");
+        CHECK(Grillas::proximoPintado(envio + 3 * p30, envio, p30, 0) == envio + 3 * p30 + p30 / 2,
+              "el lienzo no publicó todavía el último: sigue su grilla");
+        std::uint64_t t = envio + 2 * ms, anterior = 0;
+        int intervalosMal = 0;
+        for (int i = 0; i < 300; ++i) { // pintando 5 ms cada vez, contra un lienzo parejo a 30
+            const std::uint64_t ultimo = envio + ((t - envio) / p30) * p30;
+            const std::uint64_t x = Grillas::proximoPintado(t, ultimo, p30, 0);
+            if (anterior != 0 && x - anterior != p30) ++intervalosMal;
+            anterior = x;
+            t = x + 5 * ms;
+        }
+        CHECK(intervalosMal == 0, "contra un lienzo a 30, cada 33,3 ms exactos (sin batido)");
+        CHECK(Grillas::proximoPintado(envio + 2000 * ms, envio, p30, envio + 2010 * ms) == envio + 2010 * ms,
+              "lienzo quieto: el ritmo propio");
+        CHECK(Grillas::proximoPintado(envio + 2000 * ms, envio, p30, envio + 1990 * ms) == envio + 2000 * ms,
+              "atrasado: ahora, sin ráfaga");
+        CHECK(Grillas::proximoPintado(envio, 0, 0, envio + 5 * ms) == envio + 5 * ms, "sin lienzo: el ritmo propio");
+    }
     if (g_fallos == 0) std::printf("test_grillas: OK\n");
     return g_fallos == 0 ? 0 : 1;
 }
