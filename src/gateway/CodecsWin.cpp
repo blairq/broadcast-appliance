@@ -306,7 +306,7 @@ std::vector<webrtc::SdpVideoFormat> formatosH264(bool paraDecodificar) {
     }
     std::vector<webrtc::SdpVideoFormat> r;
     for (const char* p : perfiles)
-        r.emplace_back("H264", webrtc::SdpVideoFormat::Parameters{
+        r.emplace_back("H264", webrtc::CodecParameterMap{
                                    {"profile-level-id", p}, {"level-asymmetry-allowed", "1"}, {"packetization-mode", "1"}});
     return r;
 }
