@@ -50,7 +50,11 @@
 #include "diag/Frontera.hpp"
 #include "diag/Registro.hpp"
 #include "platform/Hilo.hpp"
+#include "platform/Nucleos.hpp"
 #include "platform/TiempoReal.hpp"
+#include "rtc/CapasHilos.hpp"
+#include "rtc/Conmutador.hpp"
+#include "turn/Bucle.hpp"
 
 #include <algorithm>
 #include <atomic>
@@ -97,11 +101,17 @@
 #include "p2p/client/basic_port_allocator.h"
 #include "rtc_base/network.h"
 #include "CodecsVideo.hpp"
+#include "DestinoCamara.hpp"
 #include "media/base/adapted_video_track_source.h"
 #include "modules/audio_device/include/audio_device.h"
 #include "modules/audio_device/include/audio_device_default.h"
 #include "modules/audio_processing/include/audio_processing.h"
 #include "rtc/ColasCompartidas.hpp"
+#include "rtc/BucleRtc.hpp"
+#include "rtc/SocketsEnMemoria.hpp"
+#if BA_HAVE_LWIP
+#include "rtc/TunelEnMemoria.hpp"
+#endif
 #include "rtc_base/logging.h"
 #include "rtc_base/ssl_adapter.h"
 #include "rtc_base/thread.h"
@@ -262,13 +272,43 @@ void marcarPrioridad(const rtc::scoped_refptr<webrtc::RtpSenderInterface>& sende
     sender->SetParameters(par);
 }
 
+class PullAdm;
+
+/// El reloj del audio de TODAS las fábricas (F2: una fábrica por par de hilos red/trabajo,
+/// cada una con su módulo de audio): un solo hilo «webrtc-playout» que cada 10 ms tira de la
+/// reproducción de cada una, no un hilo por fábrica (#10 del plan: una despertada por vuelta).
+class RelojPlayout {
+   public:
+    ~RelojPlayout() { parar(); }
+    void sumar(PullAdm* a);
+    void sacar(PullAdm* a);
+    void parar() {
+        {
+            std::lock_guard<std::mutex> l(m_);
+            if (!corriendo_) return;
+            corriendo_ = false;
+        }
+        if (hilo_.joinable()) hilo_.join();
+    }
+
+   private:
+    void bucle();
+
+    std::mutex m_; // la lista; se tiene tomado mientras se tira de cada una
+    std::vector<PullAdm*> adms_;
+    bool corriendo_ = false;
+    std::thread hilo_;
+};
+
 /// Modulo de audio SIN dispositivo que tira de la reproduccion cada 10 ms.
 ///
 /// Sin esto libwebrtc nunca decodifica el audio remoto (NetEq se consume desde
 /// la reproduccion del ADM) y los sinks de los tracks remotos no reciben nada.
 /// No captura: el audio que B envia sale de fuentes propias (LocalAudioSource).
+/// El ritmo lo pone el RelojPlayout común.
 class PullAdm : public webrtc::webrtc_impl::AudioDeviceModuleDefault<webrtc::AudioDeviceModule> {
    public:
+    explicit PullAdm(std::shared_ptr<RelojPlayout> reloj) : reloj_(std::move(reloj)) {}
     ~PullAdm() override { StopPlayout(); }
 
     int32_t RegisterAudioCallback(webrtc::AudioTransport* t) override {
@@ -294,50 +334,72 @@ class PullAdm : public webrtc::webrtc_impl::AudioDeviceModuleDefault<webrtc::Aud
     }
     int32_t StartPlayout() override {
         if (playing_.exchange(true)) return 0;
-        thread_ = std::thread([this]() {
-            ba::platform::nombrarHilo("webrtc-playout");
-            ba::platform::tiempoRealAudio(10); // tira del audio cada 10 ms: con plazo
-            loop();
-        });
+        reloj_->sumar(this);
         return 0;
     }
     int32_t StopPlayout() override {
         if (!playing_.exchange(false)) return 0;
-        if (thread_.joinable()) thread_.join();
+        reloj_->sacar(this); // al volver, el reloj ya no tira de este
         return 0;
     }
     bool Playing() const override { return playing_.load(); }
 
-   private:
-    void loop() {
-        std::vector<int16_t> buf(kFramesPer10Ms * kAudioChannels);
-        auto next = std::chrono::steady_clock::now();
-        // #10 del plan: sacar el audio de todos cada 10 ms (NetEq de cada invitado).
-        static ba::diag::Frontera& fPlayout =
-            ba::diag::frontera("audio.playout", 10, "sacar el audio de todos cada 10 ms (webrtc-playout)");
-        while (playing_.load()) {
-            next += std::chrono::milliseconds(10);
-            fPlayout.despertada();
-            {
-                ba::diag::MedirPase medir(fPlayout, buf.size() * sizeof(int16_t));
-                std::lock_guard<std::mutex> lock(m_);
-                if (transport_ != nullptr) {
-                    size_t out = 0;
-                    int64_t elapsed = 0;
-                    int64_t ntp = 0;
-                    transport_->NeedMorePlayData(kFramesPer10Ms, sizeof(int16_t) * kAudioChannels,
-                                                 kAudioChannels, kAudioRate, buf.data(), out, &elapsed, &ntp);
-                }
-            }
-            std::this_thread::sleep_until(next);
-        }
+    /// 10 ms de la reproducción de esta fábrica (en el hilo del reloj).
+    void tirar(std::vector<int16_t>& buf) {
+        std::lock_guard<std::mutex> lock(m_);
+        if (transport_ == nullptr) return;
+        size_t out = 0;
+        int64_t elapsed = 0;
+        int64_t ntp = 0;
+        transport_->NeedMorePlayData(kFramesPer10Ms, sizeof(int16_t) * kAudioChannels, kAudioChannels, kAudioRate,
+                                     buf.data(), out, &elapsed, &ntp);
     }
 
+   private:
+    std::shared_ptr<RelojPlayout> reloj_;
     std::mutex m_;
     webrtc::AudioTransport* transport_ = nullptr;
     std::atomic<bool> playing_{false};
-    std::thread thread_;
 };
+
+void RelojPlayout::sumar(PullAdm* a) {
+    std::lock_guard<std::mutex> l(m_);
+    adms_.push_back(a);
+    if (!corriendo_) {
+        corriendo_ = true;
+        if (hilo_.joinable()) hilo_.join(); // uno anterior que ya salió
+        hilo_ = std::thread([this]() {
+            ba::platform::nombrarHilo("webrtc-playout");
+            ba::platform::nucleos::alGrupoGateway();
+            ba::platform::tiempoRealAudio(10); // tira del audio cada 10 ms: con plazo
+            bucle();
+        });
+    }
+}
+
+void RelojPlayout::sacar(PullAdm* a) {
+    std::lock_guard<std::mutex> l(m_);
+    adms_.erase(std::remove(adms_.begin(), adms_.end(), a), adms_.end());
+}
+
+void RelojPlayout::bucle() {
+    std::vector<int16_t> buf(kFramesPer10Ms * kAudioChannels);
+    auto next = std::chrono::steady_clock::now();
+    // #10 del plan: sacar el audio de todos cada 10 ms (NetEq de cada invitado), de todas las fábricas.
+    static ba::diag::Frontera& fPlayout =
+        ba::diag::frontera("audio.playout", 10, "sacar el audio de todos cada 10 ms (webrtc-playout)");
+    for (;;) {
+        next += std::chrono::milliseconds(10);
+        fPlayout.despertada();
+        {
+            ba::diag::MedirPase medir(fPlayout, buf.size() * sizeof(int16_t));
+            std::lock_guard<std::mutex> lock(m_);
+            if (!corriendo_) return;
+            for (PullAdm* a : adms_) a->tirar(buf);
+        }
+        std::this_thread::sleep_until(next);
+    }
+}
 
 /// Fuente de video de retorno: un BufferRetorno (el I420 de CuadroSaliente, el mismo para
 /// todas las sesiones, y su emisión del flujo) -> sinks -> el codificador de paso.
@@ -401,12 +463,21 @@ class RemoteVideoSink : public rtc::VideoSinkInterface<webrtc::VideoFrame> {
     /// se va durante el fundido) o a ningún lado (una capa que no sale se descarta ANTES de
     /// convertirla). Vacío = todos a `fn`.
     using FnYuv = std::function<void(const PlanosYuv&)>;
-    explicit RemoteVideoSink(Fn fn, std::function<int()> pasa = {}, Fn anterior = {}, FnYuv yuv = {})
-        : fn_(std::move(fn)), pasa_(std::move(pasa)), anterior_(std::move(anterior)), yuv_(std::move(yuv)) {}
+    /// `camara` (F3): la cámara que sale va derecho a su destino (celda de la grilla y ba-app)
+    /// en este mismo hilo, sin el BGRA de acá.
+    explicit RemoteVideoSink(Fn fn, std::function<int()> pasa = {}, Fn anterior = {}, FnYuv yuv = {},
+                             std::shared_ptr<DestinoCamara> camara = {})
+        : fn_(std::move(fn)), pasa_(std::move(pasa)), anterior_(std::move(anterior)), yuv_(std::move(yuv)),
+          camara_(std::move(camara)) {}
     void OnFrame(const webrtc::VideoFrame& frame) override {
-        if (!fn_) return;
+        if (!fn_ && !camara_) return;
         const int destino = pasa_ ? pasa_() : kSale;
         if (destino == kNo || (destino == kAnterior && !anterior_)) return;
+        if (destino == kSale && camara_) {
+            codecs::entregarCamara(frame, *camara_, bgra_); // la medición #8 va adentro
+            return;
+        }
+        if (!fn_) return;
         const Fn& fn = destino == kSale ? fn_ : anterior_;
         // #5/#8 del plan: lo que sale del decodificador, en su hilo (BGRA, retrato de la grilla,
         // memoria compartida a ba-app). La espera es desde que llegó el primer paquete del
@@ -440,6 +511,7 @@ class RemoteVideoSink : public rtc::VideoSinkInterface<webrtc::VideoFrame> {
     std::function<int()> pasa_;
     Fn anterior_;
     FnYuv yuv_;
+    std::shared_ptr<DestinoCamara> camara_;
     std::vector<uint8_t> bgra_;
 };
 
@@ -746,6 +818,12 @@ struct ViewerPc : public webrtc::PeerConnectionObserver {
     std::atomic<int64_t> downSinceMs{0};
     int64_t createdMs = 0;
     std::function<void()> onConnected; // lo fija openViewer
+    // Su par de hilos (F2): se suelta cuando se va.
+    capas::Reparto* reparto = nullptr;
+    capas::Lugar lugar;
+    ~ViewerPc() override {
+        if (reparto != nullptr) reparto->soltar(lugar);
+    }
 
     void OnSignalingChange(webrtc::PeerConnectionInterface::SignalingState) override {}
     void OnDataChannel(rtc::scoped_refptr<webrtc::DataChannelInterface>) override {}
@@ -795,7 +873,43 @@ std::vector<std::pair<std::string, int>> videoPayloadTypes(const std::string& sd
     return out;
 }
 
-/// Estado compartido de la factory (lo guarda el hub como void*).
+/// Una capa de RED (F1/F2 de PLAN-GATEWAY-FRAGMENTOS.md): su hilo (con el socket server
+/// donde esperan los sockets de WebRTC y los del TURN), el bucle que le presta al TURN y las
+/// redes y sockets de las sesiones que viven en él.
+struct CapaRed {
+    std::unique_ptr<rtc::Thread> hilo;
+    std::unique_ptr<rtcred::BucleRtc> bucle;
+    // Las redes de las sesiones (setNetwork): la lista de interfaces de la máquina SIN las
+    // que se ignoran, compartida por todas las PeerConnection de esta capa; cada una la ve por
+    // su RedesDeSesion (RedesSesionRtc.hpp: sin eso, cada sesión que empieza hace volver a
+    // juntar puertos a las que todavía no conectaron y una ráfaga agota el rango).
+    // Las crea y las suelta el hilo de señalización (como las de la factory).
+    std::unique_ptr<rtc::BasicNetworkManager> redes;
+    /// Los sockets UDP en memoria con el TURN y el túnel (rtc/SocketsEnMemoria.hpp).
+    std::unique_ptr<rtcred::FabricaEnMemoria> sockets;
+};
+
+/// Una fábrica de libwebrtc por par (red, trabajo): las fábricas comparten los hilos.
+struct ParRtc {
+    int red = 0, trabajo = 0;
+    rtc::scoped_refptr<webrtc::PeerConnectionFactoryInterface> factory;
+};
+
+/// Las colas de libwebrtc de TODAS las fábricas sobre los mismos grupos de hilos
+/// (rtc/ColasCompartidas.hpp): cada fábrica recibe una de paso a la común.
+class ColasDePaso final : public webrtc::TaskQueueFactory {
+   public:
+    explicit ColasDePaso(std::shared_ptr<webrtc::TaskQueueFactory> comun) : comun_(std::move(comun)) {}
+    std::unique_ptr<webrtc::TaskQueueBase, webrtc::TaskQueueDeleter> CreateTaskQueue(absl::string_view nombre,
+                                                                                      Priority prioridad) const override {
+        return comun_->CreateTaskQueue(nombre, prioridad);
+    }
+
+   private:
+    std::shared_ptr<webrtc::TaskQueueFactory> comun_;
+};
+
+/// Estado compartido de las fábricas (lo guarda el hub como void*).
 struct RtcHubState {
     /// Los codificadores de verdad (VP8; H.264 de VideoToolbox en la Mac): los usan los flujos
     /// del retorno compartido. Las PeerConnection ven una fábrica de PASO sobre esta.
@@ -807,22 +921,34 @@ struct RtcHubState {
     uint16_t minPort = 0;
     uint16_t maxPort = 0;
     bool loopback = false; ///< también 127.0.0.1 (setNetwork: el túnel de WireGuard)
-    std::unique_ptr<rtc::Thread> network;
-    std::unique_ptr<rtc::Thread> worker;
-    std::unique_ptr<rtc::Thread> signaling;
-    rtc::scoped_refptr<webrtc::PeerConnectionFactoryInterface> factory;
-    // Las redes de las sesiones (setNetwork): la lista de interfaces de la máquina SIN las
-    // que se ignoran, compartida por todas las PeerConnection; cada una la ve por su
-    // RedesDeSesion (RedesSesionRtc.hpp: sin eso, cada sesión que empieza hace volver a
-    // juntar puertos a las que todavía no conectaron y una ráfaga agota el rango).
-    // Las crea y las suelta el hilo de señalización (como las de la factory).
-    std::unique_ptr<rtc::BasicNetworkManager> redes;
-    std::unique_ptr<rtc::BasicPacketSocketFactory> sockets;
 
-    /// La red de una PeerConnection nueva: sin las de enlace local, y con el asignador de
-    /// puertos propio (el rango va en él: la config de la PC no se aplica a uno inyectado).
-    /// Y el video que llega sin suavizar.
-    void configurarRed(webrtc::PeerConnectionInterface::RTCConfiguration& config, webrtc::PeerConnectionDependencies& deps) {
+    // --- las capas (F2) -----------------------------------------------------------------
+    std::shared_ptr<RelojPlayout> reloj = std::make_shared<RelojPlayout>();
+    std::unique_ptr<capas::Reparto> reparto;
+    std::vector<CapaRed> red;                        ///< R hilos de red
+    std::vector<std::unique_ptr<rtc::Thread>> trabajo; ///< T hilos de trabajo
+    std::unique_ptr<rtc::Thread> signaling;          ///< uno para toda la sala
+    std::vector<ParRtc> pares;                       ///< [red * T + trabajo] (sin cruzar: solo red == trabajo)
+    /// La entrega en memoria TURN ↔ WebRTC ↔ túnel (nullptr con `gateway.turnEnMemoria` apagado).
+    std::unique_ptr<memoria::Conmutador> conmutador;
+    std::shared_ptr<rtcred::EnlaceTunel> tunel = std::make_shared<rtcred::EnlaceTunel>();
+    std::mutex tunelM;
+    net::IpStack* pila = nullptr;
+
+    int nTrabajo() const { return int(trabajo.size()); }
+    ParRtc& par(const capas::Lugar& l) { return pares[size_t(l.red * nTrabajo() + l.trabajo)]; }
+    /// Una fábrica cualquiera (para lo que no es de una sesión: capacidades de los códecs).
+    webrtc::PeerConnectionFactoryInterface* algunaFabrica() const {
+        for (const ParRtc& p : pares)
+            if (p.factory) return p.factory.get();
+        return nullptr;
+    }
+
+    /// La red de una PeerConnection nueva en la capa `r`: sin las de enlace local, y con el
+    /// asignador de puertos propio (el rango va en él: la config de la PC no se aplica a uno
+    /// inyectado). Y el video que llega sin suavizar.
+    void configurarRed(webrtc::PeerConnectionInterface::RTCConfiguration& config, webrtc::PeerConnectionDependencies& deps,
+                       int r) {
         // Sin «suavizado previo al render» (IncomingVideoStream): libwebrtc retiene cada
         // cuadro decodificado en una cola con su propio hilo hasta su hora de mostrarse. El
         // gateway no muestra nada: la grilla (cola de 4 cuadros por persona) y ba-app llevan
@@ -834,8 +960,9 @@ struct RtcHubState {
             config.port_allocator_config.min_port = minPort;
             config.port_allocator_config.max_port = maxPort;
         }
-        if (!redes) return;
-        auto a = std::make_unique<AsignadorDeSesion>(redes.get(), sockets.get());
+        if (r < 0 || r >= int(red.size()) || !red[size_t(r)].redes) return;
+        CapaRed& c = red[size_t(r)];
+        auto a = std::make_unique<AsignadorDeSesion>(c.redes.get(), c.sockets.get());
         if (minPort != 0) a->SetPortRange(minPort, maxPort);
         a->SetNetworkIgnoreMask(loopback ? 0 : rtc::kDefaultNetworkIgnoreMask);
         deps.allocator = std::move(a);
@@ -855,6 +982,8 @@ struct RtcHubState {
         return f;
     }
 };
+
+void apagarCapas(RtcHubState* st);
 
 template <typename Fn> class SrdObserver : public webrtc::SetRemoteDescriptionObserverInterface {
    public:
@@ -881,6 +1010,11 @@ struct WebrtcSession::Impl : public webrtc::PeerConnectionObserver {
     SessionCallbacks cb;
     std::mutex m;
     RtcHubState* hub = nullptr;
+    // Su par de hilos (F2): en cuál red y cuál trabajo vive esta conexión; no se muda.
+    std::mutex lugarM;
+    capas::Lugar lugar;
+    rtc::scoped_refptr<webrtc::PeerConnectionFactoryInterface> fab; ///< la fábrica de su par
+    rtc::Thread* trabajo = nullptr;                                ///< su hilo de trabajo
     rtc::scoped_refptr<webrtc::PeerConnectionInterface> pc;
     rtc::scoped_refptr<LocalVideoSource> videoSource;
     /// Lo que la sesión le dice a su codificador de paso (el tope) y lo que él cuenta.
@@ -1033,6 +1167,7 @@ struct WebrtcSession::Impl : public webrtc::PeerConnectionObserver {
                 j["audio_bufer"] = {{"ms", std::lround(jbMs)}, {"objetivo_ms", std::lround(jbObjMs)},
                                     {"descartados", jbDescartados}};
             impl_->statsJson = j.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
+            impl_->ajustarPeso(alto);
         }
 
        private:
@@ -1050,12 +1185,36 @@ struct WebrtcSession::Impl : public webrtc::PeerConnectionObserver {
         return statsJson;
     }
 
+    /// El que sube 720p (o más) cuenta más para el reparto de las próximas (no se muda).
+    void ajustarPeso(uint32_t alto) {
+        std::lock_guard<std::mutex> l(lugarM);
+        if (hub != nullptr && hub->reparto && lugar.valido() && alto > 0)
+            hub->reparto->cambiarPeso(lugar, alto >= 540 ? capas::kPesoAlta : capas::kPesoNormal);
+    }
+    void soltarLugar() {
+        std::lock_guard<std::mutex> l(lugarM);
+        if (hub != nullptr && hub->reparto) hub->reparto->soltar(lugar);
+    }
+
     bool configure(const SessionCallbacks& c, void* factory) {
         close();
         std::lock_guard<std::mutex> lock(m);
         cb = c;
         hub = static_cast<RtcHubState*>(factory);
-        if (hub == nullptr || !hub->factory) return false;
+        if (hub == nullptr || !hub->reparto || hub->pares.empty()) return false;
+        // Al par de hilos menos cargado (F2).
+        capas::Lugar l = hub->reparto->tomar();
+        {
+            std::lock_guard<std::mutex> g(lugarM);
+            lugar = l;
+        }
+        ParRtc& par = hub->par(l);
+        fab = par.factory;
+        trabajo = hub->trabajo[size_t(l.trabajo)].get();
+        if (!fab) {
+            soltarLugar();
+            return false;
+        }
         webrtc::PeerConnectionInterface::RTCConfiguration config;
         config.sdp_semantics = webrtc::SdpSemantics::kUnifiedPlan;
         config.bundle_policy = webrtc::PeerConnectionInterface::kBundlePolicyMaxBundle;
@@ -1064,10 +1223,13 @@ struct WebrtcSession::Impl : public webrtc::PeerConnectionObserver {
         // Sin STUN/TURN: B atiende en la LAN (candidatos host) y, con el tunel,
         // en su IP publica. El medio no pasa por Cloudflare (spec §8.4).
         webrtc::PeerConnectionDependencies deps(this);
-        hub->configurarRed(config, deps);
+        hub->configurarRed(config, deps, l.red);
         candidatos = 0;
-        auto res = hub->factory->CreatePeerConnectionOrError(config, std::move(deps));
-        if (!res.ok()) return false;
+        auto res = fab->CreatePeerConnectionOrError(config, std::move(deps));
+        if (!res.ok()) {
+            soltarLugar();
+            return false;
+        }
         pc = res.MoveValue();
         videoSource = rtc::make_ref_counted<LocalVideoSource>();
         audioSource = rtc::make_ref_counted<LocalAudioSource>();
@@ -1103,8 +1265,8 @@ struct WebrtcSession::Impl : public webrtc::PeerConnectionObserver {
     void addReturnTracks() {
         if (tracksAdded || !pc) return;
         tracksAdded = true;
-        auto v = hub->factory->CreateVideoTrack(videoSource, "ba-return-video");
-        auto a = hub->factory->CreateAudioTrack("ba-return-audio", audioSource.get());
+        auto v = fab->CreateVideoTrack(videoSource, "ba-return-video");
+        auto a = fab->CreateAudioTrack("ba-return-audio", audioSource.get());
         pc->AddTrack(a, {"ba-return"});
         auto sender = pc->AddTrack(v, {"ba-return"});
         if (sender.ok()) preferirCodec(sender.value());
@@ -1126,8 +1288,8 @@ struct WebrtcSession::Impl : public webrtc::PeerConnectionObserver {
         for (const auto& t : pc->GetTransceivers())
             if (t->sender() == sender) tr = t;
         if (!tr) return;
-        const auto envio = hub->factory->GetRtpSenderCapabilities(cricket::MEDIA_TYPE_VIDEO).codecs;
-        const auto recibe = hub->factory->GetRtpReceiverCapabilities(cricket::MEDIA_TYPE_VIDEO).codecs;
+        const auto envio = fab->GetRtpSenderCapabilities(cricket::MEDIA_TYPE_VIDEO).codecs;
+        const auto recibe = fab->GetRtpReceiverCapabilities(cricket::MEDIA_TYPE_VIDEO).codecs;
         std::vector<webrtc::RtpCodecCapability> h264, resto;
         for (const auto& c : recibe) {
             const bool tambienEnvia = std::any_of(envio.begin(), envio.end(), [&](const webrtc::RtpCodecCapability& e) {
@@ -1262,7 +1424,10 @@ struct WebrtcSession::Impl : public webrtc::PeerConnectionObserver {
             p = std::move(pc);
             pc = nullptr;
         }
-        if (!p) return;
+        if (!p) {
+            soltarLugar();
+            return;
+        }
         retornoEstado->ponerSondeo(nullptr); // suelta la PC
         for (auto& [t, s] : videoAttached)
             t->RemoveSink(s);
@@ -1276,6 +1441,7 @@ struct WebrtcSession::Impl : public webrtc::PeerConnectionObserver {
             hub->feed(-slot)->clearSource();
         }
         p->Close(); // sincronico: despues no llegan mas callbacks de esta PC
+        soltarLugar();
         videoSinks.clear();
         audioSinks.clear();
         if (connected.exchange(false) && cb.onStateChange) cb.onStateChange(false);
@@ -1332,7 +1498,8 @@ struct WebrtcSession::Impl : public webrtc::PeerConnectionObserver {
                 };
             auto sink = std::make_unique<RemoteVideoSink>(camera ? cb.onRemoteVideo : cb.onRemoteScreen, std::move(pasa),
                                                           camera ? cb.onRemoteVideoAnterior : RemoteVideoSink::Fn(),
-                                                          camera ? cb.onRemoteVideoYuv : RemoteVideoSink::FnYuv());
+                                                          camera ? cb.onRemoteVideoYuv : RemoteVideoSink::FnYuv(),
+                                                          camera ? cb.camara : std::shared_ptr<DestinoCamara>());
             auto* video = static_cast<webrtc::VideoTrackInterface*>(track.get());
             // Relay a espectadores: los cuadros codificados pasan por el Feed de
             // esta sesion antes del decodificador. A los espectadores se les reenvia
@@ -1340,8 +1507,7 @@ struct WebrtcSession::Impl : public webrtc::PeerConnectionObserver {
             // (lo que entra a la sala).
             if (hub != nullptr) {
                 std::shared_ptr<Feed> feed = hub->feed(capa == Capa::Baja ? -slot : slot * 2 + (camera ? 0 : 1));
-                feed->setSource(rtc::scoped_refptr<webrtc::VideoTrackSourceInterface>(video->GetSource()),
-                                hub->worker.get());
+                feed->setSource(rtc::scoped_refptr<webrtc::VideoTrackSourceInterface>(video->GetSource()), trabajo);
                 t->receiver()->SetDepacketizerToDecoderFrameTransformer(
                     rtc::make_ref_counted<TapTransformer>(feed));
             }
@@ -1606,67 +1772,134 @@ WebrtcHub::WebrtcHub(int guests, int videoW, int videoH, int audioRate, int audi
     st->codificadores = codecs::codificadores();
     const rtc::scoped_refptr<webrtc::AudioEncoderFactory> audioBase = webrtc::CreateBuiltinAudioEncoderFactory();
     st->audioGrupos = std::make_shared<audioret::Registro>(audioBase);
-    st->network = rtc::Thread::CreateWithSocketServer();
-    st->worker = rtc::Thread::Create();
+    // Las capas (F2 de PLAN-GATEWAY-FRAGMENTOS.md): R hilos de red, T de trabajo, una fábrica
+    // por par compartiendo los hilos (`gateway.hilosRed`, `gateway.hilosTrabajo`; 0 =
+    // automático). Con `gateway.capasCruzadas` apagado, cada red con su trabajo (T = R).
+    st->reparto = std::make_unique<capas::Reparto>(capas::deLosAjustes(), ba::ajustes::siNo("gateway.capasCruzadas", true));
+    const int R = st->reparto->tamanos().red, T = st->reparto->tamanos().trabajo;
+    const auto nombre = [](const char* base, int i, int n) {
+        return n == 1 ? std::string(base) : std::string(base) + "-" + std::to_string(i + 1);
+    };
+    for (int i = 0; i < R; ++i) {
+        CapaRed c;
+        c.hilo = rtc::Thread::CreateWithSocketServer();
+        c.hilo->SetName(nombre("ba-rtc-net", i, R), nullptr);
+        c.hilo->Start();
+        c.hilo->PostTask([] { ba::platform::nucleos::alGrupoGateway(); });
+        c.bucle = std::make_unique<rtcred::BucleRtc>(c.hilo.get());
+        st->red.push_back(std::move(c));
+    }
+    for (int j = 0; j < T; ++j) {
+        std::unique_ptr<rtc::Thread> t = rtc::Thread::Create();
+        t->SetName(nombre("ba-rtc-work", j, T), nullptr);
+        t->Start();
+        t->PostTask([] { ba::platform::nucleos::alGrupoGateway(); });
+        st->trabajo.push_back(std::move(t));
+    }
     st->signaling = rtc::Thread::Create();
-    st->network->SetName("ba-rtc-net", nullptr);
-    st->worker->SetName("ba-rtc-work", nullptr);
     st->signaling->SetName("ba-rtc-sig", nullptr);
-    st->network->Start();
-    st->worker->Start();
     st->signaling->Start();
-    // El ADM se crea en el worker (asi lo espera libwebrtc).
-    rtc::scoped_refptr<webrtc::AudioDeviceModule> adm = st->worker->BlockingCall(
-        []() { return rtc::scoped_refptr<webrtc::AudioDeviceModule>(rtc::make_ref_counted<PullAdm>()); });
-    // Lo mismo que arma webrtc::CreatePeerConnectionFactory, salvo las colas de tareas: las
-    // de libwebrtc (una por stream) comparten dos grupos chicos de hilos en vez de un hilo
-    // cada una (rtc/ColasCompartidas.hpp, `gateway.hilosColas`).
-    webrtc::PeerConnectionFactoryDependencies deps;
-    deps.network_thread = st->network.get();
-    deps.worker_thread = st->worker.get();
-    deps.signaling_thread = st->signaling.get();
-    deps.socket_factory = st->network->socketserver();
-    // −1: las de libwebrtc (un hilo por cola), para comparar o si algo anda mal.
+    // La entrega en memoria (F1): R hilos de red y un productor de afuera (el túnel).
+    if (ba::ajustes::siNo("gateway.turnEnMemoria", true)) {
+        st->conmutador = std::make_unique<memoria::Conmutador>(R, 1, [st](int hilo, std::function<void()> f) {
+            st->red[size_t(hilo)].hilo->PostTask(std::move(f));
+        });
+    }
+    // Las colas de tareas de libwebrtc: las de TODAS las fábricas comparten dos grupos chicos
+    // de hilos (rtc/ColasCompartidas.hpp, `gateway.hilosColas`); −1: las de libwebrtc (un hilo
+    // por cola), para comparar o si algo anda mal.
+    std::shared_ptr<webrtc::TaskQueueFactory> colasComunes;
     if (ba::ajustes::entero("gateway.hilosColas", 0) < 0) {
-        deps.task_queue_factory = webrtc::CreateDefaultTaskQueueFactory();
+        colasComunes = webrtc::CreateDefaultTaskQueueFactory();
         ba::diag::registro().linea(ba::diag::Nivel::Info, "gateway", 0, "colas de libwebrtc: un hilo por cola (gateway.hilosColas = -1)");
     } else {
-        deps.task_queue_factory = colas::crearDeLosAjustes();
+        colasComunes = colas::crearDeLosAjustes();
     }
-    deps.event_log_factory = std::make_unique<webrtc::RtcEventLogFactory>();
-    deps.trials = std::make_unique<webrtc::FieldTrialBasedConfig>();
-    deps.adm = adm;
-    // El Opus de cada sesión es de PASO: manda lo que codificó su grupo si oye lo mismo
-    // que otros (AudioCompartido.hpp); si no, codifica el suyo.
-    deps.audio_encoder_factory = audioret::fabricaDePaso(audioBase, st->audioGrupos);
-    deps.audio_decoder_factory = webrtc::CreateBuiltinAudioDecoderFactory();
-    // Cada sesión codifica de PASO: entrega lo que codificó su flujo (RetornoCompartido).
-    deps.video_encoder_factory = retorno::fabricaDePaso(st->codificadores);
-    // Los de software con un hilo interno cada uno (`gateway.hilosPorDecodificador`).
-    deps.video_decoder_factory = codecs::decodificadores();
-    // El APM por omisión (lo que ponía CreatePeerConnectionFactory con nullptr) y el mixer
-    // por omisión (nullptr).
-    deps.audio_processing = webrtc::AudioProcessingBuilder().Create();
-    webrtc::EnableMedia(deps);
-    st->factory = webrtc::CreateModularPeerConnectionFactory(std::move(deps));
-    if (st->factory) {
+    const auto audioPaso = audioret::fabricaDePaso(audioBase, st->audioGrupos);
+    const auto audioDec = webrtc::CreateBuiltinAudioDecoderFactory();
+    const bool cruzado = st->reparto->cruzado();
+    st->pares.resize(size_t(R * T));
+    bool ok = true;
+    for (int r = 0; r < R && ok; ++r)
+        for (int t = 0; t < T && ok; ++t) {
+            ParRtc& par = st->pares[size_t(r * T + t)];
+            par.red = r;
+            par.trabajo = t;
+            if (!cruzado && r != t) continue;
+            rtc::Thread* hiloRed = st->red[size_t(r)].hilo.get();
+            rtc::Thread* hiloTrabajo = st->trabajo[size_t(t)].get();
+            // El ADM se crea en el worker (asi lo espera libwebrtc). Todas las fábricas tiran
+            // del audio con el mismo reloj (un solo «webrtc-playout»).
+            std::shared_ptr<RelojPlayout> reloj = st->reloj;
+            rtc::scoped_refptr<webrtc::AudioDeviceModule> adm = hiloTrabajo->BlockingCall([reloj]() {
+                return rtc::scoped_refptr<webrtc::AudioDeviceModule>(rtc::make_ref_counted<PullAdm>(reloj));
+            });
+            // Lo mismo que arma webrtc::CreatePeerConnectionFactory, salvo las colas de tareas.
+            webrtc::PeerConnectionFactoryDependencies deps;
+            deps.network_thread = hiloRed;
+            deps.worker_thread = hiloTrabajo;
+            deps.signaling_thread = st->signaling.get();
+            deps.socket_factory = hiloRed->socketserver();
+            deps.task_queue_factory = std::make_unique<ColasDePaso>(colasComunes);
+            deps.event_log_factory = std::make_unique<webrtc::RtcEventLogFactory>();
+            deps.trials = std::make_unique<webrtc::FieldTrialBasedConfig>();
+            deps.adm = adm;
+            // El Opus de cada sesión es de PASO: manda lo que codificó su grupo si oye lo mismo
+            // que otros (AudioCompartido.hpp); si no, codifica el suyo.
+            deps.audio_encoder_factory = audioPaso;
+            deps.audio_decoder_factory = audioDec;
+            // Cada sesión codifica de PASO: entrega lo que codificó su flujo (RetornoCompartido).
+            deps.video_encoder_factory = retorno::fabricaDePaso(st->codificadores);
+            // Los de software con un hilo interno cada uno (`gateway.hilosPorDecodificador`).
+            deps.video_decoder_factory = codecs::decodificadores();
+            // El APM por omisión (lo que ponía CreatePeerConnectionFactory con nullptr) y el mixer
+            // por omisión (nullptr).
+            deps.audio_processing = webrtc::AudioProcessingBuilder().Create();
+            webrtc::EnableMedia(deps);
+            par.factory = webrtc::CreateModularPeerConnectionFactory(std::move(deps));
+            ok = bool(par.factory);
+        }
+    if (ok) {
         // Loopback solo para pruebas en una sola maquina (tests): en produccion
         // un candidato 127.0.0.1 no le sirve a ningun invitado.
         if (const char* lb = std::getenv("BA_WEBRTC_ALLOW_LOOPBACK"); lb != nullptr && lb[0] == '1') {
             webrtc::PeerConnectionFactoryInterface::Options opts;
             opts.network_ignore_mask = 0;
-            st->factory->SetOptions(opts);
+            for (ParRtc& p : st->pares)
+                if (p.factory) p.factory->SetOptions(opts);
             st->loopback = true;
         }
+        ba::diag::registro().linea(ba::diag::Nivel::Info, "gateway", 0,
+                                   "capas de WebRTC: " + std::to_string(R) + " de red, " + std::to_string(T) +
+                                       " de trabajo" + (cruzado ? "" : " (sin cruzar)") + ", TURN y túnel " +
+                                       (st->conmutador ? "en memoria" : "por el kernel"));
         rtcFactory_ = st;
     } else {
-        st->signaling->Stop();
-        st->worker->Stop();
-        st->network->Stop();
-        delete st;
+        for (ParRtc& p : st->pares) p.factory = nullptr;
+        apagarCapas(st);
     }
 #endif
 }
+
+#if BA_GATEWAY_HAVE_WEBRTC
+namespace {
+/// Para y suelta todo lo de las capas (las fábricas ya no están).
+void apagarCapas(RtcHubState* st) {
+    st->signaling->BlockingCall([st]() {
+        for (CapaRed& c : st->red) {
+            c.redes.reset();
+            c.sockets.reset();
+        }
+    });
+    for (CapaRed& c : st->red) c.bucle.reset(); // en su hilo, antes de pararlo
+    st->signaling->Stop();
+    for (auto& t : st->trabajo) t->Stop();
+    for (CapaRed& c : st->red) c.hilo->Stop();
+    st->reloj->parar();
+    delete st;
+}
+} // namespace
+#endif
 
 WebrtcHub::~WebrtcHub() {
     closeAll();
@@ -1683,6 +1916,7 @@ WebrtcHub::~WebrtcHub() {
     }
     sessions_.clear(); // antes que la factory: las PC la referencian
     if (auto* st = static_cast<RtcHubState*>(rtcFactory_)) {
+        conectarTunel(nullptr);
         {
             std::lock_guard<std::mutex> lock(st->feedsM);
             st->feeds.clear(); // sueltan proxies de libwebrtc: con los threads vivos
@@ -1693,15 +1927,8 @@ WebrtcHub::~WebrtcHub() {
             for (auto& [n, f] : st->flujos) retorno::parar(*f);
             st->flujos.clear();
         }
-        st->factory = nullptr;
-        st->signaling->BlockingCall([st]() {
-            st->redes.reset();
-            st->sockets.reset();
-        });
-        st->signaling->Stop();
-        st->worker->Stop();
-        st->network->Stop();
-        delete st;
+        for (ParRtc& p : st->pares) p.factory = nullptr;
+        apagarCapas(st);
         rtcFactory_ = nullptr;
     }
     rtc::CleanupSSL();
@@ -1716,17 +1943,23 @@ void WebrtcHub::setNetwork(uint16_t minPort, uint16_t maxPort, bool allowLoopbac
     st->maxPort = maxPort;
     st->loopback = st->loopback || allowLoopback;
     // Siempre la lista propia (aunque no haya redes que ignorar): la de la factory también
-    // es compartida y tiene el mismo problema de los avisos (RedesSesionRtc.hpp).
-    if (!st->redes)
-        st->signaling->BlockingCall([st, &ignorar]() {
-            st->redes = std::make_unique<rtc::BasicNetworkManager>(st->network->socketserver());
-            st->redes->set_network_ignore_list(ignorar); // antes de que empiece a enumerar
-            st->sockets = std::make_unique<rtc::BasicPacketSocketFactory>(st->network->socketserver());
-        });
+    // es compartida y tiene el mismo problema de los avisos (RedesSesionRtc.hpp). Una por
+    // capa de red (cada una en su hilo), con sus sockets en memoria.
+    st->signaling->BlockingCall([st, &ignorar]() {
+        for (size_t i = 0; i < st->red.size(); ++i) {
+            CapaRed& c = st->red[i];
+            if (c.redes) continue;
+            c.redes = std::make_unique<rtc::BasicNetworkManager>(c.hilo->socketserver());
+            c.redes->set_network_ignore_list(ignorar); // antes de que empiece a enumerar
+            c.sockets = std::make_unique<rtcred::FabricaEnMemoria>(c.hilo->socketserver(), st->conmutador.get(), int(i),
+                                                                   st->tunel);
+        }
+    });
     if (allowLoopback) {
         webrtc::PeerConnectionFactoryInterface::Options opts;
         opts.network_ignore_mask = 0;
-        st->factory->SetOptions(opts);
+        for (ParRtc& p : st->pares)
+            if (p.factory) p.factory->SetOptions(opts);
     }
 #else
     (void)minPort;
@@ -1734,6 +1967,59 @@ void WebrtcHub::setNetwork(uint16_t minPort, uint16_t maxPort, bool allowLoopbac
     (void)allowLoopback;
     (void)ignorar;
 #endif
+}
+
+std::vector<turn::Bucle*> WebrtcHub::buclesRed() const {
+    std::vector<turn::Bucle*> v;
+#if BA_GATEWAY_HAVE_WEBRTC
+    if (auto* st = static_cast<RtcHubState*>(rtcFactory_))
+        for (CapaRed& c : st->red) v.push_back(c.bucle.get());
+#endif
+    return v;
+}
+
+memoria::Conmutador* WebrtcHub::conmutador() const {
+#if BA_GATEWAY_HAVE_WEBRTC
+    if (auto* st = static_cast<RtcHubState*>(rtcFactory_)) return st->conmutador.get();
+#endif
+    return nullptr;
+}
+
+void WebrtcHub::conectarTunel(net::IpStack* pila) {
+#if BA_GATEWAY_HAVE_WEBRTC && BA_HAVE_LWIP
+    auto* st = static_cast<RtcHubState*>(rtcFactory_);
+    if (st == nullptr) return;
+    std::lock_guard<std::mutex> l(st->tunelM);
+    // Primero que la pila deje de entregar y los sockets de mandar; después lo nuevo.
+    if (st->pila != nullptr) {
+        st->pila->setSumidero(nullptr);
+        st->tunel->poner(nullptr);
+        st->pila = nullptr;
+    }
+    if (pila == nullptr || !st->conmutador || !ba::ajustes::siNo("gateway.wgEnMemoria", true)) return;
+    auto t = std::make_shared<rtcred::TunelEnMemoria>(st->conmutador.get(), st->conmutador->hilos(), pila);
+    st->tunel->poner(t);
+    pila->setSumidero(t);
+    st->pila = pila;
+#else
+    (void)pila;
+#endif
+}
+
+nlohmann::json WebrtcHub::capasEstado() const {
+#if BA_GATEWAY_HAVE_WEBRTC
+    if (auto* st = static_cast<RtcHubState*>(rtcFactory_)) {
+        nlohmann::json j = st->reparto->estado();
+        int fabricas = 0;
+        for (const ParRtc& p : st->pares) fabricas += p.factory ? 1 : 0;
+        j["fabricas"] = fabricas;
+        j["cruzadas"] = st->reparto->cruzado();
+        j["memoria"] = st->conmutador ? st->conmutador->estado() : nlohmann::json(nullptr);
+        j["tunelEnMemoria"] = st->pila != nullptr;
+        return j;
+    }
+#endif
+    return nlohmann::json::object();
 }
 
 WebrtcSession* WebrtcHub::session(int idx) {
@@ -1832,8 +2118,13 @@ int WebrtcHub::openViewer(int session, bool screen, const std::string& offerSdp,
     config.rtcp_mux_policy = webrtc::PeerConnectionInterface::kRtcpMuxPolicyRequire;
     config.media_config.enable_dscp = ba::ajustes::siNo("red.dscp", true); // F4-06
     webrtc::PeerConnectionDependencies deps(v.get());
-    st->configurarRed(config, deps);
-    auto res = st->factory->CreatePeerConnectionOrError(config, std::move(deps));
+    // Al par de hilos menos cargado (F2); lo suelta el ViewerPc al irse.
+    v->reparto = st->reparto.get();
+    v->lugar = st->reparto->tomar();
+    rtc::scoped_refptr<webrtc::PeerConnectionFactoryInterface> fab = st->par(v->lugar).factory;
+    if (!fab) return 0;
+    st->configurarRed(config, deps, v->lugar.red);
+    auto res = fab->CreatePeerConnectionOrError(config, std::move(deps));
     if (!res.ok()) return 0;
     v->pc = res.MoveValue();
 
@@ -1846,12 +2137,12 @@ int WebrtcHub::openViewer(int session, bool screen, const std::string& offerSdp,
         vp->cv.notify_all();
     };
     auto onSld = [finish](webrtc::RTCError e) { finish(e.ok() ? 1 : -1); };
-    auto onSrd = [st, p, vp, finish, onSld](webrtc::RTCError e) {
+    auto onSrd = [fab, p, vp, finish, onSld](webrtc::RTCError e) {
         if (!e.ok()) {
             finish(-1);
             return;
         }
-        auto track = st->factory->CreateVideoTrack(rtc::make_ref_counted<SilentVideoSource>(), "ba-relay");
+        auto track = fab->CreateVideoTrack(rtc::make_ref_counted<SilentVideoSource>(), "ba-relay");
         auto sender = p->AddTrack(track, {"ba-relay"});
         if (!sender.ok()) {
             finish(-1);
