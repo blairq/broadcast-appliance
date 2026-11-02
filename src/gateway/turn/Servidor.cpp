@@ -1,6 +1,10 @@
 // ============================================================================
 // src/gateway/turn/Servidor.cpp — implementación de Servidor.hpp (ver el header
 // y docs/funciones/TURN.md)
+//
+// Cada fragmento es lo que antes era el servidor entero (conexiones, asignaciones, la
+// política), pero en el hilo de su Bucle y sin poll() propio. Lo común (configuración,
+// topes, escuchas, contadores) está en Comun.
 // ============================================================================
 
 #include "turn/Servidor.hpp"
@@ -12,23 +16,24 @@
 #include <cstdlib>
 #include <cstring>
 #include <map>
+#include <optional>
 #include <set>
+#include <unordered_map>
 
 #include "ajustes/Ajustes.hpp"
 #include "diag/Frontera.hpp"
 #include "i18n/I18n.hpp"
 #include "net/WgCrypto.hpp" // randomBytes
-#include "turn/Ice.hpp"     // claveDeUsuario
+#include "rtc/Conmutador.hpp"
+#include "turn/BuclePoll.hpp"
+#include "turn/Ice.hpp" // claveDeUsuario
 #include "turn/Stun.hpp"
-#include "platform/Hilo.hpp"
 
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
 #include <winsock2.h>
 #include <ws2tcpip.h>
-typedef SOCKET Fd;
-#define FD_INVALIDO INVALID_SOCKET
-typedef WSAPOLLFD PollFd;
+#define FD_INVALIDO static_cast<Fd>(INVALID_SOCKET)
 #ifndef SIO_UDP_CONNRESET
 #define SIO_UDP_CONNRESET _WSAIOW(IOC_VENDOR, 12)
 #endif
@@ -37,13 +42,10 @@ typedef WSAPOLLFD PollFd;
 #include <fcntl.h>
 #include <netinet/in.h>
 #include <netinet/tcp.h>
-#include <poll.h>
 #include <sys/socket.h>
 #include <unistd.h>
 #include <cerrno>
-typedef int Fd;
 #define FD_INVALIDO (-1)
-typedef struct pollfd PollFd;
 #endif
 
 #ifndef MSG_NOSIGNAL
@@ -139,7 +141,7 @@ void buffersGrandes(Fd f) {
 
 /// Socket UDP no bloqueante enlazado a ip:puerto. FD_INVALIDO si falla.
 Fd udpEnlazado(uint32_t ip, uint16_t puerto) {
-    Fd f = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+    Fd f = static_cast<Fd>(socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP));
     if (f == FD_INVALIDO) return f;
     sockaddr_in sa = sockDe(ip, puerto);
     if (bind(f, reinterpret_cast<sockaddr*>(&sa), sizeof(sa)) != 0 || !noBloqueante(f)) {
@@ -188,41 +190,8 @@ std::string hex(const uint8_t* p, size_t n) {
 } // namespace
 
 // ---------------------------------------------------------------------------
-struct Servidor::Impl {
-    // Quién mandó algo: una conexión TCP o una dirección UDP.
-    struct Cliente {
-        bool tcp = false;
-        uint64_t conId = 0;
-        uint32_t ip = 0;
-        uint16_t puerto = 0;
-        uint64_t clave() const { return tcp ? ((1ull << 63) | conId) : ((uint64_t(ip) << 16) | puerto); }
-    };
-    struct Conexion {
-        Fd fd = FD_INVALIDO;
-        uint32_t ip = 0;
-        uint16_t puerto = 0;
-        std::string entrada, salida;
-        size_t salidaOff = 0;
-        int64_t sinAsignacionDesde = 0; // 0 = tiene asignación
-        bool cerrar = false;
-    };
-    struct Canal {
-        uint32_t ip = 0;
-        uint16_t puerto = 0;
-        int64_t vence = 0;
-    };
-    struct Asignacion {
-        Cliente cli;
-        Fd relay = FD_INVALIDO;
-        uint16_t puertoRelay = 0;
-        std::string usuario, claveMI;
-        int64_t vence = 0;
-        std::map<uint32_t, int64_t> permisos; // ip -> vence
-        std::map<uint16_t, Canal> canales;    // canal -> peer
-        std::array<uint8_t, 12> tidAllocate{};
-        std::string respuestaAllocate; // para retransmisiones por UDP
-    };
-
+// Lo de todos los fragmentos.
+struct Servidor::Comun {
     Config cfg;
     int maxAsig = 64, maxCon = 128, vidaMaxS = 3600, nonceS = 600;
     size_t colaMax = 1024 * 1024;
@@ -230,76 +199,46 @@ struct Servidor::Impl {
     uint32_t ipEscucha = 0, ipRelay = 0, ipBindRelay = 0;
     std::set<uint32_t> permitidas;
     std::string secretoNonce;
+    memoria::Conmutador* memoria = nullptr;
+    std::vector<Bucle*> bucles;
+    std::vector<std::unique_ptr<Fragmento>> frags;
+    std::atomic<bool> corriendo{false};
+
+    // Los puertos de relay vivos de TODOS los fragmentos (navegador↔navegador entre
+    // fragmentos): un bit por puerto, sin candado.
+    std::array<std::atomic<uint64_t>, 1024> puertosRelay{};
+    void anotarRelay(uint16_t p, bool si) {
+        auto& w = puertosRelay[p >> 6];
+        const uint64_t b = uint64_t(1) << (p & 63);
+        if (si)
+            w.fetch_or(b, std::memory_order_acq_rel);
+        else
+            w.fetch_and(~b, std::memory_order_acq_rel);
+    }
+    bool esRelay(uint16_t p) const { return (puertosRelay[p >> 6].load(std::memory_order_acquire) >> (p & 63)) & 1; }
 
     // Las fronteras del TURN (PLAN-GATEWAY-FRAGMENTOS.md #1, #2, #3 y #14; diag/Frontera.hpp).
-    ba::diag::Frontera& fEntraUdp = ba::diag::frontera("turn.entra.udp", 1, "pinggy UDP → TURN (hilo turn)");
-    ba::diag::Frontera& fEntraTcp = ba::diag::frontera("turn.entra.tcp", 2, "pinggy TCP → TURN (hilo turn)");
-    ba::diag::Frontera& fHaciaRtc = ba::diag::frontera("turn.hacia_webrtc", 3, "TURN → red de WebRTC (sendto por el kernel)");
+    ba::diag::Frontera& fEntraUdp = ba::diag::frontera("turn.entra.udp", 1, "pinggy UDP → TURN (hilo de red del fragmento 0)");
+    ba::diag::Frontera& fEntraTcp = ba::diag::frontera("turn.entra.tcp", 2, "pinggy TCP → TURN (hilo de red de su fragmento)");
+    ba::diag::Frontera& fHaciaRtc =
+        ba::diag::frontera("turn.hacia_webrtc", 3, "TURN → red de WebRTC (en memoria; sendto si no es un socket nuestro)");
     ba::diag::Frontera& fDesdeRtc = ba::diag::frontera("turn.desde_webrtc", 14, "red de WebRTC → TURN → cliente");
-
-    std::map<uint64_t, Conexion> conexiones;
-    uint64_t proxConexion = 1;
-    std::map<uint64_t, Asignacion> asignaciones; // Cliente::clave() -> asignación
-    std::map<uint16_t, uint64_t> porPuertoRelay;
+    ba::diag::Frontera& fRepartoUdp =
+        ba::diag::frontera("turn.reparto.udp", 1, "UDP de pinggy → otro fragmento (una tanda por fragmento)");
+    ba::diag::Frontera& fEntregaTcp =
+        ba::diag::frontera("turn.entrega.tcp", 2, "conexión TCP nueva → el hilo de su fragmento (una vez)");
 
     std::atomic<int> nAsig{0}, nCon{0};
     std::atomic<uint64_t> bytesHaciaPeers{0}, bytesDesdePeers{0}, rechazosPeer{0}, rechazosAuth{0}, descartesCola{0};
-    int64_t ultimoBarrido = 0;
+    std::atomic<uint64_t> enMemoriaHacia{0}, enMemoriaDesde{0};
 
-    // --- envío al cliente ---------------------------------------------------
-    void vaciar(Conexion& c) {
-        while (c.salidaOff < c.salida.size()) {
-            const auto r = ::send(c.fd, c.salida.data() + c.salidaOff, int(c.salida.size() - c.salidaOff), MSG_NOSIGNAL);
-            if (r > 0) {
-                c.salidaOff += size_t(r);
-                continue;
-            }
-            if (r < 0 && seguiriaBloqueado()) break;
-            c.cerrar = true;
-            return;
-        }
-        if (c.salidaOff == c.salida.size()) {
-            c.salida.clear();
-            c.salidaOff = 0;
-        } else if (c.salidaOff > 64 * 1024) {
-            c.salida.erase(0, c.salidaOff);
-            c.salidaOff = 0;
-        }
-    }
-
-    void enviar(const Cliente& cli, const std::string& datos, bool medio) {
-        if (cli.tcp) {
-            auto it = conexiones.find(cli.conId);
-            if (it == conexiones.end() || it->second.cerrar) return;
-            Conexion& c = it->second;
-            const size_t pendiente = c.salida.size() - c.salidaOff;
-            // El medio se descarta como en UDP si el TCP no da abasto; el
-            // control nunca (pero con un tope, para no crecer sin fin).
-            if (medio && pendiente > colaMax) {
-                descartesCola++;
-                return;
-            }
-            if (pendiente > colaMax * 2) {
-                c.cerrar = true;
-                return;
-            }
-            c.salida += datos;
-            vaciar(c);
-        } else if (udp != FD_INVALIDO) {
-            sockaddr_in sa = sockDe(cli.ip, cli.puerto);
-            ::sendto(udp, datos.data(), int(datos.size()), 0, reinterpret_cast<sockaddr*>(&sa), sizeof(sa));
-        }
-    }
-
-    // --- política -----------------------------------------------------------
     bool ipPermitida(uint32_t ip) const { return ip != 0 && (permitidas.count(ip) != 0 || ip == ipRelay); }
 
     bool peerPermitido(uint32_t ip, uint16_t puerto) const {
         if (ip == 0 || puerto == 0) return false;
         if (permitidas.count(ip) != 0 && puerto >= cfg.rtcMin && puerto <= cfg.rtcMax) return true;
-        // El relay de otra asignación de este servidor (navegador↔navegador).
-        if (porPuertoRelay.count(puerto) != 0 && (ip == ipRelay || (ipBindRelay == 0 && permitidas.count(ip) != 0)))
-            return true;
+        // El relay de otra asignación de este servidor (navegador↔navegador), de cualquier fragmento.
+        if (esRelay(puerto) && (ip == ipRelay || (ipBindRelay == 0 && permitidas.count(ip) != 0))) return true;
         return false;
     }
 
@@ -320,6 +259,164 @@ struct Servidor::Impl {
         return vence >= ahoraUnix();
     }
 
+    /// El fragmento menos cargado (para una conexión o un origen UDP nuevos).
+    int menosCargado() const;
+};
+
+// ---------------------------------------------------------------------------
+// Un fragmento: sus conexiones y asignaciones, en el hilo de su bucle.
+struct Servidor::Fragmento {
+    // Quién mandó algo: una conexión TCP o una dirección UDP.
+    struct Cliente {
+        bool tcp = false;
+        uint64_t conId = 0;
+        uint32_t ip = 0;
+        uint16_t puerto = 0;
+        uint64_t clave() const { return tcp ? ((1ull << 63) | conId) : ((uint64_t(ip) << 16) | puerto); }
+    };
+    struct Conexion {
+        Fd fd = FD_INVALIDO;
+        uint32_t ip = 0;
+        uint16_t puerto = 0;
+        std::string entrada, salida;
+        size_t salidaOff = 0;
+        int64_t sinAsignacionDesde = 0; // 0 = tiene asignación
+        bool cerrar = false;
+        bool vigilaEscritura = false;
+    };
+    struct Canal {
+        uint32_t ip = 0;
+        uint16_t puerto = 0;
+        int64_t vence = 0;
+        // El socket de WebRTC del otro lado (en memoria); `gen` dice hasta cuándo vale un «no hay».
+        memoria::PuntoPtr punto;
+        uint64_t gen = 0;
+    };
+    struct ReceptorRelay final : memoria::Receptor {
+        Fragmento* f = nullptr;
+        uint64_t clave = 0;
+        void recibirEnMemoria(const uint8_t* d, size_t n, uint32_t ip, uint16_t puerto, memoria::Via) override {
+            f->desdeMemoria(clave, d, n, ip, puerto);
+        }
+    };
+    struct Asignacion {
+        Cliente cli;
+        Fd relay = FD_INVALIDO;
+        uint16_t puertoRelay = 0;
+        std::string usuario, claveMI;
+        int64_t vence = 0;
+        std::map<uint32_t, int64_t> permisos; // ip -> vence
+        std::map<uint16_t, Canal> canales;    // canal -> peer
+        std::array<uint8_t, 12> tidAllocate{};
+        std::string respuestaAllocate; // para retransmisiones por UDP
+        memoria::PuntoPtr punto;       // el relay anotado en el conmutador
+        std::unique_ptr<ReceptorRelay> receptor;
+    };
+
+    Fragmento(Comun& c, int i, Bucle* b) : c(c), indice(i), bucle(b) {}
+
+    Comun& c;
+    const int indice;
+    Bucle* const bucle;
+
+    std::map<uint64_t, Conexion> conexiones;
+    uint64_t proxConexion = 1;
+    std::map<uint64_t, Asignacion> asignaciones; // Cliente::clave() -> asignación
+    std::vector<uint64_t> porCerrar;
+    int profundidad = 0; // > 0: adentro de un manejador de este fragmento
+    std::atomic<int> nAsigF{0}, nConF{0}, nRutasF{0};
+
+    // Solo el fragmento 0: a qué fragmento va cada origen UDP (clave → fragmento, último uso).
+    struct Ruta {
+        int frag = 0;
+        int64_t visto = 0;
+    };
+    std::unordered_map<uint64_t, Ruta> rutasUdp;
+    struct Datagrama {
+        uint32_t ip = 0;
+        uint16_t puerto = 0;
+        size_t off = 0, n = 0;
+    };
+    struct Lote {
+        std::string bytes;
+        std::vector<Datagrama> d;
+    };
+
+    // --- el marco de cada manejador ---------------------------------------------------
+    /// Corre `f` como manejador del fragmento: lo que se entregue en memoria en el mismo hilo
+    /// sale al terminar (sin anidar WebRTC adentro del TURN) y después se cierra lo marcado.
+    template <typename F> void manejar(F&& f) {
+        ++profundidad;
+        {
+            std::optional<memoria::Conmutador::Ambito> a;
+            if (c.memoria != nullptr) a.emplace(*c.memoria);
+            f();
+        }
+        --profundidad;
+        if (profundidad == 0) cerrarPendientes();
+    }
+
+    void marcarCierre(uint64_t id, Conexion& con) {
+        if (con.cerrar) return;
+        con.cerrar = true;
+        porCerrar.push_back(id);
+    }
+
+    // --- envío al cliente ---------------------------------------------------
+    void vigilarEscritura(Conexion& con, bool si) {
+        if (con.vigilaEscritura == si || con.fd == FD_INVALIDO) return;
+        con.vigilaEscritura = si;
+        bucle->cambiar(con.fd, Bucle::kLeer | (si ? Bucle::kEscribir : 0));
+    }
+
+    void vaciar(uint64_t id, Conexion& con) {
+        while (con.salidaOff < con.salida.size()) {
+            const auto r =
+                ::send(con.fd, con.salida.data() + con.salidaOff, int(con.salida.size() - con.salidaOff), MSG_NOSIGNAL);
+            if (r > 0) {
+                con.salidaOff += size_t(r);
+                continue;
+            }
+            if (r < 0 && seguiriaBloqueado()) break;
+            marcarCierre(id, con);
+            return;
+        }
+        if (con.salidaOff == con.salida.size()) {
+            con.salida.clear();
+            con.salidaOff = 0;
+        } else if (con.salidaOff > 64 * 1024) {
+            con.salida.erase(0, con.salidaOff);
+            con.salidaOff = 0;
+        }
+        vigilarEscritura(con, con.salidaOff < con.salida.size());
+    }
+
+    void enviar(const Cliente& cli, const std::string& datos, bool medio) {
+        if (cli.tcp) {
+            auto it = conexiones.find(cli.conId);
+            if (it == conexiones.end() || it->second.cerrar) return;
+            Conexion& con = it->second;
+            const size_t pendiente = con.salida.size() - con.salidaOff;
+            // El medio se descarta como en UDP si el TCP no da abasto; el
+            // control nunca (pero con un tope, para no crecer sin fin).
+            if (medio && pendiente > c.colaMax) {
+                c.descartesCola++;
+                return;
+            }
+            if (pendiente > c.colaMax * 2) {
+                marcarCierre(it->first, con);
+                return;
+            }
+            con.salida += datos;
+            vaciar(it->first, con);
+        } else if (c.udp != FD_INVALIDO) {
+            // El socket UDP es uno solo (el de la escucha): sendto se puede llamar desde el
+            // hilo de cualquier fragmento (un datagrama es atómico).
+            sockaddr_in sa = sockDe(cli.ip, cli.puerto);
+            ::sendto(c.udp, datos.data(), int(datos.size()), 0, reinterpret_cast<sockaddr*>(&sa), sizeof(sa));
+        }
+    }
+
     // --- respuestas -----------------------------------------------------------
     template <typename F> void responder(const Cliente& cli, const st::Mensaje& m, uint16_t clase,
                                          const std::string* clave, F&& atributos) {
@@ -336,8 +433,8 @@ struct Servidor::Impl {
     void desafio(const Cliente& cli, const st::Mensaje& m, int codigo, const char* razon) {
         responder(cli, m, st::kError, nullptr, [&](st::Constructor& b) {
             b.agregarError(codigo, razon);
-            b.agregar(st::kRealm, cfg.realm);
-            b.agregar(st::kNonce, nonceNuevo());
+            b.agregar(st::kRealm, c.cfg.realm);
+            b.agregar(st::kNonce, c.nonceNuevo());
         });
     }
 
@@ -351,16 +448,16 @@ struct Servidor::Impl {
         usuario = m.texto(st::kUsername);
         const std::string realm = m.texto(st::kRealm), nonce = m.texto(st::kNonce);
         if (usuario.empty() || realm.empty() || nonce.empty()) {
-            rechazosAuth++;
+            c.rechazosAuth++;
             error(cli, m, 400, "Bad Request");
             return false;
         }
-        if (!nonceValido(nonce)) {
+        if (!c.nonceValido(nonce)) {
             desafio(cli, m, 438, "Stale Nonce");
             return false;
         }
-        if (realm != cfg.realm) {
-            rechazosAuth++;
+        if (realm != c.cfg.realm) {
+            c.rechazosAuth++;
             desafio(cli, m, 401, "Unauthorized");
             return false;
         }
@@ -368,7 +465,7 @@ struct Servidor::Impl {
             // Una asignación viva sigue con su usuario aunque la credencial
             // haya vencido: el vencimiento cuenta para asignaciones NUEVAS.
             if (usuario != existente->usuario) {
-                rechazosAuth++;
+                c.rechazosAuth++;
                 error(cli, m, 441, "Wrong Credentials");
                 return false;
             }
@@ -376,14 +473,14 @@ struct Servidor::Impl {
         } else {
             int64_t vence = 0;
             if (!esUsuarioEfimero(usuario, vence) || vence < ahoraUnix()) {
-                rechazosAuth++;
+                c.rechazosAuth++;
                 desafio(cli, m, 401, "Unauthorized");
                 return false;
             }
-            clave = st::claveLarga(usuario, cfg.realm, claveDeUsuario(cfg.secreto, usuario));
+            clave = st::claveLarga(usuario, c.cfg.realm, claveDeUsuario(c.cfg.secreto, usuario));
         }
         if (!st::verificarIntegridad(m, clave)) {
-            rechazosAuth++;
+            c.rechazosAuth++;
             desafio(cli, m, 401, "Unauthorized");
             return false;
         }
@@ -413,21 +510,27 @@ struct Servidor::Impl {
     void borrarAsignacion(uint64_t clave) {
         auto it = asignaciones.find(clave);
         if (it == asignaciones.end()) return;
-        porPuertoRelay.erase(it->second.puertoRelay);
-        cerrarFd(it->second.relay);
-        if (it->second.cli.tcp) {
-            auto c = conexiones.find(it->second.cli.conId);
-            if (c != conexiones.end()) c->second.sinAsignacionDesde = ahoraMs();
+        Asignacion& a = it->second;
+        if (c.memoria != nullptr && a.punto) c.memoria->cerrar(a.punto);
+        c.anotarRelay(a.puertoRelay, false);
+        if (a.relay != FD_INVALIDO) {
+            bucle->dejar(a.relay);
+            cerrarFd(a.relay);
+        }
+        if (a.cli.tcp) {
+            auto con = conexiones.find(a.cli.conId);
+            if (con != conexiones.end()) con->second.sinAsignacionDesde = ahoraMs();
         }
         asignaciones.erase(it);
-        nAsig = int(asignaciones.size());
+        nAsigF = int(asignaciones.size());
+        c.nAsig.fetch_sub(1, std::memory_order_acq_rel);
     }
 
     int vidaPedida(const st::Mensaje& m) const {
         uint32_t v = kVidaDefS;
         if (!m.u32(st::kLifetime, v)) v = kVidaDefS;
         if (v == 0) return 0;
-        return int(std::min<uint32_t>(std::max<uint32_t>(v, kVidaDefS), uint32_t(vidaMaxS)));
+        return int(std::min<uint32_t>(std::max<uint32_t>(v, kVidaDefS), uint32_t(c.vidaMaxS)));
     }
 
     void allocate(const Cliente& cli, const st::Mensaje& m) {
@@ -446,12 +549,16 @@ struct Servidor::Impl {
         if (fam != nullptr && (fam->valor.empty() || fam->valor[0] != 0x01))
             return error(cli, m, 440, "Address Family not Supported", &clave);
         if (m.buscar(st::kReservationToken) != nullptr) return error(cli, m, 508, "Insufficient Capacity", &clave);
-        if (int(asignaciones.size()) >= maxAsig) return error(cli, m, 486, "Allocation Quota Reached", &clave);
+        // El tope es de todo el servidor (todos los fragmentos).
+        if (c.nAsig.fetch_add(1, std::memory_order_acq_rel) >= c.maxAsig) {
+            c.nAsig.fetch_sub(1, std::memory_order_acq_rel);
+            return error(cli, m, 486, "Allocation Quota Reached", &clave);
+        }
         const bool par = m.buscar(st::kEvenPort) != nullptr;
         Fd r = FD_INVALIDO;
         uint16_t puerto = 0;
         for (int intento = 0; intento < (par ? 32 : 1); ++intento) {
-            r = udpEnlazado(ipBindRelay, 0);
+            r = udpEnlazado(c.ipBindRelay, 0);
             if (r == FD_INVALIDO) break;
             puerto = puertoLocal(r);
             if (!par || (puerto % 2) == 0) break;
@@ -460,6 +567,7 @@ struct Servidor::Impl {
         }
         if (r == FD_INVALIDO || puerto == 0) {
             cerrarFd(r);
+            c.nAsig.fetch_sub(1, std::memory_order_acq_rel);
             return error(cli, m, 508, "Insufficient Capacity", &clave);
         }
         const int vida = std::max(vidaPedida(m), kVidaDefS);
@@ -472,18 +580,33 @@ struct Servidor::Impl {
         a.vence = ahoraMs() + int64_t(vida) * 1000;
         a.tidAllocate = m.tid;
         st::Constructor b(st::tipo(st::kAllocate, st::kExito), m.tid);
-        b.agregarDireccionXor(st::kXorRelayedAddress, ipRelay, puerto);
+        b.agregarDireccionXor(st::kXorRelayedAddress, c.ipRelay, puerto);
         b.agregarU32(st::kLifetime, uint32_t(vida));
         b.agregarDireccionXor(st::kXorMappedAddress, cli.ip, cli.puerto);
         b.integridad(clave);
         b.huella();
         a.respuestaAllocate = b.bytes();
-        asignaciones[cli.clave()] = a;
-        porPuertoRelay[puerto] = cli.clave();
-        nAsig = int(asignaciones.size());
+        const uint64_t k = cli.clave();
+        Asignacion& viva = asignaciones.emplace(k, std::move(a)).first->second;
+        // Lo que llegue al relay por el kernel (algo que no es un socket nuestro).
+        bucle->vigilar(r, Bucle::kLeer, [this, k](int) {
+            manejar([&] {
+                auto it = asignaciones.find(k);
+                if (it != asignaciones.end()) leerRelay(it->second);
+            });
+        });
+        // Lo que le mande la red de WebRTC, en memoria.
+        if (c.memoria != nullptr) {
+            viva.receptor = std::make_unique<ReceptorRelay>();
+            viva.receptor->f = this;
+            viva.receptor->clave = k;
+            viva.punto = c.memoria->abrir(c.ipRelay, puerto, indice, memoria::Clase::RelayTurn, viva.receptor.get());
+        }
+        c.anotarRelay(puerto, true);
+        nAsigF = int(asignaciones.size());
         if (cli.tcp) {
-            auto c = conexiones.find(cli.conId);
-            if (c != conexiones.end()) c->second.sinAsignacionDesde = 0;
+            auto con = conexiones.find(cli.conId);
+            if (con != conexiones.end()) con->second.sinAsignacionDesde = 0;
         }
         enviar(cli, b.bytes(), false);
     }
@@ -519,8 +642,8 @@ struct Servidor::Impl {
         }
         if (ips.empty()) return error(cli, m, 400, "Bad Request", &clave);
         for (uint32_t ip : ips)
-            if (!ipPermitida(ip)) {
-                rechazosPeer++;
+            if (!c.ipPermitida(ip)) {
+                c.rechazosPeer++;
                 return error(cli, m, 403, "Forbidden", &clave);
             }
         const int64_t vence = ahoraMs() + kPermisoMs;
@@ -540,34 +663,61 @@ struct Servidor::Impl {
             return error(cli, m, 400, "Bad Request", &clave);
         const uint16_t canal = leer16(reinterpret_cast<const uint8_t*>(cn->valor.data()));
         if (canal < 0x4000 || canal > 0x7FFF) return error(cli, m, 400, "Bad Request", &clave);
-        if (!peerPermitido(ip, puerto)) {
-            rechazosPeer++;
+        if (!c.peerPermitido(ip, puerto)) {
+            c.rechazosPeer++;
             return error(cli, m, 403, "Forbidden", &clave);
         }
         // Un canal ya atado a otro peer, o el peer atado a otro canal: 400.
         auto it = a->canales.find(canal);
         if (it != a->canales.end() && (it->second.ip != ip || it->second.puerto != puerto))
             return error(cli, m, 400, "Bad Request", &clave);
-        for (const auto& [n, c] : a->canales)
-            if (n != canal && c.ip == ip && c.puerto == puerto) return error(cli, m, 400, "Bad Request", &clave);
+        for (const auto& [n, cn2] : a->canales)
+            if (n != canal && cn2.ip == ip && cn2.puerto == puerto) return error(cli, m, 400, "Bad Request", &clave);
         const int64_t ahora = ahoraMs();
-        a->canales[canal] = Canal{ip, puerto, ahora + kCanalMs};
+        Canal& nuevo = a->canales[canal];
+        nuevo.ip = ip;
+        nuevo.puerto = puerto;
+        nuevo.vence = ahora + kCanalMs;
         a->permisos[ip] = std::max(a->permisos[ip], ahora + kPermisoMs);
         responder(cli, m, st::kExito, &clave, [](st::Constructor&) {});
     }
 
-    void haciaPeer(Asignacion& a, uint32_t ip, uint16_t puerto, const uint8_t* datos, size_t n) {
+    /// El socket de WebRTC (u otro relay) en ip:puerto, si está en memoria. Con `canal`, se
+    /// recuerda (y un «no hay» vale hasta que se anote otro punto).
+    memoria::PuntoPtr destinoEnMemoria(uint32_t ip, uint16_t puerto, Canal* canal) {
+        if (c.memoria == nullptr) return nullptr;
+        if (canal != nullptr) {
+            if (canal->punto && canal->punto->vivo.load(std::memory_order_acquire)) return canal->punto;
+            const uint64_t gen = c.memoria->generacion();
+            if (!canal->punto && canal->gen == gen) return nullptr;
+            canal->punto = c.memoria->buscar(ip, puerto);
+            canal->gen = gen;
+            return canal->punto;
+        }
+        return c.memoria->buscar(ip, puerto);
+    }
+
+    void haciaPeer(Asignacion& a, uint32_t ip, uint16_t puerto, const uint8_t* datos, size_t n, Canal* canal) {
         auto p = a.permisos.find(ip);
-        if (p == a.permisos.end() || p->second < ahoraMs() || !peerPermitido(ip, puerto)) {
-            rechazosPeer++;
+        if (p == a.permisos.end() || p->second < ahoraMs() || !c.peerPermitido(ip, puerto)) {
+            c.rechazosPeer++;
+            return;
+        }
+        const uint64_t t0 = ba::diag::relojNs();
+        // #3: en memoria, desde la dirección del relay (la que anunció el Allocate).
+        if (memoria::PuntoPtr destino = destinoEnMemoria(ip, puerto, canal)) {
+            if (c.memoria->mandar(indice, destino, datos, n, c.ipRelay, a.puertoRelay)) {
+                c.bytesHaciaPeers += uint64_t(n);
+                c.enMemoriaHacia++;
+            }
+            c.fHaciaRtc.pase(n, ba::diag::relojNs() - t0 + 1);
             return;
         }
         sockaddr_in sa = sockDe(ip, puerto);
-        const uint64_t t0 = ba::diag::relojNs();
         const auto r = ::sendto(a.relay, reinterpret_cast<const char*>(datos), int(n), 0,
                                 reinterpret_cast<sockaddr*>(&sa), sizeof(sa));
-        if (r > 0) bytesHaciaPeers += uint64_t(r);
-        fHaciaRtc.pase(n, ba::diag::relojNs() - t0 + 1);
+        if (r > 0) c.bytesHaciaPeers += uint64_t(r);
+        c.fHaciaRtc.pase(n, ba::diag::relojNs() - t0 + 1);
     }
 
     void sendIndicacion(const Cliente& cli, const st::Mensaje& m) {
@@ -577,7 +727,7 @@ struct Servidor::Impl {
         uint16_t puerto = 0;
         const st::Atributo* d = m.buscar(st::kDataAttr);
         if (d == nullptr || !m.direccionXor(st::kXorPeerAddress, ip, puerto)) return;
-        haciaPeer(*a, ip, puerto, reinterpret_cast<const uint8_t*>(d->valor.data()), d->valor.size());
+        haciaPeer(*a, ip, puerto, reinterpret_cast<const uint8_t*>(d->valor.data()), d->valor.size(), nullptr);
     }
 
     void manejarStun(const Cliente& cli, const uint8_t* p, size_t n) {
@@ -624,35 +774,82 @@ struct Servidor::Impl {
         if (a == nullptr) return;
         auto it = a->canales.find(canal);
         if (it == a->canales.end() || it->second.vence < ahoraMs()) return;
-        haciaPeer(*a, it->second.ip, it->second.puerto, p + 4, largo);
+        haciaPeer(*a, it->second.ip, it->second.puerto, p + 4, largo, &it->second);
     }
 
-    // --- E/S ------------------------------------------------------------------------
-    void aceptar() {
-        for (;;) {
-            sockaddr_in sa{};
-            socklen_t l = sizeof(sa);
-            Fd f = ::accept(tcp, reinterpret_cast<sockaddr*>(&sa), &l);
-            if (f == FD_INVALIDO) return;
-            if (int(conexiones.size()) >= maxCon || !noBloqueante(f)) {
-                cerrarFd(f);
-                continue;
+    /// Un datagrama de un cliente UDP (del fragmento 0, directo o en una tanda).
+    void procesarUdp(uint32_t ip, uint16_t puerto, const uint8_t* buf, size_t n) {
+        Cliente cli;
+        cli.ip = ip;
+        cli.puerto = puerto;
+        if (n >= 4 && (buf[0] & 0xC0) == 0x40)
+            manejarChannelData(cli, buf, n);
+        else if (st::pareceStun(buf, n) && st::largoStun(buf, n) == n)
+            manejarStun(cli, buf, n);
+    }
+
+    // --- lo que vuelve del peer (red de WebRTC u otro relay) al cliente ---------------
+    void desdePeer(Asignacion& a, uint32_t ip, uint16_t puerto, const uint8_t* buf, size_t r) {
+        auto p = a.permisos.find(ip);
+        if (p == a.permisos.end() || p->second < ahoraMs() || !c.peerPermitido(ip, puerto)) {
+            c.rechazosPeer++;
+            return;
+        }
+        c.bytesDesdePeers += uint64_t(r);
+        uint16_t canal = 0;
+        const int64_t ahora = ahoraMs();
+        for (const auto& [num, cn] : a.canales)
+            if (cn.ip == ip && cn.puerto == puerto && cn.vence >= ahora) {
+                canal = num;
+                break;
             }
-            int si = 1;
-            setsockopt(f, IPPROTO_TCP, TCP_NODELAY, reinterpret_cast<const char*>(&si), sizeof(si));
-            sinSigpipe(f);
-            buffersGrandes(f);
-            Conexion c;
-            c.fd = f;
-            c.ip = ntohl(sa.sin_addr.s_addr);
-            c.puerto = ntohs(sa.sin_port);
-            c.sinAsignacionDesde = ahoraMs();
-            conexiones[proxConexion++] = std::move(c);
-            nCon = int(conexiones.size());
+        if (canal != 0) {
+            enviar(a.cli, st::channelData(canal, buf, r, a.cli.tcp), true);
+        } else {
+            std::array<uint8_t, 12> tid{};
+            net::randomBytes(tid.data(), tid.size());
+            st::Constructor b(st::tipo(st::kData, st::kIndicacion), tid);
+            b.agregarDireccionXor(st::kXorPeerAddress, ip, puerto);
+            b.agregar(st::kDataAttr, buf, r);
+            enviar(a.cli, b.bytes(), true);
         }
     }
 
-    void leerConexion(uint64_t id, Conexion& c) {
+    /// #14 en memoria: lo que la red de WebRTC le mandó al relay `clave`.
+    void desdeMemoria(uint64_t clave, const uint8_t* d, size_t n, uint32_t ip, uint16_t puerto) {
+        const uint64_t t0 = ba::diag::relojNs();
+        auto it = asignaciones.find(clave);
+        if (it != asignaciones.end()) {
+            c.enMemoriaDesde++;
+            desdePeer(it->second, ip, puerto, d, n);
+        }
+        c.fDesdeRtc.pase(n, ba::diag::relojNs() - t0 + 1);
+        // Si el TURN no estaba en la pila (llegó derecho desde WebRTC), cerrar lo marcado.
+        if (profundidad == 0) cerrarPendientes();
+    }
+
+    // --- E/S ------------------------------------------------------------------------
+    /// Una conexión aceptada (en el fragmento 0) que ahora es de este fragmento.
+    void adoptar(Fd f, uint32_t ip, uint16_t puerto) {
+        Conexion con;
+        con.fd = f;
+        con.ip = ip;
+        con.puerto = puerto;
+        con.sinAsignacionDesde = ahoraMs();
+        const uint64_t id = proxConexion++;
+        conexiones[id] = std::move(con);
+        nConF = int(conexiones.size());
+        bucle->vigilar(f, Bucle::kLeer, [this, id](int ev) { manejar([&] { eventoConexion(id, ev); }); });
+    }
+
+    void eventoConexion(uint64_t id, int ev) {
+        auto it = conexiones.find(id);
+        if (it == conexiones.end() || it->second.cerrar) return;
+        if (ev & Bucle::kEscribir) vaciar(id, it->second);
+        if (!it->second.cerrar && (ev & Bucle::kLeer)) leerConexion(id, it->second);
+    }
+
+    void leerConexion(uint64_t id, Conexion& con) {
         const uint64_t t0 = ba::diag::relojNs();
         uint64_t marcos = 0, bytesMarcos = 0;
         struct AlSalir {
@@ -664,34 +861,35 @@ struct Servidor::Impl {
                 f.despertada();
                 f.lote(marcos, bytes, marcos ? ba::diag::relojNs() - t0 + 1 : 0);
             }
-        } alSalir{fEntraTcp, t0, marcos, bytesMarcos};
+        } alSalir{c.fEntraTcp, t0, marcos, bytesMarcos};
         uint8_t buf[16384];
+        bool fin = false;
         for (;;) {
-            const auto r = ::recv(c.fd, reinterpret_cast<char*>(buf), int(sizeof(buf)), 0);
+            const auto r = ::recv(con.fd, reinterpret_cast<char*>(buf), int(sizeof(buf)), 0);
             if (r > 0) {
-                c.entrada.append(reinterpret_cast<const char*>(buf), size_t(r));
-                if (c.entrada.size() > kEntradaMax * 4) break; // que el parseo alcance
+                con.entrada.append(reinterpret_cast<const char*>(buf), size_t(r));
+                if (con.entrada.size() > kEntradaMax * 4) break; // que el parseo alcance
                 continue;
             }
             if (r < 0 && seguiriaBloqueado()) break;
-            c.cerrar = true; // EOF o error
+            fin = true; // EOF o error
             break;
         }
         Cliente cli;
         cli.tcp = true;
         cli.conId = id;
-        cli.ip = c.ip;
-        cli.puerto = c.puerto;
+        cli.ip = con.ip;
+        cli.puerto = con.puerto;
         size_t i = 0;
-        const auto* p = reinterpret_cast<const uint8_t*>(c.entrada.data());
-        const size_t n = c.entrada.size();
-        while (n - i >= 4 && !c.cerrar) {
+        const auto* p = reinterpret_cast<const uint8_t*>(con.entrada.data());
+        const size_t n = con.entrada.size();
+        while (n - i >= 4 && !con.cerrar) {
             const uint8_t b0 = p[i];
             size_t total = 0;
             if ((b0 & 0xC0) == 0) {
                 if (n - i < st::kCabecera) break;
                 if (!st::pareceStun(p + i, n - i)) {
-                    c.cerrar = true;
+                    marcarCierre(id, con);
                     break;
                 }
                 total = st::largoStun(p + i, n - i);
@@ -707,16 +905,57 @@ struct Servidor::Impl {
                 ++marcos;
                 bytesMarcos += total;
             } else {
-                c.cerrar = true; // basura: no es STUN ni ChannelData
+                marcarCierre(id, con); // basura: no es STUN ni ChannelData
                 break;
             }
             i += total;
         }
-        // Ojo: manejarStun pudo tocar `conexiones` (no inserta ni borra), c sigue válida.
-        if (i > 0) c.entrada.erase(0, i);
-        if (c.entrada.size() > kEntradaMax) c.cerrar = true;
+        // manejarStun/ChannelData no insertan ni borran conexiones (los cierres se marcan):
+        // `con` sigue válida y nadie tocó su entrada.
+        if (i > 0) con.entrada.erase(0, i);
+        if (con.entrada.size() > kEntradaMax || fin) marcarCierre(id, con);
     }
 
+    /// El fragmento 0: conexiones nuevas, cada una a su fragmento (una vez).
+    void aceptar() {
+        for (;;) {
+            sockaddr_in sa{};
+            socklen_t l = sizeof(sa);
+            Fd f = static_cast<Fd>(::accept(c.tcp, reinterpret_cast<sockaddr*>(&sa), &l));
+            if (f == FD_INVALIDO) return;
+            if (c.nCon.load(std::memory_order_acquire) >= c.maxCon || !noBloqueante(f)) {
+                cerrarFd(f);
+                continue;
+            }
+            int si = 1;
+            setsockopt(f, IPPROTO_TCP, TCP_NODELAY, reinterpret_cast<const char*>(&si), sizeof(si));
+            sinSigpipe(f);
+            buffersGrandes(f);
+            c.nCon.fetch_add(1, std::memory_order_acq_rel);
+            const uint32_t ip = ntohl(sa.sin_addr.s_addr);
+            const uint16_t puerto = ntohs(sa.sin_port);
+            const int k = c.menosCargado();
+            if (k == indice) {
+                adoptar(f, ip, puerto);
+                continue;
+            }
+            Fragmento* destino = c.frags[size_t(k)].get();
+            destino->nConF.fetch_add(1, std::memory_order_relaxed); // que el próximo reparto lo cuente ya
+            c.fEntregaTcp.pase(0);
+            Comun* comun = &c;
+            destino->bucle->enHilo([comun, destino, f, ip, puerto] {
+                if (!comun->corriendo.load()) {
+                    cerrarFd(f);
+                    comun->nCon.fetch_sub(1, std::memory_order_acq_rel);
+                    return;
+                }
+                comun->fEntregaTcp.despertada();
+                destino->adoptar(f, ip, puerto);
+            });
+        }
+    }
+
+    /// El fragmento 0: vacía el UDP de pinggy de a tandas y reparte por origen.
     void leerUdp() {
         const uint64_t t0 = ba::diag::relojNs();
         uint64_t paquetes = 0, bytes = 0;
@@ -729,32 +968,75 @@ struct Servidor::Impl {
                 f.despertada();
                 f.lote(paquetes, bytes, paquetes ? ba::diag::relojNs() - t0 + 1 : 0);
             }
-        } alSalir{fEntraUdp, t0, paquetes, bytes};
+        } alSalir{c.fEntraUdp, t0, paquetes, bytes};
+        const size_t nf = c.frags.size();
+        std::vector<Lote> lotes(nf > 1 ? nf : 0);
+        const int64_t ahora = ahoraMs();
         uint8_t buf[65536];
         for (int k = 0; k < 256; ++k) {
             sockaddr_in sa{};
             socklen_t l = sizeof(sa);
-            const auto r = ::recvfrom(udp, reinterpret_cast<char*>(buf), int(sizeof(buf)), 0,
+            const auto r = ::recvfrom(c.udp, reinterpret_cast<char*>(buf), int(sizeof(buf)), 0,
                                       reinterpret_cast<sockaddr*>(&sa), &l);
             if (r < 0) {
 #ifdef _WIN32
                 if (WSAGetLastError() == WSAECONNRESET) continue;
 #endif
-                return;
+                break;
             }
-            Cliente cli;
-            cli.ip = ntohl(sa.sin_addr.s_addr);
-            cli.puerto = ntohs(sa.sin_port);
+            const uint32_t ip = ntohl(sa.sin_addr.s_addr);
+            const uint16_t puerto = ntohs(sa.sin_port);
             const size_t n = size_t(r);
             ++paquetes;
             bytes += n;
-            if (n >= 4 && (buf[0] & 0xC0) == 0x40)
-                manejarChannelData(cli, buf, n);
-            else if (st::pareceStun(buf, n) && st::largoStun(buf, n) == n)
-                manejarStun(cli, buf, n);
+            int destino = indice;
+            if (nf > 1) {
+                const uint64_t clave = (uint64_t(ip) << 16) | puerto;
+                auto it = rutasUdp.find(clave);
+                if (it == rutasUdp.end()) {
+                    Ruta ru;
+                    ru.frag = c.menosCargado();
+                    c.frags[size_t(ru.frag)]->nRutasF.fetch_add(1, std::memory_order_relaxed);
+                    it = rutasUdp.emplace(clave, ru).first;
+                }
+                it->second.visto = ahora;
+                destino = it->second.frag;
+            }
+            if (destino == indice) {
+                procesarUdp(ip, puerto, buf, n);
+                continue;
+            }
+            Lote& lo = lotes[size_t(destino)];
+            Datagrama d;
+            d.ip = ip;
+            d.puerto = puerto;
+            d.off = lo.bytes.size();
+            d.n = n;
+            lo.bytes.append(reinterpret_cast<const char*>(buf), n);
+            lo.d.push_back(d);
+        }
+        // Una entrega por fragmento y por tanda.
+        for (size_t k = 0; k < lotes.size(); ++k) {
+            if (lotes[k].d.empty()) continue;
+            auto lote = std::make_shared<Lote>(std::move(lotes[k]));
+            Fragmento* f = c.frags[k].get();
+            Comun* comun = &c;
+            const uint64_t puesto = ba::diag::relojNs();
+            f->bucle->enHilo([comun, f, lote, puesto] {
+                if (!comun->corriendo.load()) return;
+                const uint64_t t1 = ba::diag::relojNs();
+                f->manejar([&] {
+                    for (const Datagrama& d : lote->d)
+                        f->procesarUdp(d.ip, d.puerto, reinterpret_cast<const uint8_t*>(lote->bytes.data()) + d.off, d.n);
+                });
+                comun->fRepartoUdp.despertada();
+                comun->fRepartoUdp.lote(lote->d.size(), lote->bytes.size(), ba::diag::relojNs() - t1 + 1,
+                                        t1 > puesto ? t1 - puesto : 0);
+            });
         }
     }
 
+    /// Lo que llegó al relay por el kernel (no un socket de WebRTC en memoria).
     void leerRelay(Asignacion& a) {
         const uint64_t t0 = ba::diag::relojNs();
         uint64_t paquetes = 0, bytes = 0;
@@ -767,7 +1049,7 @@ struct Servidor::Impl {
                 f.despertada();
                 f.lote(paquetes, bytes, paquetes ? ba::diag::relojNs() - t0 + 1 : 0);
             }
-        } alSalir{fDesdeRtc, t0, paquetes, bytes};
+        } alSalir{c.fDesdeRtc, t0, paquetes, bytes};
         uint8_t buf[65536];
         for (int k = 0; k < 256; ++k) {
             sockaddr_in sa{};
@@ -780,32 +1062,9 @@ struct Servidor::Impl {
 #endif
                 return;
             }
-            const uint32_t ip = ntohl(sa.sin_addr.s_addr);
-            const uint16_t puerto = ntohs(sa.sin_port);
-            auto p = a.permisos.find(ip);
-            if (p == a.permisos.end() || p->second < ahoraMs() || !peerPermitido(ip, puerto)) {
-                rechazosPeer++;
-                continue;
-            }
-            bytesDesdePeers += uint64_t(r);
             ++paquetes;
             bytes += uint64_t(r);
-            uint16_t canal = 0;
-            for (const auto& [num, c] : a.canales)
-                if (c.ip == ip && c.puerto == puerto && c.vence >= ahoraMs()) {
-                    canal = num;
-                    break;
-                }
-            if (canal != 0) {
-                enviar(a.cli, st::channelData(canal, buf, size_t(r), a.cli.tcp), true);
-            } else {
-                std::array<uint8_t, 12> tid{};
-                net::randomBytes(tid.data(), tid.size());
-                st::Constructor b(st::tipo(st::kData, st::kIndicacion), tid);
-                b.agregarDireccionXor(st::kXorPeerAddress, ip, puerto);
-                b.agregar(st::kDataAttr, buf, size_t(r));
-                enviar(a.cli, b.bytes(), true);
-            }
+            desdePeer(a, ntohl(sa.sin_addr.s_addr), ntohs(sa.sin_port), buf, size_t(r));
         }
     }
 
@@ -823,89 +1082,87 @@ struct Servidor::Impl {
                 it = it->second.vence < ahora ? a.canales.erase(it) : std::next(it);
         }
         for (uint64_t k : vencidas) borrarAsignacion(k);
-        for (auto& [id, c] : conexiones)
-            if (c.sinAsignacionDesde != 0 && ahora - c.sinAsignacionDesde > kSinAsignacionMs) c.cerrar = true;
-    }
-
-    void cerrarConexiones() {
-        for (auto it = conexiones.begin(); it != conexiones.end();) {
-            if (!it->second.cerrar) {
+        for (auto& [id, con] : conexiones)
+            if (con.sinAsignacionDesde != 0 && ahora - con.sinAsignacionDesde > kSinAsignacionMs) marcarCierre(id, con);
+        // Las rutas UDP sin uso (más que la vida máxima de una asignación): la asignación ya no está.
+        const int64_t vidaRuta = int64_t(c.vidaMaxS + 60) * 1000;
+        for (auto it = rutasUdp.begin(); it != rutasUdp.end();) {
+            if (ahora - it->second.visto > vidaRuta) {
+                c.frags[size_t(it->second.frag)]->nRutasF.fetch_sub(1, std::memory_order_relaxed);
+                it = rutasUdp.erase(it);
+            } else {
                 ++it;
-                continue;
             }
-            Cliente cli;
-            cli.tcp = true;
-            cli.conId = it->first;
-            cerrarFd(it->second.fd);
-            const uint64_t clave = cli.clave();
-            it = conexiones.erase(it);
-            borrarAsignacion(clave); // la asignación muere con su conexión
-        }
-        nCon = int(conexiones.size());
-    }
-
-    void unaVuelta() {
-        std::vector<PollFd> fds;
-        std::vector<std::pair<int, uint64_t>> que; // 0 tcp, 1 udp, 2 conexión, 3 relay
-        auto sumar = [&](Fd f, short ev, int tipo, uint64_t id) {
-            PollFd p{};
-            p.fd = f;
-            p.events = ev;
-            fds.push_back(p);
-            que.emplace_back(tipo, id);
-        };
-        if (tcp != FD_INVALIDO) sumar(tcp, POLLIN, 0, 0);
-        if (udp != FD_INVALIDO) sumar(udp, POLLIN, 1, 0);
-        for (auto& [id, c] : conexiones)
-            sumar(c.fd, short(POLLIN | (c.salida.size() > c.salidaOff ? POLLOUT : 0)), 2, id);
-        for (auto& [k, a] : asignaciones) sumar(a.relay, POLLIN, 3, k);
-#ifdef _WIN32
-        const int r = WSAPoll(fds.data(), ULONG(fds.size()), 100);
-#else
-        const int r = ::poll(fds.data(), nfds_t(fds.size()), 100);
-#endif
-        if (r > 0) {
-            for (size_t i = 0; i < fds.size(); ++i) {
-                const short re = fds[i].revents;
-                if (re == 0) continue;
-                const auto [tipo, id] = que[i];
-                if (tipo == 0) {
-                    aceptar();
-                } else if (tipo == 1) {
-                    leerUdp();
-                } else if (tipo == 2) {
-                    auto it = conexiones.find(id);
-                    if (it == conexiones.end()) continue;
-                    if (re & POLLOUT) vaciar(it->second);
-                    if (re & (POLLIN | POLLHUP | POLLERR)) leerConexion(id, it->second);
-                } else {
-                    auto it = asignaciones.find(id);
-                    if (it != asignaciones.end()) leerRelay(it->second);
-                }
-            }
-        }
-        cerrarConexiones();
-        const int64_t ahora = ahoraMs();
-        if (ahora - ultimoBarrido >= 1000) {
-            ultimoBarrido = ahora;
-            barrer();
-            cerrarConexiones();
         }
     }
 
+    void cerrarPendientes() {
+        while (!porCerrar.empty()) {
+            std::vector<uint64_t> ids;
+            ids.swap(porCerrar);
+            for (uint64_t id : ids) {
+                auto it = conexiones.find(id);
+                if (it == conexiones.end()) continue;
+                Cliente cli;
+                cli.tcp = true;
+                cli.conId = id;
+                bucle->dejar(it->second.fd);
+                cerrarFd(it->second.fd);
+                conexiones.erase(it);
+                c.nCon.fetch_sub(1, std::memory_order_acq_rel);
+                borrarAsignacion(cli.clave()); // la asignación muere con su conexión
+            }
+        }
+        nConF = int(conexiones.size());
+    }
+
+    void programarBarrido(std::shared_ptr<Comun> comun) {
+        bucle->enHiloLuego(1000, [this, comun] {
+            if (!comun->corriendo.load()) return;
+            manejar([&] { barrer(); });
+            programarBarrido(comun);
+        });
+    }
+
+    /// En el hilo del fragmento: suelta todo.
     void liberar() {
-        for (auto& [k, a] : asignaciones) cerrarFd(a.relay);
+        for (auto& [k, a] : asignaciones) {
+            if (c.memoria != nullptr && a.punto) c.memoria->cerrar(a.punto);
+            c.anotarRelay(a.puertoRelay, false);
+            if (a.relay != FD_INVALIDO) {
+                bucle->dejar(a.relay);
+                cerrarFd(a.relay);
+            }
+        }
+        c.nAsig.fetch_sub(int(asignaciones.size()), std::memory_order_acq_rel);
         asignaciones.clear();
-        porPuertoRelay.clear();
-        for (auto& [id, c] : conexiones) cerrarFd(c.fd);
+        for (auto& [id, con] : conexiones) {
+            bucle->dejar(con.fd);
+            cerrarFd(con.fd);
+        }
+        c.nCon.fetch_sub(int(conexiones.size()), std::memory_order_acq_rel);
         conexiones.clear();
-        cerrarFd(tcp);
-        cerrarFd(udp);
-        tcp = udp = FD_INVALIDO;
-        nAsig = 0;
-        nCon = 0;
+        porCerrar.clear();
+        for (const auto& [k, r] : rutasUdp) c.frags[size_t(r.frag)]->nRutasF.fetch_sub(1, std::memory_order_relaxed);
+        rutasUdp.clear();
+        nAsigF = 0;
+        nConF = 0;
     }
 };
+
+int Servidor::Comun::menosCargado() const {
+    int mejor = 0;
+    int carga = -1;
+    for (size_t i = 0; i < frags.size(); ++i) {
+        const Fragmento& f = *frags[i];
+        const int x = f.nConF.load(std::memory_order_relaxed) + f.nRutasF.load(std::memory_order_relaxed);
+        if (carga < 0 || x < carga) {
+            carga = x;
+            mejor = int(i);
+        }
+    }
+    return mejor;
+}
 
 // ---------------------------------------------------------------------------
 Servidor::Servidor(Config cfg) : cfg_(std::move(cfg)) {}
@@ -914,10 +1171,12 @@ Servidor::~Servidor() { stop(); }
 
 bool Servidor::start(std::string* err) {
     if (corriendo_.load()) return true;
+    std::shared_ptr<Comun> comun = std::make_shared<Comun>();
     auto falla = [&](const std::string& e) {
         if (err != nullptr) *err = e;
-        if (impl_) impl_->liberar();
-        impl_.reset();
+        cerrarFd(comun->tcp);
+        cerrarFd(comun->udp);
+        propios_.clear();
         return false;
     };
     if (cfg_.secreto.size() < 16) return falla(traducir("gateway", "turn: falta el secreto (16 bytes o más)"));
@@ -925,9 +1184,9 @@ bool Servidor::start(std::string* err) {
     WSADATA wsa{};
     WSAStartup(MAKEWORD(2, 2), &wsa);
 #endif
-    impl_ = std::make_unique<Impl>();
-    Impl& s = *impl_;
+    Comun& s = *comun;
     s.cfg = cfg_;
+    s.memoria = cfg_.memoria;
     s.maxAsig = cfg_.maxAsignaciones > 0 ? cfg_.maxAsignaciones : ba::ajustes::entero("turn.maxAsignaciones", 640);
     s.maxCon = cfg_.maxConexiones > 0 ? cfg_.maxConexiones : ba::ajustes::entero("turn.maxConexiones", 1280);
     s.vidaMaxS = cfg_.vidaMaxS > 0 ? cfg_.vidaMaxS : ba::ajustes::entero("turn.vidaMaxS", 3600);
@@ -954,13 +1213,13 @@ bool Servidor::start(std::string* err) {
     s.secretoNonce.assign(reinterpret_cast<const char*>(sn.data()), sn.size());
 
     // TCP
-    s.tcp = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+    s.tcp = static_cast<Fd>(socket(AF_INET, SOCK_STREAM, IPPROTO_TCP));
     if (s.tcp == FD_INVALIDO) return falla("turn: socket TCP");
     {
         int si = 1;
         setsockopt(s.tcp, SOL_SOCKET, SO_REUSEADDR, reinterpret_cast<const char*>(&si), sizeof(si));
         sockaddr_in sa = sockDe(s.ipEscucha, cfg_.puertoTcp);
-        if (bind(s.tcp, reinterpret_cast<sockaddr*>(&sa), sizeof(sa)) != 0 || listen(s.tcp, 64) != 0 ||
+        if (bind(s.tcp, reinterpret_cast<sockaddr*>(&sa), sizeof(sa)) != 0 || listen(s.tcp, 128) != 0 ||
             !noBloqueante(s.tcp))
             return falla(llenar(traducir("gateway", "turn: no se pudo escuchar en %1:%2 (TCP)"),
                                 {cfg_.direccion, std::to_string(cfg_.puertoTcp)}));
@@ -976,19 +1235,59 @@ bool Servidor::start(std::string* err) {
     } else {
         puertoUdpReal_ = 0;
     }
-    corriendo_ = true;
-    hilo_ = std::thread([this] { ba::platform::nombrarHilo("turn"); bucle(); });
-    return true;
-}
 
-void Servidor::bucle() {
-    while (corriendo_.load()) impl_->unaVuelta();
+    // Los hilos: los de red que nos dieron o unos propios.
+    s.bucles = cfg_.bucles;
+    if (s.bucles.empty()) {
+        const int n = std::max(1, cfg_.fragmentosPropios);
+        for (int i = 0; i < n; ++i) {
+            propios_.push_back(std::make_unique<BuclePoll>(n == 1 ? std::string("turn") : "turn-" + std::to_string(i)));
+            s.bucles.push_back(propios_.back().get());
+        }
+    }
+    if (s.memoria != nullptr) s.memoria->ponerIpRelay(s.ipRelay);
+    for (size_t i = 0; i < s.bucles.size(); ++i) s.frags.push_back(std::make_unique<Fragmento>(s, int(i), s.bucles[i]));
+    s.corriendo = true;
+    comun_ = comun;
+    corriendo_ = true;
+    // Las escuchas en el fragmento 0; el barrido en cada uno.
+    Fragmento* cero = s.frags[0].get();
+    cero->bucle->enHiloEsperando([&s, cero] {
+        cero->bucle->vigilar(s.tcp, Bucle::kLeer, [cero](int) { cero->manejar([&] { cero->aceptar(); }); });
+        if (s.udp != FD_INVALIDO)
+            cero->bucle->vigilar(s.udp, Bucle::kLeer, [cero](int) { cero->manejar([&] { cero->leerUdp(); }); });
+    });
+    for (auto& f : s.frags) {
+        Fragmento* fp = f.get();
+        fp->bucle->enHilo([fp, comun] { fp->programarBarrido(comun); });
+    }
+    return true;
 }
 
 void Servidor::stop() {
     if (!corriendo_.exchange(false)) return;
-    if (hilo_.joinable()) hilo_.join();
-    if (impl_) impl_->liberar();
+    std::shared_ptr<Comun> comun = std::move(comun_);
+    if (comun) {
+        comun->corriendo = false;
+        Fragmento* cero = comun->frags.empty() ? nullptr : comun->frags[0].get();
+        if (cero != nullptr)
+            cero->bucle->enHiloEsperando([&comun, cero] {
+                cero->bucle->dejar(comun->tcp);
+                if (comun->udp != FD_INVALIDO) cero->bucle->dejar(comun->udp);
+            });
+        for (auto& f : comun->frags) {
+            Fragmento* fp = f.get();
+            fp->bucle->enHiloEsperando([fp] { fp->liberar(); });
+        }
+        cerrarFd(comun->tcp);
+        cerrarFd(comun->udp);
+        comun->tcp = comun->udp = FD_INVALIDO;
+        // El estado sigue mirando los contadores (activo = false); los fragmentos se van con
+        // la última tarea que los nombre.
+        comun_ = comun;
+    }
+    // Los hilos propios terminan acá (lo que quedaba en sus colas ve corriendo = false).
+    propios_.clear();
 #ifdef _WIN32
     WSACleanup();
 #endif
@@ -1003,16 +1302,27 @@ json Servidor::estado() const {
     j["realm"] = cfg_.realm;
     j["rtc"] = {cfg_.rtcMin, cfg_.rtcMax};
     j["peersPermitidos"] = cfg_.peersPermitidos;
-    if (impl_) {
-        j["direccionRelay"] = textoDeIp(impl_->ipRelay);
-        j["asignaciones"] = impl_->nAsig.load();
-        j["maxAsignaciones"] = impl_->maxAsig;
-        j["conexiones"] = impl_->nCon.load();
-        j["bytesHaciaPeers"] = impl_->bytesHaciaPeers.load();
-        j["bytesDesdePeers"] = impl_->bytesDesdePeers.load();
-        j["rechazosPeer"] = impl_->rechazosPeer.load();
-        j["rechazosAuth"] = impl_->rechazosAuth.load();
-        j["descartesCola"] = impl_->descartesCola.load();
+    const std::shared_ptr<Comun> s = comun_;
+    if (s) {
+        j["direccionRelay"] = textoDeIp(s->ipRelay);
+        j["asignaciones"] = s->nAsig.load();
+        j["maxAsignaciones"] = s->maxAsig;
+        j["conexiones"] = s->nCon.load();
+        j["bytesHaciaPeers"] = s->bytesHaciaPeers.load();
+        j["bytesDesdePeers"] = s->bytesDesdePeers.load();
+        j["rechazosPeer"] = s->rechazosPeer.load();
+        j["rechazosAuth"] = s->rechazosAuth.load();
+        j["descartesCola"] = s->descartesCola.load();
+        j["enMemoria"] = s->memoria != nullptr;
+        j["paquetesEnMemoriaHacia"] = s->enMemoriaHacia.load();
+        j["paquetesEnMemoriaDesde"] = s->enMemoriaDesde.load();
+        json fr = json::array();
+        for (const auto& f : s->frags)
+            fr.push_back({{"fragmento", f->indice},
+                          {"conexiones", f->nConF.load()},
+                          {"asignaciones", f->nAsigF.load()},
+                          {"rutasUdp", f->nRutasF.load()}});
+        j["fragmentos"] = fr;
     }
     return j;
 }
