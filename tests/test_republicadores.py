@@ -45,6 +45,10 @@ CLASIFICACION = {
     "/api/v1/prompter-link": "lectura",
     "/api/v1/prompter": "prompter",
     "/api/v1/prompters": "prompter",
+    # La prueba de sala: la app la renueva cada 30 s mientras dura (si B se reinicia, la
+    # renovación abre otra; la credencial vieja muere a propósito: PRUEBA-SALA.md).
+    "/api/v1/prueba-sala": "orden",
+    "/api/v1/prueba-sala/cerrar": "orden",
     "/api/v1/proxy": "lectura",
     "/api/v1/proxy/renovar": "orden",
     "/api/v1/publico-info": "publico",

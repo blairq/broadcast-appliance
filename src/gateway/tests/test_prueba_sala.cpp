@@ -113,7 +113,8 @@ void sala() {
     CHECK(room.participant(real.id, a) && a.state == Room::State::Waiting, "el real no pasó por la prueba");
     // El snapshot los distingue.
     int marcados = 0;
-    for (const auto& p : room.snapshot()["participants"])
+    const json snap = room.snapshot(); // no un temporal en el for (UB)
+    for (const auto& p : snap["participants"])
         if (p.value("prueba", false)) ++marcados;
     CHECK(marcados == 3, "el snapshot marca a los tres de prueba");
     CHECK(room.idsDePrueba().size() == 3, "idsDePrueba: los tres");

@@ -117,12 +117,12 @@ int main() {
     CHECK(inf.nota().find("2") != std::string::npos && inf.nota().find("Mbps") != std::string::npos, "la nota resume");
 
     pr::Informe ok;
-    ok.empezar(0, 1, "externo", "x");
+    ok.empezar(1, 1, "externo", "x");
     ok.participantes(1000, json::array({{{"id", "p"}, {"prueba", true}, {"connected", true}, {"mediaUp", true}}}));
     ok.terminar(2000, "a mano");
     CHECK(ok.final()["bien"].get<bool>(), "todos con video y sin cortes: bien");
     pr::Informe cortada;
-    cortada.empezar(0, 1, "hinchada", "x");
+    cortada.empezar(1, 1, "hinchada", "x");
     cortada.participantes(1000, json::array({{{"id", "p"}, {"prueba", true}, {"connected", true}, {"mediaUp", true}}}));
     cortada.terminar(2000, "guardia", true);
     CHECK(!cortada.final()["bien"].get<bool>() && cortada.porGuardia(), "cortada por la guardia: no salió bien");
