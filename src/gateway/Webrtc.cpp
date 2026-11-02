@@ -399,8 +399,9 @@ class RemoteVideoSink : public rtc::VideoSinkInterface<webrtc::VideoFrame> {
     /// `pasa`: adónde va este cuadro: a `fn` (kSale), a `anterior` (kAnterior: la capa que
     /// se va durante el fundido) o a ningún lado (una capa que no sale se descarta ANTES de
     /// convertirla). Vacío = todos a `fn`.
-    explicit RemoteVideoSink(Fn fn, std::function<int()> pasa = {}, Fn anterior = {})
-        : fn_(std::move(fn)), pasa_(std::move(pasa)), anterior_(std::move(anterior)) {}
+    using FnYuv = std::function<void(const PlanosYuv&)>;
+    explicit RemoteVideoSink(Fn fn, std::function<int()> pasa = {}, Fn anterior = {}, FnYuv yuv = {})
+        : fn_(std::move(fn)), pasa_(std::move(pasa)), anterior_(std::move(anterior)), yuv_(std::move(yuv)) {}
     void OnFrame(const webrtc::VideoFrame& frame) override {
         if (!fn_) return;
         const int destino = pasa_ ? pasa_() : kSale;
@@ -413,6 +414,8 @@ class RemoteVideoSink : public rtc::VideoSinkInterface<webrtc::VideoFrame> {
         }
         const int w = i420->width();
         const int h = i420->height();
+        if (destino == kSale && yuv_)
+            yuv_(PlanosYuv{i420->DataY(), i420->DataU(), i420->DataV(), i420->StrideY(), i420->StrideU(), i420->StrideV(), w, h});
         bgra_.resize(static_cast<size_t>(w) * h * 4);
         libyuv::I420ToARGB(i420->DataY(), i420->StrideY(), i420->DataU(), i420->StrideU(), i420->DataV(),
                            i420->StrideV(), bgra_.data(), w * 4, w, h);
@@ -423,6 +426,7 @@ class RemoteVideoSink : public rtc::VideoSinkInterface<webrtc::VideoFrame> {
     Fn fn_;
     std::function<int()> pasa_;
     Fn anterior_;
+    FnYuv yuv_;
     std::vector<uint8_t> bgra_;
 };
 
@@ -1262,7 +1266,8 @@ struct WebrtcSession::Impl : public webrtc::PeerConnectionObserver {
                     return va ? RemoteVideoSink::kSale : anterior ? RemoteVideoSink::kAnterior : RemoteVideoSink::kNo;
                 };
             auto sink = std::make_unique<RemoteVideoSink>(camera ? cb.onRemoteVideo : cb.onRemoteScreen, std::move(pasa),
-                                                          camera ? cb.onRemoteVideoAnterior : RemoteVideoSink::Fn());
+                                                          camera ? cb.onRemoteVideoAnterior : RemoteVideoSink::Fn(),
+                                                          camera ? cb.onRemoteVideoYuv : RemoteVideoSink::FnYuv());
             auto* video = static_cast<webrtc::VideoTrackInterface*>(track.get());
             // Relay a espectadores: los cuadros codificados pasan por el Feed de
             // esta sesion antes del decodificador. A los espectadores se les reenvia

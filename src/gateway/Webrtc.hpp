@@ -67,6 +67,7 @@
 #include <string>
 #include <vector>
 #include "Capas.hpp"
+#include "PlanosYuv.hpp"
 #include <nlohmann/json.hpp>
 #include "ajustes/Ajustes.hpp"
 
@@ -88,6 +89,9 @@ struct SessionCallbacks {
     /// Llego video de la CAMARA del invitado (primer track de video; con dos capas, la que
     /// sale: ver setCapas). BGRA.
     std::function<void(const uint8_t* pixels, size_t bytes, int w, int h)> onRemoteVideo;
+    /// El mismo cuadro de la cámara, en I420 y ANTES de convertirlo (para quien lo achica:
+    /// la grilla). Si está, se llama antes que onRemoteVideo.
+    std::function<void(const PlanosYuv&)> onRemoteVideoYuv;
     /// Llego video de su PANTALLA/VENTANA compartida (segundo track de video).
     std::function<void(const uint8_t* pixels, size_t bytes, int w, int h)> onRemoteScreen;
     /// Terminó de juntar candidatos sin NINGÚN puerto local (el rango UDP está lleno):

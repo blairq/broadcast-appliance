@@ -292,6 +292,28 @@ int main() {
               "nadie lo nombra: se olvida");
     }
     {
+        // 14. Desde I420 del decodificador (PlanosYuv): rojo en BT.601 (Y 82, U 90, V 240), más
+        // grande que su lugar: se achica en I420 y se convierte lo chico; al mismo tamaño, solo
+        // se convierte.
+        Grillas g(log);
+        CHECK(g.aplicar({{"grillas", {{{"canal", 1}, {"ancho", 320}, {"alto", 180}, {"transicion_ms", 0},
+                                        {"celdas", {celda("sala:a", 0, 0, 160, 90), celda("sala:b", 160, 0, 160, 90)}}}}}},
+                        1000)
+                  .empty(),
+              "aplica (I420)");
+        std::vector<std::uint8_t> py(1280 * 720, 82), pu(640 * 360, 90), pv(640 * 360, 240);
+        g.cuadro("sala:a", ba::gateway::PlanosYuv{py.data(), pu.data(), pv.data(), 1280, 640, 640, 1280, 720}, 1000);
+        g.cuadro("sala:b", ba::gateway::PlanosYuv{py.data(), pu.data(), pv.data(), 1280, 640, 640, 160, 90}, 1000);
+        std::vector<std::uint8_t> l;
+        int w = 0, h = 0;
+        CHECK(g.pintar(1, 1000, l, w, h), "pinta (I420)");
+        for (int x : {80, 240}) {
+            const std::uint32_t c = pixel(l, w, x, 45);
+            CHECK(((c >> 16) & 0xFF) > 220 && ((c >> 8) & 0xFF) < 40 && (c & 0xFF) < 40 && (c >> 24) == 0xFF,
+                  "desde I420: rojo (achicado o del mismo tamaño)");
+        }
+    }
+    {
         // 13. El ritmo del pintor: a mitad de camino entre dos cuadros del lienzo, al ritmo del
         // lienzo; sin lienzo (o quieto más de 1 s), el propio, nunca antes de ahora.
         using ba::gateway::Grillas;
@@ -299,6 +321,20 @@ int main() {
         const std::uint64_t envio = 1000 * 1000 * ms; // el lienzo publicó a los 1000 s
         CHECK(Grillas::proximoPintado(envio + 1 * ms, envio, p30, 0) == envio + p30 / 2, "mitad de camino");
         CHECK(Grillas::proximoPintado(envio + p30 / 2, envio, p30, 0) == envio + p30 / 2 + p30, "ya pasó: el siguiente");
+        {
+            // Desde otra fase, el lazo la corre de a poco a la mitad de camino, sin saltos.
+            std::uint64_t ant = envio + 2 * ms, peor = 0, ahora = ant + 3 * ms;
+            for (int i = 0; i < 200; ++i) {
+                const std::uint64_t ultimo = envio + ((ahora - envio) / p30) * p30;
+                const std::uint64_t x = Grillas::proximoPintado(ahora, ultimo, p30, 0, ant);
+                peor = std::max(peor, x - ant > p30 ? x - ant - p30 : p30 - (x - ant));
+                ant = x;
+                ahora = x + 3 * ms;
+            }
+            const std::uint64_t fase = (ant - envio) % p30;
+            CHECK(fase > p30 / 2 - 1 * ms && fase < p30 / 2 + 1 * ms, "el lazo llega a la mitad de camino");
+            CHECK(peor <= p30 / 32 + 1, "el lazo corre de a poco (ningún intervalo se aparta más de 1 ms)");
+        }
         CHECK(Grillas::proximoPintado(envio + 3 * p30, envio, p30, 0) == envio + 3 * p30 + p30 / 2,
               "el lienzo no publicó todavía el último: sigue su grilla");
         std::uint64_t t = envio + 2 * ms, anterior = 0;
@@ -322,20 +358,23 @@ int main() {
                 envios.push_back(envio + static_cast<std::uint64_t>(k) * p30 + static_cast<std::uint64_t>(temblor + 8) * ms);
             }
             std::uint64_t ahora = envio + 9 * ms, ant = 0;
-            int pintados = 0, cortos = 0;
+            int pintados = 0, cortos = 0, desparejos = 0;
             while (ahora < envios.back()) {
                 std::uint64_t ultimo = 0;
                 for (std::uint64_t e : envios)
                     if (e <= ahora) ultimo = e;
                 const std::uint64_t x = Grillas::proximoPintado(ahora, ultimo, p30, 0, ant);
                 if (ant != 0 && x - ant < p30 / 2) ++cortos;
+                if (ant != 0 && (x - ant > p30 + p30 / 32 + 1 || x - ant + p30 / 32 + 1 < p30)) ++desparejos;
                 ant = x;
                 ++pintados;
                 ahora = x + 4 * ms; // lo que tarda en pintar
             }
             const double porSegundo = pintados / ((envios.back() - envio) / 1e9);
-            std::printf("pintor contra un lienzo que tiembla: %.2f por segundo, %d a menos de medio período\n", porSegundo, cortos);
+            std::printf("pintor contra un lienzo que tiembla: %.2f por segundo, %d a menos de medio período, %d desparejos\n",
+                        porSegundo, cortos, desparejos);
             CHECK(cortos == 0, "lienzo que tiembla: nunca dos a menos de medio período");
+            CHECK(desparejos == 0, "lienzo que tiembla: intervalos parejos (33,3 ± 1 ms)");
             CHECK(porSegundo > 28.5 && porSegundo < 30.5, "lienzo que tiembla: al ritmo del lienzo");
         }
         CHECK(Grillas::proximoPintado(envio + 2000 * ms, envio, p30, envio + 2010 * ms) == envio + 2010 * ms,
