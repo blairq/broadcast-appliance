@@ -23,6 +23,8 @@
 // pipeline a baentrega con el evento LATENCY), como un intersrc.
 // ============================================================================
 
+#include "comun.hpp"
+
 #include <gst/base/gstbasesink.h>
 #include <gst/gst.h>
 
@@ -39,7 +41,6 @@ namespace {
 struct Toma {
     std::mutex mu;
     GstElement* e = nullptr;    ///< bajo mu: nullptr = ya no se le empuja
-    GstElement* raiz = nullptr; ///< bajo mu: el pipeline de la batoma (mientras está enganchada)
     GstPad* pad = nullptr;
     bool eventos = true;
     std::uint64_t segmentoVisto = 0;
@@ -77,14 +78,9 @@ std::shared_ptr<Productor> productor(const std::string& nombre) {
 /// Empuja `b` por `t` (lo que falte de eventos antes). Con el candado de la toma.
 void empujarA(Toma& t, GstBuffer* b, GstCaps* caps, const GstSegment& seg, std::uint64_t serie) {
     std::lock_guard<std::mutex> l(t.mu);
-    if (t.e == nullptr || t.raiz == nullptr) return;
-    // Solo con el pipeline del mezclador andando y sin que lo estén parando (ver la
-    // cabecera): al bajar, el pipeline cambia su destino ANTES de parar al mezclador (y
-    // a la batoma, la última: es fuente), así no se le empuja a un mezclador en pausa.
-    GST_OBJECT_LOCK(t.raiz);
-    const bool anda = GST_STATE(t.raiz) == GST_STATE_PLAYING && GST_STATE_TARGET(t.raiz) == GST_STATE_PLAYING;
-    GST_OBJECT_UNLOCK(t.raiz);
-    if (!anda) return;
+    // Solo con la batoma andando y sin que estén parando su pipeline (ver la cabecera y
+    // comun.hpp): así no se le empuja a un mezclador en pausa.
+    if (t.e == nullptr || !ba::ipc_gst::corriendo(t.e)) return;
     if (t.eventos) {
         gchar* id = gst_pad_create_stream_id(t.pad, t.e, nullptr);
         GstEvent* ss = gst_event_new_stream_start(id);
@@ -299,13 +295,9 @@ static void enganchar(BaToma* t) {
         p = productor(*t->nombre);
         *t->p = p;
     }
-    // El pipeline de arriba de todo (no cambia mientras está en PLAYING): se mira su estado.
-    GstObject* raiz = GST_OBJECT(t);
-    while (GST_OBJECT_PARENT(raiz) != nullptr) raiz = GST_OBJECT_PARENT(raiz);
     {
         std::lock_guard<std::mutex> l((*t->t)->mu);
         (*t->t)->e = GST_ELEMENT(t);
-        (*t->t)->raiz = GST_ELEMENT(raiz);
         (*t->t)->eventos = true;
     }
     std::lock_guard<std::mutex> l(p->mu);
@@ -332,7 +324,6 @@ static void desenganchar(BaToma* t) {
 static void soltarToma(BaToma* t) {
     std::lock_guard<std::mutex> l((*t->t)->mu);
     (*t->t)->e = nullptr;
-    (*t->t)->raiz = nullptr;
 }
 
 static gboolean tomaConsulta(GstPad* pad, GstObject* padre, GstQuery* q) {

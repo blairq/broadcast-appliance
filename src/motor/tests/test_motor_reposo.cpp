@@ -106,7 +106,9 @@ int main() {
     esperar(1500);
     auto rms = [&]() { return motor.estado()["programa"].value("rms_db", -120.0); };
     auto entrada = [&](const char* id) { return motor.estado()["entradas"][id]; };
-    std::printf("programa con el invitado: %.2f dBFS\n", rms());
+    std::printf("programa con el invitado: %.2f dBFS (la entrada: %d bloques, pico %.1f dB, %s)\n", rms(),
+                entrada("invitado1").value("bloques_audio", 0), entrada("invitado1").value("pico_audio_db", -100.0),
+                entrada("invitado1").value("error", std::string()).c_str());
     CHECK(std::fabs(rms() - -9.03) < 1.0, "el invitado suena en el programa");
     CHECK(!entrada("invitado1").value("en_reposo", true), "andando");
 

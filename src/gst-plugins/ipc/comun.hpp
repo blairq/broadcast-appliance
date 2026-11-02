@@ -45,15 +45,23 @@ class Lectura {
     std::atomic<bool> activa{false}; ///< registrada (el hilo la lee si sigue así con mu tomado)
 };
 
-/// ¿El pipeline de `e` está en PLAYING y no lo están bajando? (Al bajar, el pipeline
-/// cambia su destino antes de tocar a sus elementos: así no se empuja a una cadena en pausa.)
+/// ¿`e` (una fuente) está en PLAYING y su pipeline no lo están bajando? Al subir, el
+/// pipeline pasa primero a lo de abajo (los sinks) y la fuente es la última: con ella en
+/// PLAYING, lo de abajo ya anda. NO se mira el estado del pipeline entero: con un sink que
+/// espera su primer buffer (intersink) sigue en PAUSED hasta que la fuente empuje. Al
+/// bajar, el pipeline cambia su DESTINO antes de tocar a sus elementos: con eso no se le
+/// empuja a una cadena que ya está en pausa.
 inline bool corriendo(GstElement* e) {
+    GST_OBJECT_LOCK(e);
+    const bool anda = GST_STATE(e) == GST_STATE_PLAYING;
+    GST_OBJECT_UNLOCK(e);
+    if (!anda) return false;
     GstObject* raiz = GST_OBJECT(e);
     while (GST_OBJECT_PARENT(raiz) != nullptr) raiz = GST_OBJECT_PARENT(raiz);
     GST_OBJECT_LOCK(raiz);
-    const bool si = GST_STATE(raiz) == GST_STATE_PLAYING && GST_STATE_TARGET(raiz) == GST_STATE_PLAYING;
+    const bool sigue = GST_STATE_TARGET(raiz) == GST_STATE_PLAYING;
     GST_OBJECT_UNLOCK(raiz);
-    return si;
+    return sigue;
 }
 
 enum class Medio { Audio, Video };
