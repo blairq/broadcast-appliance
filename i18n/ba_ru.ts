@@ -5143,7 +5143,7 @@ Recorrer la tira no cambia lo que se ve.</source>
         <translation>Техпроверка: %1</translation>
     </message>
     <message>
-        <location line="+45"/>
+        <location line="+50"/>
         <source>Oradores</source>
         <translation>Выступающие</translation>
     </message>
@@ -5159,12 +5159,12 @@ Recorrer la tira no cambia lo que se ve.</source>
     </message>
     <message>
         <location line="+4"/>
-        <location line="+1209"/>
+        <location line="+1036"/>
         <source>Tiempo</source>
         <translation>Время</translation>
     </message>
     <message>
-        <location line="-1203"/>
+        <location line="-1030"/>
         <source>Tiempo general para cada orador (m:ss o minutos)</source>
         <translation>Общее время для каждого выступающего (м:сс или минуты)</translation>
     </message>
@@ -5260,7 +5260,7 @@ Recorrer la tira no cambia lo que se ve.</source>
     </message>
     <message numerus="yes">
         <location line="+0"/>
-        <location line="+647"/>
+        <location line="+474"/>
         <source>%n esperando</source>
         <translation>
             <numerusform>%n ждёт</numerusform>
@@ -5269,7 +5269,7 @@ Recorrer la tira no cambia lo que se ve.</source>
         </translation>
     </message>
     <message>
-        <location line="-645"/>
+        <location line="-472"/>
         <source>Admitir a todos</source>
         <translation>Допустить всех</translation>
     </message>
@@ -5311,12 +5311,11 @@ Recorrer la tira no cambia lo que se ve.</source>
     </message>
     <message>
         <location line="+15"/>
-        <location line="+157"/>
         <source>prueba</source>
         <translation>тест</translation>
     </message>
     <message>
-        <location line="-155"/>
+        <location line="+2"/>
         <source>espera hace %1</source>
         <translation>ждёт %1</translation>
     </message>
@@ -5347,12 +5346,11 @@ Recorrer la tira no cambia lo que se ve.</source>
     </message>
     <message>
         <location line="+6"/>
-        <location line="+227"/>
         <source>Editar nombre, cargo y contacto</source>
         <translation>Изменить имя, должность и контакты</translation>
     </message>
     <message>
-        <location line="-222"/>
+        <location line="+5"/>
         <source>✦ Que lo atienda</source>
         <translation>✦ Пусть поможет ассистент</translation>
     </message>
@@ -5372,7 +5370,17 @@ Recorrer la tira no cambia lo que se ve.</source>
         <translation>В конференции</translation>
     </message>
     <message>
-        <location line="+4"/>
+        <location line="+11"/>
+        <source>Ver en grilla (videos)</source>
+        <translation>Сетка (видео)</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Ver en lista (una fila por persona)</source>
+        <translation>Список (одна строка на человека)</translation>
+    </message>
+    <message>
+        <location line="+3"/>
         <source>Conferencia %1</source>
         <translation>Конференция %1</translation>
     </message>
@@ -5408,205 +5416,23 @@ Recorrer la tira no cambia lo que se ve.</source>
     </message>
     <message>
         <location line="+1"/>
-        <location line="+703"/>
+        <location line="+515"/>
         <source>Reiniciar</source>
         <translation>Перезапустить</translation>
     </message>
     <message>
-        <location line="-703"/>
-        <location line="+703"/>
+        <location line="-515"/>
+        <location line="+515"/>
         <source>Cancelar</source>
         <translation>Отмена</translation>
     </message>
     <message>
-        <location line="-700"/>
+        <location line="-512"/>
         <source>La conferencia se está reiniciando.</source>
         <translation>Конференция перезапускается.</translation>
     </message>
     <message>
-        <location line="+61"/>
-        <source>sin lugar en el programa</source>
-        <translation>нет места в программе</translation>
-    </message>
-    <message>
-        <location line="+23"/>
-        <source>mic</source>
-        <translation>мик.</translation>
-    </message>
-    <message>
-        <location line="+0"/>
-        <source>mic off</source>
-        <translation>мик. выкл.</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>cámara</source>
-        <translation>камера</translation>
-    </message>
-    <message>
-        <location line="+0"/>
-        <source>cámara off</source>
-        <translation>камера выкл.</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>pantalla</source>
-        <translation>экран</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>PRESENTADOR</source>
-        <translation>ВЕДУЩИЙ</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>ORADOR</source>
-        <translation>ВЫСТУПАЮЩИЙ</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>reconectando</source>
-        <translation>переподключение</translation>
-    </message>
-    <message>
-        <location line="+0"/>
-        <source>en vivo</source>
-        <translation>в эфире</translation>
-    </message>
-    <message>
-        <location line="+0"/>
-        <source>sin medios</source>
-        <translation>нет медиа</translation>
-    </message>
-    <message>
-        <location line="+25"/>
-        <location line="+81"/>
-        <source>Silenciar</source>
-        <translation>Без звука</translation>
-    </message>
-    <message>
-        <location line="-81"/>
-        <location line="+81"/>
-        <source>Activar micrófono</source>
-        <translation>Включить микрофон</translation>
-    </message>
-    <message>
-        <location line="-76"/>
-        <location line="+77"/>
-        <source>Apagar cámara</source>
-        <translation>Выключить камеру</translation>
-    </message>
-    <message>
-        <location line="-77"/>
-        <location line="+77"/>
-        <source>Encender cámara</source>
-        <translation>Включить камеру</translation>
-    </message>
-    <message>
-        <location line="-71"/>
-        <location line="+56"/>
-        <source>🎙 Hablando…</source>
-        <translation>🎙 Говорю…</translation>
-    </message>
-    <message>
-        <location line="-56"/>
-        <location line="+56"/>
-        <source>🎙 Hablarle</source>
-        <translation>🎙 Сказать ему</translation>
-    </message>
-    <message>
-        <location line="-50"/>
-        <location line="+56"/>
-        <source>Mantené apretado para hablarle (le llega tu voz por su retorno; no sale al aire)</source>
-        <translation>Удерживайте, чтобы говорить с ним (ваш голос идёт в его контрольный канал; в эфир не попадает)</translation>
-    </message>
-    <message>
-        <location line="-53"/>
-        <location line="+63"/>
-        <source>Prueba técnica</source>
-        <translation>Техпроверка</translation>
-    </message>
-    <message>
-        <location line="-62"/>
-        <location line="+62"/>
-        <source>Probando a %1: un tono por su retorno durante 4 s…</source>
-        <translation>Проверка %1: тон в его контрольный канал на 4 с…</translation>
-    </message>
-    <message>
-        <location line="-60"/>
-        <source>Le manda un tono por el retorno y mide si vuelve por su micrófono (eco), y mira su red</source>
-        <translation>Отправляет тон в контрольный канал, измеряет, возвращается ли он через его микрофон (эхо), и проверяет его сеть</translation>
-    </message>
-    <message>
-        <location line="+2"/>
-        <location line="+59"/>
-        <source>Cortar pantalla</source>
-        <translation>Остановить показ экрана</translation>
-    </message>
-    <message>
-        <location line="-58"/>
-        <location line="+59"/>
-        <source>Bajar mano</source>
-        <translation>Опустить руку</translation>
-    </message>
-    <message>
-        <location line="-54"/>
-        <location line="+55"/>
-        <source>→ Oradores</source>
-        <translation>→ Выступающие</translation>
-    </message>
-    <message>
-        <location line="-52"/>
-        <source>Lo pone en la fila de oradores (sale del aire hasta que le toque)</source>
-        <translation>Ставит в очередь выступающих (снимается с эфира до своей очереди)</translation>
-    </message>
-    <message>
-        <location line="+4"/>
-        <location line="+49"/>
-        <source>Quitar presentador</source>
-        <translation>Снять ведущего</translation>
-    </message>
-    <message>
-        <location line="-49"/>
-        <location line="+49"/>
-        <source>★ Presentador</source>
-        <translation>★ Ведущий</translation>
-    </message>
-    <message>
-        <location line="-44"/>
-        <source>Deja de ser presentador y sale del aire</source>
-        <translation>Перестаёт быть ведущим и уходит из эфира</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>Se queda al aire con su lugar mientras rotan los oradores</source>
-        <translation>Остаётся в эфире на своём месте, пока сменяются выступающие</translation>
-    </message>
-    <message>
-        <location line="+3"/>
-        <location line="+41"/>
-        <source>✉ Mensaje</source>
-        <translation>✉ Сообщение</translation>
-    </message>
-    <message>
-        <location line="-34"/>
-        <location line="+35"/>
-        <source>✎ Datos</source>
-        <translation>✎ Данные</translation>
-    </message>
-    <message>
-        <location line="-30"/>
-        <location line="+32"/>
-        <source>Sacar</source>
-        <translation>Убрать</translation>
-    </message>
-    <message>
-        <location line="-14"/>
-        <source>Controles ▾</source>
-        <translation>Управление ▾</translation>
-    </message>
-    <message>
-        <location line="+27"/>
+        <location line="+30"/>
         <source>Todavía no entró nadie.
 Compartí el enlace y el PIN (panel Acceso).</source>
         <translation>Пока никто не вошёл.
@@ -6178,7 +6004,7 @@ El PIN anterior deja de servir para entrar.</source>
 <context>
     <name>ConferenceViewModel</name>
     <message>
-        <location filename="../src/app/ui/ConferenceViewModel.cpp" line="+124"/>
+        <location filename="../src/app/ui/ConferenceViewModel.cpp" line="+125"/>
         <source>La conferencia respondio: %1</source>
         <translation>Конференция ответила: %1</translation>
     </message>
@@ -6203,7 +6029,7 @@ El PIN anterior deja de servir para entrar.</source>
         <translation>В очереди больше никого</translation>
     </message>
     <message>
-        <location line="+103"/>
+        <location line="+107"/>
         <source>%1 espera en el lobby</source>
         <translation>%1 ждёт в зале ожидания</translation>
     </message>
@@ -12375,12 +12201,13 @@ Se cambia en su código (sección Plugins, o pidiéndoselo al asistente). Acá s
         <translation>Настроить pinggy…</translation>
     </message>
     <message>
-        <location line="+34"/>
+        <location line="+47"/>
+        <location line="+54"/>
         <source>Invitado %1</source>
         <translation>Гость %1</translation>
     </message>
     <message>
-        <location line="+9"/>
+        <location line="-44"/>
         <source>Retorno apagado</source>
         <translation>Контроль выключен</translation>
     </message>
@@ -12390,12 +12217,17 @@ Se cambia en su código (sección Plugins, o pidiéndoselo al asistente). Acá s
         <translation>Этот гость ничего не слышит: его микс без его голоса (mix-minus) не доходит до конференции. Всю программу ему не отправляют, потому что он слышал бы себя с задержкой.</translation>
     </message>
     <message>
-        <location line="+12"/>
+        <location line="+11"/>
         <source>Red: %1 kbps · pérdida %2 % · jitter %3 ms · RTT %4 ms</source>
         <translation>Сеть: %1 кбит/с · потери %2 % · джиттер %3 мс · RTT %4 мс</translation>
     </message>
     <message>
-        <location line="+7"/>
+        <location line="+11"/>
+        <source>Calidad, retorno, ISO y cargo</source>
+        <translation>Качество, контроль, ISO и должность</translation>
+    </message>
+    <message>
+        <location line="+27"/>
         <location line="+1"/>
         <source>Bajar a %1</source>
         <translation>Понизить до %1</translation>
@@ -12406,12 +12238,12 @@ Se cambia en su código (sección Plugins, o pidiéndoselo al asistente). Acá s
         <translation>Полное качество</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="+4"/>
         <source>Grabar aparte (ISO)</source>
         <translation>Записывать отдельно (ISO)</translation>
     </message>
     <message>
-        <location line="+5"/>
+        <location line="+6"/>
         <source>Aprobar su cargo para el zócalo: «%1»</source>
         <translation>Одобрить его должность для титра: «%1»</translation>
     </message>
@@ -12421,19 +12253,14 @@ Se cambia en su código (sección Plugins, o pidiéndoselo al asistente). Acá s
         <translation>Должность для титра одобрена</translation>
     </message>
     <message>
-        <location line="+10"/>
+        <location line="-19"/>
         <source>Oye: programa sin su voz</source>
         <translation>Слышит: программу без своего голоса</translation>
     </message>
     <message>
-        <location line="+0"/>
+        <location line="+2"/>
         <source>Oye: programa entero</source>
         <translation>Слышит: всю программу</translation>
-    </message>
-    <message>
-        <location line="+5"/>
-        <source>Sin su voz (mix-minus): no se escucha con retardo a sí mismo ni hace eco. Entero: solo si usa auriculares y lo pide.</source>
-        <translation>Без своего голоса (mix-minus): не слышит себя с задержкой и не создаёт эхо. Полностью — только если он в наушниках и просит об этом.</translation>
     </message>
 </context>
 <context>
@@ -30172,6 +29999,177 @@ Agregale una en Escenas y fuentes: ubicala donde querés que se vea el zócalo, 
         <location line="+3"/>
         <source>Sin la clave adentro, el QR abre la página y pide la clave. Decísela vos: %1</source>
         <translation>Без ключа внутри QR открывает страницу и запрашивает ключ. Сообщите его сами: %1</translation>
+    </message>
+</context>
+<context>
+    <name>SalaParticipantes</name>
+    <message>
+        <location filename="../src/app/qml/controls/SalaParticipantes.qml" line="+61"/>
+        <source>De la prueba de sala: fuera del padrón, la votación y el quórum</source>
+        <translation>Из теста зала: не входит в список, голосование и кворум</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Orador al aire</source>
+        <translation>Выступающий в эфире</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Presentador</source>
+        <translation>Ведущий</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Levantó la mano</source>
+        <translation>Поднял руку</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Comparte pantalla</source>
+        <translation>Показывает экран</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Le estás hablando</source>
+        <translation>Вы говорите с ним</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Micrófono apagado</source>
+        <translation>Микрофон выключен</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Cámara apagada</source>
+        <translation>Камера выключена</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Retorno apagado: no escucha nada (su mezcla sin su voz no llega a la conferencia)</source>
+        <translation>Контроль выключен: ничего не слышит (его микс без собственного голоса не доходит до конференции)</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Reconectando</source>
+        <translation>Переподключение</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Conectado, sin medios todavía</source>
+        <translation>Подключён, медиа ещё нет</translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <source>Red: mala</source>
+        <translation>Сеть: плохая</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Red: con problemas</source>
+        <translation>Сеть: есть проблемы</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Red: bien</source>
+        <translation>Сеть: хорошая</translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>🎙 Hablando…</source>
+        <translation>🎙 Говорю…</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>🎙 Hablarle</source>
+        <translation>🎙 Сказать ему</translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>Mantené apretado para hablarle (le llega tu voz por su retorno; no sale al aire)</source>
+        <translation>Удерживайте, чтобы говорить с ним (ваш голос идёт в его контрольный канал; в эфир не попадает)</translation>
+    </message>
+    <message>
+        <location line="+57"/>
+        <source>sin lugar en el programa</source>
+        <translation>нет места в программе</translation>
+    </message>
+    <message>
+        <location line="+45"/>
+        <location line="+95"/>
+        <source>Acciones</source>
+        <translation>Действия</translation>
+    </message>
+    <message>
+        <location line="-7"/>
+        <location line="+21"/>
+        <source>Silenciar</source>
+        <translation>Без звука</translation>
+    </message>
+    <message>
+        <location line="-21"/>
+        <location line="+21"/>
+        <source>Activar micrófono</source>
+        <translation>Включить микрофон</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Apagar cámara</source>
+        <translation>Выключить камеру</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Encender cámara</source>
+        <translation>Включить камеру</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Prueba técnica</source>
+        <translation>Техпроверка</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Probando a %1: un tono por su retorno durante 4 s…</source>
+        <translation>Проверка %1: тон в его контрольный канал на 4 с…</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Cortar pantalla</source>
+        <translation>Остановить показ экрана</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Bajar mano</source>
+        <translation>Опустить руку</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>→ Oradores</source>
+        <translation>→ Выступающие</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Quitar presentador</source>
+        <translation>Снять ведущего</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>★ Presentador</source>
+        <translation>★ Ведущий</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>✉ Mensaje</source>
+        <translation>✉ Сообщение</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>✎ Datos</source>
+        <translation>✎ Данные</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Sacar</source>
+        <translation>Убрать</translation>
     </message>
 </context>
 <context>

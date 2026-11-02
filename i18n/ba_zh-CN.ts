@@ -5095,7 +5095,7 @@ Recorrer la tira no cambia lo que se ve.</source>
         <translation>技术测试：%1</translation>
     </message>
     <message>
-        <location line="+45"/>
+        <location line="+50"/>
         <source>Oradores</source>
         <translation>发言人</translation>
     </message>
@@ -5111,12 +5111,12 @@ Recorrer la tira no cambia lo que se ve.</source>
     </message>
     <message>
         <location line="+4"/>
-        <location line="+1209"/>
+        <location line="+1036"/>
         <source>Tiempo</source>
         <translation>时间</translation>
     </message>
     <message>
-        <location line="-1203"/>
+        <location line="-1030"/>
         <source>Tiempo general para cada orador (m:ss o minutos)</source>
         <translation>每位发言人的总时间（m:ss 或分钟）</translation>
     </message>
@@ -5212,14 +5212,14 @@ Recorrer la tira no cambia lo que se ve.</source>
     </message>
     <message numerus="yes">
         <location line="+0"/>
-        <location line="+647"/>
+        <location line="+474"/>
         <source>%n esperando</source>
         <translation>
             <numerusform>%n 人等候中</numerusform>
         </translation>
     </message>
     <message>
-        <location line="-645"/>
+        <location line="-472"/>
         <source>Admitir a todos</source>
         <translation>全部接纳</translation>
     </message>
@@ -5259,12 +5259,11 @@ Recorrer la tira no cambia lo que se ve.</source>
     </message>
     <message>
         <location line="+15"/>
-        <location line="+157"/>
         <source>prueba</source>
         <translation>测试</translation>
     </message>
     <message>
-        <location line="-155"/>
+        <location line="+2"/>
         <source>espera hace %1</source>
         <translation>已等候 %1</translation>
     </message>
@@ -5295,12 +5294,11 @@ Recorrer la tira no cambia lo que se ve.</source>
     </message>
     <message>
         <location line="+6"/>
-        <location line="+227"/>
         <source>Editar nombre, cargo y contacto</source>
         <translation>编辑姓名、职务和联系方式</translation>
     </message>
     <message>
-        <location line="-222"/>
+        <location line="+5"/>
         <source>✦ Que lo atienda</source>
         <translation>✦ 让助手接待</translation>
     </message>
@@ -5320,7 +5318,17 @@ Recorrer la tira no cambia lo que se ve.</source>
         <translation>会议中</translation>
     </message>
     <message>
-        <location line="+4"/>
+        <location line="+11"/>
+        <source>Ver en grilla (videos)</source>
+        <translation>网格视图（视频）</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Ver en lista (una fila por persona)</source>
+        <translation>列表视图（每人一行）</translation>
+    </message>
+    <message>
+        <location line="+3"/>
         <source>Conferencia %1</source>
         <translation>会议 %1</translation>
     </message>
@@ -5356,205 +5364,23 @@ Recorrer la tira no cambia lo que se ve.</source>
     </message>
     <message>
         <location line="+1"/>
-        <location line="+703"/>
+        <location line="+515"/>
         <source>Reiniciar</source>
         <translation>重启</translation>
     </message>
     <message>
-        <location line="-703"/>
-        <location line="+703"/>
+        <location line="-515"/>
+        <location line="+515"/>
         <source>Cancelar</source>
         <translation>取消</translation>
     </message>
     <message>
-        <location line="-700"/>
+        <location line="-512"/>
         <source>La conferencia se está reiniciando.</source>
         <translation>会议正在重启。</translation>
     </message>
     <message>
-        <location line="+61"/>
-        <source>sin lugar en el programa</source>
-        <translation>节目中没有位置</translation>
-    </message>
-    <message>
-        <location line="+23"/>
-        <source>mic</source>
-        <translation>麦克风</translation>
-    </message>
-    <message>
-        <location line="+0"/>
-        <source>mic off</source>
-        <translation>麦克风关</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>cámara</source>
-        <translation>摄像机</translation>
-    </message>
-    <message>
-        <location line="+0"/>
-        <source>cámara off</source>
-        <translation>摄像机关</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>pantalla</source>
-        <translation>屏幕</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>PRESENTADOR</source>
-        <translation>主讲人</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>ORADOR</source>
-        <translation>发言人</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>reconectando</source>
-        <translation>正在重连</translation>
-    </message>
-    <message>
-        <location line="+0"/>
-        <source>en vivo</source>
-        <translation>直播中</translation>
-    </message>
-    <message>
-        <location line="+0"/>
-        <source>sin medios</source>
-        <translation>无媒体</translation>
-    </message>
-    <message>
-        <location line="+25"/>
-        <location line="+81"/>
-        <source>Silenciar</source>
-        <translation>静音</translation>
-    </message>
-    <message>
-        <location line="-81"/>
-        <location line="+81"/>
-        <source>Activar micrófono</source>
-        <translation>打开麦克风</translation>
-    </message>
-    <message>
-        <location line="-76"/>
-        <location line="+77"/>
-        <source>Apagar cámara</source>
-        <translation>关闭摄像机</translation>
-    </message>
-    <message>
-        <location line="-77"/>
-        <location line="+77"/>
-        <source>Encender cámara</source>
-        <translation>打开摄像机</translation>
-    </message>
-    <message>
-        <location line="-71"/>
-        <location line="+56"/>
-        <source>🎙 Hablando…</source>
-        <translation>🎙 对讲中…</translation>
-    </message>
-    <message>
-        <location line="-56"/>
-        <location line="+56"/>
-        <source>🎙 Hablarle</source>
-        <translation>🎙 与其对讲</translation>
-    </message>
-    <message>
-        <location line="-50"/>
-        <location line="+56"/>
-        <source>Mantené apretado para hablarle (le llega tu voz por su retorno; no sale al aire)</source>
-        <translation>按住与其对讲（您的声音通过其返送传达；不会播出）</translation>
-    </message>
-    <message>
-        <location line="-53"/>
-        <location line="+63"/>
-        <source>Prueba técnica</source>
-        <translation>技术测试</translation>
-    </message>
-    <message>
-        <location line="-62"/>
-        <location line="+62"/>
-        <source>Probando a %1: un tono por su retorno durante 4 s…</source>
-        <translation>正在测试 %1：通过其返送播放 4 秒音调…</translation>
-    </message>
-    <message>
-        <location line="-60"/>
-        <source>Le manda un tono por el retorno y mide si vuelve por su micrófono (eco), y mira su red</source>
-        <translation>通过返送发送音调，测量是否从其麦克风传回（回声），并检查其网络</translation>
-    </message>
-    <message>
-        <location line="+2"/>
-        <location line="+59"/>
-        <source>Cortar pantalla</source>
-        <translation>停止屏幕共享</translation>
-    </message>
-    <message>
-        <location line="-58"/>
-        <location line="+59"/>
-        <source>Bajar mano</source>
-        <translation>放下手</translation>
-    </message>
-    <message>
-        <location line="-54"/>
-        <location line="+55"/>
-        <source>→ Oradores</source>
-        <translation>→ 发言人</translation>
-    </message>
-    <message>
-        <location line="-52"/>
-        <source>Lo pone en la fila de oradores (sale del aire hasta que le toque)</source>
-        <translation>将其放入发言人队列（轮到之前不在播）</translation>
-    </message>
-    <message>
-        <location line="+4"/>
-        <location line="+49"/>
-        <source>Quitar presentador</source>
-        <translation>取消主讲人</translation>
-    </message>
-    <message>
-        <location line="-49"/>
-        <location line="+49"/>
-        <source>★ Presentador</source>
-        <translation>★ 主讲人</translation>
-    </message>
-    <message>
-        <location line="-44"/>
-        <source>Deja de ser presentador y sale del aire</source>
-        <translation>不再担任主讲人并撤下播出</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>Se queda al aire con su lugar mientras rotan los oradores</source>
-        <translation>发言人轮换期间保持在播并占据其位置</translation>
-    </message>
-    <message>
-        <location line="+3"/>
-        <location line="+41"/>
-        <source>✉ Mensaje</source>
-        <translation>✉ 消息</translation>
-    </message>
-    <message>
-        <location line="-34"/>
-        <location line="+35"/>
-        <source>✎ Datos</source>
-        <translation>✎ 资料</translation>
-    </message>
-    <message>
-        <location line="-30"/>
-        <location line="+32"/>
-        <source>Sacar</source>
-        <translation>移出</translation>
-    </message>
-    <message>
-        <location line="-14"/>
-        <source>Controles ▾</source>
-        <translation>控制 ▾</translation>
-    </message>
-    <message>
-        <location line="+27"/>
+        <location line="+30"/>
         <source>Todavía no entró nadie.
 Compartí el enlace y el PIN (panel Acceso).</source>
         <translation>尚无人进入。
@@ -6120,7 +5946,7 @@ El PIN anterior deja de servir para entrar.</source>
 <context>
     <name>ConferenceViewModel</name>
     <message>
-        <location filename="../src/app/ui/ConferenceViewModel.cpp" line="+124"/>
+        <location filename="../src/app/ui/ConferenceViewModel.cpp" line="+125"/>
         <source>La conferencia respondio: %1</source>
         <translation>会议返回：%1</translation>
     </message>
@@ -6145,7 +5971,7 @@ El PIN anterior deja de servir para entrar.</source>
         <translation>队列中没有其他人</translation>
     </message>
     <message>
-        <location line="+103"/>
+        <location line="+107"/>
         <source>%1 espera en el lobby</source>
         <translation>%1 在等候室等候</translation>
     </message>
@@ -12285,12 +12111,13 @@ Se cambia en su código (sección Plugins, o pidiéndoselo al asistente). Acá s
         <translation>设置 pinggy…</translation>
     </message>
     <message>
-        <location line="+34"/>
+        <location line="+47"/>
+        <location line="+54"/>
         <source>Invitado %1</source>
         <translation>嘉宾 %1</translation>
     </message>
     <message>
-        <location line="+9"/>
+        <location line="-44"/>
         <source>Retorno apagado</source>
         <translation>返送已关闭</translation>
     </message>
@@ -12300,12 +12127,17 @@ Se cambia en su código (sección Plugins, o pidiéndoselo al asistente). Acá s
         <translation>该嘉宾什么也听不到：不含其声音的混音（mix-minus）未送达会议。不向其发送完整节目，因为那样会听到自己延迟的声音。</translation>
     </message>
     <message>
-        <location line="+12"/>
+        <location line="+11"/>
         <source>Red: %1 kbps · pérdida %2 % · jitter %3 ms · RTT %4 ms</source>
         <translation>网络：%1 kbps · 丢包 %2 % · 抖动 %3 毫秒 · RTT %4 毫秒</translation>
     </message>
     <message>
-        <location line="+7"/>
+        <location line="+11"/>
+        <source>Calidad, retorno, ISO y cargo</source>
+        <translation>画质、返送、ISO 和职务</translation>
+    </message>
+    <message>
+        <location line="+27"/>
         <location line="+1"/>
         <source>Bajar a %1</source>
         <translation>降至 %1</translation>
@@ -12316,12 +12148,12 @@ Se cambia en su código (sección Plugins, o pidiéndoselo al asistente). Acá s
         <translation>完整画质</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="+4"/>
         <source>Grabar aparte (ISO)</source>
         <translation>单独录制（ISO）</translation>
     </message>
     <message>
-        <location line="+5"/>
+        <location line="+6"/>
         <source>Aprobar su cargo para el zócalo: «%1»</source>
         <translation>批准其用于字幕条的职务：「%1」</translation>
     </message>
@@ -12331,19 +12163,14 @@ Se cambia en su código (sección Plugins, o pidiéndoselo al asistente). Acá s
         <translation>字幕条职务已批准</translation>
     </message>
     <message>
-        <location line="+10"/>
+        <location line="-19"/>
         <source>Oye: programa sin su voz</source>
         <translation>监听：不含其声音的节目</translation>
     </message>
     <message>
-        <location line="+0"/>
+        <location line="+2"/>
         <source>Oye: programa entero</source>
         <translation>监听：完整节目</translation>
-    </message>
-    <message>
-        <location line="+5"/>
-        <source>Sin su voz (mix-minus): no se escucha con retardo a sí mismo ni hace eco. Entero: solo si usa auriculares y lo pide.</source>
-        <translation>不含其声音（mix-minus）：不会听到自己延迟的声音，也不会产生回声。完整：仅在其使用耳机并提出要求时使用。</translation>
     </message>
 </context>
 <context>
@@ -29918,6 +29745,177 @@ Agregale una en Escenas y fuentes: ubicala donde querés que se vea el zócalo, 
         <location line="+3"/>
         <source>Sin la clave adentro, el QR abre la página y pide la clave. Decísela vos: %1</source>
         <translation>二维码中不含密钥时，打开页面后会要求输入密钥。请亲自告知对方：%1</translation>
+    </message>
+</context>
+<context>
+    <name>SalaParticipantes</name>
+    <message>
+        <location filename="../src/app/qml/controls/SalaParticipantes.qml" line="+61"/>
+        <source>De la prueba de sala: fuera del padrón, la votación y el quórum</source>
+        <translation>来自会场测试：不计入名册、投票和法定人数</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Orador al aire</source>
+        <translation>发言人正在直播</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Presentador</source>
+        <translation>主持人</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Levantó la mano</source>
+        <translation>已举手</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Comparte pantalla</source>
+        <translation>正在共享屏幕</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Le estás hablando</source>
+        <translation>你正在对其讲话</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Micrófono apagado</source>
+        <translation>麦克风已关闭</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Cámara apagada</source>
+        <translation>摄像头已关闭</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Retorno apagado: no escucha nada (su mezcla sin su voz no llega a la conferencia)</source>
+        <translation>返送已关闭：对方什么也听不到（不含其本人声音的混音未到达会议）</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Reconectando</source>
+        <translation>正在重连</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Conectado, sin medios todavía</source>
+        <translation>已连接，尚无媒体</translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <source>Red: mala</source>
+        <translation>网络：差</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Red: con problemas</source>
+        <translation>网络：有问题</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Red: bien</source>
+        <translation>网络：良好</translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>🎙 Hablando…</source>
+        <translation>🎙 对讲中…</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>🎙 Hablarle</source>
+        <translation>🎙 与其对讲</translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>Mantené apretado para hablarle (le llega tu voz por su retorno; no sale al aire)</source>
+        <translation>按住与其对讲（您的声音通过其返送传达；不会播出）</translation>
+    </message>
+    <message>
+        <location line="+57"/>
+        <source>sin lugar en el programa</source>
+        <translation>节目中没有位置</translation>
+    </message>
+    <message>
+        <location line="+45"/>
+        <location line="+95"/>
+        <source>Acciones</source>
+        <translation>动作</translation>
+    </message>
+    <message>
+        <location line="-7"/>
+        <location line="+21"/>
+        <source>Silenciar</source>
+        <translation>静音</translation>
+    </message>
+    <message>
+        <location line="-21"/>
+        <location line="+21"/>
+        <source>Activar micrófono</source>
+        <translation>打开麦克风</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Apagar cámara</source>
+        <translation>关闭摄像机</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Encender cámara</source>
+        <translation>打开摄像机</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Prueba técnica</source>
+        <translation>技术测试</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Probando a %1: un tono por su retorno durante 4 s…</source>
+        <translation>正在测试 %1：通过其返送播放 4 秒音调…</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Cortar pantalla</source>
+        <translation>停止屏幕共享</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Bajar mano</source>
+        <translation>放下手</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>→ Oradores</source>
+        <translation>→ 发言人</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Quitar presentador</source>
+        <translation>取消主讲人</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>★ Presentador</source>
+        <translation>★ 主讲人</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>✉ Mensaje</source>
+        <translation>✉ 消息</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>✎ Datos</source>
+        <translation>✎ 资料</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Sacar</source>
+        <translation>移出</translation>
     </message>
 </context>
 <context>

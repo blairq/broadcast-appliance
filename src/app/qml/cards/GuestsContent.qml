@@ -118,54 +118,67 @@ Item {
                 }
             }
         }
-        GridLayout {
+        // Un lugar por celda (ConferenceViewModel::lugares): cada uno se entera solo de lo
+        // suyo, y la red (que cambia en cada foto de la sala) no despierta lo demás. Con
+        // muchos, celdas de tamaño legible y se desliza (GrillaAdaptable); los controles,
+        // al pasar el mouse («⋯») o tocando la celda.
+        GrillaAdaptable {
+            id: grilla
             Layout.fillWidth: true
             Layout.fillHeight: true
-            columns: Math.max(1, Math.min(Studio.guests, 2))
-            columnSpacing: 8; rowSpacing: 8
-            Repeater {
-                // Un lugar por fila (ConferenceViewModel::lugares): cada uno se entera solo de lo
-                // suyo, y la red (que cambia en cada foto de la sala) no despierta lo demás.
-                model: Studio.conference.lugares
-                delegate: Rectangle {
-                    id: lugar
-                    required property int index
-                    required property string nombre
-                    required property string pid
-                    required property string info
-                    required property bool sinRetorno
-                    required property string semaforo
-                    required property var red
-                    Layout.fillWidth: true
-                    Layout.fillHeight: true
-                    radius: 12
+            celdaMinima: 160
+            model: Studio.conference.lugares
+            delegate: Item {
+                id: lugar
+                required property int index
+                required property string nombre
+                required property string pid
+                required property string info
+                required property bool sinRetorno
+                required property string semaforo
+                required property var red
+                width: GridView.view.cellWidth
+                height: GridView.view.cellHeight
+                readonly property bool chica: width < 300
+                readonly property bool elegido: acciones.visible && acciones.lugar === lugar
+                Rectangle {
+                    id: caja
+                    anchors { fill: parent; margins: grilla.margen }
+                    radius: lugar.chica ? 10 : 12
                     color: "#000000"
                     clip: true
-                    VideoItem { id: v; anchors.fill: parent; source: "guest:" + (index + 1); fillMode: VideoItem.Cover }
+                    border.color: lugar.elegido ? Theme.accent : Theme.glassBorder
+                    border.width: lugar.elegido ? 2 : 1
+                    VideoItem {
+                        anchors { fill: parent; margins: 1 }
+                        source: "guest:" + (lugar.index + 1); fillMode: VideoItem.Cover
+                        enVista: grilla.enVista(lugar.y, lugar.height)
+                    }
                     Rectangle {
-                        anchors { left: parent.left; bottom: parent.bottom; margins: 6 }
-                        radius: 8; height: 20; width: gl.implicitWidth + 14
-                        color: Qt.rgba(0, 0, 0, 0.55)
-                        Text { id: gl; anchors.centerIn: parent; text: lugar.nombre || qsTr("Invitado %1").arg(index + 1); color: Theme.text; font.pixelSize: 10 }
+                        anchors { left: parent.left; bottom: parent.bottom; margins: 5 }
+                        radius: 8; height: 20; width: Math.min(gl.implicitWidth + 14, parent.width - 10)
+                        color: Qt.rgba(0, 0, 0, 0.6)
+                        Text { id: gl; anchors.centerIn: parent; width: Math.min(implicitWidth, parent.width - 14); elide: Text.ElideRight
+                               text: lugar.nombre || qsTr("Invitado %1").arg(lugar.index + 1)
+                               color: lugar.pid !== "" ? Theme.text : Theme.textFaint; font.pixelSize: lugar.chica ? 10 : 11 }
                     }
                     // Sin retorno: su mezcla sin su voz no llega al gateway, y el programa entero no
                     // se le manda (se oiría a sí mismo con demora). Lo publica la sala.
                     Rectangle {
                         visible: lugar.sinRetorno
-                        anchors { left: parent.left; top: parent.top; margins: 6 }
-                        radius: 8; height: 20; width: sinRet.implicitWidth + 14
+                        anchors { left: parent.left; top: parent.top; margins: 5 }
+                        radius: 10; height: 20; width: lugar.chica ? 20 : sinRet.implicitWidth + 14
                         color: Theme.live
-                        Text { id: sinRet; anchors.centerIn: parent; text: qsTr("Retorno apagado"); color: "white"; font.pixelSize: 10 }
+                        Text { id: sinRet; anchors.centerIn: parent; text: lugar.chica ? "🎧" : qsTr("Retorno apagado"); color: "white"; font.pixelSize: 10 }
                         HoverHandler { id: sinRetHov }
                         ToolTip.visible: sinRetHov.hovered; ToolTip.delay: 400
                         ToolTip.text: qsTr("Este invitado no escucha nada: su mezcla sin su voz (mix-minus) no llega a la conferencia. No se le manda el programa entero porque se oiría a sí mismo con demora.")
                     }
-                    // La red de este invitado: semáforo con las cifras y bajar su calidad.
+                    // La red de este invitado: semáforo con las cifras.
                     Rectangle {
-                        id: semaforo
-                        visible: lugar.pid !== ""
+                        visible: lugar.pid !== "" && !masBtn.visible
                         anchors { right: parent.right; top: parent.top; margins: 6 }
-                        width: 14; height: 14; radius: 7
+                        width: 12; height: 12; radius: 6
                         color: lugar.semaforo === "rojo" ? Theme.live : lugar.semaforo === "ambar" ? Theme.amber : lugar.semaforo === "verde" ? Theme.ok : Theme.textFaint
                         border.color: "white"; border.width: 1
                         ToolTip.visible: semHov.hovered
@@ -174,40 +187,55 @@ Item {
                                           .arg(lugar.red.kbps_in || 0).arg(lugar.red.perdida_pct || 0).arg(lugar.red.jitter_ms || 0).arg(lugar.red.rtt_ms || 0)
                                       + (lugar.red.alto ? " · " + lugar.red.alto + "p" : "")
                         HoverHandler { id: semHov }
-                        TapHandler { onTapped: calidadMenu.popup() }
-                        Menu {
-                            id: calidadMenu
-                            MenuItem { text: qsTr("Bajar a %1").arg("720p"); onTriggered: Studio.conference.request(lugar.pid, "calidad-720p") }
-                            MenuItem { text: qsTr("Bajar a %1").arg("360p"); onTriggered: Studio.conference.request(lugar.pid, "calidad-360p") }
-                            MenuItem { text: qsTr("Calidad completa"); onTriggered: Studio.conference.request(lugar.pid, "calidad-max") }
-                            MenuSeparator {}
-                            MenuItem {
-                                text: qsTr("Grabar aparte (ISO)")
-                                onTriggered: Studio.emision.isoInvitadoUi(lugar.pid)
-                            }
-                            MenuSeparator {}
-                            MenuItem {
-                                text: qsTr("Aprobar su cargo para el zócalo: «%1»").arg(lugar.info || "—")
-                                enabled: lugar.info !== ""
-                                onTriggered: { const e = Studio.sala.aprobarInfoInvitado(lugar.pid, ""); Studio.notify(e !== "" ? e : qsTr("Cargo aprobado para el zócalo"), e !== "" ? "error" : "info") }
-                            }
-                        }
                     }
-                    // Lo que oye este invitado: el programa sin su voz (de fábrica) o el programa entero.
-                    ComboBox {
-                        id: oye
-                        anchors { right: parent.right; bottom: parent.bottom; margins: 6 }
-                        width: 150; height: 24
-                        font.pixelSize: 10
-                        model: [ { t: qsTr("Oye: programa sin su voz"), v: "mix_minus" }, { t: qsTr("Oye: programa entero"), v: "programa" } ]
-                        textRole: "t"
-                        currentIndex: Studio.emision.retornos[String(index + 1)] === "programa" ? 1 : 0
-                        onActivated: (i) => Studio.emision.setRetornoInvitadoUi(index + 1, model[i].v)
-                        ToolTip.visible: hovered; ToolTip.delay: 400
-                        ToolTip.text: qsTr("Sin su voz (mix-minus): no se escucha con retardo a sí mismo ni hace eco. Entero: solo si usa auriculares y lo pide.")
+                    GlassButton {
+                        id: masBtn
+                        visible: hov.hovered || lugar.elegido
+                        anchors { right: parent.right; top: parent.top; margins: 4 }
+                        compact: true; text: "⋯"
+                        onClicked: acciones.abrir(lugar, masBtn, 0, masBtn.height + 4)
+                        ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: qsTr("Calidad, retorno, ISO y cargo")
+                    }
+                    HoverHandler { id: hov }
+                    TapHandler {
+                        acceptedButtons: Qt.LeftButton | Qt.RightButton
+                        onTapped: (ev) => acciones.abrir(lugar, caja, ev.position.x, ev.position.y)
                     }
                 }
             }
+        }
+    }
+    // Las acciones de un lugar (un solo menú para todos).
+    Menu {
+        id: acciones
+        property var lugar: null
+        readonly property int n: lugar ? lugar.index + 1 : 0
+        readonly property string pid: lugar ? lugar.pid : ""
+        readonly property bool programa: Studio.emision.retornos[String(n)] === "programa"
+        function abrir(l, donde, x, y) { lugar = l; popup(donde, x, y) }
+        MenuItem { enabled: false; text: acciones.lugar ? (acciones.lugar.nombre || qsTr("Invitado %1").arg(acciones.n)) : "" }
+        MenuSeparator {}
+        // Lo que oye este invitado: el programa sin su voz (de fábrica) o el programa entero.
+        MenuItem { checkable: true; checked: !acciones.programa; text: qsTr("Oye: programa sin su voz")
+                   onTriggered: Studio.emision.setRetornoInvitadoUi(acciones.n, "mix_minus") }
+        MenuItem { checkable: true; checked: acciones.programa; text: qsTr("Oye: programa entero")
+                   onTriggered: Studio.emision.setRetornoInvitadoUi(acciones.n, "programa") }
+        MenuSeparator {}
+        MenuItem { enabled: acciones.pid !== ""; text: qsTr("Bajar a %1").arg("720p"); onTriggered: Studio.conference.request(acciones.pid, "calidad-720p") }
+        MenuItem { enabled: acciones.pid !== ""; text: qsTr("Bajar a %1").arg("360p"); onTriggered: Studio.conference.request(acciones.pid, "calidad-360p") }
+        MenuItem { enabled: acciones.pid !== ""; text: qsTr("Calidad completa"); onTriggered: Studio.conference.request(acciones.pid, "calidad-max") }
+        MenuSeparator {}
+        MenuItem {
+            enabled: acciones.pid !== ""
+            text: qsTr("Grabar aparte (ISO)")
+            onTriggered: Studio.emision.isoInvitadoUi(acciones.pid)
+        }
+        MenuSeparator {}
+        MenuItem {
+            readonly property string info: acciones.lugar ? acciones.lugar.info : ""
+            text: qsTr("Aprobar su cargo para el zócalo: «%1»").arg(info || "—")
+            enabled: info !== "" && acciones.pid !== ""
+            onTriggered: { const e = Studio.sala.aprobarInfoInvitado(acciones.pid, ""); Studio.notify(e !== "" ? e : qsTr("Cargo aprobado para el zócalo"), e !== "" ? "error" : "info") }
         }
     }
 }
