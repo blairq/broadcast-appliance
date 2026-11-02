@@ -155,21 +155,13 @@ struct Dispositivo {
     UINT token = 0;
 };
 
-bool crearDispositivo(Dispositivo& d, std::string* placa, bool* decodificaH264) {
-    D3D_FEATURE_LEVEL nivel{};
-    ComPtr<ID3D11DeviceContext> ctx;
-    HRESULT hr = D3D11CreateDevice(nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr,
-                                   D3D11_CREATE_DEVICE_VIDEO_SUPPORT | D3D11_CREATE_DEVICE_BGRA_SUPPORT, nullptr, 0,
-                                   D3D11_SDK_VERSION, &d.dev, &nivel, &ctx);
-    if (FAILED(hr)) return false;
-    // Varios decodificadores (cada uno en su hilo) comparten el dispositivo.
-    ComPtr<ID3D10Multithread> mt;
-    if (SUCCEEDED(d.dev.As(&mt))) mt->SetMultithreadProtected(TRUE);
+/// El nombre de la placa y si decodifica H.264 a NV12.
+void describirDispositivo(const ComPtr<ID3D11Device>& dev, std::string* placa, bool* decodificaH264) {
     if (placa != nullptr) {
         ComPtr<IDXGIDevice> dxgi;
         ComPtr<IDXGIAdapter> ad;
         DXGI_ADAPTER_DESC desc{};
-        if (SUCCEEDED(d.dev.As(&dxgi)) && SUCCEEDED(dxgi->GetAdapter(&ad)) && SUCCEEDED(ad->GetDesc(&desc))) {
+        if (SUCCEEDED(dev.As(&dxgi)) && SUCCEEDED(dxgi->GetAdapter(&ad)) && SUCCEEDED(ad->GetDesc(&desc))) {
             *placa = utf8(desc.Description);
             const std::string f = fabricanteDe(desc.VendorId);
             if (!f.empty() && placa->find(f) == std::string::npos) *placa = f + " " + *placa;
@@ -178,7 +170,7 @@ bool crearDispositivo(Dispositivo& d, std::string* placa, bool* decodificaH264) 
     if (decodificaH264 != nullptr) {
         *decodificaH264 = false;
         ComPtr<ID3D11VideoDevice> vd;
-        if (SUCCEEDED(d.dev.As(&vd))) {
+        if (SUCCEEDED(dev.As(&vd))) {
             const UINT n = vd->GetVideoDecoderProfileCount();
             for (UINT i = 0; i < n; ++i) {
                 GUID g{};
@@ -190,6 +182,19 @@ bool crearDispositivo(Dispositivo& d, std::string* placa, bool* decodificaH264) 
             }
         }
     }
+}
+
+/// Un dispositivo para el MFT (con su administrador DXGI).
+bool crearDispositivo(Dispositivo& d) {
+    D3D_FEATURE_LEVEL nivel{};
+    ComPtr<ID3D11DeviceContext> ctx;
+    HRESULT hr = D3D11CreateDevice(nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr,
+                                   D3D11_CREATE_DEVICE_VIDEO_SUPPORT | D3D11_CREATE_DEVICE_BGRA_SUPPORT, nullptr, 0,
+                                   D3D11_SDK_VERSION, &d.dev, &nivel, &ctx);
+    if (FAILED(hr)) return false;
+    // Varios decodificadores (cada uno en su hilo) comparten el dispositivo.
+    ComPtr<ID3D10Multithread> mt;
+    if (SUCCEEDED(d.dev.As(&mt))) mt->SetMultithreadProtected(TRUE);
     hr = MFCreateDXGIDeviceManager(&d.token, &d.mgr);
     if (FAILED(hr)) return false;
     return SUCCEEDED(d.mgr->ResetDevice(d.dev.Get(), d.token));
@@ -206,7 +211,7 @@ ComPtr<IMFDXGIDeviceManager> administradorD3d() {
     std::lock_guard<std::mutex> l(m);
     if (pozo.size() < static_cast<size_t>(kDispositivos)) {
         Dispositivo d;
-        if (crearDispositivo(d, nullptr, nullptr)) pozo.push_back(std::move(d));
+        if (crearDispositivo(d)) pozo.push_back(std::move(d));
     }
     if (pozo.empty()) return nullptr;
     return pozo[static_cast<size_t>(turno++ % static_cast<int>(pozo.size()))].mgr;
@@ -1571,9 +1576,14 @@ const Hallazgo& hallazgo() {
         Hallazgo r;
         if (!mfIniciado()) return r;
         comEnEsteHilo();
-        Dispositivo d;
+        // Con el mismo dispositivo que después decodifica (dispositivoVideo): el driver de AMD
+        // abre ~25 hilos por dispositivo y no los suelta al cerrarlo; uno de prueba aparte
+        // eran 25 hilos de más (medido en la .177).
         bool dxva = false;
-        if (crearDispositivo(d, &r.placa, &dxva)) r.decodificaHw = dxva;
+        if (const auto dv = dispositivoVideo()) {
+            describirDispositivo(dv->dev, &r.placa, &dxva);
+            r.decodificaHw = dxva;
+        }
         {
             ComPtr<IMFTransform> dec;
             r.decodificador = SUCCEEDED(
