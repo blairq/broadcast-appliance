@@ -392,6 +392,8 @@ void AlertEngine::novedades(std::int64_t now) {
         // Solo ids (el nombre lo eligió el invitado: room_status para verlo). Ver llmSafeText.
         for (const auto& part : in_.room().value("participants", json::array())) {
             if (!part.is_object()) continue;
+            // Los de la prueba de sala no son novedad: entran de a decenas (y salen de una).
+            if (part.value("prueba", false)) continue;
             const std::string id = part.value("id", "");
             if (id.empty()) continue;
             const std::string estado = part.value("state", "");
@@ -918,6 +920,7 @@ void AlertEngine::evaluate(json& rule, State& st, std::int64_t now) {
         const std::int64_t forMs = static_cast<std::int64_t>(p.value("forSec", 5.0) * 1000);
         for (const auto& pa : snap.value("participants", json::array())) {
             if (!pa.is_object()) continue;
+            if (pa.value("prueba", false)) continue; // la prueba de sala mide su red en su informe
             if (p.value("soloAlAire", true) && pa.value("slot", 0) <= 0) continue;
             const std::string id = pa.value("id", std::string());
             const json red = pa.value("red", json::object());

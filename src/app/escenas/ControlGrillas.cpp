@@ -14,6 +14,7 @@
 #include "emision/FotoMotor.hpp"
 #include "emision/VentanillaMotor.hpp"
 #include "emision/FuentesApp.hpp"
+#include "sala/PruebaSalaReglas.hpp"
 #include "emision/InputSpecs.hpp"
 #include "ui/ConferenceClient.hpp"
 
@@ -306,7 +307,8 @@ std::vector<grilla::Persona> ControlGrillas::gente(std::int64_t ahora, const std
         if (o.value("state").toString() != "admitted" || !o.value("connected").toBool()) continue;
         grilla::Persona p;
         p.clave = "sala:" + o.value("id").toString().toStdString();
-        p.nombre = o.value("name").toString().toStdString();
+        // Los de la prueba de sala llevan su rótulo: «nombre · prueba».
+        p.nombre = ::ba::app::sala::prueba::nombreConRotulo(o.value("name").toString().toStdString(), o.value("prueba").toBool());
         p.deSala = true;
         const qint64 adm = static_cast<qint64>(o.value("admittedMs").toDouble());
         p.llegadaMs = adm > 0 ? adm : static_cast<qint64>(o.value("joinedMs").toDouble());

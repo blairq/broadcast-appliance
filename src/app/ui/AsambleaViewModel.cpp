@@ -494,6 +494,7 @@ nlohmann::json AsambleaViewModel::remotosPalabra() const {
     const QJsonObject snap = p_.sala.client().snapshot();
     for (const QJsonValue& v : snap.value("participants").toArray()) {
         const QJsonObject pa = v.toObject();
+        if (pa.value("prueba").toBool()) continue; // la prueba de sala no va al acta
         const qint64 ms = static_cast<qint64>(pa.value("usedMs").toDouble());
         if (ms > 0) out.push_back({{"nombre", pa.value("name").toString().toStdString()}, {"segundos", ms / 1000}});
     }
