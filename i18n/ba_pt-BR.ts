@@ -12156,13 +12156,13 @@ Se cambia en su código (sección Plugins, o pidiéndoselo al asistente). Acá s
         <translation>Configurar pinggy…</translation>
     </message>
     <message>
-        <location line="+47"/>
-        <location line="+54"/>
+        <location line="+55"/>
+        <location line="+50"/>
         <source>Invitado %1</source>
         <translation>Convidado %1</translation>
     </message>
     <message>
-        <location line="-44"/>
+        <location line="-40"/>
         <source>Retorno apagado</source>
         <translation>Retorno desligado</translation>
     </message>
@@ -12182,7 +12182,7 @@ Se cambia en su código (sección Plugins, o pidiéndoselo al asistente). Acá s
         <translation>Qualidade, retorno, ISO e cargo</translation>
     </message>
     <message>
-        <location line="+27"/>
+        <location line="+23"/>
         <location line="+1"/>
         <source>Bajar a %1</source>
         <translation>Baixar para %1</translation>
@@ -29962,13 +29962,13 @@ Adicione uma em Cenas e fontes: posicione-a onde quer que o GC apareça, e depoi
         <translation>Mantenha pressionado para falar com ele (sua voz chega pelo retorno dele; não vai ao ar)</translation>
     </message>
     <message>
-        <location line="+57"/>
+        <location line="+65"/>
         <source>sin lugar en el programa</source>
         <translation>sem lugar no programa</translation>
     </message>
     <message>
         <location line="+45"/>
-        <location line="+95"/>
+        <location line="+92"/>
         <source>Acciones</source>
         <translation>Ações</translation>
     </message>
@@ -39547,12 +39547,7 @@ Escolha outra coisa em Saídas → Telas.</translation>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+0"/>
-        <source>Windows: el H.264 que suben los invitados se decodifica en la placa de video (DXVA). Apagado, por software (para comparar o si la placa da problemas).</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location line="+1"/>
+        <location line="+2"/>
         <source>Video de retorno: sondear la red para subir de calidad</source>
         <translation>Vídeo de retorno: sondar a rede para subir de qualidade</translation>
     </message>
@@ -39782,7 +39777,7 @@ Escolha outra coisa em Saídas → Telas.</translation>
         <translation>não é uma das opções</translation>
     </message>
     <message>
-        <location line="-218"/>
+        <location line="-219"/>
         <source>Mensajes de chat que se guardan</source>
         <translation>Mensagens de chat que são guardadas</translation>
     </message>
@@ -39912,7 +39907,32 @@ Escolha outra coisa em Saídas → Telas.</translation>
         <translation>Console do operador, painel de oradores e celulares: cada um é uma conexão.</translation>
     </message>
     <message>
-        <location line="+7"/>
+        <location line="+5"/>
+        <source>Windows: el H.264 que suben los invitados se decodifica en la placa de video. Apagado (o sin placa), los invitados suben y reciben en VP8 por software.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Video de los invitados: cómo se usa la placa para H.264</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Directo (D3D11)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Media Foundation</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Windows: directo, el gateway le pasa cada cuadro a la placa sin intermediarios (menos procesador e hilos); Media Foundation, el decodificador de Windows (para comparar o si la placa da problemas).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
         <source>Hablarle a un invitado: cuánto baja el programa</source>
         <translation>Falar com um convidado: quanto o programa abaixa</translation>
     </message>

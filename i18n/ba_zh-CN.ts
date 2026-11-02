@@ -12111,13 +12111,13 @@ Se cambia en su código (sección Plugins, o pidiéndoselo al asistente). Acá s
         <translation>设置 pinggy…</translation>
     </message>
     <message>
-        <location line="+47"/>
-        <location line="+54"/>
+        <location line="+55"/>
+        <location line="+50"/>
         <source>Invitado %1</source>
         <translation>嘉宾 %1</translation>
     </message>
     <message>
-        <location line="-44"/>
+        <location line="-40"/>
         <source>Retorno apagado</source>
         <translation>返送已关闭</translation>
     </message>
@@ -12137,7 +12137,7 @@ Se cambia en su código (sección Plugins, o pidiéndoselo al asistente). Acá s
         <translation>画质、返送、ISO 和职务</translation>
     </message>
     <message>
-        <location line="+27"/>
+        <location line="+23"/>
         <location line="+1"/>
         <source>Bajar a %1</source>
         <translation>降至 %1</translation>
@@ -29835,13 +29835,13 @@ Agregale una en Escenas y fuentes: ubicala donde querés que se vea el zócalo, 
         <translation>按住与其对讲（您的声音通过其返送传达；不会播出）</translation>
     </message>
     <message>
-        <location line="+57"/>
+        <location line="+65"/>
         <source>sin lugar en el programa</source>
         <translation>节目中没有位置</translation>
     </message>
     <message>
         <location line="+45"/>
-        <location line="+95"/>
+        <location line="+92"/>
         <source>Acciones</source>
         <translation>动作</translation>
     </message>
@@ -39391,12 +39391,7 @@ Elegí otra cosa en Salidas → Pantallas.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+0"/>
-        <source>Windows: el H.264 que suben los invitados se decodifica en la placa de video (DXVA). Apagado, por software (para comparar o si la placa da problemas).</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location line="+1"/>
+        <location line="+2"/>
         <source>Video de retorno: sondear la red para subir de calidad</source>
         <translation>回传视频：探测网络以提升画质</translation>
     </message>
@@ -39626,7 +39621,7 @@ Elegí otra cosa en Salidas → Pantallas.</source>
         <translation>不是可选项之一</translation>
     </message>
     <message>
-        <location line="-218"/>
+        <location line="-219"/>
         <source>Mensajes de chat que se guardan</source>
         <translation>保留的聊天消息数</translation>
     </message>
@@ -39756,7 +39751,32 @@ Elegí otra cosa en Salidas → Pantallas.</source>
         <translation>操作员控制台、发言人看板和手机：每个都是一个连接。</translation>
     </message>
     <message>
-        <location line="+7"/>
+        <location line="+5"/>
+        <source>Windows: el H.264 que suben los invitados se decodifica en la placa de video. Apagado (o sin placa), los invitados suben y reciben en VP8 por software.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Video de los invitados: cómo se usa la placa para H.264</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Directo (D3D11)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Media Foundation</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Windows: directo, el gateway le pasa cada cuadro a la placa sin intermediarios (menos procesador e hilos); Media Foundation, el decodificador de Windows (para comparar o si la placa da problemas).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
         <source>Hablarle a un invitado: cuánto baja el programa</source>
         <translation>与嘉宾通话：节目音量降低多少</translation>
     </message>
