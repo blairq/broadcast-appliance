@@ -94,7 +94,8 @@ if(TRUE) # el test de baanillo (como el gateway: escribe el anillo)
     add_executable(test_anillocomun tests/test_anillocomun.cpp "${CMAKE_SOURCE_DIR}/src/core/ipc/SharedAudioRing.cpp"
         "${CMAKE_SOURCE_DIR}/src/core/ipc/SharedMemoryRegion.cpp" "${CMAKE_SOURCE_DIR}/src/core/ipc/Timbre.cpp" "${BA_IPC_RITMO}")
     target_compile_definitions(test_anillocomun PRIVATE BA_RITMO_SIN_ENERGIA)
-    target_include_directories(test_anillocomun PRIVATE "${CMAKE_SOURCE_DIR}/src/core" "${CMAKE_SOURCE_DIR}/src/core/ipc")
+    target_include_directories(test_anillocomun PRIVATE "${CMAKE_SOURCE_DIR}/src/core" "${CMAKE_SOURCE_DIR}/src/core/ipc"
+        "${CMAKE_CURRENT_SOURCE_DIR}/ipc")
     target_link_libraries(test_anillocomun PRIVATE ba::gstreamer)
     if(DEFINED BA_GST_LIBDIR)
         set_target_properties(test_anillocomun PROPERTIES BUILD_RPATH "${BA_GST_LIBDIR}")

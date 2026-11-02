@@ -52,6 +52,12 @@ if(BUILD_TESTING OR TRUE)
     add_test(NAME test_motor_arranque COMMAND test_motor_arranque)
     set_tests_properties(test_motor_arranque PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 60)
 
+    # Reglas puras de una entrada (sin GStreamer): el vigía de datos y el realineo de horas.
+    add_executable(test_reglas_entrada tests/test_reglas_entrada.cpp)
+    target_include_directories(test_reglas_entrada PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    add_test(NAME test_reglas_entrada COMMAND test_reglas_entrada)
+    set_tests_properties(test_reglas_entrada PROPERTIES TIMEOUT 10)
+
     add_executable(test_latencia_estudio tests/test_latencia_estudio.cpp)
     target_link_libraries(test_latencia_estudio PRIVATE ba_motor)
     ba_gst_rpath(test_latencia_estudio "")

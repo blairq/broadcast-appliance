@@ -59,6 +59,7 @@
 #include <limits>
 
 #include "Piezas.hpp"
+#include "ReglasEntrada.hpp"
 #include "Sondas.hpp"
 
 #include <gst/gst.h>
@@ -206,7 +207,7 @@ class Entrada {
     void programarReintento();
     void procesarMensaje(GstMessage* m);
     void medirLatencia();
-    /// true: no llegan datos y se encargó rearmarla.
+    /// true: no llegan datos y se encargó rearmarla (un lugar de la conferencia no: se avisa).
     bool vigilarDatos();
     void irANs(std::int64_t ns);
     void corregirOffset();
@@ -248,6 +249,10 @@ class Entrada {
     bool anilloComunV_ = false, anilloComunA_ = false;
     mutable std::mutex canalesM_;
     std::string canalVideo_, canalAudio_; ///< bajo canalesM_
+    /// ¿Lee de un anillo del gateway (un lugar de la conferencia, el remoto, la grilla)? Su
+    /// video y su audio (cada rama por su lado) traen la hora del estudio.
+    bool videoDeAnillo() const;
+    bool audioDeAnillo() const;
     std::string controlMedioYa(const std::string& accion);
     void irAYa(std::int64_t ms);
     nlohmann::json estadoYa() const;
@@ -384,7 +389,7 @@ class Entrada {
     Realineo realineoV_, realineoA_;
     std::atomic<std::int64_t> ultimoPasoUs_{0}; ///< el último cuadro que pasó estando sin usar
     std::string origenRed_; ///< el origen de red compartido que usa («origen:<n>»; ver OrigenRed.hpp)
-    std::uint64_t vistosDatos_ = 0, datosDesdeNs_ = 0;
+    VigiaDatos vigiaDatos_; ///< con mu_ tomado (ReglasEntrada.hpp)
     std::atomic<std::int64_t> pide_{0};
     std::atomic<bool> llegaTarde_{false};
 };
