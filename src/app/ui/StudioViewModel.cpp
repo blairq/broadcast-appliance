@@ -939,6 +939,17 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, VentanillaMotor& ventanilla, QO
             }
             return menor > 0 ? menor : sinLimite ? 0 : grilla::kAltaHastaDefecto;
         },
+        [this]() {
+            // «Alta definición como mucho»: la más chica de las grillas (la que manda en CapasGrilla).
+            int menor = grilla::kAltaMaxDefecto;
+            bool hay = false;
+            for (const auto& g : grillasPersonas_->estado().value("grillas", nlohmann::json::array())) {
+                const int a = g.value("alta_max", grilla::kAltaMaxDefecto);
+                if (a > 0) menor = hay ? std::min(menor, a) : a;
+                hay = hay || a > 0;
+            }
+            return menor;
+        },
         [this]() { return pruebaSala_ && pruebaSala_->corriendo(); }});
     connect(enlace_.get(), &EnlaceViewModel::notify, this, &StudioViewModel::notify);
     connect(aire_.get(), &EstadoAireViewModel::aireChanged, enlace_.get(), &EnlaceViewModel::revisar);

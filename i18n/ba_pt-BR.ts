@@ -8060,7 +8060,7 @@ Ligue-a pelo Log.</translation>
 <context>
     <name>EnlaceViewModel</name>
     <message numerus="yes">
-        <location filename="../src/app/ui/EnlaceViewModel.cpp" line="+104"/>
+        <location filename="../src/app/ui/EnlaceViewModel.cpp" line="+105"/>
         <source>Hay %n invitados conectados: la medición carga el enlace y se les puede cortar la imagen unos segundos.</source>
         <translation>
             <numerusform>Há %n convidado conectado: a medição carrega o link e a imagem dele pode travar alguns segundos.</numerusform>
@@ -33110,7 +33110,7 @@ e ele abre de novo sozinho. Configuração, credenciais, gravações e arquivos 
         <translation>O disco dos eventos está em %1 % (restam %2 GB)</translation>
     </message>
     <message>
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="+291"/>
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="+302"/>
         <source>La interfaz estuvo trabada %1 s; el aire siguió</source>
         <translation>A interface ficou travada %1 s; o ar continuou</translation>
     </message>
@@ -43384,7 +43384,7 @@ Escolha outra coisa em Saídas → Telas.</translation>
     </message>
     <message>
         <location line="-57"/>
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="-860"/>
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="-871"/>
         <source>arranque: %1 tardó %2 ms</source>
         <translation>inicialização: %1 levou %2 ms</translation>
     </message>
@@ -50544,12 +50544,12 @@ Dados (de %2): %3</translation>
         <translation>%1 · orador</translation>
     </message>
     <message>
-        <location line="+197"/>
+        <location line="+198"/>
         <source>banca %1</source>
         <translation>cadeira %1</translation>
     </message>
     <message>
-        <location line="+85"/>
+        <location line="+87"/>
         <source>sin canal: hay más de %1 grillas</source>
         <translation>sem canal: há mais de %1 grades</translation>
     </message>
@@ -51094,6 +51094,16 @@ Dados (de %2): %3</translation>
         <translation>Com mais pessoas do que isso na grade, todas as miniaturas vão em baixa definição (menos dados pela rede e menos trabalho para a máquina), mesmo que as células sejam grandes; o orador e o próximo continuam em alta. Com isso ou menos, cada uma conforme o seu tamanho. 0 = sem limite.</translation>
     </message>
     <message>
+        <location line="+6"/>
+        <source>Alta definición como mucho (personas a la vez)</source>
+        <translation>Alta definição no máximo (pessoas ao mesmo tempo)</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Nunca más que esto en alta definición a la vez, sean 5 o 40 invitados. Si piden más, van primero el orador (o los oradores), después el presentador, después el siguiente de la fila y después los fijados; el resto, en baja. De fábrica 4: un debate entre dos, el que espera y el presentador.</source>
+        <translation>Nunca mais do que isto em alta definição ao mesmo tempo, sejam 5 ou 40 convidados. Se mais pedirem, vão primeiro o orador (ou os oradores), depois o apresentador, depois o próximo da fila e depois os fixados; o resto, em baixa. Padrão 4: um debate entre dois, quem espera e o apresentador.</translation>
+    </message>
+    <message>
         <location line="+5"/>
         <source>Borde a quien habla</source>
         <translation>Borda em quem fala</translation>
@@ -51189,7 +51199,7 @@ Dados (de %2): %3</translation>
         <translation>Ainda sem canal: há mais de 8 grades, ou a conferência não iniciou.</translation>
     </message>
     <message>
-        <location filename="../src/app/escenas/GrillaPersonas.cpp" line="+178"/>
+        <location filename="../src/app/escenas/GrillaPersonas.cpp" line="+180"/>
         <source>los ajustes van en un objeto</source>
         <translation>os ajustes vão em um objeto</translation>
     </message>
@@ -51214,7 +51224,7 @@ Dados (de %2): %3</translation>
         <translation>“%1” não é um ajuste da grade de pessoas</translation>
     </message>
     <message>
-        <location line="+18"/>
+        <location line="+19"/>
         <source>«grupo» es un texto (vacío = sola)</source>
         <translation>“grupo” é um texto (vazio = sozinha)</translation>
     </message>
@@ -54708,7 +54718,7 @@ Dados (de %2): %3</translation>
         <translation>não</translation>
     </message>
     <message>
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="+894"/>
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="+905"/>
         <source>«%1» no arrancó al abrir: %2</source>
         <translation>“%1” não iniciou ao abrir: %2</translation>
     </message>
@@ -65294,6 +65304,11 @@ Com este repertório monta-se um gráfico SEM escrever código: é o que convém
         <location line="+19"/>
         <source>alta_hasta (de fábrica 10; 0 = sin límite): con más personas que esto en la grilla, todas las miniaturas piden la cámara en baja definición, salvo el orador y el siguiente (precarga); con esto o menos, cada una según el tamaño de su celda. Vuelve a la regla por tamaño recién con una persona menos (histéresis). grilla_personas_estado dice en cada grilla alta_hasta y en_baja, y en cada persona su capa (alta|baja).</source>
         <translation>alta_hasta (padrão 10; 0 = sem limite): com mais pessoas do que isso na grade, todas as miniaturas pedem a câmera em baixa definição, exceto o orador e o próximo (pré-carga); com isso ou menos, cada uma conforme o tamanho da sua célula. Só volta à regra por tamanho com uma pessoa a menos (histerese). grilla_personas_estado informa em cada grade alta_hasta e en_baja, e em cada pessoa a sua capa (alta|baja).</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>alta_max (de fábrica 4; 1 a 64): tope duro, nunca más personas que esto en alta a la vez, sean cuantos sean los invitados. Si piden más, por prioridad: el orador (o los oradores), el presentador, el siguiente (precarga), los fijados y el resto por tamaño; el que ya estaba en alta no lo pierde por uno nuevo del mismo grupo. Con varias grillas manda el alta_max más chico. grilla_personas_estado lo dice en cada grilla.</source>
+        <translation>alta_max (padrão 4; de 1 a 64): limite rígido, nunca mais pessoas do que isto em alta ao mesmo tempo, independentemente de quantos convidados houver. Se mais pedirem, por prioridade: o orador (ou os oradores), o apresentador, o próximo (pré-carga), os fixados e o resto pelo tamanho; quem já estava em alta não a perde para um novo do mesmo grupo. Com várias grades vale o menor alta_max. grilla_personas_estado informa isso em cada grade.</translation>
     </message>
     <message>
         <location line="+7"/>
@@ -91380,7 +91395,7 @@ PROPONHA, NÃO APLIQUE: mostre à pessoa o que muda e aplique só se ela confirm
         <translation>%1: %2 Mbps medidos e são necessários %3 Mbps</translation>
     </message>
     <message>
-        <location line="+69"/>
+        <location line="+70"/>
         <source>pierde %1 % de los paquetes con carga</source>
         <translation>perde %1 % dos pacotes com carga</translation>
     </message>

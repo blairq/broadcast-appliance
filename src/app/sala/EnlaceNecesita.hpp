@@ -3,7 +3,8 @@
 //
 // El gateway del lugar le manda el retorno a CADA invitado: la subida del lugar crece
 // con N. La bajada depende de cuántos llegan en alta: con más de «alta_hasta» personas
-// en la grilla, todos en baja salvo el orador y el precargado (GrillaPersonas).
+// en la grilla, todos en baja salvo el orador y el precargado (GrillaPersonas); y nunca
+// más de «alta_max» en alta a la vez (de fábrica 4), sean cuantos sean.
 //
 // Coeficientes medidos con la prueba de sala (hinchada, el gateway real; Mbps del
 // gateway, con encabezados IP):
@@ -46,6 +47,7 @@ struct Coeficientes {
 struct Perfil {
     int invitados = 10;
     int altaHasta = 10;          ///< 0 = sin límite (todos en alta)
+    int altaMax = 4;             ///< nunca más en alta a la vez (0 = sin tope)
     double extraSubidaKbps = 0;  ///< lo que sale además (p. ej. pantallas remotas)
 };
 

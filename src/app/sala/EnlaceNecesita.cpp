@@ -89,6 +89,7 @@ Necesidad necesita(const Perfil& p, const Coeficientes& c) {
     const int inv = std::max(0, p.invitados);
     const bool todosAlta = p.altaHasta <= 0 || inv <= p.altaHasta;
     n.enAlta = todosAlta ? inv : std::min(inv, c.enAltaConMuchos);
+    if (p.altaMax > 0) n.enAlta = std::min(n.enAlta, p.altaMax);
     n.subidaKbps = inv * c.salidaPorInvitadoKbps + std::max(0.0, p.extraSubidaKbps);
     n.bajadaKbps = n.enAlta * c.entradaAltaKbps + (inv - n.enAlta) * c.entradaBajaKbps;
     n.subidaEnlaceKbps = n.subidaKbps * c.wireguard;
@@ -163,6 +164,7 @@ Juicio juzgar(const Perfil& p, const Medicion& m, const Coeficientes& c) {
 json aJson(const Perfil& p, const Necesidad& n, const Juicio& j) {
     return {{"invitados", p.invitados},
             {"altaHasta", p.altaHasta},
+            {"altaMax", p.altaMax},
             {"necesita",
              {{"subidaKbps", std::lround(n.subidaKbps)},
               {"bajadaKbps", std::lround(n.bajadaKbps)},

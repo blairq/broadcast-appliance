@@ -299,7 +299,7 @@
 <context>
     <name>EnlaceViewModel</name>
     <message numerus="yes">
-        <location filename="../src/app/ui/EnlaceViewModel.cpp" line="+104"/>
+        <location filename="../src/app/ui/EnlaceViewModel.cpp" line="+105"/>
         <source>Hay %n invitados conectados: la medición carga el enlace y se les puede cortar la imagen unos segundos.</source>
         <translation>
             <numerusform>Hay %n invitado conectado: la medición carga el enlace y se le puede cortar la imagen unos segundos.</numerusform>

@@ -91,7 +91,16 @@
 // de fábrica 10; 0 = sin límite): si la grilla muestra más de N, TODAS sus miniaturas en
 // baja (salvo el orador y el precargado), sea cual sea el tamaño; vuelve a la regla por
 // tamaño recién con N - kMargenAltaHasta o menos (que no salte con uno que entra y sale
-// justo en el borde; todasEnBaja). LA CAPA DE CADA PERSONA LA DECIDE SOLO ESTO (para la
+// justo en el borde; todasEnBaja). TOPE DURO («alta_max», de fábrica 4: un debate entre
+// dos, el que queda en espera y el presentador): nunca más de N personas en alta a la vez,
+// sean 5 o 40 invitados. Si hay más candidatos, CapasGrilla elige por prioridad: el orador
+// (o los oradores) primero, después el presentador, después el precargado (el siguiente de
+// la fila), después los fijados a mano que piden la alta por su lugar y al final el resto
+// por tamaño; dentro de cada grupo, el que ya estaba en alta antes que el que llega (que
+// nadie parpadee en el borde), y después el más grande. «alta_hasta» queda como estaba: dice
+// CUÁNDO las miniaturas pueden pedir la alta por su tamaño; «alta_max» dice CUÁNTOS como
+// mucho, por la razón que sea. Con varias grillas manda el «alta_max» más chico (la capa es
+// de la persona, no de la celda). LA CAPA DE CADA PERSONA LA DECIDE SOLO ESTO (para la
 // grilla): el gateway toma lo que dice cada celda y no vuelve a decidir por tamaño; lo
 // único que suma es lo que se ve de esa persona fuera de la grilla (su lugar del programa
 // en la escena al aire o armada, sala/CapasRemotos) y las vistas web que la miran.
@@ -144,6 +153,8 @@ constexpr int kBajarAlta = 180;
 constexpr int kAltaHastaDefecto = 10;
 /// Con todas en baja, se vuelve a la regla por tamaño recién con N - esto o menos (histéresis).
 constexpr int kMargenAltaHasta = 1;
+/// «alta_max» de fábrica: nunca más de esta cantidad de personas en alta a la vez.
+constexpr int kAltaMaxDefecto = 4;
 /// Una celda de la franja (destacar) o de la grilla con hueco no baja de esto de alto: si
 /// no entran todos así, el resto va al «+N».
 constexpr int kMinCelda = 40;
@@ -169,6 +180,7 @@ struct Persona {
     bool palabra = false;   ///< tiene la palabra (asamblea)
     bool orador = false;    ///< es el orador al aire (conferencia, modo oradores)
     bool siguiente = false; ///< es el siguiente de la fila (asamblea o conferencia): se precarga
+    bool presentador = false; ///< el presentador de la conferencia: alta (después del orador)
 };
 
 struct Config {
@@ -205,6 +217,8 @@ struct Config {
     /// Más personas que esto en la grilla: todas las miniaturas en baja (salvo el orador y el
     /// precargado). 0 = sin límite (solo la regla por tamaño).
     int altaHasta = kAltaHastaDefecto;
+    /// Tope duro: nunca más que esto en alta a la vez, por la razón que sea (1..kMaxCeldas).
+    int altaMax = kAltaMaxDefecto;
     Agrandar agrandar = Agrandar::No; ///< resaltar y escena: agrandar al orador en su celda
     PasarEscena pasarEscena = PasarEscena::AMano; ///< escena: cómo se pasa a la escena del orador
     std::string salidaOrador; ///< escena: en qué salida se la pone al aire ("" = la principal)
@@ -333,12 +347,16 @@ class CapasGrilla {
         int alto = 0;          ///< el lugar más grande donde se lo ve (0 = solo en miniaturas en baja)
         bool orador = false;   ///< es el orador de alguna grilla: alta ya
         bool precarga = false; ///< lo precarga alguna grilla (el siguiente): alta ya
+        bool presentador = false; ///< el presentador (en una celda): alta ya
+        bool fijo = false;     ///< fijado a mano en alguna grilla: solo prioridad para el tope
     };
-    /// clave → true si va en alta. `maxSubidas`: cuántas miniaturas pueden subir en esta vuelta.
-    std::map<std::string, bool> decidir(const std::map<std::string, Pedido>& pedidos, int maxSubidas = 1);
+    /// clave → true si va en alta. `maxSubidas`: cuántas miniaturas pueden subir en esta vuelta;
+    /// `altaMax`: cuántos en alta como mucho (0 = sin tope), elegidos por prioridad (ver arriba).
+    std::map<std::string, bool> decidir(const std::map<std::string, Pedido>& pedidos, int maxSubidas = 1,
+                                        int altaMax = 0);
 
    private:
-    enum class Por { Tamano, Orador }; ///< por qué está en alta
+    enum class Por { Tamano, Orador }; ///< por qué está en alta (Orador: orador, presentador o precargado)
     std::map<std::string, Por> alta_;  ///< los que están en alta
 };
 

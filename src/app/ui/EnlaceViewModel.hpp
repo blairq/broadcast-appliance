@@ -60,6 +60,7 @@ class EnlaceViewModel : public QObject {
         EventoViewModel& evento;
         std::function<bool()> alAire;           ///< sale algo (transmisión, grabación…)
         std::function<int()> altaHasta;         ///< «alta_hasta» de la grilla (0 = sin límite)
+        std::function<int()> altaMax;           ///< «alta_max» de la grilla (el más chico)
         std::function<bool()> pruebaCorriendo;  ///< la prueba de sala está corriendo
     };
     /// Con invitados o al aire: la rampa llega solo hasta acá (y el escalón dura menos).
