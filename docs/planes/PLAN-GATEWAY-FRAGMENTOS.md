@@ -227,6 +227,43 @@ Hecho (2026-11-02, adelantado por pedido del usuario: «en Windows quiero H.264 
 - Falta: el pozo de decodificación de D hilos (punto 1, segunda mitad) y achicar en el
   mismo hilo (punto 2).
 
+Hecho (2026-11-02, tarde): decodificar directo con la API de video de D3D11, sin el MFT.
+
+- Qué eran los hilos (hilos del gateway por módulo donde arrancan, .177, 10 invitados 720p
+  con el MFT): **msmpeg2vdec.dll 40 hilos, 87 % de un núcleo** (dos por decodificador, aun
+  con `CODECAPI_AVDecNumWorkerThreads`=1; con 40 invitados, 94 hilos) y **amdxx64.dll 121
+  hilos** (el driver de AMD: ~25 por dispositivo D3D11, y el MFT abría 4 más el suyo). Los
+  decodificadores H.264 que libwebrtc arma de antemano gastaban ~100 % aunque el invitado
+  mandara VP8.
+- `CodecsWin.cpp` `DecodificadorD3d11` + `H264Sintaxis.{hpp,cpp}`: el gateway lee SPS/PPS
+  y la cabecera del slice, lleva POC y referencias (ventana deslizante y MMCO), y le pasa a
+  la placa los parámetros DXVA en formato «corto» (ID3D11VideoDecoder) en el mismo hilo
+  que decodifica; copia a una textura de paso propia y espera con una cerca (ID3D11Fence)
+  en vez de Lock2D; un solo dispositivo para todos (`gateway.dispositivosPlaca`). Caída al
+  MFT con DXVA si la placa no tiene formato corto, el flujo es entrelazado/FMO o falla 5
+  veces; `gateway.decodificadorPlaca` = "mft" para comparar. Probado: test_webrtc_codecs
+  (PSNR del peor cuadro 34,0 dB, igual que el MFT) y test_h264_sintaxis (x264 con B, MMCO,
+  pesos, listas de escalado).
+- Sin la placa no se recibe H.264: el MFT por software de Windows no entregaba ningún
+  cuadro (ProcessOutput E_FAIL; 0 cps en la grilla) y abría ~24 hilos por flujo. Ahora el
+  H.264 no se ofrece para subir y todo va en VP8 (`decodificaConPlaca()`).
+- Medido en la .177 (`medir-sala.py --camino directo`, grabado, 2 min; gateway p50 e hilos
+  al final, en /Users/usuario/Proyectos/mediciones-carga/2026-11-02-d3d11):
+
+  | | 10 invitados (720p30) | 40 invitados (capa baja) |
+  |---|---|---|
+  | H.264 por el MFT (antes) | 260 %, 296 hilos | 211 %, 591 hilos |
+  | VP8 por software | 337 %, 247 hilos | 198 %, 393 hilos |
+  | H.264 por D3D11 (ahora) | **117 %, 181 hilos** | **151 %, 421 hilos** |
+
+  Con 40, los hilos que quedan son de libwebrtc (2 por flujo de video, 1 por audio, 1
+  rtc_event_log por sesión) y 49 del driver de AMD (25 de nuestro dispositivo, 24 del
+  codificador del retorno). Darle al codificador el mismo dispositivo (MFT_MESSAGE_SET_D3D_MANAGER)
+  ahorra 24 hilos pero sube la CPU con 10 de 117 % a 165 %: se descartó.
+- El banco del test (BA_BANCO_DECODIFICADORES=40): la placa entrega ~16 cps por flujo con
+  40 a la vez en 720p tanto con D3D11 como con el MFT: es el tope del motor de video de la
+  RX 5700 XT (~650 cuadros 720p por segundo), no del gateway.
+
 Linux con VA-API (sin hacer: no hay placa para probar). Sería igual que Windows con
 otras piezas: un `CodecsLinux.cpp` con decodificador y codificador H.264 sobre libva
 (`vaCreateConfig` con `VAProfileH264ConstrainedBaseline`/`VAEntrypointVLD` para
