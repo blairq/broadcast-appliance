@@ -48,6 +48,29 @@ carga por la red (la red entre las dos es parte de la prueba). Lo que cambia:
   - La guardia mira además la memoria disponible de la máquina remota.
   - Todos los invitados salen de UNA dirección IP: con más de 32 (room.maxConexionesPorIp, de
     fábrica 32) el gateway rechaza el resto; subirlo en el evento de prueba (settings_set).
+CAMINO (--camino): por dónde entran los invitados de hinchada.
+  directo         WebRTC directo por UDP (lo de siempre)
+  turn-udp        por el TURN de la caja con política relay (GET /api/ice, como un invitado que viene
+  turn-tcp        por pinggy): por UDP, por TCP o PCT % por TCP y el resto por UDP. El TURN tiene que
+  turn-mezcla:PCT estar prendido (pinggy + «TURN por el túnel»; para UDP, «turnUdp»).
+  pinggy[:udp|tcp|mezcla:PCT]  por los extremos PÚBLICOS de pinggy: la señalización por la URL pública
+                  y el medio por su TURN público (tcp de fábrica). La credencial de pinggy la tiene el
+                  gateway (nunca va en la línea de comandos ni en archivos): acá solo se lee la URL.
+OTRAS MEDICIONES
+  --duracion 30m        régimen largo (resistencia): el resumen trae la tendencia por minuto (memoria,
+                        hilos, edad del audio, faltantes del retorno)
+  --rafaga              los N entran a la vez: tiempo hasta medios y hasta el primer cuadro del retorno
+                        por invitado, y los picos de CPU e hilos mientras entran
+  --palabra K           K veces en el régimen se destaca a un invitado (grilla_personas_destacar) y se
+                        mide cuánto tarda la HD («capas: llegó la HD … ms desde el pedido» del gateway)
+  --grabar-transmitir   graba el programa (record_start) y transmite a un destino SRT LOCAL de prueba
+                        (127.0.0.1, modo listener: nada sale de la máquina) durante la prueba
+  --xctrace S           (Mac) S s de xctrace en régimen al gateway y a la app: los hilos por nombre (CPU,
+                        cambios de contexto, núcleos P/E). --contadores suma la plantilla CPU Counters
+  --etw S               (Windows, --remoto) S s de WPR en régimen: núcleo lógico → hilos, DPC e ISR
+                        (tools/carga/etw-win.ps1; consola de administrador)
+  Más de 32 invitados: con --cupo también sube room.maxConexionesPorIp (todos salen de una IP) y lo
+  vuelve a su valor al final (los dos cambios reinician la sala: se avisa).
 Ejemplo (desde la Mac, con la app abierta en la PC y sin la app abierta acá):
   BA_MCP_URL=http://127.0.0.1:18790/mcp BA_MCP_TOKEN=… tools/carga/medir-sala.py \\
       --ba-mcp dist/BroadcastAppliance.app/Contents/Resources/bin/64bit/ba-mcp --remoto windows \\
@@ -288,6 +311,7 @@ class Remoto(threading.Thread):
         self.p = subprocess.Popen(["ssh", host, "powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", script,
                                    "-Segundos", str(int(segundos))], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True)
         self.ultimo = {}
+        self.placa = None
         self.mu = threading.Lock()
 
     def run(self):
@@ -295,6 +319,9 @@ class Remoto(threading.Thread):
             try:
                 o = json.loads(l)
             except Exception:
+                continue
+            if "rss" in o or "adaptadores" in o:  # la primera línea: la placa de red
+                self.placa = o
                 continue
             with self.mu:
                 self.ultimo = o
@@ -358,6 +385,65 @@ def resumen_serie(xs, pico=None):
     return r
 
 
+def segs_texto(t):
+    """«30m», «1h», «90s», «90» → segundos."""
+    m = re.fullmatch(r"\s*([\d.]+)\s*(ms|s|m|h)?\s*", str(t))
+    if not m:
+        sys.exit(f"--duracion: no entiendo «{t}» (30m, 1h, 90s)")
+    return float(m.group(1)) * {"ms": 0.001, "s": 1, "m": 60, "h": 3600, None: 1}[m.group(2)]
+
+
+def camino_a_turn(c):
+    """(--turn de hinchada o None, ¿por los extremos públicos de pinggy?)."""
+    if c == "directo":
+        return None, False
+    if c in ("turn-udp", "turn-tcp"):
+        return c[5:], False
+    if c.startswith("turn-mezcla:"):
+        return "mezcla:" + c.split(":", 1)[1], False
+    if c == "pinggy" or c.startswith("pinggy:"):
+        t = c.split(":", 1)[1] if ":" in c else "tcp"
+        return t, True
+    sys.exit(f"--camino: directo, turn-udp, turn-tcp, turn-mezcla:PCT o pinggy[:udp|tcp|mezcla:PCT] (no «{c}»)")
+
+
+# Los núcleos de la Mac (host_processor_info: ticks de user/system/idle/nice por núcleo; sin sudo).
+# Las interrupciones por núcleo no se ven sin sudo (powermetrics): se anota.
+def _nucleos_mac_ticks():
+    import ctypes
+    try:
+        libc = ctypes.CDLL("/usr/lib/libSystem.B.dylib")
+        host = libc.mach_host_self()
+        n = ctypes.c_uint(0)
+        info = ctypes.POINTER(ctypes.c_int)()
+        cnt = ctypes.c_uint(0)
+        if libc.host_processor_info(host, 2, ctypes.byref(n), ctypes.byref(info), ctypes.byref(cnt)) != 0:  # PROCESSOR_CPU_LOAD_INFO
+            return None
+        t = [[info[i * 4 + k] for k in range(4)] for i in range(n.value)]  # user, system, idle, nice
+        yo = ctypes.c_uint.in_dll(libc, "mach_task_self_").value
+        libc.vm_deallocate(yo, ctypes.cast(info, ctypes.c_void_p), ctypes.c_size_t(cnt.value * 4))
+        return t
+    except Exception:
+        return None
+
+
+class NucleosMac:
+    def __init__(self):
+        self.prev = _nucleos_mac_ticks()
+
+    def leer(self):
+        act = _nucleos_mac_ticks()
+        out = None
+        if act and self.prev and len(act) == len(self.prev):
+            out = []
+            for a, p in zip(act, self.prev):
+                d = [x - y for x, y in zip(a, p)]
+                tot = sum(d) or 1
+                out.append([round(100 * (d[0] + d[1] + d[3]) / tot, 1), round(100 * d[1] / tot, 1)])  # ocupado, sistema
+        self.prev = act
+        return out
+
+
 # --------------------------------------------------------------------------- la prueba
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -381,8 +467,19 @@ def main():
     ap.add_argument("--remoto", default=None, help="la app corre en este host (alias de ssh, Windows): ver MODO REMOTO")
     ap.add_argument("--remoto-dir", default="C:\\ba-pruebas", help="carpeta de trabajo en el host remoto (ahí va muestrear-win.ps1)")
     ap.add_argument("--remoto-logs", default="C:\\ba-pruebas\\BroadcastAppliance\\Logs", help="la carpeta Logs de la app remota")
+    ap.add_argument("--camino", default="directo", help="directo | turn-udp | turn-tcp | turn-mezcla:PCT | pinggy[:udp|tcp|mezcla:PCT]")
+    ap.add_argument("--duracion", default=None, help="régimen largo (30m, 1h): resistencia, con tendencia por minuto")
+    ap.add_argument("--rafaga", action="store_true", help="todos entran a la vez")
+    ap.add_argument("--palabra", type=int, default=0, help="veces que se destaca a un invitado y se mide la HD")
+    ap.add_argument("--grabar-transmitir", action="store_true", help="grabar y transmitir a un SRT local mientras se mide")
+    ap.add_argument("--xctrace", type=int, default=0, help="(Mac) segundos de xctrace en régimen (gateway y app)")
+    ap.add_argument("--contadores", action="store_true", help="(Mac) con --xctrace, también CPU Counters")
+    ap.add_argument("--etw", type=int, default=0, help="(Windows remoto) segundos de WPR en régimen")
     ap.add_argument("hinchada_extra", nargs="*", help="opciones para hinchada (después de --)")
     a = ap.parse_args()
+    if a.duracion:
+        a.regimen = segs_texto(a.duracion)
+    turn_hinchada, por_pinggy = camino_a_turn(a.camino)
     if a.remoto and not (os.environ.get("BA_MCP_URL") and os.environ.get("BA_MCP_TOKEN")):
         sys.exit("--remoto: faltan BA_MCP_URL y BA_MCP_TOKEN (ba-mcp habla con la app remota por HTTP)")
     sal = Path(a.salida).expanduser()
@@ -405,7 +502,41 @@ def main():
         mcp.llamar("settings_set", {"values": {"guests.count": a.participantes}})
         mcp.llamar("room_set", {"lobby": False})
         time.sleep(3)
+    # Más de 32: todos salen de UNA dirección (room.maxConexionesPorIp). Se sube y se vuelve al final.
+    por_ip0 = None
+    if a.cupo and a.participantes + 4 > 32:
+        try:
+            for s in (mcp.datos("settings_list", {"section": "Red de la conferencia"}).get("settings") or []):
+                if s.get("key") == "room.maxConexionesPorIp":
+                    por_ip0 = s.get("value")
+        except Exception:
+            pass
+        por_ip0 = por_ip0 if isinstance(por_ip0, int) else 32
+        if por_ip0 < a.participantes + 4:
+            print(f"aviso: room.maxConexionesPorIp {por_ip0} → {a.participantes + 8} (reinicia la sala; vuelve al final)", file=sys.stderr)
+            mcp.llamar("settings_set", {"values": {"room.maxConexionesPorIp": a.participantes + 8}})
+            time.sleep(12)
+        else:
+            por_ip0 = None
     pin = mcp.datos("room_status").get("pin", "")
+    url = a.url
+    if por_pinggy:
+        # La URL pública de pinggy (la credencial la tiene el gateway; acá no se ve ni se guarda).
+        rem = mcp.datos("acceso_remoto_estado")
+        url = ((rem.get("pinggy") or {}).get("urlPublica") or "").rstrip("/")
+        if not url:
+            sys.exit("--camino pinggy: pinggy no tiene dirección pública ahora (acceso_remoto_estado)")
+    # Grabar y transmitir mientras se mide: el destino es SRT LOCAL en modo listener (nada sale de acá).
+    destino_prueba = None
+    if a.grabar_transmitir:
+        try:
+            mcp.llamar("record_start")
+            r = mcp.datos("stream_destino_agregar", {"nombre": "medir-sala (local)", "url": "srt://127.0.0.1:18990",
+                                                     "modo": "listener", "latencia_ms": 120})
+            destino_prueba = r.get("id") or (r.get("destino") or {}).get("id")
+            mcp.llamar("stream_start", {"destino": destino_prueba} if destino_prueba else {})
+        except Exception as ex:
+            print("--grabar-transmitir:", ex, file=sys.stderr)
 
     # Lo que ya está en los registros: se lee lo nuevo.
     marcas = {}
@@ -431,6 +562,10 @@ def main():
     if a.remoto:
         script = a.remoto_dir.rstrip("\\") + "\\muestrear-win.ps1"
         subprocess.run(["scp", "-q", str(Path(__file__).with_name("muestrear-win.ps1")), f"{a.remoto}:{script.replace(chr(92), '/')}"], check=True)
+        if a.etw:
+            for n in ("etw-win.ps1", "ba-nucleos.wprp"):
+                subprocess.run(["scp", "-q", str(Path(__file__).with_name(n)), f"{a.remoto}:{(a.remoto_dir.rstrip(chr(92)) + chr(92) + n).replace(chr(92), '/')}"],
+                               check=True)
         remoto = Remoto(a.remoto, script, durante + 120)
         remoto.start()
         # La primera muestra antes de lanzar hinchada: los hilos y la memoria «de inicio» son de la sala vacía.
@@ -439,8 +574,13 @@ def main():
             time.sleep(0.5)
     # --vigilar mira procesos de esta máquina: en remoto lo hace muestrear-win.ps1.
     vigilar = [] if a.remoto else ["--vigilar", "ba-gateway,ba-app,ba-web"]
-    cmd = [a.hinchada, "--servidor", "gateway", "--url", a.url, "--participantes", str(a.participantes),
-           "--durante", f"{int(durante)}s"] + vigilar + ["--salida", str(hdir), "--detalle"] + a.hinchada_extra
+    extra = []
+    if turn_hinchada:
+        extra += ["--turn", turn_hinchada]
+    if a.rafaga:
+        extra += ["--entrada-cada", "0ms"]
+    cmd = [a.hinchada, "--servidor", "gateway", "--url", url, "--participantes", str(a.participantes),
+           "--durante", f"{int(durante)}s"] + vigilar + ["--salida", str(hdir), "--detalle"] + extra + a.hinchada_extra
     t0 = time.time()
     hin = subprocess.Popen(cmd, stdout=open(hdir / "consola.txt", "w"), stderr=subprocess.STDOUT, env=env)
 
@@ -461,6 +601,85 @@ def main():
             if m2:
                 m2.cerrar()
 
+    # Lo que se mide en régimen, en hilos aparte (cada uno con su ba-mcp si lo necesita).
+    extras = {}
+    hilos_extra = []
+
+    def en_regimen():
+        def xctrace():
+            from importlib import util as iu
+            spec = iu.spec_from_file_location("xctrace_ba", str(Path(__file__).with_name("xctrace.py")))
+            xt = iu.module_from_spec(spec)
+            spec.loader.exec_module(xt)
+            out = {}
+            ps = pids()
+            # Los dos a la vez (lo mismo del régimen); los contadores después.
+            trazas = {}
+
+            def uno(nombre, pid, contadores):
+                trazas[(nombre, contadores)] = xt.grabar(pid, a.xctrace, str(sal / "xctrace"), nombre, contadores)
+
+            for contadores in ([False, True] if a.contadores else [False]):
+                hs = [threading.Thread(target=uno, args=(n, ps[n][0]["pid"], contadores)) for n in ("ba-gateway", "ba-app") if ps.get(n)]
+                for h in hs:
+                    h.start()
+                for h in hs:
+                    h.join()
+            for (nombre, contadores), t in trazas.items():
+                try:
+                    pid = ps[nombre][0]["pid"]
+                    r = xt.resumir_contadores(t, pid) if contadores else xt.resumir(t, pid)
+                    out[nombre + (":contadores" if contadores else "")] = r
+                except Exception as ex:
+                    out[nombre] = {"error": str(ex)}
+            extras["xctrace"] = out
+            (sal / "xctrace.json").write_text(json.dumps(out, ensure_ascii=False, indent=1))
+
+        def etw():
+            script = a.remoto_dir.rstrip("\\") + "\\etw-win.ps1"
+            try:
+                r = subprocess.run(["ssh", a.remoto, "powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", script,
+                                    "-Segundos", str(a.etw)], capture_output=True, text=True, timeout=a.etw + 900)
+                l = [x for x in r.stdout.splitlines() if x.startswith("{")]
+                extras["etw"] = json.loads(l[-1]) if l else {"error": (r.stdout + r.stderr)[-500:]}
+            except Exception as ex:
+                extras["etw"] = {"error": str(ex)}
+            (sal / "etw.json").write_text(json.dumps(extras["etw"], ensure_ascii=False, indent=1))
+
+        def palabra():
+            # Destaca a invitados distintos de a uno, cada 8 s; la medida la da el gateway en su registro.
+            m3 = None
+            hechos = []
+            try:
+                m3 = Mcp(a.ba_mcp)
+                g = m3.datos("grilla_personas_estado")
+                fuentes = [x.get("fuente") for x in (g.get("grillas") or []) if x.get("fuente")]
+                gente = [x for x in (g.get("gente") or []) if x.get("con_camara")]
+                if not fuentes or not gente:
+                    extras["palabra"] = {"error": "no hay grilla de personas o nadie con cámara"}
+                    return
+                for k in range(a.palabra):
+                    p = gente[(k * 7 + 3) % len(gente)]
+                    clave = p.get("clave") or p.get("persona") or p.get("id")
+                    m3.llamar("grilla_personas_destacar", {"fuente": fuentes[0], "clave": clave})
+                    hechos.append({"t": time.time(), "clave": clave})
+                    time.sleep(8)
+                m3.llamar("grilla_personas_destacar", {"fuente": fuentes[0], "clave": ""})
+            except Exception as ex:
+                extras["palabra_error"] = str(ex)
+            finally:
+                extras["palabra_pedidos"] = hechos
+                if m3:
+                    m3.cerrar()
+
+        for activo, fn in ((a.xctrace and not a.remoto, xctrace), (a.etw and a.remoto, etw), (a.palabra, palabra)):
+            if activo:
+                h = threading.Thread(target=fn, daemon=True)
+                h.start()
+                hilos_extra.append(h)
+
+    nmac = None if a.remoto else NucleosMac()
+    ultimo_gw = 0
     corte = None
     anterior = {}
     ultimo_mcp = ultimo_app = ultimo_fp = 0
@@ -506,6 +725,19 @@ def main():
                 m["memoria_remota"] = rm.get("memoria")
                 m["red_remota"] = rm.get("red")
                 m["remoto_t"] = rm.get("t")
+                m["hilos_nombre"] = rm.get("hilos")  # cada hilo por su nombre (GetThreadDescription)
+                m["nucleos"] = rm.get("nucleos")     # [ocupado, dpc, irq, interrupciones/s, dpc/s, MHz]
+            else:
+                m["nucleos"] = nmac.leer()           # [ocupado, sistema] (sin sudo no hay interrupciones)
+            if t - ultimo_gw >= 2:
+                ultimo_gw = t
+                try:
+                    ge = mcp.datos("gateway_estado")
+                    m["gateway"] = {"fronteras": (ge.get("fronteras") or {}).get("fronteras"), "turn": ge.get("turn"),
+                                    # Los códecs y si van por la placa (lo agrega el agente de códecs, si está).
+                                    "codecs": ge.get("codecs") or (ge.get("uso") or {}).get("codecs")}
+                except Exception as ex:
+                    m["gateway"] = {"error": str(ex)}
             if t - ultimo_fp >= 10 and not remoto:
                 ultimo_fp = t
                 m["footprint_mb"] = {k: footprint(e["pid"]) for k, e in m["procesos"].items() if k.startswith(("ba-app:", "ba-gateway:"))}
@@ -559,18 +791,24 @@ def main():
                     med = statistics.mean(cpus)
                     if all(abs(c - med) <= max(10.0, 0.1 * med) for c in cpus):
                         estable_t = m["s"] - 5
-                        fin_t = m["s"] + max(a.regimen, a.medir_grilla_s + 5)
+                        # Lo que se mide en régimen tiene que entrar en el régimen.
+                        fin_t = m["s"] + max(a.regimen, a.medir_grilla_s + 5, a.xctrace * (2 if a.contadores else 1) + 10,
+                                             a.etw + 10, a.palabra * 8 + 10)
                         if a.medir_grilla_s > 0:
                             hilo_fps = threading.Thread(target=medir_grilla, daemon=True)
                             hilo_fps.start()
+                        en_regimen()
             if fin_t is not None and m["s"] >= fin_t:
                 break
             if estable_t is None and m["s"] > a.estabilizar_max + 30:
                 fin_t = m["s"] + a.regimen  # no se estabilizó: se mide igual (y se dice)
                 estable_t = -1
+                en_regimen()
             time.sleep(max(0.0, 0.5 - (time.time() - t)))
         if hilo_fps is not None:
             hilo_fps.join(a.medir_grilla_s + 30)
+        for h in hilos_extra:  # xctrace, etw, la palabra (el análisis puede tardar)
+            h.join(900)
         if fps_grilla:
             (sal / "grilla-fps.json").write_text(json.dumps(sin_pin(fps_grilla), ensure_ascii=False, indent=1))
         # La grilla al final, con la sala llena: el programa (la fuente «Grilla de personas» al
@@ -606,6 +844,25 @@ def main():
             remoto.parar()
         f.close()
         fa.close()
+        if a.grabar_transmitir:
+            try:
+                (sal / "transmision.json").write_text(json.dumps(mcp.datos("stream_salud", {"minutos": 1}), ensure_ascii=False, indent=1))
+            except Exception:
+                pass
+            for herr, args in (("stream_stop", {"destino": destino_prueba} if destino_prueba else {}), ("record_stop", {}),
+                               ("stream_destino_borrar", {"id": destino_prueba} if destino_prueba else None)):
+                if args is None:
+                    continue
+                try:
+                    mcp.llamar(herr, args)
+                except Exception as ex:
+                    print(f"{herr}:", ex, file=sys.stderr)
+        if por_ip0 is not None:
+            try:
+                mcp.llamar("settings_set", {"values": {"room.maxConexionesPorIp": por_ip0}})
+                print(f"room.maxConexionesPorIp vuelve a {por_ip0} (reinicia la sala)", file=sys.stderr)
+            except Exception as ex:
+                print("no pude volver room.maxConexionesPorIp:", ex, file=sys.stderr)
         if a.cupo:
             try:
                 time.sleep(5)  # que se vayan
@@ -647,6 +904,7 @@ def main():
             except OSError:
                 pass
     resumen["grilla_fps"] = resumir_fps(fps_grilla)
+    resumir_f0(resumen, a, muestras, lineas, extras, hdir, remoto, estable_t, app_info)
     (sal / "resumen.json").write_text(json.dumps(resumen, ensure_ascii=False, indent=1))
     (sal / "resumen.md").write_text(en_texto(resumen))
     print(en_texto(resumen))
@@ -883,6 +1141,259 @@ def en_texto(r):
     l.append(f"- audio de los invitados (edad al llegar a la mezcla, entre invitados): {r.get('audio_invitados')}")
     l.append(f"- registro de la app: {r.get('registro_app')}")
     l.append(f"- conectar: {r.get('conectar')}; hinchada (unirse, ms): {r.get('hinchada_union_ms')}")
+    return "\n".join(l) + "\n" + en_texto_f0(r)
+
+
+# --------------------------------------------------------------------------- F0 (PLAN-GATEWAY-FRAGMENTOS)
+def _prom(xs):
+    xs = [x for x in xs if isinstance(x, (int, float))]
+    return round(sum(xs) / len(xs), 2) if xs else None
+
+
+def resumir_f0(r, a, muestras, lineas, extras, hdir, remoto, estable_t, app_info=()):
+    """Lo que agrega el F0: fronteras, hilos por nombre, núcleos, el lado del invitado, la ráfaga,
+    la palabra, la tendencia (resistencia) y lo de grabar y transmitir."""
+    reg = [m for m in muestras if estable_t not in (None, -1) and m["s"] >= estable_t] or muestras[len(muestras) // 2:]
+    r["camino"] = a.camino
+    # Las fronteras entre hilos del gateway (gateway_estado cada 2 s): p50 en el régimen.
+    porf = {}
+    for m in reg:
+        for f in ((m.get("gateway") or {}).get("fronteras") or []):
+            porf.setdefault(f["id"], []).append(f)
+    fr = []
+    for fid, xs in porf.items():
+        e = {"id": fid, "numero": xs[-1].get("numero"), "descripcion": xs[-1].get("descripcion")}
+        for k in ("pases_s", "despertadas_s", "pases_por_despertada", "kbytes_s", "trabajo_us_pase", "trabajo_pct_nucleo", "espera_us"):
+            e[k] = pct([x.get(k) for x in xs], 50)
+        for k in ("trabajo_max_us", "espera_max_us"):
+            vs = [x.get(k) for x in xs if isinstance(x.get(k), (int, float))]
+            e[k] = max(vs) if vs else None
+        fr.append(e)
+    r["fronteras"] = sorted(fr, key=lambda e: (e["numero"] or 1000, e["id"]))
+    cod = [((m.get("gateway") or {}).get("codecs")) for m in reg if (m.get("gateway") or {}).get("codecs")]
+    if cod:
+        r["codecs_gateway"] = cod[-1]
+    # Los hilos por nombre: en Windows de muestrear-win.ps1 (cada muestra); en la Mac de xctrace.
+    hil = {}
+    if a.remoto:
+        acc = {}
+        for m in reg:
+            for proc, d in (m.get("hilos_nombre") or {}).items():
+                base = proc.split(":")[0]
+                for nombre, v in d.items():
+                    x = acc.setdefault(base, {}).setdefault(nombre, {"cpu": [], "csw": [], "n": 0})
+                    x["cpu"].append(v[0])
+                    x["csw"].append(v[1])
+                    x["n"] = max(x["n"], v[2])
+        for base, d in acc.items():
+            filas = [{"nombre": k, "n": v["n"], "cpu_pct": _prom(v["cpu"]), "cambios_s": _prom(v["csw"])} for k, v in d.items()]
+            hil[base] = {"mas_cpu": sorted(filas, key=lambda x: -(x["cpu_pct"] or 0))[:10],
+                         "mas_cambios": sorted(filas, key=lambda x: -(x["cambios_s"] or 0))[:10]}
+    for proc, x in (extras.get("xctrace") or {}).items():
+        if ":" in proc or "hilos" not in x:
+            continue
+        hil[proc] = {"mas_cpu": x["hilos"][:10], "mas_cambios": sorted(x["hilos"], key=lambda h: -h["cambios_s"])[:10],
+                     "nucleos": x.get("nucleos"), "funciones": (x.get("funciones") or [])[:10]}
+    if hil:
+        r["hilos_por_nombre"] = hil
+    elif not a.remoto:
+        r["hilos_por_nombre"] = "en la Mac los hilos por nombre salen con --xctrace S"
+    if any(":contadores" in k for k in (extras.get("xctrace") or {})):
+        r["contadores_cpu"] = {k: v for k, v in extras["xctrace"].items() if ":contadores" in k}
+    # La carga de cada núcleo lógico (promedio del régimen).
+    nuc = [m.get("nucleos") for m in reg if m.get("nucleos")]
+    if nuc:
+        cols = ["ocupado_pct", "dpc_pct", "irq_pct", "interrupciones_s", "dpcs_s", "mhz"] if len(nuc[-1][0]) >= 6 else ["ocupado_pct", "sistema_pct"]
+        r["nucleos"] = [{c: _prom([n[i][j] for n in nuc if i < len(n)]) for j, c in enumerate(cols)} for i in range(len(nuc[-1]))]
+        if not a.remoto:
+            r["nucleos_nota"] = "Mac: ocupado y sistema por núcleo (host_processor_info); interrupciones por núcleo solo con sudo (powermetrics)"
+    if remoto is not None and remoto.placa:
+        r["placa_de_red"] = remoto.placa
+    if extras.get("etw"):
+        e = extras["etw"]
+        r["etw"] = {"segundos": e.get("segundos"), "error": e.get("error"),
+                    "nucleos": [{"nucleo": n.get("nucleo"), "ocupado_pct": n.get("ocupado_pct"), "dpc_pct": (n.get("dpc") or {}).get("pct"),
+                                 "isr_pct": (n.get("isr") or {}).get("pct"), "isr_vectores": (n.get("isr") or {}).get("vectores"),
+                                 "hilos": [f"{h['proceso']}/{h['nombre']} {h['pct']}%" for h in (n.get("hilos") or [])[:4]]}
+                                for n in (e.get("nucleos") or [])],
+                    "hilos": (e.get("hilos") or [])[:15]}
+    # El lado del invitado (hinchada): lo que recibe de vuelta (el retorno) y por dónde va.
+    try:
+        tot = []
+        t0 = reg[0]["t"] if reg else 0
+        ult = None
+        with open(hdir / "muestras.jsonl") as h:
+            for l in h:
+                try:
+                    o = json.loads(l)
+                except Exception:
+                    continue
+                ult = o
+                tt = o.get("t", 0)
+                tt = tt / 1000 if tt > 1e11 else tt
+                if "totales" in o and tt >= t0:
+                    tot.append(o["totales"])
+        if tot:
+            u = tot[-1]
+            ret = lambda t: t.get("retorno") or {}
+            ve = lambda t: max(1, t.get("videoEntradas", 0))
+            pc = ret(u)
+            r["invitado"] = {
+                "retorno_cps_medio": _prom([t.get("fpsRecibidos", 0) / ve(t) for t in tot]),
+                "retorno_cps_decodificados": _prom([t.get("fpsDecodificados", 0) / ve(t) for t in tot]),
+                "retorno_cps_min": min((ret(t).get("fpsMin", -1) for t in tot if ret(t).get("fpsMin", -1) >= 0), default=None),
+                "congelamientos": sum(t.get("congelamientos", 0) for t in tot),
+                "resoluciones": pc.get("resoluciones"),
+                "rtt_ms": _prom([t["rttSuma"] / t["rttN"] for t in tot if t.get("rttN")]),
+                "rtt_max_ms": max((t.get("rttMax", 0) for t in tot), default=None),
+                "jitter_ms": _prom([t["jitterSuma"] / t["jitterN"] for t in tot if t.get("jitterN")]),
+                "perdida_pct": round(100 * sum(t.get("paquetesPerdidos", 0) for t in tot) /
+                                     max(1, sum(t.get("paquetesRecibidos", 0) + t.get("paquetesPerdidos", 0) for t in tot)), 3),
+                "nack_s": round(sum(ret(t).get("nack", 0) for t in tot) / len(tot), 1),
+                "pli_s": round(sum(ret(t).get("pli", 0) for t in tot) / len(tot), 2),
+                "jitter_buffer_ms": _prom([ret(t)["bufferMsSuma"] / ret(t)["bufferN"] for t in tot if ret(t).get("bufferN")]),
+                "bajada_kbps_por_invitado": _prom([t.get("bajadaKbps", 0) / max(1, t.get("conectados", 0)) for t in tot]),
+                "subida_kbps_por_invitado": _prom([t.get("subidaKbps", 0) / max(1, t.get("conectados", 0)) for t in tot]),
+                "caminos": u.get("caminos"), "codecs_subida": u.get("codecsSubida"), "codecs_bajada": u.get("codecsBajada"),
+                "primer_cuadro_ms_medio": round(pc["primerCuadroMsSuma"] / pc["primerCuadroN"]) if pc.get("primerCuadroN") else None,
+                "primer_cuadro_ms_max": pc.get("primerCuadroMsMax"),
+                "nota": "BWE: la de subida de cada invitado (bweSalidaKbps); la de bajada la calcula el gateway "
+                        "(libwebrtc no la da del lado del receptor)"}
+            # La demora de punta a punta, por tramos (todo medido, nada supuesto):
+            #   subida: la edad del audio del invitado al llegar a la mezcla (estudio_latencia, la app);
+            #   estudio: la latencia fijada de las salidas (estudio_latencia.latencia_ms);
+            #   retorno: de la captura en el gateway a lo que suena/se ve en el invitado
+            #            (estimatedPlayoutTimestamp contra el reloj de acá: vale en la misma máquina
+            #            o con los relojes sincronizados; en remoto, la diferencia de relojes entra).
+            ea = [ret(t)["edadAudioMsSuma"] / ret(t)["edadAudioN"] for t in tot if ret(t).get("edadAudioN")]
+            ev = [ret(t)["edadVideoMsSuma"] / ret(t)["edadVideoN"] for t in tot if ret(t).get("edadVideoN")]
+            sub = ((r.get("audio_invitados") or {}).get("edad_p50_ms") or {}).get("p50")
+            lat = [(x.get("latencia") or {}).get("latencia_ms") for x in app_info if isinstance(x.get("latencia"), dict)]
+            lat = [x for x in lat if isinstance(x, (int, float))]
+            r["demora"] = {"subida_audio_ms_p50": sub, "estudio_ms": lat[-1] if lat else None,
+                           "retorno_audio_ms": _prom(ea), "retorno_video_ms": _prom(ev),
+                           "retorno_audio_ms_max": pc.get("edadAudioMsMax"), "retorno_video_ms_max": pc.get("edadVideoMsMax")}
+            partes = [r["demora"][k] for k in ("subida_audio_ms_p50", "estudio_ms", "retorno_audio_ms")]
+            r["demora"]["audio_punta_a_punta_ms"] = round(sum(partes), 1) if all(isinstance(x, (int, float)) for x in partes) else None
+            if a.remoto:
+                r["demora"]["nota"] = "en remoto, el retorno compara relojes de dos máquinas: sincronizarlos (NTP) o mirar solo la tendencia"
+            bwe = [p.get("bweSalidaKbps") for p in (ult or {}).get("participantes", []) if (p.get("bweSalidaKbps") or -1) >= 0]
+            if bwe:
+                r["invitado"]["bwe_subida_kbps"] = resumen_serie(bwe)
+    except Exception as ex:
+        r["invitado"] = {"error": str(ex)}
+    # La ráfaga: picos mientras entraban (hasta que todos tuvieron medios).
+    if a.rafaga:
+        hasta = r.get("todos_con_medios_s") or (muestras[-1]["s"] if muestras else 0)
+        ent = [m for m in muestras if m["s"] <= hasta]
+        pk = {}
+        for n in ("ba-gateway", "ba-app"):
+            pk[n] = {"cpu_pct_max": max((sum(e.get("cpu_pct") or 0 for k, e in m["procesos"].items() if k.startswith(n + ":")) for m in ent), default=None),
+                     "hilos_max": max((sum(e.get("hilos", 0) for k, e in m["procesos"].items() if k.startswith(n + ":")) for m in ent), default=None)}
+        r["rafaga"] = {"todos_con_medios_s": r.get("todos_con_medios_s"), "picos": pk,
+                       "primer_cuadro_ms": {k: (r.get("invitado") or {}).get(k) for k in ("primer_cuadro_ms_medio", "primer_cuadro_ms_max")}}
+    # La palabra: cuánto tardó la HD en cada pedido (lo mide el gateway, en su registro).
+    if a.palabra:
+        hd = []
+        for l in lineas.get("gateway.log", []):
+            x = re.search(r"HD\D+?(\d+) ms", l)
+            if x:
+                hd.append(int(x.group(1)))
+        r["palabra"] = {"pedidos": len(extras.get("palabra_pedidos") or []), "hd_ms": resumen_serie(hd), "medidas": len(hd),
+                        "error": extras.get("palabra") or extras.get("palabra_error")}
+    # La tendencia (resistencia): por minuto, memoria, hilos y CPU de cada proceso.
+    if a.duracion or (r.get("regimen_s") or 0) >= 600:
+        t0 = muestras[0]["t"] if muestras else 0
+        cub = {}
+        for m in muestras:
+            c = cub.setdefault(int((m["t"] - t0) // 60), {"rss": {}, "hilos": {}, "cpu": {}})
+            for n in ("ba-gateway", "ba-app"):
+                es = [e for kk, e in m["procesos"].items() if kk.startswith(n + ":")]
+                c["rss"].setdefault(n, []).append(sum(e.get("rss_mb") or 0 for e in es))
+                c["hilos"].setdefault(n, []).append(sum(e.get("hilos", 0) for e in es))
+                c["cpu"].setdefault(n, []).append(sum(e.get("cpu_pct") or 0 for e in es))
+            # Los faltantes de los anillos de retorno (el máximo de la ventana de 10 s que da el gateway).
+            tr = ((m.get("sala") or {}).get("uso") or {}).get("transporte") or []
+            fal = [x.get("faltantes", 0) for x in (tr if isinstance(tr, list) else tr.get("canales", []))
+                   if str(x.get("nombre", "")).startswith("BA.Audio.Return")]
+            if fal:
+                c.setdefault("faltantes", []).append(sum(fal))
+        for x in app_info:  # la edad del audio de los invitados al llegar a la mezcla
+            ents = [e for e in (x.get("latencia") or {}).get("entradas", []) if e.get("audio") and str(e.get("entrada", "")).startswith("Invitado")]
+            if ents:
+                cub.setdefault(int(x["s"] // 60), {"rss": {}, "hilos": {}, "cpu": {}}).setdefault("edad", []).append(
+                    _prom([e.get("edad_p50_ms") for e in ents]))
+        r["tendencia"] = [{"min": k, **{f"{x}_{n}": _prom(v) for x in ("rss", "hilos", "cpu") for n, v in cub[k][x].items()},
+                           "edad_audio_ms": _prom(cub[k].get("edad", [])), "faltantes_max": max(cub[k].get("faltantes", [0]))}
+                          for k in sorted(cub)]
+    if a.grabar_transmitir:
+        try:
+            r["transmision"] = json.loads((Path(a.salida).expanduser() / "transmision.json").read_text())
+        except Exception:
+            r["transmision"] = "sin datos (stream_salud)"
+
+
+def en_texto_f0(r):
+    l = [f"- camino: {r.get('camino')}"]
+    if r.get("fronteras"):
+        l += ["", "## Fronteras entre hilos (gateway, p50 del régimen)", "",
+              "| # | frontera | pases/s | despertadas/s | pases/despertada | kB/s | trabajo µs/pase | % núcleo | espera µs | espera máx µs |",
+              "|---|---|---|---|---|---|---|---|---|---|"]
+        for f in r["fronteras"]:
+            l.append(f"| {f.get('numero') or ''} | {f['id']} ({f.get('descripcion')}) | {f.get('pases_s')} | {f.get('despertadas_s')} | "
+                     f"{f.get('pases_por_despertada')} | {f.get('kbytes_s')} | {f.get('trabajo_us_pase')} | {f.get('trabajo_pct_nucleo')} | "
+                     f"{f.get('espera_us')} | {f.get('espera_max_us')} |")
+    h = r.get("hilos_por_nombre")
+    if isinstance(h, dict):
+        for proc, x in h.items():
+            l += ["", f"## Hilos de {proc}", ""]
+            l.append("- más CPU (% de un núcleo): " + "; ".join(f"{y['nombre']} x{y.get('n')} {y.get('cpu_pct')}" for y in x["mas_cpu"]))
+            l.append("- más cambios de contexto/s: " + "; ".join(f"{y['nombre']} {y.get('cambios_s')}" for y in x["mas_cambios"]))
+            if x.get("nucleos"):
+                l.append(f"- en qué núcleos corre (% de cada uno): {x['nucleos']}")
+            if x.get("funciones"):
+                l.append("- funciones propias: " + "; ".join(f"{y['funcion'][:60]} {y['pct']}%" for y in x["funciones"][:6]))
+    elif h:
+        l.append(f"- hilos: {h}")
+    if r.get("contadores_cpu"):
+        l.append(f"- contadores del procesador: {json.dumps(r['contadores_cpu'], ensure_ascii=False)[:1500]}")
+    if r.get("nucleos"):
+        l += ["", "## Núcleos lógicos (promedio del régimen)", ""]
+        cols = list(r["nucleos"][0].keys())
+        l.append("| núcleo | " + " | ".join(cols) + " |")
+        l.append("|---|" + "---|" * len(cols))
+        for i, n in enumerate(r["nucleos"]):
+            l.append(f"| {i} | " + " | ".join(str(n[c]) for c in cols) + " |")
+        if r.get("nucleos_nota"):
+            l.append(f"\n{r['nucleos_nota']}")
+    if r.get("placa_de_red"):
+        l.append(f"- placa de red: {json.dumps(r['placa_de_red'], ensure_ascii=False)}")
+    if r.get("etw"):
+        e = r["etw"]
+        l += ["", f"## ETW ({e.get('segundos')} s): núcleo → hilos, DPC e ISR", ""]
+        if e.get("error"):
+            l.append(f"- error: {e['error']}")
+        for n in e.get("nucleos") or []:
+            l.append(f"- núcleo {n['nucleo']}: {n['ocupado_pct']} % ocupado, DPC {n['dpc_pct']} %, ISR {n['isr_pct']} % "
+                     f"(vectores {n['isr_vectores']}); {', '.join(n['hilos'])}")
+        for x in e.get("hilos") or []:
+            l.append(f"- {x['proceso']}/{x['nombre']}: {x['pct']} % → {x.get('nucleos')}")
+    if r.get("invitado"):
+        l += ["", "## Del lado del invitado (hinchada: lo que recibe de vuelta)", ""]
+        for k, v in r["invitado"].items():
+            l.append(f"- {k}: {v}")
+    if r.get("codecs_gateway"):
+        l.append(f"- códecs del gateway (placa o software): {r['codecs_gateway']}")
+    for k in ("demora", "rafaga", "palabra", "transmision"):
+        if r.get(k):
+            l.append(f"- {k}: {json.dumps(r[k], ensure_ascii=False)[:1500]}")
+    if r.get("tendencia"):
+        l += ["", "## Tendencia por minuto", ""]
+        cols = list(r["tendencia"][0].keys())
+        l.append("| " + " | ".join(cols) + " |")
+        l.append("|" + "---|" * len(cols))
+        for t in r["tendencia"]:
+            l.append("| " + " | ".join(str(t.get(c)) for c in cols) + " |")
     return "\n".join(l) + "\n"
 
 
