@@ -69,6 +69,7 @@
 #include <nlohmann/json.hpp>
 
 #if BA_GATEWAY_HAVE_WEBRTC
+#include "RedesSesionRtc.hpp"
 #include "api/audio_codecs/builtin_audio_decoder_factory.h"
 #include "api/audio_codecs/builtin_audio_encoder_factory.h"
 #include "api/create_peerconnection_factory.h"
@@ -806,7 +807,9 @@ struct RtcHubState {
     std::unique_ptr<rtc::Thread> signaling;
     rtc::scoped_refptr<webrtc::PeerConnectionFactoryInterface> factory;
     // Las redes de las sesiones (setNetwork): la lista de interfaces de la máquina SIN las
-    // que se ignoran, compartida por todas las PeerConnection (cada una con su asignador).
+    // que se ignoran, compartida por todas las PeerConnection; cada una la ve por su
+    // RedesDeSesion (RedesSesionRtc.hpp: sin eso, cada sesión que empieza hace volver a
+    // juntar puertos a las que todavía no conectaron y una ráfaga agota el rango).
     // Las crea y las suelta el hilo de señalización (como las de la factory).
     std::unique_ptr<rtc::BasicNetworkManager> redes;
     std::unique_ptr<rtc::BasicPacketSocketFactory> sockets;
@@ -820,7 +823,7 @@ struct RtcHubState {
             config.port_allocator_config.max_port = maxPort;
         }
         if (!redes) return;
-        auto a = std::make_unique<cricket::BasicPortAllocator>(redes.get(), sockets.get());
+        auto a = std::make_unique<AsignadorDeSesion>(redes.get(), sockets.get());
         if (minPort != 0) a->SetPortRange(minPort, maxPort);
         a->SetNetworkIgnoreMask(loopback ? 0 : rtc::kDefaultNetworkIgnoreMask);
         deps.allocator = std::move(a);
@@ -1679,7 +1682,9 @@ void WebrtcHub::setNetwork(uint16_t minPort, uint16_t maxPort, bool allowLoopbac
     st->minPort = minPort;
     st->maxPort = maxPort;
     st->loopback = st->loopback || allowLoopback;
-    if (!ignorar.empty() && !st->redes)
+    // Siempre la lista propia (aunque no haya redes que ignorar): la de la factory también
+    // es compartida y tiene el mismo problema de los avisos (RedesSesionRtc.hpp).
+    if (!st->redes)
         st->signaling->BlockingCall([st, &ignorar]() {
             st->redes = std::make_unique<rtc::BasicNetworkManager>(st->network->socketserver());
             st->redes->set_network_ignore_list(ignorar); // antes de que empiece a enumerar

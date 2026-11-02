@@ -131,6 +131,11 @@ struct Config {
     bool pinggyTurnUdp = false;
     bool pinggyTurn = true; // TURN por el túnel (el video de los invitados de afuera)
     uint16_t pinggyTurnUdpPuerto = 0;
+    // Modo prueba (--test, lo pasa el launcher): el MCP sin aprobaciones del lado de A. Con
+    // --turn-prueba ADEMÁS, el TURN de la caja arranca sin pinggy (TCP y UDP en la red local,
+    // sin túnel público) para medir el camino del TURN en una máquina sola. Sin --test, nada.
+    bool modoPrueba = false;
+    bool turnPrueba = false;
     std::string pinggyListaBlanca; // IPs/CIDR separadas por coma; vacío = todas
     // ba-web (src/web): el servidor web público, adelante del túnel. pinggy le manda el
     // tráfico a él (127.0.0.1:webPuerto) y él atiende el sitio y le pasa el resto a la
@@ -272,6 +277,10 @@ struct Config {
                 lobby = false;
             } else if (arg == "--no-tunnel") {
                 tunnel = false;
+            } else if (arg == "--test") {
+                modoPrueba = true;
+            } else if (arg == "--turn-prueba") {
+                turnPrueba = true;
             } else if (arg == "--pin") {
                 pin = nextStr();
                 pinFromCli = !pin.empty();
@@ -320,6 +329,7 @@ struct Config {
         if (backstagePreviews > 8) backstagePreviews = 8; // A se suscribe a BA.Backstage.1..8
         if (rtcPortMax < rtcPortMin) rtcPortMax = rtcPortMin;
         if (rtcPortMax - rtcPortMin >= kTopeRangoRtc) rtcPortMax = static_cast<uint16_t>(rtcPortMin + kTopeRangoRtc - 1);
+        if (!modoPrueba) turnPrueba = false; // el TURN sin pinggy, solo en modo prueba
     }
 
     /// Deriva las rutas del layout a partir de la ubicacion del ejecutable

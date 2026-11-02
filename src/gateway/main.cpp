@@ -997,9 +997,13 @@ int main(int argc, char** argv) {
     // Relaya únicamente hacia las IP de esta máquina y el rango de WebRTC.
     ba::gateway::turn::Servidor::Config turnCfg;
     std::unique_ptr<ba::gateway::turn::Servidor> turnSrv;
-    if (cfg.pinggyActivo && cfg.pinggyTurn) {
+    // En modo prueba (--test --turn-prueba) arranca sin pinggy, con UDP: el camino del TURN
+    // se mide en la red local (hinchada --turn), sin túnel público.
+    if ((cfg.pinggyActivo && cfg.pinggyTurn) || cfg.turnPrueba) {
+        if (cfg.turnPrueba)
+            log.warn(traducir("gateway", "turn: MODO PRUEBA (--turn-prueba): el TURN arranca sin pinggy, solo en la red local"), -1);
         turnCfg.puertoTcp = turnPuertoLocal;
-        turnCfg.puertoUdp = cfg.pinggyTurnUdp ? turnPuertoLocal : 0;
+        turnCfg.puertoUdp = (cfg.pinggyTurnUdp || cfg.turnPrueba) ? turnPuertoLocal : 0;
         // También en la red local: en la sesión remota de la asamblea los navegadores
         // se conectan ENTRE ELLOS (integrante con integrante); uno de la sala y uno de
         // afuera solo se encuentran si los dos tienen un relay en esta caja. Pinggy

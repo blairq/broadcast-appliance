@@ -157,7 +157,7 @@ set_target_properties(ba-gateway PROPERTIES INSTALL_RPATH "$ORIGIN")
 # --- Tests con medios reales --------------------------------------------------
 # Los tests de logica del gateway corren en el build principal (backend NULL).
 # Aca van los que necesitan libwebrtc de verdad.
-foreach(t test_webrtc_loopback test_webrtc_audio_compartido)
+foreach(t test_webrtc_loopback test_webrtc_audio_compartido test_webrtc_redes)
     if(EXISTS "${BA_SRC}/src/gateway/tests/${t}.cpp")
         add_executable(${t} "${BA_SRC}/src/gateway/tests/${t}.cpp" ${BA_X11_STUBS})
         target_link_libraries(${t} PRIVATE ba_gateway_rtc)

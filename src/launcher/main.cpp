@@ -190,6 +190,8 @@ int runLauncher(const std::vector<std::string>& args) {
         } else if (a == "--test" || a == "--debug") {
             // Modo prueba: el MCP no pide aprobaciones (ver McpCore::setSinAprobaciones).
             cfg.appArgs.emplace_back("--test");
+            // Y el gateway: sin --test no acepta lo que es solo de prueba (--turn-prueba).
+            cfg.gatewayArgs.emplace_back("--test");
         } else if (a.rfind("--app-arg=", 0) == 0) {
             cfg.appArgs.push_back(a.substr(10));
         } else if (a.rfind("--gw-arg=", 0) == 0) {
