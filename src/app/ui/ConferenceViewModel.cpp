@@ -73,7 +73,8 @@ ConferenceViewModel::ConferenceViewModel(AppRuntime& rt, VentanillaMotor& ventan
           QStringList{"uid", "name", "connected", "joinedMs", "lobbySlot", "talk", "info", "contact", "prueba"})),
       inside_(std::make_unique<JsonListModel>(QStringList{"uid", "name", "slot", "connected", "mediaUp",
                                                           "mic", "cam", "screen", "hand", "admittedMs",
-                                                          "presenter", "speaker", "info", "contact", "talk", "prueba"})),
+                                                          "presenter", "speaker", "info", "contact", "talk", "prueba",
+                                                          "semaforo", "sinRetorno"})),
       shares_(std::make_unique<JsonListModel>(
           QStringList{"uid", "name", "kind", "mime", "bytes", "participantName", "path", "atMs", "url"})),
       chat_(std::make_unique<JsonListModel>(
@@ -412,6 +413,10 @@ void ConferenceViewModel::onSnapshot() {
     for (const QJsonValue& v : s.value("participants").toArray()) {
         QJsonObject p = v.toObject();
         p.insert("uid", p.value("id")); // "id" no puede ser un rol en QML
+        // Lo que la grilla de la sala muestra como íconos: el semáforo de su red (solo el
+        // color: las cifras cambian en cada foto) y si su retorno está apagado.
+        p.insert("semaforo", p.value("red").toObject().value("semaforo").toString());
+        p.insert("sinRetorno", p.value("retorno").toString() == "apagado");
         const int slot = p.value("slot").toInt();
         if (p.value("state").toString() == "admitted" && slot >= 1 && slot <= slotNames.size()) {
             slotNames[slot - 1] = p.value("name").toString();
