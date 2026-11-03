@@ -121,6 +121,7 @@ class McpService : public QObject {
     void registerTotemTools(); // totem_*: el registro de personas por tótem
     void registerControlTools();
     void registerSalidasTools(); ///< salidas_listar, salida_crear/editar/borrar (McpSalidasTools.cpp)
+    void registerVivosTools(); ///< cuentas_*, vivos_listar, vivo_crear, salida_destino_* (McpVivosTools.cpp)
     /// Marcas de la salvaguarda (contenido no confiable, herramientas mediadas)
     /// y la aprobacion en la barra del operador.
     void applySecurity();
