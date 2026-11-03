@@ -120,8 +120,10 @@ SuperRes::SuperRes(fs::path dataRoot, VideoViewModel* video, QObject* parent)
         emit pluginsCambio();
         armarVariantes();
     });
-    // El tamaño de cada cámara llega con las entradas (y cambia si se cambia el modo).
-    if (video_ != nullptr) connect(video_, &VideoViewModel::cambio, this, &SuperRes::armarVariantes);
+    // El tamaño de cada cámara llega con las entradas (y cambia si se cambia el modo): solo
+    // cuando cambia la lista de tamaños distintos (no con cada foto que toca la estructura:
+    // con 200 invitados entrando, eso recorría todas las entradas y leía el disco cada vez).
+    if (video_ != nullptr) connect(video_, &VideoViewModel::tamanosOrigenCambio, this, &SuperRes::armarVariantes);
     std::error_code ec;
     fs::create_directories(carpetaModelos(), ec);
     armarVariantes();
@@ -781,12 +783,8 @@ std::string SuperRes::instalarPlugin(const std::string& id) {
     // a los comunes. Una cámara que se agregue después: volver a instalar.
     std::string tamanos;
     if (video_ != nullptr)
-        for (const QString& e : video_->entradas()) {
-            const json st = video_->estadoEntrada(e.toStdString());
-            const json o = st.value("gstreamer", json::object()).value("origen", json::object());
-            const int w = o.value("ancho", 0), h = o.value("alto", 0);
-            if (w > 0 && h > 0) tamanos += (tamanos.empty() ? "" : ",") + std::to_string(w) + "x" + std::to_string(h);
-        }
+        for (const auto& [w, h] : video_->tamanosOrigen())
+            tamanos += (tamanos.empty() ? "" : ",") + std::to_string(w) + "x" + std::to_string(h);
     const bool hayQuePreparar = receta.value("tipo", "") == "red" && !laboratorioListo();
     if (hayQuePreparar) { // una red necesita el laboratorio (PyTorch); un shader, no
         const std::string e = prepararLaboratorio();
@@ -1177,18 +1175,20 @@ json SuperRes::variantes(const std::string& plugin) const {
 }
 
 std::vector<std::string> SuperRes::tamanosSinVariante(const std::string& plugin) const {
+    return faltanVariantes(variantes(plugin));
+}
+
+std::vector<std::string> SuperRes::faltanVariantes(const json& lista) const {
     std::set<std::string> hay;
-    for (const auto& v : variantes(plugin)) {
+    for (const auto& v : lista) {
         const json en = v.value("entrada", json::object());
         hay.insert(std::to_string(en.value("ancho", 0)) + "x" + std::to_string(en.value("alto", 0)));
     }
     std::vector<std::string> out;
     if (video_ == nullptr) return out;
-    for (const QString& e : video_->entradas()) {
-        const json st = video_->estadoEntrada(e.toStdString());
-        const json o = st.value("gstreamer", json::object()).value("origen", json::object());
-        const int w = o.value("ancho", 0), h = o.value("alto", 0);
-        if (w <= 0 || h <= 0) continue;
+    // Los tamaños distintos que llegan (los arma VideoViewModel con cada foto, mirando solo
+    // las entradas que cambiaron): no se recorre cada entrada acá.
+    for (const auto& [w, h] : video_->tamanosOrigen()) {
         const std::string t = std::to_string(w - w % 2) + "x" + std::to_string(h - h % 2);
         if (!hay.count(t) && std::find(out.begin(), out.end(), t) == out.end()) out.push_back(t);
     }
@@ -1268,7 +1268,11 @@ void SuperRes::armarVariantes() {
         const QVariantMap p = v.toMap();
         if (p.value("tipo").toString() != "red" || !p.value("instalado").toBool()) continue;
         const QString id = p.value("id").toString();
-        m.insert(id, QVariantMap{{"lista", variantesUi(id)}, {"faltan", tamanosSinVarianteUi(id)}});
+        // Las variantes del plugin se leen del disco UNA vez (antes, dos: la lista y las que faltan).
+        const json lista = variantes(id.toStdString());
+        QStringList faltan;
+        for (const auto& t : faltanVariantes(lista)) faltan << QString::fromStdString(t);
+        m.insert(id, QVariantMap{{"lista", qv(lista).toList()}, {"faltan", faltan}});
     }
     if (m == variantesUi_) return;
     variantesUi_ = std::move(m);

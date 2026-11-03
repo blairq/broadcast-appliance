@@ -669,6 +669,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, VentanillaMotor& ventanilla, QO
     connect(imagen_.get(), &ImagenViewModel::notify, this, &StudioViewModel::notify);
     // Lo que Personas puede mirar: los cuadros que hay y las cámaras del estudio.
     connect(frames_.get(), &FrameService::keysChanged, personas_.get(), &PersonasViewModel::revisarFuentes);
+    connect(frames_.get(), &FrameService::rotulosCambio, personas_.get(), &PersonasViewModel::revisarFuentes);
     connect(&imagen_->videoVm(), &VideoViewModel::cambio, personas_.get(), &PersonasViewModel::revisarFuentes);
     personas_->revisarFuentes();
     videoParaVigia_.store(&imagen_->video());
@@ -823,8 +824,11 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, VentanillaMotor& ventanilla, QO
     marca("audio");
     // La voz, las salidas de texto, las tarjetas «Texto a voz» y las traducciones, con los racks.
     asistente_->conRacks(mezcla_->racks());
-    // Las etiquetas de video ("Invitado 2") pasan a ser el nombre real.
-    connect(conference_.get(), &ConferenceViewModel::roomChanged, this,
+    // Las etiquetas de video ("Invitado 2") pasan a ser el nombre real. Con la parte
+    // Participantes del resumen de la sala (los nombres por lugar ya vienen comparados por el
+    // lector: llega solo si cambiaron), no con cada roomChanged (cualquier micrófono o cámara
+    // de cualquiera); y FrameService toca solo los rótulos de los lugares que cambiaron.
+    connect(conference_.get(), &ConferenceViewModel::participantesChanged, this,
             [this]() { frames_->setGuestNames(conference_->slotNames()); });
     // (Las fuentes del editor llegan con la foto del motor.)
     connect(conference_.get(), &ConferenceViewModel::sourceAdded, this, [this]() { mixer_->reload(); });

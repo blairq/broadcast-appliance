@@ -79,6 +79,7 @@ EscritorioViewModel::EscritorioViewModel(Partes p, QObject* parent) : QObject(pa
     if (p_.tablero) connect(p_.tablero, &DashboardModel::backgroundChanged, catalogo_.get(), refrescar);
     connect(&p_.imagen.camaras(), &ptz::ControlCamaras::cambio, catalogo_.get(), refrescar);
     connect(&p_.cuadros, &FrameService::keysChanged, catalogo_.get(), refrescar);
+    connect(&p_.cuadros, &FrameService::rotulosCambio, catalogo_.get(), refrescar); // los nombres de los invitados
     monitores_ = std::make_unique<MonitoresModel>(rt.dataRoot() / "Config" / "monitores.json", catalogo_.get());
     monitores_->conectarAlSistema();
     // Las ventanas sueltas (pantallas/Ventanas.hpp): las mismas cosas del

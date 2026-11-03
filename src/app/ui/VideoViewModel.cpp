@@ -13,6 +13,7 @@
 #include <QJsonObject>
 #include <QUrl>
 
+#include <algorithm>
 #include <vector>
 
 namespace ba::app {
@@ -42,6 +43,14 @@ const json& vacio() {
     return v;
 }
 
+/// `j[k]` sin copiar (y sin crearlo): la nada si no es un objeto o no lo tiene.
+const json& parte(const json& j, const std::string& k) {
+    static const json nada;
+    if (!j.is_object()) return nada;
+    const auto it = j.find(k);
+    return it != j.end() ? *it : nada;
+}
+
 } // namespace
 
 VideoViewModel::VideoViewModel(VentanillaMotor& ventanilla, video::VideoGrafos& grafos, QObject* parent)
@@ -67,14 +76,10 @@ void VideoViewModel::alCambiar(unsigned partes) {
 
 void VideoViewModel::releer() {
     const json& x = v();
+    const json& antes = antes_.get();
     // Lo que redibuja el patchbay (entradas y grafos), aparte de lo que se mueve siempre.
     // Sin copiar cada parte (llega seguido: la red, el reloj, la latencia).
-    const auto parte = [](const json& j, const char* k) -> const json& {
-        static const json nada;
-        const auto it = j.find(k);
-        return it != j.end() ? *it : nada;
-    };
-    const auto difiere = [&](const char* k) { return parte(x, k) != parte(antes_, k); };
+    const auto difiere = [&](const char* k) { return parte(x, k) != parte(antes, k); };
     const bool estructura = difiere("entradas") || difiere("info") || difiere("grafos") || difiere("estudio");
     // Lo que se mueve: cada propiedad avisa sola (el reloj o la red no redibujan el automixer).
     std::vector<void (VideoViewModel::*)()> avisar;
@@ -86,41 +91,49 @@ void VideoViewModel::releer() {
         campo = std::move(nuevo);
         avisar.push_back(senal);
     };
-    poner("red", estadoRed_, [&] { return aVariant(x.value("red", json::array())).toList(); }, &VideoViewModel::redCambio);
-    poner("diagnostico", diagnostico_, [&] { return aVariant(x.value("diagnostico", json::array())).toList(); },
-          &VideoViewModel::diagnosticoCambio);
-    poner("programador", programador_, [&] { return aVariant(x.value("programador", json::object())).toMap(); },
-          &VideoViewModel::programadorCambio);
-    poner("reloj", reloj_, [&] { return aVariant(x.value("reloj", json::object())).toMap(); }, &VideoViewModel::relojCambio);
-    poner("latencia", latencia_, [&] { return aVariant(x.value("latencia", json::object())).toMap(); }, &VideoViewModel::latenciaCambio);
-    poner("automixer", automixer_, [&] { return aVariant(x.value("automixer", json::object())).toMap(); },
-          &VideoViewModel::automixerCambio);
-    poner("filtros_audio", filtrosAudio_, [&] { return aVariant(x.value("filtros_audio", json::object())).toMap(); },
-          &VideoViewModel::filtrosAudioCambio);
-    poner("escenas", escenas_, [&] { return listaDeTextos(x.value("escenas", json::array())); }, &VideoViewModel::escenasCambio);
-    poner("hay_superres", haySuperres_, [&] { return x.value("hay_superres", false); }, &VideoViewModel::haySuperresCambio);
-    // Los formularios: solo si cambiaron (la introspección de cada módulo la guarda el catálogo).
-    if (difiere("formularios")) {
-        QVariantMap f = armarFormularios(x.value("formularios", json::object()));
-        if (f != formularios_) {
-            formularios_ = std::move(f);
-            avisar.push_back(&VideoViewModel::formulariosCambio);
-        }
-    }
+    // Lo que crece con las entradas (la red y el diagnóstico de cada una, los formularios…)
+    // NI SE CONVIERTE: se avisa y se convierte recién cuando alguien lo lee (la vista que lo
+    // muestra), de la vista guardada. Con 200 invitados, convertirlo en cada foto (JSON →
+    // texto → QVariant de todas las entradas) era lo que más pesaba de este oyente.
+    const auto perezosa = [&](const char* k, auto& cache, void (VideoViewModel::*senal)()) {
+        if (!difiere(k)) return;
+        cache.reset();
+        avisar.push_back(senal);
+    };
+    perezosa("red", estadoRed_, &VideoViewModel::redCambio);
+    perezosa("diagnostico", diagnostico_, &VideoViewModel::diagnosticoCambio);
+    perezosa("programador", programador_, &VideoViewModel::programadorCambio);
+    perezosa("reloj", reloj_, &VideoViewModel::relojCambio);
+    perezosa("latencia", latencia_, &VideoViewModel::latenciaCambio);
+    perezosa("automixer", automixer_, &VideoViewModel::automixerCambio);
+    perezosa("filtros_audio", filtrosAudio_, &VideoViewModel::filtrosAudioCambio);
+    perezosa("formularios", formularios_, &VideoViewModel::formulariosCambio);
+    poner("escenas", escenas_, [&] { return listaDeTextos(parte(x, "escenas")); }, &VideoViewModel::escenasCambio);
+    poner("hay_superres", haySuperres_, [&] { return parte(x, "hay_superres").is_boolean() && parte(x, "hay_superres").get<bool>(); },
+          &VideoViewModel::haySuperresCambio);
     const bool eventos = difiere("eventos");
-    antes_ = x;
+    // Los estados de las entradas (los tamaños que llegan): solo los que cambiaron.
+    const json objetoVacio = json::object();
+    if (tamanosOrigen_.releer(parte(x, "estados"), parte(antes, "estados"), difiere("entradas")))
+        avisar.push_back(&VideoViewModel::tamanosOrigenCambio);
+    // La anterior, compartida (un puntero: copiar la vista entera en cada foto era O(tamaño)).
+    // (Desde acá `antes` ya no vale.)
+    antes_ = ventanilla_.foto().video;
+    const auto deLaElegida = [&](const char* k) -> json {
+        const json& e = parte(parte(x, k), entrada_.toStdString());
+        return e.is_object() ? e : objetoVacio;
+    };
     if (estructura) {
-        entradas_ = listaDeTextos(x.value("entradas", json::array()));
-        entradasInfo_ = aVariant(x.value("info", json::array())).toList();
-        estudio_ = aVariant(conResumenes(x.value("estudio", json::object()))).toMap();
+        entradas_ = listaDeTextos(parte(x, "entradas"));
+        entradasInfo_ = aVariant(parte(x, "info").is_array() ? parte(x, "info") : json::array()).toList();
+        estudio_.reset(); // (se convierte cuando se lee: todo el estudio, con los resúmenes)
         // La elegida: la que se eligió acá; si no hay o se fue, la primera.
         if ((entrada_.isEmpty() || !entradas_.contains(entrada_)) && !entradas_.isEmpty()) entrada_ = entradas_.first();
-        grafo_ = entrada_.isEmpty() ? QVariantMap{}
-                                    : aVariant(conResumenes(x.value("grafos", json::object()).value(entrada_.toStdString(), json::object()))).toMap();
+        grafo_ = entrada_.isEmpty() ? QVariantMap{} : aVariant(conResumenes(deLaElegida("grafos"))).toMap();
     }
     // Los eventos son los de la elegida (que puede haber cambiado con la estructura).
     if (eventos || estructura) {
-        QVariantMap e = aVariant(x.value("eventos", json::object()).value(entrada_.toStdString(), json::object())).toMap();
+        QVariantMap e = aVariant(deLaElegida("eventos")).toMap();
         if (e != eventos_) {
             eventos_ = std::move(e);
             avisar.push_back(&VideoViewModel::eventosCambio);
@@ -130,11 +143,56 @@ void VideoViewModel::releer() {
     for (const auto senal : avisar) emit(this->*senal)();
 }
 
+// --- Lo que se convierte al leerlo (de la vista de la última foto, `antes_`) -----------
+
+namespace {
+template <class T, class F>
+const T& perezoso(std::optional<T>& cache, F armar) {
+    if (!cache) cache = armar();
+    return *cache;
+}
+} // namespace
+
+QVariantList VideoViewModel::estadoRed() const {
+    return perezoso(estadoRed_, [&] { return aVariant(parte(antes_.get(), "red")).toList(); });
+}
+QVariantList VideoViewModel::diagnostico() const {
+    return perezoso(diagnostico_, [&] { return aVariant(parte(antes_.get(), "diagnostico")).toList(); });
+}
+QVariantMap VideoViewModel::programador() const {
+    return perezoso(programador_, [&] { return aVariant(parte(antes_.get(), "programador")).toMap(); });
+}
+QVariantMap VideoViewModel::reloj() const {
+    return perezoso(reloj_, [&] { return aVariant(parte(antes_.get(), "reloj")).toMap(); });
+}
+QVariantMap VideoViewModel::latencia() const {
+    return perezoso(latencia_, [&] { return aVariant(parte(antes_.get(), "latencia")).toMap(); });
+}
+QVariantMap VideoViewModel::automixer() const {
+    return perezoso(automixer_, [&] { return aVariant(parte(antes_.get(), "automixer")).toMap(); });
+}
+QVariantMap VideoViewModel::filtrosAudio() const {
+    return perezoso(filtrosAudio_, [&] { return aVariant(parte(antes_.get(), "filtros_audio")).toMap(); });
+}
+QVariantMap VideoViewModel::formularios() const {
+    return perezoso(formularios_, [&] { return armarFormularios(parte(antes_.get(), "formularios")); });
+}
+QVariantMap VideoViewModel::estudio() const {
+    return perezoso(estudio_, [&] {
+        const json& e = parte(antes_.get(), "estudio");
+        return aVariant(conResumenes(e.is_object() ? e : json::object())).toMap();
+    });
+}
+
 void VideoViewModel::seleccionar(const QString& entrada) {
     if (entrada == entrada_) return;
     entrada_ = entrada;
-    grafo_ = aVariant(conResumenes(v().value("grafos", json::object()).value(entrada_.toStdString(), json::object()))).toMap();
-    eventos_ = aVariant(v().value("eventos", json::object()).value(entrada_.toStdString(), json::object())).toMap();
+    const auto deLaElegida = [&](const char* k) -> json {
+        const json& e = parte(parte(v(), k), entrada_.toStdString());
+        return e.is_object() ? e : json::object();
+    };
+    grafo_ = aVariant(conResumenes(deLaElegida("grafos"))).toMap();
+    eventos_ = aVariant(deLaElegida("eventos")).toMap();
     emit cambio();
     emit eventosCambio();
     // VideoGrafos también la sabe: las herramientas sin entrada usan la elegida.
@@ -371,18 +429,24 @@ void VideoViewModel::aplicarDisposicionUi(const QString& compositor, const QStri
 
 // --- Para los demás modelos (de la foto) ---------------------------------------------
 
+const json* VideoViewModel::estadoDe(const std::string& entrada) const {
+    // Sin copiar el mapa de estados (se recorre por entrada: copiarlo entero en cada una
+    // era O(N²) con cada foto).
+    const json& st = parte(parte(v(), "estados"), entrada);
+    return st.is_object() ? &st : nullptr;
+}
+
 json VideoViewModel::estadoEntrada(const std::string& entrada) const {
-    const json st = v().value("estados", json::object()).value(entrada, json());
-    if (st.is_object()) return st;
+    if (const json* st = estadoDe(entrada)) return *st;
     return {{"error", tr("«%1» no es una entrada de video").arg(q(entrada)).toStdString()}};
 }
 
 bool VideoViewModel::esEntrada(const std::string& nombre) const { return entradas_.contains(q(nombre)); }
 
 std::string VideoViewModel::uriDe(const std::string& entrada) const {
-    const json f = ventanilla_.foto().fuentesVideo.value(entrada, json());
+    const json& f = parte(ventanilla_.foto().fuentesVideo.get(), entrada);
     if (!f.is_object() || f.value("tipo", std::string()) != "ba_gst_fuente") return {};
-    const json a = f.value("ajustes", json::object());
+    const json& a = parte(f, "ajustes");
     return a.is_object() ? a.value("uri", std::string()) : std::string();
 }
 
@@ -390,7 +454,7 @@ json VideoViewModel::entradasDeHost(const std::string& host) const {
     json out = json::array();
     for (const auto& [n, f] : ventanilla_.foto().fuentesVideo.items()) {
         if (!f.is_object() || f.value("tipo", std::string()) != "ba_gst_fuente") continue;
-        const json a = f.value("ajustes", json::object());
+        const json& a = parte(f, "ajustes");
         const std::string uri = a.is_object() ? a.value("uri", std::string()) : std::string();
         const QUrl u(q(uri));
         if (!uri.empty() && u.host().toStdString() == host) {
@@ -406,7 +470,9 @@ json VideoViewModel::programadorJson() const { return v().value("programador", j
 
 std::vector<std::pair<int, int>> VideoViewModel::tamanosDeEntradas() const {
     std::vector<std::pair<int, int>> out;
-    for (const auto& t : v().value("tamanos", json::array()))
+    const json& tamanos = parte(v(), "tamanos");
+    if (!tamanos.is_array()) return out;
+    for (const auto& t : tamanos)
         if (t.is_array() && t.size() == 2) out.emplace_back(t[0].get<int>(), t[1].get<int>());
     return out;
 }

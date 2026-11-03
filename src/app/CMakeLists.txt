@@ -679,6 +679,14 @@ endif()
     target_link_libraries(test_estado_aire PRIVATE ba_core Qt6::Core)
     set_target_properties(test_estado_aire PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_estado_aire COMMAND test_estado_aire)
+    # Con 200 entradas/canales/invitados, una foto que cambia UNA cosa hace trabajo de una
+    # (las trabas de 2-6 s del 2026-11-03): los tamaños de las entradas, el índice de canales,
+    # el modelo de filas de la Matriz y los lugares de los rótulos.
+    add_executable(test_trabajo_por_foto tests/test_trabajo_por_foto.cpp ui/ListaObjetos.cpp ui/ListaObjetos.hpp)
+    target_include_directories(test_trabajo_por_foto PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    target_link_libraries(test_trabajo_por_foto PRIVATE ba_core Qt6::Core)
+    set_target_properties(test_trabajo_por_foto PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
+    add_test(NAME test_trabajo_por_foto COMMAND test_trabajo_por_foto)
     add_test(NAME test_mcp COMMAND test_mcp)
     # Los servidores que lanza la app (OpenCode, llama-server) mueren con ella.
     add_executable(test_hijos_app tests/test_hijos_app.cpp agent/HijosDeLaApp.cpp agent/HijosDeLaApp.hpp)

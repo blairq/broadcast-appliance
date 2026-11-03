@@ -232,6 +232,9 @@ class SuperRes : public QObject {
     VideoViewModel* video_;
     QVariantMap variantesUi_; ///< ver `variantes`
     void armarVariantes();
+    /// Los tamaños de las cámaras (VideoViewModel::tamanosOrigen) que no están en `lista`
+    /// (las variantes de un plugin).
+    std::vector<std::string> faltanVariantes(const json& lista) const;
     QVariantMap trabajo_;
     std::unique_ptr<plugins::Hijo> hijo_;
     QByteArray pendiente_;

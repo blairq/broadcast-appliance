@@ -16,20 +16,30 @@ import BA
 Item {
     id: mx
     readonly property var mz: Studio.matriz
-    readonly property var filas: mz ? mz.filas : []
+    // Las filas: un MODELO (audio/Matriz: una fila por fuente, con sus cruces en el rol
+    // `cruces`). Avisa por fila: un cruce que cambia redibuja su fila, no la matriz entera
+    // (antes era un arreglo que se rearmaba con cada foto del motor: con muchos invitados,
+    // todos los delegados de nuevo y la interfaz trabada).
+    readonly property var filas: mz ? mz.filas : null
+    readonly property int nFilas: filas ? filas.count : 0
     // Las pistas 2-6 (las de la grabación multipista) van plegadas por
     // defecto: se ve solo la 1 (Programa). Se despliegan con el «+5» de su cabecera.
     // (Se guarda con la Matriz, en la carpeta portable: no en las preferencias del sistema.)
     readonly property bool pistasPlegadas: !mz || mz.pistasPlegadas
     readonly property var cols: mz ? mz.columnas.filter(c => !(pistasPlegadas && c.tipo === "pista" && c.indice > 0)) : []
-    readonly property var cruces: mz ? mz.cruces : ({})
     readonly property var med: mz ? mz.medidores : ({})
+    // {bus: última fila que le manda}: lo arma la Matriz (no se recorren las filas acá).
+    readonly property var ultimasFilas: mz ? mz.ultimasFilas : ({})
     property string msg: ""
 
     // Lo que está bajo el puntero (fuente o bus) y lo que se ilumina por eso.
     property string hFila: ""
     property string hBus: ""
     readonly property bool hayHover: hFila !== "" || hBus !== ""
+    // De la fila bajo el puntero: sus cruces y su lugar. Los pone la fila misma (un Binding
+    // a su rol), así las columnas se iluminan sin recorrer las demás filas.
+    property var hCruces: ({})
+    property int hIdx: -1
 
     // Compacta: en el desplegable del Mezclador (entran más filas a la vista).
     property bool compacta: false
@@ -41,8 +51,8 @@ Item {
     // Mezclador no se apagan una a la otra).
     Suscripcion { objetivo: mx.mz; activa: mx.visible }
 
-    function on(f, b) { const c = cruces[f + "|" + b]; return !!(c && c.activo) }
-    function cruce(f, b) { return cruces[f + "|" + b] || ({}) }
+    // ¿Está activo el cruce `b` en estos cruces (los de una fila)?
+    function onEn(cr, b) { const c = cr ? cr[b] : undefined; return !!(c && c.activo) }
     function colorBus(c) {
         if (!c) return Theme.accent
         if (c.tipo === "pista") return c.indice === 0 ? "#ef4444" : "#f59e0b"
@@ -51,36 +61,13 @@ Item {
         if (c.tipo === "fisica") return "#38bdf8"
         return "#14b8a6"
     }
-    // Índices y alcances, calculados una vez por cambio de la matriz (no en cada cruce
-    // y en cada movimiento del mouse): cada cruce los lee en O(1).
+    // Índices de las columnas (una vez por cambio de las columnas): cada cruce los lee en O(1).
     readonly property var idxColDe: { const r = {}; for (let i = 0; i < cols.length; ++i) r[cols[i].id] = i; return r }
-    readonly property var idxFilaDe: { const r = {}; for (let i = 0; i < filas.length; ++i) r[filas[i].nombre] = i; return r }
-    readonly property var ultimaColDe: {
-        const r = {}
-        for (let f = 0; f < filas.length; ++f) {
-            let u = -1
-            for (let i = 0; i < cols.length; ++i) if (on(filas[f].nombre, cols[i].id)) u = i
-            r[filas[f].nombre] = u
-        }
-        return r
-    }
-    readonly property var ultimaFilaDe: {
-        const r = {}
-        for (let i = 0; i < cols.length; ++i) {
-            let u = -1
-            for (let f = 0; f < filas.length; ++f) if (on(filas[f].nombre, cols[i].id)) u = f
-            r[cols[i].id] = u
-        }
-        return r
-    }
     function idxCol(id) { const v = idxColDe[id]; return v === undefined ? -1 : v }
-    function idxFila(n) { const v = idxFilaDe[n]; return v === undefined ? -1 : v }
-    function filaLit(f) { return f === hFila || (hBus !== "" && on(f, hBus)) }
-    function colLit(b) { return b === hBus || (hFila !== "" && on(hFila, b)) }
-    // Hasta dónde llega el cable de una fila (la última columna a la que va) y
-    // el de una columna (la última fila que le manda).
-    function ultimaCol(f) { const v = ultimaColDe[f]; return v === undefined ? -1 : v }
-    function ultimaFila(b) { const v = ultimaFilaDe[b]; return v === undefined ? -1 : v }
+    function colLit(b) { return b === hBus || (hFila !== "" && onEn(hCruces, b)) }
+    // Hasta dónde llega el cable de una columna (la última fila que le manda). El de una
+    // fila lo sabe la fila (fila.ultimaCol, de su rol).
+    function ultimaFila(b) { const v = ultimasFilas[b]; return v === undefined ? -1 : v }
     function db(k) { const v = med[k]; return v === undefined ? -100 : v }
 
     // --- Medidor LED (segmentos, como los de una consola) -------------------------------
@@ -162,7 +149,7 @@ Item {
                 id: fl
                 anchors { fill: parent; margins: 14 }
                 contentWidth: mx.anchoFila + mx.cols.length * mx.celda + 20
-                contentHeight: mx.altoCab + mx.filas.length * mx.celda + 20
+                contentHeight: mx.altoCab + mx.nFilas * mx.celda + 20
                 clip: true
                 ScrollBar.horizontal: ScrollBar {}
                 ScrollBar.vertical: ScrollBar {}
@@ -274,9 +261,23 @@ Item {
                         model: mx.filas
                         delegate: Row {
                             id: fila
-                            required property var modelData
+                            // Los roles de su fila (audio/Matriz: el modelo avisa por fila).
+                            required property string nombre
+                            required property bool esVirtual
+                            required property var cruces
                             required property int index
-                            readonly property bool lit: mx.filaLit(modelData.nombre)
+                            function on(b) { const c = cruces[b]; return !!(c && c.activo) }
+                            readonly property bool lit: nombre === mx.hFila || (mx.hBus !== "" && on(mx.hBus))
+                            // Hasta dónde llega su cable (la última columna visible a la que va):
+                            // con sus cruces, sin mirar las demás filas.
+                            readonly property int ultimaCol: {
+                                let u = -1
+                                for (let i = 0; i < mx.cols.length; ++i) if (fila.on(mx.cols[i].id)) u = i
+                                return u
+                            }
+                            // Bajo el puntero: le pasa a la matriz sus cruces y su lugar.
+                            Binding { when: mx.hFila === fila.nombre; target: mx; property: "hCruces"; value: fila.cruces; restoreMode: Binding.RestoreNone }
+                            Binding { when: mx.hFila === fila.nombre; target: mx; property: "hIdx"; value: fila.index; restoreMode: Binding.RestoreNone }
                             height: mx.celda
                             // La fuente
                             Item {
@@ -294,7 +295,7 @@ Item {
                                         anchors { fill: parent; leftMargin: 10; rightMargin: 10 }
                                         spacing: 8
                                         Rectangle {
-                                            visible: fila.modelData.virtual
+                                            visible: fila.esVirtual
                                             width: 8; height: 8; radius: 4; color: "#14b8a6"
                                         }
                                         ColumnLayout {
@@ -302,11 +303,11 @@ Item {
                                             spacing: 3
                                             Text {
                                                 Layout.fillWidth: true
-                                                text: fila.modelData.nombre
+                                                text: fila.nombre
                                                 elide: Text.ElideRight
                                                 color: Theme.text; font.pixelSize: 12
                                             }
-                                            Led { Layout.fillWidth: true; Layout.preferredHeight: 8; segs: 24; db: mx.db("fila:" + fila.modelData.nombre) }
+                                            Led { Layout.fillWidth: true; Layout.preferredHeight: 8; segs: 24; db: mx.db("fila:" + fila.nombre) }
                                         }
                                     }
                                 }
@@ -314,8 +315,8 @@ Item {
                                     id: maFila
                                     anchors.fill: parent
                                     hoverEnabled: true
-                                    onEntered: mx.hFila = fila.modelData.nombre
-                                    onExited: if (mx.hFila === fila.modelData.nombre) mx.hFila = ""
+                                    onEntered: mx.hFila = fila.nombre
+                                    onExited: if (mx.hFila === fila.nombre) mx.hFila = ""
                                 }
                                 ToolTip.visible: maFila.containsMouse
                                 ToolTip.delay: 600
@@ -324,7 +325,7 @@ Item {
                                                    + "voz a texto…), antes de su volumen. Se mueve aunque no vaya a ninguna salida.\n"
                                                    + "La matriz no cambia lo que entra: decide a qué salidas va (las columnas: el "
                                                    + "programa, las pistas, los auriculares, las salidas del equipo). Lo que entra y "
-                                                   + "cómo se procesa se arma en el rack de la entrada.").arg(fila.modelData.nombre)
+                                                   + "cómo se procesa se arma en el rack de la entrada.").arg(fila.nombre)
                             }
                             // Los cruces
                             Repeater {
@@ -333,18 +334,19 @@ Item {
                                     id: x0
                                     required property var modelData
                                     required property int index
-                                    readonly property string f: fila.modelData.nombre
+                                    readonly property string f: fila.nombre
                                     readonly property string b: modelData.id
-                                    readonly property bool activo: mx.on(f, b)
-                                    readonly property var c: mx.cruce(f, b)
+                                    // El cruce, del rol de su fila (cambia solo si cambió esa fila).
+                                    readonly property var c: fila.cruces[b] || ({})
+                                    readonly property bool activo: !!c.activo
                                     readonly property color col: mx.colorBus(modelData)
                                     // Tramos del cable de luz que pasan por este cruce.
                                     readonly property bool hTramo:
-                                        (mx.hFila === f && index <= mx.ultimaCol(f)) ||
-                                        (mx.hBus !== "" && mx.on(f, mx.hBus) && index <= mx.idxCol(mx.hBus))
+                                        (mx.hFila === f && index <= fila.ultimaCol) ||
+                                        (mx.hBus !== "" && fila.on(mx.hBus) && index <= mx.idxCol(mx.hBus))
                                     readonly property bool vTramo:
                                         (mx.hBus === b && fila.index <= mx.ultimaFila(b)) ||
-                                        (mx.hFila !== "" && mx.on(mx.hFila, b) && fila.index <= mx.idxFila(mx.hFila))
+                                        (mx.hFila !== "" && mx.onEn(mx.hCruces, b) && fila.index <= mx.hIdx)
                                     width: mx.celda
                                     height: mx.celda
 
@@ -428,7 +430,7 @@ Item {
                                                 if (x0.modelData.tipo === "pista") { mx.msg = qsTr("Las pistas son nativas: prender o apagar, sin retardo."); return }
                                                 if (x0.modelData.tipo === "escucha") { mx.msg = qsTr("La escucha es prender o apagar: el volumen es el de la fuente."); return }
                                                 if (!x0.activo) mx.msg = mx.mz.setCruce(x0.f, x0.b, true)
-                                                ajustePop.f = x0.f; ajustePop.b = x0.b; ajustePop.col = x0.col
+                                                ajustePop.fila = fila; ajustePop.f = x0.f; ajustePop.b = x0.b; ajustePop.col = x0.col
                                                 ajustePop.open()
                                                 return
                                             }
@@ -448,7 +450,7 @@ Item {
                 Text {
                     y: mx.altoCab + 10
                     x: 12
-                    visible: mx.filas.length === 0
+                    visible: mx.nFilas === 0
                     text: qsTr("No hay fuentes con audio todavía (se agregan en Entradas).")
                     color: Theme.textDim; font.pixelSize: 13
                 }
@@ -462,7 +464,9 @@ Item {
         property string f: ""
         property string b: ""
         property color col: Theme.accent
-        readonly property var c: mx.cruce(f, b)
+        // La fila del cruce (su delegado): el cruce sale de su rol y se mantiene al día solo.
+        property Item fila: null
+        readonly property var c: fila && fila.cruces ? (fila.cruces[b] || ({})) : ({})
         anchors.centerIn: parent
         padding: 16
         modal: true

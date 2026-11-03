@@ -24,6 +24,8 @@
 #pragma once
 
 #include "comun/JsonSignals.hpp"
+#include "emision/Compartido.hpp"
+#include "video/TamanosOrigen.hpp"
 
 #include <QImage>
 #include <QObject>
@@ -33,7 +35,9 @@
 #include <QVariantMap>
 
 #include <functional>
+#include <map>
 #include <memory>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -126,24 +130,25 @@ class VideoViewModel : public QObject {
     QString entrada() const { return entrada_; }
     void seleccionar(const QString& entrada);
     QVariantMap grafo() const { return grafo_; }
-    QVariantMap estudio() const { return estudio_; }
+    // (Las que crecen con las entradas se convierten al leerlas: ver `releer`.)
+    QVariantMap estudio() const;
     QString vista() const { return vista_; }
     void setVista(const QString& v);
     static QVariantList catalogo();
-    QVariantList estadoRed() const { return estadoRed_; }
-    QVariantList diagnostico() const { return diagnostico_; }
+    QVariantList estadoRed() const;
+    QVariantList diagnostico() const;
     QVariantMap eventos() const { return eventos_; }
-    QVariantMap programador() const { return programador_; }
-    QVariantMap reloj() const { return reloj_; }
-    QVariantMap latencia() const { return latencia_; }
-    QVariantMap automixer() const { return automixer_; }
-    QVariantMap filtrosAudio() const { return filtrosAudio_; }
+    QVariantMap programador() const;
+    QVariantMap reloj() const;
+    QVariantMap latencia() const;
+    QVariantMap automixer() const;
+    QVariantMap filtrosAudio() const;
     QStringList escenas() const { return escenas_; }
     bool haySuperres() const { return haySuperres_; }
     QVariantList modulosGst() const;
     QVariantList modulosAudio() const;
     QString versionGst() const;
-    QVariantMap formularios() const { return formularios_; }
+    QVariantMap formularios() const;
     /// Los de un módulo, para el detalle del catálogo (con estos valores puestos).
     Q_INVOKABLE QVariantList propiedadesModulo(const QString& elemento) const;
     Q_INVOKABLE QVariantList propiedadesModuloCon(const QString& elemento, const QVariantMap& valores) const;
@@ -195,7 +200,18 @@ class VideoViewModel : public QObject {
 
     // --- Para los demás modelos de la interfaz (de la foto) -----------------------------
     /// El estado de una entrada (VideoGrafos::estadoEntrada, el de la última vista), o {error}.
+    /// Copia SOLO el de esa entrada (para recorrer todas, `estadoDe`, que no copia nada).
     nlohmann::json estadoEntrada(const std::string& entrada) const;
+    /// El estado de una entrada en la foto que tiene la interfaz, sin copiarlo (nullptr si
+    /// no hay). Vale hasta la próxima foto: usarlo y soltarlo en la misma vuelta del hilo.
+    const nlohmann::json* estadoDe(const std::string& entrada) const;
+    /// Los tamaños (ancho, alto) distintos que LLEGAN de las entradas (gstreamer.origen de
+    /// su estado, antes de los filtros): los arma `releer` mirando solo las entradas cuyo
+    /// estado cambió (video/TamanosOrigen), y avisa `tamanosOrigenCambio` solo si cambió la lista.
+    const std::vector<std::pair<int, int>>& tamanosOrigen() const { return tamanosOrigen_.distintos(); }
+    /// Cuántos estados de entrada se recalcularon con la última foto (con una entrada que
+    /// cambia, uno; no las N).
+    int estadosRecalculados() const { return tamanosOrigen_.recalculados(); }
     bool esEntrada(const std::string& nombre) const;
     /// La dirección de una entrada de red ("" si no es de red).
     std::string uriDe(const std::string& entrada) const;
@@ -236,6 +252,8 @@ class VideoViewModel : public QObject {
     void escenasCambio();
     void haySuperresCambio();
     void formulariosCambio();
+    /// Cambió la lista de tamaños que llegan de las entradas (`tamanosOrigen`).
+    void tamanosOrigenCambio();
     void gstListo();
     /// El resultado de medirUi.
     void medicion(const QVariantMap& resultado);
@@ -259,11 +277,18 @@ class VideoViewModel : public QObject {
     video::VideoGrafos& grafos_;
     QString entrada_, vista_ = QStringLiteral("racks");
     QStringList entradas_, escenas_;
-    QVariantList entradasInfo_, estadoRed_, diagnostico_;
-    QVariantMap grafo_, estudio_, eventos_, programador_, reloj_, latencia_, automixer_, filtrosAudio_, formularios_;
+    QVariantList entradasInfo_;
+    QVariantMap grafo_, eventos_;
+    /// Lo que se convierte recién al leerlo (vacío = hay que convertirlo de `antes_`, la
+    /// vista de la última foto): ver `releer`.
+    mutable std::optional<QVariantList> estadoRed_, diagnostico_;
+    mutable std::optional<QVariantMap> estudio_, programador_, reloj_, latencia_, automixer_, filtrosAudio_, formularios_;
     bool haySuperres_ = false;
-    /// Lo que se mostró la última vez (para avisar solo lo que cambió).
-    nlohmann::json antes_ = nlohmann::json::object();
+    /// Lo que se mostró la última vez (para avisar solo lo que cambió): la vista de la foto
+    /// anterior, compartida (un puntero; copiarla entera en cada foto era O(tamaño)).
+    Compartido<nlohmann::json> antes_;
+    /// El tamaño que llega de cada entrada, al día solo con las que cambiaron (ver `tamanosOrigen`).
+    video::TamanosOrigen tamanosOrigen_;
 };
 
 } // namespace ba::app

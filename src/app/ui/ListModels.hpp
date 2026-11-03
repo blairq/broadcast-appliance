@@ -283,6 +283,13 @@ class MixerModel : public QAbstractListModel {
     std::vector<std::string> names_;
     std::vector<float> peaks_;
     std::vector<std::string> grupos_; ///< por fila: "" suelta, o la clave de su grupo
+    std::vector<int> tamGrupo_;       ///< por fila: cuántas tiras tiene su grupo (1 suelta)
+    /// El canal de la fila `i` en foto_ (las filas siguen el orden de los canales: reload y
+    /// alCambiar lo mantienen), sin buscarlo por nombre: data() se pide por fila y por rol, y
+    /// MezclaAudio::canal/volumen/mudo recorren la lista (O(N²) con cada reload).
+    const FotoMotor::CanalAudio* canalEn(std::size_t i) const;
+    float volumenEn(std::size_t i, const std::string& salida) const;
+    bool mudoEn(std::size_t i, const std::string& salida) const;
     std::map<std::string, std::string> nombresGrupo_; ///< clave -> lo que se muestra
     std::set<std::string> compactos_; ///< los grupos compactados (Config/mezclador-vista.json)
     std::map<QString, QAbstractItemModel*> delGrupo_; ///< los filtros por grupo (hijos de este)

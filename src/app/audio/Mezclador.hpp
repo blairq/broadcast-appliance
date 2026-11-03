@@ -28,6 +28,7 @@
 #include <nlohmann/json.hpp>
 
 #include "comun/UsoPorVistas.hpp"
+#include "emision/IndiceCanales.hpp"
 
 #include <functional>
 #include <memory>
@@ -162,6 +163,10 @@ class Mezclador : public QObject {
     QStringList entradas_;
     QVariantList salidas_;
     QVariantMap tiras_;
+    /// Los canales de la foto por nombre (O(1)): `tira` se pide por cada entrada, y
+    /// MezclaAudio::canal/volumen/mudo recorren la lista (O(N²) con cada foto).
+    /// (Pendiente: `tiras` como modelo por fila, como Matriz::filas; hoy es un mapa entero.)
+    mutable IndiceCanales indice_;
     std::vector<std::string> idSalidas_; ///< el id de cada salida (orden de salidas_)
     QVariantList nivelesE_, nivelesS_;
     QVariantMap loudness_;

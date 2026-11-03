@@ -55,6 +55,10 @@ class ListaObjetos : public ListaConClave<FilaObjeto> {
 
     /// La lista nueva: avisa por clave lo que entró, salió, se movió o cambió.
     void poner(const QVariantList& lista);
+    /// Una fila en su lugar (la `i`, que tiene que tener esa misma clave): avisa solo sus
+    /// roles que cambiaron. Trabajo O(1) (no compara la lista entera). false si en `i` no
+    /// está esa clave: quien llama rearma con `poner`.
+    bool ponerEn(int i, const QVariantMap& fila);
     /// El objeto de la fila (vacío si no hay), para una acción (elegir la de un índice).
     Q_INVOKABLE QVariantMap fila(int i) const;
     /// En qué fila está esa clave (-1 si no está), para una acción (ir a la elegida).

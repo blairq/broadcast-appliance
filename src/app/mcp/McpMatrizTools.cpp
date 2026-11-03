@@ -137,7 +137,7 @@ void McpService::registerMatrizTools() {
             }
             if (a.contains("ajustes") && !a.value("ajustes", true)) m->setAjustes(f, b, false);
             if (a.contains("nivel_db") || a.contains("pan") || a.contains("mute")) {
-                const QVariantMap c = m->cruces().value(f + "|" + b).toMap();
+                const QVariantMap c = m->cruce(f, b);
                 if (!c.value("activo").toBool())
                     return done(
                         ToolResult::error(ba::i18n::traducir("mcp", "Ese cruce no está activo (o es una pista nativa, sin ajustes).")));

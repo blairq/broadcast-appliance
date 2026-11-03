@@ -72,6 +72,19 @@ void ListaObjetos::poner(const QVariantList& nueva) {
     if (rowCount() != antes) emit countChanged();
 }
 
+bool ListaObjetos::ponerEn(int i, const QVariantMap& fila) {
+    if (i < 0 || i >= rowCount()) return false;
+    FilaObjeto n{fila.value(clave_).toString(), fila};
+    FilaObjeto& f = filas_[static_cast<std::size_t>(i)];
+    if (n.id.isEmpty() || f.id != n.id) return false;
+    if (f == n) return true;
+    const QList<int> roles = rolesQueCambian(f, n);
+    f = std::move(n);
+    emit dataChanged(index(i), index(i), roles);
+    emit listaChanged();
+    return true;
+}
+
 QVariant ListaObjetos::data(const QModelIndex& index, int role) const {
     if (!index.isValid() || index.row() >= rowCount()) return {};
     const FilaObjeto& f = filas_[static_cast<std::size_t>(index.row())];
