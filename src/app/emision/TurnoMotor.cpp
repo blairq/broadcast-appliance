@@ -2,6 +2,7 @@
 
 #include "emision/TurnoMotor.hpp"
 
+#include "diag/Acoples.hpp"
 #include "diag/Metricas.hpp"
 #include "diag/Registro.hpp"
 #include "i18n/I18n.hpp"
@@ -156,26 +157,32 @@ void TurnoMotor::entrarDirecto(std::source_location donde) const {
     if (t_participa != nullptr && t_porVuelta) entrarPorVuelta(donde);
 }
 
-void TurnoMotor::contarDirecta(std::source_location donde) const {
-    if (t_participa == nullptr || !t_porVuelta) return;
+bool TurnoMotor::contarDirecta(std::source_location donde) const {
+    if (t_participa == nullptr || !t_porVuelta) return false;
     // Una vez por lugar y evento (un bucle de la interfaz que llama 120 veces al motor no
     // llena las métricas).
     const std::pair<const char*, unsigned> clave{donde.file_name(), static_cast<unsigned>(donde.line())};
     for (const auto& c : t_contadas)
-        if (c.second == clave.second && (c.first == clave.first || std::strcmp(c.first, clave.first) == 0)) return;
+        if (c.second == clave.second && (c.first == clave.first || std::strcmp(c.first, clave.first) == 0)) return false;
     t_contadas.push_back(clave);
     anotarDirecta(donde);
+    // El detector de acoples (diag/Acoples.hpp, solo pruebas): la interfaz entró directo, así
+    // que espera de más ACÁ (antes de tomar el turno, para no frenar también al dueño) y queda
+    // en el informe con el lugar y quién lo llamó. Una vez por lugar y evento, como lo de arriba.
+    BA_ACOPLE_EN("motor", lugar(donde), donde);
+    return true;
 }
 
 void TurnoMotor::entrarPorVuelta(const std::source_location& donde) const {
     if (t_vuelta == this) return; // ya lo tiene esta vuelta
+    // Se cuenta (y el detector de acoples espera) antes de tomarlo.
+    contarDirecta(donde);
     tomar(donde);
     t_vuelta = this;
     t_vueltaDesdeUs = ahoraUs();
     t_vueltaLugar = donde.function_name();
     t_vueltaArchivo = donde.file_name();
     t_vueltaLinea = static_cast<unsigned>(donde.line());
-    contarDirecta(donde);
 }
 
 namespace {

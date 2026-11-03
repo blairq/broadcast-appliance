@@ -29,6 +29,7 @@
 #include <QQmlApplicationEngine>
 #include <QQuickWindow>
 
+#include "diag/Acoples.hpp"
 #include "diag/DiarioDeArranque.hpp"
 #include "diag/Registro.hpp"
 #include "i18n/I18n.hpp"
@@ -40,9 +41,11 @@
 #include <QThread>
 #include <QUrl>
 
+#include <algorithm>
 #include <csignal>
 #include <cstdio>
 #include <memory>
+#include <string>
 
 #include "agent/AgentViewModel.hpp"
 #include "agent/HijosDeLaApp.hpp"
@@ -290,13 +293,39 @@ int runGui(int argc, char** argv) {
     // Este hilo nunca tiene que esperar al motor: desde acá, el motor avisa en el
     // registro cada vez que lo hace esperar (ver motor/Candado.hpp).
     ba::motor::marcarHiloInterfaz();
+    ba::diag::acoples::marcarHiloInterfaz();
     ba::platform::nombrarHilo("interfaz");
     // Y cuánto se demora su bucle de eventos (y quién lo demora): ui/VigiaInterfaz.
     new ba::app::VigiaInterfaz(&app);
     // Con --test, cada vez que la interfaz tome el candado del motor (no tiene que
     // tomarlo nunca) queda como ERROR en el registro, aunque sea de un instante.
+    bool conPrueba = false;
     for (int i = 1; i < argc; ++i)
-        if (std::string(argv[i]) == "--test" || std::string(argv[i]) == "--debug") ba::motor::vigiaEstricto(true);
+        if (std::string(argv[i]) == "--test" || std::string(argv[i]) == "--debug") {
+            ba::motor::vigiaEstricto(true);
+            conPrueba = true;
+        }
+    // El detector de acoples (diag/Acoples.hpp, docs/arquitectura/detector-de-acoples.md):
+    // `--detectar-acoples[=ms]`, SOLO con --test: cada camino de la interfaz que no pasa por el
+    // modelo espera `ms` de más (300 de fábrica) y queda en el informe (MCP diag_acoples).
+    for (int i = 1; i < argc; ++i) {
+        const std::string a = argv[i];
+        if (a != "--detectar-acoples" && a.rfind("--detectar-acoples=", 0) != 0) continue;
+        if (!conPrueba) {
+            ba::diag::registro().linea(ba::diag::Nivel::Aviso, "interfaz", 0,
+                                       ba::i18n::traducir("diag", "--detectar-acoples solo anda con --test: no se enciende"));
+            break;
+        }
+        int ms = ba::diag::acoples::kDemoraDeFabricaMs;
+        if (const auto igual = a.find('='); igual != std::string::npos) {
+            try {
+                ms = std::stoi(a.substr(igual + 1));
+            } catch (...) {
+            }
+        }
+        ba::diag::acoples::activar(std::clamp(ms, 1, 10000));
+        break;
+    }
 
     QGuiApplication::setApplicationName("Broadcast Appliance");
     // El logo en la barra de tareas, el Dock y el selector de ventanas. Varios

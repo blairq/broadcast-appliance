@@ -6,10 +6,12 @@
 #include <cstdio>
 #include <cstdlib>
 #include <map>
+#include <source_location>
 #include <string>
 #include <thread>
 
 #include "Reloj.hpp" // registrar
+#include "diag/Acoples.hpp"
 #include "diag/Metricas.hpp"
 #include "i18n/I18n.hpp"
 
@@ -104,6 +106,9 @@ Candado::Candado(MutexMotor& m, const char* donde)
                                                                        "docs/planes/PLAN-MOTOR-SIN-ESPERAS.md)"),
                                            {donde_}));
         }
+        // El detector de acoples (solo pruebas): la interfaz tomó el candado del motor, así
+        // que espera de más acá, antes de tomarlo, y queda en el informe con su pila.
+        BA_ACOPLE_EN("candado", donde_, std::source_location::current());
     }
     m_.lock();
     tomadoUs_ = g_get_monotonic_time();

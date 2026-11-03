@@ -2,6 +2,8 @@
 
 #include "persist/Escritor.hpp"
 
+#include "diag/Acoples.hpp"
+
 #include <algorithm>
 #include <cctype>
 #include <cerrno>
@@ -65,6 +67,8 @@ void bajarCarpeta(const fs::path& carpeta, Durabilidad d) {
 } // namespace
 
 bool escribir(const fs::path& ruta, std::string_view bytes, Durabilidad d, Permisos p, std::string* error) {
+    // Desde la interfaz, el disco espera (fsync): va por persist::cola(). Ver diag/Acoples.hpp.
+    BA_ACOPLE("disco", "persist::escribir");
     std::error_code ec;
     const fs::path carpeta = ruta.parent_path();
     if (!carpeta.empty()) fs::create_directories(carpeta, ec);
@@ -140,6 +144,7 @@ bool escribir(const fs::path& ruta, std::string_view bytes, Durabilidad d, Permi
 }
 
 bool agregar(const fs::path& ruta, std::string_view bytes, Durabilidad d, std::string* error) {
+    BA_ACOPLE("disco", "persist::agregar");
     std::error_code ec;
     const fs::path carpeta = ruta.parent_path();
     if (!carpeta.empty()) fs::create_directories(carpeta, ec);
@@ -195,6 +200,7 @@ bool agregar(const fs::path& ruta, std::string_view bytes, Durabilidad d, std::s
 }
 
 bool borrar(const fs::path& ruta) {
+    BA_ACOPLE("disco", "persist::borrar");
     std::error_code ec;
     const bool habia = fs::remove(ruta, ec);
     if (ec) return false;
@@ -207,6 +213,7 @@ bool borrar(const fs::path& ruta) {
 }
 
 bool leerArchivo(const fs::path& ruta, std::string& out) {
+    BA_ACOPLE("disco", "persist::leerArchivo");
     std::ifstream in(ruta, std::ios::binary);
     if (!in) return false;
     std::ostringstream ss;

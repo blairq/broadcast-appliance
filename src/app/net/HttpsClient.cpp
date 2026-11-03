@@ -4,6 +4,7 @@
 
 #include "net/HttpsClient.hpp"
 
+#include "diag/Acoples.hpp"
 #include "i18n/I18n.hpp"
 
 #include <chrono>
@@ -253,6 +254,7 @@ LineSocket::~LineSocket() { delete impl_; }
 
 bool LineSocket::open(const std::string& host, const std::string& port, bool tls, int readTimeoutMs,
                       std::string& err) {
+    BA_ACOPLE("red", "LineSocket::open");
     delete impl_;
     impl_ = new Impl();
     Url u;
@@ -328,6 +330,8 @@ std::string urlEncode(const std::string& s) {
 }
 
 HttpResponse HttpsClient::request(const HttpRequest& req) {
+    // Sincrónico: desde la interfaz, la red la traba (ver diag/Acoples.hpp).
+    BA_ACOPLE("red", "HttpsClient::request");
     HttpResponse res;
     Url u;
     if (!parseUrl(req.url, u)) {
@@ -545,6 +549,7 @@ HttpResponse HttpsClient::request(const HttpRequest& req) {
 }
 
 HttpResponse HttpsClient::download(HttpRequest req) {
+    BA_ACOPLE("red", "HttpsClient::download");
     req.method = "GET";
     if (req.resumeFrom > 0) req.headers.emplace_back("Range", "bytes=" + std::to_string(req.resumeFrom) + "-");
     HttpResponse res;
