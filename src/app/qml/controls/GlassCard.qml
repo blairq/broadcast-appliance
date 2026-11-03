@@ -40,8 +40,7 @@ FocusScope {
     // el título escondido en una barrita que se muestra al pasar el mouse o tocar la tarjeta.
     readonly property bool compacta: Theme.web
     readonly property int radio: compacta ? 6 : Theme.radius
-    property bool mostrarTitulo: !compacta || encima.hovered || tituloTocado.running || moving
-    HoverHandler { id: encima }
+    // En una pantalla táctil no hay «mouse encima»: tocar la tarjeta muestra su barra un rato.
     Timer { id: tituloTocado; interval: 2500 }
 
     x: area ? fx * area.width : 0
@@ -137,21 +136,40 @@ FocusScope {
         }
     }
 
-    // --- Encabezado (arrastre) -------------------------------------------------
+    // --- Encabezado (arrastre): una barra fina que aparece solo con el mouse encima ----
+    // El contenido usa toda la tarjeta; el título, sus opciones y la ✕ se ven al pasar el
+    // mouse (o mientras se arrastra o se agranda), encima del contenido. Escondida no recibe
+    // clics: nada se cierra ni se arrastra sin verlo.
+    HoverHandler { id: hoverTarjeta }
+    readonly property bool mostrarTitulo: hoverTarjeta.hovered || dragHandler.active || resizeArea.pressed || tituloTocado.running
     Item {
         id: header
         anchors { left: parent.left; right: parent.right; top: parent.top }
-        height: card.compacta ? 16 : 46
-        // Compacta: el título y la ✕ aparecen solo a la vista (la barrita igual se arrastra).
+        height: card.compacta ? 20 : 28
+        z: 2
         opacity: card.mostrarTitulo ? 1 : 0
-        Behavior on opacity { NumberAnimation { duration: 120 } }
+        visible: opacity > 0
+        Behavior on opacity { NumberAnimation { duration: 140 } }
+        // Esquinas de arriba redondeadas como la tarjeta, las de abajo rectas (Qt 6.6 no tiene
+        // topLeftRadius: un rectángulo redondeado y otro recto que tapa su mitad de abajo).
+        Item {
+            anchors.fill: parent
+            opacity: 0.85
+            layer.enabled: true // la transparencia, una sola vez sobre los dos (sin franja más oscura)
+            Rectangle { anchors.fill: parent; radius: card.radio; color: "#0a0a0d" }
+            Rectangle {
+                anchors { left: parent.left; right: parent.right; bottom: parent.bottom }
+                height: Math.min(card.radio, parent.height / 2)
+                color: "#0a0a0d"
+            }
+        }
 
         Text {
             id: titleText
-            anchors { left: parent.left; leftMargin: card.compacta ? 8 : 18; verticalCenter: parent.verticalCenter }
+            anchors { left: parent.left; leftMargin: card.compacta ? 8 : 12; verticalCenter: parent.verticalCenter }
             text: card.title
-            color: Theme.text
-            font { family: Theme.font; pixelSize: card.compacta ? 11 : 16; weight: Font.DemiBold }
+            color: Theme.textDim
+            font { family: Theme.font; pixelSize: 11; weight: Font.DemiBold }
         }
         Loader {
             id: accionesTituloSlot
@@ -174,7 +192,7 @@ FocusScope {
         Text {
             id: closeBtn
             visible: card.closable
-            anchors { right: parent.right; rightMargin: card.compacta ? 6 : 14; verticalCenter: parent.verticalCenter }
+            anchors { right: parent.right; rightMargin: card.compacta ? 6 : 10; verticalCenter: parent.verticalCenter }
             text: "✕"
             color: closeMa.containsMouse ? Theme.text : Theme.textFaint
             font.pixelSize: 13
@@ -206,8 +224,9 @@ FocusScope {
     // --- Contenido --------------------------------------------------------------
     Item {
         id: body
-        anchors { left: parent.left; right: parent.right; top: header.bottom; bottom: parent.bottom
-                  leftMargin: card.compacta ? 6 : 16; rightMargin: card.compacta ? 6 : 16; bottomMargin: card.compacta ? 6 : 14 }
+        anchors { left: parent.left; right: parent.right; top: parent.top; bottom: parent.bottom
+                  leftMargin: card.compacta ? 6 : 12; rightMargin: card.compacta ? 6 : 12
+                  topMargin: card.compacta ? 6 : 10; bottomMargin: card.compacta ? 6 : 12 }
         clip: true
     }
 
