@@ -17,6 +17,15 @@
 //     (AppRuntime::ticMotor, BroadcastEngine::programPeaksDb): el mayor desde que la
 //     interfaz lo tomó (tomarPrograma, el vúmetro de arriba con su caída) y el de la
 //     última vuelta (programa: el MCP, que no se lo roba a la vista).
+//   - EL LOUDNESS de cada salida (M/S/I, true peak, LRA) también va acá, no en la foto del
+//     motor: cambia siempre, y en la foto la hacía distinta en cada vuelta. Lo pone el dueño
+//     a un ritmo acotado (medir, kLoudnessCadaVueltas) y la vista lo lee a su ritmo, solo
+//     si alguien lo muestra (audio/Mezclador).
+//   - SIN EL TURNO DEL MOTOR: el dueño mide (el pico del programa, el loudness) en cada
+//     vuelta de su reloj aunque la interfaz tenga el turno (PLAN-MOTOR-SIN-ESPERAS: el
+//     reloj del motor no espera a nadie). Para eso guarda los MEDIDORES de cada salida
+//     (ponerMedidores, con el turno, cuando cambian las salidas: lo que mide cada una es
+//     atómico o tiene su candado, MedidasSalida) y `medir` los lee sin él.
 //
 // Es de BroadcastEngine (vive lo que la app); la interfaz lo pide una vez
 // (AppRuntime::niveles). DESDE CUALQUIER HILO.
@@ -26,6 +35,7 @@
 #include "NivelAudio.hpp"
 
 #include <atomic>
+#include <cstdint>
 #include <functional>
 #include <map>
 #include <memory>
@@ -33,6 +43,8 @@
 #include <string>
 #include <utility>
 #include <vector>
+
+#include <nlohmann/json.hpp>
 
 namespace ba::app {
 
@@ -61,6 +73,29 @@ class NivelesMotor {
     /// Una salida que ya no está (deja de sumarse).
     void olvidarSalida(const std::string& salida);
 
+    // --- Lo que mide el dueño sin el turno ------------------------------------------------
+    /// Lo que se mide de una salida, desde cualquier hilo y sin el turno del motor (lo arma
+    /// BroadcastEngine::medidores con las medidas compartidas de cada salida).
+    struct Medidor {
+        std::string salida;
+        std::function<std::pair<float, float>()> pico; ///< el pico desde la última vez (dBFS) y lo pone en cero
+        std::function<nlohmann::json()> loudness;      ///< LoudnessPrograma::json
+    };
+    /// DESDE EL DUEÑO, con el turno: los medidores de las salidas que hay ahora.
+    void ponerMedidores(std::vector<Medidor> m);
+    /// Cada cuántas vueltas del reloj del motor se publica el loudness (~4 por segundo).
+    static constexpr int kLoudnessCadaVueltas = 3;
+    /// DESDE EL DUEÑO, SIN el turno: suma el pico del programa de cada salida y, si
+    /// `conLoudness`, publica el loudness de todas. Devuelve cuántas midió.
+    int medir(bool conLoudness);
+    /// El loudness de cada salida, {salida: LoudnessPrograma::json} (nunca nulo). Se puede
+    /// guardar: no cambia.
+    std::shared_ptr<const nlohmann::json> loudness() const;
+    /// El de `salida` ("" = la por omisión); un objeto vacío si no hay.
+    nlohmann::json loudnessDe(const std::string& salida) const;
+    /// Cuántas veces se publicó el loudness (para el test y el diagnóstico).
+    std::uint64_t medidas() const { return medidas_.load(); }
+
     /// Por debajo de esto (dBFS) es silencio: nada que mostrar en un vúmetro.
     static constexpr float kSilencioDb = -90.0f;
     /// Si algo suena: una entrada, un bus o el programa de alguna salida (su última vuelta).
@@ -86,6 +121,10 @@ class NivelesMotor {
     std::function<void()> despertar_;   ///< con mu_ (ver despertarAlSonar)
     std::atomic<bool> armado_{false};   ///< hay despertador: el que publica mira si suena
     std::mutex avisoMu_;                ///< tomado mientras se llama al despertador
+    std::mutex medidoresMu_;            ///< el dueño los pone y los lee; por si cambia de hilo
+    std::vector<Medidor> medidores_;    ///< con medidoresMu_
+    std::shared_ptr<const nlohmann::json> loudness_ = std::make_shared<const nlohmann::json>(nlohmann::json::object()); ///< con mu_
+    std::atomic<std::uint64_t> medidas_{0};
 };
 
 } // namespace ba::app

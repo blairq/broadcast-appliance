@@ -112,4 +112,52 @@ void NivelesMotor::olvidarSalida(const std::string& salida) {
     if (!salida.empty() && salida != porOmision_) programa_.erase(salida);
 }
 
+void NivelesMotor::ponerMedidores(std::vector<Medidor> m) {
+    const std::lock_guard<std::mutex> g(medidoresMu_);
+    medidores_ = std::move(m);
+}
+
+int NivelesMotor::medir(bool conLoudness) {
+    std::vector<Medidor> ms;
+    {
+        const std::lock_guard<std::mutex> g(medidoresMu_);
+        ms = medidores_; // unos pocos (uno por salida): se copian para medir sin el candado
+    }
+    nlohmann::json loud = nlohmann::json::object();
+    for (const Medidor& m : ms) {
+        if (m.pico) {
+            const auto [l, r] = m.pico();
+            sumarPrograma(m.salida, l, r);
+        }
+        if (conLoudness && m.loudness) loud[m.salida] = m.loudness();
+    }
+    if (conLoudness) {
+        auto nuevo = std::make_shared<const nlohmann::json>(std::move(loud));
+        {
+            const std::lock_guard<std::mutex> g(mu_);
+            loudness_ = std::move(nuevo);
+        }
+        ++medidas_;
+    }
+    return static_cast<int>(ms.size());
+}
+
+std::shared_ptr<const nlohmann::json> NivelesMotor::loudness() const {
+    const std::lock_guard<std::mutex> g(mu_);
+    return loudness_;
+}
+
+nlohmann::json NivelesMotor::loudnessDe(const std::string& salida) const {
+    std::shared_ptr<const nlohmann::json> l;
+    std::string id;
+    {
+        const std::lock_guard<std::mutex> g(mu_);
+        l = loudness_;
+        id = salida.empty() ? porOmision_ : salida;
+    }
+    if (!l) return nlohmann::json::object();
+    const auto it = l->find(id);
+    return it != l->end() ? *it : nlohmann::json::object();
+}
+
 } // namespace ba::app

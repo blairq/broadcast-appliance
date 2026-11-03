@@ -12,6 +12,7 @@
 #include <QDateTime>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QMetaMethod>
 
 #include <algorithm>
 #include <cmath>
@@ -49,10 +50,16 @@ Mezclador::Mezclador(AppRuntime& rt, VentanillaMotor& ventanilla, Matriz* matriz
     // Una columna nueva (un bus, una placa que se enchufa), una pista renombrada…
     if (matriz_ != nullptr) connect(matriz_, &Matriz::cambio, this, &Mezclador::rehacerListas);
     // Una entrada con audio que llega o se va: con la foto del motor.
-    connect(&v_, &VentanillaMotor::cambio, this, [this](unsigned partes) {
+    v_.escuchar(this, [this](unsigned partes) {
         if ((partes & FotoMotor::Mezcla) != 0) rehacerListas();
-        if ((partes & FotoMotor::Medidas) != 0) revisarLoudness();
     });
+    // El loudness, del canal de niveles (lo publica el reloj del motor, sin el turno), solo si
+    // alguien está enlazado a la propiedad.
+    timerLoudness_.setInterval(250);
+    connect(&timerLoudness_, &QTimer::timeout, this, [this]() {
+        if (isSignalConnected(QMetaMethod::fromSignal(&Mezclador::loudnessCambio))) revisarLoudness();
+    });
+    timerLoudness_.start();
     rehacerListas();
     revisarLoudness();
     calibracion_ = std::make_unique<Calibracion>(rt.dataRoot(), rt.modoPrueba());
@@ -170,10 +177,10 @@ void Mezclador::tic() {
 }
 
 void Mezclador::revisarLoudness() {
-    // De la foto (la parte Medidas: el loudness de cada salida, por su id).
-    const FotoMotor& f = v_.foto();
-    const std::string id = f.mezcla.salida(salida_);
-    QVariantMap l = f.loudness.contains(id) ? aMapa(f.loudness[id]) : QVariantMap{};
+    // Del canal de niveles (el loudness de cada salida, por su id; la salida, de la foto).
+    const std::string id = v_.foto().mezcla.salida(salida_);
+    const nlohmann::json j = rt_.niveles().loudnessDe(id);
+    QVariantMap l = j.is_object() && !j.empty() ? aMapa(j) : QVariantMap{};
     if (l == loudness_) return;
     loudness_ = std::move(l);
     emit loudnessCambio();

@@ -92,6 +92,8 @@ void PublicadorFoto::publicarFoto() {
                                                             "fila en FotoMotor::kArrastres"),
                                  {std::to_string(sin), std::to_string(sucias)}));
     if (cambiaron == 0) return;
+    // La copia es barata: lo que crece con los invitados va compartido (emision/Compartido.hpp)
+    // y la foto nueva se queda con lo de la anterior que no cambió.
     foto_ = std::make_shared<const FotoMotor>(trabajo_);
     {
         const std::lock_guard<std::mutex> l(ultimaFotoMu_);
@@ -111,7 +113,9 @@ void PublicadorFoto::armarFoto(FotoMotor& f, unsigned p) {
     BroadcastEngine& eng = rt_.engine_;
     // --- Escenas: el orden del operador, la carpeta, si está protegida y las fuentes ------
     if ((p & FotoMotor::Escenas) != 0) {
-        f.escenas.clear();
+        // Se arman aparte y se asignan: si quedaron iguales, la foto sigue con las de antes
+        // (el mismo valor compartido: ni se copian ni se recorren al compararlas).
+        std::vector<FotoMotor::Escena> escenas;
         for (const std::string& n : rt_.orderedSceneNames()) {
             FotoMotor::Escena e;
             e.nombre = n;
@@ -139,10 +143,12 @@ void PublicadorFoto::armarFoto(FotoMotor& f, unsigned p) {
                 x.efectos = eng.sourceEfectos(n, fu).aJson();
                 e.fuentes.push_back(std::move(x));
             }
-            f.escenas.push_back(std::move(e));
+            escenas.push_back(std::move(e));
         }
-        f.fuentes.clear();
-        for (const std::string& n : eng.sourceNames()) f.fuentes.emplace_back(n, eng.sourceTypeId(n));
+        f.escenas = std::move(escenas);
+        std::vector<std::pair<std::string, std::string>> fuentes;
+        for (const std::string& n : eng.sourceNames()) fuentes.emplace_back(n, eng.sourceTypeId(n));
+        f.fuentes = std::move(fuentes);
         f.tipos.clear();
         for (const SourceType& t : eng.inputTypes()) f.tipos.push_back({t.id, t.displayName, t.video, t.audio});
     }
@@ -251,8 +257,9 @@ void PublicadorFoto::armarFoto(FotoMotor& f, unsigned p) {
                               {"pausada", g.pausada}});
         f.apurosDisco = eng.discoEstado();
         f.remux = eng.remuxEstado();
-        f.retornos = nlohmann::json::object();
-        for (int s = 1; s <= cfg.guests; ++s) f.retornos[std::to_string(s)] = eng.retornoInvitado(s);
+        nlohmann::json retornos = nlohmann::json::object();
+        for (int s = 1; s <= cfg.guests; ++s) retornos[std::to_string(s)] = eng.retornoInvitado(s);
+        f.retornos = std::move(retornos);
     }
 
     // --- Los ajustes que muestra la interfaz ----------------------------------------------
@@ -281,15 +288,13 @@ void PublicadorFoto::armarFoto(FotoMotor& f, unsigned p) {
     // --- El audio de cada fuente (FotoMezcla.cpp) -----------------------------------------
     if ((p & FotoMotor::Mezcla) != 0) armarMezcla(f.mezcla);
 
-    // --- Lo que se mueve siempre ---------------------------------------------------------
+    // --- Lo que se mueve en cada vuelta (el loudness va por el canal de niveles) -----------
     if ((p & FotoMotor::Medidas) != 0) {
-        f.medios = nlohmann::json::array();
+        nlohmann::json medios = nlohmann::json::array();
         for (const auto& m : eng.mediaSources())
-            f.medios.push_back({{"fuente", m.name}, {"estado", m.state}, {"duracion_ms", m.durationMs}, {"tiempo_ms", m.timeMs}});
+            medios.push_back({{"fuente", m.name}, {"estado", m.state}, {"duracion_ms", m.durationMs}, {"tiempo_ms", m.timeMs}});
+        f.medios = std::move(medios);
         f.salud = eng.saludSalidas();
-        f.loudness = nlohmann::json::object();
-        for (const std::string& id : eng.salidaIds())
-            if (const audio::LoudnessPrograma* l = eng.loudnessDe(id)) f.loudness[id] = l->json();
     }
 
     // --- La configuración guardada: copias nuevas (las viejas siguen en las fotos que se leen)
@@ -319,9 +324,7 @@ void PublicadorFoto::armarFoto(FotoMotor& f, unsigned p) {
         f.equipo.motor = {{"ultimo_error", est.lastError},
                           {"respaldo_codificador", eng.encoderRespaldoActivo()},
                           {"salidas", std::move(porSalida)}};
-        f.equipo.audio = nlohmann::json::array();
-        for (const std::string& n : eng.audioSources())
-            f.equipo.audio.push_back({{"fuente", n}, {"pico_db", eng.sourcePeakDb(n)}, {"mudo", eng.sourceMuted(n)}});
+        // (El pico de cada entrada no: NivelesMotor::picoEntrada, sin recorrerlas acá.)
     }
 
     // --- Lo que leen la asamblea, la sala y la línea de tiempo ------------------------------
