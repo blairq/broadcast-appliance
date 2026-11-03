@@ -40292,8 +40292,8 @@ Elegí otra cosa en Salidas → Pantallas.</source>
     </message>
     <message>
         <location line="+0" />
-        <source>Cuántos hilos atienden la red de los invitados (sus conexiones y el TURN), cada uno con su parte. 0: automático según la máquina (un tercio de los núcleos de un bloque de caché, entre 1 y 4). 1: como antes, para comparar.</source>
-        <translation>Сколько потоков обслуживают сеть гостей (их соединения и TURN), каждый свою часть. 0: автоматически по машине (треть ядер одного блока кэша, от 1 до 4). 1: как раньше, для сравнения.</translation>
+        <source>Cuántos hilos atienden la red de los invitados (sus conexiones y el TURN), cada uno con su parte. 0: automático según la máquina (uno cada 3 núcleos físicos, entre 2 y 8: 4 en un Ryzen 9 5900X). 1: como antes, para comparar.</source>
+        <translation>Сколько потоков обслуживают сеть гостей (их соединения и TURN), каждый свою часть. 0: автоматически по машине (один на каждые 3 физических ядра, от 2 до 8: 4 на Ryzen 9 5900X). 1: как раньше, для сравнения.</translation>
     </message>
     <message>
         <location line="+1" />
