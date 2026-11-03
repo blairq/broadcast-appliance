@@ -60,7 +60,9 @@
     actualizar(_, d) {
       this.pin.textContent = BAi18n.llenar(t("PIN %1"), d.pin || "—");
       this.lugares.setAttribute("estado", d.slotsFree > 0 ? "ok" : "aviso");
-      this.lugares.textContent = BAi18n.llenar(t("%1 de %2 lugares libres"), d.slotsFree ?? "—", d.maxGuests ?? "—");
+      this.lugares.textContent = BAi18n.llenar(t("%1 de %2 lugares libres"), d.slotsFree ?? "—", d.maxGuests ?? "—") +
+        // Entrada escalonada: los aprobados que esperan su turno para pasar (room.entradaPorSegundo).
+        (d.entrando > 0 ? " · " + BAi18n.llenar(t("%1 entrando (%2 por segundo)"), d.entrando, d.entradaPorSegundo || "—") : "");
       this.lobby.encendido = !!d.lobby;
       this.cerrada.encendido = !!d.locked;
       const ps = d.participants || [];
@@ -83,7 +85,7 @@
       const pintar = (lista) => (f, id) => {
         const p = lista.find((x) => x.id === id); f.p = p;
         texto(f.nombre, p.name || p.id);
-        texto(f.det, " " + [p.slot ? BAi18n.llenar(t("lugar %1"), p.slot) : "", p.hand ? t("✋ pide la palabra") : "", p.talk ? t("🎙 hablando") : "", p.connected === false ? t("desconectado") : ""].filter(Boolean).join(" · "));
+        texto(f.det, " " + [p.entrando ? t("entrando…") : "", p.slot ? BAi18n.llenar(t("lugar %1"), p.slot) : "", p.hand ? t("✋ pide la palabra") : "", p.talk ? t("🎙 hablando") : "", p.connected === false ? t("desconectado") : ""].filter(Boolean).join(" · "));
         if (f.hablar) {
           texto(f.hablar, p.talk ? t("🎙 Callar") : t("🎙 Hablar"));
           if (f.hablar.hasAttribute("activo") !== !!p.talk) f.hablar.toggleAttribute("activo", !!p.talk);

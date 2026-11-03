@@ -50,6 +50,17 @@
 // cuando cambia la cantidad de columnas se reacomoda el dibujo, y eso el gateway
 // lo anima (cada cara viaja a su lugar nuevo).
 //
+// LAS ENTRADAS SE JUNTAN (ajuste «grilla.reacomodoMinMs», 2026-11-02): con 120 invitados
+// entrando de a uno, cada entrada era un reacomodo entero (todas las celdas cambian de
+// tamaño, el gateway rearrancaba el viaje de TODAS desde velocidad cero y le pedía a cada
+// navegador otra calidad): el mosaico no terminaba nunca de moverse y se veía trabado. Ahora
+// una grilla reacomoda por entradas como mucho una vez cada reacomodoMinMs: el primero que
+// llega después de un rato entra en el acto; los que llegan dentro del intervalo esperan
+// («entrando» en el Resultado, sin contar en el «+N») y entran TODOS JUNTOS en el próximo
+// reacomodo, con una sola animación. No esperan el orador (ni el que va a serlo) ni los
+// fijados a mano: el fundido al dar la palabra sigue siendo inmediato. Los que se van salen
+// en el acto (su lugar no puede quedar con alguien que ya no está).
+//
 // La misma fuente en dos escenas es LA MISMA IMAGEN: para repartir gente entre
 // escenas se usan instancias distintas con el mismo grupo.
 //
@@ -112,6 +123,7 @@
 
 #include <nlohmann/json.hpp>
 
+#include <algorithm>
 #include <cstdint>
 #include <functional>
 #include <map>
@@ -300,6 +312,9 @@ struct Resultado {
     std::string siguiente; ///< el que se precarga ("" = nadie)
     /// Muestra más de «alta_hasta» personas (con histéresis): todas sus miniaturas en baja.
     bool enBaja = false;
+    /// Los que ya llegaron y esperan el próximo reacomodo de su grupo (ver «LAS ENTRADAS SE
+    /// JUNTAN»): no están en `personas` ni en `mas`.
+    int entrando = 0;
 };
 
 /// Quién es el orador de una grilla, con su tiempo mínimo en pantalla. Pura: la prueba
@@ -399,7 +414,16 @@ class Repartidor {
     std::vector<Resultado> calcular(const std::vector<Config>& grillas, const std::vector<Persona>& gente,
                                     const Manual& manual = {}, std::int64_t ahoraMs = 0);
     /// Olvidar los lugares (la próxima vuelta reparte desde cero).
-    void olvidar() { lugares_.clear(); }
+    void olvidar() {
+        lugares_.clear();
+        reacomodo_.clear();
+    }
+    /// Cada cuánto como mucho una grilla reacomoda por gente que entra (0 = en el acto, cada una).
+    void reacomodoMinMs(int ms) { reacomodoMinMs_ = std::max(0, ms); }
+    int reacomodoMinMs() const { return reacomodoMinMs_; }
+    /// Cuándo pueden entrar los que esperan (el reloj de `calcular`); 0 = no espera nadie.
+    /// Quien llama vuelve a calcular a esa hora (si no, entran en la vuelta siguiente).
+    std::int64_t proximoReacomodoMs() const { return proximo_; }
 
    private:
     /// Las celdas de una grilla según «al_hablar» (personas en orden de lugar, sin el «+N» del reparto).
@@ -409,6 +433,9 @@ class Repartidor {
     std::map<std::string, MaquinaOrador> oradores_;            // fuente → su orador
     std::set<std::string> enBaja_;                             // las grillas con todas las miniaturas en baja
     CapasGrilla capas_;
+    int reacomodoMinMs_ = 0;                          // 0 = cada entrada reacomoda en el acto
+    std::map<std::string, std::int64_t> reacomodo_;   // grupo → la última vez que entró alguien
+    std::int64_t proximo_ = 0;                        // cuándo entran los que esperan (0 = nadie)
 };
 
 /// El estado entero para el gateway (POST /api/v1/grillas), ver src/gateway/Grillas.hpp.

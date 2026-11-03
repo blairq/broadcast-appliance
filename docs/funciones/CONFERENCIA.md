@@ -64,6 +64,27 @@ servidor propio por WireGuard).
 - Chat (a todos, al operador, o del operador a uno), mano levantada, pedidos
   del operador (silenciar, apagar cámara, cortar pantalla, bajar la mano).
 
+### Entrada escalonada (`room.entradaPorSegundo`)
+
+Pasar a la sala es un solo camino para todos —admitir de a uno, **Admitir a
+todos**, el lobby apagado, la entrada directa y la prueba de sala— y va a un
+ritmo: **2 por segundo** de fábrica (de 1 a 100, en Configuración → Conferencia
+«Invitados que entran por segundo», o `settings_set` con
+`{"room.entradaPorSegundo": 5}`; rige en el acto, sin reiniciar la conferencia).
+Cada uno que entra es una conexión WebRTC que se negocia, una cámara más que
+decodificar y una grilla que se reacomoda: de a 120 juntos la conferencia y la
+app se ahogaban y el mosaico se veía trabado.
+
+- El primero que llega a una sala tranquila pasa en el acto; si llegan muchos a
+  la vez, pasan en orden de llegada (120 de golpe a 2 por segundo: un minuto).
+- Los aprobados que esperan su turno **no están rechazados**: siguen en el lobby
+  con «Entrando…» y su lugar en la fila («Hay N personas antes que vos para
+  entrar»). Su lugar en el programa queda reservado: no se aprueban más que los
+  lugares libres.
+- El operador los ve en el snapshot de la sala (`room_status`): `entrando`
+  (cuántos esperan), `entradaPorSegundo` (el ritmo) y `entrando: true` en cada
+  uno; la consola web lo muestra junto a los lugares libres («N entrando»).
+
 ## Modo oradores
 
 Para cuando hay mucha gente que va a hablar por turnos (página Sala →
@@ -123,6 +144,19 @@ cada grilla y dónde lo decide la app (`src/app/escenas/GrillaPersonas.hpp`); el
 mosaico lo pinta B (`src/gateway/Grillas.hpp`) en el canal `BA.Grilla.<k>`, y su
 registro dice cada 30 s «grillas: BA.Grilla.1 1920x1080, N personas, X ms por cuadro».
 Los ajustes están en las Propiedades de la fuente y en `grilla_personas_ajustar`.
+
+**Las entradas se juntan** (`grilla.reacomodoMinMs`, de fábrica 1500 ms, en
+Configuración → Conferencia). Cuando entra alguien la grilla se reacomoda: las
+celdas cambian de tamaño y B anima el viaje de cada cara. Antes cada entrada era un
+reacomodo entero (y B rearrancaba el viaje de todas desde quietas y le pedía otra
+calidad a cada cámara), así que con mucha gente entrando el mosaico no terminaba
+nunca de moverse. Ahora una grilla reacomoda por entradas como mucho una vez en ese
+lapso: el primero que llega después de un rato entra en el acto, los que llegan en
+el medio esperan y entran **todos juntos** en el próximo reacomodo, con una sola
+animación. El orden sigue estable (nadie de los que ya están se mueve más que por el
+reacomodo) y el orador y los fijados a mano no esperan (el fundido al dar la palabra
+es inmediato). Los que se van salen en el acto. `grilla_personas_estado` dice en cada
+grilla cuántos esperan (`entrando`). 0 = como antes, cada entrada reacomoda.
 
 ### Cuando alguien habla (`al_hablar`)
 

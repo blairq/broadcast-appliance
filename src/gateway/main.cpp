@@ -636,6 +636,8 @@ int main(int argc, char** argv) {
     roomCfg.lobby = cfg.lobby;
     roomCfg.lobbySlots = cfg.lobbySlots;
     roomCfg.backstageSlots = cfg.backstagePreviews;
+    // Entrada escalonada (Room.hpp): al ritmo del ajuste room.entradaPorSegundo, en caliente.
+    roomCfg.entradaPorSegundo = -1;
     Room room(roomCfg);
     // El enlace de invitados lo pone Direcciones (más abajo, setDirecciones): cambia con
     // la red y el túnel. Lleva la sala en el fragmento (#room=).

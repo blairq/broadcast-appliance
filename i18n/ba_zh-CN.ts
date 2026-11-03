@@ -40054,6 +40054,46 @@ Elegí otra cosa en Salidas → Pantallas.</source>
     </message>
     <message>
         <location line="+2"/>
+        <source>Video de los invitados: achicar la grilla en la placa</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Windows con H.264 por la placa: el cuadrito de cada persona en la grilla se achica en la placa de video y solo se trae lo chico. Apagado, se trae el cuadro entero y se achica en el procesador (para comparar).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Conferencia: núcleos propios</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>En un procesador con varios bloques de caché (AMD con dos CCD), los hilos de la conferencia corren en el bloque que no usan el video y el audio del programa, sin los núcleos que atienden la placa de red. Apagado, el sistema los reparte como quiere (para comparar). En macOS y con un solo bloque no cambia nada.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Conferencia: núcleos que no usa</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Los procesadores lógicos que quedan libres para las interrupciones de la placa de red: «auto» (Linux los busca; Windows deja el 0 y el 1), vacío para ninguno, o una lista como «0,1» o «0-3».</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Túnel WireGuard: entregar en memoria</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Lo que llega por el túnel pasa a la conferencia sin dar la vuelta por la red de la máquina (un socket por invitado). Apagado, por la red local como antes (para comparar).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
         <source>Video de retorno: sondear la red para subir de calidad</source>
         <translation>回传视频：探测网络以提升画质</translation>
     </message>
@@ -40103,7 +40143,27 @@ Elegí otra cosa en Salidas → Pantallas.</source>
         <translation>连续这么多次检查无应答（每 2 秒一次），会议即停止心跳：启动器会转储并重新启动它。</translation>
     </message>
     <message>
-        <location line="+33"/>
+        <location line="+2"/>
+        <source>Grilla de personas: reacomodar como mucho cada</source>
+        <translation>人物网格：重新排列的最短间隔</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Cuando entra gente, la grilla se reacomoda (con su animación) a lo sumo una vez en este lapso: los que llegan en el medio entran todos juntos en el próximo reacomodo. El orador y los fijados a mano entran en el acto. 0 = cada uno que entra reacomoda.</source>
+        <translation>有人进入时，网格（连同动画）在这段时间内最多重新排列一次：期间到达的人在下一次重新排列时一起进入。发言人和手动固定的人立即进入。0 = 每进入一人就重新排列一次。</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Invitados que entran por segundo</source>
+        <translation>每秒进入的嘉宾数</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Cuando muchos pasan a la vez (admitir a todos, sin lobby, la entrada directa, la prueba de sala), entran a este ritmo y en orden de llegada; los demás ven «entrando…» hasta que les toca. Cada uno que entra es una conexión que se negocia y una cámara más que decodificar: con 120 de golpe a 2 por segundo, todos adentro en un minuto. Subilo si la máquina aguanta.</source>
+        <translation>很多人同时进入时（全部准入、无等候室、直接进入、会议室测试），会按此速度、按到达顺序进入；其他人在轮到之前看到“正在进入…”。每进入一人就要协商一个连接、多解码一路摄像头：120 人同时进入、每秒 2 人，一分钟内全部进入。机器扛得住可以调高。</translation>
+    </message>
+    <message>
+        <location line="+32"/>
         <source>Conexiones simultáneas por puerta</source>
         <translation>每个入口的并发连接数</translation>
     </message>
@@ -40283,7 +40343,7 @@ Elegí otra cosa en Salidas → Pantallas.</source>
         <translation>不是可选项之一</translation>
     </message>
     <message>
-        <location line="-224"/>
+        <location line="-230"/>
         <source>Mensajes de chat que se guardan</source>
         <translation>保留的聊天消息数</translation>
     </message>
@@ -40438,7 +40498,7 @@ Elegí otra cosa en Salidas → Pantallas.</source>
         <translation>Windows：直接模式下，gateway 不经中间层把每一帧交给 GPU（占用更少处理器和线程）；Media Foundation 为 Windows 自带解码器（用于对比，或 GPU 出问题时）。</translation>
     </message>
     <message>
-        <location line="+2"/>
+        <location line="+6"/>
         <source>Hablarle a un invitado: cuánto baja el programa</source>
         <translation>与嘉宾通话：节目音量降低多少</translation>
     </message>
@@ -40588,7 +40648,7 @@ Elegí otra cosa en Salidas → Pantallas.</source>
         <translation>会议生成的拼接画面（BA.Grilla.&lt;k&gt;）。帧数越少，处理器占用越低。</translation>
     </message>
     <message>
-        <location line="+1"/>
+        <location line="+3"/>
         <source>Botonera web: conexiones</source>
         <translation>网页控制台：连接数</translation>
     </message>
@@ -51420,7 +51480,7 @@ Datos (de %2): %3</source>
         <translation>无法裁切「%2」中的「%1」（裁切范围大于图像？）</translation>
     </message>
     <message>
-        <location filename="../src/app/escenas/ControlGrillas.cpp" line="+178"/>
+        <location filename="../src/app/escenas/ControlGrillas.cpp" line="+181"/>
         <source>todavía no se pueden crear escenas</source>
         <translation>暂时还不能创建场景</translation>
     </message>
@@ -51445,7 +51505,7 @@ Datos (de %2): %3</source>
         <translation>席位 %1</translation>
     </message>
     <message>
-        <location line="+87"/>
+        <location line="+95"/>
         <source>sin canal: hay más de %1 grillas</source>
         <translation>没有通道：网格超过 %1 个</translation>
     </message>
@@ -53508,7 +53568,7 @@ Datos (de %2): %3</source>
         <location line="+7"/>
         <location filename="../src/gateway/Botonera.cpp" line="+91"/>
         <location line="+2"/>
-        <location filename="../src/gateway/SignalingServer.cpp" line="+687"/>
+        <location filename="../src/gateway/SignalingServer.cpp" line="+688"/>
         <location line="+9"/>
         <location line="+356"/>
         <location line="+109"/>
@@ -53842,7 +53902,7 @@ Datos (de %2): %3</source>
         <translation>未知服务「%1」。</translation>
     </message>
     <message>
-        <location filename="../src/gateway/Grillas.cpp" line="+225"/>
+        <location filename="../src/gateway/Grillas.cpp" line="+230"/>
         <source>falta «rotulos» (una lista)</source>
         <translation>缺少“rotulos”（一个列表）</translation>
     </message>
@@ -53922,7 +53982,7 @@ Datos (de %2): %3</source>
         <translation>「%1」的单元格没有尺寸</translation>
     </message>
     <message>
-        <location line="+644"/>
+        <location line="+672"/>
         <source>grillas: BA.Grilla.%1 listo (%2x%3)</source>
         <translation>网格：BA.Grilla.%1 已就绪（%2x%3）</translation>
     </message>
@@ -53937,7 +53997,7 @@ Datos (de %2): %3</source>
         <translation>网格：BA.Grilla.%1 %2x%3，%4 人（+%5），每帧 %6 毫秒</translation>
     </message>
     <message>
-        <location filename="../src/gateway/MediaPump.cpp" line="+314"/>
+        <location filename="../src/gateway/MediaPump.cpp" line="+315"/>
         <source>escena %1</source>
         <translation>场景 %1</translation>
     </message>
@@ -53982,7 +54042,7 @@ Datos (de %2): %3</source>
         <translation>MediaPump：位置 %1 -&gt; %2（无需重启）</translation>
     </message>
     <message>
-        <location line="+296"/>
+        <location line="+297"/>
         <source>retorno audio: BA.Audio.ContentForReturn abierto</source>
         <translation>音频返送：BA.Audio.ContentForReturn 已打开</translation>
     </message>
@@ -53997,7 +54057,7 @@ Datos (de %2): %3</source>
         <translation>输出 %1：音频返送：A 已更改或已关闭；正在重新打开</translation>
     </message>
     <message>
-        <location line="+266"/>
+        <location line="+267"/>
         <source>%1: A cambió o se cerró; resuscribiendo</source>
         <translation>%1：A 已更改或关闭；重新订阅</translation>
     </message>
@@ -54012,7 +54072,7 @@ Datos (de %2): %3</source>
         <translation>操作员：摄像头（BA.Operator）已订阅（%1x%2）</translation>
     </message>
     <message>
-        <location line="-895"/>
+        <location line="-897"/>
         <source>retorno video</source>
         <translation>视频返送</translation>
     </message>
@@ -54032,7 +54092,7 @@ Datos (de %2): %3</source>
         <translation>输出 %1：有人观看，开启其下行</translation>
     </message>
     <message>
-        <location line="+88"/>
+        <location line="+89"/>
         <source> (salida %1)</source>
         <translation> （输出 %1）</translation>
     </message>
@@ -54067,7 +54127,7 @@ Datos (de %2): %3</source>
         <translation>传输 %1：已恢复正常</translation>
     </message>
     <message>
-        <location line="+113"/>
+        <location line="+114"/>
         <source>%1: suscrito (%2x%3) -&gt; %4x%5</source>
         <translation>%1：已订阅（%2x%3）-&gt; %4x%5</translation>
     </message>
@@ -54108,7 +54168,7 @@ Datos (de %2): %3</source>
         <translation>测试期间未收到其麦克风的音频（是否已静音？）</translation>
     </message>
     <message>
-        <location line="+178"/>
+        <location line="+204"/>
         <source>sube %1: %2 fps (%3x%4)</source>
         <translation>上行 %1：%2 fps（%3x%4）</translation>
     </message>
@@ -54503,7 +54563,7 @@ Datos (de %2): %3</source>
         <translation>ws：%1 的媒体（会话 %2）已关闭</translation>
     </message>
     <message>
-        <location line="+50"/>
+        <location line="+53"/>
         <source>ws: setRemoteOffer falló (sesión %1)</source>
         <translation>ws：setRemoteOffer 失败（会话 %1）</translation>
     </message>
@@ -54548,7 +54608,7 @@ Datos (de %2): %3</source>
         <translation>会议：远程成员 %1 的媒体（会话 %2）已关闭</translation>
     </message>
     <message>
-        <location line="+35"/>
+        <location line="+36"/>
         <source>sesión: setRemoteOffer del remoto %1 falló</source>
         <translation>会议：远程成员 %1 的 setRemoteOffer 失败</translation>
     </message>
@@ -54658,13 +54718,13 @@ Datos (de %2): %3</source>
         <translation>会场测试：已结束（%1）；凭据已撤销，已移出 %2 名测试参与者</translation>
     </message>
     <message>
-        <location line="-3108"/>
+        <location line="-3112"/>
         <source>direcciones: red %1, afuera %2</source>
         <translation>地址：网络 %1，外部 %2</translation>
     </message>
     <message>
         <location line="+2"/>
-        <location filename="../src/gateway/main.cpp" line="+763"/>
+        <location filename="../src/gateway/main.cpp" line="+778"/>
         <location line="+2"/>
         <source>(ninguna)</source>
         <translation>（无）</translation>
@@ -54772,7 +54832,7 @@ Datos (de %2): %3</source>
         <translation>ws：没有可供 %1 使用的空闲 WebRTC 会话</translation>
     </message>
     <message>
-        <location line="+281"/>
+        <location line="+285"/>
         <source>salidas: %1</source>
         <translation>输出：%1</translation>
     </message>
@@ -54817,7 +54877,7 @@ Datos (de %2): %3</source>
         <translation>全部</translation>
     </message>
     <message>
-        <location filename="../src/gateway/main.cpp" line="-521"/>
+        <location filename="../src/gateway/main.cpp" line="-535"/>
         <source>%1 (nueva)</source>
         <translation>%1（新）</translation>
     </message>
@@ -54827,7 +54887,17 @@ Datos (de %2): %3</source>
         <translation>启动：guests=%1 port=%2 room=%3 webroot=%4 webrtc=%5</translation>
     </message>
     <message>
-        <location line="+22"/>
+        <location line="+12"/>
+        <source>apagado</source>
+        <translation type="unfinished">已关闭</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>procesador: %1; hilos del gateway: %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+21"/>
         <source>no se pudo crear BA.Health</source>
         <translation>无法创建 BA.Health</translation>
     </message>
@@ -54872,7 +54942,7 @@ Datos (de %2): %3</source>
         <translation>auth：无法生成 PIN；会议保持关闭，直到执行 ChangePin</translation>
     </message>
     <message>
-        <location line="+115"/>
+        <location line="+117"/>
         <source>control: sin entropia para el token de la API; la sala queda sin control</source>
         <translation>控制：没有用于 API 令牌的熵；会场将没有控制</translation>
     </message>
@@ -55078,9 +55148,19 @@ Datos (de %2): %3</source>
         <translation>有序关闭：BA.Health slot 0 = Terminated；成功</translation>
     </message>
     <message>
-        <location filename="../src/gateway/net/IpStack.cpp" line="+656"/>
+        <location filename="../src/gateway/net/IpStack.cpp" line="+846"/>
         <source>pila IP: %1/%2 sobre WireGuard (%3 reenvios TCP, UDP %4-%5)</source>
         <translation>IP 协议栈：%1/%2 基于 WireGuard（%3 个 TCP 转发，UDP %4-%5）</translation>
+    </message>
+    <message>
+        <location line="+56"/>
+        <source>pila IP: lo del túnel va a WebRTC en memoria</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>pila IP: lo del túnel va a WebRTC por la red local</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location filename="../src/gateway/net/TlsTerminator.cpp" line="+192"/>
@@ -55144,22 +55224,22 @@ Datos (de %2): %3</source>
         <translation>https：正在监听 %1:%2 -&gt; 127.0.0.1:%3（指纹 %4...）</translation>
     </message>
     <message>
-        <location filename="../src/gateway/net/WgDevice.cpp" line="+199"/>
+        <location filename="../src/gateway/net/WgDevice.cpp" line="+201"/>
         <source>wireguard: no se pudo resolver %1 (se reintenta)</source>
         <translation>wireguard：无法解析 %1（将重试）</translation>
     </message>
     <message>
-        <location line="+6"/>
+        <location line="+11"/>
         <source>wireguard: escuchando UDP %1</source>
         <translation>wireguard：正在监听 UDP %1</translation>
     </message>
     <message>
-        <location line="+80"/>
+        <location line="+220"/>
         <source>wireguard: el peer no responde; se reintenta con el próximo tráfico</source>
         <translation>wireguard：对端无响应；有流量时重试</translation>
     </message>
     <message>
-        <location line="+290"/>
+        <location line="+286"/>
         <source>wireguard: sesión establecida</source>
         <translation>wireguard：会话已建立</translation>
     </message>
@@ -55372,6 +55452,41 @@ Datos (de %2): %3</source>
         <location line="+46"/>
         <source>Broadcast Appliance: instala o actualiza el eco del medidor del enlace en este servidor (pegar como root; se puede repetir).</source>
         <translation>Broadcast Appliance：在本服务器上安装或更新链路测量回声端（以 root 粘贴；可重复执行）。</translation>
+    </message>
+    <message>
+        <location filename="../src/core/platform/Nucleos.cpp" line="+390"/>
+        <source>macOS no deja elegir núcleos</source>
+        <translation type="unfinished">macOS 不允许选择核心</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>sin datos de los núcleos</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+15"/>
+        <source>núcleos de dos clases: los hilos quedan libres</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>un solo grupo de núcleos: no hace falta</source>
+        <translation type="unfinished">只有一个核心组：不需要</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>%1 procesadores lógicos (%2), el bloque de caché que no usan los medios de la app</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>sin %1 (interrupciones de la placa de red)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>SetProcessDefaultCpuSets falló (%1)</source>
+        <translation type="unfinished">SetProcessDefaultCpuSets 失败（%1）</translation>
     </message>
 </context>
 <context>
@@ -59953,7 +60068,7 @@ LO QUE HAY QUE SABER AL PRENDERLO: la salvaguarda de aprobaciones (`mcp.approval
         <translation>请服务器监视某些情况（过载、静音、曲目结束、发言人时间、等候室、聊天、中断、磁盘、计时器），并自动通知或处理。无需定期查询：通知会发到助手的聊天中。</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpFoto.cpp" line="+479"/>
+        <location filename="../src/app/mcp/McpFoto.cpp" line="+481"/>
         <source>Notificadores</source>
         <translation>通知器</translation>
     </message>
@@ -61289,7 +61404,7 @@ EL `id` QUE DEVUELVE SE USA TAL CUAL en `audio_module_add`. Los seis del catalog
         <translation>控制界面（通过二维码配对的平板、Stream Deck、通过插件的 MIDI）以及应用的事件总线（在播内容、输出、电平、警报），供按钮、插件和触发器使用。</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpFoto.cpp" line="-170"/>
+        <location filename="../src/app/mcp/McpFoto.cpp" line="-172"/>
         <source>Temas del bus de eventos</source>
         <translation>事件总线主题</translation>
     </message>
@@ -61790,7 +61905,7 @@ EL `id` QUE DEVUELVE SE USA TAL CUAL en `audio_module_add`. Los seis del catalog
         <translation>执行 `accion`（acciones_listar 中的 id），如同按下其快捷键，但使用请求者的权限和在播保护。</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpFoto.cpp" line="+85"/>
+        <location filename="../src/app/mcp/McpFoto.cpp" line="+87"/>
         <source>Modo en vivo</source>
         <translation>直播模式</translation>
     </message>
@@ -72067,7 +72182,7 @@ Cada paso pasa por el mismo camino que si lo llamaras vos: se validan los argume
         <translation>三个进程中发生的事：读取、筛选以及决定记录多少。</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpFoto.cpp" line="-260"/>
+        <location filename="../src/app/mcp/McpFoto.cpp" line="-262"/>
         <source>Leer el registro</source>
         <translation>读取日志</translation>
     </message>
@@ -72295,12 +72410,7 @@ Despues de escribir una, `ext_listar` de nuevo: `problema` dice si le falta algo
         <translation>会议状态</translation>
     </message>
     <message>
-        <location line="+4"/>
-        <source>Todo lo de la conferencia: nombre, PIN, lobby/cerrada, enlace, cada persona (estado, lugar, microfono, camara, pantalla, mano levantada, conexion, info y contacto, turno de orador), archivos compartidos, chat reciente y config de oradores.</source>
-        <translation>会议的全部信息：名称、PIN、等候室/已锁定、链接、每个人（状态、位置、麦克风、摄像头、屏幕、举手、连接、信息和联系方式、发言顺位）、共享的文件、最近的聊天以及发言人配置。</translation>
-    </message>
-    <message>
-        <location line="+7"/>
+        <location line="+13"/>
         <source>La conferencia (gateway) no esta conectada.</source>
         <translation>会议（网关）未连接。</translation>
     </message>
@@ -73766,7 +73876,7 @@ Llegando a 500 fichas se apaga solo y lo dice. Sin `activo` solo informa como es
         <translation>应用和网关的最新测量（每秒一次）：以核心数表示的总 CPU（1.0 = 一个完整核心）、内存、消耗最多的线程及其名称（GStreamer 的线程以其元素命名：由此可见视频的哪部分在消耗资源），在 Windows 上还有按引擎划分的进程 GPU（3D、VideoDecode、VideoEncode、Copy）。历史记录在 Logs/perfil-app.jsonl 和 Logs/perfil-gateway.jsonl 中；每 10 秒在日志中写入一条摘要（log_leer，组件 perfil）。</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpFoto.cpp" line="-421"/>
+        <location filename="../src/app/mcp/McpFoto.cpp" line="-423"/>
         <source>Estado general</source>
         <translation>总体状态</translation>
     </message>
@@ -77705,7 +77815,12 @@ Los archivos: app.log (Proceso A), gateway.log (Proceso B), graficos.log, launch
         <translation>主题的最新值</translation>
     </message>
     <message>
-        <location line="+55"/>
+        <location line="+27"/>
+        <source>Todo lo de la conferencia: nombre, PIN, lobby/cerrada, enlace, cada persona (estado, lugar, microfono, camara, pantalla, mano levantada, conexion, info y contacto, turno de orador), archivos compartidos, chat reciente, config de oradores y la entrada escalonada: `entrando` (los aprobados que esperan su turno para pasar, cada uno con `entrando`) y `entradaPorSegundo` (el ritmo, ajuste room.entradaPorSegundo).</source>
+        <translation>会议的全部信息：名称、PIN、等候室/锁定、链接、每个人（状态、位置、麦克风、摄像头、屏幕、举手、连接、信息和联系方式、发言顺序）、共享文件、最近聊天、发言人配置以及分批进入：`entrando`（已批准、等待轮到进入的人，每人带 `entrando`）和 `entradaPorSegundo`（速度，设置 room.entradaPorSegundo）。</translation>
+    </message>
+    <message>
+        <location line="+30"/>
         <source>El gateway por dentro (para medir)</source>
         <translation>gateway 内部（用于测量）</translation>
     </message>
@@ -80045,7 +80160,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>输出的 id（字母、数字、- 和 _）。</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpFoto.cpp" line="-427"/>
+        <location filename="../src/app/mcp/McpFoto.cpp" line="-429"/>
         <source>Las salidas del aparato</source>
         <translation>设备的输出</translation>
     </message>
@@ -86528,7 +86643,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>「优先保障节目」因过热关闭的项目</translation>
     </message>
     <message>
-        <location filename="../src/gateway/SignalingServer.cpp" line="-1134"/>
+        <location filename="../src/gateway/SignalingServer.cpp" line="-1138"/>
         <source>Invitados que se cortaron y volvieron a su lugar</source>
         <translation>断开后回到原位的嘉宾</translation>
     </message>
@@ -87981,23 +88096,17 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>引擎视频：%1</translation>
     </message>
     <message>
-        <location filename="../src/motor/Prioridad.cpp" line="+188"/>
+        <location filename="../src/core/platform/Nucleos.cpp" line="-66"/>
         <source>GetSystemCpuSetInformation falló (%1)</source>
         <translation>GetSystemCpuSetInformation 失败（%1）</translation>
     </message>
     <message>
-        <location line="+8"/>
-        <source>sin CPU Sets</source>
-        <translation>无 CPU Sets</translation>
-    </message>
-    <message>
-        <location line="+10"/>
-        <location line="+33"/>
+        <location line="+3"/>
         <source>un solo grupo de núcleos: no hace falta</source>
         <translation>只有一个核心组：不需要</translation>
     </message>
     <message>
-        <location line="-28"/>
+        <location line="+5"/>
         <source>%1 procesadores lógicos (los de rendimiento)</source>
         <translation>%1 个逻辑处理器（性能核心）</translation>
     </message>
@@ -88007,7 +88116,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>%1 个逻辑处理器（一个 CCD）</translation>
     </message>
     <message>
-        <location line="+5"/>
+        <location line="+9"/>
         <source>lo demás, en los otros %1</source>
         <translation>其余在另外 %1 个上</translation>
     </message>
@@ -88017,12 +88126,12 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>SetProcessDefaultCpuSets 失败（%1）</translation>
     </message>
     <message>
-        <location line="+5"/>
+        <location line="-24"/>
         <source>macOS no deja elegir núcleos</source>
         <translation>macOS 不允许选择核心</translation>
     </message>
     <message>
-        <location line="+20"/>
+        <location line="+30"/>
         <source>%1 procesadores lógicos (los de rendimiento: %2)</source>
         <translation>%1 个逻辑处理器（性能核心：%2）</translation>
     </message>
@@ -88032,7 +88141,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>%1 个逻辑处理器（一个 L3：%2）</translation>
     </message>
     <message>
-        <location line="+8"/>
+        <location line="-40"/>
         <source>%1 de %2</source>
         <translation>%2 中的 %1</translation>
     </message>
@@ -88047,7 +88156,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>无拓扑数据</translation>
     </message>
     <message>
-        <location line="+91"/>
+        <location filename="../src/motor/Prioridad.cpp" line="+132"/>
         <source>procesador: los hilos del audio no pueden pasar a tiempo real (en Linux hace falta RLIMIT_RTPRIO o RLIMIT_NICE)</source>
         <translation>处理器：音频线程无法切换为实时优先级（Linux 上需要 RLIMIT_RTPRIO 或 RLIMIT_NICE）</translation>
     </message>
@@ -88057,7 +88166,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>处理器：视频和音频线程无法提高优先级（需要 CAP_SYS_NICE 或 RLIMIT_NICE）</translation>
     </message>
     <message>
-        <location line="+32"/>
+        <location line="+33"/>
         <source>procesador: %1; prioridad del video y el audio: sí; video y audio juntos: %2</source>
         <translation>处理器：%1；视频和音频优先级：是；视频和音频在一起：%2</translation>
     </message>
@@ -95436,6 +95545,11 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
     </message>
     <message>
         <location line="+2"/>
+        <source>%1 entrando (%2 por segundo)</source>
+        <translation>%1 人正在进入（每秒 %2 人）</translation>
+    </message>
+    <message>
+        <location line="+2"/>
         <source>Admitir</source>
         <translation>准入</translation>
     </message>
@@ -95453,6 +95567,11 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <location line="+2"/>
         <source>¿Sacarlo de la conferencia?</source>
         <translation>将其移出会议？</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>entrando…</source>
+        <translation>正在进入…</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -96834,6 +96953,23 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <location line="+2"/>
         <source>Sos el próximo.</source>
         <translation>下一个就是您。</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Entrando…</source>
+        <translation>正在进入…</translation>
+    </message>
+    <message numerus="yes">
+        <location line="+2"/>
+        <source>Hay %n persona antes que vos para entrar.</source>
+        <translation>
+            <numerusform>您前面还有 %n 人等待进入。</numerusform>
+        </translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Sos el próximo en entrar.</source>
+        <translation>下一个进入的就是您。</translation>
     </message>
     <message>
         <location line="+2"/>

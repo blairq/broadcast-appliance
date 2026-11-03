@@ -1101,6 +1101,96 @@ void altaMax() {
     }
 }
 
+// 16. Las entradas se juntan (grilla.reacomodoMinMs): los que llegan dentro del intervalo
+//     esperan y entran todos juntos (una sola disposición nueva), en orden; el orador y los
+//     fijados no esperan; los que se van, en el acto; 64 entradas seguidas → pocos reacomodos.
+void entradasJuntas() {
+    Repartidor rep;
+    rep.reacomodoMinMs(1500);
+    std::vector<Config> gs{grilla("g", 64)};
+    std::vector<Persona> v{sala("a", 0)};
+    auto r = rep.calcular(gs, v, {}, 10000);
+    CHECK(r[0].personas.size() == 1 && r[0].entrando == 0, "el primero entra en el acto");
+    const Rect r0 = r[0].celdas.at(0).r;
+    for (int i = 0; i < 5; ++i) {
+        v.push_back(sala("n" + std::to_string(i), 100 + i));
+        r = rep.calcular(gs, v, {}, 10100 + i * 200);
+        CHECK(r[0].personas.size() == 1, "los que llegan dentro del intervalo esperan");
+        CHECK(r[0].entrando == i + 1, "la grilla dice cuántos esperan");
+        CHECK(r[0].mas == 0, "los que esperan no cuentan en el «+N»");
+        CHECK(r[0].celdas.size() == 1 && r[0].celdas[0].r == r0, "la grilla no se mueve");
+        CHECK(rep.proximoReacomodoMs() == 11500, "entran al cumplirse el intervalo");
+    }
+    r = rep.calcular(gs, v, {}, 11500);
+    CHECK(r[0].personas.size() == 6 && r[0].entrando == 0 && rep.proximoReacomodoMs() == 0, "entran los cinco juntos");
+    CHECK(r[0].personas[0] == "sala:a", "el que estaba sigue primero");
+    CHECK(r[0].personas[1] == "sala:n0" && r[0].personas[5] == "sala:n4", "los nuevos, en orden de llegada");
+
+    // El que se va sale en el acto aunque haya gente esperando.
+    v.push_back(sala("z", 200));
+    r = rep.calcular(gs, v, {}, 11600);
+    CHECK(r[0].entrando == 1, "z espera");
+    v.erase(v.begin()); // se va «a»
+    r = rep.calcular(gs, v, {}, 11700);
+    CHECK(r[0].personas.size() == 5 && std::find(r[0].personas.begin(), r[0].personas.end(), "sala:a") == r[0].personas.end(),
+          "el que se va sale en el acto");
+    CHECK(r[0].entrando == 1 && rep.proximoReacomodoMs() == 13000, "y no demora a los que esperan");
+
+    // El orador (y el fijado a mano) no esperan: el fundido al dar la palabra es inmediato.
+    Repartidor ro;
+    ro.reacomodoMinMs(1500);
+    std::vector<Config> go{grilla("g", 16)};
+    go[0].disparo = Disparo::Palabra;
+    std::vector<Persona> u{sala("a", 0)};
+    ro.calcular(go, u, {}, 0);
+    u.push_back(sala("b", 1));
+    auto y = ro.calcular(go, u, {}, 100);
+    CHECK(y[0].entrando == 1, "b espera");
+    Persona c = sala("c", 2);
+    c.palabra = true;
+    u.push_back(c);
+    y = ro.calcular(go, u, {}, 200);
+    const auto esta = [](const Resultado& x, const std::string& k) {
+        return std::find(x.personas.begin(), x.personas.end(), k) != x.personas.end();
+    };
+    CHECK(esta(y[0], "sala:c") && y[0].orador == "sala:c", "el orador entra en el acto");
+    CHECK(!esta(y[0], "sala:b") && y[0].entrando == 1, "el otro sigue esperando");
+    Manual m;
+    m.fijar("g", "sala:d");
+    u.push_back(sala("d", 3));
+    y = ro.calcular(go, u, m, 300);
+    CHECK(esta(y[0], "sala:d"), "el fijado a mano entra en el acto");
+
+    // 64 que entran de a uno cada 100 ms, con una vuelta por entrada: con el intervalo, la
+    // disposición cambia pocas veces; sin él (0), una por cada uno.
+    const auto reacomodos = [](int minMs, int& adentro) {
+        Repartidor rj;
+        rj.reacomodoMinMs(minMs);
+        std::vector<Config> g64{grilla("g", 64)};
+        std::vector<Persona> w;
+        std::vector<Rect> ultimo;
+        int n = 0;
+        for (int t = 0; t <= 10000; t += 100) {
+            if (w.size() < 64) w.push_back(sala("q" + std::to_string(w.size()), t));
+            const auto x = rj.calcular(g64, w, {}, t);
+            std::vector<Rect> rs;
+            for (const Celda& celda : x[0].celdas) rs.push_back(celda.r);
+            if (rs != ultimo) {
+                ++n;
+                ultimo = rs;
+            }
+            adentro = static_cast<int>(x[0].personas.size());
+        }
+        return n;
+    };
+    int adentro = 0;
+    const int juntos = reacomodos(1500, adentro);
+    CHECK(adentro == 64, "con el intervalo, al final entraron todos");
+    CHECK(juntos <= 6, "64 entradas en 6,4 s: a lo sumo un reacomodo cada 1,5 s");
+    const int sueltos = reacomodos(0, adentro);
+    CHECK(adentro == 64 && sueltos == 64, "sin el intervalo, un reacomodo por cada uno (como antes)");
+}
+
 int main() {
     disposicion();
     filtrosYOrden();
@@ -1118,6 +1208,7 @@ int main() {
     sinCambiosAgrandarYPase();
     altaHasta();
     altaMax();
+    entradasJuntas();
     if (g_fallos == 0) std::printf("test_grilla_personas: OK\n");
     return g_fallos == 0 ? 0 : 1;
 }

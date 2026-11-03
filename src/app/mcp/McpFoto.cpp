@@ -580,7 +580,9 @@ void registrarHerramientasDeFoto(McpCore& core, FuentesDeFoto f) {
         t.description =
             QT_TRANSLATE_NOOP("mcp", "Todo lo de la conferencia: nombre, PIN, lobby/cerrada, enlace, cada persona (estado, lugar, "
             "microfono, camara, pantalla, mano levantada, conexion, info y contacto, turno de orador), "
-            "archivos compartidos, chat reciente y config de oradores.");
+            "archivos compartidos, chat reciente, config de oradores y la entrada escalonada: `entrando` (los "
+            "aprobados que esperan su turno para pasar, cada uno con `entrando`) y `entradaPorSegundo` (el ritmo, "
+            "ajuste room.entradaPorSegundo).");
         t.hilo = Hilo::Foto;
         t.run = [f](const json&, Done done) {
             std::optional<json> r = f.sala ? f.sala("/api/v1/room") : std::nullopt;

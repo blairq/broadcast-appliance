@@ -713,6 +713,8 @@ std::vector<Resultado> Repartidor::calcular(const std::vector<Config>& grillas, 
 
     std::map<std::string, Resultado> porFuente;
     std::map<std::string, std::vector<std::string>> nuevos;
+    std::map<std::string, std::int64_t> reacomodo; // los grupos que siguen (los demás se olvidan)
+    proximo_ = 0;
     for (std::vector<const Config*>* pgs : orden) {
         std::vector<const Config*>& gs = *pgs;
         std::sort(gs.begin(), gs.end(), [](const Config* a, const Config* b) {
@@ -720,6 +722,20 @@ std::vector<Resultado> Repartidor::calcular(const std::vector<Config>& grillas, 
         });
         const Config& jefe = *gs.front();
         const int G = static_cast<int>(gs.size());
+        const std::string claveGrupo = jefe.grupo.empty() ? "\x01" + jefe.fuente : "\x02" + jefe.grupo;
+
+        // LAS ENTRADAS SE JUNTAN (ver el .hpp): los que ya se veían en este grupo y, si
+        // entró alguien hace menos de reacomodoMinMs, los nuevos esperan al próximo reacomodo.
+        std::set<std::string> previos;
+        for (const Config* g : gs)
+            if (const auto it = lugares_.find(g->fuente); it != lugares_.end()) previos.insert(it->second.begin(), it->second.end());
+        const auto ult = reacomodo_.find(claveGrupo);
+        const std::int64_t ultimaEntrada = ult != reacomodo_.end() ? ult->second : std::int64_t(0);
+        const bool retener = reacomodoMinMs_ > 0 && !previos.empty() && ult != reacomodo_.end() &&
+                             ahora - ultimaEntrada < reacomodoMinMs_;
+        if (ult != reacomodo_.end()) reacomodo[claveGrupo] = ultimaEntrada;
+        int retenidos = 0;
+        bool entro = false;
 
         // Lo que se decidió a mano para este grupo: fijada en la grilla i (-1 = en ninguna de
         // este grupo) y sacada de alguna grilla del grupo.
@@ -878,6 +894,14 @@ std::vector<Resultado> Repartidor::calcular(const std::vector<Config>& grillas, 
             for (int i = 0; i < G && dest < 0; ++i)
                 if (cuenta(i) < cap[i] && aceptaAca(i, p)) dest = i;
             if (dest < 0) continue; // ninguna lo acepta con lugar: cuenta en el «+N»
+            const bool nuevo = !previos.count(p.clave);
+            // Recién llegado dentro del intervalo: espera al próximo reacomodo (salvo el
+            // orador y los fijados, que fijaEn devuelve: esos entran ya).
+            if (nuevo && retener && fijaEn(p.clave) < 0) {
+                ++retenidos;
+                continue;
+            }
+            if (nuevo) entro = true;
             auto hueco = std::find_if(lugares[dest].begin(), lugares[dest].end(), [](const auto& x) { return !x.has_value(); });
             if (hueco != lugares[dest].end())
                 *hueco = p.clave;
@@ -896,11 +920,19 @@ std::vector<Resultado> Repartidor::calcular(const std::vector<Config>& grillas, 
                 while (!l.empty() && !l.back().has_value()) l.pop_back();
             }
         }
-        const int mas = static_cast<int>(cands.size()) - static_cast<int>(ubicados.size());
+        // Solo las entradas marcan la hora del reacomodo (las salidas son en el acto y no
+        // demoran a nadie): así los que esperan entran a lo sumo reacomodoMinMs después.
+        if (entro) reacomodo[claveGrupo] = ahora;
+        if (retenidos > 0) {
+            const std::int64_t cuando = ultimaEntrada + reacomodoMinMs_;
+            proximo_ = proximo_ == 0 ? cuando : std::min(proximo_, cuando);
+        }
+        const int mas = static_cast<int>(cands.size()) - static_cast<int>(ubicados.size()) - retenidos;
         for (int i = 0; i < G; ++i) {
             Resultado r;
             r.fuente = gs[i]->fuente;
             r.canal = gs[i]->canal;
+            r.entrando = retenidos;
             for (const auto& k : lugares[i]) r.personas.push_back(*k);
             if (i == G - 1 && desborda) r.mas = std::max(0, mas);
             // El orador de esta grilla, si quedó en ella (en un grupo pudo tocarle a otra).
@@ -915,6 +947,7 @@ std::vector<Resultado> Repartidor::calcular(const std::vector<Config>& grillas, 
         }
     }
     lugares_ = std::move(nuevos); // las grillas que ya no están se olvidan
+    reacomodo_ = std::move(reacomodo);
 
     // Las que muestran solo al orador de otra (la escena del orador): grande, con su nombre.
     for (const Config& c : grillas) {

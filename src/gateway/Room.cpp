@@ -306,12 +306,11 @@ int Room::admit(const std::string& id, int64_t nowMs) {
         Participant* p = findLocked(id);
         if (p == nullptr) return kNotFound;
         if (p->state != State::Waiting) return kBadState;
-        // Modo oradores: admitir es entrar a la fila (backstage), sin slot.
-        const int slot = spk_.enabled ? 0 : freeSlotLocked();
-        if (slot == 0 && !spk_.enabled) return kFull;
-        p->talk = false; // lo privado del lobby no sigue adentro
-        p->atiende = false;
-        admitLocked(*p, slot, nowMs, out);
+        if (p->entrando) return kOk; // ya está aprobado: pasa cuando le toca
+        // Modo oradores: admitir es entrar a la fila (backstage), sin slot. Si no, hace
+        // falta un lugar que no esté reservado para otro que ya está entrando.
+        if (!spk_.enabled && libresLocked() <= 0) return kFull;
+        pedirEntradaLocked(*p, nowMs, out);
         lobbyPositionsLocked(out);
     }
     flush(out);
@@ -321,6 +320,16 @@ int Room::admit(const std::string& id, int64_t nowMs) {
 int Room::cupo() const {
     std::lock_guard<std::mutex> lock(m_);
     return cfg_.maxGuests;
+}
+
+int Room::entrando() const {
+    std::lock_guard<std::mutex> lock(m_);
+    return static_cast<int>(std::count_if(people_.begin(), people_.end(), [](const Participant& p) { return p.entrando; }));
+}
+
+int Room::entradaPorSegundo() const {
+    std::lock_guard<std::mutex> lock(m_);
+    return entradaPorSegundoLocked();
 }
 
 int Room::setCupo(int n) {
@@ -336,6 +345,7 @@ int Room::setCupo(int n) {
         out.roomChanged = true;
         // Sin lobby, los que esperaban entran a los lugares nuevos.
         entradaDirectaLocked(lastNowMs_, out);
+        lobbyPositionsLocked(out);
     }
     flush(out);
     return kOk;
@@ -647,6 +657,8 @@ void Room::tick(int64_t nowMs) {
         }
         for (const std::string& id : gone)
             removeLocked(id, out);
+        // La fila de entrada avanza a su ritmo (ENTRADA ESCALONADA).
+        if (!entrando_.empty() && pasarEntrandoLocked(nowMs, out)) lobbyPositionsLocked(out);
         // Carrusel por tiempo: pasado cero + margen, rota al siguiente. En los
         // demas modos el reloj NUNCA saca a nadie: sigue en negativo.
         if (spk_.carousel == "time") {
@@ -715,6 +727,7 @@ void Room::removeLocked(const std::string& id, Out& out) {
         std::find_if(people_.begin(), people_.end(), [&](const Participant& p) { return p.id == id; });
     if (it == people_.end()) return;
     if (it->state == State::Admitted && it->slot > 0) out.freed.emplace_back(it->slot, it->id);
+    entrando_.erase(std::remove(entrando_.begin(), entrando_.end(), it->id), entrando_.end());
     const bool wasOnAir = it->speaker == Speaker::OnAir;
     out.routes.emplace_back(it->id, MediaRoute{});
     order_.erase(std::remove(order_.begin(), order_.end(), it->id), order_.end());
@@ -737,12 +750,61 @@ void Room::autoAdmitLocked(int64_t nowMs, Out& out, bool soloPrueba) {
     for (Participant& p : people_) {
         // Un desconectado no pasa: tomaria un slot que nadie usa. Entra
         // cuando se reengancha (resume) si todavia hay lugar.
-        if (p.state != State::Waiting || !p.connected) continue;
+        if (p.state != State::Waiting || !p.connected || p.entrando) continue;
         if (soloPrueba && !p.prueba) continue;
-        const int slot = spk_.enabled ? 0 : freeSlotLocked();
-        if (slot == 0 && !spk_.enabled) break;
-        admitLocked(p, slot, nowMs, out);
+        if (!spk_.enabled && libresLocked() <= 0) break;
+        pedirEntradaLocked(p, nowMs, out);
     }
+}
+
+int Room::entradaPorSegundoLocked() const {
+    if (cfg_.entradaPorSegundo == 0) return 0; // sin ritmo
+    if (cfg_.entradaPorSegundo > 0) return std::min(cfg_.entradaPorSegundo, 100);
+    return std::clamp(ba::ajustes::entero("room.entradaPorSegundo", 2), 1, 100);
+}
+
+int Room::libresLocked() const {
+    int libres = 0;
+    for (int s = 1; s <= cfg_.maxGuests; ++s)
+        if (std::none_of(people_.begin(), people_.end(),
+                         [s](const Participant& p) { return p.state == State::Admitted && p.slot == s; }))
+            ++libres;
+    return libres - static_cast<int>(std::count_if(people_.begin(), people_.end(), [](const Participant& p) { return p.entrando; }));
+}
+
+void Room::pedirEntradaLocked(Participant& p, int64_t nowMs, Out& out) {
+    p.entrando = true;
+    entrando_.push_back(p.id);
+    out.roomChanged = true;
+    pasarEntrandoLocked(nowMs, out); // si le toca ya (el primero después de un rato), pasa en el acto
+}
+
+bool Room::pasarEntrandoLocked(int64_t nowMs, Out& out) {
+    // Un balde: se llena a `ritmo` por segundo; cabe lo que deja pasar una vuelta de tick()
+    // (cada 250 ms) y no menos de uno (el que llega a una sala tranquila pasa ya).
+    const int ritmo = entradaPorSegundoLocked();
+    const double cabe = ritmo <= 0 ? 1e9 : std::max(1.0, ritmo / 4.0); // sin ritmo: todos
+    if (ritmo <= 0 || creditoEntrada_ < 0 || nowMs < creditoMs_)
+        creditoEntrada_ = cabe;
+    else
+        creditoEntrada_ = std::min(cabe, creditoEntrada_ + static_cast<double>(nowMs - creditoMs_) * ritmo / 1000.0);
+    creditoMs_ = nowMs;
+    bool paso = false;
+    while (!entrando_.empty() && creditoEntrada_ >= 1.0) {
+        const std::string id = entrando_.front();
+        entrando_.pop_front();
+        Participant* p = findLocked(id);
+        if (p == nullptr || p->state != State::Waiting || !p->entrando) continue;
+        p->entrando = false;
+        out.roomChanged = true;
+        paso = true;
+        // Modo oradores: a la fila (backstage), sin slot.
+        const int slot = spk_.enabled ? 0 : freeSlotLocked();
+        if (slot == 0 && !spk_.enabled) continue; // le sacaron el lugar (bajó el cupo): vuelve a esperar
+        admitLocked(*p, slot, nowMs, out);
+        creditoEntrada_ -= 1.0;
+    }
+    return paso;
 }
 
 MediaRoute Room::routeFor(const Participant& p) {
@@ -776,9 +838,17 @@ void Room::assignLobbySlotsLocked(Out& out) {
 void Room::lobbyPositionsLocked(Out& out) {
     int pos = 0;
     for (const Participant& p : people_) {
-        if (p.state != State::Waiting) continue;
+        if (p.state != State::Waiting || p.entrando) continue;
         ++pos;
         out.guest.emplace_back(p.id, json{{"type", "lobby"}, {"position", pos}});
+    }
+    // Los aprobados que esperan su turno: «entrando…», con su lugar en la fila de entrada.
+    int k = 0;
+    for (const std::string& id : entrando_) {
+        const Participant* p = findLocked(id);
+        if (p == nullptr || !p->entrando) continue;
+        ++k;
+        out.guest.emplace_back(p->id, json{{"type", "entrando"}, {"position", k}});
     }
 }
 
@@ -820,6 +890,7 @@ json Room::toJson(const Participant& p) {
                 {"screen", p.screen},
                 {"hand", p.hand},
                 {"prueba", p.prueba},
+                {"entrando", p.entrando},
                 {"joinedMs", p.joinedMs},
                 {"admittedMs", p.admittedMs},
                 {"info", p.info},
@@ -852,8 +923,9 @@ json Room::toJson(const ChatMsg& c) {
 
 json Room::snapshotLocked() const {
     json people = json::array();
-    int admitted = 0;
+    int admitted = 0, entrando = 0;
     for (const Participant& p : people_) {
+        if (p.entrando) ++entrando;
         json j = toJson(p);
         if (p.state == State::Admitted && p.slot > 0) {
             ++admitted;
@@ -875,6 +947,9 @@ json Room::snapshotLocked() const {
                 {"maxGuests", cfg_.maxGuests},
                 {"reserva", std::max(cfg_.reserva, cfg_.maxGuests)},
                 {"slotsFree", cfg_.maxGuests - admitted},
+                // ENTRADA ESCALONADA: los aprobados que esperan su turno y a qué ritmo pasan.
+                {"entrando", entrando},
+                {"entradaPorSegundo", entradaPorSegundoLocked()},
                 {"pin", pin_},
                 {"guestUrl", guestUrl_},
                 {"participants", people},

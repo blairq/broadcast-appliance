@@ -331,10 +331,22 @@
       case "lobby":
         state.admitted = false;
         show("lobby");
+        if (state.entrando) $("lobby-title").textContent = t("Esperando al operador"); // le sacaron el lugar
+        state.entrando = false;
         $("lobby-pos").textContent = msg.position > 1 ? t("Hay %n persona antes que vos.", { n: msg.position - 1 }) : t("Sos el próximo.");
+        break;
+      case "entrando":
+        // Ya te admitieron: se pasa a la sala de a pocos por segundo (con mucha gente
+        // junta la conferencia se ahoga), así que esperás tu turno unos segundos.
+        state.admitted = false;
+        state.entrando = true;
+        show("lobby");
+        $("lobby-title").textContent = t("Entrando…");
+        $("lobby-pos").textContent = msg.position > 1 ? t("Hay %n persona antes que vos para entrar.", { n: msg.position - 1 }) : t("Sos el próximo en entrar.");
         break;
       case "admitted":
         state.admitted = true;
+        state.entrando = false;
         state.slot = msg.slot;
         $("talk-badge").classList.add("hidden");
         // El chat que se abrio solo en el lobby se cierra al pasar: adentro

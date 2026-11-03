@@ -185,6 +185,79 @@ void testAutoAdmit() {
     CHECK(room3.resume(p2.id, p2.key, 2) == Room::kOk && room3.slotOf(p2.id) == 1, "entra al reengancharse");
 }
 
+// 10. Entrada escalonada (room.entradaPorSegundo): 120 de golpe a 2 por segundo pasan en
+//     ~60 s, de a uno cada 500 ms y en orden de llegada; los que esperan ven «entrando» con
+//     su lugar (no están rechazados) y el operador los cuenta en el snapshot.
+void testEntradaEscalonada() {
+    Room::Cfg cfg;
+    cfg.maxGuests = 120;
+    cfg.reserva = 120;
+    cfg.maxWaiting = 200;
+    cfg.lobby = false;
+    cfg.entradaPorSegundo = 2;
+    Room room(cfg);
+    Recorder rec;
+    rec.attach(room);
+    std::vector<std::string> ids;
+    for (int i = 0; i < 120; ++i) ids.push_back(room.connect("C" + std::to_string(i), "", 0).id);
+    CHECK(room.slotOf(ids[0]) == 1, "el primero pasa en el acto");
+    CHECK(room.slotOf(ids[1]) == 0, "el segundo espera su turno");
+    CHECK(room.entrando() == 119, "119 entrando");
+    const json snap = room.snapshot();
+    CHECK(snap["entrando"] == 119 && snap["entradaPorSegundo"] == 2, "el operador ve cuántos esperan y el ritmo");
+    CHECK(findParticipant(snap, ids[1])["state"] == "waiting" && findParticipant(snap, ids[1])["entrando"] == true,
+          "el que espera su turno sigue en el lobby, marcado");
+    CHECK(rec.last(ids[1], "entrando")["position"] == 1, "sabe que es el próximo");
+    CHECK(rec.last(ids[119], "entrando")["position"] == 119, "y el último, cuántos tiene adelante");
+    CHECK(rec.count(ids[119], "rejected") == 0, "nadie rechazado");
+
+    // tick() cada 250 ms, como main.
+    std::vector<int64_t> cuando(120, -1);
+    cuando[0] = 0;
+    for (int64_t t = 0; t <= 70000; t += 250) {
+        room.tick(t);
+        for (int i = 0; i < 120; ++i)
+            if (cuando[i] < 0 && room.slotOf(ids[i]) > 0) cuando[i] = t;
+    }
+    bool todos = true, enOrden = true, deAUno = true;
+    for (int i = 0; i < 120; ++i) todos = todos && cuando[i] >= 0;
+    for (int i = 1; i < 120 && todos; ++i) {
+        enOrden = enOrden && cuando[i] >= cuando[i - 1];
+        deAUno = deAUno && cuando[i] - cuando[i - 1] >= 500;
+    }
+    CHECK(todos, "entraron los 120");
+    CHECK(enOrden, "en orden de llegada");
+    CHECK(deAUno, "de a uno cada medio segundo (2 por segundo)");
+    int enDiez = 0;
+    for (int64_t c : cuando) enDiez += c >= 0 && c <= 10000 ? 1 : 0;
+    CHECK(enDiez >= 20 && enDiez <= 22, "en 10 s, unos 21");
+    CHECK(cuando[119] >= 58000 && cuando[119] <= 61000, "120 de golpe a 2 por segundo: ~60 s");
+    CHECK(room.entrando() == 0 && room.snapshot()["entrando"] == 0, "nadie queda esperando");
+    CHECK(rec.count(ids[60], "admitted") == 1, "a cada uno se le avisa una vez");
+
+    // Con lobby: admitir reserva el lugar; el que entra no se admite dos veces; rechazarlo lo
+    // saca de la fila y el siguiente avanza.
+    Room::Cfg c2;
+    c2.maxGuests = 3;
+    c2.entradaPorSegundo = 2;
+    Room r2(c2);
+    Recorder rec2;
+    rec2.attach(r2);
+    const auto a = r2.connect("A", "", 0), b = r2.connect("B", "", 0), c = r2.connect("C", "", 0), d = r2.connect("D", "", 0);
+    CHECK(r2.admit(a.id, 100) == Room::kOk && r2.slotOf(a.id) == 1, "admitido en una sala tranquila: pasa ya");
+    CHECK(r2.admit(b.id, 100) == Room::kOk && r2.slotOf(b.id) == 0, "el segundo, entrando");
+    CHECK(r2.admit(c.id, 100) == Room::kOk && r2.entrando() == 2, "el tercero también");
+    CHECK(r2.admit(d.id, 100) == Room::kFull, "los lugares de los que entran están reservados");
+    CHECK(r2.admit(b.id, 150) == Room::kOk && r2.entrando() == 2, "admitir de nuevo al que entra no cambia nada");
+    CHECK(r2.reject(b.id) == Room::kOk, "se puede rechazar al que espera su turno");
+    CHECK(rec2.last(c.id, "entrando")["position"] == 1, "y el siguiente avanza");
+    CHECK(r2.admit(d.id, 200) == Room::kOk, "con el lugar libre, se admite al otro");
+    r2.tick(600);
+    CHECK(r2.slotOf(c.id) == 2 && r2.slotOf(d.id) == 0, "a los 500 ms, uno");
+    r2.tick(1100);
+    CHECK(r2.slotOf(d.id) == 3 && r2.entrando() == 0, "y a los 1000 ms, el otro");
+}
+
 void testReconnect() {
     Room::Cfg cfg;
     cfg.graceMs = 1000;
@@ -636,6 +709,7 @@ int main() {
     std::printf("== test_room ==\n");
     testLobby();
     testAutoAdmit();
+    testEntradaEscalonada();
     testReconnect();
     testChat();
     testLockAndRequests();

@@ -41696,6 +41696,46 @@ Choose something else in Outputs → Screens.</translation>
     </message>
     <message>
         <location line="+2"/>
+        <source>Video de los invitados: achicar la grilla en la placa</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Windows con H.264 por la placa: el cuadrito de cada persona en la grilla se achica en la placa de video y solo se trae lo chico. Apagado, se trae el cuadro entero y se achica en el procesador (para comparar).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Conferencia: núcleos propios</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>En un procesador con varios bloques de caché (AMD con dos CCD), los hilos de la conferencia corren en el bloque que no usan el video y el audio del programa, sin los núcleos que atienden la placa de red. Apagado, el sistema los reparte como quiere (para comparar). En macOS y con un solo bloque no cambia nada.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Conferencia: núcleos que no usa</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Los procesadores lógicos que quedan libres para las interrupciones de la placa de red: «auto» (Linux los busca; Windows deja el 0 y el 1), vacío para ninguno, o una lista como «0,1» o «0-3».</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Túnel WireGuard: entregar en memoria</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Lo que llega por el túnel pasa a la conferencia sin dar la vuelta por la red de la máquina (un socket por invitado). Apagado, por la red local como antes (para comparar).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
         <source>Video de retorno: sondear la red para subir de calidad</source>
         <translation>Return video: probe the network to raise quality</translation>
     </message>
@@ -41745,7 +41785,27 @@ Choose something else in Outputs → Screens.</translation>
         <translation>This many unanswered checks (every 2 s) and the conference stops its heartbeat: the launcher dumps it and relaunches it.</translation>
     </message>
     <message>
-        <location line="+33"/>
+        <location line="+2"/>
+        <source>Grilla de personas: reacomodar como mucho cada</source>
+        <translation>People grid: rearrange at most every</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Cuando entra gente, la grilla se reacomoda (con su animación) a lo sumo una vez en este lapso: los que llegan en el medio entran todos juntos en el próximo reacomodo. El orador y los fijados a mano entran en el acto. 0 = cada uno que entra reacomoda.</source>
+        <translation>When people join, the grid rearranges (with its animation) at most once in this span: those who arrive in between all come in together at the next rearrangement. The speaker and those pinned by hand come in right away. 0 = every person who joins rearranges it.</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Invitados que entran por segundo</source>
+        <translation>Guests let in per second</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Cuando muchos pasan a la vez (admitir a todos, sin lobby, la entrada directa, la prueba de sala), entran a este ritmo y en orden de llegada; los demás ven «entrando…» hasta que les toca. Cada uno que entra es una conexión que se negocia y una cámara más que decodificar: con 120 de golpe a 2 por segundo, todos adentro en un minuto. Subilo si la máquina aguanta.</source>
+        <translation>When many come in at once (admit all, no lobby, direct entry, the room test), they enter at this pace and in order of arrival; the rest see “entering…” until their turn. Each one who enters is a connection to negotiate and one more camera to decode: with 120 at once at 2 per second, everyone is in within a minute. Raise it if the machine can take it.</translation>
+    </message>
+    <message>
+        <location line="+32"/>
         <source>Conexiones simultáneas por puerta</source>
         <translation>Simultaneous connections per entrance</translation>
     </message>
@@ -41925,7 +41985,7 @@ Choose something else in Outputs → Screens.</translation>
         <translation>isn&apos;t one of the options</translation>
     </message>
     <message>
-        <location line="-224"/>
+        <location line="-230"/>
         <source>Mensajes de chat que se guardan</source>
         <translation>Chat messages kept</translation>
     </message>
@@ -42080,7 +42140,7 @@ Choose something else in Outputs → Screens.</translation>
         <translation>Windows: direct, the gateway hands each frame to the GPU with no middleman (less CPU and fewer threads); Media Foundation, the Windows decoder (for comparison or if the GPU has trouble).</translation>
     </message>
     <message>
-        <location line="+2"/>
+        <location line="+6"/>
         <source>Hablarle a un invitado: cuánto baja el programa</source>
         <translation>Talking to a guest: how much the program dips</translation>
     </message>
@@ -42230,7 +42290,7 @@ Choose something else in Outputs → Screens.</translation>
         <translation>The mosaics the conference builds (BA.Grilla.&lt;k&gt;). Fewer frames, less CPU.</translation>
     </message>
     <message>
-        <location line="+1"/>
+        <location line="+3"/>
         <source>Botonera web: conexiones</source>
         <translation>Web control surface: connections</translation>
     </message>
@@ -51586,7 +51646,7 @@ Data (from %2): %3</translation>
         <translation>couldn&apos;t crop &apos;%1&apos; in &apos;%2&apos; (crop larger than the image?)</translation>
     </message>
     <message>
-        <location filename="../src/app/escenas/ControlGrillas.cpp" line="+178"/>
+        <location filename="../src/app/escenas/ControlGrillas.cpp" line="+181"/>
         <source>todavía no se pueden crear escenas</source>
         <translation>scenes can&apos;t be created yet</translation>
     </message>
@@ -51611,7 +51671,7 @@ Data (from %2): %3</translation>
         <translation>seat %1</translation>
     </message>
     <message>
-        <location line="+87"/>
+        <location line="+95"/>
         <source>sin canal: hay más de %1 grillas</source>
         <translation>no channel: there are more than %1 grids</translation>
     </message>
@@ -53674,7 +53734,7 @@ Data (from %2): %3</translation>
         <location line="+7"/>
         <location filename="../src/gateway/Botonera.cpp" line="+91"/>
         <location line="+2"/>
-        <location filename="../src/gateway/SignalingServer.cpp" line="+687"/>
+        <location filename="../src/gateway/SignalingServer.cpp" line="+688"/>
         <location line="+9"/>
         <location line="+356"/>
         <location line="+109"/>
@@ -54008,7 +54068,7 @@ Data (from %2): %3</translation>
         <translation>Unknown service “%1”.</translation>
     </message>
     <message>
-        <location filename="../src/gateway/Grillas.cpp" line="+225"/>
+        <location filename="../src/gateway/Grillas.cpp" line="+230"/>
         <source>falta «rotulos» (una lista)</source>
         <translation>«rotulos» is missing (a list)</translation>
     </message>
@@ -54088,7 +54148,7 @@ Data (from %2): %3</translation>
         <translation>cell for “%1” has no size</translation>
     </message>
     <message>
-        <location line="+644"/>
+        <location line="+672"/>
         <source>grillas: BA.Grilla.%1 listo (%2x%3)</source>
         <translation>grids: BA.Grilla.%1 ready (%2x%3)</translation>
     </message>
@@ -54103,7 +54163,7 @@ Data (from %2): %3</translation>
         <translation>grids: BA.Grilla.%1 %2x%3, %4 people (+%5), %6 ms per frame</translation>
     </message>
     <message>
-        <location filename="../src/gateway/MediaPump.cpp" line="+314"/>
+        <location filename="../src/gateway/MediaPump.cpp" line="+315"/>
         <source>escena %1</source>
         <translation>scene %1</translation>
     </message>
@@ -54148,7 +54208,7 @@ Data (from %2): %3</translation>
         <translation>MediaPump: slots %1 -&gt; %2 (no restart)</translation>
     </message>
     <message>
-        <location line="+296"/>
+        <location line="+297"/>
         <source>retorno audio: BA.Audio.ContentForReturn abierto</source>
         <translation>audio return: BA.Audio.ContentForReturn open</translation>
     </message>
@@ -54163,7 +54223,7 @@ Data (from %2): %3</translation>
         <translation>output %1: audio return: A changed or closed; reopening</translation>
     </message>
     <message>
-        <location line="+266"/>
+        <location line="+267"/>
         <source>%1: A cambió o se cerró; resuscribiendo</source>
         <translation>%1: A changed or closed; resubscribing</translation>
     </message>
@@ -54178,7 +54238,7 @@ Data (from %2): %3</translation>
         <translation>operator: camera (BA.Operator) subscribed (%1x%2)</translation>
     </message>
     <message>
-        <location line="-895"/>
+        <location line="-897"/>
         <source>retorno video</source>
         <translation>video return</translation>
     </message>
@@ -54198,7 +54258,7 @@ Data (from %2): %3</translation>
         <translation>output %1: someone is watching it, its downlink is brought up</translation>
     </message>
     <message>
-        <location line="+88"/>
+        <location line="+89"/>
         <source> (salida %1)</source>
         <translation> (output %1)</translation>
     </message>
@@ -54233,7 +54293,7 @@ Data (from %2): %3</translation>
         <translation>transport %1: back to normal</translation>
     </message>
     <message>
-        <location line="+113"/>
+        <location line="+114"/>
         <source>%1: suscrito (%2x%3) -&gt; %4x%5</source>
         <translation>%1: subscribed (%2x%3) -&gt; %4x%5</translation>
     </message>
@@ -54274,7 +54334,7 @@ Data (from %2): %3</translation>
         <translation>no audio came from their microphone during the test (is it muted?)</translation>
     </message>
     <message>
-        <location line="+178"/>
+        <location line="+204"/>
         <source>sube %1: %2 fps (%3x%4)</source>
         <translation>uplink %1: %2 fps (%3x%4)</translation>
     </message>
@@ -54669,7 +54729,7 @@ Data (from %2): %3</translation>
         <translation>ws: media from %1 (session %2) closed</translation>
     </message>
     <message>
-        <location line="+50"/>
+        <location line="+53"/>
         <source>ws: setRemoteOffer falló (sesión %1)</source>
         <translation>ws: setRemoteOffer failed (session %1)</translation>
     </message>
@@ -54714,7 +54774,7 @@ Data (from %2): %3</translation>
         <translation>session: media from remote %1 (session %2) closed</translation>
     </message>
     <message>
-        <location line="+35"/>
+        <location line="+36"/>
         <source>sesión: setRemoteOffer del remoto %1 falló</source>
         <translation>session: setRemoteOffer from remote %1 failed</translation>
     </message>
@@ -54824,13 +54884,13 @@ Data (from %2): %3</translation>
         <translation>room test: ended (%1); credential revoked, %2 test participants removed</translation>
     </message>
     <message>
-        <location line="-3108"/>
+        <location line="-3112"/>
         <source>direcciones: red %1, afuera %2</source>
         <translation>addresses: network %1, outside %2</translation>
     </message>
     <message>
         <location line="+2"/>
-        <location filename="../src/gateway/main.cpp" line="+763"/>
+        <location filename="../src/gateway/main.cpp" line="+778"/>
         <location line="+2"/>
         <source>(ninguna)</source>
         <translation>(none)</translation>
@@ -54938,7 +54998,7 @@ Data (from %2): %3</translation>
         <translation>ws: no free WebRTC sessions for %1</translation>
     </message>
     <message>
-        <location line="+281"/>
+        <location line="+285"/>
         <source>salidas: %1</source>
         <translation>outputs: %1</translation>
     </message>
@@ -54983,7 +55043,7 @@ Data (from %2): %3</translation>
         <translation>all</translation>
     </message>
     <message>
-        <location filename="../src/gateway/main.cpp" line="-521"/>
+        <location filename="../src/gateway/main.cpp" line="-535"/>
         <source>%1 (nueva)</source>
         <translation>%1 (new)</translation>
     </message>
@@ -54993,7 +55053,17 @@ Data (from %2): %3</translation>
         <translation>startup: guests=%1 port=%2 room=%3 webroot=%4 webrtc=%5</translation>
     </message>
     <message>
-        <location line="+22"/>
+        <location line="+12"/>
+        <source>apagado</source>
+        <translation type="unfinished">off</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>procesador: %1; hilos del gateway: %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+21"/>
         <source>no se pudo crear BA.Health</source>
         <translation>couldn&apos;t create BA.Health</translation>
     </message>
@@ -55038,7 +55108,7 @@ Data (from %2): %3</translation>
         <translation>auth: couldn&apos;t generate a PIN; the conference stays closed until a ChangePin</translation>
     </message>
     <message>
-        <location line="+115"/>
+        <location line="+117"/>
         <source>control: sin entropia para el token de la API; la sala queda sin control</source>
         <translation>control: no entropy for the API token; the room has no control</translation>
     </message>
@@ -55244,9 +55314,19 @@ Data (from %2): %3</translation>
         <translation>clean shutdown: BA.Health slot 0 = Terminated; success</translation>
     </message>
     <message>
-        <location filename="../src/gateway/net/IpStack.cpp" line="+656"/>
+        <location filename="../src/gateway/net/IpStack.cpp" line="+846"/>
         <source>pila IP: %1/%2 sobre WireGuard (%3 reenvios TCP, UDP %4-%5)</source>
         <translation>IP stack: %1/%2 over WireGuard (%3 TCP forwards, UDP %4-%5)</translation>
+    </message>
+    <message>
+        <location line="+56"/>
+        <source>pila IP: lo del túnel va a WebRTC en memoria</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>pila IP: lo del túnel va a WebRTC por la red local</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location filename="../src/gateway/net/TlsTerminator.cpp" line="+192"/>
@@ -55310,22 +55390,22 @@ Data (from %2): %3</translation>
         <translation>https: listening on %1:%2 -&gt; 127.0.0.1:%3 (fingerprint %4...)</translation>
     </message>
     <message>
-        <location filename="../src/gateway/net/WgDevice.cpp" line="+199"/>
+        <location filename="../src/gateway/net/WgDevice.cpp" line="+201"/>
         <source>wireguard: no se pudo resolver %1 (se reintenta)</source>
         <translation>wireguard: couldn&apos;t resolve %1 (retrying)</translation>
     </message>
     <message>
-        <location line="+6"/>
+        <location line="+11"/>
         <source>wireguard: escuchando UDP %1</source>
         <translation>wireguard: listening on UDP %1</translation>
     </message>
     <message>
-        <location line="+80"/>
+        <location line="+220"/>
         <source>wireguard: el peer no responde; se reintenta con el próximo tráfico</source>
         <translation>wireguard: the peer isn&apos;t responding; retrying with the next traffic</translation>
     </message>
     <message>
-        <location line="+290"/>
+        <location line="+286"/>
         <source>wireguard: sesión establecida</source>
         <translation>wireguard: session established</translation>
     </message>
@@ -55538,6 +55618,41 @@ Data (from %2): %3</translation>
         <location line="+46"/>
         <source>Broadcast Appliance: instala o actualiza el eco del medidor del enlace en este servidor (pegar como root; se puede repetir).</source>
         <translation>Broadcast Appliance: installs or updates the link meter echo on this server (paste as root; safe to repeat).</translation>
+    </message>
+    <message>
+        <location filename="../src/core/platform/Nucleos.cpp" line="+390"/>
+        <source>macOS no deja elegir núcleos</source>
+        <translation type="unfinished">macOS does not allow choosing cores</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>sin datos de los núcleos</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+15"/>
+        <source>núcleos de dos clases: los hilos quedan libres</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>un solo grupo de núcleos: no hace falta</source>
+        <translation type="unfinished">a single core group: not needed</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>%1 procesadores lógicos (%2), el bloque de caché que no usan los medios de la app</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>sin %1 (interrupciones de la placa de red)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>SetProcessDefaultCpuSets falló (%1)</source>
+        <translation type="unfinished">SetProcessDefaultCpuSets failed (%1)</translation>
     </message>
 </context>
 <context>
@@ -60079,7 +60194,7 @@ WHAT YOU NEED TO KNOW WHEN TURNING IT ON: the approval safeguard (`mcp.approval`
         <translation>Ask the server to watch for something (clipping, silence, end of a track, a speaker&apos;s time, lobby, chat, dropouts, disk, timers) and alert or act on its own. Saves having to check periodically: the alert arrives in the assistant&apos;s chat.</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpFoto.cpp" line="+698"/>
+        <location filename="../src/app/mcp/McpFoto.cpp" line="+700"/>
         <source>Notificadores</source>
         <translation>Notifiers</translation>
     </message>
@@ -61416,7 +61531,7 @@ THE `id` IT RETURNS IS USED AS IS in `audio_module_add`. The six in the catalog 
         <translation>The control surface (tablet via QR, Stream Deck, MIDI via plugin) and the app&apos;s event bus (what&apos;s on air, outputs, levels, alarms) for buttons, plugins and triggers.</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpFoto.cpp" line="-170"/>
+        <location filename="../src/app/mcp/McpFoto.cpp" line="-172"/>
         <source>Temas del bus de eventos</source>
         <translation>Event bus topics</translation>
     </message>
@@ -61918,7 +62033,7 @@ THE `id` IT RETURNS IS USED AS IS in `audio_module_add`. The six in the catalog 
         <translation>Runs the `accion` (id from acciones_listar) as if its shortcut were pressed, but with the requester&apos;s permissions and on-air guard.</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpFoto.cpp" line="+85"/>
+        <location filename="../src/app/mcp/McpFoto.cpp" line="+87"/>
         <source>Modo en vivo</source>
         <translation>Live mode</translation>
     </message>
@@ -72205,7 +72320,7 @@ Each step goes through the same path as if you called it yourself: arguments are
         <translation>What happened in the three processes: read it, filter it and decide how much gets logged.</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpFoto.cpp" line="-260"/>
+        <location filename="../src/app/mcp/McpFoto.cpp" line="-262"/>
         <source>Leer el registro</source>
         <translation>Read the log</translation>
     </message>
@@ -72433,12 +72548,7 @@ After writing one, `ext_listar` again: `problema` says if something is missing, 
         <translation>Conference status</translation>
     </message>
     <message>
-        <location line="+4"/>
-        <source>Todo lo de la conferencia: nombre, PIN, lobby/cerrada, enlace, cada persona (estado, lugar, microfono, camara, pantalla, mano levantada, conexion, info y contacto, turno de orador), archivos compartidos, chat reciente y config de oradores.</source>
-        <translation>Everything about the conference: name, PIN, lobby/locked, link, each person (state, slot, microphone, camera, screen, raised hand, connection, info and contact, speaker turn), shared files, recent chat and speaker settings.</translation>
-    </message>
-    <message>
-        <location line="+7"/>
+        <location line="+13"/>
         <source>La conferencia (gateway) no esta conectada.</source>
         <translation>The conference (gateway) is not connected.</translation>
     </message>
@@ -73903,7 +74013,7 @@ When it reaches 500 profiles it turns itself off and says so. Without `activo` i
         <translation>The latest measurement (every second) of the app and the gateway: total CPU in cores (1.0 = one whole core), memory, the most consuming threads with their name (GStreamer ones are named after their element: that shows which part of the video is spending) and, on Windows, the process GPU per engine (3D, VideoDecode, VideoEncode, Copy). The history is in Logs/perfil-app.jsonl and Logs/perfil-gateway.jsonl; every 10 s a summary goes to the log (log_leer, component perfil).</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpFoto.cpp" line="-421"/>
+        <location filename="../src/app/mcp/McpFoto.cpp" line="-423"/>
         <source>Estado general</source>
         <translation>Overall status</translation>
     </message>
@@ -77889,7 +77999,12 @@ The files: app.log (Process A), gateway.log (Process B), graficos.log, launcher.
         <translation>Latest value of a topic</translation>
     </message>
     <message>
-        <location line="+55"/>
+        <location line="+27"/>
+        <source>Todo lo de la conferencia: nombre, PIN, lobby/cerrada, enlace, cada persona (estado, lugar, microfono, camara, pantalla, mano levantada, conexion, info y contacto, turno de orador), archivos compartidos, chat reciente, config de oradores y la entrada escalonada: `entrando` (los aprobados que esperan su turno para pasar, cada uno con `entrando`) y `entradaPorSegundo` (el ritmo, ajuste room.entradaPorSegundo).</source>
+        <translation>Everything about the conference: name, PIN, lobby/locked, link, each person (state, slot, microphone, camera, screen, raised hand, connection, info and contact, speaker turn), shared files, recent chat, speaker config and the staggered entry: `entrando` (the approved people waiting their turn to come in, each one with `entrando`) and `entradaPorSegundo` (the pace, setting room.entradaPorSegundo).</translation>
+    </message>
+    <message>
+        <location line="+30"/>
         <source>El gateway por dentro (para medir)</source>
         <translation>The gateway internals (for measuring)</translation>
     </message>
@@ -80229,7 +80344,7 @@ PROPOSE, DON&apos;T APPLY: show the person what changes and apply only if they c
         <translation>Output id (letters, numbers, - and _).</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpFoto.cpp" line="-427"/>
+        <location filename="../src/app/mcp/McpFoto.cpp" line="-429"/>
         <source>Las salidas del aparato</source>
         <translation>The device&apos;s outputs</translation>
     </message>
@@ -86712,7 +86827,7 @@ PROPOSE, DON&apos;T APPLY: show the person what changes and apply only if they c
         <translation>“Prioritize program” steps turned off because of heat</translation>
     </message>
     <message>
-        <location filename="../src/gateway/SignalingServer.cpp" line="-1134"/>
+        <location filename="../src/gateway/SignalingServer.cpp" line="-1138"/>
         <source>Invitados que se cortaron y volvieron a su lugar</source>
         <translation>Guests that dropped and came back to their place</translation>
     </message>
@@ -88165,23 +88280,17 @@ PROPOSE, DON&apos;T APPLY: show the person what changes and apply only if they c
         <translation>engine video: %1</translation>
     </message>
     <message>
-        <location filename="../src/motor/Prioridad.cpp" line="+188"/>
+        <location filename="../src/core/platform/Nucleos.cpp" line="-66"/>
         <source>GetSystemCpuSetInformation falló (%1)</source>
         <translation>GetSystemCpuSetInformation failed (%1)</translation>
     </message>
     <message>
-        <location line="+8"/>
-        <source>sin CPU Sets</source>
-        <translation>no CPU Sets</translation>
-    </message>
-    <message>
-        <location line="+10"/>
-        <location line="+33"/>
+        <location line="+3"/>
         <source>un solo grupo de núcleos: no hace falta</source>
         <translation>a single core group: not needed</translation>
     </message>
     <message>
-        <location line="-28"/>
+        <location line="+5"/>
         <source>%1 procesadores lógicos (los de rendimiento)</source>
         <translation>%1 logical processors (the performance ones)</translation>
     </message>
@@ -88191,7 +88300,7 @@ PROPOSE, DON&apos;T APPLY: show the person what changes and apply only if they c
         <translation>%1 logical processors (one CCD)</translation>
     </message>
     <message>
-        <location line="+5"/>
+        <location line="+9"/>
         <source>lo demás, en los otros %1</source>
         <translation>everything else on the other %1</translation>
     </message>
@@ -88201,12 +88310,12 @@ PROPOSE, DON&apos;T APPLY: show the person what changes and apply only if they c
         <translation>SetProcessDefaultCpuSets failed (%1)</translation>
     </message>
     <message>
-        <location line="+5"/>
+        <location line="-24"/>
         <source>macOS no deja elegir núcleos</source>
         <translation>macOS does not allow choosing cores</translation>
     </message>
     <message>
-        <location line="+20"/>
+        <location line="+30"/>
         <source>%1 procesadores lógicos (los de rendimiento: %2)</source>
         <translation>%1 logical processors (performance: %2)</translation>
     </message>
@@ -88216,7 +88325,7 @@ PROPOSE, DON&apos;T APPLY: show the person what changes and apply only if they c
         <translation>%1 logical processors (one L3: %2)</translation>
     </message>
     <message>
-        <location line="+8"/>
+        <location line="-40"/>
         <source>%1 de %2</source>
         <translation>%1 of %2</translation>
     </message>
@@ -88231,7 +88340,7 @@ PROPOSE, DON&apos;T APPLY: show the person what changes and apply only if they c
         <translation>no topology data</translation>
     </message>
     <message>
-        <location line="+91"/>
+        <location filename="../src/motor/Prioridad.cpp" line="+132"/>
         <source>procesador: los hilos del audio no pueden pasar a tiempo real (en Linux hace falta RLIMIT_RTPRIO o RLIMIT_NICE)</source>
         <translation>processor: the audio threads can&apos;t switch to real time (on Linux RLIMIT_RTPRIO or RLIMIT_NICE is needed)</translation>
     </message>
@@ -88241,7 +88350,7 @@ PROPOSE, DON&apos;T APPLY: show the person what changes and apply only if they c
         <translation>processor: the video and audio threads cannot raise their priority (CAP_SYS_NICE or RLIMIT_NICE is required)</translation>
     </message>
     <message>
-        <location line="+32"/>
+        <location line="+33"/>
         <source>procesador: %1; prioridad del video y el audio: sí; video y audio juntos: %2</source>
         <translation>processor: %1; video and audio priority: yes; video and audio together: %2</translation>
     </message>
@@ -95622,6 +95731,11 @@ PROPOSE, DON&apos;T APPLY: show the person what changes and apply only if they c
     </message>
     <message>
         <location line="+2"/>
+        <source>%1 entrando (%2 por segundo)</source>
+        <translation>%1 entering (%2 per second)</translation>
+    </message>
+    <message>
+        <location line="+2"/>
         <source>Admitir</source>
         <translation>Admit</translation>
     </message>
@@ -95639,6 +95753,11 @@ PROPOSE, DON&apos;T APPLY: show the person what changes and apply only if they c
         <location line="+2"/>
         <source>¿Sacarlo de la conferencia?</source>
         <translation>Remove from the conference?</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>entrando…</source>
+        <translation>entering…</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -97026,6 +97145,24 @@ PROPOSE, DON&apos;T APPLY: show the person what changes and apply only if they c
         <location line="+2"/>
         <source>Sos el próximo.</source>
         <translation>You&apos;re next.</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Entrando…</source>
+        <translation>Entering…</translation>
+    </message>
+    <message numerus="yes">
+        <location line="+2"/>
+        <source>Hay %n persona antes que vos para entrar.</source>
+        <translation>
+            <numerusform>There is %n person ahead of you to come in.</numerusform>
+            <numerusform>There are %n people ahead of you to come in.</numerusform>
+        </translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Sos el próximo en entrar.</source>
+        <translation>You&apos;re next to come in.</translation>
     </message>
     <message>
         <location line="+2"/>
