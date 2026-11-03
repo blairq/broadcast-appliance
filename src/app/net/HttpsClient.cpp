@@ -12,6 +12,7 @@
 #include <mbedtls/entropy.h>
 #include <mbedtls/error.h>
 #include <mbedtls/net_sockets.h>
+#include <mbedtls/sha256.h>
 #include <mbedtls/ssl.h>
 #include <mbedtls/x509_crt.h>
 #include <psa/crypto.h>
@@ -114,7 +115,9 @@ class Conn {
         mbedtls_net_free(&net_);
     }
 
-    bool open(const Url& u, int timeoutMs, std::string& err) {
+    /// `huella`: con una, el certificado del otro lado tiene que ser ESE (SHA-256 del DER,
+    /// «AB:CD:…»), aunque sea autofirmado: el de la caja de otro BroadcastAppliance.
+    bool open(const Url& u, int timeoutMs, std::string& err, const std::string& huella = {}) {
         mbedtls_net_init(&net_);
         timeout_ = static_cast<uint32_t>(timeoutMs);
         const int r = mbedtls_net_connect(&net_, u.host.c_str(), u.port.c_str(), MBEDTLS_NET_PROTO_TCP);
@@ -124,7 +127,7 @@ class Conn {
             return false;
         }
         if (!u.tls) return true;
-        if (!ensureCa()) {
+        if (huella.empty() && !ensureCa()) {
             err = ba::i18n::traducir("red", "sin raices de certificados (falta data/cacert.pem: make deps-cacert)");
             return false;
         }
@@ -143,8 +146,10 @@ class Conn {
             err = ba::i18n::traducir("red", "no se pudo preparar TLS");
             return false;
         }
-        mbedtls_ssl_conf_authmode(&conf_, MBEDTLS_SSL_VERIFY_REQUIRED);
-        {
+        // Con huella: no se busca una cadena (es autofirmado); se compara el certificado
+        // entero después del saludo. Sin huella: la verificación de siempre, obligatoria.
+        mbedtls_ssl_conf_authmode(&conf_, huella.empty() ? MBEDTLS_SSL_VERIFY_REQUIRED : MBEDTLS_SSL_VERIFY_OPTIONAL);
+        if (huella.empty()) {
             std::lock_guard<std::mutex> lock(g_caLock);
             mbedtls_ssl_conf_ca_chain(&conf_, &g_ca, nullptr);
         }
@@ -167,6 +172,26 @@ class Conn {
                 err = ba::i18n::llenar(ba::i18n::traducir("red", "TLS con %1 fallo: %2"), {u.host, tlsError(h)});
             }
             return false;
+        }
+        if (!huella.empty()) {
+            const mbedtls_x509_crt* crt = mbedtls_ssl_get_peer_cert(&ssl_);
+            std::string vista;
+            if (crt != nullptr) {
+                unsigned char d[32];
+                mbedtls_sha256(crt->raw.p, crt->raw.len, d, 0);
+                static const char* hx = "0123456789ABCDEF";
+                for (int i = 0; i < 32; ++i) {
+                    if (i) vista += ':';
+                    vista += hx[d[i] >> 4];
+                    vista += hx[d[i] & 15];
+                }
+            }
+            std::string esperada;
+            for (char ch : huella) esperada += static_cast<char>(std::toupper(static_cast<unsigned char>(ch)));
+            if (vista.empty() || vista != esperada) {
+                err = ba::i18n::llenar(ba::i18n::traducir("red", "el certificado de %1 no es el esperado (otra huella)"), {u.host});
+                return false;
+            }
         }
         return true;
     }
@@ -321,7 +346,7 @@ HttpResponse HttpsClient::request(const HttpRequest& req) {
         file.seekg(0);
     }
     Conn c;
-    if (!c.open(u, req.timeoutMs, res.error)) return res;
+    if (!c.open(u, req.timeoutMs, res.error, req.huellaSha256)) return res;
 
     std::string head =
         req.method + " " + u.target + " HTTP/1.1\r\nHost: " + u.host +

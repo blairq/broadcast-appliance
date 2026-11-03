@@ -93,6 +93,9 @@ class RecursosViewModel : public QObject {
     nlohmann::json fotoServicio() const { return fotoServicio_.leer(); }
 
     diag::Recursos& muestreador() { return *recursos_; }
+    /// Medir también estos procesos con `nombre` (la prueba de capacidad: los de hinchada,
+    /// para descontar su CPU). Vacío deja de medirlos.
+    void medirTambien(const std::string& nombre, const std::vector<std::uint32_t>& pids);
 
    signals:
     void cambio();
@@ -113,6 +116,8 @@ class RecursosViewModel : public QObject {
     QString limita_;
     QVariantList procesos_;
     std::uint32_t gatewayPid_ = 0;
+    std::map<std::string, std::vector<std::uint32_t>> aparte_; ///< medirTambien
+    void ponerProcesos();
     // Para los cuadros perdidos y lo que sale, entre una vuelta y la otra.
     int perdidosAntes_ = -1, totalAntes_ = -1;
     std::uint64_t bytesAntes_ = 0;

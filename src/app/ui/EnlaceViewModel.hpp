@@ -94,6 +94,8 @@ class EnlaceViewModel : public QObject {
 
     /// La cuenta para otro N (la prueba de sala, el MCP) con la última medición.
     nlohmann::json necesidadPara(int invitados) const;
+    /// La misma cuenta con OTRA medición (la prueba de capacidad: lo medido por pinggy).
+    nlohmann::json juzgarCon(const sala::enlace::Medicion& m, int invitados) const;
     /// Lo último medido BIEN como lo usa la cuenta (sala::enlace::deResultado).
     sala::enlace::Medicion medido() const;
     /// La última medición buena entera (null = ninguna).

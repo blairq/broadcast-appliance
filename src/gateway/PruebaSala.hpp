@@ -14,6 +14,12 @@
 //   - los reales siguen pasando por el lobby, salvo que el operador prenda
 //     «Entrada directa para todos» (`directa`), que solo existe mientras dura la
 //     prueba y se apaga sola al terminar.
+//   - La prueba de CAPACIDAD desde otro equipo (docs/funciones/CAPACIDAD.md): el
+//     probador de afuera usa la misma credencial y lee la MEDIDA de esta máquina (CPU,
+//     memoria, grilla, audio) que la app deja acá cada segundo (`ponerMedida`), por
+//     GET /api/prueba-sala/medida con la credencial en una cabecera (nunca en la URL).
+//     Las IP que entraron con la credencial (`anotarIp`) no pasan por el tope de
+//     conexiones por IP mientras dura (todos los de prueba salen de una sola máquina).
 //
 // Esto es el MODELO (sin sockets ni sala): la credencial, los tokens de un uso
 // que se emitieron con ella (para reconocer al que abre el /ws), los ids de los
@@ -70,6 +76,14 @@ class PruebaSala {
     bool setDirecta(bool on, int64_t ahoraMs);
     bool directa() const;
 
+    /// La medida de esta máquina para el probador remoto (la pone la app cada segundo).
+    void ponerMedida(const nlohmann::json& medida, int64_t ahoraMs);
+    /// {medida, edadMs} (null sin medida o sin prueba).
+    nlohmann::json medida(int64_t ahoraMs) const;
+    /// Una IP (orden de red) entró con la credencial: sin tope por IP mientras dure.
+    void anotarIp(std::uint32_t ip);
+    bool ipDePrueba(std::uint32_t ip, int64_t ahoraMs) const;
+
     /// Para la API de control (loopback): activa, desde/vence, directa, cuántos.
     /// `conCredencial`: la credencial va (solo a la app, nunca al snapshot).
     nlohmann::json estado(int64_t ahoraMs, bool conCredencial) const;
@@ -85,6 +99,9 @@ class PruebaSala {
     std::map<std::string, int64_t> tokens_; ///< token -> vence
     std::set<std::string> ids_;
     int entradas_ = 0; ///< tokens canjeados en esta prueba
+    nlohmann::json medida_; ///< la de la app (null = ninguna)
+    int64_t medidaMs_ = 0;
+    std::set<std::uint32_t> ips_; ///< las que entraron con la credencial
 };
 
 } // namespace ba::gateway

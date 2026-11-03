@@ -73,6 +73,11 @@ json EnlaceViewModel::necesidadPara(int invitados) const {
     return en::aJson(pf, en::necesita(pf), en::juzgar(pf, medido()));
 }
 
+json EnlaceViewModel::juzgarCon(const en::Medicion& m, int invitados) const {
+    const en::Perfil pf = perfil(invitados);
+    return en::aJson(pf, en::necesita(pf), en::juzgar(pf, m));
+}
+
 void EnlaceViewModel::setInvitados(int n) {
     n = std::clamp(n, 1, en::kMaxInvitados);
     invitadosAMano_ = true;

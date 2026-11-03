@@ -4655,6 +4655,125 @@ Esto lo abre en otra ventana, para tener las dos cosas a la vez.</source>
     </message>
 </context>
 <context>
+    <name>CapacidadViewModel</name>
+    <message numerus="yes">
+        <location filename="../src/app/ui/CapacidadViewModel.cpp" line="+181"/>
+        <source>Prueba de capacidad: entran invitados de prueba por escalones hasta %n (cada escalón, 2 minutos como mucho).</source>
+        <translation>
+            <numerusform>容量测试：测试嘉宾分阶梯加入，最多 %n 位（每个阶梯最长 2 分钟）。</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location line="+83"/>
+        <source>El otro equipo abrió lugar para %n: la prueba llega hasta ahí.</source>
+        <translation>
+            <numerusform>另一台设备开放了 %n 个名额：测试到此为止。</numerusform>
+        </translation>
+    </message>
+    <message>
+        <location line="-22"/>
+        <source>Prueba de capacidad del otro equipo (%1): los invitados de prueba salen de esta máquina.</source>
+        <translation>另一台设备的容量测试（%1）：测试嘉宾从本机发出。</translation>
+    </message>
+    <message>
+        <location line="+314"/>
+        <source>Preparando el video de prueba (solo la primera vez, unos minutos)…</source>
+        <translation>正在准备测试视频（仅首次，需要几分钟）…</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Abriendo la prueba…</source>
+        <translation>正在开启测试…</translation>
+    </message>
+    <message numerus="yes">
+        <location line="+1"/>
+        <source>Entrando: %n invitados de prueba</source>
+        <translation>
+            <numerusform>正在加入：%n 位测试嘉宾</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location line="+1"/>
+        <source>Se acomodan los %n…</source>
+        <translation>
+            <numerusform>%n 位嘉宾正在就位…</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location line="+1"/>
+        <source>Midiendo con %n invitados</source>
+        <translation>
+            <numerusform>正在以 %n 位嘉宾测量</numerusform>
+        </translation>
+    </message>
+    <message>
+        <location line="+135"/>
+        <source>La conferencia no tiene una dirección para que entre el otro equipo.</source>
+        <translation>会议没有可供另一台设备接入的地址。</translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <source>Este equipo se deja probar: copiá el código en el otro equipo (pestaña Capacidad → Un sistema remoto).</source>
+        <translation>本设备可以被测试：在另一台设备上粘贴代码（「容量」标签页 → 「远程系统」）。</translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>Terminó el tiempo para recibir la prueba.</source>
+        <translation>接收测试的时间已到。</translation>
+    </message>
+    <message>
+        <location line="+83"/>
+        <source>Midiendo la conexión…</source>
+        <translation>正在测量连接…</translation>
+    </message>
+    <message>
+        <location line="+48"/>
+        <source>Prendiendo pinggy (la conferencia se reinicia)…</source>
+        <translation>正在开启 pinggy（会议将重启）…</translation>
+    </message>
+    <message>
+        <location line="+40"/>
+        <source>Midiendo por pinggy (ida y vuelta)…</source>
+        <translation>正在通过 pinggy 测量（往返）…</translation>
+    </message>
+    <message>
+        <location line="+99"/>
+        <source>La conferencia cerró la prueba que venía del otro equipo (%1).</source>
+        <translation>会议关闭了来自另一台设备的测试（%1）。</translation>
+    </message>
+    <message>
+        <location line="+21"/>
+        <source>Había una prueba de capacidad sin terminar (el programa se cerró en el medio): ya se limpió.</source>
+        <translation>有一次未完成的容量测试（程序中途关闭）：已清理。</translation>
+    </message>
+    <message>
+        <location line="+80"/>
+        <location line="+1"/>
+        <source>no se pudo escribir %1</source>
+        <translation>无法写入 %1</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Exportado: %1</source>
+        <translation>已导出：%1</translation>
+    </message>
+    <message>
+        <location line="+64"/>
+        <source>Capacidad de esta máquina sin medir: Configuración → Sistema → Capacidad dice cuántos invitados aguanta.</source>
+        <translation>本机容量尚未测量：「设置 → 系统 → 容量」可查看能承载多少位嘉宾。</translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>Capacidad: el %1 esta máquina aguantó %2 invitados con margen y el evento tiene lugar para %3.</source>
+        <translation>容量：%1 本机留有余量地承载了 %2 位嘉宾，活动名额为 %3。</translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <source>Conexión: según la última medición entran %1 invitados con margen y el evento tiene lugar para %2.</source>
+        <translation>连接：按最近一次测量，可留有余量地接入 %1 位嘉宾，活动名额为 %2。</translation>
+    </message>
+</context>
+<context>
     <name>CarruselContent</name>
     <message>
         <location filename="../src/app/qml/cards/CarruselContent.qml" line="+109"/>
@@ -8028,7 +8147,7 @@ Se prende desde el Registro.</source>
 <context>
     <name>EnlaceViewModel</name>
     <message numerus="yes">
-        <location filename="../src/app/ui/EnlaceViewModel.cpp" line="+105"/>
+        <location filename="../src/app/ui/EnlaceViewModel.cpp" line="+110"/>
         <source>Hay %n invitados conectados: la medición carga el enlace y se les puede cortar la imagen unos segundos.</source>
         <translation>
             <numerusform>已连接 %n 位嘉宾：测量会占用链路，他们的画面可能会卡顿几秒。</numerusform>
@@ -11714,6 +11833,25 @@ Se prende desde el Registro.</source>
         <location line="+1"/>
         <source>Tótem de registro %1</source>
         <translation>签到一体机 %1</translation>
+    </message>
+</context>
+<context>
+    <name>GeneradorHinchada</name>
+    <message>
+        <location filename="../src/app/sala/GeneradorCarga.cpp" line="+28"/>
+        <location line="+51"/>
+        <source>el probador (hinchada) no viene en este programa</source>
+        <translation>本程序未附带测试器（hinchada）</translation>
+    </message>
+    <message>
+        <location line="+16"/>
+        <source>hinchada no pudo grabar su video de prueba (código %1)</source>
+        <translation>hinchada 无法录制测试视频（代码 %1）</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>no arrancó hinchada</source>
+        <translation>hinchada 未能启动</translation>
     </message>
 </context>
 <context>
@@ -17905,6 +18043,403 @@ No se borran del disco: si alguno estaba en una escena, se lo saca de ahí y lis
         <location line="+2"/>
         <source>Ya tiene mediciones: dejan de entrar en el promedio y la propuesta (los archivos quedan en la carpeta de la sesión).</source>
         <translation>它已有测量数据：这些数据将不再计入平均值和建议（文件保留在会话文件夹中）。</translation>
+    </message>
+</context>
+<context>
+    <name>PanelCapacidad</name>
+    <message>
+        <location filename="../src/app/qml/controls/PanelCapacidad.qml" line="+29"/>
+        <location line="+112"/>
+        <source>Cancelar</source>
+        <translation>取消</translation>
+    </message>
+    <message>
+        <location line="-69"/>
+        <location line="+188"/>
+        <source>%1 invitados: %2</source>
+        <translation>%1 位嘉宾：%2</translation>
+    </message>
+    <message>
+        <location line="-149"/>
+        <source>¿Cuántos invitados aguanta? Entran invitados de prueba por escalones (10, 20, 40, 60, 80…, cada uno 2 minutos como mucho) hasta que la máquina se degrada: la CPU sostenida pasa del 85 %, queda poca memoria, la grilla baja de 25 cuadros por segundo, el audio se atrasa más de 50 ms o la interfaz se traba. Los de prueba no tocan el padrón ni la votación, y el evento abierto no se modifica.</source>
+        <translation>能承载多少位嘉宾？测试嘉宾分阶梯加入（10、20、40、60、80…，每个阶梯最长 2 分钟），直到机器性能下降：CPU 持续高于 85 %、内存不足、画面网格低于 25 帧/秒、音频延迟超过 50 ms 或界面卡顿。测试嘉宾不计入名册和表决，当前打开的活动不会被修改。</translation>
+    </message>
+    <message>
+        <location line="+17"/>
+        <source>Ahora no se puede probar: %1</source>
+        <translation>现在无法测试：%1</translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>Midiendo la conexión</source>
+        <translation>正在测量连接</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Probando %1</source>
+        <translation>正在测试 %1</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Probando este equipo</source>
+        <translation>正在测试本设备</translation>
+    </message>
+    <message>
+        <location line="+19"/>
+        <source>Escalón %1 de %2 · %3 s</source>
+        <translation>阶梯 %1 / %2 · %3 秒</translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>%1/%2 con video</source>
+        <translation>%1/%2 有视频</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>CPU %1 %</source>
+        <translation>CPU %1 %</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>hinchada %1 %</source>
+        <translation>hinchada %1 %</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>memoria libre %1 GB</source>
+        <translation>可用内存 %1 GB</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>grilla %1 cps</source>
+        <translation>网格 %1 帧/秒</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>audio %1 ms</source>
+        <translation>音频 %1 ms</translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>Este equipo</source>
+        <translation>本设备</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>¿Cuántos invitados aguanta esta máquina? El generador de prueba (hinchada) corre acá mismo: su CPU se mide aparte y se descuenta.</source>
+        <translation>本机能承载多少位嘉宾？测试生成器（hinchada）就在本机运行：其 CPU 占用单独测量并扣除。</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <location line="+116"/>
+        <source>Hasta</source>
+        <translation>最多</translation>
+    </message>
+    <message>
+        <location line="-111"/>
+        <source>invitados</source>
+        <translation>位嘉宾</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Probar este equipo…</source>
+        <translation>测试本设备…</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>¿Probar este equipo?</source>
+        <translation>测试本设备？</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Van a entrar hasta %1 invitados de prueba por escalones: la máquina se va a cargar durante unos minutos. No lo hagas con un evento en curso. Se puede cancelar en cualquier momento.</source>
+        <translation>最多 %1 位测试嘉宾将分阶梯加入：机器会高负载运行几分钟。活动进行中请勿操作。可随时取消。</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <location line="+89"/>
+        <source>Probar</source>
+        <translation>测试</translation>
+    </message>
+    <message>
+        <location line="-79"/>
+        <source>El generador de prueba (hinchada) no viene en este programa: esta máquina se puede probar desde otro equipo (abajo, «Que otro equipo pruebe este»).</source>
+        <translation>本程序未附带测试生成器（hinchada）：可以从另一台设备测试本机（见下方「让另一台设备测试本机」）。</translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>Resultado: %1</source>
+        <translation>结果：%1</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Resultado</source>
+        <translation>结果</translation>
+    </message>
+    <message>
+        <location line="+15"/>
+        <source>CPU sin el generador (%)</source>
+        <translation>CPU（不含生成器，%）</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>CPU (%)</source>
+        <translation>CPU (%)</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Memoria disponible (GB)</source>
+        <translation>可用内存 (GB)</translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>Grilla (cuadros por segundo)</source>
+        <translation>网格（帧/秒）</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Audio de los invitados (ms)</source>
+        <translation>嘉宾音频 (ms)</translation>
+    </message>
+    <message>
+        <location line="+16"/>
+        <source>%1 invitados: bien (CPU %2 %, %3/%1 con video)</source>
+        <translation>%1 位嘉宾：正常（CPU %2 %，%3/%1 有视频）</translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>Un sistema remoto</source>
+        <translation>远程系统</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Probar otro BroadcastAppliance desde acá: en el otro, «Que otro equipo pruebe este» muestra un código; pegalo acá. Los invitados de prueba salen de esta máquina y el otro informa su CPU y su memoria.</source>
+        <translation>从这里测试另一台 BroadcastAppliance：在另一台上，「让另一台设备测试本机」会显示一个代码，粘贴到这里。测试嘉宾从本机发出，另一台会报告其 CPU 和内存。</translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>Código del otro equipo (BACAP1.…)</source>
+        <translation>另一台设备的代码（BACAP1.…）</translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>Probar el otro equipo…</source>
+        <translation>测试另一台设备…</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>¿Probar el otro equipo?</source>
+        <translation>测试另一台设备？</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Esta máquina va a generar hasta %1 invitados de prueba contra el otro equipo. Que el otro no tenga un evento en curso.</source>
+        <translation>本机将向另一台设备生成最多 %1 位测试嘉宾。另一台设备上不应有进行中的活动。</translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <source>Que otro equipo pruebe este</source>
+        <translation>让另一台设备测试本机</translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>invitados, durante</source>
+        <translation>位嘉宾，持续</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>minutos</source>
+        <translation>分钟</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Recibir una prueba…</source>
+        <translation>接收测试…</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>¿Dejar que otro equipo pruebe este?</source>
+        <translation>让另一台设备测试本机？</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Se abre una credencial de prueba (vence sola) y entran hasta %1 invitados de prueba desde el otro equipo. La guardia corta si esta máquina se ahoga.</source>
+        <translation>将开启一个测试凭据（自动过期），另一台设备最多发来 %1 位测试嘉宾。如果本机不堪重负，守护程序会中止测试。</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Recibir</source>
+        <translation>接收</translation>
+    </message>
+    <message>
+        <location line="+13"/>
+        <source>Abriendo…</source>
+        <translation>正在开启…</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Recibiendo hasta las %1: %2 invitados de prueba adentro (%3 con video).</source>
+        <translation>接收至 %1：当前有 %2 位测试嘉宾（%3 位有视频）。</translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <source>Código: •••••••• (%1)</source>
+        <translation>代码：••••••••（%1）</translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>Copiado ✓</source>
+        <translation>已复制 ✓</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Copiar el código (red local)</source>
+        <translation>复制代码（局域网）</translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>Copiar el código (por internet)</source>
+        <translation>复制代码（通过互联网）</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Ocultar</source>
+        <translation>隐藏</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Mostrar</source>
+        <translation>显示</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Dejar de recibir</source>
+        <translation>停止接收</translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <source>Conexión a internet</source>
+        <translation>互联网连接</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Lo que cuenta es el camino de los invitados: pinggy y el TURN de la conferencia (y el túnel WireGuard, si está). Dice cuántos invitados entran con esta conexión: como mucho 4 en alta definición y el resto en baja.</source>
+        <translation>关键在于嘉宾的路径：pinggy 和会议的 TURN（以及 WireGuard 隧道，如有）。显示此连接可接入多少位嘉宾：最多 4 位高清，其余为低清。</translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>Pinggy: sin datos</source>
+        <translation>Pinggy：无数据</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>hay túnel WireGuard</source>
+        <translation>有 WireGuard 隧道</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Medir la conexión</source>
+        <translation>测量连接</translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>Prender pinggy y medir…</source>
+        <translation>开启 pinggy 并测量…</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>¿Prender pinggy para medir?</source>
+        <translation>开启 pinggy 进行测量？</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Prender pinggy reinicia la conferencia (unos segundos). Al terminar la medición se apaga solo.</source>
+        <translation>开启 pinggy 会重启会议（几秒钟）。测量结束后会自动关闭。</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Prender y medir</source>
+        <translation>开启并测量</translation>
+    </message>
+    <message>
+        <location line="+13"/>
+        <source>Por pinggy</source>
+        <translation>通过 pinggy</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Por el túnel WireGuard</source>
+        <translation>通过 WireGuard 隧道</translation>
+    </message>
+    <message>
+        <location line="+12"/>
+        <source>%1 Mbps ida y vuelta, demora %2 ms (%3 ms cargado), pérdida %4 % → entran %5</source>
+        <translation>往返 %1 Mbps，延迟 %2 ms（负载下 %3 ms），丢包 %4 % → 可接入 %5</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>subida %1 Mbps, bajada %2 Mbps → entran %3</source>
+        <translation>上行 %1 Mbps，下行 %2 Mbps → 可接入 %3</translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <source>Historial</source>
+        <translation>历史记录</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Cada prueba queda guardada con la fecha y la máquina. La revisión previa del evento muestra la última.</source>
+        <translation>每次测试都会连同日期和机器一起保存。活动的事前检查会显示最近一次。</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Exportar el último…</source>
+        <translation>导出最近一次…</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Exportar el historial (CSV)…</source>
+        <translation>导出历史记录（CSV）…</translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>Todavía no hay pruebas guardadas.</source>
+        <translation>尚无已保存的测试。</translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <source>conexión</source>
+        <translation>连接</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>remoto</source>
+        <translation>远程</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>este equipo</source>
+        <translation>本设备</translation>
+    </message>
+    <message>
+        <location line="+13"/>
+        <source>Exportar el historial de capacidad</source>
+        <translation>导出容量历史记录</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Exportar el último resultado de capacidad</source>
+        <translation>导出最近一次容量结果</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>CSV (*.csv)</source>
+        <translation>CSV (*.csv)</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>JSON (*.json)</source>
+        <translation>JSON (*.json)</translation>
     </message>
 </context>
 <context>
@@ -26922,7 +27457,7 @@ De frente, de costado, con anteojos y sin: así se la reconoce en el día real.<
 <context>
     <name>PruebaSalaViewModel</name>
     <message numerus="yes">
-        <location filename="../src/app/ui/PruebaSalaViewModel.cpp" line="+167"/>
+        <location filename="../src/app/ui/PruebaSalaViewModel.cpp" line="+170"/>
         <source>Ojo: según la última medición, el enlace no alcanza para %n invitados por el túnel.</source>
         <translation>
             <numerusform>注意：根据最近一次测量，经隧道的链路不够 %n 位嘉宾使用。</numerusform>
@@ -28931,7 +29466,7 @@ APRETADO</source>
     </message>
     <message>
         <location line="+1"/>
-        <location line="+201"/>
+        <location line="+221"/>
         <source>Cuadros perdidos</source>
         <translation>丢帧</translation>
     </message>
@@ -30918,7 +31453,7 @@ Para la escena base de la que salen las demás.</source>
 <context>
     <name>SettingsPage</name>
     <message>
-        <location filename="../src/app/qml/pages/SettingsPage.qml" line="+33"/>
+        <location filename="../src/app/qml/pages/SettingsPage.qml" line="+35"/>
         <source>General</source>
         <translation>通用</translation>
     </message>
@@ -30968,7 +31503,7 @@ Para la escena base de la que salen las demás.</source>
         <translation>系统</translation>
     </message>
     <message>
-        <location line="+14"/>
+        <location line="+15"/>
         <source>Saca la conferencia a internet por un túnel de Cloudflare, con tu dominio (p. ej. sala.miorganismo.gob.ar). Hace falta una cuenta de Cloudflare con el dominio cargado y el token del túnel (Zero Trust → Networks → Tunnels → el túnel → token). El video de los de afuera va por la conexión directa o el TURN. Se usa uno solo de los tres caminos: Pinggy, Cloudflare o túnel propio.</source>
         <translation>通过 Cloudflare 隧道使用您的域名（例如 sala.miorganismo.gob.ar）将会议接入互联网。需要一个已添加该域名的 Cloudflare 账户以及隧道 token（Zero Trust → Networks → Tunnels → 该隧道 → token）。外部参与者的视频通过直连或 TURN 传输。三种方式只使用其中一种：Pinggy、Cloudflare 或自有隧道。</translation>
     </message>
@@ -31069,12 +31604,12 @@ Para la escena base de la que salen las demás.</source>
     </message>
     <message>
         <location line="+1"/>
-        <location line="+705"/>
+        <location line="+710"/>
         <source>Seguridad</source>
         <translation>安全</translation>
     </message>
     <message>
-        <location line="-705"/>
+        <location line="-710"/>
         <source>Archivos</source>
         <translation>文件</translation>
     </message>
@@ -31143,7 +31678,7 @@ Para la escena base de la que salen las demás.</source>
         <location line="+1"/>
         <location line="+12"/>
         <location line="+162"/>
-        <location line="+330"/>
+        <location line="+335"/>
         <location line="+81"/>
         <location line="+111"/>
         <location line="+338"/>
@@ -31154,7 +31689,7 @@ Para la escena base de la que salen las demás.</source>
         <translation>取消</translation>
     </message>
     <message>
-        <location line="-1132"/>
+        <location line="-1137"/>
         <source>Configuración, credenciales, grabaciones y archivos no se tocan.</source>
         <translation>设置、凭证、录制内容和文件均不受影响。</translation>
     </message>
@@ -31200,12 +31735,12 @@ Para la escena base de la que salen las demás.</source>
     </message>
     <message>
         <location line="+2"/>
-        <location line="+382"/>
+        <location line="+387"/>
         <source>● Guardado</source>
         <translation>● 已保存</translation>
     </message>
     <message>
-        <location line="-382"/>
+        <location line="-387"/>
         <source>● Sin token</source>
         <translation>● 无 token</translation>
     </message>
@@ -31216,19 +31751,19 @@ Para la escena base de la que salen las demás.</source>
     </message>
     <message>
         <location line="+3"/>
-        <location line="+382"/>
+        <location line="+387"/>
         <location line="+35"/>
         <source>Guardar</source>
         <translation>保存</translation>
     </message>
     <message>
-        <location line="-413"/>
+        <location line="-418"/>
         <source>Token de Cloudflare guardado (cifrado). Prendé el túnel y aplicá.</source>
         <translation>Cloudflare token 已保存（已加密）。请开启隧道并应用。</translation>
     </message>
     <message>
         <location line="+4"/>
-        <location line="+376"/>
+        <location line="+381"/>
         <location line="+4"/>
         <location line="+31"/>
         <location line="+495"/>
@@ -31241,7 +31776,7 @@ Para la escena base de la que salen las demás.</source>
         <translation>删除</translation>
     </message>
     <message>
-        <location line="-1419"/>
+        <location line="-1424"/>
         <source>Token de Cloudflare borrado.</source>
         <translation>Cloudflare token 已删除。</translation>
     </message>
@@ -31267,12 +31802,12 @@ Para la escena base de la que salen las demás.</source>
     </message>
     <message>
         <location line="+8"/>
-        <location line="+531"/>
+        <location line="+536"/>
         <source>Valores por defecto de esta sección</source>
         <translation>本部分的默认值</translation>
     </message>
     <message>
-        <location line="-520"/>
+        <location line="-525"/>
         <source>Reiniciar el servidor ahora</source>
         <translation>立即重启服务器</translation>
     </message>
@@ -31288,12 +31823,12 @@ Para la escena base de la que salen las demás.</source>
     </message>
     <message>
         <location line="+1"/>
-        <location line="+522"/>
+        <location line="+527"/>
         <source>Reiniciar</source>
         <translation>重启</translation>
     </message>
     <message>
-        <location line="-519"/>
+        <location line="-524"/>
         <source>El servidor se está reiniciando.</source>
         <translation>服务器正在重启。</translation>
     </message>
@@ -31303,7 +31838,7 @@ Para la escena base de la que salen las demás.</source>
         <translation>标有「重启服务器」的更改在应用时会自动重启服务器；程序的其他部分继续运行。</translation>
     </message>
     <message>
-        <location line="+113"/>
+        <location line="+118"/>
         <source>Túnel listo: se entra desde internet</source>
         <translation>隧道就绪：可从互联网访问</translation>
     </message>
@@ -32943,7 +33478,7 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
 <context>
     <name>StudioViewModel</name>
     <message>
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="+135"/>
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="+136"/>
         <source>%1 (no se pudo: %2)</source>
         <translation>%1（失败：%2）</translation>
     </message>
@@ -32973,7 +33508,7 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
         <translation>自动字幕条未能播出：%1</translation>
     </message>
     <message>
-        <location line="+268"/>
+        <location line="+273"/>
         <source>no contestó</source>
         <translation>无响应</translation>
     </message>
@@ -32993,12 +33528,12 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
         <translation>活动磁盘已用 %1 %（剩余 %2 GB）</translation>
     </message>
     <message>
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="+302"/>
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="+309"/>
         <source>La interfaz estuvo trabada %1 s; el aire siguió</source>
         <translation>界面卡顿了 %1 秒；播出未中断</translation>
     </message>
     <message>
-        <location line="+219"/>
+        <location line="+220"/>
         <source>Guardado</source>
         <translation>已保存</translation>
     </message>
@@ -33008,7 +33543,7 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
         <translation>无法保存：%1</translation>
     </message>
     <message>
-        <location line="-321"/>
+        <location line="-322"/>
         <source>Se restauró lo que estaba al aire antes del corte (placa o negro)</source>
         <translation>已恢复中断前的播出内容（垫片画面或黑场）</translation>
     </message>
@@ -39400,22 +39935,22 @@ Elegí otra cosa en Salidas → Pantallas.</source>
     <message>
         <location line="+1"/>
         <source>Video de los invitados: hilos por decodificador</source>
-        <translation type="unfinished"></translation>
+        <translation>嘉宾视频：每个解码器的线程数</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Cuántos hilos usa cada decodificador de video por software (VP8, VP9, AV1, o H.264 sin placa). Con muchos invitados, uno: el reparto está en que son muchos.</source>
-        <translation type="unfinished"></translation>
+        <translation>每个软件视频解码器（VP8、VP9、AV1，或无 GPU 时的 H.264）使用多少线程。嘉宾很多时设为 1：并行来自嘉宾数量本身。</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Video de los invitados: hilos para decodificar</source>
-        <translation type="unfinished"></translation>
+        <translation>嘉宾视频：解码线程</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Cuántos hilos comparten todos los invitados para decodificar su video (0: automático, los núcleos de un bloque de caché, entre 2 y 6). Lo demás de la conferencia usa 2 hilos aparte. −1: un hilo por cada cola, como venía libwebrtc (para comparar).</source>
-        <translation type="unfinished"></translation>
+        <translation>所有嘉宾共用多少线程来解码视频（0：自动，即一个缓存块的核心数，介于 2 到 6）。会议的其余部分另用 2 个线程。−1：每个队列一个线程，即 libwebrtc 原有方式（用于对比）。</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -39460,7 +39995,7 @@ Elegí otra cosa en Salidas → Pantallas.</source>
     <message>
         <location line="+1"/>
         <source>Video de los invitados: decodificar H.264 con la placa</source>
-        <translation type="unfinished"></translation>
+        <translation>嘉宾视频：用 GPU 解码 H.264</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -39825,27 +40360,27 @@ Elegí otra cosa en Salidas → Pantallas.</source>
     <message>
         <location line="+10"/>
         <source>Windows: el H.264 que suben los invitados se decodifica en la placa de video. Apagado (o sin placa), los invitados suben y reciben en VP8 por software.</source>
-        <translation type="unfinished"></translation>
+        <translation>Windows：嘉宾上传的 H.264 在 GPU 上解码。关闭时（或没有 GPU），嘉宾以软件 VP8 上传和接收。</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Video de los invitados: cómo se usa la placa para H.264</source>
-        <translation type="unfinished"></translation>
+        <translation>嘉宾视频：H.264 如何使用 GPU</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Directo (D3D11)</source>
-        <translation type="unfinished"></translation>
+        <translation>直接 (D3D11)</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Media Foundation</source>
-        <translation type="unfinished"></translation>
+        <translation>Media Foundation</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Windows: directo, el gateway le pasa cada cuadro a la placa sin intermediarios (menos procesador e hilos); Media Foundation, el decodificador de Windows (para comparar o si la placa da problemas).</source>
-        <translation type="unfinished"></translation>
+        <translation>Windows：直接模式下，gateway 不经中间层把每一帧交给 GPU（占用更少处理器和线程）；Media Foundation 为 Windows 自带解码器（用于对比，或 GPU 出问题时）。</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -40303,7 +40838,7 @@ Elegí otra cosa en Salidas → Pantallas.</source>
         <translation>最长回复</translation>
     </message>
     <message>
-        <location filename="../src/app/ui/SettingsModel.cpp" line="+284"/>
+        <location filename="../src/app/ui/SettingsModel.cpp" line="+285"/>
         <location filename="../src/core/ajustes/Registro.cpp" line="+0"/>
         <source>tokens</source>
         <translation>token</translation>
@@ -40804,7 +41339,7 @@ Elegí otra cosa en Salidas → Pantallas.</source>
         <translation>浏览器使用 TURN 时获得的凭证（会自动续期）。</translation>
     </message>
     <message>
-        <location filename="../src/app/ui/SettingsModel.cpp" line="-235"/>
+        <location filename="../src/app/ui/SettingsModel.cpp" line="-236"/>
         <source>Video</source>
         <translation>视频</translation>
     </message>
@@ -40887,6 +41422,11 @@ Elegí otra cosa en Salidas → Pantallas.</source>
         <location line="+1"/>
         <source>Sistema y datos</source>
         <translation>系统和数据</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Capacidad</source>
+        <translation>容量</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -43290,7 +43830,7 @@ Elegí otra cosa en Salidas → Pantallas.</source>
     </message>
     <message>
         <location line="-57"/>
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="-871"/>
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="-883"/>
         <source>arranque: %1 tardó %2 ms</source>
         <translation>启动：%1 耗时 %2 毫秒</translation>
     </message>
@@ -46923,6 +47463,405 @@ Datos (de %2): %3</source>
     </message>
 </context>
 <context>
+    <name>capacidad</name>
+    <message>
+        <location filename="../src/app/net/ClienteCapacidad.cpp" line="+84"/>
+        <source>la credencial del otro equipo no vale (venció o está mal copiada)</source>
+        <translation>另一台设备的凭据无效（已过期或复制有误）</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>el otro equipo no tiene la prueba de capacidad (otra versión)</source>
+        <translation>另一台设备没有容量测试功能（版本不同）</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>el otro equipo contestó %1</source>
+        <translation>另一台设备回应了 %1</translation>
+    </message>
+    <message>
+        <location line="+24"/>
+        <source>la dirección pública no contesta (¿el túnel está listo?)</source>
+        <translation>公网地址无响应（隧道准备好了吗？）</translation>
+    </message>
+    <message>
+        <location line="+39"/>
+        <source>cancelada</source>
+        <translation>已取消</translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <source>no bajó nada por el túnel</source>
+        <translation>隧道没有下行任何数据</translation>
+    </message>
+    <message>
+        <location filename="../src/app/sala/CapacidadReglas.cpp" line="+153"/>
+        <source>la memoria disponible bajó a %1 MB (el corte es %2 MB)</source>
+        <translation>可用内存降至 %1 MB（阈值为 %2 MB）</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>la interfaz estuvo trabada %1 ms</source>
+        <translation>界面卡住了 %1 ms</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>la CPU estuvo al %1 % o más durante %2 s seguidos</source>
+        <translation>CPU 连续 %2 秒处于 %1 % 或以上</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>la máquina que genera los invitados estuvo al %1 % o más durante %2 s seguidos</source>
+        <translation>生成嘉宾的机器连续 %2 秒处于 %1 % 或以上</translation>
+    </message>
+    <message>
+        <location line="+64"/>
+        <source>la cortó la guardia</source>
+        <translation>被守护程序中止</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>CPU sostenida al %1 % (el tope es %2 %)</source>
+        <translation>CPU 持续在 %1 %（上限为 %2 %）</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>quedaron %1 MB de memoria disponible (hacen falta %2 MB)</source>
+        <translation>可用内存仅剩 %1 MB（需要 %2 MB）</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>la grilla bajó a %1 cuadros por segundo (el mínimo es %2)</source>
+        <translation>网格降至 %1 帧/秒（最低为 %2）</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>el audio de los invitados llega con %1 ms (el tope es %2 ms)</source>
+        <translation>嘉宾音频延迟 %1 ms（上限为 %2 ms）</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>entraron con video %1 de %2</source>
+        <translation>%2 位中有 %1 位带视频加入</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>la interfaz se trabó (hasta %1 ms)</source>
+        <translation>界面卡顿（最长 %1 ms）</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>la máquina que genera los invitados estuvo al %1 %: el resultado es un mínimo</source>
+        <translation>生成嘉宾的机器负载达 %1 %：结果为下限</translation>
+    </message>
+    <message>
+        <location line="+72"/>
+        <source>la CPU</source>
+        <translation>CPU</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>la memoria</source>
+        <translation>内存</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>la grilla (cuadros por segundo)</source>
+        <translation>网格（帧/秒）</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>la demora del audio</source>
+        <translation>音频延迟</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>la entrada de los invitados</source>
+        <translation>嘉宾加入</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>la interfaz (se traba)</source>
+        <translation>界面（卡顿）</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>la máquina que genera los invitados</source>
+        <translation>生成嘉宾的机器</translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>Ya con %1 invitados se degrada.</source>
+        <translation>仅 %1 位嘉宾时性能就已下降。</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>La prueba no llegó a completar ningún escalón.</source>
+        <translation>测试未完成任何阶梯。</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Aguanta al menos %1 invitados con margen (la prueba llegó hasta %2 sin degradarse).</source>
+        <translation>至少可留有余量地承载 %1 位嘉宾（测试达到 %2 位仍未下降）。</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Aguanta %1 invitados con margen (%2 como máximo antes de degradarse; con %3 se degradó).</source>
+        <translation>可留有余量地承载 %1 位嘉宾（下降前最多 %2 位；%3 位时性能下降）。</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Aguanta al menos %1 invitados con margen (%2 probados; la prueba se cortó antes).</source>
+        <translation>至少可留有余量地承载 %1 位嘉宾（已测 %2 位；测试提前中止）。</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Lo que limita es %1.</source>
+        <translation>限制因素是%1。</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Por la tendencia de la CPU llegaría a unos %1.</source>
+        <translation>按 CPU 趋势估计可达约 %1 位。</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>El generador de prueba corrió en esta máquina y usó ~%1 % de la CPU: ya está descontado.</source>
+        <translation>测试生成器在本机运行，占用约 %1 % 的 CPU：已扣除。</translation>
+    </message>
+    <message>
+        <location filename="../src/app/ui/CapacidadViewModel.cpp" line="-1079"/>
+        <source>no se pudo preparar el video de prueba de hinchada</source>
+        <translation>无法准备 hinchada 的测试视频</translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <source>el probador (hinchada) se cortó solo (código %1): ver consola.txt</source>
+        <translation>测试器（hinchada）自行退出（代码 %1）：请查看 consola.txt</translation>
+    </message>
+    <message>
+        <location line="+43"/>
+        <location line="+616"/>
+        <source>la conferencia no está andando</source>
+        <translation>会议未在运行</translation>
+    </message>
+    <message>
+        <location line="-614"/>
+        <source>hay algo al aire (transmisión, grabación o señal limpia): la prueba carga la máquina</source>
+        <translation>有内容正在播出（推流、录制或干净信号）：测试会加重机器负载</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>hay %1 invitados de verdad conectados: probá sin gente en la sala</source>
+        <translation>有 %1 位真实嘉宾已连接：请在会场无人时测试</translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <location line="+61"/>
+        <location line="+537"/>
+        <source>ya hay una prueba de capacidad en curso</source>
+        <translation>已有容量测试在进行中</translation>
+    </message>
+    <message>
+        <location line="-588"/>
+        <source>el probador (hinchada) no viene en este programa: probá desde otro equipo</source>
+        <translation>本程序未附带测试器（hinchada）：请从另一台设备测试</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <location line="+59"/>
+        <source>el tope va de 1 a %1 invitados</source>
+        <translation>上限范围为 1 到 %1 位嘉宾</translation>
+    </message>
+    <message>
+        <location line="-27"/>
+        <source>la conferencia no tiene HTTPS: el probador no puede entrar</source>
+        <translation>会议没有 HTTPS：测试器无法接入</translation>
+    </message>
+    <message>
+        <location line="+22"/>
+        <source>el probador (hinchada) no viene en este programa: no se puede generar desde acá</source>
+        <translation>本程序未附带测试器（hinchada）：无法从这里生成负载</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>ese no es un código de capacidad: copialo entero del otro equipo (empieza con BACAP1.)</source>
+        <translation>这不是容量代码：请从另一台设备完整复制（以 BACAP1. 开头）</translation>
+    </message>
+    <message>
+        <location line="+28"/>
+        <source>el otro equipo no contestó</source>
+        <translation>另一台设备没有回应</translation>
+    </message>
+    <message>
+        <location line="+53"/>
+        <source>la conferencia no abrió la credencial de prueba</source>
+        <translation>会议没有开启测试凭据</translation>
+    </message>
+    <message>
+        <location line="+21"/>
+        <source>la conferencia se reinició en el medio de la prueba</source>
+        <translation>会议在测试中途重启了</translation>
+    </message>
+    <message>
+        <location line="+26"/>
+        <source>terminó la rampa</source>
+        <translation>爬升结束</translation>
+    </message>
+    <message>
+        <location line="+97"/>
+        <source>hinchada tardó demasiado en preparar su video de prueba</source>
+        <translation>hinchada 准备测试视频耗时过长</translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>no se pudo abrir la prueba a tiempo</source>
+        <translation>未能及时开启测试</translation>
+    </message>
+    <message>
+        <location line="+23"/>
+        <source>el otro equipo dejó de contestar (¿terminó de recibir o se cortó la red?)</source>
+        <translation>另一台设备不再回应（接收已结束还是网络断了？）</translation>
+    </message>
+    <message>
+        <location line="+54"/>
+        <source>la cortó la guardia: %1</source>
+        <translation>被守护程序中止：%1</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>se degradó</source>
+        <translation>性能下降</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>llegó al tope sin degradarse</source>
+        <translation>达到上限，性能未下降</translation>
+    </message>
+    <message>
+        <location line="+64"/>
+        <source>La prueba no pudo hacerse: %1</source>
+        <translation>无法进行测试：%1</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>(Se cortó: %1)</source>
+        <translation>（已中止：%1）</translation>
+    </message>
+    <message>
+        <location line="+24"/>
+        <source>el cupo va de 1 a %1 invitados</source>
+        <translation>名额范围为 1 到 %1 位嘉宾</translation>
+    </message>
+    <message>
+        <location line="+103"/>
+        <source>Se cortó la prueba que venía del otro equipo: %1</source>
+        <translation>来自另一台设备的测试已中止：%1</translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>terminó de recibir</source>
+        <translation>接收结束</translation>
+    </message>
+    <message>
+        <location line="+24"/>
+        <source>la conferencia sale por otro túnel (Cloudflare): no se prende pinggy encima</source>
+        <translation>会议通过其他隧道（Cloudflare）对外：不在其上开启 pinggy</translation>
+    </message>
+    <message>
+        <location line="+43"/>
+        <source>la medición por el túnel no terminó bien (ver Sala → Enlace)</source>
+        <translation>通过隧道的测量未正常完成（见「会场 → 链路」）</translation>
+    </message>
+    <message>
+        <location line="+17"/>
+        <source>pinggy está apagado: para medir el camino de los invitados, «Prender pinggy y medir»</source>
+        <translation>pinggy 已关闭：要测量嘉宾路径，请用「开启 pinggy 并测量」</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <location filename="../src/app/ui/StudioCapacidad.cpp" line="+111"/>
+        <source>no disponible</source>
+        <translation>不可用</translation>
+    </message>
+    <message>
+        <location line="+29"/>
+        <source>la medición por el túnel tardó demasiado</source>
+        <translation>通过隧道的测量耗时过长</translation>
+    </message>
+    <message>
+        <location line="+14"/>
+        <source>pinggy no se conectó a tiempo</source>
+        <translation>pinggy 未能及时连接</translation>
+    </message>
+    <message>
+        <location line="+14"/>
+        <source>esta versión de la conferencia no sabe medir por el túnel</source>
+        <translation>此版本的会议不支持通过隧道测量</translation>
+    </message>
+    <message>
+        <location line="+14"/>
+        <source>no se pudo medir por pinggy</source>
+        <translation>无法通过 pinggy 测量</translation>
+    </message>
+    <message>
+        <location line="+34"/>
+        <source>Con esta conexión entran %1 invitados con margen (como mucho 4 en alta, el resto en baja).</source>
+        <translation>此连接可留有余量地接入 %1 位嘉宾（最多 4 位高清，其余低清）。</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>No se pudo medir la conexión: mirá las notas de cada camino.</source>
+        <translation>无法测量连接：请查看每条路径的说明。</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Por pinggy: %1 Mbps ida y vuelta, %2 ms de demora.</source>
+        <translation>通过 pinggy：往返 %1 Mbps，延迟 %2 ms。</translation>
+    </message>
+    <message>
+        <location line="+18"/>
+        <location line="+7"/>
+        <source>cancelada a mano</source>
+        <translation>已手动取消</translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <source>la cerró la conferencia (%1)</source>
+        <translation>被会议关闭（%1）</translation>
+    </message>
+    <message>
+        <location line="+80"/>
+        <source>elegí dónde guardarlo</source>
+        <translation>请选择保存位置</translation>
+    </message>
+    <message>
+        <location filename="../src/app/ui/StudioCapacidad.cpp" line="-16"/>
+        <source>hay una prueba de sala corriendo</source>
+        <translation>有会场测试正在运行</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>se está midiendo el enlace</source>
+        <translation>正在测量链路</translation>
+    </message>
+    <message>
+        <location line="+24"/>
+        <source>no hay cómo prender pinggy (Configuración → Pinggy)</source>
+        <translation>无法开启 pinggy（设置 → Pinggy）</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>pinggy no arrancó</source>
+        <translation>pinggy 未启动</translation>
+    </message>
+    <message>
+        <location line="+43"/>
+        <source>hay una prueba de capacidad corriendo</source>
+        <translation>有容量测试正在运行</translation>
+    </message>
+</context>
+<context>
     <name>captura</name>
     <message>
         <location filename="../src/app/video/FuentesCaptura.cpp" line="+44"/>
@@ -50458,27 +51397,27 @@ Datos (de %2): %3</source>
     <message>
         <location line="+64"/>
         <source>el motor todavía no arrancó</source>
-        <translation type="unfinished"></translation>
+        <translation>引擎尚未启动</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>ya hay una medición en curso</source>
-        <translation type="unfinished">已有测量在进行</translation>
+        <translation>已有测量在进行中</translation>
     </message>
     <message>
         <location line="+31"/>
         <source>no hay ninguna grilla de personas andando</source>
-        <translation type="unfinished"></translation>
+        <translation>没有正在运行的人物网格</translation>
     </message>
     <message>
         <location line="+43"/>
         <source>la entrada de la grilla no lee el canal tal cual</source>
-        <translation type="unfinished"></translation>
+        <translation>网格输入未按原样读取通道</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>la entrada de la grilla no está armada</source>
-        <translation type="unfinished"></translation>
+        <translation>网格输入未搭建</translation>
     </message>
     <message>
         <location line="+69"/>
@@ -52343,7 +53282,7 @@ Datos (de %2): %3</source>
 <context>
     <name>gateway</name>
     <message>
-        <location filename="../src/gateway/AdminApi.cpp" line="+201"/>
+        <location filename="../src/gateway/AdminApi.cpp" line="+203"/>
         <source>no es un ajuste de la conferencia</source>
         <translation>不是会议的设置项</translation>
     </message>
@@ -52398,7 +53337,7 @@ Datos (de %2): %3</source>
         <translation>名额范围为 1 到 %1</translation>
     </message>
     <message>
-        <location line="+43"/>
+        <location line="+62"/>
         <source>apagado en la configuración</source>
         <translation>已在设置中关闭</translation>
     </message>
@@ -52514,19 +53453,19 @@ Datos (de %2): %3</source>
         <location line="+7"/>
         <location filename="../src/gateway/Botonera.cpp" line="+91"/>
         <location line="+2"/>
-        <location filename="../src/gateway/SignalingServer.cpp" line="+686"/>
+        <location filename="../src/gateway/SignalingServer.cpp" line="+687"/>
         <location line="+9"/>
-        <location line="+353"/>
+        <location line="+356"/>
         <location line="+109"/>
         <location line="+11"/>
         <location line="+3"/>
         <location line="+27"/>
-        <location line="+128"/>
+        <location line="+129"/>
         <location line="+146"/>
         <location line="+65"/>
         <location line="+268"/>
         <location line="+16"/>
-        <location line="+226"/>
+        <location line="+228"/>
         <source>no encontrado</source>
         <translation>未找到</translation>
     </message>
@@ -53404,7 +54343,7 @@ Datos (de %2): %3</source>
         <translation>无人</translation>
     </message>
     <message>
-        <location filename="../src/gateway/SignalingServer.cpp" line="-1666"/>
+        <location filename="../src/gateway/SignalingServer.cpp" line="-1672"/>
         <source>pantalla %1 sale: %2</source>
         <translation>屏幕 %1 输出：%2</translation>
     </message>
@@ -53474,7 +54413,7 @@ Datos (de %2): %3</source>
         <translation>信令：已停止</translation>
     </message>
     <message>
-        <location line="+56"/>
+        <location line="+59"/>
         <source>señalización: conexión rechazada en %1, esa IP ya tiene %2 (y %3 rechazos más sin anotar)</source>
         <translation>信令：在 %1 拒绝连接，该 IP 已有 %2 个（另有 %3 次拒绝未记录）</translation>
     </message>
@@ -53489,7 +54428,7 @@ Datos (de %2): %3</source>
         <translation>连接：异常 %1</translation>
     </message>
     <message>
-        <location line="+1017"/>
+        <location line="+1020"/>
         <source>archivos: subida fallida de %1 (código %2)</source>
         <translation>文件：%1 上传失败（代码 %2）</translation>
     </message>
@@ -53664,7 +54603,7 @@ Datos (de %2): %3</source>
         <translation>会场测试：已结束（%1）；凭据已撤销，已移出 %2 名测试参与者</translation>
     </message>
     <message>
-        <location line="-3102"/>
+        <location line="-3108"/>
         <source>direcciones: red %1, afuera %2</source>
         <translation>地址：网络 %1，外部 %2</translation>
     </message>
@@ -53681,7 +54620,7 @@ Datos (de %2): %3</source>
         <translation>（否）</translation>
     </message>
     <message>
-        <location line="+266"/>
+        <location line="+269"/>
         <location line="+143"/>
         <location line="+8"/>
         <source>servidor saturado</source>
@@ -53698,7 +54637,7 @@ Datos (de %2): %3</source>
         <translation>没有活动</translation>
     </message>
     <message>
-        <location line="+321"/>
+        <location line="+322"/>
         <source>falta `texto` (o es demasiado largo)</source>
         <translation>缺少 `texto`（或过长）</translation>
     </message>
@@ -53708,7 +54647,7 @@ Datos (de %2): %3</source>
         <translation>无背景</translation>
     </message>
     <message>
-        <location line="+349"/>
+        <location line="+351"/>
         <source>archivos: %1 compartio &apos;%2&apos; (%3, %4 bytes)</source>
         <translation>文件：%1 分享了「%2」（%3，%4 字节）</translation>
     </message>
@@ -53951,7 +54890,7 @@ Datos (de %2): %3</source>
     <message>
         <location line="+26"/>
         <source>turn: MODO PRUEBA (--turn-prueba): el TURN arranca sin pinggy, solo en la red local</source>
-        <translation type="unfinished"></translation>
+        <translation>turn：测试模式（--turn-prueba）：TURN 不经 pinggy 启动，仅限局域网</translation>
     </message>
     <message>
         <location line="+267"/>
@@ -54620,7 +55559,7 @@ Datos (de %2): %3</source>
         <translation>否</translation>
     </message>
     <message>
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="+905"/>
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="+917"/>
         <source>«%1» no arrancó al abrir: %2</source>
         <translation>「%1」打开时未启动：%2</translation>
     </message>
@@ -58633,7 +59572,7 @@ LO QUE HAY QUE SABER AL PRENDERLO: la salvaguarda de aprobaciones (`mcp.approval
         <translation>叠加在所有输出内容之上的垫片画面（&quot;休会&quot;、&quot;马上回来&quot;、&quot;默哀一分钟&quot;…），含 `texto`、可选的 `imagen`（路径）和淡入淡出 `ms`（600）。不依赖场景。在播时开启，如果由自动流程发起则需确认；关闭则不需要。应用崩溃后仍会保留。每个输出有自己的垫片画面（`salida`）。</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpService.cpp" line="+1327"/>
+        <location filename="../src/app/mcp/McpService.cpp" line="+1328"/>
         <source>El supervisor relanza la app si deja de latir. El latido sale de la interfaz Y de un hilo que mira los cuadros del motor: si la interfaz se traba y el motor sigue, el aire NO se corta. Con la interfaz trabada más de `espera_ui_s` (10 a 3600, de fábrica 60) y `matar_si_ui_trabada_sin_aire` (de fábrica true), se relanza solo si no hay transmisión ni grabación. La interfaz trabada CON aire es una alarma que sale sin la interfaz, al control web y a los notificadores de `notificar` («todos», de fábrica, o una lista de ids de notificador_listar; [] = ninguno). Sin argumentos, la muestra (con el estado: motor_vivo, ui_viva, ui_trabada_ms, ultima_traba_ms).</source>
         <translation>如果应用停止心跳，守护程序会重新启动它。心跳来自界面，「以及」一个监视引擎帧的线程：如果界面卡住而引擎仍在运行，播出「不会」中断。界面卡住超过 `espera_ui_s`（10 到 3600，默认 60）且 `matar_si_ui_trabada_sin_aire`（默认 true）时，只有在没有推流和录制的情况下才会重启。「有」播出时界面卡住会产生一个不经界面发出的警报，发送到网页控制端以及 `notificar` 中的通知器（「todos」为默认，或 notificador_listar 中的 id 列表；[] = 无）。无参数时显示当前设置（含状态：motor_vivo、ui_viva、ui_trabada_ms、ultima_traba_ms）。</translation>
     </message>
@@ -61810,7 +62749,7 @@ Sos el rol `%1`: este es TODO tu juego. Lo que no esta aca no lo podes hacer vos
     </message>
     <message>
         <location line="+2"/>
-        <location filename="../src/app/mcp/McpService.cpp" line="-2316"/>
+        <location filename="../src/app/mcp/McpService.cpp" line="-2317"/>
         <source>La herramienta fallo: %1</source>
         <translation>工具执行失败：%1</translation>
     </message>
@@ -65259,17 +66198,17 @@ Con este repertorio se arma un gráfico SIN escribir código: es lo que conviene
     <message>
         <location line="+8"/>
         <source>Medir los cuadros por segundo de cada cara de la grilla</source>
-        <translation type="unfinished"></translation>
+        <translation>测量网格中每张人脸的帧率</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>Mide `segundos` (de fábrica 10, de 2 a 120) cuántos cuadros NUEVOS muestra cada celda de cada grilla de personas, desde los píxeles: `entrada` es el mosaico apenas lo lee la app (lo que pintó el gateway y llegó) y `programa`, la misma celda en el programa (si la grilla está al aire; `programa_rect` [x, y, w, h] en fracciones del lienzo dice dónde está, de fábrica el lienzo entero). Por celda: cps, intervalo_ms (p50/p95/max entre un cuadro nuevo y el anterior), huecos (intervalos de más de 1,5 períodos de su capa) y por_debajo (menos del 90 % de lo que manda su capa: baja 15 cps, alta 30). Del mosaico: cps, llegada_ms y perdidos (cuadros que el gateway publicó y la app no leyó). `resumen`: cps_p50, cps_p5, por_debajo_pct.</source>
-        <translation type="unfinished"></translation>
+        <translation>在 `segundos`（默认 10，范围 2 到 120）内，根据像素测量每个人物网格的每个单元格显示了多少个新帧：`entrada` 是应用刚读到的拼接画面（gateway 绘制并送达的内容），`programa` 是同一单元格在节目中的样子（如果网格在播；`programa_rect` [x, y, w, h] 以画布比例表示其位置，默认整个画布）。每个单元格：cps、intervalo_ms（新帧与上一帧间隔的 p50/p95/max）、huecos（超过其图层 1.5 个周期的间隔）和 por_debajo（低于其图层发送量的 90 %：低层 15 帧/秒，高层 30）。拼接画面：cps、llegada_ms 和 perdidos（gateway 已发布但应用未读取的帧）。`resumen`：cps_p50、cps_p5、por_debajo_pct。</translation>
     </message>
     <message>
         <location line="+11"/>
         <source>dónde está la grilla en el programa, en fracciones del lienzo</source>
-        <translation type="unfinished"></translation>
+        <translation>网格在节目中的位置，以画布比例表示</translation>
     </message>
     <message>
         <location line="+19"/>
@@ -65413,7 +66352,7 @@ Con este repertorio se arma un gráfico SIN escribir código: es lo que conviene
     </message>
     <message>
         <location line="+1"/>
-        <location filename="../src/app/mcp/McpService.cpp" line="+718"/>
+        <location filename="../src/app/mcp/McpService.cpp" line="+719"/>
         <source>Escenas</source>
         <translation>场景</translation>
     </message>
@@ -72586,7 +73525,7 @@ Llegando a 500 fichas se apaga solo y lo dice. Sin `activo` solo informa como es
         <translation>等待摄像头中看不到任何人。</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpService.cpp" line="-4150"/>
+        <location filename="../src/app/mcp/McpService.cpp" line="-4151"/>
         <source>OJO: REINICIA EL MOTOR. Por unos segundos se corta TODO lo que sale (el programa, la sala, las pantallas, lo que ven los invitados) y las cámaras se vuelven a abrir. Con una transmisión o una grabación andando no se aplica. No lo uses para arreglar una cámara: decíselo antes al operador y pedile que confirme.</source>
         <translation>注意：会重启引擎。所有输出（节目、会场、屏幕、嘉宾看到的画面）会中断几秒，摄像机会重新打开。有推流或录制进行时不会应用。不要用它来修复摄像机：事先告诉操作员并请其确认。</translation>
     </message>
@@ -72646,7 +73585,7 @@ Llegando a 500 fichas se apaga solo y lo dice. Sin `activo` solo informa como es
         <translation>未知预设「%1」。有效值：full、left、right、top、bottom、center、top-left、top-right、bottom-left、bottom-right、pip-tl、pip-tr、pip-bl、pip-br、lower-third、third-1..3、grid-&lt;n&gt;-&lt;i&gt;（例如 grid-4-2），或 {x,y,w,h}。</translation>
     </message>
     <message>
-        <location line="+291"/>
+        <location line="+292"/>
         <source>«%1» YA ENTRO sola (estaba en la lista de auto-aceptar del evento): no le pidas los datos de cero, mostrale los que ya tenemos para que confirme. </source>
         <translation>「%1」已自动进入（在活动的自动准入名单中）：不要从头索取信息，向其展示已有的信息请其确认。 </translation>
     </message>
@@ -76713,12 +77652,12 @@ Los archivos: app.log (Proceso A), gateway.log (Proceso B), graficos.log, launch
     <message>
         <location line="+55"/>
         <source>El gateway por dentro (para medir)</source>
-        <translation type="unfinished"></translation>
+        <translation>gateway 内部（用于测量）</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>El servidor de la conferencia (gateway) por dentro, para medir la carga: `uso` (CPU, hilos, memoria, anillos, retorno), `fronteras` (cada pase entre hilos: pases/s, despertadas/s, pases por despertada, kB/s, trabajo por pase en µs, espera en la cola en µs, en ventanas de 1 s) y el TURN (asignaciones, conexiones, bytes). Lo usa tools/carga/medir-sala.py.</source>
-        <translation type="unfinished"></translation>
+        <translation>会议服务器（gateway）内部情况，用于测量负载：`uso`（CPU、线程、内存、环形缓冲、监看）、`fronteras`（线程间的每次交接：交接/秒、唤醒/秒、每次唤醒的交接数、kB/s、每次交接的工作量 µs、队列等待 µs，以 1 秒为窗口）以及 TURN（分配、连接、字节）。由 tools/carga/medir-sala.py 使用。</translation>
     </message>
     <message>
         <location line="+70"/>
@@ -79338,6 +80277,121 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <source>Cuánta subida y bajada hacen falta para `invitados` (de fábrica, el cupo de la sala) con la grilla como está («alta definición hasta N»), adentro del túnel y con los encabezados de WireGuard, y contra la última medición: veredicto (entra | justo | no_entra | sin_medir), por qué y hasta cuántos invitados entran con margen.</source>
         <translation>在当前网格设置（“高清最多 N 人”）下，`invitados`（默认为会场容量）需要多少上行和下行带宽（隧道内及含 WireGuard 头部），并与最近一次测量比较：结论（entra | justo | no_entra | sin_medir）、原因，以及留有余量时最多可容纳多少位嘉宾。</translation>
     </message>
+    <message>
+        <location filename="../src/app/mcp/McpCapacidadTools.cpp" line="+36"/>
+        <source>Arrancar una prueba de capacidad (cuántos invitados aguanta)</source>
+        <translation>启动容量测试（能承载多少位嘉宾）</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Prueba cuántos invitados aguanta un sistema. `prueba`: «este_equipo» (invitados de prueba generados acá contra esta misma conferencia, por escalones 10, 20, 40, 60, 80… hasta `tope` o hasta que se degrade), «remoto» (lo mismo contra OTRO BroadcastAppliance que está recibiendo: `codigo` es el que muestra el otro, empieza con BACAP1.) o «internet» (la conexión: el túnel WireGuard si está y el camino de los invitados por pinggy; con `prender_pinggy` lo prende si está apagado y lo apaga al terminar). Seguila con capacidad_estado.</source>
+        <translation>测试一个系统能承载多少位嘉宾。`prueba`：「este_equipo」（在本机生成测试嘉宾，接入本会议，按 10、20、40、60、80… 分阶梯，直到 `tope` 或性能下降）、「remoto」（同样操作，但针对另一台正在接收的 BroadcastAppliance：`codigo` 是对方显示的代码，以 BACAP1. 开头）或「internet」（连接：WireGuard 隧道（如有）以及嘉宾经 pinggy 的路径；带 `prender_pinggy` 时若 pinggy 关闭则开启，结束后关闭）。用 capacidad_estado 跟进。</translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>Nunca corre sola: confirmalo con el operador (`confirmar: true`). No arranca con algo al aire, con invitados de verdad conectados ni con otra prueba corriendo (`riesgo` en capacidad_estado). Cada escalón dura 2 minutos como mucho; un escalón está «degradado» si la CPU sostenida pasa del 85 % (sin la parte de hinchada si corre acá), queda poca memoria disponible, la grilla baja de 25 cuadros por segundo, el audio de los invitados llega con más de 50 ms, no entran con video o la interfaz se traba; la guardia corta antes de que la máquina se ahogue. Los de prueba quedan fuera del padrón, la votación y el quórum y el evento abierto no se toca (si el cupo no alcanza se sube y vuelve). El resultado va al historial de la máquina (capacidad_ultimo). Prender pinggy reinicia la conferencia: solo sin nadie conectado.</source>
+        <translation>绝不自动运行：先与操作员确认（`confirmar: true`）。有内容在播、有真实嘉宾连接或有其他测试在运行时不会启动（见 capacidad_estado 中的 `riesgo`）。每个阶梯最长 2 分钟；若 CPU 持续超过 85 %（若 hinchada 在本机运行则扣除其占用）、可用内存不足、网格低于 25 帧/秒、嘉宾音频延迟超过 50 ms、嘉宾无法带视频加入或界面卡顿，该阶梯即为「性能下降」；守护程序会在机器不堪重负前中止。测试嘉宾不计入名册、表决和法定人数，当前打开的活动不受影响（名额不够时会临时调高再恢复）。结果写入本机历史记录（capacidad_ultimo）。开启 pinggy 会重启会议：仅在无人连接时进行。</translation>
+    </message>
+    <message>
+        <location line="+15"/>
+        <source>hasta cuántos invitados sube la rampa</source>
+        <translation>爬升到多少位嘉宾为止</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>remoto: el código que muestra el otro equipo (BACAP1.…)</source>
+        <translation>remoto：另一台设备显示的代码（BACAP1.…）</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>internet: prender pinggy para medir si está apagado</source>
+        <translation>internet：若 pinggy 关闭则开启以进行测量</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>el operador confirmó que se puede cargar la máquina ahora</source>
+        <translation>操作员已确认现在可以给机器加负载</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Confirmalo con el operador antes (confirmar: true): la prueba carga la máquina.</source>
+        <translation>请先与操作员确认（confirmar: true）：测试会加重机器负载。</translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>`prueba` es este_equipo, remoto o internet</source>
+        <translation>`prueba` 应为 este_equipo、remoto 或 internet</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Prueba de capacidad arrancada. Seguila con capacidad_estado.</source>
+        <translation>容量测试已启动。用 capacidad_estado 跟进。</translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>Dejar que otro equipo pruebe la capacidad de este</source>
+        <translation>让另一台设备测试本机容量</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Con `on`, este equipo se deja probar desde otro BroadcastAppliance: abre una credencial de prueba que vence sola, sube el cupo a `cupo` y muestra el CÓDIGO para pegar en el otro (capacidad_estado → recibir.codigo; trae la dirección, la credencial y la huella del certificado: pasalo solo al operador). Mientras dura, le informa al otro su CPU, memoria, grilla y audio, y la guardia corta si la máquina se ahoga. Con `on: false` termina (echa a los de prueba y devuelve el cupo). Confirmalo con el operador.</source>
+        <translation>设为 `on` 时，本设备允许另一台 BroadcastAppliance 进行测试：开启一个自动过期的测试凭据，把名额调到 `cupo`，并显示要粘贴到对方的代码（capacidad_estado → recibir.codigo；包含地址、凭据和证书指纹：只交给操作员）。在此期间，向对方报告本机的 CPU、内存、网格和音频，若机器不堪重负，守护程序会中止。设为 `on: false` 时结束（踢出测试嘉宾并恢复名额）。请与操作员确认。</translation>
+    </message>
+    <message>
+        <location line="+16"/>
+        <source>Este equipo dejó de recibir la prueba.</source>
+        <translation>本设备已停止接收测试。</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Recibiendo: el código aparece en unos segundos en capacidad_estado (recibir.codigo).</source>
+        <translation>接收中：代码几秒后会出现在 capacidad_estado（recibir.codigo）。</translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>Cómo va la prueba de capacidad</source>
+        <translation>容量测试进展</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>El estado de la prueba de capacidad: `estado` (libre, local, remoto, recibiendo, internet), `riesgo` (por qué no se puede arrancar ahora), `progreso` (el escalón y la fase), `vivo` (CPU, memoria, grilla, audio, cuántos entraron), `pasos` (cada escalón juzgado), `recibir` (con el código, si este equipo está recibiendo), pinggy, y el resumen del último resultado y de la última conexión.</source>
+        <translation>容量测试的状态：`estado`（libre、local、remoto、recibiendo、internet）、`riesgo`（现在为何无法启动）、`progreso`（阶梯和阶段）、`vivo`（CPU、内存、网格、音频、已加入人数）、`pasos`（每个阶梯的评判）、`recibir`（本设备接收时附带代码）、pinggy，以及最近一次结果和最近一次连接的摘要。</translation>
+    </message>
+    <message>
+        <location line="+16"/>
+        <source>Cancelar la prueba de capacidad</source>
+        <translation>取消容量测试</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Corta lo que esté corriendo de la prueba de capacidad y limpia: corta hinchada, revoca la credencial (el gateway echa a los de prueba), devuelve el cupo y, si la medición de internet prendió pinggy, lo apaga. Lo medido hasta ahí queda en el historial.</source>
+        <translation>中止容量测试中正在运行的部分并清理：停止 hinchada，撤销凭据（gateway 踢出测试嘉宾），恢复名额；若互联网测量开启了 pinggy，则将其关闭。截至此时的测量结果保留在历史记录中。</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>No hay una prueba de capacidad en curso.</source>
+        <translation>没有正在进行的容量测试。</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Prueba de capacidad cancelada.</source>
+        <translation>容量测试已取消。</translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>El último resultado de capacidad</source>
+        <translation>最近一次容量结果</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>El último resultado guardado, entero: `que` «capacidad» (de fábrica: el de ESTA máquina con cada escalón, lo que limitó y la frase para el operador), «remoto» (el último de otro equipo) o «internet» (la conexión: cada camino con lo medido y cuántos invitados entran). `historial`: la lista de las pruebas guardadas (fecha, máquina, resultado).</source>
+        <translation>最近一次保存的完整结果：`que` 为「capacidad」（默认：本机的结果，含每个阶梯、限制因素和给操作员的说明）、「remoto」（另一台设备的最近一次）或「internet」（连接：每条路径的测量值及可接入的嘉宾数）。`historial`：已保存测试的列表（日期、机器、结果）。</translation>
+    </message>
+    <message>
+        <location line="+24"/>
+        <source>Todavía no hay un resultado de ese tipo (capacidad_arrancar).</source>
+        <translation>尚无此类结果（capacidad_arrancar）。</translation>
+    </message>
 </context>
 <context>
     <name>mcp-etiquetas</name>
@@ -81771,6 +82825,36 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
     </message>
     <message>
         <location line="+2"/>
+        <source>capacidad cuantos invitados aguanta la maquina cuantos usuarios soporta prueba de carga rampa hinchada cpu memoria ancho de banda conexion a internet otro equipo remoto</source>
+        <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
+        <translation>容量 能承载多少嘉宾 机器 支持多少用户 负载测试 压力测试 爬升 hinchada cpu 内存 带宽 网速 互联网连接 另一台设备 远程</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>dejar que otro equipo me pruebe recibir prueba de capacidad codigo credencial remoto</source>
+        <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
+        <translation>让另一台设备测试我 接收 容量测试 代码 凭据 远程</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>como va la prueba de capacidad escalon invitados cpu memoria grilla audio</source>
+        <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
+        <translation>容量测试 进展 状态 阶梯 嘉宾 cpu 内存 网格 音频</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>cancelar cortar parar prueba de capacidad limpiar</source>
+        <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
+        <translation>取消 中止 停止 容量测试 清理</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>resultado de la prueba de capacidad cuantos aguanta historial ultima medicion de la conexion</source>
+        <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
+        <translation>容量测试结果 能承载多少 历史记录 最近一次 连接测量</translation>
+    </message>
+    <message>
+        <location line="+2"/>
         <source>medir velocidad del enlace internet subida bajada ancho de banda speedtest test de velocidad tunel wireguard starlink latencia ping jitter perdida</source>
         <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
         <translation>测量 链路 网速 互联网 上行 下行 带宽 speedtest 测速 隧道 wireguard starlink 延迟 ping 抖动 丢包</translation>
@@ -82599,7 +83683,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <location line="+3"/>
         <source>gateway servidor de la conferencia por dentro hilos fronteras colas pases despertadas cambios de contexto medir carga rendimiento turn pinggy cpu del gateway</source>
         <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
-        <translation type="unfinished"></translation>
+        <translation>gateway 会议服务器 内部 线程 边界 队列 交接 唤醒 上下文切换 测量 负载 性能 turn pinggy gateway cpu</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -82674,7 +83758,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>主持人 主持 主持者 东道主 主播</translation>
     </message>
     <message>
-        <location line="-671"/>
+        <location line="-681"/>
         <source>revocar tablet token botonera companion http acceso sacarle el acceso</source>
         <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
         <translation>撤销 平板 令牌 控制面板 companion http 访问 收回访问权限</translation>
@@ -82692,7 +83776,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>开机自动启动 断电 自动恢复 自启动 开机时启动应用 随系统启动</translation>
     </message>
     <message>
-        <location line="+255"/>
+        <location line="+265"/>
         <source>go take entra el siguiente paso adelante dale revision previa antes de salir</source>
         <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
         <translation>go take 进入 下一个 下一步 前进 走 播出前检查</translation>
@@ -84099,7 +85183,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <location line="+2"/>
         <source>medir cuadros por segundo fps de cada cara fluido entrecortado se traba lento ritmo celdas</source>
         <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
-        <translation type="unfinished"></translation>
+        <translation>测量 帧率 fps 每张人脸 流畅 卡顿 掉帧 慢 节奏 单元格</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -89766,7 +90850,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
 <context>
     <name>red</name>
     <message>
-        <location filename="../src/app/net/HttpsClient.cpp" line="+122"/>
+        <location filename="../src/app/net/HttpsClient.cpp" line="+125"/>
         <source>no se pudo conectar a %1 (%2)</source>
         <translation>无法连接到 %1（%2）</translation>
     </message>
@@ -89777,7 +90861,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
     </message>
     <message>
         <location line="+15"/>
-        <location line="+11"/>
+        <location line="+13"/>
         <source>no se pudo preparar TLS</source>
         <translation>无法准备 TLS</translation>
     </message>
@@ -89790,6 +90874,11 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <location line="+2"/>
         <source>TLS con %1 fallo: %2</source>
         <translation>与 %1 的 TLS 失败：%2</translation>
+    </message>
+    <message>
+        <location line="+20"/>
+        <source>el certificado de %1 no es el esperado (otra huella)</source>
+        <translation>%1 的证书与预期不符（指纹不同）</translation>
     </message>
     <message>
         <location line="+150"/>
@@ -91128,13 +92217,13 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>；结束原因：%1</translation>
     </message>
     <message>
-        <location filename="../src/app/ui/PruebaSalaViewModel.cpp" line="-309"/>
+        <location filename="../src/app/ui/PruebaSalaViewModel.cpp" line="-312"/>
         <source>ya hay una prueba de sala en curso</source>
         <translation>已有会场测试正在进行</translation>
     </message>
     <message>
         <location filename="../src/app/ui/EnlaceViewModel.cpp" line="-101"/>
-        <location filename="../src/app/ui/PruebaSalaViewModel.cpp" line="+1"/>
+        <location filename="../src/app/ui/PruebaSalaViewModel.cpp" line="+4"/>
         <source>la conferencia no está andando</source>
         <translation>会议未在运行</translation>
     </message>
@@ -93473,7 +94562,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>主席断开了您的连接。</translation>
     </message>
     <message>
-        <location filename="../src/gateway/SignalingServer.cpp" line="-767"/>
+        <location filename="../src/gateway/SignalingServer.cpp" line="-769"/>
         <source>no existe ese carrusel</source>
         <translation>该轮播不存在</translation>
     </message>
@@ -93493,7 +94582,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>问题为空</translation>
     </message>
     <message>
-        <location line="+497"/>
+        <location line="+499"/>
         <source>La clave de esta página no es la del evento abierto.</source>
         <translation>此页面的密钥不属于当前打开的活动。</translation>
     </message>

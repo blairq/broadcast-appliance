@@ -54,6 +54,10 @@ struct HttpRequest {
     /// «chunked») y `body` queda vacío: una respuesta en streaming, como los eventos SSE de un
     /// modelo que escribe de a poco (agent/ChatEnVivo). También mira `cancel`.
     std::function<void(const char* datos, std::size_t n)> bodyChunk;
+    /// Si no está vacía, el certificado del servidor tiene que ser exactamente este (SHA-256
+    /// del DER, «AB:CD:…»), aunque sea autofirmado: la caja de otro BroadcastAppliance, cuya
+    /// huella viene en el código de la prueba de capacidad. Sin ella, la verificación normal.
+    std::string huellaSha256;
 };
 
 struct HttpResponse {

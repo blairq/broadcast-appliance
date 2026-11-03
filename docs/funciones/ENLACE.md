@@ -95,6 +95,9 @@ A mano: copiar el archivo, y `python3 ba-enlace-eco.py --direccion 10.99.0.1 --p
 
 ## Dónde se usa
 
+- **Configuración → Sistema → Capacidad** ([CAPACIDAD.md](CAPACIDAD.md)): «con esta conexión
+  entran N invitados», con esta medición y la del camino de los invitados por pinggy.
+
 - **Sala → Enlace** (`PanelEnlace.qml`): veredicto para N, lo que hace falta, lo medido
   (subida y bajada sin pérdida/máx., demora en reposo y con carga, jitter, pérdida), el
   avance en vivo y el instalador del eco.

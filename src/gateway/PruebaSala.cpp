@@ -34,6 +34,9 @@ std::vector<std::string> PruebaSala::cerrar() {
     tokens_.clear();
     ids_.clear();
     entradas_ = 0;
+    medida_ = nullptr;
+    medidaMs_ = 0;
+    ips_.clear();
     return out;
 }
 
@@ -105,6 +108,29 @@ bool PruebaSala::setDirecta(bool on, int64_t ahoraMs) {
 bool PruebaSala::directa() const {
     std::lock_guard<std::mutex> l(m_);
     return directa_;
+}
+
+void PruebaSala::ponerMedida(const nlohmann::json& medida, int64_t ahoraMs) {
+    std::lock_guard<std::mutex> l(m_);
+    if (credencial_.empty() || !medida.is_object()) return;
+    medida_ = medida;
+    medidaMs_ = ahoraMs;
+}
+
+nlohmann::json PruebaSala::medida(int64_t ahoraMs) const {
+    std::lock_guard<std::mutex> l(m_);
+    if (!activaLocked(ahoraMs) || medida_.is_null()) return nullptr;
+    return nlohmann::json{{"medida", medida_}, {"edadMs", ahoraMs - medidaMs_}};
+}
+
+void PruebaSala::anotarIp(std::uint32_t ip) {
+    std::lock_guard<std::mutex> l(m_);
+    if (!credencial_.empty() && ip != 0 && ips_.size() < 64) ips_.insert(ip);
+}
+
+bool PruebaSala::ipDePrueba(std::uint32_t ip, int64_t ahoraMs) const {
+    std::lock_guard<std::mutex> l(m_);
+    return activaLocked(ahoraMs) && ips_.count(ip) > 0;
 }
 
 nlohmann::json PruebaSala::estado(int64_t ahoraMs, bool conCredencial) const {

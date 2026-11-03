@@ -204,6 +204,49 @@
     </message>
 </context>
 <context>
+    <name>CapacidadViewModel</name>
+    <message numerus="yes">
+        <location filename="../src/app/ui/CapacidadViewModel.cpp" line="+181"/>
+        <source>Prueba de capacidad: entran invitados de prueba por escalones hasta %n (cada escalón, 2 minutos como mucho).</source>
+        <translation>
+            <numerusform>Prueba de capacidad: entran invitados de prueba por escalones hasta %n (cada escalón, 2 minutos como mucho).</numerusform>
+            <numerusform>Prueba de capacidad: entran invitados de prueba por escalones hasta %n (cada escalón, 2 minutos como mucho).</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location line="+83"/>
+        <source>El otro equipo abrió lugar para %n: la prueba llega hasta ahí.</source>
+        <translation>
+            <numerusform>El otro equipo abrió lugar para %n: la prueba llega hasta ahí.</numerusform>
+            <numerusform>El otro equipo abrió lugar para %n: la prueba llega hasta ahí.</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location line="+294"/>
+        <source>Entrando: %n invitados de prueba</source>
+        <translation>
+            <numerusform>Entrando: %n invitado de prueba</numerusform>
+            <numerusform>Entrando: %n invitados de prueba</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location line="+1"/>
+        <source>Se acomodan los %n…</source>
+        <translation>
+            <numerusform>Se acomoda %n…</numerusform>
+            <numerusform>Se acomodan los %n…</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location line="+1"/>
+        <source>Midiendo con %n invitados</source>
+        <translation>
+            <numerusform>Midiendo con %n invitado</numerusform>
+            <numerusform>Midiendo con %n invitados</numerusform>
+        </translation>
+    </message>
+</context>
+<context>
     <name>CatalogoFiltros</name>
     <message numerus="yes">
         <location filename="../src/app/qml/controls/CatalogoFiltros.qml" line="+27"/>
@@ -299,7 +342,7 @@
 <context>
     <name>EnlaceViewModel</name>
     <message numerus="yes">
-        <location filename="../src/app/ui/EnlaceViewModel.cpp" line="+105"/>
+        <location filename="../src/app/ui/EnlaceViewModel.cpp" line="+110"/>
         <source>Hay %n invitados conectados: la medición carga el enlace y se les puede cortar la imagen unos segundos.</source>
         <translation>
             <numerusform>Hay %n invitado conectado: la medición carga el enlace y se le puede cortar la imagen unos segundos.</numerusform>
@@ -1113,7 +1156,7 @@ No se borran del disco: si alguno estaba en una escena, se lo saca de ahí y lis
 <context>
     <name>PruebaSalaViewModel</name>
     <message numerus="yes">
-        <location filename="../src/app/ui/PruebaSalaViewModel.cpp" line="+167"/>
+        <location filename="../src/app/ui/PruebaSalaViewModel.cpp" line="+170"/>
         <source>Ojo: según la última medición, el enlace no alcanza para %n invitados por el túnel.</source>
         <translation>
             <numerusform>Ojo: según la última medición, el enlace no alcanza para %n invitado por el túnel.</numerusform>
@@ -1241,7 +1284,7 @@ No se borran del disco: si alguno estaba en una escena, se lo saca de ahí y lis
 <context>
     <name>SettingsPage</name>
     <message numerus="yes">
-        <location filename="../src/app/qml/pages/SettingsPage.qml" line="+1032"/>
+        <location filename="../src/app/qml/pages/SettingsPage.qml" line="+1040"/>
         <source>Entrenado con %n herramienta</source>
         <translation>
             <numerusform>Entrenado con %n herramienta</numerusform>

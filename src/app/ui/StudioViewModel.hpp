@@ -172,6 +172,7 @@ class EventoViewModel;
 class TemaEventoViewModel;
 class PruebaSalaViewModel;
 class EnlaceViewModel;
+class CapacidadViewModel;
 namespace sala {
 class ClavesEvento;
 class GuardadoEnEvento;
@@ -272,6 +273,8 @@ class StudioViewModel : public QObject {
     Q_PROPERTY(QObject* pruebaSala READ pruebaSalaQml CONSTANT)
     /// La velocidad del enlace por el túnel y cuánto necesita el evento (ui/EnlaceViewModel).
     Q_PROPERTY(QObject* enlace READ enlaceQml CONSTANT)
+    /// ¿Cuántos invitados aguanta? (Configuración → Sistema → Capacidad, ui/CapacidadViewModel).
+    Q_PROPERTY(QObject* capacidad READ capacidadQml CONSTANT)
     /// El control web (dashboard /control/, /ws?control): aparatos, perfiles y solicitudes. control/ControlWeb.
     Q_PROPERTY(QObject* controlWeb READ controlWebQml CONSTANT)
     /// El área de las superficies de control (ui/ControlViewModel): el tema web,
@@ -551,6 +554,8 @@ class StudioViewModel : public QObject {
     RecursosViewModel* recursos() const { return recursos_.get(); }
     QObject* recursosQml() const;
     PruebaSalaViewModel& pruebaSala() { return *pruebaSala_; }
+    CapacidadViewModel& capacidad() { return *capacidad_; }
+    QObject* capacidadQml() const;
     QObject* pruebaSalaQml() const;
     EnlaceViewModel& enlace() { return *enlace_; }
     QObject* enlaceQml() const;
@@ -987,6 +992,11 @@ class StudioViewModel : public QObject {
     /// La prueba de sala: usa la sala, el cupo, los recursos, el evento y el enlace.
     /// Última: se destruye antes que ellos (corta el probador y le avisa a la sala).
     std::unique_ptr<PruebaSalaViewModel> pruebaSala_;
+    /// La prueba de capacidad: usa la sala, el cupo, los recursos, el enlace, pinggy y la
+    /// grilla. Después de todo: se destruye primero (corta hinchada).
+    std::unique_ptr<CapacidadViewModel> capacidad_;
+    /// La arma con todo lo de afuera (ui/StudioCapacidad.cpp).
+    void crearCapacidad();
 };
 
 } // namespace ba::app

@@ -149,6 +149,9 @@ void PruebaSalaViewModel::revisarMaquina(int n, bool conHinchada) {
 QString PruebaSalaViewModel::arrancar(int n, int minutos, bool conHinchada, int hablan) {
     using ba::i18n::traducir;
     if (estado_ != QLatin1String("apagada")) return qs(traducir("sala", "ya hay una prueba de sala en curso"));
+    if (otraPrueba_) {
+        if (const QString o = otraPrueba_(); !o.isEmpty()) return o;
+    }
     if (!p_.sala.online()) return qs(traducir("sala", "la conferencia no está andando"));
     if (!p_.evento.eventoAbierto().hay())
         return qs(traducir("sala", "abrí el evento que querés probar: el informe va a su lista de chequeo"));

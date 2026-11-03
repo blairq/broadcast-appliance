@@ -49,6 +49,7 @@
 #include "ui/AtencionViewModel.hpp"
 #include "ui/PruebaSalaViewModel.hpp"
 #include "ui/EnlaceViewModel.hpp"
+#include "ui/CapacidadViewModel.hpp"
 #include "ui/BitacoraEvento.hpp"
 #include "ui/CapturaError.hpp"
 #include "ui/CarruselViewModel.hpp"
@@ -701,7 +702,12 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, VentanillaMotor& ventanilla, QO
     connect(respaldo_.get(), &escenas::RespaldoEntradas::respaldosCambio, this, &StudioViewModel::leerRespaldos);
     leerRespaldos();
     // Lo que la revisión previa del evento mira del aparato.
-    evento_->guionVm().setChequeosAparato([this]() { return imagen_->chequeosDelAparato(streamKeyAvailable()); });
+    evento_->guionVm().setChequeosAparato([this]() {
+        QVariantList out = imagen_->chequeosDelAparato(streamKeyAvailable());
+        // La capacidad: el último resultado de esta máquina y de la conexión contra el cupo.
+        if (capacidad_) out += capacidad_->chequeoPrevio(conference_->client().snapshot().value("maxGuests").toInt());
+        return out;
+    });
     // Abrir otro evento reinicia la app: no con algo al aire (la regla es de Configuraciones,
     // para la página y el MCP; lo que está al aire lo sabe la foto del motor).
     configuraciones()->setAlAire([this]() { return alAire(); });
@@ -950,7 +956,12 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, VentanillaMotor& ventanilla, QO
             }
             return menor;
         },
-        [this]() { return pruebaSala_ && pruebaSala_->corriendo(); }});
+        [this]() {
+            // La prueba de sala o la de capacidad con invitados de prueba (son la carga).
+            const bool capacidadConCarga = capacidad_ && (capacidad_->estado() == QLatin1String("local") ||
+                                                          capacidad_->estado() == QLatin1String("recibiendo"));
+            return (pruebaSala_ && pruebaSala_->corriendo()) || capacidadConCarga;
+        }});
     connect(enlace_.get(), &EnlaceViewModel::notify, this, &StudioViewModel::notify);
     connect(aire_.get(), &EstadoAireViewModel::aireChanged, enlace_.get(), &EnlaceViewModel::revisar);
     connect(grillasPersonas_.get(), &escenas::ControlGrillas::cambio, enlace_.get(), &EnlaceViewModel::revisar);
@@ -961,6 +972,8 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, VentanillaMotor& ventanilla, QO
         conference_->client(), cupoSala(), *recursos_, *evento_, *enlace_, rt.dataRoot()});
     connect(pruebaSala_.get(), &PruebaSalaViewModel::notify, this, &StudioViewModel::notify);
     marca("prueba_sala");
+    crearCapacidad();
+    marca("capacidad");
     // Sin un reloj de la interfaz a 10 Hz: cada cosa por su aviso.
     //   - Los vúmetros (el programa y cada tira) y los niveles del bus: a 10 Hz SOLO con
     //     alguien mirando (una vista, o quien los pidió al bus) y algo que suene
@@ -1275,7 +1288,8 @@ void StudioViewModel::setSeccionConfig(const QString& pedida) {
                                                 {"Barra de navegacion", "Apariencia"},
                                                 {"Audio y voz", "Voz del sistema"},
                                                 {"Voz del operador", "Voz del sistema"},
-                                                {"pinggy", "Pinggy"}};
+                                                {"pinggy", "Pinggy"},
+                                                {"capacidad", "Capacidad"}};
     const QString s = kAntes.value(pedida, pedida);
     if (s == seccionConfig_) return;
     seccionConfig_ = s;
