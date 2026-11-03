@@ -2,6 +2,8 @@
 // src/app/ui/RielConfig.cpp — ver RielConfig.hpp
 // ============================================================================
 #include "ui/RielConfig.hpp"
+
+#include "diag/Acoples.hpp"
 #include "arranque/ArchivoConfigQt.hpp"
 
 #include <algorithm>
@@ -243,6 +245,7 @@ QVariantList RielConfig::grupos() const {
 }
 
 int RielConfig::paginaDeId(const QString& id) const {
+    BA_ACOPLE("invocable", "RielConfig::paginaDeId");
     for (const Grupo& g : catalogo())
         for (const Item& i : g.items)
             if (id == QString::fromUtf8(i.id)) return i.page;
@@ -250,6 +253,7 @@ int RielConfig::paginaDeId(const QString& id) const {
 }
 
 QString RielConfig::idDePagina(int pagina) const {
+    BA_ACOPLE("invocable", "RielConfig::idDePagina");
     for (const Grupo& g : catalogo())
         for (const Item& i : g.items)
             if (i.page == pagina) return QString::fromUtf8(i.id);
@@ -257,6 +261,7 @@ QString RielConfig::idDePagina(int pagina) const {
 }
 
 QString RielConfig::tituloDePagina(int pagina) const {
+    BA_ACOPLE("invocable", "RielConfig::tituloDePagina");
     for (const Grupo& g : catalogo())
         for (const Item& i : g.items)
             if (i.page == pagina) return titulo(i.tip);

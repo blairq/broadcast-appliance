@@ -3,6 +3,8 @@
 // ============================================================================
 
 #include "ui/DashboardModel.hpp"
+
+#include "diag/Acoples.hpp"
 #include "arranque/ArchivoConfigQt.hpp"
 #include "pantallas/Tarjetas.hpp"
 #include <QCoreApplication>
@@ -131,6 +133,7 @@ QStringList DashboardModel::cardKinds() const {
 }
 
 QString DashboardModel::kindTitle(const QString& kind) const {
+    BA_ACOPLE("invocable", "DashboardModel::kindTitle");
     for (const auto& k : kKinds) {
         if (kind == k.id) {
             return QCoreApplication::translate("tarjetas", k.titulo);

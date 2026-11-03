@@ -1,6 +1,8 @@
 // src/app/ui/Vumetro.cpp — ver el .hpp
 #include "ui/Vumetro.hpp"
 
+#include "diag/Acoples.hpp"
+
 #include <QSGFlatColorMaterial>
 #include <QSGGeometry>
 #include <QSGGeometryNode>
@@ -114,6 +116,7 @@ void Vumetro::setApagado(bool a) {
 }
 
 qreal Vumetro::fraccion(qreal db) const {
+    BA_ACOPLE("invocable", "Vumetro::fraccion");
     if (max_ <= min_) return 0;
     return std::clamp((db - min_) / (max_ - min_), 0.0, 1.0);
 }

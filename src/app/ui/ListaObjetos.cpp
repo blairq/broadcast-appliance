@@ -1,5 +1,7 @@
 #include "ui/ListaObjetos.hpp"
 
+#include "diag/Acoples.hpp"
+
 namespace ba::app {
 
 ListaObjetos::ListaObjetos(QObject* parent) : ListaConClave<FilaObjeto>(parent) {}
@@ -50,6 +52,7 @@ QVariantList ListaObjetos::lista() const {
 }
 
 QVariantMap ListaObjetos::fila(int i) const {
+    BA_ACOPLE("invocable", "ListaObjetos::fila");
     return i >= 0 && i < rowCount() ? filas_[static_cast<std::size_t>(i)].datos : QVariantMap{};
 }
 

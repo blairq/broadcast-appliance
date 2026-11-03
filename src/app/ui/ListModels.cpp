@@ -3,6 +3,8 @@
 // ============================================================================
 
 #include "ui/ListModels.hpp"
+
+#include "diag/Acoples.hpp"
 #include "arranque/ArchivoConfig.hpp"
 
 #include <QRegularExpression>
@@ -584,6 +586,7 @@ void MixerModel::soltarPendiente(const std::string& clave) {
 }
 
 QAbstractItemModel* MixerModel::delGrupo(const QString& grupo) {
+    BA_ACOPLE("invocable", "MixerModel::delGrupo");
     auto& m = delGrupo_[grupo];
     if (m == nullptr) {
         auto* f = new QSortFilterProxyModel(this);

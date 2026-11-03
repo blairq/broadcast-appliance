@@ -3,6 +3,8 @@
 // ============================================================================
 
 #include "arranque/AjustesMotor.hpp"
+
+#include "diag/Acoples.hpp"
 #include "emision/BroadcastEngine.hpp"
 #include "emision/VentanillaMotor.hpp"
 #include "ui/SettingsModel.hpp"
@@ -572,6 +574,7 @@ QStringList SettingsModel::sections() const {
 }
 
 QString SettingsModel::seccionVisible(const QString& seccion) const {
+    BA_ACOPLE("invocable", "SettingsModel::seccionVisible");
     // La del idioma, también en inglés: la encuentra quien lo cambió sin querer a uno que no lee.
     if (seccion == QLatin1String("Idioma")) return etiquetaIdioma();
     const QByteArray s = seccion.toUtf8();
@@ -635,12 +638,14 @@ void SettingsModel::revert() {
 }
 
 bool SettingsModel::tieneBasicos(const QString& section) const {
+    BA_ACOPLE("invocable", "SettingsModel::tieneBasicos");
     for (const Field& f : fields_)
         if (f.section == section && !f.avanzado) return true;
     return false;
 }
 
 bool SettingsModel::tieneAvanzados(const QString& section) const {
+    BA_ACOPLE("invocable", "SettingsModel::tieneAvanzados");
     for (const Field& f : fields_)
         if (f.section == section && f.avanzado) return true;
     return false;

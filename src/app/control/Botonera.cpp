@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 #include "control/Botonera.hpp"
+
+#include "diag/Acoples.hpp"
 #include "arranque/ArchivoConfig.hpp"
 #include "ajustes/Ajustes.hpp"
 #include <QJsonArray>
@@ -2273,11 +2275,13 @@ QVariantList Botonera::catalogoUi() const {
 }
 
 QVariantList Botonera::buscarUi(const QString& texto) const {
+    BA_ACOPLE("invocable", "Botonera::buscarUi");
     if (!g_.buscar) return {};
     return QJsonDocument::fromJson(QByteArray::fromStdString(g_.buscar(texto.toStdString()).dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))).array().toVariantList();
 }
 
 QStringList Botonera::herramientasUi(const QString& filtro) const {
+    BA_ACOPLE("invocable", "Botonera::herramientasUi");
     QStringList out;
     if (!g_.herramientas) return out;
     for (const auto& h : g_.herramientas())
