@@ -7,11 +7,13 @@
 //   - el audio sigue a la escena de cada salida: un tono en una escena al aire solo en B
 //     suena en el bus de B y no en el de la por omisión;
 //   - el fader y el mute son de cada salida;
+//   - el audio sigue a la imagen: un take que se arma fuera del aire no adelanta su audio;
 //   - la toma del programa (el loudness) de otra salida;
 //   - el tally del multiview: rojo si está al aire en alguna salida;
 //   - crear y borrar una salida andando sin romper la por omisión (que no se borra).
 
 #include "Motor.hpp"
+#include "ajustes/Ajustes.hpp"
 
 #include <gst/gst.h>
 
@@ -320,6 +322,41 @@ int main() {
     }
     m.ponerNivel("tono", 1.0, "b");
     CHECK(m.ponerPistas("tono", {1}).empty(), "el tono solo al programa otra vez");
+
+    // EL AUDIO SIGUE A LA IMAGEN: un take a una escena que se arma fuera del aire (una capa
+    // cuya entrada todavía no existe) no adelanta su audio: mientras se ve la anterior,
+    // suena la anterior; el tono entra en el mismo tic en que corta la imagen.
+    {
+        ba::ajustes::poner("video.esperaCorteMs", 5000);
+        m.alAire("Roja");
+        CHECK(igual(mirarHasta(m, "programa", 160, 90, [](const Px& p) { return igual(p, 255, 0, 0); }), 255, 0, 0),
+              "audio/imagen: la roja al aire");
+        CHECK(calla(rmsHasta(m, "principal", calla)), "audio/imagen: sin el tono");
+        m.definirEscena({{"nombre", "AzulTarde"}, {"capas", {{{"entrada", "tarde"}}, {{"entrada", "tono"}}}}});
+        m.alAire("AzulTarde");
+        int adelantos = 0, imagenAntes = 0;
+        for (int i = 0; i < 15; ++i) {
+            esperar(100);
+            const json e = m.estado();
+            if (e["entradas"]["tono"].value("en_escena", false) || suena(rms(m, "principal"))) ++adelantos;
+            if (!igual(mirar(m, "programa", 160, 90), 255, 0, 0)) ++imagenAntes;
+        }
+        std::printf("audio/imagen: armándose 1,5 s, el tono adelantado en %d de 15 miradas, la imagen cambiada en %d\n",
+                    adelantos, imagenAntes);
+        CHECK(imagenAntes == 0, "audio/imagen: mientras se arma, la imagen de la anterior");
+        CHECK(adelantos == 0, "audio/imagen: mientras se arma, el audio de la anterior (no se adelanta)");
+        CHECK(m.agregarEntrada("tarde", color("#0000FF")).empty(), "audio/imagen: llega la entrada que faltaba");
+        const Px az = mirarHasta(m, "programa", 160, 90, [](const Px& p) { return igual(p, 0, 0, 255); });
+        CHECK(igual(az, 0, 0, 255), "audio/imagen: corta la imagen");
+        CHECK(m.estado()["entradas"]["tono"].value("en_escena", false), "audio/imagen: y el tono entra en escena");
+        CHECK(suena(rmsHasta(m, "principal", suena)), "audio/imagen: y suena");
+        ba::ajustes::poner("video.esperaCorteMs", nullptr);
+        m.alAire("Verde");
+        mirarHasta(m, "programa", 160, 90, [](const Px& p) { return igual(p, 0, 255, 0); });
+        m.quitarEscena("AzulTarde");
+        m.quitarEntrada("tarde");
+        m.esperarCola();
+    }
 
     // El tally del multiview: rojo si está al aire en alguna salida (la roja, solo en la B).
     m.alAire("Roja", "corte", 0, "b");

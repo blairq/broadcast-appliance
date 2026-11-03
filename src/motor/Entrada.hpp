@@ -180,6 +180,9 @@ class Entrada {
     /// TAKE para no sacar al aire una escena con la placa en el lugar de un invitado que
     /// llega un instante después (Composicion::Opciones::esperarEntrada). Sin candado.
     bool esperandoSenal() const;
+    /// No da video (un micrófono, un tono): su capa en una escena nunca va a tener cuadro y
+    /// el TAKE no la espera. Sin candado.
+    bool sinVideo() const { return !daVideoSinCandado_.load(); }
     static constexpr std::int64_t kEsperaSenalUs = 10'000'000;
     std::string productorAudio() const { return id_ + ":audio"; }
     /// Lo que pide de latencia (ns, 0 si no midió) y si pasa el tope del estudio.
@@ -388,6 +391,9 @@ class Entrada {
     std::atomic<std::int64_t> ultimoPrimarioUs_{0}; ///< el último cuadro de la señal que llegó a la salida (vigilante de «sin señal»)
     std::atomic<std::int64_t> salidaArmadaUs_{0};   ///< cuándo se armó la salida (esperandoSenal)
     std::atomic<bool> senalTrasArmar_{false};       ///< llegó un cuadro de la señal desde que se armó
+    std::atomic<bool> salidaArmada_{false};         ///< salidaV_ armada (se lee sin candado)
+    std::atomic<bool> llevaPlaca_{false};           ///< conPlaca_ (se lee sin candado)
+    std::atomic<bool> daVideoSinCandado_{false};    ///< daVideo() al leer los ajustes (sinVideo)
     /// El freno del realineo (ver medirLatencia): cuándo se corrigió cada rama,
     /// para qué lado, y hasta cuándo no se la toca si va y viene.
     struct Realineo {

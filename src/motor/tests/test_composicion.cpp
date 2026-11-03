@@ -182,10 +182,14 @@ Nuevas nuevasDe(const json& st) {
 /// programa (como el del motor, con Opciones::esperarEntrada) no la toma por lista.
 void probarTakeAtomico(Reloj& reloj, const Lienzo& lz, std::vector<Entrada*>& es) {
     Composicion::Opciones op;
-    op.esperarEntrada = [&es](const std::string& id) {
+    using Espera = Composicion::Espera;
+    op.esperarEntrada = [&es](const std::string& id, const std::string&) -> Espera {
         for (const Entrada* e : es)
-            if (e->id() == id) return e->esperandoSenal();
-        return false;
+            if (e->id() == id) {
+                if (e->sinVideo()) return Espera::NoEsperar;
+                return e->esperandoSenal() ? Espera::Esperar : Espera::Normal;
+            }
+        return Espera::Normal;
     };
     Composicion prog(reloj, lz, "take", op);
     CHECK(prog.anda(), "take: el compositor arranca");
@@ -253,6 +257,25 @@ void probarTakeAtomico(Reloj& reloj, const Lienzo& lz, std::vector<Entrada*>& es
                 txt(am).c_str());
     CHECK(igual(az, 0, 0, 255) && igual(ve, 0, 255, 0) && igual(bl, 255, 255, 255) && igual(am, 255, 255, 0),
           "take: la nueva entera al aire");
+
+    // Un micrófono en la escena (una entrada sin video) no frena el corte: no va a tener cuadro.
+    {
+        Entrada mic(reloj, lz, "mic", json{{"pipeline_audio", "audiotestsrc is-live=true volume=0"}});
+        es.push_back(&mic);
+        Escena conMic;
+        conMic.nombre = "ConMic";
+        conMic.capas.push_back({"verde", 0, 0, 0, 0});
+        conMic.capas.push_back({"mic", 0, 0, 0, 0});
+        prog.mostrar(conMic, "corte");
+        esperar(es, prog, 700); // el tope es de 6 s
+        std::printf("take con un micrófono: en transición %d\n", prog.enTransicion());
+        CHECK(mic.sinVideo(), "el micrófono no da video");
+        CHECK(!prog.enTransicion(), "con un micrófono en la escena, corta sin esperar el tope");
+        CHECK(igual(v.en(320, 180), 0, 255, 0), "y sale la nueva");
+        prog.mostrar(nueva, "corte"); // que el micrófono se vaya antes de soltarlo
+        esperar(es, prog, 700);
+        es.pop_back();
+    }
 
     // Una que no llega nunca: al tope (video.esperaCorteMs) corta igual con lo que hay.
     ba::ajustes::poner("video.esperaCorteMs", 1000);

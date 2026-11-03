@@ -161,6 +161,12 @@ struct Escena {
 
 class Composicion {
    public:
+    /// Qué hacer con una capa de la escena que entra (Opciones::esperarEntrada):
+    ///   Normal     lista cuando pasó su primer cuadro;
+    ///   Esperar    todavía no, aunque pase cuadros (la placa mientras llega su señal; una
+    ///              escena interna incompleta);
+    ///   NoEsperar  no va a tener cuadro nunca (una entrada sin video: un micrófono).
+    enum class Espera { Normal, Esperar, NoEsperar };
     struct Opciones {
         bool gpu = false; ///< glvideomixer (en la placa) en vez de compositor (CPU); también si gpuVideo()
         /// DSK y clean feed: la escena sale también limpia (`video:<nombre>:limpio`) y
@@ -174,8 +180,11 @@ class Composicion {
         /// ¿Esa entrada todavía está llegando? (recién armada o despertada, en la placa
         /// esperando su primera señal: Entrada::esperandoSenal). Una capa así no cuenta como
         /// lista para sacar al aire la escena que entra aunque ya pase cuadros (los de la
-        /// placa «sin señal»). La llama tic, en el hilo del motor (lo pone el Motor).
-        std::function<bool(const std::string& entrada)> esperarEntrada;
+        /// placa «sin señal»). Con `productor` de otra composición (una escena interna,
+        /// «video:escena:<n>»), si esa todavía no está completa (completa()). La llama
+        /// tic, en el hilo del motor (lo pone el Motor).
+        /// Una entrada sin video (NoEsperar) no frena el corte.
+        std::function<Espera(const std::string& entrada, const std::string& productor)> esperarEntrada;
         /// Las de una escena interna: su lienzo, sus filtros y su mezclador.
         static Opciones de(const Escena& e) {
             Opciones op;
@@ -212,6 +221,14 @@ class Composicion {
     const std::string& escena() const { return escena_.nombre; }
     /// ¿Hay una transición en curso?
     bool enTransicion() const;
+    /// ¿La escena que entra se está armando fuera del aire (todavía se ve la anterior
+    /// entera)? Pasa a false en el tic en que corta o arranca su transición.
+    bool armando() const;
+    /// ¿Lo que muestra está completo (ninguna capa de su escena esperando su primer cuadro
+    /// o su señal, ni una escena armándose)? Para la que la usa como capa (una escena
+    /// interna): sus capas en reposo se esperan al sacarla al aire. Si su candado está
+    /// tomado (o una escena se contiene a sí misma), dice que no: se espera un tic más.
+    bool completa() const;
     /// T-bar: lleva a mano una mezcla hacia `e` (t de 0 a 1). Con `soltar` termina:
     /// pasada la mitad queda la nueva; si no, vuelve la de antes. Devuelve true si
     /// la nueva quedó.
@@ -353,7 +370,7 @@ class Composicion {
     /// sale se sigue viendo entera hasta que todas tengan cuadro o pase el tope.
     bool esperando_ = false;
     std::int64_t esperaDesdeNs_ = 0;
-    std::function<bool(const std::string&)> esperarEntrada_; ///< Opciones::esperarEntrada
+    std::function<Espera(const std::string&, const std::string&)> esperarEntrada_; ///< Opciones::esperarEntrada
     bool manual_ = false;     ///< la T-bar: la transición no avanza sola
     double manualT_ = 0;
     Escena escenaAntes_;      ///< la que estaba (para volver si se suelta antes de la mitad)

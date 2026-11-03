@@ -1015,9 +1015,12 @@ void Composicion::mostrar(const Escena& e, const std::string& transicion, int ms
 std::vector<std::string> Composicion::nuevasSinCuadro() const {
     std::vector<std::string> faltan;
     for (const auto& [k, r] : ramas_)
-        // Sin cuadro todavía, o pasando los de la placa mientras su señal está llegando.
-        if (r->generacion == generacion_ && (!r->listo.load() || (esperarEntrada_ && esperarEntrada_(r->entrada))))
-            faltan.push_back(r->entrada);
+        if (r->generacion == generacion_) {
+            // Sin cuadro todavía, o pasando los de la placa mientras su señal está llegando;
+            // una sin video (un micrófono en la escena) no se espera.
+            const Espera e = esperarEntrada_ ? esperarEntrada_(r->entrada, r->productor) : Espera::Normal;
+            if (e == Espera::Esperar || (e == Espera::Normal && !r->listo.load())) faltan.push_back(r->entrada);
+        }
     return faltan;
 }
 
@@ -1084,6 +1087,24 @@ std::string Composicion::manualHacia() const {
 bool Composicion::enTransicion() const {
     std::lock_guard<std::mutex> l(mu_);
     return genVieja_ >= 0;
+}
+
+bool Composicion::armando() const {
+    std::lock_guard<std::mutex> l(mu_);
+    return esperando_;
+}
+
+bool Composicion::completa() const {
+    // Se llama desde el tic de OTRA composición (con su candado): sin esperar el de esta.
+    // Una cadena de escenas internas muy larga (o en ronda) corta acá.
+    thread_local int hondura = 0;
+    if (hondura > 8) return true;
+    std::unique_lock<std::mutex> l(mu_, std::try_to_lock);
+    if (!l.owns_lock()) return false;
+    ++hondura;
+    const bool si = !esperando_ && nuevasSinCuadro().empty();
+    --hondura;
+    return si;
 }
 
 bool Composicion::ponerDsk(const std::vector<Capa>& capas, int ms) {

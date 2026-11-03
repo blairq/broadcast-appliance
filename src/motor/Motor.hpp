@@ -390,6 +390,15 @@ class Motor {
         std::unique_ptr<Mezcla> mezcla;                   ///< bus:programa[:<id>]
         std::unique_ptr<Composicion> programa, preview;   ///< video:programa[:<id>], video:preview[:<id>]
         std::string alAire, armada;
+        /// EL AUDIO SIGUE A LA IMAGEN: mientras el programa arma fuera del aire la escena
+        /// que entra (Composicion::armando), su audio espera acá y sigue sonando la
+        /// anterior; el bucle lo aplica en el mismo tic en que la imagen corta (o arranca
+        /// su mezcla), con el fundido de la transición.
+        struct AudioPendiente {
+            bool activo = false;
+            std::vector<std::string> ids;
+            int fundidoMs = 0;
+        } audioPendiente;
         std::set<std::string> dskEscenas;                 ///< las escenas que pidió su DSK
         std::map<std::string, Mando> mandos;              ///< por entrada
         std::shared_ptr<TomaPrograma> toma;
@@ -577,6 +586,12 @@ class Motor {
     std::string ponerMuteYa(const std::string& id, bool mute, const std::string& salida);
     std::string ponerPistasYa(const std::string& id, const std::vector<int>& pistas);
     void escenaAlAireYa(const std::vector<std::string>& ids, int fundidoMs, const std::string& salida);
+    /// Para Composicion::Opciones::esperarEntrada: qué capas no están listas aunque pasen cuadros.
+    std::function<Composicion::Espera(const std::string&, const std::string&)> esperaDeCapas();
+    /// Las de la composición de una escena interna, con esperaDeCapas.
+    Composicion::Opciones opcionesDeEscena(const Escena& e);
+    /// El audio de la escena que sale al aire: ya, o cuando su imagen corte (Salida::audioPendiente).
+    void audioDeEscena(Salida& s, const std::string& salida, const std::vector<std::string>& ids, int fundidoMs);
     std::string controlMedioYa(const std::string& id, const std::string& accion, std::int64_t ms);
     nlohmann::json medioYa(const std::string& id) const;
     std::string definirEscenaYa(const nlohmann::json& escena);
