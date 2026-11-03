@@ -19,6 +19,19 @@
 //                   recarga o un corte de red no le hacen perder el lugar);
 //                   resume() con su clave lo reengancha. tick() purga.
 //
+// ENTRADA ESCALONADA (2026-11-02, ajuste room.entradaPorSegundo, de 1 a 100, de
+//   fábrica 2): pasar a la sala (de «waiting» a «admitted») es UN SOLO camino para
+//   todos —admitir de a uno, «admitir a todos», sin lobby, la entrada directa y la
+//   prueba de sala— y ese camino va a un ritmo: el aprobado que no tiene turno queda
+//   «entrando» (sigue «waiting», con `entrando`, y se le avisa su lugar en la fila:
+//   {"type":"entrando","position"}) y tick() lo hace pasar cuando le toca, en orden de
+//   llegada. Con 120 de golpe a 2 por segundo son ~60 s: cada entrada es una sesión
+//   WebRTC que se negocia, una grilla que se reacomoda y una cámara más que decodificar;
+//   de a 120 juntos la conferencia y la app se ahogaban (el mosaico se veía trabado).
+//   El primero después de un rato pasa en el acto. Su lugar se reserva al aprobarlo (no
+//   se aprueban más que los lugares libres). El operador ve cuántos esperan en el
+//   snapshot (`entrando`, y `entrando` en cada participante).
+//
 // Salidas:
 //   Los cambios se informan por `Sinks` (mensajes al invitado, eventos a los
 //   operadores, cortes de conexion, slots liberados). Se invocan SIEMPRE con
@@ -94,6 +107,9 @@ class Room {
         /// De la prueba de sala (PruebaSala.hpp): entró con la credencial de prueba,
         /// sin lobby. Fuera del padrón, la votación y el quórum; se ve con «prueba».
         bool prueba = false;
+        /// Aprobado (admitido, sin lobby, entrada directa) y esperando su turno para
+        /// pasar (ENTRADA ESCALONADA): sigue en Waiting hasta que tick() lo hace pasar.
+        bool entrando = false;
         // --- Ficha (la completa el invitado; el operador puede editarla) ---
         std::string info;       ///< cargo, tema...
         std::string contact;    ///< telefono/email: solo produccion (nunca otros invitados)
@@ -147,6 +163,10 @@ class Room {
         int lobbySlots = 4;     ///< cuantos del lobby pueden mostrar su camara a la vez
         int backstageSlots = 6; ///< cuantos de la fila de oradores (los primeros) mandan preview
         size_t chatKeep = 200;
+        /// Cuántos pasan a la sala por segundo (ENTRADA ESCALONADA). -1 = el ajuste
+        /// room.entradaPorSegundo, leído en caliente (1..100, de fábrica 2: lo pone main);
+        /// > 0 lo fija (las pruebas); 0 = sin ritmo, todos en el acto (las pruebas de antes).
+        int entradaPorSegundo = 0;
     };
 
     struct Sinks {
@@ -292,6 +312,10 @@ class Room {
     nlohmann::json snapshot() const;
     /// El cupo de ahora (maxGuests: cambia en caliente con setCupo).
     int cupo() const;
+    /// Los aprobados que esperan su turno para pasar (ENTRADA ESCALONADA).
+    int entrando() const;
+    /// El ritmo de la entrada (por segundo, 1..100; 0 = sin ritmo, ver Cfg).
+    int entradaPorSegundo() const;
     const Cfg& cfg() const { return cfg_; }
 
     /// Purga desconectados vencidos. Llamar periodicamente (~1 s).
@@ -323,6 +347,14 @@ class Room {
     void speakerNotifyLocked(int64_t nowMs, Out& out);
     nlohmann::json speakerCfgJson() const;
     void admitLocked(Participant& p, int slot, int64_t nowMs, Out& out);
+    /// El único paso de «aprobado» a la sala (ENTRADA ESCALONADA): a la fila de los que
+    /// entran y, si le toca ya, pasa. Quien llama ya vio que hay lugar (libresLocked).
+    void pedirEntradaLocked(Participant& p, int64_t nowMs, Out& out);
+    /// Hace pasar a los de la fila de entrada que les toca según el ritmo. true si pasó alguno.
+    bool pasarEntrandoLocked(int64_t nowMs, Out& out);
+    /// Lugares del programa libres que no están reservados para alguien que está entrando.
+    int libresLocked() const;
+    int entradaPorSegundoLocked() const;
     /// Quita un participante (libera su slot) y reordena el lobby.
     void removeLocked(const std::string& id, Out& out);
     /// Lobby apagado: hace pasar a los que esperan mientras haya slots.
@@ -363,6 +395,9 @@ class Room {
     int64_t usageSentMs_ = 0;        // ultimo snapshot mandado solo por el uso
     std::vector<std::string> order_; ///< ids en el orden de la fila de oradores
     int64_t lastNowMs_ = 0;          // ultimo "ahora" visto (para admisiones sin reloj propio)
+    std::deque<std::string> entrando_; ///< la fila de entrada (ENTRADA ESCALONADA), en orden
+    double creditoEntrada_ = -1;       ///< cuántos pueden pasar ya (balde; -1 = lleno al empezar)
+    int64_t creditoMs_ = 0;            ///< cuándo se llenó el balde por última vez
 };
 
 } // namespace ba::gateway
