@@ -401,7 +401,22 @@ void Entrada::armarSalida() {
                 this, nullptr);
             gst_object_unref(senal);
         }
-        if (placaPad != nullptr) gst_object_unref(placaPad);
+        if (placaPad != nullptr) {
+            // Cada cuadro de la placa que pasa al aire (la placa activa): el compositor lo
+            // sostiene su duración entera (un segundo: sale a 1 cps), aunque la señal ya haya
+            // vuelto. esperandoSenal lo espera, así el TAKE no corta con la placa a la vista.
+            ultimaPlacaUs_ = 0;
+            gst_pad_add_probe(
+                placaPad, GST_PAD_PROBE_TYPE_BUFFER,
+                [](GstPad*, GstPadProbeInfo*, gpointer d) -> GstPadProbeReturn {
+                    auto* e = static_cast<Entrada*>(d);
+                    if (e->placaActiva_.load(std::memory_order_relaxed))
+                        e->ultimaPlacaUs_.store(g_get_monotonic_time(), std::memory_order_relaxed);
+                    return GST_PAD_PROBE_OK;
+                },
+                this, nullptr);
+            gst_object_unref(placaPad);
+        }
         gst_object_unref(fs);
     }
     reloj_.adoptar(p);
@@ -545,6 +560,13 @@ bool Entrada::esperandoSenal() const {
     // cuadros todavía. Una capa nueva no tendría cuadro igual; esto es para la de una
     // escena interna, que pasó cuadros hace rato y quedó «lista».
     if (enUso_.load() && llevaPlaca_.load() && !salidaArmada_.load()) return true;
+    // Volvió la señal, pero el último cuadro de la placa sigue al aire en la composición
+    // hasta que vence (dura kPlacaCuadroUs): sin esto el TAKE cortaba y se veía la placa
+    // ~300-400 ms en el lugar del invitado (test_composicion, «la nueva entera al aire»).
+    if (!placaActiva_.load()) {
+        const std::int64_t placa = ultimaPlacaUs_.load();
+        if (placa != 0 && g_get_monotonic_time() - placa < kPlacaCuadroUs) return true;
+    }
     // Una que ya estaba sin señal de antes (armada hace rato) tampoco se espera.
     if (!placaActiva_.load() || senalTrasArmar_.load()) return false;
     const std::int64_t armada = salidaArmadaUs_.load();
