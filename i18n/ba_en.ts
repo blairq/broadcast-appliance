@@ -52121,8 +52121,8 @@ Data (from %2): %3</translation>
     </message>
     <message>
         <location line="+1" />
-        <source>Achicando a los demás (todas al 94 %, el orador llena su celda)</source>
-        <translation>Shrinking the others (all at 94 %, the speaker fills their cell)</translation>
+        <source>Achicando a los demás (el orador crece y los demás se achican al 94 %)</source>
+        <translation>Shrinking the others (the speaker grows and the others shrink to 94 %)</translation>
     </message>
     <message>
         <location line="+2" />

@@ -52121,8 +52121,8 @@ Données (de %2) : %3</translation>
     </message>
     <message>
         <location line="+1" />
-        <source>Achicando a los demás (todas al 94 %, el orador llena su celda)</source>
-        <translation>En rétrécissant les autres (toutes à 94 %, l'intervenant remplit sa cellule)</translation>
+        <source>Achicando a los demás (el orador crece y los demás se achican al 94 %)</source>
+        <translation>En rétrécissant les autres (l'intervenant grandit et les autres rétrécissent à 94 %)</translation>
     </message>
     <message>
         <location line="+2" />

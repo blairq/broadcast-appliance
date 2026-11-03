@@ -52121,8 +52121,8 @@ Dados (de %2): %3</translation>
     </message>
     <message>
         <location line="+1" />
-        <source>Achicando a los demás (todas al 94 %, el orador llena su celda)</source>
-        <translation>Diminuindo os demais (todas a 94 %, o orador preenche sua célula)</translation>
+        <source>Achicando a los demás (el orador crece y los demás se achican al 94 %)</source>
+        <translation>Diminuindo os demais (o orador cresce e os demais diminuem a 94 %)</translation>
     </message>
     <message>
         <location line="+2" />

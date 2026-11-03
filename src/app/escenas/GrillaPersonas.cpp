@@ -502,6 +502,13 @@ Rect achicar(const Rect& r, double f) {
     return {r.x + (r.w - w) / 2, r.y + (r.h - h) / 2, w, h};
 }
 
+Rect agrandarOrador(const Rect& lugar, int ancho, int alto) {
+    Rect g = achicar(lugar, kResaltarOrador);
+    g.x = std::clamp(g.x, 0, std::max(0, ancho - g.w));
+    g.y = std::clamp(g.y, 0, std::max(0, alto - g.h));
+    return g;
+}
+
 namespace {
 
 /// El rectángulo más grande con la forma de la grilla adentro de `caja` (con «llenar», la
@@ -1150,17 +1157,26 @@ void Repartidor::disponerCeldas(const Config& c, Resultado& r, const std::map<st
         Celda x;
         x.clave = k;
         x.r = rect;
-        // El borde: a quien habla (como siempre) y al orador.
-        x.resaltar = c.resaltar && p != nullptr &&
-                     (p->hablando || (k == r.orador && c.alHablar != AlHablar::Nada && c.alHablar != AlHablar::SinCambios));
+        // El borde: a quien habla (si «resaltar», como siempre) y al orador. Al orador SIEMPRE
+        // en resaltar, destacar, superponer y con agrandar (2026-11-03: que se note quién es,
+        // aunque el borde a quien habla esté apagado); en «escena» sin agrandar, como antes.
+        const bool esOrador = !r.orador.empty() && k == r.orador;
+        const bool bordeOrador = c.alHablar == AlHablar::Resaltar || c.alHablar == AlHablar::Destacar ||
+                                 c.alHablar == AlHablar::Superponer || (c.alHablar == AlHablar::Escena && c.agrandar != Agrandar::No);
+        x.resaltar = p != nullptr && ((esOrador && bordeOrador) ||
+                                      (c.resaltar && (p->hablando || (esOrador && c.alHablar == AlHablar::Escena))));
         if (p != nullptr) x.rotulo = idRotulo(c.nombres, p->nombre, p->cargo);
         return x;
     };
     const bool conGrande = !r.orador.empty() && (c.alHablar == AlHablar::Destacar || c.alHablar == AlHablar::Superponer);
     if (!conGrande) {
-        // La grilla de siempre (nadie se mueve). Agrandar (resaltar y escena, si se eligió):
-        // «encima», el orador crece un poco y va al final de la lista (el gateway lo pinta
-        // encima de sus vecinas); «achicando», las demás al 94 % y el orador entero.
+        // La grilla de siempre (nadie cambia de lugar). Agrandar (resaltar y escena, si se
+        // eligió): el orador crece un poco (agrandarOrador) y va al final de la lista (el gateway
+        // lo pinta encima de sus vecinas); con «achicando», además las demás se achican al 94 %
+        // mientras haya orador (2026-11-03: antes estaban siempre al 94 % y solo el orador
+        // llenaba su lugar; ahora se ve el movimiento: él crece y las demás se achican a la vez).
+        // El gateway anima el cambio de cada celda con la curva suave en transicion_ms, y el
+        // borde aparece con un fundido en el mismo tiempo.
         const int celdas = static_cast<int>(r.personas.size()) + (r.mas > 0 ? 1 : 0);
         InfoGrilla info;
         const auto rects = disponer(celdas, c.ancho, c.alto, c.separacion, c.margen, formaDe(c), &info);
@@ -1170,17 +1186,14 @@ void Repartidor::disponerCeldas(const Config& c, Resultado& r, const std::map<st
         r.celdaAlto = info.alto;
         const bool puede = (c.alHablar == AlHablar::Resaltar || c.alHablar == AlHablar::Escena) && c.agrandar != Agrandar::No;
         std::optional<Celda> delOrador;
+        const bool hayOrador = !r.orador.empty();
         for (std::size_t j = 0; j < r.personas.size() && j < rects.size(); ++j) {
             Rect rect = rects[j];
-            if (puede && c.agrandar == Agrandar::Encima && r.personas[j] == r.orador && !r.orador.empty()) {
-                Rect g = achicar(rect, kResaltarOrador);
-                g.x = std::clamp(g.x, 0, std::max(0, c.ancho - g.w));
-                g.y = std::clamp(g.y, 0, std::max(0, c.alto - g.h));
-                delOrador = celda(r.personas[j], g);
+            if (puede && hayOrador && r.personas[j] == r.orador) {
+                delOrador = celda(r.personas[j], agrandarOrador(rect, c.ancho, c.alto));
                 continue;
             }
-            // «Achicando»: siempre (haya o no orador), así nadie se mueve cuando alguien empieza a hablar.
-            if (puede && c.agrandar == Agrandar::Achicando && r.personas[j] != r.orador) rect = achicar(rect, kResaltarResto);
+            if (puede && hayOrador && c.agrandar == Agrandar::Achicando) rect = achicar(rect, kResaltarResto);
             r.celdas.push_back(celda(r.personas[j], rect));
         }
         if (delOrador) r.celdas.push_back(*delOrador);

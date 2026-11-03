@@ -30,7 +30,7 @@ void McpService::registerGrillaTools() {
         "y color_resaltar (\"#AARRGGBB\"). Cuando alguien habla: al_hablar (sin_cambios: la grilla no se toca, solo la "
         "cámara del orador en alta | resaltar: nadie se mueve, el orador con borde | destacar: el orador grande y los demás en una franja, en el mismo orden | superponer: el orador "
         "encima en un hueco que le deja la grilla | escena: la grilla no cambia y otra grilla con muestra=orador lo "
-        "muestra solo | nada: sin orador), agrandar (resaltar y escena: no | encima | achicando), pasar_a_escena "
+        "muestra solo | nada: sin orador), agrandar (resaltar y escena: no | encima: el orador crece | achicando: el orador crece y los demás se achican; animado en transicion_ms y el borde del orador aparece con un fundido), pasar_a_escena "
         "(escena: a_mano | automatico | asistente: siempre avisa al operador), salida_orador (\"\" = la principal), "
         "escena_orador (la pone grilla_personas_escena_orador), disparo (voz: voz sostenida voz_ms | palabra: la palabra de la asamblea | orador: el "
         "orador al aire de la conferencia | manual: grilla_personas_destacar), voz_ms, minimo_ms (el orador no "

@@ -192,11 +192,23 @@ lienzo), `caben` (cuántas celdas entran como mucho, con la del «+N») y `lienz
 | Opción | Qué pasa |
 |---|---|
 | **Sin cambios** (`sin_cambios`) | La grilla no se toca: nadie se mueve ni crece. Al orador solo se le pide su cámara en alta (entra con el fundido). |
-| **Resaltar en su lugar** (`resaltar`, de fábrica) | Nadie se mueve. El orador lleva el borde del color de resaltar y, según **Agrandar al que habla** (`agrandar`, aparte del modo; de fábrica `no`, así las grillas armadas se ven igual que antes): `encima` (su celda crece un 6 % sobre las vecinas, sin achicar a nadie) o `achicando` (todas al 94 % y la del orador llena su lugar). |
+| **Resaltar en su lugar** (`resaltar`, de fábrica) | Nadie se mueve. El orador lleva el borde del color de resaltar y, según **Agrandar al que habla** (`agrandar`, aparte del modo; de fábrica `no`, así las grillas armadas se ven igual que antes): `encima` (su celda crece un 6 % sobre las vecinas, sin achicar a nadie) o `achicando` (su celda crece y, a la vez, las demás se achican al 94 %; sin orador, todas enteras). |
 | **Destacar** (`destacar`) | El orador pasa a un lugar grande (`destacar_lugar`: centro o izquierda; `destacar_tamano`: % del lienzo) y los demás a una franja (`franja`: abajo o al costado). Los demás conservan **su orden** (se achican y se corren, no se mezclan); los que no entran, «+N». La animación dura `transicion_ms`. Al terminar, cada uno vuelve a su lugar. |
 | **Superponer sin tapar** (`superponer`) | El recuadro del orador va en el medio y la grilla le deja el hueco: los demás se acomodan alrededor, nadie queda tapado (`superponer_tamano`). Con `superponer_completa`, el orador a pantalla completa. Si no entran alrededor del hueco, se arma como «destacar» con la franja abajo. |
 | **Cortar a la escena del orador** (`escena`) | Esta grilla no cambia (salvo `agrandar`). El botón **Armar la escena del orador** (o `grilla_personas_escena_orador`) crea, si no está, la escena «Orador · <grilla>» con una grilla «<grilla> · orador» que muestra únicamente al orador (`muestra: orador`, `sigue`: esta), a todo el lienzo y con su nombre y cargo, y la anota en `escena_orador`. **Pasar a la escena del orador** (`pasar_a_escena`): `a_mano` (de fábrica: corta el operador o la línea de tiempo); `automatico` (al cambiar el orador la app pone su escena al aire en `salida_orador`, "" = la principal, y cuando ya no hay orador vuelve a la de antes, salvo que el operador haya cortado a otra; el tiempo mínimo y la histéresis son los del orador); `asistente` (se lo pide al asistente de automatización, que corta si está autorizado, y el operador **siempre** recibe el aviso: «¿Paso a la escena del orador: X?» y, cuando el corte se ve, «El asistente pasó a …»). La grilla completa sigue en otra salida (salidas múltiples). |
 | **Nada** (`nada`) | Como antes de todo esto: sin orador (ni capa alta para nadie); solo el borde a quien habla (si «Borde a quien habla»). |
+
+**El cambio se anima** (2026-11-03). Con `agrandar` (`encima` o `achicando`), con
+`destacar` y con `superponer`, cuando alguien toma la palabra la celda del orador **crece
+suave** hasta su tamaño y las demás se achican (o se corren a la franja) **a la vez**; al
+dejar de hablar, al revés. Dura `transicion_ms` (de fábrica 400 ms; 0 = en el acto) con
+una curva suave (arranca y frena despacio). En esos modos y en `resaltar`, el orador lleva
+**siempre** el borde del color de resaltar (`color_resaltar`), aunque «Borde a quien
+habla» esté apagado, y el borde **aparece con un fundido** en el mismo tiempo (y se va
+igual). Lo pinta B: solo viaja la celda cuyo lugar cambió; si la app vuelve a mandar el
+mismo lugar a mitad de un viaje, ese viaje sigue sin rearrancar (antes cada pedido
+rearrancaba el de todas desde quietas). Con las entradas juntas, sigue siendo un solo
+reacomodo por tanda.
 
 **Quién es el orador** (`disparo`): el que habla con **voz sostenida** (`voz_ms`, de
 fábrica 1,5 s: una tos no alcanza), el que tiene **la palabra** en la Asamblea, el

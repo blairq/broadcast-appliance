@@ -170,7 +170,7 @@ void registrarTipo() {
                 out.push_back(lista("agrandar", traducir("escenas", "Agrandar al que habla"),
                                     {{"no", traducir("escenas", "No")},
                                      {"encima", traducir("escenas", "Encima (crece sobre su celda, sin achicar a nadie)")},
-                                     {"achicando", traducir("escenas", "Achicando a los demás (todas al 94 %, el orador llena su celda)")}}));
+                                     {"achicando", traducir("escenas", "Achicando a los demás (el orador crece y los demás se achican al 94 %)")}}));
             if (modo == "escena") {
                 out.push_back(lista("pasar_a_escena", traducir("escenas", "Pasar a la escena del orador"),
                                     {{"a_mano", traducir("escenas", "A mano (corta el operador)")},

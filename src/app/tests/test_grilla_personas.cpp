@@ -887,8 +887,8 @@ void capasYPedido() {
 
 void sinCambiosAgrandarYPase() {
     const auto plano = disponer(4, 1280, 720, 8, 0, 16.0 / 9);
-    // Por lugar: la i-ésima persona de la grilla (el orden de los lugares; el orador entró
-    // primero porque tiene prioridad) → su rectángulo, con el nombre «L<i>».
+    // Por lugar: la i-ésima persona de la grilla (el orden de los lugares: el de llegada; el
+    // orador NO va primero) → su rectángulo, con el nombre «L<i>».
     const auto rects = [](const Resultado& r) {
         std::map<std::string, Rect> m;
         for (std::size_t i = 0; i < r.personas.size(); ++i)
@@ -929,21 +929,47 @@ void sinCambiosAgrandarYPase() {
         auto m = rects(rep.calcular(gs, v, {}, 0)[0]);
         CHECK(m["L0"] == plano[0] && m["L1"] == plano[1] && m["L3"] == plano[3], "agrandar no: nadie cambia de tamaño");
     }
-    // Agrandar «achicando»: las demás al 94 %, el orador entero; sin orador, todas al 94 % (nadie salta).
+    // Agrandar «achicando» (2026-11-03): con orador, él crece (encima) y las demás se achican al
+    // 94 % a la vez (el gateway lo anima); sin orador, todas en su lugar entero.
     {
         Repartidor rep;
         std::vector<Config> gs{grilla("g", 8)};
         gs[0].disparo = Disparo::Palabra;
         gs[0].agrandar = Agrandar::Achicando;
+        gs[0].resaltar = false; // el borde del orador no depende del borde a quien habla
         const Resultado r0 = rep.calcular(gs, v, {}, 0)[0];
         auto m = rects(r0);
         const std::size_t lo = lugarDe(r0, "sala:p1"), l0 = lugarDe(r0, "sala:p0");
-        CHECK(lo < 4 && l0 < 4 && m["sala:p1"] == plano[lo] && m["sala:p0"] == achicar(plano[l0], kResaltarResto),
-              "achicando: el orador llena su lugar, los demás al 94 %");
+        CHECK(lo < 4 && l0 < 4 && m["sala:p1"] == agrandarOrador(plano[lo], 1280, 720) &&
+                  m["sala:p0"] == achicar(plano[l0], kResaltarResto),
+              "achicando: el orador crece, los demás al 94 %");
+        CHECK(m["sala:p1"].w > plano[lo].w && r0.celdas.back().clave == "sala:p1" && r0.celdas.back().resaltar,
+              "el orador, más grande que su lugar, encima de las vecinas y con borde");
         auto w = v;
         w[1].palabra = false;
-        auto n = rects(rep.calcular(gs, w, {}, 10000)[0]);
-        CHECK(n["sala:p1"] == achicar(plano[lo], kResaltarResto) && n["sala:p0"] == m["sala:p0"], "sin orador: todas al 94 %, los demás quietos");
+        const Resultado r1 = rep.calcular(gs, w, {}, 10000)[0];
+        auto n = rects(r1);
+        CHECK(n["sala:p1"] == plano[lo] && n["sala:p0"] == plano[l0], "sin orador: todas enteras en su lugar (vuelven)");
+        bool alguno = false;
+        for (const auto& x : r1.celdas) alguno = alguno || x.resaltar;
+        CHECK(!alguno, "sin orador: sin borde");
+    }
+    // El borde del orador con destacar y con encima, aunque el borde a quien habla esté apagado.
+    for (const AlHablar al : {AlHablar::Destacar, AlHablar::Superponer, AlHablar::Resaltar}) {
+        Repartidor rep;
+        std::vector<Config> gs{grilla("g", 8)};
+        gs[0].disparo = Disparo::Palabra;
+        gs[0].alHablar = al;
+        gs[0].agrandar = Agrandar::Encima;
+        gs[0].resaltar = false;
+        const Resultado r = rep.calcular(gs, v, {}, 0)[0];
+        int bordes = 0;
+        bool delOrador = false;
+        for (const auto& x : r.celdas) {
+            bordes += x.resaltar ? 1 : 0;
+            delOrador = delOrador || (x.clave == "sala:p1" && x.resaltar);
+        }
+        CHECK(delOrador && bordes == 1, "el orador siempre con borde (destacar, superponer, resaltar con agrandar)");
     }
     // El pase a la escena del orador.
     {

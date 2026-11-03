@@ -83,10 +83,14 @@
 // mínimo en pantalla («minimo_ms»: que no salte con cada tos). Cómo se lo muestra:
 //   - sin cambios: la grilla no se toca (nadie se mueve ni crece); al orador solo se le pide
 //     su capa alta (y entra con el fundido);
-//   - resaltar: nadie se mueve; el orador lleva el borde del color de resaltar y, según
+//   - resaltar: nadie cambia de lugar; el orador lleva el borde del color de resaltar y, según
 //     «agrandar» (aparte del modo, de fábrica no): «encima» (su celda crece un 6 % sobre las
-//     vecinas, sin achicar a nadie) o «achicando» (todas al 94 % y la del orador llena su
-//     lugar);
+//     vecinas, sin achicar a nadie) o «achicando» (además, mientras hay orador, las demás se
+//     achican al 94 %). El gateway lo ANIMA (2026-11-03): la del orador crece suave y las
+//     demás se achican a la vez, en transicion_ms con la curva suave, y el borde aparece con
+//     un fundido en el mismo tiempo; al dejar de hablar, al revés. Con resaltar, destacar,
+//     superponer y con agrandar, el orador lleva el borde SIEMPRE (aunque «resaltar», el borde
+//     a quien habla, esté apagado);
 //   - destacar: el orador a un lugar grande (centro o izquierda, «destacar_tamano» % del
 //     lienzo) y los demás a una franja (abajo o al costado) en el MISMO orden de siempre
 //     (no se mezclan: se achican y se corren); los que no entran, «+N». El gateway anima
@@ -392,6 +396,9 @@ Disposicion disponerDestacar(int n, const Config& c);
 Disposicion disponerSuperponer(int n, const Config& c);
 /// Un rectángulo escalado a `f` de su tamaño (achicado o agrandado), con el mismo centro.
 Rect achicar(const Rect& r, double f);
+/// Agrandar (encima o achicando): la celda del orador a kResaltarOrador de su lugar, con el
+/// mismo centro pero sin salirse del lienzo de `ancho`×`alto`.
+Rect agrandarOrador(const Rect& lugar, int ancho, int alto);
 
 /// ¿Todas las miniaturas de una grilla en baja? Con más de `altaHasta` personas, sí; si ya
 /// estaban (`antes`), siguen hasta bajar a altaHasta - kMargenAltaHasta. 0 = sin límite.

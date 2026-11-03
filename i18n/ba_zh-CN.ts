@@ -51955,8 +51955,8 @@ Datos (de %2): %3</source>
     </message>
     <message>
         <location line="+1" />
-        <source>Achicando a los demás (todas al 94 %, el orador llena su celda)</source>
-        <translation>缩小其他人（全部缩到 94 %，发言人占满自己的单元格）</translation>
+        <source>Achicando a los demás (el orador crece y los demás se achican al 94 %)</source>
+        <translation>缩小其他人（发言人放大，其他人缩到 94 %）</translation>
     </message>
     <message>
         <location line="+2" />

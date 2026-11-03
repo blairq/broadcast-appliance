@@ -52287,8 +52287,8 @@ Datos (de %2): %3</source>
     </message>
     <message>
         <location line="+1" />
-        <source>Achicando a los demás (todas al 94 %, el orador llena su celda)</source>
-        <translation>Уменьшая остальных (все до 94 %, выступающий занимает свою ячейку)</translation>
+        <source>Achicando a los demás (el orador crece y los demás se achican al 94 %)</source>
+        <translation>Уменьшая остальных (выступающий растёт, остальные уменьшаются до 94 %)</translation>
     </message>
     <message>
         <location line="+2" />
