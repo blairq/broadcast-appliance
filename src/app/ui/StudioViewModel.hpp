@@ -114,6 +114,10 @@ namespace ba::app::emision {
 class RetornosInvitados;
 class SeguridadAire;
 }
+namespace ba::app::control {
+class ReplicaPublicador;
+class CuadrosWeb;
+} // namespace ba::app::control
 namespace ba::app::red {
 class Red;
 } // namespace ba::app::red
@@ -904,6 +908,11 @@ class StudioViewModel : public QObject {
     /// Las superficies de control (ui/ControlViewModel): usan la asamblea (las bancas de
     /// los botones) y el bus; la línea de tiempo usa sus acciones (va más abajo).
     std::unique_ptr<ControlViewModel> control_;
+    /// El tablero web (/control/app/, Qt para WebAssembly): este modelo publicado tal cual
+    /// (control/ReplicaPublicador) y el video de sus vistas (control/CuadrosWeb). Usan el
+    /// control web (control_) y los cuadros (frames_): se destruyen antes.
+    std::unique_ptr<control::ReplicaPublicador> replica_;
+    std::unique_ptr<control::CuadrosWeb> cuadrosWeb_;
     /// La bitácora del evento en curso, sus fotos de Config/, el índice de lo que salió y
     /// el cierre en el histórico (ui/BitacoraEvento; H2-H5 de PLAN-EVENTOS-HISTORICO).
     std::unique_ptr<BitacoraEvento> bitacoraEvento_;

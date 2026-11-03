@@ -439,6 +439,10 @@ endif()
 #   evento/      marco de la página del evento     rotulos/   el nombre del que habla
 #   registro/    registro de personas por tótem (REGISTRO-TOTEM.md)
 install(DIRECTORY "${CMAKE_SOURCE_DIR}/assets/web/" DESTINATION Web)
+# El tablero web (/control/app/: el dashboard de la app en Qt para WebAssembly,
+# src/tablero-web). Lo arma `make tablero-web` aparte (otro compilador: emscripten); si
+# no está, la app sale igual y /control/app/ da 404 (la superficie HTML sigue en /control/).
+include("${CMAKE_SOURCE_DIR}/cmake/BaTableroWeb.cmake")
 
 # --- TURN de la caja (src/gateway/turn, docs/funciones/TURN.md) --------------
 # BA_GATEWAY_LIB_SOURCES no es recursivo y no ve turn/: se suman a TODOS los

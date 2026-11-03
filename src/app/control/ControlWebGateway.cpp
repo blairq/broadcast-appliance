@@ -46,6 +46,58 @@ void ControlWebGateway::enviar(const std::string& ruta, const json& cuerpo) {
     if (gw_.online()) sala::pedir(gw_, "POST", ruta, cuerpo, {});
 }
 
+void ControlWebGateway::enviarEnOrden(const std::string& cid, const json& msg) {
+    if (!gw_.online()) {
+        enOrden_.erase(cid);
+        return;
+    }
+    ColaOrden& c = enOrden_[cid];
+    c.pendientes.push_back(msg);
+    if (!c.enVuelo) siguienteEnOrden(cid);
+}
+
+void ControlWebGateway::siguienteEnOrden(const std::string& cid) {
+    auto it = enOrden_.find(cid);
+    if (it == enOrden_.end()) return;
+    ColaOrden& c = it->second;
+    if (c.pendientes.empty()) {
+        enOrden_.erase(it);
+        return;
+    }
+    c.enVuelo = true;
+    json msg = std::move(c.pendientes.front());
+    c.pendientes.pop_front();
+    QPointer<ControlWebGateway> yo(this);
+    sala::pedir(gw_, "POST", "/api/v1/control/enviar", {{"conexiones", json::array({cid})}, {"msg", std::move(msg)}},
+                [yo, cid](const std::string& error, const json& r) {
+                    if (!yo) return;
+                    auto it = yo->enOrden_.find(cid);
+                    if (it == yo->enOrden_.end()) return;
+                    it->second.enVuelo = false;
+                    // La conexión ya no está (o el gateway no contesta): se tira lo que esperaba.
+                    if (!error.empty() || r.value("entregado", 1) == 0) {
+                        yo->enOrden_.erase(it);
+                        return;
+                    }
+                    yo->siguienteEnOrden(cid);
+                });
+}
+
+void ControlWebGateway::enviarCuadro(const std::string& cid, const json& msg) {
+    if (!gw_.online()) return;
+    int& n = cuadrosEnVuelo_[cid];
+    if (n >= kCuadrosEnVuelo) return;
+    ++n;
+    QPointer<ControlWebGateway> yo(this);
+    sala::pedir(gw_, "POST", "/api/v1/control/enviar", {{"conexiones", json::array({cid})}, {"msg", msg}},
+                [yo, cid](const std::string&, const json&) {
+                    if (!yo) return;
+                    auto it = yo->cuadrosEnVuelo_.find(cid);
+                    if (it == yo->cuadrosEnVuelo_.end()) return;
+                    if (--it->second <= 0) yo->cuadrosEnVuelo_.erase(it);
+                });
+}
+
 void ControlWebGateway::evento(const json& ev) {
     const std::string tipo = texto(ev, "tipo");
     if (tipo == "solicitud") {

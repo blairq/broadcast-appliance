@@ -76,6 +76,8 @@ const char* tipoDe(const std::string& relOriginal) {
     if (termina(".gif")) return "image/gif";
     if (termina(".ico")) return "image/x-icon";
     if (termina(".pdf")) return "application/pdf";
+    // El tablero web (Qt para WebAssembly): con este tipo el navegador lo compila mientras baja.
+    if (termina(".wasm")) return "application/wasm";
     // Las fuentes (las del programa y las del tema del evento, Eventos/<x>/Tema/).
     if (termina(".woff2")) return "font/woff2";
     if (termina(".woff")) return "font/woff";

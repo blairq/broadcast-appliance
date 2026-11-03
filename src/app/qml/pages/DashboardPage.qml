@@ -126,6 +126,7 @@ Item {
             }
         }
         GlassButton {
+            visible: !Theme.web // la ventana se abriría en la máquina de la app
             text: qsTr("Sacar a ventana"); icon: "⧉"
             onClicked: Studio.ventanas.abrir(["fondo"], "")
             ToolTip.visible: hovered_; ToolTip.text: qsTr("Abre el video de fondo en una ventana aparte (sin cortes), p. ej. para otro monitor")
@@ -189,8 +190,9 @@ Item {
                         onTriggered: Studio.dashboard.backgroundLayout = modelData.id
                     }
                 }
-                MenuSeparator {}
-                MenuItem { text: qsTr("Sacar a una ventana"); onTriggered: Studio.ventanas.abrir(["fondo"], "") }
+                MenuSeparator { visible: !Theme.web; height: visible ? implicitHeight : 0 }
+                MenuItem { text: qsTr("Sacar a una ventana"); visible: !Theme.web; height: visible ? implicitHeight : 0
+                           onTriggered: Studio.ventanas.abrir(["fondo"], "") }
                 MenuSeparator {}
                 MenuItem { text: qsTr("Mas oscuro"); onTriggered: Studio.dashboard.backgroundDim += 0.1 }
                 MenuItem { text: qsTr("Mas claro"); onTriggered: Studio.dashboard.backgroundDim -= 0.1 }

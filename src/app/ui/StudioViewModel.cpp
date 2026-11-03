@@ -21,6 +21,10 @@
 #include "asamblea/SesionRemota.hpp"
 #include "control/BusEventos.hpp"
 #include "control/ControlWeb.hpp"
+#include "control/ControlWebGateway.hpp"
+#include "control/CuadrosWeb.hpp"
+#include "control/ReplicaPublicador.hpp"
+#include "sala/EnlacesSala.hpp"
 #include "control/Dsk.hpp"
 #include "diag/DiarioDeArranque.hpp"
 #include "diag/Registro.hpp"
@@ -780,6 +784,33 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, VentanillaMotor& ventanilla, QO
     connect(control_.get(), &ControlViewModel::mostrarQr, this, &StudioViewModel::mostrarQr);
     connect(control_.get(), &ControlViewModel::dskCambio, this, &StudioViewModel::publicarTally);
     control_->dsk().setSalida(salidas_->activaId());
+    // El tablero web (/control/app/): la misma vista del dashboard en el navegador, con este
+    // modelo replicado (control/ReplicaPublicador) y el video de sus vistas (control/CuadrosWeb).
+    {
+        control::ControlWeb& cw = control_->controlWeb();
+        control::ControlWebGateway& cwg = control_->controlWebGateway();
+        replica_ = std::make_unique<control::ReplicaPublicador>(this);
+        // Lo que no sale nunca: credenciales y cuentas, los aparatos del control web y las
+        // ventanas y el escritorio de ESTA máquina (no tienen sentido en otro aparato).
+        replica_->negar({"settings", "cuentas", "controlWeb", "control", "youtube", "twitch", "facebook", "system",
+                         "botonera", "satellite", "carasBotonera", "ventanas", "escritorio", "agent",
+                         "agenteAutomatizacion", "asistente", "descargas", "modelos", "accesoRemoto"});
+        replica_->negarFunciones({"copiar", "quit", "quitRequested", "salir", "reiniciar", "abrirCarpeta", "abrirArchivo",
+                                  "abrirUrl", "revelar", "mostrarEnFinder"});
+        cuadrosWeb_ = std::make_unique<control::CuadrosWeb>(frames_.get());
+        replica_->ganchos().enviar = [&cwg](const std::string& cid, const nlohmann::json& m) { cwg.enviarEnOrden(cid, m); };
+        replica_->ganchos().anotar = [&cw](const std::string& ap, const std::string& t) { cw.anotar(ap, t); };
+        replica_->ganchos().video = [this](const std::string& cid, const nlohmann::json& c) { cuadrosWeb_->pedir(cid, c); };
+        replica_->ganchos().enlaceCast = [this](std::function<void(const std::string&, const std::string&)> listo) {
+            conference_->enlaces().pantalla("Tablero web", -1, [listo](const sala::Enlace& e) {
+                listo(e.ok ? e.url : std::string(), e.ok ? std::string() : (e.mensaje.empty() ? std::string("sin enlace") : e.mensaje));
+            });
+        };
+        cuadrosWeb_->enviar = [&cwg](const std::string& cid, const nlohmann::json& m) { cwg.enviarCuadro(cid, m); };
+        cw.ganchos().replica = [this](const std::string& cid, const std::string& ap, const nlohmann::json& perfil,
+                                      const nlohmann::json& msg) { replica_->entrada(cid, ap, perfil, msg); };
+        cw.ganchos().cerrada = [this](const std::string& cid) { replica_->cerrada(cid); };
+    }
     linea_ = std::make_unique<LineaViewModel>(*evento_, rt_, ventanilla_, frames_.get(), &control_->acciones(), bus_.get());
     connect(linea_.get(), &LineaViewModel::notify, this, &StudioViewModel::notify);
     // La grilla de personas (fuentes ba_grilla): la gente de la sala y de la asamblea,

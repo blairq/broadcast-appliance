@@ -49,7 +49,17 @@ inline int kAuthMs() { return ba::ajustes::sAMs("controlWeb.authS", 10); }
 inline std::int64_t kSolicitudMs() { return ba::ajustes::entero64("controlWeb.solicitudMin", 5) * 60 * 1000; }
 constexpr std::size_t kMaxMensaje = 64 * 1024;
 /// Lo único que se le pasa a la app; el resto se descarta acá.
-const std::set<std::string> kTipos{"hola", "llamar", "mirar", "preferencias"};
+const std::set<std::string> kTipos{"hola", "llamar", "mirar", "preferencias", "replica"};
+
+/// ¿El cliente acepta esa codificación? (Accept-Encoding, sin distinguir mayúsculas)
+bool acepta(const std::string& headers, const char* codificacion) {
+    std::string h = headers;
+    std::transform(h.begin(), h.end(), h.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+    const auto i = h.find("accept-encoding:");
+    if (i == std::string::npos) return false;
+    const auto fin = h.find('\n', i);
+    return h.substr(i, fin == std::string::npos ? std::string::npos : fin - i).find(codificacion) != std::string::npos;
+}
 
 } // namespace
 
@@ -83,6 +93,35 @@ bool ControlWebBorde::servir(long long fd, const std::string& rel) {
                          "Content-Security-Policy: default-src 'self'; connect-src 'self' ws: wss:; img-src 'self' data: blob:; "
                          "media-src 'self' blob:; frame-ancestors 'self'; base-uri 'none'; form-action 'none'\r\n"
                          "X-Content-Type-Options: nosniff\r\nReferrer-Policy: no-referrer\r\n");
+}
+
+bool ControlWebBorde::servirTablero(long long fd, const std::string& rel, const std::string& query,
+                                    const std::string& headers) {
+    // El tablero web (Qt para WebAssembly, src/tablero-web): el .wasm necesita
+    // 'wasm-unsafe-eval' para compilarse (nada de eval de JS). Lo grande (.wasm, .js) viaja
+    // comprimido de antemano (.br por HTTPS, .gz por HTTP: el navegador no pide br sin
+    // TLS) y con la versión en la consulta (?v=): se guarda para siempre en el navegador y
+    // una versión nueva es otra URL. La página misma, sin caché.
+    const bool versionado = query.find("v=") != std::string::npos;
+    const bool grande = rel.size() > 5 && (rel.compare(rel.size() - 5, 5, ".wasm") == 0 || rel.compare(rel.size() - 3, 3, ".js") == 0);
+    std::string cab = std::string(versionado ? "Cache-Control: public, max-age=31536000, immutable\r\n" : "Cache-Control: no-cache\r\n") +
+                      "Content-Security-Policy: default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; connect-src 'self' ws: "
+                      "wss:; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; font-src 'self' data:; media-src "
+                      "'self' blob:; frame-ancestors 'self'; base-uri 'none'; form-action 'none'\r\n"
+                      "X-Content-Type-Options: nosniff\r\nReferrer-Policy: no-referrer\r\nVary: Accept-Encoding\r\n";
+    if (grande) {
+        std::error_code ec;
+        for (const auto& [ext, nombre] : {std::pair<const char*, const char*>{".br", "br"}, {".gz", "gzip"}}) {
+            if (!acepta(headers, nombre) || !std::filesystem::exists(std::filesystem::path(webroot_) / (rel + ext), ec)) continue;
+            std::ifstream f(std::filesystem::path(webroot_) / (rel + ext), std::ios::binary);
+            if (!f) continue;
+            std::ostringstream ss;
+            ss << f.rdbuf();
+            http::sendResponse(fd, 200, borde::tipoDe(rel), ss.str(), cab + "Content-Encoding: " + nombre + "\r\n");
+            return true;
+        }
+    }
+    return borde::servir(fd, webroot_, rel, cab.c_str());
 }
 
 bool ControlWebBorde::intentoPermitido(std::uint32_t ip) {
@@ -172,6 +211,7 @@ bool ControlWebBorde::atender(long long fd, const std::string& method, const std
                                       "Location: /control/" + rel + "/" + (query.empty() ? std::string() : "?" + query) + "\r\n"),
                    true;
         if (rel.empty() || rel.back() == '/') rel += "index.html";
+        if (rel.rfind("app/", 0) == 0) return servirTablero(fd, rel, query, headers);
         return servir(fd, rel);
     }
     if (api && method == "POST") {
@@ -313,6 +353,11 @@ void ControlWebBorde::wsLoop(long long fd, const std::string& headers, std::uint
                 for (const auto& x : m["temas"])
                     if (x.is_string() && temas.size() < 32) temas.push_back(x);
             limpio["temas"] = temas;
+        } else if (t == "replica") {
+            // El tablero web (/control/app/): lo valida la app (control/ReplicaPublicador).
+            // Acá solo que sea un objeto con su `op` (el tamaño ya lo cortó el canal).
+            if (!m.contains("op") || !m["op"].is_string()) return true;
+            limpio = m;
         } else if (t == "preferencias") {
             if (!m.contains("datos") || !m["datos"].is_object() || m["datos"].dump().size() > 8192) return true;
             limpio["datos"] = m["datos"];

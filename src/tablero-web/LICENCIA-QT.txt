@@ -1,0 +1,27 @@
+El tablero web (ba-tablero.wasm) — licencias
+=============================================
+
+ba-tablero.wasm es el dashboard de Broadcast Appliance compilado para el navegador con
+Qt 6.6.3 para WebAssembly. En WebAssembly Qt va ENLAZADO ESTÁTICAMENTE adentro del .wasm.
+
+- El código propio (src/tablero-web y la QML de src/app/qml) es GPL-2.0-or-later, como el
+  resto del programa. Su fuente completa es pública (el repositorio del proyecto).
+- Qt (QtCore, QtGui, QtQml, QtQuick, QtQuickControls2, QtSvg…) se usa bajo la LGPL-3.0.
+  qtloader.js (el cargador de Qt) viene bajo la GPL-3.0. El conjunto se distribuye bajo
+  la GPL-3.0 (la GPL-2.0-or-later del proyecto lo permite).
+
+Volver a enlazar con otro Qt (LGPL-3.0, sección 4)
+--------------------------------------------------
+Para usar una versión modificada de Qt:
+
+1. Con la fuente: `make deps-wasm` (o apuntar extern/qt6-wasm a tu Qt para WebAssembly)
+   y `make tablero-web`. Es lo que arma este archivo.
+2. Sin compilar el proyecto: ba-tablero-objetos.tar.gz trae los objetos (.o) propios —el
+   código, los recursos de QML y las fuentes compiladas— y `enlazar.txt`, el comando con
+   que se enlazaron (em++ de emscripten 3.1.37). Cambiando en ese comando las rutas de las
+   bibliotecas de Qt por las de tu Qt para WebAssembly (misma versión de emscripten), sale
+   un ba-tablero.wasm/ba-tablero.js nuevo que se pone en Web/control/app del bundle.
+
+La fuente de Qt: https://download.qt.io/archive/qt/6.6/6.6.3/single/
+Los textos de las licencias: https://www.gnu.org/licenses/lgpl-3.0.html y
+https://www.gnu.org/licenses/gpl-3.0.html

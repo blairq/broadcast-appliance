@@ -452,6 +452,7 @@ void ControlWeb::conexion(const std::string& cid, const std::string& aparato, bo
                           const std::string& lugar) {
     if (!conectado) {
         if (conns_.erase(cid) == 0) return;
+        if (g_.cerrada) g_.cerrada(cid);
         reacomodarSondeos();
         emit conexionesCambio();
         emit aparatosCambio();
@@ -549,7 +550,10 @@ void ControlWeb::entrada(const std::string& cid, const std::string& aparato, con
     else if (t == "mirar") mirar(cid, msg);
     else if (t == "hola") enviarAuth(cid);
     else if (t == "preferencias") preferencias(cid, msg);
-    else if (t == "salida") {
+    else if (t == "replica") {
+        const json* a = buscarAparato(conns_[cid].aparato);
+        if (g_.replica && a != nullptr) g_.replica(cid, conns_[cid].aparato, a->value("perfil", json::array()), msg);
+    } else if (t == "salida") {
         if (const std::string e = setSalida(conns_[cid].aparato, textoDe(msg, "salida")); !e.empty()) {
             json m = mensajeSalida(conns_[cid].aparato);
             m["error"] = e;

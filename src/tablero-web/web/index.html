@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="es" data-version="@VERSION@">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#16161a" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <title>Broadcast Appliance</title>
+  <link rel="apple-touch-icon" href="/comun/icono-180.png" />
+  <link rel="stylesheet" href="tablero.css?v=@VERSION@" />
+  <!--
+    El tablero web: el MISMO dashboard de la app (Qt para WebAssembly, src/tablero-web).
+    El aparato entra con el token que guardó al emparejarse en /control/ (QR o PIN, una vez);
+    el canal (/comun/canal.js) lo manda en el primer mensaje, nunca en la URL.
+  -->
+  <script src="/comun/canal.js"></script>
+  <script src="qtloader.js?v=@VERSION@"></script>
+  <script src="ba-tablero.js?v=@VERSION@"></script>
+  <script src="puente.js?v=@VERSION@" defer></script>
+</head>
+<body>
+  <div id="pantalla"></div>
+  <section id="aviso">
+    <div class="caja">
+      <div id="girando" class="girando"></div>
+      <h1 id="aviso-titulo">Cargando el tablero…</h1>
+      <p id="aviso-texto"></p>
+      <a id="aviso-enlace" class="oculto" href="/control/">Ir al control web</a>
+    </div>
+  </section>
+</body>
+</html>

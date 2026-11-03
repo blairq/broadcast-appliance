@@ -55,6 +55,9 @@ QtObject {
     // Para numeros que se leen en columna (tiempos, relojes, contadores): con
     // ancho fijo no bailan cuando cambian.
     readonly property string mono: "JetBrains Mono"
+    /// En el tablero web (la misma QML en el navegador, src/tablero-web): lo que es de ESTA
+    /// máquina (sacar a una ventana, abrir otra página) no se muestra.
+    readonly property bool web: Qt.platform.os === "wasm"
 
     /// Cuánto hace, legible: «12 s», «5 min», «3 h», «4 días» (antes salía «5826 min»).
     function hace(seg) {
