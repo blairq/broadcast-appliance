@@ -1704,7 +1704,7 @@
         <translation>Дебаты</translation>
     </message>
     <message>
-        <location line="+44" />
+        <location line="+47" />
         <source>Grillas de personas</source>
         <translation>Сетки людей</translation>
     </message>
@@ -5287,12 +5287,12 @@ Recorrer la tira no cambia lo que se ve.</source>
     </message>
     <message>
         <location line="+4" />
-        <location line="+1043" />
+        <location line="+1044" />
         <source>Tiempo</source>
         <translation>Время</translation>
     </message>
     <message>
-        <location line="-1037" />
+        <location line="-1038" />
         <source>Tiempo general para cada orador (m:ss o minutos)</source>
         <translation>Общее время для каждого выступающего (м:сс или минуты)</translation>
     </message>
@@ -5388,7 +5388,7 @@ Recorrer la tira no cambia lo que se ve.</source>
     </message>
     <message numerus="yes">
         <location line="+0" />
-        <location line="+477" />
+        <location line="+478" />
         <source>%n esperando</source>
         <translation>
             <numerusform>%n ждёт</numerusform>
@@ -5397,7 +5397,7 @@ Recorrer la tira no cambia lo que se ve.</source>
         </translation>
     </message>
     <message numerus="yes">
-        <location line="-476" />
+        <location line="-477" />
         <source>%n entrando (%1 por segundo)</source>
         <translation>
             <numerusform>%n входит (%1 в секунду)</numerusform>
@@ -5558,18 +5558,18 @@ Recorrer la tira no cambia lo que se ve.</source>
     </message>
     <message>
         <location line="+1" />
-        <location line="+515" />
+        <location line="+516" />
         <source>Reiniciar</source>
         <translation>Перезапустить</translation>
     </message>
     <message>
-        <location line="-515" />
-        <location line="+515" />
+        <location line="-516" />
+        <location line="+516" />
         <source>Cancelar</source>
         <translation>Отмена</translation>
     </message>
     <message>
-        <location line="-512" />
+        <location line="-513" />
         <source>La conferencia se está reiniciando.</source>
         <translation>Конференция перезапускается.</translation>
     </message>
@@ -5601,7 +5601,7 @@ Compartí el enlace y el PIN (panel Acceso).</source>
         <translation>лично</translation>
     </message>
     <message>
-        <location line="+37" />
+        <location line="+38" />
         <source>Vos</source>
         <translation>Вы</translation>
     </message>
@@ -6176,7 +6176,7 @@ El PIN anterior deja de servir para entrar.</source>
         <translation>%1 ждёт в зале ожидания</translation>
     </message>
     <message>
-        <location line="+186" />
+        <location line="+196" />
         <location line="+12" />
         <location line="+130" />
         <source>No se pudo reiniciar la conferencia: %1. Si sigue, cerrá y volvé a abrir el programa.</source>
@@ -7716,7 +7716,7 @@ Se prende desde el Registro.</source>
         <translation>%1 (план %2)</translation>
     </message>
     <message>
-        <location line="+26" />
+        <location line="+29" />
         <source>Ver el teleprompter ↗</source>
         <translation>Открыть телесуфлёр ↗</translation>
     </message>
@@ -7963,12 +7963,12 @@ Se prende desde el Registro.</source>
     </message>
     <message>
         <location line="+40" />
-        <location line="+53" />
+        <location line="+54" />
         <source>Aplicar</source>
         <translation>Применить</translation>
     </message>
     <message>
-        <location line="-43" />
+        <location line="-44" />
         <source>Todavía no hay distribuciones. Abrí las ventanas como las querés y «Guardar la actual», o armá una desde una plantilla.</source>
         <translation>Раскладок пока нет. Расставьте окна как нужно и нажмите «Сохранить текущую» или создайте раскладку из шаблона.</translation>
     </message>
@@ -7979,8 +7979,13 @@ Se prende desde el Registro.</source>
     </message>
     <message>
         <location line="+7" />
-        <source>También con Ctrl+Shift+F12 desde cualquier ventana de la app</source>
-        <translation>Также Ctrl+Shift+F12 из любого окна приложения</translation>
+        <source>También con Control+Esc (⌃Esc) desde cualquier ventana de la app, o con el botón que aparece arriba a la derecha al mover el mouse sobre la distribución</source>
+        <translation>Также Control+Esc (⌃Esc) из любого окна приложения или кнопкой, которая появляется справа вверху, когда двигаешь мышь над раскладкой</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>También con Mayús+Esc desde cualquier ventana de la app, o con el botón que aparece arriba a la derecha al mover el mouse sobre la distribución</source>
+        <translation>Также Shift+Esc из любого окна приложения или кнопкой, которая появляется справа вверху, когда двигаешь мышь над раскладкой</translation>
     </message>
     <message>
         <location line="+23" />
@@ -8086,7 +8091,7 @@ Se prende desde el Registro.</source>
 <context>
     <name>DocumentosViewModel</name>
     <message>
-        <location filename="../src/app/ui/DocumentosViewModel.cpp" line="+133" />
+        <location filename="../src/app/ui/DocumentosViewModel.cpp" line="+141" />
         <source>sin miniatura (no es un PDF ni una imagen, o no se pudo leer)</source>
         <translation>нет миниатюры (не PDF и не изображение, или не удалось прочитать)</translation>
     </message>
@@ -9356,7 +9361,7 @@ Se prende desde el Registro.</source>
 <context>
     <name>EscritorioViewModel</name>
     <message>
-        <location filename="../src/app/ui/EscritorioViewModel.cpp" line="+145" />
+        <location filename="../src/app/ui/EscritorioViewModel.cpp" line="+150" />
         <source>No hay un monitor «%1»: decí su número, su nombre o su id.</source>
         <translation>Монитора «%1» нет: укажите его номер, имя или id.</translation>
     </message>
@@ -9643,12 +9648,12 @@ Se prende desde el Registro.</source>
     <message>
         <location line="+5" />
         <location line="+323" />
-        <location line="+133" />
+        <location line="+150" />
         <source>Guion</source>
         <translation>Сценарий</translation>
     </message>
     <message>
-        <location line="-453" />
+        <location line="-470" />
         <source>Otro guion dentro de este mismo evento (comparte escenas y medios). Para un evento aparte: «Evento nuevo…»</source>
         <translation>Ещё один сценарий в этом же мероприятии (общие сцены и медиа). Для отдельного мероприятия: «Новое мероприятие…»</translation>
     </message>
@@ -9794,12 +9799,12 @@ Se prende desde el Registro.</source>
     </message>
     <message>
         <location line="+0" />
-        <location line="+1253" />
+        <location line="+1270" />
         <source>Cerrar</source>
         <translation>Закрыть</translation>
     </message>
     <message numerus="yes">
-        <location line="-1243" />
+        <location line="-1260" />
         <source>%n herramienta · %1 s</source>
         <translation>
             <numerusform>%n инструмент · %1 с</numerusform>
@@ -9896,7 +9901,22 @@ Se prende desde el Registro.</source>
         <translation>Документы</translation>
     </message>
     <message>
-        <location line="+8" />
+        <location line="+1" />
+        <source>Eventos (%1)</source>
+        <translation>События (%1)</translation>
+    </message>
+    <message>
+        <location line="+0" />
+        <source>Eventos</source>
+        <translation>События</translation>
+    </message>
+    <message>
+        <location line="+9" />
+        <source>Los eventos de este equipo</source>
+        <translation>События на этом устройстве</translation>
+    </message>
+    <message>
+        <location line="+15" />
         <source>Documentación del evento</source>
         <translation>Документация мероприятия</translation>
     </message>
@@ -10518,7 +10538,7 @@ Se prende desde el Registro.</source>
         <translation>Не удалось удалить: %1</translation>
     </message>
     <message>
-        <location filename="../src/app/ui/GuionViewModel.cpp" line="+538" />
+        <location filename="../src/app/ui/GuionViewModel.cpp" line="+549" />
         <source>no existe un gráfico llamado "%1"</source>
         <translation>графики с названием "%1" не существует</translation>
     </message>
@@ -15314,7 +15334,7 @@ Se cambia en su código (sección Plugins, o pidiéndoselo al asistente). Acá s
         <translation>Подтвердить (R)</translation>
     </message>
     <message>
-        <location line="+50" />
+        <location line="+52" />
         <source>El servidor (gateway) se reinició: %1</source>
         <translation>Сервер (шлюз) перезапустился: %1</translation>
     </message>
@@ -15830,13 +15850,13 @@ La matriz no cambia lo que entra: decide a qué salidas va (las columnas: el pro
     </message>
     <message>
         <location line="+1" />
-        <location line="+118" />
+        <location line="+119" />
         <location line="+52" />
         <source>Cerrar</source>
         <translation>Закрыть</translation>
     </message>
     <message>
-        <location line="-151" />
+        <location line="-152" />
         <source>Pista %1 de la grabación</source>
         <translation>Дорожка %1 записи</translation>
     </message>
@@ -15921,7 +15941,7 @@ La matriz no cambia lo que entra: decide a qué salidas va (las columnas: el pro
         <translation>Mute для</translation>
     </message>
     <message>
-        <location line="+22" />
+        <location line="+23" />
         <source>Ocultar este dispositivo</source>
         <translation>Скрыть это устройство</translation>
     </message>
@@ -16902,7 +16922,7 @@ La matriz no cambia lo que entra: decide a qué salidas va (las columnas: el pro
     <name>MultiviewViewModel</name>
     <message>
         <location filename="../src/app/ui/MultiviewViewModel.cpp" line="+77" />
-        <location line="+54" />
+        <location line="+59" />
         <source>Multiview %1</source>
         <translation>Мультивью %1</translation>
     </message>
@@ -19104,7 +19124,7 @@ Agregale imágenes desde la pestaña Archivos.</source>
 <context>
     <name>PanelConexionesRemotas</name>
     <message>
-        <location filename="../src/app/qml/controls/PanelConexionesRemotas.qml" line="+33" />
+        <location filename="../src/app/qml/controls/PanelConexionesRemotas.qml" line="+37" />
         <source>Conectados: %1 · presentes: %2</source>
         <translation>Подключено: %1 · присутствуют: %2</translation>
     </message>
@@ -19198,23 +19218,23 @@ Agregale imágenes desde la pestaña Archivos.</source>
         <location line="+0" />
         <location line="+35" />
         <location line="+3" />
-        <location line="+198" />
+        <location line="+199" />
         <location line="+2" />
         <source>Revocar</source>
         <translation>Отозвать</translation>
     </message>
     <message>
-        <location line="-238" />
+        <location line="-239" />
         <location line="+19" />
         <location line="+19" />
         <location line="+92" />
-        <location line="+95" />
+        <location line="+96" />
         <location line="+13" />
         <source>Cancelar</source>
         <translation>Отмена</translation>
     </message>
     <message>
-        <location line="-229" />
+        <location line="-230" />
         <source>Todavía no hay ningún acceso. Tocá «Nuevo acceso…» y pasale el link (o el QR) a quien preside.</source>
         <translation>Доступов пока нет. Нажмите «Новый доступ…» и передайте ссылку (или QR) председательствующему.</translation>
     </message>
@@ -19397,12 +19417,12 @@ Agregale imágenes desde la pestaña Archivos.</source>
     </message>
     <message>
         <location line="+1" />
-        <location line="+157" />
+        <location line="+158" />
         <source>Usuario</source>
         <translation>Логин</translation>
     </message>
     <message>
-        <location line="-156" />
+        <location line="-157" />
         <source>Acceso</source>
         <translation>Доступ</translation>
     </message>
@@ -19412,7 +19432,7 @@ Agregale imágenes desde la pestaña Archivos.</source>
         <translation>Состояние</translation>
     </message>
     <message>
-        <location line="+14" />
+        <location line="+15" />
         <source>Todavía no hay integrantes</source>
         <translation>Участников пока нет</translation>
     </message>
@@ -28100,7 +28120,7 @@ De frente, de costado, con anteojos y sin: así se la reconoce en el día real.<
         <translation>Сервер недоступен.</translation>
     </message>
     <message>
-        <location line="+56" />
+        <location line="+65" />
         <source>El servidor no está corriendo</source>
         <translation>Сервер не запущен</translation>
     </message>
@@ -32010,7 +32030,7 @@ Para la escena base de la que salen las demás.</source>
         <translation>Выбрать</translation>
     </message>
     <message>
-        <location line="+66" />
+        <location line="+79" />
         <source>%1 de %2</source>
         <translation>%1 из %2</translation>
     </message>
@@ -32793,12 +32813,12 @@ Para la escena base de la que salen las demás.</source>
     <message>
         <location line="+3" />
         <location line="+614" />
-        <location line="+981" />
+        <location line="+978" />
         <source>Actualizar</source>
         <translation>Обновить</translation>
     </message>
     <message>
-        <location line="-1581" />
+        <location line="-1578" />
         <source>Copiar</source>
         <translation>Копировать</translation>
     </message>
@@ -33859,7 +33879,7 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
         <translation>Установленная версия: %1</translation>
     </message>
     <message>
-        <location line="+5" />
+        <location line="+2" />
         <source>Arranque y recuperación</source>
         <translation>Запуск и восстановление</translation>
     </message>
@@ -34337,7 +34357,7 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
         <translation>Конференция не перезапустилась (%1): нажмите «Перезапустить конференцию» в «Настройках» или на странице «Конференция».</translation>
     </message>
     <message>
-        <location filename="../src/app/ui/BitacoraEvento.cpp" line="+325" />
+        <location filename="../src/app/ui/BitacoraEvento.cpp" line="+344" />
         <source>El disco de los eventos está al %1 % (quedan %2 GB)</source>
         <translation>Диск мероприятий заполнен на %1 % (осталось %2 ГБ)</translation>
     </message>
@@ -35220,7 +35240,7 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
 <context>
     <name>TiemposModel</name>
     <message>
-        <location filename="../src/app/tiempos/TiemposModel.cpp" line="+409" />
+        <location filename="../src/app/tiempos/TiemposModel.cpp" line="+425" />
         <source>ya hay un análisis midiendo</source>
         <translation>анализ уже идёт</translation>
     </message>
@@ -36265,9 +36285,19 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
 <context>
     <name>VentanaLienzo</name>
     <message>
-        <location filename="../src/app/qml/VentanaLienzo.qml" line="+39" />
+        <location filename="../src/app/qml/VentanaLienzo.qml" line="+41" />
         <source>Broadcast Appliance — Distribución, monitor %1</source>
         <translation>Broadcast Appliance — раскладка, монитор %1</translation>
+    </message>
+    <message>
+        <location line="+93" />
+        <source>Mayús+Esc</source>
+        <translation>Shift+Esc</translation>
+    </message>
+    <message>
+        <location line="+30" />
+        <source>Salir de la distribución</source>
+        <translation>Выйти из раскладки</translation>
     </message>
 </context>
 <context>
@@ -37894,7 +37924,7 @@ Elegí otra cosa en Salidas → Pantallas.</source>
 <context>
     <name>VistaGrillas</name>
     <message>
-        <location filename="../src/app/qml/controls/VistaGrillas.qml" line="+41" />
+        <location filename="../src/app/qml/controls/VistaGrillas.qml" line="+47" />
         <source>No hay grillas de personas. Se agregan en Escenas → Agregar → Grilla de personas.</source>
         <translation>Сеток людей нет. Они добавляются в Сцены → Добавить → Сетка людей.</translation>
     </message>
@@ -37915,12 +37945,12 @@ Elegí otra cosa en Salidas → Pantallas.</source>
     </message>
     <message>
         <location line="+15" />
-        <location line="+92" />
+        <location line="+93" />
         <source>al aire</source>
         <translation>в эфире</translation>
     </message>
     <message numerus="yes">
-        <location line="-92" />
+        <location line="-93" />
         <source>%n persona</source>
         <translation>
             <numerusform>%n человек</numerusform>
@@ -37954,7 +37984,7 @@ Elegí otra cosa en Salidas → Pantallas.</source>
         <translation>Вернуть «%1» в эту сетку (обратно в автоматический режим)</translation>
     </message>
     <message>
-        <location line="+20" />
+        <location line="+21" />
         <source>(asamblea)</source>
         <translation>(собрание)</translation>
     </message>
@@ -44698,7 +44728,7 @@ Elegí otra cosa en Salidas → Pantallas.</source>
 <context>
     <name>arranque</name>
     <message>
-        <location filename="../src/app/arranque/GuiMode.cpp" line="+174" />
+        <location filename="../src/app/arranque/GuiMode.cpp" line="+177" />
         <source>arranque: el cartel de carga ya se ve</source>
         <translation>запуск: заставка загрузки уже видна</translation>
     </message>
@@ -47129,7 +47159,7 @@ Datos (de %2): %3</source>
         <translation>Список тех, кто проходит автоматически при распознавании, — это список участников мероприятия: padron_ver {solos: true}; меняется через padron_cambiar {id, dejarPasarSolo}.</translation>
     </message>
     <message>
-        <location filename="../src/app/ui/GuionViewModel.cpp" line="+166" />
+        <location filename="../src/app/ui/GuionViewModel.cpp" line="+156" />
         <source>Quiero preparar un evento nuevo: «%1». Seguí la guía de ese tipo de evento: evento_escenario {"id": "%2"} (trae el protocolo común y lo propio de este tipo). Empezá por las preguntas, de a pocas y con opciones; no armes nada hasta que te confirme el plan. </source>
         <translation>Хочу подготовить новое мероприятие: «%1». Следуйте руководству для этого типа мероприятий: evento_escenario {"id": "%2"} (там общий протокол и особенности этого типа). Начните с вопросов, понемногу и с вариантами; ничего не собирайте, пока я не подтвержу план. </translation>
     </message>
@@ -50243,7 +50273,7 @@ Datos (de %2): %3</source>
         <translation>зависание интерфейса длилось около %1 мс (стеки в %2)</translation>
     </message>
     <message>
-        <location filename="../src/app/arranque/GuiMode.cpp" line="-380" />
+        <location filename="../src/app/arranque/GuiMode.cpp" line="-381" />
         <source>--detectar-acoples solo anda con --test: no se enciende</source>
         <translation>--detectar-acoples работает только с --test: не включён</translation>
     </message>
@@ -50254,7 +50284,7 @@ Datos (de %2): %3</source>
         <translation>--detectar-acoples: в этой программе нет детектора</translation>
     </message>
     <message>
-        <location filename="../src/core/diag/Acoples.cpp" line="+152" />
+        <location filename="../src/core/diag/Acoples.cpp" line="+160" />
         <source>detector de acoples ENCENDIDO: cada camino de la interfaz que no pasa por el modelo espera %1 ms de más y queda anotado (solo pruebas)</source>
         <translation>детектор связей ВКЛЮЧЁН: каждый путь интерфейса в обход модели ждёт на %1 мс дольше и записывается (только для тестов)</translation>
     </message>
@@ -50264,7 +50294,7 @@ Datos (de %2): %3</source>
         <translation>детектор связей выключен</translation>
     </message>
     <message>
-        <location line="+53" />
+        <location line="+64" />
         <source>acople de la interfaz (%1): %2 en %3, mientras corría «%4»</source>
         <translation>связь интерфейса (%1): %2 в %3, пока выполнялось «%4»</translation>
     </message>
@@ -53788,7 +53818,7 @@ Datos (de %2): %3</source>
         <translation>Ничего не делает: это подсказка для вас.</translation>
     </message>
     <message>
-        <location filename="../src/app/ui/GuionViewModel.cpp" line="-418" />
+        <location filename="../src/app/ui/GuionViewModel.cpp" line="-408" />
         <source>El del programa (%1)</source>
         <translation>Часовой пояс программы (%1)</translation>
     </message>
@@ -53968,7 +53998,7 @@ Datos (de %2): %3</source>
         <translation>На шкале нет выхода «%1» (есть: %2).</translation>
     </message>
     <message>
-        <location filename="../src/app/ui/GuionViewModel.cpp" line="-222" />
+        <location filename="../src/app/ui/GuionViewModel.cpp" line="-233" />
         <source>PTZ probado con las cámaras reales (presets, que no se muevan al aire)</source>
         <translation>PTZ проверен с реальными камерами (пресеты, без движения в эфире)</translation>
     </message>
@@ -57945,12 +57975,12 @@ Lo que queda vacío no deja separadores colgando: «{nombre} — {cargo}» sin c
         <translation>записи удалены (хранение %1 дн.)</translation>
     </message>
     <message>
-        <location filename="../src/app/ui/BitacoraEvento.cpp" line="-266" />
+        <location filename="../src/app/ui/BitacoraEvento.cpp" line="-285" />
         <source>la app se cierra</source>
         <translation>приложение закрывается</translation>
     </message>
     <message>
-        <location line="+65" />
+        <location line="+84" />
         <source>%1 %2 (con la app cerrada)</source>
         <translation>%1 %2 (при закрытом приложении)</translation>
     </message>
@@ -59071,7 +59101,7 @@ Lo que queda vacío no deja separadores colgando: «{nombre} — {cargo}» sin c
 <context>
     <name>mcp</name>
     <message>
-        <location filename="../src/app/arranque/GuiMode.cpp" line="+220" />
+        <location filename="../src/app/arranque/GuiMode.cpp" line="+221" />
         <source>MODO PRUEBA (--test): el MCP no pide aprobaciones, ni siquiera las de aire</source>
         <translation>ТЕСТОВЫЙ РЕЖИМ (--test): MCP не запрашивает одобрений, даже эфирных</translation>
     </message>
@@ -78653,12 +78683,7 @@ EL DORSO: los tipos con `dorso: true` (el DNI y `mrz-td1`) se leen también por 
         <translation>Открыть панель или диалог страницы</translation>
     </message>
     <message>
-        <location line="+3" />
-        <source>Muestra la página `page` y abre su panel `panel` (el mismo que abre su botón), o lo cierra con panel="cerrar". Paneles: video → superresolucion (redes, placa, modelos, entrenar), entrada_virtual, catalogo (módulos de GStreamer); escenas → efectos (con `fuente`: la elige en el editor de la escena que se edita y muestra su transparencia, borde difuso y sombra); historico → registro (qué se anota en cada evento, disco y retención); guion → las pestañas de la página del evento (guion, padron, publico, orden, web, documentos). Para mirarlo, capture_ui.</source>
-        <translation>Показывает страницу `page` и открывает её панель `panel` (ту же, что открывает её кнопка), или закрывает с panel="cerrar". Панели: video → superresolucion (модели, видеокарта, загрузка моделей, обучение), entrada_virtual, catalogo (модули GStreamer); escenas → efectos (с `fuente`: выбирает её в редакторе редактируемой сцены и показывает её прозрачность, мягкий край и тень); historico → registro (что записывается для каждого мероприятия, диск и хранение); guion → вкладки страницы мероприятия (guion, padron, publico, orden, web, documentos). Чтобы посмотреть: capture_ui.</translation>
-    </message>
-    <message>
-        <location line="+10" />
+        <location line="+13" />
         <source>uno de los de esa página, o "cerrar"</source>
         <translation>одна из панелей этой страницы или "cerrar"</translation>
     </message>
@@ -78698,7 +78723,12 @@ EL DORSO: los tipos con `dorso: true` (el DNI y `mrz-td1`) se leen también por 
         <translation>Показать страницу</translation>
     </message>
     <message>
-        <location line="+103" />
+        <location line="+55" />
+        <source>Muestra la página `page` y abre su panel `panel` (el mismo que abre su botón), o lo cierra con panel="cerrar". Paneles: video → superresolucion (redes, placa, modelos, entrenar), entrada_virtual, catalogo (módulos de GStreamer); escenas → efectos (con `fuente`: la elige en el editor de la escena que se edita y muestra su transparencia, borde difuso y sombra); historico → registro (qué se anota en cada evento, disco y retención); guion → las pestañas de la página del evento (guion, padron, publico, orden, web, documentos, eventos). Para mirarlo, capture_ui.</source>
+        <translation>Показывает страницу `page` и открывает её панель `panel` (ту же, что открывает её кнопка), или закрывает с panel="cerrar". Панели: video → superresolucion (модели, видеокарта, загрузка моделей, обучение), entrada_virtual, catalogo (модули GStreamer); escenas → efectos (с `fuente`: выбирает её в редакторе редактируемой сцены и показывает её прозрачность, мягкий край и тень); historico → registro (что записывается для каждого мероприятия, диск и хранение); guion → вкладки страницы мероприятия (guion, padron, publico, orden, web, documentos, eventos). Чтобы посмотреть: capture_ui.</translation>
+    </message>
+    <message>
+        <location line="+48" />
         <source>Sacar una página a su ventana</source>
         <translation>Вынести страницу в отдельное окно</translation>
     </message>
@@ -90148,7 +90178,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>Раскладка</translation>
     </message>
     <message>
-        <location line="+58" />
+        <location line="+63" />
         <source>Programa (lo que sale al aire)</source>
         <translation>Программа (то, что идёт в эфир)</translation>
     </message>
@@ -90163,7 +90193,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>Фон панели</translation>
     </message>
     <message>
-        <location line="+182" />
+        <location line="+239" />
         <source>%1 (ya no existe)</source>
         <translation>%1 (больше не существует)</translation>
     </message>
@@ -90320,20 +90350,20 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <location line="+15" />
         <location line="+11" />
         <location line="+14" />
-        <location line="+134" />
+        <location line="+135" />
         <location line="+92" />
         <source>No hay una distribución «%1».</source>
         <translation>Раскладки «%1» нет.</translation>
     </message>
     <message>
-        <location line="-387" />
+        <location line="-388" />
         <location line="+21" />
-        <location line="+371" />
+        <location line="+372" />
         <source>Ya hay una distribución que se llama «%1».</source>
         <translation>Раскладка «%1» уже есть.</translation>
     </message>
     <message>
-        <location line="-376" />
+        <location line="-377" />
         <source>%1 (copia)</source>
         <translation>%1 (копия)</translation>
     </message>
@@ -91325,7 +91355,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
     <name>prompter</name>
     <message>
         <location filename="../src/app/control/Botonera.cpp" line="-817" />
-        <location filename="../src/app/ui/PrompterViewModel.cpp" line="-29" />
+        <location filename="../src/app/ui/PrompterViewModel.cpp" line="-38" />
         <source>Redondeá</source>
         <translation>Закругляйтесь</translation>
     </message>
@@ -94957,7 +94987,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>Перед композицией цепочка заставки «нет сигнала» удерживает %1: переключатель не пропускает кадр сразу по приходу (fallbackswitch ждёт объявленную задержку + запас). Это буфер этого входа; композиция и так сама ждёт самый медленный.</translation>
     </message>
     <message>
-        <location filename="../src/app/tiempos/TiemposModel.cpp" line="-372" />
+        <location filename="../src/app/tiempos/TiemposModel.cpp" line="-388" />
         <source>se cerró la app midiendo</source>
         <translation>приложение закрылось во время измерения</translation>
     </message>
@@ -94977,7 +95007,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>не удалось построить граф: %1</translation>
     </message>
     <message>
-        <location line="+152" />
+        <location line="+154" />
         <source>%1: llegan datos</source>
         <translation>%1: данные поступают</translation>
     </message>
@@ -95027,7 +95057,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>Задержка студии: %1 → %2 мс</translation>
     </message>
     <message>
-        <location line="+97" />
+        <location line="+111" />
         <source>sondas en %1: %2</source>
         <translation>зонды на %1: %2</translation>
     </message>

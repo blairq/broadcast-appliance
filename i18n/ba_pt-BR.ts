@@ -1690,7 +1690,7 @@
         <translation>Debate</translation>
     </message>
     <message>
-        <location line="+44" />
+        <location line="+47" />
         <source>Grillas de personas</source>
         <translation>Grades de pessoas</translation>
     </message>
@@ -5258,12 +5258,12 @@ Percorrer a faixa não muda o que se vê.</translation>
     </message>
     <message>
         <location line="+4" />
-        <location line="+1043" />
+        <location line="+1044" />
         <source>Tiempo</source>
         <translation>Tempo</translation>
     </message>
     <message>
-        <location line="-1037" />
+        <location line="-1038" />
         <source>Tiempo general para cada orador (m:ss o minutos)</source>
         <translation>Tempo geral para cada orador (m:ss ou minutos)</translation>
     </message>
@@ -5359,7 +5359,7 @@ Percorrer a faixa não muda o que se vê.</translation>
     </message>
     <message numerus="yes">
         <location line="+0" />
-        <location line="+477" />
+        <location line="+478" />
         <source>%n esperando</source>
         <translation>
             <numerusform>%n esperando</numerusform>
@@ -5367,7 +5367,7 @@ Percorrer a faixa não muda o que se vê.</translation>
         </translation>
     </message>
     <message numerus="yes">
-        <location line="-476" />
+        <location line="-477" />
         <source>%n entrando (%1 por segundo)</source>
         <translation>
             <numerusform>%n entrando (%1 por segundo)</numerusform>
@@ -5526,18 +5526,18 @@ Percorrer a faixa não muda o que se vê.</translation>
     </message>
     <message>
         <location line="+1" />
-        <location line="+515" />
+        <location line="+516" />
         <source>Reiniciar</source>
         <translation>Reiniciar</translation>
     </message>
     <message>
-        <location line="-515" />
-        <location line="+515" />
+        <location line="-516" />
+        <location line="+516" />
         <source>Cancelar</source>
         <translation>Cancelar</translation>
     </message>
     <message>
-        <location line="-512" />
+        <location line="-513" />
         <source>La conferencia se está reiniciando.</source>
         <translation>A conferência está reiniciando.</translation>
     </message>
@@ -5569,7 +5569,7 @@ Compartilhe o link e o PIN (painel Acesso).</translation>
         <translation>privado</translation>
     </message>
     <message>
-        <location line="+37" />
+        <location line="+38" />
         <source>Vos</source>
         <translation>Você</translation>
     </message>
@@ -6141,7 +6141,7 @@ O PIN anterior deixa de servir para entrar.</translation>
         <translation>%1 espera na sala de espera</translation>
     </message>
     <message>
-        <location line="+186" />
+        <location line="+196" />
         <location line="+12" />
         <location line="+130" />
         <source>No se pudo reiniciar la conferencia: %1. Si sigue, cerrá y volvé a abrir el programa.</source>
@@ -7679,7 +7679,7 @@ Ligue-a pelo Log.</translation>
         <translation>%1 (plano %2)</translation>
     </message>
     <message>
-        <location line="+26" />
+        <location line="+29" />
         <source>Ver el teleprompter ↗</source>
         <translation>Ver o teleprompter ↗</translation>
     </message>
@@ -7924,12 +7924,12 @@ Ligue-a pelo Log.</translation>
     </message>
     <message>
         <location line="+40" />
-        <location line="+53" />
+        <location line="+54" />
         <source>Aplicar</source>
         <translation>Aplicar</translation>
     </message>
     <message>
-        <location line="-43" />
+        <location line="-44" />
         <source>Todavía no hay distribuciones. Abrí las ventanas como las querés y «Guardar la actual», o armá una desde una plantilla.</source>
         <translation>Ainda não há layouts de telas. Abra as janelas do jeito que você quiser e clique em “Salvar o atual”, ou monte um a partir de um modelo.</translation>
     </message>
@@ -7940,8 +7940,13 @@ Ligue-a pelo Log.</translation>
     </message>
     <message>
         <location line="+7" />
-        <source>También con Ctrl+Shift+F12 desde cualquier ventana de la app</source>
-        <translation>Também com Ctrl+Shift+F12 de qualquer janela do app</translation>
+        <source>También con Control+Esc (⌃Esc) desde cualquier ventana de la app, o con el botón que aparece arriba a la derecha al mover el mouse sobre la distribución</source>
+        <translation>Também com Control+Esc (⌃Esc) em qualquer janela do app, ou com o botão que aparece no canto superior direito ao mover o mouse sobre a distribuição</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>También con Mayús+Esc desde cualquier ventana de la app, o con el botón que aparece arriba a la derecha al mover el mouse sobre la distribución</source>
+        <translation>Também com Shift+Esc em qualquer janela do app, ou com o botão que aparece no canto superior direito ao mover o mouse sobre a distribuição</translation>
     </message>
     <message>
         <location line="+23" />
@@ -8047,7 +8052,7 @@ Ligue-a pelo Log.</translation>
 <context>
     <name>DocumentosViewModel</name>
     <message>
-        <location filename="../src/app/ui/DocumentosViewModel.cpp" line="+133" />
+        <location filename="../src/app/ui/DocumentosViewModel.cpp" line="+141" />
         <source>sin miniatura (no es un PDF ni una imagen, o no se pudo leer)</source>
         <translation>sem miniatura (não é um PDF nem uma imagem, ou não foi possível ler)</translation>
     </message>
@@ -9312,7 +9317,7 @@ Ligue-a pelo Log.</translation>
 <context>
     <name>EscritorioViewModel</name>
     <message>
-        <location filename="../src/app/ui/EscritorioViewModel.cpp" line="+145" />
+        <location filename="../src/app/ui/EscritorioViewModel.cpp" line="+150" />
         <source>No hay un monitor «%1»: decí su número, su nombre o su id.</source>
         <translation>Não existe um monitor “%1”: diga o número, o nome ou o id dele.</translation>
     </message>
@@ -9599,12 +9604,12 @@ Ligue-a pelo Log.</translation>
     <message>
         <location line="+5" />
         <location line="+323" />
-        <location line="+133" />
+        <location line="+150" />
         <source>Guion</source>
         <translation>Roteiro</translation>
     </message>
     <message>
-        <location line="-453" />
+        <location line="-470" />
         <source>Otro guion dentro de este mismo evento (comparte escenas y medios). Para un evento aparte: «Evento nuevo…»</source>
         <translation>Outro roteiro dentro deste mesmo evento (compartilha cenas e mídia). Para um evento à parte: “Evento novo…”</translation>
     </message>
@@ -9750,12 +9755,12 @@ Ligue-a pelo Log.</translation>
     </message>
     <message>
         <location line="+0" />
-        <location line="+1253" />
+        <location line="+1270" />
         <source>Cerrar</source>
         <translation>Fechar</translation>
     </message>
     <message numerus="yes">
-        <location line="-1243" />
+        <location line="-1260" />
         <source>%n herramienta · %1 s</source>
         <translation>
             <numerusform>%n ferramenta · %1 s</numerusform>
@@ -9849,7 +9854,22 @@ Ligue-a pelo Log.</translation>
         <translation>Documentos</translation>
     </message>
     <message>
-        <location line="+8" />
+        <location line="+1" />
+        <source>Eventos (%1)</source>
+        <translation>Eventos (%1)</translation>
+    </message>
+    <message>
+        <location line="+0" />
+        <source>Eventos</source>
+        <translation>Eventos</translation>
+    </message>
+    <message>
+        <location line="+9" />
+        <source>Los eventos de este equipo</source>
+        <translation>Os eventos deste equipamento</translation>
+    </message>
+    <message>
+        <location line="+15" />
         <source>Documentación del evento</source>
         <translation>Documentação do evento</translation>
     </message>
@@ -10471,7 +10491,7 @@ Ligue-a pelo Log.</translation>
         <translation>Não foi possível apagar: %1</translation>
     </message>
     <message>
-        <location filename="../src/app/ui/GuionViewModel.cpp" line="+538" />
+        <location filename="../src/app/ui/GuionViewModel.cpp" line="+549" />
         <source>no existe un gráfico llamado "%1"</source>
         <translation>não existe um gráfico chamado "%1"</translation>
     </message>
@@ -15243,7 +15263,7 @@ Se cambia en su código (sección Plugins, o pidiéndoselo al asistente). Acá s
         <translation>Reconhecer (R)</translation>
     </message>
     <message>
-        <location line="+50" />
+        <location line="+52" />
         <source>El servidor (gateway) se reinició: %1</source>
         <translation>O servidor (gateway) reiniciou: %1</translation>
     </message>
@@ -15759,13 +15779,13 @@ A matriz não muda o que entra: decide para quais saídas vai (as colunas: o pro
     </message>
     <message>
         <location line="+1" />
-        <location line="+118" />
+        <location line="+119" />
         <location line="+52" />
         <source>Cerrar</source>
         <translation>Fechar</translation>
     </message>
     <message>
-        <location line="-151" />
+        <location line="-152" />
         <source>Pista %1 de la grabación</source>
         <translation>Pista %1 da gravação</translation>
     </message>
@@ -15850,7 +15870,7 @@ A matriz não muda o que entra: decide para quais saídas vai (as colunas: o pro
         <translation>Mute de</translation>
     </message>
     <message>
-        <location line="+22" />
+        <location line="+23" />
         <source>Ocultar este dispositivo</source>
         <translation>Ocultar este dispositivo</translation>
     </message>
@@ -16824,7 +16844,7 @@ A matriz não muda o que entra: decide para quais saídas vai (as colunas: o pro
     <name>MultiviewViewModel</name>
     <message>
         <location filename="../src/app/ui/MultiviewViewModel.cpp" line="+77" />
-        <location line="+54" />
+        <location line="+59" />
         <source>Multiview %1</source>
         <translation>Multiview %1</translation>
     </message>
@@ -19018,7 +19038,7 @@ Adicione imagens pela aba Arquivos.</translation>
 <context>
     <name>PanelConexionesRemotas</name>
     <message>
-        <location filename="../src/app/qml/controls/PanelConexionesRemotas.qml" line="+33" />
+        <location filename="../src/app/qml/controls/PanelConexionesRemotas.qml" line="+37" />
         <source>Conectados: %1 · presentes: %2</source>
         <translation>Conectados: %1 · presentes: %2</translation>
     </message>
@@ -19111,23 +19131,23 @@ Adicione imagens pela aba Arquivos.</translation>
         <location line="+0" />
         <location line="+35" />
         <location line="+3" />
-        <location line="+198" />
+        <location line="+199" />
         <location line="+2" />
         <source>Revocar</source>
         <translation>Revogar</translation>
     </message>
     <message>
-        <location line="-238" />
+        <location line="-239" />
         <location line="+19" />
         <location line="+19" />
         <location line="+92" />
-        <location line="+95" />
+        <location line="+96" />
         <location line="+13" />
         <source>Cancelar</source>
         <translation>Cancelar</translation>
     </message>
     <message>
-        <location line="-229" />
+        <location line="-230" />
         <source>Todavía no hay ningún acceso. Tocá «Nuevo acceso…» y pasale el link (o el QR) a quien preside.</source>
         <translation>Ainda não há nenhum acesso. Toque em “Novo acesso…” e passe o link (ou o QR) a quem preside.</translation>
     </message>
@@ -19310,12 +19330,12 @@ Adicione imagens pela aba Arquivos.</translation>
     </message>
     <message>
         <location line="+1" />
-        <location line="+157" />
+        <location line="+158" />
         <source>Usuario</source>
         <translation>Usuário</translation>
     </message>
     <message>
-        <location line="-156" />
+        <location line="-157" />
         <source>Acceso</source>
         <translation>Acesso</translation>
     </message>
@@ -19325,7 +19345,7 @@ Adicione imagens pela aba Arquivos.</translation>
         <translation>Estado</translation>
     </message>
     <message>
-        <location line="+14" />
+        <location line="+15" />
         <source>Todavía no hay integrantes</source>
         <translation>Ainda não há membros</translation>
     </message>
@@ -27973,7 +27993,7 @@ De frente, de lado, com óculos e sem: assim a pessoa é reconhecida no dia real
         <translation>O servidor não está disponível.</translation>
     </message>
     <message>
-        <location line="+56" />
+        <location line="+65" />
         <source>El servidor no está corriendo</source>
         <translation>O servidor não está rodando</translation>
     </message>
@@ -31871,7 +31891,7 @@ Para a cena base da qual saem as demais.</translation>
         <translation>Escolher</translation>
     </message>
     <message>
-        <location line="+66" />
+        <location line="+79" />
         <source>%1 de %2</source>
         <translation>%1 de %2</translation>
     </message>
@@ -32653,12 +32673,12 @@ Para a cena base da qual saem as demais.</translation>
     <message>
         <location line="+3" />
         <location line="+614" />
-        <location line="+981" />
+        <location line="+978" />
         <source>Actualizar</source>
         <translation>Atualizar</translation>
     </message>
     <message>
-        <location line="-1581" />
+        <location line="-1578" />
         <source>Copiar</source>
         <translation>Copiar</translation>
     </message>
@@ -33712,7 +33732,7 @@ e ele abre de novo sozinho. Configuração, credenciais, gravações e arquivos 
         <translation>Versão instalada: %1</translation>
     </message>
     <message>
-        <location line="+5" />
+        <location line="+2" />
         <source>Arranque y recuperación</source>
         <translation>Inicialização e recuperação</translation>
     </message>
@@ -34189,7 +34209,7 @@ e ele abre de novo sozinho. Configuração, credenciais, gravações e arquivos 
         <translation>A conferência não reiniciou (%1): aperte “Reiniciar a conferência” em Configurações ou na página Conferência.</translation>
     </message>
     <message>
-        <location filename="../src/app/ui/BitacoraEvento.cpp" line="+325" />
+        <location filename="../src/app/ui/BitacoraEvento.cpp" line="+344" />
         <source>El disco de los eventos está al %1 % (quedan %2 GB)</source>
         <translation>O disco dos eventos está em %1 % (restam %2 GB)</translation>
     </message>
@@ -35066,7 +35086,7 @@ e ele abre de novo sozinho. Configuração, credenciais, gravações e arquivos 
 <context>
     <name>TiemposModel</name>
     <message>
-        <location filename="../src/app/tiempos/TiemposModel.cpp" line="+409" />
+        <location filename="../src/app/tiempos/TiemposModel.cpp" line="+425" />
         <source>ya hay un análisis midiendo</source>
         <translation>já há uma análise medindo</translation>
     </message>
@@ -36107,9 +36127,19 @@ e ele abre de novo sozinho. Configuração, credenciais, gravações e arquivos 
 <context>
     <name>VentanaLienzo</name>
     <message>
-        <location filename="../src/app/qml/VentanaLienzo.qml" line="+39" />
+        <location filename="../src/app/qml/VentanaLienzo.qml" line="+41" />
         <source>Broadcast Appliance — Distribución, monitor %1</source>
         <translation>Broadcast Appliance — Layout de telas, monitor %1</translation>
+    </message>
+    <message>
+        <location line="+93" />
+        <source>Mayús+Esc</source>
+        <translation>Shift+Esc</translation>
+    </message>
+    <message>
+        <location line="+30" />
+        <source>Salir de la distribución</source>
+        <translation>Sair da distribuição</translation>
     </message>
 </context>
 <context>
@@ -37735,7 +37765,7 @@ Escolha outra coisa em Saídas → Telas.</translation>
 <context>
     <name>VistaGrillas</name>
     <message>
-        <location filename="../src/app/qml/controls/VistaGrillas.qml" line="+41" />
+        <location filename="../src/app/qml/controls/VistaGrillas.qml" line="+47" />
         <source>No hay grillas de personas. Se agregan en Escenas → Agregar → Grilla de personas.</source>
         <translation>Não há grades de pessoas. São adicionadas em Cenas → Adicionar → Grade de pessoas.</translation>
     </message>
@@ -37756,12 +37786,12 @@ Escolha outra coisa em Saídas → Telas.</translation>
     </message>
     <message>
         <location line="+15" />
-        <location line="+92" />
+        <location line="+93" />
         <source>al aire</source>
         <translation>no ar</translation>
     </message>
     <message numerus="yes">
-        <location line="-92" />
+        <location line="-93" />
         <source>%n persona</source>
         <translation>
             <numerusform>%n pessoa</numerusform>
@@ -37794,7 +37824,7 @@ Escolha outra coisa em Saídas → Telas.</translation>
         <translation>Devolver “%1” a esta grade (volta ao automático)</translation>
     </message>
     <message>
-        <location line="+20" />
+        <location line="+21" />
         <source>(asamblea)</source>
         <translation>(assembleia)</translation>
     </message>
@@ -44533,7 +44563,7 @@ Escolha outra coisa em Saídas → Telas.</translation>
 <context>
     <name>arranque</name>
     <message>
-        <location filename="../src/app/arranque/GuiMode.cpp" line="+174" />
+        <location filename="../src/app/arranque/GuiMode.cpp" line="+177" />
         <source>arranque: el cartel de carga ya se ve</source>
         <translation>inicialização: a tela de carregamento já aparece</translation>
     </message>
@@ -46962,7 +46992,7 @@ Dados (de %2): %3</translation>
         <translation>A lista de quem entra sozinho se for reconhecido é a da lista de membros do evento: padron_ver {solos: true}; muda-se com padron_cambiar {id, dejarPasarSolo}.</translation>
     </message>
     <message>
-        <location filename="../src/app/ui/GuionViewModel.cpp" line="+166" />
+        <location filename="../src/app/ui/GuionViewModel.cpp" line="+156" />
         <source>Quiero preparar un evento nuevo: «%1». Seguí la guía de ese tipo de evento: evento_escenario {"id": "%2"} (trae el protocolo común y lo propio de este tipo). Empezá por las preguntas, de a pocas y con opciones; no armes nada hasta que te confirme el plan. </source>
         <translation>Quero preparar um evento novo: “%1”. Siga o guia desse tipo de evento: evento_escenario {"id": "%2"} (traz o protocolo comum e o específico deste tipo). Comece pelas perguntas, poucas de cada vez e com opções; não monte nada até eu confirmar o plano. </translation>
     </message>
@@ -50075,7 +50105,7 @@ Dados (de %2): %3</translation>
         <translation>o travamento da interface durou cerca de %1 ms (pilhas em %2)</translation>
     </message>
     <message>
-        <location filename="../src/app/arranque/GuiMode.cpp" line="-380" />
+        <location filename="../src/app/arranque/GuiMode.cpp" line="-381" />
         <source>--detectar-acoples solo anda con --test: no se enciende</source>
         <translation>--detectar-acoples só funciona com --test: não é ligado</translation>
     </message>
@@ -50086,7 +50116,7 @@ Dados (de %2): %3</translation>
         <translation>--detectar-acoples: este programa não traz o detector</translation>
     </message>
     <message>
-        <location filename="../src/core/diag/Acoples.cpp" line="+152" />
+        <location filename="../src/core/diag/Acoples.cpp" line="+160" />
         <source>detector de acoples ENCENDIDO: cada camino de la interfaz que no pasa por el modelo espera %1 ms de más y queda anotado (solo pruebas)</source>
         <translation>detector de acoplamentos LIGADO: cada caminho da interface que não passa pelo modelo espera %1 ms a mais e fica registrado (só testes)</translation>
     </message>
@@ -50096,7 +50126,7 @@ Dados (de %2): %3</translation>
         <translation>detector de acoplamentos desligado</translation>
     </message>
     <message>
-        <location line="+53" />
+        <location line="+64" />
         <source>acople de la interfaz (%1): %2 en %3, mientras corría «%4»</source>
         <translation>acoplamento da interface (%1): %2 em %3, enquanto rodava “%4”</translation>
     </message>
@@ -53619,7 +53649,7 @@ Dados (de %2): %3</translation>
         <translation>Não faz nada: é uma indicação para você.</translation>
     </message>
     <message>
-        <location filename="../src/app/ui/GuionViewModel.cpp" line="-418" />
+        <location filename="../src/app/ui/GuionViewModel.cpp" line="-408" />
         <source>El del programa (%1)</source>
         <translation>O do programa (%1)</translation>
     </message>
@@ -53799,7 +53829,7 @@ Dados (de %2): %3</translation>
         <translation>Não há uma saída “%1” na linha (há: %2).</translation>
     </message>
     <message>
-        <location filename="../src/app/ui/GuionViewModel.cpp" line="-222" />
+        <location filename="../src/app/ui/GuionViewModel.cpp" line="-233" />
         <source>PTZ probado con las cámaras reales (presets, que no se muevan al aire)</source>
         <translation>PTZ testado com as câmeras reais (presets, que não se movam no ar)</translation>
     </message>
@@ -57776,12 +57806,12 @@ O que fica vazio não deixa separadores sobrando: “{nombre} — {cargo}” sem
         <translation>gravações excluídas (retenção de %1 dias)</translation>
     </message>
     <message>
-        <location filename="../src/app/ui/BitacoraEvento.cpp" line="-266" />
+        <location filename="../src/app/ui/BitacoraEvento.cpp" line="-285" />
         <source>la app se cierra</source>
         <translation>o app está fechando</translation>
     </message>
     <message>
-        <location line="+65" />
+        <location line="+84" />
         <source>%1 %2 (con la app cerrada)</source>
         <translation>%1 %2 (com o app fechado)</translation>
     </message>
@@ -58902,7 +58932,7 @@ O que fica vazio não deixa separadores sobrando: “{nombre} — {cargo}” sem
 <context>
     <name>mcp</name>
     <message>
-        <location filename="../src/app/arranque/GuiMode.cpp" line="+220" />
+        <location filename="../src/app/arranque/GuiMode.cpp" line="+221" />
         <source>MODO PRUEBA (--test): el MCP no pide aprobaciones, ni siquiera las de aire</source>
         <translation>MODO DE TESTE (--test): o MCP não pede aprovações, nem mesmo as de ar</translation>
     </message>
@@ -78500,12 +78530,7 @@ O VERSO: os tipos com `dorso: true` (o DNI e `mrz-td1`) também são lidos pela 
         <translation>Abrir um painel ou diálogo de uma página</translation>
     </message>
     <message>
-        <location line="+3" />
-        <source>Muestra la página `page` y abre su panel `panel` (el mismo que abre su botón), o lo cierra con panel="cerrar". Paneles: video → superresolucion (redes, placa, modelos, entrenar), entrada_virtual, catalogo (módulos de GStreamer); escenas → efectos (con `fuente`: la elige en el editor de la escena que se edita y muestra su transparencia, borde difuso y sombra); historico → registro (qué se anota en cada evento, disco y retención); guion → las pestañas de la página del evento (guion, padron, publico, orden, web, documentos). Para mirarlo, capture_ui.</source>
-        <translation>Mostra a página `page` e abre seu painel `panel` (o mesmo que o botão dela abre), ou o fecha com panel="cerrar". Painéis: video → superresolucion (redes neurais, GPU, modelos, treinar), entrada_virtual, catalogo (módulos do GStreamer); escenas → efectos (com `fuente`: escolhe-a no editor da cena que está sendo editada e mostra sua transparência, borda suave e sombra); historico → registro (o que se anota em cada evento, disco e retenção); guion → as abas da página do evento (guion, padron, publico, orden, web, documentos). Para olhá-lo, capture_ui.</translation>
-    </message>
-    <message>
-        <location line="+10" />
+        <location line="+13" />
         <source>uno de los de esa página, o "cerrar"</source>
         <translation>um dos dessa página, ou "cerrar"</translation>
     </message>
@@ -78545,7 +78570,12 @@ O VERSO: os tipos com `dorso: true` (o DNI e `mrz-td1`) também são lidos pela 
         <translation>Mostrar uma página</translation>
     </message>
     <message>
-        <location line="+103" />
+        <location line="+55" />
+        <source>Muestra la página `page` y abre su panel `panel` (el mismo que abre su botón), o lo cierra con panel="cerrar". Paneles: video → superresolucion (redes, placa, modelos, entrenar), entrada_virtual, catalogo (módulos de GStreamer); escenas → efectos (con `fuente`: la elige en el editor de la escena que se edita y muestra su transparencia, borde difuso y sombra); historico → registro (qué se anota en cada evento, disco y retención); guion → las pestañas de la página del evento (guion, padron, publico, orden, web, documentos, eventos). Para mirarlo, capture_ui.</source>
+        <translation>Mostra a página `page` e abre seu painel `panel` (o mesmo que o botão dela abre), ou o fecha com panel="cerrar". Painéis: video → superresolucion (redes neurais, GPU, modelos, treinar), entrada_virtual, catalogo (módulos do GStreamer); escenas → efectos (com `fuente`: escolhe-a no editor da cena que está sendo editada e mostra sua transparência, borda suave e sombra); historico → registro (o que se anota em cada evento, disco e retenção); guion → as abas da página do evento (guion, padron, publico, orden, web, documentos, eventos). Para olhá-lo, capture_ui.</translation>
+    </message>
+    <message>
+        <location line="+48" />
         <source>Sacar una página a su ventana</source>
         <translation>Levar uma página para sua janela</translation>
     </message>
@@ -89995,7 +90025,7 @@ PROPONHA, NÃO APLIQUE: mostre à pessoa o que muda e aplique só se ela confirm
         <translation>Distribuição</translation>
     </message>
     <message>
-        <location line="+58" />
+        <location line="+63" />
         <source>Programa (lo que sale al aire)</source>
         <translation>Programa (o que sai no ar)</translation>
     </message>
@@ -90010,7 +90040,7 @@ PROPONHA, NÃO APLIQUE: mostre à pessoa o que muda e aplique só se ela confirm
         <translation>O fundo do painel</translation>
     </message>
     <message>
-        <location line="+182" />
+        <location line="+239" />
         <source>%1 (ya no existe)</source>
         <translation>%1 (não existe mais)</translation>
     </message>
@@ -90166,20 +90196,20 @@ PROPONHA, NÃO APLIQUE: mostre à pessoa o que muda e aplique só se ela confirm
         <location line="+15" />
         <location line="+11" />
         <location line="+14" />
-        <location line="+134" />
+        <location line="+135" />
         <location line="+92" />
         <source>No hay una distribución «%1».</source>
         <translation>Não existe um layout de telas “%1”.</translation>
     </message>
     <message>
-        <location line="-387" />
+        <location line="-388" />
         <location line="+21" />
-        <location line="+371" />
+        <location line="+372" />
         <source>Ya hay una distribución que se llama «%1».</source>
         <translation>Já existe um layout de telas chamado “%1”.</translation>
     </message>
     <message>
-        <location line="-376" />
+        <location line="-377" />
         <source>%1 (copia)</source>
         <translation>%1 (cópia)</translation>
     </message>
@@ -91171,7 +91201,7 @@ PROPONHA, NÃO APLIQUE: mostre à pessoa o que muda e aplique só se ela confirm
     <name>prompter</name>
     <message>
         <location filename="../src/app/control/Botonera.cpp" line="-817" />
-        <location filename="../src/app/ui/PrompterViewModel.cpp" line="-29" />
+        <location filename="../src/app/ui/PrompterViewModel.cpp" line="-38" />
         <source>Redondeá</source>
         <translation>Encerre</translation>
     </message>
@@ -94802,7 +94832,7 @@ PROPONHA, NÃO APLIQUE: mostre à pessoa o que muda e aplique só se ela confirm
         <translation>Antes da composição, a cadeia da cartela “sem sinal” retém %1: o comutador não deixa passar o quadro assim que chega (um fallbackswitch espera a latência declarada + uma margem). É o buffer desta entrada; a composição já espera sozinha pela mais lenta.</translation>
     </message>
     <message>
-        <location filename="../src/app/tiempos/TiemposModel.cpp" line="-372" />
+        <location filename="../src/app/tiempos/TiemposModel.cpp" line="-388" />
         <source>se cerró la app midiendo</source>
         <translation>o app foi fechado durante a medição</translation>
     </message>
@@ -94822,7 +94852,7 @@ PROPONHA, NÃO APLIQUE: mostre à pessoa o que muda e aplique só se ela confirm
         <translation>não foi possível montar o grafo: %1</translation>
     </message>
     <message>
-        <location line="+152" />
+        <location line="+154" />
         <source>%1: llegan datos</source>
         <translation>%1: chegam dados</translation>
     </message>
@@ -94872,7 +94902,7 @@ PROPONHA, NÃO APLIQUE: mostre à pessoa o que muda e aplique só se ela confirm
         <translation>Latência do estúdio: %1 → %2 ms</translation>
     </message>
     <message>
-        <location line="+97" />
+        <location line="+111" />
         <source>sondas en %1: %2</source>
         <translation>sondas em %1: %2</translation>
     </message>

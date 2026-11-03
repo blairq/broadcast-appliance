@@ -638,10 +638,12 @@ ApplicationWindow {
         enabled: Studio.alarmas.hayCritica
         onActivated: Studio.alarmas.reconocer(0)
     }
-    // La salida de emergencia de las distribuciones de pantallas: sus ventanas madre son
-    // sin marco y no se cierran con el mouse ni con Cmd+W/Alt+F4 (pantallas/Distribuciones.hpp).
+    // La salida de las distribuciones de pantallas: sus ventanas madre son sin marco y no se
+    // cierran con Cmd+W/Alt+F4 (pantallas/Distribuciones.hpp). En una notebook las F piden Fn:
+    // Control+Esc en la Mac («Meta» para Qt; «Ctrl» es ⌘), Mayús+Esc en Windows y Linux
+    // (Ctrl+Esc ahí abre el menú Inicio y no llega a la app). Ver VentanaLienzo.qml.
     Shortcut {
-        sequence: "Ctrl+Shift+F12"
+        sequences: ["Meta+Esc", "Ctrl+Esc", "Shift+Esc", "Ctrl+Shift+F12"]
         context: Qt.ApplicationShortcut
         enabled: Studio.escritorio.distribuciones.lienzos.cantidad > 0
         onActivated: Studio.escritorio.distribuciones.cerrarVentanas()

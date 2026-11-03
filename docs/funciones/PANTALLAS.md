@@ -272,10 +272,15 @@ aparece (o se desenchufa otro), lo aplicado se vuelve a ubicar solo.
 
 ### Salida de emergencia
 
-Como no se pueden cerrar con el mouse, hay tres maneras de sacarlas (la
+No tienen barra ni botones, así que hay estas maneras de sacarlas (la
 distribución queda guardada):
 
-- **Ctrl+Shift+F12** desde cualquier ventana de la app;
+- **Control+Esc** (⌃Esc; también ⌘Esc) en la Mac y **Mayús+Esc** en Windows y
+  Linux, desde cualquier ventana de la app (en Windows Ctrl+Esc abre el menú
+  Inicio). También **Ctrl+Shift+F12**, para teclados con las F libres;
+- al **mover el mouse** sobre la distribución aparece arriba a la derecha
+  «Salir de la distribución» con la tecla; a los 3 s quieto se va (sin el
+  mouse encima no se ve nada en la salida);
 - Pantallas → Distribuciones → **«Cerrar las ventanas de la distribución»**;
 - por MCP, `pantallas_distribucion_cerrar`.
 

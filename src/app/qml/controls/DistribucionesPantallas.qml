@@ -172,7 +172,8 @@ Panel {
                 enabled: sec.d.lienzos.cantidad > 0
                 onClicked: sec.d.cerrarVentanas()
                 ToolTip.visible: hovered
-                ToolTip.text: qsTr("También con Ctrl+Shift+F12 desde cualquier ventana de la app")
+                ToolTip.text: (Qt.platform.os === "osx" ? qsTr("También con Control+Esc (⌃Esc) desde cualquier ventana de la app, o con el botón que aparece arriba a la derecha al mover el mouse sobre la distribución")
+                                                            : qsTr("También con Mayús+Esc desde cualquier ventana de la app, o con el botón que aparece arriba a la derecha al mover el mouse sobre la distribución"))
             }
         }
 

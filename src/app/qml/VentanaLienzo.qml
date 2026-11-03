@@ -13,8 +13,10 @@
 // geometría está enlazada al modelo. Su id es el del monitor, así que cambiar de
 // distribución no la cierra ni la abre: cambian sus rectángulos.
 //
-// Salida de emergencia: Ctrl+Shift+F12 (Main.qml) o Pantallas → Distribuciones →
-// «Cerrar las ventanas de la distribución».
+// Salir: Control+Esc en la Mac (⌃Esc, también ⌘Esc), Mayús+Esc en Windows/Linux (Ctrl+Esc
+// ahí es del sistema), Ctrl+Shift+F12 (Main.qml), el botón que aparece arriba a la derecha
+// al mover el mouse sobre la ventana, o Pantallas → Distribuciones → «Cerrar las ventanas
+// de la distribución». Sin el mouse encima no se ve nada (es una salida al aire).
 import QtQuick
 import QtQuick.Window
 import BA
@@ -122,6 +124,51 @@ Window {
                 distribucion: modelData.disposicion
                 principal: w.principal
                 marcoSolo: false
+            }
+        }
+    }
+
+    // --- La salida, a la vista solo para el que mueve el mouse -----------------------------
+    // En una notebook la distribución tapa toda la pantalla y las F no están a mano: al mover
+    // el mouse aparece, arriba a la derecha, cómo salir; a los 3 s quieto se va.
+    readonly property string teclaSalir: Qt.platform.os === "osx" ? "⌃Esc" : qsTr("Mayús+Esc")
+    MouseArea {
+        anchors.fill: parent
+        z: 1000
+        hoverEnabled: true
+        acceptedButtons: Qt.NoButton
+        onPositionChanged: { salida.mostrar = true; esconderSalida.restart() }
+    }
+    Timer { id: esconderSalida; interval: 3000; onTriggered: if (!botonSalir.hovered) salida.mostrar = false }
+    Rectangle {
+        id: salida
+        property bool mostrar: false
+        z: 1001
+        anchors { top: parent.top; right: parent.right; margins: 16 }
+        width: filaSalida.implicitWidth + 24
+        height: filaSalida.implicitHeight + 16
+        radius: 10
+        color: Qt.rgba(0, 0, 0, 0.75)
+        border.color: Theme.glassBorder
+        opacity: mostrar ? 1 : 0
+        visible: opacity > 0
+        Behavior on opacity { NumberAnimation { duration: 200 } }
+        Row {
+            id: filaSalida
+            anchors.centerIn: parent
+            spacing: 10
+            GlassButton {
+                id: botonSalir
+                compact: true
+                active: true
+                text: qsTr("Salir de la distribución")
+                onClicked: Studio.escritorio.distribuciones.cerrarVentanas()
+            }
+            Text {
+                anchors.verticalCenter: parent.verticalCenter
+                color: Theme.textDim
+                font.pixelSize: 12
+                text: w.teclaSalir
             }
         }
     }
