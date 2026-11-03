@@ -363,8 +363,10 @@ void VentanasModel::setMonitor(int id, const QString& monitor) {
     if (f.monitor == monitor && f.sistema.isEmpty()) return;
     f.monitor = monitor;
     f.sistema.clear();
-    tocada(r, {MonitorRole, SistemaRole});
-    // Una fija no se acomoda sola: se la lleva (MCP, editor).
+    // Una fija no se acomoda sola: se la lleva (MCP). Su geometría era del monitor de
+    // antes: en el nuevo, que llene el monitor (o la distribución la vuelve a ubicar).
+    if (f.fija) f.geometria = QRect();
+    tocada(r, {MonitorRole, SistemaRole, GeometriaRole});
     if (f.fija) emit ubicar(f.id, f.geometria);
 }
 

@@ -631,6 +631,14 @@ ApplicationWindow {
         enabled: Studio.alarmas.hayCritica
         onActivated: Studio.alarmas.reconocer(0)
     }
+    // La salida de emergencia de las distribuciones de pantallas: sus ventanas son sin
+    // marco y no se cierran con el mouse ni con Cmd+W/Alt+F4 (pantallas/Distribuciones.hpp).
+    Shortcut {
+        sequence: "Ctrl+Shift+F12"
+        context: Qt.ApplicationShortcut
+        enabled: Studio.ventanas.fijas > 0
+        onActivated: Studio.escritorio.distribuciones.cerrarVentanas()
+    }
     // Los atajos que configuró el operador (página Botonera → Atajos). Los
     // globales los atiende el sistema (funcionan sin foco): acá van los locales.
     // Cada tecla es además un pulso para la línea de tiempo («tecla:F5»).

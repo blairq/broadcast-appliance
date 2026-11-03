@@ -15,6 +15,14 @@
 //
 //   doble clic   pantalla completa / ventana (con video)
 //   Esc          sale de pantalla completa; si no, cierra
+//
+// LAS FIJAS (las de una distribución de pantallas: pantallas/Distribuciones.hpp)
+// son SIN MARCO y QUIETAS: ni barra de título, ni botones, ni bordes, ni nuestra
+// barra; no se mueven ni se cierran con el mouse ni con los atajos (Esc, Cmd+W,
+// Alt+F4: el cierre se rechaza) y si el sistema las corre, vuelven a su lugar. Su
+// lugar lo cambia solo el menú Pantallas o el MCP (la señal `ubicar` del modelo).
+// Salida de emergencia: Ctrl+Shift+F12 (acá o en la ventana principal) cierra
+// todas las de la distribución.
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Window
@@ -35,6 +43,12 @@ Window {
     required property bool pantallaCompleta
     required property rect geometria
     required property string titulo
+    /// Cómo la llamó la distribución (vacío = el título de lo que muestra).
+    required property string nombre
+    /// De una distribución: sin marco y quieta.
+    required property bool fija
+    /// Siempre encima de las demás.
+    required property bool encima
     /// La ventana principal (le da los componentes a VistaCatalogo).
     required property var principal
 
@@ -54,7 +68,8 @@ Window {
               : esPanel ? "ba:panel:" + cosa.dibujo.panel
               : "ba:salida:" + ventanaId
 
-    title: "Broadcast Appliance — " + titulo
+    title: "Broadcast Appliance — " + (nombre !== "" ? nombre : titulo)
+    flags: Qt.Window | (fija ? Qt.FramelessWindowHint : 0) | (encima ? Qt.WindowStaysOnTopHint : 0)
     color: deVideo ? "black" : Theme.bg
 
     // Los controles de Qt, en oscuro. Los colores salen de Theme porque esta
@@ -81,8 +96,9 @@ Window {
     // Mezclador); el video, 16:9.
     width: esPagina ? 1180 : deVideo ? 960 : (vista.anchoPedido > 0 ? vista.anchoPedido : 620)
     height: esPagina ? 760 : deVideo ? 540 : (vista.altoPedido > 0 ? vista.altoPedido : 720)
-    minimumWidth: esPagina ? 720 : deVideo ? 320 : 380
-    minimumHeight: esPagina ? 460 : deVideo ? 180 : 320
+    // Una fija va del tamaño que diga la distribución (un mosaico 3×3 es chico).
+    minimumWidth: fija ? 1 : esPagina ? 720 : deVideo ? 320 : 380
+    minimumHeight: fija ? 1 : esPagina ? 460 : deVideo ? 180 : 320
     visible: true
 
     /// Para ventana_mover (MCP): normal | maximizada | pantalla-completa | minimizada.
@@ -150,12 +166,56 @@ Window {
         if (w.monitor === "") Studio.ventanas.setMonitor(w.ventanaId, barra.idDeMonitor(w.screen))
     }
 
+    // --- Las fijas: van donde dice el modelo, y solo ahí ---------------------------------
+    /// La lleva a `g` (píxeles del escritorio; vacía = que llene su monitor), en su
+    /// monitor y con su pantalla completa. Saliendo de pantalla completa primero: en
+    /// Mac la salida tiene animación y mover durante ella no hace nada.
+    property rect pendiente
+    function ubicarFija(g) {
+        w.pendiente = g
+        if (w.visibility === Window.FullScreen) {
+            w.visibility = Window.Windowed
+            reubicar.interval = Qt.platform.os === "osx" ? 800 : 150
+            reubicar.restart()
+        } else {
+            w.ponerEn(g)
+        }
+    }
+    function ponerEn(g) {
+        const s = w.pantallaRecordada()
+        if (s) w.screen = s
+        if (g.width > 0 && g.height > 0) {
+            w.x = g.x; w.y = g.y; w.width = g.width; w.height = g.height
+        } else if (s) {
+            w.x = s.virtualX; w.y = s.virtualY; w.width = s.width; w.height = s.height
+        }
+        if (w.pantallaCompleta) w.visibility = Window.FullScreen
+        else if (w.visibility !== Window.Windowed) w.visibility = Window.Windowed
+    }
+    Timer { id: reubicar; onTriggered: w.ponerEn(w.pendiente) }
+    /// El sistema la corrió (un atajo del escritorio, un cambio de monitores): vuelve.
+    Timer { id: reponer; interval: 300; onTriggered: if (w.fija) w.ponerEn(w.geometria) }
+    function vigilarFija() {
+        if (!w.listo || !w.fija || reubicar.running) return
+        const quiere = w.pantallaCompleta ? Window.FullScreen : Window.Windowed
+        const g = w.geometria
+        const corrida = quiere === Window.Windowed && g.width > 0 &&
+                        (w.x !== g.x || w.y !== g.y || w.width !== g.width || w.height !== g.height)
+        if (w.visibility !== quiere || corrida) reponer.restart()
+    }
+    Connections {
+        target: Studio.ventanas
+        function onUbicar(id, g) { if (id === w.ventanaId) w.ubicarFija(g) }
+    }
+
     // --- Lo que cambia el modelo (el MCP, «Llevar la ventana») ----------------------------
     onPantallaCompletaChanged: {
+        if (w.fija) return // la lleva `ubicar`
         const completa = w.visibility === Window.FullScreen
         if (w.listo && completa !== w.pantallaCompleta) w.visibility = w.pantallaCompleta ? Window.FullScreen : Window.Windowed
     }
     onMonitorChanged: {
+        if (w.fija) return // la lleva `ubicar`
         if (!w.listo || w.monitor === "" || barra.idDeMonitor(w.screen) === w.monitor) return
         const s = w.pantallaRecordada()
         if (s) barra.aMonitor(s)
@@ -167,34 +227,43 @@ Window {
 
     // --- Lo que cambia la ventana (el operador), al modelo ---------------------------------
     onVisibilityChanged: {
+        if (w.fija) { w.vigilarFija(); return }
         if (!w.listo) return
         if (w.visibility === Window.FullScreen) Studio.ventanas.setPantallaCompleta(w.ventanaId, true)
         else if (w.visibility === Window.Windowed || w.visibility === Window.Maximized)
             Studio.ventanas.setPantallaCompleta(w.ventanaId, false)
     }
-    onScreenChanged: if (w.listo) Studio.ventanas.setMonitor(w.ventanaId, barra.idDeMonitor(w.screen))
+    onScreenChanged: if (w.listo && !w.fija) Studio.ventanas.setMonitor(w.ventanaId, barra.idDeMonitor(w.screen))
     // La geometría, con pausa (no en cada pixel del arrastre) y solo en ventana.
-    function recordar() { if (w.listo && w.visibility === Window.Windowed) guardarGeometria.restart() }
+    // Una fija no recuerda: vuelve a la suya.
+    function recordar() {
+        if (w.fija) { w.vigilarFija(); return }
+        if (w.listo && w.visibility === Window.Windowed) guardarGeometria.restart()
+    }
     onXChanged: recordar(); onYChanged: recordar(); onWidthChanged: recordar(); onHeightChanged: recordar()
     Timer {
         id: guardarGeometria
         interval: 600
         onTriggered: Studio.ventanas.setGeometria(w.ventanaId, w.x, w.y, w.width, w.height)
     }
-    // Cerrarla (Cmd+W, el botón, el MCP) es olvidarla.
-    onClosing: (close) => Studio.ventanas.cerrar(w.ventanaId)
+    // Cerrarla (Cmd+W, el botón, el MCP) es olvidarla. Una fija NO se cierra así (Alt+F4,
+    // Cmd+W): solo el menú Pantallas, el MCP o Ctrl+Shift+F12 (que la sacan del modelo).
+    onClosing: (close) => {
+        if (w.fija) { close.accepted = false; return }
+        Studio.ventanas.cerrar(w.ventanaId)
+    }
 
     // --- Lo de adentro ----------------------------------------------------------------------
     VistaCosas {
         id: vista
-        anchors { fill: parent; topMargin: w.esPanel || (!w.esPagina && !w.deVideo) ? 32 : 0 }
+        anchors { fill: parent; topMargin: !w.fija && (w.esPanel || (!w.esPagina && !w.deVideo)) ? 32 : 0 }
         cosas: w.cosas
         distribucion: w.distribucion
         principal: w.principal
         focus: true
     }
     TapHandler {
-        enabled: w.deVideo
+        enabled: w.deVideo && !w.fija
         onDoubleTapped: w.visibility = w.visibility === Window.FullScreen ? Window.Windowed : Window.FullScreen
     }
 
@@ -203,6 +272,9 @@ Window {
         id: barra
         ventana: w
         z: 100
+        // Una fija no tiene nada para tocar: ni mover, ni cerrar, ni pantalla completa.
+        visible: !w.fija
+        enabled: !w.fija
         alCerrar: () => w.close()
         alFijar: (monitorId) => {
             if (monitorId === "") return
@@ -252,7 +324,9 @@ Window {
     Shortcut {
         // `sequences`: StandardKey.Cancel tiene varias teclas (Esc y Cmd+.).
         sequences: [StandardKey.Cancel]
+        enabled: !w.fija
         onActivated: if (w.visibility === Window.FullScreen) w.visibility = Window.Windowed; else w.close()
     }
-    Shortcut { sequence: "F"; enabled: w.deVideo; onActivated: w.visibility = w.visibility === Window.FullScreen ? Window.Windowed : Window.FullScreen }
+    // La salida de emergencia de las distribuciones (la misma en la ventana principal).
+    Shortcut { sequence: "F"; enabled: w.deVideo && !w.fija; onActivated: w.visibility = w.visibility === Window.FullScreen ? Window.Windowed : Window.FullScreen }
 }
