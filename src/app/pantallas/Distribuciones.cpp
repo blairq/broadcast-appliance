@@ -10,7 +10,6 @@
 #include <QCoreApplication>
 #include <QJsonArray>
 #include <QJsonObject>
-#include <QQmlEngine>
 #include <QSet>
 
 #include <algorithm>
@@ -203,10 +202,9 @@ DistribucionesModel::DistribucionesModel(std::filesystem::path archivo, Catalogo
 }
 
 QObject* DistribucionesModel::lienzosQml() const {
-    // Es un miembro: que el recolector de QML no lo reclame.
-    auto* l = const_cast<LienzosModel*>(&lienzos_);
-    QQmlEngine::setObjectOwnership(l, QQmlEngine::CppOwnership);
-    return l;
+    // Es un miembro: EscritorioViewModel le pone CppOwnership (acá no se arrastra QtQml,
+    // así el test del modelo no lo necesita).
+    return const_cast<LienzosModel*>(&lienzos_);
 }
 
 // --- Los lienzos (ventanas madre) -----------------------------------------------------------
@@ -304,6 +302,8 @@ void DistribucionesModel::setMonitoresDePrueba(std::vector<MonitorVisto> m) {
     prueba_ = std::move(m);
     if (rowCount() > 0) emit dataChanged(index(0), index(rowCount() - 1), {VentanasRole, ResumenRole});
     emit cambio();
+    reaplicar(); // como cuando MonitoresModel avisa
+
 }
 
 QRect DistribucionesModel::limites() const {

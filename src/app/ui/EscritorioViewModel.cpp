@@ -99,6 +99,7 @@ EscritorioViewModel::EscritorioViewModel(Partes p, QObject* parent) : QObject(pa
         distribuciones_ = std::make_unique<DistribucionesModel>(
             c.saltear() ? std::filesystem::path{} : rt.dataRoot() / "Config" / "distribuciones-pantallas.json", catalogo_.get(),
             monitores_.get(), ventanas_.get());
+        deCpp(&distribuciones_->lienzos()); // un miembro, que QML no lo reclame
     }
     // La marcada «al abrir el evento», cuando el catálogo ya tiene las escenas (Studio lo
     // refresca al terminar de armarse): en la primera vuelta del bucle de eventos.
