@@ -58902,6 +58902,14 @@ O que fica vazio não deixa separadores sobrando: “{nombre} — {cargo}” sem
 <context>
     <name>mcp</name>
     <message>
+        <source>Ver el programa y el preview (multipantalla)</source>
+        <translation>Ver o programa e o preview (multitela)</translation>
+    </message>
+    <message>
+        <source>Las dos pantallas de una mesa de switcher, chicas: el PROGRAMA (lo que sale al aire) y el PREVIEW (la escena armada, la que sale con el próximo `preview_al_aire`), cada una con su escena y un cuadro JPEG como data URL (`imagen`, vacía si todavía no hay). Barata: usa los cuadros que ya tiene la interfaz. Para MIRAR con detalle, `foto_programa` o `foto_fuente`.</source>
+        <translation>As duas telas de uma mesa de corte, pequenas: o PROGRAMA (o que está no ar) e o PREVIEW (a cena armada, a que sai com o próximo `preview_al_aire`), cada uma com sua cena e um quadro JPEG como data URL (`imagen`, vazia se ainda não houver). Barata: usa os quadros que a interface já tem. Para OLHAR em detalhe, `foto_programa` ou `foto_fuente`.</translation>
+    </message>
+    <message>
         <location filename="../src/app/arranque/GuiMode.cpp" line="+220" />
         <source>MODO PRUEBA (--test): el MCP no pide aprobaciones, ni siquiera las de aire</source>
         <translation>MODO DE TESTE (--test): o MCP não pede aprovações, nem mesmo as de ar</translation>
@@ -81780,6 +81788,10 @@ PROPONHA, NÃO APLIQUE: mostre à pessoa o que muda e aplique só se ela confirm
 <context>
     <name>mcp-etiquetas</name>
     <message>
+        <source>multipantalla monitores programa preview previo armada switcher las dos pantallas que sale y que viene</source>
+        <translation>multitela monitores programa preview armada mesa de corte as duas telas o que sai e o que vem</translation>
+    </message>
+    <message>
         <location filename="../src/app/audio/PluginTerminos.cpp" line="-216" />
         <source>cadena lateral sidechain que reaccione a otra fuente que baje cuando hablen bajar la musica cuando hablan ducking atenuar automaticamente la musica locutor</source>
         <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
@@ -96588,6 +96600,142 @@ PROPONHA, NÃO APLIQUE: mostre à pessoa o que muda e aplique só se ela confirm
 </context>
 <context>
     <name>web/control</name>
+    <message>
+        <source>Arrastrá para moverla</source>
+        <translation>Arraste para movê-la</translation>
+    </message>
+    <message>
+        <source>Columnas que ocupa</source>
+        <translation>Colunas que ocupa</translation>
+    </message>
+    <message>
+        <source>Antes</source>
+        <translation>Antes</translation>
+    </message>
+    <message>
+        <source>Después</source>
+        <translation>Depois</translation>
+    </message>
+    <message>
+        <source>Más angosta</source>
+        <translation>Mais estreita</translation>
+    </message>
+    <message>
+        <source>Más ancha</source>
+        <translation>Mais larga</translation>
+    </message>
+    <message>
+        <source>Mostrarla</source>
+        <translation>Mostrar</translation>
+    </message>
+    <message>
+        <source>Ocultarla</source>
+        <translation>Ocultar</translation>
+    </message>
+    <message>
+        <source>Disposición de fábrica</source>
+        <translation>Disposição de fábrica</translation>
+    </message>
+    <message>
+        <source>Ordenar, ensanchar u ocultar las tarjetas</source>
+        <translation>Reordenar, alargar ou ocultar os cartões</translation>
+    </message>
+    <message>
+        <source>✎ Disposición</source>
+        <translation>✎ Disposição</translation>
+    </message>
+    <message>
+        <source>Multipantalla</source>
+        <translation>Multitela</translation>
+    </message>
+    <message>
+        <source>Editando la disposición</source>
+        <translation>Editando a disposição</translation>
+    </message>
+    <message>
+        <source>Arrastrá cada tarjeta por ⠿ (o con ◀ ▶), cambiá cuántas columnas ocupa con − y +, y ocultá las que no uses con ✕ (las ocultas quedan tenues: 👁 las vuelve a mostrar). Se guarda en la app para este aparato.</source>
+        <translation>Arraste cada cartão por ⠿ (ou com ◀ ▶), mude quantas colunas ele ocupa com − e +, e oculte os que não usa com ✕ (os ocultos ficam esmaecidos: 👁 os mostra de novo). Fica salvo no app para este aparelho.</translation>
+    </message>
+    <message>
+        <source>Volver a la de fábrica</source>
+        <translation>Voltar à de fábrica</translation>
+    </message>
+    <message>
+        <source>Listo</source>
+        <translation>Pronto</translation>
+    </message>
+    <message>
+        <source>Esperando imagen…</source>
+        <translation>Aguardando imagem…</translation>
+    </message>
+    <message>
+        <source>PROGRAMA</source>
+        <translation>PROGRAMA</translation>
+    </message>
+    <message>
+        <source>PREVIEW</source>
+        <translation>PREVIEW</translation>
+    </message>
+    <message>
+        <source>TAKE</source>
+        <translation>TAKE</translation>
+    </message>
+    <message>
+        <source>La transición de este TAKE</source>
+        <translation>A transição deste TAKE</translation>
+    </message>
+    <message>
+        <source>Transición configurada</source>
+        <translation>Transição configurada</translation>
+    </message>
+    <message>
+        <source>Corte</source>
+        <translation>Corte</translation>
+    </message>
+    <message>
+        <source>Fundido</source>
+        <translation>Fusão</translation>
+    </message>
+    <message>
+        <source>Barrido</source>
+        <translation>Varredura</translation>
+    </message>
+    <message>
+        <source>Deslizar</source>
+        <translation>Deslizar</translation>
+    </message>
+    <message>
+        <source>Fundido a color</source>
+        <translation>Fusão para cor</translation>
+    </message>
+    <message>
+        <source>▾ Mostrar monitores</source>
+        <translation>▾ Mostrar monitores</translation>
+    </message>
+    <message>
+        <source>▴ Ocultar monitores</source>
+        <translation>▴ Ocultar monitores</translation>
+    </message>
+    <message>
+        <source>Nada armado: elegí una escena</source>
+        <translation>Nada armado: escolha uma cena</translation>
+    </message>
+    <message>
+        <source>Manejar esta salida</source>
+        <translation>Controlar esta saída</translation>
+    </message>
+    <message>
+        <source>Tocá una escena para armarla en PREVIEW; mantenela apretada para ponerla al aire directo.</source>
+        <translation>Toque uma cena para armá-la em PREVIEW; mantenha pressionada para colocá-la no ar direto.</translation>
+    </message>
+    <message>
+        <source>No hay escenas.</source>
+        <translation>Não há cenas.</translation>
+    </message>
+    <message>
+        <source>En PREVIEW: sale con el TAKE</source>
+        <translation>Em PREVIEW: vai ao ar com o TAKE</translation>
+    </message>
     <message>
         <location filename="../build/i18n-actualizar/cadenas-web.cpp" line="+36" />
         <source>Aparato sin nombre</source>

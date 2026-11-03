@@ -1,44 +1,45 @@
-/* La tarjeta «Escenas» del dashboard: armar, cortar, auto y la T-bar. Lo común, en comun.js. */
+/* La tarjeta «Escenas» del dashboard: todas las escenas de la salida que maneja el aparato.
+   Un toque la arma (PREVIEW, en la multipantalla de arriba); mantener apretado la pone al
+   aire directo. El TAKE, el CORTE y la T-bar están en la multipantalla (multipantalla.js).
+   Lo común, en comun.js. */
 (() => {
   "use strict";
-  const { el, boton, maxDb, ms, vacio, texto, attr, sincronizar } = BA.tj;
+  const { el, boton, sincronizar } = BA.tj;
   BA.tarjetas.push(
   {
     id: "escenas", get titulo() { return t("Escenas"); }, temas: ["escenas"], ancha: true,
-    herramientas: ["scene_preview", "scene_cut", "scene_take", "scene_switch"],
+    herramientas: ["scene_preview", "scene_switch"],
     crear(c, api) {
-      this.estado = el("div", "fila estado-escenas");
-      this.prog = el("ba-tally"); this.prog.setAttribute("estado", "aire");
-      this.prev = el("ba-tally"); this.prev.setAttribute("estado", "armado");
-      this.estado.append(this.prog, this.prev);
-      this.grilla = el("div", "grilla-escenas");
-      const acciones = el("div", "fila acciones-escenas");
-      acciones.append(
-        boton(t("CORTE"), () => api.hacer("scene_cut", {}), { grande: true, variante: "aire", clase: "lleno" }),
-        boton(t("AUTO"), () => api.hacer("scene_take", {}), { grande: true, variante: "acento", clase: "lleno" }));
-      this.tbar = el("ba-slider", "tbar");
-      for (const [k, v] of [["etiqueta", "T-bar"], ["min", "0"], ["max", "1"], ["paso", "0.01"], ["valor", "0"]]) this.tbar.setAttribute(k, v);
-      this.tbar.addEventListener("cambio", (e) => api.llamar("transicion_manual", { t: e.detail.valor }).catch(() => {}));
-      this.tbar.addEventListener("final", () => { api.llamar("transicion_manual", { soltar: true }).catch(() => {}); this.tbar.valor = 0; });
-      c.append(this.estado, this.grilla, acciones, this.tbar);
       this.api = api;
+      this.grilla = el("div", "grilla-escenas");
+      c.append(this.grilla, el("p", "suave ayuda-escenas",
+        t("Tocá una escena para armarla en PREVIEW; mantenela apretada para ponerla al aire directo.")));
     },
     actualizar(_, d) {
-      this.prog.setAttribute("etiqueta", BAi18n.llenar(t("Programa · %1"), d.current || "—"));
-      this.prev.setAttribute("etiqueta", BAi18n.llenar(t("Armada · %1"), d.armada || "—"));
       const escenas = (d.scenes || []).filter((s) => !s.name.startsWith("__"));
+      if (!escenas.length) { this.grilla.replaceChildren(el("p", "vacio", t("No hay escenas."))); return; }
+      if (this.grilla.firstElementChild && !this.grilla.firstElementChild.dataset.clave) this.grilla.replaceChildren();
       sincronizar(this.grilla, escenas.map((s) => s.name), (nombre) => {
         // Un toque arma (preview); mantener apretado la pone al aire directo.
-        const b = boton(nombre, () => this.api.hacer("scene_preview", { name: nombre }));
-        let reloj = 0;
-        b.addEventListener("pointerdown", () => { reloj = setTimeout(() => { reloj = 0; this.api.hacer("scene_switch", { name: nombre }); }, 700); });
-        b.addEventListener("pointerup", () => clearTimeout(reloj));
-        b.addEventListener("pointerleave", () => clearTimeout(reloj));
+        let reloj = 0, directo = false;
+        const b = boton(nombre, () => {
+          if (directo) { directo = false; return; } // ya la puso al aire el apretón largo
+          this.api.hacer("scene_preview", { name: nombre }).catch(() => {});
+        });
+        b.addEventListener("pointerdown", () => {
+          directo = false;
+          reloj = setTimeout(() => { reloj = 0; directo = true; this.api.hacer("scene_switch", { name: nombre }).catch(() => {}); }, 700);
+        });
+        const cortar = () => clearTimeout(reloj);
+        b.addEventListener("pointerup", cortar);
+        b.addEventListener("pointerleave", cortar);
+        b.addEventListener("pointercancel", cortar);
         return b;
       }, (b, nombre) => {
         const s = escenas.find((x) => x.name === nombre);
         b.toggleAttribute("activo", !!(s.live || s.armada));
         b.setAttribute("variante", s.live ? "aire" : s.armada ? "armado" : "");
+        b.title = s.live ? t("Al aire") : s.armada ? t("En PREVIEW: sale con el TAKE") : "";
       });
     },
   });

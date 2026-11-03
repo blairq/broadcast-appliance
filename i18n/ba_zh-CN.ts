@@ -58733,6 +58733,14 @@ Lo que queda vacío no deja separadores colgando: «{nombre} — {cargo}» sin c
 <context>
     <name>mcp</name>
     <message>
+        <source>Ver el programa y el preview (multipantalla)</source>
+        <translation>查看节目和预监（多画面）</translation>
+    </message>
+    <message>
+        <source>Las dos pantallas de una mesa de switcher, chicas: el PROGRAMA (lo que sale al aire) y el PREVIEW (la escena armada, la que sale con el próximo `preview_al_aire`), cada una con su escena y un cuadro JPEG como data URL (`imagen`, vacía si todavía no hay). Barata: usa los cuadros que ya tiene la interfaz. Para MIRAR con detalle, `foto_programa` o `foto_fuente`.</source>
+        <translation>切换台的两块小屏幕：节目（正在播出的）和预监（已预备的场景，随下一次 `preview_al_aire` 上播），各自附带场景名和一帧 data URL 形式的 JPEG（`imagen`，尚无画面时为空）。开销很小：使用界面已有的画面。要细看请用 `foto_programa` 或 `foto_fuente`。</translation>
+    </message>
+    <message>
         <location filename="../src/app/arranque/GuiMode.cpp" line="+220" />
         <source>MODO PRUEBA (--test): el MCP no pide aprobaciones, ni siquiera las de aire</source>
         <translation>测试模式（--test）：MCP 不请求任何批准，包括在播操作</translation>
@@ -81559,6 +81567,10 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
 <context>
     <name>mcp-etiquetas</name>
     <message>
+        <source>multipantalla monitores programa preview previo armada switcher las dos pantallas que sale y que viene</source>
+        <translation>多画面 监视器 节目 预监 预备 切换台 两块屏幕 正在播出 下一个</translation>
+    </message>
+    <message>
         <location filename="../src/app/audio/PluginTerminos.cpp" line="-216" />
         <source>cadena lateral sidechain que reaccione a otra fuente que baje cuando hablen bajar la musica cuando hablan ducking atenuar automaticamente la musica locutor</source>
         <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
@@ -96364,6 +96376,142 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
 </context>
 <context>
     <name>web/control</name>
+    <message>
+        <source>Arrastrá para moverla</source>
+        <translation>拖动以移动</translation>
+    </message>
+    <message>
+        <source>Columnas que ocupa</source>
+        <translation>占用的列数</translation>
+    </message>
+    <message>
+        <source>Antes</source>
+        <translation>向前</translation>
+    </message>
+    <message>
+        <source>Después</source>
+        <translation>向后</translation>
+    </message>
+    <message>
+        <source>Más angosta</source>
+        <translation>更窄</translation>
+    </message>
+    <message>
+        <source>Más ancha</source>
+        <translation>更宽</translation>
+    </message>
+    <message>
+        <source>Mostrarla</source>
+        <translation>显示</translation>
+    </message>
+    <message>
+        <source>Ocultarla</source>
+        <translation>隐藏</translation>
+    </message>
+    <message>
+        <source>Disposición de fábrica</source>
+        <translation>默认布局</translation>
+    </message>
+    <message>
+        <source>Ordenar, ensanchar u ocultar las tarjetas</source>
+        <translation>排列、加宽或隐藏卡片</translation>
+    </message>
+    <message>
+        <source>✎ Disposición</source>
+        <translation>✎ 布局</translation>
+    </message>
+    <message>
+        <source>Multipantalla</source>
+        <translation>多画面</translation>
+    </message>
+    <message>
+        <source>Editando la disposición</source>
+        <translation>正在编辑布局</translation>
+    </message>
+    <message>
+        <source>Arrastrá cada tarjeta por ⠿ (o con ◀ ▶), cambiá cuántas columnas ocupa con − y +, y ocultá las que no uses con ✕ (las ocultas quedan tenues: 👁 las vuelve a mostrar). Se guarda en la app para este aparato.</source>
+        <translation>拖动每张卡片的 ⠿（或用 ◀ ▶），用 − 和 + 改变它占用的列数，用 ✕ 隐藏不用的卡片（隐藏的会变淡：👁 可重新显示）。布局保存在应用中，针对此设备。</translation>
+    </message>
+    <message>
+        <source>Volver a la de fábrica</source>
+        <translation>恢复默认</translation>
+    </message>
+    <message>
+        <source>Listo</source>
+        <translation>完成</translation>
+    </message>
+    <message>
+        <source>Esperando imagen…</source>
+        <translation>等待画面…</translation>
+    </message>
+    <message>
+        <source>PROGRAMA</source>
+        <translation>节目</translation>
+    </message>
+    <message>
+        <source>PREVIEW</source>
+        <translation>预监</translation>
+    </message>
+    <message>
+        <source>TAKE</source>
+        <translation>切换</translation>
+    </message>
+    <message>
+        <source>La transición de este TAKE</source>
+        <translation>本次切换的转场</translation>
+    </message>
+    <message>
+        <source>Transición configurada</source>
+        <translation>已配置的转场</translation>
+    </message>
+    <message>
+        <source>Corte</source>
+        <translation>硬切</translation>
+    </message>
+    <message>
+        <source>Fundido</source>
+        <translation>淡变</translation>
+    </message>
+    <message>
+        <source>Barrido</source>
+        <translation>擦除</translation>
+    </message>
+    <message>
+        <source>Deslizar</source>
+        <translation>滑动</translation>
+    </message>
+    <message>
+        <source>Fundido a color</source>
+        <translation>淡入颜色</translation>
+    </message>
+    <message>
+        <source>▾ Mostrar monitores</source>
+        <translation>▾ 显示监视器</translation>
+    </message>
+    <message>
+        <source>▴ Ocultar monitores</source>
+        <translation>▴ 隐藏监视器</translation>
+    </message>
+    <message>
+        <source>Nada armado: elegí una escena</source>
+        <translation>未预备：请选择一个场景</translation>
+    </message>
+    <message>
+        <source>Manejar esta salida</source>
+        <translation>控制此输出</translation>
+    </message>
+    <message>
+        <source>Tocá una escena para armarla en PREVIEW; mantenela apretada para ponerla al aire directo.</source>
+        <translation>点击场景将其放入预监；长按则直接上播。</translation>
+    </message>
+    <message>
+        <source>No hay escenas.</source>
+        <translation>没有场景。</translation>
+    </message>
+    <message>
+        <source>En PREVIEW: sale con el TAKE</source>
+        <translation>在预监中：按切换上播</translation>
+    </message>
     <message>
         <location filename="../build/i18n-actualizar/cadenas-web.cpp" line="+36" />
         <source>Aparato sin nombre</source>

@@ -36,7 +36,10 @@
 //                                  qué tarjetas muestra): se guarda en SU registro,
 //                                  no en el navegador (sobrevive a reinicios, a
 //                                  borrar los datos del navegador y a otra URL).
-//                                  Como mucho 8 KiB.
+//                                  Como mucho 8 KiB. Las demás conexiones del mismo
+//                                  aparato reciben {type:"preferencias", datos}.
+//                                  El tablero guarda ahí {ocultas, disposicion:{orden,
+//                                  anchos, ocultas, multipantalla}}.
 //   {type:"salida", salida}        el aparato pasa a manejar esa salida (id; "" = la
 //                                  por omisión): lo que llama va con ella en el
 //                                  contexto (CallContext::salida) y los temas que mira
@@ -65,6 +68,7 @@
 //                                  corrió. Para correrla, el mismo llamar con
 //                                  confirmado:true (después de que la persona
 //                                  confirme en la pantalla del aparato).
+//   {type:"preferencias", datos}   otra conexión del mismo aparato guardó sus preferencias.
 //   {type:"mirando", temas:[…], rechazados:[{tema, error}]}
 //   {type:"estado", tema, datos}   SOLO cuando cambió (y una vez al empezar a
 //                                  mirarlo). Con un tema de varias
@@ -78,6 +82,9 @@
 //   oradores → remotos_fila_ver (1 s)       graficos → dsk_capas_ver + grafico_en_escena (1 s)
 //   linea → linea_estado + linea_ver (1 s; la escaleta y el presentador, de la salida del aparato)
 //   linea-camaras → linea_camaras (1 s; la pantalla de cámara, todas las salidas)
+//   prompter → prompter_estado (1 s)
+//   monitores → monitores_ver (250 ms; programa y preview de la salida, JPEG chicos que
+//                              solo se mandan cuando cambian)
 // El perfil «solo mirar» de una categoría es «<categoría>:ver» (p. ej. «linea:ver»): ve
 // los temas y llama solo las de lectura (para el productor o la producción).
 // Un tema cuyas herramientas no estén todas en el perfil se rechaza. Un tema

@@ -58902,6 +58902,14 @@ Empty values leave no dangling separators: “{nombre} — {cargo}” with no ti
 <context>
     <name>mcp</name>
     <message>
+        <source>Ver el programa y el preview (multipantalla)</source>
+        <translation>See program and preview (multiview)</translation>
+    </message>
+    <message>
+        <source>Las dos pantallas de una mesa de switcher, chicas: el PROGRAMA (lo que sale al aire) y el PREVIEW (la escena armada, la que sale con el próximo `preview_al_aire`), cada una con su escena y un cuadro JPEG como data URL (`imagen`, vacía si todavía no hay). Barata: usa los cuadros que ya tiene la interfaz. Para MIRAR con detalle, `foto_programa` o `foto_fuente`.</source>
+        <translation>The two screens of a switcher desk, small: PROGRAM (what is on air) and PREVIEW (the loaded scene, the one that goes out with the next `preview_al_aire`), each with its scene and a JPEG frame as a data URL (`imagen`, empty if there is none yet). Cheap: uses the frames the interface already has. To LOOK in detail, `foto_programa` or `foto_fuente`.</translation>
+    </message>
+    <message>
         <location filename="../src/app/arranque/GuiMode.cpp" line="+220" />
         <source>MODO PRUEBA (--test): el MCP no pide aprobaciones, ni siquiera las de aire</source>
         <translation>TEST MODE (--test): the MCP doesn't ask for approvals, not even on-air ones</translation>
@@ -81746,6 +81754,10 @@ PROPOSE, DON'T APPLY: show the person what changes and apply only if they confir
 <context>
     <name>mcp-etiquetas</name>
     <message>
+        <source>multipantalla monitores programa preview previo armada switcher las dos pantallas que sale y que viene</source>
+        <translation>multiview monitors program preview loaded switcher the two screens what is on air and what comes next</translation>
+    </message>
+    <message>
         <location filename="../src/app/audio/PluginTerminos.cpp" line="-216" />
         <source>cadena lateral sidechain que reaccione a otra fuente que baje cuando hablen bajar la musica cuando hablan ducking atenuar automaticamente la musica locutor</source>
         <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
@@ -96554,6 +96566,142 @@ PROPOSE, DON'T APPLY: show the person what changes and apply only if they confir
 </context>
 <context>
     <name>web/control</name>
+    <message>
+        <source>Arrastrá para moverla</source>
+        <translation>Drag to move it</translation>
+    </message>
+    <message>
+        <source>Columnas que ocupa</source>
+        <translation>Columns it takes</translation>
+    </message>
+    <message>
+        <source>Antes</source>
+        <translation>Earlier</translation>
+    </message>
+    <message>
+        <source>Después</source>
+        <translation>Later</translation>
+    </message>
+    <message>
+        <source>Más angosta</source>
+        <translation>Narrower</translation>
+    </message>
+    <message>
+        <source>Más ancha</source>
+        <translation>Wider</translation>
+    </message>
+    <message>
+        <source>Mostrarla</source>
+        <translation>Show it</translation>
+    </message>
+    <message>
+        <source>Ocultarla</source>
+        <translation>Hide it</translation>
+    </message>
+    <message>
+        <source>Disposición de fábrica</source>
+        <translation>Default layout</translation>
+    </message>
+    <message>
+        <source>Ordenar, ensanchar u ocultar las tarjetas</source>
+        <translation>Reorder, widen or hide the cards</translation>
+    </message>
+    <message>
+        <source>✎ Disposición</source>
+        <translation>✎ Layout</translation>
+    </message>
+    <message>
+        <source>Multipantalla</source>
+        <translation>Multiview</translation>
+    </message>
+    <message>
+        <source>Editando la disposición</source>
+        <translation>Editing the layout</translation>
+    </message>
+    <message>
+        <source>Arrastrá cada tarjeta por ⠿ (o con ◀ ▶), cambiá cuántas columnas ocupa con − y +, y ocultá las que no uses con ✕ (las ocultas quedan tenues: 👁 las vuelve a mostrar). Se guarda en la app para este aparato.</source>
+        <translation>Drag each card by ⠿ (or with ◀ ▶), change how many columns it takes with − and +, and hide the ones you don't use with ✕ (hidden ones stay dimmed: 👁 shows them again). It is saved in the app for this device.</translation>
+    </message>
+    <message>
+        <source>Volver a la de fábrica</source>
+        <translation>Back to default</translation>
+    </message>
+    <message>
+        <source>Listo</source>
+        <translation>Done</translation>
+    </message>
+    <message>
+        <source>Esperando imagen…</source>
+        <translation>Waiting for picture…</translation>
+    </message>
+    <message>
+        <source>PROGRAMA</source>
+        <translation>PROGRAM</translation>
+    </message>
+    <message>
+        <source>PREVIEW</source>
+        <translation>PREVIEW</translation>
+    </message>
+    <message>
+        <source>TAKE</source>
+        <translation>TAKE</translation>
+    </message>
+    <message>
+        <source>La transición de este TAKE</source>
+        <translation>The transition for this TAKE</translation>
+    </message>
+    <message>
+        <source>Transición configurada</source>
+        <translation>Configured transition</translation>
+    </message>
+    <message>
+        <source>Corte</source>
+        <translation>Cut</translation>
+    </message>
+    <message>
+        <source>Fundido</source>
+        <translation>Fade</translation>
+    </message>
+    <message>
+        <source>Barrido</source>
+        <translation>Swipe</translation>
+    </message>
+    <message>
+        <source>Deslizar</source>
+        <translation>Slide</translation>
+    </message>
+    <message>
+        <source>Fundido a color</source>
+        <translation>Fade to color</translation>
+    </message>
+    <message>
+        <source>▾ Mostrar monitores</source>
+        <translation>▾ Show monitors</translation>
+    </message>
+    <message>
+        <source>▴ Ocultar monitores</source>
+        <translation>▴ Hide monitors</translation>
+    </message>
+    <message>
+        <source>Nada armado: elegí una escena</source>
+        <translation>Nothing loaded: pick a scene</translation>
+    </message>
+    <message>
+        <source>Manejar esta salida</source>
+        <translation>Control this output</translation>
+    </message>
+    <message>
+        <source>Tocá una escena para armarla en PREVIEW; mantenela apretada para ponerla al aire directo.</source>
+        <translation>Tap a scene to load it in PREVIEW; hold it to put it on air directly.</translation>
+    </message>
+    <message>
+        <source>No hay escenas.</source>
+        <translation>No scenes.</translation>
+    </message>
+    <message>
+        <source>En PREVIEW: sale con el TAKE</source>
+        <translation>In PREVIEW: goes on air with TAKE</translation>
+    </message>
     <message>
         <location filename="../build/i18n-actualizar/cadenas-web.cpp" line="+36" />
         <source>Aparato sin nombre</source>

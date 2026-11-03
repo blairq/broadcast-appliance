@@ -59071,6 +59071,14 @@ Lo que queda vacío no deja separadores colgando: «{nombre} — {cargo}» sin c
 <context>
     <name>mcp</name>
     <message>
+        <source>Ver el programa y el preview (multipantalla)</source>
+        <translation>Программа и превью (мультиэкран)</translation>
+    </message>
+    <message>
+        <source>Las dos pantallas de una mesa de switcher, chicas: el PROGRAMA (lo que sale al aire) y el PREVIEW (la escena armada, la que sale con el próximo `preview_al_aire`), cada una con su escena y un cuadro JPEG como data URL (`imagen`, vacía si todavía no hay). Barata: usa los cuadros que ya tiene la interfaz. Para MIRAR con detalle, `foto_programa` o `foto_fuente`.</source>
+        <translation>Два экрана видеомикшера, маленькие: ПРОГРАММА (то, что в эфире) и ПРЕВЬЮ (подготовленная сцена, которая выйдет со следующим `preview_al_aire`), у каждого своя сцена и кадр JPEG в виде data URL (`imagen`, пусто, если кадра ещё нет). Дёшево: использует кадры, которые уже есть в интерфейсе. Чтобы РАССМОТРЕТЬ подробно — `foto_programa` или `foto_fuente`.</translation>
+    </message>
+    <message>
         <location filename="../src/app/arranque/GuiMode.cpp" line="+220" />
         <source>MODO PRUEBA (--test): el MCP no pide aprobaciones, ni siquiera las de aire</source>
         <translation>ТЕСТОВЫЙ РЕЖИМ (--test): MCP не запрашивает одобрений, даже эфирных</translation>
@@ -81933,6 +81941,10 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
 <context>
     <name>mcp-etiquetas</name>
     <message>
+        <source>multipantalla monitores programa preview previo armada switcher las dos pantallas que sale y que viene</source>
+        <translation>мультиэкран мониторы программа превью подготовленная микшер два экрана что в эфире и что дальше</translation>
+    </message>
+    <message>
         <location filename="../src/app/audio/PluginTerminos.cpp" line="-216" />
         <source>cadena lateral sidechain que reaccione a otra fuente que baje cuando hablen bajar la musica cuando hablan ducking atenuar automaticamente la musica locutor</source>
         <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
@@ -96744,6 +96756,142 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
 </context>
 <context>
     <name>web/control</name>
+    <message>
+        <source>Arrastrá para moverla</source>
+        <translation>Перетащите, чтобы переместить</translation>
+    </message>
+    <message>
+        <source>Columnas que ocupa</source>
+        <translation>Сколько колонок занимает</translation>
+    </message>
+    <message>
+        <source>Antes</source>
+        <translation>Раньше</translation>
+    </message>
+    <message>
+        <source>Después</source>
+        <translation>Позже</translation>
+    </message>
+    <message>
+        <source>Más angosta</source>
+        <translation>Уже</translation>
+    </message>
+    <message>
+        <source>Más ancha</source>
+        <translation>Шире</translation>
+    </message>
+    <message>
+        <source>Mostrarla</source>
+        <translation>Показать</translation>
+    </message>
+    <message>
+        <source>Ocultarla</source>
+        <translation>Скрыть</translation>
+    </message>
+    <message>
+        <source>Disposición de fábrica</source>
+        <translation>Исходная раскладка</translation>
+    </message>
+    <message>
+        <source>Ordenar, ensanchar u ocultar las tarjetas</source>
+        <translation>Упорядочить, расширить или скрыть карточки</translation>
+    </message>
+    <message>
+        <source>✎ Disposición</source>
+        <translation>✎ Раскладка</translation>
+    </message>
+    <message>
+        <source>Multipantalla</source>
+        <translation>Мультиэкран</translation>
+    </message>
+    <message>
+        <source>Editando la disposición</source>
+        <translation>Редактирование раскладки</translation>
+    </message>
+    <message>
+        <source>Arrastrá cada tarjeta por ⠿ (o con ◀ ▶), cambiá cuántas columnas ocupa con − y +, y ocultá las que no uses con ✕ (las ocultas quedan tenues: 👁 las vuelve a mostrar). Se guarda en la app para este aparato.</source>
+        <translation>Перетаскивайте карточки за ⠿ (или кнопками ◀ ▶), меняйте ширину в колонках кнопками − и +, скрывайте ненужные кнопкой ✕ (скрытые остаются бледными: 👁 возвращает их). Сохраняется в приложении для этого устройства.</translation>
+    </message>
+    <message>
+        <source>Volver a la de fábrica</source>
+        <translation>Вернуть исходную</translation>
+    </message>
+    <message>
+        <source>Listo</source>
+        <translation>Готово</translation>
+    </message>
+    <message>
+        <source>Esperando imagen…</source>
+        <translation>Ожидание изображения…</translation>
+    </message>
+    <message>
+        <source>PROGRAMA</source>
+        <translation>ПРОГРАММА</translation>
+    </message>
+    <message>
+        <source>PREVIEW</source>
+        <translation>ПРЕВЬЮ</translation>
+    </message>
+    <message>
+        <source>TAKE</source>
+        <translation>TAKE</translation>
+    </message>
+    <message>
+        <source>La transición de este TAKE</source>
+        <translation>Переход для этого TAKE</translation>
+    </message>
+    <message>
+        <source>Transición configurada</source>
+        <translation>Настроенный переход</translation>
+    </message>
+    <message>
+        <source>Corte</source>
+        <translation>Склейка</translation>
+    </message>
+    <message>
+        <source>Fundido</source>
+        <translation>Растворение</translation>
+    </message>
+    <message>
+        <source>Barrido</source>
+        <translation>Шторка</translation>
+    </message>
+    <message>
+        <source>Deslizar</source>
+        <translation>Сдвиг</translation>
+    </message>
+    <message>
+        <source>Fundido a color</source>
+        <translation>Через цвет</translation>
+    </message>
+    <message>
+        <source>▾ Mostrar monitores</source>
+        <translation>▾ Показать мониторы</translation>
+    </message>
+    <message>
+        <source>▴ Ocultar monitores</source>
+        <translation>▴ Скрыть мониторы</translation>
+    </message>
+    <message>
+        <source>Nada armado: elegí una escena</source>
+        <translation>Ничего не подготовлено: выберите сцену</translation>
+    </message>
+    <message>
+        <source>Manejar esta salida</source>
+        <translation>Управлять этим выходом</translation>
+    </message>
+    <message>
+        <source>Tocá una escena para armarla en PREVIEW; mantenela apretada para ponerla al aire directo.</source>
+        <translation>Нажмите на сцену, чтобы подготовить её в ПРЕВЬЮ; удерживайте, чтобы сразу вывести в эфир.</translation>
+    </message>
+    <message>
+        <source>No hay escenas.</source>
+        <translation>Сцен нет.</translation>
+    </message>
+    <message>
+        <source>En PREVIEW: sale con el TAKE</source>
+        <translation>В ПРЕВЬЮ: выйдет в эфир по TAKE</translation>
+    </message>
     <message>
         <location filename="../build/i18n-actualizar/cadenas-web.cpp" line="+36" />
         <source>Aparato sin nombre</source>

@@ -12,8 +12,11 @@
        alEstado(tema, d),    // la app empujó un tema que se mira
        alSalida(m),          // cambió la salida del aparato (o la lista de salidas)
        alAlarma(m),          // una alarma de la app (opcional)
+       alRechazo({tema, error}), // un tema que el perfil no deja mirar (opcional)
+       alPreferencias(datos),    // otra pestaña del mismo aparato guardó sus preferencias (opcional)
      });
-     BA.control.llamar(h, args) / hacer(h, args) / puede(h) / mirar([temas]) / avisar(t, error)
+     BA.control.llamar(h, args) / hacer(h, args) / puede(h) / mirar([temas]) / dejar([temas]) /
+       preferencias(datos) / avisar(t, error)
 
    Sin estilos en línea (la CSP no los deja): clases de control.css. */
 (() => {
@@ -146,7 +149,7 @@
   const temasMirados = new Set();
   let herramientasNuevas = [], ultimoAuth = null;
   const C = (BA.control = BA.control || {});
-  Object.assign(C, { herramientas: [], perfil: [], estado: {}, salida: "", salidas: [] });
+  Object.assign(C, { herramientas: [], perfil: [], estado: {}, salida: "", salidas: [], prefs: {} });
 
   function estadoConexion(viva) {
     const c = document.getElementById("conexion");
@@ -208,6 +211,7 @@
         estadoConexion(true);
         C.perfil = m.perfil || [];
         C.nombre = m.nombre || "";
+        C.prefs = m.preferencias && typeof m.preferencias === "object" ? m.preferencias : {};
         ultimoAuth = m;
         salidaNueva(m);
         herramientasNuevas = m.herramientas || [];
@@ -249,6 +253,12 @@
       case "alarma":
         if (op.alAlarma) op.alAlarma(m);
         break;
+      case "preferencias":
+        if (m.datos && typeof m.datos === "object") {
+          C.prefs = m.datos;
+          if (op.alPreferencias) op.alPreferencias(m.datos);
+        }
+        break;
       case "error":
         avisar(t(m.error) || t("error"), true);
         break;
@@ -272,8 +282,15 @@
     for (const x of temas) if (!temasMirados.has(x)) { temasMirados.add(x); nuevos = true; }
     if (nuevos && autenticado) mandar({ type: "mirar", temas: [...temasMirados] });
   };
-  // Lo que el aparato quiere recordar: va a SU registro en la app.
-  C.preferencias = (datos) => { if (autenticado) mandar({ type: "preferencias", datos }); };
+  // Dejar de mirar (p. ej. los monitores con la pestaña escondida: la app deja de consultarlos).
+  C.dejar = (temas) => {
+    let menos = false;
+    for (const x of temas) if (temasMirados.delete(x)) menos = true;
+    if (menos && autenticado) mandar({ type: "mirar", temas: [...temasMirados] });
+  };
+  // Lo que el aparato quiere recordar: va a SU registro en la app (el objeto entero: la app
+  // guarda lo último que llega).
+  C.preferencias = (datos) => { C.prefs = datos; if (autenticado) mandar({ type: "preferencias", datos }); };
   // La salida que maneja: {id, nombre, color, por_omision} (la por omisión si no eligió).
   C.salidaActual = () => {
     const l = C.salidas;
