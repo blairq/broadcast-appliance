@@ -175,6 +175,12 @@ class Entrada {
     std::string productorEntera() const { return hayEntera_ ? id_ + ":entera:video" : productorVideo(); }
     /// ¿Está mostrando la placa «sin señal»?
     bool enPlaca() const;
+    /// ¿Su señal está LLEGANDO? Recién armada (o rearmada al volver a usarse) en la placa y
+    /// sin ningún cuadro de la señal todavía, dentro de kEsperaSenalUs. Lo que mira el
+    /// TAKE para no sacar al aire una escena con la placa en el lugar de un invitado que
+    /// llega un instante después (Composicion::Opciones::esperarEntrada). Sin candado.
+    bool esperandoSenal() const;
+    static constexpr std::int64_t kEsperaSenalUs = 10'000'000;
     std::string productorAudio() const { return id_ + ":audio"; }
     /// Lo que pide de latencia (ns, 0 si no midió) y si pasa el tope del estudio.
     std::int64_t latenciaPropia() const { return pide_.load(); }
@@ -380,6 +386,8 @@ class Entrada {
     std::atomic<bool> enUso_{true};
     std::atomic<bool> placaActiva_{false};          ///< el conmutador de la salida está en la placa
     std::atomic<std::int64_t> ultimoPrimarioUs_{0}; ///< el último cuadro de la señal que llegó a la salida (vigilante de «sin señal»)
+    std::atomic<std::int64_t> salidaArmadaUs_{0};   ///< cuándo se armó la salida (esperandoSenal)
+    std::atomic<bool> senalTrasArmar_{false};       ///< llegó un cuadro de la señal desde que se armó
     /// El freno del realineo (ver medirLatencia): cuándo se corrigió cada rama,
     /// para qué lado, y hasta cuándo no se la toca si va y viene.
     struct Realineo {

@@ -377,6 +377,9 @@ void Entrada::armarSalida() {
             g_object_set(fs, "active-pad", inmediata ? placaPad : senal, nullptr);
             placaActiva_ = inmediata;
         }
+        // Para el TAKE (esperandoSenal): arrancó en la placa y su señal todavía no llegó.
+        senalTrasArmar_ = !inmediata;
+        salidaArmadaUs_ = g_get_monotonic_time();
         ultimoPrimarioUs_ = g_get_monotonic_time(); // el plazo de «sin señal» corre desde ahora
         if (senal != nullptr) {
             gst_pad_add_probe(
@@ -384,6 +387,7 @@ void Entrada::armarSalida() {
                 [](GstPad* pad, GstPadProbeInfo*, gpointer d) -> GstPadProbeReturn {
                     auto* e = static_cast<Entrada*>(d);
                     e->ultimoPrimarioUs_.store(g_get_monotonic_time(), std::memory_order_relaxed);
+                    e->senalTrasArmar_.store(true, std::memory_order_relaxed);
                     if (e->placaActiva_.load(std::memory_order_relaxed))
                         if (GstElement* sel = gst_pad_get_parent_element(pad)) {
                             g_object_set(sel, "active-pad", pad, nullptr); // volvió la señal
@@ -528,6 +532,14 @@ void Entrada::ponerCpsDelAnillo() {
         g_object_set(a, "cps-max", enUso_.load() ? 0 : 2, nullptr);
         gst_object_unref(a);
     }
+}
+
+bool Entrada::esperandoSenal() const {
+    // Un lugar vacío muestra la placa a propósito; una que ya estaba sin señal de antes
+    // (armada hace rato), también: ninguna de las dos se espera.
+    if (!placaActiva_.load() || senalTrasArmar_.load() || sinGente_.load()) return false;
+    const std::int64_t armada = salidaArmadaUs_.load();
+    return armada != 0 && g_get_monotonic_time() - armada < kEsperaSenalUs;
 }
 
 bool Entrada::enPlaca() const {

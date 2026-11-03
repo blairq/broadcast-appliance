@@ -235,6 +235,13 @@ std::string Motor::armarSalida(const std::string& id, Salida& s) {
     if (cfg_.video) {
         Composicion::Opciones vop;
         vop.gpu = cfg_.videoGpu;
+        // El TAKE no saca al aire una capa con la placa de una entrada cuya señal está
+        // llegando (se rearmó al volver a usarse): se espera como a una sin cuadro. Lo
+        // llama Composicion::tic, en este hilo y con el candado del motor (canales_).
+        vop.esperarEntrada = [this](const std::string& id) {
+            auto it = canales_.find(id);
+            return it != canales_.end() && it->second.entrada && it->second.entrada->esperandoSenal();
+        };
         Composicion::Opciones pop = vop;
         pop.dsk = true; // el PROGRAMA con DSK y clean feed
         s.programa = std::make_unique<Composicion>(*reloj_, cfg_.lienzo, "programa" + suf, pop);
