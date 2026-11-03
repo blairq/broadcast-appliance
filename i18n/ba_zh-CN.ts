@@ -52,7 +52,7 @@
 <context>
     <name>AccesoRemoto</name>
     <message>
-        <location filename="../src/app/net/AccesoRemoto.cpp" line="+87" />
+        <location filename="../src/app/net/AccesoRemoto.cpp" line="+86" />
         <source>Sin consultar todavía.</source>
         <translation>尚未查询。</translation>
     </message>
@@ -124,12 +124,12 @@
     <message>
         <location line="+5" />
         <location line="+27" />
-        <location line="+287" />
+        <location line="+305" />
         <source>no disponible</source>
         <translation>不可用</translation>
     </message>
     <message>
-        <location line="-312" />
+        <location line="-330" />
         <location line="+27" />
         <source>Se está transmitiendo o grabando: el túnel no se toca hasta que termine (reinicia la conferencia).</source>
         <translation>正在推流或录制：结束前不会改动隧道（改动会重启会议）。</translation>
@@ -183,7 +183,7 @@
         <translation>无法保存到 Credenciales/。</translation>
     </message>
     <message>
-        <location line="+19" />
+        <location line="+37" />
         <source>&lt;el destino que muestra el panel de pinggy&gt;</source>
         <translation>&lt;pinggy 面板中显示的目标&gt;</translation>
     </message>
@@ -528,7 +528,7 @@
 <context>
     <name>AgentViewModel</name>
     <message>
-        <location filename="../src/app/agent/AgentViewModel.cpp" line="+433" />
+        <location filename="../src/app/agent/AgentViewModel.cpp" line="+438" />
         <source>Falta la dirección del servidor.</source>
         <translation>缺少服务器地址。</translation>
     </message>
@@ -742,12 +742,12 @@
     </message>
     <message>
         <location line="+108" />
-        <location line="+175" />
+        <location line="+222" />
         <source>Proveedor desconocido: %1</source>
         <translation>未知的提供商：%1</translation>
     </message>
     <message>
-        <location line="-25" />
+        <location line="-62" />
         <source>el modelo local no está disponible en esta versión</source>
         <translation>此版本不提供本地模型</translation>
     </message>
@@ -757,7 +757,7 @@
         <translation>已由本地模型处理：已通过耳机播报；如有需要执行的操作，已在助手栏中提出。</translation>
     </message>
     <message>
-        <location line="+17" />
+        <location line="+54" />
         <source>Los roles automáticos todavía no pueden usar Gemini (Antigravity).</source>
         <translation>自动角色暂时无法使用 Gemini（Antigravity）。</translation>
     </message>
@@ -773,12 +773,12 @@
     </message>
     <message>
         <location line="+21" />
-        <location line="+83" />
+        <location line="+90" />
         <source>No se pudo preparar el agente.</source>
         <translation>无法准备代理。</translation>
     </message>
     <message>
-        <location line="-54" />
+        <location line="-59" />
         <source>No hay un modelo local para el chat.</source>
         <translation>没有可用于聊天的本地模型。</translation>
     </message>
@@ -788,7 +788,7 @@
         <translation>本地模型已就绪。</translation>
     </message>
     <message>
-        <location line="+23" />
+        <location line="+28" />
         <source>Modo seguro: los agentes están apagados hasta el arranque normal.</source>
         <translation>安全模式：代理在正常启动前保持关闭。</translation>
     </message>
@@ -843,7 +843,17 @@
         <translation>参数不是有效的 JSON（应为对象：{"键": 值}）</translation>
     </message>
     <message>
-        <location line="+127" />
+        <location line="+108" />
+        <source>%1 · Automatización</source>
+        <translation>%1 · 自动化</translation>
+    </message>
+    <message>
+        <location line="+0" />
+        <source>%1 · Evento</source>
+        <translation>%1 · 活动</translation>
+    </message>
+    <message>
+        <location line="+99" />
         <source>Primero pará el asistente (la consola está corriendo).</source>
         <translation>请先停止助手（控制台正在运行）。</translation>
     </message>
@@ -926,7 +936,27 @@
         <translation>除了操作应用外，还能使用终端、读写文件和访问互联网（例如下载图片并放入 Medios）。以此方式执行的操作不经过助手的批准：仅在角色确实需要时开启。</translation>
     </message>
     <message>
-        <location line="+9" />
+        <location line="+18" />
+        <source>Aparte</source>
+        <translation>独立</translation>
+    </message>
+    <message>
+        <location line="+7" />
+        <source>su propia sesión</source>
+        <translation>独立会话</translation>
+    </message>
+    <message>
+        <location line="+0" />
+        <source>en la conversación del evento</source>
+        <translation>在活动对话中</translation>
+    </message>
+    <message>
+        <location line="+8" />
+        <source>Apagado: con el asistente de automatización en OpenCode, cada encargo va a su conversación del evento (con todo lo que pasó, sin abrir una sesión nueva por aviso). Prendido: cada encargo corre en su propia sesión, con las herramientas, las instrucciones y el motor del rol. Un rol con otro motor u otro modelo corre aparte siempre.</source>
+        <translation>关闭：使用 OpenCode 中的自动化助手时，每项任务都进入其活动对话（包含发生过的一切，不会为每条通知新开会话）。开启：每项任务在自己的会话中运行，使用该角色的工具、指令和引擎。使用其他引擎或其他模型的角色始终独立运行。</translation>
+    </message>
+    <message>
+        <location line="+10" />
         <source>El del asistente</source>
         <translation>与助手相同</translation>
     </message>
@@ -1773,7 +1803,7 @@
 <context>
     <name>AsistenteViewModel</name>
     <message>
-        <location filename="../src/app/ui/AsistenteViewModel.cpp" line="+163" />
+        <location filename="../src/app/ui/AsistenteViewModel.cpp" line="+166" />
         <source>Modo seguro</source>
         <translation>安全模式</translation>
     </message>
@@ -1875,6 +1905,16 @@
         <location line="+1" />
         <source>Reiniciar</source>
         <translation>重启</translation>
+    </message>
+    <message>
+        <location line="+3" />
+        <source>Conversación nueva</source>
+        <translation>新对话</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>Este evento tiene una conversación con el asistente que se retoma al reabrir la app; ahí caen también los avisos automáticos. Esto empieza otra (la de antes queda en el historial).</source>
+        <translation>此活动有一个与助手的对话，重新打开应用时会接着使用；自动通知也会进入其中。此操作会开始另一个对话（之前的保留在历史记录中）。</translation>
     </message>
     <message>
         <location line="+1" />
@@ -3179,7 +3219,7 @@ Agregá un micrófono o una entrada del sistema.</source>
 <context>
     <name>Bancas</name>
     <message>
-        <location filename="../src/app/asamblea/Bancas.cpp" line="+48" />
+        <location filename="../src/app/asamblea/Bancas.cpp" line="+68" />
         <location line="+37" />
         <location line="+60" />
         <location line="+12" />
@@ -3479,7 +3519,7 @@ Esto lo abre en otra ventana, para tener las dos cosas a la vez.</source>
 <context>
     <name>Botonera</name>
     <message>
-        <location filename="../src/app/control/Botonera.cpp" line="+2201" />
+        <location filename="../src/app/control/Botonera.cpp" line="+2200" />
         <source>Los argumentos no son JSON válido (un objeto {…})</source>
         <translation>参数不是有效的 JSON（应为对象 {…}）</translation>
     </message>
@@ -6076,7 +6116,7 @@ El PIN anterior deja de servir para entrar.</source>
 <context>
     <name>ConferenceViewModel</name>
     <message>
-        <location filename="../src/app/ui/ConferenceViewModel.cpp" line="+123" />
+        <location filename="../src/app/ui/ConferenceViewModel.cpp" line="+122" />
         <source>La conferencia respondio: %1</source>
         <translation>会议返回：%1</translation>
     </message>
@@ -6101,7 +6141,7 @@ El PIN anterior deja de servir para entrar.</source>
         <translation>队列中没有其他人</translation>
     </message>
     <message>
-        <location line="+78" />
+        <location line="+72" />
         <source>%1 espera en el lobby</source>
         <translation>%1 在等候室等候</translation>
     </message>
@@ -6579,7 +6619,7 @@ El PIN anterior deja de servir para entrar.</source>
 <context>
     <name>CuentasViewModel</name>
     <message>
-        <location filename="../src/app/ui/CuentasViewModel.cpp" line="+139" />
+        <location filename="../src/app/ui/CuentasViewModel.cpp" line="+148" />
         <location line="+6" />
         <source>El escáner de red no está disponible.</source>
         <translation>网络扫描器不可用。</translation>
@@ -6596,12 +6636,12 @@ El PIN anterior deja de servir para entrar.</source>
         <translation>插件不可用。</translation>
     </message>
     <message>
-        <location line="-60" />
+        <location line="-68" />
         <source>No se pudo leer %1.</source>
         <translation>无法读取 %1。</translation>
     </message>
     <message>
-        <location line="+72" />
+        <location line="+80" />
         <source>Plataforma desconocida: %1.</source>
         <translation>未知平台：%1。</translation>
     </message>
@@ -6778,7 +6818,7 @@ El PIN anterior deja de servir para entrar.</source>
         <translation>取消</translation>
     </message>
     <message>
-        <location line="+132" />
+        <location line="+137" />
         <source>Esta tarjeta no se pudo cargar.</source>
         <translation>无法载入此卡片。</translation>
     </message>
@@ -6847,17 +6887,17 @@ Se prende desde el Registro.</source>
         <translation>角色已消失</translation>
     </message>
     <message>
-        <location line="+29" />
+        <location line="+30" />
         <source>no se pudo preparar el agente</source>
         <translation>无法准备代理</translation>
     </message>
     <message>
-        <location line="-112" />
+        <location line="-113" />
         <source>el rol `%1` está apagado (página Agentes)</source>
         <translation>角色 `%1` 已关闭（「代理」页面）</translation>
     </message>
     <message>
-        <location line="+150" />
+        <location line="+151" />
         <source>el agente terminó con código %1</source>
         <translation>代理结束，代码 %1</translation>
     </message>
@@ -6892,7 +6932,7 @@ Se prende desde el Registro.</source>
         <translation>代理 %1：%2</translation>
     </message>
     <message>
-        <location line="+160" />
+        <location line="+164" />
         <source>cancelada antes de arrancar</source>
         <translation>启动前已取消</translation>
     </message>
@@ -8329,7 +8369,7 @@ Se prende desde el Registro.</source>
 <context>
     <name>EditorFiltroAudio</name>
     <message>
-        <location filename="../src/app/qml/controls/EditorFiltroAudio.qml" line="+81" />
+        <location filename="../src/app/qml/controls/EditorFiltroAudio.qml" line="+88" />
         <source>Elegí un módulo</source>
         <translation>请选择一个模块</translation>
     </message>
@@ -8972,6 +9012,30 @@ Se prende desde el Registro.</source>
         <location line="+2" />
         <source>Cancelar</source>
         <translation>取消</translation>
+    </message>
+</context>
+<context>
+    <name>EnvioOpencode</name>
+    <message>
+        <location filename="../src/app/agent/EnvioOpencode.cpp" line="+111" />
+        <source>No hay servidor de OpenCode.</source>
+        <translation>没有 OpenCode 服务器。</translation>
+    </message>
+    <message>
+        <location line="+14" />
+        <source>OpenCode no creó la sesión del evento: %1</source>
+        <translation>OpenCode 没有创建活动会话：%1</translation>
+    </message>
+    <message>
+        <location line="+14" />
+        <source>OpenCode no encontró la sesión del evento: %1</source>
+        <translation>OpenCode 没有找到活动会话：%1</translation>
+    </message>
+    <message numerus="yes">
+        <location line="+46" />
+        <location line="+32" />
+        <source>No se pudieron mandar %n aviso(s) al asistente: %1</source>
+        <translation><numerusform>无法向助手发送 %n 条通知：%1</numerusform></translation>
     </message>
 </context>
 <context>
@@ -11461,7 +11525,7 @@ Se prende desde el Registro.</source>
 <context>
     <name>ExtensionesModel</name>
     <message>
-        <location filename="../src/app/ui/ExtensionesModel.cpp" line="+71" />
+        <location filename="../src/app/ui/ExtensionesModel.cpp" line="+70" />
         <source>el nombre de la carpeta tiene caracteres que no se pueden usar</source>
         <translation>文件夹名称包含不可用的字符</translation>
     </message>
@@ -11486,12 +11550,12 @@ Se prende desde el Registro.</source>
         <translation>缺少文件 %1</translation>
     </message>
     <message>
-        <location line="+92" />
+        <location line="+90" />
         <source>La tarjeta «%1» tiene un error (mirá el Registro)</source>
         <translation>卡片「%1」有错误（请查看「日志」）</translation>
     </message>
     <message>
-        <location line="+7" />
+        <location line="+6" />
         <source>En vivo no se cargan extensiones nuevas: se carga al salir del modo en vivo.</source>
         <translation>直播期间不载入新扩展：退出直播模式后载入。</translation>
     </message>
@@ -12657,12 +12721,12 @@ Se cambia en su código (sección Plugins, o pidiéndoselo al asistente). Acá s
     </message>
     <message>
         <location line="+64" />
-        <location line="+59" />
+        <location line="+61" />
         <source>Invitado %1</source>
         <translation>嘉宾 %1</translation>
     </message>
     <message>
-        <location line="-49" />
+        <location line="-51" />
         <source>Retorno apagado</source>
         <translation>返送已关闭</translation>
     </message>
@@ -12672,7 +12736,7 @@ Se cambia en su código (sección Plugins, o pidiéndoselo al asistente). Acá s
         <translation>该嘉宾什么也听不到：不含其声音的混音（mix-minus）未送达会议。不向其发送完整节目，因为那样会听到自己延迟的声音。</translation>
     </message>
     <message>
-        <location line="+24" />
+        <location line="+26" />
         <source>Red: %1 kbps · pérdida %2 % · jitter %3 ms · RTT %4 ms</source>
         <translation>网络：%1 kbps · 丢包 %2 % · 抖动 %3 毫秒 · RTT %4 毫秒</translation>
     </message>
@@ -16004,7 +16068,7 @@ La matriz no cambia lo que entra: decide a qué salidas va (las columnas: el pro
 <context>
     <name>MediosViewModel</name>
     <message numerus="yes">
-        <location filename="../src/app/ui/MediosViewModel.cpp" line="+376" />
+        <location filename="../src/app/ui/MediosViewModel.cpp" line="+375" />
         <source>%n archivo a «%1»</source>
         <translation>
             <numerusform>%n 个文件移至「%1」</numerusform>
@@ -19010,13 +19074,13 @@ Agregale imágenes desde la pestaña Archivos.</source>
     </message>
     <message>
         <location line="+1" />
-        <location line="+78" />
+        <location line="+80" />
         <location line="+7" />
         <source>Presidencia</source>
         <translation>主席</translation>
     </message>
     <message>
-        <location line="-67" />
+        <location line="-69" />
         <source>· en uso</source>
         <translation>· 使用中</translation>
     </message>
@@ -19044,23 +19108,23 @@ Agregale imágenes desde la pestaña Archivos.</source>
         <location line="+0" />
         <location line="+35" />
         <location line="+3" />
-        <location line="+199" />
+        <location line="+202" />
         <location line="+2" />
         <source>Revocar</source>
         <translation>撤销</translation>
     </message>
     <message>
-        <location line="-239" />
+        <location line="-242" />
         <location line="+19" />
         <location line="+19" />
-        <location line="+92" />
-        <location line="+96" />
+        <location line="+94" />
+        <location line="+97" />
         <location line="+13" />
         <source>Cancelar</source>
         <translation>取消</translation>
     </message>
     <message>
-        <location line="-230" />
+        <location line="-233" />
         <source>Todavía no hay ningún acceso. Tocá «Nuevo acceso…» y pasale el link (o el QR) a quien preside.</source>
         <translation>尚无任何访问。点「新建访问…」，将链接（或二维码）交给主席。</translation>
     </message>
@@ -19121,7 +19185,7 @@ Agregale imágenes desde la pestaña Archivos.</source>
         <translation>暂无：有人第一次用自己的 PIN 进入时会自动登记。</translation>
     </message>
     <message>
-        <location line="+7" />
+        <location line="+9" />
         <source>Nuevo acceso a la consola</source>
         <translation>新建控制台访问</translation>
     </message>
@@ -19243,12 +19307,12 @@ Agregale imágenes desde la pestaña Archivos.</source>
     </message>
     <message>
         <location line="+1" />
-        <location line="+158" />
+        <location line="+159" />
         <source>Usuario</source>
         <translation>用户名</translation>
     </message>
     <message>
-        <location line="-157" />
+        <location line="-158" />
         <source>Acceso</source>
         <translation>访问</translation>
     </message>
@@ -19273,7 +19337,12 @@ Agregale imágenes desde la pestaña Archivos.</source>
         <translation>载入成员…</translation>
     </message>
     <message>
-        <location line="+21" />
+        <location line="+17" />
+        <source>%1 · de prueba</source>
+        <translation>%1 · 测试</translation>
+    </message>
+    <message>
+        <location line="+5" />
         <source>sin acceso</source>
         <translation>无访问权限</translation>
     </message>
@@ -21792,7 +21861,7 @@ Agregale imágenes desde la pestaña Archivos.</source>
 <context>
     <name>PanelInformes</name>
     <message>
-        <location filename="../src/app/qml/controls/PanelInformes.qml" line="+25" />
+        <location filename="../src/app/qml/controls/PanelInformes.qml" line="+28" />
         <source>Generar</source>
         <translation>生成</translation>
     </message>
@@ -21926,7 +21995,7 @@ Agregale imágenes desde la pestaña Archivos.</source>
         <translation>在「%1」上打开 Profiler，以旁路方式监听：它发出的声音不会播出。如需测量，请在输入的处理链中将其输出连接到「输出」卡片（扬声器）；20 Hz 到 20 kHz 的扫频可能很响。在其界面中按下「Measure」之前不会发出任何声音。</translation>
     </message>
     <message>
-        <location line="+89" />
+        <location line="+90" />
         <source>Mute</source>
         <translation>静音</translation>
     </message>
@@ -23161,6 +23230,236 @@ Agregale imágenes desde la pestaña Archivos.</source>
     </message>
 </context>
 <context>
+    <name>PanelPruebaAsamblea</name>
+    <message>
+        <location filename="../src/app/qml/controls/PanelPruebaAsamblea.qml" line="+20" />
+        <location line="+26" />
+        <source>Prueba de asamblea</source>
+        <translation>大会测试</translation>
+    </message>
+    <message>
+        <location line="-25" />
+        <source>Integrantes de prueba entran como desde el celular: con su link y PIN (o usuario y contraseña), esperan que los habilites en el Recinto, piden la palabra, hablan con cámara y micrófono y votan. Corre en un evento de prueba: nunca toca el padrón real, y al terminar se borran ellos y su acceso.</source>
+        <translation>测试成员像从手机进入一样：通过各自的链接和 PIN（或用户名和密码）进入，等待你在会场中启用他们，申请发言，用摄像头和麦克风发言并投票。测试在测试活动中运行：绝不会动真实名册，结束时他们及其访问权限都会被删除。</translation>
+    </message>
+    <message>
+        <location line="+4" />
+        <source>preparada</source>
+        <translation>已准备</translation>
+    </message>
+    <message>
+        <location line="+0" />
+        <source>%1/%2 conectados</source>
+        <translation>已连接 %1/%2</translation>
+    </message>
+    <message>
+        <location line="+15" />
+        <source>Crear un evento de prueba y abrirlo…</source>
+        <translation>创建测试活动并打开…</translation>
+    </message>
+    <message>
+        <location line="+3" />
+        <source>Evento de prueba</source>
+        <translation>测试活动</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Se crea el evento «Prueba de asamblea» vacío (desde cero) y se abre: el programa se reinicia y se corta lo que sale. Para volver a este evento, abrilo desde la pestaña Eventos. ¿Lo creo?</source>
+        <translation>将创建一个空的“大会测试”活动（从零开始）并打开：程序会重启，正在输出的内容会中断。要回到当前活动，请在“活动”标签页中打开它。要创建吗？</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Crear y abrir</source>
+        <translation>创建并打开</translation>
+    </message>
+    <message>
+        <location line="+0" />
+        <source>Cancelar</source>
+        <translation>取消</translation>
+    </message>
+    <message numerus="yes">
+        <location line="+8" />
+        <source>Borrar los %n integrantes de prueba que quedaron</source>
+        <translation><numerusform>删除遗留的 %n 名测试成员</numerusform></translation>
+    </message>
+    <message>
+        <location line="+11" />
+        <source>Integrantes</source>
+        <translation>成员</translation>
+    </message>
+    <message>
+        <location line="+3" />
+        <source>Minutos</source>
+        <translation>分钟</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>% afuera</source>
+        <translation>% 在场外</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>% piden la palabra</source>
+        <translation>% 申请发言</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>% votan</source>
+        <translation>% 投票</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>Cómo votan</source>
+        <translation>投票方式</translation>
+    </message>
+    <message>
+        <location line="+7" />
+        <source>Al azar</source>
+        <translation>随机</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Mayoría afirmativa (60/30/10)</source>
+        <translation>赞成占多数 (60/30/10)</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Pareja (45/45/10)</source>
+        <translation>势均力敌 (45/45/10)</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Mayoría negativa (30/60/10)</source>
+        <translation>反对占多数 (30/60/10)</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Todos afirmativo</source>
+        <translation>全部赞成</translation>
+    </message>
+    <message>
+        <location line="+3" />
+        <source>% se reconectan</source>
+        <translation>% 会重新连接</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>% PIN errado</source>
+        <translation>% PIN 错误</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>% con usuario</source>
+        <translation>% 使用用户名</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>Habilitarlos solos a los (s)</source>
+        <translation>自动启用，延迟（秒）</translation>
+    </message>
+    <message>
+        <location line="+3" />
+        <source>0: los habilitás vos en el Recinto, viéndoles la cara (el número)</source>
+        <translation>0：由你在会场中亲自启用，看着他们的脸（人数）</translation>
+    </message>
+    <message>
+        <location line="+7" />
+        <source>Los genera esta máquina (hinchada)</source>
+        <translation>由本机生成 (hinchada)</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Sin probador en el programa: generador externo</source>
+        <translation>程序中没有测试器：使用外部生成器</translation>
+    </message>
+    <message>
+        <location line="+6" />
+        <source>Los que erran el PIN lo prueban 5 veces: el acceso queda bloqueado 15 minutos, como pasaría de verdad. Los que se reconectan pierden la red una vez y vuelven solos: si fue en menos de 2 minutos, siguen habilitados.</source>
+        <translation>PIN 输错的人会尝试 5 次：访问将被锁定 15 分钟，与真实情况一样。重新连接的人会断网一次并自行恢复：如果不到 2 分钟，他们仍保持启用状态。</translation>
+    </message>
+    <message>
+        <location line="+9" />
+        <source>Generar integrantes de prueba</source>
+        <translation>生成测试成员</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <location line="+12" />
+        <source>Prueba de asamblea: %1</source>
+        <translation>大会测试：%1</translation>
+    </message>
+    <message>
+        <location line="-7" />
+        <source>Arrancar la prueba</source>
+        <translation>开始测试</translation>
+    </message>
+    <message>
+        <location line="+13" />
+        <source>Descartar</source>
+        <translation>放弃</translation>
+    </message>
+    <message>
+        <location line="+10" />
+        <source>%1 esperan que los habiliten</source>
+        <translation>%1 人等待启用</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>%1 habilitados</source>
+        <translation>%1 人已启用</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>%1 afuera</source>
+        <translation>%1 人在场外</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>%1 en la fila</source>
+        <translation>%1 人在队列中</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>%1 con la palabra</source>
+        <translation>%1 人有发言权</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>%1 votaron</source>
+        <translation>%1 人已投票</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>%1 bloqueados</source>
+        <translation>%1 人被锁定</translation>
+    </message>
+    <message>
+        <location line="+5" />
+        <source>Ir al Recinto (a habilitarlos)</source>
+        <translation>前往会场（去启用他们）</translation>
+    </message>
+    <message>
+        <location line="+3" />
+        <source>Terminar la prueba</source>
+        <translation>结束测试</translation>
+    </message>
+    <message>
+        <location line="+3" />
+        <source>Terminando: el probador se va y se limpia…</source>
+        <translation>正在结束：测试器退出并清理…</translation>
+    </message>
+    <message>
+        <location line="+7" />
+        <source>Generador externo: copiá este archivo a la otra máquina (son credenciales de prueba: se revocan al terminar) y corré ahí la línea de abajo:</source>
+        <translation>外部生成器：将此文件复制到另一台机器（这是测试凭据：结束时会被撤销），并在那里运行下面这一行：</translation>
+    </message>
+    <message>
+        <location line="+21" />
+        <source>Última: %1 (en el evento: %2)</source>
+        <translation>最近一次：%1（在活动中：%2）</translation>
+    </message>
+</context>
+<context>
     <name>PanelPruebaSala</name>
     <message>
         <location filename="../src/app/qml/controls/PanelPruebaSala.qml" line="+16" />
@@ -23974,7 +24273,7 @@ Agregale imágenes desde la pestaña Archivos.</source>
         <translation>元素属性。在文本值中，{dir} 表示插件文件夹（用于放在其中的模型或 .engine 文件）。</translation>
     </message>
     <message>
-        <location line="+21" />
+        <location line="+28" />
         <source>Modelos</source>
         <translation>模型</translation>
     </message>
@@ -25946,7 +26245,7 @@ Agregale imágenes desde la pestaña Archivos.</source>
         <translation>请在左侧选择一个屏幕。</translation>
     </message>
     <message>
-        <location line="+20" />
+        <location line="+27" />
         <source>Mostrar</source>
         <translation>显示</translation>
     </message>
@@ -26014,7 +26313,7 @@ Agregale imágenes desde la pestaña Archivos.</source>
 <context>
     <name>PantallasViewModel</name>
     <message>
-        <location filename="../src/app/ui/PantallasViewModel.cpp" line="+245" />
+        <location filename="../src/app/ui/PantallasViewModel.cpp" line="+244" />
         <source>Este programa se compiló sin búsqueda en la red: agregá el televisor a mano con su dirección IP.</source>
         <translation>此程序编译时未启用网络发现：请用 IP 地址手动添加电视。</translation>
     </message>
@@ -26024,7 +26323,7 @@ Agregale imágenes desde la pestaña Archivos.</source>
         <translation>（发送时由 gateway 获取）</translation>
     </message>
     <message>
-        <location filename="../src/app/ui/PantallasViewModel.cpp" line="+126" />
+        <location filename="../src/app/ui/PantallasViewModel.cpp" line="+170" />
         <source>No encontré ningún televisor en la red</source>
         <translation>在网络中未找到任何电视</translation>
     </message>
@@ -26686,7 +26985,7 @@ De frente, de costado, con anteojos y sin: así se la reconoce en el día real.<
         <translation>「%1」上没有画面。</translation>
     </message>
     <message>
-        <location filename="../src/app/ui/PersonasViewModel.cpp" line="+303" />
+        <location filename="../src/app/ui/PersonasViewModel.cpp" line="+306" />
         <location line="+22" />
         <location line="+32" />
         <source>La foto no se pudo leer.</source>
@@ -26779,7 +27078,7 @@ De frente, de costado, con anteojos y sin: así se la reconoce en el día real.<
         <translation>人脸库已达 %1 份档案：已关闭自动登记，以免存入大量陌生人。请补全或删除多余的档案。</translation>
     </message>
     <message>
-        <location line="+67" />
+        <location line="+66" />
         <location filename="../src/app/ui/TarjetasRostros.cpp" line="+54" />
         <source>Cámara · %1</source>
         <translation>摄像机 · %1</translation>
@@ -27925,6 +28224,39 @@ De frente, de costado, con anteojos y sin: así se la reconoce en el día real.<
     </message>
 </context>
 <context>
+    <name>PruebaAsambleaViewModel</name>
+    <message numerus="yes">
+        <location filename="../src/app/ui/PruebaAsambleaViewModel.cpp" line="+177" />
+        <source>Prueba de asamblea: %n integrantes de prueba con su acceso, en el Recinto.</source>
+        <translation><numerusform>大会测试：%n 名测试成员已获得访问权限，在会场中。</numerusform></translation>
+    </message>
+    <message>
+        <location line="+65" />
+        <source>Prueba de asamblea abierta: corré el generador externo con el archivo de credenciales.</source>
+        <translation>大会测试已打开：请使用凭据文件运行外部生成器。</translation>
+    </message>
+    <message numerus="yes">
+        <location line="+40" />
+        <source>Prueba de asamblea: entran %n integrantes de prueba (la primera vez el probador graba su video unos minutos).</source>
+        <translation><numerusform>大会测试：%n 名测试成员正在进入（首次运行时，测试器会花几分钟录制其视频）。</numerusform></translation>
+    </message>
+    <message>
+        <location line="+145" />
+        <source>Prueba de asamblea (integrantes simulados por la sesión remota)</source>
+        <translation>大会测试（通过远程会话模拟的成员）</translation>
+    </message>
+    <message numerus="yes">
+        <location line="+22" />
+        <source>Se borraron %n integrantes de prueba que habían quedado (y su acceso).</source>
+        <translation><numerusform>已删除遗留的 %n 名测试成员（及其访问权限）。</numerusform></translation>
+    </message>
+    <message numerus="yes">
+        <location line="+18" />
+        <source>Había una prueba de asamblea sin terminar (el programa se cerró en el medio): se borraron %n integrantes de prueba y su acceso.</source>
+        <translation><numerusform>有一次未结束的大会测试（程序中途关闭）：已删除 %n 名测试成员及其访问权限。</numerusform></translation>
+    </message>
+</context>
+<context>
     <name>PruebaSalaViewModel</name>
     <message numerus="yes">
         <location filename="../src/app/ui/PruebaSalaViewModel.cpp" line="+173" />
@@ -28902,6 +29234,19 @@ De frente, de costado, con anteojos y sin: así se la reconoce en el día real.<
         <location line="+8" />
         <source>No pude cambiarlo</source>
         <translation>无法更改</translation>
+    </message>
+</context>
+<context>
+    <name>QObject</name>
+    <message>
+        <location filename="../src/app/agent/EnvioOpencode.cpp" line="-180" />
+        <source>el servidor de OpenCode no contesta</source>
+        <translation>OpenCode 服务器没有响应</translation>
+    </message>
+    <message>
+        <location line="+0" />
+        <source>HTTP %1</source>
+        <translation>HTTP %1</translation>
     </message>
 </context>
 <context>
@@ -31790,12 +32135,12 @@ Para la escena base de la que salen las demás.</source>
 <context>
     <name>SelectorHerramientas</name>
     <message>
-        <location filename="../src/app/qml/controls/SelectorHerramientas.qml" line="+112" />
+        <location filename="../src/app/qml/controls/SelectorHerramientas.qml" line="+111" />
         <source>Qué hace este botón</source>
         <translation>此按钮的作用</translation>
     </message>
     <message>
-        <location line="+8" />
+        <location line="+9" />
         <source>Buscar en todo: «poner al aire», «música», «grabar», «cámara 2»…</source>
         <translation>全部搜索：「播出」「音乐」「录制」「摄像机 2」…</translation>
     </message>
@@ -31973,12 +32318,12 @@ Para la escena base de la que salen las demás.</source>
 <context>
     <name>SesionRemota</name>
     <message>
-        <location filename="../src/app/asamblea/SesionRemota.cpp" line="+480" />
+        <location filename="../src/app/asamblea/SesionRemota.cpp" line="+493" />
         <source>%1 entró a la sesión y espera que lo habiliten</source>
         <translation>%1 已进入会议，正在等待放行</translation>
     </message>
     <message>
-        <location line="+13" />
+        <location line="+14" />
         <source>Acceso de %1 bloqueado 15 minutos por PIN errado varias veces</source>
         <translation>%1 的访问因多次 PIN 错误被封锁 15 分钟</translation>
     </message>
@@ -32142,12 +32487,12 @@ Para la escena base de la que salen las demás.</source>
     </message>
     <message>
         <location line="+1" />
-        <location line="+710" />
+        <location line="+717" />
         <source>Seguridad</source>
         <translation>安全</translation>
     </message>
     <message>
-        <location line="-710" />
+        <location line="-717" />
         <source>Archivos</source>
         <translation>文件</translation>
     </message>
@@ -32215,10 +32560,10 @@ Para la escena base de la que salen las demás.</source>
     <message>
         <location line="+1" />
         <location line="+12" />
-        <location line="+162" />
+        <location line="+163" />
         <location line="+335" />
         <location line="+81" />
-        <location line="+111" />
+        <location line="+117" />
         <location line="+338" />
         <location line="+20" />
         <location line="+38" />
@@ -32227,7 +32572,7 @@ Para la escena base de la que salen las demás.</source>
         <translation>取消</translation>
     </message>
     <message>
-        <location line="-1137" />
+        <location line="-1144" />
         <source>Configuración, credenciales, grabaciones y archivos no se tocan.</source>
         <translation>设置、凭证、录制内容和文件均不受影响。</translation>
     </message>
@@ -32257,7 +32602,7 @@ Para la escena base de la que salen las demás.</source>
         <translation>设置</translation>
     </message>
     <message>
-        <location line="+55" />
+        <location line="+56" />
         <source>Mostrar ajustes avanzados</source>
         <translation>显示高级设置</translation>
     </message>
@@ -32304,7 +32649,7 @@ Para la escena base de la que salen las demás.</source>
         <location line="+381" />
         <location line="+4" />
         <location line="+31" />
-        <location line="+495" />
+        <location line="+501" />
         <location line="+4" />
         <location line="+58" />
         <location line="+40" />
@@ -32314,7 +32659,7 @@ Para la escena base de la que salen las demás.</source>
         <translation>删除</translation>
     </message>
     <message>
-        <location line="-1424" />
+        <location line="-1430" />
         <source>Token de Cloudflare borrado.</source>
         <translation>Cloudflare token 已删除。</translation>
     </message>
@@ -32340,12 +32685,12 @@ Para la escena base de la que salen las demás.</source>
     </message>
     <message>
         <location line="+8" />
-        <location line="+536" />
+        <location line="+542" />
         <source>Valores por defecto de esta sección</source>
         <translation>本部分的默认值</translation>
     </message>
     <message>
-        <location line="-525" />
+        <location line="-531" />
         <source>Reiniciar el servidor ahora</source>
         <translation>立即重启服务器</translation>
     </message>
@@ -32361,12 +32706,12 @@ Para la escena base de la que salen las demás.</source>
     </message>
     <message>
         <location line="+1" />
-        <location line="+527" />
+        <location line="+533" />
         <source>Reiniciar</source>
         <translation>重启</translation>
     </message>
     <message>
-        <location line="-524" />
+        <location line="-530" />
         <source>El servidor se está reiniciando.</source>
         <translation>服务器正在重启。</translation>
     </message>
@@ -32532,13 +32877,13 @@ Para la escena base de la que salen las demás.</source>
     </message>
     <message>
         <location line="+3" />
-        <location line="+614" />
+        <location line="+620" />
         <location line="+978" />
         <source>Actualizar</source>
         <translation>刷新</translation>
     </message>
     <message>
-        <location line="-1578" />
+        <location line="-1584" />
         <source>Copiar</source>
         <translation>复制</translation>
     </message>
@@ -32773,7 +33118,7 @@ Para la escena base de la que salen las demás.</source>
         <translation>以下是域名管理员需要完成的操作。根据您在上方填写的内容生成：复制后发给对方。</translation>
     </message>
     <message>
-        <location line="+13" />
+        <location line="+19" />
         <source>Copiar instrucciones</source>
         <translation>复制说明</translation>
     </message>
@@ -33822,7 +34167,7 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
 <context>
     <name>SourcesModel</name>
     <message>
-        <location filename="../src/app/ui/ListModels.cpp" line="+379" />
+        <location filename="../src/app/ui/ListModels.cpp" line="+378" />
         <source>No existe la fuente '%1'.</source>
         <translation>来源 '%1' 不存在。</translation>
     </message>
@@ -33898,7 +34243,7 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
         <translation>🪑 %1 · 席位 %2</translation>
     </message>
     <message>
-        <location line="+10" />
+        <location line="+9" />
         <source>Terminar</source>
         <translation>结束</translation>
     </message>
@@ -34016,7 +34361,7 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
 <context>
     <name>StudioViewModel</name>
     <message>
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="+137" />
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="+138" />
         <source>%1 (no se pudo: %2)</source>
         <translation>%1（失败：%2）</translation>
     </message>
@@ -34046,7 +34391,7 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
         <translation>自动字幕条未能播出：%1</translation>
     </message>
     <message>
-        <location line="+276" />
+        <location line="+279" />
         <source>no contestó</source>
         <translation>无响应</translation>
     </message>
@@ -34066,7 +34411,7 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
         <translation>活动磁盘已用 %1 %（剩余 %2 GB）</translation>
     </message>
     <message>
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="+311" />
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="+317" />
         <source>La interfaz estuvo trabada %1 s; el aire siguió</source>
         <translation>界面卡顿了 %1 秒；播出未中断</translation>
     </message>
@@ -37498,7 +37843,7 @@ Escucha:
         <translation>无 GStreamer：%1</translation>
     </message>
     <message>
-        <location line="+225" />
+        <location line="+273" />
         <source>«%1» no es una entrada de video</source>
         <translation>「%1」不是视频输入</translation>
     </message>
@@ -39383,7 +39728,7 @@ Elegí otra cosa en Salidas → Pantallas.</source>
 <context>
     <name>acceso</name>
     <message>
-        <location filename="../src/app/net/AccesoRemoto.cpp" line="-680" />
+        <location filename="../src/app/net/AccesoRemoto.cpp" line="-698" />
         <source>Está vacío.</source>
         <translation>为空。</translation>
     </message>
@@ -39403,7 +39748,7 @@ Elegí otra cosa en Salidas → Pantallas.</source>
         <translation>太长：是否粘贴了其他内容？</translation>
     </message>
     <message>
-        <location line="+542" />
+        <location line="+560" />
         <source>pinggy no aceptó la API key</source>
         <translation>pinggy 未接受该 API key</translation>
     </message>
@@ -39770,13 +40115,13 @@ Elegí otra cosa en Salidas → Pantallas.</source>
 <context>
     <name>agente</name>
     <message>
-        <location filename="../src/app/agent/Despachador.cpp" line="-599" />
+        <location filename="../src/app/agent/Despachador.cpp" line="-604" />
         <location line="+33" />
         <source>no se pudo encargar: %1</source>
         <translation>无法分配任务：%1</translation>
     </message>
     <message>
-        <location line="+190" />
+        <location line="+191" />
         <source>corrida %1 arranca con %2 (con consola, %3)</source>
         <translation>运行 %1 使用 %2 启动（带控制台，%3）</translation>
     </message>
@@ -41599,7 +41944,7 @@ Elegí otra cosa en Salidas → Pantallas.</source>
         <translation>最长回复</translation>
     </message>
     <message>
-        <location filename="../src/app/ui/SettingsModel.cpp" line="+287" />
+        <location filename="../src/app/ui/SettingsModel.cpp" line="+286" />
         <location filename="../src/core/ajustes/Registro.cpp" line="+0" />
         <source>tokens</source>
         <translation>token</translation>
@@ -43340,7 +43685,7 @@ Elegí otra cosa en Salidas → Pantallas.</source>
         <translation>从不：自动批准（风险自负）</translation>
     </message>
     <message>
-        <location line="+701" />
+        <location line="+692" />
         <source>Algunos cambios rigen desde el próximo arranque.</source>
         <translation>部分更改将在下次启动时生效。</translation>
     </message>
@@ -43350,7 +43695,7 @@ Elegí otra cosa en Salidas → Pantallas.</source>
         <translation>设置已保存。</translation>
     </message>
     <message>
-        <location line="-707" />
+        <location line="-698" />
         <source>Una aprobación espera hasta</source>
         <translation>批准最长等待</translation>
     </message>
@@ -43485,7 +43830,7 @@ Elegí otra cosa en Salidas → Pantallas.</source>
         <translation>关闭时，守护程序会自动重启而不询问。</translation>
     </message>
     <message>
-        <location line="+384" />
+        <location line="+375" />
         <source>EN VIVO: no se aplica «%1»: reinicia el gateway, el motor o el programa y corta a los invitados o el aire. Volvé atrás esos cambios o esperá a terminar la transmisión.</source>
         <translation>直播中：未应用「%1」：它会重启 gateway、引擎或程序，并中断嘉宾或播出。请撤销这些更改，或等推流结束。</translation>
     </message>
@@ -43525,7 +43870,7 @@ Elegí otra cosa en Salidas → Pantallas.</source>
         <translation>容量：%1</translation>
     </message>
     <message>
-        <location line="-534" />
+        <location line="-525" />
         <source>Automático (hardware si hay)</source>
         <translation>自动（有硬件则用硬件）</translation>
     </message>
@@ -43535,7 +43880,7 @@ Elegí otra cosa en Salidas → Pantallas.</source>
         <translation>确定性保护：当助手读取了嘉宾或观众写的内容（聊天、姓名、文件、其视频）时，所有会改变内容的操作都要等您在下方栏中点击批准。这样嘉宾就无法让助手更改任何东西。选择「从不」时一切自动批准：嘉宾可能在聊天中写下某些内容而被助手执行。只能在此处更改（助手无法更改）。</translation>
     </message>
     <message>
-        <location line="+602" />
+        <location line="+593" />
         <source>Los avanzados del arranque rigen al volver a abrir el programa.</source>
         <translation>启动相关的高级设置在重新打开程序后生效。</translation>
     </message>
@@ -44398,7 +44743,7 @@ Elegí otra cosa en Salidas → Pantallas.</source>
 <context>
     <name>arranque</name>
     <message>
-        <location filename="../src/app/arranque/GuiMode.cpp" line="+177" />
+        <location filename="../src/app/arranque/GuiMode.cpp" line="+181" />
         <source>arranque: el cartel de carga ya se ve</source>
         <translation>启动：启动画面已显示</translation>
     </message>
@@ -44448,7 +44793,7 @@ Elegí otra cosa en Salidas → Pantallas.</source>
         <translation>启动：应用模型，%1 毫秒</translation>
     </message>
     <message>
-        <location line="+43" />
+        <location line="+48" />
         <source>Abriendo la interfaz…</source>
         <translation>正在打开界面…</translation>
     </message>
@@ -44488,7 +44833,7 @@ Elegí otra cosa en Salidas → Pantallas.</source>
         <translation>启动：MCP 服务器，%1 毫秒</translation>
     </message>
     <message>
-        <location line="+107" />
+        <location line="+108" />
         <source>servidor MCP en %1 (token: bin/64bit/ba-mcp --token; stdio: ba-mcp)</source>
         <translation>MCP 服务器位于 %1（token：bin/64bit/ba-mcp --token；stdio：ba-mcp）</translation>
     </message>
@@ -44591,7 +44936,7 @@ Elegí otra cosa en Salidas → Pantallas.</source>
     </message>
     <message>
         <location line="-57" />
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="-891" />
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="-900" />
         <source>arranque: %1 tardó %2 ms</source>
         <translation>启动：%1 耗时 %2 毫秒</translation>
     </message>
@@ -45041,7 +45386,7 @@ Elegí otra cosa en Salidas → Pantallas.</source>
         <translation>参数不是有效的 JSON（应为对象：{"键": 值}）</translation>
     </message>
     <message>
-        <location filename="../src/app/asamblea/Cuerpo.cpp" line="+111" />
+        <location filename="../src/app/asamblea/Cuerpo.cpp" line="+112" />
         <source>falta la banca</source>
         <translation>缺少席位</translation>
     </message>
@@ -45122,7 +45467,7 @@ Elegí otra cosa en Salidas → Pantallas.</source>
         <translation>缺少名称</translation>
     </message>
     <message>
-        <location line="+74" />
+        <location line="+88" />
         <source>no se pudo abrir %1</source>
         <translation>无法打开 %1</translation>
     </message>
@@ -45178,7 +45523,7 @@ Elegí otra cosa en Salidas → Pantallas.</source>
         <translation>轮次为 a、b、ambos 或 nadie</translation>
     </message>
     <message>
-        <location filename="../src/app/asamblea/InformesResultado.cpp" line="+103" />
+        <location filename="../src/app/asamblea/InformesResultado.cpp" line="+106" />
         <source>sí</source>
         <translation>是</translation>
     </message>
@@ -45266,7 +45611,7 @@ Elegí otra cosa en Salidas → Pantallas.</source>
     <message>
         <location line="+8" />
         <location line="+7" />
-        <location line="+16" />
+        <location line="+43" />
         <source>no hay una plantilla «%1»</source>
         <translation>没有名为「%1」的模板</translation>
     </message>
@@ -45569,7 +45914,7 @@ Elegí otra cosa en Salidas → Pantallas.</source>
         <translation>没有任何建议</translation>
     </message>
     <message>
-        <location filename="../src/app/asamblea/SesionRemota.cpp" line="-361" />
+        <location filename="../src/app/asamblea/SesionRemota.cpp" line="-364" />
         <source>El servidor todavía no dio su dirección: completá el comienzo del link.</source>
         <translation>服务器尚未提供其地址：请补全链接的开头部分。</translation>
     </message>
@@ -45601,7 +45946,7 @@ Elegí otra cosa en Salidas → Pantallas.</source>
         <translation>请先生成其链接和 PIN</translation>
     </message>
     <message>
-        <location line="+262" />
+        <location line="+265" />
         <source>La votación no está abierta.</source>
         <translation>表决未开启。</translation>
     </message>
@@ -45627,7 +45972,7 @@ Elegí otra cosa en Salidas → Pantallas.</source>
         <translation>主席已将您断开。</translation>
     </message>
     <message>
-        <location line="+159" />
+        <location line="+160" />
         <source>%1 · Banca %2</source>
         <translation>%1 · 席位 %2</translation>
     </message>
@@ -45886,11 +46231,189 @@ Elegí otra cosa en Salidas → Pantallas.</source>
         <source>Sin quórum</source>
         <translation>未达法定人数</translation>
     </message>
+    <message>
+        <location filename="../src/app/asamblea/PruebaAsambleaReglas.cpp" line="+54" />
+        <source>el comportamiento va como un objeto</source>
+        <translation>行为必须是一个对象</translation>
+    </message>
+    <message>
+        <location line="+10" />
+        <source>%1: un porcentaje de 0 a 100</source>
+        <translation>%1：0 到 100 的百分比</translation>
+    </message>
+    <message>
+        <location line="+5" />
+        <source>pin_errado_intentos: de 1 a 20 (con 5, el gateway lo bloquea)</source>
+        <translation>pin_errado_intentos：1 到 20（为 5 时，gateway 会将其锁定）</translation>
+    </message>
+    <message>
+        <location line="+5" />
+        <source>entrada_cada_ms: de 0 a 60000</source>
+        <translation>entrada_cada_ms：0 到 60000</translation>
+    </message>
+    <message>
+        <location line="+5" />
+        <source>habilitar_solos_s: de 0 (el operador) a 3600</source>
+        <translation>habilitar_solos_s：0（由操作员启用）到 3600</translation>
+    </message>
+    <message>
+        <location line="+4" />
+        <source>programa: sí o no</source>
+        <translation>programa：是或否</translation>
+    </message>
+    <message>
+        <location line="+11" />
+        <source>voto: cada opción con una proporción positiva</source>
+        <translation>voto：每个选项的比例必须为正数</translation>
+    </message>
+    <message>
+        <location line="+4" />
+        <location line="+14" />
+        <source>voto: «azar» o las proporciones (afirmativo:60,negativo:30,abstencion:10)</source>
+        <translation>voto：“azar”或各项比例（afirmativo:60,negativo:30,abstencion:10）</translation>
+    </message>
+    <message>
+        <location line="+4" />
+        <source>voto: alguna opción con proporción mayor que cero</source>
+        <translation>voto：至少有一个选项的比例大于零</translation>
+    </message>
+    <message>
+        <location line="+35" />
+        <source>la prueba necesita al menos un integrante</source>
+        <translation>测试至少需要一名成员</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>la prueba admite hasta %1 integrantes simulados</source>
+        <translation>测试最多允许 %1 名模拟成员</translation>
+    </message>
+    <message>
+        <location line="+3" />
+        <source>el padrón de este evento tiene %1 integrantes reales: la prueba de asamblea corre en un evento de prueba, para no tocar el padrón, el quórum ni el acta (creá uno vacío y abrilo)</source>
+        <translation>此活动的名册中有 %1 名真实成员：大会测试需在测试活动中运行，以免动到名册、法定人数和会议纪要（请创建一个空活动并打开）</translation>
+    </message>
+    <message>
+        <location line="+5" />
+        <source>quedan integrantes de una prueba anterior: terminala (o limpiala) antes de empezar otra</source>
+        <translation>仍有上一次测试遗留的成员：请先结束（或清理）它，再开始新的测试</translation>
+    </message>
+    <message>
+        <location line="+16" />
+        <source>Prueba %1</source>
+        <translation>测试 %1</translation>
+    </message>
+    <message>
+        <location line="+5" />
+        <source>Integrante de prueba</source>
+        <translation>测试成员</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Prueba</source>
+        <translation>测试</translation>
+    </message>
+    <message>
+        <location line="+109" />
+        <source>%1 integrantes de prueba: entraron %2, habilitados %3, pidieron la palabra %4, votaron %5, bloqueados %6</source>
+        <translation>%1 名测试成员：进入 %2，已启用 %3，申请发言 %4，已投票 %5，被锁定 %6</translation>
+    </message>
+    <message>
+        <location line="+11" />
+        <source>; espera hasta que los habilitan p50 %1 s</source>
+        <translation>；等待启用 p50 %1 秒</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>; voto confirmado p50 %1 ms</source>
+        <translation>；投票确认 p50 %1 毫秒</translation>
+    </message>
+    <message>
+        <location filename="../src/app/ui/PruebaAsambleaViewModel.cpp" line="-365" />
+        <location line="+23" />
+        <source>la sesión remota no está disponible</source>
+        <translation>远程会话不可用</translation>
+    </message>
+    <message>
+        <location line="-1" />
+        <location line="+65" />
+        <source>ya hay una prueba de asamblea en curso</source>
+        <translation>已有大会测试正在进行</translation>
+    </message>
+    <message>
+        <location line="-43" />
+        <source>no se pudieron crear los integrantes de prueba</source>
+        <translation>无法创建测试成员</translation>
+    </message>
+    <message>
+        <location line="+46" />
+        <source>la prueba dura de 1 a 120 minutos</source>
+        <translation>测试时长为 1 到 120 分钟</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>el probador (hinchada) no viene en este programa: usá un generador externo</source>
+        <translation>此程序不包含测试器 (hinchada)：请使用外部生成器</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>la conferencia no está andando (el gateway atiende la sesión remota)</source>
+        <translation>会议未运行（gateway 负责远程会话）</translation>
+    </message>
+    <message>
+        <location line="+22" />
+        <source>no se pudo escribir el archivo de credenciales: %1</source>
+        <translation>无法写入凭据文件：%1</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>no se pudo escribir el archivo de credenciales</source>
+        <translation>无法写入凭据文件</translation>
+    </message>
+    <message>
+        <location line="+28" />
+        <source>la conferencia no tiene HTTPS: el probador no puede entrar</source>
+        <translation>会议没有 HTTPS：测试器无法进入</translation>
+    </message>
+    <message>
+        <location line="+27" />
+        <source>el probador terminó</source>
+        <translation>测试器已结束</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>el probador terminó con error (código %1): ver consola.txt</source>
+        <translation>测试器出错结束（代码 %1）：见 consola.txt</translation>
+    </message>
+    <message>
+        <location line="+5" />
+        <source>no arrancó el probador (hinchada)</source>
+        <translation>测试器 (hinchada) 没有启动</translation>
+    </message>
+    <message>
+        <location line="+47" />
+        <source>terminó el tiempo</source>
+        <translation>时间已到</translation>
+    </message>
+    <message>
+        <location line="+6" />
+        <source>a mano</source>
+        <translation>手动</translation>
+    </message>
+    <message>
+        <location line="+36" />
+        <source>Terminó la prueba de asamblea.</source>
+        <translation>大会测试已结束。</translation>
+    </message>
+    <message>
+        <location line="+79" />
+        <source>hay una prueba en curso: terminala</source>
+        <translation>有测试正在进行：请先结束它</translation>
+    </message>
 </context>
 <context>
     <name>asistente</name>
     <message>
-        <location filename="../src/app/agent/AgentViewModel.cpp" line="-2266" />
+        <location filename="../src/app/agent/AgentViewModel.cpp" line="-2404" />
         <source>Claude — suscripción Pro/Max</source>
         <translation>Claude — Pro/Max 订阅</translation>
     </message>
@@ -45960,7 +46483,12 @@ Elegí otra cosa en Salidas → Pantallas.</source>
         <translation>自己的服务器。配置地址（baseURL）、要请求的模型及其支持的额外参数，并粘贴密钥。由 opencode 负责调用：本设备不直接与模型通信，只为其生成配置。</translation>
     </message>
     <message>
-        <location line="+2015" />
+        <location line="+1628" />
+        <source>Para el rol «%1» (lo atendés vos, en esta conversación del evento). Instrucciones del rol:</source>
+        <translation>针对角色“%1”（由你在此活动对话中处理）。角色指令：</translation>
+    </message>
+    <message>
+        <location line="+445" />
         <source>%1 — Atendelo según lo acordado (si no hay nada acordado, revisá con las herramientas, contame qué pasó y proponé qué hacer).</source>
         <translation>%1 — 按约定处理（如果没有约定，用工具检查，说明发生了什么并提出处理建议）。</translation>
     </message>
@@ -46152,7 +46680,7 @@ Pedido del operador: «%6»</source>
         <translation>该引擎只能通过其控制台智能体使用（启动较慢）：签到一体机请选择本地模型、自定义模型、OpenRouter 或带密钥的 Gemini</translation>
     </message>
     <message>
-        <location filename="../src/app/agent/Despachador.cpp" line="-605" />
+        <location filename="../src/app/agent/Despachador.cpp" line="-606" />
         <source>[%1] %2 (disparador %3, tipo %4)</source>
         <translation>[%1] %2（触发器 %3，类型 %4）</translation>
     </message>
@@ -46162,7 +46690,7 @@ Pedido del operador: «%6»</source>
         <translation>今天之前与您角色相关的事件（最新的在前）：</translation>
     </message>
     <message>
-        <location line="+20" />
+        <location line="+21" />
         <source>ENCARGO:</source>
         <translation>任务：</translation>
     </message>
@@ -46177,7 +46705,7 @@ Pedido del operador: «%6»</source>
         <translation>查看「一张」图片并回答「一个」具体问题。不执行任何操作。</translation>
     </message>
     <message>
-        <location line="+18" />
+        <location line="+19" />
         <source>Escenógrafo</source>
         <translation>场景设计师</translation>
     </message>
@@ -46187,7 +46715,7 @@ Pedido del operador: «%6»</source>
         <translation>设计节目的外观：场景、来源和图形。不进行播出操作。</translation>
     </message>
     <message>
-        <location line="+19" />
+        <location line="+20" />
         <source>Organizador</source>
         <translation>组织者</translation>
     </message>
@@ -46197,7 +46725,7 @@ Pedido del operador: «%6»</source>
         <translation>通过描述搭建整个活动：日期、带时长的段落和名册。</translation>
     </message>
     <message>
-        <location line="+25" />
+        <location line="+26" />
         <source>Recepción</source>
         <translation>接待</translation>
     </message>
@@ -46850,12 +47378,12 @@ Datos (de %2): %3</source>
         <translation> 已知信息：%1</translation>
     </message>
     <message>
-        <location filename="../src/app/ui/AsistenteViewModel.cpp" line="-238" />
+        <location filename="../src/app/ui/AsistenteViewModel.cpp" line="-241" />
         <source>La app se reinició y ya está abierto el evento «%1». Si estabas en medio de algo, seguí desde donde quedaste; si no, esperá lo que te pida el operador.</source>
         <translation>应用已重启，活动「%1」已打开。如果您之前正在处理某事，从中断处继续；否则等待操作员的指示。</translation>
     </message>
     <message>
-        <location line="+81" />
+        <location line="+84" />
         <source>el invitado %1</source>
         <translation>嘉宾 %1</translation>
     </message>
@@ -48957,7 +49485,7 @@ Datos (de %2): %3</source>
         <translation>%1：结构版本 %2 → %3</translation>
     </message>
     <message>
-        <location filename="../src/core/persist/ArchivoConfig.cpp" line="+208" />
+        <location filename="../src/core/persist/ArchivoConfig.cpp" line="+209" />
         <source>%1: lo escribió una versión más nueva (esta escribe el esquema %2): no se pisa, el cambio queda sin guardar</source>
         <translation>%1：由更新的版本写入（本版本写入结构版本 %2）：不覆盖，更改未保存</translation>
     </message>
@@ -49937,7 +50465,7 @@ Datos (de %2): %3</source>
         <translation>界面卡顿持续了约 %1 毫秒（调用栈在 %2）</translation>
     </message>
     <message>
-        <location filename="../src/app/arranque/GuiMode.cpp" line="-381" />
+        <location filename="../src/app/arranque/GuiMode.cpp" line="-387" />
         <source>--detectar-acoples solo anda con --test: no se enciende</source>
         <translation>--detectar-acoples 只能与 --test 一起使用：未开启</translation>
     </message>
@@ -53766,12 +54294,12 @@ Datos (de %2): %3</source>
 <context>
     <name>extensiones</name>
     <message>
-        <location filename="../src/app/ui/ExtensionesModel.cpp" line="-32" />
+        <location filename="../src/app/ui/ExtensionesModel.cpp" line="-31" />
         <source>la tarjeta «%1» no cargó: %2</source>
         <translation>卡片「%1」未加载：%2</translation>
     </message>
     <message>
-        <location line="+17" />
+        <location line="+16" />
         <source>la tarjeta «%1» tardó más de %2 ms en cargar: se cortó y quedó apagada (se prende desde el Registro)</source>
         <translation>卡片「%1」加载超过 %2 毫秒：已中断并保持关闭（可在「日志」中开启）</translation>
     </message>
@@ -55023,7 +55551,7 @@ Datos (de %2): %3</source>
     <message>
         <location line="-76" />
         <location filename="../src/gateway/RegistroAtiende.cpp" line="+318" />
-        <location filename="../src/gateway/Sesion.cpp" line="+292" />
+        <location filename="../src/gateway/Sesion.cpp" line="+312" />
         <source>origen inválido</source>
         <translation>来源无效</translation>
     </message>
@@ -55089,12 +55617,12 @@ Datos (de %2): %3</source>
         <translation>会议已满</translation>
     </message>
     <message>
-        <location line="+50" />
+        <location line="+53" />
         <source>sesión: demasiados intentos desde %1</source>
         <translation>会议：来自 %1 的尝试次数过多</translation>
     </message>
     <message>
-        <location line="+71" />
+        <location line="+73" />
         <source>sesión: %1 conectado desde %2</source>
         <translation>会议：%1 已从 %2 连接</translation>
     </message>
@@ -56436,7 +56964,7 @@ Datos (de %2): %3</source>
         <translation>否</translation>
     </message>
     <message>
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="+925" />
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="+934" />
         <source>«%1» no arrancó al abrir: %2</source>
         <translation>「%1」打开时未启动：%2</translation>
     </message>
@@ -58763,7 +59291,7 @@ Lo que queda vacío no deja separadores colgando: «{nombre} — {cargo}» sin c
 <context>
     <name>mcp</name>
     <message>
-        <location filename="../src/app/arranque/GuiMode.cpp" line="+221" />
+        <location filename="../src/app/arranque/GuiMode.cpp" line="+226" />
         <source>MODO PRUEBA (--test): el MCP no pide aprobaciones, ni siquiera las de aire</source>
         <translation>测试模式（--test）：MCP 不请求任何批准，包括在播操作</translation>
     </message>
@@ -60302,8 +60830,8 @@ La pestaña: `pestana` (su id, su número desde 1, o parte del título o la url)
     </message>
     <message>
         <location line="+4" />
-        <source>Cambia un rol: `activo` (true/false), `proveedor` (id de proveedor, como en el asistente: claude-cuenta, opencode-go, openrouter...), `modelo`, `consola`. Lo que no se manda no se toca. Un rol apagado no atiende nada ni acepta encargos.</source>
-        <translation>修改角色：`activo`（true/false）、`proveedor`（提供商 id，与助手中相同：claude-cuenta、opencode-go、openrouter...）、`modelo`、`consola`。未发送的项保持不变。关闭的角色不处理任何事件，也不接受任务。</translation>
+        <source>Cambia un rol: `activo` (true/false), `proveedor` (id de proveedor, como en el asistente: claude-cuenta, opencode-go, openrouter...), `modelo`, `consola`, `aparte`. Lo que no se manda no se toca. Un rol apagado no atiende nada ni acepta encargos.</source>
+        <translation>修改角色：`activo` (true/false)、`proveedor`（提供商 id，与助手中一样：claude-cuenta、opencode-go、openrouter...）、`modelo`、`consola`、`aparte`。未发送的内容保持不变。已关闭的角色不处理任何事务，也不接受任务。</translation>
     </message>
     <message>
         <location line="+4" />
@@ -60311,17 +60839,26 @@ La pestaña: `pestana` (su id, su número desde 1, o parte del título o la url)
 
 Es OTRA COSA que las categorias. Las categorias son lo que el rol sabe hacer DEL APARATO; esto es la maquina entera. Viene apagado: un rol que mide audio o atiende el lobby no necesita ninguna, y uno que diseña escenas —que baja una imagen, la convierte y la deja en Medios/— las necesita todas.
 
-LO QUE HAY QUE SABER AL PRENDERLO: la salvaguarda de aprobaciones (`mcp.approval`) cubre las herramientas del MCP, NO estas. Un rol con consola toca el disco y la red sin pasar por ahi, en la maquina del estudio. Prendelo cuando el trabajo lo pida, no por si acaso.</source>
-        <translation>`consola` 在其 MCP 工具集之外，再赋予「智能体自身的工具」：控制台、读写文件、访问互联网。
+LO QUE HAY QUE SABER AL PRENDERLO: la salvaguarda de aprobaciones (`mcp.approval`) cubre las herramientas del MCP, NO estas. Un rol con consola toca el disco y la red sin pasar por ahi, en la maquina del estudio. Prendelo cuando el trabajo lo pida, no por si acaso.
 
-这与类别是「两回事」。类别是角色能对「本设备」做的事；这里则是整台机器。默认关闭：测量音频或接待等候室的角色一个都不需要，而设计场景的角色（下载图片、转换后放入 Medios/）则全部需要。
+`aparte`: con el asistente de automatización en OpenCode, los encargos de un rol van a la CONVERSACIÓN DEL EVENTO de ese asistente (con todo el contexto del evento, sin abrir una sesión por aviso), salvo que el rol corra aparte: entonces cada encargo es una sesión propia, con su juego de herramientas, su prompt y su motor. Un rol con otro proveedor u otro modelo corre aparte siempre. De fábrica corren aparte vision, escenografo y organizador.</source>
+        <translation>`consola` 除了智能体的 MCP 工具集之外，还赋予它自己的工具：控制台、读写文件、访问互联网。
 
-开启前须知：批准保护（`mcp.approval`）只覆盖 MCP 工具，「不」覆盖这些。带控制台的角色在工作室机器上操作磁盘和网络时不经过批准。工作需要时再开启，不要为了以防万一而开启。</translation>
+这与类别是两回事。类别是角色能对设备做的事；这个是整台机器。默认关闭：测量音频或处理候场室的角色一个都不需要，而设计场景的角色——下载图片、转换并放入 Medios/——则全都需要。
+
+开启前必须知道：审批保护机制 (`mcp.approval`) 只覆盖 MCP 工具，不覆盖这些。带控制台的角色会绕过它，直接操作演播室机器上的磁盘和网络。需要时再开启，不要“以防万一”。
+
+`aparte`：使用 OpenCode 中的自动化助手时，角色的任务会进入该助手的活动对话（包含活动的全部上下文，不会为每条通知新开会话），除非该角色独立运行：此时每项任务都是独立会话，有自己的工具集、提示词和引擎。使用其他提供商或其他模型的角色始终独立运行。默认情况下 vision、escenografo 和 organizador 独立运行。</translation>
     </message>
     <message>
-        <location line="+19" />
+        <location line="+24" />
         <source>herramientas propias del agente: consola, archivos, internet</source>
         <translation>智能体自身的工具：控制台、文件、互联网</translation>
+    </message>
+    <message>
+        <location line="+3" />
+        <source>cada encargo en su propia sesión, no en la conversación del evento</source>
+        <translation>每项任务在独立会话中，而不在活动对话中</translation>
     </message>
     <message>
         <location line="+6" />
@@ -60334,7 +60871,7 @@ LO QUE HAY QUE SABER AL PRENDERLO: la salvaguarda de aprobaciones (`mcp.approval
         <translation>角色 `%1` 不存在：agente_roles 会列出全部角色。</translation>
     </message>
     <message>
-        <location line="+12" />
+        <location line="+13" />
         <source>Rol `%1` actualizado.</source>
         <translation>角色 `%1` 已更新。</translation>
     </message>
@@ -60449,7 +60986,7 @@ LO QUE HAY QUE SABER AL PRENDERLO: la salvaguarda de aprobaciones (`mcp.approval
         <translation>叠加在所有输出内容之上的垫片画面（"休会"、"马上回来"、"默哀一分钟"…），含 `texto`、可选的 `imagen`（路径）和淡入淡出 `ms`（600）。不依赖场景。在播时开启，如果由自动流程发起则需确认；关闭则不需要。应用崩溃后仍会保留。每个输出有自己的垫片画面（`salida`）。</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpService.cpp" line="+1329" />
+        <location filename="../src/app/mcp/McpService.cpp" line="+1330" />
         <source>El supervisor relanza la app si deja de latir. El latido sale de la interfaz Y de un hilo que mira los cuadros del motor: si la interfaz se traba y el motor sigue, el aire NO se corta. Con la interfaz trabada más de `espera_ui_s` (10 a 3600, de fábrica 60) y `matar_si_ui_trabada_sin_aire` (de fábrica true), se relanza solo si no hay transmisión ni grabación. La interfaz trabada CON aire es una alarma que sale sin la interfaz, al control web y a los notificadores de `notificar` («todos», de fábrica, o una lista de ids de notificador_listar; [] = ninguno). Sin argumentos, la muestra (con el estado: motor_vivo, ui_viva, ui_trabada_ms, ultima_traba_ms).</source>
         <translation>如果应用停止心跳，守护程序会重新启动它。心跳来自界面，「以及」一个监视引擎帧的线程：如果界面卡住而引擎仍在运行，播出「不会」中断。界面卡住超过 `espera_ui_s`（10 到 3600，默认 60）且 `matar_si_ui_trabada_sin_aire`（默认 true）时，只有在没有推流和录制的情况下才会重启。「有」播出时界面卡住会产生一个不经界面发出的警报，发送到网页控制端以及 `notificar` 中的通知器（「todos」为默认，或 notificador_listar 中的 id 列表；[] = 无）。无参数时显示当前设置（含状态：motor_vivo、ui_viva、ui_trabada_ms、ultima_traba_ms）。</translation>
     </message>
@@ -61386,11 +61923,31 @@ Nada de eso se puede con el asistente o un encargo de agentes corriendo.</source
     </message>
     <message>
         <location line="+4" />
-        <source>Proveedor y modelo elegidos, proveedores disponibles, si el agente esta instalado y corriendo.</source>
-        <translation>已选择的提供商和模型、可用的提供商、智能体是否已安装并在运行。</translation>
+        <source>Proveedor y modelo elegidos, proveedores disponibles, si el agente esta instalado y corriendo, y `sesionEvento`: la conversación del evento que usa (una por evento; ahí caen los avisos automáticos).</source>
+        <translation>所选的提供商和模型、可用的提供商、智能体是否已安装并运行，以及 `sesionEvento`：它所用的活动对话（每个活动一个；自动通知进入其中）。</translation>
     </message>
     <message>
-        <location line="+21" />
+        <location line="+93" />
+        <source>Arranca (`start`), detiene (`stop`) o reinicia (`restart`) el asistente del evento o el de automatización (`asistente`). `new_conversation` olvida la conversación del evento y empieza otra (si corre, se relanza con la nueva; lo de antes queda en el historial del motor).</source>
+        <translation>启动 (`start`)、停止 (`stop`) 或重启 (`restart`) 活动助手或自动化助手 (`asistente`)。`new_conversation` 会忘记活动对话并开始另一个（若正在运行，则用新对话重新启动；之前的保留在引擎的历史记录中）。</translation>
+    </message>
+    <message>
+        <location line="+16" />
+        <source>Listo: la próxima vez que arranque empieza una conversación nueva.</source>
+        <translation>完成：下次启动时会开始新对话。</translation>
+    </message>
+    <message>
+        <location line="+7" />
+        <source>Conversación nueva.</source>
+        <translation>新对话。</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>Relanzando con una conversación nueva.</source>
+        <translation>正在以新对话重新启动。</translation>
+    </message>
+    <message>
+        <location line="-94" />
         <source>Configurar el asistente</source>
         <translation>配置助手</translation>
     </message>
@@ -61435,12 +61992,7 @@ Nada de eso se puede con el asistente o un encargo de agentes corriendo.</source
         <translation>启动 / 停止助手</translation>
     </message>
     <message>
-        <location line="+3" />
-        <source>Arranca (`start`), detiene (`stop`) o reinicia (`restart`) el asistente del evento o el de automatización (`asistente`).</source>
-        <translation>启动（`start`）、停止（`stop`）或重启（`restart`）活动助手或自动化助手（`asistente`）。</translation>
-    </message>
-    <message>
-        <location line="+20" />
+        <location line="+41" />
         <location line="+6" />
         <source>Corriendo.</source>
         <translation>运行中。</translation>
@@ -63627,7 +64179,7 @@ Sos el rol `%1`: este es TODO tu juego. Lo que no esta aca no lo podes hacer vos
     </message>
     <message>
         <location line="+2" />
-        <location filename="../src/app/mcp/McpService.cpp" line="-2317" />
+        <location filename="../src/app/mcp/McpService.cpp" line="-2318" />
         <source>La herramienta fallo: %1</source>
         <translation>工具执行失败：%1</translation>
     </message>
@@ -67238,7 +67790,7 @@ Con este repertorio se arma un gráfico SIN escribir código: es lo que conviene
     </message>
     <message>
         <location line="+1" />
-        <location filename="../src/app/mcp/McpService.cpp" line="+719" />
+        <location filename="../src/app/mcp/McpService.cpp" line="+720" />
         <source>Escenas</source>
         <translation>场景</translation>
     </message>
@@ -74577,7 +75129,7 @@ Llegando a 500 fichas se apaga solo y lo dice. Sin `activo` solo informa como es
         <translation>等待摄像头中看不到任何人。</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpService.cpp" line="-4181" />
+        <location filename="../src/app/mcp/McpService.cpp" line="-4182" />
         <source>OJO: REINICIA EL MOTOR. Por unos segundos se corta TODO lo que sale (el programa, la sala, las pantallas, lo que ven los invitados) y las cámaras se vuelven a abrir. Con una transmisión o una grabación andando no se aplica. No lo uses para arreglar una cámara: decíselo antes al operador y pedile que confirme.</source>
         <translation>注意：会重启引擎。所有输出（节目、会场、屏幕、嘉宾看到的画面）会中断几秒，摄像机会重新打开。有推流或录制进行时不会应用。不要用它来修复摄像机：事先告诉操作员并请其确认。</translation>
     </message>
@@ -74637,7 +75189,7 @@ Llegando a 500 fichas se apaga solo y lo dice. Sin `activo` solo informa como es
         <translation>未知预设「%1」。有效值：full、left、right、top、bottom、center、top-left、top-right、bottom-left、bottom-right、pip-tl、pip-tr、pip-bl、pip-br、lower-third、third-1..3、grid-&lt;n&gt;-&lt;i&gt;（例如 grid-4-2），或 {x,y,w,h}。</translation>
     </message>
     <message>
-        <location line="+292" />
+        <location line="+293" />
         <source>«%1» YA ENTRO sola (estaba en la lista de auto-aceptar del evento): no le pidas los datos de cero, mostrale los que ya tenemos para que confirme. </source>
         <translation>「%1」已自动进入（在活动的自动准入名单中）：不要从头索取信息，向其展示已有的信息请其确认。 </translation>
     </message>
@@ -81191,12 +81743,83 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>需要一个已打开的活动（报告写入其检查清单的“prueba_sala”项，以及其文件夹中的 Pruebas/）且会议正在运行。由保护机制先行判断：可用内存不足、机器繁忙或容纳不下 N 人时，不会开始并说明原因；测试期间若内存低于 3 GB、应用线程超过 1200 或负载超过 40，会自动中止。测试参与者不经等候室加入，标记为“prueba”，不计入名册、表决和法定人数。名额不够时会临时调高，结束后恢复。用 prueba_sala_estado 跟踪测试，用 prueba_sala_parar 结束。</translation>
     </message>
     <message>
-        <location line="+13" />
+        <location filename="../src/app/mcp/McpPruebaAsambleaTools.cpp" line="+23" />
+        <source>Arrancar una prueba de asamblea</source>
+        <translation>开始大会测试</translation>
+    </message>
+    <message>
+        <location line="+3" />
+        <source>Simula a `integrantes` integrantes de la asamblea entrando por la sesión remota, como desde el celular: crea integrantes de PRUEBA en el Cuerpo, les da acceso (link + PIN y usuario + contraseña) y los hace entrar con hinchada (de fábrica, si viene en el programa) durante `minutos`. Esperan que los habiliten en el Recinto (sesion_habilitar, o `habilitar_solos_s`), piden la palabra, hablan con cámara y micrófono, votan cuando hay una votación abierta, se les corta la red y vuelven, y algunos erran el PIN hasta quedar bloqueados.</source>
+        <translation>模拟 `integrantes` 名大会成员像从手机一样通过远程会话进入：在议事机构中创建测试成员，给他们访问权限（链接 + PIN 和用户名 + 密码），并让他们使用 hinchada（默认，若程序中包含）进入，持续 `minutos` 分钟。他们等待在会场中被启用（sesion_habilitar，或 `habilitar_solos_s`），申请发言，用摄像头和麦克风发言，在有投票开放时投票，断网后恢复，还有一些人会输错 PIN 直到被锁定。</translation>
+    </message>
+    <message>
+        <location line="+7" />
+        <source>SOLO en un evento sin integrantes reales: si el padrón del evento abierto tiene alguno que no es de prueba, no arranca (para no tocar el padrón, el quórum ni el acta): creá un evento vacío con evento_nuevo y abrilo. Necesita la conferencia andando. Sin `hinchada`, devuelve el archivo de credenciales y la línea para un generador externo. `comportamiento` (todo opcional, en %): afuera_pct (20), piden_palabra_pct (30), votan_pct (90), voto («azar» o «afirmativo:60,negativo:30,abstencion:10»), reconectan_pct (10), pin_errado_pct (10), pin_errado_intentos (5: el gateway lo bloquea), con_usuario_pct (20), entrada_cada_ms (1000), habilitar_solos_s (0: los habilita el operador), programa (true). Seguila con prueba_asamblea_estado; al terminar (prueba_asamblea_terminar o por tiempo) se borran los integrantes de prueba y su acceso, el recinto vuelve a como estaba y el informe queda en Pruebas/ del evento.</source>
+        <translation>仅限没有真实成员的活动：如果已打开活动的名册中有任何非测试成员，则不会开始（以免动到名册、法定人数和会议纪要）：请用 evento_nuevo 创建一个空活动并打开。需要会议处于运行状态。没有 `hinchada` 时，返回凭据文件和供外部生成器使用的命令行。`comportamiento`（均为可选，单位 %）：afuera_pct (20)、piden_palabra_pct (30)、votan_pct (90)、voto（“azar”或“afirmativo:60,negativo:30,abstencion:10”）、reconectan_pct (10)、pin_errado_pct (10)、pin_errado_intentos (5：gateway 会锁定)、con_usuario_pct (20)、entrada_cada_ms (1000)、habilitar_solos_s (0：由操作员启用)、programa (true)。用 prueba_asamblea_estado 跟踪；结束时（prueba_asamblea_terminar 或到时）测试成员及其访问权限会被删除，会场恢复原状，报告保存在该活动的 Pruebas/ 中。</translation>
+    </message>
+    <message>
+        <location line="+18" />
+        <location filename="../src/app/mcp/McpPruebaSalaTools.cpp" line="+13" />
         <source>los genera esta máquina (de fábrica, si está)</source>
         <translation>由本机生成（默认，若可用）</translation>
     </message>
     <message>
-        <location line="+2" />
+        <location line="+20" />
+        <source>Prueba de asamblea arrancada. Seguila con prueba_asamblea_estado.</source>
+        <translation>大会测试已开始。请用 prueba_asamblea_estado 跟踪。</translation>
+    </message>
+    <message>
+        <location line="+8" />
+        <source>Cómo va la prueba de asamblea</source>
+        <translation>大会测试进展如何</translation>
+    </message>
+    <message>
+        <location line="+3" />
+        <source>El estado de la prueba de asamblea: si corre, el generador, cuántos integrantes reales y de prueba hay en el padrón (y si se puede arrancar acá), cómo van los simulados según la app (conectados, esperando que los habiliten, habilitados, afuera, bloqueados, en la fila, con la palabra, votaron y qué), el archivo de credenciales y la línea para un generador externo, y el resumen de la última.</source>
+        <translation>大会测试的状态：是否在运行、生成器、名册中有多少真实成员和测试成员（以及能否在此开始）、应用所见的模拟成员情况（已连接、等待启用、已启用、在场外、被锁定、在队列中、有发言权、已投票及投了什么）、凭据文件和供外部生成器使用的命令行，以及上一次的摘要。</translation>
+    </message>
+    <message>
+        <location line="+12" />
+        <source>Terminar la prueba de asamblea</source>
+        <translation>结束大会测试</translation>
+    </message>
+    <message>
+        <location line="+3" />
+        <source>Termina la prueba de asamblea (o descarta una preparada): corta el probador, saca a los integrantes de prueba de la sesión, revoca su acceso, los borra del Cuerpo, deja el recinto como estaba, borra el archivo de credenciales y guarda el informe en el evento. Sin una prueba en curso, con `limpiar`, borra los integrantes de prueba que hayan quedado. El informe queda en prueba_asamblea_informe en unos segundos.</source>
+        <translation>结束大会测试（或放弃已准备好的测试）：停止测试器，将测试成员移出会话，撤销其访问权限，从议事机构中删除他们，让会场恢复原状，删除凭据文件，并把报告保存到活动中。没有测试在运行时，配合 `limpiar` 会删除遗留的测试成员。报告几秒钟后即可在 prueba_asamblea_informe 中查看。</translation>
+    </message>
+    <message>
+        <location line="+11" />
+        <source>No hay una prueba de asamblea en curso.</source>
+        <translation>没有正在进行的大会测试。</translation>
+    </message>
+    <message>
+        <location line="+3" />
+        <source>Integrantes de prueba borrados (si había).</source>
+        <translation>测试成员已删除（如果有的话）。</translation>
+    </message>
+    <message>
+        <location line="+3" />
+        <source>Terminando la prueba de asamblea (limpieza e informe).</source>
+        <translation>正在结束大会测试（清理并生成报告）。</translation>
+    </message>
+    <message>
+        <location line="+7" />
+        <source>El informe de la última prueba de asamblea</source>
+        <translation>上一次大会测试的报告</translation>
+    </message>
+    <message>
+        <location line="+3" />
+        <source>El informe completo de la última prueba de asamblea de esta sesión: lo que vio la app, el resumen del probador (entraron, esperaron que los habiliten, pidieron y tuvieron la palabra, votaron, se reconectaron, quedaron bloqueados; latencias), qué le pasó a cada integrante y dónde quedó en el evento.</source>
+        <translation>本会话中上一次大会测试的完整报告：应用所见的情况、测试器的摘要（进入、等待启用、申请并获得发言权、投票、重新连接、被锁定；延迟）、每名成员的遭遇以及其在活动中的最终状态。</translation>
+    </message>
+    <message>
+        <location line="+8" />
+        <source>Todavía no terminó ninguna prueba de asamblea en esta sesión.</source>
+        <translation>本会话中还没有结束任何大会测试。</translation>
+    </message>
+    <message>
+        <location filename="../src/app/mcp/McpPruebaSalaTools.cpp" line="+2" />
         <source>cuántos hablan a la vez (0: cada uno a su ritmo)</source>
         <translation>同时发言人数（0：各按自己的节奏）</translation>
     </message>
@@ -84048,6 +84671,30 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
     </message>
     <message>
         <location line="+2" />
+        <source>prueba de asamblea simular integrantes consejeros de prueba remotos sesion remota celulares probar la sesion votacion simulada hinchada carga</source>
+        <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
+        <translation>大会测试 模拟成员 委员 测试 远程 远程会话 手机 测试会话 模拟投票 hinchada 负载</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>como va la prueba de asamblea integrantes simulados conectados esperando habilitados votaron bloqueados</source>
+        <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
+        <translation>大会测试进展 模拟成员 已连接 等待 已启用 已投票 被锁定</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>terminar parar cortar prueba de asamblea limpiar borrar integrantes de prueba revocar</source>
+        <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
+        <translation>结束 停止 中断 大会测试 清理 删除测试成员 撤销</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>informe resultado de la prueba de asamblea latencias espera votos integrantes simulados</source>
+        <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
+        <translation>报告 大会测试结果 延迟 等待 投票 模拟成员</translation>
+    </message>
+    <message>
+        <location line="+2" />
         <source>terminar parar cortar prueba de sala simulacro limpiar participantes de prueba</source>
         <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
         <translation>结束 停止 中断 会场测试 演练 清理 测试参与者</translation>
@@ -85017,7 +85664,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>主持人 主持 主持者 东道主 主播</translation>
     </message>
     <message>
-        <location line="-683" />
+        <location line="-691" />
         <source>revocar tablet token botonera companion http acceso sacarle el acceso</source>
         <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
         <translation>撤销 平板 令牌 控制面板 companion http 访问 收回访问权限</translation>
@@ -85035,7 +85682,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>开机自动启动 断电 自动恢复 自启动 开机时启动应用 随系统启动</translation>
     </message>
     <message>
-        <location line="+265" />
+        <location line="+273" />
         <source>go take entra el siguiente paso adelante dale revision previa antes de salir</source>
         <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
         <translation>go take 进入 下一个 下一步 前进 走 播出前检查</translation>
@@ -89824,7 +90471,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>%1（已不存在）</translation>
     </message>
     <message>
-        <location filename="../src/app/pantallas/Monitores.cpp" line="+277" />
+        <location filename="../src/app/pantallas/Monitores.cpp" line="+282" />
         <source>No conozco ese monitor: los que hay salen en la lista de Pantallas conectadas.</source>
         <translation>不认识该显示器：现有显示器列在「已连接屏幕」中。</translation>
     </message>
@@ -93246,7 +93893,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
 <context>
     <name>rostros</name>
     <message>
-        <location filename="../src/app/ui/PersonasViewModel.cpp" line="-394" />
+        <location filename="../src/app/ui/PersonasViewModel.cpp" line="-393" />
         <source>alta automática: «%1» (ficha %2, lobby %3)</source>
         <translation>自动登记：「%1」（档案 %2，等候室 %3）</translation>
     </message>
@@ -96143,7 +96790,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
     </message>
     <message>
         <location filename="../src/gateway/Canal.cpp" line="+36" />
-        <location filename="../src/gateway/Sesion.cpp" line="-693" />
+        <location filename="../src/gateway/Sesion.cpp" line="-698" />
         <location filename="../src/gateway/SignalingServer.cpp" line="-106" />
         <source>Mensaje inválido.</source>
         <translation>消息无效。</translation>
@@ -96156,7 +96803,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
     <message>
         <location filename="../src/gateway/Registro.cpp" line="-110" />
         <location filename="../src/gateway/RegistroAtiende.cpp" line="-63" />
-        <location filename="../src/gateway/Sesion.cpp" line="+29" />
+        <location filename="../src/gateway/Sesion.cpp" line="+32" />
         <source>Demasiados intentos desde esta conexión. Esperá 10 minutos.</source>
         <translation>此连接的尝试次数过多。请等待 10 分钟。</translation>
     </message>
@@ -96226,7 +96873,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>协助链接已更换（或活动已结束）。</translation>
     </message>
     <message>
-        <location filename="../src/gateway/Sesion.cpp" line="-25" />
+        <location filename="../src/gateway/Sesion.cpp" line="-28" />
         <source>Conectando con la sala…</source>
         <translation>正在连接会场…</translation>
     </message>
@@ -96236,7 +96883,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>此设备已不再登记：请用 PIN 进入。</translation>
     </message>
     <message>
-        <location line="+16" />
+        <location line="+19" />
         <source>Por contraseña errada varias veces, tu acceso está bloqueado 15 minutos.</source>
         <translation>由于多次输错密码，您的访问已被锁定 15 分钟。</translation>
     </message>
@@ -96262,7 +96909,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>此链接无效（或已被撤销）。请向秘书处索取新链接。</translation>
     </message>
     <message>
-        <location line="+26" />
+        <location line="+28" />
         <source>Entraste desde otro lado: esta ventana se cerró.</source>
         <translation>您已从其他地方登录：此窗口已关闭。</translation>
     </message>

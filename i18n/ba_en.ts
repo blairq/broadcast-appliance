@@ -52,7 +52,7 @@
 <context>
     <name>AccesoRemoto</name>
     <message>
-        <location filename="../src/app/net/AccesoRemoto.cpp" line="+87" />
+        <location filename="../src/app/net/AccesoRemoto.cpp" line="+86" />
         <source>Sin consultar todavía.</source>
         <translation>Not checked yet.</translation>
     </message>
@@ -124,12 +124,12 @@
     <message>
         <location line="+5" />
         <location line="+27" />
-        <location line="+287" />
+        <location line="+305" />
         <source>no disponible</source>
         <translation>not available</translation>
     </message>
     <message>
-        <location line="-312" />
+        <location line="-330" />
         <location line="+27" />
         <source>Se está transmitiendo o grabando: el túnel no se toca hasta que termine (reinicia la conferencia).</source>
         <translation>Streaming or recording: the tunnel is not touched until it ends (it restarts the conference).</translation>
@@ -183,7 +183,7 @@
         <translation>Could not save to Credenciales/.</translation>
     </message>
     <message>
-        <location line="+19" />
+        <location line="+37" />
         <source>&lt;el destino que muestra el panel de pinggy&gt;</source>
         <translation>&lt;the target shown in the pinggy dashboard&gt;</translation>
     </message>
@@ -529,7 +529,7 @@
 <context>
     <name>AgentViewModel</name>
     <message>
-        <location filename="../src/app/agent/AgentViewModel.cpp" line="+433" />
+        <location filename="../src/app/agent/AgentViewModel.cpp" line="+438" />
         <source>Falta la dirección del servidor.</source>
         <translation>Missing the server address.</translation>
     </message>
@@ -743,12 +743,12 @@
     </message>
     <message>
         <location line="+108" />
-        <location line="+175" />
+        <location line="+222" />
         <source>Proveedor desconocido: %1</source>
         <translation>Unknown provider: %1</translation>
     </message>
     <message>
-        <location line="-25" />
+        <location line="-62" />
         <source>el modelo local no está disponible en esta versión</source>
         <translation>the local model isn't available in this version</translation>
     </message>
@@ -758,7 +758,7 @@
         <translation>The local model handled it: it said it in the headphones and, if there was something to do, proposed it in the assistant bar.</translation>
     </message>
     <message>
-        <location line="+17" />
+        <location line="+54" />
         <source>Los roles automáticos todavía no pueden usar Gemini (Antigravity).</source>
         <translation>Automatic roles can't use Gemini (Antigravity) yet.</translation>
     </message>
@@ -774,12 +774,12 @@
     </message>
     <message>
         <location line="+21" />
-        <location line="+83" />
+        <location line="+90" />
         <source>No se pudo preparar el agente.</source>
         <translation>Could not prepare the agent.</translation>
     </message>
     <message>
-        <location line="-54" />
+        <location line="-59" />
         <source>No hay un modelo local para el chat.</source>
         <translation>There's no local model for chat.</translation>
     </message>
@@ -789,7 +789,7 @@
         <translation>Local model ready.</translation>
     </message>
     <message>
-        <location line="+23" />
+        <location line="+28" />
         <source>Modo seguro: los agentes están apagados hasta el arranque normal.</source>
         <translation>Safe mode: agents are off until a normal startup.</translation>
     </message>
@@ -844,7 +844,17 @@
         <translation>The arguments are not valid JSON (an object: {"key": value})</translation>
     </message>
     <message>
-        <location line="+127" />
+        <location line="+108" />
+        <source>%1 · Automatización</source>
+        <translation>%1 · Automation</translation>
+    </message>
+    <message>
+        <location line="+0" />
+        <source>%1 · Evento</source>
+        <translation>%1 · Event</translation>
+    </message>
+    <message>
+        <location line="+99" />
         <source>Primero pará el asistente (la consola está corriendo).</source>
         <translation>Stop the assistant first (the console is running).</translation>
     </message>
@@ -927,7 +937,27 @@
         <translation>Besides running the app, it can use the terminal, read and write files and go online (for example, download an image and put it in Medios). What it does this way does NOT go through the assistant's approvals: turn it on only if the role needs it.</translation>
     </message>
     <message>
-        <location line="+9" />
+        <location line="+18" />
+        <source>Aparte</source>
+        <translation>Separate</translation>
+    </message>
+    <message>
+        <location line="+7" />
+        <source>su propia sesión</source>
+        <translation>its own session</translation>
+    </message>
+    <message>
+        <location line="+0" />
+        <source>en la conversación del evento</source>
+        <translation>in the event conversation</translation>
+    </message>
+    <message>
+        <location line="+8" />
+        <source>Apagado: con el asistente de automatización en OpenCode, cada encargo va a su conversación del evento (con todo lo que pasó, sin abrir una sesión nueva por aviso). Prendido: cada encargo corre en su propia sesión, con las herramientas, las instrucciones y el motor del rol. Un rol con otro motor u otro modelo corre aparte siempre.</source>
+        <translation>Off: with the automation assistant in OpenCode, each task goes to its event conversation (with everything that happened, without opening a new session per notice). On: each task runs in its own session, with the role's tools, instructions and engine. A role with a different engine or model always runs separately.</translation>
+    </message>
+    <message>
+        <location line="+10" />
         <source>El del asistente</source>
         <translation>The assistant's</translation>
     </message>
@@ -1787,7 +1817,7 @@
 <context>
     <name>AsistenteViewModel</name>
     <message>
-        <location filename="../src/app/ui/AsistenteViewModel.cpp" line="+163" />
+        <location filename="../src/app/ui/AsistenteViewModel.cpp" line="+166" />
         <source>Modo seguro</source>
         <translation>Safe mode</translation>
     </message>
@@ -1889,6 +1919,16 @@
         <location line="+1" />
         <source>Reiniciar</source>
         <translation>Restart</translation>
+    </message>
+    <message>
+        <location line="+3" />
+        <source>Conversación nueva</source>
+        <translation>New conversation</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>Este evento tiene una conversación con el asistente que se retoma al reabrir la app; ahí caen también los avisos automáticos. Esto empieza otra (la de antes queda en el historial).</source>
+        <translation>This event has a conversation with the assistant that resumes when you reopen the app; automatic notices land there too. This starts another one (the previous one stays in the history).</translation>
     </message>
     <message>
         <location line="+1" />
@@ -3196,7 +3236,7 @@ Add a microphone or a system input.</translation>
 <context>
     <name>Bancas</name>
     <message>
-        <location filename="../src/app/asamblea/Bancas.cpp" line="+48" />
+        <location filename="../src/app/asamblea/Bancas.cpp" line="+68" />
         <location line="+37" />
         <location line="+60" />
         <location line="+12" />
@@ -3496,7 +3536,7 @@ This opens it in another window, so you can have both at once.</translation>
 <context>
     <name>Botonera</name>
     <message>
-        <location filename="../src/app/control/Botonera.cpp" line="+2201" />
+        <location filename="../src/app/control/Botonera.cpp" line="+2200" />
         <source>Los argumentos no son JSON válido (un objeto {…})</source>
         <translation>The arguments aren't valid JSON (an object {…})</translation>
     </message>
@@ -6111,7 +6151,7 @@ The previous PIN stops working for joining.</translation>
 <context>
     <name>ConferenceViewModel</name>
     <message>
-        <location filename="../src/app/ui/ConferenceViewModel.cpp" line="+123" />
+        <location filename="../src/app/ui/ConferenceViewModel.cpp" line="+122" />
         <source>La conferencia respondio: %1</source>
         <translation>The conference replied: %1</translation>
     </message>
@@ -6136,7 +6176,7 @@ The previous PIN stops working for joining.</translation>
         <translation>Nobody else in the queue</translation>
     </message>
     <message>
-        <location line="+78" />
+        <location line="+72" />
         <source>%1 espera en el lobby</source>
         <translation>%1 is waiting in the lobby</translation>
     </message>
@@ -6614,7 +6654,7 @@ The previous PIN stops working for joining.</translation>
 <context>
     <name>CuentasViewModel</name>
     <message>
-        <location filename="../src/app/ui/CuentasViewModel.cpp" line="+139" />
+        <location filename="../src/app/ui/CuentasViewModel.cpp" line="+148" />
         <location line="+6" />
         <source>El escáner de red no está disponible.</source>
         <translation>The network scanner is not available.</translation>
@@ -6631,12 +6671,12 @@ The previous PIN stops working for joining.</translation>
         <translation>Plugins are not available.</translation>
     </message>
     <message>
-        <location line="-60" />
+        <location line="-68" />
         <source>No se pudo leer %1.</source>
         <translation>Couldn't read %1.</translation>
     </message>
     <message>
-        <location line="+72" />
+        <location line="+80" />
         <source>Plataforma desconocida: %1.</source>
         <translation>Unknown platform: %1.</translation>
     </message>
@@ -6813,7 +6853,7 @@ The previous PIN stops working for joining.</translation>
         <translation>Cancel</translation>
     </message>
     <message>
-        <location line="+132" />
+        <location line="+137" />
         <source>Esta tarjeta no se pudo cargar.</source>
         <translation>This card couldn't load.</translation>
     </message>
@@ -6882,17 +6922,17 @@ Turn it on from the Log.</translation>
         <translation>the role disappeared</translation>
     </message>
     <message>
-        <location line="+29" />
+        <location line="+30" />
         <source>no se pudo preparar el agente</source>
         <translation>couldn't prepare the agent</translation>
     </message>
     <message>
-        <location line="-112" />
+        <location line="-113" />
         <source>el rol `%1` está apagado (página Agentes)</source>
         <translation>role `%1` is off (Agents page)</translation>
     </message>
     <message>
-        <location line="+150" />
+        <location line="+151" />
         <source>el agente terminó con código %1</source>
         <translation>the agent finished with code %1</translation>
     </message>
@@ -6927,7 +6967,7 @@ Turn it on from the Log.</translation>
         <translation>Agent %1: %2</translation>
     </message>
     <message>
-        <location line="+160" />
+        <location line="+164" />
         <source>cancelada antes de arrancar</source>
         <translation>canceled before starting</translation>
     </message>
@@ -8369,7 +8409,7 @@ Turn it on from the Log.</translation>
 <context>
     <name>EditorFiltroAudio</name>
     <message>
-        <location filename="../src/app/qml/controls/EditorFiltroAudio.qml" line="+81" />
+        <location filename="../src/app/qml/controls/EditorFiltroAudio.qml" line="+88" />
         <source>Elegí un módulo</source>
         <translation>Choose a module</translation>
     </message>
@@ -9015,6 +9055,30 @@ Turn it on from the Log.</translation>
         <location line="+2" />
         <source>Cancelar</source>
         <translation>Cancel</translation>
+    </message>
+</context>
+<context>
+    <name>EnvioOpencode</name>
+    <message>
+        <location filename="../src/app/agent/EnvioOpencode.cpp" line="+111" />
+        <source>No hay servidor de OpenCode.</source>
+        <translation>There is no OpenCode server.</translation>
+    </message>
+    <message>
+        <location line="+14" />
+        <source>OpenCode no creó la sesión del evento: %1</source>
+        <translation>OpenCode did not create the event session: %1</translation>
+    </message>
+    <message>
+        <location line="+14" />
+        <source>OpenCode no encontró la sesión del evento: %1</source>
+        <translation>OpenCode did not find the event session: %1</translation>
+    </message>
+    <message numerus="yes">
+        <location line="+46" />
+        <location line="+32" />
+        <source>No se pudieron mandar %n aviso(s) al asistente: %1</source>
+        <translation><numerusform>Could not send %n notice to the assistant: %1</numerusform><numerusform>Could not send %n notices to the assistant: %1</numerusform></translation>
     </message>
 </context>
 <context>
@@ -11513,7 +11577,7 @@ Turn it on from the Log.</translation>
 <context>
     <name>ExtensionesModel</name>
     <message>
-        <location filename="../src/app/ui/ExtensionesModel.cpp" line="+71" />
+        <location filename="../src/app/ui/ExtensionesModel.cpp" line="+70" />
         <source>el nombre de la carpeta tiene caracteres que no se pueden usar</source>
         <translation>the folder name has characters that can't be used</translation>
     </message>
@@ -11538,12 +11602,12 @@ Turn it on from the Log.</translation>
         <translation>file %1 is missing</translation>
     </message>
     <message>
-        <location line="+92" />
+        <location line="+90" />
         <source>La tarjeta «%1» tiene un error (mirá el Registro)</source>
         <translation>The card “%1” has an error (check the Log)</translation>
     </message>
     <message>
-        <location line="+7" />
+        <location line="+6" />
         <source>En vivo no se cargan extensiones nuevas: se carga al salir del modo en vivo.</source>
         <translation>New extensions aren't loaded while live: it loads when leaving live mode.</translation>
     </message>
@@ -12710,12 +12774,12 @@ It's changed in its code (Plugins section, or by asking the assistant). Here you
     </message>
     <message>
         <location line="+64" />
-        <location line="+59" />
+        <location line="+61" />
         <source>Invitado %1</source>
         <translation>Guest %1</translation>
     </message>
     <message>
-        <location line="-49" />
+        <location line="-51" />
         <source>Retorno apagado</source>
         <translation>Return off</translation>
     </message>
@@ -12725,7 +12789,7 @@ It's changed in its code (Plugins section, or by asking the assistant). Here you
         <translation>This guest hears nothing: their mix without their own voice (mix-minus) isn't reaching the conference. They aren't sent the full program because they'd hear themselves delayed.</translation>
     </message>
     <message>
-        <location line="+24" />
+        <location line="+26" />
         <source>Red: %1 kbps · pérdida %2 % · jitter %3 ms · RTT %4 ms</source>
         <translation>Network: %1 kbps · loss %2 % · jitter %3 ms · RTT %4 ms</translation>
     </message>
@@ -16077,7 +16141,7 @@ The matrix doesn't change what comes in: it decides which outputs it goes to (th
 <context>
     <name>MediosViewModel</name>
     <message numerus="yes">
-        <location filename="../src/app/ui/MediosViewModel.cpp" line="+376" />
+        <location filename="../src/app/ui/MediosViewModel.cpp" line="+375" />
         <source>%n archivo a «%1»</source>
         <translation>
             <numerusform>%n file to “%1”</numerusform>
@@ -19097,13 +19161,13 @@ Add images from the Files tab.</translation>
     </message>
     <message>
         <location line="+1" />
-        <location line="+78" />
+        <location line="+80" />
         <location line="+7" />
         <source>Presidencia</source>
         <translation>Chair</translation>
     </message>
     <message>
-        <location line="-67" />
+        <location line="-69" />
         <source>· en uso</source>
         <translation>· in use</translation>
     </message>
@@ -19131,23 +19195,23 @@ Add images from the Files tab.</translation>
         <location line="+0" />
         <location line="+35" />
         <location line="+3" />
-        <location line="+199" />
+        <location line="+202" />
         <location line="+2" />
         <source>Revocar</source>
         <translation>Revoke</translation>
     </message>
     <message>
-        <location line="-239" />
+        <location line="-242" />
         <location line="+19" />
         <location line="+19" />
-        <location line="+92" />
-        <location line="+96" />
+        <location line="+94" />
+        <location line="+97" />
         <location line="+13" />
         <source>Cancelar</source>
         <translation>Cancel</translation>
     </message>
     <message>
-        <location line="-230" />
+        <location line="-233" />
         <source>Todavía no hay ningún acceso. Tocá «Nuevo acceso…» y pasale el link (o el QR) a quien preside.</source>
         <translation>No access yet. Tap “New access…” and give the link (or the QR) to whoever chairs.</translation>
     </message>
@@ -19208,7 +19272,7 @@ Add images from the Files tab.</translation>
         <translation>None yet: they register themselves the first time someone gets in with their PIN.</translation>
     </message>
     <message>
-        <location line="+7" />
+        <location line="+9" />
         <source>Nuevo acceso a la consola</source>
         <translation>New console access</translation>
     </message>
@@ -19330,12 +19394,12 @@ Add images from the Files tab.</translation>
     </message>
     <message>
         <location line="+1" />
-        <location line="+158" />
+        <location line="+159" />
         <source>Usuario</source>
         <translation>Username</translation>
     </message>
     <message>
-        <location line="-157" />
+        <location line="-158" />
         <source>Acceso</source>
         <translation>Access</translation>
     </message>
@@ -19360,7 +19424,12 @@ Add images from the Files tab.</translation>
         <translation>Load members…</translation>
     </message>
     <message>
-        <location line="+21" />
+        <location line="+17" />
+        <source>%1 · de prueba</source>
+        <translation>%1 · test</translation>
+    </message>
+    <message>
+        <location line="+5" />
         <source>sin acceso</source>
         <translation>no access</translation>
     </message>
@@ -21888,7 +21957,7 @@ Add images from the Files tab.</translation>
 <context>
     <name>PanelInformes</name>
     <message>
-        <location filename="../src/app/qml/controls/PanelInformes.qml" line="+25" />
+        <location filename="../src/app/qml/controls/PanelInformes.qml" line="+28" />
         <source>Generar</source>
         <translation>Generate</translation>
     </message>
@@ -22022,7 +22091,7 @@ Add images from the Files tab.</translation>
         <translation>Opens the Profiler on “%1”, listening on the side: what it emits doesn't go on air. To measure, in the input's rack connect its output to an Output card (the speaker); the 20 Hz to 20 kHz sweep can be loud. Nothing plays until you press “Measure” in its interface.</translation>
     </message>
     <message>
-        <location line="+89" />
+        <location line="+90" />
         <source>Mute</source>
         <translation>Mute</translation>
     </message>
@@ -23263,6 +23332,236 @@ Add images from the Files tab.</translation>
     </message>
 </context>
 <context>
+    <name>PanelPruebaAsamblea</name>
+    <message>
+        <location filename="../src/app/qml/controls/PanelPruebaAsamblea.qml" line="+20" />
+        <location line="+26" />
+        <source>Prueba de asamblea</source>
+        <translation>Assembly test</translation>
+    </message>
+    <message>
+        <location line="-25" />
+        <source>Integrantes de prueba entran como desde el celular: con su link y PIN (o usuario y contraseña), esperan que los habilites en el Recinto, piden la palabra, hablan con cámara y micrófono y votan. Corre en un evento de prueba: nunca toca el padrón real, y al terminar se borran ellos y su acceso.</source>
+        <translation>Test members join as if from their phone: with their link and PIN (or username and password), wait for you to enable them in the Chamber, request the floor, speak with camera and microphone, and vote. It runs in a test event: it never touches the real roll, and when it ends they and their access are deleted.</translation>
+    </message>
+    <message>
+        <location line="+4" />
+        <source>preparada</source>
+        <translation>ready</translation>
+    </message>
+    <message>
+        <location line="+0" />
+        <source>%1/%2 conectados</source>
+        <translation>%1/%2 connected</translation>
+    </message>
+    <message>
+        <location line="+15" />
+        <source>Crear un evento de prueba y abrirlo…</source>
+        <translation>Create a test event and open it…</translation>
+    </message>
+    <message>
+        <location line="+3" />
+        <source>Evento de prueba</source>
+        <translation>Test event</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Se crea el evento «Prueba de asamblea» vacío (desde cero) y se abre: el programa se reinicia y se corta lo que sale. Para volver a este evento, abrilo desde la pestaña Eventos. ¿Lo creo?</source>
+        <translation>An empty «Assembly test» event is created (from scratch) and opened: the program restarts and whatever is going out is cut. To come back to this event, open it from the Events tab. Create it?</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Crear y abrir</source>
+        <translation>Create and open</translation>
+    </message>
+    <message>
+        <location line="+0" />
+        <source>Cancelar</source>
+        <translation>Cancel</translation>
+    </message>
+    <message numerus="yes">
+        <location line="+8" />
+        <source>Borrar los %n integrantes de prueba que quedaron</source>
+        <translation><numerusform>Delete the %n test member left over</numerusform><numerusform>Delete the %n test members left over</numerusform></translation>
+    </message>
+    <message>
+        <location line="+11" />
+        <source>Integrantes</source>
+        <translation>Members</translation>
+    </message>
+    <message>
+        <location line="+3" />
+        <source>Minutos</source>
+        <translation>Minutes</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>% afuera</source>
+        <translation>% outside</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>% piden la palabra</source>
+        <translation>% request the floor</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>% votan</source>
+        <translation>% vote</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>Cómo votan</source>
+        <translation>How they vote</translation>
+    </message>
+    <message>
+        <location line="+7" />
+        <source>Al azar</source>
+        <translation>Random</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Mayoría afirmativa (60/30/10)</source>
+        <translation>Affirmative majority (60/30/10)</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Pareja (45/45/10)</source>
+        <translation>Tie (45/45/10)</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Mayoría negativa (30/60/10)</source>
+        <translation>Negative majority (30/60/10)</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Todos afirmativo</source>
+        <translation>All affirmative</translation>
+    </message>
+    <message>
+        <location line="+3" />
+        <source>% se reconectan</source>
+        <translation>% reconnect</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>% PIN errado</source>
+        <translation>% wrong PIN</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>% con usuario</source>
+        <translation>% with username</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>Habilitarlos solos a los (s)</source>
+        <translation>Enable them automatically after (s)</translation>
+    </message>
+    <message>
+        <location line="+3" />
+        <source>0: los habilitás vos en el Recinto, viéndoles la cara (el número)</source>
+        <translation>0: you enable them in the Chamber, seeing their faces (the number)</translation>
+    </message>
+    <message>
+        <location line="+7" />
+        <source>Los genera esta máquina (hinchada)</source>
+        <translation>This machine generates them (hinchada)</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Sin probador en el programa: generador externo</source>
+        <translation>No tester in the program: external generator</translation>
+    </message>
+    <message>
+        <location line="+6" />
+        <source>Los que erran el PIN lo prueban 5 veces: el acceso queda bloqueado 15 minutos, como pasaría de verdad. Los que se reconectan pierden la red una vez y vuelven solos: si fue en menos de 2 minutos, siguen habilitados.</source>
+        <translation>Those who get the PIN wrong try it 5 times: access is blocked for 15 minutes, as would happen for real. Those who reconnect lose the network once and come back on their own: if it was for less than 2 minutes, they stay enabled.</translation>
+    </message>
+    <message>
+        <location line="+9" />
+        <source>Generar integrantes de prueba</source>
+        <translation>Generate test members</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <location line="+12" />
+        <source>Prueba de asamblea: %1</source>
+        <translation>Assembly test: %1</translation>
+    </message>
+    <message>
+        <location line="-7" />
+        <source>Arrancar la prueba</source>
+        <translation>Start the test</translation>
+    </message>
+    <message>
+        <location line="+13" />
+        <source>Descartar</source>
+        <translation>Discard</translation>
+    </message>
+    <message>
+        <location line="+10" />
+        <source>%1 esperan que los habiliten</source>
+        <translation>%1 waiting to be enabled</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>%1 habilitados</source>
+        <translation>%1 enabled</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>%1 afuera</source>
+        <translation>%1 outside</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>%1 en la fila</source>
+        <translation>%1 in the queue</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>%1 con la palabra</source>
+        <translation>%1 with the floor</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>%1 votaron</source>
+        <translation>%1 voted</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>%1 bloqueados</source>
+        <translation>%1 blocked</translation>
+    </message>
+    <message>
+        <location line="+5" />
+        <source>Ir al Recinto (a habilitarlos)</source>
+        <translation>Go to the Chamber (to enable them)</translation>
+    </message>
+    <message>
+        <location line="+3" />
+        <source>Terminar la prueba</source>
+        <translation>End the test</translation>
+    </message>
+    <message>
+        <location line="+3" />
+        <source>Terminando: el probador se va y se limpia…</source>
+        <translation>Ending: the tester leaves and cleanup runs…</translation>
+    </message>
+    <message>
+        <location line="+7" />
+        <source>Generador externo: copiá este archivo a la otra máquina (son credenciales de prueba: se revocan al terminar) y corré ahí la línea de abajo:</source>
+        <translation>External generator: copy this file to the other machine (these are test credentials: they are revoked when it ends) and run the line below there:</translation>
+    </message>
+    <message>
+        <location line="+21" />
+        <source>Última: %1 (en el evento: %2)</source>
+        <translation>Last: %1 (in the event: %2)</translation>
+    </message>
+</context>
+<context>
     <name>PanelPruebaSala</name>
     <message>
         <location filename="../src/app/qml/controls/PanelPruebaSala.qml" line="+16" />
@@ -24080,7 +24379,7 @@ Add images from the Files tab.</translation>
         <translation>Element properties. In a text value, {dir} is the plugin folder (for a model or an .engine you leave there).</translation>
     </message>
     <message>
-        <location line="+21" />
+        <location line="+28" />
         <source>Modelos</source>
         <translation>Models</translation>
     </message>
@@ -26059,7 +26358,7 @@ Add images from the Files tab.</translation>
         <translation>Choose a screen on the left.</translation>
     </message>
     <message>
-        <location line="+20" />
+        <location line="+27" />
         <source>Mostrar</source>
         <translation>Show</translation>
     </message>
@@ -26127,7 +26426,7 @@ Add images from the Files tab.</translation>
 <context>
     <name>PantallasViewModel</name>
     <message>
-        <location filename="../src/app/ui/PantallasViewModel.cpp" line="+245" />
+        <location filename="../src/app/ui/PantallasViewModel.cpp" line="+244" />
         <source>Este programa se compiló sin búsqueda en la red: agregá el televisor a mano con su dirección IP.</source>
         <translation>This program was built without network discovery: add the TV manually with its IP address.</translation>
     </message>
@@ -26137,7 +26436,7 @@ Add images from the Files tab.</translation>
         <translation>(the gateway asks for it when sending)</translation>
     </message>
     <message>
-        <location filename="../src/app/ui/PantallasViewModel.cpp" line="+126" />
+        <location filename="../src/app/ui/PantallasViewModel.cpp" line="+170" />
         <source>No encontré ningún televisor en la red</source>
         <translation>I didn't find any TV on the network</translation>
     </message>
@@ -26806,7 +27105,7 @@ Front, side, with and without glasses: that's how they get recognized on the day
         <translation>There's no image on “%1”.</translation>
     </message>
     <message>
-        <location filename="../src/app/ui/PersonasViewModel.cpp" line="+303" />
+        <location filename="../src/app/ui/PersonasViewModel.cpp" line="+306" />
         <location line="+22" />
         <location line="+32" />
         <source>La foto no se pudo leer.</source>
@@ -26899,7 +27198,7 @@ Front, side, with and without glasses: that's how they get recognized on the day
         <translation>The face registry reached %1 profiles: I turned off automatic adding so it doesn't fill up with strangers. Complete or delete the extra ones.</translation>
     </message>
     <message>
-        <location line="+67" />
+        <location line="+66" />
         <location filename="../src/app/ui/TarjetasRostros.cpp" line="+54" />
         <source>Cámara · %1</source>
         <translation>Camera · %1</translation>
@@ -28052,6 +28351,39 @@ Front, side, with and without glasses: that's how they get recognized on the day
     </message>
 </context>
 <context>
+    <name>PruebaAsambleaViewModel</name>
+    <message numerus="yes">
+        <location filename="../src/app/ui/PruebaAsambleaViewModel.cpp" line="+177" />
+        <source>Prueba de asamblea: %n integrantes de prueba con su acceso, en el Recinto.</source>
+        <translation><numerusform>Assembly test: %n test member with access, in the Chamber.</numerusform><numerusform>Assembly test: %n test members with access, in the Chamber.</numerusform></translation>
+    </message>
+    <message>
+        <location line="+65" />
+        <source>Prueba de asamblea abierta: corré el generador externo con el archivo de credenciales.</source>
+        <translation>Assembly test open: run the external generator with the credentials file.</translation>
+    </message>
+    <message numerus="yes">
+        <location line="+40" />
+        <source>Prueba de asamblea: entran %n integrantes de prueba (la primera vez el probador graba su video unos minutos).</source>
+        <translation><numerusform>Assembly test: %n test member is joining (the first time the tester builds its video for a few minutes).</numerusform><numerusform>Assembly test: %n test members are joining (the first time the tester builds its video for a few minutes).</numerusform></translation>
+    </message>
+    <message>
+        <location line="+145" />
+        <source>Prueba de asamblea (integrantes simulados por la sesión remota)</source>
+        <translation>Assembly test (members simulated through the remote session)</translation>
+    </message>
+    <message numerus="yes">
+        <location line="+22" />
+        <source>Se borraron %n integrantes de prueba que habían quedado (y su acceso).</source>
+        <translation><numerusform>%n leftover test member was deleted (and their access).</numerusform><numerusform>%n leftover test members were deleted (and their access).</numerusform></translation>
+    </message>
+    <message numerus="yes">
+        <location line="+18" />
+        <source>Había una prueba de asamblea sin terminar (el programa se cerró en el medio): se borraron %n integrantes de prueba y su acceso.</source>
+        <translation><numerusform>There was an unfinished assembly test (the program closed midway): %n test member and their access were deleted.</numerusform><numerusform>There was an unfinished assembly test (the program closed midway): %n test members and their access were deleted.</numerusform></translation>
+    </message>
+</context>
+<context>
     <name>PruebaSalaViewModel</name>
     <message numerus="yes">
         <location filename="../src/app/ui/PruebaSalaViewModel.cpp" line="+173" />
@@ -29031,6 +29363,19 @@ Front, side, with and without glasses: that's how they get recognized on the day
         <location line="+8" />
         <source>No pude cambiarlo</source>
         <translation>I couldn't change it</translation>
+    </message>
+</context>
+<context>
+    <name>QObject</name>
+    <message>
+        <location filename="../src/app/agent/EnvioOpencode.cpp" line="-180" />
+        <source>el servidor de OpenCode no contesta</source>
+        <translation>the OpenCode server is not responding</translation>
+    </message>
+    <message>
+        <location line="+0" />
+        <source>HTTP %1</source>
+        <translation>HTTP %1</translation>
     </message>
 </context>
 <context>
@@ -31929,12 +32274,12 @@ For the base scene the others come from.</translation>
 <context>
     <name>SelectorHerramientas</name>
     <message>
-        <location filename="../src/app/qml/controls/SelectorHerramientas.qml" line="+112" />
+        <location filename="../src/app/qml/controls/SelectorHerramientas.qml" line="+111" />
         <source>Qué hace este botón</source>
         <translation>What this button does</translation>
     </message>
     <message>
-        <location line="+8" />
+        <location line="+9" />
         <source>Buscar en todo: «poner al aire», «música», «grabar», «cámara 2»…</source>
         <translation>Search everything: “put on air”, “music”, “record”, “camera 2”…</translation>
     </message>
@@ -32113,12 +32458,12 @@ For the base scene the others come from.</translation>
 <context>
     <name>SesionRemota</name>
     <message>
-        <location filename="../src/app/asamblea/SesionRemota.cpp" line="+480" />
+        <location filename="../src/app/asamblea/SesionRemota.cpp" line="+493" />
         <source>%1 entró a la sesión y espera que lo habiliten</source>
         <translation>%1 joined the session and is waiting to be enabled</translation>
     </message>
     <message>
-        <location line="+13" />
+        <location line="+14" />
         <source>Acceso de %1 bloqueado 15 minutos por PIN errado varias veces</source>
         <translation>%1's access blocked for 15 minutes after several wrong PINs</translation>
     </message>
@@ -32277,12 +32622,12 @@ For the base scene the others come from.</translation>
     </message>
     <message>
         <location line="+1" />
-        <location line="+710" />
+        <location line="+717" />
         <source>Seguridad</source>
         <translation>Security</translation>
     </message>
     <message>
-        <location line="-710" />
+        <location line="-717" />
         <source>Archivos</source>
         <translation>Files</translation>
     </message>
@@ -32350,10 +32695,10 @@ For the base scene the others come from.</translation>
     <message>
         <location line="+1" />
         <location line="+12" />
-        <location line="+162" />
+        <location line="+163" />
         <location line="+335" />
         <location line="+81" />
-        <location line="+111" />
+        <location line="+117" />
         <location line="+338" />
         <location line="+20" />
         <location line="+38" />
@@ -32362,7 +32707,7 @@ For the base scene the others come from.</translation>
         <translation>Cancel</translation>
     </message>
     <message>
-        <location line="-1137" />
+        <location line="-1144" />
         <source>Configuración, credenciales, grabaciones y archivos no se tocan.</source>
         <translation>Settings, credentials, recordings and files are not touched.</translation>
     </message>
@@ -32392,7 +32737,7 @@ For the base scene the others come from.</translation>
         <translation>Settings</translation>
     </message>
     <message>
-        <location line="+55" />
+        <location line="+56" />
         <source>Mostrar ajustes avanzados</source>
         <translation>Show advanced settings</translation>
     </message>
@@ -32439,7 +32784,7 @@ For the base scene the others come from.</translation>
         <location line="+381" />
         <location line="+4" />
         <location line="+31" />
-        <location line="+495" />
+        <location line="+501" />
         <location line="+4" />
         <location line="+58" />
         <location line="+40" />
@@ -32449,18 +32794,18 @@ For the base scene the others come from.</translation>
         <translation>Delete</translation>
     </message>
     <message>
-        <location line="-1424" />
+        <location line="-1430" />
         <source>Token de Cloudflare borrado.</source>
         <translation>Cloudflare token deleted.</translation>
     </message>
     <message>
         <location line="+33" />
-        <location line="+536" />
+        <location line="+542" />
         <source>Valores por defecto de esta sección</source>
         <translation>Defaults for this section</translation>
     </message>
     <message>
-        <location line="-525" />
+        <location line="-531" />
         <source>Reiniciar el servidor ahora</source>
         <translation>Restart the server now</translation>
     </message>
@@ -32476,12 +32821,12 @@ For the base scene the others come from.</translation>
     </message>
     <message>
         <location line="+1" />
-        <location line="+527" />
+        <location line="+533" />
         <source>Reiniciar</source>
         <translation>Restart</translation>
     </message>
     <message>
-        <location line="-524" />
+        <location line="-530" />
         <source>El servidor se está reiniciando.</source>
         <translation>The server is restarting.</translation>
     </message>
@@ -32647,13 +32992,13 @@ For the base scene the others come from.</translation>
     </message>
     <message>
         <location line="+3" />
-        <location line="+614" />
+        <location line="+620" />
         <location line="+978" />
         <source>Actualizar</source>
         <translation>Refresh</translation>
     </message>
     <message>
-        <location line="-1578" />
+        <location line="-1584" />
         <source>Copiar</source>
         <translation>Copy</translation>
     </message>
@@ -32813,12 +33158,12 @@ For the base scene the others come from.</translation>
         <translation>Subdomain (optional)</translation>
     </message>
     <message>
-        <location line="-634" />
+        <location line="-635" />
         <source>General</source>
         <translation>General</translation>
     </message>
     <message>
-        <location line="+201" />
+        <location line="+202" />
         <source>Red eléctrica de %1 Hz</source>
         <translation>%1 Hz mains power</translation>
     </message>
@@ -32913,7 +33258,7 @@ For the base scene the others come from.</translation>
         <translation>This is what whoever manages the domain needs to do. It's built from what you entered above: copy it and send it to them.</translation>
     </message>
     <message>
-        <location line="+13" />
+        <location line="+19" />
         <source>Copiar instrucciones</source>
         <translation>Copy instructions</translation>
     </message>
@@ -33970,7 +34315,7 @@ and it reopens on its own. Settings, credentials, recordings and files are NOT t
 <context>
     <name>SourcesModel</name>
     <message>
-        <location filename="../src/app/ui/ListModels.cpp" line="+379" />
+        <location filename="../src/app/ui/ListModels.cpp" line="+378" />
         <source>No existe la fuente '%1'.</source>
         <translation>Source '%1' doesn't exist.</translation>
     </message>
@@ -34046,7 +34391,7 @@ and it reopens on its own. Settings, credentials, recordings and files are NOT t
         <translation>🪑 %1 · seat %2</translation>
     </message>
     <message>
-        <location line="+10" />
+        <location line="+9" />
         <source>Terminar</source>
         <translation>End</translation>
     </message>
@@ -34164,7 +34509,7 @@ and it reopens on its own. Settings, credentials, recordings and files are NOT t
 <context>
     <name>StudioViewModel</name>
     <message>
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="+137" />
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="+138" />
         <source>%1 (no se pudo: %2)</source>
         <translation>%1 (failed: %2)</translation>
     </message>
@@ -34194,7 +34539,7 @@ and it reopens on its own. Settings, credentials, recordings and files are NOT t
         <translation>An automatic lower third didn't go out: %1</translation>
     </message>
     <message>
-        <location line="+276" />
+        <location line="+279" />
         <source>no contestó</source>
         <translation>didn't respond</translation>
     </message>
@@ -34214,7 +34559,7 @@ and it reopens on its own. Settings, credentials, recordings and files are NOT t
         <translation>The events disk is %1 % full (%2 GB left)</translation>
     </message>
     <message>
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="+311" />
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="+317" />
         <source>La interfaz estuvo trabada %1 s; el aire siguió</source>
         <translation>The interface froze for %1 s; the broadcast kept going</translation>
     </message>
@@ -37657,7 +38002,7 @@ Listens to:
         <translation>No GStreamer: %1</translation>
     </message>
     <message>
-        <location line="+225" />
+        <location line="+273" />
         <source>«%1» no es una entrada de video</source>
         <translation>“%1” isn't a video input</translation>
     </message>
@@ -39548,7 +39893,7 @@ Choose something else in Outputs → Screens.</translation>
 <context>
     <name>acceso</name>
     <message>
-        <location filename="../src/app/net/AccesoRemoto.cpp" line="-680" />
+        <location filename="../src/app/net/AccesoRemoto.cpp" line="-698" />
         <source>Está vacío.</source>
         <translation>It's empty.</translation>
     </message>
@@ -39568,7 +39913,7 @@ Choose something else in Outputs → Screens.</translation>
         <translation>It's too long: did something else get pasted?</translation>
     </message>
     <message>
-        <location line="+542" />
+        <location line="+560" />
         <source>pinggy no aceptó la API key</source>
         <translation>pinggy didn't accept the API key</translation>
     </message>
@@ -39935,13 +40280,13 @@ Choose something else in Outputs → Screens.</translation>
 <context>
     <name>agente</name>
     <message>
-        <location filename="../src/app/agent/Despachador.cpp" line="-599" />
+        <location filename="../src/app/agent/Despachador.cpp" line="-604" />
         <location line="+33" />
         <source>no se pudo encargar: %1</source>
         <translation>couldn't assign it: %1</translation>
     </message>
     <message>
-        <location line="+190" />
+        <location line="+191" />
         <source>corrida %1 arranca con %2 (con consola, %3)</source>
         <translation>run %1 starts with %2 (with console, %3)</translation>
     </message>
@@ -40043,7 +40388,7 @@ Choose something else in Outputs → Screens.</translation>
 <context>
     <name>ajustes</name>
     <message>
-        <location filename="../src/app/ui/SettingsModel.cpp" line="+51" />
+        <location filename="../src/app/ui/SettingsModel.cpp" line="+50" />
         <source>Video</source>
         <translation>Video</translation>
     </message>
@@ -41283,7 +41628,7 @@ Choose something else in Outputs → Screens.</translation>
         <translation>Never: automatic approval (at your own risk)</translation>
     </message>
     <message>
-        <location line="+701" />
+        <location line="+692" />
         <source>Algunos cambios rigen desde el próximo arranque.</source>
         <translation>Some changes take effect on the next startup.</translation>
     </message>
@@ -41293,7 +41638,7 @@ Choose something else in Outputs → Screens.</translation>
         <translation>Settings saved.</translation>
     </message>
     <message>
-        <location line="-707" />
+        <location line="-698" />
         <source>Una aprobación espera hasta</source>
         <translation>An approval waits up to</translation>
     </message>
@@ -41428,7 +41773,7 @@ Choose something else in Outputs → Screens.</translation>
         <translation>If off, the watchdog restarts automatically without asking.</translation>
     </message>
     <message>
-        <location line="+384" />
+        <location line="+375" />
         <source>EN VIVO: no se aplica «%1»: reinicia el gateway, el motor o el programa y corta a los invitados o el aire. Volvé atrás esos cambios o esperá a terminar la transmisión.</source>
         <translation>LIVE: «%1» is not applied: it restarts the gateway, the engine or the program and cuts off the guests or the air. Undo those changes or wait for the stream to end.</translation>
     </message>
@@ -41468,7 +41813,7 @@ Choose something else in Outputs → Screens.</translation>
         <translation>Capacity: %1</translation>
     </message>
     <message>
-        <location line="-534" />
+        <location line="-525" />
         <source>Automático (hardware si hay)</source>
         <translation>Automatic (hardware if available)</translation>
     </message>
@@ -41478,7 +41823,7 @@ Choose something else in Outputs → Screens.</translation>
         <translation>Deterministic safeguard: when the assistant has read something written by guests or the audience (chat, names, files, their video), every action that changes something waits for your approval click in the bottom bar. That way a guest can't make the assistant change anything. With “Never” everything is approved automatically: a guest could write something in the chat that the assistant ends up doing. It can only be changed here (the assistant can't).</translation>
     </message>
     <message>
-        <location line="+602" />
+        <location line="+593" />
         <source>Los avanzados del arranque rigen al volver a abrir el programa.</source>
         <translation>Advanced startup settings take effect when the program is reopened.</translation>
     </message>
@@ -43244,7 +43589,7 @@ Choose something else in Outputs → Screens.</translation>
         <translation>Longest response</translation>
     </message>
     <message>
-        <location filename="../src/app/ui/SettingsModel.cpp" line="-754" />
+        <location filename="../src/app/ui/SettingsModel.cpp" line="-745" />
         <location filename="../src/core/ajustes/Registro.cpp" line="+0" />
         <source>tokens</source>
         <translation>tokens</translation>
@@ -44563,7 +44908,7 @@ Choose something else in Outputs → Screens.</translation>
 <context>
     <name>arranque</name>
     <message>
-        <location filename="../src/app/arranque/GuiMode.cpp" line="+177" />
+        <location filename="../src/app/arranque/GuiMode.cpp" line="+181" />
         <source>arranque: el cartel de carga ya se ve</source>
         <translation>startup: the splash screen is showing</translation>
     </message>
@@ -44613,7 +44958,7 @@ Choose something else in Outputs → Screens.</translation>
         <translation>startup: the app model, %1 ms</translation>
     </message>
     <message>
-        <location line="+43" />
+        <location line="+48" />
         <source>Abriendo la interfaz…</source>
         <translation>Opening the interface…</translation>
     </message>
@@ -44653,7 +44998,7 @@ Choose something else in Outputs → Screens.</translation>
         <translation>startup: the MCP server, %1 ms</translation>
     </message>
     <message>
-        <location line="+107" />
+        <location line="+108" />
         <source>servidor MCP en %1 (token: bin/64bit/ba-mcp --token; stdio: ba-mcp)</source>
         <translation>MCP server at %1 (token: bin/64bit/ba-mcp --token; stdio: ba-mcp)</translation>
     </message>
@@ -44756,7 +45101,7 @@ Choose something else in Outputs → Screens.</translation>
     </message>
     <message>
         <location line="-57" />
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="-891" />
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="-900" />
         <source>arranque: %1 tardó %2 ms</source>
         <translation>startup: %1 took %2 ms</translation>
     </message>
@@ -45200,7 +45545,7 @@ Choose something else in Outputs → Screens.</translation>
         <translation>The parameters are not valid JSON (an object: {"key": value})</translation>
     </message>
     <message>
-        <location filename="../src/app/asamblea/Cuerpo.cpp" line="+111" />
+        <location filename="../src/app/asamblea/Cuerpo.cpp" line="+112" />
         <source>falta la banca</source>
         <translation>the seat is missing</translation>
     </message>
@@ -45281,7 +45626,7 @@ Choose something else in Outputs → Screens.</translation>
         <translation>the name is missing</translation>
     </message>
     <message>
-        <location line="+74" />
+        <location line="+88" />
         <source>no se pudo abrir %1</source>
         <translation>couldn't open %1</translation>
     </message>
@@ -45626,7 +45971,7 @@ Choose something else in Outputs → Screens.</translation>
         <translation>Seat %1</translation>
     </message>
     <message>
-        <location filename="../src/app/asamblea/SesionRemota.cpp" line="-361" />
+        <location filename="../src/app/asamblea/SesionRemota.cpp" line="-364" />
         <source>El servidor todavía no dio su dirección: completá el comienzo del link.</source>
         <translation>The server hasn't provided its address yet: fill in the start of the link.</translation>
     </message>
@@ -45658,7 +46003,7 @@ Choose something else in Outputs → Screens.</translation>
         <translation>generate their link and PIN first</translation>
     </message>
     <message>
-        <location line="+262" />
+        <location line="+265" />
         <source>La votación no está abierta.</source>
         <translation>Voting is not open.</translation>
     </message>
@@ -45684,7 +46029,7 @@ Choose something else in Outputs → Screens.</translation>
         <translation>The chair disconnected you.</translation>
     </message>
     <message>
-        <location line="+159" />
+        <location line="+160" />
         <source>%1 · Banca %2</source>
         <translation>%1 · Seat %2</translation>
     </message>
@@ -45936,7 +46281,7 @@ Choose something else in Outputs → Screens.</translation>
         <translation>not voting</translation>
     </message>
     <message>
-        <location filename="../src/app/asamblea/InformesResultado.cpp" line="+103" />
+        <location filename="../src/app/asamblea/InformesResultado.cpp" line="+106" />
         <source>sí</source>
         <translation>yes</translation>
     </message>
@@ -46024,7 +46369,7 @@ Choose something else in Outputs → Screens.</translation>
     <message>
         <location line="+8" />
         <location line="+7" />
-        <location line="+16" />
+        <location line="+43" />
         <source>no hay una plantilla «%1»</source>
         <translation>there is no template «%1»</translation>
     </message>
@@ -46053,11 +46398,189 @@ Choose something else in Outputs → Screens.</translation>
         <source>Sin quórum</source>
         <translation>No quorum</translation>
     </message>
+    <message>
+        <location filename="../src/app/asamblea/PruebaAsambleaReglas.cpp" line="+54" />
+        <source>el comportamiento va como un objeto</source>
+        <translation>the behavior must be an object</translation>
+    </message>
+    <message>
+        <location line="+10" />
+        <source>%1: un porcentaje de 0 a 100</source>
+        <translation>%1: a percentage from 0 to 100</translation>
+    </message>
+    <message>
+        <location line="+5" />
+        <source>pin_errado_intentos: de 1 a 20 (con 5, el gateway lo bloquea)</source>
+        <translation>pin_errado_intentos: from 1 to 20 (with 5, the gateway blocks it)</translation>
+    </message>
+    <message>
+        <location line="+5" />
+        <source>entrada_cada_ms: de 0 a 60000</source>
+        <translation>entrada_cada_ms: from 0 to 60000</translation>
+    </message>
+    <message>
+        <location line="+5" />
+        <source>habilitar_solos_s: de 0 (el operador) a 3600</source>
+        <translation>habilitar_solos_s: from 0 (the operator) to 3600</translation>
+    </message>
+    <message>
+        <location line="+4" />
+        <source>programa: sí o no</source>
+        <translation>programa: yes or no</translation>
+    </message>
+    <message>
+        <location line="+11" />
+        <source>voto: cada opción con una proporción positiva</source>
+        <translation>voto: each option with a positive proportion</translation>
+    </message>
+    <message>
+        <location line="+4" />
+        <location line="+14" />
+        <source>voto: «azar» o las proporciones (afirmativo:60,negativo:30,abstencion:10)</source>
+        <translation>voto: «azar» or the proportions (afirmativo:60,negativo:30,abstencion:10)</translation>
+    </message>
+    <message>
+        <location line="+4" />
+        <source>voto: alguna opción con proporción mayor que cero</source>
+        <translation>voto: some option with a proportion greater than zero</translation>
+    </message>
+    <message>
+        <location line="+35" />
+        <source>la prueba necesita al menos un integrante</source>
+        <translation>the test needs at least one member</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>la prueba admite hasta %1 integrantes simulados</source>
+        <translation>the test allows up to %1 simulated members</translation>
+    </message>
+    <message>
+        <location line="+3" />
+        <source>el padrón de este evento tiene %1 integrantes reales: la prueba de asamblea corre en un evento de prueba, para no tocar el padrón, el quórum ni el acta (creá uno vacío y abrilo)</source>
+        <translation>this event's roll has %1 real members: the assembly test runs in a test event, so as not to touch the roll, the quorum or the minutes (create an empty one and open it)</translation>
+    </message>
+    <message>
+        <location line="+5" />
+        <source>quedan integrantes de una prueba anterior: terminala (o limpiala) antes de empezar otra</source>
+        <translation>there are members left from a previous test: finish it (or clean it up) before starting another</translation>
+    </message>
+    <message>
+        <location line="+16" />
+        <source>Prueba %1</source>
+        <translation>Test %1</translation>
+    </message>
+    <message>
+        <location line="+5" />
+        <source>Integrante de prueba</source>
+        <translation>Test member</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Prueba</source>
+        <translation>Test</translation>
+    </message>
+    <message>
+        <location line="+109" />
+        <source>%1 integrantes de prueba: entraron %2, habilitados %3, pidieron la palabra %4, votaron %5, bloqueados %6</source>
+        <translation>%1 test members: %2 joined, %3 enabled, %4 requested the floor, %5 voted, %6 blocked</translation>
+    </message>
+    <message>
+        <location line="+11" />
+        <source>; espera hasta que los habilitan p50 %1 s</source>
+        <translation>; wait until they are enabled p50 %1 s</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>; voto confirmado p50 %1 ms</source>
+        <translation>; vote confirmed p50 %1 ms</translation>
+    </message>
+    <message>
+        <location filename="../src/app/ui/PruebaAsambleaViewModel.cpp" line="-365" />
+        <location line="+23" />
+        <source>la sesión remota no está disponible</source>
+        <translation>the remote session is not available</translation>
+    </message>
+    <message>
+        <location line="-1" />
+        <location line="+65" />
+        <source>ya hay una prueba de asamblea en curso</source>
+        <translation>an assembly test is already running</translation>
+    </message>
+    <message>
+        <location line="-43" />
+        <source>no se pudieron crear los integrantes de prueba</source>
+        <translation>the test members could not be created</translation>
+    </message>
+    <message>
+        <location line="+46" />
+        <source>la prueba dura de 1 a 120 minutos</source>
+        <translation>the test lasts from 1 to 120 minutes</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>el probador (hinchada) no viene en este programa: usá un generador externo</source>
+        <translation>the tester (hinchada) does not come with this program: use an external generator</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>la conferencia no está andando (el gateway atiende la sesión remota)</source>
+        <translation>the conference is not running (the gateway serves the remote session)</translation>
+    </message>
+    <message>
+        <location line="+22" />
+        <source>no se pudo escribir el archivo de credenciales: %1</source>
+        <translation>the credentials file could not be written: %1</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>no se pudo escribir el archivo de credenciales</source>
+        <translation>the credentials file could not be written</translation>
+    </message>
+    <message>
+        <location line="+28" />
+        <source>la conferencia no tiene HTTPS: el probador no puede entrar</source>
+        <translation>the conference has no HTTPS: the tester cannot join</translation>
+    </message>
+    <message>
+        <location line="+27" />
+        <source>el probador terminó</source>
+        <translation>the tester finished</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>el probador terminó con error (código %1): ver consola.txt</source>
+        <translation>the tester finished with an error (code %1): see consola.txt</translation>
+    </message>
+    <message>
+        <location line="+5" />
+        <source>no arrancó el probador (hinchada)</source>
+        <translation>the tester (hinchada) did not start</translation>
+    </message>
+    <message>
+        <location line="+47" />
+        <source>terminó el tiempo</source>
+        <translation>time ran out</translation>
+    </message>
+    <message>
+        <location line="+6" />
+        <source>a mano</source>
+        <translation>manually</translation>
+    </message>
+    <message>
+        <location line="+36" />
+        <source>Terminó la prueba de asamblea.</source>
+        <translation>The assembly test has finished.</translation>
+    </message>
+    <message>
+        <location line="+79" />
+        <source>hay una prueba en curso: terminala</source>
+        <translation>a test is running: finish it</translation>
+    </message>
 </context>
 <context>
     <name>asistente</name>
     <message>
-        <location filename="../src/app/agent/AgentViewModel.cpp" line="-2266" />
+        <location filename="../src/app/agent/AgentViewModel.cpp" line="-2404" />
         <source>Claude — suscripción Pro/Max</source>
         <translation>Claude — Pro/Max subscription</translation>
     </message>
@@ -46127,7 +46650,12 @@ Choose something else in Outputs → Screens.</translation>
         <translation>Your own server. Set its address (baseURL), which model to request and any extra parameters it understands, and paste its key. opencode handles it: this device doesn't talk to the model, it builds its configuration.</translation>
     </message>
     <message>
-        <location line="+2015" />
+        <location line="+1628" />
+        <source>Para el rol «%1» (lo atendés vos, en esta conversación del evento). Instrucciones del rol:</source>
+        <translation>For the role «%1» (you handle it, in this event conversation). Role instructions:</translation>
+    </message>
+    <message>
+        <location line="+445" />
         <source>%1 — Atendelo según lo acordado (si no hay nada acordado, revisá con las herramientas, contame qué pasó y proponé qué hacer).</source>
         <translation>%1 — Handle it as agreed (if nothing was agreed, check with the tools, tell me what happened and propose what to do).</translation>
     </message>
@@ -46319,7 +46847,7 @@ Device state: %5
 Operator request: “%6”</translation>
     </message>
     <message>
-        <location filename="../src/app/agent/Despachador.cpp" line="-605" />
+        <location filename="../src/app/agent/Despachador.cpp" line="-606" />
         <source>[%1] %2 (disparador %3, tipo %4)</source>
         <translation>[%1] %2 (trigger %3, type %4)</translation>
     </message>
@@ -46329,7 +46857,7 @@ Operator request: “%6”</translation>
         <translation>What happened earlier today with your role (most recent first):</translation>
     </message>
     <message>
-        <location line="+20" />
+        <location line="+21" />
         <source>ENCARGO:</source>
         <translation>TASK:</translation>
     </message>
@@ -46344,7 +46872,7 @@ Operator request: “%6”</translation>
         <translation>Looks at ONE image and answers ONE specific question. Doesn't operate anything.</translation>
     </message>
     <message>
-        <location line="+18" />
+        <location line="+19" />
         <source>Escenógrafo</source>
         <translation>Set designer</translation>
     </message>
@@ -46354,7 +46882,7 @@ Operator request: “%6”</translation>
         <translation>Designs how the program looks: scenes, sources and graphics. Doesn't go on air.</translation>
     </message>
     <message>
-        <location line="+19" />
+        <location line="+20" />
         <source>Organizador</source>
         <translation>Organizer</translation>
     </message>
@@ -46364,7 +46892,7 @@ Operator request: “%6”</translation>
         <translation>Builds the whole event from your description: date, timed blocks and the roll.</translation>
     </message>
     <message>
-        <location line="+25" />
+        <location line="+26" />
         <source>Recepción</source>
         <translation>Reception</translation>
     </message>
@@ -47017,12 +47545,12 @@ Data (from %2): %3</translation>
         <translation> What I already know: %1</translation>
     </message>
     <message>
-        <location filename="../src/app/ui/AsistenteViewModel.cpp" line="-238" />
+        <location filename="../src/app/ui/AsistenteViewModel.cpp" line="-241" />
         <source>La app se reinició y ya está abierto el evento «%1». Si estabas en medio de algo, seguí desde donde quedaste; si no, esperá lo que te pida el operador.</source>
         <translation>The app restarted and the event “%1” is already open. If you were in the middle of something, continue from where you left off; if not, wait for the operator's request.</translation>
     </message>
     <message>
-        <location line="+81" />
+        <location line="+84" />
         <source>el invitado %1</source>
         <translation>guest %1</translation>
     </message>
@@ -49125,7 +49653,7 @@ Data (from %2): %3</translation>
         <translation>%1: schema %2 → %3</translation>
     </message>
     <message>
-        <location filename="../src/core/persist/ArchivoConfig.cpp" line="+208" />
+        <location filename="../src/core/persist/ArchivoConfig.cpp" line="+209" />
         <source>%1: lo escribió una versión más nueva (esta escribe el esquema %2): no se pisa, el cambio queda sin guardar</source>
         <translation>%1: written by a newer version (this one writes schema %2): it isn't overwritten, the change stays unsaved</translation>
     </message>
@@ -50105,7 +50633,7 @@ Data (from %2): %3</translation>
         <translation>the interface freeze lasted about %1 ms (stacks in %2)</translation>
     </message>
     <message>
-        <location filename="../src/app/arranque/GuiMode.cpp" line="-381" />
+        <location filename="../src/app/arranque/GuiMode.cpp" line="-387" />
         <source>--detectar-acoples solo anda con --test: no se enciende</source>
         <translation>--detectar-acoples only works with --test: not turned on</translation>
     </message>
@@ -53935,12 +54463,12 @@ Data (from %2): %3</translation>
 <context>
     <name>extensiones</name>
     <message>
-        <location filename="../src/app/ui/ExtensionesModel.cpp" line="-32" />
+        <location filename="../src/app/ui/ExtensionesModel.cpp" line="-31" />
         <source>la tarjeta «%1» no cargó: %2</source>
         <translation>card “%1” didn't load: %2</translation>
     </message>
     <message>
-        <location line="+17" />
+        <location line="+16" />
         <source>la tarjeta «%1» tardó más de %2 ms en cargar: se cortó y quedó apagada (se prende desde el Registro)</source>
         <translation>card “%1” took more than %2 ms to load: it was stopped and left off (turn it on from the Log)</translation>
     </message>
@@ -55192,7 +55720,7 @@ Data (from %2): %3</translation>
     <message>
         <location line="-76" />
         <location filename="../src/gateway/RegistroAtiende.cpp" line="+318" />
-        <location filename="../src/gateway/Sesion.cpp" line="+292" />
+        <location filename="../src/gateway/Sesion.cpp" line="+312" />
         <source>origen inválido</source>
         <translation>invalid origin</translation>
     </message>
@@ -55258,12 +55786,12 @@ Data (from %2): %3</translation>
         <translation>session full</translation>
     </message>
     <message>
-        <location line="+50" />
+        <location line="+53" />
         <source>sesión: demasiados intentos desde %1</source>
         <translation>session: too many attempts from %1</translation>
     </message>
     <message>
-        <location line="+71" />
+        <location line="+73" />
         <source>sesión: %1 conectado desde %2</source>
         <translation>session: %1 connected from %2</translation>
     </message>
@@ -56595,7 +57123,7 @@ Data (from %2): %3</translation>
         <translation>each layer of “escena” must be an object</translation>
     </message>
     <message>
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="+925" />
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="+934" />
         <source>«%1» no arrancó al abrir: %2</source>
         <translation>“%1” didn't start on open: %2</translation>
     </message>
@@ -58932,7 +59460,7 @@ Empty values leave no dangling separators: “{nombre} — {cargo}” with no ti
 <context>
     <name>mcp</name>
     <message>
-        <location filename="../src/app/arranque/GuiMode.cpp" line="+221" />
+        <location filename="../src/app/arranque/GuiMode.cpp" line="+226" />
         <source>MODO PRUEBA (--test): el MCP no pide aprobaciones, ni siquiera las de aire</source>
         <translation>TEST MODE (--test): the MCP doesn't ask for approvals, not even on-air ones</translation>
     </message>
@@ -60471,8 +60999,8 @@ The tab: `pestana` (its id, its number from 1, or part of the title or url); wit
     </message>
     <message>
         <location line="+4" />
-        <source>Cambia un rol: `activo` (true/false), `proveedor` (id de proveedor, como en el asistente: claude-cuenta, opencode-go, openrouter...), `modelo`, `consola`. Lo que no se manda no se toca. Un rol apagado no atiende nada ni acepta encargos.</source>
-        <translation>Changes a role: `activo` (true/false), `proveedor` (provider id, as in the assistant: claude-cuenta, opencode-go, openrouter...), `modelo`, `consola`. Whatever isn't sent is left alone. A role that's off handles nothing and accepts no tasks.</translation>
+        <source>Cambia un rol: `activo` (true/false), `proveedor` (id de proveedor, como en el asistente: claude-cuenta, opencode-go, openrouter...), `modelo`, `consola`, `aparte`. Lo que no se manda no se toca. Un rol apagado no atiende nada ni acepta encargos.</source>
+        <translation>Changes a role: `activo` (true/false), `proveedor` (provider id, as in the assistant: claude-cuenta, opencode-go, openrouter...), `modelo`, `consola`, `aparte`. Whatever is not sent is left untouched. A role that is off handles nothing and accepts no tasks.</translation>
     </message>
     <message>
         <location line="+4" />
@@ -60480,17 +61008,26 @@ The tab: `pestana` (its id, its number from 1, or part of the title or url); wit
 
 Es OTRA COSA que las categorias. Las categorias son lo que el rol sabe hacer DEL APARATO; esto es la maquina entera. Viene apagado: un rol que mide audio o atiende el lobby no necesita ninguna, y uno que diseña escenas —que baja una imagen, la convierte y la deja en Medios/— las necesita todas.
 
-LO QUE HAY QUE SABER AL PRENDERLO: la salvaguarda de aprobaciones (`mcp.approval`) cubre las herramientas del MCP, NO estas. Un rol con consola toca el disco y la red sin pasar por ahi, en la maquina del estudio. Prendelo cuando el trabajo lo pida, no por si acaso.</source>
-        <translation>`consola` gives it the AGENT'S OWN TOOLS in addition to its MCP set: shell, reading and writing files, internet access.
+LO QUE HAY QUE SABER AL PRENDERLO: la salvaguarda de aprobaciones (`mcp.approval`) cubre las herramientas del MCP, NO estas. Un rol con consola toca el disco y la red sin pasar por ahi, en la maquina del estudio. Prendelo cuando el trabajo lo pida, no por si acaso.
 
-It's a DIFFERENT THING from the categories. The categories are what the role can do WITH THE DEVICE; this is the whole machine. It's off by default: a role that measures audio or handles the lobby needs none of it, and one that designs scenes —downloading an image, converting it and leaving it in Medios/— needs all of it.
+`aparte`: con el asistente de automatización en OpenCode, los encargos de un rol van a la CONVERSACIÓN DEL EVENTO de ese asistente (con todo el contexto del evento, sin abrir una sesión por aviso), salvo que el rol corra aparte: entonces cada encargo es una sesión propia, con su juego de herramientas, su prompt y su motor. Un rol con otro proveedor u otro modelo corre aparte siempre. De fábrica corren aparte vision, escenografo y organizador.</source>
+        <translation>`consola` gives the agent's OWN TOOLS in addition to its MCP set: console, reading and writing files, going out to the internet.
 
-WHAT YOU NEED TO KNOW WHEN TURNING IT ON: the approval safeguard (`mcp.approval`) covers the MCP tools, NOT these. A role with a shell touches the disk and the network without going through it, on the studio machine. Turn it on when the job calls for it, not just in case.</translation>
+It is SOMETHING ELSE than the categories. The categories are what the role knows how to do WITH THE APPLIANCE; this is the whole machine. It comes off: a role that measures audio or handles the lobby needs none, and one that designs scenes —downloading an image, converting it and leaving it in Medios/— needs them all.
+
+WHAT YOU MUST KNOW WHEN TURNING IT ON: the approvals safeguard (`mcp.approval`) covers the MCP tools, NOT these. A role with console touches the disk and the network without going through it, on the studio machine. Turn it on when the work calls for it, not just in case.
+
+`aparte`: with the automation assistant in OpenCode, a role's tasks go to that assistant's EVENT CONVERSATION (with all the event context, without opening a session per notice), unless the role runs separately: then each task is its own session, with its tool set, its prompt and its engine. A role with a different provider or model always runs separately. By default vision, escenografo and organizador run separately.</translation>
     </message>
     <message>
-        <location line="+19" />
+        <location line="+24" />
         <source>herramientas propias del agente: consola, archivos, internet</source>
         <translation>agent's own tools: shell, files, internet</translation>
+    </message>
+    <message>
+        <location line="+3" />
+        <source>cada encargo en su propia sesión, no en la conversación del evento</source>
+        <translation>each task in its own session, not in the event conversation</translation>
     </message>
     <message>
         <location line="+6" />
@@ -60503,7 +61040,7 @@ WHAT YOU NEED TO KNOW WHEN TURNING IT ON: the approval safeguard (`mcp.approval`
         <translation>Role `%1` doesn't exist: agente_roles lists them.</translation>
     </message>
     <message>
-        <location line="+12" />
+        <location line="+13" />
         <source>Rol `%1` actualizado.</source>
         <translation>Role `%1` updated.</translation>
     </message>
@@ -60613,7 +61150,7 @@ WHAT YOU NEED TO KNOW WHEN TURNING IT ON: the approval safeguard (`mcp.approval`
         <translation>A slate on top of everything going out ("Recess", "Be right back", "Minute of silence"…), with `texto`, an optional `imagen` (path) and `ms` of fade (600). It doesn't depend on the scenes. Turning it on while on air asks for confirmation if something automatic requests it; turning it off doesn't. It survives an app crash. Each output has its own slate (`salida`).</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpService.cpp" line="+1329" />
+        <location filename="../src/app/mcp/McpService.cpp" line="+1330" />
         <source>El supervisor relanza la app si deja de latir. El latido sale de la interfaz Y de un hilo que mira los cuadros del motor: si la interfaz se traba y el motor sigue, el aire NO se corta. Con la interfaz trabada más de `espera_ui_s` (10 a 3600, de fábrica 60) y `matar_si_ui_trabada_sin_aire` (de fábrica true), se relanza solo si no hay transmisión ni grabación. La interfaz trabada CON aire es una alarma que sale sin la interfaz, al control web y a los notificadores de `notificar` («todos», de fábrica, o una lista de ids de notificador_listar; [] = ninguno). Sin argumentos, la muestra (con el estado: motor_vivo, ui_viva, ui_trabada_ms, ultima_traba_ms).</source>
         <translation>The watchdog relaunches the app if it stops beating. The heartbeat comes from the UI AND from a thread that watches the engine's frames: if the UI hangs and the engine keeps going, on air is NOT cut. With the UI stuck for more than `espera_ui_s` (10 to 3600, default 60) and `matar_si_ui_trabada_sin_aire` (default true), it relaunches only if there's no stream or recording. A stuck UI WITH on air is an alarm that goes out without the UI, to web control and to the notifiers in `notificar` (“todos”, default, or a list of ids from notificador_listar; [] = none). With no arguments, it shows it (with the state: motor_vivo, ui_viva, ui_trabada_ms, ultima_traba_ms).</translation>
     </message>
@@ -61516,11 +62053,31 @@ None of this can be done while the assistant or an agent job is running.</transl
     </message>
     <message>
         <location line="+4" />
-        <source>Proveedor y modelo elegidos, proveedores disponibles, si el agente esta instalado y corriendo.</source>
-        <translation>Chosen provider and model, available providers, whether the agent is installed and running.</translation>
+        <source>Proveedor y modelo elegidos, proveedores disponibles, si el agente esta instalado y corriendo, y `sesionEvento`: la conversación del evento que usa (una por evento; ahí caen los avisos automáticos).</source>
+        <translation>Chosen provider and model, available providers, whether the agent is installed and running, and `sesionEvento`: the event conversation it uses (one per event; automatic notices land there).</translation>
     </message>
     <message>
-        <location line="+21" />
+        <location line="+93" />
+        <source>Arranca (`start`), detiene (`stop`) o reinicia (`restart`) el asistente del evento o el de automatización (`asistente`). `new_conversation` olvida la conversación del evento y empieza otra (si corre, se relanza con la nueva; lo de antes queda en el historial del motor).</source>
+        <translation>Starts (`start`), stops (`stop`) or restarts (`restart`) the event assistant or the automation one (`asistente`). `new_conversation` forgets the event conversation and starts another (if it is running, it is relaunched with the new one; the earlier one stays in the engine's history).</translation>
+    </message>
+    <message>
+        <location line="+16" />
+        <source>Listo: la próxima vez que arranque empieza una conversación nueva.</source>
+        <translation>Done: the next time it starts it begins a new conversation.</translation>
+    </message>
+    <message>
+        <location line="+7" />
+        <source>Conversación nueva.</source>
+        <translation>New conversation.</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>Relanzando con una conversación nueva.</source>
+        <translation>Relaunching with a new conversation.</translation>
+    </message>
+    <message>
+        <location line="-94" />
         <source>Configurar el asistente</source>
         <translation>Configure the assistant</translation>
     </message>
@@ -61565,12 +62122,7 @@ None of this can be done while the assistant or an agent job is running.</transl
         <translation>Start / stop the assistant</translation>
     </message>
     <message>
-        <location line="+3" />
-        <source>Arranca (`start`), detiene (`stop`) o reinicia (`restart`) el asistente del evento o el de automatización (`asistente`).</source>
-        <translation>Starts (`start`), stops (`stop`) or restarts (`restart`) the event assistant or the automation assistant (`asistente`).</translation>
-    </message>
-    <message>
-        <location line="+20" />
+        <location line="+41" />
         <location line="+6" />
         <source>Corriendo.</source>
         <translation>Running.</translation>
@@ -63758,7 +64310,7 @@ You're the `%1` role: this is your WHOLE toolset. What isn't here you can't do y
     </message>
     <message>
         <location line="+2" />
-        <location filename="../src/app/mcp/McpService.cpp" line="-2317" />
+        <location filename="../src/app/mcp/McpService.cpp" line="-2318" />
         <source>La herramienta fallo: %1</source>
         <translation>The tool failed: %1</translation>
     </message>
@@ -67373,7 +67925,7 @@ With this repertoire you build a graphic WITHOUT writing code: it is what you sh
     </message>
     <message>
         <location line="+1" />
-        <location filename="../src/app/mcp/McpService.cpp" line="+719" />
+        <location filename="../src/app/mcp/McpService.cpp" line="+720" />
         <source>Escenas</source>
         <translation>Scenes</translation>
     </message>
@@ -74722,7 +75274,7 @@ When it reaches 500 profiles it turns itself off and says so. Without `activo` i
         <translation>Nobody is visible on the waiting cameras.</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpService.cpp" line="-4162" />
+        <location filename="../src/app/mcp/McpService.cpp" line="-4163" />
         <source>ANTES DE PREGUNTARLE NADA, mira `rostro_lobby` y busca su `uid` (%1):
 - Si viene con `nombre`, YA SABES QUIEN ES: saludala por su nombre, confirmale en UNA sola pregunta el cargo que figura en su ficha, y no le vuelvas a preguntar lo que ya esta ahi. Preguntarle el nombre a alguien que el sistema reconoce es hacerle perder el tiempo.
 - Si `parecido` esta cerca del corte (0.40 o mas) pero sin `nombre`, casi seguro ES alguien de la libreta y lo que falta es una cara mejor: deciselo por `chat_send` con las palabras de `sugerencia` (por ejemplo «mira de frente a la camara»), espera unos segundos y volve a mirar `rostro_lobby` ANTES de preguntarle quien es.
@@ -74777,7 +75329,7 @@ When it reaches 500 profiles it turns itself off and says so. Without `activo` i
         <translation>unknown preset '%1'. Valid: full, left, right, top, bottom, center, top-left, top-right, bottom-left, bottom-right, pip-tl, pip-tr, pip-bl, pip-br, lower-third, third-1..3, grid-&lt;n&gt;-&lt;i&gt; (e.g. grid-4-2), or {x,y,w,h}.</translation>
     </message>
     <message>
-        <location line="+292" />
+        <location line="+293" />
         <source>«%1» YA ENTRO sola (estaba en la lista de auto-aceptar del evento): no le pidas los datos de cero, mostrale los que ya tenemos para que confirme. </source>
         <translation>“%1” ALREADY GOT IN on their own (they were on the event's auto-accept list): don't ask them for their details from scratch, show them the ones we already have so they can confirm. </translation>
     </message>
@@ -76448,12 +77000,12 @@ How to find the number: set a value, watch someone talking with `foto_programa` 
         <translation>Set up the chamber grid</translation>
     </message>
     <message>
-        <location line="-3336" />
+        <location line="-3337" />
         <source>OJO: REINICIA EL MOTOR. Por unos segundos se corta TODO lo que sale (el programa, la sala, las pantallas, lo que ven los invitados) y las cámaras se vuelven a abrir. Con una transmisión o una grabación andando no se aplica. No lo uses para arreglar una cámara: decíselo antes al operador y pedile que confirme.</source>
         <translation>WARNING: RESTARTS THE ENGINE. For a few seconds EVERYTHING going out is cut (the program, the room, the screens, what guests see) and the cameras are reopened. With a stream or a recording running it is not applied. Don't use it to fix a camera: tell the operator first and ask them to confirm.</translation>
     </message>
     <message>
-        <location line="+1328" />
+        <location line="+1329" />
         <source>Transición de entrada de una escena</source>
         <translation>Scene entry transition</translation>
     </message>
@@ -81378,12 +81930,83 @@ PROPOSE, DON'T APPLY: show the person what changes and apply only if they confir
         <translation>Needs an open event (the report goes to its checklist, item «prueba_sala», and to Pruebas/ in its folder) and the conference running. The GUARD decides first: with little available memory, a busy machine or if the N would not fit, it does NOT start and says why; during the test it stops it on its own if memory drops below 3 GB, the app goes over 1200 threads or the load over 40. Test participants join without the lobby, are marked «prueba» and stay out of the roll, the vote and the quorum. If the capacity is not enough it is raised and restored at the end. Follow the test with prueba_sala_estado and end it with prueba_sala_parar.</translation>
     </message>
     <message>
-        <location line="+13" />
+        <location filename="../src/app/mcp/McpPruebaAsambleaTools.cpp" line="+23" />
+        <source>Arrancar una prueba de asamblea</source>
+        <translation>Start an assembly test</translation>
+    </message>
+    <message>
+        <location line="+3" />
+        <source>Simula a `integrantes` integrantes de la asamblea entrando por la sesión remota, como desde el celular: crea integrantes de PRUEBA en el Cuerpo, les da acceso (link + PIN y usuario + contraseña) y los hace entrar con hinchada (de fábrica, si viene en el programa) durante `minutos`. Esperan que los habiliten en el Recinto (sesion_habilitar, o `habilitar_solos_s`), piden la palabra, hablan con cámara y micrófono, votan cuando hay una votación abierta, se les corta la red y vuelven, y algunos erran el PIN hasta quedar bloqueados.</source>
+        <translation>Simulates `integrantes` assembly members joining through the remote session, as if from their phone: it creates TEST members in the Body, gives them access (link + PIN and username + password) and makes them join with hinchada (by default, if it ships with the program) for `minutos`. They wait to be enabled in the Chamber (sesion_habilitar, or `habilitar_solos_s`), request the floor, speak with camera and microphone, vote when a vote is open, lose the network and come back, and some get the PIN wrong until they are blocked.</translation>
+    </message>
+    <message>
+        <location line="+7" />
+        <source>SOLO en un evento sin integrantes reales: si el padrón del evento abierto tiene alguno que no es de prueba, no arranca (para no tocar el padrón, el quórum ni el acta): creá un evento vacío con evento_nuevo y abrilo. Necesita la conferencia andando. Sin `hinchada`, devuelve el archivo de credenciales y la línea para un generador externo. `comportamiento` (todo opcional, en %): afuera_pct (20), piden_palabra_pct (30), votan_pct (90), voto («azar» o «afirmativo:60,negativo:30,abstencion:10»), reconectan_pct (10), pin_errado_pct (10), pin_errado_intentos (5: el gateway lo bloquea), con_usuario_pct (20), entrada_cada_ms (1000), habilitar_solos_s (0: los habilita el operador), programa (true). Seguila con prueba_asamblea_estado; al terminar (prueba_asamblea_terminar o por tiempo) se borran los integrantes de prueba y su acceso, el recinto vuelve a como estaba y el informe queda en Pruebas/ del evento.</source>
+        <translation>ONLY in an event with no real members: if the open event's roll has any that is not a test one, it does not start (so as not to touch the roll, the quorum or the minutes): create an empty event with evento_nuevo and open it. It needs the conference running. Without `hinchada`, it returns the credentials file and the line for an external generator. `comportamiento` (all optional, in %): afuera_pct (20), piden_palabra_pct (30), votan_pct (90), voto («azar» or «afirmativo:60,negativo:30,abstencion:10»), reconectan_pct (10), pin_errado_pct (10), pin_errado_intentos (5: the gateway blocks it), con_usuario_pct (20), entrada_cada_ms (1000), habilitar_solos_s (0: the operator enables them), programa (true). Follow it with prueba_asamblea_estado; when it ends (prueba_asamblea_terminar or by time) the test members and their access are deleted, the chamber goes back to how it was and the report is left in the event's Pruebas/.</translation>
+    </message>
+    <message>
+        <location line="+18" />
+        <location filename="../src/app/mcp/McpPruebaSalaTools.cpp" line="+13" />
         <source>los genera esta máquina (de fábrica, si está)</source>
         <translation>this machine generates them (default, if available)</translation>
     </message>
     <message>
-        <location line="+2" />
+        <location line="+20" />
+        <source>Prueba de asamblea arrancada. Seguila con prueba_asamblea_estado.</source>
+        <translation>Assembly test started. Follow it with prueba_asamblea_estado.</translation>
+    </message>
+    <message>
+        <location line="+8" />
+        <source>Cómo va la prueba de asamblea</source>
+        <translation>How the assembly test is going</translation>
+    </message>
+    <message>
+        <location line="+3" />
+        <source>El estado de la prueba de asamblea: si corre, el generador, cuántos integrantes reales y de prueba hay en el padrón (y si se puede arrancar acá), cómo van los simulados según la app (conectados, esperando que los habiliten, habilitados, afuera, bloqueados, en la fila, con la palabra, votaron y qué), el archivo de credenciales y la línea para un generador externo, y el resumen de la última.</source>
+        <translation>The assembly test status: whether it is running, the generator, how many real and test members the roll has (and whether it can be started here), how the simulated ones are doing according to the app (connected, waiting to be enabled, enabled, outside, blocked, in the queue, with the floor, voted and what), the credentials file and the line for an external generator, and the summary of the last one.</translation>
+    </message>
+    <message>
+        <location line="+12" />
+        <source>Terminar la prueba de asamblea</source>
+        <translation>End the assembly test</translation>
+    </message>
+    <message>
+        <location line="+3" />
+        <source>Termina la prueba de asamblea (o descarta una preparada): corta el probador, saca a los integrantes de prueba de la sesión, revoca su acceso, los borra del Cuerpo, deja el recinto como estaba, borra el archivo de credenciales y guarda el informe en el evento. Sin una prueba en curso, con `limpiar`, borra los integrantes de prueba que hayan quedado. El informe queda en prueba_asamblea_informe en unos segundos.</source>
+        <translation>Ends the assembly test (or discards a prepared one): stops the tester, removes the test members from the session, revokes their access, deletes them from the Body, leaves the chamber as it was, deletes the credentials file and saves the report in the event. With no test running, with `limpiar`, it deletes any test members left over. The report is available in prueba_asamblea_informe in a few seconds.</translation>
+    </message>
+    <message>
+        <location line="+11" />
+        <source>No hay una prueba de asamblea en curso.</source>
+        <translation>There is no assembly test running.</translation>
+    </message>
+    <message>
+        <location line="+3" />
+        <source>Integrantes de prueba borrados (si había).</source>
+        <translation>Test members deleted (if there were any).</translation>
+    </message>
+    <message>
+        <location line="+3" />
+        <source>Terminando la prueba de asamblea (limpieza e informe).</source>
+        <translation>Ending the assembly test (cleanup and report).</translation>
+    </message>
+    <message>
+        <location line="+7" />
+        <source>El informe de la última prueba de asamblea</source>
+        <translation>The report of the last assembly test</translation>
+    </message>
+    <message>
+        <location line="+3" />
+        <source>El informe completo de la última prueba de asamblea de esta sesión: lo que vio la app, el resumen del probador (entraron, esperaron que los habiliten, pidieron y tuvieron la palabra, votaron, se reconectaron, quedaron bloqueados; latencias), qué le pasó a cada integrante y dónde quedó en el evento.</source>
+        <translation>The full report of this session's last assembly test: what the app saw, the tester's summary (joined, waited to be enabled, requested and had the floor, voted, reconnected, got blocked; latencies), what happened to each member and where it ended up in the event.</translation>
+    </message>
+    <message>
+        <location line="+8" />
+        <source>Todavía no terminó ninguna prueba de asamblea en esta sesión.</source>
+        <translation>No assembly test has finished yet in this session.</translation>
+    </message>
+    <message>
+        <location filename="../src/app/mcp/McpPruebaSalaTools.cpp" line="+2" />
         <source>cuántos hablan a la vez (0: cada uno a su ritmo)</source>
         <translation>how many speak at once (0: each at their own pace)</translation>
     </message>
@@ -84235,6 +84858,30 @@ PROPOSE, DON'T APPLY: show the person what changes and apply only if they confir
     </message>
     <message>
         <location line="+2" />
+        <source>prueba de asamblea simular integrantes consejeros de prueba remotos sesion remota celulares probar la sesion votacion simulada hinchada carga</source>
+        <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
+        <translation>assembly test simulate members councillors test remote session phones try the session simulated vote hinchada load</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>como va la prueba de asamblea integrantes simulados conectados esperando habilitados votaron bloqueados</source>
+        <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
+        <translation>how is the assembly test going simulated members connected waiting enabled voted blocked</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>terminar parar cortar prueba de asamblea limpiar borrar integrantes de prueba revocar</source>
+        <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
+        <translation>end stop cut assembly test clean delete test members revoke</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>informe resultado de la prueba de asamblea latencias espera votos integrantes simulados</source>
+        <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
+        <translation>report result of the assembly test latencies wait votes simulated members</translation>
+    </message>
+    <message>
+        <location line="+2" />
         <source>terminar parar cortar prueba de sala simulacro limpiar participantes de prueba</source>
         <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
         <translation>end stop cut room test drill clean up test participants</translation>
@@ -85204,7 +85851,7 @@ PROPOSE, DON'T APPLY: show the person what changes and apply only if they confir
         <translation>presenter host moderator emcee anchor</translation>
     </message>
     <message>
-        <location line="-683" />
+        <location line="-691" />
         <source>revocar tablet token botonera companion http acceso sacarle el acceso</source>
         <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
         <translation>revoke tablet token control surface companion http access take away access</translation>
@@ -85222,7 +85869,7 @@ PROPOSE, DON'T APPLY: show the person what changes and apply only if they confir
         <translation>start automatically on power up power outage come back automatically auto start start the app when the machine turns on start with the system</translation>
     </message>
     <message>
-        <location line="+265" />
+        <location line="+273" />
         <source>go take entra el siguiente paso adelante dale revision previa antes de salir</source>
         <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
         <translation>go take next goes in step forward go ahead check before going out</translation>
@@ -90011,7 +90658,7 @@ PROPOSE, DON'T APPLY: show the person what changes and apply only if they confir
         <translation>%1 (no longer exists)</translation>
     </message>
     <message>
-        <location filename="../src/app/pantallas/Monitores.cpp" line="+277" />
+        <location filename="../src/app/pantallas/Monitores.cpp" line="+282" />
         <source>No conozco ese monitor: los que hay salen en la lista de Pantallas conectadas.</source>
         <translation>I don't know that monitor: the available ones are listed under Connected displays.</translation>
     </message>
@@ -93435,7 +94082,7 @@ PROPOSE, DON'T APPLY: show the person what changes and apply only if they confir
 <context>
     <name>rostros</name>
     <message>
-        <location filename="../src/app/ui/PersonasViewModel.cpp" line="-394" />
+        <location filename="../src/app/ui/PersonasViewModel.cpp" line="-393" />
         <source>alta automática: «%1» (ficha %2, lobby %3)</source>
         <translation>auto-added: “%1” (profile %2, lobby %3)</translation>
     </message>
@@ -96348,7 +96995,7 @@ PROPOSE, DON'T APPLY: show the person what changes and apply only if they confir
     </message>
     <message>
         <location filename="../src/gateway/Canal.cpp" line="+36" />
-        <location filename="../src/gateway/Sesion.cpp" line="-693" />
+        <location filename="../src/gateway/Sesion.cpp" line="-698" />
         <location filename="../src/gateway/SignalingServer.cpp" line="-106" />
         <source>Mensaje inválido.</source>
         <translation>Invalid message.</translation>
@@ -96361,7 +97008,7 @@ PROPOSE, DON'T APPLY: show the person what changes and apply only if they confir
     <message>
         <location filename="../src/gateway/Registro.cpp" line="-110" />
         <location filename="../src/gateway/RegistroAtiende.cpp" line="-63" />
-        <location filename="../src/gateway/Sesion.cpp" line="+29" />
+        <location filename="../src/gateway/Sesion.cpp" line="+32" />
         <source>Demasiados intentos desde esta conexión. Esperá 10 minutos.</source>
         <translation>Too many attempts from this connection. Wait 10 minutes.</translation>
     </message>
@@ -96431,7 +97078,7 @@ PROPOSE, DON'T APPLY: show the person what changes and apply only if they confir
         <translation>The support link was changed (or the event was closed).</translation>
     </message>
     <message>
-        <location filename="../src/gateway/Sesion.cpp" line="-25" />
+        <location filename="../src/gateway/Sesion.cpp" line="-28" />
         <source>Conectando con la sala…</source>
         <translation>Connecting to the room…</translation>
     </message>
@@ -96441,7 +97088,7 @@ PROPOSE, DON'T APPLY: show the person what changes and apply only if they confir
         <translation>This device is no longer registered: sign in with the PIN.</translation>
     </message>
     <message>
-        <location line="+16" />
+        <location line="+19" />
         <source>Por contraseña errada varias veces, tu acceso está bloqueado 15 minutos.</source>
         <translation>Too many wrong passwords: your access is locked for 15 minutes.</translation>
     </message>
@@ -96467,7 +97114,7 @@ PROPOSE, DON'T APPLY: show the person what changes and apply only if they confir
         <translation>This link is not valid (or was revoked). Ask the secretariat for a new one.</translation>
     </message>
     <message>
-        <location line="+26" />
+        <location line="+28" />
         <source>Entraste desde otro lado: esta ventana se cerró.</source>
         <translation>You signed in from somewhere else: this window was closed.</translation>
     </message>
