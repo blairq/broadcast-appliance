@@ -6888,7 +6888,7 @@ El PIN anterior deja de servir para entrar.</source>
         <translation>Отмена</translation>
     </message>
     <message>
-        <location line="+137" />
+        <location line="+139" />
         <source>Esta tarjeta no se pudo cargar.</source>
         <translation>Не удалось загрузить эту карточку.</translation>
     </message>
@@ -14441,7 +14441,7 @@ Se cambia en su código (sección Plugins, o pidiéndoselo al asistente). Acá s
 <context>
     <name>LineaContent</name>
     <message>
-        <location filename="../src/app/qml/cards/LineaContent.qml" line="+40" />
+        <location filename="../src/app/qml/cards/LineaContent.qml" line="+34" />
         <source>Conducción</source>
         <translation>Ведение</translation>
     </message>
@@ -14456,7 +14456,12 @@ Se cambia en su código (sección Plugins, o pidiéndoselo al asistente). Acá s
         <translation>Шкала</translation>
     </message>
     <message>
-        <location line="+51" />
+        <location line="+9" />
+        <source>Vista: %1</source>
+        <translation>Вид: %1</translation>
+    </message>
+    <message>
+        <location line="+75" />
         <source>No hay un evento abierto: la línea es la del guion del evento.</source>
         <translation>Нет открытого мероприятия: шкала — это сценарий мероприятия.</translation>
     </message>
@@ -28497,12 +28502,12 @@ De frente, de costado, con anteojos y sin: así se la reconoce en el día real.<
         </translation>
     </message>
     <message>
-        <location line="+65" />
+        <location line="+90" />
         <source>Prueba de asamblea abierta: corré el generador externo con el archivo de credenciales.</source>
         <translation>Тест собрания открыт: запустите внешний генератор с файлом учётных данных.</translation>
     </message>
     <message numerus="yes">
-        <location line="+40" />
+        <location line="+52" />
         <source>Prueba de asamblea: entran %n integrantes de prueba (la primera vez el probador graba su video unos minutos).</source>
         <translation>
             <numerusform>Тест собрания: входит %n тестовый участник (в первый раз тестер несколько минут записывает своё видео).</numerusform>
@@ -28511,7 +28516,7 @@ De frente, de costado, con anteojos y sin: así se la reconoce en el día real.<
         </translation>
     </message>
     <message>
-        <location line="+145" />
+        <location line="+153" />
         <source>Prueba de asamblea (integrantes simulados por la sesión remota)</source>
         <translation>Тест собрания (участники имитируются через удалённую сессию)</translation>
     </message>
@@ -28525,7 +28530,7 @@ De frente, de costado, con anteojos y sin: así se la reconoce en el día real.<
         </translation>
     </message>
     <message numerus="yes">
-        <location line="+18" />
+        <location line="+37" />
         <source>Había una prueba de asamblea sin terminar (el programa se cerró en el medio): se borraron %n integrantes de prueba y su acceso.</source>
         <translation>
             <numerusform>Был незавершённый тест собрания (программа закрылась посреди теста): удалены %n тестовый участник и его доступ.</numerusform>
@@ -28537,7 +28542,7 @@ De frente, de costado, con anteojos y sin: así se la reconoce en el día real.<
 <context>
     <name>PruebaSalaViewModel</name>
     <message numerus="yes">
-        <location filename="../src/app/ui/PruebaSalaViewModel.cpp" line="+173" />
+        <location filename="../src/app/ui/PruebaSalaViewModel.cpp" line="+183" />
         <source>Ojo: según la última medición, el enlace no alcanza para %n invitados por el túnel.</source>
         <translation>
             <numerusform>Внимание: по последнему измерению канала не хватит на %n гостя через туннель.</numerusform>
@@ -28556,7 +28561,7 @@ De frente, de costado, con anteojos y sin: así se la reconoce en el día real.<
         <translation>Тест зала открыт: подключите внешний генератор с тестовым ключом.</translation>
     </message>
     <message numerus="yes">
-        <location line="+54" />
+        <location line="+69" />
         <source>Prueba de sala: entran %n participantes de prueba (la primera vez, el probador graba su video unos minutos).</source>
         <translation>
             <numerusform>Тест зала: входит %n тестовый участник (в первый раз нагрузчик несколько минут записывает своё видео).</numerusform>
@@ -46755,7 +46760,7 @@ Elegí otra cosa en Salidas → Pantallas.</source>
         <translation>; подтверждение голоса p50 %1 мс</translation>
     </message>
     <message>
-        <location filename="../src/app/ui/PruebaAsambleaViewModel.cpp" line="-365" />
+        <location filename="../src/app/ui/PruebaAsambleaViewModel.cpp" line="-429" />
         <location line="+23" />
         <source>la sesión remota no está disponible</source>
         <translation>удалённая сессия недоступна</translation>
@@ -46787,22 +46792,22 @@ Elegí otra cosa en Salidas → Pantallas.</source>
         <translation>конференция не запущена (gateway обслуживает удалённую сессию)</translation>
     </message>
     <message>
-        <location line="+22" />
+        <location line="+51" />
         <source>no se pudo escribir el archivo de credenciales: %1</source>
         <translation>не удалось записать файл учётных данных: %1</translation>
     </message>
     <message>
-        <location line="+1" />
+        <location line="-1" />
         <source>no se pudo escribir el archivo de credenciales</source>
         <translation>не удалось записать файл учётных данных</translation>
     </message>
     <message>
-        <location line="+28" />
+        <location line="+26" />
         <source>la conferencia no tiene HTTPS: el probador no puede entrar</source>
         <translation>у конференции нет HTTPS: тестер не может войти</translation>
     </message>
     <message>
-        <location line="+27" />
+        <location line="+39" />
         <source>el probador terminó</source>
         <translation>тестер завершил работу</translation>
     </message>
@@ -46832,7 +46837,7 @@ Elegí otra cosa en Salidas → Pantallas.</source>
         <translation>Тест собрания завершён.</translation>
     </message>
     <message>
-        <location line="+79" />
+        <location line="+87" />
         <source>hay una prueba en curso: terminala</source>
         <translation>тест идёт: завершите его</translation>
     </message>
@@ -55231,11 +55236,11 @@ Datos (de %2): %3</source>
     <message>
         <location filename="../src/gateway/Borde.cpp" line="+92" />
         <location line="+7" />
-        <location filename="../src/gateway/Botonera.cpp" line="+91" />
+        <location filename="../src/gateway/Botonera.cpp" line="+90" />
         <location line="+2" />
-        <location filename="../src/gateway/SignalingServer.cpp" line="+692" />
+        <location filename="../src/gateway/SignalingServer.cpp" line="+658" />
         <location line="+9" />
-        <location line="+357" />
+        <location line="+354" />
         <location line="+109" />
         <location line="+11" />
         <location line="+3" />
@@ -55291,7 +55296,7 @@ Datos (de %2): %3</source>
     </message>
     <message>
         <location line="+3" />
-        <location filename="../src/gateway/ControlWeb.cpp" line="+195" />
+        <location filename="../src/gateway/ControlWeb.cpp" line="+194" />
         <location filename="../src/gateway/proxy/ProxyNombres.cpp" line="+430" />
         <source>solo desde la red local</source>
         <translation>только из локальной сети</translation>
@@ -55964,7 +55969,7 @@ Datos (de %2): %3</source>
         <translation>регистрация: %1 освобождает канал %2</translation>
     </message>
     <message>
-        <location line="+116" />
+        <location line="+114" />
         <source>registro: origen ajeno desde %1</source>
         <translation>регистрация: чужой источник с %1</translation>
     </message>
@@ -55991,7 +55996,7 @@ Datos (de %2): %3</source>
     <message>
         <location line="-76" />
         <location filename="../src/gateway/RegistroAtiende.cpp" line="+318" />
-        <location filename="../src/gateway/Sesion.cpp" line="+312" />
+        <location filename="../src/gateway/Sesion.cpp" line="+308" />
         <source>origen inválido</source>
         <translation>неверный источник</translation>
     </message>
@@ -56042,12 +56047,12 @@ Datos (de %2): %3</source>
         <translation>регистрация: удалённая помощь %1 отправляет слишком много; отключается</translation>
     </message>
     <message>
-        <location filename="../src/gateway/Sesion.cpp" line="-59" />
+        <location filename="../src/gateway/Sesion.cpp" line="-55" />
         <source>sesión: %1 bloqueado 15 min por PIN errado</source>
         <translation>заседание: %1 заблокирован на 15 мин из-за неверного PIN</translation>
     </message>
     <message>
-        <location line="+58" />
+        <location line="+54" />
         <source>sesión: origen ajeno desde %1</source>
         <translation>заседание: чужой источник с %1</translation>
     </message>
@@ -56123,7 +56128,7 @@ Datos (de %2): %3</source>
         <translation>никто</translation>
     </message>
     <message>
-        <location filename="../src/gateway/SignalingServer.cpp" line="-1675" />
+        <location filename="../src/gateway/SignalingServer.cpp" line="-1637" />
         <source>pantalla %1 sale: %2</source>
         <translation>экран %1 выходит: %2</translation>
     </message>
@@ -56183,7 +56188,7 @@ Datos (de %2): %3</source>
         <translation>туннель: приёмник pinggy на 127.0.0.1:%1 (всё внешнее)</translation>
     </message>
     <message>
-        <location line="+350" />
+        <location line="+315" />
         <source>señalización: %1 conexiones sin cerrar tras %2 ms</source>
         <translation>сигнализация: %1 соединений не закрыто через %2 мс</translation>
     </message>
@@ -56208,7 +56213,7 @@ Datos (de %2): %3</source>
         <translation>соединение: исключение %1</translation>
     </message>
     <message>
-        <location line="+1020" />
+        <location line="+1017" />
         <source>archivos: subida fallida de %1 (código %2)</source>
         <translation>файлы: загрузка %1 не удалась (код %2)</translation>
     </message>
@@ -56393,7 +56398,7 @@ Datos (de %2): %3</source>
         <translation>видео: загрузка видеодвижка %1; к/с нижнего слоя переходят со ступени %2 на %3 (из %4)</translation>
     </message>
     <message>
-        <location line="-3370" />
+        <location line="-3367" />
         <source>direcciones: red %1, afuera %2</source>
         <translation>адреса: сеть %1, извне %2</translation>
     </message>
@@ -56411,7 +56416,7 @@ Datos (de %2): %3</source>
     </message>
     <message>
         <location line="+270" />
-        <location line="+143" />
+        <location line="+140" />
         <location line="+8" />
         <source>servidor saturado</source>
         <translation>сервер перегружен</translation>
@@ -94827,7 +94832,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>; завершён: %1</translation>
     </message>
     <message>
-        <location filename="../src/app/ui/PruebaSalaViewModel.cpp" line="-312" />
+        <location filename="../src/app/ui/PruebaSalaViewModel.cpp" line="-327" />
         <source>ya hay una prueba de sala en curso</source>
         <translation>тест зала уже идёт</translation>
     </message>
@@ -94878,7 +94883,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>у конференции нет HTTPS: нагрузчик не может войти</translation>
     </message>
     <message>
-        <location line="+40" />
+        <location line="+55" />
         <source>el probador terminó</source>
         <translation>нагрузчик завершил работу</translation>
     </message>

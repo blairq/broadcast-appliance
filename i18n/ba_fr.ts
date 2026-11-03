@@ -6853,7 +6853,7 @@ L'ancien PIN ne permet plus d'entrer.</translation>
         <translation>Annuler</translation>
     </message>
     <message>
-        <location line="+137" />
+        <location line="+139" />
         <source>Esta tarjeta no se pudo cargar.</source>
         <translation>Impossible de charger cette carte.</translation>
     </message>
@@ -14375,7 +14375,7 @@ Il se modifie dans son code (section Plugins, ou en le demandant à l'assistant)
 <context>
     <name>LineaContent</name>
     <message>
-        <location filename="../src/app/qml/cards/LineaContent.qml" line="+40" />
+        <location filename="../src/app/qml/cards/LineaContent.qml" line="+34" />
         <source>Conducción</source>
         <translation>Conduite</translation>
     </message>
@@ -14390,7 +14390,12 @@ Il se modifie dans son code (section Plugins, ou en le demandant à l'assistant)
         <translation>Timeline</translation>
     </message>
     <message>
-        <location line="+51" />
+        <location line="+9" />
+        <source>Vista: %1</source>
+        <translation>Vue : %1</translation>
+    </message>
+    <message>
+        <location line="+75" />
         <source>No hay un evento abierto: la línea es la del guion del evento.</source>
         <translation>Aucun événement ouvert : la timeline est celle du conducteur de l'événement.</translation>
     </message>
@@ -28367,12 +28372,12 @@ De face, de profil, avec et sans lunettes : c'est ainsi qu'on la reconnaît le 
         </translation>
     </message>
     <message>
-        <location line="+65" />
+        <location line="+90" />
         <source>Prueba de asamblea abierta: corré el generador externo con el archivo de credenciales.</source>
         <translation>Test d'assemblée ouvert : lancez le générateur externe avec le fichier d'identifiants.</translation>
     </message>
     <message numerus="yes">
-        <location line="+40" />
+        <location line="+52" />
         <source>Prueba de asamblea: entran %n integrantes de prueba (la primera vez el probador graba su video unos minutos).</source>
         <translation>
             <numerusform>Test d'assemblée : %n membre de test entre (la première fois, le testeur prépare sa vidéo pendant quelques minutes).</numerusform>
@@ -28380,7 +28385,7 @@ De face, de profil, avec et sans lunettes : c'est ainsi qu'on la reconnaît le 
         </translation>
     </message>
     <message>
-        <location line="+145" />
+        <location line="+153" />
         <source>Prueba de asamblea (integrantes simulados por la sesión remota)</source>
         <translation>Test d'assemblée (membres simulés via la session distante)</translation>
     </message>
@@ -28393,7 +28398,7 @@ De face, de profil, avec et sans lunettes : c'est ainsi qu'on la reconnaît le 
         </translation>
     </message>
     <message numerus="yes">
-        <location line="+18" />
+        <location line="+37" />
         <source>Había una prueba de asamblea sin terminar (el programa se cerró en el medio): se borraron %n integrantes de prueba y su acceso.</source>
         <translation>
             <numerusform>Un test d'assemblée n'était pas terminé (le programme s'est fermé en cours de route) : %n membre de test et son accès ont été supprimés.</numerusform>
@@ -28404,7 +28409,7 @@ De face, de profil, avec et sans lunettes : c'est ainsi qu'on la reconnaît le 
 <context>
     <name>PruebaSalaViewModel</name>
     <message numerus="yes">
-        <location filename="../src/app/ui/PruebaSalaViewModel.cpp" line="+173" />
+        <location filename="../src/app/ui/PruebaSalaViewModel.cpp" line="+183" />
         <source>Ojo: según la última medición, el enlace no alcanza para %n invitados por el túnel.</source>
         <translation>
             <numerusform>Attention : d'après la dernière mesure, la liaison ne suffit pas pour %n invité par le tunnel.</numerusform>
@@ -28422,7 +28427,7 @@ De face, de profil, avec et sans lunettes : c'est ainsi qu'on la reconnaît le 
         <translation>Test de salle ouvert : connectez le générateur externe avec l'identifiant de test.</translation>
     </message>
     <message numerus="yes">
-        <location line="+54" />
+        <location line="+69" />
         <source>Prueba de sala: entran %n participantes de prueba (la primera vez, el probador graba su video unos minutos).</source>
         <translation>
             <numerusform>Test de salle : %n participant de test entre (la première fois, le testeur enregistre sa vidéo pendant quelques minutes).</numerusform>
@@ -46582,7 +46587,7 @@ Choisissez autre chose dans Sorties → Écrans.</translation>
         <translation> ; vote confirmé p50 %1 ms</translation>
     </message>
     <message>
-        <location filename="../src/app/ui/PruebaAsambleaViewModel.cpp" line="-365" />
+        <location filename="../src/app/ui/PruebaAsambleaViewModel.cpp" line="-429" />
         <location line="+23" />
         <source>la sesión remota no está disponible</source>
         <translation>la session distante n'est pas disponible</translation>
@@ -46614,22 +46619,22 @@ Choisissez autre chose dans Sorties → Écrans.</translation>
         <translation>la conférence ne tourne pas (le gateway assure la session distante)</translation>
     </message>
     <message>
-        <location line="+22" />
+        <location line="+51" />
         <source>no se pudo escribir el archivo de credenciales: %1</source>
         <translation>impossible d'écrire le fichier d'identifiants : %1</translation>
     </message>
     <message>
-        <location line="+1" />
+        <location line="-1" />
         <source>no se pudo escribir el archivo de credenciales</source>
         <translation>impossible d'écrire le fichier d'identifiants</translation>
     </message>
     <message>
-        <location line="+28" />
+        <location line="+26" />
         <source>la conferencia no tiene HTTPS: el probador no puede entrar</source>
         <translation>la conférence n'a pas de HTTPS : le testeur ne peut pas entrer</translation>
     </message>
     <message>
-        <location line="+27" />
+        <location line="+39" />
         <source>el probador terminó</source>
         <translation>le testeur s'est terminé</translation>
     </message>
@@ -46659,7 +46664,7 @@ Choisissez autre chose dans Sorties → Écrans.</translation>
         <translation>Le test d'assemblée est terminé.</translation>
     </message>
     <message>
-        <location line="+79" />
+        <location line="+87" />
         <source>hay una prueba en curso: terminala</source>
         <translation>un test est en cours : terminez-le</translation>
     </message>
@@ -55056,11 +55061,11 @@ Données (de %2) : %3</translation>
     <message>
         <location filename="../src/gateway/Borde.cpp" line="+92" />
         <location line="+7" />
-        <location filename="../src/gateway/Botonera.cpp" line="+91" />
+        <location filename="../src/gateway/Botonera.cpp" line="+90" />
         <location line="+2" />
-        <location filename="../src/gateway/SignalingServer.cpp" line="+692" />
+        <location filename="../src/gateway/SignalingServer.cpp" line="+658" />
         <location line="+9" />
-        <location line="+357" />
+        <location line="+354" />
         <location line="+109" />
         <location line="+11" />
         <location line="+3" />
@@ -55116,7 +55121,7 @@ Données (de %2) : %3</translation>
     </message>
     <message>
         <location line="+3" />
-        <location filename="../src/gateway/ControlWeb.cpp" line="+195" />
+        <location filename="../src/gateway/ControlWeb.cpp" line="+194" />
         <location filename="../src/gateway/proxy/ProxyNombres.cpp" line="+430" />
         <source>solo desde la red local</source>
         <translation>réseau local uniquement</translation>
@@ -55789,7 +55794,7 @@ Données (de %2) : %3</translation>
         <translation>accueil : %1 libère le canal %2</translation>
     </message>
     <message>
-        <location line="+116" />
+        <location line="+114" />
         <source>registro: origen ajeno desde %1</source>
         <translation>accueil : origine étrangère depuis %1</translation>
     </message>
@@ -55816,7 +55821,7 @@ Données (de %2) : %3</translation>
     <message>
         <location line="-76" />
         <location filename="../src/gateway/RegistroAtiende.cpp" line="+318" />
-        <location filename="../src/gateway/Sesion.cpp" line="+312" />
+        <location filename="../src/gateway/Sesion.cpp" line="+308" />
         <source>origen inválido</source>
         <translation>origine invalide</translation>
     </message>
@@ -55867,12 +55872,12 @@ Données (de %2) : %3</translation>
         <translation>accueil : l'assistance à distance %1 envoie trop ; coupée</translation>
     </message>
     <message>
-        <location filename="../src/gateway/Sesion.cpp" line="-59" />
+        <location filename="../src/gateway/Sesion.cpp" line="-55" />
         <source>sesión: %1 bloqueado 15 min por PIN errado</source>
         <translation>séance : %1 bloqué 15 min pour PIN erroné</translation>
     </message>
     <message>
-        <location line="+58" />
+        <location line="+54" />
         <source>sesión: origen ajeno desde %1</source>
         <translation>séance : origine étrangère depuis %1</translation>
     </message>
@@ -55948,7 +55953,7 @@ Données (de %2) : %3</translation>
         <translation>personne</translation>
     </message>
     <message>
-        <location filename="../src/gateway/SignalingServer.cpp" line="-1675" />
+        <location filename="../src/gateway/SignalingServer.cpp" line="-1637" />
         <source>pantalla %1 sale: %2</source>
         <translation>écran %1 sort : %2</translation>
     </message>
@@ -56008,7 +56013,7 @@ Données (de %2) : %3</translation>
         <translation>tunnel : écoute de pinggy sur 127.0.0.1:%1 (tout l'externe)</translation>
     </message>
     <message>
-        <location line="+350" />
+        <location line="+315" />
         <source>señalización: %1 conexiones sin cerrar tras %2 ms</source>
         <translation>signalisation : %1 connexions non fermées après %2 ms</translation>
     </message>
@@ -56033,7 +56038,7 @@ Données (de %2) : %3</translation>
         <translation>connexion : exception %1</translation>
     </message>
     <message>
-        <location line="+1020" />
+        <location line="+1017" />
         <source>archivos: subida fallida de %1 (código %2)</source>
         <translation>fichiers : échec de l'envoi de %1 (code %2)</translation>
     </message>
@@ -56218,7 +56223,7 @@ Données (de %2) : %3</translation>
         <translation>vidéo : charge du moteur vidéo %1 ; les ips de la couche basse passent du palier %2 au %3 (sur %4)</translation>
     </message>
     <message>
-        <location line="-3370" />
+        <location line="-3367" />
         <source>direcciones: red %1, afuera %2</source>
         <translation>adresses : réseau %1, extérieur %2</translation>
     </message>
@@ -56236,7 +56241,7 @@ Données (de %2) : %3</translation>
     </message>
     <message>
         <location line="+270" />
-        <location line="+143" />
+        <location line="+140" />
         <location line="+8" />
         <source>servidor saturado</source>
         <translation>serveur saturé</translation>
@@ -94632,7 +94637,7 @@ PROPOSEZ, N'APPLIQUEZ PAS : montrez à la personne ce qui change et appliquez s
         <translation> ; fin : %1</translation>
     </message>
     <message>
-        <location filename="../src/app/ui/PruebaSalaViewModel.cpp" line="-312" />
+        <location filename="../src/app/ui/PruebaSalaViewModel.cpp" line="-327" />
         <source>ya hay una prueba de sala en curso</source>
         <translation>un test de salle est déjà en cours</translation>
     </message>
@@ -94683,7 +94688,7 @@ PROPOSEZ, N'APPLIQUEZ PAS : montrez à la personne ce qui change et appliquez s
         <translation>la conférence n'a pas de HTTPS : le testeur ne peut pas entrer</translation>
     </message>
     <message>
-        <location line="+40" />
+        <location line="+55" />
         <source>el probador terminó</source>
         <translation>le testeur a terminé</translation>
     </message>

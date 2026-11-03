@@ -28,26 +28,53 @@ Item {
 
     AtajosLinea { activos: tarjeta.enVentana && tarjeta.mirada[0] }
 
+    /// Las vistas (conducción, escaleta, multipista) no gastan una fila de botones: van en el
+    /// «⠿» pegado al título de la tarjeta (GlassCard.accionesTitulo). En su ventana propia no
+    /// hay título de tarjeta: el mismo botón va arriba a la izquierda del contenido.
+    readonly property var nombresVistas: [qsTr("Conducción"), qsTr("Escaleta"), qsTr("Línea")]
+    property Component accionesTitulo: Component {
+        GlassButton {
+            id: puntos
+            compact: true
+            text: "⠿"
+            active: opciones.opened
+            onClicked: opciones.opened ? opciones.close() : opciones.open()
+            ToolTip.visible: hovered && !opciones.opened; ToolTip.delay: 500
+            ToolTip.text: qsTr("Vista: %1").arg(tarjeta.nombresVistas[tarjeta.vista])
+            Popup {
+                id: opciones
+                y: parent.height + 6
+                padding: 8
+                background: Rectangle { color: Theme.panel; radius: Theme.radiusSmall; border.color: Theme.glassBorder }
+                ColumnLayout {
+                    spacing: 4
+                    Repeater {
+                        model: tarjeta.nombresVistas
+                        delegate: GlassButton {
+                            required property string modelData
+                            required property int index
+                            Layout.fillWidth: true
+                            compact: true
+                            text: modelData
+                            active: tarjeta.vista === index
+                            onClicked: { tarjeta.vista = index; opciones.close() }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     ColumnLayout {
         anchors.fill: parent
         spacing: 6
         visible: tarjeta.hayEvento
 
-        RowLayout {
-            Layout.fillWidth: true
-            spacing: 6
-            Repeater {
-                model: [qsTr("Conducción"), qsTr("Escaleta"), qsTr("Línea")]
-                delegate: GlassButton {
-                    required property string modelData
-                    required property int index
-                    compact: true
-                    text: modelData
-                    active: tarjeta.vista === index
-                    onClicked: tarjeta.vista = index
-                }
-            }
-            Item { Layout.fillWidth: true }
+        // Solo en su ventana propia (en el tablero va pegado al título de la tarjeta).
+        Loader {
+            active: tarjeta.enVentana
+            visible: active
+            sourceComponent: tarjeta.accionesTitulo
         }
 
         ScrollView {

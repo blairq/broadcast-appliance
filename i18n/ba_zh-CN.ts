@@ -6818,7 +6818,7 @@ El PIN anterior deja de servir para entrar.</source>
         <translation>取消</translation>
     </message>
     <message>
-        <location line="+137" />
+        <location line="+139" />
         <source>Esta tarjeta no se pudo cargar.</source>
         <translation>无法载入此卡片。</translation>
     </message>
@@ -14309,7 +14309,7 @@ Se cambia en su código (sección Plugins, o pidiéndoselo al asistente). Acá s
 <context>
     <name>LineaContent</name>
     <message>
-        <location filename="../src/app/qml/cards/LineaContent.qml" line="+40" />
+        <location filename="../src/app/qml/cards/LineaContent.qml" line="+34" />
         <source>Conducción</source>
         <translation>执行</translation>
     </message>
@@ -14324,7 +14324,12 @@ Se cambia en su código (sección Plugins, o pidiéndoselo al asistente). Acá s
         <translation>时间线</translation>
     </message>
     <message>
-        <location line="+51" />
+        <location line="+9" />
+        <source>Vista: %1</source>
+        <translation>视图：%1</translation>
+    </message>
+    <message>
+        <location line="+75" />
         <source>No hay un evento abierto: la línea es la del guion del evento.</source>
         <translation>没有打开的活动：时间线即活动的串联单。</translation>
     </message>
@@ -28237,19 +28242,19 @@ De frente, de costado, con anteojos y sin: así se la reconoce en el día real.<
         </translation>
     </message>
     <message>
-        <location line="+65" />
+        <location line="+90" />
         <source>Prueba de asamblea abierta: corré el generador externo con el archivo de credenciales.</source>
         <translation>大会测试已打开：请使用凭据文件运行外部生成器。</translation>
     </message>
     <message numerus="yes">
-        <location line="+40" />
+        <location line="+52" />
         <source>Prueba de asamblea: entran %n integrantes de prueba (la primera vez el probador graba su video unos minutos).</source>
         <translation>
             <numerusform>大会测试：%n 名测试成员正在进入（首次运行时，测试器会花几分钟录制其视频）。</numerusform>
         </translation>
     </message>
     <message>
-        <location line="+145" />
+        <location line="+153" />
         <source>Prueba de asamblea (integrantes simulados por la sesión remota)</source>
         <translation>大会测试（通过远程会话模拟的成员）</translation>
     </message>
@@ -28261,7 +28266,7 @@ De frente, de costado, con anteojos y sin: así se la reconoce en el día real.<
         </translation>
     </message>
     <message numerus="yes">
-        <location line="+18" />
+        <location line="+37" />
         <source>Había una prueba de asamblea sin terminar (el programa se cerró en el medio): se borraron %n integrantes de prueba y su acceso.</source>
         <translation>
             <numerusform>有一次未结束的大会测试（程序中途关闭）：已删除 %n 名测试成员及其访问权限。</numerusform>
@@ -28271,7 +28276,7 @@ De frente, de costado, con anteojos y sin: así se la reconoce en el día real.<
 <context>
     <name>PruebaSalaViewModel</name>
     <message numerus="yes">
-        <location filename="../src/app/ui/PruebaSalaViewModel.cpp" line="+173" />
+        <location filename="../src/app/ui/PruebaSalaViewModel.cpp" line="+183" />
         <source>Ojo: según la última medición, el enlace no alcanza para %n invitados por el túnel.</source>
         <translation>
             <numerusform>注意：根据最近一次测量，经隧道的链路不够 %n 位嘉宾使用。</numerusform>
@@ -28288,7 +28293,7 @@ De frente, de costado, con anteojos y sin: así se la reconoce en el día real.<
         <translation>会场测试已开启：请用测试凭据连接外部生成器。</translation>
     </message>
     <message numerus="yes">
-        <location line="+54" />
+        <location line="+69" />
         <source>Prueba de sala: entran %n participantes de prueba (la primera vez, el probador graba su video unos minutos).</source>
         <translation>
             <numerusform>会场测试：%n 名测试参与者正在加入（首次运行时，压测器会花几分钟录制视频）。</numerusform>
@@ -46409,7 +46414,7 @@ Elegí otra cosa en Salidas → Pantallas.</source>
         <translation>；投票确认 p50 %1 毫秒</translation>
     </message>
     <message>
-        <location filename="../src/app/ui/PruebaAsambleaViewModel.cpp" line="-365" />
+        <location filename="../src/app/ui/PruebaAsambleaViewModel.cpp" line="-429" />
         <location line="+23" />
         <source>la sesión remota no está disponible</source>
         <translation>远程会话不可用</translation>
@@ -46441,22 +46446,22 @@ Elegí otra cosa en Salidas → Pantallas.</source>
         <translation>会议未运行（gateway 负责远程会话）</translation>
     </message>
     <message>
-        <location line="+22" />
+        <location line="+51" />
         <source>no se pudo escribir el archivo de credenciales: %1</source>
         <translation>无法写入凭据文件：%1</translation>
     </message>
     <message>
-        <location line="+1" />
+        <location line="-1" />
         <source>no se pudo escribir el archivo de credenciales</source>
         <translation>无法写入凭据文件</translation>
     </message>
     <message>
-        <location line="+28" />
+        <location line="+26" />
         <source>la conferencia no tiene HTTPS: el probador no puede entrar</source>
         <translation>会议没有 HTTPS：测试器无法进入</translation>
     </message>
     <message>
-        <location line="+27" />
+        <location line="+39" />
         <source>el probador terminó</source>
         <translation>测试器已结束</translation>
     </message>
@@ -46486,7 +46491,7 @@ Elegí otra cosa en Salidas → Pantallas.</source>
         <translation>大会测试已结束。</translation>
     </message>
     <message>
-        <location line="+79" />
+        <location line="+87" />
         <source>hay una prueba en curso: terminala</source>
         <translation>有测试正在进行：请先结束它</translation>
     </message>
@@ -54881,11 +54886,11 @@ Datos (de %2): %3</source>
     <message>
         <location filename="../src/gateway/Borde.cpp" line="+92" />
         <location line="+7" />
-        <location filename="../src/gateway/Botonera.cpp" line="+91" />
+        <location filename="../src/gateway/Botonera.cpp" line="+90" />
         <location line="+2" />
-        <location filename="../src/gateway/SignalingServer.cpp" line="+692" />
+        <location filename="../src/gateway/SignalingServer.cpp" line="+658" />
         <location line="+9" />
-        <location line="+357" />
+        <location line="+354" />
         <location line="+109" />
         <location line="+11" />
         <location line="+3" />
@@ -54941,7 +54946,7 @@ Datos (de %2): %3</source>
     </message>
     <message>
         <location line="+3" />
-        <location filename="../src/gateway/ControlWeb.cpp" line="+195" />
+        <location filename="../src/gateway/ControlWeb.cpp" line="+194" />
         <location filename="../src/gateway/proxy/ProxyNombres.cpp" line="+430" />
         <source>solo desde la red local</source>
         <translation>仅限本地网络</translation>
@@ -55614,7 +55619,7 @@ Datos (de %2): %3</source>
         <translation>签到：%1 释放通道 %2</translation>
     </message>
     <message>
-        <location line="+116" />
+        <location line="+114" />
         <source>registro: origen ajeno desde %1</source>
         <translation>签到：来自 %1 的来源不明</translation>
     </message>
@@ -55641,7 +55646,7 @@ Datos (de %2): %3</source>
     <message>
         <location line="-76" />
         <location filename="../src/gateway/RegistroAtiende.cpp" line="+318" />
-        <location filename="../src/gateway/Sesion.cpp" line="+312" />
+        <location filename="../src/gateway/Sesion.cpp" line="+308" />
         <source>origen inválido</source>
         <translation>来源无效</translation>
     </message>
@@ -55692,12 +55697,12 @@ Datos (de %2): %3</source>
         <translation>签到：远程协助 %1 发送过多；已断开</translation>
     </message>
     <message>
-        <location filename="../src/gateway/Sesion.cpp" line="-59" />
+        <location filename="../src/gateway/Sesion.cpp" line="-55" />
         <source>sesión: %1 bloqueado 15 min por PIN errado</source>
         <translation>会议：%1 因 PIN 错误被锁定 15 分钟</translation>
     </message>
     <message>
-        <location line="+58" />
+        <location line="+54" />
         <source>sesión: origen ajeno desde %1</source>
         <translation>会议：来自 %1 的来源不明</translation>
     </message>
@@ -55773,7 +55778,7 @@ Datos (de %2): %3</source>
         <translation>无人</translation>
     </message>
     <message>
-        <location filename="../src/gateway/SignalingServer.cpp" line="-1675" />
+        <location filename="../src/gateway/SignalingServer.cpp" line="-1637" />
         <source>pantalla %1 sale: %2</source>
         <translation>屏幕 %1 输出：%2</translation>
     </message>
@@ -55833,7 +55838,7 @@ Datos (de %2): %3</source>
         <translation>隧道：pinggy 监听 127.0.0.1:%1（全部为外部）</translation>
     </message>
     <message>
-        <location line="+350" />
+        <location line="+315" />
         <source>señalización: %1 conexiones sin cerrar tras %2 ms</source>
         <translation>信令：%2 毫秒后仍有 %1 个连接未关闭</translation>
     </message>
@@ -55858,7 +55863,7 @@ Datos (de %2): %3</source>
         <translation>连接：异常 %1</translation>
     </message>
     <message>
-        <location line="+1020" />
+        <location line="+1017" />
         <source>archivos: subida fallida de %1 (código %2)</source>
         <translation>文件：%1 上传失败（代码 %2）</translation>
     </message>
@@ -56043,7 +56048,7 @@ Datos (de %2): %3</source>
         <translation>视频：视频引擎负载 %1；低层帧率从第 %2 级变为第 %3 级（共 %4 级）</translation>
     </message>
     <message>
-        <location line="-3370" />
+        <location line="-3367" />
         <source>direcciones: red %1, afuera %2</source>
         <translation>地址：网络 %1，外部 %2</translation>
     </message>
@@ -56061,7 +56066,7 @@ Datos (de %2): %3</source>
     </message>
     <message>
         <location line="+270" />
-        <location line="+143" />
+        <location line="+140" />
         <location line="+8" />
         <source>servidor saturado</source>
         <translation>服务器过载</translation>
@@ -94437,7 +94442,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>；结束原因：%1</translation>
     </message>
     <message>
-        <location filename="../src/app/ui/PruebaSalaViewModel.cpp" line="-312" />
+        <location filename="../src/app/ui/PruebaSalaViewModel.cpp" line="-327" />
         <source>ya hay una prueba de sala en curso</source>
         <translation>已有会场测试正在进行</translation>
     </message>
@@ -94488,7 +94493,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>会议没有 HTTPS：压测器无法加入</translation>
     </message>
     <message>
-        <location line="+40" />
+        <location line="+55" />
         <source>el probador terminó</source>
         <translation>压测器已结束</translation>
     </message>

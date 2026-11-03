@@ -274,6 +274,8 @@ Item {
                 backdropOffset: Qt.point(cardArea.x, cardArea.y)
                 ghost: snapGuide
                 onCloseRequested: Studio.dashboard.removeCard(cardId)
+                // Si el contenido trae opciones para el título (el «⠿»), van pegadas a él.
+                accionesTitulo: content.item && content.item.accionesTitulo !== undefined ? content.item.accionesTitulo : null
 
                 // El punto de inserción: una tarjeta cuyo `kind` empieza con
                 // «ext:» se resuelve contra Extensiones/<id>/ en el disco. El

@@ -6853,7 +6853,7 @@ The previous PIN stops working for joining.</translation>
         <translation>Cancel</translation>
     </message>
     <message>
-        <location line="+137" />
+        <location line="+139" />
         <source>Esta tarjeta no se pudo cargar.</source>
         <translation>This card couldn't load.</translation>
     </message>
@@ -14375,7 +14375,7 @@ It's changed in its code (Plugins section, or by asking the assistant). Here you
 <context>
     <name>LineaContent</name>
     <message>
-        <location filename="../src/app/qml/cards/LineaContent.qml" line="+40" />
+        <location filename="../src/app/qml/cards/LineaContent.qml" line="+34" />
         <source>Conducción</source>
         <translation>Running</translation>
     </message>
@@ -14390,7 +14390,12 @@ It's changed in its code (Plugins section, or by asking the assistant). Here you
         <translation>Timeline</translation>
     </message>
     <message>
-        <location line="+51" />
+        <location line="+9" />
+        <source>Vista: %1</source>
+        <translation>View: %1</translation>
+    </message>
+    <message>
+        <location line="+75" />
         <source>No hay un evento abierto: la línea es la del guion del evento.</source>
         <translation>No event is open: the timeline is the event's rundown.</translation>
     </message>
@@ -28367,12 +28372,12 @@ Front, side, with and without glasses: that's how they get recognized on the day
         </translation>
     </message>
     <message>
-        <location line="+65" />
+        <location line="+90" />
         <source>Prueba de asamblea abierta: corré el generador externo con el archivo de credenciales.</source>
         <translation>Assembly test open: run the external generator with the credentials file.</translation>
     </message>
     <message numerus="yes">
-        <location line="+40" />
+        <location line="+52" />
         <source>Prueba de asamblea: entran %n integrantes de prueba (la primera vez el probador graba su video unos minutos).</source>
         <translation>
             <numerusform>Assembly test: %n test member is joining (the first time the tester builds its video for a few minutes).</numerusform>
@@ -28380,7 +28385,7 @@ Front, side, with and without glasses: that's how they get recognized on the day
         </translation>
     </message>
     <message>
-        <location line="+145" />
+        <location line="+153" />
         <source>Prueba de asamblea (integrantes simulados por la sesión remota)</source>
         <translation>Assembly test (members simulated through the remote session)</translation>
     </message>
@@ -28393,7 +28398,7 @@ Front, side, with and without glasses: that's how they get recognized on the day
         </translation>
     </message>
     <message numerus="yes">
-        <location line="+18" />
+        <location line="+37" />
         <source>Había una prueba de asamblea sin terminar (el programa se cerró en el medio): se borraron %n integrantes de prueba y su acceso.</source>
         <translation>
             <numerusform>There was an unfinished assembly test (the program closed midway): %n test member and their access were deleted.</numerusform>
@@ -28404,7 +28409,7 @@ Front, side, with and without glasses: that's how they get recognized on the day
 <context>
     <name>PruebaSalaViewModel</name>
     <message numerus="yes">
-        <location filename="../src/app/ui/PruebaSalaViewModel.cpp" line="+173" />
+        <location filename="../src/app/ui/PruebaSalaViewModel.cpp" line="+183" />
         <source>Ojo: según la última medición, el enlace no alcanza para %n invitados por el túnel.</source>
         <translation>
             <numerusform>Watch out: according to the last measurement, the link is not enough for %n guest through the tunnel.</numerusform>
@@ -28422,7 +28427,7 @@ Front, side, with and without glasses: that's how they get recognized on the day
         <translation>Room test open: connect the external generator with the test credential.</translation>
     </message>
     <message numerus="yes">
-        <location line="+54" />
+        <location line="+69" />
         <source>Prueba de sala: entran %n participantes de prueba (la primera vez, el probador graba su video unos minutos).</source>
         <translation>
             <numerusform>Room test: %n test participant is joining (the first time, the load tester records its video for a few minutes).</numerusform>
@@ -46582,7 +46587,7 @@ Choose something else in Outputs → Screens.</translation>
         <translation>; vote confirmed p50 %1 ms</translation>
     </message>
     <message>
-        <location filename="../src/app/ui/PruebaAsambleaViewModel.cpp" line="-365" />
+        <location filename="../src/app/ui/PruebaAsambleaViewModel.cpp" line="-429" />
         <location line="+23" />
         <source>la sesión remota no está disponible</source>
         <translation>the remote session is not available</translation>
@@ -46614,22 +46619,22 @@ Choose something else in Outputs → Screens.</translation>
         <translation>the conference is not running (the gateway serves the remote session)</translation>
     </message>
     <message>
-        <location line="+22" />
+        <location line="+51" />
         <source>no se pudo escribir el archivo de credenciales: %1</source>
         <translation>the credentials file could not be written: %1</translation>
     </message>
     <message>
-        <location line="+1" />
+        <location line="-1" />
         <source>no se pudo escribir el archivo de credenciales</source>
         <translation>the credentials file could not be written</translation>
     </message>
     <message>
-        <location line="+28" />
+        <location line="+26" />
         <source>la conferencia no tiene HTTPS: el probador no puede entrar</source>
         <translation>the conference has no HTTPS: the tester cannot join</translation>
     </message>
     <message>
-        <location line="+27" />
+        <location line="+39" />
         <source>el probador terminó</source>
         <translation>the tester finished</translation>
     </message>
@@ -46659,7 +46664,7 @@ Choose something else in Outputs → Screens.</translation>
         <translation>The assembly test has finished.</translation>
     </message>
     <message>
-        <location line="+79" />
+        <location line="+87" />
         <source>hay una prueba en curso: terminala</source>
         <translation>a test is running: finish it</translation>
     </message>
@@ -55056,11 +55061,11 @@ Data (from %2): %3</translation>
     <message>
         <location filename="../src/gateway/Borde.cpp" line="+92" />
         <location line="+7" />
-        <location filename="../src/gateway/Botonera.cpp" line="+91" />
+        <location filename="../src/gateway/Botonera.cpp" line="+90" />
         <location line="+2" />
-        <location filename="../src/gateway/SignalingServer.cpp" line="+692" />
+        <location filename="../src/gateway/SignalingServer.cpp" line="+658" />
         <location line="+9" />
-        <location line="+357" />
+        <location line="+354" />
         <location line="+109" />
         <location line="+11" />
         <location line="+3" />
@@ -55116,7 +55121,7 @@ Data (from %2): %3</translation>
     </message>
     <message>
         <location line="+3" />
-        <location filename="../src/gateway/ControlWeb.cpp" line="+195" />
+        <location filename="../src/gateway/ControlWeb.cpp" line="+194" />
         <location filename="../src/gateway/proxy/ProxyNombres.cpp" line="+430" />
         <source>solo desde la red local</source>
         <translation>local network only</translation>
@@ -55789,7 +55794,7 @@ Data (from %2): %3</translation>
         <translation>check-in: %1 releases channel %2</translation>
     </message>
     <message>
-        <location line="+116" />
+        <location line="+114" />
         <source>registro: origen ajeno desde %1</source>
         <translation>check-in: foreign origin from %1</translation>
     </message>
@@ -55816,7 +55821,7 @@ Data (from %2): %3</translation>
     <message>
         <location line="-76" />
         <location filename="../src/gateway/RegistroAtiende.cpp" line="+318" />
-        <location filename="../src/gateway/Sesion.cpp" line="+312" />
+        <location filename="../src/gateway/Sesion.cpp" line="+308" />
         <source>origen inválido</source>
         <translation>invalid origin</translation>
     </message>
@@ -55867,12 +55872,12 @@ Data (from %2): %3</translation>
         <translation>check-in: remote support %1 is sending too much; cutting it off</translation>
     </message>
     <message>
-        <location filename="../src/gateway/Sesion.cpp" line="-59" />
+        <location filename="../src/gateway/Sesion.cpp" line="-55" />
         <source>sesión: %1 bloqueado 15 min por PIN errado</source>
         <translation>session: %1 blocked for 15 min after a wrong PIN</translation>
     </message>
     <message>
-        <location line="+58" />
+        <location line="+54" />
         <source>sesión: origen ajeno desde %1</source>
         <translation>session: foreign origin from %1</translation>
     </message>
@@ -55948,7 +55953,7 @@ Data (from %2): %3</translation>
         <translation>nobody</translation>
     </message>
     <message>
-        <location filename="../src/gateway/SignalingServer.cpp" line="-1675" />
+        <location filename="../src/gateway/SignalingServer.cpp" line="-1637" />
         <source>pantalla %1 sale: %2</source>
         <translation>screen %1 out: %2</translation>
     </message>
@@ -56008,7 +56013,7 @@ Data (from %2): %3</translation>
         <translation>tunnel: pinggy listener on 127.0.0.1:%1 (all external)</translation>
     </message>
     <message>
-        <location line="+350" />
+        <location line="+315" />
         <source>señalización: %1 conexiones sin cerrar tras %2 ms</source>
         <translation>signaling: %1 connections still open after %2 ms</translation>
     </message>
@@ -56033,7 +56038,7 @@ Data (from %2): %3</translation>
         <translation>connection: exception %1</translation>
     </message>
     <message>
-        <location line="+1020" />
+        <location line="+1017" />
         <source>archivos: subida fallida de %1 (código %2)</source>
         <translation>files: upload of %1 failed (code %2)</translation>
     </message>
@@ -56218,7 +56223,7 @@ Data (from %2): %3</translation>
         <translation>video: video engine load %1; low-layer fps go from step %2 to %3 (of %4)</translation>
     </message>
     <message>
-        <location line="-3370" />
+        <location line="-3367" />
         <source>direcciones: red %1, afuera %2</source>
         <translation>addresses: network %1, outside %2</translation>
     </message>
@@ -56236,7 +56241,7 @@ Data (from %2): %3</translation>
     </message>
     <message>
         <location line="+270" />
-        <location line="+143" />
+        <location line="+140" />
         <location line="+8" />
         <source>servidor saturado</source>
         <translation>server overloaded</translation>
@@ -94632,7 +94637,7 @@ PROPOSE, DON'T APPLY: show the person what changes and apply only if they confir
         <translation>; ended: %1</translation>
     </message>
     <message>
-        <location filename="../src/app/ui/PruebaSalaViewModel.cpp" line="-312" />
+        <location filename="../src/app/ui/PruebaSalaViewModel.cpp" line="-327" />
         <source>ya hay una prueba de sala en curso</source>
         <translation>a room test is already in progress</translation>
     </message>
@@ -94683,7 +94688,7 @@ PROPOSE, DON'T APPLY: show the person what changes and apply only if they confir
         <translation>the conference has no HTTPS: the load tester cannot join</translation>
     </message>
     <message>
-        <location line="+40" />
+        <location line="+55" />
         <source>el probador terminó</source>
         <translation>the load tester finished</translation>
     </message>

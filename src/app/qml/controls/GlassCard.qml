@@ -30,6 +30,9 @@ FocusScope {
     property string subtitle: ""
     property bool closable: true
     property alias headerExtra: extraSlot.data
+    /// Lo que va pegado al título (p. ej. el «⠿» con las opciones de la tarjeta, para no
+    /// gastar ancho en botones): lo da el contenido de la tarjeta (`accionesTitulo`).
+    property Component accionesTitulo: null
     default property alias content: body.data
 
     property bool moving: dragHandler.active || resizeArea.pressed
@@ -140,8 +143,15 @@ FocusScope {
             color: Theme.text
             font { family: Theme.font; pixelSize: 16; weight: Font.DemiBold }
         }
+        Loader {
+            id: accionesTituloSlot
+            active: card.accionesTitulo !== null
+            sourceComponent: card.accionesTitulo
+            anchors { left: titleText.right; leftMargin: active ? 6 : 0; verticalCenter: titleText.verticalCenter }
+            width: active && item ? item.implicitWidth : 0
+        }
         Text {
-            anchors { left: titleText.right; leftMargin: 8; baseline: titleText.baseline }
+            anchors { left: accionesTituloSlot.right; leftMargin: 8; baseline: titleText.baseline }
             text: card.subtitle
             color: Theme.textFaint
             font { family: Theme.font; pixelSize: 11 }

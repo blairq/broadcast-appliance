@@ -1214,7 +1214,7 @@ No se borran del disco: si alguno estaba en una escena, se lo saca de ahí y lis
         </translation>
     </message>
     <message numerus="yes">
-        <location line="+105"/>
+        <location line="+142"/>
         <source>Prueba de asamblea: entran %n integrantes de prueba (la primera vez el probador graba su video unos minutos).</source>
         <translation>
             <numerusform>Prueba de asamblea: entra %n integrante de prueba (la primera vez el probador graba su video unos minutos).</numerusform>
@@ -1222,7 +1222,7 @@ No se borran del disco: si alguno estaba en una escena, se lo saca de ahí y lis
         </translation>
     </message>
     <message numerus="yes">
-        <location line="+167"/>
+        <location line="+175"/>
         <source>Se borraron %n integrantes de prueba que habían quedado (y su acceso).</source>
         <translation>
             <numerusform>Se borró %n integrante de prueba que había quedado (y su acceso).</numerusform>
@@ -1230,7 +1230,7 @@ No se borran del disco: si alguno estaba en una escena, se lo saca de ahí y lis
         </translation>
     </message>
     <message numerus="yes">
-        <location line="+18"/>
+        <location line="+37"/>
         <source>Había una prueba de asamblea sin terminar (el programa se cerró en el medio): se borraron %n integrantes de prueba y su acceso.</source>
         <translation>
             <numerusform>Había una prueba de asamblea sin terminar (el programa se cerró en el medio): se borró %n integrante de prueba y su acceso.</numerusform>
@@ -1241,7 +1241,7 @@ No se borran del disco: si alguno estaba en una escena, se lo saca de ahí y lis
 <context>
     <name>PruebaSalaViewModel</name>
     <message numerus="yes">
-        <location filename="../src/app/ui/PruebaSalaViewModel.cpp" line="+173"/>
+        <location filename="../src/app/ui/PruebaSalaViewModel.cpp" line="+183"/>
         <source>Ojo: según la última medición, el enlace no alcanza para %n invitados por el túnel.</source>
         <translation>
             <numerusform>Ojo: según la última medición, el enlace no alcanza para %n invitado por el túnel.</numerusform>
@@ -1249,7 +1249,7 @@ No se borran del disco: si alguno estaba en una escena, se lo saca de ahí y lis
         </translation>
     </message>
     <message numerus="yes">
-        <location line="+104"/>
+        <location line="+119"/>
         <source>Prueba de sala: entran %n participantes de prueba (la primera vez, el probador graba su video unos minutos).</source>
         <translation>
             <numerusform>Prueba de sala: entra %n participante de prueba (la primera vez, el probador graba su video unos minutos).</numerusform>
