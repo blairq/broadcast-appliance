@@ -36,7 +36,10 @@ DEUDA_QML: dict[str, int] = {}
 # cuentan (un destructor que espera un hilo traba la interfaz al cerrar una página).
 DEUDA_CPP = {
     "agent/AgentViewModel.cpp|bloqueante": 6,
-    "agent/AgentViewModel.cpp|disco": 54,
+    # +2 (2026-11-03): buscar si Claude ya guardó la conversación del evento (QDirIterator en
+    # Credenciales/agentes/claude/projects) al arrancar el asistente; pendiente pasarlo al
+    # fondo junto con el resto del disco del asistente (current/installed/hasKey).
+    "agent/AgentViewModel.cpp|disco": 56,
     "agent/AlarmaSonora.cpp|disco": 2,
     "agent/Despachador.cpp|bloqueante": 1,
     "agent/FlujosTexto.cpp|disco": 2,
