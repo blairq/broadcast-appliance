@@ -193,6 +193,8 @@ descarta la parte dinámica.
 | `persist::leerArchivo` (bitácora, foto de Config) | 904 ms, 6× | 0 | `BitacoraEvento::revisarConfigEnElFondo`: leer `ultima.json`, comparar y guardar, todo en el fondo; vuelven las líneas |
 | `ListaObjetos::fila` (matriz, «Mute de») | 300 ms, 15× | 0 | el combo lee `Studio.salidas.lista.lista` (propiedad) |
 | `persist::escribir` (bitácora) | 1 ms, 1× | 0 | ídem bitácora |
+| `persist::leerArchivo` (Asamblea → Orden, con un evento con documentos) | (no estaba) 6 607 ms, 44× | 0 | `DocumentosViewModel::listaUi` leía el índice del disco en cada lectura y la QML la recorre (cada acceso a un elemento relee la propiedad): armada una vez por cambio |
+| **total** | **79,8 s dormidos, 7 lugares** | **2,4 s, 2 lugares** | quedan `SettingsModel::seccionVisible` (6×, binding de Configuración) y el disco de `AgentViewModel` (2×, ver abajo) |
 
 Además, de la lectura estática: `ConferenceViewModel::nameOf` (el chat: cada mensaje recorría la
 foto de la sala → rol `toName` en el mensaje y `nombres` {id: nombre}) y `MultiviewViewModel::de`
@@ -229,6 +231,8 @@ mientras la sala se llena (el vigía de trabas dejó nueve volcados; `tools/caid
 | `…054757` (después) | 2,7-6,6 s | `VistaGrillas` (Sala, Escenas y Asamblea, cargadas siempre): cada aviso de `ControlGrillas` convertía y rearmaba todas las caras en las tres aunque nadie las mirara, y «Fijar a alguien» era N² | arma solo mientras se ve; `hay` no depende de verse; un `Set` |
 | `…050551` | 3,3 s | el propio sabotaje (`ListaObjetos::fila` 206 × 300 ms con tope) | `datosDe` |
 | `…050756` | 2,5 s | destruir un `TreeView` de QML al cambiar de página | queda |
+| `…055906` (después) | 2-9 s | Latencias: el dorso de cada `TarjetaTiempo` (detalle en texto enriquecido) se rearmaba en cada vuelta del modelo (1 s) en cientos de tarjetas que nadie veía | el dorso se arma solo dado vuelta |
+| `…061113` (después) | 5,0 s | Latencias al mostrarse: crear cientos de tarjetas (una por nodo del mapa) de una vez | queda: hace falta una vista que no cree lo que no se ve |
 
 Además, de raíz y sin traba propia: el catálogo junta las ráfagas de claves y rótulos de
 invitados (`pedirRefresco`, 50 ms) y una distribución cambiada rearma solo sus filas
@@ -240,9 +244,9 @@ invitados (`pedirRefresco`, 50 ms) y una distribución cambiada rearma solo sus 
 | 2 (asamblea con sus 12 secciones, guion y sus paneles) | 0 | 0 |
 | 3 (medios … multiview) | 1 (2,9 s) | 0 |
 | 4 (YouTube … audio) | 1 (3,2 s, sabotaje) | 0 |
-| 5 (botonera … configuración) | 1 (4,6 s) | 4 (2,7-6,6 s: `VistaGrillas`) → NUEVA_T5 |
+| 5 (botonera … configuración) | 1 (4,6 s) | 4 (2,7-6,6 s: `VistaGrillas`) → 6 (2-8 s: Latencias) → 2 (4,6 y 5,0 s: Latencias al mostrarse) |
 
-Lo que queda: `AgentViewModel` lee disco en sus getters (`current()` → `pins()`, `installed()`,
+Lo que queda: las tarjetas de Latencias con 200 (arriba); `AgentViewModel` lee disco en sus getters (`current()` → `pins()`, `installed()`,
 `hasKey()`) y `EstadoIA` los llama en el hilo de la interfaz (54 `disco` en la deuda de ese
 archivo: pasar su estado a una foto armada en el fondo); el bucle de la interfaz sigue con
 ~75 demoras de 50-130 ms por tanda de 2 min (la mayoría «QTimer, cada 1000 ms» cada ~10 s, y

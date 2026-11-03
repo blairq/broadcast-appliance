@@ -84,6 +84,12 @@ class DocumentosViewModel : public QObject {
    private:
     std::function<std::filesystem::path()> evento_;
     APdf* aPdf_ = nullptr;
+    /// listaUi armada una vez por cambio (y por evento): la QML la recorre (sort, filter) y
+    /// cada acceso a un elemento vuelve a leer la propiedad; leía el índice del disco cada vez
+    /// (44 lecturas al abrir Asamblea → Orden con el detector de acoples).
+    mutable QVariantList listaCache_;
+    mutable std::filesystem::path listaDe_;
+    mutable bool listaSucia_ = true;
 };
 
 } // namespace ba::app

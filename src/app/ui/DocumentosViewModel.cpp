@@ -94,7 +94,10 @@ Leido leer(const fs::path& archivo, const fs::path& mini, int paginaTapa) {
 } // namespace
 
 DocumentosViewModel::DocumentosViewModel(std::function<fs::path()> evento, QObject* parent)
-    : QObject(parent), evento_(std::move(evento)), aPdf_(new APdf(this)) {}
+    : QObject(parent), evento_(std::move(evento)), aPdf_(new APdf(this)) {
+    // Primera conexión: corre antes que la vista vuelva a leer la lista.
+    connect(this, &DocumentosViewModel::cambio, this, [this]() { listaSucia_ = true; });
+}
 
 fs::path DocumentosViewModel::carpeta() const { return evento::Documentos(evento_()).carpeta(); }
 
@@ -103,13 +106,18 @@ json DocumentosViewModel::lista() const { return evento::Documentos(evento_()).l
 json DocumentosViewModel::documento(const std::string& id) const { return evento::Documentos(evento_()).documento(id); }
 
 QVariantList DocumentosViewModel::listaUi() const {
-    const evento::Documentos d(evento_());
+    const fs::path ev = evento_();
+    if (!listaSucia_ && ev == listaDe_) return listaCache_;
+    listaDe_ = ev;
+    listaSucia_ = false;
+    const evento::Documentos d(ev);
     json l = d.lista();
     for (auto& x : l)
         if (x.value("miniatura", false))
             x["url_miniatura"] = QUrl::fromLocalFile(qp(d.miniatura(x.value("id", std::string())))).toString().toStdString() + "?" +
                                  std::to_string(x.value("agregado_ms", 0LL)) + "-" + std::to_string(x.value("pagina_tapa", 1));
-    return aQv(l).toList();
+    listaCache_ = aQv(l).toList();
+    return listaCache_;
 }
 
 json DocumentosViewModel::publicos() const { return evento::Documentos(evento_()).publicos(); }
