@@ -158,7 +158,7 @@ Rectangle {
                         radius: 10
                         color: modelData.seccion === page.section ? Qt.rgba(1, 0.42, 0.17, 0.25) : (sectMa.containsMouse ? Qt.rgba(1, 1, 1, 0.07) : "transparent")
                         Text { anchors { left: parent.left; leftMargin: 14; verticalCenter: parent.verticalCenter }
-                               text: Studio.settings.seccionVisible(modelData.seccion || ""); color: Theme.text; font.pixelSize: 13 }
+                               text: Studio.settings.titulosSecciones[modelData.seccion || ""] || (modelData.seccion || ""); color: Theme.text; font.pixelSize: 13 }
                         MouseArea { id: sectMa; anchors.fill: parent; hoverEnabled: true; onClicked: Studio.seccionConfig = modelData.seccion }
                     }
                 }
@@ -169,13 +169,14 @@ Rectangle {
         Panel {
             Layout.fillWidth: true
             Layout.fillHeight: true
-            title: Studio.settings.seccionVisible(page.section)
+            title: Studio.settings.titulosSecciones[page.section] || page.section
             // Arriba a la derecha, al lado del título: los avanzados (antes fijos en el código).
             RowLayout {
                 z: 10
                 anchors { top: parent.top; right: parent.right; topMargin: -34; rightMargin: 4 }
                 spacing: 6
-                visible: Studio.settings.tieneBasicos(page.section) && Studio.settings.tieneAvanzados(page.section)
+                visible: Studio.settings.seccionesConBasicos.indexOf(page.section) >= 0
+                         && Studio.settings.seccionesConAvanzados.indexOf(page.section) >= 0
                 Text { text: qsTr("Mostrar ajustes avanzados"); color: Theme.textDim; font.pixelSize: 12 }
                 Switch { checked: page.verAvanzados; onToggled: page.verAvanzados = checked }
             }
@@ -348,7 +349,7 @@ Rectangle {
                 required property var campo
                 required property int index
                 required property bool avanzado
-                visible: section === campos.seccion && (campos.claves.length === 0 || campos.claves.indexOf(key) >= 0) && (!avanzado || page.verAvanzados || !Studio.settings.tieneBasicos(section)) && page.campoVisible(key)
+                visible: section === campos.seccion && (campos.claves.length === 0 || campos.claves.indexOf(key) >= 0) && (!avanzado || page.verAvanzados || Studio.settings.seccionesConBasicos.indexOf(section) < 0) && page.campoVisible(key)
                 width: campos.width
                 spacing: 8
                 Text {
@@ -750,7 +751,13 @@ Rectangle {
                         font { pixelSize: 12; family: Theme.mono }
                         color: Theme.text
                         background: Rectangle { color: Theme.field; radius: 6 }
-                        text: pg.propio ? pg.ar.instruccionesDns(pg.borrador["pinggy.host"] || "", pg.borrador["pinggy.cnameDestino"] || "") : ""
+                        text: pg.propio ? dns.texto : ""
+                        // Con lo que está escrito arriba (el borrador): se rearma solo.
+                        InstruccionesDns {
+                            id: dns
+                            host: pg.borrador["pinggy.host"] || ""
+                            destino: pg.borrador["pinggy.cnameDestino"] || ""
+                        }
                     }
                     RowLayout {
                         spacing: 8

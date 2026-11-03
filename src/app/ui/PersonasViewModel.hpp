@@ -71,6 +71,10 @@ class PersonasViewModel : public QObject {
     Q_PROPERTY(bool puertaAuto READ puertaAuto WRITE setPuertaAuto NOTIFY autoaltaCambio)
     /// Qué cámara mira la puerta.
     Q_PROPERTY(QString feedPuerta READ feedPuerta WRITE setFeedPuerta NOTIFY autoaltaCambio)
+    /// El nombre legible de las cámaras que miran el anotado y la puerta («Programa»,
+    /// «Cámara · cam1»): cambian con ellas y con las etiquetas de las fuentes.
+    Q_PROPERTY(QString etiquetaFeedAuto READ etiquetaFeedAuto NOTIFY etiquetasCambio)
+    Q_PROPERTY(QString etiquetaFeedPuerta READ etiquetaFeedPuerta NOTIFY etiquetasCambio)
     /// El mismo interruptor, pero mirando EL LOBBY: cada posición de espera,
     /// por turno. Es el caso real de un evento —la gente llega antes de entrar,
     /// y ahí es cuando hay tiempo de saber quién es—.
@@ -183,7 +187,9 @@ class PersonasViewModel : public QObject {
     /// Las rearma (cambiaron los cuadros que hay o las cámaras del estudio) y avisa si cambiaron.
     void revisarFuentes();
     /// El nombre legible de una clave de video ("Programa", "Invitado 2").
-    Q_INVOKABLE QString etiquetaDe(const QString& feed) const;
+    QString etiquetaDe(const QString& feed) const;
+    QString etiquetaFeedAuto() const { return etiquetaDe(feedAuto()); }
+    QString etiquetaFeedPuerta() const { return etiquetaDe(feedPuerta()); }
 
 #if BA_HAVE_ROSTROS
     /// Las caras de un feed, miradas FUERA del hilo de la interfaz. `luego` se
@@ -236,6 +242,8 @@ class PersonasViewModel : public QObject {
     void vistosCambio();
     void enLobbyCambio();
     void fuentesCambio();
+    /// Cambió la cámara del anotado o de la puerta, o las etiquetas de las fuentes.
+    void etiquetasCambio();
     void notify(const QString& texto, const QString& tipo);
 
    private:

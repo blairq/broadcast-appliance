@@ -20,6 +20,7 @@
 #include <optional>
 
 #include <QObject>
+#include <QTimer>
 #include <QVariantList>
 #include <QVariantMap>
 
@@ -48,9 +49,14 @@ class CorridaViewModel : public QObject {
     Q_PROPERTY(QVariantMap actual READ actual NOTIFY correChanged)
     Q_PROPERTY(QVariantMap siguiente READ siguiente NOTIFY correChanged)
     /// Lo que el reloj necesita y no cambia mientras nada cambie (el cue, la pausa, lo
-    /// previsto): con la hora, `relojEn` da el reloj. La vista lo calcula con el Reloj de las
-    /// vistas (un solo reloj para toda la interfaz); el modelo avisa solo los cambios de estado.
+    /// previsto): con la hora, `relojEn` da el reloj. Avisa solo los cambios de estado.
     Q_PROPERTY(QVariantMap marcasReloj READ marcasReloj NOTIFY relojChanged)
+    /// El reloj del guion ahora (relojEn con las marcas y la hora, al segundo): {desvioSeg,
+    /// enCueSeg, restanteSeg, estadoRestante, cueNro, cuesTotal, restanteBloqueSeg,
+    /// restanteGuionSeg, horaFinPrevista, …}. Lo lleva el modelo: avisa una vez por segundo
+    /// (al segundo justo, como el Reloj de las vistas) SOLO mientras algún enlace lo lee, y
+    /// con cada cambio de las marcas.
+    Q_PROPERTY(QVariantMap relojVivo READ relojVivo NOTIFY relojVivoCambio)
     /// HOLD: el paso al aire no se va solo aunque se cumpla su duración.
     Q_PROPERTY(bool hold READ hold WRITE setHold NOTIFY correChanged)
     /// Tras un corte de luz: {activa, pideDescripcion, descripcion, resumen}.
@@ -98,7 +104,10 @@ class CorridaViewModel : public QObject {
     QVariantMap marcasReloj() const;
     /// El reloj con las marcas y la hora (ms): una sola cuenta para la vista, el MCP y el bus.
     /// Lo pausado no cuenta (lo resuelve el modelo en las marcas).
-    Q_INVOKABLE static QVariantMap relojEn(const QVariantMap& marcas, double ahoraMs);
+    static QVariantMap relojEn(const QVariantMap& marcas, double ahoraMs);
+    QVariantMap relojVivo() const;
+    /// Cuántos enlaces leen `relojVivo` (las pruebas).
+    int lectoresReloj() const { return lectoresReloj_; }
     int entraSoloEnSeg() const;
     bool hold() const;
     QVariantMap retoma() const;
@@ -182,14 +191,24 @@ class CorridaViewModel : public QObject {
    signals:
     void correChanged();
     void relojChanged();
+    void relojVivoCambio();
     void bitacoraChanged();
     void notify(const QString& texto, const QString& tipo);
+
+   protected:
+    void connectNotify(const QMetaMethod& signal) override;
+    void disconnectNotify(const QMetaMethod& signal) override;
 
    private:
     /// El cue (bloque, c) del guion como lo ve la página, con su bloque y su paso.
     QVariantMap cueEnVista(int bloque, int c) const;
+    /// El segundero de `relojVivo`: anda solo con lectores.
+    void revisarSegundero();
 
     ConduccionLinea n_;
+    QTimer segundero_;
+    int lectoresReloj_ = 0;
+    bool alineando_ = false;
 };
 
 } // namespace ba::app

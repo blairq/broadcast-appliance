@@ -40,6 +40,8 @@ class DashboardModel : public QAbstractListModel {
     Q_PROPERTY(QStringList background READ background WRITE setBackground NOTIFY backgroundChanged)
     Q_PROPERTY(double backgroundDim READ backgroundDim WRITE setBackgroundDim NOTIFY backgroundChanged)
     Q_PROPERTY(QStringList cardKinds READ cardKinds CONSTANT)
+    /// El nombre de cada tipo de tarjeta de fábrica, en el idioma del operador: {kind: título}.
+    Q_PROPERTY(QVariantMap titulosDeKind READ titulosDeKind CONSTANT)
     /// Divisiones de la grilla de encaje (para dibujarla mientras se acomoda).
     Q_PROPERTY(int gridCols READ gridCols CONSTANT)
     Q_PROPERTY(int gridRows READ gridRows CONSTANT)
@@ -69,7 +71,9 @@ class DashboardModel : public QAbstractListModel {
 
     /// Tipos de tarjeta que se pueden agregar.
     QStringList cardKinds() const;
-    Q_INVOKABLE QString kindTitle(const QString& kind) const;
+    /// El nombre de un tipo («ext:…» sale tal cual: lo nombra su ficha). El MCP y el rol `title`.
+    QString kindTitle(const QString& kind) const;
+    QVariantMap titulosDeKind() const;
     QVariantList tiposDeTarjeta() const;
     /// La barra de tarjetas: si hay una de ese tipo en el tablero, la oculta (y se
     /// acuerda dónde estaba); si no, la muestra donde estaba la última vez (o

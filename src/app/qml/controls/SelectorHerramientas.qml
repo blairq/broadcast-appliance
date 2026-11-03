@@ -11,8 +11,9 @@
 // etiquetas y prefijos), no una propia: lo que encuentra uno lo encuentra el
 // otro, en el mismo orden. Con una sección elegida, busca adentro de esa.
 //
-// Fuente: Studio.botonera.catalogoUi() (McpCore::catalogo) y buscarUi()
-// (McpCore::buscarHerramientas). Filtrar, contar y ordenar lo hace el modelo
+// Fuente: Studio.botonera.catalogoUi() (McpCore::catalogo) y, para lo escrito,
+// busquedaHerramientas → puntajesHerramientas (McpCore::buscarHerramientas, en el
+// modelo: la vista escribe lo que se busca y lee lo encontrado). Filtrar, contar y ordenar lo hace el modelo
 // (FiltroCatalogo, el mismo de los catálogos de filtros y de módulos): si el buscador
 // no devuelve nada, la búsqueda simple (todas las palabras, sin tildes).
 import QtQuick
@@ -56,15 +57,12 @@ Popup {
         texto: buscar.text
         categoria: sel.seccion
         agrupar: true
-        // El índice del asistente: cuáles y en qué orden (y por qué).
-        puntajes: {
-            const t = buscar.text.trim()
-            if (t === "" || !Studio.botonera.buscarUi) return ({})
-            const m = {}
-            for (const r of Studio.botonera.buscarUi(t)) m[r.nombre] = r
-            return m
-        }
+        // El índice del asistente: cuáles y en qué orden (y por qué). Lo busca el modelo.
+        puntajes: buscar.text.trim() !== "" ? Studio.botonera.puntajesHerramientas : ({})
     }
+    /// Lo escrito, al modelo (que busca en el índice del asistente). Al abrir también: la
+    /// búsqueda es una sola y otro selector pudo dejar la suya.
+    function buscarEnModelo() { if (Studio.botonera) Studio.botonera.busquedaHerramientas = buscar.text.trim() }
 
     modal: true
     focus: true
@@ -80,6 +78,7 @@ Popup {
         actual = nombreActual || ""
         catalogo = Studio.botonera.catalogoUi()
         buscar.text = busqueda || ""
+        buscarEnModelo()
         seccion = ""
         open()
         buscar.forceActiveFocus()
@@ -117,6 +116,7 @@ Popup {
                 id: buscar
                 Layout.fillWidth: true
                 color: Theme.text
+                onTextChanged: sel.buscarEnModelo()
                 placeholderText: sel.seccion === "" ? qsTr("Buscar en todo: «poner al aire», «música», «grabar», «cámara 2»…")
                                                     : qsTr("Buscar en «%1» (o elegí «Todas»)").arg((sel.catalogo.find(c => c.id === sel.seccion) || {}).titulo || sel.seccion)
                 Keys.onDownPressed: { lista.forceActiveFocus(); if (lista.currentIndex < 0) lista.currentIndex = 0 }

@@ -49,9 +49,8 @@ Item {
                 Text { text: root.bst.al_aire ? qsTr("🪑 %1 · banca %2").arg(root.bst.al_aire.nombre).arg(root.bst.al_aire.banca) : "🪑 "
                        color: Theme.text; font { pixelSize: 15; weight: Font.DemiBold } elide: Text.ElideRight; Layout.fillWidth: true }
                 Text {
-                    // La misma regla que los oradores remotos; la hora, del Reloj (solo mientras se ve).
-                    readonly property var r: root.bst.al_aire && visible
-                                             ? root.conf.reloj(root.bst.asignado_s || 0, root.bst.desde_ms || 0, Reloj.ahoraFino) : ({})
+                    // La misma regla que los oradores remotos; el reloj lo lleva el modelo (Bancas).
+                    readonly property var r: root.bst.al_aire && visible ? root.ba.reloj : ({})
                     text: r.texto || ""
                     color: Theme.colorDeEstado(r.estado, Theme.text)
                     font { pixelSize: 28; weight: Font.Black }

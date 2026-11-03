@@ -96,6 +96,15 @@ class Botonera : public QObject {
     Q_PROPERTY(QVariantMap paginas READ paginas NOTIFY paginasCambio)
     /// La auditoría, la más nueva primero: [{hora, dispositivo, que, detalle}] (hasta 200).
     Q_PROPERTY(QVariantList auditoria READ auditoriaUi NOTIFY auditoriaCambio)
+    /// Los nombres de todas las herramientas (y los viejos con que hay celdas guardadas),
+    /// para elegir la acción de un disparador. Se arman con el MCP, al arrancar.
+    Q_PROPERTY(QStringList nombresHerramientas READ nombresHerramientas NOTIFY herramientasCambio)
+    /// La búsqueda del selector de herramientas (lo escrito) y lo que encontró el buscador
+    /// del asistente (help_search): {nombre: {nombre, puntaje, porque…}}, mejores primero
+    /// en `puntaje`. Vacía con la búsqueda vacía. La escribe el selector (uno abierto a la
+    /// vez: es modal).
+    Q_PROPERTY(QString busquedaHerramientas READ busquedaHerramientas WRITE setBusquedaHerramientas NOTIFY busquedaCambio)
+    Q_PROPERTY(QVariantMap puntajesHerramientas READ puntajesHerramientas NOTIFY busquedaCambio)
    public:
     using json = nlohmann::json;
     /// Resultado de una herramienta: ok y un texto corto para el aparato.
@@ -307,7 +316,12 @@ class Botonera : public QObject {
     QVariantList salidasUi() const;
     Q_INVOKABLE int revocarUi(const QString& dispositivo);
     QVariantList auditoriaUi() const;
-    Q_INVOKABLE QStringList herramientasUi(const QString& filtro) const;
+    QStringList nombresHerramientas() const;
+    /// Ya están las herramientas (los ganchos `herramientas`, `buscar`): que las vistas las relean.
+    void herramientasListas();
+    QString busquedaHerramientas() const { return busqueda_; }
+    void setBusquedaHerramientas(const QString& texto);
+    QVariantMap puntajesHerramientas() const { return puntajes_; }
     /// El catálogo por categorías para el selector de herramientas (ver Ganchos::catalogo).
     Q_INVOKABLE QVariantList catalogoUi() const;
     /// Los botones de una escena (scene_switch, scene_preview: `args.name`) guardan su id
@@ -316,13 +330,15 @@ class Botonera : public QObject {
     /// Se guarda si cambió. Con cada cambio de escenas (ControlViewModel, la foto).
     void seguirEscenas(const escenas::TablaEscenas& t);
     /// Las herramientas que encuentra el buscador del asistente para `texto`, mejores primero.
-    Q_INVOKABLE QVariantList buscarUi(const QString& texto) const;
+    QVariantList buscarUi(const QString& texto) const;
 
    signals:
     /// Para el operador (ya traducido): los errores de las acciones de la interfaz.
     void notify(const QString& texto, const QString& tipo);
     void cambio();
     void dispositivosCambio();
+    void herramientasCambio();
+    void busquedaCambio();
     void solicitudesCambio();
     void salidasCambio();
     void paginasCambio();
@@ -335,6 +351,8 @@ class Botonera : public QObject {
     void solicitudNueva(const QString& solicitud, const QString& nombre, const QString& perfil, const QString& ip);
 
    private:
+    QString busqueda_;      ///< busquedaHerramientas
+    QVariantMap puntajes_;  ///< puntajesHerramientas
     struct Pendiente { // acción de aire esperando confirmación en el aparato
         std::string celda;
         json accion;

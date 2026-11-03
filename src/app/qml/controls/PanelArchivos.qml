@@ -453,7 +453,7 @@ Item {
                     color: Theme.textFaint
                     font.pixelSize: 13
                     text: raiz.m.total === 0
-                          ? qsTr("No hay archivos de medios todavía.\n\nCopiá tus imágenes, videos y música a:\n%1").arg(raiz.m.carpetaDeMedios())
+                          ? qsTr("No hay archivos de medios todavía.\n\nCopiá tus imágenes, videos y música a:\n%1").arg(raiz.m.carpetaDeMedios)
                           : (busca.text !== "" && raiz.m.carpeta !== "")
                             ? qsTr("Nada coincide en «%1».\nProbá mirando en todas las carpetas.").arg(raiz.m.carpeta)
                             : qsTr("Nada coincide con lo que buscaste.")

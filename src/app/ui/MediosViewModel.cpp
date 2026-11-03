@@ -140,7 +140,6 @@ MediosViewModel::~MediosViewModel() = default;
 QString MediosViewModel::raiz() const { return QString::fromStdWString(rt_.dataRoot().wstring()); }
 
 QString MediosViewModel::carpetaDeMedios() const {
-    BA_ACOPLE("invocable", "MediosViewModel::carpetaDeMedios");
     return QDir(QString::fromStdWString(rt_.dataRoot().wstring())).absoluteFilePath("Media");
 }
 

@@ -58,6 +58,15 @@ class SettingsModel : public QAbstractListModel {
     /// Los codificadores de video que se pueden elegir ([{value, label}], los de
     /// «encoder.video»): también los usa la página Salidas para el de cada salida.
     Q_PROPERTY(QVariantList codificadores READ codificadores CONSTANT)
+    /// La etiqueta de cada sección en el idioma del operador: {sección: título}. El nombre
+    /// de la sección es la clave (la página la compara, el MCP la busca): se traduce solo
+    /// al mostrarla; una que no está en la tabla se muestra tal cual. El idioma cambia al
+    /// reiniciar: no cambia en la vida del programa.
+    Q_PROPERTY(QVariantMap titulosSecciones READ titulosSecciones CONSTANT)
+    /// Las secciones con campos que no son avanzados (en las otras, los avanzados se
+    /// muestran siempre) y las que tienen avanzados (el interruptor va solo donde sirve).
+    Q_PROPERTY(QStringList seccionesConBasicos READ seccionesConBasicos CONSTANT)
+    Q_PROPERTY(QStringList seccionesConAvanzados READ seccionesConAvanzados CONSTANT)
    public:
     enum Roles {
         KeyRole = Qt::UserRole + 1,
@@ -111,14 +120,9 @@ class SettingsModel : public QAbstractListModel {
     Q_INVOKABLE void resetSection(const QString& section);
     /// El alcance de un ajuste (live, gateway, motor, restart; "" si no existe).
     Q_INVOKABLE QString alcance(const QString& key) const;
-    /// Si la sección tiene campos que no son avanzados (si no, se muestran siempre).
-    Q_INVOKABLE bool tieneBasicos(const QString& section) const;
-    /// Si la sección tiene avanzados (el interruptor se muestra solo donde sirve).
-    Q_INVOKABLE bool tieneAvanzados(const QString& section) const;
-    /// La etiqueta de una sección en el idioma del operador. El nombre de la sección
-    /// es la clave (la página la compara, el MCP la busca): se traduce solo al mostrarla.
-    /// Una que no está en la tabla sale tal cual.
-    Q_INVOKABLE QString seccionVisible(const QString& seccion) const;
+    QVariantMap titulosSecciones() const;
+    QStringList seccionesConBasicos() const { return seccionesCon(false); }
+    QStringList seccionesConAvanzados() const { return seccionesCon(true); }
     /// Si el último apply() no aplicó (en vivo) o no pudo guardar. Para no buscar
     /// «EN VIVO» o «ERROR» en el resumen, que va en el idioma del operador.
     bool fallo() const { return fallo_; }
@@ -197,6 +201,8 @@ class SettingsModel : public QAbstractListModel {
     QVariantMap current() const;
     QVariantMap currentBasicos() const; ///< los de siempre (sin los avanzados)
     int rowOfKey(const QString& key) const;
+    /// Las secciones que tienen campos avanzados (`avanzados`) o de los otros.
+    QStringList seccionesCon(bool avanzados) const;
 
     AppRuntime& rt_;
     VentanillaMotor* v_; ///< nunca nula

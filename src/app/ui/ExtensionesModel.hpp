@@ -46,6 +46,14 @@ class ExtensionesModel : public QAbstractListModel {
     Q_PROPERTY(int cuantas READ rowCount NOTIFY cambio)
     /// Los `kind` de tarjeta que ofrecen las extensiones usables (las apagadas no).
     Q_PROPERTY(QStringList kinds READ kinds NOTIFY cambio)
+    /// La ficha de cada una, por id: {id: {id, nombre, descripcion, vista, problema,
+    /// apagada, cargable, motivoNoCarga}}. `cargable` es la URL que se le da al Loader (""
+    /// si ahora no se puede: apagada, o en vivo y no se cargó en esta sesión) y
+    /// `motivoNoCarga`, por qué no (en vivo). Cambia al refrescar, al apagar o prender una
+    /// y al entrar o salir del modo en vivo.
+    Q_PROPERTY(QVariantMap fichas READ fichas NOTIFY cambio)
+    /// El nombre lindo de cada `kind` de tarjeta de extensión: {«ext:reloj»: «Reloj»}.
+    Q_PROPERTY(QVariantMap titulos READ titulos NOTIFY cambio)
 
    public:
     /// El prefijo que distingue una tarjeta de extensión de las de fábrica.
@@ -72,27 +80,28 @@ class ExtensionesModel : public QAbstractListModel {
     /// Vuelve a mirar la carpeta. El asistente escribe una extensión y esto la
     /// trae sin reiniciar.
     Q_INVOKABLE void refrescar();
-    /// La ficha de una, por id (vacío si no está).
-    Q_INVOKABLE QVariantMap ficha(const QString& id) const;
-    /// La URL del QML de esa extensión, para el Loader. Vacía si no se puede.
-    Q_INVOKABLE QString vista(const QString& id) const;
-    /// El nombre lindo de un `kind` de tarjeta («ext:reloj» → «Reloj»).
-    Q_INVOKABLE QString tituloDeKind(const QString& kind) const;
+    /// La ficha de una, por id (vacío si no está): la de `fichas` (el MCP).
+    QVariantMap ficha(const QString& id) const;
+    QVariantMap fichas() const;
+    QVariantMap titulos() const;
     /// Los `kind` de tarjeta que ofrecen las extensiones usables.
     QStringList kinds() const;
 
     /// Avisa que se está por cargar esa tarjeta, para que el diario de
     /// arranque sepa a quién culpar si el programa no vuelve. Lo llama el
-    /// Loader de QML justo antes de poner el `source`.
+    /// Loader de QML justo antes de poner el `source` (el `cargable` de su
+    /// ficha): si se puede cargar, queda como cargada en esta sesión (en vivo
+    /// se sigue cargando).
     Q_INVOKABLE void cargando(const QString& id);
     /// La tarjeta cargó (bien o mal, pero el programa sigue vivo).
     Q_INVOKABLE void cargada(const QString& id, bool bien, const QString& error = {});
     /// Vuelve a prender una que el diario había apagado.
     Q_INVOKABLE void prender(const QString& id);
     /// Modo en vivo (T48): mientras devuelva true, una extensión que no se cargó en
-    /// esta sesión no se carga (`vista` da "" y `motivoNoCarga` lo explica).
+    /// esta sesión no se carga (su `cargable` es "" y `motivoNoCarga` lo explica).
     void setEnVivo(std::function<bool()> f) { enVivo_ = std::move(f); }
-    Q_INVOKABLE QString motivoNoCarga(const QString& id) const;
+    /// Entró o salió el modo en vivo: cambia lo que se puede cargar (las fichas).
+    void alCambiarVivo() { emit cambio(); }
     /// Se pasó del tiempo máximo cargando (el Loader asíncrono): se corta y se apaga.
     Q_INVOKABLE void tardo(const QString& id, int ms);
 
@@ -105,7 +114,10 @@ class ExtensionesModel : public QAbstractListModel {
 
    private:
     std::function<bool()> enVivo_;
-    mutable std::set<QString> yaCargadas_; ///< las que se cargaron en esta sesión
+    std::set<QString> yaCargadas_; ///< las que se cargaron en esta sesión
+    /// Lo que se le da al Loader ("" si ahora no se puede) y por qué no (en vivo).
+    QString cargable(const QString& id, const QString& vista) const;
+    QString motivoNoCarga(const QString& id) const;
     struct Impl;
     std::unique_ptr<Impl> d_;
 };

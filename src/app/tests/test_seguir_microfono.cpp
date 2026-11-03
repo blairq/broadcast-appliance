@@ -138,6 +138,16 @@ int main(int argc, char** argv) {
         movidas.clear();
         CHECK(errorDe([&] { b2.alAire("10"); }).isEmpty() && movidas.empty(), "con la fuente de banca, dar la palabra no mueve la cámara");
         CHECK(b2.prepararToma("12").isEmpty() && movidas.empty(), "ni prepararla para el debate");
+
+        // El reloj del que habla lo lleva el modelo (la tarjeta Oradores se enlaza a `reloj`).
+        int avisos = 0;
+        QObject::connect(&b2, &asamblea::Bancas::relojCambio, [&]() { ++avisos; });
+        CHECK(b2.reloj().value("texto").toString() == "3:00" && b2.reloj().value("estado").toString() == "ok",
+              "reloj: con alguien al aire, su tiempo (3:00, ok)");
+        b2.sumarTiempo(60);
+        CHECK(avisos == 1 && b2.reloj().value("texto").toString() == "4:00", "reloj: sumar tiempo avisa y se ve");
+        b2.terminar();
+        CHECK(avisos == 2 && b2.reloj().isEmpty(), "reloj: sin nadie al aire, vacío");
     }
     std::printf(g_fallas ? "\n%d fallas\n" : "\ntodo ok\n", g_fallas);
     return g_fallas ? 1 : 0;

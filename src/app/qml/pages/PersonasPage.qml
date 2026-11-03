@@ -173,7 +173,7 @@ Rectangle {
                                 color: Theme.textFaint; font.pixelSize: 10
                                 text: swAuto.checked
                                       ? qsTr("Mirando «%1». Cada cara que no conozca queda anotada sin nombre, con su " +
-                                        "foto, para que la completes. No rotula a nadie.").arg(page.pv.etiquetaDe(page.pv.feedAuto))
+                                        "foto, para que la completes. No rotula a nadie.").arg(page.pv.etiquetaFeedAuto)
                                       : qsTr("Abre una ficha sin nombre por cada cara desconocida que pase " +
                                         "por esta cámara, y le suma poses a las que ya conoce.")
                             }
@@ -202,7 +202,7 @@ Rectangle {
                                 color: Theme.textFaint; font.pixelSize: 10
                                 text: swPuerta.checked
                                       ? qsTr("Mirando «%1». Al que reconoce lo marca como llegado en el padrón del " +
-                                        "evento. Al que no está en la lista lo avisa y no lo anota.").arg(page.pv.etiquetaDe(page.pv.feedPuerta))
+                                        "evento. Al que no está en la lista lo avisa y no lo anota.").arg(page.pv.etiquetaFeedPuerta)
                                       : qsTr("Para la entrada del lugar: reconoce al que llega y deja " +
                                         "constancia en el padrón, igual que el lobby con los de la sala.")
                             }

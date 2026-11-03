@@ -2,7 +2,6 @@
 
 #include "ui/VideoViewModel.hpp"
 
-#include "diag/Acoples.hpp"
 #include "ui/ResumenNodo.hpp"
 
 #include "emision/VentanillaMotor.hpp"
@@ -13,6 +12,7 @@
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QThreadPool>
 #include <QUrl>
 
 #include <algorithm>
@@ -238,8 +238,7 @@ QVariantList VideoViewModel::propiedadesModulo(const QString& elemento) const {
     return video::VideoGrafos::controlesGst(gst()->propiedades(elemento.toStdString(), json::object()));
 }
 
-QVariantList VideoViewModel::propiedadesModuloCon(const QString& elemento, const QVariantMap& valores) const {
-    BA_ACOPLE("invocable", "VideoViewModel::propiedadesModuloCon");
+QVariantList VideoViewModel::propiedadesCon(const video::CatalogoGst& c, const QString& elemento, const QVariantMap& valores) {
     // Los valores guardados vienen como texto (así van a GStreamer): se pasan al tipo de cada propiedad.
     json act = json::object();
     for (auto it = valores.begin(); it != valores.end(); ++it) {
@@ -253,7 +252,56 @@ QVariantList VideoViewModel::propiedadesModuloCon(const QString& elemento, const
         else
             act[it.key().toStdString()] = t.toStdString();
     }
-    return video::VideoGrafos::controlesGst(gst()->propiedades(elemento.toStdString(), act));
+    return video::VideoGrafos::controlesGst(c.propiedades(elemento.toStdString(), act));
+}
+
+void EditorModulo::setVideo(QObject* v) {
+    auto* vm = qobject_cast<VideoViewModel*>(v);
+    if (vm == video_) return;
+    if (video_) disconnect(video_, nullptr, this, nullptr);
+    video_ = vm;
+    // El catálogo de GStreamer se arma al arrancar: cuando está, de nuevo.
+    if (vm != nullptr) connect(vm, &VideoViewModel::gstListo, this, &EditorModulo::armar);
+    emit entradaCambio();
+    armar();
+}
+
+void EditorModulo::setElemento(const QString& e) {
+    if (e == elemento_) return;
+    elemento_ = e;
+    emit entradaCambio();
+    poner({}); // las del anterior no son de éste
+    armar();
+}
+
+void EditorModulo::setValores(const QVariantMap& v) {
+    if (v == valores_) return;
+    valores_ = v;
+    emit entradaCambio();
+    armar();
+}
+
+void EditorModulo::poner(const QVariantList& p) {
+    if (p == propiedades_) return;
+    propiedades_ = p;
+    emit propiedadesCambio();
+}
+
+void EditorModulo::armar() {
+    const unsigned n = ++pedido_;
+    if (!video_ || elemento_.isEmpty()) return poner({});
+    std::shared_ptr<const video::CatalogoGst> c = video_->gst();
+    if (!c) return poner({});
+    // Preguntarle a GStreamer crea el elemento (la primera vez): en el fondo.
+    QThreadPool::globalInstance()->start([yo = QPointer<EditorModulo>(this), c, n, e = elemento_, v = valores_]() {
+        const QVariantList p = VideoViewModel::propiedadesCon(*c, e, v);
+        QMetaObject::invokeMethod(
+            QCoreApplication::instance(),
+            [yo, n, p]() {
+                if (yo && yo->pedido_ == n) yo->poner(p);
+            },
+            Qt::QueuedConnection);
+    });
 }
 
 // --- Pedir ---------------------------------------------------------------------------

@@ -3,7 +3,6 @@
 // ============================================================================
 #include "ui/PersonasViewModel.hpp"
 
-#include "diag/Acoples.hpp"
 #include "arranque/ArchivoConfig.hpp"
 #include "i18n/I18n.hpp"
 #include "ajustes/Ajustes.hpp"
@@ -100,6 +99,7 @@ struct PersonasViewModel::Impl {
 // que no hay nadie guardado.
 PersonasViewModel::PersonasViewModel(AppRuntime& rt, StudioViewModel& vm, QObject* parent)
     : QObject(parent), d_(std::make_unique<Impl>(rt, vm)) {
+    connect(this, &PersonasViewModel::autoaltaCambio, this, &PersonasViewModel::etiquetasCambio);
     d_->aviso = tr("Este equipo se compiló sin reconocimiento de rostros. Para activarlo: "
                    "`make deps-rostros` y volver a compilar.");
 }
@@ -121,7 +121,7 @@ void PersonasViewModel::usarCamara(const QString&, bool) {}
 void PersonasViewModel::analizar(const QString&, bool, const QString&) {}
 QVariantList PersonasViewModel::vistos() const { return {}; }
 void PersonasViewModel::revisarFuentes() {}
-QString PersonasViewModel::etiquetaDe(const QString& feed) const { BA_ACOPLE("invocable", "PersonasViewModel::etiquetaDe"); return feed; }
+QString PersonasViewModel::etiquetaDe(const QString& feed) const { return feed; }
 bool PersonasViewModel::autoalta() const { return false; }
 void PersonasViewModel::setAutoalta(bool) {}
 bool PersonasViewModel::puertaAuto() const { return false; }
@@ -227,6 +227,9 @@ QString urlDeFoto(const QString& carpeta, const std::string& foto) {
 
 PersonasViewModel::PersonasViewModel(AppRuntime& rt, StudioViewModel& vm, QObject* parent)
     : QObject(parent), d_(std::make_unique<Impl>(rt, vm)) {
+    // Las etiquetas de las cámaras del anotado y la puerta: cambian con ellas y con las fuentes.
+    connect(this, &PersonasViewModel::autoaltaCambio, this, &PersonasViewModel::etiquetasCambio);
+    connect(this, &PersonasViewModel::fuentesCambio, this, &PersonasViewModel::etiquetasCambio);
     mirada_.setInterval(1000);
     connect(&mirada_, &QTimer::timeout, this, &PersonasViewModel::mirarAhora);
     d_->archivo = QString::fromStdString((rt.dataRoot() / "Config" / "personas.json").string());
@@ -891,7 +894,6 @@ void PersonasViewModel::resolver(const QString& feed, const QString& uid, std::v
 }
 
 QString PersonasViewModel::etiquetaDe(const QString& feed) const {
-    BA_ACOPLE("invocable", "PersonasViewModel::etiquetaDe");
     return d_->tarjetas.etiquetaDe(feed);
 }
 
