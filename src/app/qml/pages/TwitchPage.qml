@@ -52,6 +52,14 @@ Rectangle {
             }
         }
 
+        // --- Cuentas (puede haber varias; la principal es la de esta página) ---------------------
+        CuentasPlataforma {
+            visible: tw.configured
+            Layout.fillWidth: true
+            plataforma: "twitch"
+            colorMarca: "#9146ff"
+        }
+
         // --- Sin configurar ------------------------------------------------------------------------
         ScrollView {
             visible: !tw.configured
