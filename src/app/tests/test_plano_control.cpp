@@ -2038,6 +2038,148 @@ const auto tomadoM = canalM.tomarPrograma("");
     CHECK(grafoI->thread() == interfaz && vigiaI->thread() == interfaz, "I: el grafo y su vigía vuelven a la interfaz al parar");
     pool.waitForDone();
 
+    // --- T. La interfaz trabada 5 s NO frena el reloj del motor ni la agenda -----------------
+    // Lo medido con 120 invitados: un evento de la interfaz de 13-21 s que entraba UNA vez al
+    // motor tenía el turno todo el evento; el reloj del motor (AppRuntime::ticMotor: los
+    // picos del programa, el loudness) y la agenda (la orden de lugares) se frenaban y el
+    // audio de los retornos llegaba tarde. Con un reloj del motor como el de la app (mide
+    // SIN el turno, NivelesMotor::medir, y hace lo demás CON el turno si se lo dan):
+    //   (a) un método del motor con su Guarda, llamado desde la interfaz, toma el turno POR
+    //       LLAMADA: después la interfaz trabada 5 s no lo tiene; el reloj hace TODO y lo
+    //       pedido se hace en el acto;
+    //   (b) un oyente de la foto que entra a cfg_ (por la vuelta) lo suelta al terminar: el
+    //       oyente siguiente, trabado 2 s, no lo tiene (VentanillaMotor::escuchar);
+    //   (c) la red de seguridad: un evento que tiene cfg_ 5 s (por la vuelta) frena lo que
+    //       necesita el turno, pero NO lo que mide el reloj (los picos y el loudness llegan
+    //       al canal de niveles en cada vuelta), y la tenencia queda anotada con su lugar.
+    {
+        using TM = ba::app::TurnoMotor;
+        TM turnoT;
+        NivelesMotor nivT;
+        std::atomic<int> vueltasT{0}, conTurnoT{0}, sinTurnoT{0};
+        std::atomic<int> picos{0}, loud{0};
+        // Los medidores de una salida sintética (como BroadcastEngine::medidores).
+        std::vector<NivelesMotor::Medidor> medidores{{"principal",
+                                                      [&picos]() {
+                                                          ++picos;
+                                                          return std::pair<float, float>{-20.0f, -21.0f};
+                                                      },
+                                                      [&loud]() { return json{{"m", -23.0}, {"n", ++loud}}; }}};
+        nivT.setPorOmision("principal");
+        // El reloj del motor como AppRuntime::ticMotor (en el hilo de control: tomarHasta 5).
+        PlanoControl planoT({.control = []() {},
+                             .motor =
+                                 [&]() {
+                                     const int v = ++vueltasT;
+                                     if (!turnoT.tomarHasta(TM::participa() ? 5 : 0)) {
+                                         ++sinTurnoT;
+                                         nivT.medir(v % NivelesMotor::kLoudnessCadaVueltas == 0);
+                                         return;
+                                     }
+                                     ++conTurnoT;
+                                     nivT.ponerMedidores(medidores);
+                                     nivT.medir(v % NivelesMotor::kLoudnessCadaVueltas == 0);
+                                     turnoT.soltar();
+                                 },
+                             .interfaz = []() {}});
+        planoT.setTurno({[&turnoT](int ms) { return turnoT.tomarHasta(ms); }, [&turnoT]() { turnoT.soltar(); }});
+        planoT.arrancar(20, 20);
+        planoT.enControlYEsperar([]() { TM::participar("control"); });
+        VentanillaMotor vT({.encolar = [&planoT](std::function<void()> fn) { planoT.encolarConTurno(std::move(fn)); },
+                            .alTerminarOrden = []() {},
+                            .adoptar = {}});
+        QObject quienT;
+        // La interfaz, como en la app: por vuelta, y suelta antes de dormir.
+        TM::participarPorVuelta("interfaz");
+        QObject::connect(QAbstractEventDispatcher::instance(), &QAbstractEventDispatcher::aboutToBlock, &quienT,
+                         []() { TM::soltarVuelta(); });
+        atender(200); // que el reloj guarde los medidores
+
+        // Lo que pide la interfaz en medio de su traba: cuánto tarda en hacerse (en el control).
+        const auto pedirYMedir = [&](std::atomic<double>& ms) {
+            const auto desde = std::chrono::steady_clock::now();
+            vT.pedir(&quienT, "t_orden", [&ms, desde]() { ms = msDesde(desde); }, []() {});
+        };
+
+        // (a) Un método del motor (su Guarda) y después 5 s de la interfaz en lo suyo.
+        std::atomic<double> msA{-1};
+        int conA = 0, sinA = 0;
+        bool teniaA = true;
+        const std::uint64_t directasA = turnoT.totalDirectas();
+        QTimer::singleShot(0, &quienT, [&]() {
+            {
+                const TM::Guarda g(turnoT); // p. ej. rt.engine().sceneNames() desde una vista
+            }
+            teniaA = turnoT.loTengo();
+            pedirYMedir(msA);
+            const int c0 = conTurnoT.load(), s0 = sinTurnoT.load();
+            trabarInterfaz(5000);
+            conA = conTurnoT.load() - c0;
+            sinA = sinTurnoT.load() - s0;
+        });
+        atender(5600);
+        std::printf("  medido: (a) la interfaz 5 s en lo suyo tras llamar al motor: %d vueltas del reloj con el turno, %d sin; "
+                    "lo pedido, a los %.1f ms\n",
+                    conA, sinA, msA.load());
+        CHECK(!teniaA, "T(a): al volver del método del motor, la interfaz ya no tiene el turno (por llamada)");
+        CHECK(conA >= 150 && sinA == 0, "T(a): con la interfaz trabada 5 s, el reloj del motor tuvo el turno en cada vuelta");
+        CHECK(msA.load() >= 0 && msA.load() < 300, "T(a): lo pedido durante la traba se hizo en el acto (la agenda no esperó)");
+        CHECK(turnoT.totalDirectas() == directasA + 1, "T(a): la entrada directa se contó (una vez)");
+
+        // (b) Dos oyentes de la foto: el primero entra a cfg_ (por la vuelta), el segundo se traba.
+        std::atomic<double> msB{-1};
+        int conB = 0;
+        bool teniaB = true, primero = false;
+        vT.escuchar(&quienT, [&](unsigned) {
+            turnoT.entrarDirecto(std::source_location::current()); // p. ej. rt.config().guests
+            primero = turnoT.loTengo();
+        });
+        vT.escuchar(&quienT, [&](unsigned) {
+            teniaB = turnoT.loTengo();
+            pedirYMedir(msB);
+            const int c0 = conTurnoT.load();
+            trabarInterfaz(2000);
+            conB = conTurnoT.load() - c0;
+        });
+        vT.publicar(std::make_shared<const FotoMotor>(), FotoMotor::Escenas);
+        atender(2600);
+        std::printf("  medido: (b) el oyente que sigue a uno que entró a cfg_, trabado 2 s: %d vueltas con el turno; lo pedido, a "
+                    "los %.1f ms\n",
+                    conB, msB.load());
+        CHECK(primero && !teniaB, "T(b): el turno que tomó un oyente se suelta antes del siguiente");
+        CHECK(conB >= 60 && msB.load() >= 0 && msB.load() < 300,
+              "T(b): mientras el siguiente se traba, el reloj y la agenda siguen con el turno");
+
+        // (c) La red de seguridad: un evento con cfg_ tomado 5 s (lo que todavía no pasó a la foto).
+        int conC = 0, sinC = 0, picosC = 0;
+        std::uint64_t medidasC = 0;
+        QTimer::singleShot(0, &quienT, [&]() {
+            turnoT.entrarDirecto(std::source_location::current());
+            const int c0 = conTurnoT.load(), s0 = sinTurnoT.load(), p0 = picos.load();
+            const std::uint64_t m0 = nivT.medidas();
+            trabarInterfaz(5000);
+            conC = conTurnoT.load() - c0;
+            sinC = sinTurnoT.load() - s0;
+            picosC = picos.load() - p0;
+            medidasC = nivT.medidas() - m0;
+        });
+        atender(5600);
+        const json tenencia = turnoT.estado().value("interfaz", json::object());
+        std::printf("  medido: (c) la interfaz con cfg_ 5 s: %d vueltas con el turno, %d sin; %d picos y %llu loudness al canal; "
+                    "tenencia %s\n",
+                    conC, sinC, picosC, static_cast<unsigned long long>(medidasC), tenencia.dump().c_str());
+        CHECK(conC <= 1 && sinC >= 150, "T(c): con cfg_ tomado, lo del turno se saltea (el reloj no espera a la interfaz)");
+        CHECK(picosC >= 150 && medidasC >= 50, "T(c): pero el pico del programa y el loudness llegan al canal en cada vuelta");
+        CHECK(nivT.programa("principal").first > -20.5f && nivT.loudnessDe({}).value("m", 0.0) == -23.0,
+              "T(c): el canal de niveles tiene lo medido sin el turno (la por omisión también como \"\")");
+        CHECK(tenencia.value("max_ms", 0.0) >= 4900 && tenencia.value("largas", 0) >= 1 &&
+                  tenencia.value("max_lugar", std::string()) == "main",
+              "T(c): lo que la interfaz tuvo el turno quedó anotado, con dónde lo tomó");
+        CHECK(!turnoT.loTengo(), "T: al terminar cada evento la interfaz soltó el turno");
+        TM::participar("interfaz");
+        planoT.detener();
+    }
+
     // --- El contenido de una capa DSK, por el id de cada escena (escenas/RefEscena.hpp) ---
     {
         using ba::app::control::CapasDsk;
