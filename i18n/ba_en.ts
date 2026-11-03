@@ -52,7 +52,7 @@
 <context>
     <name>AccesoRemoto</name>
     <message>
-        <location filename="../src/app/net/AccesoRemoto.cpp" line="+85" />
+        <location filename="../src/app/net/AccesoRemoto.cpp" line="+87" />
         <source>Sin consultar todavía.</source>
         <translation>Not checked yet.</translation>
     </message>
@@ -124,12 +124,12 @@
     <message>
         <location line="+5" />
         <location line="+27" />
-        <location line="+286" />
+        <location line="+287" />
         <source>no disponible</source>
         <translation>not available</translation>
     </message>
     <message>
-        <location line="-311" />
+        <location line="-312" />
         <location line="+27" />
         <source>Se está transmitiendo o grabando: el túnel no se toca hasta que termine (reinicia la conferencia).</source>
         <translation>Streaming or recording: the tunnel is not touched until it ends (it restarts the conference).</translation>
@@ -183,7 +183,7 @@
         <translation>Could not save to Credenciales/.</translation>
     </message>
     <message>
-        <location line="+18" />
+        <location line="+19" />
         <source>&lt;el destino que muestra el panel de pinggy&gt;</source>
         <translation>&lt;the target shown in the pinggy dashboard&gt;</translation>
     </message>
@@ -3496,7 +3496,7 @@ This opens it in another window, so you can have both at once.</translation>
 <context>
     <name>Botonera</name>
     <message>
-        <location filename="../src/app/control/Botonera.cpp" line="+2199" />
+        <location filename="../src/app/control/Botonera.cpp" line="+2201" />
         <source>Los argumentos no son JSON válido (un objeto {…})</source>
         <translation>The arguments aren't valid JSON (an object {…})</translation>
     </message>
@@ -5369,7 +5369,10 @@ Scrolling the strip doesn't change what's shown.</translation>
     <message numerus="yes">
         <location line="-476" />
         <source>%n entrando (%1 por segundo)</source>
-        <translation><numerusform>%n joining (%1 per second)</numerusform><numerusform>%n joining (%1 per second)</numerusform></translation>
+        <translation>
+            <numerusform>%n joining (%1 per second)</numerusform>
+            <numerusform>%n joining (%1 per second)</numerusform>
+        </translation>
     </message>
     <message>
         <location line="+2" />
@@ -6108,7 +6111,7 @@ The previous PIN stops working for joining.</translation>
 <context>
     <name>ConferenceViewModel</name>
     <message>
-        <location filename="../src/app/ui/ConferenceViewModel.cpp" line="+121" />
+        <location filename="../src/app/ui/ConferenceViewModel.cpp" line="+123" />
         <source>La conferencia respondio: %1</source>
         <translation>The conference replied: %1</translation>
     </message>
@@ -6133,12 +6136,12 @@ The previous PIN stops working for joining.</translation>
         <translation>Nobody else in the queue</translation>
     </message>
     <message>
-        <location line="+77" />
+        <location line="+78" />
         <source>%1 espera en el lobby</source>
         <translation>%1 is waiting in the lobby</translation>
     </message>
     <message>
-        <location line="+185" />
+        <location line="+186" />
         <location line="+12" />
         <location line="+130" />
         <source>No se pudo reiniciar la conferencia: %1. Si sigue, cerrá y volvé a abrir el programa.</source>
@@ -6519,7 +6522,7 @@ The previous PIN stops working for joining.</translation>
 <context>
     <name>CuentasViewModel</name>
     <message>
-        <location filename="../src/app/ui/CuentasViewModel.cpp" line="+130" />
+        <location filename="../src/app/ui/CuentasViewModel.cpp" line="+133" />
         <location line="+6" />
         <source>El escáner de red no está disponible.</source>
         <translation>The network scanner is not available.</translation>
@@ -6536,12 +6539,12 @@ The previous PIN stops working for joining.</translation>
         <translation>Plugins are not available.</translation>
     </message>
     <message>
-        <location line="-59" />
+        <location line="-60" />
         <source>No se pudo leer %1.</source>
         <translation>Couldn't read %1.</translation>
     </message>
     <message>
-        <location line="+71" />
+        <location line="+72" />
         <source>Plataforma desconocida: %1.</source>
         <translation>Unknown platform: %1.</translation>
     </message>
@@ -10090,7 +10093,7 @@ Turn it on from the Log.</translation>
         <translation>Couldn't delete: %1</translation>
     </message>
     <message>
-        <location filename="../src/app/ui/GuionViewModel.cpp" line="+536" />
+        <location filename="../src/app/ui/GuionViewModel.cpp" line="+538" />
         <source>no existe un gráfico llamado "%1"</source>
         <translation>there's no graphic named "%1"</translation>
     </message>
@@ -11112,7 +11115,7 @@ Turn it on from the Log.</translation>
 <context>
     <name>ExtensionesModel</name>
     <message>
-        <location filename="../src/app/ui/ExtensionesModel.cpp" line="+69" />
+        <location filename="../src/app/ui/ExtensionesModel.cpp" line="+71" />
         <source>el nombre de la carpeta tiene caracteres que no se pueden usar</source>
         <translation>the folder name has characters that can't be used</translation>
     </message>
@@ -11137,12 +11140,12 @@ Turn it on from the Log.</translation>
         <translation>file %1 is missing</translation>
     </message>
     <message>
-        <location line="+89" />
+        <location line="+92" />
         <source>La tarjeta «%1» tiene un error (mirá el Registro)</source>
         <translation>The card “%1” has an error (check the Log)</translation>
     </message>
     <message>
-        <location line="+6" />
+        <location line="+7" />
         <source>En vivo no se cargan extensiones nuevas: se carga al salir del modo en vivo.</source>
         <translation>New extensions aren't loaded while live: it loads when leaving live mode.</translation>
     </message>
@@ -15676,7 +15679,7 @@ The matrix doesn't change what comes in: it decides which outputs it goes to (th
 <context>
     <name>MediosViewModel</name>
     <message numerus="yes">
-        <location filename="../src/app/ui/MediosViewModel.cpp" line="+372" />
+        <location filename="../src/app/ui/MediosViewModel.cpp" line="+376" />
         <source>%n archivo a «%1»</source>
         <translation>
             <numerusform>%n file to “%1”</numerusform>
@@ -16442,8 +16445,8 @@ The matrix doesn't change what comes in: it decides which outputs it goes to (th
 <context>
     <name>MultiviewViewModel</name>
     <message>
-        <location filename="../src/app/ui/MultiviewViewModel.cpp" line="+75" />
-        <location line="+53" />
+        <location filename="../src/app/ui/MultiviewViewModel.cpp" line="+77" />
+        <location line="+54" />
         <source>Multiview %1</source>
         <translation>Multiview %1</translation>
     </message>
@@ -25686,7 +25689,7 @@ Add images from the Files tab.</translation>
 <context>
     <name>PantallasViewModel</name>
     <message>
-        <location filename="../src/app/ui/PantallasViewModel.cpp" line="+243" />
+        <location filename="../src/app/ui/PantallasViewModel.cpp" line="+245" />
         <source>Este programa se compiló sin búsqueda en la red: agregá el televisor a mano con su dirección IP.</source>
         <translation>This program was built without network discovery: add the TV manually with its IP address.</translation>
     </message>
@@ -25696,7 +25699,7 @@ Add images from the Files tab.</translation>
         <translation>(the gateway asks for it when sending)</translation>
     </message>
     <message>
-        <location filename="../src/app/ui/PantallasViewModel.cpp" line="+125" />
+        <location filename="../src/app/ui/PantallasViewModel.cpp" line="+126" />
         <source>No encontré ningún televisor en la red</source>
         <translation>I didn't find any TV on the network</translation>
     </message>
@@ -26345,7 +26348,7 @@ Front, side, with and without glasses: that's how they get recognized on the day
 <context>
     <name>PersonasViewModel</name>
     <message>
-        <location filename="../src/app/ui/PersonasViewModel.cpp" line="+101" />
+        <location filename="../src/app/ui/PersonasViewModel.cpp" line="+103" />
         <source>Este equipo se compiló sin reconocimiento de rostros. Para activarlo: `make deps-rostros` y volver a compilar.</source>
         <translation>This device was built without face recognition. To enable it: `make deps-rostros` and rebuild.</translation>
     </message>
@@ -26458,7 +26461,7 @@ Front, side, with and without glasses: that's how they get recognized on the day
         <translation>The face registry reached %1 profiles: I turned off automatic adding so it doesn't fill up with strangers. Complete or delete the extra ones.</translation>
     </message>
     <message>
-        <location line="+64" />
+        <location line="+67" />
         <location filename="../src/app/ui/TarjetasRostros.cpp" line="+54" />
         <source>Cámara · %1</source>
         <translation>Camera · %1</translation>
@@ -27503,7 +27506,7 @@ Front, side, with and without glasses: that's how they get recognized on the day
 <context>
     <name>PrompterViewModel</name>
     <message>
-        <location filename="../src/app/ui/PrompterViewModel.cpp" line="+203" />
+        <location filename="../src/app/ui/PrompterViewModel.cpp" line="+205" />
         <source>El guion del evento no está disponible.</source>
         <translation>The event rundown is not available.</translation>
     </message>
@@ -27529,7 +27532,7 @@ Front, side, with and without glasses: that's how they get recognized on the day
         <translation>The server is not available.</translation>
     </message>
     <message>
-        <location line="+55" />
+        <location line="+56" />
         <source>El servidor no está corriendo</source>
         <translation>The server isn't running</translation>
     </message>
@@ -30642,7 +30645,7 @@ Add one in Scenes and sources: place it where you want the lower third to appear
         <translation>No saved way to connect: set one up in Settings → Remote access.</translation>
     </message>
     <message>
-        <location line="+17" />
+        <location line="+19" />
         <source>espera en el lobby</source>
         <translation>waiting in the lobby</translation>
     </message>
@@ -33438,7 +33441,7 @@ and it reopens on its own. Settings, credentials, recordings and files are NOT t
 <context>
     <name>SourcesModel</name>
     <message>
-        <location filename="../src/app/ui/ListModels.cpp" line="+377" />
+        <location filename="../src/app/ui/ListModels.cpp" line="+379" />
         <source>No existe la fuente '%1'.</source>
         <translation>Source '%1' doesn't exist.</translation>
     </message>
@@ -37102,12 +37105,12 @@ Listens to:
 <context>
     <name>VideoViewModel</name>
     <message>
-        <location filename="../src/app/ui/VideoViewModel.cpp" line="+159" />
+        <location filename="../src/app/ui/VideoViewModel.cpp" line="+161" />
         <source>Sin GStreamer: %1</source>
         <translation>No GStreamer: %1</translation>
     </message>
     <message>
-        <location line="+218" />
+        <location line="+219" />
         <source>«%1» no es una entrada de video</source>
         <translation>“%1” isn't a video input</translation>
     </message>
@@ -38998,7 +39001,7 @@ Choose something else in Outputs → Screens.</translation>
 <context>
     <name>acceso</name>
     <message>
-        <location filename="../src/app/net/AccesoRemoto.cpp" line="-679" />
+        <location filename="../src/app/net/AccesoRemoto.cpp" line="-680" />
         <source>Está vacío.</source>
         <translation>It's empty.</translation>
     </message>
@@ -39018,7 +39021,7 @@ Choose something else in Outputs → Screens.</translation>
         <translation>It's too long: did something else get pasted?</translation>
     </message>
     <message>
-        <location line="+541" />
+        <location line="+542" />
         <source>pinggy no aceptó la API key</source>
         <translation>pinggy didn't accept the API key</translation>
     </message>
@@ -39493,7 +39496,7 @@ Choose something else in Outputs → Screens.</translation>
 <context>
     <name>ajustes</name>
     <message>
-        <location filename="../src/app/ui/SettingsModel.cpp" line="+49" />
+        <location filename="../src/app/ui/SettingsModel.cpp" line="+51" />
         <source>Video</source>
         <translation>Video</translation>
     </message>
@@ -40733,7 +40736,7 @@ Choose something else in Outputs → Screens.</translation>
         <translation>Never: automatic approval (at your own risk)</translation>
     </message>
     <message>
-        <location line="+698" />
+        <location line="+701" />
         <source>Algunos cambios rigen desde el próximo arranque.</source>
         <translation>Some changes take effect on the next startup.</translation>
     </message>
@@ -40743,7 +40746,7 @@ Choose something else in Outputs → Screens.</translation>
         <translation>Settings saved.</translation>
     </message>
     <message>
-        <location line="-704" />
+        <location line="-707" />
         <source>Una aprobación espera hasta</source>
         <translation>An approval waits up to</translation>
     </message>
@@ -40878,7 +40881,7 @@ Choose something else in Outputs → Screens.</translation>
         <translation>If off, the watchdog restarts automatically without asking.</translation>
     </message>
     <message>
-        <location line="+381" />
+        <location line="+384" />
         <source>EN VIVO: no se aplica «%1»: reinicia el gateway, el motor o el programa y corta a los invitados o el aire. Volvé atrás esos cambios o esperá a terminar la transmisión.</source>
         <translation>LIVE: «%1» is not applied: it restarts the gateway, the engine or the program and cuts off the guests or the air. Undo those changes or wait for the stream to end.</translation>
     </message>
@@ -40918,7 +40921,7 @@ Choose something else in Outputs → Screens.</translation>
         <translation>Capacity: %1</translation>
     </message>
     <message>
-        <location line="-531" />
+        <location line="-534" />
         <source>Automático (hardware si hay)</source>
         <translation>Automatic (hardware if available)</translation>
     </message>
@@ -40928,7 +40931,7 @@ Choose something else in Outputs → Screens.</translation>
         <translation>Deterministic safeguard: when the assistant has read something written by guests or the audience (chat, names, files, their video), every action that changes something waits for your approval click in the bottom bar. That way a guest can't make the assistant change anything. With “Never” everything is approved automatically: a guest could write something in the chat that the assistant ends up doing. It can only be changed here (the assistant can't).</translation>
     </message>
     <message>
-        <location line="+599" />
+        <location line="+602" />
         <source>Los avanzados del arranque rigen al volver a abrir el programa.</source>
         <translation>Advanced startup settings take effect when the program is reopened.</translation>
     </message>
@@ -42624,7 +42627,7 @@ Choose something else in Outputs → Screens.</translation>
         <translation>Longest response</translation>
     </message>
     <message>
-        <location filename="../src/app/ui/SettingsModel.cpp" line="-751" />
+        <location filename="../src/app/ui/SettingsModel.cpp" line="-754" />
         <location filename="../src/core/ajustes/Registro.cpp" line="+0" />
         <source>tokens</source>
         <translation>tokens</translation>
@@ -43943,7 +43946,7 @@ Choose something else in Outputs → Screens.</translation>
 <context>
     <name>arranque</name>
     <message>
-        <location filename="../src/app/arranque/GuiMode.cpp" line="+173" />
+        <location filename="../src/app/arranque/GuiMode.cpp" line="+176" />
         <source>arranque: el cartel de carga ya se ve</source>
         <translation>startup: the splash screen is showing</translation>
     </message>
@@ -43973,7 +43976,7 @@ Choose something else in Outputs → Screens.</translation>
         <translation>Free software (GPL-3.0) · GStreamer, Qt and ONNX Runtime</translation>
     </message>
     <message>
-        <location line="+65" />
+        <location line="+91" />
         <source>arranque: la configuración, %1 ms</source>
         <translation>startup: configuration, %1 ms</translation>
     </message>
@@ -46372,7 +46375,7 @@ Data (from %2): %3</translation>
         <translation>The list of who gets in automatically when recognized is the event roll: padron_ver {solos: true}; change it with padron_cambiar {id, dejarPasarSolo}.</translation>
     </message>
     <message>
-        <location filename="../src/app/ui/GuionViewModel.cpp" line="+165" />
+        <location filename="../src/app/ui/GuionViewModel.cpp" line="+166" />
         <source>Quiero preparar un evento nuevo: «%1». Seguí la guía de ese tipo de evento: evento_escenario {"id": "%2"} (trae el protocolo común y lo propio de este tipo). Empezá por las preguntas, de a pocas y con opciones; no armes nada hasta que te confirme el plan. </source>
         <translation>I want to prepare a new event: “%1”. Follow the guide for that type of event: evento_escenario {"id": "%2"} (it brings the common protocol and what's specific to this type). Start with the questions, a few at a time and with options; don't build anything until I confirm the plan. </translation>
     </message>
@@ -49060,7 +49063,7 @@ Data (from %2): %3</translation>
 <context>
     <name>credenciales</name>
     <message>
-        <location filename="../src/launcher/main.cpp" line="+133" />
+        <location filename="../src/launcher/main.cpp" line="+135" />
         <source>importada %1 (cifrada en Credenciales/)</source>
         <translation>imported %1 (encrypted in Credenciales/)</translation>
     </message>
@@ -49483,6 +49486,26 @@ Data (from %2): %3</translation>
         <location line="+17" />
         <source>la traba de la interfaz duró unos %1 ms (pilas en %2)</source>
         <translation>the interface freeze lasted about %1 ms (stacks in %2)</translation>
+    </message>
+    <message>
+        <location filename="../src/app/arranque/GuiMode.cpp" line="-374" />
+        <source>--detectar-acoples solo anda con --test: no se enciende</source>
+        <translation>--detectar-acoples only works with --test: not turned on</translation>
+    </message>
+    <message>
+        <location filename="../src/core/diag/Acoples.cpp" line="+149" />
+        <source>detector de acoples ENCENDIDO: cada camino de la interfaz que no pasa por el modelo espera %1 ms de más y queda anotado (solo pruebas)</source>
+        <translation>coupling detector ON: every UI path that bypasses the model waits %1 ms extra and is logged (testing only)</translation>
+    </message>
+    <message>
+        <location line="+3" />
+        <source>detector de acoples apagado</source>
+        <translation>coupling detector off</translation>
+    </message>
+    <message>
+        <location line="+53" />
+        <source>acople de la interfaz (%1): %2 en %3, mientras corría «%4»</source>
+        <translation>UI coupling (%1): %2 at %3, while running “%4”</translation>
     </message>
 </context>
 <context>
@@ -51213,7 +51236,7 @@ Data (from %2): %3</translation>
         <translation>out of efficiency mode (EcoQoS)</translation>
     </message>
     <message>
-        <location filename="../src/launcher/main.cpp" line="+88" />
+        <location filename="../src/launcher/main.cpp" line="+91" />
         <source>Broadcast Appliance: estudio abierto</source>
         <translation>Broadcast Appliance: studio open</translation>
     </message>
@@ -52583,7 +52606,7 @@ Data (from %2): %3</translation>
         <translation>Does nothing: it's a cue for you.</translation>
     </message>
     <message>
-        <location filename="../src/app/ui/GuionViewModel.cpp" line="-417" />
+        <location filename="../src/app/ui/GuionViewModel.cpp" line="-418" />
         <source>El del programa (%1)</source>
         <translation>The program's (%1)</translation>
     </message>
@@ -53264,12 +53287,12 @@ Data (from %2): %3</translation>
 <context>
     <name>extensiones</name>
     <message>
-        <location filename="../src/app/ui/ExtensionesModel.cpp" line="-31" />
+        <location filename="../src/app/ui/ExtensionesModel.cpp" line="-32" />
         <source>la tarjeta «%1» no cargó: %2</source>
         <translation>card “%1” didn't load: %2</translation>
     </message>
     <message>
-        <location line="+16" />
+        <location line="+17" />
         <source>la tarjeta «%1» tardó más de %2 ms en cargar: se cortó y quedó apagada (se prende desde el Registro)</source>
         <translation>card “%1” took more than %2 ms to load: it was stopped and left off (turn it on from the Log)</translation>
     </message>
@@ -58251,7 +58274,7 @@ Empty values leave no dangling separators: “{nombre} — {cargo}” with no ti
 <context>
     <name>mcp</name>
     <message>
-        <location filename="../src/app/arranque/GuiMode.cpp" line="-145" />
+        <location filename="../src/app/arranque/GuiMode.cpp" line="+229" />
         <source>MODO PRUEBA (--test): el MCP no pide aprobaciones, ni siquiera las de aire</source>
         <translation>TEST MODE (--test): the MCP doesn't ask for approvals, not even on-air ones</translation>
     </message>
@@ -59932,7 +59955,7 @@ WHAT YOU NEED TO KNOW WHEN TURNING IT ON: the approval safeguard (`mcp.approval`
         <translation>A slate on top of everything going out ("Recess", "Be right back", "Minute of silence"…), with `texto`, an optional `imagen` (path) and `ms` of fade (600). It doesn't depend on the scenes. Turning it on while on air asks for confirmation if something automatic requests it; turning it off doesn't. It survives an app crash. Each output has its own slate (`salida`).</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpService.cpp" line="+1327" />
+        <location filename="../src/app/mcp/McpService.cpp" line="+1328" />
         <source>El supervisor relanza la app si deja de latir. El latido sale de la interfaz Y de un hilo que mira los cuadros del motor: si la interfaz se traba y el motor sigue, el aire NO se corta. Con la interfaz trabada más de `espera_ui_s` (10 a 3600, de fábrica 60) y `matar_si_ui_trabada_sin_aire` (de fábrica true), se relanza solo si no hay transmisión ni grabación. La interfaz trabada CON aire es una alarma que sale sin la interfaz, al control web y a los notificadores de `notificar` («todos», de fábrica, o una lista de ids de notificador_listar; [] = ninguno). Sin argumentos, la muestra (con el estado: motor_vivo, ui_viva, ui_trabada_ms, ultima_traba_ms).</source>
         <translation>The watchdog relaunches the app if it stops beating. The heartbeat comes from the UI AND from a thread that watches the engine's frames: if the UI hangs and the engine keeps going, on air is NOT cut. With the UI stuck for more than `espera_ui_s` (10 to 3600, default 60) and `matar_si_ui_trabada_sin_aire` (default true), it relaunches only if there's no stream or recording. A stuck UI WITH on air is an alarm that goes out without the UI, to web control and to the notifiers in `notificar` (“todos”, default, or a list of ids from notificador_listar; [] = none). With no arguments, it shows it (with the state: motor_vivo, ui_viva, ui_trabada_ms, ultima_traba_ms).</translation>
     </message>
@@ -60067,7 +60090,7 @@ WHAT YOU NEED TO KNOW WHEN TURNING IT ON: the approval safeguard (`mcp.approval`
         <translation>deletes a scene</translation>
     </message>
     <message>
-        <location line="+2486" />
+        <location line="+2513" />
         <source>Graba entradas sueltas (cámaras, invitados) cada una en su propio archivo, además del programa; sin argumentos, dice qué se graba.</source>
         <translation>Records individual inputs (cameras, guests) each to its own file, besides the program; with no arguments, says what is being recorded.</translation>
     </message>
@@ -60082,7 +60105,7 @@ WHAT YOU NEED TO KNOW WHEN TURNING IT ON: the approval safeguard (`mcp.approval`
         <translation>changes the studio clock (restarts the engine: cuts what goes out)</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpService.cpp" line="-1918" />
+        <location filename="../src/app/mcp/McpService.cpp" line="-1945" />
         <source>cambia el audio (mute del máster corta el sonido)</source>
         <translation>changes the audio (muting the master cuts the sound)</translation>
     </message>
@@ -60177,7 +60200,7 @@ WHAT YOU NEED TO KNOW WHEN TURNING IT ON: the approval safeguard (`mcp.approval`
         <translation>puts an audience message on air</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpService.cpp" line="+1105" />
+        <location filename="../src/app/mcp/McpService.cpp" line="+1132" />
         <source>borra un destino (si transmite, lo corta)</source>
         <translation>deletes a destination (if streaming, it stops it)</translation>
     </message>
@@ -60294,8 +60317,8 @@ WHAT YOU NEED TO KNOW WHEN TURNING IT ON: the approval safeguard (`mcp.approval`
         <location filename="../src/app/mcp/McpPantallaTools.cpp" line="+429" />
         <location filename="../src/app/mcp/McpQrTools.cpp" line="+270" />
         <location filename="../src/app/mcp/McpRoomTools.cpp" line="+740" />
-        <location filename="../src/app/mcp/McpService.cpp" line="-551" />
-        <location line="+559" />
+        <location filename="../src/app/mcp/McpService.cpp" line="-578" />
+        <location line="+586" />
         <location filename="../src/app/mcp/McpTotemTools.cpp" line="+161" />
         <location filename="../src/app/mcp/McpVideoTools.cpp" line="-496" />
         <source>Borrado.</source>
@@ -60442,7 +60465,7 @@ WHAT YOU NEED TO KNOW WHEN TURNING IT ON: the approval safeguard (`mcp.approval`
         <location filename="../src/app/mcp/McpPrompterTools.cpp" line="+270" />
         <location filename="../src/app/mcp/McpRoomTools.cpp" line="-771" />
         <location line="+43" />
-        <location filename="../src/app/mcp/McpService.cpp" line="-2485" />
+        <location filename="../src/app/mcp/McpService.cpp" line="-2512" />
         <location line="+1261" />
         <location line="+137" />
         <location line="+414" />
@@ -71265,7 +71288,7 @@ It doesn't change anything in the event except adding the missing manual items t
     </message>
     <message>
         <location line="+22" />
-        <location filename="../src/app/mcp/McpService.cpp" line="+1540" />
+        <location filename="../src/app/mcp/McpService.cpp" line="+1567" />
         <location filename="../src/app/mcp/McpVideoTools.cpp" line="+1632" />
         <source>Guardado.</source>
         <translation>Saved.</translation>
@@ -73861,7 +73884,7 @@ When it reaches 500 profiles it turns itself off and says so. Without `activo` i
         <translation>Nobody is visible on the waiting cameras.</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpService.cpp" line="-4131" />
+        <location filename="../src/app/mcp/McpService.cpp" line="-4158" />
         <source>ANTES DE PREGUNTARLE NADA, mira `rostro_lobby` y busca su `uid` (%1):
 - Si viene con `nombre`, YA SABES QUIEN ES: saludala por su nombre, confirmale en UNA sola pregunta el cargo que figura en su ficha, y no le vuelvas a preguntar lo que ya esta ahi. Preguntarle el nombre a alguien que el sistema reconoce es hacerle perder el tiempo.
 - Si `parecido` esta cerca del corte (0.40 o mas) pero sin `nombre`, casi seguro ES alguien de la libreta y lo que falta es una cara mejor: deciselo por `chat_send` con las palabras de `sugerencia` (por ejemplo «mira de frente a la camara»), espera unos segundos y volve a mirar `rostro_lobby` ANTES de preguntarle quien es.
@@ -75503,6 +75526,16 @@ How to find the number: set a value, watch someone talking with `foto_programa` 
     </message>
     <message>
         <location line="+22" />
+        <source>Detector de acoples de la interfaz (solo --test)</source>
+        <translation>UI coupling detector (--test only)</translation>
+    </message>
+    <message>
+        <location line="+3" />
+        <source>SOLO EN MODO PRUEBA. El detector de acoples: con `demora_ms` mayor que 0 lo enciende (cada camino de la interfaz que no pasa por el modelo, como entrar directo al motor, la configuración, el disco o la red, o un binding que llama a una función que devuelve datos, espera esos ms de más y queda anotado); con 0 lo apaga. `reiniciar` borra lo anotado. Siempre devuelve el informe: cada lugar con su clase, archivo y línea, veces, lo que costó, lo que corría y la pila de la primera vez, ordenado por tiempo total.</source>
+        <translation>TEST MODE ONLY. The coupling detector: `demora_ms` greater than 0 turns it on (every UI path that bypasses the model, such as going straight to the engine, the configuration, the disk or the network, or a binding that calls a function returning data, waits that many extra ms and is logged); 0 turns it off. `reiniciar` clears what was logged. Always returns the report: each place with its class, file and line, count, what it cost, what was running and the stack from the first time, sorted by total time.</translation>
+    </message>
+    <message>
+        <location line="+24" />
         <source>Inyectar una falla en una salida (solo --test)</source>
         <translation>Inject a fault into an output (--test only)</translation>
     </message>
@@ -75572,7 +75605,7 @@ How to find the number: set a value, watch someone talking with `foto_programa` 
         <translation>Changes one or more settings by key, applies and saves them. 'gateway' scope ones restart the conference (guests reconnect by themselves); 'motor' ones (the canvas, the output, the frame rate, the format and the color: video.width, video.height, video.outputWidth, video.outputHeight, video.fps, video.formato, video.color, video.rango) RESTART THE ENGINE; 'restart' ones, on the next launch.</translation>
     </message>
     <message>
-        <location line="-727" />
+        <location line="-754" />
         <source>Armar la grilla del recinto</source>
         <translation>Set up the chamber grid</translation>
     </message>
@@ -75787,7 +75820,7 @@ How to find the number: set a value, watch someone talking with `foto_programa` 
         <translation>TEST MODE ONLY. Crashes the app on purpose to test dumps: `tipo` acceso (access violation), heap (heap corruption) or abort. The launcher relaunches it; the dump and its .json end up in Logs/dumps.</translation>
     </message>
     <message>
-        <location line="+101" />
+        <location line="+128" />
         <source>Pasa un `archivo` .mkv a `formato` (mp4, de fabrica, o mov) sin recodificar, en otro hilo (record_disco dice como va). `borrar_mkv`: borrar el original si salio bien (de fabrica false).</source>
         <translation>Converts an `archivo` .mkv to `formato` (mp4, default, or mov) without re-encoding, in another thread (record_disco shows progress). `borrar_mkv`: delete the original if it succeeded (default false).</translation>
     </message>
@@ -83908,6 +83941,12 @@ PROPOSE, DON'T APPLY: show the person what changes and apply only if they confir
     </message>
     <message>
         <location line="+2" />
+        <source>detector interfaz vista modelo trabada lenta sabotaje bloqueante binding enganche prueba</source>
+        <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
+        <translation>detector coupling ui interface view model frozen stuck slow sabotage blocking binding hook test</translation>
+    </message>
+    <message>
+        <location line="+2" />
         <source>direccion ip url enlace link red local tunel afuera puerto donde entra 127.0.0.1 localhost pinggy</source>
         <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
         <translation>ip address url link local network tunnel outside port where to connect 127.0.0.1 localhost pinggy</translation>
@@ -84141,7 +84180,7 @@ PROPOSE, DON'T APPLY: show the person what changes and apply only if they confir
         <translation>presenter host moderator emcee anchor</translation>
     </message>
     <message>
-        <location line="-681" />
+        <location line="-683" />
         <source>revocar tablet token botonera companion http acceso sacarle el acceso</source>
         <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
         <translation>revoke tablet token control surface companion http access take away access</translation>
@@ -84165,7 +84204,7 @@ PROPOSE, DON'T APPLY: show the person what changes and apply only if they confir
         <translation>go take next goes in step forward go ahead check before going out</translation>
     </message>
     <message>
-        <location line="+179" />
+        <location line="+181" />
         <source>configurar fila de oradores tiempos reglas activar el modo oradores minutos por orador tiempo general de cada orador margen carrusel</source>
         <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
         <translation>configure speaker queue times rules enable speakers mode minutes per speaker overall time per speaker margin carousel</translation>
@@ -86906,12 +86945,12 @@ PROPOSE, DON'T APPLY: show the person what changes and apply only if they confir
         <translation>Heartbeats to the hardware watchdog (0: off)</translation>
     </message>
     <message>
-        <location filename="../src/motor/Candado.cpp" line="+119" />
+        <location filename="../src/motor/Candado.cpp" line="+124" />
         <source>Lo que se esperó el candado del motor, ms</source>
         <translation>Time spent waiting for the engine lock, ms</translation>
     </message>
     <message>
-        <location filename="../src/app/emision/TurnoMotor.cpp" line="+48" />
+        <location filename="../src/app/emision/TurnoMotor.cpp" line="+49" />
         <source>Lo que se esperó el turno del motor (la interfaz o el plano de control adentro), ms</source>
         <translation>Time waited for the engine's turn (the UI or the control plane inside), ms</translation>
     </message>
@@ -86921,7 +86960,7 @@ PROPOSE, DON'T APPLY: show the person what changes and apply only if they confir
         <translation>How long the interface held the engine lock in one event (long ones only), ms, by where it took it</translation>
     </message>
     <message>
-        <location line="+75" />
+        <location line="+81" />
         <source>Veces que la interfaz entró directo al motor (sin la ventanilla), por lugar</source>
         <translation>Times the UI went straight into the engine (bypassing the window), by location</translation>
     </message>
@@ -86959,6 +86998,11 @@ PROPOSE, DON'T APPLY: show the person what changes and apply only if they confir
         <location filename="../src/app/arranque/AppRuntime.cpp" line="+250" />
         <source>Vueltas del reloj del motor que no tuvieron el turno (la interfaz lo tenía): se midió igual</source>
         <translation>Engine clock ticks without the lock (the interface had it): measured anyway</translation>
+    </message>
+    <message>
+        <location filename="../src/core/diag/Acoples.cpp" line="+5" />
+        <source>Pasos de la interfaz por un camino que no pasa por el modelo (detector de acoples, solo pruebas), por clase</source>
+        <translation>UI passes through a path that bypasses the model (coupling detector, testing only), by class</translation>
     </message>
 </context>
 <context>
@@ -87524,7 +87568,7 @@ PROPOSE, DON'T APPLY: show the person what changes and apply only if they confir
         <translation>the network finished no frames in %1 s: %2</translation>
     </message>
     <message>
-        <location filename="../src/motor/Candado.cpp" line="-62" />
+        <location filename="../src/motor/Candado.cpp" line="-65" />
         <source>%1 %2 ms en %3</source>
         <translation>%1 %2 ms in %3</translation>
     </message>
@@ -87544,7 +87588,7 @@ PROPOSE, DON'T APPLY: show the person what changes and apply only if they confir
         <translation>the UI took the engine lock in %1 (it must never take it: see docs/planes/PLAN-MOTOR-SIN-ESPERAS.md)</translation>
     </message>
     <message>
-        <location line="+21" />
+        <location line="+24" />
         <source>la interfaz esperó el candado del motor</source>
         <translation>the UI waited for the engine lock</translation>
     </message>
@@ -88719,12 +88763,12 @@ PROPOSE, DON'T APPLY: show the person what changes and apply only if they confir
         <translation>D3D12: watching %1 device(s) in case they're lost</translation>
     </message>
     <message>
-        <location filename="../src/app/emision/TurnoMotor.cpp" line="-88" />
+        <location filename="../src/app/emision/TurnoMotor.cpp" line="-94" />
         <source>la interfaz tuvo el turno del motor %1 ms en un evento (lo tomó en %2, %3:%4): mientras tanto la agenda esperó; pasarlo a la foto o a la ventanilla</source>
         <translation>the interface held the engine lock for %1 ms in one event (took it at %2, %3:%4): meanwhile the schedule waited; move it to the snapshot or the window</translation>
     </message>
     <message>
-        <location line="+74" />
+        <location line="+80" />
         <source>la interfaz entró directo al motor: %1 (%2:%3)</source>
         <translation>the UI went straight into the engine: %1 (%2:%3)</translation>
     </message>
@@ -88928,7 +88972,7 @@ PROPOSE, DON'T APPLY: show the person what changes and apply only if they confir
         <translation>%1 (no longer exists)</translation>
     </message>
     <message>
-        <location filename="../src/app/pantallas/Monitores.cpp" line="+274" />
+        <location filename="../src/app/pantallas/Monitores.cpp" line="+277" />
         <source>No conozco ese monitor: los que hay salen en la lista de Pantallas conectadas.</source>
         <translation>I don't know that monitor: the available ones are listed under Connected displays.</translation>
     </message>
@@ -89914,7 +89958,7 @@ PROPOSE, DON'T APPLY: show the person what changes and apply only if they confir
     <name>prompter</name>
     <message>
         <location filename="../src/app/control/Botonera.cpp" line="-817" />
-        <location filename="../src/app/ui/PrompterViewModel.cpp" line="-28" />
+        <location filename="../src/app/ui/PrompterViewModel.cpp" line="-29" />
         <source>Redondeá</source>
         <translation>Wrap up</translation>
     </message>
@@ -91253,7 +91297,7 @@ PROPOSE, DON'T APPLY: show the person what changes and apply only if they confir
 <context>
     <name>red</name>
     <message>
-        <location filename="../src/app/net/HttpsClient.cpp" line="+125" />
+        <location filename="../src/app/net/HttpsClient.cpp" line="+126" />
         <source>no se pudo conectar a %1 (%2)</source>
         <translation>couldn't connect to %1 (%2)</translation>
     </message>
@@ -91284,7 +91328,7 @@ PROPOSE, DON'T APPLY: show the person what changes and apply only if they confir
         <translation>the certificate of %1 isn't the expected one (different fingerprint)</translation>
     </message>
     <message>
-        <location line="+150" />
+        <location line="+153" />
         <source>no se pudo abrir %1</source>
         <translation>couldn't open %1</translation>
     </message>
@@ -91984,7 +92028,7 @@ PROPOSE, DON'T APPLY: show the person what changes and apply only if they confir
 <context>
     <name>riel</name>
     <message>
-        <location filename="../src/app/ui/RielConfig.cpp" line="+38" />
+        <location filename="../src/app/ui/RielConfig.cpp" line="+40" />
         <source>En vivo</source>
         <translation>Live</translation>
     </message>
@@ -92182,7 +92226,7 @@ PROPOSE, DON'T APPLY: show the person what changes and apply only if they confir
 <context>
     <name>rostros</name>
     <message>
-        <location filename="../src/app/ui/PersonasViewModel.cpp" line="-391" />
+        <location filename="../src/app/ui/PersonasViewModel.cpp" line="-394" />
         <source>alta automática: «%1» (ficha %2, lobby %3)</source>
         <translation>auto-added: “%1” (profile %2, lobby %3)</translation>
     </message>
