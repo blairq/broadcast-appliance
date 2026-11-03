@@ -94,6 +94,9 @@ git checkout -q -f "$SHA"
 [ -x .venv/bin/python ] || python3 -m venv .venv
 etapa "checkout"
 J=$(nproc)
+# Solo los paquetes de ESTA versión: el volumen guarda los de versiones viejas y el
+# comodín sin versión los volvía a copiar a dist/.
+VER=$(sed -n "/^project(/,/)/s/.*VERSION \([0-9.]*\).*/\1/p" CMakeLists.txt | head -1)
 SUF=""; [ "$PERFILAR" = 1 ] && SUF="-perfil"   # PERFILAR=1: un build que mide (diag/Perfil)
 [ "$SIN_CACHE" != 0 ] && echo "[compilar-en-docker] SIN_CACHE=1: todo de cero (sin caché de tests ni atajos)"
 # A dist/ de la Mac: solo si cambió (el .zip son 800 MB por el volumen compartido).
@@ -114,7 +117,7 @@ if [ "$QUE" != win ]; then
     .venv/bin/pip install -q -r requirements-dev.lock
     .venv/bin/pytest -q
     make dist-linux JOBS=$J PERFILAR=$PERFILAR
-    for f in dist/*-linux-x64$SUF.tar.gz; do llevar "$f"; done
+    for f in dist/*-$VER-linux-x64$SUF.tar.gz; do llevar "$f"; done
     mkdir -p /salida/simbolos && cp -rn dist/simbolos/linux /salida/simbolos/ 2>/dev/null || true
 fi
 if [ "$QUE" != linux ]; then
@@ -133,7 +136,7 @@ if [ "$QUE" != linux ]; then
     etapa "release-win (install+chequeo+manifest)"
     make -o release-win dist-win JOBS=$J BA_ACCEPT_MSVC_LICENSE=1 PERFILAR=$PERFILAR
     etapa "zip (7z)"
-    for f in dist/*-windows-x64$SUF.zip; do llevar "$f"; done
+    for f in dist/*-$VER-windows-x64$SUF.zip; do llevar "$f"; done
     etapa "copia a dist/"
     # Los binarios y los .pdb de este build, al almacén de dist/simbolos (en la
     # Mac): para leer después las pilas de sus volcados (tools/caidas/analizar.py).
