@@ -26,7 +26,9 @@
 
 #include <algorithm>
 #include <cmath>
+#include <map>
 #include <memory>
+#include <mutex>
 
 #include "agent/Despachador.hpp"
 #include "platform/Paths.hpp"
@@ -34,6 +36,7 @@
 #include "agent/ModelosLocales.hpp"
 #include "arranque/AppRuntime.hpp"
 #include "mcp/McpService.hpp"
+#include "escenas/Conmutador.hpp"
 #include "mcp/McpToolsCommon.hpp"
 #include "net/Credentials.hpp"
 #include "net/HttpsClient.hpp"
@@ -316,6 +319,92 @@ void McpService::registerImageTools() {
                 });
             };
             (*intento)(0);
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        // La multipantalla de la superficie de control web (tema «monitores»): el programa y el
+        // preview de la salida, de lo que la interfaz YA tiene (FrameService: "program" y
+        // "armada", o los de otra salida), en JPEG chico. No renderiza nada aparte: escalar y
+        // codificar un cuadro de ~960 px a 480, y solo cuando cambió (si no, el de antes).
+        Tool t;
+        t.name = "monitores_ver";
+        t.porSalida = true;
+        t.hilo = Hilo::Interfaz; // FrameService es de la interfaz
+        t.untrustedConGente = true; // la imagen puede traer a los invitados
+        t.title = ba::i18n::traducir("mcp", "Ver el programa y el preview (multipantalla)");
+        t.category = "escenas";
+        t.clase = Clase::Lectura;
+        t.idempotent = true;
+        t.description = QT_TRANSLATE_NOOP("mcp", "Las dos pantallas de una mesa de switcher, chicas: el PROGRAMA (lo que sale al aire) y el "
+            "PREVIEW (la escena armada, la que sale con el próximo `preview_al_aire`), cada una con su escena y un "
+            "cuadro JPEG como data URL (`imagen`, vacía si todavía no hay). Barata: usa los cuadros que ya tiene la "
+            "interfaz. Para MIRAR con detalle, `foto_programa` o `foto_fuente`.");
+        t.inputSchema = {{"type", "object"},
+                         {"properties",
+                          {{"maxWidth", {{"type", "integer"}, {"minimum", 160}, {"maximum", 960}, {"default", 480}}},
+                           {"quality", {{"type", "integer"}, {"minimum", 30}, {"maximum", 90}, {"default", 65}}}}}};
+        t.run = [&vm, &core](const json& a, Done done) {
+            const std::string salida = core.salidaDe(a);
+            const int ancho = std::clamp(a.value("maxWidth", 480), 160, 960);
+            const int calidad = std::clamp(a.value("quality", 65), 30, 90);
+            // Lo último codificado de cada clave: si el cuadro no cambió, no se vuelve a codificar.
+            struct Codificado {
+                std::uint64_t serie = 0;
+                int ancho = 0, calidad = 0;
+                std::string dataUrl;
+                int w = 0, h = 0;
+            };
+            static std::mutex mu;
+            static std::map<QString, Codificado> hechos;
+            auto* frames = static_cast<FrameService*>(vm.frames());
+            struct Pedido {
+                QString clave;
+                std::string escena;
+                QImage img; // nula: no hay cuadro nuevo
+                std::uint64_t serie = 0;
+            };
+            const QString suf = salida.empty() ? QString() : ":" + QString::fromStdString(salida);
+            const escenas::Conmutador& cm = conmutadorDe(core, vm, a);
+            std::vector<Pedido> ps{{"program" + suf, cm.alAire(), {}, 0}, {"armada" + suf, cm.armada(), {}, 0}};
+            for (Pedido& p : ps) {
+                if (p.escena.empty()) continue;
+                std::uint64_t serie = 0;
+                {
+                    std::lock_guard<std::mutex> l(mu);
+                    const auto it = hechos.find(p.clave);
+                    if (it != hechos.end() && it->second.ancho == ancho && it->second.calidad == calidad) serie = it->second.serie;
+                }
+                QImage img;
+                if (frames != nullptr && frames->latest(p.clave, img, serie) && !img.isNull()) {
+                    p.img = img;
+                    p.serie = serie;
+                }
+            }
+            enPool(qApp, [ps, salida, ancho, calidad]() {
+                json out{{"salida", salida}};
+                for (const Pedido& p : ps) {
+                    Codificado c;
+                    if (!p.img.isNull()) {
+                        const QImage chica = p.img.width() > ancho ? p.img.scaledToWidth(ancho, Qt::SmoothTransformation) : p.img;
+                        QByteArray jpg;
+                        QBuffer b(&jpg);
+                        b.open(QIODevice::WriteOnly);
+                        chica.convertToFormat(QImage::Format_RGB32).save(&b, "JPEG", calidad);
+                        c = {p.serie, ancho, calidad, "data:image/jpeg;base64," + jpg.toBase64().toStdString(), chica.width(),
+                             chica.height()};
+                        std::lock_guard<std::mutex> l(mu);
+                        hechos[p.clave] = c;
+                    } else if (!p.escena.empty()) {
+                        std::lock_guard<std::mutex> l(mu);
+                        const auto it = hechos.find(p.clave);
+                        if (it != hechos.end()) c = it->second;
+                    }
+                    out[p.clave.startsWith("program") ? "programa" : "preview"] =
+                        json{{"escena", p.escena}, {"imagen", c.dataUrl}, {"ancho", c.w}, {"alto", c.h}};
+                }
+                return ToolResult().data(out);
+            }, done);
         };
         core_.addTool(std::move(t));
     }

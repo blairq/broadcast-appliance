@@ -25,10 +25,14 @@
     la app y le pone un perfil (qué puede manejar); el aparato guarda su token y lo manda
     en el primer mensaje del WebSocket (/ws?control), nunca en la URL.
 
+    Arriba, la multipantalla (multipantalla.js): PROGRAMA y PREVIEW de la salida que maneja
+    el aparato, el TAKE y el CORTE. Abajo, las tarjetas en una grilla que el aparato ordena,
+    ensancha y oculta («✎ Disposición»; se guarda en su registro en la app).
+
     Cada tarjeta mira sus temas (la app empuja el estado cuando cambia) y llama
     herramientas de la app; las que cortan el aire piden confirmación acá. Con varias
-    salidas, el aparato maneja una (el selector de arriba o la tarjeta «Salidas»): lo
-    que llama va a esa y lo que miran las tarjetas es de esa. Con
+    salidas, el aparato maneja una (el selector de arriba, la multipantalla o la tarjeta
+    «Salidas»): lo que llama va a esa y lo que miran las tarjetas es de esa. Con
     #tarjeta=<id> se muestra UNA tarjeta a pantalla completa (lo que abre ⤢ en una
     pestaña nueva).
   -->
@@ -40,7 +44,7 @@
     <select id="salida" class="salida oculto" title="Qué salida maneja este aparato" data-i18n-title="Qué salida maneja este aparato"></select>
     <span class="espacio"></span>
     <ba-chip id="conexion" estado="apagado" data-i18n="Desconectado">Desconectado</ba-chip>
-    <ba-boton id="botonTarjetas" compacto title="Qué tarjetas mostrar" data-i18n-title="Qué tarjetas mostrar" data-i18n="▦ Tarjetas">▦ Tarjetas</ba-boton>
+    <ba-boton id="botonDisposicion" compacto title="Ordenar, ensanchar u ocultar las tarjetas" data-i18n-title="Ordenar, ensanchar u ocultar las tarjetas" data-i18n="✎ Disposición">✎ Disposición</ba-boton>
     <ba-boton id="botonCompleta" compacto redondo title="Pantalla completa" data-i18n-title="Pantalla completa">⤢</ba-boton>
   </header>
 
@@ -48,10 +52,21 @@
        a la vista hasta que la app avisa que terminó. -->
   <div id="alarmaSistema" class="alarma-sistema oculto" role="alert"><strong></strong> <span></span></div>
 
-  <main id="tablero" class="tablero"></main>
+  <!-- PROGRAMA y PREVIEW, el TAKE y el CORTE: siempre arriba (la arma multipantalla.js). -->
+  <section id="multipantalla" class="multipantalla oculto" aria-label="Multipantalla" data-i18n-aria-label="Multipantalla"></section>
 
-  <!-- Qué tarjetas mostrar (se guarda en el aparato). -->
-  <section id="menuTarjetas" class="menu-tarjetas panel oculto"></section>
+  <!-- Editando la disposición: qué hacer y cómo volver a la de fábrica. -->
+  <div id="barraEdicion" class="barra-edicion panel oculto">
+    <div class="columna">
+      <strong data-i18n="Editando la disposición">Editando la disposición</strong>
+      <span class="suave" data-i18n="Arrastrá cada tarjeta por ⠿ (o con ◀ ▶), cambiá cuántas columnas ocupa con − y +, y ocultá las que no uses con ✕ (las ocultas quedan tenues: 👁 las vuelve a mostrar). Se guarda en la app para este aparato.">Arrastrá cada tarjeta por ⠿ (o con ◀ ▶), cambiá cuántas columnas ocupa con − y +, y ocultá las que no uses con ✕ (las ocultas quedan tenues: 👁 las vuelve a mostrar). Se guarda en la app para este aparato.</span>
+    </div>
+    <span class="espacio"></span>
+    <ba-boton id="botonDeFabrica" data-i18n="Volver a la de fábrica">Volver a la de fábrica</ba-boton>
+    <ba-boton id="botonListo" variante="acento" data-i18n="Listo">Listo</ba-boton>
+  </div>
+
+  <main id="tablero" class="tablero"></main>
 
   <!-- Emparejar, los mensajes, confirmar lo que corta el aire y los avisos: las capas
        las arma conexion.js (las comparten las superficies de /control/). -->
@@ -61,6 +76,8 @@
   <script src="tarjetas/comun.js"></script>
   <script src="conexion.js"></script>
   <script src="linea.js"></script>
+  <script src="disposicion.js"></script>
+  <script src="multipantalla.js"></script>
   <script src="tarjetas/escenas.js"></script>
   <script src="tarjetas/linea.js"></script>
   <script src="tarjetas/ptz.js"></script>

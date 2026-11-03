@@ -255,6 +255,20 @@ int main(int argc, char** argv) {
     cw.entrada("c2", ap, {{"type", "mirar"}, {"temas", {"escenas"}}});
     CHECK(!enviados.empty() && enviados.back().msg.value("type", "") == "estado" && enviados.back().a == std::vector<std::string>{"c2"},
           "la segunda conexión recibe lo último al empezar a mirar");
+    // La disposición del tablero que guarda una pestaña llega a las otras del mismo aparato.
+    {
+        const json disp = {{"disposicion", {{"orden", {"audio", "escenas"}}, {"anchos", {{"audio", 2}}}}}};
+        cw.entrada("c1", ap, {{"type", "preferencias"}, {"datos", disp}});
+        CHECK(enviados.back().msg.value("type", "") == "preferencias" && enviados.back().a == std::vector<std::string>{"c2"} &&
+                  enviados.back().msg["datos"] == disp,
+              "las preferencias nuevas van a las otras conexiones del aparato (no a la que las mandó)");
+    }
+    {
+        const auto& ts = ControlWeb::temas();
+        const auto m = std::find_if(ts.begin(), ts.end(), [](const ControlWeb::Tema& x) { return x.id == "monitores"; });
+        CHECK(m != ts.end() && m->herramientas == std::vector<std::string>{"monitores_ver"} && m->periodoMs <= 500,
+              "el tema «monitores» (la multipantalla) mira monitores_ver seguido");
+    }
     cw.entrada("c1", ap, {{"type", "mirar"}, {"temas", json::array()}});
     cw.entrada("c2", ap, {{"type", "mirar"}, {"temas", json::array()}});
     const int consultas = consultasEscenas;

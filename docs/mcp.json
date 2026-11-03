@@ -8,9 +8,9 @@
     "«hay acople» llegue a audio_set sin que nadie nombre la herramienta."
   ],
   "fuente": "codigo",
-  "cuantas": 857,
+  "cuantas": 858,
   "por_clase": {
-    "lectura": 284,
+    "lectura": 285,
     "escritura": 505,
     "aire": 50,
     "ui": 18
@@ -434,6 +434,7 @@
         "aire_placas_listar",
         "escena_transicion",
         "escenas_ajustes",
+        "monitores_ver",
         "preview_al_aire",
         "scene_copy",
         "scene_create",
@@ -14085,6 +14086,53 @@
       ]
     },
     {
+      "nombre": "monitores_ver",
+      "titulo": "Ver el programa y el preview (multipantalla)",
+      "categoria": "escenas",
+      "descripcion": "Las dos pantallas de una mesa de switcher, chicas: el PROGRAMA (lo que sale al aire) y el PREVIEW (la escena armada, la que sale con el próximo `preview_al_aire`), cada una con su escena y un cuadro JPEG como data URL (`imagen`, vacía si todavía no hay). Barata: usa los cuadros que ya tiene la interfaz. Para MIRAR con detalle, `foto_programa` o `foto_fuente`.",
+      "esquema": {
+        "type": "object",
+        "properties": {
+          "maxWidth": {
+            "type": "integer",
+            "minimum": 160,
+            "maximum": 960,
+            "default": 480
+          },
+          "quality": {
+            "type": "integer",
+            "minimum": 30,
+            "maximum": 90,
+            "default": 65
+          },
+          "salida": {
+            "type": "string",
+            "description": "Salida (id o nombre; `salidas_listar`). Sin ella, la por omisión (o la de quien llama)."
+          }
+        }
+      },
+      "clase": "lectura",
+      "hilo": "interfaz",
+      "soloLectura": true,
+      "destructiva": false,
+      "idempotente": true,
+      "etiquetas": {
+        "propias": "multipantalla monitores programa preview previo armada switcher las dos pantallas que sale y que viene",
+        "porPrefijo": ""
+      },
+      "donde": {
+        "archivo": "src/app/mcp/McpImageTools.cpp",
+        "linea": 331
+      },
+      "roles": [
+        "asistente",
+        "escenografo",
+        "vigilante"
+      ],
+      "porSalida": true,
+      "contenidoNoConfiableConGente": true
+    },
+    {
       "nombre": "preview_al_aire",
       "titulo": "TAKE: sacar al aire la escena armada",
       "categoria": "escenas",
@@ -19403,7 +19451,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpImageTools.cpp",
-        "linea": 374
+        "linea": 463
       },
       "roles": [
         "asistente",
@@ -19474,7 +19522,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpImageTools.cpp",
-        "linea": 517
+        "linea": 606
       },
       "roles": [
         "asistente",
@@ -19533,7 +19581,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpImageTools.cpp",
-        "linea": 744
+        "linea": 833
       },
       "roles": [
         "asistente",
@@ -19591,7 +19639,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpImageTools.cpp",
-        "linea": 273
+        "linea": 276
       },
       "roles": [
         "asistente",
@@ -19656,7 +19704,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpImageTools.cpp",
-        "linea": 423
+        "linea": 512
       },
       "roles": [
         "asistente",
@@ -19710,7 +19758,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpImageTools.cpp",
-        "linea": 172
+        "linea": 175
       },
       "roles": [
         "asistente",
@@ -19770,7 +19818,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpImageTools.cpp",
-        "linea": 324
+        "linea": 413
       },
       "roles": [
         "asistente",
@@ -19833,7 +19881,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpImageTools.cpp",
-        "linea": 464
+        "linea": 553
       },
       "roles": [
         "asistente",
@@ -19878,7 +19926,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpImageTools.cpp",
-        "linea": 607
+        "linea": 696
       },
       "roles": [
         "asistente",
@@ -19920,7 +19968,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpImageTools.cpp",
-        "linea": 246
+        "linea": 249
       },
       "roles": [
         "asistente",
@@ -19984,7 +20032,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpImageTools.cpp",
-        "linea": 202
+        "linea": 205
       },
       "roles": [
         "asistente",

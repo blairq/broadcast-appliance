@@ -28,10 +28,10 @@ ControlWebGateway::ControlWebGateway(ControlWeb& control, ConferenceClient& gate
     connect(&cw_, &ControlWeb::enviar, this, [this](const QStringList& conexiones, const json& msg) {
         json ids = json::array();
         for (const QString& c : conexiones) ids.push_back(c.toStdString());
-        enviar("/api/v1/control/enviar", {{"conexiones", ids}, {"msg", msg}});
+        encolar("/api/v1/control/enviar", {{"conexiones", ids}, {"msg", msg}});
     });
     connect(&cw_, &ControlWeb::cortar, this, [this](const QString& conexion, const QString& motivo) {
-        enviar("/api/v1/control/cortar", {{"conexion", conexion.toStdString()}, {"motivo", motivo.toStdString()}});
+        encolar("/api/v1/control/cortar", {{"conexion", conexion.toStdString()}, {"motivo", motivo.toStdString()}});
     });
     connect(&cw_, &ControlWeb::credencialesCambio, this, [this]() { sincronizar(); });
     connect(&cw_, &ControlWeb::resuelta, this, [this](const json& cuerpo) { enviar("/api/v1/control/resolver", cuerpo); });
@@ -46,41 +46,74 @@ void ControlWebGateway::enviar(const std::string& ruta, const json& cuerpo) {
     if (gw_.online()) sala::pedir(gw_, "POST", ruta, cuerpo, {});
 }
 
-void ControlWebGateway::enviarEnOrden(const std::string& cid, const json& msg) {
-    if (!gw_.online()) {
-        enOrden_.erase(cid);
-        return;
-    }
-    ColaOrden& c = enOrden_[cid];
-    c.pendientes.push_back(msg);
-    if (!c.enVuelo) siguienteEnOrden(cid);
+namespace {
+/// Lo que entra en un pedido al gateway (su tope es 1 MiB): con aire de sobra.
+constexpr std::size_t kBytesPorPedido = 512 * 1024;
+/// Si el gateway no contesta, la cola no crece sin fin: lo más viejo se descarta.
+constexpr std::size_t kMaxCola = 4000;
+} // namespace
+
+void ControlWebGateway::encolar(const std::string& ruta, json cuerpo) {
+    if (!gw_.online()) return; // nadie a quién mandarle: al volver, las conexiones se reconocen de nuevo
+    Envio e;
+    e.ruta = ruta;
+    const json& msg = cuerpo.contains("msg") ? cuerpo["msg"] : json();
+    if (msg.is_object() && msg.value("type", std::string()) == "estado") e.tema = msg.value("tema", std::string());
+    // Un estado que todavía espera (no salió) para las mismas conexiones: el nuevo lo reemplaza
+    // en su lugar. Solo cuenta lo último de un tema (los cuadros de los monitores, sobre todo).
+    if (!e.tema.empty())
+        for (Envio& x : cola_)
+            if (x.tema == e.tema && x.ruta == ruta && x.cuerpo.value("conexiones", json()) == cuerpo.value("conexiones", json())) {
+                x.cuerpo = std::move(cuerpo);
+                x.bytes = x.cuerpo.dump().size();
+                return;
+            }
+    e.bytes = cuerpo.dump().size();
+    e.cuerpo = std::move(cuerpo);
+    cola_.push_back(std::move(e));
+    while (cola_.size() > kMaxCola) cola_.pop_front();
+    despachar();
 }
 
-void ControlWebGateway::siguienteEnOrden(const std::string& cid) {
-    auto it = enOrden_.find(cid);
-    if (it == enOrden_.end()) return;
-    ColaOrden& c = it->second;
-    if (c.pendientes.empty()) {
-        enOrden_.erase(it);
+void ControlWebGateway::despachar() {
+    if (enVuelo_ || cola_.empty()) return;
+    if (!gw_.online()) {
+        cola_.clear();
         return;
     }
-    c.enVuelo = true;
-    json msg = std::move(c.pendientes.front());
-    c.pendientes.pop_front();
+    std::string ruta;
+    json cuerpo;
+    if (cola_.front().ruta == "/api/v1/control/enviar") {
+        // Los «enviar» seguidos van juntos, en orden, hasta el tope de un pedido.
+        json envios = json::array();
+        std::size_t bytes = 0;
+        while (!cola_.empty() && cola_.front().ruta == "/api/v1/control/enviar" &&
+               (envios.empty() || bytes + cola_.front().bytes <= kBytesPorPedido)) {
+            bytes += cola_.front().bytes;
+            envios.push_back(std::move(cola_.front().cuerpo));
+            cola_.pop_front();
+        }
+        ruta = "/api/v1/control/enviar";
+        cuerpo = envios.size() == 1 ? std::move(envios[0]) : json{{"envios", std::move(envios)}};
+    } else {
+        ruta = cola_.front().ruta;
+        cuerpo = std::move(cola_.front().cuerpo);
+        cola_.pop_front();
+    }
+    enVuelo_ = true;
     QPointer<ControlWebGateway> yo(this);
-    sala::pedir(gw_, "POST", "/api/v1/control/enviar", {{"conexiones", json::array({cid})}, {"msg", std::move(msg)}},
-                [yo, cid](const std::string& error, const json& r) {
-                    if (!yo) return;
-                    auto it = yo->enOrden_.find(cid);
-                    if (it == yo->enOrden_.end()) return;
-                    it->second.enVuelo = false;
-                    // La conexión ya no está (o el gateway no contesta): se tira lo que esperaba.
-                    if (!error.empty() || r.value("entregado", 1) == 0) {
-                        yo->enOrden_.erase(it);
-                        return;
-                    }
-                    yo->siguienteEnOrden(cid);
-                });
+    // Bien o mal, sigue con lo que esperaba (si el gateway no estaba, al volver se reconoce todo).
+    sala::pedir(gw_, "POST", ruta, cuerpo, [yo](const std::string&, const json&) {
+        if (!yo) return;
+        yo->enVuelo_ = false;
+        yo->despachar();
+    });
+}
+
+void ControlWebGateway::enviarEnOrden(const std::string& cid, const json& msg) {
+    // La réplica del tablero web va por la cola en orden (el esquema de un objeto antes que lo
+    // que lo nombra), como el resto de lo que va a las conexiones.
+    encolar("/api/v1/control/enviar", {{"conexiones", json::array({cid})}, {"msg", msg}});
 }
 
 void ControlWebGateway::enviarCuadro(const std::string& cid, const json& msg) {

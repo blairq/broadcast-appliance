@@ -28,6 +28,7 @@
 //   POST /api/v1/control/credenciales  {aparatos:[{id, hash, sal}], tunel:{habilitado, sal, hash_pin}}
 //   POST /api/v1/control/resolver      {solicitud, estado, aparato?, token?, error?}
 //   POST /api/v1/control/enviar        {conexion | conexiones:[…] | aparato | todas:true, msg}
+//                                      o {envios:[{…, msg}, …]}: varios, entregados en ese orden
 //   POST /api/v1/control/cortar        {conexion | aparato, motivo?}
 //   GET  /api/v1/control/estado        conexiones vivas
 //   y por el SSE de siempre, evento "control": {tipo: solicitud|conexion|entrada, …}

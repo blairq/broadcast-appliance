@@ -9,7 +9,13 @@
 //   - Al volver el gateway (o al arrancar la app con el gateway andando), las
 //     conexiones que ya tenía se reconocen (GET /api/v1/control/estado).
 //   - Eventos del gateway («control»): solicitud, conexion, entrada.
-//   - Lo que ControlWeb le manda a una conexión, o la orden de cortarla, sale por el gateway.
+//   - Lo que ControlWeb le manda a una conexión, o la orden de cortarla, sale por el gateway
+//     EN ORDEN: una cola con un solo pedido en vuelo, y lo que se juntó mientras tanto va en
+//     uno ({envios:[…]}). Antes cada mensaje era un POST suelto y el cliente HTTP abre varias
+//     conexiones a la vez: las tandas del catálogo llegaban desordenadas (una antes del
+//     «auth») y el aparato se quedaba con medio catálogo (tarjetas que no aparecían). Un
+//     «estado» de un tema que todavía espera en la cola se reemplaza por el nuevo (con el
+//     gateway lento no se apilan los cuadros de los monitores).
 //   - Emparejar: código de un uso + URL de la red local (/control/#p=…) + QR.
 #pragma once
 
@@ -42,11 +48,11 @@ class ControlWebGateway : public QObject {
     /// Un código de un uso con `perfil` (null = todo) y la URL/QR que abre el
     /// navegador: {codigo, vence_ms, url, qr, huella?, aviso?} o {error}.
     void emparejar(const json& perfil, const std::string& nombre, std::function<void(const json&)> listo);
-    /// Para el tablero web: lo de la réplica, EN ORDEN (un pedido después del otro: el
-    /// esquema de un objeto tiene que llegar antes que lo que lo nombra).
+    /// Para el tablero web: lo de la réplica, por la cola en orden (el esquema de un objeto
+    /// tiene que llegar antes que lo que lo nombra).
     void enviarEnOrden(const std::string& conexion, const json& msg);
-    /// Un cuadro de video: como mucho kCuadrosEnVuelo sin contestar por conexión; si no, se
-    /// descarta (la red o el navegador no dan abasto: mejor el próximo que uno viejo).
+    /// Un cuadro de video: APARTE de la cola (no frena a la réplica ni a los estados); como
+    /// mucho kCuadrosEnVuelo sin contestar por conexión; si no, se descarta (la red o el navegador no dan abasto: mejor el próximo que uno viejo).
     void enviarCuadro(const std::string& conexion, const json& msg);
     static constexpr int kCuadrosEnVuelo = 2;
     /// Lo que dice el gateway (conexiones vivas, credenciales, túnel), o "apagado" / "sin respuesta".
@@ -58,18 +64,25 @@ class ControlWebGateway : public QObject {
 
    private:
     void evento(const json& ev);
+    /// Por la cola, en orden (lo que va a las conexiones y la orden de cortar).
+    void encolar(const std::string& ruta, json cuerpo);
+    /// Manda lo que espera en la cola si no hay otro pedido en vuelo.
+    void despachar();
+    /// Un pedido suelto, fuera de la cola (credenciales, resolver: no dependen del orden).
     void enviar(const std::string& ruta, const json& cuerpo);
     void reconocerConexiones();
 
-    void siguienteEnOrden(const std::string& conexion);
+    struct Envio {
+        std::string ruta;
+        json cuerpo;
+        std::size_t bytes = 0;
+        std::string tema; ///< el de un «estado» (para reemplazarlo por uno más nuevo), o ""
+    };
+    std::deque<Envio> cola_;
+    bool enVuelo_ = false;
 
     ControlWeb& cw_;
     ConferenceClient& gw_;
-    struct ColaOrden {
-        std::deque<json> pendientes;
-        bool enVuelo = false;
-    };
-    std::map<std::string, ColaOrden> enOrden_;
     std::map<std::string, int> cuadrosEnVuelo_;
 };
 

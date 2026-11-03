@@ -14,18 +14,75 @@ body { padding-bottom: env(safe-area-inset-bottom); }
 .punto-marca::after { content: ""; position: absolute; inset: 7px; border-radius: 50%; background: var(--acento); box-shadow: 0 0 10px var(--acento); }
 
 /* --- El tablero ---------------------------------------------------------------------------- */
-.tablero { display: grid; gap: 24px; padding: 22px clamp(16px, 3vw, 28px) 40px;
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 360px), 1fr)); align-items: start; }
-.tablero > .ancha { grid-column: span 2; }
-@media (max-width: 820px) { .tablero > .ancha { grid-column: auto; } }
+/* Una grilla de columnas iguales: 1 en el celular, 2 en la tablet, 3 o 4 en la PC. Cada
+   tarjeta ocupa de 1 a 4 (ancho-N, lo elige el aparato), como mucho las que hay. `dense`
+   llena los huecos con las que vienen después; las de una fila tienen el mismo alto. */
+.tablero { --cols: 1; display: grid; gap: 24px; padding: 22px clamp(16px, 3vw, 28px) 40px;
+  grid-template-columns: repeat(var(--cols), minmax(0, 1fr)); grid-auto-flow: row dense; align-items: stretch; }
+.tablero > * { min-width: 0; }
+@media (min-width: 760px) {
+  .tablero { --cols: 2; }
+  .tablero > .ancho-2, .tablero > .ancho-3, .tablero > .ancho-4 { grid-column: span 2; }
+}
+@media (min-width: 1180px) {
+  .tablero { --cols: 3; }
+  .tablero > .ancho-3, .tablero > .ancho-4 { grid-column: span 3; }
+}
+@media (min-width: 1600px) {
+  .tablero { --cols: 4; }
+  .tablero > .ancho-4 { grid-column: span 4; }
+}
 
-/* Una sola tarjeta (#tarjeta=…): a pantalla completa, sin la barra de tarjetas. */
-.una-tarjeta #botonTarjetas { display: none; }
+/* Una sola tarjeta (#tarjeta=…): a pantalla completa, sin la disposición. */
+.una-tarjeta #botonDisposicion { display: none; }
 .una-tarjeta .tablero { grid-template-columns: 1fr; min-height: calc(100vh - 80px); }
 .una-tarjeta .tablero > * { grid-column: 1 !important; }
 .una-tarjeta .canales ba-fader { --alto-fader: 46vh; }
 .una-tarjeta ba-joystick { --lado: min(56vw, 46vh); }
 .una-tarjeta .grilla-escenas { grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); }
+
+/* --- Editar la disposición ------------------------------------------------------------------ */
+.barra-edicion { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 16px; margin: 18px clamp(16px, 3vw, 28px) 0;
+  padding: 14px 18px; border: 1px dashed var(--acento); }
+.barra-edicion .columna { gap: 4px; max-width: 760px; }
+.edicion-tarjeta { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.edicion-tarjeta ba-boton { min-width: 0; }
+.edicion-tarjeta .asa { cursor: grab; touch-action: none; user-select: none; font-size: 22px; line-height: 1; padding: 6px 8px;
+  border-radius: var(--radio-chico); background: var(--superficie-hundida); box-shadow: var(--hundido-suave); }
+.edicion-tarjeta .ancho-actual { min-width: 1.4em; text-align: center; font-weight: 700; }
+.editando .tablero > ba-tarjeta { outline: 2px dashed color-mix(in srgb, var(--acento) 55%, transparent); outline-offset: 4px; border-radius: var(--radio); }
+.editando .contenido-tarjeta { pointer-events: none; opacity: .45; max-height: 260px; overflow: hidden; }
+.editando .tablero > ba-tarjeta.oculta { opacity: .45; }
+.tablero > ba-tarjeta.arrastrando { opacity: .6; outline-style: solid; cursor: grabbing; }
+
+/* --- La multipantalla (PROGRAMA y PREVIEW, el TAKE) ----------------------------------------- */
+.multipantalla { display: flex; flex-direction: column; gap: 14px; margin: 18px clamp(16px, 3vw, 28px) 0; padding: 16px 18px 18px;
+  border-radius: var(--radio); background: var(--superficie); box-shadow: var(--relieve); border: 1px solid var(--borde); }
+.cabeza-multi { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.cabeza-multi h2 { margin: 0; font-size: 13px; text-transform: uppercase; letter-spacing: .09em; color: var(--texto-suave); font-weight: 650; }
+.salidas-multi { display: flex; gap: 8px; flex-wrap: wrap; }
+.monitores { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 700px) { .monitores { grid-template-columns: 1fr; } }
+.monitor { margin: 0; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.monitor .pantalla { position: relative; aspect-ratio: 16 / 9; border-radius: var(--radio-chico); overflow: hidden; background: #000;
+  display: grid; place-items: center; }
+.monitor.programa .pantalla { box-shadow: 0 0 0 3px var(--aire); }
+.monitor.preview .pantalla { box-shadow: 0 0 0 3px var(--armado); }
+.monitor img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
+.monitor:not(.con-imagen) img { display: none; }
+.monitor .sin-imagen { color: #aaa; font-size: 14px; padding: 12px; text-align: center; }
+.monitor figcaption { display: flex; align-items: baseline; gap: 10px; min-width: 0; }
+.rotulo-monitor { font-size: 12px; font-weight: 800; letter-spacing: .08em; padding: 3px 8px; border-radius: 6px; color: #fff; flex: none; }
+.programa .rotulo-monitor { background: var(--aire); }
+.preview .rotulo-monitor { background: var(--armado); }
+.nombre-escena { font-size: 18px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.monitores.sin-imagenes .pantalla { display: none; }
+.acciones-multi { display: grid; grid-template-columns: 2fr 1fr minmax(0, 1.2fr); gap: 12px 14px; align-items: center; }
+.acciones-multi .boton-take { min-width: 0; }
+.acciones-multi .tbar-multi { grid-column: 1 / -1; }
+.transicion-multi { width: 100%; }
+@media (max-width: 700px) { .acciones-multi { grid-template-columns: 1fr 1fr; } .transicion-multi { grid-column: 1 / -1; } }
+.multipantalla.contraida .monitores { display: none; }
 
 .contenido-tarjeta { display: flex; flex-direction: column; gap: 16px; }
 .contenido-tarjeta h3 { margin: 4px 0 0; }
@@ -35,10 +92,8 @@ body { padding-bottom: env(safe-area-inset-bottom); }
 .grande-num { font-size: 22px; }
 
 /* --- Escenas ----------------------------------------------------------------------------- */
-.estado-escenas { gap: 10px; }
 .grilla-escenas { display: grid; gap: 14px; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
 .grilla-escenas ba-boton { display: block; }
-.acciones-escenas ba-boton { min-width: 140px; }
 
 /* --- PTZ --------------------------------------------------------------------------------- */
 .selector-camara { flex: 1; min-width: 160px; }
@@ -71,15 +126,7 @@ body { padding-bottom: env(safe-area-inset-bottom); }
 .dato strong { font-size: 18px; }
 .dato.mal strong { color: var(--aire); }
 
-/* --- Menú de tarjetas, paneles, confirmar, aviso ------------------------------------------- */
-/* El scroll va en .lista-tarjetas, con margen para el relieve de los controles: un
-   contenedor con scroll recorta lo que sobresale de su caja (las sombras, el resalte). */
-.menu-tarjetas { position: fixed; z-index: 8; top: 76px; right: clamp(16px, 3vw, 28px); display: flex; flex-direction: column; gap: 8px;
-  max-height: calc(100vh - 100px); min-width: 280px; padding: 18px 8px 10px; }
-.menu-tarjetas h3 { margin: 0 12px; }
-.lista-tarjetas { display: flex; flex-direction: column; gap: 4px; overflow-y: auto; padding: 8px 10px 12px; }
-.lista-tarjetas ba-toggle { padding: 4px 12px; border-radius: var(--radio-chico); transition: background .15s; }
-.lista-tarjetas ba-toggle:hover { background: var(--superficie-hundida); }
+/* --- Paneles, confirmar, aviso ------------------------------------------------------------- */
 .cubre { position: fixed; inset: 0; z-index: 20; display: flex; align-items: center; justify-content: center; padding: 24px;
   background: color-mix(in srgb, var(--fondo) 82%, transparent); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
 .caja { width: min(480px, 92vw); display: flex; flex-direction: column; gap: 16px; text-align: center; }

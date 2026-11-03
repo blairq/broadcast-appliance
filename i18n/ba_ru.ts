@@ -52,7 +52,7 @@
 <context>
     <name>AccesoRemoto</name>
     <message>
-        <location filename="../src/app/net/AccesoRemoto.cpp" line="+87" />
+        <location filename="../src/app/net/AccesoRemoto.cpp" line="+86" />
         <source>Sin consultar todavía.</source>
         <translation>Ещё не проверено.</translation>
     </message>
@@ -124,12 +124,12 @@
     <message>
         <location line="+5" />
         <location line="+27" />
-        <location line="+287" />
+        <location line="+305" />
         <source>no disponible</source>
         <translation>недоступно</translation>
     </message>
     <message>
-        <location line="-312" />
+        <location line="-330" />
         <location line="+27" />
         <source>Se está transmitiendo o grabando: el túnel no se toca hasta que termine (reinicia la conferencia).</source>
         <translation>Идёт трансляция или запись: туннель не трогаем до её окончания (это перезапускает конференцию).</translation>
@@ -183,7 +183,7 @@
         <translation>Не удалось сохранить в Credenciales/.</translation>
     </message>
     <message>
-        <location line="+19" />
+        <location line="+37" />
         <source>&lt;el destino que muestra el panel de pinggy&gt;</source>
         <translation>&lt;адрес назначения из панели pinggy&gt;</translation>
     </message>
@@ -530,7 +530,7 @@
 <context>
     <name>AgentViewModel</name>
     <message>
-        <location filename="../src/app/agent/AgentViewModel.cpp" line="+433" />
+        <location filename="../src/app/agent/AgentViewModel.cpp" line="+438" />
         <source>Falta la dirección del servidor.</source>
         <translation>Не указан адрес сервера.</translation>
     </message>
@@ -744,12 +744,12 @@
     </message>
     <message>
         <location line="+108" />
-        <location line="+175" />
+        <location line="+222" />
         <source>Proveedor desconocido: %1</source>
         <translation>Неизвестный провайдер: %1</translation>
     </message>
     <message>
-        <location line="-25" />
+        <location line="-62" />
         <source>el modelo local no está disponible en esta versión</source>
         <translation>локальная модель недоступна в этой версии</translation>
     </message>
@@ -759,7 +759,7 @@
         <translation>Ответила локальная модель: сказала это в наушники и, если нужно было что-то сделать, предложила это на панели ассистента.</translation>
     </message>
     <message>
-        <location line="+17" />
+        <location line="+54" />
         <source>Los roles automáticos todavía no pueden usar Gemini (Antigravity).</source>
         <translation>Автоматические роли пока не могут использовать Gemini (Antigravity).</translation>
     </message>
@@ -775,12 +775,12 @@
     </message>
     <message>
         <location line="+21" />
-        <location line="+83" />
+        <location line="+90" />
         <source>No se pudo preparar el agente.</source>
         <translation>Не удалось подготовить агента.</translation>
     </message>
     <message>
-        <location line="-54" />
+        <location line="-59" />
         <source>No hay un modelo local para el chat.</source>
         <translation>Нет локальной модели для чата.</translation>
     </message>
@@ -790,7 +790,7 @@
         <translation>Локальная модель готова.</translation>
     </message>
     <message>
-        <location line="+23" />
+        <location line="+28" />
         <source>Modo seguro: los agentes están apagados hasta el arranque normal.</source>
         <translation>Безопасный режим: агенты выключены до обычного запуска.</translation>
     </message>
@@ -845,7 +845,17 @@
         <translation>Аргументы — не корректный JSON (нужен объект: {"ключ": значение})</translation>
     </message>
     <message>
-        <location line="+127" />
+        <location line="+108" />
+        <source>%1 · Automatización</source>
+        <translation>%1 · Автоматизация</translation>
+    </message>
+    <message>
+        <location line="+0" />
+        <source>%1 · Evento</source>
+        <translation>%1 · Мероприятие</translation>
+    </message>
+    <message>
+        <location line="+99" />
         <source>Primero pará el asistente (la consola está corriendo).</source>
         <translation>Сначала остановите ассистента (консоль работает).</translation>
     </message>
@@ -928,7 +938,27 @@
         <translation>Помимо управления приложением, может пользоваться терминалом, читать и записывать файлы и выходить в интернет (например, скачать изображение и положить его в Medios). Такие действия НЕ проходят через одобрения ассистента: включайте только если роли это нужно.</translation>
     </message>
     <message>
-        <location line="+9" />
+        <location line="+18" />
+        <source>Aparte</source>
+        <translation>Отдельно</translation>
+    </message>
+    <message>
+        <location line="+7" />
+        <source>su propia sesión</source>
+        <translation>своя сессия</translation>
+    </message>
+    <message>
+        <location line="+0" />
+        <source>en la conversación del evento</source>
+        <translation>в беседе мероприятия</translation>
+    </message>
+    <message>
+        <location line="+8" />
+        <source>Apagado: con el asistente de automatización en OpenCode, cada encargo va a su conversación del evento (con todo lo que pasó, sin abrir una sesión nueva por aviso). Prendido: cada encargo corre en su propia sesión, con las herramientas, las instrucciones y el motor del rol. Un rol con otro motor u otro modelo corre aparte siempre.</source>
+        <translation>Выключено: с ассистентом автоматизации в OpenCode каждое поручение попадает в беседу мероприятия (со всем, что произошло, без открытия новой сессии на каждое уведомление). Включено: каждое поручение выполняется в своей сессии, с инструментами, инструкциями и движком роли. Роль с другим движком или другой моделью всегда выполняется отдельно.</translation>
+    </message>
+    <message>
+        <location line="+10" />
         <source>El del asistente</source>
         <translation>Как у ассистента</translation>
     </message>
@@ -1801,7 +1831,7 @@
 <context>
     <name>AsistenteViewModel</name>
     <message>
-        <location filename="../src/app/ui/AsistenteViewModel.cpp" line="+163" />
+        <location filename="../src/app/ui/AsistenteViewModel.cpp" line="+166" />
         <source>Modo seguro</source>
         <translation>Безопасный режим</translation>
     </message>
@@ -1903,6 +1933,16 @@
         <location line="+1" />
         <source>Reiniciar</source>
         <translation>Перезапустить</translation>
+    </message>
+    <message>
+        <location line="+3" />
+        <source>Conversación nueva</source>
+        <translation>Новая беседа</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>Este evento tiene una conversación con el asistente que se retoma al reabrir la app; ahí caen también los avisos automáticos. Esto empieza otra (la de antes queda en el historial).</source>
+        <translation>У этого мероприятия есть беседа с ассистентом, которая продолжается при повторном открытии приложения; автоматические уведомления попадают туда же. Эта кнопка начинает другую (прежняя остаётся в истории).</translation>
     </message>
     <message>
         <location line="+1" />
@@ -3213,7 +3253,7 @@ Agregá un micrófono o una entrada del sistema.</source>
 <context>
     <name>Bancas</name>
     <message>
-        <location filename="../src/app/asamblea/Bancas.cpp" line="+48" />
+        <location filename="../src/app/asamblea/Bancas.cpp" line="+68" />
         <location line="+37" />
         <location line="+60" />
         <location line="+12" />
@@ -3513,7 +3553,7 @@ Esto lo abre en otra ventana, para tener las dos cosas a la vez.</source>
 <context>
     <name>Botonera</name>
     <message>
-        <location filename="../src/app/control/Botonera.cpp" line="+2201" />
+        <location filename="../src/app/control/Botonera.cpp" line="+2200" />
         <source>Los argumentos no son JSON válido (un objeto {…})</source>
         <translation>Аргументы — недопустимый JSON (нужен объект {…})</translation>
     </message>
@@ -6146,7 +6186,7 @@ El PIN anterior deja de servir para entrar.</source>
 <context>
     <name>ConferenceViewModel</name>
     <message>
-        <location filename="../src/app/ui/ConferenceViewModel.cpp" line="+123" />
+        <location filename="../src/app/ui/ConferenceViewModel.cpp" line="+122" />
         <source>La conferencia respondio: %1</source>
         <translation>Конференция ответила: %1</translation>
     </message>
@@ -6171,7 +6211,7 @@ El PIN anterior deja de servir para entrar.</source>
         <translation>В очереди больше никого</translation>
     </message>
     <message>
-        <location line="+78" />
+        <location line="+72" />
         <source>%1 espera en el lobby</source>
         <translation>%1 ждёт в зале ожидания</translation>
     </message>
@@ -6462,7 +6502,7 @@ El PIN anterior deja de servir para entrar.</source>
 <context>
     <name>ControlWeb</name>
     <message>
-        <location filename="../src/app/control/ControlWeb.cpp" line="+388" />
+        <location filename="../src/app/control/ControlWeb.cpp" line="+391" />
         <source>Este aparato fue quitado.</source>
         <translation>Это устройство удалено.</translation>
     </message>
@@ -6470,7 +6510,7 @@ El PIN anterior deja de servir para entrar.</source>
 <context>
     <name>ControlWebGateway</name>
     <message>
-        <location filename="../src/app/control/ControlWebGateway.cpp" line="+94" />
+        <location filename="../src/app/control/ControlWebGateway.cpp" line="+158" />
         <source>El gateway no está andando: el navegador no tendría a quién conectarse.</source>
         <translation>Шлюз не запущен: браузеру не к чему подключиться.</translation>
     </message>
@@ -6649,7 +6689,7 @@ El PIN anterior deja de servir para entrar.</source>
 <context>
     <name>CuentasViewModel</name>
     <message>
-        <location filename="../src/app/ui/CuentasViewModel.cpp" line="+139" />
+        <location filename="../src/app/ui/CuentasViewModel.cpp" line="+148" />
         <location line="+6" />
         <source>El escáner de red no está disponible.</source>
         <translation>Сетевой сканер недоступен.</translation>
@@ -6666,12 +6706,12 @@ El PIN anterior deja de servir para entrar.</source>
         <translation>Плагины недоступны.</translation>
     </message>
     <message>
-        <location line="-60" />
+        <location line="-68" />
         <source>No se pudo leer %1.</source>
         <translation>Не удалось прочитать %1.</translation>
     </message>
     <message>
-        <location line="+72" />
+        <location line="+80" />
         <source>Plataforma desconocida: %1.</source>
         <translation>Неизвестная платформа: %1.</translation>
     </message>
@@ -6848,7 +6888,7 @@ El PIN anterior deja de servir para entrar.</source>
         <translation>Отмена</translation>
     </message>
     <message>
-        <location line="+132" />
+        <location line="+137" />
         <source>Esta tarjeta no se pudo cargar.</source>
         <translation>Не удалось загрузить эту карточку.</translation>
     </message>
@@ -6917,17 +6957,17 @@ Se prende desde el Registro.</source>
         <translation>роль исчезла</translation>
     </message>
     <message>
-        <location line="+29" />
+        <location line="+30" />
         <source>no se pudo preparar el agente</source>
         <translation>не удалось подготовить агента</translation>
     </message>
     <message>
-        <location line="-112" />
+        <location line="-113" />
         <source>el rol `%1` está apagado (página Agentes)</source>
         <translation>роль `%1` выключена (страница «Агенты»)</translation>
     </message>
     <message>
-        <location line="+150" />
+        <location line="+151" />
         <source>el agente terminó con código %1</source>
         <translation>агент завершился с кодом %1</translation>
     </message>
@@ -6962,7 +7002,7 @@ Se prende desde el Registro.</source>
         <translation>Агент %1: %2</translation>
     </message>
     <message>
-        <location line="+160" />
+        <location line="+164" />
         <source>cancelada antes de arrancar</source>
         <translation>отменено до запуска</translation>
     </message>
@@ -8409,7 +8449,7 @@ Se prende desde el Registro.</source>
 <context>
     <name>EditorFiltroAudio</name>
     <message>
-        <location filename="../src/app/qml/controls/EditorFiltroAudio.qml" line="+81" />
+        <location filename="../src/app/qml/controls/EditorFiltroAudio.qml" line="+88" />
         <source>Elegí un módulo</source>
         <translation>Выберите модуль</translation>
     </message>
@@ -9058,6 +9098,34 @@ Se prende desde el Registro.</source>
         <location line="+2" />
         <source>Cancelar</source>
         <translation>Отмена</translation>
+    </message>
+</context>
+<context>
+    <name>EnvioOpencode</name>
+    <message>
+        <location filename="../src/app/agent/EnvioOpencode.cpp" line="+111" />
+        <source>No hay servidor de OpenCode.</source>
+        <translation>Сервера OpenCode нет.</translation>
+    </message>
+    <message>
+        <location line="+14" />
+        <source>OpenCode no creó la sesión del evento: %1</source>
+        <translation>OpenCode не создал сессию мероприятия: %1</translation>
+    </message>
+    <message>
+        <location line="+14" />
+        <source>OpenCode no encontró la sesión del evento: %1</source>
+        <translation>OpenCode не нашёл сессию мероприятия: %1</translation>
+    </message>
+    <message numerus="yes">
+        <location line="+46" />
+        <location line="+32" />
+        <source>No se pudieron mandar %n aviso(s) al asistente: %1</source>
+        <translation>
+            <numerusform>Не удалось отправить %n уведомление ассистенту: %1</numerusform>
+            <numerusform>Не удалось отправить %n уведомления ассистенту: %1</numerusform>
+            <numerusform>Не удалось отправить %n уведомлений ассистенту: %1</numerusform>
+        </translation>
     </message>
 </context>
 <context>
@@ -11565,7 +11633,7 @@ Se prende desde el Registro.</source>
 <context>
     <name>ExtensionesModel</name>
     <message>
-        <location filename="../src/app/ui/ExtensionesModel.cpp" line="+71" />
+        <location filename="../src/app/ui/ExtensionesModel.cpp" line="+70" />
         <source>el nombre de la carpeta tiene caracteres que no se pueden usar</source>
         <translation>в имени папки есть недопустимые символы</translation>
     </message>
@@ -11590,12 +11658,12 @@ Se prende desde el Registro.</source>
         <translation>нет файла %1</translation>
     </message>
     <message>
-        <location line="+92" />
+        <location line="+90" />
         <source>La tarjeta «%1» tiene un error (mirá el Registro)</source>
         <translation>В карточке «%1» ошибка (смотрите «Журнал»)</translation>
     </message>
     <message>
-        <location line="+7" />
+        <location line="+6" />
         <source>En vivo no se cargan extensiones nuevas: se carga al salir del modo en vivo.</source>
         <translation>В эфире новые расширения не загружаются: загрузится после выхода из режима эфира.</translation>
     </message>
@@ -12763,12 +12831,12 @@ Se cambia en su código (sección Plugins, o pidiéndoselo al asistente). Acá s
     </message>
     <message>
         <location line="+64" />
-        <location line="+59" />
+        <location line="+61" />
         <source>Invitado %1</source>
         <translation>Гость %1</translation>
     </message>
     <message>
-        <location line="-49" />
+        <location line="-51" />
         <source>Retorno apagado</source>
         <translation>Контроль выключен</translation>
     </message>
@@ -12778,7 +12846,7 @@ Se cambia en su código (sección Plugins, o pidiéndoselo al asistente). Acá s
         <translation>Этот гость ничего не слышит: его микс без его голоса (mix-minus) не доходит до конференции. Всю программу ему не отправляют, потому что он слышал бы себя с задержкой.</translation>
     </message>
     <message>
-        <location line="+24" />
+        <location line="+26" />
         <source>Red: %1 kbps · pérdida %2 % · jitter %3 ms · RTT %4 ms</source>
         <translation>Сеть: %1 кбит/с · потери %2 % · джиттер %3 мс · RTT %4 мс</translation>
     </message>
@@ -16150,7 +16218,7 @@ La matriz no cambia lo que entra: decide a qué salidas va (las columnas: el pro
 <context>
     <name>MediosViewModel</name>
     <message numerus="yes">
-        <location filename="../src/app/ui/MediosViewModel.cpp" line="+376" />
+        <location filename="../src/app/ui/MediosViewModel.cpp" line="+375" />
         <source>%n archivo a «%1»</source>
         <translation>
             <numerusform>%n файл в «%1»</numerusform>
@@ -19184,13 +19252,13 @@ Agregale imágenes desde la pestaña Archivos.</source>
     </message>
     <message>
         <location line="+1" />
-        <location line="+78" />
+        <location line="+80" />
         <location line="+7" />
         <source>Presidencia</source>
         <translation>Председатель</translation>
     </message>
     <message>
-        <location line="-67" />
+        <location line="-69" />
         <source>· en uso</source>
         <translation>· используется</translation>
     </message>
@@ -19218,23 +19286,23 @@ Agregale imágenes desde la pestaña Archivos.</source>
         <location line="+0" />
         <location line="+35" />
         <location line="+3" />
-        <location line="+199" />
+        <location line="+202" />
         <location line="+2" />
         <source>Revocar</source>
         <translation>Отозвать</translation>
     </message>
     <message>
-        <location line="-239" />
+        <location line="-242" />
         <location line="+19" />
         <location line="+19" />
-        <location line="+92" />
-        <location line="+96" />
+        <location line="+94" />
+        <location line="+97" />
         <location line="+13" />
         <source>Cancelar</source>
         <translation>Отмена</translation>
     </message>
     <message>
-        <location line="-230" />
+        <location line="-233" />
         <source>Todavía no hay ningún acceso. Tocá «Nuevo acceso…» y pasale el link (o el QR) a quien preside.</source>
         <translation>Доступов пока нет. Нажмите «Новый доступ…» и передайте ссылку (или QR) председательствующему.</translation>
     </message>
@@ -19295,7 +19363,7 @@ Agregale imágenes desde la pestaña Archivos.</source>
         <translation>Пока нет: устройства регистрируются сами, когда кто-то впервые входит со своим PIN.</translation>
     </message>
     <message>
-        <location line="+7" />
+        <location line="+9" />
         <source>Nuevo acceso a la consola</source>
         <translation>Новый доступ к консоли</translation>
     </message>
@@ -19417,12 +19485,12 @@ Agregale imágenes desde la pestaña Archivos.</source>
     </message>
     <message>
         <location line="+1" />
-        <location line="+158" />
+        <location line="+159" />
         <source>Usuario</source>
         <translation>Логин</translation>
     </message>
     <message>
-        <location line="-157" />
+        <location line="-158" />
         <source>Acceso</source>
         <translation>Доступ</translation>
     </message>
@@ -19447,7 +19515,12 @@ Agregale imágenes desde la pestaña Archivos.</source>
         <translation>Загрузить участников…</translation>
     </message>
     <message>
-        <location line="+21" />
+        <location line="+17" />
+        <source>%1 · de prueba</source>
+        <translation>%1 · тестовый</translation>
+    </message>
+    <message>
+        <location line="+5" />
         <source>sin acceso</source>
         <translation>нет доступа</translation>
     </message>
@@ -21984,7 +22057,7 @@ Agregale imágenes desde la pestaña Archivos.</source>
 <context>
     <name>PanelInformes</name>
     <message>
-        <location filename="../src/app/qml/controls/PanelInformes.qml" line="+25" />
+        <location filename="../src/app/qml/controls/PanelInformes.qml" line="+28" />
         <source>Generar</source>
         <translation>Создать</translation>
     </message>
@@ -22118,7 +22191,7 @@ Agregale imágenes desde la pestaña Archivos.</source>
         <translation>Открывает Profiler на «%1» с прослушиванием в обход: то, что он выдаёт, не идёт в эфир. Для измерения в рэке входа подключите его выход к карточке «Выход» (колонка); свип от 20 Гц до 20 кГц может звучать громко. Ничего не прозвучит, пока вы не нажмёте «Измерить» в его интерфейсе.</translation>
     </message>
     <message>
-        <location line="+89" />
+        <location line="+90" />
         <source>Mute</source>
         <translation>Mute</translation>
     </message>
@@ -23365,6 +23438,240 @@ Agregale imágenes desde la pestaña Archivos.</source>
     </message>
 </context>
 <context>
+    <name>PanelPruebaAsamblea</name>
+    <message>
+        <location filename="../src/app/qml/controls/PanelPruebaAsamblea.qml" line="+20" />
+        <location line="+26" />
+        <source>Prueba de asamblea</source>
+        <translation>Тест собрания</translation>
+    </message>
+    <message>
+        <location line="-25" />
+        <source>Integrantes de prueba entran como desde el celular: con su link y PIN (o usuario y contraseña), esperan que los habilites en el Recinto, piden la palabra, hablan con cámara y micrófono y votan. Corre en un evento de prueba: nunca toca el padrón real, y al terminar se borran ellos y su acceso.</source>
+        <translation>Тестовые участники входят как с телефона: по своей ссылке и PIN-коду (или логину и паролю), ждут, пока вы допустите их в Зале заседаний, просят слово, выступают с камерой и микрофоном и голосуют. Тест выполняется в тестовом мероприятии: настоящий список он не затрагивает, а по завершении участники и их доступ удаляются.</translation>
+    </message>
+    <message>
+        <location line="+4" />
+        <source>preparada</source>
+        <translation>подготовлен</translation>
+    </message>
+    <message>
+        <location line="+0" />
+        <source>%1/%2 conectados</source>
+        <translation>подключено %1/%2</translation>
+    </message>
+    <message>
+        <location line="+15" />
+        <source>Crear un evento de prueba y abrirlo…</source>
+        <translation>Создать тестовое мероприятие и открыть его…</translation>
+    </message>
+    <message>
+        <location line="+3" />
+        <source>Evento de prueba</source>
+        <translation>Тестовое мероприятие</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Se crea el evento «Prueba de asamblea» vacío (desde cero) y se abre: el programa se reinicia y se corta lo que sale. Para volver a este evento, abrilo desde la pestaña Eventos. ¿Lo creo?</source>
+        <translation>Будет создано пустое мероприятие «Тест собрания» (с нуля) и открыто: программа перезапустится, а то, что идёт в эфир, прервётся. Чтобы вернуться к этому мероприятию, откройте его на вкладке «Мероприятия». Создать?</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Crear y abrir</source>
+        <translation>Создать и открыть</translation>
+    </message>
+    <message>
+        <location line="+0" />
+        <source>Cancelar</source>
+        <translation>Отмена</translation>
+    </message>
+    <message numerus="yes">
+        <location line="+8" />
+        <source>Borrar los %n integrantes de prueba que quedaron</source>
+        <translation>
+            <numerusform>Удалить оставшегося тестового участника (%n)</numerusform>
+            <numerusform>Удалить оставшихся тестовых участников (%n)</numerusform>
+            <numerusform>Удалить оставшихся тестовых участников (%n)</numerusform>
+        </translation>
+    </message>
+    <message>
+        <location line="+11" />
+        <source>Integrantes</source>
+        <translation>Участники</translation>
+    </message>
+    <message>
+        <location line="+3" />
+        <source>Minutos</source>
+        <translation>Минуты</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>% afuera</source>
+        <translation>% вне зала</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>% piden la palabra</source>
+        <translation>% просят слово</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>% votan</source>
+        <translation>% голосуют</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>Cómo votan</source>
+        <translation>Как голосуют</translation>
+    </message>
+    <message>
+        <location line="+7" />
+        <source>Al azar</source>
+        <translation>Случайно</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Mayoría afirmativa (60/30/10)</source>
+        <translation>Большинство «за» (60/30/10)</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Pareja (45/45/10)</source>
+        <translation>Поровну (45/45/10)</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Mayoría negativa (30/60/10)</source>
+        <translation>Большинство «против» (30/60/10)</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Todos afirmativo</source>
+        <translation>Все «за»</translation>
+    </message>
+    <message>
+        <location line="+3" />
+        <source>% se reconectan</source>
+        <translation>% переподключаются</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>% PIN errado</source>
+        <translation>% неверный PIN</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>% con usuario</source>
+        <translation>% с логином</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>Habilitarlos solos a los (s)</source>
+        <translation>Допускать автоматически через (с)</translation>
+    </message>
+    <message>
+        <location line="+3" />
+        <source>0: los habilitás vos en el Recinto, viéndoles la cara (el número)</source>
+        <translation>0: вы допускаете их сами в Зале заседаний, глядя им в лицо (число)</translation>
+    </message>
+    <message>
+        <location line="+7" />
+        <source>Los genera esta máquina (hinchada)</source>
+        <translation>Создаются на этом компьютере (hinchada)</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Sin probador en el programa: generador externo</source>
+        <translation>В программе нет тестера: внешний генератор</translation>
+    </message>
+    <message>
+        <location line="+6" />
+        <source>Los que erran el PIN lo prueban 5 veces: el acceso queda bloqueado 15 minutos, como pasaría de verdad. Los que se reconectan pierden la red una vez y vuelven solos: si fue en menos de 2 minutos, siguen habilitados.</source>
+        <translation>Те, кто вводит неверный PIN, пробуют 5 раз: доступ блокируется на 15 минут, как это было бы на самом деле. Те, кто переподключается, один раз теряют сеть и возвращаются сами: если это длилось меньше 2 минут, они остаются допущенными.</translation>
+    </message>
+    <message>
+        <location line="+9" />
+        <source>Generar integrantes de prueba</source>
+        <translation>Создать тестовых участников</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <location line="+12" />
+        <source>Prueba de asamblea: %1</source>
+        <translation>Тест собрания: %1</translation>
+    </message>
+    <message>
+        <location line="-7" />
+        <source>Arrancar la prueba</source>
+        <translation>Запустить тест</translation>
+    </message>
+    <message>
+        <location line="+13" />
+        <source>Descartar</source>
+        <translation>Отменить</translation>
+    </message>
+    <message>
+        <location line="+10" />
+        <source>%1 esperan que los habiliten</source>
+        <translation>%1 ждут допуска</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>%1 habilitados</source>
+        <translation>%1 допущено</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>%1 afuera</source>
+        <translation>%1 вне зала</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>%1 en la fila</source>
+        <translation>%1 в очереди</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>%1 con la palabra</source>
+        <translation>%1 со словом</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>%1 votaron</source>
+        <translation>%1 проголосовали</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>%1 bloqueados</source>
+        <translation>%1 заблокировано</translation>
+    </message>
+    <message>
+        <location line="+5" />
+        <source>Ir al Recinto (a habilitarlos)</source>
+        <translation>Перейти в Зал заседаний (чтобы допустить их)</translation>
+    </message>
+    <message>
+        <location line="+3" />
+        <source>Terminar la prueba</source>
+        <translation>Завершить тест</translation>
+    </message>
+    <message>
+        <location line="+3" />
+        <source>Terminando: el probador se va y se limpia…</source>
+        <translation>Завершение: тестер уходит, идёт очистка…</translation>
+    </message>
+    <message>
+        <location line="+7" />
+        <source>Generador externo: copiá este archivo a la otra máquina (son credenciales de prueba: se revocan al terminar) y corré ahí la línea de abajo:</source>
+        <translation>Внешний генератор: скопируйте этот файл на другой компьютер (это тестовые учётные данные: по завершении они отзываются) и запустите там строку ниже:</translation>
+    </message>
+    <message>
+        <location line="+21" />
+        <source>Última: %1 (en el evento: %2)</source>
+        <translation>Последний: %1 (в мероприятии: %2)</translation>
+    </message>
+</context>
+<context>
     <name>PanelPruebaSala</name>
     <message>
         <location filename="../src/app/qml/controls/PanelPruebaSala.qml" line="+16" />
@@ -24186,7 +24493,7 @@ Agregale imágenes desde la pestaña Archivos.</source>
         <translation>Свойства элемента. В текстовом значении {dir} — папка плагина (для модели или .engine, положенных туда).</translation>
     </message>
     <message>
-        <location line="+21" />
+        <location line="+28" />
         <source>Modelos</source>
         <translation>Модели</translation>
     </message>
@@ -26172,7 +26479,7 @@ Agregale imágenes desde la pestaña Archivos.</source>
         <translation>Выберите экран слева.</translation>
     </message>
     <message>
-        <location line="+20" />
+        <location line="+27" />
         <source>Mostrar</source>
         <translation>Показать</translation>
     </message>
@@ -26240,7 +26547,7 @@ Agregale imágenes desde la pestaña Archivos.</source>
 <context>
     <name>PantallasViewModel</name>
     <message>
-        <location filename="../src/app/ui/PantallasViewModel.cpp" line="+245" />
+        <location filename="../src/app/ui/PantallasViewModel.cpp" line="+244" />
         <source>Este programa se compiló sin búsqueda en la red: agregá el televisor a mano con su dirección IP.</source>
         <translation>Эта программа собрана без поиска в сети: добавьте телевизор вручную по IP-адресу.</translation>
     </message>
@@ -26250,7 +26557,7 @@ Agregale imágenes desde la pestaña Archivos.</source>
         <translation>(шлюз запрашивает его при отправке)</translation>
     </message>
     <message>
-        <location filename="../src/app/ui/PantallasViewModel.cpp" line="+126" />
+        <location filename="../src/app/ui/PantallasViewModel.cpp" line="+170" />
         <source>No encontré ningún televisor en la red</source>
         <translation>В сети не найдено ни одного телевизора</translation>
     </message>
@@ -26926,7 +27233,7 @@ De frente, de costado, con anteojos y sin: así se la reconoce en el día real.<
         <translation>На «%1» нет изображения.</translation>
     </message>
     <message>
-        <location filename="../src/app/ui/PersonasViewModel.cpp" line="+303" />
+        <location filename="../src/app/ui/PersonasViewModel.cpp" line="+306" />
         <location line="+22" />
         <location line="+32" />
         <source>La foto no se pudo leer.</source>
@@ -27019,7 +27326,7 @@ De frente, de costado, con anteojos y sin: así se la reconoce en el día real.<
         <translation>В картотеке лиц уже %1 профилей: я выключил автоматическое добавление, чтобы не заполнять её незнакомцами. Дополните или удалите лишние.</translation>
     </message>
     <message>
-        <location line="+67" />
+        <location line="+66" />
         <location filename="../src/app/ui/TarjetasRostros.cpp" line="+54" />
         <source>Cámara · %1</source>
         <translation>Камера · %1</translation>
@@ -28179,6 +28486,55 @@ De frente, de costado, con anteojos y sin: así se la reconoce en el día real.<
     </message>
 </context>
 <context>
+    <name>PruebaAsambleaViewModel</name>
+    <message numerus="yes">
+        <location filename="../src/app/ui/PruebaAsambleaViewModel.cpp" line="+177" />
+        <source>Prueba de asamblea: %n integrantes de prueba con su acceso, en el Recinto.</source>
+        <translation>
+            <numerusform>Тест собрания: %n тестовый участник с доступом, в Зале заседаний.</numerusform>
+            <numerusform>Тест собрания: %n тестовых участника с доступом, в Зале заседаний.</numerusform>
+            <numerusform>Тест собрания: %n тестовых участников с доступом, в Зале заседаний.</numerusform>
+        </translation>
+    </message>
+    <message>
+        <location line="+65" />
+        <source>Prueba de asamblea abierta: corré el generador externo con el archivo de credenciales.</source>
+        <translation>Тест собрания открыт: запустите внешний генератор с файлом учётных данных.</translation>
+    </message>
+    <message numerus="yes">
+        <location line="+40" />
+        <source>Prueba de asamblea: entran %n integrantes de prueba (la primera vez el probador graba su video unos minutos).</source>
+        <translation>
+            <numerusform>Тест собрания: входит %n тестовый участник (в первый раз тестер несколько минут записывает своё видео).</numerusform>
+            <numerusform>Тест собрания: входят %n тестовых участника (в первый раз тестер несколько минут записывает своё видео).</numerusform>
+            <numerusform>Тест собрания: входят %n тестовых участников (в первый раз тестер несколько минут записывает своё видео).</numerusform>
+        </translation>
+    </message>
+    <message>
+        <location line="+145" />
+        <source>Prueba de asamblea (integrantes simulados por la sesión remota)</source>
+        <translation>Тест собрания (участники имитируются через удалённую сессию)</translation>
+    </message>
+    <message numerus="yes">
+        <location line="+22" />
+        <source>Se borraron %n integrantes de prueba que habían quedado (y su acceso).</source>
+        <translation>
+            <numerusform>Удалён %n оставшийся тестовый участник (и его доступ).</numerusform>
+            <numerusform>Удалены %n оставшихся тестовых участника (и их доступ).</numerusform>
+            <numerusform>Удалены %n оставшихся тестовых участников (и их доступ).</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location line="+18" />
+        <source>Había una prueba de asamblea sin terminar (el programa se cerró en el medio): se borraron %n integrantes de prueba y su acceso.</source>
+        <translation>
+            <numerusform>Был незавершённый тест собрания (программа закрылась посреди теста): удалены %n тестовый участник и его доступ.</numerusform>
+            <numerusform>Был незавершённый тест собрания (программа закрылась посреди теста): удалены %n тестовых участника и их доступ.</numerusform>
+            <numerusform>Был незавершённый тест собрания (программа закрылась посреди теста): удалены %n тестовых участников и их доступ.</numerusform>
+        </translation>
+    </message>
+</context>
+<context>
     <name>PruebaSalaViewModel</name>
     <message numerus="yes">
         <location filename="../src/app/ui/PruebaSalaViewModel.cpp" line="+173" />
@@ -29160,6 +29516,19 @@ De frente, de costado, con anteojos y sin: así se la reconoce en el día real.<
         <location line="+8" />
         <source>No pude cambiarlo</source>
         <translation>Не удалось изменить</translation>
+    </message>
+</context>
+<context>
+    <name>QObject</name>
+    <message>
+        <location filename="../src/app/agent/EnvioOpencode.cpp" line="-180" />
+        <source>el servidor de OpenCode no contesta</source>
+        <translation>сервер OpenCode не отвечает</translation>
+    </message>
+    <message>
+        <location line="+0" />
+        <source>HTTP %1</source>
+        <translation>HTTP %1</translation>
     </message>
 </context>
 <context>
@@ -32068,12 +32437,12 @@ Para la escena base de la que salen las demás.</source>
 <context>
     <name>SelectorHerramientas</name>
     <message>
-        <location filename="../src/app/qml/controls/SelectorHerramientas.qml" line="+112" />
+        <location filename="../src/app/qml/controls/SelectorHerramientas.qml" line="+111" />
         <source>Qué hace este botón</source>
         <translation>Что делает эта кнопка</translation>
     </message>
     <message>
-        <location line="+8" />
+        <location line="+9" />
         <source>Buscar en todo: «poner al aire», «música», «grabar», «cámara 2»…</source>
         <translation>Поиск по всему: «вывести в эфир», «музыка», «запись», «камера 2»…</translation>
     </message>
@@ -32253,12 +32622,12 @@ Para la escena base de la que salen las demás.</source>
 <context>
     <name>SesionRemota</name>
     <message>
-        <location filename="../src/app/asamblea/SesionRemota.cpp" line="+480" />
+        <location filename="../src/app/asamblea/SesionRemota.cpp" line="+493" />
         <source>%1 entró a la sesión y espera que lo habiliten</source>
         <translation>%1 вошёл в заседание и ждёт допуска</translation>
     </message>
     <message>
-        <location line="+13" />
+        <location line="+14" />
         <source>Acceso de %1 bloqueado 15 minutos por PIN errado varias veces</source>
         <translation>Доступ %1 заблокирован на 15 минут после нескольких неверных PIN</translation>
     </message>
@@ -32422,12 +32791,12 @@ Para la escena base de la que salen las demás.</source>
     </message>
     <message>
         <location line="+1" />
-        <location line="+710" />
+        <location line="+717" />
         <source>Seguridad</source>
         <translation>Безопасность</translation>
     </message>
     <message>
-        <location line="-710" />
+        <location line="-717" />
         <source>Archivos</source>
         <translation>Файлы</translation>
     </message>
@@ -32495,10 +32864,10 @@ Para la escena base de la que salen las demás.</source>
     <message>
         <location line="+1" />
         <location line="+12" />
-        <location line="+162" />
+        <location line="+163" />
         <location line="+335" />
         <location line="+81" />
-        <location line="+111" />
+        <location line="+117" />
         <location line="+338" />
         <location line="+20" />
         <location line="+38" />
@@ -32507,7 +32876,7 @@ Para la escena base de la que salen las demás.</source>
         <translation>Отмена</translation>
     </message>
     <message>
-        <location line="-1137" />
+        <location line="-1144" />
         <source>Configuración, credenciales, grabaciones y archivos no se tocan.</source>
         <translation>Настройки, учётные данные, записи и файлы не затрагиваются.</translation>
     </message>
@@ -32537,7 +32906,7 @@ Para la escena base de la que salen las demás.</source>
         <translation>Настройки</translation>
     </message>
     <message>
-        <location line="+55" />
+        <location line="+56" />
         <source>Mostrar ajustes avanzados</source>
         <translation>Показать дополнительные настройки</translation>
     </message>
@@ -32584,7 +32953,7 @@ Para la escena base de la que salen las demás.</source>
         <location line="+381" />
         <location line="+4" />
         <location line="+31" />
-        <location line="+495" />
+        <location line="+501" />
         <location line="+4" />
         <location line="+58" />
         <location line="+40" />
@@ -32594,7 +32963,7 @@ Para la escena base de la que salen las demás.</source>
         <translation>Удалить</translation>
     </message>
     <message>
-        <location line="-1424" />
+        <location line="-1430" />
         <source>Token de Cloudflare borrado.</source>
         <translation>Токен Cloudflare удалён.</translation>
     </message>
@@ -32620,12 +32989,12 @@ Para la escena base de la que salen las demás.</source>
     </message>
     <message>
         <location line="+8" />
-        <location line="+536" />
+        <location line="+542" />
         <source>Valores por defecto de esta sección</source>
         <translation>Значения по умолчанию для этого раздела</translation>
     </message>
     <message>
-        <location line="-525" />
+        <location line="-531" />
         <source>Reiniciar el servidor ahora</source>
         <translation>Перезапустить сервер сейчас</translation>
     </message>
@@ -32641,12 +33010,12 @@ Para la escena base de la que salen las demás.</source>
     </message>
     <message>
         <location line="+1" />
-        <location line="+527" />
+        <location line="+533" />
         <source>Reiniciar</source>
         <translation>Перезапустить</translation>
     </message>
     <message>
-        <location line="-524" />
+        <location line="-530" />
         <source>El servidor se está reiniciando.</source>
         <translation>Сервер перезапускается.</translation>
     </message>
@@ -32812,13 +33181,13 @@ Para la escena base de la que salen las demás.</source>
     </message>
     <message>
         <location line="+3" />
-        <location line="+614" />
+        <location line="+620" />
         <location line="+978" />
         <source>Actualizar</source>
         <translation>Обновить</translation>
     </message>
     <message>
-        <location line="-1578" />
+        <location line="-1584" />
         <source>Copiar</source>
         <translation>Копировать</translation>
     </message>
@@ -33053,7 +33422,7 @@ Para la escena base de la que salen las demás.</source>
         <translation>Это должен сделать тот, кто администрирует домен. Составлено из того, что вы ввели выше: скопируйте и отправьте ему.</translation>
     </message>
     <message>
-        <location line="+13" />
+        <location line="+19" />
         <source>Copiar instrucciones</source>
         <translation>Копировать инструкции</translation>
     </message>
@@ -34118,7 +34487,7 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
 <context>
     <name>SourcesModel</name>
     <message>
-        <location filename="../src/app/ui/ListModels.cpp" line="+379" />
+        <location filename="../src/app/ui/ListModels.cpp" line="+378" />
         <source>No existe la fuente '%1'.</source>
         <translation>Источник '%1' не существует.</translation>
     </message>
@@ -34194,7 +34563,7 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
         <translation>🪑 %1 · место %2</translation>
     </message>
     <message>
-        <location line="+10" />
+        <location line="+9" />
         <source>Terminar</source>
         <translation>Завершить</translation>
     </message>
@@ -34312,7 +34681,7 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
 <context>
     <name>StudioViewModel</name>
     <message>
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="+137" />
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="+138" />
         <source>%1 (no se pudo: %2)</source>
         <translation>%1 (не удалось: %2)</translation>
     </message>
@@ -34342,7 +34711,7 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
         <translation>Автоматический титр не вышел: %1</translation>
     </message>
     <message>
-        <location line="+276" />
+        <location line="+279" />
         <source>no contestó</source>
         <translation>не ответил</translation>
     </message>
@@ -34362,7 +34731,7 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
         <translation>Диск мероприятий заполнен на %1 % (осталось %2 ГБ)</translation>
     </message>
     <message>
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="+311" />
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="+317" />
         <source>La interfaz estuvo trabada %1 s; el aire siguió</source>
         <translation>Интерфейс завис на %1 с; эфир продолжался</translation>
     </message>
@@ -37816,7 +38185,7 @@ Escucha:
         <translation>Без GStreamer: %1</translation>
     </message>
     <message>
-        <location line="+225" />
+        <location line="+273" />
         <source>«%1» no es una entrada de video</source>
         <translation>«%1» — не видеовход</translation>
     </message>
@@ -39713,7 +40082,7 @@ Elegí otra cosa en Salidas → Pantallas.</source>
 <context>
     <name>acceso</name>
     <message>
-        <location filename="../src/app/net/AccesoRemoto.cpp" line="-680" />
+        <location filename="../src/app/net/AccesoRemoto.cpp" line="-698" />
         <source>Está vacío.</source>
         <translation>Пусто.</translation>
     </message>
@@ -39733,7 +40102,7 @@ Elegí otra cosa en Salidas → Pantallas.</source>
         <translation>Слишком длинный: не вставилось ли что-то лишнее?</translation>
     </message>
     <message>
-        <location line="+542" />
+        <location line="+560" />
         <source>pinggy no aceptó la API key</source>
         <translation>pinggy не принял API key</translation>
     </message>
@@ -40100,13 +40469,13 @@ Elegí otra cosa en Salidas → Pantallas.</source>
 <context>
     <name>agente</name>
     <message>
-        <location filename="../src/app/agent/Despachador.cpp" line="-599" />
+        <location filename="../src/app/agent/Despachador.cpp" line="-604" />
         <location line="+33" />
         <source>no se pudo encargar: %1</source>
         <translation>не удалось поручить: %1</translation>
     </message>
     <message>
-        <location line="+190" />
+        <location line="+191" />
         <source>corrida %1 arranca con %2 (con consola, %3)</source>
         <translation>запуск %1 стартует с %2 (с консолью, %3)</translation>
     </message>
@@ -41929,7 +42298,7 @@ Elegí otra cosa en Salidas → Pantallas.</source>
         <translation>Самый длинный ответ</translation>
     </message>
     <message>
-        <location filename="../src/app/ui/SettingsModel.cpp" line="+287" />
+        <location filename="../src/app/ui/SettingsModel.cpp" line="+286" />
         <location filename="../src/core/ajustes/Registro.cpp" line="+0" />
         <source>tokens</source>
         <translation>токенов</translation>
@@ -43670,7 +44039,7 @@ Elegí otra cosa en Salidas → Pantallas.</source>
         <translation>Никогда: автоматическое одобрение (на ваш риск)</translation>
     </message>
     <message>
-        <location line="+701" />
+        <location line="+692" />
         <source>Algunos cambios rigen desde el próximo arranque.</source>
         <translation>Некоторые изменения вступят в силу при следующем запуске.</translation>
     </message>
@@ -43680,7 +44049,7 @@ Elegí otra cosa en Salidas → Pantallas.</source>
         <translation>Настройки сохранены.</translation>
     </message>
     <message>
-        <location line="-707" />
+        <location line="-698" />
         <source>Una aprobación espera hasta</source>
         <translation>Одобрение ждёт до</translation>
     </message>
@@ -43815,7 +44184,7 @@ Elegí otra cosa en Salidas → Pantallas.</source>
         <translation>Если выключен, сторожевой процесс перезапускает автоматически без вопроса.</translation>
     </message>
     <message>
-        <location line="+384" />
+        <location line="+375" />
         <source>EN VIVO: no se aplica «%1»: reinicia el gateway, el motor o el programa y corta a los invitados o el aire. Volvé atrás esos cambios o esperá a terminar la transmisión.</source>
         <translation>ПРЯМОЙ ЭФИР: «%1» не применяется: это перезапускает шлюз, движок или программу и отключает гостей или эфир. Отмените эти изменения или дождитесь окончания трансляции.</translation>
     </message>
@@ -43855,7 +44224,7 @@ Elegí otra cosa en Salidas → Pantallas.</source>
         <translation>Вместимость: %1</translation>
     </message>
     <message>
-        <location line="-534" />
+        <location line="-525" />
         <source>Automático (hardware si hay)</source>
         <translation>Автоматически (аппаратный, если есть)</translation>
     </message>
@@ -43865,7 +44234,7 @@ Elegí otra cosa en Salidas → Pantallas.</source>
         <translation>Детерминированная защита: когда ассистент прочитал что-то, написанное гостями или аудиторией (чат, имена, файлы, их видео), любое действие, которое что-то меняет, ждёт вашего щелчка одобрения на панели внизу. Так гость не сможет заставить ассистента что-либо изменить. С «Никогда» всё одобряется автоматически: гость может написать в чате что-то, что ассистент в итоге выполнит. Меняется только здесь (ассистент не может).</translation>
     </message>
     <message>
-        <location line="+602" />
+        <location line="+593" />
         <source>Los avanzados del arranque rigen al volver a abrir el programa.</source>
         <translation>Дополнительные параметры запуска вступают в силу при повторном открытии программы.</translation>
     </message>
@@ -44728,7 +45097,7 @@ Elegí otra cosa en Salidas → Pantallas.</source>
 <context>
     <name>arranque</name>
     <message>
-        <location filename="../src/app/arranque/GuiMode.cpp" line="+177" />
+        <location filename="../src/app/arranque/GuiMode.cpp" line="+181" />
         <source>arranque: el cartel de carga ya se ve</source>
         <translation>запуск: заставка загрузки уже видна</translation>
     </message>
@@ -44778,7 +45147,7 @@ Elegí otra cosa en Salidas → Pantallas.</source>
         <translation>запуск: модель приложения, %1 мс</translation>
     </message>
     <message>
-        <location line="+43" />
+        <location line="+48" />
         <source>Abriendo la interfaz…</source>
         <translation>Открытие интерфейса…</translation>
     </message>
@@ -44818,7 +45187,7 @@ Elegí otra cosa en Salidas → Pantallas.</source>
         <translation>запуск: сервер MCP, %1 мс</translation>
     </message>
     <message>
-        <location line="+107" />
+        <location line="+108" />
         <source>servidor MCP en %1 (token: bin/64bit/ba-mcp --token; stdio: ba-mcp)</source>
         <translation>сервер MCP на %1 (токен: bin/64bit/ba-mcp --token; stdio: ba-mcp)</translation>
     </message>
@@ -44921,7 +45290,7 @@ Elegí otra cosa en Salidas → Pantallas.</source>
     </message>
     <message>
         <location line="-57" />
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="-891" />
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="-900" />
         <source>arranque: %1 tardó %2 ms</source>
         <translation>запуск: %1 занял %2 мс</translation>
     </message>
@@ -45371,7 +45740,7 @@ Elegí otra cosa en Salidas → Pantallas.</source>
         <translation>Параметры — не корректный JSON (нужен объект: {"ключ": значение})</translation>
     </message>
     <message>
-        <location filename="../src/app/asamblea/Cuerpo.cpp" line="+111" />
+        <location filename="../src/app/asamblea/Cuerpo.cpp" line="+112" />
         <source>falta la banca</source>
         <translation>не указано место</translation>
     </message>
@@ -45452,7 +45821,7 @@ Elegí otra cosa en Salidas → Pantallas.</source>
         <translation>не указано имя</translation>
     </message>
     <message>
-        <location line="+74" />
+        <location line="+88" />
         <source>no se pudo abrir %1</source>
         <translation>не удалось открыть %1</translation>
     </message>
@@ -45508,7 +45877,7 @@ Elegí otra cosa en Salidas → Pantallas.</source>
         <translation>очередь: a, b, ambos или nadie</translation>
     </message>
     <message>
-        <location filename="../src/app/asamblea/InformesResultado.cpp" line="+103" />
+        <location filename="../src/app/asamblea/InformesResultado.cpp" line="+106" />
         <source>sí</source>
         <translation>да</translation>
     </message>
@@ -45596,7 +45965,7 @@ Elegí otra cosa en Salidas → Pantallas.</source>
     <message>
         <location line="+8" />
         <location line="+7" />
-        <location line="+16" />
+        <location line="+43" />
         <source>no hay una plantilla «%1»</source>
         <translation>шаблона «%1» нет</translation>
     </message>
@@ -45899,7 +46268,7 @@ Elegí otra cosa en Salidas → Pantallas.</source>
         <translation>предложений нет</translation>
     </message>
     <message>
-        <location filename="../src/app/asamblea/SesionRemota.cpp" line="-361" />
+        <location filename="../src/app/asamblea/SesionRemota.cpp" line="-364" />
         <source>El servidor todavía no dio su dirección: completá el comienzo del link.</source>
         <translation>Сервер ещё не сообщил свой адрес: заполните начало ссылки.</translation>
     </message>
@@ -45931,7 +46300,7 @@ Elegí otra cosa en Salidas → Pantallas.</source>
         <translation>сначала создайте его ссылку и PIN</translation>
     </message>
     <message>
-        <location line="+262" />
+        <location line="+265" />
         <source>La votación no está abierta.</source>
         <translation>Голосование не открыто.</translation>
     </message>
@@ -45957,7 +46326,7 @@ Elegí otra cosa en Salidas → Pantallas.</source>
         <translation>Председатель отключил вас.</translation>
     </message>
     <message>
-        <location line="+159" />
+        <location line="+160" />
         <source>%1 · Banca %2</source>
         <translation>%1 · Место %2</translation>
     </message>
@@ -46220,11 +46589,189 @@ Elegí otra cosa en Salidas → Pantallas.</source>
         <source>Sin quórum</source>
         <translation>Нет кворума</translation>
     </message>
+    <message>
+        <location filename="../src/app/asamblea/PruebaAsambleaReglas.cpp" line="+54" />
+        <source>el comportamiento va como un objeto</source>
+        <translation>поведение должно быть объектом</translation>
+    </message>
+    <message>
+        <location line="+10" />
+        <source>%1: un porcentaje de 0 a 100</source>
+        <translation>%1: процент от 0 до 100</translation>
+    </message>
+    <message>
+        <location line="+5" />
+        <source>pin_errado_intentos: de 1 a 20 (con 5, el gateway lo bloquea)</source>
+        <translation>pin_errado_intentos: от 1 до 20 (при 5 gateway блокирует доступ)</translation>
+    </message>
+    <message>
+        <location line="+5" />
+        <source>entrada_cada_ms: de 0 a 60000</source>
+        <translation>entrada_cada_ms: от 0 до 60000</translation>
+    </message>
+    <message>
+        <location line="+5" />
+        <source>habilitar_solos_s: de 0 (el operador) a 3600</source>
+        <translation>habilitar_solos_s: от 0 (оператор) до 3600</translation>
+    </message>
+    <message>
+        <location line="+4" />
+        <source>programa: sí o no</source>
+        <translation>programa: да или нет</translation>
+    </message>
+    <message>
+        <location line="+11" />
+        <source>voto: cada opción con una proporción positiva</source>
+        <translation>voto: у каждого варианта положительная доля</translation>
+    </message>
+    <message>
+        <location line="+4" />
+        <location line="+14" />
+        <source>voto: «azar» o las proporciones (afirmativo:60,negativo:30,abstencion:10)</source>
+        <translation>voto: «azar» или доли (afirmativo:60,negativo:30,abstencion:10)</translation>
+    </message>
+    <message>
+        <location line="+4" />
+        <source>voto: alguna opción con proporción mayor que cero</source>
+        <translation>voto: хотя бы у одного варианта доля больше нуля</translation>
+    </message>
+    <message>
+        <location line="+35" />
+        <source>la prueba necesita al menos un integrante</source>
+        <translation>для теста нужен хотя бы один участник</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>la prueba admite hasta %1 integrantes simulados</source>
+        <translation>тест допускает до %1 имитируемых участников</translation>
+    </message>
+    <message>
+        <location line="+3" />
+        <source>el padrón de este evento tiene %1 integrantes reales: la prueba de asamblea corre en un evento de prueba, para no tocar el padrón, el quórum ni el acta (creá uno vacío y abrilo)</source>
+        <translation>в списке этого мероприятия %1 настоящих участников: тест собрания выполняется в тестовом мероприятии, чтобы не затрагивать список, кворум и протокол (создайте пустое и откройте его)</translation>
+    </message>
+    <message>
+        <location line="+5" />
+        <source>quedan integrantes de una prueba anterior: terminala (o limpiala) antes de empezar otra</source>
+        <translation>остались участники предыдущего теста: завершите его (или очистите) перед началом нового</translation>
+    </message>
+    <message>
+        <location line="+16" />
+        <source>Prueba %1</source>
+        <translation>Тест %1</translation>
+    </message>
+    <message>
+        <location line="+5" />
+        <source>Integrante de prueba</source>
+        <translation>Тестовый участник</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Prueba</source>
+        <translation>Тест</translation>
+    </message>
+    <message>
+        <location line="+109" />
+        <source>%1 integrantes de prueba: entraron %2, habilitados %3, pidieron la palabra %4, votaron %5, bloqueados %6</source>
+        <translation>Тестовых участников %1: вошли %2, допущены %3, просили слово %4, проголосовали %5, заблокированы %6</translation>
+    </message>
+    <message>
+        <location line="+11" />
+        <source>; espera hasta que los habilitan p50 %1 s</source>
+        <translation>; ожидание допуска p50 %1 с</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>; voto confirmado p50 %1 ms</source>
+        <translation>; подтверждение голоса p50 %1 мс</translation>
+    </message>
+    <message>
+        <location filename="../src/app/ui/PruebaAsambleaViewModel.cpp" line="-365" />
+        <location line="+23" />
+        <source>la sesión remota no está disponible</source>
+        <translation>удалённая сессия недоступна</translation>
+    </message>
+    <message>
+        <location line="-1" />
+        <location line="+65" />
+        <source>ya hay una prueba de asamblea en curso</source>
+        <translation>тест собрания уже идёт</translation>
+    </message>
+    <message>
+        <location line="-43" />
+        <source>no se pudieron crear los integrantes de prueba</source>
+        <translation>не удалось создать тестовых участников</translation>
+    </message>
+    <message>
+        <location line="+46" />
+        <source>la prueba dura de 1 a 120 minutos</source>
+        <translation>тест длится от 1 до 120 минут</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>el probador (hinchada) no viene en este programa: usá un generador externo</source>
+        <translation>тестер (hinchada) не входит в эту программу: используйте внешний генератор</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>la conferencia no está andando (el gateway atiende la sesión remota)</source>
+        <translation>конференция не запущена (gateway обслуживает удалённую сессию)</translation>
+    </message>
+    <message>
+        <location line="+22" />
+        <source>no se pudo escribir el archivo de credenciales: %1</source>
+        <translation>не удалось записать файл учётных данных: %1</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>no se pudo escribir el archivo de credenciales</source>
+        <translation>не удалось записать файл учётных данных</translation>
+    </message>
+    <message>
+        <location line="+28" />
+        <source>la conferencia no tiene HTTPS: el probador no puede entrar</source>
+        <translation>у конференции нет HTTPS: тестер не может войти</translation>
+    </message>
+    <message>
+        <location line="+27" />
+        <source>el probador terminó</source>
+        <translation>тестер завершил работу</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>el probador terminó con error (código %1): ver consola.txt</source>
+        <translation>тестер завершил работу с ошибкой (код %1): см. consola.txt</translation>
+    </message>
+    <message>
+        <location line="+5" />
+        <source>no arrancó el probador (hinchada)</source>
+        <translation>тестер (hinchada) не запустился</translation>
+    </message>
+    <message>
+        <location line="+47" />
+        <source>terminó el tiempo</source>
+        <translation>время вышло</translation>
+    </message>
+    <message>
+        <location line="+6" />
+        <source>a mano</source>
+        <translation>вручную</translation>
+    </message>
+    <message>
+        <location line="+36" />
+        <source>Terminó la prueba de asamblea.</source>
+        <translation>Тест собрания завершён.</translation>
+    </message>
+    <message>
+        <location line="+79" />
+        <source>hay una prueba en curso: terminala</source>
+        <translation>тест идёт: завершите его</translation>
+    </message>
 </context>
 <context>
     <name>asistente</name>
     <message>
-        <location filename="../src/app/agent/AgentViewModel.cpp" line="-2266" />
+        <location filename="../src/app/agent/AgentViewModel.cpp" line="-2404" />
         <source>Claude — suscripción Pro/Max</source>
         <translation>Claude — подписка Pro/Max</translation>
     </message>
@@ -46294,7 +46841,12 @@ Elegí otra cosa en Salidas → Pantallas.</source>
         <translation>Ваш собственный сервер. Укажите его адрес (baseURL), какую модель запрашивать и дополнительные параметры, которые он понимает, и вставьте его ключ. Им управляет opencode: это устройство не общается с моделью, а составляет для неё конфигурацию.</translation>
     </message>
     <message>
-        <location line="+2015" />
+        <location line="+1628" />
+        <source>Para el rol «%1» (lo atendés vos, en esta conversación del evento). Instrucciones del rol:</source>
+        <translation>Для роли «%1» (вы обслуживаете её в этой беседе мероприятия). Инструкции роли:</translation>
+    </message>
+    <message>
+        <location line="+445" />
         <source>%1 — Atendelo según lo acordado (si no hay nada acordado, revisá con las herramientas, contame qué pasó y proponé qué hacer).</source>
         <translation>%1 — Обработайте это, как договорились (если ничего не договорено, проверьте инструментами, расскажите, что произошло, и предложите, что делать).</translation>
     </message>
@@ -46486,7 +47038,7 @@ Pedido del operador: «%6»</source>
         <translation>этот движок работает только через свой консольный агент (долго запускается): для терминала регистрации выберите локальную модель, свою, OpenRouter или Gemini с ключом</translation>
     </message>
     <message>
-        <location filename="../src/app/agent/Despachador.cpp" line="-605" />
+        <location filename="../src/app/agent/Despachador.cpp" line="-606" />
         <source>[%1] %2 (disparador %3, tipo %4)</source>
         <translation>[%1] %2 (триггер %3, тип %4)</translation>
     </message>
@@ -46496,7 +47048,7 @@ Pedido del operador: «%6»</source>
         <translation>Что произошло сегодня раньше с вашей ролью (сначала самое новое):</translation>
     </message>
     <message>
-        <location line="+20" />
+        <location line="+21" />
         <source>ENCARGO:</source>
         <translation>ПОРУЧЕНИЕ:</translation>
     </message>
@@ -46511,7 +47063,7 @@ Pedido del operador: «%6»</source>
         <translation>Смотрит на ОДНО изображение и отвечает на ОДИН конкретный вопрос. Ничем не управляет.</translation>
     </message>
     <message>
-        <location line="+18" />
+        <location line="+19" />
         <source>Escenógrafo</source>
         <translation>Художник-постановщик</translation>
     </message>
@@ -46521,7 +47073,7 @@ Pedido del operador: «%6»</source>
         <translation>Проектирует, как выглядит программа: сцены, источники и графику. В эфир не выводит.</translation>
     </message>
     <message>
-        <location line="+19" />
+        <location line="+20" />
         <source>Organizador</source>
         <translation>Организатор</translation>
     </message>
@@ -46531,7 +47083,7 @@ Pedido del operador: «%6»</source>
         <translation>Собирает всё мероприятие по вашему рассказу: дату, блоки со временем и список участников.</translation>
     </message>
     <message>
-        <location line="+25" />
+        <location line="+26" />
         <source>Recepción</source>
         <translation>Ресепшен</translation>
     </message>
@@ -47184,12 +47736,12 @@ Datos (de %2): %3</source>
         <translation> Что я уже знаю: %1</translation>
     </message>
     <message>
-        <location filename="../src/app/ui/AsistenteViewModel.cpp" line="-238" />
+        <location filename="../src/app/ui/AsistenteViewModel.cpp" line="-241" />
         <source>La app se reinició y ya está abierto el evento «%1». Si estabas en medio de algo, seguí desde donde quedaste; si no, esperá lo que te pida el operador.</source>
         <translation>Приложение перезапустилось, мероприятие «%1» уже открыто. Если вы были в середине работы, продолжайте с того места; если нет, ждите запроса оператора.</translation>
     </message>
     <message>
-        <location line="+81" />
+        <location line="+84" />
         <source>el invitado %1</source>
         <translation>гость %1</translation>
     </message>
@@ -49293,7 +49845,7 @@ Datos (de %2): %3</source>
         <translation>%1: схема %2 → %3</translation>
     </message>
     <message>
-        <location filename="../src/core/persist/ArchivoConfig.cpp" line="+208" />
+        <location filename="../src/core/persist/ArchivoConfig.cpp" line="+209" />
         <source>%1: lo escribió una versión más nueva (esta escribe el esquema %2): no se pisa, el cambio queda sin guardar</source>
         <translation>%1: записано более новой версией (эта пишет схему %2): не перезаписывается, изменение не сохранено</translation>
     </message>
@@ -49652,7 +50204,7 @@ Datos (de %2): %3</source>
         <translation>подключено с %1</translation>
     </message>
     <message>
-        <location line="+102" />
+        <location line="+108" />
         <source>La app no está lista para recibir órdenes.</source>
         <translation>Приложение не готово принимать команды.</translation>
     </message>
@@ -50273,7 +50825,7 @@ Datos (de %2): %3</source>
         <translation>зависание интерфейса длилось около %1 мс (стеки в %2)</translation>
     </message>
     <message>
-        <location filename="../src/app/arranque/GuiMode.cpp" line="-381" />
+        <location filename="../src/app/arranque/GuiMode.cpp" line="-387" />
         <source>--detectar-acoples solo anda con --test: no se enciende</source>
         <translation>--detectar-acoples работает только с --test: не включён</translation>
     </message>
@@ -54104,12 +54656,12 @@ Datos (de %2): %3</source>
 <context>
     <name>extensiones</name>
     <message>
-        <location filename="../src/app/ui/ExtensionesModel.cpp" line="-32" />
+        <location filename="../src/app/ui/ExtensionesModel.cpp" line="-31" />
         <source>la tarjeta «%1» no cargó: %2</source>
         <translation>карточка «%1» не загрузилась: %2</translation>
     </message>
     <message>
-        <location line="+17" />
+        <location line="+16" />
         <source>la tarjeta «%1» tardó más de %2 ms en cargar: se cortó y quedó apagada (se prende desde el Registro)</source>
         <translation>карточка «%1» загружалась дольше %2 мс: она прервана и выключена (включается из Журнала)</translation>
     </message>
@@ -55361,7 +55913,7 @@ Datos (de %2): %3</source>
     <message>
         <location line="-76" />
         <location filename="../src/gateway/RegistroAtiende.cpp" line="+318" />
-        <location filename="../src/gateway/Sesion.cpp" line="+292" />
+        <location filename="../src/gateway/Sesion.cpp" line="+312" />
         <source>origen inválido</source>
         <translation>неверный источник</translation>
     </message>
@@ -55427,12 +55979,12 @@ Datos (de %2): %3</source>
         <translation>заседание заполнено</translation>
     </message>
     <message>
-        <location line="+50" />
+        <location line="+53" />
         <source>sesión: demasiados intentos desde %1</source>
         <translation>заседание: слишком много попыток с %1</translation>
     </message>
     <message>
-        <location line="+71" />
+        <location line="+73" />
         <source>sesión: %1 conectado desde %2</source>
         <translation>заседание: %1 подключён с %2</translation>
     </message>
@@ -56774,7 +57326,7 @@ Datos (de %2): %3</source>
         <translation>нет</translation>
     </message>
     <message>
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="+925" />
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="+934" />
         <source>«%1» no arrancó al abrir: %2</source>
         <translation>«%1» не запустился при открытии: %2</translation>
     </message>
@@ -59101,7 +59653,7 @@ Lo que queda vacío no deja separadores colgando: «{nombre} — {cargo}» sin c
 <context>
     <name>mcp</name>
     <message>
-        <location filename="../src/app/arranque/GuiMode.cpp" line="+221" />
+        <location filename="../src/app/arranque/GuiMode.cpp" line="+226" />
         <source>MODO PRUEBA (--test): el MCP no pide aprobaciones, ni siquiera las de aire</source>
         <translation>ТЕСТОВЫЙ РЕЖИМ (--test): MCP не запрашивает одобрений, даже эфирных</translation>
     </message>
@@ -60640,8 +61192,8 @@ La pestaña: `pestana` (su id, su número desde 1, o parte del título o la url)
     </message>
     <message>
         <location line="+4" />
-        <source>Cambia un rol: `activo` (true/false), `proveedor` (id de proveedor, como en el asistente: claude-cuenta, opencode-go, openrouter...), `modelo`, `consola`. Lo que no se manda no se toca. Un rol apagado no atiende nada ni acepta encargos.</source>
-        <translation>Меняет роль: `activo` (true/false), `proveedor` (id провайдера, как в ассистенте: claude-cuenta, opencode-go, openrouter...), `modelo`, `consola`. То, что не передано, не меняется. Выключенная роль ничего не обрабатывает и не принимает поручений.</translation>
+        <source>Cambia un rol: `activo` (true/false), `proveedor` (id de proveedor, como en el asistente: claude-cuenta, opencode-go, openrouter...), `modelo`, `consola`, `aparte`. Lo que no se manda no se toca. Un rol apagado no atiende nada ni acepta encargos.</source>
+        <translation>Изменяет роль: `activo` (true/false), `proveedor` (id поставщика, как в ассистенте: claude-cuenta, opencode-go, openrouter...), `modelo`, `consola`, `aparte`. То, что не передано, не меняется. Выключенная роль ничего не обрабатывает и не принимает поручений.</translation>
     </message>
     <message>
         <location line="+4" />
@@ -60649,17 +61201,26 @@ La pestaña: `pestana` (su id, su número desde 1, o parte del título o la url)
 
 Es OTRA COSA que las categorias. Las categorias son lo que el rol sabe hacer DEL APARATO; esto es la maquina entera. Viene apagado: un rol que mide audio o atiende el lobby no necesita ninguna, y uno que diseña escenas —que baja una imagen, la convierte y la deja en Medios/— las necesita todas.
 
-LO QUE HAY QUE SABER AL PRENDERLO: la salvaguarda de aprobaciones (`mcp.approval`) cubre las herramientas del MCP, NO estas. Un rol con consola toca el disco y la red sin pasar por ahi, en la maquina del estudio. Prendelo cuando el trabajo lo pida, no por si acaso.</source>
-        <translation>`consola` даёт ей СОБСТВЕННЫЕ ИНСТРУМЕНТЫ АГЕНТА в дополнение к набору MCP: консоль, чтение и запись файлов, выход в интернет.
+LO QUE HAY QUE SABER AL PRENDERLO: la salvaguarda de aprobaciones (`mcp.approval`) cubre las herramientas del MCP, NO estas. Un rol con consola toca el disco y la red sin pasar por ahi, en la maquina del estudio. Prendelo cuando el trabajo lo pida, no por si acaso.
 
-Это ДРУГОЕ, чем категории. Категории — то, что роль умеет делать С УСТРОЙСТВОМ; это — весь компьютер. По умолчанию выключено: роли, которая измеряет звук или встречает в зале ожидания, ничего из этого не нужно, а той, что проектирует сцены —скачивает изображение, конвертирует его и кладёт в Medios/—, нужно всё.
+`aparte`: con el asistente de automatización en OpenCode, los encargos de un rol van a la CONVERSACIÓN DEL EVENTO de ese asistente (con todo el contexto del evento, sin abrir una sesión por aviso), salvo que el rol corra aparte: entonces cada encargo es una sesión propia, con su juego de herramientas, su prompt y su motor. Un rol con otro proveedor u otro modelo corre aparte siempre. De fábrica corren aparte vision, escenografo y organizador.</source>
+        <translation>`consola` даёт агенту ЕГО СОБСТВЕННЫЕ ИНСТРУМЕНТЫ в дополнение к набору MCP: консоль, чтение и запись файлов, выход в интернет.
 
-ЧТО НУЖНО ЗНАТЬ ПРИ ВКЛЮЧЕНИИ: защита одобрений (`mcp.approval`) охватывает инструменты MCP, но НЕ эти. Роль с консолью работает с диском и сетью в обход неё, на компьютере студии. Включайте, когда этого требует работа, а не на всякий случай.</translation>
+Это ДРУГОЕ, чем категории. Категории — это то, что роль умеет делать С АППАРАТОМ; здесь — вся машина. По умолчанию выключено: роли, которая измеряет звук или обслуживает лобби, ничего из этого не нужно, а той, что проектирует сцены —скачивает изображение, конвертирует и кладёт в Medios/— нужно всё.
+
+ЧТО НАДО ЗНАТЬ ПРИ ВКЛЮЧЕНИИ: защита подтверждений (`mcp.approval`) охватывает инструменты MCP, а ЭТИ — НЕТ. Роль с консолью работает с диском и сетью в обход неё, на машине студии. Включайте, когда этого требует работа, а не на всякий случай.
+
+`aparte`: с ассистентом автоматизации в OpenCode поручения роли попадают в БЕСЕДУ МЕРОПРИЯТИЯ этого ассистента (со всем контекстом мероприятия, без открытия сессии на каждое уведомление), если только роль не выполняется отдельно: тогда каждое поручение — отдельная сессия со своим набором инструментов, своим промптом и своим движком. Роль с другим поставщиком или другой моделью всегда выполняется отдельно. По умолчанию отдельно выполняются vision, escenografo и organizador.</translation>
     </message>
     <message>
-        <location line="+19" />
+        <location line="+24" />
         <source>herramientas propias del agente: consola, archivos, internet</source>
         <translation>собственные инструменты агента: консоль, файлы, интернет</translation>
+    </message>
+    <message>
+        <location line="+3" />
+        <source>cada encargo en su propia sesión, no en la conversación del evento</source>
+        <translation>каждое поручение в своей сессии, а не в беседе мероприятия</translation>
     </message>
     <message>
         <location line="+6" />
@@ -60672,7 +61233,7 @@ LO QUE HAY QUE SABER AL PRENDERLO: la salvaguarda de aprobaciones (`mcp.approval
         <translation>Роли `%1` не существует: agente_roles их перечисляет.</translation>
     </message>
     <message>
-        <location line="+12" />
+        <location line="+13" />
         <source>Rol `%1` actualizado.</source>
         <translation>Роль `%1` обновлена.</translation>
     </message>
@@ -60787,7 +61348,7 @@ LO QUE HAY QUE SABER AL PRENDERLO: la salvaguarda de aprobaciones (`mcp.approval
         <translation>Заставка поверх всего, что выходит («Перерыв», «Скоро вернёмся», «Минута молчания»…), с `texto`, необязательной `imagen` (путь) и `ms` наплыва (600). Не зависит от сцен. Включение в эфире запрашивает подтверждение, если его запрашивает что-то автоматическое; выключение — нет. Переживает падение приложения. У каждого выхода своя заставка (`salida`).</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpService.cpp" line="+1329" />
+        <location filename="../src/app/mcp/McpService.cpp" line="+1330" />
         <source>El supervisor relanza la app si deja de latir. El latido sale de la interfaz Y de un hilo que mira los cuadros del motor: si la interfaz se traba y el motor sigue, el aire NO se corta. Con la interfaz trabada más de `espera_ui_s` (10 a 3600, de fábrica 60) y `matar_si_ui_trabada_sin_aire` (de fábrica true), se relanza solo si no hay transmisión ni grabación. La interfaz trabada CON aire es una alarma que sale sin la interfaz, al control web y a los notificadores de `notificar` («todos», de fábrica, o una lista de ids de notificador_listar; [] = ninguno). Sin argumentos, la muestra (con el estado: motor_vivo, ui_viva, ui_trabada_ms, ultima_traba_ms).</source>
         <translation>Сторожевой процесс перезапускает приложение, если пропадает пульс. Пульс идёт от интерфейса И от потока, следящего за кадрами движка: если интерфейс завис, а движок работает, эфир НЕ прерывается. Если интерфейс завис дольше `espera_ui_s` (от 10 до 3600, по умолчанию 60) и включено `matar_si_ui_trabada_sin_aire` (по умолчанию true), перезапуск происходит, только если нет ни трансляции, ни записи. Зависший интерфейс ПРИ эфире — это тревога, которая уходит без интерфейса: в веб-управление и уведомителям из `notificar` («todos» по умолчанию или список id из notificador_listar; [] = никому). Без аргументов показывает настройку (с состоянием: motor_vivo, ui_viva, ui_trabada_ms, ultima_traba_ms).</translation>
     </message>
@@ -61726,11 +62287,31 @@ Nada de eso se puede con el asistente o un encargo de agentes corriendo.</source
     </message>
     <message>
         <location line="+4" />
-        <source>Proveedor y modelo elegidos, proveedores disponibles, si el agente esta instalado y corriendo.</source>
-        <translation>Выбранные провайдер и модель, доступные провайдеры, установлен ли агент и запущен ли он.</translation>
+        <source>Proveedor y modelo elegidos, proveedores disponibles, si el agente esta instalado y corriendo, y `sesionEvento`: la conversación del evento que usa (una por evento; ahí caen los avisos automáticos).</source>
+        <translation>Выбранные поставщик и модель, доступные поставщики, установлен ли и работает ли агент, и `sesionEvento`: беседа мероприятия, которую он использует (одна на мероприятие; автоматические уведомления попадают туда).</translation>
     </message>
     <message>
-        <location line="+21" />
+        <location line="+93" />
+        <source>Arranca (`start`), detiene (`stop`) o reinicia (`restart`) el asistente del evento o el de automatización (`asistente`). `new_conversation` olvida la conversación del evento y empieza otra (si corre, se relanza con la nueva; lo de antes queda en el historial del motor).</source>
+        <translation>Запускает (`start`), останавливает (`stop`) или перезапускает (`restart`) ассистента мероприятия или ассистента автоматизации (`asistente`). `new_conversation` забывает беседу мероприятия и начинает другую (если ассистент работает, он перезапускается с новой; прежняя остаётся в истории движка).</translation>
+    </message>
+    <message>
+        <location line="+16" />
+        <source>Listo: la próxima vez que arranque empieza una conversación nueva.</source>
+        <translation>Готово: при следующем запуске начнётся новая беседа.</translation>
+    </message>
+    <message>
+        <location line="+7" />
+        <source>Conversación nueva.</source>
+        <translation>Новая беседа.</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>Relanzando con una conversación nueva.</source>
+        <translation>Перезапуск с новой беседой.</translation>
+    </message>
+    <message>
+        <location line="-94" />
         <source>Configurar el asistente</source>
         <translation>Настроить ассистента</translation>
     </message>
@@ -61775,12 +62356,7 @@ Nada de eso se puede con el asistente o un encargo de agentes corriendo.</source
         <translation>Запустить / остановить ассистента</translation>
     </message>
     <message>
-        <location line="+3" />
-        <source>Arranca (`start`), detiene (`stop`) o reinicia (`restart`) el asistente del evento o el de automatización (`asistente`).</source>
-        <translation>Запускает (`start`), останавливает (`stop`) или перезапускает (`restart`) ассистента мероприятия или ассистента автоматизации (`asistente`).</translation>
-    </message>
-    <message>
-        <location line="+20" />
+        <location line="+41" />
         <location line="+6" />
         <source>Corriendo.</source>
         <translation>Работает.</translation>
@@ -62389,7 +62965,7 @@ EL `id` QUE DEVUELVE SE USA TAL CUAL en `audio_module_add`. Los seis del catalog
     </message>
     <message>
         <location line="+10" />
-        <location filename="../src/app/mcp/McpImageTools.cpp" line="+718" />
+        <location filename="../src/app/mcp/McpImageTools.cpp" line="+807" />
         <location line="+40" />
         <location filename="../src/app/mcp/McpUiTools.cpp" line="-562" />
         <location line="+46" />
@@ -63969,7 +64545,7 @@ Sos el rol `%1`: este es TODO tu juego. Lo que no esta aca no lo podes hacer vos
     </message>
     <message>
         <location line="+2" />
-        <location filename="../src/app/mcp/McpService.cpp" line="-2317" />
+        <location filename="../src/app/mcp/McpService.cpp" line="-2318" />
         <source>La herramienta fallo: %1</source>
         <translation>Инструмент не сработал: %1</translation>
     </message>
@@ -67588,7 +68164,7 @@ Con este repertorio se arma un gráfico SIN escribir código: es lo que conviene
     </message>
     <message>
         <location line="+1" />
-        <location filename="../src/app/mcp/McpService.cpp" line="+719" />
+        <location filename="../src/app/mcp/McpService.cpp" line="+720" />
         <source>Escenas</source>
         <translation>Сцены</translation>
     </message>
@@ -68227,7 +68803,7 @@ Con este repertorio se arma un gráfico SIN escribir código: es lo que conviene
         <translation>метод не разрешён</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpImageTools.cpp" line="-676" />
+        <location filename="../src/app/mcp/McpImageTools.cpp" line="-762" />
         <source>Ancho maximo en px.</source>
         <translation>Максимальная ширина в px.</translation>
     </message>
@@ -68268,12 +68844,12 @@ Con este repertorio se arma un gráfico SIN escribir código: es lo que conviene
     </message>
     <message>
         <location line="+8" />
-        <location line="+539" />
+        <location line="+625" />
         <source>No hay imagen del programa: %1</source>
         <translation>Нет изображения программы: %1</translation>
     </message>
     <message>
-        <location line="-538" />
+        <location line="-624" />
         <source>Programa — escena '%1' (%2x%3)</source>
         <translation>Программа — сцена '%1' (%2x%3)</translation>
     </message>
@@ -68338,7 +68914,17 @@ Con este repertorio se arma un gráfico SIN escribir código: es lo que conviene
         <translation>получается ЧЁРНЫМ (сигнала ещё нет или изображение действительно чёрное)</translation>
     </message>
     <message>
-        <location line="+14" />
+        <location line="+20" />
+        <source>Ver el programa y el preview (multipantalla)</source>
+        <translation>Программа и превью (мультиэкран)</translation>
+    </message>
+    <message>
+        <location line="+4" />
+        <source>Las dos pantallas de una mesa de switcher, chicas: el PROGRAMA (lo que sale al aire) y el PREVIEW (la escena armada, la que sale con el próximo `preview_al_aire`), cada una con su escena y un cuadro JPEG como data URL (`imagen`, vacía si todavía no hay). Barata: usa los cuadros que ya tiene la interfaz. Para MIRAR con detalle, `foto_programa` o `foto_fuente`.</source>
+        <translation>Два экрана видеомикшера, маленькие: ПРОГРАММА (то, что в эфире) и ПРЕВЬЮ (подготовленная сцена, которая выйдет со следующим `preview_al_aire`), у каждого своя сцена и кадр JPEG в виде data URL (`imagen`, пусто, если кадра ещё нет). Дёшево: использует кадры, которые уже есть в интерфейсе. Чтобы РАССМОТРЕТЬ подробно — `foto_programa` или `foto_fuente`.</translation>
+    </message>
+    <message>
+        <location line="+76" />
         <source>Vista multiple de escenas</source>
         <translation>Мультивью сцен</translation>
     </message>
@@ -74947,7 +75533,7 @@ Llegando a 500 fichas se apaga solo y lo dice. Sin `activo` solo informa como es
         <translation>На камерах ожидания никого не видно.</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpService.cpp" line="-4181" />
+        <location filename="../src/app/mcp/McpService.cpp" line="-4182" />
         <source>OJO: REINICIA EL MOTOR. Por unos segundos se corta TODO lo que sale (el programa, la sala, las pantallas, lo que ven los invitados) y las cámaras se vuelven a abrir. Con una transmisión o una grabación andando no se aplica. No lo uses para arreglar una cámara: decíselo antes al operador y pedile que confirme.</source>
         <translation>ВНИМАНИЕ: ПЕРЕЗАПУСКАЕТ ДВИЖОК. На несколько секунд обрывается ВСЁ, что выходит (программа, зал, экраны, то, что видят гости), и камеры открываются заново. Во время трансляции или записи не применяется. Не используйте это, чтобы починить камеру: сначала скажите оператору и попросите подтвердить.</translation>
     </message>
@@ -75007,7 +75593,7 @@ Llegando a 500 fichas se apaga solo y lo dice. Sin `activo` solo informa como es
         <translation>неизвестный пресет '%1'. Допустимые: full, left, right, top, bottom, center, top-left, top-right, bottom-left, bottom-right, pip-tl, pip-tr, pip-bl, pip-br, lower-third, third-1..3, grid-&lt;n&gt;-&lt;i&gt; (напр. grid-4-2) или {x,y,w,h}.</translation>
     </message>
     <message>
-        <location line="+292" />
+        <location line="+293" />
         <source>«%1» YA ENTRO sola (estaba en la lista de auto-aceptar del evento): no le pidas los datos de cero, mostrale los que ya tenemos para que confirme. </source>
         <translation>«%1» УЖЕ ВОШЁЛ сам (был в списке автоприёма мероприятия): не спрашивайте данные с нуля, покажите те, что у нас уже есть, чтобы он подтвердил. </translation>
     </message>
@@ -81565,12 +82151,83 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>Нужно открытое мероприятие (отчёт попадает в его контрольный список, пункт «prueba_sala», и в Pruebas/ его папки) и работающая конференция. Сначала решает ЗАЩИТА: при малом объёме доступной памяти, занятом компьютере или если N не поместятся, тест НЕ запускается, и сообщается почему; во время теста она сама его прерывает, если памяти меньше 3 ГБ, у приложения больше 1200 потоков или нагрузка выше 40. Тестовые участники входят без лобби, помечаются «prueba» и не входят в список, голосование и кворум. Если мест не хватает, лимит повышается и в конце возвращается. Следите за тестом через prueba_sala_estado и завершайте его через prueba_sala_parar.</translation>
     </message>
     <message>
-        <location line="+13" />
+        <location filename="../src/app/mcp/McpPruebaAsambleaTools.cpp" line="+23" />
+        <source>Arrancar una prueba de asamblea</source>
+        <translation>Запустить тест собрания</translation>
+    </message>
+    <message>
+        <location line="+3" />
+        <source>Simula a `integrantes` integrantes de la asamblea entrando por la sesión remota, como desde el celular: crea integrantes de PRUEBA en el Cuerpo, les da acceso (link + PIN y usuario + contraseña) y los hace entrar con hinchada (de fábrica, si viene en el programa) durante `minutos`. Esperan que los habiliten en el Recinto (sesion_habilitar, o `habilitar_solos_s`), piden la palabra, hablan con cámara y micrófono, votan cuando hay una votación abierta, se les corta la red y vuelven, y algunos erran el PIN hasta quedar bloqueados.</source>
+        <translation>Имитирует вход `integrantes` участников собрания через удалённую сессию, как с телефона: создаёт ТЕСТОВЫХ участников в Составе, даёт им доступ (ссылка + PIN и логин + пароль) и заставляет их входить с помощью hinchada (по умолчанию, если она есть в программе) в течение `minutos`. Они ждут допуска в Зале заседаний (sesion_habilitar или `habilitar_solos_s`), просят слово, выступают с камерой и микрофоном, голосуют, когда голосование открыто, теряют сеть и возвращаются, а некоторые вводят неверный PIN, пока не будут заблокированы.</translation>
+    </message>
+    <message>
+        <location line="+7" />
+        <source>SOLO en un evento sin integrantes reales: si el padrón del evento abierto tiene alguno que no es de prueba, no arranca (para no tocar el padrón, el quórum ni el acta): creá un evento vacío con evento_nuevo y abrilo. Necesita la conferencia andando. Sin `hinchada`, devuelve el archivo de credenciales y la línea para un generador externo. `comportamiento` (todo opcional, en %): afuera_pct (20), piden_palabra_pct (30), votan_pct (90), voto («azar» o «afirmativo:60,negativo:30,abstencion:10»), reconectan_pct (10), pin_errado_pct (10), pin_errado_intentos (5: el gateway lo bloquea), con_usuario_pct (20), entrada_cada_ms (1000), habilitar_solos_s (0: los habilita el operador), programa (true). Seguila con prueba_asamblea_estado; al terminar (prueba_asamblea_terminar o por tiempo) se borran los integrantes de prueba y su acceso, el recinto vuelve a como estaba y el informe queda en Pruebas/ del evento.</source>
+        <translation>ТОЛЬКО в мероприятии без настоящих участников: если в списке открытого мероприятия есть хоть один не тестовый, тест не запустится (чтобы не затрагивать список, кворум и протокол): создайте пустое мероприятие через evento_nuevo и откройте его. Нужна работающая конференция. Без `hinchada` возвращает файл учётных данных и строку для внешнего генератора. `comportamiento` (всё необязательно, в %): afuera_pct (20), piden_palabra_pct (30), votan_pct (90), voto («azar» или «afirmativo:60,negativo:30,abstencion:10»), reconectan_pct (10), pin_errado_pct (10), pin_errado_intentos (5: gateway блокирует), con_usuario_pct (20), entrada_cada_ms (1000), habilitar_solos_s (0: допускает оператор), programa (true). Следите за ним через prueba_asamblea_estado; по завершении (prueba_asamblea_terminar или по времени) тестовые участники и их доступ удаляются, зал заседаний возвращается в прежнее состояние, а отчёт остаётся в Pruebas/ мероприятия.</translation>
+    </message>
+    <message>
+        <location line="+18" />
+        <location filename="../src/app/mcp/McpPruebaSalaTools.cpp" line="+13" />
         <source>los genera esta máquina (de fábrica, si está)</source>
         <translation>их создаёт этот компьютер (по умолчанию, если есть)</translation>
     </message>
     <message>
-        <location line="+2" />
+        <location line="+20" />
+        <source>Prueba de asamblea arrancada. Seguila con prueba_asamblea_estado.</source>
+        <translation>Тест собрания запущен. Следите за ним через prueba_asamblea_estado.</translation>
+    </message>
+    <message>
+        <location line="+8" />
+        <source>Cómo va la prueba de asamblea</source>
+        <translation>Как идёт тест собрания</translation>
+    </message>
+    <message>
+        <location line="+3" />
+        <source>El estado de la prueba de asamblea: si corre, el generador, cuántos integrantes reales y de prueba hay en el padrón (y si se puede arrancar acá), cómo van los simulados según la app (conectados, esperando que los habiliten, habilitados, afuera, bloqueados, en la fila, con la palabra, votaron y qué), el archivo de credenciales y la línea para un generador externo, y el resumen de la última.</source>
+        <translation>Состояние теста собрания: идёт ли он, генератор, сколько в списке настоящих и тестовых участников (и можно ли запустить тест здесь), как дела у имитируемых по данным приложения (подключены, ждут допуска, допущены, вне зала, заблокированы, в очереди, со словом, проголосовали и как), файл учётных данных и строка для внешнего генератора, а также итог последнего теста.</translation>
+    </message>
+    <message>
+        <location line="+12" />
+        <source>Terminar la prueba de asamblea</source>
+        <translation>Завершить тест собрания</translation>
+    </message>
+    <message>
+        <location line="+3" />
+        <source>Termina la prueba de asamblea (o descarta una preparada): corta el probador, saca a los integrantes de prueba de la sesión, revoca su acceso, los borra del Cuerpo, deja el recinto como estaba, borra el archivo de credenciales y guarda el informe en el evento. Sin una prueba en curso, con `limpiar`, borra los integrantes de prueba que hayan quedado. El informe queda en prueba_asamblea_informe en unos segundos.</source>
+        <translation>Завершает тест собрания (или отменяет подготовленный): останавливает тестер, убирает тестовых участников из сессии, отзывает их доступ, удаляет их из Состава, возвращает зал заседаний в прежнее состояние, удаляет файл учётных данных и сохраняет отчёт в мероприятии. Если тест не идёт, с `limpiar` удаляет оставшихся тестовых участников. Отчёт появится в prueba_asamblea_informe через несколько секунд.</translation>
+    </message>
+    <message>
+        <location line="+11" />
+        <source>No hay una prueba de asamblea en curso.</source>
+        <translation>Тест собрания не идёт.</translation>
+    </message>
+    <message>
+        <location line="+3" />
+        <source>Integrantes de prueba borrados (si había).</source>
+        <translation>Тестовые участники удалены (если они были).</translation>
+    </message>
+    <message>
+        <location line="+3" />
+        <source>Terminando la prueba de asamblea (limpieza e informe).</source>
+        <translation>Завершение теста собрания (очистка и отчёт).</translation>
+    </message>
+    <message>
+        <location line="+7" />
+        <source>El informe de la última prueba de asamblea</source>
+        <translation>Отчёт о последнем тесте собрания</translation>
+    </message>
+    <message>
+        <location line="+3" />
+        <source>El informe completo de la última prueba de asamblea de esta sesión: lo que vio la app, el resumen del probador (entraron, esperaron que los habiliten, pidieron y tuvieron la palabra, votaron, se reconectaron, quedaron bloqueados; latencias), qué le pasó a cada integrante y dónde quedó en el evento.</source>
+        <translation>Полный отчёт о последнем тесте собрания в этой сессии: что увидело приложение, итог тестера (вошли, ждали допуска, просили и получили слово, голосовали, переподключались, оказались заблокированы; задержки), что произошло с каждым участником и где он оказался в мероприятии.</translation>
+    </message>
+    <message>
+        <location line="+8" />
+        <source>Todavía no terminó ninguna prueba de asamblea en esta sesión.</source>
+        <translation>В этой сессии ещё не завершился ни один тест собрания.</translation>
+    </message>
+    <message>
+        <location filename="../src/app/mcp/McpPruebaSalaTools.cpp" line="+2" />
         <source>cuántos hablan a la vez (0: cada uno a su ritmo)</source>
         <translation>сколько говорят одновременно (0: каждый в своём ритме)</translation>
     </message>
@@ -84362,6 +85019,12 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
     </message>
     <message>
         <location line="+2" />
+        <source>multipantalla monitores programa preview previo armada switcher las dos pantallas que sale y que viene</source>
+        <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
+        <translation>мультиэкран мониторы программа превью подготовленная микшер два экрана что в эфире и что дальше</translation>
+    </message>
+    <message>
+        <location line="+3" />
         <source>todas las escenas de una grilla multiview</source>
         <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
         <translation>все сцены в сетке мультивью</translation>
@@ -84419,6 +85082,30 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <source>prueba de sala simulacro prueba de carga ensayo con gente participantes de prueba hinchada aguanta la maquina la red</source>
         <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
         <translation>тест зала учения нагрузочный тест репетиция с людьми тестовые участники hinchada выдержит компьютер сеть</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>prueba de asamblea simular integrantes consejeros de prueba remotos sesion remota celulares probar la sesion votacion simulada hinchada carga</source>
+        <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
+        <translation>тест собрания имитировать участников советников тестовые удалённые удалённая сессия телефоны проверить сессию имитация голосования hinchada нагрузка</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>como va la prueba de asamblea integrantes simulados conectados esperando habilitados votaron bloqueados</source>
+        <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
+        <translation>как идёт тест собрания имитируемые участники подключены ждут допущены проголосовали заблокированы</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>terminar parar cortar prueba de asamblea limpiar borrar integrantes de prueba revocar</source>
+        <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
+        <translation>завершить остановить прервать тест собрания очистить удалить тестовых участников отозвать</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>informe resultado de la prueba de asamblea latencias espera votos integrantes simulados</source>
+        <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
+        <translation>отчёт результат теста собрания задержки ожидание голоса имитируемые участники</translation>
     </message>
     <message>
         <location line="+2" />
@@ -85391,7 +86078,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>ведущий модератор хозяин вечера конферансье</translation>
     </message>
     <message>
-        <location line="-683" />
+        <location line="-694" />
         <source>revocar tablet token botonera companion http acceso sacarle el acceso</source>
         <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
         <translation>отозвать планшет токен пульт companion http доступ лишить доступа</translation>
@@ -85409,7 +86096,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>запускаться само при включении отключение электричества возвращаться само автозапуск запускать приложение при включении компьютера запуск вместе с системой</translation>
     </message>
     <message>
-        <location line="+265" />
+        <location line="+276" />
         <source>go take entra el siguiente paso adelante dale revision previa antes de salir</source>
         <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
         <translation>go take выходит следующий шаг вперёд давай проверка перед выходом</translation>
@@ -90198,7 +90885,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>%1 (больше не существует)</translation>
     </message>
     <message>
-        <location filename="../src/app/pantallas/Monitores.cpp" line="+277" />
+        <location filename="../src/app/pantallas/Monitores.cpp" line="+282" />
         <source>No conozco ese monitor: los que hay salen en la lista de Pantallas conectadas.</source>
         <translation>Этот монитор мне неизвестен: доступные перечислены в «Подключённых экранах».</translation>
     </message>
@@ -93624,7 +94311,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
 <context>
     <name>rostros</name>
     <message>
-        <location filename="../src/app/ui/PersonasViewModel.cpp" line="-394" />
+        <location filename="../src/app/ui/PersonasViewModel.cpp" line="-393" />
         <source>alta automática: «%1» (ficha %2, lobby %3)</source>
         <translation>автоматически добавлен: «%1» (профиль %2, зал ожидания %3)</translation>
     </message>
@@ -96523,7 +97210,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
     </message>
     <message>
         <location filename="../src/gateway/Canal.cpp" line="+36" />
-        <location filename="../src/gateway/Sesion.cpp" line="-693" />
+        <location filename="../src/gateway/Sesion.cpp" line="-698" />
         <location filename="../src/gateway/SignalingServer.cpp" line="-106" />
         <source>Mensaje inválido.</source>
         <translation>Неверное сообщение.</translation>
@@ -96536,7 +97223,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
     <message>
         <location filename="../src/gateway/Registro.cpp" line="-110" />
         <location filename="../src/gateway/RegistroAtiende.cpp" line="-63" />
-        <location filename="../src/gateway/Sesion.cpp" line="+29" />
+        <location filename="../src/gateway/Sesion.cpp" line="+32" />
         <source>Demasiados intentos desde esta conexión. Esperá 10 minutos.</source>
         <translation>Слишком много попыток с этого соединения. Подождите 10 минут.</translation>
     </message>
@@ -96606,7 +97293,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>Ссылку помощи сменили (или мероприятие закрыто).</translation>
     </message>
     <message>
-        <location filename="../src/gateway/Sesion.cpp" line="-25" />
+        <location filename="../src/gateway/Sesion.cpp" line="-28" />
         <source>Conectando con la sala…</source>
         <translation>Подключение к залу…</translation>
     </message>
@@ -96616,7 +97303,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>Это устройство больше не зарегистрировано: войдите с PIN.</translation>
     </message>
     <message>
-        <location line="+16" />
+        <location line="+19" />
         <source>Por contraseña errada varias veces, tu acceso está bloqueado 15 minutos.</source>
         <translation>Из-за нескольких неверных паролей ваш доступ заблокирован на 15 минут.</translation>
     </message>
@@ -96642,7 +97329,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>Эта ссылка недействительна (или отозвана). Попросите новую в секретариате.</translation>
     </message>
     <message>
-        <location line="+26" />
+        <location line="+28" />
         <source>Entraste desde otro lado: esta ventana se cerró.</source>
         <translation>Вы вошли из другого места: это окно закрыто.</translation>
     </message>
@@ -96860,12 +97547,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>нет связи с приложением</translation>
     </message>
     <message>
-        <location line="+2" />
-        <source>Tarjetas en este aparato</source>
-        <translation>Карточки на этом устройстве</translation>
-    </message>
-    <message>
-        <location line="+2" />
+        <location line="+18" />
         <source>Al aire · %1</source>
         <translation>В эфире · %1</translation>
     </message>
@@ -96875,32 +97557,22 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>Не в эфире</translation>
     </message>
     <message>
-        <location line="+8" />
+        <location line="+10" />
         <source>Control</source>
         <translation>Управление</translation>
     </message>
     <message>
-        <location line="-66" />
+        <location line="-82" />
         <source>Desconectado</source>
         <translation>Отключено</translation>
     </message>
     <message>
-        <location line="+70" />
-        <source>Qué tarjetas mostrar</source>
-        <translation>Какие карточки показывать</translation>
-    </message>
-    <message>
-        <location line="+2" />
-        <source>▦ Tarjetas</source>
-        <translation>▦ Карточки</translation>
-    </message>
-    <message>
-        <location line="+2" />
+        <location line="+90" />
         <source>Pantalla completa</source>
         <translation>Полный экран</translation>
     </message>
     <message>
-        <location line="-70" />
+        <location line="-86" />
         <source>Emparejar este aparato</source>
         <translation>Сопрячь это устройство</translation>
     </message>
@@ -96940,32 +97612,17 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>Да, выполнить</translation>
     </message>
     <message>
-        <location line="+112" />
+        <location line="+170" />
         <source>Escenas</source>
         <translation>Сцены</translation>
     </message>
     <message>
-        <location line="+2" />
+        <location line="-32" />
         <source>CORTE</source>
         <translation>СКЛЕЙКА</translation>
     </message>
     <message>
-        <location line="+2" />
-        <source>AUTO</source>
-        <translation>AUTO</translation>
-    </message>
-    <message>
-        <location line="+2" />
-        <source>Programa · %1</source>
-        <translation>Программа · %1</translation>
-    </message>
-    <message>
-        <location line="+2" />
-        <source>Armada · %1</source>
-        <translation>Готова · %1</translation>
-    </message>
-    <message>
-        <location line="+2" />
+        <location line="+40" />
         <source>Estado</source>
         <translation>Состояние</translation>
     </message>
@@ -97085,12 +97742,12 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>Выступающие</translation>
     </message>
     <message>
-        <location line="-92" />
+        <location line="-122" />
         <source>Siguiente ▶</source>
         <translation>Следующий ▶</translation>
     </message>
     <message>
-        <location line="-110" />
+        <location line="-136" />
         <source>Cámara %1</source>
         <translation>Камера %1</translation>
     </message>
@@ -97130,7 +97787,52 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>Что дальше</translation>
     </message>
     <message>
-        <location line="+58" />
+        <location line="+52" />
+        <source>Arrastrá para moverla</source>
+        <translation>Перетащите, чтобы переместить</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>Columnas que ocupa</source>
+        <translation>Сколько колонок занимает</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>Antes</source>
+        <translation>Раньше</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>Después</source>
+        <translation>Позже</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>Más angosta</source>
+        <translation>Уже</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>Más ancha</source>
+        <translation>Шире</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>Mostrarla</source>
+        <translation>Показать</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>Ocultarla</source>
+        <translation>Скрыть</translation>
+    </message>
+    <message>
+        <location line="+6" />
+        <source>Disposición de fábrica</source>
+        <translation>Исходная раскладка</translation>
+    </message>
+    <message>
+        <location line="+2" />
         <source>Estante</source>
         <translation>Полка</translation>
     </message>
@@ -97150,7 +97852,42 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>Каким выходом управляет это устройство</translation>
     </message>
     <message>
-        <location line="+8" />
+        <location line="+2" />
+        <source>Ordenar, ensanchar u ocultar las tarjetas</source>
+        <translation>Упорядочить, расширить или скрыть карточки</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>✎ Disposición</source>
+        <translation>✎ Раскладка</translation>
+    </message>
+    <message>
+        <location line="+4" />
+        <source>Multipantalla</source>
+        <translation>Мультиэкран</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>Editando la disposición</source>
+        <translation>Редактирование раскладки</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>Arrastrá cada tarjeta por ⠿ (o con ◀ ▶), cambiá cuántas columnas ocupa con − y +, y ocultá las que no uses con ✕ (las ocultas quedan tenues: 👁 las vuelve a mostrar). Se guarda en la app para este aparato.</source>
+        <translation>Перетаскивайте карточки за ⠿ (или кнопками ◀ ▶), меняйте ширину в колонках кнопками − и +, скрывайте ненужные кнопкой ✕ (скрытые остаются бледными: 👁 возвращает их). Сохраняется в приложении для этого устройства.</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>Volver a la de fábrica</source>
+        <translation>Вернуть исходную</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>Listo</source>
+        <translation>Готово</translation>
+    </message>
+    <message>
+        <location line="+2" />
         <source>GO</source>
         <translation>GO</translation>
     </message>
@@ -97261,6 +97998,81 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
     </message>
     <message>
         <location line="+2" />
+        <source>Esperando imagen…</source>
+        <translation>Ожидание изображения…</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>PROGRAMA</source>
+        <translation>ПРОГРАММА</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>PREVIEW</source>
+        <translation>ПРЕВЬЮ</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>TAKE</source>
+        <translation>TAKE</translation>
+    </message>
+    <message>
+        <location line="+4" />
+        <source>La transición de este TAKE</source>
+        <translation>Переход для этого TAKE</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>Transición configurada</source>
+        <translation>Настроенный переход</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>Corte</source>
+        <translation>Склейка</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>Fundido</source>
+        <translation>Растворение</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>Barrido</source>
+        <translation>Шторка</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>Deslizar</source>
+        <translation>Сдвиг</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>Fundido a color</source>
+        <translation>Через цвет</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>▾ Mostrar monitores</source>
+        <translation>▾ Показать мониторы</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>▴ Ocultar monitores</source>
+        <translation>▴ Скрыть мониторы</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>Nada armado: elegí una escena</source>
+        <translation>Ничего не подготовлено: выберите сцену</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>Manejar esta salida</source>
+        <translation>Управлять этим выходом</translation>
+    </message>
+    <message>
+        <location line="+2" />
         <source>Presentador</source>
         <translation>Ведущий</translation>
     </message>
@@ -97280,7 +98092,22 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>Далее: %1</translation>
     </message>
     <message>
-        <location line="+54" />
+        <location line="+4" />
+        <source>Tocá una escena para armarla en PREVIEW; mantenela apretada para ponerla al aire directo.</source>
+        <translation>Нажмите на сцену, чтобы подготовить её в ПРЕВЬЮ; удерживайте, чтобы сразу вывести в эфир.</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>No hay escenas.</source>
+        <translation>Сцен нет.</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>En PREVIEW: sale con el TAKE</source>
+        <translation>В ПРЕВЬЮ: выйдет в эфир по TAKE</translation>
+    </message>
+    <message>
+        <location line="+44" />
         <source>Línea de tiempo</source>
         <translation>Шкала времени</translation>
     </message>

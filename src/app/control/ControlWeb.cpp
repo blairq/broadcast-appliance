@@ -144,6 +144,9 @@ const std::vector<ControlWeb::Tema>& ControlWeb::temas() {
         {"linea-camaras", {"linea_camaras"}, 1000},
         // El teleprompter (la tarjeta del control): antes preguntaba ella cada 2 s.
         {"prompter", {"prompter_estado"}, 1000},
+        // La multipantalla del control (programa y preview de la salida del aparato): cuadros
+        // JPEG chicos de lo que ya tiene la interfaz, ~4 por segundo; solo cuando cambian.
+        {"monitores", {"monitores_ver"}, 250},
     };
     return t;
 }
@@ -568,6 +571,12 @@ void ControlWeb::preferencias(const std::string& cid, const json& msg) {
     if (a == nullptr || !d.is_object() || d.dump().size() > 8192) return;
     (*a)["preferencias"] = d;
     guardar();
+    // Las otras pestañas o aparatos abiertos con el mismo registro lo ven en el acto (la
+    // disposición de las tarjetas vuelve igual en todos).
+    QStringList otras;
+    for (const auto& [id, c] : conns_)
+        if (id != cid && c.aparato == conns_[cid].aparato) otras << QString::fromStdString(id);
+    if (!otras.isEmpty()) emit enviar(otras, json{{"type", "preferencias"}, {"datos", d}});
 }
 
 void ControlWeb::llamar(const std::string& cid, const json& msg) {

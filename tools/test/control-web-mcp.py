@@ -8,7 +8,9 @@ Con la app corriendo (abierta con `--args --test`, que aprueba sola lo que pide 
   2. Empareja un aparato como lo haría el navegador: control_web_emparejar → POST
      /api/control/emparejar → control_web_resolver (aprobar) → GET ?solicitud= → token.
   3. Abre /ws?control con el token: auth, junta las tandas de herramientas, mira todos los
-     temas y anota la forma de lo que llega; llama scene_list y room_link (con su QR);
+     temas y anota la forma de lo que llega; llama scene_list y room_link (con su QR); arma
+     una escena, ve que la multipantalla (tema «monitores») la muestre con su cuadro, TAKE, y
+     que el programa cambie en los monitores y en la app;
      prueba un token malo y un tema fuera del perfil (con un segundo aparato, perfil chico).
   4. Quita los aparatos, vuelve al evento de antes y borra el de prueba.
 
@@ -174,11 +176,12 @@ def main():
         t.chequear(len(hs) > 100, f"catálogo entero en tandas: {len(hs)} herramientas")
         t.chequear(not any(h["name"].startswith("control_web_") for h in hs), "sin las de control_web")
 
-        temas = ["escenas", "audio", "ptz", "salidas", "latencias", "estado", "sala", "oradores", "graficos"]
+        temas = ["escenas", "audio", "ptz", "salidas", "latencias", "estado", "sala", "oradores", "graficos", "prompter",
+                 "monitores"]
         ws.enviar({"type": "mirar", "temas": temas})
         mi = ws.esperar("mirando")
         t.chequear(not mi.get("rechazados"), f"mirando {mi.get('temas')} rechazados={mi.get('rechazados')}")
-        vistos = {}
+        vistos, vistos_datos = {}, {}
         fin = time.time() + 8
         while time.time() < fin and len(vistos) < len(temas):
             try:
@@ -187,6 +190,7 @@ def main():
                 continue
             if e.get("type") == "estado" and e["tema"] not in vistos:
                 d = e.get("datos")
+                vistos_datos[e["tema"]] = d
                 vistos[e["tema"]] = list(d.keys())[:8] if isinstance(d, dict) else type(d).__name__
         for tm in temas:
             t.chequear(tm in vistos, f"estado «{tm}»: {vistos.get(tm)}")
@@ -201,6 +205,28 @@ def main():
         imgs = d2.get("imagenes") or []
         t.chequear(bool(imgs) and imgs[0].get("mime") == "image/png" and len(imgs[0].get("data", "")) > 200,
                    f"room_link trae el QR ({len(imgs)} imagen)")
+        # La multipantalla: armar una escena (PREVIEW), que los monitores lo muestren con su
+        # cuadro, TAKE, y que el programa cambie en la web y en la app.
+        esc = vistos_datos.get("escenas") or {}
+        nombres = [x["name"] for x in esc.get("scenes", []) if not x["name"].startswith("__")]
+        otra = next((n for n in nombres if n != esc.get("current")), "")
+        if otra:
+            ws.enviar({"type": "llamar", "id": 3, "herramienta": "scene_preview", "args": {"name": otra}})
+            r3 = ws.esperar("resultado", cond=lambda x: x.get("id") == 3)
+            t.chequear(r3.get("ok"), f"scene_preview «{otra}»: {r3.get('error') or 'ok'}")
+            mon = ws.esperar("estado", espera=8, cond=lambda x: x.get("tema") == "monitores" and
+                             (x["datos"].get("preview") or {}).get("escena") == otra and
+                             str((x["datos"].get("preview") or {}).get("imagen", "")).startswith("data:image/jpeg"))
+            t.chequear(True, f"monitores: PREVIEW «{otra}» con su cuadro ({len(mon['datos']['preview']['imagen'])} B)")
+            ws.enviar({"type": "llamar", "id": 4, "herramienta": "preview_al_aire", "args": {}})
+            r4 = ws.esperar("resultado", cond=lambda x: x.get("id") == 4)
+            t.chequear(r4.get("ok"), f"TAKE: {str(r4.get('datos') or r4.get('error'))[:80]}")
+            ws.esperar("estado", espera=8, cond=lambda x: x.get("tema") == "monitores" and
+                       (x["datos"].get("programa") or {}).get("escena") == otra)
+            t.chequear(True, f"monitores: PROGRAMA «{otra}» después del TAKE")
+            t.chequear(m.tool("scene_list", {}).get("current") == otra, "la app tiene al aire la misma")
+        else:
+            t.chequear(False, "el evento de prueba no tiene dos escenas para probar el TAKE")
         ws.enviar({"type": "ping"})
         t.chequear(ws.esperar("pong", espera=5).get("type") == "pong", "ping → pong")
         ws.cerrar()

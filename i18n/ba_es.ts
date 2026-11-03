@@ -4,7 +4,7 @@
 <context>
     <name>AccesoRemoto</name>
     <message numerus="yes">
-        <location filename="../src/app/net/AccesoRemoto.cpp" line="+726"/>
+        <location filename="../src/app/net/AccesoRemoto.cpp" line="+743"/>
         <source>Pedí cortar %n túnel de la cuenta (el de este equipo vuelve a conectarse solo si está prendido).</source>
         <translation>
             <numerusform>Pedí cortar %n túnel de la cuenta (el de este equipo vuelve a conectarse solo si está prendido).</numerusform>
@@ -15,7 +15,7 @@
 <context>
     <name>AgentesPage</name>
     <message numerus="yes">
-        <location filename="../src/app/qml/pages/AgentesPage.qml" line="+287"/>
+        <location filename="../src/app/qml/pages/AgentesPage.qml" line="+321"/>
         <source>%n reciente</source>
         <translation>
             <numerusform>%n reciente</numerusform>
@@ -130,7 +130,7 @@
 <context>
     <name>AssistantPage</name>
     <message numerus="yes">
-        <location filename="../src/app/qml/pages/AssistantPage.qml" line="+597"/>
+        <location filename="../src/app/qml/pages/AssistantPage.qml" line="+602"/>
         <source>%1 · %n aviso</source>
         <translation>
             <numerusform>%1 · %n aviso</numerusform>
@@ -393,6 +393,18 @@
         <translation>
             <numerusform>%n aparato conectado</numerusform>
             <numerusform>%n aparatos conectados</numerusform>
+        </translation>
+    </message>
+</context>
+<context>
+    <name>EnvioOpencode</name>
+    <message numerus="yes">
+        <location filename="../src/app/agent/EnvioOpencode.cpp" line="+185"/>
+        <location line="+32"/>
+        <source>No se pudieron mandar %n aviso(s) al asistente: %1</source>
+        <translation>
+            <numerusform>No se pudo mandar %n aviso al asistente: %1</numerusform>
+            <numerusform>No se pudieron mandar %n avisos al asistente: %1</numerusform>
         </translation>
     </message>
 </context>
@@ -675,7 +687,7 @@
 <context>
     <name>MediosViewModel</name>
     <message numerus="yes">
-        <location filename="../src/app/ui/MediosViewModel.cpp" line="+376"/>
+        <location filename="../src/app/ui/MediosViewModel.cpp" line="+375"/>
         <source>%n archivo a «%1»</source>
         <translation>
             <numerusform>%n archivo a «%1»</numerusform>
@@ -893,7 +905,7 @@ No se borran del disco: si alguno estaba en una escena, se lo saca de ahí y lis
 <context>
     <name>PanelMezclador</name>
     <message numerus="yes">
-        <location filename="../src/app/qml/controls/PanelMezclador.qml" line="+461"/>
+        <location filename="../src/app/qml/controls/PanelMezclador.qml" line="+462"/>
         <source>Mostrar los faders de %1 (%n tira)</source>
         <translation>
             <numerusform>Mostrar los faders de %1 (%n tira)</numerusform>
@@ -944,6 +956,17 @@ No se borran del disco: si alguno estaba en una escena, se lo saca de ahí y lis
         <translation>
             <numerusform>%n voto</numerusform>
             <numerusform>%n votos</numerusform>
+        </translation>
+    </message>
+</context>
+<context>
+    <name>PanelPruebaAsamblea</name>
+    <message numerus="yes">
+        <location filename="../src/app/qml/controls/PanelPruebaAsamblea.qml" line="+53"/>
+        <source>Borrar los %n integrantes de prueba que quedaron</source>
+        <translation>
+            <numerusform>Borrar el integrante de prueba que quedó (%n)</numerusform>
+            <numerusform>Borrar los %n integrantes de prueba que quedaron</numerusform>
         </translation>
     </message>
 </context>
@@ -1053,7 +1076,7 @@ No se borran del disco: si alguno estaba en una escena, se lo saca de ahí y lis
 <context>
     <name>PantallasViewModel</name>
     <message numerus="yes">
-        <location filename="../src/app/ui/PantallasViewModel.cpp" line="+372"/>
+        <location filename="../src/app/ui/PantallasViewModel.cpp" line="+415"/>
         <source>Encontré %n pantalla</source>
         <translation>
             <numerusform>Encontré %n pantalla</numerusform>
@@ -1177,6 +1200,41 @@ No se borran del disco: si alguno estaba en una escena, se lo saca de ahí y lis
         <translation>
             <numerusform>%n palabra · %1 leyendo</numerusform>
             <numerusform>%n palabras · %1 leyendo</numerusform>
+        </translation>
+    </message>
+</context>
+<context>
+    <name>PruebaAsambleaViewModel</name>
+    <message numerus="yes">
+        <location filename="../src/app/ui/PruebaAsambleaViewModel.cpp" line="+177"/>
+        <source>Prueba de asamblea: %n integrantes de prueba con su acceso, en el Recinto.</source>
+        <translation>
+            <numerusform>Prueba de asamblea: %n integrante de prueba con su acceso, en el Recinto.</numerusform>
+            <numerusform>Prueba de asamblea: %n integrantes de prueba con su acceso, en el Recinto.</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location line="+105"/>
+        <source>Prueba de asamblea: entran %n integrantes de prueba (la primera vez el probador graba su video unos minutos).</source>
+        <translation>
+            <numerusform>Prueba de asamblea: entra %n integrante de prueba (la primera vez el probador graba su video unos minutos).</numerusform>
+            <numerusform>Prueba de asamblea: entran %n integrantes de prueba (la primera vez el probador graba su video unos minutos).</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location line="+167"/>
+        <source>Se borraron %n integrantes de prueba que habían quedado (y su acceso).</source>
+        <translation>
+            <numerusform>Se borró %n integrante de prueba que había quedado (y su acceso).</numerusform>
+            <numerusform>Se borraron %n integrantes de prueba que habían quedado (y su acceso).</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location line="+18"/>
+        <source>Había una prueba de asamblea sin terminar (el programa se cerró en el medio): se borraron %n integrantes de prueba y su acceso.</source>
+        <translation>
+            <numerusform>Había una prueba de asamblea sin terminar (el programa se cerró en el medio): se borró %n integrante de prueba y su acceso.</numerusform>
+            <numerusform>Había una prueba de asamblea sin terminar (el programa se cerró en el medio): se borraron %n integrantes de prueba y su acceso.</numerusform>
         </translation>
     </message>
 </context>
@@ -1311,7 +1369,7 @@ No se borran del disco: si alguno estaba en una escena, se lo saca de ahí y lis
 <context>
     <name>SettingsPage</name>
     <message numerus="yes">
-        <location filename="../src/app/qml/pages/SettingsPage.qml" line="+1040"/>
+        <location filename="../src/app/qml/pages/SettingsPage.qml" line="+1047"/>
         <source>Entrenado con %n herramienta</source>
         <translation>
             <numerusform>Entrenado con %n herramienta</numerusform>
@@ -1550,7 +1608,7 @@ No se borran del disco: si alguno estaba en una escena, se lo saca de ahí y lis
 <context>
     <name>asamblea</name>
     <message numerus="yes">
-        <location filename="../src/app/asamblea/SesionRemota.cpp" line="+1032"/>
+        <location filename="../src/app/asamblea/SesionRemota.cpp" line="+1047"/>
         <source>Votación %1: se cerró (%n voto remoto)</source>
         <translation>
             <numerusform>Votación %1: se cerró (%n voto remoto)</numerusform>
@@ -1771,7 +1829,7 @@ No se borran del disco: si alguno estaba en una escena, se lo saca de ahí y lis
 <context>
     <name>web/correccion</name>
     <message numerus="yes">
-        <location line="+504"/>
+        <location line="+560"/>
         <source>%n esperando</source>
         <translation>
             <numerusform>%n esperando</numerusform>
