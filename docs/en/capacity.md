@@ -119,38 +119,6 @@ of the picture, so a glance at the grid shows which layer every cell is receivin
 | ![Mac program grid with 40 guests](../hardware/img/mac-programa-grilla-40.jpg) | |
 | **Mac M1 Pro, 40 guests**: the program grid (before the resolution label existed). | |
 
-## UI responsiveness under load (the MVC check)
-
-The interface must never wait for the engine, the gateway, the disk or the network: views bind
-to model properties and roles that notify when they change (MVC), never to functions that go
-and fetch data. A development-only **coupling detector** enforces it:
-
-- a **static** pass (`tools/diag/acoples.py`, run by the test suite) lists every QML binding
-  that calls a data-returning function and every blocking call in UI code; its debt can only
-  go down;
-- a **dynamic** "sabotage" mode (`--test --detectar-acoples`) makes every UI path that skips
-  the model sleep on purpose and records where, so the culprits show up as freezes;
-- `tools/diag/recorrer-ui.py` walks every page and panel with the detector on and a full room.
-
-It is compiled only into development and test builds (`BA_DIAG_ACOPLES`); release packages
-don't carry it.
-
-Results of the first full run (2026-11-03):
-
-| | Before | After |
-|---|---|---|
-| Mac, no guests, whole UI walk: time the UI spent waiting outside the model | 79.8 s in 7 places | 2.4 s in 2 places |
-| QML bindings calling data functions (static debt) | 39 | 29 |
-| Windows PC, 200 guests, UI freezes > 2 s in the first 2-minute batch | 16 | 0 |
-| Windows PC, 200 guests, batches 2–4 | 0–1 | 0 |
-
-The worst offenders were a cue-link lookup in the dashboard (44 s), page-id lookups in the
-navigation rail (33 s), a document list re-read from disk on every access, a catalog search
-model recounting everything on each guest joining, and hidden grid pages being rebuilt. What
-is left: the *Latencies* page with 200 guests (4–5 s when first shown, it creates every card
-at once) and a few disk reads in the assistant page. Details (Spanish):
-[detector-de-acoples.md](../arquitectura/detector-de-acoples.md).
-
 ## Recent work behind these numbers
 
 - **Multi-core gateway**: network and worker thread layers instead of threads per guest; the
@@ -162,7 +130,8 @@ at once) and a few disk reads in the assistant page. Details (Spanish):
 - **Staggered entry** (`room.entradaPorSegundo`, 2 per second by default): a burst of
   guests joins in order instead of all at once.
 - **A decoupled UI**: the interface never waits for the engine, the gateway, the disk or the
-  network; a development-only *coupling detector* finds the places where it still does.
+  network; with 200 guests joining, no page froze for more than 2 s except *Latencies*
+  (4–5 s when first shown).
 
 [Hardware pages (Spanish)](../hardware/README.md) ·
 [Windows PC](../hardware/pc-ryzen9-5900x-rx5700xt.md) ·

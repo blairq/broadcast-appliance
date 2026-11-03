@@ -568,8 +568,7 @@ Lo vigente es «Con todo integrado (2026-11-03)» más los arreglos de la interf
   de video de la placa lleno desde ~120) y los dos hilos de red del gateway al 97-98 %. Antes
   del gateway en varios núcleos el techo era ~80, y antes del 2026-11-02 el cupo no dejaba
   pasar de 64 (hoy el tope es 512).
-- **La interfaz con 200**: después de los arreglos del [detector de
-  acoples](../arquitectura/detector-de-acoples.md) (noche del 2026-11-03), el recorrido por
+- **La interfaz con 200**: después de los arreglos de la noche del 2026-11-03, el recorrido por
   todas las páginas con 200 invitados entrando no tuvo trabas de más de 2 s, salvo la página
   **Latencias** (crear cientos de tarjetas de una vez: 4,6-5,0 s al mostrarse).
 - **Memoria**: ba-app llega a 8,4 GB privados con 200 (cada lugar del cupo reserva sus canales);

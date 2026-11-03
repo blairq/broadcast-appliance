@@ -66,3 +66,7 @@ imatrix.dat
 # El firmware y los manuales del DVD de Bosch, y su desensamblado: solo locales.
 docs/bosch/dvd/
 docs/bosch/desassembly/
+
+# --- Documentos locales (depuración, diagnóstico, detector de acoples) ---------
+# Lo que es de depuración no se publica en GitHub: queda solo en esta carpeta.
+docs/local/
