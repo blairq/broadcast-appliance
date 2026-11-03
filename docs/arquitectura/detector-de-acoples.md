@@ -206,8 +206,8 @@ bindings, ganchos de los caminos que ya no existen fuera de la tabla.
 Cinco tandas de ≤ 2 min (hinchada en la Mac por TURN de la caja, 10 % TCP, `--modo grabado
 --hablan 1`; el recorrido arranca con 100 con medios y sigue mientras entran los demás):
 `tools/diag/recorrer-ui.py --sala-externa 100 --paginas …` en paralelo con
-`tools/carga/medir-sala.py --remoto windows --participantes 200 --cupo --estabilizar-max 60
---regimen 40`. Mediciones en `~/Proyectos/mediciones-carga/2026-11-03-acoples-pc177/`.
+`tools/carga/medir-sala.py --remoto <PC> --participantes 200 --cupo --estabilizar-max 60
+--regimen 40`. Mediciones crudas fuera del repo (`2026-11-03-acoples-pc177/`).
 
 **El detector no anotaba nada en Windows**: `detalle::demoraMs` era `inline` en el .hpp y en el
 .exe de clang-cl los ganchos leían una copia que `activar()` no tocaba. Ahora está definida en

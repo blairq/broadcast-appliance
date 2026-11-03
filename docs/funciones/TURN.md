@@ -136,7 +136,7 @@ abrir la app después.
 
 ## Ráfaga: 40 entrando a la vez (2026-11-02)
 
-Por el TURN entraban 21-22 de 40 (la .177) y 14 de 40 (la Mac); por el camino directo,
+Por el TURN entraban 21-22 de 40 (la PC de Windows) y 14 de 40 (la Mac); por el camino directo,
 todos. No era el TURN (`test_turn` hace la ráfaga de 40 y la aguanta): era el gateway. Las
 PeerConnection compartían la lista de redes de libwebrtc, que a cada sesión que empieza le
 avisa «cambiaron las redes» a TODAS; las que todavía no conectaron (por el TURN tardan más

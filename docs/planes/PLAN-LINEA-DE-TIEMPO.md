@@ -471,17 +471,17 @@ L0 y L1 se pueden hacer ya y sin esperar a las salidas. L2 y L3 dejan al asisten
 - Millumin, dashboard: https://help.millumin.com/docs/playback/dashboard/
 
 ## Archivos nuestros relevantes
-- /Users/usuario/Proyectos/broadcast-appliance/src/app/evento/Evento.hpp
-- /Users/usuario/Proyectos/broadcast-appliance/src/app/evento/Evento.cpp
-- /Users/usuario/Proyectos/broadcast-appliance/src/app/ui/EventoViewModel.cpp (`ejecutarActual` en la línea 1887, `reloj()` en la 1647, `arrancar` y `avanzar` en la 1729)
-- /Users/usuario/Proyectos/broadcast-appliance/src/app/qml/pages/EventoPage.qml
-- /Users/usuario/Proyectos/broadcast-appliance/src/app/qml/controls/DialogoCue.qml
-- /Users/usuario/Proyectos/broadcast-appliance/src/app/mcp/McpEventoTools.cpp
-- /Users/usuario/Proyectos/broadcast-appliance/src/app/asamblea/OrdenDelDia.hpp
-- /Users/usuario/Proyectos/broadcast-appliance/src/app/medios/Playlist.hpp
-- /Users/usuario/Proyectos/broadcast-appliance/src/app/control/Acciones.hpp
-- /Users/usuario/Proyectos/broadcast-appliance/src/app/control/BusEventos.hpp
-- /Users/usuario/Proyectos/broadcast-appliance/src/app/control/Dsk.hpp
-- /Users/usuario/Proyectos/broadcast-appliance/src/app/control/ControlWeb.hpp
-- /Users/usuario/Proyectos/broadcast-appliance/src/app/emision/BroadcastEngine.hpp (`enableScenePreview` y `capturarAparte`)
-- /Users/usuario/Proyectos/broadcast-appliance/docs/funciones/EVENTOS.md
+- src/app/evento/Evento.hpp
+- src/app/evento/Evento.cpp
+- src/app/ui/EventoViewModel.cpp (`ejecutarActual` en la línea 1887, `reloj()` en la 1647, `arrancar` y `avanzar` en la 1729)
+- src/app/qml/pages/EventoPage.qml
+- src/app/qml/controls/DialogoCue.qml
+- src/app/mcp/McpEventoTools.cpp
+- src/app/asamblea/OrdenDelDia.hpp
+- src/app/medios/Playlist.hpp
+- src/app/control/Acciones.hpp
+- src/app/control/BusEventos.hpp
+- src/app/control/Dsk.hpp
+- src/app/control/ControlWeb.hpp
+- src/app/emision/BroadcastEngine.hpp (`enableScenePreview` y `capturarAparte`)
+- docs/funciones/EVENTOS.md

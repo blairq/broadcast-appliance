@@ -7,7 +7,7 @@ usan poca cantidad y qué cambios de contexto mucha».
 
 ## Dónde estamos (medido)
 
-| | Mac M1 Pro, 40 invitados | PC Ryzen 9 5900X (.177), 40 invitados |
+| | Mac M1 Pro, 40 invitados | PC Ryzen 9 5900X (Windows), 40 invitados |
 |---|---|---|
 | CPU del gateway | 108 % de un núcleo | 201 % (320 % con 10, todos en 720p) |
 | Hilos del gateway | 93 | 366 |
@@ -16,15 +16,15 @@ usan poca cantidad y qué cambios de contexto mucha».
 Mediciones: `mediciones-carga/2026-11-02-final-am-sr/`, `2026-11-02-al-final/`,
 `2026-11-02-pc177/`; ficha de la PC en [docs/hardware](../hardware/pc-ryzen9-5900x-rx5700xt.md).
 
-Campaña del 2026-11-02 en la .177 con H.264 por la placa (master `b792325d`, ver «Lo que dijo
+Campaña del 2026-11-02 en la PC de Windows con H.264 por la placa (master `b792325d`, ver «Lo que dijo
 la campaña»): con 40 el gateway gasta 220 % directo y 231-242 % por TURN, con **647 hilos** y
 **45-47 mil cambios de contexto/s**; con 10 en 720p, 405 %.
 
-**Después de F1-F5 (2026-11-02 noche, .177, paquete `3824d1f5`)**: con 40 el gateway baja a
+**Después de F1-F5 (2026-11-02 noche, PC de Windows, paquete `3824d1f5`)**: con 40 el gateway baja a
 138 % directo y 162 % por TURN mezcla, con **204 hilos** y **28-29 mil cambios/s**; con 10 en
 720p, 82 %. Detalle en «Lo que dijo la campaña» → «Después del rewrite».
 
-**Con todo integrado (2026-11-03, .177, master `5e405912`)**: con 40 el gateway gasta 169 % directo
+**Con todo integrado (2026-11-03, PC de Windows, master `5e405912`)**: con 40 el gateway gasta 169 % directo
 y 185 % por TURN mezcla (más que la noche anterior), con 231-234 hilos y **23,6-23,7 mil cambios/s**;
 ba-app baja a 92-102 %. **El techo pasó de ~80 a ~160 invitados**; con 200 se llenan el motor de
 video de la placa (desde 120) y los dos `ba-rtc-net`. Detalle en «Lo que dijo la campaña» → «Con
@@ -67,7 +67,7 @@ siempre manda la frecuencia.
 ## Las fronteras, una por una
 
 Pases/s y tamaños son **estimaciones para 40 invitados**. La última columna es lo **medido** en
-la .177 (campaña del 2026-11-02, master `b792325d`, 40 por TURN mezcla:10 salvo que diga otra
+la PC de Windows (campaña del 2026-11-02, master `b792325d`, 40 por TURN mezcla:10 salvo que diga otra
 cosa; p50 del régimen de los contadores de F0: pases/s, despertadas/s, µs de trabajo por pase,
 % de un núcleo y espera). La Mac quedó sin medir por TURN (campaña pausada). «Hoy» dice cuántos
 hilos y pases por el kernel hay en esa frontera.
@@ -145,9 +145,9 @@ señalización: 1 hilo para toda la sala
   en el 5900X R=2, T=3, D=4; en la M1 Pro R=1, T=2, D=2 (decodifica la placa). Con
   R=T=1 queda casi como hoy pero sin el kernel en el medio: sirve para comparar.
 
-## Lo que dijo la campaña (2026-11-02, .177)
+## Lo que dijo la campaña (2026-11-02, PC de Windows)
 
-Mediciones en `~/Proyectos/mediciones-carga/2026-11-02-campana/pc177/` y la ficha
+Mediciones crudas fuera del repo (`2026-11-02-campana/pc177/`) y la ficha
 [pc-ryzen9-5900x-rx5700xt.md](../hardware/pc-ryzen9-5900x-rx5700xt.md). La Mac quedó pausada con
 solo directo 10-40 (sin TURN): sus columnas quedan para cuando se retome.
 
@@ -214,11 +214,11 @@ Conclusiones para el rewrite:
     lógicos 12-13 con el muestreo viejo por WMI). Para F4: dejar los núcleos 0-1 libres de hilos
     calientes del gateway (son los de la placa de red) antes de fijar afinidad.
 
-### Después del rewrite (2026-11-02 noche, .177)
+### Después del rewrite (2026-11-02 noche, PC de Windows)
 
 Paquete `3824d1f5` (F1-F5, D3D11, colas compartidas, 4 en alta, tope 512), mismas condiciones
 que la campaña (hinchada desde la Mac, grabado, habla 1, decodificar todo; 45-50 s de régimen).
-Crudas en `~/Proyectos/mediciones-carga/2026-11-02-nw/`; ficha completa (escalera, ETW,
+Crudas fuera del repo (`2026-11-02-nw/`); ficha completa (escalera, ETW,
 capturas) en [pc-ryzen9-5900x-rx5700xt.md](../hardware/pc-ryzen9-5900x-rx5700xt.md) «Después del
 rewrite de hilos».
 
@@ -240,7 +240,7 @@ rewrite de hilos».
 2. **La celda en la placa no se usa**: `uso.codecsVideo.entrega.celdas_placa` = 0 y `celdas_cpu`
    = todas, aunque `h264.achica_en_placa` diga sí. Se decodifica en la placa (D3D11, motor de video
    al 46 % con 40) pero el achique sigue por CPU; #8 sigue en 2,9 ms por cuadro (pared).
-3. **El techo útil de la .177 es ~80 invitados**; lo primero que se rompe es **la interfaz de
+3. **El techo útil de la PC de Windows es ~80 invitados**; lo primero que se rompe es **la interfaz de
    ba-app** (trabas de 6-8 s cuando 80 se van de golpe; 14 s al entrar y al irse con 100),
    corriendo `ConferenceClient, evento 43`. No es del gateway.
 4. **Lo segundo, con 120: `webrtc-playout` (#10) satura** — 1,4 ms por pase con 40, 2,1 con 60,
@@ -253,15 +253,15 @@ rewrite de hilos».
    120 queda igual de roto; con afinidad, con 120, el CCD del gateway quedaba a 65-74 % y el otro
    casi libre. Por decisión del usuario quedó apagada de fábrica (`gateway.afinidad` y
    `procesador.mediosJuntos`), y para medir también `procesador.prioridad`. La tarea programada de
-   las pruebas en la .177 lanzaba la app en BelowNormal: medir con `start /NORMAL`.
+   las pruebas en la PC de Windows lanzaba la app en BelowNormal: medir con `start /NORMAL`.
 
-### Con todo integrado (2026-11-03, .177)
+### Con todo integrado (2026-11-03, PC de Windows)
 
 Paquete de master `5e405912`: además de F1-F5, #4 en lote, #10 repartido (3 hilos, sin mezcla ni
 APM), video según demanda con la celda en la placa, la interfaz desacoplada de la foto, la foto
 del motor por partes, el reacomodo agrupado y la entrada escalonada (2/s de fábrica; 10/s en la
-escalera). Mismas condiciones que la noche anterior. Crudas en
-`~/Proyectos/mediciones-carga/2026-11-03-n2/`; ficha en
+escalera). Mismas condiciones que la noche anterior. Crudas fuera
+del repo (`2026-11-03-n2/`); ficha en
 [pc-ryzen9-5900x-rx5700xt.md](../hardware/pc-ryzen9-5900x-rx5700xt.md) «Con todo integrado».
 
 | | 40 directo noche 11-02 | 40 directo ahora | 40 TURN mezcla noche 11-02 | 40 TURN mezcla ahora |
@@ -317,7 +317,7 @@ escalera). Mismas condiciones que la noche anterior. Crudas en
 
 ## Etapas
 
-Cada etapa termina con su medición en la Mac y en la .177, antes y después, y se
+Cada etapa termina con su medición en la Mac y en la PC de Windows, antes y después, y se
 integra sola. Si no mejora lo que promete, se frena y se revisa.
 
 ### F0 — Medir el camino real y cada frontera (sin cambiar el producto)
@@ -333,7 +333,7 @@ integra sola. Si no mejora lo que promete, se frena y se revisa.
    `tools/carga/`; nunca `sample`); Windows con `GetThreadDescription` en
    `tools/carga/muestrear-win.ps1`. El informe lista los 10 hilos que más CPU y más
    cambios de contexto tienen.
-4. **Serie base** 10/20/30/40 con `--turn udp` y `--turn mezcla:10`, Mac y .177.
+4. **Serie base** 10/20/30/40 con `--turn udp` y `--turn mezcla:10`, Mac y la PC de Windows.
 
 Criterio: la tabla de fronteras con números medidos en vez de estimados.
 
@@ -408,7 +408,7 @@ depura y mide todo junto con F3-F5):
 5. `gateway_estado` muestra las capas con su carga.
 
 Criterio: con 40, ningún hilo por encima del 60 % de un núcleo; cambios de contexto/s
-no peores que F1; la .177 aguanta igual o mejor.
+no peores que F1; la PC de Windows aguanta igual o mejor.
 
 Escrito (2026-11-02, noche; **sin compilar ni medir**, como F1):
 
@@ -438,7 +438,7 @@ Escrito (2026-11-02, noche; **sin compilar ni medir**, como F1):
 - #4 (red → trabajo) y #12/#13 (retorno → oyentes) quedan como los arma libwebrtc: el pase
   red → trabajo es un `PostTask` de libwebrtc (despierta solo si el hilo dormía) y los
   codificadores de paso corren en las colas compartidas «rtc» (ya en lote: 733 despertadas
-  para 7,6 mil tareas/s con 40). Medir antes de tocar más. (La #4 se midió en la .177 y se
+  para 7,6 mil tareas/s con 40). Medir antes de tocar más. (La #4 se midió en la PC de Windows y se
   hizo en lote: ver «La frontera #4» abajo.)
 - `gateway_estado` → `capas`: cada hilo de red y de trabajo con su carga y sus sesiones, las
   fábricas y el conmutador (directos, encolados, cruzados, despertadas, descartes); `turn` →
@@ -452,7 +452,7 @@ Escrito (2026-11-02, noche; **sin compilar ni medir**, como F1):
 
 #### La frontera #4 (red → trabajo) en lote
 
-Escrito (2026-11-02, noche; **sin compilar ni medir**). Lo que lo pidió: en la .177 con 40,
+Escrito (2026-11-02, noche; **sin compilar ni medir**). Lo que lo pidió: en la PC de Windows con 40,
 29 mil cambios de contexto/s en el gateway y el primero es `ba-rtc-work-#` (×3): 13,5 mil/s,
 20-26 % de un núcleo cada uno. En libwebrtc cada paquete que llega al hilo de red pasa al de
 trabajo con un `PostTask` (`WebRtcVideoReceiveChannel` / `WebRtcVoiceReceiveChannel::OnPacketReceived`,
@@ -520,7 +520,7 @@ p50 y lo que recibe el invitado (sin cambios). Con `juntos`: CPU y cambios de co
 
 #### El reloj del audio (#10) repartido
 
-Escrito (2026-11-02, noche; **sin compilar ni medir**). Con 120 invitados en la .177 el hilo
+Escrito (2026-11-02, noche; **sin compilar ni medir**). Con 120 invitados en la PC de Windows el hilo
 único `webrtc-playout` (el `RelojPlayout` que cada 10 ms tira de la reproducción de todas las
 fábricas: NetEq y Opus de cada invitado, los sinks hacia ba-app y la grilla) va al 54 % de un
 núcleo y crece con los invitados: el próximo hilo único en llenarse.
@@ -542,7 +542,7 @@ núcleo y crece con los invitados: el próximo hilo único en llenarse.
 - Qué medir (120 y 40): % de núcleo de cada `webrtc-playout*` (≈ 54/K), edad del audio p50
   (igual), `perdidas` en 0, y que la mezcla de ba-app no tenga cortes.
 
-**Por qué crecía más que lineal** (medido limpio en la .177: 1,39 ms por vuelta con 40, 35 µs
+**Por qué crecía más que lineal** (medido limpio en la PC de Windows: 1,39 ms por vuelta con 40, 35 µs
 por invitado → 9,0 ms con 120, 75 µs por invitado; `webrtc-playout` al 100 %). Lo que se paga
 por invitado en cada vuelta, leído en el camino (PullAdm → `AudioTransportImpl::NeedMorePlayData`
 → `AudioMixerImpl::Mix` → por fuente `GetAudioFrameWithInfo` (NetEq, Opus, el sink → MediaPump
@@ -603,7 +603,7 @@ todo):
    AMF/D3D12 en la RX 5700 XT (`src/gateway/CodecsWin.*`, como `CodecsMac.mm`), con caída
    a software.
 
-Criterio: en la .177, menos de 120 hilos con 40 y la mitad de CPU con 10.
+Criterio: en la PC de Windows, menos de 120 hilos con 40 y la mitad de CPU con 10.
 
 Hecho (2026-11-02, adelantado por pedido del usuario: «en Windows quiero H.264 ya»):
 
@@ -627,7 +627,7 @@ Hecho (2026-11-02, adelantado por pedido del usuario: «en Windows quiero H.264 
 
 Hecho (2026-11-02, tarde): decodificar directo con la API de video de D3D11, sin el MFT.
 
-- Qué eran los hilos (hilos del gateway por módulo donde arrancan, .177, 10 invitados 720p
+- Qué eran los hilos (hilos del gateway por módulo donde arrancan, PC de Windows, 10 invitados 720p
   con el MFT): **msmpeg2vdec.dll 40 hilos, 87 % de un núcleo** (dos por decodificador, aun
   con `CODECAPI_AVDecNumWorkerThreads`=1; con 40 invitados, 94 hilos) y **amdxx64.dll 121
   hilos** (el driver de AMD: ~25 por dispositivo D3D11, y el MFT abría 4 más el suyo). Los
@@ -645,8 +645,8 @@ Hecho (2026-11-02, tarde): decodificar directo con la API de video de D3D11, sin
 - Sin la placa no se recibe H.264: el MFT por software de Windows no entregaba ningún
   cuadro (ProcessOutput E_FAIL; 0 cps en la grilla) y abría ~24 hilos por flujo. Ahora el
   H.264 no se ofrece para subir y todo va en VP8 (`decodificaConPlaca()`).
-- Medido en la .177 (`medir-sala.py --camino directo`, grabado, 2 min; gateway p50 e hilos
-  al final, en /Users/usuario/Proyectos/mediciones-carga/2026-11-02-d3d11):
+- Medido en la PC de Windows (`medir-sala.py --camino directo`, grabado, 2 min; gateway p50 e hilos
+  al final, en las mediciones crudas (fuera del repo, 2026-11-02-d3d11)):
 
   | | 10 invitados (720p30) | 40 invitados (capa baja) |
   |---|---|---|
@@ -662,12 +662,12 @@ Hecho (2026-11-02, tarde): decodificar directo con la API de video de D3D11, sin
   40 a la vez en 720p tanto con D3D11 como con el MFT: es el tope del motor de video de la
   RX 5700 XT (~650 cuadros 720p por segundo), no del gateway.
 
-Hecho (2026-11-02, por la campaña de la .177: con 40, 647 hilos y 45 mil cambios de
+Hecho (2026-11-02, por la campaña de la PC de Windows: con 40, 647 hilos y 45 mil cambios de
 contexto/s; más de la mitad de las colas de libwebrtc de un hilo cada una):
 
 - **Sin suavizado previo al render** (`set_prerenderer_smoothing(false)` en la config de
   cada PeerConnection): se va `IncomingVideoStream` (un hilo por stream; con 10 en 720p,
-  107 % de un núcleo en la .177). El cuadro sale del decodificador derecho al sink; la
+  107 % de un núcleo en la PC de Windows). El cuadro sale del decodificador derecho al sink; la
   grilla ya tiene su cola de 4 cuadros.
 - **Colas compartidas** (`src/gateway/rtc/ColasCompartidas.*`, el pozo del punto 1): un
   `TaskQueueFactory` propio en `PeerConnectionFactoryDependencies` (la fábrica se arma con
@@ -693,13 +693,13 @@ contexto/s; más de la mitad de las colas de libwebrtc de un hilo cada una):
 
   Con 40: «rtc» corre 7,6 mil tareas/s con 733 despertadas/s (antes, una por tarea) y
   espera media de 0,1-0,2 ms; «dec», 617 decodificaciones/s (0,45 ms c/u, con el sink),
-  espera media 0,28 ms, máx. 13,6 ms. Falta medir en la .177.
+  espera media 0,28 ms, máx. 13,6 ms. Falta medir en la PC de Windows.
 
 Escrito (2026-11-02, noche, sin compilar todavía: se compila y se mide todo junto con F1/F2):
 **achicar la celda en el mismo hilo que decodifica (#6) y el BGRA de ba-app solo si hace falta (#8)**.
 
 - Qué pasaba: el sink de cada cámara (`RemoteVideoSink`, Webrtc.cpp) convertía SIEMPRE el
-  cuadro entero a BGRA (3,5 ms un 720p en la .177, #8) aunque su ruta no lo publicara (con 40
+  cuadro entero a BGRA (3,5 ms un 720p en la PC de Windows, #8) aunque su ruta no lo publicara (con 40
   en la grilla casi ninguno va a ba-app), y en Windows además bajaba el NV12 entero de la placa
   y lo pasaba a I420 antes. La grilla ya achicaba en ese hilo, pero desde lo grande.
 - `src/gateway/DestinoCamara.{hpp,cpp}`: adónde va la cámara de una sesión. `quiereEntero()`
@@ -729,13 +729,13 @@ Escrito (2026-11-02, noche, sin compilar todavía: se compila y se mide todo jun
   sale y hay `camara`: `codecs::entregarCamara(frame, *camara_, bgra_); return;`.
 - Cómo se prueba: `test_grillas` 16 (pedido, tamaño, balde, soltar, DestinoCamara sin ba-app);
   `test_webrtc_codecs` y `test_webrtc_loopback` siguen pasando (el loopback no usa `camara`);
-  en la .177 con 10 en 720p y 40 en la grilla: `uso.codecsVideo.entrega` (salteados, celdas
+  en la PC de Windows con 10 en 720p y 40 en la grilla: `uso.codecsVideo.entrega` (salteados, celdas
   en placa/cpu, enteros), las fronteras #6/#8 (µs por pase y % de núcleo) y el mosaico (30 cps,
   colores iguales a los de antes: comparar una captura con `gateway.celdaEnPlaca` apagado).
 
 #### F3 — Decodificar solo lo que se ve, y menos cps si la placa no da (2026-11-03)
 
-Medido en la .177 (escalera por TURN, `mediciones-carga/2026-11-03-n2`): el motor de video
+Medido en la PC de Windows (escalera por TURN, `mediciones-carga/2026-11-03-n2`): el motor de video
 de la placa («Video Codec 0», decodifica y codifica) 48 % con 40, 82 % con 80, **96-99 %
 desde 120** hasta 200, con 224 decodificadores para 200 (`camaras.enteros.todos = N`: el
 motor de ba-app lee todos los BA.Guest.N siempre). El 3D y la memoria sobran. Saturado, las
@@ -804,7 +804,7 @@ bundle de ba-app) en un hilo del gateway.
    (CPU Sets en Windows, `sched_setaffinity` en Linux; macOS nada). Línea en el log como
    la de ba-app.
 
-Criterio: menos cambios de contexto y la misma latencia en la .177; si no mejora, queda
+Criterio: menos cambios de contexto y la misma latencia en la PC de Windows; si no mejora, queda
 apagado por omisión (`gateway.afinidad`).
 
 Escrito (2026-11-02, noche, sin compilar todavía):
@@ -825,10 +825,10 @@ Escrito (2026-11-02, noche, sin compilar todavía):
 - Las interrupciones (`gateway.afinidadEvitar`, «auto»): Linux suma `/proc/interrupts` de las
   placas de red y evita las CPU con 20 % o más; Windows evita el 0 y el 1 (sin RSS, ahí caen
   las DPC de la placa). «» = ninguno; «0,1», «0-3» = esos.
-- `gateway.afinidad` (de fábrica sí, para comparar apagado). En la .177 (dos CCD de 12): medios
+- `gateway.afinidad` (de fábrica sí, para comparar apagado). En la PC de Windows (dos CCD de 12): medios
   de ba-app en uno, gateway en el otro.
 - Cómo se prueba: `test_nucleos` (5900X, evitar, un L3, híbrido, CCD desparejos, /proc/interrupts);
-  en la .177 la línea del log y, con `muestrear-win.ps1`, en qué núcleos corre cada hilo del
+  en la PC de Windows la línea del log y, con `muestrear-win.ps1`, en qué núcleos corre cada hilo del
   gateway; medir con `gateway.afinidad` prendido y apagado (cambios de contexto, edad del
   audio, mosaico).
 
@@ -881,7 +881,7 @@ vuelta: GW SendTo ─► IpStack::enviarDesdeRtc (cola, despierta si estaba vac�
 
 ## Cómo se mide (cada etapa)
 
-- `tools/carga/medir-sala.py` (con `--remoto 192.168.1.177` para la PC), `--modo grabado
+- `tools/carga/medir-sala.py` (con `--remoto <PC>` para la PC), `--modo grabado
   --hablan 1`, `--turn udp` y `--turn mezcla:10` (y `--wireguard` en F5), régimen 60 s,
   grilla 20 s, serie 10/20/30/40.
 - Por proceso: CPU p50/p95, hilos, cambios de contexto/s, memoria. Por hilo con nombre.
@@ -916,11 +916,11 @@ vuelta: GW SendTo ─► IpStack::enviarDesdeRtc (cola, despierta si estaba vac�
 
 | | Qué | Por qué |
 |---|---|---|
-| C18 | **Franjas al ir entrando gente** (visto por el usuario en la .177, 2026-11-03): una división parte la pantalla al medio horizontalmente y aparecen muchas franjas de video de 1-2 cm de ancho y 10 cm de alto | el algoritmo de disposición tiene que **mantener la relación de aspecto** de las imágenes (16:9) y tener un **mínimo de ancho y de alto** por celda; si no entran, desplazar/«+N», nunca aplastar. **Hecho 2026-11-03, sin compilar ni probar en la placa**: `disponer()` con `Forma` (recorte_max 25 %, celda mínima 96×54 a 1080, capacidad → «+N»); `grilla_personas_estado` dice la `disposicion` |
+| C18 | **Franjas al ir entrando gente** (visto por el usuario en la PC de Windows, 2026-11-03): una división parte la pantalla al medio horizontalmente y aparecen muchas franjas de video de 1-2 cm de ancho y 10 cm de alto | el algoritmo de disposición tiene que **mantener la relación de aspecto** de las imágenes (16:9) y tener un **mínimo de ancho y de alto** por celda; si no entran, desplazar/«+N», nunca aplastar. **Hecho 2026-11-03, sin compilar ni probar en la placa**: `disponer()` con `Forma` (recorte_max 25 %, celda mínima 96×54 a 1080, capacidad → «+N»); `grilla_personas_estado` dice la `disposicion` |
 | C19 | **La app pasó sola de Conferencia al Dashboard** a mitad de la entrada (medidor, 2026-11-03), sin arreglar | lo único que pone el Dashboard es `page = 0` en `Main.qml`: (1) la ventana se creó de nuevo tras una caída o un cuelgue relanzado por el supervisor (`page` arranca en 0; mirar `Runtime/caidas.jsonl`, «colgado»/«terminó inesperadamente» en el log del launcher, cortes del MCP en medir-sala); (2) un clic en la píldora de estado de arriba al centro (`Main.qml`, `onClicked: win.page = 0`; con «AL AIRE · GRABANDO» se ensancha); (3) el modo en vivo rebota a `paginaPermitida` si «sala» estuviera bloqueada (se vería el diálogo «Estamos en vivo»); (4) otro cliente MCP con `ui_show_page dashboard`. Nada del C++ (alarmas, asistente, línea de tiempo, gente entrando) navega al Dashboard |
 | C13 | Tope de 32 conexiones por IP (`room.maxConexionesPorIp`) | con mucha gente detrás de un NAT quedan afuera; que dependa del cupo |
 | C14 | «En la conferencia» con 40 se ve como rayas vacías | desplazarse o pasar a lista; `docs/hardware/img/pc177-sala-40.jpg` |
-| C15 | Cuelgue al cambiar de evento tras el primer arranque | GStreamer trabado en `gst_pad_stop_task`; volcado en la .177 |
+| C15 | Cuelgue al cambiar de evento tras el primer arranque | GStreamer trabado en `gst_pad_stop_task`; volcado en la PC de Windows |
 | C16 | 5 tests nuevos fallan bajo Wine | test_cupos, test_gateway_http, test_mirada, test_sse_epoch, test_tiempo_real |
 | C17 | Detalles | «fallidos 40» antes de que entre nadie; `analizar.py --pc` con acentos; script de hinchada con bash 3.2; la tarjeta «Enlace» habla de WireGuard |
 | C9 | Faltantes del retorno al entrar la gente | quedan algunos |
