@@ -439,8 +439,13 @@ def simbolizar(md, direcciones):
                    "-v", "%s:/x:ro" % tmp, "ba-compilar", SYMBOLIZER, "--relative-address", "--inlines",
                    "--demangle", "--output-style=JSON"]
             try:
-                out = subprocess.run(cmd, input="\n".join(l for _, l in lineas) + "\n", capture_output=True,
-                                     text=True, timeout=600).stdout
+                r = subprocess.run(cmd, input="\n".join(l for _, l in lineas) + "\n", capture_output=True,
+                                   text=True, timeout=600)
+                out = r.stdout
+                if r.returncode != 0:
+                    # Sin esto, con Docker apagado (colima) las pilas salían sin nombres y sin aviso.
+                    print("(llvm-symbolizer por Docker falló, rc=%d: %s; van los nombres exportados. ¿Docker/colima prendido?)"
+                          % (r.returncode, (r.stderr or "").strip().splitlines()[-1:] or ""), file=sys.stderr)
                 for (d, _), j in zip(lineas, out.splitlines()):
                     try:
                         sy = json.loads(j).get("Symbol", [])
