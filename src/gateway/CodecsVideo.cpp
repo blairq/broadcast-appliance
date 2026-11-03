@@ -17,6 +17,8 @@
 //     procesador. Con 40 invitados, el paralelismo está en que son 40; uno por cada uno.
 //   - Cada uno anota qué implementación usa (y si es por hardware): una línea en el log la
 //     primera vez de cada combinación y la cuenta de los que están abiertos en estado().
+//   - Cada Decode() se mide (CargaVideo.hpp): cuánto tarda y si el decodificador trabaja o
+//     está en pausa (su capa no viaja: libwebrtc no lo suelta, pero no gasta la placa).
 // ============================================================================
 
 #if BA_GATEWAY_HAVE_WEBRTC
@@ -35,7 +37,9 @@
 #include <vector>
 
 #include <atomic>
+#include <chrono>
 
+#include "CargaVideo.hpp"
 #include "DestinoCamara.hpp"
 #include "Grillas.hpp"
 #include "PlanosYuv.hpp"
@@ -113,9 +117,17 @@ class Decodificador : public webrtc::VideoDecoder {
         anotar(ok, hilos);
         return ok;
     }
-    int32_t Decode(const webrtc::EncodedImage& img, int64_t render) override { return interno_->Decode(img, render); }
+    int32_t Decode(const webrtc::EncodedImage& img, int64_t render) override {
+        const auto t0 = std::chrono::steady_clock::now();
+        const int32_t r = interno_->Decode(img, render);
+        actividad_.decodifico(std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now() - t0).count());
+        return r;
+    }
     int32_t Decode(const webrtc::EncodedImage& img, bool faltan, int64_t render) override {
-        return interno_->Decode(img, faltan, render);
+        const auto t0 = std::chrono::steady_clock::now();
+        const int32_t r = interno_->Decode(img, faltan, render);
+        actividad_.decodifico(std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now() - t0).count());
+        return r;
     }
     int32_t RegisterDecodeCompleteCallback(webrtc::DecodedImageCallback* cb) override {
         return interno_->RegisterDecodeCompleteCallback(cb);
@@ -162,6 +174,7 @@ class Decodificador : public webrtc::VideoDecoder {
 
     std::unique_ptr<webrtc::VideoDecoder> interno_;
     std::string codec_;
+    cargavideo::Actividad actividad_; ///< trabaja o está en pausa, y cuánto tarda (CargaVideo.hpp)
     bool contado_ = false;
     std::tuple<std::string, std::string, bool> clave_;
 };
@@ -406,6 +419,10 @@ nlohmann::json estado() {
                                  {"activos", n}});
     }
     j["decodificadores"] = std::move(lista);
+    // F3: de los abiertos, cuántos decodificaron en los últimos 2 s y cuántos están en pausa
+    // (su capa no viaja: nadie ve a ese invitado).
+    const cargavideo::Decodificadores dec = cargavideo::decodificadores();
+    j["decodificando"] = {{"trabajando", dec.trabajando}, {"en_pausa", dec.enPausa}};
     // F3: qué se hizo con cada cuadro de cámara (entregarCamara), desde que arrancó.
     const CuentaEntrega& e = cuentaEntrega();
     j["entrega"] = {{"salteados", e.salteados.load()},       {"enteros", e.enteros.load()},
