@@ -762,7 +762,9 @@ def main():
                     ge = mcp.datos("gateway_estado")
                     m["gateway"] = {"fronteras": (ge.get("fronteras") or {}).get("fronteras"), "turn": ge.get("turn"),
                                     # Los códecs y si van por la placa (lo agrega el agente de códecs, si está).
-                                    "codecs": (ge.get("uso") or {}).get("codecsVideo")}
+                                    "codecs": (ge.get("uso") or {}).get("codecsVideo"),
+                                    # Red→trabajo (#4) y los hilos de playout (vueltas, perdidas).
+                                    "capas": {k: (ge.get("capas") or {}).get(k) for k in ("redYTrabajo", "playout")}}
                 except Exception as ex:
                     m["gateway"] = {"error": str(ex)}
             if t - ultimo_fp >= 10 and not remoto:
