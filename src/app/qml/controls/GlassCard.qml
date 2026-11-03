@@ -130,18 +130,40 @@ FocusScope {
         }
     }
 
-    // --- Encabezado (arrastre) -------------------------------------------------
+    // --- Encabezado (arrastre): una barra fina que aparece solo con el mouse encima ----
+    // El contenido usa toda la tarjeta; el título, sus opciones y la ✕ se ven al pasar el
+    // mouse (o mientras se arrastra o se agranda), encima del contenido. Escondida no recibe
+    // clics: nada se cierra ni se arrastra sin verlo.
+    HoverHandler { id: hoverTarjeta }
+    readonly property bool mostrarTitulo: hoverTarjeta.hovered || dragHandler.active || resizeArea.pressed
     Item {
         id: header
         anchors { left: parent.left; right: parent.right; top: parent.top }
-        height: 46
+        height: 28
+        z: 2
+        opacity: card.mostrarTitulo ? 1 : 0
+        visible: opacity > 0
+        Behavior on opacity { NumberAnimation { duration: 140 } }
+        // Esquinas de arriba redondeadas como la tarjeta, las de abajo rectas (Qt 6.6 no tiene
+        // topLeftRadius: un rectángulo redondeado y otro recto que tapa su mitad de abajo).
+        Item {
+            anchors.fill: parent
+            opacity: 0.85
+            layer.enabled: true // la transparencia, una sola vez sobre los dos (sin franja más oscura)
+            Rectangle { anchors.fill: parent; radius: Theme.radius; color: "#0a0a0d" }
+            Rectangle {
+                anchors { left: parent.left; right: parent.right; bottom: parent.bottom }
+                height: Math.min(Theme.radius, parent.height / 2)
+                color: "#0a0a0d"
+            }
+        }
 
         Text {
             id: titleText
-            anchors { left: parent.left; leftMargin: 18; verticalCenter: parent.verticalCenter }
+            anchors { left: parent.left; leftMargin: 12; verticalCenter: parent.verticalCenter }
             text: card.title
-            color: Theme.text
-            font { family: Theme.font; pixelSize: 16; weight: Font.DemiBold }
+            color: Theme.textDim
+            font { family: Theme.font; pixelSize: 11; weight: Font.DemiBold }
         }
         Loader {
             id: accionesTituloSlot
@@ -196,8 +218,8 @@ FocusScope {
     // --- Contenido --------------------------------------------------------------
     Item {
         id: body
-        anchors { left: parent.left; right: parent.right; top: header.bottom; bottom: parent.bottom
-                  leftMargin: 16; rightMargin: 16; bottomMargin: 14 }
+        anchors { left: parent.left; right: parent.right; top: parent.top; bottom: parent.bottom
+                  leftMargin: 12; rightMargin: 12; topMargin: 10; bottomMargin: 12 }
         clip: true
     }
 
