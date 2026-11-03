@@ -43,6 +43,16 @@ if(BA_PERFILAR)
     message(STATUS "BA_PERFILAR: build que mide CPU y GPU")
 endif()
 
+# El detector de acoples (src/core/diag/Acoples.hpp, docs/arquitectura/detector-de-acoples.md):
+# el «modo sabotaje» de la interfaz para las pruebas. Prendido en los builds de desarrollo y
+# de pruebas; los paquetes que se PUBLICAN salen sin él (`make paquetes`/`publicar` pasan
+# DIAG_ACOPLES=0): con la opción apagada no se define BA_DIAG_ACOPLES, BA_ACOPLE queda en
+# ((void)0), no hay herramienta MCP diag_acoples y no queda ningún símbolo del detector.
+option(BA_DIAG_ACOPLES "El detector de acoples de la interfaz (desarrollo y pruebas; no en lo que se publica)" ON)
+if(NOT BA_DIAG_ACOPLES)
+    message(STATUS "BA_DIAG_ACOPLES: sin el detector de acoples (paquete para publicar)")
+endif()
+
 # C++20 es obligatorio en todos los targets.
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)

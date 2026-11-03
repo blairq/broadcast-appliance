@@ -44244,7 +44244,7 @@ Elegí otra cosa en Salidas → Pantallas.</source>
         <translation>自由软件（GPL-3.0）· GStreamer、Qt 和 ONNX Runtime</translation>
     </message>
     <message>
-        <location line="+91" />
+        <location line="+100" />
         <source>arranque: la configuración, %1 ms</source>
         <translation>启动：配置，%1 毫秒</translation>
     </message>
@@ -49753,12 +49753,18 @@ Datos (de %2): %3</source>
         <translation>界面卡顿持续了约 %1 毫秒（调用栈在 %2）</translation>
     </message>
     <message>
-        <location filename="../src/app/arranque/GuiMode.cpp" line="-374" />
+        <location filename="../src/app/arranque/GuiMode.cpp" line="-380" />
         <source>--detectar-acoples solo anda con --test: no se enciende</source>
         <translation>--detectar-acoples 只能与 --test 一起使用：未开启</translation>
     </message>
     <message>
-        <location filename="../src/core/diag/Acoples.cpp" line="+149" />
+        <location line="+15" />
+        <location filename="../src/launcher/main.cpp" line="+68" />
+        <source>--detectar-acoples: este programa no trae el detector</source>
+        <translation>--detectar-acoples：此程序不包含检测器</translation>
+    </message>
+    <message>
+        <location filename="../src/core/diag/Acoples.cpp" line="+152" />
         <source>detector de acoples ENCENDIDO: cada camino de la interfaz que no pasa por el modelo espera %1 ms de más y queda anotado (solo pruebas)</source>
         <translation>耦合检测器已开启：界面中每条绕过模型的路径都会额外等待 %1 毫秒并被记录（仅限测试）</translation>
     </message>
@@ -51500,7 +51506,7 @@ Datos (de %2): %3</source>
         <translation>已退出效率模式（EcoQoS）</translation>
     </message>
     <message>
-        <location filename="../src/launcher/main.cpp" line="+91" />
+        <location filename="../src/launcher/main.cpp" line="+28" />
         <source>Broadcast Appliance: estudio abierto</source>
         <translation>Broadcast Appliance：工作室已打开</translation>
     </message>
@@ -58573,7 +58579,7 @@ Lo que queda vacío no deja separadores colgando: «{nombre} — {cargo}» sin c
 <context>
     <name>mcp</name>
     <message>
-        <location filename="../src/app/arranque/GuiMode.cpp" line="+229" />
+        <location filename="../src/app/arranque/GuiMode.cpp" line="+220" />
         <source>MODO PRUEBA (--test): el MCP no pide aprobaciones, ni siquiera las de aire</source>
         <translation>测试模式（--test）：MCP 不请求任何批准，包括在播操作</translation>
     </message>
@@ -60344,7 +60350,7 @@ LO QUE HAY QUE SABER AL PRENDERLO: la salvaguarda de aprobaciones (`mcp.approval
         <translation>剩余磁盘空间，以及按所有录制内容（所有输出的录制、副本、干净信号和 ISO，按磁盘分摊：以最先写满的磁盘为准；未录制时，按开始录制后会增加的量）的码率还够用几小时；是否有副本与其录制在同一磁盘（`copia_mismo_volumen`、`mismo_volumen`）；以及最近一次转换为 MP4（remux）的状态。</translation>
     </message>
     <message>
-        <location line="+279" />
+        <location line="+282" />
         <source>Un destino adicional: `nombre`, `url` (rtmp://, rtmps://, srt:// o rist://), `clave` (se guarda cifrada; mejor que la cargue el operador en Salidas &gt; + Destino…, donde no la ves; en SRT es la passphrase, en RTMP la stream key), `respaldo`. SRT: `modo` (caller, listener, rendezvous) y `latencia_ms` (120 en LAN, 4× el ping por internet). `url_respaldo`: el punto de ingest de respaldo de la plataforma (la misma clave; sale a los dos a la vez con el mismo codificador; "" lo saca). Con `id` de uno existente, lo cambia (stream_destino_editar es lo mismo).</source>
         <translation>一个附加目标：`nombre`、`url`（rtmp://、rtmps://、srt:// 或 rist://）、`clave`（加密保存；最好由操作人员在 输出 &gt; + 目标… 中填写，那里您看不到它；SRT 中为 passphrase，RTMP 中为 stream key）、`respaldo`。SRT：`modo`（caller、listener、rendezvous）和 `latencia_ms`（局域网 120，互联网为 ping 的 4 倍）。`url_respaldo`：平台的备用 ingest 地址（同一密钥；用同一个编码器同时推送到两处；"" 表示移除）。带现有目标的 `id` 时则修改该目标（与 stream_destino_editar 相同）。</translation>
     </message>
@@ -60409,7 +60415,7 @@ LO QUE HAY QUE SABER AL PRENDERLO: la salvaguarda de aprobaciones (`mcp.approval
         <translation>切换配置（程序重启：中断所有输出）</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpService.cpp" line="-2180" />
+        <location filename="../src/app/mcp/McpService.cpp" line="-2183" />
         <source>cambia la transición</source>
         <translation>更改转场</translation>
     </message>
@@ -60434,7 +60440,7 @@ LO QUE HAY QUE SABER AL PRENDERLO: la salvaguarda de aprobaciones (`mcp.approval
         <translation>「停止」录制：关闭文件并停止写入磁盘。带 `salida` 时，停止该输出的录制。</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpService.cpp" line="+2631" />
+        <location filename="../src/app/mcp/McpService.cpp" line="+2634" />
         <source>cambia ajustes (los de video reinician el motor y los de gateway la conferencia: cortan)</source>
         <translation>更改设置（视频设置会重启引擎，网关设置会重启会议：都会中断）</translation>
     </message>
@@ -60444,7 +60450,7 @@ LO QUE HAY QUE SABER AL PRENDERLO: la salvaguarda de aprobaciones (`mcp.approval
         <translation>更改工作室时钟（引擎重启：中断输出）</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpService.cpp" line="-1945" />
+        <location filename="../src/app/mcp/McpService.cpp" line="-1948" />
         <source>cambia el audio (mute del máster corta el sonido)</source>
         <translation>更改音频（主输出静音会切断声音）</translation>
     </message>
@@ -60539,7 +60545,7 @@ LO QUE HAY QUE SABER AL PRENDERLO: la salvaguarda de aprobaciones (`mcp.approval
         <translation>将观众消息播出</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpService.cpp" line="+1132" />
+        <location filename="../src/app/mcp/McpService.cpp" line="+1135" />
         <source>borra un destino (si transmite, lo corta)</source>
         <translation>删除推流目标（如在推流则会中断）</translation>
     </message>
@@ -60656,8 +60662,8 @@ LO QUE HAY QUE SABER AL PRENDERLO: la salvaguarda de aprobaciones (`mcp.approval
         <location filename="../src/app/mcp/McpPantallaTools.cpp" line="+437" />
         <location filename="../src/app/mcp/McpQrTools.cpp" line="+270" />
         <location filename="../src/app/mcp/McpRoomTools.cpp" line="+740" />
-        <location filename="../src/app/mcp/McpService.cpp" line="-578" />
-        <location line="+586" />
+        <location filename="../src/app/mcp/McpService.cpp" line="-581" />
+        <location line="+589" />
         <location filename="../src/app/mcp/McpTotemTools.cpp" line="+161" />
         <location filename="../src/app/mcp/McpVideoTools.cpp" line="-496" />
         <source>Borrado.</source>
@@ -60804,7 +60810,7 @@ LO QUE HAY QUE SABER AL PRENDERLO: la salvaguarda de aprobaciones (`mcp.approval
         <location filename="../src/app/mcp/McpPrompterTools.cpp" line="+270" />
         <location filename="../src/app/mcp/McpRoomTools.cpp" line="-771" />
         <location line="+43" />
-        <location filename="../src/app/mcp/McpService.cpp" line="-2512" />
+        <location filename="../src/app/mcp/McpService.cpp" line="-2515" />
         <location line="+1261" />
         <location line="+137" />
         <location line="+414" />
@@ -71785,7 +71791,7 @@ No cambia nada del evento salvo agregar los ítems a mano que falten en su lista
     </message>
     <message>
         <location line="+22" />
-        <location filename="../src/app/mcp/McpService.cpp" line="+1567" />
+        <location filename="../src/app/mcp/McpService.cpp" line="+1570" />
         <location filename="../src/app/mcp/McpVideoTools.cpp" line="+1632" />
         <source>Guardado.</source>
         <translation>已保存。</translation>
@@ -74377,7 +74383,7 @@ Llegando a 500 fichas se apaga solo y lo dice. Sin `activo` solo informa como es
         <translation>等待摄像头中看不到任何人。</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpService.cpp" line="-4178" />
+        <location filename="../src/app/mcp/McpService.cpp" line="-4181" />
         <source>OJO: REINICIA EL MOTOR. Por unos segundos se corta TODO lo que sale (el programa, la sala, las pantallas, lo que ven los invitados) y las cámaras se vuelven a abrir. Con una transmisión o una grabación andando no se aplica. No lo uses para arreglar una cámara: decíselo antes al operador y pedile que confirme.</source>
         <translation>注意：会重启引擎。所有输出（节目、会场、屏幕、嘉宾看到的画面）会中断几秒，摄像机会重新打开。有推流或录制进行时不会应用。不要用它来修复摄像机：事先告诉操作员并请其确认。</translation>
     </message>
@@ -75923,7 +75929,7 @@ Como encontrar el numero: poner un valor, mirar con `foto_programa` a alguien ha
         <translation>磁盘优先用于节目录制</translation>
     </message>
     <message>
-        <location line="+111" />
+        <location line="+113" />
         <source>Detector de acoples de la interfaz (solo --test)</source>
         <translation>界面耦合检测器（仅限 --test）</translation>
     </message>
@@ -75933,7 +75939,7 @@ Como encontrar el numero: poner un valor, mirar con `foto_programa` a alguien ha
         <translation>仅限测试模式。耦合检测器：`demora_ms` 大于 0 时开启（界面中每条绕过模型的路径，例如直接访问引擎、配置、磁盘或网络，或调用返回数据的函数的绑定，都会额外等待这么多毫秒并被记录）；为 0 时关闭。`reiniciar` 清除已记录的内容。始终返回报告：每个位置的类别、文件和行号、次数、耗时、当时正在运行的内容以及第一次的调用栈，按总时间排序。</translation>
     </message>
     <message>
-        <location line="+54" />
+        <location line="+55" />
         <source>Pasar una grabación a MP4/MOV</source>
         <translation>将录制转为 MP4/MOV</translation>
     </message>
@@ -75973,7 +75979,7 @@ Como encontrar el numero: poner un valor, mirar con `foto_programa` a alguien ha
         <translation>保存配置</translation>
     </message>
     <message>
-        <location line="-937" />
+        <location line="-940" />
         <source>no hay nadie con esa banca, id o nombre (cuerpo_listar)</source>
         <translation>没有该席位、id 或姓名的人（cuerpo_listar）</translation>
     </message>
@@ -76258,7 +76264,7 @@ Que se oiga depende de que el equipo tenga un monitor de audio configurado; sin 
         <translation>「仅限测试模式」。在响应后半秒，用忙循环将界面线程卡住 `segundos`（1 到 60）秒。在此期间，界面的任何部分（包括此 MCP）都不会响应。</translation>
     </message>
     <message>
-        <location line="+49" />
+        <location line="+52" />
         <source>Inyectar una falla en una salida (solo --test)</source>
         <translation>向输出注入故障（仅限 --test）</translation>
     </message>
@@ -88166,8 +88172,8 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
     </message>
     <message>
         <location line="+30" />
-        <location filename="../src/motor/Composicion.cpp" line="+1238" />
-        <location filename="../src/motor/Entrada.cpp" line="+1694" />
+        <location filename="../src/motor/Composicion.cpp" line="+1242" />
+        <location filename="../src/motor/Entrada.cpp" line="+1716" />
         <location line="+226" />
         <location filename="../src/motor/Mezcla.cpp" line="+451" />
         <location filename="../src/motor/OrigenRed.cpp" line="+233" />
@@ -88246,7 +88252,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
     </message>
     <message>
         <location filename="../src/motor/Capturas.cpp" line="+148" />
-        <location filename="../src/motor/Composicion.cpp" line="-724" />
+        <location filename="../src/motor/Composicion.cpp" line="-728" />
         <source>falta %1</source>
         <translation>缺少 %1</translation>
     </message>
@@ -88331,7 +88337,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>合成 %1：图层「%2」在 %3 毫秒内搭建完成（创建 %4，属性（生产者）%5，添加和链接 %6，混合器 pad %7，启动 %8）</translation>
     </message>
     <message>
-        <location line="+511" />
+        <location line="+515" />
         <source>composición %1: «%2» salió sin imagen de %3 (no llegó en %4 ms)</source>
         <translation>合成 %1：「%2」在没有 %3 画面的情况下切出（%4 毫秒内未到达）</translation>
     </message>
@@ -88341,12 +88347,12 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>合成 %1（%2）：%3</translation>
     </message>
     <message>
-        <location filename="../src/motor/Entrada.cpp" line="-944" />
+        <location filename="../src/motor/Entrada.cpp" line="-966" />
         <source>%1: la placa no se pudo armar (%2): sin placa</source>
         <translation>%1：无法搭建垫片画面（%2）：无垫片画面</translation>
     </message>
     <message>
-        <location line="+81" />
+        <location line="+96" />
         <source>%1 — sin señal</source>
         <translation>%1 — 无信号</translation>
     </message>
@@ -88366,7 +88372,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>%1：有人到了其位置：%2 ms 后开始运行</translation>
     </message>
     <message>
-        <location line="+299" />
+        <location line="+306" />
         <source>no hay un análisis en curso en esta entrada</source>
         <translation>此输入上没有正在进行的分析</translation>
     </message>
@@ -95302,7 +95308,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
     </message>
     <message>
         <location line="+174" />
-        <location filename="../src/app/vivos/Vivos.cpp" line="+157" />
+        <location filename="../src/app/vivos/Vivos.cpp" line="+158" />
         <location line="+227" />
         <source>No hay una plataforma «%1» (youtube, twitch o facebook).</source>
         <translation>没有平台“%1”（youtube、twitch 或 facebook）。</translation>
@@ -95355,7 +95361,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>Facebook 未提供该直播的推流地址（是否已结束？）。</translation>
     </message>
     <message>
-        <location filename="../src/app/vivos/Vivos.cpp" line="-311" />
+        <location filename="../src/app/vivos/Vivos.cpp" line="-312" />
         <source>falta la app de la plataforma</source>
         <translation>缺少平台应用</translation>
     </message>
@@ -95385,7 +95391,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>未连接</translation>
     </message>
     <message>
-        <location line="+37" />
+        <location line="+38" />
         <source>Principal</source>
         <translation>主账号</translation>
     </message>

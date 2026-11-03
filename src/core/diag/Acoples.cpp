@@ -2,6 +2,9 @@
 
 #include "diag/Acoples.hpp"
 
+// Solo con el detector (desarrollo y pruebas): sin BA_DIAG_ACOPLES este archivo queda vacío.
+#ifdef BA_DIAG_ACOPLES
+
 #include "diag/Metricas.hpp"
 #include "diag/Registro.hpp"
 #include "diag/VigiaBucle.hpp"
@@ -267,3 +270,5 @@ void reiniciar() {
 }
 
 } // namespace ba::diag::acoples
+
+#endif // BA_DIAG_ACOPLES

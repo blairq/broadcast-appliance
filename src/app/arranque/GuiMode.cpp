@@ -293,7 +293,9 @@ int runGui(int argc, char** argv) {
     // Este hilo nunca tiene que esperar al motor: desde acá, el motor avisa en el
     // registro cada vez que lo hace esperar (ver motor/Candado.hpp).
     ba::motor::marcarHiloInterfaz();
+#ifdef BA_DIAG_ACOPLES
     ba::diag::acoples::marcarHiloInterfaz();
+#endif
     ba::platform::nombrarHilo("interfaz");
     // Y cuánto se demora su bucle de eventos (y quién lo demora): ui/VigiaInterfaz.
     new ba::app::VigiaInterfaz(&app);
@@ -311,6 +313,7 @@ int runGui(int argc, char** argv) {
     for (int i = 1; i < argc; ++i) {
         const std::string a = argv[i];
         if (a != "--detectar-acoples" && a.rfind("--detectar-acoples=", 0) != 0) continue;
+#ifdef BA_DIAG_ACOPLES
         if (!conPrueba) {
             ba::diag::registro().linea(ba::diag::Nivel::Aviso, "interfaz", 0,
                                        ba::i18n::traducir("diag", "--detectar-acoples solo anda con --test: no se enciende"));
@@ -324,6 +327,12 @@ int runGui(int argc, char** argv) {
             }
         }
         ba::diag::acoples::activar(std::clamp(ms, 1, 10000));
+#else
+        // Lo que se publica sale sin el detector (BA_DIAG_ACOPLES): se avisa y se sigue.
+        (void)conPrueba;
+        ba::diag::registro().linea(ba::diag::Nivel::Aviso, "interfaz", 0,
+                                   ba::i18n::traducir("diag", "--detectar-acoples: este programa no trae el detector"));
+#endif
         break;
     }
 

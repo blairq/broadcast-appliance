@@ -195,8 +195,13 @@ int runLauncher(const std::vector<std::string>& args) {
             // Y el gateway: sin --test no acepta lo que es solo de prueba (--turn-prueba).
             cfg.gatewayArgs.emplace_back("--test");
         } else if (a == "--detectar-acoples" || a.rfind("--detectar-acoples=", 0) == 0) {
+#ifdef BA_DIAG_ACOPLES
             // El detector de acoples de la interfaz (solo con --test: la app lo ignora sin él).
             cfg.appArgs.push_back(a);
+#else
+            // Lo que se publica sale sin el detector (BA_DIAG_ACOPLES): se avisa y se sigue.
+            BA_LOG_WARN("launcher", 0, ba::i18n::traducir("diag", "--detectar-acoples: este programa no trae el detector"));
+#endif
         } else if (a.rfind("--app-arg=", 0) == 0) {
             cfg.appArgs.push_back(a.substr(10));
         } else if (a.rfind("--gw-arg=", 0) == 0) {

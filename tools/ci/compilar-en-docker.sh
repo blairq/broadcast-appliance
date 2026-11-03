@@ -70,7 +70,7 @@ log "compilando $QUE en el commit $(git rev-parse --short HEAD) (la primera vez 
 d run --rm --platform linux/amd64 \
     -v ba-trabajo:/trabajo -v "$ROOT:/repo:ro" -v "$ROOT/dist:/salida" \
     -v ba-ccache:/ccache -e CCACHE_DIR=/ccache -e CCACHE_MAXSIZE=30G \
-    -e SHA="$SHA" -e QUE="$QUE" -e PERFILAR="${PERFILAR:-0}" \
+    -e SHA="$SHA" -e QUE="$QUE" -e PERFILAR="${PERFILAR:-0}" -e DIAG_ACOPLES="${DIAG_ACOPLES:-1}" \
     -e SIN_CACHE="${SIN_CACHE:-0}" -e TESTS_SIN_CACHE="${TESTS_SIN_CACHE:-0}" \
     -e TESTS_SIN_LENTOS="${TESTS_SIN_LENTOS:-0}" ${TESTS_WIN_JOBS:+-e TESTS_WIN_JOBS="$TESTS_WIN_JOBS"} ${TESTS_JOBS:+-e TESTS_JOBS="$TESTS_JOBS"} \
     ba-compilar bash -c '

@@ -44574,7 +44574,7 @@ Elegí otra cosa en Salidas → Pantallas.</source>
         <translation>Свободное ПО (GPL-3.0) · GStreamer, Qt и ONNX Runtime</translation>
     </message>
     <message>
-        <location line="+91" />
+        <location line="+100" />
         <source>arranque: la configuración, %1 ms</source>
         <translation>запуск: конфигурация, %1 мс</translation>
     </message>
@@ -50089,12 +50089,18 @@ Datos (de %2): %3</source>
         <translation>зависание интерфейса длилось около %1 мс (стеки в %2)</translation>
     </message>
     <message>
-        <location filename="../src/app/arranque/GuiMode.cpp" line="-374" />
+        <location filename="../src/app/arranque/GuiMode.cpp" line="-380" />
         <source>--detectar-acoples solo anda con --test: no se enciende</source>
         <translation>--detectar-acoples работает только с --test: не включён</translation>
     </message>
     <message>
-        <location filename="../src/core/diag/Acoples.cpp" line="+149" />
+        <location line="+15" />
+        <location filename="../src/launcher/main.cpp" line="+68" />
+        <source>--detectar-acoples: este programa no trae el detector</source>
+        <translation>--detectar-acoples: в этой программе нет детектора</translation>
+    </message>
+    <message>
+        <location filename="../src/core/diag/Acoples.cpp" line="+152" />
         <source>detector de acoples ENCENDIDO: cada camino de la interfaz que no pasa por el modelo espera %1 ms de más y queda anotado (solo pruebas)</source>
         <translation>детектор связей ВКЛЮЧЁН: каждый путь интерфейса в обход модели ждёт на %1 мс дольше и записывается (только для тестов)</translation>
     </message>
@@ -51838,7 +51844,7 @@ Datos (de %2): %3</source>
         <translation>вне режима эффективности (EcoQoS)</translation>
     </message>
     <message>
-        <location filename="../src/launcher/main.cpp" line="+91" />
+        <location filename="../src/launcher/main.cpp" line="+28" />
         <source>Broadcast Appliance: estudio abierto</source>
         <translation>Broadcast Appliance: студия открыта</translation>
     </message>
@@ -58911,7 +58917,7 @@ Lo que queda vacío no deja separadores colgando: «{nombre} — {cargo}» sin c
 <context>
     <name>mcp</name>
     <message>
-        <location filename="../src/app/arranque/GuiMode.cpp" line="+229" />
+        <location filename="../src/app/arranque/GuiMode.cpp" line="+220" />
         <source>MODO PRUEBA (--test): el MCP no pide aprobaciones, ni siquiera las de aire</source>
         <translation>ТЕСТОВЫЙ РЕЖИМ (--test): MCP не запрашивает одобрений, даже эфирных</translation>
     </message>
@@ -60682,7 +60688,7 @@ LO QUE HAY QUE SABER AL PRENDERLO: la salvaguarda de aprobaciones (`mcp.approval
         <translation>Сколько осталось места на диске и на сколько часов его хватит при битрейте всего, что записывается (запись, копия, чистый сигнал и ISO всех выходов, с разбивкой по дискам: решает тот, что заполнится первым; без записи — сколько добавил бы запуск записи); идёт ли какая-нибудь копия на тот же диск, что и её запись (`copia_mismo_volumen`, `mismo_volumen`); и состояние последнего преобразования в MP4 (remux).</translation>
     </message>
     <message>
-        <location line="+279" />
+        <location line="+282" />
         <source>Un destino adicional: `nombre`, `url` (rtmp://, rtmps://, srt:// o rist://), `clave` (se guarda cifrada; mejor que la cargue el operador en Salidas &gt; + Destino…, donde no la ves; en SRT es la passphrase, en RTMP la stream key), `respaldo`. SRT: `modo` (caller, listener, rendezvous) y `latencia_ms` (120 en LAN, 4× el ping por internet). `url_respaldo`: el punto de ingest de respaldo de la plataforma (la misma clave; sale a los dos a la vez con el mismo codificador; "" lo saca). Con `id` de uno existente, lo cambia (stream_destino_editar es lo mismo).</source>
         <translation>Дополнительное назначение: `nombre`, `url` (rtmp://, rtmps://, srt:// или rist://), `clave` (хранится в зашифрованном виде; лучше, чтобы его ввёл оператор в Выходы &gt; + Назначение…, где вы его не видите; в SRT это passphrase, в RTMP — stream key), `respaldo`. SRT: `modo` (caller, listener, rendezvous) и `latencia_ms` (120 в LAN, 4× пинг через интернет). `url_respaldo`: резервная точка ingest платформы (тот же ключ; идёт на обе одновременно с одним кодировщиком; "" — убирает). С `id` существующего — изменяет его (stream_destino_editar — то же самое).</translation>
     </message>
@@ -60747,7 +60753,7 @@ LO QUE HAY QUE SABER AL PRENDERLO: la salvaguarda de aprobaciones (`mcp.approval
         <translation>меняет конфигурацию (перезапускает программу: обрывает всё, что выходит)</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpService.cpp" line="-2180" />
+        <location filename="../src/app/mcp/McpService.cpp" line="-2183" />
         <source>cambia la transición</source>
         <translation>меняет переход</translation>
     </message>
@@ -60772,7 +60778,7 @@ LO QUE HAY QUE SABER AL PRENDERLO: la salvaguarda de aprobaciones (`mcp.approval
         <translation>ОСТАНАВЛИВАЕТ запись: закрывает файл и прекращает запись на диск. С `salida` — запись этого выхода.</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpService.cpp" line="+2631" />
+        <location filename="../src/app/mcp/McpService.cpp" line="+2634" />
         <source>cambia ajustes (los de video reinician el motor y los de gateway la conferencia: cortan)</source>
         <translation>меняет настройки (видео перезапускают движок, шлюза — конференцию: обрывают)</translation>
     </message>
@@ -60782,7 +60788,7 @@ LO QUE HAY QUE SABER AL PRENDERLO: la salvaguarda de aprobaciones (`mcp.approval
         <translation>меняет часы студии (перезапускает движок: обрывает то, что выходит)</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpService.cpp" line="-1945" />
+        <location filename="../src/app/mcp/McpService.cpp" line="-1948" />
         <source>cambia el audio (mute del máster corta el sonido)</source>
         <translation>меняет звук (отключение мастера обрывает звук)</translation>
     </message>
@@ -60877,7 +60883,7 @@ LO QUE HAY QUE SABER AL PRENDERLO: la salvaguarda de aprobaciones (`mcp.approval
         <translation>выводит сообщение аудитории в эфир</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpService.cpp" line="+1132" />
+        <location filename="../src/app/mcp/McpService.cpp" line="+1135" />
         <source>borra un destino (si transmite, lo corta)</source>
         <translation>удаляет адресат (если идёт трансляция, обрывает её)</translation>
     </message>
@@ -60994,8 +61000,8 @@ LO QUE HAY QUE SABER AL PRENDERLO: la salvaguarda de aprobaciones (`mcp.approval
         <location filename="../src/app/mcp/McpPantallaTools.cpp" line="+437" />
         <location filename="../src/app/mcp/McpQrTools.cpp" line="+270" />
         <location filename="../src/app/mcp/McpRoomTools.cpp" line="+740" />
-        <location filename="../src/app/mcp/McpService.cpp" line="-578" />
-        <location line="+586" />
+        <location filename="../src/app/mcp/McpService.cpp" line="-581" />
+        <location line="+589" />
         <location filename="../src/app/mcp/McpTotemTools.cpp" line="+161" />
         <location filename="../src/app/mcp/McpVideoTools.cpp" line="-496" />
         <source>Borrado.</source>
@@ -61142,7 +61148,7 @@ LO QUE HAY QUE SABER AL PRENDERLO: la salvaguarda de aprobaciones (`mcp.approval
         <location filename="../src/app/mcp/McpPrompterTools.cpp" line="+270" />
         <location filename="../src/app/mcp/McpRoomTools.cpp" line="-771" />
         <location line="+43" />
-        <location filename="../src/app/mcp/McpService.cpp" line="-2512" />
+        <location filename="../src/app/mcp/McpService.cpp" line="-2515" />
         <location line="+1261" />
         <location line="+137" />
         <location line="+414" />
@@ -72147,7 +72153,7 @@ No cambia nada del evento salvo agregar los ítems a mano que falten en su lista
     </message>
     <message>
         <location line="+22" />
-        <location filename="../src/app/mcp/McpService.cpp" line="+1567" />
+        <location filename="../src/app/mcp/McpService.cpp" line="+1570" />
         <location filename="../src/app/mcp/McpVideoTools.cpp" line="+1632" />
         <source>Guardado.</source>
         <translation>Сохранено.</translation>
@@ -74747,7 +74753,7 @@ Llegando a 500 fichas se apaga solo y lo dice. Sin `activo` solo informa como es
         <translation>На камерах ожидания никого не видно.</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpService.cpp" line="-4178" />
+        <location filename="../src/app/mcp/McpService.cpp" line="-4181" />
         <source>OJO: REINICIA EL MOTOR. Por unos segundos se corta TODO lo que sale (el programa, la sala, las pantallas, lo que ven los invitados) y las cámaras se vuelven a abrir. Con una transmisión o una grabación andando no se aplica. No lo uses para arreglar una cámara: decíselo antes al operador y pedile que confirme.</source>
         <translation>ВНИМАНИЕ: ПЕРЕЗАПУСКАЕТ ДВИЖОК. На несколько секунд обрывается ВСЁ, что выходит (программа, зал, экраны, то, что видят гости), и камеры открываются заново. Во время трансляции или записи не применяется. Не используйте это, чтобы починить камеру: сначала скажите оператору и попросите подтвердить.</translation>
     </message>
@@ -76293,7 +76299,7 @@ Como encontrar el numero: poner un valor, mirar con `foto_programa` a alguien ha
         <translation>Диск — для записи программы</translation>
     </message>
     <message>
-        <location line="+111" />
+        <location line="+113" />
         <source>Detector de acoples de la interfaz (solo --test)</source>
         <translation>Детектор связей интерфейса (только --test)</translation>
     </message>
@@ -76303,7 +76309,7 @@ Como encontrar el numero: poner un valor, mirar con `foto_programa` a alguien ha
         <translation>ТОЛЬКО В ТЕСТОВОМ РЕЖИМЕ. Детектор связей: при `demora_ms` больше 0 включается (каждый путь интерфейса в обход модели — прямое обращение к движку, настройкам, диску или сети, или привязка, вызывающая функцию, которая возвращает данные, — ждёт на столько мс дольше и записывается); при 0 выключается. `reiniciar` стирает записанное. Всегда возвращает отчёт: каждое место с классом, файлом и строкой, числом раз, затратами, тем, что выполнялось, и стеком первого раза, по убыванию общего времени.</translation>
     </message>
     <message>
-        <location line="+54" />
+        <location line="+55" />
         <source>Pasar una grabación a MP4/MOV</source>
         <translation>Перевести запись в MP4/MOV</translation>
     </message>
@@ -76343,7 +76349,7 @@ Como encontrar el numero: poner un valor, mirar con `foto_programa` a alguien ha
         <translation>Сохранить конфигурацию</translation>
     </message>
     <message>
-        <location line="-937" />
+        <location line="-940" />
         <source>no hay nadie con esa banca, id o nombre (cuerpo_listar)</source>
         <translation>нет никого с таким местом, id или именем (cuerpo_listar)</translation>
     </message>
@@ -76628,7 +76634,7 @@ Que se oiga depende de que el equipo tenga un monitor de audio configurado; sin 
         <translation>ТОЛЬКО В ТЕСТОВОМ РЕЖИМЕ. Подвешивает поток интерфейса на `segundos` (от 1 до 60) занятым циклом через полсекунды после ответа. Пока это длится, ничто в интерфейсе (включая этот MCP) не отвечает.</translation>
     </message>
     <message>
-        <location line="+49" />
+        <location line="+52" />
         <source>Inyectar una falla en una salida (solo --test)</source>
         <translation>Внедрить сбой в выход (только --test)</translation>
     </message>
@@ -88540,8 +88546,8 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
     </message>
     <message>
         <location line="+30" />
-        <location filename="../src/motor/Composicion.cpp" line="+1238" />
-        <location filename="../src/motor/Entrada.cpp" line="+1694" />
+        <location filename="../src/motor/Composicion.cpp" line="+1242" />
+        <location filename="../src/motor/Entrada.cpp" line="+1716" />
         <location line="+226" />
         <location filename="../src/motor/Mezcla.cpp" line="+451" />
         <location filename="../src/motor/OrigenRed.cpp" line="+233" />
@@ -88620,7 +88626,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
     </message>
     <message>
         <location filename="../src/motor/Capturas.cpp" line="+148" />
-        <location filename="../src/motor/Composicion.cpp" line="-724" />
+        <location filename="../src/motor/Composicion.cpp" line="-728" />
         <source>falta %1</source>
         <translation>нет %1</translation>
     </message>
@@ -88705,7 +88711,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>композиция %1: слой «%2» собран за %3 мс (создание %4, свойства (производитель) %5, добавление и связывание %6, пад микшера %7, запуск %8)</translation>
     </message>
     <message>
-        <location line="+511" />
+        <location line="+515" />
         <source>composición %1: «%2» salió sin imagen de %3 (no llegó en %4 ms)</source>
         <translation>композиция %1: «%2» вышла без изображения %3 (не пришло за %4 мс)</translation>
     </message>
@@ -88715,12 +88721,12 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>композиция %1 (%2): %3</translation>
     </message>
     <message>
-        <location filename="../src/motor/Entrada.cpp" line="-944" />
+        <location filename="../src/motor/Entrada.cpp" line="-966" />
         <source>%1: la placa no se pudo armar (%2): sin placa</source>
         <translation>%1: заставку не удалось собрать (%2): без заставки</translation>
     </message>
     <message>
-        <location line="+81" />
+        <location line="+96" />
         <source>%1 — sin señal</source>
         <translation>%1 — нет сигнала</translation>
     </message>
@@ -88740,7 +88746,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>%1: на место пришёл человек: работает через %2 мс</translation>
     </message>
     <message>
-        <location line="+299" />
+        <location line="+306" />
         <source>no hay un análisis en curso en esta entrada</source>
         <translation>на этом входе анализ не идёт</translation>
     </message>
@@ -95680,7 +95686,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
     </message>
     <message>
         <location line="+174" />
-        <location filename="../src/app/vivos/Vivos.cpp" line="+157" />
+        <location filename="../src/app/vivos/Vivos.cpp" line="+158" />
         <location line="+227" />
         <source>No hay una plataforma «%1» (youtube, twitch o facebook).</source>
         <translation>Нет платформы «%1» (youtube, twitch или facebook).</translation>
@@ -95733,7 +95739,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>Facebook не даёт точку приёма для этой трансляции (она уже закончилась?).</translation>
     </message>
     <message>
-        <location filename="../src/app/vivos/Vivos.cpp" line="-311" />
+        <location filename="../src/app/vivos/Vivos.cpp" line="-312" />
         <source>falta la app de la plataforma</source>
         <translation>нет приложения платформы</translation>
     </message>
@@ -95763,7 +95769,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>не подключён</translation>
     </message>
     <message>
-        <location line="+37" />
+        <location line="+38" />
         <source>Principal</source>
         <translation>Основной</translation>
     </message>

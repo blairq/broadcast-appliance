@@ -56,6 +56,9 @@ concurrency:
 
 env:
   JOBS: 4
+  # Lo que se publica sale sin el detector de acoples (BA_DIAG_ACOPLES, solo pruebas): el
+  # Makefile lo lee del entorno (DIAG_ACOPLES ?= 1).
+  DIAG_ACOPLES: ${{ inputs.publicar && '0' || '1' }}
 
 jobs:
   # ==========================================================================

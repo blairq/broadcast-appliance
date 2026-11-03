@@ -29,8 +29,14 @@
 //
 // Sin Qt (es de ba_core): la app marca el hilo de la interfaz (marcarHiloInterfaz) y lo
 // enciende (activar). Desde cualquier hilo: informe(), reiniciar(), activar().
+//
+// SOLO EN DESARROLLO Y PRUEBAS: todo esto existe con BA_DIAG_ACOPLES (la opción de CMake del
+// mismo nombre, prendida de fábrica). Lo que se publica sale sin ella: BA_ACOPLE y
+// BA_ACOPLE_EN quedan en ((void)0) y no queda ningún símbolo del detector en el programa.
 // ============================================================================
 #pragma once
+
+#ifdef BA_DIAG_ACOPLES
 
 #include <nlohmann/json.hpp>
 
@@ -115,3 +121,10 @@ void reiniciar();
     do {                                                                                      \
         if (::ba::diag::acoples::activo()) ::ba::diag::acoples::tocar((clase), (lugar), (donde)); \
     } while (false)
+
+#else // sin el detector (lo que se publica)
+
+#define BA_ACOPLE(...) ((void)0)
+#define BA_ACOPLE_EN(...) ((void)0)
+
+#endif // BA_DIAG_ACOPLES

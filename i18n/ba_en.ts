@@ -44409,7 +44409,7 @@ Choose something else in Outputs → Screens.</translation>
         <translation>Free software (GPL-3.0) · GStreamer, Qt and ONNX Runtime</translation>
     </message>
     <message>
-        <location line="+91" />
+        <location line="+100" />
         <source>arranque: la configuración, %1 ms</source>
         <translation>startup: configuration, %1 ms</translation>
     </message>
@@ -49921,12 +49921,18 @@ Data (from %2): %3</translation>
         <translation>the interface freeze lasted about %1 ms (stacks in %2)</translation>
     </message>
     <message>
-        <location filename="../src/app/arranque/GuiMode.cpp" line="-374" />
+        <location filename="../src/app/arranque/GuiMode.cpp" line="-380" />
         <source>--detectar-acoples solo anda con --test: no se enciende</source>
         <translation>--detectar-acoples only works with --test: not turned on</translation>
     </message>
     <message>
-        <location filename="../src/core/diag/Acoples.cpp" line="+149" />
+        <location line="+15" />
+        <location filename="../src/launcher/main.cpp" line="+68" />
+        <source>--detectar-acoples: este programa no trae el detector</source>
+        <translation>--detectar-acoples: this program does not include the detector</translation>
+    </message>
+    <message>
+        <location filename="../src/core/diag/Acoples.cpp" line="+152" />
         <source>detector de acoples ENCENDIDO: cada camino de la interfaz que no pasa por el modelo espera %1 ms de más y queda anotado (solo pruebas)</source>
         <translation>coupling detector ON: every UI path that bypasses the model waits %1 ms extra and is logged (testing only)</translation>
     </message>
@@ -51669,7 +51675,7 @@ Data (from %2): %3</translation>
         <translation>out of efficiency mode (EcoQoS)</translation>
     </message>
     <message>
-        <location filename="../src/launcher/main.cpp" line="+91" />
+        <location filename="../src/launcher/main.cpp" line="+28" />
         <source>Broadcast Appliance: estudio abierto</source>
         <translation>Broadcast Appliance: studio open</translation>
     </message>
@@ -58742,7 +58748,7 @@ Empty values leave no dangling separators: “{nombre} — {cargo}” with no ti
 <context>
     <name>mcp</name>
     <message>
-        <location filename="../src/app/arranque/GuiMode.cpp" line="+229" />
+        <location filename="../src/app/arranque/GuiMode.cpp" line="+220" />
         <source>MODO PRUEBA (--test): el MCP no pide aprobaciones, ni siquiera las de aire</source>
         <translation>TEST MODE (--test): the MCP doesn't ask for approvals, not even on-air ones</translation>
     </message>
@@ -60558,7 +60564,7 @@ WHAT YOU NEED TO KNOW WHEN TURNING IT ON: the approval safeguard (`mcp.approval`
         <translation>deletes a scene</translation>
     </message>
     <message>
-        <location line="+2513" />
+        <location line="+2516" />
         <source>Graba entradas sueltas (cámaras, invitados) cada una en su propio archivo, además del programa; sin argumentos, dice qué se graba.</source>
         <translation>Records individual inputs (cameras, guests) each to its own file, besides the program; with no arguments, says what is being recorded.</translation>
     </message>
@@ -60573,7 +60579,7 @@ WHAT YOU NEED TO KNOW WHEN TURNING IT ON: the approval safeguard (`mcp.approval`
         <translation>changes the studio clock (restarts the engine: cuts what goes out)</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpService.cpp" line="-1945" />
+        <location filename="../src/app/mcp/McpService.cpp" line="-1948" />
         <source>cambia el audio (mute del máster corta el sonido)</source>
         <translation>changes the audio (muting the master cuts the sound)</translation>
     </message>
@@ -60668,7 +60674,7 @@ WHAT YOU NEED TO KNOW WHEN TURNING IT ON: the approval safeguard (`mcp.approval`
         <translation>puts an audience message on air</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpService.cpp" line="+1132" />
+        <location filename="../src/app/mcp/McpService.cpp" line="+1135" />
         <source>borra un destino (si transmite, lo corta)</source>
         <translation>deletes a destination (if streaming, it stops it)</translation>
     </message>
@@ -60785,8 +60791,8 @@ WHAT YOU NEED TO KNOW WHEN TURNING IT ON: the approval safeguard (`mcp.approval`
         <location filename="../src/app/mcp/McpPantallaTools.cpp" line="+437" />
         <location filename="../src/app/mcp/McpQrTools.cpp" line="+270" />
         <location filename="../src/app/mcp/McpRoomTools.cpp" line="+740" />
-        <location filename="../src/app/mcp/McpService.cpp" line="-578" />
-        <location line="+586" />
+        <location filename="../src/app/mcp/McpService.cpp" line="-581" />
+        <location line="+589" />
         <location filename="../src/app/mcp/McpTotemTools.cpp" line="+161" />
         <location filename="../src/app/mcp/McpVideoTools.cpp" line="-496" />
         <source>Borrado.</source>
@@ -60933,7 +60939,7 @@ WHAT YOU NEED TO KNOW WHEN TURNING IT ON: the approval safeguard (`mcp.approval`
         <location filename="../src/app/mcp/McpPrompterTools.cpp" line="+270" />
         <location filename="../src/app/mcp/McpRoomTools.cpp" line="-771" />
         <location line="+43" />
-        <location filename="../src/app/mcp/McpService.cpp" line="-2512" />
+        <location filename="../src/app/mcp/McpService.cpp" line="-2515" />
         <location line="+1261" />
         <location line="+137" />
         <location line="+414" />
@@ -71926,7 +71932,7 @@ It doesn't change anything in the event except adding the missing manual items t
     </message>
     <message>
         <location line="+22" />
-        <location filename="../src/app/mcp/McpService.cpp" line="+1567" />
+        <location filename="../src/app/mcp/McpService.cpp" line="+1570" />
         <location filename="../src/app/mcp/McpVideoTools.cpp" line="+1632" />
         <source>Guardado.</source>
         <translation>Saved.</translation>
@@ -74522,7 +74528,7 @@ When it reaches 500 profiles it turns itself off and says so. Without `activo` i
         <translation>Nobody is visible on the waiting cameras.</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpService.cpp" line="-4159" />
+        <location filename="../src/app/mcp/McpService.cpp" line="-4162" />
         <source>ANTES DE PREGUNTARLE NADA, mira `rostro_lobby` y busca su `uid` (%1):
 - Si viene con `nombre`, YA SABES QUIEN ES: saludala por su nombre, confirmale en UNA sola pregunta el cargo que figura en su ficha, y no le vuelvas a preguntar lo que ya esta ahi. Preguntarle el nombre a alguien que el sistema reconoce es hacerle perder el tiempo.
 - Si `parecido` esta cerca del corte (0.40 o mas) pero sin `nombre`, casi seguro ES alguien de la libreta y lo que falta es una cara mejor: deciselo por `chat_send` con las palabras de `sugerencia` (por ejemplo «mira de frente a la camara»), espera unos segundos y volve a mirar `rostro_lobby` ANTES de preguntarle quien es.
@@ -76163,7 +76169,7 @@ How to find the number: set a value, watch someone talking with `foto_programa` 
         <translation>TEST MODE ONLY. Hangs the UI thread for `segundos` (1 to 60) with a busy loop, half a second after answering. While it lasts, nothing in the UI (not even this MCP) answers.</translation>
     </message>
     <message>
-        <location line="+22" />
+        <location line="+24" />
         <source>Detector de acoples de la interfaz (solo --test)</source>
         <translation>UI coupling detector (--test only)</translation>
     </message>
@@ -76173,7 +76179,7 @@ How to find the number: set a value, watch someone talking with `foto_programa` 
         <translation>TEST MODE ONLY. The coupling detector: `demora_ms` greater than 0 turns it on (every UI path that bypasses the model, such as going straight to the engine, the configuration, the disk or the network, or a binding that calls a function returning data, waits that many extra ms and is logged); 0 turns it off. `reiniciar` clears what was logged. Always returns the report: each place with its class, file and line, count, what it cost, what was running and the stack from the first time, sorted by total time.</translation>
     </message>
     <message>
-        <location line="+24" />
+        <location line="+25" />
         <source>Inyectar una falla en una salida (solo --test)</source>
         <translation>Inject a fault into an output (--test only)</translation>
     </message>
@@ -76243,7 +76249,7 @@ How to find the number: set a value, watch someone talking with `foto_programa` 
         <translation>Changes one or more settings by key, applies and saves them. 'gateway' scope ones restart the conference (guests reconnect by themselves); 'motor' ones (the canvas, the output, the frame rate, the format and the color: video.width, video.height, video.outputWidth, video.outputHeight, video.fps, video.formato, video.color, video.rango) RESTART THE ENGINE; 'restart' ones, on the next launch.</translation>
     </message>
     <message>
-        <location line="-754" />
+        <location line="-757" />
         <source>Armar la grilla del recinto</source>
         <translation>Set up the chamber grid</translation>
     </message>
@@ -76458,7 +76464,7 @@ How to find the number: set a value, watch someone talking with `foto_programa` 
         <translation>TEST MODE ONLY. Crashes the app on purpose to test dumps: `tipo` acceso (access violation), heap (heap corruption) or abort. The launcher relaunches it; the dump and its .json end up in Logs/dumps.</translation>
     </message>
     <message>
-        <location line="+128" />
+        <location line="+131" />
         <source>Pasa un `archivo` .mkv a `formato` (mp4, de fabrica, o mov) sin recodificar, en otro hilo (record_disco dice como va). `borrar_mkv`: borrar el original si salio bien (de fabrica false).</source>
         <translation>Converts an `archivo` .mkv to `formato` (mp4, default, or mov) without re-encoding, in another thread (record_disco shows progress). `borrar_mkv`: delete the original if it succeeded (default false).</translation>
     </message>
@@ -88353,8 +88359,8 @@ PROPOSE, DON'T APPLY: show the person what changes and apply only if they confir
     </message>
     <message>
         <location line="+30" />
-        <location filename="../src/motor/Composicion.cpp" line="+1238" />
-        <location filename="../src/motor/Entrada.cpp" line="+1694" />
+        <location filename="../src/motor/Composicion.cpp" line="+1242" />
+        <location filename="../src/motor/Entrada.cpp" line="+1716" />
         <location line="+226" />
         <location filename="../src/motor/Mezcla.cpp" line="+451" />
         <location filename="../src/motor/OrigenRed.cpp" line="+233" />
@@ -88433,7 +88439,7 @@ PROPOSE, DON'T APPLY: show the person what changes and apply only if they confir
     </message>
     <message>
         <location filename="../src/motor/Capturas.cpp" line="+148" />
-        <location filename="../src/motor/Composicion.cpp" line="-724" />
+        <location filename="../src/motor/Composicion.cpp" line="-728" />
         <source>falta %1</source>
         <translation>%1 is missing</translation>
     </message>
@@ -88518,7 +88524,7 @@ PROPOSE, DON'T APPLY: show the person what changes and apply only if they confir
         <translation>composition %1: layer “%2” built in %3 ms (create %4, properties (the producer) %5, add and link %6, mixer pad %7, start %8)</translation>
     </message>
     <message>
-        <location line="+511" />
+        <location line="+515" />
         <source>composición %1: «%2» salió sin imagen de %3 (no llegó en %4 ms)</source>
         <translation>composition %1: «%2» went out without the image of %3 (it did not arrive in %4 ms)</translation>
     </message>
@@ -88528,12 +88534,12 @@ PROPOSE, DON'T APPLY: show the person what changes and apply only if they confir
         <translation>composition %1 (%2): %3</translation>
     </message>
     <message>
-        <location filename="../src/motor/Entrada.cpp" line="-944" />
+        <location filename="../src/motor/Entrada.cpp" line="-966" />
         <source>%1: la placa no se pudo armar (%2): sin placa</source>
         <translation>%1: the slate could not be built (%2): no slate</translation>
     </message>
     <message>
-        <location line="+81" />
+        <location line="+96" />
         <source>%1 — sin señal</source>
         <translation>%1 — no signal</translation>
     </message>
@@ -88553,7 +88559,7 @@ PROPOSE, DON'T APPLY: show the person what changes and apply only if they confir
         <translation>%1: someone arrived at their place: running in %2 ms</translation>
     </message>
     <message>
-        <location line="+299" />
+        <location line="+306" />
         <source>no hay un análisis en curso en esta entrada</source>
         <translation>there is no analysis running on this input</translation>
     </message>
@@ -95491,7 +95497,7 @@ PROPOSE, DON'T APPLY: show the person what changes and apply only if they confir
     </message>
     <message>
         <location line="+174" />
-        <location filename="../src/app/vivos/Vivos.cpp" line="+157" />
+        <location filename="../src/app/vivos/Vivos.cpp" line="+158" />
         <location line="+227" />
         <source>No hay una plataforma «%1» (youtube, twitch o facebook).</source>
         <translation>There is no platform “%1” (youtube, twitch or facebook).</translation>
@@ -95544,7 +95550,7 @@ PROPOSE, DON'T APPLY: show the person what changes and apply only if they confir
         <translation>Facebook does not provide the ingest for that live stream (has it ended?).</translation>
     </message>
     <message>
-        <location filename="../src/app/vivos/Vivos.cpp" line="-311" />
+        <location filename="../src/app/vivos/Vivos.cpp" line="-312" />
         <source>falta la app de la plataforma</source>
         <translation>the platform app is missing</translation>
     </message>
@@ -95574,7 +95580,7 @@ PROPOSE, DON'T APPLY: show the person what changes and apply only if they confir
         <translation>not connected</translation>
     </message>
     <message>
-        <location line="+37" />
+        <location line="+38" />
         <source>Principal</source>
         <translation>Main</translation>
     </message>

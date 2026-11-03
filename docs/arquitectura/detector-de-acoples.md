@@ -69,6 +69,15 @@ se baja su número. Además:
 
 ## 2. La parte dinámica: el modo sabotaje (`src/core/diag/Acoples.hpp`)
 
+**Solo en desarrollo y pruebas.** La opción de CMake `BA_DIAG_ACOPLES` (prendida de fábrica:
+`make compilar`, `make app`, `make dist-win-docker` para instalar en la PC de pruebas) define
+`BA_DIAG_ACOPLES=1` en `ba_core` y todo lo que lo usa. Lo que se publica (`make paquetes`,
+`paquete-*` y `publicar*`, que pasan `DIAG_ACOPLES=0`) sale sin ella: `Acoples.hpp/.cpp`
+quedan vacíos bajo `#ifdef`, `BA_ACOPLE`/`BA_ACOPLE_EN` son `((void)0)`, la herramienta MCP
+`diag_acoples` no se registra y `--detectar-acoples` (en la app y el launcher) solo avisa «este
+programa no trae el detector». No queda ningún símbolo `ba::diag::acoples` en el binario
+(comprobado con `nm`). La parte estática (§1 y §3) no depende de esto.
+
 Con la app en `--test` y **`--detectar-acoples[=ms]`** (o la herramienta MCP `diag_acoples`
 con `demora_ms`), cada paso por un acople **en el hilo de la interfaz** espera `ms` de más
 (300 de fábrica) y queda anotado: la clase, el lugar, el archivo:línea, lo que corría el

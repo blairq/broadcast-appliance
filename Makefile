@@ -23,7 +23,8 @@
 # y el CI (.github/workflows). `make pasos` los lista.
 #
 # Variables: BUILD_DIR (build), JOBS (los núcleos), SIN_CACHE=1 (todo de cero),
-# PERFILAR=1 (build que mide CPU y GPU; los paquetes salen con «-perfil»).
+# PERFILAR=1 (build que mide CPU y GPU; los paquetes salen con «-perfil»),
+# DIAG_ACOPLES=0 (sin el detector de acoples: lo ponen solos `paquetes` y `publicar`).
 # ============================================================================
 
 BUILD_DIR ?= build
@@ -31,9 +32,15 @@ BUILD_DIR ?= build
 # los paquetes salen con «-perfil» en el nombre. Sin eso, OFF explícito: un build
 # normal no hereda el modo de medición del caché de CMake.
 PERFILAR ?= 0
-BA_CMAKE_PERFIL = -DBA_PERFILAR=$(if $(filter 1,$(PERFILAR)),ON,OFF)
+# DIAG_ACOPLES=0: sin el detector de acoples (src/core/diag/Acoples.hpp). De fábrica
+# prendido (desarrollo y pruebas); lo que se publica (paquetes, paquete-*, publicar*)
+# sale sin él. Explícito siempre, como PERFILAR: no se hereda del caché de CMake.
+DIAG_ACOPLES ?= 1
+BA_CMAKE_PERFIL = -DBA_PERFILAR=$(if $(filter 1,$(PERFILAR)),ON,OFF) \
+	-DBA_DIAG_ACOPLES=$(if $(filter 0,$(DIAG_ACOPLES)),OFF,ON)
 BA_SUFIJO = $(if $(filter 1,$(PERFILAR)),-perfil,)
 export PERFILAR
+export DIAG_ACOPLES
 JOBS      ?= $(shell nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 4)
 # Hace falta el sha256sum de GNU (coreutils): el que trae macOS 15+ es el de
 # BSD y no acepta `-c --quiet`. Si no es GNU, `shasum -a 256`, que usa el
@@ -552,6 +559,8 @@ subir:
 # Y los tests en serie, como siempre: en paralelo, los del motor (tiempo real)
 # pueden fallar por la carga sin que el programa ande mal.
 publicar publicar-macos publicar-linux publicar-win: export SIN_CACHE = 1
+# Lo que se publica sale sin el detector de acoples (solo desarrollo y pruebas).
+publicar publicar-macos publicar-linux publicar-win paquetes paquete-mac paquete-linux paquete-windows: export DIAG_ACOPLES = 0
 publicar publicar-macos publicar-linux publicar-win: export TESTS_JOBS = 1
 publicar:
 	tools/publicar.sh --solo-chequear

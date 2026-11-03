@@ -44409,7 +44409,7 @@ Escolha outra coisa em Saídas → Telas.</translation>
         <translation>Software livre (GPL-3.0) · GStreamer, Qt e ONNX Runtime</translation>
     </message>
     <message>
-        <location line="+91" />
+        <location line="+100" />
         <source>arranque: la configuración, %1 ms</source>
         <translation>inicialização: a configuração, %1 ms</translation>
     </message>
@@ -49921,12 +49921,18 @@ Dados (de %2): %3</translation>
         <translation>o travamento da interface durou cerca de %1 ms (pilhas em %2)</translation>
     </message>
     <message>
-        <location filename="../src/app/arranque/GuiMode.cpp" line="-374" />
+        <location filename="../src/app/arranque/GuiMode.cpp" line="-380" />
         <source>--detectar-acoples solo anda con --test: no se enciende</source>
         <translation>--detectar-acoples só funciona com --test: não é ligado</translation>
     </message>
     <message>
-        <location filename="../src/core/diag/Acoples.cpp" line="+149" />
+        <location line="+15" />
+        <location filename="../src/launcher/main.cpp" line="+68" />
+        <source>--detectar-acoples: este programa no trae el detector</source>
+        <translation>--detectar-acoples: este programa não traz o detector</translation>
+    </message>
+    <message>
+        <location filename="../src/core/diag/Acoples.cpp" line="+152" />
         <source>detector de acoples ENCENDIDO: cada camino de la interfaz que no pasa por el modelo espera %1 ms de más y queda anotado (solo pruebas)</source>
         <translation>detector de acoplamentos LIGADO: cada caminho da interface que não passa pelo modelo espera %1 ms a mais e fica registrado (só testes)</translation>
     </message>
@@ -51669,7 +51675,7 @@ Dados (de %2): %3</translation>
         <translation>fora do modo de eficiência (EcoQoS)</translation>
     </message>
     <message>
-        <location filename="../src/launcher/main.cpp" line="+91" />
+        <location filename="../src/launcher/main.cpp" line="+28" />
         <source>Broadcast Appliance: estudio abierto</source>
         <translation>Broadcast Appliance: estúdio aberto</translation>
     </message>
@@ -58742,7 +58748,7 @@ O que fica vazio não deixa separadores sobrando: “{nombre} — {cargo}” sem
 <context>
     <name>mcp</name>
     <message>
-        <location filename="../src/app/arranque/GuiMode.cpp" line="+229" />
+        <location filename="../src/app/arranque/GuiMode.cpp" line="+220" />
         <source>MODO PRUEBA (--test): el MCP no pide aprobaciones, ni siquiera las de aire</source>
         <translation>MODO DE TESTE (--test): o MCP não pede aprovações, nem mesmo as de ar</translation>
     </message>
@@ -60513,7 +60519,7 @@ O QUE É PRECISO SABER AO LIGÁ-LO: a salvaguarda de aprovações (`mcp.approval
         <translation>Quanto disco resta e para quantas horas dá no bitrate de tudo o que se grava (gravação, cópia, sinal limpo e ISO de todas as saídas, dividido por disco: vale o que lotar primeiro; sem gravar, o que somaria iniciar a gravação); se alguma cópia vai para o mesmo disco que sua gravação (`copia_mismo_volumen`, `mismo_volumen`); e o estado da última conversão para MP4 (remux).</translation>
     </message>
     <message>
-        <location line="+279" />
+        <location line="+282" />
         <source>Un destino adicional: `nombre`, `url` (rtmp://, rtmps://, srt:// o rist://), `clave` (se guarda cifrada; mejor que la cargue el operador en Salidas &gt; + Destino…, donde no la ves; en SRT es la passphrase, en RTMP la stream key), `respaldo`. SRT: `modo` (caller, listener, rendezvous) y `latencia_ms` (120 en LAN, 4× el ping por internet). `url_respaldo`: el punto de ingest de respaldo de la plataforma (la misma clave; sale a los dos a la vez con el mismo codificador; "" lo saca). Con `id` de uno existente, lo cambia (stream_destino_editar es lo mismo).</source>
         <translation>Um destino adicional: `nombre`, `url` (rtmp://, rtmps://, srt:// ou rist://), `clave` (é salva criptografada; melhor que o operador a preencha em Saídas &gt; + Destino…, onde você não a vê; no SRT é a passphrase, no RTMP a stream key), `respaldo`. SRT: `modo` (caller, listener, rendezvous) e `latencia_ms` (120 em LAN, 4× o ping pela internet). `url_respaldo`: o ponto de ingest de backup da plataforma (a mesma chave; sai para os dois ao mesmo tempo com o mesmo codificador; "" o remove). Com `id` de um existente, altera-o (stream_destino_editar é o mesmo).</translation>
     </message>
@@ -60578,7 +60584,7 @@ O QUE É PRECISO SABER AO LIGÁ-LO: a salvaguarda de aprovações (`mcp.approval
         <translation>muda de configuração (reinicia o programa: corta tudo o que sai)</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpService.cpp" line="-2180" />
+        <location filename="../src/app/mcp/McpService.cpp" line="-2183" />
         <source>cambia la transición</source>
         <translation>muda a transição</translation>
     </message>
@@ -60603,7 +60609,7 @@ O QUE É PRECISO SABER AO LIGÁ-LO: a salvaguarda de aprovações (`mcp.approval
         <translation>PARA de gravar: fecha o arquivo e deixa de escrever no disco. Com `salida`, a gravação dessa saída.</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpService.cpp" line="+2631" />
+        <location filename="../src/app/mcp/McpService.cpp" line="+2634" />
         <source>cambia ajustes (los de video reinician el motor y los de gateway la conferencia: cortan)</source>
         <translation>muda ajustes (os de vídeo reiniciam o motor e os de gateway a conferência: cortam)</translation>
     </message>
@@ -60613,7 +60619,7 @@ O QUE É PRECISO SABER AO LIGÁ-LO: a salvaguarda de aprovações (`mcp.approval
         <translation>muda o relógio do estúdio (reinicia o motor: corta o que sai)</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpService.cpp" line="-1945" />
+        <location filename="../src/app/mcp/McpService.cpp" line="-1948" />
         <source>cambia el audio (mute del máster corta el sonido)</source>
         <translation>muda o áudio (mudo do master corta o som)</translation>
     </message>
@@ -60708,7 +60714,7 @@ O QUE É PRECISO SABER AO LIGÁ-LO: a salvaguarda de aprovações (`mcp.approval
         <translation>coloca no ar uma mensagem do público</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpService.cpp" line="+1132" />
+        <location filename="../src/app/mcp/McpService.cpp" line="+1135" />
         <source>borra un destino (si transmite, lo corta)</source>
         <translation>exclui um destino (se estiver transmitindo, corta)</translation>
     </message>
@@ -60825,8 +60831,8 @@ O QUE É PRECISO SABER AO LIGÁ-LO: a salvaguarda de aprovações (`mcp.approval
         <location filename="../src/app/mcp/McpPantallaTools.cpp" line="+437" />
         <location filename="../src/app/mcp/McpQrTools.cpp" line="+270" />
         <location filename="../src/app/mcp/McpRoomTools.cpp" line="+740" />
-        <location filename="../src/app/mcp/McpService.cpp" line="-578" />
-        <location line="+586" />
+        <location filename="../src/app/mcp/McpService.cpp" line="-581" />
+        <location line="+589" />
         <location filename="../src/app/mcp/McpTotemTools.cpp" line="+161" />
         <location filename="../src/app/mcp/McpVideoTools.cpp" line="-496" />
         <source>Borrado.</source>
@@ -60973,7 +60979,7 @@ O QUE É PRECISO SABER AO LIGÁ-LO: a salvaguarda de aprovações (`mcp.approval
         <location filename="../src/app/mcp/McpPrompterTools.cpp" line="+270" />
         <location filename="../src/app/mcp/McpRoomTools.cpp" line="-771" />
         <location line="+43" />
-        <location filename="../src/app/mcp/McpService.cpp" line="-2512" />
+        <location filename="../src/app/mcp/McpService.cpp" line="-2515" />
         <location line="+1261" />
         <location line="+137" />
         <location line="+414" />
@@ -71999,7 +72005,7 @@ Não muda nada do evento, salvo adicionar os itens manuais que faltem na checkli
     </message>
     <message>
         <location line="+22" />
-        <location filename="../src/app/mcp/McpService.cpp" line="+1567" />
+        <location filename="../src/app/mcp/McpService.cpp" line="+1570" />
         <location filename="../src/app/mcp/McpVideoTools.cpp" line="+1632" />
         <source>Guardado.</source>
         <translation>Salvo.</translation>
@@ -74595,7 +74601,7 @@ Ao chegar a 500 perfis desliga sozinho e avisa. Sem `activo` só informa como es
         <translation>Não aparece ninguém nas câmeras de espera.</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpService.cpp" line="-4178" />
+        <location filename="../src/app/mcp/McpService.cpp" line="-4181" />
         <source>OJO: REINICIA EL MOTOR. Por unos segundos se corta TODO lo que sale (el programa, la sala, las pantallas, lo que ven los invitados) y las cámaras se vuelven a abrir. Con una transmisión o una grabación andando no se aplica. No lo uses para arreglar una cámara: decíselo antes al operador y pedile que confirme.</source>
         <translation>ATENÇÃO: REINICIA O MOTOR. Por alguns segundos TUDO o que sai é cortado (o programa, a sala, as telas, o que os convidados veem) e as câmeras são reabertas. Com uma transmissão ou uma gravação rodando, não é aplicado. Não use para corrigir uma câmera: diga ao operador antes e peça que confirme.</translation>
     </message>
@@ -76142,7 +76148,7 @@ Como encontrar o número: colocar um valor, olhar com `foto_programa` alguém fa
         <translation>O disco, para a gravação do programa</translation>
     </message>
     <message>
-        <location line="+111" />
+        <location line="+113" />
         <source>Detector de acoples de la interfaz (solo --test)</source>
         <translation>Detector de acoplamentos da interface (só --test)</translation>
     </message>
@@ -76152,7 +76158,7 @@ Como encontrar o número: colocar um valor, olhar com `foto_programa` alguém fa
         <translation>SÓ NO MODO TESTE. O detector de acoplamentos: com `demora_ms` maior que 0, liga (cada caminho da interface que não passa pelo modelo, como ir direto ao motor, à configuração, ao disco ou à rede, ou um binding que chama uma função que devolve dados, espera esses ms a mais e fica registrado); com 0, desliga. `reiniciar` apaga o que foi registrado. Sempre devolve o relatório: cada lugar com sua classe, arquivo e linha, vezes, quanto custou, o que estava rodando e a pilha da primeira vez, ordenado pelo tempo total.</translation>
     </message>
     <message>
-        <location line="+54" />
+        <location line="+55" />
         <source>Pasar una grabación a MP4/MOV</source>
         <translation>Converter uma gravação para MP4/MOV</translation>
     </message>
@@ -76192,7 +76198,7 @@ Como encontrar o número: colocar um valor, olhar com `foto_programa` alguém fa
         <translation>Salvar configuração</translation>
     </message>
     <message>
-        <location line="-937" />
+        <location line="-940" />
         <source>no hay nadie con esa banca, id o nombre (cuerpo_listar)</source>
         <translation>não há ninguém com essa cadeira, id ou nome (cuerpo_listar)</translation>
     </message>
@@ -76477,7 +76483,7 @@ Se vai ser ouvido depende de o equipamento ter um monitor de áudio configurado;
         <translation>SÓ EM MODO DE TESTE. Trava a thread da interface por `segundos` (1 a 60) com um loop ocupado, meio segundo depois de responder. Enquanto durar, nada da interface (nem este MCP) responde.</translation>
     </message>
     <message>
-        <location line="+49" />
+        <location line="+52" />
         <source>Inyectar una falla en una salida (solo --test)</source>
         <translation>Injetar uma falha em uma saída (só --test)</translation>
     </message>
@@ -88387,8 +88393,8 @@ PROPONHA, NÃO APLIQUE: mostre à pessoa o que muda e aplique só se ela confirm
     </message>
     <message>
         <location line="+30" />
-        <location filename="../src/motor/Composicion.cpp" line="+1238" />
-        <location filename="../src/motor/Entrada.cpp" line="+1694" />
+        <location filename="../src/motor/Composicion.cpp" line="+1242" />
+        <location filename="../src/motor/Entrada.cpp" line="+1716" />
         <location line="+226" />
         <location filename="../src/motor/Mezcla.cpp" line="+451" />
         <location filename="../src/motor/OrigenRed.cpp" line="+233" />
@@ -88467,7 +88473,7 @@ PROPONHA, NÃO APLIQUE: mostre à pessoa o que muda e aplique só se ela confirm
     </message>
     <message>
         <location filename="../src/motor/Capturas.cpp" line="+148" />
-        <location filename="../src/motor/Composicion.cpp" line="-724" />
+        <location filename="../src/motor/Composicion.cpp" line="-728" />
         <source>falta %1</source>
         <translation>falta %1</translation>
     </message>
@@ -88552,7 +88558,7 @@ PROPONHA, NÃO APLIQUE: mostre à pessoa o que muda e aplique só se ela confirm
         <translation>composição %1: a camada “%2” foi montada em %3 ms (criar %4, propriedades (o produtor) %5, adicionar e vincular %6, o pad do mixer %7, iniciar %8)</translation>
     </message>
     <message>
-        <location line="+511" />
+        <location line="+515" />
         <source>composición %1: «%2» salió sin imagen de %3 (no llegó en %4 ms)</source>
         <translation>composição %1: «%2» saiu sem a imagem de %3 (não chegou em %4 ms)</translation>
     </message>
@@ -88562,12 +88568,12 @@ PROPONHA, NÃO APLIQUE: mostre à pessoa o que muda e aplique só se ela confirm
         <translation>composição %1 (%2): %3</translation>
     </message>
     <message>
-        <location filename="../src/motor/Entrada.cpp" line="-944" />
+        <location filename="../src/motor/Entrada.cpp" line="-966" />
         <source>%1: la placa no se pudo armar (%2): sin placa</source>
         <translation>%1: a cartela não pôde ser montada (%2): sem cartela</translation>
     </message>
     <message>
-        <location line="+81" />
+        <location line="+96" />
         <source>%1 — sin señal</source>
         <translation>%1 — sem sinal</translation>
     </message>
@@ -88587,7 +88593,7 @@ PROPONHA, NÃO APLIQUE: mostre à pessoa o que muda e aplique só se ela confirm
         <translation>%1: chegou alguém ao seu lugar: funcionando em %2 ms</translation>
     </message>
     <message>
-        <location line="+299" />
+        <location line="+306" />
         <source>no hay un análisis en curso en esta entrada</source>
         <translation>não há uma análise em andamento nesta entrada</translation>
     </message>
@@ -95525,7 +95531,7 @@ PROPONHA, NÃO APLIQUE: mostre à pessoa o que muda e aplique só se ela confirm
     </message>
     <message>
         <location line="+174" />
-        <location filename="../src/app/vivos/Vivos.cpp" line="+157" />
+        <location filename="../src/app/vivos/Vivos.cpp" line="+158" />
         <location line="+227" />
         <source>No hay una plataforma «%1» (youtube, twitch o facebook).</source>
         <translation>Não há uma plataforma “%1” (youtube, twitch ou facebook).</translation>
@@ -95578,7 +95584,7 @@ PROPONHA, NÃO APLIQUE: mostre à pessoa o que muda e aplique só se ela confirm
         <translation>O Facebook não fornece a ingestão dessa transmissão (já terminou?).</translation>
     </message>
     <message>
-        <location filename="../src/app/vivos/Vivos.cpp" line="-311" />
+        <location filename="../src/app/vivos/Vivos.cpp" line="-312" />
         <source>falta la app de la plataforma</source>
         <translation>falta o app da plataforma</translation>
     </message>
@@ -95608,7 +95614,7 @@ PROPONHA, NÃO APLIQUE: mostre à pessoa o que muda e aplique só se ela confirm
         <translation>não conectada</translation>
     </message>
     <message>
-        <location line="+37" />
+        <location line="+38" />
         <source>Principal</source>
         <translation>Principal</translation>
     </message>

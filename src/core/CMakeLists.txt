@@ -78,6 +78,12 @@ add_library(ba_core STATIC ${BA_CORE_SOURCES})
 if(BA_PERFILAR)
     set_source_files_properties("${CMAKE_CURRENT_SOURCE_DIR}/diag/Perfil.cpp" PROPERTIES COMPILE_DEFINITIONS BA_PERFILAR=1)
 endif()
+# El detector de acoples (ver el CMakeLists raíz): PUBLIC, así lo ven todos los que usan
+# BA_ACOPLE (la app, el motor, el gateway, los tests). Sin la opción no se define: el
+# detector no se compila y BA_ACOPLE queda en ((void)0) (diag/Acoples.hpp).
+if(BA_DIAG_ACOPLES)
+    target_compile_definitions(ba_core PUBLIC BA_DIAG_ACOPLES=1)
+endif()
 if(BA_HAVE_ROSTROS)
     target_include_directories(ba_core PUBLIC "${BA_ORT_DIR}/include")
     target_link_libraries(ba_core PUBLIC "${BA_ORT_LIB}")

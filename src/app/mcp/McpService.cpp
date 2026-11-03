@@ -3740,8 +3740,10 @@ void McpService::registerTools() {
         };
         core_.addTool(std::move(t));
     }
+#ifdef BA_DIAG_ACOPLES
     if (modoPrueba) {
-        // Solo con --test: el detector de acoples (diag/Acoples.hpp,
+        // Solo con --test y en los builds con el detector (BA_DIAG_ACOPLES; lo que se publica
+        // no lo trae): el detector de acoples (diag/Acoples.hpp,
         // docs/arquitectura/detector-de-acoples.md). Lo usa tools/diag/recorrer-ui.py.
         Tool t;
         t.name = "diag_acoples";
@@ -3767,6 +3769,7 @@ void McpService::registerTools() {
         };
         core_.addTool(std::move(t));
     }
+#endif // BA_DIAG_ACOPLES
     if (modoPrueba) {
         // Solo con --test: el banco de caos (tools/caos/) rompe a propósito el codificador
         // o el sumidero de una salida a los N s (FallasProgramadas → motor/Fallas.hpp).
