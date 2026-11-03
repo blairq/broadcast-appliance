@@ -561,9 +561,12 @@ y `sink_1 = appsrc placa 640×360 BGRA ! subida ! imagefreeze is-live=true ! 1 c
 - Plazo de llegada de cada capa = latencia del mezclador + 1 cuadro (`Composicion.cpp:400-404`, `603-608`).
 - DSK: `tee` → `queue` → `intersink video:programa:limpio` y `queue` → 2.º
   mezclador con las capas DSK → `intersink video:programa` (`Composicion.cpp:280-285`).
-- Transiciones: corte, mezcla, empuje, cortina; el corte saca la escena vieja
-  cuando la nueva dio su primer cuadro, con espera máxima 700 ms
-  (`ajustes:video.esperaCorteMs`) (`Composicion.hpp:14-24`, `Composicion.cpp:964`).
+- Transiciones: corte, mezcla, empuje, cortina. La escena que entra se arma fuera
+  del aire (sus capas con alfa 0) y sale entera cuando todas tienen cuadro (y su
+  señal, no la placa; una escena interna, completa; una entrada sin video no se
+  espera), con espera máxima 1500 ms (`ajustes:video.esperaCorteMs`); recién ahí
+  corta o arranca la transición, y el audio de la escena con ella
+  (`Motor::Salida::audioPendiente`) (`Composicion.hpp`, `Composicion::tic`).
 - Multiview: 1280×720 de fábrica, PREVIEW y PROGRAMA arriba, hasta 8 entradas
   abajo con tally (`src/motor/Motor.hpp:216-221`).
 - «Otro mezclador» (cualquier elemento de varias entradas de GStreamer) configurable
@@ -1212,7 +1215,7 @@ de tiempos, colas y reintentos:
 | `audio.compensacionMaxMs` | 2000 ms | `src/app/audio/AudioRack.cpp:874` |
 | `audio.rescanEquiposMs` | 3000 ms | `Matriz.cpp:170` |
 | `video.margenComposicionMs` | 5 ms | `BroadcastEngine.cpp:583` (y `Composicion.cpp:395`) |
-| `video.esperaCorteMs` | 700 ms | `Composicion.cpp:964` |
+| `video.esperaCorteMs` | 1500 ms | `Composicion::tic` |
 | `video.esperaCapturaMs` | 700 ms | `BroadcastEngine.cpp:1158` |
 | `video.vistaReposoS` | 10 s | `BroadcastEngine.cpp:1133` |
 | `entradas.congelarMs` | 2500 ms | `Entrada.cpp:318` |
