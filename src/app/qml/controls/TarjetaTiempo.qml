@@ -256,8 +256,11 @@ Item {
                     width: parent.width
                     spacing: 1
                     Text { text: t.nodo.titulo; color: Theme.text; font.pixelSize: 11; font.weight: Font.DemiBold; width: parent.width; elide: Text.ElideRight }
+                    // El dorso se arma solo dado vuelta: con 200 invitados hay cientos de tarjetas
+                    // y cada vuelta del modelo (1 s) rearmaba el detalle (texto enriquecido) de
+                    // todas, que nadie veía: trabas de 2-9 s en Latencias (volcado A-…-055906).
                     Repeater {
-                        model: t.alarma ? t.alarma.motivos : []
+                        model: t.volteada && t.alarma ? t.alarma.motivos : []
                         delegate: Text {
                             required property var modelData
                             width: lista.width
@@ -269,6 +272,7 @@ Item {
                     }
                     Repeater {
                         model: {
+                            if (!t.volteada) return []
                             const d = t.nodo.detalle || {}
                             const filas = []
                             for (const k in d) {
