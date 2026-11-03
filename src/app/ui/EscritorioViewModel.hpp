@@ -11,6 +11,8 @@
 //   MonitoresModel      los monitores de la máquina y qué va en cada uno
 //   VentanasModel       las ventanas sueltas, que se recuerdan
 //   MultiviewViewModel  las multivistas y sus ventanas
+//   DistribucionesModel las distribuciones de pantallas guardadas (del evento): cómo
+//                       quedan las ventanas en los monitores, para aplicarlas de un clic
 //
 // Acá se arma el catálogo con lo que publica cada uno y se lo refresca cuando algo de
 // eso cambia; identificar los monitores (un cartel en cada uno) también es de acá.
@@ -32,6 +34,7 @@ namespace ba::app {
 class AppRuntime;
 class CatalogoVisible;
 class DashboardModel;
+class DistribucionesModel;
 class FrameService;
 class ImagenViewModel;
 class MonitoresModel;
@@ -55,6 +58,8 @@ class EscritorioViewModel : public QObject {
     /// Con esto la interfaz puede hacer lo único que sí funciona (pantalla
     /// completa en un monitor) en vez de un botón que no hace nada.
     Q_PROPERTY(bool puedeUbicarVentanas READ puedeUbicarVentanas CONSTANT)
+    /// Las distribuciones de pantallas (pantallas/Distribuciones.hpp).
+    Q_PROPERTY(QObject* distribuciones READ distribucionesQml CONSTANT)
    public:
     struct Partes {
         AppRuntime& rt;
@@ -73,6 +78,8 @@ class EscritorioViewModel : public QObject {
     MonitoresModel& monitoresModelo() { return *monitores_; }
     VentanasModel& ventanas() { return *ventanas_; }
     MultiviewViewModel& multivistas() { return *multivistas_; }
+    DistribucionesModel& distribuciones() { return *distribuciones_; }
+    QObject* distribucionesQml() const;
     QObject* catalogoQml() const;
     QObject* monitoresQml() const;
     QObject* ventanasQml() const;
@@ -104,6 +111,8 @@ class EscritorioViewModel : public QObject {
     std::unique_ptr<MonitoresModel> monitores_;
     std::unique_ptr<VentanasModel> ventanas_;
     std::unique_ptr<MultiviewViewModel> multivistas_;
+    // Después de las ventanas y los monitores (los usa) y antes en la destrucción.
+    std::unique_ptr<DistribucionesModel> distribuciones_;
 };
 
 } // namespace ba::app

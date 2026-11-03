@@ -202,6 +202,136 @@ que mira. La vista que baja el programa al gateway descansa si nadie la mira
 hace 10 s (`retornoEnUso`), y solo contaba invitados e integrantes remotos: un
 televisor solo con el programa se congelaba a los 10 s.
 
+## Distribuciones de pantallas (los monitores de esta máquina)
+
+**Pantallas → Pantallas locales → Distribuciones.** Una distribución es cómo
+quedan las ventanas en los monitores de esta máquina, guardado con nombre: en el
+monitor 2 las dos escenas con las grillas de los remotos lado a lado, en el 3 el
+programa a pantalla completa, en el de control el programa, el previo y la
+multivista. Se arma a mano o —lo más común— por MCP, se guarda **con el evento**
+(`<evento>/Config/distribuciones-pantallas.json`, «Evento es todo») y se aplica de
+un clic.
+
+Modelo: `src/app/pantallas/Distribuciones.{hpp,cpp}` (`DistribucionesModel`,
+`LienzosModel`); vista: `controls/DistribucionesPantallas.qml` (la sección) y
+`VentanaLienzo.qml` (la ventana madre). Test: `test_pantallas_distribuciones`.
+
+### Cada ventana
+
+| campo | qué es |
+|---|---|
+| `nombre` | para leer («Remotos A»); vacío = el título de lo que muestra |
+| `cosas` | ids de `catalogo_listar {"donde":"monitor"}`: el programa, el previo, una escena, una multivista, un invitado, un panel, una página… Una, o varias en grilla |
+| `disposicion` | con varias cosas: `grid`, `focus`, `pip`, `row` |
+| `monitor` | id estable, número de orden o nombre (`monitor_listar`). Vacío = el primero que no sea el principal |
+| `x`, `y`, `ancho`, `alto` | el lugar **relativo al monitor**, de 0 a 1 (de entrada, el monitor entero) |
+| `absoluta` | `{x, y, ancho, alto}` en píxeles desde la esquina del monitor, solo si hacen falta píxeles exactos; si no entran en el monitor se usa la relativa |
+| `pantallaCompleta` | ocupa el monitor entero |
+| `encima` | siempre encima de las demás ventanas |
+
+**Relativo para sobrevivir a la resolución**: «la mitad izquierda» sigue siendo la
+mitad izquierda en un 4K o en un 1080p.
+
+### Una ventana madre por monitor
+
+Aplicar **no** abre una ventana del sistema por cada cosa: arma, en cada monitor
+que usa, **una sola ventana sin marco** (a pantalla completa si la distribución
+ocupa el monitor entero; si no, del tamaño del rectángulo que encierra sus
+ventanas, con negro entre ellas) y adentro dibuja cada ventana de la distribución
+como un rectángulo con su vista (la misma `VistaCosas` de las ventanas sueltas).
+Fue la idea del usuario y se eligió por esto:
+
+- **nada que se pueda mover, agrandar o cerrar a mano**: no hay marco, ni barra,
+  ni bordes; Cmd+W/Alt+F4 se rechazan y si el sistema la corre, vuelve. Lo que
+  muestra y dónde lo cambia **solo** el menú Pantallas o el MCP;
+- **posiciones exactas**: el gestor de ventanas no reacomoda rectángulos internos
+  (con N ventanas sueltas sin marco, macOS a veces las corre);
+- **un contexto de render y una superficie por monitor**, no N (menos GPU y menos
+  compositor);
+- **cambiar de distribución no abre ni cierra ventanas**: el id de la ventana
+  madre es el del monitor, así que se queda y cambian sus rectángulos
+  (`ListaConClave`: aplicar dos veces lo mismo no avisa nada);
+- cada monitor con su ventana respeta **su escala y su frecuencia** (una ventana
+  que cruzara monitores no podría).
+
+Lo que de verdad necesite su propia ventana del sistema (algo que se captura por
+ventana) sigue siendo una ventana suelta (`output_window`), que no es parte de una
+distribución. En Wayland, donde un programa no puede ubicar ventanas, la madre va a
+pantalla completa en su monitor (los rectángulos se estiran a él).
+
+Aplicar deja **exactamente** lo de la distribución: las ventanas sueltas se
+cierran. Lo fijo de «Pantallas conectadas» (`monitor_asignar`) no se toca; si
+comparte monitor con la distribución, se avisa (se taparían).
+
+**Un monitor que no está**: se avisa y su ventana va al que haya (el primero que
+no sea el principal; si no, el principal), sin dejar de aplicar el resto. Cuando
+aparece (o se desenchufa otro), lo aplicado se vuelve a ubicar solo.
+
+**Lo aplicado se recuerda**: al reiniciar (o al volver la luz) vuelve la marcada
+«Al abrir el evento» (`alAbrir`, una sola) o, si no hay, la que estaba aplicada.
+
+### Salida de emergencia
+
+Como no se pueden cerrar con el mouse, hay tres maneras de sacarlas (la
+distribución queda guardada):
+
+- **Ctrl+Shift+F12** desde cualquier ventana de la app;
+- Pantallas → Distribuciones → **«Cerrar las ventanas de la distribución»**;
+- por MCP, `pantallas_distribucion_cerrar`.
+
+### A mano
+
+La sección tiene la lista (doble clic o «Aplicar»), «Guardar la actual» (lo que
+hay puesto ahora: la madre de cada monitor y las ventanas sueltas), «Plantilla»
+(mosaico 2×1, mosaico 2×2, una por monitor, programa + previo + multivista) y
+«Vacía». La elegida se edita con un **esquema de los monitores** como están
+puestos: cada ventana es un rectángulo que se arrastra (y se agranda desde la
+esquina); al soltar va al monitor donde cae su centro. Abajo, por ventana: nombre,
+qué muestra, monitor, pantalla completa, encima, quitar. Si la elegida está
+aplicada, cada cambio se ve en el acto.
+
+### Por MCP
+
+`pantallas_distribuciones_listar`, `pantallas_distribucion_crear`, `_editar`,
+`_aplicar`, `_capturar`, `_borrar` y `_cerrar`. Los monitores con su geometría los
+da `monitor_listar`; lo que se puede mostrar, `catalogo_listar {"donde":"monitor"}`.
+
+Las dos escenas de remotos lado a lado en el monitor 2, y aplicarla ya:
+
+```json
+{"nombre": "Remotos lado a lado", "aplicar": true, "ventanas": [
+  {"nombre": "Remotos A", "cosas": ["escena:remotos-a"], "monitor": "2", "x": 0,   "y": 0, "ancho": 0.5, "alto": 1},
+  {"nombre": "Remotos B", "cosas": ["escena:remotos-b"], "monitor": "2", "x": 0.5, "y": 0, "ancho": 0.5, "alto": 1}
+]}
+```
+
+Programa a pantalla completa en el 2 y la multivista en el 3, que se abra sola con
+el evento:
+
+```json
+{"nombre": "Sala", "alAbrir": true, "ventanas": [
+  {"cosas": ["programa"], "monitor": "2", "pantallaCompleta": true},
+  {"cosas": ["multiview:principal"], "monitor": "3", "pantallaCompleta": true}
+]}
+```
+
+Desde una plantilla, y después mover una ventana (si está aplicada, se mueve en el
+acto):
+
+```json
+{"nombre": "Control", "plantilla": "programa-previo-multiview", "monitor": "3"}
+```
+```json
+{"distribucion": "Control", "indice": 3, "ventana": {"x": 0, "y": 0.6, "ancho": 1, "alto": 0.4}}
+```
+
+Una fuente suelta (un invitado) y el padrón al costado, con píxeles exactos:
+
+```json
+{"distribucion": "Control", "agregar": {"cosas": ["video:guest:1"], "monitor": "3",
+  "absoluta": {"x": 1280, "y": 0, "ancho": 640, "alto": 360}}}
+```
+
 ## Lo que falta
 
 - **El programa en vivo ya está**, con una salvedad. `/cast/` es la página del
