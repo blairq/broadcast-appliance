@@ -102,6 +102,55 @@ it re-measured after the multi-core gateway: with the generator on the same mach
 already using almost a full core at 40, so going further needs the guests generated from
 another machine. No ceiling is claimed for the Mac.
 
+## Screenshots from the load tests
+
+The guests are simulated with **hinchada**, the WebRTC load tester (the same one behind
+*System → Room test*). Each simulcast layer carries its own resolution drawn in the middle
+of the picture, so a glance at the grid shows which layer every cell is receiving.
+
+| | |
+|---|---|
+| ![200 of 200 guests in the conference page, every thumbnail on the 180p layer](../hardware/img/pc-windows-noche-sala-200-rotulo.jpg) | ![Program output with 200 guests: 180p thumbnails, the speaker on 720p (orange border), "+137" more](../hardware/img/pc-windows-noche-programa-200-orador-720p.jpg) |
+| **Windows PC, 200 guests**: conference page, all cells on the 180p layer. | **Windows PC, 200 guests**: the program grid; the speaker gets the 720p layer in their cell. |
+| ![160 of 160 guests](../hardware/img/pc-windows-n2-sala-160.jpg) | ![Guests entering two per second](../hardware/img/pc-windows-n2-entrando.jpg) |
+| **Windows PC, 160 guests** (160/160 places). | **Staggered entry**: guests join two per second. |
+| ![Three guests on the 720p layer](../hardware/img/pc-windows-noche-real-3-rotulo-720p.jpg) | ![The room-test panel with 40 guests](../hardware/img/pc-windows-panel-prueba-sala-40.jpg) |
+| **Live-encoded guests** (not pre-recorded): 720p label on every layer. | **System → Room test** with 40 guests: bandwidth, CPU, joined/failed, HD latency when given the floor. |
+| ![Mac program grid with 40 guests](../hardware/img/mac-programa-grilla-40.jpg) | |
+| **Mac M1 Pro, 40 guests**: the program grid (before the resolution label existed). | |
+
+## UI responsiveness under load (the MVC check)
+
+The interface must never wait for the engine, the gateway, the disk or the network: views bind
+to model properties and roles that notify when they change (MVC), never to functions that go
+and fetch data. A development-only **coupling detector** enforces it:
+
+- a **static** pass (`tools/diag/acoples.py`, run by the test suite) lists every QML binding
+  that calls a data-returning function and every blocking call in UI code; its debt can only
+  go down;
+- a **dynamic** "sabotage" mode (`--test --detectar-acoples`) makes every UI path that skips
+  the model sleep on purpose and records where, so the culprits show up as freezes;
+- `tools/diag/recorrer-ui.py` walks every page and panel with the detector on and a full room.
+
+It is compiled only into development and test builds (`BA_DIAG_ACOPLES`); release packages
+don't carry it.
+
+Results of the first full run (2026-11-03):
+
+| | Before | After |
+|---|---|---|
+| Mac, no guests, whole UI walk: time the UI spent waiting outside the model | 79.8 s in 7 places | 2.4 s in 2 places |
+| QML bindings calling data functions (static debt) | 39 | 29 |
+| Windows PC, 200 guests, UI freezes > 2 s in the first 2-minute batch | 16 | 0 |
+| Windows PC, 200 guests, batches 2–4 | 0–1 | 0 |
+
+The worst offenders were a cue-link lookup in the dashboard (44 s), page-id lookups in the
+navigation rail (33 s), a document list re-read from disk on every access, a catalog search
+model recounting everything on each guest joining, and hidden grid pages being rebuilt. What
+is left: the *Latencies* page with 200 guests (4–5 s when first shown, it creates every card
+at once) and a few disk reads in the assistant page. Details (Spanish):
+[detector-de-acoples.md](../arquitectura/detector-de-acoples.md).
+
 ## Recent work behind these numbers
 
 - **Multi-core gateway**: network and worker thread layers instead of threads per guest; the

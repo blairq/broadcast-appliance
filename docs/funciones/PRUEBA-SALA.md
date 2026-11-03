@@ -129,6 +129,6 @@ solo para todas las configuraciones: `BroadcastAppliance Datos/Runtime/hinchada/
 grandes en el centro («720p», «360p», «180p») y abajo el tamaño, los cuadros por segundo y,
 en el video grabado, la tasa. Sirve para ver en la grilla qué capa llega a cada celda y si al
 agrandar al que habla sube de verdad a la alta (con 200 invitados: las miniaturas en 180p y
-el orador en 720p, [captura](../hardware/img/pc177-noche-sala-200-rotulo.jpg)). Viene prendido;
+el orador en 720p, [captura](../hardware/img/pc-windows-noche-sala-200-rotulo.jpg)). Viene prendido;
 `--rotulo-capa no` lo apaga. Un `grabado.hgr` de antes, sin rótulo, se graba de nuevo solo
 la primera vez.

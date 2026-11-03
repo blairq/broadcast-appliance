@@ -207,7 +207,7 @@ Cinco tandas de ≤ 2 min (hinchada en la Mac por TURN de la caja, 10 % TCP, `--
 --hablan 1`; el recorrido arranca con 100 con medios y sigue mientras entran los demás):
 `tools/diag/recorrer-ui.py --sala-externa 100 --paginas …` en paralelo con
 `tools/carga/medir-sala.py --remoto <PC> --participantes 200 --cupo --estabilizar-max 60
---regimen 40`. Mediciones crudas fuera del repo (`2026-11-03-acoples-pc177/`).
+--regimen 40`. Mediciones crudas fuera del repo (`2026-11-03-acoples-pc-windows/`).
 
 **El detector no anotaba nada en Windows**: `detalle::demoraMs` era `inline` en el .hpp y en el
 .exe de clang-cl los ganchos leían una copia que `activar()` no tocaba. Ahora está definida en
@@ -256,5 +256,5 @@ resumen no desarma con el ABI de MSVC: de antes, no de esto).
 
 La grilla con 200 (hinchada con el rótulo de cada capa en el centro): las miniaturas llegan en
 180p y el orador (`--hablan 1`) en **720p** en su celda, sin agrandar
-(`docs/hardware/img/pc177-noche-sala-200-rotulo.jpg`,
-`docs/hardware/img/pc177-noche-programa-200-orador-720p.jpg`).
+(`docs/hardware/img/pc-windows-noche-sala-200-rotulo.jpg`,
+`docs/hardware/img/pc-windows-noche-programa-200-orador-720p.jpg`).

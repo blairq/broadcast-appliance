@@ -14,7 +14,7 @@ usan poca cantidad y qué cambios de contexto mucha».
 | Cambios de contexto/s del gateway | ~16 mil | sin medir por hilo |
 
 Mediciones: `mediciones-carga/2026-11-02-final-am-sr/`, `2026-11-02-al-final/`,
-`2026-11-02-pc177/`; ficha de la PC en [docs/hardware](../hardware/pc-ryzen9-5900x-rx5700xt.md).
+`2026-11-02-pc-windows/`; ficha de la PC en [docs/hardware](../hardware/pc-ryzen9-5900x-rx5700xt.md).
 
 Campaña del 2026-11-02 en la PC de Windows con H.264 por la placa (master `b792325d`, ver «Lo que dijo
 la campaña»): con 40 el gateway gasta 220 % directo y 231-242 % por TURN, con **647 hilos** y
@@ -147,7 +147,7 @@ señalización: 1 hilo para toda la sala
 
 ## Lo que dijo la campaña (2026-11-02, PC de Windows)
 
-Mediciones crudas fuera del repo (`2026-11-02-campana/pc177/`) y la ficha
+Mediciones crudas fuera del repo (`2026-11-02-campana/pc-windows/`) y la ficha
 [pc-ryzen9-5900x-rx5700xt.md](../hardware/pc-ryzen9-5900x-rx5700xt.md). La Mac quedó pausada con
 solo directo 10-40 (sin TURN): sus columnas quedan para cuando se retome.
 
@@ -919,7 +919,7 @@ vuelta: GW SendTo ─► IpStack::enviarDesdeRtc (cola, despierta si estaba vac�
 | C18 | **Franjas al ir entrando gente** (visto por el usuario en la PC de Windows, 2026-11-03): una división parte la pantalla al medio horizontalmente y aparecen muchas franjas de video de 1-2 cm de ancho y 10 cm de alto | el algoritmo de disposición tiene que **mantener la relación de aspecto** de las imágenes (16:9) y tener un **mínimo de ancho y de alto** por celda; si no entran, desplazar/«+N», nunca aplastar. **Hecho 2026-11-03, sin compilar ni probar en la placa**: `disponer()` con `Forma` (recorte_max 25 %, celda mínima 96×54 a 1080, capacidad → «+N»); `grilla_personas_estado` dice la `disposicion` |
 | C19 | **La app pasó sola de Conferencia al Dashboard** a mitad de la entrada (medidor, 2026-11-03), sin arreglar | lo único que pone el Dashboard es `page = 0` en `Main.qml`: (1) la ventana se creó de nuevo tras una caída o un cuelgue relanzado por el supervisor (`page` arranca en 0; mirar `Runtime/caidas.jsonl`, «colgado»/«terminó inesperadamente» en el log del launcher, cortes del MCP en medir-sala); (2) un clic en la píldora de estado de arriba al centro (`Main.qml`, `onClicked: win.page = 0`; con «AL AIRE · GRABANDO» se ensancha); (3) el modo en vivo rebota a `paginaPermitida` si «sala» estuviera bloqueada (se vería el diálogo «Estamos en vivo»); (4) otro cliente MCP con `ui_show_page dashboard`. Nada del C++ (alarmas, asistente, línea de tiempo, gente entrando) navega al Dashboard |
 | C13 | Tope de 32 conexiones por IP (`room.maxConexionesPorIp`) | con mucha gente detrás de un NAT quedan afuera; que dependa del cupo |
-| C14 | «En la conferencia» con 40 se ve como rayas vacías | desplazarse o pasar a lista; `docs/hardware/img/pc177-sala-40.jpg` |
+| C14 | «En la conferencia» con 40 se ve como rayas vacías | desplazarse o pasar a lista; `docs/hardware/img/pc-windows-sala-40.jpg` |
 | C15 | Cuelgue al cambiar de evento tras el primer arranque | GStreamer trabado en `gst_pad_stop_task`; volcado en la PC de Windows |
 | C16 | 5 tests nuevos fallan bajo Wine | test_cupos, test_gateway_http, test_mirada, test_sse_epoch, test_tiempo_real |
 | C17 | Detalles | «fallidos 40» antes de que entre nadie; `analizar.py --pc` con acentos; script de hinchada con bash 3.2; la tarjeta «Enlace» habla de WireGuard |

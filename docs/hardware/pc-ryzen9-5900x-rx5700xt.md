@@ -225,18 +225,18 @@ Grilla del evento de prueba tiene `"proporcion": "llenar"` («Principal» usa 16
 más área sin mirar la proporción del video, y para algunos N gana una grilla de celdas verticales.
 `grilla_personas_estado` no informa columnas, filas ni tamaño de celda.
 
-![Programa con 43 en «llenar»: 11 × 4 franjas](img/pc177-n2-programa-franjas-43.jpg)
+![Programa con 43 en «llenar»: 11 × 4 franjas](img/pc-windows-n2-programa-franjas-43.jpg)
 
 ### Capturas
 
-![Sala con 40](img/pc177-n2-sala-40.jpg)
+![Sala con 40](img/pc-windows-n2-sala-40.jpg)
 
-![Sala con 160 (160/160 lugares)](img/pc177-n2-sala-160.jpg)
+![Sala con 160 (160/160 lugares)](img/pc-windows-n2-sala-160.jpg)
 
 Con la entrada escalonada a 2/s, a los 10 s: 5 en la conferencia y en el lobby «0 esperando · 21
 entrando», cada uno con su «entrando…»:
 
-![Entrando de a 2 por segundo](img/pc177-n2-entrando.jpg)
+![Entrando de a 2 por segundo](img/pc-windows-n2-entrando.jpg)
 
 ### Otras cosas vistas
 
@@ -353,9 +353,9 @@ no apareció.
 La Sala nueva («En la conferencia») con 40 y con 120 (118/120 lugares, la grilla se desplaza; una
 celda todavía sin video):
 
-![Sala con 40](img/pc177-sala-nueva-40.jpg)
+![Sala con 40](img/pc-windows-sala-nueva-40.jpg)
 
-![Sala con 120](img/pc177-sala-nueva-120.jpg)
+![Sala con 120](img/pc-windows-sala-nueva-120.jpg)
 
 ### Problemas vistos
 
@@ -620,29 +620,29 @@ como máquina; usa la mitad de memoria; la grilla y el audio salen igual o mejor
 
 La Conferencia con 10 invitados (cada uno con su número y su video):
 
-![Conferencia con 10 invitados](img/pc177-sala-10.jpg)
+![Conferencia con 10 invitados](img/pc-windows-sala-10.jpg)
 
 La grilla de personas al aire con 10 (todos en alta) y con 40 (miniaturas en baja, el orador
 resaltado):
 
-![Grilla con 10](img/pc177-programa-grilla-10.jpg)
+![Grilla con 10](img/pc-windows-programa-grilla-10.jpg)
 
-![Grilla con 40](img/pc177-programa-grilla-40.jpg)
+![Grilla con 40](img/pc-windows-programa-grilla-40.jpg)
 
 La Conferencia con 40 y la Prueba de sala corriendo (columna derecha), y el panel de cerca:
 
-![Conferencia con 40 y la Prueba de sala](img/pc177-sala-40.jpg)
+![Conferencia con 40 y la Prueba de sala](img/pc-windows-sala-40.jpg)
 
-![Panel de la Prueba de sala con 40](img/pc177-panel-prueba-sala-40.jpg)
+![Panel de la Prueba de sala con 40](img/pc-windows-panel-prueba-sala-40.jpg)
 
 > **Defecto visto en la captura de 40**: la lista «En la conferencia» encoge las filas hasta
 > dejarlas como rayas vacías en lugar de desplazarse (con 10 se ven bien). Anotado para
 > arreglar; no afecta la medición. Captura de la campaña de la tarde (40 por TURN UDP), la
 > ventana y la tarjeta sola:
 
-![Página Sala con 40 (tarde)](img/pc177-conferencia-40-1511.jpg)
+![Página Sala con 40 (tarde)](img/pc-windows-conferencia-40-1511.jpg)
 
-![«En la conferencia» con 40](img/pc177-conferencia-40-1511-tarjeta.jpg)
+![«En la conferencia» con 40](img/pc-windows-conferencia-40-1511-tarjeta.jpg)
 
 ## Problemas encontrados en esta medición
 
