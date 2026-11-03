@@ -5339,7 +5339,9 @@ Recorrer la tira no cambia lo que se ve.</source>
     <message numerus="yes">
         <location line="-476" />
         <source>%n entrando (%1 por segundo)</source>
-        <translation><numerusform>%n 人正在进入（每秒 %1 人）</numerusform></translation>
+        <translation>
+            <numerusform>%n 人正在进入（每秒 %1 人）</numerusform>
+        </translation>
     </message>
     <message>
         <location line="+2" />
@@ -30510,7 +30512,7 @@ Agregale una en Escenas y fuentes: ubicala donde querés que se vea el zócalo, 
         <translation>没有已保存的连接方式：请在 设置 → 远程访问 中设置。</translation>
     </message>
     <message>
-        <location line="+17" />
+        <location line="+19" />
         <source>espera en el lobby</source>
         <translation>在等候室等候</translation>
     </message>
@@ -40093,6 +40095,76 @@ Elegí otra cosa en Salidas → Pantallas.</source>
     </message>
     <message>
         <location line="+1" />
+        <source>Video de los invitados: no recibir a quien nadie ve</source>
+        <translation>嘉宾视频：不接收无人观看的嘉宾</translation>
+    </message>
+    <message>
+        <location line="+0" />
+        <source>A un invitado que no está al aire ni en el preview, ni en una grilla a la vista, ni con su tarjeta a la vista en la interfaz, se le pide que deje de mandar la cámara: no viaja ni se decodifica (con 200 invitados, la placa de video decodifica a los que se ven y no a todos). Cuando vuelve a hacer falta, la manda de nuevo en una fracción de segundo; mientras tanto queda su última imagen. Apagado, todos mandan siempre la calidad baja.</source>
+        <translation>对既不在播出也不在预览、不在可见的网格中、其卡片也不在界面上可见的嘉宾，会请其停止发送摄像头画面：画面不传输也不解码（200 位嘉宾时，显卡只解码看得到的，而不是全部）。再次需要时，他会在不到一秒内重新发送；在此期间保留最后一帧画面。关闭时，所有人始终发送低画质。</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Video de los invitados: menos cuadros si la placa no da</source>
+        <translation>嘉宾视频：显卡跟不上时降低帧数</translation>
+    </message>
+    <message>
+        <location line="+0" />
+        <source>Si el motor de video de la placa (el que decodifica las cámaras) se carga, se les pide a los invitados en calidad baja menos cuadros por segundo (15, 10, 7,5), primero a los de las celdas más chicas; cuando se alivia, vuelven a 15. Los de calidad alta (el que está al aire, los lugares grandes de una grilla) no se tocan.</source>
+        <translation>如果显卡的视频引擎（负责解码摄像头的那个）负载升高，会请低画质的嘉宾降低每秒帧数（15、10、7.5），先从最小的格子开始；负载减轻后恢复到 15。高画质的嘉宾（正在播出的人、网格中的大位置）不受影响。</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Menos cuadros con la placa de video al</source>
+        <translation>视频引擎负载达到此值时降低帧数</translation>
+    </message>
+    <message>
+        <location line="+0" />
+        <source>Con la carga del motor de video en esto o más durante 2 segundos, se baja un escalón.</source>
+        <translation>视频引擎负载持续 2 秒达到或超过此值时，下降一级。</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Más cuadros con la placa de video al</source>
+        <translation>视频引擎负载降到此值时提高帧数</translation>
+    </message>
+    <message>
+        <location line="+0" />
+        <source>Con la carga en esto o menos durante el tiempo de recuperar, se sube un escalón. Tiene que quedar por debajo del de arriba (si no, se toma uno menos).</source>
+        <translation>负载在恢复时间内保持在此值或以下时，上升一级。必须低于上面的值（否则取比它小一的值）。</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Volver a subir los cuadros después de</source>
+        <translation>经过此时间后再提高帧数</translation>
+    </message>
+    <message>
+        <location line="+0" />
+        <source>Cuánto tiene que sostenerse la carga baja para subir un escalón (bajar es rápido; subir, prudente).</source>
+        <translation>低负载需要持续多久才上升一级（下降很快；上升则谨慎）。</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Cuadros perdidos al decodificar que cuentan como saturado</source>
+        <translation>解码前丢失多少帧视为饱和</translation>
+    </message>
+    <message>
+        <location line="+0" />
+        <source>Si de los cuadros que llegan se pierde esto o más antes de decodificarlos, la placa ya no da abasto (sirve donde el sistema no dice la carga del motor de video: macOS, Linux). 0 = no mirarlo.</source>
+        <translation>如果到达的帧中有这么多或更多在解码前丢失，说明显卡已经跟不上（适用于系统不报告视频引擎负载的情况：macOS、Linux）。0 = 不考虑。</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Cuadros por segundo mínimos de la calidad baja</source>
+        <translation>低画质的最低每秒帧数</translation>
+    </message>
+    <message>
+        <location line="+0" />
+        <source>Hasta dónde se baja como mucho (los escalones son 15, 10 y este).</source>
+        <translation>最多降到多少（各级为 15、10 和此值）。</translation>
+    </message>
+    <message>
+        <location line="+1" />
         <source>Conferencia: núcleos propios</source>
         <translation>会议：专用核心</translation>
     </message>
@@ -40372,7 +40444,7 @@ Elegí otra cosa en Salidas → Pantallas.</source>
         <translation>不是可选项之一</translation>
     </message>
     <message>
-        <location line="-236" />
+        <location line="-243" />
         <source>Mensajes de chat que se guardan</source>
         <translation>保留的聊天消息数</translation>
     </message>
@@ -40527,7 +40599,7 @@ Elegí otra cosa en Salidas → Pantallas.</source>
         <translation>Windows：直接模式下，gateway 不经中间层把每一帧交给 GPU（占用更少处理器和线程）；Media Foundation 为 Windows 自带解码器（用于对比，或 GPU 出问题时）。</translation>
     </message>
     <message>
-        <location line="+8" />
+        <location line="+15" />
         <source>Hablarle a un invitado: cuánto baja el programa</source>
         <translation>与嘉宾通话：节目音量降低多少</translation>
     </message>
@@ -51509,7 +51581,7 @@ Datos (de %2): %3</source>
         <translation>无法裁切「%2」中的「%1」（裁切范围大于图像？）</translation>
     </message>
     <message>
-        <location filename="../src/app/escenas/ControlGrillas.cpp" line="+186" />
+        <location filename="../src/app/escenas/ControlGrillas.cpp" line="+187" />
         <source>todavía no se pueden crear escenas</source>
         <translation>暂时还不能创建场景</translation>
     </message>
@@ -53597,9 +53669,9 @@ Datos (de %2): %3</source>
         <location line="+7" />
         <location filename="../src/gateway/Botonera.cpp" line="+91" />
         <location line="+2" />
-        <location filename="../src/gateway/SignalingServer.cpp" line="+688" />
+        <location filename="../src/gateway/SignalingServer.cpp" line="+692" />
         <location line="+9" />
-        <location line="+356" />
+        <location line="+357" />
         <location line="+109" />
         <location line="+11" />
         <location line="+3" />
@@ -54011,7 +54083,7 @@ Datos (de %2): %3</source>
         <translation>「%1」的单元格没有尺寸</translation>
     </message>
     <message>
-        <location line="+672" />
+        <location line="+675" />
         <source>grillas: BA.Grilla.%1 listo (%2x%3)</source>
         <translation>网格：BA.Grilla.%1 已就绪（%2x%3）</translation>
     </message>
@@ -54197,7 +54269,7 @@ Datos (de %2): %3</source>
         <translation>测试期间未收到其麦克风的音频（是否已静音？）</translation>
     </message>
     <message>
-        <location line="+249" />
+        <location line="+277" />
         <source>sube %1: %2 fps (%3x%4)</source>
         <translation>上行 %1：%2 fps（%3x%4）</translation>
     </message>
@@ -54487,7 +54559,7 @@ Datos (de %2): %3</source>
         <translation>无人</translation>
     </message>
     <message>
-        <location filename="../src/gateway/SignalingServer.cpp" line="-1672" />
+        <location filename="../src/gateway/SignalingServer.cpp" line="-1675" />
         <source>pantalla %1 sale: %2</source>
         <translation>屏幕 %1 输出：%2</translation>
     </message>
@@ -54502,7 +54574,7 @@ Datos (de %2): %3</source>
         <translation>信令：无法绑定 %1:%2（端口被占用或地址无效？）</translation>
     </message>
     <message>
-        <location line="+67" />
+        <location line="+69" />
         <source>señalización: escuchando en %1:%2 (webroot=%3)</source>
         <translation>信令：正在监听 %1:%2（webroot=%3）</translation>
     </message>
@@ -54547,7 +54619,7 @@ Datos (de %2): %3</source>
         <translation>隧道：pinggy 监听 127.0.0.1:%1（全部为外部）</translation>
     </message>
     <message>
-        <location line="+349" />
+        <location line="+350" />
         <source>señalización: %1 conexiones sin cerrar tras %2 ms</source>
         <translation>信令：%2 毫秒后仍有 %1 个连接未关闭</translation>
     </message>
@@ -54592,7 +54664,7 @@ Datos (de %2): %3</source>
         <translation>ws：%1 的媒体（会话 %2）已关闭</translation>
     </message>
     <message>
-        <location line="+53" />
+        <location line="+59" />
         <source>ws: setRemoteOffer falló (sesión %1)</source>
         <translation>ws：setRemoteOffer 失败（会话 %1）</translation>
     </message>
@@ -54717,12 +54789,17 @@ Datos (de %2): %3</source>
         <translation>ws：来自 %1 的消息无效（%2）</translation>
     </message>
     <message>
-        <location line="+427" />
+        <location line="+446" />
+        <source>capas: a %1 no lo ve nadie (tarjeta: %2): se pausa su cámara</source>
+        <translation>图层：无人观看 %1（卡片：%2）：暂停其摄像头</translation>
+    </message>
+    <message>
+        <location line="+3" />
         <source>capas: a %1 se le pide la %2</source>
         <translation>画质层：向 %1 请求 %2 层</translation>
     </message>
     <message>
-        <location line="+23" />
+        <location line="+24" />
         <source>capas: llegó la HD de %1 (%2 ms desde el pedido); fundido de %3 ms</source>
         <translation>图层：%1 的高清画面已到达（请求后 %2 ms）；淡入淡出 %3 ms</translation>
     </message>
@@ -54747,7 +54824,12 @@ Datos (de %2): %3</source>
         <translation>会场测试：已结束（%1）；凭据已撤销，已移出 %2 名测试参与者</translation>
     </message>
     <message>
-        <location line="-3112" />
+        <location line="+227" />
+        <source>video: carga del motor de video %1; los cps de la capa baja pasan del escalón %2 al %3 (de %4)</source>
+        <translation>视频：视频引擎负载 %1；低层帧率从第 %2 级变为第 %3 级（共 %4 级）</translation>
+    </message>
+    <message>
+        <location line="-3369" />
         <source>direcciones: red %1, afuera %2</source>
         <translation>地址：网络 %1，外部 %2</translation>
     </message>
@@ -54764,7 +54846,7 @@ Datos (de %2): %3</source>
         <translation>（否）</translation>
     </message>
     <message>
-        <location line="+269" />
+        <location line="+270" />
         <location line="+143" />
         <location line="+8" />
         <source>servidor saturado</source>
@@ -54861,7 +54943,7 @@ Datos (de %2): %3</source>
         <translation>ws：没有可供 %1 使用的空闲 WebRTC 会话</translation>
     </message>
     <message>
-        <location line="+285" />
+        <location line="+291" />
         <source>salidas: %1</source>
         <translation>输出：%1</translation>
     </message>
@@ -55047,7 +55129,7 @@ Datos (de %2): %3</source>
         <translation>turn：测试模式（--turn-prueba）：TURN 不经 pinggy 启动，仅限局域网</translation>
     </message>
     <message>
-        <location line="+267" />
+        <location line="+270" />
         <source>túnel: --tunnel-token es visible en la lista de procesos; preferir %1</source>
         <translation>隧道：--tunnel-token 在进程列表中可见；建议使用 %1</translation>
     </message>
@@ -55067,7 +55149,7 @@ Datos (de %2): %3</source>
         <translation>隧道：已在配置中停用（仅限本地访问）</translation>
     </message>
     <message>
-        <location line="-645" />
+        <location line="-648" />
         <source>red: IP de la máquina %1; en el QR: %2</source>
         <translation>网络：本机 IP %1；二维码中：%2</translation>
     </message>
@@ -55117,7 +55199,7 @@ Datos (de %2): %3</source>
         <translation>https：ba-web 不处理；启动自带的终结器</translation>
     </message>
     <message>
-        <location line="+215" />
+        <location line="+218" />
         <source>puerta de la sala: https en %1:%2</source>
         <translation>会场入口：https 位于 %1:%2</translation>
     </message>
@@ -86672,7 +86754,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>「优先保障节目」因过热关闭的项目</translation>
     </message>
     <message>
-        <location filename="../src/gateway/SignalingServer.cpp" line="-1138" />
+        <location filename="../src/gateway/SignalingServer.cpp" line="-1144" />
         <source>Invitados que se cortaron y volvieron a su lugar</source>
         <translation>断开后回到原位的嘉宾</translation>
     </message>

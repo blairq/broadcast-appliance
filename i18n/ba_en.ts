@@ -5369,7 +5369,10 @@ Scrolling the strip doesn't change what's shown.</translation>
     <message numerus="yes">
         <location line="-476" />
         <source>%n entrando (%1 por segundo)</source>
-        <translation><numerusform>%n joining (%1 per second)</numerusform><numerusform>%n joining (%1 per second)</numerusform></translation>
+        <translation>
+            <numerusform>%n joining (%1 per second)</numerusform>
+            <numerusform>%n joining (%1 per second)</numerusform>
+        </translation>
     </message>
     <message>
         <location line="+2" />
@@ -30642,7 +30645,7 @@ Add one in Scenes and sources: place it where you want the lower third to appear
         <translation>No saved way to connect: set one up in Settings → Remote access.</translation>
     </message>
     <message>
-        <location line="+17" />
+        <location line="+19" />
         <source>espera en el lobby</source>
         <translation>waiting in the lobby</translation>
     </message>
@@ -41735,6 +41738,76 @@ Choose something else in Outputs → Screens.</translation>
     </message>
     <message>
         <location line="+1" />
+        <source>Video de los invitados: no recibir a quien nadie ve</source>
+        <translation>Guest video: don't receive guests nobody is watching</translation>
+    </message>
+    <message>
+        <location line="+0" />
+        <source>A un invitado que no está al aire ni en el preview, ni en una grilla a la vista, ni con su tarjeta a la vista en la interfaz, se le pide que deje de mandar la cámara: no viaja ni se decodifica (con 200 invitados, la placa de video decodifica a los que se ven y no a todos). Cuando vuelve a hacer falta, la manda de nuevo en una fracción de segundo; mientras tanto queda su última imagen. Apagado, todos mandan siempre la calidad baja.</source>
+        <translation>A guest who is not on air or in preview, not in a visible grid, and whose card is not visible in the interface is asked to stop sending their camera: it is neither transmitted nor decoded (with 200 guests, the graphics card decodes the ones being seen, not all of them). When it is needed again, it is sent again within a fraction of a second; meanwhile the last image stays. When off, everyone always sends the low quality.</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Video de los invitados: menos cuadros si la placa no da</source>
+        <translation>Guest video: fewer frames if the graphics card can't keep up</translation>
+    </message>
+    <message>
+        <location line="+0" />
+        <source>Si el motor de video de la placa (el que decodifica las cámaras) se carga, se les pide a los invitados en calidad baja menos cuadros por segundo (15, 10, 7,5), primero a los de las celdas más chicas; cuando se alivia, vuelven a 15. Los de calidad alta (el que está al aire, los lugares grandes de una grilla) no se tocan.</source>
+        <translation>If the graphics card's video engine (the one decoding the cameras) gets loaded, guests in low quality are asked for fewer frames per second (15, 10, 7.5), the smallest cells first; when the load eases, they go back to 15. High-quality guests (the one on air, the large places in a grid) are not touched.</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Menos cuadros con la placa de video al</source>
+        <translation>Fewer frames with the video engine at</translation>
+    </message>
+    <message>
+        <location line="+0" />
+        <source>Con la carga del motor de video en esto o más durante 2 segundos, se baja un escalón.</source>
+        <translation>With the video engine load at this or more for 2 seconds, it goes down one step.</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Más cuadros con la placa de video al</source>
+        <translation>More frames with the video engine at</translation>
+    </message>
+    <message>
+        <location line="+0" />
+        <source>Con la carga en esto o menos durante el tiempo de recuperar, se sube un escalón. Tiene que quedar por debajo del de arriba (si no, se toma uno menos).</source>
+        <translation>With the load at this or less for the recovery time, it goes up one step. It must stay below the one above (otherwise one less is used).</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Volver a subir los cuadros después de</source>
+        <translation>Raise the frames again after</translation>
+    </message>
+    <message>
+        <location line="+0" />
+        <source>Cuánto tiene que sostenerse la carga baja para subir un escalón (bajar es rápido; subir, prudente).</source>
+        <translation>How long the low load has to hold before going up one step (going down is fast; going up, careful).</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Cuadros perdidos al decodificar que cuentan como saturado</source>
+        <translation>Frames lost before decoding that count as saturated</translation>
+    </message>
+    <message>
+        <location line="+0" />
+        <source>Si de los cuadros que llegan se pierde esto o más antes de decodificarlos, la placa ya no da abasto (sirve donde el sistema no dice la carga del motor de video: macOS, Linux). 0 = no mirarlo.</source>
+        <translation>If this much or more of the arriving frames is lost before decoding, the graphics card can no longer keep up (useful where the system doesn't report the video engine load: macOS, Linux). 0 = ignore it.</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Cuadros por segundo mínimos de la calidad baja</source>
+        <translation>Minimum frames per second of the low quality</translation>
+    </message>
+    <message>
+        <location line="+0" />
+        <source>Hasta dónde se baja como mucho (los escalones son 15, 10 y este).</source>
+        <translation>How far down it goes at most (the steps are 15, 10 and this one).</translation>
+    </message>
+    <message>
+        <location line="+1" />
         <source>Conferencia: núcleos propios</source>
         <translation>Conference: dedicated cores</translation>
     </message>
@@ -42014,7 +42087,7 @@ Choose something else in Outputs → Screens.</translation>
         <translation>isn't one of the options</translation>
     </message>
     <message>
-        <location line="-236" />
+        <location line="-243" />
         <source>Mensajes de chat que se guardan</source>
         <translation>Chat messages kept</translation>
     </message>
@@ -42169,7 +42242,7 @@ Choose something else in Outputs → Screens.</translation>
         <translation>Windows: direct, the gateway hands each frame to the GPU with no middleman (less CPU and fewer threads); Media Foundation, the Windows decoder (for comparison or if the GPU has trouble).</translation>
     </message>
     <message>
-        <location line="+8" />
+        <location line="+15" />
         <source>Hablarle a un invitado: cuánto baja el programa</source>
         <translation>Talking to a guest: how much the program dips</translation>
     </message>
@@ -51675,7 +51748,7 @@ Data (from %2): %3</translation>
         <translation>couldn't crop '%1' in '%2' (crop larger than the image?)</translation>
     </message>
     <message>
-        <location filename="../src/app/escenas/ControlGrillas.cpp" line="+186" />
+        <location filename="../src/app/escenas/ControlGrillas.cpp" line="+187" />
         <source>todavía no se pueden crear escenas</source>
         <translation>scenes can't be created yet</translation>
     </message>
@@ -53763,9 +53836,9 @@ Data (from %2): %3</translation>
         <location line="+7" />
         <location filename="../src/gateway/Botonera.cpp" line="+91" />
         <location line="+2" />
-        <location filename="../src/gateway/SignalingServer.cpp" line="+688" />
+        <location filename="../src/gateway/SignalingServer.cpp" line="+692" />
         <location line="+9" />
-        <location line="+356" />
+        <location line="+357" />
         <location line="+109" />
         <location line="+11" />
         <location line="+3" />
@@ -54177,7 +54250,7 @@ Data (from %2): %3</translation>
         <translation>cell for “%1” has no size</translation>
     </message>
     <message>
-        <location line="+672" />
+        <location line="+675" />
         <source>grillas: BA.Grilla.%1 listo (%2x%3)</source>
         <translation>grids: BA.Grilla.%1 ready (%2x%3)</translation>
     </message>
@@ -54363,7 +54436,7 @@ Data (from %2): %3</translation>
         <translation>no audio came from their microphone during the test (is it muted?)</translation>
     </message>
     <message>
-        <location line="+249" />
+        <location line="+277" />
         <source>sube %1: %2 fps (%3x%4)</source>
         <translation>uplink %1: %2 fps (%3x%4)</translation>
     </message>
@@ -54653,7 +54726,7 @@ Data (from %2): %3</translation>
         <translation>nobody</translation>
     </message>
     <message>
-        <location filename="../src/gateway/SignalingServer.cpp" line="-1672" />
+        <location filename="../src/gateway/SignalingServer.cpp" line="-1675" />
         <source>pantalla %1 sale: %2</source>
         <translation>screen %1 out: %2</translation>
     </message>
@@ -54668,7 +54741,7 @@ Data (from %2): %3</translation>
         <translation>signaling: couldn't bind %1:%2 (port in use or invalid address?)</translation>
     </message>
     <message>
-        <location line="+67" />
+        <location line="+69" />
         <source>señalización: escuchando en %1:%2 (webroot=%3)</source>
         <translation>signaling: listening on %1:%2 (webroot=%3)</translation>
     </message>
@@ -54713,7 +54786,7 @@ Data (from %2): %3</translation>
         <translation>tunnel: pinggy listener on 127.0.0.1:%1 (all external)</translation>
     </message>
     <message>
-        <location line="+349" />
+        <location line="+350" />
         <source>señalización: %1 conexiones sin cerrar tras %2 ms</source>
         <translation>signaling: %1 connections still open after %2 ms</translation>
     </message>
@@ -54758,7 +54831,7 @@ Data (from %2): %3</translation>
         <translation>ws: media from %1 (session %2) closed</translation>
     </message>
     <message>
-        <location line="+53" />
+        <location line="+59" />
         <source>ws: setRemoteOffer falló (sesión %1)</source>
         <translation>ws: setRemoteOffer failed (session %1)</translation>
     </message>
@@ -54883,12 +54956,17 @@ Data (from %2): %3</translation>
         <translation>ws: invalid message from %1 (%2)</translation>
     </message>
     <message>
-        <location line="+427" />
+        <location line="+446" />
+        <source>capas: a %1 no lo ve nadie (tarjeta: %2): se pausa su cámara</source>
+        <translation>layers: nobody is watching %1 (card: %2): their camera is paused</translation>
+    </message>
+    <message>
+        <location line="+3" />
         <source>capas: a %1 se le pide la %2</source>
         <translation>layers: asking %1 for the %2 layer</translation>
     </message>
     <message>
-        <location line="+23" />
+        <location line="+24" />
         <source>capas: llegó la HD de %1 (%2 ms desde el pedido); fundido de %3 ms</source>
         <translation>layers: the HD of %1 arrived (%2 ms after the request); crossfade of %3 ms</translation>
     </message>
@@ -54913,7 +54991,12 @@ Data (from %2): %3</translation>
         <translation>room test: ended (%1); credential revoked, %2 test participants removed</translation>
     </message>
     <message>
-        <location line="-3112" />
+        <location line="+227" />
+        <source>video: carga del motor de video %1; los cps de la capa baja pasan del escalón %2 al %3 (de %4)</source>
+        <translation>video: video engine load %1; low-layer fps go from step %2 to %3 (of %4)</translation>
+    </message>
+    <message>
+        <location line="-3369" />
         <source>direcciones: red %1, afuera %2</source>
         <translation>addresses: network %1, outside %2</translation>
     </message>
@@ -54930,7 +55013,7 @@ Data (from %2): %3</translation>
         <translation>(no)</translation>
     </message>
     <message>
-        <location line="+269" />
+        <location line="+270" />
         <location line="+143" />
         <location line="+8" />
         <source>servidor saturado</source>
@@ -55027,7 +55110,7 @@ Data (from %2): %3</translation>
         <translation>ws: no free WebRTC sessions for %1</translation>
     </message>
     <message>
-        <location line="+285" />
+        <location line="+291" />
         <source>salidas: %1</source>
         <translation>outputs: %1</translation>
     </message>
@@ -55213,7 +55296,7 @@ Data (from %2): %3</translation>
         <translation>turn: TEST MODE (--turn-prueba): TURN starts without pinggy, local network only</translation>
     </message>
     <message>
-        <location line="+267" />
+        <location line="+270" />
         <source>túnel: --tunnel-token es visible en la lista de procesos; preferir %1</source>
         <translation>tunnel: --tunnel-token is visible in the process list; prefer %1</translation>
     </message>
@@ -55233,7 +55316,7 @@ Data (from %2): %3</translation>
         <translation>tunnel: disabled in the configuration (local access only)</translation>
     </message>
     <message>
-        <location line="-645" />
+        <location line="-648" />
         <source>red: IP de la máquina %1; en el QR: %2</source>
         <translation>network: machine IP %1; in the QR: %2</translation>
     </message>
@@ -55283,7 +55366,7 @@ Data (from %2): %3</translation>
         <translation>https: ba-web isn't handling it; starting the built-in terminator</translation>
     </message>
     <message>
-        <location line="+215" />
+        <location line="+218" />
         <source>puerta de la sala: https en %1:%2</source>
         <translation>room door: https on %1:%2</translation>
     </message>
@@ -86856,7 +86939,7 @@ PROPOSE, DON'T APPLY: show the person what changes and apply only if they confir
         <translation>“Prioritize program” steps turned off because of heat</translation>
     </message>
     <message>
-        <location filename="../src/gateway/SignalingServer.cpp" line="-1138" />
+        <location filename="../src/gateway/SignalingServer.cpp" line="-1144" />
         <source>Invitados que se cortaron y volvieron a su lugar</source>
         <translation>Guests that dropped and came back to their place</translation>
     </message>
