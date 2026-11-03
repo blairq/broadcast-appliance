@@ -30,6 +30,7 @@
 #include <cstdio>
 #include <chrono>
 #include <thread>
+#include <utility>
 #include <vector>
 
 using namespace ba::ipc;
@@ -168,6 +169,42 @@ void testPlateWhenAbsent() {
     CHECK(out.frameIndex == 999);
 }
 
+// Caso 5: quién lee (SpoutSender::demanda). Sin lectores, nadie; un lector suscripto pide
+// todos los cuadros; uno que pidió de vez en cuando (pedirTodos(false)), eso. Con los dos,
+// gana el que pide todos.
+void testDemanda() {
+    const SlotConfig cfg{64, 36};
+    {
+        SpoutSender snd;
+        CHECK(snd.publish(L"BA.Test.Demanda.1", cfg));
+        CHECK(snd.demanda() == SpoutSender::Demanda::Nadie);
+        SpoutReceiver rcv;
+        CHECK(rcv.subscribe(L"BA.Test.Demanda.1"));
+        CHECK(snd.demanda() == SpoutSender::Demanda::Todos);
+        CHECK(!rcv.hasData()); // mirar también anota (sin cuadros)
+        CHECK(snd.demanda() == SpoutSender::Demanda::Todos);
+    }
+    {
+        SpoutSender snd;
+        CHECK(snd.publish(L"BA.Test.Demanda.2", cfg));
+        SpoutReceiver lento;
+        lento.pedirTodos(false);
+        CHECK(lento.subscribe(L"BA.Test.Demanda.2"));
+        CHECK(snd.demanda() == SpoutSender::Demanda::DeVezEnCuando);
+        // Un lector que se mueve no pierde lo que pidió.
+        SpoutReceiver movido = std::move(lento);
+        CHECK(!movido.hasData());
+        CHECK(snd.demanda() == SpoutSender::Demanda::DeVezEnCuando);
+        SpoutReceiver todos;
+        CHECK(todos.subscribe(L"BA.Test.Demanda.2"));
+        CHECK(snd.demanda() == SpoutSender::Demanda::Todos);
+    }
+    {
+        SpoutSender sinPublicar;
+        CHECK(sinPublicar.demanda() == SpoutSender::Demanda::Nadie);
+    }
+}
+
 } // namespace
 
 // Caso 0: abrir por nombre una región ajena sabe su tamaño (en Windows salía
@@ -246,6 +283,7 @@ int main() {
     testNoNewFrame();
     testPlateWhenAbsent();
     testRepublicarConOtroTamano();
+    testDemanda();
 
     if (g_failures == 0) {
         std::printf("ALL TESTS PASSED (test_spout_transport)\n");

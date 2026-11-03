@@ -88,8 +88,15 @@ struct VideoSlotHeader {
     // Versión 3: el formato de los píxeles (FormatoCanal). Después de los buffers, dentro
     // de la página de la cabecera: uno de antes lo deja en cero, que es BGRA.
     std::uint32_t formato = 0;
+    // Quién lee (sin cambiar `version`: uno de antes no los toca, y el productor que mira
+    // `demanda()` lo ve como «nadie»; A y el gateway van juntos en el paquete). Los escribe
+    // cada LECTOR al mirar (hasData/receive) y los lee el productor para no preparar cuadros
+    // que nadie va a leer. En su propia línea de caché: los lectores escriben, el productor lee.
+    alignas(kSpoutCacheLine) std::uint64_t lecturaNs = 0; // el último lector que quiere todos los cuadros
+    std::uint64_t vistazoNs = 0;                          // el último que mira de vez en cuando (pedirTodos(false))
 };
 static_assert(offsetof(VideoSlotHeader, pubCount) == kSpoutCacheLine, "el período, el envío y el timbre caben antes de pubCount");
+static_assert(sizeof(VideoSlotHeader) <= kBufferAlign, "la cabecera entra en su página: los buffers no se corren");
 static_assert(sizeof(VideoBufferHeader) == kSpoutCacheLine, "la cabecera de un buffer es una línea de caché");
 
 namespace {
@@ -356,6 +363,15 @@ bool SpoutSender::send(const void* pixels, std::size_t bytes, const FrameMeta& m
 
 bool SpoutSender::published() const { return published_; }
 
+SpoutSender::Demanda SpoutSender::demanda() const {
+    if (!published_ || header_ == nullptr) return Demanda::Nadie;
+    const std::uint64_t ahora = mirada::ahoraNs();
+    const auto vivo = [ahora](std::uint64_t ns) { return ns != 0 && (ns >= ahora || ahora - ns < kLectorVivoNs); };
+    if (vivo(AtomicRef<std::uint64_t>(header_->lecturaNs).load(std::memory_order_relaxed))) return Demanda::Todos;
+    if (vivo(AtomicRef<std::uint64_t>(header_->vistazoNs).load(std::memory_order_relaxed))) return Demanda::DeVezEnCuando;
+    return Demanda::Nadie;
+}
+
 // --- SpoutReceiver ----------------------------------------------------------
 
 SpoutReceiver::~SpoutReceiver() { timbre_.soltar(); }
@@ -363,7 +379,7 @@ SpoutReceiver::~SpoutReceiver() { timbre_.soltar(); }
 SpoutReceiver::SpoutReceiver(SpoutReceiver&& other) noexcept
     : region_(std::move(other.region_)), timbre_(std::move(other.timbre_)), header_(other.header_), name_(std::move(other.name_)),
       instanceId_(other.instanceId_), lastSeenPub_(other.lastSeenPub_), lastFrameNs_(other.lastFrameNs_),
-      lastCheckNs_(other.lastCheckNs_), subscribed_(other.subscribed_), temblor_(other.temblor_) {
+      lastCheckNs_(other.lastCheckNs_), subscribed_(other.subscribed_), todos_(other.todos_), temblor_(other.temblor_) {
     other.header_ = nullptr;
     other.subscribed_ = false;
 }
@@ -379,6 +395,7 @@ SpoutReceiver& SpoutReceiver::operator=(SpoutReceiver&& other) noexcept {
         lastFrameNs_ = other.lastFrameNs_;
         lastCheckNs_ = other.lastCheckNs_;
         subscribed_ = other.subscribed_;
+        todos_ = other.todos_;
         temblor_ = other.temblor_;
         other.header_ = nullptr;
         other.subscribed_ = false;
@@ -408,6 +425,7 @@ bool SpoutReceiver::subscribe(const wchar_t* name) {
     lastFrameNs_ = monoNs();
     lastCheckNs_ = lastFrameNs_;
     subscribed_ = true;
+    anotarLectura(); // el productor empieza a preparar cuadros para este lector ya
     return true;
 }
 
@@ -419,6 +437,7 @@ bool SpoutReceiver::receive(void* dst, std::size_t cap, FrameMeta& metaOut) {
     if (bytes > cap) {
         return false; // el buffer de destino no alcanza
     }
+    anotarLectura();
     AtomicRef<std::uint64_t> pub(header_->pubCount);
     // Pocos reintentos: chocar con el escritor requiere que de la vuelta a los
     // tres buffers durante una copia.
@@ -461,7 +480,18 @@ bool SpoutReceiver::hasData() const {
     if (!subscribed_ || header_ == nullptr) {
         return false;
     }
+    anotarLectura();
     return AtomicRef<std::uint64_t>(header_->pubCount).load(std::memory_order_acquire) > lastSeenPub_;
+}
+
+void SpoutReceiver::anotarLectura() const {
+    // Solo si pasaron más de 100 ms desde la marca: quien mira a cada rato no escribe la
+    // memoria compartida a cada rato (el productor la lee con un margen de segundos). Varios
+    // lectores: cualquiera la corre hacia adelante; nadie la atrasa más que un instante.
+    AtomicRef<std::uint64_t> marca(todos_ ? header_->lecturaNs : header_->vistazoNs);
+    const std::uint64_t ahora = mirada::ahoraNs();
+    const std::uint64_t antes = marca.load(std::memory_order_relaxed);
+    if (antes == 0 || antes > ahora || ahora - antes >= 100'000'000ULL) marca.store(ahora, std::memory_order_relaxed);
 }
 
 int SpoutReceiver::width() const { return header_ != nullptr ? static_cast<int>(header_->width) : 0; }
