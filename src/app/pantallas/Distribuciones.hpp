@@ -236,6 +236,13 @@ class DistribucionesModel : public ListaConClave<Distribucion> {
     LienzosModel& lienzos() { return lienzos_; }
     const std::vector<Distribucion>& lista() const { return filas_; }
     const Distribucion* buscar(const QString& idONombre) const;
+    /// Para el catálogo (CatalogoVisible::Fuentes::distribuciones): cada una como una
+    /// cosa que se puede mostrar ENTERA en un solo lugar (un monitor, una ventana):
+    /// [{id, nombre, resumen, proporcion, piezas:[{nombre, titulo, cosas, disposicion,
+    /// x, y, ancho, alto}]}], las piezas en 0..1 del rectángulo de los monitores que usa
+    /// (con un solo monitor, su lugar relativo a él). `proporcion` = ancho/alto de ese
+    /// rectángulo (para dibujar el esquema sin deformarlo).
+    QVariantList paraCatalogo() const;
 
     // --- Armar: "" o el error (avisado a la vista o a quien capture) ---------------
     /// Crea una con esas ventanas (mapas como los de `ventanaDeMapa`). Devuelve su

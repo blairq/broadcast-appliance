@@ -339,7 +339,7 @@
 <context>
     <name>DistribucionesPantallas</name>
     <message numerus="yes">
-        <location filename="../src/app/qml/controls/DistribucionesPantallas.qml" line="+34"/>
+        <location filename="../src/app/qml/controls/DistribucionesPantallas.qml" line="+60" />
         <source>%n guardada(s)</source>
         <translation>
             <numerusform>%n guardada</numerusform>
@@ -1007,7 +1007,7 @@ No se borran del disco: si alguno estaba en una escena, se lo saca de ahí y lis
 <context>
     <name>PantallasConectadas</name>
     <message numerus="yes">
-        <location filename="../src/app/qml/controls/PantallasConectadas.qml" line="+27"/>
+        <location filename="../src/app/qml/controls/PantallasConectadas.qml" line="+53" />
         <source>%n monitor</source>
         <translation>
             <numerusform>%n monitor</numerusform>
@@ -1026,7 +1026,7 @@ No se borran del disco: si alguno estaba en una escena, se lo saca de ahí y lis
 <context>
     <name>PantallasPage</name>
     <message numerus="yes">
-        <location filename="../src/app/qml/pages/PantallasPage.qml" line="+110"/>
+        <location filename="../src/app/qml/pages/PantallasPage.qml" line="+127" />
         <source>%n mostrando</source>
         <translation>
             <numerusform>%n mostrando</numerusform>
@@ -1639,7 +1639,7 @@ No se borran del disco: si alguno estaba en una escena, se lo saca de ahí y lis
         </translation>
     </message>
     <message numerus="yes">
-        <location filename="../src/app/mcp/McpPantallaTools.cpp" line="+594"/>
+        <location filename="../src/app/mcp/McpPantallaTools.cpp" line="+595" />
         <source>Mandado a %n superficie. Ya cambio: superficie_listar lo confirma.</source>
         <translation>
             <numerusform>Mandado a %n superficie. Ya cambió: superficie_listar lo confirma.</numerusform>
@@ -1738,7 +1738,7 @@ No se borran del disco: si alguno estaba en una escena, se lo saca de ahí y lis
 <context>
     <name>pantallas</name>
     <message numerus="yes">
-        <location filename="../src/app/pantallas/Distribuciones.cpp" line="+399"/>
+        <location filename="../src/app/pantallas/Distribuciones.cpp" line="+404" />
         <source>%n ventana(s)</source>
         <translation>
             <numerusform>%n ventana</numerusform>

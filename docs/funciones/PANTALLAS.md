@@ -281,7 +281,8 @@ distribución queda guardada):
 
 ### A mano
 
-La sección tiene la lista (doble clic o «Aplicar»), «Guardar la actual» (lo que
+**Pantallas locales** tiene dos sub-pestañas: **Monitores** (qué va fijo en cada
+monitor) y **Distribuciones** (donde se crean y se editan). La sección tiene la lista (doble clic o «Aplicar»), «Guardar la actual» (lo que
 hay puesto ahora: la madre de cada monitor y las ventanas sueltas), «Plantilla»
 (mosaico 2×1, mosaico 2×2, una por monitor, programa + previo + multivista) y
 «Vacía». La elegida se edita con un **esquema de los monitores** como están
@@ -331,6 +332,62 @@ Una fuente suelta (un invitado) y el padrón al costado, con píxeles exactos:
 {"distribucion": "Control", "agregar": {"cosas": ["video:guest:1"], "monitor": "3",
   "absoluta": {"x": 1280, "y": 0, "ancho": 640, "alto": 360}}}
 ```
+
+### Una distribución como contenido de un monitor
+
+Una distribución guardada también es **una cosa más del catálogo**
+(`distribucion:<id>`, grupo `distribucion`), como una escena o una página: se
+puede poner en un monitor desde **Monitores** (o con `monitor_asignar`) y en una
+ventana suelta. Se dibuja **entera** en ese lugar: sus ventanas como rectángulos,
+cada una con su vista en vivo (`controls/VistaDistribucion.qml`), en la
+proporción del rectángulo de los monitores que usa (con un solo monitor, su
+lugar relativo a él). Las piezas las arma el modelo
+(`DistribucionesModel::paraCatalogo`) y el catálogo las republica cuando la
+distribución se edita, se renombra o cambian los monitores; borrada, el monitor
+que la mostraba dice «ya no existe» y no se manda otra cosa.
+
+**Una distribución nunca muestra otra** (ni a sí misma): el modelo no acepta
+`distribucion:<id>` en sus ventanas, el selector del editor no las ofrece, y lo
+que venga igual (un archivo editado a mano, «Guardar la actual» con una ventana
+suelta que muestra una) se saltea. No viaja a una TV de la red.
+
+### Elegir qué mostrar: el selector con búsqueda
+
+Con muchas escenas, invitados, páginas y distribuciones, una lista desplegable
+ya no se puede usar. Donde se elige qué mostrar —un monitor, una ventana de una
+distribución, una TV— se abre un **modal** (`controls/SelectorCosas.qml`) con un
+cuadro de búsqueda, botones por tipo (con cuántas coinciden en cada uno) y una
+**vista previa** de la elegida: una escena, un video o una multivista en vivo;
+una página o un panel en miniatura (se arman al tamaño de una pantalla y se
+achican, sin poder tocarlos); una distribución, su esquema
+(`controls/EsquemaDistribucion.qml`). La vista en vivo se arma un momento
+después de elegir y en un `Loader` asíncrono: bajar con las flechas no arma una
+página por fila.
+
+Todo lo filtra el modelo: `pantallas/BuscadorCatalogo` es un
+`QSortFilterProxyModel` sobre el **mismo** catálogo (nada se recorre en QML; la
+lista es una `ListView`, que solo arma las filas que se ven). Busca todas las
+palabras, sin tildes ni mayúsculas, en el título, el tipo y el id, con un rebote
+corto; filtra por tipo, por dónde va (`monitor` / `red`) y saca los tipos que
+ese selector no ofrece. Lo elegido también es del modelo (`elegido`, `actual`):
+si otro operador o el MCP la renombra o la borra mientras está abierto, la vista
+previa cambia sola. Teclado: escribir busca, ↑/↓ mueven, Enter acepta.
+
+Por MCP es lo mismo: `catalogo_listar` acepta `buscar` (las mismas reglas,
+`BuscadorCatalogo::coincide`) y `tipo`, y cada cosa trae su `tipo`:
+
+```json
+{"donde": "monitor", "tipo": "distribucion"}
+```
+```json
+{"donde": "monitor", "buscar": "remotos sala"}
+```
+
+y después `monitor_asignar {"monitor": "2", "cosas": ["distribucion:<id>"]}`.
+
+Test: `test_pantallas_catalogo` (la búsqueda con 3700 cosas: palabras, tipos,
+dónde va, cuentas, lo elegido) y `test_pantallas_distribuciones` (sección 8: la
+distribución en el catálogo, sus piezas, en un monitor, nunca adentro de otra).
 
 ## Lo que falta
 

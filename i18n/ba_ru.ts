@@ -7898,8 +7898,33 @@ Se prende desde el Registro.</source>
         <source>Distribuciones</source>
         <translation>Раскладки</translation>
     </message>
+    <message>
+        <location line="+17" />
+        <source>Qué muestra la ventana nueva</source>
+        <translation>Что показывает новое окно</translation>
+    </message>
+    <message>
+        <location line="+0" />
+        <source>Qué muestra la ventana %1</source>
+        <translation>Что показывает окно %1</translation>
+    </message>
+    <message>
+        <location line="+3" />
+        <source>Agregar</source>
+        <translation>Добавить</translation>
+    </message>
+    <message>
+        <location line="+0" />
+        <source>Poner</source>
+        <translation>Поставить</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Sumar</source>
+        <translation>Добавить</translation>
+    </message>
     <message numerus="yes">
-        <location line="+9" />
+        <location line="+14" />
         <source>%n guardada(s)</source>
         <translation>
             <numerusform>%n сохранена</numerusform>
@@ -7988,7 +8013,12 @@ Se prende desde el Registro.</source>
         <translation>Название</translation>
     </message>
     <message>
-        <location line="+20" />
+        <location line="+12" />
+        <source>Qué muestra: %1</source>
+        <translation>Показывает: %1</translation>
+    </message>
+    <message>
+        <location line="+7" />
         <source>⚠ no está</source>
         <translation>⚠ отсутствует</translation>
     </message>
@@ -8008,12 +8038,17 @@ Se prende desde el Registro.</source>
         <translation>Убрать</translation>
     </message>
     <message>
-        <location line="+18" />
-        <source>Agregar ventana</source>
-        <translation>Добавить окно</translation>
+        <location line="+11" />
+        <source>Agregar ventana…</source>
+        <translation>Добавить окно…</translation>
     </message>
     <message>
-        <location line="+6" />
+        <location line="+2" />
+        <source>Elegir qué muestra la ventana nueva</source>
+        <translation>Выбрать, что показывает новое окно</translation>
+    </message>
+    <message>
+        <location line="+4" />
         <source>Arrastrá los rectángulos; la esquina los agranda. Aplicada, se ve en el acto.</source>
         <translation>Перетаскивайте прямоугольники; угол меняет размер. Если раскладка применена, изменения видны сразу.</translation>
     </message>
@@ -9321,7 +9356,7 @@ Se prende desde el Registro.</source>
 <context>
     <name>EscritorioViewModel</name>
     <message>
-        <location filename="../src/app/ui/EscritorioViewModel.cpp" line="+136" />
+        <location filename="../src/app/ui/EscritorioViewModel.cpp" line="+145" />
         <source>No hay un monitor «%1»: decí su número, su nombre o su id.</source>
         <translation>Монитора «%1» нет: укажите его номер, имя или id.</translation>
     </message>
@@ -9329,6 +9364,14 @@ Se prende desde el Registro.</source>
         <location line="+2" />
         <source>El monitor «%1» no está conectado.</source>
         <translation>Монитор «%1» не подключён.</translation>
+    </message>
+</context>
+<context>
+    <name>EsquemaDistribucion</name>
+    <message>
+        <location filename="../src/app/qml/controls/EsquemaDistribucion.qml" line="+55" />
+        <source>Sin ventanas</source>
+        <translation>Нет окон</translation>
     </message>
 </context>
 <context>
@@ -25741,12 +25784,17 @@ Agregale imágenes desde la pestaña Archivos.</source>
 <context>
     <name>PantallasConectadas</name>
     <message>
-        <location filename="../src/app/qml/controls/PantallasConectadas.qml" line="+19" />
+        <location filename="../src/app/qml/controls/PantallasConectadas.qml" line="+22" />
         <source>Pantallas conectadas</source>
         <translation>Подключённые экраны</translation>
     </message>
+    <message>
+        <location line="+17" />
+        <source>Qué muestra este monitor</source>
+        <translation>Что показывает этот монитор</translation>
+    </message>
     <message numerus="yes">
-        <location line="+8" />
+        <location line="+14" />
         <source>%n monitor</source>
         <translation>
             <numerusform>%n монитор</numerusform>
@@ -25794,27 +25842,32 @@ Agregale imágenes desde la pestaña Archivos.</source>
         <translation>Ничего не показывает</translation>
     </message>
     <message>
-        <location line="+16" />
+        <location line="+11" />
+        <source>Cambiar qué muestra…</source>
+        <translation>Изменить, что показывает…</translation>
+    </message>
+    <message>
+        <location line="+0" />
+        <source>Elegir qué mostrar…</source>
+        <translation>Выбрать, что показать…</translation>
+    </message>
+    <message>
+        <location line="+4" />
+        <source>Buscar entre las escenas, los videos, las páginas, las distribuciones… y verlo antes de ponerlo</source>
+        <translation>Искать среди сцен, видео, страниц, раскладок… и посмотреть перед тем, как поставить</translation>
+    </message>
+    <message>
+        <location line="-148" />
         <source>Poner</source>
         <translation>Показать</translation>
     </message>
     <message>
-        <location line="+3" />
-        <source>Que este monitor muestre solo esto</source>
-        <translation>Чтобы этот монитор показывал только это</translation>
-    </message>
-    <message>
-        <location line="+3" />
+        <location line="+1" />
         <source>Sumar</source>
         <translation>Добавить</translation>
     </message>
     <message>
-        <location line="+3" />
-        <source>Agregarlo a lo que ya muestra: van en grilla</source>
-        <translation>Добавить к тому, что он уже показывает: всё идёт сеткой</translation>
-    </message>
-    <message>
-        <location line="+2" />
+        <location line="+149" />
         <source>Pantalla completa</source>
         <translation>Полный экран</translation>
     </message>
@@ -25837,7 +25890,7 @@ Agregale imágenes desde la pestaña Archivos.</source>
 <context>
     <name>PantallasPage</name>
     <message>
-        <location filename="../src/app/qml/pages/PantallasPage.qml" line="+66" />
+        <location filename="../src/app/qml/pages/PantallasPage.qml" line="+68" />
         <source>mostrando</source>
         <translation>показывает</translation>
     </message>
@@ -25881,8 +25934,18 @@ Agregale imágenes desde la pestaña Archivos.</source>
         <source>Pantallas de red</source>
         <translation>Сетевые экраны</translation>
     </message>
+    <message>
+        <location line="+17" />
+        <source>Monitores</source>
+        <translation>Мониторы</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>Distribuciones</source>
+        <translation>Раскладки</translation>
+    </message>
     <message numerus="yes">
-        <location line="+24" />
+        <location line="+20" />
         <source>%n mostrando</source>
         <translation>
             <numerusform>%n показывает</numerusform>
@@ -26054,7 +26117,27 @@ Agregale imágenes desde la pestaña Archivos.</source>
         <translation>Показать карусель</translation>
     </message>
     <message>
-        <location line="+68" />
+        <location line="+17" />
+        <source>Elegir qué mostrar…</source>
+        <translation>Выбрать, что показать…</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>Buscar qué mostrar en la TV y verlo antes</source>
+        <translation>Найти, что показать на телевизоре, и посмотреть заранее</translation>
+    </message>
+    <message>
+        <location line="+4" />
+        <source>Qué mostrar en la TV</source>
+        <translation>Что показать на телевизоре</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>Elegir</source>
+        <translation>Выбрать</translation>
+    </message>
+    <message>
+        <location line="+48" />
         <source>Escribirlo a mano (abajo)</source>
         <translation>Ввести вручную (ниже)</translation>
     </message>
@@ -27525,6 +27608,29 @@ De frente, de costado, con anteojos y sin: así se la reconoce en el día real.<
         <location line="+229" />
         <source>No hay canal libre para mandarles la escena «%1» a los remotos (las pantallas usan los 4)</source>
         <translation>Нет свободного канала, чтобы отправить сцену «%1» удалённым участникам (экраны заняли все 4)</translation>
+    </message>
+</context>
+<context>
+    <name>PreviewCosa</name>
+    <message>
+        <location filename="../src/app/qml/controls/PreviewCosa.qml" line="+85" />
+        <source>Elegí algo de la lista para verlo acá.</source>
+        <translation>Выберите что-нибудь в списке, чтобы увидеть здесь.</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Armando la vista previa…</source>
+        <translation>Готовим предпросмотр…</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Solo para una TV de la red: se ve cuando se la manda.</source>
+        <translation>Только для сетевого телевизора: видно, когда отправлено.</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Sin vista previa.</source>
+        <translation>Нет предпросмотра.</translation>
     </message>
 </context>
 <context>
@@ -31889,6 +31995,54 @@ Para la escena base de la que salen las demás.</source>
         <location line="+2" />
         <source>«%1» no tiene PTZ: prendé el digital o configurá su motor</source>
         <translation>У «%1» нет PTZ: включите цифровой или настройте её мотор</translation>
+    </message>
+</context>
+<context>
+    <name>SelectorCosas</name>
+    <message>
+        <location filename="../src/app/qml/controls/SelectorCosas.qml" line="+31" />
+        <source>Qué mostrar</source>
+        <translation>Что показать</translation>
+    </message>
+    <message>
+        <location line="+3" />
+        <source>Elegir</source>
+        <translation>Выбрать</translation>
+    </message>
+    <message>
+        <location line="+66" />
+        <source>%1 de %2</source>
+        <translation>%1 из %2</translation>
+    </message>
+    <message>
+        <location line="+7" />
+        <source>Buscar: escena, invitado, página, distribución…</source>
+        <translation>Поиск: сцена, гость, страница, раскладка…</translation>
+    </message>
+    <message>
+        <location line="+12" />
+        <source>Todo</source>
+        <translation>Всё</translation>
+    </message>
+    <message>
+        <location line="+69" />
+        <source>No hay nada para mostrar acá todavía.</source>
+        <translation>Здесь пока нечего показать.</translation>
+    </message>
+    <message>
+        <location line="+0" />
+        <source>Nada coincide con la búsqueda.</source>
+        <translation>Ничего не найдено.</translation>
+    </message>
+    <message>
+        <location line="+38" />
+        <source>Lo elegido ya no existe: elegí otra cosa.</source>
+        <translation>Выбранное больше не существует: выберите другое.</translation>
+    </message>
+    <message>
+        <location line="+7" />
+        <source>Cancelar</source>
+        <translation>Отмена</translation>
     </message>
 </context>
 <context>
@@ -37730,7 +37884,7 @@ Cerrá esto y usá «Armar un carrusel».</source>
 <context>
     <name>VistaCatalogo</name>
     <message>
-        <location filename="../src/app/qml/controls/VistaCatalogo.qml" line="+105" />
+        <location filename="../src/app/qml/controls/VistaCatalogo.qml" line="+119" />
         <source>%1
 Elegí otra cosa en Salidas → Pantallas.</source>
         <translation>%1
@@ -44544,7 +44698,7 @@ Elegí otra cosa en Salidas → Pantallas.</source>
 <context>
     <name>arranque</name>
     <message>
-        <location filename="../src/app/arranque/GuiMode.cpp" line="+176" />
+        <location filename="../src/app/arranque/GuiMode.cpp" line="+174" />
         <source>arranque: el cartel de carga ya se ve</source>
         <translation>запуск: заставка загрузки уже видна</translation>
     </message>
@@ -44594,7 +44748,7 @@ Elegí otra cosa en Salidas → Pantallas.</source>
         <translation>запуск: модель приложения, %1 мс</translation>
     </message>
     <message>
-        <location line="+42" />
+        <location line="+43" />
         <source>Abriendo la interfaz…</source>
         <translation>Открытие интерфейса…</translation>
     </message>
@@ -60997,7 +61151,7 @@ LO QUE HAY QUE SABER AL PRENDERLO: la salvaguarda de aprobaciones (`mcp.approval
         <location line="+1" />
         <location filename="../src/app/mcp/McpBotoneraTools.cpp" line="-485" />
         <location filename="../src/app/mcp/McpFacebookTools.cpp" line="+165" />
-        <location filename="../src/app/mcp/McpPantallaTools.cpp" line="+437" />
+        <location filename="../src/app/mcp/McpPantallaTools.cpp" line="+438" />
         <location filename="../src/app/mcp/McpQrTools.cpp" line="+270" />
         <location filename="../src/app/mcp/McpRoomTools.cpp" line="+740" />
         <location filename="../src/app/mcp/McpService.cpp" line="-581" />
@@ -62426,7 +62580,7 @@ EL `id` QUE DEVUELVE SE USA TAL CUAL en `audio_module_add`. Los seis del catalog
     <message>
         <location line="+1" />
         <location line="+146" />
-        <location filename="../src/app/mcp/McpPantallaTools.cpp" line="+705" />
+        <location filename="../src/app/mcp/McpPantallaTools.cpp" line="+728" />
         <location filename="../src/app/mcp/McpVideoTools.cpp" line="+132" />
         <source>Borrada.</source>
         <translation>Удалена.</translation>
@@ -69998,7 +70152,7 @@ Si en el destino ya hay algo con ese nombre, se numera en vez de pisar. Las carp
         <translation>Предложения на панели оператора (id %1). То, что он отправит (или проигнорирует), придёт вам в чат.</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpPantallaTools.cpp" line="-977" />
+        <location filename="../src/app/mcp/McpPantallaTools.cpp" line="-1000" />
         <source>Pantallas externas</source>
         <translation>Внешние экраны</translation>
     </message>
@@ -70324,7 +70478,22 @@ Duraciones: un QR necesita al menos 15 segundos para que alguien lo saque del bo
         <translation>Что можно показать</translation>
     </message>
     <message>
-        <location line="+39" />
+        <location line="+10" />
+        <source>`monitor`: true si se puede dibujar en esta maquina (monitor_asignar, ui_panel_window con `cosa`). `red`: el tipo de pantalla_mostrar que lo lleva a una TV (vacio si no viaja). Los ids son estables: «escena:&lt;nombre&gt;», «multiview:&lt;id&gt;», «pagina:&lt;id&gt;», «tarjeta:&lt;tipo&gt;», «ptz:&lt;entrada&gt;», «programa», «preview», «fondo», «web:&lt;tipo&gt;» (solo TV: un cartel, un QR, la hora...). «distribucion:&lt;id&gt;» es una distribucion de pantallas guardada (pantallas_distribuciones_listar), entera en un monitor o una ventana; no va a una TV ni adentro de otra distribucion. `buscar` filtra por palabras (sin tildes, todas, en cualquier orden) en el titulo, el tipo y el id, igual que el buscador de la pagina Pantallas; `tipo` deja un tipo solo (escena, video, distribucion, pagina, panel, tarjeta, multiview, programa, fondo, web, registro).</source>
+        <translation>`monitor`: true, если это можно нарисовать на этом компьютере (monitor_asignar, ui_panel_window с `cosa`). `red`: тип pantalla_mostrar, который выводит это на телевизор (пусто, если не передаётся). id постоянны: «escena:&lt;nombre&gt;», «multiview:&lt;id&gt;», «pagina:&lt;id&gt;», «tarjeta:&lt;tipo&gt;», «ptz:&lt;entrada&gt;», «programa», «preview», «fondo», «web:&lt;tipo&gt;» (только ТВ: табличка, QR, время...). «distribucion:&lt;id&gt;» — сохранённая раскладка экранов (pantallas_distribuciones_listar), целиком на мониторе или в окне; она не идёт на телевизор и не может быть внутри другой раскладки. `buscar` фильтрует по словам (без диакритики, все, в любом порядке) в названии, типе и id, как поиск на странице Pantallas; `tipo` оставляет один тип (escena, video, distribucion, pagina, panel, tarjeta, multiview, programa, fondo, web, registro).</translation>
+    </message>
+    <message>
+        <location line="+19" />
+        <source>palabras a buscar en el titulo, el tipo y el id (vacio = todo)</source>
+        <translation>слова для поиска в названии, типе и id (пусто = всё)</translation>
+    </message>
+    <message>
+        <location line="+3" />
+        <source>un tipo solo: escena, video, distribucion, pagina, panel, tarjeta, multiview...</source>
+        <translation>один тип: escena, video, distribucion, pagina, panel, tarjeta, multiview...</translation>
+    </message>
+    <message>
+        <location line="+30" />
         <source>Qué monitores hay y qué muestra cada uno</source>
         <translation>Какие есть мониторы и что показывает каждый</translation>
     </message>
@@ -70490,7 +70659,7 @@ Plantillas: mosaico-2x1, mosaico-2x2, una-por-monitor, programa-previo-multiview
         <translation>Закрыто: %1.</translation>
     </message>
     <message>
-        <location line="-536" />
+        <location line="-559" />
         <source>Las superficies web que estan ABIERTAS y latiendo ahora mismo (la pantalla de un televisor, un carrusel, el teleprompter). Cada una dice que esta mostrando con sus propias palabras.</source>
         <translation>Веб-поверхности, которые ОТКРЫТЫ и подают признаки жизни прямо сейчас (экран телевизора, карусель, телесуфлёр). Каждая своими словами сообщает, что показывает.</translation>
     </message>
@@ -70567,17 +70736,12 @@ Si la superficie no esta viva no pasa nada y la cuenta vuelve en 0: eso quiere d
         <translation>Всё, что можно вывести на монитор этого компьютера, в отдельное окно или на телевизор в сети: программа, предпросмотр, каждая сцена, каждое мультивью, панели (список участников, вопросы, голосование, Микшер, PTZ каждой камеры), карточки панели, страницы и фон панели. У каждого — постоянный `id`.</translation>
     </message>
     <message>
-        <location line="+4" />
-        <source>`monitor`: true si se puede dibujar en esta maquina (monitor_asignar, ui_panel_window con `cosa`). `red`: el tipo de pantalla_mostrar que lo lleva a una TV (vacio si no viaja). Los ids son estables: «escena:&lt;nombre&gt;», «multiview:&lt;id&gt;», «pagina:&lt;id&gt;», «tarjeta:&lt;tipo&gt;», «ptz:&lt;entrada&gt;», «programa», «preview», «fondo», «web:&lt;tipo&gt;» (solo TV: un cartel, un QR, la hora...).</source>
-        <translation>`monitor`: true, если это можно нарисовать на этом компьютере (monitor_asignar, ui_panel_window с `cosa`). `red`: тип pantalla_mostrar, который выводит это на телевизор (пусто, если не передаётся). id постоянны: «escena:&lt;nombre&gt;», «multiview:&lt;id&gt;», «pagina:&lt;id&gt;», «tarjeta:&lt;tipo&gt;», «ptz:&lt;entrada&gt;», «programa», «preview», «fondo», «web:&lt;tipo&gt;» (только ТВ: табличка, QR, время...).</translation>
-    </message>
-    <message>
-        <location line="+10" />
+        <location line="+22" />
         <source>filtrar: lo que va a un monitor, lo que va a una TV, o todo</source>
         <translation>фильтр: то, что идёт на монитор, то, что идёт на ТВ, или всё</translation>
     </message>
     <message>
-        <location line="+25" />
+        <location line="+40" />
         <source>Los monitores de ESTA maquina en su orden fisico (de izquierda a derecha y de arriba abajo), con su id estable, resolucion, si es el principal, y que muestra cada uno (Salidas, Pantallas, Pantallas conectadas). Tambien los recordados que no estan conectados: esos se esperan y su contenido no va a otro monitor.</source>
         <translation>Мониторы ЭТОГО компьютера в физическом порядке (слева направо и сверху вниз), с постоянным id, разрешением, признаком основного и тем, что показывает каждый (Выходы, Экраны, Подключённые экраны). А также запомненные, но не подключённые: их ждут, и их содержимое не уходит на другой монитор.</translation>
     </message>
@@ -89979,6 +90143,11 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>Регистрация людей</translation>
     </message>
     <message>
+        <location line="+1" />
+        <source>Distribución</source>
+        <translation>Раскладка</translation>
+    </message>
+    <message>
         <location line="+58" />
         <source>Programa (lo que sale al aire)</source>
         <translation>Программа (то, что идёт в эфир)</translation>
@@ -89994,7 +90163,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>Фон панели</translation>
     </message>
     <message>
-        <location line="+165" />
+        <location line="+182" />
         <source>%1 (ya no existe)</source>
         <translation>%1 (больше не существует)</translation>
     </message>
@@ -90032,7 +90201,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>Этот монитор мне неизвестен.</translation>
     </message>
     <message>
-        <location filename="../src/app/pantallas/Distribuciones.cpp" line="+110" />
+        <location filename="../src/app/pantallas/Distribuciones.cpp" line="+119" />
         <source>«%1» no es una disposición: grid, focus, pip o row.</source>
         <translation>«%1» — не вариант расположения: grid, focus, pip или row.</translation>
     </message>
@@ -90061,7 +90230,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         </translation>
     </message>
     <message>
-        <location line="+14" />
+        <location line="+65" />
         <source>Mosaico 2×1</source>
         <translation>Мозаика 2×1</translation>
     </message>
@@ -90112,6 +90281,11 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>«%1» нельзя показать в окне (только на сетевом ТВ).</translation>
     </message>
     <message>
+        <location line="+4" />
+        <source>«%1» es una distribución: una ventana de una distribución no puede mostrar otra.</source>
+        <translation>«%1» — раскладка: окно раскладки не может показывать другую.</translation>
+    </message>
+    <message>
         <location line="+5" />
         <source>Cada ventana tiene que mostrar algo: `cosas` con ids de catalogo_listar.</source>
         <translation>Каждое окно должно что-то показывать: `cosas` с id из catalogo_listar.</translation>
@@ -90146,8 +90320,8 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <location line="+15" />
         <location line="+11" />
         <location line="+14" />
-        <location line="+135" />
-        <location line="+91" />
+        <location line="+134" />
+        <location line="+92" />
         <source>No hay una distribución «%1».</source>
         <translation>Раскладки «%1» нет.</translation>
     </message>

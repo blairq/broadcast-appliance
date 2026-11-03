@@ -1,16 +1,18 @@
 // Página Pantallas (Salidas): dónde se muestra cada cosa, en dos pestañas.
 //
-//   Pantallas locales     los monitores de esta máquina, como están puestos, y
-//                         qué va en cada uno (controls/PantallasConectadas.qml);
-//                         abajo, las distribuciones de ventanas guardadas con el
-//                         evento (controls/DistribucionesPantallas.qml).
+//   Pantallas locales     dos sub-pestañas: «Monitores», los de esta máquina como
+//                         están puestos y qué va en cada uno
+//                         (controls/PantallasConectadas.qml), y «Distribuciones»,
+//                         donde se crean y editan las distribuciones de ventanas
+//                         guardadas con el evento (controls/DistribucionesPantallas.qml).
 //   Pantallas de red      los televisores de la sala (Chromecast) y qué mostrar
 //                         en cada uno.
 //
 // Las dos eligen del MISMO catálogo (Studio.catalogo): el programa, una
-// escena, una multivista, un panel… Cada parte muestra lo que puede: a un
-// monitor va todo lo que se dibuja en esta máquina; a una TV, lo que el
-// gateway sabe servirle como página.
+// escena, una multivista, un panel, una distribución guardada… Cada parte
+// muestra lo que puede: a un monitor va todo lo que se dibuja en esta máquina;
+// a una TV, lo que el gateway sabe servirle como página. Se elige en un modal
+// con búsqueda y vista previa (controls/SelectorCosas.qml): son muchísimas.
 //
 // En las de red son dos preguntas distintas: DÓNDE (los aparatos que hay) y
 // QUÉ (lo que se puede proyectar). Se elige una pantalla, se elige un
@@ -92,12 +94,27 @@ Rectangle {
             currentIndex: tabs.currentIndex
 
             // --- Los monitores de esta máquina y las distribuciones ------------
-            // Arriba qué va fijo en cada monitor; abajo las distribuciones de
-            // ventanas guardadas con el evento (controls/DistribucionesPantallas.qml).
-            SplitView {
-                orientation: Qt.Vertical
-                PantallasConectadas { SplitView.preferredHeight: 300; SplitView.minimumHeight: 160 }
-                DistribucionesPantallas { SplitView.fillHeight: true; SplitView.minimumHeight: 320 }
+            // Dos sub-pestañas: qué va fijo en cada monitor (donde también se puede
+            // poner una distribución entera) y las distribuciones guardadas con el
+            // evento, donde se crean y se editan (controls/DistribucionesPantallas.qml).
+            ColumnLayout {
+                spacing: 8
+                TabBar {
+                    id: subLocales
+                    Layout.fillWidth: true
+                    TabButton { text: qsTr("Monitores") }
+                    TabButton {
+                        text: qsTr("Distribuciones") + (Studio.escritorio.distribuciones.cantidad > 0
+                                                        ? " (" + Studio.escritorio.distribuciones.cantidad + ")" : "")
+                    }
+                }
+                StackLayout {
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    currentIndex: subLocales.currentIndex
+                    PantallasConectadas {}
+                    DistribucionesPantallas {}
+                }
             }
 
             // --- Las TV de la red (Chromecast) -------------------------------
@@ -437,16 +454,21 @@ Rectangle {
                             // lo que viaja a una TV: el programa, cada escena, la votación,
                             // el teleprompter y lo que existe solo en la TV (un cartel, un
                             // QR, la hora…).
-                            ComboBox {
-                                id: queRed
+                            // Se elige en el selector con búsqueda y vista previa.
+                            GlassButton {
                                 visible: !page.modoCarrusel
                                 Layout.fillWidth: true
-                                model: Studio.catalogo.deRed
-                                textRole: "etiqueta"
-                                valueRole: "itemId"
-                                currentIndex: Math.max(0, indexOfValue(page.cosaRed))
-                                onActivated: page.elegirRed(currentValue)
-                                Component.onCompleted: currentIndex = Math.max(0, indexOfValue(page.cosaRed))
+                                icon: "⌕"
+                                text: (Studio.catalogo.porId[page.cosaRed] || {}).etiqueta || qsTr("Elegir qué mostrar…")
+                                onClicked: selectorRed.abrir(page.cosaRed)
+                                ToolTip.visible: hovered; ToolTip.text: qsTr("Buscar qué mostrar en la TV y verlo antes")
+                            }
+                            SelectorCosas {
+                                id: selectorRed
+                                titulo: qsTr("Qué mostrar en la TV")
+                                donde: "red"
+                                textoAceptar: qsTr("Elegir")
+                                onElegida: (itemId, otra) => page.elegirRed(itemId)
                             }
                             Text {
                                 visible: !page.modoCarrusel

@@ -75,6 +75,10 @@ EscritorioViewModel::EscritorioViewModel(Partes p, QObject* parent) : QObject(pa
         for (const QString& e : p_.imagen.videoVm().entradas()) out << QVariantMap{{"clave", "entrada:" + e}, {"titulo", e}};
         return out;
     };
+    // Las distribuciones de pantallas guardadas: una entera se puede poner en un monitor o
+    // en una ventana. Se arman después del catálogo (lo usan para validar): hasta entonces,
+    // ninguna.
+    f.distribuciones = [this]() { return distribuciones_ ? distribuciones_->paraCatalogo() : QVariantList{}; };
     catalogo_ = std::make_unique<CatalogoVisible>(std::move(f));
     const auto refrescar = [this]() { catalogo_->refrescar(); };
     connect(multivistas_.get(), &MultiviewViewModel::cambio, catalogo_.get(), refrescar);
@@ -102,6 +106,12 @@ EscritorioViewModel::EscritorioViewModel(Partes p, QObject* parent) : QObject(pa
             monitores_.get(), ventanas_.get());
         deCpp(&distribuciones_->lienzos()); // un miembro, que QML no lo reclame
     }
+    // Una distribución creada, renombrada, editada o borrada (o que cambió dónde cae por
+    // los monitores) cambia lo que se puede mostrar. El catálogo solo avisa si de verdad
+    // cambió algo, así que el ida y vuelta (el catálogo también le avisa a las
+    // distribuciones) se corta en la segunda vuelta.
+    connect(distribuciones_.get(), &DistribucionesModel::cambio, catalogo_.get(), refrescar);
+    catalogo_->refrescar();
     // La marcada «al abrir el evento», cuando el catálogo ya tiene las escenas (Studio lo
     // refresca al terminar de armarse): en la primera vuelta del bucle de eventos.
     QTimer::singleShot(0, distribuciones_.get(), [d = distribuciones_.get()]() { d->aplicarAlAbrir(); });

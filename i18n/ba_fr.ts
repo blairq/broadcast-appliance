@@ -7861,8 +7861,33 @@ Réactivez-la depuis le Journal.</translation>
         <source>Distribuciones</source>
         <translation>Dispositions</translation>
     </message>
+    <message>
+        <location line="+17" />
+        <source>Qué muestra la ventana nueva</source>
+        <translation>Ce qu'affiche la nouvelle fenêtre</translation>
+    </message>
+    <message>
+        <location line="+0" />
+        <source>Qué muestra la ventana %1</source>
+        <translation>Ce qu'affiche la fenêtre %1</translation>
+    </message>
+    <message>
+        <location line="+3" />
+        <source>Agregar</source>
+        <translation>Ajouter</translation>
+    </message>
+    <message>
+        <location line="+0" />
+        <source>Poner</source>
+        <translation>Mettre</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Sumar</source>
+        <translation>Ajouter</translation>
+    </message>
     <message numerus="yes">
-        <location line="+9" />
+        <location line="+14" />
         <source>%n guardada(s)</source>
         <translation>
             <numerusform>%n enregistrée</numerusform>
@@ -7949,7 +7974,12 @@ Réactivez-la depuis le Journal.</translation>
         <translation>Nom</translation>
     </message>
     <message>
-        <location line="+20" />
+        <location line="+12" />
+        <source>Qué muestra: %1</source>
+        <translation>Affiche : %1</translation>
+    </message>
+    <message>
+        <location line="+7" />
         <source>⚠ no está</source>
         <translation>⚠ absent</translation>
     </message>
@@ -7969,12 +7999,17 @@ Réactivez-la depuis le Journal.</translation>
         <translation>Retirer</translation>
     </message>
     <message>
-        <location line="+18" />
-        <source>Agregar ventana</source>
-        <translation>Ajouter une fenêtre</translation>
+        <location line="+11" />
+        <source>Agregar ventana…</source>
+        <translation>Ajouter une fenêtre…</translation>
     </message>
     <message>
-        <location line="+6" />
+        <location line="+2" />
+        <source>Elegir qué muestra la ventana nueva</source>
+        <translation>Choisir ce qu'affiche la nouvelle fenêtre</translation>
+    </message>
+    <message>
+        <location line="+4" />
         <source>Arrastrá los rectángulos; la esquina los agranda. Aplicada, se ve en el acto.</source>
         <translation>Faites glisser les rectangles ; le coin les redimensionne. Une fois appliquée, le changement est immédiat.</translation>
     </message>
@@ -9277,7 +9312,7 @@ Réactivez-la depuis le Journal.</translation>
 <context>
     <name>EscritorioViewModel</name>
     <message>
-        <location filename="../src/app/ui/EscritorioViewModel.cpp" line="+136" />
+        <location filename="../src/app/ui/EscritorioViewModel.cpp" line="+145" />
         <source>No hay un monitor «%1»: decí su número, su nombre o su id.</source>
         <translation>Il n'y a pas d'écran « %1 » : indiquez son numéro, son nom ou son id.</translation>
     </message>
@@ -9285,6 +9320,14 @@ Réactivez-la depuis le Journal.</translation>
         <location line="+2" />
         <source>El monitor «%1» no está conectado.</source>
         <translation>L'écran « %1 » n'est pas connecté.</translation>
+    </message>
+</context>
+<context>
+    <name>EsquemaDistribucion</name>
+    <message>
+        <location filename="../src/app/qml/controls/EsquemaDistribucion.qml" line="+55" />
+        <source>Sin ventanas</source>
+        <translation>Aucune fenêtre</translation>
     </message>
 </context>
 <context>
@@ -25633,12 +25676,17 @@ Ajoutez-y des images depuis l'onglet Fichiers.</translation>
 <context>
     <name>PantallasConectadas</name>
     <message>
-        <location filename="../src/app/qml/controls/PantallasConectadas.qml" line="+19" />
+        <location filename="../src/app/qml/controls/PantallasConectadas.qml" line="+22" />
         <source>Pantallas conectadas</source>
         <translation>Écrans connectés</translation>
     </message>
+    <message>
+        <location line="+17" />
+        <source>Qué muestra este monitor</source>
+        <translation>Ce qu'affiche ce moniteur</translation>
+    </message>
     <message numerus="yes">
-        <location line="+8" />
+        <location line="+14" />
         <source>%n monitor</source>
         <translation>
             <numerusform>%n moniteur</numerusform>
@@ -25684,27 +25732,32 @@ Ajoutez-y des images depuis l'onglet Fichiers.</translation>
         <translation>N'affiche rien</translation>
     </message>
     <message>
-        <location line="+16" />
+        <location line="+11" />
+        <source>Cambiar qué muestra…</source>
+        <translation>Changer ce qu'il affiche…</translation>
+    </message>
+    <message>
+        <location line="+0" />
+        <source>Elegir qué mostrar…</source>
+        <translation>Choisir quoi afficher…</translation>
+    </message>
+    <message>
+        <location line="+4" />
+        <source>Buscar entre las escenas, los videos, las páginas, las distribuciones… y verlo antes de ponerlo</source>
+        <translation>Chercher parmi les scènes, les vidéos, les pages, les dispositions… et le voir avant de le mettre</translation>
+    </message>
+    <message>
+        <location line="-148" />
         <source>Poner</source>
         <translation>Mettre</translation>
     </message>
     <message>
-        <location line="+3" />
-        <source>Que este monitor muestre solo esto</source>
-        <translation>Que ce moniteur n'affiche que ceci</translation>
-    </message>
-    <message>
-        <location line="+3" />
+        <location line="+1" />
         <source>Sumar</source>
         <translation>Ajouter</translation>
     </message>
     <message>
-        <location line="+3" />
-        <source>Agregarlo a lo que ya muestra: van en grilla</source>
-        <translation>L'ajouter à ce qu'il affiche déjà : en grille</translation>
-    </message>
-    <message>
-        <location line="+2" />
+        <location line="+149" />
         <source>Pantalla completa</source>
         <translation>Plein écran</translation>
     </message>
@@ -25727,7 +25780,7 @@ Ajoutez-y des images depuis l'onglet Fichiers.</translation>
 <context>
     <name>PantallasPage</name>
     <message>
-        <location filename="../src/app/qml/pages/PantallasPage.qml" line="+66" />
+        <location filename="../src/app/qml/pages/PantallasPage.qml" line="+68" />
         <source>mostrando</source>
         <translation>affiche</translation>
     </message>
@@ -25771,8 +25824,18 @@ Ajoutez-y des images depuis l'onglet Fichiers.</translation>
         <source>Pantallas de red</source>
         <translation>Écrans réseau</translation>
     </message>
+    <message>
+        <location line="+17" />
+        <source>Monitores</source>
+        <translation>Moniteurs</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>Distribuciones</source>
+        <translation>Dispositions</translation>
+    </message>
     <message numerus="yes">
-        <location line="+24" />
+        <location line="+20" />
         <source>%n mostrando</source>
         <translation>
             <numerusform>%n affiche</numerusform>
@@ -25941,7 +26004,27 @@ Ajoutez-y des images depuis l'onglet Fichiers.</translation>
         <translation>Afficher le carrousel</translation>
     </message>
     <message>
-        <location line="+68" />
+        <location line="+17" />
+        <source>Elegir qué mostrar…</source>
+        <translation>Choisir quoi afficher…</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>Buscar qué mostrar en la TV y verlo antes</source>
+        <translation>Chercher quoi afficher sur la TV et le voir avant</translation>
+    </message>
+    <message>
+        <location line="+4" />
+        <source>Qué mostrar en la TV</source>
+        <translation>Quoi afficher sur la TV</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>Elegir</source>
+        <translation>Choisir</translation>
+    </message>
+    <message>
+        <location line="+48" />
         <source>Escribirlo a mano (abajo)</source>
         <translation>Le saisir manuellement (ci-dessous)</translation>
     </message>
@@ -27402,6 +27485,29 @@ De face, de profil, avec et sans lunettes : c'est ainsi qu'on la reconnaît le 
         <location line="+229" />
         <source>No hay canal libre para mandarles la escena «%1» a los remotos (las pantallas usan los 4)</source>
         <translation>Aucun canal libre pour envoyer la scène « %1 » aux membres à distance (les écrans utilisent les 4)</translation>
+    </message>
+</context>
+<context>
+    <name>PreviewCosa</name>
+    <message>
+        <location filename="../src/app/qml/controls/PreviewCosa.qml" line="+85" />
+        <source>Elegí algo de la lista para verlo acá.</source>
+        <translation>Choisissez quelque chose dans la liste pour le voir ici.</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Armando la vista previa…</source>
+        <translation>Préparation de l'aperçu…</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Solo para una TV de la red: se ve cuando se la manda.</source>
+        <translation>Seulement pour une TV du réseau : visible une fois envoyé.</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Sin vista previa.</source>
+        <translation>Pas d'aperçu.</translation>
     </message>
 </context>
 <context>
@@ -31750,6 +31856,54 @@ Pour la scène de base dont dérivent les autres.</translation>
         <location line="+2" />
         <source>«%1» no tiene PTZ: prendé el digital o configurá su motor</source>
         <translation>« %1 » n'a pas de PTZ : activez le numérique ou configurez son moteur</translation>
+    </message>
+</context>
+<context>
+    <name>SelectorCosas</name>
+    <message>
+        <location filename="../src/app/qml/controls/SelectorCosas.qml" line="+31" />
+        <source>Qué mostrar</source>
+        <translation>Quoi afficher</translation>
+    </message>
+    <message>
+        <location line="+3" />
+        <source>Elegir</source>
+        <translation>Choisir</translation>
+    </message>
+    <message>
+        <location line="+66" />
+        <source>%1 de %2</source>
+        <translation>%1 sur %2</translation>
+    </message>
+    <message>
+        <location line="+7" />
+        <source>Buscar: escena, invitado, página, distribución…</source>
+        <translation>Chercher : scène, invité, page, disposition…</translation>
+    </message>
+    <message>
+        <location line="+12" />
+        <source>Todo</source>
+        <translation>Tout</translation>
+    </message>
+    <message>
+        <location line="+69" />
+        <source>No hay nada para mostrar acá todavía.</source>
+        <translation>Il n'y a encore rien à afficher ici.</translation>
+    </message>
+    <message>
+        <location line="+0" />
+        <source>Nada coincide con la búsqueda.</source>
+        <translation>Rien ne correspond à la recherche.</translation>
+    </message>
+    <message>
+        <location line="+38" />
+        <source>Lo elegido ya no existe: elegí otra cosa.</source>
+        <translation>L'élément choisi n'existe plus : choisissez autre chose.</translation>
+    </message>
+    <message>
+        <location line="+7" />
+        <source>Cancelar</source>
+        <translation>Annuler</translation>
     </message>
 </context>
 <context>
@@ -37571,7 +37725,7 @@ Fermez ceci et utilisez « Créer un carrousel ».</translation>
 <context>
     <name>VistaCatalogo</name>
     <message>
-        <location filename="../src/app/qml/controls/VistaCatalogo.qml" line="+105" />
+        <location filename="../src/app/qml/controls/VistaCatalogo.qml" line="+119" />
         <source>%1
 Elegí otra cosa en Salidas → Pantallas.</source>
         <translation>%1
@@ -44379,7 +44533,7 @@ Choisissez autre chose dans Sorties → Écrans.</translation>
 <context>
     <name>arranque</name>
     <message>
-        <location filename="../src/app/arranque/GuiMode.cpp" line="+176" />
+        <location filename="../src/app/arranque/GuiMode.cpp" line="+174" />
         <source>arranque: el cartel de carga ya se ve</source>
         <translation>démarrage : l'écran de chargement est visible</translation>
     </message>
@@ -44429,7 +44583,7 @@ Choisissez autre chose dans Sorties → Écrans.</translation>
         <translation>démarrage : le modèle de l'application, %1 ms</translation>
     </message>
     <message>
-        <location line="+42" />
+        <location line="+43" />
         <source>Abriendo la interfaz…</source>
         <translation>Ouverture de l'interface…</translation>
     </message>
@@ -60828,7 +60982,7 @@ CE QU'IL FAUT SAVOIR EN L'ACTIVANT : le garde-fou des approbations (`mcp.approv
         <location line="+1" />
         <location filename="../src/app/mcp/McpBotoneraTools.cpp" line="-485" />
         <location filename="../src/app/mcp/McpFacebookTools.cpp" line="+165" />
-        <location filename="../src/app/mcp/McpPantallaTools.cpp" line="+437" />
+        <location filename="../src/app/mcp/McpPantallaTools.cpp" line="+438" />
         <location filename="../src/app/mcp/McpQrTools.cpp" line="+270" />
         <location filename="../src/app/mcp/McpRoomTools.cpp" line="+740" />
         <location filename="../src/app/mcp/McpService.cpp" line="-581" />
@@ -62256,7 +62410,7 @@ L'`id` QU'IL RENVOIE S'UTILISE TEL QUEL dans `audio_module_add`. Les six du cata
     <message>
         <location line="+1" />
         <location line="+146" />
-        <location filename="../src/app/mcp/McpPantallaTools.cpp" line="+705" />
+        <location filename="../src/app/mcp/McpPantallaTools.cpp" line="+728" />
         <location filename="../src/app/mcp/McpVideoTools.cpp" line="+132" />
         <source>Borrada.</source>
         <translation>Supprimée.</translation>
@@ -69823,7 +69977,7 @@ Si la destination contient déjà un élément de ce nom, il est numéroté au l
         <translation>Suggestions dans la barre de l'opérateur (id %1). Ce qu'il envoie (ou s'il l'ignore) vous arrive dans votre chat.</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpPantallaTools.cpp" line="-977" />
+        <location filename="../src/app/mcp/McpPantallaTools.cpp" line="-1000" />
         <source>Pantallas externas</source>
         <translation>Écrans externes</translation>
     </message>
@@ -70149,7 +70303,22 @@ Durées : un QR a besoin d'au moins 15 secondes pour que quelqu'un sorte son t�
         <translation>Ce qui peut être affiché</translation>
     </message>
     <message>
-        <location line="+39" />
+        <location line="+10" />
+        <source>`monitor`: true si se puede dibujar en esta maquina (monitor_asignar, ui_panel_window con `cosa`). `red`: el tipo de pantalla_mostrar que lo lleva a una TV (vacio si no viaja). Los ids son estables: «escena:&lt;nombre&gt;», «multiview:&lt;id&gt;», «pagina:&lt;id&gt;», «tarjeta:&lt;tipo&gt;», «ptz:&lt;entrada&gt;», «programa», «preview», «fondo», «web:&lt;tipo&gt;» (solo TV: un cartel, un QR, la hora...). «distribucion:&lt;id&gt;» es una distribucion de pantallas guardada (pantallas_distribuciones_listar), entera en un monitor o una ventana; no va a una TV ni adentro de otra distribucion. `buscar` filtra por palabras (sin tildes, todas, en cualquier orden) en el titulo, el tipo y el id, igual que el buscador de la pagina Pantallas; `tipo` deja un tipo solo (escena, video, distribucion, pagina, panel, tarjeta, multiview, programa, fondo, web, registro).</source>
+        <translation>`monitor` : true s'il peut être dessiné sur cette machine (monitor_asignar, ui_panel_window avec `cosa`). `red` : le type de pantalla_mostrar qui l'envoie à une TV (vide s'il ne voyage pas). Les ids sont stables : « escena:&lt;nombre&gt; », « multiview:&lt;id&gt; », « pagina:&lt;id&gt; », « tarjeta:&lt;tipo&gt; », « ptz:&lt;entrada&gt; », « programa », « preview », « fondo », « web:&lt;tipo&gt; » (TV seulement : une affiche, un QR, l'heure...). « distribucion:&lt;id&gt; » est une disposition d'écrans enregistrée (pantallas_distribuciones_listar), entière sur un moniteur ou une fenêtre ; elle ne va pas à une TV ni dans une autre disposition. `buscar` filtre par mots (sans accents, tous, dans n'importe quel ordre) dans le titre, le type et l'id, comme la recherche de la page Pantallas ; `tipo` ne garde qu'un type (escena, video, distribucion, pagina, panel, tarjeta, multiview, programa, fondo, web, registro).</translation>
+    </message>
+    <message>
+        <location line="+19" />
+        <source>palabras a buscar en el titulo, el tipo y el id (vacio = todo)</source>
+        <translation>mots à chercher dans le titre, le type et l'id (vide = tout)</translation>
+    </message>
+    <message>
+        <location line="+3" />
+        <source>un tipo solo: escena, video, distribucion, pagina, panel, tarjeta, multiview...</source>
+        <translation>un seul type : escena, video, distribucion, pagina, panel, tarjeta, multiview...</translation>
+    </message>
+    <message>
+        <location line="+30" />
         <source>Qué monitores hay y qué muestra cada uno</source>
         <translation>Quels moniteurs il y a et ce qu'affiche chacun</translation>
     </message>
@@ -70315,7 +70484,7 @@ Modèles : mosaico-2x1, mosaico-2x2, una-por-monitor, programa-previo-multiview 
         <translation>Fermées : %1.</translation>
     </message>
     <message>
-        <location line="-536" />
+        <location line="-559" />
         <source>Las superficies web que estan ABIERTAS y latiendo ahora mismo (la pantalla de un televisor, un carrusel, el teleprompter). Cada una dice que esta mostrando con sus propias palabras.</source>
         <translation>Les surfaces web OUVERTES qui envoient un signal de vie en ce moment (l'écran d'un téléviseur, un carrousel, le prompteur). Chacune indique ce qu'elle affiche, avec ses propres mots.</translation>
     </message>
@@ -70391,17 +70560,12 @@ Si la surface n'est pas active, rien ne se passe et le compte revient à 0 : ce
         <translation>Tout ce qui peut aller sur un moniteur de la machine, dans une fenêtre flottante ou sur une TV du réseau : le programme, la preview, chaque scène, chaque multiview, les panneaux (liste des membres, questions, vote, Console de mixage, PTZ de chaque caméra), les cartes du tableau de bord, les pages et le fond du tableau de bord. Chaque élément avec son `id` stable.</translation>
     </message>
     <message>
-        <location line="+4" />
-        <source>`monitor`: true si se puede dibujar en esta maquina (monitor_asignar, ui_panel_window con `cosa`). `red`: el tipo de pantalla_mostrar que lo lleva a una TV (vacio si no viaja). Los ids son estables: «escena:&lt;nombre&gt;», «multiview:&lt;id&gt;», «pagina:&lt;id&gt;», «tarjeta:&lt;tipo&gt;», «ptz:&lt;entrada&gt;», «programa», «preview», «fondo», «web:&lt;tipo&gt;» (solo TV: un cartel, un QR, la hora...).</source>
-        <translation>`monitor` : true s'il peut être dessiné sur cette machine (monitor_asignar, ui_panel_window avec `cosa`). `red` : le type de pantalla_mostrar qui l'envoie à une TV (vide s'il ne voyage pas). Les ids sont stables : « escena:&lt;nombre&gt; », « multiview:&lt;id&gt; », « pagina:&lt;id&gt; », « tarjeta:&lt;tipo&gt; », « ptz:&lt;entrada&gt; », « programa », « preview », « fondo », « web:&lt;tipo&gt; » (TV seulement : une affiche, un QR, l'heure...).</translation>
-    </message>
-    <message>
-        <location line="+10" />
+        <location line="+22" />
         <source>filtrar: lo que va a un monitor, lo que va a una TV, o todo</source>
         <translation>filtrer : ce qui va sur un moniteur, ce qui va sur une TV, ou tout</translation>
     </message>
     <message>
-        <location line="+25" />
+        <location line="+40" />
         <source>Los monitores de ESTA maquina en su orden fisico (de izquierda a derecha y de arriba abajo), con su id estable, resolucion, si es el principal, y que muestra cada uno (Salidas, Pantallas, Pantallas conectadas). Tambien los recordados que no estan conectados: esos se esperan y su contenido no va a otro monitor.</source>
         <translation>Les moniteurs de CETTE machine dans leur ordre physique (de gauche à droite et de haut en bas), avec leur id stable, leur résolution, s'il s'agit du principal, et ce qu'affiche chacun (Sorties, Écrans, Écrans connectés). Aussi ceux mémorisés qui ne sont pas connectés : ils sont attendus et leur contenu ne passe pas sur un autre moniteur.</translation>
     </message>
@@ -89792,6 +89956,11 @@ PROPOSEZ, N'APPLIQUEZ PAS : montrez à la personne ce qui change et appliquez s
         <translation>Enregistrement des personnes</translation>
     </message>
     <message>
+        <location line="+1" />
+        <source>Distribución</source>
+        <translation>Disposition</translation>
+    </message>
+    <message>
         <location line="+58" />
         <source>Programa (lo que sale al aire)</source>
         <translation>Programme (ce qui passe à l'antenne)</translation>
@@ -89807,7 +89976,7 @@ PROPOSEZ, N'APPLIQUEZ PAS : montrez à la personne ce qui change et appliquez s
         <translation>Le fond du tableau de bord</translation>
     </message>
     <message>
-        <location line="+165" />
+        <location line="+182" />
         <source>%1 (ya no existe)</source>
         <translation>%1 (n'existe plus)</translation>
     </message>
@@ -89845,7 +90014,7 @@ PROPOSEZ, N'APPLIQUEZ PAS : montrez à la personne ce qui change et appliquez s
         <translation>Moniteur inconnu.</translation>
     </message>
     <message>
-        <location filename="../src/app/pantallas/Distribuciones.cpp" line="+110" />
+        <location filename="../src/app/pantallas/Distribuciones.cpp" line="+119" />
         <source>«%1» no es una disposición: grid, focus, pip o row.</source>
         <translation>« %1 » n'est pas une disposition : grid, focus, pip ou row.</translation>
     </message>
@@ -89873,7 +90042,7 @@ PROPOSEZ, N'APPLIQUEZ PAS : montrez à la personne ce qui change et appliquez s
         </translation>
     </message>
     <message>
-        <location line="+14" />
+        <location line="+65" />
         <source>Mosaico 2×1</source>
         <translation>Mosaïque 2×1</translation>
     </message>
@@ -89924,6 +90093,11 @@ PROPOSEZ, N'APPLIQUEZ PAS : montrez à la personne ce qui change et appliquez s
         <translation>« %1 » ne peut pas être affiché dans une fenêtre (seulement sur une TV du réseau).</translation>
     </message>
     <message>
+        <location line="+4" />
+        <source>«%1» es una distribución: una ventana de una distribución no puede mostrar otra.</source>
+        <translation>« %1 » est une disposition : une fenêtre d'une disposition ne peut pas en afficher une autre.</translation>
+    </message>
+    <message>
         <location line="+5" />
         <source>Cada ventana tiene que mostrar algo: `cosas` con ids de catalogo_listar.</source>
         <translation>Chaque fenêtre doit afficher quelque chose : `cosas` avec des ids de catalogo_listar.</translation>
@@ -89958,8 +90132,8 @@ PROPOSEZ, N'APPLIQUEZ PAS : montrez à la personne ce qui change et appliquez s
         <location line="+15" />
         <location line="+11" />
         <location line="+14" />
-        <location line="+135" />
-        <location line="+91" />
+        <location line="+134" />
+        <location line="+92" />
         <source>No hay una distribución «%1».</source>
         <translation>Il n'y a pas de disposition « %1 ».</translation>
     </message>

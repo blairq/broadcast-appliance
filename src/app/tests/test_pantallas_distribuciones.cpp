@@ -13,25 +13,35 @@
 //   6. Capturar → aplicar deja lo mismo (lienzos y sueltas).
 //   7. Se guarda y vuelve (con la aplicada); plantillas; mover en el esquema;
 //      editar en vivo la aplicada; la salida de emergencia.
+//   8. Una distribución es una cosa más del catálogo («distribucion:<id>»): se
+//      busca en el selector (BuscadorCatalogo), se pone en un monitor o en una
+//      ventana suelta, sus piezas van relativas a lo que la muestra, se actualiza
+//      sola al editarla o renombrarla y no puede ir adentro de otra distribución.
 
 #include <QCoreApplication>
 #include <QJsonDocument>
 #include <QTemporaryDir>
 
+#include <cmath>
 #include <cstdio>
 
+#include "pantallas/BuscadorCatalogo.hpp"
 #include "pantallas/Catalogo.hpp"
 #include "pantallas/Distribuciones.hpp"
+#include "pantallas/Monitores.hpp"
 #include "pantallas/Ventanas.hpp"
 #include "ui/CapturaError.hpp"
 
 using ::ba::app::errorDe;
+using ba::app::BuscadorCatalogo;
 using ba::app::CatalogoVisible;
 using ba::app::Distribucion;
 using ba::app::DistribucionesModel;
 using ba::app::Lienzo;
 using ba::app::LienzosModel;
+using ba::app::MonitoresModel;
 using ba::app::MonitorVisto;
+using ba::app::PantallaFisica;
 using ba::app::VentanaDistribucion;
 using ba::app::VentanasModel;
 namespace dist = ba::app::distribucion;
@@ -261,6 +271,115 @@ int main(int argc, char** argv) {
         d3.setMonitoresDePrueba({A, B});
         d3.aplicarAlAbrir();
         CHECK(d3.aplicada() == remotos && d3.lienzos().rowCount() == 1);
+    }
+
+    // ===================== 8. Una distribución como cosa del catálogo =========
+    {
+        // Como lo arma EscritorioViewModel: el catálogo le pide las distribuciones al
+        // modelo, que se arma después (hasta entonces, ninguna).
+        DistribucionesModel* dm = nullptr;
+        CatalogoVisible::Fuentes f = fuentes();
+        f.distribuciones = [&dm]() { return dm != nullptr ? dm->paraCatalogo() : QVariantList{}; };
+        CatalogoVisible cat2(f);
+        VentanasModel s3({}, &cat2, nullptr);
+        DistribucionesModel d({}, &cat2, nullptr, &s3);
+        dm = &d;
+        QObject::connect(&d, &DistribucionesModel::cambio, &cat2, [&cat2]() { cat2.refrescar(); });
+        d.setMonitoresDePrueba({A, B});
+
+        // Dos remotos en B (la mitad cada uno); y el programa entero en A con un remoto en B.
+        QString sala;
+        CHECK(errorDe([&] {
+                  sala = d.crear("Remotos en la sala", ventanasJson(R"([
+            {"cosas": ["escena:Remotos A"], "monitor": "2", "x": 0, "y": 0, "ancho": 0.5, "alto": 1},
+            {"cosas": ["escena:Remotos B"], "monitor": "2", "x": 0.5, "y": 0, "ancho": 0.5, "alto": 1}])"));
+              }).isEmpty() &&
+              !sala.isEmpty());
+        QString dos;
+        CHECK(errorDe([&] {
+                  dos = d.crear("Programa y remotos", ventanasJson(R"([
+            {"cosas": ["programa"], "monitor": "1", "pantallaCompleta": true},
+            {"cosas": ["escena:Remotos A"], "monitor": "2", "x": 0, "y": 0, "ancho": 1, "alto": 1}])"));
+              }).isEmpty() &&
+              !dos.isEmpty());
+
+        // Está en el catálogo sin que nadie lo pida (el modelo avisó), y se dibuja acá.
+        const CatalogoVisible::Cosa* c = cat2.buscar("distribucion:" + sala);
+        CHECK(c != nullptr && c->grupo == "distribucion" && c->titulo == "Remotos en la sala");
+        CHECK(c != nullptr && c->dibujo.value("modo").toString() == "distribucion" && c->redTipo.isEmpty());
+        // Un solo monitor: las piezas son su lugar relativo a él.
+        const QVariantList piezas = c != nullptr ? c->dibujo.value("piezas").toList() : QVariantList{};
+        CHECK(piezas.size() == 2);
+        CHECK(piezas.size() == 2 && piezas[1].toMap().value("x").toDouble() == 0.5 &&
+              piezas[1].toMap().value("ancho").toDouble() == 0.5 &&
+              piezas[1].toMap().value("cosas").toStringList() == QStringList{"escena:Remotos B"});
+        CHECK(c != nullptr && std::abs(c->dibujo.value("proporcion").toDouble() - 2560.0 / 1440.0) < 1e-9);
+        // Dos monitores: el rectángulo de los dos (A 1920 de ancho + B 2560 = 4480).
+        const CatalogoVisible::Cosa* c2 = cat2.buscar("distribucion:" + dos);
+        const QVariantList p2 = c2 != nullptr ? c2->dibujo.value("piezas").toList() : QVariantList{};
+        CHECK(p2.size() == 2);
+        CHECK(p2.size() == 2 && std::abs(p2[0].toMap().value("ancho").toDouble() - 1920.0 / 4480.0) < 1e-9 &&
+              std::abs(p2[1].toMap().value("x").toDouble() - 1920.0 / 4480.0) < 1e-9);
+
+        // Editarla o renombrarla actualiza el catálogo en su lugar.
+        CHECK(d.renombrar(sala, "Remotos del recinto"));
+        CHECK(cat2.buscar("distribucion:" + sala) != nullptr &&
+              cat2.buscar("distribucion:" + sala)->titulo == "Remotos del recinto");
+        CHECK(d.setVentana(sala, 1, {{"y", 0.5}, {"alto", 0.5}}));
+        CHECK(cat2.buscar("distribucion:" + sala)->dibujo.value("piezas").toList()[1].toMap().value("y").toDouble() ==
+              0.5);
+
+        // El selector la encuentra: por nombre (sin tildes ni mayúsculas, palabras sueltas
+        // en cualquier orden), por tipo, y la vista previa se enlaza a la elegida.
+        BuscadorCatalogo b;
+        b.setFuente(&cat2);
+        b.setDonde("monitor");
+        b.setTexto("RECINTO remotos");
+        b.filtrarYa();
+        CHECK(b.cantidad() == 1);
+        b.elegirFila(0);
+        CHECK(b.elegido() == "distribucion:" + sala && b.filaElegida() == 0);
+        CHECK(b.actual().value("grupo").toString() == "distribucion" &&
+              b.actual().value("dibujo").toMap().value("piezas").toList().size() == 2);
+        b.setTexto("");
+        b.filtrarYa();
+        b.setGrupo("distribucion");
+        CHECK(b.cantidad() == 2);
+        // Renombrada desde otro lado (el MCP): lo elegido sigue y la vista previa cambia sola.
+        int avisos = 0;
+        QObject::connect(&b, &BuscadorCatalogo::elegidoCambio, [&avisos]() { ++avisos; });
+        CHECK(d.renombrar(sala, "Remotos"));
+        CHECK(avisos > 0 && b.actual().value("titulo").toString() == "Remotos");
+        // En una ventana de una distribución el selector no ofrece distribuciones…
+        b.setGrupo("");
+        b.setExcluir({"distribucion"});
+        CHECK(b.cantidad() > 0);
+        const int rolGrupo = cat2.roleNames().key("grupo");
+        for (int r = 0; r < b.rowCount(); ++r) CHECK(b.data(b.index(r, 0), rolGrupo).toString() != "distribucion");
+        // …y el modelo tampoco las acepta (se mostraría a sí misma, sin fin).
+        CHECK(!errorDe([&] { d.agregarVentana(dos, {{"cosas", QStringList{"distribucion:" + sala}}}); }).isEmpty());
+        const QByteArray adentro = QStringLiteral(R"([{"cosas": ["distribucion:%1"]}])").arg(sala).toUtf8();
+        CHECK(!errorDe([&] { d.crear("Adentro", ventanasJson(adentro.constData())); }).isEmpty());
+
+        // Elegida para un monitor (lo que hace «Poner» en Pantallas conectadas, y
+        // monitor_asignar por MCP): se valida contra el catálogo y queda.
+        MonitoresModel mon({}, &cat2);
+        mon.actualizarPantallas({PantallaFisica{"DP-1", "Dell", "U1", "SA", A.geometria, true},
+                                 PantallaFisica{"DP-2", "LG", "27", "SB", B.geometria, false}});
+        const QString idMon = mon.resolver("2");
+        CHECK(!idMon.isEmpty());
+        CHECK(errorDe([&] { mon.asignar(idMon, {"distribucion:" + sala}, true); }).isEmpty());
+        CHECK(mon.monitor(idMon).value("cosas").toStringList() == QStringList{"distribucion:" + sala});
+        CHECK(mon.monitor(idMon).value("titulo").toString().contains("Remotos"));
+        // Y en una ventana suelta.
+        CHECK(s3.abrirCon({"distribucion:" + dos}, {}) > 0);
+        // Borrada: sale del catálogo, la vista previa queda vacía y el monitor la recuerda
+        // como «ya no existe» (no se manda otra cosa).
+        CHECK(d.borrar(sala));
+        CHECK(!cat2.existe("distribucion:" + sala));
+        CHECK(b.actual().isEmpty());
+        CHECK(cat2.tituloDe("distribucion:" + sala).contains(sala));
+        dm = nullptr;
     }
 
     if (g_fallas == 0) std::printf("test_pantallas_distribuciones: OK\n");

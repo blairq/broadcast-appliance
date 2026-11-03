@@ -7824,8 +7824,33 @@ Se prende desde el Registro.</source>
         <source>Distribuciones</source>
         <translation>布局</translation>
     </message>
+    <message>
+        <location line="+17" />
+        <source>Qué muestra la ventana nueva</source>
+        <translation>新窗口显示的内容</translation>
+    </message>
+    <message>
+        <location line="+0" />
+        <source>Qué muestra la ventana %1</source>
+        <translation>窗口 %1 显示的内容</translation>
+    </message>
+    <message>
+        <location line="+3" />
+        <source>Agregar</source>
+        <translation>添加</translation>
+    </message>
+    <message>
+        <location line="+0" />
+        <source>Poner</source>
+        <translation>放置</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Sumar</source>
+        <translation>加入</translation>
+    </message>
     <message numerus="yes">
-        <location line="+9" />
+        <location line="+14" />
         <source>%n guardada(s)</source>
         <translation>
             <numerusform>已保存 %n 个</numerusform>
@@ -7910,7 +7935,12 @@ Se prende desde el Registro.</source>
         <translation>名称</translation>
     </message>
     <message>
-        <location line="+20" />
+        <location line="+12" />
+        <source>Qué muestra: %1</source>
+        <translation>显示：%1</translation>
+    </message>
+    <message>
+        <location line="+7" />
         <source>⚠ no está</source>
         <translation>⚠ 不存在</translation>
     </message>
@@ -7930,12 +7960,17 @@ Se prende desde el Registro.</source>
         <translation>移除</translation>
     </message>
     <message>
-        <location line="+18" />
-        <source>Agregar ventana</source>
-        <translation>添加窗口</translation>
+        <location line="+11" />
+        <source>Agregar ventana…</source>
+        <translation>添加窗口…</translation>
     </message>
     <message>
-        <location line="+6" />
+        <location line="+2" />
+        <source>Elegir qué muestra la ventana nueva</source>
+        <translation>选择新窗口显示的内容</translation>
+    </message>
+    <message>
+        <location line="+4" />
         <source>Arrastrá los rectángulos; la esquina los agranda. Aplicada, se ve en el acto.</source>
         <translation>拖动矩形；拖动角可调整大小。已应用时立即生效。</translation>
     </message>
@@ -9233,7 +9268,7 @@ Se prende desde el Registro.</source>
 <context>
     <name>EscritorioViewModel</name>
     <message>
-        <location filename="../src/app/ui/EscritorioViewModel.cpp" line="+136" />
+        <location filename="../src/app/ui/EscritorioViewModel.cpp" line="+145" />
         <source>No hay un monitor «%1»: decí su número, su nombre o su id.</source>
         <translation>没有名为「%1」的显示器：请提供其编号、名称或 ID。</translation>
     </message>
@@ -9241,6 +9276,14 @@ Se prende desde el Registro.</source>
         <location line="+2" />
         <source>El monitor «%1» no está conectado.</source>
         <translation>显示器「%1」未连接。</translation>
+    </message>
+</context>
+<context>
+    <name>EsquemaDistribucion</name>
+    <message>
+        <location filename="../src/app/qml/controls/EsquemaDistribucion.qml" line="+55" />
+        <source>Sin ventanas</source>
+        <translation>没有窗口</translation>
     </message>
 </context>
 <context>
@@ -25525,12 +25568,17 @@ Agregale imágenes desde la pestaña Archivos.</source>
 <context>
     <name>PantallasConectadas</name>
     <message>
-        <location filename="../src/app/qml/controls/PantallasConectadas.qml" line="+19" />
+        <location filename="../src/app/qml/controls/PantallasConectadas.qml" line="+22" />
         <source>Pantallas conectadas</source>
         <translation>已连接的屏幕</translation>
     </message>
+    <message>
+        <location line="+17" />
+        <source>Qué muestra este monitor</source>
+        <translation>此显示器显示的内容</translation>
+    </message>
     <message numerus="yes">
-        <location line="+8" />
+        <location line="+14" />
         <source>%n monitor</source>
         <translation>
             <numerusform>%n 台显示器</numerusform>
@@ -25574,27 +25622,32 @@ Agregale imágenes desde la pestaña Archivos.</source>
         <translation>未显示任何内容</translation>
     </message>
     <message>
-        <location line="+16" />
+        <location line="+11" />
+        <source>Cambiar qué muestra…</source>
+        <translation>更改显示内容…</translation>
+    </message>
+    <message>
+        <location line="+0" />
+        <source>Elegir qué mostrar…</source>
+        <translation>选择要显示的内容…</translation>
+    </message>
+    <message>
+        <location line="+4" />
+        <source>Buscar entre las escenas, los videos, las páginas, las distribuciones… y verlo antes de ponerlo</source>
+        <translation>在场景、视频、页面、布局……中搜索，并在放置前预览</translation>
+    </message>
+    <message>
+        <location line="-148" />
         <source>Poner</source>
         <translation>设置</translation>
     </message>
     <message>
-        <location line="+3" />
-        <source>Que este monitor muestre solo esto</source>
-        <translation>让此显示器只显示此内容</translation>
-    </message>
-    <message>
-        <location line="+3" />
+        <location line="+1" />
         <source>Sumar</source>
         <translation>添加</translation>
     </message>
     <message>
-        <location line="+3" />
-        <source>Agregarlo a lo que ya muestra: van en grilla</source>
-        <translation>添加到其已显示的内容中：以网格排列</translation>
-    </message>
-    <message>
-        <location line="+2" />
+        <location line="+149" />
         <source>Pantalla completa</source>
         <translation>全屏</translation>
     </message>
@@ -25617,7 +25670,7 @@ Agregale imágenes desde la pestaña Archivos.</source>
 <context>
     <name>PantallasPage</name>
     <message>
-        <location filename="../src/app/qml/pages/PantallasPage.qml" line="+66" />
+        <location filename="../src/app/qml/pages/PantallasPage.qml" line="+68" />
         <source>mostrando</source>
         <translation>显示中</translation>
     </message>
@@ -25661,8 +25714,18 @@ Agregale imágenes desde la pestaña Archivos.</source>
         <source>Pantallas de red</source>
         <translation>网络屏幕</translation>
     </message>
+    <message>
+        <location line="+17" />
+        <source>Monitores</source>
+        <translation>显示器</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>Distribuciones</source>
+        <translation>布局</translation>
+    </message>
     <message numerus="yes">
-        <location line="+24" />
+        <location line="+20" />
         <source>%n mostrando</source>
         <translation>
             <numerusform>%n 个显示中</numerusform>
@@ -25828,7 +25891,27 @@ Agregale imágenes desde la pestaña Archivos.</source>
         <translation>显示轮播</translation>
     </message>
     <message>
-        <location line="+68" />
+        <location line="+17" />
+        <source>Elegir qué mostrar…</source>
+        <translation>选择要显示的内容…</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>Buscar qué mostrar en la TV y verlo antes</source>
+        <translation>搜索要在电视上显示的内容并预览</translation>
+    </message>
+    <message>
+        <location line="+4" />
+        <source>Qué mostrar en la TV</source>
+        <translation>在电视上显示什么</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>Elegir</source>
+        <translation>选择</translation>
+    </message>
+    <message>
+        <location line="+48" />
         <source>Escribirlo a mano (abajo)</source>
         <translation>手动输入（下方）</translation>
     </message>
@@ -27279,6 +27362,29 @@ De frente, de costado, con anteojos y sin: así se la reconoce en el día real.<
         <location line="+229" />
         <source>No hay canal libre para mandarles la escena «%1» a los remotos (las pantallas usan los 4)</source>
         <translation>没有空闲通道可将「%1」场景发送给远程成员（屏幕已占用全部 4 个）</translation>
+    </message>
+</context>
+<context>
+    <name>PreviewCosa</name>
+    <message>
+        <location filename="../src/app/qml/controls/PreviewCosa.qml" line="+85" />
+        <source>Elegí algo de la lista para verlo acá.</source>
+        <translation>从列表中选择一项即可在此查看。</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Armando la vista previa…</source>
+        <translation>正在生成预览…</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Solo para una TV de la red: se ve cuando se la manda.</source>
+        <translation>仅用于网络电视：发送后才会显示。</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Sin vista previa.</source>
+        <translation>无预览。</translation>
     </message>
 </context>
 <context>
@@ -31611,6 +31717,54 @@ Para la escena base de la que salen las demás.</source>
         <location line="+2" />
         <source>«%1» no tiene PTZ: prendé el digital o configurá su motor</source>
         <translation>「%1」没有 PTZ：请开启数字 PTZ 或设置其电机</translation>
+    </message>
+</context>
+<context>
+    <name>SelectorCosas</name>
+    <message>
+        <location filename="../src/app/qml/controls/SelectorCosas.qml" line="+31" />
+        <source>Qué mostrar</source>
+        <translation>显示什么</translation>
+    </message>
+    <message>
+        <location line="+3" />
+        <source>Elegir</source>
+        <translation>选择</translation>
+    </message>
+    <message>
+        <location line="+66" />
+        <source>%1 de %2</source>
+        <translation>%1 / %2</translation>
+    </message>
+    <message>
+        <location line="+7" />
+        <source>Buscar: escena, invitado, página, distribución…</source>
+        <translation>搜索：场景、嘉宾、页面、布局…</translation>
+    </message>
+    <message>
+        <location line="+12" />
+        <source>Todo</source>
+        <translation>全部</translation>
+    </message>
+    <message>
+        <location line="+69" />
+        <source>No hay nada para mostrar acá todavía.</source>
+        <translation>这里还没有可显示的内容。</translation>
+    </message>
+    <message>
+        <location line="+0" />
+        <source>Nada coincide con la búsqueda.</source>
+        <translation>没有符合搜索的结果。</translation>
+    </message>
+    <message>
+        <location line="+38" />
+        <source>Lo elegido ya no existe: elegí otra cosa.</source>
+        <translation>所选内容已不存在：请另选。</translation>
+    </message>
+    <message>
+        <location line="+7" />
+        <source>Cancelar</source>
+        <translation>取消</translation>
     </message>
 </context>
 <context>
@@ -37412,7 +37566,7 @@ Cerrá esto y usá «Armar un carrusel».</source>
 <context>
     <name>VistaCatalogo</name>
     <message>
-        <location filename="../src/app/qml/controls/VistaCatalogo.qml" line="+105" />
+        <location filename="../src/app/qml/controls/VistaCatalogo.qml" line="+119" />
         <source>%1
 Elegí otra cosa en Salidas → Pantallas.</source>
         <translation>%1
@@ -44214,7 +44368,7 @@ Elegí otra cosa en Salidas → Pantallas.</source>
 <context>
     <name>arranque</name>
     <message>
-        <location filename="../src/app/arranque/GuiMode.cpp" line="+176" />
+        <location filename="../src/app/arranque/GuiMode.cpp" line="+174" />
         <source>arranque: el cartel de carga ya se ve</source>
         <translation>启动：启动画面已显示</translation>
     </message>
@@ -44264,7 +44418,7 @@ Elegí otra cosa en Salidas → Pantallas.</source>
         <translation>启动：应用模型，%1 毫秒</translation>
     </message>
     <message>
-        <location line="+42" />
+        <location line="+43" />
         <source>Abriendo la interfaz…</source>
         <translation>正在打开界面…</translation>
     </message>
@@ -60659,7 +60813,7 @@ LO QUE HAY QUE SABER AL PRENDERLO: la salvaguarda de aprobaciones (`mcp.approval
         <location line="+1" />
         <location filename="../src/app/mcp/McpBotoneraTools.cpp" line="-485" />
         <location filename="../src/app/mcp/McpFacebookTools.cpp" line="+165" />
-        <location filename="../src/app/mcp/McpPantallaTools.cpp" line="+437" />
+        <location filename="../src/app/mcp/McpPantallaTools.cpp" line="+438" />
         <location filename="../src/app/mcp/McpQrTools.cpp" line="+270" />
         <location filename="../src/app/mcp/McpRoomTools.cpp" line="+740" />
         <location filename="../src/app/mcp/McpService.cpp" line="-581" />
@@ -62086,7 +62240,7 @@ EL `id` QUE DEVUELVE SE USA TAL CUAL en `audio_module_add`. Los seis del catalog
     <message>
         <location line="+1" />
         <location line="+146" />
-        <location filename="../src/app/mcp/McpPantallaTools.cpp" line="+705" />
+        <location filename="../src/app/mcp/McpPantallaTools.cpp" line="+728" />
         <location filename="../src/app/mcp/McpVideoTools.cpp" line="+132" />
         <source>Borrada.</source>
         <translation>已删除。</translation>
@@ -69648,7 +69802,7 @@ Si en el destino ya hay algo con ese nombre, se numera en vez de pisar. Las carp
         <translation>建议已显示在操作员栏中（id %1）。其发送的内容（或忽略）会发到您的聊天中。</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpPantallaTools.cpp" line="-977" />
+        <location filename="../src/app/mcp/McpPantallaTools.cpp" line="-1000" />
         <source>Pantallas externas</source>
         <translation>外部屏幕</translation>
     </message>
@@ -69974,7 +70128,22 @@ Duraciones: un QR necesita al menos 15 segundos para que alguien lo saque del bo
         <translation>可以显示什么</translation>
     </message>
     <message>
-        <location line="+39" />
+        <location line="+10" />
+        <source>`monitor`: true si se puede dibujar en esta maquina (monitor_asignar, ui_panel_window con `cosa`). `red`: el tipo de pantalla_mostrar que lo lleva a una TV (vacio si no viaja). Los ids son estables: «escena:&lt;nombre&gt;», «multiview:&lt;id&gt;», «pagina:&lt;id&gt;», «tarjeta:&lt;tipo&gt;», «ptz:&lt;entrada&gt;», «programa», «preview», «fondo», «web:&lt;tipo&gt;» (solo TV: un cartel, un QR, la hora...). «distribucion:&lt;id&gt;» es una distribucion de pantallas guardada (pantallas_distribuciones_listar), entera en un monitor o una ventana; no va a una TV ni adentro de otra distribucion. `buscar` filtra por palabras (sin tildes, todas, en cualquier orden) en el titulo, el tipo y el id, igual que el buscador de la pagina Pantallas; `tipo` deja un tipo solo (escena, video, distribucion, pagina, panel, tarjeta, multiview, programa, fondo, web, registro).</source>
+        <translation>`monitor`：true 表示可在本机上绘制（monitor_asignar、带 `cosa` 的 ui_panel_window）。`red`：将其送到电视的 pantalla_mostrar 类型（不能传输时为空）。id 是稳定的：「escena:&lt;nombre&gt;」「multiview:&lt;id&gt;」「pagina:&lt;id&gt;」「tarjeta:&lt;tipo&gt;」「ptz:&lt;entrada&gt;」「programa」「preview」「fondo」「web:&lt;tipo&gt;」（仅电视：公告、二维码、时间...）。「distribucion:&lt;id&gt;」是已保存的屏幕布局（pantallas_distribuciones_listar），可整体放在一台显示器或一个窗口中；不能发送到电视，也不能放进另一个布局。`buscar` 按词筛选（忽略重音，全部词，任意顺序），在标题、类型和 id 中查找，与 Pantallas 页面的搜索相同；`tipo` 只保留一种类型（escena、video、distribucion、pagina、panel、tarjeta、multiview、programa、fondo、web、registro）。</translation>
+    </message>
+    <message>
+        <location line="+19" />
+        <source>palabras a buscar en el titulo, el tipo y el id (vacio = todo)</source>
+        <translation>在标题、类型和 id 中搜索的词（为空 = 全部）</translation>
+    </message>
+    <message>
+        <location line="+3" />
+        <source>un tipo solo: escena, video, distribucion, pagina, panel, tarjeta, multiview...</source>
+        <translation>仅一种类型：escena、video、distribucion、pagina、panel、tarjeta、multiview...</translation>
+    </message>
+    <message>
+        <location line="+30" />
         <source>Qué monitores hay y qué muestra cada uno</source>
         <translation>有哪些显示器以及每个显示什么</translation>
     </message>
@@ -70140,7 +70309,7 @@ Plantillas: mosaico-2x1, mosaico-2x2, una-por-monitor, programa-previo-multiview
         <translation>已关闭：%1。</translation>
     </message>
     <message>
-        <location line="-536" />
+        <location line="-559" />
         <source>Las superficies web que estan ABIERTAS y latiendo ahora mismo (la pantalla de un televisor, un carrusel, el teleprompter). Cada una dice que esta mostrando con sus propias palabras.</source>
         <translation>当前「已打开」并保持心跳的网页界面（电视屏幕、轮播、提词器）。每个都以自己的说法报告正在显示的内容。</translation>
     </message>
@@ -70215,17 +70384,12 @@ Si la superficie no esta viva no pasa nada y la cuenta vuelve en 0: eso quiere d
         <translation>所有可以放到本机显示器、独立窗口或网络电视上的内容：节目、预览、每个场景、每个多画面、面板（名册、提问、表决、调音台、每台摄像机的 PTZ）、仪表板卡片、页面以及仪表板背景。每项都有稳定的 `id`。</translation>
     </message>
     <message>
-        <location line="+4" />
-        <source>`monitor`: true si se puede dibujar en esta maquina (monitor_asignar, ui_panel_window con `cosa`). `red`: el tipo de pantalla_mostrar que lo lleva a una TV (vacio si no viaja). Los ids son estables: «escena:&lt;nombre&gt;», «multiview:&lt;id&gt;», «pagina:&lt;id&gt;», «tarjeta:&lt;tipo&gt;», «ptz:&lt;entrada&gt;», «programa», «preview», «fondo», «web:&lt;tipo&gt;» (solo TV: un cartel, un QR, la hora...).</source>
-        <translation>`monitor`：true 表示可在本机上绘制（monitor_asignar、带 `cosa` 的 ui_panel_window）。`red`：将其送到电视的 pantalla_mostrar 类型（不能传输时为空）。id 是稳定的：「escena:&lt;nombre&gt;」「multiview:&lt;id&gt;」「pagina:&lt;id&gt;」「tarjeta:&lt;tipo&gt;」「ptz:&lt;entrada&gt;」「programa」「preview」「fondo」「web:&lt;tipo&gt;」（仅电视：公告、二维码、时间...）。</translation>
-    </message>
-    <message>
-        <location line="+10" />
+        <location line="+22" />
         <source>filtrar: lo que va a un monitor, lo que va a una TV, o todo</source>
         <translation>筛选：送到显示器的、送到电视的，或全部</translation>
     </message>
     <message>
-        <location line="+25" />
+        <location line="+40" />
         <source>Los monitores de ESTA maquina en su orden fisico (de izquierda a derecha y de arriba abajo), con su id estable, resolucion, si es el principal, y que muestra cada uno (Salidas, Pantallas, Pantallas conectadas). Tambien los recordados que no estan conectados: esos se esperan y su contenido no va a otro monitor.</source>
         <translation>「本机」的显示器，按物理顺序排列（从左到右、从上到下），附带稳定 id、分辨率、是否为主显示器以及各自显示的内容（输出、屏幕、已连接屏幕）。还包括记住但未连接的显示器：会等待它们，其内容不会转到其他显示器。</translation>
     </message>
@@ -89605,6 +89769,11 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>人员签到</translation>
     </message>
     <message>
+        <location line="+1" />
+        <source>Distribución</source>
+        <translation>布局</translation>
+    </message>
+    <message>
         <location line="+58" />
         <source>Programa (lo que sale al aire)</source>
         <translation>节目（播出内容）</translation>
@@ -89620,7 +89789,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>仪表板背景</translation>
     </message>
     <message>
-        <location line="+165" />
+        <location line="+182" />
         <source>%1 (ya no existe)</source>
         <translation>%1（已不存在）</translation>
     </message>
@@ -89658,7 +89827,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>不认识该显示器。</translation>
     </message>
     <message>
-        <location filename="../src/app/pantallas/Distribuciones.cpp" line="+110" />
+        <location filename="../src/app/pantallas/Distribuciones.cpp" line="+119" />
         <source>«%1» no es una disposición: grid, focus, pip o row.</source>
         <translation>「%1」不是有效的排列方式：grid、focus、pip 或 row。</translation>
     </message>
@@ -89685,7 +89854,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         </translation>
     </message>
     <message>
-        <location line="+14" />
+        <location line="+65" />
         <source>Mosaico 2×1</source>
         <translation>拼接 2×1</translation>
     </message>
@@ -89736,6 +89905,11 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>「%1」不能在窗口中显示（只能在网络电视上显示）。</translation>
     </message>
     <message>
+        <location line="+4" />
+        <source>«%1» es una distribución: una ventana de una distribución no puede mostrar otra.</source>
+        <translation>「%1」是一个布局：布局中的窗口不能显示另一个布局。</translation>
+    </message>
+    <message>
         <location line="+5" />
         <source>Cada ventana tiene que mostrar algo: `cosas` con ids de catalogo_listar.</source>
         <translation>每个窗口都必须显示内容：`cosas` 填入 catalogo_listar 中的 id。</translation>
@@ -89770,8 +89944,8 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <location line="+15" />
         <location line="+11" />
         <location line="+14" />
-        <location line="+135" />
-        <location line="+91" />
+        <location line="+134" />
+        <location line="+92" />
         <source>No hay una distribución «%1».</source>
         <translation>没有名为「%1」的布局。</translation>
     </message>

@@ -14,6 +14,7 @@
 //   id       corto y ESTABLE: es lo que se guarda (el monitor recuerda «escena:
 //            Plano general», no un índice) y lo que se pide por MCP.
 //   grupo    programa | escena | multiview | video | tarjeta | panel | pagina | fondo | web | registro
+//            | distribucion
 //   titulo   para leer.
 //   dibujo   cómo se dibuja EN ESTA MÁQUINA (ventana o monitor), o vacío si no
 //            se puede (un cartel de la TV es una página del gateway):
@@ -21,6 +22,10 @@
 //              {modo:"multiview", id}                    — la multivista viva
 //              {modo:"panel", panel:"padron"|"ptz:Cam 1"|"tarjeta:aire"…}
 //              {modo:"pagina", pagina:<índice>, idPagina}
+//              {modo:"distribucion", id, resumen, proporcion, piezas:[{nombre,
+//               titulo, cosas, disposicion, x, y, ancho, alto}]}  — una distribución de pantallas guardada
+//               (pantallas/Distribuciones.hpp) dibujada ENTERA en un solo lugar:
+//               sus ventanas como rectángulos (0..1) de lo que la muestre
 //   red      cómo se manda a una TV (tipo de contenido del cast y sus datos),
 //            o vacío si no viaja.
 //   tarjeta  qué tipo de tarjeta del tablero abre ESTA cosa cuando se la saca a
@@ -113,6 +118,10 @@ class CatalogoVisible : public ListaConClave<CosaVisible> {
         /// Van como «registro:<id>» y solo a la TV: la página con ?pantalla=1
         /// muestra el QR para registrarse desde el celular.
         std::function<QVariantList()> totems;
+        /// Las distribuciones de pantallas guardadas (DistribucionesModel::paraCatalogo):
+        /// [{id, nombre, resumen, piezas}]. Van como «distribucion:<id>»: un monitor o una
+        /// ventana suelta puede mostrar una distribución entera (no a una TV).
+        std::function<QVariantList()> distribuciones;
     };
 
     using Cosa = CosaVisible;
