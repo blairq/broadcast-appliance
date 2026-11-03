@@ -249,7 +249,9 @@ std::shared_ptr<PaqueteSala> PaqueteSala::diferencia(const std::shared_ptr<const
         for (const QJsonValue& v : b.espera) estaban.insert(v.toObject().value("id").toString());
         for (const QJsonValue& v : r->espera) {
             const QJsonObject e = v.toObject();
-            if (!estaban.contains(e.value("id").toString()))
+            // Los que entran ya aprobados (entrada escalonada: sin lobby, admitir a todos) no
+            // «esperan en el lobby»: no se anuncian.
+            if (!estaban.contains(e.value("id").toString()) && !e.value("entrando").toBool())
                 p->llegaronAlLobby << QJsonObject{{"id", e.value("id")}, {"name", e.value("name")}, {"prueba", e.value("prueba")}};
         }
     }

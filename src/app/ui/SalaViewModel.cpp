@@ -290,6 +290,8 @@ void SalaViewModel::alimentarEnlaces(EnlacesViewModel::Fuentes& f) {
         if (l == nullptr) return out;
         for (const QJsonValue& v : l->items()) {
             const QJsonObject pa = v.toObject();
+            // Ya aprobado, esperando su turno para pasar (entrada escalonada): no hay nada que aprobar.
+            if (pa.value("entrando").toBool()) continue;
             out << QVariantMap{{"id", pa.value("uid").toString()},
                                {"nombre", pa.value("name").toString()},
                                {"ip", QString()},
