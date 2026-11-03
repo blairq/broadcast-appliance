@@ -6,6 +6,7 @@
 
 #include "i18n/I18n.hpp"
 
+#include "ajustes/Ajustes.hpp"
 #include "arranque/AppRuntime.hpp"
 #include "asamblea/Cuerpo.hpp"
 #include "escenas/FuenteGrilla.hpp"
@@ -169,6 +170,8 @@ ControlGrillas::ControlGrillas(Partes p, QObject* parent) : QObject(parent), p_(
     reloj_.setInterval(500);
     connect(&reloj_, &QTimer::timeout, this, &ControlGrillas::recalcular);
     reloj_.start();
+    reacomodo_.setSingleShot(true);
+    connect(&reacomodo_, &QTimer::timeout, this, &ControlGrillas::recalcular);
     // El botón «Armar la escena del orador» de las Propiedades.
     grilla::ponerArmarEscenaOrador([this](const std::string& fuente) { avisarError(armarEscenaOrador(fuente)); });
 }
@@ -411,7 +414,13 @@ void ControlGrillas::recalcular() {
     for (const auto& c : cfgs) existen.insert(c.fuente);
     manual_.olvidarFuentesSalvo(existen);
     const std::vector<grilla::Persona> g = gente(ahora, seVe);
+    // Las entradas se juntan (GrillaPersonas.hpp, «LAS ENTRADAS SE JUNTAN»): en caliente.
+    rep_.reacomodoMinMs(ba::ajustes::entero("grilla.reacomodoMinMs", 1500));
     const std::vector<grilla::Resultado> res = rep_.calcular(cfgs, g, manual_, ahora);
+    if (const std::int64_t prox = rep_.proximoReacomodoMs(); prox > 0) {
+        const int falta = static_cast<int>(std::clamp<std::int64_t>(prox - ahora + 5, 5, 60000));
+        if (!reacomodo_.isActive() || reacomodo_.remainingTime() > falta) reacomodo_.start(falta);
+    }
     pasarAEscenas(cfgs, res, g);
 
     // El estado (para la vista y el MCP).
@@ -459,6 +468,8 @@ void ControlGrillas::recalcular() {
                {"personas", personas},
                {"fuera", fuera},
                {"mas", res[i].mas},
+               // Ya llegaron y esperan el próximo reacomodo (grilla.reacomodoMinMs).
+               {"entrando", res[i].entrando},
                // Cuando alguien habla: cómo, quién es el orador, el que se precarga y si se eligió a mano.
                {"al_hablar", c.soloOrador ? "solo_orador" : nombreAlHablar(c.alHablar)},
                {"orador", res[i].orador},

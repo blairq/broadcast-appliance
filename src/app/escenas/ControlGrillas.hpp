@@ -214,6 +214,9 @@ class ControlGrillas : public QObject {
     void avisarMedicion(const json& pedido);
     QTimer reloj_;  ///< el programa y las fuentes cambian por muchos caminos: se mira seguido
     QTimer pronto_; ///< junta varios avisos seguidos en una sola vuelta
+    /// La vuelta en que entran los que esperan el próximo reacomodo (grilla.reacomodoMinMs):
+    /// sin esto entraban con el reloj_ de medio segundo, tarde.
+    QTimer reacomodo_;
 };
 
 } // namespace ba::app::escenas
