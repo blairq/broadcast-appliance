@@ -33,7 +33,9 @@ class SocketHibrido final : public rtc::AsyncPacketSocket, public memoria::Recep
         real_->SignalReadyToSend.connect(this, &SocketHibrido::alListo);
         real_->SubscribeCloseEvent(this, [this](rtc::AsyncPacketSocket*, int err) { NotifyClosed(err); });
         const rtc::SocketAddress local = real_->GetLocalAddress();
-        if (local.family() == AF_INET) {
+        // Solo los enlazados a una IP concreta: el TURN tiene que saber desde qué IP le llega
+        // cada paquete (sus permisos son por IP), y uno en 0.0.0.0 no lo dice.
+        if (local.family() == AF_INET && !rtc::IPIsAny(local.ipaddr())) {
             ipLocal_ = local.ipaddr().v4AddressAsHostOrderInteger();
             puertoLocal_ = static_cast<uint16_t>(local.port());
             punto_ = c_->abrir(ipLocal_, puertoLocal_, hilo_, memoria::Clase::WebrtcUdp, this);
