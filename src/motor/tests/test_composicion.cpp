@@ -277,6 +277,23 @@ void probarTakeAtomico(Reloj& reloj, const Lienzo& lz, std::vector<Entrada*>& es
         es.pop_back();
     }
 
+    // Una capa OCULTA que nunca da cuadro (como un lugar vacío que nadie mira, sin placa) no
+    // frena el corte: no se ve (en la app, «Principal» esperaba el tope por los remotos ocultos).
+    {
+        Escena conOculta;
+        conOculta.nombre = "ConOculta";
+        conOculta.capas.push_back({"verde", 0, 0, 0, 0});
+        Capa oculta{"nuncallega", 0, 0, 160, 90};
+        oculta.orden = 1;
+        oculta.visible = false;
+        conOculta.capas.push_back(oculta);
+        prog.mostrar(conOculta, "corte");
+        esperar(es, prog, 700); // el tope es de 6 s
+        std::printf("take con una capa oculta sin cuadros: en transición %d\n", prog.enTransicion());
+        CHECK(!prog.enTransicion(), "con una capa oculta que no da cuadros, corta sin esperar el tope");
+        CHECK(igual(v.en(320, 180), 0, 255, 0), "y sale la nueva");
+    }
+
     // Una que no llega nunca: al tope (video.esperaCorteMs) corta igual con lo que hay.
     ba::ajustes::poner("video.esperaCorteMs", 1000);
     Escena sinUna;

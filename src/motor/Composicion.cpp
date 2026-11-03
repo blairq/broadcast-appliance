@@ -1016,6 +1016,10 @@ std::vector<std::string> Composicion::nuevasSinCuadro() const {
     std::vector<std::string> faltan;
     for (const auto& [k, r] : ramas_)
         if (r->generacion == generacion_) {
+            // Una capa oculta (o con alfa 0) no se ve: no se espera. Además puede no dar
+            // cuadros nunca: un lugar vacío que nadie mira no arma su placa (sin uso), y el
+            // TAKE esperaba el tope entero (en «Principal», los «Remoto con la palabra» ocultos).
+            if (!r->capa.visible || r->capa.alfa <= 0.0) continue;
             // Sin cuadro todavía, o pasando los de la placa mientras su señal está llegando;
             // una sin video (un micrófono en la escena) no se espera.
             const Espera e = esperarEntrada_ ? esperarEntrada_(r->entrada, r->productor) : Espera::Normal;
