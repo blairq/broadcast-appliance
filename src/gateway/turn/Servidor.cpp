@@ -1248,7 +1248,10 @@ bool Servidor::start(std::string* err) {
     if (s.memoria != nullptr) s.memoria->ponerIpRelay(s.ipRelay);
     for (size_t i = 0; i < s.bucles.size(); ++i) s.frags.push_back(std::make_unique<Fragmento>(s, int(i), s.bucles[i]));
     s.corriendo = true;
-    comun_ = comun;
+    {
+        std::lock_guard<std::mutex> l(comunM_);
+        comun_ = comun;
+    }
     corriendo_ = true;
     // Las escuchas en el fragmento 0; el barrido en cada uno.
     Fragmento* cero = s.frags[0].get();
@@ -1266,7 +1269,11 @@ bool Servidor::start(std::string* err) {
 
 void Servidor::stop() {
     if (!corriendo_.exchange(false)) return;
-    std::shared_ptr<Comun> comun = std::move(comun_);
+    std::shared_ptr<Comun> comun;
+    {
+        std::lock_guard<std::mutex> l(comunM_);
+        comun = comun_;
+    }
     if (comun) {
         comun->corriendo = false;
         Fragmento* cero = comun->frags.empty() ? nullptr : comun->frags[0].get();
@@ -1284,7 +1291,6 @@ void Servidor::stop() {
         comun->tcp = comun->udp = FD_INVALIDO;
         // El estado sigue mirando los contadores (activo = false); los fragmentos se van con
         // la última tarea que los nombre.
-        comun_ = comun;
     }
     // Los hilos propios terminan acá (lo que quedaba en sus colas ve corriendo = false).
     propios_.clear();
@@ -1302,7 +1308,11 @@ json Servidor::estado() const {
     j["realm"] = cfg_.realm;
     j["rtc"] = {cfg_.rtcMin, cfg_.rtcMax};
     j["peersPermitidos"] = cfg_.peersPermitidos;
-    const std::shared_ptr<Comun> s = comun_;
+    std::shared_ptr<Comun> s;
+    {
+        std::lock_guard<std::mutex> l(comunM_);
+        s = comun_;
+    }
     if (s) {
         j["direccionRelay"] = textoDeIp(s->ipRelay);
         j["asignaciones"] = s->nAsig.load();

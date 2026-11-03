@@ -42,6 +42,7 @@
 #include <atomic>
 #include <cstdint>
 #include <memory>
+#include <mutex>
 #include <string>
 #include <vector>
 
@@ -111,6 +112,7 @@ class Servidor {
    private:
     Config cfg_;
     std::vector<std::unique_ptr<BuclePoll>> propios_;
+    mutable std::mutex comunM_; // comun_ (estado() se llama de cualquier hilo)
     std::shared_ptr<Comun> comun_;
     std::atomic<bool> corriendo_{false};
     std::atomic<uint16_t> puertoTcpReal_{0}, puertoUdpReal_{0};
