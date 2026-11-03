@@ -6432,7 +6432,7 @@ El PIN anterior deja de servir para entrar.</source>
 <context>
     <name>ControlWeb</name>
     <message>
-        <location filename="../src/app/control/ControlWeb.cpp" line="+391" />
+        <location filename="../src/app/control/ControlWeb.cpp" line="+412" />
         <source>Este aparato fue quitado.</source>
         <translation>此设备已被移除。</translation>
     </message>
@@ -6440,7 +6440,7 @@ El PIN anterior deja de servir para entrar.</source>
 <context>
     <name>ControlWebGateway</name>
     <message>
-        <location filename="../src/app/control/ControlWebGateway.cpp" line="+158" />
+        <location filename="../src/app/control/ControlWebGateway.cpp" line="+179" />
         <source>El gateway no está andando: el navegador no tendría a quién conectarse.</source>
         <translation>gateway 未运行：浏览器将无处可连。</translation>
     </message>
@@ -6738,7 +6738,7 @@ El PIN anterior deja de servir para entrar.</source>
         <translation>卡片</translation>
     </message>
     <message>
-        <location line="+33" />
+        <location line="+34" />
         <source>Sacar a ventana</source>
         <translation>弹出到窗口</translation>
     </message>
@@ -6783,7 +6783,7 @@ El PIN anterior deja de servir para entrar.</source>
         <translation>弹出到独立窗口</translation>
     </message>
     <message>
-        <location line="+2" />
+        <location line="+3" />
         <source>Mas oscuro</source>
         <translation>更暗</translation>
     </message>
@@ -16602,7 +16602,7 @@ La matriz no cambia lo que entra: decide a qué salidas va (las columnas: el pro
         <translation>无信号</translation>
     </message>
     <message>
-        <location line="+14" />
+        <location line="+15" />
         <source>Sacar a una ventana (p. ej. otro monitor)</source>
         <translation>弹出到独立窗口（例如用于另一台显示器）</translation>
     </message>
@@ -34373,7 +34373,7 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
 <context>
     <name>StudioViewModel</name>
     <message>
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="+138" />
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="+142" />
         <source>%1 (no se pudo: %2)</source>
         <translation>%1（失败：%2）</translation>
     </message>
@@ -34408,7 +34408,7 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
         <translation>无响应</translation>
     </message>
     <message>
-        <location line="+101" />
+        <location line="+132" />
         <source>Conferencia reiniciada con la configuración nueva.</source>
         <translation>会议已使用新设置重启。</translation>
     </message>
@@ -34979,6 +34979,75 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
     </message>
 </context>
 <context>
+    <name>TableroWeb</name>
+    <message>
+        <location filename="../src/tablero-web/qml/TableroWeb.qml" line="+39" />
+        <source>Eso se hace en la app.</source>
+        <translation>这要在应用里操作。</translation>
+    </message>
+    <message>
+        <location line="+11" />
+        <source>¿Cortar la transmisión?</source>
+        <translation>停止直播？</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>La emisión en vivo se va a detener.</source>
+        <translation>直播将会停止。</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Cortar</source>
+        <translation>停止</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <location line="+15" />
+        <source>Cancelar</source>
+        <translation>取消</translation>
+    </message>
+    <message>
+        <location line="-3" />
+        <source>Cambia el aire</source>
+        <translation>这会改变正在播出的内容</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>Sí, hacelo</source>
+        <translation>是，执行</translation>
+    </message>
+    <message>
+        <location line="+26" />
+        <source>PREVIEW · %1</source>
+        <translation>预览 · %1</translation>
+    </message>
+    <message>
+        <location line="+0" />
+        <source>nada</source>
+        <translation>无</translation>
+    </message>
+    <message>
+        <location line="+15" />
+        <source>TAKE</source>
+        <translation>TAKE</translation>
+    </message>
+    <message>
+        <location line="+17" />
+        <source>CUT</source>
+        <translation>CUT</translation>
+    </message>
+    <message>
+        <location line="+8" />
+        <source>PROGRAMA · %1</source>
+        <translation>节目 · %1</translation>
+    </message>
+    <message>
+        <location line="+19" />
+        <source>Sin señal</source>
+        <translation>无信号</translation>
+    </message>
+</context>
+<context>
     <name>TarjetaEnVentana</name>
     <message>
         <location filename="../src/app/qml/controls/TarjetaEnVentana.qml" line="+31" />
@@ -35255,7 +35324,7 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
         <translation>可以改进</translation>
     </message>
     <message numerus="yes">
-        <location line="+40" />
+        <location line="+43" />
         <source>%n s</source>
         <comment>segundos, abreviado</comment>
         <translation>
@@ -44948,7 +45017,7 @@ Elegí otra cosa en Salidas → Pantallas.</source>
     </message>
     <message>
         <location line="-57" />
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="-900" />
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="-931" />
         <source>arranque: %1 tardó %2 ms</source>
         <translation>启动：%1 耗时 %2 毫秒</translation>
     </message>
@@ -49841,7 +49910,8 @@ Datos (de %2): %3</source>
         <translation>外部访问（隧道，带 PIN）：已启用</translation>
     </message>
     <message>
-        <location line="+45" />
+        <location line="-254" />
+        <location line="+300" />
         <source>Este aparato no está emparejado (o fue quitado).</source>
         <translation>此设备未配对（或已被移除）。</translation>
     </message>
@@ -49856,7 +49926,7 @@ Datos (de %2): %3</source>
         <translation>已从 %1 连接</translation>
     </message>
     <message>
-        <location line="+108" />
+        <location line="+111" />
         <source>La app no está lista para recibir órdenes.</source>
         <translation>应用尚未准备好接收指令。</translation>
     </message>
@@ -49871,7 +49941,8 @@ Datos (de %2): %3</source>
         <translation>请求了不存在的「%1」</translation>
     </message>
     <message>
-        <location line="+1" />
+        <location line="-433" />
+        <location line="+434" />
         <source>No existe la herramienta «%1».</source>
         <translation>工具「%1」不存在。</translation>
     </message>
@@ -49881,7 +49952,8 @@ Datos (de %2): %3</source>
         <translation>已拒绝 %1（类别「%2」不在其配置文件中）</translation>
     </message>
     <message>
-        <location line="+1" />
+        <location line="-434" />
+        <location line="+435" />
         <source>«%1» (categoría «%2») no está en el perfil de este aparato. Lo amplía una persona desde la app.</source>
         <translation>「%1」（类别「%2」）不在此设备的配置文件中。须由人工在应用中扩大。</translation>
     </message>
@@ -49891,12 +49963,18 @@ Datos (de %2): %3</source>
         <translation>待确认（在播操作，正在播出）%1 %2</translation>
     </message>
     <message>
-        <location line="+5" />
+        <location line="-435" />
+        <location line="+440" />
         <source>«%1» cambia lo que sale y hay aire (transmisión o grabación). ¿Lo hacés igual?</source>
         <translation>「%1」会改变输出内容，且当前正在播出（推流或录制）。仍要执行吗？</translation>
     </message>
     <message>
-        <location line="+5" />
+        <location line="-452" />
+        <source>La app todavía está arrancando.</source>
+        <translation>应用仍在启动中。</translation>
+    </message>
+    <message>
+        <location line="+457" />
         <source>llamó (confirmada) %1 %2</source>
         <translation>已调用（已确认）%1 %2</translation>
     </message>
@@ -54801,7 +54879,7 @@ Datos (de %2): %3</source>
         <translation>ba-web：已退出；%1 毫秒后重新启动</translation>
     </message>
     <message>
-        <location filename="../src/gateway/Borde.cpp" line="+90" />
+        <location filename="../src/gateway/Borde.cpp" line="+92" />
         <location line="+7" />
         <location filename="../src/gateway/Botonera.cpp" line="+91" />
         <location line="+2" />
@@ -54863,7 +54941,7 @@ Datos (de %2): %3</source>
     </message>
     <message>
         <location line="+3" />
-        <location filename="../src/gateway/ControlWeb.cpp" line="+156" />
+        <location filename="../src/gateway/ControlWeb.cpp" line="+195" />
         <location filename="../src/gateway/proxy/ProxyNombres.cpp" line="+430" />
         <source>solo desde la red local</source>
         <translation>仅限本地网络</translation>
@@ -54974,7 +55052,7 @@ Datos (de %2): %3</source>
         <translation>网页控制：已拒绝 %1 %2（来源不明）</translation>
     </message>
     <message>
-        <location line="+95" />
+        <location line="+96" />
         <source>demasiados aparatos conectados</source>
         <translation>连接的设备过多</translation>
     </message>
@@ -54999,7 +55077,7 @@ Datos (de %2): %3</source>
         <translation>网页控制：%1 已从 %2 连接 [%3]</translation>
     </message>
     <message>
-        <location line="+34" />
+        <location line="+39" />
         <source>control web: %1 manda demasiado; se corta</source>
         <translation>网页控制：%1 发送过多；已断开</translation>
     </message>
@@ -56976,7 +57054,7 @@ Datos (de %2): %3</source>
         <translation>否</translation>
     </message>
     <message>
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="+934" />
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="+965" />
         <source>«%1» no arrancó al abrir: %2</source>
         <translation>「%1」打开时未启动：%2</translation>
     </message>
@@ -96776,7 +96854,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
     <name>web/comun</name>
     <message>
         <location filename="../src/gateway/Botonera.cpp" line="-113" />
-        <location filename="../src/gateway/ControlWeb.cpp" line="-151" />
+        <location filename="../src/gateway/ControlWeb.cpp" line="-156" />
         <source>demasiados intentos; esperá 10 minutos</source>
         <translation>尝试次数过多；请等待 10 分钟</translation>
     </message>
@@ -96797,12 +96875,12 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>此设备已被撤销。</translation>
     </message>
     <message>
-        <location filename="../src/gateway/ControlWeb.cpp" line="-48" />
+        <location filename="../src/gateway/ControlWeb.cpp" line="-49" />
         <source>Este aparato fue revocado (o se apagó el acceso desde afuera).</source>
         <translation>此设备已被撤销（或外部访问已关闭）。</translation>
     </message>
     <message>
-        <location line="+133" />
+        <location line="+134" />
         <source>Demasiados intentos: esperá 10 minutos.</source>
         <translation>尝试次数过多：请等待 10 分钟。</translation>
     </message>

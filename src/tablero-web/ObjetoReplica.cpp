@@ -192,7 +192,7 @@ void ObjetoReplica::resultado(const QString& clave, const QVariant& v) {
 
 QVariant ObjetoReplica::replicaLlamar(const QString& nombre, const QVariantList& args, bool conValor) {
     if (!conValor) {
-        cliente_->llamar(id_, nombre, args);
+        cliente_->llamar(id_, nombre, args, false);
         return {};
     }
     const QString clave = cliente_->claveDe(nombre, args);

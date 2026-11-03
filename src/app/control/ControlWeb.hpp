@@ -233,6 +233,11 @@ class ControlWeb : public QObject {
     int conectados() const { return static_cast<int>(conns_.size()); }
     /// Le manda `msg` a esa conexión (por el gateway). Para la réplica del tablero web.
     void mandarA(const std::string& conexion, const json& msg) { mandar(conexion, msg); }
+    /// Para la réplica del tablero web: ¿ese aparato puede hacer lo que haría `herramienta`
+    /// (la equivalente de una función o propiedad del dashboard)? Las mismas reglas que llamar:
+    /// el perfil (`lectura`: si solo mira) y, si toca el aire y hay aire, pedir confirmación.
+    /// {ok:true} | {ok:false, error} | {ok:false, confirmar:true, texto}.
+    json autorizar(const std::string& aparato, const std::string& herramienta, bool lectura, bool confirmado) const;
     /// Deja en el registro (componente «control-web») lo que hizo un aparato.
     void anotar(const std::string& aparato, const std::string& texto) const { auditar(aparato, texto); }
 

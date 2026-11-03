@@ -59,6 +59,16 @@ ApplicationWindow {
     Connections {
         target: Replica
         function onAviso(texto, nivel) { avisos.mostrar(texto, nivel) }
+        // Toca el aire y hay aire: la misma pregunta que el control web.
+        function onConfirmar(id, texto) {
+            win.confirm({
+                title: qsTr("Cambia el aire"),
+                text: texto,
+                accept: qsTr("Sí, hacelo"),
+                reject: qsTr("Cancelar"),
+                action: function() { Replica.confirmarLlamada(id) }
+            })
+        }
     }
 
     // --- Arriba: preview, programa y TAKE ----------------------------------------------

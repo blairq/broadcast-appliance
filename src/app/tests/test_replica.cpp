@@ -17,6 +17,7 @@
 #include <QQmlEngine>
 #include <QTimer>
 
+#include <algorithm>
 #include <cstdio>
 #include <memory>
 #include <string>
@@ -118,6 +119,10 @@ class Raiz : public QObject {
     }
     Q_INVOKABLE QString titulo(const QString& k) const { return "título de " + k + " (" + QString::number(c) + ")"; }
     Q_INVOKABLE void copiar(const QString&) { ++copias; }
+    Q_INVOKABLE void restar(int k) {
+        c -= k;
+        emit contadorCambio();
+    }
     int copias = 0;
    signals:
     void contadorCambio();
@@ -143,6 +148,18 @@ int main(int argc, char** argv) {
     ReplicaPublicador pub(&raiz);
     pub.negar({"ventanas"});
     pub.negarFunciones({"copiar"});
+    // La lista permitida (en la app sale de la QML del dashboard): «restar» no está.
+    pub.setPermitidas({{"Studio", "sumar", false, "herr_aire"},
+                       {"Studio", "nombre", true, ""},
+                       {"Studio", "titulo", false, "herr_lectura"},
+                       {"Studio.lista", "quitarPrimera", false, ""}});
+    bool hayAire = false;
+    std::vector<std::string> autorizadas;
+    pub.ganchos().autorizar = [&](const std::string&, const std::string& h, bool lectura, bool confirmado) -> json {
+        autorizadas.push_back(h + (lectura ? ":ver" : ""));
+        if (h == "herr_aire" && hayAire && !confirmado) return {{"ok", false}, {"confirmar", true}, {"texto", "¿seguro?"}};
+        return {{"ok", true}};
+    };
     ClienteReplica cli;
     QQmlEngine engine;
     cli.setMotor(&engine);
@@ -203,6 +220,7 @@ int main(int argc, char** argv) {
                 Item { required property string titulo; required property int valor; Component.onCompleted: parent.creadas++ }
             }
             function hacer() { Studio.sumar(5); Studio.nombre = "desde la web"; Studio.lista.quitarPrimera() }
+            function sumarUno() { Studio.sumar(1) }
         })",
                  QUrl("qrc:/prueba.qml"));
     std::unique_ptr<QObject> vista(comp.create());
@@ -261,9 +279,28 @@ int main(int argc, char** argv) {
         for (const auto& m : recibidos[i].value("m", json::array()))
             if (m.value("op", "") == "resultado" && m.value("id", 0) == 999 && !m.value("ok", true)) rechazo = true;
     CHECK(rechazo, "y se contesta que no");
+    anotado.clear();
+    cli.enviar(QByteArray(R"({"type":"replica","op":"llamar","id":998,"o":"Studio","m":"restar","a":[1]})"));
+    bombear(pub, cli);
+    CHECK(raiz.c == 8, "una función fuera de la lista permitida no se llama");
+    CHECK(!anotado.empty() && anotado[0].find("RECHAZADA") != std::string::npos, "y queda en el registro");
+    CHECK(std::find(autorizadas.begin(), autorizadas.end(), "herr_lectura:ver") != autorizadas.end(),
+          "lo que devuelve algo se autoriza como lectura de su herramienta");
+
+    // --- De aire con aire: pide confirmación, y recién confirmada se hace.
+    hayAire = true;
+    int idConfirmar = -1;
+    QObject::connect(&cli, &ClienteReplica::confirmar, [&](int id, const QString&) { idConfirmar = id; });
+    QMetaObject::invokeMethod(vista.get(), "sumarUno");
+    bombear(pub, cli);
+    CHECK(raiz.c == 8 && idConfirmar > 0, "algo de aire con aire no se hace: se pide confirmar");
+    cli.confirmarLlamada(idConfirmar);
+    bombear(pub, cli);
+    CHECK(raiz.c == 9, "confirmado, se hace");
+    hayAire = false;
     cli.enviar(QByteArray(R"({"type":"replica","op":"poner","o":"Studio","p":"contador","v":99})"));
     bombear(pub, cli);
-    CHECK(raiz.c == 8, "una propiedad de solo lectura no se escribe");
+    CHECK(raiz.c == 9, "una propiedad de solo lectura no se escribe");
 
     // --- Video.
     cli.pedirVideo(&cli, "program", 640, 25);

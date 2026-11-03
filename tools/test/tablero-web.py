@@ -163,7 +163,11 @@ def navegador(base, token, t, m, capturas, webrtc):
         cdp = Cdp(next(x for x in pags if x.get("type") == "page")["webSocketDebuggerUrl"])
         cdp.llamar("Page.enable")
         cdp.llamar("Runtime.enable")
-        url = base + "/control/app/?hud=1#t=" + token
+        # El token, como lo deja el emparejamiento: en el localStorage del origen (nunca en la URL).
+        cdp.llamar("Page.navigate", {"url": base + "/control/app/licencia/LEEME.txt"})
+        time.sleep(1)
+        cdp.evaluar("localStorage.setItem('ba-control-token', %s)" % json.dumps(token))
+        url = base + "/control/app/?hud=1"
         t0 = time.time()
         cdp.llamar("Page.navigate", {"url": url})
         listo = False

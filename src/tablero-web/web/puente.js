@@ -88,13 +88,6 @@
   };
 
   // --- La conexión ------------------------------------------------------------------------
-  // #t=<token>: lo guarda y lo saca de la barra (el fragmento no viaja al servidor). Es lo
-  // mismo que emparejar: lo usan las pruebas, que emparejan por MCP.
-  const frag = new URLSearchParams(location.hash.slice(1));
-  if (/^[0-9a-f]{64}$/.test(frag.get("t") || "")) {
-    try { localStorage.setItem(CLAVE_TOKEN, frag.get("t")); } catch (_) {}
-    history.replaceState(null, "", location.pathname + location.search);
-  }
   const token = leer(CLAVE_TOKEN);
   if (!token) {
     aviso("Este aparato no está emparejado",

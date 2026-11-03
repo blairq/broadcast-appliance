@@ -64,7 +64,10 @@ class ClienteReplica : public QObject {
 
     // --- Lo que usan los objetos ---
     void abrir(const QString& id);
-    int llamar(const QString& id, const QString& metodo, const QVariantList& args);
+    /// `conValor`: la función devuelve algo (un error no se avisa: la vista sigue con lo que tenía).
+    int llamar(const QString& id, const QString& metodo, const QVariantList& args, bool conValor = true);
+    /// La persona confirmó algo que toca el aire ({op:"confirmar"}): se manda de nuevo, confirmado.
+    Q_INVOKABLE void confirmarLlamada(int id);
     /// «nombre([args en JSON])»: la clave de lo que devolvió una función.
     QString claveDe(const QString& metodo, const QVariantList& args) const;
     void poner(const QString& id, const QString& prop, const QVariant& v);
@@ -86,8 +89,10 @@ class ClienteReplica : public QObject {
     /// Llegó un cuadro de esa clave (ya descomprimido). `t`: ms desde 1970 en que llegó a la app.
     void cuadro(const QString& clave, const QImage& imagen, qint64 t, quint64 serial);
     void enlaceWebrtc(const QString& url, const QString& error);
-    /// Lo que la app le avisa al operador (Studio.notify).
+    /// Lo que la app le avisa al operador (Studio.notify), o por qué no se hizo un botón.
     void aviso(const QString& texto, const QString& nivel);
+    /// Toca el aire y hay aire: preguntarle a la persona (confirmarLlamada(id) si dice que sí).
+    void confirmar(int id, const QString& texto);
     /// La app pidió volver a empezar o se perdió el hilo: hay que reconectar.
     void reiniciar();
 
@@ -106,6 +111,7 @@ class ClienteReplica : public QObject {
     QTimer reloj_;
     int siguienteId_ = 1;
     QHash<int, QPair<QString, QString>> pendientes_; ///< id → objeto, clave de la llamada
+    QHash<int, QJsonObject> enviados_;               ///< id → lo que se mandó (llamar/poner sin valor)
     struct PedidoVideo {
         QString clave;
         int ancho = 0, fps = 0;

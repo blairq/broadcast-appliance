@@ -97,6 +97,63 @@ ReplicaPublicador::ReplicaPublicador(QObject* raiz, const QString& nombreRaiz, Q
 
 ReplicaPublicador::~ReplicaPublicador() = default;
 
+std::vector<ReplicaPublicador::Permitida> ReplicaPublicador::permitidasDeLaApp() {
+    static const char* const kTexto =
+#include "control/ReplicaPermitidas.inc"
+        ;
+    std::vector<Permitida> out;
+    const json j = json::parse(kTexto, nullptr, false);
+    if (!j.is_array()) return out;
+    for (const auto& e : j) {
+        Permitida p;
+        p.objeto = QString::fromStdString(e.value("o", std::string()));
+        p.nombre = QString::fromStdString(e.value("n", std::string()));
+        p.poner = e.value("tipo", std::string()) == "poner";
+        p.mcp = e.contains("mcp") && e["mcp"].is_string() ? e["mcp"].get<std::string>() : std::string();
+        out.push_back(std::move(p));
+    }
+    return out;
+}
+
+QObject* ReplicaPublicador::resolver(const QString& camino) const {
+    const QStringList partes = camino.split(QLatin1Char('.'));
+    if (partes.isEmpty() || partes.front() != nombreRaiz_ || !raiz_) return nullptr;
+    QObject* o = raiz_;
+    for (int i = 1; i < partes.size() && o != nullptr; ++i)
+        o = o->property(partes[i].toUtf8().constData()).value<QObject*>();
+    return o;
+}
+
+std::string ReplicaPublicador::permiso(Con& c, QObject* o, const QString& oid, const QString& nombre, bool poner, bool lectura,
+                                       const json& m, bool& confirmar) {
+    confirmar = false;
+    const Permitida* p = nullptr;
+    for (const Permitida& x : permitidas_)
+        if (x.poner == poner && x.nombre == nombre && resolver(x.objeto) == o) {
+            p = &x;
+            break;
+        }
+    const std::string que = oid.toStdString() + "." + nombre.toStdString();
+    if (p == nullptr) {
+        if (g_.anotar && c.rechazosAnotados.insert(que).second)
+            g_.anotar(c.aparato, "tablero web: RECHAZADA " + que + " (fuera de la lista permitida)");
+        return "eso no se puede hacer desde el tablero web";
+    }
+    if (p->mcp.empty() || !g_.autorizar) return {};
+    const json r = g_.autorizar(c.aparato, p->mcp, lectura, m.value("confirmado", false));
+    if (r.value("ok", false)) return {};
+    if (r.value("confirmar", false)) {
+        confirmar = true;
+        if (g_.anotar) g_.anotar(c.aparato, "tablero web: a confirmar (de aire, con aire) " + que);
+        json e = json::array();
+        encolar(c, {{"op", "confirmar"}, {"id", m.contains("id") ? m["id"] : json(nullptr)}, {"texto", r.value("texto", std::string())}},
+                e);
+        return "a confirmar";
+    }
+    if (g_.anotar) g_.anotar(c.aparato, "tablero web: RECHAZADA " + que + " (" + r.value("error", std::string()) + ")");
+    return r.value("error", std::string("no se puede"));
+}
+
 void ReplicaPublicador::negar(const QStringList& props) { aNegar_ += props; }
 
 void ReplicaPublicador::negarFunciones(const QStringList& nombres) {
@@ -427,6 +484,12 @@ void ReplicaPublicador::llamar(const std::string& cid, Con& c, const json& m) {
     const bool conValor = mm.returnMetaType().isValid() && mm.returnMetaType().id() != QMetaType::Void;
     // Escribir y hacer, sí; mirar (lo que devuelve algo), también si es solo «ver».
     if (!c.escribe && !conValor) return mal("este aparato solo puede mirar");
+    {
+        bool confirmar = false;
+        const std::string e = permiso(c, ob.o, oid, nombre, false, conValor, m, confirmar);
+        if (confirmar) return; // la persona confirma en su pantalla y vuelve con confirmado:true
+        if (!e.empty()) return mal(e);
+    }
     std::vector<QVariant> vals(args.size());
     void* argv[11] = {nullptr};
     QVariant ret;
@@ -473,6 +536,15 @@ void ReplicaPublicador::poner(Con& c, const json& m) {
     if (i < 0 || std::find(ob.props.begin(), ob.props.end(), i) == ob.props.end()) return;
     const QMetaProperty mp = mo->property(i);
     if (!mp.isWritable() || mp.isConstant()) return;
+    {
+        bool confirmar = false;
+        const std::string e = permiso(c, ob.o, oid, p, true, false, m, confirmar);
+        if (!e.empty()) {
+            // Que la réplica vuelva a lo de verdad (la vista ya lo había cambiado).
+            if (!confirmar) cambio(oid, {i});
+            return;
+        }
+    }
     QVariant v = aVariant(m.contains("v") ? m["v"] : json(nullptr));
     if (mp.metaType().id() != QMetaType::QVariant && v.isValid() && v.metaType() != mp.metaType() && !v.convert(mp.metaType()))
         return;

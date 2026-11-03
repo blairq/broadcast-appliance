@@ -6467,7 +6467,7 @@ L'ancien PIN ne permet plus d'entrer.</translation>
 <context>
     <name>ControlWeb</name>
     <message>
-        <location filename="../src/app/control/ControlWeb.cpp" line="+391" />
+        <location filename="../src/app/control/ControlWeb.cpp" line="+412" />
         <source>Este aparato fue quitado.</source>
         <translation>Cet appareil a été retiré.</translation>
     </message>
@@ -6475,7 +6475,7 @@ L'ancien PIN ne permet plus d'entrer.</translation>
 <context>
     <name>ControlWebGateway</name>
     <message>
-        <location filename="../src/app/control/ControlWebGateway.cpp" line="+158" />
+        <location filename="../src/app/control/ControlWebGateway.cpp" line="+179" />
         <source>El gateway no está andando: el navegador no tendría a quién conectarse.</source>
         <translation>La passerelle n'est pas lancée : le navigateur n'aurait rien à quoi se connecter.</translation>
     </message>
@@ -6773,7 +6773,7 @@ L'ancien PIN ne permet plus d'entrer.</translation>
         <translation>Carte</translation>
     </message>
     <message>
-        <location line="+33" />
+        <location line="+34" />
         <source>Sacar a ventana</source>
         <translation>Détacher dans une fenêtre</translation>
     </message>
@@ -6818,7 +6818,7 @@ L'ancien PIN ne permet plus d'entrer.</translation>
         <translation>Détacher dans une fenêtre</translation>
     </message>
     <message>
-        <location line="+2" />
+        <location line="+3" />
         <source>Mas oscuro</source>
         <translation>Plus sombre</translation>
     </message>
@@ -16680,7 +16680,7 @@ La matrice ne change pas ce qui entre : elle décide vers quelles sorties cela 
         <translation>Pas de signal</translation>
     </message>
     <message>
-        <location line="+14" />
+        <location line="+15" />
         <source>Sacar a una ventana (p. ej. otro monitor)</source>
         <translation>Détacher dans une fenêtre (p. ex. un autre moniteur)</translation>
     </message>
@@ -34527,7 +34527,7 @@ puis elle se rouvre toute seule. Les paramètres, identifiants, enregistrements 
 <context>
     <name>StudioViewModel</name>
     <message>
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="+138" />
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="+142" />
         <source>%1 (no se pudo: %2)</source>
         <translation>%1 (échec : %2)</translation>
     </message>
@@ -34562,7 +34562,7 @@ puis elle se rouvre toute seule. Les paramètres, identifiants, enregistrements 
         <translation>n'a pas répondu</translation>
     </message>
     <message>
-        <location line="+101" />
+        <location line="+132" />
         <source>Conferencia reiniciada con la configuración nueva.</source>
         <translation>Conférence redémarrée avec les nouveaux paramètres.</translation>
     </message>
@@ -35133,6 +35133,75 @@ puis elle se rouvre toute seule. Les paramètres, identifiants, enregistrements 
     </message>
 </context>
 <context>
+    <name>TableroWeb</name>
+    <message>
+        <location filename="../src/tablero-web/qml/TableroWeb.qml" line="+39" />
+        <source>Eso se hace en la app.</source>
+        <translation>Cela se fait dans l'application.</translation>
+    </message>
+    <message>
+        <location line="+11" />
+        <source>¿Cortar la transmisión?</source>
+        <translation>Arrêter la diffusion ?</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>La emisión en vivo se va a detener.</source>
+        <translation>La diffusion en direct va s'arrêter.</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Cortar</source>
+        <translation>Arrêter</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <location line="+15" />
+        <source>Cancelar</source>
+        <translation>Annuler</translation>
+    </message>
+    <message>
+        <location line="-3" />
+        <source>Cambia el aire</source>
+        <translation>Cela change ce qui est à l'antenne</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>Sí, hacelo</source>
+        <translation>Oui, vas-y</translation>
+    </message>
+    <message>
+        <location line="+26" />
+        <source>PREVIEW · %1</source>
+        <translation>PRÉVISUALISATION · %1</translation>
+    </message>
+    <message>
+        <location line="+0" />
+        <source>nada</source>
+        <translation>rien</translation>
+    </message>
+    <message>
+        <location line="+15" />
+        <source>TAKE</source>
+        <translation>TAKE</translation>
+    </message>
+    <message>
+        <location line="+17" />
+        <source>CUT</source>
+        <translation>CUT</translation>
+    </message>
+    <message>
+        <location line="+8" />
+        <source>PROGRAMA · %1</source>
+        <translation>PROGRAMME · %1</translation>
+    </message>
+    <message>
+        <location line="+19" />
+        <source>Sin señal</source>
+        <translation>Pas de signal</translation>
+    </message>
+</context>
+<context>
     <name>TarjetaEnVentana</name>
     <message>
         <location filename="../src/app/qml/controls/TarjetaEnVentana.qml" line="+31" />
@@ -35411,7 +35480,7 @@ puis elle se rouvre toute seule. Les paramètres, identifiants, enregistrements 
         <translation>peut être amélioré</translation>
     </message>
     <message numerus="yes">
-        <location line="+40" />
+        <location line="+43" />
         <source>%n s</source>
         <comment>segundos, abreviado</comment>
         <translation>
@@ -45119,7 +45188,7 @@ Choisissez autre chose dans Sorties → Écrans.</translation>
     </message>
     <message>
         <location line="-57" />
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="-900" />
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="-931" />
         <source>arranque: %1 tardó %2 ms</source>
         <translation>démarrage : %1 a pris %2 ms</translation>
     </message>
@@ -50015,7 +50084,8 @@ Données (de %2) : %3</translation>
         <translation>accès depuis l'extérieur (tunnel, avec PIN) : ACTIVÉ</translation>
     </message>
     <message>
-        <location line="+45" />
+        <location line="-254" />
+        <location line="+300" />
         <source>Este aparato no está emparejado (o fue quitado).</source>
         <translation>Cet appareil n'est pas appairé (ou a été retiré).</translation>
     </message>
@@ -50030,7 +50100,7 @@ Données (de %2) : %3</translation>
         <translation>connecté depuis %1</translation>
     </message>
     <message>
-        <location line="+108" />
+        <location line="+111" />
         <source>La app no está lista para recibir órdenes.</source>
         <translation>L'application n'est pas prête à recevoir des ordres.</translation>
     </message>
@@ -50045,7 +50115,8 @@ Données (de %2) : %3</translation>
         <translation>a demandé « %1 », qui n'existe pas</translation>
     </message>
     <message>
-        <location line="+1" />
+        <location line="-433" />
+        <location line="+434" />
         <source>No existe la herramienta «%1».</source>
         <translation>L'outil « %1 » n'existe pas.</translation>
     </message>
@@ -50055,7 +50126,8 @@ Données (de %2) : %3</translation>
         <translation>REFUSÉE %1 (catégorie « %2 » hors de son profil)</translation>
     </message>
     <message>
-        <location line="+1" />
+        <location line="-434" />
+        <location line="+435" />
         <source>«%1» (categoría «%2») no está en el perfil de este aparato. Lo amplía una persona desde la app.</source>
         <translation>« %1 » (catégorie « %2 ») ne fait pas partie du profil de cet appareil. Une personne peut l'élargir depuis l'application.</translation>
     </message>
@@ -50065,12 +50137,18 @@ Données (de %2) : %3</translation>
         <translation>à confirmer (action d'antenne, à l'antenne) %1 %2</translation>
     </message>
     <message>
-        <location line="+5" />
+        <location line="-435" />
+        <location line="+440" />
         <source>«%1» cambia lo que sale y hay aire (transmisión o grabación). ¿Lo hacés igual?</source>
         <translation>« %1 » change ce qui sort et vous êtes à l'antenne (diffusion ou enregistrement). Le faire quand même ?</translation>
     </message>
     <message>
-        <location line="+5" />
+        <location line="-452" />
+        <source>La app todavía está arrancando.</source>
+        <translation>L'application est encore en train de démarrer.</translation>
+    </message>
+    <message>
+        <location line="+457" />
         <source>llamó (confirmada) %1 %2</source>
         <translation>a appelé (confirmé) %1 %2</translation>
     </message>
@@ -54976,7 +55054,7 @@ Données (de %2) : %3</translation>
         <translation>ba-web : fermé ; relance dans %1 ms</translation>
     </message>
     <message>
-        <location filename="../src/gateway/Borde.cpp" line="+90" />
+        <location filename="../src/gateway/Borde.cpp" line="+92" />
         <location line="+7" />
         <location filename="../src/gateway/Botonera.cpp" line="+91" />
         <location line="+2" />
@@ -55038,7 +55116,7 @@ Données (de %2) : %3</translation>
     </message>
     <message>
         <location line="+3" />
-        <location filename="../src/gateway/ControlWeb.cpp" line="+156" />
+        <location filename="../src/gateway/ControlWeb.cpp" line="+195" />
         <location filename="../src/gateway/proxy/ProxyNombres.cpp" line="+430" />
         <source>solo desde la red local</source>
         <translation>réseau local uniquement</translation>
@@ -55149,7 +55227,7 @@ Données (de %2) : %3</translation>
         <translation>contrôle web : refusé %1 %2 (origine étrangère)</translation>
     </message>
     <message>
-        <location line="+95" />
+        <location line="+96" />
         <source>demasiados aparatos conectados</source>
         <translation>trop d'appareils connectés</translation>
     </message>
@@ -55174,7 +55252,7 @@ Données (de %2) : %3</translation>
         <translation>contrôle web : %1 connecté depuis %2 [%3]</translation>
     </message>
     <message>
-        <location line="+34" />
+        <location line="+39" />
         <source>control web: %1 manda demasiado; se corta</source>
         <translation>contrôle web : %1 envoie trop ; coupé</translation>
     </message>
@@ -57151,7 +57229,7 @@ Données (de %2) : %3</translation>
         <translation>non</translation>
     </message>
     <message>
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="+934" />
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="+965" />
         <source>«%1» no arrancó al abrir: %2</source>
         <translation>« %1 » n'a pas démarré à l'ouverture : %2</translation>
     </message>
@@ -96972,7 +97050,7 @@ PROPOSEZ, N'APPLIQUEZ PAS : montrez à la personne ce qui change et appliquez s
     <name>web/comun</name>
     <message>
         <location filename="../src/gateway/Botonera.cpp" line="-113" />
-        <location filename="../src/gateway/ControlWeb.cpp" line="-151" />
+        <location filename="../src/gateway/ControlWeb.cpp" line="-156" />
         <source>demasiados intentos; esperá 10 minutos</source>
         <translation>trop de tentatives ; patientez 10 minutes</translation>
     </message>
@@ -96993,12 +97071,12 @@ PROPOSEZ, N'APPLIQUEZ PAS : montrez à la personne ce qui change et appliquez s
         <translation>Cet appareil a été révoqué.</translation>
     </message>
     <message>
-        <location filename="../src/gateway/ControlWeb.cpp" line="-48" />
+        <location filename="../src/gateway/ControlWeb.cpp" line="-49" />
         <source>Este aparato fue revocado (o se apagó el acceso desde afuera).</source>
         <translation>Cet appareil a été révoqué (ou l'accès à distance a été désactivé).</translation>
     </message>
     <message>
-        <location line="+133" />
+        <location line="+134" />
         <source>Demasiados intentos: esperá 10 minutos.</source>
         <translation>Trop de tentatives : patientez 10 minutes.</translation>
     </message>

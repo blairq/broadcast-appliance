@@ -804,6 +804,10 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, VentanillaMotor& ventanilla, QO
         cuadrosWeb_ = std::make_unique<control::CuadrosWeb>(frames_.get());
         replica_->ganchos().enviar = [&cwg](const std::string& cid, const nlohmann::json& m) { cwg.enviarEnOrden(cid, m); };
         replica_->ganchos().anotar = [&cw](const std::string& ap, const std::string& t) { cw.anotar(ap, t); };
+        // Cada cosa de la lista permitida, con las reglas de su herramienta MCP equivalente.
+        replica_->ganchos().autorizar = [&cw](const std::string& ap, const std::string& h, bool lectura, bool confirmado) {
+            return cw.autorizar(ap, h, lectura, confirmado);
+        };
         replica_->ganchos().video = [this](const std::string& cid, const nlohmann::json& c) { cuadrosWeb_->pedir(cid, c); };
         replica_->ganchos().enlaceCast = [this](std::function<void(const std::string&, const std::string&)> listo) {
             conference_->enlaces().pantalla("Tablero web", -1, [listo](const sala::Enlace& e) {

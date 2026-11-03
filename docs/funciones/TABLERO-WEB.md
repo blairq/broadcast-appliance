@@ -59,8 +59,12 @@ cuadros por segundo, unos 3 Mbit/s).
 - Entra solo un aparato **emparejado y aprobado por una persona** en la app, con su token
   (el mismo del control web). Quitarlo en la app lo corta enseguida.
 - El tablero completo necesita el perfil «todo»; con otro perfil la página lo dice.
+- Desde la web se puede hacer **solo lo que hacen los botones del dashboard** (una lista
+  sacada de las mismas tarjetas): nada más del programa. Cada botón sigue las reglas de la
+  herramienta equivalente del asistente: el perfil del aparato y, si cambia lo que sale y
+  hay aire (transmisión o grabación), la misma pregunta «Cambia el aire» que el control web.
 - Lo que se cambia desde la web (TAKE, una escena, un volumen, mover una tarjeta) queda en
-  el registro con el nombre del aparato.
+  el registro con el nombre del aparato, y también lo que se intentó y no se dejó.
 - Nunca salen por ahí claves, cuentas ni los datos de los otros aparatos.
 
 ## Licencias

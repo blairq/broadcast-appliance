@@ -6467,7 +6467,7 @@ O PIN anterior deixa de servir para entrar.</translation>
 <context>
     <name>ControlWeb</name>
     <message>
-        <location filename="../src/app/control/ControlWeb.cpp" line="+391" />
+        <location filename="../src/app/control/ControlWeb.cpp" line="+412" />
         <source>Este aparato fue quitado.</source>
         <translation>Este dispositivo foi removido.</translation>
     </message>
@@ -6475,7 +6475,7 @@ O PIN anterior deixa de servir para entrar.</translation>
 <context>
     <name>ControlWebGateway</name>
     <message>
-        <location filename="../src/app/control/ControlWebGateway.cpp" line="+158" />
+        <location filename="../src/app/control/ControlWebGateway.cpp" line="+179" />
         <source>El gateway no está andando: el navegador no tendría a quién conectarse.</source>
         <translation>O gateway não está rodando: o navegador não teria a quem se conectar.</translation>
     </message>
@@ -6773,7 +6773,7 @@ O PIN anterior deixa de servir para entrar.</translation>
         <translation>Cartão</translation>
     </message>
     <message>
-        <location line="+33" />
+        <location line="+34" />
         <source>Sacar a ventana</source>
         <translation>Abrir em janela</translation>
     </message>
@@ -6818,7 +6818,7 @@ O PIN anterior deixa de servir para entrar.</translation>
         <translation>Abrir em janela</translation>
     </message>
     <message>
-        <location line="+2" />
+        <location line="+3" />
         <source>Mas oscuro</source>
         <translation>Mais escuro</translation>
     </message>
@@ -16680,7 +16680,7 @@ A matriz não muda o que entra: decide para quais saídas vai (as colunas: o pro
         <translation>Sem sinal</translation>
     </message>
     <message>
-        <location line="+14" />
+        <location line="+15" />
         <source>Sacar a una ventana (p. ej. otro monitor)</source>
         <translation>Abrir em janela (ex.: outro monitor)</translation>
     </message>
@@ -34527,7 +34527,7 @@ e ele abre de novo sozinho. Configuração, credenciais, gravações e arquivos 
 <context>
     <name>StudioViewModel</name>
     <message>
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="+138" />
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="+142" />
         <source>%1 (no se pudo: %2)</source>
         <translation>%1 (não foi possível: %2)</translation>
     </message>
@@ -34562,7 +34562,7 @@ e ele abre de novo sozinho. Configuração, credenciais, gravações e arquivos 
         <translation>não respondeu</translation>
     </message>
     <message>
-        <location line="+101" />
+        <location line="+132" />
         <source>Conferencia reiniciada con la configuración nueva.</source>
         <translation>Conferência reiniciada com a configuração nova.</translation>
     </message>
@@ -35133,6 +35133,75 @@ e ele abre de novo sozinho. Configuração, credenciais, gravações e arquivos 
     </message>
 </context>
 <context>
+    <name>TableroWeb</name>
+    <message>
+        <location filename="../src/tablero-web/qml/TableroWeb.qml" line="+39" />
+        <source>Eso se hace en la app.</source>
+        <translation>Isso se faz no aplicativo.</translation>
+    </message>
+    <message>
+        <location line="+11" />
+        <source>¿Cortar la transmisión?</source>
+        <translation>Encerrar a transmissão?</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>La emisión en vivo se va a detener.</source>
+        <translation>A transmissão ao vivo vai parar.</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Cortar</source>
+        <translation>Encerrar</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <location line="+15" />
+        <source>Cancelar</source>
+        <translation>Cancelar</translation>
+    </message>
+    <message>
+        <location line="-3" />
+        <source>Cambia el aire</source>
+        <translation>Isso muda o que está no ar</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>Sí, hacelo</source>
+        <translation>Sim, faça</translation>
+    </message>
+    <message>
+        <location line="+26" />
+        <source>PREVIEW · %1</source>
+        <translation>PREVIEW · %1</translation>
+    </message>
+    <message>
+        <location line="+0" />
+        <source>nada</source>
+        <translation>nada</translation>
+    </message>
+    <message>
+        <location line="+15" />
+        <source>TAKE</source>
+        <translation>TAKE</translation>
+    </message>
+    <message>
+        <location line="+17" />
+        <source>CUT</source>
+        <translation>CUT</translation>
+    </message>
+    <message>
+        <location line="+8" />
+        <source>PROGRAMA · %1</source>
+        <translation>PROGRAMA · %1</translation>
+    </message>
+    <message>
+        <location line="+19" />
+        <source>Sin señal</source>
+        <translation>Sem sinal</translation>
+    </message>
+</context>
+<context>
     <name>TarjetaEnVentana</name>
     <message>
         <location filename="../src/app/qml/controls/TarjetaEnVentana.qml" line="+31" />
@@ -35411,7 +35480,7 @@ e ele abre de novo sozinho. Configuração, credenciais, gravações e arquivos 
         <translation>pode melhorar</translation>
     </message>
     <message numerus="yes">
-        <location line="+40" />
+        <location line="+43" />
         <source>%n s</source>
         <comment>segundos, abreviado</comment>
         <translation>
@@ -45119,7 +45188,7 @@ Escolha outra coisa em Saídas → Telas.</translation>
     </message>
     <message>
         <location line="-57" />
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="-900" />
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="-931" />
         <source>arranque: %1 tardó %2 ms</source>
         <translation>inicialização: %1 levou %2 ms</translation>
     </message>
@@ -50015,7 +50084,8 @@ Dados (de %2): %3</translation>
         <translation>acesso de fora (túnel, com PIN): HABILITADO</translation>
     </message>
     <message>
-        <location line="+45" />
+        <location line="-254" />
+        <location line="+300" />
         <source>Este aparato no está emparejado (o fue quitado).</source>
         <translation>Este dispositivo não está pareado (ou foi removido).</translation>
     </message>
@@ -50030,7 +50100,7 @@ Dados (de %2): %3</translation>
         <translation>conectado de %1</translation>
     </message>
     <message>
-        <location line="+108" />
+        <location line="+111" />
         <source>La app no está lista para recibir órdenes.</source>
         <translation>O app não está pronto para receber ordens.</translation>
     </message>
@@ -50045,7 +50115,8 @@ Dados (de %2): %3</translation>
         <translation>pediu “%1”, que não existe</translation>
     </message>
     <message>
-        <location line="+1" />
+        <location line="-433" />
+        <location line="+434" />
         <source>No existe la herramienta «%1».</source>
         <translation>A ferramenta “%1” não existe.</translation>
     </message>
@@ -50055,7 +50126,8 @@ Dados (de %2): %3</translation>
         <translation>REJEITADA %1 (categoria “%2” fora do perfil)</translation>
     </message>
     <message>
-        <location line="+1" />
+        <location line="-434" />
+        <location line="+435" />
         <source>«%1» (categoría «%2») no está en el perfil de este aparato. Lo amplía una persona desde la app.</source>
         <translation>“%1” (categoria “%2”) não está no perfil deste dispositivo. Quem o amplia é uma pessoa, pelo app.</translation>
     </message>
@@ -50065,12 +50137,18 @@ Dados (de %2): %3</translation>
         <translation>a confirmar (de ar, com ar) %1 %2</translation>
     </message>
     <message>
-        <location line="+5" />
+        <location line="-435" />
+        <location line="+440" />
         <source>«%1» cambia lo que sale y hay aire (transmisión o grabación). ¿Lo hacés igual?</source>
         <translation>“%1” muda o que sai e há ar (transmissão ou gravação). Fazer mesmo assim?</translation>
     </message>
     <message>
-        <location line="+5" />
+        <location line="-452" />
+        <source>La app todavía está arrancando.</source>
+        <translation>O aplicativo ainda está iniciando.</translation>
+    </message>
+    <message>
+        <location line="+457" />
         <source>llamó (confirmada) %1 %2</source>
         <translation>chamou (confirmada) %1 %2</translation>
     </message>
@@ -54976,7 +55054,7 @@ Dados (de %2): %3</translation>
         <translation>ba-web: fechou; é relançado em %1 ms</translation>
     </message>
     <message>
-        <location filename="../src/gateway/Borde.cpp" line="+90" />
+        <location filename="../src/gateway/Borde.cpp" line="+92" />
         <location line="+7" />
         <location filename="../src/gateway/Botonera.cpp" line="+91" />
         <location line="+2" />
@@ -55038,7 +55116,7 @@ Dados (de %2): %3</translation>
     </message>
     <message>
         <location line="+3" />
-        <location filename="../src/gateway/ControlWeb.cpp" line="+156" />
+        <location filename="../src/gateway/ControlWeb.cpp" line="+195" />
         <location filename="../src/gateway/proxy/ProxyNombres.cpp" line="+430" />
         <source>solo desde la red local</source>
         <translation>só pela rede local</translation>
@@ -55149,7 +55227,7 @@ Dados (de %2): %3</translation>
         <translation>controle web: rejeitado %1 %2 (origem alheia)</translation>
     </message>
     <message>
-        <location line="+95" />
+        <location line="+96" />
         <source>demasiados aparatos conectados</source>
         <translation>dispositivos conectados demais</translation>
     </message>
@@ -55174,7 +55252,7 @@ Dados (de %2): %3</translation>
         <translation>controle web: %1 conectado de %2 [%3]</translation>
     </message>
     <message>
-        <location line="+34" />
+        <location line="+39" />
         <source>control web: %1 manda demasiado; se corta</source>
         <translation>controle web: %1 envia demais; é cortado</translation>
     </message>
@@ -57151,7 +57229,7 @@ Dados (de %2): %3</translation>
         <translation>não</translation>
     </message>
     <message>
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="+934" />
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="+965" />
         <source>«%1» no arrancó al abrir: %2</source>
         <translation>“%1” não iniciou ao abrir: %2</translation>
     </message>
@@ -97006,7 +97084,7 @@ PROPONHA, NÃO APLIQUE: mostre à pessoa o que muda e aplique só se ela confirm
     <name>web/comun</name>
     <message>
         <location filename="../src/gateway/Botonera.cpp" line="-113" />
-        <location filename="../src/gateway/ControlWeb.cpp" line="-151" />
+        <location filename="../src/gateway/ControlWeb.cpp" line="-156" />
         <source>demasiados intentos; esperá 10 minutos</source>
         <translation>tentativas demais; aguarde 10 minutos</translation>
     </message>
@@ -97027,12 +97105,12 @@ PROPONHA, NÃO APLIQUE: mostre à pessoa o que muda e aplique só se ela confirm
         <translation>Este dispositivo foi revogado.</translation>
     </message>
     <message>
-        <location filename="../src/gateway/ControlWeb.cpp" line="-48" />
+        <location filename="../src/gateway/ControlWeb.cpp" line="-49" />
         <source>Este aparato fue revocado (o se apagó el acceso desde afuera).</source>
         <translation>Este dispositivo foi revogado (ou o acesso de fora foi desligado).</translation>
     </message>
     <message>
-        <location line="+133" />
+        <location line="+134" />
         <source>Demasiados intentos: esperá 10 minutos.</source>
         <translation>Tentativas demais: aguarde 10 minutos.</translation>
     </message>

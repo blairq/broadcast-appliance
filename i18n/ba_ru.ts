@@ -6502,7 +6502,7 @@ El PIN anterior deja de servir para entrar.</source>
 <context>
     <name>ControlWeb</name>
     <message>
-        <location filename="../src/app/control/ControlWeb.cpp" line="+391" />
+        <location filename="../src/app/control/ControlWeb.cpp" line="+412" />
         <source>Este aparato fue quitado.</source>
         <translation>Это устройство удалено.</translation>
     </message>
@@ -6510,7 +6510,7 @@ El PIN anterior deja de servir para entrar.</source>
 <context>
     <name>ControlWebGateway</name>
     <message>
-        <location filename="../src/app/control/ControlWebGateway.cpp" line="+158" />
+        <location filename="../src/app/control/ControlWebGateway.cpp" line="+179" />
         <source>El gateway no está andando: el navegador no tendría a quién conectarse.</source>
         <translation>Шлюз не запущен: браузеру не к чему подключиться.</translation>
     </message>
@@ -6808,7 +6808,7 @@ El PIN anterior deja de servir para entrar.</source>
         <translation>Карточка</translation>
     </message>
     <message>
-        <location line="+33" />
+        <location line="+34" />
         <source>Sacar a ventana</source>
         <translation>Открыть в окне</translation>
     </message>
@@ -6853,7 +6853,7 @@ El PIN anterior deja de servir para entrar.</source>
         <translation>Открыть в окне</translation>
     </message>
     <message>
-        <location line="+2" />
+        <location line="+3" />
         <source>Mas oscuro</source>
         <translation>Темнее</translation>
     </message>
@@ -16758,7 +16758,7 @@ La matriz no cambia lo que entra: decide a qué salidas va (las columnas: el pro
         <translation>Нет сигнала</translation>
     </message>
     <message>
-        <location line="+14" />
+        <location line="+15" />
         <source>Sacar a una ventana (p. ej. otro monitor)</source>
         <translation>Открыть в окне (например, на другом мониторе)</translation>
     </message>
@@ -34681,7 +34681,7 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
 <context>
     <name>StudioViewModel</name>
     <message>
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="+138" />
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="+142" />
         <source>%1 (no se pudo: %2)</source>
         <translation>%1 (не удалось: %2)</translation>
     </message>
@@ -34716,7 +34716,7 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
         <translation>не ответил</translation>
     </message>
     <message>
-        <location line="+101" />
+        <location line="+132" />
         <source>Conferencia reiniciada con la configuración nueva.</source>
         <translation>Конференция перезапущена с новыми настройками.</translation>
     </message>
@@ -35287,6 +35287,75 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
     </message>
 </context>
 <context>
+    <name>TableroWeb</name>
+    <message>
+        <location filename="../src/tablero-web/qml/TableroWeb.qml" line="+39" />
+        <source>Eso se hace en la app.</source>
+        <translation>Это делается в приложении.</translation>
+    </message>
+    <message>
+        <location line="+11" />
+        <source>¿Cortar la transmisión?</source>
+        <translation>Остановить трансляцию?</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>La emisión en vivo se va a detener.</source>
+        <translation>Прямая трансляция будет остановлена.</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Cortar</source>
+        <translation>Остановить</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <location line="+15" />
+        <source>Cancelar</source>
+        <translation>Отмена</translation>
+    </message>
+    <message>
+        <location line="-3" />
+        <source>Cambia el aire</source>
+        <translation>Это меняет эфир</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>Sí, hacelo</source>
+        <translation>Да, выполнить</translation>
+    </message>
+    <message>
+        <location line="+26" />
+        <source>PREVIEW · %1</source>
+        <translation>ПРЕДПРОСМОТР · %1</translation>
+    </message>
+    <message>
+        <location line="+0" />
+        <source>nada</source>
+        <translation>ничего</translation>
+    </message>
+    <message>
+        <location line="+15" />
+        <source>TAKE</source>
+        <translation>TAKE</translation>
+    </message>
+    <message>
+        <location line="+17" />
+        <source>CUT</source>
+        <translation>CUT</translation>
+    </message>
+    <message>
+        <location line="+8" />
+        <source>PROGRAMA · %1</source>
+        <translation>ПРОГРАММА · %1</translation>
+    </message>
+    <message>
+        <location line="+19" />
+        <source>Sin señal</source>
+        <translation>Нет сигнала</translation>
+    </message>
+</context>
+<context>
     <name>TarjetaEnVentana</name>
     <message>
         <location filename="../src/app/qml/controls/TarjetaEnVentana.qml" line="+31" />
@@ -35567,7 +35636,7 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
         <translation>можно улучшить</translation>
     </message>
     <message numerus="yes">
-        <location line="+40" />
+        <location line="+43" />
         <source>%n s</source>
         <comment>segundos, abreviado</comment>
         <translation>
@@ -45290,7 +45359,7 @@ Elegí otra cosa en Salidas → Pantallas.</source>
     </message>
     <message>
         <location line="-57" />
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="-900" />
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="-931" />
         <source>arranque: %1 tardó %2 ms</source>
         <translation>запуск: %1 занял %2 мс</translation>
     </message>
@@ -50189,7 +50258,8 @@ Datos (de %2): %3</source>
         <translation>внешний доступ (туннель, с PIN): ВКЛЮЧЁН</translation>
     </message>
     <message>
-        <location line="+45" />
+        <location line="-254" />
+        <location line="+300" />
         <source>Este aparato no está emparejado (o fue quitado).</source>
         <translation>Это устройство не сопряжено (или было удалено).</translation>
     </message>
@@ -50204,7 +50274,7 @@ Datos (de %2): %3</source>
         <translation>подключено с %1</translation>
     </message>
     <message>
-        <location line="+108" />
+        <location line="+111" />
         <source>La app no está lista para recibir órdenes.</source>
         <translation>Приложение не готово принимать команды.</translation>
     </message>
@@ -50219,7 +50289,8 @@ Datos (de %2): %3</source>
         <translation>запросило «%1», которого не существует</translation>
     </message>
     <message>
-        <location line="+1" />
+        <location line="-433" />
+        <location line="+434" />
         <source>No existe la herramienta «%1».</source>
         <translation>Инструмента «%1» не существует.</translation>
     </message>
@@ -50229,7 +50300,8 @@ Datos (de %2): %3</source>
         <translation>ОТКЛОНЕНО %1 (категория «%2» вне его профиля)</translation>
     </message>
     <message>
-        <location line="+1" />
+        <location line="-434" />
+        <location line="+435" />
         <source>«%1» (categoría «%2») no está en el perfil de este aparato. Lo amplía una persona desde la app.</source>
         <translation>«%1» (категория «%2») нет в профиле этого устройства. Расширить его может человек в приложении.</translation>
     </message>
@@ -50239,12 +50311,18 @@ Datos (de %2): %3</source>
         <translation>требует подтверждения (эфирное действие, идёт эфир) %1 %2</translation>
     </message>
     <message>
-        <location line="+5" />
+        <location line="-435" />
+        <location line="+440" />
         <source>«%1» cambia lo que sale y hay aire (transmisión o grabación). ¿Lo hacés igual?</source>
         <translation>«%1» меняет то, что выходит, а сейчас идёт эфир (трансляция или запись). Всё равно выполнить?</translation>
     </message>
     <message>
-        <location line="+5" />
+        <location line="-452" />
+        <source>La app todavía está arrancando.</source>
+        <translation>Приложение ещё запускается.</translation>
+    </message>
+    <message>
+        <location line="+457" />
         <source>llamó (confirmada) %1 %2</source>
         <translation>вызвало (подтверждено) %1 %2</translation>
     </message>
@@ -55151,7 +55229,7 @@ Datos (de %2): %3</source>
         <translation>ba-web: завершился; перезапуск через %1 мс</translation>
     </message>
     <message>
-        <location filename="../src/gateway/Borde.cpp" line="+90" />
+        <location filename="../src/gateway/Borde.cpp" line="+92" />
         <location line="+7" />
         <location filename="../src/gateway/Botonera.cpp" line="+91" />
         <location line="+2" />
@@ -55213,7 +55291,7 @@ Datos (de %2): %3</source>
     </message>
     <message>
         <location line="+3" />
-        <location filename="../src/gateway/ControlWeb.cpp" line="+156" />
+        <location filename="../src/gateway/ControlWeb.cpp" line="+195" />
         <location filename="../src/gateway/proxy/ProxyNombres.cpp" line="+430" />
         <source>solo desde la red local</source>
         <translation>только из локальной сети</translation>
@@ -55324,7 +55402,7 @@ Datos (de %2): %3</source>
         <translation>веб-управление: отклонено %1 %2 (чужой источник)</translation>
     </message>
     <message>
-        <location line="+95" />
+        <location line="+96" />
         <source>demasiados aparatos conectados</source>
         <translation>подключено слишком много устройств</translation>
     </message>
@@ -55349,7 +55427,7 @@ Datos (de %2): %3</source>
         <translation>веб-управление: %1 подключён с %2 [%3]</translation>
     </message>
     <message>
-        <location line="+34" />
+        <location line="+39" />
         <source>control web: %1 manda demasiado; se corta</source>
         <translation>веб-управление: %1 отправляет слишком много; отключается</translation>
     </message>
@@ -57326,7 +57404,7 @@ Datos (de %2): %3</source>
         <translation>нет</translation>
     </message>
     <message>
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="+934" />
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="+965" />
         <source>«%1» no arrancó al abrir: %2</source>
         <translation>«%1» не запустился при открытии: %2</translation>
     </message>
@@ -97168,7 +97246,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
     <name>web/comun</name>
     <message>
         <location filename="../src/gateway/Botonera.cpp" line="-113" />
-        <location filename="../src/gateway/ControlWeb.cpp" line="-151" />
+        <location filename="../src/gateway/ControlWeb.cpp" line="-156" />
         <source>demasiados intentos; esperá 10 minutos</source>
         <translation>слишком много попыток; подождите 10 минут</translation>
     </message>
@@ -97189,12 +97267,12 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>Доступ этого устройства отозван.</translation>
     </message>
     <message>
-        <location filename="../src/gateway/ControlWeb.cpp" line="-48" />
+        <location filename="../src/gateway/ControlWeb.cpp" line="-49" />
         <source>Este aparato fue revocado (o se apagó el acceso desde afuera).</source>
         <translation>Доступ этого устройства отозван (или выключен доступ извне).</translation>
     </message>
     <message>
-        <location line="+133" />
+        <location line="+134" />
         <source>Demasiados intentos: esperá 10 minutos.</source>
         <translation>Слишком много попыток: подождите 10 минут.</translation>
     </message>

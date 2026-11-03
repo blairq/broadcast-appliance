@@ -31,8 +31,12 @@
 // aparato → app
 //   {op:"hola"}                     empezar (o empezar de nuevo): vuelve el esquema de la raíz.
 //   {op:"abrir", o}                 mandar los valores de ese objeto y lo que cambie.
-//   {op:"llamar", id, o, m, a:[…]}  llamar la función `m` de `o` con esos argumentos.
-//   {op:"poner", o, p, v}           escribir la propiedad `p` de `o`.
+//   {op:"llamar", id, o, m, a:[…], confirmado?}  llamar la función `m` de `o` con esos argumentos.
+//   {op:"poner", id?, o, p, v, confirmado?}       escribir la propiedad `p` de `o`.
+//   Solo lo de la LISTA PERMITIDA (ReplicaPermitidas.inc, generada desde la QML del dashboard por
+//   tools/generar/replica-permitidas.py), cada cosa con su herramienta MCP equivalente: el perfil
+//   del aparato y, si toca el aire y hay aire, la misma confirmación que el control web. Lo de
+//   afuera se rechaza y queda en el registro.
 //   {op:"video", claves:[{clave, ancho, fps}]}  qué videos quiere (control/CuadrosWeb).
 //   {op:"webrtc"}                   el enlace del programa por WebRTC (/cast/?token=…).
 //   {op:"lote", m:[…]}              varios de los de arriba juntos.
@@ -45,6 +49,8 @@
 //   {op:"filas", o, filas:[[valor por rol]]}  las filas enteras de un modelo.
 //   {op:"resultado", id, ok, v | error}
 //   {op:"error", error}             no se puede (p. ej. el perfil no alcanza).
+//   {op:"confirmar", id, texto}     toca el aire y hay aire: si la persona confirma, el mismo
+//                                   llamar/poner con confirmado:true.
 //   {op:"webrtc", url, error?}      el enlace del programa por WebRTC.
 //   {op:"aviso", texto, nivel}      lo que la app le avisa al operador (Studio.notify).
 //   {op:"cuadro", …}                un cuadro de video (control/CuadrosWeb).
@@ -86,7 +92,20 @@ class ReplicaPublicador : public QObject {
         /// El enlace del programa por WebRTC (/cast/, el de las pantallas de la red), para
         /// verlo con <video> o medir: listo(url, error).
         std::function<void(std::function<void(const std::string& url, const std::string& error)> listo)> enlaceCast;
+        /// ¿Ese aparato puede hacer lo que haría esa herramienta MCP? (ControlWeb::autorizar:
+        /// perfil y confirmación de aire) {ok} | {ok:false, error} | {ok:false, confirmar, texto}.
+        /// Sin esto, todo lo de la lista se permite (las pruebas).
+        std::function<json(const std::string& aparato, const std::string& herramienta, bool lectura, bool confirmado)> autorizar;
     };
+    /// Una entrada de la lista permitida (ReplicaPermitidas.inc, sacada de la QML del dashboard).
+    struct Permitida {
+        QString objeto, nombre;
+        bool poner = false;     ///< escribir una propiedad (si no, llamar una función)
+        std::string mcp;        ///< la herramienta equivalente ("" = solo de la vista)
+    };
+    /// La lista que trae la app (generada); las pruebas pueden poner otra.
+    void setPermitidas(std::vector<Permitida> p) { permitidas_ = std::move(p); }
+    static std::vector<Permitida> permitidasDeLaApp();
     /// Cada cuánto se junta lo que cambió (ms).
     static constexpr int kLoteMs = 50;
     /// Cuántas llamadas y escrituras por segundo por conexión.
@@ -136,6 +155,7 @@ class ReplicaPublicador : public QObject {
         std::set<QString> filasSucias;
         json cola = json::array();
         std::deque<std::int64_t> llamadas;
+        std::set<std::string> rechazosAnotados; ///< una línea en el registro por cosa rechazada
     };
     friend class AvisoReplica;
 
@@ -154,6 +174,10 @@ class ReplicaPublicador : public QObject {
     void poner(Con& c, const json& m);
     QVariant aVariant(const json& j) const;
     bool tope(Con& c);
+    /// ¿Se puede? "" si sí; si no, el error (y ya se contestó/anotó); `confirmar`: se pidió confirmación.
+    std::string permiso(Con& c, QObject* o, const QString& oid, const QString& nombre, bool poner, bool lectura,
+                        const json& m, bool& confirmar);
+    QObject* resolver(const QString& camino) const;
     void procesar(const std::string& cid, Con& c, const json& m, int profundidad);
 
     QPointer<QObject> raiz_;
@@ -165,6 +189,7 @@ class ReplicaPublicador : public QObject {
     QStringList aNegar_;
     bool avisosConectados_ = false; ///< Studio.notify(texto, nivel) → {op:"aviso"} a todos ///< se resuelven al primer «hola» (la raíz ya está armada)
     QSet<QString> funcionesNegadas_;
+    std::vector<Permitida> permitidas_ = permitidasDeLaApp();
     std::map<std::string, Con> cons_;
     QTimer reloj_;
     int siguiente_ = 1;

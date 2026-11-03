@@ -184,6 +184,27 @@ const json* ControlWeb::buscarAparato(const std::string& id) const {
     return nullptr;
 }
 
+json ControlWeb::autorizar(const std::string& aparato, const std::string& herramienta, bool lectura, bool confirmado) const {
+    const json* a = buscarAparato(aparato);
+    if (a == nullptr) return {{"ok", false}, {"error", traducir("control-web", "Este aparato no está emparejado (o fue quitado).")}};
+    if (core_ == nullptr) return {{"ok", false}, {"error", traducir("control-web", "La app todavía está arrancando.")}};
+    const std::string h = core_->nombreActual(herramienta);
+    const mcp::Tool* tool = core_->findTool(h);
+    if (tool == nullptr) return {{"ok", false}, {"error", llenar(traducir("control-web", "No existe la herramienta «%1»."), {h})}};
+    if (!permite(a->value("perfil", json::array()), tool->category, lectura || tool->readOnly))
+        return {{"ok", false},
+                {"error", llenar(traducir("control-web", "«%1» (categoría «%2») no está en el perfil de este aparato. "
+                                                         "Lo amplía una persona desde la app."),
+                                 {h, tool->category})}};
+    if (!lectura && !confirmado && core_->hayAire() && core_->aire().esDeAire(h, json::object()))
+        return {{"ok", false},
+                {"confirmar", true},
+                {"texto", llenar(traducir("control-web", "«%1» cambia lo que sale y hay aire (transmisión o "
+                                                         "grabación). ¿Lo hacés igual?"),
+                                 {tool->title.empty() ? h : tool->title})}};
+    return {{"ok", true}};
+}
+
 void ControlWeb::auditar(const std::string& aparato, const std::string& texto) const {
     const json* a = buscarAparato(aparato);
     const std::string quien = aparato + (a != nullptr ? " «" + a->value("nombre", std::string()) + "»" : std::string());

@@ -79,12 +79,16 @@ void ClienteReplica::procesar(const QJsonObject& m) {
         for (const QJsonValue& f : m.value(QStringLiteral("filas")).toArray()) filas.push_back(aVariant(f).toList());
         o->ponerFilas(filas);
     } else if (op == QLatin1String("resultado")) {
+        enviados_.remove(m.value(QStringLiteral("id")).toInt()); // ya se hizo (o no): no hay qué confirmar
         const auto it = pendientes_.find(m.value(QStringLiteral("id")).toInt());
         if (it == pendientes_.end()) return;
         const auto [objeto, clave] = it.value();
         pendientes_.erase(it);
         if (!m.value(QStringLiteral("ok")).toBool()) {
-            qWarning("tablero web: %s: %s", qPrintable(clave), qPrintable(m.value(QStringLiteral("error")).toString()));
+            const QString e = m.value(QStringLiteral("error")).toString();
+            qWarning("tablero web: %s: %s", qPrintable(clave), qPrintable(e));
+            // Un botón que no se hizo lo dice (lo que devuelve un valor, no: se pide seguido).
+            if (clave.isEmpty()) emit aviso(e, QStringLiteral("error"));
             return;
         }
         if (ObjetoReplica* o = objs_.value(objeto); o && !clave.isEmpty())
@@ -92,6 +96,8 @@ void ClienteReplica::procesar(const QJsonObject& m) {
     } else if (op == QLatin1String("error")) {
         error_ = m.value(QStringLiteral("error")).toString();
         emit errorChanged();
+    } else if (op == QLatin1String("confirmar")) {
+        emit confirmar(m.value(QStringLiteral("id")).toInt(), m.value(QStringLiteral("texto")).toString());
     } else if (op == QLatin1String("aviso")) {
         emit aviso(m.value(QStringLiteral("texto")).toString(), m.value(QStringLiteral("nivel")).toString());
     } else if (op == QLatin1String("webrtc")) {
@@ -193,24 +199,43 @@ QString ClienteReplica::claveDe(const QString& metodo, const QVariantList& args)
            QLatin1Char(')');
 }
 
-int ClienteReplica::llamar(const QString& id, const QString& metodo, const QVariantList& args) {
+int ClienteReplica::llamar(const QString& id, const QString& metodo, const QVariantList& args, bool conValor) {
     const int n = siguienteId_++;
-    pendientes_.insert(n, {id, claveDe(metodo, args)});
+    pendientes_.insert(n, {id, conValor ? claveDe(metodo, args) : QString()});
     // Las que no vuelven nunca (se cortó) no se acumulan.
     if (pendientes_.size() > 2000) pendientes_.clear();
-    encolar({{QStringLiteral("op"), QStringLiteral("llamar")},
-             {QStringLiteral("id"), n},
-             {QStringLiteral("o"), id},
-             {QStringLiteral("m"), metodo},
-             {QStringLiteral("a"), aJson(args)}});
+    const QJsonObject m{{QStringLiteral("op"), QStringLiteral("llamar")},
+                        {QStringLiteral("id"), n},
+                        {QStringLiteral("o"), id},
+                        {QStringLiteral("m"), metodo},
+                        {QStringLiteral("a"), aJson(args)}};
+    if (!conValor) {
+        if (enviados_.size() > 200) enviados_.clear();
+        enviados_.insert(n, m);
+    }
+    encolar(m);
     return n;
 }
 
 void ClienteReplica::poner(const QString& id, const QString& prop, const QVariant& v) {
-    encolar({{QStringLiteral("op"), QStringLiteral("poner")},
-             {QStringLiteral("o"), id},
-             {QStringLiteral("p"), prop},
-             {QStringLiteral("v"), aJson(v)}});
+    const int n = siguienteId_++;
+    const QJsonObject m{{QStringLiteral("op"), QStringLiteral("poner")},
+                        {QStringLiteral("id"), n},
+                        {QStringLiteral("o"), id},
+                        {QStringLiteral("p"), prop},
+                        {QStringLiteral("v"), aJson(v)}};
+    if (enviados_.size() > 200) enviados_.clear();
+    enviados_.insert(n, m);
+    encolar(m);
+}
+
+void ClienteReplica::confirmarLlamada(int id) {
+    QJsonObject m = enviados_.take(id);
+    if (m.isEmpty()) return;
+    m.insert(QStringLiteral("confirmado"), true);
+    if (m.value(QStringLiteral("op")).toString() == QLatin1String("llamar"))
+        pendientes_.insert(id, {m.value(QStringLiteral("o")).toString(), QString()});
+    encolar(m);
 }
 
 void ClienteReplica::pedirVideo(QObject* quien, const QString& clave, int ancho, int fps) {
