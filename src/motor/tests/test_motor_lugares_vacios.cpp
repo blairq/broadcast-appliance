@@ -146,6 +146,10 @@ int main() {
     }
     esperar(2500);
     json rec = motor.estado()["recursos"];
+    // Crear 48 entradas de golpe agranda los hilos de trabajo compartidos hasta su tope (16);
+    // los que sobran se van a los 5 s sin trabajo (Trabajos.hpp). Lo que se mide es lo que
+    // QUEDA: los hilos de los lugares, no la ráfaga del arranque.
+    esperar(6000);
     const int h1 = hilos();
     std::printf("%d lugares vacíos: hilos %d → %d (%.2f por lugar); %s\n", kLugares, h0, h1,
                 static_cast<double>(h1 - h0) / kLugares, rec.dump().c_str());
@@ -169,6 +173,7 @@ int main() {
     motor.ponerLugares(lugares(kLlegan));
     esperar(1500);
     rec = motor.estado()["recursos"];
+    esperar(6000); // la ráfaga de los hilos de trabajo se va (ver arriba): lo que queda
     const int h2 = hilos();
     std::printf("llegan %d: hilos %d → %d (%.2f por invitado); %s\n", kLlegan, h1, h2, static_cast<double>(h2 - h1) / kLlegan,
                 rec.dump().c_str());
