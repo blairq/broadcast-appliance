@@ -28,6 +28,12 @@
 //     de arrastrar una conversacion que crece hasta que el motor la compacta.
 //   * Tope de tiempo por corrida: un agente que no termina se mata y queda
 //     como error, con lo que alcanzo a hacer.
+//
+// Con OpenCode, el «agente de un tiro» de un rol que no corre aparte
+// (Rol::aparte) es `opencode run --server … --session <la del evento>`: el
+// encargo cae en la conversación del evento del asistente de automatización
+// (no abre una sesión —una pestaña— por aviso) y el proceso vive lo que dura
+// ese turno. La corrida se sigue igual (su salida JSON es la de ese turno).
 // ============================================================================
 #pragma once
 
@@ -125,6 +131,8 @@ class Despachador : public QObject {
     Q_INVOKABLE void setActivo(const QString& rol, bool activo);
     /// Las herramientas propias del agente (consola, archivos, internet).
     Q_INVOKABLE void setConsola(const QString& rol, bool consola);
+    /// Corre aparte (su sesión) o en la conversación del evento. Ver `Rol::aparte`.
+    Q_INVOKABLE void setAparte(const QString& rol, bool aparte);
     Q_INVOKABLE void setProveedor(const QString& rol, const QString& proveedor);
     Q_INVOKABLE void setModelo(const QString& rol, const QString& modelo);
     /// Lo propio del rol (vacío o igual al de fábrica: vuelve al de fábrica).

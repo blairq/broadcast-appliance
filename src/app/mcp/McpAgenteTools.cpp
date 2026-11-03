@@ -54,7 +54,7 @@ void McpService::registerAgenteTools() {
         t.clase = Clase::Escritura;
         t.idempotent = true;
         t.description = QT_TRANSLATE_NOOP("mcp", "Cambia un rol: `activo` (true/false), `proveedor` (id de proveedor, como en el "
-                        "asistente: claude-cuenta, opencode-go, openrouter...), `modelo`, `consola`. Lo que "
+                        "asistente: claude-cuenta, opencode-go, openrouter...), `modelo`, `consola`, `aparte`. Lo que "
                         "no se manda no se toca. Un rol apagado no atiende nada ni acepta encargos.");
         t.details =
             QT_TRANSLATE_NOOP("mcp", "`consola` le da las HERRAMIENTAS PROPIAS DEL AGENTE ademas de su juego MCP: consola, leer "
@@ -65,7 +65,12 @@ void McpService::registerAgenteTools() {
             "en Medios/— las necesita todas.\n\n"
             "LO QUE HAY QUE SABER AL PRENDERLO: la salvaguarda de aprobaciones (`mcp.approval`) cubre "
             "las herramientas del MCP, NO estas. Un rol con consola toca el disco y la red sin pasar "
-            "por ahi, en la maquina del estudio. Prendelo cuando el trabajo lo pida, no por si acaso.");
+            "por ahi, en la maquina del estudio. Prendelo cuando el trabajo lo pida, no por si acaso.\n\n"
+            "`aparte`: con el asistente de automatización en OpenCode, los encargos de un rol van a la "
+            "CONVERSACIÓN DEL EVENTO de ese asistente (con todo el contexto del evento, sin abrir una sesión "
+            "por aviso), salvo que el rol corra aparte: entonces cada encargo es una sesión propia, con su "
+            "juego de herramientas, su prompt y su motor. Un rol con otro proveedor u otro modelo corre "
+            "aparte siempre. De fábrica corren aparte vision, escenografo y organizador.");
         t.inputSchema = {
             {"type", "object"},
             {"required", {"rol"}},
@@ -76,7 +81,10 @@ void McpService::registerAgenteTools() {
               {"modelo", {{"type", "string"}}},
               {"consola",
                {{"type", "boolean"},
-                {"description", QT_TRANSLATE_NOOP("mcp", "herramientas propias del agente: consola, archivos, internet")}}}}}};
+                {"description", QT_TRANSLATE_NOOP("mcp", "herramientas propias del agente: consola, archivos, internet")}}},
+              {"aparte",
+               {{"type", "boolean"},
+                {"description", QT_TRANSLATE_NOOP("mcp", "cada encargo en su propia sesión, no en la conversación del evento")}}}}}};
         t.run = [&d, this](const json& a, Done done) {
             const std::string rol = a["rol"].get<std::string>();
             // En vivo no se le da la máquina entera a un agente: la consola no
@@ -97,6 +105,7 @@ void McpService::registerAgenteTools() {
                 d.setModelo(QString::fromStdString(rol), QString::fromStdString(a["modelo"]));
             if (a.contains("activo")) d.setActivo(QString::fromStdString(rol), a["activo"].get<bool>());
             if (a.contains("consola")) d.setConsola(QString::fromStdString(rol), a["consola"].get<bool>());
+            if (a.contains("aparte")) d.setAparte(QString::fromStdString(rol), a["aparte"].get<bool>());
             json r;
             for (const auto& x : d.roles().aJson())
                 if (x.value("id", "") == rol) r = x;

@@ -67,6 +67,17 @@ struct Rol {
     /// No se le encargan cosas («Hablar directo», agente_encargar): solo se elige su modelo y
     /// se editan sus instrucciones.
     bool enLaApp = false;
+    /// CORRE APARTE: cada encargo en una sesión propia, de un tiro (con su juego de
+    /// herramientas, su prompt y su motor). Si no (y el asistente de automatización está
+    /// andando con OpenCode, con el mismo motor y sin otro modelo), el encargo va a LA
+    /// CONVERSACIÓN DEL EVENTO de ese asistente: con todo el contexto del evento, sin abrir
+    /// una sesión (una pestaña) por aviso. Ver AgentViewModel::launchOptionsHeadless.
+    ///
+    /// De fábrica aparte los que se ENCARGAN (no los despierta un disparador) y tienen
+    /// su propio juego a propósito: `vision` (las imágenes NO entran al hilo del asistente),
+    /// `escenografo` (consola, disco y red) y `organizador` (arma el evento entero).
+    /// Los que atienden disparadores (recepción, técnico) van a la conversación del evento.
+    bool aparte = false;
 };
 
 class Roles {
@@ -103,6 +114,7 @@ class Roles {
 
     bool setActivo(const std::string& id, bool activo);
     bool setConsola(const std::string& id, bool consola);
+    bool setAparte(const std::string& id, bool aparte);
     bool setProveedor(const std::string& id, const std::string& proveedor);
     bool setModelo(const std::string& id, const std::string& modelo);
     /// Lo propio del rol que escribió el operador ("" o igual al de fábrica = el de fábrica).

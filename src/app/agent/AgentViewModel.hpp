@@ -20,10 +20,15 @@
 // del usuario, y a salvo de las actualizaciones. Las claves de API, cifradas
 // en Credenciales/ y solo en el entorno del proceso del agente.
 //
-// Alertas: cada disparo de un disparador (AlertEngine) con "llm" se escribe
-// en el prompt del agente (agrupadas si llegan juntas) y lo despierta... salvo
-// que un ROL activo lo reclame (ver Roles/Despachador): entonces lo atiende un
-// agente de un solo tiro y esta conversacion no se entera.
+// Alertas: cada disparo de un disparador (AlertEngine) con "llm" le llega al
+// agente (agrupadas si llegan juntas) y lo despierta... salvo que un ROL activo
+// lo reclame (ver Roles/Despachador): entonces lo atiende un agente de un solo
+// tiro (con OpenCode, en esta misma conversación; ver Rol::aparte).
+//
+// UNA CONVERSACIÓN POR EVENTO (SesionesEvento): cada asistente retoma la del
+// evento abierto al arrancar (opencode --session, claude --resume) y lo
+// automático cae ahí. Con OpenCode, además, lo automático no se escribe en la
+// terminal: va por la API del servidor compartido, en cola (EnvioOpencode).
 //
 // Esta clase tambien sabe LANZAR agentes: el interactivo (una terminal) y los
 // de un tiro (`launchOptionsHeadless`: -p, salida en JSON, sin consola), con
@@ -50,6 +55,7 @@
 #include <thread>
 
 #include "agent/Lanzamiento.hpp"
+#include "agent/SesionesEvento.hpp"
 #include "term/TerminalSession.hpp"
 #include "ui/CapturaError.hpp"
 
@@ -63,6 +69,7 @@ class VentanillaMotor;
 namespace ba::app::agent {
 
 class AlertEngine;
+class EnvioOpencode;
 
 class AgentViewModel : public QObject {
     Q_OBJECT
@@ -127,6 +134,11 @@ class AgentViewModel : public QObject {
     /// para que no caigan en la charla del otro). Cada uno con su motor, su terminal,
     /// su conversación y su configuración.
     Q_PROPERTY(QString instancia READ instancia CONSTANT)
+    /// La conversación DEL EVENTO que usa este asistente (su id: «ses_…» de OpenCode, el
+    /// uuid de Claude; "" si todavía no hay o el motor no la guarda). Una por evento y por
+    /// asistente: se retoma al reiniciar la app o al volver a abrir el evento, y lo
+    /// automático (avisos, novedades, encargos de roles) cae ahí. Ver SesionesEvento.
+    Q_PROPERTY(QString sesionEvento READ sesionEvento NOTIFY sesionEventoChanged)
    public:
     /// `ventanilla`: lo de la configuración (el modelo local: contexto, capas en la GPU) se
     /// lee de la foto del motor (F3-03).
@@ -134,6 +146,20 @@ class AgentViewModel : public QObject {
                    QObject* parent = nullptr);
     QString instancia() const { return instancia_; }
     ~AgentViewModel() override;
+    QString sesionEvento() const;
+    /// Empieza otra conversación para este evento (la guardada se olvida; si el asistente
+    /// corre, se relanza con la nueva). Lo que había queda en el historial del motor.
+    Q_INVOKABLE void nuevaConversacion();
+    /// La conversación del evento en el servidor compartido de OpenCode, para que un
+    /// encargo de rol caiga ahí (`opencode run --server … --session …`). Vacía si este
+    /// asistente no es OpenCode, no corre o no tiene sesión.
+    struct SesionCompartida {
+        QString url, clave, sesion, proveedor, carpeta;
+    };
+    SesionCompartida sesionCompartida() const;
+    /// De dónde saca los encargos de roles la conversación del evento (la del asistente
+    /// de automatización: lo pone AsistenteViewModel).
+    void setSesionDeEncargos(std::function<SesionCompartida()> fn) { sesionDeEncargos_ = std::move(fn); }
 
     QObject* session() const { return session_.get(); }
     QVariantList providers() const;
@@ -345,6 +371,7 @@ class AgentViewModel : public QObject {
     void errorChanged();
     void alertsChanged();
     void limpiezaChanged();
+    void sesionEventoChanged();
     void notify(const QString& message, const QString& level);
 
    private:
@@ -360,6 +387,20 @@ class AgentViewModel : public QObject {
     /// Manda en un mensaje las novedades juntadas: al del evento, solo para que las tenga en
     /// contexto (no reacciona); al de automatización, por si hay que hacer algo.
     void mandarNovedades();
+    /// Un mensaje automático (aviso, nota, novedades) a la conversación: con OpenCode por la
+    /// API del servidor, a la sesión del evento y en cola (EnvioOpencode); si no, escrito en
+    /// la terminal como antes.
+    void entregarAutomatico(const QString& texto);
+    /// Las conversaciones guardadas del evento abierto.
+    SesionesEvento sesiones() const;
+    /// El título de la sesión del evento en OpenCode («<evento> · Evento»).
+    QString tituloSesion() const;
+    /// La carpeta de trabajo de este asistente (Runtime/agente o Runtime/agente-automatizacion).
+    QString carpetaDeTrabajo() const;
+    /// Claude guardó algo de esa conversación (si no, `--resume` no la encuentra).
+    static bool conversacionClaudeGuardada(const QString& id);
+    /// OpenCode: busca (o crea) la sesión del evento en el servidor compartido y sigue.
+    void conSesionDelEvento(const QString& ws, std::function<void()> seguir);
     QString runtimeOf(const QString& provider) const;
     /// Espacio de trabajo en `ws` para ese proveedor: instrucciones y la
     /// configuracion del MCP (con los argumentos del puente).
@@ -404,6 +445,9 @@ class AgentViewModel : public QObject {
     // El llama-server del chat del modelo local (pi): lo levanta start(), lo baja stop().
     quint16 puertoServidor_ = 0; ///< el del llama-server compartido (ServidorModeloLocal)
     QString urlOpencode_, claveOpencode_; ///< el servidor de OpenCode compartido (ServidorOpencode)
+    QString sesionOpencode_;              ///< la sesión del evento en ese servidor (--session)
+    std::unique_ptr<EnvioOpencode> envio_; ///< lo automático a esa sesión, por la API
+    std::function<SesionCompartida()> sesionDeEncargos_;
     QString ggufActual_; ///< el .gguf que cargó el servidor (su carpeta trae el prompt.json)
     QString rutaServidorLocal() const;
     void arrancarServidorLocal(std::function<void()> listo);

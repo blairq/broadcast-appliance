@@ -110,6 +110,9 @@ void AsistenteViewModel::armarAsistentes() {
     // agente de un tiro y NO al chat del asistente interactivo.
     roles_ = std::make_unique<agent::Roles>(p_.rt.dataRoot() / "Config" / "roles.json");
     despachador_ = std::make_unique<agent::Despachador>(*roles_, agent_->motores());
+    // Con OpenCode, un encargo de rol cae en la conversación del evento del asistente de
+    // automatización (la de las alertas), salvo los roles que corren aparte (Rol::aparte).
+    agent_->setSesionDeEncargos([a = agenteAuto_.get()]() { return a->sesionCompartida(); });
     agent_->setCorridasEnCurso([d = despachador_.get()]() { return d->enCurso(); });
     agenteAuto_->setCorridasEnCurso([d = despachador_.get()]() { return d->enCurso(); });
     // Los manuales de usuario (Configuración → Sistema → Manuales): los arma el asistente de evento.

@@ -275,6 +275,7 @@ void Despachador::lanzarAhora(Corrida& c) {
     l.modelo = QString::fromStdString(rol->modelo);
     l.prompt = QString::fromStdString(Roles::instrucciones(*rol));
     l.consola = rol->consola;
+    l.aparte = rol->aparte;
     l.encargo = QString::fromStdString(contextoPara(c.rol) + ba::i18n::traducir("asistente", "ENCARGO:") + "\n" +
                                        c.encargo);
     for (const std::string& f : c.adjuntos)
@@ -708,6 +709,10 @@ void Despachador::setActivo(const QString& rol, bool activo) {
 }
 void Despachador::setConsola(const QString& rol, bool consola) {
     if (roles_.setConsola(rol.toStdString(), consola)) emit cambio();
+}
+
+void Despachador::setAparte(const QString& rol, bool aparte) {
+    if (roles_.setAparte(rol.toStdString(), aparte)) emit cambio();
 }
 
 void Despachador::setProveedor(const QString& rol, const QString& proveedor) {

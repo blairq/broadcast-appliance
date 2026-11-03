@@ -3,6 +3,7 @@
 // ============================================================================
 
 #include "agent/AgentViewModel.hpp"
+#include "agent/EnvioOpencode.hpp"
 #include "arranque/ArchivoConfig.hpp"
 #include "fault/ModoSeguro.hpp"
 #include "agent/ServidorModeloLocal.hpp"
@@ -259,6 +260,10 @@ AgentViewModel::AgentViewModel(AppRuntime& rt, VentanillaMotor& ventanilla, Aler
       instancia_(instancia) {
     g_raiz = rt.dataRoot(); // ver g_raiz: `modelosDe` es estatica
     loadConfig();
+    // Lo automático a la conversación del evento (OpenCode, por la API del servidor).
+    envio_ = std::make_unique<EnvioOpencode>();
+    envio_->setEsperaMs(ba::ajustes::entero("asistente.esperaSesionLibreMs", 2000));
+    connect(envio_.get(), &EnvioOpencode::fallo, this, [this](const QString& e) { emit notify(e, "warning"); });
     connect(&net::Descargas::la(), &net::Descargas::cambio, this, &AgentViewModel::seguirInstalacion);
     // El buscador de versiones nuevas es uno («agente»): lo registra el del evento.
     if (instancia_ == "evento") registrarActualizaciones();
@@ -1752,6 +1757,11 @@ term::Pty::Options AgentViewModel::launchOptions(QString* error) {
                    << "Edit" << "Write" << "NotebookEdit";
         // La conversación con su id: retomar la pedida (reinicio de la app, relanzamiento
         // por el aire) o empezar una nueva con un id propio, para poder retomarla después.
+        // Si no, la DEL EVENTO (SesionesEvento): la que quedó guardada la última vez que se
+        // trabajó en este evento, si Claude tiene algo de ella; si no, una nueva que queda
+        // guardada para la próxima.
+        const QString delEvento = QString::fromStdString(sesiones().de(instancia_.toStdString(), "claude"));
+        if (reanudar_.isEmpty() && !delEvento.isEmpty() && conversacionClaudeGuardada(delEvento)) reanudar_ = delEvento;
         if (!reanudar_.isEmpty()) {
             sesion_ = reanudar_;
             o.args << "--resume" << sesion_;
@@ -1762,6 +1772,8 @@ term::Pty::Options AgentViewModel::launchOptions(QString* error) {
         }
         reanudar_.clear();
         seguir_.clear();
+        sesiones().poner(instancia_.toStdString(), "claude", sesion_.toStdString());
+        emit sesionEventoChanged();
     } else if (runtimeOf(provider_) == "antigravity") {
         // Retomar la pedida (reinicio de la app). El id de una nueva lo pone Antigravity:
         // sesionParaReanudar lo busca en su historial.
@@ -1779,6 +1791,9 @@ term::Pty::Options AgentViewModel::launchOptions(QString* error) {
         // Al servidor compartido (ver start y ServidorOpencode), no a uno propio.
         o.args.removeAll("--standalone");
         o.args << "--server" << urlOpencode_;
+        // La sesión del evento (ver conSesionDelEvento): la terminal la abre a ella y no
+        // empieza otra (antes, cada arranque dejaba una sesión nueva: otra pestaña).
+        if (!sesionOpencode_.isEmpty()) o.args << "--session" << sesionOpencode_;
         o.env["OPENCODE_SERVER_PASSWORD"] = claveOpencode_;
     }
     return o;
@@ -1806,6 +1821,43 @@ Motores AgentViewModel::motores() {
 }
 
 term::Pty::Options AgentViewModel::launchOptionsHeadless(const Lanzamiento& l, QString* error) {
+    // OpenCode: el encargo va a LA CONVERSACIÓN DEL EVENTO (la del asistente de
+    // automatización, la que el operador ve en la pestaña), no a una sesión nueva por
+    // encargo: `opencode run --server <el compartido> --session <la del evento>`. El
+    // servidor lo pone en la bandeja de la sesión y lo atiende cuando termina lo que esté
+    // haciendo (no corta una respuesta en curso); la salida JSON es la de ese turno, así
+    // que la corrida se sigue igual que antes. Con el contexto entero del evento, pero con
+    // las herramientas, el motor y el modelo de ese asistente.
+    //
+    // CORRE APARTE (su sesión propia, de un tiro, como antes) si el rol lo pide
+    // (`aparte`: p. ej. «mirada», que mira imágenes con un modelo de visión y SOLO con sus
+    // herramientas de imagen, a propósito), si tiene otro proveedor u otro modelo que el
+    // asistente (un rol sin proveedor usa el de ese asistente), o si el asistente de
+    // automatización no está andando con OpenCode. Con Claude los roles siempre corren
+    // aparte (`claude -p`): su conversación interactiva es de la terminal y dos procesos
+    // escribiendo la misma conversación se pisan.
+    if (!l.aparte && sesionDeEncargos_) {
+        const SesionCompartida s = sesionDeEncargos_();
+        if (!s.sesion.isEmpty() && (l.proveedor.isEmpty() || l.proveedor == s.proveedor) && l.modelo.isEmpty()) {
+            term::Pty::Options o = baseLaunch(s.proveedor, {}, s.carpeta, error);
+            if (o.program.isEmpty()) return o;
+            // La marca del principio es fija (no se traduce), como «[AVISO AUTOMATICO…]».
+            const QString texto =
+                "[ENCARGO AUTOMATICO] " +
+                QString::fromStdString(ba::i18n::llenar(
+                    ba::i18n::traducir("asistente", "Para el rol «%1» (lo atendés vos, en esta conversación del "
+                                                    "evento). Instrucciones del rol:"),
+                    {l.rol.toStdString()})) +
+                "\n" + l.prompt + "\n\n" + l.encargo;
+            o.args = {"run", "--server", s.url, "--session", s.sesion, "--format", "json"};
+            // El mensaje PRIMERO y los adjuntos al final (ver abajo: `-f` toma una lista).
+            o.args << texto;
+            for (const QString& f : l.adjuntos)
+                o.args << "-f" << f;
+            o.env["OPENCODE_SERVER_PASSWORD"] = s.clave;
+            return o;
+        }
+    }
     const QString proveedor = l.proveedor.isEmpty() ? provider_ : l.proveedor;
     const QString runtime = runtimeOf(proveedor);
     if (runtime == "antigravity") {
@@ -1885,7 +1937,9 @@ void AgentViewModel::start() {
                                          }
                                          yo->urlOpencode_ = url;
                                          yo->claveOpencode_ = clave;
-                                         yo->lanzarSesion();
+                                         yo->conSesionDelEvento(yo->carpetaDeTrabajo(), [yo]() {
+                                             if (yo) yo->lanzarSesion();
+                                         });
                                      });
         return;
     }
@@ -1943,6 +1997,11 @@ void AgentViewModel::pararServidorLocal() {
     ServidorOpencode::el().soltar(this);
     urlOpencode_.clear();
     claveOpencode_.clear();
+    if (envio_) envio_->desconectar(); // lo que no salió, sin servidor no tiene a dónde ir
+    if (!sesionOpencode_.isEmpty()) {
+        sesionOpencode_.clear();
+        emit sesionEventoChanged();
+    }
 }
 
 void AgentViewModel::lanzarSesion() {
@@ -2235,7 +2294,7 @@ void AgentViewModel::flushAlerts() {
                                             "las herramientas, contame qué pasó y proponé qué hacer)."),
             {pendingAlerts_.join(" | ").toStdString()}));
     pendingAlerts_.clear();
-    session_->submit(msg);
+    entregarAutomatico(msg);
 }
 
 void AgentViewModel::mandarNovedades() {
@@ -2246,7 +2305,7 @@ void AgentViewModel::mandarNovedades() {
     const QString lista = novedades_.join(" | ");
     novedades_.clear();
     const std::string l = lista.toStdString();
-    session_->submit(QString::fromStdString(
+    entregarAutomatico(QString::fromStdString(
         instancia_ == "automatizacion"
             ? ba::i18n::llenar(ba::i18n::traducir("asistente",
                                                   "[NOVEDADES del evento] %1 — Solo para que sepas qué está pasando. "
@@ -2258,6 +2317,86 @@ void AgentViewModel::mandarNovedades() {
                                                   "ni lo comentes: contestá solo «ok». De esto se ocupa el asistente "
                                                   "de automatización; tenelo en cuenta cuando el operador te hable."),
                                {l})));
+}
+
+// --- La conversación del evento ---------------------------------------------------------
+
+void AgentViewModel::entregarAutomatico(const QString& texto) {
+    // OpenCode con la sesión del evento: por la API, en cola (no se mezcla con lo que el
+    // operador escribe ni corta una respuesta; lo que llega mientras tanto sale junto).
+    if (runtimeOf(provider_) == "opencode" && envio_ && envio_->conectado() && !envio_->sesion().isEmpty()) {
+        envio_->encolar(texto);
+        return;
+    }
+    // Los demás motores (y OpenCode sin sesión del evento): escrito en su terminal. Claude
+    // Code y pi encolan lo que se les escribe mientras responden.
+    session_->submit(texto);
+}
+
+SesionesEvento AgentViewModel::sesiones() const { return SesionesEvento::delEventoAbierto(rt_.dataRoot()); }
+
+QString AgentViewModel::carpetaDeTrabajo() const {
+    const QString root = QString::fromStdWString(ba::platform::dataRoot().wstring()); // de la máquina
+    return root + (instancia_ == "automatizacion" ? "/Runtime/agente-automatizacion" : "/Runtime/agente");
+}
+
+QString AgentViewModel::tituloSesion() const {
+    std::filesystem::path r = rt_.dataRoot();
+    if (!r.empty() && r.filename().empty()) r = r.parent_path();
+    const QString evento = QString::fromStdWString(r.filename().wstring());
+    return (instancia_ == "automatizacion" ? tr("%1 · Automatización") : tr("%1 · Evento")).arg(evento);
+}
+
+bool AgentViewModel::conversacionClaudeGuardada(const QString& id) {
+    if (id.isEmpty()) return false;
+    const QString root = QString::fromStdWString(ba::platform::dataRoot().wstring());
+    QDirIterator it(root + "/Credenciales/agentes/claude/projects", {id + ".jsonl"}, QDir::Files,
+                    QDirIterator::Subdirectories);
+    return it.hasNext();
+}
+
+void AgentViewModel::conSesionDelEvento(const QString& ws, std::function<void()> seguir) {
+    envio_->conectar(urlOpencode_, claveOpencode_);
+    const QString guardada = QString::fromStdString(sesiones().de(instancia_.toStdString(), "opencode"));
+    QPointer<AgentViewModel> yo(this);
+    envio_->asegurarSesion(guardada, tituloSesion(), ws, [yo, seguir](const QString& id, const QString& error) {
+        if (!yo) return;
+        if (!error.isEmpty()) {
+            // Sin la sesión del evento igual arranca (como antes: una sesión nueva) y avisa.
+            emit yo->notify(error, "warning");
+            yo->sesionOpencode_.clear();
+        } else {
+            yo->sesionOpencode_ = id;
+            yo->sesiones().poner(yo->instancia_.toStdString(), "opencode", id.toStdString());
+        }
+        emit yo->sesionEventoChanged();
+        seguir();
+    });
+}
+
+QString AgentViewModel::sesionEvento() const {
+    const QString rt = runtimeOf(provider_);
+    if (rt == "opencode") return sesionOpencode_;
+    if (rt == "claude" || rt == "antigravity") return session_->running() ? sesion_ : QString();
+    return {};
+}
+
+void AgentViewModel::nuevaConversacion() {
+    sesiones().olvidar(instancia_.toStdString());
+    reanudar_.clear();
+    seguir_.clear();
+    sesion_.clear();
+    const bool corria = running();
+    if (corria) stop(); // suelta el servidor de OpenCode: la sesión se olvida ahí
+    sesionOpencode_.clear();
+    emit sesionEventoChanged();
+    if (corria) QTimer::singleShot(300, this, &AgentViewModel::start);
+}
+
+AgentViewModel::SesionCompartida AgentViewModel::sesionCompartida() const {
+    if (runtimeOf(provider_) != "opencode" || !session_->running() || urlOpencode_.isEmpty() || sesionOpencode_.isEmpty())
+        return {};
+    return {urlOpencode_, claveOpencode_, sesionOpencode_, provider_, carpetaDeTrabajo()};
 }
 
 void AgentViewModel::openAgentsFolder() const {
