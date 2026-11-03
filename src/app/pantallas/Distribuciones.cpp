@@ -10,6 +10,7 @@
 #include <QCoreApplication>
 #include <QJsonArray>
 #include <QJsonObject>
+#include <QQmlEngine>
 #include <QSet>
 
 #include <algorithm>
@@ -192,17 +193,70 @@ DistribucionesModel::DistribucionesModel(std::filesystem::path archivo, Catalogo
         if (rowCount() > 0) emit dataChanged(index(0), index(rowCount() - 1), {VentanasRole, ResumenRole});
         emit cambio();
     };
-    if (monitores_ != nullptr) connect(monitores_, &MonitoresModel::cambio, this, todoCambio);
-    if (catalogo_ != nullptr) connect(catalogo_, &CatalogoVisible::cambio, this, todoCambio);
-    // Se cerraron sus ventanas (la salida de emergencia, el MCP): ya no está aplicada.
-    if (ventanas_ != nullptr)
-        connect(ventanas_, &VentanasModel::cambio, this, [this]() {
-            if (aplicada_.isEmpty() || ventanas_->fijas() > 0) return;
-            const int r = filaDe(aplicada_);
-            aplicada_.clear();
-            if (r >= 0) emit dataChanged(index(r), index(r), {AplicadaRole});
-            emit cambio();
+    if (monitores_ != nullptr)
+        connect(monitores_, &MonitoresModel::cambio, this, [this, todoCambio]() {
+            todoCambio();
+            // Se enchufó o se desenchufó un monitor: lo aplicado se vuelve a ubicar.
+            reaplicar();
         });
+    if (catalogo_ != nullptr) connect(catalogo_, &CatalogoVisible::cambio, this, todoCambio);
+}
+
+QObject* DistribucionesModel::lienzosQml() const {
+    // Es un miembro: que el recolector de QML no lo reclame.
+    auto* l = const_cast<LienzosModel*>(&lienzos_);
+    QQmlEngine::setObjectOwnership(l, QQmlEngine::CppOwnership);
+    return l;
+}
+
+// --- Los lienzos (ventanas madre) -----------------------------------------------------------
+
+QVariant LienzosModel::data(const QModelIndex& index, int role) const {
+    if (!index.isValid() || index.row() >= rowCount()) return {};
+    const Lienzo& l = filas_[static_cast<std::size_t>(index.row())];
+    switch (role) {
+        case LienzoIdRole: return l.id;
+        case GeometriaRole: return l.geometria;
+        case PantallaCompletaRole: return l.pantallaCompleta;
+        case EncimaRole: return l.encima;
+        case OrdenRole: return l.orden;
+        case PiezasRole: {
+            QVariantList ps;
+            for (const Pieza& p : l.piezas)
+                ps << QVariantMap{{"nombre", p.nombre}, {"cosas", p.cosas}, {"disposicion", p.disposicion},
+                                  {"x", p.rect.x()},    {"y", p.rect.y()},  {"ancho", p.rect.width()},
+                                  {"alto", p.rect.height()}};
+            return ps;
+        }
+        default: return {};
+    }
+}
+
+QHash<int, QByteArray> LienzosModel::roleNames() const {
+    return {{LienzoIdRole, "lienzoId"}, {GeometriaRole, "geometria"}, {PantallaCompletaRole, "pantallaCompleta"},
+            {EncimaRole, "encima"},     {OrdenRole, "orden"},         {PiezasRole, "piezas"}};
+}
+
+QList<int> LienzosModel::rolesQueCambian(const Lienzo& a, const Lienzo& b) const {
+    QList<int> r;
+    if (a.geometria != b.geometria) r << GeometriaRole;
+    if (a.pantallaCompleta != b.pantallaCompleta) r << PantallaCompletaRole;
+    if (a.encima != b.encima) r << EncimaRole;
+    if (a.orden != b.orden) r << OrdenRole;
+    if (a.piezas != b.piezas) r << PiezasRole;
+    return r;
+}
+
+bool LienzosModel::poner(std::vector<Lienzo> nuevos) {
+    const bool hubo = aplicar(std::move(nuevos));
+    if (hubo) emit cambio();
+    return hubo;
+}
+
+int LienzosModel::cerrarTodo() {
+    const int n = rowCount();
+    if (n > 0) poner({});
+    return n;
 }
 
 QVariant DistribucionesModel::data(const QModelIndex& index, int role) const {
@@ -430,7 +484,7 @@ void DistribucionesModel::poner(Distribucion d) {
         guardar();
     }
     // La que está puesta se edita EN VIVO: sus ventanas siguen al editor.
-    if (d.id == aplicada_ && ventanas_ != nullptr) aplicar(d.id);
+    if (d.id == aplicada_) reaplicar();
 }
 
 QString DistribucionesModel::crear(const QString& nombrePedido, const QVariantList& ventanas) {
@@ -660,32 +714,92 @@ bool DistribucionesModel::moverEnDibujo(const QString& id, int indice, double x,
 
 // --- Usarla ------------------------------------------------------------------------------
 
-std::vector<FilaVentana> DistribucionesModel::resolver(const Distribucion& d, QStringList* avisos) const {
+std::vector<Lienzo> DistribucionesModel::resolver(const Distribucion& d, QStringList* avisos) const {
     const std::vector<MonitorVisto> hay = monitoresVistos();
-    std::vector<FilaVentana> out;
+    // Por monitor (en el orden en que aparecen en la distribución): sus piezas en
+    // píxeles del escritorio y, después, relativas al rectángulo que las encierra.
+    struct Grupo {
+        int monitor = -1;
+        QString id;
+        std::vector<std::pair<Pieza, QRect>> piezas;
+        bool encima = false;
+    };
+    std::vector<Grupo> grupos;
     for (const VentanaDistribucion& v : d.ventanas) {
         bool falta = false;
         const int i = monitorPara(v, hay, &falta);
-        FilaVentana f;
-        for (const QString& c : v.cosas) f.cosas << (catalogo_ != nullptr ? catalogo_->claveDe(c) : c);
-        f.distribucion = v.disposicion;
-        f.pantallaCompleta = v.pantallaCompleta;
-        f.nombre = v.nombre;
-        f.encima = v.encima;
-        f.fija = true;
+        Pieza p;
+        for (const QString& c : v.cosas) p.cosas << (catalogo_ != nullptr ? catalogo_->claveDe(c) : c);
+        // Lo que ya no existe (una escena borrada) no se dibuja: se avisa.
+        if (catalogo_ != nullptr) {
+            QStringList quedan;
+            for (const QString& c : p.cosas) {
+                const CatalogoVisible::Cosa* cosa = catalogo_->buscar(c);
+                if (cosa != nullptr && !cosa->dibujo.isEmpty()) quedan << c;
+                else if (avisos != nullptr)
+                    *avisos << QCoreApplication::translate("pantallas", "«%1» ya no se puede mostrar: se saltea.").arg(c);
+            }
+            p.cosas = quedan;
+        }
+        if (p.cosas.isEmpty()) continue;
+        p.nombre = v.nombre;
+        p.disposicion = v.disposicion;
+        p.pantallaCompleta = v.pantallaCompleta;
+        QRect g;
+        QString id = v.monitor;
         if (i >= 0) {
             const MonitorVisto& m = hay[static_cast<std::size_t>(i)];
-            f.monitor = m.id;
-            f.geometria = geometriaEn(v, m.geometria);
+            id = m.id;
+            g = v.pantallaCompleta ? m.geometria : geometriaEn(v, m.geometria);
             if (falta && avisos != nullptr) {
-                const QString quien = v.nombre.isEmpty() ? (catalogo_ ? catalogo_->tituloDe(v.cosas.value(0)) : v.cosas.value(0))
-                                                         : v.nombre;
-                *avisos << QCoreApplication::translate("pantallas", "«%1»: su monitor no está conectado; va en el %2 (%3).").arg(quien).arg(m.orden).arg(m.nombre);
+                const QString quien = !v.nombre.isEmpty()   ? v.nombre
+                                      : catalogo_ != nullptr ? catalogo_->tituloDe(v.cosas.value(0))
+                                                             : v.cosas.value(0);
+                *avisos << QCoreApplication::translate("pantallas", "«%1»: su monitor no está conectado; va en el %2 (%3).")
+                               .arg(quien)
+                               .arg(m.orden)
+                               .arg(m.nombre);
             }
-        } else {
-            f.monitor = v.monitor;
         }
-        out.push_back(std::move(f));
+        auto it = std::find_if(grupos.begin(), grupos.end(), [&](const Grupo& gr) { return gr.id == id; });
+        if (it == grupos.end()) {
+            grupos.push_back(Grupo{i, id, {}, false});
+            it = grupos.end() - 1;
+        }
+        it->piezas.emplace_back(p, g);
+        it->encima = it->encima || v.encima;
+    }
+    std::vector<Lienzo> out;
+    for (const Grupo& gr : grupos) {
+        Lienzo l;
+        l.id = gr.id;
+        l.encima = gr.encima;
+        QRect caja;
+        for (const auto& pg : gr.piezas) caja = caja.united(pg.second);
+        if (gr.monitor >= 0) {
+            const MonitorVisto& m = hay[static_cast<std::size_t>(gr.monitor)];
+            l.orden = m.orden;
+            caja = caja.intersected(m.geometria);
+            l.pantallaCompleta = caja == m.geometria;
+            // Lo fijo de «Pantallas conectadas» en el mismo monitor: quedan las dos.
+            if (monitores_ != nullptr && avisos != nullptr &&
+                !monitores_->monitor(m.id).value("cosas").toStringList().isEmpty())
+                *avisos << QCoreApplication::translate("pantallas", "El monitor %1 también tiene algo fijo (Pantallas conectadas): "
+                                                                    "se van a tapar. Quitalo ahí si manda la distribución.")
+                               .arg(m.orden);
+        }
+        l.geometria = caja;
+        for (const auto& [pieza, g] : gr.piezas) {
+            Pieza p = pieza;
+            p.rect = caja.width() > 0 && caja.height() > 0
+                         ? QRectF((g.x() - caja.x()) / static_cast<double>(caja.width()),
+                                  (g.y() - caja.y()) / static_cast<double>(caja.height()),
+                                  g.width() / static_cast<double>(caja.width()),
+                                  g.height() / static_cast<double>(caja.height()))
+                         : QRectF(0, 0, 1, 1);
+            l.piezas.push_back(p);
+        }
+        out.push_back(std::move(l));
     }
     return out;
 }
@@ -693,32 +807,69 @@ std::vector<FilaVentana> DistribucionesModel::resolver(const Distribucion& d, QS
 bool DistribucionesModel::aplicar(const QString& idPedido) {
     const Distribucion* d = buscar(idPedido);
     if (d == nullptr) return sinError(QCoreApplication::translate("pantallas", "No hay una distribución «%1».").arg(idPedido));
-    if (ventanas_ == nullptr) return sinError(QCoreApplication::translate("pantallas", "La interfaz no está abierta: no hay ventanas para acomodar."));
-    QStringList avisos;
-    std::vector<FilaVentana> filas = resolver(*d, &avisos);
-    avisos << ventanas_->ponerExactas(std::move(filas));
     const QString antes = aplicada_;
     aplicada_ = d->id;
-    aviso_ = avisos.join('\n');
+    // EXACTAMENTE lo suyo: las ventanas sueltas se cierran.
+    if (ventanas_ != nullptr) ventanas_->cerrarTodas();
+    aviso_.clear();
+    reaplicar();
     for (const QString& id : {antes, aplicada_})
         if (const int r = filaDe(id); r >= 0 && !id.isEmpty()) emit dataChanged(index(r), index(r), {AplicadaRole});
+    emit cambio();
+    if (antes != aplicada_) guardar();
+    return true;
+}
+
+void DistribucionesModel::reaplicar() {
+    if (aplicada_.isEmpty()) return;
+    const Distribucion* d = buscar(aplicada_);
+    if (d == nullptr) return;
+    QStringList avisos;
+    lienzos_.poner(resolver(*d, &avisos));
+    const QString nuevo = avisos.join('\n');
+    if (nuevo == aviso_) return;
+    aviso_ = nuevo;
     emit cambio();
     // Lo que no se pudo no es un error (se aplicó el resto): a la vista, salvo que quien
     // llamó esté capturando (el MCP lo devuelve él mismo, con `aviso`).
     if (!aviso_.isEmpty() && !CapturaError::tomar(QString())) emit notify(aviso_, "warn");
-    return true;
 }
 
 Distribucion DistribucionesModel::foto() const {
     Distribucion d;
-    if (ventanas_ == nullptr) return d;
     const std::vector<MonitorVisto> hay = monitoresVistos();
+    const auto monitorDe = [&hay](const QString& id) -> const MonitorVisto* {
+        for (const MonitorVisto& m : hay)
+            if (m.id == id) return &m;
+        return nullptr;
+    };
+    // Los lienzos: cada pieza vuelve a ser una ventana, relativa a su monitor.
+    for (const Lienzo& l : lienzos_.lienzos()) {
+        const MonitorVisto* m = monitorDe(l.id);
+        for (const Pieza& p : l.piezas) {
+            VentanaDistribucion v;
+            v.nombre = p.nombre;
+            v.cosas = p.cosas;
+            v.disposicion = p.disposicion;
+            v.encima = l.encima;
+            v.pantallaCompleta = p.pantallaCompleta;
+            v.monitor = l.id;
+            if (m != nullptr && !p.pantallaCompleta) {
+                const QRect g(l.geometria.x() + static_cast<int>(std::lround(p.rect.x() * l.geometria.width())),
+                              l.geometria.y() + static_cast<int>(std::lround(p.rect.y() * l.geometria.height())),
+                              static_cast<int>(std::lround(p.rect.width() * l.geometria.width())),
+                              static_cast<int>(std::lround(p.rect.height() * l.geometria.height())));
+                v.relativa = aRelativa(g, m->geometria);
+            }
+            d.ventanas.push_back(v);
+        }
+    }
+    if (ventanas_ == nullptr) return d;
+    // Las ventanas sueltas.
     for (const FilaVentana& f : ventanas_->ventanas()) {
         VentanaDistribucion v;
         v.cosas = f.cosas;
         v.disposicion = disposicionValida(f.distribucion) ? f.distribucion : QStringLiteral("grid");
-        v.nombre = f.nombre;
-        v.encima = f.encima;
         v.pantallaCompleta = f.pantallaCompleta;
         // Su monitor: el que dice, si está; si no, donde cae su centro; si no, el primero.
         int i = -1;
@@ -742,16 +893,18 @@ Distribucion DistribucionesModel::foto() const {
 }
 
 QString DistribucionesModel::capturar(const QString& nombre, const QString& id) {
-    if (ventanas_ == nullptr) return avisarError(QCoreApplication::translate("pantallas", "La interfaz no está abierta: no hay ventanas para guardar.")), QString();
     const Distribucion f = foto();
     if (!id.trimmed().isEmpty()) {
         const int r = filaDe(id.trimmed());
-        if (r < 0) return avisarError(QCoreApplication::translate("pantallas", "No hay una distribución «%1».").arg(id)), QString();
+        if (r < 0)
+            return avisarError(QCoreApplication::translate("pantallas", "No hay una distribución «%1».").arg(id)), QString();
         Distribucion d = filas_[static_cast<std::size_t>(r)];
         d.ventanas = f.ventanas;
         if (!nombre.trimmed().isEmpty() && nombre.trimmed() != d.nombre) {
             if (const Distribucion* o = buscar(nombre.trimmed()); o != nullptr && o->id != d.id)
-                return avisarError(QCoreApplication::translate("pantallas", "Ya hay una distribución que se llama «%1».").arg(nombre.trimmed())), QString();
+                return avisarError(QCoreApplication::translate("pantallas", "Ya hay una distribución que se llama «%1».")
+                                       .arg(nombre.trimmed())),
+                       QString();
             d.nombre = nombre.trimmed();
         }
         poner(d);
@@ -762,7 +915,16 @@ QString DistribucionesModel::capturar(const QString& nombre, const QString& id) 
     return crear(nombre, vs);
 }
 
-int DistribucionesModel::cerrarVentanas() { return ventanas_ != nullptr ? ventanas_->cerrarFijas() : 0; }
+int DistribucionesModel::cerrarVentanas() {
+    const int n = lienzos_.cerrarTodo();
+    const QString antes = aplicada_;
+    aplicada_.clear();
+    aviso_.clear();
+    if (const int r = filaDe(antes); r >= 0 && !antes.isEmpty()) emit dataChanged(index(r), index(r), {AplicadaRole});
+    emit cambio();
+    if (!antes.isEmpty()) guardar();
+    return n;
+}
 
 void DistribucionesModel::aplicarAlAbrir() {
     for (const Distribucion& d : filas_)
@@ -770,6 +932,14 @@ void DistribucionesModel::aplicarAlAbrir() {
             aplicar(d.id);
             return;
         }
+    // Ninguna marcada: la que estaba (un corte de luz no deja los monitores vacíos).
+    // Sin cerrar las ventanas sueltas, que también volvieron como estaban.
+    if (!aplicada_.isEmpty() && buscar(aplicada_) != nullptr) {
+        reaplicar();
+        emit cambio();
+    } else {
+        aplicada_.clear();
+    }
 }
 
 // --- Persistencia ------------------------------------------------------------------------
@@ -793,6 +963,7 @@ void DistribucionesModel::cargar() {
         }
         filas_.push_back(std::move(d));
     }
+    aplicada_ = o.value("aplicada").toString();
 }
 
 void DistribucionesModel::guardar() const {
@@ -805,7 +976,10 @@ void DistribucionesModel::guardar() const {
         if (d.alAbrir) j["alAbrir"] = true;
         ds.append(j);
     }
-    config::guardarQ(archivo_, QJsonObject{{"distribuciones", ds}});
+    QJsonObject raiz{{"distribuciones", ds}};
+    // La que está puesta: vuelve sola al reiniciar (aplicarAlAbrir).
+    if (!aplicada_.isEmpty()) raiz["aplicada"] = aplicada_;
+    config::guardarQ(archivo_, raiz);
 }
 
 } // namespace ba::app

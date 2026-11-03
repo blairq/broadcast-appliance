@@ -170,6 +170,10 @@ const Fila kFamilias[] = {
     {"dcn_", QT_TRANSLATE_NOOP("mcp-etiquetas", "central de conferencia bosch dcn ccu microfonos de banca unidades consola delegados")},
     //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
     {"glosario_", QT_TRANSLATE_NOOP("mcp-etiquetas", "glosario terminos traduccion vocabulario palabras del evento como se dice")},
+    //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
+    {"pantallas_distribucion", QT_TRANSLATE_NOOP("mcp-etiquetas", "distribucion de pantallas layout de ventanas acomodar ventanas en los monitores "
+                               "mosaico grilla de ventanas varias pantallas guardar como estan las ventanas armar los monitores "
+                               "remotos en un monitor programa y previo multiview en otro monitor preset de pantallas")},
 };
 
 /// Lo propio de cada herramienta: lo que la distingue de sus hermanas.

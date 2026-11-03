@@ -9,20 +9,37 @@
 // rectángulos que se arrastran) o, sobre todo, por MCP (una lista de ventanas en
 // JSON), se guarda y se APLICA cuando se la necesita.
 //
-// NO ES UN SEGUNDO SISTEMA DE VENTANAS. Cada ventana de una distribución es una
-// ventana suelta de las de siempre (pantallas/Ventanas.hpp: VentanasModel), con
-// una cosa del catálogo único (pantallas/Catalogo.hpp) o varias en grilla, en un
-// monitor con el id estable de Salidas → Pantallas (pantallas/Monitores.hpp).
-// Aplicar es pedirle a VentanasModel que deje exactamente esas
-// (`ponerExactas`): reusa las que ya están (no parpadean), cierra las que sobran
-// y abre las que faltan. Dos veces lo mismo no cambia nada.
+// UNA VENTANA MADRE POR MONITOR (un «lienzo»). Aplicar una distribución NO abre
+// una ventana del sistema por cada cosa: arma, en cada monitor que usa, UNA sola
+// ventana sin marco (a pantalla completa si la distribución ocupa el monitor
+// entero; si no, del tamaño justo del rectángulo que encierra sus ventanas) y
+// adentro dibuja cada «ventana» de la distribución como un rectángulo con su
+// vista (VistaCosas, la misma de las ventanas sueltas y los monitores). Por qué:
+//   - nada que el operador pueda mover, agrandar o cerrar con el mouse o con los
+//     atajos del sistema (pedido del usuario: se cambian solo desde el menú
+//     Pantallas o por MCP);
+//   - posiciones exactas: el gestor de ventanas no reacomoda rectángulos internos
+//     (sí reacomoda, a veces, ventanas sueltas sin marco, sobre todo en macOS);
+//   - un solo contexto de render y una sola superficie para el compositor por
+//     monitor, en vez de N;
+//   - cambiar de distribución no abre ni cierra ventanas: el lienzo de cada
+//     monitor se queda (su id es el del monitor) y cambian sus rectángulos.
+// Y cada monitor con su lienzo propio respeta su escala y su frecuencia (una
+// ventana que cruzara monitores no). Lo que de verdad necesite su propia ventana
+// del sistema (algo que se captura por ventana) sigue siendo una ventana suelta
+// (pantallas/Ventanas.hpp), que no es parte de una distribución.
 //
-// LAS VENTANAS DE UNA DISTRIBUCIÓN SON SIN MARCO Y QUIETAS (pedido del usuario):
-// sin barra de título ni botones ni bordes, no se mueven ni se cierran con el
-// mouse ni con los atajos del sistema. Su lugar cambia SOLO desde acá (el editor
-// o el MCP). Para salir de una emergencia: «Cerrar las ventanas de la
-// distribución» (Pantallas → Distribuciones), Ctrl+Shift+F12 desde cualquier
-// ventana de la app, o pantallas_distribucion_cerrar por MCP.
+// Las piezas son las de siempre: cosas del catálogo único (pantallas/Catalogo.hpp)
+// y monitores con el id estable de Salidas → Pantallas (pantallas/Monitores.hpp).
+// Aplicar deja EXACTAMENTE lo de la distribución: los lienzos se ponen en su lugar
+// (ListaConClave: dos veces lo mismo no avisa nada) y las ventanas sueltas se
+// cierran. Lo fijo de «Pantallas conectadas» (MonitoresModel) no se toca; si un
+// monitor tiene las dos cosas, se avisa.
+//
+// Salida de emergencia: «Cerrar las ventanas de la distribución» (Pantallas →
+// Distribuciones), Ctrl+Shift+F12 desde cualquier ventana de la app, o
+// pantallas_distribucion_cerrar por MCP. Lo aplicado se recuerda: al volver la
+// luz (o al reiniciar) vuelve sola la que estaba (o la marcada `alAbrir`).
 //
 // EL LUGAR VA RELATIVO AL MONITOR (0..1), para que sobreviva a un cambio de
 // resolución: «la mitad izquierda» sigue siendo la mitad izquierda en un 4K o en
@@ -32,8 +49,9 @@
 //
 // SI UN MONITOR NO ESTÁ, se avisa y su ventana va al que haya (el primero que no
 // sea el principal; si no, el principal). Nunca se rompe ni se deja de aplicar el
-// resto. Distinto de «Pantallas conectadas» (MonitoresModel), que ESPERA al
-// monitor que falta: una distribución se aplica ahora, con lo que hay.
+// resto. Si después aparece (o se desenchufa otro), lo aplicado se vuelve a
+// resolver solo. Distinto de «Pantallas conectadas» (MonitoresModel), que ESPERA
+// al monitor que falta sin mudar su contenido.
 //
 // ES DEL EVENTO («Evento es todo»): <evento>/Config/distribuciones-pantallas.json.
 // Una puede marcarse `alAbrir`: se aplica sola al cargar el evento.
@@ -79,6 +97,58 @@ struct Distribucion {
     bool alAbrir = false; ///< se aplica sola al cargar el evento
     std::vector<VentanaDistribucion> ventanas;
     bool operator==(const Distribucion&) const = default;
+};
+
+/// Un rectángulo de un lienzo: una «ventana» de la distribución ya ubicada.
+struct Pieza {
+    QString nombre;
+    QStringList cosas;
+    QString disposicion = QStringLiteral("grid");
+    QRectF rect;           ///< 0..1 dentro del lienzo
+    bool pantallaCompleta = false; ///< ocupa el monitor entero (para volver a capturarla igual)
+    bool operator==(const Pieza&) const = default;
+};
+
+/// La ventana madre de un monitor: una sola ventana sin marco con sus piezas adentro.
+struct Lienzo {
+    QString id;        ///< el id del monitor (uno por monitor: cambiar de distribución no la recrea)
+    QRect geometria;   ///< en píxeles del escritorio
+    bool pantallaCompleta = false; ///< ocupa el monitor entero
+    bool encima = false;
+    int orden = 0;     ///< el número del monitor (para leer)
+    std::vector<Pieza> piezas;
+    bool operator==(const Lienzo&) const = default;
+};
+
+/// Los lienzos puestos ahora: el modelo del Instantiator de Main.qml (VentanaLienzo.qml).
+class LienzosModel : public ListaConClave<Lienzo> {
+    Q_OBJECT
+    Q_PROPERTY(int cantidad READ cantidad NOTIFY cambio)
+
+   public:
+    enum Roles {
+        LienzoIdRole = Qt::UserRole + 1, ///< el id del monitor
+        GeometriaRole,
+        PantallaCompletaRole,
+        EncimaRole,
+        OrdenRole,
+        PiezasRole, ///< [{nombre, cosas, disposicion, x, y, ancho, alto}] (0..1 en el lienzo)
+    };
+    explicit LienzosModel(QObject* parent = nullptr) : ListaConClave(parent) {}
+    QVariant data(const QModelIndex& index, int role) const override;
+    QHash<int, QByteArray> roleNames() const override;
+    int cantidad() const { return rowCount(); }
+    const std::vector<Lienzo>& lienzos() const { return filas_; }
+    /// Deja exactamente estos (en su lugar, por monitor). true si cambió algo.
+    bool poner(std::vector<Lienzo> nuevos);
+    /// Los saca todos. Devuelve cuántos había.
+    int cerrarTodo();
+
+   signals:
+    void cambio();
+
+   protected:
+    QList<int> rolesQueCambian(const Lienzo& a, const Lienzo& b) const override;
 };
 
 /// Un monitor conectado, con lo justo para ubicar (de MonitoresModel::conectadosEnOrden).
@@ -128,6 +198,8 @@ class DistribucionesModel : public ListaConClave<Distribucion> {
     Q_PROPERTY(double proporcion READ proporcion NOTIFY cambio)
     /// Las plantillas de un clic: [{id, titulo, ayuda}].
     Q_PROPERTY(QVariantList plantillas READ plantillas CONSTANT)
+    /// Las ventanas madre puestas ahora (LienzosModel).
+    Q_PROPERTY(QObject* lienzos READ lienzosQml CONSTANT)
 
    public:
     enum Roles {
@@ -155,6 +227,8 @@ class DistribucionesModel : public ListaConClave<Distribucion> {
     QVariantList monitores() const;
     double proporcion() const;
     static QVariantList plantillas();
+    QObject* lienzosQml() const;
+    LienzosModel& lienzos() { return lienzos_; }
     const std::vector<Distribucion>& lista() const { return filas_; }
     const Distribucion* buscar(const QString& idONombre) const;
 
@@ -190,18 +264,21 @@ class DistribucionesModel : public ListaConClave<Distribucion> {
     /// Guarda lo que hay abierto ahora: como una nueva (`id` vacío) o encima de esa.
     /// Devuelve el id, o "".
     Q_INVOKABLE QString capturar(const QString& nombre, const QString& id = {});
-    /// La salida de emergencia: cierra las ventanas de la distribución (las fijas).
+    /// La salida de emergencia: saca las ventanas madre de la distribución. Devuelve
+    /// cuántas eran.
     Q_INVOKABLE int cerrarVentanas();
-    /// Al cargar el evento: aplica la marcada `alAbrir`, si hay.
+    /// Al cargar el evento: aplica la marcada `alAbrir` o, si no hay, la que estaba
+    /// aplicada (un corte de luz no tiene que dejar los monitores vacíos).
     void aplicarAlAbrir();
 
     /// Los conectados, como los usa el modelo (de MonitoresModel, o los de prueba).
     std::vector<MonitorVisto> monitoresVistos() const;
     /// Para los tests sin MonitoresModel.
     void setMonitoresDePrueba(std::vector<MonitorVisto> m);
-    /// Las ventanas que pondría `aplicar` (para tests y para «qué haría»).
-    std::vector<FilaVentana> resolver(const Distribucion& d, QStringList* avisos = nullptr) const;
-    /// Lo que hay abierto ahora, como distribución (sin id ni nombre).
+    /// Los lienzos que pondría `aplicar` (para tests y para «qué haría»).
+    std::vector<Lienzo> resolver(const Distribucion& d, QStringList* avisos = nullptr) const;
+    /// Lo que hay puesto ahora (los lienzos y las ventanas sueltas), como
+    /// distribución (sin id ni nombre).
     Distribucion foto() const;
 
    signals:
@@ -226,6 +303,8 @@ class DistribucionesModel : public ListaConClave<Distribucion> {
     void poner(Distribucion d);
     QVariantMap mapaDe(const Distribucion& d) const;
     QRect limites() const;
+    /// Lo aplicado se vuelve a resolver (cambiaron los monitores, se editó).
+    void reaplicar();
     void cargar();
     void guardar() const;
 
@@ -237,6 +316,7 @@ class DistribucionesModel : public ListaConClave<Distribucion> {
     std::vector<MonitorVisto> prueba_;
     QString aviso_;
     QString aplicada_;
+    LienzosModel lienzos_;
 };
 
 } // namespace ba::app

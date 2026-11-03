@@ -63,9 +63,6 @@ QVariant VentanasModel::data(const QModelIndex& index, int role) const {
         case PantallaCompletaRole: return f.pantallaCompleta;
         case GeometriaRole: return f.geometria;
         case TituloRole: return titulo(f);
-        case NombreRole: return f.nombre;
-        case FijaRole: return f.fija;
-        case EncimaRole: return f.encima;
         default: return {};
     }
 }
@@ -74,9 +71,7 @@ QHash<int, QByteArray> VentanasModel::roleNames() const {
     return {{VentanaIdRole, "ventanaId"},   {CosasRole, "cosas"},
             {DistribucionRole, "distribucion"}, {MonitorRole, "monitor"},
             {SistemaRole, "sistema"},       {PantallaCompletaRole, "pantallaCompleta"},
-            {GeometriaRole, "geometria"},   {TituloRole, "titulo"},
-            {NombreRole, "nombre"},         {FijaRole, "fija"},
-            {EncimaRole, "encima"}};
+            {GeometriaRole, "geometria"},   {TituloRole, "titulo"}};
 }
 
 // --- Lo que ya estaba guardado ------------------------------------------------------
@@ -215,105 +210,25 @@ int VentanasModel::abrirVideo(const QStringList& claves, const QString& distribu
     return abrirCon(cosas, distribucion);
 }
 
-void VentanasModel::quitarFila(int r) {
-    beginRemoveRows({}, r, r);
-    filas_.erase(filas_.begin() + r);
-    endRemoveRows();
-}
-
 void VentanasModel::cerrar(int id) {
     const int r = filaDe(id);
     if (r < 0) return;
-    quitarFila(r);
+    beginRemoveRows({}, r, r);
+    filas_.erase(filas_.begin() + r);
+    endRemoveRows();
     emit cambio();
     guardar();
 }
 
-int VentanasModel::fijas() const {
-    int n = 0;
-    for (const FilaVentana& f : filas_) n += f.fija ? 1 : 0;
+int VentanasModel::cerrarTodas() {
+    const int n = rowCount();
+    if (n == 0) return 0;
+    beginResetModel();
+    filas_.clear();
+    endResetModel();
+    emit cambio();
+    guardar();
     return n;
-}
-
-int VentanasModel::cerrarFijas() {
-    int n = 0;
-    for (int r = rowCount() - 1; r >= 0; --r)
-        if (filas_[static_cast<std::size_t>(r)].fija) {
-            quitarFila(r);
-            ++n;
-        }
-    if (n > 0) {
-        emit cambio();
-        guardar();
-    }
-    return n;
-}
-
-QStringList VentanasModel::ponerExactas(std::vector<FilaVentana> deseadas) {
-    QStringList avisos;
-    // 1) Las que se pueden mostrar, con sus cosas limpias (como al abrir una).
-    std::vector<FilaVentana> validas;
-    for (FilaVentana& d : deseadas) {
-        if (const QString e = validar(d.cosas); !e.isEmpty()) {
-            avisos << e;
-            continue;
-        }
-        d.distribucion = distribucionValida(d.distribucion);
-        d.fija = true;
-        d.sistema.clear();
-        validas.push_back(std::move(d));
-    }
-    // 2) Cada deseada se empareja con una que ya esté abierta con las mismas cosas
-    //    (cada abierta, una sola vez): esa se mueve en su lugar.
-    std::vector<bool> usada(filas_.size(), false);
-    std::vector<int> emparejada(validas.size(), 0);
-    for (std::size_t i = 0; i < validas.size(); ++i)
-        for (std::size_t r = 0; r < filas_.size(); ++r)
-            if (!usada[r] && filas_[r].cosas == validas[i].cosas) {
-                usada[r] = true;
-                emparejada[i] = filas_[r].id;
-                break;
-            }
-    bool hubo = false;
-    // 3) Las que sobran se cierran (de atrás para adelante).
-    for (int r = static_cast<int>(filas_.size()) - 1; r >= 0; --r)
-        if (!usada[static_cast<std::size_t>(r)]) {
-            quitarFila(r);
-            hubo = true;
-        }
-    // 4) Las emparejadas toman lo de la distribución; las demás se abren.
-    for (std::size_t i = 0; i < validas.size(); ++i) {
-        const FilaVentana& d = validas[i];
-        if (emparejada[i] == 0) {
-            insertar(d);
-            hubo = true;
-            continue;
-        }
-        const int r = filaDe(emparejada[i]);
-        FilaVentana& f = filas_[static_cast<std::size_t>(r)];
-        QList<int> roles;
-        const bool lugar = f.monitor != d.monitor || f.geometria != d.geometria || f.pantallaCompleta != d.pantallaCompleta;
-        if (f.distribucion != d.distribucion) roles << DistribucionRole;
-        if (f.monitor != d.monitor) roles << MonitorRole;
-        if (!f.sistema.isEmpty()) roles << SistemaRole;
-        if (f.pantallaCompleta != d.pantallaCompleta) roles << PantallaCompletaRole;
-        if (f.geometria != d.geometria) roles << GeometriaRole;
-        if (f.nombre != d.nombre) roles << NombreRole;
-        if (f.fija != d.fija) roles << FijaRole;
-        if (f.encima != d.encima) roles << EncimaRole;
-        if (roles.isEmpty()) continue;
-        const int id = f.id;
-        f = d;
-        f.id = id;
-        emit dataChanged(index(r), index(r), roles);
-        if (lugar) emit ubicar(id, f.geometria);
-        hubo = true;
-    }
-    if (hubo) {
-        emit cambio();
-        guardar();
-    }
-    return avisos;
 }
 
 void VentanasModel::cerrarCosa(const QString& cosa) {
@@ -363,11 +278,7 @@ void VentanasModel::setMonitor(int id, const QString& monitor) {
     if (f.monitor == monitor && f.sistema.isEmpty()) return;
     f.monitor = monitor;
     f.sistema.clear();
-    // Una fija no se acomoda sola: se la lleva (MCP). Su geometría era del monitor de
-    // antes: en el nuevo, que llene el monitor (o la distribución la vuelve a ubicar).
-    if (f.fija) f.geometria = QRect();
-    tocada(r, {MonitorRole, SistemaRole, GeometriaRole});
-    if (f.fija) emit ubicar(f.id, f.geometria);
+    tocada(r, {MonitorRole, SistemaRole});
 }
 
 void VentanasModel::setPantallaCompleta(int id, bool si) {
@@ -375,7 +286,6 @@ void VentanasModel::setPantallaCompleta(int id, bool si) {
     if (r < 0 || filas_[static_cast<std::size_t>(r)].pantallaCompleta == si) return;
     filas_[static_cast<std::size_t>(r)].pantallaCompleta = si;
     tocada(r, {PantallaCompletaRole});
-    if (filas_[static_cast<std::size_t>(r)].fija) emit ubicar(filas_[static_cast<std::size_t>(r)].id, filas_[static_cast<std::size_t>(r)].geometria);
 }
 
 void VentanasModel::setGeometria(int id, int x, int y, int w, int h) {
@@ -428,9 +338,6 @@ void VentanasModel::cargar() {
         fila.monitor = w.value("monitor").toString();
         fila.sistema = w.value("sistema").toString();
         fila.pantallaCompleta = w.value("pantallaCompleta").toBool();
-        fila.nombre = w.value("nombre").toString();
-        fila.fija = w.value("fija").toBool();
-        fila.encima = w.value("encima").toBool();
         if (w.contains("ancho"))
             fila.geometria = QRect(w.value("x").toInt(), w.value("y").toInt(), w.value("ancho").toInt(),
                                    w.value("alto").toInt());
@@ -448,9 +355,6 @@ void VentanasModel::guardar() const {
                       {"pantallaCompleta", f.pantallaCompleta}};
         if (!f.monitor.isEmpty()) w["monitor"] = f.monitor;
         if (!f.sistema.isEmpty()) w["sistema"] = f.sistema;
-        if (!f.nombre.isEmpty()) w["nombre"] = f.nombre;
-        if (f.fija) w["fija"] = true;
-        if (f.encima) w["encima"] = true;
         if (f.geometria.width() > 0 && f.geometria.height() > 0) {
             w["x"] = f.geometria.x();
             w["y"] = f.geometria.y();

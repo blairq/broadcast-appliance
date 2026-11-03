@@ -13,7 +13,7 @@
 // con un desplazamiento propio y al soltar se le dice al modelo dónde quedó: la posición
 // sigue enlazada al modelo, no se pisa.
 //
-// Las ventanas de una distribución son SIN MARCO y QUIETAS: su lugar se cambia acá (si
+// Aplicada, va en UNA ventana madre sin marco por monitor (VentanaLienzo.qml): su lugar se cambia acá (si
 // la distribución está aplicada, el cambio se ve en el acto) o por MCP.
 import QtQuick
 import QtQuick.Controls
@@ -27,12 +27,12 @@ Panel {
     property string elegida: ""
     readonly property var actual: sec.elegida !== "" ? (sec.d.porId[sec.elegida] || null) : null
 
-    // Cuántas hay y si hay ventanas fijas puestas, arriba a la derecha del título.
+    // Cuántas hay y en cuántos monitores está puesta la aplicada, arriba a la derecha del título.
     Text {
         parent: sec
         anchors { right: parent.right; top: parent.top; rightMargin: 18; topMargin: 16 }
         text: qsTr("%n guardada(s)", "", sec.d.cantidad) +
-              (Studio.ventanas.fijas > 0 ? " · " + qsTr("%n ventana(s) puesta(s)", "", Studio.ventanas.fijas) : "")
+              (sec.d.lienzos.cantidad > 0 ? " · " + qsTr("puesta en %n monitor(es)", "", sec.d.lienzos.cantidad) : "")
         color: Theme.textDim
         font.pixelSize: 11
     }
@@ -142,8 +142,8 @@ Panel {
                 text: qsTr("Cerrar las ventanas de la distribución")
                 icon: "✕"
                 activeColor: Theme.warn
-                active: Studio.ventanas.fijas > 0
-                enabled: Studio.ventanas.fijas > 0
+                active: sec.d.lienzos.cantidad > 0
+                enabled: sec.d.lienzos.cantidad > 0
                 onClicked: sec.d.cerrarVentanas()
                 ToolTip.visible: hovered
                 ToolTip.text: qsTr("También con Ctrl+Shift+F12 desde cualquier ventana de la app")
@@ -365,7 +365,7 @@ Panel {
                 }
                 Item { Layout.fillWidth: true }
                 Text {
-                    text: qsTr("Arrastrá los rectángulos; la esquina los agranda. Sin marco y quietas: se mueven solo desde acá.")
+                    text: qsTr("Arrastrá los rectángulos; la esquina los agranda. Aplicada, se ve en el acto.")
                     color: Theme.textFaint; font.pixelSize: 10
                 }
             }
@@ -408,7 +408,7 @@ Panel {
                 color: Theme.textDim; font.pixelSize: 11
                 text: nombreDialogo.modo === "plantilla"
                       ? qsTr("Vacío = el nombre de la plantilla. Después se edita como cualquier otra.")
-                      : qsTr("Queda guardada con el evento. Sus ventanas van sin marco y quietas.")
+                      : qsTr("Queda guardada con el evento. Aplicada, cada monitor lleva una sola ventana sin marco con sus ventanas adentro.")
             }
             TextField { id: nombreNuevo; Layout.preferredWidth: 340; placeholderText: qsTr("Remotos en la sala"); color: Theme.text
                         onAccepted: nombreDialogo.accept() }

@@ -13,12 +13,20 @@
 // monitor_listar / monitor_asignar / monitor_quitar, por el mismo modelo que
 // la página (MonitoresModel). Lo que se puede poner sale del catálogo único
 // (catalogo_listar), el mismo que usan la página, las ventanas y el tablero.
+//
+// Y las DISTRIBUCIONES de pantallas (pantallas/Distribuciones.hpp): cómo quedan
+// las ventanas en los monitores, guardado con nombre en el evento. Es lo que más
+// se usa por acá: el asistente arma la lista de ventanas en JSON, la guarda y la
+// aplica (pantallas_distribucion_*). Los monitores con su geometría los da
+// monitor_listar.
 // ============================================================================
 
 #include "i18n/I18n.hpp"
 #include "mcp/McpService.hpp"
 #include "mcp/McpToolsCommon.hpp"
 #include "pantallas/Catalogo.hpp"
+#include "pantallas/Distribuciones.hpp"
+#include "ui/EscritorioViewModel.hpp"
 #include "pantallas/Monitores.hpp"
 #include "ui/PantallasViewModel.hpp"
 #include "ui/QrViewModel.hpp"
@@ -742,6 +750,309 @@ void McpService::registerPantallaTools() {
             const QString err = errorDe([&] { mon->quitar(id); });
             done(err.isEmpty() ? ToolResult::ok(ba::i18n::traducir("mcp", "Listo: ese monitor ya no muestra nada."))
                                : ToolResult::error(err.toStdString()));
+        };
+        core_.addTool(std::move(t));
+    }
+
+    // --- Las distribuciones de pantallas (pantallas/Distribuciones.hpp) ----------------
+    DistribucionesModel* dis = &vm_.escritorio().distribuciones();
+    // Lo que se le explica a un modelo de cada ventana (crear y editar lo comparten).
+    static const char* kVentana = QT_TRANSLATE_NOOP("mcp",
+        "Cada ventana: {\"nombre\": opcional, \"cosas\": [ids de catalogo_listar con donde=monitor] (una, o varias en "
+        "grilla), \"disposicion\": grid|focus|pip|row (con varias cosas), \"monitor\": id, numero de orden o nombre "
+        "(monitor_listar; vacio = el primero que no sea el principal), \"x\", \"y\", \"ancho\", \"alto\": el lugar "
+        "RELATIVO al monitor, de 0 a 1 (la mitad izquierda: x 0, y 0, ancho 0.5, alto 1; si no se dice, el monitor "
+        "entero), \"absoluta\": {x, y, ancho, alto} en pixeles desde la esquina del monitor, solo si hacen falta "
+        "pixeles exactos (si no entran en el monitor se usa la relativa), \"pantallaCompleta\": bool, \"encima\": "
+        "bool (siempre encima de las demas)}. Al aplicarla, las ventanas de cada monitor van adentro de UNA ventana "
+        "madre sin marco: el operador no las mueve ni las cierra con el mouse.");
+    const json ventanaSchema = {
+        {"type", "object"},
+        {"properties",
+         {{"nombre", {{"type", "string"}}},
+          {"cosas", {{"type", "array"}, {"items", {{"type", "string"}}}}},
+          {"disposicion", {{"type", "string"}, {"enum", {"grid", "focus", "pip", "row"}}}},
+          {"monitor", {{"type", "string"}}},
+          {"x", {{"type", "number"}, {"minimum", 0}, {"maximum", 1}}},
+          {"y", {{"type", "number"}, {"minimum", 0}, {"maximum", 1}}},
+          {"ancho", {{"type", "number"}, {"minimum", 0}, {"maximum", 1}}},
+          {"alto", {{"type", "number"}, {"minimum", 0}, {"maximum", 1}}},
+          {"absoluta",
+           {{"type", "object"},
+            {"properties",
+             {{"x", {{"type", "integer"}}}, {"y", {{"type", "integer"}}}, {"ancho", {{"type", "integer"}}}, {"alto", {{"type", "integer"}}}}}}},
+          {"pantallaCompleta", {{"type", "boolean"}}},
+          {"encima", {{"type", "boolean"}}}}}};
+    const json ventanasSchema = {{"type", "array"},
+                                 {"items", ventanaSchema},
+                                 {"description", QT_TRANSLATE_NOOP("mcp", "las ventanas (ver los detalles de la herramienta)")}};
+    // Una distribución como la devuelve el modelo, para el cliente.
+    const auto comoJson = [dis](const QString& id) {
+        json j = qvToJson(dis->porId().value(id));
+        return j.is_null() ? json::object() : j;
+    };
+    const auto noHay = [](const std::string& quien) {
+        return ToolResult::error(ba::i18n::llenar(
+            ba::i18n::traducir("mcp", "No hay una distribucion «%1»: pantallas_distribuciones_listar dice cuales hay."), {quien}));
+    };
+    {
+        Tool t;
+        t.name = "pantallas_distribuciones_listar";
+        t.title = ba::i18n::traducir("mcp", "Distribuciones de pantallas guardadas");
+        t.category = "pantallas";
+        t.clase = Clase::Lectura;
+        t.description = QT_TRANSLATE_NOOP("mcp",
+            "Las distribuciones de pantallas guardadas en el evento: cada una es una lista de ventanas (que muestra cada "
+            "una, en que monitor, donde y de que tamaño) que se aplica de una vez. Dice cual esta aplicada, cual se abre "
+            "sola al cargar el evento, los monitores conectados y las plantillas de un clic.");
+        t.details = QT_TRANSLATE_NOOP("mcp",
+            "Por ventana vuelve tambien `enMonitor` (donde iria ahora), `faltaMonitor` (su monitor no esta: va al que "
+            "haya) y `titulo`. `aviso` es lo que paso la ultima vez que se aplico una. Las ventanas de una distribucion "
+            "son SIN MARCO y QUIETAS: se mueven con pantallas_distribucion_editar.");
+        t.run = [dis](const json&, Done done) {
+            json ds = json::array();
+            const QVariantMap todas = dis->porId();
+            for (const Distribucion& d : dis->lista()) ds.push_back(qvToJson(todas.value(d.id)));
+            done(ToolResult().data(json{{"distribuciones", ds},
+                                        {"aplicada", dis->aplicada().toStdString()},
+                                        {"aviso", dis->aviso().toStdString()},
+                                        {"monitores", qvToJson(dis->monitores())},
+                                        {"plantillas", qvToJson(DistribucionesModel::plantillas())}}));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "pantallas_distribucion_crear";
+        t.title = ba::i18n::traducir("mcp", "Crear una distribución de pantallas");
+        t.category = "pantallas";
+        t.clase = Clase::Escritura;
+        t.description = QT_TRANSLATE_NOOP("mcp",
+            "Guarda en el evento una distribucion de pantallas con nombre: la lista de ventanas que van en los monitores de "
+            "esta maquina (el programa, el previo, una escena, una multiview, un invitado, un panel, una pagina...), "
+            "cada una en su monitor, lugar y tamaño. O desde una `plantilla`, o copiando otra (`desde`). Con "
+            "`aplicar: true` ademas la pone ya.");
+        t.details = std::string(kVentana) +
+                    QT_TRANSLATE_NOOP("mcp",
+                        "\n\nAntes: monitor_listar (los monitores, su orden y cual es el principal) y catalogo_listar "
+                        "{\"donde\": \"monitor\"} (que se puede mostrar). No pongas ventanas en el monitor principal (el "
+                        "de la interfaz) salvo que lo pidan.\n\nPlantillas: mosaico-2x1, mosaico-2x2, una-por-monitor, "
+                        "programa-previo-multiview (con `monitor` y `cosas` opcionales).\n\n`alAbrir: true` = se aplica "
+                        "sola al cargar el evento (una sola puede serlo).");
+        t.inputSchema = {{"type", "object"},
+                         {"required", {"nombre"}},
+                         {"properties",
+                          {{"nombre", {{"type", "string"}}},
+                           {"ventanas", ventanasSchema},
+                           {"plantilla",
+                            {{"type", "string"},
+                             {"enum", {"mosaico-2x1", "mosaico-2x2", "una-por-monitor", "programa-previo-multiview"}}}},
+                           {"monitor", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "con plantilla: en que monitor")}}},
+                           {"cosas",
+                            {{"type", "array"},
+                             {"items", {{"type", "string"}}},
+                             {"description", QT_TRANSLATE_NOOP("mcp", "con plantilla: que va en cada lugar, en orden")}}},
+                           {"desde", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "copiar esta distribucion (id o nombre)")}}},
+                           {"alAbrir", {{"type", "boolean"}}},
+                           {"aplicar", {{"type", "boolean"}}}}}};
+        t.examples = {
+            R"({"nombre": "Remotos lado a lado", "aplicar": true, "ventanas": [{"nombre": "Remotos A", "cosas": ["escena:remotos-a"], "monitor": "2", "x": 0, "y": 0, "ancho": 0.5, "alto": 1}, {"nombre": "Remotos B", "cosas": ["escena:remotos-b"], "monitor": "2", "x": 0.5, "y": 0, "ancho": 0.5, "alto": 1}]})",
+            R"({"nombre": "Control", "plantilla": "programa-previo-multiview", "monitor": "3"})",
+            R"({"nombre": "Sala", "ventanas": [{"cosas": ["programa"], "monitor": "2", "pantallaCompleta": true}, {"cosas": ["multiview:principal"], "monitor": "3", "pantallaCompleta": true}]})"};
+        t.run = [dis, comoJson, noHay](const json& a, Done done) {
+            const QString nombre = QString::fromStdString(a.value("nombre", std::string()));
+            QString id;
+            QString err;
+            if (a.contains("desde")) {
+                const std::string desde = a.value("desde", std::string());
+                if (dis->buscar(QString::fromStdString(desde)) == nullptr) return done(noHay(desde));
+                err = errorDe([&] { id = dis->duplicar(QString::fromStdString(desde), nombre); });
+            } else if (a.contains("plantilla")) {
+                QStringList cosas;
+                for (const json& c : a.value("cosas", json::array()))
+                    if (c.is_string()) cosas << QString::fromStdString(c.get<std::string>());
+                err = errorDe([&] {
+                    id = dis->crearDePlantilla(QString::fromStdString(a.value("plantilla", std::string())), nombre,
+                                               QString::fromStdString(a.value("monitor", std::string())), cosas);
+                });
+            } else {
+                const QVariantList vs = jsonToQv(a.value("ventanas", json::array())).toList();
+                err = errorDe([&] { id = dis->crear(nombre, vs); });
+            }
+            if (id.isEmpty()) return done(ToolResult::error(err.isEmpty() ? std::string("?") : err.toStdString()));
+            if (a.value("alAbrir", false)) dis->setAlAbrir(id, true);
+            json r{{"distribucion", comoJson(id)}};
+            if (a.value("aplicar", false)) {
+                const QString e = errorDe([&] { dis->aplicar(id); });
+                if (!e.isEmpty()) r["error_al_aplicar"] = e.toStdString();
+                r["aplicada"] = e.isEmpty();
+                if (!dis->aviso().isEmpty()) r["aviso"] = dis->aviso().toStdString();
+            }
+            done(ToolResult().data(r));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "pantallas_distribucion_editar";
+        t.title = ba::i18n::traducir("mcp", "Editar una distribución de pantallas");
+        t.category = "pantallas";
+        t.clase = Clase::Escritura;
+        t.description = QT_TRANSLATE_NOOP("mcp",
+            "Cambia una distribucion guardada: el nombre, si se abre sola al cargar el evento, la lista entera de "
+            "ventanas, o una ventana (cambiarla, agregar una, quitar una). Si es la que esta aplicada, las ventanas se "
+            "mueven en el acto: es la forma de mover las ventanas de una distribucion (sin marco y quietas).");
+        t.details = std::string(kVentana) +
+                    QT_TRANSLATE_NOOP("mcp",
+                        "\n\n`ventanas` reemplaza la lista entera. `ventana` cambia SOLO lo que diga de la ventana numero "
+                        "`indice` (desde 1, en el orden de pantallas_distribuciones_listar). `agregar` suma una ventana; "
+                        "`quitar`, el numero de la que se saca.");
+        t.inputSchema = {{"type", "object"},
+                         {"required", {"distribucion"}},
+                         {"properties",
+                          {{"distribucion", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "id o nombre")}}},
+                           {"nombre", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "el nombre nuevo")}}},
+                           {"alAbrir", {{"type", "boolean"}}},
+                           {"ventanas", ventanasSchema},
+                           {"indice", {{"type", "integer"}, {"minimum", 1}}},
+                           {"ventana", ventanaSchema},
+                           {"agregar", ventanaSchema},
+                           {"quitar",
+                            {{"type", "integer"}, {"minimum", 1}, {"description", QT_TRANSLATE_NOOP("mcp", "el numero de la ventana que se saca")}}}}}};
+        t.examples = {R"({"distribucion": "Remotos lado a lado", "indice": 2, "ventana": {"monitor": "3", "x": 0, "y": 0, "ancho": 1, "alto": 1}})",
+                      R"({"distribucion": "Control", "agregar": {"cosas": ["padron"], "monitor": "3", "x": 0.7, "y": 0, "ancho": 0.3, "alto": 1}})",
+                      R"({"distribucion": "Control", "nombre": "Control de cabina", "alAbrir": true})"};
+        t.run = [dis, comoJson, noHay](const json& a, Done done) {
+            const std::string quien = a.value("distribucion", std::string());
+            const Distribucion* d = dis->buscar(QString::fromStdString(quien));
+            if (d == nullptr) return done(noHay(quien));
+            const QString id = d->id;
+            QVariantMap cambios;
+            if (a.contains("nombre")) cambios["nombre"] = QString::fromStdString(a.value("nombre", std::string()));
+            if (a.contains("alAbrir")) cambios["alAbrir"] = a.value("alAbrir", false);
+            if (a.contains("ventanas")) cambios["ventanas"] = jsonToQv(a["ventanas"]).toList();
+            QString err;
+            if (!cambios.isEmpty()) err = errorDe([&] { dis->editar(id, cambios); });
+            if (err.isEmpty() && a.contains("ventana")) {
+                const int i = a.value("indice", 0) - 1;
+                const QVariantMap v = jsonToQv(a["ventana"]).toMap();
+                err = errorDe([&] { dis->setVentana(id, i, v); });
+            }
+            if (err.isEmpty() && a.contains("agregar")) {
+                const QVariantMap v = jsonToQv(a["agregar"]).toMap();
+                err = errorDe([&] { dis->agregarVentana(id, v); });
+            }
+            if (err.isEmpty() && a.contains("quitar")) {
+                const int i = a.value("quitar", 0) - 1;
+                err = errorDe([&] { dis->quitarVentana(id, i); });
+            }
+            if (!err.isEmpty()) return done(ToolResult::error(err.toStdString()));
+            json r{{"distribucion", comoJson(id)}};
+            if (!dis->aviso().isEmpty()) r["aviso"] = dis->aviso().toStdString();
+            done(ToolResult().data(r));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "pantallas_distribucion_aplicar";
+        t.title = ba::i18n::traducir("mcp", "Aplicar una distribución de pantallas");
+        t.category = "pantallas";
+        t.clase = Clase::Ui;
+        t.idempotent = true;
+        t.description = QT_TRANSLATE_NOOP("mcp",
+            "Pone la distribucion EXACTAMENTE como dice: en cada monitor que usa, UNA ventana madre sin marco (a "
+            "pantalla completa si ocupa el monitor entero) con sus ventanas adentro como rectangulos; las ventanas "
+            "sueltas que hubiera se cierran. Cambiar de distribucion no abre ni cierra ventanas del sistema: cambia lo "
+            "de adentro. Aplicarla dos veces no cambia nada.");
+        t.details = QT_TRANSLATE_NOOP("mcp",
+            "Si un monitor de la distribucion no esta, su ventana va al que haya y vuelve en `aviso` (no falla); si "
+            "despues aparece, vuelve sola a su lugar. Lo que ya no existe (una escena borrada) se saltea, tambien con "
+            "aviso. Lo fijo de Salidas -> Pantallas (monitor_asignar) no se toca (si comparte monitor, avisa). La "
+            "aplicada se recuerda: vuelve sola al reiniciar. Para sacarla: pantallas_distribucion_cerrar.");
+        t.inputSchema = {{"type", "object"},
+                         {"required", {"distribucion"}},
+                         {"properties", {{"distribucion", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "id o nombre")}}}}}};
+        t.examples = {R"({"distribucion": "Remotos lado a lado"})"};
+        t.run = [dis, noHay](const json& a, Done done) {
+            const std::string quien = a.value("distribucion", std::string());
+            if (dis->buscar(QString::fromStdString(quien)) == nullptr) return done(noHay(quien));
+            const QString err = errorDe([&] { dis->aplicar(QString::fromStdString(quien)); });
+            if (!err.isEmpty()) return done(ToolResult::error(err.toStdString()));
+            json r{{"aplicada", dis->aplicada().toStdString()}};
+            if (!dis->aviso().isEmpty()) r["aviso"] = dis->aviso().toStdString();
+            done(ToolResult().data(r));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "pantallas_distribucion_capturar";
+        t.title = ba::i18n::traducir("mcp", "Guardar las ventanas de ahora como distribución");
+        t.category = "pantallas";
+        t.clase = Clase::Escritura;
+        t.description = QT_TRANSLATE_NOOP("mcp",
+            "Guarda las ventanas que hay abiertas AHORA (que muestran, en que monitor, donde) como una distribucion nueva "
+            "con `nombre`, o reemplaza las ventanas de una que ya existe (`distribucion`).");
+        t.details = QT_TRANSLATE_NOOP("mcp",
+            "El lugar se guarda relativo al monitor (sobrevive a un cambio de resolucion). Lo fijo de Salidas -> "
+            "Pantallas (monitor_asignar) no entra: son las ventanas sueltas.");
+        t.inputSchema = {{"type", "object"},
+                         {"properties",
+                          {{"nombre", {{"type", "string"}}},
+                           {"distribucion",
+                            {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "reemplazar las ventanas de esta (id o nombre)")}}}}}};
+        t.examples = {R"({"nombre": "Como estaba el martes"})", R"({"distribucion": "Control"})"};
+        t.run = [dis, comoJson, noHay](const json& a, Done done) {
+            const std::string quien = a.value("distribucion", std::string());
+            QString destino;
+            if (!quien.empty()) {
+                const Distribucion* d = dis->buscar(QString::fromStdString(quien));
+                if (d == nullptr) return done(noHay(quien));
+                destino = d->id;
+            }
+            QString id;
+            const QString nombre = QString::fromStdString(a.value("nombre", std::string()));
+            const QString err = errorDe([&] { id = dis->capturar(nombre, destino); });
+            if (id.isEmpty()) return done(ToolResult::error(err.isEmpty() ? std::string("?") : err.toStdString()));
+            done(ToolResult().data(json{{"distribucion", comoJson(id)}}));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "pantallas_distribucion_borrar";
+        t.title = ba::i18n::traducir("mcp", "Borrar una distribución de pantallas");
+        t.category = "pantallas";
+        t.clase = Clase::Escritura;
+        t.description = QT_TRANSLATE_NOOP("mcp",
+            "Borra una distribucion guardada. Sus ventanas, si estan puestas, quedan como estan (para sacarlas: "
+            "pantallas_distribucion_cerrar).");
+        t.inputSchema = {{"type", "object"},
+                         {"required", {"distribucion"}},
+                         {"properties", {{"distribucion", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "id o nombre")}}}}}};
+        t.run = [dis, noHay](const json& a, Done done) {
+            const std::string quien = a.value("distribucion", std::string());
+            if (dis->buscar(QString::fromStdString(quien)) == nullptr) return done(noHay(quien));
+            const QString err = errorDe([&] { dis->borrar(QString::fromStdString(quien)); });
+            done(err.isEmpty() ? ToolResult::ok(ba::i18n::traducir("mcp", "Borrada.")) : ToolResult::error(err.toStdString()));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "pantallas_distribucion_cerrar";
+        t.title = ba::i18n::traducir("mcp", "Cerrar las ventanas de la distribución");
+        t.category = "pantallas";
+        t.clase = Clase::Ui;
+        t.idempotent = true;
+        t.description = QT_TRANSLATE_NOOP("mcp",
+            "La salida de emergencia: cierra todas las ventanas puestas por una distribucion (van sin marco y quietas: el "
+            "operador no las puede cerrar con el mouse). La distribucion queda guardada. El operador hace lo mismo con "
+            "Ctrl+Shift+F12 o desde Pantallas.");
+        t.run = [dis](const json&, Done done) {
+            const int n = dis->cerrarVentanas();
+            done(ToolResult::ok(ba::i18n::llenar(ba::i18n::traducir("mcp", "Cerradas: %1."), {std::to_string(n)})));
         };
         core_.addTool(std::move(t));
     }
