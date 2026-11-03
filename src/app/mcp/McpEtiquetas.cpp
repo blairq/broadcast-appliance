@@ -298,6 +298,24 @@ const Fila kPropias[] = {
     //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
     {"salida_editar", QT_TRANSLATE_NOOP("mcp-etiquetas", "renombrar salida color de la salida nombre de la salida tope de salidas cambiar salida")},
     //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
+    {"cuentas_listar", QT_TRANSLATE_NOOP("mcp-etiquetas", "cuentas varias cuentas canales paginas youtube twitch facebook conectada vencida otra cuenta segundo canal")},
+    //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
+    {"cuenta_agregar", QT_TRANSLATE_NOOP("mcp-etiquetas", "agregar cuenta otra cuenta segundo canal otro canal de youtube otra pagina de facebook sumar cuenta")},
+    //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
+    {"cuenta_renombrar", QT_TRANSLATE_NOOP("mcp-etiquetas", "renombrar cuenta nombre de la cuenta cambiar nombre canal")},
+    //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
+    {"cuenta_quitar", QT_TRANSLATE_NOOP("mcp-etiquetas", "quitar cuenta borrar cuenta sacar canal revocar acceso olvidar cuenta")},
+    //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
+    {"cuenta_conectar", QT_TRANSLATE_NOOP("mcp-etiquetas", "conectar cuenta reautorizar vencida autorizar permiso login otra cuenta iniciar sesion")},
+    //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
+    {"vivos_listar", QT_TRANSLATE_NOOP("mcp-etiquetas", "vivos transmisiones programadas eventos en vivo de la cuenta liveBroadcasts directos programados")},
+    //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
+    {"vivo_crear", QT_TRANSLATE_NOOP("mcp-etiquetas", "crear vivo nueva transmision programar directo evento en vivo en otra cuenta")},
+    //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
+    {"salida_destino_asignar", QT_TRANSLATE_NOOP("mcp-etiquetas", "asignar destino a la salida elegir vivo cuenta para la salida mandar salida a youtube twitch facebook rtmp srt")},
+    //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
+    {"salida_destinos_estado", QT_TRANSLATE_NOOP("mcp-etiquetas", "estado destinos salud del vivo bitrate en vivo conectando reintentando por salida streamStatus healthStatus")},
+    //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
     {"salida_borrar", QT_TRANSLATE_NOOP("mcp-etiquetas", "borrar salida sacar salida eliminar programa quitar salida")},
     //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
     {"stream_destino_editar", QT_TRANSLATE_NOOP("mcp-etiquetas", "editar destino transmision")},

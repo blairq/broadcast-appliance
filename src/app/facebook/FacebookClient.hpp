@@ -48,7 +48,9 @@ class FacebookClient : public QObject {
     };
     using Done = std::function<void(bool ok, const QJsonObject& data, const QString& error)>;
 
-    explicit FacebookClient(QString configDir, QObject* parent = nullptr);
+    /// `tokenCred`: la credencial con el token de ESTA cuenta (vivos/Vivos.hpp): la principal,
+    /// la de siempre; cada cuenta más, la suya. La app de Meta es una para todas.
+    explicit FacebookClient(QString configDir, QObject* parent = nullptr, const QString& tokenCred = QStringLiteral("facebook-token"));
     ~FacebookClient() override;
 
     void setEndpoints(const Endpoints& e) { ep_ = e; }
@@ -61,6 +63,10 @@ class FacebookClient : public QObject {
     QString redirectUri() const { return QString("http://localhost:%1/").arg(port_); }
     bool saveClient(const QString& appId, const QString& appSecret, int port, QString& error);
     void clearClient();
+    /// Vuelve a leer la app y el token del disco (otra cuenta guardó la app).
+    void recargar();
+    /// Cuándo vence el token del usuario (ms desde la época; 0 = no se sabe).
+    qint64 expiresAtMs() const { return expiresAtMs_; }
 
     // --- Sesion ------------------------------------------------------------------------
     bool loggedIn() const { return !userToken_.isEmpty(); }
@@ -117,6 +123,7 @@ class FacebookClient : public QObject {
                      const QJsonObject& meta, const QString& videoId, Done done);
 
     QString configDir_;
+    QByteArray tokenCred_; ///< la credencial con el token de esta cuenta
     Endpoints ep_;
     std::function<void(const QString&)> openBrowser_;
     QString appId_;

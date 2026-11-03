@@ -19,6 +19,7 @@
 #include "persist/ArchivoConfig.hpp"
 #include "platform/Volumen.hpp"
 #include "security/CredentialStore.hpp"
+#include "vivos/Vivos.hpp"
 
 namespace ba::app {
 
@@ -378,9 +379,12 @@ std::string ServicioEmision::guardarDestino(const nlohmann::json& d, std::string
         lista.push_back({{"id", id}, {"nombre", d.value("nombre", id)}, {"url", url}, {"respaldo", d.value("respaldo", false)}});
         existente = &lista.back();
         if (d.contains("salida")) (*existente)["salida"] = d["salida"];
+        // El vivo de una cuenta (vivos/Vivos.hpp): plataforma, cuenta, vivo y su título.
+        for (const char* k : {"plataforma", "cuenta", "vivo", "vivo_titulo"})
+            if (d.contains(k) && d[k].is_string()) (*existente)[k] = d[k];
         if (!urlRespaldo.empty()) (*existente)["url_respaldo"] = urlRespaldo;
     } else {
-        for (const char* k : {"nombre", "url", "respaldo", "salida"})
+        for (const char* k : {"nombre", "url", "respaldo", "salida", "plataforma", "cuenta", "vivo", "vivo_titulo"})
             if (d.contains(k)) (*existente)[k] = d[k];
         if (d.contains("url_respaldo")) {
             if (urlRespaldo.empty()) existente->erase("url_respaldo");
@@ -421,6 +425,26 @@ std::string ServicioEmision::guardarDestino(const nlohmann::json& d, std::string
         for (std::size_t i = 0; i < params.size(); ++i)
             u += (i == 0 ? "?" : "&") + params[i].first + (params[i].second.empty() ? "" : "=" + params[i].second);
         (*existente)["url"] = u;
+    }
+    // Dos destinos al MISMO vivo (la misma cuenta y vivo, o la misma URL con la misma clave)
+    // se pisan en la plataforma: no se guarda y se dice cuál lo usa (vivos/Vivos.hpp).
+    {
+        const std::string claveNueva = d.contains("clave") && d["clave"].is_string() ? d["clave"].get<std::string>() : std::string();
+        const auto huellaDe = [](const std::string& destino) {
+            std::string c;
+            ba::security::CredentialStore::bundle().read("stream-" + destino, c);
+            return vivos::huella(c);
+        };
+        const nlohmann::json lasSalidas = rt_.salidas().value("salidas", nlohmann::json::array());
+        const auto nombreSalida = [&lasSalidas](const std::string& sal) {
+            for (const auto& s : lasSalidas)
+                if (s.value("id", std::string()) == sal) return s.value("nombre", sal);
+            return sal;
+        };
+        nlohmann::json candidato = *existente;
+        candidato["salida"] = salidas::salidaDeDestino(candidato);
+        const std::string choque = vivos::chocaCon(lista, candidato, vivos::huella(claveNueva), huellaDe, nombreSalida);
+        if (!choque.empty()) return choque;
     }
     if (d.contains("clave") && d["clave"].is_string() && !d["clave"].get<std::string>().empty())
         ba::security::CredentialStore::bundle().write("stream-" + id, d["clave"].get<std::string>());

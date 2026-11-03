@@ -471,7 +471,8 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, VentanillaMotor& ventanilla, QO
                                                                            .ventanilla = ventanilla_,
                                                                            .bus = [this]() { return bus_.get(); },
                                                                            .red = [this]() { return imagen_ ? &imagen_->red() : nullptr; },
-                                                                           .plugins = [this]() { return plugins_.get(); }});
+                                                                           .plugins = [this]() { return plugins_.get(); },
+                                                                           .emision = [this]() { return emision_.get(); }});
     marca("cuentas");
     connect(cuentas_.get(), &CuentasViewModel::notify, this, &StudioViewModel::notify);
     // «Dónde verlo en vivo» de la página web del evento: lo que saben las cuentas.

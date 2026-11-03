@@ -78,6 +78,14 @@ Rectangle {
             }
         }
 
+        // --- Cuentas (puede haber varias; la principal es la de esta página) ---------------------
+        CuentasPlataforma {
+            visible: fb.configured
+            Layout.fillWidth: true
+            plataforma: "facebook"
+            colorMarca: "#1877f2"
+        }
+
         // --- Sin configurar ------------------------------------------------------------------------------
         ScrollView {
             visible: !fb.configured

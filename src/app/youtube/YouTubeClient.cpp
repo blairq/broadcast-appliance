@@ -72,8 +72,8 @@ struct YouTubeClient::Req {
     QString progressPath; // si no vacio: emite uploadProgress
 };
 
-YouTubeClient::YouTubeClient(QString configDir, QObject* parent)
-    : QObject(parent), configDir_(std::move(configDir)) {
+YouTubeClient::YouTubeClient(QString configDir, QObject* parent, const QString& tokenCred)
+    : QObject(parent), configDir_(std::move(configDir)), tokenCred_(tokenCred.toUtf8()) {
     openBrowser_ = [](const QUrl& u) { QDesktopServices::openUrl(u); };
     loadFiles();
 }
@@ -86,22 +86,32 @@ void YouTubeClient::loadFiles() {
         clientId_ = o.value("client_id").toString();
         clientSecret_ = o.value("client_secret").toString();
     }
-    if (QByteArray tRaw; cred::read(configDir_, "youtube-token", tRaw)) {
+    if (QByteArray tRaw; cred::read(configDir_, tokenCred_.constData(), tRaw)) {
         const QJsonObject o = parse(tRaw);
         refreshToken_ = o.value("refresh_token").toString();
         account_ = o.value("account").toObject();
     }
 }
 
+void YouTubeClient::recargar() {
+    clientId_.clear();
+    clientSecret_.clear();
+    refreshToken_.clear();
+    accessToken_.clear();
+    account_ = {};
+    loadFiles();
+    emit stateChanged();
+}
+
 void YouTubeClient::persistToken() {
     if (refreshToken_.isEmpty()) {
-        cred::remove(configDir_, "youtube-token");
+        cred::remove(configDir_, tokenCred_.constData());
         return;
     }
     const QJsonObject o{{"refresh_token", refreshToken_},
                         {"account", account_},
                         {"savedAt", QDateTime::currentDateTimeUtc().toString(Qt::ISODate)}};
-    cred::write(configDir_, "youtube-token", QJsonDocument(o).toJson());
+    cred::write(configDir_, tokenCred_.constData(), QJsonDocument(o).toJson());
 }
 
 bool YouTubeClient::saveClient(const QString& jsonOrId, const QString& secret, QString& error) {
@@ -316,6 +326,12 @@ void YouTubeClient::api(const QString& method, const QString& path, const QUrlQu
                     return;
                 }
                 *attempt = nullptr;
+                // 403 por permiso: la cuenta está conectada pero hay que reautorizarla.
+                const bool sinPermiso = status == 403 && rb.contains("insufficientPermissions");
+                if (sinPermiso != self->sinPermiso_ && (sinPermiso || (status >= 200 && status < 300))) {
+                    self->sinPermiso_ = sinPermiso;
+                    emit self->stateChanged();
+                }
                 if (status >= 200 && status < 300) {
                     done(true, parse(rb), {});
                 } else {

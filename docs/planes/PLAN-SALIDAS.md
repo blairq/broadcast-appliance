@@ -336,6 +336,11 @@ Salida {
    /api/v1/participants/<id>/salida {salida}`; pantalla: `cast-link?salida=<id>`; sesión
    remota: las otras salidas van solas al lado del programa (`salida:<id>`) o la app pone
    `fuente: "salida:<id>"`. Falta: el mix-minus por salida (hoy solo la por omisión).
+   *Hecho (2026-11-03), los destinos de plataforma por salida*: varias cuentas por plataforma
+   (YouTube, Twitch, Facebook; del aparato, cifradas) y, para cada salida, destinos (plataforma,
+   cuenta, vivo) con su estado (conectando, en vivo, reintentando, salud de la plataforma,
+   bitrate); dos destinos al mismo vivo no se guardan. Ver `docs/funciones/STREAMING-CUENTAS.md`
+   (`vivos/`, `ui/VivosViewModel`, `mcp/McpVivosTools.cpp`). Falta probarlo con cuentas reales.
 7. **Línea de tiempo** — la escaleta/línea de tiempo con pistas por salida (diseño aparte,
    investigación en curso: vMix, Sofie, CasparCG/SuperConductor, QLab, Ross…).
 

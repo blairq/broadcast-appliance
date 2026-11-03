@@ -73,6 +73,9 @@ class TwitchViewModel : public PlataformaViewModel {
 
     QString userCode() const { return client_->userCode(); }
     QString verificationUri() const { return client_->verificationUri(); }
+    /// El cliente de la cuenta principal (vivos/PlataformasVivo: la principal de la
+    /// plataforma es la de esta página; las demás tienen el suyo).
+    TwitchClient& cliente() { return *client_; }
     QString clientId() const { return client_->clientId(); }
     QVariantMap user() const { return client_->user().toVariantMap(); }
     QString avatar() const { return avatar_; }

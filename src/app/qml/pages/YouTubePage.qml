@@ -59,6 +59,14 @@ Rectangle {
             }
         }
 
+        // --- Cuentas (puede haber varias; la principal es la de esta página) ---------------------
+        CuentasPlataforma {
+            visible: yt.configured
+            Layout.fillWidth: true
+            plataforma: "youtube"
+            colorMarca: "#cc0026"
+        }
+
         // --- 1) Sin configurar: instrucciones ---------------------------------------------------
         ScrollView {
             visible: !yt.configured

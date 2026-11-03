@@ -74,6 +74,9 @@ class FacebookViewModel : public PlataformaViewModel {
     void terminarVivo(const QString& id, Done done) override { endLive(id, std::move(done)); }
     const QJsonArray& chatMessages() const override { return chatItems_; }
 
+    /// El cliente de la cuenta principal (vivos/PlataformasVivo: la principal de la
+    /// plataforma es la de esta página; las demás tienen el suyo).
+    FacebookClient& cliente() { return *client_; }
     QString appId() const { return client_->appId(); }
     int port() const { return client_->port(); }
     QString redirectUri() const { return client_->redirectUri(); }

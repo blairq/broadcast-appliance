@@ -73,6 +73,9 @@ class YouTubeViewModel : public PlataformaViewModel {
     /// Mensajes de chat en memoria (YouTube), del mas viejo al mas nuevo.
     const QJsonArray& chatMessages() const override { return chatItems_; }
 
+    /// El cliente de la cuenta principal (vivos/PlataformasVivo: la principal de la
+    /// plataforma es la de esta página; las demás tienen el suyo).
+    YouTubeClient& cliente() { return *client_; }
     QString clientId() const { return client_->clientId(); }
     QVariantMap account() const { return client_->account().toVariantMap(); }
     QString accountThumb() const { return thumbs_.value(client_->account().value("thumbnail").toString()); }

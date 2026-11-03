@@ -52,7 +52,9 @@ class TwitchClient : public QObject {
     };
     using Done = std::function<void(bool ok, const QJsonObject& data, const QString& error)>;
 
-    explicit TwitchClient(QString configDir, QObject* parent = nullptr);
+    /// `tokenCred`: la credencial con el token de ESTA cuenta (vivos/Vivos.hpp): la principal,
+    /// la de siempre; cada cuenta más, la suya. La app de Twitch es una para todas.
+    explicit TwitchClient(QString configDir, QObject* parent = nullptr, const QString& tokenCred = QStringLiteral("twitch-token"));
     ~TwitchClient() override;
 
     void setEndpoints(const Endpoints& e) { ep_ = e; }
@@ -65,6 +67,8 @@ class TwitchClient : public QObject {
     /// `secret` vacio = app Publica (lo recomendado).
     bool saveClient(const QString& id, const QString& secret, QString& error);
     void clearClient();
+    /// Vuelve a leer la app y el token del disco (otra cuenta guardó la app).
+    void recargar();
 
     // --- Sesion ---------------------------------------------------------------------
     bool loggedIn() const { return !refreshToken_.isEmpty(); }
@@ -122,6 +126,7 @@ class TwitchClient : public QObject {
     void onChatLine(const QJsonObject& msg);
 
     QString configDir_;
+    QByteArray tokenCred_; ///< la credencial con el token de esta cuenta
     Endpoints ep_;
     std::function<void(const QString&)> openBrowser_;
     QString clientId_;

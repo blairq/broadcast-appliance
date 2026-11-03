@@ -43,6 +43,7 @@ Rectangle {
     }
 
     DialogoDestino { id: nuevoDestino }
+    DialogoVivo { id: nuevoVivo }
 
     // Borrar una salida: lo que sale de ella se corta; sus destinos guardados, a otra
     // salida o borrados (una decisión: nunca quedan colgados).
@@ -196,7 +197,6 @@ Rectangle {
                         readonly property string salida: model.id
                         readonly property bool porOmision: !!model.porOmision
                         readonly property bool elegida: salida === Studio.salidas.activa
-                        readonly property var destinos: model.destinos || []
                         width: Math.max(360, Math.min(520, (lista.availableWidth - 16) / 2))
                         height: cuerpo.implicitHeight + 32
                         radius: Theme.radius
@@ -300,48 +300,90 @@ Rectangle {
                                     ToolTip.text: qsTr("El de video de esta salida: rige desde lo próximo que arranque en ella (transmisión, destino o grabación)")
                                 }
                             }
-                            // Sus destinos (salen con su programa).
+                            // Sus destinos (salen con su programa): cada uno con su plataforma, cuenta y
+                            // vivo, su estado (conectando, en vivo, reintentando), lo que sale y la salud
+                            // que informa la plataforma (Studio.cuentas.vivos, el modelo avisa por fila).
                             Text { text: qsTr("Destinos"); color: Theme.textDim; font { pixelSize: 12; weight: Font.DemiBold } }
+                            ListaConClave {
+                                id: susDestinos
+                                clave: "uid"
+                                roles: ["nombre", "plataformaNombre", "cuentaNombre", "vivoTitulo", "estado", "estadoTexto", "kbps",
+                                        "activo", "respaldo", "saludTexto", "choque"]
+                                lista: Studio.cuentas.vivos.porSalida[tarjeta.salida] || []
+                            }
                             Text {
-                                visible: tarjeta.destinos.length === 0
+                                visible: susDestinos.count === 0
                                 Layout.fillWidth: true; wrapMode: Text.WordWrap
                                 text: tarjeta.porOmision ? qsTr("Ninguno además de la transmisión principal.") : qsTr("Ninguno todavía: agregá uno para que esta salida transmita.")
                                 color: Theme.textFaint; font.pixelSize: 11
                             }
                             Repeater {
-                                model: tarjeta.destinos
-                                delegate: RowLayout {
-                                    required property var modelData
+                                model: susDestinos
+                                delegate: ColumnLayout {
+                                    id: dest
+                                    required property string uid
+                                    required property string nombre
+                                    required property string plataformaNombre
+                                    required property string cuentaNombre
+                                    required property string vivoTitulo
+                                    required property string estado
+                                    required property string estadoTexto
+                                    required property int kbps
+                                    required property bool activo
+                                    required property bool respaldo
+                                    required property string saludTexto
+                                    required property string choque
                                     Layout.fillWidth: true
-                                    spacing: 6
-                                    Rectangle { width: 8; height: 8; radius: 4
-                                                color: modelData.activo ? (modelData.reconectando ? Theme.amber : Theme.live) : Theme.textFaint }
-                                    Text { Layout.fillWidth: true; elide: Text.ElideRight
-                                           text: modelData.respaldo ? qsTr("%1 · respaldo").arg(modelData.nombre) : modelData.nombre
-                                           color: Theme.text; font.pixelSize: 12 }
-                                    GlassButton {
-                                        compact: true; text: modelData.activo ? qsTr("Cortar") : qsTr("Iniciar")
-                                        active: modelData.activo; activeColor: Theme.live
-                                        onClicked: {
-                                            if (!modelData.activo) { Studio.emision.iniciarDestinoUi(modelData.id); return }
-                                            const id = modelData.id, n = modelData.nombre
-                                            ApplicationWindow.window.confirm({ title: qsTr("¿Cortar «%1»?").arg(n), text: qsTr("Los demás destinos siguen."),
-                                                                               accept: qsTr("Cortar"), reject: qsTr("Cancelar"), action: function() { Studio.emision.detenerDestinoUi(id) } })
+                                    spacing: 1
+                                    RowLayout {
+                                        Layout.fillWidth: true
+                                        spacing: 6
+                                        Rectangle { width: 8; height: 8; radius: 4
+                                                    color: dest.estado === "en_vivo" ? Theme.live : dest.estado === "reintentando" || dest.estado === "conectando" ? Theme.amber : Theme.textFaint }
+                                        Text { Layout.fillWidth: true; elide: Text.ElideRight
+                                               text: dest.respaldo ? qsTr("%1 · respaldo").arg(dest.nombre) : dest.nombre
+                                               color: Theme.text; font.pixelSize: 12 }
+                                        Text { visible: dest.activo; text: qsTr("%1 kbps").arg(dest.kbps); color: Theme.textDim; font.pixelSize: 11 }
+                                        GlassButton {
+                                            compact: true; text: dest.activo ? qsTr("Cortar") : qsTr("Iniciar")
+                                            active: dest.activo; activeColor: Theme.live
+                                            onClicked: {
+                                                if (!dest.activo) { Studio.emision.iniciarDestinoUi(dest.uid); return }
+                                                const id = dest.uid, n = dest.nombre
+                                                ApplicationWindow.window.confirm({ title: qsTr("¿Cortar «%1»?").arg(n), text: qsTr("Los demás destinos siguen."),
+                                                                                   accept: qsTr("Cortar"), reject: qsTr("Cancelar"), action: function() { Studio.emision.detenerDestinoUi(id) } })
+                                            }
                                         }
+                                        GlassButton { compact: true; text: "✕"; visible: !dest.activo
+                                                      onClicked: Studio.emision.borrarDestinoUi(dest.uid) }
                                     }
-                                    GlassButton { compact: true; text: "✕"; visible: !modelData.activo
-                                                  onClicked: Studio.emision.borrarDestinoUi(modelData.id) }
+                                    // Plataforma · cuenta · estado · salud.
+                                    Text {
+                                        Layout.fillWidth: true; Layout.leftMargin: 14; elide: Text.ElideRight
+                                        text: (dest.cuentaNombre !== "" ? qsTr("%1 · %2").arg(dest.plataformaNombre).arg(dest.cuentaNombre) : dest.plataformaNombre)
+                                              + " · " + dest.estadoTexto + (dest.saludTexto !== "" ? " · " + dest.saludTexto : "")
+                                        color: Theme.textFaint; font.pixelSize: 11
+                                    }
+                                    Text {
+                                        visible: dest.choque !== ""
+                                        Layout.fillWidth: true; Layout.leftMargin: 14; wrapMode: Text.WordWrap
+                                        text: dest.choque
+                                        color: Theme.amber; font.pixelSize: 11
+                                    }
                                 }
                             }
                             RowLayout {
                                 Layout.fillWidth: true
                                 spacing: 6
-                                GlassButton { compact: true; text: qsTr("+ Destino…"); onClicked: { nuevoDestino.salida = tarjeta.salida; nuevoDestino.open() } }
+                                GlassButton { compact: true; text: qsTr("+ Vivo de una cuenta…"); onClicked: { nuevoVivo.salida = tarjeta.salida; nuevoVivo.open() }
+                                              ToolTip.visible: hovered; ToolTip.delay: 400
+                                              ToolTip.text: qsTr("YouTube, Twitch o Facebook: elegí la cuenta y el vivo (o creá uno)") }
+                                GlassButton { compact: true; text: qsTr("+ RTMP/SRT…"); onClicked: { nuevoDestino.salida = tarjeta.salida; nuevoDestino.open() } }
                                 Item { Layout.fillWidth: true }
                                 GlassButton {
                                     compact: true; visible: !tarjeta.porOmision
                                     text: qsTr("Borrar salida")
-                                    onClicked: borrarDlg.abrir(tarjeta.salida, tarjeta.model.nombre, tarjeta.destinos.length)
+                                    onClicked: borrarDlg.abrir(tarjeta.salida, tarjeta.model.nombre, susDestinos.count)
                                 }
                             }
                         }
