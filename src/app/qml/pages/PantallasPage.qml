@@ -1,7 +1,9 @@
 // Página Pantallas (Salidas): dónde se muestra cada cosa, en dos pestañas.
 //
 //   Pantallas locales     los monitores de esta máquina, como están puestos, y
-//                         qué va en cada uno (controls/PantallasConectadas.qml).
+//                         qué va en cada uno (controls/PantallasConectadas.qml);
+//                         abajo, las distribuciones de ventanas guardadas con el
+//                         evento (controls/DistribucionesPantallas.qml).
 //   Pantallas de red      los televisores de la sala (Chromecast) y qué mostrar
 //                         en cada uno.
 //
@@ -89,8 +91,14 @@ Rectangle {
             Layout.fillHeight: true
             currentIndex: tabs.currentIndex
 
-            // --- Los monitores de esta máquina -------------------------------
-            PantallasConectadas {}
+            // --- Los monitores de esta máquina y las distribuciones ------------
+            // Arriba qué va fijo en cada monitor; abajo las distribuciones de
+            // ventanas guardadas con el evento (controls/DistribucionesPantallas.qml).
+            SplitView {
+                orientation: Qt.Vertical
+                PantallasConectadas { SplitView.preferredHeight: 300; SplitView.minimumHeight: 160 }
+                DistribucionesPantallas { SplitView.fillHeight: true; SplitView.minimumHeight: 320 }
+            }
 
             // --- Las TV de la red (Chromecast) -------------------------------
             ColumnLayout {

@@ -7675,6 +7675,155 @@ Réactivez-la depuis le Journal.</translation>
     </message>
 </context>
 <context>
+    <name>DistribucionesPantallas</name>
+    <message>
+        <location filename="../src/app/qml/controls/DistribucionesPantallas.qml" line="+25" />
+        <source>Distribuciones</source>
+        <translation>Dispositions</translation>
+    </message>
+    <message numerus="yes">
+        <location line="+9" />
+        <source>%n guardada(s)</source>
+        <translation><numerusform>%n enregistrée</numerusform><numerusform>%n enregistrées</numerusform></translation>
+    </message>
+    <message numerus="yes">
+        <location line="+1" />
+        <source>puesta en %n monitor(es)</source>
+        <translation><numerusform>sur %n écran</numerusform><numerusform>sur %n écrans</numerusform></translation>
+    </message>
+    <message>
+        <location line="+19" />
+        <source>Guardar la actual</source>
+        <translation>Enregistrer l'actuelle</translation>
+    </message>
+    <message>
+        <location line="+3" />
+        <source>Guarda las ventanas que hay abiertas ahora, dónde están y qué muestran</source>
+        <translation>Enregistre les fenêtres ouvertes en ce moment, leur emplacement et ce qu'elles affichent</translation>
+    </message>
+    <message>
+        <location line="+3" />
+        <source>Plantilla</source>
+        <translation>Modèle</translation>
+    </message>
+    <message>
+        <location line="+17" />
+        <source>Vacía</source>
+        <translation>Vide</translation>
+    </message>
+    <message>
+        <location line="+40" />
+        <location line="+53" />
+        <source>Aplicar</source>
+        <translation>Appliquer</translation>
+    </message>
+    <message>
+        <location line="-43" />
+        <source>Todavía no hay distribuciones. Abrí las ventanas como las querés y «Guardar la actual», o armá una desde una plantilla.</source>
+        <translation>Aucune disposition pour l'instant. Ouvrez les fenêtres comme vous le souhaitez puis « Enregistrer l'actuelle », ou créez-en une à partir d'un modèle.</translation>
+    </message>
+    <message>
+        <location line="+15" />
+        <source>Cerrar las ventanas de la distribución</source>
+        <translation>Fermer les fenêtres de la disposition</translation>
+    </message>
+    <message>
+        <location line="+7" />
+        <source>También con Ctrl+Shift+F12 desde cualquier ventana de la app</source>
+        <translation>Aussi avec Ctrl+Shift+F12 depuis n'importe quelle fenêtre de l'application</translation>
+    </message>
+    <message>
+        <location line="+23" />
+        <source>Guardar la actual acá</source>
+        <translation>Enregistrer l'actuelle ici</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>Reemplaza sus ventanas por las que hay abiertas ahora</source>
+        <translation>Remplace ses fenêtres par celles ouvertes en ce moment</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>Duplicar</source>
+        <translation>Dupliquer</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Borrar</source>
+        <translation>Supprimer</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>Al abrir el evento</source>
+        <translation>À l'ouverture de l'événement</translation>
+    </message>
+    <message>
+        <location line="+127" />
+        <source>Nombre</source>
+        <translation>Nom</translation>
+    </message>
+    <message>
+        <location line="+20" />
+        <source>⚠ no está</source>
+        <translation>⚠ absent</translation>
+    </message>
+    <message>
+        <location line="+4" />
+        <source>Completa</source>
+        <translation>Plein écran</translation>
+    </message>
+    <message>
+        <location line="+6" />
+        <source>Encima</source>
+        <translation>Au premier plan</translation>
+    </message>
+    <message>
+        <location line="+8" />
+        <source>Quitar</source>
+        <translation>Retirer</translation>
+    </message>
+    <message>
+        <location line="+18" />
+        <source>Agregar ventana</source>
+        <translation>Ajouter une fenêtre</translation>
+    </message>
+    <message>
+        <location line="+6" />
+        <source>Arrastrá los rectángulos; la esquina los agranda. Aplicada, se ve en el acto.</source>
+        <translation>Faites glisser les rectangles ; le coin les redimensionne. Une fois appliquée, le changement est immédiat.</translation>
+    </message>
+    <message>
+        <location line="+13" />
+        <source>Elegí una distribución para verla y editarla.</source>
+        <translation>Choisissez une disposition pour la voir et la modifier.</translation>
+    </message>
+    <message>
+        <location line="+10" />
+        <source>Guardar las ventanas de ahora</source>
+        <translation>Enregistrer les fenêtres actuelles</translation>
+    </message>
+    <message>
+        <location line="+0" />
+        <source>Distribución nueva</source>
+        <translation>Nouvelle disposition</translation>
+    </message>
+    <message>
+        <location line="+19" />
+        <source>Vacío = el nombre de la plantilla. Después se edita como cualquier otra.</source>
+        <translation>Vide = le nom du modèle. Elle se modifie ensuite comme n'importe quelle autre.</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Queda guardada con el evento. Aplicada, cada monitor lleva una sola ventana sin marco con sus ventanas adentro.</source>
+        <translation>Elle est enregistrée avec l'événement. Une fois appliquée, chaque écran reçoit une seule fenêtre sans bordure contenant ses fenêtres.</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>Remotos en la sala</source>
+        <translation>Participants à distance dans la salle</translation>
+    </message>
+</context>
+<context>
     <name>DocumentosViewModel</name>
     <message>
         <location filename="../src/app/ui/DocumentosViewModel.cpp" line="+133" />
@@ -8942,7 +9091,7 @@ Réactivez-la depuis le Journal.</translation>
 <context>
     <name>EscritorioViewModel</name>
     <message>
-        <location filename="../src/app/ui/EscritorioViewModel.cpp" line="+121" />
+        <location filename="../src/app/ui/EscritorioViewModel.cpp" line="+135" />
         <source>No hay un monitor «%1»: decí su número, su nombre o su id.</source>
         <translation>Il n'y a pas d'écran « %1 » : indiquez son numéro, son nom ou son id.</translation>
     </message>
@@ -14535,7 +14684,7 @@ Il se modifie dans son code (section Plugins, ou en le demandant à l'assistant)
         <translation>« %1 » est déjà dans sa fenêtre</translation>
     </message>
     <message>
-        <location line="+98" />
+        <location line="+105" />
         <source>Volvió la luz en medio del evento y la línea de tiempo está en HOLD: lo que te cuento es qué está pasando. Pasalo con linea_retomar, proponé cómo seguir (linea_editar o linea_ajustar con probar) y soltá con linea_soltar cuando lo confirme. </source>
         <translation>Le courant est revenu en plein événement et la timeline est en HOLD : ce que je vous dis, c'est ce qui se passe. Transmettez-le avec linea_retomar, proposez comment continuer (linea_editar ou linea_ajustar avec probar) et libérez avec linea_soltar quand je confirme. </translation>
     </message>
@@ -14865,7 +15014,7 @@ Il se modifie dans son code (section Plugins, ou en le demandant à l'assistant)
         <translation>Acquitter (R)</translation>
     </message>
     <message>
-        <location line="+42" />
+        <location line="+50" />
         <source>El servidor (gateway) se reinició: %1</source>
         <translation>Le serveur (gateway) a redémarré : %1</translation>
     </message>
@@ -25392,7 +25541,7 @@ Ajoutez-y des images depuis l'onglet Fichiers.</translation>
 <context>
     <name>PantallasPage</name>
     <message>
-        <location filename="../src/app/qml/pages/PantallasPage.qml" line="+64" />
+        <location filename="../src/app/qml/pages/PantallasPage.qml" line="+66" />
         <source>mostrando</source>
         <translation>affiche</translation>
     </message>
@@ -25437,7 +25586,7 @@ Ajoutez-y des images depuis l'onglet Fichiers.</translation>
         <translation>Écrans réseau</translation>
     </message>
     <message numerus="yes">
-        <location line="+18" />
+        <location line="+24" />
         <source>%n mostrando</source>
         <translation>
             <numerusform>%n affiche</numerusform>
@@ -33635,7 +33784,7 @@ puis elle se rouvre toute seule. Les paramètres, identifiants, enregistrements 
 <context>
     <name>StudioViewModel</name>
     <message>
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="+136" />
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="+137" />
         <source>%1 (no se pudo: %2)</source>
         <translation>%1 (échec : %2)</translation>
     </message>
@@ -33665,7 +33814,7 @@ puis elle se rouvre toute seule. Les paramètres, identifiants, enregistrements 
         <translation>Un synthé automatique n'est pas passé : %1</translation>
     </message>
     <message>
-        <location line="+273" />
+        <location line="+274" />
         <source>no contestó</source>
         <translation>n'a pas répondu</translation>
     </message>
@@ -35593,6 +35742,14 @@ puis elle se rouvre toute seule. Les paramètres, identifiants, enregistrements 
         <location line="+33" />
         <source>VOD borrado de Twitch.</source>
         <translation>VOD supprimée de Twitch.</translation>
+    </message>
+</context>
+<context>
+    <name>VentanaLienzo</name>
+    <message>
+        <location filename="../src/app/qml/VentanaLienzo.qml" line="+36" />
+        <source>Broadcast Appliance — Distribución, monitor %1</source>
+        <translation>Broadcast Appliance — Disposition, écran %1</translation>
     </message>
 </context>
 <context>
@@ -44209,7 +44366,7 @@ Choisissez autre chose dans Sorties → Écrans.</translation>
     </message>
     <message>
         <location line="-57" />
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="-885" />
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="-886" />
         <source>arranque: %1 tardó %2 ms</source>
         <translation>démarrage : %1 a pris %2 ms</translation>
     </message>
@@ -48578,7 +48735,7 @@ Données (de %2) : %3</translation>
         <translation>%1 : schéma %2 → %3</translation>
     </message>
     <message>
-        <location filename="../src/core/persist/ArchivoConfig.cpp" line="+207" />
+        <location filename="../src/core/persist/ArchivoConfig.cpp" line="+208" />
         <source>%1: lo escribió una versión más nueva (esta escribe el esquema %2): no se pisa, el cambio queda sin guardar</source>
         <translation>%1 : écrit par une version plus récente (celle-ci écrit le schéma %2) : non écrasé, la modification n'est pas enregistrée</translation>
     </message>
@@ -56007,7 +56164,7 @@ Données (de %2) : %3</translation>
         <translation>non</translation>
     </message>
     <message>
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="+919" />
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="+920" />
         <source>«%1» no arrancó al abrir: %2</source>
         <translation>« %1 » n'a pas démarré à l'ouverture : %2</translation>
     </message>
@@ -60414,7 +60571,7 @@ CE QU'IL FAUT SAVOIR EN L'ACTIVANT : le garde-fou des approbations (`mcp.approv
         <location line="+1" />
         <location filename="../src/app/mcp/McpBotoneraTools.cpp" line="-485" />
         <location filename="../src/app/mcp/McpFacebookTools.cpp" line="+165" />
-        <location filename="../src/app/mcp/McpPantallaTools.cpp" line="+429" />
+        <location filename="../src/app/mcp/McpPantallaTools.cpp" line="+437" />
         <location filename="../src/app/mcp/McpQrTools.cpp" line="+270" />
         <location filename="../src/app/mcp/McpRoomTools.cpp" line="+740" />
         <location filename="../src/app/mcp/McpService.cpp" line="-551" />
@@ -61842,6 +61999,7 @@ L'`id` QU'IL RENVOIE S'UTILISE TEL QUEL dans `audio_module_add`. Les six du cata
     <message>
         <location line="+1" />
         <location line="+146" />
+        <location filename="../src/app/mcp/McpPantallaTools.cpp" line="+705" />
         <location filename="../src/app/mcp/McpVideoTools.cpp" line="+132" />
         <source>Borrada.</source>
         <translation>Supprimée.</translation>
@@ -65900,6 +66058,9 @@ Cela ne touche pas au registre des visages : la fiche de la personne reste où 
     </message>
     <message>
         <location line="+3" />
+        <location filename="../src/app/mcp/McpPantallaTools.cpp" line="-125" />
+        <location line="+62" />
+        <location line="+58" />
         <location filename="../src/app/mcp/McpRoomTools.cpp" line="+54" />
         <source>id o nombre</source>
         <translation>id ou nom</translation>
@@ -69400,7 +69561,7 @@ Si la destination contient déjà un élément de ce nom, il est numéroté au l
         <translation>Suggestions dans la barre de l'opérateur (id %1). Ce qu'il envoie (ou s'il l'ignore) vous arrive dans votre chat.</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpPantallaTools.cpp" line="-277" />
+        <location filename="../src/app/mcp/McpPantallaTools.cpp" line="-977" />
         <source>Pantallas externas</source>
         <translation>Écrans externes</translation>
     </message>
@@ -69731,7 +69892,168 @@ Durées : un QR a besoin d'au moins 15 secondes pour que quelqu'un sorte son t�
         <translation>Quels moniteurs il y a et ce qu'affiche chacun</translation>
     </message>
     <message>
-        <location line="-129" />
+        <location line="+112" />
+        <source>Cada ventana: {"nombre": opcional, "cosas": [ids de catalogo_listar con donde=monitor] (una, o varias en grilla), "disposicion": grid|focus|pip|row (con varias cosas), "monitor": id, numero de orden o nombre (monitor_listar; vacio = el primero que no sea el principal), "x", "y", "ancho", "alto": el lugar RELATIVO al monitor, de 0 a 1 (la mitad izquierda: x 0, y 0, ancho 0.5, alto 1; si no se dice, el monitor entero), "absoluta": {x, y, ancho, alto} en pixeles desde la esquina del monitor, solo si hacen falta pixeles exactos (si no entran en el monitor se usa la relativa), "pantallaCompleta": bool, "encima": bool (siempre encima de las demas)}. Al aplicarla, las ventanas de cada monitor van adentro de UNA ventana madre sin marco: el operador no las mueve ni las cierra con el mouse.</source>
+        <translation>Chaque fenêtre : {"nombre": facultatif, "cosas": [ids de catalogo_listar avec donde=monitor] (un, ou plusieurs en grille), "disposicion": grid|focus|pip|row (avec plusieurs éléments), "monitor": id, numéro d'ordre ou nom (monitor_listar ; vide = le premier qui n'est pas l'écran principal), "x", "y", "ancho", "alto": l'emplacement RELATIF à l'écran, de 0 à 1 (la moitié gauche : x 0, y 0, ancho 0.5, alto 1 ; sinon, l'écran entier), "absoluta": {x, y, ancho, alto} en pixels depuis le coin de l'écran, seulement si des pixels exacts sont nécessaires (s'ils ne tiennent pas dans l'écran, la position relative est utilisée), "pantallaCompleta": bool, "encima": bool (toujours au-dessus des autres)}. Une fois la disposition appliquée, les fenêtres de chaque écran sont placées dans UNE fenêtre mère sans bordure : l'opérateur ne peut ni les déplacer ni les fermer avec la souris.</translation>
+    </message>
+    <message>
+        <location line="+28" />
+        <source>las ventanas (ver los detalles de la herramienta)</source>
+        <translation>les fenêtres (voir les détails de l'outil)</translation>
+    </message>
+    <message>
+        <location line="+8" />
+        <source>No hay una distribucion «%1»: pantallas_distribuciones_listar dice cuales hay.</source>
+        <translation>Il n'y a pas de disposition « %1 » : pantallas_distribuciones_listar indique celles qui existent.</translation>
+    </message>
+    <message>
+        <location line="+5" />
+        <source>Distribuciones de pantallas guardadas</source>
+        <translation>Dispositions d'écrans enregistrées</translation>
+    </message>
+    <message>
+        <location line="+3" />
+        <source>Las distribuciones de pantallas guardadas en el evento: cada una es una lista de ventanas (que muestra cada una, en que monitor, donde y de que tamaño) que se aplica de una vez. Dice cual esta aplicada, cual se abre sola al cargar el evento, los monitores conectados y las plantillas de un clic.</source>
+        <translation>Les dispositions d'écrans enregistrées dans l'événement : chacune est une liste de fenêtres (ce que chacune affiche, sur quel écran, où et à quelle taille) appliquée d'un seul coup. Indique laquelle est appliquée, laquelle s'ouvre automatiquement au chargement de l'événement, les écrans connectés et les modèles en un clic.</translation>
+    </message>
+    <message>
+        <location line="+4" />
+        <source>Por ventana vuelve tambien `enMonitor` (donde iria ahora), `faltaMonitor` (su monitor no esta: va al que haya) y `titulo`. `aviso` es lo que paso la ultima vez que se aplico una. Las ventanas de una distribucion son SIN MARCO y QUIETAS: se mueven con pantallas_distribucion_editar.</source>
+        <translation>Pour chaque fenêtre, renvoie aussi `enMonitor` (où elle irait maintenant), `faltaMonitor` (son écran est absent : elle va sur celui qui est disponible) et `titulo`. `aviso` indique ce qui s'est passé la dernière fois qu'une disposition a été appliquée. Les fenêtres d'une disposition sont SANS BORDURE et FIXES : on les déplace avec pantallas_distribucion_editar.</translation>
+    </message>
+    <message>
+        <location line="+19" />
+        <source>Crear una distribución de pantallas</source>
+        <translation>Créer une disposition d'écrans</translation>
+    </message>
+    <message>
+        <location line="+3" />
+        <source>Guarda en el evento una distribucion de pantallas con nombre: la lista de ventanas que van en los monitores de esta maquina (el programa, el previo, una escena, una multiview, un invitado, un panel, una pagina...), cada una en su monitor, lugar y tamaño. O desde una `plantilla`, o copiando otra (`desde`). Con `aplicar: true` ademas la pone ya.</source>
+        <translation>Enregistre dans l'événement une disposition d'écrans nommée : la liste des fenêtres qui vont sur les écrans de cette machine (le programme, l'aperçu, une scène, un multiview, un invité, un panneau, une page...), chacune avec son écran, son emplacement et sa taille. Soit à partir d'un `plantilla`, soit en copiant une autre (`desde`). Avec `aplicar: true`, elle est en plus appliquée tout de suite.</translation>
+    </message>
+    <message>
+        <location line="+6" />
+        <source>
+
+Antes: monitor_listar (los monitores, su orden y cual es el principal) y catalogo_listar {"donde": "monitor"} (que se puede mostrar). No pongas ventanas en el monitor principal (el de la interfaz) salvo que lo pidan.
+
+Plantillas: mosaico-2x1, mosaico-2x2, una-por-monitor, programa-previo-multiview (con `monitor` y `cosas` opcionales).
+
+`alAbrir: true` = se aplica sola al cargar el evento (una sola puede serlo).</source>
+        <translation>
+
+Avant : monitor_listar (les écrans, leur ordre et lequel est l'écran principal) et catalogo_listar {"donde": "monitor"} (ce qui peut être affiché). Ne mettez pas de fenêtres sur l'écran principal (celui de l'interface) sauf demande explicite.
+
+Modèles : mosaico-2x1, mosaico-2x2, una-por-monitor, programa-previo-multiview (avec `monitor` et `cosas` facultatifs).
+
+`alAbrir: true` = appliquée automatiquement au chargement de l'événement (une seule peut l'être).</translation>
+    </message>
+    <message>
+        <location line="+14" />
+        <source>con plantilla: en que monitor</source>
+        <translation>avec un modèle : sur quel écran</translation>
+    </message>
+    <message>
+        <location line="+4" />
+        <source>con plantilla: que va en cada lugar, en orden</source>
+        <translation>avec un modèle : ce qui va à chaque emplacement, dans l'ordre</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>copiar esta distribucion (id o nombre)</source>
+        <translation>copier cette disposition (id ou nom)</translation>
+    </message>
+    <message>
+        <location line="+43" />
+        <source>Editar una distribución de pantallas</source>
+        <translation>Modifier une disposition d'écrans</translation>
+    </message>
+    <message>
+        <location line="+3" />
+        <source>Cambia una distribucion guardada: el nombre, si se abre sola al cargar el evento, la lista entera de ventanas, o una ventana (cambiarla, agregar una, quitar una). Si es la que esta aplicada, las ventanas se mueven en el acto: es la forma de mover las ventanas de una distribucion (sin marco y quietas).</source>
+        <translation>Modifie une disposition enregistrée : le nom, si elle s'ouvre automatiquement au chargement de l'événement, la liste complète des fenêtres, ou une fenêtre (la modifier, en ajouter une, en retirer une). Si c'est celle qui est appliquée, les fenêtres se déplacent immédiatement : c'est la façon de déplacer les fenêtres d'une disposition (sans bordure et fixes).</translation>
+    </message>
+    <message>
+        <location line="+5" />
+        <source>
+
+`ventanas` reemplaza la lista entera. `ventana` cambia SOLO lo que diga de la ventana numero `indice` (desde 1, en el orden de pantallas_distribuciones_listar). `agregar` suma una ventana; `quitar`, el numero de la que se saca.</source>
+        <translation>
+
+`ventanas` remplace la liste complète. `ventana` modifie UNIQUEMENT ce qu'elle précise de la fenêtre numéro `indice` (à partir de 1, dans l'ordre de pantallas_distribuciones_listar). `agregar` ajoute une fenêtre ; `quitar`, le numéro de celle à retirer.</translation>
+    </message>
+    <message>
+        <location line="+8" />
+        <source>el nombre nuevo</source>
+        <translation>le nouveau nom</translation>
+    </message>
+    <message>
+        <location line="+7" />
+        <source>el numero de la ventana que se saca</source>
+        <translation>le numéro de la fenêtre à retirer</translation>
+    </message>
+    <message>
+        <location line="+38" />
+        <source>Aplicar una distribución de pantallas</source>
+        <translation>Appliquer une disposition d'écrans</translation>
+    </message>
+    <message>
+        <location line="+4" />
+        <source>Pone la distribucion EXACTAMENTE como dice: en cada monitor que usa, UNA ventana madre sin marco (a pantalla completa si ocupa el monitor entero) con sus ventanas adentro como rectangulos; las ventanas sueltas que hubiera se cierran. Cambiar de distribucion no abre ni cierra ventanas del sistema: cambia lo de adentro. Aplicarla dos veces no cambia nada.</source>
+        <translation>Met en place la disposition EXACTEMENT telle qu'elle est définie : sur chaque écran utilisé, UNE fenêtre mère sans bordure (en plein écran si elle occupe tout l'écran) contenant ses fenêtres sous forme de rectangles ; les fenêtres isolées éventuelles sont fermées. Changer de disposition n'ouvre ni ne ferme de fenêtres système : seul le contenu change. L'appliquer deux fois ne change rien.</translation>
+    </message>
+    <message>
+        <location line="+5" />
+        <source>Si un monitor de la distribucion no esta, su ventana va al que haya y vuelve en `aviso` (no falla); si despues aparece, vuelve sola a su lugar. Lo que ya no existe (una escena borrada) se saltea, tambien con aviso. Lo fijo de Salidas -&gt; Pantallas (monitor_asignar) no se toca (si comparte monitor, avisa). La aplicada se recuerda: vuelve sola al reiniciar. Para sacarla: pantallas_distribucion_cerrar.</source>
+        <translation>Si un écran de la disposition est absent, sa fenêtre va sur celui qui est disponible et c'est signalé dans `aviso` (pas d'échec) ; si l'écran réapparaît, elle revient automatiquement à sa place. Ce qui n'existe plus (une scène supprimée) est ignoré, avec un avertissement également. Les affectations fixes de Sorties -&gt; Écrans (monitor_asignar) ne sont pas touchées (si elles partagent un écran, un avertissement est donné). La disposition appliquée est mémorisée : elle revient automatiquement au redémarrage. Pour la retirer : pantallas_distribucion_cerrar.</translation>
+    </message>
+    <message>
+        <location line="+23" />
+        <source>Guardar las ventanas de ahora como distribución</source>
+        <translation>Enregistrer les fenêtres actuelles comme disposition</translation>
+    </message>
+    <message>
+        <location line="+3" />
+        <source>Guarda las ventanas que hay abiertas AHORA (que muestran, en que monitor, donde) como una distribucion nueva con `nombre`, o reemplaza las ventanas de una que ya existe (`distribucion`).</source>
+        <translation>Enregistre les fenêtres ouvertes EN CE MOMENT (ce qu'elles affichent, sur quel écran, où) comme une nouvelle disposition avec `nombre`, ou remplace les fenêtres d'une disposition existante (`distribucion`).</translation>
+    </message>
+    <message>
+        <location line="+3" />
+        <source>El lugar se guarda relativo al monitor (sobrevive a un cambio de resolucion). Lo fijo de Salidas -&gt; Pantallas (monitor_asignar) no entra: son las ventanas sueltas.</source>
+        <translation>L'emplacement est enregistré relativement à l'écran (il résiste à un changement de résolution). Les affectations fixes de Sorties -&gt; Écrans (monitor_asignar) ne sont pas incluses : ce sont les fenêtres isolées.</translation>
+    </message>
+    <message>
+        <location line="+7" />
+        <source>reemplazar las ventanas de esta (id o nombre)</source>
+        <translation>remplacer les fenêtres de celle-ci (id ou nom)</translation>
+    </message>
+    <message>
+        <location line="+21" />
+        <source>Borrar una distribución de pantallas</source>
+        <translation>Supprimer une disposition d'écrans</translation>
+    </message>
+    <message>
+        <location line="+3" />
+        <source>Borra una distribucion guardada. Sus ventanas, si estan puestas, quedan como estan (para sacarlas: pantallas_distribucion_cerrar).</source>
+        <translation>Supprime une disposition enregistrée. Ses fenêtres, si elles sont affichées, restent telles quelles (pour les retirer : pantallas_distribucion_cerrar).</translation>
+    </message>
+    <message>
+        <location line="+17" />
+        <source>Cerrar las ventanas de la distribución</source>
+        <translation>Fermer les fenêtres de la disposition</translation>
+    </message>
+    <message>
+        <location line="+4" />
+        <source>La salida de emergencia: cierra todas las ventanas puestas por una distribucion (van sin marco y quietas: el operador no las puede cerrar con el mouse). La distribucion queda guardada. El operador hace lo mismo con Ctrl+Shift+F12 o desde Pantallas.</source>
+        <translation>La sortie de secours : ferme toutes les fenêtres mises en place par une disposition (elles sont sans bordure et fixes : l'opérateur ne peut pas les fermer avec la souris). La disposition reste enregistrée. L'opérateur fait de même avec Ctrl+Shift+F12 ou depuis Écrans.</translation>
+    </message>
+    <message>
+        <location line="+6" />
+        <source>Cerradas: %1.</source>
+        <translation>Fermées : %1.</translation>
+    </message>
+    <message>
+        <location line="-536" />
         <source>Las superficies web que estan ABIERTAS y latiendo ahora mismo (la pantalla de un televisor, un carrusel, el teleprompter). Cada una dice que esta mostrando con sus propias palabras.</source>
         <translation>Les surfaces web OUVERTES qui envoient un signal de vie en ce moment (l'écran d'un téléviseur, un carrousel, le prompteur). Chacune indique ce qu'elle affiche, avec ses propres mots.</translation>
     </message>
@@ -81522,7 +81844,13 @@ PROPOSEZ, N'APPLIQUEZ PAS : montrez à la personne ce qui change et appliquez s
         <translation>glossaire termes traduction vocabulaire mots de l'événement comment on dit</translation>
     </message>
     <message>
-        <location line="+7" />
+        <location line="+2" />
+        <source>distribucion de pantallas layout de ventanas acomodar ventanas en los monitores mosaico grilla de ventanas varias pantallas guardar como estan las ventanas armar los monitores remotos en un monitor programa y previo multiview en otro monitor preset de pantallas</source>
+        <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
+        <translation>disposition d'écrans disposition des fenêtres organiser les fenêtres sur les écrans mosaïque grille de fenêtres plusieurs écrans multi écran enregistrer la position des fenêtres configurer les écrans participants à distance sur un écran programme et aperçu multiview sur un autre écran préréglage d'écrans</translation>
+    </message>
+    <message>
+        <location line="+9" />
         <source>indice catalogo guia empezar</source>
         <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
         <translation>index catalogue guide commencer démarrer</translation>
@@ -89044,22 +89372,184 @@ PROPOSEZ, N'APPLIQUEZ PAS : montrez à la personne ce qui change et appliquez s
         <translation>Moniteur inconnu.</translation>
     </message>
     <message>
+        <location filename="../src/app/pantallas/Distribuciones.cpp" line="+110" />
+        <source>«%1» no es una disposición: grid, focus, pip o row.</source>
+        <translation>« %1 » n'est pas une disposition : grid, focus, pip ou row.</translation>
+    </message>
+    <message>
+        <location line="+11" />
+        <source>No conozco el monitor «%1»: decí su id, su número de orden o su nombre (monitor_listar).</source>
+        <translation>Écran « %1 » inconnu : indiquez son id, son numéro d'ordre ou son nom (monitor_listar).</translation>
+    </message>
+    <message>
+        <location line="+16" />
+        <source>El lugar va relativo al monitor, de 0 a 1: x e y desde la esquina de arriba a la izquierda, ancho y alto mayores que 0, y x+ancho e y+alto hasta 1 (la mitad izquierda es x 0, y 0, ancho 0.5, alto 1).</source>
+        <translation>L'emplacement est relatif à l'écran, de 0 à 1 : x et y depuis le coin supérieur gauche, largeur et hauteur supérieures à 0, et x+largeur et y+hauteur jusqu'à 1 (la moitié gauche est x 0, y 0, largeur 0.5, hauteur 1).</translation>
+    </message>
+    <message>
+        <location line="+13" />
+        <source>`absoluta` va en píxeles desde la esquina del monitor: x e y desde 0, ancho y alto mayores que 0.</source>
+        <translation>`absoluta` est en pixels depuis le coin de l'écran : x et y à partir de 0, largeur et hauteur supérieures à 0.</translation>
+    </message>
+    <message numerus="yes">
+        <location line="+245" />
+        <source>%n ventana(s)</source>
+        <translation><numerusform>%n fenêtre</numerusform><numerusform>%n fenêtres</numerusform></translation>
+    </message>
+    <message>
+        <location line="+14" />
+        <source>Mosaico 2×1</source>
+        <translation>Mosaïque 2×1</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Dos ventanas lado a lado en un monitor (de entrada, el programa y el previo).</source>
+        <translation>Deux fenêtres côte à côte sur un écran (par défaut, le programme et l'aperçu).</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>Mosaico 2×2</source>
+        <translation>Mosaïque 2×2</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Cuatro ventanas en cuadrícula en un monitor.</source>
+        <translation>Quatre fenêtres en grille sur un écran.</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>Una por monitor</source>
+        <translation>Une par écran</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Una cosa a pantalla completa en cada monitor que no sea el principal.</source>
+        <translation>Un élément en plein écran sur chaque écran autre que l'écran principal.</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>Programa + previo + multivista</source>
+        <translation>Programme + aperçu + multiview</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>En un monitor: el programa y el previo arriba, la multivista abajo.</source>
+        <translation>Sur un écran : le programme et l'aperçu en haut, le multiview en bas.</translation>
+    </message>
+    <message>
+        <location line="+13" />
+        <source>No hay nada que se llame «%1» en lo que se puede mostrar (catalogo_listar).</source>
+        <translation>Rien ne s'appelle « %1 » parmi ce qui peut être affiché (catalogo_listar).</translation>
+    </message>
+    <message>
+        <location line="+2" />
         <location filename="../src/app/pantallas/Ventanas.cpp" line="+2" />
         <source>«%1» no se puede mostrar en una ventana (solo en una TV de la red).</source>
         <translation>« %1 » ne peut pas être affiché dans une fenêtre (seulement sur une TV du réseau).</translation>
     </message>
     <message>
         <location line="+5" />
+        <source>Cada ventana tiene que mostrar algo: `cosas` con ids de catalogo_listar.</source>
+        <translation>Chaque fenêtre doit afficher quelque chose : `cosas` avec des ids de catalogo_listar.</translation>
+    </message>
+    <message>
+        <location line="+7" />
+        <location line="+192" />
+        <source>Como mucho %1 ventanas en una distribución.</source>
+        <translation>%1 fenêtres au maximum par disposition.</translation>
+    </message>
+    <message>
+        <location line="-185" />
+        <source>Ventana %1: %2</source>
+        <translation>Fenêtre %1 : %2</translation>
+    </message>
+    <message>
+        <location line="+39" />
+        <location line="+19" />
+        <source>Ponele un nombre a la distribución.</source>
+        <translation>Donnez un nom à la disposition.</translation>
+    </message>
+    <message>
+        <location line="-16" />
+        <source>Ya hay una distribución que se llama «%1»: editala, o elegí otro nombre.</source>
+        <translation>Une disposition nommée « %1 » existe déjà : modifiez-la ou choisissez un autre nom.</translation>
+    </message>
+    <message>
+        <location line="+12" />
+        <location line="+20" />
+        <location line="+25" />
+        <location line="+83" />
+        <location line="+15" />
+        <location line="+11" />
+        <location line="+14" />
+        <location line="+134" />
+        <location line="+91" />
+        <source>No hay una distribución «%1».</source>
+        <translation>Il n'y a pas de disposition « %1 ».</translation>
+    </message>
+    <message>
+        <location line="-386" />
+        <location line="+21" />
+        <location line="+370" />
+        <source>Ya hay una distribución que se llama «%1».</source>
+        <translation>Une disposition nommée « %1 » existe déjà.</translation>
+    </message>
+    <message>
+        <location line="-375" />
+        <source>%1 (copia)</source>
+        <translation>%1 (copie)</translation>
+    </message>
+    <message>
+        <location line="+41" />
+        <source>No conozco el monitor «%1» (monitor_listar).</source>
+        <translation>Écran « %1 » inconnu (monitor_listar).</translation>
+    </message>
+    <message>
+        <location line="+35" />
+        <location line="+75" />
+        <source>No hay monitores conectados.</source>
+        <translation>Aucun écran connecté.</translation>
+    </message>
+    <message>
+        <location line="-65" />
+        <source>No hay una plantilla «%1»: mosaico-2x1, mosaico-2x2, una-por-monitor o programa-previo-multiview.</source>
+        <translation>Il n'y a pas de modèle « %1 » : mosaico-2x1, mosaico-2x2, una-por-monitor ou programa-previo-multiview.</translation>
+    </message>
+    <message>
+        <location line="+37" />
+        <location line="+11" />
+        <location line="+14" />
+        <source>Esa distribución no tiene una ventana %1.</source>
+        <translation>Cette disposition n'a pas de fenêtre %1.</translation>
+    </message>
+    <message>
+        <location line="+62" />
+        <source>«%1» ya no se puede mostrar: se saltea.</source>
+        <translation>« %1 » ne peut plus être affiché : ignoré.</translation>
+    </message>
+    <message>
+        <location line="+18" />
+        <source>«%1»: su monitor no está conectado; va en el %2 (%3).</source>
+        <translation>« %1 » : son écran n'est pas connecté ; il va sur le %2 (%3).</translation>
+    </message>
+    <message>
+        <location line="+29" />
+        <source>El monitor %1 también tiene algo fijo (Pantallas conectadas): se van a tapar. Quitalo ahí si manda la distribución.</source>
+        <translation>L'écran %1 a aussi quelque chose de fixe (Écrans connectés) : ils vont se superposer. Retirez-le là-bas si la disposition est prioritaire.</translation>
+    </message>
+    <message>
+        <location filename="../src/app/pantallas/Ventanas.cpp" line="+5" />
         <source>Elegí qué mostrar.</source>
         <translation>Choisissez quoi afficher.</translation>
     </message>
     <message>
-        <location line="+2" />
+        <location filename="../src/app/pantallas/Distribuciones.cpp" line="-347" />
+        <location filename="../src/app/pantallas/Ventanas.cpp" line="+2" />
         <source>Como mucho %1 cosas en una ventana: más ya no se leen.</source>
         <translation>%1 éléments maximum dans une fenêtre : au-delà, ce n'est plus lisible.</translation>
     </message>
     <message>
-        <location line="+83" />
+        <location filename="../src/app/pantallas/Ventanas.cpp" line="+94" />
         <source>No hay una ventana con ese id.</source>
         <translation>Aucune fenêtre avec cet id.</translation>
     </message>

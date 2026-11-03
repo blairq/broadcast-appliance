@@ -220,6 +220,17 @@ void VentanasModel::cerrar(int id) {
     guardar();
 }
 
+int VentanasModel::cerrarTodas() {
+    const int n = rowCount();
+    if (n == 0) return 0;
+    beginResetModel();
+    filas_.clear();
+    endResetModel();
+    emit cambio();
+    guardar();
+    return n;
+}
+
 void VentanasModel::cerrarCosa(const QString& cosa) {
     if (const int id = ventanaDe(cosa); id > 0) cerrar(id);
 }

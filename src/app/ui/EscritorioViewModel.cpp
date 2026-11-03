@@ -6,6 +6,7 @@
 #include "diag/DiarioDeArranque.hpp"
 #include "emision/VentanillaMotor.hpp"
 #include "pantallas/Catalogo.hpp"
+#include "pantallas/Distribuciones.hpp"
 #include "pantallas/Monitores.hpp"
 #include "pantallas/Ventanas.hpp"
 #include "ptz/ControlCamaras.hpp"
@@ -20,6 +21,7 @@
 #include <QGuiApplication>
 #include <QQmlEngine>
 #include <QScreen>
+#include <QTimer>
 #include <QWindow>
 
 namespace ba::app {
@@ -92,6 +94,17 @@ EscritorioViewModel::EscritorioViewModel(Partes p, QObject* parent) : QObject(pa
         if (!c.saltear()) ventanas_->migrarDesde(rt.dataRoot() / "Config" / "ui.json", multivistas_->actual());
     }
     multivistas_->setVentanas(ventanas_.get(), monitores_.get());
+    // Las distribuciones de pantallas, del evento (Config/ es la carpeta del evento).
+    {
+        ba::diag::Cargando c("distribuciones");
+        distribuciones_ = std::make_unique<DistribucionesModel>(
+            c.saltear() ? std::filesystem::path{} : rt.dataRoot() / "Config" / "distribuciones-pantallas.json", catalogo_.get(),
+            monitores_.get(), ventanas_.get());
+        deCpp(&distribuciones_->lienzos()); // un miembro, que QML no lo reclame
+    }
+    // La marcada «al abrir el evento», cuando el catálogo ya tiene las escenas (Studio lo
+    // refresca al terminar de armarse): en la primera vuelta del bucle de eventos.
+    QTimer::singleShot(0, distribuciones_.get(), [d = distribuciones_.get()]() { d->aplicarAlAbrir(); });
     connect(monitores_.get(), &MonitoresModel::cambio, this, &EscritorioViewModel::monitoresCambio);
     // Las entradas de video también son cosas que se pueden mostrar (catálogo).
     connect(&p_.imagen.videoVm(), &VideoViewModel::cambio, catalogo_.get(), refrescar);
@@ -103,6 +116,7 @@ QObject* EscritorioViewModel::catalogoQml() const { return deCpp(catalogo_.get()
 QObject* EscritorioViewModel::monitoresQml() const { return deCpp(monitores_.get()); }
 QObject* EscritorioViewModel::ventanasQml() const { return deCpp(ventanas_.get()); }
 QObject* EscritorioViewModel::multivistasQml() const { return deCpp(multivistas_.get()); }
+QObject* EscritorioViewModel::distribucionesQml() const { return deCpp(distribuciones_.get()); }
 
 void EscritorioViewModel::refrescarCatalogo() { catalogo_->refrescar(); }
 

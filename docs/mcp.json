@@ -8,12 +8,12 @@
     "«hay acople» llegue a audio_set sin que nadie nombre la herramienta."
   ],
   "fuente": "codigo",
-  "cuantas": 836,
+  "cuantas": 843,
   "por_clase": {
-    "lectura": 278,
-    "escritura": 492,
+    "lectura": 279,
+    "escritura": 496,
     "aire": 50,
-    "ui": 16
+    "ui": 18
   },
   "categorias": [
     {
@@ -774,6 +774,13 @@
         "pantalla_olvidar",
         "pantalla_parar",
         "pantalla_renombrar",
+        "pantallas_distribucion_aplicar",
+        "pantallas_distribucion_borrar",
+        "pantallas_distribucion_capturar",
+        "pantallas_distribucion_cerrar",
+        "pantallas_distribucion_crear",
+        "pantallas_distribucion_editar",
+        "pantallas_distribuciones_listar",
         "superficie_listar",
         "superficie_mostrar"
       ]
@@ -24044,7 +24051,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpPantallaTools.cpp",
-        "linea": 381
+        "linea": 389
       },
       "roles": [
         "asistente"
@@ -24071,7 +24078,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpPantallaTools.cpp",
-        "linea": 352
+        "linea": 360
       },
       "roles": [
         "asistente"
@@ -24107,7 +24114,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpPantallaTools.cpp",
-        "linea": 600
+        "linea": 608
       },
       "roles": [
         "asistente"
@@ -24152,7 +24159,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpPantallaTools.cpp",
-        "linea": 680
+        "linea": 688
       },
       "roles": [
         "asistente"
@@ -24178,7 +24185,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpPantallaTools.cpp",
-        "linea": 639
+        "linea": 647
       },
       "roles": [
         "asistente"
@@ -24212,7 +24219,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpPantallaTools.cpp",
-        "linea": 726
+        "linea": 734
       },
       "roles": [
         "asistente"
@@ -24249,7 +24256,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpPantallaTools.cpp",
-        "linea": 331
+        "linea": 339
       },
       "roles": [
         "asistente"
@@ -24275,7 +24282,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpPantallaTools.cpp",
-        "linea": 102
+        "linea": 110
       },
       "roles": [
         "asistente"
@@ -24348,7 +24355,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpPantallaTools.cpp",
-        "linea": 222
+        "linea": 230
       },
       "roles": [
         "asistente"
@@ -24374,7 +24381,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpPantallaTools.cpp",
-        "linea": 56
+        "linea": 64
       },
       "roles": [
         "asistente"
@@ -24452,7 +24459,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpPantallaTools.cpp",
-        "linea": 116
+        "linea": 124
       },
       "roles": [
         "asistente"
@@ -24485,7 +24492,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpPantallaTools.cpp",
-        "linea": 288
+        "linea": 296
       },
       "roles": [
         "asistente"
@@ -24518,7 +24525,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpPantallaTools.cpp",
-        "linea": 475
+        "linea": 483
       },
       "roles": [
         "asistente"
@@ -24556,7 +24563,558 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpPantallaTools.cpp",
-        "linea": 306
+        "linea": 314
+      },
+      "roles": [
+        "asistente"
+      ]
+    },
+    {
+      "nombre": "pantallas_distribucion_aplicar",
+      "titulo": "Aplicar una distribución de pantallas",
+      "categoria": "pantallas",
+      "descripcion": "Pone la distribucion EXACTAMENTE como dice: en cada monitor que usa, UNA ventana madre sin marco (a pantalla completa si ocupa el monitor entero) con sus ventanas adentro como rectangulos; las ventanas sueltas que hubiera se cierran. Cambiar de distribucion no abre ni cierra ventanas del sistema: cambia lo de adentro. Aplicarla dos veces no cambia nada.",
+      "esquema": {
+        "type": "object",
+        "required": [
+          "distribucion"
+        ],
+        "properties": {
+          "distribucion": {
+            "type": "string",
+            "description": "id o nombre"
+          }
+        }
+      },
+      "clase": "ui",
+      "hilo": "interfaz",
+      "soloLectura": false,
+      "destructiva": false,
+      "idempotente": true,
+      "etiquetas": {
+        "propias": "",
+        "porPrefijo": "distribucion de pantallas layout de ventanas acomodar ventanas en los monitores mosaico grilla de ventanas varias pantallas guardar como estan las ventanas armar los monitores remotos en un monitor programa y previo multiview en otro monitor preset de pantallas"
+      },
+      "donde": {
+        "archivo": "src/app/mcp/McpPantallaTools.cpp",
+        "linea": 958
+      },
+      "roles": [
+        "asistente"
+      ]
+    },
+    {
+      "nombre": "pantallas_distribucion_borrar",
+      "titulo": "Borrar una distribución de pantallas",
+      "categoria": "pantallas",
+      "descripcion": "Borra una distribucion guardada. Sus ventanas, si estan puestas, quedan como estan (para sacarlas: pantallas_distribucion_cerrar).",
+      "esquema": {
+        "type": "object",
+        "required": [
+          "distribucion"
+        ],
+        "properties": {
+          "distribucion": {
+            "type": "string",
+            "description": "id o nombre"
+          }
+        }
+      },
+      "clase": "escritura",
+      "hilo": "interfaz",
+      "soloLectura": false,
+      "destructiva": false,
+      "idempotente": false,
+      "etiquetas": {
+        "propias": "",
+        "porPrefijo": "distribucion de pantallas layout de ventanas acomodar ventanas en los monitores mosaico grilla de ventanas varias pantallas guardar como estan las ventanas armar los monitores remotos en un monitor programa y previo multiview en otro monitor preset de pantallas"
+      },
+      "donde": {
+        "archivo": "src/app/mcp/McpPantallaTools.cpp",
+        "linea": 1024
+      },
+      "roles": [
+        "asistente"
+      ]
+    },
+    {
+      "nombre": "pantallas_distribucion_capturar",
+      "titulo": "Guardar las ventanas de ahora como distribución",
+      "categoria": "pantallas",
+      "descripcion": "Guarda las ventanas que hay abiertas AHORA (que muestran, en que monitor, donde) como una distribucion nueva con `nombre`, o reemplaza las ventanas de una que ya existe (`distribucion`).",
+      "esquema": {
+        "type": "object",
+        "properties": {
+          "nombre": {
+            "type": "string"
+          },
+          "distribucion": {
+            "type": "string",
+            "description": "reemplazar las ventanas de esta (id o nombre)"
+          }
+        }
+      },
+      "clase": "escritura",
+      "hilo": "interfaz",
+      "soloLectura": false,
+      "destructiva": false,
+      "idempotente": false,
+      "etiquetas": {
+        "propias": "",
+        "porPrefijo": "distribucion de pantallas layout de ventanas acomodar ventanas en los monitores mosaico grilla de ventanas varias pantallas guardar como estan las ventanas armar los monitores remotos en un monitor programa y previo multiview en otro monitor preset de pantallas"
+      },
+      "donde": {
+        "archivo": "src/app/mcp/McpPantallaTools.cpp",
+        "linea": 990
+      },
+      "roles": [
+        "asistente"
+      ]
+    },
+    {
+      "nombre": "pantallas_distribucion_cerrar",
+      "titulo": "Cerrar las ventanas de la distribución",
+      "categoria": "pantallas",
+      "descripcion": "La salida de emergencia: cierra todas las ventanas puestas por una distribucion (van sin marco y quietas: el operador no las puede cerrar con el mouse). La distribucion queda guardada. El operador hace lo mismo con Ctrl+Shift+F12 o desde Pantallas.",
+      "esquema": {
+        "type": "object",
+        "properties": {}
+      },
+      "clase": "ui",
+      "hilo": "interfaz",
+      "soloLectura": false,
+      "destructiva": false,
+      "idempotente": true,
+      "etiquetas": {
+        "propias": "",
+        "porPrefijo": "distribucion de pantallas layout de ventanas acomodar ventanas en los monitores mosaico grilla de ventanas varias pantallas guardar como estan las ventanas armar los monitores remotos en un monitor programa y previo multiview en otro monitor preset de pantallas"
+      },
+      "donde": {
+        "archivo": "src/app/mcp/McpPantallaTools.cpp",
+        "linea": 1044
+      },
+      "roles": [
+        "asistente"
+      ]
+    },
+    {
+      "nombre": "pantallas_distribucion_crear",
+      "titulo": "Crear una distribución de pantallas",
+      "categoria": "pantallas",
+      "descripcion": "Guarda en el evento una distribucion de pantallas con nombre: la lista de ventanas que van en los monitores de esta maquina (el programa, el previo, una escena, una multiview, un invitado, un panel, una pagina...), cada una en su monitor, lugar y tamaño. O desde una `plantilla`, o copiando otra (`desde`). Con `aplicar: true` ademas la pone ya.",
+      "esquema": {
+        "type": "object",
+        "required": [
+          "nombre"
+        ],
+        "properties": {
+          "nombre": {
+            "type": "string"
+          },
+          "ventanas": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "nombre": {
+                  "type": "string"
+                },
+                "cosas": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "disposicion": {
+                  "type": "string",
+                  "enum": [
+                    "grid",
+                    "focus",
+                    "pip",
+                    "row"
+                  ]
+                },
+                "monitor": {
+                  "type": "string"
+                },
+                "x": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
+                },
+                "y": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
+                },
+                "ancho": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
+                },
+                "alto": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
+                },
+                "absoluta": {
+                  "type": "object",
+                  "properties": {
+                    "x": {
+                      "type": "integer"
+                    },
+                    "y": {
+                      "type": "integer"
+                    },
+                    "ancho": {
+                      "type": "integer"
+                    },
+                    "alto": {
+                      "type": "integer"
+                    }
+                  }
+                },
+                "pantallaCompleta": {
+                  "type": "boolean"
+                },
+                "encima": {
+                  "type": "boolean"
+                }
+              }
+            },
+            "description": "las ventanas (ver los detalles de la herramienta)"
+          },
+          "plantilla": {
+            "type": "string",
+            "enum": [
+              "mosaico-2x1",
+              "mosaico-2x2",
+              "una-por-monitor",
+              "programa-previo-multiview"
+            ]
+          },
+          "monitor": {
+            "type": "string",
+            "description": "con plantilla: en que monitor"
+          },
+          "cosas": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "con plantilla: que va en cada lugar, en orden"
+          },
+          "desde": {
+            "type": "string",
+            "description": "copiar esta distribucion (id o nombre)"
+          },
+          "alAbrir": {
+            "type": "boolean"
+          },
+          "aplicar": {
+            "type": "boolean"
+          }
+        }
+      },
+      "clase": "escritura",
+      "hilo": "interfaz",
+      "soloLectura": false,
+      "destructiva": false,
+      "idempotente": false,
+      "etiquetas": {
+        "propias": "",
+        "porPrefijo": "distribucion de pantallas layout de ventanas acomodar ventanas en los monitores mosaico grilla de ventanas varias pantallas guardar como estan las ventanas armar los monitores remotos en un monitor programa y previo multiview en otro monitor preset de pantallas"
+      },
+      "donde": {
+        "archivo": "src/app/mcp/McpPantallaTools.cpp",
+        "linea": 826
+      },
+      "roles": [
+        "asistente"
+      ]
+    },
+    {
+      "nombre": "pantallas_distribucion_editar",
+      "titulo": "Editar una distribución de pantallas",
+      "categoria": "pantallas",
+      "descripcion": "Cambia una distribucion guardada: el nombre, si se abre sola al cargar el evento, la lista entera de ventanas, o una ventana (cambiarla, agregar una, quitar una). Si es la que esta aplicada, las ventanas se mueven en el acto: es la forma de mover las ventanas de una distribucion (sin marco y quietas).",
+      "esquema": {
+        "type": "object",
+        "required": [
+          "distribucion"
+        ],
+        "properties": {
+          "distribucion": {
+            "type": "string",
+            "description": "id o nombre"
+          },
+          "nombre": {
+            "type": "string",
+            "description": "el nombre nuevo"
+          },
+          "alAbrir": {
+            "type": "boolean"
+          },
+          "ventanas": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "nombre": {
+                  "type": "string"
+                },
+                "cosas": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "disposicion": {
+                  "type": "string",
+                  "enum": [
+                    "grid",
+                    "focus",
+                    "pip",
+                    "row"
+                  ]
+                },
+                "monitor": {
+                  "type": "string"
+                },
+                "x": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
+                },
+                "y": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
+                },
+                "ancho": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
+                },
+                "alto": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
+                },
+                "absoluta": {
+                  "type": "object",
+                  "properties": {
+                    "x": {
+                      "type": "integer"
+                    },
+                    "y": {
+                      "type": "integer"
+                    },
+                    "ancho": {
+                      "type": "integer"
+                    },
+                    "alto": {
+                      "type": "integer"
+                    }
+                  }
+                },
+                "pantallaCompleta": {
+                  "type": "boolean"
+                },
+                "encima": {
+                  "type": "boolean"
+                }
+              }
+            },
+            "description": "las ventanas (ver los detalles de la herramienta)"
+          },
+          "indice": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "ventana": {
+            "type": "object",
+            "properties": {
+              "nombre": {
+                "type": "string"
+              },
+              "cosas": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "disposicion": {
+                "type": "string",
+                "enum": [
+                  "grid",
+                  "focus",
+                  "pip",
+                  "row"
+                ]
+              },
+              "monitor": {
+                "type": "string"
+              },
+              "x": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              },
+              "y": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              },
+              "ancho": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              },
+              "alto": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              },
+              "absoluta": {
+                "type": "object",
+                "properties": {
+                  "x": {
+                    "type": "integer"
+                  },
+                  "y": {
+                    "type": "integer"
+                  },
+                  "ancho": {
+                    "type": "integer"
+                  },
+                  "alto": {
+                    "type": "integer"
+                  }
+                }
+              },
+              "pantallaCompleta": {
+                "type": "boolean"
+              },
+              "encima": {
+                "type": "boolean"
+              }
+            }
+          },
+          "agregar": {
+            "type": "object",
+            "properties": {
+              "nombre": {
+                "type": "string"
+              },
+              "cosas": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "disposicion": {
+                "type": "string",
+                "enum": [
+                  "grid",
+                  "focus",
+                  "pip",
+                  "row"
+                ]
+              },
+              "monitor": {
+                "type": "string"
+              },
+              "x": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              },
+              "y": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              },
+              "ancho": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              },
+              "alto": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              },
+              "absoluta": {
+                "type": "object",
+                "properties": {
+                  "x": {
+                    "type": "integer"
+                  },
+                  "y": {
+                    "type": "integer"
+                  },
+                  "ancho": {
+                    "type": "integer"
+                  },
+                  "alto": {
+                    "type": "integer"
+                  }
+                }
+              },
+              "pantallaCompleta": {
+                "type": "boolean"
+              },
+              "encima": {
+                "type": "boolean"
+              }
+            }
+          },
+          "quitar": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "el numero de la ventana que se saca"
+          }
+        }
+      },
+      "clase": "escritura",
+      "hilo": "interfaz",
+      "soloLectura": false,
+      "destructiva": false,
+      "idempotente": false,
+      "etiquetas": {
+        "propias": "",
+        "porPrefijo": "distribucion de pantallas layout de ventanas acomodar ventanas en los monitores mosaico grilla de ventanas varias pantallas guardar como estan las ventanas armar los monitores remotos en un monitor programa y previo multiview en otro monitor preset de pantallas"
+      },
+      "donde": {
+        "archivo": "src/app/mcp/McpPantallaTools.cpp",
+        "linea": 897
+      },
+      "roles": [
+        "asistente"
+      ]
+    },
+    {
+      "nombre": "pantallas_distribuciones_listar",
+      "titulo": "Distribuciones de pantallas guardadas",
+      "categoria": "pantallas",
+      "descripcion": "Las distribuciones de pantallas guardadas en el evento: cada una es una lista de ventanas (que muestra cada una, en que monitor, donde y de que tamaño) que se aplica de una vez. Dice cual esta aplicada, cual se abre sola al cargar el evento, los monitores conectados y las plantillas de un clic.",
+      "esquema": {
+        "type": "object",
+        "properties": {}
+      },
+      "clase": "lectura",
+      "hilo": "interfaz",
+      "soloLectura": true,
+      "destructiva": false,
+      "idempotente": false,
+      "etiquetas": {
+        "propias": "",
+        "porPrefijo": "distribucion de pantallas layout de ventanas acomodar ventanas en los monitores mosaico grilla de ventanas varias pantallas guardar como estan las ventanas armar los monitores remotos en un monitor programa y previo multiview en otro monitor preset de pantallas"
+      },
+      "donde": {
+        "archivo": "src/app/mcp/McpPantallaTools.cpp",
+        "linea": 800
       },
       "roles": [
         "asistente"
@@ -24582,7 +25140,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpPantallaTools.cpp",
-        "linea": 506
+        "linea": 514
       },
       "roles": [
         "asistente"
@@ -24625,7 +25183,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpPantallaTools.cpp",
-        "linea": 541
+        "linea": 549
       },
       "roles": [
         "asistente"

@@ -64,6 +64,7 @@ const std::vector<EsquemaConfig>& esquemasConfig() {
         {"destinos.json", 2, {listaEn("destinos")}},
         {"disco.json"},
         {"dispositivos.json"},
+        {"distribuciones-pantallas.json"}, // pantallas/Distribuciones (del evento)
         {"drivers.json"},
         {"dsk.json"},
         {"escenas.json"},

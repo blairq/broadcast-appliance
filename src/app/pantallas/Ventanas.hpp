@@ -106,6 +106,9 @@ class VentanasModel : public QAbstractListModel {
     Q_INVOKABLE void cerrar(int id);
     /// Cierra la ventana donde está sola esa cosa (si hay).
     Q_INVOKABLE void cerrarCosa(const QString& cosa);
+    /// Cierra todas (aplicar una distribución de pantallas deja EXACTAMENTE lo suyo).
+    /// Devuelve cuántas cerró.
+    int cerrarTodas();
     /// La ventana donde está SOLA esa cosa, o 0.
     Q_INVOKABLE int ventanaDe(const QString& cosa) const;
     /// "" o el error.

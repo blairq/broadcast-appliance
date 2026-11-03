@@ -71,6 +71,7 @@
 #include "ui/ListModels.hpp"
 #include "ui/MediosViewModel.hpp"
 #include "ui/OperatorMessages.hpp"
+#include "pantallas/Distribuciones.hpp"
 #include "pantallas/Monitores.hpp"
 #include "ui/PantallasViewModel.hpp"
 #include "ui/PdfEscena.hpp"
@@ -686,6 +687,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, VentanillaMotor& ventanilla, QO
         .pantallas = pantallas_.get(),
         .totems = [this]() { return totems_ ? totems_->paraElegir() : QVariantList{}; }});
     connect(&escritorio_->monitoresModelo(), &MonitoresModel::notify, this, &StudioViewModel::notify);
+    connect(&escritorio_->distribuciones(), &DistribucionesModel::notify, this, &StudioViewModel::notify);
     connect(this, &StudioViewModel::escenasCambiaron, escritorio_.get(), &EscritorioViewModel::refrescarCatalogo);
     marca("ventanas");
     escritorio_->refrescarCatalogo();
