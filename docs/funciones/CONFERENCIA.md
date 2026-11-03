@@ -261,9 +261,15 @@ cámaras, va al 48 % con 40 invitados, al 82 % con 80 y **saturado desde 120**; 
 las celdas de la grilla caen solas de 15 a 7,5 cps. Dos cosas lo evitan:
 
 1. **No se recibe a quien nadie ve** (`gateway.pausarSinVer`, de fábrica sí). Un invitado
-   del programa que no está al aire ni en el preview, ni en una celda de una grilla (los
-   del «+N» no tienen celda), ni lo mira una vista web, ni tiene su tarjeta **a la vista**
-   en la interfaz, no manda la cámara: se le pausan las dos capas. La tarjeta que no se ve
+   del programa que no está al aire ni en el preview de ninguna salida, ni en una escena
+   que se **muestre** en algún lado (un monitor o ventana de escena, el multiview, una
+   distribución de pantallas, una miniatura viva: van como `visibles`, en la baja), ni en
+   una escena que **sale** por un canal de escena (pantallas de la sala, retornos de
+   escena: cuentan como al aire), ni en una celda de una grilla (los del «+N» no tienen
+   celda), ni lo mira una vista web, ni tiene su tarjeta **a la vista** en la interfaz, no
+   manda la cámara: se le pausan las dos capas. Qué escenas se muestran lo dice el motor
+   (`BroadcastEngine::escenasMostradas`: las vistas que pidió la interfaz y los canales de
+   escena), con las escenas metidas dentro de otras. La tarjeta que no se ve
    (la interfaz la refresca una vez por segundo) se queda con la última imagen: no vale un
    decodificador. Cuando vuelve a hacer falta (aparece su tarjeta, entra a una celda, lo
    arman en el preview) la sala lo nota en ¼ s y el navegador la vuelve a mandar empezando

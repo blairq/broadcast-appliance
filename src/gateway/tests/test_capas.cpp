@@ -144,6 +144,11 @@ void quienSeDecodifica() {
     CHECK(capaNecesaria(n) == Capa::Baja, "en una celda de una grilla a la vista: baja");
     n.capaGrilla = Capa::Nada; // quedó en el «+N»
     CHECK(capaNecesaria(n) == Capa::Nada, "en el «+N» de la grilla: nada");
+    // Una escena fuera del aire que la interfaz MUESTRA (monitor, multiview, distribución de
+    // pantallas): no puede quedar congelado.
+    n.enVista = true;
+    CHECK(capaNecesaria(n) == Capa::Baja, "en una escena a la vista (multiview): baja, no pausado");
+    n.enVista = false;
     n.alAire = true;
     CHECK(capaNecesaria(n) == Capa::Alta, "al aire: alta, se vea o no su tarjeta");
     n.alAire = false;

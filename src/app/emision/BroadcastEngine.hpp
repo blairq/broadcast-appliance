@@ -757,6 +757,19 @@ class BroadcastEngine {
     void alCambiarAudioFuente(std::function<void(const std::string& fuente, const char* que)> fn);
     bool escenaACanal(int k, const std::string& escena);
     std::string escenaDeCanal(int k) const;
+    /// Las escenas (por nombre, sin repetir) que se están MOSTRANDO además del aire y el
+    /// preview de las salidas. Es el registro del motor, no hay otro:
+    ///   - `vistas`: las que pidió la interfaz (monitores y ventanas de escena, el multiview,
+    ///     las distribuciones de pantallas, las miniaturas vivas: todo pasa por
+    ///     enableScenePreview);
+    ///   - `canales`: las de los canales de escena (BA.Escena.<k>), que SALEN de la máquina:
+    ///     las pantallas de la sala y los retornos de escena a invitados e integrantes.
+    /// Para la sala (sala/CapasRemotos): quien sale en una de estas no se pausa.
+    struct EscenasMostradas {
+        std::vector<std::string> vistas, canales;
+        bool operator==(const EscenasMostradas&) const = default;
+    };
+    EscenasMostradas escenasMostradas() const;
     /// Los que no son Pantallas (las vistas de la sesión remota) toman un canal con
     /// dueño: el que ya tiene esa escena o uno libre (-1 si no hay). Pantallas no
     /// suelta un canal con dueños; el último dueño que lo suelta, lo apaga.

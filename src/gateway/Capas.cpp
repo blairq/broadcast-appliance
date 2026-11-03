@@ -109,7 +109,8 @@ Capa capaNecesaria(const NecesidadCapa& n) {
             else
                 // Fuera del aire: la tarjeta de la interfaz, si se ve. La que no se ve («de vez
                 // en cuando») se queda con la última imagen: no vale un decodificador.
-                c = n.vista == Mirada::Todos ? Capa::Baja : Capa::Nada;
+                // Una escena a la vista en la interfaz (un monitor, el multiview) también.
+                c = n.vista == Mirada::Todos || n.enVista ? Capa::Baja : Capa::Nada;
             break;
         case K::Remoto: c = Capa::Alta; break;
         case K::Lobby: c = Capa::Baja; break;

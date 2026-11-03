@@ -677,7 +677,11 @@ celdas en baja caen de 15 cps a 13/11 (120), 10/8 (160), 7,5 (200): la recepció
 que el decodificador no alcanza, después de que el navegador lo codificó y la red lo trajo.
 
 1. **No decodificar a quien nadie ve** (`Capas.hpp`: `NecesidadCapa::vista`,
-   `capaNecesaria`). Lo que dice si se lo ve: al aire/armado (la app), una celda de grilla
+   `capaNecesaria`). Lo que dice si se lo ve: al aire/armado (la app), una escena que sale
+   por un canal de escena (pantallas, retornos de escena: va en «aire») o que la interfaz
+   muestra (monitores, multiview, distribuciones: «visibles» → `NecesidadCapa::enVista`, baja;
+   lo arma `sala/CapasNecesarias` con `FotoMotor::escenasEnVistas/escenasEnCanales`, de
+   `BroadcastEngine::escenasMostradas`, el registro de vistas del motor), una celda de grilla
    (CapasGrilla: los del «+N» no tienen), una vista web, y la tarjeta de la interfaz
    (`MediaPump::vistaDe`: la demanda de BA.GuestUi.N). NO la de BA.Guest.N: ba-app la lee
    entera siempre. «De vez en cuando» (la tarjeta que no se ve, 1 por segundo) cuenta como

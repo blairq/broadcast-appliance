@@ -25,9 +25,13 @@ struct FotoMotor;
 
 namespace ba::app::sala {
 
-/// {aire: [...], siguiente: [...]}: las entradas de remotos al aire (en la escena al aire
-/// o una capa DSK de alguna salida) y armadas (en la escena armada de alguna salida y no al
-/// aire). Ordenadas y sin repetir.
+/// {aire: [...], siguiente: [...], visibles: [...]}: las entradas de remotos al aire (en la
+/// escena al aire o una capa DSK de alguna salida —que es también su retorno—, o en una
+/// escena que sale por un canal de escena: pantallas de la sala, retornos de escena), armadas
+/// (en la escena armada de alguna salida y no al aire) y visibles (en una escena que muestra
+/// la interfaz: monitores, ventanas, multiview, distribuciones de pantallas; ni al aire ni
+/// armadas). Las escenas metidas en otra cuentan con ella. Ordenadas y sin repetir. La
+/// sala no pausa a nadie de estas listas (src/gateway/Capas.hpp).
 nlohmann::json capasNecesarias(const FotoMotor& f);
 
 class CapasRemotos {

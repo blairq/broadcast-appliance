@@ -172,6 +172,10 @@ void PublicadorFoto::armarFoto(FotoMotor& f, unsigned p) {
         std::vector<FotoMotor::Salida> antes = std::move(f.salidas);
         f.salidas.clear();
         f.tope = fotoListaSalidas_.value("tope", 1);
+        // Lo que se muestra fuera del aire (vistas de la interfaz, canales de escena).
+        BroadcastEngine::EscenasMostradas mostradas = eng.escenasMostradas();
+        f.escenasEnVistas = std::move(mostradas.vistas);
+        f.escenasEnCanales = std::move(mostradas.canales);
         for (const auto& s : fotoListaSalidas_.value("salidas", nlohmann::json::array())) {
             const std::string id = s.value("id", std::string());
             if (!eng.existeSalida(id)) continue;

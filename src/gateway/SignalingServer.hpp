@@ -745,7 +745,7 @@ class SignalingServer {
     std::mutex capasMu_;
     std::map<std::string, std::int64_t> pedidoAltaMs_; // pid → cuándo se le pidió la alta (con capasMu_)
     bool capasApp_ = false; ///< la app ya dijo algo (antes, el programa va en alta)
-    std::set<std::string> capasAire_, capasSiguiente_;
+    std::set<std::string> capasAire_, capasSiguiente_, capasVisibles_;
     /// La capa que necesita la sala de `pid` (si manda dos) y se la pide a su sesión.
     void revisarCapas(const std::string& pid);
     void revisarCapasTodas();

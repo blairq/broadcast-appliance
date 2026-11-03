@@ -137,6 +137,11 @@ struct NecesidadCapa {
     bool alAire = false;
     /// Su entrada está en la escena armada (el preview) de alguna salida: va a salir.
     bool siguiente = false;
+    /// Su entrada está en una escena que la interfaz MUESTRA fuera del aire y del preview (un
+    /// monitor o ventana de escena, el multiview, una distribución de pantallas: «visibles»
+    /// de POST /api/v1/capas). Se ve: la baja, nunca pausado (congelado). Lo que sale por un
+    /// canal de escena (pantallas de la sala, retornos de escena) la app lo manda en «aire».
+    bool enVista = false;
     /// Vistas web que lo miran (tablero de oradores, presidencia): se les reenvía la alta.
     int espectadores = 0;
     /// F3 (no decodificar a quien nadie ve): cómo mira la interfaz de la app su tarjeta

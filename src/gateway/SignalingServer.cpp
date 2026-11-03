@@ -3609,6 +3609,7 @@ void SignalingServer::revisarCapas(const std::string& pid) {
         n.appDijo = capasApp_;
         n.alAire = !entrada.empty() && capasAire_.count(entrada) > 0;
         n.siguiente = !entrada.empty() && capasSiguiente_.count(entrada) > 0;
+        n.enVista = !entrada.empty() && capasVisibles_.count(entrada) > 0;
     }
     n.espectadores = hub_.espectadoresDe(idx);
     // F3: la tarjeta de la interfaz, si se ve. Apagado, como antes: baja para todos.
