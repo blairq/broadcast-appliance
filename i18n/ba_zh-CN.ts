@@ -39984,6 +39984,61 @@ Elegí otra cosa en Salidas → Pantallas.</source>
     </message>
     <message>
         <location line="+1"/>
+        <source>Conferencia: paso de la red al trabajo</source>
+        <translation>会议：网络到工作线程的传递</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>En tandas</source>
+        <translation>分批</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>En el mismo hilo</source>
+        <translation>同一线程</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Uno por uno (como antes)</source>
+        <translation>逐个（与以前相同）</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Cómo pasan los paquetes de los invitados del hilo de red al de trabajo. En tandas: el de red despierta al de trabajo una vez por tanda y no una por paquete (menos procesador, a lo sumo una fracción de milisegundo de demora). En el mismo hilo: cada hilo de red hace también el trabajo de sus invitados (no hay paso, pero lo pesado frena la red de ese grupo). Uno por uno: como venía, para comparar.</source>
+        <translation>嘉宾的数据包如何从网络线程传到工作线程。分批：网络线程每批唤醒一次工作线程，而不是每个包一次（占用更少处理器，延迟最多几分之一毫秒）。同一线程：每个网络线程也负责其嘉宾的工作（没有传递，但繁重的工作会拖慢该组的网络）。逐个：与以前相同，用于比较。</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Conferencia: espera máxima de una tanda</source>
+        <translation>会议：一批的最长等待</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>En tandas: cuánto puede esperar un paquete mientras el hilo de red sigue ocupado antes de despertar al de trabajo (cuando el de red se desocupa, despierta en el acto). 0: al terminar cada cosa que hace el de red.</source>
+        <translation>分批：在网络线程仍忙时，数据包最多可以等待多久才唤醒工作线程（网络线程空闲时立即唤醒）。0：网络线程每做完一件事就唤醒。</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Conferencia: hilos para sacar el audio</source>
+        <translation>会议：取出音频的线程</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Cuántos hilos sacan cada 10 ms el audio de los invitados (todos al mismo tiempo, cada uno con su parte). 0: automático (uno por hilo de trabajo, hasta 4). 1: uno solo, como antes.</source>
+        <translation>每 10 毫秒取出嘉宾音频的线程数（同时进行，各负责一部分）。0：自动（每个工作线程一个，最多 4 个）。1：只用一个，与以前相同。</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Conferencia: mezclar el audio de los invitados como libwebrtc</source>
+        <translation>会议：按 libwebrtc 的方式混合嘉宾音频</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Apagado (lo normal), el audio de cada invitado se saca por separado y no se arma una mezcla que nadie escucha (ni se la analiza para cancelar eco): menos procesador con muchos invitados. Prendido, como antes, para comparar.</source>
+        <translation>关闭（默认）：分别取出每位嘉宾的音频，不生成无人收听的混音（也不为回声消除分析它）：嘉宾多时占用更少处理器。开启：与以前相同，用于比较。</translation>
+    </message>
+    <message>
+        <location line="+1"/>
         <source>Conferencia: el TURN entrega en memoria</source>
         <translation>会议：TURN 在内存中传递</translation>
     </message>

@@ -342,6 +342,25 @@ int main() {
               },
               8000),
           "a todas les llega el audio (un reloj para todas las fábricas)");
+    {
+        // El reloj del audio repartido (gateway.hilosPlayout = 0: uno por hilo de trabajo) y la
+        // frontera #4 en lote (gateway.redYTrabajo = "lote" de fábrica).
+        const json c = hub.capasEstado();
+        std::printf("playout: %s\nred y trabajo: %s\n", c["playout"].dump().c_str(), c["redYTrabajo"].dump().c_str());
+        const json& g = c["playout"]["grupos"];
+        CHECK(c["playout"].value("hilos", 0) == 2 && g.size() == 2, "dos hilos de playout (uno por hilo de trabajo)");
+        bool tiran = g.size() == 2;
+        for (const auto& x : g) tiran = tiran && x.value("fabricas", 0) >= 1 && x.value("vueltas", uint64_t(0)) > 50;
+        CHECK(tiran, "cada uno tira de las fábricas de su hilo de trabajo, al ritmo del mismo tick");
+        if (g.size() == 2) {
+            const auto v0 = g[0].value("vueltas", uint64_t(0)), v1 = g[1].value("vueltas", uint64_t(0));
+            CHECK((v0 > v1 ? v0 - v1 : v1 - v0) <= 3, "los dos grupos van a la par (alineados)");
+        }
+        CHECK(c["redYTrabajo"].value("modo", std::string()) == "lote", "red → trabajo en lote de fábrica");
+        uint64_t deRed = 0;
+        for (const auto& t : c["redYTrabajo"]["trabajo"]) deRed += t.value("deRed", uint64_t(0));
+        CHECK(deRed > 100, "#4: los paquetes pasan de la red al trabajo por el lote");
+    }
 
     // Que corra un poco el medio por el relay (el micrófono de los dos, 50 paquetes/s cada uno).
     esperar(

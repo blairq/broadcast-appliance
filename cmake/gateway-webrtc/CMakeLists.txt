@@ -131,6 +131,7 @@ endif()
 set_source_files_properties("${BA_SRC}/src/gateway/Webrtc.cpp" "${BA_SRC}/src/gateway/RetornoCompartido.cpp"
                             "${BA_SRC}/src/gateway/CodecsVideo.cpp" "${BA_SRC}/src/gateway/rtc/ColasCompartidas.cpp"
                             "${BA_SRC}/src/gateway/rtc/BucleRtc.cpp" "${BA_SRC}/src/gateway/rtc/SocketsEnMemoria.cpp"
+                            "${BA_SRC}/src/gateway/rtc/HilosLote.cpp"
                             PROPERTIES COMPILE_OPTIONS "-fno-rtti")
 # libwebrtc.a al FINAL: aporta la libc++ que usan todos los de arriba.
 target_link_libraries(ba_gateway_rtc PUBLIC ba_core_cr ${BA_LWIP_LIB} "${WRTC}/lib/libwebrtc.a" Threads::Threads ${CMAKE_DL_LIBS})
@@ -159,7 +160,7 @@ set_target_properties(ba-gateway PROPERTIES INSTALL_RPATH "$ORIGIN")
 # --- Tests con medios reales --------------------------------------------------
 # Los tests de logica del gateway corren en el build principal (backend NULL).
 # Aca van los que necesitan libwebrtc de verdad.
-foreach(t test_webrtc_loopback test_webrtc_audio_compartido test_webrtc_redes test_colas_compartidas test_webrtc_capas)
+foreach(t test_webrtc_loopback test_webrtc_audio_compartido test_webrtc_redes test_colas_compartidas test_webrtc_capas test_webrtc_lote)
     if(EXISTS "${BA_SRC}/src/gateway/tests/${t}.cpp")
         add_executable(${t} "${BA_SRC}/src/gateway/tests/${t}.cpp" ${BA_X11_STUBS})
         target_link_libraries(${t} PRIVATE ba_gateway_rtc)

@@ -40146,6 +40146,61 @@ Choisissez autre chose dans Sorties → Écrans.</translation>
     </message>
     <message>
         <location line="+1"/>
+        <source>Conferencia: paso de la red al trabajo</source>
+        <translation>Conférence : passage du réseau au travail</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>En tandas</source>
+        <translation>Par lots</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>En el mismo hilo</source>
+        <translation>Dans le même thread</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Uno por uno (como antes)</source>
+        <translation>Un par un (comme avant)</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Cómo pasan los paquetes de los invitados del hilo de red al de trabajo. En tandas: el de red despierta al de trabajo una vez por tanda y no una por paquete (menos procesador, a lo sumo una fracción de milisegundo de demora). En el mismo hilo: cada hilo de red hace también el trabajo de sus invitados (no hay paso, pero lo pesado frena la red de ese grupo). Uno por uno: como venía, para comparar.</source>
+        <translation>Comment les paquets des invités passent du thread réseau au thread de travail. Par lots : le thread réseau réveille le thread de travail une fois par lot et non une fois par paquet (moins de processeur, au plus une fraction de milliseconde de retard). Dans le même thread : chaque thread réseau fait aussi le travail de ses invités (pas de passage, mais le travail lourd freine le réseau de ce groupe). Un par un : comme avant, pour comparer.</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Conferencia: espera máxima de una tanda</source>
+        <translation>Conférence : attente maximale d&apos;un lot</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>En tandas: cuánto puede esperar un paquete mientras el hilo de red sigue ocupado antes de despertar al de trabajo (cuando el de red se desocupa, despierta en el acto). 0: al terminar cada cosa que hace el de red.</source>
+        <translation>Par lots : combien de temps un paquet peut attendre pendant que le thread réseau reste occupé avant de réveiller le thread de travail (quand le thread réseau se libère, il le réveille aussitôt). 0 : après chaque chose que fait le thread réseau.</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Conferencia: hilos para sacar el audio</source>
+        <translation>Conférence : threads pour extraire l&apos;audio</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Cuántos hilos sacan cada 10 ms el audio de los invitados (todos al mismo tiempo, cada uno con su parte). 0: automático (uno por hilo de trabajo, hasta 4). 1: uno solo, como antes.</source>
+        <translation>Combien de threads extraient l&apos;audio des invités toutes les 10 ms (tous en même temps, chacun avec sa part). 0 : automatique (un par thread de travail, jusqu&apos;à 4). 1 : un seul, comme avant.</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Conferencia: mezclar el audio de los invitados como libwebrtc</source>
+        <translation>Conférence : mixer l&apos;audio des invités comme libwebrtc</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Apagado (lo normal), el audio de cada invitado se saca por separado y no se arma una mezcla que nadie escucha (ni se la analiza para cancelar eco): menos procesador con muchos invitados. Prendido, como antes, para comparar.</source>
+        <translation>Désactivé (normal) : l&apos;audio de chaque invité est extrait séparément et aucun mixage que personne n&apos;écoute n&apos;est construit (ni analysé pour l&apos;annulation d&apos;écho) : moins de processeur avec beaucoup d&apos;invités. Activé : comme avant, pour comparer.</translation>
+    </message>
+    <message>
+        <location line="+1"/>
         <source>Conferencia: el TURN entrega en memoria</source>
         <translation>Conférence : le TURN livre en mémoire</translation>
     </message>

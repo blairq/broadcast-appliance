@@ -372,7 +372,8 @@ Escrito (2026-11-02, noche; **sin compilar ni medir**, como F1):
 - #4 (red → trabajo) y #12/#13 (retorno → oyentes) quedan como los arma libwebrtc: el pase
   red → trabajo es un `PostTask` de libwebrtc (despierta solo si el hilo dormía) y los
   codificadores de paso corren en las colas compartidas «rtc» (ya en lote: 733 despertadas
-  para 7,6 mil tareas/s con 40). Medir antes de tocar más.
+  para 7,6 mil tareas/s con 40). Medir antes de tocar más. (La #4 se midió en la .177 y se
+  hizo en lote: ver «La frontera #4» abajo.)
 - `gateway_estado` → `capas`: cada hilo de red y de trabajo con su carga y sus sesiones, las
   fábricas y el conmutador (directos, encolados, cruzados, despertadas, descartes); `turn` →
   `fragmentos`.
@@ -382,6 +383,136 @@ Escrito (2026-11-02, noche; **sin compilar ni medir**, como F1):
   `WebrtcHub::conectarTunel` lo enchufa (main, al arrancar la pila y antes de pararla).
 - Afinidad (F4, de HL): los hilos de red, de trabajo, de las colas, el reloj de audio y los
   del TURN sin libwebrtc llaman `nucleos::alGrupoGateway()` al empezar.
+
+#### La frontera #4 (red → trabajo) en lote
+
+Escrito (2026-11-02, noche; **sin compilar ni medir**). Lo que lo pidió: en la .177 con 40,
+29 mil cambios de contexto/s en el gateway y el primero es `ba-rtc-work-#` (×3): 13,5 mil/s,
+20-26 % de un núcleo cada uno. En libwebrtc cada paquete que llega al hilo de red pasa al de
+trabajo con un `PostTask` (`WebRtcVideoReceiveChannel` / `WebRtcVoiceReceiveChannel::OnPacketReceived`,
+siempre, aunque los dos hilos sean el mismo), y `rtc::Thread::PostTaskImpl` encola y llama
+SIEMPRE a `WakeUp()` del socket server del destino: el de trabajo (más rápido que el de red)
+atiende el paquete en µs, se vuelve a dormir y el siguiente lo despierta otra vez. Una
+despertada por paquete (~4 mil/s con 40).
+
+Sin tocar libwebrtc, con lo que M123 deja enganchar (`rtc_base/thread.h`, `socket_server.h`:
+el socket server de cada hilo, `Run()`, `PostTaskImpl`/`PostDelayedTaskImpl`/`BlockingCallImpl`
+virtuales; `Get()`/`Dispatch()` son privados):
+
+- `rtc/LoteTrabajo.{hpp,cpp}` (sin libwebrtc, `test_lote_trabajo`): un `Destino` (la espera
+  del hilo de trabajo: mutex + condvar, con «aviso pendiente» para no perder ninguno) y un
+  `Remitente` por hilo de red (en un `thread_local`). El aviso que hace un hilo de red no
+  despierta: anota al destino. Se suelta (una despertada por destino y por tanda): al entrar
+  a esperar (antes de dormirse, siempre), al terminar cada tarea o vuelta de E/S si la primera
+  anotada ya esperó `gateway.loteTrabajoUs` (500 µs de fábrica; 0 = al terminar cada una),
+  antes de un `BlockingCall` a otro hilo y al cerrar. Desde cualquier otro hilo (señalización,
+  colas, `webrtc-playout`, el cierre) el aviso es en el acto, como siempre; el propio hilo de
+  trabajo avisándose a sí mismo, nada (está corriendo y mira su cola antes de dormir).
+- `rtc/HilosLote.{hpp,cpp}`: `HiloTrabajo` (un `rtc::Thread` con `EsperaTrabajo`, socket
+  server sin sockets como `NullSocketServer`; un `BlockingCall` hacia él es **urgente**: el
+  que llama queda esperando y no puede esperar al lote) y `HiloRed` (un `rtc::Thread` con
+  `ServidorRed`, que ES un `PhysicalSocketServer`: BucleRtc y las fábricas lo usan igual).
+  Las tareas del hilo de red van envueltas (al terminar: `soltarSiVencio`); si anota algo
+  procesando E/S ADENTRO de `PhysicalSocketServer::Wait` (que no sale hasta que lo
+  despierten), se despierta a sí mismo (sin cambio de contexto) para soltar al terminar esa
+  vuelta. Además, un `PostTask` del hilo de red a sí mismo fuera de la espera no llama al
+  `WakeUp` de verdad (pipe/evento de Windows): `rtc::Thread::Get` mira la cola antes de
+  volver a esperar.
+- **Por qué no se pierde precisión ni orden:** los `PostTask` ya están en la cola del de
+  trabajo (libwebrtc encola antes de avisar): la tanda corre en el orden de llegada. Si el de
+  trabajo está despierto, anotar no cambia nada. Las diferidas: el de trabajo duerme con el
+  plazo de la próxima (lo calcula `rtc::Thread` en ms, igual que antes). El control de
+  congestión no lo ve: la hora de llegada de cada paquete la toma el hilo de red al leerlo,
+  antes de la frontera. El audio (NetEq) recibe el paquete a lo sumo `loteTrabajoUs` + lo que
+  dure la tarea en curso del de red más tarde, y nunca más tarde de cuando el de red se
+  desocupa.
+- `gateway.redYTrabajo` (reinicia el gateway): `lote` (de fábrica), `juntos` (cada hilo de
+  red es también el de trabajo de su grupo: tantos como el mayor de `hilosRed`/`hilosTrabajo`,
+  sin cruzar; la frontera desaparece como despertada, aunque libwebrtc sigue haciendo el
+  `PostTask` a sí mismo, que ahora no escribe en el pipe; de yapa, el envío
+  `MediaChannelUtil::TransportForMediaChannels::DoSendPacket` de M123 manda directo, sin
+  `PostTask`, cuando ya está en el hilo de red — eso lo dice el código de M123, no los headers:
+  verificarlo con `rtc.red.propias` y los cambios de contexto) o `separados` (como venía:
+  una despertada por paquete; usa la misma espera, solo cuenta, para comparar).
+- Contadores: fronteras `rtc.red-trabajo[-j]` (#4: pases/s = `PostTask` del de red al de
+  trabajo j, despertadas/s, pases por despertada, espera = desde la primera anotada hasta la
+  despertada, o sea la latencia agregada) y `rtc.red.propias` (#4 con `juntos`: los `PostTask`
+  a sí mismo sin despertar). `gateway_estado` → `capas.redYTrabajo`: el modo, `loteUs` y por
+  hilo de trabajo los avisos, los de red, anotados, urgentes, despertadas y `despierto_pct`.
+- Tests: `test_lote_trabajo` (orden, una despertada por tanda, separados, urgente, diferidas,
+  el dueño, el tope del lote, cierre, la frontera) y `test_webrtc_lote` (con `rtc::Thread` de
+  verdad: orden y tandas lote contra separados, `BlockingCall` del de red con una tanda
+  anotada, diferidas, E/S por sockets UDP del `PhysicalSocketServer`, `juntos`, cierre).
+
+Qué mirar al medir (40 por TURN, `lote` contra `separados` y `juntos`): cambios de
+contexto/s de `ba-rtc-work*` (la meta: de 13,5 mil a ≤ 4 mil), pases por despertada de
+`rtc.red-trabajo*` (≥ 4), `espera_us` (≤ 500, máx. ≤ 1000), CPU de `ba-rtc-net*` (no debería
+subir más que unos puntos: envolver cada tarea y el autodespertar de la E/S), edad del audio
+p50 y lo que recibe el invitado (sin cambios). Con `juntos`: CPU y cambios de contexto de
+`ba-rtc-net*` y si la red de un grupo se atrasa (ráfaga de 40 entrando: los DTLS y los
+`SetRemoteDescription` en el mismo hilo que la red).
+
+#### El reloj del audio (#10) repartido
+
+Escrito (2026-11-02, noche; **sin compilar ni medir**). Con 120 invitados en la .177 el hilo
+único `webrtc-playout` (el `RelojPlayout` que cada 10 ms tira de la reproducción de todas las
+fábricas: NetEq y Opus de cada invitado, los sinks hacia ba-app y la grilla) va al 54 % de un
+núcleo y crece con los invitados: el próximo hilo único en llenarse.
+
+- `RelojPlayout` (Webrtc.cpp) con K grupos: UN tick de 10 ms (el hilo `webrtc-playout`, con
+  `sleep_until` como antes) que en cada vuelta despierta a los otros K−1 (`webrtc-playout-k`,
+  una condvar: K−1 despertadas cada 10 ms) y tira de su propio grupo. El grupo de una fábrica
+  es su hilo de trabajo % K (el reparto ya deja parejos los hilos de trabajo).
+- Alineado: todos tiran en la MISMA vuelta (con decenas de µs de diferencia, lo que tarda en
+  despertar un hilo). Cada invitado sale siempre del mismo hilo (su fábrica no se muda): su
+  anillo hacia ba-app recibe los mismos bloques, en el mismo orden y al mismo ritmo que con
+  uno. Lo que comparten los invitados del lado del gateway (`MediaPump::publishAudio`, la voz
+  de `Grillas`) ya tiene su candado. Un grupo atrasado se pone al día como el hilo único (una
+  tirada por vuelta perdida, hasta 50; más se pierden y se cuentan).
+- `gateway.hilosPlayout` (reinicia): 0 = uno por hilo de trabajo, entre 1 y 4 (3 en el
+  5900X); 1 = uno solo, como antes. Fronteras `audio.playout` (el grupo del tick) y
+  `audio.playout-k`; `gateway_estado` → `capas.playout`: los hilos y por grupo las fábricas,
+  vueltas y perdidas. `test_webrtc_capas` comprueba 2 grupos a la par con 2 de trabajo.
+- Qué medir (120 y 40): % de núcleo de cada `webrtc-playout*` (≈ 54/K), edad del audio p50
+  (igual), `perdidas` en 0, y que la mezcla de ba-app no tenga cortes.
+
+**Por qué crecía más que lineal** (medido limpio en la .177: 1,39 ms por vuelta con 40, 35 µs
+por invitado → 9,0 ms con 120, 75 µs por invitado; `webrtc-playout` al 100 %). Lo que se paga
+por invitado en cada vuelta, leído en el camino (PullAdm → `AudioTransportImpl::NeedMorePlayData`
+→ `AudioMixerImpl::Mix` → por fuente `GetAudioFrameWithInfo` (NetEq, Opus, el sink → MediaPump
+y Grillas) → mezcla → APM):
+
+1. **Un `PostTask` al hilo de trabajo por invitado y vuelta** (`SourceTracker::OnFrameDelivered`
+   en M123: `worker_thread_` + `OnFrameDeliveredInternal` `RTC_RUN_ON(worker_thread_)`, se ve en
+   `modules/rtp_rtcp/source/source_tracker.h`). 100 por invitado por segundo (12 mil/s con
+   120), y cada uno, con el de trabajo dormido, es una llamada al sistema que despierta a otro
+   hilo desde el reloj. El costo de esa despertada sube con la carga de la máquina (más
+   hilos listos, más trabajo del planificador): ésa es la parte que no es lineal. **Hecho:**
+   cada hilo del reloj es un `lote::Remitente` (rtc/LoteTrabajo.hpp) y suelta al terminar su
+   grupo: una despertada por hilo de trabajo y vuelta. Frontera `audio.playout.trabajo`
+   (pases = esos PostTask, despertadas, espera). Con `redYTrabajo = separados`, como antes
+   (solo cuenta). Con `juntos` el trabajo es el hilo de red y esto no aplica (sigue el
+   `WakeUp` del `PhysicalSocketServer`; si `juntos` gana, extenderlo a `ServidorRed`).
+2. **La mezcla que nadie escucha**: el `AudioMixerImpl` de M123 mezcla TODAS las fuentes (ya
+   no las 3 más fuertes): energía de cada una, orden, rampa, suma en float y limitador; y
+   después el APM analiza esa mezcla como lo que sale por el parlante (AEC3), por fábrica.
+   **Hecho:** `MezcladorSinSuma` (Webrtc.cpp, `deps.audio_mixer`) tira de cada fuente a
+   48 kHz (lo mismo que pedía el de libwebrtc con Opus: los sinks reciben lo mismo) y devuelve
+   silencio; sin APM (`deps.audio_processing = nullptr`: el ADM no captura nada; el envío va
+   por fuentes propias). `gateway.mezclaAudioWebrtc` = true vuelve a como estaba.
+3. Lo del lado del gateway en el sink es O(1) por invitado y con candado por invitado
+   (`MediaPump::publishAudio`, el anillo y su timbre) salvo dos candados globales:
+   `MediaPump::routesLock_` (cada `forwardAudio` y cada `forwardVideo` copian la ruta) y
+   `Grillas::vozMu_` (con un `map<string>`). Con K hilos de reloj y D de decodificación se
+   disputan más; quedan para mirar si después de 1 y 2 sigue sin ser lineal (`Grillas` es de
+   otro agente).
+
+Qué medir: µs por invitado de `audio.playout*` con 40, 80 y 120 (meta: plano), despertadas/s
+de `audio.playout.trabajo` (≈ 100 × hilos de trabajo, no 100 × invitados), cambios de
+contexto de `ba-rtc-work*`, y que el audio de cada invitado a ba-app no cambie (edad,
+faltantes). Riesgo: que algo de M123 suponga APM no nulo (en M123 es opcional:
+`WEBRTC_EXCLUDE_AUDIO_PROCESSING_MODULE` lo deja nulo); si falla al arrancar, prender
+`gateway.mezclaAudioWebrtc`.
 
 Medición (pendiente: se hace con todo junto; `medir-sala.py`, Mac, `--camino turn-mezcla:10`
 con `--turn-prueba` y `--camino directo`, 10 y 40, después 80; grabado, habla 1, decodificar
