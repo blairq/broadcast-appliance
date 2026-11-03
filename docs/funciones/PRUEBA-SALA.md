@@ -124,3 +124,11 @@ Sin ella, la prueba funciona con carga externa. Hace falta un hinchada con `--mo
 `--hablan` (el paquete de antes no los tiene: `make -C ../hinchada paquete` y otra vez
 `make deps-hinchada`; el paso lo revisa). El video grabado (`grabado.hgr`, ~100 MB) es uno
 solo para todas las configuraciones: `BroadcastAppliance Datos/Runtime/hinchada/`.
+
+**El rótulo de la capa.** Cada capa del simulcast de hinchada lleva su definición en números
+grandes en el centro («720p», «360p», «180p») y abajo el tamaño, los cuadros por segundo y,
+en el video grabado, la tasa. Sirve para ver en la grilla qué capa llega a cada celda y si al
+agrandar al que habla sube de verdad a la alta (con 200 invitados: las miniaturas en 180p y
+el orador en 720p, [captura](../hardware/img/pc177-noche-sala-200-rotulo.jpg)). Viene prendido;
+`--rotulo-capa no` lo apaga. Un `grabado.hgr` de antes, sin rótulo, se graba de nuevo solo
+la primera vez.

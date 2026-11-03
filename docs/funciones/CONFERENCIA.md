@@ -35,6 +35,36 @@ servidor propio por WireGuard).
   Admitir a alguien **cambia su ruta, no su conexión**: la misma
   PeerConnection pasa de "ve al operador" a "ve el programa", sin cortes.
 
+### El gateway en varios núcleos (2026-11)
+
+Para pasar de decenas a cientos de invitados, B dejó de tener hilos por invitado (con 40
+llegaba a 647 hilos y 45 mil cambios de contexto por segundo en Windows) y trabaja por capas
+de hilos compartidos. El plan, las fronteras entre hilos y lo medido en cada paso están en
+[PLAN-GATEWAY-FRAGMENTOS](../planes/PLAN-GATEWAY-FRAGMENTOS.md); los ajustes, en
+Configuración → Conferencia:
+
+- **Capa de red y capa de trabajo** (`gateway.hilosRed`, `gateway.hilosTrabajo`; 0 =
+  automático: un hilo de red cada 3 núcleos físicos, de 2 a 8). Cada conexión vive en un par
+  red/trabajo; el paso de la red al trabajo va **en tandas** (`gateway.redYTrabajo` `lote`,
+  espera máxima `gateway.loteTrabajoUs` 500 µs) en vez de despertar al hilo por paquete.
+- **El TURN y la red de WebRTC en los mismos hilos**, con la entrega **en memoria**
+  (`gateway.turnEnMemoria`): lo que llega por pinggy al TURN pasa a WebRTC sin volver al
+  sistema operativo ([TURN.md](TURN.md)).
+- **Las colas de tareas de libwebrtc** (codificar el audio, decodificar el video…) comparten
+  dos grupos chicos de hilos (`gateway.hilosColas`) en vez de una por invitado, y el video
+  entrante va sin el suavizado previo al render (la grilla tiene su propio reloj).
+- **El audio que sale** (el reloj de 10 ms que saca el audio de todos) se reparte en varios
+  hilos (`gateway.hilosPlayout`) y no mezcla ni pasa por el procesamiento de WebRTC.
+- **H.264 por la placa**: Windows decodifica con la API de video de **Direct3D 11** y
+  codifica el retorno con el codificador de la placa (AMD en la PC de pruebas); macOS, con
+  **VideoToolbox**. `gateway.decodificarConPlaca` apagado cae a software. La celda de la
+  grilla se achica en la placa, en el hilo que decodificó.
+- **Afinidad** (`gateway.afinidad`): apagada de fábrica; con mucha carga hacen falta todos los núcleos y el sistema reparte solo.
+
+Con todo eso, en la PC de pruebas con 40 invitados el gateway bajó de 220 % a 169 % de un
+núcleo, de 647 a 234 hilos y de 45 mil a 23,7 mil cambios de contexto por segundo, y el techo
+pasó de ~80 a ~160 invitados ([docs/hardware](../hardware/README.md)).
+
 ## Lobby privado
 
 - Quien espera **solo ve al operador**: nunca a los demás del lobby ni el
@@ -508,6 +538,11 @@ limita de ahí para abajo es la máquina, no una constante:
 
 `tools/carga/medir-sala.py --cupo` sube lo que haga falta para N (hasta 512) y lo
 vuelve al final.
+
+**Cuántos aguanta de verdad** cada máquina medida (hoy: ~160 con margen y 200 andando en la PC
+con Ryzen 9 5900X y RX 5700 XT; 40 con margen en la Mac M1 Pro, sin medir más arriba) está en
+[docs/hardware](../hardware/README.md); para la máquina propia, **Configuración → Sistema →
+Capacidad** ([CAPACIDAD.md](CAPACIDAD.md)).
 
 ## Seguridad
 
