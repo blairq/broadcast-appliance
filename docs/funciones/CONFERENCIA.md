@@ -158,6 +158,35 @@ reacomodo) y el orador y los fijados a mano no esperan (el fundido al dar la pal
 es inmediato). Los que se van salen en el acto. `grilla_personas_estado` dice en cada
 grilla cuántos esperan (`entrando`). 0 = como antes, cada entrada reacomoda.
 
+### La forma de las celdas (`proporcion`, `recorte_max`, `celda_min_ancho`, `celda_min_alto`)
+
+La grilla elige cuántas columnas usar según la gente que muestra, y la **proporción
+del video (16:9) siempre cuenta**:
+
+- Con una proporción fija (`16:9`, `4:3`, …) cada celda tiene esa forma exacta y, si
+  el lugar no la tiene, quedan bandas. Entre las disposiciones posibles, la de celdas
+  más grandes.
+- Con **Llenar el lugar** (`llenar`) la celda puede alejarse del 16:9 recortando el
+  video, pero solo hasta **`recorte_max`** por lado (de fábrica 25 %: celdas entre
+  4:3 y 21:9; de 0 a 40). Más allá de eso, bandas. Entre las disposiciones que
+  cumplen se elige la de **más video a la vista**: recortar un poco suma (la cara se
+  ve más grande), pero menos que agrandar sin recortar. Así la grilla no salta de una
+  forma a otra al ir sumando gente de a uno (las columnas solo crecen).
+- **Celda mínima** (`celda_min_ancho` × `celda_min_alto`, de fábrica 96×54 en un lienzo
+  de 1080 de lado corto; en 1280×720 o 720×1280, 64×36). Ninguna celda baja de ese
+  tamaño: si no entran todos así, los que sobran van al cuadro **«+N»** (igual que con
+  el tope de celdas), nunca se achica más.
+
+Antes (C18, visto en la PC de pruebas el 2026-11-03), con `llenar` la grilla elegía las
+columnas que dejaban más área sin mirar la forma: con 22 a 25 personas salía 11×2 y con
+43, 11×4, de franjas verticales de ~110×170 px con la cara cortada al medio. Ahora, en
+1280×720: 22-25 → 5×5, 43 → 7×7, 64 → 8×8, todas apaisadas.
+
+`grilla_personas_estado` dice en cada grilla `disposicion`: `columnas`, `filas`,
+`celda` (`ancho`, `alto` en px del lienzo), `proporcion` (la efectiva de la celda),
+`proporcion_video`, `proporcion_min` y `proporcion_max`, `minimo` (ya escalado al
+lienzo), `caben` (cuántas celdas entran como mucho, con la del «+N») y `lienzo`.
+
 ### Cuando alguien habla (`al_hablar`)
 
 | Opción | Qué pasa |

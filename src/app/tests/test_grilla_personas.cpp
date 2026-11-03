@@ -2,7 +2,10 @@
 // src/app/tests/test_grilla_personas.cpp — el reparto y la disposición de la grilla de personas
 //
 //   1. Disposición: las columnas que dejan las celdas más grandes, la última fila
-//      centrada, la proporción, nada afuera del lienzo.
+//      centrada, la proporción, nada afuera del lienzo. La forma (C18): de 1 a 200 en
+//      1920×1080, 1280×720 y 720×1280, con «llenar» y con 16:9, ninguna celda fuera del rango
+//      de proporción ni por debajo del mínimo, las columnas no vuelven atrás, y los casos de la
+//      evidencia (22 y 43 personas: ya no 11×2 ni 11×4); con un mínimo grande, el «+N».
 //   2. Filtros y orden: origen, cámara, al aire; llegada, quién habla, prioridad.
 //   3. Una grilla sola: tope con «+N», lugares estables (el que llega va al final,
 //      el que se va deja el hueco al último), resaltar a quien habla.
@@ -117,9 +120,123 @@ void disposicion() {
     // Una tira vertical (9:16 de lienzo) con celdas 16:9: una columna.
     disponer(3, 360, 1280, 8, 0, 16.0 / 9, &cols);
     CHECK(cols == 1, "lienzo vertical: una columna");
-    // «Llenar»: las celdas ocupan todo el lienzo (sin barras).
+    // «Llenar»: si el lugar no se aleja mucho del video, las celdas ocupan todo el lienzo (sin barras)…
+    r = disponer(2, 1000, 280, 0, 0, 0, &cols);
+    CHECK(r.size() == 2 && r[0].w * r[0].h + r[1].w * r[1].h == 1000 * 280, "llenar: sin barras");
+    // …y si se aleja (dos en 1000×500 serían dos cuadrados), recorta solo hasta 4:3.
     r = disponer(2, 1000, 500, 0, 0, 0, &cols);
-    CHECK(r.size() == 2 && r[0].w * r[0].h + r[1].w * r[1].h == 1000 * 500, "llenar: sin barras");
+    CHECK(r.size() == 2 && r[0].w * 3 <= r[0].h * 4 + 4 && r[0].w * 3 >= r[0].h * 4 - 4, "llenar: no más que 4:3");
+}
+
+// C18: con «llenar» y 22 o 43 personas salían franjas verticales (11×2, 11×4). Ahora la celda
+// no se aleja del video más que el recorte, no baja del mínimo y la disposición no vuelve
+// atrás al sumar de a uno.
+void formaDeLasCeldas() {
+    struct Lienzo {
+        int w, h;
+    };
+    for (const Lienzo l : {Lienzo{1920, 1080}, Lienzo{1280, 720}, Lienzo{720, 1280}}) {
+        for (const char* prop : {"llenar", "16:9"}) {
+            Config c = Config::desdeAjustes("g", json{{"proporcion", prop}, {"ancho", l.w}, {"alto", l.h}, {"separacion", 8}});
+            const Forma f = formaDe(c);
+            const bool llenar = std::string(prop) == "llenar";
+            const double k = std::min(l.w, l.h) / 1080.0;
+            CHECK(f.minAncho == static_cast<int>(std::lround(96 * k)) && f.minAlto == static_cast<int>(std::lround(54 * k)),
+                  "el mínimo, escalado al lado corto del lienzo");
+            CHECK(!llenar || (std::abs(f.minAspecto - 4.0 / 3) < 1e-9 && std::abs(f.maxAspecto - 64.0 / 27) < 1e-9),
+                  "llenar: entre 4:3 y 21:9 (25 % por lado)");
+            int colsAntes = 0, cap = 0;
+            bool enRango = true, sobreMinimo = true, adentro = true, sinVolver = true, iguales = true;
+            for (int n = 1; n <= 200; ++n) {
+                InfoGrilla info;
+                const auto rs = disponer(n, l.w, l.h, c.separacion, c.margen, f, &info);
+                if (rs.empty()) {
+                    // Si no entran n, tampoco n + 1 (la capacidad es un número).
+                    sinVolver = sinVolver && disponer(n + 1, l.w, l.h, c.separacion, c.margen, f).empty();
+                    continue;
+                }
+                cap = n;
+                for (const Rect& x : rs) {
+                    // Con un píxel de tolerancia por el redondeo.
+                    enRango = enRango && static_cast<double>(x.w + 1) / x.h >= f.minAspecto &&
+                              static_cast<double>(x.w) / (x.h + 1) <= f.maxAspecto;
+                    if (n > 1) sobreMinimo = sobreMinimo && x.w >= f.minAncho && x.h >= f.minAlto;
+                    adentro = adentro && dentro(x, l.w, l.h);
+                    iguales = iguales && x.w == info.ancho && x.h == info.alto;
+                }
+                if (n <= kMaxCeldas) {
+                    if (info.columnas < colsAntes) {
+                        std::printf("  %dx%d %s: con %d, %d columnas (antes %d)\n", l.w, l.h, prop, n, info.columnas, colsAntes);
+                        sinVolver = false;
+                    }
+                    colsAntes = info.columnas;
+                }
+            }
+            CHECK(enRango, "ninguna celda fuera del rango de proporción");
+            CHECK(sobreMinimo, "ninguna celda por debajo del mínimo");
+            CHECK(adentro && iguales, "todas adentro y del mismo tamaño");
+            CHECK(sinVolver, "al sumar de a uno, las columnas no vuelven atrás");
+            CHECK(cap >= 1 && capacidad(c, 200) == cap, "capacidad: la más grande que entra con el mínimo");
+            CHECK(capacidad(c) >= std::min(kMaxCeldas, cap), "capacidad con el tope de las celdas");
+        }
+    }
+
+    // Los casos de la evidencia (Grilla al aire en 1280×720, «llenar»): con 22-25 y 43 ya no
+    // hay franjas: 5×5 y 7×7 con celdas apaisadas.
+    for (const auto& [n, colsEsperadas] : std::vector<std::pair<int, int>>{{4, 2}, {22, 5}, {25, 5}, {43, 7}, {64, 8}}) {
+        InfoGrilla info;
+        const auto rs = disponer(n, 1280, 720, 8, 0, Forma::de(0), &info);
+        CHECK(static_cast<int>(rs.size()) == n && info.columnas == colsEsperadas, "la evidencia: sin 11×2 ni 11×4");
+        CHECK(info.ancho > info.alto, "la evidencia: celdas apaisadas, no franjas");
+    }
+
+    // En la grilla de verdad: 200 personas en 720×1280 con un mínimo grande: no entran
+    // todos, el resto va al «+N» y ninguna celda se achica más que el mínimo.
+    {
+        Config c = grilla("g", 0);
+        c.ancho = 720;
+        c.alto = 1280;
+        c.aspecto = 0;
+        c.celdaMinAncho = 240;
+        c.celdaMinAlto = 135;
+        const Forma f = formaDe(c);
+        Repartidor rep;
+        const auto res = rep.calcular({c}, gente(200), {}, 1000);
+        const int caben = capacidad(c);
+        CHECK(caben < kMaxCeldas && res[0].caben == caben, "con un mínimo grande caben menos que el tope");
+        CHECK(static_cast<int>(res[0].personas.size()) == caben - 1 && res[0].mas == 200 - (caben - 1), "el resto al «+N»");
+        bool ok = res[0].rMas.w >= f.minAncho && res[0].rMas.h >= f.minAlto;
+        for (const Celda& x : res[0].celdas) ok = ok && x.r.w >= f.minAncho && x.r.h >= f.minAlto;
+        CHECK(ok, "ninguna celda (ni el «+N») por debajo del mínimo");
+        CHECK(res[0].columnas > 0 && res[0].filas > 0 && res[0].celdaAncho == res[0].celdas.front().r.w,
+              "el resultado dice columnas, filas y la celda");
+    }
+    // Sumando de a uno de 1 a 120 en la grilla de verdad (1280×720, llenar): las columnas
+    // nunca vuelven atrás (ni 6×4 → 11×2 → 6×4).
+    {
+        Config c = grilla("g", 0);
+        c.aspecto = 0;
+        Repartidor rep;
+        int antes = 0;
+        bool ok = true;
+        for (int n = 1; n <= 120; ++n) {
+            const auto res = rep.calcular({c}, gente(n), {}, 1000 + n);
+            ok = ok && res[0].columnas >= antes;
+            antes = res[0].columnas;
+        }
+        CHECK(ok, "de a uno hasta 120: las columnas no vuelven atrás");
+    }
+    // Los ajustes nuevos: de fábrica, validar, leer.
+    CHECK(Config::defectos().value("recorte_max", 0) == kRecorteMaxDefecto &&
+              Config::defectos().value("celda_min_ancho", 0) == kCeldaMinAncho &&
+              Config::defectos().value("celda_min_alto", 0) == kCeldaMinAlto,
+          "los de fábrica");
+    CHECK(Config::validar(json{{"recorte_max", 10}, {"celda_min_ancho", 120}, {"celda_min_alto", 70}}).empty(), "validos");
+    CHECK(!Config::validar(json{{"recorte_max", 41}}).empty() && !Config::validar(json{{"celda_min_alto", 2}}).empty(),
+          "fuera de rango");
+    const Config r0 = Config::desdeAjustes("g", json{{"proporcion", "llenar"}, {"recorte_max", 0}});
+    const Forma f0 = formaDe(r0);
+    CHECK(f0.minAspecto == f0.maxAspecto && std::abs(f0.minAspecto - 16.0 / 9) < 1e-9, "llenar sin recorte = 16:9 exacto");
 }
 
 void filtrosYOrden() {
@@ -1193,6 +1310,7 @@ void entradasJuntas() {
 
 int main() {
     disposicion();
+    formaDeLasCeldas();
     filtrosYOrden();
     solaConTope();
     grupos();

@@ -83,6 +83,9 @@ json Config::defectos() {
                 {"separacion", 8},
                 {"margen", 0},
                 {"proporcion", "16:9"},
+                {"recorte_max", kRecorteMaxDefecto}, // llenar: % del video que se puede recortar por lado
+                {"celda_min_ancho", kCeldaMinAncho}, // la celda más chica (px a 1080; si no entran, «+N»)
+                {"celda_min_alto", kCeldaMinAlto},
                 {"transicion_ms", 400},
                 {"fondo", 0},                   // transparente (entero de OBS 0xAABBGGRR)
                 {"color_resaltar", 0xFF07C1FFu}, // ámbar #FFC107
@@ -136,6 +139,9 @@ Config Config::desdeAjustes(const std::string& fuente, const json& ajustesIn) {
     c.separacion = std::clamp(entero(a, "separacion", 8), 0, 200);
     c.margen = std::clamp(entero(a, "margen", 0), 0, 500);
     c.aspecto = aspectoDe(texto(a, "proporcion", "16:9"));
+    c.recorteMax = std::clamp(entero(a, "recorte_max", kRecorteMaxDefecto), 0, kRecorteMaxTope);
+    c.celdaMinAncho = std::clamp(entero(a, "celda_min_ancho", kCeldaMinAncho), 16, 960);
+    c.celdaMinAlto = std::clamp(entero(a, "celda_min_alto", kCeldaMinAlto), 9, 540);
     c.transicionMs = std::clamp(entero(a, "transicion_ms", 400), 0, 3000);
     c.fondo = color(a, "fondo", "#00000000");
     c.colorResaltar = color(a, "color_resaltar", "#FFFFC107");
@@ -207,7 +213,7 @@ std::string Config::validar(const json& cambios) {
         "al_hablar", "disparo", "voz_ms", "minimo_ms", "precarga", "destacar_lugar", "destacar_tamano", "franja",
         "superponer_tamano", "superponer_completa", "fundido_ms", "nombres", "nombre_tamano", "nombre_color",
         "nombre_fondo", "nombre_lugar", "muestra", "sigue", "agrandar", "pasar_a_escena", "salida_orador", "escena_orador",
-        "alta_hasta", "alta_max"};
+        "alta_hasta", "alta_max", "recorte_max", "celda_min_ancho", "celda_min_alto"};
     for (const auto& [k, v] : cambios.items())
         if (!kConocidos.count(k)) return ba::i18n::llenar(ba::i18n::traducir("escenas", "«%1» no es un ajuste de la grilla de personas"), {k});
     for (const std::string& e :
@@ -217,6 +223,7 @@ std::string Config::validar(const json& cambios) {
                                  kProporciones[5]}),
           numero("canal", 0, kMaxGrillas), numero("orden_en_grupo", -1000, 1000), numero("tope", 0, kMaxCeldas),
           numero("ancho", 64, 3840), numero("alto", 64, 2160), numero("separacion", 0, 200), numero("margen", 0, 500),
+          numero("recorte_max", 0, kRecorteMaxTope), numero("celda_min_ancho", 16, 960), numero("celda_min_alto", 9, 540),
           numero("transicion_ms", 0, 3000), booleano("solo_con_camara"), booleano("sin_al_aire"), booleano("resaltar"),
           enumera("al_hablar", {"nada", "sin_cambios", "resaltar", "destacar", "superponer", "escena"}),
           enumera("agrandar", {"no", "encima", "achicando"}), enumera("pasar_a_escena", {"a_mano", "automatico", "asistente"}),
@@ -265,36 +272,83 @@ bool antes(Orden o, const Persona& a, const Persona& b) {
 // Disposición
 // ---------------------------------------------------------------------------
 
-std::vector<Rect> disponer(int n, int ancho, int alto, int sep, int margen, double aspecto, int* colsOut) {
+Forma Forma::de(double aspecto, int recorteMax) {
+    Forma f;
+    if (aspecto > 0) {
+        f.video = f.minAspecto = f.maxAspecto = aspecto;
+        return f;
+    }
+    const double r = 1.0 - std::clamp(recorteMax, 0, kRecorteMaxTope) / 100.0;
+    f.video = kAspectoVideo;
+    f.minAspecto = kAspectoVideo * r;
+    f.maxAspecto = kAspectoVideo / r;
+    return f;
+}
+
+Forma formaDe(const Config& c) {
+    Forma f = Forma::de(c.aspecto, c.recorteMax);
+    // El mínimo está pensado para 1080 de lado corto: en 720 es dos tercios, en vertical
+    // (720×1280) también.
+    const double k = std::min(c.ancho, c.alto) / 1080.0;
+    f.minAncho = static_cast<int>(std::lround(c.celdaMinAncho * k));
+    f.minAlto = static_cast<int>(std::lround(c.celdaMinAlto * k));
+    return f;
+}
+
+namespace {
+
+/// La celda en un lugar de cw × ch: el lugar entero si su proporción está dentro de la
+/// forma; si no, la más grande dentro del lugar con la proporción del borde (bandas).
+void celdaEnLugar(double cw, double ch, const Forma& f, double& w, double& h) {
+    w = cw;
+    h = ch;
+    if (w > h * f.maxAspecto) w = h * f.maxAspecto;
+    if (w < h * f.minAspecto) h = w / f.minAspecto;
+}
+
+/// Cuánto video se ve de verdad en una celda de w × h (más grande es mejor): el área de la
+/// celda por la raíz de la fracción del cuadro que queda a la vista. Recortar un poco suma
+/// (la cara se ve más grande) pero menos que agrandar sin recortar, y así no se va siempre
+/// al borde del recorte: la grilla no salta entre 8×6 y 7×7 al sumar de a uno.
+double videoALaVista(double w, double h, const Forma& f) {
+    const double a = w / h;
+    const double fraccion = std::min(a, f.video) / std::max(a, f.video);
+    return w * h * std::sqrt(fraccion);
+}
+
+} // namespace
+
+std::vector<Rect> disponer(int n, int ancho, int alto, int sep, int margen, const Forma& forma, InfoGrilla* info) {
     std::vector<Rect> out;
-    if (colsOut) *colsOut = 0;
+    if (info) *info = {};
     if (n <= 0) return out;
     const int aw = ancho - 2 * margen, ah = alto - 2 * margen;
     if (aw <= 0 || ah <= 0) return out;
-    int mejorCols = 1;
-    double mejorW = 0, mejorH = 0, mejorArea = -1;
+    int mejorCols = 0, mejorW = 0, mejorH = 0;
+    double mejor = -1;
     for (int cols = 1; cols <= n; ++cols) {
         const int rows = (n + cols - 1) / cols;
         const double cw = static_cast<double>(aw - (cols - 1) * sep) / cols;
         const double ch = static_cast<double>(ah - (rows - 1) * sep) / rows;
         if (cw < 1 || ch < 1) continue;
-        double w = cw, h = ch;
-        if (aspecto > 0) {
-            w = std::min(cw, ch * aspecto);
-            h = w / aspecto;
-        }
-        // A igualdad de tamaño gana la de menos columnas (la primera que lo logra).
-        const double area = w * h;
-        if (area > mejorArea + 0.5) {
-            mejorArea = area;
+        double wd = 0, hd = 0;
+        celdaEnLugar(cw, ch, forma, wd, hd);
+        const int w = static_cast<int>(std::floor(wd)), h = static_cast<int>(std::floor(hd));
+        if (w < 1 || h < 1) continue;
+        // Una sola persona entra siempre (el lienzo entero es su lugar).
+        if (n > 1 && (w < forma.minAncho || h < forma.minAlto)) continue;
+        // A igualdad gana la de menos columnas (la primera que lo logra).
+        const double v = videoALaVista(w, h, forma);
+        if (v > mejor + 0.5) {
+            mejor = v;
             mejorCols = cols;
             mejorW = w;
             mejorH = h;
         }
     }
-    if (mejorArea < 0) return out;
+    if (mejorCols == 0) return out; // no entran con el mínimo: el que llama pone el «+N»
     const int cols = mejorCols, rows = (n + cols - 1) / cols;
-    const int w = static_cast<int>(std::floor(mejorW)), h = static_cast<int>(std::floor(mejorH));
+    const int w = mejorW, h = mejorH;
     const int bloqueH = rows * h + (rows - 1) * sep;
     const int y0 = margen + (ah - bloqueH) / 2;
     for (int i = 0; i < n; ++i) {
@@ -304,8 +358,30 @@ std::vector<Rect> disponer(int n, int ancho, int alto, int sep, int margen, doub
         const int x0 = margen + (aw - filaW) / 2;
         out.push_back({x0 + col * (w + sep), y0 + fila * (h + sep), w, h});
     }
-    if (colsOut) *colsOut = cols;
+    if (info) *info = {cols, rows, w, h};
     return out;
+}
+
+std::vector<Rect> disponer(int n, int ancho, int alto, int sep, int margen, double aspecto, int* colsOut) {
+    InfoGrilla info;
+    auto out = disponer(n, ancho, alto, sep, margen, Forma::de(aspecto), &info);
+    if (colsOut) *colsOut = info.columnas;
+    return out;
+}
+
+int capacidad(const Config& c, int tope) {
+    const Forma f = formaDe(c);
+    // Si entran m, entran m - 1 (la misma cantidad de columnas deja filas igual o más altas):
+    // la más grande que entra, por bisección.
+    int lo = 1, hi = std::max(1, tope);
+    while (lo < hi) {
+        const int m = (lo + hi + 1) / 2;
+        if (!disponer(m, c.ancho, c.alto, c.separacion, c.margen, f).empty())
+            lo = m;
+        else
+            hi = m - 1;
+    }
+    return lo;
 }
 
 // ---------------------------------------------------------------------------
@@ -428,21 +504,21 @@ Rect achicar(const Rect& r, double f) {
 
 namespace {
 
-/// El rectángulo más grande con la proporción `aspecto` (0 = el que hay) adentro de `caja`,
-/// centrado (o pegado a la izquierda).
-Rect encajar(const Rect& caja, double aspecto, bool izquierda = false) {
+/// El rectángulo más grande con la forma de la grilla adentro de `caja` (con «llenar», la
+/// caja entera si no se aleja demasiado del video), centrado (o pegado a la izquierda).
+Rect encajar(const Rect& caja, const Forma& f, bool izquierda = false) {
     if (caja.w <= 0 || caja.h <= 0) return {};
-    int w = caja.w, h = caja.h;
-    if (aspecto > 0) {
-        w = std::min(caja.w, static_cast<int>(std::floor(caja.h * aspecto)));
-        h = static_cast<int>(std::floor(w / aspecto));
-    }
+    double wd = 0, hd = 0;
+    celdaEnLugar(caja.w, caja.h, f, wd, hd);
+    const int w = std::min(caja.w, static_cast<int>(std::floor(wd + 1e-6)));
+    const int h = std::min(caja.h, static_cast<int>(std::floor(hd + 1e-6)));
     return {izquierda ? caja.x : caja.x + (caja.w - w) / 2, caja.y + (caja.h - h) / 2, w, h};
 }
 
-/// `n` celdas en `caja` con disponer; true si cada una tiene al menos kMinCelda de alto.
+/// `n` celdas en `caja` con disponer (la forma y el mínimo de la grilla); true si entran
+/// y cada una tiene al menos kMinCelda de alto.
 bool enCaja(int n, const Rect& caja, const Config& c, std::vector<Rect>& out) {
-    out = disponer(n, caja.w, caja.h, c.separacion, 0, c.aspecto);
+    out = disponer(n, caja.w, caja.h, c.separacion, 0, formaDe(c));
     for (Rect& r : out) {
         r.x += caja.x;
         r.y += caja.y;
@@ -491,7 +567,8 @@ Disposicion enFranjas(int n, const std::vector<Rect>& cajas, const Config& c, Re
 
 Disposicion disponerDestacar(int n, const Config& c) {
     const Rect lienzo{c.margen, c.margen, c.ancho - 2 * c.margen, c.alto - 2 * c.margen};
-    if (n <= 0) return {encajar(lienzo, c.aspecto, c.destacarIzquierda), {}, false, {}};
+    const Forma forma = formaDe(c);
+    if (n <= 0) return {encajar(lienzo, forma, c.destacarIzquierda), {}, false, {}};
     const double t = c.destacarTamano / 100.0;
     const int sep = c.separacion;
     if (!c.franjaCostado) {
@@ -499,28 +576,29 @@ Disposicion disponerDestacar(int n, const Config& c) {
         const int altoGrande = static_cast<int>(lienzo.h * t);
         const Rect arriba{lienzo.x, lienzo.y, lienzo.w, altoGrande};
         const Rect franja{lienzo.x, lienzo.y + altoGrande + sep, lienzo.w, lienzo.h - altoGrande - sep};
-        return enFranjas(n, {franja}, c, encajar(arriba, c.aspecto, c.destacarIzquierda));
+        return enFranjas(n, {franja}, c, encajar(arriba, forma, c.destacarIzquierda));
     }
     const int anchoGrande = static_cast<int>(lienzo.w * t);
     if (c.destacarIzquierda) {
         // El grande a la izquierda, la franja a la derecha.
         const Rect izq{lienzo.x, lienzo.y, anchoGrande, lienzo.h};
         const Rect franja{lienzo.x + anchoGrande + sep, lienzo.y, lienzo.w - anchoGrande - sep, lienzo.h};
-        return enFranjas(n, {franja}, c, encajar(izq, c.aspecto, true));
+        return enFranjas(n, {franja}, c, encajar(izq, forma, true));
     }
     // El grande al centro y una franja a cada lado: la de la izquierda se llena primero.
     const int lado = (lienzo.w - anchoGrande - 2 * sep) / 2;
     const Rect centro{lienzo.x + lado + sep, lienzo.y, anchoGrande, lienzo.h};
     const Rect a{lienzo.x, lienzo.y, lado, lienzo.h}, b{lienzo.x + lado + 2 * sep + anchoGrande, lienzo.y, lado, lienzo.h};
-    return enFranjas(n, {a, b}, c, encajar(centro, c.aspecto));
+    return enFranjas(n, {a, b}, c, encajar(centro, forma));
 }
 
 Disposicion disponerSuperponer(int n, const Config& c) {
     const Rect lienzo{c.margen, c.margen, c.ancho - 2 * c.margen, c.alto - 2 * c.margen};
+    const Forma forma = formaDe(c);
     Disposicion d;
     if (n <= 0 || c.superponerCompleta) {
         // A pantalla completa (o sin nadie más): el orador ocupa todo; los demás no se ven.
-        d.grande = c.superponerCompleta ? lienzo : encajar(lienzo, c.aspecto);
+        d.grande = c.superponerCompleta ? lienzo : encajar(lienzo, forma);
         return d;
     }
     // Una grilla de cols x filas con un bloque de celdas libre en el medio (el hueco): los
@@ -541,14 +619,11 @@ Disposicion disponerSuperponer(int n, const Config& c) {
             const double cw = static_cast<double>(lienzo.w - (cols - 1) * sep) / cols;
             const double ch = static_cast<double>(lienzo.h - (filas - 1) * sep) / filas;
             if (cw < 1 || ch < 1) continue;
-            double w = cw, h = ch;
-            if (c.aspecto > 0) {
-                w = std::min(cw, ch * c.aspecto);
-                h = w / c.aspecto;
-            }
-            if (h < kMinCelda) continue;
-            if (w * h > mejorArea + 0.5) {
-                mejorArea = w * h;
+            double w = 0, h = 0;
+            celdaEnLugar(cw, ch, forma, w, h);
+            if (h < kMinCelda || std::floor(w) < forma.minAncho || std::floor(h) < forma.minAlto) continue;
+            if (const double v = videoALaVista(w, h, forma); v > mejorArea + 0.5) {
+                mejorArea = v;
                 mc = cols;
                 mf = filas;
                 mhc = hc;
@@ -574,7 +649,7 @@ Disposicion disponerSuperponer(int n, const Config& c) {
             d.resto.push_back({x0 + k * (mw + sep), y0 + f * (mh + sep), mw, mh});
         }
     const Rect hueco{x0 + c0 * (mw + sep), y0 + f0 * (mh + sep), mhc * mw + (mhc - 1) * sep, mhf * mh + (mhf - 1) * sep};
-    d.grande = encajar(hueco, c.aspecto);
+    d.grande = encajar(hueco, forma);
     return d;
 }
 
@@ -802,6 +877,8 @@ std::vector<Resultado> Repartidor::calcular(const std::vector<Config>& grillas, 
         int capTotal = 0;
         for (int i = 0; i < G; ++i) {
             cap[i] = gs[i]->tope > 0 ? std::min(gs[i]->tope, kMaxCeldas) : kMaxCeldas;
+            // Y nunca más de las que entran con la celda mínima: el resto, al «+N».
+            cap[i] = capacidad(*gs[i], cap[i]);
             capTotal += cap[i];
         }
         // No entran todos: la última celda de la última grilla es el «+N».
@@ -935,6 +1012,7 @@ std::vector<Resultado> Repartidor::calcular(const std::vector<Config>& grillas, 
             r.entrando = retenidos;
             for (const auto& k : lugares[i]) r.personas.push_back(*k);
             if (i == G - 1 && desborda) r.mas = std::max(0, mas);
+            r.caben = cap[i] + (i == G - 1 && desborda ? 1 : 0); // con la del «+N»
             // El orador de esta grilla, si quedó en ella (en un grupo pudo tocarle a otra).
             const std::string& o = oradorDe[static_cast<std::size_t>(i)];
             if (!o.empty() && std::find(r.personas.begin(), r.personas.end(), o) != r.personas.end()) r.orador = o;
@@ -965,7 +1043,7 @@ std::vector<Resultado> Repartidor::calcular(const std::vector<Config>& grillas, 
         }
         if (!r.orador.empty()) {
             r.personas.push_back(r.orador);
-            const auto rects = disponer(1, c.ancho, c.alto, c.separacion, c.margen, c.aspecto);
+            const auto rects = disponer(1, c.ancho, c.alto, c.separacion, c.margen, formaDe(c));
             Celda x;
             x.clave = r.orador;
             if (!rects.empty()) x.r = rects.front();
@@ -1043,7 +1121,12 @@ void Repartidor::disponerCeldas(const Config& c, Resultado& r, const std::map<st
         // «encima», el orador crece un poco y va al final de la lista (el gateway lo pinta
         // encima de sus vecinas); «achicando», las demás al 94 % y el orador entero.
         const int celdas = static_cast<int>(r.personas.size()) + (r.mas > 0 ? 1 : 0);
-        const auto rects = disponer(celdas, c.ancho, c.alto, c.separacion, c.margen, c.aspecto);
+        InfoGrilla info;
+        const auto rects = disponer(celdas, c.ancho, c.alto, c.separacion, c.margen, formaDe(c), &info);
+        r.columnas = info.columnas;
+        r.filas = info.filas;
+        r.celdaAncho = info.ancho;
+        r.celdaAlto = info.alto;
         const bool puede = (c.alHablar == AlHablar::Resaltar || c.alHablar == AlHablar::Escena) && c.agrandar != Agrandar::No;
         std::optional<Celda> delOrador;
         for (std::size_t j = 0; j < r.personas.size() && j < rects.size(); ++j) {
@@ -1072,6 +1155,10 @@ void Repartidor::disponerCeldas(const Config& c, Resultado& r, const std::map<st
     const Disposicion d = c.alHablar == AlHablar::Destacar ? disponerDestacar(n + (extra > 0 ? 1 : 0), c)
                                                            : disponerSuperponer(n + (extra > 0 ? 1 : 0), c);
     r.celdas.push_back(celda(r.orador, d.grande));
+    if (!d.resto.empty()) {
+        r.celdaAncho = d.resto.front().w;
+        r.celdaAlto = d.resto.front().h;
+    }
     if (c.alHablar == AlHablar::Superponer && c.superponerCompleta) {
         r.mas = 0; // a pantalla completa: los demás no se ven (ni su «+N»)
         return;
