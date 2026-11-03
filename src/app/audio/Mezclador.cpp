@@ -189,11 +189,12 @@ void Mezclador::revisarLoudness() {
 QVariantMap Mezclador::tira(const QString& nombre) const {
     const std::string n = nombre.toStdString();
     const FotoMotor::MezclaAudio& m = v_.foto().mezcla;
-    const float v = m.volumen(n, salida_);
-    const FotoMotor::CanalAudio* c = m.canal(n);
+    // Por índice (O(1)): esto se pide por cada entrada.
+    const float v = indice_.volumen(m, n, salida_);
+    const FotoMotor::CanalAudio* c = indice_.canal(m, n);
     return {{"nombre", nombre},
             {"volumenDb", v > 1e-5f ? 20.0 * std::log10(v) : -100.0},
-            {"mute", m.mudo(n, salida_)},
+            {"mute", indice_.mudo(m, n, salida_)},
             // El solo de la escucha (F2-03): antes del fader (PFL) o con el de esta salida (AFL).
             {"pfl", m.pfl == n && m.pflModo == "pfl"},
             {"afl", m.pfl == n && m.pflModo == "afl"},

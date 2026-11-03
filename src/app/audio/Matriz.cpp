@@ -18,6 +18,7 @@
 #include "emision/BroadcastEngine.hpp"
 #include "emision/NivelesMotor.hpp"
 #include "emision/VentanillaMotor.hpp"
+#include "ui/ListaObjetos.hpp"
 #include "emision/FuentesApp.hpp"
 #include "Motor.hpp"
 #include "Piezas.hpp" // Vigia: las placas de salida
@@ -25,6 +26,7 @@
 #include "platform/Ritmo.hpp"
 
 #include <algorithm>
+#include <iterator>
 #include <chrono>
 #include <cmath>
 #include <fstream>
@@ -112,6 +114,11 @@ Matriz::Matriz(fs::path dataRoot, AppRuntime* rt, VentanillaMotor* ventanilla, Q
     for (int i = 0; i < kPistas; ++i)
         pistas_[i] = (i == 0 ? tr("Programa") : tr("Pista %1").arg(i + 1)).toStdString();
     equipo_ = std::make_unique<EquipoAudio>();
+    // El modelo de las filas (lo que muestra la vista). Lo que cambia la matriz entera (las
+    // filas, los buses, los envíos, el solo: todo lo que avisa `cambio`) lo rearma entero;
+    // lo que la foto cambia de una fuente, solo su fila (alCambiarFoto).
+    filasModelo_ = new ListaObjetos(QStringLiteral("nombre"), {QStringLiteral("esVirtual"), QStringLiteral("cruces")}, this);
+    connect(this, &Matriz::cambio, this, &Matriz::rearmarFilas);
     // Se enchufó o desenchufó algo (o se ocultó): columnas, filas y plan de nuevo.
     connect(equipo_.get(), &EquipoAudio::cambio, this, [this]() {
         refrescar();
@@ -212,24 +219,27 @@ bool Matriz::existe(const std::string& f) const {
     return fo != nullptr && !fo->tipoDe(f).empty();
 }
 
+const FotoMotor::CanalAudio* Matriz::canalDe(const std::string& f) const {
+    // En O(1): MezclaAudio::canal recorre la lista, y esto se pregunta por cada fila.
+    const FotoMotor* fo = foto();
+    return fo != nullptr ? indice_.canal(fo->mezcla, f) : nullptr;
+}
+
 std::uint32_t Matriz::mascara(const std::string& f) const {
     if (const auto it = pendPistas_.find(f); it != pendPistas_.end()) return it->second;
-    const FotoMotor* fo = foto();
-    const FotoMotor::CanalAudio* c = fo != nullptr ? fo->mezcla.canal(f) : nullptr;
+    const FotoMotor::CanalAudio* c = canalDe(f);
     return c != nullptr ? c->pistas : 0;
 }
 
 bool Matriz::escucha(const std::string& f) const {
     if (const auto it = pendEscucha_.find(f); it != pendEscucha_.end()) return it->second;
-    const FotoMotor* fo = foto();
-    const FotoMotor::CanalAudio* c = fo != nullptr ? fo->mezcla.canal(f) : nullptr;
+    const FotoMotor::CanalAudio* c = canalDe(f);
     return c != nullptr && c->escuchaFija;
 }
 
 bool Matriz::suenaEnEscucha(const std::string& f) const {
     if (const auto it = pendEscucha_.find(f); it != pendEscucha_.end() && it->second) return true;
-    const FotoMotor* fo = foto();
-    const FotoMotor::CanalAudio* c = fo != nullptr ? fo->mezcla.canal(f) : nullptr;
+    const FotoMotor::CanalAudio* c = canalDe(f);
     return c != nullptr && c->escucha;
 }
 
@@ -285,40 +295,64 @@ void Matriz::setEscucha(const std::string& f, bool on) {
 void Matriz::alCambiarFoto(unsigned partes) {
     if ((partes & FotoMotor::Mezcla) == 0) return;
     const FotoMotor::MezclaAudio& m = v_->foto().mezcla;
-    // Entradas que aparecieron o se fueron (al arrancar, el motor las crea después):
-    // filas, tomas y lo que se abre del equipo, sin esperar a que alguien mire la matriz.
-    if (fuentesConAudio() != filas_) refrescar();
-    bool ruteo = false, anotada = false;
-    for (const FotoMotor::CanalAudio& c : m.canales) {
-        // Nació o se rehízo (con el mismo nombre): con lo de fábrica, hasta que se le
-        // ponga lo guardado.
-        const auto alta = altas_.find(c.nombre);
-        if (alta != altas_.end() && alta->second != c.altas && !aplicando_.contains(c.nombre)) {
-            aplicadas_.erase(c.nombre);
-            aplicarGuardado(c.nombre);
-            ruteo = true;
-            continue;
-        }
-        // Lo de una fuente que todavía no recibió lo guardado son los valores con que
-        // nace: no se anotan (pisarían lo guardado).
-        if (aplicadas_.contains(c.nombre) && !aplicando_.contains(c.nombre)) {
-            const Canal antes = canales_[c.nombre];
-            if (anotar(c.nombre)) {
-                anotada = true;
-                const Canal& ahora = canales_[c.nombre];
-                ruteo = ruteo || antes.pistas != ahora.pistas || antes.escucha != ahora.escucha;
+    // Trabajo proporcional a lo que cambió: si la foto trae los MISMOS canales (el mismo
+    // puntero: cambió el solo, un VCA…), no se recorre ninguno; si trae otros, se compara
+    // cada uno con el suyo de antes (sin copiar nada) y se trabaja solo con los distintos.
+    const Compartido<std::vector<FotoMotor::CanalAudio>> antes = canalesVistos_;
+    canalesVistos_ = m.canales;
+    bool anotada = false;
+    std::vector<std::string> tocadas; ///< las fuentes cuyo ruteo cambió: solo sus filas
+    if (!antes.mismo(m.canales)) {
+        const std::vector<FotoMotor::CanalAudio>& viejos = antes.get();
+        const std::vector<FotoMotor::CanalAudio>& nuevos = m.canales.get();
+        // Entradas que aparecieron o se fueron (al arrancar, el motor las crea después):
+        // filas, tomas y lo que se abre del equipo, sin esperar a que alguien mire la matriz.
+        bool otrosNombres = viejos.size() != nuevos.size();
+        for (std::size_t i = 0; !otrosNombres && i < nuevos.size(); ++i) otrosNombres = viejos[i].nombre != nuevos[i].nombre;
+        if (otrosNombres && fuentesConAudio() != filas_) refrescar();
+        for (std::size_t i = 0; i < nuevos.size(); ++i) {
+            const FotoMotor::CanalAudio& c = nuevos[i];
+            // El mismo de antes, en su lugar (lo común): nada que mirar.
+            if (i < viejos.size() && viejos[i] == c) continue;
+            // Nació o se rehízo (con el mismo nombre): con lo de fábrica, hasta que se le
+            // ponga lo guardado.
+            const auto alta = altas_.find(c.nombre);
+            if (alta != altas_.end() && alta->second != c.altas && !aplicando_.contains(c.nombre)) {
+                aplicadas_.erase(c.nombre);
+                aplicarGuardado(c.nombre);
+                tocadas.push_back(c.nombre);
+                continue;
+            }
+            // Lo de una fuente que todavía no recibió lo guardado son los valores con que
+            // nace: no se anotan (pisarían lo guardado).
+            if (aplicadas_.contains(c.nombre) && !aplicando_.contains(c.nombre)) {
+                const Canal previo = canales_[c.nombre];
+                if (anotar(c, m)) {
+                    anotada = true;
+                    const Canal& ahora = canales_[c.nombre];
+                    if (previo.pistas != ahora.pistas || previo.escucha != ahora.escucha) tocadas.push_back(c.nombre);
+                }
             }
         }
     }
-    // El solo y la salida de la escucha también se ven en la matriz.
+    // El solo y la salida de la escucha también se ven en la matriz (y en el mezclador:
+    // MezclaViewModel::pflChanged sigue a `cambio`). Pasa poco: la matriz entera.
+    bool solo = false;
     if (m.pfl != pflVisto_ || m.pflModo != pflModoVisto_ || m.salidaEscucha != salidaEscuchaVista_) {
         pflVisto_ = m.pfl;
         pflModoVisto_ = m.pflModo;
         salidaEscuchaVista_ = m.salidaEscucha;
-        ruteo = true;
+        solo = true;
     }
     if (anotada) guardarLuego_.start();
-    if (ruteo) emit cambio();
+    if (solo) {
+        emit cambio(); // (rearma todas las filas)
+    } else if (!tocadas.empty()) {
+        // Lo que cambió de unas fuentes (lo pidió quien sea: el MCP, otra superficie): solo
+        // sus filas. Sin `cambio`: las columnas no cambiaron, y el mezclador ve la foto solo.
+        for (const std::string& f : tocadas) rearmarFila(f);
+        rearmarUltimas();
+    }
 }
 
 Matriz::Bus* Matriz::buscar(const std::string& id) {
@@ -337,8 +371,9 @@ void Matriz::refrescar() {
     const std::vector<std::string> antes = filas_;
     filas_ = fuentesConAudio();
     // Las que aparecieron reciben lo guardado; las que se fueron, al volver, otra vez.
+    // (filas_ está ordenada: búsqueda binaria, no un recorrido por cada una.)
     for (auto it = aplicadas_.begin(); it != aplicadas_.end();)
-        it = std::find(filas_.begin(), filas_.end(), *it) == filas_.end() ? aplicadas_.erase(it) : std::next(it);
+        it = !std::binary_search(filas_.begin(), filas_.end(), *it) ? aplicadas_.erase(it) : std::next(it);
     for (const auto& f : filas_)
         if (!aplicadas_.contains(f)) aplicarGuardado(f);
     sincronizarTomas();
@@ -349,14 +384,81 @@ void Matriz::refrescar() {
     emit cambio();
 }
 
-QVariantList Matriz::filas() const {
-    QVariantList out;
+std::set<std::string> Matriz::nombresVirtuales() const {
     std::set<std::string> virtuales;
     for (const auto& b : buses_)
         if (b->tipo == "entrada") virtuales.insert(b->nombre);
-    for (const auto& f : filas_)
-        out.push_back(QVariantMap{{"nombre", QString::fromStdString(f)}, {"virtual", virtuales.contains(f)}});
+    return virtuales;
+}
+
+QVariantMap Matriz::crucesDe(const std::string& f) const {
+    // Los cruces de UNA fila: sus pistas, la escucha (fija o en solo) y sus envíos a buses
+    // (envios_ está ordenado por fuente: solo los suyos).
+    QVariantMap out;
+    const std::uint32_t mx = mascara(f);
+    const bool oye = escucha(f);
+    const bool pfl = !f.empty() && enPfl() == f;
+    if (oye || pfl) out[QStringLiteral("escucha")] = QVariantMap{{"activo", oye}, {"pfl", pfl}};
+    for (int i = 0; i < kPistas; ++i)
+        if ((mx & (1u << i)) != 0) out[QString("pista%1").arg(i + 1)] = QVariantMap{{"activo", true}};
+    for (auto it = envios_.lower_bound({f, std::string()}); it != envios_.end() && it->first.first == f; ++it) {
+        const Envio& e = it->second;
+        out[QString::fromStdString(it->first.second)] = QVariantMap{{"activo", true},
+                                                                    {"ajustes", e.ajustes},
+                                                                    {"nivelDb", e.nivelDb},
+                                                                    {"pan", e.pan},
+                                                                    {"mute", e.mute},
+                                                                    {"retardo_ms", retardoBusMs()}};
+    }
     return out;
+}
+
+QVariantMap Matriz::filaDe(const std::string& f, const std::set<std::string>& virtuales) const {
+    return QVariantMap{{"nombre", QString::fromStdString(f)}, {"esVirtual", virtuales.contains(f)}, {"cruces", crucesDe(f)}};
+}
+
+QVariantList Matriz::filas() const {
+    QVariantList out;
+    const std::set<std::string> virtuales = nombresVirtuales();
+    for (const auto& f : filas_) out.push_back(filaDe(f, virtuales));
+    return out;
+}
+
+QObject* Matriz::filasQml() const { return filasModelo_; }
+
+void Matriz::rearmarFilas() {
+    if (filasModelo_ == nullptr) return;
+    filasRearmadas_ += filas_.size();
+    filasModelo_->poner(filas()); // compara por nombre: avisa solo las filas que cambiaron
+    rearmarUltimas();
+}
+
+void Matriz::rearmarFila(const std::string& f) {
+    if (filasModelo_ == nullptr) return;
+    // filas_ está ordenada y el modelo tiene el mismo orden: la fila de `f`, por búsqueda binaria.
+    const auto it = std::lower_bound(filas_.begin(), filas_.end(), f);
+    if (it == filas_.end() || *it != f) return; // no es una fila (todavía)
+    ++filasRearmadas_;
+    if (!filasModelo_->ponerEn(static_cast<int>(it - filas_.begin()), filaDe(f, nombresVirtuales())))
+        rearmarFilas(); // el modelo no estaba como filas_ (no debería pasar): entero
+}
+
+void Matriz::rearmarUltimas() {
+    // De los cruces que ya tiene cada fila del modelo (sin volver a armarlos).
+    QVariantMap u;
+    const int n = filasModelo_ != nullptr ? filasModelo_->rowCount() : 0;
+    for (int i = 0; i < n; ++i) {
+        const QVariantMap c = filasModelo_->fila(i).value(QStringLiteral("cruces")).toMap();
+        for (auto it = c.cbegin(); it != c.cend(); ++it)
+            if (it.value().toMap().value(QStringLiteral("activo")).toBool()) u[it.key()] = i;
+    }
+    if (u == ultimasFilas_) return;
+    ultimasFilas_ = std::move(u);
+    emit ultimasFilasCambio();
+}
+
+QVariantMap Matriz::cruce(const QString& fuente, const QString& bus) const {
+    return crucesDe(fuente.toStdString()).value(bus).toMap();
 }
 
 namespace {
@@ -365,9 +467,11 @@ QString nombreEscucha() {
     BroadcastEngine* e = motor();
     // La foto del motor: no espera su candado (ver Motor::instantanea).
     const auto foto = e != nullptr && e->motor() != nullptr ? e->motor()->instantanea() : nullptr;
-    const nlohmann::json st = foto ? *foto : nlohmann::json();
-    const nlohmann::json es = st.is_object() ? st.value("escucha", nlohmann::json::object()) : nlohmann::json::object();
-    const std::string d = es.is_object() ? es.value("dispositivo", std::string()) : std::string();
+    // (Sin copiar la foto entera del motor: solo se mira su «escucha».)
+    std::string d;
+    if (foto && foto->is_object())
+        if (const auto es = foto->find("escucha"); es != foto->end() && es->is_object())
+            d = es->value("dispositivo", std::string());
     return d.empty() || d == "default" ? QCoreApplication::translate("matriz", "la salida del sistema") : QString::fromStdString(d);
 }
 } // namespace
@@ -440,8 +544,9 @@ QStringList Matriz::enviosDe(const QString& fuente) const {
     const std::uint32_t mx = mascara(f);
     for (int i = 0; i < kPistas; ++i)
         if ((mx & (1u << i)) != 0) out << QString("pista%1").arg(i + 1);
-    for (const auto& [k, e] : envios_)
-        if (k.first == f) out << QString::fromStdString(k.second);
+    // envios_ está ordenado por fuente: solo los suyos (se pide por cada tira del mezclador).
+    for (auto it = envios_.lower_bound({f, std::string()}); it != envios_.end() && it->first.first == f; ++it)
+        out << QString::fromStdString(it->first.second);
     return out;
 }
 
@@ -518,23 +623,28 @@ QString Matriz::ponerSalidaEscucha(const QString& salida) {
 }
 
 bool Matriz::anotar(const std::string& f) const {
-    const FotoMotor* fo = foto();
-    const FotoMotor::CanalAudio* k = fo != nullptr ? fo->mezcla.canal(f) : nullptr;
-    if (k == nullptr) return false;
-    Canal& c = canales_[f];
+    const FotoMotor::CanalAudio* k = canalDe(f);
+    return k != nullptr && anotar(*k, foto()->mezcla);
+}
+
+bool Matriz::anotar(const FotoMotor::CanalAudio& k, const FotoMotor::MezclaAudio& m) const {
+    // Del canal que ya se tiene (sin buscarlo otra vez por nombre: MezclaAudio::volumen y
+    // mudo recorren la lista).
+    Canal& c = canales_[k.nombre];
     const Canal antes = c;
-    c.pistas = k->pistas;
-    c.escucha = k->escuchaFija;
-    c.volumen = fo->mezcla.volumen(f);
-    c.mute = fo->mezcla.mudo(f);
-    c.retardoMs = k->retardoMs;
+    c.pistas = k.pistas;
+    c.escucha = k.escuchaFija;
+    const auto v = k.volumen.find(m.porOmision);
+    c.volumen = v != k.volumen.end() ? v->second : 1.0f;
+    const auto u = k.mudo.find(m.porOmision);
+    c.mute = u != k.mudo.end() && u->second;
+    c.retardoMs = k.retardoMs;
     return antes.pistas != c.pistas || antes.escucha != c.escucha || antes.volumen != c.volumen || antes.mute != c.mute ||
            antes.retardoMs != c.retardoMs;
 }
 
 void Matriz::aplicarGuardado(const std::string& f) {
-    const FotoMotor* fo = foto();
-    const FotoMotor::CanalAudio* k = fo != nullptr ? fo->mezcla.canal(f) : nullptr;
+    const FotoMotor::CanalAudio* k = canalDe(f);
     if (k == nullptr) return;
     altas_[f] = k->altas;
     const auto it = canales_.find(f);
@@ -613,8 +723,8 @@ QString Matriz::setCruce(const QString& fuenteQ, const QString& busQ, bool activ
 }
 
 QString Matriz::alternar(const QString& fuente, const QString& bus) {
-    const QVariantMap c = cruces().value(fuente + "|" + bus).toMap();
-    return setCruce(fuente, bus, !c.value("activo").toBool());
+    // Solo ese cruce (no la matriz entera).
+    return setCruce(fuente, bus, !cruce(fuente, bus).value("activo").toBool());
 }
 
 void Matriz::setAjustes(const QString& fuente, const QString& bus, bool on) {
@@ -1042,14 +1152,18 @@ void Matriz::leerMedidores() {
     for (const auto& [id, pk] : picosEquipo_)
         m["bus:" + QString::fromStdString(id)] = linealADb(pk->load());
     // Pistas nativas: el máximo de lo que les llega (sin tocar el audio).
-    for (int i = 0; i < kPistas; ++i) {
-        double mx = -100.0;
-        for (const auto& f : filas_) {
-            const bool va = (mascara(f) & (1u << i)) != 0 && !fo->mezcla.mudo(f);
-            if (va) mx = std::max(mx, picos[f]);
-        }
-        m[QString("bus:pista%1").arg(i + 1)] = mx;
+    // (Una pasada por fila, con el canal por índice: antes, por cada pista y cada fila,
+    // MezclaAudio::mudo recorría la lista: O(6·N²) en cada vuelta de los medidores.)
+    double maxPista[kPistas];
+    std::fill(std::begin(maxPista), std::end(maxPista), -100.0);
+    for (const auto& f : filas_) {
+        const std::uint32_t mk = mascara(f);
+        if (mk == 0 || indice_.mudo(fo->mezcla, f)) continue;
+        const double p = picos[f];
+        for (int i = 0; i < kPistas; ++i)
+            if ((mk & (1u << i)) != 0) maxPista[i] = std::max(maxPista[i], p);
     }
+    for (int i = 0; i < kPistas; ++i) m[QString("bus:pista%1").arg(i + 1)] = maxPista[i];
     medidores_ = m;
     emit medidoresCambio();
 }

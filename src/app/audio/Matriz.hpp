@@ -72,12 +72,14 @@
 #include <nlohmann/json.hpp>
 
 #include "comun/UsoPorVistas.hpp"
+#include "emision/FotoMotor.hpp"
+#include "emision/IndiceCanales.hpp"
 #include "ui/CapturaError.hpp"
 
 namespace ba::app {
 class AppRuntime;
 class VentanillaMotor;
-struct FotoMotor;
+class ListaObjetos;
 } // namespace ba::app
 
 namespace ba::app::audio {
@@ -91,12 +93,18 @@ class Matriz : public QObject {
         if (!e.isEmpty() && !::ba::app::CapturaError::tomar(e)) emit aviso(e);
     }
     void avisarError(const std::string& e) { avisarError(QString::fromStdString(e)); }
-    /// [{nombre, virtual: bool}]
-    Q_PROPERTY(QVariantList filas READ filas NOTIFY cambio)
+    /// Las filas, como MODELO (ui/ListaObjetos, clave «nombre»): cada una {nombre, esVirtual,
+    /// cruces: {bus: {activo, ajustes, nivelDb, pan, mute, retardo_ms, pfl}}}. Avisa por fila
+    /// y por rol: un cruce que cambia (lo pida quien sea) toca SOLO su fila, no la matriz
+    /// entera (antes era una QVariantList que se rearmaba en cada lectura, y los bindings la
+    /// leían con cada foto: con 200 invitados, segundos de interfaz trabada).
+    Q_PROPERTY(QObject* filas READ filasQml CONSTANT)
     /// [{id, nombre, tipo: pista|salida|entrada, indice, uso, dispositivo, salida, fuente}]
     Q_PROPERTY(QVariantList columnas READ columnas NOTIFY cambio)
-    /// "fuente|bus" -> {activo, ajustes, nivelDb, pan, mute}
-    Q_PROPERTY(QVariantMap cruces READ cruces NOTIFY cambio)
+    /// {bus: índice de la última fila que le manda}: hasta dónde llega el cable de luz de una
+    /// columna. Se arma en C++ (no recorriendo todas las filas en un binding) y avisa solo si
+    /// cambió.
+    Q_PROPERTY(QVariantMap ultimasFilas READ ultimasFilas NOTIFY ultimasFilasCambio)
     /// "fila:<fuente>" / "bus:<id>" -> pico en dBFS (solo con la matriz a la vista).
     Q_PROPERTY(QVariantMap medidores READ medidores NOTIFY medidoresCambio)
     /// Dispositivos de salida del equipo: [{id, nombre}].
@@ -121,9 +129,19 @@ class Matriz : public QObject {
                     QObject* parent = nullptr);
     ~Matriz() override;
 
+    /// Las filas como lista (el MCP, los tests); la vista usa el modelo (`filas`).
     QVariantList filas() const;
+    QObject* filasQml() const;
     QVariantList columnas() const;
+    /// "fuente|bus" -> {activo, ajustes, nivelDb, pan, mute, retardo_ms, pfl}: TODA la matriz
+    /// (para el MCP). La vista lee los cruces de cada fila en su rol; `cruce`, uno solo.
     QVariantMap cruces() const;
+    /// Un cruce ({} si no está activo ni en solo), sin armar la matriz entera.
+    QVariantMap cruce(const QString& fuente, const QString& bus) const;
+    QVariantMap ultimasFilas() const { return ultimasFilas_; }
+    /// Cuántas filas se rearmaron desde que se creó (el test: una foto que cambia el ruteo
+    /// de UNA fuente rearma una, no las N).
+    std::uint64_t filasRearmadas() const { return filasRearmadas_; }
     /// El pico (dB) de un bus virtual o una salida física (los de las pistas los da
     /// el motor: Motor::niveles). -100 si no existe o no suena. Barato: para los
     /// vúmetros del Mezclador.
@@ -181,6 +199,7 @@ class Matriz : public QObject {
 
    signals:
     void cambio();
+    void ultimasFilasCambio();
     void medidoresCambio();
     /// Lo pedido al motor no salió (ya traducido): para el operador.
     void aviso(const QString& texto);
@@ -272,6 +291,28 @@ class Matriz : public QObject {
     void aplicarGuardado(const std::string& fuente);
     /// De la foto a canales_; true si cambió algo.
     bool anotar(const std::string& fuente) const;
+    bool anotar(const FotoMotor::CanalAudio& k, const FotoMotor::MezclaAudio& m) const;
+    /// El canal de la foto por su nombre, en O(1) (IndiceCanales).
+    const FotoMotor::CanalAudio* canalDe(const std::string& f) const;
+    mutable IndiceCanales indice_;
+    /// Los canales de la última foto que se miró (alCambiarFoto compara contra ellos y
+    /// trabaja solo con los que cambiaron).
+    Compartido<std::vector<FotoMotor::CanalAudio>> canalesVistos_;
+
+    // --- El modelo de filas (ver `filas`) ---
+    /// Una fila: {nombre, esVirtual, cruces}.
+    QVariantMap filaDe(const std::string& f, const std::set<std::string>& virtuales) const;
+    QVariantMap crucesDe(const std::string& f) const;
+    std::set<std::string> nombresVirtuales() const;
+    /// Todas las filas (cambió la lista, los buses o los envíos): O(filas).
+    void rearmarFilas();
+    /// Solo la de `f` (cambió su ruteo en la foto): O(1) en el modelo.
+    void rearmarFila(const std::string& f);
+    /// {bus: última fila que le manda}; avisa si cambió.
+    void rearmarUltimas();
+    ListaObjetos* filasModelo_ = nullptr;
+    QVariantMap ultimasFilas_;
+    std::uint64_t filasRearmadas_ = 0;
 
     AppRuntime* rt_ = nullptr;
     VentanillaMotor* v_ = nullptr;
