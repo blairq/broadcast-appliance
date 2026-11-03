@@ -67,7 +67,12 @@ ObjetoReplica::ObjetoReplica(ClienteReplica* cliente, const QString& id, const Q
         const QString t = a.at(1).toString();
         const char tipo = t.isEmpty() ? 'v' : t.at(0).toLatin1();
         tipos_.insert(nombre, tipo);
-        meta_->setValue(nombre, inicial(tipo));
+        if (QObject* l = cliente_->local(id_, QString::fromUtf8(nombre))) {
+            locales_.insert(nombre);
+            meta_->setValue(nombre, QVariant::fromValue(l));
+        } else {
+            meta_->setValue(nombre, inicial(tipo));
+        }
     }
     meta_->setValue(kRev, 0);
     for (const QJsonValue& m : esquema.value(QStringLiteral("metodos")).toArray()) {
@@ -132,13 +137,14 @@ void ObjetoReplica::leida(int indice) {
 
 void ObjetoReplica::escrita(int indice) {
     const QByteArray nombre = meta_->name(indice); // relativo a las propiedades dinámicas
-    if (nombre == kRev || nombresMetodos_.contains(nombre) || !tipos_.contains(nombre)) return;
+    if (nombre == kRev || nombresMetodos_.contains(nombre) || !tipos_.contains(nombre) || locales_.contains(nombre)) return;
     cliente_->poner(id_, QString::fromUtf8(nombre), meta_->value(nombre));
 }
 
 void ObjetoReplica::ponerValores(const QVariantMap& v) {
     abierto_ = true;
-    for (auto it = v.cbegin(); it != v.cend(); ++it) meta_->setValue(it.key().toUtf8(), it.value());
+    for (auto it = v.cbegin(); it != v.cend(); ++it)
+        if (!locales_.contains(it.key().toUtf8())) meta_->setValue(it.key().toUtf8(), it.value());
     pedirOtraVez();
 }
 
@@ -175,15 +181,29 @@ void ObjetoReplica::ponerFilas(const QVector<QVariantList>& nuevas) {
 void ObjetoReplica::pedirOtraVez() {
     // Lo que devuelven las funciones depende de los datos: si cambiaron, se vuelve a
     // preguntar (cada clave, como mucho dos veces por segundo).
+    // Solo lo que algún binding leyó hace poco (lo demás quedó de una vista que ya no está o
+    // de argumentos viejos), lo que no está ya en camino, y cada clave como mucho una vez por
+    // segundo: así un objeto que cambia seguido no inunda la conexión de pedidos.
     const qint64 ahora = QDateTime::currentMSecsSinceEpoch();
-    for (auto it = llamadas_.cbegin(); it != llamadas_.cend(); ++it) {
-        if (ahora - pedidoMs_.value(it.key()) < 500) continue;
-        pedidoMs_[it.key()] = ahora;
-        cliente_->llamar(id_, it.value().first, it.value().second);
+    for (auto it = llamadas_.begin(); it != llamadas_.end();) {
+        if (ahora - usadoMs_.value(it.key()) > 10000) {
+            cache_.remove(it.key());
+            pedidoMs_.remove(it.key());
+            usadoMs_.remove(it.key());
+            it = llamadas_.erase(it);
+            continue;
+        }
+        if (!enCamino_.contains(it.key()) && ahora - pedidoMs_.value(it.key()) >= 1000 && ahora - usadoMs_.value(it.key()) < 3000) {
+            pedidoMs_[it.key()] = ahora;
+            enCamino_.insert(it.key());
+            cliente_->llamar(id_, it.value().first, it.value().second);
+        }
+        ++it;
     }
 }
 
 void ObjetoReplica::resultado(const QString& clave, const QVariant& v) {
+    enCamino_.remove(clave);
     const auto it = cache_.constFind(clave);
     if (it != cache_.constEnd() && it.value() == v) return;
     cache_.insert(clave, v);
@@ -196,14 +216,18 @@ QVariant ObjetoReplica::replicaLlamar(const QString& nombre, const QVariantList&
         return {};
     }
     const QString clave = cliente_->claveDe(nombre, args);
+    usadoMs_.insert(clave, QDateTime::currentMSecsSinceEpoch());
     if (!llamadas_.contains(clave)) {
         // Una función que cambia de argumentos todo el tiempo (con la hora) no llena la memoria.
         if (llamadas_.size() > 200) {
             llamadas_.clear();
             pedidoMs_.clear();
+            usadoMs_.clear();
+            enCamino_.clear();
         }
         llamadas_.insert(clave, {nombre, args});
         pedidoMs_.insert(clave, QDateTime::currentMSecsSinceEpoch());
+        enCamino_.insert(clave);
         cliente_->llamar(id_, nombre, args);
     }
     return cache_.value(clave);

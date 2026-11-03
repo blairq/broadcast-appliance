@@ -127,7 +127,7 @@ Rectangle {
                             cursorShape: Qt.PointingHandCursor
                             // El clic espera un instante: si llega el segundo, es doble (ventana).
                             onClicked: unClic.restart()
-                            onDoubleClicked: { unClic.stop(); barra.abrirVentana(fila.modelData) }
+                            onDoubleClicked: { unClic.stop(); if (!Theme.web) barra.abrirVentana(fila.modelData) }
                         }
                         Timer { id: unClic; interval: 240; onTriggered: barra.alternarTarjeta(fila.modelData) }
                         ToolTip.visible: ma.containsMouse && !barra.desplegada
@@ -149,7 +149,7 @@ Rectangle {
                         onClicked: barra.alternarTarjeta(fila.modelData)
                     }
                     GlassButton {
-                        visible: barra.desplegada
+                        visible: barra.desplegada && !Theme.web // la ventana se abriría en la máquina de la app
                         compact: true; text: qsTr("Ventana"); icon: "⧉"
                         onClicked: barra.abrirVentana(fila.modelData)
                     }

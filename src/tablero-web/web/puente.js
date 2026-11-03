@@ -8,8 +8,13 @@
 //   app → Module.baRecibir(texto)        módulo → window.baPuente.enviar(texto)
 // Al autenticarse se le avisa al módulo (Module.baConectado) y pide el modelo.
 //
-// Si el canal se cae y vuelve, se recarga la página: la app pudo haber reiniciado y los
-// objetos de antes ya no son los mismos (el .wasm sale de la caché del navegador).
+// SI SE CORTA (se reinicia la app o el gateway, cambia el evento, se cae la red): un aviso chico
+// «Reconectando…» arriba y el canal vuelve a probar solo, con espera creciente de 0,5 s a 5 s,
+// para siempre. Cuando vuelve a entrar (con el mismo token, sin PIN) se recarga la página una
+// vez: la app pudo haber reiniciado y los objetos de la réplica ya no son los mismos (el .wasm
+// sale de la caché, es un segundo). Lo mismo si la app reinició sin que se cayera el gateway:
+// lo dice un «auth» nuevo. Si el token ya no vale (lo quitaron en la app), se dice y se
+// ofrece emparejar de nuevo.
 // ============================================================================
 (() => {
   "use strict";
@@ -35,6 +40,8 @@
     $("aviso-enlace").classList.toggle("oculto", !opciones.enlace);
   }
   const sinAviso = () => $("aviso").classList.add("oculto");
+  const reconectando = (si) => $("reconectando").classList.toggle("oculto", !si);
+  const recargar = () => { reconectando(true); location.reload(); };
 
   function pedirModelo() {
     if (pedido || !modulo || !autenticado) return;
@@ -76,7 +83,48 @@
     if (sig) { pendiente.delete(m.clave); cuadro(sig); }
   }
 
+  // Lo que el aparato recuerda en la app (su registro: la disposición del tablero), como la
+  // superficie HTML: se manda el objeto entero, con lo de las otras páginas del aparato.
+  let preferencias = {};
+  const PREF_LOCAL = "ba-tablero-";
+
+  // Pantalla completa: la Fullscreen API (con su prefijo en Safari). En iPhone no existe para
+  // la página: lo que hay es agregarla a la pantalla de inicio (abre sin la barra).
+  const docEl = document.documentElement;
+  const enCompleta = () => !!(document.fullscreenElement || document.webkitFullscreenElement);
+  const avisarCompleta = () => { if (modulo) modulo.baPantallaCompleta(enCompleta()); };
+  document.addEventListener("fullscreenchange", avisarCompleta);
+  document.addEventListener("webkitfullscreenchange", avisarCompleta);
+
   window.baPuente = {
+    pantallaCompleta() {
+      try {
+        if (enCompleta()) {
+          (document.exitFullscreen || document.webkitExitFullscreen).call(document);
+          return "";
+        }
+        const pedir = docEl.requestFullscreen || docEl.webkitRequestFullscreen;
+        if (!pedir) {
+          return "En este aparato la pantalla completa se logra agregando la página a la pantalla de inicio "
+            + "(Compartir → Agregar a inicio) y abriéndola desde ahí.";
+        }
+        const r = pedir.call(docEl);
+        if (r && r.catch) r.catch(() => {});
+        return "";
+      } catch (e) {
+        return String(e && e.message ? e.message : e);
+      }
+    },
+    leerLocal(k) { try { return localStorage.getItem(PREF_LOCAL + k) || ""; } catch (_) { return ""; } },
+    guardarLocal(k, v) { try { localStorage.setItem(PREF_LOCAL + k, v); } catch (_) {} },
+    // La disposición del tablero de este aparato (en su registro de la app).
+    tablero() { return preferencias && preferencias.tablero ? JSON.stringify(preferencias.tablero) : ""; },
+    guardarTablero(texto) {
+      try {
+        preferencias = Object.assign({}, preferencias, { tablero: JSON.parse(texto) });
+        if (canal && autenticado) canal.mandar({ type: "preferencias", datos: preferencias });
+      } catch (e) { console.warn("tablero: no se pudo guardar la disposición", e); }
+    },
     enviar(texto) {
       if (!canal) return;
       try { canal.mandar(JSON.parse(texto)); } catch (e) { console.warn("tablero: no se pudo mandar", e); }
@@ -99,12 +147,17 @@
   canal = BAWs.abrir({
     rol: "control",
     auth: () => ({ token }),
-    alEntrar: () => {
-      if (seCayo) { location.reload(); return; }
+    esperaMinMs: 500, esperaMaxMs: 5000, reintentoMinMs: 500, reintentoMaxMs: 5000,
+    alEntrar: (m) => {
+      if (seCayo) { recargar(); return; }
       autenticado = true;
+      preferencias = (m && m.preferencias) || {};
       pedirModelo();
     },
+    alEspera: () => { if (seCayo || autenticado) reconectando(true); },
     alMensaje: (m) => {
+      // Un «auth» nuevo con la conexión viva: la app arrancó de nuevo (o cambió el perfil).
+      if (m.type === "auth" && m.ok && pedido) { recargar(); return; }
       if (m.type !== "replica") return;
       if (m.op === "cuadro") { if (modulo && pedido) cuadro(m); return; }
       const t = JSON.stringify(m);
@@ -112,13 +165,15 @@
       else cola.push(t);
     },
     alRechazo: (m) => {
+      reconectando(false);
       if (m.error_codigo !== "intentos") borrar(CLAVE_TOKEN);
-      aviso("Este aparato ya no está habilitado", m.error || "Emparejalo de nuevo desde el QR de la app.", { enlace: true });
+      aviso("Este aparato ya no está habilitado",
+            (m.error || "Lo quitaron en la app.") + " Emparejalo de nuevo desde el QR de la app.", { enlace: true });
     },
     alCaer: () => {
       if (autenticado) seCayo = true;
       autenticado = false;
-      aviso("Reconectando…", "Se cortó la conexión con la app.", { girando: true, encima: true });
+      if (seCayo) reconectando(true);
     },
   });
 

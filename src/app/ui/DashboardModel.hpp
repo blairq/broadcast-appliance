@@ -21,6 +21,7 @@
 #pragma once
 
 #include <QAbstractListModel>
+#include <QJsonObject>
 #include <QRect>
 #include <QRectF>
 #include <QStringList>
@@ -53,7 +54,17 @@ class DashboardModel : public QAbstractListModel {
    public:
     enum Roles { IdRole = Qt::UserRole + 1, KindRole, XRole, YRole, WRole, HRole, SourceRole, TitleRole };
 
+    /// De dónde se lee y dónde se guarda la disposición (un objeto JSON). La app: un archivo
+    /// (el otro constructor, en DashboardModelArchivo.cpp). El tablero web: el registro del
+    /// aparato en la app (cada aparato la suya; nunca la del tablero de la app).
+    struct Almacen {
+        std::function<QJsonObject()> leer;           ///< vacío = la de fábrica
+        std::function<void(const QJsonObject&)> guardar; ///< nulo = no se guarda
+    };
+    explicit DashboardModel(Almacen almacen, QObject* parent = nullptr);
     explicit DashboardModel(std::filesystem::path file, QObject* parent = nullptr);
+    /// Vuelve a leer del almacén (la web: llegó la disposición guardada del aparato).
+    void recargar();
     int rowCount(const QModelIndex& = {}) const override;
     QVariant data(const QModelIndex& index, int role) const override;
     QHash<int, QByteArray> roleNames() const override;
@@ -118,7 +129,7 @@ class DashboardModel : public QAbstractListModel {
     void defaults();
     int rowOf(int id) const;
 
-    std::filesystem::path file_;
+    Almacen almacen_;
     std::vector<Card> cards_;
     /// Las ocultas con la barra: dónde estaban y qué mostraban, para volver igual.
     std::vector<Card> ocultas_;

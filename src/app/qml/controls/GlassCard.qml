@@ -36,6 +36,13 @@ FocusScope {
     default property alias content: body.data
 
     property bool moving: dragHandler.active || resizeArea.pressed
+    // En el tablero web (Theme.web) la tarjeta es compacta: esquinas chicas, márgenes chicos y
+    // el título escondido en una barrita que se muestra al pasar el mouse o tocar la tarjeta.
+    readonly property bool compacta: Theme.web
+    readonly property int radio: compacta ? 6 : Theme.radius
+    property bool mostrarTitulo: !compacta || encima.hovered || tituloTocado.running || moving
+    HoverHandler { id: encima }
+    Timer { id: tituloTocado; interval: 2500 }
 
     x: area ? fx * area.width : 0
     y: area ? fy * area.height : 0
@@ -73,7 +80,7 @@ FocusScope {
     }
 
     // --- Sombra suave (MultiEffect: Qt 6.6 no tiene RectangularShadow) ------
-    Rectangle { id: shadowSrc; anchors.fill: parent; radius: Theme.radius; color: "black"; visible: false }
+    Rectangle { id: shadowSrc; anchors.fill: parent; radius: card.radio; color: "black"; visible: false }
     MultiEffect {
         anchors.fill: shadowSrc
         source: shadowSrc
@@ -100,7 +107,7 @@ FocusScope {
             visible: false
             live: true
         }
-        Rectangle { id: mask; anchors.fill: parent; radius: Theme.radius; visible: false; layer.enabled: true }
+        Rectangle { id: mask; anchors.fill: parent; radius: card.radio; visible: false; layer.enabled: true }
         MultiEffect {
             anchors.fill: parent
             source: behind
@@ -114,7 +121,7 @@ FocusScope {
         }
         Rectangle {
             anchors.fill: parent
-            radius: Theme.radius
+            radius: card.radio
             color: Theme.glassTint
             // EL BORDE DICE QUIEN TIENE EL TECLADO. Una tarjeta que responde a
             // las flechas y no se distingue de las otras es una forma de
@@ -134,14 +141,17 @@ FocusScope {
     Item {
         id: header
         anchors { left: parent.left; right: parent.right; top: parent.top }
-        height: 46
+        height: card.compacta ? 16 : 46
+        // Compacta: el título y la ✕ aparecen solo a la vista (la barrita igual se arrastra).
+        opacity: card.mostrarTitulo ? 1 : 0
+        Behavior on opacity { NumberAnimation { duration: 120 } }
 
         Text {
             id: titleText
-            anchors { left: parent.left; leftMargin: 18; verticalCenter: parent.verticalCenter }
+            anchors { left: parent.left; leftMargin: card.compacta ? 8 : 18; verticalCenter: parent.verticalCenter }
             text: card.title
             color: Theme.text
-            font { family: Theme.font; pixelSize: 16; weight: Font.DemiBold }
+            font { family: Theme.font; pixelSize: card.compacta ? 11 : 16; weight: Font.DemiBold }
         }
         Loader {
             id: accionesTituloSlot
@@ -164,7 +174,7 @@ FocusScope {
         Text {
             id: closeBtn
             visible: card.closable
-            anchors { right: parent.right; rightMargin: 14; verticalCenter: parent.verticalCenter }
+            anchors { right: parent.right; rightMargin: card.compacta ? 6 : 14; verticalCenter: parent.verticalCenter }
             text: "✕"
             color: closeMa.containsMouse ? Theme.text : Theme.textFaint
             font.pixelSize: 13
@@ -190,14 +200,14 @@ FocusScope {
     TapHandler {
         acceptedButtons: Qt.LeftButton | Qt.RightButton
         gesturePolicy: TapHandler.DragThreshold
-        onPressedChanged: if (pressed) card.forceActiveFocus()
+        onPressedChanged: if (pressed) { card.forceActiveFocus(); if (card.compacta) tituloTocado.restart() }
     }
 
     // --- Contenido --------------------------------------------------------------
     Item {
         id: body
         anchors { left: parent.left; right: parent.right; top: header.bottom; bottom: parent.bottom
-                  leftMargin: 16; rightMargin: 16; bottomMargin: 14 }
+                  leftMargin: card.compacta ? 6 : 16; rightMargin: card.compacta ? 6 : 16; bottomMargin: card.compacta ? 6 : 14 }
         clip: true
     }
 

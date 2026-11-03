@@ -312,12 +312,12 @@ QObject* SalidasViewModel::lista() const { return lista_.get(); }
 const QJsonArray& SalidasViewModel::filas() const { return lista_->items(); }
 
 escenas::Conmutador& SalidasViewModel::conmutadorActivo() const {
-    escenas::Conmutador* c = activa_.empty() ? nullptr : conmutadores_->de(activa_);
+    escenas::Conmutador* c = activaId().empty() ? nullptr : conmutadores_->de(activaId());
     return c != nullptr ? *c : *conmutador_;
 }
 
 QString SalidasViewModel::activa() const {
-    return qs(activa_.empty() ? std::string(BroadcastEngine::kSalidaPorOmision) : activa_);
+    return qs(activaId().empty() ? std::string(BroadcastEngine::kSalidaPorOmision) : activaId());
 }
 
 void SalidasViewModel::setActiva(const QString& id) {
@@ -349,11 +349,11 @@ QVariantMap SalidasViewModel::activaDatos() const {
 bool SalidasViewModel::varias() const { return lista_->count() > 1; }
 
 QString SalidasViewModel::claveProgramaActiva() const {
-    return activa_.empty() ? QStringLiteral("program") : "program:" + qs(activa_);
+    return activaId().empty() ? QStringLiteral("program") : "program:" + qs(activaId());
 }
 
 QString SalidasViewModel::claveArmadaActiva() const {
-    return activa_.empty() ? QStringLiteral("armada") : "armada:" + qs(activa_);
+    return activaId().empty() ? QStringLiteral("armada") : "armada:" + qs(activaId());
 }
 
 QVariantMap SalidasViewModel::nueva() const {
@@ -371,10 +371,10 @@ QVariantMap SalidasViewModel::nueva() const {
 }
 
 QVariantMap SalidasViewModel::aire() const {
-    const FotoMotor::Salida* s = p_.ventanilla.foto().salida(activa_);
+    const FotoMotor::Salida* s = p_.ventanilla.foto().salida(activaId());
     const bool alAireActiva = s != nullptr && s->sale;
     const EstadoAireViewModel& a = p_.aire;
-    if (activa_.empty())
+    if (activaId().empty())
         return {{"transmitiendo", a.streaming()},
                 {"grabando", a.recording()},
                 {"reconectando", a.reconnecting()},
@@ -392,7 +392,7 @@ QVariantMap SalidasViewModel::aire() const {
 }
 
 QVariantMap SalidasViewModel::placa() const {
-    const FotoMotor::Salida* s = p_.ventanilla.foto().salida(activa_);
+    const FotoMotor::Salida* s = p_.ventanilla.foto().salida(activaId());
     return s != nullptr ? mapaDe(s->placa) : QVariantMap{};
 }
 
@@ -516,14 +516,14 @@ void SalidasViewModel::setCodificador(const QString& id, const QString& codifica
 
 void SalidasViewModel::ftbUi(bool activar, int ms, const QString& audio) {
     // placaCambio llega con la foto (la placa de la activa).
-    pedir("aire_ftb", [&sa = *seguridadAire_, activar, ms, a = audio.toStdString(), salida = activa_](AppRuntime&) {
+    pedir("aire_ftb", [&sa = *seguridadAire_, activar, ms, a = audio.toStdString(), salida = activaId()](AppRuntime&) {
         return sa.ftb(activar, ms, a, salida);
     });
 }
 
 void SalidasViewModel::placaUi(bool activar, const QString& texto, const QString& imagen, int ms) {
     pedir("aire_placa",
-          [&sa = *seguridadAire_, activar, t = texto.toStdString(), i = imagen.toStdString(), ms, salida = activa_](AppRuntime&) {
+          [&sa = *seguridadAire_, activar, t = texto.toStdString(), i = imagen.toStdString(), ms, salida = activaId()](AppRuntime&) {
               return sa.placa(activar, t, i, ms, salida);
           });
 }

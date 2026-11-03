@@ -4,27 +4,9 @@
 R"json([
  {
   "o": "Studio",
-  "n": "focoEnTexto",
-  "tipo": "llamar",
-  "mcp": null
- },
- {
-  "o": "Studio",
   "n": "latidoPoliticaUi",
   "tipo": "llamar",
   "mcp": "supervisor_politica"
- },
- {
-  "o": "Studio",
-  "n": "notify",
-  "tipo": "llamar",
-  "mcp": null
- },
- {
-  "o": "Studio",
-  "n": "seccionConfig",
-  "tipo": "poner",
-  "mcp": null
  },
  {
   "o": "Studio.alarmas",
@@ -169,72 +151,6 @@ R"json([
   "n": "fila",
   "tipo": "llamar",
   "mcp": "participant_admit"
- },
- {
-  "o": "Studio.dashboard",
-  "n": "addCard",
-  "tipo": "llamar",
-  "mcp": null
- },
- {
-  "o": "Studio.dashboard",
-  "n": "alternarTarjeta",
-  "tipo": "llamar",
-  "mcp": null
- },
- {
-  "o": "Studio.dashboard",
-  "n": "background",
-  "tipo": "poner",
-  "mcp": null
- },
- {
-  "o": "Studio.dashboard",
-  "n": "backgroundDim",
-  "tipo": "poner",
-  "mcp": null
- },
- {
-  "o": "Studio.dashboard",
-  "n": "backgroundLayout",
-  "tipo": "poner",
-  "mcp": null
- },
- {
-  "o": "Studio.dashboard",
-  "n": "raise",
-  "tipo": "llamar",
-  "mcp": null
- },
- {
-  "o": "Studio.dashboard",
-  "n": "removeCard",
-  "tipo": "llamar",
-  "mcp": null
- },
- {
-  "o": "Studio.dashboard",
-  "n": "resetLayout",
-  "tipo": "llamar",
-  "mcp": null
- },
- {
-  "o": "Studio.dashboard",
-  "n": "setCardRect",
-  "tipo": "llamar",
-  "mcp": null
- },
- {
-  "o": "Studio.dashboard",
-  "n": "setCardSource",
-  "tipo": "llamar",
-  "mcp": null
- },
- {
-  "o": "Studio.dashboard",
-  "n": "snap",
-  "tipo": "llamar",
-  "mcp": null
  },
  {
   "o": "Studio.dsk",
@@ -459,20 +375,8 @@ R"json([
   "mcp": "guion_bloque"
  },
  {
-  "o": "Studio.extensiones",
-  "n": "cargada",
-  "tipo": "llamar",
-  "mcp": null
- },
- {
-  "o": "Studio.extensiones",
-  "n": "cargando",
-  "tipo": "llamar",
-  "mcp": null
- },
- {
-  "o": "Studio.extensiones",
-  "n": "tardo",
+  "o": "Studio.frames",
+  "n": "usar",
   "tipo": "llamar",
   "mcp": null
  },
@@ -598,6 +502,12 @@ R"json([
  },
  {
   "o": "Studio.linea",
+  "n": "usar",
+  "tipo": "llamar",
+  "mcp": null
+ },
+ {
+  "o": "Studio.linea",
   "n": "zoom",
   "tipo": "llamar",
   "mcp": "linea_go"
@@ -685,6 +595,12 @@ R"json([
   "n": "setVolumeDb",
   "tipo": "llamar",
   "mcp": "audio_set"
+ },
+ {
+  "o": "Studio.niveles",
+  "n": "usar",
+  "tipo": "llamar",
+  "mcp": null
  },
  {
   "o": "Studio.ordenDelDia",

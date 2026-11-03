@@ -101,7 +101,7 @@ Item {
                 text: conf.shares.count > 0 ? qsTr("📎 %n archivo compartido", "", conf.shares.count) : ""
                 color: Theme.textDim; font.pixelSize: 12; Layout.fillWidth: true
             }
-            GlassButton { text: qsTr("Abrir conferencia"); compact: true; onClicked: ApplicationWindow.window.showPage(2) }
+            GlassButton { visible: !Theme.web; text: qsTr("Abrir conferencia"); compact: true; onClicked: ApplicationWindow.window.showPage(2) }
         }
     }
 }

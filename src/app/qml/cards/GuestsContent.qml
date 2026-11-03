@@ -110,8 +110,9 @@ Item {
                             onTriggered: tarjeta.conectar(modelData.id)
                         }
                     }
-                    MenuSeparator {}
+                    MenuSeparator { visible: !Theme.web; height: visible ? implicitHeight : 0 }
                     MenuItem {
+                        visible: !Theme.web; height: visible ? implicitHeight : 0
                         text: qsTr("Configurar pinggy…")
                         onTriggered: { Studio.seccionConfig = "Pinggy"; ApplicationWindow.window.showPage((Studio.riel.paginaPorId["configuracion"] ?? -1)) }
                     }

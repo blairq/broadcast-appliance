@@ -10,7 +10,10 @@ Item {
     property string source: "program"
 
     Rectangle { anchors.fill: parent; radius: 14; color: "#000000" }
-    VideoItem { id: video; anchors.fill: parent; source: mon.source; fillMode: VideoItem.Fit }
+    // «program» y «armada» son los de la salida activa (en el tablero web, la del aparato).
+    VideoItem { id: video; anchors.fill: parent; fillMode: VideoItem.Fit
+                source: mon.source === "program" ? (Studio.salidas.claveProgramaActiva || "program")
+                      : mon.source === "armada" ? (Studio.salidas.claveArmadaActiva || "armada") : mon.source }
     Text {
         visible: !video.hasFrame
         anchors.centerIn: parent

@@ -4,7 +4,6 @@
 
 #include "ui/DashboardModel.hpp"
 
-#include "arranque/ArchivoConfigQt.hpp"
 #include "pantallas/Tarjetas.hpp"
 #include <QCoreApplication>
 #include <QSizeF>
@@ -36,8 +35,8 @@ const auto& kKinds = tarjetas::kTipos;
 
 } // namespace
 
-DashboardModel::DashboardModel(std::filesystem::path file, QObject* parent)
-    : QAbstractListModel(parent), file_(std::move(file)) {
+DashboardModel::DashboardModel(Almacen almacen, QObject* parent)
+    : QAbstractListModel(parent), almacen_(std::move(almacen)) {
     load();
     // Qué tipos están en el tablero (la barra de tarjetas los ilumina).
     connect(this, &QAbstractItemModel::rowsInserted, this, &DashboardModel::tarjetasCambio);
@@ -381,8 +380,18 @@ void DashboardModel::resetLayout() {
     save();
 }
 
+void DashboardModel::recargar() {
+    beginResetModel();
+    cards_.clear();
+    ocultas_.clear();
+    nextId_ = 1;
+    load();
+    endResetModel();
+    emit backgroundChanged();
+}
+
 void DashboardModel::load() {
-    const QJsonObject o = config::leerQObjeto(file_);
+    const QJsonObject o = almacen_.leer ? almacen_.leer() : QJsonObject();
     // Sin disposición guardada (archivo nuevo o roto): la de fábrica. Una lista vacía SÍ es una
     // disposición: el operador apagó todas las tarjetas y así tiene que volver.
     if (!o.value("cards").isArray()) {
@@ -417,7 +426,7 @@ void DashboardModel::save() const {
     // Ruta vacia = esta disposicion no se persiste. Es lo que pide el arranque
     // cuando ui.json se llevo puesto el arranque anterior: se trabaja con la
     // disposicion por defecto y NO se pisa el archivo, para poder mirarlo.
-    if (file_.empty()) return;
+    if (!almacen_.guardar) return;
     QJsonArray cards;
     for (const auto& c : cards_) {
         cards.append(QJsonObject{{"kind", c.kind},
@@ -436,7 +445,7 @@ void DashboardModel::save() const {
                         {"ocultas", ocultas},
                         {"background", QJsonArray::fromStringList(background_)},
                         {"backgroundDim", dim_}};
-    config::guardarQ(file_, o);
+    almacen_.guardar(o);
 }
 
 } // namespace ba::app

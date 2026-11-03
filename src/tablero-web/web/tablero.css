@@ -17,3 +17,8 @@ html, body { margin: 0; padding: 0; height: 100%; background: #16161a; overflow:
   animation: girar 0.9s linear infinite;
 }
 @keyframes girar { to { transform: rotate(360deg); } }
+#reconectando {
+  position: fixed; top: 6px; left: 50%; transform: translateX(-50%); z-index: 20;
+  padding: 3px 12px; border-radius: 6px; background: rgba(120, 90, 10, 0.92); color: #fff;
+  font: 12px system-ui, -apple-system, "Segoe UI", sans-serif; pointer-events: none;
+}

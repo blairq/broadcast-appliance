@@ -170,6 +170,8 @@
     canal = BAWs.abrir({
       rol: "control",
       auth: () => (leer(CLAVE_TOKEN) ? { token: leer(CLAVE_TOKEN) } : null),
+      // Si la app o el gateway se reinician: volver pronto (0,5 s… 5 s), sin olvidar el token.
+      esperaMinMs: 500, esperaMaxMs: 5000, reintentoMinMs: 500, reintentoMaxMs: 5000,
       alEntrar: recibir,
       alMensaje: recibir,
       alRechazo: recibir,

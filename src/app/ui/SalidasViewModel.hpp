@@ -153,7 +153,21 @@ class SalidasViewModel : public QObject {
     QString activa() const;
     void setActiva(const QString& id);
     /// La activa como la anota el motor: "" = la por omisión.
-    const std::string& activaId() const { return activa_; }
+    const std::string& activaId() const { return hayContexto_ ? contexto_ : activa_; }
+    /// Mientras dure: la salida «activa» es `salida` para todo lo que la lee (los getters, lo
+    /// que hacen los botones), SIN avisar ni cambiar la de esta interfaz. Es cómo la app atiende
+    /// a un aparato del tablero web que maneja otra salida (control/ReplicaPublicador). ""
+    /// = la por omisión. Devuelve con qué volver a lo de antes.
+    std::function<void()> contexto(const std::string& salida) {
+        const bool habia = hayContexto_;
+        std::string antes = contexto_;
+        hayContexto_ = true;
+        contexto_ = salida == "principal" ? std::string() : salida; // la por omisión se anota ""
+        return [this, habia, antes]() {
+            hayContexto_ = habia;
+            contexto_ = antes;
+        };
+    }
     QVariantMap activaDatos() const;
     bool varias() const;
     QString claveProgramaActiva() const;
@@ -258,6 +272,8 @@ class SalidasViewModel : public QObject {
     std::unique_ptr<emision::SeguridadAire> seguridadAire_; ///< FTB y placa (modelo)
     /// La activa: "" = la por omisión.
     std::string activa_;
+    std::string contexto_;   ///< la de contexto() (un aparato del tablero web)
+    bool hayContexto_ = false;
     int tope_ = 0;
     QVariantMap nuevaAntes_; ///< lo último avisado de nueva
     QVariantMap aire_;            ///< lo último avisado de aire

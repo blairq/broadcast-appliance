@@ -6703,7 +6703,7 @@ El PIN anterior deja de servir para entrar.</source>
 <context>
     <name>DashboardPage</name>
     <message>
-        <location filename="../src/app/qml/pages/DashboardPage.qml" line="+74" />
+        <location filename="../src/app/qml/pages/DashboardPage.qml" line="+75" />
         <source>Escena: %1   ·   %2</source>
         <translation>场景：%1   ·   %2</translation>
     </message>
@@ -12717,7 +12717,7 @@ Se cambia en su código (sección Plugins, o pidiéndoselo al asistente). Acá s
         <translation>将会议接入互联网，以便外部嘉宾进入。</translation>
     </message>
     <message>
-        <location line="+14" />
+        <location line="+15" />
         <source>Configurar pinggy…</source>
         <translation>设置 pinggy…</translation>
     </message>
@@ -16229,7 +16229,7 @@ La matriz no cambia lo que entra: decide a qué salidas va (las columnas: el pro
 <context>
     <name>MixerContent</name>
     <message>
-        <location filename="../src/app/qml/cards/MixerContent.qml" line="+78" />
+        <location filename="../src/app/qml/cards/MixerContent.qml" line="+79" />
         <source>Audio ›</source>
         <translation>音频 ›</translation>
     </message>
@@ -16239,7 +16239,7 @@ La matriz no cambia lo que entra: decide a qué salidas va (las columnas: el pro
         <translation>「音频」选项卡：每个输入的处理链和滤镜、矩阵和输出。</translation>
     </message>
     <message>
-        <location line="+7" />
+        <location line="+8" />
         <source>⧉ Mezclador</source>
         <translation>⧉ 调音台</translation>
     </message>
@@ -16602,7 +16602,7 @@ La matriz no cambia lo que entra: decide a qué salidas va (las columnas: el pro
 <context>
     <name>MonitorContent</name>
     <message>
-        <location filename="../src/app/qml/cards/MonitorContent.qml" line="+17" />
+        <location filename="../src/app/qml/cards/MonitorContent.qml" line="+20" />
         <source>Sin señal</source>
         <translation>无信号</translation>
     </message>
@@ -17434,6 +17434,14 @@ La matriz no cambia lo que entra: decide a qué salidas va (las columnas: el pro
         <location line="+2" />
         <source>Seguir grabando</source>
         <translation>继续录制</translation>
+    </message>
+</context>
+<context>
+    <name>Pagina</name>
+    <message>
+        <location filename="../src/tablero-web/Pagina.cpp" line="+18" />
+        <source>No se pudo.</source>
+        <translation>无法完成。</translation>
     </message>
 </context>
 <context>
@@ -31714,7 +31722,12 @@ Doble clic: cortar al aire ya</source>
 双击：立即切到在播</translation>
     </message>
     <message>
-        <location line="+25" />
+        <location line="+29" />
+        <source>%1 · AL AIRE · %2</source>
+        <translation>%1 · 播出中 · %2</translation>
+    </message>
+    <message>
+        <location line="+1" />
         <source>AL AIRE · %1</source>
         <translation>在播 · %1</translation>
     </message>
@@ -34413,7 +34426,7 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
         <translation>无响应</translation>
     </message>
     <message>
-        <location line="+132" />
+        <location line="+137" />
         <source>Conferencia reiniciada con la configuración nueva.</source>
         <translation>会议已使用新设置重启。</translation>
     </message>
@@ -34986,12 +34999,7 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
 <context>
     <name>TableroWeb</name>
     <message>
-        <location filename="../src/tablero-web/qml/TableroWeb.qml" line="+39" />
-        <source>Eso se hace en la app.</source>
-        <translation>这要在应用里操作。</translation>
-    </message>
-    <message>
-        <location line="+11" />
+        <location filename="../src/tablero-web/qml/TableroWeb.qml" line="+48" />
         <source>¿Cortar la transmisión?</source>
         <translation>停止直播？</translation>
     </message>
@@ -35008,11 +35016,12 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
     <message>
         <location line="+1" />
         <location line="+15" />
+        <location line="+59" />
         <source>Cancelar</source>
         <translation>取消</translation>
     </message>
     <message>
-        <location line="-3" />
+        <location line="-62" />
         <source>Cambia el aire</source>
         <translation>这会改变正在播出的内容</translation>
     </message>
@@ -35022,7 +35031,52 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
         <translation>是，执行</translation>
     </message>
     <message>
-        <location line="+26" />
+        <location line="+46" />
+        <source>▾ Mostrar monitores</source>
+        <translation>▾ 显示监视器</translation>
+    </message>
+    <message>
+        <location line="+0" />
+        <source>▴ Ocultar monitores</source>
+        <translation>▴ 隐藏监视器</translation>
+    </message>
+    <message>
+        <location line="+4" />
+        <source>▦ Disposición</source>
+        <translation>▦ 布局</translation>
+    </message>
+    <message>
+        <location line="+5" />
+        <source>Restablecer la disposición de este aparato</source>
+        <translation>重置此设备的布局</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>¿Restablecer la disposición?</source>
+        <translation>重置布局？</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Las tarjetas de este aparato vuelven a como vinieron de fábrica. El tablero de la app no cambia.</source>
+        <translation>此设备的卡片恢复为出厂布局。应用的仪表板不会改变。</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Restablecer</source>
+        <translation>重置</translation>
+    </message>
+    <message>
+        <location line="+8" />
+        <source>⤡ Salir de pantalla completa</source>
+        <translation>⤡ 退出全屏</translation>
+    </message>
+    <message>
+        <location line="+0" />
+        <source>⤢ Pantalla completa</source>
+        <translation>⤢ 全屏</translation>
+    </message>
+    <message>
+        <location line="+37" />
         <source>PREVIEW · %1</source>
         <translation>预览 · %1</translation>
     </message>
@@ -35037,7 +35091,7 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
         <translation>TAKE</translation>
     </message>
     <message>
-        <location line="+17" />
+        <location line="+16" />
         <source>CUT</source>
         <translation>CUT</translation>
     </message>
@@ -45022,7 +45076,7 @@ Elegí otra cosa en Salidas → Pantallas.</source>
     </message>
     <message>
         <location line="-57" />
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="-931" />
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="-936" />
         <source>arranque: %1 tardó %2 ms</source>
         <translation>启动：%1 耗时 %2 毫秒</translation>
     </message>
@@ -57059,7 +57113,7 @@ Datos (de %2): %3</source>
         <translation>否</translation>
     </message>
     <message>
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="+965" />
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="+970" />
         <source>«%1» no arrancó al abrir: %2</source>
         <translation>「%1」打开时未启动：%2</translation>
     </message>

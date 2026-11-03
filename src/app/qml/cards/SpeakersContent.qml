@@ -164,7 +164,7 @@ Item {
             StatusPill { text: conf.speakerMode ? qsTr("Modo oradores") : qsTr("Oradores apagado"); dot: conf.speakerMode ? Theme.ok : Theme.textFaint }
             Item { Layout.fillWidth: true }
             GlassButton { visible: conf.speakerMode; text: qsTr("Siguiente ▶"); compact: true; onClicked: conf.speakerNext() }
-            GlassButton { text: qsTr("Abrir conferencia"); compact: true; onClicked: ApplicationWindow.window.showPage(2) }
+            GlassButton { visible: !Theme.web; text: qsTr("Abrir conferencia"); compact: true; onClicked: ApplicationWindow.window.showPage(2) }
         }
         Text {
             visible: root.vista === "remotos" && conf.onAir.length === 0

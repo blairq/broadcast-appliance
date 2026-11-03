@@ -111,6 +111,7 @@ class ControlWebBorde {
     Evento alApp_;
     mutable std::mutex mu_;
     std::map<std::string, Credencial> credenciales_;
+    bool conCredenciales_ = false; ///< la app ya pasó las credenciales (si no, todavía no se sabe)
     bool tunel_ = false;
     std::string tunelSal_, tunelHashPin_;
     std::map<std::string, Solicitud> solicitudes_;

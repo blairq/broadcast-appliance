@@ -26,6 +26,8 @@ qt_add_executable(ba-tablero
     ObjetoReplica.cpp ObjetoReplica.hpp
     VideoItemWeb.cpp VideoItemWeb.hpp
     Falsos.hpp
+    Pagina.cpp Pagina.hpp
+    ${BA_APP}/ui/DashboardModel.cpp ${BA_APP}/ui/DashboardModel.hpp
     # Los tipos de la app que andan igual en el navegador (sin motor ni red).
     ${BA_APP}/ui/Reloj.cpp ${BA_APP}/ui/Reloj.hpp
     ${BA_APP}/ui/FotosPersonas.cpp ${BA_APP}/ui/FotosPersonas.hpp
@@ -37,7 +39,8 @@ qt_add_executable(ba-tablero
     ${BA_APP}/ui/ChatHilo.cpp ${BA_APP}/ui/ChatHilo.hpp
     ${BA_APP}/ui/FilaViva.cpp ${BA_APP}/ui/FilaViva.hpp
 )
-target_include_directories(ba-tablero PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}" "${BA_APP}" "${BA_RAIZ}/src/core")
+target_include_directories(ba-tablero PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}" "${BA_APP}" "${BA_RAIZ}/src/core"
+                           "${BA_RAIZ}/extern/nlohmann-json/include")
 target_link_libraries(ba-tablero PRIVATE Qt6::Core Qt6::Gui Qt6::Qml Qt6::QmlPrivate Qt6::Quick Qt6::QuickControls2 Qt6::Svg)
 
 # --- La QML de la app, tal cual ------------------------------------------------------------

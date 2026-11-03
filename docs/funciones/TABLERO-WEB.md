@@ -25,16 +25,37 @@ par de segundos. Cuando sale una versión nueva de la app, la baja de nuevo una 
 
 ## Qué hay
 
-- **Preview y programa**, en vivo, con el **TAKE** y el **CUT** (en un teléfono parado,
-  uno debajo del otro).
-- **Las tarjetas del dashboard**, como estén acomodadas en la app: aire, escenas, fuentes,
-  mezclador, monitor, oradores, invitados, salidas, salud, PTZ, línea, dirección, PDF,
-  carrusel y lobby. Se pueden agregar, mover, achicar y cerrar como en la app (lo que se
-  cambia se ve en las dos: es la misma disposición).
-- **El fondo** del dashboard (las fuentes o la multivista elegida) y los avisos de la app.
+- **Una barra arriba**, siempre a la vista: un botón por **salida** (con su nombre y su
+  color; la elegida, marcada), **▴ Ocultar monitores**, **▦ Disposición** y **⤢ Pantalla
+  completa**.
+- **Preview y programa** de la salida elegida, en vivo, con el **TAKE** y el **CUT** (en un
+  teléfono parado, uno debajo del otro). Se pliegan con «▴ Ocultar monitores»: plegados, la
+  app deja de mandar esos videos.
+- **Las tarjetas del dashboard** (aire, escenas, fuentes, mezclador, monitor, oradores,
+  invitados, salidas, salud, PTZ, línea, dirección, PDF, carrusel y lobby), compactas: el
+  título aparece al pasar el mouse o tocar la tarjeta.
 
-Lo que es de la máquina donde corre la app no aparece en la web: sacar algo a una ventana,
-abrir otra página de la app, el asistente. Esos botones dicen «Eso se hace en la app.».
+### Un tablero propio por aparato
+
+El tablero web **no es el de la app**: las tarjetas que se abren, cierran, mueven o achican, y
+el fondo, son de ese aparato. Se guardan en su registro de la app (vuelven aunque se borre el
+navegador o se reinicie la app) y nunca cambian el tablero de la pantalla de la app. «▦
+Disposición → Restablecer» lo deja como vino de fábrica.
+
+### Salidas múltiples
+
+Con varias salidas, el aparato **maneja la que elige arriba**: escenas, preview, programa,
+TAKE, línea… todo el tablero trabaja sobre esa salida, sin cambiar la que tiene elegida la
+app. La elegida se recuerda por aparato (es la misma que en el control web HTML).
+
+### Pantalla completa
+
+«⤢ Pantalla completa» usa la del navegador. En iPhone y iPad la página no puede ponerse en
+pantalla completa sola: agregala a la pantalla de inicio (Compartir → Agregar a inicio) y
+abrila desde ahí.
+
+Lo que es de la máquina donde corre la app no está en la web: sacar algo a una ventana, abrir
+otra página de la app, el asistente.
 
 ## El video
 
@@ -63,7 +84,7 @@ cuadros por segundo, unos 3 Mbit/s).
   sacada de las mismas tarjetas): nada más del programa. Cada botón sigue las reglas de la
   herramienta equivalente del asistente: el perfil del aparato y, si cambia lo que sale y
   hay aire (transmisión o grabación), la misma pregunta «Cambia el aire» que el control web.
-- Lo que se cambia desde la web (TAKE, una escena, un volumen, mover una tarjeta) queda en
+- Lo que se cambia desde la web (TAKE, una escena, un volumen) queda en
   el registro con el nombre del aparato, y también lo que se intentó y no se dejó.
 - Nunca salen por ahí claves, cuentas ni los datos de los otros aparatos.
 

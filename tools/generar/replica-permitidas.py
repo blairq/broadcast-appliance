@@ -75,15 +75,18 @@ EQUIVALENTES = {
     "Studio.latidoPoliticaUi": "supervisor_politica",
 }
 # Lo que es solo de la vista (acomodar el tablero, el fondo, avisar): sin herramienta, sin aire.
-SOLO_VISTA = {
-    "Studio.dashboard.*", "Studio.notify", "Studio.focoEnTexto", "Studio.extensiones.*",
-    "Studio.riel.*", "Studio.seccionConfig", "Studio.multivistas.*",
-}
+SOLO_VISTA = {"Studio.multivistas.*"}
 # Lo que el tablero no hace nunca aunque la QML lo nombre: es de la máquina de la app o de los
 # objetos que la réplica no publica (StudioViewModel: replica_->negar).
 NUNCA = {"Studio.ventanas", "Studio.escritorio", "Studio.copiar", "Studio.catalogo", "Studio.control",
          "Studio.botonera", "Studio.accesoRemoto", "Studio.settings", "Studio.cuentas", "Studio.controlWeb",
-         "Studio.agent", "Studio.asistente"}
+         "Studio.agent", "Studio.asistente",
+         # El estado de la VISTA de la app: en el tablero web es local (la disposición, el fondo y
+         # las tarjetas son del aparato: Studio.dashboard es suyo, src/tablero-web/main.cpp) o
+         # no existe (la página de configuración, el riel, el foco, el diario de extensiones,
+         # los avisos en la pantalla de la app).
+         "Studio.dashboard", "Studio.seccionConfig", "Studio.riel", "Studio.focoEnTexto", "Studio.extensiones",
+         "Studio.notify"}
 # Funciones de JavaScript sobre un valor (una lista, un texto, un número), no del modelo.
 DE_JS = {"indexOf", "lastIndexOf", "map", "filter", "some", "every", "slice", "splice", "startsWith", "endsWith",
          "join", "toUpperCase", "toLowerCase", "toFixed", "includes", "find", "findIndex", "forEach", "reduce",
@@ -92,6 +95,9 @@ DE_JS = {"indexOf", "lastIndexOf", "map", "filter", "some", "every", "slice", "s
 RE_ALIAS = re.compile(r"property\s+\w+\s+(\w+)\s*:\s*(Studio(?:\.\w+)+)\s*$", re.M)
 RE_LLAMADA = re.compile(r"\b(Studio(?:\.\w+)+)\s*\(")
 RE_ESCRITURA = re.compile(r"\b(Studio(?:\.\w+)+)\s*(?:=|\+=|-=)(?!=)")
+# Las suscripciones (controls/Suscripcion.qml): «miro esto», para que la app lo mida o lo pida
+# solo mientras alguien mira. Llaman a objetivo.usar(vista, si, que): es una lectura.
+RE_SUSCRIPCION = re.compile(r"Suscripcion\s*\{[^}]*?objetivo:\s*(Studio(?:\.\w+)+)")
 RE_TIPO = re.compile(r"(?<![\w.])([A-Z]\w+)\s*\{")
 
 
@@ -141,6 +147,13 @@ def juntar():
         for a, camino in alias.items():
             texto = re.sub(r"\b" + re.escape(a) + r"\.", camino + ".", texto)
         rel = os.path.relpath(f, RAIZ)
+        for objeto in RE_SUSCRIPCION.findall(texto):
+            if objeto in NUNCA or any(objeto.startswith(n + ".") for n in NUNCA):
+                continue
+            e = entradas.setdefault((objeto, "usar", "llamar"), {"o": objeto, "n": "usar", "tipo": "llamar", "mcp": None,
+                                                                 "donde": []})
+            if rel not in e["donde"]:
+                e["donde"].append(rel)
         for tipo, rx in (("llamar", RE_LLAMADA), ("poner", RE_ESCRITURA)):
             for camino in rx.findall(texto):
                 partes = camino.split(".")

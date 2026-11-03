@@ -39,6 +39,9 @@
 //   afuera se rechaza y queda en el registro.
 //   {op:"video", claves:[{clave, ancho, fps}]}  qué videos quiere (control/CuadrosWeb).
 //   {op:"webrtc"}                   el enlace del programa por WebRTC (/cast/?token=…).
+//   Salidas múltiples: cada aparato maneja SU salida (la de ControlWeb, como la superficie
+//   HTML). Escribir `Studio.salidas.activa` desde la web la elige (no cambia la de la app) y
+//   todo lo que se lee o se hace por esa conexión es «como si» la activa fuera esa.
 //   {op:"lote", m:[…]}              varios de los de arriba juntos.
 //
 // app → aparato (siempre en {op:"lote", m:[…]}, en orden)
@@ -71,6 +74,7 @@
 #include <deque>
 #include <functional>
 #include <map>
+#include <memory>
 #include <set>
 #include <string>
 #include <unordered_map>
@@ -96,6 +100,14 @@ class ReplicaPublicador : public QObject {
         /// perfil y confirmación de aire) {ok} | {ok:false, error} | {ok:false, confirmar, texto}.
         /// Sin esto, todo lo de la lista se permite (las pruebas).
         std::function<json(const std::string& aparato, const std::string& herramienta, bool lectura, bool confirmado)> autorizar;
+        /// Las salidas múltiples: la que maneja el aparato (ControlWeb::salidaDe/setSalida, la
+        /// misma que la superficie HTML) y cómo hacer que la app responda «como si» su salida
+        /// activa fuera esa (SalidasViewModel::contexto: devuelve con qué volver).
+        std::function<std::string(const std::string& aparato)> salidaDe;
+        std::function<std::string(const std::string& aparato, const std::string& salida)> setSalida;
+        std::function<std::function<void()>(const std::string& salida)> contexto;
+        /// El objeto de las salidas (su `activa` escrita desde la web elige la del aparato).
+        QString objetoSalidas = QStringLiteral("Studio.salidas");
     };
     /// Una entrada de la lista permitida (ReplicaPermitidas.inc, sacada de la QML del dashboard).
     struct Permitida {
@@ -110,6 +122,8 @@ class ReplicaPublicador : public QObject {
     static constexpr int kLoteMs = 50;
     /// Cuántas llamadas y escrituras por segundo por conexión.
     static constexpr int kLlamadasPorSegundo = 40;
+    /// Cuántas lecturas (funciones que devuelven algo) por segundo por conexión.
+    static constexpr int kLecturasPorSegundo = 300;
 
     ReplicaPublicador(QObject* raiz, const QString& nombreRaiz = QStringLiteral("Studio"), QObject* parent = nullptr);
     ~ReplicaPublicador() override;
@@ -154,8 +168,10 @@ class ReplicaPublicador : public QObject {
         std::map<QString, std::set<int>> sucios;
         std::set<QString> filasSucias;
         json cola = json::array();
-        std::deque<std::int64_t> llamadas;
+        std::deque<std::int64_t> llamadas, lecturas;
         std::set<std::string> rechazosAnotados; ///< una línea en el registro por cosa rechazada
+        std::string salida;                     ///< la que maneja este aparato ("" = la por omisión)
+        std::shared_ptr<QObject> vista;         ///< la «vista» de este aparato en las suscripciones
     };
     friend class AvisoReplica;
 
@@ -173,11 +189,15 @@ class ReplicaPublicador : public QObject {
     void llamar(const std::string& cid, Con& c, const json& m);
     void poner(Con& c, const json& m);
     QVariant aVariant(const json& j) const;
-    bool tope(Con& c);
+    bool tope(Con& c, bool lectura);
     /// ¿Se puede? "" si sí; si no, el error (y ya se contestó/anotó); `confirmar`: se pidió confirmación.
     std::string permiso(Con& c, QObject* o, const QString& oid, const QString& nombre, bool poner, bool lectura,
                         const json& m, bool& confirmar);
     QObject* resolver(const QString& camino) const;
+    /// Mientras dure lo que devuelve, la app lee y hace en la salida de esa conexión.
+    std::function<void()> enSuSalida(const Con& c) const;
+    /// Todo lo abierto de la conexión, de nuevo (cambió su salida).
+    void todoSucio(Con& c);
     void procesar(const std::string& cid, Con& c, const json& m, int profundidad);
 
     QPointer<QObject> raiz_;

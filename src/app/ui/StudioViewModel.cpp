@@ -804,6 +804,11 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, VentanillaMotor& ventanilla, QO
         cuadrosWeb_ = std::make_unique<control::CuadrosWeb>(frames_.get());
         replica_->ganchos().enviar = [&cwg](const std::string& cid, const nlohmann::json& m) { cwg.enviarEnOrden(cid, m); };
         replica_->ganchos().anotar = [&cw](const std::string& ap, const std::string& t) { cw.anotar(ap, t); };
+        // Salidas múltiples: cada aparato maneja la suya (la misma que en la superficie HTML) y
+        // la app le responde como si su salida activa fuera esa, sin tocar la de esta interfaz.
+        replica_->ganchos().salidaDe = [&cw](const std::string& ap) { return cw.salidaDe(ap); };
+        replica_->ganchos().setSalida = [&cw](const std::string& ap, const std::string& s) { return cw.setSalida(ap, s); };
+        replica_->ganchos().contexto = [this](const std::string& s) { return salidas_->contexto(s); };
         // Cada cosa de la lista permitida, con las reglas de su herramienta MCP equivalente.
         replica_->ganchos().autorizar = [&cw](const std::string& ap, const std::string& h, bool lectura, bool confirmado) {
             return cw.autorizar(ap, h, lectura, confirmado);

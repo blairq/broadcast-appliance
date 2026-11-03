@@ -181,6 +181,11 @@ int main(int argc, char** argv) {
         pub.entrada("c1", "ap1", perfil, m);
     };
 
+    // Una propiedad local del navegador (como Studio.dashboard: la disposición del aparato).
+    QObject tableroLocal;
+    tableroLocal.setObjectName("local");
+    cli.reemplazar("Studio", "ventanas", &tableroLocal);
+
     // --- Un perfil que no es «todo»: nada.
     perfil = json::array({"escenas"});
     cli.hola();
@@ -196,7 +201,8 @@ int main(int argc, char** argv) {
     CHECK(r != nullptr && r->valor("contador").toInt() == 1, "el valor de una propiedad llegó");
     CHECK(r != nullptr && !r->valor("streamKey").isValid(), "una propiedad con nombre de secreto no se publica (streamKey)");
     CHECK(r != nullptr && !r->valor("pinTunel").isValid(), "ni el PIN");
-    CHECK(r != nullptr && r->valor("ventanas").value<QObject*>() == nullptr, "un objeto negado llega como null");
+    CHECK(r != nullptr && r->valor("ventanas").value<QObject*>() == &tableroLocal,
+          "una propiedad local del navegador es la local, no la de la app");
     CHECK(r != nullptr && !r->valor("copiar").isValid(), "una función negada no se publica");
 
     qmlRegisterSingletonInstance("BA", 1, 0, "Studio", r);
@@ -238,10 +244,10 @@ int main(int argc, char** argv) {
     CHECK(cosas.size() == 2 && cosas.at(1).toMap().value("hijo").value<QObject*>() == cli.objeto("Studio.hijo"),
           "un objeto adentro de una lista llega como la misma réplica");
 
-    // --- Cambios en la app (lo que devuelven las funciones se vuelve a pedir cada 500 ms como mucho).
+    // --- Cambios en la app (lo que devuelven las funciones se vuelve a pedir una vez por segundo como mucho).
     {
         QEventLoop espera;
-        QTimer::singleShot(600, &espera, &QEventLoop::quit);
+        QTimer::singleShot(1100, &espera, &QEventLoop::quit);
         espera.exec();
     }
     const int creadasAntes = vista->property("creadas").toInt();

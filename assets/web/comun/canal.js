@@ -21,6 +21,8 @@
 //                                    // vuelve a probar solo, con espera creciente
 //     alCaer: () => {...},           // se cortó (opcional; vuelve solo)
 //     alEstado: (e) => {...},        // "conectando" | "conectado" | "caido" | "cerrado"
+//     esperaMinMs, esperaMaxMs,      // la espera creciente al caerse (de fábrica 1 s… 30 s)
+//     reintentoMinMs, reintentoMaxMs,// la de «esperar»/«clave_mal» (de fábrica 2 s… 1 min)
 //   });
 //   c.mandar(m)   c.listo()   c.cerrar()   c.reabrir()
 //
@@ -58,7 +60,7 @@
     abiertos: 0,
     abrir(o) {
       const st = { ws: null, listo: false, cerrado: false, estado: "", intentos: 0, timer: 0, ping: 0,
-                   oido: 0, pingMs: 0, reintento: REINTENTO_MIN_MS, proxima: 0 };
+                   oido: 0, pingMs: 0, reintento: o.reintentoMinMs || REINTENTO_MIN_MS, proxima: 0 };
       const estado = (e) => {
         if (st.estado === e) return;
         st.estado = e;
@@ -82,7 +84,7 @@
         st.proxima = 0;
         if (!ms) {
           st.intentos = Math.min(st.intentos + 1, 6);
-          ms = Math.min(1000 * 2 ** (st.intentos - 1), ESPERA_MAX_MS);
+          ms = Math.min((o.esperaMinMs || 1000) * 2 ** (st.intentos - 1), o.esperaMaxMs || ESPERA_MAX_MS);
         }
         clearTimeout(st.timer);
         st.timer = setTimeout(conectar, ms);
@@ -109,7 +111,7 @@
           st.listo = true;
           BAWs.abiertos++;
           st.intentos = 0;
-          st.reintento = REINTENTO_MIN_MS;
+          st.reintento = o.reintentoMinMs || REINTENTO_MIN_MS;
           latir(ws);
           estado("conectado");
           if (o.alEntrar) o.alEntrar(m);
@@ -118,7 +120,7 @@
         if (m.error_codigo === "version") { location.reload(); return; } // la página quedó vieja
         if (SE_ESPERA.has(m.error_codigo)) {
           st.proxima = st.reintento;
-          st.reintento = Math.min(st.reintento * 2, REINTENTO_MAX_MS);
+          st.reintento = Math.min(st.reintento * 2, o.reintentoMaxMs || REINTENTO_MAX_MS);
           if (o.alEspera) o.alEspera(m);
         } else {
           st.cerrado = true;

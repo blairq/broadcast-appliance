@@ -6738,7 +6738,7 @@ The previous PIN stops working for joining.</translation>
 <context>
     <name>DashboardPage</name>
     <message>
-        <location filename="../src/app/qml/pages/DashboardPage.qml" line="+74" />
+        <location filename="../src/app/qml/pages/DashboardPage.qml" line="+75" />
         <source>Escena: %1   ·   %2</source>
         <translation>Scene: %1   ·   %2</translation>
     </message>
@@ -12771,7 +12771,7 @@ It's changed in its code (Plugins section, or by asking the assistant). Here you
         <translation>Puts the conference on the internet so outside guests can join.</translation>
     </message>
     <message>
-        <location line="+14" />
+        <location line="+15" />
         <source>Configurar pinggy…</source>
         <translation>Set up pinggy…</translation>
     </message>
@@ -16305,7 +16305,7 @@ The matrix doesn't change what comes in: it decides which outputs it goes to (th
 <context>
     <name>MixerContent</name>
     <message>
-        <location filename="../src/app/qml/cards/MixerContent.qml" line="+78" />
+        <location filename="../src/app/qml/cards/MixerContent.qml" line="+79" />
         <source>Audio ›</source>
         <translation>Audio ›</translation>
     </message>
@@ -16315,7 +16315,7 @@ The matrix doesn't change what comes in: it decides which outputs it goes to (th
         <translation>The Audio tab: each input's rack and filters, the matrix and the outputs.</translation>
     </message>
     <message>
-        <location line="+7" />
+        <location line="+8" />
         <source>⧉ Mezclador</source>
         <translation>⧉ Mixer</translation>
     </message>
@@ -16680,7 +16680,7 @@ The matrix doesn't change what comes in: it decides which outputs it goes to (th
 <context>
     <name>MonitorContent</name>
     <message>
-        <location filename="../src/app/qml/cards/MonitorContent.qml" line="+17" />
+        <location filename="../src/app/qml/cards/MonitorContent.qml" line="+20" />
         <source>Sin señal</source>
         <translation>No signal</translation>
     </message>
@@ -17515,6 +17515,14 @@ The matrix doesn't change what comes in: it decides which outputs it goes to (th
         <location line="+2" />
         <source>Seguir grabando</source>
         <translation>Keep recording</translation>
+    </message>
+</context>
+<context>
+    <name>Pagina</name>
+    <message>
+        <location filename="../src/tablero-web/Pagina.cpp" line="+18" />
+        <source>No se pudo.</source>
+        <translation>It could not be done.</translation>
     </message>
 </context>
 <context>
@@ -31857,7 +31865,12 @@ Doble clic: cortar al aire ya</source>
 Double-click: cut to air now</translation>
     </message>
     <message>
-        <location line="+25" />
+        <location line="+29" />
+        <source>%1 · AL AIRE · %2</source>
+        <translation>%1 · ON AIR · %2</translation>
+    </message>
+    <message>
+        <location line="+1" />
         <source>AL AIRE · %1</source>
         <translation>ON AIR · %1</translation>
     </message>
@@ -34567,7 +34580,7 @@ and it reopens on its own. Settings, credentials, recordings and files are NOT t
         <translation>didn't respond</translation>
     </message>
     <message>
-        <location line="+132" />
+        <location line="+137" />
         <source>Conferencia reiniciada con la configuración nueva.</source>
         <translation>Conference restarted with the new settings.</translation>
     </message>
@@ -35140,12 +35153,7 @@ and it reopens on its own. Settings, credentials, recordings and files are NOT t
 <context>
     <name>TableroWeb</name>
     <message>
-        <location filename="../src/tablero-web/qml/TableroWeb.qml" line="+39" />
-        <source>Eso se hace en la app.</source>
-        <translation>That is done in the app.</translation>
-    </message>
-    <message>
-        <location line="+11" />
+        <location filename="../src/tablero-web/qml/TableroWeb.qml" line="+48" />
         <source>¿Cortar la transmisión?</source>
         <translation>Stop the stream?</translation>
     </message>
@@ -35162,11 +35170,12 @@ and it reopens on its own. Settings, credentials, recordings and files are NOT t
     <message>
         <location line="+1" />
         <location line="+15" />
+        <location line="+59" />
         <source>Cancelar</source>
         <translation>Cancel</translation>
     </message>
     <message>
-        <location line="-3" />
+        <location line="-62" />
         <source>Cambia el aire</source>
         <translation>This changes what is on air</translation>
     </message>
@@ -35176,7 +35185,52 @@ and it reopens on its own. Settings, credentials, recordings and files are NOT t
         <translation>Yes, do it</translation>
     </message>
     <message>
-        <location line="+26" />
+        <location line="+46" />
+        <source>▾ Mostrar monitores</source>
+        <translation>▾ Show monitors</translation>
+    </message>
+    <message>
+        <location line="+0" />
+        <source>▴ Ocultar monitores</source>
+        <translation>▴ Hide monitors</translation>
+    </message>
+    <message>
+        <location line="+4" />
+        <source>▦ Disposición</source>
+        <translation>▦ Layout</translation>
+    </message>
+    <message>
+        <location line="+5" />
+        <source>Restablecer la disposición de este aparato</source>
+        <translation>Reset this device's layout</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>¿Restablecer la disposición?</source>
+        <translation>Reset the layout?</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Las tarjetas de este aparato vuelven a como vinieron de fábrica. El tablero de la app no cambia.</source>
+        <translation>This device's cards go back to the factory layout. The app's dashboard does not change.</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Restablecer</source>
+        <translation>Reset</translation>
+    </message>
+    <message>
+        <location line="+8" />
+        <source>⤡ Salir de pantalla completa</source>
+        <translation>⤡ Exit full screen</translation>
+    </message>
+    <message>
+        <location line="+0" />
+        <source>⤢ Pantalla completa</source>
+        <translation>⤢ Full screen</translation>
+    </message>
+    <message>
+        <location line="+37" />
         <source>PREVIEW · %1</source>
         <translation>PREVIEW · %1</translation>
     </message>
@@ -35191,7 +35245,7 @@ and it reopens on its own. Settings, credentials, recordings and files are NOT t
         <translation>TAKE</translation>
     </message>
     <message>
-        <location line="+17" />
+        <location line="+16" />
         <source>CUT</source>
         <translation>CUT</translation>
     </message>
@@ -45193,7 +45247,7 @@ Choose something else in Outputs → Screens.</translation>
     </message>
     <message>
         <location line="-57" />
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="-931" />
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="-936" />
         <source>arranque: %1 tardó %2 ms</source>
         <translation>startup: %1 took %2 ms</translation>
     </message>
@@ -57224,7 +57278,7 @@ Data (from %2): %3</translation>
         <translation>each layer of “escena” must be an object</translation>
     </message>
     <message>
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="+965" />
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="+970" />
         <source>«%1» no arrancó al abrir: %2</source>
         <translation>“%1” didn't start on open: %2</translation>
     </message>

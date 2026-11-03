@@ -22,10 +22,13 @@
 #include <QQmlContext>
 #include <QQuickStyle>
 #include <QQuickWindow>
+#include <QJsonDocument>
 
 #include "ClienteReplica.hpp"
 #include "Falsos.hpp"
 #include "ObjetoReplica.hpp"
+#include "Pagina.hpp"
+#include "ui/DashboardModel.hpp"
 #include "VideoItemWeb.hpp"
 #include "pantallas/BuscadorCatalogo.hpp"
 #include "ui/ChatHilo.hpp"
@@ -45,6 +48,7 @@
 
 namespace {
 ClienteReplica* g_cliente = nullptr;
+ba::app::DashboardModel* g_tablero = nullptr;
 QQmlApplicationEngine* g_motor = nullptr;
 
 void avisarPagina(const char* que, const QString& detalle) {
@@ -72,8 +76,11 @@ void baRecibir(std::string texto) {
     if (g_cliente) g_cliente->recibirTexto(QByteArray::fromStdString(texto));
 }
 void baConectado() {
+    // Ya llegaron las preferencias del aparato (con su disposición del tablero).
+    if (g_tablero) g_tablero->recargar();
     if (g_cliente) g_cliente->hola();
 }
+void baPantallaCompleta(bool si) { Pagina::la().setPantallaCompleta(si); }
 /// Un cuadro que descomprimió el navegador (RGBA): una sola copia de JS a la memoria del módulo.
 void baCuadro(std::string clave, emscripten::val pixeles, int w, int h, double t, double serial) {
     if (!g_cliente || w <= 0 || h <= 0) return;
@@ -94,6 +101,7 @@ EMSCRIPTEN_BINDINGS(ba_tablero) {
     emscripten::function("baConectado", &baConectado);
     emscripten::function("baPedirWebrtc", &baPedirWebrtc);
     emscripten::function("baCuadro", &baCuadro);
+    emscripten::function("baPantallaCompleta", &baPantallaCompleta);
 }
 #endif
 
@@ -113,6 +121,26 @@ int main(int argc, char** argv) {
     g_cliente->setMotor(g_motor);
     VideoItemWeb::setCliente(g_cliente);
     g_motor->rootContext()->setContextProperty(QStringLiteral("Replica"), g_cliente);
+    g_motor->rootContext()->setContextProperty(QStringLiteral("Pagina"), &Pagina::la());
+    // El tablero de ESTE aparato: el mismo modelo que el de la app, pero su disposición se
+    // guarda en el registro del aparato (preferencias del control web) y nunca toca la de la
+    // app. Studio.dashboard, en el navegador, es este.
+    ba::app::DashboardModel::Almacen almacen;
+#ifdef __EMSCRIPTEN__
+    almacen.leer = []() {
+        emscripten::val puente = emscripten::val::global("baPuente");
+        if (puente.isUndefined()) return QJsonObject();
+        return QJsonDocument::fromJson(QByteArray::fromStdString(puente.call<std::string>("tablero"))).object();
+    };
+    almacen.guardar = [](const QJsonObject& o) {
+        emscripten::val puente = emscripten::val::global("baPuente");
+        if (!puente.isUndefined())
+            puente.call<void>("guardarTablero", QJsonDocument(o).toJson(QJsonDocument::Compact).toStdString());
+    };
+#endif
+    g_tablero = new ba::app::DashboardModel(almacen, app);
+    QQmlEngine::setObjectOwnership(g_tablero, QQmlEngine::CppOwnership);
+    g_cliente->reemplazar(QStringLiteral("Studio"), QStringLiteral("dashboard"), g_tablero);
     // ?hud=1: cuánto tarda cada monitor en mostrar el cuadro (para medir la latencia).
     bool hud = false;
 #ifdef __EMSCRIPTEN__

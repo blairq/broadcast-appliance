@@ -546,7 +546,7 @@ endif()
     endif()
     message(STATUS "ba-app: interfaz grafica con Qt ${Qt6_VERSION} vendoreado (${BA_QT_PREFIX})")
     # Test de la logica de disposicion del dashboard (ViewModel sin interfaz).
-    add_executable(test_dashboard_model tests/test_dashboard_model.cpp ui/DashboardModel.cpp)
+    add_executable(test_dashboard_model tests/test_dashboard_model.cpp ui/DashboardModel.cpp ui/DashboardModelArchivo.cpp)
     target_include_directories(test_dashboard_model PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
     target_link_libraries(test_dashboard_model PRIVATE ba_core Qt6::Core Qt6::Gui)
     set_target_properties(test_dashboard_model PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")

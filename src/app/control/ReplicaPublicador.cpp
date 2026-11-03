@@ -115,6 +115,20 @@ std::vector<ReplicaPublicador::Permitida> ReplicaPublicador::permitidasDeLaApp()
     return out;
 }
 
+std::function<void()> ReplicaPublicador::enSuSalida(const Con& c) const {
+    return g_.contexto ? g_.contexto(c.salida) : std::function<void()>();
+}
+
+void ReplicaPublicador::todoSucio(Con& c) {
+    for (const QString& id : c.abiertos) {
+        const auto it = objs_.find(id);
+        if (it == objs_.end()) continue;
+        c.sucios[id].insert(it->second.props.begin(), it->second.props.end());
+        if (it->second.modelo) c.filasSucias.insert(id);
+    }
+    programar();
+}
+
 QObject* ReplicaPublicador::resolver(const QString& camino) const {
     const QStringList partes = camino.split(QLatin1Char('.'));
     if (partes.isEmpty() || partes.front() != nombreRaiz_ || !raiz_) return nullptr;
@@ -423,11 +437,14 @@ void ReplicaPublicador::abrir(Con& c, const QString& id) {
     if (ob.modelo) encolar(c, {{"op", "filas"}, {"o", id.toStdString()}, {"filas", filas(ob, c, esquemas)}}, esquemas);
 }
 
-bool ReplicaPublicador::tope(Con& c) {
+bool ReplicaPublicador::tope(Con& c, bool lectura) {
+    // Mirar (lo que devuelve un valor: los bindings lo piden de nuevo cuando cambian los datos)
+    // y hacer tienen topes aparte: muchas lecturas no le quitan lugar a un botón.
+    auto& v = lectura ? c.lecturas : c.llamadas;
     const std::int64_t ahora = ahoraMs();
-    while (!c.llamadas.empty() && ahora - c.llamadas.front() > 1000) c.llamadas.pop_front();
-    if (static_cast<int>(c.llamadas.size()) >= kLlamadasPorSegundo) return false;
-    c.llamadas.push_back(ahora);
+    while (!v.empty() && ahora - v.front() > 1000) v.pop_front();
+    if (static_cast<int>(v.size()) >= (lectura ? kLecturasPorSegundo : kLlamadasPorSegundo)) return false;
+    v.push_back(ahora);
     return true;
 }
 
@@ -465,7 +482,6 @@ void ReplicaPublicador::llamar(const std::string& cid, Con& c, const json& m) {
     if (it == objs_.end() || !it->second.o || !c.esquemas.count(oid)) return mal("no existe ese objeto");
     Obj& ob = it->second;
     if (!ob.metodos.count(nombre)) return mal("no se puede llamar esa función desde la web");
-    if (!tope(c)) return mal("demasiadas llamadas");
     const json args = m.contains("a") && m["a"].is_array() ? m["a"] : json::array();
     const QMetaObject* mo = ob.o->metaObject();
     // La sobrecarga con esa cantidad de argumentos (los argumentos por omisión son otra).
@@ -484,6 +500,7 @@ void ReplicaPublicador::llamar(const std::string& cid, Con& c, const json& m) {
     const bool conValor = mm.returnMetaType().isValid() && mm.returnMetaType().id() != QMetaType::Void;
     // Escribir y hacer, sí; mirar (lo que devuelve algo), también si es solo «ver».
     if (!c.escribe && !conValor) return mal("este aparato solo puede mirar");
+    if (!tope(c, conValor)) return mal(conValor ? "demasiadas lecturas" : "demasiadas órdenes por segundo");
     {
         bool confirmar = false;
         const std::string e = permiso(c, ob.o, oid, nombre, false, conValor, m, confirmar);
@@ -504,6 +521,13 @@ void ReplicaPublicador::llamar(const std::string& cid, Con& c, const json& m) {
             vals[k] = QVariant::fromValue(a);
         } else if (pt == QMetaType::fromType<QJSValue>()) {
             return mal("esa función no se puede llamar desde la web");
+        } else if (!a.isValid() && (pt.flags() & QMetaType::PointerToQObject)) {
+            // Un objeto de la vista del navegador (p. ej. la `vista` de una suscripción, que
+            // allá es un Item): acá lo representa la conexión, así lo que cuenta vistas
+            // (comun/UsoPorVistas) las cuenta por aparato y las suelta cuando se va.
+            if (!c.vista) c.vista = std::make_shared<QObject>();
+            vals[k] = QVariant::fromValue<QObject*>(c.vista.get());
+            if (!vals[k].convert(pt)) vals[k] = QVariant(pt);
         } else if (!a.isValid()) {
             vals[k] = QVariant(pt);
         } else if (a.metaType() != pt && !a.convert(pt)) {
@@ -526,7 +550,7 @@ void ReplicaPublicador::llamar(const std::string& cid, Con& c, const json& m) {
 }
 
 void ReplicaPublicador::poner(Con& c, const json& m) {
-    if (!c.escribe || !tope(c)) return;
+    if (!c.escribe || !tope(c, false)) return;
     const QString oid = textoDe(m, "o"), p = textoDe(m, "p");
     const auto it = objs_.find(oid);
     if (it == objs_.end() || !it->second.o || !c.esquemas.count(oid) || nombreSecreto(p)) return;
@@ -536,6 +560,17 @@ void ReplicaPublicador::poner(Con& c, const json& m) {
     if (i < 0 || std::find(ob.props.begin(), ob.props.end(), i) == ob.props.end()) return;
     const QMetaProperty mp = mo->property(i);
     if (!mp.isWritable() || mp.isConstant()) return;
+    if (p == QLatin1String("activa") && ob.o == resolver(g_.objetoSalidas)) {
+        // Elegir la salida que maneja ESTE aparato: la de la app no cambia.
+        const std::string pedida = m.value("v", std::string());
+        const std::string e = g_.setSalida ? g_.setSalida(c.aparato, pedida) : std::string();
+        if (e.empty()) {
+            c.salida = g_.salidaDe ? g_.salidaDe(c.aparato) : pedida;
+            if (g_.anotar) g_.anotar(c.aparato, "tablero web: maneja la salida «" + (c.salida.empty() ? std::string("principal") : c.salida) + "»");
+        }
+        todoSucio(c);
+        return;
+    }
     {
         bool confirmar = false;
         const std::string e = permiso(c, ob.o, oid, p, true, false, m, confirmar);
@@ -555,6 +590,12 @@ void ReplicaPublicador::poner(Con& c, const json& m) {
 }
 
 void ReplicaPublicador::procesar(const std::string& cid, Con& c, const json& m, int profundidad) {
+    // Lo que pide el aparato se lee y se hace en SU salida.
+    const std::function<void()> volver = profundidad == 0 ? enSuSalida(c) : std::function<void()>();
+    struct Volver {
+        const std::function<void()>& f;
+        ~Volver() { if (f) f(); }
+    } alSalir{volver};
     const std::string op = m.value("op", std::string());
     if (op == "lote" && profundidad == 0 && m.contains("m") && m["m"].is_array()) {
         int n = 0;
@@ -621,6 +662,12 @@ void ReplicaPublicador::entrada(const std::string& cid, const std::string& apara
         Con& c = cons_[cid] = Con{};
         c.aparato = aparato;
         c.escribe = true;
+        c.salida = g_.salidaDe ? g_.salidaDe(aparato) : std::string();
+        const std::function<void()> volver = enSuSalida(c);
+        struct Volver {
+            const std::function<void()>& f;
+            ~Volver() { if (f) f(); }
+        } alSalir{volver};
         const QString id = refDe(raiz_, nombreRaiz_);
         c.esquemas.insert(id);
         json esquemas = json::array({objs_[id].esquema});
@@ -649,6 +696,11 @@ void ReplicaPublicador::cerrada(const std::string& cid) {
 void ReplicaPublicador::vaciar() {
     reloj_.stop();
     for (auto& [cid, c] : cons_) {
+        const std::function<void()> volver = enSuSalida(c);
+        struct Volver {
+            const std::function<void()>& f;
+            ~Volver() { if (f) f(); }
+        } alSalir{volver};
         json esquemas = json::array();
         // Lo que cambió desde la última vez (cada objeto, con todas sus propiedades sucias juntas).
         for (auto& [id, props] : c.sucios) {

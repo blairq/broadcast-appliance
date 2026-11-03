@@ -6773,7 +6773,7 @@ El PIN anterior deja de servir para entrar.</source>
 <context>
     <name>DashboardPage</name>
     <message>
-        <location filename="../src/app/qml/pages/DashboardPage.qml" line="+74" />
+        <location filename="../src/app/qml/pages/DashboardPage.qml" line="+75" />
         <source>Escena: %1   ·   %2</source>
         <translation>Сцена: %1   ·   %2</translation>
     </message>
@@ -12825,7 +12825,7 @@ Se cambia en su código (sección Plugins, o pidiéndoselo al asistente). Acá s
         <translation>Выводит конференцию в интернет, чтобы могли войти внешние гости.</translation>
     </message>
     <message>
-        <location line="+14" />
+        <location line="+15" />
         <source>Configurar pinggy…</source>
         <translation>Настроить pinggy…</translation>
     </message>
@@ -16381,7 +16381,7 @@ La matriz no cambia lo que entra: decide a qué salidas va (las columnas: el pro
 <context>
     <name>MixerContent</name>
     <message>
-        <location filename="../src/app/qml/cards/MixerContent.qml" line="+78" />
+        <location filename="../src/app/qml/cards/MixerContent.qml" line="+79" />
         <source>Audio ›</source>
         <translation>Аудио ›</translation>
     </message>
@@ -16391,7 +16391,7 @@ La matriz no cambia lo que entra: decide a qué salidas va (las columnas: el pro
         <translation>Вкладка «Аудио»: рэк и фильтры каждого входа, матрица и выходы.</translation>
     </message>
     <message>
-        <location line="+7" />
+        <location line="+8" />
         <source>⧉ Mezclador</source>
         <translation>⧉ Микшер</translation>
     </message>
@@ -16758,7 +16758,7 @@ La matriz no cambia lo que entra: decide a qué salidas va (las columnas: el pro
 <context>
     <name>MonitorContent</name>
     <message>
-        <location filename="../src/app/qml/cards/MonitorContent.qml" line="+17" />
+        <location filename="../src/app/qml/cards/MonitorContent.qml" line="+20" />
         <source>Sin señal</source>
         <translation>Нет сигнала</translation>
     </message>
@@ -17596,6 +17596,14 @@ La matriz no cambia lo que entra: decide a qué salidas va (las columnas: el pro
         <location line="+2" />
         <source>Seguir grabando</source>
         <translation>Продолжить запись</translation>
+    </message>
+</context>
+<context>
+    <name>Pagina</name>
+    <message>
+        <location filename="../src/tablero-web/Pagina.cpp" line="+18" />
+        <source>No se pudo.</source>
+        <translation>Не удалось.</translation>
     </message>
 </context>
 <context>
@@ -32000,7 +32008,12 @@ Doble clic: cortar al aire ya</source>
 Двойной щелчок: сразу в эфир</translation>
     </message>
     <message>
-        <location line="+25" />
+        <location line="+29" />
+        <source>%1 · AL AIRE · %2</source>
+        <translation>%1 · В ЭФИРЕ · %2</translation>
+    </message>
+    <message>
+        <location line="+1" />
         <source>AL AIRE · %1</source>
         <translation>В ЭФИРЕ · %1</translation>
     </message>
@@ -34721,7 +34734,7 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
         <translation>не ответил</translation>
     </message>
     <message>
-        <location line="+132" />
+        <location line="+137" />
         <source>Conferencia reiniciada con la configuración nueva.</source>
         <translation>Конференция перезапущена с новыми настройками.</translation>
     </message>
@@ -35294,12 +35307,7 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
 <context>
     <name>TableroWeb</name>
     <message>
-        <location filename="../src/tablero-web/qml/TableroWeb.qml" line="+39" />
-        <source>Eso se hace en la app.</source>
-        <translation>Это делается в приложении.</translation>
-    </message>
-    <message>
-        <location line="+11" />
+        <location filename="../src/tablero-web/qml/TableroWeb.qml" line="+48" />
         <source>¿Cortar la transmisión?</source>
         <translation>Остановить трансляцию?</translation>
     </message>
@@ -35316,11 +35324,12 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
     <message>
         <location line="+1" />
         <location line="+15" />
+        <location line="+59" />
         <source>Cancelar</source>
         <translation>Отмена</translation>
     </message>
     <message>
-        <location line="-3" />
+        <location line="-62" />
         <source>Cambia el aire</source>
         <translation>Это меняет эфир</translation>
     </message>
@@ -35330,7 +35339,52 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
         <translation>Да, выполнить</translation>
     </message>
     <message>
-        <location line="+26" />
+        <location line="+46" />
+        <source>▾ Mostrar monitores</source>
+        <translation>▾ Показать мониторы</translation>
+    </message>
+    <message>
+        <location line="+0" />
+        <source>▴ Ocultar monitores</source>
+        <translation>▴ Скрыть мониторы</translation>
+    </message>
+    <message>
+        <location line="+4" />
+        <source>▦ Disposición</source>
+        <translation>▦ Раскладка</translation>
+    </message>
+    <message>
+        <location line="+5" />
+        <source>Restablecer la disposición de este aparato</source>
+        <translation>Сбросить раскладку этого устройства</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>¿Restablecer la disposición?</source>
+        <translation>Сбросить раскладку?</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Las tarjetas de este aparato vuelven a como vinieron de fábrica. El tablero de la app no cambia.</source>
+        <translation>Карточки этого устройства возвращаются к заводской раскладке. Панель приложения не меняется.</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Restablecer</source>
+        <translation>Сбросить</translation>
+    </message>
+    <message>
+        <location line="+8" />
+        <source>⤡ Salir de pantalla completa</source>
+        <translation>⤡ Выйти из полноэкранного режима</translation>
+    </message>
+    <message>
+        <location line="+0" />
+        <source>⤢ Pantalla completa</source>
+        <translation>⤢ Во весь экран</translation>
+    </message>
+    <message>
+        <location line="+37" />
         <source>PREVIEW · %1</source>
         <translation>ПРЕДПРОСМОТР · %1</translation>
     </message>
@@ -35345,7 +35399,7 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
         <translation>TAKE</translation>
     </message>
     <message>
-        <location line="+17" />
+        <location line="+16" />
         <source>CUT</source>
         <translation>CUT</translation>
     </message>
@@ -45364,7 +45418,7 @@ Elegí otra cosa en Salidas → Pantallas.</source>
     </message>
     <message>
         <location line="-57" />
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="-931" />
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="-936" />
         <source>arranque: %1 tardó %2 ms</source>
         <translation>запуск: %1 занял %2 мс</translation>
     </message>
@@ -57409,7 +57463,7 @@ Datos (de %2): %3</source>
         <translation>нет</translation>
     </message>
     <message>
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="+965" />
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="+970" />
         <source>«%1» no arrancó al abrir: %2</source>
         <translation>«%1» не запустился при открытии: %2</translation>
     </message>

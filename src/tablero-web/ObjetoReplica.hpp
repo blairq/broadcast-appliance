@@ -75,11 +75,14 @@ class ObjetoReplica : public QAbstractListModel {
     QHash<QByteArray, char> tipos_;          ///< propiedad → tipo corto
     QVector<QPair<QString, bool>> metodos_;  ///< nombre, devuelve algo
     QSet<QByteArray> nombresMetodos_;
+    QSet<QByteArray> locales_;               ///< propiedades que en el navegador son locales
     QList<QByteArray> roles_;
     QVector<QVariantList> filas_;
     QHash<QString, QVariant> cache_;          ///< «nombre(args)» → lo último que contestó
     QHash<QString, QPair<QString, QVariantList>> llamadas_; ///< clave → nombre, args (para volver a pedir)
     QHash<QString, qint64> pedidoMs_;
+    QHash<QString, qint64> usadoMs_;   ///< la última vez que un binding la leyó
+    QSet<QString> enCamino_;            ///< pedidas que todavía no volvieron (no se piden de nuevo)
     int rev_ = 0;
     bool funcionesArmadas_ = false;
 };

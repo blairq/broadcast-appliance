@@ -72,6 +72,7 @@ Item {
     }
     GlassButton {
         id: audioBtn
+        visible: !Theme.web // la pestaña Audio es de la app
         anchors { top: parent.top; right: mezBtn.left; rightMargin: 6 }
         z: 10
         compact: true
@@ -82,6 +83,7 @@ Item {
     }
     GlassButton {
         id: mezBtn
+        visible: !Theme.web // la ventana se abriría en la máquina de la app
         anchors { top: parent.top; right: parent.right }
         z: 10
         compact: true

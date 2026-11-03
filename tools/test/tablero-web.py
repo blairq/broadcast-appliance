@@ -86,6 +86,53 @@ class Cdp:
             self.llamar("Input.dispatchMouseEvent", {"type": tipo, "x": x, "y": y, "button": "left", "clickCount": 1})
 
 
+def esperar_op(ws, op, cond=lambda x: True, espera=5):
+    """El primer {op} de la réplica que cumple `cond` (de los lotes que llegan), o None."""
+    fin = time.time() + espera
+    while time.time() < fin:
+        try:
+            m = ws.recibir(max(0.1, fin - time.time()))
+        except (TimeoutError, socket.timeout):
+            continue
+        if m.get("type") != "replica":
+            continue
+        for x in m.get("m", [m]):
+            if x.get("op") == op and cond(x):
+                return x
+    return None
+
+
+def salidas_multiples(base, token, t, m):
+    """Dos salidas: el aparato elige la otra y la app NO cambia la suya; lo que lee es de esa."""
+    r = m.tool("salida_crear", {"id": "segunda", "nombre": "Segunda", "color": "#2e86de"})
+    t.chequear(not r.get("_isError"), f"salidas: crear «segunda» ({r.get('_texto', '')[:60]})")
+    ws = Ws(base)
+    ws.enviar({"type": "auth", "token": token})
+    ws.esperar("auth")
+    ws.enviar({"type": "replica", "op": "hola"})
+    esperar_op(ws, "raiz")
+    ws.enviar({"type": "replica", "op": "abrir", "o": "Studio.salidas"})
+    v0 = esperar_op(ws, "valores", lambda x: x.get("o") == "Studio.salidas") or {}
+    ws.enviar({"type": "replica", "op": "poner", "id": 5, "o": "Studio.salidas", "p": "activa", "v": "segunda"})
+    v1 = esperar_op(ws, "valores", lambda x: x.get("o") == "Studio.salidas" and x.get("v", {}).get("activa") == "segunda")
+    t.chequear(v1 is not None and v1["v"].get("claveProgramaActiva") == "program:segunda",
+               f"salidas: el aparato maneja «segunda» (programa {v1 and v1['v'].get('claveProgramaActiva')})")
+    app = m.tool("ui_salida_activa", {}).get("_texto", "")
+    t.chequear("segunda" not in app.lower() or "principal" in app.lower(), f"salidas: la app sigue con la suya ({app[:80]})")
+    ws.cerrar()
+    # Al volver a entrar, la recuerda (es del aparato).
+    ws = Ws(base)
+    ws.enviar({"type": "auth", "token": token})
+    ws.esperar("auth")
+    ws.enviar({"type": "replica", "op": "hola"})
+    ws.enviar({"type": "replica", "op": "abrir", "o": "Studio.salidas"})
+    v2 = esperar_op(ws, "valores", lambda x: x.get("o") == "Studio.salidas")
+    t.chequear(v2 is not None and v2["v"].get("activa") == "segunda", "salidas: el aparato recuerda su salida")
+    ws.enviar({"type": "replica", "op": "poner", "id": 6, "o": "Studio.salidas", "p": "activa", "v": "principal"})
+    time.sleep(0.5)
+    ws.cerrar()
+
+
 def replica_sin_navegador(base, token, t):
     """El protocolo de la réplica con un cliente WebSocket propio: esquema, valores, video."""
     ws = Ws(base)
@@ -125,6 +172,11 @@ def replica_sin_navegador(base, token, t):
             bytes_ += len(m.get("jpg", "")) * 3 // 4
             w, h = m.get("w"), m.get("h")
     ws.enviar({"type": "replica", "op": "video", "claves": []})
+    # La disposición es del aparato: la web no escribe la del tablero de la app.
+    ws.enviar({"type": "replica", "op": "poner", "id": 77, "o": "Studio.dashboard", "p": "backgroundDim", "v": 0.9})
+    ws.enviar({"type": "replica", "op": "llamar", "id": 78, "o": "Studio.dashboard", "m": "resetLayout", "a": []})
+    r78 = esperar_op(ws, "resultado", lambda x: x.get("id") == 78)
+    t.chequear(r78 is not None and not r78.get("ok"), f"réplica: la disposición del tablero de la app no se toca desde la web ({r78 and r78.get('error')})")
     ws.cerrar()
     ok = cuadros > 20
     prom = sum(retardos) / len(retardos) if retardos else -1
@@ -143,7 +195,7 @@ def al_aire(m):
     return None
 
 
-def navegador(base, token, t, m, capturas, webrtc):
+def navegador(base, token, t, m, capturas, webrtc, mirar=60):
     perfil = tempfile.mkdtemp(prefix="ba-tablero-chrome-")
     puerto = 9300 + os.getpid() % 500
     p = subprocess.Popen([CHROME, "--headless=new", f"--remote-debugging-port={puerto}", f"--user-data-dir={perfil}",
@@ -163,9 +215,23 @@ def navegador(base, token, t, m, capturas, webrtc):
         cdp = Cdp(next(x for x in pags if x.get("type") == "page")["webSocketDebuggerUrl"])
         cdp.llamar("Page.enable")
         cdp.llamar("Runtime.enable")
+        consola = []
+
+        def juntar(segundos):
+            fin = time.time() + segundos
+            while time.time() < fin:
+                try:
+                    msg = cdp.ws.recibir(0.5)
+                except Exception:
+                    continue
+                if msg.get("method") == "Runtime.consoleAPICalled":
+                    consola.append(" ".join(str(x.get("value", x.get("description", ""))) for x in msg["params"]["args"])[:300])
+                elif msg.get("method") == "Runtime.exceptionThrown":
+                    consola.append("EXC " + json.dumps(msg["params"]["exceptionDetails"])[:300])
+        res["consola"] = consola
         # El token, como lo deja el emparejamiento: en el localStorage del origen (nunca en la URL).
-        cdp.llamar("Page.navigate", {"url": base + "/control/app/licencia/LEEME.txt"})
-        time.sleep(1)
+        cdp.llamar("Page.navigate", {"url": base + "/control/app/?sin=1"})
+        time.sleep(3)
         cdp.evaluar("localStorage.setItem('ba-control-token', %s)" % json.dumps(token))
         url = base + "/control/app/?hud=1"
         t0 = time.time()
@@ -216,6 +282,13 @@ def navegador(base, token, t, m, capturas, webrtc):
         else:
             t.chequear(False, f"no hay otra escena para armar ({escenas})")
         time.sleep(3)
+        # Unos minutos con el tablero abierto: lo que diga la consola.
+        juntar(mirar)
+        malos = [c for c in consola if any(k in c for k in ("Error", "EXC", "demasiadas", "TypeError", "ReferenceError"))]
+        print(f"  consola: {len(consola)} líneas, {len(malos)} de error")
+        for c in sorted(set(malos))[:40]:
+            print("    " + c)
+        cdp.captura(os.path.join(capturas, "tablero-5-despues-de-mirar.png"))
         med = cdp.evaluar("JSON.stringify(window.baMedidas || {})")
         res["medidas"] = json.loads(med or "{}")
         for k, x in res["medidas"].items():
@@ -258,6 +331,7 @@ def main():
     ap.add_argument("--webrtc", action="store_true")
     ap.add_argument("--cerrar", action="store_true")
     ap.add_argument("--json", default="", help="dónde dejar lo medido")
+    ap.add_argument("--mirar", type=int, default=60, help="segundos con el tablero abierto juntando errores de la consola")
     a = ap.parse_args()
     os.makedirs(a.capturas, exist_ok=True)
 
@@ -298,7 +372,8 @@ def main():
             st, csp = e.code, ""
         t.chequear(st == 200 and "wasm-unsafe-eval" in csp, f"/control/app/ se sirve ({st}, CSP para wasm)")
         medido["replica"] = replica_sin_navegador(base, token, t)
-        medido["navegador"] = navegador(base, token, t, m, a.capturas, a.webrtc)
+        salidas_multiples(base, token, t, m)
+        medido["navegador"] = navegador(base, token, t, m, a.capturas, a.webrtc, a.mirar)
     except Exception as e:  # lo que sea: igual se vuelve al evento de antes
         t.chequear(False, f"se cortó: {e!r}")
     finally:

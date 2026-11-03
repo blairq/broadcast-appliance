@@ -159,6 +159,7 @@ void ControlWebBorde::ponerCredenciales(const json& r) {
     std::vector<std::shared_ptr<Conn>> afuera;
     {
         std::lock_guard<std::mutex> l(mu_);
+        conCredenciales_ = true;
         credenciales_.clear();
         for (const auto& d : r.value("aparatos", json::array()))
             if (d.is_object() && d.value("hash", std::string()).size() == 64 && !d.value("id", std::string()).empty())
@@ -299,6 +300,14 @@ void ControlWebBorde::wsLoop(long long fd, const std::string& headers, std::uint
         if (m.is_null()) return;
         const std::string token = m.contains("token") && m["token"].is_string() ? m["token"].get<std::string>() : "";
         const std::string pin = m.contains("pin") && m["pin"].is_string() ? m["pin"].get<std::string>() : "";
+        // Recién arrancado (o la app reiniciándose) todavía no hay credenciales: no se puede
+        // saber si el token vale. «esperar»: la página vuelve a probar sola y NO olvida su token
+        // (antes se le decía «no emparejado», lo borraba y no se reconectaba nunca más).
+        {
+            std::lock_guard<std::mutex> l(mu_);
+            if (!conCredenciales_)
+                return canal::rechazar(fd, QT_TRANSLATE_NOOP("web/comun", "La app todavía está arrancando."), "esperar");
+        }
         // Con 5 errores seguidos desde esa IP no se prueba nada más (el PIN es corto).
         const std::string ap = bloqueada(clientIp) ? std::string() : autenticar(token, pin, remoto);
         if (ap.empty()) {

@@ -145,10 +145,15 @@ Item {
                 implicitHeight: 34
                 radius: 10
                 color: Qt.rgba(1, 0.42, 0.17, 0.85)
+                // Con varias salidas, de cuál es lo que se ve y lo que hace el TAKE (la activa
+                // de la app; en el tablero web, la que maneja el aparato): su color a la izquierda.
+                border { width: Studio.salidas.varias ? 3 : 0; color: Studio.salidas.activaDatos.color || "transparent" }
                 Text {
                     anchors { fill: parent; leftMargin: 10; rightMargin: 10 }
                     verticalAlignment: Text.AlignVCenter
-                    text: qsTr("AL AIRE · %1").arg(Studio.currentScene || "—")
+                    text: Studio.salidas.varias
+                          ? qsTr("%1 · AL AIRE · %2").arg(Studio.salidas.activaDatos.nombre || "").arg(Studio.currentScene || "—")
+                          : qsTr("AL AIRE · %1").arg(Studio.currentScene || "—")
                     color: Theme.text; elide: Text.ElideRight
                     font { family: Theme.font; pixelSize: 12; weight: Font.DemiBold }
                 }
@@ -220,7 +225,7 @@ Item {
             Layout.fillWidth: true
             Text { text: qsTr("Transición: %1").arg(Studio.transitionType); color: Theme.textFaint; font.pixelSize: 11 }
             Item { Layout.fillWidth: true }
-            GlassButton { text: qsTr("Editar"); compact: true; onClicked: ApplicationWindow.window.showPage(1) }
+            GlassButton { visible: !Theme.web; text: qsTr("Editar"); compact: true; onClicked: ApplicationWindow.window.showPage(1) }
         }
     }
 }

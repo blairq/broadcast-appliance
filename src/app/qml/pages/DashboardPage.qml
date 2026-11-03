@@ -69,6 +69,7 @@ Item {
         anchors { left: parent.left; right: parent.right; top: parent.top; leftMargin: page.leftInset + 8; rightMargin: 24; topMargin: 20 }
         spacing: 10
         ColumnLayout {
+            visible: !Theme.web // en el tablero web, sin títulos grandes (lo dice la barra de arriba)
             spacing: 0
             Text { text: "Broadcast Appliance"; color: Theme.text; font { family: Theme.font; pixelSize: 20; weight: Font.DemiBold } }
             Text { text: qsTr("Escena: %1   ·   %2").arg(Studio.currentScene).arg(Studio.canvasLabel); color: Theme.textDim; font.pixelSize: 12 }
@@ -90,7 +91,7 @@ Item {
             dot: Studio.cpuPercent > 80 ? Theme.live : Theme.ok
         }
         // Lo que no anda de la asistencia con IA (clic: qué y dónde se arregla).
-        PastillaIA {}
+        PastillaIA { visible: !Theme.web } // la asistencia con IA se arregla en la app
         Item { width: 8 }
         GlassButton {
             text: qsTr("Tarjeta"); icon: "+"

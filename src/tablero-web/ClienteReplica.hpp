@@ -55,6 +55,10 @@ class ClienteReplica : public QObject {
     void recibirTexto(const QByteArray& texto);
 
     ObjetoReplica* raiz() const;
+    /// Una propiedad de un objeto replicado que en el navegador es OTRA cosa, local: p. ej.
+    /// Studio.dashboard → la disposición propia de este aparato (nunca la de la app).
+    void reemplazar(const QString& objeto, const QString& propiedad, QObject* local) { locales_.insert(objeto + QLatin1Char('.') + propiedad, local); }
+    QObject* local(const QString& objeto, const QString& propiedad) const { return locales_.value(objeto + QLatin1Char('.') + propiedad); }
     ObjetoReplica* objeto(const QString& id) const { return objs_.value(id); }
     bool listo() const { return raiz() != nullptr && listo_; }
     QString error() const { return error_; }
@@ -104,6 +108,7 @@ class ClienteReplica : public QObject {
 
     QJSEngine* motor_ = nullptr;
     QHash<QString, ObjetoReplica*> objs_;
+    QHash<QString, QObject*> locales_;
     QString raiz_;
     bool listo_ = false, escribe_ = false;
     QString error_;
