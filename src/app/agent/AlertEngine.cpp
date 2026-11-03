@@ -388,7 +388,13 @@ void AlertEngine::novedades(std::int64_t now) {
         if (avisar) emit novedad(hora + " " + QString::fromStdString(t));
     };
     std::map<std::string, std::string> ahora;
-    if (in_.room) {
+    const std::uint64_t numero = in_.roomNumero ? in_.roomNumero() : 0;
+    if (in_.room && numero != 0 && numero == roomVisto_) {
+        // La misma foto que la vuelta anterior: la gente está como estaba.
+        for (const auto& [k, v] : previo_)
+            if (k.rfind("p:", 0) == 0) ahora[k] = v;
+    } else if (in_.room) {
+        roomVisto_ = numero;
         // Solo ids (el nombre lo eligió el invitado: room_status para verlo). Ver llmSafeText.
         for (const auto& part : in_.room().value("participants", json::array())) {
             if (!part.is_object()) continue;

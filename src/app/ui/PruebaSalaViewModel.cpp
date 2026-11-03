@@ -56,11 +56,14 @@ PruebaSalaViewModel::PruebaSalaViewModel(Partes p, QObject* parent) : QObject(pa
     tic_.setInterval(1000);
     connect(&tic_, &QTimer::timeout, this, &PruebaSalaViewModel::tic);
     // Quién entró, quién tiene video y quién se cortó: la foto de la sala (sin pedirla).
-    connect(&p_.sala, &ConferenceClient::snapshotChanged, this, [this]() {
+    // Solo cuando cambió la gente o la entrada directa (no la red de cada uno, en cada foto);
+    // la foto en JSON ya la armó el lector de la sala (no se convierte acá).
+    connect(&p_.sala, &ConferenceClient::salaCambio, this, [this](unsigned partes) {
         if (!corriendo()) return;
-        const json snap = deQJson(p_.sala.snapshot());
-        if (snap.is_object()) informe_.participantes(ahoraMs(), snap.value("participants", json::array()));
-        const bool d = p_.sala.snapshot().value("directa").toBool();
+        if ((partes & sala::Gente) != 0)
+            if (const std::shared_ptr<const json> snap = p_.sala.fotoJson(); snap && snap->is_object())
+                informe_.participantes(ahoraMs(), snap->value("participants", json::array()));
+        const bool d = p_.sala.resumen().directa;
         if (d != directa_) {
             directa_ = d;
             emit entradaDirectaChanged();

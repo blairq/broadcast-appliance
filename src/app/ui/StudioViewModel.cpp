@@ -1022,7 +1022,9 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, VentanillaMotor& ventanilla, QO
     //   - Las entradas sin señal y la gente de la sala: cuando cambian.
     connect(this, &StudioViewModel::senalChanged, this, &StudioViewModel::publicarSenal);
     publicarSenal();
-    connect(&conference_->client(), &ConferenceClient::snapshotChanged, this, [this]() { sala_->publicarParticipantes(*bus_); });
+    connect(&conference_->client(), &ConferenceClient::salaCambio, this, [this](unsigned partes) {
+        if ((partes & sala::Gente) != 0) sala_->publicarParticipantes(*bus_);
+    });
     sala_->publicarParticipantes(*bus_);
     // El CPU y el gateway, una vez por segundo (el CPU medido en una ventana de 100 ms
     // bailaba y hacía avisar a todo en cada vuelta); también lo que se mide cada segundo.

@@ -294,8 +294,10 @@ class ConferenceViewModel : public QObject {
     void proxyChanged();
     void pruebaLista(const QString& id, const QVariantMap& resultado);
     void onlineChanged();
-    /// Llegó una foto de la sala (para el C++ que mira todo junto; la QML se enlaza a los
-    /// avisos por grupo, que salen solo si cambió lo suyo).
+    /// Cambió la GENTE de la sala: quién está, en qué estado, su lugar, su micrófono… (no la
+    /// red ni el uso, que cambian en cada foto). Para el C++ que mira a la gente (lo que se
+    /// corta al cerrar, los nombres de las fuentes, la atención, la calidad por calor); la
+    /// QML se enlaza a los avisos por grupo, que salen solo si cambió lo suyo.
     void roomChanged();
     void salaChanged();          ///< room, pin, guestUrl, lobby, locked, maxGuests, slotsFree
     void participantesChanged(); ///< peopleConnected, slotNames, chatTargets
@@ -326,7 +328,12 @@ class ConferenceViewModel : public QObject {
     QVariantMap baWeb() const { return baWeb_; }
 
    private:
-    void onSnapshot();
+    /// Llegó un paquete de la sala (ConferenceClient::salaCambio): aplica SOLO lo que cambió
+    /// (los pasos por fila y rol, armados en el hilo del lector) y avisa por grupo.
+    void aplicarPaquete(unsigned partes);
+    /// Los que esperan en el lobby y la atención automática (al cambiar la espera o al
+    /// prenderla).
+    void atenderLobby();
     void onChatMsg(const QJsonObject& msg, bool live);
 
     AppRuntime& rt_; ///< solo para las órdenes que corren en el dueño (y reiniciar la sala)
@@ -373,16 +380,14 @@ class ConferenceViewModel : public QObject {
     void aplicarAvatar(const QString& id, const QByteArray& jpeg);
 
    private:
-    void rebuildSpeakers();
-    QStringList knownWaiting_;
     QVariantMap network_;
-    QStringList slotNames_;
     std::unique_ptr<JsonListModel> lugares_;
     int nLugares_ = 0;
+    /// Los lugares desde lo que tiene la interfaz (sin la sala o con otra cantidad): O(lugares),
+    /// solo en esos casos.
     void rehacerLugares();
-    QVariantList firmaSala_, firmaParticipantes_, firmaUso_, firmaOradoresCfg_; ///< lo último avisado de cada grupo
+    bool lugaresSucios_ = false; ///< la lista no es la del último resumen (sin la sala, otra cantidad)
     qint64 lastSeq_ = 0;
-    bool firstSnapshot_ = true;
     QVariantMap baWeb_; ///< ver la propiedad baWeb
     qint64 avisoSinSalaMs_ = 0; ///< cuándo se avisó que la sala no responde (uno cada 30 s, no uno por pedido)
     int authSeguidos_ = 0;      ///< 401 seguidos: el primero lo arregla el cliente releyendo el token

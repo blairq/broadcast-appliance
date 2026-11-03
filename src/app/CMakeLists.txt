@@ -1514,16 +1514,29 @@ endif()
     target_link_libraries(test_notificador PRIVATE ba_core Qt6::Core Qt6::Network)
     set_target_properties(test_notificador PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_notificador COMMAND test_notificador)
+    # Lo que arrastra ConferenceClient: la foto de la sala se resume en su lector (sala/ResumenSala).
+    set(BA_SALA_RESUMEN sala/ResumenSala.cpp sala/ResumenSala.hpp sala/OradoresSalaReglas.cpp ui/JsonListModel.cpp
+                        ui/JsonListModel.hpp)
+    # La foto de la sala fuera de la interfaz: el resumen y los cambios por fila en el hilo del
+    # lector, la última gana (200 invitados a 10 Hz con la interfaz lenta), y la interfaz
+    # aplicando solo lo que cambió.
+    add_executable(test_resumen_sala tests/test_resumen_sala.cpp ${BA_SALA_RESUMEN} ui/ConferenceClient.cpp
+                   ui/ConferenceClient.hpp)
+    target_include_directories(test_resumen_sala PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    target_link_libraries(test_resumen_sala PRIVATE ba_core Qt6::Core Qt6::Network)
+    set_target_properties(test_resumen_sala PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
+    add_test(NAME test_resumen_sala COMMAND test_resumen_sala)
+    set_tests_properties(test_resumen_sala PROPERTIES TIMEOUT 60)
     # F1-13: la alarma «interfaz trabada con aire» sale del hilo del latido, sin la interfaz.
     add_executable(test_latido_aire tests/test_latido_aire.cpp emision/LatidoAire.cpp emision/AvisoFueraDeUi.cpp
-                   agent/Notificador.cpp agent/Notificador.hpp ui/ConferenceClient.cpp ui/ConferenceClient.hpp)
+                   agent/Notificador.cpp agent/Notificador.hpp ui/ConferenceClient.cpp ui/ConferenceClient.hpp ${BA_SALA_RESUMEN})
     target_include_directories(test_latido_aire PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
     target_link_libraries(test_latido_aire PRIVATE ba_core Qt6::Core Qt6::Network)
     set_target_properties(test_latido_aire PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_latido_aire COMMAND test_latido_aire)
     set_tests_properties(test_latido_aire PROPERTIES TIMEOUT 60)
     # A le vuelve a decir a B lo de estado cuando B no lo sabe (G-7): con una B de mentira.
-    add_executable(test_republicadores tests/test_republicadores.cpp ui/ConferenceClient.cpp ui/ConferenceClient.hpp)
+    add_executable(test_republicadores tests/test_republicadores.cpp ui/ConferenceClient.cpp ui/ConferenceClient.hpp ${BA_SALA_RESUMEN})
     target_include_directories(test_republicadores PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
     target_link_libraries(test_republicadores PRIVATE ba_core Qt6::Core Qt6::Network)
     set_target_properties(test_republicadores PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
@@ -1531,7 +1544,7 @@ endif()
     set_tests_properties(test_republicadores PROPERTIES TIMEOUT 60)
     # Los errores de la página del público (publico_pagina): la imagen o la sala, cada uno dicho.
     add_executable(test_pagina_publico tests/test_pagina_publico.cpp sala/PaginaPublico.cpp sala/Pedido.cpp
-                   ui/ConferenceClient.cpp ui/ConferenceClient.hpp)
+                   ui/ConferenceClient.cpp ui/ConferenceClient.hpp ${BA_SALA_RESUMEN})
     target_include_directories(test_pagina_publico PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
     target_link_libraries(test_pagina_publico PRIVATE ba_core Qt6::Core Qt6::Network)
     set_target_properties(test_pagina_publico PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")

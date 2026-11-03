@@ -8,6 +8,7 @@
 #include <algorithm>
 #include <mutex>
 
+#include <QDateTime>
 #include <QElapsedTimer>
 #include <QFile>
 #include <QHostAddress>
@@ -36,20 +37,43 @@ namespace {
 struct FotoCompartida {
     std::mutex m;
     QJsonObject foto;
+    std::shared_ptr<const nlohmann::json> json;
+    std::uint64_t numero = 0; ///< sube con cada foto (y al vaciarla)
 };
 FotoCompartida& compartida() {
     static FotoCompartida f;
     return f;
 }
-void ponerFoto(const QJsonObject& foto) {
+void ponerFoto(const QJsonObject& foto, std::shared_ptr<const nlohmann::json> json = {}) {
     std::lock_guard<std::mutex> l(compartida().m);
     compartida().foto = foto;
+    compartida().json = std::move(json);
+    ++compartida().numero;
 }
+std::int64_t ahoraMs() { return QDateTime::currentMSecsSinceEpoch(); }
 } // namespace
 
 QJsonObject ConferenceClient::fotoSala() {
     std::lock_guard<std::mutex> l(compartida().m);
     return compartida().foto;
+}
+
+std::shared_ptr<const nlohmann::json> ConferenceClient::fotoSalaJson() {
+    std::lock_guard<std::mutex> l(compartida().m);
+    return compartida().json;
+}
+
+std::uint64_t ConferenceClient::fotoSalaNumero() {
+    std::lock_guard<std::mutex> l(compartida().m);
+    return compartida().numero;
+}
+
+void CanalSala::avisar(const sala::ResumenSala* r) {
+    // Con el candado: soltarAlLeerFoto espera a que termine el que está corriendo (así quien
+    // se suelta en su destructor no recibe una llamada después).
+    std::lock_guard<std::mutex> l(oyentesMu);
+    for (const auto& [id, fn] : oyentes)
+        if (fn) fn(r);
 }
 
 // --- El lector (en su hilo) ------------------------------------------------------------
@@ -80,6 +104,10 @@ void LectorSala::parar() {
         sse_ = nullptr;
     }
     ponerFoto({});
+}
+
+void LectorSala::rehacer() {
+    if (canal_->buzon.rehacer(ahoraMs())) emit hayFoto();
 }
 
 void LectorSala::reconectar() {
@@ -136,10 +164,30 @@ void LectorSala::alLeer() {
         const QJsonObject obj = QJsonDocument::fromJson(data).object();
         if (event == "room") {
             backoffMs_ = 1000;
-            ponerFoto(obj);
+            alFoto(obj);
+            continue;
         }
         emit evento(event, obj);
     }
+}
+
+void LectorSala::alFoto(const QJsonObject& obj) {
+    if (obj.contains("epoch")) {
+        const int protocolo = obj.value("protocolo").toInt(1);
+        if (protocolo != ba::ipc::kProtocoloSala)
+            ba::diag::registro().linea(
+                ba::diag::Nivel::Aviso, "sala", 0,
+                ba::i18n::llenar(ba::i18n::traducir("sala", "la conferencia habla la versión %1 del contrato y el programa la %2 "
+                                                            "(¿un paquete mezclado?)"),
+                                 {std::to_string(protocolo), std::to_string(ba::ipc::kProtocoloSala)}));
+    }
+    // Se resume ACÁ (no en la interfaz) y queda en el buzón: la última gana.
+    const bool avisar = canal_->buzon.depositar(obj, ahoraMs());
+    const std::shared_ptr<const sala::ResumenSala> r = canal_->buzon.ultimo();
+    ponerFoto(obj, r ? r->json : nullptr);
+    if (avisar) emit hayFoto();
+    // Lo que no espera a la interfaz (qué lugares tienen gente, al motor).
+    canal_->avisar(r.get());
 }
 
 void LectorSala::alCerrar() {
@@ -148,6 +196,7 @@ void LectorSala::alCerrar() {
     watchdog_->stop();
     if (r != nullptr) r->deleteLater();
     ponerFoto({}); // sin B, la foto no vale («no se sabe»)
+    canal_->avisar(nullptr);
     emit cerrado();
     reintentar();
 }
@@ -163,7 +212,7 @@ void LectorSala::reintentar() {
 ConferenceClient::ConferenceClient(QObject* parent) : QObject(parent) {
     // Loopback directo: un http_proxy del entorno no debe interceptar la API.
     nam_.setProxy(QNetworkProxy::NoProxy);
-    lector_ = new LectorSala;
+    lector_ = new LectorSala(canal_);
     lector_->moveToThread(&hilo_);
     connect(&hilo_, &QThread::finished, lector_, &QObject::deleteLater);
     connect(lector_, &LectorSala::acceso, this, [this](int puerto, const QString& token) {
@@ -171,6 +220,7 @@ ConferenceClient::ConferenceClient(QObject* parent) : QObject(parent) {
         token_ = token;
     });
     connect(lector_, &LectorSala::evento, this, &ConferenceClient::dispatch);
+    connect(lector_, &LectorSala::hayFoto, this, &ConferenceClient::tomarFoto);
     connect(lector_, &LectorSala::cerrado, this, [this]() { setOnline(false); });
     hilo_.setObjectName("ba-sala-eventos");
     hilo_.start();
@@ -227,28 +277,50 @@ std::optional<QJsonObject> ConferenceClient::pedirSinInterfaz(const QString& rut
     return d.object();
 }
 
+const sala::ResumenSala& ConferenceClient::resumen() const {
+    static const sala::ResumenSala vacio;
+    return paquete_ && paquete_->r ? *paquete_->r : vacio;
+}
+
+std::shared_ptr<const nlohmann::json> ConferenceClient::fotoJson() const {
+    return paquete_ && paquete_->r ? paquete_->r->json : nullptr;
+}
+
+void ConferenceClient::setLugares(int n) {
+    if (canal_->buzon.lugares() == n) return;
+    canal_->buzon.setLugares(n);
+    QMetaObject::invokeMethod(lector_, &LectorSala::rehacer, Qt::QueuedConnection);
+}
+
+void ConferenceClient::setAvatar(std::function<QString(const QString&)> fn) { canal_->buzon.setAvatar(std::move(fn)); }
+
+int ConferenceClient::alLeerFoto(std::function<void(const sala::ResumenSala*)> fn) {
+    std::lock_guard<std::mutex> l(canal_->oyentesMu);
+    const int id = canal_->proximo++;
+    canal_->oyentes[id] = std::move(fn);
+    return id;
+}
+
+void ConferenceClient::soltarAlLeerFoto(int id) {
+    std::lock_guard<std::mutex> l(canal_->oyentesMu);
+    canal_->oyentes.erase(id);
+}
+
+void ConferenceClient::tomarFoto() {
+    // La última gana: lo que se descartó mientras la interfaz no tomaba ya está incluido en
+    // la diferencia de este (calculada contra lo que la interfaz tiene).
+    std::shared_ptr<const sala::PaqueteSala> p = canal_->buzon.tomar();
+    if (!p || !p->r) return;
+    if (!p->epoch.isEmpty()) epoch_ = p->epoch;
+    setOnline(true);
+    snap_ = p->r->foto;
+    paquete_ = std::move(p);
+    emit salaCambio(paquete_->partes);
+    if (paquete_->nueva) republicarTodo();
+}
+
 void ConferenceClient::dispatch(const QByteArray& event, const QJsonObject& obj) {
-    if (event == "room") {
-        // El primero de cada conexión dice de qué arranque es la B y si pudo reenviar lo
-        // perdido; los que siguen son solo la foto.
-        bool nueva = false;
-        if (obj.contains("epoch")) {
-            const QString epoch = obj.value("epoch").toString();
-            nueva = epoch != epoch_ || !obj.value("reanudado").toBool();
-            epoch_ = epoch;
-            const int protocolo = obj.value("protocolo").toInt(1);
-            if (protocolo != ba::ipc::kProtocoloSala)
-                ba::diag::registro().linea(
-                    ba::diag::Nivel::Aviso, "sala", 0,
-                    ba::i18n::llenar(ba::i18n::traducir("sala", "la conferencia habla la versión %1 del contrato y el programa la %2 "
-                                                                "(¿un paquete mezclado?)"),
-                                     {std::to_string(protocolo), std::to_string(ba::ipc::kProtocoloSala)}));
-        }
-        setOnline(true);
-        snap_ = obj;
-        emit snapshotChanged();
-        if (nueva) republicarTodo();
-    } else if (event == "chat") {
+    if (event == "chat") {
         emit chatReceived(obj);
     } else if (event == "botonera") {
         emit botoneraEvento(obj);

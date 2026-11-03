@@ -146,7 +146,7 @@ class McpService : public QObject {
     std::unique_ptr<SettingsModel> settings_; ///< propio: borrador independiente
     std::function<QQuickWindow*()> mainWindow_;
     /// ¿Hay alguien en la sala? Lo pone la interfaz cuando cambia la sala (la copia de
-    /// ConferenceClient avisa con snapshotChanged) y lo lee el núcleo desde cualquier
+    /// ConferenceClient avisa con salaCambio) y lo lee el núcleo desde cualquier
     /// hilo (McpCore::setHayGente, Tool::untrustedConGente).
     std::atomic<bool> hayGente_{false};
     /// Hay un guardado armado que junta los cambios del MCP (ver setSincronizador en el .cpp).

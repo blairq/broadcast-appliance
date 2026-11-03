@@ -15,7 +15,15 @@
 //     leer (B cortaba el flujo a una app que no leía, y los eventos de estado se
 //     perdían). Arma cada evento ahí y se lo pasa a este objeto por cola (las señales
 //     siguen saliendo en el hilo de la interfaz); la última foto de la sala queda además
-//     bajo candado (fotoSala): la lee cualquier hilo sin I/O (el vigía de las alarmas).
+//     bajo candado (fotoSala, fotoSalaJson): la lee cualquier hilo sin I/O (el vigía de
+//     las alarmas, en el plano de control).
+//   - LA FOTO DE LA SALA NO SE PROCESA EN LA INTERFAZ (sala/ResumenSala.hpp): el lector la
+//     resume y calcula, contra lo que la interfaz ya tiene, qué cambió (partes y, por lista,
+//     los cambios por fila y rol). A la interfaz le llega UN aviso (`salaCambio(partes)`)
+//     con el paquete chico (`paquete()`); si llegan fotos mientras no lo tomó, la última
+//     gana (nunca se encolan fotos en su hilo). Lo que no puede esperar a la interfaz (qué
+//     lugares tienen gente: el motor despierta sus entradas antes de que lleguen los
+//     medios) se engancha en el hilo del lector (`alLeerFoto`).
 //   - Acciones: POST/DELETE con Bearer.
 //
 // A ES LA FUENTE DE VERDAD; B, EL BORDE (gateway/Sesion.hpp). Lo que A le dice a B
@@ -45,35 +53,60 @@
 
 #include <QThread>
 
+#include <map>
+#include <memory>
+#include <mutex>
+
+#include "sala/ResumenSala.hpp"
+
 class QNetworkReply;
 
 namespace ba::app {
 
 /// El que lee el flujo de eventos de B, en su hilo (ver arriba). Solo transporte: no sabe
 /// qué quiere decir cada evento.
+/// Lo que comparten el lector (su hilo) y el cliente (la interfaz).
+struct CanalSala {
+    sala::BuzonSala buzon;
+    std::mutex oyentesMu;
+    std::map<int, std::function<void(const sala::ResumenSala*)>> oyentes; ///< alLeerFoto (con oyentesMu)
+    int proximo = 1;
+    /// En el hilo del lector: a los enganchados (nulo = sin B).
+    void avisar(const sala::ResumenSala* r);
+};
+
 class LectorSala : public QObject {
     Q_OBJECT
    public:
+    explicit LectorSala(std::shared_ptr<CanalSala> canal) : canal_(std::move(canal)) {}
     /// Se crea en el hilo de la interfaz y se mueve a su hilo; `iniciar` arranca allá.
     Q_INVOKABLE void iniciar();
     /// Corta y vuelve a entrar (B se reinició con otro token: un 401 en un pedido).
     Q_INVOKABLE void reconectar();
     Q_INVOKABLE void parar();
+    /// Rearma la última foto (cambió la cantidad de lugares que muestra la interfaz).
+    Q_INVOKABLE void rehacer();
 
    signals:
     /// Antes de cada conexión, el puerto y el token leídos de gateway-admin.json.
     void acceso(int puerto, const QString& token);
-    /// Un evento entero, ya armado (en el hilo del lector: se conecta por cola).
+    /// Un evento entero, ya armado (en el hilo del lector: se conecta por cola). La foto de
+    /// la sala («room») no va por acá: va al buzón (hayFoto).
     void evento(const QByteArray& nombre, const QJsonObject& datos);
+    /// Hay un paquete de la sala en el buzón y no había otro esperando (uno solo en camino).
+    void hayFoto();
     /// Se cortó el flujo (o no se pudo abrir): va a volver a probar solo.
     void cerrado();
 
    private:
     void conectar();
     void alLeer();
+    /// Una foto de la sala: al buzón (resumida acá) y a los enganchados.
+    void alFoto(const QJsonObject& foto);
     void alCerrar();
     void reintentar();
 
+    std::shared_ptr<CanalSala> canal_;
     QNetworkAccessManager* nam_ = nullptr; ///< del hilo del lector (se crea en iniciar)
     QNetworkReply* sse_ = nullptr;
     QTimer* retry_ = nullptr;
@@ -93,10 +126,36 @@ class ConferenceClient : public QObject {
     ~ConferenceClient() override;
 
     bool online() const { return online_; }
+    /// La foto entera que tiene la interfaz (la del último paquete tomado). Para leer UN
+    /// dato a pedido; recorrerla en cada aviso es lo que no hay que hacer (ver paquete()).
     const QJsonObject& snapshot() const { return snap_; }
+    /// El último paquete que tomó la interfaz: lo derivado de la foto (ResumenSala) y los
+    /// cambios contra el anterior. Nulo antes de la primera foto.
+    const std::shared_ptr<const sala::PaqueteSala>& paquete() const { return paquete_; }
+    /// Lo derivado de la foto que tiene la interfaz (nunca nulo: vacío antes de la primera).
+    const sala::ResumenSala& resumen() const;
+    /// La misma foto, en nlohmann::json (armada en el lector: no se convierte de nuevo).
+    std::shared_ptr<const nlohmann::json> fotoJson() const;
     /// La última foto de la sala que llegó por eventos, desde CUALQUIER hilo y sin I/O (la
     /// guarda el lector, bajo candado). Vacía si no hay conexión con B.
     static QJsonObject fotoSala();
+    /// La misma, en nlohmann::json (armada una vez por foto en el lector); nula sin B.
+    static std::shared_ptr<const nlohmann::json> fotoSalaJson();
+    /// Sube con cada foto que guarda el lector (y al vaciarse): para no recorrer dos veces
+    /// la misma (el vigía de las alarmas). Nunca 0 después de la primera.
+    static std::uint64_t fotoSalaNumero();
+    /// Cuántos lugares de invitado muestra la interfaz (las filas de `resumen().lugares`).
+    void setLugares(int n);
+    /// La URL de la foto de un participante, para las tarjetas de oradores (la llama el lector).
+    void setAvatar(std::function<QString(const QString& id)> fn);
+    /// Engancha `fn` en el HILO DEL LECTOR: corre con cada foto (ya resumida) y con nulo
+    /// cuando se corta B. Para lo que no puede esperar a la interfaz; tiene que ser corto y
+    /// seguro entre hilos (no tocar objetos de la interfaz). Devuelve con qué soltarlo
+    /// (soltarAlLeerFoto espera a que termine una llamada en curso: no se llama desde `fn`).
+    int alLeerFoto(std::function<void(const sala::ResumenSala*)> fn);
+    void soltarAlLeerFoto(int id);
+    /// Lo del buzón (depositadas, tomadas, descartadas): para el diagnóstico y los tests.
+    sala::BuzonSala::Cuenta cuentaFotos() const { return canal_->buzon.cuenta(); }
 
     /// Cómo volver a decirle a B algo de estado que A le dijo (ver arriba). `fn` se
     /// llama con B en línea: enseguida si ya lo está (en la vuelta siguiente del
@@ -132,7 +191,9 @@ class ConferenceClient : public QObject {
     /// Volvió una B que no sabe lo que A le había dicho (ver registrarRepublicador):
     /// los republicadores ya corrieron.
     void salaNueva();
-    void snapshotChanged();
+    /// La interfaz tomó una foto nueva de la sala: cambiaron estas partes (sala::Parte). Lo
+    /// derivado y los cambios, en paquete(). Cada oyente mira solo las partes que usa.
+    void salaCambio(unsigned partes);
     void chatReceived(const QJsonObject& msg);
     /// La botonera (superficie de control): solicitud, entrada o conexión de una tablet.
     void botoneraEvento(const QJsonObject& ev);
@@ -173,6 +234,8 @@ class ConferenceClient : public QObject {
 
    private:
     void dispatch(const QByteArray& event, const QJsonObject& obj);
+    /// Toma lo que espera en el buzón (la última foto) y avisa.
+    void tomarFoto();
     void setOnline(bool on);
     void send(const QByteArray& verb, const QString& path, const QByteArray& body, Done done, int timeoutMs = 5000);
     void republicarTodo();
@@ -185,6 +248,8 @@ class ConferenceClient : public QObject {
     };
 
     QNetworkAccessManager nam_;
+    std::shared_ptr<CanalSala> canal_ = std::make_shared<CanalSala>();
+    std::shared_ptr<const sala::PaqueteSala> paquete_;
     QThread hilo_;                 ///< el del lector
     LectorSala* lector_ = nullptr; ///< vive en hilo_
     QString token_;

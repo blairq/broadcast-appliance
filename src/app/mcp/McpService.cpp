@@ -756,12 +756,11 @@ void McpService::applySecurity() {
     // «Hay gente» lo sabe la interfaz (la copia de la sala de ConferenceClient avisa al
     // cambiar); el núcleo lo lee desde el hilo de cada herramienta.
     auto* conf = static_cast<ConferenceViewModel*>(vm_.conference());
-    const auto mirarSala = [this, conf]() {
-        const QJsonValue p = conf->client().snapshot().value("participants");
-        hayGente_.store(p.isArray() && !p.toArray().isEmpty());
-    };
+    const auto mirarSala = [this, conf]() { hayGente_.store(conf->client().resumen().conectados > 0); };
     mirarSala();
-    connect(&conf->client(), &ConferenceClient::snapshotChanged, this, mirarSala);
+    connect(&conf->client(), &ConferenceClient::salaCambio, this, [mirarSala](unsigned partes) {
+        if ((partes & ::ba::app::sala::Participantes) != 0) mirarSala();
+    });
     core_.setHayGente([this]() { return hayGente_.load(); });
     applyApprovalPolicy();
     connect(static_cast<SettingsModel*>(vm_.settings()), &SettingsModel::applied, this,

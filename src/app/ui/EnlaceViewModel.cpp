@@ -48,7 +48,10 @@ EnlaceViewModel::EnlaceViewModel(Partes p, QObject* parent) : QObject(parent), p
         });
     });
     // El cupo (la cuenta de fábrica) y quién está conectado (el riesgo): la foto de la sala.
-    connect(&p_.sala, &ConferenceClient::snapshotChanged, this, &EnlaceViewModel::revisar);
+    // Solo cuando cambia el cupo o la gente (no la red de cada invitado, en cada foto).
+    connect(&p_.sala, &ConferenceClient::salaCambio, this, [this](unsigned partes) {
+        if ((partes & (sala::Sala | sala::Gente)) != 0) revisar();
+    });
     if (p_.sala.online()) {
         QPointer<EnlaceViewModel> yo(this);
         p_.sala.get("/api/v1/enlace", [yo](bool ok, const QJsonObject& r) {
