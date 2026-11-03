@@ -39,7 +39,7 @@ etiquetas de búsqueda, en qué archivo vive), y esta tabla. `test_mcp_registro`
 
 <!-- registro: lo genera tools/docs/mcp-inventario.py --desde-codigo; no se edita a mano -->
 
-**843 herramientas** en 56 categorías: 279 de lectura, 496 de escritura, 50 de aire y 18 de interfaz (la clase la declara cada una al registrarse; ver «Clases» más abajo).
+**853 herramientas** en 56 categorías: 282 de lectura, 503 de escritura, 50 de aire y 18 de interfaz (la clase la declara cada una al registrarse; ver «Clases» más abajo).
 
 | Categoría | Herramientas | Lectura | Escritura | Aire | Interfaz |
 |---|---:|---:|---:|---:|---:|
