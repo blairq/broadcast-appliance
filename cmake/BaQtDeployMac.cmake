@@ -36,19 +36,46 @@ foreach(_m IN LISTS BA_QT_QML_MODULES)
 endforeach()
 
 # Dependencias (Mach-O): solo las que viven en el Qt vendoreado.
-file(GET_RUNTIME_DEPENDENCIES
-    EXECUTABLES "${BA_APP_BUILD_EXE}"
-    MODULES ${_modules}
-    RESOLVED_DEPENDENCIES_VAR _deps
-    UNRESOLVED_DEPENDENCIES_VAR _unresolved
-    CONFLICTING_DEPENDENCIES_PREFIX _conflict
-    DIRECTORIES "${BA_QT_LIB_DIR}"
-    PRE_INCLUDE_REGEXES ".*Qt[A-Za-z0-9]*\\.framework.*"
-    PRE_EXCLUDE_REGEXES ".*")
-foreach(_name IN LISTS _conflict_FILENAMES)
-    list(GET _conflict_${_name} 0 _first)
-    list(APPEND _deps "${_first}")
-endforeach()
+# Con caché: buscarlas (otool recursivo sobre ba-app y ~50 módulos) eran ~7 de los ~10 s
+# de cada `cmake --install` (make app-macos-rapida), y el resultado solo cambia si cambian
+# las bibliotecas que carga ba-app (otool -L) o los módulos; el Qt vendoreado es fijo.
+set(_deps "")
+set(_clave "")
+execute_process(COMMAND otool -L "${BA_APP_BUILD_EXE}" OUTPUT_VARIABLE _otool RESULT_VARIABLE _rc ERROR_QUIET)
+if(_rc EQUAL 0)
+    set(_clave "${_otool}|${_modules}|${BA_QT_LIB_DIR}")
+    foreach(_m IN LISTS _modules)
+        file(TIMESTAMP "${_m}" _ts "%s" UTC)
+        string(APPEND _clave "|${_ts}")
+    endforeach()
+    string(SHA256 _clave "${_clave}")
+endif()
+get_filename_component(_cache_dir "${BA_APP_BUILD_EXE}" DIRECTORY)
+set(_cache "${_cache_dir}/qt-deps-mac.cmake")
+set(_cache_clave "")
+if(_clave AND EXISTS "${_cache}")
+    include("${_cache}")
+endif()
+if(_clave AND _cache_clave STREQUAL _clave)
+    set(_deps "${_cache_deps}")
+else()
+    file(GET_RUNTIME_DEPENDENCIES
+        EXECUTABLES "${BA_APP_BUILD_EXE}"
+        MODULES ${_modules}
+        RESOLVED_DEPENDENCIES_VAR _deps
+        UNRESOLVED_DEPENDENCIES_VAR _unresolved
+        CONFLICTING_DEPENDENCIES_PREFIX _conflict
+        DIRECTORIES "${BA_QT_LIB_DIR}"
+        PRE_INCLUDE_REGEXES ".*Qt[A-Za-z0-9]*\\.framework.*"
+        PRE_EXCLUDE_REGEXES ".*")
+    foreach(_name IN LISTS _conflict_FILENAMES)
+        list(GET _conflict_${_name} 0 _first)
+        list(APPEND _deps "${_first}")
+    endforeach()
+    if(_clave)
+        file(WRITE "${_cache}" "set(_cache_clave \"${_clave}\")\nset(_cache_deps \"${_deps}\")\n")
+    endif()
+endif()
 
 # Cada dependencia es .../QtX.framework/Versions/A/QtX: se copia el framework
 # entero (sin headers), con sus enlaces simbolicos.

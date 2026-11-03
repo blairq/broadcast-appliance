@@ -145,8 +145,15 @@ if security find-identity -p codesigning 2>/dev/null | grep -q '"BA Desarrollo l
 fi
 log "firmando la .app ($([ "$FIRMA" = "-" ] && echo ad-hoc || echo "$FIRMA"))"
 codesign --force -s "$FIRMA" "$APP" || morir "no se pudo firmar la .app"
-codesign --verify --strict "$APP" || morir "la firma de la .app no verifica"
-log "listo: $APP ($(du -sh "$APP" | cut -f1))"
+# --rapida (probar mientras se programa) no la vuelve a verificar ni a medir: codesign
+# acaba de sellarla y releer los 1,8 GB eran ~2 s de cada vuelta. La .app de cero
+# (make app-macos, la del .dmg) sí.
+if [ "$RAPIDA" = 1 ]; then
+    log "listo: $APP"
+else
+    codesign --verify --strict "$APP" || morir "la firma de la .app no verifica"
+    log "listo: $APP ($(du -sh "$APP" | cut -f1))"
+fi
 
 # --- El .dmg -------------------------------------------------------------------
 [ -n "$DMG" ] || exit 0
