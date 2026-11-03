@@ -212,7 +212,7 @@ Capa capaEn(const Capa& c, double ms) {
 
 Composicion::Composicion(Reloj& reloj, const Lienzo& lienzo, std::string nombre, Opciones op)
     : reloj_(reloj), lienzo_(lienzo), nombre_(std::move(nombre)), gpu_((op.gpu && hayFabrica("glvideomixer")) || gpuVideo()),
-      gl_(gpu_ && gpu() != Gpu::D3D12) {
+      gl_(gpu_ && gpu() != Gpu::D3D12), esperarEntrada_(std::move(op.esperarEntrada)) {
     const std::string tam = "width=" + std::to_string(lienzo_.ancho) + ",height=" + std::to_string(lienzo_.alto) +
                             ",framerate=" + std::to_string(lienzo_.fpsN) + "/" + std::to_string(lienzo_.fpsD) +
                             ",pixel-aspect-ratio=1/1";
@@ -825,6 +825,8 @@ void Composicion::animar(double t) {
         } else if (transicion_ == "empuje") {
             const int dx = static_cast<int>(std::lround((nueva ? (1.0 - t) : -t) * W));
             g_object_set(r->pad, "xpos", c.x - r->margen + dx, nullptr);
+            // La nueva se armó invisible (mostrar): entra con su alfa, ya corrida afuera.
+            if (nueva) g_object_set(r->pad, "alpha", r->alfaHacia, nullptr);
         } else if (transicion_ == "cortina" && nueva && (c.contener || r->sombra != nullptr)) {
             // Una capa que entra sin deformarse (o con sombra) no se puede recortar a medida: se funde.
             g_object_set(r->pad, "alpha", r->alfaHacia * t, nullptr);
@@ -975,28 +977,58 @@ void Composicion::mostrar(const Escena& e, const std::string& transicion, int ms
         escena_ = e;
         return;
     }
-    // Una transición que no terminó: lo viejo se va ya.
+    // Una transición que no terminó: lo viejo se va ya. Si la nueva todavía se estaba
+    // armando (invisible), la que se descarta es ESA: lo que se ve sigue siendo la vieja,
+    // y es la que sale ahora.
+    int vieja = generacion_;
     if (genVieja_ >= 0) {
-        sacarGeneracion(genVieja_);
+        if (esperando_) {
+            sacarGeneracion(generacion_);
+            vieja = genVieja_;
+        } else {
+            sacarGeneracion(genVieja_);
+        }
         genVieja_ = -1;
+        esperando_ = false;
     }
-    const int vieja = generacion_;
     bajarViejas();
     ++generacion_;
     const bool animada = (transicion == "mezcla" || transicion == "empuje" || transicion == "cortina") && ms > 0 && vieja > 0;
+    // Con algo al aire, lo nuevo entra INVISIBLE (alfa 0) y se arma fuera del aire: se
+    // muestra entero cuando todas sus capas tienen cuadro (tic). Sin nada antes (la
+    // primera escena), no hay qué sostener: entra como llega.
     for (const auto& c0 : e.capas) {
         // Una animada entra donde está ahora (no en su primera clave): la transición la funde ahí.
         const Capa c = capaAhora(c0);
-        if (Rama* r = crearRama(c, generacion_)) ponerCapa(*r, c, animada && transicion != "empuje" ? 0.0 : c.alfa);
+        if (Rama* r = crearRama(c, generacion_)) ponerCapa(*r, c, vieja > 0 ? 0.0 : c.alfa);
     }
     escena_ = e;
     if (vieja > 0) {
         genVieja_ = vieja;
         transicion_ = animada ? transicion : "corte";
-        transDesdeNs_ = ahoraNs();
-        transNs_ = animada ? static_cast<std::int64_t>(ms) * 1000000 : ajustes::msANs("video.esperaCorteMs", 700);
-        if (animada) animar(0.0);
+        esperando_ = true;
+        esperaDesdeNs_ = transDesdeNs_ = ahoraNs();
+        transNs_ = animada ? static_cast<std::int64_t>(ms) * 1000000 : 0;
     }
+}
+
+std::vector<std::string> Composicion::nuevasSinCuadro() const {
+    std::vector<std::string> faltan;
+    for (const auto& [k, r] : ramas_)
+        // Sin cuadro todavía, o pasando los de la placa mientras su señal está llegando.
+        if (r->generacion == generacion_ && (!r->listo.load() || (esperarEntrada_ && esperarEntrada_(r->entrada))))
+            faltan.push_back(r->entrada);
+    return faltan;
+}
+
+void Composicion::terminarTransicion() {
+    // Primero lo nuevo, entero; después se saca lo viejo (si un cuadro cae en el medio,
+    // muestra la nueva completa encima: nunca la nueva a medias).
+    for (auto& [k, r] : ramas_)
+        if (r->generacion == generacion_) ponerCapa(*r, r->capa, r->alfaHacia);
+    if (genVieja_ >= 0) sacarGeneracion(genVieja_);
+    genVieja_ = -1;
+    esperando_ = false;
 }
 
 bool Composicion::manual(const Escena& e, double t, bool soltar) {
@@ -1004,8 +1036,11 @@ bool Composicion::manual(const Escena& e, double t, bool soltar) {
     if (pipeline_ == nullptr) return false;
     t = std::clamp(t, 0.0, 1.0);
     if (!manual_ || escena_.nombre != e.nombre) {
-        // Arranca: lo que esté en transición termina ya, y la nueva entra con alfa 0.
-        if (genVieja_ >= 0) {
+        // Arranca: lo que esté en transición termina ya, y la nueva entra con alfa 0. (Una
+        // que se estaba armando fuera del aire se muestra como haya quedado.)
+        if (esperando_) {
+            terminarTransicion();
+        } else if (genVieja_ >= 0) {
             sacarGeneracion(genVieja_);
             genVieja_ = -1;
         }
@@ -1110,24 +1145,35 @@ void Composicion::tic() {
                                ? static_cast<std::int64_t>(edad["p50_ms"].get<double>() * 1e6)
                                : std::max<std::int64_t>(0, latenciaNs_);
     }
-    // La transición.
-    if (genVieja_ >= 0) {
+    // La escena que entra, armándose fuera del aire: sale cuando todas sus capas tienen
+    // cuadro, o al tope (con lo que haya, y queda en el registro qué no llegó).
+    if (genVieja_ >= 0 && esperando_ && !manual_) {
+        const std::vector<std::string> faltan = nuevasSinCuadro();
+        const std::int64_t tope = ajustes::msANs("video.esperaCorteMs", 1500);
+        if (faltan.empty() || ahoraNs() - esperaDesdeNs_ >= tope) {
+            if (!faltan.empty()) {
+                std::string cuales;
+                for (const auto& f : faltan) cuales += (cuales.empty() ? "" : ", ") + f;
+                registrar(Nivel::Aviso, llenar(traducir("motor", "composición %1: «%2» salió sin imagen de %3 (no llegó en %4 ms)"),
+                                               {nombre_, escena_.nombre, cuales, std::to_string(tope / 1000000)}));
+            }
+            esperando_ = false;
+            transDesdeNs_ = ahoraNs();
+            if (transicion_ == "corte")
+                terminarTransicion();
+            else
+                animar(0.0); // arranca recién ahora, con todo lo nuevo con imagen
+        }
+    }
+    // La transición (mezcla, empuje, cortina o la T-bar; el corte ya terminó arriba).
+    if (genVieja_ >= 0 && !esperando_) {
         const double t = manual_ ? manualT_
                                  : std::clamp(static_cast<double>(ahoraNs() - transDesdeNs_) /
                                                   static_cast<double>(std::max<std::int64_t>(1, transNs_)),
                                               0.0, 1.0);
-        bool nuevasListas = true;
-        for (auto& [k, r] : ramas_)
-            if (r->generacion == generacion_) nuevasListas = nuevasListas && r->listo.load();
         if (transicion_ != "corte") animar(t);
-        const bool termino = manual_ ? false : transicion_ != "corte" ? t >= 1.0 : (nuevasListas || t >= 1.0);
-        if (termino) {
-            // Lo nuevo, como tiene que quedar (posición, ancho, recorte y alfa).
-            for (auto& [k, r] : ramas_)
-                if (r->generacion == generacion_) ponerCapa(*r, r->capa, r->alfaHacia);
-            sacarGeneracion(genVieja_);
-            genVieja_ = -1;
-        }
+        // Lo nuevo, como tiene que quedar (posición, ancho, recorte y alfa), y lo viejo afuera.
+        if (!manual_ && (transicion_ == "corte" || t >= 1.0)) terminarTransicion();
     }
     // GL: la fuente negoció (o cambió) su tamaño: el recorte, que va en fracciones de él, de nuevo.
     // No en medio de una transición (la cortina usa el recorte): al terminar, ponerCapa lo pone.
@@ -1192,6 +1238,13 @@ json Composicion::estado() const {
         capas.push_back({{"entrada", r->entrada},
                          {"generacion", r->generacion},
                          {"llega", r->listo.load()},
+                         {"alfa", [&]() {
+                              gdouble a = 0;
+                              // (Un pad de otro mezclador puede no tenerla: smpte, shapewipe.)
+                              if (r->pad != nullptr && g_object_class_find_property(G_OBJECT_GET_CLASS(r->pad), "alpha") != nullptr)
+                                  g_object_get(r->pad, "alpha", &a, nullptr);
+                              return a;
+                          }()},
                          {"edad_llega", r->llega.json()}});
     return {{"bus", nombre_},
             {"anda", pipeline_ != nullptr},
@@ -1202,6 +1255,7 @@ json Composicion::estado() const {
             {"error", error_},
             {"escena", escena_.nombre},
             {"en_transicion", genVieja_ >= 0},
+            {"armando", esperando_},
             {"dsk", [&]() {
                  json d = json::array();
                  for (const auto& [k, r] : dsk_) d.push_back({{"capa", k}, {"alfa", r->alfa}, {"saliendo", r->saliendo}});

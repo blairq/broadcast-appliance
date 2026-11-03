@@ -23,7 +23,7 @@ using json = nlohmann::json;
 const std::vector<Definicion>& registro() {
     // clang-format off
     static const std::vector<Definicion> tabla = {
-        {"video.esperaCorteMs", "Video", QT_TRANSLATE_NOOP("ajustes", "Un corte espera el primer cuadro hasta"), "int", {}, 0, 5000, "ms", QT_TRANSLATE_NOOP("ajustes", "Al cortar a una escena nueva, lo más que se espera su primer cuadro antes de mostrar lo que haya."), "live", json(700), Destino::App},
+        {"video.esperaCorteMs", "Video", QT_TRANSLATE_NOOP("ajustes", "Un corte espera el primer cuadro hasta"), "int", {}, 0, 5000, "ms", QT_TRANSLATE_NOOP("ajustes", "Al cortar a una escena nueva, lo más que se espera su primer cuadro antes de mostrar lo que haya."), "live", json(1500), Destino::App},
         {"video.vistaReposoS", "Video", QT_TRANSLATE_NOOP("ajustes", "Vistas sin uso se sueltan a los"), "int", {}, 1, 600, "s", QT_TRANSLATE_NOOP("ajustes", "Las vistas capturadas (miniaturas, multiview) que nadie mira se desarman pasado este tiempo."), "live", json(10), Destino::App},
         {"video.esperaCapturaMs", "Video", QT_TRANSLATE_NOOP("ajustes", "Primera captura de una escena: espera"), "int", {}, 0, 5000, "ms", QT_TRANSLATE_NOOP("ajustes", "Al capturar una escena que no estaba armada, cuánto se espera a que llegue su primer cuadro."), "live", json(700), Destino::App},
         {"entradas.congelarMs", "Cámaras y entradas", QT_TRANSLATE_NOOP("ajustes", "Sostener el último cuadro"), "int", {}, 0, 30000, "ms", QT_TRANSLATE_NOOP("ajustes", "Si una entrada se traba un instante, se sigue mostrando su último cuadro este tiempo (después, la placa)."), "live", json(2500), Destino::App},
