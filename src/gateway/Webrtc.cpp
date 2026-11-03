@@ -111,6 +111,8 @@
 #include "modules/audio_processing/include/audio_processing.h"
 #include "rtc/ColasCompartidas.hpp"
 #include "rtc/BucleRtc.hpp"
+#include "rtc/HilosLote.hpp"
+#include "rtc/LoteTrabajo.hpp"
 #include "rtc/SocketsEnMemoria.hpp"
 #if BA_HAVE_LWIP
 #include "rtc/TunelEnMemoria.hpp"
@@ -935,7 +937,14 @@ struct RtcHubState {
     std::shared_ptr<RelojPlayout> reloj = std::make_shared<RelojPlayout>();
     std::unique_ptr<capas::Reparto> reparto;
     std::vector<CapaRed> red;                        ///< R hilos de red
-    std::vector<std::unique_ptr<rtc::Thread>> trabajo; ///< T hilos de trabajo
+    /// T hilos de trabajo. Con `gateway.redYTrabajo` = "juntos" son los mismos de red (no son
+    /// dueños); si no, los de `trabajoPropios`.
+    std::vector<rtc::Thread*> trabajo;
+    std::vector<std::unique_ptr<rtc::Thread>> trabajoPropios;
+    /// La espera de cada hilo de trabajo propio (la frontera #4, rtc/LoteTrabajo.hpp).
+    std::vector<std::shared_ptr<lote::Destino>> destinos;
+    lote::Modo redYTrabajo = lote::Modo::Lote;
+    std::int64_t loteNs = 0;
     std::unique_ptr<rtc::Thread> signaling;          ///< uno para toda la sala
     std::vector<ParRtc> pares;                       ///< [red * T + trabajo] (sin cruzar: solo red == trabajo)
     /// La entrega en memoria TURN ↔ WebRTC ↔ túnel (nullptr con `gateway.turnEnMemoria` apagado).
@@ -1219,7 +1228,7 @@ struct WebrtcSession::Impl : public webrtc::PeerConnectionObserver {
         }
         ParRtc& par = hub->par(l);
         fab = par.factory;
-        trabajo = hub->trabajo[size_t(l.trabajo)].get();
+        trabajo = hub->trabajo[size_t(l.trabajo)];
         if (!fab) {
             soltarLugar();
             return false;
@@ -1784,14 +1793,26 @@ WebrtcHub::WebrtcHub(int guests, int videoW, int videoH, int audioRate, int audi
     // Las capas (F2 de PLAN-GATEWAY-FRAGMENTOS.md): R hilos de red, T de trabajo, una fábrica
     // por par compartiendo los hilos (`gateway.hilosRed`, `gateway.hilosTrabajo`; 0 =
     // automático). Con `gateway.capasCruzadas` apagado, cada red con su trabajo (T = R).
-    st->reparto = std::make_unique<capas::Reparto>(capas::deLosAjustes(), ba::ajustes::siNo("gateway.capasCruzadas", true));
+    // La frontera #4 (red → trabajo, rtc/LoteTrabajo.hpp): `gateway.redYTrabajo` = "lote" (de
+    // fábrica: el de red despierta al de trabajo una vez por tanda), "juntos" (cada hilo de red
+    // es también el de trabajo de su grupo: tantos como el mayor de los dos tamaños, sin
+    // cruzar) o "separados" (como venía libwebrtc, para comparar).
+    st->redYTrabajo = lote::modoDeLosAjustes();
+    st->loteNs = lote::loteNsDeLosAjustes();
+    const bool juntos = st->redYTrabajo == lote::Modo::Juntos;
+    {
+        capas::Tamanos tam = capas::deLosAjustes();
+        if (juntos) tam.red = tam.trabajo = std::max(tam.red, tam.trabajo);
+        st->reparto = std::make_unique<capas::Reparto>(tam, !juntos && ba::ajustes::siNo("gateway.capasCruzadas", true));
+    }
     const int R = st->reparto->tamanos().red, T = st->reparto->tamanos().trabajo;
     const auto nombre = [](const char* base, int i, int n) {
         return n == 1 ? std::string(base) : std::string(base) + "-" + std::to_string(i + 1);
     };
     for (int i = 0; i < R; ++i) {
         CapaRed c;
-        c.hilo = rtc::Thread::CreateWithSocketServer();
+        // Un PhysicalSocketServer como el de CreateWithSocketServer, con el despertar en lote.
+        c.hilo = std::make_unique<rtcred::HiloRed>(st->redYTrabajo, st->loteNs);
         c.hilo->SetName(nombre("ba-rtc-net", i, R), nullptr);
         c.hilo->Start();
         c.hilo->PostTask([] { ba::platform::nucleos::alGrupoGateway(); });
@@ -1799,11 +1820,21 @@ WebrtcHub::WebrtcHub(int guests, int videoW, int videoH, int audioRate, int audi
         st->red.push_back(std::move(c));
     }
     for (int j = 0; j < T; ++j) {
-        std::unique_ptr<rtc::Thread> t = rtc::Thread::Create();
+        if (juntos) {
+            st->trabajo.push_back(st->red[size_t(j)].hilo.get());
+            continue;
+        }
+        // Sin sockets (como rtc::Thread::Create), con la espera de la frontera #4.
+        const std::string id = T == 1 ? std::string("rtc.red-trabajo") : "rtc.red-trabajo-" + std::to_string(j + 1);
+        auto d = std::make_shared<lote::Destino>(&ba::diag::frontera(
+            id, 4, "red → trabajo de libwebrtc (RTP; PostTask): despertadas según gateway.redYTrabajo"));
+        std::unique_ptr<rtc::Thread> t = std::make_unique<rtcred::HiloTrabajo>(d);
         t->SetName(nombre("ba-rtc-work", j, T), nullptr);
         t->Start();
         t->PostTask([] { ba::platform::nucleos::alGrupoGateway(); });
-        st->trabajo.push_back(std::move(t));
+        st->trabajo.push_back(t.get());
+        st->trabajoPropios.push_back(std::move(t));
+        st->destinos.push_back(std::move(d));
     }
     st->signaling = rtc::Thread::Create();
     st->signaling->SetName("ba-rtc-sig", nullptr);
@@ -1836,7 +1867,7 @@ WebrtcHub::WebrtcHub(int guests, int videoW, int videoH, int audioRate, int audi
             par.trabajo = t;
             if (!cruzado && r != t) continue;
             rtc::Thread* hiloRed = st->red[size_t(r)].hilo.get();
-            rtc::Thread* hiloTrabajo = st->trabajo[size_t(t)].get();
+            rtc::Thread* hiloTrabajo = st->trabajo[size_t(t)];
             // El ADM se crea en el worker (asi lo espera libwebrtc). Todas las fábricas tiran
             // del audio con el mismo reloj (un solo «webrtc-playout»).
             std::shared_ptr<RelojPlayout> reloj = st->reloj;
@@ -1880,7 +1911,12 @@ WebrtcHub::WebrtcHub(int guests, int videoW, int videoH, int audioRate, int audi
         }
         ba::diag::registro().linea(ba::diag::Nivel::Info, "gateway", 0,
                                    "capas de WebRTC: " + std::to_string(R) + " de red, " + std::to_string(T) +
-                                       " de trabajo" + (cruzado ? "" : " (sin cruzar)") + ", TURN y túnel " +
+                                       " de trabajo" + (cruzado ? "" : " (sin cruzar)") + ", red y trabajo: " +
+                                       lote::nombre(st->redYTrabajo) +
+                                       (st->redYTrabajo == lote::Modo::Lote
+                                            ? " (" + std::to_string(st->loteNs / 1000) + " µs)"
+                                            : std::string()) +
+                                       ", TURN y túnel " +
                                        (st->conmutador ? "en memoria" : "por el kernel"));
         rtcFactory_ = st;
     } else {
@@ -1902,7 +1938,7 @@ void apagarCapas(RtcHubState* st) {
     });
     for (CapaRed& c : st->red) c.bucle.reset(); // en su hilo, antes de pararlo
     st->signaling->Stop();
-    for (auto& t : st->trabajo) t->Stop();
+    for (auto& t : st->trabajoPropios) t->Stop();
     for (CapaRed& c : st->red) c.hilo->Stop();
     st->reloj->parar();
     delete st;
@@ -2025,6 +2061,17 @@ nlohmann::json WebrtcHub::capasEstado() const {
         j["cruzadas"] = st->reparto->cruzado();
         j["memoria"] = st->conmutador ? st->conmutador->estado() : nlohmann::json(nullptr);
         j["tunelEnMemoria"] = st->pila != nullptr;
+        // La frontera #4: el modo y la espera de cada hilo de trabajo (los pases y despertadas
+        // por segundo están en `fronteras` → rtc.red-trabajo*).
+        nlohmann::json esperas = nlohmann::json::array();
+        for (size_t k = 0; k < st->destinos.size(); ++k) {
+            nlohmann::json e = st->destinos[k]->estado();
+            e["hilo"] = "ba-rtc-work/" + std::to_string(k + 1);
+            esperas.push_back(std::move(e));
+        }
+        j["redYTrabajo"] = {{"modo", lote::nombre(st->redYTrabajo)},
+                            {"loteUs", st->loteNs / 1000},
+                            {"trabajo", std::move(esperas)}};
         return j;
     }
 #endif

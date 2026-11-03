@@ -40146,6 +40146,41 @@ Escolha outra coisa em Saídas → Telas.</translation>
     </message>
     <message>
         <location line="+1"/>
+        <source>Conferencia: paso de la red al trabajo</source>
+        <translation>Conferência: passagem da rede para o trabalho</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>En tandas</source>
+        <translation>Em lotes</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>En el mismo hilo</source>
+        <translation>Na mesma thread</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Uno por uno (como antes)</source>
+        <translation>Um por um (como antes)</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Cómo pasan los paquetes de los invitados del hilo de red al de trabajo. En tandas: el de red despierta al de trabajo una vez por tanda y no una por paquete (menos procesador, a lo sumo una fracción de milisegundo de demora). En el mismo hilo: cada hilo de red hace también el trabajo de sus invitados (no hay paso, pero lo pesado frena la red de ese grupo). Uno por uno: como venía, para comparar.</source>
+        <translation>Como os pacotes dos convidados passam da thread de rede para a de trabalho. Em lotes: a de rede acorda a de trabalho uma vez por lote e não uma por pacote (menos processador, no máximo uma fração de milissegundo de atraso). Na mesma thread: cada thread de rede também faz o trabalho dos seus convidados (não há passagem, mas o trabalho pesado freia a rede desse grupo). Um por um: como antes, para comparar.</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Conferencia: espera máxima de una tanda</source>
+        <translation>Conferência: espera máxima de um lote</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>En tandas: cuánto puede esperar un paquete mientras el hilo de red sigue ocupado antes de despertar al de trabajo (cuando el de red se desocupa, despierta en el acto). 0: al terminar cada cosa que hace el de red.</source>
+        <translation>Em lotes: quanto um pacote pode esperar enquanto a thread de rede continua ocupada antes de acordar a de trabalho (quando a de rede fica livre, acorda na hora). 0: ao terminar cada coisa que a de rede faz.</translation>
+    </message>
+    <message>
+        <location line="+1"/>
         <source>Conferencia: el TURN entrega en memoria</source>
         <translation>Conferência: o TURN entrega na memória</translation>
     </message>

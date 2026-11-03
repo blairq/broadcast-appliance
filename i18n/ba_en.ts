@@ -41626,6 +41626,41 @@ Choose something else in Outputs → Screens.</translation>
     </message>
     <message>
         <location line="+1"/>
+        <source>Conferencia: paso de la red al trabajo</source>
+        <translation>Conference: network to worker handoff</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>En tandas</source>
+        <translation>In batches</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>En el mismo hilo</source>
+        <translation>On the same thread</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Uno por uno (como antes)</source>
+        <translation>One by one (as before)</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Cómo pasan los paquetes de los invitados del hilo de red al de trabajo. En tandas: el de red despierta al de trabajo una vez por tanda y no una por paquete (menos procesador, a lo sumo una fracción de milisegundo de demora). En el mismo hilo: cada hilo de red hace también el trabajo de sus invitados (no hay paso, pero lo pesado frena la red de ese grupo). Uno por uno: como venía, para comparar.</source>
+        <translation>How guest packets go from the network thread to the worker thread. In batches: the network thread wakes the worker once per batch instead of once per packet (less CPU, at most a fraction of a millisecond of delay). On the same thread: each network thread also does the work for its guests (no handoff, but heavy work slows that group&apos;s network). One by one: as before, for comparison.</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Conferencia: espera máxima de una tanda</source>
+        <translation>Conference: maximum batch wait</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>En tandas: cuánto puede esperar un paquete mientras el hilo de red sigue ocupado antes de despertar al de trabajo (cuando el de red se desocupa, despierta en el acto). 0: al terminar cada cosa que hace el de red.</source>
+        <translation>In batches: how long a packet may wait while the network thread is still busy before the worker thread is woken (when the network thread goes idle, it wakes it right away). 0: after each thing the network thread does.</translation>
+    </message>
+    <message>
+        <location line="+1"/>
         <source>Conferencia: el TURN entrega en memoria</source>
         <translation>Conference: TURN delivers in memory</translation>
     </message>

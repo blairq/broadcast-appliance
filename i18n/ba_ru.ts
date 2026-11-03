@@ -40308,6 +40308,41 @@ Elegí otra cosa en Salidas → Pantallas.</source>
     </message>
     <message>
         <location line="+1"/>
+        <source>Conferencia: paso de la red al trabajo</source>
+        <translation>Конференция: передача из сети в обработку</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>En tandas</source>
+        <translation>Пакетами</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>En el mismo hilo</source>
+        <translation>В одном потоке</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Uno por uno (como antes)</source>
+        <translation>По одному (как раньше)</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Cómo pasan los paquetes de los invitados del hilo de red al de trabajo. En tandas: el de red despierta al de trabajo una vez por tanda y no una por paquete (menos procesador, a lo sumo una fracción de milisegundo de demora). En el mismo hilo: cada hilo de red hace también el trabajo de sus invitados (no hay paso, pero lo pesado frena la red de ese grupo). Uno por uno: como venía, para comparar.</source>
+        <translation>Как пакеты гостей передаются из сетевого потока в рабочий. Пакетами: сетевой поток будит рабочий один раз на партию, а не на каждый пакет (меньше нагрузка на процессор, задержка не больше доли миллисекунды). В одном потоке: каждый сетевой поток сам выполняет работу своих гостей (передачи нет, но тяжёлая работа тормозит сеть этой группы). По одному: как раньше, для сравнения.</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Conferencia: espera máxima de una tanda</source>
+        <translation>Конференция: максимальное ожидание партии</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>En tandas: cuánto puede esperar un paquete mientras el hilo de red sigue ocupado antes de despertar al de trabajo (cuando el de red se desocupa, despierta en el acto). 0: al terminar cada cosa que hace el de red.</source>
+        <translation>Пакетами: сколько пакет может ждать, пока сетевой поток занят, прежде чем разбудить рабочий (когда сетевой поток освобождается, он будит его сразу). 0: после каждого действия сетевого потока.</translation>
+    </message>
+    <message>
+        <location line="+1"/>
         <source>Conferencia: el TURN entrega en memoria</source>
         <translation>Конференция: TURN передаёт в памяти</translation>
     </message>
